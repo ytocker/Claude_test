@@ -177,7 +177,7 @@ def skull_capstone(surf, cx, base_y, w, s):
     top_y = base_y - int(w * 1.18)
     jaw_y = base_y                      # bottom of the (narrower) jaw
     brow_y = base_y - int(w * 0.62)     # where the skull widens at the brow
-    chin_half = half * 0.52             # pinched jaw -> distinct from the dome
+    chin_half = half * 0.50             # pinched jaw -> distinct from the dome
 
     # cranium silhouette: dome up top, brow shoulders, pinched-in jaw at the base
     cran = [(cx - chin_half, jaw_y),
@@ -210,32 +210,36 @@ def skull_capstone(surf, cx, base_y, w, s):
     pygame.draw.polygon(surf, INK, [(int(p[0]), int(p[1])) for p in neck],
                         max(1, int(1.4 * s)))
 
-    # eye-socket VOIDS — carved through the alpha so the silhouette breaks. Big,
-    # angular, and set wide so they survive the downscale as two clear holes.
-    eye_r = half * 0.40
-    ey = brow_y + int(w * 0.04)
+    # eye-socket VOIDS — carved through the alpha so the silhouette breaks. WHY
+    # enlarged to ~0.52*half and set wide: at the now-bigger capstone these holes
+    # downscale to a clear 1-2px void each, the single break that stops the dome
+    # reading as a solid bright nub. A fat grey nasal bridge is left between them.
+    eye_r = half * 0.52
+    ey = brow_y + int(w * 0.06)
     for sgn in (-1, 1):
-        ex = cx + sgn * half * 0.46
+        ex = cx + sgn * half * 0.48
         socket = [(ex - eye_r, ey - eye_r * 0.55),
-                  (ex + eye_r * 0.10, ey - eye_r * 0.85),
-                  (ex + eye_r, ey - eye_r * 0.20),
-                  (ex + eye_r * 0.65, ey + eye_r * 0.75),
-                  (ex - eye_r * 0.55, ey + eye_r * 0.70)]
+                  (ex + eye_r * 0.10, ey - eye_r * 0.90),
+                  (ex + eye_r, ey - eye_r * 0.18),
+                  (ex + eye_r * 0.70, ey + eye_r * 0.85),
+                  (ex - eye_r * 0.60, ey + eye_r * 0.78)]
         _erase_void(surf, socket)
         # thin ink rim so the void edge stays crisp on the day chip
         pygame.draw.polygon(surf, INK, [(int(p[0]), int(p[1])) for p in socket],
                             max(1, int(1.4 * s)))
         # a tiny iridescent pin deep in the socket (cool spark, not a warm core)
         pygame.draw.circle(surf, EDGE_TEA, (int(ex), int(ey)),
-                           max(1, int(eye_r * 0.24)))
+                           max(1, int(eye_r * 0.22)))
 
-    # JAW NOTCH — a wide void biting up into the base so the silhouette pinches to
-    # a jaw between two cheek tabs (the third skull break alongside the sockets).
-    jn_w = chin_half * 0.62
-    jaw_notch = [(cx - jn_w, jaw_y + int(w * 0.02)),
-                 (cx + jn_w, jaw_y + int(w * 0.02)),
-                 (cx + jn_w * 0.5, jaw_y - int(w * 0.30)),
-                 (cx - jn_w * 0.5, jaw_y - int(w * 0.30))]
+    # JAW NOTCH — a wide DEEP void biting up into the base so the bottom contour
+    # of the dome breaks into two cheek tabs (the third skull break alongside the
+    # sockets). WHY deeper (0.42*w) + wider: a shallow notch vanished at 32px; the
+    # cut must clearly nick the silhouette's lower edge to register as a jaw.
+    jn_w = chin_half * 0.72
+    jaw_notch = [(cx - jn_w, jaw_y + int(w * 0.05)),
+                 (cx + jn_w, jaw_y + int(w * 0.05)),
+                 (cx + jn_w * 0.45, jaw_y - int(w * 0.42)),
+                 (cx - jn_w * 0.45, jaw_y - int(w * 0.42))]
     _erase_void(surf, jaw_notch)
 
     # nasal — a small down-pointing ink triangle between the sockets
@@ -265,12 +269,19 @@ def draw_king(surf, cx, cy, s):
     """Compose the ziggurat from wide base step up to the narrow capstone step,
     then crown it with the bismuth skull. WHY drawn bottom-up: each higher step
     must overlap the one below at its back edge so the terraces read as receding
-    treads (a built pyramid), and the rainbow edges chain continuously upward."""
-    n_steps = 4
-    base_half = int(48 * s)
-    step_h = int(20 * s)
-    base_bottom = cy + int(44 * s)
-    inset = int(10 * s)   # each step pulls IN by this much (steps OUT to base)
+    treads (a built pyramid), and the rainbow edges chain continuously upward.
+
+    WHY the body is now SQUATTER (3 steps, shorter pitch) and the skull bigger:
+    at true 32px the round-2 4-step tower ate the height budget and the crown
+    collapsed to a nub. The royal read lives ENTIRELY in the skull, so the body
+    is compressed to a low broad plinth and the skull is enlarged to ~28% of the
+    total tower height — enough that the two socket voids + jaw notch land as
+    1-2px holes that survive the downscale."""
+    n_steps = 3
+    base_half = int(50 * s)
+    step_h = int(15 * s)
+    base_bottom = cy + int(46 * s)
+    inset = int(12 * s)   # each step pulls IN by this much (steps OUT to base)
 
     # the steps, widest (bottom) -> narrowest (top)
     for k in range(n_steps):
@@ -281,16 +292,19 @@ def draw_king(surf, cx, cy, s):
         crystal_block(surf, cx, top_y, half_w, step_h + int(4 * s), s,
                       hue_base=k, sheen=True)
 
-    # the capstone step (a small grey block) the skull's neck pinches onto
-    cap_step_half = int(16 * s)
-    cap_step_top = base_bottom - n_steps * step_h - step_h
-    crystal_block(surf, cx, cap_step_top, cap_step_half, int(12 * s), s,
+    # the capstone step (a small grey block) the skull's neck pinches onto —
+    # kept SHORT so the skull's neck-pinch is the dominant transition, not a tread.
+    cap_step_half = int(15 * s)
+    cap_step_top = base_bottom - n_steps * step_h - int(9 * s)
+    crystal_block(surf, cx, cap_step_top, cap_step_half, int(8 * s), s,
                   hue_base=n_steps, sheen=True)
 
-    # the FACETED BISMUTH SKULL CAPSTONE — the above-head crown tell. Sized
+    # the FACETED BISMUTH SKULL CAPSTONE — the above-head crown tell, ENLARGED so
+    # it wins the size war at 32px. Width ~40 (vs body base ~100) and its dome
+    # rises ~47px, making the crown ~28% of the ~165px total tower height. Sized
     # narrower than the cap step so the cranial dome reads as a perched crown, and
     # raised so its neck-pinch lands ON the step top (crown separates from body).
-    skull_capstone(surf, cx, cap_step_top + int(1 * s), int(26 * s), s)
+    skull_capstone(surf, cx, cap_step_top + int(1 * s), int(40 * s), s)
 
 
 # -- the pillar: a single mirrored ziggurat-terrace tower ----------------------
@@ -372,17 +386,19 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
             pillar_step(surf, cx, ty, half_w, step_h + int(3 * s), s, 2,
                         flip=True, accent=acc)
 
-    # skull capstone marks the gap edge (mirrored to face into the gap)
+    # skull capstone marks the gap edge (mirrored to face into the gap). WHY
+    # enlarged to 28: same size-war fix as the king — a 22px capstone collapsed
+    # to a nub at the pillar chip scale, so the gap-edge skull cue was lost.
     if fan_dir < 0:
         sk_base = cap_y + 3 * int(11 * s) + int(2 * s)
-        skull_capstone(surf, cx, sk_base, int(22 * s), s)
+        skull_capstone(surf, cx, sk_base, int(28 * s), s)
     else:
         # for the top half, build the skull pointing DOWN via a flipped sub-surf
-        sub = pygame.Surface((int(60 * s), int(40 * s)), pygame.SRCALPHA)
-        skull_capstone(sub, int(30 * s), int(36 * s), int(22 * s), s)
+        sub = pygame.Surface((int(76 * s), int(52 * s)), pygame.SRCALPHA)
+        skull_capstone(sub, int(38 * s), int(48 * s), int(28 * s), s)
         sub = pygame.transform.flip(sub, False, True)
         sk_base = cap_y - 3 * int(11 * s) - int(2 * s)
-        surf.blit(sub, (cx - int(30 * s), int(sk_base)))
+        surf.blit(sub, (cx - int(38 * s), int(sk_base)))
 
 
 # -- compose the review sheet --------------------------------------------------
@@ -428,7 +444,7 @@ def main():
     sheet.blit(font_big.render("BISMUTH PRISM ARCHITECT", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "Skull-Kings-II  ·  LIMBLESS stepped-crystal ziggurat (no figure, no cradle) · TALL cranial SKULL capstone on a neck-pinch (carved socket+jaw voids) · "
-        "steel-grey mass + ONE rainbow front-lip per terrace · round 2",
+        "steel-grey mass + ONE rainbow front-lip per terrace · round 3 (skull wins the 32px size war)",
         True, LABEL_DIM), (440, 26))
 
     # === (a) BIG HERO =========================================================
@@ -488,23 +504,29 @@ def main():
     sheet.blit(night_chip, (panel_x + 20 + 27 - 1, night_y + 27 - 1))
     sheet.blit(font_sm.render("32px on night sky (teal rim)", True, LABEL_DIM), (panel_x + 20, night_y + 156))
 
-    # silhouette proof — blacked-out hero so the stepped-ziggurat read is checked
+    # silhouette proof — blacked-out at the EXACT true-32px gameplay scale, then
+    # nearest-neighbor magnified for inspection. WHY identical to chip32(): a proof
+    # rendered larger is not a valid gate — the round-2 proof passed only because
+    # it was drawn bigger than the in-game chip. The skull must break the
+    # silhouette (2 socket voids + jaw notch) at the size the player actually sees.
     def silhouette():
-        big = pygame.Surface((150 * SS, 200 * SS), pygame.SRCALPHA)
-        draw_king(big, 75 * SS, 100 * SS, 1.15 * SS)
-        small = pygame.transform.smoothscale(big, (150, 200))
+        big = pygame.Surface((96 * SS, 96 * SS), pygame.SRCALPHA)
+        draw_king(big, 48 * SS, 50 * SS, (32 / 116.0) * SS)
+        small = pygame.transform.smoothscale(big, (96, 96))   # the true 32px chip
         mask = pygame.mask.from_surface(small)
-        sil = pygame.Surface((150, 200), pygame.SRCALPHA)
+        sil = pygame.Surface((96, 96), pygame.SRCALPHA)
         solid = mask.to_surface(setcolor=(18, 18, 20, 255), unsetcolor=(0, 0, 0, 0))
         sil.blit(solid, (0, 0))
-        return sil
+        # nearest-neighbor 2x so the genuine 32px-scale voids are visible, not
+        # re-smoothed (no detail is added — this is the same pixels, magnified).
+        return pygame.transform.scale(sil, (192, 192))
 
     sil_x = panel_x + 196
-    pygame.draw.rect(sheet, (210, 212, 216), (sil_x, day_y, 150, 200))
-    pygame.draw.rect(sheet, INK, (sil_x, day_y, 150, 200), 1)
+    pygame.draw.rect(sheet, (210, 212, 216), (sil_x, day_y, 192, 192))
+    pygame.draw.rect(sheet, INK, (sil_x, day_y, 192, 192), 1)
     sheet.blit(silhouette(), (sil_x, day_y))
-    sheet.blit(font_sm.render("silhouette proof", True, LABEL_DIM), (sil_x, day_y + 204))
-    sheet.blit(font_sm.render("(pyramid + SKULL: 2 sockets + jaw)", True, LABEL_DIM), (sil_x, day_y + 220))
+    sheet.blit(font_sm.render("blackout proof @ TRUE 32px", True, LABEL_DIM), (sil_x, day_y + 196))
+    sheet.blit(font_sm.render("(2x nearest-neighbor; same pixels)", True, LABEL_DIM), (sil_x, day_y + 212))
 
     def pillar_chip32():
         big = pygame.Surface((40 * SS, 130 * SS), pygame.SRCALPHA)
@@ -513,7 +535,7 @@ def main():
         return grow_outline(small, INK + (255,), 1)
 
     pc = pillar_chip32()
-    px2 = sil_x + 168
+    px2 = sil_x + 200   # right gutter, clear of the now-wider 192px blackout proof
     vgrad(sheet, (px2, day_y, 56, 150), DAY_SKY_T, DAY_SKY_B)
     pygame.draw.rect(sheet, INK, (px2, day_y, 56, 150), 1)
     sheet.blit(pc, (px2 + 8, day_y + 10))
@@ -548,7 +570,7 @@ def main():
         "SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
