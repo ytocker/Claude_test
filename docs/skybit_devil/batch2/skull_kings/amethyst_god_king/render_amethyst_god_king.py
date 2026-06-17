@@ -46,11 +46,16 @@ BONE_D    = (190, 172, 138)   # bone dark-core
 BONE_DD   = (140, 122,  94)   # deepest bone hollow (sockets, joint gaps)
 BONE_SH   = (255, 250, 234)   # bone top-left rim-sheen
 # the sanctioned amethyst robe — saturated but kept BELOW the ivory mass.
-AMETH     = (132,  78, 196)   # amethyst robe fill (the large mass)
-AMETH_D   = ( 86,  46, 138)   # amethyst dark-core / robe shadow
-AMETH_DD  = ( 56,  28,  96)   # deepest robe hollow
-AMETH_BR  = (176, 132, 230)   # amethyst top-left sheen / jewel facet light
+# WHY a value-step DARKER than round-1: the robe must compete less with ivory in
+# daylight; a brighter cool rim (AMETH_RIM) on the silhouette edge then carries
+# its night read (a dark robe needs a rim, the way Mukha's rose-bone is light-on-
+# dark) without re-inflating the daytime purple mass.
+AMETH     = (112,  62, 176)   # amethyst robe fill — dropped ~1 value step
+AMETH_D   = ( 74,  38, 122)   # amethyst dark-core / robe shadow
+AMETH_DD  = ( 48,  24,  84)   # deepest robe hollow
+AMETH_BR  = (170, 126, 226)   # amethyst top-left sheen / jewel facet light
 AMETH_HOT = (214, 186, 248)   # hottest jewel highlight (lightest purple)
+AMETH_RIM = (188, 156, 244)   # bright cool RIM-light on the robe edge (night)
 GOLD      = (224, 186,  88)   # THIN gold edging / crown bands only
 GOLD_BR   = (246, 210, 118)
 GOLD_D    = (170, 134,  56)
@@ -165,21 +170,22 @@ def gold_gem(surf, cx, cy, r, col, s):
 
 # -- the tall 5-spire amethyst CONE-crown (kirita-mukuta — the top tell) ------
 def cone_crown(surf, cx, base_y, w, s):
-    """A tall jewelled amethyst CONE rising from the brow to FIVE spires, the
-    centre tallest. WHY a cone of spires not a skull-ring: this is the king's
-    iconic crown and the silhouette tell that separates it from every other
-    court member; the purple cone-body + a single brow third-eye are the
-    32px read. Gold bands edge each tier; tiny amethyst gems sit on the
-    spire tips (gold = edge, purple = mass)."""
+    """A tall HOLLOW-IVORY CONE rising from the brow to FIVE spires, the centre
+    tallest. WHY a majority-IVORY cone with amethyst only as JEWELLED INSETS at
+    the spire-joints: a fully purple crown was the single biggest purple
+    contributor at 32px. Rendering the cone body in bone tiers (with thin gold
+    rings + small amethyst jewels at the 5 spire-roots) moves that mass into the
+    ivory column — the crown now reads PALE at 32px while keeping its iconic
+    5-spire silhouette. Gold = thin rings only; purple = small set jewels."""
     half = w // 2
     apex_y = base_y - int(w * 1.78)        # tall — the dome of the silhouette
-    # the cone body — a tapering amethyst triangle (the dominant crown mass)
+    # the cone body — now an IVORY tapering triangle (joins the bone mass)
     body = [(cx - half, base_y),
             (cx - int(half * 0.32), int(base_y - (base_y - apex_y) * 0.86)),
             (cx, apex_y),
             (cx + int(half * 0.32), int(base_y - (base_y - apex_y) * 0.86)),
             (cx + half, base_y)]
-    triad_blob(surf, AMETH, body,
+    triad_blob(surf, BONE, body,
                core_pts=[(cx + int(half * 0.10), base_y),
                          (cx + int(half * 0.18), int(base_y - (base_y - apex_y) * 0.6)),
                          (cx, apex_y),
@@ -189,8 +195,9 @@ def cone_crown(surf, cx, base_y, w, s):
                           (cx, apex_y),
                           (cx - int(half * 0.10), apex_y + int(w * 0.2))],
                ow=max(1, int(1.8 * s)))
-    # horizontal gold tier-bands across the cone (thin edging accents)
-    for frac in (0.10, 0.34, 0.60):
+    # horizontal gold tier-rings across the ivory cone — each ring seats a small
+    # amethyst jewel INSET so the purple appears as points, not a field.
+    for frac in (0.14, 0.40, 0.66):
         bw = int(half * (1.0 - frac * 0.92))
         by = int(base_y - (base_y - apex_y) * frac)
         pygame.draw.line(surf, GOLD_D, (cx - bw, by + int(1 * s)),
@@ -198,19 +205,25 @@ def cone_crown(surf, cx, base_y, w, s):
         pygame.draw.line(surf, GOLD, (cx - bw, by), (cx + bw, by), max(1, int(1.6 * s)))
         pygame.draw.line(surf, GOLD_BR, (cx - bw, by - int(1 * s)),
                          (cx - int(bw * 0.2), by - int(1 * s)), max(1, int(1 * s)))
-    # FIVE spires above the cone shoulders — centre tallest (the count tell)
+        # a small amethyst jewel inset centred on the ring (purple as a point)
+        gold_gem(surf, cx, by, max(2, int(w * 0.07)), AMETH, s)
+    # FIVE spires above the cone shoulders — centre tallest (the count tell);
+    # spires are IVORY with an amethyst JEWELLED INSET at each spire-joint.
     spire_h = [int(w * 0.30), int(w * 0.52), int(w * 0.86), int(w * 0.52), int(w * 0.30)]
     spire_x = [cx - int(half * 0.72), cx - int(half * 0.36), cx,
                cx + int(half * 0.36), cx + int(half * 0.72)]
-    # the spires sit on the upper cone — base them along the cone shoulder line
     for sx, sh in zip(spire_x, spire_h):
         # height of cone surface at sx (linear taper from base to apex)
         t = abs(sx - cx) / max(1, half)
         sy = int(apex_y + (base_y - apex_y) * t)
         tip = (sx, sy - sh)
-        sp = [(sx - int(w * 0.07), sy), tip, (sx + int(w * 0.07), sy)]
-        triad_blob(surf, AMETH, sp, ow=max(1, int(1.2 * s)))
-        gold_gem(surf, tip[0], tip[1], max(2, int(w * 0.06)), AMETH_BR, s)
+        sp = [(sx - int(w * 0.085), sy), tip, (sx + int(w * 0.085), sy)]
+        triad_blob(surf, BONE, sp, ow=max(1, int(1.2 * s)))
+        # the amethyst jewel sits at the spire-JOINT (root), not as the body;
+        # kept on the mid-value AMETH (not AMETH_BR) so no crown jewel out-glows
+        # the brow third-eye, which must stay the single brightest pixel.
+        gold_gem(surf, sx, sy - int(sh * 0.18), max(2, int(w * 0.065)), AMETH, s)
+        gold_gem(surf, tip[0], tip[1], max(2, int(w * 0.05)), AMETH, s)
     # a thin gold circlet band along the brow base of the crown
     pygame.draw.line(surf, INK, (cx - half, base_y), (cx + half, base_y), max(2, int(3 * s)))
     pygame.draw.line(surf, GOLD, (cx - half, base_y), (cx + half, base_y), max(1, int(2 * s)))
@@ -233,88 +246,124 @@ def draw_amethyst_king(surf, cx, cy, s):
     shoulder_y = cy - int(8 * s)
     hip_y = cy + int(40 * s)
 
-    # === AMETHYST ROBE — the sanctioned LARGE mass (drawn FIRST, behind) ======
-    # WHY a tapering bell from the shoulders to a wide floor hem: it gives the
-    # "deity in a robe" read, but it sits BEHIND the ivory fan so the bone arms
-    # cover its upper half — at 32px the ivory wins the centre.
-    robe = [(cx - int(22 * s), shoulder_y),
-            (cx + int(22 * s), shoulder_y),
-            (cx + int(40 * s), cy + int(36 * s)),
-            (cx + int(48 * s), cy + int(74 * s)),
-            (cx + int(30 * s), cy + int(84 * s)),
-            (cx, cy + int(80 * s)),
-            (cx - int(30 * s), cy + int(84 * s)),
-            (cx - int(48 * s), cy + int(74 * s)),
-            (cx - int(40 * s), cy + int(36 * s))]
-    triad_blob(surf, AMETH, robe,
-               core_pts=[(cx + int(4 * s), shoulder_y + int(6 * s)),
-                         (cx + int(40 * s), cy + int(36 * s)),
-                         (cx + int(48 * s), cy + int(74 * s)),
-                         (cx + int(20 * s), cy + int(80 * s)),
-                         (cx + int(4 * s), cy + int(60 * s))],
-               sheen_pts=[(cx - int(20 * s), shoulder_y + int(2 * s)),
-                          (cx - int(6 * s), shoulder_y + int(2 * s)),
-                          (cx - int(14 * s), cy + int(40 * s)),
-                          (cx - int(36 * s), cy + int(60 * s))],
-               ow=max(1, int(2 * s)))
-    # robe fold grooves (dark amethyst verticals — texture, keeps it royal)
-    for fx in (-26, -10, 8, 26):
-        x0 = cx + int(fx * s)
-        pygame.draw.line(surf, AMETH_DD, (x0, cy + int(20 * s)),
-                         (int(cx + fx * 1.5 * s), cy + int(78 * s)), max(1, int(2 * s)))
+    # === AMETHYST ROBE — sanctioned mass, now SPLIT by an ivory hem-panel =====
+    # WHY two purple side-panels with a WIDE vertical IVORY centre panel between
+    # them: round-1's solid trapezoid made the robe a purple slab. Cutting its
+    # footprint ~25-30% and threading a tall bone hem-panel down the middle reads
+    # as "a purple robe OVER an ivory deity," not a purple blob — and the centre
+    # panel feeds the ivory column. The robe is still large; it is just no longer
+    # an uninterrupted field.
+    rt = shoulder_y                  # robe top (shoulders)
+    rb = cy + int(84 * s)            # robe floor
+    out_x = int(46 * s)              # outer hem half-width (narrowed from 48)
+    sh_x = int(20 * s)              # shoulder half-width (narrowed from 22)
+    waist = cy + int(34 * s)
+    panel_top = int(8 * s)           # ivory centre panel half-width at shoulders
+    panel_bot = int(15 * s)          # ivory centre panel half-width at floor
+
+    # the BACK ivory hem-panel (drawn first; the purple sides overlap its edges)
+    centre_panel = [(cx - panel_top, rt + int(2 * s)),
+                    (cx + panel_top, rt + int(2 * s)),
+                    (cx + panel_bot, rb - int(3 * s)),
+                    (cx - panel_bot, rb - int(3 * s))]
+    triad_blob(surf, BONE, centre_panel,
+               sheen_pts=[(cx - panel_top, rt + int(2 * s)),
+                          (cx - int(panel_top * 0.2), rt + int(2 * s)),
+                          (cx - int(panel_bot * 0.3), rb - int(3 * s)),
+                          (cx - panel_bot, rb - int(3 * s))],
+               ow=max(1, int(1.6 * s)))
+
+    # the TWO purple side-panels (each a tapering bell-half from shoulder to hem)
+    for sgn in (-1, 1):
+        side = [(cx + sgn * sh_x, rt),
+                (cx + sgn * panel_top, rt + int(2 * s)),
+                (cx + sgn * panel_bot, rb - int(3 * s)),
+                (cx + sgn * int(30 * s), rb),
+                (cx + sgn * out_x, cy + int(74 * s)),
+                (cx + sgn * int(38 * s), waist + int(2 * s))]
+        triad_blob(surf, AMETH, side,
+                   core_pts=[(cx + sgn * panel_top, rt + int(8 * s)),
+                             (cx + sgn * panel_bot, rb - int(6 * s)),
+                             (cx + sgn * int(30 * s), rb - int(2 * s)),
+                             (cx + sgn * int(40 * s), cy + int(60 * s))]
+                   if sgn > 0 else None,
+                   sheen_pts=[(cx + sgn * sh_x, rt + int(2 * s)),
+                              (cx + sgn * int(38 * s), waist),
+                              (cx + sgn * int(33 * s), waist),
+                              (cx + sgn * int(panel_top + 4), rt + int(4 * s))]
+                   if sgn < 0 else None,
+                   ow=max(1, int(2 * s)))
+        # a bright cool RIM-light running the OUTER silhouette edge of each panel
+        # (keeps the robe's night silhouette without re-inflating daytime purple)
+        pygame.draw.line(surf, AMETH_RIM,
+                         (cx + sgn * int(38 * s), waist + int(2 * s)),
+                         (cx + sgn * out_x, cy + int(74 * s)), max(1, int(2 * s)))
+        pygame.draw.line(surf, AMETH_RIM,
+                         (cx + sgn * out_x, cy + int(74 * s)),
+                         (cx + sgn * int(30 * s), rb), max(1, int(2 * s)))
+        # one inner fold groove per panel (texture, keeps it royal)
+        pygame.draw.line(surf, AMETH_DD,
+                         (cx + sgn * int(26 * s), waist),
+                         (cx + sgn * int(34 * s), rb - int(6 * s)), max(1, int(2 * s)))
+
     # a thin gold hem along the floor edge (edge only)
-    hem = [(cx - int(48 * s), cy + int(74 * s)), (cx - int(30 * s), cy + int(84 * s)),
-           (cx, cy + int(80 * s)), (cx + int(30 * s), cy + int(84 * s)),
-           (cx + int(48 * s), cy + int(74 * s))]
+    hem = [(cx - out_x, cy + int(74 * s)), (cx - int(30 * s), rb),
+           (cx, rb - int(3 * s)), (cx + int(30 * s), rb),
+           (cx + out_x, cy + int(74 * s))]
     pygame.draw.lines(surf, GOLD_D, False, hem, max(1, int(3 * s)))
     pygame.draw.lines(surf, GOLD, False, hem, max(1, int(2 * s)))
-    # a thin gold central placket down the robe front
-    pygame.draw.line(surf, GOLD, (cx, shoulder_y + int(10 * s)), (cx, cy + int(70 * s)),
-                     max(1, int(2 * s)))
-    pygame.draw.line(surf, GOLD_BR, (cx, shoulder_y + int(10 * s)), (cx, cy + int(40 * s)),
-                     max(1, int(1 * s)))
+    # thin gold trim flanking the ivory centre panel (frames the panel)
+    for sgn in (-1, 1):
+        pygame.draw.line(surf, GOLD,
+                         (cx + sgn * panel_top, rt + int(8 * s)),
+                         (cx + sgn * panel_bot, rb - int(6 * s)), max(1, int(1.6 * s)))
 
     # === FOUR ARMS — the wide symmetric radial fan (the figure's whole point) =
     # WHY a fan of two pairs: the upper pair sweeps high & wide (the radial
     # spread that makes the only radial silhouette), the lower pair reaches
     # down & out. All four are FAT ivory bone so the fan out-masses the purple.
-    arm_th = int(11 * s)
-    sh_up = int(14 * s)     # upper-shoulder origin spread
-    sh_lo = int(18 * s)     # lower-shoulder origin spread
+    # WHY FATTER + WIDER arms (~35% thicker, outer pair pushed out): at 32px the
+    # four-arm fan must be MASS not lines — thin arms evaporated in round 1. The
+    # outer (upper) pair carries the widest spread so the radial signature
+    # survives the blackout; both pairs now read as real ivory bone-limbs.
+    arm_th = int(15 * s)        # was 11 — ~35% fatter
+    arm_th_up = int(16 * s)     # upper pair slightly fatter still (the spread)
+    sh_up = int(15 * s)         # upper-shoulder origin spread
+    sh_lo = int(18 * s)         # lower-shoulder origin spread
 
     # collar / shoulder bone block the arms fan from (keeps origins ivory)
-    collar = [(cx - int(26 * s), shoulder_y - int(6 * s)),
-              (cx + int(26 * s), shoulder_y - int(6 * s)),
-              (cx + int(22 * s), shoulder_y + int(12 * s)),
-              (cx - int(22 * s), shoulder_y + int(12 * s))]
+    collar = [(cx - int(28 * s), shoulder_y - int(7 * s)),
+              (cx + int(28 * s), shoulder_y - int(7 * s)),
+              (cx + int(23 * s), shoulder_y + int(13 * s)),
+              (cx - int(23 * s), shoulder_y + int(13 * s))]
     triad_blob(surf, BONE, collar, ow=max(1, int(1.6 * s)))
 
     # --- LOWER pair: down & out, drawn first (behind the upper pair) ---------
     for sgn in (-1, 1):
         sh = (cx + sgn * sh_lo, shoulder_y + int(6 * s))
-        elbow = (cx + sgn * int(40 * s), cy + int(20 * s))
-        hand = (cx + sgn * int(50 * s), cy + int(46 * s))
+        elbow = (cx + sgn * int(44 * s), cy + int(22 * s))
+        hand = (cx + sgn * int(56 * s), cy + int(48 * s))
         bone_limb(surf, sh, elbow, hand, arm_th, s)
-        armlet_bead(surf, cx + sgn * int(28 * s), cy + int(2 * s), int(5 * s), s)
+        armlet_bead(surf, cx + sgn * int(30 * s), cy + int(3 * s), int(5 * s), s)
 
-    # --- UPPER pair: high & wide (the radial top spread) ---------------------
+    # --- UPPER pair: high & WIDE (the radial top spread that must survive 32px)
     for sgn in (-1, 1):
         sh = (cx + sgn * sh_up, shoulder_y - int(2 * s))
-        elbow = (cx + sgn * int(42 * s), cy - int(28 * s))
-        hand = (cx + sgn * int(54 * s), cy - int(54 * s))
-        bone_limb(surf, sh, elbow, hand, arm_th, s)
-        armlet_bead(surf, cx + sgn * int(30 * s), cy - int(20 * s), int(5 * s), s)
+        elbow = (cx + sgn * int(48 * s), cy - int(28 * s))
+        hand = (cx + sgn * int(62 * s), cy - int(54 * s))
+        bone_limb(surf, sh, elbow, hand, arm_th_up, s)
+        armlet_bead(surf, cx + sgn * int(33 * s), cy - int(20 * s), int(5 * s), s)
 
     # === REGALIA in the four hands (HANDS, never skull-tipped) ================
     # ivory hand discs at every arm end first
     hand_pts = {
-        "ul": (cx - int(54 * s), cy - int(54 * s)),
-        "ur": (cx + int(54 * s), cy - int(54 * s)),
-        "ll": (cx - int(50 * s), cy + int(46 * s)),
-        "lr": (cx + int(50 * s), cy + int(46 * s)),
+        "ul": (cx - int(62 * s), cy - int(54 * s)),
+        "ur": (cx + int(62 * s), cy - int(54 * s)),
+        "ll": (cx - int(56 * s), cy + int(48 * s)),
+        "lr": (cx + int(56 * s), cy + int(48 * s)),
     }
     for hx, hy in hand_pts.values():
-        triad_circle(surf, BONE, (hx, hy), int(6 * s), ow=max(1, int(1.2 * s)), core=False)
+        triad_circle(surf, BONE, (hx, hy), int(7 * s), ow=max(1, int(1.2 * s)), core=False)
 
     # upper-left hand: a GOLD-headed SCEPTER raised high
     hx, hy = hand_pts["ul"]
@@ -384,11 +433,14 @@ def draw_amethyst_king(surf, cx, cy, s):
     # third eye of wisdom — a cool vertical jewel on the brow (the deity tell);
     # the SINGLE brightest pixel. Set in a small gold collar.
     tex, tey = head_c[0], head_c[1] - int(hr * 0.40)
-    pygame.draw.circle(surf, GOLD_D, (tex, tey), int(hr * 0.22))
-    pygame.draw.circle(surf, GOLD, (tex, tey), int(hr * 0.18))
+    pygame.draw.circle(surf, GOLD_D, (tex, tey), int(hr * 0.24))
+    pygame.draw.circle(surf, GOLD, (tex, tey), int(hr * 0.20))
     pygame.draw.ellipse(surf, INK, (tex - int(4 * s), tey - int(6 * s), int(8 * s), int(12 * s)))
     pygame.draw.ellipse(surf, THIRD_EYE, (tex - int(3 * s), tey - int(5 * s), int(6 * s), int(10 * s)))
-    pygame.draw.circle(surf, EYE_BR, (tex, tey - int(1 * s)), max(1, int(2.0 * s)))
+    # the SINGLE brightest pixel: a cool-white hot core + a tiny gold glint dead
+    # centre. No crown jewel, scepter-orb, or hem highlight is allowed brighter.
+    pygame.draw.circle(surf, EYE_BR, (tex, tey - int(1 * s)), max(1, int(2.4 * s)))
+    pygame.draw.circle(surf, GOLD_BR, (tex, tey - int(1 * s)), max(1, int(1.0 * s)))
 
     # === TALL 5-SPIRE AMETHYST CONE-CROWN (kirita-mukuta — the top tell) ======
     cone_crown(surf, head_c[0], head_c[1] - int(hr * 0.62), int(hr * 1.7), s)
@@ -434,7 +486,8 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
                          (cx + bw, y + int(4 * s)), max(1, int(2.2 * s)))
         pygame.draw.line(surf, GOLD, (cx - bw, y + int(3 * s)),
                          (cx + bw, y + int(3 * s)), max(1, int(1.4 * s)))
-        gold_gem(surf, cx, y, max(2, int(5 * s)), AMETH_BR, s)
+        # brighter tier gem so each jewelled tier reads day AND night
+        gold_gem(surf, cx, y, max(2, int(6 * s)), AMETH_HOT, s)
         y += tier_pitch
 
     # === gap-edge cap: an ivory hand-mudra fan + a purple cone-finial ========
@@ -498,12 +551,9 @@ def get_font(size, bold=True):
 
 
 # -- headless self-check ------------------------------------------------------
-def self_check():
-    """Render the figure at true 32px and verify the GATE: ivory out-masses
-    purple, and the radial fan + cone-crown produce a wide-but-tall mask."""
-    big = pygame.Surface((96 * SS, 96 * SS), pygame.SRCALPHA)
-    draw_amethyst_king(big, 48 * SS, 50 * SS, (32 / 130.0) * SS)
-    small = pygame.transform.smoothscale(big, (96, 96))
+def _classify_mass(small):
+    """Count ivory vs purple px over a 32px figure (alpha-keyed). Ivory = warm
+    light bone; purple = blue-dominant amethyst. Returns (ivory, purple)."""
     ivory = purple = 0
     w, h = small.get_size()
     for yy in range(h):
@@ -511,13 +561,47 @@ def self_check():
             r, g, b, a = small.get_at((xx, yy))
             if a < 60:
                 continue
-            # classify by hue: purple = blue-dominant + reddish; ivory = warm bright
             if b > r and b > g - 10 and (r + b) > 1.4 * g:
                 purple += 1
             elif r > 150 and g > 130:
                 ivory += 1
-    ivory_wins = ivory > purple
-    return ivory, purple, ivory_wins
+    return ivory, purple
+
+
+def _figure32():
+    big = pygame.Surface((96 * SS, 96 * SS), pygame.SRCALPHA)
+    draw_amethyst_king(big, 48 * SS, 50 * SS, (32 / 130.0) * SS)
+    return pygame.transform.smoothscale(big, (96, 96))
+
+
+def self_check():
+    """Verify the GATE at true 32px: ivory must clearly OUT-mass purple on the
+    DAY chip (~1.4:1 target), and head+arms must carry the NIGHT chip. The day
+    audit reads the figure as-drawn; the night audit composites the figure over
+    the night sky first, then counts only what still reads bright/cool (so a
+    robe that vanishes against indigo is correctly excluded)."""
+    fig = _figure32()
+    day_iv, day_pu = _classify_mass(fig)
+
+    # NIGHT: composite over the dark sky, then count what carries the silhouette
+    night = pygame.Surface((96, 96))
+    vgrad(night, (0, 0, 96, 96), NIGHT_T, NIGHT_B)
+    night.blit(fig, (0, 0))
+    n_iv = n_pu = 0
+    sky = lerp(NIGHT_T, NIGHT_B, 0.5)
+    for yy in range(96):
+        for xx in range(96):
+            if fig.get_at((xx, yy))[3] < 60:
+                continue
+            r, g, b = night.get_at((xx, yy))[:3]
+            # "carries" = clearly brighter/cooler than the sky it sits on
+            if r + g + b < sky[0] + sky[1] + sky[2] + 30:
+                continue
+            if b > r and b > g - 10 and (r + b) > 1.4 * g:
+                n_pu += 1
+            elif r > 130 and g > 110:
+                n_iv += 1
+    return day_iv, day_pu, n_iv, n_pu
 
 
 def main():
@@ -532,7 +616,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("AMETHYST GOD-KING", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "four-armed radial deity  ·  ivory fan out-masses purple robe · 5-spire amethyst cone-crown · third-eye · round 1",
+        "four-armed radial deity  ·  ivory fan out-masses purple robe · HOLLOW ivory cone-crown · third-eye · round 2",
         True, LABEL_DIM), (320, 30))
 
     # === (a) BIG HERO =========================================================
@@ -639,12 +723,20 @@ def main():
         sheet.blit(font_sm.render(name, True, LABEL), (rx + 26, ry + 3))
 
     # self-check result printed onto the sheet (the bone>purple proof)
-    ivory, purple, ivory_wins = self_check()
-    verdict = "IVORY > purple  OK" if ivory_wins else "FAIL: purple wins"
-    vc = (150, 240, 170) if ivory_wins else (240, 150, 150)
+    day_iv, day_pu, n_iv, n_pu = self_check()
+    day_ratio = day_iv / max(1, day_pu)
+    day_ok = day_ratio >= 1.4
+    night_ok = n_iv > n_pu
+    vc_day = (150, 240, 170) if day_ok else (240, 150, 150)
+    vc_night = (150, 240, 170) if night_ok else (240, 150, 150)
     sheet.blit(font_sm.render(
-        f"32px mass audit: ivory={ivory}px  purple={purple}px  ->  {verdict}",
-        True, vc), (panel_x + 16, 646 - 16))
+        f"DAY 32px: ivory={day_iv}px  purple={day_pu}px  ratio={day_ratio:.2f}:1  "
+        f"({'OK >=1.4' if day_ok else 'FAIL <1.4'})", True, vc_day),
+        (panel_x + 16, 646 - 16))
+    sheet.blit(font_sm.render(
+        f"NIGHT 32px (carries silhouette): ivory={n_iv}px  purple={n_pu}px  "
+        f"({'OK head+arms carry' if night_ok else 'FAIL'})", True, vc_night),
+        (panel_x + 16, 646))
 
     # bottom note strip
     pygame.draw.rect(sheet, PANEL, (14, 770, W - 28, 40))
@@ -653,10 +745,13 @@ def main():
         "dark-core->fill->top-left sheen triad · 1px grown outline · chibi · scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
-    print(f"self-check: ivory={ivory}px purple={purple}px ivory_wins={ivory_wins}")
+    print(f"DAY 32px:   ivory={day_iv}px purple={day_pu}px ratio={day_ratio:.2f}:1 "
+          f"({'OK' if day_ok else 'FAIL'} target>=1.4)")
+    print(f"NIGHT 32px: ivory={n_iv}px purple={n_pu}px "
+          f"({'OK head+arms carry' if night_ok else 'FAIL'})")
 
 
 if __name__ == "__main__":

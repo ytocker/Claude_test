@@ -105,21 +105,29 @@ def triad_circle(surf, color, c, r, ow=2, sheen=True, core=True):
                            int(r * 0.74))
         pygame.draw.circle(surf, color, c, int(r * 0.80))
     if sheen:
-        pygame.draw.circle(surf, lerp(color, (255, 255, 255), 0.55),
+        # WHY softer than pure white: the pink gem must be the brightest thing at
+        # 32px, so the big bone masses keep a pearly (not near-white) sheen and
+        # cede the top of the value range to the tourmaline's hot core.
+        pygame.draw.circle(surf, lerp(color, (255, 255, 255), 0.30),
                            (c[0] - int(r * 0.38), c[1] - int(r * 0.40)),
-                           max(1, int(r * 0.28)))
+                           max(1, int(r * 0.26)))
     pygame.draw.circle(surf, INK, c, r, ow)
 
 
-def faceted_gem(surf, cx, cy, r, base, brt, dk, s):
+def faceted_gem(surf, cx, cy, r, base, brt, dk, s, hot=False):
     """A small kite/round-cut tourmaline — the single brightest accent. Faceted
-    so it reads as a JEWEL (royal), not a flat dot that could be a coin pip."""
+    so it reads as a JEWEL (royal), not a flat dot that could be a coin pip.
+
+    WHY `hot`: at 32px the EYE must land on the pink gem, not the bone face — so
+    the hero/cap stone gets a punchy near-white table facet + a 1px hot specular
+    core that survives the downscale as the single brightest pixel on the sheet."""
     kite = [(cx, cy - r), (cx + int(r * 0.78), cy),
             (cx, cy + int(r * 1.05)), (cx - int(r * 0.78), cy)]
     pygame.draw.polygon(surf, INK, kite)
     pygame.draw.polygon(surf, base, kite)
-    # table facet (upper-left) catches the light
-    pygame.draw.polygon(surf, brt, [(cx, cy - r),
+    # table facet (upper-left) catches the light — punched brighter when hot
+    table_col = lerp(brt, (255, 255, 255), 0.35) if hot else brt
+    pygame.draw.polygon(surf, table_col, [(cx, cy - r),
                                     (cx + int(r * 0.40), cy - int(r * 0.10)),
                                     (cx, cy + int(r * 0.10)),
                                     (cx - int(r * 0.40), cy - int(r * 0.10))])
@@ -128,22 +136,31 @@ def faceted_gem(surf, cx, cy, r, base, brt, dk, s):
                                    (cx + int(r * 0.40), cy),
                                    (cx, cy + int(r * 1.05)),
                                    (cx - int(r * 0.40), cy)])
-    pygame.draw.circle(surf, (255, 255, 255), (cx - int(r * 0.18), cy - int(r * 0.30)),
-                       max(1, int(r * 0.16)))
+    # specular core — a 1px-native hot dot so the gem wins the 32px attention test
+    spec_r = max(1, int(r * (0.30 if hot else 0.16)))
+    pygame.draw.circle(surf, (255, 250, 252), (cx - int(r * 0.16), cy - int(r * 0.26)),
+                       spec_r)
+    if hot:
+        pygame.draw.circle(surf, (255, 255, 255), (cx - int(r * 0.16), cy - int(r * 0.26)),
+                           max(1, int(r * 0.13)))
     pygame.draw.polygon(surf, INK, kite, max(1, int(1.2 * s)))
 
 
 # -- the dainty OPEN trefoil coronet (the top tell) ---------------------------
-def trefoil_coronet(surf, cx, cy, w, s, gem=True):
-    """A delicate, LOW open coronet: a slim rose-gold circlet band carrying three
-    open trefoil arches, the centre one taller, set with a pink tourmaline; the
-    flanking two are small open loops with tiny ball finials.
+def trefoil_coronet(surf, cx, cy, w, s, gem=True, rim=False):
+    """A delicate open coronet: a slim rose-gold circlet band carrying a tall
+    CENTRAL fleur SPIKE flanked by two short open loops, the spike set with a
+    pink tourmaline. Returns the gem-apex (gx, gy) so the caller can rim-light
+    the crown's top edge on night sky.
 
-    WHY OPEN + tall-centre (the anti-coin defence): negative sky shows THROUGH
-    the trefoil loops, so even at 32px the crown breaks the round head's outline
-    into a spiky-but-dainty SILHOUETTE no coin can mimic. The centre arch adds
-    clear vertical height; the gem is the single bright pixel sitting ABOVE the
-    head, not centred on it."""
+    WHY a tall central SPIKE (the anti-coin GATE): a trefoil of three EQUAL
+    bumps blacks-out as a soft bow/cluster — still a "round pickup". A single
+    pointed centre that out-tops the flanks by ~2x makes the blackout SPIKE out
+    of the round head: unmistakably a tiny KING, never a disc. Total coronet
+    height is now ~18-22% of body height (was ~10-12%).
+
+    WHY OPEN flanks: negative sky shows THROUGH the side loops so the crown
+    breaks the head's outline into a spiky-dainty silhouette no coin can mimic."""
     band_h = int(7 * s)
     # circlet band — a slim rose-gold ring across the brow
     band = [(cx - w, cy), (cx + w, cy),
@@ -166,7 +183,7 @@ def trefoil_coronet(surf, cx, cy, w, s, gem=True):
         transparent sky inside the loop — the whole anti-coin point of an OPEN
         coronet."""
         ay = cy - lift
-        ring_w = max(2, int(3.6 * s))
+        ring_w = max(2, int(3.4 * s))
         # ink keyline ring (slightly fatter), then the rose-gold ring inside it
         pygame.draw.circle(surf, INK, (ax, ay), ar, ring_w + max(1, int(1.2 * s)))
         pygame.draw.circle(surf, ROSE, (ax, ay), ar, ring_w)
@@ -175,27 +192,54 @@ def trefoil_coronet(surf, cx, cy, w, s, gem=True):
                         (ax - ar, ay - ar, ar * 2, ar * 2),
                         math.radians(95), math.radians(190), max(1, int(1.6 * s)))
 
-    side_r = int(w * 0.30)
-    # flanking open loops
-    arch(cx - int(w * 0.58), side_r, int(band_h * 0.4))
-    arch(cx + int(w * 0.58), side_r, int(band_h * 0.4))
+    side_r = int(w * 0.26)
+    # flanking open loops — kept SHORT so the centre spike clearly out-tops them
+    arch(cx - int(w * 0.66), side_r, int(band_h * 0.3))
+    arch(cx + int(w * 0.66), side_r, int(band_h * 0.3))
     # tiny ball finials on the flank loops (royal punctuation)
     for sgn in (-1, 1):
-        fx = cx + sgn * int(w * 0.58)
-        fy = cy - int(band_h * 0.4) - side_r
-        triad_circle(surf, ROSE, (fx, fy), max(2, int(3 * s)),
+        fx = cx + sgn * int(w * 0.66)
+        fy = cy - int(band_h * 0.3) - side_r
+        triad_circle(surf, ROSE, (fx, fy), max(2, int(2.6 * s)),
                      ow=max(1, int(1.0 * s)), core=False)
-    # taller CENTRE trefoil — the height that says "crown" not "coin"
-    cr = int(w * 0.40)
-    arch(cx, cr, int(band_h * 0.4 + cr * 0.9))
-    # the centre arch carries the pink tourmaline up top — gem ABOVE the head
+
+    # === the tall CENTRAL SPIKE — a pointed fleur the height that says KING ====
+    # a slim rose-gold triangular spike rising well above the flanks
+    spike_h = int(w * 1.30)              # tall: dominates the coronet height
+    spike_half = max(2, int(w * 0.24))
+    apex_y = cy - spike_h
+    spike = [(cx, apex_y),
+             (cx + spike_half, cy + int(band_h * 0.2)),
+             (cx - spike_half, cy + int(band_h * 0.2))]
+    triad_blob(surf, ROSE, spike,
+               sheen_pts=[(cx, apex_y + int(spike_h * 0.06)),
+                          (cx + int(spike_half * 0.45), cy - int(spike_h * 0.20)),
+                          (cx - int(spike_half * 0.45), cy - int(spike_h * 0.20))],
+               ow=max(1, int(1.4 * s)))
+    # a small pointed finial barb just below the apex (fleur tip, royal not coin)
+    gx = cx
+    gy = apex_y + int(w * 0.30)
     if gem:
-        gy = cy - int(band_h * 0.4) - cr * 2 - int(2 * s)
-        # tiny fleur/cross prong holding the stone (royal finial, not a coin pip)
-        pygame.draw.line(surf, ROSE, (cx, gy + int(cr * 0.6)), (cx, gy),
-                         max(1, int(1.6 * s)))
-        faceted_gem(surf, cx, gy - int(cr * 0.2), int(cr * 0.62),
-                    TOURM, TOURM_BR, TOURM_D, s)
+        # the tourmaline rides the spike near its top — the single bright pixel
+        faceted_gem(surf, gx, gy, int(w * 0.40),
+                    TOURM, TOURM_BR, TOURM_D, s, hot=True)
+    if rim:
+        # cool/rose-gold rim-light along the SPIKE's top-left edges so the crown
+        # separates from a dark night sky (the Obsidian/Koschei night-rim lesson)
+        rim_col = (255, 226, 232)
+        rw = max(1, int(1.6 * s))
+        pygame.draw.line(surf, rim_col, (cx, apex_y),
+                         (cx - spike_half, cy + int(band_h * 0.2)), rw)
+        pygame.draw.line(surf, rim_col, (cx, apex_y),
+                         (cx + int(spike_half * 0.5), cy - int(spike_h * 0.4)), rw)
+        # nick the flank loop tops too, so the whole coronet top edge glows
+        for sgn in (-1, 1):
+            fx = cx + sgn * int(w * 0.66)
+            fcy = cy - int(band_h * 0.3)
+            pygame.draw.arc(surf, rim_col,
+                            (fx - side_r, fcy - side_r, side_r * 2, side_r * 2),
+                            math.radians(100), math.radians(180), rw)
+    return (gx, apex_y)
 
 
 # -- a single tiny skull (lineage tell — perched on the band as a held toy) ---
@@ -214,7 +258,7 @@ def tiny_skull(surf, cx, cy, r, s):
 
 
 # -- the boy-prince: compact egg-on-legs --------------------------------------
-def draw_prince(surf, cx, cy, s):
+def draw_prince(surf, cx, cy, s, rim=False):
     """Short round chibi heir. A plump ovoid BODY (the egg) sits on two stubby
     bone legs; a big round skull HEAD sits on top with NO neck (chibi). A flared
     royal CAPE-COLLAR breaks the egg into shoulders; a tiny orb-sceptre is held
@@ -233,23 +277,26 @@ def draw_prince(surf, cx, cy, s):
     # WHY a cape: it widens the bottom silhouette into a regal trapezoid skirt,
     # the single strongest cue that this round thing is a robed monarch, not a
     # coin. Pink lining sliver shows at the parted front hem.
-    cape = [(body_cx - int(body_w * 0.72), body_cy - int(body_h * 0.30)),
-            (body_cx - int(body_w * 1.28), body_cy + int(body_h * 0.72)),
-            (body_cx - int(body_w * 0.30), body_cy + int(body_h * 0.86)),
-            (body_cx + int(body_w * 0.30), body_cy + int(body_h * 0.86)),
-            (body_cx + int(body_w * 1.28), body_cy + int(body_h * 0.72)),
+    # WHY wider at the hips: the lower silhouette must read "robed figure", never
+    # "disc" — so the cape flares well past the body and is pulled ASYMMETRIC
+    # (left hem swung wider) to echo the off-centre orb-sceptre on that side.
+    cape = [(body_cx - int(body_w * 0.74), body_cy - int(body_h * 0.30)),
+            (body_cx - int(body_w * 1.58), body_cy + int(body_h * 0.78)),
+            (body_cx - int(body_w * 0.34), body_cy + int(body_h * 0.90)),
+            (body_cx + int(body_w * 0.34), body_cy + int(body_h * 0.90)),
+            (body_cx + int(body_w * 1.40), body_cy + int(body_h * 0.74)),
             (body_cx + int(body_w * 0.72), body_cy - int(body_h * 0.30))]
     triad_blob(surf, PINK_D, cape,
                core_pts=[(body_cx - int(body_w * 0.4), body_cy),
-                         (body_cx - int(body_w * 1.1), body_cy + int(body_h * 0.7)),
-                         (body_cx, body_cy + int(body_h * 0.82)),
+                         (body_cx - int(body_w * 1.3), body_cy + int(body_h * 0.74)),
+                         (body_cx, body_cy + int(body_h * 0.86)),
                          (body_cx, body_cy)],
                ow=max(1, int(1.6 * s)))
     # rose-gold cape hem trim (thin metal accent along the flared edge)
-    hem = [(body_cx - int(body_w * 1.28), body_cy + int(body_h * 0.72)),
-           (body_cx - int(body_w * 0.30), body_cy + int(body_h * 0.86)),
-           (body_cx + int(body_w * 0.30), body_cy + int(body_h * 0.86)),
-           (body_cx + int(body_w * 1.28), body_cy + int(body_h * 0.72))]
+    hem = [(body_cx - int(body_w * 1.58), body_cy + int(body_h * 0.78)),
+           (body_cx - int(body_w * 0.34), body_cy + int(body_h * 0.90)),
+           (body_cx + int(body_w * 0.34), body_cy + int(body_h * 0.90)),
+           (body_cx + int(body_w * 1.40), body_cy + int(body_h * 0.74))]
     pygame.draw.lines(surf, ROSE, False, hem, max(2, int(3 * s)))
     pygame.draw.lines(surf, ROSE_BR, False, hem[:2], max(1, int(1.4 * s)))
 
@@ -394,9 +441,9 @@ def draw_prince(surf, cx, cy, s):
                          (head_c[0] + int(k * hr * 0.14), my + int(hr * 0.08)),
                          max(1, int(1 * s)))
 
-    # === the dainty OPEN TREFOIL CORONET (the top tell) =======================
-    crown_w = int(hr * 0.86)
-    trefoil_coronet(surf, head_c[0], head_c[1] - int(hr * 0.84), crown_w, s)
+    # === the OPEN TREFOIL CORONET with tall central spike (the top tell) ======
+    crown_w = int(hr * 0.84)
+    trefoil_coronet(surf, head_c[0], head_c[1] - int(hr * 0.86), crown_w, s, rim=rim)
 
     # === a single tiny skull held as a TOY in the right hand (lineage tell) ===
     tiny_skull(surf, hand2[0] + int(2 * s), hand2[1] + int(5 * s), int(5 * s), s)
@@ -476,10 +523,10 @@ def hero_chip(boxw, boxh, dcx, dcy, scale):
     return grow(pygame.transform.smoothscale(big, (boxw, boxh)))
 
 
-def chip32(black=False):
+def chip32(black=False, rim=False):
     """A genuine ~32px-tall figure, downscaled from the SS render."""
     big = pygame.Surface((96 * SS, 96 * SS), pygame.SRCALPHA)
-    draw_prince(big, 48 * SS, 52 * SS, (32 / 120.0) * SS)
+    draw_prince(big, 48 * SS, 52 * SS, (32 / 120.0) * SS, rim=rim)
     small = pygame.transform.smoothscale(big, (96, 96))
     out = grow(small)
     if black:
@@ -513,16 +560,16 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("ROSE-GOLD PRINCE", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "the boy-prince  ·  cute pole · egg-on-legs · open trefoil coronet + pink tourmaline · round 1",
+        "the boy-prince  ·  cute pole · egg-on-legs · spiked trefoil coronet + hot pink tourmaline · round 2",
         True, LABEL_DIM), (330, 26))
 
     # === (a) BIG HERO =========================================================
     hero = hero_chip(360, 470, 180, 232, 2.0)
     sheet.blit(hero, (14, 92))
     sheet.blit(font.render("Creature — hero", True, LABEL), (110, 566))
-    sheet.blit(font_sm.render("compact EGG-ON-LEGS heir (the only small/round king). Open trefoil", True, LABEL_DIM), (14, 590))
-    sheet.blit(font_sm.render("coronet adds vertical height; cape-collar gives shoulders; orb-sceptre", True, LABEL_DIM), (14, 606))
-    sheet.blit(font_sm.render("held to one side. Pink tourmaline = single focal. Palest bone + rose-gold.", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("compact EGG-ON-LEGS heir (the only small/round king). Tall CENTRAL", True, LABEL_DIM), (14, 590))
+    sheet.blit(font_sm.render("spike spikes the coronet out of the round head; wider asymmetric cape +", True, LABEL_DIM), (14, 606))
+    sheet.blit(font_sm.render("off-side orb-sceptre. Hot pink tourmaline = brightest pixel. Palest bone.", True, LABEL_DIM), (14, 622))
 
     # === (b) PILLAR assembled — mirrored, clean tileable shaft ================
     pcx = 470
@@ -545,7 +592,7 @@ def main():
     sheet.blit(font.render("True 32px gameplay-scale", True, LABEL), (panel_x + 16, 96))
 
     chip = chip32()
-    sil = chip32(black=True)
+    chip_night = chip32(rim=True)  # crown rim-light carries the coronet on dark sky
 
     day_y = 128
     vgrad(sheet, (panel_x + 20, day_y, 150, 150), DAY_SKY_T, DAY_SKY_B)
@@ -556,8 +603,8 @@ def main():
     night_y = day_y + 184
     vgrad(sheet, (panel_x + 20, night_y, 150, 150), NIGHT_T, NIGHT_B)
     pygame.draw.rect(sheet, INK, (panel_x + 20, night_y, 150, 150), 1)
-    sheet.blit(chip, (panel_x + 20 + 27, night_y + 27))
-    sheet.blit(font_sm.render("32px on night sky", True, LABEL_DIM), (panel_x + 20, night_y + 156))
+    sheet.blit(chip_night, (panel_x + 20 + 27, night_y + 27))
+    sheet.blit(font_sm.render("32px on night sky (crown rim-lit)", True, LABEL_DIM), (panel_x + 20, night_y + 156))
 
     # blackout silhouette proof (the anti-coin test) beside the chips
     px2 = panel_x + 192
@@ -568,8 +615,8 @@ def main():
     wsil = mask.to_surface(setcolor=(236, 232, 226, 255), unsetcolor=(0, 0, 0, 0))
     sheet.blit(wsil, (px2 + 18, day_y + 27))
     sheet.blit(font_sm.render("silhouette proof", True, LABEL), (px2 + 4, day_y + 156))
-    sheet.blit(font_sm.render("(crown breaks circle ->", True, LABEL_DIM), (px2 + 2, day_y + 172))
-    sheet.blit(font_sm.render(" not a coin)", True, LABEL_DIM), (px2 + 2, day_y + 186))
+    sheet.blit(font_sm.render("(spike SPIKES out of", True, LABEL_DIM), (px2 + 2, day_y + 172))
+    sheet.blit(font_sm.render(" the round body)", True, LABEL_DIM), (px2 + 2, day_y + 186))
 
     # 32px pillar gap-cap chip on both skies
     def pillar_chip32():
@@ -609,7 +656,7 @@ def main():
         "dark-core->fill->top-left sheen triad · 1px grown outline · chibi scary-CUTE · procedural-only · NO KFC red.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

@@ -46,14 +46,21 @@ ONYX_D    = ( 28,  26,  34)   # onyx dark-core
 ONYX_DD   = ( 18,  17,  24)   # deepest hollow (hood shadow, robe seam)
 # the cool blue-grey RIM-SHEEN — the silhouette carrier on the night sky.
 # WHY engineered cool + bright: it must out-value the night sky top (22,26,54)
-# along every edge so the black mass keeps a clean outline at 32px night.
-RIM       = (138, 156, 196)   # cool blue-grey rim-sheen (the carrier)
-RIM_BR    = (196, 212, 240)   # brightest rim highlight (shoulder/crown crest)
-RIM_D     = ( 86, 100, 136)   # rim shade (where it folds back into onyx)
+# along every edge so the black mass keeps a clean outline at 32px night. Pushed
+# brighter+cooler than r1 (150,165,200) so the whole tall column clears the
+# night-sky value at 32px, not just the body — a dimmer rim left the lower column
+# dissolving into the sky.
+RIM       = (164, 178, 212)   # cool blue-grey rim-sheen (the carrier)
+RIM_BR    = (212, 224, 248)   # brightest rim highlight (shoulder/crown crest)
+RIM_D     = (110, 124, 162)   # rim shade (where it folds back into onyx)
 # GOLD — the ONLY bright/saturated accent (crown dome, hem line, sceptre).
-GOLD      = (224, 186,  88)
-GOLD_BR   = (248, 220, 132)   # hot gold crest (the single brightest pixel)
-GOLD_D    = (168, 130,  54)
+# WHY the body gold is pulled DOWN a notch from r1: the orb-and-cross finial must
+# be the single brightest pixel, so crest-dome + hem/base gold read as structure,
+# not a competing 2nd bright mass.
+GOLD      = (210, 172,  78)
+GOLD_BR   = (234, 200, 112)   # warm gold crest (structure — NOT the brightest)
+GOLD_D    = (158, 122,  50)
+GOLD_HOT  = (255, 232, 150)   # the finial ONLY — the single brightest pixel
 # the eye-pins: a cold imperial pale-gold glow, kept tiny so gold stays focal.
 EYE       = (236, 214, 150)
 EYE_HOT   = (255, 244, 206)
@@ -120,19 +127,22 @@ def triad_circle(surf, color, c, r, ow=2, sheen=True, core=True):
 
 
 # -- the WIDE cool rim-sheen along a directed edge (the silhouette carrier) ----
-def rim_edge(surf, pts, s, width=3.0, bright=False):
+def rim_edge(surf, pts, s, width=4.6, bright=False):
     """Stroke a polyline with a WIDE cool blue-grey rim band, plus a thinner hot
     crest on the lit side. WHY a fat band, not a 1px line: onyx near-black has no
     value on the night sky, so the rim must be wide + bright enough that the band
-    ITSELF carries the silhouette edge — a thin line vanishes. The brighter inner
+    ITSELF carries the silhouette edge — a thin line vanishes. WHY ~4.6 units wide
+    now (was 3.0): at the 32px chip scale ((32/134)*SS) a 3-unit native band
+    smoothscaled down to a sub-pixel ghost and the lower column dissolved; ~4.6
+    survives smoothscale to ~2px native / ~1px at the chip. The brighter inner
     crest reads as a polished obsidian sheen. Drawn AFTER the onyx fill so it sits
     on the outer contour."""
     if len(pts) < 2:
         return
-    pygame.draw.lines(surf, RIM_D, False, pts, max(2, int((width + 1.4) * s)))
+    pygame.draw.lines(surf, RIM_D, False, pts, max(2, int((width + 1.6) * s)))
     pygame.draw.lines(surf, RIM, False, pts, max(2, int(width * s)))
     if bright:
-        pygame.draw.lines(surf, RIM_BR, False, pts, max(1, int((width * 0.42) * s)))
+        pygame.draw.lines(surf, RIM_BR, False, pts, max(1, int((width * 0.5) * s)))
 
 
 # -- the closed IMPERIAL DOME crown (the only smooth/round crown — the tell) ---
@@ -200,13 +210,16 @@ def imperial_crown(surf, cx, cy, r, s):
         pygame.draw.lines(surf, GOLD_D, False, arch, max(2, int(3.0 * s)))
         pygame.draw.lines(surf, GOLD_BR, False, arch, max(1, int(1.4 * s)))
 
-    # orb-and-cross finial at the apex — the single brightest pixel
+    # orb-and-cross finial at the apex — the SINGLE BRIGHTEST PIXEL.
+    # WHY GOLD_HOT here and nowhere else: the finial must read ~15-20% brighter
+    # than the rest of the gold so the eye lands on the crown apex; every other
+    # gold element (dome, hem, sceptre) sits a notch darker as structure.
     fy = apex_y - int(3 * s)
     triad_circle(surf, GOLD, (cx, fy), int(4.2 * s), ow=max(1, int(1.2 * s)), core=False)
-    pygame.draw.circle(surf, GOLD_BR, (cx - int(1 * s), fy - int(1 * s)), max(1, int(1.8 * s)))
-    pygame.draw.line(surf, GOLD_BR, (cx, fy - int(4 * s)), (cx, fy - int(11 * s)), max(2, int(2.2 * s)))
-    pygame.draw.line(surf, GOLD_BR, (cx - int(3 * s), fy - int(8 * s)),
-                     (cx + int(3 * s), fy - int(8 * s)), max(1, int(2.0 * s)))
+    pygame.draw.circle(surf, GOLD_HOT, (cx - int(1 * s), fy - int(1 * s)), max(1, int(2.2 * s)))
+    pygame.draw.line(surf, GOLD_HOT, (cx, fy - int(4 * s)), (cx, fy - int(11 * s)), max(2, int(2.4 * s)))
+    pygame.draw.line(surf, GOLD_HOT, (cx - int(3 * s), fy - int(8 * s)),
+                     (cx + int(3 * s), fy - int(8 * s)), max(1, int(2.2 * s)))
 
 
 # -- the tiny skull sceptre knob (the lineage TOOLKIT tell) -------------------
@@ -265,39 +278,56 @@ def draw_obsidian(surf, cx, cy, s):
                          (cx + int(hem_w * 0.4), hem_y),
                          (cx, hem_y)],
                ow=max(1, int(1.8 * s)))
-    # smooth interior fold shadows (a hint of drape, NOT ribs) — soft and few
-    pygame.draw.line(surf, ONYX_DD, (cx + int(11 * s), shoulder_y + int(14 * s)),
-                     (cx + int(20 * s), hem_y - int(8 * s)), max(1, int(2.0 * s)))
-    pygame.draw.line(surf, ONYX_DD, (cx - int(13 * s), cy - int(2 * s)),
-                     (cx - int(22 * s), hem_y - int(8 * s)), max(1, int(1.6 * s)))
+    # WHY no interior fold lines: a horizontal-reading fold seam mid-column got
+    # mistaken for a rib band and pulled the king toward "another skeleton-man".
+    # One smooth onyx column floor-to-collar — the top-left sheen from triad_blob
+    # is the ONLY light on the body, no banding.
 
-    # WIDE cool rim-sheen down BOTH outer edges of the robe column (the carrier).
+    # WIDE cool rim-sheen as ONE CONTINUOUS unbroken wrap around the whole robe
+    # outline: down the left edge, across the full hem floor, up the right edge —
+    # a single polyline so there are NO gaps along the lower column. WHY uniform
+    # width on both sides: a thinner right edge in r1 let the lower-right column
+    # dissolve into night; a balanced wide wrap keeps the tall shape legible
+    # top-to-bottom. The lit (left) side then gets a brighter crest overlaid.
+    column_wrap = [(cx - top_w, shoulder_y + int(4 * s)),
+                   (cx - int(top_w * 0.94), cy),
+                   (cx - hem_w, hem_y - int(6 * s)),
+                   (cx - int(hem_w * 0.72), hem_y),
+                   (cx + int(hem_w * 0.72), hem_y),
+                   (cx + hem_w, hem_y - int(6 * s)),
+                   (cx + int(top_w * 0.94), cy),
+                   (cx + top_w, shoulder_y + int(4 * s))]
+    rim_edge(surf, column_wrap, s, width=5.2, bright=True)
+    # WHY a doubled-up hem floor band: the very bottom rows lost the rim to
+    # smoothscale dilution and dropped out of the night row-carry gate, so the
+    # full hem hem-flare gets an extra-wide cool band to hold the base edge.
+    rim_edge(surf, [(cx - hem_w, hem_y - int(6 * s)),
+                    (cx - int(hem_w * 0.72), hem_y),
+                    (cx + int(hem_w * 0.72), hem_y),
+                    (cx + hem_w, hem_y - int(6 * s))], s, width=5.4, bright=True)
+    # brighter crest on the lit LEFT edge only (polished-obsidian sheen)
     left_edge = [(cx - top_w, shoulder_y + int(4 * s)),
                  (cx - int(top_w * 0.94), cy),
                  (cx - hem_w, hem_y - int(6 * s)),
                  (cx - int(hem_w * 0.72), hem_y)]
-    right_edge = [(cx + top_w, shoulder_y + int(4 * s)),
-                  (cx + int(top_w * 0.94), cy),
-                  (cx + hem_w, hem_y - int(6 * s)),
-                  (cx + int(hem_w * 0.72), hem_y)]
-    rim_edge(surf, left_edge, s, width=3.4, bright=True)     # lit side wider/brighter
-    rim_edge(surf, right_edge, s, width=2.6, bright=False)
-    # rim across the hem floor so the base edge survives night too
-    rim_edge(surf, [(cx - int(hem_w * 0.72), hem_y),
-                    (cx + int(hem_w * 0.72), hem_y)], s, width=2.4)
+    pygame.draw.lines(surf, RIM_BR, False, left_edge, max(1, int(2.2 * s)))
 
     # === the single vertical GOLD HEM LINE (the 32px hem tell) ===============
-    # one crisp gold seam down the centre of the robe, widening to a hem cuff.
+    # one crisp gold seam down the centre of the robe. WHY no filled cuff at the
+    # base: a bright gold block at the feet anchored the eye DOWN and competed
+    # with the finial; it's now a thin hem line so the eye travels UP to the
+    # orb-and-cross finial (the single brightest pixel).
     pygame.draw.line(surf, GOLD_D, (cx, shoulder_y + int(10 * s)), (cx, hem_y - int(2 * s)),
                      max(2, int(3.0 * s)))
     pygame.draw.line(surf, GOLD, (cx, shoulder_y + int(10 * s)), (cx, hem_y - int(2 * s)),
                      max(1, int(1.8 * s)))
     pygame.draw.line(surf, GOLD_BR, (cx, shoulder_y + int(12 * s)), (cx, cy + int(14 * s)),
                      max(1, int(0.9 * s)))
-    # a small gold hem cuff at the floor where the line terminates
-    cuff = [(cx - int(10 * s), hem_y - int(8 * s)), (cx + int(10 * s), hem_y - int(8 * s)),
-            (cx + int(8 * s), hem_y - int(1 * s)), (cx - int(8 * s), hem_y - int(1 * s))]
-    triad_blob(surf, GOLD, cuff, ow=max(1, int(1.2 * s)))
+    # a thin gold hem LINE at the floor where the seam terminates (not a cuff block)
+    pygame.draw.line(surf, GOLD_D, (cx - int(9 * s), hem_y - int(3 * s)),
+                     (cx + int(9 * s), hem_y - int(3 * s)), max(2, int(2.4 * s)))
+    pygame.draw.line(surf, GOLD, (cx - int(8 * s), hem_y - int(3 * s)),
+                     (cx + int(8 * s), hem_y - int(3 * s)), max(1, int(1.4 * s)))
 
     # === SHOULDER MANTLE — a smooth onyx yoke capping the column =============
     mantle = [(cx - int(30 * s), shoulder_y + int(6 * s)),
@@ -342,7 +372,7 @@ def draw_obsidian(surf, cx, cy, s):
                ow=max(1, int(1.5 * s)))
     rim_edge(surf, [(cx - int(22 * s), shoulder_y + int(8 * s)),
                     (cx - int(6 * s), shoulder_y + int(20 * s)),
-                    (cx + int(8 * s), cy + int(2 * s))], s, width=2.4, bright=True)
+                    (cx + int(8 * s), cy + int(2 * s))], s, width=4.0, bright=True)
     # right sleeve dropping to the sceptre grip
     rsleeve = [(cx + int(22 * s), shoulder_y + int(8 * s)),
                (cx + int(28 * s), cy - int(6 * s)),
@@ -357,7 +387,7 @@ def draw_obsidian(surf, cx, cy, s):
                ow=max(1, int(1.5 * s)))
     rim_edge(surf, [(cx + int(22 * s), shoulder_y + int(8 * s)),
                     (cx + int(28 * s), cy - int(6 * s)),
-                    (cx + int(26 * s), cy + int(14 * s))], s, width=2.6, bright=True)
+                    (cx + int(26 * s), cy + int(14 * s))], s, width=4.4, bright=True)
 
     # === SCEPTRE — slim gold rod with the tiny skull knob (toolkit tell) ======
     sc_x = cx + int(33 * s)
@@ -454,13 +484,21 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
                core_pts=[(cx, shaft_top), (cx + shaft_w, shaft_top),
                          (cx + shaft_w, shaft_bot), (cx, shaft_bot)],
                ow=max(1, int(1.6 * s)))
-    # WIDE cool rim down both edges (the night carrier), brighter on the left
+    # WIDE cool rim as a CONTINUOUS wrap down both edges + across the shaft ends
+    # (the night carrier) — uniform width so neither edge dissolves; brighter
+    # crest on the lit left only.
+    mid_y = (shaft_top + shaft_bot) // 2
     rim_edge(surf, [(cx - shaft_w, shaft_top),
-                    (cx - int(shaft_w * 0.86), (shaft_top + shaft_bot) // 2),
-                    (cx - shaft_w, shaft_bot)], s, width=3.2, bright=True)
-    rim_edge(surf, [(cx + shaft_w, shaft_top),
-                    (cx + int(shaft_w * 0.86), (shaft_top + shaft_bot) // 2),
-                    (cx + shaft_w, shaft_bot)], s, width=2.4)
+                    (cx + shaft_w, shaft_top),
+                    (cx + int(shaft_w * 0.86), mid_y),
+                    (cx + shaft_w, shaft_bot),
+                    (cx - shaft_w, shaft_bot),
+                    (cx - int(shaft_w * 0.86), mid_y),
+                    (cx - shaft_w, shaft_top)], s, width=4.2, bright=False)
+    pygame.draw.lines(surf, RIM_BR, False,
+                      [(cx - shaft_w, shaft_top),
+                       (cx - int(shaft_w * 0.86), mid_y),
+                       (cx - shaft_w, shaft_bot)], max(1, int(1.8 * s)))
     # the single vertical gold hem line down the centre (the shaft tell)
     pygame.draw.line(surf, GOLD_D, (cx, shaft_top), (cx, shaft_bot), max(2, int(3.0 * s)))
     pygame.draw.line(surf, GOLD, (cx, shaft_top), (cx, shaft_bot), max(1, int(1.6 * s)))
@@ -512,8 +550,11 @@ def silhouette_check(chip):
     """Measure how much of the chip's silhouette the rim+gold carries (not just
     the near-black mass that vanishes on night). Returns the fraction of opaque
     pixels whose colour is clearly LIGHTER than the night sky top — those are the
-    pixels that actually read on the night chip."""
-    chip = chip.convert_alpha()
+    pixels that actually read on the night chip.
+
+    WHY no convert_alpha(): under SDL_VIDEODRIVER=dummy no display mode is set, so
+    convert_alpha() raised 'No video mode has been set' and the self-check never
+    ran. The chip is already an SRCALPHA surface, so we sample get_at() directly."""
     w, h = chip.get_size()
     opaque = 0
     carried = 0
@@ -534,6 +575,40 @@ def silhouette_check(chip):
     return opaque, carried, frac
 
 
+def night_rowcarry_check(chip):
+    """Stronger night gate: composite the chip onto the NIGHT sky gradient, then
+    for every row that contains figure pixels confirm the rim/gold lifts at least
+    one pixel clearly above the local night-sky value. Returns (figure_rows,
+    carried_rows) so the print proves the tall column survives TOP-TO-BOTTOM, not
+    just in aggregate."""
+    w, h = chip.get_size()
+    fig_rows = 0
+    carried_rows = 0
+    for y in range(h):
+        sky = lerp(NIGHT_T, NIGHT_B, y / max(1, h - 1))
+        sky_lum = sum(sky) / 3.0
+        row_has_fig = False
+        row_carries = False
+        for x in range(w):
+            r, g, b, a = chip.get_at((x, y))
+            if a < 80:
+                continue
+            row_has_fig = True
+            # alpha-composite onto the local night sky, then test contrast
+            cr = (r * a + sky[0] * (255 - a)) // 255
+            cg = (g * a + sky[1] * (255 - a)) // 255
+            cb = (b * a + sky[2] * (255 - a)) // 255
+            lum = (cr + cg + cb) / 3.0
+            if lum > sky_lum + 22:
+                row_carries = True
+                break
+        if row_has_fig:
+            fig_rows += 1
+            if row_carries:
+                carried_rows += 1
+    return fig_rows, carried_rows
+
+
 def main():
     W, H = 1010, 820
     font_big = load_font(30)
@@ -547,7 +622,7 @@ def main():
     sheet.blit(font_big.render("OBSIDIAN SOVEREIGN", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "dark imperial monarch (value pole)  ·  tall smooth onyx robe-column · gold imperial-dome crown · "
-        "single gold hem line · cool rim-sheen carries night · round 1",
+        "single gold hem line · cool rim-sheen carries night · round 2",
         True, LABEL_DIM), (24, 40))
 
     # === (a) BIG HERO ========================================================
@@ -627,18 +702,15 @@ def main():
     blk = pygame.transform.smoothscale(blk_big, (96, 96))
     mask = pygame.mask.from_surface(blk)
     sil = mask.to_surface(setcolor=(18, 18, 22, 255), unsetcolor=(0, 0, 0, 0))
-    bx = panel_x + 192
-    by = night_y
-    pygame.draw.rect(sheet, (214, 216, 222), (bx, by, 56, 96 + 54))
-    pygame.draw.rect(sheet, INK, (bx, by, 56, 96 + 54), 1)
-    # (the gap-cap chip already occupies px2; place blackout below the palette)
+    # WHY no stray tile over px2: the night gap-cap chip already lives there;
+    # the blackout proof is placed below the palette only.
 
     # palette swatches
     sheet.blit(font.render("Pinned palette", True, LABEL), (panel_x + 16, 470))
     swatches = [
         (ONYX, "onyx near-black bone"), (ONYX_D, "onyx shade"),
         (RIM, "cool rim-sheen"), (RIM_BR, "rim crest"),
-        (GOLD, "gold accent"), (GOLD_BR, "gold crest"),
+        (GOLD, "gold (structure)"), (GOLD_HOT, "gold finial (brightest)"),
         (EYE, "pale-gold eye"), (INK, "ink keyline"),
     ]
     sxp, syp = panel_x + 16, 498
@@ -668,16 +740,27 @@ def main():
         "VALUE-POLE LOCK: smooth onyx robe (no ribs) · gold = only bright accent · WIDE cool rim-sheen carries the night silhouette.",
         True, LABEL_DIM), (26, 788))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
     # -- self-check: does the rim-sheen carry the silhouette on the night chip? --
     opaque, carried, frac = silhouette_check(chip)
-    print("NIGHT-CHIP self-check: opaque=%d carried(rim/gold)=%d fraction=%.2f"
+    print("NIGHT-CHIP mass self-check: opaque=%d carried(rim/gold)=%d fraction=%.2f"
           % (opaque, carried, frac))
-    verdict = "PASS" if frac >= 0.30 else "WEAK — widen/brighten the rim"
-    print("rim-sheen carries silhouette: %s (target >=0.30 of the mass reads bright on night)" % verdict)
+    mass_ok = frac >= 0.30
+
+    # the real GATE: every figure row must keep at least one edge legible on night
+    # so the TALL column survives top-to-bottom, not just on average.
+    fig_rows, carried_rows = night_rowcarry_check(chip)
+    row_frac = carried_rows / max(1, fig_rows)
+    print("NIGHT-CHIP row-carry self-check: figure_rows=%d carried_rows=%d row_fraction=%.2f"
+          % (fig_rows, carried_rows, row_frac))
+    rows_ok = row_frac >= 0.92    # near-every row must carry (top-to-bottom legible)
+
+    verdict = "PASS" if (mass_ok and rows_ok) else "WEAK — widen/brighten the rim"
+    print("RIM CARRIES NIGHT SILHOUETTE: %s "
+          "(gate: mass-fraction>=0.30 AND row-fraction>=0.92)" % verdict)
 
 
 if __name__ == "__main__":

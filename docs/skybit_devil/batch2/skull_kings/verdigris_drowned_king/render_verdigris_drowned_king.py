@@ -26,7 +26,8 @@ mass. Sea-bleached grey-green bone is the dominant FIELD; verdigris-copper
 teal lives only in the antler veining, barnacle crust, socket glow and a thin
 sash; pearl-cream is the single bright focal. He is the ONLY teal king — and
 his bone is pushed clearly LIGHTER + GREENER than Koschei's tallow grey-green
-(190,192,158) so the two closest bone hues never collide.
+(190,192,158) so the two closest bone hues never collide — the gap is held on
+value (luminance) FIRST, hue second (the safe colorblind read).
 
 WHY a standalone script under docs/: review art must never enter the shipped
 bundle, so it reuses only colour math + the triad/outline helpers cloned from
@@ -42,14 +43,14 @@ pygame.init()
 # -- PINNED PALETTE (locked brief) --------------------------------------------
 # Sea-bleached grey-green bone is the dominant mass. WHY pushed LIGHTER + clearly
 # GREENER than Koschei's tallow (190,192,158): those are the two closest bone
-# hues in the court; the drowned king's bone must read higher-value and green-
-# dominant (G clearly the largest channel) so it never muddles with the tallow
-# emperor. Brief target ~(168,184,166) is darkened by the night sky, so the
-# fill is keyed up while keeping G dominant.
-BONE      = (186, 206, 184)   # sea-bleached grey-green bone (dominant fill)
-BONE_D    = (132, 158, 138)   # bone dark-core (still green-dominant)
-BONE_DD   = ( 92, 116, 102)   # deepest bone hollow (sockets, rib gaps)
-BONE_SH   = (224, 238, 220)   # bone top-left rim-sheen (sea-bleached highlight)
+# hues in the court, so the gap is held on BOTH axes — luminance ~9% above the
+# tallow (perceptual ~191 vs ~175) AND green pulled clearly ahead of R/B so it
+# tilts cool-green where tallow tilts warm-grey. Leans on value first (the safe
+# colorblind read), hue second.
+BONE      = (200, 220, 198)   # sea-bleached grey-green bone (dominant fill)
+BONE_D    = (138, 166, 144)   # bone dark-core (still green-dominant)
+BONE_DD   = ( 96, 122, 106)   # deepest bone hollow (sockets, rib gaps)
+BONE_SH   = (232, 244, 226)   # bone top-left rim-sheen (sea-bleached highlight)
 # verdigris-copper TEAL — the only teal in the court; a THIN accent never a mass
 TEAL      = ( 42, 158, 152)   # verdigris-copper teal accent
 TEAL_D    = ( 24, 104, 102)
@@ -57,7 +58,7 @@ TEAL_BR   = (118, 214, 200)   # bright verdigris (antler veining / glow)
 TEAL_HOT  = (188, 244, 230)   # hottest verdigris (socket pin core)
 # pearl-cream — the single high-contrast focal (the baroque finial)
 PEARL     = (242, 240, 226)   # pearl-cream body
-PEARL_SH  = (255, 255, 248)   # pearl hot highlight (the single brightest pixel)
+PEARL_SH  = (245, 248, 250)   # pearl hot highlight (the single brightest pixel)
 PEARL_D   = (196, 198, 188)   # pearl shade
 PEARL_RIM = (160, 196, 188)   # cool nacre rim on the pearl (teal-tinted)
 CORAL     = (208, 224, 206)   # bleached coral antler bone (a touch warmer/lighter)
@@ -84,6 +85,24 @@ def lerp(a, b, t):
 
 # -- outline grown from the alpha mask (the house keyline) --------------------
 def grow_outline(surf, color, px):
+    mask = pygame.mask.from_surface(surf)
+    pts = mask.outline()
+    if len(pts) < 2:
+        return surf
+    base = surf.copy()
+    ring = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    for (ox, oy) in pts:
+        pygame.draw.circle(ring, color, (ox, oy), px)
+    ring.blit(base, (0, 0))
+    return ring
+
+
+def night_rim(surf, color, px):
+    """A cool pearl/teal RIM-sheen grown OUTSIDE the silhouette. WHY: the sea-
+    bone mass loses value against the night sky, so the slump silhouette goes
+    mushy (the Obsidian/Koschei night lesson). A wide bright rim painted under
+    the ink keyline re-draws the whole outline in a luminous teal-pearl, so the
+    posture carries on dark sky without touching the day read."""
     mask = pygame.mask.from_surface(surf)
     pts = mask.outline()
     if len(pts) < 2:
@@ -128,41 +147,41 @@ def triad_circle(surf, color, c, r, ow=2, sheen=True, core=True):
 
 # -- a single FAT, separated weed tendril (the open-ring lesson) ---------------
 def weed_tendril(surf, x0, y0, length, sway, width, s, droop=1.0):
-    """One FAT trailing weed tendril, drawn as a tapering ribbon that curls.
-    WHY fat + separated (the flame_halo lesson): a fringe of thin strands muds
-    into noise at 32px. Each tendril is a chunky organic blade with sky on both
-    sides, so 2-3 of them read as a clear trailing-weed silhouette. `sway` bows
-    the blade sideways for the underwater drift; `droop` pulls the tip down."""
+    """One FAT trailing weed tendril, drawn as a broad tapering blade.
+    WHY fat + separated + NO thin midrib (the flame_halo lesson, hardened for
+    round 2): the round-1 blades muddied because a thin teal midrib + barnacle
+    nubs added per-pixel noise that smeared at 32px. Round 2 makes the blade a
+    single chunky leaf — wide root, soft rounded tip, a generous interior teal
+    SHEEN (not a hairline) — so each of the 2-3 tongues survives downscale as a
+    countable shape with sky on both sides. `sway` bows the blade for the
+    underwater drift; `droop` pulls the tip down."""
     segs = 7
+    width = width * 1.7                       # round 2b: genuinely fat tongue
+    length = length * 0.78                     # shorter so it reads stubby, not whippy
     left, right = [], []
+    cline = []
     for i in range(segs + 1):
         t = i / segs
-        # cubic-ish bow: sways out then trails back, sinking as it falls
         bx = x0 + math.sin(t * math.pi * 0.9) * sway
-        by = y0 + length * t * droop + math.sin(t * 2.2) * (6 * s)
-        w = width * (1.0 - 0.72 * t)        # taper toward the tip
-        # local tangent for a perpendicular ribbon width
+        by = y0 + length * t * droop + math.sin(t * 2.2) * (5 * s)
+        # near-constant fat belly that only rounds off in the final third, so the
+        # blade keeps real mass the whole way down (countable at 32px).
+        w = width * (1.0 - 0.62 * max(0.0, t - 0.55) / 0.45)
         ang = math.pi / 2 + (sway / max(1.0, length)) * math.cos(t * math.pi * 0.9)
         nx, ny = math.cos(ang) * w * 0.5, -math.sin(ang) * w * 0.5
         left.append((bx + nx, by + ny))
         right.append((bx - nx, by - ny))
+        cline.append((bx, by))
     blade = left + right[::-1]
     pygame.draw.polygon(surf, INK, blade)
-    pygame.draw.polygon(surf, lerp(BONE, TEAL_D, 0.30), blade)   # weed-tinted bone
-    # a teal midrib so the blade reads as living weed, not a bone spur
-    mid = [( (left[i][0] + right[i][0]) / 2, (left[i][1] + right[i][1]) / 2 )
-           for i in range(segs + 1)]
-    if len(mid) >= 2:
-        pygame.draw.lines(surf, TEAL_D, False, mid, max(1, int(2.4 * s)))
-        pygame.draw.lines(surf, TEAL, False, mid[:len(mid) - 1], max(1, int(1.4 * s)))
-    pygame.draw.polygon(surf, INK, blade, max(1, int(1.4 * s)))
-    # a couple of barnacle nubs riding the blade (texture tell, not tiny skulls)
-    for t in (0.30, 0.62):
-        i = int(t * segs)
-        bx = (left[i][0] + right[i][0]) / 2
-        by = (left[i][1] + right[i][1]) / 2
-        pygame.draw.circle(surf, BARNACLE, (int(bx), int(by)), max(1, int(2.4 * s)))
-        pygame.draw.circle(surf, INK, (int(bx), int(by)), max(1, int(2.4 * s)), 1)
+    pygame.draw.polygon(surf, lerp(BONE, TEAL_D, 0.34), blade)   # weed-tinted bone
+    # broad interior teal sheen down the windward half — a SHAPE not a hairline,
+    # so the blade reads as living weed even after the downscale flattens detail.
+    inner = [left[i] for i in range(segs + 1)]
+    inner += [( (left[i][0] + cline[i][0]) / 2, (left[i][1] + cline[i][1]) / 2 )
+              for i in range(segs, -1, -1)]
+    pygame.draw.polygon(surf, lerp(TEAL, TEAL_D, 0.2), inner)
+    pygame.draw.polygon(surf, INK, blade, max(1, int(1.6 * s)))
 
 
 # -- one FAT coral-antler fork (3-4 of these = the crown) ----------------------
@@ -186,9 +205,10 @@ def coral_fork(surf, x0, y0, ang, length, width, s, depth=2):
     pygame.draw.line(surf, TEAL_BR, (x0, y0),
                      ((x0 + x1) / 2, (y0 + y1) / 2), max(1, int(1.0 * s)))
     if depth > 0:
-        spread = math.radians(26)
-        coral_fork(surf, x1, y1, ang - spread, length * 0.66, width * 0.62, s, depth - 1)
-        coral_fork(surf, x1, y1, ang + spread, length * 0.62, width * 0.58, s, depth - 1)
+        # wider split + fatter terminal prongs so each survives the 32px blackout
+        spread = math.radians(34)
+        coral_fork(surf, x1, y1, ang - spread, length * 0.70, width * 0.72, s, depth - 1)
+        coral_fork(surf, x1, y1, ang + spread, length * 0.66, width * 0.68, s, depth - 1)
     else:
         # rounded coral knob tip so the prong reads soft, with a barnacle fleck
         triad_circle(surf, CORAL, (x1, y1), max(2, int(width * 0.5)),
@@ -211,11 +231,15 @@ def baroque_pearl(surf, cx, cy, r, s):
     pygame.draw.polygon(surf, PEARL_RIM, lump)            # cool nacre rim
     triad_circle(surf, PEARL, (cx, cy), int(r * 0.86), ow=max(1, int(1.4 * s)),
                  core=False, sheen=False)
-    # offset hot highlight = the single brightest pixel
+    # offset top-left sheen = the single brightest mass in the whole figure.
+    # WHY a BIG near-white cap (round 2): pearl/bone/teal all sat in one value
+    # band, so the eye had no anchor. A broad ~(245,248,250) sheen covering most
+    # of the upper-left pearl makes it unambiguously the brightest pixel cluster
+    # at both 32px chips, so the eye lands on the crown finial first.
     pygame.draw.circle(surf, PEARL_SH,
-                       (int(cx - r * 0.30), int(cy - r * 0.34)), max(2, int(r * 0.34)))
-    pygame.draw.circle(surf, (255, 255, 255),
-                       (int(cx - r * 0.30), int(cy - r * 0.34)), max(1, int(r * 0.14)))
+                       (int(cx - r * 0.24), int(cy - r * 0.28)), max(2, int(r * 0.52)))
+    pygame.draw.circle(surf, (252, 254, 255),
+                       (int(cx - r * 0.32), int(cy - r * 0.36)), max(1, int(r * 0.24)))
     pygame.draw.polygon(surf, INK, lump, max(1, int(1.4 * s)))
 
 
@@ -258,12 +282,15 @@ def draw_king(surf, cx, cy, s):
     # WHY behind + only 2-3 FAT blades: they read as a soft trailing skirt of
     # weed with SKY between them, the organic-silhouette tell, without muddying
     # the body. Placed off the low-shoulder + the hem, sweeping the slump way.
-    weed_tendril(surf, head_c[0] - int(hr * 0.9), cy - int(6 * s),
-                 int(78 * s), -int(26 * s), int(15 * s), s, droop=1.05)
-    weed_tendril(surf, hip_cx - int(10 * s), hip_y + int(2 * s),
-                 int(72 * s), -int(34 * s), int(14 * s), s, droop=1.15)
-    weed_tendril(surf, hip_cx + int(16 * s), hip_y + int(4 * s),
-                 int(64 * s),  int(30 * s), int(13 * s), s, droop=1.0)
+    # Three FAT blades fanned WIDE: far-left off the low shoulder, then two off
+    # the hem swept hard opposite ways so a clear wedge of sky sits between each
+    # pair (countable at 32px). Equal fat widths keep them reading as one family.
+    weed_tendril(surf, head_c[0] - int(hr * 1.05), cy - int(4 * s),
+                 int(82 * s), -int(40 * s), int(15 * s), s, droop=1.05)
+    weed_tendril(surf, hip_cx - int(14 * s), hip_y + int(2 * s),
+                 int(74 * s), -int(20 * s), int(15 * s), s, droop=1.18)
+    weed_tendril(surf, hip_cx + int(20 * s), hip_y + int(4 * s),
+                 int(66 * s),  int(40 * s), int(15 * s), s, droop=1.0)
 
     # === LEGS — folded/settled, not a wide dance stance ======================
     # WHY tucked + soft: a drowned body slumps, it does not plant; the legs fold
@@ -431,11 +458,13 @@ def draw_king(surf, cx, cy, s):
     pygame.draw.lines(surf, TEAL, False, band_pts, int(4 * s))
     pygame.draw.lines(surf, TEAL_BR, False, band_pts[:6], max(1, int(1.4 * s)))
     # 4 FAT coral forks raking across the top, leaning toward the slump side
+    # Round 2: 4 FATTER forks splayed WIDER so each terminal prong keeps clear
+    # sky around it and survives the blackout as a separate antler, not a blob.
     fork_specs = [
-        (math.radians(238), int(34 * s), int(7.0 * s)),   # far collapsed-side fork
-        (math.radians(258), int(40 * s), int(7.6 * s)),
-        (math.radians(282), int(38 * s), int(7.2 * s)),
-        (math.radians(304), int(30 * s), int(6.4 * s)),   # short bracing-side fork
+        (math.radians(232), int(36 * s), int(8.6 * s)),   # far collapsed-side fork
+        (math.radians(256), int(43 * s), int(9.4 * s)),
+        (math.radians(286), int(41 * s), int(9.0 * s)),
+        (math.radians(310), int(32 * s), int(7.8 * s)),   # short bracing-side fork
     ]
     for ang, length, width in fork_specs:
         bx = head_c[0] + math.cos(ang) * hr * 0.92
@@ -447,7 +476,7 @@ def draw_king(surf, cx, cy, s):
     px = head_c[0] + math.cos(math.radians(270)) * hr * 1.62
     py = head_c[1] + math.sin(math.radians(270)) * hr * 1.62
     px, py = rot(px, py)
-    baroque_pearl(surf, px, py, int(hr * 0.40), s)
+    baroque_pearl(surf, px, py, int(hr * 0.52), s)
 
 
 # -- pillar: the drowned king's own forms tiled (coral + vertebra + weed) ------
@@ -469,6 +498,7 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
     else:
         b0, b1 = top + cap_room, bot - int(6 * s)
     y = b0
+    bead_i = 0
     while y <= b1:
         bw = shaft_w
         bead = [(cx - bw, y + int(2 * s)),
@@ -485,11 +515,14 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
                    ow=max(1, int(1.4 * s)))
         pygame.draw.circle(surf, BONE_DD, (cx, y + int(2 * s)), int(4 * s))
         pygame.draw.circle(surf, INK, (cx, y + int(2 * s)), int(4 * s), max(1, int(1 * s)))
-        # barnacle crust on alternating beads (the king's texture tell)
-        for ox in (-int(bw * 0.7), int(bw * 0.6)):
-            pygame.draw.circle(surf, BARNACLE, (cx + ox, y + int(5 * s)), max(1, int(2.4 * s)))
-            pygame.draw.circle(surf, INK, (cx + ox, y + int(5 * s)), max(1, int(2.4 * s)), 1)
+        # barnacle crust — round 2: only every OTHER bead and lower contrast, so
+        # the crust reads as texture instead of strobing as it scrolls past.
+        if bead_i % 2 == 0:
+            for ox in (-int(bw * 0.7), int(bw * 0.6)):
+                pygame.draw.circle(surf, lerp(BARNACLE, BONE, 0.18),
+                                   (cx + ox, y + int(5 * s)), max(1, int(2.0 * s)))
         y += bead_pitch
+        bead_i += 1
 
     # === gap-edge cap: FAT coral fork + pearl + two trailing weed tendrils ===
     if cap == "bottom":
@@ -560,7 +593,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("VERDIGRIS DROWNED-KING", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "slumped undersea monarch  ·  sea-bone dominant · coral-antler crown + baroque PEARL · the only teal · round 1",
+        "slumped undersea monarch  ·  sea-bone dominant · coral-antler crown + baroque PEARL · the only teal · round 2",
         True, LABEL_DIM), (360, 26))
 
     # === (a) BIG HERO =========================================================
@@ -593,13 +626,18 @@ def main():
     pygame.draw.rect(sheet, PANEL, (panel_x, 86, W - panel_x - 14, 560))
     sheet.blit(font.render("True 32px gameplay-scale chip", True, LABEL), (panel_x + 16, 96))
 
-    def chip32():
+    def chip32(night=False):
         big = pygame.Surface((96 * SS, 96 * SS), pygame.SRCALPHA)
         draw_king(big, 48 * SS, 50 * SS, (32 / FIG_UNITS) * SS)
         small = pygame.transform.smoothscale(big, (96, 96))
+        if night:
+            # wide cool pearl-teal rim FIRST, then the ink keyline on top of it,
+            # so the luminous halo carries the slump on the dark sky.
+            small = night_rim(small, (150, 198, 196, 255), 2)
         return grow_outline(small, INK + (255,), 1)
 
     chip = chip32()
+    chip_night = chip32(night=True)
 
     day_y = 128
     vgrad(sheet, (panel_x + 20, day_y, 150, 150), DAY_SKY_T, DAY_SKY_B)
@@ -610,8 +648,8 @@ def main():
     night_y = day_y + 184
     vgrad(sheet, (panel_x + 20, night_y, 150, 150), NIGHT_T, NIGHT_B)
     pygame.draw.rect(sheet, INK, (panel_x + 20, night_y, 150, 150), 1)
-    sheet.blit(chip, (panel_x + 20 + 27, night_y + 27))
-    sheet.blit(font_sm.render("32px on night sky", True, LABEL_DIM), (panel_x + 20, night_y + 156))
+    sheet.blit(chip_night, (panel_x + 20 + 27, night_y + 27))
+    sheet.blit(font_sm.render("32px on night sky (cool rim-sheen)", True, LABEL_DIM), (panel_x + 20, night_y + 156))
 
     # blackout silhouette proof beside (slump must read as a shape)
     def chip_black():
@@ -651,12 +689,18 @@ def main():
     cmp_y = 440
     sheet.blit(font.render("Bone vs Koschei", True, LABEL), (panel_x + 16, cmp_y - 26))
     KOSCHEI = (190, 192, 158)
+    def luma(c):
+        return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
     for i, (c, name) in enumerate(((KOSCHEI, "Koschei tallow"), (BONE, "sea-bone (this)"))):
         rx = panel_x + 16 + i * 158
         pygame.draw.rect(sheet, INK, (rx - 1, cmp_y - 1, 30, 30))
         pygame.draw.rect(sheet, c, (rx, cmp_y, 28, 28))
         sheet.blit(font_sm.render(name, True, LABEL), (rx + 34, cmp_y + 2))
-        sheet.blit(font_sm.render(str(c), True, LABEL_DIM), (rx + 34, cmp_y + 16))
+        sheet.blit(font_sm.render("%s  L%d" % (c, int(luma(c))), True, LABEL_DIM),
+                   (rx + 34, cmp_y + 16))
+    sheet.blit(font_sm.render(
+        "+%d%% luma, G ahead of R/B (value+hue step)" % int(100 * (luma(BONE) / luma(KOSCHEI) - 1)),
+        True, LABEL_DIM), (panel_x + 16, cmp_y + 32))
 
     # palette swatches
     sheet.blit(font.render("Pinned palette", True, LABEL), (panel_x + 16, 510))
@@ -681,7 +725,7 @@ def main():
         "dark-core→fill→top-left sheen triad · 1px grown outline · chibi · scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
