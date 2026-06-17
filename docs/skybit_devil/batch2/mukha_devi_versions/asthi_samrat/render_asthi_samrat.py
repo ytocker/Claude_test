@@ -122,23 +122,26 @@ def hard_groove(surf, x0, x1, y, s, depth=2.4):
 
 
 def cornice_lip(surf, cx, hw, y, s, overhang):
-    """An OVERHANGING cornice lip that BREAKS the vertical silhouette edge: a thin
-    bone shelf jutting `overhang` px past the tier walls, an ink groove UNDER it
-    (the dark undercut that reads as a notch in the blackout), and a 1px cold-white
-    sheen on its top-face. WHY all three: the overhang gives the silhouette a hard
-    notched step; the undercut groove is the single darkest ink value so the tier
-    separation survives light-over-dark at 32px night; the sheen edge gives the
-    light-side counterpart so each cornice reads as a discrete shelf, not a seam."""
+    """An OVERHANGING cornice lip that JUTS PAST the tier wall it crowns, so the
+    blackout OUTLINE notches OUT-then-IN at every tier boundary — a true ziggurat
+    edge, not a smooth taper. The lip is a flat bone shelf whose half-width is
+    hw+overhang (it sticks out `overhang` px beyond the `hw` wall below it); under
+    its underside runs the single DARKEST ink groove (the undercut notch that the
+    silhouette reads as a hard step and that survives at 32px), and across its
+    top-face a 1px COLD-WHITE sheen (the light-over-dark partner that keeps the
+    separation alive on the dark night biome). Returns the lip half-width so the
+    caller can chain the wider tier below it flush under the overhang."""
     lip_hw = hw + overhang
     lip_h = max(2, int(4 * s))
-    # the jutting shelf (bone), keylined so its edge is crisp at downscale
+    # the jutting shelf (bone), keylined so its overhanging edge is crisp downscaled
     pygame.draw.rect(surf, INK, (cx - lip_hw, y - lip_h, lip_hw * 2, lip_h + max(1, int(s))))
     pygame.draw.rect(surf, BONE, (cx - lip_hw, y - lip_h, lip_hw * 2, lip_h))
-    # cold-white sheen on the lip top-face (light-over-dark survivor at 32px)
+    # cold-white sheen on the lip top-face (light-over-dark survivor at 32px night)
     pygame.draw.line(surf, STEEL_BR, (cx - lip_hw, y - lip_h),
-                     (cx + lip_hw, y - lip_h), max(1, int(1.2 * s)))
+                     (cx + lip_hw, y - lip_h), max(1, int(1.4 * s)))
     # the dark UNDERCUT groove beneath the overhang — the notch in the blackout
     pygame.draw.line(surf, BONE_DDD, (cx - lip_hw, y), (cx + lip_hw, y), max(2, int(3 * s)))
+    return lip_hw
 
 
 def arm_bracket(surf, sx, sy, hx, hy, s, side):
@@ -240,83 +243,101 @@ def banner_standard(surf, hx, hy, pole_h, pole_w, s, finial_r):
 
 # ── the rigid three-tier arm-GRID (the KIND tell) ─────────────────────────────
 def draw_arm_grid(surf, cx, top_y, s, body_w):
-    """Twelve ARMS in THREE stacked tiers of FOUR. Each tier is a narrower block of
-    the central monolith (width 100% -> 78% -> 58% going UP), so each cornice steps
-    the silhouette IN — a stepped temple-pylon. WHY drawn as a slim central MONOLITH
-    spine with FOUR visible L-bracket arms reaching out of each tier: the round-1
-    "colonnade of posts on a slab" read as armless architecture (Stupika's sin); now
-    every standard is gripped by a shoulder->elbow->hand bone arm, so it reads as
-    twelve ARMS holding skull-standards. The hard right-angle elbows reinforce the
-    architectural thesis; the overhanging cornice lips at each tier boundary are the
-    must-survive 32px step read (three notched steps, not a smooth rook).
+    """Twelve ARMS in THREE stacked tiers of FOUR, built as a true ZIGGURAT so the
+    three steps live in the SILHOUETTE itself (round-2 had them only as interior
+    grooves — invisible in the blackout). Each tier is a SOLID bone WALL whose
+    half-width drops in two hard stages going UP: bottom 100% -> mid 78% -> top 58%
+    of body_w. At the TOP of each wider lower tier an OVERHANGING cornice lip juts
+    `overhang` px PAST the narrower wall above it, so the outline notches OUT (the
+    jutting lip) then IN (the setback up to the wall above) — a stepped ziggurat
+    edge, NOT a continuous taper. WHY solid walls, not a slim spine: round-2's slim
+    spine let the cornice courses sit at the same outer extent on every tier, so the
+    blackout read as one post; making the WALL itself carry the tier-width mass is
+    what puts the three different widths into the outline.
 
-    Returns (hands, bottom_y)."""
+    The FOUR L-bracket arms of each tier root on the wall and grip skull-standards
+    but stay strictly INSIDE the wall half-width, so the arms never fill the notches
+    — the cornice lips own the silhouette edge. Returns (hands, bottom_wall_hw,
+    bottom_y) so the base plinth can chain flush under the widest tier."""
     hands = []
-    # widest tier at the BOTTOM; per critique width drop base 100% -> 78% -> 58%.
+    # widest tier at the BOTTOM; the two hard width drops the blackout must show.
     tier_hw = [int(body_w * 1.00), int(body_w * 0.78), int(body_w * 0.58)]
-    spine_hw = int(body_w * 0.26)     # the slim central monolith the arms root into
-    tier_h = int(40 * s)              # height of the arm-body band of each tier
-    cornice_h = int(12 * s)           # thickness of the cornice course UNDER the body
-    overhang = max(2, int(9 * s))     # how far the cornice lip juts PAST the wall
-    pole_h = int(22 * s)              # banner-pole height above the gripping hand
-    finial_r = int(5.5 * s)
+    tier_h = int(50 * s)              # full height of each tier (wall + its cornice)
+    cornice_h = int(12 * s)           # the crowning cornice course at each tier TOP
+    overhang = max(3, int(12 * s))    # how far the cornice lip juts PAST the wall above
+    pole_h = int(16 * s)              # banner-pole height above the gripping hand
+    finial_r = int(5.0 * s)
 
     y = top_y
     for ti in range(3):               # ti 0 = TOP (narrowest), 2 = BOTTOM (widest)
         hw = tier_hw[2 - ti]          # invert: draw top-down, width grows downward
-        body_top = y
-        body_bot = y + tier_h         # the arm-body band sits ABOVE the cornice
-        cornice_top = body_bot
-        cornice_bot = cornice_top + cornice_h
-        # --- the central MONOLITH block for this tier (the spine wall) ----------
-        # the arms hang off a slim spine; the cornice course below is the widest
-        # mass of the tier so the stepped blackout is driven by the cornices, not
-        # by the arm spread (which the round-1 sheet let dominate the edge).
-        spine = [(cx - spine_hw, body_top), (cx + spine_hw, body_top),
-                 (cx + spine_hw, cornice_top), (cx - spine_hw, cornice_top)]
-        triad_blob(surf, BONE, spine,
-                   core_pts=[(cx, body_top), (cx + spine_hw, body_top),
-                             (cx + spine_hw, cornice_top), (cx, cornice_top)],
-                   sheen_pts=[(cx - spine_hw, body_top), (cx - int(spine_hw * 0.34), body_top),
-                              (cx - int(spine_hw * 0.34), cornice_top),
-                              (cx - spine_hw, cornice_top)],
-                   ow=max(1, int(1.4 * s)))
+        wall_top = y
+        wall_bot = y + tier_h
+        cornice_top = wall_top
+        cornice_bot = wall_top + cornice_h   # the cornice crowns this tier's TOP
+
+        # --- the OVERHANGING cornice lip at this tier's TOP (the notch maker) ----
+        # On every tier below the top one, the lip juts PAST the narrower wall above,
+        # so the silhouette jumps OUT here then steps IN up to that wall. The lip
+        # half-width is THIS tier's wall + overhang; its undercut groove + cold sheen
+        # are the 32px-survivor light-over-dark pair (see cornice_lip).
+        if ti > 0:
+            cornice_lip(surf, cx, hw, cornice_top, s, overhang)
+
+        # --- the SOLID tier WALL (its half-width IS the tier width -> the step) --
+        # face fill a touch LIGHTER than the cornice/grooves so the horizontal
+        # step-lines beat the vertical poles (round-2 de-clutter note).
+        wall_face = lerp(BONE, BONE_SH, 0.22)
+        wall = [(cx - hw, cornice_bot), (cx + hw, cornice_bot),
+                (cx + hw, wall_bot), (cx - hw, wall_bot)]
+        triad_blob(surf, wall_face, wall,
+                   core_pts=[(cx, cornice_bot), (cx + hw, cornice_bot),
+                             (cx + hw, wall_bot), (cx, wall_bot)],
+                   sheen_pts=[(cx - hw, cornice_bot), (cx - int(hw * 0.30), cornice_bot),
+                              (cx - int(hw * 0.30), wall_bot), (cx - hw, wall_bot)],
+                   ow=max(1, int(1.6 * s)))
+        # the DARK under-cornice groove on the wall just below the lip — the interior
+        # partner that keeps the tier line crisp where the lip overhang meets wall.
+        pygame.draw.line(surf, BONE_DDD, (cx - hw, cornice_bot + max(1, int(s))),
+                         (cx + hw, cornice_bot + max(1, int(s))), max(2, int(2.2 * s)))
+
         # --- FOUR L-bracket arms reach out of this tier, two per side -----------
-        # hands sit INSIDE the cornice width so the cornice (not the arms) is the
-        # widest thing at the tier boundary -> the steps own the silhouette edge.
-        sh_top = body_top + int(tier_h * 0.34)
-        sh_bot = body_top + int(tier_h * 0.66)
-        hand_offsets = [hw * 0.40, hw * 0.74]   # inner + outer hand, both inside hw
+        # hands sit well INSIDE hw so the cornice lip stays the widest mass at the
+        # boundary and the arms never bleed into / fill the silhouette notches.
+        sh_top = wall_bot - int(tier_h * 0.46)
+        sh_bot = wall_bot - int(tier_h * 0.22)
+        spine_root = int(hw * 0.20)               # arms root near the wall centre
+        hand_offsets = [hw * 0.40, hw * 0.70]     # both inside the wall edge
         pole_xs = []
         for side in (-1, 1):
             for hi, hox in enumerate(hand_offsets):
                 hx = int(cx + side * hox)
                 sy = sh_top if hi == 0 else sh_bot      # stagger shoulders vertically
-                sx = cx + side * spine_hw               # root at the spine wall
-                hand_y = body_top + int(tier_h * 0.26)  # hands grip high in the tier
+                sx = cx + side * spine_root
+                hand_y = wall_bot - int(tier_h * 0.34)
                 arm_bracket(surf, sx, sy, hx, hand_y, s, side)
                 pole_xs.append((hx, hand_y))
         # --- the banner-standards the hands grip (drawn over the arms) ----------
-        # poles rise ABOVE the hands into clear air below the next tier's cornice,
-        # so each tiny-skull finial reads as a crown of points along the tier top.
-        pole_w = int(3.6 * s)
+        pole_w = int(3.4 * s)
         for (hx, hand_y) in pole_xs:
             banner_standard(surf, hx, hand_y, pole_h, pole_w, s, finial_r)
             hands.append((hx, hand_y - pole_h))
-        # --- the CORNICE COURSE: the widest mass of the tier (the step body) ----
-        cornice = [(cx - hw, cornice_top), (cx + hw, cornice_top),
-                   (cx + hw, cornice_bot), (cx - hw, cornice_bot)]
-        triad_blob(surf, BONE, cornice,
-                   core_pts=[(cx, cornice_top), (cx + hw, cornice_top),
-                             (cx + hw, cornice_bot), (cx, cornice_bot)],
-                   sheen_pts=[(cx - hw, cornice_top), (cx - int(hw * 0.30), cornice_top),
-                              (cx - int(hw * 0.30), cornice_top + int(cornice_h * 0.5)),
-                              (cx - hw, cornice_top + int(cornice_h * 0.5))],
-                   ow=max(1, int(1.6 * s)))
-        # --- the OVERHANGING lip at the cornice base (the notched step edge) ----
-        cornice_lip(surf, cx, hw, cornice_bot, s, overhang)
-        y = cornice_bot
-    return hands, y  # y = where the bottom tier's cornice ends (base continues)
+        # --- recover the lowest tier's 4-arm gaps (round-2 minor note) ----------
+        # the widest bottom tier let its four poles merge into the dark mass above
+        # the plinth; cut a 1-2px cold negative gap between adjacent poles so the
+        # bottom tier still reads as FOUR discrete arms, like the tiers above.
+        if ti == 2:
+            ordered = sorted(px for (px, _) in pole_xs)
+            for a, b in zip(ordered, ordered[1:]):
+                mid = (a + b) // 2
+                pygame.draw.line(surf, BONE_DDD, (mid, wall_bot - int(tier_h * 0.30)),
+                                 (mid, wall_bot - max(1, int(2 * s))), max(2, int(2 * s)))
+        y = wall_bot
+    # the THIRD jutting lip: crown the widest bottom tier just above the plinth, so
+    # the blackout shows three overhanging cornices between crown and plinth (the
+    # mid + bottom tier TOPS gave two; this gives the body->plinth step its lip too).
+    cornice_lip(surf, cx, tier_hw[0], y, s, overhang)
+    return hands, tier_hw[0], y + max(2, int(4 * s))  # bottom wall hw + plinth start
 
 
 # ── the temple-pylon colossus ─────────────────────────────────────────────────
@@ -337,16 +358,18 @@ def draw_asthi_samrat(surf, cx, cy, s):
     # === THREE-TIER ARM GRID (the body of the pylon) ==========================
     # drawn first so the head + base overlap its top/bottom edges cleanly.
     grid_top = head_c[1] + int(hr * 0.6)
-    hands, grid_bot = draw_arm_grid(surf, cx, grid_top, s, body_w)
+    hands, base_hw, grid_bot = draw_arm_grid(surf, cx, grid_top, s, body_w)
 
     # === HEAVIEST BASE in the brood — a square stepped plinth (bottom-rooted) ==
     # WHY a wide stepped plinth, widest at the very bottom: it roots the colossus
     # like a temple-gate footing and gives the silhouette its heaviest, most
-    # ground-planted mass — the monumental pole of the proportion axis.
+    # ground-planted mass — the monumental pole of the proportion axis. Its first
+    # step starts at the bottom-tier lip width so the plinth continues the ziggurat
+    # outward (never narrower than the body it carries -> no waist under the lip).
     base_top = grid_bot - int(2 * s)
-    steps = [(int(body_w * 1.18), int(12 * s)),
-             (int(body_w * 1.42), int(13 * s)),
-             (int(body_w * 1.70), int(15 * s))]
+    steps = [(int(body_w * 1.34), int(12 * s)),
+             (int(body_w * 1.56), int(13 * s)),
+             (int(body_w * 1.82), int(15 * s))]
     by = base_top
     for hw, h in steps:
         block = [(cx - hw, by), (cx + hw, by),
@@ -547,7 +570,7 @@ def main():
     sheet.blit(font_big.render("ASTHI-SAMRAT", True, LABEL), (24, 14))
     sheet.blit(font_sm.render(
         "temple-pylon colossus  ·  KIND: rigid arm-GRID (3 tiers x 4 arms) · MONUMENTAL + PURE-bone poles · "
-        "cold socket-pin ONLY · round 2",
+        "cold socket-pin ONLY · round 3",
         True, LABEL_DIM), (300, 30))
 
     # === (1) EPIC HERO ========================================================
@@ -583,8 +606,11 @@ def main():
     sheet.blit(font.render("True 32px gameplay chip", True, LABEL), (panel_x + 16, 96))
 
     def chip32():
+        # the colossus is ~104 units WIDE; a true gameplay chip sizes it to a 32px
+        # FOOTPRINT WIDTH (its on-screen pillar-creature width), ~76px tall — the
+        # tall monument honestly occupies more vertical than a square 32px tile.
         b = pygame.Surface((110 * SS, 130 * SS), pygame.SRCALPHA)
-        draw_asthi_samrat(b, 55 * SS, 70 * SS, (32 / 150.0) * SS)
+        draw_asthi_samrat(b, 55 * SS, 64 * SS, (32 / 104.0) * SS)
         return grow(pygame.transform.smoothscale(b, (110, 130)))
 
     chip = chip32()
@@ -620,7 +646,7 @@ def main():
     sil_x = panel_x + 250
     sheet.blit(font_sm.render("silhouette proof", True, LABEL), (sil_x - 2, day_y - 14))
     sil_big = pygame.Surface((90 * SS, 150 * SS), pygame.SRCALPHA)
-    draw_asthi_samrat(sil_big, 45 * SS, 80 * SS, (44 / 150.0) * SS)
+    draw_asthi_samrat(sil_big, 45 * SS, 72 * SS, (138 / 246.0) * SS)
     sil = pygame.transform.smoothscale(sil_big, (90, 150))
     # flatten any opaque pixel to pure ink — the stepped-monolith blackout test
     mask = pygame.mask.from_surface(sil)
@@ -628,8 +654,8 @@ def main():
     pygame.draw.rect(sheet, (170, 168, 178), (sil_x, day_y, 90, 150))
     pygame.draw.rect(sheet, INK, (sil_x, day_y, 90, 150), 1)
     sheet.blit(blk, (sil_x, day_y))
-    sheet.blit(font_sm.render("stepped monolith;", True, LABEL_DIM), (sil_x - 2, day_y + 154))
-    sheet.blit(font_sm.render("hard cornice steps", True, LABEL_DIM), (sil_x - 2, day_y + 167))
+    sheet.blit(font_sm.render("ziggurat edge: 3", True, LABEL_DIM), (sil_x - 2, day_y + 154))
+    sheet.blit(font_sm.render("jutting cornice lips", True, LABEL_DIM), (sil_x - 2, day_y + 167))
 
     # === (5) PALETTE strip ====================================================
     sheet.blit(font.render("Pinned palette - PURE bone", True, LABEL), (panel_x + 16, 470))
@@ -654,7 +680,7 @@ def main():
         "dark-core->fill->top-left sheen triad · 1px grown outline · chibi-scary-cute · procedural-only · PURE bone, austerity IS the accent.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

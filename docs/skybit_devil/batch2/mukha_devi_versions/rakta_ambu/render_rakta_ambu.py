@@ -48,9 +48,16 @@ BONE      = ( 54,  86, 140)   # briny indigo-blue bone (the dominant fill)
 BONE_D    = ( 36,  58,  98)   # deep-indigo dark-core / shade
 BONE_DD   = ( 22,  38,  70)   # deepest indigo hollow (sockets, fork grooves)
 BONE_SH   = (118, 152, 202)   # cool indigo top-left rim-sheen
-CORAL     = (214, 118, 110)   # dull salmon-coral HEART glow (small warm focal)
-CORAL_BR  = (244, 168, 156)   # lit coral inner / sheen
+CORAL     = (214, 118, 110)   # dull salmon-coral HEART glow (small warm focal -- RESERVED for the face eyes + mouth + chest heart)
+CORAL_BR  = (244, 168, 156)   # lit coral inner / sheen (face/heart only)
 CORAL_D   = (150,  72,  72)   # deep coral shade
+# WHY a separate, DEMOTED canopy-polyp coral: the ~8 outer polyp dots were
+# reading at the same value/sat as the face eye-cores, so the face lost the
+# focal fight. The polyp coral is pulled one value step DOWN and desaturated
+# toward indigo-shade so the canopy edge stays a quiet warm TEXTURE while peak
+# coral chroma is reserved for the two face eyes + mouth + chest heart.
+POLYP     = (150,  98, 104)   # demoted polyp coral (toward indigo-shade; quiet)
+POLYP_BR  = (176, 122, 124)   # polyp inner (still well below CORAL_BR)
 CONCH     = (220, 196, 170)   # pale conch-relic bone (a warm-neutral relic note)
 CONCH_BR  = (244, 230, 210)
 CONCH_D   = (158, 132, 108)
@@ -146,14 +153,21 @@ def tapered_limb(surf, p, q, w0, w1, color, ow, sheen_amt=0.28):
 
 
 # -- a tiny encrusted skull (the surviving arm-end-skull DNA) ------------------
-def tiny_skull(surf, cx, cy, r, s, lit=False, crown=False):
+def tiny_skull(surf, cx, cy, r, s, lit=False, crown=False, sunk=False):
     """A skull ENCRUSTED into a fork crotch -- death-as-growth. WHY bone-GREY,
     not pure white: it must read as crusted dead bone fused INTO the dark indigo
     branches (a texture), never a clean white bead on a necklace. Only the
     crown-center skull (`crown`) is lifted near-white as the single bright relic;
     the rest sit dull-grey and sunk so they don't pile into a horizontal belt.
+    `sunk` pushes the body ONE value step further toward indigo-shade so the
+    crotch-skulls crust into shadow and never out-value the face.
     A ring of indigo hollow under the skull seats it deeper into the dark fork."""
-    body = SKULL_BR if crown else SKULL
+    if crown:
+        body = SKULL_BR
+    elif sunk:
+        body = lerp(SKULL_D, BONE_DD, 0.30)   # one step deeper into the indigo crotch-shadow
+    else:
+        body = SKULL
     # seat it: a darker indigo crotch-shadow behind/below so the skull sinks in
     pygame.draw.circle(surf, BONE_DD, (cx, cy + max(1, int(r * 0.28))), int(r * 1.15))
     triad_circle(surf, body, (cx, cy), r, ow=max(1, int(1.2 * s)), core=False)
@@ -172,25 +186,26 @@ def tiny_skull(surf, cx, cy, r, s, lit=False, crown=False):
 # -- the tip ornaments: coral-polyp cups + conch relics ------------------------
 def polyp_cup(surf, cx, cy, r, s, ang):
     """A coral-POLYP cup at a canopy tip -- a knobbly indigo cup cradling a small
-    dull-coral heart. WHY a cup w/ a coral dot: the brief's tip ornament; the
-    coral heart is a tiny warm note so the canopy edge twinkles warm-on-cold
-    without ever becoming a magenta fringe."""
+    DEMOTED-coral dot. WHY the coral here is dull POLYP coral (not CORAL) and the
+    core is shrunk ~20%: the canopy edge must twinkle as a quiet warm TEXTURE so
+    the FACE (eyes + mouth + chest heart, the only peak-chroma coral) stays the
+    single warm focal at 32px -- never a competing fringe of equal-bright dots."""
     triad_circle(surf, BONE, (cx, cy), int(r * 1.0), ow=max(1, int(1.3 * s)), core=False)
     # the open cup mouth (a dark crescent so it reads as a polyp cup, not a knob)
     pygame.draw.arc(surf, BONE_DD,
                     (cx - int(r * 0.78), cy - int(r * 0.86), int(r * 1.56), int(r * 1.5)),
                     math.radians(200), math.radians(340), max(2, int(2.0 * s)))
-    # three tiny coral tentacle-nubs around the rim
+    # three tiny demoted-coral tentacle-nubs around the rim
     for k in (-1, 0, 1):
         a = math.radians(-90 + k * 34)
         tx = cx + math.cos(a) * r * 0.7
         ty = cy + math.sin(a) * r * 0.7 - int(r * 0.1)
-        pygame.draw.circle(surf, INK, (int(tx), int(ty)), max(1, int(r * 0.22)))
-        pygame.draw.circle(surf, CORAL, (int(tx), int(ty)), max(1, int(r * 0.16)))
-    # the coral heart in the cup
-    pygame.draw.circle(surf, CORAL, (cx, cy - int(r * 0.06)), max(1, int(r * 0.36)))
-    pygame.draw.circle(surf, CORAL_BR, (cx - int(r * 0.12), cy - int(r * 0.2)),
-                       max(1, int(r * 0.18)))
+        pygame.draw.circle(surf, INK, (int(tx), int(ty)), max(1, int(r * 0.20)))
+        pygame.draw.circle(surf, POLYP, (int(tx), int(ty)), max(1, int(r * 0.13)))
+    # the demoted-coral dot in the cup -- shrunk ~20% vs r2 and a value step down
+    pygame.draw.circle(surf, POLYP, (cx, cy - int(r * 0.06)), max(1, int(r * 0.29)))
+    pygame.draw.circle(surf, POLYP_BR, (cx - int(r * 0.10), cy - int(r * 0.18)),
+                       max(1, int(r * 0.13)))
 
 
 def conch_relic(surf, cx, cy, r, s):
@@ -215,9 +230,9 @@ def conch_relic(surf, cx, cy, r, s):
     # spiral whorl grooves
     pygame.draw.arc(surf, CONCH_D, (cx - int(r * 0.55), cy - int(r * 0.5),
                     int(r * 1.0), int(r * 1.0)), math.radians(20), math.radians(300), max(1, int(1.6 * s)))
-    # coral aperture mouth at the lip
-    pygame.draw.circle(surf, CORAL, (cx + int(r * 0.45), cy + int(r * 0.45)), max(1, int(r * 0.26)))
-    pygame.draw.circle(surf, CORAL_BR, (cx + int(r * 0.4), cy + int(r * 0.38)), max(1, int(r * 0.12)))
+    # demoted-coral aperture mouth at the lip (a canopy ornament -> quiet, like the polyp cups)
+    pygame.draw.circle(surf, POLYP, (cx + int(r * 0.45), cy + int(r * 0.45)), max(1, int(r * 0.22)))
+    pygame.draw.circle(surf, POLYP_BR, (cx + int(r * 0.4), cy + int(r * 0.38)), max(1, int(r * 0.10)))
 
 
 # -- the FORKED dendritic canopy (the KIND tell) -------------------------------
@@ -251,7 +266,7 @@ def draw_canopy(surf, ox, oy, s, span, levels=2):
         ( -80, 0.44, 0.92),   # near-top R -- shortest, fills the apex
     ]
 
-    def grow(px, py, ang, length, width, depth):
+    def grow(px, py, ang, length, width, depth, is_outer=False):
         # split this bough into a base half + a knobbly knuckle + a tip half, so
         # the limb is never one clean rod -- the dendritic, organic read.
         mx = px + math.cos(math.radians(ang)) * length * 0.5
@@ -268,6 +283,11 @@ def draw_canopy(surf, ox, oy, s, span, levels=2):
                      ow=max(1, int(knob_w * 0.13)))
         triad_circle(surf, BONE, (int(ex), int(ey)), int(tip_w * 0.62),
                      ow=max(1, int(1.0 * s)), core=False)    # the fork joint
+        # WHY the LOW knuckle of the OUTER boughs is a skull-crotch candidate: it
+        # is the lowest + most lateral dark Y-junction available, so a skull seated
+        # there frames the head from the side/below instead of stacking above it.
+        if depth == 1 and is_outer:
+            lower_forks.append((int(mx), int(my)))
         if depth >= levels:
             tips.append((int(ex), int(ey), ang, tip_w))
             return
@@ -286,7 +306,8 @@ def draw_canopy(surf, ox, oy, s, span, levels=2):
     # draw outermost/lowest first so the upper, clustering boughs overlap on top
     for ang, lf, wf in sorted(boughs, key=lambda b: -abs(b[0] - (-90))):
         sx = ox + (1 if ang > -90 else -1) * int(7 * s)
-        grow(sx, oy, ang, arm_len * lf, int(base_w * wf), 1)
+        is_outer = abs(ang - (-90)) >= 40   # the two long low-outer boughs
+        grow(sx, oy, ang, arm_len * lf, int(base_w * wf), 1, is_outer=is_outer)
 
     return tips, lower_forks
 
@@ -331,29 +352,39 @@ def draw_rakta_ambu(surf, cx, cy, s):
     # WHY alternating by horizontal position (not draw order): a regular cup /
     # conch rhythm reads along the lumpy edge so it is clearly "ornamented
     # canopy," and the warm coral dots twinkle along the rim without a fringe.
+    # WHY jittered radius + a small lateral nudge off the strict bilateral mirror:
+    # a crown of identically-stamped cups reads MANUFACTURED. Jitter diameter
+    # +/-15% and shove 2-3 cups a few px off their mirror twin so the canopy edge
+    # feels GROWN, not stamped. (deterministic per-index so the sheet is stable.)
     tips_sorted = sorted(tips, key=lambda t: t[0])
     orn_r = int(7 * s)
     for i, (tx, ty, ang, tw) in enumerate(tips_sorted):
+        jr = orn_r * (1.0 + 0.15 * math.sin(i * 2.3 + 0.7))   # +/-15% diameter jitter
+        # nudge a couple off the strict mirror (every 3rd tip drifts laterally)
+        nudge_x = int(2.4 * s * math.sin(i * 1.7)) if (i % 3 == 0) else 0
+        nudge_y = int(1.8 * s * math.cos(i * 1.9))
         if i % 3 == 1:
-            conch_relic(surf, tx, ty - int(orn_r * 0.2), orn_r, s)
+            conch_relic(surf, tx + nudge_x, ty - int(jr * 0.2) + nudge_y, int(jr), s)
         else:
-            polyp_cup(surf, tx, ty, orn_r, s, ang)
+            polyp_cup(surf, tx + nudge_x, ty + nudge_y, int(jr), s, ang)
 
     # === LOWER BODY -- a wide squat reef-foot (mass low, spreading) ===========
+    # WHY ~8% wider base than r2: a heavier foot anchors the monumental-by-width
+    # read so the wide canopy sits on a wide root, not a stalk.
     base_y = cy + int(40 * s)
-    base = [(cx - int(38 * s), base_y - int(6 * s)),
-            (cx - int(26 * s), base_y - int(16 * s)),
-            (cx + int(26 * s), base_y - int(16 * s)),
-            (cx + int(38 * s), base_y - int(6 * s)),
-            (cx + int(30 * s), base_y + int(12 * s)),
-            (cx - int(30 * s), base_y + int(12 * s))]
+    base = [(cx - int(41 * s), base_y - int(6 * s)),
+            (cx - int(28 * s), base_y - int(17 * s)),
+            (cx + int(28 * s), base_y - int(17 * s)),
+            (cx + int(41 * s), base_y - int(6 * s)),
+            (cx + int(33 * s), base_y + int(13 * s)),
+            (cx - int(33 * s), base_y + int(13 * s))]
     triad_blob(surf, BONE, base,
-               core_pts=[(cx, base_y - int(14 * s)), (cx + int(32 * s), base_y - int(6 * s)),
-                         (cx + int(24 * s), base_y + int(10 * s)), (cx, base_y + int(7 * s))],
+               core_pts=[(cx, base_y - int(15 * s)), (cx + int(35 * s), base_y - int(6 * s)),
+                         (cx + int(26 * s), base_y + int(11 * s)), (cx, base_y + int(8 * s))],
                ow=max(1, int(1.6 * s)))
     # knobbly reef-foot bumps (organic, not petals)
     for k in range(-3, 4):
-        px = cx + int(k * 10 * s)
+        px = cx + int(k * 11 * s)
         pygame.draw.circle(surf, BONE_DD, (px, base_y + int(11 * s)), max(1, int(3 * s)))
         pygame.draw.circle(surf, BONE, (px - int(1 * s), base_y + int(10 * s)), max(1, int(2 * s)))
     # a hair of COOL rim-light along the trunk-base bottom edge -- WHY: at night
@@ -361,10 +392,10 @@ def draw_rakta_ambu(surf, cx, cy, s):
     # keeps the silhouette's base reading without warming the cold palette.
     rim = lerp(BONE_SH, (236, 244, 255), 0.25)
     pygame.draw.lines(surf, rim, False,
-                      [(cx - int(34 * s), base_y - int(2 * s)),
-                       (cx - int(28 * s), base_y + int(8 * s)),
-                       (cx + int(28 * s), base_y + int(8 * s)),
-                       (cx + int(34 * s), base_y - int(2 * s))],
+                      [(cx - int(37 * s), base_y - int(2 * s)),
+                       (cx - int(30 * s), base_y + int(9 * s)),
+                       (cx + int(30 * s), base_y + int(9 * s)),
+                       (cx + int(37 * s), base_y - int(2 * s))],
                       max(1, int(1.4 * s)))
 
     # === TORSO -- a short coral-rib trunk (squat; head + canopy hold mass) ====
@@ -404,18 +435,39 @@ def draw_rakta_ambu(surf, cx, cy, s):
     pygame.draw.circle(surf, CORAL, hxy, int(4 * s))
     pygame.draw.circle(surf, CORAL_BR, (hxy[0] - int(1 * s), hxy[1] - int(1 * s)), max(1, int(2 * s)))
 
-    # === ENCRUSTED SKULLS sunk DEEP into the lower fork crotches =============
-    # WHY only FOUR-to-FIVE, bone-GREY, sunk into the dark Y-junctions (not a
-    # bright belt): they must read as crusted, death-as-growth nodes fused into
-    # the branches, framing the head -- never a horizontal necklace of white
-    # beads. The single bright relic is reserved for the crown-center skull.
-    fl = sorted(lower_forks, key=lambda f: f[0])
-    # keep at most 5; drop any that sit too central-high so they cluster low/out
-    fl = [f for f in fl if f[1] > head_c[1] - int(hr * 0.2)][:5]
-    skull_r = int(5.0 * s)
+    # === ENCRUSTED SKULLS sunk DEEP into the LOWER / OUTER fork crotches ======
+    # WHY scored to the LOWEST + most LATERAL Y-junctions, ONE per crotch, sunk
+    # one value step further into shadow than r2: in r2 they migrated into a
+    # centered row ABOVE the face and competed with it. They must instead read as
+    # crusted death-as-growth nodes wedged into the dark outer/lower crotches that
+    # FRAME the head from the sides + below -- never a horizontal belt. The single
+    # bright relic stays reserved for the crown-center skull alone; everything here
+    # is dull-grey, sunk, and below/lateral to the face so the airspace directly
+    # above the crown stays clear.
+    # rank by LOW (largest y -> nearest/under the head) + LATERAL (far from the
+    # centre column); hard-penalise crotches in the narrow column above the face
+    # so none stack into a centred row, and penalise high crotches so the skulls
+    # frame the head from the sides + below, never as a belt over the crown.
+    cand = list(lower_forks)
+    def crotch_score(f):
+        lateral = abs(f[0] - head_c[0])
+        dy = f[1] - head_c[1]                       # less negative == lower == better
+        central_penalty = -200 if lateral < hr * 0.45 else 0
+        return lateral * 1.0 + dy * 1.3 + central_penalty
+    cand.sort(key=crotch_score, reverse=True)
+    # one per crotch: drop any pick too close to one already chosen (no clustering)
+    fl = []
+    for f in cand:
+        if all((abs(f[0] - g[0]) + abs(f[1] - g[1])) > hr * 0.7 for g in fl):
+            fl.append(f)
+        if len(fl) >= 4:
+            break
+    skull_r = int(4.8 * s)
     for (fx, fy) in fl:
-        # sink it INTO the crotch: nudged below the joint, never lit here
-        tiny_skull(surf, fx, fy + int(4 * s), skull_r, s, lit=False)
+        # sink it deeper INTO the crotch: pushed below the joint + a stronger
+        # indigo crotch-shadow ring so it crusts into shadow, never a bright bead.
+        pygame.draw.circle(surf, BONE_DD, (fx, fy + int(5 * s)), int(skull_r * 1.5))
+        tiny_skull(surf, fx, fy + int(5 * s), skull_r, s, lit=False, sunk=True)
 
     # === SKULL HEAD -- chibi, scary-cute, coral-eyed (the framed FACE) ========
     triad_circle(surf, BONE, head_c, hr, ow=max(2, int(2 * s)))
@@ -438,32 +490,42 @@ def draw_rakta_ambu(surf, cx, cy, s):
                         [(head_c[0] - int(hr * 0.13), head_c[1] + int(hr * 0.34)),
                          (head_c[0] + int(hr * 0.13), head_c[1] + int(hr * 0.34)),
                          (head_c[0], head_c[1] + int(hr * 0.58))])
-    # grinning tooth row (cute, not gory)
+    # grinning tooth row (cute, not gory) -- a thin coral inner-mouth behind the
+    # teeth so the MOUTH joins the eyes as reserved peak-coral; with the canopy
+    # polyps demoted, the face now owns all three warm beats (two eyes + mouth).
     my = head_c[1] + int(hr * 0.74)
+    pygame.draw.ellipse(surf, CORAL_D,
+                        (head_c[0] - int(hr * 0.46), my - int(hr * 0.12),
+                         int(hr * 0.92), int(hr * 0.26)))
+    pygame.draw.ellipse(surf, CORAL,
+                        (head_c[0] - int(hr * 0.40), my - int(hr * 0.07),
+                         int(hr * 0.80), int(hr * 0.16)))
     pygame.draw.line(surf, INK, (head_c[0] - int(hr * 0.46), my),
                      (head_c[0] + int(hr * 0.46), my), max(1, int(2 * s)))
     for k in range(-3, 4):
         pygame.draw.line(surf, INK, (head_c[0] + int(k * hr * 0.14), my - int(hr * 0.1)),
                          (head_c[0] + int(k * hr * 0.14), my + int(hr * 0.12)), max(1, int(1 * s)))
 
-    # === LOW SKULL-CROWN / coral-tiara (the preserved crown DNA) ==============
-    # WHY a shallow band of THREE tiny skulls seated in the open sky above the
-    # crown: keeps Mukha's skull-tiara DNA, lower/fewer, and the central one is
-    # the lit-coral focal echoing the chest heart so the warm read stays paired.
+    # === LOW SKULL-CROWN -- a SINGLE bright center skull (the crown focal) =====
+    # WHY only ONE skull now, dead-centre on the crown: in r2 a band of three sat
+    # as a row above the face. The side relics moved DOWN into the lower/outer
+    # crotches (above), so the crown keeps just the single brightest skull -- the
+    # one bright relic in the figure, echoing the chest heart -- with a short,
+    # dim bone tiara-band that frames it WITHOUT throwing a horizontal belt.
     tiara_r = int(hr * 0.98)
     band_pts = []
-    for i in range(9):
-        a = math.radians(238 + i * (64 / 8))
+    for i in range(7):
+        a = math.radians(250 + i * (40 / 6))   # a SHORTER, shallower band (no wide belt)
         band_pts.append((head_c[0] + math.cos(a) * tiara_r,
                          head_c[1] + math.sin(a) * tiara_r))
-    pygame.draw.lines(surf, INK, False, band_pts, int(5 * s))
-    pygame.draw.lines(surf, CORAL, False, band_pts, int(2 * s))
-    for i in range(3):
-        a = math.radians(244 + i * (52 / 2))
-        sx = head_c[0] + math.cos(a) * tiara_r
-        sy = head_c[1] + math.sin(a) * tiara_r
-        # the CENTER crown skull is the single brightest relic in the whole figure
-        tiny_skull(surf, int(sx), int(sy), int(hr * 0.26), s, crown=(i == 1))
+    # a dim bone-shade band (no coral chroma here -> peak coral stays on the face)
+    pygame.draw.lines(surf, INK, False, band_pts, int(4 * s))
+    pygame.draw.lines(surf, BONE_SH, False, band_pts, int(1 * s))
+    # the single CENTER crown skull -- the lone bright relic
+    a = math.radians(270)
+    sx = head_c[0] + math.cos(a) * tiara_r
+    sy = head_c[1] + math.sin(a) * tiara_r
+    tiny_skull(surf, int(sx), int(sy), int(hr * 0.28), s, crown=True)
 
 
 # -- the coral-reef bone-trunk -> pillar mirror --------------------------------
@@ -515,16 +577,20 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
         # bone-trunk, not a plain post with pendants.
         jx = cx + side * (bw + int(7 * s))
         jy = y - int(3 * s)
-        tapered_limb(surf, (bx, y), (jx, jy), int(5 * s), int(3 * s), BONE, ow=max(1, int(1.0 * s)))
-        triad_circle(surf, BONE, (jx, jy), int(2.4 * s), ow=max(1, int(0.9 * s)), core=False)
+        # WHY fatter fork-knobs than r2: at the 0.32x pillar strip the 2-2.4px
+        # dendritic knobs smeared into the post and the shaft read as a plain
+        # column. Fattening the fork-joint + stub knobs keeps the branching
+        # bone-trunk legible at gameplay scale.
+        tapered_limb(surf, (bx, y), (jx, jy), int(6 * s), int(4 * s), BONE, ow=max(1, int(1.0 * s)))
+        triad_circle(surf, BONE, (jx, jy), int(3.4 * s), ow=max(1, int(0.9 * s)), core=False)
         rx = cx + side * (bw + int(13 * s))
         ry = y - int(8 * s)
         # the relic-bearing fork-arm + a short barren stub-fork (the staggered knob)
-        tapered_limb(surf, (jx, jy), (rx, ry), int(3 * s), int(2 * s), BONE, ow=max(1, int(0.9 * s)))
+        tapered_limb(surf, (jx, jy), (rx, ry), int(4 * s), int(3 * s), BONE, ow=max(1, int(0.9 * s)))
         sbx = cx + side * (bw + int(11 * s))
         sby = y + int(5 * s)
-        tapered_limb(surf, (jx, jy), (sbx, sby), int(3 * s), int(2 * s), BONE, ow=max(1, int(0.9 * s)))
-        triad_circle(surf, BONE, (sbx, sby), int(2 * s), ow=max(1, int(0.8 * s)), core=False)
+        tapered_limb(surf, (jx, jy), (sbx, sby), int(4 * s), int(3 * s), BONE, ow=max(1, int(0.9 * s)))
+        triad_circle(surf, BONE, (sbx, sby), int(3 * s), ow=max(1, int(0.8 * s)), core=False)
         if idx % 2 == 0:
             polyp_cup(surf, rx, ry, relic_r, s, math.radians(-90))
         else:
@@ -624,7 +690,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("RAKTA-AMBU", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "coral-tree dendritic bone-canopy  ·  KIND: forked tree-canopy · mid-tall -> MONUMENTAL via WIDTH · briny-indigo + coral HEART · round 2",
+        "coral-tree dendritic bone-canopy  ·  KIND: forked tree-canopy · mid-tall -> MONUMENTAL via WIDTH · briny-indigo + coral HEART · round 3",
         True, LABEL_DIM), (250, 26))
 
     # === (1) EPIC HERO ========================================================
@@ -632,9 +698,9 @@ def main():
     sheet.blit(hero, (14, 84))
     sheet.blit(font.render("Creature — EPIC hero", True, LABEL), (120, 558))
     sheet.blit(font_sm.render("TAPERED boughs (thick base->thin tip) FORK twice at STAGGERED radii; upper tips fused into a domed crown.", True, LABEL_DIM), (14, 584))
-    sheet.blit(font_sm.render("4-5 bone-GREY skulls sunk DEEP into the lower fork crotches (crusted, not a white belt).", True, LABEL_DIM), (14, 600))
-    sheet.blit(font_sm.render("Indigo bone dominant; dull-coral chest HEART = the small warm focal (anti-magenta).", True, LABEL_DIM), (14, 616))
-    sheet.blit(font_sm.render("Crown-CENTER skull is the single brightest relic; boughs carry a dimmer rim than the face.", True, LABEL_DIM), (14, 632))
+    sheet.blit(font_sm.render("4 skulls sunk DEEP into the LOWER/OUTER fork crotches (one per crotch, framing the head) -- airspace above clears.", True, LABEL_DIM), (14, 600))
+    sheet.blit(font_sm.render("Peak coral RESERVED for the face (2 eyes + mouth) + chest heart; canopy polyps DEMOTED to quiet texture.", True, LABEL_DIM), (14, 616))
+    sheet.blit(font_sm.render("ONLY the single crown-CENTER skull is the bright relic; polyp cups jittered +/-15% so the crown reads GROWN.", True, LABEL_DIM), (14, 632))
 
     # === (2) PILLAR -- bottom-rooted, mirrored top<->bottom ===================
     pcx = 470
@@ -698,7 +764,7 @@ def main():
     sil_panel_y = 392
     pygame.draw.rect(sheet, (150, 150, 158), (panel_x, sil_panel_y, W - panel_x - 14, 196))
     sheet.blit(font.render("Blackout silhouette proof", True, (40, 38, 44)), (panel_x + 14, sil_panel_y + 6))
-    sil_big = silhouette_of(150, 160, 75, 92, (150 / 150.0))
+    sil_big = silhouette_of(150, 160, 75, 90, 0.86)
     sheet.blit(sil_big, (panel_x + 16, sil_panel_y + 28))
     sil_sm = silhouette_of(64, 64, 32, 34, (32 / 150.0))
     sheet.blit(pygame.transform.scale(sil_sm, (96, 96)), (panel_x + 196, sil_panel_y + 30))
@@ -732,7 +798,7 @@ def main():
         "Silhouette tell: an ORGANIC knobbly BRANCHING canopy (forked, spreading) — not discrete radiating limbs (anti-Mukha starburst).",
         True, LABEL_DIM), (26, H - 28))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
