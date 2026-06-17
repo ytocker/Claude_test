@@ -1,0 +1,566 @@
+"""
+Round-1 concept renderer for ASTHI-SAMRAT — the temple-pylon colossus
+(Mukha-Devi brood, concept #5). Headless Pygame; ELEVATED pipeline
+(supersample SS=5 -> smoothscale) so the rigid arm-GRID + the 12 skull-pole
+finials stay crisp at downscale. Keeps the shipped house grammar: flat fills,
+hard 1-2px ink keyline (28,22,26), dark-core -> flat-fill -> top-left rim-sheen
+triad, 1px alpha-grown outline, chibi-scary-CUTE face; procedural-only.
+
+WHY this is the rigid-architectural-arm-GRID KIND (and the MONUMENTAL + PURE-
+bone poles of the brood): twelve arms are stacked in THREE tiers of FOUR, each
+tier strictly SHORTER than the one below, so the blackout silhouette is a
+STEPPED vertical monolith with hard horizontal cornice-lines — a temple-pylon,
+not a radial fan (Mukha), not a tapering armless stupa (Stupika). The base is
+the heaviest in the brood and the whole figure is bottom-rooted like a gate
+column. Square/austere cornices, never curved ornate eaves.
+
+WHY pure BONE, no thematic glow: this is the PURE pole of the theme axis. The
+austerity IS the accent. The ONLY non-bone notes allowed are the ink keyline
+and a COLD socket-pin (steel-grey iris + faint cold-white socket glow at the
+gap). There is deliberately no coloured hue anywhere — resisting it is the
+whole identity. The deep cold socket-glow is the single focal.
+
+WHY the arm-end-skull DNA survives as skull-poles: each of the twelve hands
+grips a vertical bone-banner STANDARD topped with a tiny-skull FINIAL — a
+colonnade of skull-poles. That carries Mukha's "tiny skulls among the arm-end
+ornaments" without needing a thematic accent.
+
+WHY a standalone script under docs/: review art must never enter the shipped
+bundle, so it reuses only colour math + the triad/outline helpers, not runtime
+sprite modules.
+"""
+import math
+import os
+os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+
+import pygame
+pygame.init()
+
+# ── PINNED PALETTE (locked brief — the PURE bone pole) ────────────────────────
+# Bone is the ONLY mass colour. Everything else is the ink keyline plus a COLD
+# steel-grey / cold-white socket-pin. NO thematic hue anywhere — austerity is
+# the accent. Bone is kept a touch COOL/neutral (not Mukha's warm rose-bone and
+# not Leyak ash-white) so this pole reads "carved stone temple", not "flesh".
+BONE      = (214, 206, 190)   # cool ivory-bone — the dominant carved-stone mass
+BONE_D    = (158, 150, 134)   # bone dark-core / shade
+BONE_DD   = (104,  98,  86)   # deepest bone hollow (cornice grooves, sockets)
+BONE_DDD  = ( 66,  62,  56)   # hardest groove shadow (the must-survive steps)
+BONE_SH   = (244, 240, 228)   # bone top-left rim-sheen
+
+STEEL     = (150, 162, 176)   # COLD steel-grey socket-pin (the only non-bone note)
+STEEL_BR  = (210, 224, 236)   # cold-white socket glow inner
+STEEL_D   = ( 78,  92, 108)   # cold socket shade
+INK       = ( 28,  22,  26)   # hard ink keyline
+
+BG        = ( 96,  92, 100)   # neutral grey review backdrop
+PANEL     = ( 74,  72,  84)
+DAY_SKY_T = (120, 196, 236)   # day biome sky (top)
+DAY_SKY_B = (196, 232, 244)
+NIGHT_T   = ( 22,  26,  54)   # night biome sky (top)
+NIGHT_B   = ( 48,  44,  82)
+LABEL     = (240, 236, 240)
+LABEL_DIM = (196, 190, 202)
+
+
+def lerp(a, b, t):
+    t = max(0.0, min(1.0, t))
+    return (int(a[0] + (b[0]-a[0])*t),
+            int(a[1] + (b[1]-a[1])*t),
+            int(a[2] + (b[2]-a[2])*t))
+
+
+# ── outline grown from the alpha mask (the house keyline) ────────────────────
+def grow_outline(surf, color, px):
+    mask = pygame.mask.from_surface(surf)
+    pts = mask.outline()
+    if len(pts) < 2:
+        return surf
+    base = surf.copy()
+    ring = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    for (ox, oy) in pts:
+        pygame.draw.circle(ring, color, (ox, oy), px)
+    ring.blit(base, (0, 0))
+    return ring
+
+
+def triad_blob(surf, color, pts, sheen_pts=None, core_pts=None, outline=True, ow=2):
+    """Flat fill + optional dark-core + top-left rim-sheen + ink keyline."""
+    if outline:
+        pygame.draw.polygon(surf, INK, pts)
+    pygame.draw.polygon(surf, color, pts)
+    if core_pts:
+        pygame.draw.polygon(surf, lerp(color, INK, 0.42), core_pts)
+    if sheen_pts:
+        pygame.draw.polygon(surf, lerp(color, (255, 255, 255), 0.4), sheen_pts)
+    if outline:
+        pygame.draw.polygon(surf, INK, pts, ow)
+
+
+def triad_circle(surf, color, c, r, ow=2, sheen=True, core=True):
+    """Round equivalent of triad_blob — dark core bottom-right, sheen top-left."""
+    pygame.draw.circle(surf, INK, c, r + max(1, ow // 2))
+    pygame.draw.circle(surf, color, c, r)
+    if core:
+        pygame.draw.circle(surf, lerp(color, INK, 0.4),
+                           (c[0] + int(r * 0.28), c[1] + int(r * 0.30)),
+                           int(r * 0.74))
+        pygame.draw.circle(surf, color, c, int(r * 0.82))
+    if sheen:
+        pygame.draw.circle(surf, lerp(color, (255, 255, 255), 0.45),
+                           (c[0] - int(r * 0.38), c[1] - int(r * 0.40)),
+                           max(1, int(r * 0.26)))
+    pygame.draw.circle(surf, INK, c, r, ow)
+
+
+def hard_groove(surf, x0, x1, y, s, depth=2.4):
+    """A hard horizontal cornice groove — the MUST-SURVIVE read at 32px. Two
+    stacked dark lines (deepest shadow under a softer shade) so the tier
+    separation reads as a STEP, not a slab seam, even after downscale."""
+    pygame.draw.line(surf, BONE_DDD, (x0, y), (x1, y), max(2, int(depth * s)))
+    pygame.draw.line(surf, BONE_DD, (x0, y - max(1, int(1.4 * s))),
+                     (x1, y - max(1, int(1.4 * s))), max(1, int(1.2 * s)))
+
+
+# ── a single tiny skull-pole finial (the arm-end-skull DNA, pure bone) ────────
+def skull_finial(surf, cx, cy, r, s):
+    """Tiny bone skull crowning a banner-standard pole. WHY a domed cranium with
+    two COLD steel pinpricks: the arm-end ornament must read as a skull at the
+    pole tips without any thematic colour — the only non-bone note is the cold
+    socket-pin, consistent with the pure-bone theme."""
+    triad_circle(surf, BONE, (cx, cy), r, ow=max(1, int(1.2 * s)), core=False)
+    jaw = [(cx - int(r * 0.46), cy + int(r * 0.5)),
+           (cx + int(r * 0.46), cy + int(r * 0.5)),
+           (cx + int(r * 0.3), cy + int(r * 0.92)),
+           (cx - int(r * 0.3), cy + int(r * 0.92))]
+    triad_blob(surf, BONE, jaw, ow=max(1, int(1.0 * s)))
+    for ex in (cx - int(r * 0.36), cx + int(r * 0.36)):
+        pygame.draw.circle(surf, INK, (ex, cy), max(1, int(r * 0.24)))
+        pygame.draw.circle(surf, STEEL, (ex, cy), max(1, int(r * 0.12)))
+    pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.4)), max(1, int(r * 0.12)))
+
+
+def banner_standard(surf, hx, hy, pole_h, pole_w, s, finial_r):
+    """A vertical bone-banner standard gripped in one hand: a square austere
+    pole topped by a tiny-skull finial. WHY strictly VERTICAL and square-edged:
+    twelve of these in three tiers form the colonnade of skull-poles, and the
+    verticals + the cornice grooves between tiers are what make the blackout
+    read as a stepped temple-pylon rather than a noisy candelabra."""
+    # the pole shaft (square, austere — never curved)
+    pole = [(hx - pole_w, hy - pole_h),
+            (hx + pole_w, hy - pole_h),
+            (hx + pole_w, hy),
+            (hx - pole_w, hy)]
+    triad_blob(surf, BONE, pole,
+               core_pts=[(hx, hy - pole_h), (hx + pole_w, hy - pole_h),
+                         (hx + pole_w, hy), (hx, hy)],
+               sheen_pts=[(hx - pole_w, hy - pole_h),
+                          (hx - int(pole_w * 0.3), hy - pole_h),
+                          (hx - int(pole_w * 0.3), hy),
+                          (hx - pole_w, hy)],
+               ow=max(1, int(1.0 * s)))
+    # a small square banner cross-bar (austere cornice echo at the pole)
+    cb_w = int(pole_w * 2.4)
+    cb_y = hy - int(pole_h * 0.78)
+    pygame.draw.rect(surf, INK, (hx - cb_w, cb_y - int(2 * s), cb_w * 2, int(4 * s)))
+    pygame.draw.rect(surf, BONE, (hx - cb_w, cb_y - int(2 * s) + max(1, int(s)),
+                                  cb_w * 2, max(1, int(2 * s))))
+    # the skull-pole FINIAL on top
+    skull_finial(surf, hx, hy - pole_h - finial_r, finial_r, s)
+
+
+# ── the rigid three-tier arm-GRID (the KIND tell) ─────────────────────────────
+def draw_arm_grid(surf, cx, top_y, s, body_w):
+    """Twelve arms in THREE stacked tiers of FOUR. Each tier is SHORTER (less
+    wide) than the one below, so the cornice line at each tier boundary steps
+    the silhouette IN going up — a temple-pylon. WHY drawn as rigid horizontal
+    cornice SLABS with vertical banner-poles rising from them: the slab + groove
+    pair is the must-survive 32px read (steps, not a slab); the poles carry the
+    twelve-arm colonnade and the skull-finial DNA.
+
+    Returns the list of (hand_x, hand_y) for any caller bookkeeping (unused but
+    mirrors the brood's draw_arm_fan signature)."""
+    hands = []
+    # widest tier at the bottom; each higher tier narrower (the stepped pylon).
+    # half-widths chosen so the cornice clearly OVERHANGS the tier above it.
+    tier_hw = [int(body_w * 1.02), int(body_w * 0.80), int(body_w * 0.58)]
+    tier_h = int(26 * s)          # slab thickness per tier
+    pole_h = int(30 * s)          # banner-pole height (rises off each slab)
+    finial_r = int(6.5 * s)
+    gap = int(6 * s)              # vertical gap between a slab top and next slab
+
+    y = top_y
+    for ti in range(3):           # ti 0 = TOP (shortest), 2 = BOTTOM (widest)
+        hw = tier_hw[2 - ti]      # invert so we draw top-down but width grows down
+        # the austere square cornice SLAB (the horizontal cornice mass)
+        slab = [(cx - hw, y),
+                (cx + hw, y),
+                (cx + hw, y + tier_h),
+                (cx - hw, y + tier_h)]
+        triad_blob(surf, BONE, slab,
+                   core_pts=[(cx, y), (cx + hw, y),
+                             (cx + hw, y + tier_h), (cx, y + tier_h)],
+                   sheen_pts=[(cx - hw, y), (cx - int(hw * 0.34), y),
+                              (cx - int(hw * 0.34), y + int(tier_h * 0.5)),
+                              (cx - hw, y + int(tier_h * 0.5))],
+                   ow=max(1, int(1.6 * s)))
+        # HARD cornice groove along the bottom edge of this slab (the step read)
+        hard_groove(surf, cx - hw, cx + hw, y + tier_h - max(1, int(2 * s)), s)
+        # a second light groove near the top to thicken the cornice band read
+        pygame.draw.line(surf, BONE_DD, (cx - hw, y + int(3 * s)),
+                         (cx + hw, y + int(3 * s)), max(1, int(1.2 * s)))
+        # FOUR banner-standards rise from this tier (the four arms of the tier)
+        pole_w = int(4.5 * s)
+        for k in range(4):
+            # evenly space four poles across the slab, inset from the overhang
+            frac = (k + 0.5) / 4.0
+            hx = int(cx - hw * 0.82 + frac * (hw * 1.64))
+            hy = y                      # hands grip at the top of the slab
+            banner_standard(surf, hx, hy, pole_h, pole_w, s, finial_r)
+            hands.append((hx, hy - pole_h))
+        # next tier sits BELOW, after the pole height + a gap (so poles read)
+        y = y + tier_h + pole_h + gap
+    return hands, y  # y = where the bottom tier ends (torso/base continues)
+
+
+# ── the temple-pylon colossus ─────────────────────────────────────────────────
+def draw_asthi_samrat(surf, cx, cy, s):
+    """Towering pure-bone colossus: a chibi-scary skull face crowned by a square
+    skull-tiara, atop a rigid three-tier twelve-arm cornice grid, rooted on the
+    heaviest base in the brood. `s` = unit scale around a ~150-unit-tall figure.
+
+    WHY the head sits ON TOP of the grid (not framed inside it): this is the
+    architectural KIND — the face is the pylon's keystone/capital, the grid is
+    the body of the gate, the base is the plinth. Vertical stacking IS the
+    monumental silhouette."""
+
+    head_c = (cx, cy - int(52 * s))
+    hr = int(26 * s)
+    body_w = int(30 * s)
+
+    # === THREE-TIER ARM GRID (the body of the pylon) ==========================
+    # drawn first so the head + base overlap its top/bottom edges cleanly.
+    grid_top = head_c[1] + int(hr * 0.6)
+    hands, grid_bot = draw_arm_grid(surf, cx, grid_top, s, body_w)
+
+    # === HEAVIEST BASE in the brood — a square stepped plinth (bottom-rooted) ==
+    # WHY a wide stepped plinth, widest at the very bottom: it roots the colossus
+    # like a temple-gate footing and gives the silhouette its heaviest, most
+    # ground-planted mass — the monumental pole of the proportion axis.
+    base_top = grid_bot - int(2 * s)
+    steps = [(int(body_w * 1.18), int(12 * s)),
+             (int(body_w * 1.42), int(13 * s)),
+             (int(body_w * 1.70), int(15 * s))]
+    by = base_top
+    for hw, h in steps:
+        block = [(cx - hw, by), (cx + hw, by),
+                 (cx + hw, by + h), (cx - hw, by + h)]
+        triad_blob(surf, BONE, block,
+                   core_pts=[(cx, by), (cx + hw, by),
+                             (cx + hw, by + h), (cx, by + h)],
+                   sheen_pts=[(cx - hw, by), (cx - int(hw * 0.3), by),
+                              (cx - int(hw * 0.3), by + int(h * 0.5)),
+                              (cx - hw, by + int(h * 0.5))],
+                   ow=max(1, int(1.8 * s)))
+        hard_groove(surf, cx - hw, cx + hw, by + h - max(1, int(2 * s)), s)
+        by += h
+    # austere vertical fluting on the widest plinth step (carved-stone read)
+    for k in range(-3, 4):
+        fx = cx + int(k * body_w * 0.46)
+        pygame.draw.line(surf, BONE_DD, (fx, base_top + int(6 * s)),
+                         (fx, by - int(4 * s)), max(1, int(1.4 * s)))
+
+    # === SKULL HEAD — chibi, scary-cute, the pylon's capital/keystone =========
+    triad_circle(surf, BONE, head_c, hr, ow=max(2, int(2 * s)))
+    for sgn in (-1, 1):   # cheek hollows
+        pygame.draw.circle(surf, BONE_D,
+                           (head_c[0] + sgn * int(hr * 0.66), head_c[1] + int(hr * 0.28)),
+                           int(hr * 0.26))
+    # the two big eye sockets — the COLD socket-glow is the single focal of the
+    # whole sprite (the only non-bone note carrying any "light"). Dark hollow +
+    # steel iris + a faint cold-white pin so the face reads "looking at you"
+    # without any thematic hue.
+    for sgn in (-1, 1):
+        ex = head_c[0] + sgn * int(hr * 0.40)
+        ey = head_c[1] + int(hr * 0.04)
+        pygame.draw.circle(surf, BONE_DD, (ex, ey), int(hr * 0.32))
+        pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.27))
+        pygame.draw.circle(surf, STEEL_D, (ex, ey), int(hr * 0.18))
+        pygame.draw.circle(surf, STEEL, (ex - int(1 * s), ey - int(1 * s)), int(hr * 0.12))
+        pygame.draw.circle(surf, STEEL_BR, (ex - int(2 * s), ey - int(2 * s)),
+                           max(1, int(hr * 0.06)))
+    # nose triangle
+    pygame.draw.polygon(surf, BONE_DD,
+                        [(head_c[0] - int(hr * 0.13), head_c[1] + int(hr * 0.34)),
+                         (head_c[0] + int(hr * 0.13), head_c[1] + int(hr * 0.34)),
+                         (head_c[0], head_c[1] + int(hr * 0.58))])
+    # grinning tooth row (cute, not gory)
+    my = head_c[1] + int(hr * 0.74)
+    pygame.draw.line(surf, INK, (head_c[0] - int(hr * 0.46), my),
+                     (head_c[0] + int(hr * 0.46), my), max(1, int(2 * s)))
+    for k in range(-3, 4):
+        pygame.draw.line(surf, INK, (head_c[0] + int(k * hr * 0.14), my - int(hr * 0.1)),
+                         (head_c[0] + int(k * hr * 0.14), my + int(hr * 0.12)), max(1, int(1 * s)))
+
+    # === SQUARE SKULL-TIARA (Mukha DNA, made architectural/austere) ===========
+    # WHY a flat SQUARE crenellated band rather than a curved arc: it keeps the
+    # tiara reading as part of the temple-pylon language (square cornices), and
+    # carries the skull-crown DNA with three tiny skull merlons across a hard
+    # horizontal lintel above the brow.
+    lintel_w = int(hr * 1.05)
+    lintel_y = head_c[1] - int(hr * 0.78)
+    pygame.draw.rect(surf, INK, (head_c[0] - lintel_w, lintel_y - int(3 * s),
+                                 lintel_w * 2, int(7 * s)))
+    pygame.draw.rect(surf, BONE, (head_c[0] - lintel_w, lintel_y - int(3 * s) + max(1, int(s)),
+                                  lintel_w * 2, int(4 * s)))
+    pygame.draw.line(surf, BONE_DD, (head_c[0] - lintel_w, lintel_y + int(3 * s)),
+                     (head_c[0] + lintel_w, lintel_y + int(3 * s)), max(1, int(1.2 * s)))
+    # three tiny skull merlons across the lintel (the crown skulls)
+    ts_r = int(hr * 0.26)
+    for k in (-1, 0, 1):
+        sx = head_c[0] + int(k * lintel_w * 0.66)
+        sy = lintel_y - ts_r - int(1 * s)
+        skull_finial(surf, sx, sy, ts_r, s)
+
+
+# ── the pylon-gate column → pillar mirror ─────────────────────────────────────
+def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
+    """The pylon-gate column IS the pillar: a heavy banded bone shaft with hard
+    SQUARE cornice grooves (the same stepped-temple language) and the heaviest
+    footing at the rooted end; the GAP end caps with a recessed niche holding a
+    single COLD socket-glow — the creature's own pure-bone focal, on-axis and
+    austere (never a second face, never a coloured burst).
+
+    `cap` names the END that faces the GAP."""
+    shaft_hw = int(15 * s)
+    # central austere ink seam the courses thread onto
+    pygame.draw.rect(surf, INK, (cx - int(2 * s), top, int(4 * s), bot - top))
+
+    # === heavy banded stone shaft (square cornice courses = the tile) =========
+    course_pitch = int(20 * s)
+    cap_room = int(38 * s)
+    if cap == "bottom":
+        b0, b1 = top + int(6 * s), bot - cap_room
+        foot_y = bot              # heaviest footing roots at the bottom
+    else:
+        b0, b1 = top + cap_room, bot - int(6 * s)
+        foot_y = top
+    y = b0
+    while y <= b1:
+        block = [(cx - shaft_hw, y - int(9 * s)),
+                 (cx + shaft_hw, y - int(9 * s)),
+                 (cx + shaft_hw, y + int(9 * s)),
+                 (cx - shaft_hw, y + int(9 * s))]
+        triad_blob(surf, BONE, block,
+                   core_pts=[(cx, y - int(8 * s)), (cx + shaft_hw, y - int(8 * s)),
+                             (cx + shaft_hw, y + int(8 * s)), (cx, y + int(8 * s))],
+                   sheen_pts=[(cx - shaft_hw, y - int(8 * s)),
+                              (cx - int(shaft_hw * 0.32), y - int(8 * s)),
+                              (cx - int(shaft_hw * 0.32), y + int(2 * s)),
+                              (cx - shaft_hw, y + int(2 * s))],
+                   ow=max(1, int(1.4 * s)))
+        # the hard square cornice groove between courses (the stepped read)
+        hard_groove(surf, cx - shaft_hw, cx + shaft_hw, y + int(9 * s), s)
+        # a thin vertical flute pair so the shaft reads carved-stone, not pipe
+        for fx in (cx - int(shaft_hw * 0.5), cx + int(shaft_hw * 0.5)):
+            pygame.draw.line(surf, BONE_DD, (fx, y - int(8 * s)), (fx, y + int(7 * s)),
+                             max(1, int(1.2 * s)))
+        y += course_pitch
+
+    # === heaviest FOOTING at the rooted end (bottom-rooted plinth) ============
+    fdir = -1 if cap == "bottom" else 1   # footing grows AWAY from the gap
+    foot_steps = [(int(shaft_hw * 1.4), int(11 * s)),
+                  (int(shaft_hw * 1.7), int(12 * s))]
+    fy = foot_y
+    for hw, h in foot_steps:
+        if fdir < 0:
+            blk = [(cx - hw, fy - h), (cx + hw, fy - h),
+                   (cx + hw, fy), (cx - hw, fy)]
+            gy = fy - h
+        else:
+            blk = [(cx - hw, fy), (cx + hw, fy),
+                   (cx + hw, fy + h), (cx - hw, fy + h)]
+            gy = fy + h
+        triad_blob(surf, BONE, blk,
+                   sheen_pts=[(cx - hw, gy), (cx - int(hw * 0.3), gy),
+                              (cx - int(hw * 0.3), gy + int(h * 0.5) * (1 if fdir > 0 else 1)),
+                              (cx - hw, gy + int(h * 0.5))] if fdir > 0 else None,
+                   ow=max(1, int(1.6 * s)))
+        hard_groove(surf, cx - hw, cx + hw,
+                    (fy - max(1, int(2 * s))) if fdir < 0 else (fy + h - max(1, int(2 * s))), s)
+        fy += fdir * h
+
+    # === gap-edge cap: recessed niche with a single COLD socket-glow ==========
+    # WHY a recessed square niche + cold socket-glow: it mirrors the creature's
+    # one focal (the cold eye-socket) at the gap, on-axis and austere. No hue,
+    # no radial burst — the pure-bone identity holds even at the gap.
+    cap_y = (bot - int(20 * s)) if cap == "bottom" else (top + int(20 * s))
+    niche_w = int(13 * s)
+    niche_h = int(20 * s)
+    # a square lintel head over the niche (austere cornice cap)
+    lin_hw = int(20 * s)
+    lin_y = cap_y - (niche_h // 2 + int(8 * s)) * (1 if cap == "bottom" else 1)
+    if cap == "bottom":
+        lin_y = cap_y - niche_h // 2 - int(8 * s)
+    else:
+        lin_y = cap_y + niche_h // 2 + int(8 * s)
+    block = [(cx - lin_hw, lin_y - int(7 * s)), (cx + lin_hw, lin_y - int(7 * s)),
+             (cx + lin_hw, lin_y + int(7 * s)), (cx - lin_hw, lin_y + int(7 * s))]
+    triad_blob(surf, BONE, block, ow=max(1, int(1.6 * s)))
+    hard_groove(surf, cx - lin_hw, cx + lin_hw, lin_y + int(7 * s), s)
+    # the recessed niche (dark) holding the cold socket-glow
+    pygame.draw.rect(surf, INK,
+                     (cx - niche_w, cap_y - niche_h // 2, niche_w * 2, niche_h))
+    pygame.draw.rect(surf, BONE_DDD,
+                     (cx - niche_w + max(1, int(s)), cap_y - niche_h // 2 + max(1, int(s)),
+                      niche_w * 2 - max(2, int(2 * s)), niche_h - max(2, int(2 * s))))
+    pygame.draw.circle(surf, STEEL_D, (cx, cap_y), int(7 * s))
+    pygame.draw.circle(surf, STEEL, (cx, cap_y), int(4.5 * s))
+    pygame.draw.circle(surf, STEEL_BR, (cx - int(1 * s), cap_y - int(1 * s)), max(1, int(2.4 * s)))
+
+
+# ── compose the review sheet ─────────────────────────────────────────────────
+SS = 5
+
+
+def grow(surf, px=1):
+    return grow_outline(surf, INK + (255,), px)
+
+
+def vgrad(surf, rect, top_col, bot_col):
+    x, y, w, h = rect
+    for j in range(h):
+        pygame.draw.line(surf, lerp(top_col, bot_col, j / max(1, h - 1)),
+                         (x, y + j), (x + w, y + j))
+
+
+def main():
+    W, H = 1010, 820
+    FONT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "..", "..", "..", "..", "..", "game", "assets",
+                        "LiberationSans-Bold.ttf")
+    FONT = os.path.normpath(FONT)
+    font_big = pygame.font.Font(FONT, 28)
+    font = pygame.font.Font(FONT, 16)
+    font_sm = pygame.font.Font(FONT, 11)
+
+    sheet = pygame.Surface((W, H))
+    sheet.fill(BG)
+
+    pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
+    sheet.blit(font_big.render("ASTHI-SAMRAT", True, LABEL), (24, 14))
+    sheet.blit(font_sm.render(
+        "temple-pylon colossus  ·  KIND: rigid arm-GRID (3 tiers x 4 arms) · MONUMENTAL + PURE-bone poles · "
+        "cold socket-pin ONLY · round 1",
+        True, LABEL_DIM), (300, 30))
+
+    # === (1) EPIC HERO ========================================================
+    big = pygame.Surface((360 * SS, 470 * SS), pygame.SRCALPHA)
+    draw_asthi_samrat(big, 180 * SS, 250 * SS, 1.5 * SS)
+    hero = grow(pygame.transform.smoothscale(big, (360, 470)))
+    sheet.blit(hero, (14, 92))
+    sheet.blit(font.render("Creature - EPIC hero", True, LABEL), (100, 566))
+    sheet.blit(font_sm.render("3 stacked tiers of 4 arms, each tier SHORTER = stepped pylon; widest base in brood.", True, LABEL_DIM), (14, 588))
+    sheet.blit(font_sm.render("12 banner-standards topped with tiny-skull FINIALS = colonnade of skull-poles.", True, LABEL_DIM), (14, 604))
+    sheet.blit(font_sm.render("PURE bone; ONLY non-bone = ink keyline + COLD steel socket-pin (no thematic hue).", True, LABEL_DIM), (14, 620))
+
+    # === (2) PILLAR assembled — mirrored, bottom-rooted =======================
+    pcx = 470
+    top_big = pygame.Surface((150 * SS, 250 * SS), pygame.SRCALPHA)
+    draw_pillar(top_big, 75 * SS, 4 * SS, 246 * SS, 1.0 * SS, cap="bottom")
+    top_seg = grow(pygame.transform.smoothscale(top_big, (150, 250)))
+    sheet.blit(top_seg, (pcx, 86))
+    bot_big = pygame.Surface((150 * SS, 250 * SS), pygame.SRCALPHA)
+    draw_pillar(bot_big, 75 * SS, 4 * SS, 246 * SS, 1.0 * SS, cap="top")
+    bot_seg = grow(pygame.transform.smoothscale(bot_big, (150, 250)))
+    sheet.blit(bot_seg, (pcx, 86 + 250 + 96))
+    pygame.draw.rect(sheet, (60, 58, 70), (pcx + 8, 86 + 250, 134, 96))
+    sheet.blit(font_sm.render("GAP", True, LABEL_DIM), (pcx + 56, 86 + 250 + 40))
+    sheet.blit(font.render("Pillar - pylon-gate column", True, LABEL), (pcx - 4, 690))
+    sheet.blit(font_sm.render("heavy stone shaft, hard SQUARE cornice grooves =", True, LABEL_DIM), (pcx - 4, 712))
+    sheet.blit(font_sm.render("the tile; heaviest footing at the rooted end;", True, LABEL_DIM), (pcx - 4, 727))
+    sheet.blit(font_sm.render("recessed niche + cold socket-glow caps the gap", True, LABEL_DIM), (pcx - 4, 742))
+
+    # === (3) TRUE 32px gameplay chips on day + night sky ======================
+    panel_x = 660
+    pygame.draw.rect(sheet, PANEL, (panel_x, 86, W - panel_x - 14, 472))
+    sheet.blit(font.render("True 32px gameplay chip", True, LABEL), (panel_x + 16, 96))
+
+    def chip32():
+        b = pygame.Surface((110 * SS, 130 * SS), pygame.SRCALPHA)
+        draw_asthi_samrat(b, 55 * SS, 70 * SS, (32 / 150.0) * SS)
+        return grow(pygame.transform.smoothscale(b, (110, 130)))
+
+    chip = chip32()
+    day_y = 128
+    vgrad(sheet, (panel_x + 20, day_y, 130, 150), DAY_SKY_T, DAY_SKY_B)
+    pygame.draw.rect(sheet, INK, (panel_x + 20, day_y, 130, 150), 1)
+    sheet.blit(chip, (panel_x + 20 + 10, day_y + 12))
+    sheet.blit(font_sm.render("32px on day sky", True, LABEL), (panel_x + 20, day_y + 154))
+
+    night_y = day_y + 182
+    vgrad(sheet, (panel_x + 20, night_y, 130, 150), NIGHT_T, NIGHT_B)
+    pygame.draw.rect(sheet, INK, (panel_x + 20, night_y, 130, 150), 1)
+    sheet.blit(chip, (panel_x + 20 + 10, night_y + 12))
+    sheet.blit(font_sm.render("32px on night sky", True, LABEL_DIM), (panel_x + 20, night_y + 154))
+
+    def pillar_chip32():
+        b = pygame.Surface((48 * SS, 130 * SS), pygame.SRCALPHA)
+        draw_pillar(b, 24 * SS, 2 * SS, 128 * SS, 0.34 * SS, cap="bottom")
+        return grow(pygame.transform.smoothscale(b, (48, 130)))
+
+    pc = pillar_chip32()
+    px2 = panel_x + 168
+    vgrad(sheet, (px2, day_y, 60, 150), DAY_SKY_T, DAY_SKY_B)
+    pygame.draw.rect(sheet, INK, (px2, day_y, 60, 150), 1)
+    sheet.blit(pc, (px2 + 6, day_y + 10))
+    vgrad(sheet, (px2, night_y, 60, 150), NIGHT_T, NIGHT_B)
+    pygame.draw.rect(sheet, INK, (px2, night_y, 60, 150), 1)
+    sheet.blit(pc, (px2 + 6, night_y + 10))
+    sheet.blit(font_sm.render("pillar", True, LABEL_DIM), (px2 + 6, day_y - 14))
+    sheet.blit(font_sm.render("gap-cap", True, LABEL_DIM), (px2 + 2, night_y - 14))
+
+    # === (4) BLACKED-OUT silhouette proof =====================================
+    sil_x = panel_x + 250
+    sheet.blit(font_sm.render("silhouette proof", True, LABEL), (sil_x - 2, day_y - 14))
+    sil_big = pygame.Surface((90 * SS, 150 * SS), pygame.SRCALPHA)
+    draw_asthi_samrat(sil_big, 45 * SS, 80 * SS, (44 / 150.0) * SS)
+    sil = pygame.transform.smoothscale(sil_big, (90, 150))
+    # flatten any opaque pixel to pure ink — the stepped-monolith blackout test
+    mask = pygame.mask.from_surface(sil)
+    blk = mask.to_surface(setcolor=(20, 18, 22, 255), unsetcolor=(0, 0, 0, 0))
+    pygame.draw.rect(sheet, (170, 168, 178), (sil_x, day_y, 90, 150))
+    pygame.draw.rect(sheet, INK, (sil_x, day_y, 90, 150), 1)
+    sheet.blit(blk, (sil_x, day_y))
+    sheet.blit(font_sm.render("stepped monolith;", True, LABEL_DIM), (sil_x - 2, day_y + 154))
+    sheet.blit(font_sm.render("hard cornice steps", True, LABEL_DIM), (sil_x - 2, day_y + 167))
+
+    # === (5) PALETTE strip ====================================================
+    sheet.blit(font.render("Pinned palette - PURE bone", True, LABEL), (panel_x + 16, 470))
+    swatches = [
+        (BONE, "ivory-bone (mass)"), (BONE_D, "bone shade"),
+        (BONE_DD, "groove shade"), (BONE_DDD, "deep groove"),
+        (STEEL, "cold socket-pin"), (STEEL_BR, "cold-white glow"),
+        (STEEL_D, "socket shade"), (INK, "ink keyline"),
+    ]
+    sxp, syp = panel_x + 16, 496
+    for i, (c, name) in enumerate(swatches):
+        col, row = i % 2, i // 2
+        rx = sxp + col * 158
+        ry = syp + row * 22
+        pygame.draw.rect(sheet, INK, (rx - 1, ry - 1, 18, 18))
+        pygame.draw.rect(sheet, c, (rx, ry, 16, 16))
+        sheet.blit(font_sm.render(name, True, LABEL), (rx + 22, ry + 2))
+
+    pygame.draw.rect(sheet, PANEL, (14, 770, W - 28, 40))
+    sheet.blit(font_sm.render(
+        "ELEVATED pipeline: SS=5 supersample -> smoothscale.  STAY: flat fills · hard ink keyline (28,22,26) · "
+        "dark-core->fill->top-left sheen triad · 1px grown outline · chibi-scary-cute · procedural-only · PURE bone, austerity IS the accent.",
+        True, LABEL_DIM), (26, 783))
+
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    pygame.image.save(sheet, out)
+    print("wrote", out)
+
+
+if __name__ == "__main__":
+    main()
