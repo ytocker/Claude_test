@@ -181,6 +181,17 @@ def banded_panel(surf, pts, s, n=3, horizontal=True):
 # ~6 vertical px at 32px. These read GREEN even at gameplay scale.
 CAP_GREEN = (148, 214, 150)   # malachite-LIGHT cap — brightest green after EYE
 CAP_RIM   = (108, 232, 128)   # saturated cap rim that carries green on night sky
+# the skull NOTCH must read as a WHITE pop at 32px (round-3 BONE_SH was too cool
+# /low to survive the chip); near-white out-values the green cap and the bone
+# face both, so the apex pip stays a bright crown after the downscale.
+NOTCH_WH  = (238, 240, 232)   # bone-white skull notch — a bright white pop on
+                              # the green cap, but kept a step BELOW the EYE_HOT
+                              # gaze core so the malachite eye-band stays the
+                              # single brightest/most-saturated focal (LOCKED).
+# a WARM brass detach-row between the green cap and the cool-bone face. WHY warm
+# (not BONE_SH): a warm hue against cool-green above and cool-bone below is a
+# real hue+value step that survives the downscale, where a near-bone ledge fused.
+DETACH_BR = (224, 196, 120)   # warm brass detach-row (the float gap, day + night)
 
 
 def dome_crown(surf, cx, cy, r, s):
@@ -222,29 +233,47 @@ def dome_crown(surf, cx, cy, r, s):
              for p in cap_pts]
     pygame.draw.polygon(surf, CAP_GREEN, inner)
 
-    # FORCED VALUE-BREAK: one thin bone/brass row (the lightest value) BELOW the
-    # green cap and the bone face. A solid BONE_SH band + a thin brass line —
-    # this is the detach that makes the cap pop off the head on the day chip.
-    ledge = [(cx - int(r * 1.06), base_y - int(r * 0.04)),
-             (cx + int(r * 1.06), base_y - int(r * 0.04)),
-             (cx + int(r * 0.98), base_y + int(r * 0.20)),
-             (cx - int(r * 0.98), base_y + int(r * 0.20))]
-    pygame.draw.polygon(surf, INK, ledge)
-    pygame.draw.polygon(surf, BONE_SH, ledge)
-    brass_edge(surf, (cx - int(r * 0.94), base_y + int(r * 0.05)),
-               (cx + int(r * 0.94), base_y + int(r * 0.05)), s)
+    # FORCED VALUE-BREAK: a solid WARM-BRASS row (the float gap) seated where the
+    # green cap meets the bone face — STOLEN FROM THE TOP OF THE FACE (it overlaps
+    # the forehead, the cap mass above is untouched). WHY a full brass band, not a
+    # bone ledge + hairline: a warm hue+value strip reads against BOTH the cool
+    # green above and the cool bone below, so it survives the 32px downscale as a
+    # crisp detach where round-3's near-bone ledge fused into the forehead. Made
+    # tall enough (>= ~1px at the chip) that the cap visibly floats at 32px.
+    row_h = max(2, int(r * 0.26))
+    detach = [(cx - int(r * 1.04), base_y - int(r * 0.02)),
+              (cx + int(r * 1.04), base_y - int(r * 0.02)),
+              (cx + int(r * 0.96), base_y + row_h),
+              (cx - int(r * 0.96), base_y + row_h)]
+    pygame.draw.polygon(surf, INK, detach)
+    pygame.draw.polygon(surf, DETACH_BR, detach)
+    # a thin top specular keeps the brass reading as worked metal at the hero
+    pygame.draw.line(surf, BRASS_HI,
+                     (cx - int(r * 0.96), base_y - int(r * 0.02)),
+                     (cx + int(r * 0.96), base_y - int(r * 0.02)),
+                     max(1, int(1.2 * s)))
 
-    # the skull NOTCH = the APEX of the cap, a single small bone-white pop set at
-    # the very top of the green so green flanks + skirts it. Kept small (the
-    # green must out-mass it) and high so it never fuses with the ledge below.
-    bx, by = cx, base_y - int(r * 0.80)
-    br = max(3, int(r * 0.30))
-    pygame.draw.circle(surf, INK, (bx, by), br + max(1, int(1.2 * s)))
-    pygame.draw.circle(surf, BONE_SH, (bx, by), br)
-    # tiny ink eye-pits so the bone pop reads as a SKULL at hero scale
+    # the skull NOTCH = the APEX of the cap, a bone-WHITE wedge set at the very top
+    # of the green so green flanks + skirts it. WHY a wide near-white triangle (not
+    # a small bone circle): round-3's BONE_SH circle was too cool + too small to
+    # survive the chip; a near-white wedge raised to NOTCH_WH and widened owns a
+    # bright crowning pop above the green that holds the squint at 32px.
+    bx, by = cx, base_y - int(r * 0.86)
+    bw = max(3, int(r * 0.52))         # half-width — wide enough to read at 32px
+    bh = max(4, int(r * 0.64))         # tall wedge so the pop survives downscale
+    notch = [(bx, by - bh),                     # apex
+             (bx + bw, by + int(bh * 0.45)),    # right shoulder
+             (bx + int(bw * 0.5), by + int(bh * 0.45)),
+             (bx, by + int(bh * 0.18)),         # base notch (the skull cleft)
+             (bx - int(bw * 0.5), by + int(bh * 0.45)),
+             (bx - bw, by + int(bh * 0.45))]
+    pygame.draw.polygon(surf, INK, notch)
+    pygame.draw.polygon(surf, NOTCH_WH, notch)
+    # tiny ink eye-pits so the white pop reads as a SKULL at hero scale (they
+    # disappear at 32px, leaving a clean white crown — exactly the wanted read)
     for sgn in (-1, 1):
-        pygame.draw.circle(surf, INK, (bx + sgn * int(br * 0.40), by),
-                           max(1, int(br * 0.24)))
+        pygame.draw.circle(surf, INK, (bx + sgn * int(bw * 0.40), by),
+                           max(1, int(bw * 0.20)))
 
 
 # -- the bone skull face -------------------------------------------------------
@@ -495,7 +524,7 @@ def main():
     sheet.blit(font_big.render("MALACHITE MAGISTRATE", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "skull-KING (discretion: no cradle, 2 arms)  ·  WIDE FLAT ANVIL-T banded-green shoulder-yoke · "
-        "green LIGHT cap + bone skull-notch crown · stern bone face · malachite eye-band focal · round 3",
+        "green LIGHT cap + bone skull-notch crown · stern bone face · malachite eye-band focal · round 4",
         True, LABEL_DIM), (360, 26))
 
     # === (a) BIG HERO =========================================================
@@ -615,7 +644,7 @@ def main():
         "2-3 BOLD malachite bands only.  Malachite eye-band stays the single brightest focal; brass kept thin.  SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_4.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
