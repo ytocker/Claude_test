@@ -180,14 +180,25 @@ def skull_helm(surf, cx, cy, r, s):
     tell AND a motion cue — the helm leans into the stride. Ember veins thread
     the cranium (dimmer than the chest focal); the eye sockets glow a low ember
     so the helm reads at 32px without stealing the chest focal."""
-    # the cranium dome, tipped forward (right) so the brow juts ahead of motion
+    # the cranium dome, tipped forward (right) so the brow juts ahead of motion.
+    # WHY a NOTCHED profile (high domed cranium that pinches IN at the jaw and
+    # juts the cheekbone forward): a plain ellipse reads as a riveted ball at
+    # 32px. The pinch under the cheek + the forward chin spur cut the unmistakable
+    # SKULL silhouette — wide brow, narrow jaw — that survives the downscale.
     tilt = int(r * 0.16)
     dome = []
-    for k in range(22):
-        a = math.radians(k * (360 / 22))
-        wx = 1.02 if math.cos(a) > 0 else 0.96
-        dome.append((cx + tilt + math.cos(a) * r * wx,
-                     cy + math.sin(a) * r * 0.92))
+    for k in range(26):
+        a = math.radians(k * (360 / 26))
+        ca, sa = math.cos(a), math.sin(a)
+        # wider toward the forward brow, pinched at the lower jaw to notch a skull
+        wx = 1.06 if ca > 0 else 0.92
+        wy = 0.94
+        if sa > 0.30:                      # lower half -> taper the jaw inward
+            wx *= 1.0 - 0.34 * (sa - 0.30) / 0.70
+        if ca > 0 and sa > 0.20:           # forward cheek/chin juts ahead
+            wx *= 1.0 + 0.12 * sa
+        dome.append((cx + tilt + ca * r * wx,
+                     cy + sa * r * wy))
     triad_blob(surf, CHAR, dome,
                core_pts=[(cx + tilt + int(r * 0.10), cy + int(r * 0.10)),
                          (cx + tilt + int(r * 0.92), cy - int(r * 0.20)),
@@ -204,6 +215,13 @@ def skull_helm(surf, cx, cy, r, s):
             (cx + tilt + int(r * 1.04), cy + int(r * 0.58)),
             (cx + tilt - int(r * 0.30), cy + int(r * 0.62))]
     triad_blob(surf, CHAR_D, brow, ow=max(1, int(1.3 * s)))
+    # deep cheek-hollow under the eye + a narrowing jaw spur — the dark wedge
+    # that pinches the skull's lower face so it can't read as a round dome.
+    cheek = [(cx + tilt + int(r * 0.18), cy + int(r * 0.60)),
+             (cx + tilt + int(r * 0.92), cy + int(r * 0.52)),
+             (cx + tilt + int(r * 0.66), cy + int(r * 0.96)),
+             (cx + tilt + int(r * 0.30), cy + int(r * 0.92))]
+    pygame.draw.polygon(surf, CHAR_DD, cheek)
     # two eye sockets — ink pits with a LOW ember glow (dimmer than chest focal)
     for (ox, scale) in ((0.30, 1.0), (0.78, 0.86)):
         ex = cx + tilt + int(r * ox)
@@ -228,59 +246,68 @@ def skull_helm(surf, cx, cy, r, s):
         a = math.radians(200 + k * 22)
         rime_tick(surf, (cx + tilt + math.cos(a) * r * 0.96,
                          cy + math.sin(a) * r * 0.88), s, ln=3.2, ang=a)
-    # teeth row along the jaw lip
-    jy = cy + int(r * 0.74)
-    pygame.draw.line(surf, INK, (cx + tilt + int(r * 0.16), jy),
-                     (cx + tilt + int(r * 0.98), jy - int(r * 0.04)),
+    # teeth row set on the NARROWED jaw (inboard of the cheek spur) — a short
+    # rime row so the skull's grin reads against the dark cheek hollow.
+    jy = cy + int(r * 0.80)
+    pygame.draw.line(surf, INK, (cx + tilt + int(r * 0.30), jy),
+                     (cx + tilt + int(r * 0.84), jy - int(r * 0.02)),
                      max(1, int(1.6 * s)))
-    for k in range(5):
-        tx = cx + tilt + int(r * (0.22 + k * 0.18))
-        pygame.draw.line(surf, RIME_D, (tx, jy - int(r * 0.06)),
-                         (tx, jy + int(r * 0.10)), max(1, int(1.0 * s)))
+    for k in range(4):
+        tx = cx + tilt + int(r * (0.34 + k * 0.16))
+        pygame.draw.line(surf, RIME, (tx, jy - int(r * 0.05)),
+                         (tx, jy + int(r * 0.09)), max(1, int(1.0 * s)))
 
 
 # -- the streaming ash-CLOAK off the trailing shoulder ------------------------
 def ash_cloak(surf, sx, sy, s, length, drop):
-    """A tattered ash-cloak streaming BACK (left) + down off the trailing
-    shoulder. WHY a long ragged trailing mass: in blackout this is half of the
-    stride read — the cloak's backward sweep + the lifted leg make the
-    asymmetric leaning silhouette that says 'walking forward'. Ember edges +
-    rime ticks dress it; it stays charcoal so the body is one dark mass."""
-    # the main cloak sheet, swept back-and-down with a torn lower hem
-    hem = [(sx, sy),
-           (sx - length * 0.30, sy + drop * 0.18),
-           (sx - length * 0.72, sy + drop * 0.10),
-           (sx - length * 1.00, sy + drop * 0.55),
-           (sx - length * 0.74, sy + drop * 0.46),
-           (sx - length * 0.86, sy + drop * 0.92),
-           (sx - length * 0.58, sy + drop * 0.74),
-           (sx - length * 0.62, sy + drop * 1.10),
-           (sx - length * 0.36, sy + drop * 0.82),
-           (sx - length * 0.30, sy + drop * 1.16),
-           (sx - length * 0.10, sy + drop * 0.70),
-           (sx + length * 0.06, sy + drop * 0.30)]
+    """ONE backward-streaming ash-cloak mass with a long tapering tail off the
+    trailing (back) shoulder. WHY a single tapering pennant, not a ragged fan:
+    in round 1 the cloak split into separate shards that read as extra spider
+    legs. Here it is one solid wedge that starts wide at the shoulder and tapers
+    to a single point streaming up-and-back — an unmistakable rearward banner
+    that says MOTION and never multiplies the limb count in blackout."""
+    # one solid cloak wedge: anchored wide at the shoulder, tapering BACK (left)
+    # and slightly UP (a banner caught by the forward run), to a single tail tip.
+    tail = (sx - length * 1.18, sy - drop * 0.10)   # the single far tail point
+    top = [(sx + length * 0.06, sy - drop * 0.18),  # upper shoulder anchor
+           (sx - length * 0.34, sy - drop * 0.22),
+           (sx - length * 0.74, sy - drop * 0.18),
+           tail]
+    bot = [tail,
+           (sx - length * 0.70, sy + drop * 0.34),
+           (sx - length * 0.30, sy + drop * 0.44),
+           (sx + length * 0.10, sy + drop * 0.30)]  # lower shoulder anchor
+    hem = top + bot[1:]
     triad_blob(surf, CHAR_D, hem,
-               core_pts=[(sx - length * 0.20, sy + drop * 0.18),
-                         (sx - length * 0.70, sy + drop * 0.30),
-                         (sx - length * 0.74, sy + drop * 0.70),
-                         (sx - length * 0.20, sy + drop * 0.60)],
+               core_pts=[(sx - length * 0.06, sy - drop * 0.02),
+                         (sx - length * 0.56, sy - drop * 0.04),
+                         (sx - length * 0.52, sy + drop * 0.22),
+                         (sx - length * 0.04, sy + drop * 0.18)],
                ow=max(1, int(1.6 * s)))
-    # ember-lit crack running down a fold of the cloak (NOT hot — dim/medium)
-    ember_crack(surf, [(sx - length * 0.18, sy + drop * 0.20),
-                       (sx - length * 0.40, sy + drop * 0.52),
-                       (sx - length * 0.52, sy + drop * 0.86)], s, dim=True)
-    # ash-rime ticks scattered on the cloak's trailing edge (carries night rim)
-    for (fx, fy) in ((0.92, 0.55), (0.80, 0.90), (0.56, 0.74),
-                     (0.34, 0.84), (0.66, 0.30)):
-        rime_tick(surf, (sx - length * fx, sy + drop * fy), s, ln=3.4,
-                  ang=math.radians(-20))
+    # two interior FOLD lines down the cloak's length — read as drapery sweeping
+    # back, reinforce the single rearward direction (no shard ambiguity).
+    for fy in (-0.04, 0.18):
+        pygame.draw.line(surf, CHAR_DD,
+                         (sx - length * 0.04, sy + drop * fy),
+                         (sx - length * 0.92, sy + drop * (fy * 0.4 - 0.04)),
+                         max(1, int(1.3 * s)))
+    # one dim ember crack tracing the upper fold (NOT hot)
+    ember_crack(surf, [(sx - length * 0.10, sy - drop * 0.02),
+                       (sx - length * 0.46, sy - drop * 0.06),
+                       (sx - length * 0.82, sy - drop * 0.10)], s, dim=True)
+    # ash-rime ticks strung along the trailing top edge (carries the night rim)
+    for fx in (0.30, 0.56, 0.82, 1.04):
+        rime_tick(surf, (sx - length * fx, sy - drop * 0.16), s, ln=3.4,
+                  ang=math.radians(-8))
 
 
 # -- the bone/charcoal STAFF swung forward ------------------------------------
 def staff(surf, hand, tip, s):
-    """A staff swung FORWARD past the leading hand — rakes the lean forward and
-    completes the stride read. Charcoal shaft, ember-cracked, capped by a small
-    skull knob with a low ember glow (a quiet echo of the helm, kept dim)."""
+    """A staff thrust FORWARD-DOWN along the travel line past the leading hand —
+    a low forward diagonal that rakes ahead of the stride (NOT a near-vertical
+    fifth limb, which in round 1 added to the spider read). Charcoal shaft,
+    ember-cracked, capped by a small skull knob with a low ember glow (a quiet
+    echo of the helm, kept dim)."""
     dx, dy = tip[0] - hand[0], tip[1] - hand[1]
     L = max(1.0, math.hypot(dx, dy))
     nx, ny = -dy / L * 3.4 * s, dx / L * 3.4 * s
@@ -310,39 +337,48 @@ def draw_walker(surf, cx, cy, s):
     ground bent back, the torso pitches forward, the helm juts ahead, the staff
     rakes forward, and the ash-cloak streams back-left off the trailing shoulder.
     Asymmetry is the identity — keep it loud in blackout."""
-    # anchor points of the leaning skeleton
-    pelvis = (cx - int(2 * s), cy + int(22 * s))
-    chest = (cx + int(8 * s), cy - int(12 * s))   # pitched forward (right)
-    neck = (cx + int(12 * s), cy - int(26 * s))
-    head_c = (cx + int(16 * s), cy - int(40 * s))  # head ahead of pelvis = lean
+    # anchor points of the leaning skeleton. WHY hips sit ahead of the trailing
+    # leg and OVER the planted front foot: that is what makes the diagonal read
+    # as a confident forward WALK rather than a low wrestler's splay.
+    pelvis = (cx + int(6 * s), cy + int(20 * s))   # hips carried FORWARD
+    chest = (cx + int(12 * s), cy - int(12 * s))   # torso pitched forward (right)
+    neck = (cx + int(16 * s), cy - int(26 * s))
+    head_c = (cx + int(20 * s), cy - int(40 * s))  # head well ahead of pelvis
     hr = int(13 * s)
 
-    # === ASH-CLOAK first — it streams BEHIND the body (drawn under) ===========
-    ash_cloak(surf, cx - int(8 * s), cy - int(20 * s), s,
-              length=int(70 * s), drop=int(78 * s))
+    # === ASH-CLOAK first — ONE mass streaming BEHIND (drawn under the body) ===
+    # anchored at the BACK (trailing) shoulder and swept up-and-back.
+    ash_cloak(surf, chest[0] - int(10 * s), chest[1] + int(2 * s), s,
+              length=int(74 * s), drop=int(46 * s))
 
-    # === TRAILING LEFT LEG — LIFTED + bent back (the core stride cue) =========
+    # === THE WALKING DIAGONAL — built leading-LOWER to trailing-UPPER =========
+    # This single line IS the lock. Front (leading) leg plants AHEAD and DOWN
+    # with the hips stacked above it; the trailing leg LIFTS off the ground and
+    # bends BACK. Drawn trailing-first so the planted front leg reads on top.
     leg_th = int(11 * s)
-    t_hip = (pelvis[0] - int(6 * s), pelvis[1])
-    t_knee = (pelvis[0] - int(26 * s), pelvis[1] + int(6 * s))   # knee swept back
-    t_foot = (pelvis[0] - int(16 * s), pelvis[1] - int(8 * s))   # foot LIFTED up
-    char_limb(surf, t_hip, t_knee, t_foot, leg_th, s)
-    # lifted foot, toe pointing down-back
-    tf = [(t_foot[0] - int(10 * s), t_foot[1] - int(2 * s)),
-          (t_foot[0] + int(4 * s), t_foot[1] - int(4 * s)),
-          (t_foot[0] + int(5 * s), t_foot[1] + int(5 * s)),
-          (t_foot[0] - int(9 * s), t_foot[1] + int(6 * s))]
+
+    # --- TRAILING leg: lifted + bent back, knee high, toe trailing (one clean
+    #     bent limb, no splay) -------------------------------------------------
+    t_hip = (pelvis[0] - int(4 * s), pelvis[1])
+    t_knee = (pelvis[0] - int(24 * s), pelvis[1] + int(2 * s))   # knee swept back
+    t_foot = (pelvis[0] - int(34 * s), pelvis[1] - int(18 * s))  # foot LIFTED up+back
+    char_limb(surf, t_hip, t_knee, t_foot, int(leg_th * 0.92), s)
+    # lifted foot/toe pointing up-and-back (clearly off the ground)
+    tf = [(t_foot[0] - int(11 * s), t_foot[1] - int(5 * s)),
+          (t_foot[0] + int(2 * s), t_foot[1] - int(6 * s)),
+          (t_foot[0] + int(4 * s), t_foot[1] + int(3 * s)),
+          (t_foot[0] - int(9 * s), t_foot[1] + int(5 * s))]
     triad_blob(surf, CHAR, tf, ow=max(1, int(1.2 * s)))
 
-    # === LEADING RIGHT LEG — planted ahead + down ============================
-    l_hip = (pelvis[0] + int(6 * s), pelvis[1])
-    l_knee = (pelvis[0] + int(20 * s), pelvis[1] + int(20 * s))
-    l_foot = (pelvis[0] + int(30 * s), pelvis[1] + int(42 * s))  # planted forward
+    # --- LEADING leg: planted AHEAD + straight down, hips stacked above it ----
+    l_hip = (pelvis[0] + int(4 * s), pelvis[1])
+    l_knee = (pelvis[0] + int(12 * s), pelvis[1] + int(22 * s))   # only slight forward
+    l_foot = (pelvis[0] + int(20 * s), pelvis[1] + int(46 * s))   # planted, near-vertical
     char_limb(surf, l_hip, l_knee, l_foot, leg_th, s)
-    lf = [(l_foot[0] - int(4 * s), l_foot[1] - int(3 * s)),
-          (l_foot[0] + int(16 * s), l_foot[1] - int(1 * s)),
-          (l_foot[0] + int(15 * s), l_foot[1] + int(8 * s)),
-          (l_foot[0] - int(5 * s), l_foot[1] + int(7 * s))]
+    lf = [(l_foot[0] - int(5 * s), l_foot[1] - int(3 * s)),
+          (l_foot[0] + int(18 * s), l_foot[1] - int(1 * s)),
+          (l_foot[0] + int(17 * s), l_foot[1] + int(8 * s)),
+          (l_foot[0] - int(6 * s), l_foot[1] + int(7 * s))]
     triad_blob(surf, CHAR, lf, ow=max(1, int(1.2 * s)))
     ember_crack(surf, [(l_knee[0] - int(3 * s), l_knee[1]),
                        (l_foot[0] - int(4 * s), l_foot[1] - int(10 * s))],
@@ -380,21 +416,23 @@ def draw_walker(surf, cx, cy, s):
                            (cx + int(2 * s), ry),
                            (cx + int(11 * s), ry + int(3 * s))], s, dim=True)
 
-    # === ARMS — TWO. trailing arm holds cloak edge; leading arm swings staff ==
+    # === ARMS — TWO, kept TIGHT to the body so they never fan into extra legs ==
     arm_th = int(6 * s)
-    # trailing (left/back) arm — flung back, gripping nothing (balance), reads
-    # as counter-swing to the lifted leg.
-    t_sh = (chest[0] - int(10 * s), chest[1] + int(2 * s))
-    t_el = (chest[0] - int(26 * s), chest[1] + int(14 * s))
-    t_hand = (chest[0] - int(34 * s), chest[1] + int(28 * s))
+    # trailing (back) arm — bent and tucked CLOSE along the ribs as a subtle
+    # counter-swing; it stays inside the torso mass in blackout (no extra limb).
+    t_sh = (chest[0] - int(9 * s), chest[1] + int(2 * s))
+    t_el = (chest[0] - int(13 * s), chest[1] + int(16 * s))
+    t_hand = (chest[0] - int(6 * s), chest[1] + int(26 * s))
     char_limb(surf, t_sh, t_el, t_hand, arm_th, s)
-    # leading (right/front) arm — reaches DOWN-FORWARD to swing the staff
-    l_sh = (chest[0] + int(11 * s), chest[1] + int(1 * s))
-    l_el = (chest[0] + int(24 * s), chest[1] + int(16 * s))
-    l_hand = (chest[0] + int(30 * s), chest[1] + int(34 * s))
+    # leading (front) arm — reaches FORWARD-DOWN to drive the staff along the
+    # travel line (the arm + staff read as ONE forward thrust, not two limbs).
+    l_sh = (chest[0] + int(12 * s), chest[1] + int(1 * s))
+    l_el = (chest[0] + int(26 * s), chest[1] + int(10 * s))
+    l_hand = (chest[0] + int(34 * s), chest[1] + int(22 * s))
     char_limb(surf, l_sh, l_el, l_hand, arm_th, s)
-    # the staff swung forward past the leading hand, raking ahead of the stride
-    staff(surf, l_hand, (l_hand[0] + int(26 * s), l_hand[1] - int(56 * s)), s)
+    # the staff thrust FORWARD-DOWN past the leading hand, low along the travel
+    # line — extends the front arm's reach ahead of the stride.
+    staff(surf, l_hand, (l_hand[0] + int(40 * s), l_hand[1] + int(20 * s)), s)
 
     # === THE SINGLE BRIGHT EMBER FOCAL — one chest crack, the hottest pixel ===
     # WHY drawn AFTER the torso filigree + body: it must own the foreground +
@@ -509,7 +547,7 @@ def main():
     sheet.blit(font_big.render("EMBER ASH WALKER", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "Skull Kings II  ·  the ONE king in MOTION · mid-stride forward walker · charred skull war-helm crest-forward · "
-        "streaming ash-cloak + swung staff · single chest-ember focal · round 1",
+        "streaming ash-cloak + forward staff thrust · single chest-ember focal · round 2",
         True, LABEL_DIM), (360, 26))
 
     # === (a) BIG HERO =========================================================
@@ -586,7 +624,7 @@ def main():
     pygame.draw.rect(sheet, INK, (sil_x, day_y, 150, 200), 1)
     sheet.blit(silhouette(), (sil_x, day_y))
     sheet.blit(font_sm.render("silhouette proof", True, LABEL_DIM), (sil_x, day_y + 204))
-    sheet.blit(font_sm.render("(lifted leg + trailing cloak = STRIDE)", True, LABEL_DIM), (sil_x, day_y + 220))
+    sheet.blit(font_sm.render("(planted front leg + lifted back leg = WALK)", True, LABEL_DIM), (sil_x, day_y + 220))
 
     def pillar_chip32():
         big = pygame.Surface((40 * SS, 130 * SS), pygame.SRCALPHA)
@@ -625,11 +663,11 @@ def main():
 
     pygame.draw.rect(sheet, PANEL, (14, 770, W - 28, 40))
     sheet.blit(font_sm.render(
-        "EMBER ASH WALKER — the brood's ONE king in MOTION.  Stride read = lifted trailing leg + streaming ash-cloak (loud in blackout).  "
+        "EMBER ASH WALKER — the brood's ONE king in MOTION.  Stride read = planted front leg + lifted back leg (a clean walking diagonal, loud in blackout) + ONE streaming cloak.  "
         "ONE matte-charcoal mass; ember + ash-rime are thin accents; the single hot chest ember is the focal.  Night carried by ash-rime rim.  SS=6 -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

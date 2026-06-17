@@ -42,14 +42,18 @@ ROBE_D    = ( 78,  18,  32)   # robe dark-core / fold shadow
 ROBE_DD   = ( 50,  12,  22)   # deepest robe hollow (cowl interior, under-folds)
 ROBE_SH   = (168,  56,  78)   # robe top-left rim-sheen (a lifted oxblood, not pink)
 # cool BONE face — the high-VALUE region so he survives a dark night sky.
-BONE      = (214, 206, 196)   # cool bone face (lighter than robe, never warm)
-BONE_D    = (158, 150, 142)   # bone shade / socket rim
-BONE_DD   = ( 96,  92,  88)   # deepest bone hollow (eye sockets, nasal)
-BONE_SH   = (240, 236, 230)   # bone top-left sheen
+# WHY lifted vs round 1: night legibility rode too low; values raised (not the
+# hue) so the bone face is a bright cool node that never dissolves into the sky.
+BONE      = (230, 224, 216)   # cool bone face (lighter than robe, never warm)
+BONE_D    = (176, 170, 164)   # bone shade / socket rim (lifted, still reads as shade)
+BONE_DD   = (104,  98,  96)   # deepest bone hollow (eye sockets, nasal)
+BONE_SH   = (248, 246, 242)   # bone top-left sheen
 # antique-silver stole-chains — a THIN cool linear accent ONLY.
-SILVER    = (176, 180, 188)
-SILVER_BR = (224, 228, 234)   # thin silver specular pip
-SILVER_D  = (110, 114, 124)   # recessed chain shadow
+# WHY brighter: the stole is the second value-lift that carries the hook edge
+# on a dark sky; kept cool so it never reads as a warm mass beside the gem.
+SILVER    = (198, 204, 214)
+SILVER_BR = (240, 244, 250)   # thin silver specular pip
+SILVER_D  = (124, 130, 142)   # recessed chain shadow
 # the SINGLE saturated focal — the garnet eye-gem (the inquisitor's sighting jewel)
 GARNET    = (196,  40,  72)
 GARNET_BR = (244, 120, 150)   # hot garnet inner
@@ -235,173 +239,184 @@ def reliquary_gable(surf, cx, base_y, w, h, s):
 
 # -- the hooded forward-stoop inquisitor (TRUE HAIRPIN) -----------------------
 def draw_inquisitor(surf, cx, cy, s):
-    """Geometry note: the figure is a forward HAIRPIN. The toe-line sits at the
-    rear (toward +x is forward). The robe column rises, then the cowl+head FOLD
-    forward and DROP below the shoulder crest, so the blackout is a leaning hook.
-    cx,cy is the chest/shoulder-crest anchor; the robe falls below, the cowl
-    pitches forward-and-down above-and-ahead."""
-    # forward = +x. Lay out key anatomy around the chest anchor.
-    shoulder_y = cy - int(6 * s)
-    hem_y = cy + int(70 * s)
-    # the cowl peak is pushed FORWARD of the toe and DOWN below the shoulder.
-    cowl_cx = cx + int(30 * s)         # clearly forward of the rear toe-line
-    cowl_cy = shoulder_y + int(14 * s) # head dropped BELOW the shoulder crest
-    head_c = (cowl_cx + int(2 * s), cowl_cy + int(8 * s))
-    hr = int(17 * s)
+    """Geometry note: a TRUE forward HAIRPIN (round 2 re-pose). forward = +x.
+    The rear toe-line is the heel of the hook; from it the robe spine sweeps UP
+    and then ARCS FORWARD-AND-DOWN so the cowl peak overhangs well past the toe
+    and the bone face hangs clearly BELOW the shoulder crest. The blackout is one
+    leaning J-hook — a robed figure folded at the waist, never an upright tower.
 
-    # === ROBE HEM + FEET (the rear root of the hook) =========================
-    # toe-line sits at the REAR so the forward cowl overhangs it -> hook read.
-    toe_x = cx - int(26 * s)
-    hem = [(toe_x - int(8 * s), hem_y),
-           (cx + int(20 * s), hem_y - int(4 * s)),
-           (cx + int(26 * s), hem_y + int(10 * s)),
-           (toe_x - int(14 * s), hem_y + int(16 * s))]
+    cx,cy is the shoulder-crest anchor (the apex of the arc). The robe falls
+    behind/below it as a narrow tapering stalk rooted on the rear toe; the cowl
+    pitches forward-and-down ahead-of-and-below it. A narrow base (no pedestal,
+    one foot) keeps the weight thrown forward into the stoop."""
+    shoulder_y = cy                              # the arc apex (shoulder crest)
+    hem_y = cy + int(66 * s)                      # the rear hem / ground line
+    toe_x = cx - int(20 * s)                      # rear heel of the hook (narrow)
+    # the cowl peak is thrown FORWARD past the toe and DOWN below the crest.
+    cowl_cx = cx + int(34 * s)                    # well forward of the rear toe
+    cowl_cy = shoulder_y + int(26 * s)            # head hangs BELOW the crest
+    head_c = (cowl_cx + int(3 * s), cowl_cy + int(9 * s))
+    hr = int(15 * s)
+
+    # === ROBE HEM + FOOT (narrow rear root of the hook) ======================
+    # WHY a single narrow foot, not a wide double-foot pedestal: the round-1 fat
+    # base read as a candle stand. A slim rear root throws the mass forward.
+    hem = [(toe_x - int(5 * s), hem_y - int(2 * s)),
+           (cx + int(4 * s), hem_y - int(6 * s)),
+           (cx + int(8 * s), hem_y + int(8 * s)),
+           (toe_x - int(8 * s), hem_y + int(12 * s))]
     triad_blob(surf, ROBE, hem,
-               core_pts=[(cx, hem_y), (cx + int(20 * s), hem_y - int(3 * s)),
-                         (cx + int(24 * s), hem_y + int(9 * s)), (cx, hem_y + int(11 * s))],
-               ow=max(1, int(1.6 * s)))
-    # two bone toe-tips peeking from under the rear hem
-    for k in (0, 1):
-        fx = toe_x - int(2 * s) + k * int(9 * s)
-        triad_circle(surf, BONE, (fx, hem_y + int(13 * s)), int(4 * s),
-                     ow=max(1, int(1.0 * s)), core=False)
+               core_pts=[(cx - int(8 * s), hem_y), (cx + int(4 * s), hem_y - int(5 * s)),
+                         (cx + int(7 * s), hem_y + int(7 * s)), (cx - int(8 * s), hem_y + int(9 * s))],
+               ow=max(1, int(1.5 * s)))
+    # one bone toe-tip peeking from the rear hem (single foot, no pedestal)
+    triad_circle(surf, BONE, (toe_x - int(1 * s), hem_y + int(9 * s)), int(4 * s),
+                 ow=max(1, int(1.0 * s)), core=False)
 
-    # === ROBE COLUMN — the dominant oxblood MASS, leaning forward at the top ===
-    # a single tapering bell from the wide hem up to the forward-pitched shoulders.
-    robe = [(toe_x - int(6 * s), hem_y + int(4 * s)),          # rear hem
-            (cx - int(22 * s), cy + int(20 * s)),              # rear flank
-            (cx - int(16 * s), shoulder_y + int(2 * s)),       # rear shoulder
-            (cowl_cx - int(20 * s), cowl_cy - int(20 * s)),    # forward cowl shoulder
-            (cowl_cx + int(20 * s), cowl_cy - int(14 * s)),    # forward cowl crest
-            (cowl_cx + int(22 * s), cowl_cy + int(18 * s)),    # forward cowl front
-            (cx + int(30 * s), cy + int(26 * s)),              # forward belly (overhang)
-            (cx + int(24 * s), hem_y - int(2 * s))]            # forward hem
+    # === ROBE SPINE — the dominant oxblood MASS, arced forward into a hook =====
+    # one continuous bell that rises from the narrow rear foot, crests at the
+    # shoulder, then folds FORWARD and DOWN so its top edge overhangs the toe.
+    # The rear contour is concave (the spine of the hook); the front contour
+    # bulges forward as the chest/belly thrust into the stoop.
+    robe = [(toe_x - int(4 * s), hem_y),                       # rear hem foot
+            (cx - int(14 * s), cy + int(40 * s)),              # rear flank (concave in)
+            (cx - int(10 * s), shoulder_y + int(6 * s)),       # rear shoulder
+            (cx - int(2 * s), shoulder_y - int(6 * s)),        # crest (apex of arc)
+            (cowl_cx - int(14 * s), cowl_cy - int(18 * s)),    # over the top, going forward
+            (cowl_cx + int(18 * s), cowl_cy - int(8 * s)),     # forward cowl shoulder
+            (cowl_cx + int(20 * s), cowl_cy + int(16 * s)),    # forward cowl front (overhang)
+            (cx + int(30 * s), cy + int(40 * s)),              # forward belly thrust
+            (cx + int(16 * s), hem_y - int(2 * s))]            # forward hem (narrow)
     triad_blob(surf, ROBE, robe,
-               core_pts=[(cx + int(2 * s), cy + int(24 * s)),
-                         (cx + int(28 * s), cy + int(24 * s)),
-                         (cx + int(22 * s), hem_y - int(2 * s)),
-                         (cx + int(2 * s), hem_y)],
-               sheen_pts=[(toe_x - int(4 * s), hem_y),
-                          (cx - int(20 * s), cy + int(18 * s)),
-                          (cx - int(14 * s), shoulder_y + int(4 * s)),
-                          (cx - int(6 * s), shoulder_y + int(8 * s)),
-                          (cx - int(8 * s), hem_y)],
-               ow=max(1, int(1.8 * s)))
-    # vertical fold lines down the robe (thin dark-core seams, the cloth read)
-    for fx in (-10, 2, 14):
+               core_pts=[(cx - int(2 * s), cy + int(42 * s)),
+                         (cx + int(26 * s), cy + int(42 * s)),
+                         (cx + int(14 * s), hem_y - int(2 * s)),
+                         (cx - int(6 * s), hem_y)],
+               sheen_pts=[(toe_x - int(2 * s), hem_y - int(2 * s)),
+                          (cx - int(12 * s), cy + int(38 * s)),
+                          (cx - int(8 * s), shoulder_y + int(6 * s)),
+                          (cx - int(2 * s), shoulder_y - int(4 * s)),
+                          (cx - int(6 * s), cy + int(30 * s))],
+               ow=max(1, int(1.7 * s)))
+    # fold lines following the forward arc (thin dark-core seams, the cloth read)
+    for (fx0, fx1) in ((-8, 2), (4, 18), (16, 28)):
         pygame.draw.line(surf, ROBE_D,
-                         (cx + int(fx * s), cy + int(22 * s)),
-                         (cx + int((fx - 6) * s), hem_y), max(1, int(1.4 * s)))
+                         (cx + int(fx1 * s), cy + int(40 * s)),
+                         (cx + int(fx0 * s), hem_y - int(2 * s)), max(1, int(1.4 * s)))
 
-    # === COWL — the forward-and-down hood that makes the hairpin peak =========
-    # a deep cowl whose OPENING faces forward-down, framing the dropped skull.
-    cowl = [(cowl_cx - int(22 * s), cowl_cy - int(18 * s)),
-            (cowl_cx - int(6 * s), cowl_cy - int(26 * s)),    # peak (the forward tip)
-            (cowl_cx + int(16 * s), cowl_cy - int(18 * s)),
-            (cowl_cx + int(22 * s), cowl_cy + int(6 * s)),
-            (cowl_cx + int(10 * s), cowl_cy + int(22 * s)),   # forward-down lip
-            (cowl_cx - int(16 * s), cowl_cy + int(18 * s)),
-            (cowl_cx - int(24 * s), cowl_cy - int(2 * s))]
+    # === COWL — the forward-and-DOWN hood that forms the hook's curved tip =====
+    # WHY the opening faces forward-DOWN: it is the inside of the hook. The peak
+    # is the highest+most-forward point; the lip sweeps down toward the floor the
+    # figure stoops over. No skull dome lives here — only a dark cowl void.
+    cowl = [(cowl_cx - int(18 * s), cowl_cy - int(14 * s)),
+            (cowl_cx - int(2 * s), cowl_cy - int(22 * s)),     # the forward peak tip
+            (cowl_cx + int(16 * s), cowl_cy - int(14 * s)),
+            (cowl_cx + int(22 * s), cowl_cy + int(8 * s)),
+            (cowl_cx + int(12 * s), cowl_cy + int(24 * s)),    # forward-down lip
+            (cowl_cx - int(14 * s), cowl_cy + int(20 * s)),
+            (cowl_cx - int(22 * s), cowl_cy + int(2 * s))]
     triad_blob(surf, ROBE, cowl,
-               core_pts=[(cowl_cx - int(2 * s), cowl_cy - int(18 * s)),
-                         (cowl_cx + int(16 * s), cowl_cy - int(16 * s)),
-                         (cowl_cx + int(20 * s), cowl_cy + int(6 * s)),
-                         (cowl_cx + int(2 * s), cowl_cy + int(16 * s))],
-               sheen_pts=[(cowl_cx - int(22 * s), cowl_cy - int(16 * s)),
-                          (cowl_cx - int(6 * s), cowl_cy - int(24 * s)),
-                          (cowl_cx - int(4 * s), cowl_cy - int(14 * s)),
-                          (cowl_cx - int(20 * s), cowl_cy - int(2 * s))],
-               ow=max(1, int(1.8 * s)))
-    # the dark cowl-interior recess that the bone face sits inside
-    inner = [(cowl_cx - int(14 * s), cowl_cy - int(6 * s)),
-             (cowl_cx + int(2 * s), cowl_cy - int(14 * s)),
-             (cowl_cx + int(16 * s), cowl_cy - int(2 * s)),
-             (cowl_cx + int(8 * s), cowl_cy + int(18 * s)),
-             (cowl_cx - int(12 * s), cowl_cy + int(12 * s))]
+               core_pts=[(cowl_cx + int(0 * s), cowl_cy - int(14 * s)),
+                         (cowl_cx + int(16 * s), cowl_cy - int(12 * s)),
+                         (cowl_cx + int(20 * s), cowl_cy + int(8 * s)),
+                         (cowl_cx + int(4 * s), cowl_cy + int(18 * s))],
+               sheen_pts=[(cowl_cx - int(18 * s), cowl_cy - int(12 * s)),
+                          (cowl_cx - int(2 * s), cowl_cy - int(20 * s)),
+                          (cowl_cx - int(0 * s), cowl_cy - int(10 * s)),
+                          (cowl_cx - int(16 * s), cowl_cy + int(2 * s))],
+               ow=max(1, int(1.7 * s)))
+    # the dark cowl-interior VOID — the bone face is GLIMPSED inside it, not a
+    # second skull. WHY ROBE_DD: it must read as shadow, letting the bone value
+    # alone do the legibility work (resolves the double-skull note).
+    inner = [(cowl_cx - int(13 * s), cowl_cy - int(4 * s)),
+             (cowl_cx + int(2 * s), cowl_cy - int(12 * s)),
+             (cowl_cx + int(15 * s), cowl_cy + int(0 * s)),
+             (cowl_cx + int(9 * s), cowl_cy + int(20 * s)),
+             (cowl_cx - int(11 * s), cowl_cy + int(14 * s))]
     pygame.draw.polygon(surf, ROBE_DD, inner)
 
-    # === SKULL FACE — the cool high-VALUE bone tucked into the forward cowl ===
-    # WHY drawn light + tilted forward-down: night legibility rides on the bone
-    # value, and the downward tilt sells the hairpin stoop (a face peering at the
-    # floor it points to).
-    triad_circle(surf, BONE, head_c, hr, ow=max(2, int(2 * s)))
-    # cheek shading
+    # === GLIMPSED BONE FACE — a cool high-VALUE node deep in the cowl void =====
+    # WHY a partial mask, not a full skull: the crown gable owns the skull tell.
+    # Here only the lower face is lit — a downward-peering mask hanging below the
+    # crest. Its bright bone value is the night-legibility node; one socket holds
+    # the single garnet focal. No jaw bump / dome (that would re-make a 2nd skull).
+    face = [(head_c[0] - int(hr * 0.78), head_c[1] - int(hr * 0.30)),
+            (head_c[0] + int(hr * 0.78), head_c[1] - int(hr * 0.30)),
+            (head_c[0] + int(hr * 0.64), head_c[1] + int(hr * 0.40)),
+            (head_c[0], head_c[1] + int(hr * 0.86)),            # chin dropped (peering down)
+            (head_c[0] - int(hr * 0.64), head_c[1] + int(hr * 0.40))]
+    triad_blob(surf, BONE, face,
+               sheen_pts=[(head_c[0] - int(hr * 0.78), head_c[1] - int(hr * 0.30)),
+                          (head_c[0] - int(hr * 0.10), head_c[1] - int(hr * 0.30)),
+                          (head_c[0] - int(hr * 0.20), head_c[1] + int(hr * 0.30)),
+                          (head_c[0] - int(hr * 0.58), head_c[1] + int(hr * 0.34))],
+               ow=max(1, int(1.4 * s)))
+    # two ink eye sockets (forward one sits lower — the stoop tilt); cheek shade
     for sgn in (-1, 1):
-        pygame.draw.circle(surf, BONE_D,
-                           (head_c[0] + sgn * int(hr * 0.62), head_c[1] + int(hr * 0.34)),
-                           int(hr * 0.26))
-    # eye sockets — tilted so the forward (right) one carries the garnet gem
-    for sgn in (-1, 1):
-        ex = head_c[0] + sgn * int(hr * 0.42)
-        ey = head_c[1] - int(hr * 0.02) + int(hr * 0.10) * sgn  # forward eye sits lower
-        pygame.draw.circle(surf, BONE_DD, (ex, ey), int(hr * 0.34))
-        pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.28))
-    # the SINGLE garnet eye-gem set in the FORWARD socket (the named focal)
-    fex = head_c[0] + int(hr * 0.42)
-    fey = head_c[1] - int(hr * 0.02) + int(hr * 0.10)
+        ex = head_c[0] + sgn * int(hr * 0.40)
+        ey = head_c[1] - int(hr * 0.04) + int(hr * 0.12) * (1 if sgn > 0 else 0)
+        pygame.draw.circle(surf, BONE_DD, (ex, ey), int(hr * 0.30))
+        pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.24))
+    # the SINGLE garnet eye-gem in the forward (lower) socket — the named focal
+    fex = head_c[0] + int(hr * 0.40)
+    fey = head_c[1] - int(hr * 0.04) + int(hr * 0.12)
     garnet_gem(surf, fex, fey, max(2, int(hr * 0.20)), s, halo=True)
-    # angular brow ridges (the inquisitor's glare)
-    for sgn in (-1, 1):
-        brow = [(head_c[0] + sgn * int(hr * 0.72), head_c[1] - int(hr * 0.30)),
-                (head_c[0] + sgn * int(hr * 0.08), head_c[1] - int(hr * 0.06)),
-                (head_c[0] + sgn * int(hr * 0.10), head_c[1] + int(hr * 0.02)),
-                (head_c[0] + sgn * int(hr * 0.76), head_c[1] - int(hr * 0.18))]
-        pygame.draw.polygon(surf, BONE_DD, brow)
-    # nasal + clenched teeth
+    # angular brow ridge + nasal slit (the inquisitor's glare), kept minimal
+    pygame.draw.line(surf, BONE_D,
+                     (head_c[0] - int(hr * 0.70), head_c[1] - int(hr * 0.18)),
+                     (head_c[0] + int(hr * 0.70), head_c[1] - int(hr * 0.18)),
+                     max(1, int(2 * s)))
     pygame.draw.polygon(surf, BONE_DD,
-                        [(head_c[0] - int(hr * 0.12), head_c[1] + int(hr * 0.30)),
-                         (head_c[0] + int(hr * 0.12), head_c[1] + int(hr * 0.30)),
-                         (head_c[0], head_c[1] + int(hr * 0.54))])
-    my = head_c[1] + int(hr * 0.74)
-    pygame.draw.line(surf, INK, (head_c[0] - int(hr * 0.40), my),
-                     (head_c[0] + int(hr * 0.42), my + int(hr * 0.06)), max(1, int(2 * s)))
-    for k in range(-2, 3):
-        pygame.draw.line(surf, INK,
-                         (head_c[0] + int(k * hr * 0.17), my - int(hr * 0.06)),
-                         (head_c[0] + int(k * hr * 0.17), my + int(hr * 0.10)),
-                         max(1, int(1 * s)))
+                        [(head_c[0] - int(hr * 0.10), head_c[1] + int(hr * 0.28)),
+                         (head_c[0] + int(hr * 0.10), head_c[1] + int(hr * 0.28)),
+                         (head_c[0], head_c[1] + int(hr * 0.50))])
 
-    # === STOLE-CHAINS — thin antique-silver swag down the robe front ==========
-    # WHY a shallow front swag from the cowl shoulders to the belly: it is the
-    # only other accent, kept cool + thin so the oxblood robe keeps the warm mass.
-    swag = [(cowl_cx - int(16 * s), cowl_cy + int(12 * s)),
-            (cx + int(2 * s), cy + int(28 * s)),
-            (cx + int(20 * s), cy + int(20 * s))]
-    silver_chain(surf, swag, max(2, int(2.2 * s)), s)
+    # === STOLE-CHAINS — thin antique-silver swag down the front of the arc =====
+    # WHY follow the hook curve from the cowl shoulder to the forward belly: the
+    # second value-lift that traces the hook edge on a dark sky; cool + thin so
+    # the oxblood robe keeps the whole warm mass.
+    swag = [(cowl_cx - int(12 * s), cowl_cy + int(14 * s)),
+            (cx + int(14 * s), cy + int(36 * s)),
+            (cx + int(26 * s), cy + int(44 * s))]
+    silver_chain(surf, swag, max(2, int(2.0 * s)), s)
 
-    # === ARMS — TWO. left arm tucked into the robe; right arm POINTS forward ===
-    # the menace: one bony hand jabs HORIZONTAL against the vertical robe.
-    arm_th = int(6 * s)
-    # tucked left arm (rear), low-key, just establishes the second arm
-    l_sh = (cx - int(12 * s), shoulder_y + int(10 * s))
-    l_el = (cx - int(20 * s), cy + int(26 * s))
-    l_hand = (cx - int(8 * s), cy + int(40 * s))
+    # === ARMS — TWO. left tucked rear; right a THIN, SHORT pointing jab ========
+    # WHY thinner + shorter than round 1: the arm read as a bright mechanical
+    # strut competing with the crown/eye. Demoted to a thin accent that just
+    # registers a level pointing finger against the stoop.
+    arm_th = int(4 * s)
+    # tucked left arm (rear), low-key — just establishes the second arm
+    l_sh = (cx - int(6 * s), shoulder_y + int(16 * s))
+    l_el = (cx - int(12 * s), cy + int(36 * s))
+    l_hand = (cx - int(2 * s), cy + int(48 * s))
     bone_limb(surf, l_sh, l_el, l_hand, arm_th, s)
-    # the POINTING right arm — driven forward off the cowl, ending in a level jab
-    r_sh = (cowl_cx - int(2 * s), cowl_cy + int(16 * s))
-    r_el = (cx + int(40 * s), cy + int(20 * s))
-    r_wrist = (cx + int(62 * s), cy + int(18 * s))
+    # the POINTING right arm — short, off the forward belly, a level jab
+    r_sh = (cowl_cx + int(2 * s), cowl_cy + int(20 * s))
+    r_el = (cx + int(34 * s), cy + int(30 * s))
+    r_wrist = (cx + int(48 * s), cy + int(30 * s))
     bone_limb(surf, r_sh, r_el, r_wrist, arm_th, s, joint=True)
-    # the pointing HAND: a fist with ONE extended index finger, dead horizontal
-    fist_c = (r_wrist[0] + int(2 * s), r_wrist[1])
-    triad_circle(surf, BONE, fist_c, int(5 * s), ow=max(1, int(1.2 * s)), core=False)
-    finger = [(fist_c[0], fist_c[1] - int(3 * s)),
-              (fist_c[0] + int(18 * s), fist_c[1] - int(2 * s)),
-              (fist_c[0] + int(18 * s), fist_c[1] + int(2 * s)),
-              (fist_c[0], fist_c[1] + int(3 * s))]
+    # the pointing HAND: a small fist + ONE level index finger (thin accent)
+    fist_c = (r_wrist[0] + int(1 * s), r_wrist[1])
+    triad_circle(surf, BONE, fist_c, int(4 * s), ow=max(1, int(1.0 * s)), core=False)
+    finger = [(fist_c[0], fist_c[1] - int(2 * s)),
+              (fist_c[0] + int(12 * s), fist_c[1] - int(2 * s)),
+              (fist_c[0] + int(12 * s), fist_c[1] + int(2 * s)),
+              (fist_c[0], fist_c[1] + int(2 * s))]
     triad_blob(surf, BONE, finger,
-               sheen_pts=[(fist_c[0], fist_c[1] - int(3 * s)),
-                          (fist_c[0] + int(18 * s), fist_c[1] - int(2 * s)),
-                          (fist_c[0] + int(18 * s), fist_c[1] - int(1 * s)),
+               sheen_pts=[(fist_c[0], fist_c[1] - int(2 * s)),
+                          (fist_c[0] + int(12 * s), fist_c[1] - int(2 * s)),
+                          (fist_c[0] + int(12 * s), fist_c[1] - int(1 * s)),
                           (fist_c[0], fist_c[1] - int(1 * s))],
-               ow=max(1, int(1.2 * s)))
-    # the fingertip bone-knuckle (the precise end of the jab)
-    triad_circle(surf, BONE, (fist_c[0] + int(18 * s), fist_c[1]), int(2 * s),
+               ow=max(1, int(1.0 * s)))
+    triad_circle(surf, BONE, (fist_c[0] + int(12 * s), fist_c[1]), int(2 * s),
                  ow=max(1, int(0.9 * s)), core=False, sheen=False)
 
-    # === the GABLED SKULL-RELIQUARY crown perched on the cowl peak ============
-    reliquary_gable(surf, cowl_cx - int(4 * s), cowl_cy - int(22 * s),
-                    int(26 * s), int(28 * s), s)
+    # === the GABLED SKULL-RELIQUARY crown — the ONLY skull, at the hook peak ===
+    # WHY anchored to the forward cowl peak: it must crest ABOVE-and-AHEAD of the
+    # cowl so the blackout shows the gable point at the hook's tip (kept geometry
+    # from round 1 per the AD KEEP note).
+    reliquary_gable(surf, cowl_cx - int(2 * s), cowl_cy - int(18 * s),
+                    int(24 * s), int(26 * s), s)
 
 
 # -- the reliquary-column -> pillar mirror, from the king's own forms ---------
@@ -513,7 +528,7 @@ def main():
     sheet.blit(font_big.render("GARNET CARDINAL INQUISITOR", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "skull-KING (discretion line, 2 arms) · hooded FORWARD-STOOP HAIRPIN · gabled skull-reliquary crown · "
-        "pointing hand · garnet eye-gem focal · round 1",
+        "pointing hand · garnet eye-gem focal · round 2",
         True, LABEL_DIM), (480, 26))
 
     # === (a) BIG HERO =========================================================
@@ -633,7 +648,7 @@ def main():
         "garnet eye-gem = single brightest-warm focal; gabled skull-reliquary crown is the above-head tell.  SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     self_check()
@@ -691,8 +706,15 @@ def hairpin_check():
                     n += 1
         return (sx / n) if n else None, n
 
-    top_cx, top_n = band_centroid(0, h // 4)
-    bot_cx, bot_n = band_centroid(3 * h // 4, h)
+    # WHY measure the populated extent, not fixed box quarters: the re-posed hook
+    # no longer fills the top of the box, so fixed quarters read the empty header
+    # as "no mass". Find the first/last solid rows, then compare the top quarter
+    # of the ACTUAL figure (the cowl/crown peak) to its bottom quarter (the foot).
+    rows = [y for y in range(h) if any(mask.get_at((x, y)) for x in range(w))]
+    y_top, y_bot = rows[0], rows[-1]
+    span = max(1, y_bot - y_top)
+    top_cx, top_n = band_centroid(y_top, y_top + span // 4)
+    bot_cx, bot_n = band_centroid(y_bot - span // 4, y_bot + 1)
     forward = (top_cx is not None and bot_cx is not None and top_cx > bot_cx + 6)
     print("self-check hairpin: top-band cx=%.1f (n=%d) | bottom-band cx=%.1f (n=%d) "
           "-> cowl forward of toe? %s"

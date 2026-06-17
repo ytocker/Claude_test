@@ -46,9 +46,12 @@ BONE      = (200, 206, 216)   # cool bone (skull head, hands, ring-apex skull)
 BONE_D    = (150, 158, 176)   # bone shade
 BONE_DD   = ( 96, 104, 126)   # deepest bone hollow (sockets)
 BONE_SH   = (236, 240, 248)   # bone top-left sheen
-ULTRA     = ( 64, 108, 210)   # thin ultramarine ring band (the orrery metal)
-ULTRA_BR  = (122, 162, 240)   # ring sheen
-ULTRA_D   = ( 34,  62, 138)   # ring shadow
+# ring band raised in value + saturation so the wide-lens OUTLINE survives the
+# 32px downscale against BOTH skies (was too dim/thin -> vanished into a blob).
+ULTRA     = ( 92, 142, 244)   # ultramarine ring band (the orrery metal), brighter
+ULTRA_BR  = (180, 210, 255)   # ring sheen
+ULTRA_D   = ( 30,  56, 132)   # ring shadow
+ULTRA_RIM = (236, 244, 255)   # near-white rim-light edge (the 32px survival key)
 # the SINGLE focal — the cradled STAR-SKULL (white-gold glow, brightest pixel).
 STAR      = (250, 236, 168)   # star-skull warm base
 STAR_BR   = (255, 248, 214)   # star-skull bright
@@ -141,7 +144,10 @@ def star_skull(surf, cx, cy, r, s):
     skull-KINGS lineage tell AND is the single brightest point. Layered halos +
     a hot near-white core keep its peak luminance above every other element so
     the eye lands here first, inside the open lens."""
-    for (rr, a) in ((r * 2.05, 26), (r * 1.55, 46), (r * 1.18, 86)):
+    # WHY a wider, brighter, more opaque halo stack now: at 32px the cradled
+    # star is the warm focal that must still read as a bright POINT at the chest
+    # centre; the round-1 halo was too faint/small to survive the downscale.
+    for (rr, a) in ((r * 2.7, 44), (r * 1.95, 78), (r * 1.4, 130), (r * 1.06, 200)):
         halo = pygame.Surface((int(rr * 2) + 4, int(rr * 2) + 4), pygame.SRCALPHA)
         pygame.draw.circle(halo, STAR_BR + (a,), (int(rr) + 2, int(rr) + 2), int(rr))
         surf.blit(halo, (cx - int(rr) - 2, cy - int(rr) - 2))
@@ -175,7 +181,17 @@ def apex_skull(surf, cx, cy, r, s):
     """The cool blue pole-star skull crowning the orrery apex. WHY kept lapis +
     dim (never warm): it is the crown/tell, not the focal — the warmth belongs
     to the cradled star alone. A small cool skull above the head reads at 32px
-    as 'a blue dot at the ring's top' without stealing the centre's heat."""
+    as 'a blue dot at the ring's top' without stealing the centre's heat.
+    WHY a pale bone halo ring around it now: a bare lapis nub against the night
+    sky (also bluish) dissolved at 32px; a thin near-white bone halo gives the
+    apex skull a high-contrast edge so it survives as a distinct crown nub
+    without going warm and competing with the cradled star."""
+    halo_r = r + max(2, int(2.2 * s))
+    hsurf = pygame.Surface((halo_r * 2 + 4, halo_r * 2 + 4), pygame.SRCALPHA)
+    pygame.draw.circle(hsurf, BONE_SH + (225,), (halo_r + 2, halo_r + 2), halo_r)
+    pygame.draw.circle(hsurf, (0, 0, 0, 0), (halo_r + 2, halo_r + 2),
+                       max(1, halo_r - max(1, int(1.6 * s))))
+    surf.blit(hsurf, (cx - halo_r - 2, cy - halo_r - 2))
     pygame.draw.circle(surf, INK, (cx, cy), r + max(1, int(1.0 * s)))
     pygame.draw.circle(surf, APEX_D, (cx, cy), r)
     pygame.draw.circle(surf, APEX, (cx, cy), int(r * 0.88))
@@ -193,15 +209,19 @@ def apex_skull(surf, cx, cy, r, s):
 
 
 # -- one thin ultramarine orrery band (an open ring arc, sky showing through) --
-def ring_band(surf, cx, cy, rx, ry, s, tilt=0.0, lw=None):
-    """A single THIN ultramarine band of the wide armillary, drawn as an open
+def ring_band(surf, cx, cy, rx, ry, s, tilt=0.0, lw=None, hero=False):
+    """A single ultramarine band of the wide armillary, drawn as an open
     elliptical ring (no fill) so sky shows through. WHY ellipses, not circles:
     each band reads as a great-circle of the celestial sphere seen edge-on,
     which is what makes the whole assembly a flattened HORIZONTAL lens rather
-    than a filled disc. Thinness is the hard de-collision lock vs. the sun-Khan."""
+    than a filled disc. WHY it is now THICKER with a full near-white RIM-LIGHT
+    (not a partial sheen): at 32px a thin low-value band is the first thing the
+    downscale eats, leaving a blob that collides with the sun-Khan's filled
+    disc. A bright rim run all the way around the band keeps the OPEN ellipse
+    OUTLINE legible at gameplay scale while the band stays an open ring."""
     if lw is None:
-        lw = max(2, int(2.4 * s))
-    pts_out, pts_in = [], []
+        lw = max(3, int(3.6 * s))
+    pts_out = []
     cos_t, sin_t = math.cos(tilt), math.sin(tilt)
     for k in range(72):
         a = math.radians(k * 5)
@@ -210,14 +230,18 @@ def ring_band(surf, cx, cy, rx, ry, s, tilt=0.0, lw=None):
         rxp = ex * cos_t - ey * sin_t
         ryp = ex * sin_t + ey * cos_t
         pts_out.append((cx + rxp, cy + ryp))
-    # ink keyline under the band, then the band itself, then a top sheen arc
-    pygame.draw.polygon(surf, INK, pts_out, lw + max(1, int(1.0 * s)))
-    pygame.draw.polygon(surf, ULTRA_D, pts_out, lw + 1)
+    # ink keyline under the band, the shadow body, the bright band, then a
+    # near-white RIM run around the WHOLE ellipse so the outline survives 32px.
+    rim = max(1, int(1.3 * s))
+    pygame.draw.polygon(surf, INK, pts_out, lw + max(2, int(2.0 * s)))
+    pygame.draw.polygon(surf, ULTRA_D, pts_out, lw + max(1, int(1.0 * s)))
     pygame.draw.polygon(surf, ULTRA, pts_out, lw)
-    # sheen only on the upper-left run of the band (thin highlight)
-    sheen = [p for p in pts_out if p[1] < cy and p[0] < cx + rx * 0.3]
-    if len(sheen) >= 2:
-        pygame.draw.lines(surf, ULTRA_BR, False, sheen, max(1, int(1.0 * s)))
+    pygame.draw.polygon(surf, ULTRA_RIM, pts_out, rim)
+    # an extra upper-left sheen run reinforces the 3-D read at hero scale only
+    if hero:
+        sheen = [p for p in pts_out if p[1] < cy and p[0] < cx + rx * 0.3]
+        if len(sheen) >= 2:
+            pygame.draw.lines(surf, ULTRA_BR, False, sheen, max(1, int(1.4 * s)))
 
 
 # -- the gold-pyrite ROBE TEXTURE (ordered diagonal star-chart rows) -----------
@@ -258,13 +282,18 @@ def draw_king(surf, cx, cy, s):
     pole_l = (cx - rx, cy)           # west pole (left arm grips)
     pole_r = (cx + rx, cy)           # east pole (right arm grips)
 
-    # === BACK ARC of every ring (behind the body so the lens wraps the king) ==
+    # === BACK ARC of the lens (behind the body so the lens wraps the king) ====
     # WHY draw the far halves first, body next, near halves last: this is the
     # depth cue that sells an open 3-D armillary the body sits INSIDE of.
+    # WHY only TWO bands now (one wide HORIZONTAL + one crossing) instead of
+    # three: at 32px three crossing arcs muddy into a blob; cutting to the
+    # fewest that still say "armillary" keeps the wide horizontal LENS the
+    # single loudest silhouette element. The horizontal band is drawn thickest.
     back = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    ring_band(back, cx, cy, rx, ry, s, tilt=0.0)
-    ring_band(back, cx, cy, int(rx * 0.66), ry, s, tilt=math.radians(24))
-    ring_band(back, cx, cy, int(rx * 0.66), ry, s, tilt=math.radians(-24))
+    ring_band(back, cx, cy, rx, ry, s, tilt=0.0,
+              lw=max(3, int(4.4 * s)), hero=True)               # the loud lens
+    ring_band(back, cx, cy, int(rx * 0.62), ry, s, tilt=math.radians(26),
+              lw=max(3, int(3.0 * s)), hero=True)               # one crossing arc
     # clip the back surface to ABOVE the body waistline so its lower arcs hide
     surf.blit(back, (0, 0))
 
@@ -305,7 +334,7 @@ def draw_king(surf, cx, cy, s):
     arm_th = int(6 * s)
     chest = (cx, cy + int(8 * s))
     star_c = (cx, cy + int(6 * s))
-    star_r = int(13 * s)
+    star_r = int(15 * s)   # enlarged so the warm focal point survives at 32px
 
     # OUTER arms -> reach to the poles (drawn first, behind robe edges read ok)
     for sgn in (-1, 1):
@@ -376,7 +405,8 @@ def draw_king(surf, cx, cy, s):
 
     # === NEAR ARC of the outer ring (in front of the body -> lens wraps king) =
     front = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    ring_band(front, cx, cy, rx, ry, s, tilt=0.0)
+    ring_band(front, cx, cy, rx, ry, s, tilt=0.0,
+              lw=max(3, int(4.4 * s)), hero=True)
     # mask the front surface to only the LOWER half so it crosses in front of
     # the hem but the upper arc already sits behind the head.
     fmask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
@@ -407,8 +437,8 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
         b0, b1 = top + cap_room, bot - int(8 * s)
     y = b0
     while y <= b1:
-        # a wide thin ring rung threaded on the lapis core (an orrery band)
-        ring_band(surf, cx, y, int(15 * s), int(7 * s), s, lw=max(2, int(2.0 * s)))
+        # a wide ring rung threaded on the lapis core (an orrery band)
+        ring_band(surf, cx, y, int(15 * s), int(7 * s), s, lw=max(3, int(3.0 * s)))
         # lapis bead at the core with a pyrite tick (robe-texture echo)
         triad_circle(surf, LAPIS, (cx, y), int(5 * s), ow=max(1, int(1.0 * s)),
                      core=False, sheen=False)
@@ -418,9 +448,10 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
     cap_y = (bot - int(28 * s)) if cap == "bottom" else (top + int(28 * s))
     fan_dir = -1 if cap == "bottom" else 1
     # the wide ring-lens cap (the hero's signature) cradling a star
-    ring_band(surf, cx, cap_y, int(22 * s), int(12 * s), s, lw=max(2, int(2.2 * s)))
+    ring_band(surf, cx, cap_y, int(22 * s), int(12 * s), s,
+              lw=max(3, int(3.6 * s)), hero=True)
     ring_band(surf, cx, cap_y, int(15 * s), int(12 * s), s, tilt=math.radians(28),
-              lw=max(2, int(1.8 * s)))
+              lw=max(3, int(2.6 * s)), hero=True)
     star_y = cap_y
     star_skull(surf, cx, star_y, int(9 * s), s)
     # a small lapis apex skull at the OUTWARD tip (mirrors the crown)
@@ -470,7 +501,7 @@ def main():
     sheet.blit(font_big.render("LAPIS NAVIGATOR KING", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "skull-KINGS II  ·  king inside a WIDE HORIZONTAL orrery-lens (open, thin rings, sky through) · "
-        "4 arms: outer GRIP poles, inner CUP star-skull · gold-flecked lapis robe · lapis apex-skull crown · round 1",
+        "4 arms: outer GRIP poles, inner CUP star-skull · gold-flecked lapis robe · lapis apex-skull crown · round 2",
         True, LABEL_DIM), (320, 26))
 
     # === (a) BIG HERO =========================================================
@@ -508,8 +539,8 @@ def main():
         draw_king(big, 48 * SS, 50 * SS, (32 / 150.0) * SS)
         small = pygame.transform.smoothscale(big, (96, 96))
         if night:
-            base = grow_outline(small, ULTRA_D + (255,), 2)
-            return grow_outline(base, INK + (200,), 1)
+            base = grow_outline(small, ULTRA_RIM + (235,), 2)
+            return grow_outline(base, INK + (210,), 1)
         return grow_outline(small, INK + (255,), 1)
 
     day_chip = chip32(night=False)
@@ -525,7 +556,7 @@ def main():
     vgrad(sheet, (panel_x + 20, night_y, 150, 150), NIGHT_T, NIGHT_B)
     pygame.draw.rect(sheet, INK, (panel_x + 20, night_y, 150, 150), 1)
     sheet.blit(night_chip, (panel_x + 20 + 27 - 1, night_y + 27 - 1))
-    sheet.blit(font_sm.render("32px on night sky (ultramarine rim)", True, LABEL_DIM), (panel_x + 20, night_y + 156))
+    sheet.blit(font_sm.render("32px on night sky (bright rim)", True, LABEL_DIM), (panel_x + 20, night_y + 156))
 
     # silhouette proof — blacked-out hero so the wide-lens read is checked
     def silhouette():
@@ -586,7 +617,7 @@ def main():
         "Inner hands CUP the white-gold star-skull (single brightest pixel); lapis apex-skull crowns the pole.  SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (24, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

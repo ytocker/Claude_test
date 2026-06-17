@@ -119,11 +119,15 @@ def facet_edge(surf, p0, p1, hue_i, s, hot=False):
 
 def crystal_block(surf, cx, top_y, half_w, h, s, hue_base, sheen=True):
     """One right-angle terrace block: a flat grey rectangular crystal face with
-    a thin top-cap (the lit step surface) and rainbow strokes walked along its
-    visible edges. Returns the block's top-left/right corners so the caller can
-    chain the rainbow continuously up the ziggurat. WHY rectangular + right-angle:
-    the silhouette must read as STEPPED ARCHITECTURE (a built pyramid), never an
-    organic crystal cluster or a figure."""
+    a thin top-cap (the lit step surface). Returns the block's top-left/right
+    corners so the caller can chain the rainbow continuously up the ziggurat.
+    WHY rectangular + right-angle: the silhouette must read as STEPPED
+    ARCHITECTURE (a built pyramid), never an organic crystal cluster or a figure.
+
+    WHY only ONE rainbow stroke (the terrace front-lip): round-1 walked every
+    boundary, which slid into chroma-confetti at 32px. Restricting iridescence to
+    the single lit front-lip per terrace keeps the edges reading as discrete
+    facets and lets the grey mass stay dominant."""
     x0, x1 = cx - half_w, cx + half_w
     y0, y1 = top_y, top_y + h
     # cap thickness gives each step a lit top surface (the terrace tread)
@@ -145,85 +149,115 @@ def crystal_block(surf, cx, top_y, half_w, h, s, hue_base, sheen=True):
     crease1 = (x0 + half_w * 0.30, y1)
     pygame.draw.line(surf, CRY_DD, crease0, crease1, max(1, int(1.2 * s)))
 
-    # RAINBOW FACET EDGES: tread perimeter + the vertical corners + the crease.
-    facet_edge(surf, (x0, y0), (x1, y0), hue_base, s)               # tread back
-    facet_edge(surf, (x0, y0), (x0 + max(2, int(3 * s)), y0 + cap_h),
-               hue_base + 1, s)                                     # tread left bevel
-    facet_edge(surf, (x1, y0), (x1 - max(2, int(3 * s)), y0 + cap_h),
-               hue_base + 2, s)                                     # tread right bevel
-    facet_edge(surf, (x0, y0 + cap_h), (x0, y1), hue_base + 2, s)   # left corner
-    facet_edge(surf, (x1, y0 + cap_h), (x1, y1), hue_base, s)       # right corner
-    facet_edge(surf, crease0, crease1, hue_base + 1, s)            # inner crease
+    # RAINBOW FACET EDGE: the single lit front-lip of the terrace, nothing else.
+    facet_edge(surf, (x0, y0), (x1, y0), hue_base, s)               # tread front-lip
     return (x0, y0), (x1, y0)
 
 
 # -- the FACETED BISMUTH SKULL CAPSTONE (the above-head crown) -----------------
-def skull_capstone(surf, cx, base_y, w, s):
-    """A faceted bismuth SKULL sitting as the topmost step of the ziggurat — the
-    royal crown tell. WHY a blocky angular skull, not a rounded one: it must read
-    as cut crystal continuous with the terraces below, and at 32px collapse to a
-    pale faceted nub atop the grey pyramid. The brightest facet-edge pip lives
-    here so the named focal is in the crown."""
-    half = w * 0.5
-    top_y = base_y - int(w * 0.92)
-    # cranium — a faceted hexagonal dome (angular, crystal, not a smooth ball)
-    cran = [(cx - half, base_y - int(w * 0.30)),
-            (cx - half * 0.78, top_y + int(w * 0.10)),
-            (cx - half * 0.30, top_y),
-            (cx + half * 0.30, top_y),
-            (cx + half * 0.78, top_y + int(w * 0.10)),
-            (cx + half, base_y - int(w * 0.30)),
-            (cx + half * 0.72, base_y),
-            (cx - half * 0.72, base_y)]
-    triad_blob(surf, CRY_LIT, cran,
-               core_pts=[(cx, top_y + int(w * 0.10)),
-                         (cx + half * 0.78, top_y + int(w * 0.10)),
-                         (cx + half, base_y - int(w * 0.30)),
-                         (cx + half * 0.72, base_y), (cx, base_y)],
-               sheen_pts=[(cx - half * 0.30, top_y), (cx, top_y),
-                          (cx - half * 0.20, top_y + int(w * 0.34)),
-                          (cx - half * 0.62, top_y + int(w * 0.30))],
-               ow=max(1, int(1.6 * s)))
-    # eye sockets — deep ink hexafacets (the scary-cute read)
-    for sgn in (-1, 1):
-        ex = cx + sgn * int(half * 0.44)
-        ey = base_y - int(w * 0.40)
-        er = int(half * 0.30)
-        socket = [(ex - er, ey), (ex - er * 0.4, ey - er * 0.9),
-                  (ex + er * 0.6, ey - er * 0.7), (ex + er, ey + er * 0.2),
-                  (ex + er * 0.3, ey + er)]
-        pygame.draw.polygon(surf, CRY_DD, socket)
-        pygame.draw.polygon(surf, INK, [(p[0], p[1]) for p in socket])
-        # a tiny iridescent pin deep in the socket (cool spark, not a warm core)
-        pygame.draw.circle(surf, EDGE_TEA, (ex, ey), max(1, int(er * 0.30)))
-        pygame.draw.circle(surf, EDGE_TEA_H, (ex - 1, ey - 1), max(1, int(er * 0.16)))
-    # nasal — a small down-pointing ink triangle
-    pygame.draw.polygon(surf, INK,
-                        [(cx - int(half * 0.12), base_y - int(w * 0.30)),
-                         (cx + int(half * 0.12), base_y - int(w * 0.30)),
-                         (cx, base_y - int(w * 0.16))])
-    # faceted teeth band — short ink slots
-    ty = base_y - int(w * 0.06)
-    for k in range(-2, 3):
-        tx = cx + int(k * half * 0.26)
-        pygame.draw.line(surf, INK, (tx, ty - int(w * 0.06)), (tx, ty),
-                         max(1, int(1.2 * s)))
-    pygame.draw.line(surf, INK, (cx - int(half * 0.6), ty - int(w * 0.06)),
-                     (cx + int(half * 0.6), ty - int(w * 0.06)), max(1, int(1.4 * s)))
+def _erase_void(surf, pts):
+    """Punch a hole through surf's ALPHA along a polygon — the cut survives the
+    smoothscale into the silhouette mask. WHY alpha-punch rather than a dark
+    fill: the blackout proof is built from the alpha mask, so a merely-dark
+    socket still reads as solid mass. Carving the alpha is the ONLY way the
+    silhouette breaks into a skull at 32px."""
+    pygame.draw.polygon(surf, (0, 0, 0, 0), [(int(p[0]), int(p[1])) for p in pts])
 
-    # RAINBOW EDGES on the cranium silhouette — the crown's identity. The TOP
-    # ridge carries the single HOT pip so the brightest pixel sits in the crown.
-    ring = cran + [cran[0]]
-    for i in range(len(cran)):
-        p0, p1 = ring[i], ring[i + 1]
-        hot = (i == 2)  # the top-left ridge -> brightest gold-edge pip = focal
-        facet_edge(surf, p0, p1, i, s, hot=False)
-    # the explicit focal: a hot gold pip on the crown's top ridge
-    rp0, rp1 = cran[2], cran[3]
-    facet_edge(surf, rp0, rp1, 2, s, hot=True)
-    px = int((rp0[0] + rp1[0]) / 2)
-    py = int((rp0[1] + rp1[1]) / 2)
-    pygame.draw.circle(surf, EDGE_GLD_H, (px, py), max(1, int(1.4 * s)))
+
+def skull_capstone(surf, cx, base_y, w, s):
+    """A faceted bismuth SKULL crowning the ziggurat — the royal tell. WHY a TALL
+    NARROW cranial dome on a pinched neck-step: round-1's wide low dome collapsed
+    into "the top step of a pyramid." A taller-than-wide cranium that sits on a
+    visibly narrower neck separates the crown from the terraced body, and TWO
+    eye-socket voids + a jaw notch are carved straight through the alpha so the
+    silhouette breaks as a skull at 32px. The brightest gold pip is a brow-glint
+    so the focal lives in the crown."""
+    half = w * 0.5
+    # cranial dome is TALLER than wide (a cranium, not a step); pinch the base in.
+    top_y = base_y - int(w * 1.18)
+    jaw_y = base_y                      # bottom of the (narrower) jaw
+    brow_y = base_y - int(w * 0.62)     # where the skull widens at the brow
+    chin_half = half * 0.52             # pinched jaw -> distinct from the dome
+
+    # cranium silhouette: dome up top, brow shoulders, pinched-in jaw at the base
+    cran = [(cx - chin_half, jaw_y),
+            (cx - half * 0.92, brow_y + int(w * 0.06)),
+            (cx - half * 0.96, brow_y - int(w * 0.10)),
+            (cx - half * 0.58, top_y + int(w * 0.12)),
+            (cx - half * 0.18, top_y),
+            (cx + half * 0.18, top_y),
+            (cx + half * 0.58, top_y + int(w * 0.12)),
+            (cx + half * 0.96, brow_y - int(w * 0.10)),
+            (cx + half * 0.92, brow_y + int(w * 0.06)),
+            (cx + chin_half, jaw_y)]
+    triad_blob(surf, CRY_LIT, cran,
+               core_pts=[(cx, top_y), (cx + half * 0.58, top_y + int(w * 0.12)),
+                         (cx + half * 0.96, brow_y - int(w * 0.10)),
+                         (cx + half * 0.92, brow_y + int(w * 0.06)),
+                         (cx + chin_half, jaw_y), (cx, jaw_y)],
+               sheen_pts=[(cx - half * 0.18, top_y), (cx, top_y),
+                          (cx - half * 0.10, brow_y),
+                          (cx - half * 0.50, brow_y - int(w * 0.04))],
+               ow=max(1, int(1.6 * s)))
+
+    # neck-step pinch: a short dark waist between jaw and the capstone step below,
+    # so the crown reads as a separate mass perched on the terrace.
+    nw = chin_half * 0.92
+    neck = [(cx - nw, jaw_y), (cx + nw, jaw_y),
+            (cx + nw * 0.84, jaw_y + int(w * 0.16)),
+            (cx - nw * 0.84, jaw_y + int(w * 0.16))]
+    pygame.draw.polygon(surf, CRY_D, [(int(p[0]), int(p[1])) for p in neck])
+    pygame.draw.polygon(surf, INK, [(int(p[0]), int(p[1])) for p in neck],
+                        max(1, int(1.4 * s)))
+
+    # eye-socket VOIDS — carved through the alpha so the silhouette breaks. Big,
+    # angular, and set wide so they survive the downscale as two clear holes.
+    eye_r = half * 0.40
+    ey = brow_y + int(w * 0.04)
+    for sgn in (-1, 1):
+        ex = cx + sgn * half * 0.46
+        socket = [(ex - eye_r, ey - eye_r * 0.55),
+                  (ex + eye_r * 0.10, ey - eye_r * 0.85),
+                  (ex + eye_r, ey - eye_r * 0.20),
+                  (ex + eye_r * 0.65, ey + eye_r * 0.75),
+                  (ex - eye_r * 0.55, ey + eye_r * 0.70)]
+        _erase_void(surf, socket)
+        # thin ink rim so the void edge stays crisp on the day chip
+        pygame.draw.polygon(surf, INK, [(int(p[0]), int(p[1])) for p in socket],
+                            max(1, int(1.4 * s)))
+        # a tiny iridescent pin deep in the socket (cool spark, not a warm core)
+        pygame.draw.circle(surf, EDGE_TEA, (int(ex), int(ey)),
+                           max(1, int(eye_r * 0.24)))
+
+    # JAW NOTCH — a wide void biting up into the base so the silhouette pinches to
+    # a jaw between two cheek tabs (the third skull break alongside the sockets).
+    jn_w = chin_half * 0.62
+    jaw_notch = [(cx - jn_w, jaw_y + int(w * 0.02)),
+                 (cx + jn_w, jaw_y + int(w * 0.02)),
+                 (cx + jn_w * 0.5, jaw_y - int(w * 0.30)),
+                 (cx - jn_w * 0.5, jaw_y - int(w * 0.30))]
+    _erase_void(surf, jaw_notch)
+
+    # nasal — a small down-pointing ink triangle between the sockets
+    pygame.draw.polygon(surf, INK,
+                        [(cx - int(half * 0.12), brow_y + int(w * 0.16)),
+                         (cx + int(half * 0.12), brow_y + int(w * 0.16)),
+                         (cx, brow_y + int(w * 0.34))])
+    # cheek-tab teeth flanking the jaw notch — short ink slots on the tabs
+    ty = jaw_y - int(w * 0.06)
+    for sgn in (-1, 1):
+        tx = cx + sgn * int(chin_half * 0.80)
+        pygame.draw.line(surf, INK, (tx, ty - int(w * 0.10)), (tx, ty),
+                         max(1, int(1.1 * s)))
+
+    # RAINBOW EDGE on the crown: ONE bright gold stroke across the brow ridge,
+    # carrying the single HOT pip -> the named focal sits on the skull.
+    bl = (cx - half * 0.58, brow_y - int(w * 0.04))
+    br = (cx + half * 0.58, brow_y - int(w * 0.04))
+    facet_edge(surf, bl, br, 2, s, hot=True)
+    px = int((bl[0] + br[0]) / 2)
+    py = int((bl[1] + br[1]) / 2)
+    pygame.draw.circle(surf, EDGE_GLD_H, (px, py), max(1, int(1.6 * s)))
 
 
 # -- the limbless stepped-crystal ziggurat KING --------------------------------
@@ -247,20 +281,25 @@ def draw_king(surf, cx, cy, s):
         crystal_block(surf, cx, top_y, half_w, step_h + int(4 * s), s,
                       hue_base=k, sheen=True)
 
-    # the capstone step (a small grey block) the skull sits on
+    # the capstone step (a small grey block) the skull's neck pinches onto
     cap_step_half = int(16 * s)
     cap_step_top = base_bottom - n_steps * step_h - step_h
     crystal_block(surf, cx, cap_step_top, cap_step_half, int(12 * s), s,
                   hue_base=n_steps, sheen=True)
 
-    # the FACETED BISMUTH SKULL CAPSTONE — the above-head crown tell
-    skull_capstone(surf, cx, cap_step_top, int(30 * s), s)
+    # the FACETED BISMUTH SKULL CAPSTONE — the above-head crown tell. Sized
+    # narrower than the cap step so the cranial dome reads as a perched crown, and
+    # raised so its neck-pinch lands ON the step top (crown separates from body).
+    skull_capstone(surf, cx, cap_step_top + int(1 * s), int(26 * s), s)
 
 
 # -- the pillar: a single mirrored ziggurat-terrace tower ----------------------
-def pillar_step(surf, cx, top_y, half_w, h, s, hue_base, flip=False):
+def pillar_step(surf, cx, top_y, half_w, h, s, hue_base, flip=False, accent=True):
     """One terrace block for the pillar, drawn so it can mirror top<->bottom.
-    `flip` inverts the lit tread to the underside for the ceiling-rooted half."""
+    `flip` inverts the lit tread to the underside for the ceiling-rooted half.
+    `accent` gates the rainbow stroke: round-1 walked all three edges of every
+    terrace, which read as a magenta/teal barber-pole. We now color ONLY the
+    front-lip and only on alternating terraces, letting grey dominate the shaft."""
     x0, x1 = cx - half_w, cx + half_w
     cap_h = max(2, int(h * 0.30))
     if not flip:
@@ -269,16 +308,12 @@ def pillar_step(surf, cx, top_y, half_w, h, s, hue_base, flip=False):
         tread = [(x0, y0), (x1, y0), (x1 - max(2, int(3 * s)), y0 + cap_h),
                  (x0 + max(2, int(3 * s)), y0 + cap_h)]
         e_a, e_b = (x0, y0), (x1, y0)
-        lcorner = ((x0, y0 + cap_h), (x0, y1))
-        rcorner = ((x1, y0 + cap_h), (x1, y1))
     else:
         y0, y1 = top_y, top_y + h
         face = [(x0, y0), (x1, y0), (x1, y1 - cap_h), (x0, y1 - cap_h)]
         tread = [(x0 + max(2, int(3 * s)), y1 - cap_h),
                  (x1 - max(2, int(3 * s)), y1 - cap_h), (x1, y1), (x0, y1)]
         e_a, e_b = (x0, y1), (x1, y1)
-        lcorner = ((x0, y0), (x0, y1 - cap_h))
-        rcorner = ((x1, y0), (x1, y1 - cap_h))
     triad_blob(surf, CRY, face,
                core_pts=[(cx, face[0][1]), (x1, face[1][1]),
                          (x1, face[2][1]), (cx, face[3][1])],
@@ -286,9 +321,8 @@ def pillar_step(surf, cx, top_y, half_w, h, s, hue_base, flip=False):
                           (x0 + half_w * 0.5, face[3][1]), (x0, face[3][1])],
                ow=max(1, int(1.4 * s)))
     triad_blob(surf, CRY_SH, tread, ow=max(1, int(1.2 * s)))
-    facet_edge(surf, e_a, e_b, hue_base, s)
-    facet_edge(surf, lcorner[0], lcorner[1], hue_base + 2, s)
-    facet_edge(surf, rcorner[0], rcorner[1], hue_base, s)
+    if accent:
+        facet_edge(surf, e_a, e_b, hue_base, s)
 
 
 def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
@@ -310,24 +344,33 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
         b0, b1 = top + cap_room, bot - int(6 * s)
         order = range(b1 - pitch, b0, -pitch)
 
+    # one rainbow accent per ~2 shaft terraces (alternating) so grey dominates;
+    # hue advances only on accented terraces, killing the barber-pole.
     hue = 0
-    for y in order:
-        # plain narrow shaft terraces (kept slim so the cap stays the focal flare)
-        pillar_step(surf, cx, y, shaft_w, pitch - int(3 * s), s, hue, flip=flip)
-        hue += 1
+    for i, y in enumerate(order):
+        acc = (i % 2 == 0)
+        pillar_step(surf, cx, y, shaft_w, pitch - int(3 * s), s, hue, flip=flip,
+                    accent=acc)
+        if acc:
+            hue += 1
 
-    # the flared gap-edge cap: 3 widening terraces ending in a skull capstone
+    # the flared gap-edge cap: 3 widening terraces ending in a skull capstone.
+    # only the OUTERMOST cap lip carries a rainbow accent (the cap is the focal
+    # flare, not a stripe stack).
     cap_y = (bot - int(40 * s)) if cap == "bottom" else (top + int(40 * s))
     fan_dir = -1 if cap == "bottom" else 1
     for j in range(3):
         half_w = int((11 + j * 6) * s)
         step_h = int(11 * s)
+        acc = (j == 2)
         if fan_dir < 0:
             ty = cap_y + j * step_h
-            pillar_step(surf, cx, ty, half_w, step_h + int(3 * s), s, j, flip=False)
+            pillar_step(surf, cx, ty, half_w, step_h + int(3 * s), s, 2,
+                        flip=False, accent=acc)
         else:
             ty = cap_y - (j + 1) * step_h
-            pillar_step(surf, cx, ty, half_w, step_h + int(3 * s), s, j, flip=True)
+            pillar_step(surf, cx, ty, half_w, step_h + int(3 * s), s, 2,
+                        flip=True, accent=acc)
 
     # skull capstone marks the gap edge (mirrored to face into the gap)
     if fan_dir < 0:
@@ -384,8 +427,8 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("BISMUTH PRISM ARCHITECT", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "Skull-Kings-II  ·  LIMBLESS stepped-crystal ziggurat (no figure, no cradle) · faceted bismuth SKULL CAPSTONE crown · "
-        "steel-grey mass + DISCRETE rainbow facet-EDGE strokes · round 1",
+        "Skull-Kings-II  ·  LIMBLESS stepped-crystal ziggurat (no figure, no cradle) · TALL cranial SKULL capstone on a neck-pinch (carved socket+jaw voids) · "
+        "steel-grey mass + ONE rainbow front-lip per terrace · round 2",
         True, LABEL_DIM), (440, 26))
 
     # === (a) BIG HERO =========================================================
@@ -393,8 +436,8 @@ def main():
     sheet.blit(hero, (14, 92))
     sheet.blit(font.render("King — hero", True, LABEL), (120, 566))
     sheet.blit(font_sm.render("LIMBLESS terraced crystal mass that steps OUT to the base; one steel-grey", True, LABEL_DIM), (14, 590))
-    sheet.blit(font_sm.render("dominant mass, rainbow lives ONLY in the per-edge magenta/teal/gold strokes;", True, LABEL_DIM), (14, 606))
-    sheet.blit(font_sm.render("faceted bismuth SKULL capstone = the crown; brightest gold-edge pip = focal.", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("dominant mass, rainbow = ONE front-lip stroke per terrace (no confetti);", True, LABEL_DIM), (14, 606))
+    sheet.blit(font_sm.render("TALL cranial SKULL capstone (carved socket+jaw voids); brow gold-pip = focal.", True, LABEL_DIM), (14, 622))
 
     # === (b) PILLAR assembled — mirrored ======================================
     pcx = 470
@@ -461,7 +504,7 @@ def main():
     pygame.draw.rect(sheet, INK, (sil_x, day_y, 150, 200), 1)
     sheet.blit(silhouette(), (sil_x, day_y))
     sheet.blit(font_sm.render("silhouette proof", True, LABEL_DIM), (sil_x, day_y + 204))
-    sheet.blit(font_sm.render("(stepped pyramid + skull nub)", True, LABEL_DIM), (sil_x, day_y + 220))
+    sheet.blit(font_sm.render("(pyramid + SKULL: 2 sockets + jaw)", True, LABEL_DIM), (sil_x, day_y + 220))
 
     def pillar_chip32():
         big = pygame.Surface((40 * SS, 130 * SS), pygame.SRCALPHA)
@@ -505,7 +548,7 @@ def main():
         "SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

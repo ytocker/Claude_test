@@ -165,12 +165,18 @@ def gear_ring(surf, cx, cy, r, s, teeth=10, color=COPPER, hub=True):
 
 
 def verd_ticks(surf, x, y, w, s, n=3):
-    """A FEW thin verdigris oxidation ticks. WHY kept tiny + sparse: verdigris is
-    a seasoning, not a mass — too much cools the copper toward green and twins
-    the Malachite king. These are 1px green flecks riding a seam only."""
+    """A FEW small verdigris PATINA ticks riding a recessed seam. WHY kept tiny +
+    sparse but now grounded in a dark seam (round 2): verdigris is a seasoning,
+    not a mass — too much cools the copper toward green and twins the Malachite
+    king. Each tick is a short stack of a dark VERD_D base + a VERD highlight, so
+    it reads as oxidation crusting a shadow line rather than a phantom palette
+    slot, while the broad plates stay warm copper."""
     for k in range(n):
-        tx = x + (k + 0.5) * (w / n)
-        pygame.draw.line(surf, VERD, (int(tx), int(y)), (int(tx), int(y + 2 * s)),
+        tx = int(x + (k + 0.5) * (w / n))
+        ty = int(y)
+        h = int(3 * s)
+        pygame.draw.line(surf, VERD_D, (tx, ty), (tx, ty + h), max(1, int(1.4 * s)))
+        pygame.draw.line(surf, VERD, (tx, ty), (tx, ty + max(1, h // 2)),
                          max(1, int(1.0 * s)))
 
 
@@ -203,41 +209,96 @@ def peg_leg(surf, hip, s, sgn):
 
 
 # -- the brass skull finial on a clockwork gear-spindle spire (royal crown) ----
-def skull_spire(surf, cx, base_y, r, s):
-    """A small brass SKULL finial atop a clockwork gear-spindle rising from the
-    head — the royal skull-KING crown tell. WHY a thin vertical spindle with two
-    stacked mini gears and a tiny skull cap: it gives a single above-head royal
-    silhouette point that survives 32px (a small dark spike + a brass dot), and
-    it reads mechanical (gears) not bony, so the king stays a machine."""
-    # the spindle column rising from the crown
-    spindle_h = int(r * 2.6)
-    sx0 = cx - int(2.0 * s)
-    sx1 = cx + int(2.0 * s)
+def skull_spire(surf, cx, base_y, r, s, night_rim=False):
+    """A CHUNKY brass SKULL on a clockwork gear-spindle spire rising from the head
+    — the royal skull-KING crown tell, and the thematic identity. WHY rebuilt big
+    + blocky for round 2: at 32px a small round finial collapsed to 2-3 dots, so
+    the skull (the whole point of a Skull King) was lost. The cranium is now a
+    chunky brass BLOCK with two dark socket pixels and a dark jaw notch so it reads
+    as a SKULL SHAPE — not a bead — through the downscale, sitting as the brightest
+    warm value above the head. The spire is ONE bold 3-4px vertical stroke with a
+    SINGLE gear-ring node mid-shaft, so head→spindle→skull are three separable
+    tiers that survive in motion. `night_rim` adds a faint brass rim-light on the
+    skull+spire only, so the crown carries against a dim night sky."""
+    # the bold spindle column rising from the crown — one clear vertical stroke
+    spindle_h = int(r * 2.2)
+    sw = max(2, int(3.4 * s) // 2)          # half-width: a fat 3-4px stroke at 32px
     spire_top = base_y - spindle_h
-    triad_blob(surf, BRASS_D,
-               [(sx0, base_y), (sx1, base_y), (sx1, spire_top), (sx0, spire_top)],
+    spire_rect = [(cx - sw, base_y), (cx + sw, base_y),
+                  (cx + sw, spire_top), (cx - sw, spire_top)]
+    if night_rim:
+        # faint warm rim on the spire stroke so it carries on dark night sky
+        pygame.draw.polygon(surf, BRASS_D,
+                            [(cx - sw - max(1, int(0.9 * s)), base_y),
+                             (cx + sw + max(1, int(0.9 * s)), base_y),
+                             (cx + sw + max(1, int(0.9 * s)), spire_top),
+                             (cx - sw - max(1, int(0.9 * s)), spire_top)])
+    triad_blob(surf, BRASS, spire_rect,
+               sheen_pts=[(cx - sw, base_y), (cx, base_y),
+                          (cx, spire_top), (cx - sw, spire_top)],
                ow=max(1, int(1.0 * s)))
-    # two stacked clockwork mini-gears riding the spindle
-    for k, gy in enumerate((base_y - int(r * 0.8), base_y - int(r * 1.7))):
-        gear_ring(surf, cx, int(gy), int(r * 0.42), s, teeth=7, color=BRASS, hub=False)
-    # the brass skull finial cap
-    skr = int(r * 0.62)
-    sky = spire_top - int(skr * 0.4)
-    triad_circle(surf, BRASS, (cx, sky), skr, ow=max(1, int(1.2 * s)), core=False)
-    # two ink sockets so the finial reads as a skull
+    # ONE gear-ring node at mid-shaft (the clockwork tell, kept legible)
+    node_y = base_y - int(spindle_h * 0.46)
+    gear_ring(surf, cx, node_y, int(r * 0.52), s, teeth=7, color=BRASS, hub=False)
+
+    # === the CHUNKY brass skull cranium block ================================
+    skw = int(r * 1.30)                     # a broad block, not a round bead
+    skh = int(r * 1.10)
+    skx = cx - skw // 2
+    sky_top = spire_top - skh
+    cranium = [(skx, sky_top + int(skh * 0.16)),
+               (skx + int(skw * 0.16), sky_top),
+               (skx + skw - int(skw * 0.16), sky_top),
+               (skx + skw, sky_top + int(skh * 0.16)),
+               (skx + skw, sky_top + int(skh * 0.62)),
+               (skx + int(skw * 0.78), sky_top + int(skh * 0.78)),
+               (skx + int(skw * 0.22), sky_top + int(skh * 0.78)),
+               (skx, sky_top + int(skh * 0.62))]
+    if night_rim:
+        # tight warm halo on the cranium so the skull stays the night focal
+        rim = grow_outline(_blob_surface(surf.get_size(), BRASS, cranium),
+                           BRASS_BR + (255,), max(2, int(1.4 * s)))
+        surf.blit(rim, (0, 0))
+    # the skull is the BRIGHTEST warm value — fill the cranium hot brass
+    triad_blob(surf, BRASS_BR, cranium,
+               sheen_pts=[(skx, sky_top + int(skh * 0.16)),
+                          (skx + int(skw * 0.50), sky_top),
+                          (skx + int(skw * 0.30), sky_top + int(skh * 0.45)),
+                          (skx, sky_top + int(skh * 0.50))],
+               ow=max(1, int(1.2 * s)))
+    # two DARK socket pixels — the eyes that make it read as a skull
+    eye_r = max(2, int(skw * 0.17))
+    ey = sky_top + int(skh * 0.40)
     for sg in (-1, 1):
         pygame.draw.circle(surf, INK,
-                           (cx + sg * int(skr * 0.38), sky + int(skr * 0.02)),
-                           max(1, int(skr * 0.26)))
-    # stub jaw + bright pip so it stays brass + scary-cute
-    pygame.draw.line(surf, IRON_D, (cx - int(skr * 0.34), sky + int(skr * 0.50)),
-                     (cx + int(skr * 0.34), sky + int(skr * 0.52)), max(1, int(1.0 * s)))
-    pygame.draw.circle(surf, BRASS_BR, (cx - int(skr * 0.3), sky - int(skr * 0.3)),
-                       max(1, int(skr * 0.24)))
+                           (cx + sg * int(skw * 0.24), ey), eye_r + max(1, int(0.6 * s)))
+        pygame.draw.circle(surf, IRON_D,
+                           (cx + sg * int(skw * 0.24), ey), eye_r)
+    # a DARK jaw notch under the cranium — completes the skull silhouette
+    jw = int(skw * 0.46)
+    jy = sky_top + int(skh * 0.78)
+    jaw = [(cx - jw // 2, jy), (cx + jw // 2, jy),
+           (cx + int(jw * 0.32), jy + int(skh * 0.26)),
+           (cx - int(jw * 0.32), jy + int(skh * 0.26))]
+    pygame.draw.polygon(surf, INK, jaw)
+    pygame.draw.polygon(surf, IRON_D, jaw)
+    # two tiny tooth gaps so the jaw reads as a maw at hero scale
+    for sg in (-1, 1):
+        tx = cx + sg * int(jw * 0.16)
+        pygame.draw.line(surf, INK, (tx, jy), (tx, jy + int(skh * 0.18)),
+                         max(1, int(1.0 * s)))
+
+
+def _blob_surface(size, color, pts):
+    """A throwaway surface holding just one filled polygon — used to build a
+    tight rim-light halo around the skull cranium without rimming the whole sheet."""
+    s2 = pygame.Surface(size, pygame.SRCALPHA)
+    pygame.draw.polygon(s2, color, pts)
+    return s2
 
 
 # -- the rigid blocky humanoid machine-king -----------------------------------
-def draw_automaton(surf, cx, cy, s):
+def draw_automaton(surf, cx, cy, s, night_rim=False):
     head_c = (cx, cy - int(34 * s))
     hr = int(20 * s)
     torso_y = cy - int(8 * s)
@@ -257,10 +318,14 @@ def draw_automaton(surf, cx, cy, s):
     # a small brass boiler-bolt centred on the oxblood panel
     triad_circle(surf, BRASS, (cx, torso_y + int(19 * s)), int(4 * s),
                  ow=max(1, int(1.0 * s)), core=False)
-    # a few thin verdigris ticks along the bottom seam (minimal, warm-safe)
-    verd_ticks(surf, tx + int(4 * s), torso_y + th - int(2 * s), tw - int(8 * s), s, n=4)
     # waist gear-ring (joint between torso and pelvis block)
     gear_ring(surf, cx, torso_y + th, int(8 * s), s, teeth=9)
+    # a few verdigris PATINA ticks crusting the lower-SIDE seams (drawn AFTER the
+    # waist gear-ring so the hub never overpaints them) — off-centre so they sit
+    # in the recessed plate-edge shadow and never twin Malachite's green mass.
+    seam_y = torso_y + th - int(5 * s)
+    verd_ticks(surf, tx + int(3 * s), seam_y, int(12 * s), s, n=2)
+    verd_ticks(surf, tx + tw - int(15 * s), seam_y, int(12 * s), s, n=2)
 
     # === SQUARE PAULDRONS + STIFF GEOMETRIC ARMS (gear-elbows) ===============
     arm_th = int(11 * s)
@@ -310,20 +375,23 @@ def draw_automaton(surf, cx, cy, s):
     # a thin oxblood brow band across the top of the face plate
     rivet_plate(surf, hx + int(3 * s), hy + int(3 * s), hw - int(6 * s), int(6 * s),
                 COPPER, s, rivets=False, inlay=True)
-    # the BRASS GEAR-EYE — the single focal. a toothed iris socket, glowing.
+    # the BRASS GEAR-EYE — a SECONDARY focal. WHY demoted in round 2: on a Skull
+    # King the above-head skull must win the brightest-warm tie, so the torso eye
+    # is shrunk a notch and its hottest pip is plain BRASS (not BRASS_BR), keeping
+    # it a glowing iris while ceding top value to the crown.
     eye_c = (head_c[0], head_c[1] + int(4 * s))
-    eye_r = int(11 * s)
+    eye_r = int(9 * s)
     # dark recessed socket box
     pygame.draw.circle(surf, INK, eye_c, eye_r + max(1, int(1.4 * s)))
     pygame.draw.circle(surf, COPPER_DD, eye_c, eye_r)
     # toothed brass iris ring (a tiny gear inside the eye)
     gear_ring(surf, eye_c[0], eye_c[1], int(eye_r * 0.74), s, teeth=10,
-              color=BRASS, hub=False)
-    # glowing brass pupil + the brightest pip
-    pygame.draw.circle(surf, BRASS, eye_c, int(eye_r * 0.40))
-    pygame.draw.circle(surf, BRASS_BR, (eye_c[0] - int(eye_r * 0.16),
-                                        eye_c[1] - int(eye_r * 0.18)),
-                       max(2, int(eye_r * 0.26)))
+              color=BRASS_D, hub=False)
+    # glowing brass pupil — capped at BRASS so the crown skull stays brightest
+    pygame.draw.circle(surf, BRASS_D, eye_c, int(eye_r * 0.42))
+    pygame.draw.circle(surf, BRASS, (eye_c[0] - int(eye_r * 0.16),
+                                     eye_c[1] - int(eye_r * 0.18)),
+                       max(2, int(eye_r * 0.24)))
     # a small dark riveted jaw vent under the eye (mouth grille)
     grille_y = head_c[1] + int(15 * s)
     pygame.draw.rect(surf, IRON_D,
@@ -339,7 +407,7 @@ def draw_automaton(surf, cx, cy, s):
     gear_ring(surf, head_c[0], hy + int(36 * s), int(6 * s), s, teeth=8)
 
     # === ABOVE-HEAD royal CROWN — brass skull on clockwork gear-spire =========
-    skull_spire(surf, head_c[0], hy + int(1 * s), int(13 * s), s)
+    skull_spire(surf, head_c[0], hy + int(1 * s), int(13 * s), s, night_rim=night_rim)
 
 
 # -- the boxed copper-column -> pillar mirror ---------------------------------
@@ -384,15 +452,32 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
     pygame.draw.circle(surf, COPPER_DD, eye_c, int(7 * s))
     gear_ring(surf, eye_c[0], eye_c[1], int(5 * s), s, teeth=9, color=BRASS, hub=False)
     pygame.draw.circle(surf, BRASS_BR, eye_c, int(3 * s))
-    # a small skull-spire stub pointing into the gap
+    # a small skull-spire stub pointing into the gap — echoes the king's crown:
+    # one bold stroke + a chunky brass skull block with sockets + a jaw notch.
     spr_base = hy if fan_dir < 0 else hy + head_h
-    sp = [(cx - int(3 * s), spr_base),
-          (cx + int(3 * s), spr_base),
-          (cx + int(2 * s), spr_base + fan_dir * int(12 * s)),
-          (cx - int(2 * s), spr_base + fan_dir * int(12 * s))]
-    triad_blob(surf, BRASS_D, sp, ow=max(1, int(1.0 * s)))
-    triad_circle(surf, BRASS, (cx, spr_base + fan_dir * int(15 * s)), int(5 * s),
-                 ow=max(1, int(1.0 * s)), core=False)
+    sw = max(1, int(2.4 * s))
+    sp = [(cx - sw, spr_base), (cx + sw, spr_base),
+          (cx + sw, spr_base + fan_dir * int(11 * s)),
+          (cx - sw, spr_base + fan_dir * int(11 * s))]
+    triad_blob(surf, BRASS, sp, ow=max(1, int(1.0 * s)))
+    sk_c_y = spr_base + fan_dir * int(16 * s)
+    skw = int(11 * s)
+    skh = int(9 * s)
+    skull = [(cx - skw // 2, sk_c_y - skh // 2 + int(skh * 0.18)),
+             (cx - int(skw * 0.32), sk_c_y - skh // 2),
+             (cx + int(skw * 0.32), sk_c_y - skh // 2),
+             (cx + skw // 2, sk_c_y - skh // 2 + int(skh * 0.18)),
+             (cx + skw // 2, sk_c_y + int(skh * 0.10)),
+             (cx + int(skw * 0.24), sk_c_y + skh // 2),
+             (cx - int(skw * 0.24), sk_c_y + skh // 2),
+             (cx - skw // 2, sk_c_y + int(skh * 0.10))]
+    triad_blob(surf, BRASS_BR, skull, ow=max(1, int(1.0 * s)))
+    er = max(1, int(skw * 0.16))
+    for sg in (-1, 1):
+        pygame.draw.circle(surf, IRON_D,
+                           (cx + sg * int(skw * 0.22), sk_c_y - int(skh * 0.06)), er)
+    pygame.draw.line(surf, INK, (cx, sk_c_y + int(skh * 0.18)),
+                     (cx, sk_c_y + int(skh * 0.42)), max(1, int(1.0 * s)))
 
 
 # -- compose the review sheet -------------------------------------------------
@@ -438,7 +523,7 @@ def main():
     sheet.blit(font_big.render("OXBLOOD AUTOMATON KING", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "Skull-Kings-II  ·  rigid BLOCKY humanoid machine · riveted copper plates + peg legs + square pauldrons · "
-        "circular GEAR-RINGS at joints · brass gear-eye focal · skull-on-gear-spire crown · round 1",
+        "circular GEAR-RINGS at joints · brass gear-eye focal · CHUNKY skull-on-gear-spire crown (brightest warm) · round 2",
         True, LABEL_DIM), (360, 26))
 
     # === (a) BIG HERO =========================================================
@@ -447,7 +532,7 @@ def main():
     sheet.blit(font.render("Creature - hero", True, LABEL), (110, 566))
     sheet.blit(font_sm.render("Boxy copper machine: square torso + pauldrons, PEG LEGS, two stiff geometric", True, LABEL_DIM), (14, 590))
     sheet.blit(font_sm.render("arms w/ gear-elbows. Circular GEAR-RINGS at every joint (the de-collider).", True, LABEL_DIM), (14, 606))
-    sheet.blit(font_sm.render("Brass GEAR-EYE = single focal; brass skull on a clockwork gear-spindle spire above.", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("CHUNKY brass SKULL on a bold gear-spire = crown + brightest warm value; torso gear-eye demoted to 2nd focal.", True, LABEL_DIM), (14, 622))
 
     # === (b) PILLAR assembled - mirrored ======================================
     pcx = 470
@@ -473,14 +558,17 @@ def main():
 
     def chip32(night=False):
         big = pygame.Surface((96 * SS, 96 * SS), pygame.SRCALPHA)
-        draw_automaton(big, 48 * SS, 52 * SS, (32 / 124.0) * SS)
+        # WHY night_rim is targeted (round 2): the warm halo now rides the SKULL +
+        # spire only (drawn inside skull_spire), so the crown survives the dim
+        # night sky without globally bleaching the body — the skull, not the whole
+        # figure, is what must stay legible as the brightest warm value.
+        draw_automaton(big, 48 * SS, 52 * SS, (32 / 124.0) * SS, night_rim=night)
         small = pygame.transform.smoothscale(big, (96, 96))
-        # WHY a warm brass-tinted rim on night (not a cool one): the copper mass
-        # dims into a dark night sky; a thin warm halo carries the silhouette
-        # while keeping the body warm and the brass eye the brightest point.
         if night:
-            base = grow_outline(small, BRASS_D + (255,), 2)
-            return grow_outline(base, INK + (200,), 1)
+            # a faint warm body-edge + crisp ink keyline so the dimmed copper mass
+            # still parts from the night sky (the loud warm rim lives on the skull)
+            base = grow_outline(small, COPPER_D + (210,), 1)
+            return grow_outline(base, INK + (220,), 1)
         return grow_outline(small, INK + (255,), 1)
 
     day_chip = chip32(night=False)
@@ -496,7 +584,7 @@ def main():
     vgrad(sheet, (panel_x + 20, night_y, 150, 150), NIGHT_T, NIGHT_B)
     pygame.draw.rect(sheet, INK, (panel_x + 20, night_y, 150, 150), 1)
     sheet.blit(night_chip, (panel_x + 20 + 27 - 1, night_y + 27 - 1))
-    sheet.blit(font_sm.render("32px on night sky (brass rim)", True, LABEL_DIM), (panel_x + 20, night_y + 156))
+    sheet.blit(font_sm.render("32px night (warm rim on SKULL+spire)", True, LABEL_DIM), (panel_x + 20, night_y + 156))
 
     # silhouette proof - blacked-out hero so the blocky machine read is checked
     def silhouette():
@@ -554,22 +642,25 @@ def main():
     pygame.draw.rect(sheet, PANEL, (14, 770, W - 28, 40))
     sheet.blit(font_sm.render(
         "RIGID BLOCKY HUMANOID MACHINE: peg legs + square pauldrons + circular GEAR-RINGS (vs Bismuth's limbless angular crystal).  "
-        "WARM copper dominant mass; oxblood = thin inlays; verdigris = a FEW ticks only.  Brass gear-eye = single brightest pixel.  "
+        "WARM copper dominant mass; oxblood = thin inlays; verdigris = a FEW patina ticks at recessed seams.  CHUNKY brass SKULL crown = brightest warm value (wins ties); torso gear-eye demoted.  "
         "SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     self_check()
 
 
 def self_check():
-    """Verify the brass gear-eye owns the single brightest pixel and that the
-    body stays WARM (copper) — count warm copper pixels vs cool verdigris pixels;
-    verdigris must be a tiny fraction so the figure never twins Malachite."""
-    surf = pygame.Surface((400, 520), pygame.SRCALPHA)
-    draw_automaton(surf, 200, 260, 2.0)
+    """Verify (round 2) that the CROWN SKULL — not the torso gear-eye — owns the
+    single brightest pixel, since on a Skull King the skull must win ties, and
+    that the body stays WARM (copper) with verdigris a tiny fraction (never twins
+    Malachite). The crown sits above the head, so the brightest pixel must land in
+    the upper band of the figure."""
+    cx, cy = 200, 280
+    surf = pygame.Surface((400, 560), pygame.SRCALPHA)
+    draw_automaton(surf, cx, cy, 2.0)
     px = pygame.surfarray.pixels3d(surf)
     a = pygame.surfarray.pixels_alpha(surf)
     w, h = surf.get_size()
@@ -583,19 +674,20 @@ def self_check():
             lum = 0.299 * r + 0.587 * g + 0.114 * b
             if lum > best_lum:
                 best_lum, best_xy = lum, (x, yy)
-            # warm: red-dominant copper/brass/oxblood
-            if r > g and r > b and r > 90:
+            if r > g and r > b and r > 90:        # warm: copper/brass/oxblood
                 warm_n += 1
-            # cool: green-dominant verdigris
-            if g > r and g > b and g > 90:
+            if g > r and g > b and g > 90:        # cool: verdigris green
                 cool_n += 1
     bx, by = best_xy
     r, g, b = int(px[bx, by][0]), int(px[bx, by][1]), int(px[bx, by][2])
-    # brass-core hue: very bright, warm, red>=green>blue-ish
-    is_brass = (r > 220 and g > 180 and b < 200 and r >= b)
+    is_brass = (r > 220 and g > 175 and b < 215 and r >= b)
+    # the crown skull sits well above the head centre; the torso eye is below it.
+    head_top = cy - int(34 * 2.0) - int(18 * 2.0)     # top of the face plate
+    in_crown = by < head_top
     del px, a
     print("self-check: brightest pixel @", best_xy, "rgb", (r, g, b),
-          "lum %.0f" % best_lum, "-> brass-core?", is_brass)
+          "lum %.0f" % best_lum, "-> brass-core?", is_brass,
+          "-> in CROWN band (above head)?", in_crown)
     print("self-check: warm px ~%d  vs cool px ~%d  -> cool fraction %.3f (must be small)"
           % (warm_n, cool_n, cool_n / max(1, warm_n + cool_n)))
 

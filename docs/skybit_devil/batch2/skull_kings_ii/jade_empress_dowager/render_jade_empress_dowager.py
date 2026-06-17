@@ -44,18 +44,28 @@ JADE_D    = ( 70, 116,  88)   # jade shade / dark-core
 JADE_DD   = ( 46,  82,  64)   # deepest carved hollow (recesses, eye-pits)
 JADE_SH   = (214, 228, 206)   # mutton-fat jade top-left rim-sheen
 # the SINGLE pale focal — the cupped cradle-skull (pale mutton-jade glow).
+# WHY a soft pale-jade peak (not pure white): the critique flagged the white
+# hot-core as a "sticker". The skull must read as carved GLOWING jade — so the
+# brightest pixel is a soft pale-jade, still the value-peak of the whole sheet
+# but tinted green, not a neutral white dot.
 SKULL     = (196, 236, 214)   # pale-jade cradled skull (the focal)
-SKULL_BR  = (224, 248, 232)   # brighter skull body
-SKULL_HOT = (244, 255, 248)   # hottest skull core (must stay the brightest pixel)
+SKULL_BR  = (218, 246, 228)   # brighter skull body
+SKULL_HOT = (232, 250, 238)   # soft pale-jade peak (brightest pixel, but tinted)
 SKULL_D   = (150, 200, 178)   # skull shade
-SKULL_RIM = (110, 160, 140)   # skull socket / rim
+SKULL_RIM = (120, 168, 146)   # skull socket / rim
+SKULL_COOL= (170, 214, 222)   # faint cool rim for the night chip
+# the dark CRADLE BOWL — the value floor the bright skull sits inside. This is
+# the keyline that lets four lobes + a punched-out socket read at 32px.
+CRADLE_D  = ( 38,  68,  54)   # deepest cradle hollow (socket keyline)
+CRADLE    = ( 64, 108,  84)   # the cupping-hand lobes (dark jade)
+CRADLE_SH = ( 96, 150, 116)   # lobe top-light so each knuckle separates
 # thin GOLD filigree — a worked-metal LINE accent ONLY (kept dull, below skull).
-# WHY kept dark + thin: a bright/filled gold becomes a 2nd warm mass that steals
-# the focal from the pale skull. Gold reads as carved trim at hero scale and
-# dissolves at 32px.
-GOLD      = (214, 176,  96)   # thin gold filigree base
-GOLD_HI   = (236, 208, 140)   # tight specular pip (deliberately < skull core)
-GOLD_D    = (150, 116,  52)   # recessed gold shadow
+# WHY kept dark + thin + DESATURATED: bright gold becomes a 2nd warm mass that
+# steals the focal. Demoted vs round 1 — gold now lives only on the hem cinch +
+# plume base, lower value than the pale skull everywhere.
+GOLD      = (174, 142,  78)   # thin gold filigree base (demoted)
+GOLD_HI   = (198, 168, 104)   # specular pip (deliberately well below skull peak)
+GOLD_D    = (120,  94,  44)   # recessed gold shadow
 INK       = ( 28,  22,  30)   # house ink keyline
 
 BG        = ( 96, 100, 108)
@@ -158,48 +168,86 @@ def filigree_swirl(surf, cx, cy, r, s):
                        max(1, int(0.9 * s)))
 
 
-# -- the CRADLE-SKULL : the single brightest focal ----------------------------
+# -- the CRADLE : a dark bowl of four lobes holding the bright skull ----------
+def cradle_bowl(surf, cx, cy, r, s):
+    """The DARK cradle bowl that the bright skull sits inside. Drawn FIRST,
+    BEHIND the skull, as four separated dark-jade knuckle-lobes split by a deep
+    socket keyline. WHY a dark bowl: the round-1 cradle collapsed to a blob at
+    32px because hands + skull shared a value. Here the cup is the value-floor
+    and the skull is the value-peak, so the blur read becomes 'bright ball in a
+    dark bowl' — four lobes cresting over a circle with a dark gap between each."""
+    bowl_w = r * 1.55
+    bowl_top = cy - int(r * 0.30)
+    bowl_bot = cy + int(r * 1.30)
+    # the deep socket shell behind everything — the dark value the skull pops off
+    shell = [(cx - int(bowl_w), bowl_top),
+             (cx + int(bowl_w), bowl_top),
+             (cx + int(bowl_w * 0.62), bowl_bot),
+             (cx - int(bowl_w * 0.62), bowl_bot)]
+    pygame.draw.polygon(surf, INK, shell)
+    pygame.draw.polygon(surf, CRADLE_D, shell)
+    # FOUR knuckle-lobes cresting over the rim (two per side), each a fat dark
+    # jade hump separated from its neighbour by a dark socket keyline so the four
+    # cupped hands stay countable at 32px.
+    lobe_r = int(r * 0.52)
+    for sgn in (-1, 1):
+        for (lx, ly, lr) in ((0.92, 0.10, lobe_r),         # outer knuckle
+                             (0.46, 0.40, int(lobe_r * 0.92))):  # inner knuckle
+            kx = cx + sgn * int(r * lx)
+            ky = cy + int(r * ly)
+            pygame.draw.circle(surf, INK, (kx, ky), lr + max(1, int(1.0 * s)))
+            pygame.draw.circle(surf, CRADLE, (kx, ky), lr)
+            # top-light each knuckle so the lobes separate by value, not just line
+            pygame.draw.circle(surf, CRADLE_SH,
+                               (kx - int(lr * 0.3), ky - int(lr * 0.38)),
+                               max(1, int(lr * 0.42)))
+    # re-punch the central socket between the inner lobes so a dark keyline
+    # always splits the cup under the skull (the 'bowl' tell at low res)
+    pygame.draw.line(surf, CRADLE_D, (cx, cy - int(r * 0.1)),
+                     (cx, bowl_bot - int(r * 0.1)), max(1, int(2.6 * s)))
+
+
 def cradle_skull(surf, cx, cy, r, s):
-    """The pale mutton-jade skull cupped in the lap — the focal. Carries its own
-    soft glow halo so it owns the brightest pixel; no other element is haloed."""
-    for (rr, a) in ((r * 1.95, 26), (r * 1.5, 46), (r * 1.18, 84)):
+    """The pale-jade skull — the single brightest, LARGEST low-center mass. Drawn
+    on TOP of the dark cradle bowl so it reads as a glowing ball held in dark
+    hands. Soft pale-jade peak (not pure white) so it's carved glowing jade, not
+    a sticker. Owns the only halo on the sheet so it wins the value contest."""
+    for (rr, a) in ((r * 1.70, 30), (r * 1.34, 52), (r * 1.10, 90)):
         halo = pygame.Surface((int(rr * 2) + 4, int(rr * 2) + 4), pygame.SRCALPHA)
         pygame.draw.circle(halo, SKULL_BR + (a,), (int(rr) + 2, int(rr) + 2), int(rr))
         surf.blit(halo, (cx - int(rr) - 2, cy - int(rr) - 2))
-    # cranium dome
-    triad_circle(surf, SKULL, (cx, cy), r, ow=max(1, int(1.4 * s)), core=False)
-    # cheek/jaw taper below the dome
-    jaw = [(cx - int(r * 0.62), cy + int(r * 0.28)),
-           (cx + int(r * 0.62), cy + int(r * 0.28)),
-           (cx + int(r * 0.34), cy + int(r * 0.92)),
-           (cx - int(r * 0.34), cy + int(r * 0.92))]
-    triad_blob(surf, SKULL, jaw,
-               sheen_pts=[(cx - int(r * 0.62), cy + int(r * 0.28)),
-                          (cx - int(r * 0.1), cy + int(r * 0.28)),
-                          (cx - int(r * 0.18), cy + int(r * 0.9)),
-                          (cx - int(r * 0.34), cy + int(r * 0.9))],
-               ow=max(1, int(1.2 * s)))
+    # cranium dome — the big bright ball
+    pygame.draw.circle(surf, INK, (cx, cy), r + max(1, int(1.2 * s)))
+    pygame.draw.circle(surf, SKULL, (cx, cy), r)
+    pygame.draw.circle(surf, SKULL_BR, (cx, cy), int(r * 0.84))
+    # cheek/jaw taper below the dome (kept bright so the whole mass stays the peak)
+    jaw = [(cx - int(r * 0.60), cy + int(r * 0.30)),
+           (cx + int(r * 0.60), cy + int(r * 0.30)),
+           (cx + int(r * 0.32), cy + int(r * 0.94)),
+           (cx - int(r * 0.32), cy + int(r * 0.94))]
+    pygame.draw.polygon(surf, INK, jaw)
+    pygame.draw.polygon(surf, SKULL, jaw)
     # two ink eye-sockets so a pale dot resolves to a skull when zoomed
     for sgn in (-1, 1):
-        ex = cx + sgn * int(r * 0.42)
-        ey = cy + int(r * 0.04)
-        pygame.draw.circle(surf, SKULL_RIM, (ex, ey), int(r * 0.34))
-        pygame.draw.circle(surf, INK, (ex, ey), int(r * 0.27))
+        ex = cx + sgn * int(r * 0.40)
+        ey = cy + int(r * 0.06)
+        pygame.draw.circle(surf, SKULL_RIM, (ex, ey), int(r * 0.32))
+        pygame.draw.circle(surf, INK, (ex, ey), int(r * 0.25))
     # nasal pit + a couple of teeth ticks
     pygame.draw.polygon(surf, INK,
-                        [(cx - int(r * 0.1), cy + int(r * 0.34)),
-                         (cx + int(r * 0.1), cy + int(r * 0.34)),
-                         (cx, cy + int(r * 0.56))])
-    my = cy + int(r * 0.72)
-    pygame.draw.line(surf, INK, (cx - int(r * 0.34), my), (cx + int(r * 0.34), my),
+                        [(cx - int(r * 0.1), cy + int(r * 0.36)),
+                         (cx + int(r * 0.1), cy + int(r * 0.36)),
+                         (cx, cy + int(r * 0.58))])
+    my = cy + int(r * 0.74)
+    pygame.draw.line(surf, INK, (cx - int(r * 0.32), my), (cx + int(r * 0.32), my),
                      max(1, int(1.4 * s)))
     for k in (-1, 0, 1):
         pygame.draw.line(surf, INK, (cx + int(k * r * 0.2), my - int(r * 0.05)),
                          (cx + int(k * r * 0.2), my + int(r * 0.1)),
                          max(1, int(1 * s)))
-    # the hottest core — the single brightest pixel of the whole hero
-    pygame.draw.circle(surf, SKULL_HOT, (cx - int(r * 0.2), cy - int(r * 0.24)),
-                       max(1, int(r * 0.28)))
+    # the soft pale-jade peak — brightest pixel of the whole sheet, but tinted
+    pygame.draw.circle(surf, SKULL_HOT, (cx - int(r * 0.18), cy - int(r * 0.22)),
+                       max(1, int(r * 0.30)))
 
 
 # -- the vertical jade phoenix-PLUME crown + skull finial ---------------------
@@ -228,34 +276,32 @@ def plume_crown(surf, cx, base_y, h, w, s):
                           (cx - w * 0.10, base_y - h * 0.70),
                           (cx - w * 0.02, base_y - h * 0.20)],
                ow=max(1, int(1.4 * s)))
-    # a central carved spine rib up the blade
+    # a central carved spine rib up the blade (jade carving — no gilt veins now;
+    # the gold veins read as spider-legs at 32px, so they are dropped)
     pygame.draw.line(surf, JADE_DD, (cx, base_y - int(2 * s)),
                      (cx, tipy + int(h * 0.12)), max(1, int(1.6 * s)))
-    # thin gold filigree veins fanning off the spine (the dowager's gilt)
-    for fr in (0.30, 0.52, 0.70):
-        for sgn in (-1, 1):
-            yy = base_y - h * fr
-            pygame.draw.line(surf, GOLD, (cx, yy),
-                             (cx + sgn * w * (0.34 - fr * 0.12), yy - h * 0.06),
-                             max(1, int(1.0 * s)))
-    # the apex jade SKULL finial — the above-head skull-crown
-    fr_r = max(3, int(w * 0.30))
+    # the apex jade SKULL finial — strengthened: larger + higher contrast so the
+    # crown-skull reads as a clear pale point above the head. Kept SMALLER than
+    # the cradle skull and tinted darker so it never duplicates the focal.
+    fr_r = max(3, int(w * 0.40))
     fy = tipy + fr_r
-    triad_circle(surf, JADE, (cx, fy), fr_r, ow=max(1, int(1.2 * s)), core=False)
+    pygame.draw.circle(surf, INK, (cx, fy), fr_r + max(1, int(1.2 * s)))
+    pygame.draw.circle(surf, SKULL_D, (cx, fy), fr_r)
+    pygame.draw.circle(surf, SKULL, (cx, fy), int(fr_r * 0.78))
     # jaw nub
-    pygame.draw.polygon(surf, JADE,
+    pygame.draw.polygon(surf, SKULL_D,
                         [(cx - int(fr_r * 0.5), fy + int(fr_r * 0.5)),
                          (cx + int(fr_r * 0.5), fy + int(fr_r * 0.5)),
-                         (cx, fy + int(fr_r * 1.02))])
+                         (cx, fy + int(fr_r * 1.05))])
     pygame.draw.polygon(surf, INK,
                         [(cx - int(fr_r * 0.5), fy + int(fr_r * 0.5)),
                          (cx + int(fr_r * 0.5), fy + int(fr_r * 0.5)),
-                         (cx, fy + int(fr_r * 1.02))], max(1, int(1 * s)))
+                         (cx, fy + int(fr_r * 1.05))], max(1, int(1 * s)))
     for sgn in (-1, 1):
-        pygame.draw.circle(surf, INK, (cx + sgn * int(fr_r * 0.4), fy),
-                           max(1, int(fr_r * 0.26)))
-    # a thin gold bezel collar where the finial meets the blade tip
-    pygame.draw.circle(surf, GOLD, (cx, fy + int(fr_r * 0.6)), max(1, int(fr_r * 0.9)),
+        pygame.draw.circle(surf, INK, (cx + sgn * int(fr_r * 0.42), fy),
+                           max(1, int(fr_r * 0.30)))
+    # a thin gold bezel collar (the plume-base gilt — one of the few gold spots)
+    pygame.draw.circle(surf, GOLD, (cx, fy + int(fr_r * 0.7)), max(1, int(fr_r * 0.95)),
                        max(1, int(1.0 * s)))
 
 
@@ -297,75 +343,57 @@ def draw_empress(surf, cx, cy, s):
         x_bot = cx + f * bell_bot_w * 0.92
         pygame.draw.line(surf, JADE_DD, (x_top, bell_top_y + int(8 * s)),
                          (x_bot, ground_y - int(4 * s)), max(1, int(1.6 * s)))
-    # thin gold filigree hem band + a waist band (the gilt trim)
+    # thin gold filigree hem band ONLY (gilt demoted: no waist band, no swirls —
+    # the round-1 gilt sprawl competed with the focal; gold now = hem cinch +
+    # plume base only).
     filigree_band(surf, cx - int(bell_bot_w * 0.82), cx + int(bell_bot_w * 0.82),
                   ground_y - int(8 * s), s)
-    filigree_band(surf, cx - int(bell_bot_w * 0.46), cx + int(bell_bot_w * 0.46),
-                  cy + int(20 * s), s)
-    for sgn in (-1, 1):
-        filigree_swirl(surf, cx + sgn * int(bell_bot_w * 0.52),
-                       cy + int(36 * s), max(2, int(5 * s)), s)
 
-    # === UPPER TWO ARMS — jade FAN (left) + ribbon-SCROLL (right) ============
-    # drawn BEHIND the lap cradle so the cradle reads foreground.
-    sh_l = (cx - int(20 * s), cy - int(20 * s))
-    sh_r = (cx + int(20 * s), cy - int(20 * s))
-    # left upper arm raising a folded jade fan
-    el_l = (cx - int(34 * s), cy - int(14 * s))
-    hand_l = (cx - int(42 * s), cy - int(30 * s))
-    bone_limb(surf, sh_l, el_l, hand_l, int(6 * s), s, color=JADE)
-    fan_pts = [hand_l]
-    for k in range(5):
-        a = math.radians(118 + k * 17)
-        fan_pts.append((hand_l[0] + math.cos(a) * int(26 * s),
-                        hand_l[1] - math.sin(a) * int(26 * s)))
-    triad_blob(surf, JADE, fan_pts, ow=max(1, int(1.2 * s)))
-    for k in range(5):
-        a = math.radians(118 + k * 17)
-        pygame.draw.line(surf, JADE_DD, hand_l,
-                         (hand_l[0] + math.cos(a) * int(26 * s),
-                          hand_l[1] - math.sin(a) * int(26 * s)), max(1, int(1.2 * s)))
-    # gold rib on the fan's leading edge
-    pygame.draw.line(surf, GOLD, hand_l,
-                     (hand_l[0] + math.cos(math.radians(118)) * int(26 * s),
-                      hand_l[1] - math.sin(math.radians(118)) * int(26 * s)),
-                     max(1, int(1.0 * s)))
-    # right upper arm holding a curling ribbon-scroll
-    el_r = (cx + int(34 * s), cy - int(14 * s))
-    hand_r = (cx + int(42 * s), cy - int(28 * s))
-    bone_limb(surf, sh_r, el_r, hand_r, int(6 * s), s, color=JADE)
-    ribbon = [hand_r,
-              (hand_r[0] + int(10 * s), hand_r[1] - int(18 * s)),
-              (hand_r[0] - int(4 * s), hand_r[1] - int(30 * s)),
-              (hand_r[0] + int(12 * s), hand_r[1] - int(40 * s)),
-              (hand_r[0] + int(2 * s), hand_r[1] - int(30 * s)),
-              (hand_r[0] + int(16 * s), hand_r[1] - int(18 * s)),
-              (hand_r[0] + int(6 * s), hand_r[1] - int(2 * s))]
-    triad_blob(surf, JADE, ribbon, ow=max(1, int(1.1 * s)))
-    pygame.draw.line(surf, GOLD,
-                     (hand_r[0] + int(4 * s), hand_r[1] - int(6 * s)),
-                     (hand_r[0] + int(8 * s), hand_r[1] - int(36 * s)),
-                     max(1, int(1.0 * s)))
+    # === UPPER TWO ARMS — compact low-value jade fans tucked at the shoulders ==
+    # WHY no raised props (round-1 fan + scroll became thin spider-legs at 32px
+    # and competed with the plume): the upper pair is now two short folded jade
+    # shoulder-fans hugging the bell sides — dark mid-jade so they read as part
+    # of the bell mass at hero scale and DISSOLVE at 32px, leaving the plume the
+    # only thing above the shoulders.
+    for sgn in (-1, 1):
+        sx = cx + sgn * int(24 * s)
+        sy = cy - int(16 * s)
+        fan = [(sx, sy + int(10 * s)),
+               (sx + sgn * int(14 * s), sy + int(2 * s)),
+               (sx + sgn * int(17 * s), sy - int(10 * s)),
+               (sx + sgn * int(10 * s), sy - int(18 * s)),
+               (sx + sgn * int(2 * s), sy - int(10 * s))]
+        triad_blob(surf, JADE_D, fan, ow=max(1, int(1.2 * s)))
+        for k in range(3):
+            ang = math.radians(70 + k * 20) * sgn
+            pygame.draw.line(surf, JADE_DD, (sx, sy + int(8 * s)),
+                             (sx + sgn * int((10 + k * 3) * s),
+                              sy - int((4 + k * 4) * s)), max(1, int(1.1 * s)))
 
     # === LAP CRADLE-SKULL position ===========================================
-    skull_c = (cx, cy + int(18 * s))
-    skull_r = int(15 * s)
+    # WHY larger + lower-center vs round 1 (was r=15): the cradle must be the
+    # LARGEST bright mass to win the value contest at 32px. The skull radius is
+    # bumped and sat low on the bell so the blur read is a fat bright ball low on
+    # the bell, not a small chest emblem.
+    skull_c = (cx, cy + int(22 * s))
+    skull_r = int(19 * s)
 
-    # === LOWER FOUR ARMS — cupping the cradle ================================
-    # two inner + two outer pairs of jade arms whose four hands cup the skull.
-    arm_th = int(6 * s)
-    # outer pair: wider shoulders, hands meeting under the skull
+    # === LOWER FOUR ARMS — slim jade forearms feeding INTO the cradle lobes ===
+    # WHY thinner + ending at the bowl rim (the four cupping HANDS are now the
+    # explicit lobes drawn inside cradle_bowl): round-1 arms + skull merged into
+    # one dark blob. Here the arms are just slim jade forearms whose ends are the
+    # four lobes, so the 'four hands cupping' read survives without a blob.
+    arm_th = int(5 * s)
     for sgn in (-1, 1):
-        sho = (cx + sgn * int(22 * s), cy - int(10 * s))
-        elb = (cx + sgn * int(30 * s), cy + int(14 * s))
-        hnd = (skull_c[0] + sgn * int(15 * s), skull_c[1] + int(12 * s))
-        bone_limb(surf, sho, elb, hnd, arm_th, s, color=JADE)
-    # inner pair: closer shoulders, hands cupping the skull's underside
+        sho = (cx + sgn * int(22 * s), cy - int(8 * s))
+        elb = (cx + sgn * int(30 * s), cy + int(16 * s))
+        hnd = (skull_c[0] + sgn * int(skull_r * 0.95), skull_c[1] + int(2 * s))
+        bone_limb(surf, sho, elb, hnd, arm_th, s, joint=False, color=JADE_D)
     for sgn in (-1, 1):
-        sho = (cx + sgn * int(12 * s), cy - int(6 * s))
-        elb = (cx + sgn * int(20 * s), cy + int(16 * s))
-        hnd = (skull_c[0] + sgn * int(8 * s), skull_c[1] + int(15 * s))
-        bone_limb(surf, sho, elb, hnd, arm_th, s, color=JADE)
+        sho = (cx + sgn * int(11 * s), cy - int(4 * s))
+        elb = (cx + sgn * int(18 * s), cy + int(18 * s))
+        hnd = (skull_c[0] + sgn * int(skull_r * 0.46), skull_c[1] + int(skull_r * 0.5))
+        bone_limb(surf, sho, elb, hnd, arm_th, s, joint=False, color=JADE_D)
 
     # === SKULL HEAD (the empress's own face above the bell) ==================
     triad_circle(surf, JADE, head_c, hr, ow=max(2, int(2 * s)))
@@ -408,19 +436,12 @@ def draw_empress(surf, cx, cy, s):
                      (head_c[0] + int(hr * 0.8), head_c[1] - int(hr * 0.5)),
                      max(1, int(1.3 * s)))
 
-    # === CRADLE-SKULL drawn LAST so it owns the foreground + brightest pixel ==
+    # === DARK CRADLE BOWL then BRIGHT SKULL ==================================
+    # bowl first (the dark value-floor + four cupping lobes), skull on top (the
+    # bright value-peak). This ordering is the whole fix: bright ball in a dark
+    # bowl, four lobes cresting over it split by the central socket keyline.
+    cradle_bowl(surf, skull_c[0], skull_c[1], skull_r, s)
     cradle_skull(surf, skull_c[0], skull_c[1], skull_r, s)
-    # four small jade fingertips curling over the skull's lower edge (so the
-    # FOUR cupped hands read as holding it, even at 32px)
-    for sgn in (-1, 1):
-        for off in (8, 15):
-            fx = skull_c[0] + sgn * int(off * s)
-            fy = skull_c[1] + int(13 * s)
-            tip = [(fx - sgn * int(3 * s), fy - int(2 * s)),
-                   (fx + sgn * int(3 * s), fy - int(1 * s)),
-                   (fx + sgn * int(2 * s), fy + int(7 * s)),
-                   (fx - sgn * int(2 * s), fy + int(6 * s))]
-            triad_blob(surf, JADE, tip, ow=max(1, int(1.1 * s)))
 
     # === VERTICAL PLUME CROWN above the head =================================
     plume_crown(surf, head_c[0], head_c[1] - int(hr * 0.92),
@@ -473,9 +494,11 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
                  core=False)
     filigree_band(surf, cx - int(13 * s), cx + int(13 * s),
                   cap_y + fan_dir * int(12 * s), s)
-    # a small cradle-skull set at the cap (the gap-facing focal of the pillar)
+    # a small cradle-skull set at the cap (the gap-facing focal of the pillar) —
+    # same dark-bowl-then-bright-skull stack as the hero so the tell mirrors
     sk_y = cap_y + fan_dir * int(2 * s)
-    cradle_skull(surf, cx, sk_y, int(9 * s), s)
+    cradle_bowl(surf, cx, sk_y, int(10 * s), s)
+    cradle_skull(surf, cx, sk_y, int(10 * s), s)
     # a short vertical plume rising AWAY from the gap (toward the wall)
     plume_crown(surf, cx, cap_y - fan_dir * int(15 * s),
                 fan_dir * int(34 * s) * -1 if fan_dir > 0 else int(34 * s),
@@ -525,7 +548,7 @@ def main():
     sheet.blit(font_big.render("JADE EMPRESS DOWAGER", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "KING SKULL II #1  ·  kneeling carved-jade BELL · vertical phoenix-PLUME + jade skull finial · "
-        "6 arms (4 cup the cradle, 2 splay fan+scroll) · pale-jade cradle-skull focal · round 1",
+        "6 arms (4 cup the cradle, 2 shoulder-fans) · pale-jade cradle-skull focal · round 2",
         True, LABEL_DIM), (360, 26))
 
     # === (a) BIG HERO =========================================================
@@ -533,8 +556,8 @@ def main():
     sheet.blit(hero, (14, 86))
     sheet.blit(font.render("Creature — hero", True, LABEL), (110, 566))
     sheet.blit(font_sm.render("Solid carved-jade BELL kneeling to the ground (NO throne / NO back-fan).", True, LABEL_DIM), (14, 590))
-    sheet.blit(font_sm.render("Six arms: lower FOUR cup the lap cradle-skull, upper TWO splay a jade fan", True, LABEL_DIM), (14, 606))
-    sheet.blit(font_sm.render("+ ribbon-scroll. Crown = ONE vertical jade plume to a jade skull finial.", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("Lower FOUR hands = a DARK cradle bowl of lobes holding a bright pale-jade", True, LABEL_DIM), (14, 606))
+    sheet.blit(font_sm.render("skull (the focal); upper TWO tuck as shoulder-fans. Crown = ONE jade plume.", True, LABEL_DIM), (14, 622))
 
     # === (b) PILLAR assembled — mirrored ======================================
     pcx = 470
@@ -566,7 +589,7 @@ def main():
         # can sink into a dark night sky; a soft skull-coloured halo carries the
         # silhouette while the pale cradle-skull stays the brightest point.
         if night:
-            base = grow_outline(small, SKULL_RIM + (255,), 2)
+            base = grow_outline(small, SKULL_COOL + (255,), 2)
             return grow_outline(base, INK + (200,), 1)
         return grow_outline(small, INK + (255,), 1)
 
@@ -644,7 +667,7 @@ def main():
         "GOLD filigree kept THIN + dull so the pale cradle-skull stays the single brightest focal.  SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
@@ -678,8 +701,9 @@ def self_check():
                 jade_n += 1
     bx, by = best_xy
     r, g, b = int(px[bx, by][0]), int(px[bx, by][1]), int(px[bx, by][2])
-    # skull-core hue: very bright + near-white-green (high all channels)
-    is_skull = (r > 210 and g > 230 and b > 210)
+    # skull-peak hue: bright pale-jade (green-leaning, all channels high but
+    # green highest — no longer a neutral-white sticker)
+    is_skull = (r > 200 and g > 220 and b > 195 and g >= r and g >= b)
     del px, a
     print("self-check: brightest pixel @", best_xy, "rgb", (r, g, b),
           "lum %.0f" % best_lum, "-> skull-core?", is_skull)

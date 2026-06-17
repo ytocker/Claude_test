@@ -46,24 +46,32 @@ INDIGO    = ( 40,  44,  92)    # deep indigo cloak (dominant fill)
 INDIGO_D  = ( 26,  28,  62)    # cloak dark-core / hollow
 INDIGO_DD = ( 16,  18,  42)    # deepest cloak shadow (hem under-folds)
 INDIGO_SH = ( 78,  84, 140)    # cloak top-left rim-sheen
-# cool blue-bone — limbs, skull face, ring circlet (the night silhouette carrier)
-BONE      = (176, 188, 214)
-BONE_D    = (118, 130, 162)
-BONE_DD   = ( 72,  82, 112)
-BONE_SH   = (224, 232, 246)
-# cool-silver star-ticks — CLUSTERED constellation studs on the cloak (accent)
-STAR      = (238, 240, 250)
-STAR_D    = (176, 188, 220)
-# the SINGLE warm/bright focal — the cradled MOON-SKULL (pale-cyan glow).
-MOON      = (196, 224, 236)
-MOON_BR   = (224, 244, 250)
-MOON_HOT  = (244, 252, 255)    # hottest moon-skull core (the brightest pixel)
-MOON_D    = (140, 176, 198)
-MOON_RIM  = (104, 142, 168)
-# faint cool-gold thread for scroll + astrolabe brass (a dull, low-key accent)
-BRASS     = (150, 156, 132)
-BRASS_BR  = (200, 204, 176)
-BRASS_D   = (104, 108,  88)
+# DEMOTED cool-bone — crown skull, head, limbs, ring circlet. WHY darker than
+# round 1: three skulls at near-equal value mushed the focal hierarchy at 32px,
+# so the head + crown skull are pushed down into a cooler, dimmer bone band and
+# only the cradled moon-skull is allowed to read bright.
+BONE      = (132, 146, 178)    # was (176,188,214) — pulled down so it loses to MOON
+BONE_D    = ( 92, 104, 138)
+BONE_DD   = ( 58,  68,  98)
+BONE_SH   = (170, 182, 210)    # was (224,232,246) — a quiet rim, not a highlight
+# cool-silver star-ticks — CLUSTERED constellation studs; deliberately DIMMER
+# and COOLER than the moon focal so they never read as coin-sparkle FX.
+STAR      = (158, 172, 206)
+STAR_D    = (104, 118, 156)
+# the SINGLE warm/bright focal — the cradled MOON-SKULL (pale-cyan glow). It is
+# the ONLY element pushed to near-white; everything else is held below it.
+MOON      = (206, 234, 244)
+MOON_BR   = (232, 248, 252)
+MOON_HOT  = (250, 254, 255)    # hottest moon-skull core (the brightest pixel)
+MOON_D    = (120, 162, 190)
+MOON_RIM  = ( 86, 124, 154)
+# the skull-glow SPILL tint dropped onto the cradling cloak/hands (cool-cyan)
+SPILL     = (108, 168, 196)
+# astrolabe is now COOL pewter (no warm brass) so the cyan focal owns the only
+# warm/bright read at 32px.
+BRASS     = (118, 134, 150)
+BRASS_BR  = (162, 178, 192)
+BRASS_D   = ( 80,  94, 110)
 INK       = ( 28,  22,  30)    # hard ink keyline
 
 BG        = ( 96, 100, 108)
@@ -155,33 +163,44 @@ def star_tick(surf, cx, cy, r, s):
 
 
 def constellation_patch(surf, cx, cy, s):
-    """A CLUSTERED constellation on the cloak chest/skirt — fixed offsets so it
-    reads as a deliberate star-map patch, not random sparkle FX."""
-    pts = [(-14, -2, 1.7), (-6, -10, 1.2), (3, -4, 1.5), (10, -12, 1.1),
-           (15, 0, 1.6), (6, 7, 1.3), (-3, 12, 1.5), (-12, 9, 1.1),
-           (0, 0, 1.0), (-9, 18, 1.2), (9, 17, 1.2)]
-    # faint thread lines joining a few studs (the "drawn constellation")
-    link = [(0, 2), (2, 4), (4, 5), (5, 6), (6, 7), (0, 1)]
-    for (i, j) in link:
-        ax = cx + pts[i][0] * s
-        ay = cy + pts[i][1] * s
-        bx = cx + pts[j][0] * s
-        by = cy + pts[j][1] * s
-        pygame.draw.line(surf, lerp(INDIGO_SH, STAR_D, 0.4),
-                         (ax, ay), (bx, by), max(1, int(0.7 * s)))
-    for (dx, dy, m) in pts:
-        star_tick(surf, cx + dx * s, cy + dy * s, max(1.0, m * s), s)
+    """TWO tight constellations on the cloak skirt — fixed offsets so each reads
+    as a deliberate little star-map cluster. WHY two tight groups (not 11 spread
+    studs) and dimmer/cooler ink: scattered bright pips read as the game's
+    coin-sparkle FX; a couple of compact, low-key clusters read as drawn stars."""
+    # two compact clusters, each kept clear of the low-center moon glow
+    clusters = [
+        # left-skirt triangle
+        [(-18, 6, 1.3), (-13, 14, 1.0), (-21, 16, 1.0)],
+        # right-skirt small dipper
+        [(15, 10, 1.3), (20, 16, 1.0), (14, 19, 1.0), (21, 22, 0.9)],
+    ]
+    links = [[(0, 1), (1, 2)], [(0, 1), (1, 2), (2, 3)]]
+    for pts, link in zip(clusters, links):
+        for (i, j) in link:
+            ax, ay = cx + pts[i][0] * s, cy + pts[i][1] * s
+            bx, by = cx + pts[j][0] * s, cy + pts[j][1] * s
+            pygame.draw.line(surf, lerp(INDIGO_SH, STAR_D, 0.3),
+                             (ax, ay), (bx, by), max(1, int(0.6 * s)))
+        for (dx, dy, m) in pts:
+            star_tick(surf, cx + dx * s, cy + dy * s, max(1.0, m * s), s)
 
 
 # -- the cradled MOON-SKULL (the single brightest focal) ----------------------
 def moon_skull(surf, cx, cy, r, s):
-    """A glowing pale-cyan skull cupped at the chest. WHY a soft aura + a hot
-    near-white core: it must own the single brightest pixel and read as a
-    luminous moon both day and night without becoming a second large mass."""
-    for (rr, a) in ((r * 1.9, 26), (r * 1.5, 46), (r * 1.18, 82)):
+    """A glowing pale-cyan skull cupped at the chest. WHY a strong layered aura +
+    a hot near-white core + a tight bloom ring: it must own the single brightest
+    pixel and win the value contest against the demoted crown/head so the focal
+    hierarchy survives the downscale to 32px, day and night, without ballooning
+    into a second large mass."""
+    for (rr, a) in ((r * 2.3, 30), (r * 1.8, 52), (r * 1.35, 96), (r * 1.06, 150)):
         halo = pygame.Surface((int(rr * 2) + 4, int(rr * 2) + 4), pygame.SRCALPHA)
         pygame.draw.circle(halo, MOON_BR + (a,), (int(rr) + 2, int(rr) + 2), int(rr))
         surf.blit(halo, (cx - int(rr) - 2, cy - int(rr) - 2))
+    # a tight near-white bloom ring hugging the cranium (the 1px-at-32px bloom)
+    bloom = pygame.Surface((int(r * 2.6), int(r * 2.6)), pygame.SRCALPHA)
+    pygame.draw.circle(bloom, MOON_HOT + (120,),
+                       (int(r * 1.3), int(r * 1.3)), int(r * 1.12))
+    surf.blit(bloom, (cx - int(r * 1.3), cy - int(r * 1.3)))
     # cranium
     pygame.draw.circle(surf, INK, (cx, cy), r + max(1, int(1.4 * s)))
     pygame.draw.circle(surf, MOON_RIM, (cx, cy), r)
@@ -238,15 +257,13 @@ def halo_crown(surf, cx, cy, r, s):
         gx = cx + math.cos(a) * rx
         gy = cy + math.sin(a) * ry
         star_tick(surf, gx, gy, max(1.0, 1.3 * s), s)
-    # ONE dominant zenith skull seated at the ring apex (the crown tell)
+    # ONE zenith skull seated at the ring apex (the crown tell). WHY no bright
+    # aura and a cool-bone fill: this skull must stay DARKER than the cradled moon
+    # focal so the value hierarchy reads — it is the "crown" beat, not a light.
     zr = int(r * 0.40)
-    zx, zy = cx, cy - ry - zr + int(2 * s)
-    # faint cool aura behind it so it stays legible on a dark night sky
-    halo = pygame.Surface((zr * 5, zr * 5), pygame.SRCALPHA)
-    pygame.draw.circle(halo, MOON_BR + (40,), (int(zr * 2.5), int(zr * 2.5)),
-                       int(zr * 1.7))
-    surf.blit(halo, (zx - int(zr * 2.5), zy - int(zr * 2.5)))
-    triad_circle(surf, BONE, (zx, zy), zr, ow=max(1, int(1.6 * s)), core=False)
+    zx, zy = cx, cy - ry - zr + int(6 * s)   # tucked onto the ring, no detached gap
+    triad_circle(surf, BONE_D, (zx, zy), zr, ow=max(1, int(1.6 * s)), core=False,
+                 sheen=False)
     for sgn in (-1, 1):
         pygame.draw.circle(surf, BONE_DD, (zx + sgn * int(zr * 0.40),
                            zy + int(zr * 0.04)), int(zr * 0.28))
@@ -345,6 +362,30 @@ def draw_shepherd(surf, cx, cy, s):
         pygame.draw.line(surf, INDIGO_DD, (fx, hem_y - int(20 * s)),
                          (fx, hem_y - int(2 * s)), max(1, int(2.0 * s)))
 
+    # === COOL-SILVER RIM-LIGHT down the lit (left) edge of the bell ==========
+    # WHY a crisp 1-2px rim: round 1 lost the figure into a dark night sky; a
+    # bright cool edge carries the teardrop silhouette and reads as moonlight.
+    rim_pts = []
+    rN = 26
+    for k in range(rN + 1):
+        t = 0.10 + 0.86 * k / rN
+        prof = math.sin(math.pi * (0.18 + 0.82 * t))
+        belly = (1 - (1 - t) ** 2.2)
+        w = neck_w + (half_w - neck_w) * prof * (0.35 + 0.65 * belly)
+        y = top_y + t * (hem_y - top_y)
+        rim_pts.append((cx - w + int(1.0 * s), y))
+    if len(rim_pts) > 1:
+        pygame.draw.lines(surf, BONE_SH, False, rim_pts, max(1, int(1.6 * s)))
+
+    # === SKULL-GLOW SPILL on the cloak where the moon is cradled =============
+    # WHY a soft cyan wash low-center: the focal must look like it lights the
+    # cloth around it, tying the brightest element to the dominant indigo mass.
+    spill_c = (cx, cy + int(10 * s))
+    for (rr, a) in ((int(34 * s), 30), (int(24 * s), 52), (int(16 * s), 80)):
+        sp = pygame.Surface((rr * 2 + 4, rr * 2 + 4), pygame.SRCALPHA)
+        pygame.draw.circle(sp, SPILL + (a,), (rr + 2, rr + 2), rr)
+        surf.blit(sp, (spill_c[0] - rr - 2, spill_c[1] - rr - 2))
+
     # === CLUSTERED CONSTELLATION on the cloak (the tell, not scattered FX) ===
     constellation_patch(surf, cx - int(4 * s), cy + int(8 * s), s * 0.92)
 
@@ -361,7 +402,8 @@ def draw_shepherd(surf, cx, cy, s):
     el_r = (cx + int(30 * s), cy - int(10 * s))
     hand_r = (cx + int(36 * s), cy - int(22 * s))
     bone_limb(surf, sh_r, el_r, hand_r, arm_th, s)
-    astrolabe(surf, hand_r[0] + int(8 * s), hand_r[1] - int(6 * s), int(11 * s), s)
+    # shrunk + cooled (pewter, not brass) so the only warm/bright read is the moon
+    astrolabe(surf, hand_r[0] + int(7 * s), hand_r[1] - int(5 * s), int(9 * s), s)
 
     # === LOWER TWO ARMS — CRADLING the moon-skull at the chest ===============
     moon_c = (cx, cy + int(6 * s))
@@ -405,10 +447,9 @@ def draw_shepherd(surf, cx, cy, s):
         ey = head_c[1] + int(hr * 0.06)
         pygame.draw.circle(surf, BONE_DD, (ex, ey), int(hr * 0.36))
         pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.30))
-        # a faint cool moon-glint in the sockets ties to the cradled skull
-        pygame.draw.circle(surf, MOON_D, (ex, ey + int(1 * s)), int(hr * 0.16))
-        pygame.draw.circle(surf, MOON_BR, (ex - int(1 * s), ey),
-                           max(1, int(hr * 0.07)))
+        # a DIM cool moon-glint in the sockets ties to the cradled skull WITHOUT
+        # competing — kept at MOON_D/SPILL, never the bright MOON_BR of the focal.
+        pygame.draw.circle(surf, SPILL, (ex, ey + int(1 * s)), int(hr * 0.14))
     pygame.draw.polygon(surf, BONE_DD,
                         [(head_c[0] - int(hr * 0.13), head_c[1] + int(hr * 0.32)),
                          (head_c[0] + int(hr * 0.13), head_c[1] + int(hr * 0.32)),
@@ -424,7 +465,10 @@ def draw_shepherd(surf, cx, cy, s):
                          max(1, int(1 * s)))
 
     # === HOVERING HALO-RING CROWN + ZENITH SKULL =============================
-    halo_crown(surf, head_c[0], head_c[1] - int(hr * 1.18), int(hr * 1.18), s)
+    # WHY tucked down onto the dome (was hr*1.18 above): a detached ring read as a
+    # lollipop and split the teardrop into two masses; sitting the ring just above
+    # the crown keeps the figure ONE silhouette while still reading "ring + skull".
+    halo_crown(surf, head_c[0], head_c[1] - int(hr * 0.72), int(hr * 1.06), s)
 
 
 # -- the moon-pillar mirror, derived from the king's forms --------------------
@@ -535,7 +579,7 @@ def main():
     sheet.blit(font_big.render("STARLIT NIGHT SHEPHERD", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "skull-KING (mandatory-cradle, 4 arms)  ·  teardrop candle-flame BELL · hovering halo-ring + zenith skull crown · "
-        "cradled glowing MOON-SKULL focal · clustered star-ticks · round 1",
+        "cradled glowing MOON-SKULL focal · clustered star-ticks · round 2",
         True, LABEL_DIM), (320, 26))
 
     # === (a) BIG HERO =========================================================
@@ -575,8 +619,9 @@ def main():
         # WHY a cool blue-bone rim on the night chip: the deep-indigo cloak
         # dissolves into a dark night sky; a cool-bone halo carries the
         # silhouette while the pale moon-skull stays the unambiguous focal.
+        # BONE_D (not the now-darker BONE_DD) keeps the rim readable on night.
         if night:
-            base = grow_outline(small, BONE_DD + (255,), 2)
+            base = grow_outline(small, BONE_D + (255,), 2)
             return grow_outline(base, INK + (200,), 1)
         return grow_outline(small, INK + (255,), 1)
 
@@ -636,7 +681,7 @@ def main():
         (INDIGO, "deep indigo cloak"), (INDIGO_D, "indigo dark-core"),
         (BONE, "cool blue-bone"), (BONE_SH, "bone rim-sheen"),
         (MOON, "moon-skull glow"), (MOON_HOT, "moon hot core"),
-        (STAR, "cool-silver star-tick"), (BRASS, "dull-brass prop"),
+        (STAR, "cool-silver star-tick"), (BRASS, "cool pewter prop"),
         (INDIGO_SH, "cloak sheen"), (INK, "ink keyline"),
     ]
     sxp, syp = panel_x + 16, 538
@@ -654,7 +699,7 @@ def main():
         "Crown = hovering halo-ring + ONE zenith skull.  Cradled MOON-SKULL = single brightest focal, day + night.  SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

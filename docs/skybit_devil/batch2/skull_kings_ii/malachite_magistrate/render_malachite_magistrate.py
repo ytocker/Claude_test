@@ -145,72 +145,93 @@ def brass_edge(surf, p0, p1, s):
 
 
 def banded_panel(surf, pts, s, n=3, horizontal=True):
-    """Fill a quad with 2-3 BOLD concentric malachite bands. WHY only 2-3: fine
-    malachite veining is the real-world look but vanishes at 32px; broad bands
-    survive the downscale and still read as banded stone. Bands run as nested
-    insets of the polygon (concentric), darkest outside -> palest inside, so the
-    collar reads as a layered malachite slab rather than a flat green block."""
-    cx = sum(p[0] for p in pts) / len(pts)
-    cy = sum(p[1] for p in pts) / len(pts)
-    cols = [MAL_D, MAL, MAL_BR][:max(2, n)]
+    """Fill a quad with 2 BOLD malachite bands split across the SHORT axis. WHY a
+    straight light/dark SPLIT, not concentric insets: concentric green-on-green
+    rings collapsed to one muddy tone at 32px (round-1 blocker). A single clean
+    horizontal step — pale-malachite top half over dark-malachite bottom half —
+    survives the downscale as an unmistakable light/dark banding read, and the
+    seam is a THIN lightened line (not a heavy ink groove) so the slab never
+    collapses to a single value."""
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
     pygame.draw.polygon(surf, INK, pts)
-    for i, col in enumerate(cols):
-        t = i / max(1, len(cols))  # inset fraction toward centroid
-        inset = [(p[0] + (cx - p[0]) * (t * 0.42),
-                  p[1] + (cy - p[1]) * (t * 0.42)) for p in pts]
-        pygame.draw.polygon(surf, col, inset)
-    # thin seam lines between bands so the banding stays crisp under smoothscale
-    for i in range(1, len(cols)):
-        t = i / max(1, len(cols))
-        seam = [(p[0] + (cx - p[0]) * (t * 0.42),
-                 p[1] + (cy - p[1]) * (t * 0.42)) for p in pts]
-        pygame.draw.polygon(surf, MAL_DD, seam, max(1, int(1.2 * s)))
-    pygame.draw.polygon(surf, INK, pts, max(1, int(1.6 * s)))
+    if horizontal:
+        # pale band on top, dark band on the bottom (light/dark step)
+        mid = (y0 + y1) / 2.0
+        pygame.draw.polygon(surf, MAL_D, pts)
+        pygame.draw.rect(surf, MAL_BR, (x0, y0, x1 - x0, max(1, mid - y0)))
+        # THIN lightened seam (a sheen ridge, not an ink groove)
+        pygame.draw.line(surf, MAL, (x0, int(mid)), (x1, int(mid)),
+                         max(1, int(1.4 * s)))
+    else:
+        # vertical robe-front: pale left, dark right
+        mid = (x0 + x1) / 2.0
+        pygame.draw.polygon(surf, MAL_D, pts)
+        pygame.draw.rect(surf, MAL_BR, (x0, y0, max(1, mid - x0), y1 - y0))
+        pygame.draw.line(surf, MAL, (int(mid), y0), (int(mid), y1),
+                         max(1, int(1.4 * s)))
+    pygame.draw.polygon(surf, INK, pts, max(1, int(1.4 * s)))
 
 
 # -- the banded-green DOME crown with a single skull BOSS ----------------------
 def dome_crown(surf, cx, cy, r, s):
-    """A low malachite DOME of two crossed bands meeting at a single bone SKULL
-    BOSS at the apex. WHY a dome + boss, not a spike comb: this king's royal tell
-    must be a compact rounded cap that survives 32px as ONE green hump with a
-    pale dot on top — never a scattered crown that dissolves into the sky. The
-    two crossed bands give it the banded-malachite signature in miniature."""
-    # the dome shell — a flattened malachite half-ellipse (the green hump)
-    rect = (cx - r, cy - int(r * 0.74), r * 2, int(r * 1.48))
-    pygame.draw.ellipse(surf, INK, (rect[0] - 1, rect[1] - 1, rect[2] + 2, rect[3] + 2))
-    pygame.draw.ellipse(surf, MAL_D, rect)
-    # clip to upper half so it reads as a dome, then nest 2 brighter bands
-    cover = [(cx - r - 2, cy + int(r * 0.10)), (cx + r + 2, cy + int(r * 0.10)),
-             (cx + r + 2, cy + int(r * 0.80)), (cx - r - 2, cy + int(r * 0.80))]
-    pygame.draw.polygon(surf, (0, 0, 0, 0), cover)  # no-op on opaque; kept for intent
-    pygame.draw.ellipse(surf, MAL, (cx - int(r * 0.74), cy - int(r * 0.54),
-                                    int(r * 1.48), int(r * 1.08)))
-    pygame.draw.ellipse(surf, MAL_BR, (cx - int(r * 0.40), cy - int(r * 0.50),
-                                       int(r * 0.62), int(r * 0.70)))
-    # two CROSSED bands of banding meeting at the apex (the dome's malachite tell)
-    pygame.draw.arc(surf, MAL_DD, rect, math.radians(20), math.radians(160),
-                    max(2, int(2.2 * s)))
-    pygame.draw.line(surf, MAL_DD, (cx, cy - int(r * 0.70)), (cx, cy + int(r * 0.10)),
-                     max(2, int(2.0 * s)))
-    pygame.draw.arc(surf, MAL_BR, (cx - r, cy - int(r * 0.62), r * 2, int(r * 1.2)),
-                    math.radians(40), math.radians(140), max(1, int(1.6 * s)))
-    # thin brass rim seating the dome on the cranium
-    brass_edge(surf, (cx - int(r * 0.92), cy + int(r * 0.06)),
-               (cx + int(r * 0.92), cy + int(r * 0.06)), s)
-    # the single SKULL BOSS at the apex — a tiny bone dome with two ink pits
-    bx, by = cx, cy - int(r * 0.74)
-    br = max(3, int(r * 0.34))
-    triad_circle(surf, BONE, (bx, by), br, ow=max(1, int(1.4 * s)), core=False)
-    # tiny brass ring socketing the boss
-    pygame.draw.circle(surf, BRASS, (bx, by), br + max(1, int(1.2 * s)),
-                       max(1, int(1.4 * s)))
+    """A low malachite DOME crowned by a single bone-white SKULL BOSS, with a
+    thin bone/brass value-break detaching the dome from the face below.
+
+    WHY the dome is filled at malachite-LIGHT (not dark): at 32px the round-1
+    dark-ground dome read as a black blob. The dome's dominant fill is now
+    MAL_BR (the pale band) so it reads unmistakably GREEN — the second-brightest
+    green after the eye-band — on BOTH chips. A darker MAL_D crescent along the
+    underside gives form without dragging the whole hump toward black, and a
+    saturated EYE-value RIM keeps the dome green even on the night sky.
+
+    WHY the boss is a solid bone-white cap (no brass ring, no inner shading): a
+    single high-value bone cluster is the only thing that survives as a 'skull
+    pop' on top of the green dome at 32px; rings and pits dissolved into the
+    dark dome in round 1."""
+    # bone/brass VALUE-BREAK: a thin pale ledge under the dome that detaches the
+    # green hump from the bone face on the day chip (and the dark sky at night).
+    ledge = [(cx - int(r * 1.02), cy + int(r * 0.02)),
+             (cx + int(r * 1.02), cy + int(r * 0.02)),
+             (cx + int(r * 0.92), cy + int(r * 0.24)),
+             (cx - int(r * 0.92), cy + int(r * 0.24))]
+    pygame.draw.polygon(surf, INK, ledge)
+    pygame.draw.polygon(surf, BONE_SH, ledge)
+    brass_edge(surf, (cx - int(r * 0.90), cy + int(r * 0.10)),
+               (cx + int(r * 0.90), cy + int(r * 0.10)), s)
+
+    # the dome shell — a flattened half-ellipse filled at malachite-LIGHT so it
+    # reads GREEN, with a saturated rim that carries the green at night.
+    rect = (cx - r, cy - int(r * 0.86), r * 2, int(r * 1.60))
+    pygame.draw.ellipse(surf, INK, (rect[0] - 2, rect[1] - 2, rect[2] + 4, rect[3] + 4))
+    pygame.draw.ellipse(surf, EYE_D, (rect[0] - 1, rect[1] - 1, rect[2] + 2, rect[3] + 2))
+    pygame.draw.ellipse(surf, MAL_BR, rect)
+    # a single dark-malachite crescent on the underside = the ONE bold band step
+    pygame.draw.ellipse(surf, MAL_D, (cx - int(r * 0.92), cy - int(r * 0.10),
+                                      int(r * 1.84), int(r * 0.78)))
+    # thin sheen seam between the pale crown and the dark band (light/dark step)
+    pygame.draw.arc(surf, MAL, (cx - int(r * 0.92), cy - int(r * 0.42),
+                                int(r * 1.84), int(r * 0.96)),
+                    math.radians(8), math.radians(172), max(1, int(1.6 * s)))
+    # clip the dome's bottom against the ledge so it reads as a dome, not a ball
+    skirt = [(cx - r - 2, cy + int(r * 0.20)), (cx + r + 2, cy + int(r * 0.20)),
+             (cx + r + 2, cy + int(r * 0.70)), (cx - r - 2, cy + int(r * 0.70))]
+    pygame.draw.polygon(surf, BONE_SH, skirt)
+
+    # the single SKULL BOSS — a solid bone-white apex cap (one high-value pop)
+    bx, by = cx, cy - int(r * 0.72)
+    br = max(4, int(r * 0.46))
+    pygame.draw.circle(surf, INK, (bx, by), br + max(1, int(1.4 * s)))
+    pygame.draw.circle(surf, BONE_SH, (bx, by), br)
+    # two tiny ink eye-pits + a nasal notch so the bone cap reads as a SKULL
     for sgn in (-1, 1):
-        pygame.draw.circle(surf, INK, (bx + sgn * int(br * 0.42), by + int(br * 0.06)),
-                           max(1, int(br * 0.30)))
+        pygame.draw.circle(surf, INK, (bx + sgn * int(br * 0.40), by - int(br * 0.08)),
+                           max(1, int(br * 0.26)))
     pygame.draw.polygon(surf, BONE_DD,
-                        [(bx - int(br * 0.18), by + int(br * 0.30)),
-                         (bx + int(br * 0.18), by + int(br * 0.30)),
-                         (bx, by + int(br * 0.62))])
+                        [(bx - int(br * 0.16), by + int(br * 0.24)),
+                         (bx + int(br * 0.16), by + int(br * 0.24)),
+                         (bx, by + int(br * 0.52))])
 
 
 # -- the bone skull face -------------------------------------------------------
@@ -362,7 +383,9 @@ def draw_magistrate(surf, cx, cy, s):
 
     # === HEAD + DOME CROWN ===================================================
     skull_face(surf, head_c, hr, s)
-    dome_crown(surf, head_c[0], head_c[1] - int(hr * 0.92), int(hr * 0.86), s)
+    # WHY a bigger dome radius + a higher seat: the round-1 dome was too small to
+    # survive 32px; a wider hump seated clear of the brow holds green + boss.
+    dome_crown(surf, head_c[0], head_c[1] - int(hr * 1.04), int(hr * 1.02), s)
 
 
 # -- the pillar mirror: a stacked banded-malachite yoke-column ----------------
@@ -459,7 +482,7 @@ def main():
     sheet.blit(font_big.render("MALACHITE MAGISTRATE", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "skull-KING (discretion: no cradle, 2 arms)  ·  WIDE FLAT ANVIL-T banded-green shoulder-yoke · "
-        "green dome + skull-boss crown · stern bone face · malachite eye-band focal · round 1",
+        "green dome + skull-boss crown · stern bone face · malachite eye-band focal · round 2",
         True, LABEL_DIM), (360, 26))
 
     # === (a) BIG HERO =========================================================
@@ -496,11 +519,12 @@ def main():
         big = pygame.Surface((96 * SS, 96 * SS), pygame.SRCALPHA)
         draw_magistrate(big, 48 * SS, 50 * SS, (32 / 128.0) * SS)
         small = pygame.transform.smoothscale(big, (96, 96))
-        # WHY a malachite rim on the night chip: the bone+green mass would muddy
-        # against a dark sky; a thin saturated-green halo carries the silhouette
-        # while the eye-band stays the unambiguous brightest point.
+        # WHY a BRIGHT malachite rim on the night chip: the bone+green mass would
+        # muddy against a dark sky; a saturated pale-green halo (round-1 used a
+        # too-dark EYE_D rim that vanished) carries the yoke + dome as GREEN while
+        # the eye-band stays the unambiguous brightest point.
         if night:
-            base = grow_outline(small, EYE_D + (255,), 2)
+            base = grow_outline(small, EYE + (255,), 2)
             return grow_outline(base, INK + (200,), 1)
         return grow_outline(small, INK + (255,), 1)
 
@@ -578,7 +602,7 @@ def main():
         "2-3 BOLD malachite bands only.  Malachite eye-band stays the single brightest focal; brass kept thin.  SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
