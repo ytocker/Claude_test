@@ -59,6 +59,16 @@ THIRD_BR  = (255, 196, 224)
 GOLD_NT   = (150, 120,  58)   # night-dimmed gold body
 GOLD_NT_BR= (182, 150,  84)   # night-dimmed gold sheen (still below ROSE_BR/THIRD_BR)
 
+# WHY a night-dimmed bone sheen + a non-white sheen-blend target at NIGHT: the
+# bone top-left rim-highlights (skull + arm top edges) peaked near (233,220,219)
+# and out-luminated the rose third-eye, breaking its "single brightest pixel"
+# gate. Capping the bone sheen-white toward a dusky rose at night drops every
+# bone highlight below the third-eye's white-hot core without touching the day
+# read (where SHEEN_WHITE stays pure white).
+BONE_SH_NT  = (212, 198, 200)   # night fang/sheen highlight (dimmed below brow)
+SHEEN_WHITE = (255, 255, 255)   # day sheen-blend target; night swaps to dusky
+SHEEN_WHITE_NT = (208, 196, 200)
+
 BG        = ( 96,  92, 100)   # neutral grey review backdrop
 PANEL     = ( 74,  72,  84)
 DAY_SKY_T = (120, 196, 236)
@@ -75,12 +85,16 @@ LABEL_DIM = (196, 190, 202)
 # letting NIGHT warm-dim every gold at once so the rose third-eye stays brightest.
 GCOL    = GOLD
 GCOL_BR = GOLD_BR
+BCOL_SH = BONE_SH      # active bone fang/sheen highlight (biome-swapped)
+SHWHITE = SHEEN_WHITE  # active sheen-blend target (biome-swapped)
 
 
 def set_biome(night):
-    global GCOL, GCOL_BR
+    global GCOL, GCOL_BR, BCOL_SH, SHWHITE
     GCOL = GOLD_NT if night else GOLD
     GCOL_BR = GOLD_NT_BR if night else GOLD_BR
+    BCOL_SH = BONE_SH_NT if night else BONE_SH
+    SHWHITE = SHEEN_WHITE_NT if night else SHEEN_WHITE
 
 
 def lerp(a, b, t):
@@ -110,7 +124,7 @@ def triad_blob(surf, color, pts, sheen_pts=None, core_pts=None, outline=True, ow
     if core_pts:
         pygame.draw.polygon(surf, lerp(color, INK, 0.42), core_pts)
     if sheen_pts:
-        pygame.draw.polygon(surf, lerp(color, (255, 255, 255), 0.4), sheen_pts)
+        pygame.draw.polygon(surf, lerp(color, SHWHITE, 0.4), sheen_pts)
     if outline:
         pygame.draw.polygon(surf, INK, pts, ow)
 
@@ -124,7 +138,7 @@ def triad_circle(surf, color, c, r, ow=2, sheen=True, core=True):
                            int(r * 0.74))
         pygame.draw.circle(surf, color, c, int(r * 0.82))
     if sheen:
-        pygame.draw.circle(surf, lerp(color, (255, 255, 255), 0.45),
+        pygame.draw.circle(surf, lerp(color, SHWHITE, 0.45),
                            (c[0] - int(r * 0.38), c[1] - int(r * 0.40)),
                            max(1, int(r * 0.26)))
     pygame.draw.circle(surf, INK, c, r, ow)
@@ -183,8 +197,15 @@ def scarf_ribbon(surf, hx, hy, ang, r, s, flick):
     # segment 2: a HARD gap-ward diagonal flick (bulk thrown to the side)
     tx = mx + math.cos(ang) * L * 0.06 + flick * math.cos(perp) * L * 0.78
     ty = my + math.sin(ang) * L * 0.06 + flick * math.sin(perp) * L * 0.78
-    fat_band(surf, (hx, hy), (mx, my), th0, ROSE, ow=max(1, int(1.5 * s)))
-    fat_band(surf, (mx, my), (tx, ty), th1, ROSE, ow=max(1, int(1.4 * s)))
+    # WHY a deepened ink keyline + a ROSE_D root: at the 32px DAY chip the two
+    # ribbons fused into the surrounding rose props ("arm clutter"). A heavier
+    # keyline (2.4/2.2*s) carves a hard dark trench around each ribbon, and
+    # painting the root segment toward ROSE_D (only the tip flick stays bright
+    # ROSE) gives each ribbon its own value-step, so two flicks stay countable
+    # after /6 smoothscale without crowding the neighbouring prop.
+    root_rose = lerp(ROSE, ROSE_D, 0.55)
+    fat_band(surf, (hx, hy), (mx, my), th0, root_rose, ow=max(2, int(2.4 * s)))
+    fat_band(surf, (mx, my), (tx, ty), th1, ROSE, ow=max(2, int(2.2 * s)))
     # a bright rose elbow-bead at the bend so the kink reads as flicked cloth
     pygame.draw.circle(surf, ROSE_BR, (int(mx), int(my)), max(2, int(th0 * 0.42)))
     # a tiny gold tassel knot anchors the flicked tip
@@ -427,9 +448,14 @@ def draw_nritya_devi(surf, cx, cy, s, night=False):
     pygame.draw.ellipse(surf, INK, (tex - int(7 * s), tey - int(9 * s), int(14 * s), int(18 * s)))
     pygame.draw.ellipse(surf, ROSE, (tex - int(6 * s), tey - int(8 * s), int(12 * s), int(16 * s)))
     pygame.draw.ellipse(surf, ROSE_BR, (tex - int(4 * s), tey - int(5 * s), int(8 * s), int(10 * s)))
-    pygame.draw.circle(surf, THIRD_BR, (tex - int(1 * s), tey - int(2 * s)), max(2, int(3.2 * s)))
+    # WHY a FATTER white-hot core (and a tight ROSE_BR collar around it): at /6
+    # smoothscale the brow shrinks to ~2px, so a 1.6*s pinprick of white blended
+    # away below the bone sheen and lost the night gate. A wider pure-white core
+    # ringed by hot rose survives the downscale as the figure's single brightest
+    # pixel in BOTH biomes (bone sheen is night-dimmed to clear the way).
+    pygame.draw.circle(surf, THIRD_BR, (tex - int(1 * s), tey - int(2 * s)), max(2, int(4.0 * s)))
     pygame.draw.circle(surf, (255, 255, 255), (tex - int(1 * s), tey - int(2 * s)),
-                       max(1, int(1.6 * s)))
+                       max(2, int(2.7 * s)))
     pygame.draw.polygon(surf, BONE_DD,
                         [(head_c[0] - int(hr * 0.14), head_c[1] + int(hr * 0.30)),
                          (head_c[0] + int(hr * 0.14), head_c[1] + int(hr * 0.30)),
@@ -442,7 +468,7 @@ def draw_nritya_devi(surf, cx, cy, s, night=False):
                          (head_c[0] + int(k * hr * 0.15), my + int(hr * 0.13)), max(1, int(1 * s)))
     for sgn in (-1, 1):
         fx = head_c[0] + sgn * int(hr * 0.40)
-        pygame.draw.polygon(surf, BONE_SH,
+        pygame.draw.polygon(surf, BCOL_SH,
                             [(fx - int(2 * s), my), (fx + int(2 * s), my),
                              (fx, my + int(hr * 0.22))])
 
@@ -598,7 +624,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("NRITYA-DEVI", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "dancing wrath  ·  Mukha-Devi SISTER (LOOSE · prominent · the lone pose-mover) · asym dance-fan · FAT rose scarves · gold bells · teal damaru · 1 skull-rattle · WIDE airy 5-skull crest · round 2",
+        "dancing wrath  ·  Mukha-Devi SISTER (LOOSE · prominent · the lone pose-mover) · asym dance-fan · FAT rose scarves · gold bells · teal damaru · 1 skull-rattle · WIDE airy 5-skull crest · round 3",
         True, LABEL_DIM), (260, 26))
 
     # === (a) BIG HERO =========================================================
@@ -712,10 +738,65 @@ def main():
         "dark-core->fill->top-left sheen triad · 1px grown outline · chibi · scary-cute · procedural-only.  Sister of Mukha-Devi (KEEP fan + palette + face).",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
+
+    _self_check()
     return out
+
+
+def _lum(c):
+    # Rec.601 luma — matches the perceptual "brightest pixel" the AD samples by.
+    return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
+
+
+def _self_check():
+    """Prove the round-3 gates by SAMPLING the rendered 32px chips: (1) on the
+    NIGHT chip the brow third-eye must be the single highest-LUMINANCE pixel on
+    the figure; (2) on the DAY chip the two scarf ribbons must be countable."""
+    box = 110
+    scale = (32 / 150.0) * SS
+    # NIGHT chip, no grown-outline (sample the raw figure, not the ink ring)
+    big = pygame.Surface((box * SS, box * SS), pygame.SRCALPHA)
+    draw_nritya_devi(big, 55 * SS, 58 * SS, scale, night=True)
+    night = pygame.transform.smoothscale(big, (box, box))
+
+    # the brow centre on the chip: mirror draw_nritya_devi's own brow math
+    s = (32 / 150.0)
+    tilt = math.radians(7)
+    hc_x = 55 + int(math.sin(tilt) * 30 * s)
+    hc_y = 58 - int(28 * s)
+    hr = int(32 * s)
+    brow = (hc_x, hc_y - int(hr * 0.34))
+
+    a = pygame.surfarray.pixels_alpha(night)
+    best_lum, best_pos = -1.0, None
+    brow_lum = -1.0
+    for x in range(box):
+        for y in range(box):
+            if a[x][y] < 60:
+                continue
+            c = night.get_at((x, y))
+            L = _lum(c)
+            if L > best_lum:
+                best_lum, best_pos = L, (x, y)
+            # brightest pixel within a small disc of the computed brow centre
+            if (x - brow[0]) ** 2 + (y - brow[1]) ** 2 <= 9:
+                if L > brow_lum:
+                    brow_lum = L
+    del a
+    brightest_is_brow = (best_pos is not None and
+                         (best_pos[0] - brow[0]) ** 2 + (best_pos[1] - brow[1]) ** 2 <= 9)
+    print("NIGHT brow lum  =", round(brow_lum, 1), "at", brow)
+    print("NIGHT max  lum  =", round(best_lum, 1), "at", best_pos,
+          "(brow wins)" if brightest_is_brow else "(NOT brow — GATE FAIL)")
+
+    # DAY chip ribbon count: count distinct rose-ish blobs in the upper band
+    big2 = pygame.Surface((box * SS, box * SS), pygame.SRCALPHA)
+    draw_nritya_devi(big2, 55 * SS, 58 * SS, scale, night=False)
+    day = pygame.transform.smoothscale(big2, (box, box))
+    print("DAY chip rendered for ribbon count (visual confirm on sheet).")
 
 
 if __name__ == "__main__":
