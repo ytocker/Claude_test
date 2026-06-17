@@ -57,11 +57,17 @@ SAFF_D    = (180, 134,  54)   # deep saffron shade
 PEACH     = (248, 196, 150)   # lotus-peach — the soft bloom highlight (NOT pink)
 PEACH_BR  = (255, 226, 196)   # palest peach bloom inner / sheen
 GLOW_CORE = (255, 244, 214)   # hottest pixel — warm white-gold seed-glow core
+PEACH_HALO= (250, 206, 162)   # faint peach outer-glow halo (the "bloom" read)
 INK       = ( 28,  22,  26)   # hard ink keyline
 THIRD_EYE = (238, 190,  86)   # third-eye glow (saffron, the saint's calm focus)
+RIM_PEACH = (248, 196, 150)   # continuous 1px warm rim on the almond edge
 
-BG        = ( 96,  92, 100)   # neutral grey review backdrop
-PANEL     = ( 74,  72,  84)
+# WHY a warm-NEUTRAL backdrop, not the old blue-grey: against a cool grey the
+# warm saffron/peach accents pick up a cool simultaneous-contrast cast that
+# reads (wrongly) as teal at small scale. A faintly warm putty grey lets the
+# saffron→peach bloom read as the warm note it actually is.
+BG        = (104,  98,  96)   # warm-neutral putty review backdrop (anti-teal-cast)
+PANEL     = ( 84,  78,  78)
 DAY_SKY_T = (120, 196, 236)   # day biome sky (top)
 DAY_SKY_B = (196, 232, 244)
 NIGHT_T   = ( 22,  26,  54)   # night biome sky (top)
@@ -153,12 +159,9 @@ def lotus_pod(surf, cx, cy, r, s, ang, skull=False, glow=True):
     soft saffron seed-glow. The TWO LOWEST pods cradle a tiny socketed skull
     (the death-DNA among the ornaments); the arc-tip pods stay CLEAN glow-caps
     so the almond point reads pure. `ang` orients the pod outward off the rim."""
-    # the pod body — a small warm-bone teardrop
-    tip = (cx + math.cos(ang) * r * 1.15, cy + math.sin(ang) * r * 1.15)
-    lobe = [(cx + math.cos(ang - 2.1) * r, cy + math.sin(ang - 2.1) * r),
-            (cx + math.cos(ang + 2.1) * r, cy + math.sin(ang + 2.1) * r),
-            tip]
-    triad_blob(surf, BONE, lobe, ow=max(1, int(1.3 * s)))
+    # the pod body — a small ROUND warm-bone lotus BEAD (no protruding lobe; the
+    # r1 teardrop lobe is what bumped past the almond rim). A clean circle keeps
+    # the bead's outermost pixel ON the rim.
     triad_circle(surf, BONE, (cx, cy), int(r * 0.92), ow=max(1, int(1.3 * s)), core=False)
     if skull:
         # a tiny socketed skull seated in the pod — the arm-end death tell
@@ -172,13 +175,15 @@ def lotus_pod(surf, cx, cy, r, s, ang, skull=False, glow=True):
         pygame.draw.line(surf, INK, (cx - int(sr * 0.5), cy + int(sr * 0.5)),
                          (cx + int(sr * 0.5), cy + int(sr * 0.5)), max(1, int(s)))
     elif glow:
-        # a clean saffron→peach seed-glow cap (the calm bloom)
-        pygame.draw.circle(surf, SAFF_D, (cx, cy), max(1, int(r * 0.52)))
-        pygame.draw.circle(surf, SAFF, (cx, cy), max(1, int(r * 0.42)))
-        pygame.draw.circle(surf, PEACH, (cx - int(r * 0.12), cy - int(r * 0.14)),
-                           max(1, int(r * 0.26)))
+        # a clean WARM saffron→peach seed-glow cap (the calm bloom). The bead is
+        # mostly a butter-saffron core that blooms to peach top-left — zero cool
+        # hue, so it can never read teal.
+        pygame.draw.circle(surf, SAFF_D, (cx, cy), max(1, int(r * 0.56)))
+        pygame.draw.circle(surf, SAFF, (cx, cy), max(1, int(r * 0.46)))
+        pygame.draw.circle(surf, PEACH, (cx - int(r * 0.10), cy - int(r * 0.12)),
+                           max(1, int(r * 0.30)))
         pygame.draw.circle(surf, PEACH_BR, (cx - int(r * 0.16), cy - int(r * 0.18)),
-                           max(1, int(r * 0.12)))
+                           max(1, int(r * 0.14)))
 
 
 # ── a single ornamental tiara-skull (reused for tiara + pillar relics) ────────
@@ -200,57 +205,73 @@ def tiara_skull(surf, cx, cy, r, s, lit=False):
     pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.14)))
 
 
+# ── the mandorla rim profile (the silhouette law every arm obeys) ──────────────
+def mandorla_xy(apex_y, bottom_y, belly, t):
+    """Point on the almond RIM at parameter t∈[0,1] (0=bottom point, 1=apex).
+    WHY a closed-form lens: the AD r1 miss was arm-pods bumping PAST the
+    silhouette. If every bead and every arc obeys ONE rim function, the blackout
+    can only trace a single convex teardrop — beads strung along the rim, never
+    bumps. Half-width follows a pointed-lens profile (0 at both tips, fat belly
+    biased slightly LOW so the apex stays a crisp teardrop)."""
+    ry = bottom_y + (apex_y - bottom_y) * t
+    # asymmetric lens: sharper near the apex (teardrop), rounder near the bottom
+    w = belly * (math.sin(math.pi * t) ** (0.62 if t >= 0.5 else 0.78))
+    return ry, w
+
+
 # ── the eight-arm closed almond (the KIND tell) ───────────────────────────────
 def draw_arm_almond(surf, sh_cx, sh_cy, head_cy, s, reach):
-    """Eight thin bone arms sprout from a LOW shoulder line and curve up and IN
-    to MEET at a single teardrop point ABOVE the crown — the closed tall-almond
-    mandorla, the ONLY closed-point silhouette in the brood.
+    """Eight slender bone arms sprout from a LOW shoulder line and curve up and IN
+    so their OUTER edges all ride ONE mandorla rim, meeting in a single teardrop
+    point ABOVE the crown and a single clean point at the BOTTOM — the closed
+    tall-almond, the ONLY closed-point silhouette in the brood.
 
-    WHY eight thin (vs Mukha's six fat): more + thinner arms describe a smooth
-    almond RIM; the pairs are placed so their bezier control points pull every
-    arm toward a shared apex high above the head, so the outer envelope is one
-    pointed vertical almond. The LOWEST pair hangs nearly straight down to close
-    the BOTTOM point of the almond too, so the blackout is pointed at BOTH ends
-    (a true vesica/mandorla), not an open fan.
+    WHY beads strung on a rim, not bumps past it (the r1 fix): each arm's hand
+    bead is placed EXACTLY on `mandorla_xy`, and the arc that carries the bead on
+    toward a tip rides the rim curve too. So the outer envelope is one convex
+    lens with no concave gaps — the blackout can't read as a spider.
 
-    Returns (hand centres, apex point) — hands ride the almond RIM for relics."""
+    Returns (hand list, apex, bottom, rim sampler) so the caller can paint relics
+    on the rim and a continuous warm-peach rim line along the silhouette edge."""
     shoulder_y = sh_cy
-    apex = (sh_cx, head_cy - int(reach * 0.98))          # the teardrop point ABOVE crown
-    bottom = (sh_cx, shoulder_y + int(reach * 0.70))     # the lower point of the almond
-    arm_th = int(6.5 * s)
+    apex = (sh_cx, head_cy - int(reach * 1.02))          # the teardrop point ABOVE crown
+    bottom = (sh_cx, shoulder_y + int(reach * 0.74))     # the lower point of the almond
+    # daintier arms than r1 (elevated-chibi): thinner bone, smaller belly so the
+    # almond is a slim tall idol-aureole, not a fat lens.
+    arm_th = int(5.0 * s)
+    belly = reach * 0.50
     hands = []
-    # Every arm is ONE bone curve from the shoulder, OUT to a rim hand, then ON
-    # to a shared point — so the eight outer edges trace a single pointed almond.
-    # `t` ∈ (0,1) = how high the hand rides the rim; widest rim hand near t≈0.5.
-    # `frac` = how much of the rim's vertical span this arm covers between the
-    # bottom point and the apex, so the bone edges nest into one convex lens.
-    rim_t = [0.86, 0.60, 0.34, 0.12]
-    # half-width of the almond at its widest (the rim belly)
-    belly = reach * 0.62
+    # `t` = where the hand bead rides the rim (high t = up near apex). Beads are
+    # nudged a hair INSIDE the true rim so the round bead's own radius lands the
+    # OUTERMOST pixel exactly on the silhouette, not past it.
+    rim_t = [0.80, 0.56, 0.32, 0.13]
+    bead_inset = 0.86
     for sgn in (-1, 1):
         for t in rim_t:
-            sh = (sh_cx + sgn * int(reach * 0.14), shoulder_y)
-            # vertical position of this hand on the rim: lerp bottom→apex
-            ry = bottom[1] + (apex[1] - bottom[1]) * t
-            # almond half-width at height t follows a lens profile (0 at both ends)
-            w = belly * math.sin(math.pi * t) ** 0.7
-            hand = (sh_cx + sgn * w, ry)
-            # leg 1: shoulder bows OUT to the rim hand
-            c1 = (sh[0] + sgn * w * 1.15, (sh[1] + ry) * 0.5 + reach * 0.04)
+            sh = (sh_cx + sgn * int(reach * 0.10), shoulder_y)
+            ry, w = mandorla_xy(apex[1], bottom[1], belly, t)
+            hand = (sh_cx + sgn * w * bead_inset, ry)
+            # leg 1: shoulder bows OUT to the rim hand, the bow hugging the rim
+            mid_t = (t + 0.0) * 0.55
+            mry, mw = mandorla_xy(apex[1], bottom[1], belly, mid_t)
+            c1 = (sh_cx + sgn * mw * bead_inset, mry)
             thick_curve(surf, BONE, sh, c1, hand, arm_th, sheen=(sgn < 0))
-            # leg 2: the rim hand sweeps ON toward the shared point (up or down).
-            # upper arms reach the APEX; lower arms reach the BOTTOM point — both
-            # close the lens so the blackout is pointed at BOTH ends.
+            # leg 2: the hand sweeps ON along the rim toward the shared tip.
             target = apex if t >= 0.5 else bottom
-            c2 = (sh_cx + sgn * w * 0.42, (ry + target[1]) * 0.5)
-            thick_curve(surf, BONE, hand, c2, target, max(2, int(arm_th * 0.82)))
+            tt = (t + (1.0 if t >= 0.5 else 0.0)) * 0.5
+            try_, tw = mandorla_xy(apex[1], bottom[1], belly, tt)
+            c2 = (sh_cx + sgn * tw * bead_inset * 0.92, try_)
+            thick_curve(surf, BONE, hand, c2, target, max(2, int(arm_th * 0.78)))
             hands.append((sgn, t, hand))
-    # the apex knuckle where the top arms meet — a small clean bone bead (point)
-    triad_circle(surf, BONE, apex, max(2, int(arm_th * 0.78)),
+    # crisp clean bone beads cap BOTH tips so the points read pure
+    triad_circle(surf, BONE, apex, max(2, int(arm_th * 0.70)),
                  ow=max(1, int(1.2 * s)), core=False, sheen=False)
-    triad_circle(surf, BONE, bottom, max(2, int(arm_th * 0.72)),
+    triad_circle(surf, BONE, bottom, max(2, int(arm_th * 0.66)),
                  ow=max(1, int(1.2 * s)), core=False, sheen=False)
-    return hands, apex
+
+    def rim_sampler(t):
+        return mandorla_xy(apex[1], bottom[1], belly, t)
+    return hands, apex, bottom, rim_sampler
 
 
 # ── the lotus bloom-mandorla bone-saint ───────────────────────────────────────
@@ -260,41 +281,71 @@ def draw_asha_mukti(surf, cx, cy, s):
     the crown. Warm saffron→peach bloom-glow, a skull-crown, lotus-pod relics.
     `s` = unit scale around a ~130-unit figure."""
 
-    # WHY a BIG calm head over a SHORT torso, tiny overall: this is the CHIBI /
-    # tiny-idol pole of the brood. A large serene skull + squat body = a little
-    # devotional figurine, demonstrably smaller-feeling than mother Mukha.
-    head_c = (cx, cy - int(20 * s))
-    hr = int(28 * s)
-    reach = int(78 * s)
-    pod_r = int(8 * s)
+    # WHY an even BIGGER head over a TINY torso (r1 read mid-figure): push the
+    # head:body ratio hard so this is unmistakably the CHIBI / tiny-idol pole —
+    # a little carved netsuke saint, not a mid-size figure competing with Nagini.
+    head_c = (cx, cy - int(14 * s))
+    hr = int(30 * s)
+    reach = int(80 * s)
+    pod_r = int(7 * s)
 
-    # === EIGHT-ARM CLOSED ALMOND (drawn first → arms sit BEHIND torso & head) =
-    # WHY behind: the almond is the AUREOLE the saint sits inside, so the limbs
-    # frame the body from behind and meet in the point above the crown.
-    sh_y = head_c[1] + int(hr * 1.05)
-    hands, apex = draw_arm_almond(surf, head_c[0], sh_y, head_c[1], s, reach)
+    # === SOLID MANDORLA AUREOLE (drawn FIRST → guarantees the blackout) ========
+    # WHY a filled almond backplate, not eight wireframe arms alone: the r1 miss
+    # was that separate thin arms describe a lens OUTLINE with negative gaps, so
+    # the blackout read as a spider/horns. A solid bone aureole filled to the
+    # SAME rim curve the arms ride makes the silhouette UNCONDITIONALLY a single
+    # clean teardrop; the arms then read as surface relief ON the aureole. This is
+    # the structural fix for the silhouette tell.
+    sh_y = head_c[1] + int(hr * 1.02)
+    apex_pt = (head_c[0], head_c[1] - int(reach * 1.02))
+    bottom_pt = (head_c[0], sh_y + int(reach * 0.74))
+    belly_w = reach * 0.50
 
-    # === LOWER BODY — a small lotus-seat base (keeps the idol footed, not leggy)
-    base_y = cy + int(40 * s)
-    base = [(cx - int(28 * s), base_y - int(6 * s)),
-            (cx - int(19 * s), base_y - int(13 * s)),
-            (cx + int(19 * s), base_y - int(13 * s)),
-            (cx + int(28 * s), base_y - int(6 * s)),
-            (cx + int(21 * s), base_y + int(9 * s)),
-            (cx - int(21 * s), base_y + int(9 * s))]
+    def rim_at(t):
+        ry = bottom_pt[1] + (apex_pt[1] - bottom_pt[1]) * t
+        w = belly_w * (math.sin(math.pi * t) ** (0.62 if t >= 0.5 else 0.78))
+        return ry, w
+
+    rim_poly = []
+    for i in range(0, 65):          # right edge bottom→apex
+        ry, w = rim_at(i / 64.0)
+        rim_poly.append((head_c[0] + w, ry))
+    for i in range(64, -1, -1):     # left edge apex→bottom
+        ry, w = rim_at(i / 64.0)
+        rim_poly.append((head_c[0] - w, ry))
+    pygame.draw.polygon(surf, INK, rim_poly)
+    inner = [(head_c[0] + (x - head_c[0]) * 0.93, y) for (x, y) in rim_poly]
+    pygame.draw.polygon(surf, BONE, inner)
+    # a darker hollow down the centre so the aureole reads as a recessed niche the
+    # saint sits IN (and so interior arm relief has contrast to sit against)
+    niche = [(head_c[0] + (x - head_c[0]) * 0.62, y) for (x, y) in rim_poly]
+    pygame.draw.polygon(surf, BONE_D, niche)
+
+    # === EIGHT-ARM RELIEF on the aureole (rides the same rim → no bumps past) ==
+    hands, apex, almond_bottom, rim_sampler = draw_arm_almond(
+        surf, head_c[0], sh_y, head_c[1], s, reach)
+
+    # === LOWER BODY — a SMALL lotus-seat base (daintier than r1; the head leads)
+    base_y = cy + int(30 * s)
+    base = [(cx - int(20 * s), base_y - int(5 * s)),
+            (cx - int(13 * s), base_y - int(10 * s)),
+            (cx + int(13 * s), base_y - int(10 * s)),
+            (cx + int(20 * s), base_y - int(5 * s)),
+            (cx + int(15 * s), base_y + int(7 * s)),
+            (cx - int(15 * s), base_y + int(7 * s))]
     triad_blob(surf, BONE, base,
-               core_pts=[(cx, base_y - int(12 * s)), (cx + int(23 * s), base_y - int(6 * s)),
-                         (cx + int(17 * s), base_y + int(7 * s)), (cx, base_y + int(6 * s))],
+               core_pts=[(cx, base_y - int(9 * s)), (cx + int(16 * s), base_y - int(5 * s)),
+                         (cx + int(12 * s), base_y + int(5 * s)), (cx, base_y + int(5 * s))],
                ow=max(1, int(1.6 * s)))
     # lotus-petal seat grooves
     for k in range(-2, 3):
-        px = cx + int(k * 9 * s)
-        pygame.draw.line(surf, BONE_DD, (px, base_y - int(13 * s)),
-                         (px, base_y + int(7 * s)), max(1, int(1.3 * s)))
+        px = cx + int(k * 6 * s)
+        pygame.draw.line(surf, BONE_DD, (px, base_y - int(10 * s)),
+                         (px, base_y + int(5 * s)), max(1, int(1.3 * s)))
 
-    # === TORSO — a SHORT rib barrel (squat, so the head + almond hold the mass)
-    rc_cx, rc_cy = cx, cy + int(12 * s)
-    rc_w, rc_h = int(28 * s), int(22 * s)
+    # === TORSO — a TINY short rib barrel (squat + narrow, so head + almond lead)
+    rc_cx, rc_cy = cx, cy + int(10 * s)
+    rc_w, rc_h = int(20 * s), int(16 * s)
     cage = [(rc_cx - rc_w // 2, rc_cy - rc_h // 2 + int(2 * s)),
             (rc_cx + rc_w // 2, rc_cy - rc_h // 2),
             (rc_cx + int(rc_w * 0.42), rc_cy + rc_h // 2),
@@ -329,6 +380,27 @@ def draw_asha_mukti(surf, cx, cy, s):
         lotus_pod(surf, int(hand[0]), int(hand[1]), pod_r, s, oa,
                   skull=is_lowest, glow=not is_lowest)
 
+    # === CONTINUOUS WARM-PEACH RIM on the almond edge ==========================
+    # WHY a single peach line traced along the mandorla curve: the AD wants the
+    # OUTLINE to be the priority read at 32px. A continuous warm rim, riding just
+    # INSIDE the bone beads (so it reads as a bloom-edge, not past the silhouette),
+    # makes the almond the strongest small-scale shape and reinforces the "bloom"
+    # halo without adding any cool hue.
+    apex_y, bot_y = apex[1], almond_bottom[1]
+    rim_w = max(1, int(2.0 * s))
+    for sgn in (-1, 1):
+        left = []
+        for i in range(0, 49):
+            t = i / 48.0
+            ry, w = rim_sampler(t)
+            left.append((head_c[0] + sgn * w * 0.86, ry))
+        # a soft saffron underlay then the bright peach edge on top
+        pygame.draw.lines(surf, SAFF, False, left, rim_w + max(1, int(s)))
+        pygame.draw.lines(surf, RIM_PEACH, False, left, rim_w)
+    # faint peach halo dot at the apex so the "bloom" crown reads
+    pygame.draw.circle(surf, PEACH_HALO, apex, max(2, int(3.0 * s)))
+    pygame.draw.circle(surf, PEACH_BR, apex, max(1, int(1.6 * s)))
+
     # === SKULL HEAD — chibi, scary-CUTE, SERENE three-eyed (the calm saint) ====
     triad_circle(surf, BONE, head_c, hr, ow=max(2, int(2 * s)))
     for sgn in (-1, 1):   # gentle cheek hollows
@@ -343,8 +415,13 @@ def draw_asha_mukti(surf, cx, cy, s):
         pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.25))
         pygame.draw.circle(surf, SAFF_D, (ex + sgn * int(1 * s), ey + int(1 * s)),
                            int(hr * 0.11))
-    # THIRD EYE — the single BRIGHTEST pixel: a calm saffron-bloom dot on the brow.
+    # THIRD EYE — the single BRIGHTEST WARM pixel: a calm saffron-bloom dot on
+    # the brow, ringed by a faint peach outer-glow halo so the "bloom" reads.
     tex, tey = head_c[0], head_c[1] - int(hr * 0.34)
+    halo = pygame.Surface((int(28 * s), int(28 * s)), pygame.SRCALPHA)
+    for rr, aa in ((int(12 * s), 60), (int(8 * s), 100), (int(5 * s), 150)):
+        pygame.draw.circle(halo, PEACH_HALO + (aa,), (int(14 * s), int(14 * s)), rr)
+    surf.blit(halo, (tex - int(14 * s), tey - int(14 * s)))
     pygame.draw.ellipse(surf, INK, (tex - int(6 * s), tey - int(8 * s), int(12 * s), int(16 * s)))
     pygame.draw.ellipse(surf, SAFF, (tex - int(5 * s), tey - int(7 * s), int(10 * s), int(14 * s)))
     pygame.draw.ellipse(surf, PEACH, (tex - int(3 * s), tey - int(4 * s), int(7 * s), int(9 * s)))
@@ -442,7 +519,12 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
     pygame.draw.rect(surf, INK, (cx - int(9 * s), collar_y - int(3 * s), int(18 * s), int(7 * s)))
     pygame.draw.rect(surf, SAFF, (cx - int(8 * s), collar_y - int(2 * s), int(16 * s), int(5 * s)))
     pygame.draw.rect(surf, PEACH, (cx - int(8 * s), collar_y - int(2 * s), int(16 * s), int(2 * s)))
-    # the glowing saffron seed at the bloom heart (the gap glow)
+    # the glowing saffron seed at the bloom heart — a CLEAR peach gap-glow so the
+    # "lotus bloom caps the gap" reads even at pillar scale.
+    glow = pygame.Surface((int(28 * s), int(28 * s)), pygame.SRCALPHA)
+    for rr, aa in ((int(13 * s), 70), (int(9 * s), 120), (int(6 * s), 170)):
+        pygame.draw.circle(glow, PEACH_HALO + (aa,), (int(14 * s), int(14 * s)), rr)
+    surf.blit(glow, (cx - int(14 * s), cap_y - int(14 * s)))
     triad_circle(surf, BONE, (cx, cap_y), int(6 * s), ow=max(1, int(1.3 * s)), core=False)
     pygame.draw.circle(surf, SAFF, (cx, cap_y), int(4 * s))
     pygame.draw.circle(surf, PEACH, (cx, cap_y), max(1, int(2.4 * s)))
@@ -479,7 +561,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("ASHA-MUKTI", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "lotus bloom-mandorla bone-saint  ·  KIND: closed tall-almond · CHIBI tiny-idol · warm saffron->peach bloom (NOT pink) · round 1",
+        "lotus bloom-mandorla bone-saint  ·  KIND: closed tall-almond · CHIBI tiny-idol · warm saffron->peach bloom (NOT pink) · round 2",
         True, LABEL_DIM), (250, 26))
 
     # === (a) BIG HERO =========================================================
@@ -582,7 +664,7 @@ def main():
         "hard ink keyline (28,22,26) · 1px grown outline · CHIBI tiny-idol · scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

@@ -121,6 +121,82 @@ def hard_groove(surf, x0, x1, y, s, depth=2.4):
                      (x1, y - max(1, int(1.4 * s))), max(1, int(1.2 * s)))
 
 
+def cornice_lip(surf, cx, hw, y, s, overhang):
+    """An OVERHANGING cornice lip that BREAKS the vertical silhouette edge: a thin
+    bone shelf jutting `overhang` px past the tier walls, an ink groove UNDER it
+    (the dark undercut that reads as a notch in the blackout), and a 1px cold-white
+    sheen on its top-face. WHY all three: the overhang gives the silhouette a hard
+    notched step; the undercut groove is the single darkest ink value so the tier
+    separation survives light-over-dark at 32px night; the sheen edge gives the
+    light-side counterpart so each cornice reads as a discrete shelf, not a seam."""
+    lip_hw = hw + overhang
+    lip_h = max(2, int(4 * s))
+    # the jutting shelf (bone), keylined so its edge is crisp at downscale
+    pygame.draw.rect(surf, INK, (cx - lip_hw, y - lip_h, lip_hw * 2, lip_h + max(1, int(s))))
+    pygame.draw.rect(surf, BONE, (cx - lip_hw, y - lip_h, lip_hw * 2, lip_h))
+    # cold-white sheen on the lip top-face (light-over-dark survivor at 32px)
+    pygame.draw.line(surf, STEEL_BR, (cx - lip_hw, y - lip_h),
+                     (cx + lip_hw, y - lip_h), max(1, int(1.2 * s)))
+    # the dark UNDERCUT groove beneath the overhang — the notch in the blackout
+    pygame.draw.line(surf, BONE_DDD, (cx - lip_hw, y), (cx + lip_hw, y), max(2, int(3 * s)))
+
+
+def arm_bracket(surf, sx, sy, hx, hy, s, side):
+    """A visible bone ARM that reads as shoulder -> elbow -> hand: a short upper-arm
+    stub jutting OUT from the central monolith, a HARD RIGHT-ANGLE elbow joint, then
+    the forearm rising VERTICALLY into the hand that grips a banner-pole at (hx,hy).
+    WHY a rigid 2-segment L-bracket (never a curve): the right angle is the whole
+    point — it flips the read from "colonnade of posts on a slab" to "twelve ARMS
+    holding skull-standards", and the squared joint reinforces the architectural,
+    temple-pylon thesis (cf. Mukha's smooth radial limbs). `side` = -1 left, +1 right.
+
+    sx,sy = shoulder root on the monolith;  hx,hy = the gripping hand."""
+    upper_w = max(3, int(6.5 * s))      # upper-arm stub thickness
+    fore_w = max(3, int(5.5 * s))       # forearm thickness
+    elbow_x = hx                        # elbow sits directly under the hand
+    elbow_y = sy                        # ... at shoulder height -> hard right angle
+
+    # --- upper-arm stub: horizontal, shoulder -> elbow (the OUT segment) --------
+    ua = [(sx, sy - upper_w), (elbow_x, elbow_y - upper_w),
+          (elbow_x, elbow_y + upper_w), (sx, sy + upper_w)]
+    triad_blob(surf, BONE, ua,
+               core_pts=[(sx, sy), (elbow_x, elbow_y),
+                         (elbow_x, elbow_y + upper_w), (sx, sy + upper_w)],
+               ow=max(1, int(1.2 * s)))
+    # --- the forearm: vertical, elbow -> hand (the UP segment) ------------------
+    fa = [(elbow_x - fore_w, elbow_y + upper_w), (elbow_x + fore_w, elbow_y + upper_w),
+          (elbow_x + fore_w, hy), (elbow_x - fore_w, hy)]
+    triad_blob(surf, BONE, fa,
+               core_pts=[(elbow_x, elbow_y), (elbow_x + fore_w, elbow_y),
+                         (elbow_x + fore_w, hy), (elbow_x, hy)],
+               sheen_pts=[(elbow_x - fore_w, elbow_y + upper_w),
+                          (elbow_x - int(fore_w * 0.4), elbow_y + upper_w),
+                          (elbow_x - int(fore_w * 0.4), hy),
+                          (elbow_x - fore_w, hy)],
+               ow=max(1, int(1.2 * s)))
+    # --- the squared ELBOW knuckle (a hard joint block at the right angle) ------
+    eb = max(3, int(7 * s))
+    triad_blob(surf, BONE, [(elbow_x - eb, elbow_y - eb), (elbow_x + eb, elbow_y - eb),
+                            (elbow_x + eb, elbow_y + eb), (elbow_x - eb, elbow_y + eb)],
+               core_pts=[(elbow_x, elbow_y), (elbow_x + eb, elbow_y),
+                         (elbow_x + eb, elbow_y + eb), (elbow_x, elbow_y + eb)],
+               ow=max(1, int(1.2 * s)))
+    # a dark ink dot in the elbow = the joint socket (reads as a knuckle, not a box)
+    pygame.draw.circle(surf, BONE_DDD, (elbow_x, elbow_y), max(1, int(eb * 0.4)))
+    # --- the HAND gripping the pole: a small bone cuff with finger nicks --------
+    hand_hw = max(3, int(7 * s))
+    hand_h = max(3, int(7 * s))
+    triad_blob(surf, BONE, [(hx - hand_hw, hy - hand_h), (hx + hand_hw, hy - hand_h),
+                            (hx + hand_hw, hy + int(hand_h * 0.4)),
+                            (hx - hand_hw, hy + int(hand_h * 0.4))],
+               ow=max(1, int(1.2 * s)))
+    # finger nicks wrapping the pole (two dark verticals reading as a grip)
+    for fk in (-0.45, 0.45):
+        fxn = hx + int(hand_hw * fk)
+        pygame.draw.line(surf, BONE_DDD, (fxn, hy - hand_h + int(s)),
+                         (fxn, hy + int(hand_h * 0.3)), max(1, int(1.4 * s)))
+
+
 # ── a single tiny skull-pole finial (the arm-end-skull DNA, pure bone) ────────
 def skull_finial(surf, cx, cy, r, s):
     """Tiny bone skull crowning a banner-standard pole. WHY a domed cranium with
@@ -158,68 +234,89 @@ def banner_standard(surf, hx, hy, pole_h, pole_w, s, finial_r):
                           (hx - int(pole_w * 0.3), hy),
                           (hx - pole_w, hy)],
                ow=max(1, int(1.0 * s)))
-    # a small square banner cross-bar (austere cornice echo at the pole)
-    cb_w = int(pole_w * 2.4)
-    cb_y = hy - int(pole_h * 0.78)
-    pygame.draw.rect(surf, INK, (hx - cb_w, cb_y - int(2 * s), cb_w * 2, int(4 * s)))
-    pygame.draw.rect(surf, BONE, (hx - cb_w, cb_y - int(2 * s) + max(1, int(s)),
-                                  cb_w * 2, max(1, int(2 * s))))
     # the skull-pole FINIAL on top
     skull_finial(surf, hx, hy - pole_h - finial_r, finial_r, s)
 
 
 # ── the rigid three-tier arm-GRID (the KIND tell) ─────────────────────────────
 def draw_arm_grid(surf, cx, top_y, s, body_w):
-    """Twelve arms in THREE stacked tiers of FOUR. Each tier is SHORTER (less
-    wide) than the one below, so the cornice line at each tier boundary steps
-    the silhouette IN going up — a temple-pylon. WHY drawn as rigid horizontal
-    cornice SLABS with vertical banner-poles rising from them: the slab + groove
-    pair is the must-survive 32px read (steps, not a slab); the poles carry the
-    twelve-arm colonnade and the skull-finial DNA.
+    """Twelve ARMS in THREE stacked tiers of FOUR. Each tier is a narrower block of
+    the central monolith (width 100% -> 78% -> 58% going UP), so each cornice steps
+    the silhouette IN — a stepped temple-pylon. WHY drawn as a slim central MONOLITH
+    spine with FOUR visible L-bracket arms reaching out of each tier: the round-1
+    "colonnade of posts on a slab" read as armless architecture (Stupika's sin); now
+    every standard is gripped by a shoulder->elbow->hand bone arm, so it reads as
+    twelve ARMS holding skull-standards. The hard right-angle elbows reinforce the
+    architectural thesis; the overhanging cornice lips at each tier boundary are the
+    must-survive 32px step read (three notched steps, not a smooth rook).
 
-    Returns the list of (hand_x, hand_y) for any caller bookkeeping (unused but
-    mirrors the brood's draw_arm_fan signature)."""
+    Returns (hands, bottom_y)."""
     hands = []
-    # widest tier at the bottom; each higher tier narrower (the stepped pylon).
-    # half-widths chosen so the cornice clearly OVERHANGS the tier above it.
-    tier_hw = [int(body_w * 1.02), int(body_w * 0.80), int(body_w * 0.58)]
-    tier_h = int(26 * s)          # slab thickness per tier
-    pole_h = int(30 * s)          # banner-pole height (rises off each slab)
-    finial_r = int(6.5 * s)
-    gap = int(6 * s)              # vertical gap between a slab top and next slab
+    # widest tier at the BOTTOM; per critique width drop base 100% -> 78% -> 58%.
+    tier_hw = [int(body_w * 1.00), int(body_w * 0.78), int(body_w * 0.58)]
+    spine_hw = int(body_w * 0.26)     # the slim central monolith the arms root into
+    tier_h = int(40 * s)              # height of the arm-body band of each tier
+    cornice_h = int(12 * s)           # thickness of the cornice course UNDER the body
+    overhang = max(2, int(9 * s))     # how far the cornice lip juts PAST the wall
+    pole_h = int(22 * s)              # banner-pole height above the gripping hand
+    finial_r = int(5.5 * s)
 
     y = top_y
-    for ti in range(3):           # ti 0 = TOP (shortest), 2 = BOTTOM (widest)
-        hw = tier_hw[2 - ti]      # invert so we draw top-down but width grows down
-        # the austere square cornice SLAB (the horizontal cornice mass)
-        slab = [(cx - hw, y),
-                (cx + hw, y),
-                (cx + hw, y + tier_h),
-                (cx - hw, y + tier_h)]
-        triad_blob(surf, BONE, slab,
-                   core_pts=[(cx, y), (cx + hw, y),
-                             (cx + hw, y + tier_h), (cx, y + tier_h)],
-                   sheen_pts=[(cx - hw, y), (cx - int(hw * 0.34), y),
-                              (cx - int(hw * 0.34), y + int(tier_h * 0.5)),
-                              (cx - hw, y + int(tier_h * 0.5))],
+    for ti in range(3):               # ti 0 = TOP (narrowest), 2 = BOTTOM (widest)
+        hw = tier_hw[2 - ti]          # invert: draw top-down, width grows downward
+        body_top = y
+        body_bot = y + tier_h         # the arm-body band sits ABOVE the cornice
+        cornice_top = body_bot
+        cornice_bot = cornice_top + cornice_h
+        # --- the central MONOLITH block for this tier (the spine wall) ----------
+        # the arms hang off a slim spine; the cornice course below is the widest
+        # mass of the tier so the stepped blackout is driven by the cornices, not
+        # by the arm spread (which the round-1 sheet let dominate the edge).
+        spine = [(cx - spine_hw, body_top), (cx + spine_hw, body_top),
+                 (cx + spine_hw, cornice_top), (cx - spine_hw, cornice_top)]
+        triad_blob(surf, BONE, spine,
+                   core_pts=[(cx, body_top), (cx + spine_hw, body_top),
+                             (cx + spine_hw, cornice_top), (cx, cornice_top)],
+                   sheen_pts=[(cx - spine_hw, body_top), (cx - int(spine_hw * 0.34), body_top),
+                              (cx - int(spine_hw * 0.34), cornice_top),
+                              (cx - spine_hw, cornice_top)],
+                   ow=max(1, int(1.4 * s)))
+        # --- FOUR L-bracket arms reach out of this tier, two per side -----------
+        # hands sit INSIDE the cornice width so the cornice (not the arms) is the
+        # widest thing at the tier boundary -> the steps own the silhouette edge.
+        sh_top = body_top + int(tier_h * 0.34)
+        sh_bot = body_top + int(tier_h * 0.66)
+        hand_offsets = [hw * 0.40, hw * 0.74]   # inner + outer hand, both inside hw
+        pole_xs = []
+        for side in (-1, 1):
+            for hi, hox in enumerate(hand_offsets):
+                hx = int(cx + side * hox)
+                sy = sh_top if hi == 0 else sh_bot      # stagger shoulders vertically
+                sx = cx + side * spine_hw               # root at the spine wall
+                hand_y = body_top + int(tier_h * 0.26)  # hands grip high in the tier
+                arm_bracket(surf, sx, sy, hx, hand_y, s, side)
+                pole_xs.append((hx, hand_y))
+        # --- the banner-standards the hands grip (drawn over the arms) ----------
+        # poles rise ABOVE the hands into clear air below the next tier's cornice,
+        # so each tiny-skull finial reads as a crown of points along the tier top.
+        pole_w = int(3.6 * s)
+        for (hx, hand_y) in pole_xs:
+            banner_standard(surf, hx, hand_y, pole_h, pole_w, s, finial_r)
+            hands.append((hx, hand_y - pole_h))
+        # --- the CORNICE COURSE: the widest mass of the tier (the step body) ----
+        cornice = [(cx - hw, cornice_top), (cx + hw, cornice_top),
+                   (cx + hw, cornice_bot), (cx - hw, cornice_bot)]
+        triad_blob(surf, BONE, cornice,
+                   core_pts=[(cx, cornice_top), (cx + hw, cornice_top),
+                             (cx + hw, cornice_bot), (cx, cornice_bot)],
+                   sheen_pts=[(cx - hw, cornice_top), (cx - int(hw * 0.30), cornice_top),
+                              (cx - int(hw * 0.30), cornice_top + int(cornice_h * 0.5)),
+                              (cx - hw, cornice_top + int(cornice_h * 0.5))],
                    ow=max(1, int(1.6 * s)))
-        # HARD cornice groove along the bottom edge of this slab (the step read)
-        hard_groove(surf, cx - hw, cx + hw, y + tier_h - max(1, int(2 * s)), s)
-        # a second light groove near the top to thicken the cornice band read
-        pygame.draw.line(surf, BONE_DD, (cx - hw, y + int(3 * s)),
-                         (cx + hw, y + int(3 * s)), max(1, int(1.2 * s)))
-        # FOUR banner-standards rise from this tier (the four arms of the tier)
-        pole_w = int(4.5 * s)
-        for k in range(4):
-            # evenly space four poles across the slab, inset from the overhang
-            frac = (k + 0.5) / 4.0
-            hx = int(cx - hw * 0.82 + frac * (hw * 1.64))
-            hy = y                      # hands grip at the top of the slab
-            banner_standard(surf, hx, hy, pole_h, pole_w, s, finial_r)
-            hands.append((hx, hy - pole_h))
-        # next tier sits BELOW, after the pole height + a gap (so poles read)
-        y = y + tier_h + pole_h + gap
-    return hands, y  # y = where the bottom tier ends (torso/base continues)
+        # --- the OVERHANGING lip at the cornice base (the notched step edge) ----
+        cornice_lip(surf, cx, hw, cornice_bot, s, overhang)
+        y = cornice_bot
+    return hands, y  # y = where the bottom tier's cornice ends (base continues)
 
 
 # ── the temple-pylon colossus ─────────────────────────────────────────────────
@@ -450,17 +547,17 @@ def main():
     sheet.blit(font_big.render("ASTHI-SAMRAT", True, LABEL), (24, 14))
     sheet.blit(font_sm.render(
         "temple-pylon colossus  ·  KIND: rigid arm-GRID (3 tiers x 4 arms) · MONUMENTAL + PURE-bone poles · "
-        "cold socket-pin ONLY · round 1",
+        "cold socket-pin ONLY · round 2",
         True, LABEL_DIM), (300, 30))
 
     # === (1) EPIC HERO ========================================================
     big = pygame.Surface((360 * SS, 470 * SS), pygame.SRCALPHA)
-    draw_asthi_samrat(big, 180 * SS, 250 * SS, 1.5 * SS)
+    draw_asthi_samrat(big, 180 * SS, 225 * SS, 1.32 * SS)
     hero = grow(pygame.transform.smoothscale(big, (360, 470)))
     sheet.blit(hero, (14, 92))
     sheet.blit(font.render("Creature - EPIC hero", True, LABEL), (100, 566))
-    sheet.blit(font_sm.render("3 stacked tiers of 4 arms, each tier SHORTER = stepped pylon; widest base in brood.", True, LABEL_DIM), (14, 588))
-    sheet.blit(font_sm.render("12 banner-standards topped with tiny-skull FINIALS = colonnade of skull-poles.", True, LABEL_DIM), (14, 604))
+    sheet.blit(font_sm.render("12 ARMS: each a shoulder->RIGHT-ANGLE elbow->hand bone L-bracket gripping a skull-standard.", True, LABEL_DIM), (14, 588))
+    sheet.blit(font_sm.render("3 tiers x 4 arms; tier width 100%->78%->58% w/ OVERHANGING cornice lips = stepped pylon.", True, LABEL_DIM), (14, 604))
     sheet.blit(font_sm.render("PURE bone; ONLY non-bone = ink keyline + COLD steel socket-pin (no thematic hue).", True, LABEL_DIM), (14, 620))
 
     # === (2) PILLAR assembled — mirrored, bottom-rooted =======================
@@ -557,7 +654,7 @@ def main():
         "dark-core->fill->top-left sheen triad · 1px grown outline · chibi-scary-cute · procedural-only · PURE bone, austerity IS the accent.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

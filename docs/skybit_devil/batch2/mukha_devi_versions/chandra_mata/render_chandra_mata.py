@@ -157,30 +157,26 @@ def crescent(surf, cx, cy, r, color, dark, sheen, ow, bite=0.62, ang=-90.0):
     surf.blit(lit2, (cx - c0[0], cy - c0[1]))
 
 
-def moon_disc(surf, cx, cy, r, s, phase):
-    """One moon-phase disc held in a hand. `phase` 0..5 walks waning->new->waxing.
-    WHY extra value contrast in the core: this is the only NIGHT-tuned accent, so
-    the lit limb is bright LILAC_BR and the shadow limb is deep LILAC_DD — the
-    disc must pop dark-on-dark on the night biome at 32px. At true 32px the phases
-    blur to identical beads (intended): identity rides the ARC + HORN, not phase."""
-    triad_circle(surf, SILVER, (cx, cy), r, ow=max(1, int(1.2 * s)), core=False)
-    inner = max(1, int(r * 0.78))
-    # the lit base disc (bright limb)
-    pygame.draw.circle(surf, LILAC_BR, (cx, cy), inner)
-    pygame.draw.circle(surf, LILAC, (cx + int(inner * 0.18), cy + int(inner * 0.2)),
-                       int(inner * 0.9))
-    # the shadow terminator — a punched dark disc whose offset names the phase
-    frac = (phase - 2.5) / 2.5          # -1 (waning) .. +1 (waxing)
-    if abs(frac) > 0.04:
-        sx = cx + int(frac * inner * 1.15)
-        pygame.draw.circle(surf, LILAC_DD, (sx, cy + int(inner * 0.12)), inner)
-        pygame.draw.circle(surf, LILAC_D, (sx + int(inner * 0.16), cy - int(inner * 0.08)),
-                           int(inner * 0.82))
-    else:  # NEW moon — a near-dark disc with a thin silver rim
-        pygame.draw.circle(surf, LILAC_DD, (cx, cy), int(inner * 0.92))
-    # a single sheen catch on the bright limb (the value-contrast high)
-    pygame.draw.circle(surf, SILVER_BR, (cx - int(inner * 0.42), cy - int(inner * 0.44)),
-                       max(1, int(inner * 0.22)))
+def moon_disc(surf, cx, cy, r, s, phase=0):
+    """One IDENTICAL flat-lilac bead held in a hand — a moon-disc charm, NOT a
+    rendered phase. WHY identical beads (the `phase` arg is ignored): phase
+    terminators die to mush at 32px, so every bead is the same to read as a clean
+    deliberate bead-STRING along the crescent. WHY a darker-lilac CORE under a
+    brighter cold-silver RIM: this is the only NIGHT-tuned accent, so a hard
+    core↔rim value jump (deep LILAC_DD core -> bright SILVER_BR rim) lets the bead
+    pop both dark-on-light (DAY) and dark-on-dark (NIGHT) at 32px."""
+    # bright cold-silver rim ring (the value HIGH, top-left lit)
+    pygame.draw.circle(surf, INK, (cx, cy), r + max(1, int(s)))
+    pygame.draw.circle(surf, SILVER_BR, (cx, cy), r)
+    pygame.draw.circle(surf, SILVER, (cx + int(r * 0.2), cy + int(r * 0.22)), int(r * 0.92))
+    # the darker grey-lilac core (the value LOW) — a clear step darker than the rim
+    inner = max(1, int(r * 0.66))
+    pygame.draw.circle(surf, LILAC_D, (cx, cy), inner)
+    pygame.draw.circle(surf, LILAC_DD, (cx + int(inner * 0.22), cy + int(inner * 0.24)),
+                       int(inner * 0.82))
+    # a single bright catch-light on the rim's top-left (seals the core↔rim contrast)
+    pygame.draw.circle(surf, SILVER_BR, (cx - int(r * 0.44), cy - int(r * 0.46)),
+                       max(1, int(r * 0.24)))
     pygame.draw.circle(surf, INK, (cx, cy), r, max(1, int(1.2 * s)))
 
 
@@ -202,42 +198,62 @@ def eclipse_skull(surf, cx, cy, r, s, lit=False):
     pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.40)), max(1, int(r * 0.13)))
 
 
-# ── the WIDE-LOW crescent arm-arc (the KIND tell) ─────────────────────────────
+# ── the WIDE-LOW crescent CUP arm-arc (the KIND tell) ─────────────────────────
+def _cup_point(sh_cx, tip_y, span_r, depth, t):
+    """One point on the crescent-CUP path, t in [-1,+1] (left tip -> midline -> right
+    tip). WHY this profile: x grows linearly with |t| while y follows a raised
+    cosine so the path sits LOW at the midline (t=0) and curves back UP to `tip_y`
+    at the tips (|t|=1). `tip_y` is set ABOVE the midline so the outer tips rise to
+    shoulder height — a true U/bowl whose lateral SPAN is ~1.7x its DEPTH, a low
+    cupping crescent, NOT a downward spray."""
+    x = sh_cx + t * span_r
+    # raised cosine: 1 at the midline (low) -> 0 at the tips (high)
+    dip = 0.5 * (1.0 + math.cos(t * math.pi))
+    y = tip_y + depth * dip
+    return (x, y)
+
+
 def draw_low_crescent_arms(surf, sh_cx, sh_cy, s, span_r):
-    """Six slim bone arms sweep ONLY the LOWER hemisphere, cupping the torso in a
-    wide shallow SMILE-arc. WHY only the lower half: this is the silhouette that
-    splits cleanly from Mukha's full sideways starburst (arms in BOTH hemispheres)
-    — blackout becomes a low cupping smile. The arms are SLIM (the elegant brood
-    member), three per side, fanning from near-horizontal at the outer tips down
-    to a shallow scoop at the inner pair. Returns the six hand centres + the two
-    OUTER tips flagged for eclipse-charm skulls."""
-    arm_len = int(span_r * 1.02)
-    arm_th = int(7 * s)              # SLIM, not Mukha's fat limbs
-    # degrees BELOW horizontal — all positive so every arm stays in the lower half.
-    # WHY a floor of 22 deg (no near-horizontal arm): the outermost arm must still
-    # dip below the waist so the whole sweep cups the LOWER hemisphere as a smile,
-    # never a sideways starburst (the cross-pin vs Mukha).
-    spread = [22, 46, 70]           # outer arm dips below the waist -> inner scoops deep
-    order = []
-    for sgn in (-1, 1):
-        for i, d in enumerate(spread):
-            a = math.radians(sgn * (90 - d)) if False else None
-            order.append((sgn, i, d))
-    # draw inner (deepest) arms first so the outer near-horizontal pair overlaps on top
-    order.sort(key=lambda o: -o[2])
-    hands = []
-    for sgn, i, d in order:
-        # angle measured from the +x axis, sweeping DOWN into the lower hemisphere
-        a = math.radians(sgn * d) if sgn > 0 else math.radians(180 - d)
-        # all arms point downward-out: add the downward bias
-        ax = math.cos(a) * (1 if sgn > 0 else 1)
-        # recompute cleanly: outer arms reach far & shallow, inner reach near & deep
-        theta = math.radians((0 if sgn > 0 else 180) + sgn * d)
-        sh = (sh_cx + sgn * int(span_r * 0.16), sh_cy)
-        elbow = (sh[0] + math.cos(theta) * arm_len * 0.52,
-                 sh[1] + abs(math.sin(theta)) * arm_len * 0.52 + d * 0.6 * s)
-        hand = (sh[0] + math.cos(theta) * arm_len,
-                sh[1] + abs(math.sin(theta)) * arm_len + d * 1.0 * s)
+    """Six slim bone arms spread WIDE + LATERAL, each bowing DOWN at the midline and
+    curving back UP at the tip, so the six hands sit on a single U/BOWL whose width
+    is ~1.7x its depth and whose OUTER tips rise to ~shoulder height or above.
+
+    WHY a cupping crescent and NOT a downward spray: this is the cross-pin vs
+    Mukha. Her six arms fan out in a symmetric sideways starburst; Chandra's sweep
+    ONLY the lower hemisphere AND close back upward at the ends, so the blackout
+    reads as a low cupping CRESCENT-smile that echoes the small rising horn above
+    (small horn up, wide crescent down). There are NO vertical-down centre limbs —
+    the two innermost arms reach laterally-inward to the LOW midline of the bowl,
+    never straight down. Returns the six hand centres + the two OUTER tips flagged
+    for the eclipse-charm skulls that cap the crescent's horns."""
+    arm_th = int(9 * s)              # +~28% over r1's slim limb so it holds at 32px
+    # six hands along the cup, evenly spaced from left tip to right tip.
+    # WHY depth ~1.15x span_r: lateral span is 2*span_r, so width/depth ~= 1.7 — the
+    # brief's wide-low bowl ratio. The midline beads sit DEEP, the tips ride high.
+    depth = int(span_r * 1.18)
+    tip_y = sh_cy - int(span_r * 0.40)     # outer tips rise to ~shoulder height
+    # WHY the inner pair stays wide (|t|=0.4, not ~0.2): if the two midline beads
+    # crowd together under the torso they read as legs/feet; held apart they keep
+    # the bottom of the U an OPEN arc that clears the body, so the bead-string reads
+    # as one continuous crescent CUP rather than a body with dangling limbs.
+    ts = [-1.0, -0.62, -0.34, 0.34, 0.62, 1.0]
+    hands_t = [(t, _cup_point(sh_cx, tip_y, span_r, depth, t)) for t in ts]
+
+    # the two shoulders the arms spring from (just inboard of the torso)
+    def shoulder(sgn):
+        return (sh_cx + sgn * int(span_r * 0.20), sh_cy - int(span_r * 0.40))
+
+    # draw the MIDLINE (low, behind) arms first; the OUTER (high, front) arms last
+    # so the up-curved tips overlap on top and the bowl reads as one continuous cup.
+    order = sorted(hands_t, key=lambda ht: abs(ht[0]))        # midline first, tips last
+    for t, hand in order:
+        sgn = -1 if t < 0 else 1
+        sh = shoulder(sgn)
+        # elbow biased OUTWARD + DOWN of the chord so the limb itself bows like the
+        # cup it traces (a smooth crescent member, not a straight radial spoke).
+        mx, my = (sh[0] + hand[0]) / 2.0, (sh[1] + hand[1]) / 2.0
+        bow = (1.0 - abs(t)) * span_r * 0.20 + span_r * 0.10   # deeper bow toward midline
+        elbow = (mx + sgn * span_r * 0.10, my + bow)
         for (p, q) in ((sh, elbow), (elbow, hand)):
             dx, dy = q[0] - p[0], q[1] - p[1]
             L = max(1.0, math.hypot(dx, dy))
@@ -248,13 +264,12 @@ def draw_low_crescent_arms(surf, sh_cx, sh_cy, s, span_r):
                        sheen_pts=[(p[0] + nx, p[1] + ny), (q[0] + nx, q[1] + ny),
                                   (q[0] + nx * 0.3, q[1] + ny * 0.3),
                                   (p[0] + nx * 0.3, p[1] + ny * 0.3)],
-                       ow=max(1, int(arm_th * 0.18)))
-        triad_circle(surf, BONE, (int(elbow[0]), int(elbow[1])), int(arm_th * 0.5),
+                       ow=max(1, int(arm_th * 0.22)))
+        triad_circle(surf, BONE, (int(elbow[0]), int(elbow[1])), int(arm_th * 0.55),
                      ow=max(1, int(1.0 * s)), core=False)
-        is_outer = (d == max(spread))
-        hands.append((sgn, d, hand, is_outer))
-    hands.sort(key=lambda h: h[2][0])
-    return [(int(h[2][0]), int(h[2][1]), h[3]) for h in hands]
+    is_outer = {ts[0], ts[-1]}
+    return [(int(h[0]), int(h[1]), (t in is_outer))
+            for t, h in sorted(hands_t, key=lambda ht: ht[1][0])]
 
 
 # ── the rising crescent-horn behind the crown (the second tell) ───────────────
@@ -288,16 +303,18 @@ def draw_chandra_mata(surf, cx, cy, s):
 
     head_c = (cx, cy - int(34 * s))
     hr = int(26 * s)                 # smaller head than Mukha (slim, not chibi)
-    disc_r = int(9 * s)
+    disc_r = int(12 * s)             # enlarged bead so the arc reads at 32px DAY
 
     # === RISING CRESCENT-HORN (behind everything) =============================
     draw_rising_horn(surf, head_c[0], head_c[1], hr, s)
 
-    # === WIDE LOW CRESCENT ARM-ARC (drawn behind torso) =======================
-    # WHY origin at a low waist line: the arms must sweep only the LOWER hemisphere
-    # so the silhouette reads as a cupping smile, never a sideways starburst.
-    span_r = int(hr * 2.55)
-    hands = draw_low_crescent_arms(surf, head_c[0], cy + int(30 * s), s, span_r)
+    # === WIDE LOW CRESCENT CUP (drawn behind torso) ===========================
+    # WHY a wide lateral span anchored at the shoulder line: the arms spread wide,
+    # bow DOWN at the midline and curve back UP at the tips so the bowl's width is
+    # ~1.7x its depth and the outer tips rise to ~shoulder height — a low cupping
+    # crescent UNDER the rising horn, never a downward spray.
+    span_r = int(hr * 2.35)
+    hands = draw_low_crescent_arms(surf, head_c[0], cy + int(6 * s), s, span_r)
 
     # === SLIM TALL TORSO — a narrow elegant rib-column ========================
     # WHY narrow + tall: this brood member is the slim/elegant one; a slender
@@ -305,7 +322,10 @@ def draw_chandra_mata(surf, cx, cy, s):
     # chibi barrel.
     rc_cx = cx
     rc_top = head_c[1] + int(hr * 0.86)
-    rc_bot = cy + int(40 * s)
+    # WHY a shorter column: the torso must sit ABOVE the cup's open bottom so the
+    # bead-string reads as one continuous crescent around the body, not as a body
+    # with the lowest beads fused on as legs.
+    rc_bot = cy + int(26 * s)
     rc_w = int(20 * s)
     cage = [(rc_cx - rc_w // 2, rc_top),
             (rc_cx + rc_w // 2, rc_top),
@@ -346,20 +366,20 @@ def draw_chandra_mata(surf, cx, cy, s):
     # a small deep grey-lilac seed-glow at the pelvis (SECONDARY focal, kept dim)
     pygame.draw.circle(surf, LILAC_D, (rc_cx, base_y - int(1 * s)), int(3 * s))
 
-    # === SIX MOON-PHASE DISCS — one per hand (the even bead-arc) ===============
-    # WHY drawn after torso, before head: they ride at the lower arc tips so the
-    # bottom edge is a smile string of beads; the head overdraws none of them.
-    phase_seq = [0, 1, 2, 3, 4, 5]
+    # === SIX IDENTICAL MOON-BEADS — one per hand (the even bead-string) ========
+    # WHY drawn after torso, before head: the beads ride the crescent-cup so the
+    # lower edge is an even bead-string smile; the head overdraws none of them.
     for i, (hx, hy, is_outer) in enumerate(hands):
-        moon_disc(surf, hx, hy, disc_r, s, phase_seq[i % 6])
+        moon_disc(surf, hx, hy, disc_r, s)
         if is_outer:
-            # eclipse-charm skull swinging BELOW the outer crescent-tip
+            # eclipse-charm skull CAPPING the up-curved OUTER crescent-tip (above
+            # the bead), so it crowns the smile's horn rather than dangling below.
             sgn = -1 if hx < rc_cx else 1
-            ekx = hx + sgn * int(disc_r * 0.4)
-            eky = hy + int(disc_r * 1.9)
-            pygame.draw.line(surf, SILVER, (hx, hy + disc_r),
-                             (ekx, eky - int(disc_r * 0.7)), max(1, int(1.4 * s)))
-            eclipse_skull(surf, ekx, eky, int(disc_r * 0.8), s, lit=False)
+            ekx = hx + sgn * int(disc_r * 0.5)
+            eky = hy - int(disc_r * 1.6)
+            pygame.draw.line(surf, SILVER, (hx, hy - disc_r),
+                             (ekx, eky + int(disc_r * 0.6)), max(1, int(1.4 * s)))
+            eclipse_skull(surf, ekx, eky, int(disc_r * 0.78), s, lit=False)
 
     # === SKULL HEAD — slim, elegant, scary-cute, two-eyed + a lunar brow-mark ==
     # WHY a narrower head with high cheek-hollows: the slim brood member should
@@ -410,13 +430,24 @@ def draw_chandra_mata(surf, cx, cy, s):
     # WHY a low crescent-tiara band of skulls seated on the brow, UNDER the rising
     # horn: keeps the skull-crown DNA while the horn owns the upper silhouette. A
     # shallow ~64° arc of THREE skulls, centre one lit lilac.
-    tiara_r = int(hr * 0.94)
+    # WHY a hard ink under-stroke first: it opens a 1px NEGATIVE gap between the
+    # skull-cluster and the horn root so the crown reads as a distinct BAND, never
+    # fusing into one bone mass with the horn at 32px night.
+    tiara_r = int(hr * 0.96)
     tiara_skull_r = int(hr * 0.28)
     band_pts = []
     for i in range(9):
         a = math.radians(238 + i * (64 / 8))
         band_pts.append((head_c[0] + math.cos(a) * tiara_r,
                          head_c[1] + math.sin(a) * tiara_r))
+    # the negative-gap groove: a fat ink stroke just OUTSIDE the band, carving dark
+    # sky between crown and horn root before the silver band is laid on top.
+    gap_pts = []
+    for i in range(9):
+        a = math.radians(238 + i * (64 / 8))
+        gap_pts.append((head_c[0] + math.cos(a) * (tiara_r + int(3 * s)),
+                        head_c[1] + math.sin(a) * (tiara_r + int(3 * s))))
+    pygame.draw.lines(surf, INK, False, gap_pts, max(2, int(3 * s)))
     pygame.draw.lines(surf, INK, False, band_pts, int(5 * s))
     pygame.draw.lines(surf, SILVER, False, band_pts, int(2.4 * s))
     pygame.draw.lines(surf, SILVER_BR, False, band_pts[:5], max(1, int(1.1 * s)))
@@ -540,7 +571,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("CHANDRA-MATA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "lunar crescent-arc bone-mother  ·  KIND: wide-low-crescent + rising-horn · moon-silver + grey-lilac · slim mid-tall · round 1",
+        "lunar crescent-arc bone-mother  ·  KIND: wide-low-crescent CUP + rising-horn · moon-silver + grey-lilac · slim mid-tall · round 2",
         True, LABEL_DIM), (300, 26))
 
     # === (a) BIG HERO =========================================================
@@ -548,8 +579,8 @@ def main():
     sheet.blit(hero, (14, 92))
     sheet.blit(font.render("Creature — hero", True, LABEL), (96, 566))
     sheet.blit(font_sm.render("SLIM mid-tall figure: single rising crescent-HORN behind the crown,", True, LABEL_DIM), (14, 590))
-    sheet.blit(font_sm.render("six slim arms cup a WIDE LOW smile-arc of moon-phase discs.", True, LABEL_DIM), (14, 606))
-    sheet.blit(font_sm.render("Eclipse-charm skulls swing from the two OUTER tips. Lunar brow-mark = cool focal.", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("six arms spread WIDE into a low cupping CRESCENT (U/bowl, span ~1.7x depth),", True, LABEL_DIM), (14, 606))
+    sheet.blit(font_sm.render("tips curve UP to shoulder height + are CAPPED by eclipse-charm skulls.", True, LABEL_DIM), (14, 622))
 
     # === (b) PILLAR assembled — mirrored, bottom-rooted gnomon ================
     pcx = 440
@@ -651,7 +682,7 @@ def main():
         "dark-core->fill->top-left sheen · 1px grown outline · scary-cute · procedural-only.  Accent grey-lilac, desaturated.",
         True, LABEL_DIM), (26, 823))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
