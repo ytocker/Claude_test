@@ -75,6 +75,21 @@ last critique — see each concept's critique files).
 - [Rakta-Ambu — coral-tree bone-canopy (dendritic canopy · monumental-by-width)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/mukha_devi_versions/rakta_ambu/round_3.png)
 - [Asthi-Samrat — temple-pylon colossus (rigid arm-grid · monumental / pure-bone)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/mukha_devi_versions/asthi_samrat/round_3.png)
 
+## 💀 Mukha-Devi KIN — grounded sister-bosses (same six-arm body, elaborate arm-ends + dominant skulls)
+The **grounded** counterpart to the `mukha_devi_versions/` brood above: instead of five divergent
+silhouette KINDs, all five keep Mukha's six-arm radial fan + rose/gold/teal palette + chibi skull-face, and
+differ ONLY by their elaborate arm-end ornament SET + skull treatment — spread across tight↔loose and
+prominent↔skull-motif. (The distinct-variants doctrine is deliberately relaxed; see the brood README.)
+Kapala-Devi + Maha-Kapali are SHIP-READY; the other three matured through the full GD3/AD2 budget.
+**Combined showcase:** [mukha_devi_kin/showcase.png](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/mukha_devi_kin/showcase.png)
+
+- **Original:** [Mukha-Devi (six-armed bone-mother / radial-fan)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/citipati_versions/mukha_devi/round_2.png)
+- [Kapala-Devi — six skull-cup wrath (tight · skull-motif)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/mukha_devi_kin/kapala_devi/round_2.png)
+- [Padma-Mata — bloom-cradles w/ hidden skull-buds (tight · prominent)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/mukha_devi_kin/padma_mata/round_3.png)
+- [Mala-Mata — connected skull-garland mundamala (mid · skull-motif)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/mukha_devi_kin/mala_mata/round_3.png)
+- [Nritya-Devi — dancing wrath, dance-attribute arm-ends (loose · prominent)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/mukha_devi_kin/nritya_devi/round_3.png)
+- [Maha-Kapali — mega-crown + skull-trophy strands (loose · skull-motif)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/mukha_devi_kin/maha_kapali/round_2.png)
+
 ---
 
 # Standalone fresh-theme sets (not spin-off broods)
