@@ -204,11 +204,21 @@ def bloom(surf, kind, hx, hy, r, s, ang=0.0, hidden_skull=False):
         bx = hx + math.cos(bud_dir) * r * 0.46
         by = hy + math.sin(bud_dir) * r * 0.46
         bud_r = int(r * 0.92)            # >= tiara-skull footprint so it survives 32px
+        # WHY the cranium BACK is laid in two values BEFORE the petals (a lit upper
+        # dome over a darker lower cranium, the `tiara_skull` value structure): the
+        # r2 bud was a flat BONE disc with a bright cap + flat sockets on top — a
+        # scared-emoji read. Seating a BONE_D lower-cranium shadow under a BONE dome
+        # makes the bud round like real bone instead of a sticker. Sheen kept off so
+        # the third-eye stays the single brightest pixel.
         triad_circle(surf, BONE, (int(bx), int(by)), bud_r,
                      ow=max(1, int(1.4 * s)), core=False, sheen=False)
-        # petals cup the OPPOSITE half (toward the torso / below the skull) so the
-        # dome stays clear — a tighter 190° fan centred away from the bud.
-        span = math.radians(190)
+        lcx = bx + math.cos(bud_dir) * bud_r * 0.10   # lower cranium = toward torso
+        lcy = by + math.sin(bud_dir) * bud_r * 0.10 + bud_r * 0.20
+        pygame.draw.circle(surf, BONE_D, (int(lcx), int(lcy)), int(bud_r * 0.84))
+        # petals fan a WIDER 240° cup that climbs HIGHER up the cranium flanks so the
+        # upper petals OVERLAP onto the dome — the skull reads as half-buried/EMERGING
+        # from the bloom, not perched on top of a full clear disc.
+        span = math.radians(240)
         centre = bud_dir + math.pi
     else:
         span = math.radians(300)  # plain blooms: near-full ring with a torso notch
@@ -248,31 +258,38 @@ def bloom(surf, kind, hx, hy, r, s, ang=0.0, hidden_skull=False):
         pygame.draw.circle(surf, TEAL_BR, (ddx - int(r * 0.05), ddy - int(r * 0.05)),
                            max(1, int(r * 0.06 * heart_k)))
 
-    # skull FACE drawn LAST: dome + paired sockets peek ABOVE the petal line. The
-    # dome gets a bright bone highlight and the sockets a DARK pair so the two
-    # nested blooms stay distinguishable from the four plain blooms at 32px.
+    # skull FACE drawn LAST: the LIT dome + paired eye-SOCKETS peek above the petal
+    # line. WHY this now mirrors `tiara_skull` value handling instead of the r2
+    # bright-cap-plus-flat-eyes treatment: the dome highlight is a SOFT off-centre
+    # BONE_SH crescent (matching the lit upper cranium of the tiara skulls), the
+    # sockets are SMALLER and filled BONE_DD/BONE_D (not solid INK) under a crisp
+    # ink keyline — so the bud reads 'a little half-buried skull', tone gentle, and
+    # the sockets no longer out-pull the rose third-eye. Drawn after the petals so
+    # the emerging upper half stays clear while the upper petals overlap its flanks.
     if hidden_skull:
-        # bright dome cap (toward the outward/up side) so the cranium reads as a
-        # lit bone dome rising above the petal cup — the value contrast that lets
-        # the bud separate from the four plain blooms at 32px.
-        dcx = bx - math.cos(bud_dir) * bud_r * 0.28
-        dcy = by - math.sin(bud_dir) * bud_r * 0.40 - bud_r * 0.16
-        pygame.draw.circle(surf, BONE_SH, (int(dcx), int(dcy)), max(2, int(bud_r * 0.40)))
-        # the dark socket PAIR — the legibility tell at 32px. Seated CLOSE together
-        # and FAT so on downscale they fuse into one bold dark eye-mass that reads
-        # as 'the skull's eyes' against the bright dome — the bud's 32px signature.
+        # soft lit dome crescent toward the outward/up side — a HIGHLIGHT, not a
+        # second bright disc; sized like the tiara skull's lit upper cranium so the
+        # bud's value reads consistent with the 3 skulls directly above it.
+        dcx = bx - math.cos(bud_dir) * bud_r * 0.20
+        dcy = by - math.sin(bud_dir) * bud_r * 0.36 - bud_r * 0.12
+        pygame.draw.circle(surf, BONE_SH, (int(dcx), int(dcy)), max(2, int(bud_r * 0.30)))
+        # the eye-SOCKET pair — the 32px tell. Shrunk ~18% from r2 and seated close
+        # so on downscale they still fuse into one dark eye-mass, but filled BONE_DD
+        # under a thin INK keyline (no solid-black flat eyes) so the tone stays soft.
         pnx, pny = -math.sin(bud_dir), math.cos(bud_dir)
         for sgn in (-1, 1):
-            ex = int(bx + sgn * pnx * bud_r * 0.36)
-            ey = int(by + sgn * pny * bud_r * 0.36)
-            pygame.draw.circle(surf, INK, (ex, ey), max(2, int(bud_r * 0.38)))
-            pygame.draw.circle(surf, BONE_DD, (ex, ey), max(1, int(bud_r * 0.18)))
-            pygame.draw.circle(surf, INK, (ex, ey), max(2, int(bud_r * 0.13)))
-        # nasal notch just inward of the socket line to finish the skull read
-        pygame.draw.circle(surf, INK,
-                           (int(bx + math.cos(bud_dir) * bud_r * 0.28),
-                            int(by + math.sin(bud_dir) * bud_r * 0.28)),
-                           max(1, int(bud_r * 0.13)))
+            ex = int(bx + sgn * pnx * bud_r * 0.34 + math.cos(bud_dir) * bud_r * 0.06)
+            ey = int(by + sgn * pny * bud_r * 0.34 + math.sin(bud_dir) * bud_r * 0.06)
+            pygame.draw.circle(surf, INK, (ex, ey), max(2, int(bud_r * 0.31)))
+            pygame.draw.circle(surf, BONE_DD, (ex, ey), max(1, int(bud_r * 0.22)))
+            pygame.draw.circle(surf, BONE_D, (ex - int(bud_r * 0.05), ey - int(bud_r * 0.05)),
+                               max(1, int(bud_r * 0.10)))
+        # nasal notch just inward of the socket line to finish the skull read —
+        # also lightened to BONE_DD so the whole face holds one gentle value.
+        nx2 = int(bx + math.cos(bud_dir) * bud_r * 0.26)
+        ny2 = int(by + math.sin(bud_dir) * bud_r * 0.26)
+        pygame.draw.circle(surf, INK, (nx2, ny2), max(1, int(bud_r * 0.13)))
+        pygame.draw.circle(surf, BONE_DD, (nx2, ny2), max(1, int(bud_r * 0.07)))
 
 
 # ── the six-arm radial starburst (the KIND tell — UNCHANGED from Mukha) ───────
@@ -571,7 +588,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("PADMA-MATA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "bloom-and-relic mother  ·  Mukha-Devi SISTER (clone) · TIGHT · prominent · six FAT 5-petal blooms (A-B-A-B) · 2 NESTED skull-buds · round 2",
+        "bloom-and-relic mother  ·  Mukha-Devi SISTER (clone) · TIGHT · prominent · six FAT 5-petal blooms (A-B-A-B) · 2 half-buried skull-buds · round 3",
         True, LABEL_DIM), (270, 28))
 
     # === (a) BIG HERO =========================================================
@@ -580,7 +597,8 @@ def main():
     sheet.blit(font.render("Creature — hero", True, LABEL), (110, 566))
     sheet.blit(font_sm.render("Mukha's body/fan/face/tiara UNCHANGED; arm-ends open FAT 5-PETAL flower-masses.", True, LABEL_DIM), (14, 590))
     sheet.blit(font_sm.render("A = rose/coral disc heart · B = gold seed-pod + ATTACHED teal dewdrop. Same footprint.", True, LABEL_DIM), (14, 606))
-    sheet.blit(font_sm.render("Two MID arms NEST a skull-bud: dome+sockets peek ABOVE the petal line (3 tiara + 2 = 5).", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("Two MID arms NEST a HALF-BURIED skull-bud: lit dome over darker cranium, eye-sockets,", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("upper petals overlapping it (tiara-skull value, NOT a flat emoji). 3 tiara + 2 buds = 5.", True, LABEL_DIM), (14, 638))
 
     # === (b) PILLAR assembled — mirrored, clean tileable shaft ================
     pcx = 470
@@ -680,7 +698,7 @@ def main():
         "arm-ends swapped to bloom-clusters + 2 hidden skull-buds; coral nudge in bloom hearts only. procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
