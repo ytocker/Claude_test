@@ -90,6 +90,21 @@ Kapala-Devi + Maha-Kapali are SHIP-READY; the other three matured through the fu
 - [Nritya-Devi — dancing wrath, dance-attribute arm-ends (loose · prominent)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/mukha_devi_kin/nritya_devi/round_3.png)
 - [Maha-Kapali — mega-crown + skull-trophy strands (loose · skull-motif)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/mukha_devi_kin/maha_kapali/round_2.png)
 
+## 👑 King Skull — a royal court of skeleton-kings (new royal theme; honors Citipati, evolves Koschei)
+A capstone ROYAL theme: six slick/high-end skeleton MONARCHS, each with its own iconic crown + a distinct
+royal palette direction. Respects the original **Citipati** house-grammar (ivory bone, thin accents, purple
+third-eye, shared toolkit) and uses multi-arm + tiny skulls where they serve; **Regent Koschei** is an
+explicit royal evolution of **Koschei**. ALL SIX SHIP-READY (pushed to a genuine sign-off).
+**Combined showcase:** [skull_kings/showcase.png](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/skull_kings/showcase.png)
+
+- **Lineage:** [Citipati (dancing skeleton-lord — respected original)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/jiangshi_epic/citipati/round_2.png) · [Koschei (bone-throne king — evolved)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/citipati_versions/koschei/round_2.png)
+- [Regent Koschei — gilded throne-emperor (the Koschei evolution)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/skull_kings/regent_koschei/round_2.png)
+- [Amethyst God-King — four-armed radial deity (ivory + amethyst jewel-cone crown)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/skull_kings/amethyst_god_king/round_2.png)
+- [Carnelian Warlord — armoured colossus (planted sword + iron war-crown)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/skull_kings/carnelian_warlord/round_2.png)
+- [Obsidian Sovereign — near-black robe-column (gold imperial dome; the value pole)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/skull_kings/obsidian_sovereign/round_2.png)
+- [Verdigris Drowned-King — drowned undersea slump (coral-antler crown + pearl)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/skull_kings/verdigris_drowned_king/round_2.png)
+- [Rose-Gold Prince — the cute boy-heir (fleur coronet + pink tourmaline)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/skull_kings/rosegold_prince/round_2.png)
+
 ---
 
 # Standalone fresh-theme sets (not spin-off broods)
