@@ -224,16 +224,17 @@ def reliquary_gable(surf, cx, base_y, w, h, s):
     single brightest-warm focal."""
     half = w * 0.5
     # the shrine housing: two jambs + a steep pediment (oxblood worked stone).
-    # WHY the apex is a short flat ridge, not a single point (round 3): a 1px
-    # mathematical tip dissolves in the 32px downscale, killing the peaked-crown
-    # tell. A ~1px ridge at the top keeps the peak reading as a SHRINE on the day
-    # chip while staying a clean point in silhouette.
-    ridge = max(1.0, 0.10 * half)
+    # WHY a slightly STEEPER, taller gable in round 4: on the 32px DAY creature
+    # chip the peak was thinner than the pillar's. A taller pediment (the shoulder
+    # break raised) + a ~1px-wider apex ridge gives the peak more vertical mass so
+    # the SHRINE point survives the downscale on the creature chip too, not just
+    # the pillar.
+    ridge = max(1.0, 0.14 * half)
     house = [(cx - half, base_y),
-             (cx - half, base_y - h * 0.52),
+             (cx - half, base_y - h * 0.46),
              (cx - ridge, base_y - h),
              (cx + ridge, base_y - h),
-             (cx + half, base_y - h * 0.52),
+             (cx + half, base_y - h * 0.46),
              (cx + half, base_y)]
     triad_blob(surf, ROBE, house,
                core_pts=[(cx + half * 0.18, base_y),
@@ -246,17 +247,19 @@ def reliquary_gable(surf, cx, base_y, w, h, s):
                           (cx - half * 0.5, base_y - h * 0.5)],
                ow=max(1, int(1.3 * s)))
     # the silver finial cross-bead at the gable peak (the reliquary tell).
-    # WHY thicker + ink-backed in round 3: the finial is the silhouette's high
-    # point and was fragile at 32px. An ink underdraw plus a ~1px-fatter stroke
-    # keeps the cross-topped peak surviving the downscale on the day chip.
-    fy = base_y - h - int(6 * s)
-    pygame.draw.line(surf, INK, (cx, base_y - h), (cx, fy), max(2, int(2.4 * s)))
-    pygame.draw.line(surf, INK, (cx - int(4 * s), base_y - h - int(2 * s)),
-                     (cx + int(4 * s), base_y - h - int(2 * s)), max(2, int(2.2 * s)))
-    pygame.draw.line(surf, SILVER, (cx, base_y - h), (cx, fy), max(1, int(1.6 * s)))
-    pygame.draw.line(surf, SILVER, (cx - int(3 * s), base_y - h - int(2 * s)),
-                     (cx + int(3 * s), base_y - h - int(2 * s)), max(1, int(1.4 * s)))
-    pygame.draw.circle(surf, SILVER_BR, (cx, fy), max(1, int(1.5 * s)))
+    # WHY ~1px fatter + a taller stem in round 4: the cross finial is the crown's
+    # silhouette high point and still read thin on the 32px DAY creature chip. A
+    # heavier ink underdraw + a wider silver cross + a slightly taller stem give
+    # the cross-topped peak enough mass to survive the downscale on the creature
+    # chip as cleanly as it already does on the pillar.
+    fy = base_y - h - int(7 * s)
+    pygame.draw.line(surf, INK, (cx, base_y - h), (cx, fy), max(3, int(3.0 * s)))
+    pygame.draw.line(surf, INK, (cx - int(5 * s), base_y - h - int(2 * s)),
+                     (cx + int(5 * s), base_y - h - int(2 * s)), max(3, int(2.8 * s)))
+    pygame.draw.line(surf, SILVER, (cx, base_y - h), (cx, fy), max(2, int(2.1 * s)))
+    pygame.draw.line(surf, SILVER, (cx - int(4 * s), base_y - h - int(2 * s)),
+                     (cx + int(4 * s), base_y - h - int(2 * s)), max(1, int(1.8 * s)))
+    pygame.draw.circle(surf, SILVER_BR, (cx, fy), max(1, int(1.7 * s)))
     # the pointed-arch niche cut into the housing (the enthroned recess)
     niche = [(cx - half * 0.56, base_y - h * 0.04),
              (cx - half * 0.56, base_y - h * 0.46),
@@ -299,13 +302,15 @@ def draw_inquisitor(surf, cx, cy, s):
     shoulder_y = cy                              # the arc apex (shoulder crest)
     hem_y = cy + int(66 * s)                      # the rear hem / ground line
     toe_x = cx - int(20 * s)                      # rear heel of the hook (narrow)
-    # WHY pushed harder forward + DOWN in round 3: round-2 read as a forward-
-    # TILTED reliquary, not a bowed HOOK. The cowl is now thrown further forward
-    # AND dropped a full head-height below the crest so the blackout's top edge
-    # falls from the shoulder crest DOWN to the head as a read curl (a true J).
-    cowl_cx = cx + int(42 * s)                    # further forward of the rear toe
-    cowl_cy = shoulder_y + int(40 * s)            # head hangs a full step BELOW the crest
-    head_c = (cowl_cx + int(4 * s), cowl_cy + int(10 * s))
+    # WHY dropped a FURTHER value step + more forward in round 4: round-3 still
+    # read as a forward-LEANING wedge with a top nub because the cowl/crown sat
+    # nearly level with the back crest. The cowl is now thrown further forward AND
+    # dropped well below the crest so the silhouette's top edge curls crest->DOWN
+    # ->head (a true leaning J), and the back/shoulder crest clearly OVERTOPS the
+    # head + crown rather than the crown spiking above it.
+    cowl_cx = cx + int(52 * s)                    # further forward of the rear toe
+    cowl_cy = shoulder_y + int(58 * s)            # head hangs well BELOW the crest
+    head_c = (cowl_cx + int(5 * s), cowl_cy + int(12 * s))
     hr = int(15 * s)
 
     # === ROBE HEM + FOOT (narrow rear root of the hook) ======================
@@ -332,15 +337,19 @@ def draw_inquisitor(surf, cx, cy, s):
     # head: the round-3 read curl. From the rear shoulder the contour rises to the
     # crest (the silhouette's back high point), then sweeps FORWARD-AND-DOWN in a
     # concave neck so the head clearly hangs below it — the inside of the J.
+    # WHY the crest is lifted a step + the neck plunges deeper in round 4: the
+    # back/shoulder crest must be the unambiguous silhouette high point, and the
+    # contour must drop sharply forward-and-down from it so the head/cowl hang a
+    # clear value step below — the inside of the J reads as a curl, not a wedge.
     robe = [(toe_x - int(4 * s), hem_y),                       # rear hem foot
             (cx - int(14 * s), cy + int(40 * s)),              # rear flank (concave in)
-            (cx - int(10 * s), shoulder_y + int(4 * s)),       # rear shoulder
-            (cx - int(2 * s), shoulder_y - int(8 * s)),        # crest (the back high point)
-            (cx + int(10 * s), shoulder_y - int(4 * s)),       # crest forward shoulder
-            (cowl_cx - int(16 * s), cowl_cy - int(20 * s)),    # neck curling forward+down
-            (cowl_cx + int(18 * s), cowl_cy - int(6 * s)),     # forward cowl shoulder
+            (cx - int(10 * s), shoulder_y + int(2 * s)),       # rear shoulder
+            (cx - int(2 * s), shoulder_y - int(14 * s)),       # crest (the back high point, lifted)
+            (cx + int(8 * s), shoulder_y - int(8 * s)),        # crest forward shoulder
+            (cowl_cx - int(20 * s), cowl_cy - int(26 * s)),    # neck plunging forward+down
+            (cowl_cx + int(16 * s), cowl_cy - int(8 * s)),     # forward cowl shoulder
             (cowl_cx + int(22 * s), cowl_cy + int(18 * s)),    # forward cowl front (overhang)
-            (cx + int(34 * s), cy + int(46 * s)),              # forward belly thrust
+            (cx + int(40 * s), cy + int(48 * s)),              # forward belly thrust
             (cx + int(16 * s), hem_y - int(2 * s))]            # forward hem (narrow)
     triad_blob(surf, ROBE, robe,
                core_pts=[(cx - int(2 * s), cy + int(42 * s)),
@@ -467,10 +476,11 @@ def draw_inquisitor(surf, cx, cy, s):
                  ow=max(1, int(0.9 * s)), core=False, sheen=False)
 
     # === the GABLED SKULL-RELIQUARY crown — the ONLY skull, at the hook peak ===
-    # WHY anchored to the forward cowl peak: it must crest ABOVE-and-AHEAD of the
-    # cowl so the blackout shows the gable point at the hook's tip (kept geometry
-    # from round 1 per the AD KEEP note).
-    reliquary_gable(surf, cowl_cx - int(2 * s), cowl_cy - int(18 * s),
+    # WHY anchored to the forward cowl peak but now BELOW the back crest: it must
+    # crown the head at the hook's curled tip without spiking above the shoulder
+    # crest (that nub was the round-3 wedge read). It sits AHEAD-of-and-BELOW the
+    # crest so the silhouette top still curls crest->down->head.
+    reliquary_gable(surf, cowl_cx - int(2 * s), cowl_cy - int(20 * s),
                     int(24 * s), int(26 * s), s)
 
 
@@ -583,7 +593,7 @@ def main():
     sheet.blit(font_big.render("GARNET CARDINAL INQUISITOR", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "skull-KING (discretion line, 2 arms) · hooded FORWARD-STOOP HAIRPIN · gabled skull-reliquary crown · "
-        "pointing hand · garnet eye-gem focal · round 3",
+        "pointing hand · garnet eye-gem focal · round 4",
         True, LABEL_DIM), (480, 26))
 
     # === (a) BIG HERO =========================================================
@@ -711,7 +721,7 @@ def main():
         "garnet eye-gem = single brightest-warm focal; gabled skull-reliquary crown is the above-head tell.  SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_4.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     self_check()

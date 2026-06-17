@@ -232,19 +232,22 @@ def sun_skull(surf, cx, cy, r, s, focal=False):
     pygame.draw.line(surf, INK, (cx - int(r * 0.30), cy + int(r * 0.66)),
                      (cx + int(r * 0.30), cy + int(r * 0.70)), max(1, int(1.4 * s)))
     if focal:
-        # the focal dome is flooded near-white so the whole head is the bright
-        # mass, then a TIGHT pure-white specular owns the single brightest pixel.
-        # WHY a small hot dot, not a wide flood: a broad near-white pool let the
-        # (now-dimmed) disc rim still rival it; a concentrated 2-3px pure-white
-        # core is unambiguously the lightest pixel on the chip.
-        pygame.draw.circle(surf, SUN_BR, (cx, cy), int(r * 0.82))
+        # WHY a STEP-DOWN from a small flood to a concentrated pure-white pip,
+        # not a broad near-white pool: a wide near-white dome let the disc rim
+        # (esp. on NIGHT, where the keyline rim is bright) sit only marginally
+        # below the focal. Round 4 keeps the warm bone-white pool TIGHT and lands
+        # a true pure-white core that, after the SS=6 downscale, survives as a
+        # 2-3px pip ≥15% brighter than any rim pixel on BOTH chips — the single
+        # brightest spot, unambiguously.
+        pygame.draw.circle(surf, SUN_BR, (cx, cy), int(r * 0.64))
         pygame.draw.circle(surf, SUN_HOT,
-                           (cx - int(r * 0.10), cy - int(r * 0.14)),
-                           max(2, int(r * 0.30)))
-        # the white-hot pinpoint: a few pure-white pixels at the dome's lit cap.
+                           (cx - int(r * 0.08), cy - int(r * 0.12)),
+                           max(2, int(r * 0.40)))
+        # the white-hot pinpoint: pure-white, slightly enlarged so it doesn't get
+        # averaged away by the smoothscale (must clear the rim by ≥15% lum).
         pygame.draw.circle(surf, (255, 255, 255),
-                           (cx - int(r * 0.10), cy - int(r * 0.16)),
-                           max(2, int(r * 0.16)))
+                           (cx - int(r * 0.06), cy - int(r * 0.10)),
+                           max(2, int(r * 0.26)))
     else:
         # top-left bone sheen on the gold crown dome
         pygame.draw.circle(surf, rim, (cx - int(r * 0.34), cy - int(r * 0.38)),
@@ -269,16 +272,21 @@ def sunburst_crown(surf, cx, cy, r, s):
     half = (n - 1) / 2.0
     # the zenith SKULL-BOSS — pushed decisively ABOVE the disc rim. A bigger
     # skull on a solid neck so OPAQUE mass crests the top arc (blackout spike).
-    boss_r = max(5, int(r * 0.92))
-    boss_y = cy - int(r * 2.05)
+    # WHY taller + NARROWER than round 3: a low wide boss downscaled to a soft
+    # nub in the blackout. Lifting the boss higher and tapering the neck to a
+    # thin pillar makes the silhouette read a decisive narrow SPIKE clearing the
+    # arc, not a rounded bump that merges back into the disc curve.
+    boss_r = max(5, int(r * 0.80))
+    boss_y = cy - int(r * 2.55)
     # a solid gold NECK column from the head up to the boss so the silhouette is
-    # continuous (no floating skull, no swallow-able gap).
-    neck_w = max(3, int(r * 0.34))
+    # continuous (no floating skull, no swallow-able gap). Tapered narrow at the
+    # top so the crest reads as a point, not a stalk.
+    neck_w = max(3, int(r * 0.30))
     neck = [(cx - neck_w, cy + int(2 * s)), (cx + neck_w, cy + int(2 * s)),
-            (cx + int(neck_w * 0.7), boss_y), (cx - int(neck_w * 0.7), boss_y)]
+            (cx + int(neck_w * 0.46), boss_y), (cx - int(neck_w * 0.46), boss_y)]
     triad_blob(surf, GOLD, neck,
                sheen_pts=[(cx - neck_w, cy), (cx - int(neck_w * 0.3), cy),
-                          (cx - int(neck_w * 0.4), boss_y), (cx - int(neck_w * 0.7), boss_y)],
+                          (cx - int(neck_w * 0.3), boss_y), (cx - int(neck_w * 0.46), boss_y)],
                ow=max(1, int(1.2 * s)))
     for i in range(n):
         if i == n // 2:
@@ -299,6 +307,19 @@ def sunburst_crown(surf, cx, cy, r, s):
                    sheen_pts=[(bx - wbot, cy), (bx - wbot * 0.3, cy),
                               (tipx - wbot * 0.2, cy - h * 0.5), (tipx, tipy)],
                    ow=max(1, int(1.1 * s)))
+    # ONE tall central APEX SPIKE crowning the boss — a solid filled triangle so
+    # the blackout silhouette terminates in a sharp 2-3px point well clear of the
+    # disc top arc (the decisive spike the round-3 critique demanded).
+    apex_h = int(boss_r * 1.95)
+    apex_w = max(2, int(boss_r * 0.42))
+    spike = [(cx, boss_y - apex_h),
+             (cx + apex_w, boss_y - int(boss_r * 0.35)),
+             (cx - apex_w, boss_y - int(boss_r * 0.35))]
+    triad_blob(surf, GOLD, spike,
+               sheen_pts=[(cx, boss_y - apex_h),
+                          (cx - int(apex_w * 0.4), boss_y - int(boss_r * 0.35)),
+                          (cx - apex_w, boss_y - int(boss_r * 0.35))],
+               ow=max(1, int(1.4 * s)))
     # solid radiant spikes ringing the boss (drawn thick so they add OPAQUE mass
     # above the rim, not a soft glow the blackout drops).
     for k in range(6):
@@ -360,19 +381,31 @@ def draw_khan(surf, cx, cy, s):
                      (rc_cx, rc_cy + int(7 * s)), max(1, int(2 * s)))
 
     # crossed seated legs — splayed WIDE, LOW and THICK so the knees+feet punch
-    # well past the disc's bottom rim, giving the 2nd rim-break. WHY thicker and
-    # lower than round 2: the slim legs got swallowed by the disc in the blackout
-    # (no 2nd break read). The knees now bulge past the equator and the feet drop
-    # below the bottom rim with heavy opaque bone, so the blackout shows two splayed
-    # leg-lobes flanking the disc base — an unmistakable "seated creature" break.
-    leg_th = int(15 * s)
+    # well past the disc's bottom rim, giving the 2nd rim-break. WHY pushed FAR
+    # past the rim in round 4: at round-3 widths the knees (x ~48) still sat
+    # INSIDE the disc radius (64) and the feet tucked under the bottom arc, so the
+    # blackout bottomed out as a near-clean circle. The knees now bulge BEYOND the
+    # disc radius (x ~72 > r 64) and the feet drop a full leg-length below the
+    # bottom rim as heavy opaque bone — so the blackout reads two splayed leg-lobes
+    # flanking the base AND a dropped foot-mass below it: an unmistakable break a
+    # viewer cannot trace as a circle.
+    leg_th = int(18 * s)
+    bottom_rim_y = disc_c[1] + disc_r  # the arc the legs must visibly clear
     for sgn in (-1, 1):
-        hip = (cx + sgn * int(12 * s), seat_y)
-        knee = (cx + sgn * int(48 * s), seat_y + int(20 * s))
-        foot = (cx - sgn * int(2 * s), seat_y + int(34 * s))
+        hip = (cx + sgn * int(10 * s), seat_y)
+        knee = (cx + sgn * int(72 * s), seat_y + int(18 * s))
+        foot = (cx + sgn * int(58 * s), bottom_rim_y + int(20 * s))
         bone_limb(surf, hip, knee, foot, leg_th, s)
-        # a heavy knee knob jutting past the disc edge so the lobe survives 32px.
-        triad_circle(surf, KING, knee, int(8 * s), ow=max(1, int(1.4 * s)), core=False)
+        # a heavy knee knob jutting PAST the disc edge so the lobe survives 32px.
+        triad_circle(surf, KING, knee, int(10 * s), ow=max(1, int(1.4 * s)), core=False)
+        # a blocky splayed FOOT dropped below the bottom rim — opaque mass the
+        # downscale keeps, so the silhouette base is clearly broken, not arced.
+        fw = int(11 * s)
+        foot_quad = [(foot[0] - sgn * int(2 * s), foot[1] - int(9 * s)),
+                     (foot[0] + sgn * fw, foot[1] - int(5 * s)),
+                     (foot[0] + sgn * fw, foot[1] + int(7 * s)),
+                     (foot[0] - sgn * fw, foot[1] + int(7 * s))]
+        triad_blob(surf, KING, foot_quad, ow=max(1, int(1.4 * s)))
 
     # === (3) the FOUR ARMS ====================================================
     # WHY two open + two cupping: the lower pair PRESENTS the sun-skull in cupped
@@ -547,7 +580,7 @@ def main():
     sheet.blit(font_big.render("SUNFIRE SOLAR KHAN", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "royal SUN-DISC skull-king  ·  FILLED vertical amber disc (rays = textured fill) · "
-        "crown SPIKES past the rim + legs splay past the base (2 blackout breaks) · white-HOT core · round 3",
+        "crown SPIKES past the rim + legs splay past the base (2 blackout breaks) · white-HOT core · round 4",
         True, LABEL_DIM), (360, 26))
 
     # === (a) BIG HERO =========================================================
@@ -609,10 +642,13 @@ def main():
     sheet.blit(chip_night, (panel_x + 20 + 27, night_y + 27))
     sheet.blit(font_sm.render("32px on night sky (+ keyline)", True, LABEL_DIM), (panel_x + 20, night_y + 156))
 
-    # silhouette proof — blacked-out hero (the disc + rim-break read check)
+    # silhouette proof — blacked-out hero (the disc + rim-break read check).
+    # WHY a smaller scale + centred lower: the round-4 crown SPIKE and the dropped
+    # feet now extend further than the disc, so the figure is shrunk and recentred
+    # to keep BOTH rim-breaks (top spike + base splay) inside the proof frame.
     def silhouette():
         big = pygame.Surface((150 * SS, 200 * SS), pygame.SRCALPHA)
-        draw_khan(big, 75 * SS, 100 * SS, 1.24 * SS)
+        draw_khan(big, 75 * SS, 108 * SS, 1.02 * SS)
         small = pygame.transform.smoothscale(big, (150, 200))
         mask = pygame.mask.from_surface(small)
         sil = pygame.Surface((150, 200), pygame.SRCALPHA)
@@ -669,7 +705,7 @@ def main():
         "big white-HOT sun-skull = the single brightest pixel.  SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_4.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
@@ -701,6 +737,49 @@ def self_check():
     del px, a
     print("self-check: brightest pixel @", best_xy, "rgb", (r, g, b),
           "lum %.0f" % best_lum, "-> white-hot sun-skull focal?", is_focal)
+    _gate_blackout()
+
+
+def _gate_blackout():
+    """Render the hero to a mask at chip-ish scale and prove BOTH rim-breaks read
+    in the blackout: the crown spike must rise ABOVE the disc top arc, and opaque
+    leg/foot mass must drop BELOW the disc bottom arc. WHY a programmatic gate:
+    the named ship-gate is "a viewer cannot trace a clean circle" — quantify the
+    spike-clearance above the top rim and the splay-clearance below the base rim."""
+    W, H, sc = 150, 200, 1.02
+    cx, cy = 75, 108
+    big = pygame.Surface((W * SS, H * SS), pygame.SRCALPHA)
+    draw_khan(big, cx * SS, cy * SS, sc * SS)
+    small = pygame.transform.smoothscale(big, (W, H))
+    mask = pygame.mask.from_surface(small)
+    s = sc
+    disc_cy = cy - 6 * s
+    disc_r = 64 * s
+    top_rim = int(disc_cy - disc_r)
+    bot_rim = int(disc_cy + disc_r)
+    # topmost opaque pixel in the central column band (the crown spike)
+    top_hit = None
+    for yy in range(H):
+        for xx in range(int(cx - 6), int(cx + 6)):
+            if mask.get_at((xx, yy)):
+                top_hit = yy
+                break
+        if top_hit is not None:
+            break
+    # lowest opaque pixel anywhere (the dropped feet) + bottom solidity at base
+    bot_hit = None
+    for yy in range(H - 1, -1, -1):
+        row = any(mask.get_at((xx, yy)) for xx in range(W))
+        if row:
+            bot_hit = yy
+            break
+    spike_clear = top_rim - top_hit if top_hit is not None else -1
+    base_clear = bot_hit - bot_rim if bot_hit is not None else -1
+    print("gate: top_rim=%d crown_top=%s spike_clears_rim_by=%dpx" %
+          (top_rim, top_hit, spike_clear),
+          "| bot_rim=%d base_low=%s splay_clears_rim_by=%dpx" %
+          (bot_rim, bot_hit, base_clear),
+          "-> TWO BREAKS?", spike_clear > 2 and base_clear > 2)
 
 
 if __name__ == "__main__":

@@ -181,101 +181,109 @@ def skull_helm(surf, cx, cy, r, s):
     the cranium (dimmer than the chest focal); the eye sockets glow a low ember
     so the helm reads at 32px without stealing the chest focal."""
     # The SKULL silhouette is cut by the MASS outline alone (so it survives the
-    # blackout gate). WHY one notched profile, not an ellipse + ticks: round 2's
-    # crown read as a riveted ball with a frizzy top. Here the charcoal dome is
-    # drawn as an explicit skull profile — a high forward-CRESTED cranium, a hard
-    # under-cheek NOTCH that pinches in, and a narrow forward jaw — so the BLACKOUT
-    # crown alone says "forward-crested skull," never "ball." The spiky rime fuzz
-    # on top is GONE; the crest is now a clean solid ridge that is part of the mass.
+    # blackout gate). WHY one DEEPLY-notched profile, not an ellipse + ticks: round
+    # 3's blackout crown still read as a lumpy potato — one smooth lobe with no
+    # unambiguous jaw/cheek hollow and no brow stepping out from the crest. The
+    # three skull cues that survive blackout are SILHOUETTE notches, not interior
+    # shading, so they are cut HARD into the outline here:
+    #   (1) a clean forward CREST ridge jutting up+fwd, then a sharp inward DIP so
+    #       the crest reads as its own mass;
+    #   (2) a BROW that juts forward as a SEPARATE step below that dip (brow != crest);
+    #   (3) the most important cue — a DEEP concave CHEEK HOLLOW biting inward under
+    #       the cheekbone, pinching the face so a narrow rounded JAW hangs below as
+    #       its own mass (wide cranium over a pinched waist over a small jaw).
     tilt = int(r * 0.16)
     bx = cx + tilt                         # forward (motion) bias of the whole skull
     # ---- the skull MASS profile, traced clockwise from the back of the crown ----
-    # forward (+x) is to the RIGHT. WHY this exact contour: the SILHOUETTE itself
-    # must read as a skull (the blackout gate), so the outline carries a rounded
-    # CRANIUM dome, a forward CREST notch into a jutting brow, a hard concave
-    # under-cheek NOTCH that pinches the face in, and a smaller rounded JAW below
-    # — wide cranium over a narrow jaw, the unmistakable skull cut.
+    # forward (+x) is to the RIGHT. Extra intermediate points hold the sharp notches
+    # so the SS=6 -> smoothscale downscale can't round them back into a smooth lobe.
     skull = [
-        (bx - int(r * 0.66), cy - int(r * 0.48)),   # back of crown (rounded)
-        (bx - int(r * 0.40), cy - int(r * 0.78)),
-        (bx - int(r * 0.02), cy - int(r * 0.92)),   # cranium dome top (rounded)
-        (bx + int(r * 0.44), cy - int(r * 0.82)),
-        (bx + int(r * 0.74), cy - int(r * 0.98)),   # forward CREST tip juts up+fwd
-        (bx + int(r * 0.78), cy - int(r * 0.62)),   # crest drops sharply to the brow
-        (bx + int(r * 1.06), cy - int(r * 0.30)),   # forward BROW juts AHEAD (wide)
-        (bx + int(r * 1.06), cy + int(r * 0.10)),   # cheekbone (forward, widest)
-        (bx + int(r * 0.62), cy + int(r * 0.28)),   # >>> hard under-cheek NOTCH:
-        (bx + int(r * 0.86), cy + int(r * 0.56)),   #     deep concave bite, jaw juts
-        (bx + int(r * 0.62), cy + int(r * 0.92)),   # narrow JAW / chin (small, rounded)
-        (bx + int(r * 0.30), cy + int(r * 0.98)),
-        (bx + int(r * 0.04), cy + int(r * 0.78)),   # jaw underside
-        (bx - int(r * 0.18), cy + int(r * 0.40)),   # back jaw hinge pinches IN
-        (bx - int(r * 0.56), cy + int(r * 0.14)),   # back cheek
-        (bx - int(r * 0.72), cy - int(r * 0.16)),   # back of skull (rounded up)
+        (bx - int(r * 0.62), cy - int(r * 0.52)),   # back of crown (rounded)
+        (bx - int(r * 0.36), cy - int(r * 0.82)),
+        (bx + int(r * 0.04), cy - int(r * 0.94)),   # cranium dome top (rounded)
+        (bx + int(r * 0.46), cy - int(r * 0.86)),
+        (bx + int(r * 0.70), cy - int(r * 1.06)),   # >>> forward CREST tip juts up+fwd
+        (bx + int(r * 0.84), cy - int(r * 0.92)),   #     crest front face
+        (bx + int(r * 0.74), cy - int(r * 0.70)),   # >>> sharp DIP behind the brow
+        (bx + int(r * 0.62), cy - int(r * 0.58)),   #     (separates crest from brow)
+        (bx + int(r * 0.96), cy - int(r * 0.40)),   # >>> BROW steps OUT (own mass)
+        (bx + int(r * 1.12), cy - int(r * 0.18)),   #     brow / cheekbone juts AHEAD
+        (bx + int(r * 1.10), cy + int(r * 0.12)),   #     cheekbone (forward, widest)
+        (bx + int(r * 0.56), cy + int(r * 0.24)),   # >>> DEEP cheek HOLLOW bites IN
+        (bx + int(r * 0.46), cy + int(r * 0.40)),   #     (the key skull cue — concave)
+        (bx + int(r * 0.86), cy + int(r * 0.58)),   # jaw angle juts back OUT
+        (bx + int(r * 0.74), cy + int(r * 0.88)),   # narrow JAW front
+        (bx + int(r * 0.44), cy + int(r * 1.00)),   # chin (small, rounded, hangs low)
+        (bx + int(r * 0.12), cy + int(r * 0.88)),
+        (bx - int(r * 0.12), cy + int(r * 0.54)),   # jaw underside sweeps back
+        (bx - int(r * 0.30), cy + int(r * 0.30)),   # >>> back jaw hinge pinches IN
+        (bx - int(r * 0.58), cy + int(r * 0.12)),   # back cheek
+        (bx - int(r * 0.72), cy - int(r * 0.18)),   # back of skull (rounded up)
     ]
     triad_blob(surf, CHAR, skull,
                core_pts=[(bx + int(r * 0.16), cy - int(r * 0.06)),
-                         (bx + int(r * 0.96), cy - int(r * 0.10)),
-                         (bx + int(r * 0.70), cy + int(r * 0.52)),
-                         (bx + int(r * 0.04), cy + int(r * 0.46))],
-               sheen_pts=[(bx - int(r * 0.66), cy - int(r * 0.18)),
-                          (bx - int(r * 0.10), cy - int(r * 0.88)),
+                         (bx + int(r * 0.92), cy - int(r * 0.04)),
+                         (bx + int(r * 0.62), cy + int(r * 0.50)),
+                         (bx + int(r * 0.04), cy + int(r * 0.44))],
+               sheen_pts=[(bx - int(r * 0.62), cy - int(r * 0.20)),
+                          (bx - int(r * 0.06), cy - int(r * 0.90)),
                           (bx + int(r * 0.06), cy - int(r * 0.50)),
-                          (bx - int(r * 0.56), cy + int(r * 0.06))],
+                          (bx - int(r * 0.54), cy + int(r * 0.04))],
                ow=max(1, int(1.6 * s)))
     # CREST RIDGE highlight — a clean charcoal-sheen spine riding the crown, kept
     # INSIDE the profile (the crest is already cut by the silhouette above). WHY a
     # sheen ridge not a spiky fan: round 2's frizzy ticks read as a mop; this is a
     # single clean ridge that catches the light along the forward crest.
-    crest = [(bx - int(r * 0.10), cy - int(r * 0.84)),
-             (bx + int(r * 0.30), cy - int(r * 0.86)),
-             (bx + int(r * 0.58), cy - int(r * 0.84)),
-             (bx + int(r * 0.42), cy - int(r * 0.62)),
-             (bx + int(r * 0.02), cy - int(r * 0.62))]
+    crest = [(bx - int(r * 0.04), cy - int(r * 0.88)),
+             (bx + int(r * 0.34), cy - int(r * 0.92)),
+             (bx + int(r * 0.66), cy - int(r * 1.00)),
+             (bx + int(r * 0.74), cy - int(r * 0.74)),
+             (bx + int(r * 0.40), cy - int(r * 0.66)),
+             (bx + int(r * 0.04), cy - int(r * 0.66))]
     pygame.draw.polygon(surf, CHAR_SH, crest)
     pygame.draw.polygon(surf, INK, crest, max(1, int(1.0 * s)))
-    # forward-jutting BROW RIDGE — a hard dark band over the sockets (the value
-    # step that separates the cranium from the face).
-    brow = [(bx - int(r * 0.20), cy - int(r * 0.34)),
-            (bx + int(r * 1.02), cy - int(r * 0.26)),
-            (bx + int(r * 0.98), cy + int(r * 0.04)),
-            (bx - int(r * 0.16), cy - int(r * 0.04))]
+    # forward-jutting BROW RIDGE — a hard dark band over the sockets, seated on the
+    # silhouette's brow step so the brow reads as its own mass below the crest dip.
+    brow = [(bx - int(r * 0.14), cy - int(r * 0.40)),
+            (bx + int(r * 1.04), cy - int(r * 0.28)),
+            (bx + int(r * 1.02), cy + int(r * 0.08)),
+            (bx - int(r * 0.10), cy - int(r * 0.06))]
     triad_blob(surf, CHAR_D, brow, ow=max(1, int(1.3 * s)))
-    # deep cheek-hollow under the eye (recessed value inside the face), seated just
-    # above the silhouette's under-cheek notch so the pinch reads even lit.
-    cheek = [(bx + int(r * 0.26), cy + int(r * 0.16)),
-             (bx + int(r * 0.74), cy + int(r * 0.14)),
-             (bx + int(r * 0.60), cy + int(r * 0.52)),
-             (bx + int(r * 0.30), cy + int(r * 0.50))]
+    # deep cheek-HOLLOW under the eye — recessed value inside the face, seated right
+    # on the silhouette's concave cheek bite so the pinch reads even when lit.
+    cheek = [(bx + int(r * 0.30), cy + int(r * 0.14)),
+             (bx + int(r * 0.84), cy + int(r * 0.16)),
+             (bx + int(r * 0.62), cy + int(r * 0.50)),
+             (bx + int(r * 0.40), cy + int(r * 0.46))]
     pygame.draw.polygon(surf, CHAR_DD, cheek)
     # two eye sockets — ink pits with a LOW ember glow (dimmer than chest focal),
     # tucked under the brow band.
-    for (ox, scale) in ((0.34, 1.0), (0.80, 0.86)):
+    for (ox, scale) in ((0.36, 1.0), (0.82, 0.86)):
         ex = bx + int(r * ox)
-        ey = cy - int(r * 0.12)
+        ey = cy - int(r * 0.10)
         er = int(r * 0.26 * scale)
         pygame.draw.circle(surf, INK, (ex, ey), er + max(1, int(1.2 * s)))
         pygame.draw.circle(surf, EMBER_D, (ex, ey), er)
         pygame.draw.circle(surf, EMBER, (ex, ey + int(er * 0.2)), int(er * 0.55))
     # nasal pit
     pygame.draw.polygon(surf, INK,
-                        [(bx + int(r * 0.56), cy + int(r * 0.04)),
-                         (bx + int(r * 0.68), cy + int(r * 0.04)),
-                         (bx + int(r * 0.62), cy + int(r * 0.30))])
+                        [(bx + int(r * 0.58), cy + int(r * 0.06)),
+                         (bx + int(r * 0.70), cy + int(r * 0.06)),
+                         (bx + int(r * 0.64), cy + int(r * 0.32))])
     # a few ember veins threading the cranium (DIM — not the focal)
-    ember_crack(surf, [(bx - int(r * 0.26), cy - int(r * 0.64)),
-                       (bx + int(r * 0.06), cy - int(r * 0.44)),
-                       (bx + int(r * 0.34), cy - int(r * 0.58))], s, dim=True)
-    ember_crack(surf, [(bx + int(r * 0.46), cy - int(r * 0.56)),
-                       (bx + int(r * 0.74), cy - int(r * 0.30))], s, dim=True)
-    # teeth row set on the NARROWED jaw (inboard of the notch) — a short rime row
-    # so the skull's grin reads against the dark cheek hollow.
-    jy = cy + int(r * 0.64)
-    pygame.draw.line(surf, INK, (bx + int(r * 0.30), jy),
-                     (bx + int(r * 0.62), jy - int(r * 0.02)),
+    ember_crack(surf, [(bx - int(r * 0.24), cy - int(r * 0.66)),
+                       (bx + int(r * 0.08), cy - int(r * 0.46)),
+                       (bx + int(r * 0.36), cy - int(r * 0.60))], s, dim=True)
+    ember_crack(surf, [(bx + int(r * 0.50), cy - int(r * 0.58)),
+                       (bx + int(r * 0.78), cy - int(r * 0.32))], s, dim=True)
+    # teeth row set on the NARROWED jaw (inboard of the cheek hollow) — a short rime
+    # row so the skull's grin reads against the dark cheek hollow.
+    jy = cy + int(r * 0.70)
+    pygame.draw.line(surf, INK, (bx + int(r * 0.40), jy),
+                     (bx + int(r * 0.70), jy - int(r * 0.02)),
                      max(1, int(1.6 * s)))
     for k in range(4):
-        tx = bx + int(r * (0.30 + k * 0.10))
+        tx = bx + int(r * (0.40 + k * 0.09))
         pygame.draw.line(surf, RIME, (tx, jy - int(r * 0.05)),
                          (tx, jy + int(r * 0.09)), max(1, int(1.0 * s)))
 
@@ -574,7 +582,7 @@ def main():
     sheet.blit(font_big.render("EMBER ASH WALKER", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "Skull Kings II  ·  the ONE king in MOTION · mid-stride forward walker · charred skull war-helm crest-forward · "
-        "streaming ash-cloak + forward staff thrust · single chest-ember focal · round 3",
+        "streaming ash-cloak + forward staff thrust · single chest-ember focal · round 4",
         True, LABEL_DIM), (360, 26))
 
     # === (a) BIG HERO =========================================================
@@ -602,11 +610,67 @@ def main():
     sheet.blit(font_sm.render("ash-rime ticks; skull-helm cap echoes the walker", True, LABEL_DIM), (pcx - 4, 730))
     sheet.blit(font_sm.render("(mirrored top<->bottom, on-axis, bottom-rooted)", True, LABEL_DIM), (pcx - 4, 746))
 
-    # === (c) TRUE 32px chips on day + night sky + SILHOUETTE proof =============
+    # === (c) PROOF column — re-shot in round-4 order: the CROWN crop is the LEAD
+    # gate (the round-3 blocker), THEN the full-figure blackout, THEN the 32px
+    # day+night chips. The head fix is checked in isolation BEFORE anything else.
     panel_x = 660
     pygame.draw.rect(sheet, PANEL, (panel_x, 86, W - panel_x - 14, 560))
-    sheet.blit(font.render("True 32px gameplay-scale chip", True, LABEL), (panel_x + 16, 96))
+    sheet.blit(font.render("Read-order proof: crown -> figure -> 32px", True, LABEL), (panel_x + 16, 96))
 
+    day_y = 128
+    night_y = day_y + 184
+    sil_x = panel_x + 196
+
+    # --- PROOF 1 (LEAD GATE): CROWN blackout crop — the skull-helm ALONE, blacked
+    # out, NO body context, so "the crown alone must say SKULL, not ball/potato" is
+    # checkable directly. Enlarged in round 4 so the three silhouette cues read.
+    def crown_blackout(box):
+        # render JUST the skull-helm at the SAME proportions the walker uses
+        # (r = hr*1.30), centred so the whole crown is framed with margin.
+        sc = 2.3
+        r = int(int(13 * sc) * 1.30)
+        big = pygame.Surface((box * SS, box * SS), pygame.SRCALPHA)
+        rS = r * SS
+        # the profile spans x in [bx-0.72r, bx+1.12r], y in [cy-1.06r, cy+1.00r];
+        # centre that bounding box. skull_helm derives bx = cx + int(r*0.16), so
+        # back the tilt out of cx to land the mass centre at the box centre.
+        cy = box // 2 * SS
+        bx = box // 2 * SS - int(0.20 * rS)
+        skull_helm(big, bx - int(rS * 0.16), cy, rS, sc * SS)
+        small = pygame.transform.smoothscale(big, (box, box))
+        mask = pygame.mask.from_surface(small)
+        sil = pygame.Surface((box, box), pygame.SRCALPHA)
+        sil.blit(mask.to_surface(setcolor=(18, 18, 20, 255),
+                                 unsetcolor=(0, 0, 0, 0)), (0, 0))
+        return sil
+
+    crown_box = 150
+    pygame.draw.rect(sheet, (210, 212, 216), (panel_x + 20, day_y, crown_box, crown_box))
+    pygame.draw.rect(sheet, INK, (panel_x + 20, day_y, crown_box, crown_box), 1)
+    sheet.blit(crown_blackout(crown_box), (panel_x + 20, day_y))
+    sheet.blit(font_sm.render("1) CROWN crop ALONE (the gate)", True, LABEL), (panel_x + 20, day_y + 156))
+    sheet.blit(font_sm.render("no body — crest + brow step + cheek", True, LABEL_DIM), (panel_x + 20, day_y + 172))
+    sheet.blit(font_sm.render("HOLLOW + jaw = SKULL, not a blob", True, LABEL_DIM), (panel_x + 20, day_y + 188))
+
+    # --- PROOF 2: full-figure blackout — the WALK + above-head SKULL crest read
+    def silhouette():
+        big = pygame.Surface((150 * SS, 200 * SS), pygame.SRCALPHA)
+        draw_walker(big, 70 * SS, 100 * SS, 1.28 * SS)
+        small = pygame.transform.smoothscale(big, (150, 200))
+        mask = pygame.mask.from_surface(small)
+        sil = pygame.Surface((150, 200), pygame.SRCALPHA)
+        solid = mask.to_surface(setcolor=(18, 18, 20, 255), unsetcolor=(0, 0, 0, 0))
+        sil.blit(solid, (0, 0))
+        return sil
+
+    pygame.draw.rect(sheet, (210, 212, 216), (sil_x, day_y, 150, 200))
+    pygame.draw.rect(sheet, INK, (sil_x, day_y, 150, 200), 1)
+    sheet.blit(silhouette(), (sil_x, day_y))
+    sheet.blit(font_sm.render("2) full-figure blackout", True, LABEL), (sil_x, day_y + 204))
+    sheet.blit(font_sm.render("(planted front leg + lifted back leg = WALK,", True, LABEL_DIM), (sil_x, day_y + 220))
+    sheet.blit(font_sm.render("big skull crest above the head)", True, LABEL_DIM), (sil_x, day_y + 236))
+
+    # --- PROOF 3: true 32px chips on day + night sky
     def chip32(night=False):
         big = pygame.Surface((96 * SS, 96 * SS), pygame.SRCALPHA)
         draw_walker(big, 46 * SS, 56 * SS, (32 / 128.0) * SS)
@@ -623,68 +687,17 @@ def main():
     day_chip = chip32(night=False)
     night_chip = chip32(night=True)
 
-    day_y = 128
-    vgrad(sheet, (panel_x + 20, day_y, 150, 150), DAY_SKY_T, DAY_SKY_B)
-    pygame.draw.rect(sheet, INK, (panel_x + 20, day_y, 150, 150), 1)
-    sheet.blit(day_chip, (panel_x + 20 + 27, day_y + 27))
-    sheet.blit(font_sm.render("32px on day sky", True, LABEL), (panel_x + 20, day_y + 156))
-
-    night_y = day_y + 184
-    vgrad(sheet, (panel_x + 20, night_y, 150, 150), NIGHT_T, NIGHT_B)
-    pygame.draw.rect(sheet, INK, (panel_x + 20, night_y, 150, 150), 1)
-    sheet.blit(night_chip, (panel_x + 20 + 27 - 1, night_y + 27 - 1))
-    sheet.blit(font_sm.render("32px on night sky (ash-rime rim)", True, LABEL_DIM), (panel_x + 20, night_y + 156))
-
-    # silhouette proof — blacked-out hero so the STRIDE read is checked
-    def silhouette():
-        big = pygame.Surface((150 * SS, 200 * SS), pygame.SRCALPHA)
-        draw_walker(big, 70 * SS, 100 * SS, 1.28 * SS)
-        small = pygame.transform.smoothscale(big, (150, 200))
-        mask = pygame.mask.from_surface(small)
-        sil = pygame.Surface((150, 200), pygame.SRCALPHA)
-        solid = mask.to_surface(setcolor=(18, 18, 20, 255), unsetcolor=(0, 0, 0, 0))
-        sil.blit(solid, (0, 0))
-        return sil
-
-    sil_x = panel_x + 196
-    pygame.draw.rect(sheet, (210, 212, 216), (sil_x, day_y, 150, 200))
-    pygame.draw.rect(sheet, INK, (sil_x, day_y, 150, 200), 1)
-    sheet.blit(silhouette(), (sil_x, day_y))
-    sheet.blit(font_sm.render("silhouette proof (blackout)", True, LABEL_DIM), (sil_x, day_y + 204))
-    sheet.blit(font_sm.render("(planted front leg + lifted back leg = WALK)", True, LABEL_DIM), (sil_x, day_y + 220))
-
-    # CROWN blackout crop — the skull-helm ALONE, blacked out, so the round-3 gate
-    # ("the crown alone must say SKULL, not ball") is checkable directly. Drawn at
-    # a large scale, masked to a flat silhouette, then the head region is cropped.
-    def crown_blackout():
-        # render JUST the skull-helm using the SAME proportions the walker uses
-        # (r = hr*1.30), centred in the 90px box so the whole crown is framed.
-        sc = 2.3
-        hr2 = int(13 * sc)
-        r = int(hr2 * 1.30)
-        big = pygame.Surface((90 * SS, 90 * SS), pygame.SRCALPHA)
-        rS = r * SS
-        # centre the profile: it spans x in [bx-0.72r, bx+1.04r], y in [cy-0.92r,
-        # cy+0.98r]; place its bounding-box centre at the 90px box centre. skull_helm
-        # derives bx = cx + int(r*0.16) internally, so back that tilt out of cx.
-        cy = 45 * SS - int(0.03 * rS)
-        bx = 45 * SS - int(0.16 * rS)
-        skull_helm(big, bx - int(rS * 0.16), cy, rS, sc * SS)
-        small = pygame.transform.smoothscale(big, (90, 90))
-        mask = pygame.mask.from_surface(small)
-        sil = pygame.Surface((90, 90), pygame.SRCALPHA)
-        sil.blit(mask.to_surface(setcolor=(18, 18, 20, 255),
-                                 unsetcolor=(0, 0, 0, 0)), (0, 0))
-        return sil
-
-    crown_y = night_y
-    pygame.draw.rect(sheet, (210, 212, 216), (sil_x, crown_y, 150, 110))
-    pygame.draw.rect(sheet, INK, (sil_x, crown_y, 150, 110), 1)
-    sheet.blit(crown_blackout(), (sil_x + 30, crown_y + 10))
-    sheet.blit(font_sm.render("CROWN blackout (skull read)", True, LABEL_DIM),
-               (sil_x, crown_y + 114))
-    sheet.blit(font_sm.render("crest ridge + brow + jaw notch = SKULL", True, LABEL_DIM),
-               (sil_x, crown_y + 130))
+    pygame.draw.rect(sheet, PANEL, (panel_x + 20, night_y, 150, 24))
+    sheet.blit(font_sm.render("3) true 32px gameplay-scale chip", True, LABEL), (panel_x + 20, night_y + 4))
+    chip_y = night_y + 30
+    vgrad(sheet, (panel_x + 20, chip_y, 96, 96), DAY_SKY_T, DAY_SKY_B)
+    pygame.draw.rect(sheet, INK, (panel_x + 20, chip_y, 96, 96), 1)
+    sheet.blit(day_chip, (panel_x + 20, chip_y))
+    sheet.blit(font_sm.render("day", True, LABEL_DIM), (panel_x + 50, chip_y + 98))
+    vgrad(sheet, (sil_x, chip_y, 96, 96), NIGHT_T, NIGHT_B)
+    pygame.draw.rect(sheet, INK, (sil_x, chip_y, 96, 96), 1)
+    sheet.blit(night_chip, (sil_x - 1, chip_y - 1))
+    sheet.blit(font_sm.render("night (ash-rime rim)", True, LABEL_DIM), (sil_x, chip_y + 98))
 
     def pillar_chip32():
         big = pygame.Surface((40 * SS, 130 * SS), pygame.SRCALPHA)
@@ -727,7 +740,7 @@ def main():
         "ONE matte-charcoal mass; ember + ash-rime are thin accents; the single hot chest ember is the focal.  Night carried by ash-rime rim.  SS=6 -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_4.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
