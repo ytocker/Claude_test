@@ -189,9 +189,12 @@ def skull_helm(surf, cx, cy, r, s):
     #   (1) a clean forward CREST ridge jutting up+fwd, then a sharp inward DIP so
     #       the crest reads as its own mass;
     #   (2) a BROW that juts forward as a SEPARATE step below that dip (brow != crest);
-    #   (3) the most important cue — a DEEP concave CHEEK HOLLOW biting inward under
-    #       the cheekbone, pinching the face so a narrow rounded JAW hangs below as
-    #       its own mass (wide cranium over a pinched waist over a small jaw).
+    #   (3) the most important cue — a HARD concave V CHEEK HOLLOW biting straight
+    #       inward under the cheekbone (the DEEPEST concavity in the whole crop, not a
+    #       smooth scallop), pinching the face so a JAW steps back OUT below it as its
+    #       own mass (wide cranium over a pinched waist over a forward jaw). The front
+    #       edge top->bottom reads four events: crest lobe -> dip -> brow shelf (OUT)
+    #       -> cheek HOLLOW (bites IN) -> jaw/chin (steps OUT, tapers).
     tilt = int(r * 0.16)
     bx = cx + tilt                         # forward (motion) bias of the whole skull
     # ---- the skull MASS profile, traced clockwise from the back of the crown ----
@@ -208,16 +211,22 @@ def skull_helm(surf, cx, cy, r, s):
         (bx + int(r * 0.64), cy - int(r * 0.64)),   # >>> DEEP dip behind the brow
         (bx + int(r * 0.50), cy - int(r * 0.54)),   #     (separates crest from brow)
         (bx + int(r * 0.94), cy - int(r * 0.42)),   # >>> BROW shelf steps OUT (own mass)
-        (bx + int(r * 1.14), cy - int(r * 0.20)),   #     brow / cheekbone juts AHEAD
-        (bx + int(r * 1.12), cy + int(r * 0.10)),   #     cheekbone (forward, widest)
-        (bx + int(r * 0.74), cy + int(r * 0.20)),   #     cheekbone underside
-        (bx + int(r * 0.44), cy + int(r * 0.30)),   # >>> DEEP cheek HOLLOW bites IN hard
-        (bx + int(r * 0.40), cy + int(r * 0.46)),   #     (the key skull cue — sharp concave)
-        (bx + int(r * 0.94), cy + int(r * 0.58)),   # >>> JAW ANGLE juts back OUT (own mass)
-        (bx + int(r * 0.86), cy + int(r * 0.90)),   #     jaw front, forward
-        (bx + int(r * 0.58), cy + int(r * 1.04)),   #     chin juts down + forward
-        (bx + int(r * 0.30), cy + int(r * 0.94)),
-        (bx + int(r * 0.20), cy + int(r * 0.56)),   # jaw underside, tucked UNDER the face
+        (bx + int(r * 1.16), cy - int(r * 0.22)),   #     brow / cheekbone juts AHEAD
+        (bx + int(r * 1.20), cy + int(r * 0.04)),   #     CHEEKBONE tip (forward, widest corner)
+        (bx + int(r * 1.12), cy + int(r * 0.14)),   #     cheekbone underside — sharp corner
+        # >>> the SKULL cue: a HARD concave V biting straight IN to the deepest point
+        # of the whole crop, directly under the cheekbone. The lip dives almost
+        # HORIZONTALLY back to a deep apex (kept tight so smoothscale can't relax it
+        # into a scallop), then the jaw PUNCHES back out — the single deepest bite,
+        # deeper than any back-of-skull or jaw-hinge concavity, so it OWNS the read.
+        (bx + int(r * 0.22), cy + int(r * 0.18)),   #     hollow lip — sharp horizontal dive in
+        (bx + int(r * 0.10), cy + int(r * 0.34)),   # >>> HOLLOW APEX — deepest bite of the crop
+        (bx + int(r * 0.26), cy + int(r * 0.48)),   #     hollow exits down (jaw begins, pinched)
+        (bx + int(r * 1.00), cy + int(r * 0.62)),   # >>> JAW ANGLE punches back OUT (own mass)
+        (bx + int(r * 0.84), cy + int(r * 0.94)),   #     jaw front, forward
+        (bx + int(r * 0.54), cy + int(r * 1.06)),   #     chin juts down + forward (tapered point)
+        (bx + int(r * 0.28), cy + int(r * 0.92)),
+        (bx + int(r * 0.16), cy + int(r * 0.54)),   # jaw underside, tucked UNDER the face
         (bx + int(r * 0.10), cy + int(r * 0.30)),   # >>> back jaw hinge pinches IN hard
         (bx - int(r * 0.18), cy + int(r * 0.04)),   # back cheek (steep — no down-left lobe)
         (bx - int(r * 0.50), cy - int(r * 0.10)),   # back of skull sweeps cleanly up (smooth)
@@ -254,10 +263,10 @@ def skull_helm(surf, cx, cy, r, s):
     triad_blob(surf, CHAR_D, brow, ow=max(1, int(1.3 * s)))
     # deep cheek-HOLLOW under the eye — recessed value inside the face, seated right
     # on the silhouette's concave cheek bite so the pinch reads even when lit.
-    cheek = [(bx + int(r * 0.34), cy + int(r * 0.18)),
-             (bx + int(r * 0.86), cy + int(r * 0.22)),
-             (bx + int(r * 0.64), cy + int(r * 0.54)),
-             (bx + int(r * 0.40), cy + int(r * 0.48))]
+    cheek = [(bx + int(r * 0.30), cy + int(r * 0.20)),
+             (bx + int(r * 0.92), cy + int(r * 0.22)),
+             (bx + int(r * 0.70), cy + int(r * 0.56)),
+             (bx + int(r * 0.30), cy + int(r * 0.44))]
     pygame.draw.polygon(surf, CHAR_DD, cheek)
     # two eye sockets — ink pits with a LOW ember glow (dimmer than chest focal),
     # tucked under the brow band.
@@ -585,7 +594,7 @@ def main():
     sheet.blit(font_big.render("EMBER ASH WALKER", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "Skull Kings II  ·  the ONE king in MOTION · mid-stride forward walker · charred skull war-helm crest-forward · "
-        "streaming ash-cloak + forward staff thrust · single chest-ember focal · round 4",
+        "streaming ash-cloak + forward staff thrust · single chest-ember focal · round 5",
         True, LABEL_DIM), (360, 26))
 
     # === (a) BIG HERO =========================================================
@@ -744,7 +753,7 @@ def main():
         "ONE matte-charcoal mass; ember + ash-rime are thin accents; the single hot chest ember is the focal.  Night carried by ash-rime rim.  SS=6 -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_4.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_5.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
