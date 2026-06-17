@@ -122,6 +122,11 @@ def tiara_skull(surf, cx, cy, r, s, lit=False):
     always: Mala's beads are INERT (no internal glow) — that is the hard tell vs
     sister Kapala's glowing cups."""
     triad_circle(surf, BONE, (cx, cy), r, ow=max(1, int(1.4 * s)), core=False)
+    # a thin BONE_SH rim-arc on the cranium top-left — a VALUE lift (not a glow)
+    # so the inert bead still separates from a dark night sky at 32px.
+    pygame.draw.arc(surf, BONE_SH,
+                    (cx - r, cy - r, r * 2, r * 2),
+                    math.radians(110), math.radians(210), max(1, int(1.4 * s)))
     jaw = [(cx - int(r * 0.5), cy + int(r * 0.5)),
            (cx + int(r * 0.5), cy + int(r * 0.5)),
            (cx + int(r * 0.32), cy + int(r * 0.94)),
@@ -195,52 +200,83 @@ def _sag_point(p0, p1, t, sag):
 
 
 def draw_garland(surf, hands, head_c, hr, relic_r, s):
-    """String a CONNECTED rose-cord garland between the six hands, hang an inert
-    skull-bead off each hand's gold ring-clasp, and droop the three UPPER swags
-    into the open sky beside the crown so the whole thing FRAMES the face in a
-    hammock of skulls.
+    """String a CONNECTED rose-cord garland between the six hands, hang ONE inert
+    skull-bead off each hand's gold ring-clasp (six beads total), and ROUTE the
+    two crown-flanking swags OUTWARD so they drape BESIDE the crown and leave an
+    open triangular sky-wedge above the tiara — skulls FRAME, never roof, the face.
 
-    WHY this is the loud element: Mala's tell is the CONNECTION. The cord is a
-    visible ROSE line; tiny GOLD spacer-dots ride it; the skulls hang DOWN as
-    inert beads with NO internal glow. The three swags nearest the crown are
-    given the deepest sag so they cradle the head from the sides without ever
-    reaching OVER it — the negative-space wedge above the tiara stays open."""
+    WHY the BEADS carry the silhouette, not the cord: at 32px a fat rose cord
+    mushes into the beads. So the cord is drawn THIN (1-2px) and DARK (toward
+    ROSE_D, capped well below the brow third-eye), while the six skull-beads are
+    fattened and value-lifted so the read is 'a sag of skull-DOTS'. NEVER an
+    internal bead glow — that is sister Kapala's identity; night is solved by
+    value + a bone keyline only.
+
+    WHY the cord is routed up-and-out past the two top hands rather than chorded
+    straight across the crown: a straight chord between the highest left + right
+    hands would cut OVER the tiara and close the wedge (the r1 failure). Instead
+    the top swag is split — each top hand's cord rises OUTWARD to an off-screen-ish
+    anchor up and to the side, so the garland opens like a curtain pulled aside."""
     n = len(hands)
-    bead_r = int(relic_r * 1.05)            # garland skull ~ a chunky bead
-    clasp_r = max(1, int(relic_r * 0.42))   # the gold ring at each hand
+    bead_r = int(relic_r * 1.30)            # FATTER bead so it carries the read
+    clasp_r = max(1, int(relic_r * 0.40))   # the gold ring at each hand
 
-    # WHY a per-swag sag profile: the swags drawn between the UPPER hands (chain
-    # ends) dip deepest so they hammock the face; the low under-arm swags are
-    # shallower so they read as a taut sag of beads, not a tangle.
+    # the two crown-flanking hands are the chain ends (left[0] = top-left,
+    # right[-1] = top-right) thanks to the L->R neighbour ordering in the fan.
+    top_l, top_r = hands[0], hands[-1]
+
+    def draw_cord(pts, deep=False):
+        """A THIN, dark rose cord. WHY ink under a 1px rose: the beads must win
+        the silhouette — the cord is a hint of connection, not a rose ribbon. On
+        a deep swag (the crown-flanking ones) push toward ROSE_D so it recedes."""
+        col = ROSE_D if deep else lerp(ROSE, ROSE_D, 0.45)
+        pygame.draw.lines(surf, INK, False, pts, max(2, int(2.6 * s)))
+        pygame.draw.lines(surf, col, False, pts, max(1, int(1.4 * s)))
+
+    # --- the inter-hand swags, but SKIP the chord across the crown gap ----------
     for i in range(n - 1):
         p0, p1 = hands[i], hands[i + 1]
-        midx = (p0[0] + p1[0]) * 0.5
-        # swags whose midpoint sits ABOVE the head centre are the framing ones —
-        # give them a deeper droop so the cord curtains DOWN beside the crown.
-        upper = (p0[1] + p1[1]) * 0.5 < head_c[1]
-        sag = (relic_r * (3.4 if upper else 2.0))
-        # the cord — INK keyline pass first, then ROSE, sampled along the swag.
-        cord_ink = [_sag_point(p0, p1, t / 16.0, sag) for t in range(17)]
-        cord_rose = list(cord_ink)
-        pygame.draw.lines(surf, INK, False, cord_ink, max(2, int(3.4 * s)))
-        pygame.draw.lines(surf, ROSE, False, cord_rose, max(2, int(2.2 * s)))
-        pygame.draw.lines(surf, ROSE_BR, False, cord_rose[:9], max(1, int(1.0 * s)))
-        # tiny GOLD spacer-dots ride the cord between the clasps
-        for t in (0.28, 0.5, 0.72):
-            sp = _sag_point(p0, p1, t, sag)
-            pygame.draw.circle(surf, GOLD_D, (int(sp[0]), int(sp[1])), max(1, int(1.8 * s)))
-            pygame.draw.circle(surf, GOLD, (int(sp[0]), int(sp[1])), max(1, int(1.2 * s)))
-            pygame.draw.circle(surf, GOLD_BR, (int(sp[0]) - 1, int(sp[1]) - 1),
-                               max(1, int(0.6 * s)))
+        # the single widest gap in the chain straddles the crown (left-end ->
+        # right-end wrap is not drawn; this is the under-face swag set). Give the
+        # under-arm swags a gentle, even sag so they read as one taut mundamala.
+        sag = relic_r * 1.9
+        cord = [_sag_point(p0, p1, t / 14.0, sag) for t in range(15)]
+        draw_cord(cord)
+        # ONE small gold spacer-dot at the swag midpoint — capped a clear notch
+        # below the brow: tiny, GOLD (not rose), no bright-white pip.
+        sp = _sag_point(p0, p1, 0.5, sag)
+        pygame.draw.circle(surf, GOLD_D, (int(sp[0]), int(sp[1])), max(1, int(1.6 * s)))
+        pygame.draw.circle(surf, GOLD, (int(sp[0]), int(sp[1])), max(1, int(1.0 * s)))
 
-    # at each hand: a gold ring-clasp, a short drop-link, then a hung skull-bead
+    # --- the crown-flanking curtains: route each top hand's cord UP and OUT ------
+    # WHY anchors above + outside the head: the cord rises beside the crown to a
+    # high outboard point, opening a clean V of sky over the tiara at 32px.
+    for hand, sgn in ((top_l, -1), (top_r, +1)):
+        anchor = (head_c[0] + sgn * int(hr * 2.05), head_c[1] - int(hr * 1.15))
+        # a shallow OUTWARD bow so the curtain bulges away from the face.
+        bow = relic_r * -2.4
+        cord = [_sag_point(hand, anchor, t / 12.0, bow) for t in range(13)]
+        draw_cord(cord, deep=True)
+        # a single gold spacer near the hand end to echo the mundamala beadwork.
+        sp = _sag_point(hand, anchor, 0.35, bow)
+        pygame.draw.circle(surf, GOLD_D, (int(sp[0]), int(sp[1])), max(1, int(1.6 * s)))
+        pygame.draw.circle(surf, GOLD, (int(sp[0]), int(sp[1])), max(1, int(1.0 * s)))
+        # a small gold knot CAPS the curtain end so the up-and-out cord reads as a
+        # garland tie-back, not a loose wire — and stays a clear notch below the brow.
+        ax, ay = int(anchor[0]), int(anchor[1])
+        triad_circle(surf, GOLD, (ax, ay), max(1, int(2.2 * s)),
+                     ow=max(1, int(1.0 * s)), core=False, sheen=False)
+        pygame.draw.circle(surf, INK, (ax, ay), max(1, int(1.0 * s)))
+
+    # --- at each hand: gold ring-clasp, short drop-link, ONE hung skull-bead ----
     for (hx, hy) in hands:
-        drop = int(bead_r * 1.55)
+        drop = int(bead_r * 1.40)
         bx, by = hx, hy + drop
-        # the drop-link the bead hangs on (ink then rose so it reads as cord)
-        pygame.draw.line(surf, INK, (hx, hy), (bx, by - bead_r), max(2, int(3.0 * s)))
-        pygame.draw.line(surf, ROSE, (hx, hy), (bx, by - bead_r), max(1, int(1.8 * s)))
-        # the gold ring-clasp at the hand
+        # the drop-link — thin + dark so the BEAD, not the link, reads.
+        pygame.draw.line(surf, INK, (hx, hy), (bx, by - bead_r), max(2, int(2.6 * s)))
+        pygame.draw.line(surf, lerp(ROSE, ROSE_D, 0.45), (hx, hy), (bx, by - bead_r),
+                         max(1, int(1.3 * s)))
+        # the gold ring-clasp at the hand (no bright pip — capped below the brow)
         triad_circle(surf, GOLD, (hx, hy), clasp_r, ow=max(1, int(1.2 * s)),
                      core=False, sheen=False)
         pygame.draw.circle(surf, INK, (hx, hy), max(1, int(clasp_r * 0.45)))
@@ -282,7 +318,8 @@ def draw_mala_mata(surf, cx, cy, s):
         pygame.draw.line(surf, BONE_DD, (px, base_y - int(15 * s)),
                          (px, base_y + int(8 * s)), max(1, int(1.4 * s)))
     pygame.draw.circle(surf, ROSE_D, (cx, base_y - int(3 * s)), int(5 * s))
-    pygame.draw.circle(surf, ROSE, (cx - int(1 * s), base_y - int(4 * s)), max(1, int(2 * s)))
+    pygame.draw.circle(surf, lerp(ROSE, ROSE_D, 0.3),
+                       (cx - int(1 * s), base_y - int(4 * s)), max(1, int(2 * s)))
 
     # === TORSO — a SHORT rib barrel (UNCHANGED) ===============================
     rc_cx, rc_cy = cx, cy + int(12 * s)
@@ -309,10 +346,11 @@ def draw_mala_mata(surf, cx, cy, s):
                         math.radians(205), math.radians(335), max(2, int(2.2 * s)))
     pygame.draw.line(surf, BONE_DD, (rc_cx, rc_cy - rc_h // 2 + int(5 * s)),
                      (rc_cx, rc_cy + int(3 * s)), max(1, int(2 * s)))
-    pygame.draw.line(surf, ROSE, (rc_cx - int(rc_w * 0.42), rc_cy + int(2 * s)),
+    # chest sash — kept rose but capped a notch DOWN (no ROSE_BR) so the only
+    # truly hot rose on the figure is the brow third-eye.
+    pygame.draw.line(surf, lerp(ROSE, ROSE_D, 0.3),
+                     (rc_cx - int(rc_w * 0.42), rc_cy + int(2 * s)),
                      (rc_cx + int(rc_w * 0.42), rc_cy - int(2 * s)), max(1, int(2 * s)))
-    pygame.draw.line(surf, ROSE_BR, (rc_cx - int(rc_w * 0.3), rc_cy + int(1 * s)),
-                     (rc_cx, rc_cy - int(1 * s)), max(1, int(1 * s)))
 
     # === CONNECTED SKULL-GARLAND — the arm-end ornament (Mala's tell) =========
     # WHY drawn after torso, before head: the hung beads + cord ride out at the
@@ -497,16 +535,16 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("MALA-MATA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "skull-garland mother  ·  Mukha-Devi SISTER · MID tight-loose · CONNECTED rim · 9 skulls ringing the face · round 1",
+        "skull-garland mother  ·  Mukha-Devi SISTER · MID tight-loose · CONNECTED rim · 6 garland + 3 tiara skulls · round 2",
         True, LABEL_DIM), (250, 26))
 
     # === (a) BIG HERO =========================================================
     hero = render_creature_chip(360, 470, 178, 232, 1.55)
     sheet.blit(hero, (14, 92))
     sheet.blit(font.render("Creature — hero", True, LABEL), (110, 566))
-    sheet.blit(font_sm.render("Six hands JOINED by a sagging rose-cord garland; an inert skull hangs off each.", True, LABEL_DIM), (14, 590))
-    sheet.blit(font_sm.render("The three UPPER swags dip into open sky beside the crown — a hammock of skulls.", True, LABEL_DIM), (14, 606))
-    sheet.blit(font_sm.render("6 garland skulls + 3 tiara = 9 ringing the face. Third eye stays the brightest pixel.", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("Six hands JOINED by a thin dark rose cord; ONE fat inert skull-bead hangs off each.", True, LABEL_DIM), (14, 590))
+    sheet.blit(font_sm.render("Crown-flanking cords route UP-and-OUT — an open V of sky sits above the tiara.", True, LABEL_DIM), (14, 606))
+    sheet.blit(font_sm.render("6 beads carry the sag; cord is a hint. Brow third-eye is the single brightest pixel.", True, LABEL_DIM), (14, 622))
 
     # === (b) PILLAR assembled — mirrored, clean tileable shaft ================
     pcx = 470
@@ -610,7 +648,7 @@ def main():
         "INERT beads on a visible rose cord (NO glow) vs Kapala's up-facing glowing cups.  procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
