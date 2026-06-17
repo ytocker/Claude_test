@@ -46,6 +46,20 @@ Links point at the `v5_skybit_enrich` branch.
 - [Asthi-Garuda — bone-winged sky-eater (spread-wing)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/citipati_versions/asthi_garuda/round_3.png)
 - [Koschei — deathless bone-throne king (seated-throne)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/citipati_versions/koschei/round_2.png)
 
+## 🎍 Kadomatsu — epic bamboo-plant gate-bosses (five distinct silhouette KINDs)
+Spun off from **Kadomatsu-Shin** (itself part of the Bamboo v2 set below). The brief: more EPIC but
+*reliably a bamboo PLANT* — every boss keeps the diagonal-cut cream mouths + bound fresh-cut culm
+cluster, scaled into mythic forms. Four SHIP-READY; Shishi-Kadomatsu ships with a documented note (its
+in-game color read is ship-quality; only the pure-black silhouette crown trends to a dome).
+**Combined showcase:** [kadomatsu_versions/showcase.png](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/kadomatsu_versions/showcase.png)
+
+- **Original:** [Kadomatsu-Shin (New-Year three-culm gate-god)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/bamboo_v2_versions/kadomatsu_shin/round_2.png)
+- [Kadomatsu-Torii — colossal shrine-gate of cut culms (open gate-frame)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/kadomatsu_versions/kadomatsu_torii/round_3.png)
+- [Kazari-no-Yama — bristling offering-mound pyre (many-tipped mound)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/kadomatsu_versions/kazari_no_yama/round_2.png)
+- [Tatsu-no-Takemura — coiling grove-serpent (vertical S-coil)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/kadomatsu_versions/tatsu_no_takemura/round_4.png)
+- [Moso-no-Taisho — great single-culm monolith (lone fat column)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/kadomatsu_versions/moso_no_taisho/round_3.png)
+- [Shishi-Kadomatsu — bound-culm komainu guardian (squat quadruped + cut-tip crown)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/kadomatsu_versions/shishi_kadomatsu/round_5.png)
+
 ---
 
 # Standalone fresh-theme sets (not spin-off broods)
