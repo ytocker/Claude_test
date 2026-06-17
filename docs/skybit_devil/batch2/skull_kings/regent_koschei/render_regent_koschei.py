@@ -134,28 +134,24 @@ def bone_limb(surf, p0, p1, p2, thick, s, joint=True):
 
 
 # -- ROYAL GILT primitives (thin metal accents) -------------------------------
-def gilt_cuff(surf, cx, cy, w, h, s, rivets=2):
-    """A thin gilt riveted band wrapping an iron member. WHY a low-key ochre
-    band with a single top-left specular line + tiny rivet dots, never a fat
-    bar: the regent's royalty must read as worked-metal banding ON the iron,
-    not as a second gold mass. The band hugs the member's width so gold stays a
-    thin EDGE accent at any scale."""
-    band = [(cx - w * 0.5, cy - h * 0.5), (cx + w * 0.5, cy - h * 0.5),
-            (cx + w * 0.5, cy + h * 0.5), (cx - w * 0.5, cy + h * 0.5)]
-    pygame.draw.polygon(surf, GOLD_D, band)
-    inner = [(cx - w * 0.5, cy - h * 0.5), (cx + w * 0.5, cy - h * 0.5),
-             (cx + w * 0.5, cy + h * 0.16), (cx - w * 0.5, cy + h * 0.16)]
-    pygame.draw.polygon(surf, GOLD, inner)
-    pygame.draw.line(surf, GOLD_HI, (cx - w * 0.42, cy - h * 0.30),
-                     (cx + w * 0.42, cy - h * 0.30), max(1, int(1.0 * s)))
-    pygame.draw.polygon(surf, INK, band, max(1, int(1.0 * s)))
-    # tiny rivet studs along the band (the riveted tell)
+def gilt_ferrule_ring(surf, cx, cy, w, s, rivets=2):
+    """A 1-2px gilt FERRULE RING tracing an iron member — NOT a filled block.
+    WHY line-work, not fill: at 32px a filled gilt cuff consolidates into a 2nd
+    warm mass that competes with the soul-egg. A thin top+bottom gold edge line
+    (with tiny rivet pips) reads as worked-metal banding ON the iron at hero
+    scale yet dissolves to nothing at 32px, so gold never becomes a second read.
+    The ring hugs the member width and is drawn as two thin lines, not a slab."""
+    lw = max(1, int(1.3 * s))
+    x0, x1 = cx - w * 0.5, cx + w * 0.5
+    # the ferrule = a top gold edge-line + a darker bottom shadow-line on iron
+    pygame.draw.line(surf, GOLD, (x0, cy - lw), (x1, cy - lw), lw)
+    pygame.draw.line(surf, GOLD_D, (x0, cy + lw), (x1, cy + lw), max(1, int(1.0 * s)))
+    pygame.draw.line(surf, GOLD_HI, (x0 + w * 0.10, cy - lw), (cx, cy - lw),
+                     max(1, int(0.8 * s)))
+    # tiny rivet studs riding the ring (the riveted tell, kept dot-sized)
     for k in range(rivets):
         rx = cx + (k - (rivets - 1) / 2.0) * (w / max(1, rivets))
-        pygame.draw.circle(surf, GOLD_HI, (int(rx), int(cy - h * 0.05)),
-                           max(1, int(1.4 * s)))
-        pygame.draw.circle(surf, GOLD_D, (int(rx), int(cy + h * 0.02)),
-                           max(1, int(0.8 * s)))
+        pygame.draw.circle(surf, GOLD_HI, (int(rx), int(cy)), max(1, int(1.1 * s)))
 
 
 def gilt_skull_link(surf, cx, cy, r, s):
@@ -231,10 +227,13 @@ def soul_egg(surf, cx, cy, r, s):
 # -- the blackened-iron tomb-crown of thin bent SPIKES, now GILT-CAPPED --------
 def iron_crown(surf, cx, cy, r, s, n=7):
     """Koschei's tall dark iron spike comb, KEPT as the KIND tell, now royally
-    gilt-capped. WHY: each spike tip gets a thin GOLD ferrule cap and the
-    tallest centre spike is set with a single chartreuse jewel — the regent's
-    crown. The ferrules are tiny diamonds of metal (a cap, not a coat) so the
-    crown still reads as blackened iron with gold tips, not a gold crown."""
+    crowned. WHY only the 3 tallest CENTRE spikes get gold ferrule caps (outer
+    spikes stay bare dark iron): scattering gold over all 7 tips spreads it into
+    a 2nd warm read at 32px and buries the royal tell. Concentrating the gilt on
+    the centre — plus a LARGE chartreuse crown-JEWEL in a gold bezel above the
+    tallest spike — gives the regent a single bright tell that survives the
+    downscale: a 2nd chartreuse point above the dark iron comb (the lap-egg
+    being the dominant first point). Outer iron stays a dark cage."""
     base_y = cy
     band = [(cx - int(r * 1.02), base_y - int(2 * s)),
             (cx + int(r * 1.02), base_y - int(2 * s)),
@@ -279,35 +278,46 @@ def iron_crown(surf, cx, cy, r, s, n=7):
                          (bx - wbot * 0.6, base_y),
                          (tipx - wbot * 0.4, tipy + int(1 * s)),
                          max(1, int(1.0 * s)))
-        # GOLD ferrule cap on every spike tip — a tiny diamond of metal
-        cap_w = max(2, int(r * 0.16))
-        cap_h = max(3, int(r * 0.26))
-        ferrule = [(tipx, tipy - cap_h),
-                   (tipx + cap_w, tipy),
-                   (tipx, tipy + cap_h * 0.5),
-                   (tipx - cap_w, tipy)]
-        pygame.draw.polygon(surf, INK, ferrule)
-        pygame.draw.polygon(surf, GOLD_D, ferrule)
-        inner = [(tipx, tipy - cap_h * 0.7), (tipx + cap_w * 0.7, tipy),
-                 (tipx, tipy + cap_h * 0.3), (tipx - cap_w * 0.7, tipy)]
-        pygame.draw.polygon(surf, GOLD, inner)
-        pygame.draw.line(surf, GOLD_HI, (tipx - cap_w * 0.4, tipy - cap_h * 0.2),
-                         (tipx, tipy - cap_h * 0.5), max(1, int(0.9 * s)))
-        # the CENTRE spike carries the single chartreuse crown-jewel at its tip
+        # GOLD ferrule cap on ONLY the 3 tallest CENTRE spikes; outer spikes
+        # stay bare dark iron so the gilt concentrates into a single glint mass.
+        is_centre_band = abs(i - centre_i) <= 1
+        if is_centre_band:
+            cap_w = max(2, int(r * 0.18))
+            cap_h = max(3, int(r * 0.30))
+            ferrule = [(tipx, tipy - cap_h),
+                       (tipx + cap_w, tipy),
+                       (tipx, tipy + cap_h * 0.5),
+                       (tipx - cap_w, tipy)]
+            pygame.draw.polygon(surf, INK, ferrule)
+            pygame.draw.polygon(surf, GOLD_D, ferrule)
+            inner = [(tipx, tipy - cap_h * 0.7), (tipx + cap_w * 0.7, tipy),
+                     (tipx, tipy + cap_h * 0.3), (tipx - cap_w * 0.7, tipy)]
+            pygame.draw.polygon(surf, GOLD, inner)
+            pygame.draw.line(surf, GOLD_HI, (tipx - cap_w * 0.4, tipy - cap_h * 0.2),
+                             (tipx, tipy - cap_h * 0.5), max(1, int(1.0 * s)))
+        # the CENTRE spike carries the LARGE chartreuse crown-jewel in a gold
+        # bezel — the regent's royal tell, sized to survive 32px as a 2nd point.
         if i == centre_i:
-            jr = max(2, int(r * 0.20))
-            jy = tipy - cap_h - jr
-            # tiny gold setting claws cradling the jewel
-            pygame.draw.circle(surf, GOLD_D, (int(tipx), int(jy)), jr + max(1, int(1.0 * s)))
-            # a faint chartreuse aura so the crown-jewel reads as lit but NEVER
-            # outshines the lap-egg (smaller + dimmer halo than the egg's)
-            halo = pygame.Surface((jr * 4, jr * 4), pygame.SRCALPHA)
-            pygame.draw.circle(halo, EGG_BR + (40,), (jr * 2, jr * 2), int(jr * 1.6))
-            surf.blit(halo, (int(tipx) - jr * 2, int(jy) - jr * 2))
+            jr = max(3, int(r * 0.30))
+            jy = tipy - max(3, int(r * 0.30)) - jr
+            # gold BEZEL ring cradling the jewel (a worked-metal setting, thin)
+            pygame.draw.circle(surf, INK, (int(tipx), int(jy)), jr + max(2, int(2.0 * s)))
+            pygame.draw.circle(surf, GOLD_D, (int(tipx), int(jy)), jr + max(1, int(1.6 * s)))
+            pygame.draw.circle(surf, GOLD, (int(tipx), int(jy)), jr + max(1, int(1.0 * s)))
+            pygame.draw.circle(surf, GOLD_HI,
+                               (int(tipx) - int(jr * 0.5), int(jy) - int(jr * 0.5)),
+                               max(1, int(1.1 * s)))
+            # a chartreuse aura — kept smaller + dimmer than the egg's so the
+            # lap-egg stays the brighter, dominant of the two chartreuse points.
+            halo = pygame.Surface((jr * 5, jr * 5), pygame.SRCALPHA)
+            pygame.draw.circle(halo, EGG_BR + (52,), (int(jr * 2.5), int(jr * 2.5)),
+                               int(jr * 1.7))
+            surf.blit(halo, (int(tipx) - int(jr * 2.5), int(jy) - int(jr * 2.5)))
             pygame.draw.circle(surf, EGG_RIM, (int(tipx), int(jy)), jr)
-            pygame.draw.circle(surf, EGG, (int(tipx), int(jy)), int(jr * 0.78))
-            pygame.draw.circle(surf, EGG_BR, (int(tipx) - int(jr * 0.2), int(jy) - int(jr * 0.2)),
-                               max(1, int(jr * 0.4)))
+            pygame.draw.circle(surf, EGG, (int(tipx), int(jy)), int(jr * 0.84))
+            pygame.draw.circle(surf, EGG_BR,
+                               (int(tipx) - int(jr * 0.22), int(jy) - int(jr * 0.24)),
+                               max(1, int(jr * 0.48)))
 
 
 def rib_blade(surf, x0, y0, x1, y1, w, s, curve=0.0):
@@ -339,8 +349,15 @@ def draw_koschei(surf, cx, cy, s):
                          (cx + base_w - int(10 * s), seat_y + int(39 * s)),
                          (cx - int(4 * s), seat_y + int(39 * s))],
                ow=max(1, int(1.6 * s)))
-    # gilt riveted cuff along the dais front edge (royal base banding)
-    gilt_cuff(surf, cx, seat_y + int(33 * s), base_w * 1.7, int(7 * s), s, rivets=5)
+    # the dais base gold is now a SINGLE thin top-line only (no filled band).
+    # WHY: a filled plinth band was the worst 2nd-mass offender at 32px; a lone
+    # gold edge-line still reads as a gilded plinth lip but carries near-zero
+    # warm area, so the lap-egg keeps the heat.
+    plinth_y = seat_y + int(30 * s)
+    pygame.draw.line(surf, GOLD, (cx - base_w * 0.82, plinth_y),
+                     (cx + base_w * 0.82, plinth_y), max(1, int(1.4 * s)))
+    pygame.draw.line(surf, GOLD_HI, (cx - base_w * 0.70, plinth_y - int(1 * s)),
+                     (cx - int(2 * s), plinth_y - int(1 * s)), max(1, int(0.8 * s)))
 
     for sgn in (-1, 1):
         sx0 = cx + sgn * int(30 * s)
@@ -359,9 +376,9 @@ def draw_koschei(surf, cx, cy, s):
                          (sx0 + sgn * int(5 * s), seat_y + int(20 * s)),
                          (sx1 + sgn * int(5 * s), cy - int(23 * s)),
                          max(1, int(1.4 * s)))
-        # gilt riveted cuff wrapping each throne stile at mid-height
+        # thin gilt FERRULE RING wrapping each throne stile at mid-height
         cuff_y = cy + int(2 * s)
-        gilt_cuff(surf, (sx0 + sx1) // 2, cuff_y, int(13 * s), int(7 * s), s, rivets=2)
+        gilt_ferrule_ring(surf, (sx0 + sx1) // 2, cuff_y, int(13 * s), s, rivets=2)
         # iron finial knob atop each stile, now with a thin gold collar
         triad_circle(surf, IRON, (sx1, cy - int(26 * s)), int(6 * s),
                      ow=max(1, int(1.2 * s)), core=False)
@@ -554,7 +571,7 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
                               (cx, y - int(4 * s)), (cx, y - int(1 * s)),
                               (cx - shaft_w * 0.66, y - int(1 * s))],
                    ow=max(1, int(1.0 * s)))
-        gilt_cuff(surf, cx, y, shaft_w * 1.28, int(6 * s), s, rivets=2)
+        gilt_ferrule_ring(surf, cx, y, shaft_w * 1.28, s, rivets=2)
         y += pitch
 
     cap_y = (bot - int(26 * s)) if cap == "bottom" else (top + int(26 * s))
@@ -623,7 +640,7 @@ def main():
     sheet.blit(font_big.render("REGENT KOSCHEI", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "royal EVOLUTION of Koschei  ·  seated throne-emperor · GILT iron-spike crown + chartreuse crown-jewel · "
-        "gold skull-chain (lineage) · cupped soul-egg focal · round 1",
+        "gold skull-chain (lineage) · cupped soul-egg focal · round 2",
         True, LABEL_DIM), (320, 26))
 
     # === (a) BIG HERO =========================================================
@@ -631,8 +648,8 @@ def main():
     sheet.blit(hero, (14, 92))
     sheet.blit(font.render("Creature — hero", True, LABEL), (110, 566))
     sheet.blit(font_sm.render("KOSCHEI's KIND kept whole: seated throne-emperor, iron-spike crown, indigo", True, LABEL_DIM), (14, 590))
-    sheet.blit(font_sm.render("pins, cupped chartreuse soul-egg. ROYAL = thin gilt ONLY: gold ferrule caps", True, LABEL_DIM), (14, 606))
-    sheet.blit(font_sm.render("+ chartreuse crown-jewel, gilt riveted cuffs, gold skull-chain (the lineage tell).", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("pins, cupped chartreuse soul-egg. ROYAL = gold LINE-WORK only: ferrule RINGS", True, LABEL_DIM), (14, 606))
+    sheet.blit(font_sm.render("on iron + 3 centre gold-cap spikes + LARGE bezel crown-jewel (the 2nd chartreuse tell).", True, LABEL_DIM), (14, 622))
 
     # === (b) PILLAR assembled — mirrored ======================================
     pcx = 470
@@ -647,7 +664,7 @@ def main():
     pygame.draw.rect(sheet, (60, 64, 72), (pcx + 8, 86 + 250, 134, 96))
     sheet.blit(font_sm.render("GAP", True, LABEL_DIM), (pcx + 56, 86 + 250 + 40))
     sheet.blit(font.render("Pillar — gilt femur-throne", True, LABEL), (pcx - 4, 690))
-    sheet.blit(font_sm.render("paired-femur column, lashings now GILT cuffs;", True, LABEL_DIM), (pcx - 4, 714))
+    sheet.blit(font_sm.render("paired-femur column, lashings now gilt ferrule RINGS;", True, LABEL_DIM), (pcx - 4, 714))
     sheet.blit(font_sm.render("rib-spire fan + gold skull-chain + soul-egg cap", True, LABEL_DIM), (pcx - 4, 730))
     sheet.blit(font_sm.render("(mirrored top<->bottom, on-axis, bottom-rooted)", True, LABEL_DIM), (pcx - 4, 746))
 
@@ -656,25 +673,33 @@ def main():
     pygame.draw.rect(sheet, PANEL, (panel_x, 86, W - panel_x - 14, 560))
     sheet.blit(font.render("True 32px gameplay-scale chip", True, LABEL), (panel_x + 16, 96))
 
-    def chip32():
+    def chip32(night=False):
         big = pygame.Surface((96 * SS, 96 * SS), pygame.SRCALPHA)
         draw_koschei(big, 48 * SS, 52 * SS, (32 / 132.0) * SS)
         small = pygame.transform.smoothscale(big, (96, 96))
+        # WHY a widened INDIGO rim on the night chip (not brighter gold): the
+        # dark-iron caged mass dissolves into a dark night sky; an indigo halo
+        # carries the silhouette (Koschei's night lesson) while keeping gold
+        # thin and the chartreuse egg the unambiguous brightest point.
+        if night:
+            base = grow_outline(small, INDIGO_D + (255,), 2)
+            return grow_outline(base, INK + (200,), 1)
         return grow_outline(small, INK + (255,), 1)
 
-    chip = chip32()
+    day_chip = chip32(night=False)
+    night_chip = chip32(night=True)
 
     day_y = 128
     vgrad(sheet, (panel_x + 20, day_y, 150, 150), DAY_SKY_T, DAY_SKY_B)
     pygame.draw.rect(sheet, INK, (panel_x + 20, day_y, 150, 150), 1)
-    sheet.blit(chip, (panel_x + 20 + 27, day_y + 27))
+    sheet.blit(day_chip, (panel_x + 20 + 27, day_y + 27))
     sheet.blit(font_sm.render("32px on day sky", True, LABEL), (panel_x + 20, day_y + 156))
 
     night_y = day_y + 184
     vgrad(sheet, (panel_x + 20, night_y, 150, 150), NIGHT_T, NIGHT_B)
     pygame.draw.rect(sheet, INK, (panel_x + 20, night_y, 150, 150), 1)
-    sheet.blit(chip, (panel_x + 20 + 27, night_y + 27))
-    sheet.blit(font_sm.render("32px on night sky", True, LABEL_DIM), (panel_x + 20, night_y + 156))
+    sheet.blit(night_chip, (panel_x + 20 + 27 - 1, night_y + 27 - 1))
+    sheet.blit(font_sm.render("32px on night sky (indigo rim)", True, LABEL_DIM), (panel_x + 20, night_y + 156))
 
     # silhouette proof — blacked-out hero so the seated-caged read is checked
     def silhouette():
@@ -734,11 +759,11 @@ def main():
 
     pygame.draw.rect(sheet, PANEL, (14, 770, W - 28, 40))
     sheet.blit(font_sm.render(
-        "ROYAL EVOLUTION of Koschei: gild, don't redesign.  GOLD = thin ferrule/cuff/chain accent ONLY (dull metal, never near egg-bright); "
-        "chartreuse egg stays the single brightest+warmest focal.  SS=6 supersample -> smoothscale · procedural-only.",
+        "ROYAL EVOLUTION of Koschei: gild, don't redesign.  GOLD = thin LINE-WORK only (ferrule rings / centre spike-caps / a single bezel jewel / chain) — never a fill; "
+        "chartreuse egg stays the single brightest focal, crown-jewel the 2nd point.  SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
@@ -780,6 +805,41 @@ def self_check():
           "lum %.0f" % best_lum, "-> egg-core?", is_egg)
     print("self-check: gold px ~%d  vs bone px ~%d  -> gold fraction %.2f"
           % (gold_n, bone_n, gold_n / max(1, gold_n + bone_n)))
+    two_point_check()
+
+
+def two_point_check():
+    """At true 32px, confirm TWO separable chartreuse points exist (lap-egg +
+    crown-jewel) with the lap-egg clearly the brighter/lower of the pair. Scans
+    a 32px render for chartreuse pixels and splits them by vertical band."""
+    big = pygame.Surface((96 * SS, 96 * SS), pygame.SRCALPHA)
+    draw_koschei(big, 48 * SS, 52 * SS, (32 / 132.0) * SS)
+    small = pygame.transform.smoothscale(big, (96, 96))
+    px = pygame.surfarray.pixels3d(small)
+    al = pygame.surfarray.pixels_alpha(small)
+    w, h = small.get_size()
+    crown_n, lap_n = 0, 0
+    crown_lum, lap_lum = 0.0, 0.0
+    mid = h // 2  # crown sits in the upper half, lap-egg in the lower
+    for x in range(w):
+        for y in range(h):
+            if al[x, y] < 60:
+                continue
+            r, g, b = int(px[x, y][0]), int(px[x, y][1]), int(px[x, y][2])
+            # chartreuse: bright, green-dominant, low blue
+            if g > 165 and g >= r and b < g - 30 and g > b:
+                lum = 0.299 * r + 0.587 * g + 0.114 * b
+                if y < mid:
+                    crown_n += 1
+                    crown_lum = max(crown_lum, lum)
+                else:
+                    lap_n += 1
+                    lap_lum = max(lap_lum, lum)
+    del px, al
+    print("self-check 32px: crown chartreuse px=%d (peak lum %.0f) | "
+          "lap chartreuse px=%d (peak lum %.0f) -> two points? %s | lap brighter? %s"
+          % (crown_n, crown_lum, lap_n, lap_lum,
+             crown_n >= 1 and lap_n >= 1, lap_lum >= crown_lum))
 
 
 if __name__ == "__main__":
