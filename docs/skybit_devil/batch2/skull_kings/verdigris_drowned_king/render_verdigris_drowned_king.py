@@ -156,18 +156,18 @@ def weed_tendril(surf, x0, y0, length, sway, width, s, droop=1.0):
     countable shape with sky on both sides. `sway` bows the blade for the
     underwater drift; `droop` pulls the tip down."""
     segs = 7
-    width = width * 1.7                       # round 2b: genuinely fat tongue
-    length = length * 0.78                     # shorter so it reads stubby, not whippy
+    width = width * 2.15                       # round 2b: genuinely fat tongue
+    length = length * 0.58                      # stubby fat leaf, never a whip
     left, right = [], []
     cline = []
     for i in range(segs + 1):
         t = i / segs
-        bx = x0 + math.sin(t * math.pi * 0.9) * sway
-        by = y0 + length * t * droop + math.sin(t * 2.2) * (5 * s)
-        # near-constant fat belly that only rounds off in the final third, so the
-        # blade keeps real mass the whole way down (countable at 32px).
-        w = width * (1.0 - 0.62 * max(0.0, t - 0.55) / 0.45)
-        ang = math.pi / 2 + (sway / max(1.0, length)) * math.cos(t * math.pi * 0.9)
+        bx = x0 + math.sin(t * math.pi * 0.7) * sway
+        by = y0 + length * t * droop + math.sin(t * 2.2) * (4 * s)
+        # fat belly the whole length, rounding to a broad blunt tip (never a
+        # point), so the blade keeps real mass and reads countable at 32px.
+        w = width * (1.0 - 0.40 * max(0.0, t - 0.5) / 0.5)
+        ang = math.pi / 2 + (sway / max(1.0, length)) * math.cos(t * math.pi * 0.7)
         nx, ny = math.cos(ang) * w * 0.5, -math.sin(ang) * w * 0.5
         left.append((bx + nx, by + ny))
         right.append((bx - nx, by - ny))
@@ -282,15 +282,14 @@ def draw_king(surf, cx, cy, s):
     # WHY behind + only 2-3 FAT blades: they read as a soft trailing skirt of
     # weed with SKY between them, the organic-silhouette tell, without muddying
     # the body. Placed off the low-shoulder + the hem, sweeping the slump way.
-    # Three FAT blades fanned WIDE: far-left off the low shoulder, then two off
-    # the hem swept hard opposite ways so a clear wedge of sky sits between each
-    # pair (countable at 32px). Equal fat widths keep them reading as one family.
-    weed_tendril(surf, head_c[0] - int(hr * 1.05), cy - int(4 * s),
-                 int(82 * s), -int(40 * s), int(15 * s), s, droop=1.05)
-    weed_tendril(surf, hip_cx - int(14 * s), hip_y + int(2 * s),
-                 int(74 * s), -int(20 * s), int(15 * s), s, droop=1.18)
-    weed_tendril(surf, hip_cx + int(20 * s), hip_y + int(4 * s),
-                 int(66 * s),  int(40 * s), int(15 * s), s, droop=1.0)
+    # TWO FAT blades only (brief allows 2-3) — anchored at the hips and swept
+    # apart so BOTH hang fully clear of the torso as countable fat tongues with
+    # a wide wedge of sky between them. A third would only peek out as an
+    # occluded sliver, which is exactly the fringe-mush the gate forbids.
+    weed_tendril(surf, hip_cx - int(26 * s), hip_y + int(6 * s),
+                 int(76 * s), -int(20 * s), int(16 * s), s, droop=1.16)
+    weed_tendril(surf, hip_cx + int(28 * s), hip_y + int(6 * s),
+                 int(72 * s),  int(22 * s), int(16 * s), s, droop=1.06)
 
     # === LEGS — folded/settled, not a wide dance stance ======================
     # WHY tucked + soft: a drowned body slumps, it does not plant; the legs fold
@@ -370,13 +369,13 @@ def draw_king(surf, cx, cy, s):
     arm_th = int(8 * s)
     shoulderL = (rc_cx - int(15 * s), rc_cy - rc_h // 2 + int(7 * s))
     shoulderR = (rc_cx + int(15 * s), rc_cy - rc_h // 2 + int(6 * s))
-    # left arm hangs slack, drifting outward (the collapsed side)
-    elbowL = (rc_cx - int(28 * s), rc_cy + int(6 * s))
-    handL = (rc_cx - int(30 * s), rc_cy + int(30 * s))
+    # both arms tuck CLOSE to the torso (slack/folded) so they don't sprout
+    # competing thin whips that tangle with the FAT weed tongues at 32px.
+    elbowL = (rc_cx - int(22 * s), rc_cy + int(8 * s))
+    handL = (rc_cx - int(16 * s), rc_cy + int(26 * s))
     bone_limb(surf, shoulderL, elbowL, handL, arm_th, s)
-    # right arm braces down — the king propping himself on the floor
-    elbowR = (rc_cx + int(28 * s), rc_cy + int(10 * s))
-    handR = (rc_cx + int(26 * s), rc_cy + int(34 * s))
+    elbowR = (rc_cx + int(21 * s), rc_cy + int(10 * s))
+    handR = (rc_cx + int(14 * s), rc_cy + int(28 * s))
     bone_limb(surf, shoulderR, elbowR, handR, arm_th, s)
     for (hx, hy), splay in ((handL, -1), (handR, +1)):
         triad_circle(surf, BONE, (hx, hy), int(5 * s), ow=max(1, int(1.2 * s)), core=False)
@@ -602,7 +601,7 @@ def main():
     sheet.blit(font.render("Creature — hero (SS=6)", True, LABEL), (90, 566))
     sheet.blit(font_sm.render("SLUMP: weight collapsed onto one shoulder, head lolled off-axis, soft", True, LABEL_DIM), (14, 590))
     sheet.blit(font_sm.render("asymmetric trailing outline (the only organic king). Coral antlers +", True, LABEL_DIM), (14, 606))
-    sheet.blit(font_sm.render("baroque PEARL = crown tell. 3 FAT weed tendrils, sky between. Teal = accent.", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("baroque PEARL = crown tell. 2 FAT weed tendrils, sky between. Teal = accent.", True, LABEL_DIM), (14, 622))
 
     # === (b) PILLAR assembled — mirrored, clean tileable shaft ================
     pcx = 470

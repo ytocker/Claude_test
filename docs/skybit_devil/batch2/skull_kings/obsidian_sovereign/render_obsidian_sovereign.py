@@ -65,6 +65,11 @@ GOLD_HOT  = (255, 232, 150)   # the finial ONLY — the single brightest pixel
 EYE       = (236, 214, 150)
 EYE_HOT   = (255, 244, 206)
 INK       = ( 20,  18,  24)   # hard ink keyline (near-black, fits the onyx)
+# WHY a COOL grown-outline keyline (not pure black): at 32px the 1px grown outline
+# is the literal silhouette EDGE; a near-black edge vanishes on the night sky, so
+# the outermost ring carries a cool blue-grey value instead — the rim and the edge
+# now read as one continuous cool contour top-to-bottom on night.
+INK_RIM   = ( 92, 106, 144)
 
 BG        = ( 96, 100, 108)   # neutral grey review backdrop
 PANEL     = ( 74,  78,  88)
@@ -536,7 +541,7 @@ def render_creature_chip(boxw, boxh, draw_cx, draw_cy, scale):
     big = pygame.Surface((boxw * SS, boxh * SS), pygame.SRCALPHA)
     draw_obsidian(big, draw_cx * SS, draw_cy * SS, scale * SS)
     small = pygame.transform.smoothscale(big, (boxw, boxh))
-    return grow_outline(small, INK + (255,), 1)
+    return grow_outline(small, INK_RIM + (255,), 1)
 
 
 def vgrad(surf, rect, top_col, bot_col):
@@ -638,11 +643,11 @@ def main():
     pcx = 400
     top_big = pygame.Surface((130 * SS, 250 * SS), pygame.SRCALPHA)
     draw_pillar(top_big, 65 * SS, 4 * SS, 246 * SS, 1.0 * SS, cap="bottom")
-    top_seg = grow_outline(pygame.transform.smoothscale(top_big, (130, 250)), INK + (255,), 1)
+    top_seg = grow_outline(pygame.transform.smoothscale(top_big, (130, 250)), INK_RIM + (255,), 1)
     sheet.blit(top_seg, (pcx, 70))
     bot_big = pygame.Surface((130 * SS, 250 * SS), pygame.SRCALPHA)
     draw_pillar(bot_big, 65 * SS, 4 * SS, 246 * SS, 1.0 * SS, cap="top")
-    bot_seg = grow_outline(pygame.transform.smoothscale(bot_big, (130, 250)), INK + (255,), 1)
+    bot_seg = grow_outline(pygame.transform.smoothscale(bot_big, (130, 250)), INK_RIM + (255,), 1)
     sheet.blit(bot_seg, (pcx, 70 + 250 + 96))
     pygame.draw.rect(sheet, (60, 64, 72), (pcx + 8, 70 + 250, 114, 96))
     sheet.blit(font_sm.render("GAP", True, LABEL_DIM), (pcx + 46, 70 + 250 + 40))
@@ -660,7 +665,7 @@ def main():
         big = pygame.Surface((96 * SS, 96 * SS), pygame.SRCALPHA)
         draw_obsidian(big, 48 * SS, 52 * SS, (32 / 134.0) * SS)
         small = pygame.transform.smoothscale(big, (96, 96))
-        return grow_outline(small, INK + (255,), 1)
+        return grow_outline(small, INK_RIM + (255,), 1)
 
     chip = chip32()
 
@@ -681,7 +686,7 @@ def main():
         big = pygame.Surface((40 * SS, 130 * SS), pygame.SRCALPHA)
         draw_pillar(big, 20 * SS, 2 * SS, 128 * SS, 0.32 * SS, cap="bottom")
         small = pygame.transform.smoothscale(big, (40, 130))
-        return grow_outline(small, INK + (255,), 1)
+        return grow_outline(small, INK_RIM + (255,), 1)
 
     pc = pillar_chip32()
     px2 = panel_x + 192

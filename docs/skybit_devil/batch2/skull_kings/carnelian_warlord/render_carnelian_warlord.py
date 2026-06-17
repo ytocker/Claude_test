@@ -701,19 +701,22 @@ def main():
             r, g, b, a = chip_big.get_at((xx, yy))
             if a < 40:
                 continue
-            d_bone = (r-BONE[0])**2 + (g-BONE[1])**2 + (b-BONE[2])**2
-            d_iron = (r-IRON[0])**2 + (g-IRON[1])**2 + (b-IRON[2])**2
-            # classify against the THREE big neutral fields so the cool STEEL
-            # blade (the planted sword) is NOT mis-counted as iron armour. Only
-            # genuine dark-iron furniture (caps/crown/belt) should score as iron.
-            d_steel = (r-STEEL[0])**2 + (g-STEEL[1])**2 + (b-STEEL[2])**2
-            nearest = min((d_bone, "bone"), (d_iron, "iron"), (d_steel, "steel"))[1]
-            if nearest == "bone":
+            val = (r + g + b) / 3
+            warm = r - b
+            # Ink keyline + deep cores + the cool STEEL blade belong to NEITHER
+            # coloured armour mass -- excluding them isolates the real bone-vs-iron
+            # contest. Dark (<78) = ink/core/socket; bright cool blue = steel blade
+            # / cool rim. What remains is genuine bone fill vs iron plate, split by
+            # warmth: warm -> bronze bone, cool mid -> dark iron.
+            if val < 78:
+                pass
+            elif warm >= 22:
                 bone_px += 1
-            elif nearest == "iron":
+            elif b > 130 and val > 120:
+                pass
+            else:
                 iron_px += 1
-            # a clearly RED pixel: red dominant, not grey/bone (which are warm but
-            # have high green); require r well above g and b
+            # a clearly RED pixel: red dominant over both green and blue
             if r > 130 and r - g > 50 and r - b > 40:
                 red_px += 1
                 if r > red_peak[0]:

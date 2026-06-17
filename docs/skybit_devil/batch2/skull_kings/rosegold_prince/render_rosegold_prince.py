@@ -220,8 +220,9 @@ def trefoil_coronet(surf, cx, cy, w, s, gem=True, rim=False):
     gx = cx
     gy = apex_y + int(w * 0.30)
     if gem:
-        # the tourmaline rides the spike near its top — the single bright pixel
-        faceted_gem(surf, gx, gy, int(w * 0.40),
+        # the tourmaline rides the spike near its top — sized large enough that
+        # its hot specular survives the 32px downscale as the single brightest dot
+        faceted_gem(surf, gx, gy, int(w * 0.52),
                     TOURM, TOURM_BR, TOURM_D, s, hot=True)
     if rim:
         # cool/rose-gold rim-light along the SPIKE's top-left edges so the crown
@@ -425,7 +426,8 @@ def draw_prince(surf, cx, cy, s, rim=False):
         pygame.draw.circle(surf, SOCKET, (ex, ey), int(hr * 0.27))
         pygame.draw.circle(surf, SOCKET_BR, (ex - int(2 * s), ey - int(2 * s)),
                            max(1, int(hr * 0.12)))
-        pygame.draw.circle(surf, (255, 255, 255),
+        # cool catch-light kept BELOW pure white so the gem stays the brightest
+        pygame.draw.circle(surf, (228, 218, 232),
                            (ex - int(3 * s), ey - int(3 * s)), max(1, int(hr * 0.06)))
     # tiny heart-ish nose tick
     pygame.draw.polygon(surf, BONE_DD,
@@ -604,7 +606,7 @@ def main():
     vgrad(sheet, (panel_x + 20, night_y, 150, 150), NIGHT_T, NIGHT_B)
     pygame.draw.rect(sheet, INK, (panel_x + 20, night_y, 150, 150), 1)
     sheet.blit(chip_night, (panel_x + 20 + 27, night_y + 27))
-    sheet.blit(font_sm.render("32px on night sky (crown rim-lit)", True, LABEL_DIM), (panel_x + 20, night_y + 156))
+    sheet.blit(font_sm.render("32px night (crown rim-lit)", True, LABEL_DIM), (panel_x + 20, night_y + 156))
 
     # blackout silhouette proof (the anti-coin test) beside the chips
     px2 = panel_x + 192
@@ -630,7 +632,7 @@ def main():
     vgrad(sheet, (px2 + 70, night_y, 60, 150), NIGHT_T, NIGHT_B)
     pygame.draw.rect(sheet, INK, (px2 + 70, night_y, 60, 150), 1)
     sheet.blit(pc, (px2 + 78, night_y + 10))
-    sheet.blit(font_sm.render("pillar gap-cap (day / night)", True, LABEL_DIM), (px2, night_y + 156))
+    sheet.blit(font_sm.render("pillar cap (day/night)", True, LABEL_DIM), (px2, night_y + 156))
 
     # palette swatches
     sheet.blit(font.render("Pinned palette", True, LABEL), (panel_x + 16, 512))
