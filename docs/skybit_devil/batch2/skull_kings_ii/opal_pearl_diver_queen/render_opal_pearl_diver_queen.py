@@ -71,7 +71,17 @@ OPAL      = (206, 232, 244)   # opal skull mid (cool pearly)
 OPAL_PINK = (252, 178, 224)   # opal pastel flush (pink — saturated)
 OPAL_TEAL = (150, 244, 220)   # opal pastel flush (teal — saturated)
 OPAL_BR   = (246, 250, 255)   # opal bright
-OPAL_HOT  = (255, 255, 255)   # hottest opal core (must stay the brightest pixel)
+# WHY the hottest core is a SATURATED WARM OPAL-FIRE, not pure white: pixel
+# analysis of round 4 showed pure-white (255,255,255, sat 0) cores can't be the
+# opal's tell, because pure white is also what every other near-white shape
+# (face-disc, sheens, pearls) averages to on the downscale — they collapse into
+# one indistinguishable bright blob and the eye picks the LARGEST one (the
+# face-disc), not the gem. A high-luminance but genuinely saturated warm amber-
+# gold core makes the gem's 2-3px centre rank #1 in BOTH luminance AND
+# saturation on day + night, so nothing else can tie it: the only saturated
+# bright point on the whole creature is the gem.
+OPAL_HOT  = (255, 246, 196)   # hottest opal core — warm opal-fire (saturated)
+OPAL_FIRE = (255, 224, 150)   # warm amber under-ring driving the core's chroma
 OPAL_D    = (132, 154, 188)   # opal shade / socket rim
 OPAL_RIM  = (108, 126, 162)
 # WHY a dedicated near-black cradle: the tier directly behind the gem is darkened
@@ -371,16 +381,18 @@ def opal_skull(surf, cx, cy, r, s):
     pastel: pink/teal flushes around a near-white hot core. WHY layered halos
     + a white core: the focal must win the brightest-pixel test at 32px, so the
     core is pushed to pure white and surrounded by pastel light."""
-    # additive hot-core bloom — wider + far brighter than round 2, with stacked
-    # tight inner rings so the gem's centre saturates to pure white on the
-    # downscale. WHY this must be aggressive: at 32px the smoothscale averages the
-    # bloom against its dark socket pocket, so the pre-downscale core has to be
-    # blown out hard to survive as the single brightest pixel — it must beat the
-    # face-disc on DAY and the teal rim on NIGHT.
-    for (rr, a) in ((r * 2.6, 40), (r * 1.9, 70), (r * 1.35, 120),
-                    (r * 0.9, 190), (r * 0.55, 255)):
+    # additive WARM bloom — wide + bright, but tinted warm so it does NOT wash the
+    # core to pure white. WHY warm-additive, not white-additive: a white additive
+    # bloom drives every channel to 255, killing the gem's saturation on the
+    # downscale (the round-4 failure — the gem tied the face-disc as desaturated
+    # white). Adding a warm amber bloom raises luminance while the blue channel
+    # stays lower, so the averaged core lands high-luminance AND warm-saturated —
+    # the single brightest AND most-saturated point that beats the face-disc on
+    # day and the teal rim on night.
+    for (rr, a) in ((r * 2.6, 34), (r * 1.9, 60), (r * 1.35, 100),
+                    (r * 0.9, 150), (r * 0.55, 200)):
         halo = pygame.Surface((int(rr * 2) + 4, int(rr * 2) + 4), pygame.SRCALPHA)
-        pygame.draw.circle(halo, OPAL_HOT + (a,), (int(rr) + 2, int(rr) + 2), int(rr))
+        pygame.draw.circle(halo, OPAL_FIRE + (a,), (int(rr) + 2, int(rr) + 2), int(rr))
         surf.blit(halo, (cx - int(rr) - 2, cy - int(rr) - 2),
                   special_flags=pygame.BLEND_RGBA_ADD)
     # cranium dome
@@ -419,24 +431,26 @@ def opal_skull(surf, cx, cy, r, s):
                          (cx + int(k * r * 0.16), my - int(r * 0.10)),
                          (cx + int(k * r * 0.16), my + int(r * 0.16)),
                          max(1, int(1.0 * s)))
-    # the HOTTEST core pip — the single brightest pixel of the whole creature.
-    # WHY a FAT solid white disc (≥0.6·r, not 0.4) laid last, over a saturated
-    # pink/teal under-ring, then a final hard additive over-bloom: at 32px the
-    # round-3 core was too small a source cluster — the smoothscale averaged it
-    # against the dark socket and the flushes, so the gem only tied. Making the
-    # pure-white disc large enough that it still spans 2-3 solid pixels AFTER the
-    # downscale, ringed by vivid chroma so it ALSO wins the most-saturated test,
-    # is what makes the gem the unambiguous single brightest point on both chips.
+    # the HOTTEST core pip — the single brightest AND most-saturated pixel of the
+    # whole creature. WHY a FAT solid WARM amber-gold core (≥0.6·r) laid last over
+    # a warm fire under-ring, with only a GENTLE warm additive top-bloom: round 4
+    # blew the core to pure white, which killed its saturation so it could only
+    # TIE the equally-white face-disc and lose on size. A saturated warm core that
+    # still spans 2-3 solid pixels after the downscale — kept just shy of white so
+    # the blue channel stays held down — wins both tests outright: no other shape
+    # on the creature carries this much chroma at this much luminance.
     core_c = (cx - int(r * 0.06), cy - int(r * 0.06))
-    pygame.draw.circle(surf, OPAL_PINK, (core_c[0] - int(r * 0.18), core_c[1]),
-                       max(3, int(r * 0.52)))
-    pygame.draw.circle(surf, OPAL_TEAL, (core_c[0] + int(r * 0.18), core_c[1] + int(r * 0.06)),
-                       max(3, int(r * 0.46)))
-    pygame.draw.circle(surf, OPAL_BR, core_c, max(3, int(r * 0.58)))
-    pygame.draw.circle(surf, OPAL_HOT, core_c, max(3, int(r * 0.46)))
-    for (rr, a) in ((r * 0.9, 130), (r * 0.6, 220), (r * 0.40, 255)):
+    pygame.draw.circle(surf, OPAL_PINK, (core_c[0] - int(r * 0.20), core_c[1]),
+                       max(3, int(r * 0.50)))
+    pygame.draw.circle(surf, OPAL_TEAL, (core_c[0] + int(r * 0.20), core_c[1] + int(r * 0.06)),
+                       max(3, int(r * 0.44)))
+    pygame.draw.circle(surf, OPAL_FIRE, core_c, max(3, int(r * 0.60)))
+    pygame.draw.circle(surf, OPAL_HOT, core_c, max(3, int(r * 0.48)))
+    # a final WARM additive top-bloom — gentle, so it lifts luminance without
+    # bleaching the warm chroma back to white (the round-4 over-bloom mistake).
+    for (rr, a) in ((r * 0.9, 90), (r * 0.6, 150), (r * 0.40, 200)):
         halo = pygame.Surface((int(rr * 2) + 4, int(rr * 2) + 4), pygame.SRCALPHA)
-        pygame.draw.circle(halo, OPAL_HOT + (a,), (int(rr) + 2, int(rr) + 2), int(rr))
+        pygame.draw.circle(halo, OPAL_FIRE + (a,), (int(rr) + 2, int(rr) + 2), int(rr))
         surf.blit(halo, (core_c[0] - int(rr) - 2, core_c[1] - int(rr) - 2),
                   special_flags=pygame.BLEND_RGBA_ADD)
 
@@ -526,9 +540,13 @@ def draw_queen(surf, cx, cy, s):
                           opal_c[1] - int(opal_r * 0.9)))
     # central ink wedge below the gem — separates the left hand-pair from the
     # right so the cradle reads as TWO cupping pairs, not one solid lower lump.
-    wedge = [(opal_c[0] - int(opal_r * 0.30), opal_c[1] + int(opal_r * 0.9)),
-             (opal_c[0] + int(opal_r * 0.30), opal_c[1] + int(opal_r * 0.9)),
-             (opal_c[0], opal_c[1] + int(opal_r * 2.4))]
+    # WHY widened ~1px (hero scale) + carried deeper in round 5: at 32px the
+    # round-4 wedge was still too thin to survive the downscale, so the four hands
+    # smeared back into one belly lump; a fatter, taller ink wedge keeps the
+    # left/right pairs reading as two cupping hands at gameplay scale.
+    wedge = [(opal_c[0] - int(opal_r * 0.46), opal_c[1] + int(opal_r * 0.78)),
+             (opal_c[0] + int(opal_r * 0.46), opal_c[1] + int(opal_r * 0.78)),
+             (opal_c[0], opal_c[1] + int(opal_r * 2.6))]
     pygame.draw.polygon(surf, (14, 12, 20), wedge)
     opal_socket(surf, opal_c[0], opal_c[1], opal_r, s)
     # four lower arms reaching in from both sides to cradle the skull from below
@@ -561,24 +579,26 @@ def draw_queen(surf, cx, cy, s):
     opal_skull(surf, opal_c[0], opal_c[1], opal_r, s)
 
     # === SKULL HEAD ==========================================================
-    # WHY the face-disc is dropped a FULL value step below the body nacre (down to
-    # mid nacre-shade, no bright sheen): on the 32px chip the round-3 half-step
-    # still left the head-disc as the largest bright shape, so the eye landed
-    # there before the gem. Sitting the head at NACRE_D outright reserves the top
-    # of the value scale for the gem + brow pearl alone — only those two read
-    # near-white, so the cupped opal owns the brightest read on the downscale.
-    triad_circle(surf, NACRE_D, head_c, hr,
+    # WHY the face-disc is dropped ANOTHER full value step (to the deepest nacre
+    # shade, no bright sheen): pixel analysis of round 4 showed the head-disc at
+    # NACRE_D was still the LARGEST bright shape and its highlights averaged to
+    # near-white on the downscale, tying the gem and winning the eye on size.
+    # Sitting the whole head at NACRE_DD pulls the dominant bright mass well clear
+    # of the top of the value scale, so ONLY the gem core + brow pearl read
+    # near-white and the cupped opal owns the brightest read outright.
+    triad_circle(surf, NACRE_DD, head_c, hr,
                  ow=max(2, int(2 * s)), sheen=False)
     # cool rim-light along the head's lower/right contour so the pale dome
     # detaches from a light day sky (mirrors the tier rim-light treatment)
     pygame.draw.arc(surf, RIMLIGHT,
                     (head_c[0] - hr, head_c[1] - hr, hr * 2, hr * 2),
                     math.radians(300), math.radians(110), max(2, int(1.8 * s)))
-    # WHY the cheek + socket-rim shades are pushed one step deeper than round 3:
-    # the face-disc now sits at NACRE_D, so its old features would melt into it;
-    # dropping them to NACRE_DD keeps the face legible on the darker disc.
+    # WHY the cheek + socket-rim shades are pushed deeper toward ink: the face-disc
+    # now sits at NACRE_DD, so features at NACRE_DD would melt into it; dropping
+    # them most of the way to ink keeps the face legible on the darker disc.
+    CHEEK_SH = lerp(NACRE_DD, INK, 0.45)
     for sgn in (-1, 1):
-        pygame.draw.circle(surf, NACRE_DD,
+        pygame.draw.circle(surf, CHEEK_SH,
                            (head_c[0] + sgn * int(hr * 0.64), head_c[1] + int(hr * 0.28)),
                            int(hr * 0.26))
     for sgn in (-1, 1):
@@ -589,7 +609,7 @@ def draw_queen(surf, cx, cy, s):
         # a tiny teal iridescent pin in each socket (the queen's cool eye-glint)
         pygame.draw.circle(surf, FLECK_TEAL, (ex, ey + int(1 * s)), max(1, int(hr * 0.10)))
     # nose
-    pygame.draw.polygon(surf, NACRE_DD,
+    pygame.draw.polygon(surf, CHEEK_SH,
                         [(head_c[0] - int(hr * 0.12), head_c[1] + int(hr * 0.30)),
                          (head_c[0] + int(hr * 0.12), head_c[1] + int(hr * 0.30)),
                          (head_c[0], head_c[1] + int(hr * 0.54))])
@@ -609,10 +629,11 @@ def draw_queen(surf, cx, cy, s):
     pygame.draw.circle(surf, lerp(PEARL, NACRE_D, 0.18),
                        (head_c[0], head_c[1] - int(hr * 0.92)),
                        max(2, int(hr * 0.22)))
-    # WHY the brow-pearl highlight is held below the gem core (lerp toward, not
-    # to, white): the pearl ranks 2nd in the value hierarchy — above the face-disc
-    # but never tying the opal skull's pure-white bloom.
-    pygame.draw.circle(surf, lerp(PEARL, NACRE_SH, 0.5),
+    # WHY the brow-pearl highlight is a COOL near-white held below the gem core: the
+    # pearl ranks 2nd in the value hierarchy — above the now-deeper face-disc but
+    # cool (low chroma), so even if it nears the gem on luminance it can never tie
+    # the warm-saturated gem core on the most-saturated test that decides the focal.
+    pygame.draw.circle(surf, lerp(PEARL, NACRE_SH, 0.4),
                        (head_c[0] - int(hr * 0.06), head_c[1] - int(hr * 0.98)),
                        max(1, int(hr * 0.09)))
 
@@ -706,7 +727,7 @@ def main():
     sheet.blit(font_big.render("OPAL PEARL-DIVER QUEEN", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "royal skull-KING (Skull Kings II)  ·  FLOATING nacre tier-stack (rings WIDEN downward, no feet) · paired shell-horn crown-skulls + brow pearl · "
-        "FIXED 3-fleck iridescence · 4 hands CUP the bright OPAL SKULL focal · round 4",
+        "FIXED 3-fleck iridescence · 4 hands CUP the bright OPAL SKULL focal · round 5",
         True, LABEL_DIM), (360, 26))
 
     # === (a) BIG HERO =========================================================
@@ -829,55 +850,75 @@ def main():
         "FIXED (non-animated) 3-fleck shimmer; cupped OPAL SKULL = single brightest pixel; crown-skulls kept small.  SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_4.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_5.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
     self_check()
 
 
-def _brightest_in(surf):
-    """Return (lum, (x,y), rgb) of the brightest opaque pixel on a surface."""
+def _peaks_in(surf):
+    """Scan opaque pixels; return the brightest and the most-saturated, each as
+    ((x,y), rgb, lum, sat). Saturation is the simple max-min chroma spread, the
+    same quantity the critique's pixel analysis used to flag the white blob."""
     px = pygame.surfarray.pixels3d(surf)
     a = pygame.surfarray.pixels_alpha(surf)
     w, h = surf.get_size()
-    best_lum, best_xy, best_rgb = -1.0, (0, 0), (0, 0, 0)
+    best_lum, lum_xy, lum_rgb = -1.0, (0, 0), (0, 0, 0)
+    best_sat, sat_xy, sat_rgb, sat_lum = -1, (0, 0), (0, 0, 0), 0.0
     for x in range(w):
         for yy in range(h):
             if a[x, yy] < 40:
                 continue
             r, g, b = int(px[x, yy][0]), int(px[x, yy][1]), int(px[x, yy][2])
             lum = 0.299 * r + 0.587 * g + 0.114 * b
+            sat = max(r, g, b) - min(r, g, b)
             if lum > best_lum:
-                best_lum, best_xy, best_rgb = lum, (x, yy), (r, g, b)
+                best_lum, lum_xy, lum_rgb = lum, (x, yy), (r, g, b)
+            # only count a pixel as the saturation peak if it is genuinely bright
+            # (lum > 150) — a dark saturated edge pixel must not win the focal test
+            if lum > 150 and sat > best_sat:
+                best_sat, sat_xy, sat_rgb, sat_lum = sat, (x, yy), (r, g, b), lum
     del px, a
-    return best_lum, best_xy, best_rgb
+    return (lum_xy, lum_rgb, best_lum), (sat_xy, sat_rgb, best_sat, sat_lum)
 
 
 def self_check():
-    """Verify the GATE at TRUE 32px on both backdrops: the brightest opaque pixel
-    of the creature chip must sit inside the cupped opal skull (a near-white,
-    low-centre point), proving the gem beats the face-disc on DAY and the teal
-    rim on NIGHT. Round the hero too, as a coarse sanity peak."""
-    # the actual gameplay-scale chip (same path as the rendered chip)
+    """Verify the GATE at TRUE 32px on BOTH backdrops: the brightest AND the
+    most-saturated bright opaque pixel of the creature chip must both sit inside
+    the cupped opal skull (a warm-saturated, low-centre point), proving the gem
+    beats the now-dimmed face-disc on DAY and the teal rim on NIGHT. The creature
+    pixels are identical on day + night (only the rim-outline tint differs), so
+    one chip scan settles both backdrops; the rim is excluded by the lum>150 gate
+    on the saturation peak."""
     big = pygame.Surface((96 * SS, 96 * SS), pygame.SRCALPHA)
     draw_queen(big, 48 * SS, 50 * SS, (32 / 150.0) * SS)
     chip = pygame.transform.smoothscale(big, (96, 96))
-    lum, (bx, by), (r, g, b) = _brightest_in(chip)
-    # the opal cradle sits below the head centre on the chip; the head dome sits
-    # well above it. A brightest pixel in the lower-centre band = the gem won.
-    in_gem_band = (28 <= bx <= 68) and (46 <= by <= 78)
-    is_white = (r > 232 and g > 232 and b > 232)
-    print("self-check 32px chip: brightest @ (%d,%d) rgb %s lum %.0f"
-          % (bx, by, (r, g, b), lum),
-          "-> opal-core?", (is_white and in_gem_band),
-          "(expect a near-white lower-centre point = the cupped skull)")
+    (lxy, lrgb, llum), (sxy, srgb, ssat, slum) = _peaks_in(chip)
 
-    # hero-scale peak, as a coarse confirmation
+    # the opal cradle sits below the head centre; a peak in the lower-centre band
+    # = the gem won. The head dome sits well above this band.
+    def in_gem(xy):
+        return (28 <= xy[0] <= 68) and (46 <= xy[1] <= 78)
+
+    bright_in_gem = in_gem(lxy)
+    sat_in_gem = in_gem(sxy)
+    sr, sg, sb = srgb
+    warm = (sr >= sg >= sb)  # the gem core is warm amber: R >= G >= B
+    print("self-check 32px chip:")
+    print("  brightest      @ (%d,%d) rgb %s lum %.0f  -> in gem band? %s"
+          % (lxy[0], lxy[1], lrgb, llum, bright_in_gem))
+    print("  most-saturated @ (%d,%d) rgb %s sat %d lum %.0f  -> in gem band? %s warm? %s"
+          % (sxy[0], sxy[1], srgb, ssat, slum, sat_in_gem, warm))
+    print("  GATE: opal wins BOTH brightest+most-saturated at 32px? ->",
+          (bright_in_gem and sat_in_gem))
+
+    # hero-scale peaks, as a coarse confirmation
     hero = pygame.Surface((420, 520), pygame.SRCALPHA)
     draw_queen(hero, 210, 250, 1.7)
-    hlum, hxy, hrgb = _brightest_in(hero)
-    print("self-check hero: brightest @", hxy, "rgb", hrgb, "lum %.0f" % hlum)
+    (hlxy, hlrgb, hllum), (hsxy, hsrgb, hssat, hslum) = _peaks_in(hero)
+    print("self-check hero: brightest @ %s rgb %s lum %.0f ; most-sat @ %s rgb %s sat %d"
+          % (hlxy, hlrgb, hllum, hsxy, hsrgb, hssat))
 
 
 if __name__ == "__main__":
