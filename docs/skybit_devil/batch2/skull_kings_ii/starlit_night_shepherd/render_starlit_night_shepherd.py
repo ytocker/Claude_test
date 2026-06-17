@@ -42,7 +42,9 @@ pygame.display.set_mode((1, 1))
 
 # -- PINNED PALETTE (locked brief) --------------------------------------------
 # Deep-INDIGO cloak is the dominant cool MASS; everything else is a thin accent.
-INDIGO    = ( 40,  44,  92)    # deep indigo cloak (dominant fill)
+INDIGO    = ( 52,  58, 112)    # deep indigo cloak (dominant fill); lifted ~1
+                               # value step from (40,44,92) so the bell body
+                               # doesn't dissolve into a dark night sky
 INDIGO_D  = ( 26,  28,  62)    # cloak dark-core / hollow
 INDIGO_DD = ( 16,  18,  42)    # deepest cloak shadow (hem under-folds)
 INDIGO_SH = ( 78,  84, 140)    # cloak top-left rim-sheen
@@ -54,6 +56,11 @@ BONE      = (132, 146, 178)    # was (176,188,214) — pulled down so it loses t
 BONE_D    = ( 92, 104, 138)
 BONE_DD   = ( 58,  68,  98)
 BONE_SH   = (170, 182, 210)    # was (224,232,246) — a quiet rim, not a highlight
+# HEAD skull is pushed a further 2-3 value steps BELOW the limb bone into a cool
+# dark-bone band. WHY a dedicated darker pair: the head must NOT compete with the
+# cradled moon focal — at 32px a near-equal head skull read as a second cyan dot.
+HEAD_BONE   = ( 78,  88, 120)
+HEAD_BONE_D = ( 52,  60,  88)
 # cool-silver star-ticks — CLUSTERED constellation studs; deliberately DIMMER
 # and COOLER than the moon focal so they never read as coin-sparkle FX.
 STAR      = (158, 172, 206)
@@ -67,6 +74,11 @@ MOON_D    = (120, 162, 190)
 MOON_RIM  = ( 86, 124, 154)
 # the skull-glow SPILL tint dropped onto the cradling cloak/hands (cool-cyan)
 SPILL     = (108, 168, 196)
+# crisp cool-silver/pewter RIM on the bell's lit edge. WHY a dedicated bright
+# pewter (above BONE_SH): a true rim-light is what carries the teardrop mass on
+# a dark night sky — round 2's dim BONE_SH edge lost ~40% of the silhouette.
+RIM_LIT   = (196, 210, 236)
+RIM_LIT_D = (146, 162, 196)
 # astrolabe is now COOL pewter (no warm brass) so the cyan focal owns the only
 # warm/bright read at 32px.
 BRASS     = (118, 134, 150)
@@ -238,13 +250,25 @@ def moon_skull(surf, cx, cy, r, s):
 
 
 # -- the HOVERING HALO-RING crown with ONE dominant zenith skull --------------
-def halo_crown(surf, cx, cy, r, s):
-    """A thin studded circlet hovering above the head + a single big zenith
+def halo_crown(surf, cx, cy, r, s, dome_c=None, dome_r=0):
+    """A thin studded circlet welded onto the head + a single big zenith
     skull at its apex. WHY one big skull (not 7 tiny): seven micro-skulls mush
     at 32px; one dominant zenith skull on a thin studded ring reads cleanly as
     'a ring + a crown-skull' all the way down to gameplay scale."""
-    # the hovering ring drawn as a flattened ellipse (a halo seen near edge-on)
     rx, ry = r, int(r * 0.42)
+    # WELD the ring to the dome: two short cool-bone struts bridge the ring's
+    # side extremes down to the cranium. WHY: round 2's ring floated free and the
+    # silhouette read as a top-left "lollipop" arm; the struts fuse ring + head
+    # into ONE bump so the figure stays a single teardrop mass.
+    if dome_c is not None:
+        for sgn in (-1, 1):
+            sx = cx + sgn * int(rx * 0.92)
+            top = (sx, cy + int(ry * 0.2))
+            bot = (dome_c[0] + sgn * int(dome_r * 0.78),
+                   dome_c[1] - int(dome_r * 0.42))
+            pygame.draw.line(surf, INK, top, bot, max(3, int(4.0 * s)))
+            pygame.draw.line(surf, BONE_D, top, bot, max(2, int(2.6 * s)))
+    # the ring drawn as a flattened ellipse (a halo seen near edge-on)
     ring_rect = (cx - rx, cy - ry, rx * 2, ry * 2)
     pygame.draw.ellipse(surf, INK, ring_rect, max(2, int(3.0 * s)))
     pygame.draw.ellipse(surf, BONE, ring_rect, max(1, int(2.2 * s)))
@@ -362,26 +386,36 @@ def draw_shepherd(surf, cx, cy, s):
         pygame.draw.line(surf, INDIGO_DD, (fx, hem_y - int(20 * s)),
                          (fx, hem_y - int(2 * s)), max(1, int(2.0 * s)))
 
-    # === COOL-SILVER RIM-LIGHT down the lit (left) edge of the bell ==========
-    # WHY a crisp 1-2px rim: round 1 lost the figure into a dark night sky; a
-    # bright cool edge carries the teardrop silhouette and reads as moonlight.
+    # === COOL-SILVER RIM-LIGHT down the lit (left) edge + around the hem =====
+    # WHY a real 2-layer rim that wraps from the shoulder down the lit edge and
+    # AROUND the rounded hem: round 2's single dim line lost ~40% of the night
+    # silhouette. A soft pewter underlay + a crisp bright top line reads as a
+    # moonlit edge and holds the full teardrop mass against a dark night sky.
     rim_pts = []
-    rN = 26
+    rN = 40
     for k in range(rN + 1):
-        t = 0.10 + 0.86 * k / rN
+        t = 0.08 + 0.90 * k / rN
         prof = math.sin(math.pi * (0.18 + 0.82 * t))
         belly = (1 - (1 - t) ** 2.2)
         w = neck_w + (half_w - neck_w) * prof * (0.35 + 0.65 * belly)
         y = top_y + t * (hem_y - top_y)
-        rim_pts.append((cx - w + int(1.0 * s), y))
-    if len(rim_pts) > 1:
-        pygame.draw.lines(surf, BONE_SH, False, rim_pts, max(1, int(1.6 * s)))
+        rim_pts.append((cx - w + int(1.4 * s), y))
+    # carry the rim across the rounded hem so the base edge stays lit, not lost.
+    # WHY the hem points stay set ~5px ABOVE hem_y: a rim that touched the very
+    # base edge spilled a stray spur past the mask in the silhouette.
+    rim_full = rim_pts + [(cx - int(half_w * 0.58), hem_y - int(7 * s)),
+                          (cx - int(half_w * 0.30), hem_y - int(5 * s))]
+    if len(rim_full) > 1:
+        pygame.draw.lines(surf, RIM_LIT_D, False, rim_full, max(2, int(2.6 * s)))
+        pygame.draw.lines(surf, RIM_LIT, False, rim_pts, max(1, int(1.8 * s)))
 
     # === SKULL-GLOW SPILL on the cloak where the moon is cradled =============
-    # WHY a soft cyan wash low-center: the focal must look like it lights the
-    # cloth around it, tying the brightest element to the dominant indigo mass.
+    # WHY a wider, brighter cyan wash low-center: the focal must visibly light the
+    # cloth around it, both to tie the brightest element to the dominant indigo
+    # mass AND to keep a glowing cool core in the silhouette on a dark night sky.
     spill_c = (cx, cy + int(10 * s))
-    for (rr, a) in ((int(34 * s), 30), (int(24 * s), 52), (int(16 * s), 80)):
+    for (rr, a) in ((int(44 * s), 34), (int(32 * s), 60),
+                    (int(22 * s), 92), (int(14 * s), 120)):
         sp = pygame.Surface((rr * 2 + 4, rr * 2 + 4), pygame.SRCALPHA)
         pygame.draw.circle(sp, SPILL + (a,), (rr + 2, rr + 2), rr)
         surf.blit(sp, (spill_c[0] - rr - 2, spill_c[1] - rr - 2))
@@ -436,21 +470,31 @@ def draw_shepherd(surf, cx, cy, s):
                               (tip[0], tip[1] - int(2 * s))],
                    ow=max(1, int(1.2 * s)))
 
-    # === SKULL HEAD (cool blue-bone) =========================================
-    triad_circle(surf, BONE, head_c, hr, ow=max(2, int(2 * s)))
+    # === SKULL HEAD (cool DARK-bone — deliberately demoted) ==================
+    # WHY the head is drawn in HEAD_BONE/HEAD_BONE_D (a band BELOW the limb bone)
+    # with NO sheen and NO cyan socket glint: round 2 left the head skull near the
+    # chest skull's value, so DAY blink-tested as TWO cyan dots. Sinking the head
+    # 2-3 steps into cool dark-bone makes the cradled moon-skull the single
+    # brightest pixel by a clear margin — ONE focal, not two.
+    triad_circle(surf, HEAD_BONE, head_c, hr, ow=max(2, int(2 * s)),
+                 sheen=False, core=False)
+    # a quiet form-shadow only — no highlight that could mistake for a second focal
+    pygame.draw.circle(surf, HEAD_BONE_D,
+                       (head_c[0] + int(hr * 0.30), head_c[1] + int(hr * 0.34)),
+                       int(hr * 0.74))
+    pygame.draw.circle(surf, HEAD_BONE, head_c, int(hr * 0.80))
     for sgn in (-1, 1):
-        pygame.draw.circle(surf, BONE_D,
+        pygame.draw.circle(surf, HEAD_BONE_D,
                            (head_c[0] + sgn * int(hr * 0.66), head_c[1] + int(hr * 0.30)),
                            int(hr * 0.28))
     for sgn in (-1, 1):
         ex = head_c[0] + sgn * int(hr * 0.44)
         ey = head_c[1] + int(hr * 0.06)
-        pygame.draw.circle(surf, BONE_DD, (ex, ey), int(hr * 0.36))
-        pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.30))
-        # a DIM cool moon-glint in the sockets ties to the cradled skull WITHOUT
-        # competing — kept at MOON_D/SPILL, never the bright MOON_BR of the focal.
-        pygame.draw.circle(surf, SPILL, (ex, ey + int(1 * s)), int(hr * 0.14))
-    pygame.draw.polygon(surf, BONE_DD,
+        # sockets stay ink-dark (no cyan glint) so the head reads as a quiet skull
+        pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.34))
+        pygame.draw.circle(surf, lerp(HEAD_BONE_D, INK, 0.5), (ex, ey),
+                           int(hr * 0.20))
+    pygame.draw.polygon(surf, INK,
                         [(head_c[0] - int(hr * 0.13), head_c[1] + int(hr * 0.32)),
                          (head_c[0] + int(hr * 0.13), head_c[1] + int(hr * 0.32)),
                          (head_c[0], head_c[1] + int(hr * 0.58))])
@@ -464,11 +508,13 @@ def draw_shepherd(surf, cx, cy, s):
                          (head_c[0] + int(k * hr * 0.18), my + int(hr * 0.10)),
                          max(1, int(1 * s)))
 
-    # === HOVERING HALO-RING CROWN + ZENITH SKULL =============================
-    # WHY tucked down onto the dome (was hr*1.18 above): a detached ring read as a
-    # lollipop and split the teardrop into two masses; sitting the ring just above
-    # the crown keeps the figure ONE silhouette while still reading "ring + skull".
-    halo_crown(surf, head_c[0], head_c[1] - int(hr * 0.72), int(hr * 1.06), s)
+    # === HALO-RING CROWN + ZENITH SKULL, WELDED TO THE DOME ==================
+    # WHY tucked LOWER (hr*0.58, was hr*0.72) AND fused with weld-struts: a ring
+    # that floated above the dome read as a top-left lollipop arm in the
+    # silhouette; sitting it on the crown and bridging it down keeps the figure
+    # ONE teardrop mass while still reading "ring + zenith skull".
+    halo_crown(surf, head_c[0], head_c[1] - int(hr * 0.58), int(hr * 1.00), s,
+               dome_c=head_c, dome_r=hr)
 
 
 # -- the moon-pillar mirror, derived from the king's forms --------------------
@@ -579,7 +625,7 @@ def main():
     sheet.blit(font_big.render("STARLIT NIGHT SHEPHERD", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "skull-KING (mandatory-cradle, 4 arms)  ·  teardrop candle-flame BELL · hovering halo-ring + zenith skull crown · "
-        "cradled glowing MOON-SKULL focal · clustered star-ticks · round 2",
+        "cradled glowing MOON-SKULL focal · clustered star-ticks · round 3",
         True, LABEL_DIM), (320, 26))
 
     # === (a) BIG HERO =========================================================
@@ -699,7 +745,7 @@ def main():
         "Crown = hovering halo-ring + ONE zenith skull.  Cradled MOON-SKULL = single brightest focal, day + night.  SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

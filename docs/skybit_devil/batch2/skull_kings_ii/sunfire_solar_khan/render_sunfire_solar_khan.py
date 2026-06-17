@@ -40,15 +40,17 @@ pygame.display.set_mode((1, 1))
 # -- PINNED PALETTE (locked brief) --------------------------------------------
 # Molten amber is the dominant disc MASS; ember-orange ray cores + white-gold
 # rim are thin accents; the cupped SUN-SKULL is the white-hot focal.
-AMBER     = (232, 176,  84)   # molten amber sun-body (the dominant disc fill)
+# disc-fill + rim highlights knocked ~15% darker (round 3) so NOTHING out-glows
+# the white-hot cupped focal — the disc frames, never competes with, the skull.
+AMBER     = (198, 150,  72)   # molten amber sun-body (the dominant disc fill)
 AMBER_D   = (182, 128,  54)   # amber dark-core / between-ray shade
 AMBER_DD  = (138,  92,  38)   # deepest amber hollow
-AMBER_SH  = (250, 214, 142)   # amber top-left rim sheen
+AMBER_SH  = (212, 182, 120)   # amber top-left rim sheen (dimmed)
 EMBER     = (214, 108,  40)   # ember-orange RAY CORES (the textured-fill accent)
 EMBER_D   = (162,  74,  26)
 EMBER_BR  = (246, 158,  70)
-RIM       = (250, 232, 180)   # white-gold disc RIM (a thin bright edge accent)
-RIM_HOT   = (255, 248, 224)
+RIM       = (214, 198, 152)   # white-gold disc RIM (a thin edge accent, dimmed)
+RIM_HOT   = (224, 212, 184)   # rim sheen knocked down so it can't rival the core
 # the SINGLE warm focal — the cupped white-hot SUN-SKULL.
 SUN       = (255, 240, 196)   # sun-skull bone (already very light)
 SUN_BR    = (255, 250, 230)
@@ -231,11 +233,18 @@ def sun_skull(surf, cx, cy, r, s, focal=False):
                      (cx + int(r * 0.30), cy + int(r * 0.70)), max(1, int(1.4 * s)))
     if focal:
         # the focal dome is flooded near-white so the whole head is the bright
-        # mass, then the SINGLE brightest pixel — a white-hot specular core.
+        # mass, then a TIGHT pure-white specular owns the single brightest pixel.
+        # WHY a small hot dot, not a wide flood: a broad near-white pool let the
+        # (now-dimmed) disc rim still rival it; a concentrated 2-3px pure-white
+        # core is unambiguously the lightest pixel on the chip.
         pygame.draw.circle(surf, SUN_BR, (cx, cy), int(r * 0.82))
         pygame.draw.circle(surf, SUN_HOT,
-                           (cx - int(r * 0.16), cy - int(r * 0.20)),
-                           max(2, int(r * 0.34)))
+                           (cx - int(r * 0.10), cy - int(r * 0.14)),
+                           max(2, int(r * 0.30)))
+        # the white-hot pinpoint: a few pure-white pixels at the dome's lit cap.
+        pygame.draw.circle(surf, (255, 255, 255),
+                           (cx - int(r * 0.10), cy - int(r * 0.16)),
+                           max(2, int(r * 0.16)))
     else:
         # top-left bone sheen on the gold crown dome
         pygame.draw.circle(surf, rim, (cx - int(r * 0.34), cy - int(r * 0.38)),
@@ -249,9 +258,28 @@ def sunburst_crown(surf, cx, cy, r, s):
     the unmistakable royal-skull tell that survives 32px. WHY tall + few rays:
     the boss is pushed high enough to CREST the disc top rim so the perfect
     circle is broken at the zenith — the coin-read killer — and the ray count is
-    cut so the crested skull reads as one clean lump, not a noisy fringe."""
+    cut so the crested skull reads as one clean lump, not a noisy fringe.
+
+    WHY the boss now rides a solid GOLD NECK column up out of the disc instead of
+    a soft halo: a blurred alpha halo dissolved into the disc mass in the blackout
+    (read as a pip). A filled neck + a bigger skull body lift OPAQUE pixels well
+    above the top rim, so the blackout shows an unmistakable skull SPIKE, not a
+    glow that the mask swallows."""
     n = 5
     half = (n - 1) / 2.0
+    # the zenith SKULL-BOSS — pushed decisively ABOVE the disc rim. A bigger
+    # skull on a solid neck so OPAQUE mass crests the top arc (blackout spike).
+    boss_r = max(5, int(r * 0.92))
+    boss_y = cy - int(r * 2.05)
+    # a solid gold NECK column from the head up to the boss so the silhouette is
+    # continuous (no floating skull, no swallow-able gap).
+    neck_w = max(3, int(r * 0.34))
+    neck = [(cx - neck_w, cy + int(2 * s)), (cx + neck_w, cy + int(2 * s)),
+            (cx + int(neck_w * 0.7), boss_y), (cx - int(neck_w * 0.7), boss_y)]
+    triad_blob(surf, GOLD, neck,
+               sheen_pts=[(cx - neck_w, cy), (cx - int(neck_w * 0.3), cy),
+                          (cx - int(neck_w * 0.4), boss_y), (cx - int(neck_w * 0.7), boss_y)],
+               ow=max(1, int(1.2 * s)))
     for i in range(n):
         if i == n // 2:
             continue  # the centre slot is the skull-boss, drawn below
@@ -271,22 +299,16 @@ def sunburst_crown(surf, cx, cy, r, s):
                    sheen_pts=[(bx - wbot, cy), (bx - wbot * 0.3, cy),
                               (tipx - wbot * 0.2, cy - h * 0.5), (tipx, tipy)],
                    ow=max(1, int(1.1 * s)))
-    # the zenith SKULL-BOSS — pushed high so it crests the disc rim; a radiant
-    # gold halo behind it, then a BIG gold skull (the cresting lump).
-    boss_r = max(4, int(r * 0.74))
-    boss_y = cy - int(r * 1.55)
-    halo = pygame.Surface((boss_r * 6, boss_r * 6), pygame.SRCALPHA)
-    pygame.draw.circle(halo, GOLD_BR + (80,), (boss_r * 3, boss_r * 3), int(boss_r * 1.7))
-    surf.blit(halo, (cx - boss_r * 3, boss_y - boss_r * 3))
-    # a few radiant spikes ringing the boss so it reads as a sun-throned skull
+    # solid radiant spikes ringing the boss (drawn thick so they add OPAQUE mass
+    # above the rim, not a soft glow the blackout drops).
     for k in range(6):
         a = math.radians(k * 60 - 90)
-        x0 = cx + math.cos(a) * boss_r * 1.05
-        y0 = boss_y + math.sin(a) * boss_r * 1.05
-        x1 = cx + math.cos(a) * boss_r * 1.55
-        y1 = boss_y + math.sin(a) * boss_r * 1.55
-        pygame.draw.line(surf, INK, (x0, y0), (x1, y1), max(2, int(2.4 * s)))
-        pygame.draw.line(surf, GOLD, (x0, y0), (x1, y1), max(1, int(1.4 * s)))
+        x0 = cx + math.cos(a) * boss_r * 1.02
+        y0 = boss_y + math.sin(a) * boss_r * 1.02
+        x1 = cx + math.cos(a) * boss_r * 1.70
+        y1 = boss_y + math.sin(a) * boss_r * 1.70
+        pygame.draw.line(surf, INK, (x0, y0), (x1, y1), max(3, int(3.2 * s)))
+        pygame.draw.line(surf, GOLD, (x0, y0), (x1, y1), max(2, int(2.0 * s)))
     sun_skull(surf, cx, boss_y, boss_r, s, focal=False)
 
 
@@ -337,14 +359,20 @@ def draw_khan(surf, cx, cy, s):
     pygame.draw.line(surf, KING_DD, (rc_cx, rc_cy - rc_h // 2 + int(6 * s)),
                      (rc_cx, rc_cy + int(7 * s)), max(1, int(2 * s)))
 
-    # crossed seated legs — splayed WIDE and LOW so the knees punch past the
-    # disc's bottom rim, giving the 2nd rim-break (creature, not token).
-    leg_th = int(12 * s)
+    # crossed seated legs — splayed WIDE, LOW and THICK so the knees+feet punch
+    # well past the disc's bottom rim, giving the 2nd rim-break. WHY thicker and
+    # lower than round 2: the slim legs got swallowed by the disc in the blackout
+    # (no 2nd break read). The knees now bulge past the equator and the feet drop
+    # below the bottom rim with heavy opaque bone, so the blackout shows two splayed
+    # leg-lobes flanking the disc base — an unmistakable "seated creature" break.
+    leg_th = int(15 * s)
     for sgn in (-1, 1):
-        hip = (cx + sgn * int(11 * s), seat_y)
-        knee = (cx + sgn * int(34 * s), seat_y + int(14 * s))
-        foot = (cx - sgn * int(6 * s), seat_y + int(22 * s))
+        hip = (cx + sgn * int(12 * s), seat_y)
+        knee = (cx + sgn * int(48 * s), seat_y + int(20 * s))
+        foot = (cx - sgn * int(2 * s), seat_y + int(34 * s))
         bone_limb(surf, hip, knee, foot, leg_th, s)
+        # a heavy knee knob jutting past the disc edge so the lobe survives 32px.
+        triad_circle(surf, KING, knee, int(8 * s), ow=max(1, int(1.4 * s)), core=False)
 
     # === (3) the FOUR ARMS ====================================================
     # WHY two open + two cupping: the lower pair PRESENTS the sun-skull in cupped
@@ -519,7 +547,7 @@ def main():
     sheet.blit(font_big.render("SUNFIRE SOLAR KHAN", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "royal SUN-DISC skull-king  ·  FILLED vertical amber disc (rays = textured fill) · "
-        "crown CRESTS the rim + base nicks it (2 rim-breaks) · big white-HOT focal · round 2",
+        "crown SPIKES past the rim + legs splay past the base (2 blackout breaks) · white-HOT core · round 3",
         True, LABEL_DIM), (360, 26))
 
     # === (a) BIG HERO =========================================================
@@ -641,7 +669,7 @@ def main():
         "big white-HOT sun-skull = the single brightest pixel.  SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

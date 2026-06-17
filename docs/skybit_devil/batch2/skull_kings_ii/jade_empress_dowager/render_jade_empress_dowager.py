@@ -56,9 +56,14 @@ SKULL_RIM = (120, 168, 146)   # skull socket / rim
 SKULL_COOL= (170, 214, 222)   # faint cool rim for the night chip
 # the dark CRADLE BOWL — the value floor the bright skull sits inside. This is
 # the keyline that lets four lobes + a punched-out socket read at 32px.
-CRADLE_D  = ( 38,  68,  54)   # deepest cradle hollow (socket keyline)
-CRADLE    = ( 64, 108,  84)   # the cupping-hand lobes (dark jade)
-CRADLE_SH = ( 96, 150, 116)   # lobe top-light so each knuckle separates
+# WHY a near-ink socket floor (round-3): round 2 had no true dark cup, so the
+# pale skull sat ON lighter jade ("emblem on a robe") instead of IN shadow. The
+# socket is now pushed almost to ink so the skull's lower half is bitten into a
+# hard dark halo — the blur read becomes a bright ball HALF-SUNK in a dark bowl.
+CRADLE_SOCK= ( 26,  48,  40)  # the deep socket floor directly behind/below skull
+CRADLE_D  = ( 34,  60,  50)   # cradle hollow / keyline gaps between lobes
+CRADLE    = ( 56,  98,  76)   # the cupping-hand lobes (dark jade, below skull)
+CRADLE_SH = ( 92, 146, 112)   # lobe top-light so each knuckle separates
 # thin GOLD filigree — a worked-metal LINE accent ONLY (kept dull, below skull).
 # WHY kept dark + thin + DESATURATED: bright gold becomes a 2nd warm mass that
 # steals the focal. Demoted vs round 1 — gold now lives only on the hem cinch +
@@ -171,51 +176,93 @@ def filigree_swirl(surf, cx, cy, r, s):
 # -- the CRADLE : a dark bowl of four lobes holding the bright skull ----------
 def cradle_bowl(surf, cx, cy, r, s):
     """The DARK cradle bowl that the bright skull sits inside. Drawn FIRST,
-    BEHIND the skull, as four separated dark-jade knuckle-lobes split by a deep
-    socket keyline. WHY a dark bowl: the round-1 cradle collapsed to a blob at
-    32px because hands + skull shared a value. Here the cup is the value-floor
-    and the skull is the value-peak, so the blur read becomes 'bright ball in a
-    dark bowl' — four lobes cresting over a circle with a dark gap between each."""
-    bowl_w = r * 1.55
-    bowl_top = cy - int(r * 0.30)
-    bowl_bot = cy + int(r * 1.30)
-    # the deep socket shell behind everything — the dark value the skull pops off
-    shell = [(cx - int(bowl_w), bowl_top),
-             (cx + int(bowl_w), bowl_top),
-             (cx + int(bowl_w * 0.62), bowl_bot),
-             (cx - int(bowl_w * 0.62), bowl_bot)]
-    pygame.draw.polygon(surf, INK, shell)
-    pygame.draw.polygon(surf, CRADLE_D, shell)
-    # FOUR knuckle-lobes cresting over the rim (two per side), each a fat dark
-    # jade hump separated from its neighbour by a dark socket keyline so the four
-    # cupped hands stay countable at 32px.
-    lobe_r = int(r * 0.52)
+    BEHIND the skull, as a deep near-ink SOCKET plus four separated dark-jade
+    knuckle-lobes cupping from below. WHY this shape (round-3): round 2 read as
+    'a king with a round emblem' — two thick side-slabs framed the skull and
+    there was no true dark cup, so the pale skull sat ON lighter jade. Now a
+    deep socket bowl is sunk behind+below the skull (value floor near ink) and
+    FOUR chunky knuckle-lobes crest UP from below (two below-left, two
+    below-right), each split from its neighbour by a hard dark keyline gap. Blur
+    read: a bright ball HALF-SUNK in a dark bowl, cupped by four countable
+    hands."""
+    # --- the deep SOCKET: a dark rounded bowl behind+below, biting the skull's
+    # lower half into shadow. A U-shaped recess (wider at top rim, rounding to a
+    # dark floor below the skull centre) so the skull's bottom sinks into it.
+    sock_w = r * 1.42
+    rim_y = cy - int(r * 0.18)            # socket rim sits just above skull mid
+    floor_y = cy + int(r * 1.46)          # dark floor well below the skull
+    socket = [(cx - int(sock_w), rim_y),
+              (cx - int(sock_w * 0.96), cy + int(r * 0.46)),
+              (cx - int(sock_w * 0.60), cy + int(r * 1.10)),
+              (cx - int(sock_w * 0.24), floor_y),
+              (cx + int(sock_w * 0.24), floor_y),
+              (cx + int(sock_w * 0.60), cy + int(r * 1.10)),
+              (cx + int(sock_w * 0.96), cy + int(r * 0.46)),
+              (cx + int(sock_w), rim_y)]
+    pygame.draw.polygon(surf, INK, socket)
+    pygame.draw.polygon(surf, CRADLE_SOCK, socket)
+    # a still-darker pool at the very bottom of the cup so the floor is the
+    # deepest value on the whole sheet (the shadow the skull is half-sunk into)
+    pool = [(cx - int(sock_w * 0.66), cy + int(r * 0.62)),
+            (cx + int(sock_w * 0.66), cy + int(r * 0.62)),
+            (cx + int(sock_w * 0.30), floor_y),
+            (cx - int(sock_w * 0.30), floor_y)]
+    pygame.draw.polygon(surf, INK, pool)
+
+    # --- FOUR countable knuckle-lobes cupping UP from below the skull. Two on
+    # each side, the inner pair tucked under the chin, the outer pair rising at
+    # the sides — all sat LOW so they crest from beneath, never framing the top.
+    # Each lobe is a fat dark-jade hump; a hard ink keyline gap is punched
+    # between neighbours so the four stay countable when blurred.
+    lobe_r = int(r * 0.50)
+    lobes = []
     for sgn in (-1, 1):
-        for (lx, ly, lr) in ((0.92, 0.10, lobe_r),         # outer knuckle
-                             (0.46, 0.40, int(lobe_r * 0.92))):  # inner knuckle
-            kx = cx + sgn * int(r * lx)
-            ky = cy + int(r * ly)
-            pygame.draw.circle(surf, INK, (kx, ky), lr + max(1, int(1.0 * s)))
-            pygame.draw.circle(surf, CRADLE, (kx, ky), lr)
-            # top-light each knuckle so the lobes separate by value, not just line
-            pygame.draw.circle(surf, CRADLE_SH,
-                               (kx - int(lr * 0.3), ky - int(lr * 0.38)),
-                               max(1, int(lr * 0.42)))
-    # re-punch the central socket between the inner lobes so a dark keyline
-    # always splits the cup under the skull (the 'bowl' tell at low res)
-    pygame.draw.line(surf, CRADLE_D, (cx, cy - int(r * 0.1)),
-                     (cx, bowl_bot - int(r * 0.1)), max(1, int(2.6 * s)))
+        # inner knuckle: low + close to centre (cups the jaw from below)
+        lobes.append((cx + sgn * int(r * 0.40), cy + int(r * 0.92),
+                      int(lobe_r * 0.96), sgn))
+        # outer knuckle: a touch higher + out to the side (cups the cheek)
+        lobes.append((cx + sgn * int(r * 0.96), cy + int(r * 0.56),
+                      lobe_r, sgn))
+    for (kx, ky, lr, sgn) in lobes:
+        pygame.draw.circle(surf, INK, (kx, ky), lr + max(1, int(1.4 * s)))
+        pygame.draw.circle(surf, CRADLE, (kx, ky), lr)
+        # a knuckle crease (dark) so each lobe reads as a separate finger-pad
+        pygame.draw.circle(surf, CRADLE_D,
+                           (kx + sgn * int(lr * 0.18), ky + int(lr * 0.30)),
+                           int(lr * 0.52))
+        pygame.draw.circle(surf, CRADLE, (kx, ky), int(lr * 0.74))
+        # top-light each knuckle so the lobes separate by value, not just line
+        pygame.draw.circle(surf, CRADLE_SH,
+                           (kx - int(lr * 0.30), ky - int(lr * 0.40)),
+                           max(1, int(lr * 0.40)))
+    # hard ink keyline gaps BETWEEN the lobes so four pads stay countable: a
+    # central vertical split (between the two inner lobes) plus one diagonal
+    # split per side (between each inner and outer lobe).
+    kw = max(1, int(2.2 * s))
+    pygame.draw.line(surf, INK, (cx, cy + int(r * 0.50)),
+                     (cx, floor_y - int(r * 0.06)), kw)
+    for sgn in (-1, 1):
+        pygame.draw.line(surf, INK,
+                         (cx + sgn * int(r * 0.66), cy + int(r * 0.40)),
+                         (cx + sgn * int(r * 0.70), cy + int(r * 1.04)), kw)
 
 
 def cradle_skull(surf, cx, cy, r, s):
     """The pale-jade skull — the single brightest, LARGEST low-center mass. Drawn
     on TOP of the dark cradle bowl so it reads as a glowing ball held in dark
     hands. Soft pale-jade peak (not pure white) so it's carved glowing jade, not
-    a sticker. Owns the only halo on the sheet so it wins the value contest."""
-    for (rr, a) in ((r * 1.70, 30), (r * 1.34, 52), (r * 1.10, 90)):
+    a sticker. WHY a SMALL TOP-ONLY glow (round-3): a full bright halo washed the
+    dark socket back out on the day chip. The glow is now clipped to the upper
+    dome only, so the bottom half can sink into the dark cup unfought — the
+    contrast that sells 'half-sunk in a bowl' is the hard dark socket, not a
+    glow ring."""
+    for (rr, a) in ((r * 1.30, 26), (r * 1.06, 44)):
         halo = pygame.Surface((int(rr * 2) + 4, int(rr * 2) + 4), pygame.SRCALPHA)
         pygame.draw.circle(halo, SKULL_BR + (a,), (int(rr) + 2, int(rr) + 2), int(rr))
-        surf.blit(halo, (cx - int(rr) - 2, cy - int(rr) - 2))
+        # clip the glow to the upper dome so it never lifts the socket floor
+        clip = pygame.Rect(0, 0, int(rr * 2) + 4, int(rr) + 2 + int(r * 0.18))
+        surf.blit(halo, (cx - int(rr) - 2, cy - int(rr) - 2),
+                  area=clip)
     # cranium dome — the big bright ball
     pygame.draw.circle(surf, INK, (cx, cy), r + max(1, int(1.2 * s)))
     pygame.draw.circle(surf, SKULL, (cx, cy), r)
@@ -227,6 +274,17 @@ def cradle_skull(surf, cx, cy, r, s):
            (cx - int(r * 0.32), cy + int(r * 0.94))]
     pygame.draw.polygon(surf, INK, jaw)
     pygame.draw.polygon(surf, SKULL, jaw)
+    # the skull's LOWER HALF sinks into the socket shadow: a dark wash over the
+    # jaw/chin so the bottom is bitten into the cup (the 'half-sunk' tell). Kept
+    # below the eye-line so the dome stays the bright value-peak.
+    sink = pygame.Surface((r * 3, r * 3), pygame.SRCALPHA)
+    sc = (int(r * 1.5), int(r * 1.5))
+    pygame.draw.polygon(sink, CRADLE_SOCK + (150,),
+                        [(sc[0] - int(r * 0.66), sc[1] + int(r * 0.40)),
+                         (sc[0] + int(r * 0.66), sc[1] + int(r * 0.40)),
+                         (sc[0] + int(r * 0.34), sc[1] + int(r * 1.00)),
+                         (sc[0] - int(r * 0.34), sc[1] + int(r * 1.00))])
+    surf.blit(sink, (cx - int(r * 1.5), cy - int(r * 1.5)))
     # two ink eye-sockets so a pale dot resolves to a skull when zoomed
     for sgn in (-1, 1):
         ex = cx + sgn * int(r * 0.40)
@@ -548,7 +606,7 @@ def main():
     sheet.blit(font_big.render("JADE EMPRESS DOWAGER", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "KING SKULL II #1  ·  kneeling carved-jade BELL · vertical phoenix-PLUME + jade skull finial · "
-        "6 arms (4 cup the cradle, 2 shoulder-fans) · pale-jade cradle-skull focal · round 2",
+        "6 arms (4 cup the cradle, 2 shoulder-fans) · pale-jade cradle-skull focal · round 3",
         True, LABEL_DIM), (360, 26))
 
     # === (a) BIG HERO =========================================================
@@ -556,8 +614,8 @@ def main():
     sheet.blit(hero, (14, 86))
     sheet.blit(font.render("Creature — hero", True, LABEL), (110, 566))
     sheet.blit(font_sm.render("Solid carved-jade BELL kneeling to the ground (NO throne / NO back-fan).", True, LABEL_DIM), (14, 590))
-    sheet.blit(font_sm.render("Lower FOUR hands = a DARK cradle bowl of lobes holding a bright pale-jade", True, LABEL_DIM), (14, 606))
-    sheet.blit(font_sm.render("skull (the focal); upper TWO tuck as shoulder-fans. Crown = ONE jade plume.", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("Lower FOUR hands = four countable lobes cupping a bright pale-jade skull", True, LABEL_DIM), (14, 606))
+    sheet.blit(font_sm.render("HALF-SUNK in a dark socket bowl; upper TWO tuck as fans. Crown = ONE plume.", True, LABEL_DIM), (14, 622))
 
     # === (b) PILLAR assembled — mirrored ======================================
     pcx = 470
@@ -667,7 +725,7 @@ def main():
         "GOLD filigree kept THIN + dull so the pale cradle-skull stays the single brightest focal.  SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

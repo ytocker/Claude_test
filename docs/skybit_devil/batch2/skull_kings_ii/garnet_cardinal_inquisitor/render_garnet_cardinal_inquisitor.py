@@ -61,6 +61,19 @@ GARNET_HOT= (255, 196, 210)   # hottest garnet pip (the single brightest-warm pi
 GARNET_D  = (132,  22,  46)
 INK       = ( 28,  22,  30)   # hard ink keyline
 
+# NIGHT cool-node lift (gate item, round 3). WHY a separate lifted set rather
+# than raising the base palette: on the day chip the bone/silver already read,
+# and lifting them globally would blow out the day sheen. On a DARK night sky the
+# bone face + silver stole sat too low to register as a cool light-node, so the
+# night render swaps these in — bone + silver each up a full value step, hue
+# unchanged — making a small COOL node beside the single warm garnet focal.
+BONE_N    = (245, 240, 234)   # night bone face (+ ~1 value step)
+BONE_D_N  = (200, 195, 190)   # night bone shade
+BONE_SH_N = (255, 254, 252)   # night bone sheen
+SILVER_N  = (224, 230, 240)   # night stole-chain (+ ~1 value step)
+SILVER_BR_N = (252, 254, 255) # night silver pip
+SILVER_D_N  = (158, 166, 180) # night recessed chain shadow (lifted)
+
 BG        = ( 96, 100, 108)   # neutral grey review backdrop
 PANEL     = ( 74,  78,  88)
 DAY_SKY_T = (120, 196, 236)
@@ -76,6 +89,28 @@ def lerp(a, b, t):
     return (int(a[0] + (b[0]-a[0])*t),
             int(a[1] + (b[1]-a[1])*t),
             int(a[2] + (b[2]-a[2])*t))
+
+
+import contextlib
+
+
+@contextlib.contextmanager
+def night_palette():
+    """Temporarily swap the bone + silver accents to their lifted NIGHT values so
+    they read as a cool light-node on a dark sky, then restore for day renders.
+    Only the cool accents move; the oxblood robe + garnet focal are untouched so
+    the warm focal stays the single brightest-warm point."""
+    g = globals()
+    keys = ("BONE", "BONE_D", "BONE_SH", "SILVER", "SILVER_BR", "SILVER_D")
+    night = (BONE_N, BONE_D_N, BONE_SH_N, SILVER_N, SILVER_BR_N, SILVER_D_N)
+    saved = tuple(g[k] for k in keys)
+    for k, v in zip(keys, night):
+        g[k] = v
+    try:
+        yield
+    finally:
+        for k, v in zip(keys, saved):
+            g[k] = v
 
 
 def grow_outline(surf, color, px):
@@ -188,10 +223,16 @@ def reliquary_gable(surf, cx, base_y, w, h, s):
     but stays smaller/dimmer than — the face's eye-gem, so the face keeps the
     single brightest-warm focal."""
     half = w * 0.5
-    # the shrine housing: two jambs + a steep pediment (oxblood worked stone)
+    # the shrine housing: two jambs + a steep pediment (oxblood worked stone).
+    # WHY the apex is a short flat ridge, not a single point (round 3): a 1px
+    # mathematical tip dissolves in the 32px downscale, killing the peaked-crown
+    # tell. A ~1px ridge at the top keeps the peak reading as a SHRINE on the day
+    # chip while staying a clean point in silhouette.
+    ridge = max(1.0, 0.10 * half)
     house = [(cx - half, base_y),
              (cx - half, base_y - h * 0.52),
-             (cx, base_y - h),
+             (cx - ridge, base_y - h),
+             (cx + ridge, base_y - h),
              (cx + half, base_y - h * 0.52),
              (cx + half, base_y)]
     triad_blob(surf, ROBE, house,
@@ -204,12 +245,18 @@ def reliquary_gable(surf, cx, base_y, w, h, s):
                           (cx - half * 0.32, base_y - h * 0.86),
                           (cx - half * 0.5, base_y - h * 0.5)],
                ow=max(1, int(1.3 * s)))
-    # a thin silver finial cross-bead at the gable peak (the reliquary tell)
-    pygame.draw.line(surf, SILVER, (cx, base_y - h), (cx, base_y - h - int(5 * s)),
-                     max(1, int(1.3 * s)))
+    # the silver finial cross-bead at the gable peak (the reliquary tell).
+    # WHY thicker + ink-backed in round 3: the finial is the silhouette's high
+    # point and was fragile at 32px. An ink underdraw plus a ~1px-fatter stroke
+    # keeps the cross-topped peak surviving the downscale on the day chip.
+    fy = base_y - h - int(6 * s)
+    pygame.draw.line(surf, INK, (cx, base_y - h), (cx, fy), max(2, int(2.4 * s)))
+    pygame.draw.line(surf, INK, (cx - int(4 * s), base_y - h - int(2 * s)),
+                     (cx + int(4 * s), base_y - h - int(2 * s)), max(2, int(2.2 * s)))
+    pygame.draw.line(surf, SILVER, (cx, base_y - h), (cx, fy), max(1, int(1.6 * s)))
     pygame.draw.line(surf, SILVER, (cx - int(3 * s), base_y - h - int(2 * s)),
-                     (cx + int(3 * s), base_y - h - int(2 * s)), max(1, int(1.1 * s)))
-    pygame.draw.circle(surf, SILVER_BR, (cx, base_y - h - int(5 * s)), max(1, int(1.2 * s)))
+                     (cx + int(3 * s), base_y - h - int(2 * s)), max(1, int(1.4 * s)))
+    pygame.draw.circle(surf, SILVER_BR, (cx, fy), max(1, int(1.5 * s)))
     # the pointed-arch niche cut into the housing (the enthroned recess)
     niche = [(cx - half * 0.56, base_y - h * 0.04),
              (cx - half * 0.56, base_y - h * 0.46),
@@ -252,10 +299,13 @@ def draw_inquisitor(surf, cx, cy, s):
     shoulder_y = cy                              # the arc apex (shoulder crest)
     hem_y = cy + int(66 * s)                      # the rear hem / ground line
     toe_x = cx - int(20 * s)                      # rear heel of the hook (narrow)
-    # the cowl peak is thrown FORWARD past the toe and DOWN below the crest.
-    cowl_cx = cx + int(34 * s)                    # well forward of the rear toe
-    cowl_cy = shoulder_y + int(26 * s)            # head hangs BELOW the crest
-    head_c = (cowl_cx + int(3 * s), cowl_cy + int(9 * s))
+    # WHY pushed harder forward + DOWN in round 3: round-2 read as a forward-
+    # TILTED reliquary, not a bowed HOOK. The cowl is now thrown further forward
+    # AND dropped a full head-height below the crest so the blackout's top edge
+    # falls from the shoulder crest DOWN to the head as a read curl (a true J).
+    cowl_cx = cx + int(42 * s)                    # further forward of the rear toe
+    cowl_cy = shoulder_y + int(40 * s)            # head hangs a full step BELOW the crest
+    head_c = (cowl_cx + int(4 * s), cowl_cy + int(10 * s))
     hr = int(15 * s)
 
     # === ROBE HEM + FOOT (narrow rear root of the hook) ======================
@@ -278,14 +328,19 @@ def draw_inquisitor(surf, cx, cy, s):
     # shoulder, then folds FORWARD and DOWN so its top edge overhangs the toe.
     # The rear contour is concave (the spine of the hook); the front contour
     # bulges forward as the chest/belly thrust into the stoop.
+    # WHY the crest stays the high point but the top edge now CURLS down to the
+    # head: the round-3 read curl. From the rear shoulder the contour rises to the
+    # crest (the silhouette's back high point), then sweeps FORWARD-AND-DOWN in a
+    # concave neck so the head clearly hangs below it — the inside of the J.
     robe = [(toe_x - int(4 * s), hem_y),                       # rear hem foot
             (cx - int(14 * s), cy + int(40 * s)),              # rear flank (concave in)
-            (cx - int(10 * s), shoulder_y + int(6 * s)),       # rear shoulder
-            (cx - int(2 * s), shoulder_y - int(6 * s)),        # crest (apex of arc)
-            (cowl_cx - int(14 * s), cowl_cy - int(18 * s)),    # over the top, going forward
-            (cowl_cx + int(18 * s), cowl_cy - int(8 * s)),     # forward cowl shoulder
-            (cowl_cx + int(20 * s), cowl_cy + int(16 * s)),    # forward cowl front (overhang)
-            (cx + int(30 * s), cy + int(40 * s)),              # forward belly thrust
+            (cx - int(10 * s), shoulder_y + int(4 * s)),       # rear shoulder
+            (cx - int(2 * s), shoulder_y - int(8 * s)),        # crest (the back high point)
+            (cx + int(10 * s), shoulder_y - int(4 * s)),       # crest forward shoulder
+            (cowl_cx - int(16 * s), cowl_cy - int(20 * s)),    # neck curling forward+down
+            (cowl_cx + int(18 * s), cowl_cy - int(6 * s)),     # forward cowl shoulder
+            (cowl_cx + int(22 * s), cowl_cy + int(18 * s)),    # forward cowl front (overhang)
+            (cx + int(34 * s), cy + int(46 * s)),              # forward belly thrust
             (cx + int(16 * s), hem_y - int(2 * s))]            # forward hem (narrow)
     triad_blob(surf, ROBE, robe,
                core_pts=[(cx - int(2 * s), cy + int(42 * s)),
@@ -294,8 +349,8 @@ def draw_inquisitor(surf, cx, cy, s):
                          (cx - int(6 * s), hem_y)],
                sheen_pts=[(toe_x - int(2 * s), hem_y - int(2 * s)),
                           (cx - int(12 * s), cy + int(38 * s)),
-                          (cx - int(8 * s), shoulder_y + int(6 * s)),
-                          (cx - int(2 * s), shoulder_y - int(4 * s)),
+                          (cx - int(8 * s), shoulder_y + int(4 * s)),
+                          (cx - int(2 * s), shoulder_y - int(6 * s)),
                           (cx - int(6 * s), cy + int(30 * s))],
                ow=max(1, int(1.7 * s)))
     # fold lines following the forward arc (thin dark-core seams, the cloth read)
@@ -528,7 +583,7 @@ def main():
     sheet.blit(font_big.render("GARNET CARDINAL INQUISITOR", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "skull-KING (discretion line, 2 arms) · hooded FORWARD-STOOP HAIRPIN · gabled skull-reliquary crown · "
-        "pointing hand · garnet eye-gem focal · round 2",
+        "pointing hand · garnet eye-gem focal · round 3",
         True, LABEL_DIM), (480, 26))
 
     # === (a) BIG HERO =========================================================
@@ -563,14 +618,22 @@ def main():
 
     def chip32(night=False):
         big = pygame.Surface((96 * SS, 96 * SS), pygame.SRCALPHA)
-        draw_inquisitor(big, 40 * SS, 46 * SS, (32 / 150.0) * SS)
+        # WHY the night render swaps in the lifted cool palette: the bone face +
+        # silver stole are raised a full value step so they read as a small COOL
+        # light-node against the dark sky (gate item), garnet gem still warmest.
+        if night:
+            with night_palette():
+                draw_inquisitor(big, 40 * SS, 46 * SS, (32 / 150.0) * SS)
+        else:
+            draw_inquisitor(big, 40 * SS, 46 * SS, (32 / 150.0) * SS)
         small = pygame.transform.smoothscale(big, (96, 96))
         # WHY a thin cool SILVER rim on the night chip (not a warm one): the dark
         # oxblood robe can sink into a dark night sky; a cool silver halo carries
         # the hooked silhouette while keeping the garnet gem the brightest-warm
-        # point and not adding a second warm read.
+        # point and not adding a second warm read. The rim now uses the lifted
+        # night silver so the halo itself lifts a step too.
         if night:
-            base = grow_outline(small, SILVER_D + (255,), 2)
+            base = grow_outline(small, SILVER_D_N + (255,), 2)
             return grow_outline(base, INK + (200,), 1)
         return grow_outline(small, INK + (255,), 1)
 
@@ -587,7 +650,7 @@ def main():
     vgrad(sheet, (panel_x + 20, night_y, 150, 150), NIGHT_T, NIGHT_B)
     pygame.draw.rect(sheet, INK, (panel_x + 20, night_y, 150, 150), 1)
     sheet.blit(night_chip, (panel_x + 20 + 27 - 1, night_y + 27 - 1))
-    sheet.blit(font_sm.render("32px on night sky (silver rim)", True, LABEL_DIM), (panel_x + 20, night_y + 156))
+    sheet.blit(font_sm.render("32px on night sky (cool bone+silver node)", True, LABEL_DIM), (panel_x + 20, night_y + 156))
 
     # silhouette proof — blacked-out hero so the HAIRPIN hook read is checked
     def silhouette():
@@ -648,7 +711,7 @@ def main():
         "garnet eye-gem = single brightest-warm focal; gabled skull-reliquary crown is the above-head tell.  SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     self_check()
@@ -719,6 +782,31 @@ def hairpin_check():
     print("self-check hairpin: top-band cx=%.1f (n=%d) | bottom-band cx=%.1f (n=%d) "
           "-> cowl forward of toe? %s"
           % (top_cx or -1, top_n, bot_cx or -1, bot_n, forward))
+
+    # WHY also check the HEAD sits below the CREST: round 2 read as a forward TILT,
+    # not a bowed hook. Locate the crest (topmost solid row) vs the bright bone
+    # head node (the forward-most cluster of high-value pixels) and confirm the
+    # head's row is clearly BELOW the crest — the read curl from crest down to head.
+    px = pygame.surfarray.pixels3d(small)
+    a = pygame.surfarray.pixels_alpha(small)
+    head_rows, head_xs = [], []
+    for x in range(w):
+        for y in range(h):
+            if a[x, y] < 80:
+                continue
+            r, gg, b = int(px[x, y][0]), int(px[x, y][1]), int(px[x, y][2])
+            if r > 180 and gg > 175 and abs(r - gg) < 28:   # bright bone
+                head_rows.append(y)
+                head_xs.append(x)
+    del px, a
+    if head_rows:
+        # the FACE bone node is the lower/forward bone cluster; use its median row
+        head_rows.sort()
+        head_y = head_rows[len(head_rows) // 2]
+        head_below = head_y > y_top + span * 0.18
+        print("self-check hook: crest row=%d | head bone-node row=%d "
+              "-> head clearly below crest? %s (drop=%.0fpx)"
+              % (y_top, head_y, head_below, head_y - y_top))
 
 
 if __name__ == "__main__":
