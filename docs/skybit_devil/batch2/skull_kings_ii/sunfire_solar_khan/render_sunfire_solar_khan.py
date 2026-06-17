@@ -380,32 +380,50 @@ def draw_khan(surf, cx, cy, s):
     pygame.draw.line(surf, KING_DD, (rc_cx, rc_cy - rc_h // 2 + int(6 * s)),
                      (rc_cx, rc_cy + int(7 * s)), max(1, int(2 * s)))
 
-    # crossed seated legs — splayed WIDE, LOW and THICK so the knees+feet punch
-    # well past the disc's bottom rim, giving the 2nd rim-break. WHY pushed FAR
-    # past the rim in round 4: at round-3 widths the knees (x ~48) still sat
-    # INSIDE the disc radius (64) and the feet tucked under the bottom arc, so the
-    # blackout bottomed out as a near-clean circle. The knees now bulge BEYOND the
-    # disc radius (x ~72 > r 64) and the feet drop a full leg-length below the
-    # bottom rim as heavy opaque bone — so the blackout reads two splayed leg-lobes
-    # flanking the base AND a dropped foot-mass below it: an unmistakable break a
-    # viewer cannot trace as a circle.
-    leg_th = int(18 * s)
-    bottom_rim_y = disc_c[1] + disc_r  # the arc the legs must visibly clear
+    # crossed seated legs — a BROAD SOLID BASE-MASS punched well BELOW the disc's
+    # bottom rim, giving the 2nd rim-break. WHY a wide solid wedge, not two thin
+    # splayed legs (round 5): rounds 3-4 splayed the legs sideways, so in the
+    # blackout they read as thin appendages riding the disc edge while the disc
+    # base still closed as a clean arc between them ("coin with a top notch"). The
+    # base is now a CONTINUOUS knee-to-knee mass that drops a full ~22% of the disc
+    # radius BELOW the bottom arc and fills the inner thigh span — so the blackout
+    # bottom edge is one decisive jagged lobe-cluster, not a traceable circle. The
+    # knees sit LOWER than they splay wide (y past the rim, not just x past it) so
+    # the protrusion is downward mass, the read the critique demanded.
+    leg_th = int(22 * s)
+    bottom_rim_y = disc_c[1] + disc_r  # the arc the base must visibly punch past
+    # how far below the bottom arc the knee mass drops (>= 12-15% of disc radius).
+    drop = int(disc_r * 0.22)
+    knee_y = bottom_rim_y + drop
     for sgn in (-1, 1):
         hip = (cx + sgn * int(10 * s), seat_y)
-        knee = (cx + sgn * int(72 * s), seat_y + int(18 * s))
-        foot = (cx + sgn * int(58 * s), bottom_rim_y + int(20 * s))
+        # knee bulges OUT past the disc radius AND drops below the bottom rim, so
+        # the lobe is solid downward mass the smoothscale can't average to an arc.
+        knee = (cx + sgn * int(58 * s), knee_y)
+        foot = (cx + sgn * int(40 * s), knee_y + int(20 * s))
         bone_limb(surf, hip, knee, foot, leg_th, s)
-        # a heavy knee knob jutting PAST the disc edge so the lobe survives 32px.
-        triad_circle(surf, KING, knee, int(10 * s), ow=max(1, int(1.4 * s)), core=False)
-        # a blocky splayed FOOT dropped below the bottom rim — opaque mass the
+        # a heavy knee knob jutting PAST the bottom arc so the lobe survives 32px.
+        triad_circle(surf, KING, knee, int(13 * s), ow=max(1, int(1.4 * s)), core=False)
+        # a blocky splayed FOOT dropped further below the rim — opaque mass the
         # downscale keeps, so the silhouette base is clearly broken, not arced.
-        fw = int(11 * s)
-        foot_quad = [(foot[0] - sgn * int(2 * s), foot[1] - int(9 * s)),
-                     (foot[0] + sgn * fw, foot[1] - int(5 * s)),
-                     (foot[0] + sgn * fw, foot[1] + int(7 * s)),
-                     (foot[0] - sgn * fw, foot[1] + int(7 * s))]
+        fw = int(13 * s)
+        foot_quad = [(foot[0] - sgn * int(3 * s), foot[1] - int(11 * s)),
+                     (foot[0] + sgn * fw, foot[1] - int(6 * s)),
+                     (foot[0] + sgn * fw, foot[1] + int(9 * s)),
+                     (foot[0] - sgn * fw, foot[1] + int(9 * s))]
         triad_blob(surf, KING, foot_quad, ow=max(1, int(1.4 * s)))
+    # a solid SEAT-SLAB bridging the two thighs BELOW the bottom rim — fills the
+    # inner span so the base protrudes as one continuous jagged mass, not two thin
+    # legs with a clean arc between them. This is the piece that kills the "clean
+    # circle" read: the bottom-centre of the silhouette is now SOLID past the rim.
+    seat_slab = [(cx - int(20 * s), bottom_rim_y - int(2 * s)),
+                 (cx + int(20 * s), bottom_rim_y - int(2 * s)),
+                 (cx + int(30 * s), knee_y + int(6 * s)),
+                 (cx - int(30 * s), knee_y + int(6 * s))]
+    triad_blob(surf, KING, seat_slab,
+               core_pts=[(cx, bottom_rim_y), (cx + int(28 * s), knee_y + int(4 * s)),
+                         (cx - int(28 * s), knee_y + int(4 * s))],
+               ow=max(1, int(1.6 * s)))
 
     # === (3) the FOUR ARMS ====================================================
     # WHY two open + two cupping: the lower pair PRESENTS the sun-skull in cupped
@@ -580,7 +598,7 @@ def main():
     sheet.blit(font_big.render("SUNFIRE SOLAR KHAN", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "royal SUN-DISC skull-king  ·  FILLED vertical amber disc (rays = textured fill) · "
-        "crown SPIKES past the rim + legs splay past the base (2 blackout breaks) · white-HOT core · round 4",
+        "crown SPIKES past the rim + base-mass punches past the bottom (2 blackout breaks) · white-HOT core · round 5",
         True, LABEL_DIM), (360, 26))
 
     # === (a) BIG HERO =========================================================
@@ -705,7 +723,7 @@ def main():
         "big white-HOT sun-skull = the single brightest pixel.  SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_4.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_5.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
@@ -775,11 +793,20 @@ def _gate_blackout():
             break
     spike_clear = top_rim - top_hit if top_hit is not None else -1
     base_clear = bot_hit - bot_rim if bot_hit is not None else -1
+    # CIRCLE-TRACE test: scan a band just BELOW the bottom rim across the central
+    # width. If opaque base mass spans a wide contiguous run there (not two thin
+    # lobes with a clean gap), no clean circle can be traced — the true gate.
+    band_y = bot_rim + max(2, int(disc_r * 0.10))
+    central = range(int(cx - disc_r * 0.5), int(cx + disc_r * 0.5))
+    solid_run = sum(1 for xx in central if 0 <= xx < W and mask.get_at((xx, band_y)))
+    base_solid_frac = solid_run / max(1, len(list(central)))
     print("gate: top_rim=%d crown_top=%s spike_clears_rim_by=%dpx" %
           (top_rim, top_hit, spike_clear),
           "| bot_rim=%d base_low=%s splay_clears_rim_by=%dpx" %
           (bot_rim, bot_hit, base_clear),
-          "-> TWO BREAKS?", spike_clear > 2 and base_clear > 2)
+          "| base_solid_frac@%dpx_below_rim=%.2f" % (band_y - bot_rim, base_solid_frac),
+          "-> TWO DECISIVE BREAKS?",
+          spike_clear > 2 and base_clear > 2 and base_solid_frac > 0.6)
 
 
 if __name__ == "__main__":
