@@ -152,8 +152,13 @@ def palm_skull(surf, cx, cy, r, s, lit=False):
     """A MID-tier bone skull cradled in an open palm. WHY brighter than the
     garland heads but dimmer than the third-eye: the locked value ladder makes
     these six the only ring of clean light skulls — the garland heads must sink
-    below them. Cradled in a little gold-pip palm cup so the open-PALM reading
-    holds at hero scale."""
+    below them.
+
+    WHY the skull is drawn HEAVY (no surrounding bone pad, fat dome + jaw): all
+    six palm-skulls must land on ONE readable MID value-band (~L155) when sampled
+    at hero scale, between body (~L192) and garland (~L112). The earlier bone
+    cradle-pad (BONE, ~L192) ringed the skull and let a sample hit body-value on
+    some palms; here PSKULL is the dominant footprint so every palm samples MID."""
     triad_circle(surf, PSKULL, (cx, cy), r, ow=max(1, int(1.4 * s)), core=False)
     jaw = [(cx - int(r * 0.5), cy + int(r * 0.5)),
            (cx + int(r * 0.5), cy + int(r * 0.5)),
@@ -169,21 +174,45 @@ def palm_skull(surf, cx, cy, r, s, lit=False):
 
 
 def draw_palm(surf, hx, hy, r, s, oa):
-    """An OPEN palm at a fan-tip: a cupped bone pad + a fan of finger ticks so it
-    reads as a hand cradling something, not a stump. `oa` aims the cup outward."""
-    pad = (hx, hy)
-    triad_circle(surf, BONE, pad, int(r * 0.74), ow=max(1, int(1.2 * s)), core=False)
-    # gold offering-pip cup beneath the skull
-    pygame.draw.circle(surf, GOLD_D, (hx, hy + int(r * 0.18)), max(1, int(r * 0.5)))
-    pygame.draw.circle(surf, GOLD, (hx, hy + int(r * 0.10)), max(1, int(r * 0.4)))
-    # four finger ticks fanning up-and-out around the cradle
-    for k in range(-1, 3):
-        a = oa - math.pi / 2 + k * 0.42
-        ex = hx + math.cos(a) * r * 1.05
-        ey = hy + math.sin(a) * r * 1.05
-        pygame.draw.line(surf, INK, (hx, hy), (ex, ey), max(2, int(3.0 * s)))
-        pygame.draw.line(surf, BONE, (hx, hy), (ex, ey), max(1, int(1.7 * s)))
-        triad_circle(surf, BONE, (int(ex), int(ey)), max(1, int(1.8 * s)),
+    """An OPEN palm cradling a skull at the WRIST, fingers curling UP around it.
+    WHY one construction for all six (no special-case for the lowest pair): the
+    AD found the two horizontal palms read as skull-tipped FISTS — skull sitting
+    AT the arm terminus, bead-knuckles wrapped over it. So every palm now seats
+    its skull at a wrist set BACK from the arm-end, with an explicit wrist-gap
+    below the skull and a fan of bead-fingers arcing UP and around it. `oa` is
+    the arm's outward angle; the cradle opens along it so the cup always faces
+    away from the body and the fingers always rise toward the sky-side."""
+    # WHY the cradle is offset back toward the body along the arm axis: it pulls
+    # the skull off the very tip so the bone wrist + finger-arc read on the
+    # outboard side as "hand holding skull," not a knob capping the limb.
+    ux, uy = math.cos(oa), math.sin(oa)            # outward (arm) direction
+    px, py = -uy, ux                               # perpendicular (finger spread)
+    # wrist pad: a small bone cup set just OUTBOARD of the skull, the heel of the
+    # palm the skull rests in (kept small + below so it never out-masses PSKULL)
+    wx = hx + ux * r * 0.46
+    wy = hy + uy * r * 0.46
+    triad_circle(surf, BONE, (int(wx), int(wy)), int(r * 0.44),
+                 ow=max(1, int(1.0 * s)), core=False, sheen=False)
+    # the wrist-gap: a sliver of ink between wrist heel and skull so the eye reads
+    # an OPEN palm (skull held above the heel), never a fused skull-on-a-stick
+    pygame.draw.line(surf, INK, (int(wx - px * r * 0.4), int(wy - py * r * 0.4)),
+                     (int(wx + px * r * 0.4), int(wy + py * r * 0.4)),
+                     max(1, int(1.4 * s)))
+    # gold offering-pip nested in the heel of the palm (her gold-spacer cadence)
+    pygame.draw.circle(surf, GOLD_D, (int(wx), int(wy)), max(1, int(r * 0.30)))
+    pygame.draw.circle(surf, GOLD, (int(wx - ux * r * 0.06), int(wy - uy * r * 0.06)),
+                       max(1, int(r * 0.20)))
+    # five bead-fingers fanning UP and AROUND the skull on the inboard (sky) side,
+    # curling toward the cradle so the hand visibly closes around what it holds
+    for k in range(-2, 3):
+        a = oa + math.pi + k * 0.52        # point back INWARD, then spread
+        bx = hx + math.cos(a) * r * 1.18
+        by = hy + math.sin(a) * r * 1.18
+        pygame.draw.line(surf, INK, (int(wx), int(wy)), (int(bx), int(by)),
+                         max(2, int(2.6 * s)))
+        pygame.draw.line(surf, BONE, (int(wx), int(wy)), (int(bx), int(by)),
+                         max(1, int(1.5 * s)))
+        triad_circle(surf, BONE, (int(bx), int(by)), max(1, int(1.7 * s)),
                      ow=max(1, int(0.9 * s)), core=False, sheen=False)
 
 
@@ -212,7 +241,18 @@ def draw_arm_fan(surf, sh_cx, sh_cy, s, hr):
         # overlap the apron-edge chest-garland heads and muddle. ~5px of extra
         # outward reach gives each low palm-skull clean negative space and lets the
         # apron chest-loop read as a distinct lower band.
-        extra = int(hr * 0.16) if d >= 100 else 0
+        #
+        # WHY pull the UPPER (d≈28) pair IN: at full reach their palm-skulls landed
+        # right on the sky-garland heads (same radius from the head) and got read at
+        # the DIM garland value instead of the MID palm value. Shortening their reach
+        # seats them inboard of the sky-loop arc, in clean sky, so all six palm-skulls
+        # hold ONE mid band and the upper pair no longer collapses into the garland.
+        if d >= 100:
+            extra = int(hr * 0.16)
+        elif d <= 28:
+            extra = -int(hr * 0.22)
+        else:
+            extra = 0
         reach = arm_len + extra
         elbow = (sh[0] + math.cos(a) * reach * 0.52,
                  sh[1] + math.sin(a) * reach * 0.52)
@@ -459,10 +499,13 @@ def draw_mundamala_mata(surf, cx, cy, s):
     # six fan-tips read as a ring of open hands each offering a mid-bone skull —
     # the value tier between the focal eye and the dim garland.
     for (hx, hy, oa) in hands:
-        draw_palm(surf, hx, hy, int(hr * 0.30), s, oa)
-    # the cradled tiny skull sits ON each palm — MID tier (the brood motif)
+        draw_palm(surf, hx, hy, int(hr * 0.32), s, oa)
+    # The cradled tiny skull sits ON each palm at the SAME hand centre for all six
+    # — MID tier (the brood motif). WHY drawn dead-last and footprint-dominant: it
+    # must sample ~L155 on every palm; sitting on top of both garland loops AND the
+    # body keeps the upper pair off the garland band and the left pair off body bone.
     for (hx, hy, oa) in hands:
-        palm_skull(surf, hx, hy - int(hr * 0.04), int(hr * 0.26), s)
+        palm_skull(surf, hx, hy, int(hr * 0.28), s)
 
     # === SKULL HEAD — chibi, scary-cute, three-eyed (the framed FACE) =========
     triad_circle(surf, BONE, head_c, hr, ow=max(2, int(2 * s)))
@@ -525,7 +568,12 @@ def draw_mundamala_mata(surf, cx, cy, s):
     # lumpy cap and the tiara-band is the fusion tell. A single darker horizontal
     # line across the brow survives the downscale; a thin gold rim sits on top for
     # hero richness only.
-    pygame.draw.lines(surf, INK, False, band_pts, int(7 * s))
+    # WHY the dark underlay is widened (9s): the band must persist at true 32px as
+    # ONE slightly-darker horizontal row across the brow — the fusion tell. The
+    # extra dark width sits INSIDE the dark cap silhouette (it never widens the
+    # blackout outline), so it strengthens the 32px band read without touching the
+    # clean dark-cap shape the AD flagged as KEEP.
+    pygame.draw.lines(surf, INK, False, band_pts, int(9 * s))
     pygame.draw.lines(surf, OXBLOOD, False, band_pts, int(4 * s))
     pygame.draw.lines(surf, GOLD, False, band_pts, max(1, int(1.6 * s)))
     for i in range(4):   # squat tiara-band skulls on the brow
@@ -637,7 +685,7 @@ def export_hero_png():
     f = _font(26)
     surf.blit(f.render("MUNDAMALA-MATA  ·  severed-head garland mother", True, LABEL),
               (28, 22))
-    out = os.path.join(_HERE, "round_2_hero.png")
+    out = os.path.join(_HERE, "round_3_hero.png")
     pygame.image.save(surf, out)
     return out
 
@@ -655,7 +703,7 @@ def main():
     sheet.blit(font_big.render("MUNDAMALA-MATA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "severed-head garland mother  ·  MUKHA body + lotus throne · double-loop skull garland "
-        "· OXBLOOD-dominant cord, gold true-spacer · rose third-eye focal ONLY · round 2",
+        "· OXBLOOD-dominant cord, gold true-spacer · rose third-eye focal ONLY · round 3",
         True, LABEL_DIM), (300, 27))
 
     # === (a) BIG HERO =========================================================
@@ -762,7 +810,7 @@ def main():
         "dark-core->fill->top-left sheen · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 885))
 
-    out = os.path.join(_HERE, "round_2.png")
+    out = os.path.join(_HERE, "round_3.png")
     pygame.image.save(sheet, out)
     return out
 
