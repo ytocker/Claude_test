@@ -66,8 +66,8 @@ def _chip(mod, cell_w, cell_h, *, lit):
     return mod.grow_outline(small, mod.INK + (255,), 1)
 
 
-def _label(surf, text, x, y, col=(235, 230, 222)):
-    f = pygame.font.SysFont("DejaVu Sans", 15, bold=True)
+def _label(surf, text, x, y, col=(235, 230, 222), size=15):
+    f = pygame.font.SysFont("DejaVu Sans", size, bold=True)
     surf.blit(f.render(text, True, (20, 16, 22)), (x + 1, y + 1))
     surf.blit(f.render(text, True, col), (x, y))
 
@@ -156,7 +156,43 @@ def build_versions():
     print("wrote", out, sheet.get_size())
 
 
+def build_offered():
+    """Just the four offered versions (rounds 1, 7, 8, 9) rendered LARGE, so each
+    full skull-king design reads clearly side by side."""
+    offered = [r for r in ROUNDS if r[0] in ("round 1", "round 7", "round 8", "round 9")]
+    cw, ch = 460, 600
+    pad = 22
+    head = 100
+    cols = len(offered)
+    W = cols * cw + (cols + 1) * pad
+    H = head + ch + 64
+    sheet = pygame.Surface((W, H))
+    sheet.fill((46, 50, 66))
+    _label(sheet, "Full skull-king designs — the four versions offered", pad, 20, size=30)
+    _label(sheet, "complete Asthi-Dakini figure, each rendered with its own round's code + palette", pad, 58,
+           col=(190, 198, 212))
+
+    x = pad
+    y = head
+    for label, commit, note in offered:
+        mod = _load_round(commit)
+        cell = pygame.Surface((cw, ch))
+        for j in range(ch):
+            cell.fill(mod.lerp((74, 84, 104), (40, 46, 64), j / max(1, ch - 1)), (0, j, cw, 1))
+        fig = mod.render_creature_chip(cw, ch, cw // 2, int(ch * 0.53), 2.5)
+        cell.blit(fig, (0, 0))
+        sheet.blit(cell, (x, y))
+        _label(sheet, label, x + 6, y + ch + 8, size=22)
+        _label(sheet, note, x + 6, y + ch + 36, col=(190, 198, 212))
+        x += cw + pad
+
+    out = os.path.join(OUT, "offered_king_skull_versions.png")
+    pygame.image.save(sheet, out)
+    print("wrote", out, sheet.get_size())
+
+
 if __name__ == "__main__":
     build()
     build_versions()
+    build_offered()
 
