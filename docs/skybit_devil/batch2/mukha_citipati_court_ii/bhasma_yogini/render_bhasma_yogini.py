@@ -440,25 +440,26 @@ def draw_bhasma_yogini(surf, cx, cy, s):
         pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.25))
         pygame.draw.circle(surf, SAFF_D, (ex + sgn * int(1 * s), ey + int(1 * s)),
                            int(hr * 0.12))
-    # TRIPUNDRA — three clean horizontal ash tilaka bands across the brow, framing
-    # the third-eye from above (the ascetic forehead tell). Kept tight + parallel
-    # so they read as deliberate ash-marks, not noise.
-    for i in range(3):
-        ly = head_c[1] - int(hr * 0.50) + i * int(hr * 0.075)
-        ww = hr * (0.40 - i * 0.02)
-        pygame.draw.line(surf, INK, (head_c[0] - ww, ly), (head_c[0] + ww, ly),
-                         max(2, int(3.2 * s)))
-        pygame.draw.line(surf, ASH_SH, (head_c[0] - ww, ly), (head_c[0] + ww, ly),
-                         max(1, int(1.8 * s)))
-    # THIRD EYE — the single BRIGHTEST pixel (AD hard rule). A fat vertical
-    # saffron-amber slit with a hot core, central on the brow.
-    tex, tey = head_c[0], head_c[1] - int(hr * 0.32)
-    pygame.draw.ellipse(surf, INK, (tex - int(7 * s), tey - int(9 * s), int(14 * s), int(18 * s)))
-    pygame.draw.ellipse(surf, SAFF, (tex - int(6 * s), tey - int(8 * s), int(12 * s), int(16 * s)))
-    pygame.draw.ellipse(surf, SAFF_BR, (tex - int(4 * s), tey - int(5 * s), int(8 * s), int(10 * s)))
-    pygame.draw.circle(surf, THIRD_BR, (tex - int(1 * s), tey - int(2 * s)), max(2, int(3.2 * s)))
+    # THIRD EYE — the single BRIGHTEST pixel (AD hard rule). A saffron-amber
+    # teardrop with a hot core, central on the brow. Kept compact so the forehead
+    # above it stays open for the tripundra ash-marks.
+    tex, tey = head_c[0], head_c[1] - int(hr * 0.20)
+    pygame.draw.ellipse(surf, INK, (tex - int(6 * s), tey - int(7 * s), int(12 * s), int(15 * s)))
+    pygame.draw.ellipse(surf, SAFF, (tex - int(5 * s), tey - int(6 * s), int(10 * s), int(13 * s)))
+    pygame.draw.ellipse(surf, SAFF_BR, (tex - int(3 * s), tey - int(4 * s), int(7 * s), int(9 * s)))
+    pygame.draw.circle(surf, THIRD_BR, (tex - int(1 * s), tey - int(1 * s)), max(2, int(3.2 * s)))
     pygame.draw.circle(surf, (255, 255, 255), (tex - int(1 * s), tey - int(2 * s)),
                        max(1, int(1.6 * s)))
+    # TRIPUNDRA — three clean horizontal ash tilaka marks across the brow, framing
+    # the third-eye from ABOVE (the ascetic forehead tell). Drawn AFTER the eye so
+    # the ash-marks sit on top; seated in the open forehead strip above the eye.
+    for i in range(3):
+        ly = head_c[1] - int(hr * 0.50) + i * int(hr * 0.034)
+        ww = hr * (0.27 - i * 0.045)
+        pygame.draw.line(surf, INK, (head_c[0] - ww, ly), (head_c[0] + ww, ly),
+                         max(2, int(2.6 * s)))
+        pygame.draw.line(surf, ASH_SH, (head_c[0] - ww, ly), (head_c[0] + ww, ly),
+                         max(1, int(1.5 * s)))
     # nose triangle
     pygame.draw.polygon(surf, ASH_DD,
                         [(head_c[0] - int(hr * 0.14), head_c[1] + int(hr * 0.30)),
@@ -511,9 +512,9 @@ def draw_bhasma_yogini(surf, cx, cy, s):
     # saffron ash fillet laid flat across the brow (a real headband, not a buried
     # radial arc), riding just above the third-eye + tripundra, with 3 dim crown-
     # value skulls on it. Sits on the FACE, clear below the arc ring.
-    band_y = head_c[1] - int(hr * 0.66)
+    band_y = head_c[1] - int(hr * 0.74)
     band_hw = int(hr * 0.84)
-    band_h = int(hr * 0.26)
+    band_h = int(hr * 0.24)
     band_box = [(head_c[0] - band_hw, band_y - band_h // 2),
                 (head_c[0] + band_hw, band_y - band_h // 2),
                 (head_c[0] + int(band_hw * 0.94), band_y + band_h // 2),
