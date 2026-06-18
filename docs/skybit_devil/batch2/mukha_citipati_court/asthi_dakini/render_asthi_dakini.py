@@ -254,6 +254,43 @@ def bead_arc(surf, cx, cy, r, a0, a1, bead_r, s, gold_every=3, light=True):
     bead_strand(surf, pts, bead_r, s, gold_every=gold_every, light=light)
 
 
+# ── a faceted cyan cabochon GEM — asthi's contained jewel (her focal language) ──
+def cyan_gem(surf, c, r, s, focal=False):
+    """A CUT cyan cabochon: ink-seated bezel → CYAN base → bright mid-sheen facet
+    glint → dim cyan halo → tiny white hot pip. WHY a CONTAINED jewel and not an
+    aura: the third-eye must read as the single brightest PIXEL, not a glow that
+    blooms across the brow and swallows the face. All the brightness lives INSIDE
+    the gem edge — a cut stone reads rich by drawn facet value, never by a halo.
+    `focal` is the brow third-eye: it alone gets the white-cyan hot core; the few
+    cyan-set palm-skull gems pass focal=False so they stay a value step dimmer."""
+    cx, cy = int(c[0]), int(c[1])
+    # (1) gold bezel ring — the warm anchor framing the cool stone (warm/cool
+    # tension so the focal is never cyan-on-blue alone)
+    if focal:
+        triad_circle(surf, GOLD, (cx, cy), r + max(1, int(2 * s)),
+                     ow=max(1, int(1.4 * s)), core=False, sheen=False)
+        pygame.draw.circle(surf, GOLD_D, (cx, cy), r + max(1, int(2 * s)), max(1, int(1.2 * s)))
+    # (2) ink seat + the CYAN stone body, dark-cored toward the lower-right
+    pygame.draw.circle(surf, INK, (cx, cy), r + max(1, int(1.4 * s)))
+    pygame.draw.circle(surf, CYAN, (cx, cy), r)
+    pygame.draw.circle(surf, CYAN_D, (cx + int(r * 0.30), cy + int(r * 0.32)), int(r * 0.60))
+    pygame.draw.circle(surf, CYAN, (cx, cy), int(r * 0.78))
+    # (3) bright mid-sheen facet glint (top-left), the cut-stone tell
+    pygame.draw.circle(surf, CYAN_BR, (cx - int(r * 0.30), cy - int(r * 0.34)),
+                       max(1, int(r * 0.40)))
+    # (4) a second small lower facet so it reads as a CUT stone, not a dot
+    pygame.draw.circle(surf, lerp(CYAN, CYAN_BR, 0.5),
+                       (cx + int(r * 0.18), cy + int(r * 0.30)), max(1, int(r * 0.18)))
+    # (5) the hot white pip — the single brightest pixel, focal stone ONLY
+    if focal:
+        pygame.draw.circle(surf, CYAN_BR, (cx - int(r * 0.22), cy - int(r * 0.26)),
+                           max(1, int(r * 0.30)))
+        pygame.draw.circle(surf, (240, 255, 255), (cx - int(r * 0.20), cy - int(r * 0.24)),
+                           max(2, int(r * 0.20)))
+        pygame.draw.circle(surf, (255, 255, 255), (cx - int(r * 0.20), cy - int(r * 0.24)),
+                           max(1, int(r * 0.11)))
+
+
 # ── a single ornamental crown-skull (cloned from Citipati; crown-warm tint) ────
 def crown_skull(surf, cx, cy, r, s, lit=False):
     """Tiny warm-bone skull — domed cranium, two dark sockets, a stub jaw. WHY a
@@ -297,40 +334,122 @@ def crown_skull(surf, cx, cy, r, s, lit=False):
                      max(1, int(1.2 * s)))
 
 
-# ── a tiny skull cradled in an open palm (the brood MOTIF) ────────────────────
-def palm_skull(surf, cx, cy, r, s):
-    """An open BONE palm cradling a TINY skull. WHY both pieces: the brood motif
-    is six open palms EACH holding a skull, sitting at the fan tips. The palm is a
-    shallow bone cup; the skull rides in it, sized to the MID value tier (brighter
-    than the crown skulls, dimmer than the third-eye)."""
-    # open palm cup — a shallow bone bowl with finger-ticks fanning up
-    cup = [(cx - int(r * 1.05), cy + int(r * 0.30)),
-           (cx - int(r * 0.70), cy + int(r * 0.78)),
-           (cx + int(r * 0.70), cy + int(r * 0.78)),
-           (cx + int(r * 1.05), cy + int(r * 0.30)),
-           (cx + int(r * 0.75), cy + int(r * 0.10)),
-           (cx - int(r * 0.75), cy + int(r * 0.10))]
-    triad_blob(surf, BONE, cup, ow=max(1, int(1.2 * s)))
-    for k in range(-2, 3):
-        fx = cx + int(k * r * 0.40)
-        pygame.draw.line(surf, INK, (fx, cy + int(r * 0.20)),
-                         (fx + int(k * r * 0.10), cy - int(r * 0.20)), max(1, int(2.0 * s)))
-        pygame.draw.line(surf, BONE_SH, (fx, cy + int(r * 0.18)),
-                         (fx + int(k * r * 0.10), cy - int(r * 0.16)), max(1, int(1.0 * s)))
-    # the cradled tiny skull (MID value — its face PALM_FACE sits ~18 lum above the
-    # body beads so the six skulls read as the mid tier, not bead-noise; a faint
-    # cool inner-shade deepens the sockets).
-    sk = (cx, cy - int(r * 0.32))
-    triad_circle(surf, PALM_FACE, sk, int(r * 0.62), ow=max(1, int(1.4 * s)), core=False)
-    for ex in (sk[0] - int(r * 0.26), sk[0] + int(r * 0.26)):
-        pygame.draw.circle(surf, PALM_SHADE, (ex, sk[1] + int(r * 0.02)), max(1, int(r * 0.20)))
-        pygame.draw.circle(surf, INK, (ex, sk[1] + int(r * 0.02)), max(1, int(r * 0.16)))
-    pygame.draw.circle(surf, INK, (sk[0], sk[1] + int(r * 0.24)), max(1, int(r * 0.09)))
-    jaw = [(sk[0] - int(r * 0.30), sk[1] + int(r * 0.40)),
-           (sk[0] + int(r * 0.30), sk[1] + int(r * 0.40)),
-           (sk[0] + int(r * 0.20), sk[1] + int(r * 0.66)),
-           (sk[0] - int(r * 0.20), sk[1] + int(r * 0.66))]
-    triad_blob(surf, PALM_FACE, jaw, ow=max(1, int(1.0 * s)))
+# ── a tiny CRAFTED skull cradled in a detailed open palm (the brood MOTIF) ─────
+def palm_skull(surf, hx, hy, r, s, ang, variant=0, gem=False):
+    """An open BONE palm cradling a SMALL CRAFTED skull — the brood motif at six
+    fan tips. WHY the hand now LEADS: round 3's skull was a fat dome on a token
+    cup, so the read was "ball", not "hand holding skull". Modelled on ratna's
+    open-cup palm — a wrist-cuff + bone half-cup + individually drawn finger
+    segments with knuckle ticks fanning up around the skull. The skull is shrunk
+    ~30% and lifted to a crafted micro-skull (suture line, temple hollow, brow
+    ridge, distinct jaw + a few teeth) with per-hand `variant` (tilt / cracked /
+    open-jaw). 2-3 of the six carry a `gem` cyan element kept a value step DIMMER
+    than the brow third-eye. Value ladder: brow gem brightest → palm-skull mid →
+    crown dimmest. `ang` orients the cup so its open mouth faces OUTWARD."""
+    # Local frame: u = OUTWARD (the way the palm opens, away from torso),
+    # v = across the wrist — exactly ratna's cup convention so the hand reads.
+    ux, uy = math.cos(ang), math.sin(ang)
+    vx, vy = -uy, ux
+    cupr = r * 1.18
+    bx = hx - ux * cupr * 0.34
+    by = hy - uy * cupr * 0.34
+
+    def L(p):
+        return (bx + ux * p[0] + vx * p[1], by + uy * p[0] + vy * p[1])
+
+    # (1) wrist-cuff — a thin gold BAND across the wrist (near-torso side), not a
+    # full bezel; the warm anchor that names the wrist.
+    w0 = L((-cupr * 0.98, -cupr * 0.92))
+    w1 = L((-cupr * 0.98, cupr * 0.92))
+    pygame.draw.line(surf, GOLD_D, w0, w1, max(2, int(3.4 * s)))
+    pygame.draw.line(surf, GOLD, w0, w1, max(1, int(2.0 * s)))
+    pygame.draw.circle(surf, GOLD_BR, (int(L((-cupr * 0.98, 0))[0]),
+                                       int(L((-cupr * 0.98, 0))[1])), max(1, int(1.4 * s)))
+
+    # (2) the bone half-CUP / palm — a shallow filled bowl, deep at the wrist,
+    # flat rim out front where the skull seats (the leading, larger element).
+    cup = [L((-cupr * 0.85, -cupr * 1.02))]
+    for k in range(9):
+        a = math.pi - math.pi * (k / 8)
+        cup.append(L((-math.cos(a) * cupr * 0.58 - cupr * 0.14,
+                      math.sin(a) * cupr * 1.02)))
+    cup.append(L((-cupr * 0.85, cupr * 1.02)))
+    triad_blob(surf, BONE, cup, ow=max(1, int(1.3 * s)))
+
+    # (3) FINGERS — four individually drawn bone fingers (two segments each) with
+    # a knuckle tick, fanning UP/OUT from the front rim to cradle the skull. A
+    # thumb-stub on the near side reads the cup as a real hand, not a token cradle.
+    finger_specs = [(-0.98, 0.62, 0.42), (-0.42, 1.04, 0.60),
+                    (0.32, 1.04, 0.60), (0.98, 0.90, 0.50)]
+    for side, reach, mid in finger_specs:
+        root = L((cupr * 0.08, side * cupr))
+        knuck = L((cupr * mid, side * cupr * 0.88))
+        tip = L((cupr * reach, side * cupr * 0.74))
+        for a, b in ((root, knuck), (knuck, tip)):
+            pygame.draw.line(surf, INK, a, b, max(2, int(3.4 * s)))
+            pygame.draw.line(surf, BONE, a, b, max(1, int(2.0 * s)))
+        # knuckle tick + a rim-sheen highlight on the upper edge of each finger
+        pygame.draw.circle(surf, BONE_SH, (int(knuck[0]), int(knuck[1])), max(1, int(1.5 * s)))
+        pygame.draw.circle(surf, INK, (int(knuck[0]), int(knuck[1])), max(1, int(1.5 * s)),
+                           max(1, int(0.7 * s)))
+        pygame.draw.circle(surf, BONE, (int(tip[0]), int(tip[1])), max(1, int(1.5 * s)))
+        pygame.draw.circle(surf, INK, (int(tip[0]), int(tip[1])), max(1, int(1.5 * s)),
+                           max(1, int(0.7 * s)))
+
+    # (4) the cradled CRAFTED skull — shrunk ~30% from round 3 (was ~0.62r), seated
+    # in the bowl with its dome rising past the fingertips. Drawn in screen-axis so
+    # the face reads upright; `tilt` rocks a couple of them for variety.
+    sc = L((cupr * 0.50, 0.0))
+    skx, sky_ = int(sc[0]), int(sc[1])
+    sr = int(r * 0.44)
+    tilt = (-0.18 if variant == 1 else 0.16 if variant == 4 else 0.0)
+
+    def R(dx, dy):   # rotate a skull-local offset by `tilt` about the skull centre
+        c2, s2 = math.cos(tilt), math.sin(tilt)
+        return (skx + int(dx * c2 - dy * s2), sky_ + int(dx * s2 + dy * c2))
+
+    # cranium — MID value bone (no top-left sheen so it peaks below the gem)
+    triad_circle(surf, PALM_FACE, (skx, sky_), sr, ow=max(1, int(1.3 * s)),
+                 core=False, sheen=False)
+    # cranial SUTURE line arcing over the dome + a temple/cheek hollow
+    sut0, sut1 = R(-sr * 0.40, -sr * 0.34), R(sr * 0.40, -sr * 0.34)
+    sut_m = R(0, -sr * 0.66)
+    pygame.draw.lines(surf, PALM_SHADE, False, [sut0, sut_m, sut1], max(1, int(1.1 * s)))
+    # a temple/cheek hollow shadow on the near side
+    pygame.draw.circle(surf, PALM_SHADE, R(-sr * 0.66, sr * 0.10), max(1, int(sr * 0.18)))
+    # brow ridge — a short shadow bar above the sockets
+    br0, br1 = R(-sr * 0.46, -sr * 0.18), R(sr * 0.46, -sr * 0.18)
+    pygame.draw.line(surf, PALM_SHADE, br0, br1, max(1, int(1.4 * s)))
+    # two sockets — one may be a cyan-lit socket on a gem variant
+    soc_l, soc_r = R(-sr * 0.40, sr * 0.04), R(sr * 0.40, sr * 0.04)
+    lit_socket = gem and (variant == 3)
+    for i, (ex, ey) in enumerate(((soc_l[0], soc_l[1]), (soc_r[0], soc_r[1]))):
+        pygame.draw.circle(surf, PALM_SHADE, (ex, ey), max(1, int(sr * 0.30)))
+        pygame.draw.circle(surf, INK, (ex, ey), max(1, int(sr * 0.24)))
+        if lit_socket:
+            # one DIM cyan-lit socket (kept under the brow gem — no white pip)
+            pygame.draw.circle(surf, CYAN_D, (ex, ey), max(1, int(sr * 0.18)))
+            pygame.draw.circle(surf, CYAN, (ex - int(sr * 0.06), ey - int(sr * 0.06)),
+                               max(1, int(sr * 0.09)))
+    pygame.draw.circle(surf, INK, R(0, sr * 0.30), max(1, int(sr * 0.10)))   # nose
+    # JAW + a few teeth; variant 2 cracks the jaw open wider (expression variety)
+    jaw_drop = 1.04 if variant == 2 else 0.84
+    jl, jr = R(-sr * 0.46, sr * 0.42), R(sr * 0.46, sr * 0.42)
+    jbl, jbr = R(-sr * 0.26, sr * jaw_drop), R(sr * 0.26, sr * jaw_drop)
+    triad_blob(surf, PALM_FACE, [jl, jr, jbr, jbl], ow=max(1, int(1.0 * s)))
+    for tk in (-1, 0, 1):
+        tx0, ty0 = R(tk * sr * 0.22, sr * 0.46)
+        tx1, ty1 = R(tk * sr * 0.22, sr * (0.46 + 0.20))
+        pygame.draw.line(surf, INK, (tx0, ty0), (tx1, ty1), max(1, int(0.9 * s)))
+    if variant == 4:   # a hairline crack across the cranium for one weathered skull
+        pygame.draw.lines(surf, INK, False,
+                          [R(sr * 0.10, -sr * 0.70), R(-sr * 0.10, -sr * 0.20),
+                           R(sr * 0.16, sr * 0.10)], max(1, int(0.9 * s)))
+    # (5) gem-set skulls: a tiny CYAN gem in the brow (DIMMER than the brow third-
+    # eye — focal=False so it carries no white pip), the mid rung of the ladder.
+    if gem and not lit_socket:
+        gx, gy = R(0, -sr * 0.30)
+        cyan_gem(surf, (gx, gy), max(2, int(sr * 0.30)), s, focal=False)
 
 
 # ── the Mukha-Devi six-arm radial fan (cloned; bead-armlet wrapped) ───────────
@@ -511,8 +630,13 @@ def draw_asthi_dakini(surf, cx, cy, s):
             pygame.draw.line(surf, BONE, (hx, hy), (ex, ey), max(1, int(1 * s)))
 
     # === SIX PALM-SKULLS — one cradled in every fan hand (the brood MOTIF) ====
-    for (hx, hy, a) in hands:
-        palm_skull(surf, hx, hy, int(11 * s), s)
+    # WHY exactly THREE gem-set (indices 0,2,4): the brief sets 2-3 of the six with
+    # a cyan element, kept DIMMER than the brow gem. Per-hand `variant` rocks the
+    # tilt / cracks the cranium / drops the jaw so the six read as a hand-made set,
+    # not six stamped copies.
+    gem_idx = {0, 2, 4}
+    for i, (hx, hy, a) in enumerate(hands):
+        palm_skull(surf, hx, hy, int(11 * s), s, a, variant=i, gem=(i in gem_idx))
 
     # === BEADED GIRDLE — the 32px-CARRYING element (bold rows across the hips) =
     # WHY this is the silhouette element: a wide bold double-row bead-girdle slung
@@ -574,24 +698,14 @@ def draw_asthi_dakini(surf, cx, cy, s):
         pygame.draw.circle(surf, BONE_DD, (ex, ey), int(hr * 0.32))
         pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.26))
         pygame.draw.circle(surf, CYAN_D, (ex + sgn * int(1 * s), ey + int(1 * s)), int(hr * 0.10))
-    # THIRD EYE — the single BRIGHTEST pixel (cyan slit + hot white-cyan core + glow)
+    # THIRD-EYE GEM — a CONTAINED faceted cyan cabochon, the single brightest
+    # PIXEL. WHY no additive aura: round 3's three BLEND_RGBA_ADD circles bloomed a
+    # big cyan halo across the brow that blocked the face read. That halo is gone —
+    # the brightness now lives strictly inside the gem's bezel as drawn facet value
+    # (a cut jewel, not a glow), so the face reads clearly and the gem still wins
+    # the value ladder on its hot white pip alone.
     tex, tey = head_c[0], head_c[1] - int(hr * 0.36)
-    glow = pygame.Surface((hr * 5, hr * 5), pygame.SRCALPHA)
-    for gr, ga in ((int(hr * 0.72), 28), (int(hr * 0.46), 52), (int(hr * 0.28), 96)):
-        pygame.draw.circle(glow, CYAN + (ga,), (hr * 2, hr * 2), gr)
-    surf.blit(glow, (tex - hr * 2, tey - hr * 2), special_flags=pygame.BLEND_RGBA_ADD)
-    # a GOLD rim frames the third-eye socket — the warm anchor riding the cool
-    # focal so the face cluster is warm/cool tension, never cyan-on-blue alone.
-    pygame.draw.ellipse(surf, INK, (tex - int(9 * s), tey - int(11 * s), int(18 * s), int(22 * s)))
-    pygame.draw.ellipse(surf, GOLD, (tex - int(9 * s), tey - int(11 * s), int(18 * s), int(22 * s)))
-    pygame.draw.ellipse(surf, GOLD_BR, (tex - int(8 * s), tey - int(10 * s), int(16 * s), int(8 * s)))
-    pygame.draw.ellipse(surf, INK, (tex - int(7 * s), tey - int(9 * s), int(14 * s), int(18 * s)))
-    pygame.draw.ellipse(surf, CYAN, (tex - int(6 * s), tey - int(8 * s), int(12 * s), int(16 * s)))
-    pygame.draw.ellipse(surf, CYAN_BR, (tex - int(4 * s), tey - int(5 * s), int(8 * s), int(10 * s)))
-    # third-eye core nudged a hair hotter/larger so its lead over every other
-    # element is visible at a glance now that the crown glow is a dim warm haze.
-    pygame.draw.circle(surf, (240, 255, 255), (tex - int(1 * s), tey - int(2 * s)), max(2, int(3.4 * s)))
-    pygame.draw.circle(surf, (255, 255, 255), (tex - int(1 * s), tey - int(2 * s)), max(1, int(2.0 * s)))
+    cyan_gem(surf, (tex, tey), int(hr * 0.40), s, focal=True)
     # nose triangle
     pygame.draw.polygon(surf, BONE_DD,
                         [(head_c[0] - int(hr * 0.14), head_c[1] + int(hr * 0.30)),
@@ -759,7 +873,7 @@ def export_hero():
     canvas = pygame.Surface((boxw, boxh))
     vgrad(canvas, (0, 0, boxw, boxh), (74, 84, 104), (40, 46, 64))
     canvas.blit(hero, (0, 0))
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_4_hero.png")
     pygame.image.save(canvas, out)
     return out
 
@@ -785,7 +899,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("ASTHI-DAKINI", True, LABEL), (24, 13))
     sheet.blit(f_sm.render(
-        "bone-jewel sky-dancer  ·  CITIPATI body + MUKHA 6-arm fan · 6 palm-skulls · fused crown · DARK cool bone + gold pips · round 3 (FINAL)",
+        "bone-jewel sky-dancer  ·  CITIPATI body + MUKHA 6-arm fan · 6 palm-skulls · fused crown · DARK cool bone + gold pips · round 4 (gem+skull+hand pass)",
         True, LABEL_DIM), (270, 28))
 
     # === (a) BIG HERO =========================================================
@@ -892,13 +1006,13 @@ def main():
     # bottom note strip
     pygame.draw.rect(sheet, PANEL, (14, 836, W - 28, 48))
     sheet.blit(f_sm.render(
-        "R3 (FINAL): crown-centre glow dropped to a DIM warm haze (alpha-blend, peak <210) so the third-eye is the SOLE bright/white focal · gold face-zone anchors · solid tiara-band · MID palm-skulls · 32px bold rows + night rim-light · bead-rope pillar.",
+        "R4: cyan brow AURA removed (face reads clearly) · third-eye is now a CONTAINED faceted cabochon = single brightest pixel · 6 palm-skulls shrunk ~30% + crafted (suture/brow/jaw/teeth, varied tilt+crack) · 3 carry a DIM cyan gem · detailed open-cup hands LEAD.",
         True, LABEL_DIM), (26, 846))
     sheet.blit(f_sm.render(
         "STAY: flat fills · hard ink keyline (28,22,26) · dark-core->fill->top-left sheen triad · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 864))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_4.png")
     pygame.image.save(sheet, out)
     hero_out = export_hero()
     print("wrote", out)
