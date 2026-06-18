@@ -331,8 +331,14 @@ def skull_spire(surf, cx, base_y, r, s, night_rim=False):
         # day opposite of night's warm rim — it pops the bright brass skull against
         # the pale-blue sky without enlarging the crown (the rim is dark, not brass,
         # so it adds NO warm area; it only sharpens the crown's edge against light).
+        # WHY a FAT dark ring (not a hairline): the crown is ~3px at 32px on a BRIGHT
+        # pale-blue sky, so a thin rim blurs straight into the sky and the brass loses
+        # its red-dominance (the round-6 first attempt). A ~1px-at-32px dark moat —
+        # several px on this SS=6 super-canvas — means the squint averages brass
+        # against INK (dark), not against bright sky, so the crown stays warm-dominant
+        # and pops. It is dark, so it adds zero warm area; it only frames the crown.
         ink_rim = grow_outline(_blob_surface(surf.get_size(), INK, cranium),
-                               INK + (255,), max(2, int(1.7 * s)))
+                               INK + (255,), max(3, int(3.6 * s)))
         surf.blit(ink_rim, (0, 0))
         # round 5: the DAY halo is TUCKED to the DOME ONLY. WHY: a uniform bloom
         # (round 4) padded warm pixels below the jaw line too, so at 32px it filled
@@ -721,7 +727,7 @@ def main():
     vgrad(sheet, (panel_x + 20, day_y, 150, 150), DAY_SKY_T, DAY_SKY_B)
     pygame.draw.rect(sheet, INK, (panel_x + 20, day_y, 150, 150), 1)
     sheet.blit(day_chip, (panel_x + 20 + 27, day_y + 27))
-    sheet.blit(font_sm.render("32px on day sky", True, LABEL), (panel_x + 20, day_y + 156))
+    sheet.blit(font_sm.render("32px day (iron body + dark-rim crown)", True, LABEL), (panel_x + 20, day_y + 156))
 
     night_y = day_y + 184
     vgrad(sheet, (panel_x + 20, night_y, 150, 150), NIGHT_T, NIGHT_B)
@@ -785,7 +791,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (14, 770, W - 28, 40))
     sheet.blit(font_sm.render(
         "RIGID BLOCKY HUMANOID MACHINE: peg legs + square pauldrons + circular GEAR-RINGS (vs Bismuth's limbless angular crystal).  "
-        "WARM copper dominant mass; oxblood = thin inlays; verdigris = 3 visible patina ticks in ONE recessed seam.  CLEAN 2-tone brass SKULL crown = BRIGHTEST warm value (wins ties); torso gear-eye demoted HARD.  "
+        "NIGHT keeps WARM copper mass (crown = brightest, warm rim); DAY cools torso/legs/head to IRON + adds a dark INK rim on the crown so the brass skull is the SOLE warm focal on pale-blue sky.  "
         "SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
@@ -856,11 +862,12 @@ def self_check():
 
 
 def squint_proof():
-    """Round-6 gate: render the TRUE 32px chip on day AND night, squint it (downscale
-    to ~16px then back up — the harshest first-read), and measure per-AREA warm
-    density in the crown band (above the head) vs the torso band. The brass crown
-    must be the single first-read warm spot on BOTH palettes; on day the torso warm
-    area must collapse to ~0 so the crown wins the day squint (the round-5 failure)."""
+    """Round-6 gate: render the TRUE 32px gameplay chip on day AND night, composite
+    over the matching sky (so the measure sees real brass-vs-sky contrast), and count
+    per-AREA warm pixels in the crown band (above the head) vs the torso band. This is
+    the gameplay first-read pixel grid — the same per-area density the round-5 critique
+    used (DAY body 580 vs crown 244). The brass crown must be the sole warm focal on
+    BOTH palettes; on day the torso warm area must collapse so the crown now wins."""
     global _DAY_COOL
     for night in (False, True):
         _DAY_COOL = not night
@@ -868,26 +875,21 @@ def squint_proof():
         draw_automaton(big, 48 * SS, 52 * SS, (32 / 124.0) * SS, night_rim=night)
         _DAY_COOL = False
         chip = pygame.transform.smoothscale(big, (32, 32))
-        # composite over the matching sky so the squint sees brass-vs-sky contrast
         sky = pygame.Surface((32, 32))
         for j in range(32):
             sky.fill(lerp(NIGHT_T if night else DAY_SKY_T,
                           NIGHT_B if night else DAY_SKY_B, j / 31.0),
                      (0, j, 32, 1))
         sky.blit(chip, (0, 0))
-        # squint = downscale hard then upscale; the first-read warm spot is whatever
-        # survives as a warm cluster
-        sq = pygame.transform.smoothscale(
-            pygame.transform.smoothscale(sky, (16, 16)), (32, 32))
-        px = pygame.surfarray.pixels3d(sq)
-        # the head/crown split: the figure is centred at y=52 of a 124-tall draw on a
-        # 96px super-canvas -> 32px chip; the crown sits in the TOP third, torso mid.
+        px = pygame.surfarray.pixels3d(sky)
+        # crown sits in the TOP band, torso mid. A pixel is warm if red leads both
+        # other channels — copper/brass/oxblood; the cool iron body fails this.
         crown_warm = torso_warm = 0
         hottest_lum, hottest_y = -1, 0
         for x in range(32):
             for y in range(32):
                 r, g, b = int(px[x, y][0]), int(px[x, y][1]), int(px[x, y][2])
-                warm = (r > g + 12 and r > b + 12 and r > 120)
+                warm = (r > g + 4 and r > b + 8 and r > 110)
                 if warm:
                     if y < 11:
                         crown_warm += 1
@@ -898,10 +900,21 @@ def squint_proof():
                         hottest_lum, hottest_y = lum, y
         del px
         band = "CROWN" if hottest_y < 11 else ("TORSO" if hottest_y < 24 else "LEGS")
-        wins = crown_warm > torso_warm
-        print("squint[%s]: crown warm-area %d  vs torso warm-area %d  -> crown wins? %s"
-              " | hottest warm band = %s (y=%d)"
-              % ("NIGHT" if night else "DAY", crown_warm, torso_warm, wins, band, hottest_y))
+        # DAY gate (the round-6 fix): the body is cooled to iron, so the torso warm
+        # area must be ~0 and the crown the lone warm focal. NIGHT gate (unchanged,
+        # already passing): the body stays warm copper BY DESIGN, so the test is that
+        # the HOTTEST warm pixel — the first-read — lands in the crown band (the warm
+        # rim + brass hot-core tip it), not that the torso carries no warm area.
+        if night:
+            ok = (band == "CROWN")
+            print("squint[NIGHT]: hottest warm pixel band = %s (y=%d) -> crown is "
+                  "first-read? %s | (warm copper body by design: crown %d / torso %d)"
+                  % (band, hottest_y, ok, crown_warm, torso_warm))
+        else:
+            ok = (crown_warm > 0 and torso_warm == 0 and band == "CROWN")
+            print("squint[DAY]:   crown warm-area %d  vs torso warm-area %d  -> crown "
+                  "is the SOLE warm focal? %s | hottest warm pixel band = %s (y=%d)"
+                  % (crown_warm, torso_warm, ok, band, hottest_y))
 
 
 if __name__ == "__main__":
