@@ -150,40 +150,109 @@ def bone_limb(surf, p0, p1, p2, thick, s, joint=True):
 
 
 # ── a single ornamental crown-skull (cloned from Citipati) ────────────────────
-def crown_skull(surf, cx, cy, r, s, lit=False, glow=False, cracked=False):
+def crown_skull(surf, cx, cy, r, s, lit=False, glow=False, cracked=False, idx=0):
     """Tiny ivory skull — domed cranium, two dark sockets, a stub jaw. `lit`
     swaps the eye-pins to hot ember for the crown-centre; `glow` adds the single
-    permitted crown bloom behind the centre skull. `cracked` adds ONE faint
-    hairline split — the wrathful sister's subtle war echo on her crown — kept
-    the dimmest tier (a single thin bone-dark line) so the 32px crown silhouette
-    stays clean and hero-scale detail only."""
+    permitted crown bloom behind the centre skull. `idx` selects a DISTINCT
+    war-trophy specimen so the 5-skull arc reads as five battle-skulls gathered
+    off a field, not one dome stamped five times.
+
+    WHY silhouette-altering damage (not interior lines): the crown skulls live
+    at ~32px in-game, where any hairline crack mushes away — so the per-`idx`
+    war-marks CUT THE OUTLINE itself (a sheared jaw corner, a caved-temple dent,
+    a missing-tooth gap, a chopped tooth bar) and VARY THE CRANIUM PROPORTION
+    (tall-narrow / squat-wide), giving each lump of the halo-arc its own
+    distinct profile. Interior gash/suture detail is hero-only flavour layered
+    on top. The crown stays the DIMMEST tier — flat BONE-cream, no brightness
+    bump, no per-skull gem — so the focal violet third-eye keeps the single
+    brightest pixel and only the centre skull carries the one permitted glow.
+
+    PER-`idx` SPEC (silhouette-altering marks flagged ◆):
+      0  tall-narrow,  CLEAN — but lit eyes + the sole crown glow (centre)
+      1  squat-wide,   ◆ sheared-off LEFT jaw corner (asymmetric mandible)
+      2  base dome,    ◆ caved RIGHT temple (concave dome dent + shadow wedge)
+      3  tall-narrow,  ◆ chipped/missing teeth (gap in the tooth bar)
+      4  squat-wide,   ◆ scored gash + ◆ missing front tooth (gash is hero flavour)
+    """
+    # cranium proportion per specimen — ≥2 depart from the base round dome so the
+    # arc isn't one stamp (tall-narrow domes rise, squat-wide domes hunker).
+    PROP = {0: (0.86, 1.10), 1: (1.12, 0.82), 2: (1.0, 1.0),
+            3: (0.84, 1.12), 4: (1.14, 0.80)}
+    wf, hf = PROP.get(idx, (1.0, 1.0))
+    crw, crh = int(r * wf), int(r * hf)
     if glow:
         for gr, ga in ((int(r * 2.0), 26), (int(r * 1.5), 46), (int(r * 1.1), 74)):
             g = pygame.Surface((gr * 2, gr * 2), pygame.SRCALPHA)
             pygame.draw.circle(g, EMBER_BR + (ga,), (gr, gr), gr)
             surf.blit(g, (cx - gr, cy - gr))
-    triad_circle(surf, BONE, (cx, cy), r, ow=max(1, int(1.6 * s)), core=False)
-    jaw = [(cx - int(r * 0.52), cy + int(r * 0.52)),
-           (cx + int(r * 0.52), cy + int(r * 0.52)),
-           (cx + int(r * 0.34), cy + int(r * 1.0)),
-           (cx - int(r * 0.34), cy + int(r * 1.0))]
+
+    # the cranium dome — an ELLIPSE per proportion so tall/squat read in silhouette.
+    dome_box = (cx - crw, cy - crh, crw * 2, crh * 2)
+    pygame.draw.ellipse(surf, INK, (dome_box[0] - max(1, int(1.6 * s)),
+                                    dome_box[1] - max(1, int(1.6 * s)),
+                                    dome_box[2] + max(2, int(3.2 * s)),
+                                    dome_box[3] + max(2, int(3.2 * s))))
+    pygame.draw.ellipse(surf, BONE, dome_box)
+    pygame.draw.ellipse(surf, INK, dome_box, max(1, int(1.6 * s)))
+    # idx 2 — CAVED RIGHT TEMPLE: bite a concave dent out of the dome outline so
+    # the silhouette is visibly dished on one side, plus an interior shadow wedge.
+    if idx == 2:
+        dx = cx + int(crw * 0.74)
+        dent = [(dx, cy - int(crh * 0.34)), (cx + int(crw * 0.30), cy - int(crh * 0.06)),
+                (dx, cy + int(crh * 0.18))]
+        pygame.draw.polygon(surf, INK, dent)               # the bitten-out dent (silhouette)
+        pygame.draw.polygon(surf, BONE_DD,                 # shadow wedge inside the cave
+                            [(cx + int(crw * 0.28), cy - int(crh * 0.10)),
+                             (cx + int(crw * 0.58), cy - int(crh * 0.02)),
+                             (cx + int(crw * 0.30), cy + int(crh * 0.20))])
+
+    # JAW — per-idx mandible. idx 1 SHEARS the left foot off (asymmetric outline).
+    if idx == 1:
+        jaw = [(cx - int(crw * 0.52), cy + int(crh * 0.52)),
+               (cx + int(crw * 0.52), cy + int(crh * 0.52)),
+               (cx + int(crw * 0.34), cy + int(crh * 1.0)),
+               (cx - int(crw * 0.10), cy + int(crh * 0.86))]   # left corner sheared away
+    else:
+        jaw = [(cx - int(crw * 0.52), cy + int(crh * 0.52)),
+               (cx + int(crw * 0.52), cy + int(crh * 0.52)),
+               (cx + int(crw * 0.34), cy + int(crh * 1.0)),
+               (cx - int(crw * 0.34), cy + int(crh * 1.0))]
     triad_blob(surf, BONE, jaw, ow=max(1, int(1.2 * s)))
+
     eye_c = EMBER_HOT if lit else INK
-    for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
-        pygame.draw.circle(surf, INK, (ex, cy + int(r * 0.04)), max(1, int(r * 0.24)))
+    for ex in (cx - int(crw * 0.38), cx + int(crw * 0.38)):
+        pygame.draw.circle(surf, INK, (ex, cy + int(crh * 0.04)), max(1, int(r * 0.24)))
         if lit:
-            pygame.draw.circle(surf, eye_c, (ex, cy + int(r * 0.04)), max(1, int(r * 0.13)))
-    pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.13)))
-    pygame.draw.line(surf, INK,
-                     (cx - int(r * 0.34), cy + int(r * 0.70)),
-                     (cx + int(r * 0.34), cy + int(r * 0.70)),
-                     max(1, int(1.2 * s)))
-    if cracked:
-        # the faint war echo — a single thin bone-dark hairline over the parietal
+            pygame.draw.circle(surf, eye_c, (ex, cy + int(crh * 0.04)), max(1, int(r * 0.13)))
+    pygame.draw.circle(surf, INK, (cx, cy + int(crh * 0.42)), max(1, int(r * 0.13)))
+
+    # TOOTH BAR — a clean line, except idx 3/4 cut GAPS into it (missing teeth)
+    # so the bite reads broken even at 32px. idx 3 loses two; idx 4 loses the front.
+    tb_l, tb_r = cx - int(crw * 0.34), cx + int(crw * 0.34)
+    tb_y = cy + int(crh * 0.70)
+    gaps = {3: (-1, 1), 4: (0,)}.get(idx, ())
+    seg = (tb_r - tb_l) / 5.0
+    for t in range(5):
+        if (t - 2) in gaps:
+            continue                                       # a knocked-out tooth gap
+        x0 = int(tb_l + t * seg + seg * 0.12)
+        x1 = int(tb_l + (t + 1) * seg - seg * 0.12)
+        pygame.draw.line(surf, INK, (x0, tb_y), (x1, tb_y), max(1, int(1.2 * s)))
+
+    # idx 4 — SCORED GASH crown-to-cheek (hero-only interior flavour over the
+    # already-broken bite); a thin bone-dark score that mushes harmlessly at 32px.
+    if idx == 4:
         pygame.draw.lines(surf, BONE_D, False,
-                          [(cx - int(r * 0.30), cy - int(r * 0.52)),
-                           (cx - int(r * 0.04), cy - int(r * 0.28)),
-                           (cx - int(r * 0.14), cy - int(r * 0.04))],
+                          [(cx - int(crw * 0.30), cy - int(crh * 0.50)),
+                           (cx - int(crw * 0.02), cy - int(crh * 0.18)),
+                           (cx - int(crw * 0.14), cy + int(crh * 0.12))],
+                          max(1, int(1.0 * s)))
+    if cracked:
+        # legacy faint war echo — kept for the cap-skull caller's default path
+        pygame.draw.lines(surf, BONE_D, False,
+                          [(cx - int(crw * 0.30), cy - int(crh * 0.52)),
+                           (cx - int(crw * 0.04), cy - int(crh * 0.28)),
+                           (cx - int(crw * 0.14), cy - int(crh * 0.04))],
                           max(1, int(1.0 * s)))
 
 
@@ -879,12 +948,13 @@ def draw_vajra_rakta(surf, cx, cy, s, scale32=False):
         a = math.radians(216 + i * (108 / 4))
         sx = head_c[0] + math.cos(a) * arc_r
         sy = head_c[1] + math.sin(a) * arc_r
-        # centre skull carries the single permitted crown glow + lit eyes,
-        # but kept DIMMER overall than the third-eye (the value ladder). ONE flank
-        # skull carries a faint hairline crack — the subtle crown war echo, hero-only.
+        # each skull is a DISTINCT war-trophy specimen (idx=i): the centre keeps
+        # the single permitted crown glow + lit eyes (kept DIMMER than the focal
+        # third-eye — the value ladder), the flanks carry silhouette-altering
+        # damage (sheared jaw / caved temple / missing teeth) + varied cranium
+        # proportions so the halo-arc is five profiles, not one stamp.
         crown_skull(surf, int(sx), int(sy), skull_r, s, lit=(i == 2),
-                    glow=(i == 2 and not scale32),
-                    cracked=(i == 4 and not scale32))
+                    glow=(i == 2 and not scale32), idx=i)
 
 
 # ── point-in-polygon (ray cast) for clipping the brocade to the silk ──────────
@@ -1012,7 +1082,7 @@ def export_hero():
     draw_vajra_rakta(big, (HW // 2) * SS, int(HH * 0.52) * SS, 3.0 * SS)
     hero = pygame.transform.smoothscale(big, (HW, HH))
     hero = grow_outline(hero, INK + (255,), 2)
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_6_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_7_hero.png")
     pygame.image.save(hero, out)
     return out
 
@@ -1032,7 +1102,7 @@ def main():
     sheet.blit(font_big.render("#2 — VAJRA-RAKTA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "wrathful blood-scarf adept  ·  CITIPATI body · billowing vajra-silk MASS · 6-arm fan + 6 WAR-MARKED palm-skulls · "
-        "fused 5-skull arc + tiara-band · OPEN flame-ring · round 6",
+        "fused 5-WAR-TROPHY skull arc + tiara-band · OPEN flame-ring · round 7",
         True, LABEL_DIM), (270, 26))
 
     # === (a) BIG HERO =========================================================
@@ -1041,7 +1111,7 @@ def main():
     sheet.blit(font.render("Creature — hero", True, LABEL), (110, 596))
     sheet.blit(font_sm.render("Cocked-hip DANCE draped in cinnabar brocade vajra-silk that flares PAST the", True, LABEL_DIM), (14, 620))
     sheet.blit(font_sm.render("six-arm fan. Six open palms each cradle a DISTINCT WAR-MARKED trophy skull (3 dim-violet", True, LABEL_DIM), (14, 636))
-    sheet.blit(font_sm.render("gems). Fused crown: TALL 5-skull arc + brow tiara-BAND under an OPEN flame-ring.", True, LABEL_DIM), (14, 652))
+    sheet.blit(font_sm.render("gems). Fused crown: TALL 5-WAR-TROPHY arc (sheared jaw/caved temple/missing teeth) + tiara-BAND, OPEN flame-ring.", True, LABEL_DIM), (14, 652))
     sheet.blit(font_sm.render("Gold VISVAVAJRA brocade on the silk at hero. Focal VIOLET third-eye = brightest pixel.", True, LABEL_DIM), (14, 668))
 
     # === (b) PILLAR — mirrored, built from her OWN forms ======================
@@ -1142,7 +1212,7 @@ def main():
     # bottom note strip
     pygame.draw.rect(sheet, PANEL, (14, 786, W - 28, 60))
     sheet.blit(font_sm.render(
-        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero exported to round_6_hero.png.",
+        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero exported to round_7_hero.png.",
         True, LABEL_DIM), (26, 794))
     sheet.blit(font_sm.render(
         "Two-scale ornament: full gold VISVAVAJRA brocade at HERO -> SPARSE REGULAR GOLD-DOT lattice at 32px; "
@@ -1151,7 +1221,7 @@ def main():
         "STAY: flat fills · ink keyline (28,22,26) · dark-core->fill->sheen triad · 1px grown outline · chibi scary-cute · "
         "glow only on third-eye + crown-centre skull · procedural-only.", True, LABEL_DIM), (26, 826))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_6.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_7.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     print("wrote", hero_path)

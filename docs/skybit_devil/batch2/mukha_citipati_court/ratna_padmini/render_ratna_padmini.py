@@ -253,41 +253,134 @@ def tiara_skull(surf, cx, cy, r, s, lit=False):
     pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.14)))
 
 
-# ── crown-skull (cloned from Citipati crown_skull, for the arc-sweep) ─────────
-def crown_skull(surf, cx, cy, r, s, lit=False):
-    """Tiny bone skull for the Citipati 5-skull arc-SWEEP that rides the OUTER
-    crown silhouette. Domed cranium, two small high-contrast sockets, a stub jaw.
-    `lit` swaps the eyes to hot turquoise for the crown-centre (the one crown
-    glow per the value ladder). WHY no sheen + a darkened crown bone: the crown is
-    the DIMMEST rung — round 1's white socket sheen hit 239 and competed with the
-    third-eye. Crown skulls are flat dark bone, no white specular."""
+# ── crown-skull — five DISTINCT gilded-reliquary skulls along the arc-sweep ───
+def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
+    """One skull of the Citipati 5-skull arc-SWEEP riding the OUTER crown
+    silhouette. WHY a per-`idx` cabinet, not one dome stamped five times: the
+    crown row was one rounded skull cloned across the arc and read as a repeat
+    stamp. Each `idx` (0-4) now picks a DISTINCT CRANIUM SILHOUETTE — built as a
+    per-idx polygon dome, NOT a shared circle — so the difference survives at
+    32px in the SHAPE, not only in the etching: tall ogival / broad squat /
+    heart-domed centre / narrow oval / angular lantern. Each also carries its own
+    GILT treatment (gold beaded suture / filigree-zigzag suture / lotus-petal
+    brow etch / gold brow-fillet / crown rosette) so the row reads as a band of
+    individuated reliquaries — the palm-skulls' build-richness ported UP.
+
+    WHY this stays the DIMMEST rung: the crown bone is darkened, there is NO white
+    specular, NO sheen, and the gilt is GOLD_D/GOLD only (never GOLD_BR/HOT, never
+    a brightness bump). The one crown glow is the centre's small TURQ tick — capped
+    at TURQ (never TURQ_BR/TURQ_HOT) — so the brow turquoise cabochon stays the
+    single brightest pixel."""
+    # per-idx character cabinet — the five crown reliquary identities. (wx, top,
+    # bot) reshape the cranium SILHOUETTE; the strings/booleans pick the gilt.
+    SPEC = [
+        # idx 0 — TALL OGIVAL reliquary, gold beaded suture, round jaw
+        dict(wx=0.80, top=1.30, bot=0.96, jaw="round", suture="beaded",
+             fillet=False, petals=False, rosette=False),
+        # idx 1 — BROAD SQUAT reliquary, fine filigree-zigzag suture, square jaw
+        dict(wx=1.22, top=0.84, bot=1.04, jaw="square", suture="filigree",
+             fillet=False, petals=False, rosette=True),
+        # idx 2 — HEART-DOMED CENTRE reliquary (the lit centre), gold brow-fillet
+        dict(wx=1.04, top=1.16, bot=0.92, jaw="round", suture="plain",
+             fillet=True, petals=False, rosette=False),
+        # idx 3 — NARROW OVAL reliquary, lotus-petal brow etch, round jaw
+        dict(wx=0.78, top=1.06, bot=1.12, jaw="round", suture="plain",
+             fillet=False, petals=True, rosette=False),
+        # idx 4 — ANGULAR LANTERN reliquary, crown rosette, square jaw
+        dict(wx=0.94, top=0.96, bot=1.18, jaw="square", suture="beaded",
+             fillet=False, petals=False, rosette=True),
+    ][idx % 5]
+    wx, top, bot = SPEC["wx"], SPEC["top"], SPEC["bot"]
     cbone = lerp(BONE, BONE_D, 0.70)   # darkened: crown sits below the palm-skulls
-    triad_circle(surf, cbone, (cx, cy), r, ow=max(1, int(1.6 * s)), core=False,
-                 sheen=False)
-    jaw = [(cx - int(r * 0.52), cy + int(r * 0.52)),
-           (cx + int(r * 0.52), cy + int(r * 0.52)),
-           (cx + int(r * 0.34), cy + int(r * 1.0)),
-           (cx - int(r * 0.34), cy + int(r * 1.0))]
+
+    # cranium SILHOUETTE — a per-idx polygon dome (lantern variants square the
+    # shoulders; ogival pinches the apex) so the five read as different skull
+    # shapes in the bare outline, the variety that survives 32px downscale.
+    lantern = SPEC["jaw"] == "square" and SPEC["rosette"]
+    dome = []
+    for k in range(13):
+        a = math.pi + math.pi * (k / 12)
+        rise = top if math.sin(a) < 0 else 1.0
+        # ogival: pinch the apex narrower as it rises; lantern: hold width square.
+        wfac = wx
+        if not lantern and top > 1.1:
+            wfac = wx * (1.0 - 0.30 * max(0.0, -math.sin(a)))
+        elif lantern:
+            wfac = wx * (1.0 if abs(math.cos(a)) < 0.55 else 0.92)
+        dome.append((cx + math.cos(a) * r * wfac, cy + math.sin(a) * r * rise))
+    dome.append((cx + r * wx * 0.80, cy + r * 0.48 * bot))
+    dome.append((cx - r * wx * 0.80, cy + r * 0.48 * bot))
+    triad_blob(surf, cbone, dome, ow=max(1, int(1.5 * s)))
+
+    # JAW — round chin or square lantern, per idx, so the lower face individuates.
+    if SPEC["jaw"] == "square":
+        jaw = [(cx - int(r * 0.52), cy + int(r * 0.46 * bot)),
+               (cx + int(r * 0.52), cy + int(r * 0.46 * bot)),
+               (cx + int(r * 0.50), cy + int(r * 1.04 * bot)),
+               (cx - int(r * 0.50), cy + int(r * 1.04 * bot))]
+    else:
+        jaw = [(cx - int(r * 0.50), cy + int(r * 0.46 * bot)),
+               (cx + int(r * 0.50), cy + int(r * 0.46 * bot)),
+               (cx + int(r * 0.32), cy + int(r * 0.98 * bot)),
+               (cx - int(r * 0.32), cy + int(r * 0.98 * bot))]
     triad_blob(surf, cbone, jaw, ow=max(1, int(1.2 * s)))
-    # the one crown glow uses TURQ_BR (not TURQ_HOT) so even the lit crown-centre
-    # stays the dimmest tier — only the third-eye carries the hottest core.
-    eye_c = TURQ_BR if lit else INK
-    for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
+
+    # central SUTURE — three distinct dim-gilt treatments (gold beaded studs /
+    # fine filigree-zigzag / plain bone seam) so the gilt read changes along the
+    # row. All GOLD_D/GOLD only — no bright gold, the crown stays the dim rung.
+    su_top, su_bot = -r * top * 0.92, -r * 0.06
+    if SPEC["suture"] == "beaded":
+        for k in range(4):
+            yk = cy + su_top + (su_bot - su_top) * (k / 3)
+            pygame.draw.circle(surf, GOLD_D, (cx, int(yk)), max(1, int(1.0 * s)))
+    elif SPEC["suture"] == "filigree":
+        prev = (cx, cy + su_top)
+        for k in range(1, 6):
+            off = (r * 0.18) * (1 if k % 2 else -1)
+            p = (cx + off, cy + su_top + (su_bot - su_top) * (k / 5))
+            pygame.draw.line(surf, GOLD_D, prev, p, max(1, int(0.9 * s)))
+            prev = p
+    else:
+        pygame.draw.line(surf, BONE_DD, (cx, cy + int(su_top)), (cx, cy + int(su_bot)),
+                         max(1, int(1.0 * s)))
+
+    # fine LOTUS-PETAL brow etch fanning over the dome (idx 3) — hairline gold so
+    # it reads as engraving, never jewellery; capped at GOLD_D for the dim rung.
+    if SPEC["petals"]:
+        for k in range(-2, 3):
+            a = -math.pi / 2 + k * 0.40
+            p0 = (cx + math.cos(a) * r * 0.26, cy - r * 0.28 + math.sin(a) * r * 0.18)
+            p1 = (cx + math.cos(a) * r * 0.64 * wx, cy - r * 0.70 + math.sin(a) * r * 0.08)
+            pygame.draw.line(surf, GOLD_D, p0, p1, max(1, int(0.8 * s)))
+
+    # a thin gold BROW-FILLET diadem (idx 2) — GOLD_D/GOLD only, no bright rail.
+    if SPEC["fillet"]:
+        f0 = (cx - r * 0.50 * wx, cy - r * 0.34)
+        f1 = (cx + r * 0.50 * wx, cy - r * 0.34)
+        pygame.draw.line(surf, GOLD_D, f0, f1, max(2, int(1.8 * s)))
+        pygame.draw.line(surf, GOLD, f0, f1, max(1, int(1.0 * s)))
+
+    # a small gold-rimmed crown ROSETTE at the apex (idx 1, 4) — GOLD_D/GOLD only.
+    if SPEC["rosette"]:
+        rc = (cx, cy - int(r * top * 0.80))
+        rr = max(1, int(r * 0.20))
+        pygame.draw.circle(surf, GOLD_D, rc, rr + max(1, int(0.7 * s)))
+        pygame.draw.circle(surf, GOLD, rc, rr)
+
+    # SOCKETS — deep flat-dark ink eyes; the lit CENTRE gets a TURQ fill (capped at
+    # TURQ, never TURQ_BR/HOT) so even the one crown glow stays the dimmest tier.
+    for ex in (cx - int(r * 0.38 * wx), cx + int(r * 0.38 * wx)):
         pygame.draw.circle(surf, INK, (ex, cy + int(r * 0.04)), max(1, int(r * 0.24)))
         if lit:
-            pygame.draw.circle(surf, eye_c, (ex, cy + int(r * 0.04)), max(1, int(r * 0.13)))
-    pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.13)))
+            pygame.draw.circle(surf, TURQ, (ex, cy + int(r * 0.04)), max(1, int(r * 0.12)))
+    pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42 * bot)), max(1, int(r * 0.13)))
     pygame.draw.line(surf, INK,
-                     (cx - int(r * 0.34), cy + int(r * 0.70)),
-                     (cx + int(r * 0.34), cy + int(r * 0.70)),
+                     (cx - int(r * 0.34), cy + int(r * 0.70 * bot)),
+                     (cx + int(r * 0.34), cy + int(r * 0.70 * bot)),
                      max(1, int(1.2 * s)))
-    # a faint gilt/turquoise reliquary ECHO on the crown-CENTRE only — a thin gold
-    # brow-fillet with a tiny TURQ dot. WHY only the lit centre + capped at TURQ:
-    # the crown is the DIMMEST rung; this is a whisper of her gilt signature that
-    # ties the crown to the palm-skulls without lifting the crown's value.
+    # the one crown glow: a tiny TURQ brow tick on the lit centre only (kept small
+    # + capped at TURQ so the focal brow cabochon stays the single brightest pixel).
     if lit:
-        pygame.draw.line(surf, GOLD_D, (cx - int(r * 0.42), cy - int(r * 0.34)),
-                         (cx + int(r * 0.42), cy - int(r * 0.34)), max(1, int(1.2 * s)))
         pygame.draw.circle(surf, TURQ, (cx, cy - int(r * 0.40)), max(1, int(r * 0.12)))
 
 
@@ -576,7 +669,14 @@ def craft_skull(surf, skx, sky_, sr, s, idx=0):
     # under the focal head cabochon on the value ladder.
     if SPEC["gem"]:
         gc = R(0, -sr * 0.46)
-        reliquary_inlay(surf, gc, max(1, int(sr * 0.26)), s)
+        # the upper-left palm (idx 2, highest left hand) was the only secondary
+        # jewel flirting with the focal brow cabochon — dim ITS inlay ~10% toward
+        # the deep turquoise shade so the focal cabochon stands alone.
+        if idx == 2:
+            reliquary_inlay(surf, gc, max(1, int(sr * 0.26)), s,
+                            col=lerp(TURQ, TURQ_D, 0.10), br=lerp(TURQ_BR, TURQ_D, 0.10))
+        else:
+            reliquary_inlay(surf, gc, max(1, int(sr * 0.26)), s)
 
 
 # ── an open palm cradling a TINY SKULL (the brood motif) ──────────────────────
@@ -888,7 +988,7 @@ def draw_ratna_padmini(surf, cx, cy, s, hero=True):
         a = math.radians(218 + i * (104 / 4))
         sx = head_c[0] + math.cos(a) * skull_cr
         sy = head_c[1] + math.sin(a) * skull_cr
-        crown_skull(surf, int(sx), int(sy), skull_r, s, lit=(i == 2))
+        crown_skull(surf, int(sx), int(sy), skull_r, s, lit=(i == 2), idx=i)
 
 
 # ── the jewel-lotus throne → pillar mirror ────────────────────────────────────
@@ -990,7 +1090,7 @@ def export_hero():
     draw_ratna_padmini(big, HW, int(HH * 1.04), 5.6)
     hero = pygame.transform.smoothscale(big, (HW, HH))
     hero = grow_outline(hero, INK + (255,), 2)
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_5_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_6_hero.png")
     pygame.image.save(hero, out)
     print("wrote", out)
     return out
@@ -1009,7 +1109,7 @@ def main():
     sheet.blit(font_big.render("#3 — RATNA-PADMINI", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "jewel-lotus throne mother  ·  mukha_citipati_court #5 · MUKHA body · turquoise+gold+coral · "
-        "FULL enclosing flame-halo (the only sister) · round 5",
+        "FULL enclosing flame-halo (the only sister) · round 6",
         True, LABEL_DIM), (300, 26))
 
     # === (a) BIG HERO =========================================================
@@ -1017,7 +1117,7 @@ def main():
     sheet.blit(hero, (14, 92))
     sheet.blit(font.render("Creature — hero (SS=8)", True, LABEL), (110, 596))
     sheet.blit(font_sm.render("FULL halo · 6 HANDS each cradle a DISTINCT gilt-turquoise RELIQUARY skull (own cranium/jaw/etch/suture; 3 w/ DIM turquoise inlay).", True, LABEL_DIM), (14, 620))
-    sheet.blit(font_sm.render("Fused crown: Citipati 5-skull arc-SWEEP + Mukha gold tiara-BAND + turquoise brow-cabochons.", True, LABEL_DIM), (14, 636))
+    sheet.blit(font_sm.render("Fused crown: 5 DISTINCT gilded-reliquary skulls (ogival/squat/heart-centre/oval/lantern silhouettes; beaded/filigree/petal/fillet/rosette gilt) + Mukha gold tiara-BAND.", True, LABEL_DIM), (14, 636))
     sheet.blit(font_sm.render("Brow third-eye = SOFT ROUNDED turquoise cabochon (gold bezel + domed sheen + white hotspot pip) = single brightest pixel.", True, LABEL_DIM), (14, 652))
 
     # === (b) PILLAR assembled — mirrored, clean tileable shaft ================
@@ -1116,7 +1216,7 @@ def main():
 
     pygame.draw.rect(sheet, PANEL, (14, 808, W - 28, 44))
     sheet.blit(font_sm.render(
-        "HIGH-RES pipeline: SS=8 supersample -> smoothscale; standalone round_5_hero.png ~1024px tall.  "
+        "HIGH-RES pipeline: SS=8 supersample -> smoothscale; standalone round_6_hero.png ~1024px tall.  "
         "STAY: flat fills · ink keyline (28,22,26) · dark-core->fill->top-left sheen triad · 1px grown outline · "
         "chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 821))
@@ -1124,7 +1224,7 @@ def main():
         "Two-scale rule: the FULL flame-halo RING carries the 32px silhouette; inlay + tassels + per-petal gems are HERO-ONLY.",
         True, LABEL_DIM), (26, 837))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_5.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_6.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     return out
