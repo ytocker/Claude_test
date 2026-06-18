@@ -13,17 +13,18 @@ density is multi-strand bone-BEAD jewelry: a 3-row choker, a long swag necklace,
 beaded armlets/bracelets/anklets, wheel earrings, and a bold beaded girdle. A
 bead-lattice wraps every surface.
 
-WHY the palette is pushed DARKER (~120,134,162) cool moonlit bone: the #1
+WHY the palette is a WARM, light AGED-BONE (~212,202,186) ivory: she reads as
+real bone, not steel — matching the Citipati family's chalk/rose bone. The #1
 tonal-collapse risk is low-chroma beads on low-chroma bone reading as a grey
-smear ("naked in disguise"). The fix the AD pinned: darken the bone field so the
-bead lattice reads LIGHT-on-dark, and CARRY the texture with WARM gold spacer-pips
-between the cool bone beads — value AND hue separation, colourblind-safe — so the
-contrast is never only cyan-on-blue.
+smear ("naked in disguise"). The fix on a LIGHT field: the bead lattice sits a
+value step ABOVE the bone as a pale highlight chain held by INK keylines + sheen,
+and the WARM gold spacer-pips carry the hue separation (gold-on-ivory) — value
+AND hue separation, colourblind-safe — so the contrast is never only cyan-on-blue.
 
 WHY the fused crown shows BOTH languages: a plain skull-arc alone reads as the
 Citipati reference, so the crown seats the Mukha tiara-BAND across the brow AND
-sweeps the wide airy 6-skull arc above it. Crown skulls are a notch warmer/darker
-than the body so they hold against open sky.
+sweeps the wide airy 6-skull arc above it. Crown skulls are a touch darker/cooler
+than the warm body so they don't melt into it and still hold against open sky.
 
 Value ladder (AD hard rule): cyan third-eye slit = single brightest pixel → the
 six palm-skulls = mid → crown skulls = dimmest. Glow ONLY on the third-eye + the
@@ -57,27 +58,33 @@ def font(sz):
 
 
 # ── PINNED PALETTE (locked brief) ─────────────────────────────────────────────
-# Cool moonlit bone pushed DARKER so the bead lattice + gold spacer-pips read
-# LIGHT-on-dark. Beads (BEAD/BEAD_BR) and warm gold pips (GOLD/GOLD_BR) sit a full
-# value step above the bone field — value + hue separation, never cyan-on-blue.
-BONE      = (120, 134, 162)   # cool moonlit bone, DARKENED (the dominant field)
-BONE_D    = ( 84,  96, 122)   # bone dark-core / shade
-BONE_DD   = ( 54,  64,  86)   # deepest bone hollow (sockets, rib gaps)
-BONE_SH   = (176, 190, 214)   # bone top-left rim-sheen
-BEAD      = (196, 208, 226)   # pale bone bead — reads light on the dark bone
-BEAD_BR   = (228, 238, 250)   # bead top sheen / hottest bone bead
+# WARM, light AGED-BONE field (Citipati-family ivory/chalk), R>=G>=B — reads as
+# real bone, not steel. The field is now LIGHT, so the bead lattice can no longer
+# rely on light-on-dark; instead the beads sit a value step ABOVE the bone with
+# INK keylines + sheen holding the rounded lattice, and the WARM gold spacer-pips
+# stay the hue separator (gold-on-ivory reads cleanly). Deep hollows stay dark so
+# sockets / rib-gaps still punch.
+BONE      = (212, 202, 186)   # warm aged ivory-bone (the dominant LIGHT field)
+BONE_D    = (158, 148, 130)   # bone shade / mid-core
+BONE_DD   = ( 96,  88,  76)   # deepest bone hollow (sockets, rib gaps) — stays dark
+BONE_SH   = (240, 234, 222)   # bone top-left rim-sheen (warm near-white)
+# Beads pushed BRIGHTER + cooler-neutral than the warm bone field so the lattice
+# reads as its own value step on the now-light bone (a pale highlight chain), with
+# the gold pips carrying the hue contrast.
+BEAD      = (236, 232, 224)   # pale bone bead — a value step above the warm field
+BEAD_BR   = (252, 250, 246)   # bead top sheen / hottest bone bead
 CYAN      = ( 86, 214, 226)   # icy-cyan — third-eye + sparse jewel cabochons
 CYAN_BR   = (188, 248, 252)   # hot cyan inner
 CYAN_D    = ( 40, 132, 150)
-GOLD      = (220, 178,  86)   # WARM gold spacer-pips (the hue/value separator)
-GOLD_BR   = (248, 214, 124)
-GOLD_D    = (168, 124,  52)
+GOLD      = (212, 162,  60)   # WARM gold spacer-pips (the hue separator on ivory)
+GOLD_BR   = (246, 208, 110)
+GOLD_D    = (158, 112,  40)
 INK       = ( 28,  22,  26)   # hard ink keyline
-# crown skulls a notch WARMER + DARKER than the cool body so they hold their own
-# shape against open sky (don't melt into a day sky or vanish on night).
-CROWN_BONE   = (150, 142, 130)
-CROWN_BONE_D = (104,  96,  86)
-CROWN_SH     = (196, 188, 174)
+# crown skulls go a touch DARKER + cooler than the now-warm-light body so they
+# don't melt into the body OR wash out on the day sky; they stay the dimmest tier.
+CROWN_BONE   = (170, 162, 152)
+CROWN_BONE_D = (110, 104,  96)
+CROWN_SH     = (206, 200, 190)
 THIRD_EYE = CYAN              # cyan third-eye slit = the single brightest focal
 
 BG        = ( 92,  96, 108)   # neutral grey review backdrop
@@ -144,9 +151,11 @@ def triad_circle(surf, color, c, r, ow=2, sheen=True, core=True):
 def bead_strand(surf, pts, bead_r, s, gold_every=3, pip_r_frac=0.42, light=True):
     """A strand of pale bone beads threaded along a polyline, with WARM gold
     spacer-pips every `gold_every` beads. WHY: the whole tonal-collapse fix lives
-    here — pale beads read LIGHT on the dark bone field, and the periodic gold pip
-    injects a warm hue so the strand never collapses to cyan-on-blue. Beads are
-    spaced evenly by arc length so the lattice stays regular at downscale."""
+    here — on the LIGHT warm-bone field the pale beads read as a sheen-lit highlight
+    chain (INK keyline + near-white sheen dot give each a rounded edge), and the
+    periodic gold pip injects a warm hue so the strand never collapses to a grey
+    smear. Beads are spaced evenly by arc length so the lattice stays regular at
+    downscale."""
     if len(pts) < 2:
         return
     # accumulate arc length and walk it, dropping a bead every 2*bead_r
@@ -198,10 +207,11 @@ def bead_arc(surf, cx, cy, r, a0, a1, bead_r, s, gold_every=3, light=True):
 
 # ── a single ornamental crown-skull (cloned from Citipati; crown-warm tint) ────
 def crown_skull(surf, cx, cy, r, s, lit=False):
-    """Tiny warm-bone skull — domed cranium, two dark sockets, a stub jaw. WHY a
-    notch warmer/darker than the body (CROWN_BONE): the cool body palette would
-    let cool crown skulls vanish against the day sky, so the crown carries its own
-    slightly warm value. `lit` swaps the centre skull's eyes + a soft cyan halo on
+    """Tiny crown skull — domed cranium, two dark sockets, a stub jaw. WHY a notch
+    darker/cooler than the warm-light body (CROWN_BONE): against the new warm ivory
+    body, an equally-warm crown would melt in, so the crown sits a value step down
+    (the dimmest tier) and slightly cooler to keep its shape against both body and
+    sky. `lit` swaps the centre skull's eyes + a soft cyan halo on
     — the ONLY crown glow allowed (value-ladder dimmest tier otherwise)."""
     # no glow bloom — the only cyan glow on the figure is the faceted brow third-eye
     # gem (the weird blue auras are gone); `lit` only tints the centre skull's eyes.
@@ -713,7 +723,7 @@ def export_hero():
     canvas = pygame.Surface((boxw, boxh))
     vgrad(canvas, (0, 0, boxw, boxh), (74, 84, 104), (40, 46, 64))
     canvas.blit(hero, (0, 0))
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_7_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_8_hero.png")
     pygame.image.save(canvas, out)
     return out
 
@@ -739,7 +749,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("#1 — ASTHI-DAKINI", True, LABEL), (24, 13))
     sheet.blit(f_sm.render(
-        "bone-jewel sky-dancer  ·  CITIPATI body + MUKHA 6-arm fan · 6 palm-skulls · fused crown · DARK cool bone + gold pips · round 1",
+        "bone-jewel sky-dancer  ·  CITIPATI body + MUKHA 6-arm fan · 6 palm-skulls · fused crown · WARM aged-bone + gold pips · round 8",
         True, LABEL_DIM), (270, 28))
 
     # === (a) BIG HERO =========================================================
@@ -827,7 +837,7 @@ def main():
     # palette strip
     sheet.blit(f.render("Pinned palette", True, LABEL), (panel_x + 16, day_y + 380))
     swatches = [
-        (BONE, "cool bone (DARK)"), (BONE_D, "bone shade"),
+        (BONE, "warm bone (LIGHT)"), (BONE_D, "bone shade"),
         (BEAD, "bone bead (light)"), (BEAD_BR, "bead sheen"),
         (GOLD, "gold spacer-pip"), (GOLD_BR, "gold sheen"),
         (CYAN, "icy-cyan focal"), (CROWN_BONE, "crown-warm bone"),
@@ -845,13 +855,13 @@ def main():
     # bottom note strip
     pygame.draw.rect(sheet, PANEL, (14, 836, W - 28, 48))
     sheet.blit(f_sm.render(
-        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero export (round_7_hero.png).",
+        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero export (round_8_hero.png).",
         True, LABEL_DIM), (26, 846))
     sheet.blit(f_sm.render(
         "STAY: flat fills · hard ink keyline (28,22,26) · dark-core->fill->top-left sheen triad · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 864))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_7.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_8.png")
     pygame.image.save(sheet, out)
     hero_out = export_hero()
     print("wrote", out)
