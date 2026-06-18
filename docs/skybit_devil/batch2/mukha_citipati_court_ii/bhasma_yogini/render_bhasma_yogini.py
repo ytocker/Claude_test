@@ -218,6 +218,10 @@ def tiara_skull(surf, cx, cy, r, s, lit=False):
         if lit:
             pygame.draw.circle(surf, eye_c, (ex, cy + int(r * 0.02)), max(1, int(r * 0.14)))
     pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.14)))
+    # faint ascetic echo — a single dim tilaka stripe across the brow so the
+    # crown shares the renunciate language, kept DIMMEST (CROWN_ASH_SH, no glow).
+    pygame.draw.line(surf, CROWN_ASH_SH, (cx - int(r * 0.30), cy - int(r * 0.42)),
+                     (cx + int(r * 0.30), cy - int(r * 0.42)), max(1, int(1.2 * s)))
 
 
 # ── a single Citipati crown-skull (the OUTER 5-skull arc-sweep) ───────────────
@@ -241,37 +245,94 @@ def crown_skull(surf, cx, cy, r, s, lit=False):
     pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.13)))
     pygame.draw.line(surf, INK, (cx - int(r * 0.34), cy + int(r * 0.70)),
                      (cx + int(r * 0.34), cy + int(r * 0.70)), max(1, int(1.2 * s)))
+    # faint ascetic echo — a dim tilaka stripe across the brow, and on the lit
+    # centre skull a small dim saffron brow dot (deep tone, kept far below the
+    # third-eye so the crown stays the DIMMEST tier of the value ladder).
+    pygame.draw.line(surf, CROWN_ASH_SH, (cx - int(r * 0.32), cy - int(r * 0.40)),
+                     (cx + int(r * 0.32), cy - int(r * 0.40)), max(1, int(1.3 * s)))
+    if lit:
+        pygame.draw.circle(surf, SAFF_D, (cx, cy - int(r * 0.18)), max(1, int(r * 0.10)))
 
 
 # ── a tiny palm-skull each open hand cradles (the core motif) ─────────────────
-def palm_skull(surf, cx, cy, r, s):
+def palm_skull(surf, cx, cy, r, s, idx=0):
     """A TINY ash skull cradled in one open palm — the MID tier of the value
-    ladder (brighter than the crown, dimmer than the third-eye). A crafted little
-    skull: domed cranium with a faint sagittal suture, a defined brow ridge over
-    two deep sockets, temple/cheek hollows, a triangular nasal aperture, and a
-    proper hinged jaw with a few teeth. SIZE is unchanged from the plain version
-    (radius `r`); only the carving is richer. Per-hand variety (head tilt, jaw
-    set, an occasional hairline crack) is keyed off the hand position so six of
-    them read as a hand-carved bone-pip ring, not six identical stamps."""
+    ladder (brighter than the crown, dimmer than the third-eye). Now each of the
+    six is a GENUINELY DISTINCT charnel-ground relic, individuated by `idx`: a
+    different CRANIUM SHAPE (round / tall / broad / asymmetric-eroded), different
+    JAW + TOOTH LOSS, and its own ascetic MARKING set — a horizontal tripundra
+    band across the brow, diagonal ash-smear streaks, a knobbly rudraksha seed
+    pressed at brow or temple, surface pitting/erosion, and a moss/ash-darkened
+    crown. Two-to-three of the six (idx in SAFF_SKULLS) carry a DIM saffron
+    accent (a brow bindu or a saffron-tinted socket) kept clearly below the
+    head's focal third-eye — never a hot near-white core. SIZE unchanged (`r`).
+    WHY an explicit idx (with the position hash kept as a secondary jitter seed):
+    the six can be cleanly individuated + gem-assigned, deterministic per slot."""
     lw = max(1, int(1.0 * s))
-    # WHY a position-derived seed, not random: deterministic across renders so the
-    # sheet is reproducible, yet each of the six hands gets its own little quirks.
+    # idx drives the structural identity; the position hash is a secondary jitter
+    # so two relics sharing an idx-archetype still wobble apart microscopically.
     v = (cx * 13 + cy * 7)
-    tilt = ((v % 5) - 2) * 0.06        # small head tilt, ±~7°
-    jaw_open = 0.46 + ((v >> 2) % 3) * 0.07
-    cracked = (v % 4) == 0
+    n = idx % 6
+    # which slots carry the DIM saffron element — kept to 3 of 6, none near the
+    # head, all sub-focal (deep/mid saffron, no hot core).
+    SAFF_SKULLS = (1, 3, 5)
+
+    # per-idx cranium archetype: (x-radius mul, y-radius mul, tilt, lean-skew)
+    # so the dome is a DIFFERENT SHAPE per slot, not one ball re-tilted.
+    archs = [
+        (1.00, 1.02,  0.00,  0.00),   # 0: balanced round relic
+        (0.90, 1.16, -0.05,  0.00),   # 1: tall narrow ascetic cranium
+        (1.16, 0.92,  0.04,  0.00),   # 2: broad low brachycephalic skull
+        (1.02, 1.04,  0.10,  0.08),   # 3: asymmetric, eroded-leaning
+        (0.96, 1.08, -0.10, -0.06),   # 4: slim tilted relic
+        (1.08, 0.98,  0.02,  0.05),   # 5: wide weathered guru-skull
+    ]
+    rx_m, ry_m, tilt, skew = archs[n]
+    tilt += ((v % 5) - 2) * 0.012     # tiny secondary wobble off position hash
+    jaw_open = 0.40 + (n % 3) * 0.08
     ct, stt = math.cos(tilt), math.sin(tilt)
 
     def rot(dx, dy):
-        return (int(cx + dx * ct - dy * stt), int(cy + dx * stt + dy * ct))
+        # skew leans the upper cranium so the eroded relics are visibly lopsided
+        dx2 = dx + skew * (-dy) if dy < 0 else dx
+        return (int(cx + dx2 * ct - dy * stt), int(cy + dx2 * stt + dy * ct))
 
-    # cranial dome — ash-sheen ball with the soft core so it reads rounded
-    triad_circle(surf, ASH_SH, (cx, cy), r, ow=max(1, int(1.2 * s)), core=False)
+    # cranial dome — an ELLIPTICAL ball per archetype so the shape varies; ink
+    # keyline first, then the ash-sheen fill, so it reads rounded.
+    drx, dry = int(r * rx_m), int(r * ry_m)
+    dome = []
+    for i in range(20):
+        a = (i / 20) * 2 * math.pi
+        dome.append(rot(math.cos(a) * drx, math.sin(a) * dry))
+    pygame.draw.polygon(surf, INK, dome)
+    pygame.draw.polygon(surf, ASH_SH, dome)
+    pygame.draw.polygon(surf, INK, dome, max(1, int(1.2 * s)))
     shade = lerp(ASH_SH, ASH_D, 0.55)
     bright = lerp(ASH_SH, (255, 255, 255), 0.4)
+    moss = lerp(ASH_D, (96, 104, 86), 0.5)   # ash/moss-darkened crown weathering
 
-    # sagittal suture — a faint wavy seam down the crown (the cranial detail)
-    sut = [rot(int(r * 0.04 * math.sin(k)), int(-r * (0.92 - k * 0.20)))
+    # a moss/ash-darkened crown cap on the weathered relics (idx 2,4) — a
+    # desaturated cool patch over the dome top so it reads charnel-aged.
+    if n in (2, 4):
+        cap = [rot(-drx * 0.74, -dry * 0.30), rot(-drx * 0.34, -dry * 0.78),
+               rot(drx * 0.10, -dry * 0.86), rot(drx * 0.52, -dry * 0.60),
+               rot(drx * 0.70, -dry * 0.24)]
+        pygame.draw.polygon(surf, moss, cap)
+
+    # surface PITTING / erosion — a scatter of tiny dark pocks, denser on the
+    # eroded relics; deterministic off (idx, position) so each relic is its own.
+    pit_n = (3, 2, 5, 6, 5, 3)[n]
+    pr = (v ^ (idx * 2654435761)) & 0x7FFFFFFF
+    for _ in range(pit_n):
+        pr = (pr * 1103515245 + 12345) & 0x7FFFFFFF
+        pa = (pr / 0x7FFFFFFF) * 2 * math.pi
+        pr = (pr * 1103515245 + 12345) & 0x7FFFFFFF
+        pd = (0.30 + (pr / 0x7FFFFFFF) * 0.55)
+        pp = rot(math.cos(pa) * drx * pd, math.sin(pa) * dry * pd)
+        pygame.draw.circle(surf, shade, pp, max(1, int(r * 0.06)))
+
+    # sagittal suture — a faint wavy seam down the crown (cranial detail)
+    sut = [rot(int(r * 0.04 * math.sin(k)), int(-dry * (0.88 - k * 0.20)))
            for k in (0.0, 1.0, 2.0, 3.0)]
     pygame.draw.lines(surf, shade, False, sut, lw)
 
@@ -285,11 +346,18 @@ def palm_skull(surf, cx, cy, r, s):
         pygame.draw.line(surf, shade, rot(sgn * r * 0.62, -r * 0.02),
                          rot(sgn * r * 0.50, r * 0.34), lw)
 
-    # deep eye sockets — ink pit with a faint inner highlight so they read carved
-    for ex in (-0.40, 0.40):
+    # deep eye sockets — ink pit with a faint inner highlight so they read
+    # carved. idx 3 (asymmetric) loses one socket-rim to erosion; the saffron
+    # relics get a DIM deep-saffron socket-tint (sub-focal, no hot core).
+    saff_socket = SAFF_D if n in SAFF_SKULLS else None
+    for si, ex in enumerate((-0.40, 0.40)):
         sc = rot(ex * r, -r * 0.02)
         pygame.draw.circle(surf, INK, sc, max(1, int(r * 0.28)))
-        pygame.draw.circle(surf, shade, sc, max(1, int(r * 0.30)), lw)
+        if saff_socket and si == 0:
+            # one socket lit by a DIM ember of saffron — deep tone, kept tiny
+            pygame.draw.circle(surf, saff_socket, sc, max(1, int(r * 0.16)))
+        rim = (shade if not (n == 3 and si == 1) else moss)
+        pygame.draw.circle(surf, rim, sc, max(1, int(r * 0.30)), lw)
         pygame.draw.circle(surf, bright,
                            (sc[0] - max(1, int(r * 0.10)), sc[1] - max(1, int(r * 0.10))),
                            max(1, int(r * 0.07)))
@@ -298,22 +366,61 @@ def palm_skull(surf, cx, cy, r, s):
     nasal = [rot(0, r * 0.10), rot(-r * 0.16, r * 0.40), rot(r * 0.16, r * 0.40)]
     pygame.draw.polygon(surf, INK, nasal)
 
-    # proper jaw — a rounded ash mandible with a hinge gap + a few teeth
-    jy = r * (0.30 + jaw_open * 0.30)
-    jaw = [rot(-r * 0.44, r * 0.40), rot(-r * 0.34, jy),
-           rot(0, jy + r * 0.06), rot(r * 0.34, jy), rot(r * 0.44, r * 0.40)]
-    pygame.draw.polygon(surf, ASH_SH, jaw)
-    pygame.draw.lines(surf, INK, False, jaw, lw)
-    # tooth row along the upper bite line
-    teeth_y = r * 0.44
-    for tx in (-0.24, -0.08, 0.08, 0.24):
-        pygame.draw.line(surf, shade, rot(tx * r, teeth_y),
-                         rot(tx * r, teeth_y + r * 0.16), lw)
+    # proper jaw — per-idx mandible: idx 4 has NO jaw (jawless relic), idx 0/5
+    # a full grin, idx 1/2/3 a slack hinge; tooth loss varies the bite line.
+    if n != 4:
+        jy = r * (0.30 + jaw_open * 0.30)
+        jw = (0.44, 0.40, 0.46, 0.42, 0.0, 0.48)[n]
+        jaw = [rot(-r * jw, r * 0.40), rot(-r * (jw * 0.77), jy),
+               rot(0, jy + r * 0.06), rot(r * (jw * 0.77), jy), rot(r * jw, r * 0.40)]
+        pygame.draw.polygon(surf, ASH_SH, jaw)
+        pygame.draw.lines(surf, INK, False, jaw, lw)
+        # tooth row — each relic has missing teeth at different slots (tooth loss)
+        teeth_y = r * 0.44
+        missing = ((), (1,), (0, 3), (2,), (), (1, 2))[n]
+        for ti, tx in enumerate((-0.24, -0.08, 0.08, 0.24)):
+            if ti in missing:
+                continue
+            pygame.draw.line(surf, shade, rot(tx * r, teeth_y),
+                             rot(tx * r, teeth_y + r * 0.16), lw)
+    else:
+        # jawless relic — a raw ink bite-stub where the mandible broke away
+        pygame.draw.line(surf, ASH_DD, rot(-r * 0.30, r * 0.42),
+                         rot(r * 0.30, r * 0.42), max(1, int(2.0 * s)))
 
-    # one hand in four carries a hairline crack across the cranium
-    if cracked:
-        pygame.draw.line(surf, shade, rot(r * 0.10, -r * 0.55),
-                         rot(r * 0.46, -r * 0.18), lw)
+    # ── ASCETIC MARKINGS — each relic wears the marks of the renunciate ────────
+    # a horizontal TRIPUNDRA tilaka band across the brow (idx 0,2,5) — the same
+    # forehead language as the head, scaled to the relic.
+    if n in (0, 2, 5):
+        for bi in range(2):
+            by = -r * 0.50 + bi * r * 0.14
+            bw = r * (0.36 - bi * 0.06)
+            mk = ASH_SH if n != 5 else lerp(ASH_SH, SMEAR, 0.3)
+            pygame.draw.line(surf, INK, rot(-bw, by), rot(bw, by), max(2, int(2.0 * s)))
+            pygame.draw.line(surf, mk, rot(-bw, by), rot(bw, by), max(1, int(1.2 * s)))
+
+    # diagonal ASH-SMEAR streaks down a cheek (idx 1,3,4) — the vibhuti swipe,
+    # cool smear over the bone so the relic reads hand-marked, not clean.
+    if n in (1, 3, 4):
+        for k in range(2):
+            sxk = (-0.34 + k * 0.62)
+            pygame.draw.line(surf, SMEAR, rot(sxk * r, -r * 0.12),
+                             rot(sxk * r - r * 0.10, r * 0.30), max(1, int(2.2 * s)))
+
+    # a pressed RUDRAKSHA seed bead at brow or temple (every relic gets one, the
+    # mala-mark of the order); placed per idx so it doesn't always sit centre.
+    seed_pos = [(0.0, -0.40), (0.0, -0.46), (-0.52, -0.16),
+                (0.46, -0.20), (0.0, -0.42), (0.50, -0.14)][n]
+    sb = rot(seed_pos[0] * r, seed_pos[1] * r)
+    seed_bead(surf, sb[0], sb[1], max(2, int(r * 0.20)), s, seed=idx + 17)
+
+    # a DIM saffron brow BINDU on the saffron relics that did NOT get the socket
+    # ember — kept deep/mid saffron, no hot core, so the head's third-eye stays
+    # the single brightest pixel.
+    if n in SAFF_SKULLS:
+        bn = rot(0, -r * 0.18)
+        pygame.draw.circle(surf, SAFF_D, bn, max(1, int(r * 0.13)))
+        pygame.draw.circle(surf, SAFF, bn, max(1, int(r * 0.07)))
 
 
 # ── the six-arm radial fan with OPEN palms cradling tiny skulls ───────────────
@@ -469,9 +576,9 @@ def draw_bhasma_yogini(surf, cx, cy, s):
     # === SIX PALM-SKULLS — one cradled in each open hand (the core motif) ======
     # Drawn after torso, before head: they ride at the fan tips so the outer arc
     # is six even bone-pips; each is an OPEN palm cupping a tiny skull.
-    for (hx, hy, ang) in hands:
+    for i, (hx, hy, ang) in enumerate(hands):
         draw_open_palm(surf, hx, hy, ang, s, palm_r)
-        palm_skull(surf, hx, hy - int(palm_r * 0.25), int(palm_r * 0.78), s)
+        palm_skull(surf, hx, hy - int(palm_r * 0.25), int(palm_r * 0.78), s, idx=i)
 
     # === RUDRAKSHA SEED-SWAG — a single fat U across the chest (the ornament) ==
     # WHY routed in FRONT of the torso but BETWEEN the arm origins: it must read
@@ -817,7 +924,7 @@ def render_hero():
     fs = font(16)
     surf.blit(fs.render("ash-ascetic seed-bead mother  ·  MUKHA body  ·  SS=8 hero", True, LABEL_DIM),
               (30, 60))
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_5_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_6_hero.png")
     pygame.image.save(surf, out)
     return out
 
@@ -834,14 +941,14 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("#4 — BHASMA-YOGINI", True, LABEL), (24, 13))
     sheet.blit(f_sm.render(
-        "ash-ascetic seed-bead mother  ·  MUKHA body · six-arm fan · 6 palm-skulls · rudraksha U-swag · jata topknot · round 2",
+        "ash-ascetic seed-bead mother  ·  MUKHA body · six-arm fan · 6 distinct ascetic palm-skulls · rudraksha U-swag · jata topknot · round 6",
         True, LABEL_DIM), (300, 26))
 
     # === (a) BIG HERO =========================================================
     hero = render_creature_chip(360, 500, 178, 256, 1.62)
     sheet.blit(hero, (14, 84))
     sheet.blit(f.render("Creature — hero", True, LABEL), (110, 588))
-    sheet.blit(f_sm.render("DOMINANT jata dome crests above the arc (the dark 32px carrier). Six palm-skulls = mid tier.", True, LABEL_DIM), (14, 612))
+    sheet.blit(f_sm.render("DOMINANT jata dome crests above the arc (the dark 32px carrier). Six palm-skulls = mid tier, each a distinct ascetic relic.", True, LABEL_DIM), (14, 612))
     sheet.blit(f_sm.render("Fused crown: 5-skull arc-sweep + explicit horizontal tiara-BAND frontmost; jata behind/above both.", True, LABEL_DIM), (14, 628))
     sheet.blit(f_sm.render("Tripundra brow + ash-band torso + saffron waist-wrap = never naked. 6-petal lotus base.", True, LABEL_DIM), (14, 644))
     sheet.blit(f_sm.render("Rudraksha mala = ONE fat knobbly warmer-brown U-swag. Saffron-amber third-eye = brightest.", True, LABEL_DIM), (14, 660))
@@ -941,7 +1048,7 @@ def main():
         "dark-core->fill->top-left sheen triad · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 824))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_5.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_6.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
