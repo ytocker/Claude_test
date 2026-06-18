@@ -247,15 +247,80 @@ def crown_skull(surf, cx, cy, r, s, lit=False):
 # ── a tiny cradled palm-skull (the core Mukha motif) ──────────────────────────
 def palm_skull(surf, cx, cy, r, s):
     """A tiny pale-bone skull cradled in an open palm — six of these ride the
-    fan-tips and MUST stay legible (mantle routes behind them). A clean bone dome
-    + two dark sockets reads at 32px."""
-    triad_circle(surf, BONE, (cx, cy), r, ow=max(1, int(1.2 * s)), core=False)
-    for ex in (cx - int(r * 0.4), cx + int(r * 0.4)):
-        pygame.draw.circle(surf, INK, (ex, cy - int(r * 0.05)), max(1, int(r * 0.3)))
-    pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.3)), max(1, int(r * 0.16)))
-    # stub jaw notch
-    pygame.draw.line(surf, INK, (cx - int(r * 0.4), cy + int(r * 0.6)),
-                     (cx + int(r * 0.4), cy + int(r * 0.6)), max(1, int(1 * s)))
+    fan-tips and MUST stay legible (mantle routes behind them). A crafted little
+    skull (suture, brow ridge, cheek hollow, toothed jaw) that still reads at
+    32px. Per-hand variety (tilt / jaw set / a hairline crack) keeps the six from
+    looking stamped — but all accents are DRAWN (no glow): the cobalt third-eye
+    stays the single brightest pixel and the only glow on the sheet."""
+    # WHY a deterministic per-position seed: the six skulls differ subtly (tilt,
+    # jaw gap, which one is cracked) without any RNG, so renders stay reproducible.
+    h = (cx * 73 + cy * 131) & 0xFFFF
+    tilt = ((h % 5) - 2) * 0.05            # small left/right head cant
+    jaw_open = 0.10 + (h % 3) * 0.05       # how far the jaw drops
+    cracked = (h % 4) == 0                 # only some skulls carry a hairline crack
+    ct, st = math.cos(tilt), math.sin(tilt)
+
+    def rot(dx, dy):
+        # rotate an offset by the per-skull tilt, return absolute pixel point
+        return (cx + int(dx * ct - dy * st), cy + int(dx * st + dy * ct))
+
+    lw = max(1, int(1.2 * s))
+    fine = max(1, int(1.0 * s))
+
+    # cranial dome (bone mass) — same radius as round-2 so SIZE is unchanged
+    triad_circle(surf, BONE, (cx, cy), r, ow=lw, core=False)
+    # cheek/jaw bone block tucked under the dome so the head reads as a skull,
+    # not a ball — kept inside r so the silhouette footprint is unchanged
+    jp = [rot(-r * 0.46, r * 0.18), rot(-r * 0.30, r * 0.66),
+          rot(r * 0.30, r * 0.66), rot(r * 0.46, r * 0.18)]
+    pygame.draw.polygon(surf, BONE, jp)
+    pygame.draw.polygon(surf, INK, jp, fine)
+
+    # cranial suture — a faint forked seam over the crown (BONE_D, drawn not glow)
+    sa = rot(0, -r * 0.78)
+    sb = rot(0, -r * 0.10)
+    pygame.draw.line(surf, BONE_D, sa, sb, fine)
+    pygame.draw.line(surf, BONE_D, sb, rot(-r * 0.30, r * 0.04), fine)
+    pygame.draw.line(surf, BONE_D, sb, rot(r * 0.30, r * 0.04), fine)
+
+    # brow ridge — a shaded bone bar above the sockets gives the skull a glower
+    bl, br = rot(-r * 0.52, -r * 0.18), rot(r * 0.52, -r * 0.18)
+    pygame.draw.line(surf, BONE_D, bl, br, max(1, int(1.6 * s)))
+
+    # temple / cheek hollows — soft bone shade scooped beside the sockets
+    for sgn in (-1, 1):
+        pygame.draw.circle(surf, BONE_D, rot(sgn * r * 0.62, r * 0.06),
+                           max(1, int(r * 0.18)))
+
+    # two deep sockets — rim of deepest hollow, ink pit, so they read as cavities
+    for sgn in (-1, 1):
+        ec = rot(sgn * r * 0.40, -r * 0.02)
+        pygame.draw.circle(surf, BONE_DD, ec, max(1, int(r * 0.34)))
+        pygame.draw.circle(surf, INK, ec, max(1, int(r * 0.27)))
+
+    # heart-shaped nasal cavity (two ink dabs that meet) under the brow
+    pygame.draw.circle(surf, INK, rot(-r * 0.10, r * 0.30), max(1, int(r * 0.12)))
+    pygame.draw.circle(surf, INK, rot(r * 0.10, r * 0.30), max(1, int(r * 0.12)))
+
+    # proper toothed jaw — a thin ink mouth line with a few vertical tooth gaps,
+    # set a touch open per the per-skull jaw_open so the six aren't identical
+    my = r * (0.56 + jaw_open)
+    ml, mr = rot(-r * 0.40, my), rot(r * 0.40, my)
+    pygame.draw.line(surf, INK, ml, mr, lw)
+    for t in (-0.24, -0.08, 0.08, 0.24):
+        tx, ty = rot(t * r, my)
+        pygame.draw.line(surf, INK, (tx, ty - int(r * 0.16)), (tx, ty), fine)
+
+    # top-left bone sheen so the dome catches the same key as the rest of the sheet
+    pygame.draw.circle(surf, BONE_SH, rot(-r * 0.34, -r * 0.40), max(1, int(r * 0.16)))
+
+    # a hairline crack on the cracked few — a hairline INK fracture off the temple
+    if cracked:
+        c0 = rot(r * 0.30, -r * 0.55)
+        c1 = rot(r * 0.50, -r * 0.20)
+        c2 = rot(r * 0.34, r * 0.05)
+        pygame.draw.line(surf, INK, c0, c1, fine)
+        pygame.draw.line(surf, INK, c1, c2, fine)
 
 
 def open_palm(surf, hx, hy, ang, r, s):
@@ -651,7 +716,7 @@ def main():
 
     # ── hi-res standalone hero ────────────────────────────────────────────────
     hero_hi = render_hero_hires()
-    hero_path = os.path.join(here, "round_2_hero.png")
+    hero_path = os.path.join(here, "round_5_hero.png")
     pygame.image.save(hero_hi, hero_path)
 
     # ── the standard review sheet ─────────────────────────────────────────────
@@ -664,9 +729,9 @@ def main():
     sheet.fill(BG)
 
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
-    sheet.blit(font_big.render("JVALA-NIRMALA", True, LABEL), (24, 13))
+    sheet.blit(font_big.render("#5 — JVALA-NIRMALA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "cool wisdom-flame dancer  ·  CITIPATI body + Mukha 6-arm fan · FULL-BODY cobalt cloth-of-flame ROBE (curled sheeting, NOT a ring) · 6 palm-skulls · round 2",
+        "cool wisdom-flame dancer  ·  CITIPATI body + Mukha 6-arm fan · FULL-BODY cobalt cloth-of-flame ROBE (curled sheeting, NOT a ring) · 6 palm-skulls · round 5",
         True, LABEL_DIM), (300, 26))
 
     # === (a) BIG HERO =========================================================
@@ -772,10 +837,10 @@ def main():
 
     pygame.draw.rect(sheet, PANEL, (14, 756, W - 28, 28))
     sheet.blit(font_sm.render(
-        "ELEVATED pipeline: SS=8 supersample -> smoothscale.  Standalone hi-res hero exported separately: round_2_hero.png (~1024px).",
+        "ELEVATED pipeline: SS=8 supersample -> smoothscale.  Standalone hi-res hero exported separately: round_5_hero.png (~1024px).",
         True, LABEL_DIM), (26, 762))
 
-    out = os.path.join(here, "round_2.png")
+    out = os.path.join(here, "round_5.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     print("wrote", hero_path)

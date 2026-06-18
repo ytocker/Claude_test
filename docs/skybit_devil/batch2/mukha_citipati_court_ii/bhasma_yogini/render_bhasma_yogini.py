@@ -55,8 +55,8 @@ ASH_D     = (150, 148, 146)   # ash dark-core / shade
 ASH_DD    = (102, 100, 100)   # deepest ash hollow (sockets, rib gaps)
 ASH_SH    = (238, 238, 234)   # ash top-left rim-sheen
 SMEAR     = (176, 176, 172)   # cool ash-smear band over the bone (the vibhuti)
-CROWN_ASH = (160, 162, 168)   # dimmest tier — cooler/greyer ash crown & tiara skulls
-CROWN_ASH_SH = (188, 190, 196)
+CROWN_ASH = (186, 182, 176)   # dim tier — warm ash crown & tiara skulls, a step under body ASH
+CROWN_ASH_SH = (212, 208, 202)
 SAFF      = (236, 150,  46)   # saffron robe + accent (the one saturated note)
 SAFF_BR   = (252, 200, 110)   # hot saffron sheen / inner
 SAFF_D    = (176,  98,  26)   # deep saffron shade
@@ -246,15 +246,74 @@ def crown_skull(surf, cx, cy, r, s, lit=False):
 # ── a tiny palm-skull each open hand cradles (the core motif) ─────────────────
 def palm_skull(surf, cx, cy, r, s):
     """A TINY ash skull cradled in one open palm — the MID tier of the value
-    ladder (brighter than the crown, dimmer than the third-eye). Domed cranium +
-    two dark socket dots; deliberately plain so six of them read as six even
-    bone-pips ringing the fan."""
+    ladder (brighter than the crown, dimmer than the third-eye). A crafted little
+    skull: domed cranium with a faint sagittal suture, a defined brow ridge over
+    two deep sockets, temple/cheek hollows, a triangular nasal aperture, and a
+    proper hinged jaw with a few teeth. SIZE is unchanged from the plain version
+    (radius `r`); only the carving is richer. Per-hand variety (head tilt, jaw
+    set, an occasional hairline crack) is keyed off the hand position so six of
+    them read as a hand-carved bone-pip ring, not six identical stamps."""
+    lw = max(1, int(1.0 * s))
+    # WHY a position-derived seed, not random: deterministic across renders so the
+    # sheet is reproducible, yet each of the six hands gets its own little quirks.
+    v = (cx * 13 + cy * 7)
+    tilt = ((v % 5) - 2) * 0.06        # small head tilt, ±~7°
+    jaw_open = 0.46 + ((v >> 2) % 3) * 0.07
+    cracked = (v % 4) == 0
+    ct, stt = math.cos(tilt), math.sin(tilt)
+
+    def rot(dx, dy):
+        return (int(cx + dx * ct - dy * stt), int(cy + dx * stt + dy * ct))
+
+    # cranial dome — ash-sheen ball with the soft core so it reads rounded
     triad_circle(surf, ASH_SH, (cx, cy), r, ow=max(1, int(1.2 * s)), core=False)
-    for ex in (cx - int(r * 0.4), cx + int(r * 0.4)):
-        pygame.draw.circle(surf, INK, (ex, cy - int(r * 0.05)), max(1, int(r * 0.26)))
-    pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.3)), max(1, int(r * 0.16)))
-    pygame.draw.line(surf, INK, (cx - int(r * 0.4), cy + int(r * 0.55)),
-                     (cx + int(r * 0.4), cy + int(r * 0.55)), max(1, int(1.0 * s)))
+    shade = lerp(ASH_SH, ASH_D, 0.55)
+    bright = lerp(ASH_SH, (255, 255, 255), 0.4)
+
+    # sagittal suture — a faint wavy seam down the crown (the cranial detail)
+    sut = [rot(int(r * 0.04 * math.sin(k)), int(-r * (0.92 - k * 0.20)))
+           for k in (0.0, 1.0, 2.0, 3.0)]
+    pygame.draw.lines(surf, shade, False, sut, lw)
+
+    # brow ridge — a shaded arc shelf above the sockets gives the skull a face
+    brow = [rot(-r * 0.58, -r * 0.10), rot(-r * 0.30, -r * 0.30),
+            rot(0, -r * 0.34), rot(r * 0.30, -r * 0.30), rot(r * 0.58, -r * 0.10)]
+    pygame.draw.lines(surf, shade, False, brow, lw)
+
+    # temple / cheek hollows — short shade ticks pinch the face below the dome
+    for sgn in (-1, 1):
+        pygame.draw.line(surf, shade, rot(sgn * r * 0.62, -r * 0.02),
+                         rot(sgn * r * 0.50, r * 0.34), lw)
+
+    # deep eye sockets — ink pit with a faint inner highlight so they read carved
+    for ex in (-0.40, 0.40):
+        sc = rot(ex * r, -r * 0.02)
+        pygame.draw.circle(surf, INK, sc, max(1, int(r * 0.28)))
+        pygame.draw.circle(surf, shade, sc, max(1, int(r * 0.30)), lw)
+        pygame.draw.circle(surf, bright,
+                           (sc[0] - max(1, int(r * 0.10)), sc[1] - max(1, int(r * 0.10))),
+                           max(1, int(r * 0.07)))
+
+    # triangular nasal aperture
+    nasal = [rot(0, r * 0.10), rot(-r * 0.16, r * 0.40), rot(r * 0.16, r * 0.40)]
+    pygame.draw.polygon(surf, INK, nasal)
+
+    # proper jaw — a rounded ash mandible with a hinge gap + a few teeth
+    jy = r * (0.30 + jaw_open * 0.30)
+    jaw = [rot(-r * 0.44, r * 0.40), rot(-r * 0.34, jy),
+           rot(0, jy + r * 0.06), rot(r * 0.34, jy), rot(r * 0.44, r * 0.40)]
+    pygame.draw.polygon(surf, ASH_SH, jaw)
+    pygame.draw.lines(surf, INK, False, jaw, lw)
+    # tooth row along the upper bite line
+    teeth_y = r * 0.44
+    for tx in (-0.24, -0.08, 0.08, 0.24):
+        pygame.draw.line(surf, shade, rot(tx * r, teeth_y),
+                         rot(tx * r, teeth_y + r * 0.16), lw)
+
+    # one hand in four carries a hairline crack across the cranium
+    if cracked:
+        pygame.draw.line(surf, shade, rot(r * 0.10, -r * 0.55),
+                         rot(r * 0.46, -r * 0.18), lw)
 
 
 # ── the six-arm radial fan with OPEN palms cradling tiny skulls ───────────────
@@ -754,11 +813,11 @@ def render_hero():
     hero = render_creature_chip(620, 880, 310, 470, 3.0)
     surf.blit(hero, ((HW - 620) // 2, 70))
     f = font(26)
-    surf.blit(f.render("BHASMA-YOGINI", True, LABEL), (30, 24))
+    surf.blit(f.render("#4 — BHASMA-YOGINI", True, LABEL), (30, 24))
     fs = font(16)
     surf.blit(fs.render("ash-ascetic seed-bead mother  ·  MUKHA body  ·  SS=8 hero", True, LABEL_DIM),
               (30, 60))
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_5_hero.png")
     pygame.image.save(surf, out)
     return out
 
@@ -773,7 +832,7 @@ def main():
     sheet.fill(BG)
 
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
-    sheet.blit(font_big.render("BHASMA-YOGINI", True, LABEL), (24, 13))
+    sheet.blit(font_big.render("#4 — BHASMA-YOGINI", True, LABEL), (24, 13))
     sheet.blit(f_sm.render(
         "ash-ascetic seed-bead mother  ·  MUKHA body · six-arm fan · 6 palm-skulls · rudraksha U-swag · jata topknot · round 2",
         True, LABEL_DIM), (300, 26))
@@ -882,7 +941,7 @@ def main():
         "dark-core->fill->top-left sheen triad · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 824))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_5.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
