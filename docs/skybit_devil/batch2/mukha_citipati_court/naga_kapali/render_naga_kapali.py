@@ -41,11 +41,18 @@ BONE      = (236, 224, 200)   # warm bone (the dominant fill)
 BONE_D    = (182, 166, 138)   # bone dark-core / shade
 BONE_DD   = (132, 116,  92)   # deepest bone hollow (sockets, rib gaps)
 BONE_SH   = (252, 244, 226)   # bone top-left rim-sheen
+# crown skulls sit one NOTCH DARKER than the body bone — the dimmest rung of the
+# value ladder (below the mid-value palm-skulls, far below the amber third-eye).
+BONE_CR   = (196, 182, 152)   # crown-skull bone (dimmest rung)
+BONE_CR_D = (146, 132, 104)   # crown-skull shade
 # DARKENED so the snake reads by value: jade is a deep mid-dark green, verdigris
 # is darker still — the coil never washes out to a single light-green hue.
-JADE      = ( 36, 134,  92)   # naga sacred-thread (the bold diagonal upavita)
+JADE      = ( 30, 120,  82)   # naga sacred-thread (the bold diagonal upavita)
 JADE_BR   = ( 96, 200, 140)   # jade scale-highlight / sheen
-JADE_D    = ( 18,  80,  58)   # deep jade shade / underside
+JADE_D    = ( 14,  68,  50)   # deep jade shade / underside
+# the carrier stripe is darker/more saturated still — at true 32px the thread
+# must read as a SOLID dark-jade diagonal by value, not a pale-green sliver.
+JADE_CAR  = ( 22,  96,  66)   # the 32px thread-carrier fill (bold, dark stripe)
 VERD      = ( 26,  96,  86)   # verdigris (darker, the choker + 2nd snake body)
 VERD_BR   = ( 70, 160, 146)
 VERD_D    = ( 14,  58,  52)
@@ -118,17 +125,19 @@ def triad_circle(surf, color, c, r, ow=2, sheen=True, core=True):
 
 
 # ── a single ornamental crown-skull (cloned from Citipati crown_skull) ────────
-def crown_skull(surf, cx, cy, r, s, lit=False):
+def crown_skull(surf, cx, cy, r, s, lit=False, bone=BONE):
     """Tiny bone skull — domed cranium, two dark sockets, a stub jaw. WHY small
     high-contrast sockets: each crown skull must punch a clean bone shape with
     two dark dots at 32px so the dome stays the dominant value. `lit` swaps the
-    eye-pins to amber for the crown-centre skull (the only crown glow)."""
-    triad_circle(surf, BONE, (cx, cy), r, ow=max(1, int(1.6 * s)), core=False)
+    eye-pins to amber for the crown-centre skull (the only crown glow). `bone`
+    lets the arc skulls render a NOTCH DARKER (BONE_CR) than palm/cap skulls so
+    they sit at the dimmest rung of the value ladder."""
+    triad_circle(surf, bone, (cx, cy), r, ow=max(1, int(1.6 * s)), core=False)
     jaw = [(cx - int(r * 0.52), cy + int(r * 0.52)),
            (cx + int(r * 0.52), cy + int(r * 0.52)),
            (cx + int(r * 0.34), cy + int(r * 1.0)),
            (cx - int(r * 0.34), cy + int(r * 1.0))]
-    triad_blob(surf, BONE, jaw, ow=max(1, int(1.2 * s)))
+    triad_blob(surf, bone, jaw, ow=max(1, int(1.2 * s)))
     eye_c = AMBER_BR if lit else INK
     for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
         pygame.draw.circle(surf, INK, (ex, cy + int(r * 0.04)), max(1, int(r * 0.24)))
@@ -162,17 +171,28 @@ def palm_skull(surf, hx, hy, r, s, ang):
         base = (hx + math.cos(ang) * r * 0.3, hy + math.sin(ang) * r * 0.3)
         tip = (hx + math.cos(fa) * r * 1.5, hy + math.sin(fa) * r * 1.5)
         pygame.draw.line(surf, BONE_DD, base, tip, max(1, int(1.0 * s)))
-    # the cradled tiny skull — domed bone with two dark pits, sits in the cup
-    sk = (int(hx - math.cos(ang) * r * 0.15), int(hy - math.sin(ang) * r * 0.15))
-    triad_circle(surf, BONE, sk, int(r * 0.72), ow=max(1, int(1.3 * s)), core=False)
+    # the cradled tiny skull — domed bone with two dark pits, sits in the cup.
+    # WHY enlarged + pulled toward the palm centre (the LOCKED-miss fix): in round
+    # 1 the near-horizontal lower arms let the fan dominate and two skulls read as
+    # bare discs. The skull is now ≈0.92× the cup radius and seated dead-centre on
+    # the wrist so all SIX cradled skulls punch the same mid-value bone shape.
+    sk = (int(hx), int(hy))
+    sr = int(r * 0.92)
+    triad_circle(surf, BONE, sk, sr, ow=max(1, int(1.5 * s)), core=False)
     for ex in (-1, 1):
         pygame.draw.circle(surf, INK,
-                           (sk[0] + ex * int(r * 0.3), sk[1] - int(r * 0.05)),
-                           max(1, int(r * 0.2)))
-    pygame.draw.circle(surf, INK, (sk[0], sk[1] + int(r * 0.22)), max(1, int(r * 0.1)))
+                           (sk[0] + ex * int(sr * 0.34), sk[1] - int(sr * 0.06)),
+                           max(1, int(sr * 0.24)))
+    # a stub jaw below the dome so the skull reads as a skull, not a bead
+    jaw = [(sk[0] - int(sr * 0.5), sk[1] + int(sr * 0.48)),
+           (sk[0] + int(sr * 0.5), sk[1] + int(sr * 0.48)),
+           (sk[0] + int(sr * 0.32), sk[1] + int(sr * 0.95)),
+           (sk[0] - int(sr * 0.32), sk[1] + int(sr * 0.95))]
+    triad_blob(surf, BONE, jaw, ow=max(1, int(1.1 * s)))
+    pygame.draw.circle(surf, INK, (sk[0], sk[1] + int(sr * 0.26)), max(1, int(sr * 0.12)))
     pygame.draw.line(surf, INK,
-                     (sk[0] - int(r * 0.28), sk[1] + int(r * 0.42)),
-                     (sk[0] + int(r * 0.28), sk[1] + int(r * 0.42)),
+                     (sk[0] - int(sr * 0.3), sk[1] + int(sr * 0.62)),
+                     (sk[0] + int(sr * 0.3), sk[1] + int(sr * 0.62)),
                      max(1, int(1.0 * s)))
 
 
@@ -240,20 +260,18 @@ def serpent_band(surf, pts, width, s, body=JADE, body_d=JADE_D, body_br=JADE_BR,
     poly = top + bot[::-1]
     pygame.draw.polygon(surf, INK, poly)
     pygame.draw.polygon(surf, body, poly)
-    # dark underside core (the lower ribbon half) — the value half that makes the
-    # coil read on any sky, not just by hue
-    core = [( (top[i][0]+bot[i][0])/2 + (bot[i][0]-top[i][0])*0.12,
-              (top[i][1]+bot[i][1])/2 + (bot[i][1]-top[i][1])*0.12 )
+    # dark underside core — over HALF the ribbon, so the band stays a dark stripe
+    # by VALUE at downscale (the carrier read), not a hue that averages to pale.
+    core = [( (top[i][0]+bot[i][0])/2 + (bot[i][0]-top[i][0])*0.02,
+              (top[i][1]+bot[i][1])/2 + (bot[i][1]-top[i][1])*0.02 )
             for i in range(len(pts))] + bot[::-1]
     pygame.draw.polygon(surf, body_d, core)
-    # top sheen sliver
-    sheen = top[:max(2, len(top))] + [( (top[i][0]+bot[i][0])/2,
-                                        (top[i][1]+bot[i][1])/2 )
-                                      for i in range(len(pts)-1, -1, -1)]
-    sh_poly = top + [((top[i][0]*0.7+bot[i][0]*0.3), (top[i][1]*0.7+bot[i][1]*0.3))
+    # top sheen kept a THIN sliver (top ~22%) so it never washes the stripe pale
+    # at 32px — value contrast must survive the smoothscale.
+    sh_poly = top + [((top[i][0]*0.78+bot[i][0]*0.22), (top[i][1]*0.78+bot[i][1]*0.22))
                      for i in range(len(pts)-1, -1, -1)]
     pygame.draw.polygon(surf, body_br, sh_poly)
-    pygame.draw.polygon(surf, INK, poly, max(1, int(1.4 * s)))
+    pygame.draw.polygon(surf, INK, poly, max(1, int(1.6 * s)))
     # scale pips along the spine (hero-only — sub-pixel at 32px, drops out)
     if scales and width > 7 * s:
         for i in range(len(pts) - 1):
@@ -462,8 +480,23 @@ def draw_naga_kapali(surf, cx, cy, s):
                   th_mid,
                   (rc_cx + int(rc_w * 0.34), rc_cy + int(14 * s)),
                   th_bot]
-    serpent_band(surf, thread_pts, int(11 * s), s,
-                 body=JADE, body_d=JADE_D, body_br=JADE_BR, scales=True)
+    # WHY wider + the darker carrier fill (the carrier-survives-32px fix): at true
+    # 32px this band is the named silhouette carrier, so it is widened to ~14 units
+    # (≈1px more at gameplay scale) and filled with JADE_CAR — a solid dark-jade
+    # stripe that holds value contrast against bone after the smoothscale.
+    serpent_band(surf, thread_pts, int(14 * s), s,
+                 body=JADE_CAR, body_d=JADE_D, body_br=JADE_BR, scales=True)
+    # WHY a jade hip-wrap continues the thread DOWN over the pelvis (the lower-body
+    # density fix): in round 1 the legs/hip zone read naked at 32px once fine motifs
+    # collapsed. The carrier thread now wraps the hip as a second bold dark-jade
+    # band before the serpent-tail flicks off — so the green reaches the lower
+    # silhouette and no zone is bare at gameplay scale.
+    hip_wrap = [(hip_cx - int(18 * s), hip_y + int(4 * s)),
+                (hip_cx - int(4 * s), hip_y + int(11 * s)),
+                (hip_cx + int(12 * s), hip_y + int(10 * s)),
+                th_bot]
+    serpent_band(surf, hip_wrap, int(11 * s), s,
+                 body=JADE_CAR, body_d=JADE_D, body_br=JADE_BR, scales=False)
     # serpent-tail terminus flicking off the hip
     serpent_head(surf, th_bot[0], th_bot[1], int(7 * s), s,
                  math.radians(40), body=JADE, body_br=JADE_BR, body_d=JADE_D)
@@ -498,15 +531,19 @@ def draw_naga_kapali(surf, cx, cy, s):
         pygame.draw.circle(surf, BONE_D,
                            (head_c[0] + sgn * int(hr * 0.66), head_c[1] + int(hr * 0.28)),
                            int(hr * 0.26))
-    # two lower sockets — kept a NOTCH DIMMER than the third eye (dark hollow +
-    # small jade pin, no hot core) so the 3-eye triangle points UP to the brow.
+    # two lower sockets — SHRUNK + rimmed so the amber third-eye clearly tops the
+    # value ladder (the focal fix). Round 1's big black voids out-massed the amber
+    # pixel; now each socket is smaller, carries a mid-value bone rim around the
+    # void, and holds only a tiny dark-jade glint (no hot core) so at 32px the
+    # single amber slit is the unmistakable brightest mark.
     for sgn in (-1, 1):
-        ex = head_c[0] + sgn * int(hr * 0.44)
-        ey = head_c[1] + int(hr * 0.12)
-        pygame.draw.circle(surf, BONE_DD, (ex, ey), int(hr * 0.32))
-        pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.26))
+        ex = head_c[0] + sgn * int(hr * 0.46)
+        ey = head_c[1] + int(hr * 0.16)
+        pygame.draw.circle(surf, BONE_D, (ex, ey), int(hr * 0.27))   # mid-value rim
+        pygame.draw.circle(surf, BONE_DD, (ex, ey), int(hr * 0.22))
+        pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.17))      # smaller void
         pygame.draw.circle(surf, JADE_D, (ex + sgn * int(1 * s), ey + int(1 * s)),
-                           int(hr * 0.11))
+                           max(1, int(hr * 0.07)))
     # THIRD EYE — the single BRIGHTEST pixel: a vertical AMBER slit on the brow
     tex, tey = head_c[0], head_c[1] - int(hr * 0.40)
     pygame.draw.ellipse(surf, INK, (tex - int(6 * s), tey - int(8 * s), int(12 * s), int(16 * s)))
@@ -526,98 +563,127 @@ def draw_naga_kapali(surf, cx, cy, s):
         pygame.draw.line(surf, INK, (head_c[0] + int(k * hr * 0.16), my - int(hr * 0.1)),
                          (head_c[0] + int(k * hr * 0.16), my + int(hr * 0.14)), max(1, int(1 * s)))
 
-    # === FUSED CROWN: Citipati 5-skull arc-SWEEP + Mukha tiara-BAND ===========
-    # WHY both crown languages: a plain arc alone reads as the Citipati reference.
-    # The wide 5-skull SWEEP rides the outer arc; the Mukha gold tiara-BAND seats
-    # LOW across the brow under the skulls; the rearing naga hood reares over the
-    # centre skull (the keeper tell). Only the centre skull glows amber.
-    # -- the Mukha tiara-band (gold, seated on the brow) --
-    tiara_r = int(hr * 1.04)
+    # === FUSED CROWN: three layers must ALL read ==============================
+    # WHY a strict draw ORDER (the LOCKED-miss fix): round 1 drew the hood LAST
+    # and so wide it swallowed the 5-skull arc, reading hood-only. Now it is built
+    # back-to-front as the reference does — (1) gold tiara-BAND on the brow, (2)
+    # the wide Citipati 5-SKULL arc-sweep riding the OUTER arc so each dome breaks
+    # the outline and is countable, then (3) a NARROW rearing naga-HOOD seated
+    # over the CENTRE skull only, sized so the flanking skulls peek out either
+    # side. The result reads three layers top-to-bottom: skull-arc, then hood at
+    # centre, then tiara-band — the genuine fusion. Crown skulls use BONE_CR (a
+    # notch darker = dimmest rung); only the centre skull glows amber.
+    # -- (1) the Mukha tiara-band (gold, seated LOW on the brow) --
+    tiara_r = int(hr * 1.06)
     band_pts = []
-    for i in range(11):
-        a = math.radians(228 + i * (84 / 10))
+    for i in range(13):
+        a = math.radians(220 + i * (100 / 12))
         band_pts.append((head_c[0] + math.cos(a) * tiara_r,
                          head_c[1] + math.sin(a) * tiara_r))
-    pygame.draw.lines(surf, INK, False, band_pts, int(7 * s))
+    pygame.draw.lines(surf, INK, False, band_pts, int(8 * s))
     pygame.draw.lines(surf, GOLD, False, band_pts, int(4 * s))
-    pygame.draw.lines(surf, GOLD_BR, False, band_pts[:6], max(1, int(1.4 * s)))
-    # -- the Citipati 5-skull arc-sweep (wide, rides OUTSIDE the band) --
-    skull_cr = hr * 1.52
-    skull_r = int(hr * 0.34)
+    pygame.draw.lines(surf, GOLD_BR, False, band_pts[:7], max(1, int(1.4 * s)))
+    # tiny gold tiara prongs between the skulls (Mukha-band tell, hero-only detail)
+    for i in range(13):
+        if i % 3 != 1:
+            continue
+        a = math.radians(220 + i * (100 / 12))
+        px = head_c[0] + math.cos(a) * tiara_r
+        py = head_c[1] + math.sin(a) * tiara_r
+        pygame.draw.line(surf, GOLD, (px, py),
+                         (px + math.cos(a) * int(5 * s), py + math.sin(a) * int(5 * s)),
+                         max(1, int(2 * s)))
+    # -- (2) the Citipati 5-skull arc-sweep (WIDE, rides OUTSIDE the band) --
+    # the arc sweeps a full ~150° so the two flank skulls sit well to either side
+    # of where the centre hood will land — they are never covered.
+    skull_cr = hr * 1.58
+    skull_r = int(hr * 0.36)
+    skull_pos = []
     for i in range(5):
-        a = math.radians(216 + i * (108 / 4))
+        a = math.radians(206 + i * (128 / 4))
         sx = head_c[0] + math.cos(a) * skull_cr
         sy = head_c[1] + math.sin(a) * skull_cr
-        crown_skull(surf, int(sx), int(sy), skull_r, s, lit=(i == 2))
-    # -- the rearing NAGA HOOD over the centre skull (the keeper tell) --
-    hood_y = head_c[1] - int(skull_cr) + int(hr * 0.1)
-    naga_hood(surf, head_c[0], hood_y, int(hr * 0.46), s)
+        skull_pos.append((int(sx), int(sy)))
+    # draw the FLANK skulls first (they sit beside/behind the hood)
+    for i in (0, 1, 3, 4):
+        crown_skull(surf, skull_pos[i][0], skull_pos[i][1], skull_r, s,
+                    lit=False, bone=BONE_CR)
+    # -- (3) the rearing NAGA HOOD over the CENTRE skull (narrow keeper tell) --
+    # seated just above the centre skull and kept narrow (≈1.1× the head-skull
+    # span) so flank skulls #0/#1 and #3/#4 stay fully visible either side.
+    cx_c, cy_c = skull_pos[2]
+    crown_skull(surf, cx_c, cy_c, skull_r, s, lit=True, bone=BONE_CR)
+    hood_y = cy_c - int(skull_r * 1.15)
+    naga_hood(surf, cx_c, hood_y, int(hr * 0.40), s)
 
 
-# ── the naga-spine staff → pillar mirror (built from the sister's own forms) ──
+# ── the coiling-naga shaft → pillar mirror (built from the sister's own forms) ─
 def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
-    """The naga-spine staff IS the pillar: stacked bone vertebra beads wound by a
-    green serpent-thread coil = the tileable shaft; a single crown-skull capped
-    by a small rearing naga-hood at the gap = the creature-derived gap cap. The
-    green coil is the pillar's own 32px serpent read, mirroring the figure's
-    sacred-thread. On-axis, symmetric, never top-heavy.
+    """The COILING NAGA itself IS the pillar: a thick serpent body winds the full
+    length of the shaft — a sinuous dark-jade coil whose scale segments alternate
+    in VALUE (lit jade vs. deep-jade shade) so it reads unmistakably as a winding
+    snake, not a bead column. The gap end rears up into a naga-HOOD cradling a
+    gold-rimmed KAPALA cup — the creature-derived gap cap, mirrored top↔bottom on
+    the axis. WHY this rebuild (the pillar fix): round 1's vertebra/bead column
+    was too close to Citipati's khatvanga; the sister's OWN ornament is the naga,
+    so her pillar is literally her serpent. The bold dark-jade body is the
+    pillar's 32px carrier, mirroring the figure's sacred-thread.
 
     `cap` names the END that faces the GAP."""
-    shaft_w = int(14 * s)
-    pygame.draw.rect(surf, INK, (cx - int(3 * s), top, int(6 * s), bot - top))
-
-    # === stacked vertebra beads (the CITIPATI rib motif continued) ===========
-    bead_pitch = int(20 * s)
-    cap_room = int(34 * s)
+    # the sinuous centre-line of the snake winding down the shaft
+    cap_room = int(40 * s)
     if cap == "bottom":
-        b0, b1 = top + int(6 * s), bot - cap_room
+        s0, s1 = top + int(4 * s), bot - cap_room
     else:
-        b0, b1 = top + cap_room, bot - int(6 * s)
-    bead_ys = []
-    y = b0
-    while y <= b1:
-        bw = shaft_w
-        bead = [(cx - bw, y + int(2 * s)),
-                (cx - int(bw * 0.5), y - int(7 * s)),
-                (cx + int(bw * 0.5), y - int(7 * s)),
-                (cx + bw, y + int(2 * s)),
-                (cx + int(bw * 0.5), y + int(11 * s)),
-                (cx - int(bw * 0.5), y + int(11 * s))]
-        triad_blob(surf, BONE, bead,
-                   core_pts=[(cx, y - int(1 * s)), (cx + bw, y + int(2 * s)),
-                             (cx + int(bw * 0.5), y + int(11 * s)), (cx, y + int(9 * s))],
-                   sheen_pts=[(cx - bw, y + int(2 * s)), (cx - int(bw * 0.5), y - int(6 * s)),
-                              (cx - int(bw * 0.2), y - int(4 * s)), (cx - int(bw * 0.7), y + int(5 * s))],
-                   ow=max(1, int(1.4 * s)))
-        pygame.draw.circle(surf, BONE_DD, (cx, y + int(2 * s)), int(4 * s))
-        pygame.draw.circle(surf, INK, (cx, y + int(2 * s)), int(4 * s), max(1, int(1 * s)))
-        bead_ys.append(y)
-        y += bead_pitch
+        s0, s1 = top + cap_room, bot - int(4 * s)
+    amp = int(11 * s)            # how far the coil swings off-axis
+    body_w = int(16 * s)         # thick snake body (the carrier mass)
+    coil_pts = []
+    span = max(1, s1 - s0)
+    steps = max(6, span // max(1, int(7 * s)))
+    seg_centres = []
+    for i in range(steps + 1):
+        t = i / steps
+        y = s0 + t * span
+        # a swinging sine winds the body side to side (the coil read)
+        x = cx + math.sin(t * math.pi * 3.4) * amp
+        coil_pts.append((x, y))
+        seg_centres.append((x, y, t))
 
-    # === the green serpent-thread coiling the shaft (the pillar 32px read) ====
-    # WHY a serpent winds the whole shaft: it mirrors the figure's sacred-thread
-    # so the pillar reads as the naga sister's own form and carries the green at
-    # gameplay scale. A sinuous green band weaving side to side across the beads.
-    if bead_ys:
-        coil_pts = []
-        for i, by in enumerate(range(int(b0), int(b1) + 1, max(1, bead_pitch // 2))):
-            phase = i * 0.9
-            coil_pts.append((cx + math.sin(phase) * shaft_w * 0.85, by))
-        if len(coil_pts) >= 2:
-            serpent_band(surf, coil_pts, int(7 * s), s,
-                         body=JADE, body_d=JADE_D, body_br=JADE_BR,
-                         scales=False)
+    # the thick serpent body — dark-jade carrier with a thin top sheen
+    serpent_band(surf, coil_pts, body_w, s,
+                 body=JADE_CAR, body_d=JADE_D, body_br=JADE_BR, scales=False)
 
-    # === gap-edge cap: a crown-skull capped by a rearing naga-hood ===========
-    cap_y = (bot - int(20 * s)) if cap == "bottom" else (top + int(20 * s))
-    cap_skull_r = int(13 * s)
-    crown_skull(surf, cx, cap_y, cap_skull_r, s, lit=True)
-    # the naga-hood reared toward the gap (the creature tell on the pillar)
-    hood_off = int(cap_skull_r * 1.5)
-    hood_y = (cap_y - hood_off) if cap == "bottom" else (cap_y + hood_off)
-    naga_hood(surf, cx, hood_y, int(cap_skull_r * 0.7), s)
-    # a gold collar where the cap meets the shaft
-    collar_y = (cap_y - int(18 * s)) if cap == "bottom" else (cap_y + int(18 * s))
+    # alternating-value SCALE SEGMENTS banded across the body (the value rhythm
+    # that makes it read as a coiling snake at hero; collapses cleanly at 32px to
+    # leave the bold dark-jade band carrying alone).
+    for (x, y, t) in seg_centres:
+        # segment banding ring — every other one a notch lighter for the rhythm
+        idx = int(t * steps)
+        seg_col = JADE if (idx % 2 == 0) else JADE_D
+        pygame.draw.circle(surf, seg_col, (int(x), int(y)), max(1, int(body_w * 0.32)))
+        # a tiny diamond scale-pip on the lit segments (hero-only fine detail)
+        if idx % 2 == 0 and body_w > 7 * s:
+            d = int(body_w * 0.2)
+            pygame.draw.polygon(surf, JADE_BR,
+                                [(x, y - d), (x + d, y), (x, y + d), (x - d, y)])
+            pygame.draw.polygon(surf, JADE_D,
+                                [(x, y - d), (x + d, y), (x, y + d), (x - d, y)],
+                                max(1, int(1 * s)))
+
+    # === gap-edge cap: a rearing naga-HOOD cradling a gold KAPALA cup =========
+    # the snake rears its head at the gap edge — the creature tell on the pillar.
+    cap_y = (bot - int(22 * s)) if cap == "bottom" else (top + int(22 * s))
+    cap_hood_r = int(16 * s)
+    # gold kapala skull-cup seated at the throat of the rearing hood
+    kapala_cup(surf, cx, cap_y + (int(6 * s) if cap == "bottom" else -int(6 * s)),
+               int(8 * s), s)
+    # the rearing naga-hood faces the gap
+    hood_y = (cap_y - int(cap_hood_r * 0.4)) if cap == "bottom" \
+        else (cap_y + int(cap_hood_r * 0.4))
+    naga_hood(surf, cx, hood_y, cap_hood_r, s)
+    # a gold collar where the rearing neck meets the coiling shaft
+    collar_y = (cap_y + int(20 * s)) if cap == "bottom" else (cap_y - int(20 * s))
     pygame.draw.rect(surf, INK, (cx - int(11 * s), collar_y - int(3 * s), int(22 * s), int(7 * s)))
     pygame.draw.rect(surf, GOLD, (cx - int(10 * s), collar_y - int(2 * s), int(20 * s), int(5 * s)))
     pygame.draw.rect(surf, GOLD_BR, (cx - int(10 * s), collar_y - int(2 * s), int(20 * s), int(2 * s)))
@@ -667,7 +733,7 @@ def render_hero_png(path):
 
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
-    render_hero_png(os.path.join(here, "round_1_hero.png"))
+    render_hero_png(os.path.join(here, "round_2_hero.png"))
 
     W, H = 1040, 860
     font_big = _font(30)
@@ -681,7 +747,7 @@ def main():
     sheet.blit(font_big.render("NAGA-KAPALI", True, LABEL), (24, 12))
     sheet.blit(font_sm.render(
         "serpent-thread skull-priest  ·  CITIPATI body + Mukha 6-arm fan · jade naga-thread + verdigris · "
-        "amber third-eye · rearing-naga crown · round 1",
+        "amber third-eye · 3-layer fusion crown · round 2",
         True, LABEL_DIM), (250, 24))
 
     # === (a) BIG HERO =========================================================
@@ -689,8 +755,8 @@ def main():
     sheet.blit(hero, (14, 88))
     sheet.blit(font.render("Creature — hero (SS=8)", True, LABEL), (96, 590))
     sheet.blit(font_sm.render("Mukha 6-arm fan, each open palm cradling a TINY SKULL; CITIPATI cocked-hip torso.", True, LABEL_DIM), (14, 614))
-    sheet.blit(font_sm.render("Jade naga-thread diagonal + verdigris choker-snake + gold kapala cups + scale pips.", True, LABEL_DIM), (14, 630))
-    sheet.blit(font_sm.render("Crown = 5-skull arc + Mukha tiara-band + rearing NAGA hood. Amber third-eye = brightest.", True, LABEL_DIM), (14, 646))
+    sheet.blit(font_sm.render("Wider dark-jade naga-thread diagonal + jade hip-wrap + verdigris choker + gold kapala cups.", True, LABEL_DIM), (14, 630))
+    sheet.blit(font_sm.render("3-LAYER crown: 5-skull arc (top) + tiara-band (brow) + rearing naga-hood (centre). Amber 3-eye wins.", True, LABEL_DIM), (14, 646))
 
     # === (b) PILLAR assembled — mirrored, from the sister's own forms =========
     pcx = 430
@@ -704,10 +770,10 @@ def main():
     sheet.blit(bot_seg, (pcx, 82 + 250 + 92))
     pygame.draw.rect(sheet, (58, 66, 62), (pcx + 8, 82 + 250, 134, 92))
     sheet.blit(font_sm.render("GAP", True, LABEL_DIM), (pcx + 56, 82 + 250 + 38))
-    sheet.blit(font.render("Pillar — naga-spine staff", True, LABEL), (pcx - 4, 682))
-    sheet.blit(font_sm.render("vertebra beads wound by a green serpent-thread =", True, LABEL_DIM), (pcx - 4, 706))
-    sheet.blit(font_sm.render("shaft; crown-skull + rearing naga-hood caps the gap", True, LABEL_DIM), (pcx - 4, 722))
-    sheet.blit(font_sm.render("(mirrored top<->bottom, on-axis, not top-heavy)", True, LABEL_DIM), (pcx - 4, 738))
+    sheet.blit(font.render("Pillar — the coiling naga", True, LABEL), (pcx - 4, 682))
+    sheet.blit(font_sm.render("a winding dark-jade snake (alternating scale-", True, LABEL_DIM), (pcx - 4, 706))
+    sheet.blit(font_sm.render("value segments) = shaft; rearing naga-hood +", True, LABEL_DIM), (pcx - 4, 722))
+    sheet.blit(font_sm.render("kapala cup caps the gap (mirrored, on-axis)", True, LABEL_DIM), (pcx - 4, 738))
 
     # === (c) TRUE 32px chips (day + night) + blackout proof + palette =========
     panel_x = 624
@@ -769,8 +835,8 @@ def main():
     # palette strip
     sheet.blit(font.render("Pinned palette", True, LABEL), (panel_x + 16, sil_y + 132))
     swatches = [
-        (BONE, "warm bone"), (BONE_D, "bone shade"),
-        (JADE, "jade naga-thread"), (JADE_D, "deep jade"),
+        (BONE, "warm bone"), (BONE_CR, "crown-skull (dimmest)"),
+        (JADE_CAR, "jade thread-carrier"), (JADE_D, "deep jade"),
         (VERD, "verdigris snake"), (GOLD, "gold cup-rim"),
         (AMBER, "amber third-eye"), (INK, "ink keyline"),
     ]
@@ -791,10 +857,10 @@ def main():
         True, LABEL_DIM), (26, 815))
     sheet.blit(font_sm.render(
         "VALUE LADDER: amber third-eye (brightest) -> 6 palm-skulls (mid) -> crown skulls (dimmest).  "
-        "32px CARRIER: bold green diagonal naga-thread + the rearing naga-hood.",
+        "32px CARRIER: the bold dark-jade diagonal naga-thread + the dark naga-hood crown.",
         True, LABEL_DIM), (26, 831))
 
-    out = os.path.join(here, "round_1.png")
+    out = os.path.join(here, "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
