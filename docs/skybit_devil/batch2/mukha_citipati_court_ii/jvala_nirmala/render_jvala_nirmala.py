@@ -44,7 +44,9 @@ pygame.init()
 BONE      = (232, 234, 224)   # pale-bone (the figure mass — cool-neutral, no warmth)
 BONE_D    = (168, 174, 172)   # bone dark-core / shade
 BONE_DD   = (104, 112, 118)   # deepest bone hollow (sockets, rib gaps)
-BONE_SH   = (250, 252, 248)   # bone top-left rim-sheen
+BONE_SH   = (215, 218, 222)   # bone top-left rim-sheen — PEAK DROPPED so the cranium
+                              # hot-spots never out-brighten the third-eye core at 32px
+                              # (the eye must be the single brightest pixel on both chips)
 # the cobalt mantle is a filled MASS with a clear value ladder so sheeting tongues
 # overlap legibly: deep field -> mid cobalt -> bright ice-edge tips.
 COBALT_DD = ( 14,  28,  92)   # deepest cobalt (drapery under-fold shadow / overlaps)
@@ -57,7 +59,9 @@ INK       = ( 28,  22,  26)   # hard ink keyline
 # OUT-glow EVERYTHING by a wide margin. Held DELIBERATELY brighter than any
 # cobalt fold-crest and than the crown-centre skull (which gets NO near-white).
 EYE_GLOW  = (206, 230, 250)   # third-eye tight glow halo (the ONLY halo on the sheet)
-EYE_CORE  = (236, 245, 255)   # third-eye brightest pixel — the lone near-white ice
+EYE_CORE  = (246, 250, 255)   # third-eye brightest pixel — the lone near-white ice,
+                              # nudged toward white so it stays the single brightest
+                              # point even after the 32px smoothscale softens it
 EYE_RING  = ( 66, 132, 232)   # third-eye cobalt iris (frames the ice core)
 
 BG        = ( 90,  94, 104)   # neutral grey review backdrop
@@ -91,6 +95,17 @@ def grow_outline(surf, color, px):
     return ring
 
 
+def _sheen_of(color):
+    # WHY cap the bone sheen instead of lerping to pure white: a near-white sheen
+    # on the pale-bone cranium out-brightens the third-eye core at 32px (the
+    # identity-breaking value tie). For bone-family fills the sheen is clamped to
+    # the dimmed cool BONE_SH peak so the eye stays the single brightest pixel;
+    # the saturated cobalt mantle keeps its ordinary bright fold-crest sheen.
+    if color[0] > 180 and color[1] > 180:
+        return BONE_SH
+    return lerp(color, (255, 255, 255), 0.4)
+
+
 def triad_blob(surf, color, pts, sheen_pts=None, core_pts=None, outline=True, ow=2):
     """Flat fill + optional dark-core + top-left rim-sheen + ink keyline."""
     if outline:
@@ -99,7 +114,7 @@ def triad_blob(surf, color, pts, sheen_pts=None, core_pts=None, outline=True, ow
     if core_pts:
         pygame.draw.polygon(surf, lerp(color, INK, 0.42), core_pts)
     if sheen_pts:
-        pygame.draw.polygon(surf, lerp(color, (255, 255, 255), 0.4), sheen_pts)
+        pygame.draw.polygon(surf, _sheen_of(color), sheen_pts)
     if outline:
         pygame.draw.polygon(surf, INK, pts, ow)
 
@@ -114,7 +129,7 @@ def triad_circle(surf, color, c, r, ow=2, sheen=True, core=True):
                            int(r * 0.74))
         pygame.draw.circle(surf, color, c, int(r * 0.82))
     if sheen:
-        pygame.draw.circle(surf, lerp(color, (255, 255, 255), 0.45),
+        pygame.draw.circle(surf, _sheen_of(color),
                            (c[0] - int(r * 0.38), c[1] - int(r * 0.40)),
                            max(1, int(r * 0.26)))
     pygame.draw.circle(surf, INK, c, r, ow)
@@ -238,17 +253,20 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
     # cranium silhouette varies per arc slot, mirroring the palm relics' variety
     shape = idx % 5
     if shape in (1, 3):
-        # narrow-tall egg vault (slightly slimmer / taller than the round default)
-        ell = pygame.Rect(0, 0, int(r * 1.62), int(r * 2.18))
-        ell.center = (cx, cy - int(r * 0.12))
+        # narrow-tall egg vault — pushed taller/slimmer so the arc isn't a uniform
+        # comb of identical bumps at 32px (this slot reads as a clear tall peak)
+        ell = pygame.Rect(0, 0, int(r * 1.48), int(r * 2.36))
+        ell.center = (cx, cy - int(r * 0.16))
         pygame.draw.ellipse(surf, INK, ell.inflate(lw, lw))
         pygame.draw.ellipse(surf, BONE, ell)
     elif shape == 2:
-        # faceted angular vault — flat-planed crown (the centre slot reads crisp)
-        cap = [(cx - int(r * 0.90), cy - int(r * 0.10)),
-               (cx - int(r * 0.48), cy - int(r * 0.92)),
-               (cx + int(r * 0.48), cy - int(r * 0.92)),
-               (cx + int(r * 0.90), cy - int(r * 0.10)),
+        # faceted angular vault — flat-planed crown with an ASYMMETRIC top edge
+        # (the left plane sheared lower than the right) so the centre slot reads as
+        # its own crisp silhouette at chip scale, not a mirror-symmetric dome
+        cap = [(cx - int(r * 0.92), cy - int(r * 0.04)),
+               (cx - int(r * 0.30), cy - int(r * 0.66)),
+               (cx + int(r * 0.44), cy - int(r * 0.98)),
+               (cx + int(r * 0.92), cy - int(r * 0.16)),
                (cx + int(r * 0.62), cy + int(r * 0.44)),
                (cx - int(r * 0.62), cy + int(r * 0.44))]
         triad_blob(surf, BONE, cap, ow=lw)
@@ -272,14 +290,17 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
                      max(1, int(1.2 * s)))
     # frost echo (DIMMEST): a single short hairline ink seam (drawn-flat). The two
     # narrow-tall slots carry a hairline crown seam; the faceted centre carries one
-    # drawn-flat cobalt fleck only; the round slots stay essentially clean — none
-    # gets a crack network or frost cap, so the arc stays crisp at 32px with NO glow.
+    # INK seam only; the round slots stay essentially clean — none gets a crack
+    # network or frost cap, so the arc stays crisp at 32px with NO glow.
+    # WHY the faceted centre's fleck is now INK, not cobalt: the third-eye must be
+    # the ONLY saturated-blue point in the crown silhouette at 32px — a 2nd blue
+    # fleck right beside it read as a rival blue point on the night chip.
     if shape in (1, 3):
         pygame.draw.line(surf, INK, (cx + int(r * 0.08), cy - int(r * 0.86)),
                          (cx - int(r * 0.10), cy - int(r * 0.34)), fine)
     elif shape == 2:
-        pygame.draw.circle(surf, COBALT, (cx + int(r * 0.28), cy - int(r * 0.40)),
-                           max(1, int(r * 0.10)))
+        pygame.draw.line(surf, INK, (cx + int(r * 0.22), cy - int(r * 0.50)),
+                         (cx + int(r * 0.34), cy - int(r * 0.30)), fine)
 
 
 # ── a tiny cradled palm-skull (the core Mukha motif) ──────────────────────────
@@ -341,9 +362,12 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
         # round mid vault — the baseline ROUND construction (frost is the network)
         triad_circle(surf, BONE, (cx, cy), r, ow=lw, core=False)
     elif idx == 1:
-        # NARROW-TALL egg vault (rime-cap archetype): taller, slimmer than round
-        ell = pygame.Rect(0, 0, int(r * 1.56), int(r * 2.12))
-        ell.center = rot(0, -r * 0.14)
+        # NARROW-TALL egg vault (rime-cap archetype): taller, slimmer than round.
+        # WHY pushed even taller/narrower: at 32px the crown was reading as a
+        # uniform comb of identical bumps — exaggerating this slot's tall-slim
+        # proportion makes it the clear PEAK of the row against its neighbours.
+        ell = pygame.Rect(0, 0, int(r * 1.42), int(r * 2.34))
+        ell.center = rot(0, -r * 0.20)
         pygame.draw.ellipse(surf, INK, ell.inflate(lw * 2, lw * 2))
         pygame.draw.ellipse(surf, BONE, ell)
     elif idx == 2:
@@ -351,14 +375,18 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
         # upper-LEFT crown — a flat-faceted break that genuinely alters the OUTLINE
         # (drawn as a clipped polygon dome so the missing corner is part of the
         # silhouette, not an overlay). Reads as calved glacier-ice bone.
-        vault = [rot(-r * 0.74, r * 0.30), rot(-r * 0.80, -r * 0.30),
-                 rot(-r * 0.34, -r * 0.74),                 # sheared flat facet ↑
-                 rot(r * 0.18, -r * 1.04), rot(r * 0.66, -r * 0.70),
-                 rot(r * 0.86, -r * 0.10), rot(r * 0.78, r * 0.36)]
+        # WHY the shear is now more AGGRESSIVE + asymmetric (a deeper bite taken
+        # out of the upper-left, the right crown pushed taller): at 32px a gentle
+        # bevel reads as just another dome bump in a uniform comb — a hard
+        # asymmetric top edge gives this slot a silhouette that survives downscale.
+        vault = [rot(-r * 0.70, r * 0.30), rot(-r * 0.76, -r * 0.22),
+                 rot(-r * 0.16, -r * 0.52),                 # deep sheared flat facet ↑
+                 rot(r * 0.10, -r * 1.16), rot(r * 0.62, -r * 0.82),
+                 rot(r * 0.90, -r * 0.10), rot(r * 0.80, r * 0.36)]
         triad_blob(surf, BONE, vault, ow=lw)
         # dark inner shelf along the sheared facet so the break reads as depth
-        pygame.draw.polygon(surf, BONE_DD, [rot(-r * 0.80, -r * 0.30),
-                            rot(-r * 0.34, -r * 0.74), rot(-r * 0.30, -r * 0.40)])
+        pygame.draw.polygon(surf, BONE_DD, [rot(-r * 0.76, -r * 0.22),
+                            rot(-r * 0.16, -r * 0.52), rot(-r * 0.20, -r * 0.10)])
     elif idx == 5:
         # CLEAN ANGULAR RELIC: a faceted, hexagonal-leaning cranium (six flat
         # planes) — minimal damage. The angular outline is the differentiator.
@@ -367,9 +395,12 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
                rot(r * 0.60, r * 0.44), rot(-r * 0.60, r * 0.44)]
         triad_blob(surf, BONE, cap, ow=lw)
     elif idx == 4:
-        # BROAD-LOW brachycephalic vault — squat + wide (the icicle-jaw skull)
-        ell = pygame.Rect(0, 0, int(r * 2.22), int(r * 1.66))
-        ell.center = rot(0, -r * 0.04)
+        # BROAD-LOW brachycephalic vault — squat + wide (the icicle-jaw skull).
+        # WHY pushed broader + lower: it must stay a distinct BROAD-LOW dome at
+        # 32px, never a twin of the clean-angular relic (idx5) whose outline is
+        # tall-faceted; widening + flattening this one keeps the pair separable.
+        ell = pygame.Rect(0, 0, int(r * 2.42), int(r * 1.52))
+        ell.center = rot(0, r * 0.02)
         pygame.draw.ellipse(surf, INK, ell.inflate(lw * 2, lw * 2))
         pygame.draw.ellipse(surf, BONE, ell)
     else:
@@ -415,10 +446,14 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
             pygame.draw.circle(surf, INK, ec, max(1, int(r * 0.24)), max(1, fine))
         elif cobalt_socket:
             # DRAWN-FLAT cobalt-filled socket: flat cobalt disc set in the ink
-            # pit, dimmer than the third-eye, no additive blending whatsoever
+            # pit, dimmer than the third-eye, no additive blending whatsoever.
+            # WHY pulled ~one half-step darker/desaturated (toward COBALT_D): the
+            # two sockets read clearly cobalt in the hero, but at 32px they must
+            # stay SUBORDINATE to the third-eye and not flash as rival blue points
+            # beside it. Still flat-fill, no glow, count held at exactly two.
             pygame.draw.circle(surf, INK, ec, max(1, int(r * 0.30)))
             pygame.draw.circle(surf, COBALT_D, ec, max(1, int(r * 0.26)))
-            pygame.draw.circle(surf, COBALT, ec, max(1, int(r * 0.15)))
+            pygame.draw.circle(surf, lerp(COBALT, COBALT_D, 0.5), ec, max(1, int(r * 0.15)))
         else:
             pygame.draw.circle(surf, INK, ec, max(1, int(r * 0.27)))
 
@@ -896,7 +931,7 @@ def main():
 
     # ── hi-res standalone hero ────────────────────────────────────────────────
     hero_hi = render_hero_hires()
-    hero_path = os.path.join(here, "round_7_hero.png")
+    hero_path = os.path.join(here, "round_8_hero.png")
     pygame.image.save(hero_hi, hero_path)
 
     # ── the standard review sheet ─────────────────────────────────────────────
@@ -911,7 +946,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("#5 — JVALA-NIRMALA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "cool wisdom-flame dancer  ·  CITIPATI body + Mukha 6-arm fan · FULL-BODY cobalt cloth-of-flame ROBE (curled sheeting, NOT a ring) · 6 DISTINCTLY-CONSTRUCTED frost palm-skulls · round 7",
+        "cool wisdom-flame dancer  ·  CITIPATI body + Mukha 6-arm fan · FULL-BODY cobalt cloth-of-flame ROBE (curled sheeting, NOT a ring) · 6 DISTINCTLY-CONSTRUCTED frost palm-skulls · round 8",
         True, LABEL_DIM), (300, 26))
 
     # === (a) BIG HERO =========================================================
@@ -1017,10 +1052,10 @@ def main():
 
     pygame.draw.rect(sheet, PANEL, (14, 756, W - 28, 28))
     sheet.blit(font_sm.render(
-        "ELEVATED pipeline: SS=8 supersample -> smoothscale.  Standalone hi-res hero exported separately: round_7_hero.png (~1024px).",
+        "ELEVATED pipeline: SS=8 supersample -> smoothscale.  Standalone hi-res hero exported separately: round_8_hero.png (~1024px).",
         True, LABEL_DIM), (26, 762))
 
-    out = os.path.join(here, "round_7.png")
+    out = os.path.join(here, "round_8.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     print("wrote", hero_path)
