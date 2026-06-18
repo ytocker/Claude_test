@@ -214,31 +214,42 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
     sky. WHY `idx`: the six crown relics must read as six DISTINCT skulls, not one
     stamp repeated — so `idx` drives the CRANIUM SILHOUETTE (tall / round / squat /
     lopsided / heart-domed), suture style, brow + jaw set and a tooth-chip on one.
-    The variety lives in the OUTLINE (width/height/lean), so the scalloped arc reads
-    as distinct lumps at 32px, not only as interior lines. `lit` keeps the centre
-    relic's eyes cyan-tinted — the ONLY crown accent — but stays the DIMMEST tier
-    (no white core, no glow, no brightness bump); the gold-bezel cyan pip on the
-    pip-bearing relics is a DIM hue echo, not a focal."""
+    The variety lives in the OUTLINE (width/height/lean) AND the EYE-SET, so the
+    scalloped arc reads as six distinct SEERS at 32px, not only as interior lines.
+    Every relic's sockets hold gold-bezel cyan PUPILS keyed by `idx` (some hollow,
+    for winking/one-eyed relics). `lit` marks the centre relic as the 3rd LEAD seer:
+    the biggest, brightest crown gem-eyes — but capped at CYAN_BR with NO white core,
+    a clear value step under the brow third-eye, which is under the hero gem."""
     ow1 = max(1, int(1.6 * s))
     ow_thin = max(1, int(1.0 * s))
 
-    # ── per-relic silhouette table — the variety must read in the SHAPE ──
+    # ── per-relic SEER table — silhouette AND eye-set both carry the variety ──
     # cw/ch = cranium width/height stretch · lean = sideways skew of the dome ·
-    # heart = a notched/dimpled crown top · suture style · brow ridge? · jaw set ·
-    # pip = dim gold-bezel cyan bead? · chip = a broken tooth?
+    # heart = a notched/dimpled crown top · suture style · brow ridge? · jaw mode
+    # (set / plain / agape / cracked — 2-3 jaws differ so the lower half isn't
+    # uniform) · chip = a broken tooth. `eyes` = (left, right) gem-eye specs, each
+    # None (a hollow socket — blind/winking) or dict(g, dx, dy) for a gold-bezel
+    # cyan PUPIL. The LIT centre relic (idx 2) is the 3rd lead seer: the largest,
+    # brightest crown gem-eyes (`big`), but still a value step under the third-eye.
     CROWN_PROFILE = [
-        # 0: TALL narrow dome, gold-pip-beaded suture, set jaw
-        dict(cw=0.88, ch=1.18, lean=0.00, heart=False, sut="dots", brow=True,  jaw="set",   pip=True,  chip=False),
-        # 1: broad ROUND dome, zigzag suture, plain jaw
-        dict(cw=1.16, ch=0.96, lean=0.00, heart=False, sut="zig",  brow=False, jaw="plain", pip=False, chip=False),
-        # 2: SQUAT low dome (centre, lit) — heart-domed top, beaded suture, pip
-        dict(cw=1.10, ch=0.86, lean=0.00, heart=True,  sut="dots", brow=True,  jaw="set",   pip=True,  chip=False),
-        # 3: LOPSIDED dome leaning right, zigzag suture, chipped tooth
-        dict(cw=1.00, ch=1.02, lean=0.20, heart=False, sut="zig",  brow=True,  jaw="plain", pip=False, chip=True),
-        # 4: HEART-domed (notched crown), plain suture, narrow set jaw
-        dict(cw=1.02, ch=1.06, lean=-0.06, heart=True, sut="line", brow=False, jaw="set",   pip=False, chip=False),
-        # 5: lopsided SQUAT dome leaning left, zigzag suture, broad plain jaw
-        dict(cw=1.08, ch=0.92, lean=-0.18, heart=False, sut="zig", brow=True,  jaw="plain", pip=False, chip=True),
+        # 0: TALL narrow dome — a CALM level staring pair, mid gems, set jaw
+        dict(cw=0.88, ch=1.18, lean=0.00, heart=False, sut="dots", brow=True,  jaw="set",   chip=False,
+             eyes=(dict(g=0.72, dy=0.00), dict(g=0.72, dy=0.00))),
+        # 1: broad ROUND dome — a WINKING relic (left hollow), AGAPE jaw
+        dict(cw=1.16, ch=0.96, lean=0.00, heart=False, sut="zig",  brow=False, jaw="agape", chip=False,
+             eyes=(None, dict(g=0.80, dy=-0.06))),
+        # 2: SQUAT centre (LIT lead seer) — heart top, FULL BIG staring pair, set jaw
+        dict(cw=1.10, ch=0.86, lean=0.00, heart=True,  sut="dots", brow=True,  jaw="set",   chip=False,
+             eyes=(dict(g=0.94, dy=-0.04), dict(g=0.94, dy=-0.04))),
+        # 3: LOPSIDED right-lean — a CROSS-EYED relic (gems set inward), chip, plain jaw
+        dict(cw=1.00, ch=1.02, lean=0.20, heart=False, sut="zig",  brow=True,  jaw="plain", chip=True,
+             eyes=(dict(g=0.70, dx=0.34, dy=0.10), dict(g=0.70, dx=-0.34, dy=0.10))),
+        # 4: HEART-domed notch — a PINPOINT pair (tiny gems set high), CRACKED jaw
+        dict(cw=1.02, ch=1.06, lean=-0.06, heart=True, sut="line", brow=False, jaw="cracked", chip=False,
+             eyes=(dict(g=0.46, dy=-0.10), dict(g=0.46, dy=-0.10))),
+        # 5: lopsided SQUAT left-lean — a ONE-EYED relic (right hollow), chip, plain jaw
+        dict(cw=1.08, ch=0.92, lean=-0.18, heart=False, sut="zig", brow=True,  jaw="plain", chip=True,
+             eyes=(dict(g=0.82, dy=-0.02), None)),
     ]
     p = CROWN_PROFILE[idx % len(CROWN_PROFILE)]
     cw, ch, lean = p["cw"], p["ch"], p["lean"]
@@ -289,27 +300,52 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
                          (int(cx - r * 0.46), int(cy - r * 0.02)),
                          (int(cx + r * 0.46), int(cy - r * 0.02)), max(1, int(1.3 * s)))
 
-    # jaw — per-profile: a SET stub (narrow, tucked) or a PLAIN wider bar
+    # jaw — per-profile: SET stub / PLAIN bar / AGAPE (dropped, gap) / CRACKED stub.
+    # WHY 4 modes: varying the lower half keeps the 6-relic arc from reading as one
+    # jaw stamped six times (quiet sutures otherwise carry the upper variety).
+    jaw_open = (p["jaw"] == "agape")
     if p["jaw"] == "set":
         jaw = [(cx - r * 0.44, cy + r * 0.52), (cx + r * 0.44, cy + r * 0.52),
                (cx + r * 0.26, cy + r * 0.98), (cx - r * 0.26, cy + r * 0.98)]
-    else:
+    elif p["jaw"] == "agape":
+        # a dropped, gaping jaw — an ink gap above a lowered jaw bone
+        pygame.draw.polygon(surf, INK, [(int(cx - r * 0.40), int(cy + r * 0.50)),
+                                        (int(cx + r * 0.40), int(cy + r * 0.50)),
+                                        (int(cx + r * 0.30), int(cy + r * 0.84)),
+                                        (int(cx - r * 0.30), int(cy + r * 0.84))])
+        jaw = [(cx - r * 0.40, cy + r * 0.84), (cx + r * 0.40, cy + r * 0.84),
+               (cx + r * 0.26, cy + r * 1.22), (cx - r * 0.26, cy + r * 1.22)]
+    elif p["jaw"] == "cracked":
+        # one corner snapped off — an asymmetric stub
+        jaw = [(cx - r * 0.50, cy + r * 0.50), (cx + r * 0.30, cy + r * 0.50),
+               (cx + r * 0.10, cy + r * 0.96), (cx - r * 0.40, cy + r * 1.02)]
+    else:   # plain — a wider square bar
         jaw = [(cx - r * 0.54, cy + r * 0.50), (cx + r * 0.54, cy + r * 0.50),
                (cx + r * 0.38, cy + r * 1.02), (cx - r * 0.38, cy + r * 1.02)]
     triad_blob(surf, CROWN_BONE, [(int(x), int(y)) for x, y in jaw], ow=max(1, int(1.2 * s)))
 
-    # two dark sockets (the lit centre relic gets a dim cyan tint, no glow)
-    eye_c = CYAN_D if lit else INK
-    for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
-        pygame.draw.circle(surf, INK, (ex, cy + int(r * 0.04)), max(1, int(r * 0.24)))
-        if lit:
-            pygame.draw.circle(surf, eye_c, (ex, cy + int(r * 0.04)), max(1, int(r * 0.12)))
+    # SEER sockets — gem-EYES set into the crown relics' pits (this version's idea).
+    # Each pit starts as the dark socket; the `eyes` table decides which receive a
+    # gold-bezel cyan PUPIL (hollow = a blind/winking relic). The LIT centre relic
+    # carries the BIG lead-seer gems — still a clear step under the brow third-eye.
+    crown_socket_r = r * 0.24
+    eye_specs = p.get("eyes", (None, None))
+    for slot, sgn in ((0, -1), (1, 1)):
+        ex = cx + sgn * int(r * 0.38)
+        ey = cy + int(r * 0.04)
+        pygame.draw.circle(surf, INK, (ex, ey), max(1, int(crown_socket_r)))
+        spec = eye_specs[slot]
+        if spec is not None:
+            gem_eye(surf, ex, ey, crown_socket_r, s,
+                    g=spec.get("g", 0.72), dx=spec.get("dx", 0.0),
+                    dy=spec.get("dy", 0.0), big=lit)
 
     # nasal pit
     pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.13)))
 
-    # tooth line — a short bar with a couple of slits; the chip profiles drop one
-    ty = cy + int(r * 0.70)
+    # tooth line — a short bar with a couple of slits; the chip profiles drop one.
+    # On an agape relic the teeth ring higher so they edge the open gap.
+    ty = cy + int(r * (0.56 if jaw_open else 0.70))
     pygame.draw.line(surf, INK, (cx - int(r * 0.32), ty), (cx + int(r * 0.32), ty),
                      max(1, int(1.2 * s)))
     for j in range(3):
@@ -319,62 +355,88 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
         pygame.draw.line(surf, INK, (tx, ty - int(r * 0.08)), (tx, ty + int(r * 0.10)),
                          max(1, int(1.0 * s)))
 
-    # DIM gold-bezel cyan brow pip on the pip-bearing relics (incl. the lit centre)
-    # — a hue echo of her bead identity, kept the dimmest tier (GOLD_D + CYAN_D, no
-    # white core, no glow) so the third-eye stays the single brightest pixel.
-    if p["pip"]:
-        bg_y = cy - int(r * 0.28)
-        pygame.draw.circle(surf, GOLD_D, (cx, bg_y), max(1, int(r * 0.18)))
-        pygame.draw.circle(surf, CYAN_D, (cx, bg_y), max(1, int(r * 0.11)))
 
-
-# ── a small CYAN cabochon inlay — the palm-gem (DIM tier, gold bezel) ─────────
-def palm_cabochon(surf, c, r, s):
-    """A gold-bezel cyan CABOCHON inlay set into a palm-skull's brow. WHY a clear
-    value step BELOW the focal third-eye: the brow gem must stay the single
-    brightest pixel, so this inlay caps at CYAN_BR for a tiny rim glint only — NO
-    white-hot core — and rides a warm GOLD bezel so it reads as jewel-set bone,
-    matching her bead identity rather than competing with the third-eye."""
-    cx, cy = int(c[0]), int(c[1])
-    # warm gold bezel ring first (the setting), then the domed cyan stone inside
-    triad_circle(surf, GOLD, (cx, cy), r + max(1, int(0.9 * s)),
-                 ow=max(1, int(1.0 * s)), core=False, sheen=False)
-    pygame.draw.circle(surf, INK, (cx, cy), r)
-    pygame.draw.circle(surf, CYAN_D, (cx, cy), max(1, r - max(1, int(0.6 * s))))
-    pygame.draw.circle(surf, CYAN, (cx, cy), max(1, int(r * 0.66)))
-    # a single small rim glint (capped at CYAN_BR — never the focal white core)
-    pygame.draw.circle(surf, CYAN_BR, (cx - int(r * 0.30), cy - int(r * 0.32)),
-                       max(1, int(r * 0.26)))
+# ── a gem-EYE — a gold-bezel cyan cabochon PUPIL set into a socket pit ────────
+def gem_eye(surf, ecx, ecy, socket_r, s, g=0.74, dx=0.0, dy=0.0, big=False):
+    """A jewelled SEER pupil: a domed cyan cabochon ringed by a warm GOLD bezel,
+    seated INSIDE the dark socket pit so the gem reads as a staring eye, not a
+    hollow. WHY this is the whole version's idea: the socket pit is kept dark
+    around the stone (the eye-white is ink) so the cabochon is the contained cyan
+    accent. `g` scales the stone from big-eyed (≈0.95) down to a pinpoint stare
+    (≈0.5); `dx/dy` slide the pupil within the socket (cross-eyed / high / low).
+    LADDER GUARD: capped at CYAN_BR for a tiny rim glint only — NO white-hot core,
+    smaller + dimmer than the brow third-eye; `big` (the 3 lead seers) only widens
+    the stone toward the socket rim, never adds brightness above the third-eye."""
+    ox = int(socket_r * dx)
+    oy = int(socket_r * dy)
+    gx, gy = ecx + ox, ecy + oy
+    r = max(2, int(socket_r * (0.84 if big else 0.72) * g))
+    # warm gold bezel ring (the setting) seated in the dark pit
+    pygame.draw.circle(surf, INK, (gx, gy), r + max(1, int(0.9 * s)))
+    pygame.draw.circle(surf, GOLD_D, (gx, gy), r + max(1, int(0.6 * s)))
+    pygame.draw.circle(surf, GOLD, (gx, gy), r)
+    pygame.draw.circle(surf, GOLD_BR, (gx - int(r * 0.30), gy - int(r * 0.34)),
+                       max(1, int(r * 0.22)))
+    # the domed cyan stone inside the bezel — dark rim → cyan body, no white core
+    stone = max(1, int(r * 0.70))
+    pygame.draw.circle(surf, INK, (gx, gy), stone + max(1, int(0.5 * s)))
+    pygame.draw.circle(surf, CYAN_D, (gx, gy), stone)
+    pygame.draw.circle(surf, CYAN, (gx, gy), max(1, int(stone * 0.70)))
+    if big:                       # the lead seers get a touch more cyan body…
+        pygame.draw.circle(surf, CYAN, (gx, gy), max(1, int(stone * 0.82)))
+    # …but the glint is the brightest it ever reaches (a step below the third-eye)
+    pygame.draw.circle(surf, CYAN_BR, (gx - int(stone * 0.32), gy - int(stone * 0.34)),
+                       max(1, int(stone * 0.26)))
 
 
 # ── a tiny skull cradled in an open palm (the brood MOTIF) ────────────────────
-def palm_skull(surf, cx, cy, r, s, idx=0):
-    """An open BONE palm cradling a CRAFTED reliquary skull. WHY both pieces: the
-    brood motif is six open palms EACH holding a skull at the fan tips. WHY the
+def palm_skull(surf, cx, cy, r, s, idx=0, inner=False):
+    """An open BONE palm cradling a CRAFTED reliquary SEER skull. WHY both pieces:
+    the brood motif is six open palms EACH holding a skull at the fan tips. WHY the
     `idx`: this sister's skulls are the most ORNAMENTED of the brood and must read
     as six DISTINCT individuals, not one dome re-tilted — so `idx` drives cranium
-    shape, jaw set, tilt, tooth count/chips, suture pattern and ornament. 2-3 of
-    the six carry a DIM gold-bezel cyan cabochon (a value step below the focal
-    brow gem) to lean into the jewel-set-bone look. MID value tier: pale BEAD bone,
-    brighter than the crown skulls, dimmer than the third-eye."""
+    shape, jaw set, tilt, tooth count/chips, suture pattern and EYE-SET. Every skull
+    is a SEER: its sockets hold gold-bezel cyan cabochon PUPILS (some hollow, for
+    one-eyed / winking stares). `inner` flags the two INNERMOST palm skulls, which
+    carry the LARGEST gem-eyes (with the crown-centre relic = the 3 lead seers).
+    MID value tier: pale BEAD bone, brighter than the crown skulls; every gem-eye
+    sits a clear value step BELOW the brow third-eye (which is below the hero gem)."""
     ow1 = max(1, int(1.4 * s))
     ow_thin = max(1, int(1.0 * s))
 
-    # ── per-skull personality table (six genuinely distinct little skulls) ──
-    # tilt(rad), cranium x/y stretch, jaw mode, n_teeth, suture style, gem?, chip?
+    # ── per-skull SEER table — the EYE-SET carries the read ──────────────────
+    # WHY gem-eyes (not socket pits): in GEM-EYED-ORACLE every palm skull is a
+    # SEER whose PUPILS are little gold-bezel cyan cabochons set INTO the sockets.
+    # `eyes` keys the stare per-skull: a (left, right) pair of eye specs, each
+    # either None (a hollow ink socket — a blind/winking eye) or a dict with the
+    # gem-eye's size `g` (fraction of socket_r → big-eyed down to pinpoint) and
+    # vertical set `dy` (gem riding high / low in the socket). Asymmetric pairs =
+    # cross-eyed / one-eyed / winking seers. `inner` flags the two INNERMOST palm
+    # skulls that carry the LARGEST gem-eyes (with crown-centre = the 3 biggest).
+    # tilt(rad), cranium x/y stretch, jaw mode, n_teeth, suture style, eyes, chip?
+    # NOTE on ordering: the fan sorts hands sign→-spread, so idx 2 & 5 are the two
+    # INNERMOST skulls (the lead seers, `inner=True`) — they get bold STARING pairs
+    # so the biggest gem-eyes land where the read is strongest, not on a winking eye.
     PROFILE = [
-        # 0: tall egg-dome, jaw agape (open mouth), zigzag suture, GEM in brow
-        dict(tilt=-0.16, cw=0.96, ch=1.12, jaw="agape", teeth=5, sut="zig", gem=True,  chip=False),
-        # 1: broad round skull, closed jaw, bead-dotted suture, GOLD pips only
-        dict(tilt= 0.10, cw=1.14, ch=0.96, jaw="closed", teeth=6, sut="dots", gem=False, chip=False),
-        # 2: narrow tilted skull, jaw cracked off (asymmetric stub), GEM-lit socket
-        dict(tilt=-0.30, cw=0.88, ch=1.04, jaw="cracked", teeth=3, sut="zig", gem="socket", chip=True),
-        # 3: squat low dome, jaw agape wide, straight suture line, GOLD pips
-        dict(tilt= 0.06, cw=1.06, ch=0.90, jaw="agape", teeth=7, sut="line", gem=False, chip=False),
-        # 4: tall narrow skull, closed jaw, bead-dotted suture, GEM in brow
-        dict(tilt= 0.22, cw=0.90, ch=1.10, jaw="closed", teeth=5, sut="dots", gem=True,  chip=False),
-        # 5: lopsided cranium, jaw cracked off, zigzag suture, GOLD pips + chipped
-        dict(tilt=-0.08, cw=1.02, ch=1.00, jaw="cracked", teeth=4, sut="zig", gem=False, chip=True),
+        # 0: tall egg-dome, jaw agape — a WIDE staring pair, gems set high, big-eyed
+        dict(tilt=-0.16, cw=0.96, ch=1.12, jaw="agape", teeth=5, sut="zig", chip=False,
+             eyes=(dict(g=0.90, dy=-0.18), dict(g=0.90, dy=-0.18))),
+        # 1: broad round skull, set jaw — a ONE-EYED seer (right socket hollow)
+        dict(tilt= 0.10, cw=1.14, ch=0.96, jaw="closed", teeth=6, sut="dots", chip=False,
+             eyes=(dict(g=0.84, dy=-0.02), None)),
+        # 2: INNERMOST lead seer — narrow tilt, cracked jaw, FULL staring pair (big)
+        dict(tilt=-0.30, cw=0.88, ch=1.04, jaw="cracked", teeth=3, sut="zig", chip=True,
+             eyes=(dict(g=0.96, dy=-0.04), dict(g=0.96, dy=-0.04))),
+        # 3: squat low dome, jaw agape wide — a CROSS-EYED seer (gems set inward/low)
+        dict(tilt= 0.06, cw=1.06, ch=0.90, jaw="agape", teeth=7, sut="line", chip=False,
+             eyes=(dict(g=0.78, dy=0.12, dx=0.32), dict(g=0.78, dy=0.12, dx=-0.32))),
+        # 4: tall narrow skull, set jaw — PINPOINT stare, tiny gems set low
+        dict(tilt= 0.22, cw=0.90, ch=1.10, jaw="closed", teeth=5, sut="dots", chip=False,
+             eyes=(dict(g=0.48, dy=0.16), dict(g=0.48, dy=0.16))),
+        # 5: INNERMOST lead seer — lopsided cracked-jaw chip, FULL staring pair (big),
+        #    but ASYMMETRIC set (left low / right high) so the two leads aren't twins
+        dict(tilt=-0.08, cw=1.02, ch=1.00, jaw="cracked", teeth=4, sut="zig", chip=True,
+             eyes=(dict(g=0.92, dy=0.10), dict(g=0.92, dy=-0.14))),
     ]
     p = PROFILE[idx % len(PROFILE)]
     t = p["tilt"]
@@ -455,20 +517,27 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
               rot(cr * 0.52, cr * 0.56), rot(cr * 0.18, cr * 0.50)]
     pygame.draw.polygon(surf, BONE_D, [(int(x), int(y)) for x, y in hollow])
 
-    # ── deep ink sockets with a CARVED rim (a bone ring around each pit) ──
+    # ── SEER sockets — gem-EYES set into the pits (this version's whole idea) ──
+    # WHY both rendered the same way then over-painted: every socket starts as the
+    # carved-rim dark pit (so a HOLLOW eye reads as a blind/winking socket), and the
+    # `eyes` table decides which pits receive a gold-bezel cyan cabochon PUPIL. The
+    # asymmetry of the pair (one None, gems set high/low/inward, big→pinpoint) is the
+    # expression. The two INNERMOST palm skulls (`inner`) carry the LARGEST gem-eyes.
     socket_r = cr * 0.30
-    for sgn in (-1, 1):
+    eye_specs = p["eyes"]
+    for slot, sgn in ((0, -1), (1, 1)):
         ecx, ecy = rot(sgn * cr * 0.40, cr * 0.14)
         ecx, ecy = int(ecx), int(ecy)
-        # carved bone rim (a ring) then the deep ink pit
+        # carved bone rim (a ring) then the deep ink pit (the eye-white is dark)
         pygame.draw.circle(surf, BONE_D, (ecx, ecy), int(socket_r + max(1, 1.2 * s)))
         pygame.draw.circle(surf, INK, (ecx, ecy), int(socket_r))
         pygame.draw.circle(surf, BONE_DD, (ecx, ecy), int(socket_r * 0.62))
         pygame.draw.circle(surf, INK, (ecx, ecy), int(socket_r * 0.34))
-    # a profile may light ONE socket with the dim cyan inlay instead of a brow gem
-    if p["gem"] == "socket":
-        scx2, scy2 = rot(-cr * 0.40, cr * 0.14)
-        palm_cabochon(surf, (scx2, scy2), max(2, int(socket_r * 0.66)), s)
+        spec = eye_specs[slot]
+        if spec is not None:
+            gem_eye(surf, ecx, ecy, socket_r, s,
+                    g=spec.get("g", 0.74), dx=spec.get("dx", 0.0),
+                    dy=spec.get("dy", 0.0), big=inner)
 
     # nasal aperture — an inverted ink teardrop between/below the sockets
     n_top = rot(0, cr * 0.30)
@@ -515,11 +584,6 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
         tp1 = rot(fx, teeth_y1)
         pygame.draw.line(surf, INK, (int(tp0[0]), int(tp0[1])),
                          (int(tp1[0]), int(tp1[1])), max(1, int(1.0 * s)))
-
-    # ── brow CABOCHON — the dim cyan jewel for the gem-bearing profiles ──
-    if p["gem"] is True:
-        gx, gy = rot(0, -cr * 0.20)
-        palm_cabochon(surf, (gx, gy), max(2, int(cr * 0.26)), s)
 
 
 # ── the Mukha-Devi six-arm radial fan (cloned; bead-armlet wrapped) ───────────
@@ -780,10 +844,13 @@ def draw_asthi_dakini(surf, cx, cy, s):
 
     # === SIX PALM-SKULLS — one cradled in every fan hand (the brood MOTIF) ====
     # WHY enumerate: each hand gets a DISTINCT `idx` so the six read as six
-    # individual reliquary skulls (cranium/jaw/teeth/suture/gem vary per idx),
-    # making this sister's brood the most ornamented of the set.
+    # individual reliquary SEERS (cranium/jaw/teeth/suture/eye-set vary per idx).
+    # WHY innermost: the fan hands are sorted sign→-spread, so the two smallest-
+    # spread (innermost) hands sit at idx 2 and 5 — they carry the LARGEST gem-eyes
+    # (the lead seers with the crown-centre relic), while the aggregate small cyan
+    # stays well under the hero gem.
     for i, (hx, hy, a) in enumerate(hands):
-        palm_skull(surf, hx, hy, int(hr * 0.36), s, idx=i)
+        palm_skull(surf, hx, hy, int(hr * 0.36), s, idx=i, inner=(i in (2, 5)))
 
     # === BEADED GIRDLE — the 32px-CARRYING element (bold rows across the hips) =
     # WHY this is the silhouette element: a wide bold double-row bead-girdle slung
