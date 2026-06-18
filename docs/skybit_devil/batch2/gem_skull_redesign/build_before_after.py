@@ -51,7 +51,7 @@ ROWS = [
             "mode": "gradient",
         },
         "after": {
-            "file": "docs/skybit_devil/batch2/mukha_citipati_court/asthi_dakini/round_7_hero.png",
+            "file": "docs/skybit_devil/batch2/mukha_citipati_court/asthi_dakini/round_8_hero.png",
             "mode": "gradient",
         },
     },
