@@ -52,7 +52,11 @@ JADE_BR   = ( 96, 200, 140)   # jade scale-highlight / sheen
 JADE_D    = ( 14,  68,  50)   # deep jade shade / underside
 # the carrier stripe is darker/more saturated still — at true 32px the thread
 # must read as a SOLID dark-jade diagonal by value, not a pale-green sliver.
-JADE_CAR  = ( 22,  96,  66)   # the 32px thread-carrier fill (bold, dark stripe)
+# pushed DARKER + more saturated still (the gate fix): at true 32px the thread is
+# the ONE ornament that must survive the smoothscale, so the carrier fill is a deep
+# saturated jade that holds a hard value gap below the warm bone after downscale —
+# it reads as a directional stripe, never averaging out to a pale mid-green.
+JADE_CAR  = ( 16,  82,  56)   # the 32px thread-carrier fill (bold, dark stripe)
 VERD      = ( 26,  96,  86)   # verdigris (darker, the choker + 2nd snake body)
 VERD_BR   = ( 70, 160, 146)
 VERD_D    = ( 14,  58,  52)
@@ -468,38 +472,39 @@ def draw_naga_kapali(surf, cx, cy, s):
                      (rc_cx, rc_cy + int(6 * s)), max(1, int(2 * s)))
 
     # === NAGA SACRED-THREAD — the bold green diagonal upavita (32px CARRIER) ==
-    # WHY this is the silhouette-carrier: a single thick green diagonal band from
-    # the left shoulder across the chest to the right hip. It is the one ornament
-    # that survives the downscale, so it is drawn as a continuous fat coil with a
-    # dark underside (value-read), gold knots, and a serpent-tail terminus.
-    th_top = (rc_cx - int(rc_w * 0.62), rc_cy - rc_h // 2 - int(2 * s))
-    th_mid = (rc_cx + int(2 * s), rc_cy + int(4 * s))
-    th_bot = (hip_cx + int(20 * s), hip_y + int(12 * s))
+    # WHY this is the silhouette-carrier: a single thick green BAR running the FULL
+    # torso, from the LEFT SHOULDER (top of the ribcage) straight down to the
+    # OPPOSITE (right) HIP, then continuing unbroken across the pelvis into the
+    # wrap. It is the ONE ornament that survives the downscale (the gate), so it is
+    # drawn as one continuous fat dark-jade coil — a TRUE corner-to-corner diagonal,
+    # not a mid-chest stub.
+    # WHY the geometry change (the gate fix): round 2's band started inside the
+    # ribcage and drifted only to mid-chest, so at 32px it collapsed to a hip blob
+    # with no diagonal. The top anchor now sits at the OUTER TOP of the left
+    # shoulder and the path runs as a near-straight ramp to the far hip — a single
+    # directional ramp that smoothscale can't flatten into a blob.
+    th_top = (rc_cx - int(rc_w * 0.74), rc_cy - rc_h // 2 - int(7 * s))
+    th_mid = (rc_cx + int(rc_w * 0.04), rc_cy + int(3 * s))
+    th_bot = (hip_cx + int(20 * s), hip_y + int(11 * s))
+    th_tail = (hip_cx + int(15 * s), hip_y + int(34 * s))   # carries onto the thigh
     thread_pts = [th_top,
-                  (rc_cx - int(rc_w * 0.2), rc_cy - int(8 * s)),
+                  (rc_cx - int(rc_w * 0.36), rc_cy - int(14 * s)),
                   th_mid,
-                  (rc_cx + int(rc_w * 0.34), rc_cy + int(14 * s)),
-                  th_bot]
-    # WHY wider + the darker carrier fill (the carrier-survives-32px fix): at true
-    # 32px this band is the named silhouette carrier, so it is widened to ~14 units
-    # (≈1px more at gameplay scale) and filled with JADE_CAR — a solid dark-jade
-    # stripe that holds value contrast against bone after the smoothscale.
-    serpent_band(surf, thread_pts, int(14 * s), s,
+                  (rc_cx + int(rc_w * 0.32), rc_cy + int(16 * s)),
+                  th_bot,
+                  (hip_cx + int(18 * s), hip_y + int(22 * s)),
+                  th_tail]
+    # WHY a single unbroken band through the hip (items #1 + #2 in one stroke): the
+    # diagonal and the hip-wrap are now ONE poly-line, so the jade reads as a
+    # continuous line down the whole lower body — no seam, no bare hip zone at 32px.
+    # WHY wider still (~17 units, ≈1px more at gameplay scale than round 2's 14) and
+    # filled with the darker JADE_CAR: at true 32px the band must occupy a clear
+    # diagonal corridor of dark pixels that beats the warm bone by value.
+    serpent_band(surf, thread_pts, int(17 * s), s,
                  body=JADE_CAR, body_d=JADE_D, body_br=JADE_BR, scales=True)
-    # WHY a jade hip-wrap continues the thread DOWN over the pelvis (the lower-body
-    # density fix): in round 1 the legs/hip zone read naked at 32px once fine motifs
-    # collapsed. The carrier thread now wraps the hip as a second bold dark-jade
-    # band before the serpent-tail flicks off — so the green reaches the lower
-    # silhouette and no zone is bare at gameplay scale.
-    hip_wrap = [(hip_cx - int(18 * s), hip_y + int(4 * s)),
-                (hip_cx - int(4 * s), hip_y + int(11 * s)),
-                (hip_cx + int(12 * s), hip_y + int(10 * s)),
-                th_bot]
-    serpent_band(surf, hip_wrap, int(11 * s), s,
-                 body=JADE_CAR, body_d=JADE_D, body_br=JADE_BR, scales=False)
-    # serpent-tail terminus flicking off the hip
-    serpent_head(surf, th_bot[0], th_bot[1], int(7 * s), s,
-                 math.radians(40), body=JADE, body_br=JADE_BR, body_d=JADE_D)
+    # serpent-tail terminus flicking off the thigh (end of the unbroken line)
+    serpent_head(surf, th_tail[0], th_tail[1], int(7 * s), s,
+                 math.radians(58), body=JADE, body_br=JADE_BR, body_d=JADE_D)
 
     # === SECOND SNAKE as a CHOKER + gold kapala cups (HERO-only ornament) =====
     # the choker rings the throat just under the jaw — verdigris (darker) so it
@@ -516,7 +521,8 @@ def draw_naga_kapali(surf, cx, cy, s):
     # gold kapala skull-cups knotted at the thread joints (hero-only)
     kapala_cup(surf, th_mid[0] + int(2 * s), th_mid[1] + int(2 * s), int(7 * s), s)
     kapala_cup(surf, th_top[0], th_top[1], int(6 * s), s)
-    # gold knot beads where the thread crosses
+    # gold knot beads where the thread crosses (kept on the upper + mid run so the
+    # gold cup-knot stays the hero accent the AD signed off on)
     for (kx, ky) in (th_top, th_mid, th_bot):
         triad_circle(surf, GOLD, (kx, ky), max(2, int(3 * s)),
                      ow=max(1, int(1 * s)), core=False)
@@ -535,15 +541,18 @@ def draw_naga_kapali(surf, cx, cy, s):
     # value ladder (the focal fix). Round 1's big black voids out-massed the amber
     # pixel; now each socket is smaller, carries a mid-value bone rim around the
     # void, and holds only a tiny dark-jade glint (no hot core) so at 32px the
-    # single amber slit is the unmistakable brightest mark.
+    # single amber slit is the unmistakable brightest mark. WHY one more notch down
+    # (~13%): at true 32px the orbit voids still rivalled the amber for area and
+    # could split the focal in motion, so the void/rim shrink one step so the amber
+    # third-eye clearly OUT-SIZES each socket.
     for sgn in (-1, 1):
         ex = head_c[0] + sgn * int(hr * 0.46)
         ey = head_c[1] + int(hr * 0.16)
-        pygame.draw.circle(surf, BONE_D, (ex, ey), int(hr * 0.27))   # mid-value rim
-        pygame.draw.circle(surf, BONE_DD, (ex, ey), int(hr * 0.22))
-        pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.17))      # smaller void
+        pygame.draw.circle(surf, BONE_D, (ex, ey), int(hr * 0.235))  # mid-value rim
+        pygame.draw.circle(surf, BONE_DD, (ex, ey), int(hr * 0.19))
+        pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.148))     # smaller void
         pygame.draw.circle(surf, JADE_D, (ex + sgn * int(1 * s), ey + int(1 * s)),
-                           max(1, int(hr * 0.07)))
+                           max(1, int(hr * 0.06)))
     # THIRD EYE — the single BRIGHTEST pixel: a vertical AMBER slit on the brow
     tex, tey = head_c[0], head_c[1] - int(hr * 0.40)
     pygame.draw.ellipse(surf, INK, (tex - int(6 * s), tey - int(8 * s), int(12 * s), int(16 * s)))
@@ -733,7 +742,7 @@ def render_hero_png(path):
 
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
-    render_hero_png(os.path.join(here, "round_2_hero.png"))
+    render_hero_png(os.path.join(here, "round_3_hero.png"))
 
     W, H = 1040, 860
     font_big = _font(30)
@@ -747,7 +756,7 @@ def main():
     sheet.blit(font_big.render("NAGA-KAPALI", True, LABEL), (24, 12))
     sheet.blit(font_sm.render(
         "serpent-thread skull-priest  ·  CITIPATI body + Mukha 6-arm fan · jade naga-thread + verdigris · "
-        "amber third-eye · 3-layer fusion crown · round 2",
+        "amber third-eye · 3-layer fusion crown · round 3 (FINAL)",
         True, LABEL_DIM), (250, 24))
 
     # === (a) BIG HERO =========================================================
@@ -755,7 +764,7 @@ def main():
     sheet.blit(hero, (14, 88))
     sheet.blit(font.render("Creature — hero (SS=8)", True, LABEL), (96, 590))
     sheet.blit(font_sm.render("Mukha 6-arm fan, each open palm cradling a TINY SKULL; CITIPATI cocked-hip torso.", True, LABEL_DIM), (14, 614))
-    sheet.blit(font_sm.render("Wider dark-jade naga-thread diagonal + jade hip-wrap + verdigris choker + gold kapala cups.", True, LABEL_DIM), (14, 630))
+    sheet.blit(font_sm.render("ONE unbroken dark-jade diagonal: shoulder -> opposite hip -> thigh + verdigris choker + gold kapala cups.", True, LABEL_DIM), (14, 630))
     sheet.blit(font_sm.render("3-LAYER crown: 5-skull arc (top) + tiara-band (brow) + rearing naga-hood (centre). Amber 3-eye wins.", True, LABEL_DIM), (14, 646))
 
     # === (b) PILLAR assembled — mirrored, from the sister's own forms =========
@@ -857,10 +866,10 @@ def main():
         True, LABEL_DIM), (26, 815))
     sheet.blit(font_sm.render(
         "VALUE LADDER: amber third-eye (brightest) -> 6 palm-skulls (mid) -> crown skulls (dimmest).  "
-        "32px CARRIER: the bold dark-jade diagonal naga-thread + the dark naga-hood crown.",
+        "32px CARRIER: the bold dark-jade FULL-TORSO diagonal naga-thread (shoulder->opposite hip->thigh) + the dark naga-hood crown.",
         True, LABEL_DIM), (26, 831))
 
-    out = os.path.join(here, "round_2.png")
+    out = os.path.join(here, "round_3.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
