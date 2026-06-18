@@ -74,7 +74,11 @@ def font(sz):
 # COOLER / GREENER cast (B nudged up, R pulled down so R≈G>B instead of R>G>B) so
 # the "ancient / unearthed" read lands even at 32px — but it stays clearly BONE,
 # not green: a grey-green ivory, never sage. Hollows still go near-neutral dark.
-BONE      = (198, 200, 184)   # ancient grey-green ivory (the dominant LIGHT field)
+# lit plane brightened ~10% toward the rim-sheen so the lower-half bone limbs hold
+# their value against the BRIGHT day sky and don't muddy/soften into it; the dark
+# INK keyline that holds the silhouette on the NIGHT chip is untouched, so night
+# stays read-clean while the day chip's body gains separation.
+BONE      = (212, 214, 198)   # ancient grey-green ivory (the dominant LIGHT field)
 BONE_D    = (144, 148, 132)   # bone shade / mid-core (cooler)
 BONE_DD   = ( 84,  88,  78)   # deepest bone hollow (sockets, rib gaps) — stays dark
 BONE_SH   = (228, 230, 218)   # bone top-left rim-sheen (cool near-white)
@@ -251,29 +255,41 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
     # THIS relic (crust from a socket edge / temple-streak / verdigris suture-studs /
     # a patina-EATEN socket altering the silhouette / pitting / heavy bloom). The 6
     # crown relics weather DIFFERENTLY from each other AND from the 6 palm skulls.
+    # `bite` carves a chunk OUT of the cranium silhouette (a centuries-collapsed
+    # skull) so the crown bead-row TOP EDGE reads broken/non-repeating at 32px, not
+    # a uniform scallop. side = which temple/crown is gone (-1 L / 1 R / 0 crown-cap),
+    # depth = how deep the collapse eats toward the dome centre. The fine-crust
+    # weathering (eros) stays, but THIS is the silhouette-level damage.
     CROWN_PROFILE = [
-        # 0: TALL narrow dome, set jaw; verdigris suture-STUDS + L socket crust
+        # 0: TALL narrow dome — CROWN-CAP knocked off (flat-topped, missing vault)
         dict(cw=0.88, ch=1.18, lean=0.00, heart=False, sut="dots", brow=True,  jaw="set",   pip=True,  chip=False,
+             bite=dict(side=0, depth=0.46),
              eros=dict(crust=-1, streak=0,  studs=True,  eaten=0,  pit=False, bloom=False)),
-        # 1: broad ROUND dome, plain jaw; R temple-STREAK + pitting
+        # 1: broad ROUND dome, plain jaw; R temple-STREAK + pitting; L socket BITTEN
         dict(cw=1.16, ch=0.96, lean=0.00, heart=False, sut="zig",  brow=False, jaw="plain", pip=False, chip=False,
-             eros=dict(crust=0,  streak=1,  studs=False, eaten=0,  pit=True,  bloom=False)),
+             bite=None,
+             eros=dict(crust=0,  streak=1,  studs=False, eaten=-1, pit=True,  bloom=False)),
         # 2: SQUAT heart-dome (CENTRE, lit) — MOST bloomed: both sockets + crust patch
         dict(cw=1.10, ch=0.86, lean=0.00, heart=True,  sut="dots", brow=True,  jaw="set",   pip=True,  chip=False,
+             bite=None,
              eros=dict(crust=0,  streak=0,  studs=True,  eaten=0,  pit=True,  bloom=True)),
-        # 3: LOPSIDED dome leaning right, chipped; R socket EATEN (silhouette bite)
+        # 3: LOPSIDED dome leaning right — R TEMPLE COLLAPSED (chunk out of silhouette)
         dict(cw=1.00, ch=1.02, lean=0.20, heart=False, sut="zig",  brow=True,  jaw="plain", pip=False, chip=True,
+             bite=dict(side=1, depth=0.58),
              eros=dict(crust=0,  streak=-1, studs=False, eaten=1,  pit=False, bloom=False)),
-        # 4: HEART-domed, set jaw; L socket crust + verdigris studs
+        # 4: HEART-domed, set jaw; L socket crust + verdigris studs; R socket BITTEN
         dict(cw=1.02, ch=1.06, lean=-0.06, heart=True, sut="line", brow=False, jaw="set",   pip=False, chip=False,
-             eros=dict(crust=-1, streak=0,  studs=True,  eaten=0,  pit=True,  bloom=False)),
-        # 5: lopsided SQUAT dome leaning left, chipped; L socket EATEN + streak
+             bite=None,
+             eros=dict(crust=-1, streak=0,  studs=True,  eaten=1,  pit=True,  bloom=False)),
+        # 5: lopsided SQUAT dome — L TEMPLE COLLAPSED (chunk out of silhouette)
         dict(cw=1.08, ch=0.92, lean=-0.18, heart=False, sut="zig", brow=True,  jaw="plain", pip=False, chip=True,
+             bite=dict(side=-1, depth=0.52),
              eros=dict(crust=0,  streak=1,  studs=False, eaten=-1, pit=False, bloom=False)),
     ]
     p = CROWN_PROFILE[idx % len(CROWN_PROFILE)]
     cw, ch, lean = p["cw"], p["ch"], p["lean"]
     e = p["eros"]
+    bite = p["bite"]
 
     # cranium as an ink-keyed POLYGON (not a plain circle) so width/height/lean and
     # the heart-notch all live in the silhouette. The lean skews the upper dome
@@ -286,11 +302,41 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
         dx += lean * r * (-dy / max(1.0, r))      # shear the dome toward the lean
         if p["heart"] and abs(math.cos(a)) < 0.34 and math.sin(a) < -0.4:
             dy += r * 0.22                         # dimple the crown into a heart
+        # BITE — collapse part of the dome INWARD so the silhouette loses a chunk.
+        # side 0 caves the whole crown-cap (flat top); ±1 caves one temple/upper
+        # quadrant. Pulling the ring radius toward 0 over the bitten span removes
+        # that lump from the OUTLINE — the broken top edge survives the downscale.
+        if bite is not None:
+            ca, sa = math.cos(a), math.sin(a)
+            if bite["side"] == 0:               # crown-cap gone: flatten the very top
+                if sa < -0.55:
+                    dy += r * ch * bite["depth"]
+            else:                               # one temple collapsed inward
+                if bite["side"] * ca > 0.30 and sa < -0.10:
+                    dx -= bite["side"] * r * cw * bite["depth"]
+                    dy += r * ch * bite["depth"] * 0.30
         dome.append((cx + dx, cy + dy))
     # cheeks taper down to the jaw line
     dome.append((cx + r * cw * 0.74 + lean * r * 0.2, cy + r * ch * 0.34))
     dome.append((cx - r * cw * 0.74 + lean * r * 0.2, cy + r * ch * 0.34))
     triad_blob(surf, CROWN_BONE, [(int(x), int(y)) for x, y in dome], ow=ow1)
+    # a near-black crust packed into the COLLAPSED region so the broken edge also
+    # reads by VALUE (a dark void where the vault/temple sheared away), not only by
+    # the missing outline — this is what makes the gap legible at 32px.
+    if bite is not None:
+        bd = lerp(INK, CROWN_BONE_D, 0.30)
+        if bite["side"] == 0:                   # dark scar under the lost crown-cap
+            cap_scar = [(cx - r * cw * 0.40, cy - r * ch * (1.18 - bite["depth"])),
+                        (cx + r * cw * 0.40, cy - r * ch * (1.18 - bite["depth"])),
+                        (cx + r * cw * 0.30, cy - r * ch * (0.84 - bite["depth"])),
+                        (cx - r * cw * 0.30, cy - r * ch * (0.84 - bite["depth"]))]
+            pygame.draw.polygon(surf, bd, [(int(x), int(y)) for x, y in cap_scar])
+        else:                                   # dark void in the caved temple
+            sgnb = bite["side"]
+            vcx = cx + sgnb * int(r * cw * (0.62 - bite["depth"] * 0.5))
+            vcy = cy - int(r * ch * 0.42)
+            pygame.draw.circle(surf, bd, (vcx, vcy), max(2, int(r * 0.30)))
+            pygame.draw.circle(surf, INK, (vcx, vcy), max(1, int(r * 0.16)))
     # a single dim top-left sheen wedge (CROWN_SH — never brighter than the body)
     sheen = [(cx - r * cw * 0.58, cy - r * ch * 0.10),
              (cx - r * cw * 0.10 + lean * r * 0.2, cy - r * ch * 0.66),
@@ -356,10 +402,15 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
     for sgn in (-1, 1):
         ex = cx + sgn * int(r * 0.38)
         ey = cy + int(r * 0.04)
-        if e["eaten"] == sgn:    # a verdigris bite overrunning the round rim (silhouette)
-            bxe = ex + int(sgn * r * 0.22)
-            pygame.draw.circle(surf, PATINA_D, (bxe, ey - int(r * 0.10)), int(r * 0.26))
-            pygame.draw.circle(surf, PATINA, (bxe, ey - int(r * 0.10)), int(r * 0.15))
+        if e["eaten"] == sgn:    # an ASYMMETRIC near-black bite — a socket eaten open
+            # WHY enlarged + INK-cored: a small verdigris speck vanished at 32px; this
+            # merges the socket into a big irregular dark hole that reads as decay on
+            # the crown row even when downscaled (a value bite, off-centre per side).
+            bxe = ex + int(sgn * r * 0.24)
+            pygame.draw.circle(surf, PATINA_D, (bxe, ey - int(r * 0.06)), int(r * 0.40))
+            pygame.draw.circle(surf, INK, (ex + int(sgn * r * 0.10), ey), int(r * 0.30))
+            pygame.draw.circle(surf, PATINA, (bxe + int(sgn * r * 0.12), ey - int(r * 0.18)),
+                               int(r * 0.13))
         pygame.draw.circle(surf, INK, (ex, ey), max(1, int(r * 0.24)))
         if lit:
             pygame.draw.circle(surf, eye_c, (ex, ey), max(1, int(r * 0.12)))
@@ -453,28 +504,42 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
     #   bloom  — heavy bloom: rings BOTH sockets + a cranium crust patch (the 3 most)
     # WHY idx 0 + 3 carry bloom=True: after the fan sort, idx 0 and idx 3 are the
     # two LOWEST palms (the d=100° hands), the pair the brief blooms most heavily.
+    # `tone` differentiates the six palms by VALUE (not just detail) so the fan reads
+    # as differently-AGED relics, not six clones: <0 = darker/deeper patina (older,
+    # more shadowed), >0 = lighter/cleaner (a near-intact relic). Two go dark, two
+    # light, two stay mid — and the darkest (idx 0) is the most-eaten, the lightest
+    # (idx 1) the most near-intact, so the pair anchors the aged-range read.
     PROFILE = [
-        # 0: tall egg-dome, agape jaw, GEM-bloom brow — MOST bloomed (lowest palm)
-        dict(tilt=-0.16, cw=0.96, ch=1.12, jaw="agape", teeth=5, sut="zig", gem=True,  chip=False,
+        # 0: tall egg-dome, agape jaw, GEM-bloom brow — MOST bloomed + DARKEST (eaten)
+        dict(tilt=-0.16, cw=0.96, ch=1.12, jaw="agape", teeth=5, sut="zig", gem=True,  chip=False, tone=-0.40,
              eros=dict(crust=-1, streak=1,  studs=True,  eaten=-1, pit=True,  bloom=True)),
-        # 1: broad round skull, closed jaw; a long patina temple-STREAK down the R cheek
-        dict(tilt= 0.10, cw=1.14, ch=0.96, jaw="closed", teeth=6, sut="dots", gem=False, chip=False,
-             eros=dict(crust=0,  streak=1,  studs=True,  eaten=0,  pit=False, bloom=False)),
-        # 2: narrow tilted skull, cracked jaw, bloom-lit socket; R socket EATEN (silhouette)
-        dict(tilt=-0.30, cw=0.88, ch=1.04, jaw="cracked", teeth=3, sut="zig", gem="socket", chip=True,
+        # 1: broad round skull, closed jaw — LIGHTEST / cleanest near-intact relic
+        dict(tilt= 0.10, cw=1.14, ch=0.96, jaw="closed", teeth=6, sut="dots", gem=False, chip=False, tone=0.36,
+             eros=dict(crust=0,  streak=0,  studs=False, eaten=0,  pit=False, bloom=False)),
+        # 2: narrow tilted skull, cracked jaw, bloom-lit socket; R socket EATEN — MID
+        dict(tilt=-0.30, cw=0.88, ch=1.04, jaw="cracked", teeth=3, sut="zig", gem="socket", chip=True, tone=0.0,
              eros=dict(crust=0,  streak=-1, studs=False, eaten=1,  pit=True,  bloom=False)),
-        # 3: squat low dome, wide agape jaw — MOST bloomed (lowest palm)
-        dict(tilt= 0.06, cw=1.06, ch=0.90, jaw="agape", teeth=7, sut="line", gem=False, chip=False,
+        # 3: squat low dome, wide agape jaw — MOST bloomed + DARKER (older)
+        dict(tilt= 0.06, cw=1.06, ch=0.90, jaw="agape", teeth=7, sut="line", gem=False, chip=False, tone=-0.30,
              eros=dict(crust=1,  streak=-1, studs=True,  eaten=1,  pit=True,  bloom=True)),
-        # 4: tall narrow, closed jaw, GEM-bloom brow; verdigris suture-STUDS + L crust
-        dict(tilt= 0.22, cw=0.90, ch=1.10, jaw="closed", teeth=5, sut="dots", gem=True,  chip=False,
-             eros=dict(crust=-1, streak=0,  studs=True,  eaten=0,  pit=True,  bloom=False)),
-        # 5: lopsided cranium, cracked jaw, chipped; L socket EATEN (silhouette) + pit
-        dict(tilt=-0.08, cw=1.02, ch=1.00, jaw="cracked", teeth=4, sut="zig", gem=False, chip=True,
+        # 4: tall narrow, closed jaw, GEM-bloom brow — LIGHTER / cleaner relic
+        dict(tilt= 0.22, cw=0.90, ch=1.10, jaw="closed", teeth=5, sut="dots", gem=True,  chip=False, tone=0.26,
+             eros=dict(crust=-1, streak=0,  studs=True,  eaten=0,  pit=False, bloom=False)),
+        # 5: lopsided cranium, cracked jaw, chipped; L socket EATEN (silhouette) — MID
+        dict(tilt=-0.08, cw=1.02, ch=1.00, jaw="cracked", teeth=4, sut="zig", gem=False, chip=True, tone=0.0,
              eros=dict(crust=0,  streak=0,  studs=False, eaten=-1, pit=True,  bloom=False)),
     ]
     p = PROFILE[idx % len(PROFILE)]
     t = p["tilt"]
+    # per-skull bone tones — dark relics steer toward the cool bone shade, light ones
+    # toward the cool near-white sheen, so adjacent palms separate by VALUE at 32px.
+    tone = p["tone"]
+    if tone < 0:
+        skull_bone = lerp(BEAD, BONE_D, -tone)
+        skull_sheen = lerp(BEAD_BR, BEAD, -tone * 0.9)
+    else:
+        skull_bone = lerp(BEAD, BEAD_BR, tone)
+        skull_sheen = BEAD_BR
     ct, st = math.cos(t), math.sin(t)
 
     def rot(dx, dy):
@@ -512,13 +577,13 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
     dome.append(rot(cr * cw * 0.52, cr * ch * 0.72))
     dome.append(rot(-cr * cw * 0.52, cr * ch * 0.72))
     dome.append(rot(-cr * cw * 0.78, cr * ch * 0.30))
-    triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in dome], ow=ow1)
+    triad_blob(surf, skull_bone, [(int(x), int(y)) for x, y in dome], ow=ow1)
     # top-left bone sheen wedge on the cranium (the triad highlight)
     sheen = [rot(-cr * cw * 0.62, -cr * ch * 0.30),
              rot(-cr * cw * 0.12, -cr * ch * 0.74),
              rot(-cr * cw * 0.04, -cr * ch * 0.40),
              rot(-cr * cw * 0.50, -cr * ch * 0.04)]
-    pygame.draw.polygon(surf, BEAD_BR, [(int(x), int(y)) for x, y in sheen])
+    pygame.draw.polygon(surf, skull_sheen, [(int(x), int(y)) for x, y in sheen])
 
     # ── EROSION register — the centuries-old verdigris decay over THIS skull ──
     # WHY here (under the carved detail): the crust/streak/pit sit ON the dome so
@@ -598,9 +663,13 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
             bye = ecy - int(socket_r * 0.30)
             pygame.draw.circle(surf, PATINA_D, (bxe, bye), int(socket_r * 1.18))
             pygame.draw.circle(surf, PATINA, (bxe, bye), int(socket_r * 0.72))
-        # carved bone rim (a ring) then the deep ink pit
-        pygame.draw.circle(surf, BONE_D, (ecx, ecy), int(socket_r + max(1, 1.2 * s)))
-        pygame.draw.circle(surf, INK, (ecx, ecy), int(socket_r))
+        # carved bone rim (a ring) then the deep ink pit. WHY the rim follows `tone`:
+        # the darker/older relics carry MORE-shadowed sockets (a near-INK rim + a
+        # slightly wider pit) so their value reads deeper than the clean light relics.
+        rim_col = lerp(BONE_D, BONE_DD, 0.7) if tone < 0 else BONE_D
+        socket_grow = 1.18 if tone < 0 else 1.0
+        pygame.draw.circle(surf, rim_col, (ecx, ecy), int(socket_r + max(1, 1.2 * s)))
+        pygame.draw.circle(surf, INK, (ecx, ecy), int(socket_r * socket_grow))
         pygame.draw.circle(surf, BONE_DD, (ecx, ecy), int(socket_r * 0.62))
         pygame.draw.circle(surf, INK, (ecx, ecy), int(socket_r * 0.34))
         # a softer crust LIP creeping in from one socket edge (value, stays inside)
@@ -635,7 +704,7 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
     if p["jaw"] == "closed":
         jaw = [rot(jl, cr * 0.74), rot(jr, cr * 0.74),
                rot(jr * 0.70, cr * 1.04), rot(jl * 0.70, cr * 1.04)]
-        triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
+        triad_blob(surf, skull_bone, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
         teeth_y0, teeth_y1 = cr * 0.74, cr * 1.00
     elif p["jaw"] == "agape":
         # an open mouth: a dark gap, then a dropped jaw bone below it
@@ -644,12 +713,12 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
         pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in gap])
         jaw = [rot(jl * 0.74, cr * 1.06), rot(jr * 0.74, cr * 1.06),
                rot(jr * 0.54, cr * 1.34), rot(jl * 0.54, cr * 1.34)]
-        triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
+        triad_blob(surf, skull_bone, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
         teeth_y0, teeth_y1 = cr * 0.70, cr * 0.94   # upper teeth ring the gap
     else:   # "cracked" — one jaw corner snapped off, leaving an asymmetric stub
         jaw = [rot(jl, cr * 0.74), rot(jr * 0.55, cr * 0.74),
                rot(jr * 0.20, cr * 1.02), rot(jl * 0.78, cr * 1.06)]
-        triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
+        triad_blob(surf, skull_bone, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
         # a jagged break notch on the snapped (right) corner
         pygame.draw.line(surf, BONE_DD,
                          (int(rot(jr * 0.55, cr * 0.76)[0]), int(rot(jr * 0.55, cr * 0.76)[1])),
@@ -755,6 +824,13 @@ def cyan_gem(surf, c, r, s, focal=False, bg=None, hot=None):
         return (cx + math.cos(a) * rad, cy + math.sin(a) * rad)
     n_crown = 8
     girdle = [gpt(-90 + i * (360 / n_crown), r) for i in range(n_crown)]
+    # DARK CONTOUR RING around the WHOLE stone — drawn even when `show_bg` is off
+    # (both icy gems sit seat-less). WHY: on the BRIGHT cyan DAY sky both cyan gems
+    # share the sky's hue AND value and dissolve into it; a thick near-INK girdle
+    # outline separates the stone from the sky by VALUE so the hero reads as the
+    # unambiguous focal at 32px, not a faint same-hue smear on the field.
+    ink_ring = max(2, int(2.2 * s))
+    pygame.draw.polygon(surf, INK, girdle, ink_ring)
     pygame.draw.polygon(surf, CYAN_D, girdle)
 
     # the flat TABLE face — a smaller angular polygon offset UP toward the crown.
@@ -787,9 +863,15 @@ def cyan_gem(surf, c, r, s, focal=False, bg=None, hot=None):
     pygame.draw.polygon(surf, INK, table, max(1, int(0.9 * s)))
     pygame.draw.line(surf, CYAN_BR, table[0], table[n_crown // 2], max(1, int(0.8 * s)))
 
-    # HARD specular glints — tiny white TRIANGLES pinned at facet corners.
+    # HARD specular glints — tiny TRIANGLES pinned at facet corners. WHY the colour
+    # is gated on `show_hot`: only the necklace HERO gem (hot core on) may emit a
+    # PURE-WHITE pixel; the brow third-eye (`show_hot` off) gets a soft cyan-white
+    # glint instead, so the hero gem stays the SOLE pure-white pixel of the sprite
+    # and the value ladder reads cleanly (hero > third-eye > bone > bloom).
+    glint_col = (255, 255, 255) if show_hot else (210, 238, 245)
+
     def glint(px, py, sz):
-        pygame.draw.polygon(surf, (255, 255, 255),
+        pygame.draw.polygon(surf, glint_col,
                             [(px, py - sz), (px + sz, py + sz * 0.5),
                              (px - sz, py + sz * 0.5)])
 
@@ -1154,7 +1236,7 @@ def export_hero():
     canvas = pygame.Surface((boxw, boxh))
     vgrad(canvas, (0, 0, boxw, boxh), (74, 84, 104), (40, 46, 64))
     canvas.blit(hero, (0, 0))
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2_hero.png")
     pygame.image.save(canvas, out)
     return out
 
@@ -1180,7 +1262,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("ASTHI v4 — VERDIGRIS-RELIQUARY", True, LABEL), (24, 13))
     sheet.blit(f_sm.render(
-        "dug-up centuries-old Asthi in AGED TEMPLE BRONZE gone VERDIGRIS · 12 differently-ERODED skulls · matte oxidised skull-bloom · ICY hero gem + third-eye vs oxidised court · round 1",
+        "dug-up centuries-old Asthi in AGED TEMPLE BRONZE gone VERDIGRIS · 12 differently-ERODED skulls · matte oxidised skull-bloom · ICY hero gem + third-eye vs oxidised court · round 2",
         True, LABEL_DIM), (270, 28))
 
     # === (a) BIG HERO =========================================================
@@ -1286,13 +1368,13 @@ def main():
     # bottom note strip
     pygame.draw.rect(sheet, PANEL, (14, 836, W - 28, 48))
     sheet.blit(f_sm.render(
-        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero export (round_1_hero.png).",
+        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero export (round_2_hero.png).",
         True, LABEL_DIM), (26, 846))
     sheet.blit(f_sm.render(
         "STAY: flat fills · hard ink keyline (28,22,26) · dark-core->fill->top-left sheen triad · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 864))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     hero_out = export_hero()
     print("wrote", out)
