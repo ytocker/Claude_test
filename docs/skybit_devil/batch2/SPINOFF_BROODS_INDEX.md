@@ -105,6 +105,28 @@ explicit royal evolution of **Koschei**. ALL SIX SHIP-READY (pushed to a genuine
 - [Verdigris Drowned-King — drowned undersea slump (coral-antler crown + pearl)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/skull_kings/verdigris_drowned_king/round_2.png)
 - [Rose-Gold Prince — the cute boy-heir (fleur coronet + pink tourmaline)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/skull_kings/rosegold_prince/round_2.png)
 
+## 👑 King Skull II — a second royal court of ten skeleton-kings (above-head skull-crowns; 5 cradle a skull)
+A brand-new SECOND royal brood beside the first court of six. Ten distinct skeleton MONARCHS, each with its
+own iconic crown FORM and palette pole, all carrying an **above-head SKULL-CROWN** (the brood through-line).
+Five are *mandatory-cradle* — multiple palms cupping a glowing skull (leaning into Mukha-style multi-arms);
+five use a stronger non-cradle tell. Honors **Citipati** house-grammar. ALL TEN SHIP-READY (pushed to a
+genuine sign-off; Opal took a round-6 focal re-architecture, Oxblood a round-6 day-only fix).
+**Combined showcase:** [skull_kings_ii/showcase.png](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/skull_kings_ii/showcase.png)
+
+- **Lineage:** [Citipati (respected original)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/jiangshi_epic/citipati/round_2.png) · [Koschei](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/citipati_versions/koschei/round_2.png)
+- _Mandatory-cradle (palms cupping a skull):_
+- [Jade Empress Dowager — kneeling carved-jade bell (phoenix-plume + skull finial; 6 arms)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/skull_kings_ii/jade_empress_dowager/round_4.png)
+- [Sunfire Solar-Khan — filled amber sun-disc (skull sunburst ray-boss; cupped sun-skull)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/skull_kings_ii/sunfire_solar_khan/round_5.png)
+- [Starlit Night-Shepherd — teardrop indigo cloak (halo-ring + zenith skull; moon-skull)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/skull_kings_ii/starlit_night_shepherd/round_3.png)
+- [Opal Pearl-Diver Queen — floating inverted nacre tier-stack (teal opal-skull focal)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/skull_kings_ii/opal_pearl_diver_queen/round_6.png)
+- [Lapis Navigator-King — wide armillary-ring ellipse (ring-apex skull; star-skull)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/skull_kings_ii/lapis_navigator_king/round_2.png)
+- _Discretion (stronger non-cradle tell):_
+- [Garnet Cardinal-Inquisitor — hooded forward-stoop hairpin (gabled skull-reliquary; pointing jab)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/skull_kings_ii/garnet_cardinal_inquisitor/round_4.png)
+- [Ember Ash-Walker — the only king in motion (ember-cracked skull war-helm crest)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/skull_kings_ii/ember_ash_walker/round_5.png)
+- [Malachite Magistrate — wide flat anvil-T yoke (banded-green dome + skull boss)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/skull_kings_ii/malachite_magistrate/round_4.png)
+- [Oxblood Automaton-King — blocky clockwork humanoid (gear-rings; skull on a gear-spire)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/skull_kings_ii/oxblood_automaton_king/round_6.png)
+- [Bismuth Prism-Architect — limbless stepped crystal ziggurat (rainbow facets; skull capstone)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/skull_kings_ii/bismuth_prism_architect/round_3.png)
+
 ---
 
 # Standalone fresh-theme sets (not spin-off broods)
