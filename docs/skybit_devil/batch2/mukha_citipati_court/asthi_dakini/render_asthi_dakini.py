@@ -66,6 +66,11 @@ BONE_DD   = ( 54,  64,  86)   # deepest bone hollow (sockets, rib gaps)
 BONE_SH   = (176, 190, 214)   # bone top-left rim-sheen
 BEAD      = (196, 208, 226)   # pale bone bead — reads light on the dark bone
 BEAD_BR   = (228, 238, 250)   # bead top sheen / hottest bone bead
+# the six cradled palm-skull FACES sit ~18 lum above the body beads (lum≈224) so
+# they register as the MID value tier — brighter than every bead, still well under
+# the third-eye core; a faint cool inner-shade darkens their sockets to read.
+PALM_FACE   = (218, 226, 240)
+PALM_SHADE  = (150, 168, 198)
 CYAN      = ( 86, 214, 226)   # icy-cyan — third-eye + sparse jewel cabochons
 CYAN_BR   = (188, 248, 252)   # hot cyan inner
 CYAN_D    = ( 40, 132, 150)
@@ -78,6 +83,12 @@ INK       = ( 28,  22,  26)   # hard ink keyline
 CROWN_BONE   = (150, 142, 130)
 CROWN_BONE_D = (104,  96,  86)
 CROWN_SH     = (196, 188, 174)
+# the crown-CENTRE skull's "lit" eyes: a DIM warm-bone glint, NOT focal cyan-white.
+# WHY desaturated toward warm-bone (lum≈205, capped <210): the value ladder broke
+# in round 1 when the centre crown skull peaked brighter than the third-eye —
+# brightest cyan-white (>=240) is now reserved for the third-eye core ALONE, and
+# the crown centre is only a dim halo + a warm glint so the ladder holds.
+CROWN_LIT_EYE = (206, 196, 168)
 THIRD_EYE = CYAN              # cyan third-eye slit = the single brightest focal
 
 BG        = ( 92,  96, 108)   # neutral grey review backdrop
@@ -88,6 +99,37 @@ NIGHT_T   = ( 22,  26,  54)   # night biome sky (top)
 NIGHT_B   = ( 48,  44,  82)
 LABEL     = (238, 240, 246)
 LABEL_DIM = (190, 198, 212)
+
+
+# WHY a module flag instead of threading a param through every helper: only the
+# carrier (girdle + 3-row choker) changes behaviour at gameplay scale. When the
+# chip renderer sets this, those two ornaments draw as BOLD SOLID light bands
+# (bead-sheen value) rather than discrete beads that dither away at 32px — the
+# locked 32px element must survive as a clean stroke, especially against night sky.
+_BOLD_ROWS = False
+
+
+def set_bold_rows(on):
+    global _BOLD_ROWS
+    _BOLD_ROWS = on
+
+
+def bold_band_arc(surf, cx, cy, r, a0, a1, th, s, gold_n=3):
+    """A SOLID light band swept along an arc — the 32px collapse of a bead row.
+    bead-sheen value as a continuous stroke + a few gold pips for the warm anchor.
+    WHY solid: at gameplay scale discrete beads merge into noise and vanish on
+    night sky; one bold light stroke reads as the girdle/choker silhouette."""
+    steps = max(3, int(abs(a1 - a0) / 0.14))
+    pts = [(cx + math.cos(a0 + (a1 - a0) * i / steps) * r,
+            cy + math.sin(a0 + (a1 - a0) * i / steps) * r) for i in range(steps + 1)]
+    pygame.draw.lines(surf, INK, False, pts, th + max(2, int(2 * s)))
+    pygame.draw.lines(surf, BEAD, False, pts, th)
+    pygame.draw.lines(surf, BEAD_BR, False, pts, max(1, int(th * 0.4)))
+    for k in range(gold_n):
+        a = a0 + (a1 - a0) * (k + 0.5) / gold_n
+        gx = cx + math.cos(a) * r
+        gy = cy + math.sin(a) * r
+        pygame.draw.circle(surf, GOLD_BR, (int(gx), int(gy)), max(1, int(th * 0.55)))
 
 
 def lerp(a, b, t):
@@ -108,6 +150,22 @@ def grow_outline(surf, color, px):
     for (ox, oy) in pts:
         pygame.draw.circle(ring, color, (ox, oy), px)
     ring.blit(base, (0, 0))
+    return ring
+
+
+def rim_light(surf, color, px):
+    """Grow a 1px LIGHTER keyline OUTSIDE the ink outline. WHY night-only: on the
+    dark night sky the cool-bone body sits too close in value and the silhouette
+    dissolves; a thin cool rim-light separates the whole figure from the sky
+    without touching the day read (where the dark ink keyline already separates)."""
+    mask = pygame.mask.from_surface(surf)
+    pts = mask.outline()
+    if len(pts) < 2:
+        return surf
+    ring = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    for (ox, oy) in pts:
+        pygame.draw.circle(ring, color, (ox, oy), px)
+    ring.blit(surf, (0, 0))
     return ring
 
 
@@ -201,13 +259,18 @@ def crown_skull(surf, cx, cy, r, s, lit=False):
     """Tiny warm-bone skull — domed cranium, two dark sockets, a stub jaw. WHY a
     notch warmer/darker than the body (CROWN_BONE): the cool body palette would
     let cool crown skulls vanish against the day sky, so the crown carries its own
-    slightly warm value. `lit` swaps the centre skull's eyes + a soft cyan halo on
-    — the ONLY crown glow allowed (value-ladder dimmest tier otherwise)."""
+    slightly warm value. `lit` is the centre skull: a DIM warm halo (NOT a bright
+    cyan fill) behind it + a desaturated warm-bone eye-glint capped under the
+    third-eye. WHY no hot cyan here: round 1 let the centre crown skull out-bright
+    the third-eye and broke the value ladder — the brightest cyan-white is the
+    third-eye core's alone, so the crown centre stays the dimmest tier with only a
+    soft halo to mark it as the fused-crown's focus."""
     if lit:
-        # the one permitted crown glow — soft cyan bloom behind the centre skull
+        # the one permitted crown glow — a DIM warm halo, not a bright fill. low
+        # alpha + warm GOLD hue keeps it a marker, never a value peak.
         glow = pygame.Surface((r * 6, r * 6), pygame.SRCALPHA)
-        for gr, ga in ((int(r * 2.2), 26), (int(r * 1.5), 40), (int(r * 0.95), 70)):
-            pygame.draw.circle(glow, CYAN + (ga,), (r * 3, r * 3), gr)
+        for gr, ga in ((int(r * 2.0), 14), (int(r * 1.3), 22), (int(r * 0.85), 34)):
+            pygame.draw.circle(glow, GOLD + (ga,), (r * 3, r * 3), gr)
         surf.blit(glow, (cx - r * 3, cy - r * 3), special_flags=pygame.BLEND_RGBA_ADD)
     triad_circle(surf, CROWN_BONE, (cx, cy), r, ow=max(1, int(1.6 * s)), core=False)
     jaw = [(cx - int(r * 0.52), cy + int(r * 0.52)),
@@ -215,7 +278,7 @@ def crown_skull(surf, cx, cy, r, s, lit=False):
            (cx + int(r * 0.34), cy + int(r * 1.0)),
            (cx - int(r * 0.34), cy + int(r * 1.0))]
     triad_blob(surf, CROWN_BONE, jaw, ow=max(1, int(1.2 * s)))
-    eye_c = CYAN_BR if lit else INK
+    eye_c = CROWN_LIT_EYE if lit else INK
     for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
         pygame.draw.circle(surf, INK, (ex, cy + int(r * 0.04)), max(1, int(r * 0.24)))
         if lit:
@@ -247,17 +310,20 @@ def palm_skull(surf, cx, cy, r, s):
                          (fx + int(k * r * 0.10), cy - int(r * 0.20)), max(1, int(2.0 * s)))
         pygame.draw.line(surf, BONE_SH, (fx, cy + int(r * 0.18)),
                          (fx + int(k * r * 0.10), cy - int(r * 0.16)), max(1, int(1.0 * s)))
-    # the cradled tiny skull (MID value — pale bone dome, sits above the crown tier)
+    # the cradled tiny skull (MID value — its face PALM_FACE sits ~18 lum above the
+    # body beads so the six skulls read as the mid tier, not bead-noise; a faint
+    # cool inner-shade deepens the sockets).
     sk = (cx, cy - int(r * 0.32))
-    triad_circle(surf, BEAD, sk, int(r * 0.62), ow=max(1, int(1.4 * s)), core=False)
+    triad_circle(surf, PALM_FACE, sk, int(r * 0.62), ow=max(1, int(1.4 * s)), core=False)
     for ex in (sk[0] - int(r * 0.26), sk[0] + int(r * 0.26)):
+        pygame.draw.circle(surf, PALM_SHADE, (ex, sk[1] + int(r * 0.02)), max(1, int(r * 0.20)))
         pygame.draw.circle(surf, INK, (ex, sk[1] + int(r * 0.02)), max(1, int(r * 0.16)))
     pygame.draw.circle(surf, INK, (sk[0], sk[1] + int(r * 0.24)), max(1, int(r * 0.09)))
     jaw = [(sk[0] - int(r * 0.30), sk[1] + int(r * 0.40)),
            (sk[0] + int(r * 0.30), sk[1] + int(r * 0.40)),
            (sk[0] + int(r * 0.20), sk[1] + int(r * 0.66)),
            (sk[0] - int(r * 0.20), sk[1] + int(r * 0.66))]
-    triad_blob(surf, BEAD, jaw, ow=max(1, int(1.0 * s)))
+    triad_blob(surf, PALM_FACE, jaw, ow=max(1, int(1.0 * s)))
 
 
 # ── the Mukha-Devi six-arm radial fan (cloned; bead-armlet wrapped) ───────────
@@ -446,26 +512,43 @@ def draw_asthi_dakini(surf, cx, cy, s):
     # across the pelvis collapses to two clean light bands at 32px, the single
     # heaviest ornament read that holds when the fine lattice mushes.
     g_y0 = hip_y - int(2 * s)
-    for row, (yy, br) in enumerate(((g_y0, 0.0), (g_y0 + int(7 * s), 0.0))):
-        bead_arc(surf, hip_cx, hip_y - int(20 * s), int(40 * s) + row * int(4 * s),
-                 math.radians(58), math.radians(122), int(4.6 * s), s, gold_every=3)
-    # girdle pendant tassel — a short bead drop at the centre front
-    bead_strand(surf, [(hip_cx, g_y0 + int(8 * s)), (hip_cx, g_y0 + int(22 * s))],
-                int(3.4 * s), s, gold_every=2)
+    if _BOLD_ROWS:
+        # 32px: two BOLD light bands across the hips — the heaviest 32px read.
+        # WHY wider arc + thicker stroke than hero beads: at gameplay scale this is
+        # THE locked silhouette carrier and must out-weigh the leg/anklet beads.
+        for row in range(2):
+            bold_band_arc(surf, hip_cx, hip_y - int(22 * s), int(42 * s) + row * int(6 * s),
+                          math.radians(52), math.radians(128), int(11 * s), s, gold_n=3)
+    else:
+        for row, (yy, br) in enumerate(((g_y0, 0.0), (g_y0 + int(7 * s), 0.0))):
+            bead_arc(surf, hip_cx, hip_y - int(20 * s), int(40 * s) + row * int(4 * s),
+                     math.radians(58), math.radians(122), int(4.6 * s), s, gold_every=3)
+        # girdle pendant tassel — a short bead drop at the centre front
+        bead_strand(surf, [(hip_cx, g_y0 + int(8 * s)), (hip_cx, g_y0 + int(22 * s))],
+                    int(3.4 * s), s, gold_every=2)
 
     # === 3-ROW CHOKER + long SWAG NECKLACE (bold rows, the second 32px read) ==
     neck_y = rc_cy - rc_h // 2 - int(1 * s)
-    for r_i in range(3):
-        cy_row = neck_y + r_i * int(5 * s)
-        bead_arc(surf, rc_cx, cy_row - int(4 * s), int(18 * s) + r_i * int(2 * s),
-                 math.radians(35), math.radians(145), int(3.2 * s), s, gold_every=3)
+    if _BOLD_ROWS:
+        # 32px: 3-row choker collapses to TWO bold light bands stacked at the throat
+        # (the second locked 32px carrier alongside the girdle).
+        for r_i in range(2):
+            bold_band_arc(surf, rc_cx, neck_y - int(4 * s) + r_i * int(8 * s),
+                          int(20 * s) + r_i * int(3 * s),
+                          math.radians(32), math.radians(148), int(7 * s), s, gold_n=2)
+    else:
+        for r_i in range(3):
+            cy_row = neck_y + r_i * int(5 * s)
+            bead_arc(surf, rc_cx, cy_row - int(4 * s), int(18 * s) + r_i * int(2 * s),
+                     math.radians(35), math.radians(145), int(3.2 * s), s, gold_every=3)
     # long swag necklace dipping onto the ribcage (a deep U)
     swag = [(rc_cx - int(15 * s), neck_y + int(10 * s)),
             (rc_cx - int(8 * s), rc_cy + int(8 * s)),
             (rc_cx, rc_cy + int(13 * s)),
             (rc_cx + int(8 * s), rc_cy + int(8 * s)),
             (rc_cx + int(15 * s), neck_y + int(10 * s))]
-    bead_strand(surf, swag, int(3.6 * s), s, gold_every=3)
+    if not _BOLD_ROWS:
+        bead_strand(surf, swag, int(3.6 * s), s, gold_every=3)
     # a single cyan cabochon pendant at the swag's lowest point (sparse jewel)
     triad_circle(surf, CYAN, (rc_cx, rc_cy + int(15 * s)), int(4 * s),
                  ow=max(1, int(1.2 * s)), core=False)
@@ -490,6 +573,11 @@ def draw_asthi_dakini(surf, cx, cy, s):
     for gr, ga in ((int(hr * 0.72), 28), (int(hr * 0.46), 52), (int(hr * 0.28), 96)):
         pygame.draw.circle(glow, CYAN + (ga,), (hr * 2, hr * 2), gr)
     surf.blit(glow, (tex - hr * 2, tey - hr * 2), special_flags=pygame.BLEND_RGBA_ADD)
+    # a GOLD rim frames the third-eye socket — the warm anchor riding the cool
+    # focal so the face cluster is warm/cool tension, never cyan-on-blue alone.
+    pygame.draw.ellipse(surf, INK, (tex - int(9 * s), tey - int(11 * s), int(18 * s), int(22 * s)))
+    pygame.draw.ellipse(surf, GOLD, (tex - int(9 * s), tey - int(11 * s), int(18 * s), int(22 * s)))
+    pygame.draw.ellipse(surf, GOLD_BR, (tex - int(8 * s), tey - int(10 * s), int(16 * s), int(8 * s)))
     pygame.draw.ellipse(surf, INK, (tex - int(7 * s), tey - int(9 * s), int(14 * s), int(18 * s)))
     pygame.draw.ellipse(surf, CYAN, (tex - int(6 * s), tey - int(8 * s), int(12 * s), int(16 * s)))
     pygame.draw.ellipse(surf, CYAN_BR, (tex - int(4 * s), tey - int(5 * s), int(8 * s), int(10 * s)))
@@ -528,26 +616,30 @@ def draw_asthi_dakini(surf, cx, cy, s):
     # the wide 6-skull arc sweeps above it in open sky. Crown skulls = warm-bone,
     # the dimmest value tier; only the centre skull glows.
 
-    # -- tiara-band across the brow (Mukha language) --
-    tiara_r = int(hr * 0.98)
-    band_pts = []
-    for i in range(11):
-        a = math.radians(212 + i * (116 / 10))
-        band_pts.append((head_c[0] + math.cos(a) * tiara_r,
-                         head_c[1] + math.sin(a) * tiara_r))
-    pygame.draw.lines(surf, INK, False, band_pts, int(6 * s))
-    pygame.draw.lines(surf, GOLD, False, band_pts, int(4 * s))
-    pygame.draw.lines(surf, GOLD_BR, False, band_pts[:6], max(1, int(1.4 * s)))
-    # a bead-row riding on the band (carry the brood's bead texture into the crown)
-    bead_arc(surf, head_c[0], head_c[1], int(hr * 0.98), math.radians(214),
-             math.radians(326), int(2.6 * s), s, gold_every=3)
-    # three cyan brow-cabochons set into the band (sparse jewel — not focal-bright)
+    # -- tiara-BAND across the brow (Mukha language) --
+    # WHY a SOLID horizontal beaded band, not a thin wire: round 1's band was a
+    # hairline that vanished at 32px, so the crown read as the Citipati arc alone
+    # (a fail). It is now a distinct horizontal band laid straight across the brow
+    # in BEAD-SHEEN value (the bright tier) so it survives the downscale as one
+    # bold horizontal stroke even when the arc skulls mush. Gold pips on it are the
+    # face-zone WARM anchor (warm/cool tension against the cyan third-eye).
+    band_y = head_c[1] - int(hr * 0.30)
+    band_half = int(hr * 0.92)
+    band_th = int(5.2 * s)
+    band_l = (head_c[0] - band_half, band_y)
+    band_r2 = (head_c[0] + band_half, band_y)
+    # ink seat + a solid bead-sheen band stroke (the bright horizontal carrier)
+    pygame.draw.line(surf, INK, band_l, band_r2, band_th + max(2, int(2 * s)))
+    pygame.draw.line(surf, BEAD, band_l, band_r2, band_th)
+    pygame.draw.line(surf, BEAD_BR, (band_l[0], band_y - int(band_th * 0.22)),
+                     (band_r2[0], band_y - int(band_th * 0.22)), max(1, int(band_th * 0.34)))
+    # 3 WARM gold pips set INTO the band — the face-zone warm anchor at 32px
     for i in range(3):
-        a = math.radians(232 + i * 38)
-        bx = head_c[0] + math.cos(a) * int(hr * 0.98)
-        by = head_c[1] + math.sin(a) * int(hr * 0.98)
-        triad_circle(surf, CYAN_D, (int(bx), int(by)), max(1, int(2.4 * s)),
+        gx = head_c[0] + int((i - 1) * hr * 0.56)
+        triad_circle(surf, GOLD, (gx, band_y), max(1, int(2.4 * s)),
                      ow=max(1, int(1.0 * s)), core=False, sheen=False)
+        pygame.draw.circle(surf, GOLD_BR, (gx - int(1 * s), band_y - int(1 * s)),
+                           max(1, int(1.3 * s)))
 
     # -- wide airy 6-skull arc sweeping ABOVE the band (Citipati language) --
     arc_r = int(hr * 1.66)
@@ -569,46 +661,44 @@ def draw_asthi_dakini(surf, cx, cy, s):
         crown_skull(surf, int(sx), int(sy), skull_r, s, lit=(i == 2))
 
 
-# ── the bone-bead reliquary-staff → pillar mirror (sister's own forms) ────────
+# ── the multi-strand bead-rope → pillar mirror (sister's OWN jewelry forms) ───
 def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
-    """The pillar is built from this sister's OWN forms: a stacked column of
-    vertebra beads strung on a central rod (the Citipati torso rib-band motif),
-    EVERY tier wrapped in a bone-bead collar (her jewelry set), and a gap-edge cap
-    of one warm crown-skull seated on a beaded tiara-band ring (her fused-crown
-    language in miniature). On-axis, symmetric, never top-heavy.
+    """The pillar is asthi's OWN ornament SET, not a generic staff: a thick
+    MULTI-STRAND bone-bead ROPE — several parallel bead strands run the shaft with
+    a WARM gold spacer-pip every 3rd bead (the load-bearing trick from her body),
+    periodically cinched by a bead-collar girdle, and a gap-edge cap of one warm
+    crown-skull seated on a beaded tiara-band ring (her fused-crown language in
+    miniature). WHY the swap from round 1's vertebra-stack: that read closer to the
+    Citipati khatvanga than to this sister's bead jewelry — the rope is hers.
+    On-axis, symmetric, never top-heavy. `cap` names the END that faces the GAP."""
+    shaft_w = int(16 * s)
+    # the dark bone field the light bead-strands read against (light-on-dark)
+    pygame.draw.rect(surf, INK, (cx - shaft_w - int(2 * s), top,
+                                 (shaft_w + int(2 * s)) * 2, bot - top))
+    pygame.draw.rect(surf, BONE_DD, (cx - shaft_w, top, shaft_w * 2, bot - top))
 
-    `cap` names the END that faces the GAP."""
-    shaft_w = int(15 * s)
-    pygame.draw.rect(surf, INK, (cx - int(3 * s), top, int(6 * s), bot - top))
-
-    bead_pitch = int(20 * s)
     cap_room = int(34 * s)
     if cap == "bottom":
         b0, b1 = top + int(6 * s), bot - cap_room
     else:
         b0, b1 = top + cap_room, bot - int(6 * s)
-    y = b0
-    while y <= b1:
-        bw = shaft_w
-        bead = [(cx - bw, y + int(2 * s)),
-                (cx - int(bw * 0.5), y - int(7 * s)),
-                (cx + int(bw * 0.5), y - int(7 * s)),
-                (cx + bw, y + int(2 * s)),
-                (cx + int(bw * 0.5), y + int(11 * s)),
-                (cx - int(bw * 0.5), y + int(11 * s))]
-        triad_blob(surf, BONE, bead,
-                   core_pts=[(cx, y - int(1 * s)), (cx + bw, y + int(2 * s)),
-                             (cx + int(bw * 0.5), y + int(11 * s)), (cx, y + int(9 * s))],
-                   sheen_pts=[(cx - bw, y + int(2 * s)), (cx - int(bw * 0.5), y - int(6 * s)),
-                              (cx - int(bw * 0.2), y - int(4 * s)), (cx - int(bw * 0.7), y + int(5 * s))],
-                   ow=max(1, int(1.4 * s)))
-        pygame.draw.circle(surf, BONE_DD, (cx, y + int(2 * s)), int(4 * s))
-        pygame.draw.circle(surf, INK, (cx, y + int(2 * s)), int(4 * s), max(1, int(1 * s)))
-        # bone-bead collar wrapping each vertebra tier (her jewelry set on the shaft)
-        bead_strand(surf, [(cx - bw - int(3 * s), y + int(2 * s)),
-                           (cx + bw + int(3 * s), y + int(2 * s))],
-                    int(3.0 * s), s, gold_every=3)
-        y += bead_pitch
+
+    # four parallel bead-strands running the shaft length (the multi-strand rope);
+    # offset phases so the gold pips stagger instead of forming hard rows.
+    strand_x = [-shaft_w * 0.66, -shaft_w * 0.22, shaft_w * 0.22, shaft_w * 0.66]
+    for si, ox in enumerate(strand_x):
+        x = cx + int(ox)
+        # phase the start so gold pips (every 3rd bead) don't line up across strands
+        y0 = b0 - int(si * 5 * s)
+        bead_strand(surf, [(x, y0), (x, b1)], int(4.0 * s), s, gold_every=3)
+
+    # bead-collar girdles cinch the rope every few tiers (her choker on the shaft)
+    collar_pitch = int(46 * s)
+    y = b0 + int(20 * s)
+    while y <= b1 - int(8 * s):
+        bead_strand(surf, [(cx - shaft_w - int(2 * s), y), (cx + shaft_w + int(2 * s), y)],
+                    int(3.4 * s), s, gold_every=3)
+        y += collar_pitch
 
     # === gap-edge cap: warm crown-skull on a beaded tiara-band ring ===========
     cap_y = (bot - int(20 * s)) if cap == "bottom" else (top + int(20 * s))
@@ -635,11 +725,21 @@ def vgrad(surf, rect, top_col, bot_col):
                          (x, y + j), (x + w, y + j))
 
 
-def render_creature_chip(boxw, boxh, draw_cx, draw_cy, scale, ss=SS):
+# cool rim-light tuned to read on night sky without going focal-bright
+NIGHT_RIM = (150, 196, 222)
+
+
+def render_creature_chip(boxw, boxh, draw_cx, draw_cy, scale, ss=SS,
+                         bold_rows=False, night_rim=False):
+    set_bold_rows(bold_rows)
     big = pygame.Surface((boxw * ss, boxh * ss), pygame.SRCALPHA)
     draw_asthi_dakini(big, draw_cx * ss, draw_cy * ss, scale * ss)
+    set_bold_rows(False)
     small = pygame.transform.smoothscale(big, (boxw, boxh))
-    return grow_outline(small, INK + (255,), 1)
+    small = grow_outline(small, INK + (255,), 1)
+    if night_rim:
+        small = rim_light(small, NIGHT_RIM + (255,), 1)
+    return small
 
 
 def export_hero():
@@ -650,7 +750,7 @@ def export_hero():
     canvas = pygame.Surface((boxw, boxh))
     vgrad(canvas, (0, 0, boxw, boxh), (74, 84, 104), (40, 46, 64))
     canvas.blit(hero, (0, 0))
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2_hero.png")
     pygame.image.save(canvas, out)
     return out
 
@@ -676,7 +776,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("ASTHI-DAKINI", True, LABEL), (24, 13))
     sheet.blit(f_sm.render(
-        "bone-jewel sky-dancer  ·  CITIPATI body + MUKHA 6-arm fan · 6 palm-skulls · fused crown · DARK cool bone + gold pips · round 1",
+        "bone-jewel sky-dancer  ·  CITIPATI body + MUKHA 6-arm fan · 6 palm-skulls · fused crown · DARK cool bone + gold pips · round 2",
         True, LABEL_DIM), (270, 28))
 
     # === (a) BIG HERO =========================================================
@@ -700,8 +800,8 @@ def main():
     sheet.blit(bot_seg, (pcx, 86 + 280 + 96))
     pygame.draw.rect(sheet, (58, 62, 74), (pcx + 8, 86 + 280, 134, 96))
     sheet.blit(f_sm.render("GAP", True, LABEL_DIM), (pcx + 56, 86 + 280 + 40))
-    sheet.blit(f.render("Pillar — bead-reliquary staff", True, LABEL), (pcx - 4, 766))
-    sheet.blit(f_sm.render("vertebra beads + bone-bead collars = shaft;", True, LABEL_DIM), (pcx - 4, 790))
+    sheet.blit(f.render("Pillar — multi-strand bead-rope", True, LABEL), (pcx - 4, 766))
+    sheet.blit(f_sm.render("4 bead-strands + gold pip every 3rd bead = shaft;", True, LABEL_DIM), (pcx - 4, 790))
     sheet.blit(f_sm.render("crown-skull on a beaded tiara-ring caps the gap", True, LABEL_DIM), (pcx - 4, 806))
 
     # === (c) TRUE 32px DAY + NIGHT chips + blackout proof ======================
@@ -709,28 +809,29 @@ def main():
     pygame.draw.rect(sheet, PANEL, (panel_x, 86, W - panel_x - 14, 700))
     sheet.blit(f.render("True 32px gameplay chip + silhouette", True, LABEL), (panel_x + 16, 96))
 
-    def chip32():
-        big = pygame.Surface((120 * SS, 120 * SS), pygame.SRCALPHA)
-        draw_asthi_dakini(big, 60 * SS, 64 * SS, (32 / 150.0) * SS)
-        small = pygame.transform.smoothscale(big, (120, 120))
-        return grow_outline(small, INK + (255,), 1)
+    def chip32(night_rim=False):
+        # true 32px gameplay chip: bold-rows collapse so the girdle + choker carry
+        # the silhouette; the night variant adds the cool rim-light keyline.
+        return render_creature_chip(120, 120, 60, 64, (32 / 150.0),
+                                    bold_rows=True, night_rim=night_rim)
 
-    chip = chip32()
+    chip_day = chip32(night_rim=False)
+    chip_night = chip32(night_rim=True)
 
     day_y = 128
     vgrad(sheet, (panel_x + 20, day_y, 150, 150), DAY_SKY_T, DAY_SKY_B)
     pygame.draw.rect(sheet, INK, (panel_x + 20, day_y, 150, 150), 1)
-    sheet.blit(chip, (panel_x + 20 + 15, day_y + 15))
-    sheet.blit(f_sm.render("32px DAY sky", True, LABEL), (panel_x + 20, day_y + 156))
+    sheet.blit(chip_day, (panel_x + 20 + 15, day_y + 15))
+    sheet.blit(f_sm.render("32px DAY sky (bold rows)", True, LABEL), (panel_x + 20, day_y + 156))
 
     night_y = day_y + 184
     vgrad(sheet, (panel_x + 20, night_y, 150, 150), NIGHT_T, NIGHT_B)
     pygame.draw.rect(sheet, INK, (panel_x + 20, night_y, 150, 150), 1)
-    sheet.blit(chip, (panel_x + 20 + 15, night_y + 15))
-    sheet.blit(f_sm.render("32px NIGHT sky", True, LABEL_DIM), (panel_x + 20, night_y + 156))
+    sheet.blit(chip_night, (panel_x + 20 + 15, night_y + 15))
+    sheet.blit(f_sm.render("32px NIGHT (bold rows + rim-light)", True, LABEL_DIM), (panel_x + 20, night_y + 156))
 
     # blackout / silhouette proof beside the 32px chips
-    bo = blackout(chip)
+    bo = blackout(chip_day)
     bx = panel_x + 192
     pygame.draw.rect(sheet, (208, 214, 224), (bx, day_y, 150, 150))
     pygame.draw.rect(sheet, INK, (bx, day_y, 150, 150), 1)
@@ -782,13 +883,13 @@ def main():
     # bottom note strip
     pygame.draw.rect(sheet, PANEL, (14, 836, W - 28, 48))
     sheet.blit(f_sm.render(
-        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero export (round_1_hero.png).",
+        "R2: value-ladder fixed (crown-centre dim warm, third-eye sole bright cyan) · gold face-zone anchors · solid tiara-band · MID palm-skulls · 32px bold rows + night rim-light · bead-rope pillar.",
         True, LABEL_DIM), (26, 846))
     sheet.blit(f_sm.render(
         "STAY: flat fills · hard ink keyline (28,22,26) · dark-core->fill->top-left sheen triad · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 864))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     hero_out = export_hero()
     print("wrote", out)
