@@ -427,6 +427,70 @@ def build_showcase(stack_sheet, skewer_sheet):
     print("wrote", out, sheet.get_size())
 
 
+# ── EARLIER crown skull (round 9 — the last single-design crown before the
+#    idx 0-5 variance landed at round 10). Vendored from the round-9 source with
+#    its OWN warm bone-jewel palette (namespaced _O_/_o_) so it reads as the
+#    period-correct "before" against the current high-variance crown row — a
+#    same-warm crown drawn in the chosen design's later palette would not. ──────
+_O_INK        = (28, 22, 26)
+_O_CROWN_BONE = (170, 162, 152)
+_O_CYAN_BR    = (188, 248, 252)
+_O_CYAN_D     = (40, 132, 150)
+_O_GOLD       = (212, 162, 60)
+
+
+def _o_lerp(a, b, t):
+    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
+
+
+def _o_triad_blob(surf, color, pts, ow=2):
+    pygame.draw.polygon(surf, _O_INK, pts)
+    pygame.draw.polygon(surf, color, pts)
+    pygame.draw.polygon(surf, _O_INK, pts, ow)
+
+
+def _o_triad_circle(surf, color, c, r, ow=2, sheen=True, core=True):
+    pygame.draw.circle(surf, _O_INK, c, r + max(1, ow // 2))
+    pygame.draw.circle(surf, color, c, r)
+    if core:
+        pygame.draw.circle(surf, _o_lerp(color, _O_INK, 0.4),
+                           (c[0] + int(r * 0.28), c[1] + int(r * 0.30)), int(r * 0.74))
+        pygame.draw.circle(surf, color, c, int(r * 0.82))
+    if sheen:
+        pygame.draw.circle(surf, _o_lerp(color, (255, 255, 255), 0.45),
+                           (c[0] - int(r * 0.38), c[1] - int(r * 0.40)), max(1, int(r * 0.26)))
+    pygame.draw.circle(surf, _O_INK, c, r, ow)
+
+
+def _crown_skull_orig(surf, cx, cy, r, s, lit=False):
+    """Round-9 crown skull — domed cranium, two dark sockets, stub jaw. A notch
+    darker/cooler than the warm-ivory body so it sits the dimmest value tier and
+    keeps its shape against both body and sky. `lit` swaps the centre skull's
+    eyes + the only crown glow allowed: a tiny gold-bezel cyan brow pip."""
+    _o_triad_circle(surf, _O_CROWN_BONE, (cx, cy), r, ow=max(1, int(1.6 * s)), core=False)
+    jaw = [(cx - int(r * 0.52), cy + int(r * 0.52)),
+           (cx + int(r * 0.52), cy + int(r * 0.52)),
+           (cx + int(r * 0.34), cy + int(r * 1.0)),
+           (cx - int(r * 0.34), cy + int(r * 1.0))]
+    _o_triad_blob(surf, _O_CROWN_BONE, jaw, ow=max(1, int(1.2 * s)))
+    eye_c = _O_CYAN_BR if lit else _O_INK
+    for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
+        pygame.draw.circle(surf, _O_INK, (ex, cy + int(r * 0.04)), max(1, int(r * 0.24)))
+        if lit:
+            pygame.draw.circle(surf, eye_c, (ex, cy + int(r * 0.04)), max(1, int(r * 0.13)))
+    # subtle bone-jewel echo on the lit centre skull only — gold-bezel cyan brow
+    # pip tying the crown to her bead identity; two dots keep the silhouette clean.
+    if lit:
+        bg_y = cy - int(r * 0.30)
+        pygame.draw.circle(surf, _O_GOLD, (cx, bg_y), max(1, int(r * 0.18)))
+        pygame.draw.circle(surf, _O_CYAN_D, (cx, bg_y), max(1, int(r * 0.11)))
+    pygame.draw.circle(surf, _O_INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.13)))
+    pygame.draw.line(surf, _O_INK,
+                     (cx - int(r * 0.34), cy + int(r * 0.70)),
+                     (cx + int(r * 0.34), cy + int(r * 0.70)),
+                     max(1, int(1.2 * s)))
+
+
 def _skull_chip(kind, idx, cell_w, cell_h, *, lit=False):
     """One skull rendered on transparent ground, smoothscaled + outlined."""
     ssr = 6
@@ -438,6 +502,8 @@ def _skull_chip(kind, idx, cell_w, cell_h, *, lit=False):
     cy = int(cell_h * ssr * 0.52)
     if kind == "crown":
         _crown_skull_straight(big, cx, cy, rb, s, lit=lit, idx=idx)
+    elif kind == "crown_orig":
+        _crown_skull_orig(big, cx, cy, rb, s, lit=lit)
     else:
         _palm_skull_bare(big, cx, cy, rb, s, idx=idx)
     small = pygame.transform.smoothscale(big, (cell_w, cell_h))
@@ -456,6 +522,8 @@ def build_individual_sheet():
          [("crown", i, i == 2) for i in range(6)]),
         ("PALM skulls (the ornamented reliquary skulls — hands removed; some carry the cyan gem)",
          [("palm", i, False) for i in range(6)]),
+        ("EARLIER crown skull (round 9, pre-variance) — one uniform design, all 6 positions alike",
+         [("crown_orig", 0, False), ("crown_orig", 0, True)]),
     ]
     W = cols * cw + (cols + 1) * pad
     H = head + len(rows) * (ch + lab + pad + 26)
@@ -472,7 +540,10 @@ def build_individual_sheet():
         for kind, idx, lit in items:
             chip = _skull_chip(kind, idx, cw, ch, lit=lit)
             sheet.blit(chip, (x, y))
-            tag = f"{kind} {idx}" + ("  (lit)" if lit else "")
+            if kind == "crown_orig":
+                tag = "r9 (lit)" if lit else "r9 (resting)"
+            else:
+                tag = f"{kind} {idx}" + ("  (lit)" if lit else "")
             _label(sheet, tag, x + 6, y + ch + 2)
             x += cw + pad
         y += ch + lab + pad
