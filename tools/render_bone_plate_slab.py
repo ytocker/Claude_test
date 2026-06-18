@@ -1,15 +1,30 @@
-"""Round-1 render for the FUSED BONE-PLATE SLAB clown-event column.
+"""Round-2 render for the FUSED BONE-PLATE SLAB clown-event column.
 
 The 5th column logic: an honestly SOLID fortress wall built from tessellated
 cranial plates / jammed-together skulls — a charnel WALL, not a stack. No tier
-rhythm, no taper: an unbroken mortared mass with thin gold seams tracing the
-tessellation, capped at Pip's gap by one oversized boss-skull KEYSTONE.
+rhythm, no taper: an unbroken mortared mass whose ONLY structure is the plate
+mosaic, capped at Pip's gap by one oversized boss-skull KEYSTONE.
 
-Distinct from the stupa (no separable tiers), from the candle (hard-edged
-geometric, not slumped), and the unambiguously-solid mass of the set. Built in
-the locked bone-roster idiom (warm-ivory bone, ink keyline, dark-core/flat/
-rim-sheen triad, gold thin-accent seams, sparing faceted cyan/purple gems) and
-supersampled → smoothscaled with an alpha-grown 1px silhouette outline.
+Round-2 rework (art-director punch list):
+  1. Killed the horizontal banding — the per-plate dark-core band created
+     regular light/dark courses (a tier rhythm). The backing is now flat
+     warm-ivory with only a very-low-frequency VERTICAL value drift; no
+     horizontal courses exist anywhere.
+  2. Each plate is filled with ONE flat value from a tight 3-step warm-ivory
+     ramp (light / mid / shadow). The mosaic reads as solid tessellated MASS by
+     VALUE — the value blocks survive the downscale; lines alone don't.
+  3. Plates enlarged to ~22px (≈2.5-3 across the 58px width) — fewer, chunkier
+     facets instead of a fine triangulated net.
+  4. Gold seams halved and broken into short glints (≤2 plate-edges). Most
+     grout is recessed dark bone-shadow; gold is an occasional accent only —
+     no continuous gilt trellis.
+  5. Void test protected: recessed grout stays clearly darker than sky, never
+     drops to sky value, never touches the keyline edge.
+  6. Keystone suture cleaned to a carved symmetric brow (dark core under gold).
+
+Built in the locked bone-roster idiom (warm-ivory bone, ink keyline, dark-core/
+flat/rim-sheen triad, gold thin-accent seams, sparing faceted cyan/purple gems)
+and supersampled → smoothscaled with an alpha-grown 1px silhouette outline.
 """
 import os
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
@@ -24,7 +39,6 @@ INK     = (28, 22, 30)
 BONE    = (228, 222, 206)
 BONE_DK = (150, 144, 128)
 BONE_HI = (250, 247, 236)
-MORTAR  = (84, 76, 70)          # the recessed grout in the deepest seam cores
 GOLD    = (250, 205, 72)
 GOLD_HI = (255, 236, 150)
 GOLD_DK = (176, 130, 30)
@@ -32,6 +46,15 @@ CYAN    = (120, 214, 222)
 CYAN_HI = (224, 252, 252)
 PURPLE  = (158, 120, 214)
 PURPLE_HI = (224, 200, 252)
+
+# Tight 3-step warm-ivory value ramp for the plate fills. The mosaic reads as
+# solid tessellated mass by VALUE, not line — these survive the downscale.
+PLATE_LIGHT  = (236, 230, 214)
+PLATE_MID    = (214, 207, 190)
+PLATE_SHADOW = (190, 182, 164)
+# Recessed grout: a darker warm-grey, clearly darker than sky but never sky-dark
+# and never black — depth between fused plates without opening a hole.
+GROUT  = (118, 110, 100)
 
 PW = 58
 
@@ -54,87 +77,109 @@ def _grow_outline(surf):
 
 
 # ── The tessellated cranial-plate pavement ────────────────────────────────────
-# A coarse irregular polygon mosaic: a jittered point lattice triangulated into
-# fused plates. Coarse on purpose — fine plates collapse at 1x, so the keyline +
-# gold seams must carry the tessellation, not interior detail.
+# A coarse jittered point lattice whose cells become chunky fused plates. Coarse
+# on purpose — fine plates collapse to a wireframe net at 1x, so the plate count
+# is kept low (~2.5-3 across) and each cell is carried by a FLAT VALUE, not lines.
 
 def _plate_lattice(x0, x1, y0, y1, step, jitter, rng):
     """A jittered grid of points; alternate rows offset so the cells read as
-    irregular jammed plates, not a tidy brick course."""
-    cols = max(2, int((x1 - x0) / step) + 1)
-    rows = max(2, int((y1 - y0) / step) + 1)
+    irregular jammed plates, not a tidy brick course. Outer ring is clamped to
+    the body edge so plates fill the full 58px width edge-to-edge (no gutter)."""
+    cols = max(2, round((x1 - x0) / step))
+    rows = max(2, round((y1 - y0) / step))
     pts = {}
     for r in range(rows + 1):
         for c in range(cols + 1):
-            # Clamp the outer ring to the exact body edge so plates fill the full
-            # 58px width edge-to-edge (no inset gutter — it must read SOLID).
             gx = x0 + c * (x1 - x0) / cols
             gy = y0 + r * (y1 - y0) / rows
-            on_edge = (c == 0 or c == cols or r == 0 or r == rows)
             jx = 0 if (c == 0 or c == cols) else rng.uniform(-jitter, jitter)
             jy = 0 if (r == 0 or r == rows) else rng.uniform(-jitter, jitter)
-            # Stagger interior rows half a cell so quads break into a charnel weave.
-            sx = (step * 0.42) if (r % 2 and 0 < c < cols) else 0.0
+            # Stagger interior rows so quads break into a charnel weave. The
+            # offset is small + jittered so no clean horizontal course survives.
+            sx = (step * 0.34) if (r % 2 and 0 < c < cols) else 0.0
             pts[(r, c)] = (gx + jx + sx, gy + jy)
     return pts, rows, cols
 
 
-def _draw_plate(surf, poly, ss, *, rng):
-    """One fused cranial plate, triad-lit: ink keyline, flat ivory fill, a
-    bottom dark-core band and a top-left rim sheen wedge — the roster recipe
-    pushed into an irregular polygon instead of a capsule."""
-    ipoly = [(int(p[0]), int(p[1])) for p in poly]
-    ys = [p[1] for p in poly]
-    xs = [p[0] for p in poly]
-    top, bot = min(ys), max(ys)
-    left, right = min(xs), max(xs)
-    cy = (top + bot) * 0.5
+def _plate_value(gx, gy, bw, H, rng):
+    """Pick ONE flat fill from the 3-step ramp for a whole plate. Selection is
+    spatially incoherent (hashed jitter) so NO horizontal course of equal value
+    forms — but biased by a very-low-frequency VERTICAL drift (darker toward the
+    bottom of the column) so the mass reads carved, never striped."""
+    # Low-frequency vertical drift only: a single smooth gradient over the whole
+    # column, NOT a per-row band. This is the one permitted value trend.
+    vdrift = gy / max(1.0, H)                      # 0 at top → 1 at bottom
+    roll = rng.random() * 0.62 + vdrift * 0.38     # bias darker low, but noisy
+    if roll < 0.40:
+        base = PLATE_LIGHT
+    elif roll < 0.74:
+        base = PLATE_MID
+    else:
+        base = PLATE_SHADOW
+    # A tiny per-plate tint so adjacent equal-step plates still separate slightly.
+    return _shade(base, rng.randint(-5, 5))
 
-    # Flat ivory body, very slight per-plate tint so the mass reads carved, not flat.
-    fill = _shade(BONE, rng.randint(-10, 4))
+
+def _draw_plate(surf, poly, fill, ss):
+    """One fused cranial plate: a FLAT value block (the mass) with a single
+    short top-left rim-sheen stroke (the roster's top-left light). No interior
+    dark-core band — the value ramp across plates carries the carved depth, so
+    no per-plate gradient can re-introduce horizontal courses."""
+    ipoly = [(int(p[0]), int(p[1])) for p in poly]
     pygame.draw.polygon(surf, fill, ipoly)
 
-    # Dark-core: shade the lower portion by overdrawing the plate's bottom half a
-    # step darker (clipped to the plate so the seam stays crisp).
-    prev = surf.get_clip()
-    surf.set_clip(pygame.Rect(left - 1, int(cy), int(right - left) + 2, int(bot - cy) + 2))
-    pygame.draw.polygon(surf, _shade(fill, -34), ipoly)
-    surf.set_clip(prev)
+    xs = [p[0] for p in poly]
+    ys = [p[1] for p in poly]
+    left, right = min(xs), max(xs)
+    top, bot = min(ys), max(ys)
+    cx = (left + right) * 0.5
+    cy = (top + bot) * 0.5
 
-    # Top-left rim sheen: a short bright stroke along the upper-left edges only.
+    # Top-left rim sheen: brighten only the upper-left edges of the plate so the
+    # light reads from the top-left across the whole wall (house triad).
     n = len(poly)
     for i in range(n):
         a = poly[i]
         b = poly[(i + 1) % n]
         mx, my = (a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5
-        if my < cy and mx < (left + right) * 0.5 + (right - left) * 0.15:
-            pygame.draw.line(surf, BONE_HI,
+        if my < cy and mx < cx + (right - left) * 0.12:
+            pygame.draw.line(surf, _shade(fill, 26),
                              (int(a[0]), int(a[1])), (int(b[0]), int(b[1])),
-                             max(1, int(1.2 * ss)))
+                             max(1, int(1.1 * ss)))
 
 
-def _draw_seams(surf, edges, ss):
-    """Trace the tessellation with thin gold seams over a recessed mortar core:
-    a dark grout line first (depth), then the gold hairline on top (the focal
-    accent that survives downscale and sells 'fused bone-plates')."""
-    # Most seams are recessed BONE-SHADOW grout (ivory stays the dominant value);
-    # only a SPARSE subset carries the gold hairline so gold reads as a thin
-    # tracing accent, not a gilt trellis. Deterministic stride keeps it even.
+def _draw_seams(surf, edges, ss, rng):
+    """Trace the tessellation. MOST seams are recessed bone-shadow grout (depth
+    between fused plates, ivory stays the dominant value). Gold appears ONLY as
+    occasional SHORT glints — never a continuous run — so it reads as a sparse
+    accent catching the light, not a gilt trellis."""
     for (a, b) in edges:
-        pygame.draw.line(surf, _shade(BONE, -56),
+        # Recessed grout core for every seam: darker warm-grey, kept off the
+        # sky value so jitter never opens a hole. A 1px ink hairline inside it
+        # sells the deep crack.
+        pygame.draw.line(surf, GROUT,
                          (int(a[0]), int(a[1])), (int(b[0]), int(b[1])),
-                         max(2, int(2.0 * ss)))
-        pygame.draw.line(surf, MORTAR,
+                         max(2, int(1.8 * ss)))
+        pygame.draw.line(surf, _shade(GROUT, -34),
                          (int(a[0]), int(a[1])), (int(b[0]), int(b[1])),
                          max(1, int(ss)))
-    for i, (a, b) in enumerate(edges):
-        if i % 3:
+
+    # Gold only as short glints: pick a sparse subset of edges and gild just a
+    # fragment of each (a midpoint stub), so no two gilt edges chain into a run.
+    for (a, b) in edges:
+        if rng.random() > 0.16:        # ~1 in 6 edges carries any gold at all
             continue
+        # Gild a short central fragment of this single edge — ≤ one edge long,
+        # so it cannot read as a continuous diagonal seam.
+        t0 = rng.uniform(0.18, 0.34)
+        t1 = t0 + rng.uniform(0.28, 0.40)
+        ga = (a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0)
+        gb = (a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1)
         pygame.draw.line(surf, GOLD_DK,
-                         (int(a[0]), int(a[1])), (int(b[0]), int(b[1])),
-                         max(1, int(1.4 * ss)))
+                         (int(ga[0]), int(ga[1])), (int(gb[0]), int(gb[1])),
+                         max(1, int(1.3 * ss)))
         pygame.draw.line(surf, GOLD,
-                         (int(a[0]), int(a[1])), (int(b[0]), int(b[1])),
+                         (int(ga[0]), int(ga[1])), (int(gb[0]), int(gb[1])),
                          max(1, int(ss)))
 
 
@@ -152,7 +197,10 @@ def _boss_keystone(surf, cx, cy, R, ss, *, flip):
     """The oversized boss-skull KEYSTONE that caps the slab at Pip's gap: a
     cranium wider than the column plates, gem-eyed, mortared INTO the wall with a
     gold keystone-wedge frame so it reads as set INTO the mass, not perched on it.
-    `flip` orients the jaw toward the gap (jaw faces the gap, crown into the wall)."""
+    `flip` orients the jaw toward the gap (jaw faces the gap, crown into the wall).
+
+    KEPT INTACT per the brief (best focal in the set): skull silhouette, jaw
+    orientation, cyan+purple gem sockets. Only the suture is reworked."""
     sgn = 1 if not flip else -1     # +1: jaw downward (top half); -1: jaw upward (bottom half)
 
     # A bone keystone wedge socket framing the boss into the wall, jaw-side wider:
@@ -182,13 +230,21 @@ def _boss_keystone(surf, cx, cy, R, ss, *, flip):
     surf.set_clip(prev)
     pygame.draw.circle(surf, BONE_HI, (int(cx - R * 0.34), int(cy - R * 0.34)), int(R * 0.34))
 
-    # The cranial-suture seam wandering across the dome in gold (ties it to the wall).
-    sut = [(cx - R * 0.7, cy - R * 0.15),
-           (cx - R * 0.2, cy - R * 0.5),
-           (cx + R * 0.25, cy - R * 0.2),
-           (cx + R * 0.72, cy - R * 0.42)]
-    pygame.draw.lines(surf, GOLD_DK, False, [(int(x), int(y)) for x, y in sut], max(1, int(1.6 * ss)))
-    pygame.draw.lines(surf, GOLD, False, [(int(x), int(y)) for x, y in sut], max(1, int(ss)))
+    # The cranial suture: a SYMMETRIC carved brow arch over the eye sockets. A
+    # dark-core shadow under a gold hairline so it reads as a carved suture, not
+    # a stray scribble (round-1 had a single thin wandering gold line).
+    brow_y = cy - R * 0.30
+    brow = [(cx - R * 0.66, brow_y + R * 0.10),
+            (cx - R * 0.30, brow_y - R * 0.14),
+            (cx,            brow_y - R * 0.20),
+            (cx + R * 0.30, brow_y - R * 0.14),
+            (cx + R * 0.66, brow_y + R * 0.10)]
+    ibrow = [(int(x), int(y)) for x, y in brow]
+    # Dark shadow core sits just below the gold so the suture reads recessed.
+    pygame.draw.lines(surf, _shade(BONE, -50), False,
+                      [(x, y + max(1, int(1.4 * ss))) for x, y in ibrow], max(1, int(1.8 * ss)))
+    pygame.draw.lines(surf, GOLD_DK, False, ibrow, max(1, int(1.7 * ss)))
+    pygame.draw.lines(surf, GOLD, False, ibrow, max(1, int(ss)))
 
     # Gem eye sockets — the sparing cyan/purple wisdom gems live HERE (keystone only).
     ex = R * 0.46
@@ -224,16 +280,13 @@ def _boss_keystone(surf, cx, cy, R, ss, *, flip):
 def _build_slab(height_px, ss, *, flip, seed):
     """Render one slab half (top OR bottom) at supersample `ss`, with its boss
     keystone seated at the gap-facing end. Returns the smoothscaled, outlined
-    PIPE_W-wide surface."""
+    PW-wide surface."""
     rng = random.Random(seed)
     bw = PW * ss
     H = max(1, int(height_px)) * ss
     surf = pygame.Surface((bw, H), pygame.SRCALPHA)
 
     x0, x1 = 0, bw
-    # The keystone sits at the gap-facing edge. For a TOP half the gap is at the
-    # bottom (flip=False here means jaw-down at bottom); for a BOTTOM half the gap
-    # is at the top. We reserve a band for the boss and pave the rest with plates.
     boss_R = PW * 0.52 * ss
     boss_band = int(boss_R * 2.1)
 
@@ -249,17 +302,22 @@ def _build_slab(height_px, ss, *, flip, seed):
         boss_flip = True
 
     # Solid backing fill across the WHOLE body first so any seam jitter never
-    # opens a hole to the sky — this is the "honest solid mass" guarantee.
-    pygame.draw.rect(surf, _shade(BONE, -18), (0, 0, bw, H))
+    # opens a hole to the sky — this is the "honest solid mass" guarantee. A flat
+    # warm-ivory with ONLY a very-low-frequency vertical drift (no horizontal
+    # courses): one smooth top→bottom darkening, the single permitted trend.
+    for y in range(H):
+        t = y / max(1, H)
+        c = (int(PLATE_MID[0] - 18 * t),
+             int(PLATE_MID[1] - 18 * t),
+             int(PLATE_MID[2] - 16 * t))
+        pygame.draw.line(surf, c, (0, y), (bw, y))
 
-    # Coarse on purpose: ~22px plates survive the downscale to 58px so the
-    # tessellation still reads at 1x instead of mushing into noise.
+    # Chunky plates: ~22px true (≈2.5-3 across the 58px width). Fewer, bigger
+    # facets that survive the downscale as value blocks instead of mushing.
     step = 22 * ss
-    jitter = 4.6 * ss
+    jitter = 4.2 * ss
     pts, rows, cols = _plate_lattice(x0, x1, py0, py1, step, jitter, rng)
 
-    # Build plate polygons by pairing triangles of adjacent lattice cells into
-    # quad-ish plates, then collect their edges for the seam pass.
     edges = []
     seen = set()
 
@@ -269,33 +327,27 @@ def _build_slab(height_px, ss, *, flip, seed):
             seen.add(key)
             edges.append((pts[a], pts[b]))
 
+    # Each lattice cell becomes ONE chunky quad plate filled with a single flat
+    # value (no per-cell triangulation — that fine net was the round-1 wireframe).
     for r in range(rows):
         for c in range(cols):
-            # Two triangles per cell, split on alternating diagonals for irregularity.
-            tl, tr = (r, c), (r, c + 1)
-            bl, br = (r + 1, c), (r + 1, c + 1)
-            if (r + c) % 2 == 0:
-                tri_a = [pts[tl], pts[tr], pts[br]]
-                tri_b = [pts[tl], pts[br], pts[bl]]
-                diag = (tl, br)
-            else:
-                tri_a = [pts[tl], pts[tr], pts[bl]]
-                tri_b = [pts[tr], pts[br], pts[bl]]
-                diag = (tr, bl)
-            _draw_plate(surf, tri_a, ss, rng=rng)
-            _draw_plate(surf, tri_b, ss, rng=rng)
-            # Cell border edges + the interior diagonal -> the tessellation seams.
-            add_edge(tl, tr)
-            add_edge(tr, br)
-            add_edge(br, bl)
-            add_edge(bl, tl)
-            add_edge(*diag)
+            tl, tr = pts[(r, c)], pts[(r, c + 1)]
+            br, bl = pts[(r + 1, c + 1)], pts[(r + 1, c)]
+            quad = [tl, tr, br, bl]
+            gx = (tl[0] + br[0]) * 0.5
+            gy = (tl[1] + br[1]) * 0.5
+            fill = _plate_value(gx, gy, bw, H, rng)
+            _draw_plate(surf, quad, fill, ss)
+            add_edge((r, c), (r, c + 1))
+            add_edge((r, c + 1), (r + 1, c + 1))
+            add_edge((r + 1, c + 1), (r + 1, c))
+            add_edge((r + 1, c), (r, c))
 
-    _draw_seams(surf, edges, ss)
+    _draw_seams(surf, edges, ss, rng)
 
     # A faint occasional plate-set gem dotting the wall, very sparingly, so the
     # mass reads as a charnel reliquary without rivalling the keystone focal.
-    for _ in range(max(1, (rows * cols) // 14)):
+    for _ in range(max(1, (rows * cols) // 10)):
         gr = rng.randint(1, rows - 1)
         gc = rng.randint(1, cols - 1)
         gx, gy = pts[(gr, gc)]
@@ -311,7 +363,7 @@ def _build_slab(height_px, ss, *, flip, seed):
     return _grow_outline(small)
 
 
-# ── Busy day-sky backdrop for the read test ───────────────────────────────────
+# ── Sky backdrops for the read test ───────────────────────────────────────────
 
 def _day_sky(w, h):
     sky = pygame.Surface((w, h))
@@ -319,8 +371,6 @@ def _day_sky(w, h):
         t = y / h
         c = (int(116 + 60 * t), int(186 + 30 * t), int(232 - 20 * t))
         pygame.draw.line(sky, c, (0, y), (w, y))
-    # Busy clutter: clouds + a couple of distant ambient shapes so the read test
-    # is honest against a real-ish background, not a flat field.
     rng = random.Random(7)
     for _ in range(14):
         cx = rng.randint(0, w)
@@ -335,83 +385,104 @@ def _day_sky(w, h):
     return sky
 
 
+def _night_sky(w, h):
+    """A night-biome strip so the void test is checked against a DARK sky too:
+    the recessed grout must stay clearly readable as bone, never collapse toward
+    the dark sky value or open a hole."""
+    sky = pygame.Surface((w, h))
+    for y in range(h):
+        t = y / h
+        c = (int(22 + 26 * t), int(26 + 28 * t), int(54 + 30 * t))
+        pygame.draw.line(sky, c, (0, y), (w, y))
+    rng = random.Random(11)
+    for _ in range(70):
+        pygame.draw.circle(sky, (220, 226, 244),
+                           (rng.randint(0, w), rng.randint(0, h)), rng.choice([1, 1, 1, 2]))
+    # A pale moon glow so there is a bright patch for grout to be tested against.
+    pygame.draw.circle(sky, (210, 214, 236), (int(w * 0.7), int(h * 0.16)), 16)
+    return sky
+
+
 def main():
     SS = 5
     GAP = 150
     TOP_H = 250
     BOT_H = 250
 
-    margin = 28
-    # Hero: top + bottom slab framing a gap, at a comfortable ~2.4x view scale so
-    # the construction is legible; plus a clean 1x gameplay crop alongside.
-    view = 2.4
-    col_w = int(PW * view)
-    hero_h = int((TOP_H + GAP + BOT_H) * 0.74)
-
-    sheet_w = 720
-    sheet_h = hero_h + 120
-    sheet = pygame.Surface((sheet_w, sheet_h))
-    sheet.fill((40, 44, 56))
+    margin = 24
 
     title_f = pygame.font.SysFont("dejavusans", 19, bold=True)
     sub_f = pygame.font.SysFont("dejavusans", 12)
-    sheet.blit(title_f.render("FUSED BONE-PLATE SLAB - round 1", True, (255, 255, 255)), (20, 14))
-    sheet.blit(sub_f.render("charnel WALL: tessellated cranial plates, gold seams, one boss-skull keystone - the honestly SOLID column",
-                            True, (206, 208, 220)), (20, 38))
-
-    # ── Hero panel: 2.4x top+bottom over busy day sky ────────────────────────
-    hero_x = margin
-    hero_y = 64
-    hero_sky = _day_sky(col_w + 40, hero_h)
-    sheet.blit(hero_sky, (hero_x, hero_y))
 
     top = _build_slab(TOP_H, SS, flip=False, seed=51)
     bot = _build_slab(BOT_H, SS, flip=True, seed=52)
+
+    # Layout: a 2.4x hero on day sky, a 1x display-zoomed strip, a true-1x strip
+    # on day sky, and a true-1x strip on NIGHT sky (the new void/banding check).
+    view = 2.4
+    col_w = int(PW * view)
+    crop_h = TOP_H + GAP + BOT_H
+    hero_h = int(crop_h * 0.74)
+
+    sheet_w = 760
+    sheet_h = hero_h + 130
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((40, 44, 56))
+    sheet.blit(title_f.render("FUSED BONE-PLATE SLAB - round 2", True, (255, 255, 255)), (20, 12))
+    sheet.blit(sub_f.render("flat-value plate mosaic (no horizontal courses) - chunky facets - sparse gold glints - boss keystone kept",
+                            True, (206, 208, 220)), (20, 36))
+
+    hero_x = margin
+    hero_y = 60
+
+    # ── 2.4x hero over busy day sky ──────────────────────────────────────────
+    hero_sky = _day_sky(col_w + 36, hero_h)
+    sheet.blit(hero_sky, (hero_x, hero_y))
     top_v = pygame.transform.smoothscale(top, (col_w, int(TOP_H * view * 0.74)))
     bot_v = pygame.transform.smoothscale(bot, (col_w, int(BOT_H * view * 0.74)))
-    cx_hero = hero_x + 20 + col_w // 2
+    cx_hero = hero_x + 18 + col_w // 2
     sheet.blit(top_v, (cx_hero - col_w // 2, hero_y))
     gap_v = int(GAP * view * 0.74)
     bot_y = hero_y + top_v.get_height() + gap_v
     sheet.blit(bot_v, (cx_hero - col_w // 2, bot_y))
-
-    # Pip's gap marker.
     pip_y = hero_y + top_v.get_height() + gap_v // 2
     pygame.draw.circle(sheet, (250, 196, 60), (cx_hero, pip_y), 9)
     pygame.draw.circle(sheet, INK, (cx_hero, pip_y), 9, 2)
-    sheet.blit(sub_f.render("2.4x hero", True, (230, 232, 240)), (hero_x + 4, hero_y + hero_h + 4))
+    sheet.blit(sub_f.render("2.4x hero (day)", True, (230, 232, 240)), (hero_x + 4, hero_y + hero_h + 6))
 
-    # ── 1x gameplay-scale crop: true 58px column over the SAME busy sky ──────
-    crop_x = hero_x + col_w + 80
-    crop_h = TOP_H + GAP + BOT_H
-    crop_scale = (sheet_h - 110) / crop_h
-    cw = int(crop_h * crop_scale)
-    one_sky = _day_sky(PW + 30, crop_h)
-    # Composite the true-1x slabs onto the 1x sky, THEN scale the whole strip up
-    # for display so the viewer sees exactly the downscaled pixels Pip flies past.
-    strip = pygame.Surface((PW + 30, crop_h))
-    strip.blit(one_sky, (0, 0))
-    sx = 15
-    strip.blit(top, (sx, 0))
-    strip.blit(bot, (sx, TOP_H + GAP))
-    pygame.draw.circle(strip, (250, 196, 60), (sx + PW // 2, TOP_H + GAP // 2), 4)
-    pygame.draw.circle(strip, INK, (sx + PW // 2, TOP_H + GAP // 2), 4, 1)
-    disp = pygame.transform.scale(strip, (int((PW + 30) * crop_scale), int(crop_h * crop_scale)))
-    sheet.blit(disp, (crop_x, hero_y))
-    sheet.blit(sub_f.render("1x @ 58px (display-zoomed, real pixels)", True, (230, 232, 240)),
-               (crop_x, hero_y + disp.get_height() + 6))
+    crop_scale = hero_h / crop_h
 
-    # ── True-pixel pair, no zoom, on busy sky (the honest read) ──────────────
-    truth_x = crop_x + disp.get_width() + 50
-    truth_sky = _day_sky(PW + 20, crop_h)
+    def zoomed_strip(skyfun, label, x):
+        strip = pygame.Surface((PW + 26, crop_h))
+        strip.blit(skyfun(PW + 26, crop_h), (0, 0))
+        sx = 13
+        strip.blit(top, (sx, 0))
+        strip.blit(bot, (sx, TOP_H + GAP))
+        pygame.draw.circle(strip, (250, 196, 60), (sx + PW // 2, TOP_H + GAP // 2), 4)
+        pygame.draw.circle(strip, INK, (sx + PW // 2, TOP_H + GAP // 2), 4, 1)
+        disp = pygame.transform.scale(strip, (int((PW + 26) * crop_scale), int(crop_h * crop_scale)))
+        sheet.blit(disp, (x, hero_y))
+        sheet.blit(sub_f.render(label, True, (230, 232, 240)), (x, hero_y + disp.get_height() + 6))
+        return x + disp.get_width()
+
+    # ── 1x display-zoomed over day sky (the honest downscaled pixels) ─────────
+    x = hero_x + col_w + 54
+    x = zoomed_strip(_day_sky, "1x @ 58px (day, real px)", x)
+
+    # ── 1x display-zoomed over NIGHT sky (void + banding re-check) ────────────
+    x = zoomed_strip(_night_sky, "1x @ 58px (night)", x + 40)
+
+    # ── True-pixel pair, no zoom, on day sky (the absolute honest read) ───────
+    truth_x = x + 44
+    truth_sky = _day_sky(PW + 18, crop_h)
     sheet.blit(truth_sky, (truth_x, hero_y))
-    sheet.blit(top, (truth_x + 10, hero_y))
-    sheet.blit(bot, (truth_x + 10, hero_y + TOP_H + GAP))
+    sheet.blit(top, (truth_x + 9, hero_y))
+    sheet.blit(bot, (truth_x + 9, hero_y + TOP_H + GAP))
     pygame.draw.circle(sheet, (250, 196, 60),
-                       (truth_x + 10 + PW // 2, hero_y + TOP_H + GAP // 2), 4)
+                       (truth_x + 9 + PW // 2, hero_y + TOP_H + GAP // 2), 4)
     sheet.blit(sub_f.render("1x true", True, (230, 232, 240)), (truth_x, hero_y + crop_h + 6))
 
-    out = "/home/user/skybit/docs/clown_bone_columns/bone-plate-slab/round_1.png"
+    out = "/home/user/skybit/docs/clown_bone_columns/bone-plate-slab/round_2.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print("saved", out)
