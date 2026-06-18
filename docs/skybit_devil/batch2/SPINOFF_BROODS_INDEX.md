@@ -127,6 +127,23 @@ genuine sign-off; Opal took a round-6 focal re-architecture, Oxblood a round-6 d
 - [Oxblood Automaton-King — blocky clockwork humanoid (gear-rings; skull on a gear-spire)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/skull_kings_ii/oxblood_automaton_king/round_6.png)
 - [Bismuth Prism-Architect — limbless stepped crystal ziggurat (rainbow facets; skull capstone)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/skull_kings_ii/bismuth_prism_architect/round_3.png)
 
+## 💀 Mukha × Citipati Court — five richly-ornamented bone-deity sisters (fused from two references)
+A brand-new brood fused from **TWO** shipped references — **Mukha-Devi** (six-arm radial-fan
+bone-mother) and **Citipati** (tall dancing skeleton). Five SISTERS of one form: each keeps Mukha's
+six-arm fan, **six open palms cradling tiny skulls**, and a **fused above-head skull-crown**
+(Citipati arc-sweep + Mukha tiara-band). Answers an earlier "naked" set with dense, researched
+Tibetan wrathful-deity ornament (gold-on-bone) at higher resolution. Novelty only on the open axes:
+body base (**3 Citipati / 2 Mukha**), ornament set, palette, skull treatment. ALL FIVE SHIP-READY
+(genuine art-director sign-offs).
+**Combined showcase:** [mukha_citipati_court/showcase.png](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/mukha_citipati_court/showcase.png)
+
+- **References:** [Mukha-Devi (six-armed bone-mother / radial-fan)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/citipati_versions/mukha_devi/round_2.png) · [Citipati (dancing skeleton-lord)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/jiangshi_epic/citipati/round_2.png)
+- [asthi_dakini — bone-jewel sky-dancer (Citipati · bead-lattice + gold pips)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/mukha_citipati_court/asthi_dakini/round_3_hero.png)
+- [vajra_rakta — wrathful blood-scarf adept (Citipati · brocade silk + flame-ring)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/mukha_citipati_court/vajra_rakta/round_2_hero.png)
+- [naga_kapali — serpent-thread skull-priest (Citipati · naga thread + skull-cups)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/mukha_citipati_court/naga_kapali/round_3_hero.png)
+- [mundamala_mata — severed-head garland mother (Mukha · mundamala + bone apron)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/mukha_citipati_court/mundamala_mata/round_3_hero.png)
+- [ratna_padmini — jewel-lotus throne mother (Mukha · inlay + tassels + full halo)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/mukha_citipati_court/ratna_padmini/round_2_hero.png)
+
 ---
 
 # Standalone fresh-theme sets (not spin-off broods)
