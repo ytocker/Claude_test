@@ -206,38 +206,126 @@ def bead_arc(surf, cx, cy, r, a0, a1, bead_r, s, gold_every=3, light=True):
 
 
 # ── a single ornamental crown-skull (cloned from Citipati; crown-warm tint) ────
-def crown_skull(surf, cx, cy, r, s, lit=False):
-    """Tiny crown skull — domed cranium, two dark sockets, a stub jaw. WHY a notch
+def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
+    """Tiny crown skull — bone-JEWEL relic seated in her tiara arc. WHY a notch
     darker/cooler than the warm-light body (CROWN_BONE): against the new warm ivory
     body, an equally-warm crown would melt in, so the crown sits a value step down
     (the dimmest tier) and slightly cooler to keep its shape against both body and
-    sky. `lit` swaps the centre skull's eyes + a soft cyan halo on
-    — the ONLY crown glow allowed (value-ladder dimmest tier otherwise)."""
-    # no glow bloom — the only cyan glow on the figure is the faceted brow third-eye
-    # gem (the weird blue auras are gone); `lit` only tints the centre skull's eyes.
-    triad_circle(surf, CROWN_BONE, (cx, cy), r, ow=max(1, int(1.6 * s)), core=False)
-    jaw = [(cx - int(r * 0.52), cy + int(r * 0.52)),
-           (cx + int(r * 0.52), cy + int(r * 0.52)),
-           (cx + int(r * 0.34), cy + int(r * 1.0)),
-           (cx - int(r * 0.34), cy + int(r * 1.0))]
-    triad_blob(surf, CROWN_BONE, jaw, ow=max(1, int(1.2 * s)))
-    eye_c = CYAN_BR if lit else INK
+    sky. WHY `idx`: the six crown relics must read as six DISTINCT skulls, not one
+    stamp repeated — so `idx` drives the CRANIUM SILHOUETTE (tall / round / squat /
+    lopsided / heart-domed), suture style, brow + jaw set and a tooth-chip on one.
+    The variety lives in the OUTLINE (width/height/lean), so the scalloped arc reads
+    as distinct lumps at 32px, not only as interior lines. `lit` keeps the centre
+    relic's eyes cyan-tinted — the ONLY crown accent — but stays the DIMMEST tier
+    (no white core, no glow, no brightness bump); the gold-bezel cyan pip on the
+    pip-bearing relics is a DIM hue echo, not a focal."""
+    ow1 = max(1, int(1.6 * s))
+    ow_thin = max(1, int(1.0 * s))
+
+    # ── per-relic silhouette table — the variety must read in the SHAPE ──
+    # cw/ch = cranium width/height stretch · lean = sideways skew of the dome ·
+    # heart = a notched/dimpled crown top · suture style · brow ridge? · jaw set ·
+    # pip = dim gold-bezel cyan bead? · chip = a broken tooth?
+    CROWN_PROFILE = [
+        # 0: TALL narrow dome, gold-pip-beaded suture, set jaw
+        dict(cw=0.88, ch=1.18, lean=0.00, heart=False, sut="dots", brow=True,  jaw="set",   pip=True,  chip=False),
+        # 1: broad ROUND dome, zigzag suture, plain jaw
+        dict(cw=1.16, ch=0.96, lean=0.00, heart=False, sut="zig",  brow=False, jaw="plain", pip=False, chip=False),
+        # 2: SQUAT low dome (centre, lit) — heart-domed top, beaded suture, pip
+        dict(cw=1.10, ch=0.86, lean=0.00, heart=True,  sut="dots", brow=True,  jaw="set",   pip=True,  chip=False),
+        # 3: LOPSIDED dome leaning right, zigzag suture, chipped tooth
+        dict(cw=1.00, ch=1.02, lean=0.20, heart=False, sut="zig",  brow=True,  jaw="plain", pip=False, chip=True),
+        # 4: HEART-domed (notched crown), plain suture, narrow set jaw
+        dict(cw=1.02, ch=1.06, lean=-0.06, heart=True, sut="line", brow=False, jaw="set",   pip=False, chip=False),
+        # 5: lopsided SQUAT dome leaning left, zigzag suture, broad plain jaw
+        dict(cw=1.08, ch=0.92, lean=-0.18, heart=False, sut="zig", brow=True,  jaw="plain", pip=False, chip=True),
+    ]
+    p = CROWN_PROFILE[idx % len(CROWN_PROFILE)]
+    cw, ch, lean = p["cw"], p["ch"], p["lean"]
+
+    # cranium as an ink-keyed POLYGON (not a plain circle) so width/height/lean and
+    # the heart-notch all live in the silhouette. The lean skews the upper dome
+    # sideways; the heart profiles dimple the crown top into two soft lumps.
+    dome = []
+    for ang_deg in range(-180, 1, 18):     # top half-ring: brow → temples → crown
+        a = math.radians(ang_deg)
+        dx = math.cos(a) * r * cw
+        dy = math.sin(a) * r * ch
+        dx += lean * r * (-dy / max(1.0, r))      # shear the dome toward the lean
+        if p["heart"] and abs(math.cos(a)) < 0.34 and math.sin(a) < -0.4:
+            dy += r * 0.22                         # dimple the crown into a heart
+        dome.append((cx + dx, cy + dy))
+    # cheeks taper down to the jaw line
+    dome.append((cx + r * cw * 0.74 + lean * r * 0.2, cy + r * ch * 0.34))
+    dome.append((cx - r * cw * 0.74 + lean * r * 0.2, cy + r * ch * 0.34))
+    triad_blob(surf, CROWN_BONE, [(int(x), int(y)) for x, y in dome], ow=ow1)
+    # a single dim top-left sheen wedge (CROWN_SH — never brighter than the body)
+    sheen = [(cx - r * cw * 0.58, cy - r * ch * 0.10),
+             (cx - r * cw * 0.10 + lean * r * 0.2, cy - r * ch * 0.66),
+             (cx - r * cw * 0.02, cy - r * ch * 0.34),
+             (cx - r * cw * 0.46, cy + r * ch * 0.02)]
+    pygame.draw.polygon(surf, CROWN_SH, [(int(x), int(y)) for x, y in sheen])
+
+    # cranial SUTURE — per-profile crown seam (the carved-bone read at hero scale)
+    seam_y = cy - r * ch * 0.56
+    if p["sut"] == "zig":
+        zp = [(cx - r * 0.34 + j * (r * 0.68 / 4),
+               seam_y + (r * 0.10 if j % 2 else -r * 0.06)) for j in range(5)]
+        pygame.draw.lines(surf, CROWN_BONE_D, False,
+                          [(int(x), int(y)) for x, y in zp], ow_thin)
+    elif p["sut"] == "dots":
+        for j in range(5):
+            zx = cx - r * 0.34 + j * (r * 0.68 / 4)
+            pygame.draw.circle(surf, CROWN_BONE_D, (int(zx), int(seam_y)), max(1, int(0.9 * s)))
+            if j % 2 == 0:    # dim gold pip on alternate suture nodes (jewel-set bone)
+                pygame.draw.circle(surf, GOLD_D, (int(zx), int(seam_y)), max(1, int(0.8 * s)))
+    else:   # "line" — a single straight median suture
+        pygame.draw.line(surf, CROWN_BONE_D, (int(cx), int(cy - r * ch * 0.78)),
+                         (int(cx), int(cy - r * 0.06)), ow_thin)
+
+    # optional brow ridge — a short dark bar above the sockets (carved relief)
+    if p["brow"]:
+        pygame.draw.line(surf, CROWN_BONE_D,
+                         (int(cx - r * 0.46), int(cy - r * 0.02)),
+                         (int(cx + r * 0.46), int(cy - r * 0.02)), max(1, int(1.3 * s)))
+
+    # jaw — per-profile: a SET stub (narrow, tucked) or a PLAIN wider bar
+    if p["jaw"] == "set":
+        jaw = [(cx - r * 0.44, cy + r * 0.52), (cx + r * 0.44, cy + r * 0.52),
+               (cx + r * 0.26, cy + r * 0.98), (cx - r * 0.26, cy + r * 0.98)]
+    else:
+        jaw = [(cx - r * 0.54, cy + r * 0.50), (cx + r * 0.54, cy + r * 0.50),
+               (cx + r * 0.38, cy + r * 1.02), (cx - r * 0.38, cy + r * 1.02)]
+    triad_blob(surf, CROWN_BONE, [(int(x), int(y)) for x, y in jaw], ow=max(1, int(1.2 * s)))
+
+    # two dark sockets (the lit centre relic gets a dim cyan tint, no glow)
+    eye_c = CYAN_D if lit else INK
     for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
         pygame.draw.circle(surf, INK, (ex, cy + int(r * 0.04)), max(1, int(r * 0.24)))
         if lit:
-            pygame.draw.circle(surf, eye_c, (ex, cy + int(r * 0.04)), max(1, int(r * 0.13)))
-    # SUBTLE bone-jewel echo on the centre skull only — a tiny gold-bezel cyan brow
-    # pip tying the crown to her bead identity. Kept to two dots so the 32px crown
-    # silhouette stays clean (detail reads only at hero scale, dimmest tier intact).
-    if lit:
-        bg_y = cy - int(r * 0.30)
-        pygame.draw.circle(surf, GOLD, (cx, bg_y), max(1, int(r * 0.18)))
-        pygame.draw.circle(surf, CYAN_D, (cx, bg_y), max(1, int(r * 0.11)))
+            pygame.draw.circle(surf, eye_c, (ex, cy + int(r * 0.04)), max(1, int(r * 0.12)))
+
+    # nasal pit
     pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.13)))
-    pygame.draw.line(surf, INK,
-                     (cx - int(r * 0.34), cy + int(r * 0.70)),
-                     (cx + int(r * 0.34), cy + int(r * 0.70)),
+
+    # tooth line — a short bar with a couple of slits; the chip profiles drop one
+    ty = cy + int(r * 0.70)
+    pygame.draw.line(surf, INK, (cx - int(r * 0.32), ty), (cx + int(r * 0.32), ty),
                      max(1, int(1.2 * s)))
+    for j in range(3):
+        tx = cx - int(r * 0.24) + j * int(r * 0.24)
+        if p["chip"] and j == 1:
+            continue   # a knocked-out tooth — the chip read on a lopsided relic
+        pygame.draw.line(surf, INK, (tx, ty - int(r * 0.08)), (tx, ty + int(r * 0.10)),
+                         max(1, int(1.0 * s)))
+
+    # DIM gold-bezel cyan brow pip on the pip-bearing relics (incl. the lit centre)
+    # — a hue echo of her bead identity, kept the dimmest tier (GOLD_D + CYAN_D, no
+    # white core, no glow) so the third-eye stays the single brightest pixel.
+    if p["pip"]:
+        bg_y = cy - int(r * 0.28)
+        pygame.draw.circle(surf, GOLD_D, (cx, bg_y), max(1, int(r * 0.18)))
+        pygame.draw.circle(surf, CYAN_D, (cx, bg_y), max(1, int(r * 0.11)))
 
 
 # ── a small CYAN cabochon inlay — the palm-gem (DIM tier, gold bezel) ─────────
@@ -804,13 +892,15 @@ def draw_asthi_dakini(surf, cx, cy, s):
                          head_c[1] + math.sin(a) * arc_r))
     pygame.draw.lines(surf, INK, False, wire_pts, int(4 * s))
     pygame.draw.lines(surf, GOLD_D, False, wire_pts, int(2 * s))
-    # WHY exactly ONE lit skull (centre of the 6): the locked rule restricts crown
-    # glow to the crown-CENTRE skull only; the rest stay the dimmest value tier.
+    # WHY exactly ONE lit skull (centre of the 6): the locked rule restricts the
+    # crown accent to the crown-CENTRE relic only; the rest stay the dimmest value
+    # tier. WHY `idx=i`: the six relics each get a DISTINCT cranium silhouette + set,
+    # so the arc reads as six individual jewels, not one stamp swept six times.
     for i in range(6):
         a = math.radians(220 + i * (100 / 5))
         sx = head_c[0] + math.cos(a) * arc_r
         sy = head_c[1] + math.sin(a) * arc_r
-        crown_skull(surf, int(sx), int(sy), skull_r, s, lit=(i == 2))
+        crown_skull(surf, int(sx), int(sy), skull_r, s, lit=(i == 2), idx=i)
 
 
 # ── the bone-bead reliquary-staff → pillar mirror (sister's own forms) ────────
@@ -894,7 +984,7 @@ def export_hero():
     canvas = pygame.Surface((boxw, boxh))
     vgrad(canvas, (0, 0, boxw, boxh), (74, 84, 104), (40, 46, 64))
     canvas.blit(hero, (0, 0))
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_9_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_10_hero.png")
     pygame.image.save(canvas, out)
     return out
 
@@ -920,7 +1010,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("#1 — ASTHI-DAKINI", True, LABEL), (24, 13))
     sheet.blit(f_sm.render(
-        "bone-jewel sky-dancer  ·  CITIPATI body + MUKHA 6-arm fan · 6 DISTINCT palm-skulls · fused crown · WARM aged-bone + gold pips · round 9",
+        "bone-jewel sky-dancer  ·  CITIPATI body + MUKHA 6-arm fan · 6 DISTINCT palm-skulls + 6 DISTINCT crown relics · fused crown · WARM aged-bone + gold pips · round 10",
         True, LABEL_DIM), (270, 28))
 
     # === (a) BIG HERO =========================================================
@@ -1026,13 +1116,13 @@ def main():
     # bottom note strip
     pygame.draw.rect(sheet, PANEL, (14, 836, W - 28, 48))
     sheet.blit(f_sm.render(
-        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero export (round_9_hero.png).",
+        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero export (round_10_hero.png).",
         True, LABEL_DIM), (26, 846))
     sheet.blit(f_sm.render(
         "STAY: flat fills · hard ink keyline (28,22,26) · dark-core->fill->top-left sheen triad · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 864))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_9.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_10.png")
     pygame.image.save(sheet, out)
     hero_out = export_hero()
     print("wrote", out)
