@@ -178,12 +178,19 @@ def crown_skull(surf, cx, cy, r, s, lit=False, glow=False):
 
 
 # ── a tiny palm-skull cradled in an open hand (the brood motif) ───────────────
-def palm_skull(surf, hx, hy, r, s):
+def palm_skull(surf, hx, hy, r, s, variant=0):
     """An OPEN palm cradling a TINY ivory skull — the locked brood motif that
     replaces Mukha's relic-discs. WHY a thin five-tick palm fan UNDER a slightly
     brighter skull: the value ladder wants the palm-skulls MID — dimmer than the
     third-eye, brighter than the crown — so the skull cradle reads as the second
-    tier of bone at 32px without competing with the focal violet eye."""
+    tier of bone at 32px without competing with the focal violet eye.
+
+    WHY the upgraded skull crown (suture + brow ridge + temple hollow + toothed
+    jaw) is built per-hand from a small `variant` seed: six identical relics read
+    as a stamped print, but a crafted little cranium with a hairline tilt, a jaw
+    set, and one cracked specimen sells the brood as SIX gathered skulls. All the
+    new accents stay DIM (bone-shade/ink), never lit, so the focal violet eye
+    keeps the single brightest pixel and the value ladder is unchanged."""
     # open palm — a small bone cup with five spread finger-ticks beneath the skull
     cup = [(hx - int(r * 1.05), hy + int(r * 0.30)),
            (hx + int(r * 1.05), hy + int(r * 0.30)),
@@ -196,17 +203,60 @@ def palm_skull(surf, hx, hy, r, s):
         ey = (hy - int(r * 0.10)) + math.sin(a) * r * 1.5
         pygame.draw.line(surf, INK, (hx, hy + int(r * 0.2)), (ex, ey), max(2, int(2.4 * s)))
         pygame.draw.line(surf, BONE, (hx, hy + int(r * 0.2)), (ex, ey), max(1, int(1.4 * s)))
+
+    # per-hand variety: a hairline cranial tilt, a slight jaw set, and one
+    # cracked specimen — keyed off `variant` so the six skulls feel gathered.
+    tilt = ((variant % 3) - 1) * int(r * 0.06)          # crown leans L/0/R
+    jaw_set = ((variant % 2) * 2 - 1) * int(r * 0.04)    # under-bite vs over-bite
+    cracked = (variant % 5 == 2)
+    cx, cy = hx, hy - int(r * 0.05)                       # SAME centre & size as round 2
+
     # the cradled tiny skull — a notch brighter so it reads as the MID tier
-    triad_circle(surf, BONE_SH, (hx, hy - int(r * 0.05)), int(r * 0.78),
+    triad_circle(surf, BONE_SH, (cx, cy), int(r * 0.78),
                  ow=max(1, int(1.2 * s)), core=False)
-    for ex in (hx - int(r * 0.32), hx + int(r * 0.32)):
-        pygame.draw.circle(surf, INK, (ex, hy - int(r * 0.05)), max(1, int(r * 0.20)))
-    pygame.draw.circle(surf, INK, (hx, hy + int(r * 0.20)), max(1, int(r * 0.11)))
-    jaw = [(hx - int(r * 0.40), hy + int(r * 0.38)),
-           (hx + int(r * 0.40), hy + int(r * 0.38)),
-           (hx + int(r * 0.26), hy + int(r * 0.70)),
-           (hx - int(r * 0.26), hy + int(r * 0.70))]
+    # cranial SUTURE — a dim zig seam from crown apex down between the sockets
+    sx = cx + tilt
+    suture = [(sx, cy - int(r * 0.72)),
+              (sx + int(r * 0.10), cy - int(r * 0.46)),
+              (sx - int(r * 0.08), cy - int(r * 0.24)),
+              (sx + int(r * 0.04), cy - int(r * 0.05))]
+    pygame.draw.lines(surf, BONE_D, False, suture, max(1, int(1.0 * s)))
+    # BROW RIDGE — a dim shaded arc over the sockets to define the orbital bone
+    brow_r = int(r * 0.50)
+    brow_box = (cx + tilt - brow_r, cy - int(r * 0.30) - brow_r // 2, brow_r * 2, brow_r)
+    pygame.draw.arc(surf, BONE_D, brow_box, math.radians(20), math.radians(160),
+                    max(1, int(1.6 * s)))
+    # TEMPLE / CHEEK hollows — dim recesses just outboard of each socket
+    for sgn in (-1, 1):
+        pygame.draw.circle(surf, BONE_D,
+                           (cx + sgn * int(r * 0.52) + tilt, cy + int(r * 0.16)),
+                           max(1, int(r * 0.14)))
+    # the two sockets — sunk hollow ring then ink pupil so they read as orbits
+    for ex in (cx - int(r * 0.32) + tilt, cx + int(r * 0.32) + tilt):
+        pygame.draw.circle(surf, BONE_DD, (ex, cy), max(1, int(r * 0.24)))
+        pygame.draw.circle(surf, INK, (ex, cy), max(1, int(r * 0.20)))
+    # nasal aperture — a small ink triangle (an inverted-heart cavity, not a dot)
+    nay = cy + int(r * 0.22)
+    pygame.draw.polygon(surf, INK,
+                        [(cx + tilt, cy + int(r * 0.06)),
+                         (cx - int(r * 0.10) + tilt, nay),
+                         (cx + int(r * 0.10) + tilt, nay)])
+    # JAW — proper mandible blob with a few teeth notched along the bite line
+    jl, jr = cx - int(r * 0.40) + jaw_set, cx + int(r * 0.40) + jaw_set
+    jt, jb = cy + int(r * 0.40), cy + int(r * 0.74)
+    jaw = [(jl, jt), (jr, jt), (jr - int(r * 0.14), jb), (jl + int(r * 0.14), jb)]
     triad_blob(surf, BONE_SH, jaw, ow=max(1, int(1.0 * s)))
+    for tx in range(-2, 3):
+        ttx = cx + tx * int(r * 0.16) + jaw_set
+        pygame.draw.line(surf, BONE_D, (ttx, jt + int(r * 0.02)),
+                         (ttx, jt + int(r * 0.16)), max(1, int(1.0 * s)))
+    # one cracked specimen — a dim hairline fracture across the right parietal
+    if cracked:
+        pygame.draw.lines(surf, BONE_DD, False,
+                          [(cx + int(r * 0.18) + tilt, cy - int(r * 0.58)),
+                           (cx + int(r * 0.44) + tilt, cy - int(r * 0.34)),
+                           (cx + int(r * 0.34) + tilt, cy - int(r * 0.10))],
+                          max(1, int(1.0 * s)))
 
 
 # ── the OPEN lobed flame-halo RING (cloned from Citipati, top-arc only) ───────
@@ -626,8 +676,8 @@ def draw_vajra_rakta(surf, cx, cy, s, scale32=False):
 
     # === SIX PALM-SKULLS — one in each open hand (the brood motif) =============
     palm_r = int(9 * s)
-    for (hx, hy) in hand_pts:
-        palm_skull(surf, hx, hy, palm_r, s)
+    for i, (hx, hy) in enumerate(hand_pts):
+        palm_skull(surf, hx, hy, palm_r, s, variant=i)
 
     # === SKULL HEAD — chibi scary-cute, violet third-eye (the single focal) ====
     triad_circle(surf, BONE, head_c, hr, ow=max(2, int(2 * s)))
@@ -854,7 +904,7 @@ def export_hero():
     draw_vajra_rakta(big, (HW // 2) * SS, int(HH * 0.52) * SS, 3.0 * SS)
     hero = pygame.transform.smoothscale(big, (HW, HH))
     hero = grow_outline(hero, INK + (255,), 2)
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_5_hero.png")
     pygame.image.save(hero, out)
     return out
 
@@ -871,7 +921,7 @@ def main():
     sheet.fill(BG)
 
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
-    sheet.blit(font_big.render("VAJRA-RAKTA", True, LABEL), (24, 13))
+    sheet.blit(font_big.render("#2 — VAJRA-RAKTA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "wrathful blood-scarf adept  ·  CITIPATI body · billowing vajra-silk MASS · 6-arm fan + 6 palm-skulls · "
         "fused 5-skull arc + tiara-band · OPEN flame-ring · round 2",
@@ -984,7 +1034,7 @@ def main():
     # bottom note strip
     pygame.draw.rect(sheet, PANEL, (14, 786, W - 28, 60))
     sheet.blit(font_sm.render(
-        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero exported to round_2_hero.png.",
+        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero exported to round_5_hero.png.",
         True, LABEL_DIM), (26, 794))
     sheet.blit(font_sm.render(
         "Two-scale ornament: full gold VISVAVAJRA brocade at HERO -> SPARSE REGULAR GOLD-DOT lattice at 32px; "
@@ -993,7 +1043,7 @@ def main():
         "STAY: flat fills · ink keyline (28,22,26) · dark-core->fill->sheen triad · 1px grown outline · chibi scary-cute · "
         "glow only on third-eye + crown-centre skull · procedural-only.", True, LABEL_DIM), (26, 826))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_5.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     print("wrote", hero_path)
