@@ -658,8 +658,13 @@ def craft_skull(surf, skx, sky_, sr, s, idx=0):
         ec = R(sgn * sr * 0.40 * wx, -sr * 0.02)
         pygame.draw.circle(surf, INK, (int(ec[0]), int(ec[1])), max(1, int(sr * 0.30)))
         if SPEC["lit"] and i == 0:
-            pygame.draw.circle(surf, TURQ, (int(ec[0]), int(ec[1])), max(1, int(sr * 0.18)))
-            pygame.draw.circle(surf, TURQ_BR, (int(ec[0]), int(ec[1])), max(1, int(sr * 0.09)))
+            # same desaturation + value drop as the brow inlay (applied to BOTH lit
+            # palm skulls) so the palm turquoise gem elements stay one even dim rung
+            # below the head's focal brow cabochon, symmetric across the arc.
+            pygame.draw.circle(surf, lerp(TURQ, TURQ_D, 0.12),
+                               (int(ec[0]), int(ec[1])), max(1, int(sr * 0.18)))
+            pygame.draw.circle(surf, lerp(TURQ_BR, TURQ, 0.18),
+                               (int(ec[0]), int(ec[1])), max(1, int(sr * 0.09)))
     # nasal notch
     nc = R(0, sr * 0.40 * bot)
     pygame.draw.circle(surf, INK, (int(nc[0]), int(nc[1])), max(1, int(sr * 0.13)))
@@ -669,14 +674,14 @@ def craft_skull(surf, skx, sky_, sr, s, idx=0):
     # under the focal head cabochon on the value ladder.
     if SPEC["gem"]:
         gc = R(0, -sr * 0.46)
-        # the upper-left palm (idx 2, highest left hand) was the only secondary
-        # jewel flirting with the focal brow cabochon — dim ITS inlay ~10% toward
-        # the deep turquoise shade so the focal cabochon stands alone.
-        if idx == 2:
-            reliquary_inlay(surf, gc, max(1, int(sr * 0.26)), s,
-                            col=lerp(TURQ, TURQ_D, 0.10), br=lerp(TURQ_BR, TURQ_D, 0.10))
-        else:
-            reliquary_inlay(surf, gc, max(1, int(sr * 0.26)), s)
+        # ALL gem palm-skulls take the SAME desaturation + value drop (lerp the
+        # inlay fill + sheen toward the deep turquoise shade) so the mirrored
+        # six-arm arc stays symmetric and no single palm inlay (the upper-left one
+        # in particular) reads as a second focal beside the head's brow cabochon.
+        # Passed into reliquary_inlay's own draw colours so it renders at EVERY gem
+        # skull, not one — the previous idx-gated dim never moved pixels.
+        reliquary_inlay(surf, gc, max(1, int(sr * 0.26)), s,
+                        col=lerp(TURQ, TURQ_D, 0.12), br=lerp(TURQ_BR, TURQ, 0.18))
 
 
 # ── an open palm cradling a TINY SKULL (the brood motif) ──────────────────────
@@ -1090,7 +1095,7 @@ def export_hero():
     draw_ratna_padmini(big, HW, int(HH * 1.04), 5.6)
     hero = pygame.transform.smoothscale(big, (HW, HH))
     hero = grow_outline(hero, INK + (255,), 2)
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_6_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_7_hero.png")
     pygame.image.save(hero, out)
     print("wrote", out)
     return out
@@ -1109,7 +1114,7 @@ def main():
     sheet.blit(font_big.render("#3 — RATNA-PADMINI", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "jewel-lotus throne mother  ·  mukha_citipati_court #5 · MUKHA body · turquoise+gold+coral · "
-        "FULL enclosing flame-halo (the only sister) · round 6",
+        "FULL enclosing flame-halo (the only sister) · round 7",
         True, LABEL_DIM), (300, 26))
 
     # === (a) BIG HERO =========================================================
@@ -1216,15 +1221,15 @@ def main():
 
     pygame.draw.rect(sheet, PANEL, (14, 808, W - 28, 44))
     sheet.blit(font_sm.render(
-        "HIGH-RES pipeline: SS=8 supersample -> smoothscale; standalone round_6_hero.png ~1024px tall.  "
+        "HIGH-RES pipeline: SS=8 supersample -> smoothscale; standalone round_7_hero.png ~1024px tall.  "
         "STAY: flat fills · ink keyline (28,22,26) · dark-core->fill->top-left sheen triad · 1px grown outline · "
-        "chibi scary-cute · procedural-only.",
+        "chibi scary-cute · procedural-only.  Round 7: palm-skull turquoise inlays + lit-sockets dimmed ~12% (symmetric).",
         True, LABEL_DIM), (26, 821))
     sheet.blit(font_sm.render(
         "Two-scale rule: the FULL flame-halo RING carries the 32px silhouette; inlay + tassels + per-petal gems are HERO-ONLY.",
         True, LABEL_DIM), (26, 837))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_6.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_7.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     return out
