@@ -65,6 +65,11 @@ def _load_font(size, bold=False):
 # ornament; green-gold third-eye is the single COOL focal. Tawny is warm so the
 # brood reads "charnel-ascetic in a tiger hide," not treasury-gold.
 BONE      = (238, 228, 204)   # cream bone (the dominant deity fill)
+# WHY a dimmer bone for the crown: the value ladder must open at the top — the
+# crown arc is the largest bright mass, so its bone sits ~17% darker than the
+# body/palm-skull bone, making the crown the DIMMEST tier (third-eye hottest ->
+# palm-skulls mid -> crown dimmest), with the third-eye out-punching by a gap.
+BONE_CR   = (198, 188, 166)   # crown-skull bone (pushed down for the ladder)
 BONE_D    = (186, 172, 142)   # bone dark-core / shade
 BONE_DD   = (134, 120,  92)   # deepest bone hollow (sockets, rib gaps)
 BONE_SH   = (252, 246, 228)   # bone top-left rim-sheen
@@ -142,17 +147,18 @@ def triad_circle(surf, color, c, r, ow=2, sheen=True, core=True):
 
 # ── a single ornamental crown-skull (the fused arc + the pillar cap) ──────────
 def crown_skull(surf, cx, cy, r, s, lit=False):
-    """Tiny cream skull — domed cranium, two dark sockets, a stub jaw. WHY small
-    high-contrast sockets: each crown skull must punch a clean bone shape with
-    two dark dots at 32px so the dome stays the dominant value. `lit` swaps the
+    """Tiny crown skull — domed cranium, two dark sockets, a stub jaw, drawn in
+    the DIMMER crown bone so the arc is the lowest tier of the value ladder. WHY
+    high-contrast sockets: each crown skull must still punch a clean bone shape
+    with two dark dots at 32px even though its bone is darker. `lit` swaps the
     eye-pins to the green-gold focal for the crown-CENTRE skull (the only crown
-    glow in the value ladder)."""
-    triad_circle(surf, BONE, (cx, cy), r, ow=max(1, int(1.6 * s)), core=False)
+    glow in the ladder — a value/inlay, not a bloom)."""
+    triad_circle(surf, BONE_CR, (cx, cy), r, ow=max(1, int(1.6 * s)), core=False)
     jaw = [(cx - int(r * 0.52), cy + int(r * 0.52)),
            (cx + int(r * 0.52), cy + int(r * 0.52)),
            (cx + int(r * 0.34), cy + int(r * 1.0)),
            (cx - int(r * 0.34), cy + int(r * 1.0))]
-    triad_blob(surf, BONE, jaw, ow=max(1, int(1.2 * s)))
+    triad_blob(surf, BONE_CR, jaw, ow=max(1, int(1.2 * s)))
     for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
         pygame.draw.circle(surf, INK, (ex, cy + int(r * 0.04)), max(1, int(r * 0.24)))
         if lit:
@@ -213,7 +219,13 @@ def draw_arm_fan(surf, sh_cx, sh_cy, s, hr):
     shoulder = (sh_cx, sh_cy)
     arm_len = int(hr * 1.95)
     arm_th = int(12 * s)
-    spread = [100, 64, 28]   # degrees off vertical, 3 per side; none vertical
+    # WHY [90,56,24] rather than the rough [100,64,28]: the outer arms were near-
+    # horizontal and the three spokes per side bunched, so at 32px the fan
+    # collapsed to one horizontal bar. Lifting the outer arm off horizontal and
+    # WIDENING the angular gaps (34deg / 32deg between spokes) keeps 3 distinct
+    # spokes per side at the downscaled silhouette edge while still leaving the
+    # crown sky open (none vertical) — the radial-fan identity survives small.
+    spread = [90, 56, 24]   # degrees off vertical, 3 per side; none vertical
     order = []
     for sgn in (-1, 1):
         for d in spread:
@@ -246,35 +258,91 @@ def draw_arm_fan(surf, sh_cx, sh_cy, s, hr):
 
 
 # ── the tiger pelt ornament set ───────────────────────────────────────────────
-def _stripe_band(surf, p0, p1, width, s, n=5):
-    """Tiger black stripes hashed ACROSS a sash run from p0->p1. WHY transverse
-    ticks (not a fill): the diagonal tawny field hung with crisp black bars IS
-    the brood read and the 32px carrier; they must be the highest-contrast detail
-    on the pelt so the stripe-sash survives downscale."""
+def _stripe_band(surf, p0, p1, half, s, n=5):
+    """Chunky BLACK-block tiger stripes alternating against the tawny field along
+    a sash run from p0->p1. WHY full-width FILLED black blocks (not thin ticks):
+    the named 32px carrier is a black-and-gold BARBER-POLE diagonal — the BLACK
+    stripes are what separate against either sky (cream/tawny alone won't). Each
+    black block is a fat transverse slab spanning the band width with a tawny gap
+    between, so a blurred 32px chip still shows the chunky striped diagonal. The
+    blocks step along the sash so even after downscale 2-3 distinct dark bars
+    remain across the torso."""
     dx, dy = p1[0] - p0[0], p1[1] - p0[1]
     L = max(1.0, math.hypot(dx, dy))
     ux, uy = dx / L, dy / L          # along-sash
     nx, ny = -uy, ux                 # across-sash
+    # block pitch: a black slab then a tawny gap of similar length so the duty
+    # cycle is ~50/50 (a true barber-pole, not stripes-on-a-field)
+    blk_len = L / (n * 2 - 0.4)
     for i in range(n):
-        t = (i + 0.6) / (n + 0.2)
-        cx = p0[0] + dx * t
-        cy = p0[1] + dy * t
-        # a tapered stripe — wider on the outer edge for tiger taper
-        w = width * (0.92 - 0.05 * math.sin(i * 1.3))
-        a = (cx + nx * w * 0.5, cy + ny * w * 0.5)
-        b = (cx - nx * w * 0.5, cy - ny * w * 0.5)
-        # slight along-sash skew so stripes read as fur bands, not a ladder
-        skew = ux * width * 0.16, uy * width * 0.16
-        bar = [(a[0] - skew[0], a[1] - skew[1]), (a[0] + skew[0], a[1] + skew[1]),
-               (b[0] + skew[0], b[1] + skew[1]), (b[0] - skew[0], b[1] - skew[1])]
-        pygame.draw.polygon(surf, STRIPE, bar)
-        pygame.draw.polygon(surf, STRIPE_BR, bar, max(1, int(1.0 * s)))
+        t0 = (i * 2 + 0.2) / (n * 2 - 0.4)
+        t1 = (i * 2 + 1.15) / (n * 2 - 0.4)
+        c0x, c0y = p0[0] + dx * t0, p0[1] + dy * t0
+        c1x, c1y = p0[0] + dx * t1, p0[1] + dy * t1
+        # taper the band half-width along the run (slightly narrower at the hip)
+        hw = half * (1.0 - 0.14 * t0)
+        blk = [(c0x + nx * hw, c0y + ny * hw), (c1x + nx * hw, c1y + ny * hw),
+               (c1x - nx * hw, c1y - ny * hw), (c0x - nx * hw, c0y - ny * hw)]
+        pygame.draw.polygon(surf, STRIPE, [(int(p[0]), int(p[1])) for p in blk])
+        # a faint warm-black edge so the slab isn't dead-flat ink at hero scale
+        pygame.draw.polygon(surf, STRIPE_BR, [(int(p[0]), int(p[1])) for p in blk],
+                            max(1, int(1.2 * s)))
+
+
+def tiger_hide_skirt(surf, hip_cx, hip_y, s):
+    """A striped tiger-hide thigh-wrap slung across the hips — the DENSE pelt mass
+    that keeps the lower torso from reading near-naked, and doubles the striped
+    area feeding the 32px tell. WHY a trapezoid skirt with full black slab-stripes
+    and a ragged hide hem: it is the same barber-pole grammar as the sash, mirrored
+    low, so the tawny+black mass occupies the hips. Drawn BEHIND the six arms and
+    the palm-skulls (so they ring it untouched) but in FRONT of the legs."""
+    top_w = int(26 * s)
+    bot_w = int(34 * s)
+    y0 = hip_y - int(2 * s)
+    y1 = hip_y + int(26 * s)
+    cxw = hip_cx + int(1 * s)
+    wrap = [(cxw - top_w, y0), (cxw + top_w, y0 - int(2 * s)),
+            (cxw + bot_w, y1), (cxw - bot_w, y1 + int(2 * s))]
+    triad_blob(surf, TAWNY, wrap,
+               sheen_pts=[(cxw - top_w, y0), (cxw - int(top_w * 0.2), y0),
+                          (cxw - int(bot_w * 0.3), y1), (cxw - bot_w, y1)],
+               ow=max(1, int(1.8 * s)))
+    # vertical black slab-stripes down the skirt (the barber-pole, mirrored low)
+    for k in range(-2, 3):
+        f = k / 2.0
+        sx_top = cxw + f * top_w * 0.82
+        sx_bot = cxw + f * bot_w * 0.82
+        sw = int(5 * s)
+        slab = [(sx_top - sw, y0 + int(2 * s)), (sx_top + sw, y0 + int(2 * s)),
+                (sx_bot + int(sw * 1.2), y1 - int(2 * s)),
+                (sx_bot - int(sw * 1.2), y1 - int(2 * s))]
+        pygame.draw.polygon(surf, STRIPE, [(int(p[0]), int(p[1])) for p in slab])
+    # ragged hide hem — short tawny tongues with a black claw-tip
+    for k in range(-3, 4):
+        hx = cxw + k * int(bot_w * 0.28)
+        triad_blob(surf, TAWNY,
+                   [(hx - int(4 * s), y1 - int(2 * s)), (hx + int(4 * s), y1 - int(2 * s)),
+                    (hx, y1 + int(9 * s))], ow=max(1, int(1.0 * s)))
+        pygame.draw.circle(surf, STRIPE, (hx, y1 + int(6 * s)), max(1, int(1.6 * s)))
 
 
 def tiger_face_buckle(surf, cx, cy, r, s):
     """The tiger-FACE buckle clasping the sash at the shoulder — a tawny round
     cat face with black brow-stripes, two green-tinged eyes and a snarl. Hero-only
     hero detail; mushes to a tawny disc at 32px (intended)."""
+    # two ear-NOTCHES — short rounded tiger ears poking off the top corners so the
+    # buckle reads unmistakably as a CAT face (these + the eye-dots + muzzle are
+    # the minimal tiger tell the critique asked for; may mush at 32px, fine)
+    for sgn in (-1, 1):
+        ear = [(cx + sgn * int(r * 0.42), cy - int(r * 0.74)),
+               (cx + sgn * int(r * 0.86), cy - int(r * 1.06)),
+               (cx + sgn * int(r * 0.96), cy - int(r * 0.58)),
+               (cx + sgn * int(r * 0.58), cy - int(r * 0.48))]
+        triad_blob(surf, EARTH, [(int(p[0]), int(p[1])) for p in ear], ow=max(1, int(1.2 * s)))
+        pygame.draw.polygon(surf, STRIPE,
+                            [(cx + sgn * int(r * 0.58), cy - int(r * 0.66)),
+                             (cx + sgn * int(r * 0.82), cy - int(r * 0.88)),
+                             (cx + sgn * int(r * 0.68), cy - int(r * 0.56))])
     triad_circle(surf, TAWNY, (cx, cy), r, ow=max(1, int(1.6 * s)), core=False)
     # cheek ruff lobes
     for sgn in (-1, 1):
@@ -293,19 +361,23 @@ def tiger_face_buckle(surf, cx, cy, r, s):
                          (cx + sgn * int(r * 0.9), cy - int(r * 0.25)), max(2, int(2.2 * s)))
         pygame.draw.line(surf, STRIPE, (cx + sgn * int(r * 0.55), cy + int(r * 0.0)),
                          (cx + sgn * int(r * 0.95), cy + int(r * 0.05)), max(2, int(2.2 * s)))
-    # eyes — cream sclera with a green-gold glint (cool echo of the third-eye)
+    # two bold EYE-DOTS in buckle-brown ringed dark — the clearest tiger tell;
+    # a tiny green-gold glint echoes the third-eye without diluting the read
     for sgn in (-1, 1):
-        ex = cx + sgn * int(r * 0.36)
-        ey = cy - int(r * 0.05)
-        pygame.draw.circle(surf, INK, (ex, ey), max(1, int(r * 0.22)))
-        pygame.draw.circle(surf, THIRD_GLD, (ex, ey), max(1, int(r * 0.15)))
-        pygame.draw.circle(surf, INK, (ex, ey), max(1, int(r * 0.07)))
-    # muzzle + snarl
-    pygame.draw.polygon(surf, BONE, [(cx - int(r * 0.18), cy + int(r * 0.18)),
-                                     (cx + int(r * 0.18), cy + int(r * 0.18)),
-                                     (cx, cy + int(r * 0.42))])
-    pygame.draw.circle(surf, STRIPE, (cx, cy + int(r * 0.24)), max(1, int(r * 0.1)))
-    pygame.draw.line(surf, INK, (cx, cy + int(r * 0.34)), (cx, cy + int(r * 0.52)),
+        ex = cx + sgn * int(r * 0.38)
+        ey = cy - int(r * 0.06)
+        pygame.draw.circle(surf, INK, (ex, ey), max(1, int(r * 0.26)))
+        pygame.draw.circle(surf, EARTH, (ex, ey), max(1, int(r * 0.18)))
+        pygame.draw.circle(surf, STRIPE, (ex, ey), max(1, int(r * 0.11)))
+        pygame.draw.circle(surf, THIRD_GLD, (ex - int(r * 0.04), ey - int(r * 0.04)),
+                           max(1, int(r * 0.05)))
+    # muzzle: a bold buckle-brown NOSE TRIANGLE pointing down to a snarl line
+    nose = [(cx - int(r * 0.22), cy + int(r * 0.16)),
+            (cx + int(r * 0.22), cy + int(r * 0.16)),
+            (cx, cy + int(r * 0.48))]
+    triad_blob(surf, EARTH, nose, ow=max(1, int(1.2 * s)))
+    pygame.draw.circle(surf, STRIPE, (cx, cy + int(r * 0.20)), max(1, int(r * 0.11)))
+    pygame.draw.line(surf, INK, (cx, cy + int(r * 0.40)), (cx, cy + int(r * 0.54)),
                      max(1, int(1.6 * s)))
     for sgn in (-1, 1):
         # a small fang
@@ -346,23 +418,39 @@ def draw_vyaghra(surf, cx, cy, s):
     # === SIX-ARM RADIAL FAN (drawn FIRST -> behind torso, head, pelt) =========
     hands = draw_arm_fan(surf, head_c[0], head_c[1] + int(hr * 0.92), s, hr)
 
-    # === TIGER TAIL — a striped tawny tail flicking out behind the hip ========
-    # WHY drawn early (behind the body): the tail is pelt mass that must route
-    # BEHIND so it never occludes a palm-skull; it curls out low for the dance.
-    tail_pts = [(hip_cx + int(2 * s), hip_y + int(2 * s)),
-                (hip_cx + int(26 * s), hip_y + int(6 * s)),
-                (hip_cx + int(46 * s), hip_y - int(2 * s)),
-                (hip_cx + int(56 * s), hip_y - int(22 * s))]
-    pygame.draw.lines(surf, INK, False, tail_pts, int(11 * s))
-    pygame.draw.lines(surf, TAWNY, False, tail_pts, int(7 * s))
-    # tail black rings
-    for i, t in enumerate((0.32, 0.55, 0.78)):
-        ti = int((len(tail_pts) - 1) * t)
-        p = tail_pts[min(ti, len(tail_pts) - 2)]
-        pygame.draw.circle(surf, STRIPE, (int(p[0]), int(p[1])), max(2, int(2.6 * s)))
-    # tail tuft tip (black)
-    triad_circle(surf, STRIPE, (hip_cx + int(56 * s), hip_y - int(22 * s)),
-                 int(5 * s), ow=max(1, int(1.0 * s)), core=False, sheen=False)
+    # === TIGER TAIL — one fat striped segment-CURL flicking behind the hip ====
+    # WHY drawn early (behind the body) and routed behind the arms: the tail is
+    # pelt mass that must never occlude a palm-skull. WHY a thick ringed curl
+    # (not a thin whip): it must read as a clear ringed tiger-tail at hero — a
+    # tawny tube banded with crisp black rings, ending in a black tuft, curling
+    # up-and-out for the dance.
+    # WHY routed low and OUT past the hip (not up beside the torso): up high the
+    # tail vanished behind the lower-right arm and skirt, so it flicks down-and-
+    # out below the arm fan where it reads clear, then curls its tip back up.
+    tail_pts = [(hip_cx + int(10 * s), hip_y + int(18 * s)),
+                (hip_cx + int(34 * s), hip_y + int(34 * s)),
+                (hip_cx + int(58 * s), hip_y + int(34 * s)),
+                (hip_cx + int(72 * s), hip_y + int(14 * s)),
+                (hip_cx + int(70 * s), hip_y - int(10 * s))]
+    pygame.draw.lines(surf, INK, False, tail_pts, int(14 * s))
+    pygame.draw.lines(surf, TAWNY, False, tail_pts, int(10 * s))
+    # a sheen run along the upper edge so the tube reads round, not flat
+    pygame.draw.lines(surf, TAWNY_BR, False, tail_pts, max(1, int(2.4 * s)))
+    # fat black tiger-rings banding the tail (the striped tell, mirrored on the
+    # tail) — sampled along the curve so they sit perpendicular-ish
+    def _on_curve(t):
+        seg = t * (len(tail_pts) - 1)
+        i = min(int(seg), len(tail_pts) - 2)
+        f = seg - i
+        a, b = tail_pts[i], tail_pts[i + 1]
+        return (a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f)
+    for t in (0.30, 0.52, 0.74):
+        p = _on_curve(t)
+        pygame.draw.circle(surf, STRIPE, (int(p[0]), int(p[1])), max(3, int(5.2 * s)))
+        pygame.draw.circle(surf, TAWNY, (int(p[0]), int(p[1])), max(2, int(3.4 * s)))
+    # black tuft tip
+    triad_circle(surf, STRIPE, (int(tail_pts[-1][0]), int(tail_pts[-1][1])),
+                 int(7 * s), ow=max(1, int(1.2 * s)), core=False, sheen=False)
 
     # === LEGS — wide cocked-hip dance: one knee kicked OUT (Citipati motion) ===
     def bone_limb(p0, p1, p2, thick, joint=True):
@@ -409,6 +497,12 @@ def draw_vyaghra(surf, cx, cy, s):
                ow=max(1, int(1.6 * s)))
     pygame.draw.circle(surf, BONE_DD, (hip_cx, hip_y + int(2 * s)), int(4 * s))
 
+    # === TIGER-HIDE THIGH-WRAP — dense striped pelt mass over the hips =========
+    # WHY here (over pelvis/legs, under the diagonal sash): the wrap is the bulk
+    # of the lower-torso ornament; the sash then crosses in front and the six
+    # palm-skulls ring both, all untouched.
+    tiger_hide_skirt(surf, hip_cx, hip_y, s)
+
     spine = [(hip_cx, hip_y - int(2 * s)),
              (cx + int(2 * s), cy + int(6 * s)),
              (cx - int(1 * s), cy - int(14 * s))]
@@ -445,15 +539,16 @@ def draw_vyaghra(surf, cx, cy, s):
     # hashed with black stripes: this is the brood ornament class AND the gameplay
     # silhouette. Routed in FRONT of the body but it stays a SASH (a diagonal
     # ribbon, not a block) so the six palm-skulls ring it untouched.
-    sash_top = (rc_cx - int(20 * s), rc_cy - int(18 * s))   # over the left shoulder
-    sash_hip = (hip_cx + int(20 * s), hip_y + int(8 * s))   # down to the right hip
-    # the tawny hide band (a tapered diagonal quad)
+    sash_top = (rc_cx - int(22 * s), rc_cy - int(20 * s))   # over the left shoulder
+    sash_hip = (hip_cx + int(22 * s), hip_y + int(12 * s))  # down to the right hip
+    # the tawny hide band (a tapered diagonal quad) — WIDENED so the striped band
+    # spans 2-3px at true 32px (the carrier needs THICKNESS, not a thread)
     def _perp(p0, p1, half):
         dx, dy = p1[0] - p0[0], p1[1] - p0[1]
         L = max(1.0, math.hypot(dx, dy))
         return (-dy / L * half, dx / L * half)
-    half0 = int(13 * s)
-    half1 = int(10 * s)
+    half0 = int(19 * s)
+    half1 = int(15 * s)
     n0 = _perp(sash_top, sash_hip, half0)
     n1 = _perp(sash_top, sash_hip, half1)
     sash = [(sash_top[0] + n0[0], sash_top[1] + n0[1]),
@@ -466,13 +561,14 @@ def draw_vyaghra(surf, cx, cy, s):
                           (sash_hip[0] + n1[0] * 0.2, sash_hip[1] + n1[1] * 0.2),
                           (sash_top[0] + n0[0] * 0.3, sash_top[1] + n0[1] * 0.3)],
                ow=max(1, int(1.8 * s)))
-    # black tiger stripes hashed across the band — the carrier detail
-    _stripe_band(surf, sash_top, sash_hip, int(24 * s), s, n=6)
-    # a scalloped fur edge on the lower run of the sash (hide, not cloth)
+    # the chunky black barber-pole — full-width slabs alternating with tawny gaps.
+    # half-width tracks the band so the black blocks fill it edge-to-edge.
+    _stripe_band(surf, sash_top, sash_hip, int(16 * s), s, n=4)
+    # a scalloped fur edge along the lower run of the sash (hide, not cloth)
     dxh = sash_hip[0] - sash_top[0]
     dyh = sash_hip[1] - sash_top[1]
-    for i in range(6):
-        t = (i + 0.5) / 6
+    for i in range(7):
+        t = (i + 0.5) / 7
         bx = sash_top[0] + dxh * t - n1[0]
         by = sash_top[1] + dyh * t - n1[1]
         pygame.draw.circle(surf, TAWNY_BR, (int(bx), int(by)), max(1, int(2.0 * s)))
@@ -511,12 +607,16 @@ def draw_vyaghra(surf, cx, cy, s):
     # THIRD EYE of wisdom — the single BRIGHTEST pixel: a cool green-gold slit on
     # the brow with a hot green-white core, ringed green-gold where it meets the
     # warm mass. The only cool pin on the tawny field; out-glows the crown.
+    # WHY a SMALL hot near-white core in a tight green-gold rim: the crown bone is
+    # now dimmed, so the third-eye wins the ladder by concentrating its luminance
+    # in a compact hotter pip (out-punches the crown by a clear gap) rather than a
+    # large soft glow — a drawn inlay, never a bloom.
     tex, tey = head_c[0], head_c[1] - int(hr * 0.40)
     pygame.draw.ellipse(surf, INK, (tex - int(7 * s), tey - int(9 * s), int(14 * s), int(18 * s)))
     pygame.draw.ellipse(surf, THIRD_GLD, (tex - int(6 * s), tey - int(8 * s), int(12 * s), int(16 * s)))
-    pygame.draw.ellipse(surf, THIRD_EYE, (tex - int(4 * s), tey - int(6 * s), int(8 * s), int(12 * s)))
-    pygame.draw.circle(surf, THIRD_BR, (tex, tey - int(1 * s)), max(2, int(3.0 * s)))
-    pygame.draw.circle(surf, (244, 255, 248), (tex, tey - int(2 * s)), max(1, int(1.5 * s)))
+    pygame.draw.ellipse(surf, THIRD_EYE, (tex - int(4 * s), tey - int(6 * s), int(8 * s), int(11 * s)))
+    pygame.draw.circle(surf, THIRD_BR, (tex, tey), max(2, int(2.6 * s)))
+    pygame.draw.circle(surf, (250, 255, 250), (tex, tey - int(1 * s)), max(1, int(1.7 * s)))
     # nose triangle
     pygame.draw.polygon(surf, BONE_DD,
                         [(head_c[0] - int(hr * 0.14), head_c[1] + int(hr * 0.26)),
@@ -701,7 +801,7 @@ def export_hero():
     font_sm = _load_font(19)
     panel.blit(font.render("VYAGHRA-CHARMA", True, LABEL), (28, 24))
     panel.blit(font_sm.render("tiger-pelt charnel adept  ·  hi-res hero (SS=8)", True, LABEL_DIM), (28, 64))
-    out = os.path.join(_HERE, "round_1_hero.png")
+    out = os.path.join(_HERE, "round_2_hero.png")
     pygame.image.save(panel, out)
     print("wrote", out)
 
@@ -719,7 +819,7 @@ def main():
     sheet.blit(font_big.render("VYAGHRA-CHARMA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "tiger-pelt charnel adept (sister #1, court II)  ·  CITIPATI body · 6-arm fan + 6 palm-skulls · "
-        "fused 5-skull arc + tiara band, tiger-ears FLANK centre skull · stripe-sash = 32px carrier · round 1",
+        "fused 5-skull arc + tiara band, tiger-ears FLANK centre skull · barber-pole stripe-sash = 32px carrier · round 2",
         True, LABEL_DIM), (300, 22))
 
     # === (a) BIG HERO =========================================================
@@ -790,6 +890,27 @@ def main():
     sheet.blit(font_sm.render("pillar", True, LABEL_DIM), (px2 + 4, day_y - 16))
     sheet.blit(font_sm.render("gap-cap", True, LABEL_DIM), (px2 - 2, night_y - 16))
 
+    # === (c2) BLUR test of the 32px chip — proves the barber-pole carries ======
+    # WHY: the critique's named test — blur the 32px chip and you must still see a
+    # black-and-gold striped diagonal crossing the torso (the carrier read).
+    def blur_chip(sky_t, sky_b):
+        tile = pygame.Surface((150, 150))
+        vgrad(tile, (0, 0, 150, 150), sky_t, sky_b)
+        cc = chip32()
+        tile.blit(cc, (20, 20))
+        # downscale-then-upscale = a cheap box blur to test the small-scale read
+        tiny = pygame.transform.smoothscale(tile, (16, 16))
+        return pygame.transform.smoothscale(tiny, (60, 60))
+
+    bx3 = px2
+    sheet.blit(font_sm.render("blur", True, LABEL_DIM), (bx3 - 2, 460 - 16))
+    pygame.draw.rect(sheet, INK, (bx3 - 1, 460 - 1, 62, 62))
+    sheet.blit(blur_chip(DAY_SKY_T, DAY_SKY_B), (bx3, 460))
+    pygame.draw.rect(sheet, INK, (bx3 + 70 - 1, 460 - 1, 62, 62))
+    sheet.blit(blur_chip(NIGHT_T, NIGHT_B), (bx3 + 70, 460))
+    sheet.blit(font_sm.render("blurred 32px: black/gold", True, LABEL_DIM), (bx3 - 2, 524))
+    sheet.blit(font_sm.render("striped diagonal survives", True, LABEL_DIM), (bx3 - 2, 538))
+
     # === (d) BLACKOUT / SILHOUETTE proof ======================================
     blk_x = panel_x + 264
     sheet.blit(font_sm.render("silhouette", True, LABEL_DIM), (blk_x + 4, day_y - 16))
@@ -816,9 +937,9 @@ def main():
     # === palette strip ========================================================
     sheet.blit(font.render("Pinned palette", True, LABEL), (panel_x + 16, 500))
     swatches = [
-        (BONE, "cream bone (mass)"), (BONE_D, "bone shade"),
+        (BONE, "cream bone (mass)"), (BONE_CR, "crown bone (dimmest tier)"),
         (TAWNY, "tawny-gold pelt"), (TAWNY_BR, "tawny sheen"),
-        (STRIPE, "black stripe"), (EARTH, "claw/buckle"),
+        (STRIPE, "black stripe (carrier)"), (EARTH, "claw/buckle brown"),
         (THIRD_EYE, "green-gold 3rd-eye"), (THIRD_GLD, "green-gold rim"),
         (INK, "ink keyline"), (BONE_DD, "deep hollow"),
     ]
@@ -839,7 +960,7 @@ def main():
         "triad · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 842))
 
-    out = os.path.join(_HERE, "round_1.png")
+    out = os.path.join(_HERE, "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

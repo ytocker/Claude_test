@@ -55,13 +55,18 @@ ASH_D     = (150, 148, 146)   # ash dark-core / shade
 ASH_DD    = (102, 100, 100)   # deepest ash hollow (sockets, rib gaps)
 ASH_SH    = (238, 238, 234)   # ash top-left rim-sheen
 SMEAR     = (176, 176, 172)   # cool ash-smear band over the bone (the vibhuti)
+CROWN_ASH = (160, 162, 168)   # dimmest tier — cooler/greyer ash crown & tiara skulls
+CROWN_ASH_SH = (188, 190, 196)
 SAFF      = (236, 150,  46)   # saffron robe + accent (the one saturated note)
 SAFF_BR   = (252, 200, 110)   # hot saffron sheen / inner
 SAFF_D    = (176,  98,  26)   # deep saffron shade
-SEED      = (132,  86,  52)   # rudraksha seed-brown (knobbly matte mala)
-SEED_BR   = (172, 120,  74)   # seed top-light (still MATTE — low spread)
-SEED_D    = ( 86,  54,  34)   # seed deep pit / cord-shadow
-SEED_DD   = ( 58,  36,  24)   # the pitted walnut grooves (no specular)
+# WHY pushed a touch warmer/redder-brown than round 1: at 32px the saffron robe
+# and the seed-brown were drifting toward the same orange note; a redder mahogany
+# keeps the mala a separate brown read from the saffron even when downscaled.
+SEED      = (138,  78,  44)   # rudraksha seed-brown (knobbly matte mala)
+SEED_BR   = (180, 116,  66)   # seed top-light (still MATTE — low spread)
+SEED_D    = ( 88,  48,  28)   # seed deep pit / cord-shadow
+SEED_DD   = ( 58,  32,  20)   # the pitted walnut grooves (no specular)
 INK       = ( 28,  22,  26)   # hard ink keyline
 THIRD_EYE = (250, 176,  64)   # saffron-amber third-eye (the brightest focal)
 THIRD_BR  = (255, 226, 150)
@@ -199,13 +204,14 @@ def tiara_skull(surf, cx, cy, r, s, lit=False):
     """Tiny ash-bone skull for the Mukha tiara-BAND across the brow. A domed
     cranium + two dark sockets + a stub jaw, kept LOW on the brow so the face
     still reads under the arm-fan and below the jata mass. `lit` glows the
-    centre-skull eyes saffron (the one crown glow allowed)."""
-    triad_circle(surf, ASH, (cx, cy), r, ow=max(1, int(1.4 * s)), core=False)
+    centre-skull eyes saffron (the one crown glow allowed). DIMMEST tier — drawn
+    in cool greyer CROWN_ASH so the value ladder reads below the mid palm-skulls."""
+    triad_circle(surf, CROWN_ASH, (cx, cy), r, ow=max(1, int(1.4 * s)), core=False)
     jaw = [(cx - int(r * 0.5), cy + int(r * 0.5)),
            (cx + int(r * 0.5), cy + int(r * 0.5)),
            (cx + int(r * 0.32), cy + int(r * 0.94)),
            (cx - int(r * 0.32), cy + int(r * 0.94))]
-    triad_blob(surf, ASH, jaw, ow=max(1, int(1.1 * s)))
+    triad_blob(surf, CROWN_ASH, jaw, ow=max(1, int(1.1 * s)))
     eye_c = SAFF_BR if lit else INK
     for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
         pygame.draw.circle(surf, INK, (ex, cy + int(r * 0.02)), max(1, int(r * 0.26)))
@@ -218,14 +224,15 @@ def tiara_skull(surf, cx, cy, r, s, lit=False):
 def crown_skull(surf, cx, cy, r, s, lit=False):
     """Tiny ash skull for the Citipati 5-skull arc that owns the OUTER silhouette
     arc. Bigger sockets than the tiara skull so the arc reads countable at 32px.
-    The crown is the DIMMEST tier of the value ladder — only the centre skull is
-    `lit` (saffron pin), the one crown glow allowed by the brief."""
-    triad_circle(surf, ASH, (cx, cy), r, ow=max(1, int(1.6 * s)), core=False)
+    The crown is the DIMMEST tier of the value ladder — drawn in cool greyer
+    CROWN_ASH (~17% below mid). Only the centre skull is `lit` (a small saffron
+    pin kept clearly below the third-eye), the one crown glow the brief allows."""
+    triad_circle(surf, CROWN_ASH, (cx, cy), r, ow=max(1, int(1.6 * s)), core=False)
     jaw = [(cx - int(r * 0.52), cy + int(r * 0.52)),
            (cx + int(r * 0.52), cy + int(r * 0.52)),
            (cx + int(r * 0.34), cy + int(r * 1.0)),
            (cx - int(r * 0.34), cy + int(r * 1.0))]
-    triad_blob(surf, ASH, jaw, ow=max(1, int(1.2 * s)))
+    triad_blob(surf, CROWN_ASH, jaw, ow=max(1, int(1.2 * s)))
     eye_c = SAFF_BR if lit else INK
     for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
         pygame.draw.circle(surf, INK, (ex, cy + int(r * 0.04)), max(1, int(r * 0.24)))
@@ -325,27 +332,36 @@ def draw_bhasma_yogini(surf, cx, cy, s):
     # === SIX-ARM RADIAL FAN (drawn first → behind torso & head) ===============
     hands = draw_arm_fan(surf, head_c[0], head_c[1] + int(hr * 0.82), s, hr)
 
-    # === LOWER BODY — a wide squat 6-petal lotus base (mass low, MUKHA body) ===
-    base_y = cy + int(42 * s)
-    base = [(cx - int(34 * s), base_y - int(7 * s)),
-            (cx - int(24 * s), base_y - int(15 * s)),
-            (cx + int(24 * s), base_y - int(15 * s)),
-            (cx + int(34 * s), base_y - int(7 * s)),
-            (cx + int(27 * s), base_y + int(11 * s)),
-            (cx - int(27 * s), base_y + int(11 * s))]
-    triad_blob(surf, ASH, base,
-               core_pts=[(cx, base_y - int(14 * s)), (cx + int(28 * s), base_y - int(7 * s)),
-                         (cx + int(22 * s), base_y + int(9 * s)), (cx, base_y + int(7 * s))],
-               ow=max(1, int(1.6 * s)))
-    # six lotus-petal grooves, every other one tinted saffron (robe over the base)
-    for k in range(-2, 4):
-        px = cx + int((k - 0.5) * 11 * s)
-        col = SAFF_D if (k % 2 == 0) else ASH_DD
-        pygame.draw.line(surf, col, (px, base_y - int(15 * s)),
-                         (px, base_y + int(8 * s)), max(1, int(1.6 * s)))
-    # an ash-smear seed-glow at the lotus heart — kept deeper than the third-eye
-    pygame.draw.circle(surf, SEED_D, (cx, base_y - int(3 * s)), int(5 * s))
-    pygame.draw.circle(surf, SEED, (cx - int(1 * s), base_y - int(4 * s)), max(1, int(2 * s)))
+    # === LOWER BODY — a WIDE 6-PETAL LOTUS base (the MUKHA body-base separator) =
+    # WHY a true lotus profile, not a banded plinth: the brief's MUKHA references
+    # seat the figure on an unambiguous open lotus. Five upturned front petals
+    # (overlapping pointed leaves) fan out wide and shallow; the body rises from
+    # their hollow. Petals alternate ash / saffron-tipped so the bloom reads.
+    base_y = cy + int(40 * s)
+    pet_w = int(13 * s)
+    pet_h = int(20 * s)
+    # the front rank of 5 open petals, centre tallest, fanning outward + down
+    pet_specs = [(-2, -0.42), (-1, -0.20), (0, 0.0), (1, 0.20), (2, 0.42)]
+    for k, tilt in pet_specs:
+        bx = cx + int(k * pet_w * 0.92)
+        tipx = bx + int(tilt * pet_w * 2.0)
+        tip = (tipx, base_y - pet_h)
+        lft = (bx - pet_w // 2, base_y + int(4 * s))
+        rgt = (bx + pet_w // 2, base_y + int(4 * s))
+        mid_l = ((lft[0] + tip[0]) // 2 - int(pet_w * 0.18), (lft[1] + tip[1]) // 2)
+        mid_r = ((rgt[0] + tip[0]) // 2 + int(pet_w * 0.18), (rgt[1] + tip[1]) // 2)
+        petal = [lft, mid_l, tip, mid_r, rgt]
+        col = SAFF if (k % 2 == 0) else ASH
+        triad_blob(surf, col, petal,
+                   sheen_pts=[lft, mid_l, ((mid_l[0]+tip[0])//2, (mid_l[1]+tip[1])//2)],
+                   ow=max(1, int(1.6 * s)))
+        # a centre vein down each petal (the lotus-leaf tell)
+        vcol = SAFF_D if (k % 2 == 0) else ASH_DD
+        pygame.draw.line(surf, vcol, (bx, base_y + int(2 * s)), tip, max(1, int(1.6 * s)))
+    # the lotus calyx hollow the body sits in — a small dark seedpod heart
+    pygame.draw.circle(surf, SEED_D, (cx, base_y - int(6 * s)), int(6 * s))
+    pygame.draw.circle(surf, SEED, (cx - int(1 * s), base_y - int(7 * s)), max(1, int(2.4 * s)))
+    pygame.draw.circle(surf, SEED_BR, (cx - int(2 * s), base_y - int(8 * s)), max(1, int(1.2 * s)))
 
     # === TORSO — a SHORT ash rib barrel, smeared with funeral ash =============
     rc_cx, rc_cy = cx, cy + int(12 * s)
@@ -364,13 +380,32 @@ def draw_bhasma_yogini(surf, cx, cy, s):
                           (rc_cx - int(6 * s), rc_cy + int(4 * s)),
                           (rc_cx - rc_w // 2 + int(2 * s), rc_cy + int(2 * s))],
                ow=max(1, int(1.8 * s)))
-    # horizontal ash-smear (vibhuti) bands across the ribs — the ascetic tell
-    for i in range(3):
-        sy = rc_cy - rc_h // 2 + int(6 * s) + i * int(7 * s)
-        pygame.draw.line(surf, SMEAR, (rc_cx - int(rc_w * 0.42), sy),
-                         (rc_cx + int(rc_w * 0.42), sy), max(2, int(2.6 * s)))
+    # horizontal ash-smear (vibhuti) bands across the ribs — the ascetic tell.
+    # WHY paired ink-shadowed bands the full torso width: the bare slab must carry
+    # the same tripundra ash language as the brow so the body never reads naked,
+    # even on the lower ribs the swag leaves exposed.
+    for i in range(4):
+        sy = rc_cy - rc_h // 2 + int(5 * s) + i * int(6 * s)
+        bw = int(rc_w * 0.42) - int(i * 1.0 * s)
+        pygame.draw.line(surf, INK, (rc_cx - bw, sy + int(1 * s)),
+                         (rc_cx + bw, sy + int(1 * s)), max(2, int(3.0 * s)))
+        pygame.draw.line(surf, SMEAR, (rc_cx - bw, sy),
+                         (rc_cx + bw, sy), max(2, int(2.6 * s)))
     pygame.draw.line(surf, ASH_DD, (rc_cx, rc_cy - rc_h // 2 + int(5 * s)),
-                     (rc_cx, rc_cy + int(3 * s)), max(1, int(2 * s)))
+                     (rc_cx, rc_cy + int(8 * s)), max(1, int(2 * s)))
+    # a saffron renunciate's waist-wrap knotting the torso into the lotus — closes
+    # the gap between the bare ribs and the bloom so the body reads dressed.
+    wy = rc_cy + rc_h // 2 - int(2 * s)
+    wrap = [(rc_cx - int(rc_w * 0.46), wy),
+            (rc_cx + int(rc_w * 0.46), wy),
+            (rc_cx + int(rc_w * 0.40), wy + int(7 * s)),
+            (rc_cx - int(rc_w * 0.40), wy + int(7 * s))]
+    triad_blob(surf, SAFF, wrap,
+               sheen_pts=[(rc_cx - int(rc_w * 0.46), wy), (rc_cx, wy),
+                          (rc_cx, wy + int(3 * s)), (rc_cx - int(rc_w * 0.46), wy + int(3 * s))],
+               ow=max(1, int(1.4 * s)))
+    pygame.draw.line(surf, SAFF_D, (rc_cx - int(rc_w * 0.42), wy + int(4 * s)),
+                     (rc_cx + int(rc_w * 0.42), wy + int(4 * s)), max(1, int(1.6 * s)))
 
     # === SIX PALM-SKULLS — one cradled in each open hand (the core motif) ======
     # Drawn after torso, before head: they ride at the fan tips so the outer arc
@@ -405,12 +440,16 @@ def draw_bhasma_yogini(surf, cx, cy, s):
         pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.25))
         pygame.draw.circle(surf, SAFF_D, (ex + sgn * int(1 * s), ey + int(1 * s)),
                            int(hr * 0.12))
-    # tri-band forehead lines (the clean ascetic vibhuti tilak) above the brow
+    # TRIPUNDRA — three clean horizontal ash tilaka bands across the brow, framing
+    # the third-eye from above (the ascetic forehead tell). Kept tight + parallel
+    # so they read as deliberate ash-marks, not noise.
     for i in range(3):
-        ly = head_c[1] - int(hr * 0.56) + i * int(hr * 0.10)
-        ww = hr * (0.42 - i * 0.04)
-        pygame.draw.line(surf, SMEAR, (head_c[0] - ww, ly), (head_c[0] + ww, ly),
-                         max(1, int(2.0 * s)))
+        ly = head_c[1] - int(hr * 0.50) + i * int(hr * 0.075)
+        ww = hr * (0.40 - i * 0.02)
+        pygame.draw.line(surf, INK, (head_c[0] - ww, ly), (head_c[0] + ww, ly),
+                         max(2, int(3.2 * s)))
+        pygame.draw.line(surf, ASH_SH, (head_c[0] - ww, ly), (head_c[0] + ww, ly),
+                         max(1, int(1.8 * s)))
     # THIRD EYE — the single BRIGHTEST pixel (AD hard rule). A fat vertical
     # saffron-amber slit with a hot core, central on the brow.
     tex, tey = head_c[0], head_c[1] - int(hr * 0.32)
@@ -438,111 +477,179 @@ def draw_bhasma_yogini(surf, cx, cy, s):
                             [(fx - int(2 * s), my), (fx + int(2 * s), my),
                              (fx, my + int(hr * 0.22))])
 
-    # === JATA TOPKNOT — matted dreadlocks, BEHIND/ABOVE the crown ==============
+    # === JATA TOPKNOT — the DOMINANT dark dome, BEHIND/ABOVE the whole crown ===
     # WHY drawn HERE (after the head, before the crown): the lumpy dark jata mass
-    # must sit BEHIND/ABOVE the fused crown so the arc + band read IN FRONT, never
-    # masked. Sculpted ORDERED dreadlocks (a jatamukuta), not a messy mop — each
-    # lock is a tapering dark coil, fanning up into a piled knot. This dark mass
-    # is the gameplay SILHOUETTE CARRIER (nothing else in either brood owns it).
-    draw_jata(surf, head_c[0], head_c[1] - int(hr * 0.62), hr, s)
+    # crests ABOVE the 5-skull arc as a single tall dome — the tallest, darkest
+    # 32px blackout shape. Raised so its dome+bun clear the arc; the arc + tiara-
+    # band still read IN FRONT (drawn after). This dark mass is the SILHOUETTE
+    # CARRIER (nothing else in either brood owns it).
+    draw_jata(surf, head_c[0], head_c[1] - int(hr * 0.42), hr, s)
 
-    # === FUSED CROWN: Citipati 5-skull arc-SWEEP + Mukha tiara-BAND ===========
-    # Both must read IN FRONT of the jata. The tiara-band seats LOW on the brow;
-    # the 5-skull arc sweeps WIDER + higher outside it. Crown is the DIMMEST tier.
-    # -- Mukha tiara-BAND across the brow (shallow ~70° arc, 3 low skulls) --
-    tiara_r = int(hr * 0.98)
-    tiara_skull_r = int(hr * 0.26)
-    band_pts = []
-    for i in range(9):
-        a = math.radians(238 + i * (64 / 8))
-        band_pts.append((head_c[0] + math.cos(a) * tiara_r,
-                         head_c[1] + math.sin(a) * tiara_r))
-    pygame.draw.lines(surf, INK, False, band_pts, int(6 * s))
-    pygame.draw.lines(surf, SAFF, False, band_pts, int(3 * s))
-    pygame.draw.lines(surf, SAFF_BR, False, band_pts[:5], max(1, int(1.2 * s)))
-    for i in range(3):
-        a = math.radians(245 + i * (50 / 2))
-        sx = head_c[0] + math.cos(a) * tiara_r
-        sy = head_c[1] + math.sin(a) * tiara_r
-        tiara_skull(surf, int(sx), int(sy), tiara_skull_r, s, lit=False)
-    # -- Citipati 5-skull arc-SWEEP, wider + higher, outside the band --
-    arc_band_r = int(hr * 1.26)
-    skull_cr = hr * 1.52
-    skull_r = int(hr * 0.34)
+    # === Citipati 5-skull arc-SWEEP — a tight upper ring hugging the dome ======
+    # Drawn AFTER the jata so the countable arc reads in front of the dome. Seated
+    # HIGH + tight (a crowning ring around the dome base) so it stays clearly
+    # ABOVE and separate from the brow tiara-band added below.
+    arc_band_r = int(hr * 1.30)
+    skull_cr = hr * 1.46
+    skull_r = int(hr * 0.32)
     arc_pts = []
     for i in range(13):
-        a = math.radians(212 + i * (116 / 12))
+        a = math.radians(220 + i * (100 / 12))
         arc_pts.append((head_c[0] + math.cos(a) * arc_band_r,
                         head_c[1] + math.sin(a) * arc_band_r))
     pygame.draw.lines(surf, INK, False, arc_pts, int(5 * s))
     pygame.draw.lines(surf, SEED, False, arc_pts, int(3 * s))   # seed-brown crown cord
     for i in range(5):
-        a = math.radians(218 + i * (104 / 4))
+        a = math.radians(224 + i * (92 / 4))
         sx = head_c[0] + math.cos(a) * skull_cr
         sy = head_c[1] + math.sin(a) * skull_cr
         crown_skull(surf, int(sx), int(sy), skull_r, s, lit=(i == 2))
 
+    # === Mukha TIARA-BAND across the BROW — explicit HORIZONTAL fillet, FRONTMOST
+    # WHY drawn LAST + seated LOW on the forehead: the brief demands the tiara-band
+    # read in FRONT of and visually SEPARATE from the arc-sweep above. A straight
+    # saffron ash fillet laid flat across the brow (a real headband, not a buried
+    # radial arc), riding just above the third-eye + tripundra, with 3 dim crown-
+    # value skulls on it. Sits on the FACE, clear below the arc ring.
+    band_y = head_c[1] - int(hr * 0.66)
+    band_hw = int(hr * 0.84)
+    band_h = int(hr * 0.26)
+    band_box = [(head_c[0] - band_hw, band_y - band_h // 2),
+                (head_c[0] + band_hw, band_y - band_h // 2),
+                (head_c[0] + int(band_hw * 0.94), band_y + band_h // 2),
+                (head_c[0] - int(band_hw * 0.94), band_y + band_h // 2)]
+    triad_blob(surf, SAFF, band_box,
+               core_pts=[(head_c[0], band_y), (head_c[0] + band_hw, band_y - band_h // 2 + int(1 * s)),
+                         (head_c[0] + int(band_hw * 0.94), band_y + band_h // 2), (head_c[0], band_y + band_h // 2)],
+               sheen_pts=[(head_c[0] - band_hw, band_y - band_h // 2),
+                          (head_c[0], band_y - band_h // 2),
+                          (head_c[0], band_y - int(band_h * 0.18)),
+                          (head_c[0] - band_hw, band_y - int(band_h * 0.18))],
+               ow=max(1, int(1.6 * s)))
+    # a thin seed-brown bead-rail along the band's lower lip (ties to the mala)
+    pygame.draw.line(surf, SEED_D, (head_c[0] - int(band_hw * 0.92), band_y + int(band_h * 0.42)),
+                     (head_c[0] + int(band_hw * 0.92), band_y + int(band_h * 0.42)), max(1, int(1.8 * s)))
+    # 3 low tiara skulls riding ON the band (dim crown tier), evenly spaced
+    tiara_skull_r = int(hr * 0.20)
+    for k in (-1, 0, 1):
+        sx = head_c[0] + int(k * band_hw * 0.62)
+        tiara_skull(surf, sx, band_y - int(hr * 0.02), tiara_skull_r, s, lit=False)
 
-# ── the matted-hair JATA topknot (the 32px silhouette carrier) ────────────────
+
+# ── the matted-hair JATA topknot (the DOMINANT 32px silhouette carrier) ───────
+HAIR   = ( 50,  38,  36)   # near-ink matted-hair brown (the dark mass body)
+HAIR_C = ( 34,  26,  26)   # deepest matted-coil shadow (groove cores)
+HAIR_H = ( 92,  68,  58)   # the dressed-lock highlight (still dark)
+
+
+def _coil_lobe(surf, cx, cy, rx, ry, rot, fill, edge_ink=True, ow=2):
+    """One ordered dreadlock COIL drawn as a tilted egg lobe — a clean curved
+    bulge, the unit of the sculpted ascetic bun (NOT a scribbled line)."""
+    pts = []
+    for i in range(16):
+        a = (i / 16) * 2 * math.pi
+        x = math.cos(a) * rx
+        y = math.sin(a) * ry
+        px = cx + x * math.cos(rot) - y * math.sin(rot)
+        py = cy + x * math.sin(rot) + y * math.cos(rot)
+        pts.append((px, py))
+    if edge_ink:
+        pygame.draw.polygon(surf, INK, pts)
+    pygame.draw.polygon(surf, fill, pts)
+    if edge_ink:
+        pygame.draw.polygon(surf, INK, pts, ow)
+
+
 def draw_jata(surf, cx, cy, hr, s):
-    """A lumpy dark matted-hair JATA piled above the head. Sculpted ORDERED
-    dreadlocks: a fan of tapering dark coils rising into a piled top knot, bound
-    by a saffron tie. WHY a dark near-ink mass with seed-brown grooves: it must
-    be the dimmest-but-largest top shape so it reads as a distinct LUMPY mass at
-    32px (the carrier) yet never out-values the crown skulls in front of it."""
-    HAIR   = (52, 40, 38)     # near-ink matted-hair brown
-    HAIR_H = (84, 62, 54)     # the dressed-lock highlight (still dark)
-    # the rising fan of dreadlock coils (ordered, symmetric — reverent gravitas)
-    n = 11
-    for i in range(n):
-        t = (i / (n - 1)) - 0.5
-        ang = math.radians(-90 + t * 108)      # fan across the top
-        reach = hr * (1.34 - 0.28 * abs(t))    # centre locks rise highest
-        bx = cx + math.cos(ang) * hr * 0.30
-        by = cy + math.sin(ang) * hr * 0.10
-        tipx = cx + math.cos(ang) * reach
-        tipy = cy + math.sin(ang) * reach - hr * 0.22
-        midx = (bx + tipx) / 2 + math.cos(ang + 0.4) * hr * 0.10
-        midy = (by + tipy) / 2
-        lock = [bx, by, midx, midy, tipx, tipy]
-        pygame.draw.lines(surf, INK, False,
-                          [(bx, by), (midx, midy), (tipx, tipy)], max(3, int(6.5 * s)))
-        pygame.draw.lines(surf, HAIR, False,
-                          [(bx, by), (midx, midy), (tipx, tipy)], max(2, int(4.2 * s)))
-        # a couple of groove ticks so each coil reads as a matted dreadlock
-        pygame.draw.line(surf, HAIR_H, (bx, by - int(1 * s)),
-                         (midx, midy - int(1 * s)), max(1, int(1.2 * s)))
-    # the piled top-KNOT — a lumpy dark dome bound by a saffron tie (jatamukuta)
-    knot_c = (cx, cy - int(hr * 0.92))
+    """A BIG lumpy dark matted-hair JATA piled above the head — the DOMINANT top
+    silhouette. WHY doubled + raised into a single coiled dome: it must be the
+    tallest, darkest shape in the 32px blackout (the gameplay carrier nothing
+    else owns). Built from 5 ORDERED grouped dreadlock coils swirling up into a
+    piled ascetic bun (consistent clockwise direction — a coiled jatamukuta, not
+    a mop), bound by a saffron tie. Near-ink value so it never out-values the
+    crown skulls drawn in front of it."""
+    # one big rounded under-mass first — the dome body the coils ride on, so the
+    # blackout reads as ONE lumpy cap, not separate strands.
+    dome_c = (cx, cy - int(hr * 0.78))
+    dome = []
+    dn = 22
+    rng = 9173
+    for i in range(dn):
+        a = math.pi + (i / (dn - 1)) * math.pi   # upper hemisphere arc, wide
+        rng = (rng * 1103515245 + 12345) & 0x7FFFFFFF
+        bump = 0.10 * math.cos(a * 4) + (rng / 0x7FFFFFFF - 0.5) * 0.10
+        rx = hr * (1.34 + bump)
+        ry = hr * (1.18 + bump)
+        dome.append((dome_c[0] + math.cos(a) * rx, dome_c[1] + math.sin(a) * ry))
+    # close the dome across a flat-ish base just above the crown line
+    dome.append((dome_c[0] + int(hr * 0.96), cy + int(hr * 0.10)))
+    dome.append((dome_c[0] - int(hr * 0.96), cy + int(hr * 0.10)))
+    pygame.draw.polygon(surf, INK, dome)
+    pygame.draw.polygon(surf, HAIR, dome)
+
+    # the 5 ordered coils that sculpt the dome into a swirled bun. Each is a
+    # tilted lobe ink-edged against its neighbour so the grouped dreadlocks read
+    # as separate wound coils (not a smooth blob); tilts step consistently up
+    # into the apex so the whole reads as one coiled ascetic bun.
+    coils = [
+        (-0.66, hr * 0.20, hr * 0.46, hr * 0.62, -0.62),
+        (-0.34, hr * 0.46, hr * 0.50, hr * 0.66, -0.30),
+        ( 0.00, hr * 0.56, hr * 0.54, hr * 0.70,  0.0),
+        ( 0.34, hr * 0.46, hr * 0.50, hr * 0.66,  0.30),
+        ( 0.66, hr * 0.20, hr * 0.46, hr * 0.62,  0.62),
+    ]
+    for fx, rise, rx, ry, rot in coils:
+        lx = cx + fx * hr * 1.02
+        ly = dome_c[1] + hr * 0.30 - rise
+        # ink-edge each coil first (heavier than the fill outline) so adjacent
+        # coils stay visually separated even at HERO scale
+        _coil_lobe(surf, lx, ly, rx, ry, rot, HAIR, ow=max(2, int(2.6 * s)))
+        # a curved inner groove + a dark crescent giving each coil its rope read
+        gx0 = lx - math.sin(rot) * ry * 0.55
+        gy0 = ly + math.cos(rot) * ry * 0.55
+        gx1 = lx + math.sin(rot) * ry * 0.55
+        gy1 = ly - math.cos(rot) * ry * 0.55
+        pygame.draw.line(surf, HAIR_C, (gx0, gy0), (gx1, gy1), max(1, int(2.4 * s)))
+        pygame.draw.line(surf, HAIR_H, (gx0 + int(2 * s), gy0), (gx1 + int(2 * s), gy1),
+                         max(1, int(1.4 * s)))
+
+    # the piled top-KNOT crowning the dome — a tight lumpy coil at the apex
+    knot_c = (cx, cy - int(hr * 1.34))
     knot = []
-    kpts = 13
+    kpts = 15
     rng = 7777
     for i in range(kpts):
         a = (i / kpts) * 2 * math.pi
         rng = (rng * 1103515245 + 12345) & 0x7FFFFFFF
-        rr = hr * (0.78 + 0.12 * math.cos(a * 3) + (rng / 0x7FFFFFFF - 0.5) * 0.16)
-        knot.append((knot_c[0] + math.cos(a) * rr, knot_c[1] + math.sin(a) * rr * 0.92))
+        rr = hr * (0.62 + 0.12 * math.cos(a * 3) + (rng / 0x7FFFFFFF - 0.5) * 0.12)
+        knot.append((knot_c[0] + math.cos(a) * rr, knot_c[1] + math.sin(a) * rr * 0.94))
     pygame.draw.polygon(surf, INK, knot)
     pygame.draw.polygon(surf, HAIR, knot)
-    # a few coil grooves on the knot surface (ordered, not random scribble)
-    for k in range(-2, 3):
-        gx = knot_c[0] + int(k * hr * 0.16)
-        pygame.draw.line(surf, HAIR_H, (gx, knot_c[1] - int(hr * 0.4)),
-                         (gx, knot_c[1] + int(hr * 0.4)), max(1, int(1.4 * s)))
+    # a spiral groove on the knot (ordered swirl, the wound-coil tell)
+    for k in range(3):
+        rr = hr * (0.50 - k * 0.16)
+        pygame.draw.arc(surf, HAIR_C,
+                        (knot_c[0] - rr, knot_c[1] - rr * 0.94, rr * 2, rr * 1.88),
+                        0.4 + k, 3.2 + k, max(1, int(1.6 * s)))
     pygame.draw.polygon(surf, INK, knot, max(1, int(1.4 * s)))
-    # the saffron tie binding the knot (the one ascetic colour note up top)
-    pygame.draw.line(surf, SAFF, (knot_c[0] - int(hr * 0.5), cy - int(hr * 0.34)),
-                     (knot_c[0] + int(hr * 0.5), cy - int(hr * 0.34)), max(2, int(3.2 * s)))
-    pygame.draw.line(surf, SAFF_BR, (knot_c[0] - int(hr * 0.4), cy - int(hr * 0.35)),
-                     (knot_c[0] + int(hr * 0.1), cy - int(hr * 0.35)), max(1, int(1.4 * s)))
+
+    # the saffron tie binding the bun to the dome (the one ascetic colour up top)
+    tie_y = cy - int(hr * 1.06)
+    pygame.draw.line(surf, INK, (cx - int(hr * 0.46), tie_y),
+                     (cx + int(hr * 0.46), tie_y), max(3, int(4.6 * s)))
+    pygame.draw.line(surf, SAFF, (cx - int(hr * 0.42), tie_y),
+                     (cx + int(hr * 0.42), tie_y), max(2, int(3.0 * s)))
+    pygame.draw.line(surf, SAFF_BR, (cx - int(hr * 0.34), tie_y - int(1 * s)),
+                     (cx + int(hr * 0.06), tie_y - int(1 * s)), max(1, int(1.4 * s)))
 
 
 # ── the alms-staff (ash + seed-bead khatvanga) → pillar mirror ────────────────
 def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
     """The ash-and-seed alms-staff IS the pillar: a banded ash shaft strung with
     the rudraksha U-swag motif = the tileable shaft; a single saffron-lit skull
-    capped by a small jata-knot = the gap-edge cap — the sister's own forms,
-    mirrored on-axis, never top-heavy. `cap` names the END that faces the GAP."""
+    capped by the enlarged JATA-DOME (echoing the new hero silhouette) = the gap-
+    edge cap — the sister's own forms, mirrored on-axis, never top-heavy. `cap`
+    names the END that faces the GAP."""
     shaft_w = int(13 * s)
     pygame.draw.rect(surf, INK, (cx - int(3 * s), top, int(6 * s), bot - top))
 
@@ -573,22 +680,41 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
                   int(3.6 * s), s, n=7)
         y += band_pitch
 
-    # === gap-edge cap: a saffron-lit ash skull capped by a small jata-knot =====
-    cap_y = (bot - int(22 * s)) if cap == "bottom" else (top + int(22 * s))
+    # === gap-edge cap: a saffron-lit ash skull capped by the enlarged JATA-DOME =
+    # WHY the dome (not a knot): the cap must echo the new hero's dominant top
+    # silhouette — a lumpy dark mound + bun — so the staff reads as HER staff.
+    cap_y = (bot - int(24 * s)) if cap == "bottom" else (top + int(24 * s))
     cap_skull_r = int(13 * s)
-    # the jata-knot sits on the SKY-side of the cap skull (toward the figure body)
-    knot_y = cap_y + (int(cap_skull_r * 1.4) if cap == "top" else -int(cap_skull_r * 1.4))
-    kn = []
+    sky_dir = 1 if cap == "top" else -1   # the jata piles toward the figure body
+    dome_c = (cx, cap_y + sky_dir * int(cap_skull_r * 1.5))
+    # the lumpy dome under-mass
+    dm = []
     rng = 4242
-    for i in range(11):
-        a = (i / 11) * 2 * math.pi
+    dn = 16
+    for i in range(dn):
+        a = math.pi + (i / (dn - 1)) * math.pi
         rng = (rng * 1103515245 + 12345) & 0x7FFFFFFF
-        rr = cap_skull_r * (0.74 + 0.12 * math.cos(a * 3) + (rng / 0x7FFFFFFF - 0.5) * 0.16)
-        kn.append((cx + math.cos(a) * rr, knot_y + math.sin(a) * rr * 0.9))
-    pygame.draw.polygon(surf, INK, kn)
-    pygame.draw.polygon(surf, (52, 40, 38), kn)
-    pygame.draw.line(surf, SAFF, (cx - int(cap_skull_r * 0.7), knot_y),
-                     (cx + int(cap_skull_r * 0.7), knot_y), max(2, int(2.6 * s)))
+        bump = 0.12 * math.cos(a * 4) + (rng / 0x7FFFFFFF - 0.5) * 0.10
+        rx = cap_skull_r * (1.18 + bump)
+        ry = cap_skull_r * (1.0 + bump)
+        dm.append((dome_c[0] + math.cos(a) * rx, dome_c[1] + sky_dir * math.sin(a) * ry))
+    dm.append((dome_c[0] + int(cap_skull_r * 0.9), cap_y))
+    dm.append((dome_c[0] - int(cap_skull_r * 0.9), cap_y))
+    pygame.draw.polygon(surf, INK, dm)
+    pygame.draw.polygon(surf, HAIR, dm)
+    # 3 ordered coil lobes + the apex bun (the same sculpted-bun grammar as hero)
+    for fx, rot in ((-0.5, -0.4), (0.0, 0.0), (0.5, 0.4)):
+        lx = dome_c[0] + int(fx * cap_skull_r * 1.3)
+        ly = dome_c[1] + sky_dir * int(cap_skull_r * 0.35)
+        _coil_lobe(surf, lx, ly, cap_skull_r * 0.55, cap_skull_r * 0.46, rot,
+                   HAIR, ow=max(1, int(1.2 * s)))
+    bun_y = dome_c[1] + sky_dir * int(cap_skull_r * 1.05)
+    pygame.draw.circle(surf, INK, (cx, bun_y), int(cap_skull_r * 0.5))
+    pygame.draw.circle(surf, HAIR, (cx, bun_y), int(cap_skull_r * 0.44))
+    # saffron tie binding the bun (the ascetic colour note, mirrored from hero)
+    tie_y = dome_c[1] + sky_dir * int(cap_skull_r * 0.7)
+    pygame.draw.line(surf, SAFF, (cx - int(cap_skull_r * 0.6), tie_y),
+                     (cx + int(cap_skull_r * 0.6), tie_y), max(2, int(2.6 * s)))
     crown_skull(surf, cx, cap_y, cap_skull_r, s, lit=True)
     # a saffron collar where the cap meets the shaft
     collar_y = (cap_y - int(20 * s)) if cap == "bottom" else (cap_y + int(20 * s))
@@ -631,7 +757,7 @@ def render_hero():
     fs = font(16)
     surf.blit(fs.render("ash-ascetic seed-bead mother  ·  MUKHA body  ·  SS=8 hero", True, LABEL_DIM),
               (30, 60))
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2_hero.png")
     pygame.image.save(surf, out)
     return out
 
@@ -648,17 +774,17 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("BHASMA-YOGINI", True, LABEL), (24, 13))
     sheet.blit(f_sm.render(
-        "ash-ascetic seed-bead mother  ·  MUKHA body · six-arm fan · 6 palm-skulls · rudraksha U-swag · jata topknot · round 1",
+        "ash-ascetic seed-bead mother  ·  MUKHA body · six-arm fan · 6 palm-skulls · rudraksha U-swag · jata topknot · round 2",
         True, LABEL_DIM), (300, 26))
 
     # === (a) BIG HERO =========================================================
     hero = render_creature_chip(360, 500, 178, 256, 1.62)
     sheet.blit(hero, (14, 84))
     sheet.blit(f.render("Creature — hero", True, LABEL), (110, 588))
-    sheet.blit(f_sm.render("Six-arm fan; six OPEN palms each cradle a tiny skull (mid value tier).", True, LABEL_DIM), (14, 612))
-    sheet.blit(f_sm.render("Fused crown: Citipati 5-skull arc + Mukha tiara-band IN FRONT of the jata.", True, LABEL_DIM), (14, 628))
-    sheet.blit(f_sm.render("Jata topknot = lumpy dark mass behind/above. Saffron-amber third-eye = brightest.", True, LABEL_DIM), (14, 644))
-    sheet.blit(f_sm.render("Rudraksha mala = ONE fat knobbly-brown U-swag (NOT a smooth bone lattice).", True, LABEL_DIM), (14, 660))
+    sheet.blit(f_sm.render("DOMINANT jata dome crests above the arc (the dark 32px carrier). Six palm-skulls = mid tier.", True, LABEL_DIM), (14, 612))
+    sheet.blit(f_sm.render("Fused crown: 5-skull arc-sweep + explicit horizontal tiara-BAND frontmost; jata behind/above both.", True, LABEL_DIM), (14, 628))
+    sheet.blit(f_sm.render("Tripundra brow + ash-band torso + saffron waist-wrap = never naked. 6-petal lotus base.", True, LABEL_DIM), (14, 644))
+    sheet.blit(f_sm.render("Rudraksha mala = ONE fat knobbly warmer-brown U-swag. Saffron-amber third-eye = brightest.", True, LABEL_DIM), (14, 660))
 
     # === (b) PILLAR assembled — mirrored ======================================
     pcx = 470
@@ -735,9 +861,9 @@ def main():
     # palette strip
     sheet.blit(f.render("Pinned palette", True, LABEL), (panel_x + 16, 524))
     swatches = [
-        (ASH, "ash-grey bone"), (ASH_D, "ash shade"),
+        (ASH, "ash-grey bone"), (CROWN_ASH, "crown ash (dim)"),
         (SMEAR, "ash-smear"), (SAFF, "saffron robe"),
-        (SEED, "seed-brown"), (SEED_DD, "seed pit"),
+        (SEED, "seed-brown (warm)"), (HAIR, "jata hair"),
         (THIRD_EYE, "third-eye"), (INK, "ink keyline"),
     ]
     sxp, syp = panel_x + 16, 552
@@ -755,7 +881,7 @@ def main():
         "dark-core->fill->top-left sheen triad · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 824))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
