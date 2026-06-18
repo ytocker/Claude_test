@@ -35,13 +35,142 @@ for i in range(6):
     SKULLS.append(("palm", i))
 
 
+def _palm_skull_bare(surf, cx, cy, r, s, idx=0):
+    """The cradled-skull CORE of render_switchbig.palm_skull, WITHOUT the open
+    palm cup / finger-ticks (the 'hands') — per the user's request to stack just
+    the skulls. Cranium sized to the full radius so it fills like the crown skulls.
+    Faithfully mirrors the source's per-skull personality table + drawing."""
+    INK, BEAD, BEAD_BR = sk.INK, sk.BEAD, sk.BEAD_BR
+    BONE_D, BONE_DD, GOLD = sk.BONE_D, sk.BONE_DD, sk.GOLD
+    ow1 = max(1, int(1.4 * s))
+    ow_thin = max(1, int(1.0 * s))
+    PROFILE = [
+        dict(tilt=-0.16, cw=0.96, ch=1.12, jaw="agape", teeth=5, sut="zig", gem=True,  chip=False),
+        dict(tilt= 0.10, cw=1.14, ch=0.96, jaw="closed", teeth=6, sut="dots", gem=False, chip=False),
+        dict(tilt=-0.30, cw=0.88, ch=1.04, jaw="cracked", teeth=3, sut="zig", gem="socket", chip=True),
+        dict(tilt= 0.06, cw=1.06, ch=0.90, jaw="agape", teeth=7, sut="line", gem=False, chip=False),
+        dict(tilt= 0.22, cw=0.90, ch=1.10, jaw="closed", teeth=5, sut="dots", gem=True,  chip=False),
+        dict(tilt=-0.08, cw=1.02, ch=1.00, jaw="cracked", teeth=4, sut="zig", gem=False, chip=True),
+    ]
+    p = PROFILE[idx % len(PROFILE)]
+    t = p["tilt"]
+    ct, st = math.cos(t), math.sin(t)
+
+    def rot(dx, dy):
+        return (cx + dx * ct - dy * st, cy + dx * st + dy * ct)
+
+    cw, ch = p["cw"], p["ch"]
+    cr = r * 0.96                     # full-size cranium (no palm to nest into)
+
+    dome = []
+    for ang_deg in range(-180, 1, 20):
+        a = math.radians(ang_deg)
+        dome.append(rot(math.cos(a) * cr * cw, math.sin(a) * cr * ch))
+    dome.append(rot(cr * cw * 0.78, cr * ch * 0.30))
+    dome.append(rot(cr * cw * 0.52, cr * ch * 0.72))
+    dome.append(rot(-cr * cw * 0.52, cr * ch * 0.72))
+    dome.append(rot(-cr * cw * 0.78, cr * ch * 0.30))
+    sk.triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in dome], ow=ow1)
+    sheen = [rot(-cr * cw * 0.62, -cr * ch * 0.30),
+             rot(-cr * cw * 0.12, -cr * ch * 0.74),
+             rot(-cr * cw * 0.04, -cr * ch * 0.40),
+             rot(-cr * cw * 0.50, -cr * ch * 0.04)]
+    pygame.draw.polygon(surf, BEAD_BR, [(int(x), int(y)) for x, y in sheen])
+
+    if p["sut"] == "zig":
+        zp = []
+        for j in range(5):
+            zx = -cr * 0.34 + j * (cr * 0.68 / 4)
+            zy = -cr * ch * 0.62 + (cr * 0.10 if j % 2 else -cr * 0.06)
+            zp.append(rot(zx, zy))
+        pygame.draw.lines(surf, BONE_DD, False, [(int(x), int(y)) for x, y in zp], ow_thin)
+    elif p["sut"] == "dots":
+        for j in range(5):
+            zx = -cr * 0.34 + j * (cr * 0.68 / 4)
+            dx, dy = rot(zx, -cr * ch * 0.60)
+            pygame.draw.circle(surf, BONE_DD, (int(dx), int(dy)), max(1, int(0.9 * s)))
+            if j % 2 == 0:
+                gx, gy = rot(zx, -cr * ch * 0.60)
+                pygame.draw.circle(surf, GOLD, (int(gx), int(gy)), max(1, int(0.8 * s)))
+    else:
+        pygame.draw.line(surf, BONE_DD,
+                         (int(rot(0, -cr * ch * 0.80)[0]), int(rot(0, -cr * ch * 0.80)[1])),
+                         (int(rot(0, -cr * 0.10)[0]), int(rot(0, -cr * 0.10)[1])), ow_thin)
+
+    br0 = rot(-cr * 0.46, -cr * 0.02)
+    br1 = rot(cr * 0.46, -cr * 0.02)
+    pygame.draw.line(surf, BONE_D, (int(br0[0]), int(br0[1])), (int(br1[0]), int(br1[1])),
+                     max(1, int(1.4 * s)))
+
+    hollow = [rot(cr * 0.20, cr * 0.18), rot(cr * 0.60, cr * 0.20),
+              rot(cr * 0.52, cr * 0.56), rot(cr * 0.18, cr * 0.50)]
+    pygame.draw.polygon(surf, BONE_D, [(int(x), int(y)) for x, y in hollow])
+
+    socket_r = cr * 0.30
+    for sgn in (-1, 1):
+        ecx, ecy = rot(sgn * cr * 0.40, cr * 0.14)
+        ecx, ecy = int(ecx), int(ecy)
+        pygame.draw.circle(surf, BONE_D, (ecx, ecy), int(socket_r + max(1, 1.2 * s)))
+        pygame.draw.circle(surf, INK, (ecx, ecy), int(socket_r))
+        pygame.draw.circle(surf, BONE_DD, (ecx, ecy), int(socket_r * 0.62))
+        pygame.draw.circle(surf, INK, (ecx, ecy), int(socket_r * 0.34))
+    if p["gem"] == "socket":
+        scx2, scy2 = rot(-cr * 0.40, cr * 0.14)
+        sk.palm_cabochon(surf, (scx2, scy2), max(2, int(socket_r * 0.66)), s)
+
+    n_top = rot(0, cr * 0.30)
+    n_l = rot(-cr * 0.16, cr * 0.58)
+    n_r = rot(cr * 0.16, cr * 0.58)
+    pygame.draw.polygon(surf, INK, [(int(n_top[0]), int(n_top[1])),
+                                    (int(n_l[0]), int(n_l[1])),
+                                    (int(n_r[0]), int(n_r[1]))])
+
+    jl, jr = -cr * 0.40, cr * 0.40
+    if p["jaw"] == "closed":
+        jaw = [rot(jl, cr * 0.74), rot(jr, cr * 0.74),
+               rot(jr * 0.70, cr * 1.04), rot(jl * 0.70, cr * 1.04)]
+        sk.triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
+        teeth_y0, teeth_y1 = cr * 0.74, cr * 1.00
+    elif p["jaw"] == "agape":
+        gap = [rot(jl * 0.86, cr * 0.70), rot(jr * 0.86, cr * 0.70),
+               rot(jr * 0.70, cr * 1.06), rot(jl * 0.70, cr * 1.06)]
+        pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in gap])
+        jaw = [rot(jl * 0.74, cr * 1.06), rot(jr * 0.74, cr * 1.06),
+               rot(jr * 0.54, cr * 1.34), rot(jl * 0.54, cr * 1.34)]
+        sk.triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
+        teeth_y0, teeth_y1 = cr * 0.70, cr * 0.94
+    else:
+        jaw = [rot(jl, cr * 0.74), rot(jr * 0.55, cr * 0.74),
+               rot(jr * 0.20, cr * 1.02), rot(jl * 0.78, cr * 1.06)]
+        sk.triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
+        pygame.draw.line(surf, BONE_DD,
+                         (int(rot(jr * 0.55, cr * 0.76)[0]), int(rot(jr * 0.55, cr * 0.76)[1])),
+                         (int(rot(jr * 0.30, cr * 0.98)[0]), int(rot(jr * 0.30, cr * 0.98)[1])),
+                         ow_thin)
+        teeth_y0, teeth_y1 = cr * 0.74, cr * 1.00
+
+    nt = p["teeth"]
+    for j in range(nt):
+        fx = -cr * 0.34 + j * (cr * 0.68 / max(1, nt - 1))
+        if p["chip"] and j == nt // 2:
+            continue
+        tp0 = rot(fx, teeth_y0)
+        tp1 = rot(fx, teeth_y1)
+        pygame.draw.line(surf, INK, (int(tp0[0]), int(tp0[1])),
+                         (int(tp1[0]), int(tp1[1])), max(1, int(1.0 * s)))
+
+    if p["gem"] is True:
+        gx, gy = rot(0, -cr * 0.20)
+        sk.palm_cabochon(surf, (gx, gy), max(2, int(cr * 0.26)), s)
+
+
 def _draw_skull(big, kind, idx, cx, cy, *, lit=False):
     r = int(R * SS)
     s = S_UNIT * SS
     if kind == "crown":
         sk.crown_skull(big, int(cx), int(cy), r, s, lit=lit, idx=idx)
     else:
-        sk.palm_skull(big, int(cx), int(cy), r, s, idx=idx)
+        _palm_skull_bare(big, int(cx), int(cy), r, s, idx=idx)
 
 
 _SK_HW = int(4.5 * SS)                       # skewer shaft half-width (inside 58px)
@@ -217,11 +346,11 @@ def _skull_chip(kind, idx, cell_w, cell_h, *, lit=False):
     rb = r * ssr
     s = (r / 12.0) * ssr
     cx = cell_w * ssr // 2
-    cy = int(cell_h * ssr * (0.52 if kind == "crown" else 0.58))
+    cy = int(cell_h * ssr * 0.52)
     if kind == "crown":
         sk.crown_skull(big, cx, cy, rb, s, lit=lit, idx=idx)
     else:
-        sk.palm_skull(big, cx, cy, rb, s, idx=idx)
+        _palm_skull_bare(big, cx, cy, rb, s, idx=idx)
     small = pygame.transform.smoothscale(big, (cell_w, cell_h))
     return sk.grow_outline(small, sk.INK + (255,), 1)
 
@@ -236,7 +365,7 @@ def build_individual_sheet():
     rows = [
         ("CROWN skulls (above the head — bare relic skulls; idx 2 is the lit focal)",
          [("crown", i, i == 2) for i in range(6)]),
-        ("PALM skulls (cradled in the hands — ornamented; some carry the cyan gem)",
+        ("PALM skulls (the ornamented reliquary skulls — hands removed; some carry the cyan gem)",
          [("palm", i, False) for i in range(6)]),
     ]
     W = cols * cw + (cols + 1) * pad

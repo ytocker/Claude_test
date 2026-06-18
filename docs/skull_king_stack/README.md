@@ -10,7 +10,9 @@ from its render script
 ([`render_switchbig.py`](../skybit_devil/batch2/asthi_ringeye/render_switchbig.py)):
 
 - the **6 crown skulls** (`crown_skull`, idx 0–5) — the bare relic skulls above her head, and
-- the **6 palm skulls** (`palm_skull`, idx 0–5) — the ornamented skulls cradled in her palms, several carrying the cyan gem.
+- the **6 palm skulls** (`palm_skull`, idx 0–5) — the ornamented reliquary skulls
+  from her palms, several carrying the cyan gem. Stacked **bare** (the open-palm
+  cup / finger-ticks are removed — only the skull is kept).
 
 They are interleaved up the column so each pillar shows the bare relic skulls
 *and* the jewelled cradled ones. The gap-edge skull is the lit focal (cyan eyes),
