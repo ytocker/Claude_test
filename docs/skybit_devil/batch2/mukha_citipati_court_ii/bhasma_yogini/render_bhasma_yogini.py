@@ -60,6 +60,11 @@ CROWN_ASH_SH = (212, 208, 202)
 SAFF      = (236, 150,  46)   # saffron robe + accent (the one saturated note)
 SAFF_BR   = (252, 200, 110)   # hot saffron sheen / inner
 SAFF_D    = (176,  98,  26)   # deep saffron shade
+# WHY a dedicated dim-ember tone (~173 lum) sits between SAFF and SAFF_D: the
+# upper-left palm-skull's lit socket sat alone high on its arm at ~194 lum, only
+# a notch under the focal third-eye, so it competed. This banks it at/just below
+# the arm-cuff pips, keeping the third-eye the single brightest pixel.
+SAFF_EMBER = (226, 162,  90)  # dim saffron ember (~173 lum) for the lone hi relic
 # WHY pushed a touch warmer/redder-brown than round 1: at 32px the saffron robe
 # and the seed-brown were drifting toward the same orange note; a redder mahogany
 # keeps the mala a separate brown read from the saffron even when downscaled.
@@ -225,17 +230,23 @@ def tiara_skull(surf, cx, cy, r, s, lit=False):
 
 
 # ── a single Citipati crown-skull (the OUTER 5-skull arc-sweep) ───────────────
-def crown_skull(surf, cx, cy, r, s, lit=False):
+def crown_skull(surf, cx, cy, r, s, lit=False, variant=0):
     """Tiny ash skull for the Citipati 5-skull arc that owns the OUTER silhouette
     arc. Bigger sockets than the tiara skull so the arc reads countable at 32px.
     The crown is the DIMMEST tier of the value ladder — drawn in cool greyer
     CROWN_ASH (~17% below mid). Only the centre skull is `lit` (a small saffron
-    pin kept clearly below the third-eye), the one crown glow the brief allows."""
+    pin kept clearly below the third-eye), the one crown glow the brief allows.
+    `variant` individuates the otherwise-mirror inner pair so the arc has no
+    near-repeat: 1 = eroded/asymmetric jaw with a missing front tooth (one value
+    step of crown<->brow separation so it doesn't read muddy); 2 = a fuller
+    three-stripe tripundra brow band. Stays the DIMMEST tier + clean at 32px."""
     triad_circle(surf, CROWN_ASH, (cx, cy), r, ow=max(1, int(1.6 * s)), core=False)
+    # variant 1 leans the jaw off-axis (eroded relic); the others stay square.
+    jskew = int(r * 0.16) if variant == 1 else 0
     jaw = [(cx - int(r * 0.52), cy + int(r * 0.52)),
            (cx + int(r * 0.52), cy + int(r * 0.52)),
-           (cx + int(r * 0.34), cy + int(r * 1.0)),
-           (cx - int(r * 0.34), cy + int(r * 1.0))]
+           (cx + int(r * 0.34) + jskew, cy + int(r * 1.0)),
+           (cx - int(r * 0.34) + jskew, cy + int(r * 1.0))]
     triad_blob(surf, CROWN_ASH, jaw, ow=max(1, int(1.2 * s)))
     eye_c = SAFF_BR if lit else INK
     for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
@@ -243,13 +254,33 @@ def crown_skull(surf, cx, cy, r, s, lit=False):
         if lit:
             pygame.draw.circle(surf, eye_c, (ex, cy + int(r * 0.04)), max(1, int(r * 0.13)))
     pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.13)))
+    # bite line — variant 1 carries a missing front tooth (a gap punched into the
+    # bite line) so its grin reads asymmetric vs its mirror twin.
     pygame.draw.line(surf, INK, (cx - int(r * 0.34), cy + int(r * 0.70)),
                      (cx + int(r * 0.34), cy + int(r * 0.70)), max(1, int(1.2 * s)))
-    # faint ascetic echo — a dim tilaka stripe across the brow, and on the lit
-    # centre skull a small dim saffron brow dot (deep tone, kept far below the
-    # third-eye so the crown stays the DIMMEST tier of the value ladder).
-    pygame.draw.line(surf, CROWN_ASH_SH, (cx - int(r * 0.32), cy - int(r * 0.40)),
-                     (cx + int(r * 0.32), cy - int(r * 0.40)), max(1, int(1.3 * s)))
+    if variant == 1:
+        gap = int(r * 0.10)
+        pygame.draw.line(surf, CROWN_ASH, (cx - gap, cy + int(r * 0.70)),
+                         (cx + gap, cy + int(r * 0.70)), max(2, int(2.4 * s)))
+    # faint ascetic echo — a dim tilaka stripe across the brow. variant 2 wears a
+    # FULLER three-stripe tripundra band (more brow language); variant 1 (eroded)
+    # gets one value step of moss-dark crown<->brow separation so the dark cap and
+    # the band don't read muddy together.
+    if variant == 2:
+        for bi in range(3):
+            by = cy - int(r * 0.46) + bi * int(r * 0.13)
+            bw = r * (0.34 - bi * 0.05)
+            pygame.draw.line(surf, CROWN_ASH_SH, (cx - bw, by), (cx + bw, by),
+                             max(1, int(1.3 * s)))
+    else:
+        if variant == 1:
+            # a darker moss cap above the brow lifts the band off the crown by a
+            # value step (separation so the eroded skull doesn't read flat/muddy).
+            pygame.draw.line(surf, lerp(CROWN_ASH, INK, 0.30),
+                             (cx - int(r * 0.30), cy - int(r * 0.52)),
+                             (cx + int(r * 0.30), cy - int(r * 0.52)), max(1, int(1.6 * s)))
+        pygame.draw.line(surf, CROWN_ASH_SH, (cx - int(r * 0.32), cy - int(r * 0.40)),
+                         (cx + int(r * 0.32), cy - int(r * 0.40)), max(1, int(1.3 * s)))
     if lit:
         pygame.draw.circle(surf, SAFF_D, (cx, cy - int(r * 0.18)), max(1, int(r * 0.10)))
 
@@ -349,7 +380,13 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
     # deep eye sockets — ink pit with a faint inner highlight so they read
     # carved. idx 3 (asymmetric) loses one socket-rim to erosion; the saffron
     # relics get a DIM deep-saffron socket-tint (sub-focal, no hot core).
-    saff_socket = SAFF_D if n in SAFF_SKULLS else None
+    # WHY idx 1 (the upper-left relic, isolated on its own arm) uses the deeper
+    # SAFF_EMBER and DROPS the near-white socket glint: high + alone it was the
+    # only mid-tier carrier close enough to rival the focal third-eye, so it is
+    # pulled one step toward SAFF_D into the ~172-lum band (at/just below the
+    # arm cuff pips) and stripped of the white falloff that read hot on it. The
+    # lower-row saffron carriers keep the brighter socket — they read fine.
+    saff_socket = (SAFF_EMBER if n == 1 else SAFF_D) if n in SAFF_SKULLS else None
     for si, ex in enumerate((-0.40, 0.40)):
         sc = rot(ex * r, -r * 0.02)
         pygame.draw.circle(surf, INK, sc, max(1, int(r * 0.28)))
@@ -358,6 +395,10 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
             pygame.draw.circle(surf, saff_socket, sc, max(1, int(r * 0.16)))
         rim = (shade if not (n == 3 and si == 1) else moss)
         pygame.draw.circle(surf, rim, sc, max(1, int(r * 0.30)), lw)
+        # skip the near-white socket glint on idx 1's lit ember so no falloff
+        # pixel spikes its value back up toward the focal third-eye.
+        if n == 1 and si == 0:
+            continue
         pygame.draw.circle(surf, bright,
                            (sc[0] - max(1, int(r * 0.10)), sc[1] - max(1, int(r * 0.10))),
                            max(1, int(r * 0.07)))
@@ -666,11 +707,16 @@ def draw_bhasma_yogini(surf, cx, cy, s):
                         head_c[1] + math.sin(a) * arc_band_r))
     pygame.draw.lines(surf, INK, False, arc_pts, int(5 * s))
     pygame.draw.lines(surf, SEED, False, arc_pts, int(3 * s))   # seed-brown crown cord
+    # the inner-lower mirror pair (i=1,3) were the last near-repeat in the arc;
+    # variant 1 = eroded/asymmetric jaw + missing front tooth, variant 2 = fuller
+    # tripundra brow band, so no two crown skulls read identical.
+    crown_variants = (0, 1, 0, 2, 0)
     for i in range(5):
         a = math.radians(224 + i * (92 / 4))
         sx = head_c[0] + math.cos(a) * skull_cr
         sy = head_c[1] + math.sin(a) * skull_cr
-        crown_skull(surf, int(sx), int(sy), skull_r, s, lit=(i == 2))
+        crown_skull(surf, int(sx), int(sy), skull_r, s, lit=(i == 2),
+                    variant=crown_variants[i])
 
     # === Mukha TIARA-BAND across the BROW — explicit HORIZONTAL fillet, FRONTMOST
     # WHY drawn LAST + seated LOW on the forehead: the brief demands the tiara-band
@@ -924,7 +970,7 @@ def render_hero():
     fs = font(16)
     surf.blit(fs.render("ash-ascetic seed-bead mother  ·  MUKHA body  ·  SS=8 hero", True, LABEL_DIM),
               (30, 60))
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_6_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_7_hero.png")
     pygame.image.save(surf, out)
     return out
 
@@ -941,7 +987,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("#4 — BHASMA-YOGINI", True, LABEL), (24, 13))
     sheet.blit(f_sm.render(
-        "ash-ascetic seed-bead mother  ·  MUKHA body · six-arm fan · 6 distinct ascetic palm-skulls · rudraksha U-swag · jata topknot · round 6",
+        "ash-ascetic seed-bead mother  ·  MUKHA body · six-arm fan · 6 distinct ascetic palm-skulls · rudraksha U-swag · jata topknot · round 7",
         True, LABEL_DIM), (300, 26))
 
     # === (a) BIG HERO =========================================================
@@ -1048,7 +1094,7 @@ def main():
         "dark-core->fill->top-left sheen triad · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 824))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_6.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_7.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
