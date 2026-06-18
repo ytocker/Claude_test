@@ -47,11 +47,11 @@ ROWS = [
     {
         "name": "#1 Asthi-Dakini",
         "before": {
-            "file": "docs/skybit_devil/batch2/mukha_citipati_court/asthi_dakini/round_3_hero.png",
+            "file": "docs/skybit_devil/batch2/mukha_citipati_court/asthi_dakini/round_1_hero.png",
             "mode": "gradient",
         },
         "after": {
-            "file": "docs/skybit_devil/batch2/mukha_citipati_court/asthi_dakini/round_6_hero.png",
+            "file": "docs/skybit_devil/batch2/mukha_citipati_court/asthi_dakini/round_7_hero.png",
             "mode": "gradient",
         },
     },
