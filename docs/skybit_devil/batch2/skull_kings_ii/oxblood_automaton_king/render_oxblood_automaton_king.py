@@ -58,7 +58,30 @@ IRON_D     = ( 36,  34,  36)
 # stops reading as a warm mass at 32px — desaturated toward iron/grey-brown so
 # r no longer dominates g,b. The crown brass is then the ONLY warm focal.
 COPPER_COOL = (108,  96,  86)   # neutral grey-brown plate (body-center de-warm)
+# round 6: a DAY-ONLY cool iron/brass-SHADE used for the MAIN TORSO BLOCK + peg
+# legs + head plate on the day palette. WHY: the day squint still landed on the
+# warm copper torso/neck (body warm-area 580 vs crown 244 in r5) because only the
+# pauldrons/arms had been cooled — the big central torso plate, the legs and the
+# head plate were still warm COPPER and formed the hottest warm pixel at the neck.
+# Pushed to a cold blue-grey iron with b just over r so it CANNOT register as warm
+# (r>g and r>b) under the squint test; the crown brass then owns every warm pixel.
+DAY_TORSO  = ( 86,  88,  96)    # cold iron/brass-shade structure (day torso/legs/head)
+DAY_TORSO_D= ( 56,  58,  66)    # its dark-core / recessed plate
 INK        = ( 28,  22,  30)   # hard ink keyline
+
+# round 6: a module-level DAY-cool switch. WHY a flag rather than new signatures
+# on every helper: the torso/leg/head share one drawing path with night+hero, and
+# only the DAY chip must cool. When set, the body-copper resolver below swaps the
+# main copper mass to the cold DAY_TORSO iron so the day squint has no warm body —
+# night/hero stay untouched (warm copper) so the already-passing night holds.
+_DAY_COOL = False
+
+
+def body_copper():
+    """The fill used for the main torso/leg/head copper mass — cold iron on the
+    day chip, warm patinated copper everywhere else (night, hero, silhouette)."""
+    return DAY_TORSO if _DAY_COOL else COPPER
+
 
 BG         = ( 96, 100, 108)   # neutral grey review backdrop
 PANEL      = ( 74,  78,  88)
@@ -201,15 +224,16 @@ def peg_leg(surf, hip, s, sgn):
     tapered peg foot, with a gear-ring at the hip. WHY a peg (not a bone limb):
     pegs lock the silhouette as a rigid machine and read clean against the sky."""
     hx, hy = hip
+    bc = body_copper()                       # round 6: cold iron on day, copper else
     thigh_w = int(13 * s)
     thigh_h = int(26 * s)
-    rivet_plate(surf, hx - thigh_w // 2, hy, thigh_w, thigh_h, COPPER, s)
+    rivet_plate(surf, hx - thigh_w // 2, hy, thigh_w, thigh_h, bc, s)
     # tapered peg shank below the thigh plate
     peg_top = hy + thigh_h
     peg = [(hx - int(6 * s), peg_top), (hx + int(6 * s), peg_top),
            (hx + int(4 * s), peg_top + int(22 * s)),
            (hx - int(4 * s), peg_top + int(22 * s))]
-    triad_blob(surf, COPPER, peg,
+    triad_blob(surf, bc, peg,
                sheen_pts=[(hx - int(6 * s), peg_top), (hx - int(2 * s), peg_top),
                           (hx - int(2 * s), peg_top + int(22 * s)),
                           (hx - int(4 * s), peg_top + int(22 * s))],
@@ -219,9 +243,11 @@ def peg_leg(surf, hip, s, sgn):
             (hx + int(10 * s), peg_top + int(22 * s)),
             (hx + int(10 * s), peg_top + int(30 * s)),
             (hx - int(9 * s), peg_top + int(30 * s))]
-    triad_blob(surf, COPPER_D, foot, ow=max(1, int(1.2 * s)))
-    # gear-ring at the hip (joint tell)
-    gear_ring(surf, hx, hy, int(7 * s), s, teeth=8)
+    triad_blob(surf, lerp(bc, INK, 0.30) if _DAY_COOL else COPPER_D, foot,
+               ow=max(1, int(1.2 * s)))
+    # gear-ring at the hip (joint tell) — cooled on day so the leg adds no warmth
+    gear_ring(surf, hx, hy, int(7 * s), s, teeth=8,
+              color=COPPER_COOL if _DAY_COOL else COPPER)
 
 
 # -- the brass skull finial on a clockwork gear-spindle spire (royal crown) ----
@@ -298,6 +324,16 @@ def skull_spire(surf, cx, base_y, r, s, night_rim=False):
                            BRASS_BR + (255,), max(2, int(1.6 * s)))
         surf.blit(rim, (0, 0))
     else:
+        # round 6: a DARK INK keyline HALO around the whole crown-skull, grown
+        # FIRST so it sits as an outer ring beneath the brass. WHY: night gets a
+        # warm rim that tips the first-read for free, but brass-on-pale-blue is
+        # low-contrast, so on day the crown lost the squint. A cool/ink rim is the
+        # day opposite of night's warm rim — it pops the bright brass skull against
+        # the pale-blue sky without enlarging the crown (the rim is dark, not brass,
+        # so it adds NO warm area; it only sharpens the crown's edge against light).
+        ink_rim = grow_outline(_blob_surface(surf.get_size(), INK, cranium),
+                               INK + (255,), max(2, int(1.7 * s)))
+        surf.blit(ink_rim, (0, 0))
         # round 5: the DAY halo is TUCKED to the DOME ONLY. WHY: a uniform bloom
         # (round 4) padded warm pixels below the jaw line too, so at 32px it filled
         # the jaw-notch and merged the sockets — the day skull collapsed to a bead.
@@ -310,8 +346,13 @@ def skull_spire(surf, cx, base_y, r, s, night_rim=False):
                      (skx + skw, sky_top + int(skh * 0.22)),
                      (skx + skw, sky_top + int(skh * 0.56)),
                      (skx, sky_top + int(skh * 0.56))]
+        # round 6: the day dome-halo is grown a touch fatter (1.2 -> 1.7) so the
+        # bright-brass pad rides just INSIDE the new ink rim. WHY: the dome is only
+        # ~3px at 32px and the ink rim + sockets erode it under smoothscale, so the
+        # surviving warm pixels were dropping to a near-neutral 165; the fatter brass
+        # pad keeps the crown a SATURATED warm focal that pops out of the dark rim.
         rim = grow_outline(_blob_surface(surf.get_size(), BRASS_BR, dome_only),
-                           BRASS_BR + (255,), max(1, int(1.2 * s)))
+                           BRASS_BR + (255,), max(1, int(1.7 * s)))
         surf.blit(rim, (0, 0))
     # the skull is the BRIGHTEST warm value — fill the cranium hot brass FLAT
     # (no dark interior core; only a faint top-left sheen) so the 2-tone holds.
@@ -366,10 +407,11 @@ def draw_automaton(surf, cx, cy, s, night_rim=False):
         peg_leg(surf, (cx + sg * int(15 * s), cy + int(26 * s)), s, sg)
 
     # === SQUARE BOXY TORSO ===================================================
+    bc = body_copper()                       # round 6: cold iron on day, copper else
     tw = int(46 * s)
     th = int(40 * s)
     tx = cx - tw // 2
-    rivet_plate(surf, tx, torso_y, tw, th, COPPER, s)
+    rivet_plate(surf, tx, torso_y, tw, th, bc, s)
     # the central chest inlay — pushed to IRON-SHADE (round 4). WHY: on the day
     # 32px chip the warm oxblood chest mass was reading co-equal with the tiny
     # crown skull and stealing the squint by sheer area. A red lacquer panel is
@@ -387,8 +429,9 @@ def draw_automaton(surf, cx, cy, s, night_rim=False):
     # chest carries NO warm spot at all (the crown owns every warm pixel up top).
     triad_circle(surf, IRON_D, (cx, torso_y + int(19 * s)), int(4 * s),
                  ow=max(1, int(1.0 * s)), core=False, sheen=False)
-    # waist gear-ring (joint between torso and pelvis block)
-    gear_ring(surf, cx, torso_y + th, int(8 * s), s, teeth=9)
+    # waist gear-ring (joint between torso and pelvis block) — cooled on day
+    gear_ring(surf, cx, torso_y + th, int(8 * s), s, teeth=9,
+              color=COPPER_COOL if _DAY_COOL else COPPER)
     # 3 verdigris PATINA ticks crusting ONE recessed lower-left seam (round 3):
     # consolidated into a single visible run (drawn AFTER the waist gear-ring so
     # the hub never overpaints them) — off-centre so it sits in the plate-edge
@@ -445,10 +488,17 @@ def draw_automaton(surf, cx, cy, s, night_rim=False):
     hw = int(40 * s)
     hx = head_c[0] - hw // 2
     hy = head_c[1] - int(18 * s)
-    rivet_plate(surf, hx, hy, hw, int(36 * s), COPPER, s)
-    # a thin oxblood brow band across the top of the face plate
-    rivet_plate(surf, hx + int(3 * s), hy + int(3 * s), hw - int(6 * s), int(6 * s),
-                COPPER, s, rivets=False, inlay=True)
+    rivet_plate(surf, hx, hy, hw, int(36 * s), bc, s)
+    # a thin oxblood brow band across the top of the face plate. round 6: on the
+    # DAY path the brow is drawn in cold iron (not warm oxblood) — it sits directly
+    # below the crown and a warm red brow here would re-seed a warm neck/upper-head
+    # blob that competes with the crown on the squint. Night keeps the oxblood brow.
+    if _DAY_COOL:
+        rivet_plate(surf, hx + int(3 * s), hy + int(3 * s), hw - int(6 * s),
+                    int(6 * s), DAY_TORSO_D, s, rivets=False)
+    else:
+        rivet_plate(surf, hx + int(3 * s), hy + int(3 * s), hw - int(6 * s),
+                    int(6 * s), COPPER, s, rivets=False, inlay=True)
     # the torso/head gear-eye — demoted ALL THE WAY to cold iron structure
     # (round 5). WHY: through round 4 it still carried a small BRASS_D glint and a
     # copper-shade iris ring, which on the DAY 32px chip merged with the warm
@@ -480,8 +530,10 @@ def draw_automaton(surf, cx, cy, s, night_rim=False):
         gx = head_c[0] + int(k * 4 * s)
         pygame.draw.line(surf, COPPER_DD, (gx, grille_y),
                          (gx, grille_y + int(5 * s)), max(1, int(1.0 * s)))
-    # neck gear-ring between head and torso
-    gear_ring(surf, head_c[0], hy + int(36 * s), int(6 * s), s, teeth=8)
+    # neck gear-ring between head and torso — cooled on day (this is exactly where
+    # the round-5 hottest warm pixel sat, so it must carry no warmth on the squint)
+    gear_ring(surf, head_c[0], hy + int(36 * s), int(6 * s), s, teeth=8,
+              color=COPPER_COOL if _DAY_COOL else COPPER)
 
     # === ABOVE-HEAD royal CROWN — brass skull on clockwork gear-spire =========
     skull_spire(surf, head_c[0], hy + int(1 * s), int(13 * s), s, night_rim=night_rim)
@@ -609,7 +661,7 @@ def main():
     sheet.blit(font_big.render("OXBLOOD AUTOMATON KING", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "Skull-Kings-II  ·  rigid BLOCKY humanoid machine · riveted copper plates + peg legs + square pauldrons · "
-        "circular GEAR-RINGS at joints · eye->iron + shoulders/arms COOLED + CHEST IRON · skull-on-gear-spire crown = the ONLY warm focal · round 5",
+        "circular GEAR-RINGS at joints · DAY torso/legs/head COOLED to iron + DAY crown gets a dark ink rim · skull-on-gear-spire crown = the ONLY warm focal · round 6",
         True, LABEL_DIM), (360, 26))
 
     # === (a) BIG HERO =========================================================
@@ -643,12 +695,17 @@ def main():
     sheet.blit(font.render("True 32px gameplay-scale chip", True, LABEL), (panel_x + 16, 96))
 
     def chip32(night=False):
+        global _DAY_COOL
         big = pygame.Surface((96 * SS, 96 * SS), pygame.SRCALPHA)
         # WHY night_rim is targeted (round 2): the warm halo now rides the SKULL +
         # spire only (drawn inside skull_spire), so the crown survives the dim
         # night sky without globally bleaching the body — the skull, not the whole
         # figure, is what must stay legible as the brightest warm value.
+        # round 6: cool the body copper to cold iron on the DAY chip only — night
+        # keeps warm copper so its already-passing first-read is untouched.
+        _DAY_COOL = not night
         draw_automaton(big, 48 * SS, 52 * SS, (32 / 124.0) * SS, night_rim=night)
+        _DAY_COOL = False
         small = pygame.transform.smoothscale(big, (96, 96))
         if night:
             # a faint warm body-edge + crisp ink keyline so the dimmed copper mass
@@ -732,10 +789,11 @@ def main():
         "SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_5.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_6.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     self_check()
+    squint_proof()
 
 
 def self_check():
@@ -795,6 +853,55 @@ def self_check():
           % (crown_warm, chest_warm, crown_warm > chest_warm * 3))
     print("self-check: warm px ~%d  vs cool px ~%d  -> cool fraction %.3f (must be small)"
           % (warm_n, cool_n, cool_n / max(1, warm_n + cool_n)))
+
+
+def squint_proof():
+    """Round-6 gate: render the TRUE 32px chip on day AND night, squint it (downscale
+    to ~16px then back up — the harshest first-read), and measure per-AREA warm
+    density in the crown band (above the head) vs the torso band. The brass crown
+    must be the single first-read warm spot on BOTH palettes; on day the torso warm
+    area must collapse to ~0 so the crown wins the day squint (the round-5 failure)."""
+    global _DAY_COOL
+    for night in (False, True):
+        _DAY_COOL = not night
+        big = pygame.Surface((96 * SS, 96 * SS), pygame.SRCALPHA)
+        draw_automaton(big, 48 * SS, 52 * SS, (32 / 124.0) * SS, night_rim=night)
+        _DAY_COOL = False
+        chip = pygame.transform.smoothscale(big, (32, 32))
+        # composite over the matching sky so the squint sees brass-vs-sky contrast
+        sky = pygame.Surface((32, 32))
+        for j in range(32):
+            sky.fill(lerp(NIGHT_T if night else DAY_SKY_T,
+                          NIGHT_B if night else DAY_SKY_B, j / 31.0),
+                     (0, j, 32, 1))
+        sky.blit(chip, (0, 0))
+        # squint = downscale hard then upscale; the first-read warm spot is whatever
+        # survives as a warm cluster
+        sq = pygame.transform.smoothscale(
+            pygame.transform.smoothscale(sky, (16, 16)), (32, 32))
+        px = pygame.surfarray.pixels3d(sq)
+        # the head/crown split: the figure is centred at y=52 of a 124-tall draw on a
+        # 96px super-canvas -> 32px chip; the crown sits in the TOP third, torso mid.
+        crown_warm = torso_warm = 0
+        hottest_lum, hottest_y = -1, 0
+        for x in range(32):
+            for y in range(32):
+                r, g, b = int(px[x, y][0]), int(px[x, y][1]), int(px[x, y][2])
+                warm = (r > g + 12 and r > b + 12 and r > 120)
+                if warm:
+                    if y < 11:
+                        crown_warm += 1
+                    elif 11 <= y < 24:
+                        torso_warm += 1
+                    lum = 0.299 * r + 0.587 * g + 0.114 * b
+                    if lum > hottest_lum:
+                        hottest_lum, hottest_y = lum, y
+        del px
+        band = "CROWN" if hottest_y < 11 else ("TORSO" if hottest_y < 24 else "LEGS")
+        wins = crown_warm > torso_warm
+        print("squint[%s]: crown warm-area %d  vs torso warm-area %d  -> crown wins? %s"
+              " | hottest warm band = %s (y=%d)"
+              % ("NIGHT" if night else "DAY", crown_warm, torso_warm, wins, band, hottest_y))
 
 
 if __name__ == "__main__":
