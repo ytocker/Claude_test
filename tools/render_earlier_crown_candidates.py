@@ -120,5 +120,43 @@ def build():
     print("wrote", out, sheet.get_size())
 
 
+def build_versions():
+    """The WHOLE king-skull (full Asthi-Dakini figure) for each pre-variance
+    round, side by side — so the version can be recognised in full context, not
+    just by the isolated crown skull. Each round's own draw_asthi_dakini is used,
+    so body, beadwork, crown and palette are all period-correct."""
+    cw, ch = 330, 408
+    pad = 16
+    head = 92
+    cols = len(ROUNDS)
+    W = cols * cw + (cols + 1) * pad
+    H = head + ch + 56
+    sheet = pygame.Surface((W, H))
+    sheet.fill((46, 50, 66))
+    _label(sheet, "EARLIER king skull (full Asthi-Dakini) — the whole design at each pre-variance round", pad, 18)
+    _label(sheet, "source: mukha-citipati asthi_dakini, round 1-9. The crown skulls sit in the arc above each head.", pad, 46,
+           col=(190, 198, 212))
+
+    x = pad
+    y = head
+    for label, commit, note in ROUNDS:
+        mod = _load_round(commit)
+        # cell backdrop gradient, then the figure centred in it
+        cell = pygame.Surface((cw, ch))
+        for j in range(ch):
+            cell.fill(mod.lerp((74, 84, 104), (40, 46, 64), j / max(1, ch - 1)), (0, j, cw, 1))
+        fig = mod.render_creature_chip(cw, ch, cw // 2, int(ch * 0.53), 1.78)
+        cell.blit(fig, (0, 0))
+        sheet.blit(cell, (x, y))
+        _label(sheet, f"{label}  —  {note}", x + 4, y + ch + 6) if len(f"{label}  —  {note}") < 40 else _label(sheet, label, x + 4, y + ch + 6)
+        x += cw + pad
+
+    out = os.path.join(OUT, "earlier_king_skull_versions.png")
+    pygame.image.save(sheet, out)
+    print("wrote", out, sheet.get_size())
+
+
 if __name__ == "__main__":
     build()
+    build_versions()
+
