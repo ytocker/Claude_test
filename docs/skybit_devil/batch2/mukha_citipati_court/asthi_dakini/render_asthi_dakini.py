@@ -266,12 +266,19 @@ def crown_skull(surf, cx, cy, r, s, lit=False):
     third-eye core's alone, so the crown centre stays the dimmest tier with only a
     soft halo to mark it as the fused-crown's focus."""
     if lit:
-        # the one permitted crown glow — a DIM warm halo, not a bright fill. low
-        # alpha + warm GOLD hue keeps it a marker, never a value peak.
-        glow = pygame.Surface((r * 6, r * 6), pygame.SRCALPHA)
-        for gr, ga in ((int(r * 2.0), 14), (int(r * 1.3), 22), (int(r * 0.85), 34)):
-            pygame.draw.circle(glow, GOLD + (ga,), (r * 3, r * 3), gr)
-        surf.blit(glow, (cx - r * 3, cy - r * 3), special_flags=pygame.BLEND_RGBA_ADD)
+        # the one permitted crown glow — a DIM warm halo, NOT a bright fill. WHY a
+        # NORMAL alpha blend of a dim warm tint (not the additive stack used before):
+        # additive layering let three GOLD passes pile onto the warm skull face and
+        # saturate the core to pure white (~255,255,216) with a ~4x-the-focal
+        # footprint, out-reading the third-eye and breaking the value ladder. A
+        # straight alpha blend can never exceed max(face, tint), so the result stays
+        # a soft warm haze well under 210 lum — the third-eye core is the SOLE
+        # element allowed near white. Tighter radius keeps its bright footprint
+        # far below the third-eye's; the warm hue still marks this as the focus.
+        glow = pygame.Surface((r * 4, r * 4), pygame.SRCALPHA)
+        for gr, ga in ((int(r * 1.15), 26), (int(r * 0.80), 40), (int(r * 0.50), 54)):
+            pygame.draw.circle(glow, (198, 168, 110, ga), (r * 2, r * 2), gr)
+        surf.blit(glow, (cx - r * 2, cy - r * 2))
     triad_circle(surf, CROWN_BONE, (cx, cy), r, ow=max(1, int(1.6 * s)), core=False)
     jaw = [(cx - int(r * 0.52), cy + int(r * 0.52)),
            (cx + int(r * 0.52), cy + int(r * 0.52)),
@@ -581,8 +588,10 @@ def draw_asthi_dakini(surf, cx, cy, s):
     pygame.draw.ellipse(surf, INK, (tex - int(7 * s), tey - int(9 * s), int(14 * s), int(18 * s)))
     pygame.draw.ellipse(surf, CYAN, (tex - int(6 * s), tey - int(8 * s), int(12 * s), int(16 * s)))
     pygame.draw.ellipse(surf, CYAN_BR, (tex - int(4 * s), tey - int(5 * s), int(8 * s), int(10 * s)))
-    pygame.draw.circle(surf, (240, 255, 255), (tex - int(1 * s), tey - int(2 * s)), max(2, int(3.0 * s)))
-    pygame.draw.circle(surf, (255, 255, 255), (tex - int(1 * s), tey - int(2 * s)), max(1, int(1.5 * s)))
+    # third-eye core nudged a hair hotter/larger so its lead over every other
+    # element is visible at a glance now that the crown glow is a dim warm haze.
+    pygame.draw.circle(surf, (240, 255, 255), (tex - int(1 * s), tey - int(2 * s)), max(2, int(3.4 * s)))
+    pygame.draw.circle(surf, (255, 255, 255), (tex - int(1 * s), tey - int(2 * s)), max(1, int(2.0 * s)))
     # nose triangle
     pygame.draw.polygon(surf, BONE_DD,
                         [(head_c[0] - int(hr * 0.14), head_c[1] + int(hr * 0.30)),
@@ -750,7 +759,7 @@ def export_hero():
     canvas = pygame.Surface((boxw, boxh))
     vgrad(canvas, (0, 0, boxw, boxh), (74, 84, 104), (40, 46, 64))
     canvas.blit(hero, (0, 0))
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3_hero.png")
     pygame.image.save(canvas, out)
     return out
 
@@ -776,7 +785,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("ASTHI-DAKINI", True, LABEL), (24, 13))
     sheet.blit(f_sm.render(
-        "bone-jewel sky-dancer  ·  CITIPATI body + MUKHA 6-arm fan · 6 palm-skulls · fused crown · DARK cool bone + gold pips · round 2",
+        "bone-jewel sky-dancer  ·  CITIPATI body + MUKHA 6-arm fan · 6 palm-skulls · fused crown · DARK cool bone + gold pips · round 3 (FINAL)",
         True, LABEL_DIM), (270, 28))
 
     # === (a) BIG HERO =========================================================
@@ -883,13 +892,13 @@ def main():
     # bottom note strip
     pygame.draw.rect(sheet, PANEL, (14, 836, W - 28, 48))
     sheet.blit(f_sm.render(
-        "R2: value-ladder fixed (crown-centre dim warm, third-eye sole bright cyan) · gold face-zone anchors · solid tiara-band · MID palm-skulls · 32px bold rows + night rim-light · bead-rope pillar.",
+        "R3 (FINAL): crown-centre glow dropped to a DIM warm haze (alpha-blend, peak <210) so the third-eye is the SOLE bright/white focal · gold face-zone anchors · solid tiara-band · MID palm-skulls · 32px bold rows + night rim-light · bead-rope pillar.",
         True, LABEL_DIM), (26, 846))
     sheet.blit(f_sm.render(
         "STAY: flat fills · hard ink keyline (28,22,26) · dark-core->fill->top-left sheen triad · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 864))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
     pygame.image.save(sheet, out)
     hero_out = export_hero()
     print("wrote", out)
