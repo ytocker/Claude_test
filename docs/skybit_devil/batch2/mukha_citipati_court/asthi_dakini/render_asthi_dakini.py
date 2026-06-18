@@ -269,14 +269,12 @@ def cyan_gem(surf, c, r, s, focal=False):
     cyan-set palm-skull gems pass focal=False (1 glint, no white core) so they stay
     a value step dimmer."""
     cx, cy = int(c[0]), int(c[1])
-    # (1) gold bezel ring — the warm anchor framing the cool stone (warm/cool
-    # tension so the focal is never cyan-on-blue alone)
-    if focal:
-        triad_circle(surf, GOLD, (cx, cy), r + max(1, int(2 * s)),
-                     ow=max(1, int(1.4 * s)), core=False, sheen=False)
-        pygame.draw.circle(surf, GOLD_D, (cx, cy), r + max(1, int(2 * s)), max(1, int(1.2 * s)))
-    # (2) ink seat the whole stone sits in — the hard girdle edge of the cut
-    pygame.draw.circle(surf, INK, (cx, cy), r + max(1, int(1.4 * s)))
+    # (2) ink seat the whole stone sits in — the hard girdle edge of the cut.
+    # WHY gated: the focal brow gem shows only its octagonal faceted stone (no
+    # circular background), so the round seat is dropped there; the small palm
+    # gems keep their seat to read against the skull bone.
+    if not focal:
+        pygame.draw.circle(surf, INK, (cx, cy), r + max(1, int(1.4 * s)))
 
     # (3) the crown girdle outline — a faceted POLYGON (octagonal-ish), NOT a
     # circle: a cut stone has a straight-edged girdle, which itself kills the
@@ -456,12 +454,15 @@ def palm_skull(surf, hx, hy, r, s, ang, variant=0, gem=False, front=False):
         pygame.draw.circle(surf, INK, (int(tip[0]), int(tip[1])), max(1, int(1.5 * s)),
                            max(1, int(0.7 * s)))
 
-    # (4) the cradled CRAFTED skull — shrunk ~30% from round 3 (was ~0.62r), seated
-    # in the bowl with its dome rising past the fingertips. Drawn in screen-axis so
-    # the face reads upright; `tilt` rocks a couple of them for variety.
-    sc = L((cupr * 0.50, 0.0))
+    # (4) the cradled CRAFTED skull — at the pre-redesign 0.62r size, seated in the
+    # bowl with its dome rising past the fingertips. Drawn in screen-axis so the
+    # face reads upright; `tilt` rocks a couple of them for variety. WHY the seat is
+    # nudged forward (0.58 vs 0.50): at the larger dome the skull would otherwise
+    # ride back over the wrist cuff; pushing it onto the front rim keeps each hand
+    # clearly cradling its skull and opens space from neighbouring cradles.
+    sc = L((cupr * 0.58, 0.0))
     skx, sky_ = int(sc[0]), int(sc[1])
-    sr = int(r * 0.44)
+    sr = int(r * 0.62)
     tilt = (-0.18 if variant == 1 else 0.16 if variant == 4 else 0.0)
 
     def R(dx, dy):   # rotate a skull-local offset by `tilt` about the skull centre
@@ -494,10 +495,12 @@ def palm_skull(surf, hx, hy, r, s, ang, variant=0, gem=False, front=False):
         if front and not (lit_socket and i == 0):
             pygame.draw.circle(surf, BONE_DD, (ex, ey), max(1, int(sr * 0.15)))
         if lit_socket:
-            # one DIM cyan-lit socket (kept under the brow gem — no white pip)
-            pygame.draw.circle(surf, CYAN_D, (ex, ey), max(1, int(sr * 0.18)))
+            # one DIM cyan-lit socket (kept under the brow gem — no white pip). WHY
+            # the pip is a touch larger now: at the restored 0.62r dome the cyan
+            # element should still read cleanly as the lit eye, not a stray speck.
+            pygame.draw.circle(surf, CYAN_D, (ex, ey), max(1, int(sr * 0.20)))
             pygame.draw.circle(surf, CYAN, (ex - int(sr * 0.06), ey - int(sr * 0.06)),
-                               max(1, int(sr * 0.09)))
+                               max(1, int(sr * 0.11)))
     pygame.draw.circle(surf, INK, R(0, sr * 0.30), max(1, int(sr * 0.10)))   # nose
     # JAW + a few teeth; variant 2 cracks the jaw open wider (expression variety)
     jaw_drop = 1.04 if variant == 2 else 0.84
@@ -516,7 +519,9 @@ def palm_skull(surf, hx, hy, r, s, ang, variant=0, gem=False, front=False):
     # eye — focal=False so it carries no white pip), the mid rung of the ladder.
     if gem and not lit_socket:
         gx, gy = R(0, -sr * 0.30)
-        cyan_gem(surf, (gx, gy), max(2, int(sr * 0.30)), s, focal=False)
+        # WHY a hair larger at the restored 0.62r dome: keep the brow cyan gem a
+        # clear, legible cut stone rather than shrinking to a dot on the bigger face.
+        cyan_gem(surf, (gx, gy), max(2, int(sr * 0.33)), s, focal=False)
 
 
 # ── the Mukha-Devi six-arm radial fan (cloned; bead-armlet wrapped) ───────────
@@ -952,7 +957,7 @@ def export_hero():
     canvas = pygame.Surface((boxw, boxh))
     vgrad(canvas, (0, 0, boxw, boxh), (74, 84, 104), (40, 46, 64))
     canvas.blit(hero, (0, 0))
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_5_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_6_hero.png")
     pygame.image.save(canvas, out)
     return out
 
@@ -976,7 +981,7 @@ def main():
     sheet.fill(BG)
 
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
-    sheet.blit(font_big.render("ASTHI-DAKINI", True, LABEL), (24, 13))
+    sheet.blit(font_big.render("#1 — ASTHI-DAKINI", True, LABEL), (24, 13))
     sheet.blit(f_sm.render(
         "bone-jewel sky-dancer  ·  CITIPATI body + MUKHA 6-arm fan · 6 palm-skulls · fused crown · DARK cool bone + gold pips · round 5 (faceted-gem + de-tangle pass)",
         True, LABEL_DIM), (270, 28))
@@ -1091,7 +1096,7 @@ def main():
         "STAY: flat fills · hard ink keyline (28,22,26) · dark-core->fill->top-left sheen triad · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 864))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_5.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_6.png")
     pygame.image.save(sheet, out)
     hero_out = export_hero()
     print("wrote", out)

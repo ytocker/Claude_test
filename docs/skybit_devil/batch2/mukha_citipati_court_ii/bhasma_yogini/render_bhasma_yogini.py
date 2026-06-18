@@ -29,18 +29,6 @@ creature's own forms, mirrored on-axis, never top-heavy.
 WHY a standalone script under docs/: review art must never enter the shipped
 bundle, so it reuses only colour math + the triad/outline helpers, not runtime
 sprite modules.
-
-WHY the round-4 gem re-cut: the round-3 brow focal was a smooth glossy CABOCHON
-(a domed cut — the rejected eyeball/lens read). It is re-cut into a faceted
-STEP-CUT JEWEL on the proven asthi construction, recoloured to saffron-amber: an
-OCTAGONAL girdle polygon (no curved outer edge), a flat angular TABLE plane, 8
-stepped crown facets in discrete saffron values with thin ink seams + sharp
-corners, white-triangle corner glints, and a white-hot core pip — the single
-brightest pixel. The SAME faceted helper draws the dim saffron gems on the
-palm-skulls (focal=False: no bezel, no white core, one glint), so they hold the
-mid rung of the ladder (brow gem brightest → palm-skulls mid → crown dimmest).
-Everything else (palm-skulls, hands, ash-smear + rudraksha U-swag, jata topknot,
-lotus, fused crown, alms-staff pillar, palette) is unchanged from round 3.
 """
 import math
 import os
@@ -255,76 +243,18 @@ def crown_skull(surf, cx, cy, r, s, lit=False):
                      (cx + int(r * 0.34), cy + int(r * 0.70)), max(1, int(1.2 * s)))
 
 
-# ── a tiny CRAFTED palm-skull each open hand cradles (the core motif) ─────────
-def palm_skull(surf, cx, cy, r, s, variant=0):
-    """A TINY but CRAFTED ash skull cradled in one open palm — the MID tier of the
-    value ladder (brighter than the crown, dimmer than the brow gem). Round 3
-    shrank it ~30% and lifted it from a plain dome to a real little skull: a domed
-    cranium with a SUTURE line, a TEMPLE/CHEEK hollow, a BROW RIDGE shading the
-    sockets, a distinct JAW with a few teeth, and corner notch fangs. `variant`
-    threads light per-hand variety (head tilt, jaw set, expression) and decides
-    which skulls carry a DIM saffron gem element so 2-3 of the six glow saffron in
-    the brow or one socket — always held BELOW the brow gem's white-hot core."""
-    # per-hand tilt + jaw set so the six don't read as six identical stamps.
-    tilts = (-0.16, 0.0, 0.12, -0.08, 0.14, 0.0)
-    jawset = (0.92, 1.0, 0.86, 1.0, 0.9, 0.96)
-    tilt = tilts[variant % 6]
-    jw = jawset[variant % 6]
-    ct, st = math.cos(tilt), math.sin(tilt)
-
-    def rot(dx, dy):   # rotate an offset about the skull centre by `tilt`
-        return (cx + dx * ct - dy * st, cy + dx * st + dy * ct)
-
-    # cranium — flat bone (no hot sheen) so it stays on the mid rung.
-    triad_circle(surf, lerp(ASH_SH, ASH, 0.35), (cx, cy), r,
-                 ow=max(1, int(1.2 * s)), core=False, sheen=False)
-    # suture line arcing across the crown (the crafted tell)
-    sut0 = rot(-r * 0.5, -r * 0.42)
-    sut1 = rot(0.0, -r * 0.58)
-    sut2 = rot(r * 0.5, -r * 0.40)
-    pygame.draw.lines(surf, ASH_DD, False,
-                      [sut0, sut1, sut2], max(1, int(1.1 * s)))
-    # temple / cheek hollows shading the lower cranium
-    for sgn in (-1, 1):
-        th = rot(sgn * r * 0.7, r * 0.18)
-        pygame.draw.circle(surf, ASH_D, (int(th[0]), int(th[1])), max(1, int(r * 0.22)))
-    # brow ridge — a shadow bar above the sockets so the eyes read deep-set
-    br0 = rot(-r * 0.52, -r * 0.16)
-    br1 = rot(r * 0.52, -r * 0.16)
-    pygame.draw.line(surf, ASH_DD, br0, br1, max(1, int(1.6 * s)))
-    # sockets — one may glow saffron on the gem-carrying variants
-    saff_socket = variant in (1, 4)        # one saffron-lit socket
-    brow_gem = variant in (2,)             # tiny saffron brow gem
-    for i, sgn in enumerate((-1, 1)):
-        eo = rot(sgn * r * 0.4, -r * 0.02)
-        ex, ey = int(eo[0]), int(eo[1])
-        pygame.draw.circle(surf, ASH_DD, (ex, ey), max(1, int(r * 0.30)))
-        pygame.draw.circle(surf, INK, (ex, ey), max(1, int(r * 0.24)))
-        if saff_socket and i == 0:   # a single DIM saffron-lit socket (not hot)
-            pygame.draw.circle(surf, SAFF, (ex, ey), max(1, int(r * 0.13)))
-            pygame.draw.circle(surf, SAFF_BR, (ex, ey - int(1 * s)), max(1, int(r * 0.06)))
-    # a tiny FACETED saffron brow gem on one skull — the SAME step-cut helper as
-    # the brow third-eye but focal=False: no bezel, no white hot core, one corner
-    # glint, so it stays a clear value step below the focal (mid rung of ladder).
-    if brow_gem:
-        go = rot(0.0, -r * 0.30)
-        gx, gy = int(go[0]), int(go[1])
-        third_eye_gem(surf, gx, gy, max(2, int(r * 0.22)), s, focal=False)
-    # nose notch
-    no = rot(0.0, r * 0.26)
-    pygame.draw.circle(surf, INK, (int(no[0]), int(no[1])), max(1, int(r * 0.13)))
-    # JAW — a small trapezoid with a few teeth ticks (the bared-grin tell)
-    jl = rot(-r * 0.46, r * 0.42)
-    jr = rot(r * 0.46, r * 0.42)
-    jbl = rot(-r * 0.30 * jw, r * 0.86 * jw + r * 0.0)
-    jbr = rot(r * 0.30 * jw, r * 0.86 * jw + r * 0.0)
-    triad_blob(surf, lerp(ASH_SH, ASH, 0.35), [jl, jr, jbr, jbl], ow=max(1, int(0.9 * s)))
-    # tooth row across the jaw line + a couple of vertical tooth ticks
-    pygame.draw.line(surf, INK, jl, jr, max(1, int(1.1 * s)))
-    for k in (-1, 0, 1):
-        t0 = rot(k * r * 0.22, r * 0.44)
-        t1 = rot(k * r * 0.22, r * 0.70)
-        pygame.draw.line(surf, INK, t0, t1, max(1, int(0.9 * s)))
+# ── a tiny palm-skull each open hand cradles (the core motif) ─────────────────
+def palm_skull(surf, cx, cy, r, s):
+    """A TINY ash skull cradled in one open palm — the MID tier of the value
+    ladder (brighter than the crown, dimmer than the third-eye). Domed cranium +
+    two dark socket dots; deliberately plain so six of them read as six even
+    bone-pips ringing the fan."""
+    triad_circle(surf, ASH_SH, (cx, cy), r, ow=max(1, int(1.2 * s)), core=False)
+    for ex in (cx - int(r * 0.4), cx + int(r * 0.4)):
+        pygame.draw.circle(surf, INK, (ex, cy - int(r * 0.05)), max(1, int(r * 0.26)))
+    pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.3)), max(1, int(r * 0.16)))
+    pygame.draw.line(surf, INK, (cx - int(r * 0.4), cy + int(r * 0.55)),
+                     (cx + int(r * 0.4), cy + int(r * 0.55)), max(1, int(1.0 * s)))
 
 
 # ── the six-arm radial fan with OPEN palms cradling tiny skulls ───────────────
@@ -375,156 +305,16 @@ def draw_arm_fan(surf, sh_cx, sh_cy, s, hr):
 
 
 def draw_open_palm(surf, hx, hy, ang, s, r):
-    """An OPEN cupped bone HAND at a fan tip — round 3 upgrades from three short
-    finger-ticks to ratna's open-cup model so, with the now-smaller skull, the
-    detailed HAND leads the read: a wrist-cuff (saffron-ash band, near-torso side),
-    a bone half-CUP bowl, and four SEGMENTED fingers with knuckle ticks fanning
-    UP/OUT around the skull, the dome seated above the fingertips. Local frame:
-    u = outward (the way the palm opens, toward the sky-side of the tip), v across
-    the wrist. Drawn before the palm-skull so the skull sits IN the cup."""
-    # open OUTWARD along the sky-side normal of the arm, like the old finger fan.
-    ua = ang - math.pi / 2
-    ux, uy = math.cos(ua), math.sin(ua)
-    vx, vy = -uy, ux
-    cupr = r * 1.05
-    # bowl centre pulled back toward the wrist so the skull dome leads out front.
-    bx = hx - ux * cupr * 0.34
-    by = hy - uy * cupr * 0.34
-
-    def L(po):   # project local (out, side) into screen space about the bowl
-        return (bx + ux * po[0] + vx * po[1], by + uy * po[0] + vy * po[1])
-
-    # (1) saffron-ash WRIST-CUFF across the wrist on the near-torso side — a BAND
-    # (the renunciate's cuff), not an enclosing bezel that would read medallion.
-    w0 = L((-cupr * 0.95, -cupr * 0.95))
-    w1 = L((-cupr * 0.95, cupr * 0.95))
-    pygame.draw.line(surf, INK, w0, w1, max(2, int(3.4 * s)))
-    pygame.draw.line(surf, SAFF_D, w0, w1, max(2, int(2.6 * s)))
-    pygame.draw.line(surf, SAFF, L((-cupr * 0.95, -cupr * 0.6)),
-                     L((-cupr * 0.95, cupr * 0.6)), max(1, int(1.6 * s)))
-
-    # (2) the bone half-CUP / palm — a shallow filled bowl open toward +u, deep on
-    # the wrist side and flat-rimmed out front where the skull is seated.
-    cup = [L((-cupr * 0.85, -cupr * 1.0))]
-    for k in range(9):
-        a = math.pi - math.pi * (k / 8)
-        cup.append(L((-math.cos(a) * cupr * 0.55 - cupr * 0.15,
-                      math.sin(a) * cupr * 1.0)))
-    cup.append(L((-cupr * 0.85, cupr * 1.0)))
-    triad_blob(surf, ASH, cup,
-               sheen_pts=[L((-cupr * 0.7, -cupr * 0.9)), L((-cupr * 0.2, -cupr * 0.95)),
-                          L((-cupr * 0.2, -cupr * 0.4)), L((-cupr * 0.7, -cupr * 0.4))],
-               ow=max(1, int(1.2 * s)))
-
-    # (3) four SEGMENTED bone fingers fanning UP/OUT from the front rim to cradle
-    # the skull — a thumb-stub on the near side + three fingers, each a two-bone
-    # segment with a knuckle tick so the hand reads articulated, not a paw.
-    finger_specs = [(-0.92, 0.62), (-0.38, 1.0), (0.34, 1.0), (0.92, 0.82)]
-    for side, reach in finger_specs:
-        root = L((cupr * 0.10, side * cupr))
-        knuckle = L((cupr * reach * 0.55, side * cupr * 0.88))
-        tip = L((cupr * reach, side * cupr * 0.72))
-        pygame.draw.line(surf, INK, root, knuckle, max(2, int(3.2 * s)))
-        pygame.draw.line(surf, INK, knuckle, tip, max(2, int(2.8 * s)))
-        pygame.draw.line(surf, ASH, root, knuckle, max(1, int(2.0 * s)))
-        pygame.draw.line(surf, ASH, knuckle, tip, max(1, int(1.7 * s)))
-        # knuckle joint tick + fingertip pad
-        pygame.draw.circle(surf, ASH_SH, (int(knuckle[0]), int(knuckle[1])), max(1, int(1.3 * s)))
-        pygame.draw.circle(surf, ASH, (int(tip[0]), int(tip[1])), max(1, int(1.5 * s)))
-        pygame.draw.circle(surf, INK, (int(tip[0]), int(tip[1])), max(1, int(1.5 * s)),
-                           max(1, int(0.8 * s)))
-
-
-# ── the faceted step-cut third-eye GEM (bhasma's brightest cut-jewel focal) ───
-def third_eye_gem(surf, cx, cy, r, s, focal=True):
-    """A faceted SAFFRON-AMBER step-cut JEWEL — built from FLAT FACET PLANES, not a
-    smooth dome. WHY the re-cut: round 3's gem was a glossy CABOCHON (a smooth
-    domed cut, the rejected read — soft round highlight + a curved dark sweep), so
-    it read as an eyeball/lens, not a worn cut stone. It is now the proven asthi
-    construction recoloured to saffron: an OCTAGONAL girdle polygon (a straight-
-    edged footprint kills the round-lens read at the silhouette), a flat angular
-    TABLE polygon offset UP toward the crown (the single brightest broad plane),
-    and 8 crown facets as filled trapezoids in STEPPED discrete saffron values
-    (SAFF base / SAFF_BR lit / dark saffron shaded) meeting at SHARP corners with
-    thin ink seams. Hard specular is tiny white TRIANGLE glints pinned at facet
-    corners. `focal` is the brow third-eye: it alone gets the white HOT CORE +
-    extra corner glints; the dim palm-skull gems pass focal=False (1 glint, no
-    white core, no bezel) so they stay a value step below the focal."""
-    cx, cy = int(cx), int(cy)
-    SAFF_FACET_D = lerp(SAFF, SAFF_D, 0.6)   # the stepped shaded-facet value
-    # (1) gold/saffron BEZEL ring — the warm frame, focal stone only
-    if focal:
-        triad_circle(surf, SAFF_D, (cx, cy), r + max(1, int(2 * s)),
-                     ow=max(1, int(1.4 * s)), core=False, sheen=False)
-        pygame.draw.circle(surf, INK, (cx, cy), r + max(1, int(2 * s)), max(1, int(1.2 * s)))
-    # (2) ink seat the whole stone sits in — the hard girdle edge of the cut
-    pygame.draw.circle(surf, INK, (cx, cy), r + max(1, int(1.4 * s)))
-
-    # (3) the OCTAGONAL girdle outline — a faceted POLYGON, NOT a circle: a cut
-    # stone has a straight-edged girdle, which kills the round-lens read before
-    # any facet draws.
-    def gpt(ang_deg, rad):
-        a = math.radians(ang_deg)
-        return (cx + math.cos(a) * rad, cy + math.sin(a) * rad)
-    n_crown = 8
-    girdle = [gpt(-90 + i * (360 / n_crown), r) for i in range(n_crown)]
-    pygame.draw.polygon(surf, SAFF_FACET_D, girdle)
-
-    # (4) the flat TABLE face — a smaller angular polygon, offset UP toward the
-    # crown so the table catches the light; the brightest broad plane of the cut.
-    table_r = r * 0.46
-    tcx, tcy = cx, cy - int(r * 0.10)
-    table = [(tcx + math.cos(math.radians(-90 + i * (360 / n_crown))) * table_r,
-              tcy + math.sin(math.radians(-90 + i * (360 / n_crown))) * table_r)
-             for i in range(n_crown)]
-
-    # (5) the CROWN FACETS — one filled trapezoid bridging each girdle edge to its
-    # matching table edge, in STEPPED discrete saffron values by light direction
-    # (upper-left lit, down-right shaded) so neighbours never share a tone and the
-    # planes read as discrete cut surfaces; thin ink seams keep the corners sharp.
-    for i in range(n_crown):
-        g0, g1 = girdle[i], girdle[(i + 1) % n_crown]
-        t0, t1 = table[i], table[(i + 1) % n_crown]
-        mx = (g0[0] + g1[0]) * 0.5 - cx
-        my = (g0[1] + g1[1]) * 0.5 - cy
-        facing = -(mx * 0.7 + my * 0.7) / max(1.0, r)   # +1 up-left .. -1 down-right
-        if facing > 0.35:
-            fc = SAFF_BR
-        elif facing > -0.15:
-            fc = SAFF
-        else:
-            fc = SAFF_FACET_D
-        pygame.draw.polygon(surf, fc, [g0, g1, t1, t0])
-        pygame.draw.polygon(surf, INK, [g0, g1, t1, t0], max(1, int(0.9 * s)))
-
-    # (6) the flat TABLE plane on top — the single broad lit facet (lighter than
-    # every crown facet so the eye lands on the table, like a real cut stone),
-    # split by a faint culet/keel line so even the table reads faceted.
-    pygame.draw.polygon(surf, lerp(SAFF, SAFF_BR, 0.55), table)
-    pygame.draw.polygon(surf, INK, table, max(1, int(0.9 * s)))
-    pygame.draw.line(surf, SAFF_BR, table[0], table[n_crown // 2], max(1, int(0.8 * s)))
-
-    # (7) HARD specular glints — tiny white TRIANGLES pinned at facet corners (the
-    # cut-stone tell: sharp sparkles, not a soft round blob).
-    def glint(px, py, sz):
-        pygame.draw.polygon(surf, (255, 255, 255),
-                            [(px, py - sz), (px + sz, py + sz * 0.5),
-                             (px - sz, py + sz * 0.5)])
-
-    g = max(1, int(r * 0.16))
-    glint(table[6][0], table[6][1], g)          # upper-left table corner glint
-    if focal:
-        # (8) the white HOT CORE — a small bright table reflection that stays the
-        # single brightest pixel of the whole sprite; kept sharp + tiny, not a bloom.
-        pygame.draw.polygon(surf, SAFF_BR,
-                            [(tcx, tcy - int(r * 0.22)), (tcx + int(r * 0.20), tcy),
-                             (tcx, tcy + int(r * 0.20)), (tcx - int(r * 0.20), tcy)])
-        pygame.draw.circle(surf, THIRD_BR, (tcx, tcy), max(2, int(r * 0.15)))
-        pygame.draw.circle(surf, (255, 255, 255), (tcx - int(r * 0.04), tcy - int(r * 0.04)),
-                           max(1, int(r * 0.08)))
-        # two more corner glints so the rosette sparkles at multiple facets
-        glint(girdle[1][0], girdle[1][1], max(1, int(r * 0.12)))
-        glint(table[3][0], table[3][1], max(1, int(r * 0.11)))
+    """An OPEN cupped palm at a fan tip — a small ash blob with three short finger
+    ticks curling toward the cradled skull, so the hand reads as holding, not a
+    fist. Drawn before the palm-skull so the skull sits IN the cup."""
+    triad_circle(surf, ASH, (hx, hy), int(r * 0.9), ow=max(1, int(1.2 * s)), core=False)
+    for k in range(-1, 2):
+        fa = ang - math.pi / 2 + k * 0.5   # fingers fan toward the sky-side of the tip
+        ex = hx + math.cos(fa) * r * 1.5
+        ey = hy + math.sin(fa) * r * 1.5
+        pygame.draw.line(surf, INK, (hx, hy), (ex, ey), max(2, int(3.2 * s)))
+        pygame.draw.line(surf, ASH, (hx, hy), (ex, ey), max(1, int(1.8 * s)))
 
 
 # ── the ash-ascetic seed-bead mother ──────────────────────────────────────────
@@ -620,15 +410,9 @@ def draw_bhasma_yogini(surf, cx, cy, s):
     # === SIX PALM-SKULLS — one cradled in each open hand (the core motif) ======
     # Drawn after torso, before head: they ride at the fan tips so the outer arc
     # is six even bone-pips; each is an OPEN palm cupping a tiny skull.
-    # the skull rides OUT along the open (sky-side) palm normal so it seats in the
-    # cup with its dome past the fingertips; ~30% smaller than round 2 so the
-    # detailed hand leads the cradle read.
-    for vi, (hx, hy, ang) in enumerate(hands):
+    for (hx, hy, ang) in hands:
         draw_open_palm(surf, hx, hy, ang, s, palm_r)
-        ua = ang - math.pi / 2
-        skx = hx + math.cos(ua) * palm_r * 0.45
-        sky = hy + math.sin(ua) * palm_r * 0.45
-        palm_skull(surf, int(skx), int(sky), int(palm_r * 0.54), s, variant=vi)
+        palm_skull(surf, hx, hy - int(palm_r * 0.25), int(palm_r * 0.78), s)
 
     # === RUDRAKSHA SEED-SWAG — a single fat U across the chest (the ornament) ==
     # WHY routed in FRONT of the torso but BETWEEN the arm origins: it must read
@@ -656,14 +440,16 @@ def draw_bhasma_yogini(surf, cx, cy, s):
         pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.25))
         pygame.draw.circle(surf, SAFF_D, (ex + sgn * int(1 * s), ey + int(1 * s)),
                            int(hr * 0.12))
-    # THIRD EYE — the single BRIGHTEST pixel (AD hard rule). Round 4 re-cuts the
-    # rejected smooth cabochon into a faceted STEP-CUT JEWEL in bhasma's OWN
-    # saffron-amber hue: an OCTAGONAL girdle, a flat angular TABLE, stepped crown
-    # facets in discrete saffron values, sharp white-triangle corner glints, and a
-    # WHITE-HOT core pip — the cut-stone read no dimmer palm/crown saffron owns.
-    # Kept compact + central so the forehead above it stays open for the tripundra
-    # ash-marks; glow confined to the gem.
-    third_eye_gem(surf, head_c[0], head_c[1] - int(hr * 0.20), int(8 * s), s, focal=True)
+    # THIRD EYE — the single BRIGHTEST pixel (AD hard rule). A saffron-amber
+    # teardrop with a hot core, central on the brow. Kept compact so the forehead
+    # above it stays open for the tripundra ash-marks.
+    tex, tey = head_c[0], head_c[1] - int(hr * 0.20)
+    pygame.draw.ellipse(surf, INK, (tex - int(6 * s), tey - int(7 * s), int(12 * s), int(15 * s)))
+    pygame.draw.ellipse(surf, SAFF, (tex - int(5 * s), tey - int(6 * s), int(10 * s), int(13 * s)))
+    pygame.draw.ellipse(surf, SAFF_BR, (tex - int(3 * s), tey - int(4 * s), int(7 * s), int(9 * s)))
+    pygame.draw.circle(surf, THIRD_BR, (tex - int(1 * s), tey - int(1 * s)), max(2, int(3.2 * s)))
+    pygame.draw.circle(surf, (255, 255, 255), (tex - int(1 * s), tey - int(2 * s)),
+                       max(1, int(1.6 * s)))
     # TRIPUNDRA — three clean horizontal ash tilaka marks across the brow, framing
     # the third-eye from ABOVE (the ascetic forehead tell). Drawn AFTER the eye so
     # the ash-marks sit on top; seated in the open forehead strip above the eye.
@@ -972,7 +758,7 @@ def render_hero():
     fs = font(16)
     surf.blit(fs.render("ash-ascetic seed-bead mother  ·  MUKHA body  ·  SS=8 hero", True, LABEL_DIM),
               (30, 60))
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_4_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2_hero.png")
     pygame.image.save(surf, out)
     return out
 
@@ -989,17 +775,17 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("BHASMA-YOGINI", True, LABEL), (24, 13))
     sheet.blit(f_sm.render(
-        "ash-ascetic seed-bead mother  ·  MUKHA body · six-arm fan · 6 palm-skulls · rudraksha U-swag · jata topknot · round 4",
+        "ash-ascetic seed-bead mother  ·  MUKHA body · six-arm fan · 6 palm-skulls · rudraksha U-swag · jata topknot · round 2",
         True, LABEL_DIM), (300, 26))
 
     # === (a) BIG HERO =========================================================
     hero = render_creature_chip(360, 500, 178, 256, 1.62)
     sheet.blit(hero, (14, 84))
     sheet.blit(f.render("Creature — hero", True, LABEL), (110, 588))
-    sheet.blit(f_sm.render("Faceted step-cut third-eye (octagonal girdle+flat table+stepped facets+white core) = single brightest pixel.", True, LABEL_DIM), (14, 612))
-    sheet.blit(f_sm.render("Six palm-skulls smaller+CRAFTED (suture/temple/brow/jaw/teeth), varied; 2-3 carry a DIM faceted saffron gem.", True, LABEL_DIM), (14, 628))
-    sheet.blit(f_sm.render("Hands = wrist-cuff + bone half-cup + segmented fingers fanning up — hand leads the cradle read.", True, LABEL_DIM), (14, 644))
-    sheet.blit(f_sm.render("Ladder: brow gem brightest -> palm-skulls mid -> crown dimmest. Jata dome = dark 32px carrier.", True, LABEL_DIM), (14, 660))
+    sheet.blit(f_sm.render("DOMINANT jata dome crests above the arc (the dark 32px carrier). Six palm-skulls = mid tier.", True, LABEL_DIM), (14, 612))
+    sheet.blit(f_sm.render("Fused crown: 5-skull arc-sweep + explicit horizontal tiara-BAND frontmost; jata behind/above both.", True, LABEL_DIM), (14, 628))
+    sheet.blit(f_sm.render("Tripundra brow + ash-band torso + saffron waist-wrap = never naked. 6-petal lotus base.", True, LABEL_DIM), (14, 644))
+    sheet.blit(f_sm.render("Rudraksha mala = ONE fat knobbly warmer-brown U-swag. Saffron-amber third-eye = brightest.", True, LABEL_DIM), (14, 660))
 
     # === (b) PILLAR assembled — mirrored ======================================
     pcx = 470
@@ -1096,7 +882,7 @@ def main():
         "dark-core->fill->top-left sheen triad · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 824))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_4.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
