@@ -138,36 +138,98 @@ def bone_limb(surf, p0, p1, p2, thick, s, joint=True):
                      core=False)
 
 
-# ── the brow third-eye GEM — a faceted cabochon in jvala's OWN cobalt/ice ─────
-def cabochon_eye(surf, cx, cy, r, s):
-    """The focal brow third-eye drawn as a CUT GEM in jvala's cobalt/ice family —
-    NOT flat rings (round 2). WHY a faceted cabochon: it reads as a real stone by
-    drawn jewel-edge value — a deep-cobalt BEZEL sets it off the bone brow, a
-    cooler under-shadow + ice body give the cut-stone curvature, TWO hard facet
-    glints (one large upper-left, one tiny pip) give the cut, and a white-hot core
-    is the lone brightest pixel. A single tight ICE glow ring is the ONLY glow on
-    the whole sheet — everything else (crown, palm-skull cobalt accents) is value-
-    by-edge, kept matte and dimmer so this gem wins the ladder by a wide margin."""
-    cx, cy = int(cx), int(cy)
-    # the ONLY glow on the sheet — a tight ice halo bleeding just past the bezel
-    pygame.draw.circle(surf, EYE_GLOW, (cx, cy), r + max(1, int(2 * s)))
-    # deep-cobalt bezel rim (ink-locked) — separates the stone from the bone brow
-    pygame.draw.circle(surf, INK, (cx, cy), r + max(1, int(1 * s)))
-    pygame.draw.circle(surf, COBALT_DD, (cx, cy), r)
-    pygame.draw.circle(surf, EYE_RING, (cx, cy), int(r * 0.86))
-    # cut-stone curvature: cool under-shadow bottom-right, ice body filling up-left
-    pygame.draw.circle(surf, lerp(EYE_RING, COBALT_DD, 0.55),
-                       (cx + int(r * 0.26), cy + int(r * 0.30)), int(r * 0.64))
-    pygame.draw.circle(surf, EYE_GLOW, (cx - int(r * 0.10), cy - int(r * 0.12)),
-                       int(r * 0.58))
-    # the big upper-left facet glint (the cut catching the light)
-    pygame.draw.circle(surf, EYE_CORE, (cx - int(r * 0.30), cy - int(r * 0.32)),
-                       max(1, int(r * 0.34)))
-    # the white-hot core — the single brightest pixel on the sheet
-    pygame.draw.circle(surf, (255, 255, 255), (cx, cy), max(1, int(r * 0.20)))
-    # a tiny secondary facet pip (lower-right) so it reads as a faceted cut, not a dot
-    pygame.draw.circle(surf, EYE_CORE, (cx + int(r * 0.30), cy + int(r * 0.06)),
-                       max(1, int(r * 0.11)))
+# ── a FACETED COBALT cut-jewel — the brow third-eye + palm-skull gem language ──
+def cobalt_gem(surf, c, r, s, focal=False):
+    """A CUT cobalt/ice jewel built from FLAT FACET PLANES, not a glossy sphere.
+    WHY the rebuild: round 3's brow gem was a smooth shaded circle with one soft
+    round highlight + a curved sheen — it read as a marble / camera-lens, the focal
+    miss. It is now a facet ROSETTE in jvala's cobalt/ice family, cloned from
+    asthi's proven cut-stone construction: an OCTAGONAL girdle polygon (a straight-
+    edged outline kills the round-lens read at the silhouette), a flat angular TABLE
+    polygon offset UP toward the crown (the brightest broad plane), and N CROWN
+    FACETS — one filled trapezoid bridging each girdle edge to the matching table
+    edge — in STEPPED DISCRETE cobalt values (EYE_RING base / EYE_GLOW lit / a deep
+    cobalt shaded) so adjacent planes meet at SHARP corners with thin ink seams. No
+    blending anywhere. Glints are tiny SHARP white TRIANGLES pinned at facet
+    corners, not a soft blob. `focal` is the brow third-eye: it ALONE gets the lone
+    ice glow halo + the white hot core + extra corner glints, and is the single
+    brightest pixel on the sheet. The palm-skull gems pass focal=False — same
+    faceted cut, but NO glow halo, NO white core, one tiny glint — a value step
+    dimmer so the ladder (brow gem > palm-skulls > crown) holds."""
+    cx, cy = int(c[0]), int(c[1])
+    deep = lerp(EYE_RING, COBALT_DD, 0.7)   # deepest shaded-facet cobalt
+
+    # (1) the ONLY glow on the sheet — a tight ice halo bleeding just past the
+    # girdle, the focal gem alone (palm gems stay matte, value-by-edge).
+    if focal:
+        pygame.draw.circle(surf, EYE_GLOW, (cx, cy), r + max(1, int(2 * s)))
+
+    def gpt(ang_deg, rad):
+        a = math.radians(ang_deg)
+        return (cx + math.cos(a) * rad, cy + math.sin(a) * rad)
+
+    # (2) the OCTAGONAL girdle outline — a faceted POLYGON, NOT a circle: a cut
+    # stone has a straight-edged girdle, killing the round-lens read at the
+    # silhouette before any facet draws. Ink-seated so the stone reads off the bone.
+    n_crown = 8
+    girdle = [gpt(-90 + i * (360 / n_crown), r) for i in range(n_crown)]
+    pygame.draw.polygon(surf, INK, girdle)
+    pygame.draw.polygon(surf, deep, girdle)
+
+    # (3) the flat TABLE face — a smaller angular polygon offset UP toward the
+    # crown so the table catches the light; the brightest broad plane of the cut.
+    table_r = r * 0.46
+    tcx, tcy = cx, cy - int(r * 0.10)
+    table = [(tcx + math.cos(math.radians(-90 + i * (360 / n_crown))) * table_r,
+              tcy + math.sin(math.radians(-90 + i * (360 / n_crown))) * table_r)
+             for i in range(n_crown)]
+
+    # (4) the CROWN FACETS — one filled trapezoid bridging each girdle edge to the
+    # matching table edge, in STEPPED flat values keyed to an upper-left light so
+    # neighbours never share a tone: the planes read as discrete cut surfaces.
+    for i in range(n_crown):
+        g0, g1 = girdle[i], girdle[(i + 1) % n_crown]
+        t0, t1 = table[i], table[(i + 1) % n_crown]
+        mx = (g0[0] + g1[0]) * 0.5 - cx
+        my = (g0[1] + g1[1]) * 0.5 - cy
+        facing = -(mx * 0.7 + my * 0.7) / max(1.0, r)   # +1 up-left .. -1 down-right
+        if facing > 0.35:
+            fc = EYE_GLOW
+        elif facing > -0.15:
+            fc = EYE_RING
+        else:
+            fc = deep
+        pygame.draw.polygon(surf, fc, [g0, g1, t1, t0])
+        pygame.draw.polygon(surf, INK, [g0, g1, t1, t0], max(1, int(0.9 * s)))
+
+    # (5) the flat table plane on top — the single broad lit facet, a step lighter
+    # than every crown facet so the eye lands on the table, like a real cut stone.
+    pygame.draw.polygon(surf, lerp(EYE_RING, EYE_GLOW, 0.6), table)
+    pygame.draw.polygon(surf, INK, table, max(1, int(0.9 * s)))
+    # split the table with a faint keel line so even the table reads faceted
+    pygame.draw.line(surf, EYE_GLOW, table[0], table[n_crown // 2], max(1, int(0.8 * s)))
+
+    # (6) HARD specular glints — tiny SHARP white TRIANGLES pinned at facet corners
+    # (the cut-stone tell: sparkles, not a soft round dot).
+    def glint(px, py, sz):
+        pygame.draw.polygon(surf, (255, 255, 255),
+                            [(px, py - sz), (px + sz, py + sz * 0.5),
+                             (px - sz, py + sz * 0.5)])
+
+    g = max(1, int(r * 0.16))
+    glint(table[6][0], table[6][1], g)          # upper-left table corner glint
+    if focal:
+        # (7) the white HOT CORE — a small bright table reflection, kept sharp +
+        # tiny (not a bloom), the single brightest pixel of the whole sheet.
+        pygame.draw.polygon(surf, EYE_CORE,
+                            [(tcx, tcy - int(r * 0.22)), (tcx + int(r * 0.20), tcy),
+                             (tcx, tcy + int(r * 0.20)), (tcx - int(r * 0.20), tcy)])
+        pygame.draw.circle(surf, EYE_CORE, (tcx, tcy), max(2, int(r * 0.15)))
+        pygame.draw.circle(surf, (255, 255, 255), (tcx - int(r * 0.04), tcy - int(r * 0.04)),
+                           max(1, int(r * 0.08)))
+        # two more corner glints so the rosette sparkles at multiple facets
+        glint(girdle[1][0], girdle[1][1], max(1, int(r * 0.12)))
+        glint(table[3][0], table[3][1], max(1, int(r * 0.11)))
 
 
 # ── ONE curled flame-LICK — the cloth-of-flame drapery unit (NOT a spike) ─────
@@ -326,14 +388,13 @@ def palm_skull(surf, cx, cy, r, s, tilt=0.0, jaw_open=False, cobalt=False):
         tx = k * r * 0.20
         pygame.draw.line(surf, INK, P(tx, ty), P(tx, ty + r * 0.22), max(1, int(0.9 * s)))
     pygame.draw.line(surf, INK, P(-r * 0.42, ty), P(r * 0.42, ty), max(1, int(1.0 * s)))
-    # 2-3 of the six carry a tiny MATTE cobalt brow-gem (a drawn accent, NOT a glow)
+    # 2-3 of the six carry a tiny FACETED cobalt brow-gem — the SAME cut-jewel
+    # construction as the brow third-eye but focal=False: NO glow halo, NO white
+    # core, one sharp glint, sized small so it stays a value step DIMMER (the mid
+    # rung: brow gem > palm-skulls > crown).
     if cobalt:
         gp = P(0, -r * 0.30)
-        pygame.draw.circle(surf, INK, gp, max(1, int(r * 0.20)))
-        pygame.draw.circle(surf, EYE_RING, gp, max(1, int(r * 0.15)))
-        pygame.draw.circle(surf, EYE_GLOW, (gp[0] - max(1, int(r * 0.05)),
-                                            gp[1] - max(1, int(r * 0.05))),
-                           max(1, int(r * 0.06)))
+        cobalt_gem(surf, gp, max(2, int(r * 0.26)), s, focal=False)
 
 
 def open_palm(surf, hx, hy, ang, r, s):
@@ -640,14 +701,14 @@ def draw_jvala(surf, cx, cy, s):
         crown_skull(surf, int(sx), int(sy), skull_r, s, lit=False)
 
     # === (8) THIRD EYE — drawn LAST so NOTHING (mantle/crest/band) can occlude ==
-    # the single BRIGHTEST element, now a CUT GEM (faceted cabochon), not flat
-    # rings. WHY a faceted stone: it reads RICH by drawn jewel-edge value — a deep
-    # cobalt bezel separating it from bone, an ice glow body, two hard facet glints,
-    # and a white-hot core that is the lone glow on the whole sheet. The bright glow
-    # halo is reserved for THIS gem only (palm-skull cobalt accents stay matte; see
-    # palm_skull). Seated on the brow between the band apex and the sockets, sized
-    # bigger than the crown-centre skull's eye-pins so the value ladder holds.
-    cabochon_eye(surf, head_c[0], head_c[1] - int(hr * 0.40), int(hr * 0.42), s)
+    # the single BRIGHTEST element, now a FACETED CUT JEWEL (octagonal girdle, flat
+    # table, stepped crown facets, sharp corner glints), not a glossy sphere. WHY a
+    # faceted stone: round 3's gem went rounder/glossier (a soft round highlight +
+    # curved sheen = a lens). The brightness now lives in flat angular facet value +
+    # sharp white triangle glints + a white-hot core, with the lone ice glow halo on
+    # the whole sheet reserved for THIS gem (palm gems are matte, value-by-edge).
+    # Seated on the brow between the band apex and the sockets so the ladder holds.
+    cobalt_gem(surf, (head_c[0], head_c[1] - int(hr * 0.40)), int(hr * 0.42), s, focal=True)
 
 
 # ── the spine-staff → pillar mirror, built from HER own forms ─────────────────
@@ -769,7 +830,7 @@ def main():
 
     # ── hi-res standalone hero ────────────────────────────────────────────────
     hero_hi = render_hero_hires()
-    hero_path = os.path.join(here, "round_3_hero.png")
+    hero_path = os.path.join(here, "round_4_hero.png")
     pygame.image.save(hero_hi, hero_path)
 
     # ── the standard review sheet ─────────────────────────────────────────────
@@ -784,7 +845,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("JVALA-NIRMALA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "cool wisdom-flame dancer  ·  CITIPATI body + Mukha 6-arm fan · FULL-BODY cobalt cloth-of-flame ROBE (curled sheeting, NOT a ring) · 6 palm-skulls · round 3",
+        "cool wisdom-flame dancer  ·  CITIPATI body + Mukha 6-arm fan · FULL-BODY cobalt cloth-of-flame ROBE (curled sheeting, NOT a ring) · 6 palm-skulls · round 4",
         True, LABEL_DIM), (300, 26))
 
     # === (a) BIG HERO =========================================================
@@ -793,8 +854,8 @@ def main():
     sheet.blit(font.render("Creature — hero", True, LABEL), (120, 596))
     sheet.blit(font_sm.render("CURLED, OVERLAPPING cloth-of-flame licks drape down the flanks/knee as a ROBE", True, LABEL_DIM), (14, 620))
     sheet.blit(font_sm.render("(undulating hem). Detailed HANDS cradle SMALL carved skulls (2-3 w/ matte cobalt", True, LABEL_DIM), (14, 636))
-    sheet.blit(font_sm.render("brow-gem). Brow third-eye = a FACETED cobalt/ice CABOCHON: bezel + 2 glints +", True, LABEL_DIM), (14, 652))
-    sheet.blit(font_sm.render("white-hot core — the single brightest pixel and the ONLY glow on the sheet.", True, LABEL_DIM), (14, 668))
+    sheet.blit(font_sm.render("brow-gem). Brow third-eye = a FACETED CUT JEWEL: octagonal girdle, flat table,", True, LABEL_DIM), (14, 652))
+    sheet.blit(font_sm.render("stepped crown facets + sharp glints + white-hot core — single brightest + ONLY glow.", True, LABEL_DIM), (14, 668))
 
     # === (b) PILLAR assembled — mirrored, from HER own forms ==================
     pcx = 408
@@ -890,10 +951,10 @@ def main():
 
     pygame.draw.rect(sheet, PANEL, (14, 756, W - 28, 28))
     sheet.blit(font_sm.render(
-        "ELEVATED pipeline: SS=8 supersample -> smoothscale.  Standalone hi-res hero exported separately: round_3_hero.png (~1024px).",
+        "ELEVATED pipeline: SS=8 supersample -> smoothscale.  Standalone hi-res hero exported separately: round_4_hero.png (~1024px).",
         True, LABEL_DIM), (26, 762))
 
-    out = os.path.join(here, "round_3.png")
+    out = os.path.join(here, "round_4.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     print("wrote", hero_path)
