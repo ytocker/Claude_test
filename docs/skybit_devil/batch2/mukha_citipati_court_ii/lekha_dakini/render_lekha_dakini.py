@@ -57,7 +57,13 @@ INDIGO_BR = ( 96, 116, 200)   # indigo top sheen
 GOLD      = (226, 184,  78)   # gold lantsa-script + ring inlay
 GOLD_BR   = (250, 218, 122)   # hot gold sheen / finial dome highlight
 GOLD_D    = (168, 130,  50)   # gold shade
-GOLD_PALE = (248, 232, 170)   # pale-gold finial dome (the 32px carrier face)
+# WHY the finial dome is now a MID/DIM gold (not the old pale 248,232,170): the
+# value ladder is locked third-eye(brightest)->palm-skulls(mid)->crown(dimmest).
+# The dome must sit clearly BELOW the ivory palm-skulls so the white-cored gold
+# third-eye stays the single brightest pixel by a wide margin. Roundness — not
+# brightness — is what makes the dome read as the 32px carrier silhouette.
+GOLD_DOME = (176, 142,  64)   # mid/dim gold bumpa dome (crown = dimmest mass)
+GOLD_DOME_BR = (208, 170,  88)  # dome convex sheen — still below palm-skull bone
 VERM      = (208,  52,  40)   # VERMILLION seal — a visible red cartouche, not a sliver
 VERM_BR   = (236,  96,  72)   # vermillion sheen
 VERM_D    = (150,  32,  28)   # vermillion shade
@@ -70,7 +76,7 @@ PANEL     = ( 72,  74,  86)
 DAY_SKY_T = (120, 196, 236)   # day biome sky (top)
 DAY_SKY_B = (196, 232, 244)
 NIGHT_T   = ( 22,  26,  54)   # night biome sky (top)
-NIGHT_B   = ( 48,  44,  82)
+NIGHT_B   = ( 48,  44,  88)   # +6 blue vs r1 — banks margin off Obsidian near-black
 LABEL     = (240, 238, 242)
 LABEL_DIM = (194, 196, 206)
 
@@ -258,58 +264,75 @@ def crown_skull(surf, cx, cy, r, s, lit=False):
 
 # ── the ROUND stupa/chorten finial (the ANTI-gable crown carrier) ─────────────
 def stupa_finial(surf, cx, base_y, h, s):
-    """A smooth ROUND-domed stupa/chorten finial: a fat round BUMPA dome, a small
-    harmika flange, a stacked cone of umbrella rings, and a sun-moon tip. WHY
-    every element is ROUND/curved: roundness is the explicit separator from the
-    angular GABLED reliquary-shrine king — there is NO straight gable edge or
-    pediment anywhere. Pale-gold so the dome reads as the bright crown silhouette
-    at 32px (the named carrier). `base_y` is where the dome foot sits; the finial
-    rises UPWARD from there, springing from BEHIND the centre skull."""
-    dome_r = int(h * 0.30)
-    dome_cy = base_y - int(h * 0.20)
-    # the round bumpa DOME — the dominant round mass (pale-gold = the carrier face)
-    triad_circle(surf, GOLD_PALE, (cx, dome_cy), dome_r, ow=max(1, int(1.8 * s)),
-                 core=False)
-    # a gold sheen cap on the dome top-left so it reads convex, not flat
-    pygame.draw.circle(surf, GOLD_BR,
-                       (cx - int(dome_r * 0.34), dome_cy - int(dome_r * 0.38)),
-                       max(1, int(dome_r * 0.30)))
-    # a thin indigo throne-band wrapping the dome foot (anti-gable: a curved band)
+    """A smooth ROUND-domed stupa/chorten finial built so its SILHOUETTE is a fat
+    round dome topped by a CONE OF ROUND RINGS — every contour convex/curved, no
+    straight edge, no pinched chevron, no triangular gable anywhere.
+
+    WHY rebuilt for round 2: roundness is the ONLY separator from the angular
+    GABLED reliquary-shrine king, and at 32px the old pinched-ring spire collapsed
+    to a pointed angular spike = that collision. The fix makes the spire a smooth
+    tapering CONE assembled from heavily OVERLAPPING round discs (the umbrella
+    rings barely step in radius and sit close together, so their outer edges trace
+    a gently curved cone wall — a stack of beads, never a sawtooth). The top ~6px
+    of the blackout finial is a rounded sun-disc + crescent cap, NOT a point.
+
+    The dome is a MID/DIM gold (GOLD_DOME) — the dimmest crown mass per the value
+    ladder; only the third-eye + crown-centre skull get drawn glow, never the dome
+    face. `base_y` is where the dome foot sits; the finial rises UPWARD."""
+    # WHY the dome is LARGE relative to a SHORT spire: at the carrier scale any
+    # tall-narrow spire blacks out to a triangular spike (the gable collision). A
+    # big round dome that DOMINATES, topped by a stubby fat-bead stack + a round
+    # ball, keeps the blackout silhouette a wide ROUND mound — never a needle.
+    dome_r = int(h * 0.40)
+    dome_cy = base_y - int(h * 0.22)
+    # round bumpa DOME — dim-gold, the dominant ROUND mass (the 32px carrier shape)
+    triad_circle(surf, GOLD_DOME, (cx, dome_cy), dome_r, ow=max(1, int(1.8 * s)),
+                 core=False, sheen=False)
+    # a soft convex sheen so the dome reads round (kept BELOW palm-skull bone value)
+    pygame.draw.circle(surf, GOLD_DOME_BR,
+                       (cx - int(dome_r * 0.30), dome_cy - int(dome_r * 0.34)),
+                       max(1, int(dome_r * 0.42)))
+    # a thin curved throne-band hugging the dome foot (anti-gable: an arc, not an edge)
     pygame.draw.arc(surf, INDIGO,
                     (cx - dome_r, dome_cy - int(dome_r * 0.2), dome_r * 2, int(dome_r * 1.0)),
-                    math.radians(200), math.radians(340), max(2, int(2.6 * s)))
-    # harmika — a small rounded flange box just above the dome
-    harm_y = dome_cy - dome_r - int(h * 0.04)
-    hw, hh = int(dome_r * 0.52), int(h * 0.07)
-    harm = [(cx - hw, harm_y), (cx + hw, harm_y),
-            (cx + int(hw * 0.82), harm_y - hh), (cx - int(hw * 0.82), harm_y - hh)]
-    triad_blob(surf, GOLD, harm, ow=max(1, int(1.4 * s)))
-    # stacked UMBRELLA rings (the spire) — graduating round discs, each smaller
-    rings = 5
-    top_of_harm = harm_y - hh
-    for i in range(rings):
-        t = i / (rings - 1)
-        rr = int(dome_r * (0.46 - 0.30 * t))
-        ry = top_of_harm - int(h * 0.05) - int(i * h * 0.055)
-        triad_circle(surf, GOLD, (cx, ry), rr, ow=max(1, int(1.1 * s)),
+                    math.radians(196), math.radians(344), max(2, int(2.6 * s)))
+
+    # SHORT FAT STACK OF ROUND RINGS — the spire is deliberately squat with only a
+    # few BOLDLY-STEPPED discs (each clearly smaller, with a wide pitch) so the
+    # blackout outline is a ROUND STAIRCASE of bumps, NOT a smooth tapering needle.
+    # WHY this matters at the carrier scale: a tall smooth cone blacks out to a
+    # triangular SPIKE = the Garnet gable collision. A short stepped stack stays
+    # legibly tiered/round even after downscale. The radius does not run to a
+    # point — the smallest ring is still a fat disc, then a BALL caps it.
+    # TWO fat round beads only — a stubby stack, each bead WIDE so the outline is a
+    # round staircase, kept short so the dome stays the dominant mass.
+    ring_radii = [0.62, 0.48]
+    ring_gap = h * 0.085
+    ring_top_y = dome_cy - dome_r + int(h * 0.05)
+    top_ring_cy = ring_top_y
+    for i, frac in enumerate(ring_radii):
+        rr = max(3, int(dome_r * frac))
+        ry = ring_top_y - int(i * ring_gap)
+        triad_circle(surf, GOLD, (cx, ry), rr, ow=max(1, int(1.2 * s)),
                      core=False, sheen=False)
-        pygame.draw.circle(surf, GOLD_BR, (cx - int(rr * 0.3), ry - int(rr * 0.3)),
-                           max(1, int(rr * 0.34)))
-    spire_top = top_of_harm - int(h * 0.05) - int((rings - 1) * h * 0.055)
-    # SUN-MOON tip — a crescent moon cradling a small sun disc + jewel (all round)
-    moon_cy = spire_top - int(h * 0.07)
-    moon_r = int(dome_r * 0.34)
-    # crescent: a gold disc with an indigo bite taken out of its right
-    triad_circle(surf, GOLD_BR, (cx, moon_cy), moon_r, ow=max(1, int(1.2 * s)),
+        pygame.draw.circle(surf, GOLD_BR, (cx - int(rr * 0.28), ry - int(rr * 0.30)),
+                           max(1, int(rr * 0.40)))
+        top_ring_cy = ry
+
+    # ROUND BALL TIP — a fat sun-DISC ball wider than the top bead, sitting close on
+    # the stack so the very top reads as a CIRCLE (a ball cap), never a point.
+    ball_r = int(dome_r * 0.50)
+    ball_cy = top_ring_cy - int(dome_r * 0.18) - ball_r
+    # crescent moon behind/beside the sun-ball (gold disc with an indigo bite)
+    triad_circle(surf, GOLD_BR, (cx + int(ball_r * 0.10), ball_cy), int(ball_r * 1.02),
+                 ow=max(1, int(1.2 * s)), core=False, sheen=False)
+    pygame.draw.circle(surf, INDIGO, (cx + int(ball_r * 0.78), ball_cy - int(ball_r * 0.18)),
+                       int(ball_r * 0.92))
+    # the round sun-ball itself — the literal rounded tip, a fat circle
+    triad_circle(surf, GOLD, (cx, ball_cy), ball_r, ow=max(1, int(1.2 * s)),
                  core=False, sheen=False)
-    pygame.draw.circle(surf, INDIGO, (cx + int(moon_r * 0.55), moon_cy),
-                       int(moon_r * 0.85))
-    # the sun disc nested in the crescent cup
-    pygame.draw.circle(surf, GOLD_PALE, (cx, moon_cy - int(moon_r * 0.1)),
-                       max(1, int(moon_r * 0.42)))
-    # the flaming jewel tip
-    triad_circle(surf, VERM, (cx, moon_cy - moon_r - int(h * 0.02)),
-                 max(1, int(dome_r * 0.20)), ow=max(1, int(1 * s)), core=False)
+    pygame.draw.circle(surf, GOLD_BR, (cx - int(ball_r * 0.28), ball_cy - int(ball_r * 0.30)),
+                       max(1, int(ball_r * 0.46)))
 
 
 # ── the six-arm radial fan (cloned from Mukha; ends in palm-skulls) ───────────
@@ -563,8 +586,10 @@ def draw_lekha_dakini(surf, cx, cy, s, hero=False):
     # the crown silhouette (the 32px carrier). Its FOOT tucks behind the centre
     # crown-skull so the fused 5-skull arc + tiara-band overdraw it and read
     # UNBROKEN IN FRONT — the dome rises above, never replacing the arc.
-    finial_h = int(hr * 1.30)
-    stupa_finial(surf, head_c[0], head_c[1] - int(hr * 1.18), finial_h, s)
+    finial_h = int(hr * 1.15)
+    # dome foot tucked just behind the centre crown-skull (no floating gap) while
+    # the arc+band still overdraw it; a big dome + short stack keeps it compact.
+    stupa_finial(surf, head_c[0], head_c[1] - int(hr * 1.28), finial_h, s)
 
     # === FUSED CROWN: Citipati 5-skull arc-SWEEP + Mukha tiara-BAND ===========
     # WHY both, frontmost: brood-locked. The wide 5-skull arc-sweep crowns the head
@@ -670,9 +695,40 @@ def vgrad(surf, rect, top_col, bot_col):
                          (x, y + j), (x + w, y + j))
 
 
+def measure_extent(scale, hero=True):
+    """Draw the figure once at the given unit-scale on a generous transparent
+    canvas and return its tight alpha bounding box, so the hero + chips can be
+    AUTO-FIT inside their frames with real margin (round-1 clipped the finial and
+    the dancing shin/foot). WHY measure per render-mode: hero=True hangs the
+    prayer-wheels out wider than the 32px figure, so the bbox must be taken in the
+    SAME mode it will be drawn or the fit mis-scales and re-clips the finial."""
+    pad = 360
+    probe = pygame.Surface((pad * 2, pad * 2), pygame.SRCALPHA)
+    draw_lekha_dakini(probe, pad, pad, scale, hero=hero)
+    r = probe.get_bounding_rect()
+    # offsets of the figure's bbox relative to the draw centre (pad, pad)
+    return r.width, r.height, (r.centerx - pad), (r.centery - pad)
+
+
 def render_hero_surface(boxw, boxh, draw_cx, draw_cy, scale):
     big = pygame.Surface((boxw * SS, boxh * SS), pygame.SRCALPHA)
     draw_lekha_dakini(big, draw_cx * SS, draw_cy * SS, scale * SS, hero=True)
+    small = pygame.transform.smoothscale(big, (boxw, boxh))
+    return grow_outline(small, INK + (255,), 1)
+
+
+def fit_hero(boxw, boxh, hero=True, margin=0.92):
+    """Render the figure auto-fit + auto-centred inside a box with `margin`
+    headroom on the tighter axis, so nothing clips. Returns the outlined surface."""
+    probe_scale = 4.0
+    w0, h0, ox0, oy0 = measure_extent(probe_scale, hero=hero)
+    scale = probe_scale * min((boxw * margin) / w0, (boxh * margin) / h0)
+    # re-measure at the chosen scale (bbox is linear in scale, so offsets scale too)
+    k = scale / probe_scale
+    cx = boxw / 2 - ox0 * k
+    cy = boxh / 2 - oy0 * k
+    big = pygame.Surface((boxw * SS, boxh * SS), pygame.SRCALPHA)
+    draw_lekha_dakini(big, cx * SS, cy * SS, scale * SS, hero=hero)
     small = pygame.transform.smoothscale(big, (boxw, boxh))
     return grow_outline(small, INK + (255,), 1)
 
@@ -682,12 +738,14 @@ def export_hero(path):
     HW, HH = 760, 1024
     surf = pygame.Surface((HW, HH))
     vgrad(surf, (0, 0, HW, HH), (44, 46, 64), (28, 30, 44))
-    hero = render_hero_surface(640, 980, 320, 588, 5.4)
-    surf.blit(hero, (HW // 2 - 320, 40))
+    # auto-fit so the rebuilt round-ring spire AND the dancing shin/foot both sit
+    # inside the frame with margin (round-1 clipped top + bottom).
+    hero = fit_hero(640, 940, hero=True, margin=0.94)
+    surf.blit(hero, (HW // 2 - 320, 84))
     font = pygame.font.Font(FONT_PATH, 30)
     font_sm = pygame.font.Font(FONT_PATH, 18)
     surf.blit(font.render("LEKHA-DAKINI", True, LABEL), (28, 24))
-    surf.blit(font_sm.render("gilt-scripture mantra adept  ·  brood II #4  ·  hero  ·  SS=8",
+    surf.blit(font_sm.render("gilt-scripture mantra adept  ·  brood II #4  ·  hero  ·  SS=8  ·  round 2",
                              True, LABEL_DIM), (28, 62))
     pygame.image.save(surf, path)
     print("wrote", path)
@@ -695,7 +753,7 @@ def export_hero(path):
 
 def main():
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    export_hero(os.path.join(out_dir, "round_1_hero.png"))
+    export_hero(os.path.join(out_dir, "round_2_hero.png"))
 
     W, H = 1040, 860
     font_big = pygame.font.Font(FONT_PATH, 30)
@@ -709,11 +767,11 @@ def main():
     sheet.blit(font_big.render("LEKHA-DAKINI", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "gilt-scripture mantra adept  ·  brood II #4  ·  CITIPATI body + Mukha 6-arm fan  ·  "
-        "indigo+vermillion+gold  ·  round stupa finial  ·  round 1",
+        "indigo+vermillion+gold  ·  round stupa finial  ·  round 2",
         True, LABEL_DIM), (250, 24))
 
-    # === (a) BIG HERO =========================================================
-    hero = render_hero_surface(372, 510, 186, 312, 1.80)
+    # === (a) BIG HERO — auto-fit so finial + dancing shin sit inside =========
+    hero = fit_hero(372, 510, hero=True, margin=0.93)
     sheet.blit(hero, (14, 88))
     sheet.blit(font.render("Creature — hero", True, LABEL), (120, 596))
     sheet.blit(font_sm.render("Six-arm fan; six open palms cradle tiny skulls. Fused crown: 5-skull arc-SWEEP", True, LABEL_DIM), (14, 620))
@@ -743,10 +801,21 @@ def main():
     sheet.blit(font.render("True 32px gameplay chip", True, LABEL), (panel_x + 16, 94))
 
     def chip32():
-        big = pygame.Surface((104 * SS, 104 * SS), pygame.SRCALPHA)
-        draw_lekha_dakini(big, 52 * SS, 56 * SS, (32 / 140.0) * SS, hero=False)
-        small = pygame.transform.smoothscale(big, (104, 104))
-        return grow_outline(small, INK + (255,), 1)
+        # TRUE 32px: render the figure at a 32px footprint, auto-centred, then show
+        # it on a 104px swatch (3.25x preview) so the full shape — including the
+        # rebuilt round dome+spire and the dancing leg — sits inside, never cropped.
+        TARGET = 32
+        prev = 104
+        w0, h0, ox0, oy0 = measure_extent(4.0, hero=False)
+        scale = 4.0 * (TARGET * 0.92) / max(w0, h0)
+        k = scale / 4.0
+        ccx = TARGET / 2 - ox0 * k
+        ccy = TARGET / 2 - oy0 * k
+        big = pygame.Surface((TARGET * SS, TARGET * SS), pygame.SRCALPHA)
+        draw_lekha_dakini(big, ccx * SS, ccy * SS, scale * SS, hero=False)
+        small = pygame.transform.smoothscale(big, (TARGET, TARGET))
+        small = grow_outline(small, INK + (255,), 1)
+        return pygame.transform.scale(small, (prev, prev))
 
     chip = chip32()
     day_y = 122
@@ -781,9 +850,15 @@ def main():
 
     # blackout / silhouette proof — the read MUST survive as a pure shape
     sheet.blit(font.render("Blackout / silhouette proof", True, LABEL), (panel_x + 16, night_y + 174))
-    bo_big = pygame.Surface((104 * SS, 130 * SS), pygame.SRCALPHA)
-    draw_lekha_dakini(bo_big, 52 * SS, 70 * SS, (40 / 140.0) * SS, hero=False)
-    bo_small = pygame.transform.smoothscale(bo_big, (104, 130))
+    bo_w, bo_h = 104, 130
+    bw0, bh0, box0, boy0 = measure_extent(4.0, hero=False)
+    bo_scale = 4.0 * min((bo_w * 0.88) / bw0, (bo_h * 0.88) / bh0)
+    bk = bo_scale / 4.0
+    bo_cx = bo_w / 2 - box0 * bk
+    bo_cy = bo_h / 2 - boy0 * bk
+    bo_big = pygame.Surface((bo_w * SS, bo_h * SS), pygame.SRCALPHA)
+    draw_lekha_dakini(bo_big, bo_cx * SS, bo_cy * SS, bo_scale * SS, hero=False)
+    bo_small = pygame.transform.smoothscale(bo_big, (bo_w, bo_h))
     mask = pygame.mask.from_surface(bo_small)
     sil = mask.to_surface(setcolor=(18, 18, 22, 255), unsetcolor=(0, 0, 0, 0))
     boy = night_y + 198
@@ -797,7 +872,7 @@ def main():
     sheet.blit(font.render("Pinned palette", True, LABEL), (panel_x + 16, 612))
     swatches = [
         (BONE, "ivory bone"), (INDIGO, "indigo ground (BLUE)"),
-        (GOLD, "gold lantsa-script"), (GOLD_PALE, "pale-gold dome"),
+        (GOLD, "gold lantsa-script"), (GOLD_DOME, "dim-gold dome (crown=dimmest)"),
         (VERM, "vermillion seal"), (THIRD_EYE, "gold third-eye"),
         (INDIGO_D, "indigo shade"), (INK, "ink keyline"),
     ]
@@ -817,11 +892,11 @@ def main():
         "dark-core->fill->top-left sheen triad · 1px grown outline · chibi · scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 798))
     sheet.blit(font_sm.render(
-        "32px CARRIER: the pale-gold ROUND stupa-dome+spire silhouette (script mushes to a gold band; prayer-wheels hero-only).  "
-        "Indigo reads BLUE (not black) on night; vermillion seal visible; finial springs BEHIND the unbroken arc+band.",
+        "32px CARRIER: the ROUND stupa dome + CONE-OF-ROUND-RINGS silhouette — never an angular spike (the anti-Garnet read).  "
+        "Value ladder: gold third-eye = sole brightest; palm-skulls mid; dim-gold crown dome dimmest. Indigo reads BLUE on night.",
         True, LABEL_DIM), (26, 818))
 
-    out = os.path.join(out_dir, "round_1.png")
+    out = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
