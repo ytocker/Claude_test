@@ -53,25 +53,33 @@ def _font(size):
 # ── PINNED PALETTE (locked brief) ─────────────────────────────────────────────
 # Dusky-rose bone is the body mass; OXBLOOD cord + GOLD spacers DOMINATE the
 # ornament; rose is the single focal accent. Guarded AWAY from magenta.
-BONE      = (220, 196, 196)   # dusky-rose body bone (the dominant fill)
-BONE_D    = (164, 130, 138)   # mauve-bone dark-core / shade
-BONE_DD   = (116,  86,  96)   # deepest bone hollow (sockets, rib gaps)
-BONE_SH   = (244, 230, 230)   # bone top-left rim-sheen
-# Garland heads sit DIMMER than the body — a dusky bruised bone so the swag is a
-# dark ornate wreath, never a second field of bright skulls.
-GHEAD     = (150, 122, 128)   # garland severed-head bone — DIMMEST tier
-GHEAD_D   = (104,  80,  90)
-GHEAD_SH  = (182, 156, 162)
-# Palm-skulls sit MID — clearly brighter than the garland, dimmer than the eye.
-PSKULL    = (228, 206, 204)   # palm-cradled tiny skull — MID tier
-PSKULL_D  = (170, 138, 144)
-PSKULL_SH = (250, 238, 236)
-OXBLOOD   = (120,  30,  36)   # oxblood garland cord — DOMINANT ornament colour
-OXBLOOD_D = ( 78,  18,  24)
-OXBLOOD_BR= (168,  56,  56)
-GOLD      = (214, 168,  78)   # gold bead-spacers / apron trim — DOMINANT accent
-GOLD_BR   = (244, 208, 124)
-GOLD_D    = (158, 120,  50)
+# --- THE VALUE LADDER (the gate) ----------------------------------------------
+# Four skull-types must NOT share one value. Three SEPARATED bands, each ~30-40L
+# below the last: third-eye = single brightest (~255) → six palm-skulls MID
+# (~L150-160, warmed) → garland heads + crown skulls DIMMEST (~L110-120). Body
+# bone sits between palms and the eye so the face mass still reads as the brightest
+# field after the focal triangle.
+BONE      = (210, 184, 184)   # dusky-rose body bone (the dominant fill, L≈190)
+BONE_D    = (150, 116, 124)   # mauve-bone dark-core / shade
+BONE_DD   = (104,  76,  86)   # deepest bone hollow (sockets, rib gaps)
+BONE_SH   = (236, 220, 220)   # bone top-left rim-sheen
+# Garland heads + crown skulls = DIMMEST band, dropped to ~L115 — a clear 35-40L
+# gap below the palm-skulls so the strung swag reads as ONE dark ornate wreath,
+# never a second field of bright skulls.
+GHEAD     = (132, 102, 110)   # garland severed-head bone — DIMMEST tier (L≈115)
+GHEAD_D   = ( 90,  66,  76)
+GHEAD_SH  = (158, 130, 138)
+# Palm-skulls = MID band, pulled DOWN to ~L155 and WARMED (a touch more red) so
+# they sit a clean ~40L below the body and a clean ~40L above the garland.
+PSKULL    = (180, 148, 142)   # palm-cradled tiny skull — MID tier (L≈155, warm)
+PSKULL_D  = (134, 102, 104)
+PSKULL_SH = (208, 180, 174)
+OXBLOOD   = (104,  24,  30)   # oxblood garland cord — DOMINANT ornament colour
+OXBLOOD_D = ( 66,  14,  20)
+OXBLOOD_BR= (150,  46,  48)
+GOLD      = (210, 164,  76)   # gold bead-spacers / apron trim — SPACER accent
+GOLD_BR   = (242, 206, 122)
+GOLD_D    = (154, 116,  48)
 ROSE      = (214,  74, 110)   # dusky rose — focal ONLY (third-eye + crown core)
 ROSE_BR   = (250, 150, 176)   # hot rose inner sheen (third-eye core)
 ROSE_D    = (146,  40,  70)
@@ -200,10 +208,16 @@ def draw_arm_fan(surf, sh_cx, sh_cy, s, hr):
     hands = []
     for sgn, d, a in order:
         sh = (shoulder[0] + sgn * int(hr * 0.55), shoulder[1])
-        elbow = (sh[0] + math.cos(a) * arm_len * 0.52,
-                 sh[1] + math.sin(a) * arm_len * 0.52)
-        hand = (sh[0] + math.cos(a) * arm_len,
-                sh[1] + math.sin(a) * arm_len)
+        # WHY nudge the lowest (widest-spread, d≈100) pair outward: they otherwise
+        # overlap the apron-edge chest-garland heads and muddle. ~5px of extra
+        # outward reach gives each low palm-skull clean negative space and lets the
+        # apron chest-loop read as a distinct lower band.
+        extra = int(hr * 0.16) if d >= 100 else 0
+        reach = arm_len + extra
+        elbow = (sh[0] + math.cos(a) * reach * 0.52,
+                 sh[1] + math.sin(a) * reach * 0.52)
+        hand = (sh[0] + math.cos(a) * reach + sgn * extra * 0.5,
+                sh[1] + math.sin(a) * reach)
         for (p, q) in ((sh, elbow), (elbow, hand)):
             dx, dy = q[0] - p[0], q[1] - p[1]
             L = max(1.0, math.hypot(dx, dy))
@@ -255,48 +269,59 @@ def gold_spacer(surf, cx, cy, r, s):
 
 def draw_garland_loop(surf, cx, cy, rx, ry, a0, a1, s, n_heads, head_r,
                       cord_w, draw_heads=True):
-    """One sweeping OXBLOOD cord loop hung with alternating garland heads + gold
-    spacers. WHY cord-first then beads: the oxblood cord is the DOMINANT colour
-    mass and must read as one continuous swag; the heads (dim) + gold spacers sit
-    ON it. The loop is an elliptical arc so it can frame the face, swag across
-    the chest, or rise into the sky beside the crown depending on the caller."""
-    # the oxblood cord — drawn as a thick arc-polyline so it reads as one swag
+    """One sweeping OXBLOOD cord loop hung with severed garland heads, gold beads
+    cadenced as TRUE spacers. WHY cord-first and THICK: oxblood is the DOMINANT
+    colour and must read as one continuous dark line at hero — so the cord is
+    drawn heavy and the bright OXBLOOD_BR top-sheen is dropped (a bright cord
+    competed with the gold). The dim heads sit ON the cord; gold appears only
+    ~every 3rd-4th bead as a spacer accent, never a near-continuous gold string.
+    The loop is an elliptical arc so it can frame the face, swag across the chest,
+    or rise into the sky beside the crown depending on the caller."""
+    # the oxblood cord — drawn THICK so it reads as one continuous dark swag and
+    # out-masses the gold (the cord is the dominant ornament colour, not the gold)
     cord_pts = []
     steps = 46
     for i in range(steps + 1):
         a = a0 + (a1 - a0) * (i / steps)
         cord_pts.append((cx + math.cos(a) * rx, cy + math.sin(a) * ry))
-    pygame.draw.lines(surf, INK, False, cord_pts, int(cord_w + 3 * s))
-    pygame.draw.lines(surf, OXBLOOD_D, False, cord_pts, int(cord_w + 1 * s))
+    pygame.draw.lines(surf, INK, False, cord_pts, int(cord_w + 4 * s))
+    pygame.draw.lines(surf, OXBLOOD_D, False, cord_pts, int(cord_w + 2 * s))
     pygame.draw.lines(surf, OXBLOOD, False, cord_pts, int(cord_w))
-    pygame.draw.lines(surf, OXBLOOD_BR, False, cord_pts[:max(2, steps // 3)],
-                      max(1, int(cord_w * 0.34)))
     if not draw_heads:
         return
-    # alternate gold spacer / severed head along the loop
-    slots = n_heads * 2 + 1
-    for k in range(slots):
-        a = a0 + (a1 - a0) * (k / (slots - 1))
+    # heads on EVERY non-end slot; gold drops in only ~every 3rd as a spacer accent
+    slots = n_heads + 1
+    for k in range(1, slots):
+        a = a0 + (a1 - a0) * (k / slots)
         px = cx + math.cos(a) * rx
         py = cy + math.sin(a) * ry
-        if k % 2 == 1:
-            garland_head(surf, int(px), int(py), head_r, s)
-        else:
-            gold_spacer(surf, int(px), int(py), max(1, int(head_r * 0.42)), s)
+        garland_head(surf, int(px), int(py), head_r, s)
+    # gold spacer beads — sparse cadence: between heads, only every 3rd gap
+    for k in range(0, slots):
+        if k % 3 != 0:
+            continue
+        a = a0 + (a1 - a0) * ((k + 0.5) / slots)
+        px = cx + math.cos(a) * rx
+        py = cy + math.sin(a) * ry
+        gold_spacer(surf, int(px), int(py), max(1, int(head_r * 0.40)), s)
 
 
 # ── a single fused crown-skull (Citipati dome reused for the arc) ─────────────
 def crown_skull(surf, cx, cy, r, s, lit=False):
     """Tiny bone skull for the fused crown arc — domed cranium, small sockets,
-    stub jaw. WHY a notch darker than the body and NO glow unless `lit`: the
-    locked ladder keeps the crown skulls dim; only the crown-CENTRE skull glows
-    rose (the single permitted crown bloom)."""
-    triad_circle(surf, BONE_D, (cx, cy), r, ow=max(1, int(1.4 * s)), core=False)
+    stub jaw. WHY the SAME dim tier as the garland heads (GHEAD) and NO glow
+    unless `lit`: the locked ladder pins crown skulls + garland heads to ONE
+    dimmest band (~L115), a clear 40L below the palm-skulls; only the crown-CENTRE
+    skull glows rose (the single permitted crown bloom)."""
+    triad_circle(surf, GHEAD, (cx, cy), r, ow=max(1, int(1.4 * s)),
+                 core=False, sheen=False)
+    pygame.draw.circle(surf, GHEAD_SH, (cx - int(r * 0.34), cy - int(r * 0.36)),
+                       max(1, int(r * 0.22)))
     jaw = [(cx - int(r * 0.52), cy + int(r * 0.52)),
            (cx + int(r * 0.52), cy + int(r * 0.52)),
            (cx + int(r * 0.34), cy + int(r * 1.0)),
            (cx - int(r * 0.34), cy + int(r * 1.0))]
-    triad_blob(surf, BONE_D, jaw, ow=max(1, int(1.1 * s)))
+    triad_blob(surf, GHEAD, jaw, ow=max(1, int(1.1 * s)))
     eye_c = ROSE_BR if lit else INK
     for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
         pygame.draw.circle(surf, INK, (ex, cy + int(r * 0.04)), max(1, int(r * 0.24)))
@@ -361,7 +386,7 @@ def draw_mundamala_mata(surf, cx, cy, s):
         px = cx + int(k * 12 * s)
         pygame.draw.line(surf, BONE_DD, (px, base_y - int(16 * s)),
                          (px, base_y + int(9 * s)), max(1, int(1.4 * s)))
-    for k in range(-2, 3):
+    for k in (-2, 0, 2):   # sparse gold petal-tips — matches the spacer cadence
         px = cx + int((k + 0.5) * 12 * s)
         pygame.draw.circle(surf, GOLD, (px, base_y - int(13 * s)), max(1, int(1.6 * s)))
     # an oxblood seed-knot at the lotus heart — secondary, kept deep (not focal)
@@ -384,13 +409,14 @@ def draw_mundamala_mata(surf, cx, cy, s):
                          (cx + int(31 * s), base_y - int(6 * s)),
                          (cx + int(2 * s), base_y - int(6 * s))],
                ow=max(1, int(1.6 * s)))
-    for k in range(-3, 4):   # carved bone slats
-        px = cx + int(k * 8 * s)
+    for k in range(-4, 5):   # carved bone slats — VERTICAL ribbing (the decisive
+        px = cx + int(k * 7 * s)   # non-naked tell; kept dense + straight-vertical)
         pygame.draw.line(surf, BONE_DD, (px, apron_top + int(3 * s)),
-                         (px + int(k * 1.2 * s), base_y - int(8 * s)), max(1, int(1.4 * s)))
-    # gold rivet trim across the apron lip
-    for k in range(-3, 4):
-        px = cx + int(k * 8 * s)
+                         (px, base_y - int(8 * s)), max(1, int(1.6 * s)))
+    # gold rivet trim across the apron lip — sparse cadence (every other slat) so
+    # the apron isn't more gold-heavy than the re-cadenced garland
+    for k in range(-4, 5, 2):
+        px = cx + int(k * 7 * s)
         pygame.draw.circle(surf, GOLD, (px, apron_top + int(3 * s)), max(1, int(1.6 * s)))
 
     # === TORSO — a SHORT rib barrel (squat Mukha proportion) ==================
@@ -444,14 +470,18 @@ def draw_mundamala_mata(surf, cx, cy, s):
         pygame.draw.circle(surf, BONE_D,
                            (head_c[0] + sgn * int(hr * 0.66), head_c[1] + int(hr * 0.28)),
                            int(hr * 0.26))
-    # two big lower sockets — scary-CUTE, kept a NOTCH DIMMER than the third eye
+    # two big lower sockets — empty, wrathful, NEUTRAL DARK (ink/oxblood-shadow,
+    # ~L35). WHY no rose fill: rose is reserved for the brow third-eye ALONE; a
+    # rose socket-fill makes two competing focals flanking the brow. The sockets
+    # read as hollow shadow, the eye as the single bloom.
+    SOCKET = (44, 30, 34)   # oxblood-shadow ink, ~L35 — empty wrathful socket
     for sgn in (-1, 1):
         ex = head_c[0] + sgn * int(hr * 0.42)
         ey = head_c[1] + int(hr * 0.16)
         pygame.draw.circle(surf, BONE_DD, (ex, ey), int(hr * 0.30))
         pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.25))
-        pygame.draw.circle(surf, ROSE_D, (ex + sgn * int(1 * s), ey + int(1 * s)),
-                           int(hr * 0.12))
+        pygame.draw.circle(surf, SOCKET, (ex + sgn * int(1 * s), ey + int(1 * s)),
+                           int(hr * 0.16))
     # THIRD EYE — the single BRIGHTEST pixel on the whole sprite (locked rule).
     tex, tey = head_c[0], head_c[1] - int(hr * 0.34)
     pygame.draw.ellipse(surf, INK, (tex - int(7 * s), tey - int(9 * s), int(14 * s), int(18 * s)))
@@ -491,9 +521,13 @@ def draw_mundamala_mata(surf, cx, cy, s):
         a = math.radians(232 + i * (76 / 10))   # shallow band seated on the brow
         band_pts.append((head_c[0] + math.cos(a) * band_r,
                          head_c[1] + math.sin(a) * band_r))
-    pygame.draw.lines(surf, INK, False, band_pts, int(6 * s))
-    pygame.draw.lines(surf, GOLD, False, band_pts, int(3 * s))
-    pygame.draw.lines(surf, GOLD_BR, False, band_pts[:6], max(1, int(1.2 * s)))
+    # WHY a DARK band, not a gold one: at true 32px the crown skulls collapse to a
+    # lumpy cap and the tiara-band is the fusion tell. A single darker horizontal
+    # line across the brow survives the downscale; a thin gold rim sits on top for
+    # hero richness only.
+    pygame.draw.lines(surf, INK, False, band_pts, int(7 * s))
+    pygame.draw.lines(surf, OXBLOOD, False, band_pts, int(4 * s))
+    pygame.draw.lines(surf, GOLD, False, band_pts, max(1, int(1.6 * s)))
     for i in range(4):   # squat tiara-band skulls on the brow
         a = math.radians(240 + i * (60 / 3))
         sx = head_c[0] + math.cos(a) * band_r
@@ -534,16 +568,20 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
         b0, b1 = top + int(6 * s), bot - cap_room
     else:
         b0, b1 = top + cap_room, bot - int(6 * s)
+    # WHY heads-dominant, gold every 3rd: the hero garland cut gold to a sparse
+    # spacer cadence, so the shaft matches — mostly dim severed heads strung on
+    # the dark oxblood cord, a gold bead only every third unit. The shaft must NOT
+    # be more gold-heavy than the hero garland.
     y = b0
     idx = 0
     while y <= b1:
-        if idx % 2 == 0:   # a severed garland head (dim) threaded on the cord
+        if idx % 3 == 1:   # a gold spacer bead — sparse rhythm accent
+            gold_spacer(surf, cx, y, int(head_r * 0.66), s)
+        else:              # a severed garland head (dim) threaded on the cord
             garland_head(surf, cx, y, head_r, s)
-        else:              # a gold spacer bead (dominant rhythm) + side pips
-            gold_spacer(surf, cx, y, int(head_r * 0.7), s)
             for sgn in (-1, 1):   # tiny oxblood side-knots so the shaft is dense
                 pygame.draw.circle(surf, OXBLOOD,
-                                   (cx + sgn * int(head_r * 1.1), y), max(1, int(2 * s)))
+                                   (cx + sgn * int(head_r * 1.05), y), max(1, int(2 * s)))
         idx += 1
         y += pitch
 
@@ -599,7 +637,7 @@ def export_hero_png():
     f = _font(26)
     surf.blit(f.render("MUNDAMALA-MATA  ·  severed-head garland mother", True, LABEL),
               (28, 22))
-    out = os.path.join(_HERE, "round_1_hero.png")
+    out = os.path.join(_HERE, "round_2_hero.png")
     pygame.image.save(surf, out)
     return out
 
@@ -617,7 +655,7 @@ def main():
     sheet.blit(font_big.render("MUNDAMALA-MATA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "severed-head garland mother  ·  MUKHA body + lotus throne · double-loop skull garland "
-        "· oxblood+gold dominant · rose third-eye focal · round 1",
+        "· OXBLOOD-dominant cord, gold true-spacer · rose third-eye focal ONLY · round 2",
         True, LABEL_DIM), (300, 27))
 
     # === (a) BIG HERO =========================================================
@@ -724,7 +762,7 @@ def main():
         "dark-core->fill->top-left sheen · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 885))
 
-    out = os.path.join(_HERE, "round_1.png")
+    out = os.path.join(_HERE, "round_2.png")
     pygame.image.save(sheet, out)
     return out
 
