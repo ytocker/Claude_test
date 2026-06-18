@@ -47,18 +47,18 @@ BONE_DD   = (104, 112, 118)   # deepest bone hollow (sockets, rib gaps)
 BONE_SH   = (250, 252, 248)   # bone top-left rim-sheen
 # the cobalt mantle is a filled MASS with a clear value ladder so sheeting tongues
 # overlap legibly: deep field -> mid cobalt -> bright ice-edge tips.
-COBALT_DD = ( 16,  30,  96)   # deepest cobalt (mantle under-shadow / overlaps)
-COBALT_D  = ( 28,  58, 168)   # deep saturated cobalt field (the dominant mantle mass)
-COBALT    = ( 52, 104, 220)   # mid cobalt flame body
-COBALT_BR = (110, 176, 248)   # bright cobalt tongue
-ICE       = (190, 224, 255)   # ice-white tongue tip / cool edge sheen
-ICE_HOT   = (236, 248, 255)   # hottest cool flame core (lightest blue-white)
+COBALT_DD = ( 14,  28,  92)   # deepest cobalt (drapery under-fold shadow / overlaps)
+COBALT_D  = ( 30,  62, 172)   # deep saturated cobalt field (the dominant mantle mass)
+COBALT    = ( 54, 108, 222)   # mid cobalt flame body
+COBALT_BR = ( 98, 162, 240)   # bright cobalt fold-crest (NO bloom — a value step only)
+ICE       = (168, 206, 246)   # cool edge keyline on a leading fold (muted, never a glow)
 INK       = ( 28,  22,  26)   # hard ink keyline
-# the third-eye is the single brightest element — a near-white-blue that must
-# OUT-glow the crown-centre skull (which is held to pale-bone, never ICE_HOT).
-EYE_GLOW  = (214, 238, 255)   # third-eye outer glow ring
-EYE_CORE  = (255, 255, 255)   # third-eye brightest pixel (the one true white)
-EYE_RING  = ( 70, 138, 236)   # third-eye cobalt iris (frames the white core)
+# the third-eye is the single brightest element — a near-white ICE that must
+# OUT-glow EVERYTHING by a wide margin. Held DELIBERATELY brighter than any
+# cobalt fold-crest and than the crown-centre skull (which gets NO near-white).
+EYE_GLOW  = (206, 230, 250)   # third-eye tight glow halo (the ONLY halo on the sheet)
+EYE_CORE  = (236, 245, 255)   # third-eye brightest pixel — the lone near-white ice
+EYE_RING  = ( 66, 132, 232)   # third-eye cobalt iris (frames the ice core)
 
 BG        = ( 90,  94, 104)   # neutral grey review backdrop
 PANEL     = ( 70,  74,  86)
@@ -138,69 +138,86 @@ def bone_limb(surf, p0, p1, p2, thick, s, joint=True):
                      core=False)
 
 
-# ── ONE draped cobalt flame tongue — the SHEETING shawl unit ──────────────────
-def flame_tongue(surf, base0, base1, tipp, s, lit=0.0, sway=0.55):
-    """A single overlapping draped flame tongue (a leaf-shaped lobe with one kink
-    so it curls like cloth/flame, not a straight spike). WHY a value ladder per
-    tongue: when dozens of these overlap into a SHEET (the shawl), the deep-cobalt
-    body keeps the mass dense and opaque (body never reads naked through gaps),
-    while a bright ice tip rides on top so the overlap reads as drapery folds, not
-    a flat blob. `lit` 0..1 pushes the whole tongue cooler/brighter for the
-    leading edge of the mantle. `sway` curls the kink sideways like a flame curl."""
-    bx = (base0[0] + base1[0]) * 0.5
-    by = (base0[1] + base1[1]) * 0.5
-    # kink point partway up, swayed off-axis so the tongue curls (drapery read)
-    perp = (-(tipp[1] - by), (tipp[0] - bx))
-    pl = max(1.0, math.hypot(*perp))
-    kx = bx + (tipp[0] - bx) * 0.56 + perp[0] / pl * (tipp_len(base0, base1) * sway)
-    ky = by + (tipp[1] - by) * 0.56 + perp[1] / pl * (tipp_len(base0, base1) * sway)
-    tongue = [base0, (kx, ky), tipp, base1]
-    body = lerp(COBALT_D, COBALT, lit)
-    pygame.draw.polygon(surf, INK, tongue)
-    pygame.draw.polygon(surf, body, tongue)
-    # darker overlap shadow on the trailing (base1) side so folds layer
-    shade = [base1, (kx, ky), tipp,
-             ((base1[0] + kx) * 0.5, (base1[1] + ky) * 0.5)]
-    pygame.draw.polygon(surf, lerp(COBALT_DD, COBALT_D, lit), shade)
-    # bright leaf-spine + ice tip riding the upper half
-    mid0 = (base0[0] + (kx - base0[0]) * 0.5, base0[1] + (ky - base0[1]) * 0.5)
-    bright = lerp(COBALT, COBALT_BR, lit)
-    pygame.draw.polygon(surf, bright, [mid0, (kx, ky), tipp])
-    pygame.draw.polygon(surf, lerp(COBALT_BR, ICE, lit),
-                        [(kx, ky), tipp,
-                         ((kx + tipp[0]) * 0.5, (ky + tipp[1]) * 0.5)])
-    pygame.draw.line(surf, ICE, (kx, ky), tipp, max(1, int(1.6 * s)))
-    pygame.draw.polygon(surf, INK, tongue, max(1, int(1.1 * s)))
+# ── ONE curled flame-LICK — the cloth-of-flame drapery unit (NOT a spike) ─────
+def flame_lick(surf, bx, by, ang, length, width, s, lit=0.0, curl=0.9, fill=None):
+    """A single CURLED flame-lick: a candle-flame lobe whose tip CURLS BACK over
+    itself in an S-curve, so the silhouette UNDULATES (a fold of drapery) instead
+    of bristling outward like a spike. WHY built from a curved spine, not a
+    triangle: the whole collision gate is shape — the taken fire sisters own the
+    straight radiating triangular tongue. Here the spine bows (curl) and the lobe
+    is wide-bellied near the base and hooks at the cusp, reading as a tongue of
+    cloth-flame folding, never a needle pointing away.
+
+    `ang` = mean direction the lick reaches; `curl` bends the spine sideways
+    (sign = curl handedness). `lit` 0..1 picks the cobalt value band. The lobe is
+    drawn as one filled polygon: left rib up the curved spine, hook the cusp,
+    right rib back down — with an inner darker under-fold so stacked licks read as
+    overlapping folds, and a thin cooler keyline on the LEADING rib only."""
+    body = fill if fill is not None else lerp(COBALT_D, COBALT, lit)
+    under = lerp(COBALT_DD, COBALT_D, lit)
+    crest = lerp(COBALT, COBALT_BR, lit)
+    perp = ang + math.pi / 2
+    # sample the curved spine: it leans `curl` off-axis and eases to a hooked cusp
+    spine = []
+    for i in range(7):
+        t = i / 6.0
+        # spine length eases; lateral bow grows then the cusp hooks further over
+        r = length * t
+        bow = curl * width * (1.4 * t * t)          # accelerating sideways curl
+        sx = bx + math.cos(ang) * r + math.cos(perp) * bow
+        sy = by + math.sin(ang) * r + math.sin(perp) * bow
+        # belly width: fat near base, easing to a ROUNDED (not needle) cusp — the
+        # tip keeps a small radius so the hem undulates as scalloped folds, never
+        # bristles into points (the collision-gate distinctness)
+        w = width * (0.30 + 0.70 * (1.0 - t) ** 0.85) * (0.62 + 0.38 * math.sin(t * math.pi))
+        spine.append((sx, sy, w))
+    # build the closed lobe: up the left rib, around the cusp, back down the right
+    left, right = [], []
+    for (sx, sy, w) in spine:
+        left.append((sx + math.cos(perp) * w, sy + math.sin(perp) * w))
+        right.append((sx - math.cos(perp) * w, sy - math.sin(perp) * w))
+    lobe = left + right[::-1]
+    pygame.draw.polygon(surf, INK, lobe)
+    pygame.draw.polygon(surf, body, lobe)
+    # under-fold: the trailing (curl-side) half sits in shadow so folds stack
+    shadow = right[::-1] + [(spine[i][0], spine[i][1]) for i in range(len(spine))]
+    pygame.draw.polygon(surf, under, shadow)
+    # leading-rib crest value + a thin cool keyline ON THE LEADING EDGE ONLY
+    crest_band = left + [(spine[i][0], spine[i][1]) for i in range(len(spine) - 1, -1, -1)]
+    pygame.draw.polygon(surf, crest, crest_band)
+    if len(left) >= 2:
+        pygame.draw.lines(surf, ICE, False, left, max(1, int(1.3 * s)))
+    pygame.draw.polygon(surf, INK, lobe, max(1, int(1.1 * s)))
+    return spine[-1][:2]   # the cusp point (for chaining)
 
 
-def tipp_len(base0, base1):
-    return max(1.0, math.hypot(base1[0] - base0[0], base1[1] - base0[1]))
-
-
-def mantle_drape(surf, anchor, ang, length, width, s, n=4, lit=0.0, sway=0.5):
-    """A cluster of overlapping draped tongues fanning from `anchor` toward `ang`
-    — one panel of the full-body sheeting shawl. WHY many short overlapping
-    tongues instead of a few long spikes: overlap = drapery, and density means the
-    body never reads naked through gaps (the core distinctness rule). Each panel
-    is built tip-near-to-far so closer tongues overlap farther ones."""
-    tongues = []
+def mantle_sheet(surf, anchor, ang, length, width, s, n=4, lit=0.0,
+                 curl=0.9, spread=0.85, fan=1.15):
+    """One PANEL of the cloth-of-flame mantle: a row of CURLED licks that OVERLAP
+    and fold back over each other so the outer hem UNDULATES (cusp-valley-cusp)
+    rather than bristling. WHY rows of curled licks, not a fan of spikes: drapery
+    reads as overlapping sheeting cloth — each lick partly covers its neighbour, and
+    the alternating curl handedness makes a scalloped, woven hem (a shawl), the
+    anti-thesis of a radiating spike-ring. Internal overlap lines are implicit in
+    each lick's under-fold. Licks are laid base-to-tip across the anchor so the
+    panel hangs as a continuous sheet, all curls leaning the SAME way (toward the
+    body centre) so it folds like worn cloth."""
+    licks = []
     for i in range(n):
-        f = (i - (n - 1) / 2.0) / max(1, (n - 1))   # -0.5..0.5 across the fan
-        a = ang + f * 0.9
-        L = length * (0.78 + 0.30 * (1 - abs(f)))    # centre tongues longest
-        bx = anchor[0] + math.cos(a) * width * f * 1.3
-        by = anchor[1] + math.sin(a) * width * f * 1.3
-        # tongue base width
-        pa = a + math.pi / 2
-        bw = width * 0.5
-        b0 = (bx + math.cos(pa) * bw, by + math.sin(pa) * bw)
-        b1 = (bx - math.cos(pa) * bw, by - math.sin(pa) * bw)
-        tip = (bx + math.cos(a) * L, by + math.sin(a) * L)
-        tongues.append((abs(f), b0, b1, tip))
-    # draw outermost (high |f|) first so centre tongues overlap on top
-    tongues.sort(key=lambda t: -t[0])
-    for k, (af, b0, b1, tip) in enumerate(tongues):
-        flame_tongue(surf, b0, b1, tip, s, lit=lit + (1 - af) * 0.25, sway=sway)
+        f = (i - (n - 1) / 2.0) / max(1, (n - 1))   # -0.5..0.5 across the panel
+        a = ang + f * spread
+        L = length * (0.82 + 0.26 * (1 - abs(f)))    # centre licks reach furthest
+        # seat the lick bases along an arc across the anchor so they sheet, overlap
+        bx = anchor[0] + math.cos(ang + math.pi / 2) * width * f * fan
+        by = anchor[1] + math.sin(ang + math.pi / 2) * width * f * fan
+        # curl handedness leans toward panel centre so neighbours fold over inward
+        c = curl * (-1.0 if f > 0 else 1.0) * (0.55 + abs(f))
+        licks.append((abs(f), bx, by, a, L, c))
+    # draw outer licks first; inner licks then OVERLAP them (drapery layering)
+    licks.sort(key=lambda t: -t[0])
+    for (af, bx, by, a, L, c) in licks:
+        flame_lick(surf, bx, by, a, L, width * (0.62 - 0.10 * af), s,
+                   lit=lit + (1 - af) * 0.22, curl=c)
 
 
 # ── a single ornamental crown-skull (reused for the arc + the pillar cap) ─────
@@ -316,20 +333,28 @@ def draw_jvala(surf, cx, cy, s):
     # behind shoulders, down both flanks, and out under the kicked-out knee — the
     # silhouette-carrying blue dancing-flame figure. Tongues sheet densely so no
     # sky shows through onto the body. This is the anti-halo placement.
-    back_anchor = (cx, rc_cy + int(2 * s))
-    # broad rear fan filling behind the torso (the shawl back)
-    mantle_drape(surf, (cx, rc_cy + int(8 * s)), math.radians(-90),
-                 int(64 * s), int(56 * s), s, n=7, lit=0.0, sway=0.42)
-    # two shoulder shawl wings sweeping up-and-out behind the arms
-    mantle_drape(surf, (rc_cx - int(20 * s), sh_line_y), math.radians(-150),
-                 int(54 * s), int(40 * s), s, n=5, lit=0.05, sway=0.55)
-    mantle_drape(surf, (rc_cx + int(20 * s), sh_line_y), math.radians(-30),
-                 int(54 * s), int(40 * s), s, n=5, lit=0.05, sway=-0.55)
-    # lower flank drapes pooling down past the hips (mantle wraps the knee)
-    mantle_drape(surf, (hip_cx - int(20 * s), hip_y + int(6 * s)), math.radians(140),
-                 int(50 * s), int(34 * s), s, n=5, lit=0.0, sway=0.5)
-    mantle_drape(surf, (hip_cx + int(26 * s), hip_y + int(2 * s)), math.radians(46),
-                 int(52 * s), int(36 * s), s, n=5, lit=0.0, sway=-0.5)
+    # broad rear sheet filling behind the torso (the shawl back — a soft dome of
+    # short up-curling licks, NOT a starburst). Curls lean inward so it pools.
+    mantle_sheet(surf, (cx, rc_cy + int(10 * s)), math.radians(-90),
+                 int(40 * s), int(46 * s), s, n=7, lit=0.0, curl=0.7, spread=1.4, fan=1.05)
+    # the DRAPED SKIRT-MASS — two big sheeting panels hanging DOWN the flanks and
+    # pooling under the hips/knee. WHY mostly downward (>90deg) with strong curl:
+    # this is the undulating skirt-mass that must carry the silhouette as a ROBE,
+    # the hem scalloping cusp-valley-cusp instead of bristling outward.
+    mantle_sheet(surf, (hip_cx - int(12 * s), hip_y - int(2 * s)), math.radians(118),
+                 int(62 * s), int(40 * s), s, n=6, lit=0.0, curl=1.0, spread=0.95, fan=1.25)
+    mantle_sheet(surf, (hip_cx + int(14 * s), hip_y - int(4 * s)), math.radians(62),
+                 int(64 * s), int(42 * s), s, n=6, lit=0.0, curl=1.0, spread=0.95, fan=1.25)
+    # a central front apron of licks folding down over the lap (fills the gap so no
+    # sky shows through the skirt — keeps the mass dense/opaque)
+    mantle_sheet(surf, (hip_cx, hip_y + int(4 * s)), math.radians(90),
+                 int(52 * s), int(30 * s), s, n=5, lit=0.06, curl=0.8, spread=0.7, fan=1.0)
+    # two shoulder-shawl panels sweeping OUT-and-DOWN behind the arms (curling back
+    # over, not radiating up) so the cloth wraps the shoulders like a worn shawl
+    mantle_sheet(surf, (rc_cx - int(18 * s), sh_line_y + int(2 * s)), math.radians(208),
+                 int(44 * s), int(34 * s), s, n=5, lit=0.08, curl=0.95, spread=0.8, fan=1.2)
+    mantle_sheet(surf, (rc_cx + int(18 * s), sh_line_y + int(2 * s)), math.radians(-28),
+                 int(44 * s), int(34 * s), s, n=5, lit=0.08, curl=0.95, spread=0.8, fan=1.2)
 
     # === (2) SIX-ARM RADIAL FAN (bone arms over the back mantle) ===============
     hands = draw_arm_fan(surf, head_c[0], head_c[1] + int(hr * 0.92), s, hr)
@@ -353,8 +378,8 @@ def draw_jvala(surf, cx, cy, s):
     # WHY explicitly on the knee: the brief wants the mantle wrapping shoulders/
     # arms/KNEE; a cobalt drape licking up over the thrust knee proves it is a
     # garment on the body, not a backdrop ring.
-    mantle_drape(surf, (kneeR[0] + int(4 * s), kneeR[1]), math.radians(-18),
-                 int(26 * s), int(22 * s), s, n=4, lit=0.30, sway=-0.5)
+    mantle_sheet(surf, (kneeR[0] + int(4 * s), kneeR[1]), math.radians(8),
+                 int(26 * s), int(20 * s), s, n=4, lit=0.28, curl=1.1, spread=0.7, fan=1.0)
 
     # === (4) PELVIS + RIBCAGE torso (Citipati rib bands → pillar motif) ========
     pelvis = [(hip_cx - int(17 * s), hip_y - int(4 * s)),
@@ -407,13 +432,14 @@ def draw_jvala(surf, cx, cy, s):
     # density means the torso never reads naked. WHY aimed DOWNWARD (>90deg, into
     # the chest) and anchored a touch lower: the collar must NEVER lick up onto the
     # brow and bury the third-eye — it pools down over the sternum.
-    mantle_drape(surf, (rc_cx - int(16 * s), sh_line_y + int(8 * s)), math.radians(128),
-                 int(30 * s), int(26 * s), s, n=5, lit=0.45, sway=0.4)
-    mantle_drape(surf, (rc_cx + int(16 * s), sh_line_y + int(8 * s)), math.radians(52),
-                 int(30 * s), int(26 * s), s, n=5, lit=0.45, sway=-0.4)
-    # a short cobalt cowl tongue-row pooling down the upper chest (the collar)
-    mantle_drape(surf, (rc_cx, sh_line_y + int(10 * s)), math.radians(90),
-                 int(22 * s), int(34 * s), s, n=6, lit=0.55, sway=0.3)
+    mantle_sheet(surf, (rc_cx - int(15 * s), sh_line_y + int(9 * s)), math.radians(130),
+                 int(28 * s), int(22 * s), s, n=5, lit=0.42, curl=0.95, spread=0.7, fan=1.05)
+    mantle_sheet(surf, (rc_cx + int(15 * s), sh_line_y + int(9 * s)), math.radians(50),
+                 int(28 * s), int(22 * s), s, n=5, lit=0.42, curl=0.95, spread=0.7, fan=1.05)
+    # a short cobalt cowl row pooling down the upper chest (the collar fold), the
+    # brightest licks on the body so the leading edge of the cloth reads
+    mantle_sheet(surf, (rc_cx, sh_line_y + int(11 * s)), math.radians(90),
+                 int(22 * s), int(28 * s), s, n=6, lit=0.52, curl=0.6, spread=0.6, fan=0.95)
 
     # === (5) SIX OPEN PALMS each cradling a TINY SKULL =========================
     # WHY drawn AFTER the front mantle, over the bone arms: the palm-skulls are the
@@ -455,41 +481,44 @@ def draw_jvala(surf, cx, cy, s):
 
     # === (7) FUSED CROWN — triple cobalt flame-crest BEHIND, opaque 5-skull arc =
     #         + Mukha tiara-BAND across the brow, all IN FRONT of the crest =======
-    # WHY the crest is drawn first and the arc + band over it: same-cobalt tongues
-    # would otherwise erase the bone arc. Three upright cobalt flame-crests rise
-    # from BEHIND the head (a small, contained crest — NOT a ring around the head)
-    # and the OPAQUE pale-bone 5-skull arc + tiara band read clearly in front,
-    # value-separated.
-    crest_cy = head_c[1] - int(hr * 0.5)
-    for cx_off, lift, scl in ((-int(hr * 0.62), 0.86, 0.8),
-                              (0.0, 1.0, 1.0),
-                              (int(hr * 0.62), 0.86, 0.8)):
-        a = math.radians(-90)
-        base_y = crest_cy
-        anchor = (head_c[0] + cx_off, base_y)
-        mantle_drape(surf, anchor, a, int(hr * 1.5 * lift * scl + hr * 0.6),
-                     int(hr * 0.7 * scl), s, n=3, lit=0.15, sway=0.35 * (1 if cx_off >= 0 else -1))
+    # WHY small + contained + drawn FIRST: three short curling cobalt flame-licks
+    # peek up from BEHIND the head and will sit between/above the bone skulls; the
+    # opaque arc + band drawn afterward must clearly read in FRONT (the un-fuse
+    # rule). Each crest lick CURLS so it matches the mantle cloth, not a spike.
+    crest_cy = head_c[1] - int(hr * 0.62)
+    for cx_off, lift, hand in ((-int(hr * 0.70), 0.80, 1),
+                               (0.0, 1.0, 1),
+                               (int(hr * 0.70), 0.80, -1)):
+        anchor = (head_c[0] + cx_off, crest_cy)
+        flame_lick(surf, anchor[0], anchor[1], math.radians(-90),
+                   int(hr * 1.05 * lift), int(hr * 0.46), s,
+                   lit=0.18, curl=0.85 * hand)
 
-    # Mukha tiara BAND across the brow (a shallow arc seated low on the head)
-    band_r = int(hr * 1.04)
+    # Mukha tiara BAND across the brow — an OPAQUE warm-bone strip drawn over the
+    # crest. WHY a fat opaque band (not a thin line) and warm-lighter than cobalt:
+    # the same-cool crest would otherwise swallow it; a bone-warm value-separated
+    # strip reads clearly in FRONT of the flame.
+    band_r = int(hr * 1.06)
     band_pts = []
-    for i in range(11):
-        a = math.radians(218 + i * (104 / 10))
+    for i in range(13):
+        a = math.radians(214 + i * (112 / 12))
         band_pts.append((head_c[0] + math.cos(a) * band_r,
                          head_c[1] + math.sin(a) * band_r))
-    pygame.draw.lines(surf, INK, False, band_pts, int(7 * s))
-    pygame.draw.lines(surf, BONE, False, band_pts, int(4 * s))
-    pygame.draw.lines(surf, BONE_SH, False, band_pts[:6], max(1, int(1.4 * s)))
+    pygame.draw.lines(surf, INK, False, band_pts, int(9 * s))
+    pygame.draw.lines(surf, BONE, False, band_pts, int(5 * s))
+    pygame.draw.lines(surf, BONE_SH, False, band_pts[:7], max(1, int(2.0 * s)))
 
     # FIVE opaque pale-bone crown skulls fanned across the top arc, IN FRONT of
-    # the cobalt crest — the value separation is the whole job here.
-    skull_cr = hr * 1.52
+    # the cobalt crest. WHY the centre is NOT lit: the value ladder demands a clear
+    # step DOWN from the third-eye — no skull gets a near-white inlay, so the
+    # third-eye stays the lone brightest point by a wide margin.
+    skull_cr = hr * 1.54
     skull_r = int(hr * 0.40)
     for i in range(5):
         a = math.radians(216 + i * (108 / 4))
         sx = head_c[0] + math.cos(a) * skull_cr
         sy = head_c[1] + math.sin(a) * skull_cr
-        crown_skull(surf, int(sx), int(sy), skull_r, s, lit=(i == 2))
+        crown_skull(surf, int(sx), int(sy), skull_r, s, lit=False)
 
     # === (8) THIRD EYE — drawn LAST so NOTHING (mantle/crest/band) can occlude ==
     # the single BRIGHTEST element. WHY glow-ring -> cobalt iris -> pure-white core,
@@ -506,10 +535,10 @@ def draw_jvala(surf, cx, cy, s):
 # ── the spine-staff → pillar mirror, built from HER own forms ─────────────────
 def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
     """The dancer's spine-staff IS the pillar: stacked vertebra beads (her torso
-    rib-band motif) = the tileable shaft, each bead flanked by a small SHEETING
-    cobalt-flame drape (her mantle grammar) so the column reads as her own; the
-    gap-edge cap is a single opaque crown-skull seated in front of a triple cobalt
-    flame-crest (her crown in miniature). On-axis, symmetric, not top-heavy.
+    rib-band motif) = the tileable shaft, each bead flanked by small CURLING
+    cloth-of-flame licks (her mantle grammar) so the column reads as her own; the
+    gap-edge cap is a single opaque crown-skull seated in front of a triple curled
+    cobalt flame-crest (her crown in miniature). On-axis, symmetric, not top-heavy.
 
     `cap` names the END that faces the GAP."""
     shaft_w = int(14 * s)
@@ -524,12 +553,13 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
     y = b0
     idx = 0
     while y <= b1:
-        # mantle drapes flanking each bead (drawn first → behind the bone bead)
+        # curling cloth-flame licks flanking each bead (drawn first → behind it),
+        # curling DOWN-and-back so the shaft edge undulates like her skirt-hem
         for sgn in (-1, 1):
-            mantle_drape(surf, (cx + sgn * int(shaft_w * 0.8), y + int(2 * s)),
-                         math.radians(0 if sgn > 0 else 180),
-                         int(20 * s), int(16 * s), s, n=3, lit=0.1,
-                         sway=0.45 * sgn)
+            mantle_sheet(surf, (cx + sgn * int(shaft_w * 0.8), y + int(2 * s)),
+                         math.radians(20 if sgn > 0 else 160),
+                         int(20 * s), int(13 * s), s, n=3, lit=0.1,
+                         curl=0.9 * sgn, spread=0.7, fan=1.0)
         bw = shaft_w
         bead = [(cx - bw, y + int(2 * s)),
                 (cx - int(bw * 0.5), y - int(7 * s)),
@@ -550,26 +580,38 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
         idx += 1
         y += bead_pitch
 
-    # gap-edge cap: triple cobalt crest behind a single opaque crown-skull
+    # gap-edge cap: triple curled cobalt flame-lick behind a single opaque skull
     cap_y = (bot - int(20 * s)) if cap == "bottom" else (top + int(20 * s))
     grow = +1 if cap == "bottom" else -1
     crest_dir = math.radians(90) if grow > 0 else math.radians(-90)
-    for off, scl in ((-int(12 * s), 0.8), (0, 1.0), (int(12 * s), 0.8)):
-        mantle_drape(surf, (cx + off, cap_y), crest_dir,
-                     int(26 * s * scl + 8 * s), int(11 * s * scl), s, n=3, lit=0.15,
-                     sway=0.4 * (1 if off >= 0 else -1))
-    crown_skull(surf, cx, cap_y, int(13 * s), s, lit=True)
+    for off, hand in ((-int(12 * s), 1), (0, 1), (int(12 * s), -1)):
+        sc = 0.8 if off else 1.0
+        flame_lick(surf, cx + off, cap_y, crest_dir,
+                   int(28 * s * sc), int(12 * s * sc), s, lit=0.15, curl=0.8 * hand)
+    crown_skull(surf, cx, cap_y, int(13 * s), s, lit=False)
 
 
 # ── compose the review sheet ─────────────────────────────────────────────────
 SS = 8
 
 
-def render_creature_chip(boxw, boxh, draw_cx, draw_cy, scale, ss=SS):
+def render_creature_chip(boxw, boxh, draw_cx, draw_cy, scale, ss=SS, night=False):
+    # WHY a half-step lighter cobalt at NIGHT: on the dark night sky the deep
+    # field can collapse toward black at 32px; nudging the whole cobalt band up
+    # keeps the mass legible AS BLUE (a cool flame robe), not a black blob.
+    global COBALT_DD, COBALT_D, COBALT, COBALT_BR
+    saved = (COBALT_DD, COBALT_D, COBALT, COBALT_BR)
+    if night:
+        COBALT_DD = lerp(COBALT_DD, ICE, 0.16)
+        COBALT_D = lerp(COBALT_D, ICE, 0.14)
+        COBALT = lerp(COBALT, ICE, 0.10)
+        COBALT_BR = lerp(COBALT_BR, ICE, 0.08)
     big = pygame.Surface((boxw * ss, boxh * ss), pygame.SRCALPHA)
     draw_jvala(big, draw_cx * ss, draw_cy * ss, scale * ss)
     small = pygame.transform.smoothscale(big, (boxw, boxh))
-    return grow_outline(small, INK + (255,), 1)
+    out = grow_outline(small, INK + (255,), 1)
+    COBALT_DD, COBALT_D, COBALT, COBALT_BR = saved
+    return out
 
 
 def vgrad(surf, rect, top_col, bot_col):
@@ -609,7 +651,7 @@ def main():
 
     # ── hi-res standalone hero ────────────────────────────────────────────────
     hero_hi = render_hero_hires()
-    hero_path = os.path.join(here, "round_1_hero.png")
+    hero_path = os.path.join(here, "round_2_hero.png")
     pygame.image.save(hero_hi, hero_path)
 
     # ── the standard review sheet ─────────────────────────────────────────────
@@ -624,17 +666,17 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("JVALA-NIRMALA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "cool wisdom-flame dancer  ·  CITIPATI body + Mukha 6-arm fan · FULL-BODY cobalt SHEETING mantle (NOT a ring) · 6 palm-skulls · round 1",
+        "cool wisdom-flame dancer  ·  CITIPATI body + Mukha 6-arm fan · FULL-BODY cobalt cloth-of-flame ROBE (curled sheeting, NOT a ring) · 6 palm-skulls · round 2",
         True, LABEL_DIM), (300, 26))
 
     # === (a) BIG HERO =========================================================
     hero = render_creature_chip(370, 500, 185, 268, 1.95)
     sheet.blit(hero, (14, 86))
     sheet.blit(font.render("Creature — hero", True, LABEL), (120, 596))
-    sheet.blit(font_sm.render("FULL-BODY cobalt mantle DRAPES over shoulders/arms/knee (a sheeting shawl,", True, LABEL_DIM), (14, 620))
-    sheet.blit(font_sm.render("NOT a head-ring/halo). 6-arm fan + 6 cradled palm-skulls in FRONT of mantle.", True, LABEL_DIM), (14, 636))
-    sheet.blit(font_sm.render("Crown: cobalt flame-crest BEHIND an opaque 5-skull arc + tiara band. White-", True, LABEL_DIM), (14, 652))
-    sheet.blit(font_sm.render("blue third-eye out-glows crown-centre by a wide value gap.", True, LABEL_DIM), (14, 668))
+    sheet.blit(font_sm.render("CURLED, OVERLAPPING cloth-of-flame licks drape down the flanks/knee as a", True, LABEL_DIM), (14, 620))
+    sheet.blit(font_sm.render("ROBE with an UNDULATING hem (NOT radiating spikes). 6 palm-skulls in FRONT.", True, LABEL_DIM), (14, 636))
+    sheet.blit(font_sm.render("Crown: small curled flame-crest BEHIND; opaque warm-bone 5-skull arc + band", True, LABEL_DIM), (14, 652))
+    sheet.blit(font_sm.render("IN FRONT. Third-eye = lone near-white ice, the only glow, by a wide margin.", True, LABEL_DIM), (14, 668))
 
     # === (b) PILLAR assembled — mirrored, from HER own forms ==================
     pcx = 408
@@ -660,33 +702,33 @@ def main():
     pygame.draw.rect(sheet, (150, 156, 168), (sbx - 4, 86 - 4, 158, 258))
     sheet.blit(sil, (sbx, 86))
     sheet.blit(font.render("Silhouette", True, LABEL), (sbx, 350))
-    sheet.blit(font_sm.render("mantle MASS reads as a", True, LABEL_DIM), (sbx, 374))
-    sheet.blit(font_sm.render("filled blue figure — not a", True, LABEL_DIM), (sbx, 390))
-    sheet.blit(font_sm.render("thin spiky rim/ring.", True, LABEL_DIM), (sbx, 406))
+    sheet.blit(font_sm.render("a DRAPED figure with an", True, LABEL_DIM), (sbx, 374))
+    sheet.blit(font_sm.render("undulating skirt-mass —", True, LABEL_DIM), (sbx, 390))
+    sheet.blit(font_sm.render("not a ring/halo blackout.", True, LABEL_DIM), (sbx, 406))
 
     # === (d) TRUE 32px gameplay chips on day + night sky ======================
     panel_x = 736
     pygame.draw.rect(sheet, PANEL, (panel_x, 86, W - panel_x - 14, 600))
     sheet.blit(font.render("True 32px chip", True, LABEL), (panel_x + 16, 96))
 
-    def chip32():
-        big = pygame.Surface((120 * SS, 120 * SS), pygame.SRCALPHA)
-        draw_jvala(big, 60 * SS, 64 * SS, (32 / 150.0) * SS)
-        small = pygame.transform.smoothscale(big, (120, 120))
-        return grow_outline(small, INK + (255,), 1)
+    def chip32(night=False):
+        # render at ~4x then smoothscale to a TRUE 32px tile for the on-sky read
+        big = render_creature_chip(32, 34, 16, 18, (32 / 150.0), night=night)
+        return pygame.transform.scale(big, (120, int(34 / 32 * 120)))
 
-    chip = chip32()
+    day_chip = chip32(night=False)
+    night_chip = chip32(night=True)
     day_y = 128
     vgrad(sheet, (panel_x + 20, day_y, 130, 130), DAY_SKY_T, DAY_SKY_B)
     pygame.draw.rect(sheet, INK, (panel_x + 20, day_y, 130, 130), 1)
-    sheet.blit(chip, (panel_x + 20 + 5, day_y + 5))
+    sheet.blit(day_chip, (panel_x + 20 + 5, day_y + 5))
     sheet.blit(font_sm.render("32px DAY", True, LABEL), (panel_x + 20, day_y + 134))
 
     night_y = day_y + 168
     vgrad(sheet, (panel_x + 20, night_y, 130, 130), NIGHT_T, NIGHT_B)
     pygame.draw.rect(sheet, INK, (panel_x + 20, night_y, 130, 130), 1)
-    sheet.blit(chip, (panel_x + 20 + 5, night_y + 5))
-    sheet.blit(font_sm.render("32px NIGHT", True, LABEL_DIM), (panel_x + 20, night_y + 134))
+    sheet.blit(night_chip, (panel_x + 20 + 5, night_y + 5))
+    sheet.blit(font_sm.render("32px NIGHT (cobalt +half-step)", True, LABEL_DIM), (panel_x + 20, night_y + 134))
 
     def pillar_chip32():
         big = pygame.Surface((44 * SS, 130 * SS), pygame.SRCALPHA)
@@ -709,7 +751,7 @@ def main():
     swatches = [
         (BONE, "pale-bone"), (BONE_DD, "bone hollow"),
         (COBALT_D, "deep cobalt"), (COBALT, "cobalt body"),
-        (COBALT_BR, "cobalt tongue"), (ICE, "ice-edge"),
+        (COBALT_BR, "fold-crest"), (ICE, "fold keyline"),
         (EYE_CORE, "third-eye core"), (INK, "ink keyline"),
     ]
     sxp, syp = panel_x + 16, 508
@@ -723,17 +765,17 @@ def main():
 
     pygame.draw.rect(sheet, PANEL, (14, 700, W - 28, 44))
     sheet.blit(font_sm.render(
-        "DISTINCTNESS: cobalt FLAME lives as a FULL-BODY DRAPED MANTLE (sheeting shawl over shoulders/arms/knee), NOT a head-ring/halo (vs vajra_rakta ring,", True, LABEL_DIM), (26, 708))
+        "DISTINCTNESS: cobalt flame = a CLOTH-OF-FLAME ROBE of CURLED, OVERLAPPING licks folding back over each other (undulating hem), NOT radiating spikes — vs", True, LABEL_DIM), (26, 708))
     sheet.blit(font_sm.render(
-        "ratna_padmini halo, Citipati ember-ring).  STAY: flat fills · ink keyline (28,22,26) · dark-core->fill->sheen triad · 1px grown outline · chibi scary-cute · procedural.",
+        "vajra_rakta ring / ratna_padmini spike-halo / Citipati ember-ring.  STAY: flat fills · ink keyline (28,22,26) · triad · 1px grown outline · chibi scary-cute · procedural.",
         True, LABEL_DIM), (26, 724))
 
     pygame.draw.rect(sheet, PANEL, (14, 756, W - 28, 28))
     sheet.blit(font_sm.render(
-        "ELEVATED pipeline: SS=8 supersample -> smoothscale.  Standalone hi-res hero exported separately: round_1_hero.png (~1024px).",
+        "ELEVATED pipeline: SS=8 supersample -> smoothscale.  Standalone hi-res hero exported separately: round_2_hero.png (~1024px).",
         True, LABEL_DIM), (26, 762))
 
-    out = os.path.join(here, "round_1.png")
+    out = os.path.join(here, "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     print("wrote", hero_path)

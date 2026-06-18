@@ -64,6 +64,10 @@ ICE       = (158, 196, 222)   # rime-ice shard body (matte milky slate-blue)
 ICE_D     = (108, 148, 182)   # rime-ice shade / underside
 ICE_DD    = ( 72, 108, 146)   # deepest rime crevice (the rough crust read)
 ICE_FROST = (206, 226, 240)   # soft matte frost-crumb (diffuse, NEVER a glint)
+# the CROWN frost-rime pips sit a value DOWN from the arm-shard crumbs so even
+# the brightest crown pixel stays dimmer than the mid-value palm-skulls — the
+# matte crown must never out-value the cradled skulls (locked value ladder).
+ICE_FROST_CR = (170, 198, 220) # crown-spur frost-rime stipple (dim, matte)
 # the carrier shard mass is darker/more saturated so the 32px crown cluster +
 # shoulder crust survive the smoothscale as a clear cold mass against the sky.
 ICE_CAR   = ( 96, 138, 174)   # the 32px ice-shard carrier fill (matte, holds value)
@@ -194,6 +198,66 @@ def ice_shard(surf, cx, cy, length, width, ang, s, body=ICE, body_d=ICE_D,
                                max(1, int(width * 0.12)))
 
 
+# ── an ABSOLUTELY MATTE crown rime-spur (NO facet plane, NO glint) ────────────
+def matte_shard(surf, cx, cy, length, width, ang, s, body=ICE_CAR, jag=0.30,
+                snap=0.0, notch=False, seed=0, frost=ICE_FROST_CR):
+    """One upthrust CROWN rime-spur rendered as flat MATTE accreted ice — the
+    fix for the round-1 facet collision. WHY no internal value planes: a clean
+    light-to-dark ridge running tip-to-base reads as a CUT crystal facet (the
+    Bismuth/Amethyst/Opal grammar). So this spur has exactly ONE flat slate-blue
+    fill, an irregular lumpy outline, and the SAME scattered pale frost-rime pips
+    used on the arm shards — clustered dense at the base/edges and thinning to
+    the tip — and NOTHING else: no crevice wedge, no directional sheen, no tip
+    glint, no specular dot. `snap` lops the tip flat (a broken spur); `notch`
+    bites a step out of one flank; `seed` drives a deterministic stipple scatter
+    so the rime crumbs look accreted, never gridded."""
+    ca, sa = math.cos(ang), math.sin(ang)
+    px, py = -sa, ca
+    # tip is either a point or, when snapped, a short flat broken edge
+    if snap > 0.0:
+        tlen = length * (1.0 - snap)
+        ta = (cx + ca * tlen + px * width * 0.30, cy + sa * tlen + py * width * 0.30)
+        tb = (cx + ca * tlen * 0.92 - px * width * 0.24,
+              cy + sa * tlen * 0.92 - py * width * 0.24)
+    else:
+        tip = (cx + ca * length, cy + sa * length)
+    bl = (cx + px * width * (0.66 + jag), cy + py * width * (0.66 + jag))
+    br = (cx - px * width * (0.48 + jag * 0.5), cy - py * width * (0.48 + jag * 0.5))
+    # irregular kinks up each flank so no edge is a straight facet line
+    kx = cx + ca * length * 0.50 + px * width * (0.34 - jag * 0.6)
+    ky = cy + sa * length * 0.50 + py * width * (0.34 - jag * 0.6)
+    k2x = cx + ca * length * 0.30 - px * width * (0.26 + jag * 0.3)
+    k2y = cy + sa * length * 0.30 - py * width * (0.26 + jag * 0.3)
+    poly = [(bl[0], bl[1]), (kx, ky)]
+    if notch:
+        # bite a stepped notch out of the upper long flank (broken accretion)
+        nx = cx + ca * length * 0.70 + px * width * 0.06
+        ny = cy + sa * length * 0.70 + py * width * 0.06
+        nx2 = cx + ca * length * 0.66 + px * width * 0.26
+        ny2 = cy + sa * length * 0.66 + py * width * 0.26
+        poly += [(nx2, ny2), (nx, ny)]
+    if snap > 0.0:
+        poly += [(ta[0], ta[1]), (tb[0], tb[1])]
+    else:
+        poly += [(tip[0], tip[1])]
+    poly += [(k2x, k2y), (br[0], br[1])]
+    # ONE flat fill + the house ink keyline — no core, no sheen plane
+    triad_blob(surf, body, poly, ow=max(1, int(1.3 * s)))
+    # FROST-RIME STIPPLE: scattered pale pips, dense at base/edges, fading up —
+    # the only texture, identical in character to the arm-shard frost crumbs.
+    npip = max(4, int(length / (3.0 * s)))
+    for fk in range(npip):
+        t = fk / max(1, npip - 1)
+        # bias the scatter toward the base so the tip stays clean/dim
+        ft = 0.10 + (t * t) * 0.74
+        # deterministic lateral wobble (no RNG → reproducible across targets)
+        w = math.sin(fk * 2.114 + seed * 1.7) * (0.52 - 0.30 * t)
+        fx = cx + ca * length * ft + px * width * w
+        fy = cy + sa * length * ft + py * width * w
+        rr = max(1, int(width * (0.16 - 0.09 * t)))
+        pygame.draw.circle(surf, frost, (int(fx), int(fy)), rr)
+
+
 def ice_cluster(surf, cx, cy, base_ang, spread, n, scale_len, scale_w, s,
                 carrier=False):
     """A fan of MATTE rime shards sprouting from a point — the sheathing crust.
@@ -308,10 +372,15 @@ def draw_arm_fan(surf, sh_cx, sh_cy, s, hr):
     elbows = []
     for sgn, d, a in order:
         sh = (shoulder[0] + sgn * int(hr * 0.55), shoulder[1])
-        elbow = (sh[0] + math.cos(a) * arm_len * 0.52,
-                 sh[1] + math.sin(a) * arm_len * 0.52)
-        hand = (sh[0] + math.cos(a) * arm_len,
-                sh[1] + math.sin(a) * arm_len)
+        # WHY the LOWEST pair (100°) reaches further: at 32px the two lowest palm-
+        # skulls fused into the cord/torso mass. Extending their arms outward (and
+        # the elbow's lateral cock) walks those two skulls clear of the centre so
+        # all SIX read separately at gameplay scale.
+        al = arm_len * (1.16 if d == 100 else 1.0)
+        elbow = (sh[0] + math.cos(a) * al * 0.52 + sgn * (int(hr * 0.16) if d == 100 else 0),
+                 sh[1] + math.sin(a) * al * 0.52)
+        hand = (sh[0] + math.cos(a) * al + sgn * (int(hr * 0.10) if d == 100 else 0),
+                sh[1] + math.sin(a) * al)
         for (p, q) in ((sh, elbow), (elbow, hand)):
             dx, dy = q[0] - p[0], q[1] - p[1]
             L = max(1.0, math.hypot(dx, dy))
@@ -436,8 +505,11 @@ def draw_hima_kapalini(surf, cx, cy, s):
     cord = [(rc_cx - int(rc_w * 0.5), rc_cy - int(rc_h * 0.28)),
             (rc_cx + int(rc_w * 0.12), rc_cy + int(2 * s)),
             (rc_cx + int(rc_w * 0.5), rc_cy + int(rc_h * 0.30))]
-    pygame.draw.lines(surf, INK, False, cord, int(9 * s))
-    pygame.draw.lines(surf, PLUM, False, cord, int(6 * s))
+    # WHY a FATTER continuous cord (min ~2px at 32px): the dried-blood diagonal is
+    # half the "wound" read and must survive downscale on the DAY chip as a solid
+    # line, never a dotted dim trail. The PLUM core is floored so it holds at 32px.
+    pygame.draw.lines(surf, INK, False, cord, max(3, int(11 * s)))
+    pygame.draw.lines(surf, PLUM, False, cord, max(2, int(8 * s)))
     pygame.draw.lines(surf, PLUM_BR, False, cord[:2], max(1, int(2 * s)))
     # a plum tassel knot where the cord meets the lower cage
     triad_circle(surf, PLUM, (rc_cx + int(rc_w * 0.5), rc_cy + int(rc_h * 0.30)),
@@ -486,19 +558,24 @@ def draw_hima_kapalini(surf, cx, cy, s):
     # + a wound of dried blood," so the mouth IS the wound — a dark dried-blood lip
     # band with a few frost-bone teeth biting through it. The single largest warm
     # mark on the face, central, so it survives the downscale.
-    my = head_c[1] + int(hr * 0.72)
-    lip = [(head_c[0] - int(hr * 0.50), my - int(hr * 0.04)),
-           (head_c[0] + int(hr * 0.50), my - int(hr * 0.04)),
-           (head_c[0] + int(hr * 0.42), my + int(hr * 0.20)),
-           (head_c[0] - int(hr * 0.42), my + int(hr * 0.20))]
+    # WHY a FULLER lip BLOCK (≈2-3px tall at 32px): round-1's lip nearly dropped on
+    # the busy DAY chip, leaving the figure reading cool-monochrome (the crowded
+    # cold-blue failure mode). The lip is now a taller solid dried-blood block, and
+    # the frost-bone teeth are FEWER + only bite the LOWER half — so even at 32px a
+    # continuous plum band survives across the top, the single loudest warm note.
+    my = head_c[1] + int(hr * 0.70)
+    lip = [(head_c[0] - int(hr * 0.52), my - int(hr * 0.08)),
+           (head_c[0] + int(hr * 0.52), my - int(hr * 0.08)),
+           (head_c[0] + int(hr * 0.44), my + int(hr * 0.26)),
+           (head_c[0] - int(hr * 0.44), my + int(hr * 0.26))]
     triad_blob(surf, PLUM, lip, ow=max(1, int(1.4 * s)))
-    pygame.draw.line(surf, PLUM_BR, (head_c[0] - int(hr * 0.42), my - int(hr * 0.02)),
-                     (head_c[0] + int(hr * 0.10), my - int(hr * 0.02)), max(1, int(1.4 * s)))
-    # frost-bone teeth biting through the plum lip (cute, not gory)
-    for k in range(-3, 4):
-        tx = head_c[0] + int(k * hr * 0.14)
-        pygame.draw.line(surf, BONE_SH, (tx, my - int(hr * 0.04)),
-                         (tx, my + int(hr * 0.18)), max(1, int(1.6 * s)))
+    pygame.draw.line(surf, PLUM_BR, (head_c[0] - int(hr * 0.44), my - int(hr * 0.04)),
+                     (head_c[0] + int(hr * 0.12), my - int(hr * 0.04)), max(1, int(1.6 * s)))
+    # fewer frost-bone teeth, biting only the lower band so the plum top survives
+    for k in (-2, 0, 2):
+        tx = head_c[0] + int(k * hr * 0.18)
+        pygame.draw.line(surf, BONE_SH, (tx, my + int(hr * 0.06)),
+                         (tx, my + int(hr * 0.24)), max(1, int(1.6 * s)))
     # two small fangs at the corners (wrathful tell)
     for sgn in (-1, 1):
         fx = head_c[0] + sgn * int(hr * 0.42)
@@ -512,20 +589,38 @@ def draw_hima_kapalini(surf, cx, cy, s):
     # the brow, then the wide Citipati 5-skull arc-sweep riding the OUTER arc so
     # every dome is countable and the arc reads FRONTMOST. The shard cluster must
     # NOT swallow the arc — it is sized to peek up BETWEEN and ABOVE the skulls.
-    # -- (0) upthrust MATTE ice-shard CROWN-CLUSTER rising from BEHIND --
-    # a clutch of tall irregular rime spurs fanning up out of the crown sky; the
-    # carrier fill keeps the cluster a clear cold mass at 32px (the 32px tell).
-    cl_cx, cl_cy = head_c[0], head_c[1] - int(hr * 1.10)
-    ice_cluster(surf, cl_cx, cl_cy, math.radians(-90), math.radians(104), 7,
-                int(hr * 1.10), int(9 * s), s, carrier=True)
-    # tall central spurs thrust highest so the cluster reads as a distinct cold
-    # crest RISING ABOVE the skull arc — the upthrust read + the 32px shard tell.
-    ice_shard(surf, cl_cx, cl_cy, int(hr * 1.46), int(10 * s), math.radians(-90), s,
-              body=ICE_CAR, body_d=ICE_DD, jag=0.18)
-    ice_shard(surf, cl_cx - int(9 * s), cl_cy, int(hr * 1.18), int(8 * s),
-              math.radians(-74), s, body=ICE_CAR, body_d=ICE_DD, jag=0.22)
-    ice_shard(surf, cl_cx + int(9 * s), cl_cy, int(hr * 1.20), int(8 * s),
-              math.radians(-106), s, body=ICE_CAR, body_d=ICE_DD, jag=0.22)
+    # -- (0) upthrust ABSOLUTELY-MATTE rime CROWN-CLUSTER rising from BEHIND --
+    # WHY matte_shard (NOT ice_shard) here: round-1's crown spurs carried a
+    # tip-to-base crevice plane that read as a CUT facet (the gem collision). The
+    # crown is now flat slate fill + frost-rime stipple only — the same matte
+    # material as the arm shards. WHY irregular & hand-placed: rime is ACCRETED &
+    # broken, not a symmetric grown crystal, so each spur differs in length /
+    # width / angle, two clump together, one leans off-axis, and a couple are
+    # snapped or notched. The carrier fill keeps the cluster a clear cold mass at
+    # 32px (the 32px tell), peeking up BETWEEN and ABOVE the skull arc.
+    cl_cx, cl_cy = head_c[0], head_c[1] - int(hr * 1.06)
+    # (length-mult, width-mult, angle°, jag, snap, notch, x-nudge, y-nudge, seed)
+    # WHY fatter spurs + a tighter near-vertical spread: round-1's facet-fix left
+    # them spindly/twig-like. Rime accretes into a chunky upthrust CREST, so the
+    # spurs are now wide wedges clustered close to vertical, two clumping into the
+    # tallest core, one leaning well off-axis — a dense cold mass, still irregular
+    # and broken (snaps/notch), still absolutely matte.
+    crown_spurs = [
+        (1.46, 1.55, -90, 0.16, 0.00, False, 0.0, 0.00, 1),  # tallest core
+        (1.30, 1.35, -82, 0.20, 0.00, False, 0.06, 0.04, 6),  # clumps w/ tallest
+        (1.18, 1.20, -100, 0.18, 0.18, False, -0.05, 0.04, 2),  # snapped, clumps
+        (1.06, 1.30, -72, 0.22, 0.00, True, 0.14, 0.10, 3),  # notched, right
+        (1.00, 1.15, -110, 0.24, 0.00, False, -0.16, 0.10, 5),  # left mid
+        (0.78, 1.05, -56, 0.30, 0.20, False, 0.26, 0.20, 4),  # short lean right
+        (0.86, 1.00, -124, 0.30, 0.00, False, -0.30, 0.22, 7),  # the off-axis lean
+        (0.66, 0.92, -44, 0.34, 0.16, False, 0.34, 0.30, 8),  # stubby outer snap
+    ]
+    for (lm, wm, deg, jg, snp, ntc, nx, ny, sd) in crown_spurs:
+        ox = cl_cx + int(hr * nx)
+        oy = cl_cy + int(hr * ny)
+        matte_shard(surf, ox, oy, int(hr * lm), int(11 * s * wm),
+                    math.radians(deg), s, body=ICE_CAR, jag=jg, snap=snp,
+                    notch=ntc, seed=sd)
 
     # -- (1) the Mukha tiara-band (gold→frost-silver, seated LOW on the brow) --
     # WHY silver-frost not gold: in a frost palette a warm gold band would steal
@@ -537,9 +632,15 @@ def draw_hima_kapalini(surf, cx, cy, s):
         a = math.radians(220 + i * (100 / 12))
         band_pts.append((head_c[0] + math.cos(a) * tiara_r,
                          head_c[1] + math.sin(a) * tiara_r))
-    pygame.draw.lines(surf, INK, False, band_pts, int(8 * s))
-    pygame.draw.lines(surf, BONE_D, False, band_pts, int(4 * s))
-    pygame.draw.lines(surf, BONE_SH, False, band_pts[:7], max(1, int(1.6 * s)))
+    # WHY a SLATE value-step (BONE_DD), not a thin pale line: round-1's band sat
+    # at near-forehead value and vanished into the frost-white brow. The band is
+    # now a fat darker-slate arc with a crisp deep-frost LOWER edge so it reads as
+    # a distinct frontmost BAND across the brow (the locked Mukha tiara), then a
+    # mid-slate top face + a thin sheen so it still reads as carved bone.
+    pygame.draw.lines(surf, INK, False, band_pts, int(9 * s))
+    pygame.draw.lines(surf, BONE_DD, False, band_pts, int(6 * s))   # slate step
+    pygame.draw.lines(surf, BONE_D, False, band_pts, max(2, int(3 * s)))
+    pygame.draw.lines(surf, BONE_SH, False, band_pts[:7], max(1, int(1.4 * s)))
     # tiny frost prongs between the skull seats (Mukha-band tell, hero-only)
     for i in range(13):
         if i % 3 != 1:
@@ -622,10 +723,19 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
     # === gap-edge cap: upthrust ice-shard crown-cluster + crown-skull + plum ===
     cap_y = (bot - int(22 * s)) if cap == "bottom" else (top + int(22 * s))
     grow = +1 if cap == "bottom" else -1
-    # the ice-shard cluster fans toward the gap (mirrors the figure's crown)
+    # the MATTE rime-spur cap fans toward the gap (mirrors the figure's crown) —
+    # same flat-fill + frost-stipple material as the head crest, irregular spurs.
     cl_y = cap_y + grow * int(6 * s)
-    ice_cluster(surf, cx, cl_y, math.radians(90 if grow > 0 else -90),
-                math.radians(110), 6, int(18 * s), int(8 * s), s, carrier=True)
+    base_deg = 90 if grow > 0 else -90
+    cap_spurs = [(1.00, 1.0, -52, 0.18, 0.00, False, 11),
+                 (0.74, 0.8, -24, 0.26, 0.16, False, 12),
+                 (0.88, 0.9, 0, 0.20, 0.00, True, 13),
+                 (0.70, 0.8, 24, 0.30, 0.00, False, 14),
+                 (0.96, 0.9, 52, 0.18, 0.20, False, 15)]
+    for (lm, wm, off, jg, snp, ntc, sd) in cap_spurs:
+        matte_shard(surf, cx, cl_y, int(18 * s * lm), int(8 * s * wm),
+                    math.radians(base_deg + off * grow), s, body=ICE_CAR,
+                    jag=jg, snap=snp, notch=ntc, seed=sd)
     # a single crown-skull seated at the cluster heart (lit cyan toward the gap)
     crown_skull(surf, cx, cap_y, int(13 * s), s, lit=True, bone=BONE_CR)
     # a plum cord collar where the cap meets the crusted shaft
@@ -678,7 +788,7 @@ def render_hero_png(path):
 
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
-    render_hero_png(os.path.join(here, "round_1_hero.png"))
+    render_hero_png(os.path.join(here, "round_2_hero.png"))
 
     W, H = 1040, 860
     font_big = _font(30)
@@ -692,7 +802,7 @@ def main():
     sheet.blit(font_big.render("HIMA-KAPALINI", True, LABEL), (24, 12))
     sheet.blit(font_sm.render(
         "hoar-frost crystal mother  ·  MUKHA body + 6-arm fan · MATTE rime-ice shards · "
-        "frost-white + slate-blue + DRIED-BLOOD PLUM · pale-cyan third-eye · round 1",
+        "frost-white + slate-blue + DRIED-BLOOD PLUM · pale-cyan third-eye · round 2",
         True, LABEL_DIM), (262, 24))
 
     # === (a) BIG HERO =========================================================
@@ -700,7 +810,7 @@ def main():
     sheet.blit(hero, (14, 88))
     sheet.blit(font.render("Creature — hero (SS=8)", True, LABEL), (96, 590))
     sheet.blit(font_sm.render("Mukha 6-arm fan, each open palm cradling a TINY SKULL; squat MUKHA torso + wide lotus base.", True, LABEL_DIM), (14, 614))
-    sheet.blit(font_sm.render("MATTE rime-ice shard crust (shoulder/rib clusters route BETWEEN arms) — opaque, lumpy, NO facet-sheen.", True, LABEL_DIM), (14, 630))
+    sheet.blit(font_sm.render("ABSOLUTELY MATTE crown rime-spurs — flat slate fill + frost-rime stipple, NO facet ridge / glint; irregular, accreted.", True, LABEL_DIM), (14, 630))
     sheet.blit(font_sm.render("DRIED-BLOOD PLUM lip + cord + socket-shadows = the wound. 3-layer crown: shard cluster (back) + arc + band.", True, LABEL_DIM), (14, 646))
 
     # === (b) PILLAR assembled — mirrored, from the sister's own forms =========
@@ -804,7 +914,7 @@ def main():
         "32px CARRIER: the dried-blood PLUM colour-tell (lip+cord) + the upthrust matte ice-shard CROWN cluster.",
         True, LABEL_DIM), (26, 831))
 
-    out = os.path.join(here, "round_1.png")
+    out = os.path.join(here, "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
