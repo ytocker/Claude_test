@@ -51,7 +51,7 @@ ROWS = [
             "mode": "gradient",
         },
         "after": {
-            "file": "docs/skybit_devil/batch2/mukha_citipati_court/asthi_dakini/round_8_hero.png",
+            "file": "docs/skybit_devil/batch2/mukha_citipati_court/asthi_dakini/round_10_hero.png",
             "mode": "gradient",
         },
     },
@@ -62,7 +62,7 @@ ROWS = [
             "mode": "alpha",
         },
         "after": {
-            "file": "docs/skybit_devil/batch2/mukha_citipati_court/vajra_rakta/round_5_hero.png",
+            "file": "docs/skybit_devil/batch2/mukha_citipati_court/vajra_rakta/round_7_hero.png",
             "mode": "alpha",
         },
     },
@@ -73,7 +73,7 @@ ROWS = [
             "mode": "alpha",
         },
         "after": {
-            "file": "docs/skybit_devil/batch2/mukha_citipati_court/ratna_padmini/round_4_hero.png",
+            "file": "docs/skybit_devil/batch2/mukha_citipati_court/ratna_padmini/round_7_hero.png",
             "mode": "alpha",
         },
     },
@@ -85,7 +85,7 @@ ROWS = [
             "skip_top": 120,  # excludes the printed name strip above the figure
         },
         "after": {
-            "file": "docs/skybit_devil/batch2/mukha_citipati_court_ii/bhasma_yogini/round_5_hero.png",
+            "file": "docs/skybit_devil/batch2/mukha_citipati_court_ii/bhasma_yogini/round_7_hero.png",
             "mode": "gradient",
             "skip_top": 120,
         },
@@ -98,7 +98,7 @@ ROWS = [
             "skip_top": 120,
         },
         "after": {
-            "file": "docs/skybit_devil/batch2/mukha_citipati_court_ii/jvala_nirmala/round_5_hero.png",
+            "file": "docs/skybit_devil/batch2/mukha_citipati_court_ii/jvala_nirmala/round_8_hero.png",
             "mode": "gradient",
             "skip_top": 120,
         },
@@ -216,7 +216,7 @@ def main():
     f_cap = pygame.font.SysFont("dejavusans", 15)
 
     title = f_title.render(
-        "Five sisters (numbered) — original BEFORE vs revised AFTER",
+        "Five sisters — original BEFORE vs themed-skull final AFTER",
         True,
         TITLE_COL,
     )
@@ -293,8 +293,8 @@ def main():
 
     # Bottom caption strip.
     cap = f_cap.render(
-        "revision: fancier detailed palm-skulls (all); #1 gem kept w/o background; "
-        "#3 gem reverted + bigger skulls; #4 crown lightened.",
+        "final: per-character themed skulls (palm + crown), 6 distinct each, gem-hue accents; "
+        "#1 bone-jewel #2 war-marked #3 gilded #4 ascetic #5 frost-cracked.",
         True,
         CAP_COL,
     )
