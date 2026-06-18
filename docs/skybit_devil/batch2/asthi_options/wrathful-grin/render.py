@@ -206,7 +206,7 @@ def bead_arc(surf, cx, cy, r, a0, a1, bead_r, s, gold_every=3, light=True):
 
 
 # ── a single ornamental crown-skull (cloned from Citipati; crown-warm tint) ────
-def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
+def crown_skull(surf, cx, cy, r, s, lit=False, idx=0, nudge=False):
     """Tiny crown skull — WRATHFUL charnel relic seated in her tiara arc. WHY a
     notch darker/cooler than the warm-light body (CROWN_BONE): against the warm ivory
     body, an equally-warm crown would melt in, so the crown sits a value step down
@@ -218,10 +218,12 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
     brow angle, fang count, crack side and SILHOUETTE-altering damage (caved temple /
     broken crest / sheared jaw / knocked fang), so the arc reads as six individual
     screamers in pure black at 32px, not one stamp swept six times, and the fury lives
-    in the OUTLINE. `lit` is the crown-CENTRE relic: it
-    carries MORE cyan wrath-fire (a CYAN ember core + CYAN_BR upper glint) — still the
-    DIMMEST tier, NO white core, NO glow, below the brow third-eye; the rest get DIM
-    CYAN_D embers."""
+    in the OUTLINE — caved temples, a sheared crest, a lost jaw corner are CARVED out
+    of the cranium edge (bone ABSENT, sky through), not inked on the fill. `lit` is the
+    crown-CENTRE relic: it carries MOST cyan wrath-fire (a CYAN ember core + CYAN_BR
+    upper glint). `nudge` is the two OUTERMOST fan-tip relics: one value notch up (a
+    mid-cyan core, no glint) so the 3-up beat reads at hero scale. All stay the DIMMEST
+    tier — NO white core, NO glow, below the brow third-eye; the rest get DIM CYAN_D."""
     ow1 = max(1, int(1.6 * s))
     ow_thin = max(1, int(1.0 * s))
 
@@ -230,51 +232,78 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
     # ridge steepness (out/up) · jaw roar mode · fangs · suture · damage · rage 0..1
     # Same single BARED-FANGS grammar as the palm skulls (rictus / snarl / roar),
     # so the 12-strong chorus reads as ONE language at varying intensity. Crown
-    # spread: 2 rictus · 2 snarl · 2 roar. cw/ch vary the cranium proportion so the
-    # arc reads as discrete domes, and damage edits the OUTLINE on most of them.
+    # spread: 2 rictus · 2 snarl · 2 roar.
+    # WHY the cw/ch spread is now AGGRESSIVE (one genuinely tall-narrow, one squat-
+    # broad, real asymmetric leans): the crown arc is the rank that sits against open
+    # sky and DRIVES the silhouette proof + 32px read. Subtle proportion deltas wash
+    # out at downscale, so each dome must contribute a DISTINCT bump to the arc's
+    # top edge — a saw-tooth of countable skulls, not one smooth hump. The `dmg`
+    # field now names a CONTOUR wound that is CARVED OUT of the cranium edge (bone
+    # ABSENT, sky shows through) rather than inked on the fill — see the dome loop.
     CROWN_PROFILE = [
-        # 0: TALL NARROW snarl, forked crack, sheared jaw — SILHOUETTE damage
-        dict(cw=0.84, ch=1.20, lean=0.00, brow=0.30, jaw="snarl", fangs=3, sut="crack",
+        # 0: GENUINELY TALL-NARROW snarl, forked crack, sheared jaw corner —
+        #    a real missing-bone notch in the lower edge. CONTOUR damage.
+        dict(cw=0.70, ch=1.34, lean=0.00, brow=0.30, jaw="snarl", fangs=3, sut="crack",
              dmg="jaw_shear", rage=0.66),
-        # 1: BROAD ROUND full-roar, zig suture, caved LEFT temple — SILHOUETTE damage
-        dict(cw=1.18, ch=0.94, lean=0.00, brow=0.32, jaw="roar", fangs=4, sut="zig",
+        # 1: BROAD full-roar, zig suture, LEFT temple CAVED — a concave bite eaten
+        #    into the upper-left dome edge. CONTOUR damage.
+        dict(cw=1.22, ch=0.92, lean=0.00, brow=0.32, jaw="roar", fangs=4, sut="zig",
              dmg="temple_cave", rage=0.92),
-        # 2: SQUAT low dome (CENTRE, lit) — full-roar, broken crest, brightest cyan —
-        #    SILHOUETTE damage
-        dict(cw=1.12, ch=0.82, lean=0.00, brow=0.34, jaw="roar", fangs=4, sut="zig",
+        # 2: GENUINELY SQUAT-BROAD low dome (CENTRE, lit) — full-roar, crest SHEARED
+        #    off in a jagged notch cut from the top, brightest cyan. CONTOUR damage.
+        dict(cw=1.30, ch=0.74, lean=0.00, brow=0.34, jaw="roar", fangs=4, sut="zig",
              dmg="crest_break", rage=0.98),
-        # 3: ASYMMETRIC right-lean rictus, forked crack, knocked lower fang —
-        #    SILHOUETTE damage (gap in lower edge)
-        dict(cw=1.02, ch=1.02, lean=0.20, brow=0.24, jaw="rictus", fangs=5, sut="crack",
+        # 3: STRONG asymmetric RIGHT-lean rictus, forked crack, knocked lower fang —
+        #    a real gap bitten into the lower edge. CONTOUR damage.
+        dict(cw=1.00, ch=1.06, lean=0.34, brow=0.24, jaw="rictus", fangs=5, sut="crack",
              dmg="fang_knock", rage=0.44),
-        # 4: clenched RICTUS, broad squat, faint median, cheek hairline (interior
-        #    only — the one relic that keeps an INTACT dome for contrast), low rage
-        dict(cw=1.06, ch=0.98, lean=-0.06, brow=0.20, jaw="rictus", fangs=6, sut="line",
+        # 4: clenched RICTUS, broad squat, faint median, cheek hairline — the ONE
+        #    relic kept deliberately SMOOTH / WHOLE in the contour: the intact relic
+        #    that makes the broken neighbours count. INTERIOR-only hairline, no
+        #    contour wound. low rage.
+        dict(cw=1.08, ch=1.00, lean=-0.04, brow=0.20, jaw="rictus", fangs=6, sut="line",
              dmg="cheek_crack", rage=0.36),
-        # 5: ASYMMETRIC left-lean snarl, zig suture, caved RIGHT temple —
-        #    SILHOUETTE damage
-        dict(cw=1.04, ch=0.96, lean=-0.20, brow=0.28, jaw="snarl", fangs=4, sut="zig",
+        # 5: STRONG asymmetric LEFT-lean snarl, zig suture, RIGHT temple CAVED —
+        #    concave bite eaten into the upper-right dome edge. CONTOUR damage.
+        dict(cw=1.02, ch=1.00, lean=-0.34, brow=0.28, jaw="snarl", fangs=4, sut="zig",
              dmg="temple_cave_r", rage=0.78),
     ]
     p = CROWN_PROFILE[idx % len(CROWN_PROFILE)]
     cw, ch, lean = p["cw"], p["ch"], p["lean"]
     rage = p["rage"]
+    dmg = p["dmg"]
 
-    # cranium as an ink-keyed POLYGON (not a plain circle) so width/height/lean and
-    # the DAMAGE all live in the silhouette. The lean skews the upper dome sideways;
-    # caved temples and a broken crest punch the outline so the wrath survives 32px.
+    # cranium as an ink-keyed POLYGON whose CONTOUR carries the damage. WHY 6° steps
+    # (was 12°): a sheared crest or a caved temple has to be a CRISP concave bite in
+    # the silhouette, and coarse steps round it back into a smooth lump. The damage
+    # now MOVES POINTS INWARD (toward the skull centre) and/or DROPS the crown line
+    # so bone is genuinely ABSENT there — in the pure-black proof the dome edge caves
+    # in / loses its crest / loses a jaw corner, instead of the whole crown reading as
+    # one cauliflower lump. Test: if a wound does not change the black edge, it is not
+    # a wound. Five of six crown skulls are notched here; idx 4 stays whole.
     dome = []
-    for ang_deg in range(-180, 1, 12):     # top half-ring: brow → temples → crown
+    for ang_deg in range(-180, 1, 6):      # top half-ring: brow → temples → crown
         a = math.radians(ang_deg)
-        dx = math.cos(a) * r * cw
-        dy = math.sin(a) * r * ch
+        rad_w, rad_h = r * cw, r * ch
+        dx = math.cos(a) * rad_w
+        dy = math.sin(a) * rad_h
         dx += lean * r * (-dy / max(1.0, r))      # shear the dome toward the lean
-        if p["dmg"] == "temple_cave" and -2.7 < a < -1.9:
-            dx += r * 0.26; dy += r * 0.14
-        if p["dmg"] == "temple_cave_r" and -1.25 < a < -0.45:
-            dx -= r * 0.26; dy += r * 0.14
-        if p["dmg"] == "crest_break" and -1.95 < a < -1.15:
-            dy += r * 0.30 * (0.4 + 0.6 * abs(math.cos(a * 3.0)))
+        # caved LEFT temple — eat a concave bite INTO the upper-left edge: pull the
+        # edge points back TOWARD centre (dx less negative) + sink them, so the dome
+        # outline dents inward and sky shows through the bite.
+        if dmg == "temple_cave" and -2.85 < a < -1.95:
+            bite = max(0.0, 1.0 - abs((a + 2.40) / 0.45))
+            dx += rad_w * 0.48 * bite; dy += rad_h * 0.20 * bite
+        # caved RIGHT temple — mirror bite into the upper-right edge (dx less positive)
+        if dmg == "temple_cave_r" and -1.15 < a < -0.25:
+            bite = max(0.0, 1.0 - abs((a + 0.70) / 0.45))
+            dx -= rad_w * 0.48 * bite; dy += rad_h * 0.20 * bite
+        # broken cranium CREST — a jagged chunk SHEARED off the very top: the crown
+        # line drops well inward and saw-teeth across the gap (real missing bone)
+        if dmg == "crest_break" and -2.05 < a < -1.05:
+            notch = 1.0 - abs((a + 1.55) / 0.50)
+            saw = 0.55 + 0.45 * math.sin(a * 7.0)
+            dy += rad_h * 0.52 * max(0.0, notch) * saw
         dome.append((cx + dx, cy + dy))
     # cheeks taper down to the jaw line
     dome.append((cx + r * cw * 0.74 + lean * r * 0.2, cy + r * ch * 0.34))
@@ -352,9 +381,13 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
                 (int(cx + jr * 0.84), int(uy + r * 0.22)), (int(cx + jl * 0.84), int(uy + r * 0.22))]
         pygame.draw.polygon(surf, INK, seam)
         jy0 = uy + r * 0.22
-        if p["dmg"] == "fang_knock":
-            jaw = [(cx + jl * 0.86, jy0), (cx - r * 0.06, jy0), (cx, jy0 + r * 0.16),
-                   (cx + r * 0.08, jy0), (cx + jr * 0.86, jy0),
+        if dmg == "fang_knock":
+            # knocked-out fang = a real V-notch bitten DEEP into the lower jaw edge,
+            # so the silhouette's bottom contour gains a gap (bone absent), not just
+            # a missing interior tooth.
+            jaw = [(cx + jl * 0.86, jy0), (cx - r * 0.10, jy0 + r * 0.04),
+                   (cx, jy0 + r * 0.34), (cx + r * 0.12, jy0 + r * 0.04),
+                   (cx + jr * 0.86, jy0),
                    (cx + jr * 0.62, jy0 + r * 0.30), (cx + jl * 0.62, jy0 + r * 0.30)]
         else:
             jaw = [(cx + jl * 0.86, jy0), (cx + jr * 0.86, jy0),
@@ -365,7 +398,7 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
             fx = cx - r * 0.36 + j * (r * 0.72 / max(1, nf - 1))
             c_upfang(fx, r * 0.16)
             c_lowfang(fx, jy0 + r * 0.02, r * 0.14,
-                      skip=(p["dmg"] == "fang_knock" and j == knock))
+                      skip=(dmg == "fang_knock" and j == knock))
     else:
         open_amt = (0.30 if mode == "snarl" else 0.70) + rage * 0.16
         drop = r * (0.12 + open_amt)
@@ -373,13 +406,16 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
                 (cx + jr * 0.80, uy + drop), (cx + jl * 0.80, uy + drop)]
         pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in void])
         jy0 = uy + drop
-        if p["dmg"] == "jaw_shear":
+        if dmg == "jaw_shear":
+            # one whole jaw CORNER sheared clean away — the jaw polygon loses a side,
+            # so the silhouette's lower edge is hard-asymmetric (missing bone), not a
+            # symmetric chin. The tall-narrow idx-0 relic carries this.
             if idx % 2 == 0:
-                jaw = [(cx + jl * 0.86, jy0), (cx + jr * 0.28, jy0),
-                       (cx + jr * 0.02, jy0 + r * 0.30), (cx + jl * 0.70, jy0 + r * 0.34)]
+                jaw = [(cx + jl * 0.86, jy0), (cx + jr * 0.18, jy0),
+                       (cx + jl * 0.10, jy0 + r * 0.20), (cx + jl * 0.78, jy0 + r * 0.30)]
             else:
-                jaw = [(cx + jl * 0.28, jy0), (cx + jr * 0.86, jy0),
-                       (cx + jr * 0.70, jy0 + r * 0.34), (cx + jl * 0.02, jy0 + r * 0.30)]
+                jaw = [(cx + jl * 0.18, jy0), (cx + jr * 0.86, jy0),
+                       (cx + jr * 0.78, jy0 + r * 0.30), (cx + jr * 0.10, jy0 + r * 0.20)]
         else:
             jaw = [(cx + jl * 0.80, jy0), (cx + jr * 0.80, jy0),
                    (cx + jr * 0.56, jy0 + r * 0.34), (cx + jl * 0.56, jy0 + r * 0.34)]
@@ -396,8 +432,12 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
             c_lowfang(fx, ly, r * (0.16 + rage * 0.10))
 
     # ── WIDE OVAL sockets canted OUTWARD/UP + DIM cyan wrath-fire ember ──
-    # the lit CENTRE relic carries MORE cyan (CYAN core + CYAN_BR glint); the rest
-    # get DIM CYAN_D embers — all below the brow third-eye, NO white core, NO glow.
+    # Three-step crown ember ladder, all still DIM (below the brow third-eye, far
+    # below the necklace hero gem; NO white core, NO glow): the lit CENTRE relic
+    # carries MOST cyan (CYAN core + CYAN_BR glint); the two OUTERMOST fan-tip relics
+    # are NUDGED one value notch (a mid CYAN_MID core, no glint) so the 3-up beat —
+    # two arc ends + the centre — reads at hero scale; the inner rest stay CYAN_D.
+    CYAN_MID = lerp(CYAN_D, CYAN, 0.5)
     for sgn in (-1, 1):
         ex = cx + int(sgn * r * 0.38)
         ey = cy + int(r * 0.04)
@@ -414,14 +454,18 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
             pygame.draw.circle(surf, CYAN, (em_x, em_y), max(1, int(r * 0.13)))
             pygame.draw.circle(surf, CYAN_BR, (em_x - int(r * 0.04), em_y - int(r * 0.05)),
                                max(1, int(r * 0.05)))
+        elif nudge:
+            pygame.draw.circle(surf, CYAN_MID, (em_x, em_y), max(1, int(r * 0.12)))
         else:
             pygame.draw.circle(surf, CYAN_D, (em_x, em_y), max(1, int(r * 0.10)))
 
     # nasal pit — flared with rage (a snarling snout)
     pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.40)), max(1, int(r * (0.12 + rage * 0.05))))
 
-    # cheek-crack damage on the near-clenched grimace
-    if p["dmg"] == "cheek_crack":
+    # cheek-crack damage on the near-clenched grimace — INTERIOR hairline ONLY.
+    # WHY no contour wound here: idx 4 is the deliberate INTACT-dome relic, the
+    # smooth/whole contrast skull that makes its broken neighbours read as broken.
+    if dmg == "cheek_crack":
         cc = [(cx + r * 0.28, cy + r * 0.16), (cx + r * 0.42, cy + r * 0.34),
               (cx + r * 0.34, cy + r * 0.50)]
         pygame.draw.lines(surf, CROWN_BONE_D, False, [(int(x), int(y)) for x, y in cc], ow_thin)
@@ -1123,15 +1167,46 @@ def draw_asthi_dakini(surf, cx, cy, s):
                          head_c[1] + math.sin(a) * arc_r))
     pygame.draw.lines(surf, INK, False, wire_pts, int(4 * s))
     pygame.draw.lines(surf, GOLD_D, False, wire_pts, int(2 * s))
-    # WHY exactly ONE lit skull (centre of the 6): the locked rule restricts the
-    # crown accent to the crown-CENTRE relic only; the rest stay the dimmest value
-    # tier. WHY `idx=i`: the six relics each get a DISTINCT cranium silhouette + set,
-    # so the arc reads as six individual jewels, not one stamp swept six times.
+    # WHY ONE lit skull (centre, idx 2) + a NUDGE on the two fan-tip ends (idx 0, 5):
+    # the locked rule keeps the crown the dimmest tier, but a 3-up ember beat (two arc
+    # ends + the centre) reads at hero scale. WHY `idx=i`: each relic gets a DISTINCT
+    # cranium silhouette + carved damage, so the arc reads as six jewels.
+    # WHY the WIDER 110° spread + RADIAL STAGGER (RADJ): a tighter ring let the domes
+    # overlap edge-to-edge into one mound, so the silhouette proof collapsed to a
+    # smooth hump. Spacing the perches wider opens SKY between adjacent dome TOPS, and
+    # pushing each skull OUT by its own amount gives each its own crest height — a
+    # saw-tooth of six countable bumps in the pure-black proof. WHY a gentle undulation
+    # (not a hard zigzag): a pure alternating in/out sinks the pulled-in domes under
+    # their neighbours and merges pairs, so all six pushes stay >=0 and every crest
+    # pokes the top edge; the tall-narrow idx 0 and squat-broad idx 2 add their own
+    # height delta on top of the push.
+    RADJ = [0.26, 0.02, 0.30, 0.00, 0.10, 0.24]     # per-skull perch push (× skull_r)
+    centres = []
     for i in range(6):
-        a = math.radians(220 + i * (100 / 5))
-        sx = head_c[0] + math.cos(a) * arc_r
-        sy = head_c[1] + math.sin(a) * arc_r
-        crown_skull(surf, int(sx), int(sy), skull_r, s, lit=(i == 2), idx=i)
+        a = math.radians(215 + i * (110 / 5))
+        rr = arc_r + RADJ[i] * skull_r
+        sx = head_c[0] + math.cos(a) * rr
+        sy = head_c[1] + math.sin(a) * rr
+        centres.append((sx, sy, a))
+        crown_skull(surf, int(sx), int(sy), skull_r, s,
+                    lit=(i == 2), idx=i, nudge=(i in (0, 5)))
+    # carve a thin dark seam between neighbouring domes — a tapered INK sliver along
+    # the radial join. WHY this is for the RENDERED chip, not the proof: in the
+    # blackout the mask flattens ink to solid too, so the COUNTABILITY in the proof
+    # comes from the stagger + carved contours above; the ink seam is what keeps the
+    # skulls visually separable in the literal 32px DAY/NIGHT chip where the domes
+    # would otherwise read as one bone ridge.
+    seam_w = max(2, int(2.2 * s))
+    for i in range(5):
+        ax_, ay_, _ = centres[i]
+        bx_, by_, _ = centres[i + 1]
+        mx, my = (ax_ + bx_) * 0.5, (ay_ + by_) * 0.5
+        rad = math.atan2(my - head_c[1], mx - head_c[0])
+        gx0 = mx + math.cos(rad) * skull_r * 0.34
+        gy0 = my + math.sin(rad) * skull_r * 0.34
+        gx1 = mx - math.cos(rad) * skull_r * 0.80
+        gy1 = my - math.sin(rad) * skull_r * 0.80
+        pygame.draw.line(surf, INK, (int(gx0), int(gy0)), (int(gx1), int(gy1)), seam_w)
 
 
 # ── the bone-bead reliquary-staff → pillar mirror (sister's own forms) ────────
@@ -1215,7 +1290,7 @@ def export_hero():
     canvas = pygame.Surface((boxw, boxh))
     vgrad(canvas, (0, 0, boxw, boxh), (74, 84, 104), (40, 46, 64))
     canvas.blit(hero, (0, 0))
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3_hero.png")
     pygame.image.save(canvas, out)
     return out
 
@@ -1241,7 +1316,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("ASTHI v2 — WRATHFUL-GRIN", True, LABEL), (24, 13))
     sheet.blit(f_sm.render(
-        "bone-jewel sky-dancer · CITIPATI body + MUKHA 6-arm fan · 12 BARED-FANGS satellites (rictus->snarl->roar) w/ silhouette-altering damage · fused crown · WARM aged-bone + gold pips · round 2",
+        "bone-jewel sky-dancer · CITIPATI body + MUKHA 6-arm fan · 12 BARED-FANGS satellites (rictus->snarl->roar) · crown skulls CARVED at the contour (caved temples / sheared crest / lost jaw corner) + staggered domes -> countable in the proof · round 3",
         True, LABEL_DIM), (270, 28))
 
     # === (a) BIG HERO =========================================================
@@ -1347,13 +1422,13 @@ def main():
     # bottom note strip
     pygame.draw.rect(sheet, PANEL, (14, 836, W - 28, 48))
     sheet.blit(f_sm.render(
-        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero export (round_2_hero.png).",
+        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero export (round_3_hero.png).",
         True, LABEL_DIM), (26, 846))
     sheet.blit(f_sm.render(
         "STAY: flat fills · hard ink keyline (28,22,26) · dark-core->fill->top-left sheen triad · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 864))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
     pygame.image.save(sheet, out)
     hero_out = export_hero()
     print("wrote", out)
