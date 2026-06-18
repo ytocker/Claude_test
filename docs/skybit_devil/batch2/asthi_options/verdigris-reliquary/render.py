@@ -26,9 +26,15 @@ Citipati reference, so the crown seats the Mukha tiara-BAND across the brow AND
 sweeps the wide airy 6-skull arc above it. Crown skulls are a touch darker/cooler
 than the warm body so they don't melt into it and still hold against open sky.
 
-Value ladder (AD hard rule): cyan third-eye slit = single brightest pixel → the
-six palm-skulls = mid → crown skulls = dimmest. Glow ONLY on the third-eye + the
-crown-centre skull.
+VERDIGRIS-RELIQUARY variant: a dug-up centuries-old Asthi in aged temple BRONZE
+gone GREEN-PATINA. The metal ornament is oxidised olive-bronze; skull-cyan reads
+as MATTE verdigris bloom. The two ICY/CRISP cyan gems — the larger necklace hero
+(white-hot core) + the smaller brow third-eye — stay un-oxidised, and that clean
+ice against the oxidised court is the whole point.
+
+Value ladder (AD hard rule): ICY necklace hero gem (white core) = brightest →
+ICY third-eye = next → bone → matte verdigris bloom = DIM (no skull gets a white
+core; the bloom always sits below the brow third-eye).
 
 WHY a standalone script under docs/: review art must never enter the shipped
 bundle, so it reuses only colour math + the triad/outline helpers, not runtime
@@ -64,27 +70,43 @@ def font(sz):
 # INK keylines + sheen holding the rounded lattice, and the WARM gold spacer-pips
 # stay the hue separator (gold-on-ivory reads cleanly). Deep hollows stay dark so
 # sockets / rib-gaps still punch.
-BONE      = (212, 202, 186)   # warm aged ivory-bone (the dominant LIGHT field)
-BONE_D    = (158, 148, 130)   # bone shade / mid-core
-BONE_DD   = ( 96,  88,  76)   # deepest bone hollow (sockets, rib gaps) — stays dark
-BONE_SH   = (240, 234, 222)   # bone top-left rim-sheen (warm near-white)
+# VERDIGRIS-RELIQUARY: a dug-up centuries-old Asthi. The bone carries a subtle
+# COOLER / GREENER cast (B nudged up, R pulled down so R≈G>B instead of R>G>B) so
+# the "ancient / unearthed" read lands even at 32px — but it stays clearly BONE,
+# not green: a grey-green ivory, never sage. Hollows still go near-neutral dark.
+BONE      = (198, 200, 184)   # ancient grey-green ivory (the dominant LIGHT field)
+BONE_D    = (144, 148, 132)   # bone shade / mid-core (cooler)
+BONE_DD   = ( 84,  88,  78)   # deepest bone hollow (sockets, rib gaps) — stays dark
+BONE_SH   = (228, 230, 218)   # bone top-left rim-sheen (cool near-white)
 # Beads pushed BRIGHTER + cooler-neutral than the warm bone field so the lattice
 # reads as its own value step on the now-light bone (a pale highlight chain), with
 # the gold pips carrying the hue contrast.
-BEAD      = (236, 232, 224)   # pale bone bead — a value step above the warm field
-BEAD_BR   = (252, 250, 246)   # bead top sheen / hottest bone bead
-CYAN      = ( 86, 214, 226)   # icy-cyan — third-eye + sparse jewel cabochons
-CYAN_BR   = (188, 248, 252)   # hot cyan inner
+# beads follow the bone's cool-grey-green cast (a value step above the field).
+BEAD      = (224, 226, 214)   # pale ancient bead — a value step above the field
+BEAD_BR   = (244, 246, 238)   # bead top sheen / hottest bead (cool near-white)
+# the TWO hero gems stay ICY / CRISP cyan — deliberately NOT green-shifted, so the
+# clean ice reads against the oxidised bronze court. This contrast is the version.
+CYAN      = ( 86, 214, 226)   # icy-cyan — necklace HERO gem + brow third-eye ONLY
+CYAN_BR   = (188, 248, 252)   # hot cyan inner (hero white core sits on this)
 CYAN_D    = ( 40, 132, 150)
-GOLD      = (212, 162,  60)   # WARM gold spacer-pips (the hue separator on ivory)
-GOLD_BR   = (246, 208, 110)
-GOLD_D    = (158, 112,  40)
+# AGED-BRONZE metal family — the gold ornament has gone centuries-old bronze: a
+# muted olive-bronze base, a dim tarnished low, a brighter burnished catch-light
+# where edges were rubbed clean. Bezels/pips/ornament now read as dug-up metalwork.
+GOLD      = (158, 140,  70)   # aged bronze base (the metal of every bezel/pip/band)
+GOLD_BR   = (204, 184, 116)   # burnished bronze catch-light (rubbed-clean edge)
+GOLD_D    = (104,  92,  46)   # tarnished bronze low (recessed metal)
+# VERDIGRIS patina — the green copper-bloom that has crept over the bronze and
+# stands in for the oxidised metalwork: a matte blue-green, used on bezels/pips/
+# ornament edges and as the MATTE skull-cyan bloom (NOT the icy faceted gem look).
+PATINA    = (120, 150, 110)   # verdigris patina (bronze oxidation green)
+PATINA_BR = (162, 188, 150)   # lighter bloom / powdery seafoam crest
+PATINA_D  = ( 70,  98,  78)   # deep verdigris crust in recesses (eaten edges)
 INK       = ( 28,  22,  26)   # hard ink keyline
 # crown skulls go a touch DARKER + cooler than the now-warm-light body so they
 # don't melt into the body OR wash out on the day sky; they stay the dimmest tier.
-CROWN_BONE   = (170, 162, 152)
-CROWN_BONE_D = (110, 104,  96)
-CROWN_SH     = (206, 200, 190)
+CROWN_BONE   = (158, 162, 150)
+CROWN_BONE_D = (100, 104,  94)
+CROWN_SH     = (192, 196, 184)
 THIRD_EYE = CYAN              # cyan third-eye slit = the single brightest focal
 
 BG        = ( 92,  96, 108)   # neutral grey review backdrop
@@ -222,26 +244,36 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
     ow1 = max(1, int(1.6 * s))
     ow_thin = max(1, int(1.0 * s))
 
-    # ── per-relic silhouette table — the variety must read in the SHAPE ──
+    # ── per-relic silhouette + EROSION table — variety in SHAPE and weathering ──
     # cw/ch = cranium width/height stretch · lean = sideways skew of the dome ·
     # heart = a notched/dimpled crown top · suture style · brow ridge? · jaw set ·
-    # pip = dim gold-bezel cyan bead? · chip = a broken tooth?
+    # pip = bezel pip? · chip = a broken tooth? · eros = the verdigris decay over
+    # THIS relic (crust from a socket edge / temple-streak / verdigris suture-studs /
+    # a patina-EATEN socket altering the silhouette / pitting / heavy bloom). The 6
+    # crown relics weather DIFFERENTLY from each other AND from the 6 palm skulls.
     CROWN_PROFILE = [
-        # 0: TALL narrow dome, gold-pip-beaded suture, set jaw
-        dict(cw=0.88, ch=1.18, lean=0.00, heart=False, sut="dots", brow=True,  jaw="set",   pip=True,  chip=False),
-        # 1: broad ROUND dome, zigzag suture, plain jaw
-        dict(cw=1.16, ch=0.96, lean=0.00, heart=False, sut="zig",  brow=False, jaw="plain", pip=False, chip=False),
-        # 2: SQUAT low dome (centre, lit) — heart-domed top, beaded suture, pip
-        dict(cw=1.10, ch=0.86, lean=0.00, heart=True,  sut="dots", brow=True,  jaw="set",   pip=True,  chip=False),
-        # 3: LOPSIDED dome leaning right, zigzag suture, chipped tooth
-        dict(cw=1.00, ch=1.02, lean=0.20, heart=False, sut="zig",  brow=True,  jaw="plain", pip=False, chip=True),
-        # 4: HEART-domed (notched crown), plain suture, narrow set jaw
-        dict(cw=1.02, ch=1.06, lean=-0.06, heart=True, sut="line", brow=False, jaw="set",   pip=False, chip=False),
-        # 5: lopsided SQUAT dome leaning left, zigzag suture, broad plain jaw
-        dict(cw=1.08, ch=0.92, lean=-0.18, heart=False, sut="zig", brow=True,  jaw="plain", pip=False, chip=True),
+        # 0: TALL narrow dome, set jaw; verdigris suture-STUDS + L socket crust
+        dict(cw=0.88, ch=1.18, lean=0.00, heart=False, sut="dots", brow=True,  jaw="set",   pip=True,  chip=False,
+             eros=dict(crust=-1, streak=0,  studs=True,  eaten=0,  pit=False, bloom=False)),
+        # 1: broad ROUND dome, plain jaw; R temple-STREAK + pitting
+        dict(cw=1.16, ch=0.96, lean=0.00, heart=False, sut="zig",  brow=False, jaw="plain", pip=False, chip=False,
+             eros=dict(crust=0,  streak=1,  studs=False, eaten=0,  pit=True,  bloom=False)),
+        # 2: SQUAT heart-dome (CENTRE, lit) — MOST bloomed: both sockets + crust patch
+        dict(cw=1.10, ch=0.86, lean=0.00, heart=True,  sut="dots", brow=True,  jaw="set",   pip=True,  chip=False,
+             eros=dict(crust=0,  streak=0,  studs=True,  eaten=0,  pit=True,  bloom=True)),
+        # 3: LOPSIDED dome leaning right, chipped; R socket EATEN (silhouette bite)
+        dict(cw=1.00, ch=1.02, lean=0.20, heart=False, sut="zig",  brow=True,  jaw="plain", pip=False, chip=True,
+             eros=dict(crust=0,  streak=-1, studs=False, eaten=1,  pit=False, bloom=False)),
+        # 4: HEART-domed, set jaw; L socket crust + verdigris studs
+        dict(cw=1.02, ch=1.06, lean=-0.06, heart=True, sut="line", brow=False, jaw="set",   pip=False, chip=False,
+             eros=dict(crust=-1, streak=0,  studs=True,  eaten=0,  pit=True,  bloom=False)),
+        # 5: lopsided SQUAT dome leaning left, chipped; L socket EATEN + streak
+        dict(cw=1.08, ch=0.92, lean=-0.18, heart=False, sut="zig", brow=True,  jaw="plain", pip=False, chip=True,
+             eros=dict(crust=0,  streak=1,  studs=False, eaten=-1, pit=False, bloom=False)),
     ]
     p = CROWN_PROFILE[idx % len(CROWN_PROFILE)]
     cw, ch, lean = p["cw"], p["ch"], p["lean"]
+    e = p["eros"]
 
     # cranium as an ink-keyed POLYGON (not a plain circle) so width/height/lean and
     # the heart-notch all live in the silhouette. The lean skews the upper dome
@@ -266,19 +298,37 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
              (cx - r * cw * 0.46, cy + r * ch * 0.02)]
     pygame.draw.polygon(surf, CROWN_SH, [(int(x), int(y)) for x, y in sheen])
 
-    # cranial SUTURE — per-profile crown seam (the carved-bone read at hero scale)
+    # ── EROSION over THIS crown relic (pushed into value/silhouette for 32px) ──
+    if e["streak"]:    # a matte verdigris temple-run down one cheek
+        sg = e["streak"]
+        st_poly = [(cx + sg * r * 0.40, cy - r * 0.18), (cx + sg * r * 0.58, cy - r * 0.10),
+                   (cx + sg * r * 0.44, cy + r * 0.44), (cx + sg * r * 0.26, cy + r * 0.38)]
+        pygame.draw.polygon(surf, PATINA, [(int(x), int(y)) for x, y in st_poly])
+    if e["bloom"]:     # a heavy crust patch on the cranium (most-bloomed relic)
+        verdigris_bloom(surf, int(cx - r * 0.06), int(cy - r * ch * 0.36), int(r * 0.34), s)
+    if e["pit"]:       # scattered matte pitting flecks
+        for (px, py) in ((-0.34, -0.28), (0.30, -0.18), (-0.10, -0.40)):
+            pygame.draw.circle(surf, PATINA_D, (int(cx + px * r), int(cy + py * r)), max(1, int(0.8 * s)))
+
+    # cranial SUTURE — per-profile crown seam (the carved-bone read at hero scale).
+    # WHY studs go PATINA: an `eros.studs` relic carries green verdigris suture-studs
+    # (oxidised pins) instead of the tarnished-bronze pip.
     seam_y = cy - r * ch * 0.56
     if p["sut"] == "zig":
         zp = [(cx - r * 0.34 + j * (r * 0.68 / 4),
                seam_y + (r * 0.10 if j % 2 else -r * 0.06)) for j in range(5)]
         pygame.draw.lines(surf, CROWN_BONE_D, False,
                           [(int(x), int(y)) for x, y in zp], ow_thin)
+        if e["studs"]:
+            for (zx, zy) in (zp[0], zp[2], zp[4]):
+                pygame.draw.circle(surf, PATINA, (int(zx), int(zy)), max(1, int(0.8 * s)))
     elif p["sut"] == "dots":
         for j in range(5):
             zx = cx - r * 0.34 + j * (r * 0.68 / 4)
             pygame.draw.circle(surf, CROWN_BONE_D, (int(zx), int(seam_y)), max(1, int(0.9 * s)))
-            if j % 2 == 0:    # dim gold pip on alternate suture nodes (jewel-set bone)
-                pygame.draw.circle(surf, GOLD_D, (int(zx), int(seam_y)), max(1, int(0.8 * s)))
+            if j % 2 == 0:    # alt nodes: verdigris stud (oxidised) or tarnished pip
+                node = PATINA if e["studs"] else GOLD_D
+                pygame.draw.circle(surf, node, (int(zx), int(seam_y)), max(1, int(0.8 * s)))
     else:   # "line" — a single straight median suture
         pygame.draw.line(surf, CROWN_BONE_D, (int(cx), int(cy - r * ch * 0.78)),
                          (int(cx), int(cy - r * 0.06)), ow_thin)
@@ -298,12 +348,26 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
                (cx + r * 0.38, cy + r * 1.02), (cx - r * 0.38, cy + r * 1.02)]
     triad_blob(surf, CROWN_BONE, [(int(x), int(y)) for x, y in jaw], ow=max(1, int(1.2 * s)))
 
-    # two dark sockets (the lit centre relic gets a dim cyan tint, no glow)
-    eye_c = CYAN_D if lit else INK
-    for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
-        pygame.draw.circle(surf, INK, (ex, cy + int(r * 0.04)), max(1, int(r * 0.24)))
+    # two dark sockets — patina EATS/CRUSTS one rim, the bloomed relic rings both.
+    # WHY the lit centre's eyes go PATINA (not CYAN_D): skull-cyan is oxidised bloom,
+    # so even the lit crown relic stays a matte verdigris glow — DIM, below the two
+    # icy hero gems — never the crisp cyan that the necklace + brow gems own.
+    eye_c = PATINA if lit else INK
+    for sgn in (-1, 1):
+        ex = cx + sgn * int(r * 0.38)
+        ey = cy + int(r * 0.04)
+        if e["eaten"] == sgn:    # a verdigris bite overrunning the round rim (silhouette)
+            bxe = ex + int(sgn * r * 0.22)
+            pygame.draw.circle(surf, PATINA_D, (bxe, ey - int(r * 0.10)), int(r * 0.26))
+            pygame.draw.circle(surf, PATINA, (bxe, ey - int(r * 0.10)), int(r * 0.15))
+        pygame.draw.circle(surf, INK, (ex, ey), max(1, int(r * 0.24)))
         if lit:
-            pygame.draw.circle(surf, eye_c, (ex, cy + int(r * 0.04)), max(1, int(r * 0.12)))
+            pygame.draw.circle(surf, eye_c, (ex, ey), max(1, int(r * 0.12)))
+        if e["crust"] == sgn:    # a softer patina lip creeping in from one edge
+            pygame.draw.circle(surf, PATINA, (ex + int(sgn * r * 0.22), ey + int(r * 0.16)),
+                               max(1, int(r * 0.14)))
+        if e["bloom"]:           # heavy bloom ringing both sockets (most-bloomed relic)
+            pygame.draw.circle(surf, PATINA, (ex, ey), int(r * 0.30), max(1, int(1.2 * s)))
 
     # nasal pit
     pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.13)))
@@ -319,32 +383,49 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
         pygame.draw.line(surf, INK, (tx, ty - int(r * 0.08)), (tx, ty + int(r * 0.10)),
                          max(1, int(1.0 * s)))
 
-    # DIM gold-bezel cyan brow pip on the pip-bearing relics (incl. the lit centre)
-    # — a hue echo of her bead identity, kept the dimmest tier (GOLD_D + CYAN_D, no
-    # white core, no glow) so the third-eye stays the single brightest pixel.
+    # DIM tarnished-bronze-bezel verdigris brow pip on the pip-bearing relics — an
+    # oxidised echo of her metalwork, kept the dimmest tier (GOLD_D + PATINA, no
+    # white core, no glow) so the two icy hero gems stay the brightest cyan.
     if p["pip"]:
         bg_y = cy - int(r * 0.28)
         pygame.draw.circle(surf, GOLD_D, (cx, bg_y), max(1, int(r * 0.18)))
-        pygame.draw.circle(surf, CYAN_D, (cx, bg_y), max(1, int(r * 0.11)))
+        pygame.draw.circle(surf, PATINA, (cx, bg_y), max(1, int(r * 0.11)))
 
 
-# ── a small CYAN cabochon inlay — the palm-gem (DIM tier, gold bezel) ─────────
+# ── a MATTE verdigris-bloom inlay — the skull-cyan, oxidised not icy ──────────
 def palm_cabochon(surf, c, r, s):
-    """A gold-bezel cyan CABOCHON inlay set into a palm-skull's brow. WHY a clear
-    value step BELOW the focal third-eye: the brow gem must stay the single
-    brightest pixel, so this inlay caps at CYAN_BR for a tiny rim glint only — NO
-    white-hot core — and rides a warm GOLD bezel so it reads as jewel-set bone,
-    matching her bead identity rather than competing with the third-eye."""
+    """Skull-cyan as a MATTE VERDIGRIS BLOOM, NOT the icy faceted gem. WHY the bloom
+    look: the two hero gems (necklace + brow) are the only ICY/CRISP cyan on the
+    figure; everything the skulls carry is oxidised-copper bloom — a dim, flat,
+    green-shifted patina crust ringed by a tarnished-bronze bezel. WHY no glint /
+    no white core: the LADDER GUARDRAIL keeps every skull below the brow third-eye,
+    so this caps at a dull PATINA_BR speck (never CYAN_BR, never a hot core)."""
     cx, cy = int(c[0]), int(c[1])
-    # warm gold bezel ring first (the setting), then the domed cyan stone inside
-    triad_circle(surf, GOLD, (cx, cy), r + max(1, int(0.9 * s)),
+    # tarnished bronze bezel (the eaten setting), then the matte verdigris crust
+    triad_circle(surf, GOLD_D, (cx, cy), r + max(1, int(0.9 * s)),
                  ow=max(1, int(1.0 * s)), core=False, sheen=False)
     pygame.draw.circle(surf, INK, (cx, cy), r)
-    pygame.draw.circle(surf, CYAN_D, (cx, cy), max(1, r - max(1, int(0.6 * s))))
-    pygame.draw.circle(surf, CYAN, (cx, cy), max(1, int(r * 0.66)))
-    # a single small rim glint (capped at CYAN_BR — never the focal white core)
-    pygame.draw.circle(surf, CYAN_BR, (cx - int(r * 0.30), cy - int(r * 0.32)),
-                       max(1, int(r * 0.26)))
+    pygame.draw.circle(surf, PATINA_D, (cx, cy), max(1, r - max(1, int(0.6 * s))))
+    pygame.draw.circle(surf, PATINA, (cx, cy), max(1, int(r * 0.62)))
+    # an off-centre powdery bloom flake — matte, dim, irregular (NOT a rim glint)
+    pygame.draw.circle(surf, PATINA_BR, (cx - int(r * 0.18), cy - int(r * 0.16)),
+                       max(1, int(r * 0.30)))
+
+
+# ── a creeping verdigris BLOOM patch — eats edges + rings sockets (silhouette) ─
+def verdigris_bloom(surf, cx, cy, r, s, spread=1.0, ink_edge=True):
+    """A matte patina BLOOM patch — the oxidised-copper crust creeping over bone.
+    WHY it pushes into VALUE/SILHOUETTE (a cooler dark crust + a powdery crest),
+    not fine glints: fine crust is hero-only, so the weathering must read at 32px
+    as a cooler, darker bite out of the bone. `spread` scales the patch; the more-
+    bloomed skulls stack several of these. Stays DIM — below the brow third-eye."""
+    rr = max(2, int(r * spread))
+    if ink_edge:
+        pygame.draw.circle(surf, PATINA_D, (cx, cy), rr + max(1, int(0.6 * s)))
+    pygame.draw.circle(surf, PATINA, (cx, cy), rr)
+    # a small lighter seafoam crest, offset, so the bloom has a matte bi-tone read
+    pygame.draw.circle(surf, PATINA_BR, (cx - int(rr * 0.22), cy - int(rr * 0.24)),
+                       max(1, int(rr * 0.42)))
 
 
 # ── a tiny skull cradled in an open palm (the brood MOTIF) ────────────────────
@@ -360,21 +441,37 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
     ow1 = max(1, int(1.4 * s))
     ow_thin = max(1, int(1.0 * s))
 
-    # ── per-skull personality table (six genuinely distinct little skulls) ──
-    # tilt(rad), cranium x/y stretch, jaw mode, n_teeth, suture style, gem?, chip?
+    # ── per-skull EROSION register (six skulls, each weathered DIFFERENTLY) ──
+    # Beyond shape/jaw/teeth/suture, each carries an `eros` recipe — the kind of
+    # centuries-old decay creeping over THIS skull, pushed into VALUE/SILHOUETTE so
+    # it reads at 32px (no two alike). `eros` fields:
+    #   crust  — which socket EDGE a verdigris crust creeps in from (-1 L / 1 R / 0)
+    #   streak — a patina temple-streak running down one cheek (-1 / 0 / 1)
+    #   studs  — green verdigris suture-studs replacing the bone seam-dots
+    #   eaten  — a socket whose silhouette is BITTEN by a patina-eaten edge (-1/1/0)
+    #   pit    — scattered patina pitting flecks on the cranium
+    #   bloom  — heavy bloom: rings BOTH sockets + a cranium crust patch (the 3 most)
+    # WHY idx 0 + 3 carry bloom=True: after the fan sort, idx 0 and idx 3 are the
+    # two LOWEST palms (the d=100° hands), the pair the brief blooms most heavily.
     PROFILE = [
-        # 0: tall egg-dome, jaw agape (open mouth), zigzag suture, GEM in brow
-        dict(tilt=-0.16, cw=0.96, ch=1.12, jaw="agape", teeth=5, sut="zig", gem=True,  chip=False),
-        # 1: broad round skull, closed jaw, bead-dotted suture, GOLD pips only
-        dict(tilt= 0.10, cw=1.14, ch=0.96, jaw="closed", teeth=6, sut="dots", gem=False, chip=False),
-        # 2: narrow tilted skull, jaw cracked off (asymmetric stub), GEM-lit socket
-        dict(tilt=-0.30, cw=0.88, ch=1.04, jaw="cracked", teeth=3, sut="zig", gem="socket", chip=True),
-        # 3: squat low dome, jaw agape wide, straight suture line, GOLD pips
-        dict(tilt= 0.06, cw=1.06, ch=0.90, jaw="agape", teeth=7, sut="line", gem=False, chip=False),
-        # 4: tall narrow skull, closed jaw, bead-dotted suture, GEM in brow
-        dict(tilt= 0.22, cw=0.90, ch=1.10, jaw="closed", teeth=5, sut="dots", gem=True,  chip=False),
-        # 5: lopsided cranium, jaw cracked off, zigzag suture, GOLD pips + chipped
-        dict(tilt=-0.08, cw=1.02, ch=1.00, jaw="cracked", teeth=4, sut="zig", gem=False, chip=True),
+        # 0: tall egg-dome, agape jaw, GEM-bloom brow — MOST bloomed (lowest palm)
+        dict(tilt=-0.16, cw=0.96, ch=1.12, jaw="agape", teeth=5, sut="zig", gem=True,  chip=False,
+             eros=dict(crust=-1, streak=1,  studs=True,  eaten=-1, pit=True,  bloom=True)),
+        # 1: broad round skull, closed jaw; a long patina temple-STREAK down the R cheek
+        dict(tilt= 0.10, cw=1.14, ch=0.96, jaw="closed", teeth=6, sut="dots", gem=False, chip=False,
+             eros=dict(crust=0,  streak=1,  studs=True,  eaten=0,  pit=False, bloom=False)),
+        # 2: narrow tilted skull, cracked jaw, bloom-lit socket; R socket EATEN (silhouette)
+        dict(tilt=-0.30, cw=0.88, ch=1.04, jaw="cracked", teeth=3, sut="zig", gem="socket", chip=True,
+             eros=dict(crust=0,  streak=-1, studs=False, eaten=1,  pit=True,  bloom=False)),
+        # 3: squat low dome, wide agape jaw — MOST bloomed (lowest palm)
+        dict(tilt= 0.06, cw=1.06, ch=0.90, jaw="agape", teeth=7, sut="line", gem=False, chip=False,
+             eros=dict(crust=1,  streak=-1, studs=True,  eaten=1,  pit=True,  bloom=True)),
+        # 4: tall narrow, closed jaw, GEM-bloom brow; verdigris suture-STUDS + L crust
+        dict(tilt= 0.22, cw=0.90, ch=1.10, jaw="closed", teeth=5, sut="dots", gem=True,  chip=False,
+             eros=dict(crust=-1, streak=0,  studs=True,  eaten=0,  pit=True,  bloom=False)),
+        # 5: lopsided cranium, cracked jaw, chipped; L socket EATEN (silhouette) + pit
+        dict(tilt=-0.08, cw=1.02, ch=1.00, jaw="cracked", teeth=4, sut="zig", gem=False, chip=True,
+             eros=dict(crust=0,  streak=0,  studs=False, eaten=-1, pit=True,  bloom=False)),
     ]
     p = PROFILE[idx % len(PROFILE)]
     t = p["tilt"]
@@ -423,7 +520,34 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
              rot(-cr * cw * 0.50, -cr * ch * 0.04)]
     pygame.draw.polygon(surf, BEAD_BR, [(int(x), int(y)) for x, y in sheen])
 
-    # cranial SUTURE — per-profile, riding the crown seam (the carved-bone read)
+    # ── EROSION register — the centuries-old verdigris decay over THIS skull ──
+    # WHY here (under the carved detail): the crust/streak/pit sit ON the dome so
+    # they read as patina eating into the bone, but below the sockets so the eaten-
+    # edge silhouette work (further down) still bites the socket outline cleanly.
+    e = p["eros"]
+    # patina temple-STREAK — a matte verdigris run down one cheek (value, not line)
+    if e["streak"]:
+        sg = e["streak"]
+        streak = [rot(sg * cr * 0.46, -cr * 0.10), rot(sg * cr * 0.66, -cr * 0.04),
+                  rot(sg * cr * 0.50, cr * 0.70), rot(sg * cr * 0.30, cr * 0.64)]
+        pygame.draw.polygon(surf, PATINA, [(int(x), int(y)) for x, y in streak])
+        pygame.draw.polygon(surf, PATINA_D, [(int(x), int(y)) for x, y in streak], ow_thin)
+    # heavy BLOOM — a cranium crust patch (the most-bloomed skulls only)
+    if e["bloom"]:
+        bx, by = rot(-cr * 0.10, -cr * ch * 0.34)
+        verdigris_bloom(surf, int(bx), int(by), int(cr * 0.40), s, spread=1.0)
+    # patina PITTING — scattered matte flecks bitten into the cranium
+    if e["pit"]:
+        for (px, py) in ((-0.30, -0.30), (0.32, -0.20), (0.10, 0.04), (-0.46, 0.20)):
+            fx, fy = rot(px * cr, py * cr)
+            pygame.draw.circle(surf, PATINA_D, (int(fx), int(fy)), max(1, int(0.9 * s)))
+            pygame.draw.circle(surf, PATINA, (int(fx), int(fy)), max(1, int(0.6 * s)))
+
+    # cranial SUTURE — per-profile, riding the crown seam (the carved-bone read).
+    # WHY studs go PATINA: when `eros.studs` is set the seam-nodes are green
+    # verdigris suture-studs (oxidised metal pins) instead of the bone/bronze dots.
+    seam_dot = PATINA if e["studs"] else BONE_DD
+    stud_col = PATINA_D if e["studs"] else GOLD
     if p["sut"] == "zig":
         zp = []
         for j in range(5):
@@ -431,14 +555,17 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
             zy = -cr * ch * 0.62 + (cr * 0.10 if j % 2 else -cr * 0.06)
             zp.append(rot(zx, zy))
         pygame.draw.lines(surf, BONE_DD, False, [(int(x), int(y)) for x, y in zp], ow_thin)
+        if e["studs"]:    # verdigris studs punctuating the zigzag seam
+            for (zx, zy) in (zp[0], zp[2], zp[4]):
+                pygame.draw.circle(surf, PATINA, (int(zx), int(zy)), max(1, int(0.9 * s)))
     elif p["sut"] == "dots":
         for j in range(5):
             zx = -cr * 0.34 + j * (cr * 0.68 / 4)
             dx, dy = rot(zx, -cr * ch * 0.60)
-            pygame.draw.circle(surf, BONE_DD, (int(dx), int(dy)), max(1, int(0.9 * s)))
-            if j % 2 == 0:    # tiny gold pip on alternate suture nodes (jewel-set bone)
+            pygame.draw.circle(surf, seam_dot, (int(dx), int(dy)), max(1, int(0.9 * s)))
+            if j % 2 == 0:    # alt nodes: verdigris stud (oxidised) or bronze pip
                 gx, gy = rot(zx, -cr * ch * 0.60)
-                pygame.draw.circle(surf, GOLD, (int(gx), int(gy)), max(1, int(0.8 * s)))
+                pygame.draw.circle(surf, stud_col, (int(gx), int(gy)), max(1, int(0.8 * s)))
     else:   # "line" — a single straight median suture
         pygame.draw.line(surf, BONE_DD,
                          (int(rot(0, -cr * ch * 0.80)[0]), int(rot(0, -cr * ch * 0.80)[1])),
@@ -455,17 +582,42 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
               rot(cr * 0.52, cr * 0.56), rot(cr * 0.18, cr * 0.50)]
     pygame.draw.polygon(surf, BONE_D, [(int(x), int(y)) for x, y in hollow])
 
-    # ── deep ink sockets with a CARVED rim (a bone ring around each pit) ──
+    # ── deep ink sockets with a CARVED rim — patina EATS one rim's silhouette ──
+    # WHY the eaten socket alters the OUTLINE: fine crust is hero-only, so the
+    # weathering must read at 32px — a patina-eaten socket pushes a dark verdigris
+    # bite OUTSIDE the round rim, breaking the clean circle (a silhouette change),
+    # not just a tint. `crust` instead creeps a softer patina lip in from one edge.
     socket_r = cr * 0.30
     for sgn in (-1, 1):
         ecx, ecy = rot(sgn * cr * 0.40, cr * 0.14)
         ecx, ecy = int(ecx), int(ecy)
+        # a patina-EATEN socket: a verdigris crust bite that overruns the rim edge,
+        # breaking the clean round socket — a SILHOUETTE change that reads at 32px.
+        if e["eaten"] == sgn:
+            bxe = ecx + int(sgn * socket_r * 0.55)
+            bye = ecy - int(socket_r * 0.30)
+            pygame.draw.circle(surf, PATINA_D, (bxe, bye), int(socket_r * 1.18))
+            pygame.draw.circle(surf, PATINA, (bxe, bye), int(socket_r * 0.72))
         # carved bone rim (a ring) then the deep ink pit
         pygame.draw.circle(surf, BONE_D, (ecx, ecy), int(socket_r + max(1, 1.2 * s)))
         pygame.draw.circle(surf, INK, (ecx, ecy), int(socket_r))
         pygame.draw.circle(surf, BONE_DD, (ecx, ecy), int(socket_r * 0.62))
         pygame.draw.circle(surf, INK, (ecx, ecy), int(socket_r * 0.34))
-    # a profile may light ONE socket with the dim cyan inlay instead of a brow gem
+        # a softer crust LIP creeping in from one socket edge (value, stays inside)
+        if e["crust"] == sgn:
+            lip = ecx + int(sgn * socket_r * 0.66)
+            pygame.draw.circle(surf, PATINA, (lip, ecy + int(socket_r * 0.22)),
+                               max(1, int(socket_r * 0.46)))
+            pygame.draw.circle(surf, PATINA_D, (lip, ecy + int(socket_r * 0.22)),
+                               max(1, int(socket_r * 0.46)), max(1, int(0.8 * s)))
+        # heavy BLOOM rings BOTH sockets (the most-bloomed skulls)
+        if e["bloom"]:
+            pygame.draw.circle(surf, PATINA, (ecx, ecy),
+                               int(socket_r + max(2, 2.0 * s)), max(1, int(1.6 * s)))
+            pygame.draw.circle(surf, PATINA_BR,
+                               (ecx - int(socket_r * 0.5), ecy - int(socket_r * 0.5)),
+                               max(1, int(0.9 * s)))
+    # a profile may bloom ONE socket with the matte verdigris inlay (oxidised eye)
     if p["gem"] == "socket":
         scx2, scy2 = rot(-cr * 0.40, cr * 0.14)
         palm_cabochon(surf, (scx2, scy2), max(2, int(socket_r * 0.66)), s)
@@ -516,7 +668,9 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
         pygame.draw.line(surf, INK, (int(tp0[0]), int(tp0[1])),
                          (int(tp1[0]), int(tp1[1])), max(1, int(1.0 * s)))
 
-    # ── brow CABOCHON — the dim cyan jewel for the gem-bearing profiles ──
+    # ── brow BLOOM — matte verdigris inlay for the bloom-bearing profiles ──
+    # WHY not icy: skull-cyan is oxidised bloom, never the crisp faceted gem; this
+    # caps dim (PATINA), keeping the two hero gems the brightest/crispest cyan.
     if p["gem"] is True:
         gx, gy = rot(0, -cr * 0.20)
         palm_cabochon(surf, (gx, gy), max(2, int(cr * 0.26)), s)
@@ -820,13 +974,24 @@ def draw_asthi_dakini(surf, cx, cy, s):
         pygame.draw.circle(surf, BONE_D,
                            (head_c[0] + sgn * int(hr * 0.66), head_c[1] + int(hr * 0.28)),
                            int(hr * 0.26))
-    # big round sockets — scary-cute, kept dim (no hot core) so the third-eye wins
+    # big round sockets — scary-cute, kept dim. The socket-glow is MATTE verdigris
+    # bloom (oxidised, not icy): the unearthed figure's own sockets are part of the
+    # oxidised court, so the ONLY crisp icy cyan on the head is the third-eye gem.
+    # One socket carries a creeping crust lip (a faint silhouette bite) so the hero
+    # head itself reads as centuries-dug. The two icy gems stay the brightest cyan.
     for sgn in (-1, 1):
         ex = head_c[0] + sgn * int(hr * 0.44)
         ey = head_c[1] + int(hr * 0.10)
+        if sgn == 1:    # patina crust creeping over the right socket's outer rim
+            pygame.draw.circle(surf, PATINA_D, (ex + int(hr * 0.18), ey - int(hr * 0.10)),
+                               int(hr * 0.16))
+            pygame.draw.circle(surf, PATINA, (ex + int(hr * 0.18), ey - int(hr * 0.10)),
+                               int(hr * 0.09))
         pygame.draw.circle(surf, BONE_DD, (ex, ey), int(hr * 0.32))
         pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.26))
-        pygame.draw.circle(surf, CYAN_D, (ex + sgn * int(1 * s), ey + int(1 * s)), int(hr * 0.10))
+        pygame.draw.circle(surf, PATINA, (ex + sgn * int(1 * s), ey + int(1 * s)), int(hr * 0.10))
+        pygame.draw.circle(surf, PATINA_BR, (ex - int(hr * 0.04), ey - int(hr * 0.04)),
+                           max(1, int(hr * 0.04)))
     # THIRD EYE — the same faceted cyan cut-gem, SMALLER than the necklace hero gem
     # and a step dimmer (no white-hot core), so the necklace gem reads as brightest.
     tex, tey = head_c[0], head_c[1] - int(hr * 0.36)
@@ -861,8 +1026,8 @@ def draw_asthi_dakini(surf, cx, cy, s):
     # === FUSED CROWN — Mukha tiara-BAND on the brow + wide airy 6-skull ARC ====
     # WHY both languages: a plain arc reads as the Citipati reference, so the
     # tiara-band (a beaded gold band seated ACROSS the brow) is drawn first, then
-    # the wide 6-skull arc sweeps above it in open sky. Crown skulls = warm-bone,
-    # the dimmest value tier; only the centre skull glows.
+    # the wide 6-skull arc sweeps above it in open sky. Crown skulls = cool ancient
+    # bone, the dimmest value tier; only the centre skull carries a matte verdigris glow.
 
     # -- tiara-band across the brow (Mukha language) --
     tiara_r = int(hr * 0.98)
@@ -877,12 +1042,13 @@ def draw_asthi_dakini(surf, cx, cy, s):
     # a bead-row riding on the band (carry the brood's bead texture into the crown)
     bead_arc(surf, head_c[0], head_c[1], int(hr * 0.98), math.radians(214),
              math.radians(326), int(2.6 * s), s, gold_every=3)
-    # three cyan brow-cabochons set into the band (sparse jewel — not focal-bright)
+    # three verdigris brow-studs set into the band (oxidised ornament — NOT icy):
+    # the bezel-set court is all patina, so only the third-eye + necklace gem stay cyan.
     for i in range(3):
         a = math.radians(232 + i * 38)
         bx = head_c[0] + math.cos(a) * int(hr * 0.98)
         by = head_c[1] + math.sin(a) * int(hr * 0.98)
-        triad_circle(surf, CYAN_D, (int(bx), int(by)), max(1, int(2.4 * s)),
+        triad_circle(surf, PATINA, (int(bx), int(by)), max(1, int(2.4 * s)),
                      ow=max(1, int(1.0 * s)), core=False, sheen=False)
 
     # -- wide airy 6-skull arc sweeping ABOVE the band (Citipati language) --
@@ -1014,7 +1180,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("ASTHI v4 — VERDIGRIS-RELIQUARY", True, LABEL), (24, 13))
     sheet.blit(f_sm.render(
-        "bone-jewel sky-dancer  ·  CITIPATI body + MUKHA 6-arm fan · 6 DISTINCT palm-skulls + 6 DISTINCT crown relics · fused crown · WARM aged-bone + gold pips · round 10",
+        "dug-up centuries-old Asthi in AGED TEMPLE BRONZE gone VERDIGRIS · 12 differently-ERODED skulls · matte oxidised skull-bloom · ICY hero gem + third-eye vs oxidised court · round 1",
         True, LABEL_DIM), (270, 28))
 
     # === (a) BIG HERO =========================================================
@@ -1024,7 +1190,7 @@ def main():
     sheet.blit(f_sm.render("Cocked-hip DANCE under a six-arm radial fan; each of the 6 open palms cradles", True, LABEL_DIM), (14, 660))
     sheet.blit(f_sm.render("a tiny skull. Fused crown = Mukha tiara-band on the brow + wide airy 6-skull arc.", True, LABEL_DIM), (14, 676))
     sheet.blit(f_sm.render("Bead-lattice over every surface; gold spacer-pips carry the texture (not cyan-on-blue).", True, LABEL_DIM), (14, 692))
-    sheet.blit(f_sm.render("Value ladder: cyan third-eye brightest > palm-skulls + dim palm-gems mid > crown skulls dimmest.", True, LABEL_DIM), (14, 708))
+    sheet.blit(f_sm.render("Ladder: ICY necklace hero gem (white core) > ICY third-eye > bone > matte verdigris bloom (DIM, no white core).", True, LABEL_DIM), (14, 708))
 
     # === (b) PILLAR assembled — mirrored, tileable shaft ======================
     pcx = 444
@@ -1102,11 +1268,11 @@ def main():
     # palette strip
     sheet.blit(f.render("Pinned palette", True, LABEL), (panel_x + 16, day_y + 380))
     swatches = [
-        (BONE, "warm bone (LIGHT)"), (BONE_D, "bone shade"),
-        (BEAD, "bone bead (light)"), (BEAD_BR, "bead sheen"),
-        (GOLD, "gold spacer-pip"), (GOLD_BR, "gold sheen"),
-        (CYAN, "icy-cyan focal"), (CROWN_BONE, "crown-warm bone"),
-        (THIRD_EYE, "third-eye"), (INK, "ink keyline"),
+        (BONE, "ancient bone (LIGHT)"), (BONE_D, "bone shade (cool)"),
+        (GOLD, "aged bronze"), (GOLD_BR, "burnished bronze"),
+        (PATINA, "verdigris patina"), (PATINA_D, "verdigris crust"),
+        (CYAN, "ICY hero gem"), (CYAN_BR, "hero white-core"),
+        (CROWN_BONE, "crown ancient-bone"), (INK, "ink keyline"),
     ]
     sxp, syp = panel_x + 16, day_y + 408
     for i, (c, name) in enumerate(swatches):
