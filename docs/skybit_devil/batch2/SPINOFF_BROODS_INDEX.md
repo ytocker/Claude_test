@@ -144,6 +144,23 @@ body base (**3 Citipati / 2 Mukha**), ornament set, palette, skull treatment. AL
 - [mundamala_mata — severed-head garland mother (Mukha · mundamala + bone apron)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/mukha_citipati_court/mundamala_mata/round_3_hero.png)
 - [ratna_padmini — jewel-lotus throne mother (Mukha · inlay + tassels + full halo)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/mukha_citipati_court/ratna_padmini/round_2_hero.png)
 
+## 💀 Mukha × Citipati Court II — five charnel-ascetic bone-deity sisters (distinct second brood)
+A SECOND brood beside Court I, fused from the same two references but in a deliberately different
+register — **charnel-ground / ascetic / elemental** (tiger-pelt, ash + seed-beads, wisdom-flame,
+scripture, ice) vs Court I's temple-treasury. Same locked motif (six-arm fan, **six palms cradling
+tiny skulls**, fused Citipati-arc + Mukha-band crown) with each sister's own fresh crown
+superstructure. Every ornament set, palette, and crown is **collision-free** vs Court I and the
+adjacent skull broods. Novelty on the open axes: body base (**3 Citipati / 2 Mukha**), ornament,
+palette, skull treatment. ALL FIVE SHIP-READY (genuine art-director sign-offs).
+**Combined showcase:** [mukha_citipati_court_ii/showcase.png](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/mukha_citipati_court_ii/showcase.png)
+
+- **References:** [Mukha-Devi (six-armed bone-mother / radial-fan)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/citipati_versions/mukha_devi/round_2.png) · [Citipati (dancing skeleton-lord)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/jiangshi_epic/citipati/round_2.png)
+- [vyaghra_charma — tiger-pelt charnel adept (Citipati · pelt + tiger-ear crest)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/mukha_citipati_court_ii/vyaghra_charma/round_2_hero.png)
+- [bhasma_yogini — ash-ascetic seed-bead mother (Mukha · rudraksha + matted-hair jata)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/mukha_citipati_court_ii/bhasma_yogini/round_2_hero.png)
+- [jvala_nirmala — cool wisdom-flame dancer (Citipati · draped cobalt cloth-of-flame)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/mukha_citipati_court_ii/jvala_nirmala/round_2_hero.png)
+- [lekha_dakini — gilt-scripture mantra adept (Citipati · lantsa-script + round stupa finial)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/mukha_citipati_court_ii/lekha_dakini/round_2_hero.png)
+- [hima_kapalini — hoar-frost crystal mother (Mukha · matte rime-ice + dried-blood plum)](https://github.com/ytocker/skybit/blob/claude/v5-skybit-enrich-setup-94lgjj/docs/skybit_devil/batch2/mukha_citipati_court_ii/hima_kapalini/round_2_hero.png)
+
 ---
 
 # Standalone fresh-theme sets (not spin-off broods)
