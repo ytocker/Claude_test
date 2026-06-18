@@ -56,6 +56,8 @@ CINNABAR  = (196,  44,  38)   # cinnabar silk — the dominant ornament MASS
 CINNA_D   = (138,  28,  26)   # silk shade / fold-shadow
 CINNA_DD  = ( 96,  20,  20)   # deepest fold core
 CINNA_BR  = (226,  92,  66)   # silk top-light fold
+CINNA_32  = (220,  62,  52)   # silk base brightened ~12% for the true-32px read
+CINNA_RIM = (236, 110,  82)   # 1px warm rim on the 32px silk outer edge
 SAFFRON   = (236, 176,  64)   # saffron-gold brocade print + tassel + trim
 SAFFRON_BR= (250, 214, 120)
 SAFFRON_D = (176, 124,  44)
@@ -214,9 +216,9 @@ def flame_halo(surf, cx, cy, rad, s, lobes=11, gap_bottom=0.50, angles=None, rea
     separated tongues. WHY top-arc-only here (the brief's hard rule): the ring
     must NOT close behind the crown and kill the open-sky wedge the six-arm fan
     needs, so `gap_bottom` keeps the whole lower arc clear."""
-    base_r = rad * 0.86
+    base_r = rad * 0.84
     tip_r  = rad * (1.06 + 0.30 * reach)
-    half_w = (math.pi / lobes) * 0.42
+    half_w = (math.pi / lobes) * 0.80
     if angles is None:
         angles = [-math.pi / 2 + (i / lobes) * 2 * math.pi for i in range(lobes)]
     for ang in angles:
@@ -305,7 +307,10 @@ def visvavajra(surf, cx, cy, r, s, dot_only=False):
     collapses to a single saffron dot, so the brocade reads as a SPARSE REGULAR
     GOLD-DOT LATTICE on the silk rather than mushing into noise."""
     if dot_only or r < int(3.0 * s):
-        pygame.draw.circle(surf, SAFFRON, (cx, cy), max(1, int(r * 0.45)))
+        # a fat bright saffron pip so the regular lattice survives the downscale.
+        dr = max(2, int(2.6 * s))
+        pygame.draw.circle(surf, SAFFRON, (cx, cy), dr)
+        pygame.draw.circle(surf, SAFFRON_BR, (cx, cy), max(1, int(dr * 0.5)))
         return
     for k in range(4):
         a = math.radians(45 + k * 90)
@@ -341,97 +346,176 @@ def draw_vajra_rakta(surf, cx, cy, s, scale32=False):
     rc_w, rc_h = int(34 * s), int(40 * s)
 
     # === OPEN FLAME-HALO RING (drawn first → behind everything) ================
-    # Top-arc-only: tongues fill the GAPS between the 5 crown skulls; the lower
-    # arc stays clear so the fan's open-sky wedge is preserved.
-    skull_degs = [216 + i * 27 for i in range(5)]
-    gap_degs = [204] + [(skull_degs[i] + skull_degs[i + 1]) / 2 for i in range(4)] + [336]
-    flame_angles = [math.radians(d) for d in gap_degs]
-    flame_halo(surf, head_c[0], head_c[1] - int(hr * 0.10), int(hr * 1.55), s,
-               gap_bottom=0.30, angles=flame_angles, reach=1.10)
+    # An OPEN ring of distinct ember tongues arcing the crown's outer edge on
+    # BOTH sides, explicitly NOT closing across the top (the open-sky wedge the
+    # six-arm fan needs is preserved). WHY two angle-bands per side instead of a
+    # continuous arc: 2-3 separated licks carried DOWN each flank give the ring a
+    # clear "ring of fire" read — pointed tongues with the ink keyline — and the
+    # ember orange is hotter than the saffron brocade so it separates by hue+value.
+    # The crown skulls sit at ~216..324°; tongues live OUTSIDE that arc to the
+    # left (≈150..205°) and right (≈335..390°), leaving the very top (~270°) open.
+    # WHY a larger base radius than the crown arc (hr*1.74 + skull_r): the
+    # tongues must sit OUTSIDE the outer crown skulls so they read as a halo of
+    # fire, not licks tucked behind the bone. Angles hug the upper flanks
+    # (~146..210° L, ~330..394° R) and the open top (~270°) stays clear.
+    left_degs  = [146, 164, 184, 204, 210]
+    right_degs = [394, 376, 356, 336, 330]
+    flame_angles = [math.radians(d) for d in left_degs + right_degs]
+    flame_halo(surf, head_c[0], head_c[1] - int(hr * 0.06), int(hr * 2.12), s,
+               lobes=22, gap_bottom=1.10, angles=flame_angles, reach=1.10)
 
     # === SIX-ARM RADIAL FAN (behind the torso, low origin) =====================
     hand_pts = draw_arm_fan(surf, head_c[0], head_c[1] + int(hr * 1.05), s, hr,
                             arm_len_mul=2.05)
 
-    # === CROSSED REAR SASHES (the silk MASS that flares PAST the fan) ==========
-    # WHY drawn before the body: the two billowing brocade scarves cross behind
-    # the torso and bell OUT past the six-arm fan tips, so the fabric is the
-    # outermost silhouette mass — the non-naked device. Gestural folds, not fiddle.
-    def billow_sash(top, waist, flare, mid_ctrl, edge_off):
-        """One curved silk panel from a shoulder-top through the waist to a
-        flared lower hem; returns the polygon so the brocade can be clipped to it."""
-        return [top,
-                (top[0] + edge_off, top[1] + int(6 * s)),
-                mid_ctrl,
-                flare,
-                (flare[0] - int(14 * s), flare[1] - int(6 * s)),
-                waist]
+    # === BILLOWING VAJRA-SILK SKIRT — a wide BELL of overlapping fold-lobes =====
+    # WHY drawn before the body: the cinnabar drapery is the OUTERMOST silhouette
+    # mass (the non-naked device), so it bells OUT past the six-arm fan tips and
+    # below the hips into a skirt. WHY 3 curved overlapping lobes per side with
+    # scalloped trailing edges (not two stiff triangles): real cloth reads as a
+    # bell, never a tapering wedge — each lobe is a quadratic-bezier hem that
+    # flares wider than the fan, the overlaps + inner fold-shade planes giving it
+    # volume rather than a flat flap.
+    waist_cx = hip_cx
+    waist_y  = hip_y - int(2 * s)
+    fan_tip_x = int(56 * s)   # the widest fan reach the skirt must clear
 
-    shoulderL = (rc_cx - int(15 * s), rc_cy - rc_h // 2 + int(7 * s))
-    shoulderR = (rc_cx + int(15 * s), rc_cy - rc_h // 2 + int(6 * s))
-    # left scarf billows down-LEFT, flaring well past the lower-left fan arm
-    sashL = billow_sash(
-        top=shoulderR,
-        waist=(hip_cx - int(6 * s), hip_y + int(2 * s)),
-        flare=(hip_cx - int(60 * s), hip_y + int(58 * s)),
-        mid_ctrl=(rc_cx - int(40 * s), rc_cy + int(20 * s)),
-        edge_off=int(10 * s))
-    # right scarf billows down-RIGHT, flaring past the lower-right fan arm
-    sashR = billow_sash(
-        top=shoulderL,
-        waist=(hip_cx + int(6 * s), hip_y + int(2 * s)),
-        flare=(hip_cx + int(58 * s), hip_y + int(50 * s)),
-        mid_ctrl=(rc_cx + int(44 * s), rc_cy + int(24 * s)),
-        edge_off=-int(10 * s))
+    def qbez(p0, p1, p2, n=10):
+        return [(p0[0] + (p1[0] - p0[0]) * 2 * t * (1 - t) + (p2[0] - p0[0]) * t * t,
+                 p0[1] + (p1[1] - p0[1]) * 2 * t * (1 - t) + (p2[1] - p0[1]) * t * t)
+                for t in (i / n for i in range(n + 1))]
 
-    def draw_silk(poly, fold_a, fold_b, lit_edge):
-        triad_blob(surf, CINNABAR, poly,
-                   core_pts=[poly[1], poly[2], poly[3], poly[4]],
-                   ow=max(1, int(1.6 * s)))
-        # a couple of deep fold-grooves so the silk reads as billowing mass
-        pygame.draw.lines(surf, CINNA_DD, False, fold_a, max(2, int(2.4 * s)))
-        pygame.draw.lines(surf, CINNA_D, False, fold_b, max(2, int(2.0 * s)))
-        pygame.draw.lines(surf, CINNA_BR, False, lit_edge, max(1, int(2.0 * s)))
+    def skirt_lobe(sgn, spread, drop, fill, fold=False):
+        """One curved fabric lobe hanging from the waist: a smooth bezier outer
+        hem swinging OUT to `spread` (past the fan) and DOWN to `drop`, returning
+        to a scalloped inner hem. `fold` tints it the deeper fold-shade so the
+        overlapped inner lobes read as receding volume."""
+        outx = waist_cx + sgn * spread
+        hemy = waist_y + drop
+        # outer hem: waist -> bulge out -> hem tip
+        outer = qbez((waist_cx + sgn * int(8 * s), waist_y - int(2 * s)),
+                     (waist_cx + sgn * int(spread + 18 * s), waist_y + int(drop * 0.34)),
+                     (outx, hemy), n=12)
+        # scalloped trailing hem back toward centre (3 little wave dips)
+        hem = []
+        steps = 6
+        for k in range(steps + 1):
+            t = k / steps
+            hx = outx + (waist_cx - outx) * t
+            hy = hemy - int(drop * 0.10 * t) + int(7 * s) * math.sin(t * math.pi * 3)
+            hem.append((hx, hy))
+        poly = outer + hem + [(waist_cx + sgn * int(4 * s), waist_y)]
+        if scale32:
+            # brighter base so the bell holds on both day + night chips, with a
+            # 1px warm rim on the outer hem so it doesn't bleed into the sky.
+            col = CINNA_D if fold else CINNA_32
+        else:
+            col = CINNA_D if fold else CINNABAR
+        triad_blob(surf, col, poly, ow=max(1, int(1.4 * s)))
+        if scale32 and not fold:
+            pygame.draw.lines(surf, CINNA_RIM, False, outer, max(1, int(1.2 * s)))
+        if not fold:
+            # an inner fold-shade plane down the lobe centre (volume, not flat)
+            fs = qbez((waist_cx + sgn * int(6 * s), waist_y + int(2 * s)),
+                      (waist_cx + sgn * int(spread * 0.5 + 8 * s), waist_y + int(drop * 0.4)),
+                      (outx - sgn * int(spread * 0.30), hemy - int(2 * s)), n=10)
+            fold_poly = fs + [(waist_cx + sgn * int(4 * s), waist_y + int(drop * 0.5))]
+            pygame.draw.polygon(surf, CINNA_DD, fold_poly)
+            # a top-light fold groove riding the outer bulge (silk sheen)
+            pygame.draw.lines(surf, CINNA_BR, False, outer[:8], max(1, int(1.8 * s)))
+            # a deep fold groove just inboard of the bulge
+            pygame.draw.lines(surf, CINNA_DD, False,
+                              qbez((waist_cx + sgn * int(10 * s), waist_y + int(4 * s)),
+                                   (waist_cx + sgn * int(spread * 0.6), waist_y + int(drop * 0.42)),
+                                   (outx - sgn * int(spread * 0.18), hemy - int(4 * s)), n=8),
+                              max(1, int(2.0 * s)))
+        return poly
 
-    draw_silk(sashL,
-              fold_a=[shoulderR, (rc_cx - int(22 * s), rc_cy + int(16 * s)),
-                      (hip_cx - int(40 * s), hip_y + int(40 * s))],
-              fold_b=[(rc_cx - int(4 * s), rc_cy + int(4 * s)),
-                      (hip_cx - int(20 * s), hip_y + int(30 * s)),
-                      (hip_cx - int(50 * s), hip_y + int(52 * s))],
-              lit_edge=[shoulderR, (rc_cx - int(34 * s), rc_cy + int(22 * s)),
-                        (hip_cx - int(58 * s), hip_y + int(54 * s))])
-    draw_silk(sashR,
-              fold_a=[shoulderL, (rc_cx + int(24 * s), rc_cy + int(18 * s)),
-                      (hip_cx + int(40 * s), hip_y + int(36 * s))],
-              fold_b=[(rc_cx + int(4 * s), rc_cy + int(4 * s)),
-                      (hip_cx + int(22 * s), hip_y + int(28 * s)),
-                      (hip_cx + int(48 * s), hip_y + int(44 * s))],
-              lit_edge=[shoulderL, (rc_cx + int(36 * s), rc_cy + int(22 * s)),
-                        (hip_cx + int(56 * s), hip_y + int(46 * s))])
+    # back lobes first (deeper fold-shade), then the front bell on top — the
+    # overlap is what gives the skirt its rounded mass.
+    skirt_polys = []
+    for sgn in (-1, 1):
+        skirt_lobe(sgn, fan_tip_x - int(6 * s), int(56 * s), CINNA_D, fold=True)   # rear lobe
+    for sgn in (-1, 1):
+        skirt_polys.append(
+            skirt_lobe(sgn, fan_tip_x + int(14 * s), int(68 * s), CINNABAR))       # front bell
 
-    # === GOLD VISVAVAJRA BROCADE on the silk (two-scale) =======================
+    # === GOLD VISVAVAJRA BROCADE on the skirt silk (two-scale) =================
     # full crossed-vajra print at hero; sparse regular gold-dot lattice at 32px.
-    def brocade_on(poly_bbox):
+    def brocade_on(poly_bbox, pitch_mul=1.0):
         x0 = min(p[0] for p in poly_bbox); x1 = max(p[0] for p in poly_bbox)
         y0 = min(p[1] for p in poly_bbox); y1 = max(p[1] for p in poly_bbox)
-        pitch = int(20 * s)
+        if scale32:
+            # a DELIBERATE regular grid of a few fat gold dots, NOT a fine
+            # staggered print — so the lattice reads as ornament, not noise.
+            pitch = max(int(9 * s * pitch_mul), int((x1 - x0) / 3.2))
+            stagger = False
+        else:
+            pitch = int(20 * s * pitch_mul)
+            stagger = True
         unit_r = int(6.5 * s)
         row = 0
         y = y0 + pitch // 2
         while y < y1:
-            off = (pitch // 2) if (row % 2) else 0   # staggered lattice
+            off = (pitch // 2) if (stagger and row % 2) else 0
             x = x0 + pitch // 2 + off
             while x < x1:
-                # only print dots that fall inside the silk polygon
                 if _point_in_poly((x, y), poly_bbox):
                     visvavajra(surf, x, y, unit_r, s, dot_only=scale32)
                 x += pitch
             y += pitch
             row += 1
 
-    brocade_on(sashL)
-    brocade_on(sashR)
+    for poly in skirt_polys:
+        brocade_on(poly)
+
+    # === CROSSED VAJRA-SILK SASHES — two brocade bands X-ing OVER the shoulders =
+    # WHY this is DEFERRED to draw AFTER the rib-cage (see the call below the
+    # ribcage block): the round-1 failure was a bare rib-barrel + bare shoulders.
+    # Two diagonal brocade bands must lie ON TOP of the bone, crossing the chest,
+    # passing over the arm-fan origins, and meeting at the waist knot — so the
+    # body shows ≤1 bare rib-band between collar and belt and the sternum X reads
+    # at 32px as a bright chest mark.
+    shoulderL = (rc_cx - int(20 * s), rc_cy - rc_h // 2 - int(1 * s))
+    shoulderR = (rc_cx + int(20 * s), rc_cy - rc_h // 2 - int(2 * s))
+    sash_w = int(11 * s)
+    knot = (waist_cx, waist_y - int(2 * s))
+
+    def chest_band(top, waist):
+        dx, dy = waist[0] - top[0], waist[1] - top[1]
+        L = max(1.0, math.hypot(dx, dy))
+        nx, ny = -dy / L * sash_w / 2, dx / L * sash_w / 2
+        return ([(top[0] + nx, top[1] + ny), (waist[0] + nx, waist[1] + ny),
+                 (waist[0] - nx, waist[1] - ny), (top[0] - nx, top[1] - ny)],
+                (nx, ny))
+
+    def draw_chest_sashes():
+        botA = (knot[0] + int(7 * s), knot[1])
+        botB = (knot[0] - int(7 * s), knot[1])
+        bandA, nA = chest_band(shoulderL, botA)   # \ band
+        bandB, nB = chest_band(shoulderR, botB)   # / band
+
+        def one(poly, nrm, top, waist):
+            triad_blob(surf, CINNABAR, poly,
+                       core_pts=[(poly[0][0] - nrm[0] * 0.4, poly[0][1] - nrm[1] * 0.4),
+                                 (poly[1][0] - nrm[0] * 0.4, poly[1][1] - nrm[1] * 0.4),
+                                 poly[2], poly[3]],
+                       ow=max(1, int(1.4 * s)))
+            pygame.draw.line(surf, SAFFRON, top, waist, max(1, int(1.8 * s)))
+
+        # both bands, then their brocade ON TOP — the crossing X reads bright
+        one(bandA, nA, shoulderL, botA)
+        one(bandB, nB, shoulderR, botB)
+        # a small shoulder-pad lump where each sash crests the shoulder
+        for (sx, sy) in (shoulderL, shoulderR):
+            triad_circle(surf, CINNABAR, (sx, sy), int(7 * s), ow=max(1, int(1.2 * s)),
+                         core=False)
+        brocade_on(bandA, pitch_mul=0.9)
+        brocade_on(bandB, pitch_mul=0.9)
+        # a turquoise core-thread sliver runs each sash (the literal sliver, hero)
+        if not scale32:
+            pygame.draw.line(surf, TURQ, shoulderL, botA, max(1, int(1.4 * s)))
+            pygame.draw.line(surf, TURQ, shoulderR, botB, max(1, int(1.4 * s)))
 
     # === LEGS — wide cocked-hip dance (cloned from Citipati) ===================
     leg_th = int(14 * s)
@@ -491,6 +575,10 @@ def draw_vajra_rakta(surf, cx, cy, s, scale32=False):
                         math.radians(205), math.radians(335), max(2, int(2.4 * s)))
     pygame.draw.line(surf, BONE_DD, (rc_cx, rc_cy - rc_h // 2 + int(6 * s)),
                      (rc_cx, rc_cy + int(6 * s)), max(1, int(2 * s)))
+
+    # the crossed sashes lie ON the rib-cage (kills the bare-torso zone); the
+    # waist wrap below then ties the X at the knot.
+    draw_chest_sashes()
 
     # === WAIST WRAP — a fat cinnabar silk band across the hips =================
     # the brief's waist-wrap: a bold horizontal silk mass that ties the crossed
@@ -677,19 +765,29 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
     idx = 0
     while y <= b1:
         bw = shaft_w
-        # a fat cinnabar silk band segment with deep fold-grooves (the shaft tile)
+        # a fat cinnabar silk band segment with a SAGGING curved lower hem so the
+        # tab reads as draped cloth, not a flat flag (echoes the hero skirt curve).
+        sag = int(4 * s)
         band = [(cx - bw, y - int(9 * s)),
                 (cx + bw, y - int(9 * s)),
-                (cx + bw, y + int(9 * s)),
-                (cx - bw, y + int(9 * s))]
+                (cx + bw, y + int(7 * s)),
+                (cx + int(bw * 0.5), y + int(9 * s) + sag),
+                (cx, y + int(8 * s) + sag),
+                (cx - int(bw * 0.5), y + int(9 * s) + sag),
+                (cx - bw, y + int(7 * s))]
         triad_blob(surf, CINNABAR, band,
                    core_pts=[(cx, y - int(8 * s)), (cx + bw, y - int(8 * s)),
-                             (cx + bw, y + int(8 * s)), (cx, y + int(8 * s))],
+                             (cx + bw, y + int(6 * s)), (cx, y + int(8 * s) + sag)],
                    sheen_pts=[(cx - bw, y - int(8 * s)), (cx - int(bw * 0.3), y - int(8 * s)),
                               (cx - int(bw * 0.3), y + int(2 * s)), (cx - bw, y + int(2 * s))],
                    ow=max(1, int(1.4 * s)))
-        pygame.draw.line(surf, CINNA_DD, (cx - bw, y + int(9 * s)),
-                         (cx + bw, y + int(9 * s)), max(1, int(1.8 * s)))
+        # the curved lower hem in deep fold-shade (the drape)
+        pygame.draw.lines(surf, CINNA_DD, False,
+                          [(cx - bw, y + int(7 * s)),
+                           (cx - int(bw * 0.5), y + int(9 * s) + sag),
+                           (cx, y + int(8 * s) + sag),
+                           (cx + int(bw * 0.5), y + int(9 * s) + sag),
+                           (cx + bw, y + int(7 * s))], max(1, int(1.8 * s)))
         # gold trim edge + a visvavajra brocade unit centred on the band
         pygame.draw.line(surf, SAFFRON, (cx - bw, y - int(8 * s)),
                          (cx + bw, y - int(8 * s)), max(1, int(1.6 * s)))
@@ -756,7 +854,7 @@ def export_hero():
     draw_vajra_rakta(big, (HW // 2) * SS, int(HH * 0.52) * SS, 3.0 * SS)
     hero = pygame.transform.smoothscale(big, (HW, HH))
     hero = grow_outline(hero, INK + (255,), 2)
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2_hero.png")
     pygame.image.save(hero, out)
     return out
 
@@ -776,7 +874,7 @@ def main():
     sheet.blit(font_big.render("VAJRA-RAKTA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "wrathful blood-scarf adept  ·  CITIPATI body · billowing vajra-silk MASS · 6-arm fan + 6 palm-skulls · "
-        "fused 5-skull arc + tiara-band · OPEN flame-ring · round 1",
+        "fused 5-skull arc + tiara-band · OPEN flame-ring · round 2",
         True, LABEL_DIM), (270, 26))
 
     # === (a) BIG HERO =========================================================
@@ -810,24 +908,27 @@ def main():
     pygame.draw.rect(sheet, PANEL, (panel_x, 86, W - panel_x - 14, 690))
     sheet.blit(font.render("True 32px gameplay chip", True, LABEL), (panel_x + 16, 96))
 
-    def chip32():
+    def chip32(outline_col):
         big = pygame.Surface((118 * SS, 118 * SS), pygame.SRCALPHA)
         draw_vajra_rakta(big, 59 * SS, 64 * SS, (32 / 150.0) * SS, scale32=True)
         small = pygame.transform.smoothscale(big, (118, 118))
-        return grow_outline(small, INK + (255,), 1)
+        return grow_outline(small, outline_col, 1)
 
-    chip = chip32()
+    # DAY keeps the ink keyline; NIGHT uses a bone-ivory contour so the dark
+    # silk bell + tassels separate from the navy sky (the FIX-5 night read).
+    chip_day = chip32(INK + (255,))
+    chip_night = chip32(lerp(BONE, INK, 0.18) + (255,))
 
     day_y = 124
     vgrad(sheet, (panel_x + 18, day_y, 150, 150), DAY_SKY_T, DAY_SKY_B)
     pygame.draw.rect(sheet, INK, (panel_x + 18, day_y, 150, 150), 1)
-    sheet.blit(chip, (panel_x + 18 + 16, day_y + 16))
+    sheet.blit(chip_day, (panel_x + 18 + 16, day_y + 16))
     sheet.blit(font_sm.render("32px DAY", True, LABEL), (panel_x + 18, day_y + 154))
 
     night_y = day_y + 180
     vgrad(sheet, (panel_x + 18, night_y, 150, 150), NIGHT_T, NIGHT_B)
     pygame.draw.rect(sheet, INK, (panel_x + 18, night_y, 150, 150), 1)
-    sheet.blit(chip, (panel_x + 18 + 16, night_y + 16))
+    sheet.blit(chip_night, (panel_x + 18 + 16, night_y + 16))
     sheet.blit(font_sm.render("32px NIGHT", True, LABEL_DIM), (panel_x + 18, night_y + 154))
 
     # 32px pillar gap-cap chips beside, both skies
@@ -883,7 +984,7 @@ def main():
     # bottom note strip
     pygame.draw.rect(sheet, PANEL, (14, 786, W - 28, 60))
     sheet.blit(font_sm.render(
-        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero exported to round_1_hero.png.",
+        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero exported to round_2_hero.png.",
         True, LABEL_DIM), (26, 794))
     sheet.blit(font_sm.render(
         "Two-scale ornament: full gold VISVAVAJRA brocade at HERO -> SPARSE REGULAR GOLD-DOT lattice at 32px; "
@@ -892,7 +993,7 @@ def main():
         "STAY: flat fills · ink keyline (28,22,26) · dark-core->fill->sheen triad · 1px grown outline · chibi scary-cute · "
         "glow only on third-eye + crown-centre skull · procedural-only.", True, LABEL_DIM), (26, 826))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     print("wrote", hero_path)
