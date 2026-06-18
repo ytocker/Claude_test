@@ -209,7 +209,62 @@ def build_showcase(stack_sheet, skewer_sheet):
     print("wrote", out, sheet.get_size())
 
 
+def _skull_chip(kind, idx, cell_w, cell_h, *, lit=False):
+    """One skull rendered on transparent ground, smoothscaled + outlined."""
+    ssr = 6
+    big = pygame.Surface((cell_w * ssr, cell_h * ssr), pygame.SRCALPHA)
+    r = int(min(cell_w, cell_h) * 0.40)
+    rb = r * ssr
+    s = (r / 12.0) * ssr
+    cx = cell_w * ssr // 2
+    cy = int(cell_h * ssr * (0.52 if kind == "crown" else 0.58))
+    if kind == "crown":
+        sk.crown_skull(big, cx, cy, rb, s, lit=lit, idx=idx)
+    else:
+        sk.palm_skull(big, cx, cy, rb, s, idx=idx)
+    small = pygame.transform.smoothscale(big, (cell_w, cell_h))
+    return sk.grow_outline(small, sk.INK + (255,), 1)
+
+
+def build_individual_sheet():
+    """Every distinct small skull of the design, drawn on its own + labelled."""
+    cw, ch = 116, 132
+    pad = 16
+    head = 90
+    lab = 22
+    cols = 6
+    rows = [
+        ("CROWN skulls (above the head — bare relic skulls; idx 2 is the lit focal)",
+         [("crown", i, i == 2) for i in range(6)]),
+        ("PALM skulls (cradled in the hands — ornamented; some carry the cyan gem)",
+         [("palm", i, False) for i in range(6)]),
+    ]
+    W = cols * cw + (cols + 1) * pad
+    H = head + len(rows) * (ch + lab + pad + 26)
+    sheet = pygame.Surface((W, H))
+    sheet.fill(sk.BG)
+    _label(sheet, "SKULL-KING design — the 12 various small skulls, individually", pad, 20)
+    _label(sheet, "source: Asthi-Dakini SWITCHED+BIG  (crown_skull idx 0-5 · palm_skull idx 0-5)", pad, 48)
+
+    y = head
+    for row_title, items in rows:
+        _label(sheet, row_title, pad, y)
+        y += 26
+        x = pad
+        for kind, idx, lit in items:
+            chip = _skull_chip(kind, idx, cw, ch, lit=lit)
+            sheet.blit(chip, (x, y))
+            tag = f"{kind} {idx}" + ("  (lit)" if lit else "")
+            _label(sheet, tag, x + 6, y + ch + 2)
+            x += cw + pad
+        y += ch + lab + pad
+    out = os.path.join(OUT, "skulls_individual.png")
+    pygame.image.save(sheet, out)
+    print("wrote", out, sheet.get_size())
+
+
 if __name__ == "__main__":
+    build_individual_sheet()
     a = build_variant_sheet(False, "SKULL-KING STACK  —  the design's various small skulls, stacked pagoda-style", "stack.png")
     b = build_variant_sheet(True, "SKULL-KING SKEWER  —  same stack, skewered down the centre", "skewer.png")
     build_showcase(a, b)
