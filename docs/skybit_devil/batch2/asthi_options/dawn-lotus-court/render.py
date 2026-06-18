@@ -682,9 +682,12 @@ def cyan_gem(surf, c, r, s, focal=False, bg=None, hot=None):
     pygame.draw.polygon(surf, INK, table, max(1, int(0.9 * s)))
     pygame.draw.line(surf, CYAN_BR, table[0], table[n_crown // 2], max(1, int(0.8 * s)))
 
-    # HARD specular glints — tiny white TRIANGLES pinned at facet corners.
+    # HARD specular glints — tiny TRIANGLES pinned at facet corners. Pure white is
+    # reserved for the HERO necklace gem (show_hot); the dimmer non-hot third-eye
+    # glints a soft cyan-white so the hero gem stays the single brightest pixel.
+    gcol = (255, 255, 255) if show_hot else (210, 238, 245)
     def glint(px, py, sz):
-        pygame.draw.polygon(surf, (255, 255, 255),
+        pygame.draw.polygon(surf, gcol,
                             [(px, py - sz), (px + sz, py + sz * 0.5),
                              (px - sz, py + sz * 0.5)])
 
@@ -1037,7 +1040,7 @@ def export_hero():
     canvas = pygame.Surface((boxw, boxh))
     vgrad(canvas, (0, 0, boxw, boxh), (74, 84, 104), (40, 46, 64))
     canvas.blit(hero, (0, 0))
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2_hero.png")
     pygame.image.save(canvas, out)
     return out
 
@@ -1169,13 +1172,13 @@ def main():
     # bottom note strip
     pygame.draw.rect(sheet, PANEL, (14, 836, W - 28, 48))
     sheet.blit(f_sm.render(
-        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero export (round_1_hero.png).",
+        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero export (round_2_hero.png).",
         True, LABEL_DIM), (26, 846))
     sheet.blit(f_sm.render(
         "STAY: flat fills · hard ink keyline (28,22,26) · dark-core->fill->top-left sheen triad · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 864))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     hero_out = export_hero()
     print("wrote", out)

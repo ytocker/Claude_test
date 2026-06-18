@@ -227,19 +227,24 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
     # cw/ch = dome width/height · lean = sideways skew of the dome · heart = a
     # notched/dimpled crown top · bow = head tilt (rad) · lid = crescent-lid droop ·
     # mouth = singing-jaw openness (parted / open / wide) · sut = crown-seam style.
+    # WHY no adjacent repeats + a per-relic ornament: the AD flagged the crown band
+    # repeating two molds and a copy-pasted orange bead in the same spot on two
+    # heads. Every relic now varies across mouth + lid + bow + dome silhouette, no
+    # two ADJACENT relics share the same mouth+lid pair, and `gem` places ONE small
+    # warm bead-ornament at a per-singer spot (or none) so the detail never twins.
     CROWN_PROFILE = [
-        # 0: TALL narrow dome bowed left, lips softly PARTED, deep lid, dotted seam
-        dict(cw=0.88, ch=1.18, lean=0.00, heart=False, bow=-0.14, lid=0.84, mouth="parted", sut="dots"),
-        # 1: broad ROUND dome upright, mouth OPEN mid-note, mid lid, zigzag seam
-        dict(cw=1.16, ch=0.96, lean=0.00, heart=False, bow= 0.06, lid=0.56, mouth="open",   sut="zig"),
-        # 2: SQUAT heart-domed centre (lit), WIDE held-note 'O', heavy lid, dotted
-        dict(cw=1.10, ch=0.88, lean=0.00, heart=True,  bow= 0.00, lid=0.90, mouth="wide",   sut="dots"),
-        # 3: LOPSIDED dome leaning right, mouth OPEN, light lid, zigzag seam
-        dict(cw=1.00, ch=1.02, lean=0.18, heart=False, bow= 0.16, lid=0.46, mouth="open",   sut="zig"),
-        # 4: HEART-domed bowed slightly left, lips PARTED, deep lid, line seam
-        dict(cw=1.02, ch=1.06, lean=-0.06, heart=True, bow=-0.08, lid=0.80, mouth="parted", sut="line"),
-        # 5: lopsided SQUAT dome leaning left, WIDE agape 'O', mid lid, zigzag seam
-        dict(cw=1.08, ch=0.92, lean=-0.18, heart=False, bow=-0.18, lid=0.66, mouth="wide",  sut="zig"),
+        # 0: TALL narrow dome bowed left, lips softly PARTED, full lid, dotted seam
+        dict(cw=0.86, ch=1.20, lean=0.00, heart=False, bow=-0.14, lid=0.86, mouth="parted", sut="dots", gem="brow-l"),
+        # 1: broad ROUND dome upright, OVAL open mid-note, half-crescent lid, zigzag
+        dict(cw=1.18, ch=0.94, lean=0.04, heart=False, bow= 0.06, lid=0.50, mouth="open",   sut="zig",  gem="temple-r"),
+        # 2: SQUAT heart-domed CENTRE (lit, the loudest), WIDE held-'O', heavy lid
+        dict(cw=1.12, ch=0.86, lean=0.00, heart=True,  bow= 0.00, lid=0.92, mouth="wide",   sut="dots", gem="crown"),
+        # 3: LOPSIDED dome leaning right chin-down, nearly-closed HUM, barely-open lid
+        dict(cw=1.02, ch=1.00, lean=0.20, heart=False, bow= 0.18, lid=0.28, mouth="hum",    sut="zig",  gem=None),
+        # 4: HEART-domed bowed left, OVAL open, full lid, line seam
+        dict(cw=1.00, ch=1.08, lean=-0.08, heart=True, bow=-0.08, lid=0.82, mouth="open",   sut="line", gem="brow-r"),
+        # 5: lopsided SQUAT dome leaning left, lips softly PARTED, half-crescent lid
+        dict(cw=1.10, ch=0.90, lean=-0.20, heart=False, bow=-0.18, lid=0.58, mouth="parted", sut="zig", gem="temple-l"),
     ]
     p = CROWN_PROFILE[idx % len(CROWN_PROFILE)]
     cw, ch, lean = p["cw"], p["ch"], p["lean"]
@@ -305,13 +310,16 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
         pygame.draw.circle(surf, INK, (ex, ey), sr)
         gaze_dx = -sgn * sr * 0.30
         gaze_dy = sr * 0.34
+        # the lit crown-CENTRE relic carries the third of the 3-up cyan beat —
+        # landed (bigger CYAN core + clear CYAN_BR rim) so it reads against its dim
+        # band siblings, yet still the DIMMEST tier (no white core, no glow).
         if lit:
-            pygame.draw.circle(surf, CYAN_D, (int(ex + gaze_dx), int(ey + gaze_dy)), max(1, int(sr * 0.60)))
-            pygame.draw.circle(surf, CYAN, (int(ex + gaze_dx), int(ey + gaze_dy)), max(1, int(sr * 0.40)))
-            pygame.draw.circle(surf, CYAN_BR, (int(ex + gaze_dx), int(ey + gaze_dy)), max(1, int(sr * 0.18)))
+            pygame.draw.circle(surf, CYAN_D, (int(ex + gaze_dx), int(ey + gaze_dy)), max(1, int(sr * 0.66)))
+            pygame.draw.circle(surf, CYAN, (int(ex + gaze_dx), int(ey + gaze_dy)), max(1, int(sr * 0.48)))
+            pygame.draw.circle(surf, CYAN_BR, (int(ex + gaze_dx), int(ey + gaze_dy)), max(1, int(sr * 0.24)))
         else:
-            pygame.draw.circle(surf, CYAN_D, (int(ex + gaze_dx), int(ey + gaze_dy)), max(1, int(sr * 0.40)))
-            pygame.draw.circle(surf, CYAN, (int(ex + gaze_dx), int(ey + gaze_dy)), max(1, int(sr * 0.20)))
+            pygame.draw.circle(surf, CYAN_D, (int(ex + gaze_dx), int(ey + gaze_dy)), max(1, int(sr * 0.38)))
+            pygame.draw.circle(surf, CYAN, (int(ex + gaze_dx), int(ey + gaze_dy)), max(1, int(sr * 0.18)))
         lid_drop = sr * (0.20 + 0.62 * lid)
         lc = rotc(sgn * r * 0.38, r * 0.06 - sr + lid_drop)
         pygame.draw.circle(surf, CROWN_BONE, (int(lc[0]), int(lc[1])), int(sr + max(1, 1.0 * s)))
@@ -321,7 +329,9 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
     pygame.draw.circle(surf, INK, (int(np_c[0]), int(np_c[1])), max(1, int(r * 0.12)))
 
     # ── singing AGAPE mouth — the open 'O', NO fangs and NO cracks (chant grammar) ──
-    if p["mouth"] == "parted":
+    if p["mouth"] == "hum":
+        mw, mh = r * 0.22, r * 0.09
+    elif p["mouth"] == "parted":
         mw, mh = r * 0.26, r * 0.16
     elif p["mouth"] == "open":
         mw, mh = r * 0.32, r * 0.26
@@ -332,6 +342,13 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
               for ad in range(0, 360, 36)]
     pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in cavity])
     pygame.draw.polygon(surf, CROWN_BONE_D, [(int(x), int(y)) for x, y in cavity], ow_thin)
+    # 1px warm-ivory inner LIP on the TOP edge so the open void reads as a lit open
+    # mouth (upper lip) not a punched hole — vital on the top-centre crown heads.
+    top_lip = [rotc(math.cos(math.radians(ad)) * mw * 0.92, my0 + math.sin(math.radians(ad)) * mh * 0.92)
+               for ad in range(200, 341, 28)]
+    if len(top_lip) >= 2:
+        pygame.draw.lines(surf, CROWN_SH, False,
+                          [(int(x), int(y)) for x, y in top_lip], max(1, int(1.0 * s)))
     # thin bone chin arc cupping the lower lip so the open mouth still reads as bone
     chin = [rotc(math.cos(math.radians(ad)) * (mw + r * 0.12),
                  my0 + math.sin(math.radians(ad)) * (mh + r * 0.16))
@@ -339,6 +356,30 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
     chin.append(rotc(mw + r * 0.06, my0 + mh * 0.20))
     chin.append(rotc(-mw - r * 0.06, my0 + mh * 0.20))
     triad_blob(surf, CROWN_BONE, [(int(x), int(y)) for x, y in chin], ow=max(1, int(1.0 * s)))
+
+    # ── per-singer warm bead-ornament — de-dupes the old copy-pasted orange bead ──
+    # WHY one placement per relic (or none): the AD flagged the same orange bead in
+    # the same spot on two crown heads as a copy-paste tell. Each relic now seats ONE
+    # tiny warm-gold pip at its OWN landmark (a brow corner / temple / crown apex), so
+    # the detail reads as individual jewel-set bone, never twins. The dim/centre
+    # relics carry it on the crown apex; others tuck it at an off-centre brow/temple.
+    gem = p["gem"]
+    gem_xy = None
+    if gem == "brow-l":
+        gem_xy = rotc(-r * 0.30, -r * 0.04)
+    elif gem == "brow-r":
+        gem_xy = rotc(r * 0.30, -r * 0.04)
+    elif gem == "temple-l":
+        gem_xy = rotc(-r * 0.46, -r * 0.30)
+    elif gem == "temple-r":
+        gem_xy = rotc(r * 0.46, -r * 0.30)
+    elif gem == "crown":
+        gem_xy = rotc(0, -r * ch * 0.84)
+    if gem_xy is not None:
+        gx, gy = int(gem_xy[0]), int(gem_xy[1])
+        pygame.draw.circle(surf, GOLD_D, (gx, gy), max(1, int(1.1 * s)))
+        pygame.draw.circle(surf, GOLD, (gx, gy), max(1, int(0.8 * s)))
+        pygame.draw.circle(surf, GOLD_BR, (gx, gy), max(1, int(0.4 * s)))
 
 
 # ── a tiny singing skull cradled in an open palm (the choir MOTIF) ────────────
@@ -364,22 +405,26 @@ def palm_skull(surf, cx, cy, r, s, idx=0, lit=False):
     # ── per-singer choir table (six genuinely distinct chanting skulls) ──
     # tilt = head BOW (rad) · cw/ch = dome width/height · lid = crescent-lid droop
     # (0 a thin slit, 1 a deep downcast hood) · mouth = singing-jaw openness mode
-    # (parted / open / wide) · sut = crown-seam style. The inner cyan socket-pool
-    # strength is NOT in the table — `lit` (the two LOWEST palm skulls) drives the
-    # fuller pool, so it stays position-weighted regardless of which idx lands low.
+    # (hum / parted / open / wide) · sut = crown-seam style. The inner cyan socket-
+    # pool strength is NOT in the table — `lit` (the two LOWEST palm skulls) drives
+    # the fuller pool, so it stays position-weighted regardless of which idx lands
+    # low. WHY four mouth modes + four lid bands: the AD flagged "one face per row,
+    # mirrored" — so every entry now varies across mouth + lid + bow + dome, and NO
+    # two adjacent palm singers share the same mouth+lid pair (the choir is twelve
+    # individuals mid-hymn, not one mold re-tilted).
     PROFILE = [
-        # 0: tall bowed dome, lips softly PARTED (first breath), deep lid, zigzag seam
-        dict(tilt=-0.18, cw=0.94, ch=1.14, lid=0.86, mouth="parted", sut="zig"),
-        # 1: broad upright dome, mouth OPEN mid-note, mid lid, bead-dotted seam
-        dict(tilt= 0.08, cw=1.16, ch=0.96, lid=0.58, mouth="open",   sut="dots"),
-        # 2: narrow head bowed deep, WIDE agape 'O' (the held note), heavy lid, zig
-        dict(tilt=-0.30, cw=0.88, ch=1.06, lid=0.92, mouth="wide",   sut="zig"),
-        # 3: squat low dome, mouth OPEN, light lid (the lifted singer), line seam
-        dict(tilt= 0.10, cw=1.08, ch=0.90, lid=0.44, mouth="open",   sut="line"),
-        # 4: tall head bowed right, lips softly PARTED, deep lid, dotted seam
-        dict(tilt= 0.24, cw=0.90, ch=1.12, lid=0.80, mouth="parted", sut="dots"),
-        # 5: lopsided dome, WIDE agape 'O', mid-deep lid, zigzag seam
-        dict(tilt=-0.10, cw=1.04, ch=1.00, lid=0.74, mouth="wide",   sut="zig"),
+        # 0: tall dome bowed left, lips softly PARTED (first breath), full lid, zig
+        dict(tilt=-0.18, cw=0.94, ch=1.18, lid=0.88, mouth="parted", sut="zig"),
+        # 1: broad upright dome, OVAL open mid-note, half-crescent lid, bead-dots
+        dict(tilt= 0.05, cw=1.18, ch=0.94, lid=0.52, mouth="open",   sut="dots"),
+        # 2: narrow head bowed deep, WIDE held-'O', heavy lid (the loud one), zig
+        dict(tilt=-0.30, cw=0.86, ch=1.08, lid=0.94, mouth="wide",   sut="zig"),
+        # 3: squat lopsided dome, nearly-closed HUM, barely-open lid, line seam
+        dict(tilt= 0.12, cw=1.10, ch=0.88, lid=0.30, mouth="hum",    sut="line"),
+        # 4: tall head bowed right, OVAL open, full lid, dotted seam
+        dict(tilt= 0.26, cw=0.90, ch=1.14, lid=0.82, mouth="open",   sut="dots"),
+        # 5: rounder dome chin-down, lips softly PARTED, half-crescent lid, zig
+        dict(tilt=-0.06, cw=1.06, ch=1.02, lid=0.60, mouth="parted", sut="zig"),
     ]
     p = PROFILE[idx % len(PROFILE)]
     t = p["tilt"]
@@ -479,18 +524,23 @@ def palm_skull(surf, cx, cy, r, s, idx=0, lit=False):
         # the inner cyan gaze-pool — pooled flat at the DOWNCAST (lower-inner) edge
         gaze_dx = -sgn * sr * 0.30                      # cast inward, toward midline
         gaze_dy = sr * 0.34                             # and downward (devotional)
+        # WHY the lit pool is now visibly hotter: the AD called the 3-up cyan beat
+        # (crown-centre + the two LOWEST palms) a phantom claim — invisible at hero
+        # scale. The lit pool is LANDED: a bigger CYAN core plus a clear CYAN_BR rim
+        # so the two lowest palms read distinctly brighter than their four siblings,
+        # while staying capped below the gems (no white-hot core lives here).
         if lit:
             pygame.draw.circle(surf, CYAN_D, (int(ecx + gaze_dx), int(ecy + gaze_dy)),
-                               max(1, int(sr * 0.62)))
+                               max(1, int(sr * 0.68)))
             pygame.draw.circle(surf, CYAN, (int(ecx + gaze_dx), int(ecy + gaze_dy)),
-                               max(1, int(sr * 0.42)))
+                               max(1, int(sr * 0.50)))
             pygame.draw.circle(surf, CYAN_BR, (int(ecx + gaze_dx), int(ecy + gaze_dy)),
-                               max(1, int(sr * 0.18)))
+                               max(1, int(sr * 0.26)))
         else:
             pygame.draw.circle(surf, CYAN_D, (int(ecx + gaze_dx), int(ecy + gaze_dy)),
-                               max(1, int(sr * 0.46)))
+                               max(1, int(sr * 0.42)))
             pygame.draw.circle(surf, CYAN, (int(ecx + gaze_dx), int(ecy + gaze_dy)),
-                               max(1, int(sr * 0.24)))
+                               max(1, int(sr * 0.20)))
         # the heavy bone LID hooding the socket from above — a filled crescent that
         # eats the top of the pit, leaving only a downcast sliver of gaze below it.
         lid_drop = sr * (0.20 + 0.62 * lid)             # deeper lid = more covered
@@ -512,11 +562,13 @@ def palm_skull(surf, cx, cy, r, s, idx=0, lit=False):
     # ── singing AGAPE jaw — the open 'O' mouth that carries the chant ──
     # WHY a smooth rounded opening, NO fangs and NO cracks: the chant must read as
     # devotional song, not a snarl, and the soft 'O' is the SILHOUETTE move that
-    # survives 32px. Three openings: a small softly-PARTED oval, a mid OPEN oval, a
-    # WIDE held-note 'O'. The dark oval is the cavity; a thin dropped jaw-bone arc
-    # rings its lower edge so the open mouth still reads as bone, not a hole. NO
-    # tooth slits anywhere — the chant grammar is fangless.
-    if p["mouth"] == "parted":
+    # survives 32px. Four openings: a nearly-closed HUM slit, a small softly-PARTED
+    # oval, a mid OPEN oval, a WIDE held-note 'O'. The dark oval is the cavity; a
+    # thin dropped jaw-bone arc rings its lower edge so the open mouth still reads as
+    # bone, not a hole. NO tooth slits anywhere — the chant grammar is fangless.
+    if p["mouth"] == "hum":
+        mw, mh, my0 = cr * 0.26, cr * 0.10, cr * 0.78
+    elif p["mouth"] == "parted":
         mw, mh, my0 = cr * 0.30, cr * 0.18, cr * 0.78
     elif p["mouth"] == "open":
         mw, mh, my0 = cr * 0.36, cr * 0.30, cr * 0.80
@@ -529,6 +581,17 @@ def palm_skull(surf, cx, cy, r, s, idx=0, lit=False):
         cavity.append(rot(math.cos(a) * mw, my0 + math.sin(a) * mh))
     pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in cavity])
     pygame.draw.polygon(surf, BONE_DD, [(int(x), int(y)) for x, y in cavity], ow_thin)
+    # WHY a 1px warm-ivory inner LIP on the TOP edge: the AD flagged some open mouths
+    # reading as punched-out holes. A bright bone rim hugging the upper arc of the
+    # cavity reads as the lit inside of an OPEN mouth (the upper lip catching light),
+    # not a void. Drawn before the chin arc so the lower jaw still cups it.
+    top_lip = []
+    for ad in range(200, 341, 28):
+        a = math.radians(ad)
+        top_lip.append(rot(math.cos(a) * mw * 0.92, my0 + math.sin(a) * mh * 0.92))
+    if len(top_lip) >= 2:
+        pygame.draw.lines(surf, BEAD_BR, False,
+                          [(int(x), int(y)) for x, y in top_lip], max(1, int(1.0 * s)))
     # a thin bone jaw-bone arc cupping the LOWER half of the open mouth (the chin)
     jaw = []
     for ad in range(20, 161, 28):
@@ -653,9 +716,12 @@ def cyan_gem(surf, c, r, s, focal=False, bg=None, hot=None):
     pygame.draw.polygon(surf, INK, table, max(1, int(0.9 * s)))
     pygame.draw.line(surf, CYAN_BR, table[0], table[n_crown // 2], max(1, int(0.8 * s)))
 
-    # HARD specular glints — tiny white TRIANGLES pinned at facet corners.
+    # HARD specular glints — tiny TRIANGLES pinned at facet corners. Pure white is
+    # reserved for the HERO necklace gem (show_hot); the dimmer non-hot third-eye
+    # glints a soft cyan-white so the hero gem stays the single brightest pixel.
+    gcol = (255, 255, 255) if show_hot else (210, 238, 245)
     def glint(px, py, sz):
-        pygame.draw.polygon(surf, (255, 255, 255),
+        pygame.draw.polygon(surf, gcol,
                             [(px, py - sz), (px + sz, py + sz * 0.5),
                              (px - sz, py + sz * 0.5)])
 
@@ -844,13 +910,19 @@ def draw_asthi_dakini(surf, cx, cy, s):
         pygame.draw.circle(surf, BONE_D,
                            (head_c[0] + sgn * int(hr * 0.66), head_c[1] + int(hr * 0.28)),
                            int(hr * 0.26))
-    # big round sockets — scary-cute, kept dim (no hot core) so the third-eye wins
+    # big round sockets — scary-cute, kept dim (no hot core) so the third-eye wins.
+    # WHY the socket pupils are TAMED: the AD flagged the central cyan tying the brow
+    # third-eye and muddying the vertical cyan ladder (gem > third-eye > eyes >
+    # sockets). The pupils are pulled ~15% toward the dim bone-grey (lower chroma)
+    # AND ~15% smaller so the eyes sit cleanly BELOW the third-eye, never level.
+    socket_pupil = lerp(CYAN_D, BONE_DD, 0.15)
     for sgn in (-1, 1):
         ex = head_c[0] + sgn * int(hr * 0.44)
         ey = head_c[1] + int(hr * 0.10)
         pygame.draw.circle(surf, BONE_DD, (ex, ey), int(hr * 0.32))
         pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.26))
-        pygame.draw.circle(surf, CYAN_D, (ex + sgn * int(1 * s), ey + int(1 * s)), int(hr * 0.10))
+        pygame.draw.circle(surf, socket_pupil, (ex + sgn * int(1 * s), ey + int(1 * s)),
+                           max(1, int(hr * 0.085)))
     # THIRD EYE — the same faceted cyan cut-gem, SMALLER than the necklace hero gem
     # and a step dimmer (no white-hot core), so the necklace gem reads as brightest.
     tex, tey = head_c[0], head_c[1] - int(hr * 0.36)
@@ -860,13 +932,29 @@ def draw_asthi_dakini(surf, cx, cy, s):
                         [(head_c[0] - int(hr * 0.14), head_c[1] + int(hr * 0.30)),
                          (head_c[0] + int(hr * 0.14), head_c[1] + int(hr * 0.30)),
                          (head_c[0], head_c[1] + int(hr * 0.56))])
-    # grinning tooth row (cute, not gory)
-    my = head_c[1] + int(hr * 0.70)
-    pygame.draw.line(surf, INK, (head_c[0] - int(hr * 0.5), my),
-                     (head_c[0] + int(hr * 0.5), my), max(1, int(2 * s)))
-    for k in range(-3, 4):
-        pygame.draw.line(surf, INK, (head_c[0] + int(k * hr * 0.16), my - int(hr * 0.1)),
-                         (head_c[0] + int(k * hr * 0.16), my + int(hr * 0.14)), max(1, int(1 * s)))
+    # === HERO SINGING JAW — the matriarch is the LOUDEST voice in the choir =====
+    # WHY no grin, no smile-line, no teeth: the AD noted the lead was SMILING (a
+    # railed-teeth grin + an upturned smile-line beneath) while the twelve sang. The
+    # matriarch must sing too — and be the widest agape 'O' of all. So the closed
+    # grin is replaced with the same fangless chant grammar as the choir, scaled up:
+    # a dark rounded singing cavity, a 1px warm-ivory inner LIP on its TOP edge so it
+    # reads as an open mouth (not a punched hole), and a bone chin arc cupping the
+    # lower lip. NO tooth slits, NO smile-line anywhere.
+    mcy = head_c[1] + int(hr * 0.66)
+    mw_h, mh_h = hr * 0.40, hr * 0.42
+    cavity_h = [(head_c[0] + math.cos(math.radians(ad)) * mw_h,
+                 mcy + math.sin(math.radians(ad)) * mh_h) for ad in range(0, 360, 30)]
+    pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in cavity_h])
+    pygame.draw.polygon(surf, BONE_DD, [(int(x), int(y)) for x, y in cavity_h], max(1, int(1.2 * s)))
+    top_lip_h = [(head_c[0] + math.cos(math.radians(ad)) * mw_h * 0.9,
+                  mcy + math.sin(math.radians(ad)) * mh_h * 0.9) for ad in range(200, 341, 24)]
+    pygame.draw.lines(surf, BONE_SH, False,
+                      [(int(x), int(y)) for x, y in top_lip_h], max(1, int(1.4 * s)))
+    chin_h = [(head_c[0] + math.cos(math.radians(ad)) * (mw_h + hr * 0.10),
+               mcy + math.sin(math.radians(ad)) * (mh_h + hr * 0.14)) for ad in range(20, 161, 28)]
+    chin_h.append((head_c[0] + mw_h + hr * 0.06, mcy + mh_h * 0.24))
+    chin_h.append((head_c[0] - mw_h - hr * 0.06, mcy + mh_h * 0.24))
+    triad_blob(surf, BONE, [(int(x), int(y)) for x, y in chin_h], ow=max(1, int(1.2 * s)))
 
     # === WHEEL EARRINGS — beaded ring discs hung at each temple (jewelry set) ==
     for sgn in (-1, 1):
@@ -1002,13 +1090,14 @@ def render_creature_chip(boxw, boxh, draw_cx, draw_cy, scale, ss=SS):
 
 def export_hero():
     """Standalone hi-res hero PNG (~1024px tall) so the dense bead-work survives.
-    Rendered at SS=8 on a large canvas then smoothscaled into the export box."""
+    Rendered at SS=8 on a large canvas then smoothscaled into the export box
+    (round_2_hero.png)."""
     boxw, boxh = 760, 1024
     hero = render_creature_chip(boxw, boxh, 380, 540, 3.7, ss=SS)
     canvas = pygame.Surface((boxw, boxh))
     vgrad(canvas, (0, 0, boxw, boxh), (74, 84, 104), (40, 46, 64))
     canvas.blit(hero, (0, 0))
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2_hero.png")
     pygame.image.save(canvas, out)
     return out
 
@@ -1140,13 +1229,13 @@ def main():
     # bottom note strip
     pygame.draw.rect(sheet, PANEL, (14, 836, W - 28, 48))
     sheet.blit(f_sm.render(
-        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero export (round_1_hero.png).",
+        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero export (round_2_hero.png).",
         True, LABEL_DIM), (26, 846))
     sheet.blit(f_sm.render(
         "STAY: flat fills · hard ink keyline (28,22,26) · dark-core->fill->top-left sheen triad · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 864))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     hero_out = export_hero()
     print("wrote", out)

@@ -231,24 +231,34 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
     # None (a hollow socket — blind/winking) or dict(g, dx, dy) for a gold-bezel
     # cyan PUPIL. The LIT centre relic (idx 2) is the 3rd lead seer: the largest,
     # brightest crown gem-eyes (`big`), but still a value step under the third-eye.
+    # WHY `bstyle` (NEW): the repeated zig-chevron brow was the strongest "same face"
+    # tell, so the brow read is now varied independently of the suture — "ridge" a
+    # plain socket-ridge bar, "furrow" a single dipped V-furrow, "chev" the old
+    # chevron (kept on only a couple), None = a bare brow. Spread so no more than two
+    # crown relics carry the chevron.
     CROWN_PROFILE = [
-        # 0: TALL narrow dome — a CALM level staring pair, mid gems, set jaw
-        dict(cw=0.88, ch=1.18, lean=0.00, heart=False, sut="dots", brow=True,  jaw="set",   chip=False,
+        # 0: NARROWER/LONGER skull (silhouette nudge) — CALM level pair, set jaw,
+        #    plain socket-ridge brow (chevron dropped)
+        dict(cw=0.82, ch=1.26, lean=0.00, heart=False, sut="dots", brow=True,  bstyle="ridge",  jaw="set",     chip=False,
              eyes=(dict(g=0.72, dy=0.00), dict(g=0.72, dy=0.00))),
-        # 1: broad ROUND dome — a WINKING relic (left hollow), AGAPE jaw
-        dict(cw=1.16, ch=0.96, lean=0.00, heart=False, sut="zig",  brow=False, jaw="agape", chip=False,
+        # 1: broad ROUND dome — WINKING relic (left hollow), SLACK dropped-open jaw,
+        #    single furrow (chevron dropped)
+        dict(cw=1.16, ch=0.96, lean=0.00, heart=False, sut="line", brow=True,  bstyle="furrow", jaw="agape",   chip=False,
              eyes=(None, dict(g=0.80, dy=-0.06))),
-        # 2: SQUAT centre (LIT lead seer) — heart top, FULL BIG staring pair, set jaw
-        dict(cw=1.10, ch=0.86, lean=0.00, heart=True,  sut="dots", brow=True,  jaw="set",   chip=False,
+        # 2: SQUAT centre (LIT lead seer) — heart top, FULL BIG staring pair, TIGHT
+        #    lipless clench (no teeth gap), plain ridge brow
+        dict(cw=1.10, ch=0.86, lean=0.00, heart=True,  sut="dots", brow=True,  bstyle="ridge",  jaw="clench",  chip=False,
              eyes=(dict(g=0.94, dy=-0.04), dict(g=0.94, dy=-0.04))),
-        # 3: LOPSIDED right-lean — a CROSS-EYED relic (gems set inward), chip, plain jaw
-        dict(cw=1.00, ch=1.02, lean=0.20, heart=False, sut="zig",  brow=True,  jaw="plain", chip=True,
+        # 3: LOPSIDED right-lean — CROSS-EYED relic, chip, plain jaw, chevron kept
+        dict(cw=1.00, ch=1.02, lean=0.20, heart=False, sut="zig",  brow=True,  bstyle="chev",   jaw="plain",   chip=True,
              eyes=(dict(g=0.70, dx=0.34, dy=0.10), dict(g=0.70, dx=-0.34, dy=0.10))),
-        # 4: HEART-domed notch — a PINPOINT pair (tiny gems set high), CRACKED jaw
-        dict(cw=1.02, ch=1.06, lean=-0.06, heart=True, sut="line", brow=False, jaw="cracked", chip=False,
+        # 4: HEART-domed notch — PINPOINT pair (tiny gems set high), CRACKED jaw,
+        #    bare brow (chevron dropped)
+        dict(cw=1.02, ch=1.06, lean=-0.06, heart=True, sut="line", brow=False, bstyle=None,     jaw="cracked", chip=False,
              eyes=(dict(g=0.46, dy=-0.10), dict(g=0.46, dy=-0.10))),
-        # 5: lopsided SQUAT left-lean — a ONE-EYED relic (right hollow), chip, plain jaw
-        dict(cw=1.08, ch=0.92, lean=-0.18, heart=False, sut="zig", brow=True,  jaw="plain", chip=True,
+        # 5: BROADER/FLATTER skull (silhouette nudge) — ONE-EYED (right hollow), chip,
+        #    plain jaw, chevron kept (the second + last chevron)
+        dict(cw=1.22, ch=0.84, lean=-0.18, heart=False, sut="zig", brow=True,  bstyle="chev",   jaw="plain",   chip=True,
              eyes=(dict(g=0.82, dy=-0.02), None)),
     ]
     p = CROWN_PROFILE[idx % len(CROWN_PROFILE)]
@@ -294,27 +304,46 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
         pygame.draw.line(surf, CROWN_BONE_D, (int(cx), int(cy - r * ch * 0.78)),
                          (int(cx), int(cy - r * 0.06)), ow_thin)
 
-    # optional brow ridge — a short dark bar above the sockets (carved relief)
-    if p["brow"]:
+    # BROW — varied independently of the suture so dropping the chevron actually
+    # changes the read. "ridge" a plain straight relief bar, "furrow" a single dipped
+    # V (a brooding frown), "chev" the carved chevron (kept on only two relics).
+    bstyle = p.get("bstyle", "ridge") if p["brow"] else None
+    if bstyle == "ridge":
         pygame.draw.line(surf, CROWN_BONE_D,
                          (int(cx - r * 0.46), int(cy - r * 0.02)),
                          (int(cx + r * 0.46), int(cy - r * 0.02)), max(1, int(1.3 * s)))
+    elif bstyle == "furrow":
+        pygame.draw.lines(surf, CROWN_BONE_D, False,
+                          [(int(cx - r * 0.44), int(cy - r * 0.06)),
+                           (int(cx), int(cy + r * 0.08)),
+                           (int(cx + r * 0.44), int(cy - r * 0.06))], max(1, int(1.3 * s)))
+    elif bstyle == "chev":
+        pygame.draw.lines(surf, CROWN_BONE_D, False,
+                          [(int(cx - r * 0.44), int(cy + r * 0.04)),
+                           (int(cx), int(cy - r * 0.10)),
+                           (int(cx + r * 0.44), int(cy + r * 0.04))], max(1, int(1.3 * s)))
 
-    # jaw — per-profile: SET stub / PLAIN bar / AGAPE (dropped, gap) / CRACKED stub.
-    # WHY 4 modes: varying the lower half keeps the 6-relic arc from reading as one
-    # jaw stamped six times (quiet sutures otherwise carry the upper variety).
+    # jaw — per-profile: SET stub / PLAIN bar / AGAPE (slack dropped-open, taller
+    # void) / CLENCH (tight lipless, no teeth gap) / CRACKED (asymmetric snapped
+    # stub). WHY 5 modes spread across the brood: varying the lower half keeps the
+    # 6-relic arc from reading as one wide bracket-grin stamped six times.
     jaw_open = (p["jaw"] == "agape")
+    jaw_clench = (p["jaw"] == "clench")
     if p["jaw"] == "set":
         jaw = [(cx - r * 0.44, cy + r * 0.52), (cx + r * 0.44, cy + r * 0.52),
                (cx + r * 0.26, cy + r * 0.98), (cx - r * 0.26, cy + r * 0.98)]
     elif p["jaw"] == "agape":
-        # a dropped, gaping jaw — an ink gap above a lowered jaw bone
-        pygame.draw.polygon(surf, INK, [(int(cx - r * 0.40), int(cy + r * 0.50)),
-                                        (int(cx + r * 0.40), int(cy + r * 0.50)),
-                                        (int(cx + r * 0.30), int(cy + r * 0.84)),
-                                        (int(cx - r * 0.30), int(cy + r * 0.84))])
-        jaw = [(cx - r * 0.40, cy + r * 0.84), (cx + r * 0.40, cy + r * 0.84),
-               (cx + r * 0.26, cy + r * 1.22), (cx - r * 0.26, cy + r * 1.22)]
+        # a SLACK dropped-open jaw — a TALLER dark void above a lowered jaw bone
+        pygame.draw.polygon(surf, INK, [(int(cx - r * 0.42), int(cy + r * 0.48)),
+                                        (int(cx + r * 0.42), int(cy + r * 0.48)),
+                                        (int(cx + r * 0.30), int(cy + r * 0.96)),
+                                        (int(cx - r * 0.30), int(cy + r * 0.96))])
+        jaw = [(cx - r * 0.40, cy + r * 0.96), (cx + r * 0.40, cy + r * 0.96),
+               (cx + r * 0.24, cy + r * 1.34), (cx - r * 0.24, cy + r * 1.34)]
+    elif p["jaw"] == "clench":
+        # a TIGHT lipless clench — a narrow flat-lipped jaw, NO open teeth gap
+        jaw = [(cx - r * 0.40, cy + r * 0.54), (cx + r * 0.40, cy + r * 0.54),
+               (cx + r * 0.30, cy + r * 0.86), (cx - r * 0.30, cy + r * 0.86)]
     elif p["jaw"] == "cracked":
         # one corner snapped off — an asymmetric stub
         jaw = [(cx - r * 0.50, cy + r * 0.50), (cx + r * 0.30, cy + r * 0.50),
@@ -344,16 +373,22 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
     pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.13)))
 
     # tooth line — a short bar with a couple of slits; the chip profiles drop one.
-    # On an agape relic the teeth ring higher so they edge the open gap.
-    ty = cy + int(r * (0.56 if jaw_open else 0.70))
-    pygame.draw.line(surf, INK, (cx - int(r * 0.32), ty), (cx + int(r * 0.32), ty),
-                     max(1, int(1.2 * s)))
-    for j in range(3):
-        tx = cx - int(r * 0.24) + j * int(r * 0.24)
-        if p["chip"] and j == 1:
-            continue   # a knocked-out tooth — the chip read on a lopsided relic
-        pygame.draw.line(surf, INK, (tx, ty - int(r * 0.08)), (tx, ty + int(r * 0.10)),
-                         max(1, int(1.0 * s)))
+    # On an agape relic the teeth ring higher so they edge the open gap. The CLENCH
+    # jaw shows NO toothed gap at all — just a single tight lipless seam.
+    if jaw_clench:
+        sy = cy + int(r * 0.68)
+        pygame.draw.line(surf, INK, (cx - int(r * 0.30), sy), (cx + int(r * 0.30), sy),
+                         max(1, int(1.4 * s)))
+    else:
+        ty = cy + int(r * (0.56 if jaw_open else 0.70))
+        pygame.draw.line(surf, INK, (cx - int(r * 0.32), ty), (cx + int(r * 0.32), ty),
+                         max(1, int(1.2 * s)))
+        for j in range(3):
+            tx = cx - int(r * 0.24) + j * int(r * 0.24)
+            if p["chip"] and j == 1:
+                continue   # a knocked-out tooth — the chip read on a lopsided relic
+            pygame.draw.line(surf, INK, (tx, ty - int(r * 0.08)), (tx, ty + int(r * 0.10)),
+                             max(1, int(1.0 * s)))
 
 
 # ── a gem-EYE — a gold-bezel cyan cabochon PUPIL set into a socket pit ────────
@@ -364,9 +399,13 @@ def gem_eye(surf, ecx, ecy, socket_r, s, g=0.74, dx=0.0, dy=0.0, big=False):
     around the stone (the eye-white is ink) so the cabochon is the contained cyan
     accent. `g` scales the stone from big-eyed (≈0.95) down to a pinpoint stare
     (≈0.5); `dx/dy` slide the pupil within the socket (cross-eyed / high / low).
-    LADDER GUARD: capped at CYAN_BR for a tiny rim glint only — NO white-hot core,
-    smaller + dimmer than the brow third-eye; `big` (the 3 lead seers) only widens
-    the stone toward the socket rim, never adds brightness above the third-eye."""
+    LADDER GUARD (hard rule): the white-hot core belongs to the necklace HERO gem
+    ALONE. EVERY gem-eye glint — including the LEAD seers (`big`) — is capped at a
+    soft CYAN_BR rim glint and never (255,255,255). `big` only widens the cyan body
+    toward the socket rim; it must NOT brighten the glint above a non-lead eye, and
+    the lead glint is kept SMALLER (not bigger) so a larger stone can never bloom
+    into a white-hot read. Every gem-eye stays a clear value step under the brow
+    third-eye, which is under the hero gem."""
     ox = int(socket_r * dx)
     oy = int(socket_r * dy)
     gx, gy = ecx + ox, ecy + oy
@@ -384,9 +423,12 @@ def gem_eye(surf, ecx, ecy, socket_r, s, g=0.74, dx=0.0, dy=0.0, big=False):
     pygame.draw.circle(surf, CYAN, (gx, gy), max(1, int(stone * 0.70)))
     if big:                       # the lead seers get a touch more cyan body…
         pygame.draw.circle(surf, CYAN, (gx, gy), max(1, int(stone * 0.82)))
-    # …but the glint is the brightest it ever reaches (a step below the third-eye)
-    pygame.draw.circle(surf, CYAN_BR, (gx - int(stone * 0.32), gy - int(stone * 0.34)),
-                       max(1, int(stone * 0.26)))
+    # …but the glint is a soft CYAN_BR rim catch, never white-hot. On the LEAD eye
+    # it is held DELIBERATELY SMALLER (0.20 vs 0.26 of the stone) so the wider stone
+    # never lets the glint bloom into a hot core — that signature is the hero gem's.
+    glint_frac = 0.20 if big else 0.26
+    pygame.draw.circle(surf, CYAN_BR, (gx - int(stone * 0.34), gy - int(stone * 0.36)),
+                       max(1, int(stone * glint_frac)))
 
 
 # ── a tiny skull cradled in an open palm (the brood MOTIF) ────────────────────
@@ -417,25 +459,36 @@ def palm_skull(surf, cx, cy, r, s, idx=0, inner=False):
     # NOTE on ordering: the fan sorts hands sign→-spread, so idx 2 & 5 are the two
     # INNERMOST skulls (the lead seers, `inner=True`) — they get bold STARING pairs
     # so the biggest gem-eyes land where the read is strongest, not on a winking eye.
+    # WHY `bstyle` (NEW, mirrors the crown band): the palm brow used to be a single
+    # straight ridge on every skull next to a repeated zig suture, reading as one
+    # face — so the brow now varies (ridge / single furrow / chevron, chevron kept on
+    # only two) and the suture is spread off "zig" on most so the chevron isn't the
+    # universal tell. Jaw modes are spread so the lower half isn't a uniform grin.
     PROFILE = [
-        # 0: tall egg-dome, jaw agape — a WIDE staring pair, gems set high, big-eyed
-        dict(tilt=-0.16, cw=0.96, ch=1.12, jaw="agape", teeth=5, sut="zig", chip=False,
+        # 0: tall egg-dome, SLACK agape (taller void) — WIDE staring pair, gems high,
+        #    big-eyed; single-furrow brow (chevron dropped)
+        dict(tilt=-0.16, cw=0.96, ch=1.12, jaw="agape", teeth=5, sut="line", bstyle="furrow", chip=False,
              eyes=(dict(g=0.90, dy=-0.18), dict(g=0.90, dy=-0.18))),
-        # 1: broad round skull, set jaw — a ONE-EYED seer (right socket hollow)
-        dict(tilt= 0.10, cw=1.14, ch=0.96, jaw="closed", teeth=6, sut="dots", chip=False,
+        # 1: broad round skull, TIGHT lipless clench (no teeth gap) — ONE-EYED seer
+        #    (right socket hollow); plain ridge brow
+        dict(tilt= 0.10, cw=1.14, ch=0.96, jaw="clench", teeth=6, sut="dots", bstyle="ridge",  chip=False,
              eyes=(dict(g=0.84, dy=-0.02), None)),
-        # 2: INNERMOST lead seer — narrow tilt, cracked jaw, FULL staring pair (big)
-        dict(tilt=-0.30, cw=0.88, ch=1.04, jaw="cracked", teeth=3, sut="zig", chip=True,
+        # 2: INNERMOST lead seer — narrow tilt, cracked jaw, FULL staring pair (big);
+        #    chevron brow kept (one of only two)
+        dict(tilt=-0.30, cw=0.88, ch=1.04, jaw="cracked", teeth=3, sut="zig", bstyle="chev",   chip=True,
              eyes=(dict(g=0.96, dy=-0.04), dict(g=0.96, dy=-0.04))),
-        # 3: squat low dome, jaw agape wide — a CROSS-EYED seer (gems set inward/low)
-        dict(tilt= 0.06, cw=1.06, ch=0.90, jaw="agape", teeth=7, sut="line", chip=False,
+        # 3: squat low dome, jaw agape wide — CROSS-EYED seer (gems set inward/low);
+        #    plain ridge brow (chevron dropped)
+        dict(tilt= 0.06, cw=1.06, ch=0.90, jaw="agape", teeth=7, sut="line", bstyle="ridge",  chip=False,
              eyes=(dict(g=0.78, dy=0.12, dx=0.32), dict(g=0.78, dy=0.12, dx=-0.32))),
-        # 4: tall narrow skull, set jaw — PINPOINT stare, tiny gems set low
-        dict(tilt= 0.22, cw=0.90, ch=1.10, jaw="closed", teeth=5, sut="dots", chip=False,
+        # 4: tall narrow skull, set/closed jaw — PINPOINT stare, tiny gems set low;
+        #    single-furrow brow (chevron dropped)
+        dict(tilt= 0.22, cw=0.90, ch=1.10, jaw="closed", teeth=5, sut="dots", bstyle="furrow", chip=False,
              eyes=(dict(g=0.48, dy=0.16), dict(g=0.48, dy=0.16))),
         # 5: INNERMOST lead seer — lopsided cracked-jaw chip, FULL staring pair (big),
-        #    but ASYMMETRIC set (left low / right high) so the two leads aren't twins
-        dict(tilt=-0.08, cw=1.02, ch=1.00, jaw="cracked", teeth=4, sut="zig", chip=True,
+        #    ASYMMETRIC set (left low / right high) so the two leads aren't twins;
+        #    chevron brow kept (the second + last chevron)
+        dict(tilt=-0.08, cw=1.02, ch=1.00, jaw="cracked", teeth=4, sut="zig", bstyle="chev",   chip=True,
              eyes=(dict(g=0.92, dy=0.10), dict(g=0.92, dy=-0.14))),
     ]
     p = PROFILE[idx % len(PROFILE)]
@@ -506,11 +559,23 @@ def palm_skull(surf, cx, cy, r, s, idx=0, inner=False):
                          (int(rot(0, -cr * ch * 0.80)[0]), int(rot(0, -cr * ch * 0.80)[1])),
                          (int(rot(0, -cr * 0.10)[0]), int(rot(0, -cr * 0.10)[1])), ow_thin)
 
-    # brow ridge — a short dark bar above the sockets (carved relief)
-    br0 = rot(-cr * 0.46, -cr * 0.02)
-    br1 = rot(cr * 0.46, -cr * 0.02)
-    pygame.draw.line(surf, BONE_D, (int(br0[0]), int(br0[1])), (int(br1[0]), int(br1[1])),
-                     max(1, int(1.4 * s)))
+    # BROW — varied per-profile (mirrors the crown band) so the brow isn't one stamp:
+    # "ridge" a plain relief bar, "furrow" a single dipped V (a frown), "chev" the
+    # carved chevron (kept on only two palm skulls), tilted with the skull.
+    bstyle = p.get("bstyle", "ridge")
+    if bstyle == "furrow":
+        bf = [rot(-cr * 0.44, -cr * 0.06), rot(0, cr * 0.08), rot(cr * 0.44, -cr * 0.06)]
+        pygame.draw.lines(surf, BONE_D, False, [(int(x), int(y)) for x, y in bf],
+                          max(1, int(1.4 * s)))
+    elif bstyle == "chev":
+        bc = [rot(-cr * 0.44, cr * 0.04), rot(0, -cr * 0.10), rot(cr * 0.44, cr * 0.04)]
+        pygame.draw.lines(surf, BONE_D, False, [(int(x), int(y)) for x, y in bc],
+                          max(1, int(1.4 * s)))
+    else:   # "ridge"
+        br0 = rot(-cr * 0.46, -cr * 0.02)
+        br1 = rot(cr * 0.46, -cr * 0.02)
+        pygame.draw.line(surf, BONE_D, (int(br0[0]), int(br0[1])), (int(br1[0]), int(br1[1])),
+                         max(1, int(1.4 * s)))
 
     # temple / cheek hollow — a faint shade pocket on the lower-right cheek
     hollow = [rot(cr * 0.20, cr * 0.18), rot(cr * 0.60, cr * 0.20),
@@ -547,22 +612,31 @@ def palm_skull(surf, cx, cy, r, s, idx=0, inner=False):
                                     (int(n_l[0]), int(n_l[1])),
                                     (int(n_r[0]), int(n_r[1]))])
 
-    # ── jaw — per-profile: closed bar / agape gap / cracked-off stub ──
+    # ── jaw — per-profile: closed bar / clench (tight lipless) / agape gap /
+    #    cracked-off stub ──
     jl, jr = -cr * 0.40, cr * 0.40       # jaw corners under the cheeks
+    clench = (p["jaw"] == "clench")
     if p["jaw"] == "closed":
         jaw = [rot(jl, cr * 0.74), rot(jr, cr * 0.74),
                rot(jr * 0.70, cr * 1.04), rot(jl * 0.70, cr * 1.04)]
         triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
         teeth_y0, teeth_y1 = cr * 0.74, cr * 1.00
-    elif p["jaw"] == "agape":
-        # an open mouth: a dark gap, then a dropped jaw bone below it
-        gap = [rot(jl * 0.86, cr * 0.70), rot(jr * 0.86, cr * 0.70),
-               rot(jr * 0.70, cr * 1.06), rot(jl * 0.70, cr * 1.06)]
-        pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in gap])
-        jaw = [rot(jl * 0.74, cr * 1.06), rot(jr * 0.74, cr * 1.06),
-               rot(jr * 0.54, cr * 1.34), rot(jl * 0.54, cr * 1.34)]
+    elif p["jaw"] == "clench":
+        # a TIGHT lipless clench — a narrow flat jaw with NO toothed gap; the mouth
+        # is just one pressed seam (handled in the tooth block below)
+        jaw = [rot(jl * 0.86, cr * 0.76), rot(jr * 0.86, cr * 0.76),
+               rot(jr * 0.66, cr * 0.98), rot(jl * 0.66, cr * 0.98)]
         triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
-        teeth_y0, teeth_y1 = cr * 0.70, cr * 0.94   # upper teeth ring the gap
+        teeth_y0, teeth_y1 = cr * 0.82, cr * 0.82
+    elif p["jaw"] == "agape":
+        # a SLACK open mouth: a TALLER dark gap, then a dropped jaw bone below it
+        gap = [rot(jl * 0.86, cr * 0.66), rot(jr * 0.86, cr * 0.66),
+               rot(jr * 0.70, cr * 1.12), rot(jl * 0.70, cr * 1.12)]
+        pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in gap])
+        jaw = [rot(jl * 0.74, cr * 1.12), rot(jr * 0.74, cr * 1.12),
+               rot(jr * 0.54, cr * 1.42), rot(jl * 0.54, cr * 1.42)]
+        triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
+        teeth_y0, teeth_y1 = cr * 0.66, cr * 0.92   # upper teeth ring the gap
     else:   # "cracked" — one jaw corner snapped off, leaving an asymmetric stub
         jaw = [rot(jl, cr * 0.74), rot(jr * 0.55, cr * 0.74),
                rot(jr * 0.20, cr * 1.02), rot(jl * 0.78, cr * 1.06)]
@@ -574,16 +648,23 @@ def palm_skull(surf, cx, cy, r, s, idx=0, inner=False):
                          ow_thin)
         teeth_y0, teeth_y1 = cr * 0.74, cr * 1.00
 
-    # tooth row — n_teeth ink slits; the chipped profiles drop one for a gap
-    nt = p["teeth"]
-    for j in range(nt):
-        fx = -cr * 0.34 + j * (cr * 0.68 / max(1, nt - 1))
-        if p["chip"] and j == nt // 2:
-            continue   # a missing/knocked-out tooth (the chip)
-        tp0 = rot(fx, teeth_y0)
-        tp1 = rot(fx, teeth_y1)
-        pygame.draw.line(surf, INK, (int(tp0[0]), int(tp0[1])),
-                         (int(tp1[0]), int(tp1[1])), max(1, int(1.0 * s)))
+    # tooth row — n_teeth ink slits; the chipped profiles drop one for a gap. The
+    # CLENCH jaw shows NO toothed gap — just one tight lipless seam across the mouth.
+    if clench:
+        sp0 = rot(-cr * 0.32, teeth_y0)
+        sp1 = rot(cr * 0.32, teeth_y0)
+        pygame.draw.line(surf, INK, (int(sp0[0]), int(sp0[1])),
+                         (int(sp1[0]), int(sp1[1])), max(1, int(1.4 * s)))
+    else:
+        nt = p["teeth"]
+        for j in range(nt):
+            fx = -cr * 0.34 + j * (cr * 0.68 / max(1, nt - 1))
+            if p["chip"] and j == nt // 2:
+                continue   # a missing/knocked-out tooth (the chip)
+            tp0 = rot(fx, teeth_y0)
+            tp1 = rot(fx, teeth_y1)
+            pygame.draw.line(surf, INK, (int(tp0[0]), int(tp0[1])),
+                             (int(tp1[0]), int(tp1[1])), max(1, int(1.0 * s)))
 
 
 # ── the Mukha-Devi six-arm radial fan (cloned; bead-armlet wrapped) ───────────
@@ -643,10 +724,11 @@ def cyan_gem(surf, c, r, s, focal=False, bg=None, hot=None):
     """A CUT cyan jewel built from FLAT FACET PLANES, not a glossy sphere — a facet
     ROSETTE: a flat angular TABLE polygon at the crown, ringed by angled crown facets
     that radiate from the table edge out to the bezel, each a FILLED polygon in a
-    stepped cyan value so adjacent planes meet at SHARP corners. Hard glints are tiny
-    white TRIANGLES pinned at facet corners. `focal` is the brow third-eye: it alone
-    gets the white hot core + 3 glints and shows ONLY its octagonal faceted stone (no
-    circular background)."""
+    stepped cyan value so adjacent planes meet at SHARP corners. The WHITE-hot core +
+    pure-white glints are the necklace HERO gem's signature ALONE (`hot`); the brow
+    third-eye is `focal` (seat-less faceted stone, no background) but `hot=False`, so
+    it keeps only a faint pale-CYAN glint — no pure white — a clear step under the
+    hero gem at the top of the value ladder."""
     cx, cy = int(c[0]), int(c[1])
     # `bg`/`hot` decouple the two focal traits so a gem can drop one without the
     # other: the necklace HERO gem keeps the white-hot core (hot) with no ink seat
@@ -697,14 +779,17 @@ def cyan_gem(surf, c, r, s, focal=False, bg=None, hot=None):
     pygame.draw.polygon(surf, INK, table, max(1, int(0.9 * s)))
     pygame.draw.line(surf, CYAN_BR, table[0], table[n_crown // 2], max(1, int(0.8 * s)))
 
-    # HARD specular glints — tiny white TRIANGLES pinned at facet corners.
-    def glint(px, py, sz):
-        pygame.draw.polygon(surf, (255, 255, 255),
+    # HARD specular glints — tiny TRIANGLES pinned at facet corners. WHITE is the
+    # HERO gem's signature ALONE (gated on `show_hot`): the brow third-eye keeps only
+    # a faint pale-CYAN glint, never pure white, so the necklace gem stays the sole
+    # white-hot focal at the top of the value ladder.
+    def glint(px, py, sz, col=(255, 255, 255)):
+        pygame.draw.polygon(surf, col,
                             [(px, py - sz), (px + sz, py + sz * 0.5),
                              (px - sz, py + sz * 0.5)])
 
     g = max(1, int(r * 0.16))
-    glint(table[6][0], table[6][1], g)
+    glint(table[6][0], table[6][1], g, col=((255, 255, 255) if show_hot else CYAN_BR))
     if show_hot:
         # the white HOT CORE — the single brightest pixel of the whole sprite.
         pygame.draw.polygon(surf, CYAN_BR,
@@ -1055,7 +1140,7 @@ def export_hero():
     canvas = pygame.Surface((boxw, boxh))
     vgrad(canvas, (0, 0, boxw, boxh), (74, 84, 104), (40, 46, 64))
     canvas.blit(hero, (0, 0))
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1_hero.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2_hero.png")
     pygame.image.save(canvas, out)
     return out
 
@@ -1081,7 +1166,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("ASTHI v3 — GEM-EYED-ORACLE", True, LABEL), (24, 13))
     sheet.blit(f_sm.render(
-        "bone-jewel sky-dancer  ·  CITIPATI body + MUKHA 6-arm fan · 6 DISTINCT palm-skulls + 6 DISTINCT crown relics · fused crown · WARM aged-bone + gold pips · round 10",
+        "bone-jewel sky-dancer  ·  CITIPATI body + MUKHA 6-arm fan · 6 DISTINCT palm-skulls + 6 DISTINCT crown relics · fused crown · WARM aged-bone + gold pips · round 2 (cyan-capped gem-eyes, varied jaws/brows/craniums)",
         True, LABEL_DIM), (270, 28))
 
     # === (a) BIG HERO =========================================================
@@ -1187,13 +1272,13 @@ def main():
     # bottom note strip
     pygame.draw.rect(sheet, PANEL, (14, 836, W - 28, 48))
     sheet.blit(f_sm.render(
-        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero export (round_1_hero.png).",
+        "ELEVATED pipeline: SS=8 supersample -> smoothscale; standalone hi-res hero export (round_2_hero.png).",
         True, LABEL_DIM), (26, 846))
     sheet.blit(f_sm.render(
         "STAY: flat fills · hard ink keyline (28,22,26) · dark-core->fill->top-left sheen triad · 1px grown outline · chibi scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 864))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     hero_out = export_hero()
     print("wrote", out)
