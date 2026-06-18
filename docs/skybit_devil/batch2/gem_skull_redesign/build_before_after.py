@@ -45,60 +45,60 @@ CAP_COL = (208, 210, 218)
 # future swap stays honest.
 ROWS = [
     {
-        "name": "Asthi-Dakini",
+        "name": "#1 Asthi-Dakini",
         "before": {
             "file": "docs/skybit_devil/batch2/mukha_citipati_court/asthi_dakini/round_3_hero.png",
             "mode": "gradient",
         },
         "after": {
-            "file": "docs/skybit_devil/batch2/mukha_citipati_court/asthi_dakini/round_5_hero.png",
+            "file": "docs/skybit_devil/batch2/mukha_citipati_court/asthi_dakini/round_6_hero.png",
             "mode": "gradient",
         },
     },
     {
-        "name": "Vajra-Rakta",
+        "name": "#2 Vajra-Rakta",
         "before": {
             "file": "docs/skybit_devil/batch2/mukha_citipati_court/vajra_rakta/round_2_hero.png",
             "mode": "alpha",
         },
         "after": {
-            "file": "docs/skybit_devil/batch2/mukha_citipati_court/vajra_rakta/round_4_hero.png",
+            "file": "docs/skybit_devil/batch2/mukha_citipati_court/vajra_rakta/round_5_hero.png",
             "mode": "alpha",
         },
     },
     {
-        "name": "Ratna-Padmini",
+        "name": "#3 Ratna-Padmini",
         "before": {
             "file": "docs/skybit_devil/batch2/mukha_citipati_court/ratna_padmini/round_2_hero.png",
             "mode": "alpha",
         },
         "after": {
-            "file": "docs/skybit_devil/batch2/mukha_citipati_court/ratna_padmini/round_3_hero.png",
+            "file": "docs/skybit_devil/batch2/mukha_citipati_court/ratna_padmini/round_4_hero.png",
             "mode": "alpha",
         },
     },
     {
-        "name": "Bhasma-Yogini",
+        "name": "#4 Bhasma-Yogini",
         "before": {
             "file": "docs/skybit_devil/batch2/mukha_citipati_court_ii/bhasma_yogini/round_2_hero.png",
             "mode": "gradient",
             "skip_top": 120,  # excludes the printed name strip above the figure
         },
         "after": {
-            "file": "docs/skybit_devil/batch2/mukha_citipati_court_ii/bhasma_yogini/round_4_hero.png",
+            "file": "docs/skybit_devil/batch2/mukha_citipati_court_ii/bhasma_yogini/round_5_hero.png",
             "mode": "gradient",
             "skip_top": 120,
         },
     },
     {
-        "name": "Jvala-Nirmala",
+        "name": "#5 Jvala-Nirmala",
         "before": {
             "file": "docs/skybit_devil/batch2/mukha_citipati_court_ii/jvala_nirmala/round_2_hero.png",
             "mode": "gradient",
             "skip_top": 120,
         },
         "after": {
-            "file": "docs/skybit_devil/batch2/mukha_citipati_court_ii/jvala_nirmala/round_4_hero.png",
+            "file": "docs/skybit_devil/batch2/mukha_citipati_court_ii/jvala_nirmala/round_5_hero.png",
             "mode": "gradient",
             "skip_top": 120,
         },
@@ -109,7 +109,7 @@ TILE = 300          # inner art square per tile
 PAD = 26            # gap between the two columns
 ROW_GAP = 22        # gap between sister rows
 MARGIN = 40         # outer margin
-LABEL_W = 150       # left gutter carrying each sister's name
+LABEL_W = 196      # left gutter carrying each sister's #N + name
 COLHEAD_H = 52      # BEFORE/AFTER column header band
 TITLE_H = 74
 CAP_H = 62          # bottom caption strip
@@ -216,7 +216,7 @@ def main():
     f_cap = pygame.font.SysFont("dejavusans", 15)
 
     title = f_title.render(
-        "Gem / Skull / Hand redesign — five sisters, BEFORE vs AFTER",
+        "Five sisters (numbered) — original BEFORE vs revised AFTER",
         True,
         TITLE_COL,
     )
@@ -293,8 +293,8 @@ def main():
 
     # Bottom caption strip.
     cap = f_cap.render(
-        "redesign: faceted gem third-eye + smaller detailed palm-skulls + finer "
-        "hands; asthi: aura removed.",
+        "revision: fancier detailed palm-skulls (all); #1 gem kept w/o background; "
+        "#3 gem reverted + bigger skulls; #4 crown lightened.",
         True,
         CAP_COL,
     )
