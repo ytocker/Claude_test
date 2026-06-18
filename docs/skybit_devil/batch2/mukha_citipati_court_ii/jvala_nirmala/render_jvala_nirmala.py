@@ -221,17 +221,40 @@ def mantle_sheet(surf, anchor, ang, length, width, s, n=4, lit=0.0,
 
 
 # ── a single ornamental crown-skull (reused for the arc + the pillar cap) ─────
-def crown_skull(surf, cx, cy, r, s, lit=False):
-    """Tiny pale-bone skull — domed cranium, two dark sockets, a stub jaw. The arc
-    skulls are OPAQUE bone so they read clearly IN FRONT of the cobalt crest
-    behind them (value separation). `lit` swaps the centre skull's eye-pins to a
-    cool ice pin — but kept BELOW the third-eye so the value gap holds.
+def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
+    """Tiny pale-bone skull — the arc skulls are OPAQUE bone so they read clearly
+    IN FRONT of the cobalt crest behind them (value separation). `lit` swaps the
+    centre skull's eye-pins to a cool ice pin — but kept BELOW the third-eye so the
+    value gap holds. `idx` (0..4 across the arc) gives the arc the SAME construction
+    VARIETY as the palm relics — a different cranium SILHOUETTE per slot (round /
+    narrow-tall / faceted-angular, width/height varied ~15-20%) so the arc is not
+    one dome ×5 either.
 
-    Frost ECHO (DIMMEST tier): a single hairline ink ice-crack down the crown plus
-    one tiny drawn-FLAT cobalt fleck dotted on the centre — just enough to rhyme
-    with the frost-cracked palm-skulls without breaking the clean 32px silhouette
-    or adding any glow (these are flat fills under the value of the third-eye)."""
-    triad_circle(surf, BONE, (cx, cy), r, ow=max(1, int(1.6 * s)), core=False)
+    This is the DIMMEST frost tier and MUST stay clean at 32px: a single hairline
+    ink seam (or a flat cobalt fleck on one slot only) — NO crack network, NO frost
+    cap, NO glow. All flat fills under the value of the third-eye."""
+    lw = max(1, int(1.6 * s))
+    fine = max(1, int(1.0 * s))
+    # cranium silhouette varies per arc slot, mirroring the palm relics' variety
+    shape = idx % 5
+    if shape in (1, 3):
+        # narrow-tall egg vault (slightly slimmer / taller than the round default)
+        ell = pygame.Rect(0, 0, int(r * 1.62), int(r * 2.18))
+        ell.center = (cx, cy - int(r * 0.12))
+        pygame.draw.ellipse(surf, INK, ell.inflate(lw, lw))
+        pygame.draw.ellipse(surf, BONE, ell)
+    elif shape == 2:
+        # faceted angular vault — flat-planed crown (the centre slot reads crisp)
+        cap = [(cx - int(r * 0.90), cy - int(r * 0.10)),
+               (cx - int(r * 0.48), cy - int(r * 0.92)),
+               (cx + int(r * 0.48), cy - int(r * 0.92)),
+               (cx + int(r * 0.90), cy - int(r * 0.10)),
+               (cx + int(r * 0.62), cy + int(r * 0.44)),
+               (cx - int(r * 0.62), cy + int(r * 0.44))]
+        triad_blob(surf, BONE, cap, ow=lw)
+    else:
+        # shape 0 / 4: round vault baseline
+        triad_circle(surf, BONE, (cx, cy), r, ow=lw, core=False)
     jaw = [(cx - int(r * 0.52), cy + int(r * 0.52)),
            (cx + int(r * 0.52), cy + int(r * 0.52)),
            (cx + int(r * 0.34), cy + int(r * 1.0)),
@@ -247,31 +270,46 @@ def crown_skull(surf, cx, cy, r, s, lit=False):
                      (cx - int(r * 0.34), cy + int(r * 0.70)),
                      (cx + int(r * 0.34), cy + int(r * 0.70)),
                      max(1, int(1.2 * s)))
-    # frost echo: a hairline ice-crack forking off the crown (ink, drawn-flat) and
-    # one drawn-flat cobalt fleck on the centre dome — the dimmest frost note so it
-    # never competes with the palm relics or the third-eye, and adds NO glow.
-    fine = max(1, int(1.0 * s))
-    pygame.draw.line(surf, INK, (cx + int(r * 0.10), cy - int(r * 0.84)),
-                     (cx - int(r * 0.16), cy - int(r * 0.30)), fine)
-    pygame.draw.line(surf, INK, (cx - int(r * 0.16), cy - int(r * 0.30)),
-                     (cx + int(r * 0.06), cy - int(r * 0.04)), fine)
-    pygame.draw.circle(surf, COBALT, (cx + int(r * 0.30), cy - int(r * 0.40)),
-                       max(1, int(r * 0.10)))
+    # frost echo (DIMMEST): a single short hairline ink seam (drawn-flat). The two
+    # narrow-tall slots carry a hairline crown seam; the faceted centre carries one
+    # drawn-flat cobalt fleck only; the round slots stay essentially clean — none
+    # gets a crack network or frost cap, so the arc stays crisp at 32px with NO glow.
+    if shape in (1, 3):
+        pygame.draw.line(surf, INK, (cx + int(r * 0.08), cy - int(r * 0.86)),
+                         (cx - int(r * 0.10), cy - int(r * 0.34)), fine)
+    elif shape == 2:
+        pygame.draw.circle(surf, COBALT, (cx + int(r * 0.28), cy - int(r * 0.40)),
+                           max(1, int(r * 0.10)))
 
 
 # ── a tiny cradled palm-skull (the core Mukha motif) ──────────────────────────
 def palm_skull(surf, cx, cy, r, s, idx=0):
-    """A tiny FROST-CRACKED, rime-frosted charnel relic cradled in an open palm —
-    six of these ride the fan-tips and MUST stay legible (mantle routes behind
-    them). Each is an ICE-FRACTURED bone skull, and the SIX are genuinely DISTINCT
-    relics: a forked ice-fracture network, a calved/shattered crown corner, a
-    rime-frosted dome, a frozen-over socket, an icicle-toothed jaw, and a clean
-    one. `idx` (0..5) individuates the cranium shape + the ice damage + the gem.
+    """A tiny charnel relic cradled in an open palm — six ride the fan-tips and
+    MUST stay legible (mantle routes behind them). The SIX are genuinely DISTINCT
+    CONSTRUCTIONS, not one dome re-cracked: each gets its own CRANIUM SILHOUETTE
+    (width/height varied ~15-20% across the set so the difference survives 32px)
+    AND its own silhouette-altering FROST archetype:
 
-    CRITICAL: every accent — including the drawn-FLAT cobalt socket/inlay on three
-    of the six — is a FLAT fill with the INK keyline. NO additive/glow surface, NO
-    bloom. jvala's cobalt third-eye stays the single brightest pixel AND the only
-    glow on the whole sheet; these relics sit a clear value step below it.
+        idx 0 (left)  — round vault + FORKED ice-fracture NETWORK (branching Y).
+        idx 1 (right) — narrow-tall vault under a thick flat RIME-FROST CAP, no
+                        crack; carries cobalt socket #1.
+        idx 2 (left)  — CALVED TALL VAULT: tall/narrow with a CHUNK SHEARED off the
+                        upper-left crown (flat-faceted break that alters the outline)
+                        + an L-shaped calving crack.
+        idx 3 (right) — round vault, one FROZEN-OVER socket filled flat with pale
+                        ICE/BONE (NOT cobalt) so cobalt stays scarce; hairline only.
+        idx 4 (left)  — broad-low vault + ICICLE-TOOTHED jaw (downward ice fangs).
+        idx 5 (right) — CLEAN ANGULAR RELIC: faceted hexagonal-leaning cranium,
+                        minimal damage; carries cobalt socket #2.
+
+    Cobalt lands on EXACTLY two flat sockets (idx 1 & 5, the right palm skulls);
+    the frozen-over socket (idx 3) is pale ICE, never cobalt, so the cobalt count
+    holds at two and the value ladder is preserved.
+
+    CRITICAL: every accent — including the two drawn-FLAT cobalt sockets — is a
+    FLAT fill with the INK keyline. NO additive/glow surface, NO bloom anywhere.
+    jvala's cobalt third-eye stays the single brightest pixel AND the only glow on
+    the whole sheet; these relics sit a clear value step below it.
 
     WHY idx is the primary seed (position hash kept as a light secondary jitter):
     the orchestrator passes the hand index so the six can be cleanly individuated
@@ -290,40 +328,52 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
     fine = max(1, int(1.0 * s))
     rime = lerp(BONE, ICE, 0.5)            # pale ice-bone for drawn-flat frost dabs
 
-    # idx 0 carries a calved/shattered crown corner; jaw set + which carry cobalt
-    # are assigned per-idx below so the six never look stamped.
+    # per-idx jaw gape + which sockets carry the (exactly two) cobalt fills. The
+    # frozen socket (idx 3) is ICE, NOT cobalt, so cobalt stays scarce at two.
     jaw_open = (0.10, 0.06, 0.12, 0.08, 0.22, 0.10)[idx % 6]
-    # 2-3 of the six carry a DRAWN-FLAT cobalt element: 1 & 3 a cobalt-filled
-    # socket, 4 a cobalt inlay chip set in the brow/crack. All flat, all dim.
-    cobalt_socket = idx in (1, 3)
-    cobalt_inlay = idx == 4
+    cobalt_socket = idx in (1, 5)
 
-    # ── cranial dome — a DISTINCT cranium shape per idx (not one dome re-tilted) ─
+    # ── CRANIUM SILHOUETTE — a genuinely DIFFERENT shape per idx ─────────────────
+    # WHY the radius/proportion varies ~15-20% across the set: a uniform dome
+    # radius is exactly what reads as "one skull re-tilted." Two are narrow-tall
+    # (1,2), two are round (0,3), one is broad-low (4), one is faceted-angular (5).
     if idx == 0:
-        # broad low brachycephalic vault, then a calved corner sheared off the
-        # upper-right crown (a flat bone notch + ink fracture edge)
+        # round mid vault — the baseline ROUND construction (frost is the network)
         triad_circle(surf, BONE, (cx, cy), r, ow=lw, core=False)
-        # a sheared crown corner: an ink wedge bitten out of the upper-right vault
-        # with a dark inner shelf, so the relic reads as calved/shattered ice-bone
-        calve = [rot(r * 0.16, -r * 0.96), rot(r * 1.02, -r * 0.30),
-                 rot(r * 0.58, -r * 0.10), rot(r * 0.30, -r * 0.52)]
-        pygame.draw.polygon(surf, INK, calve)
-        pygame.draw.polygon(surf, BONE_DD, [rot(r * 0.30, -r * 0.52),
-                            rot(r * 0.58, -r * 0.10), rot(r * 0.34, -r * 0.04)])
-    elif idx == 2:
-        # tall narrow dolichocephalic vault — egg-domed, rises higher
-        ell = pygame.Rect(0, 0, int(r * 1.7), int(r * 2.2))
-        ell.center = rot(0, -r * 0.12)
+    elif idx == 1:
+        # NARROW-TALL egg vault (rime-cap archetype): taller, slimmer than round
+        ell = pygame.Rect(0, 0, int(r * 1.56), int(r * 2.12))
+        ell.center = rot(0, -r * 0.14)
         pygame.draw.ellipse(surf, INK, ell.inflate(lw * 2, lw * 2))
         pygame.draw.ellipse(surf, BONE, ell)
+    elif idx == 2:
+        # CALVED TALL VAULT: a tall narrow dome with a CHUNK SHEARED off the
+        # upper-LEFT crown — a flat-faceted break that genuinely alters the OUTLINE
+        # (drawn as a clipped polygon dome so the missing corner is part of the
+        # silhouette, not an overlay). Reads as calved glacier-ice bone.
+        vault = [rot(-r * 0.74, r * 0.30), rot(-r * 0.80, -r * 0.30),
+                 rot(-r * 0.34, -r * 0.74),                 # sheared flat facet ↑
+                 rot(r * 0.18, -r * 1.04), rot(r * 0.66, -r * 0.70),
+                 rot(r * 0.86, -r * 0.10), rot(r * 0.78, r * 0.36)]
+        triad_blob(surf, BONE, vault, ow=lw)
+        # dark inner shelf along the sheared facet so the break reads as depth
+        pygame.draw.polygon(surf, BONE_DD, [rot(-r * 0.80, -r * 0.30),
+                            rot(-r * 0.34, -r * 0.74), rot(-r * 0.30, -r * 0.40)])
     elif idx == 5:
-        # angular faceted vault — a clean relic, slightly flattened crown
-        cap = [rot(-r * 0.92, -r * 0.18), rot(-r * 0.52, -r * 0.86),
-               rot(r * 0.52, -r * 0.86), rot(r * 0.92, -r * 0.18),
-               rot(r * 0.70, r * 0.40), rot(-r * 0.70, r * 0.40)]
+        # CLEAN ANGULAR RELIC: a faceted, hexagonal-leaning cranium (six flat
+        # planes) — minimal damage. The angular outline is the differentiator.
+        cap = [rot(-r * 0.88, -r * 0.12), rot(-r * 0.46, -r * 0.92),
+               rot(r * 0.46, -r * 0.92), rot(r * 0.88, -r * 0.12),
+               rot(r * 0.60, r * 0.44), rot(-r * 0.60, r * 0.44)]
         triad_blob(surf, BONE, cap, ow=lw)
+    elif idx == 4:
+        # BROAD-LOW brachycephalic vault — squat + wide (the icicle-jaw skull)
+        ell = pygame.Rect(0, 0, int(r * 2.22), int(r * 1.66))
+        ell.center = rot(0, -r * 0.04)
+        pygame.draw.ellipse(surf, INK, ell.inflate(lw * 2, lw * 2))
+        pygame.draw.ellipse(surf, BONE, ell)
     else:
-        # idx 1, 3, 4: standard round vault (frost differs, not the shape)
+        # idx 3: round vault (frozen-socket archetype rides a clean round dome)
         triad_circle(surf, BONE, (cx, cy), r, ow=lw, core=False)
 
     # cheek/jaw bone block tucked under the dome so the head reads as a skull,
@@ -333,11 +383,13 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
     pygame.draw.polygon(surf, BONE, jp)
     pygame.draw.polygon(surf, INK, jp, fine)
 
-    # cranial suture — a faint forked seam over the crown (BONE_D, drawn not glow)
-    sb = rot(0, -r * 0.10)
-    pygame.draw.line(surf, BONE_D, rot(0, -r * 0.78), sb, fine)
-    pygame.draw.line(surf, BONE_D, sb, rot(-r * 0.30, r * 0.04), fine)
-    pygame.draw.line(surf, BONE_D, sb, rot(r * 0.30, r * 0.04), fine)
+    # cranial suture — a faint forked seam over the crown (BONE_D, drawn not glow).
+    # Skipped on the rime-cap skull (idx 1) — the frost cap covers the crown.
+    if idx != 1:
+        sb = rot(0, -r * 0.10)
+        pygame.draw.line(surf, BONE_D, rot(0, -r * 0.78), sb, fine)
+        pygame.draw.line(surf, BONE_D, sb, rot(-r * 0.30, r * 0.04), fine)
+        pygame.draw.line(surf, BONE_D, sb, rot(r * 0.30, r * 0.04), fine)
 
     # brow ridge — a shaded bone bar above the sockets gives the skull a glower
     pygame.draw.line(surf, BONE_D, rot(-r * 0.52, -r * 0.18),
@@ -348,19 +400,19 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
         pygame.draw.circle(surf, BONE_D, rot(sgn * r * 0.62, r * 0.06),
                            max(1, int(r * 0.18)))
 
-    # ── two sockets — one idx (3) is FROZEN OVER; cobalt-socket idx fill flat ────
+    # ── two sockets — idx 3 has one FROZEN-OVER (ICE); idx 1 & 5 carry cobalt ────
     for k, sgn in enumerate((-1, 1)):
         ec = rot(sgn * r * 0.40, -r * 0.02)
         pygame.draw.circle(surf, BONE_DD, ec, max(1, int(r * 0.34)))
         if idx == 3 and sgn == -1:
-            # frozen-over socket: a flat ICE plate caps the cavity (rime ring +
-            # pale-ice fill), reading as a socket glazed shut with frost — no glow
+            # frozen-over socket: a flat ICE/BONE plate caps the cavity (rime ring
+            # + pale-ice fill) — a socket glazed shut with frost. NO cobalt (keeps
+            # cobalt scarce at two), NO glow; the rim keyline is ink, not cobalt.
             pygame.draw.circle(surf, INK, ec, max(1, int(r * 0.30)))
             pygame.draw.circle(surf, rime, ec, max(1, int(r * 0.24)))
             pygame.draw.circle(surf, lerp(ICE, (255, 255, 255), 0.5), ec,
                                max(1, int(r * 0.12)))
-            pygame.draw.circle(surf, COBALT, ec, max(1, int(r * 0.20)),
-                               max(1, fine))
+            pygame.draw.circle(surf, INK, ec, max(1, int(r * 0.24)), max(1, fine))
         elif cobalt_socket:
             # DRAWN-FLAT cobalt-filled socket: flat cobalt disc set in the ink
             # pit, dimmer than the third-eye, no additive blending whatsoever
@@ -374,22 +426,22 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
     pygame.draw.circle(surf, INK, rot(-r * 0.10, r * 0.30), max(1, int(r * 0.12)))
     pygame.draw.circle(surf, INK, rot(r * 0.10, r * 0.30), max(1, int(r * 0.12)))
 
-    # ── jaw — idx 4 is ICICLE-TOOTHED (frost spikes hang from the mouth) ─────────
+    # ── jaw — idx 4 is ICICLE-TOOTHED (frost fangs hang from the mouth) ──────────
     my = r * (0.56 + jaw_open)
     ml, mr = rot(-r * 0.40, my), rot(r * 0.40, my)
-    pygame.draw.line(surf, INK, ml, mr, lw)
     if idx == 4:
-        # icicle teeth: drawn-flat pale-ice triangles tapering DOWN off the jaw,
-        # with an ink keyline — frozen fangs, not square tooth gaps
+        # NO flat tooth-bar: 4 drawn-flat pale-ice triangles taper DOWN off the
+        # jaw line (frozen fangs), each with an ink keyline. This replaces the bar.
         for t in (-0.30, -0.12, 0.06, 0.24):
             tx, ty = rot(t * r, my)
-            tri = [(tx - int(r * 0.07), ty), (tx + int(r * 0.07), ty),
-                   (tx + int((t * 0.4) * r * 0.1), ty + int(r * 0.30))]
+            tri = [(tx - int(r * 0.08), ty), (tx + int(r * 0.08), ty),
+                   (tx + int((t * 0.4) * r * 0.1), ty + int(r * 0.34))]
             pygame.draw.polygon(surf, INK, tri)
             pygame.draw.polygon(surf, rime,
-                                [(tx - int(r * 0.05), ty), (tx + int(r * 0.05), ty),
-                                 (tx + int((t * 0.4) * r * 0.1), ty + int(r * 0.24))])
+                                [(tx - int(r * 0.055), ty), (tx + int(r * 0.055), ty),
+                                 (tx + int((t * 0.4) * r * 0.1), ty + int(r * 0.27))])
     else:
+        pygame.draw.line(surf, INK, ml, mr, lw)
         for t in (-0.24, -0.08, 0.08, 0.24):
             tx, ty = rot(t * r, my)
             pygame.draw.line(surf, INK, (tx, ty - int(r * 0.16)), (tx, ty), fine)
@@ -397,53 +449,57 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
     # top-left bone sheen so the dome catches the same key as the rest of the sheet
     pygame.draw.circle(surf, BONE_SH, rot(-r * 0.34, -r * 0.40), max(1, int(r * 0.16)))
 
-    # ── per-idx ICE DAMAGE (all DRAWN-FLAT, no glow) ────────────────────────────
+    # ── per-idx FROST CONSTRUCTION (all DRAWN-FLAT, no glow) ─────────────────────
     if idx == 0:
-        # forked ice-fracture NETWORK radiating from the calved corner — a tree of
-        # hairline ink cracks with a few pale-rime glints along them
-        nodes = [rot(r * 0.34, -r * 0.04), rot(r * 0.02, r * 0.10),
-                 rot(-r * 0.34, -r * 0.10), rot(-r * 0.10, -r * 0.40)]
-        prev = rot(r * 0.40, -r * 0.40)
-        for nd in nodes:
-            pygame.draw.line(surf, INK, prev, nd, fine)
-            pygame.draw.circle(surf, rime, nd, max(1, fine))
-            prev = nd
-        pygame.draw.line(surf, INK, nodes[0], rot(r * 0.46, r * 0.30), fine)
+        # FORKED ice-fracture NETWORK: a branching Y-crack (a trunk that splits
+        # into two limbs, each forking again) — NOT a single vertical line. Ink
+        # hairlines with a few pale-rime glints at the nodes.
+        trunk_top = rot(r * 0.06, -r * 0.20)
+        fork = rot(-r * 0.02, -r * 0.62)
+        pygame.draw.line(surf, INK, trunk_top, fork, fine)
+        for end in (rot(-r * 0.44, -r * 0.84), rot(r * 0.40, -r * 0.92)):
+            pygame.draw.line(surf, INK, fork, end, fine)
+            pygame.draw.circle(surf, rime, end, max(1, fine))
+        # a secondary branch forking off the left limb so the network reads as a tree
+        midL = rot(-r * 0.22, -r * 0.73)
+        pygame.draw.line(surf, INK, midL, rot(-r * 0.50, -r * 0.46), fine)
+        pygame.draw.circle(surf, rime, fork, max(1, fine))
     elif idx == 1:
-        # rime-frost STIPPLING across the dome — scattered drawn-flat pale-ice dabs
-        # (frost growing on the bone), with a cobalt-socket relic underneath
-        for (dx, dy) in ((-0.40, -0.46), (-0.10, -0.60), (0.22, -0.52),
-                         (0.46, -0.30), (-0.52, -0.10), (0.08, -0.34),
-                         (-0.24, -0.30), (0.34, -0.02)):
-            pygame.draw.circle(surf, rime, rot(dx * r, dy * r), max(1, fine))
-        pygame.draw.circle(surf, lerp(ICE, (255, 255, 255), 0.4),
-                           rot(-0.10 * r, -0.60 * r), max(1, fine))
+        # RIME-FROST CAP: a thick FLAT pale-ice cap sitting on the crown of the
+        # narrow-tall vault (a rounded frost plate, NOT a crack). Drawn-flat rime
+        # with an ink underline + a couple of softer ice highlights ON the cap.
+        cap = [rot(-r * 0.62, -r * 0.52), rot(-r * 0.40, -r * 0.96),
+               rot(r * 0.36, -r * 1.0), rot(r * 0.60, -r * 0.50),
+               rot(r * 0.30, -r * 0.62), rot(0, -r * 0.54),
+               rot(-r * 0.32, -r * 0.64)]
+        pygame.draw.polygon(surf, INK, cap)
+        pygame.draw.polygon(surf, rime, [rot(-r * 0.56, -r * 0.54),
+                            rot(-r * 0.36, -r * 0.90), rot(r * 0.32, -r * 0.94),
+                            rot(r * 0.54, -r * 0.52), rot(r * 0.26, -r * 0.62),
+                            rot(0, -r * 0.56), rot(-r * 0.28, -r * 0.64)])
+        # a soft brighter ice ridge along the cap's left lip (drawn-flat, no glow)
+        pygame.draw.line(surf, lerp(ICE, (255, 255, 255), 0.35),
+                         rot(-r * 0.40, -r * 0.84), rot(r * 0.20, -r * 0.90),
+                         max(1, fine))
     elif idx == 2:
-        # a long vertical CALVING split down the tall vault — ink fissure with a
-        # widening pale-ice glaze along its leading lip
-        a = rot(-r * 0.06, -r * 0.86)
-        b = rot(r * 0.10, -r * 0.20)
-        c = rot(-r * 0.06, r * 0.20)
+        # CALVED break — an L-SHAPED calving crack tracing down from the sheared
+        # facet then jogging sideways (the fracture that let the corner shear off).
+        a = rot(-r * 0.30, -r * 0.46)
+        b = rot(-r * 0.10, r * 0.06)
+        c = rot(r * 0.34, r * 0.10)
         pygame.draw.lines(surf, INK, False, [a, b, c], fine)
-        pygame.draw.line(surf, rime, rot(-r * 0.02, -r * 0.80),
-                         rot(r * 0.14, -r * 0.24), max(1, fine))
-    elif idx == 4:
-        # a brow cobalt INLAY chip: a flat cobalt lozenge set into the frontal bone
-        # over a short ink crack — drawn-flat, dim, NO glow
-        ic = rot(r * 0.04, -r * 0.46)
-        chip = [(ic[0], ic[1] - int(r * 0.13)), (ic[0] + int(r * 0.12), ic[1]),
-                (ic[0], ic[1] + int(r * 0.13)), (ic[0] - int(r * 0.12), ic[1])]
-        pygame.draw.polygon(surf, INK, chip)
-        pygame.draw.polygon(surf, COBALT, [(ic[0], ic[1] - int(r * 0.10)),
-                            (ic[0] + int(r * 0.09), ic[1]),
-                            (ic[0], ic[1] + int(r * 0.10)),
-                            (ic[0] - int(r * 0.09), ic[1])])
-        pygame.draw.polygon(surf, COBALT_BR, [(ic[0], ic[1] - int(r * 0.05)),
-                            (ic[0] - int(r * 0.045), ic[1]),
-                            (ic[0], ic[1] + int(r * 0.05))])
-        pygame.draw.line(surf, INK, rot(r * 0.04, -r * 0.30),
-                         rot(-r * 0.06, r * 0.04), fine)
-    # idx 3 ice is its frozen socket (above); idx 5 is the CLEAN relic (no damage)
+        pygame.draw.line(surf, rime, rot(-r * 0.26, -r * 0.40),
+                         rot(-r * 0.12, r * 0.0), max(1, fine))
+    elif idx == 5:
+        # CLEAN angular relic: minimal damage — only a single short hairline ink
+        # seam along one facet edge + a tiny rime glint. No fracture network.
+        pygame.draw.line(surf, INK, rot(r * 0.30, -r * 0.72),
+                         rot(r * 0.12, -r * 0.30), fine)
+        pygame.draw.circle(surf, rime, rot(r * 0.22, -r * 0.52), max(1, fine))
+    # idx 3 frost is its frozen ICE socket (above) + a faint hairline crown seam
+    if idx == 3:
+        pygame.draw.line(surf, INK, rot(r * 0.10, -r * 0.82),
+                         rot(-r * 0.02, -r * 0.30), fine)
 
 
 def open_palm(surf, hx, hy, ang, r, s):
@@ -707,7 +763,7 @@ def draw_jvala(surf, cx, cy, s):
         a = math.radians(216 + i * (108 / 4))
         sx = head_c[0] + math.cos(a) * skull_cr
         sy = head_c[1] + math.sin(a) * skull_cr
-        crown_skull(surf, int(sx), int(sy), skull_r, s, lit=False)
+        crown_skull(surf, int(sx), int(sy), skull_r, s, lit=False, idx=i)
 
     # === (8) THIRD EYE — drawn LAST so NOTHING (mantle/crest/band) can occlude ==
     # the single BRIGHTEST element. WHY glow-ring -> cobalt iris -> pure-white core,
@@ -777,7 +833,7 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
         sc = 0.8 if off else 1.0
         flame_lick(surf, cx + off, cap_y, crest_dir,
                    int(28 * s * sc), int(12 * s * sc), s, lit=0.15, curl=0.8 * hand)
-    crown_skull(surf, cx, cap_y, int(13 * s), s, lit=False)
+    crown_skull(surf, cx, cap_y, int(13 * s), s, lit=False, idx=2)
 
 
 # ── compose the review sheet ─────────────────────────────────────────────────
@@ -840,7 +896,7 @@ def main():
 
     # ── hi-res standalone hero ────────────────────────────────────────────────
     hero_hi = render_hero_hires()
-    hero_path = os.path.join(here, "round_6_hero.png")
+    hero_path = os.path.join(here, "round_7_hero.png")
     pygame.image.save(hero_hi, hero_path)
 
     # ── the standard review sheet ─────────────────────────────────────────────
@@ -855,7 +911,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("#5 — JVALA-NIRMALA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "cool wisdom-flame dancer  ·  CITIPATI body + Mukha 6-arm fan · FULL-BODY cobalt cloth-of-flame ROBE (curled sheeting, NOT a ring) · 6 FROST-CRACKED palm-skulls · round 6",
+        "cool wisdom-flame dancer  ·  CITIPATI body + Mukha 6-arm fan · FULL-BODY cobalt cloth-of-flame ROBE (curled sheeting, NOT a ring) · 6 DISTINCTLY-CONSTRUCTED frost palm-skulls · round 7",
         True, LABEL_DIM), (300, 26))
 
     # === (a) BIG HERO =========================================================
@@ -863,7 +919,7 @@ def main():
     sheet.blit(hero, (14, 86))
     sheet.blit(font.render("Creature — hero", True, LABEL), (120, 596))
     sheet.blit(font_sm.render("CURLED, OVERLAPPING cloth-of-flame licks drape down the flanks/knee as a", True, LABEL_DIM), (14, 620))
-    sheet.blit(font_sm.render("ROBE with an UNDULATING hem (NOT radiating spikes). 6 FROST-CRACKED relics in FRONT.", True, LABEL_DIM), (14, 636))
+    sheet.blit(font_sm.render("ROBE with an UNDULATING hem (NOT radiating spikes). 6 DISTINCTLY-built frost relics in FRONT.", True, LABEL_DIM), (14, 636))
     sheet.blit(font_sm.render("Crown: small curled flame-crest BEHIND; opaque warm-bone 5-skull arc + band", True, LABEL_DIM), (14, 652))
     sheet.blit(font_sm.render("IN FRONT. Third-eye = lone near-white ice, the only glow, by a wide margin.", True, LABEL_DIM), (14, 668))
 
@@ -961,10 +1017,10 @@ def main():
 
     pygame.draw.rect(sheet, PANEL, (14, 756, W - 28, 28))
     sheet.blit(font_sm.render(
-        "ELEVATED pipeline: SS=8 supersample -> smoothscale.  Standalone hi-res hero exported separately: round_6_hero.png (~1024px).",
+        "ELEVATED pipeline: SS=8 supersample -> smoothscale.  Standalone hi-res hero exported separately: round_7_hero.png (~1024px).",
         True, LABEL_DIM), (26, 762))
 
-    out = os.path.join(here, "round_6.png")
+    out = os.path.join(here, "round_7.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     print("wrote", hero_path)
