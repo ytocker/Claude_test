@@ -207,38 +207,39 @@ def bead_arc(surf, cx, cy, r, a0, a1, bead_r, s, gold_every=3, light=True):
 
 # ── a single ornamental crown-skull (cloned from Citipati; crown-warm tint) ────
 def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
-    """Tiny crown skull — bone-JEWEL relic seated in her tiara arc. WHY a notch
-    darker/cooler than the warm-light body (CROWN_BONE): against the new warm ivory
-    body, an equally-warm crown would melt in, so the crown sits a value step down
-    (the dimmest tier) and slightly cooler to keep its shape against both body and
-    sky. WHY `idx`: the six crown relics must read as six DISTINCT skulls, not one
-    stamp repeated — so `idx` drives the CRANIUM SILHOUETTE (tall / round / squat /
-    lopsided / heart-domed), suture style, brow + jaw set and a tooth-chip on one.
-    The variety lives in the OUTLINE (width/height/lean), so the scalloped arc reads
-    as distinct lumps at 32px, not only as interior lines. `lit` keeps the centre
-    relic's eyes cyan-tinted — the ONLY crown accent — but stays the DIMMEST tier
-    (no white core, no glow, no brightness bump); the gold-bezel cyan pip on the
-    pip-bearing relics is a DIM hue echo, not a focal."""
+    """Tiny crown skull — a singing relic in the ANCESTOR-CHOIR, seated in her tiara
+    arc. WHY a notch darker/cooler than the warm-light body (CROWN_BONE): against the
+    warm ivory body an equally-warm crown would melt in, so the crown sits a value
+    step down (the dimmest tier) and slightly cooler to keep its shape against both
+    body and sky. WHY `idx`: the six crown relics complete the 12-voice choir, each a
+    DISTINCT singer — so `idx` drives the CRANIUM SILHOUETTE (tall / round / squat /
+    lopsided / heart-domed), head BOW, LID droop, and the open singing-mouth openness
+    (parted / open / wide). They share the version's chant grammar with the palm
+    skulls: LIDDED half-closed downcast sockets (NO round staring pits) and a soft
+    rounded AGAPE 'O' mouth with NO fangs and NO cracks. Cyan pools FLAT + DIM inside
+    the lidded sockets; the crown-CENTRE relic (`lit`) carries the fuller
+    CYAN->CYAN_BR-rim socket pool — the only crown cyan accent — but stays the DIMMEST
+    tier (no white core, no glow, no brightness bump), clearly below the gems."""
     ow1 = max(1, int(1.6 * s))
     ow_thin = max(1, int(1.0 * s))
 
-    # ── per-relic silhouette table — the variety must read in the SHAPE ──
-    # cw/ch = cranium width/height stretch · lean = sideways skew of the dome ·
-    # heart = a notched/dimpled crown top · suture style · brow ridge? · jaw set ·
-    # pip = dim gold-bezel cyan bead? · chip = a broken tooth?
+    # ── per-relic choir table — the variety must read in the SHAPE + the chant ──
+    # cw/ch = dome width/height · lean = sideways skew of the dome · heart = a
+    # notched/dimpled crown top · bow = head tilt (rad) · lid = crescent-lid droop ·
+    # mouth = singing-jaw openness (parted / open / wide) · sut = crown-seam style.
     CROWN_PROFILE = [
-        # 0: TALL narrow dome, gold-pip-beaded suture, set jaw
-        dict(cw=0.88, ch=1.18, lean=0.00, heart=False, sut="dots", brow=True,  jaw="set",   pip=True,  chip=False),
-        # 1: broad ROUND dome, zigzag suture, plain jaw
-        dict(cw=1.16, ch=0.96, lean=0.00, heart=False, sut="zig",  brow=False, jaw="plain", pip=False, chip=False),
-        # 2: SQUAT low dome (centre, lit) — heart-domed top, beaded suture, pip
-        dict(cw=1.10, ch=0.86, lean=0.00, heart=True,  sut="dots", brow=True,  jaw="set",   pip=True,  chip=False),
-        # 3: LOPSIDED dome leaning right, zigzag suture, chipped tooth
-        dict(cw=1.00, ch=1.02, lean=0.20, heart=False, sut="zig",  brow=True,  jaw="plain", pip=False, chip=True),
-        # 4: HEART-domed (notched crown), plain suture, narrow set jaw
-        dict(cw=1.02, ch=1.06, lean=-0.06, heart=True, sut="line", brow=False, jaw="set",   pip=False, chip=False),
-        # 5: lopsided SQUAT dome leaning left, zigzag suture, broad plain jaw
-        dict(cw=1.08, ch=0.92, lean=-0.18, heart=False, sut="zig", brow=True,  jaw="plain", pip=False, chip=True),
+        # 0: TALL narrow dome bowed left, lips softly PARTED, deep lid, dotted seam
+        dict(cw=0.88, ch=1.18, lean=0.00, heart=False, bow=-0.14, lid=0.84, mouth="parted", sut="dots"),
+        # 1: broad ROUND dome upright, mouth OPEN mid-note, mid lid, zigzag seam
+        dict(cw=1.16, ch=0.96, lean=0.00, heart=False, bow= 0.06, lid=0.56, mouth="open",   sut="zig"),
+        # 2: SQUAT heart-domed centre (lit), WIDE held-note 'O', heavy lid, dotted
+        dict(cw=1.10, ch=0.88, lean=0.00, heart=True,  bow= 0.00, lid=0.90, mouth="wide",   sut="dots"),
+        # 3: LOPSIDED dome leaning right, mouth OPEN, light lid, zigzag seam
+        dict(cw=1.00, ch=1.02, lean=0.18, heart=False, bow= 0.16, lid=0.46, mouth="open",   sut="zig"),
+        # 4: HEART-domed bowed slightly left, lips PARTED, deep lid, line seam
+        dict(cw=1.02, ch=1.06, lean=-0.06, heart=True, bow=-0.08, lid=0.80, mouth="parted", sut="line"),
+        # 5: lopsided SQUAT dome leaning left, WIDE agape 'O', mid lid, zigzag seam
+        dict(cw=1.08, ch=0.92, lean=-0.18, heart=False, bow=-0.18, lid=0.66, mouth="wide",  sut="zig"),
     ]
     p = CROWN_PROFILE[idx % len(CROWN_PROFILE)]
     cw, ch, lean = p["cw"], p["ch"], p["lean"]
@@ -283,98 +284,102 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
         pygame.draw.line(surf, CROWN_BONE_D, (int(cx), int(cy - r * ch * 0.78)),
                          (int(cx), int(cy - r * 0.06)), ow_thin)
 
-    # optional brow ridge — a short dark bar above the sockets (carved relief)
-    if p["brow"]:
-        pygame.draw.line(surf, CROWN_BONE_D,
-                         (int(cx - r * 0.46), int(cy - r * 0.02)),
-                         (int(cx + r * 0.46), int(cy - r * 0.02)), max(1, int(1.3 * s)))
+    # head BOW — the face features rotate about the relic centre so the singer can
+    # bow / cock its head; the dome keeps its lean-based silhouette above.
+    bow = p["bow"]
+    cbw, sbw = math.cos(bow), math.sin(bow)
 
-    # jaw — per-profile: a SET stub (narrow, tucked) or a PLAIN wider bar
-    if p["jaw"] == "set":
-        jaw = [(cx - r * 0.44, cy + r * 0.52), (cx + r * 0.44, cy + r * 0.52),
-               (cx + r * 0.26, cy + r * 0.98), (cx - r * 0.26, cy + r * 0.98)]
-    else:
-        jaw = [(cx - r * 0.54, cy + r * 0.50), (cx + r * 0.54, cy + r * 0.50),
-               (cx + r * 0.38, cy + r * 1.02), (cx - r * 0.38, cy + r * 1.02)]
-    triad_blob(surf, CROWN_BONE, [(int(x), int(y)) for x, y in jaw], ow=max(1, int(1.2 * s)))
+    def rotc(dx, dy):
+        return (cx + dx * cbw - dy * sbw, cy + dx * sbw + dy * cbw)
 
-    # two dark sockets (the lit centre relic gets a dim cyan tint, no glow)
-    eye_c = CYAN_D if lit else INK
-    for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
-        pygame.draw.circle(surf, INK, (ex, cy + int(r * 0.04)), max(1, int(r * 0.24)))
+    # ── LIDDED crescent sockets — same downcast devotional gaze as the palm choir ──
+    # A heavy bone lid hoods each socket from above; a faint flat cyan pool sits at
+    # the downcast (lower-inner) edge. The lit centre relic gets the fuller
+    # CYAN->CYAN_BR-rim pool (the only crown cyan accent), still the dimmest tier.
+    sr = max(2, int(r * 0.26))
+    lid = p["lid"]
+    for sgn in (-1, 1):
+        ex, ey = rotc(sgn * r * 0.38, r * 0.06)
+        ex, ey = int(ex), int(ey)
+        pygame.draw.circle(surf, CROWN_BONE_D, (ex, ey), int(sr + max(1, 1.0 * s)))
+        pygame.draw.circle(surf, INK, (ex, ey), sr)
+        gaze_dx = -sgn * sr * 0.30
+        gaze_dy = sr * 0.34
         if lit:
-            pygame.draw.circle(surf, eye_c, (ex, cy + int(r * 0.04)), max(1, int(r * 0.12)))
+            pygame.draw.circle(surf, CYAN_D, (int(ex + gaze_dx), int(ey + gaze_dy)), max(1, int(sr * 0.60)))
+            pygame.draw.circle(surf, CYAN, (int(ex + gaze_dx), int(ey + gaze_dy)), max(1, int(sr * 0.40)))
+            pygame.draw.circle(surf, CYAN_BR, (int(ex + gaze_dx), int(ey + gaze_dy)), max(1, int(sr * 0.18)))
+        else:
+            pygame.draw.circle(surf, CYAN_D, (int(ex + gaze_dx), int(ey + gaze_dy)), max(1, int(sr * 0.40)))
+            pygame.draw.circle(surf, CYAN, (int(ex + gaze_dx), int(ey + gaze_dy)), max(1, int(sr * 0.20)))
+        lid_drop = sr * (0.20 + 0.62 * lid)
+        lc = rotc(sgn * r * 0.38, r * 0.06 - sr + lid_drop)
+        pygame.draw.circle(surf, CROWN_BONE, (int(lc[0]), int(lc[1])), int(sr + max(1, 1.0 * s)))
 
-    # nasal pit
-    pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.13)))
+    # nasal pit (between + below the sockets, bowed with the head)
+    np_c = rotc(0, r * 0.40)
+    pygame.draw.circle(surf, INK, (int(np_c[0]), int(np_c[1])), max(1, int(r * 0.12)))
 
-    # tooth line — a short bar with a couple of slits; the chip profiles drop one
-    ty = cy + int(r * 0.70)
-    pygame.draw.line(surf, INK, (cx - int(r * 0.32), ty), (cx + int(r * 0.32), ty),
-                     max(1, int(1.2 * s)))
-    for j in range(3):
-        tx = cx - int(r * 0.24) + j * int(r * 0.24)
-        if p["chip"] and j == 1:
-            continue   # a knocked-out tooth — the chip read on a lopsided relic
-        pygame.draw.line(surf, INK, (tx, ty - int(r * 0.08)), (tx, ty + int(r * 0.10)),
-                         max(1, int(1.0 * s)))
-
-    # DIM gold-bezel cyan brow pip on the pip-bearing relics (incl. the lit centre)
-    # — a hue echo of her bead identity, kept the dimmest tier (GOLD_D + CYAN_D, no
-    # white core, no glow) so the third-eye stays the single brightest pixel.
-    if p["pip"]:
-        bg_y = cy - int(r * 0.28)
-        pygame.draw.circle(surf, GOLD_D, (cx, bg_y), max(1, int(r * 0.18)))
-        pygame.draw.circle(surf, CYAN_D, (cx, bg_y), max(1, int(r * 0.11)))
-
-
-# ── a small CYAN cabochon inlay — the palm-gem (DIM tier, gold bezel) ─────────
-def palm_cabochon(surf, c, r, s):
-    """A gold-bezel cyan CABOCHON inlay set into a palm-skull's brow. WHY a clear
-    value step BELOW the focal third-eye: the brow gem must stay the single
-    brightest pixel, so this inlay caps at CYAN_BR for a tiny rim glint only — NO
-    white-hot core — and rides a warm GOLD bezel so it reads as jewel-set bone,
-    matching her bead identity rather than competing with the third-eye."""
-    cx, cy = int(c[0]), int(c[1])
-    # warm gold bezel ring first (the setting), then the domed cyan stone inside
-    triad_circle(surf, GOLD, (cx, cy), r + max(1, int(0.9 * s)),
-                 ow=max(1, int(1.0 * s)), core=False, sheen=False)
-    pygame.draw.circle(surf, INK, (cx, cy), r)
-    pygame.draw.circle(surf, CYAN_D, (cx, cy), max(1, r - max(1, int(0.6 * s))))
-    pygame.draw.circle(surf, CYAN, (cx, cy), max(1, int(r * 0.66)))
-    # a single small rim glint (capped at CYAN_BR — never the focal white core)
-    pygame.draw.circle(surf, CYAN_BR, (cx - int(r * 0.30), cy - int(r * 0.32)),
-                       max(1, int(r * 0.26)))
+    # ── singing AGAPE mouth — the open 'O', NO fangs and NO cracks (chant grammar) ──
+    if p["mouth"] == "parted":
+        mw, mh = r * 0.26, r * 0.16
+    elif p["mouth"] == "open":
+        mw, mh = r * 0.32, r * 0.26
+    else:   # "wide" — the held note
+        mw, mh = r * 0.38, r * 0.38
+    my0 = r * 0.76
+    cavity = [rotc(math.cos(math.radians(ad)) * mw, my0 + math.sin(math.radians(ad)) * mh)
+              for ad in range(0, 360, 36)]
+    pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in cavity])
+    pygame.draw.polygon(surf, CROWN_BONE_D, [(int(x), int(y)) for x, y in cavity], ow_thin)
+    # thin bone chin arc cupping the lower lip so the open mouth still reads as bone
+    chin = [rotc(math.cos(math.radians(ad)) * (mw + r * 0.12),
+                 my0 + math.sin(math.radians(ad)) * (mh + r * 0.16))
+            for ad in range(20, 161, 35)]
+    chin.append(rotc(mw + r * 0.06, my0 + mh * 0.20))
+    chin.append(rotc(-mw - r * 0.06, my0 + mh * 0.20))
+    triad_blob(surf, CROWN_BONE, [(int(x), int(y)) for x, y in chin], ow=max(1, int(1.0 * s)))
 
 
-# ── a tiny skull cradled in an open palm (the brood MOTIF) ────────────────────
-def palm_skull(surf, cx, cy, r, s, idx=0):
-    """An open BONE palm cradling a CRAFTED reliquary skull. WHY both pieces: the
-    brood motif is six open palms EACH holding a skull at the fan tips. WHY the
-    `idx`: this sister's skulls are the most ORNAMENTED of the brood and must read
-    as six DISTINCT individuals, not one dome re-tilted — so `idx` drives cranium
-    shape, jaw set, tilt, tooth count/chips, suture pattern and ornament. 2-3 of
-    the six carry a DIM gold-bezel cyan cabochon (a value step below the focal
-    brow gem) to lean into the jewel-set-bone look. MID value tier: pale BEAD bone,
-    brighter than the crown skulls, dimmer than the third-eye."""
+# ── a tiny singing skull cradled in an open palm (the choir MOTIF) ────────────
+def palm_skull(surf, cx, cy, r, s, idx=0, lit=False):
+    """An open BONE palm cradling a singing reliquary skull — one voice in the
+    ANCESTOR-CHOIR. WHY this grammar: the defining move of this version is the
+    CHANT, not a grin or a snarl. So every palm-skull holds a soft ROUNDED-AGAPE
+    'singing' jaw (an open mouth, NO fangs and NO cracks) paired with LIDDED,
+    half-closed crescent sockets whose gaze falls inward + downward — devotional,
+    mid-hymn. The open jaw is a SILHOUETTE move: a rounded 'O' notched out of the
+    lower face survives the 32px downscale and is what separates this brood from a
+    gentle/auspicious read. WHY `idx`: the six must read as six DISTINCT singers,
+    not one dome re-tilted — so `idx` drives the head BOW (tilt), dome width/height,
+    LID droop, MOUTH openness (softly parted → wide rounded 'O'), suture pattern,
+    and how much cyan pools in the sockets. The cyan is drawn FLAT and DIM, pooled
+    INSIDE the lidded sockets as a gentle inner gaze-light — never a hot core, never
+    out-glowing the gems. ~2 of the six (the brief lights the two LOWEST palm skulls)
+    carry a fuller CYAN->CYAN_BR-rim socket pool, 'lit from within'. MID value tier:
+    pale BEAD bone, brighter than the crown skulls, dimmer than the third-eye."""
     ow1 = max(1, int(1.4 * s))
     ow_thin = max(1, int(1.0 * s))
 
-    # ── per-skull personality table (six genuinely distinct little skulls) ──
-    # tilt(rad), cranium x/y stretch, jaw mode, n_teeth, suture style, gem?, chip?
+    # ── per-singer choir table (six genuinely distinct chanting skulls) ──
+    # tilt = head BOW (rad) · cw/ch = dome width/height · lid = crescent-lid droop
+    # (0 a thin slit, 1 a deep downcast hood) · mouth = singing-jaw openness mode
+    # (parted / open / wide) · sut = crown-seam style. The inner cyan socket-pool
+    # strength is NOT in the table — `lit` (the two LOWEST palm skulls) drives the
+    # fuller pool, so it stays position-weighted regardless of which idx lands low.
     PROFILE = [
-        # 0: tall egg-dome, jaw agape (open mouth), zigzag suture, GEM in brow
-        dict(tilt=-0.16, cw=0.96, ch=1.12, jaw="agape", teeth=5, sut="zig", gem=True,  chip=False),
-        # 1: broad round skull, closed jaw, bead-dotted suture, GOLD pips only
-        dict(tilt= 0.10, cw=1.14, ch=0.96, jaw="closed", teeth=6, sut="dots", gem=False, chip=False),
-        # 2: narrow tilted skull, jaw cracked off (asymmetric stub), GEM-lit socket
-        dict(tilt=-0.30, cw=0.88, ch=1.04, jaw="cracked", teeth=3, sut="zig", gem="socket", chip=True),
-        # 3: squat low dome, jaw agape wide, straight suture line, GOLD pips
-        dict(tilt= 0.06, cw=1.06, ch=0.90, jaw="agape", teeth=7, sut="line", gem=False, chip=False),
-        # 4: tall narrow skull, closed jaw, bead-dotted suture, GEM in brow
-        dict(tilt= 0.22, cw=0.90, ch=1.10, jaw="closed", teeth=5, sut="dots", gem=True,  chip=False),
-        # 5: lopsided cranium, jaw cracked off, zigzag suture, GOLD pips + chipped
-        dict(tilt=-0.08, cw=1.02, ch=1.00, jaw="cracked", teeth=4, sut="zig", gem=False, chip=True),
+        # 0: tall bowed dome, lips softly PARTED (first breath), deep lid, zigzag seam
+        dict(tilt=-0.18, cw=0.94, ch=1.14, lid=0.86, mouth="parted", sut="zig"),
+        # 1: broad upright dome, mouth OPEN mid-note, mid lid, bead-dotted seam
+        dict(tilt= 0.08, cw=1.16, ch=0.96, lid=0.58, mouth="open",   sut="dots"),
+        # 2: narrow head bowed deep, WIDE agape 'O' (the held note), heavy lid, zig
+        dict(tilt=-0.30, cw=0.88, ch=1.06, lid=0.92, mouth="wide",   sut="zig"),
+        # 3: squat low dome, mouth OPEN, light lid (the lifted singer), line seam
+        dict(tilt= 0.10, cw=1.08, ch=0.90, lid=0.44, mouth="open",   sut="line"),
+        # 4: tall head bowed right, lips softly PARTED, deep lid, dotted seam
+        dict(tilt= 0.24, cw=0.90, ch=1.12, lid=0.80, mouth="parted", sut="dots"),
+        # 5: lopsided dome, WIDE agape 'O', mid-deep lid, zigzag seam
+        dict(tilt=-0.10, cw=1.04, ch=1.00, lid=0.74, mouth="wide",   sut="zig"),
     ]
     p = PROFILE[idx % len(PROFILE)]
     t = p["tilt"]
@@ -455,20 +460,46 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
               rot(cr * 0.52, cr * 0.56), rot(cr * 0.18, cr * 0.50)]
     pygame.draw.polygon(surf, BONE_D, [(int(x), int(y)) for x, y in hollow])
 
-    # ── deep ink sockets with a CARVED rim (a bone ring around each pit) ──
-    socket_r = cr * 0.30
+    # ── LIDDED crescent sockets — the devotional half-closed downcast gaze ──
+    # WHY a half-moon, not a round pit: the chant reads as much in the EYES as the
+    # mouth. A heavy bone lid hoods each socket from above, leaving a downcast
+    # crescent of dark below it; the gaze falls inward + downward. A faint flat cyan
+    # pool sits at the bottom of the crescent as a gentle inner gaze-light (DIM, no
+    # rim glint); the two LIT singers get a fuller CYAN->CYAN_BR-rim pool, lit from
+    # within but still clearly below the gems.
+    socket_r = cr * 0.32
+    lid = p["lid"]
     for sgn in (-1, 1):
-        ecx, ecy = rot(sgn * cr * 0.40, cr * 0.14)
+        ecx, ecy = rot(sgn * cr * 0.40, cr * 0.16)
         ecx, ecy = int(ecx), int(ecy)
-        # carved bone rim (a ring) then the deep ink pit
-        pygame.draw.circle(surf, BONE_D, (ecx, ecy), int(socket_r + max(1, 1.2 * s)))
-        pygame.draw.circle(surf, INK, (ecx, ecy), int(socket_r))
-        pygame.draw.circle(surf, BONE_DD, (ecx, ecy), int(socket_r * 0.62))
-        pygame.draw.circle(surf, INK, (ecx, ecy), int(socket_r * 0.34))
-    # a profile may light ONE socket with the dim cyan inlay instead of a brow gem
-    if p["gem"] == "socket":
-        scx2, scy2 = rot(-cr * 0.40, cr * 0.14)
-        palm_cabochon(surf, (scx2, scy2), max(2, int(socket_r * 0.66)), s)
+        sr = int(socket_r)
+        # carved bone rim, then the full ink pit (the open part of the socket)
+        pygame.draw.circle(surf, BONE_D, (ecx, ecy), int(sr + max(1, 1.2 * s)))
+        pygame.draw.circle(surf, INK, (ecx, ecy), sr)
+        # the inner cyan gaze-pool — pooled flat at the DOWNCAST (lower-inner) edge
+        gaze_dx = -sgn * sr * 0.30                      # cast inward, toward midline
+        gaze_dy = sr * 0.34                             # and downward (devotional)
+        if lit:
+            pygame.draw.circle(surf, CYAN_D, (int(ecx + gaze_dx), int(ecy + gaze_dy)),
+                               max(1, int(sr * 0.62)))
+            pygame.draw.circle(surf, CYAN, (int(ecx + gaze_dx), int(ecy + gaze_dy)),
+                               max(1, int(sr * 0.42)))
+            pygame.draw.circle(surf, CYAN_BR, (int(ecx + gaze_dx), int(ecy + gaze_dy)),
+                               max(1, int(sr * 0.18)))
+        else:
+            pygame.draw.circle(surf, CYAN_D, (int(ecx + gaze_dx), int(ecy + gaze_dy)),
+                               max(1, int(sr * 0.46)))
+            pygame.draw.circle(surf, CYAN, (int(ecx + gaze_dx), int(ecy + gaze_dy)),
+                               max(1, int(sr * 0.24)))
+        # the heavy bone LID hooding the socket from above — a filled crescent that
+        # eats the top of the pit, leaving only a downcast sliver of gaze below it.
+        lid_drop = sr * (0.20 + 0.62 * lid)             # deeper lid = more covered
+        lid_c = (ecx, int(ecy - sr + lid_drop))
+        pygame.draw.circle(surf, BEAD, lid_c, int(sr + max(1, 1.0 * s)))
+        # a thin dark lash-line under the lid edge so the lid reads as a closing lid
+        lash_y = int(ecy - sr + lid_drop + sr * 0.02)
+        pygame.draw.line(surf, BONE_DD, (int(ecx - sr * 0.78), lash_y),
+                         (int(ecx + sr * 0.78), lash_y), max(1, int(0.9 * s)))
 
     # nasal aperture — an inverted ink teardrop between/below the sockets
     n_top = rot(0, cr * 0.30)
@@ -478,48 +509,37 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
                                     (int(n_l[0]), int(n_l[1])),
                                     (int(n_r[0]), int(n_r[1]))])
 
-    # ── jaw — per-profile: closed bar / agape gap / cracked-off stub ──
-    jl, jr = -cr * 0.40, cr * 0.40       # jaw corners under the cheeks
-    if p["jaw"] == "closed":
-        jaw = [rot(jl, cr * 0.74), rot(jr, cr * 0.74),
-               rot(jr * 0.70, cr * 1.04), rot(jl * 0.70, cr * 1.04)]
-        triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
-        teeth_y0, teeth_y1 = cr * 0.74, cr * 1.00
-    elif p["jaw"] == "agape":
-        # an open mouth: a dark gap, then a dropped jaw bone below it
-        gap = [rot(jl * 0.86, cr * 0.70), rot(jr * 0.86, cr * 0.70),
-               rot(jr * 0.70, cr * 1.06), rot(jl * 0.70, cr * 1.06)]
-        pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in gap])
-        jaw = [rot(jl * 0.74, cr * 1.06), rot(jr * 0.74, cr * 1.06),
-               rot(jr * 0.54, cr * 1.34), rot(jl * 0.54, cr * 1.34)]
-        triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
-        teeth_y0, teeth_y1 = cr * 0.70, cr * 0.94   # upper teeth ring the gap
-    else:   # "cracked" — one jaw corner snapped off, leaving an asymmetric stub
-        jaw = [rot(jl, cr * 0.74), rot(jr * 0.55, cr * 0.74),
-               rot(jr * 0.20, cr * 1.02), rot(jl * 0.78, cr * 1.06)]
-        triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
-        # a jagged break notch on the snapped (right) corner
-        pygame.draw.line(surf, BONE_DD,
-                         (int(rot(jr * 0.55, cr * 0.76)[0]), int(rot(jr * 0.55, cr * 0.76)[1])),
-                         (int(rot(jr * 0.30, cr * 0.98)[0]), int(rot(jr * 0.30, cr * 0.98)[1])),
-                         ow_thin)
-        teeth_y0, teeth_y1 = cr * 0.74, cr * 1.00
-
-    # tooth row — n_teeth ink slits; the chipped profiles drop one for a gap
-    nt = p["teeth"]
-    for j in range(nt):
-        fx = -cr * 0.34 + j * (cr * 0.68 / max(1, nt - 1))
-        if p["chip"] and j == nt // 2:
-            continue   # a missing/knocked-out tooth (the chip)
-        tp0 = rot(fx, teeth_y0)
-        tp1 = rot(fx, teeth_y1)
-        pygame.draw.line(surf, INK, (int(tp0[0]), int(tp0[1])),
-                         (int(tp1[0]), int(tp1[1])), max(1, int(1.0 * s)))
-
-    # ── brow CABOCHON — the dim cyan jewel for the gem-bearing profiles ──
-    if p["gem"] is True:
-        gx, gy = rot(0, -cr * 0.20)
-        palm_cabochon(surf, (gx, gy), max(2, int(cr * 0.26)), s)
+    # ── singing AGAPE jaw — the open 'O' mouth that carries the chant ──
+    # WHY a smooth rounded opening, NO fangs and NO cracks: the chant must read as
+    # devotional song, not a snarl, and the soft 'O' is the SILHOUETTE move that
+    # survives 32px. Three openings: a small softly-PARTED oval, a mid OPEN oval, a
+    # WIDE held-note 'O'. The dark oval is the cavity; a thin dropped jaw-bone arc
+    # rings its lower edge so the open mouth still reads as bone, not a hole. NO
+    # tooth slits anywhere — the chant grammar is fangless.
+    if p["mouth"] == "parted":
+        mw, mh, my0 = cr * 0.30, cr * 0.18, cr * 0.78
+    elif p["mouth"] == "open":
+        mw, mh, my0 = cr * 0.36, cr * 0.30, cr * 0.80
+    else:   # "wide" — the held note, the widest agape 'O'
+        mw, mh, my0 = cr * 0.42, cr * 0.44, cr * 0.82
+    # the dark singing cavity as a rounded polygon-oval (rotated with the head bow)
+    cavity = []
+    for ad in range(0, 360, 30):
+        a = math.radians(ad)
+        cavity.append(rot(math.cos(a) * mw, my0 + math.sin(a) * mh))
+    pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in cavity])
+    pygame.draw.polygon(surf, BONE_DD, [(int(x), int(y)) for x, y in cavity], ow_thin)
+    # a thin bone jaw-bone arc cupping the LOWER half of the open mouth (the chin)
+    jaw = []
+    for ad in range(20, 161, 28):
+        a = math.radians(ad)
+        jaw.append(rot(math.cos(a) * (mw + cr * 0.16), my0 + math.sin(a) * (mh + cr * 0.18)))
+    jaw.append(rot(mw + cr * 0.10, my0 + mh * 0.30))
+    jaw.append(rot(-mw - cr * 0.10, my0 + mh * 0.30))
+    triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
+    # a soft sheen catch on the upper-inner lip so the 'O' rim reads rounded, lit
+    lip_l = rot(-mw * 0.6, my0 - mh * 0.55)
+    pygame.draw.circle(surf, BEAD_BR, (int(lip_l[0]), int(lip_l[1])), max(1, int(0.9 * s)))
 
 
 # ── the Mukha-Devi six-arm radial fan (cloned; bead-armlet wrapped) ───────────
@@ -778,12 +798,16 @@ def draw_asthi_dakini(surf, cx, cy, s):
             pygame.draw.line(surf, INK, (hx, hy), (ex, ey), max(1, int(1.6 * s)))
             pygame.draw.line(surf, BONE, (hx, hy), (ex, ey), max(1, int(1 * s)))
 
-    # === SIX PALM-SKULLS — one cradled in every fan hand (the brood MOTIF) ====
+    # === SIX SINGING PALM-SKULLS — one cradled in every fan hand (the choir) ====
     # WHY enumerate: each hand gets a DISTINCT `idx` so the six read as six
-    # individual reliquary skulls (cranium/jaw/teeth/suture/gem vary per idx),
-    # making this sister's brood the most ornamented of the set.
+    # individual singers (dome/bow/lid/mouth vary per idx). WHY the two LOWEST get
+    # `lit`: the brief lights the two lowest palm skulls with the fuller
+    # CYAN->CYAN_BR-rim socket pool, so the cyan gaze-light reads bottom-weighted —
+    # found by the two largest screen-Y hands, not a fixed idx, so it holds whatever
+    # scale the fan is drawn at. Still the MID tier — well below the gems.
+    lowest = sorted(range(len(hands)), key=lambda i: -hands[i][1])[:2]
     for i, (hx, hy, a) in enumerate(hands):
-        palm_skull(surf, hx, hy, int(hr * 0.36), s, idx=i)
+        palm_skull(surf, hx, hy, int(hr * 0.36), s, idx=i, lit=(i in lowest))
 
     # === BEADED GIRDLE — the 32px-CARRYING element (bold rows across the hips) =
     # WHY this is the silhouette element: a wide bold double-row bead-girdle slung
@@ -875,15 +899,11 @@ def draw_asthi_dakini(surf, cx, cy, s):
     pygame.draw.lines(surf, GOLD, False, band_pts, int(4 * s))
     pygame.draw.lines(surf, GOLD_BR, False, band_pts[:6], max(1, int(1.4 * s)))
     # a bead-row riding on the band (carry the brood's bead texture into the crown)
+    # WHY no brow-cabochons in this version: the cyan accent belongs in the singing
+    # skulls' inner gaze-pools, not strewn across the tiara band — the brow band
+    # stays a clean gold-bead arc so the cyan ladder reads top-down without clutter.
     bead_arc(surf, head_c[0], head_c[1], int(hr * 0.98), math.radians(214),
              math.radians(326), int(2.6 * s), s, gold_every=3)
-    # three cyan brow-cabochons set into the band (sparse jewel — not focal-bright)
-    for i in range(3):
-        a = math.radians(232 + i * 38)
-        bx = head_c[0] + math.cos(a) * int(hr * 0.98)
-        by = head_c[1] + math.sin(a) * int(hr * 0.98)
-        triad_circle(surf, CYAN_D, (int(bx), int(by)), max(1, int(2.4 * s)),
-                     ow=max(1, int(1.0 * s)), core=False, sheen=False)
 
     # -- wide airy 6-skull arc sweeping ABOVE the band (Citipati language) --
     arc_r = int(hr * 1.66)
@@ -1014,17 +1034,17 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("ASTHI v1 — ANCESTOR-CHOIR", True, LABEL), (24, 13))
     sheet.blit(f_sm.render(
-        "bone-jewel sky-dancer  ·  CITIPATI body + MUKHA 6-arm fan · 6 DISTINCT palm-skulls + 6 DISTINCT crown relics · fused crown · WARM aged-bone + gold pips · round 10",
+        "bone-jewel sky-dancer caught MID-CHANT  ·  12-voice choir: 6 palm + 6 crown singing skulls · lidded downcast eyes + soft rounded AGAPE 'O' jaws (NO fangs/cracks) · WARM aged-bone + gold pips",
         True, LABEL_DIM), (270, 28))
 
     # === (a) BIG HERO =========================================================
     hero = render_creature_chip(380, 540, 188, 296, 2.05)
     sheet.blit(hero, (14, 92))
     sheet.blit(f.render("Creature — hero", True, LABEL), (120, 636))
-    sheet.blit(f_sm.render("Cocked-hip DANCE under a six-arm radial fan; each of the 6 open palms cradles", True, LABEL_DIM), (14, 660))
-    sheet.blit(f_sm.render("a tiny skull. Fused crown = Mukha tiara-band on the brow + wide airy 6-skull arc.", True, LABEL_DIM), (14, 676))
-    sheet.blit(f_sm.render("Bead-lattice over every surface; gold spacer-pips carry the texture (not cyan-on-blue).", True, LABEL_DIM), (14, 692))
-    sheet.blit(f_sm.render("Value ladder: cyan third-eye brightest > palm-skulls + dim palm-gems mid > crown skulls dimmest.", True, LABEL_DIM), (14, 708))
+    sheet.blit(f_sm.render("Cocked-hip DANCE under a six-arm radial fan; 6 palm + 6 crown skulls form a 12-voice", True, LABEL_DIM), (14, 660))
+    sheet.blit(f_sm.render("CHOIR caught mid-chant: lidded half-closed downcast eyes + soft rounded AGAPE 'O' jaws.", True, LABEL_DIM), (14, 676))
+    sheet.blit(f_sm.render("NO fangs, NO cracks. Cyan pools FLAT + DIM inside the sockets as inner gaze-light;", True, LABEL_DIM), (14, 692))
+    sheet.blit(f_sm.render("ladder: HERO necklace gem (white core) > dim brow third-eye > skull socket-cyan dimmest.", True, LABEL_DIM), (14, 708))
 
     # === (b) PILLAR assembled — mirrored, tileable shaft ======================
     pcx = 444

@@ -207,53 +207,63 @@ def bead_arc(surf, cx, cy, r, a0, a1, bead_r, s, gold_every=3, light=True):
 
 # ── a single ornamental crown-skull (cloned from Citipati; crown-warm tint) ────
 def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
-    """Tiny crown skull — bone-JEWEL relic seated in her tiara arc. WHY a notch
-    darker/cooler than the warm-light body (CROWN_BONE): against the new warm ivory
+    """Tiny crown skull — WRATHFUL charnel relic seated in her tiara arc. WHY a
+    notch darker/cooler than the warm-light body (CROWN_BONE): against the warm ivory
     body, an equally-warm crown would melt in, so the crown sits a value step down
     (the dimmest tier) and slightly cooler to keep its shape against both body and
-    sky. WHY `idx`: the six crown relics must read as six DISTINCT skulls, not one
-    stamp repeated — so `idx` drives the CRANIUM SILHOUETTE (tall / round / squat /
-    lopsided / heart-domed), suture style, brow + jaw set and a tooth-chip on one.
-    The variety lives in the OUTLINE (width/height/lean), so the scalloped arc reads
-    as distinct lumps at 32px, not only as interior lines. `lit` keeps the centre
-    relic's eyes cyan-tinted — the ONLY crown accent — but stays the DIMMEST tier
-    (no white core, no glow, no brightness bump); the gold-bezel cyan pip on the
-    pip-bearing relics is a DIM hue echo, not a focal."""
+    sky. WHY `idx`: the six crown relics are a CHORUS of distinct wraths to match the
+    palm-skulls — `idx` drives cranium silhouette, brow angle, jaw-roar amount, fang
+    count, crack side and damage (caved temple / broken crest / sheared jaw), so the
+    scalloped arc reads as six individual screamers at 32px, not one stamp swept six
+    times, and the fury lives in the OUTLINE. `lit` is the crown-CENTRE relic: it
+    carries MORE cyan wrath-fire (a CYAN ember core + CYAN_BR upper glint) — still the
+    DIMMEST tier, NO white core, NO glow, below the brow third-eye; the rest get DIM
+    CYAN_D embers."""
     ow1 = max(1, int(1.6 * s))
     ow_thin = max(1, int(1.0 * s))
 
-    # ── per-relic silhouette table — the variety must read in the SHAPE ──
-    # cw/ch = cranium width/height stretch · lean = sideways skew of the dome ·
-    # heart = a notched/dimpled crown top · suture style · brow ridge? · jaw set ·
-    # pip = dim gold-bezel cyan bead? · chip = a broken tooth?
+    # ── per-relic WRATH table — six distinct fierce crown skulls ──
+    # cw/ch = cranium width/height stretch · lean = sideways skew · brow = angry
+    # ridge steepness (out/up) · jaw roar mode · fangs · suture · damage · rage 0..1
     CROWN_PROFILE = [
-        # 0: TALL narrow dome, gold-pip-beaded suture, set jaw
-        dict(cw=0.88, ch=1.18, lean=0.00, heart=False, sut="dots", brow=True,  jaw="set",   pip=True,  chip=False),
-        # 1: broad ROUND dome, zigzag suture, plain jaw
-        dict(cw=1.16, ch=0.96, lean=0.00, heart=False, sut="zig",  brow=False, jaw="plain", pip=False, chip=False),
-        # 2: SQUAT low dome (centre, lit) — heart-domed top, beaded suture, pip
-        dict(cw=1.10, ch=0.86, lean=0.00, heart=True,  sut="dots", brow=True,  jaw="set",   pip=True,  chip=False),
-        # 3: LOPSIDED dome leaning right, zigzag suture, chipped tooth
-        dict(cw=1.00, ch=1.02, lean=0.20, heart=False, sut="zig",  brow=True,  jaw="plain", pip=False, chip=True),
-        # 4: HEART-domed (notched crown), plain suture, narrow set jaw
-        dict(cw=1.02, ch=1.06, lean=-0.06, heart=True, sut="line", brow=False, jaw="set",   pip=False, chip=False),
-        # 5: lopsided SQUAT dome leaning left, zigzag suture, broad plain jaw
-        dict(cw=1.08, ch=0.92, lean=-0.18, heart=False, sut="zig", brow=True,  jaw="plain", pip=False, chip=True),
+        # 0: TALL narrow snarl, forked crack, sheared jaw, mid rage
+        dict(cw=0.88, ch=1.18, lean=0.00, brow=0.26, jaw="snarl", fangs=3, sut="crack",
+             dmg="jaw_shear", rage=0.66),
+        # 1: broad ROUND full-roar, zig suture, caved left temple, high rage
+        dict(cw=1.16, ch=0.96, lean=0.00, brow=0.30, jaw="roar", fangs=4, sut="zig",
+             dmg="temple_cave", rage=0.90),
+        # 2: SQUAT low dome (CENTRE, lit) — full-roar, broken crest, brightest cyan
+        dict(cw=1.10, ch=0.86, lean=0.00, brow=0.32, jaw="roar", fangs=4, sut="zig",
+             dmg="crest_break", rage=0.96),
+        # 3: LOPSIDED right-lean snarl, forked crack, sheared jaw, mid rage
+        dict(cw=1.00, ch=1.02, lean=0.18, brow=0.24, jaw="snarl", fangs=3, sut="crack",
+             dmg="jaw_shear", rage=0.58),
+        # 4: NEAR-CLENCHED grimace, faint median crack, hairline cheek, low rage
+        dict(cw=1.02, ch=1.06, lean=-0.06, brow=0.14, jaw="grimace", fangs=4, sut="line",
+             dmg="cheek_crack", rage=0.26),
+        # 5: lopsided left-lean full-roar, zig suture, caved right temple, high rage
+        dict(cw=1.08, ch=0.92, lean=-0.18, brow=0.28, jaw="roar", fangs=3, sut="zig",
+             dmg="temple_cave_r", rage=0.84),
     ]
     p = CROWN_PROFILE[idx % len(CROWN_PROFILE)]
     cw, ch, lean = p["cw"], p["ch"], p["lean"]
+    rage = p["rage"]
 
     # cranium as an ink-keyed POLYGON (not a plain circle) so width/height/lean and
-    # the heart-notch all live in the silhouette. The lean skews the upper dome
-    # sideways; the heart profiles dimple the crown top into two soft lumps.
+    # the DAMAGE all live in the silhouette. The lean skews the upper dome sideways;
+    # caved temples and a broken crest punch the outline so the wrath survives 32px.
     dome = []
-    for ang_deg in range(-180, 1, 18):     # top half-ring: brow → temples → crown
+    for ang_deg in range(-180, 1, 12):     # top half-ring: brow → temples → crown
         a = math.radians(ang_deg)
         dx = math.cos(a) * r * cw
         dy = math.sin(a) * r * ch
         dx += lean * r * (-dy / max(1.0, r))      # shear the dome toward the lean
-        if p["heart"] and abs(math.cos(a)) < 0.34 and math.sin(a) < -0.4:
-            dy += r * 0.22                         # dimple the crown into a heart
+        if p["dmg"] == "temple_cave" and -2.7 < a < -1.9:
+            dx += r * 0.26; dy += r * 0.14
+        if p["dmg"] == "temple_cave_r" and -1.25 < a < -0.45:
+            dx -= r * 0.26; dy += r * 0.14
+        if p["dmg"] == "crest_break" and -1.95 < a < -1.15:
+            dy += r * 0.30 * (0.4 + 0.6 * abs(math.cos(a * 3.0)))
         dome.append((cx + dx, cy + dy))
     # cheeks taper down to the jaw line
     dome.append((cx + r * cw * 0.74 + lean * r * 0.2, cy + r * ch * 0.34))
@@ -266,66 +276,110 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
              (cx - r * cw * 0.46, cy + r * ch * 0.02)]
     pygame.draw.polygon(surf, CROWN_SH, [(int(x), int(y)) for x, y in sheen])
 
-    # cranial SUTURE — per-profile crown seam (the carved-bone read at hero scale)
+    # cranial SUTURE — zig seam / forked battle-crack / faint median hairline
     seam_y = cy - r * ch * 0.56
     if p["sut"] == "zig":
         zp = [(cx - r * 0.34 + j * (r * 0.68 / 4),
-               seam_y + (r * 0.10 if j % 2 else -r * 0.06)) for j in range(5)]
+               seam_y + (r * 0.12 if j % 2 else -r * 0.08)) for j in range(5)]
         pygame.draw.lines(surf, CROWN_BONE_D, False,
                           [(int(x), int(y)) for x, y in zp], ow_thin)
-    elif p["sut"] == "dots":
-        for j in range(5):
-            zx = cx - r * 0.34 + j * (r * 0.68 / 4)
-            pygame.draw.circle(surf, CROWN_BONE_D, (int(zx), int(seam_y)), max(1, int(0.9 * s)))
-            if j % 2 == 0:    # dim gold pip on alternate suture nodes (jewel-set bone)
-                pygame.draw.circle(surf, GOLD_D, (int(zx), int(seam_y)), max(1, int(0.8 * s)))
-    else:   # "line" — a single straight median suture
+    elif p["sut"] == "crack":
+        ck = [(cx + r * 0.06, cy - r * ch * 0.74), (cx - r * 0.08, cy - r * ch * 0.36),
+              (cx + r * 0.04, cy - r * 0.04)]
+        pygame.draw.lines(surf, CROWN_BONE_D, False, [(int(x), int(y)) for x, y in ck], ow_thin)
+    else:   # "line" — a single faint median suture (the near-clenched grimace)
         pygame.draw.line(surf, CROWN_BONE_D, (int(cx), int(cy - r * ch * 0.78)),
                          (int(cx), int(cy - r * 0.06)), ow_thin)
 
-    # optional brow ridge — a short dark bar above the sockets (carved relief)
-    if p["brow"]:
-        pygame.draw.line(surf, CROWN_BONE_D,
-                         (int(cx - r * 0.46), int(cy - r * 0.02)),
-                         (int(cx + r * 0.46), int(cy - r * 0.02)), max(1, int(1.3 * s)))
+    # ── HEAVY angry brow ridges — outward/up wedges over the sockets ──
+    # p["brow"] scales the scowl; even a low-rage grimace keeps a slight frown.
+    bwf = p["brow"]
+    for sgn in (-1, 1):
+        bi = (cx + sgn * r * 0.08, cy - r * (0.02 - bwf * 0.36))   # inner low (near nose)
+        bo = (cx + sgn * r * 0.52, cy - r * (0.16 + bwf * 0.50))   # outer high (raised)
+        bb = (cx + sgn * r * 0.50, cy + r * 0.04)
+        bn = (cx + sgn * r * 0.10, cy + r * 0.10)
+        triad_blob(surf, CROWN_BONE_D, [(int(bi[0]), int(bi[1])), (int(bo[0]), int(bo[1])),
+                                        (int(bb[0]), int(bb[1])), (int(bn[0]), int(bn[1]))],
+                   ow=ow_thin)
 
-    # jaw — per-profile: a SET stub (narrow, tucked) or a PLAIN wider bar
-    if p["jaw"] == "set":
-        jaw = [(cx - r * 0.44, cy + r * 0.52), (cx + r * 0.44, cy + r * 0.52),
-               (cx + r * 0.26, cy + r * 0.98), (cx - r * 0.26, cy + r * 0.98)]
+    # ── ROARING jaw — agape void scaled by rage; mode sets the silhouette wound ──
+    jl, jr = -r * 0.44, r * 0.44
+    open_amt = 0.08 + rage * 0.46
+    drop = r * (0.14 + open_amt)
+    void = [(cx + jl * 0.92, cy + r * 0.44), (cx + jr * 0.92, cy + r * 0.44),
+            (cx + jr * 0.80, cy + r * 0.44 + drop), (cx + jl * 0.80, cy + r * 0.44 + drop)]
+    pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in void])
+    jy0 = cy + r * 0.44 + drop
+    if p["dmg"] == "jaw_shear":
+        if idx % 2 == 0:
+            jaw = [(cx + jl * 0.86, jy0), (cx + jr * 0.28, jy0),
+                   (cx + jr * 0.02, jy0 + r * 0.30), (cx + jl * 0.70, jy0 + r * 0.34)]
+        else:
+            jaw = [(cx + jl * 0.28, jy0), (cx + jr * 0.86, jy0),
+                   (cx + jr * 0.70, jy0 + r * 0.34), (cx + jl * 0.02, jy0 + r * 0.30)]
     else:
-        jaw = [(cx - r * 0.54, cy + r * 0.50), (cx + r * 0.54, cy + r * 0.50),
-               (cx + r * 0.38, cy + r * 1.02), (cx - r * 0.38, cy + r * 1.02)]
-    triad_blob(surf, CROWN_BONE, [(int(x), int(y)) for x, y in jaw], ow=max(1, int(1.2 * s)))
+        jaw = [(cx + jl * 0.80, jy0), (cx + jr * 0.80, jy0),
+               (cx + jr * 0.56, jy0 + r * 0.34), (cx + jl * 0.56, jy0 + r * 0.34)]
+    triad_blob(surf, CROWN_BONE, [(int(x), int(y)) for x, y in jaw], ow=max(1, int(1.0 * s)))
 
-    # two dark sockets (the lit centre relic gets a dim cyan tint, no glow)
-    eye_c = CYAN_D if lit else INK
-    for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
-        pygame.draw.circle(surf, INK, (ex, cy + int(r * 0.04)), max(1, int(r * 0.24)))
+    # ── WIDE OVAL sockets canted OUTWARD/UP + DIM cyan wrath-fire ember ──
+    # the lit CENTRE relic carries MORE cyan (CYAN core + CYAN_BR glint); the rest
+    # get DIM CYAN_D embers — all below the brow third-eye, NO white core, NO glow.
+    for sgn in (-1, 1):
+        ex = cx + int(sgn * r * 0.38)
+        ey = cy + int(r * 0.04)
+        ax, ay = int(r * 0.30), int(r * 0.22)
+        ov = []
+        for od in range(0, 360, 60):
+            oa = math.radians(od)
+            ox = math.cos(oa) * ax + sgn * 0.26 * (-math.sin(oa) * ay)
+            oy = math.sin(oa) * ay + sgn * 0.10 * (math.cos(oa) * ax)
+            ov.append((ex + int(ox), ey + int(oy)))
+        pygame.draw.polygon(surf, INK, ov)
+        em_x, em_y = ex, ey + int(r * 0.03)
         if lit:
-            pygame.draw.circle(surf, eye_c, (ex, cy + int(r * 0.04)), max(1, int(r * 0.12)))
+            pygame.draw.circle(surf, CYAN, (em_x, em_y), max(1, int(r * 0.13)))
+            pygame.draw.circle(surf, CYAN_BR, (em_x - int(r * 0.04), em_y - int(r * 0.05)),
+                               max(1, int(r * 0.05)))
+        else:
+            pygame.draw.circle(surf, CYAN_D, (em_x, em_y), max(1, int(r * 0.10)))
 
-    # nasal pit
-    pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.13)))
+    # nasal pit — flared with rage (a snarling snout)
+    pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.40)), max(1, int(r * (0.12 + rage * 0.05))))
 
-    # tooth line — a short bar with a couple of slits; the chip profiles drop one
-    ty = cy + int(r * 0.70)
-    pygame.draw.line(surf, INK, (cx - int(r * 0.32), ty), (cx + int(r * 0.32), ty),
-                     max(1, int(1.2 * s)))
-    for j in range(3):
-        tx = cx - int(r * 0.24) + j * int(r * 0.24)
-        if p["chip"] and j == 1:
-            continue   # a knocked-out tooth — the chip read on a lopsided relic
-        pygame.draw.line(surf, INK, (tx, ty - int(r * 0.08)), (tx, ty + int(r * 0.10)),
-                         max(1, int(1.0 * s)))
+    # ── FANGED rows — upper fangs ringing the void + lower tusks biting up ──
+    nf = p["fangs"]
+    uy = cy + r * 0.44
+    ly = jy0 + r * 0.02
+    fang_gap = idx % 3
+    for j in range(nf):
+        fx = cx - r * 0.32 + j * (r * 0.64 / max(1, nf - 1))
+        if j == fang_gap and rage > 0.6:
+            continue   # a knocked-out upper fang on the angrier relics (a gap)
+        tp = (fx, uy + r * (0.14 + rage * 0.08))
+        pygame.draw.polygon(surf, CROWN_BONE, [(int(fx - r * 0.06), int(uy)),
+                                               (int(fx + r * 0.06), int(uy)),
+                                               (int(tp[0]), int(tp[1]))])
+        pygame.draw.polygon(surf, INK, [(int(fx - r * 0.06), int(uy)),
+                                        (int(fx + r * 0.06), int(uy)),
+                                        (int(tp[0]), int(tp[1]))], max(1, int(0.8 * s)))
+    n_tusk = 2 + int(rage * 2)
+    for j in range(n_tusk):
+        fx = cx - r * 0.22 + j * (r * 0.44 / max(1, n_tusk - 1))
+        tp = (fx, ly - r * (0.16 + rage * 0.10))
+        pygame.draw.polygon(surf, CROWN_BONE, [(int(fx - r * 0.06), int(ly)),
+                                               (int(fx + r * 0.06), int(ly)),
+                                               (int(tp[0]), int(tp[1]))])
+        pygame.draw.polygon(surf, INK, [(int(fx - r * 0.06), int(ly)),
+                                        (int(fx + r * 0.06), int(ly)),
+                                        (int(tp[0]), int(tp[1]))], max(1, int(0.8 * s)))
 
-    # DIM gold-bezel cyan brow pip on the pip-bearing relics (incl. the lit centre)
-    # — a hue echo of her bead identity, kept the dimmest tier (GOLD_D + CYAN_D, no
-    # white core, no glow) so the third-eye stays the single brightest pixel.
-    if p["pip"]:
-        bg_y = cy - int(r * 0.28)
-        pygame.draw.circle(surf, GOLD_D, (cx, bg_y), max(1, int(r * 0.18)))
-        pygame.draw.circle(surf, CYAN_D, (cx, bg_y), max(1, int(r * 0.11)))
+    # cheek-crack damage on the near-clenched grimace
+    if p["dmg"] == "cheek_crack":
+        cc = [(cx + r * 0.28, cy + r * 0.16), (cx + r * 0.42, cy + r * 0.34),
+              (cx + r * 0.34, cy + r * 0.50)]
+        pygame.draw.lines(surf, CROWN_BONE_D, False, [(int(x), int(y)) for x, y in cc], ow_thin)
 
 
 # ── a small CYAN cabochon inlay — the palm-gem (DIM tier, gold bezel) ─────────
@@ -349,32 +403,52 @@ def palm_cabochon(surf, c, r, s):
 
 # ── a tiny skull cradled in an open palm (the brood MOTIF) ────────────────────
 def palm_skull(surf, cx, cy, r, s, idx=0):
-    """An open BONE palm cradling a CRAFTED reliquary skull. WHY both pieces: the
-    brood motif is six open palms EACH holding a skull at the fan tips. WHY the
-    `idx`: this sister's skulls are the most ORNAMENTED of the brood and must read
-    as six DISTINCT individuals, not one dome re-tilted — so `idx` drives cranium
-    shape, jaw set, tilt, tooth count/chips, suture pattern and ornament. 2-3 of
-    the six carry a DIM gold-bezel cyan cabochon (a value step below the focal
-    brow gem) to lean into the jewel-set-bone look. MID value tier: pale BEAD bone,
-    brighter than the crown skulls, dimmer than the third-eye."""
+    """An open BONE palm cradling a WRATHFUL charnel-ground reliquary skull. WHY
+    both pieces: the brood motif is six open palms EACH holding a skull at the fan
+    tips. WHY this sister is the WRATHFUL pole: she is the fierce protector-destroyer,
+    so every cradled skull is a battle-scarred screamer — wide oval sockets canted
+    OUTWARD/UP under heavy brow ridges (angry geometry), agape ROARING jaws bristling
+    with FANGS, and SILHOUETTE-ALTERING damage (sheared jaws, caved temples, broken
+    cranium edges, fang gaps) so the fury reads at 32px, not only in interior lines.
+    WHY `idx`: the six must be a CHORUS of distinct wraths — different intensity
+    (mid-snarl → full-roar → near-clenched grimace), crack side, brow angle, fang
+    count and lean — never one screamer stamped six times. The two OUTERMOST fan-tip
+    skulls (the d=100° hands → idx 0 left + idx 3 right after the hand sort) carry
+    MORE cyan wrath-fire (a CYAN ember core + a CYAN_BR upper glint); the rest keep
+    DIM CYAN_D embers. LADDER: all
+    embers stay DIM — below the brow third-eye and far below the necklace hero gem;
+    NO palm skull gets a white-hot core. MID value tier: pale BEAD bone."""
     ow1 = max(1, int(1.4 * s))
     ow_thin = max(1, int(1.0 * s))
 
-    # ── per-skull personality table (six genuinely distinct little skulls) ──
-    # tilt(rad), cranium x/y stretch, jaw mode, n_teeth, suture style, gem?, chip?
+    # ── per-skull WRATH table — a chorus of six distinct fierce skulls ──
+    # tilt(rad)·cranium x/y stretch·jaw roar mode·fang count·suture·brow angle(out/up)
+    # ·socket cant·damage (which silhouette-altering wound)·rage 0..1·cyan tier
+    # rage drives jaw-open amount + brow heaviness; damage edits the OUTLINE so the
+    # fury survives downscale; cyan="bright" gets the ember-core + glint.
     PROFILE = [
-        # 0: tall egg-dome, jaw agape (open mouth), zigzag suture, GEM in brow
-        dict(tilt=-0.16, cw=0.96, ch=1.12, jaw="agape", teeth=5, sut="zig", gem=True,  chip=False),
-        # 1: broad round skull, closed jaw, bead-dotted suture, GOLD pips only
-        dict(tilt= 0.10, cw=1.14, ch=0.96, jaw="closed", teeth=6, sut="dots", gem=False, chip=False),
-        # 2: narrow tilted skull, jaw cracked off (asymmetric stub), GEM-lit socket
-        dict(tilt=-0.30, cw=0.88, ch=1.04, jaw="cracked", teeth=3, sut="zig", gem="socket", chip=True),
-        # 3: squat low dome, jaw agape wide, straight suture line, GOLD pips
-        dict(tilt= 0.06, cw=1.06, ch=0.90, jaw="agape", teeth=7, sut="line", gem=False, chip=False),
-        # 4: tall narrow skull, closed jaw, bead-dotted suture, GEM in brow
-        dict(tilt= 0.22, cw=0.90, ch=1.10, jaw="closed", teeth=5, sut="dots", gem=True,  chip=False),
-        # 5: lopsided cranium, jaw cracked off, zigzag suture, GOLD pips + chipped
-        dict(tilt=-0.08, cw=1.02, ch=1.00, jaw="cracked", teeth=4, sut="zig", gem=False, chip=True),
+        # 0: FULL-ROAR (outermost LEFT fan tip), broad jaw torn wide, top fangs +
+        #    big tusks, sheared jaw — BRIGHT cyan ember
+        dict(tilt=-0.10, cw=1.04, ch=1.06, jaw="roar", fangs=4, sut="zig",
+             brow=0.34, cant=0.30, dmg="jaw_shear", rage=1.00, cyan="bright"),
+        # 1: mid-snarl, narrow tall skull, caved LEFT temple, gap-fang, dim cyan
+        dict(tilt= 0.12, cw=0.90, ch=1.12, jaw="snarl", fangs=3, sut="crack",
+             brow=0.22, cant=0.22, dmg="temple_cave", rage=0.62, cyan="dim"),
+        # 2: NEAR-CLENCHED grimace (innermost LEFT), squat broad dome, hairline
+        #    cheek crack, full fang row — dim cyan
+        dict(tilt=-0.04, cw=1.14, ch=0.92, jaw="grimace", fangs=5, sut="line",
+             brow=0.16, cant=0.14, dmg="cheek_crack", rage=0.30, cyan="dim"),
+        # 3: FULL-ROAR (outermost RIGHT fan tip), broken cranium crest (chunk gone),
+        #    big tusks — BRIGHT cyan ember (mirror of #0)
+        dict(tilt= 0.18, cw=1.02, ch=1.04, jaw="roar", fangs=4, sut="zig",
+             brow=0.30, cant=0.26, dmg="crest_break", rage=0.92, cyan="bright"),
+        # 4: hard snarl, tall skull leaning, knocked fang + chin tusk, dim cyan
+        dict(tilt=-0.22, cw=0.92, ch=1.10, jaw="snarl", fangs=3, sut="crack",
+             brow=0.26, cant=0.24, dmg="jaw_shear", rage=0.74, cyan="dim"),
+        # 5: snarling-to-roar (innermost RIGHT), widest squat, double tusks, caved
+        #    RIGHT temple — dim cyan
+        dict(tilt= 0.08, cw=1.10, ch=1.00, jaw="snarl", fangs=5, sut="zig",
+             brow=0.28, cant=0.28, dmg="temple_cave_r", rage=0.70, cyan="dim"),
     ]
     p = PROFILE[idx % len(PROFILE)]
     t = p["tilt"]
@@ -385,6 +459,7 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
         return (cx + dx * ct - dy * st, cy + dx * st + dy * ct)
 
     cw, ch = p["cw"], p["ch"]
+    rage = p["rage"]
     # ── open palm cup — a shallow bone bowl with finger-ticks fanning up ──
     cup = [(cx - int(r * 1.05), cy + int(r * 0.30)),
            (cx - int(r * 0.70), cy + int(r * 0.78)),
@@ -403,13 +478,26 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
     # ── the cradled skull centre (seated a touch higher so the dome nests) ──
     scx, scy = cx, cy - int(r * 0.36)
     cr = r * 0.66                     # cranium radius unit (modest enlarge for detail)
+    dmg = p["dmg"]
 
     # cranium dome — an ink-keyed bone polygon shaped per-profile (NOT a plain
     # circle): wide brow tapering to a narrower jaw, stretched by cw/ch + tilted.
+    # WHY damage edits the dome point-by-point: a caved temple or a broken crest is a
+    # SILHOUETTE wound, not an inked line, so the fury survives the downscale to 32px.
     dome = []
-    for ang_deg in range(-180, 1, 20):    # top half-ring (brow + temples + crown)
+    for ang_deg in range(-180, 1, 12):    # top half-ring (brow + temples + crown)
         a = math.radians(ang_deg)
-        dome.append(rot(math.cos(a) * cr * cw, math.sin(a) * cr * ch))
+        dx = math.cos(a) * cr * cw
+        dy = math.sin(a) * cr * ch
+        # caved temple — punch a flat in the upper-left (or -right) of the dome
+        if dmg == "temple_cave" and -2.7 < a < -1.9:
+            dx += cr * 0.30; dy += cr * 0.16
+        if dmg == "temple_cave_r" and -1.25 < a < -0.45:
+            dx -= cr * 0.30; dy += cr * 0.16
+        # broken cranium crest — a jagged chunk sheared off the crown top
+        if dmg == "crest_break" and -1.95 < a < -1.15:
+            dy += cr * 0.34 * (0.4 + 0.6 * abs(math.cos(a * 3.0)))
+        dome.append(rot(dx, dy))
     # cheek taper down to the jaw line (the lower face narrows)
     dome.append(rot(cr * cw * 0.78, cr * ch * 0.30))
     dome.append(rot(cr * cw * 0.52, cr * ch * 0.72))
@@ -423,103 +511,160 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
              rot(-cr * cw * 0.50, -cr * ch * 0.04)]
     pygame.draw.polygon(surf, BEAD_BR, [(int(x), int(y)) for x, y in sheen])
 
-    # cranial SUTURE — per-profile, riding the crown seam (the carved-bone read)
+    # cranial SUTURE — per-profile zig / jagged battle-crack / hairline median.
+    # WHY a crack-style suture on the wrathful skulls: a forked temple crack reads as
+    # damage rather than decorative seam, reinforcing the charnel-ground fury.
     if p["sut"] == "zig":
         zp = []
         for j in range(5):
             zx = -cr * 0.34 + j * (cr * 0.68 / 4)
-            zy = -cr * ch * 0.62 + (cr * 0.10 if j % 2 else -cr * 0.06)
+            zy = -cr * ch * 0.62 + (cr * 0.12 if j % 2 else -cr * 0.08)
             zp.append(rot(zx, zy))
         pygame.draw.lines(surf, BONE_DD, False, [(int(x), int(y)) for x, y in zp], ow_thin)
-    elif p["sut"] == "dots":
-        for j in range(5):
-            zx = -cr * 0.34 + j * (cr * 0.68 / 4)
-            dx, dy = rot(zx, -cr * ch * 0.60)
-            pygame.draw.circle(surf, BONE_DD, (int(dx), int(dy)), max(1, int(0.9 * s)))
-            if j % 2 == 0:    # tiny gold pip on alternate suture nodes (jewel-set bone)
-                gx, gy = rot(zx, -cr * ch * 0.60)
-                pygame.draw.circle(surf, GOLD, (int(gx), int(gy)), max(1, int(0.8 * s)))
-    else:   # "line" — a single straight median suture
+    elif p["sut"] == "crack":
+        # a forked battle-crack splitting down from the crown into the brow
+        ck = [rot(cr * 0.06, -cr * ch * 0.78), rot(-cr * 0.10, -cr * ch * 0.40),
+              rot(cr * 0.04, -cr * ch * 0.12), rot(-cr * 0.06, cr * 0.06)]
+        pygame.draw.lines(surf, BONE_DD, False, [(int(x), int(y)) for x, y in ck], ow_thin)
+        fork = [rot(-cr * 0.10, -cr * ch * 0.40), rot(-cr * 0.30, -cr * ch * 0.20)]
+        pygame.draw.lines(surf, BONE_DD, False, [(int(x), int(y)) for x, y in fork], ow_thin)
+    else:   # "line" — a single faint median hairline (the near-clenched grimace)
         pygame.draw.line(surf, BONE_DD,
                          (int(rot(0, -cr * ch * 0.80)[0]), int(rot(0, -cr * ch * 0.80)[1])),
                          (int(rot(0, -cr * 0.10)[0]), int(rot(0, -cr * 0.10)[1])), ow_thin)
 
-    # brow ridge — a short dark bar above the sockets (carved relief)
-    br0 = rot(-cr * 0.46, -cr * 0.02)
-    br1 = rot(cr * 0.46, -cr * 0.02)
-    pygame.draw.line(surf, BONE_D, (int(br0[0]), int(br0[1])), (int(br1[0]), int(br1[1])),
-                     max(1, int(1.4 * s)))
+    # extra scar lines scaled with rage — a chipped temple crack on the angriest
+    if rage > 0.5:
+        sc = [rot(cr * cw * 0.70, -cr * ch * 0.20), rot(cr * cw * 0.42, cr * 0.02)]
+        pygame.draw.lines(surf, BONE_DD, False, [(int(x), int(y)) for x, y in sc], ow_thin)
 
-    # temple / cheek hollow — a faint shade pocket on the lower-right cheek
-    hollow = [rot(cr * 0.20, cr * 0.18), rot(cr * 0.60, cr * 0.20),
-              rot(cr * 0.52, cr * 0.56), rot(cr * 0.18, cr * 0.50)]
-    pygame.draw.polygon(surf, BONE_D, [(int(x), int(y)) for x, y in hollow])
-
-    # ── deep ink sockets with a CARVED rim (a bone ring around each pit) ──
-    socket_r = cr * 0.30
+    # ── HEAVY angry brow ridges — two wedges canted OUTWARD/UP over the sockets ──
+    # WHY wedges, not a flat bar: a down-and-in inner edge with a raised outer end
+    # is the universal ANGRY-eyebrow geometry; the per-skull brow weight scales how
+    # heavy/steep, so the chorus ranges from a slight frown to a thunderous scowl.
+    bw = p["brow"]
     for sgn in (-1, 1):
-        ecx, ecy = rot(sgn * cr * 0.40, cr * 0.14)
-        ecx, ecy = int(ecx), int(ecy)
-        # carved bone rim (a ring) then the deep ink pit
-        pygame.draw.circle(surf, BONE_D, (ecx, ecy), int(socket_r + max(1, 1.2 * s)))
-        pygame.draw.circle(surf, INK, (ecx, ecy), int(socket_r))
-        pygame.draw.circle(surf, BONE_DD, (ecx, ecy), int(socket_r * 0.62))
-        pygame.draw.circle(surf, INK, (ecx, ecy), int(socket_r * 0.34))
-    # a profile may light ONE socket with the dim cyan inlay instead of a brow gem
-    if p["gem"] == "socket":
-        scx2, scy2 = rot(-cr * 0.40, cr * 0.14)
-        palm_cabochon(surf, (scx2, scy2), max(2, int(socket_r * 0.66)), s)
+        bi_x, bi_y = rot(sgn * cr * 0.08, -cr * (0.02 - bw * 0.30))   # inner (low, near nose)
+        bo_x, bo_y = rot(sgn * cr * 0.58, -cr * (0.20 + bw * 0.55))   # outer (high, raised)
+        bb_x, bb_y = rot(sgn * cr * 0.56, -cr * 0.02)                 # outer base
+        bn_x, bn_y = rot(sgn * cr * 0.10, cr * 0.10)                  # inner base (frown crease)
+        triad_blob(surf, BONE_D, [(int(bi_x), int(bi_y)), (int(bo_x), int(bo_y)),
+                                  (int(bb_x), int(bb_y)), (int(bn_x), int(bn_y))], ow=ow_thin)
 
-    # nasal aperture — an inverted ink teardrop between/below the sockets
+    # ── WIDE OVAL sockets canted OUTWARD/UP, deep ink with carved rim + cyan EMBER ──
+    # WHY ovals tilted toward the temples (not round pits): the outward upward tilt
+    # plus the heavy brow reads as a glare. The cyan EMBER is drawn-flat and DIM
+    # (CYAN_D core for most; CYAN core + CYAN_BR upper glint on the bright-tier pair)
+    # — wrath-fire, never a focal: it stays below the brow third-eye in value.
+    cant = p["cant"]
+    bright = (p["cyan"] == "bright")
+    for sgn in (-1, 1):
+        ecx, ecy = rot(sgn * cr * 0.42, cr * 0.16)
+        ecx, ecy = int(ecx), int(ecy)
+        ax = int(cr * 0.34)               # socket horizontal radius (wide)
+        ay = int(cr * 0.26)               # vertical radius (oval)
+        # canted oval socket as a small rotated polygon (outward/up tilt)
+        ov = []
+        for od in range(0, 360, 45):
+            oa = math.radians(od)
+            ox = math.cos(oa) * ax
+            oy = math.sin(oa) * ay
+            # shear the oval so its long axis cants up toward the outer temple
+            ox += sgn * cant * (-oy)
+            oy += sgn * cant * 0.4 * ox
+            ov.append((ecx + int(ox), ecy + int(oy)))
+        pygame.draw.polygon(surf, BONE_D, ov)
+        pygame.draw.polygon(surf, INK, ov)
+        pygame.draw.polygon(surf, BONE_DD, [(ecx + int((x - ecx) * 0.62),
+                                             ecy + int((y - ecy) * 0.62)) for x, y in ov])
+        # the wrath-fire ember — drawn flat, DIM, sitting low in the socket
+        em_x, em_y = ecx, ecy + int(cr * 0.04)
+        if bright:
+            pygame.draw.circle(surf, CYAN, (em_x, em_y), max(1, int(cr * 0.15)))
+            pygame.draw.circle(surf, CYAN_BR, (em_x - int(cr * 0.05), em_y - int(cr * 0.06)),
+                               max(1, int(cr * 0.06)))
+        else:
+            pygame.draw.circle(surf, CYAN_D, (em_x, em_y), max(1, int(cr * 0.12)))
+
+    # nasal aperture — an inverted ink teardrop between/below the sockets, flared
+    # wider with rage (a snarling, flared snout)
+    nflare = 0.16 + rage * 0.08
     n_top = rot(0, cr * 0.30)
-    n_l = rot(-cr * 0.16, cr * 0.58)
-    n_r = rot(cr * 0.16, cr * 0.58)
+    n_l = rot(-cr * nflare, cr * 0.60)
+    n_r = rot(cr * nflare, cr * 0.60)
     pygame.draw.polygon(surf, INK, [(int(n_top[0]), int(n_top[1])),
                                     (int(n_l[0]), int(n_l[1])),
                                     (int(n_r[0]), int(n_r[1]))])
 
-    # ── jaw — per-profile: closed bar / agape gap / cracked-off stub ──
-    jl, jr = -cr * 0.40, cr * 0.40       # jaw corners under the cheeks
-    if p["jaw"] == "closed":
-        jaw = [rot(jl, cr * 0.74), rot(jr, cr * 0.74),
-               rot(jr * 0.70, cr * 1.04), rot(jl * 0.70, cr * 1.04)]
-        triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
-        teeth_y0, teeth_y1 = cr * 0.74, cr * 1.00
-    elif p["jaw"] == "agape":
-        # an open mouth: a dark gap, then a dropped jaw bone below it
-        gap = [rot(jl * 0.86, cr * 0.70), rot(jr * 0.86, cr * 0.70),
-               rot(jr * 0.70, cr * 1.06), rot(jl * 0.70, cr * 1.06)]
-        pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in gap])
-        jaw = [rot(jl * 0.74, cr * 1.06), rot(jr * 0.74, cr * 1.06),
-               rot(jr * 0.54, cr * 1.34), rot(jl * 0.54, cr * 1.34)]
-        triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
-        teeth_y0, teeth_y1 = cr * 0.70, cr * 0.94   # upper teeth ring the gap
-    else:   # "cracked" — one jaw corner snapped off, leaving an asymmetric stub
-        jaw = [rot(jl, cr * 0.74), rot(jr * 0.55, cr * 0.74),
-               rot(jr * 0.20, cr * 1.02), rot(jl * 0.78, cr * 1.06)]
-        triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
-        # a jagged break notch on the snapped (right) corner
-        pygame.draw.line(surf, BONE_DD,
-                         (int(rot(jr * 0.55, cr * 0.76)[0]), int(rot(jr * 0.55, cr * 0.76)[1])),
-                         (int(rot(jr * 0.30, cr * 0.98)[0]), int(rot(jr * 0.30, cr * 0.98)[1])),
-                         ow_thin)
-        teeth_y0, teeth_y1 = cr * 0.74, cr * 1.00
+    # ── ROARING jaw — agape mouth scaled by rage; mode sets the silhouette wound ──
+    # grimace: barely-parted clenched bar · snarl: half-open · roar: torn wide.
+    # WHY the gap is drawn as a black void with fangs ringing it: the agape void +
+    # interlocking fangs is the unmistakable roar read even at 32px.
+    jl, jr = -cr * 0.42, cr * 0.42       # jaw corners under the cheeks
+    open_amt = 0.10 + rage * 0.52        # how far the jaw drops
+    drop = cr * (0.18 + open_amt)
+    # the dark mouth VOID between upper teeth and lower jaw
+    void = [rot(jl * 0.92, cr * 0.66), rot(jr * 0.92, cr * 0.66),
+            rot(jr * 0.80, cr * 0.66 + drop), rot(jl * 0.80, cr * 0.66 + drop)]
+    pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in void])
 
-    # tooth row — n_teeth ink slits; the chipped profiles drop one for a gap
-    nt = p["teeth"]
-    for j in range(nt):
-        fx = -cr * 0.34 + j * (cr * 0.68 / max(1, nt - 1))
-        if p["chip"] and j == nt // 2:
-            continue   # a missing/knocked-out tooth (the chip)
-        tp0 = rot(fx, teeth_y0)
-        tp1 = rot(fx, teeth_y1)
-        pygame.draw.line(surf, INK, (int(tp0[0]), int(tp0[1])),
-                         (int(tp1[0]), int(tp1[1])), max(1, int(1.0 * s)))
+    # the dropped lower JAW bone below the void — its shape carries the damage
+    jy0 = cr * 0.66 + drop
+    if dmg == "jaw_shear":
+        # one jaw corner sheared clean off — a hard asymmetric silhouette wound
+        if idx % 2 == 0:
+            jaw = [rot(jl * 0.86, jy0), rot(jr * 0.30, jy0),
+                   rot(jr * 0.05, jy0 + cr * 0.30), rot(jl * 0.70, jy0 + cr * 0.34)]
+        else:
+            jaw = [rot(jl * 0.30, jy0), rot(jr * 0.86, jy0),
+                   rot(jr * 0.70, jy0 + cr * 0.34), rot(jl * 0.05, jy0 + cr * 0.30)]
+    else:
+        jaw = [rot(jl * 0.80, jy0), rot(jr * 0.80, jy0),
+               rot(jr * 0.58, jy0 + cr * 0.34), rot(jl * 0.58, jy0 + cr * 0.34)]
+    triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
 
-    # ── brow CABOCHON — the dim cyan jewel for the gem-bearing profiles ──
-    if p["gem"] is True:
-        gx, gy = rot(0, -cr * 0.20)
-        palm_cabochon(surf, (gx, gy), max(2, int(cr * 0.26)), s)
+    # ── FANGED tooth rows — an upper row of pointed fangs + lower tusks ──
+    # WHY pointed triangles, not flat slits: fangs are the wrath grammar; fang COUNT
+    # varies per skull, one row drops a fang for a gap (broken-fang silhouette).
+    nf = p["fangs"]
+    uy = cr * 0.66                       # upper tooth baseline (rim of the void)
+    ly = jy0 + cr * 0.02                 # lower tusk baseline (top of the jaw)
+    fang_gap = idx % 3                   # which upper fang is knocked out (varies)
+    for j in range(nf):
+        fx = -cr * 0.34 + j * (cr * 0.68 / max(1, nf - 1))
+        # upper fang — a downward triangle biting into the void
+        if not (rage < 0.45 and j == fang_gap):   # near-clenched keeps full row
+            if j == fang_gap and rage > 0.6:
+                pass   # a knocked-out upper fang on the angriest (a gap)
+            else:
+                t0 = rot(fx - cr * 0.06, uy)
+                t1 = rot(fx + cr * 0.06, uy)
+                tp = rot(fx, uy + cr * (0.16 + rage * 0.10))
+                pygame.draw.polygon(surf, BEAD, [(int(t0[0]), int(t0[1])),
+                                                 (int(t1[0]), int(t1[1])),
+                                                 (int(tp[0]), int(tp[1]))])
+                pygame.draw.polygon(surf, INK, [(int(t0[0]), int(t0[1])),
+                                                (int(t1[0]), int(t1[1])),
+                                                (int(tp[0]), int(tp[1]))], max(1, int(0.8 * s)))
+    # lower TUSKS — upward triangles biting up from the jaw; more + bigger with rage
+    n_tusk = 2 + int(rage * 2)
+    for j in range(n_tusk):
+        fx = -cr * 0.24 + j * (cr * 0.48 / max(1, n_tusk - 1))
+        t0 = rot(fx - cr * 0.07, ly)
+        t1 = rot(fx + cr * 0.07, ly)
+        tp = rot(fx, ly - cr * (0.18 + rage * 0.12))
+        pygame.draw.polygon(surf, BEAD, [(int(t0[0]), int(t0[1])),
+                                         (int(t1[0]), int(t1[1])),
+                                         (int(tp[0]), int(tp[1]))])
+        pygame.draw.polygon(surf, INK, [(int(t0[0]), int(t0[1])),
+                                        (int(t1[0]), int(t1[1])),
+                                        (int(tp[0]), int(tp[1]))], max(1, int(0.8 * s)))
+
+    # cheek crack damage — a hairline split on the near-clenched grimace's cheek
+    if dmg == "cheek_crack":
+        cc = [rot(cr * 0.30, cr * 0.20), rot(cr * 0.46, cr * 0.40),
+              rot(cr * 0.36, cr * 0.56)]
+        pygame.draw.lines(surf, BONE_DD, False, [(int(x), int(y)) for x, y in cc], ow_thin)
 
 
 # ── the Mukha-Devi six-arm radial fan (cloned; bead-armlet wrapped) ───────────

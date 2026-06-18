@@ -13,22 +13,26 @@ density is multi-strand bone-BEAD jewelry: a 3-row choker, a long swag necklace,
 beaded armlets/bracelets/anklets, wheel earrings, and a bold beaded girdle. A
 bead-lattice wraps every surface.
 
-WHY the palette is a WARM, light AGED-BONE (~212,202,186) ivory: she reads as
-real bone, not steel — matching the Citipati family's chalk/rose bone. The #1
-tonal-collapse risk is low-chroma beads on low-chroma bone reading as a grey
-smear ("naked in disguise"). The fix on a LIGHT field: the bead lattice sits a
-value step ABOVE the bone as a pale highlight chain held by INK keylines + sheen,
-and the WARM gold spacer-pips carry the hue separation (gold-on-ivory) — value
-AND hue separation, colourblind-safe — so the contrast is never only cyan-on-blue.
+WHY DAWN-LOTUS-COURT reads WARM where her kin read cool: she is the auspicious
+sunrise blessing-bringer, so the whole field is pushed warm — a dawn-ivory bone
+(~222,204,184) plus a ROSE-GOLD ornament metal (~216,156,118) that covers the
+crown band, pips, bezels, earrings and ferrules. That rose-gold is the single
+biggest 32px signal that separates her from the cool-gold sisters. A SPARING
+LOTUS-PINK (~232,166,182) blush — a third hue no other version uses — ticks the
+ornament-marks as a low-third accent only. The #1 tonal-collapse risk is still
+low-chroma beads on low-chroma bone reading as a grey smear; the fix is the same
+value-step bead chain held by INK keylines + sheen, with the rose-gold pips now
+carrying the warm hue separation — value AND hue, colourblind-safe.
 
 WHY the fused crown shows BOTH languages: a plain skull-arc alone reads as the
 Citipati reference, so the crown seats the Mukha tiara-BAND across the brow AND
 sweeps the wide airy 6-skull arc above it. Crown skulls are a touch darker/cooler
 than the warm body so they don't melt into it and still hold against open sky.
 
-Value ladder (AD hard rule): cyan third-eye slit = single brightest pixel → the
-six palm-skulls = mid → crown skulls = dimmest. Glow ONLY on the third-eye + the
-crown-centre skull.
+Value ladder (AD hard rule): the necklace HERO gem = the single white-hot core →
+the brow third-eye gem one step under → the cyan blessing-drops + the lotus-pink
+blush stay DIM, below the third-eye → no skull ever gets a white-hot core. The
+lotus-pink is a LOW-THIRD accent — never competing with the gems or the rose-gold.
 
 WHY a standalone script under docs/: review art must never enter the shipped
 bundle, so it reuses only colour math + the triad/outline helpers, not runtime
@@ -64,27 +68,41 @@ def font(sz):
 # INK keylines + sheen holding the rounded lattice, and the WARM gold spacer-pips
 # stay the hue separator (gold-on-ivory reads cleanly). Deep hollows stay dark so
 # sockets / rib-gaps still punch.
-BONE      = (212, 202, 186)   # warm aged ivory-bone (the dominant LIGHT field)
-BONE_D    = (158, 148, 130)   # bone shade / mid-core
-BONE_DD   = ( 96,  88,  76)   # deepest bone hollow (sockets, rib gaps) — stays dark
-BONE_SH   = (240, 234, 222)   # bone top-left rim-sheen (warm near-white)
-# Beads pushed BRIGHTER + cooler-neutral than the warm bone field so the lattice
-# reads as its own value step on the now-light bone (a pale highlight chain), with
-# the gold pips carrying the hue contrast.
-BEAD      = (236, 232, 224)   # pale bone bead — a value step above the warm field
-BEAD_BR   = (252, 250, 246)   # bead top sheen / hottest bone bead
-CYAN      = ( 86, 214, 226)   # icy-cyan — third-eye + sparse jewel cabochons
-CYAN_BR   = (188, 248, 252)   # hot cyan inner
+# DAWN-LOTUS-COURT — this version pushes the whole field WARM so it reads at 32px
+# as the sunrise/festive sister versus everyone else's cool ivory. The bone is
+# nudged a few points pinker/warmer (R lifted, B dropped) so even the dominant
+# field carries the dawn cast; the ornament metal is RE-TUNED from cool gold to
+# ROSE-GOLD, which is the single biggest 32px warm signal (the metal covers the
+# crown band, pips, bezels, earrings, ferrules).
+BONE      = (222, 204, 184)   # warm DAWN-ivory bone (R lifted, B dropped vs cool kin)
+BONE_D    = (168, 148, 128)   # bone shade / mid-core (warmed)
+BONE_DD   = (100,  86,  74)   # deepest bone hollow (sockets, rib gaps) — stays dark
+BONE_SH   = (246, 234, 220)   # bone top-left rim-sheen (warm near-white)
+# Beads stay the bright value step above the warm field, but tinted faintly warm
+# so they don't read cool against the dawn bone.
+BEAD      = (240, 230, 218)   # pale warm bone bead — a value step above the field
+BEAD_BR   = (254, 248, 240)   # bead top sheen / hottest bone bead
+CYAN      = ( 86, 214, 226)   # icy-cyan — the COOL counterpoint (blessing jewels)
+CYAN_BR   = (188, 248, 252)   # hot cyan inner (capped — never a skull's core)
 CYAN_D    = ( 40, 132, 150)
-GOLD      = (212, 162,  60)   # WARM gold spacer-pips (the hue separator on ivory)
-GOLD_BR   = (246, 208, 110)
-GOLD_D    = (158, 112,  40)
+# ROSE-GOLD family — warm pink-bronze metal, the dominant 32px warm carrier. This
+# is the hue that separates DAWN-LOTUS-COURT from the cool-gold kin: the cyan
+# blessing stones sit in WARM rose-gold bezels (warm setting, cool stone).
+GOLD      = (216, 156, 118)   # rose-gold metal (the warm hue separator on ivory)
+GOLD_BR   = (244, 196, 162)
+GOLD_D    = (158, 104,  74)
+# LOTUS-PINK — a SPARING low-third blush accent unique to this version (no cool
+# kin uses a third hue). Used ONLY for petal-ticks / lotus-bud incisions / a faint
+# brow blush; kept DIM (below the gems and the rose-gold) so it never competes.
+LOTUS     = (232, 166, 182)   # auspicious lotus blush (low-third accent ONLY)
+LOTUS_D   = (176, 110, 130)   # incised/shaded lotus-mark line
 INK       = ( 28,  22,  26)   # hard ink keyline
-# crown skulls go a touch DARKER + cooler than the now-warm-light body so they
-# don't melt into the body OR wash out on the day sky; they stay the dimmest tier.
-CROWN_BONE   = (170, 162, 152)
-CROWN_BONE_D = (110, 104,  96)
-CROWN_SH     = (206, 200, 190)
+# crown skulls go a touch DARKER than the warm-light body so they don't melt into
+# it OR wash out on the day sky (dimmest tier) — but they keep the DAWN warm cast
+# (not cooled) so the 32px read stays uniformly warm versus the cool kin.
+CROWN_BONE   = (178, 160, 146)
+CROWN_BONE_D = (116, 104,  94)
+CROWN_SH     = (214, 198, 184)
 THIRD_EYE = CYAN              # cyan third-eye slit = the single brightest focal
 
 BG        = ( 92,  96, 108)   # neutral grey review backdrop
@@ -208,37 +226,36 @@ def bead_arc(surf, cx, cy, r, a0, a1, bead_r, s, gold_every=3, light=True):
 # ── a single ornamental crown-skull (cloned from Citipati; crown-warm tint) ────
 def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
     """Tiny crown skull — bone-JEWEL relic seated in her tiara arc. WHY a notch
-    darker/cooler than the warm-light body (CROWN_BONE): against the new warm ivory
-    body, an equally-warm crown would melt in, so the crown sits a value step down
-    (the dimmest tier) and slightly cooler to keep its shape against both body and
-    sky. WHY `idx`: the six crown relics must read as six DISTINCT skulls, not one
-    stamp repeated — so `idx` drives the CRANIUM SILHOUETTE (tall / round / squat /
-    lopsided / heart-domed), suture style, brow + jaw set and a tooth-chip on one.
-    The variety lives in the OUTLINE (width/height/lean), so the scalloped arc reads
-    as distinct lumps at 32px, not only as interior lines. `lit` keeps the centre
-    relic's eyes cyan-tinted — the ONLY crown accent — but stays the DIMMEST tier
-    (no white core, no glow, no brightness bump); the gold-bezel cyan pip on the
-    pip-bearing relics is a DIM hue echo, not a focal."""
+    darker than the warm-light body (CROWN_BONE) but kept WARM (not cooled): against
+    the dawn-ivory body the crown sits a value step down (the dimmest tier) to hold
+    its shape, but stays warm so the 32px read is uniformly the warm/festive sister.
+    WHY `idx`: the six crown relics must read as six DISTINCT skulls — so `idx`
+    drives the CRANIUM SILHOUETTE (tall / round / squat / lopsided / heart-domed)
+    plus a gentle lean AND a DIFFERENT auspicious brow-mark each, so the scalloped
+    arc reads as six individually-blessed lumps. These are GENTLE relics — even
+    teeth, NO chips, a calm low socket glint. `lit` is the crown-CENTRE relic: it
+    carries the slightly larger rose-gold-bezelled cyan BLESSING-DROP (still DIM —
+    no white core, no glow), the only crown drop; the rest get the calm glint."""
     ow1 = max(1, int(1.6 * s))
     ow_thin = max(1, int(1.0 * s))
 
-    # ── per-relic silhouette table — the variety must read in the SHAPE ──
-    # cw/ch = cranium width/height stretch · lean = sideways skew of the dome ·
-    # heart = a notched/dimpled crown top · suture style · brow ridge? · jaw set ·
-    # pip = dim gold-bezel cyan bead? · chip = a broken tooth?
+    # ── per-relic table — variety in the SHAPE + a distinct auspicious mark ──
+    # cw/ch = cranium width/height · lean = dome skew · heart = dimpled crown top ·
+    # suture style · brow ridge? · jaw set (set/plain — both gentle) · mark = the
+    # forehead ornament-mark (each crown relic a DIFFERENT one). NO chip — calm.
     CROWN_PROFILE = [
-        # 0: TALL narrow dome, gold-pip-beaded suture, set jaw
-        dict(cw=0.88, ch=1.18, lean=0.00, heart=False, sut="dots", brow=True,  jaw="set",   pip=True,  chip=False),
-        # 1: broad ROUND dome, zigzag suture, plain jaw
-        dict(cw=1.16, ch=0.96, lean=0.00, heart=False, sut="zig",  brow=False, jaw="plain", pip=False, chip=False),
-        # 2: SQUAT low dome (centre, lit) — heart-domed top, beaded suture, pip
-        dict(cw=1.10, ch=0.86, lean=0.00, heart=True,  sut="dots", brow=True,  jaw="set",   pip=True,  chip=False),
-        # 3: LOPSIDED dome leaning right, zigzag suture, chipped tooth
-        dict(cw=1.00, ch=1.02, lean=0.20, heart=False, sut="zig",  brow=True,  jaw="plain", pip=False, chip=True),
-        # 4: HEART-domed (notched crown), plain suture, narrow set jaw
-        dict(cw=1.02, ch=1.06, lean=-0.06, heart=True, sut="line", brow=False, jaw="set",   pip=False, chip=False),
-        # 5: lopsided SQUAT dome leaning left, zigzag suture, broad plain jaw
-        dict(cw=1.08, ch=0.92, lean=-0.18, heart=False, sut="zig", brow=True,  jaw="plain", pip=False, chip=True),
+        # 0: TALL narrow dome, beaded suture, set jaw — TILAKA stroke
+        dict(cw=0.88, ch=1.18, lean=0.00, heart=False, sut="dots", brow=True,  jaw="set",   mark="tilaka"),
+        # 1: broad ROUND dome, zigzag suture, plain jaw — PETAL-tick
+        dict(cw=1.16, ch=0.96, lean=0.06, heart=False, sut="zig",  brow=False, jaw="plain", mark="petal"),
+        # 2: SQUAT low dome (centre, lit) — heart-domed, beaded suture — LOTUS-bud
+        dict(cw=1.10, ch=0.86, lean=0.00, heart=True,  sut="dots", brow=True,  jaw="set",   mark="lotus"),
+        # 3: LOPSIDED dome leaning right, zigzag suture — rose-gold BAND
+        dict(cw=1.00, ch=1.02, lean=0.18, heart=False, sut="zig",  brow=True,  jaw="plain", mark="band"),
+        # 4: HEART-domed (notched crown), plain suture, set jaw — BINDI dot
+        dict(cw=1.02, ch=1.06, lean=-0.08, heart=True, sut="line", brow=False, jaw="set",   mark="bindi"),
+        # 5: lopsided SQUAT dome leaning left, zigzag suture — PETAL-tick
+        dict(cw=1.08, ch=0.92, lean=-0.16, heart=False, sut="zig", brow=True,  jaw="plain", mark="petal"),
     ]
     p = CROWN_PROFILE[idx % len(CROWN_PROFILE)]
     cw, ch, lean = p["cw"], p["ch"], p["lean"]
@@ -298,83 +315,123 @@ def crown_skull(surf, cx, cy, r, s, lit=False, idx=0):
                (cx + r * 0.38, cy + r * 1.02), (cx - r * 0.38, cy + r * 1.02)]
     triad_blob(surf, CROWN_BONE, [(int(x), int(y)) for x, y in jaw], ow=max(1, int(1.2 * s)))
 
-    # two dark sockets (the lit centre relic gets a dim cyan tint, no glow)
-    eye_c = CYAN_D if lit else INK
+    # two dark sockets, each with a CALM low cyan glint (every gentle relic) — the
+    # lit centre relic's glint sits a hair brighter but still dim (no white, no glow)
+    glint_c = CYAN if lit else CYAN_D
     for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
         pygame.draw.circle(surf, INK, (ex, cy + int(r * 0.04)), max(1, int(r * 0.24)))
-        if lit:
-            pygame.draw.circle(surf, eye_c, (ex, cy + int(r * 0.04)), max(1, int(r * 0.12)))
+        pygame.draw.circle(surf, glint_c, (ex, cy + int(r * 0.06)), max(1, int(r * 0.10)))
 
     # nasal pit
     pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.13)))
 
-    # tooth line — a short bar with a couple of slits; the chip profiles drop one
+    # tooth line — a short bar with EVEN slits (no chips; these relics are gentle)
     ty = cy + int(r * 0.70)
     pygame.draw.line(surf, INK, (cx - int(r * 0.32), ty), (cx + int(r * 0.32), ty),
                      max(1, int(1.2 * s)))
     for j in range(3):
         tx = cx - int(r * 0.24) + j * int(r * 0.24)
-        if p["chip"] and j == 1:
-            continue   # a knocked-out tooth — the chip read on a lopsided relic
         pygame.draw.line(surf, INK, (tx, ty - int(r * 0.08)), (tx, ty + int(r * 0.10)),
                          max(1, int(1.0 * s)))
 
-    # DIM gold-bezel cyan brow pip on the pip-bearing relics (incl. the lit centre)
-    # — a hue echo of her bead identity, kept the dimmest tier (GOLD_D + CYAN_D, no
-    # white core, no glow) so the third-eye stays the single brightest pixel.
-    if p["pip"]:
-        bg_y = cy - int(r * 0.28)
-        pygame.draw.circle(surf, GOLD_D, (cx, bg_y), max(1, int(r * 0.18)))
-        pygame.draw.circle(surf, CYAN_D, (cx, bg_y), max(1, int(r * 0.11)))
+    # AUSPICIOUS brow-mark — each crown relic carries a DIFFERENT ornament-mark
+    # (lotus-bud / tilaka / petal / bindi / rose-gold band), dim low-third flavour.
+    brow_mark(surf, cx, cy - int(r * 0.30), max(2, int(r * 0.30)), s, p["mark"])
+    # the lit crown-CENTRE relic carries the slightly larger rose-gold-bezelled cyan
+    # BLESSING-DROP — still DIM (no white core, no glow) so the gems stay above it.
+    if lit:
+        blessing_drop(surf, (cx, cy - int(r * 0.06)), max(2, int(r * 0.26)), s)
 
 
-# ── a small CYAN cabochon inlay — the palm-gem (DIM tier, gold bezel) ─────────
-def palm_cabochon(surf, c, r, s):
-    """A gold-bezel cyan CABOCHON inlay set into a palm-skull's brow. WHY a clear
-    value step BELOW the focal third-eye: the brow gem must stay the single
-    brightest pixel, so this inlay caps at CYAN_BR for a tiny rim glint only — NO
-    white-hot core — and rides a warm GOLD bezel so it reads as jewel-set bone,
-    matching her bead identity rather than competing with the third-eye."""
+# ── the cyan "blessing-drop" — a rose-gold-bezelled brow drop (DIM, cool) ─────
+def blessing_drop(surf, c, r, s):
+    """A slightly LARGER rose-gold-bezelled cyan brow drop — the cool blessing the
+    auspicious skulls carry. WHY a clear value step BELOW the brow third-eye and
+    well below the hero gem: no skull may own a white-hot core, so this drop caps
+    at a small CYAN_BR rim glint only and rides a WARM rose-gold bezel (warm
+    setting, cool stone) so it reads as a blessed jewel, not a focal."""
     cx, cy = int(c[0]), int(c[1])
-    # warm gold bezel ring first (the setting), then the domed cyan stone inside
-    triad_circle(surf, GOLD, (cx, cy), r + max(1, int(0.9 * s)),
+    triad_circle(surf, GOLD, (cx, cy), r + max(1, int(1.1 * s)),
                  ow=max(1, int(1.0 * s)), core=False, sheen=False)
     pygame.draw.circle(surf, INK, (cx, cy), r)
     pygame.draw.circle(surf, CYAN_D, (cx, cy), max(1, r - max(1, int(0.6 * s))))
-    pygame.draw.circle(surf, CYAN, (cx, cy), max(1, int(r * 0.66)))
-    # a single small rim glint (capped at CYAN_BR — never the focal white core)
+    pygame.draw.circle(surf, CYAN, (cx, cy), max(1, int(r * 0.62)))
     pygame.draw.circle(surf, CYAN_BR, (cx - int(r * 0.30), cy - int(r * 0.32)),
-                       max(1, int(r * 0.26)))
+                       max(1, int(r * 0.24)))
+
+
+# ── per-skull auspicious BROW-MARK — the lotus-court blessing on every skull ──
+def brow_mark(surf, cx, cy, r, s, kind):
+    """Incise/ink a DIFFERENT auspicious ornament-mark on each skull's forehead so
+    all 12 read as individually BLESSED, not one stamp. WHY low-third dim: these
+    are close-up flavour — the WARM rose-gold palette carries the 32px read, so
+    the lotus-pink marks stay below the gems and the metal. `kind` selects the
+    mark: lotus-bud incision, tilaka dot, petal-tick, bindi, or a rose-gold band."""
+    ow = max(1, int(1.0 * s))
+    if kind == "lotus":
+        # an incised lotus-bud: a small upright teardrop with two side petals
+        pygame.draw.polygon(surf, LOTUS_D,
+                            [(cx, cy - int(r * 0.7)), (cx + int(r * 0.34), cy),
+                             (cx, cy + int(r * 0.18)), (cx - int(r * 0.34), cy)])
+        pygame.draw.line(surf, LOTUS, (cx, cy - int(r * 0.6)), (cx, cy), ow)
+        for sgn in (-1, 1):
+            pygame.draw.line(surf, LOTUS_D, (cx, cy),
+                             (cx + sgn * int(r * 0.5), cy - int(r * 0.18)), ow)
+    elif kind == "tilaka":
+        # a vertical tilaka stroke (third-eye line)
+        pygame.draw.line(surf, LOTUS_D, (cx, cy - int(r * 0.7)), (cx, cy + int(r * 0.5)),
+                         max(1, int(1.6 * s)))
+        pygame.draw.line(surf, LOTUS, (cx, cy - int(r * 0.6)), (cx, cy + int(r * 0.3)), ow)
+    elif kind == "petal":
+        # a three-petal tick fanning up (lotus shorthand)
+        for k in (-1, 0, 1):
+            a = math.radians(-90 + k * 32)
+            pygame.draw.line(surf, LOTUS_D, (cx, cy + int(r * 0.2)),
+                             (cx + math.cos(a) * r * 0.7, cy + math.sin(a) * r * 0.7), ow)
+        pygame.draw.circle(surf, LOTUS, (cx, cy + int(r * 0.2)), max(1, int(0.9 * s)))
+    elif kind == "bindi":
+        # a round lotus-pink bindi dot ringed by a dim rose-gold tick
+        pygame.draw.circle(surf, GOLD_D, (cx, cy), max(1, int(r * 0.5)))
+        pygame.draw.circle(surf, LOTUS, (cx, cy), max(1, int(r * 0.34)))
+    else:   # "band" — a small rose-gold brow band arc
+        rect = (cx - int(r * 0.7), cy - int(r * 0.5), int(r * 1.4), int(r * 1.0))
+        pygame.draw.arc(surf, GOLD_D, rect, math.radians(200), math.radians(340),
+                        max(1, int(1.8 * s)))
+        pygame.draw.arc(surf, GOLD, rect, math.radians(205), math.radians(335), ow)
 
 
 # ── a tiny skull cradled in an open palm (the brood MOTIF) ────────────────────
 def palm_skull(surf, cx, cy, r, s, idx=0):
     """An open BONE palm cradling a CRAFTED reliquary skull. WHY both pieces: the
     brood motif is six open palms EACH holding a skull at the fan tips. WHY the
-    `idx`: this sister's skulls are the most ORNAMENTED of the brood and must read
-    as six DISTINCT individuals, not one dome re-tilted — so `idx` drives cranium
-    shape, jaw set, tilt, tooth count/chips, suture pattern and ornament. 2-3 of
-    the six carry a DIM gold-bezel cyan cabochon (a value step below the focal
-    brow gem) to lean into the jewel-set-bone look. MID value tier: pale BEAD bone,
-    brighter than the crown skulls, dimmer than the third-eye."""
+    `idx`: DAWN-LOTUS-COURT's six palm-skulls are GENTLE-AUSPICIOUS (mild/closed
+    jaws, even teeth, NO cracks, a calm low cyan socket glint) but each BLESSED by
+    a DIFFERENT brow ornament-mark + a gentle per-skull tilt, so the six read as
+    six individually-blessed relics, not one stamp. The two FLANKING palms
+    (idx 1 + idx 4 — the outer hands either side of the body) carry a slightly
+    LARGER rose-gold-bezelled cyan BLESSING-DROP on the brow; the rest get a calm
+    socket glint. MID value tier: pale warm BEAD bone, brighter than the crown
+    skulls, dimmer than the third-eye — and no skull ever owns a white-hot core."""
     ow1 = max(1, int(1.4 * s))
     ow_thin = max(1, int(1.0 * s))
 
-    # ── per-skull personality table (six genuinely distinct little skulls) ──
-    # tilt(rad), cranium x/y stretch, jaw mode, n_teeth, suture style, gem?, chip?
+    # ── per-skull auspicious table (six gentle, individually-blessed relics) ──
+    # tilt(rad), cranium x/y stretch, jaw mode (closed/mild — NO cracks), n_teeth
+    # (even), suture style, mark = distinct brow ornament, drop = bigger cyan
+    # blessing-drop? (only the two flanking palms). NO `chip` — these are calm.
     PROFILE = [
-        # 0: tall egg-dome, jaw agape (open mouth), zigzag suture, GEM in brow
-        dict(tilt=-0.16, cw=0.96, ch=1.12, jaw="agape", teeth=5, sut="zig", gem=True,  chip=False),
-        # 1: broad round skull, closed jaw, bead-dotted suture, GOLD pips only
-        dict(tilt= 0.10, cw=1.14, ch=0.96, jaw="closed", teeth=6, sut="dots", gem=False, chip=False),
-        # 2: narrow tilted skull, jaw cracked off (asymmetric stub), GEM-lit socket
-        dict(tilt=-0.30, cw=0.88, ch=1.04, jaw="cracked", teeth=3, sut="zig", gem="socket", chip=True),
-        # 3: squat low dome, jaw agape wide, straight suture line, GOLD pips
-        dict(tilt= 0.06, cw=1.06, ch=0.90, jaw="agape", teeth=7, sut="line", gem=False, chip=False),
-        # 4: tall narrow skull, closed jaw, bead-dotted suture, GEM in brow
-        dict(tilt= 0.22, cw=0.90, ch=1.10, jaw="closed", teeth=5, sut="dots", gem=True,  chip=False),
-        # 5: lopsided cranium, jaw cracked off, zigzag suture, GOLD pips + chipped
-        dict(tilt=-0.08, cw=1.02, ch=1.00, jaw="cracked", teeth=4, sut="zig", gem=False, chip=True),
+        # 0: tall egg-dome, mildly-parted jaw, zigzag suture, incised LOTUS-bud
+        dict(tilt=-0.12, cw=0.96, ch=1.12, jaw="mild",   teeth=6, sut="zig",  mark="lotus",  drop=False),
+        # 1: FLANK — broad round, closed jaw, dotted suture, BINDI + BLESSING-DROP
+        dict(tilt= 0.08, cw=1.14, ch=0.96, jaw="closed", teeth=6, sut="dots", mark="bindi",  drop=True),
+        # 2: narrow upright, closed jaw, zigzag suture, TILAKA stroke
+        dict(tilt=-0.18, cw=0.90, ch=1.06, jaw="closed", teeth=6, sut="zig",  mark="tilaka", drop=False),
+        # 3: squat low dome, mildly-parted jaw, straight suture, PETAL-tick
+        dict(tilt= 0.06, cw=1.06, ch=0.90, jaw="mild",   teeth=6, sut="line", mark="petal",  drop=False),
+        # 4: FLANK — tall narrow, closed jaw, dotted suture, rose-gold BAND + DROP
+        dict(tilt= 0.16, cw=0.90, ch=1.10, jaw="closed", teeth=6, sut="dots", mark="band",   drop=True),
+        # 5: gently lopsided, closed jaw, zigzag suture, incised LOTUS-bud
+        dict(tilt=-0.06, cw=1.04, ch=1.00, jaw="closed", teeth=6, sut="zig",  mark="lotus",  drop=False),
     ]
     p = PROFILE[idx % len(PROFILE)]
     t = p["tilt"]
@@ -465,10 +522,11 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
         pygame.draw.circle(surf, INK, (ecx, ecy), int(socket_r))
         pygame.draw.circle(surf, BONE_DD, (ecx, ecy), int(socket_r * 0.62))
         pygame.draw.circle(surf, INK, (ecx, ecy), int(socket_r * 0.34))
-    # a profile may light ONE socket with the dim cyan inlay instead of a brow gem
-    if p["gem"] == "socket":
-        scx2, scy2 = rot(-cr * 0.40, cr * 0.14)
-        palm_cabochon(surf, (scx2, scy2), max(2, int(socket_r * 0.66)), s)
+        # a CALM low cyan socket glint on every gentle skull (auspicious, not lit):
+        # a small dim CYAN_D dot deep in the pit — never bright enough to compete
+        # with the brow blessing-drop or the gems.
+        pygame.draw.circle(surf, CYAN_D, (ecx, ecy + int(socket_r * 0.10)),
+                           max(1, int(socket_r * 0.22)))
 
     # nasal aperture — an inverted ink teardrop between/below the sockets
     n_top = rot(0, cr * 0.30)
@@ -478,48 +536,39 @@ def palm_skull(surf, cx, cy, r, s, idx=0):
                                     (int(n_l[0]), int(n_l[1])),
                                     (int(n_r[0]), int(n_r[1]))])
 
-    # ── jaw — per-profile: closed bar / agape gap / cracked-off stub ──
+    # ── jaw — per-profile, BOTH gentle: a closed bar or a mildly-parted jaw ──
+    # WHY no agape/cracked here: this version is auspicious, so the jaws stay calm.
     jl, jr = -cr * 0.40, cr * 0.40       # jaw corners under the cheeks
     if p["jaw"] == "closed":
         jaw = [rot(jl, cr * 0.74), rot(jr, cr * 0.74),
                rot(jr * 0.70, cr * 1.04), rot(jl * 0.70, cr * 1.04)]
         triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
         teeth_y0, teeth_y1 = cr * 0.74, cr * 1.00
-    elif p["jaw"] == "agape":
-        # an open mouth: a dark gap, then a dropped jaw bone below it
-        gap = [rot(jl * 0.86, cr * 0.70), rot(jr * 0.86, cr * 0.70),
-               rot(jr * 0.70, cr * 1.06), rot(jl * 0.70, cr * 1.06)]
-        pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in gap])
-        jaw = [rot(jl * 0.74, cr * 1.06), rot(jr * 0.74, cr * 1.06),
-               rot(jr * 0.54, cr * 1.34), rot(jl * 0.54, cr * 1.34)]
+    else:   # "mild" — a softly-parted jaw: a shallow dark line, then a tucked jaw
+        gap = [rot(jl * 0.72, cr * 0.78), rot(jr * 0.72, cr * 0.78),
+               rot(jr * 0.62, cr * 0.94), rot(jl * 0.62, cr * 0.94)]
+        pygame.draw.polygon(surf, BONE_DD, [(int(x), int(y)) for x, y in gap])
+        jaw = [rot(jl * 0.74, cr * 0.94), rot(jr * 0.74, cr * 0.94),
+               rot(jr * 0.58, cr * 1.18), rot(jl * 0.58, cr * 1.18)]
         triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
-        teeth_y0, teeth_y1 = cr * 0.70, cr * 0.94   # upper teeth ring the gap
-    else:   # "cracked" — one jaw corner snapped off, leaving an asymmetric stub
-        jaw = [rot(jl, cr * 0.74), rot(jr * 0.55, cr * 0.74),
-               rot(jr * 0.20, cr * 1.02), rot(jl * 0.78, cr * 1.06)]
-        triad_blob(surf, BEAD, [(int(x), int(y)) for x, y in jaw], ow=ow_thin)
-        # a jagged break notch on the snapped (right) corner
-        pygame.draw.line(surf, BONE_DD,
-                         (int(rot(jr * 0.55, cr * 0.76)[0]), int(rot(jr * 0.55, cr * 0.76)[1])),
-                         (int(rot(jr * 0.30, cr * 0.98)[0]), int(rot(jr * 0.30, cr * 0.98)[1])),
-                         ow_thin)
-        teeth_y0, teeth_y1 = cr * 0.74, cr * 1.00
+        teeth_y0, teeth_y1 = cr * 0.74, cr * 0.92
 
-    # tooth row — n_teeth ink slits; the chipped profiles drop one for a gap
+    # tooth row — n_teeth EVEN ink slits, no gaps (gentle, intact smile)
     nt = p["teeth"]
     for j in range(nt):
         fx = -cr * 0.34 + j * (cr * 0.68 / max(1, nt - 1))
-        if p["chip"] and j == nt // 2:
-            continue   # a missing/knocked-out tooth (the chip)
         tp0 = rot(fx, teeth_y0)
         tp1 = rot(fx, teeth_y1)
         pygame.draw.line(surf, INK, (int(tp0[0]), int(tp0[1])),
                          (int(tp1[0]), int(tp1[1])), max(1, int(1.0 * s)))
 
-    # ── brow CABOCHON — the dim cyan jewel for the gem-bearing profiles ──
-    if p["gem"] is True:
-        gx, gy = rot(0, -cr * 0.20)
-        palm_cabochon(surf, (gx, gy), max(2, int(cr * 0.26)), s)
+    # ── auspicious BROW: a distinct ornament-mark on every skull, and on the two
+    # flanking palms a slightly larger rose-gold-bezelled cyan BLESSING-DROP ──
+    mx, my = rot(0, -cr * 0.26)
+    brow_mark(surf, int(mx), int(my), max(2, int(cr * 0.30)), s, p["mark"])
+    if p["drop"]:
+        gx, gy = rot(0, -cr * 0.04)
+        blessing_drop(surf, (gx, gy), max(2, int(cr * 0.30)), s)
 
 
 # ── the Mukha-Devi six-arm radial fan (cloned; bead-armlet wrapped) ───────────
@@ -1014,7 +1063,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("ASTHI v5 — DAWN-LOTUS-COURT", True, LABEL), (24, 13))
     sheet.blit(f_sm.render(
-        "bone-jewel sky-dancer  ·  CITIPATI body + MUKHA 6-arm fan · 6 DISTINCT palm-skulls + 6 DISTINCT crown relics · fused crown · WARM aged-bone + gold pips · round 10",
+        "auspicious sunrise blessing-bringer  ·  ROSE-GOLD + sparing LOTUS-PINK + cool cyan blessing-jewels · 12 gentle skulls each a DIFFERENT auspicious brow-mark · round 1",
         True, LABEL_DIM), (270, 28))
 
     # === (a) BIG HERO =========================================================
@@ -1023,8 +1072,8 @@ def main():
     sheet.blit(f.render("Creature — hero", True, LABEL), (120, 636))
     sheet.blit(f_sm.render("Cocked-hip DANCE under a six-arm radial fan; each of the 6 open palms cradles", True, LABEL_DIM), (14, 660))
     sheet.blit(f_sm.render("a tiny skull. Fused crown = Mukha tiara-band on the brow + wide airy 6-skull arc.", True, LABEL_DIM), (14, 676))
-    sheet.blit(f_sm.render("Bead-lattice over every surface; gold spacer-pips carry the texture (not cyan-on-blue).", True, LABEL_DIM), (14, 692))
-    sheet.blit(f_sm.render("Value ladder: cyan third-eye brightest > palm-skulls + dim palm-gems mid > crown skulls dimmest.", True, LABEL_DIM), (14, 708))
+    sheet.blit(f_sm.render("ROSE-GOLD lattice carries the WARM 32px read; sparing lotus-pink ticks the brow-marks (low-third).", True, LABEL_DIM), (14, 692))
+    sheet.blit(f_sm.render("Ladder: hero gem white core > brow third-eye > dim cyan blessing-drops + lotus-pink; NO skull core.", True, LABEL_DIM), (14, 708))
 
     # === (b) PILLAR assembled — mirrored, tileable shaft ======================
     pcx = 444
@@ -1102,10 +1151,10 @@ def main():
     # palette strip
     sheet.blit(f.render("Pinned palette", True, LABEL), (panel_x + 16, day_y + 380))
     swatches = [
-        (BONE, "warm bone (LIGHT)"), (BONE_D, "bone shade"),
-        (BEAD, "bone bead (light)"), (BEAD_BR, "bead sheen"),
-        (GOLD, "gold spacer-pip"), (GOLD_BR, "gold sheen"),
-        (CYAN, "icy-cyan focal"), (CROWN_BONE, "crown-warm bone"),
+        (BONE, "DAWN-ivory bone"), (BONE_D, "bone shade"),
+        (GOLD, "ROSE-GOLD metal"), (GOLD_BR, "rose-gold sheen"),
+        (LOTUS, "LOTUS-PINK (low-third)"), (LOTUS_D, "lotus-mark line"),
+        (CYAN, "cool cyan blessing"), (CROWN_BONE, "crown bone"),
         (THIRD_EYE, "third-eye"), (INK, "ink keyline"),
     ]
     sxp, syp = panel_x + 16, day_y + 408
