@@ -18,6 +18,8 @@ PANELS = [
      "RING EYE", "ring third-eye (no aura)  ·  smaller gem in necklace"),
     (os.path.join(HERE, "round_1_switch_hero.png"),
      "SWITCHED", "faceted gem third-eye  ·  ring in necklace heart"),
+    (os.path.join(HERE, "round_1_switchbig_hero.png"),
+     "SWITCHED + BIG", "LARGER faceted gem third-eye  ·  ring in necklace"),
 ]
 
 PANEL_W, PANEL_H = 330, 440
