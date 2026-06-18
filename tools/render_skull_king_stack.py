@@ -53,7 +53,7 @@ def _palm_skull_bare(surf, cx, cy, r, s, idx=0):
         dict(tilt=-0.08, cw=1.02, ch=1.00, jaw="cracked", teeth=4, sut="zig", gem=False, chip=True),
     ]
     p = PROFILE[idx % len(PROFILE)]
-    t = p["tilt"]
+    t = 0.0                           # straight pose (was p["tilt"]) — no rotation
     ct, st = math.cos(t), math.sin(t)
 
     def rot(dx, dy):
@@ -164,11 +164,100 @@ def _palm_skull_bare(surf, cx, cy, r, s, idx=0):
         sk.palm_cabochon(surf, (gx, gy), max(2, int(cr * 0.26)), s)
 
 
+def _crown_skull_straight(surf, cx, cy, r, s, lit=False, idx=0):
+    """render_switchbig.crown_skull with `lean` forced to 0 (straight, upright
+    pose). Everything else — the per-relic silhouette variety, suture, jaw, pip —
+    is preserved verbatim."""
+    CROWN_BONE, CROWN_BONE_D, CROWN_SH = sk.CROWN_BONE, sk.CROWN_BONE_D, sk.CROWN_SH
+    INK, GOLD_D, CYAN_D = sk.INK, sk.GOLD_D, sk.CYAN_D
+    ow1 = max(1, int(1.6 * s))
+    ow_thin = max(1, int(1.0 * s))
+    CROWN_PROFILE = [
+        dict(cw=0.88, ch=1.18, heart=False, sut="dots", brow=True,  jaw="set",   pip=True,  chip=False),
+        dict(cw=1.16, ch=0.96, heart=False, sut="zig",  brow=False, jaw="plain", pip=False, chip=False),
+        dict(cw=1.10, ch=0.86, heart=True,  sut="dots", brow=True,  jaw="set",   pip=True,  chip=False),
+        dict(cw=1.00, ch=1.02, heart=False, sut="zig",  brow=True,  jaw="plain", pip=False, chip=True),
+        dict(cw=1.02, ch=1.06, heart=True,  sut="line", brow=False, jaw="set",   pip=False, chip=False),
+        dict(cw=1.08, ch=0.92, heart=False, sut="zig",  brow=True,  jaw="plain", pip=False, chip=True),
+    ]
+    p = CROWN_PROFILE[idx % len(CROWN_PROFILE)]
+    cw, ch, lean = p["cw"], p["ch"], 0.0      # lean → 0 (straight)
+
+    dome = []
+    for ang_deg in range(-180, 1, 18):
+        a = math.radians(ang_deg)
+        dx = math.cos(a) * r * cw
+        dy = math.sin(a) * r * ch
+        dx += lean * r * (-dy / max(1.0, r))
+        if p["heart"] and abs(math.cos(a)) < 0.34 and math.sin(a) < -0.4:
+            dy += r * 0.22
+        dome.append((cx + dx, cy + dy))
+    dome.append((cx + r * cw * 0.74 + lean * r * 0.2, cy + r * ch * 0.34))
+    dome.append((cx - r * cw * 0.74 + lean * r * 0.2, cy + r * ch * 0.34))
+    sk.triad_blob(surf, CROWN_BONE, [(int(x), int(y)) for x, y in dome], ow=ow1)
+    sheen = [(cx - r * cw * 0.58, cy - r * ch * 0.10),
+             (cx - r * cw * 0.10 + lean * r * 0.2, cy - r * ch * 0.66),
+             (cx - r * cw * 0.02, cy - r * ch * 0.34),
+             (cx - r * cw * 0.46, cy + r * ch * 0.02)]
+    pygame.draw.polygon(surf, CROWN_SH, [(int(x), int(y)) for x, y in sheen])
+
+    seam_y = cy - r * ch * 0.56
+    if p["sut"] == "zig":
+        zp = [(cx - r * 0.34 + j * (r * 0.68 / 4),
+               seam_y + (r * 0.10 if j % 2 else -r * 0.06)) for j in range(5)]
+        pygame.draw.lines(surf, CROWN_BONE_D, False, [(int(x), int(y)) for x, y in zp], ow_thin)
+    elif p["sut"] == "dots":
+        for j in range(5):
+            zx = cx - r * 0.34 + j * (r * 0.68 / 4)
+            pygame.draw.circle(surf, CROWN_BONE_D, (int(zx), int(seam_y)), max(1, int(0.9 * s)))
+            if j % 2 == 0:
+                pygame.draw.circle(surf, GOLD_D, (int(zx), int(seam_y)), max(1, int(0.8 * s)))
+    else:
+        pygame.draw.line(surf, CROWN_BONE_D, (int(cx), int(cy - r * ch * 0.78)),
+                         (int(cx), int(cy - r * 0.06)), ow_thin)
+
+    if p["brow"]:
+        pygame.draw.line(surf, CROWN_BONE_D,
+                         (int(cx - r * 0.46), int(cy - r * 0.02)),
+                         (int(cx + r * 0.46), int(cy - r * 0.02)), max(1, int(1.3 * s)))
+
+    if p["jaw"] == "set":
+        jaw = [(cx - r * 0.44, cy + r * 0.52), (cx + r * 0.44, cy + r * 0.52),
+               (cx + r * 0.26, cy + r * 0.98), (cx - r * 0.26, cy + r * 0.98)]
+    else:
+        jaw = [(cx - r * 0.54, cy + r * 0.50), (cx + r * 0.54, cy + r * 0.50),
+               (cx + r * 0.38, cy + r * 1.02), (cx - r * 0.38, cy + r * 1.02)]
+    sk.triad_blob(surf, CROWN_BONE, [(int(x), int(y)) for x, y in jaw], ow=max(1, int(1.2 * s)))
+
+    eye_c = CYAN_D if lit else INK
+    for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
+        pygame.draw.circle(surf, INK, (ex, cy + int(r * 0.04)), max(1, int(r * 0.24)))
+        if lit:
+            pygame.draw.circle(surf, eye_c, (ex, cy + int(r * 0.04)), max(1, int(r * 0.12)))
+
+    pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.13)))
+
+    ty = cy + int(r * 0.70)
+    pygame.draw.line(surf, INK, (cx - int(r * 0.32), ty), (cx + int(r * 0.32), ty),
+                     max(1, int(1.2 * s)))
+    for j in range(3):
+        tx = cx - int(r * 0.24) + j * int(r * 0.24)
+        if p["chip"] and j == 1:
+            continue
+        pygame.draw.line(surf, INK, (tx, ty - int(r * 0.08)), (tx, ty + int(r * 0.10)),
+                         max(1, int(1.0 * s)))
+
+    if p["pip"]:
+        bg_y = cy - int(r * 0.28)
+        pygame.draw.circle(surf, GOLD_D, (cx, bg_y), max(1, int(r * 0.18)))
+        pygame.draw.circle(surf, CYAN_D, (cx, bg_y), max(1, int(r * 0.11)))
+
+
 def _draw_skull(big, kind, idx, cx, cy, *, lit=False):
     r = int(R * SS)
     s = S_UNIT * SS
     if kind == "crown":
-        sk.crown_skull(big, int(cx), int(cy), r, s, lit=lit, idx=idx)
+        _crown_skull_straight(big, int(cx), int(cy), r, s, lit=lit, idx=idx)
     else:
         _palm_skull_bare(big, int(cx), int(cy), r, s, idx=idx)
 
@@ -348,7 +437,7 @@ def _skull_chip(kind, idx, cell_w, cell_h, *, lit=False):
     cx = cell_w * ssr // 2
     cy = int(cell_h * ssr * 0.52)
     if kind == "crown":
-        sk.crown_skull(big, cx, cy, rb, s, lit=lit, idx=idx)
+        _crown_skull_straight(big, cx, cy, rb, s, lit=lit, idx=idx)
     else:
         _palm_skull_bare(big, cx, cy, rb, s, idx=idx)
     small = pygame.transform.smoothscale(big, (cell_w, cell_h))
