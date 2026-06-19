@@ -98,11 +98,13 @@ def _skewer_shaft(big, cx, ya, yb, style):
         RK._rod_seg(big, cx, ya, yb)                     # bone + gold marrow
 
 
-def _skewer_behind(big, cx, centres, focal_y, point_dir, style):
-    """Rod shaft + threaded seam decoration, ALL drawn behind the skulls so the
-    skulls overlay it and it shows only in the gaps between tiers."""
+def _skewer_behind(big, cx, centres, gap_edge, point_dir, style):
+    """Rod shaft (+ threaded seam decoration) drawn BEHIND the skulls, so the skulls
+    overlay it and it shows through the gaps between tiers. The shaft stops ~15px
+    short of the gap edge, leaving clean room for the terminal TIP."""
     cx = int(cx); s = S_UNIT * SS
-    near, far = focal_y * SS, centres[-1] * SS
+    near = (gap_edge - point_dir * 15) * SS              # stop short of the edge for the tip
+    far = centres[-1] * SS
     _skewer_shaft(big, cx, near, far, style)
     seams = [(centres[i] + centres[i + 1]) / 2.0 for i in range(len(centres) - 1)]
     if style == "ring-washer":
@@ -119,37 +121,69 @@ def _skewer_behind(big, cx, centres, focal_y, point_dir, style):
         sk.bead_strand(big, pts, int(3.8 * s), s, gold_every=99)
 
 
-def _skewer_tip(big, cx, focal_y, point_dir, style):
-    """ONLY the tip, drawn on top so the pointy part is clearly visible poking into
-    the gap beyond the focal skull."""
-    cx = int(cx); s = S_UNIT * SS; hw = RK._SK_HW
-    base = (focal_y + point_dir * 2) * SS
+def _skewer_tip(big, cx, gap_edge, point_dir, style):
+    """The skewer's terminal END, drawn ON TOP so it reads cleanly poking into the
+    gap. Modelled on real skewer ends: a sharp steel POINT (plain), an open
+    RING-LOOP handle (ring-washer), a JEWELLED finial in a gold cup (gem-tip), a
+    barbed HARPOON head (barbed) and a flat PADDLE/oar (strand). `inward` is px
+    measured from the gap edge (0 = at the edge, growing into the pillar)."""
+    cx = int(cx); d = point_dir; s = S_UNIT * SS
+    hw = RK._SK_HW
+
+    def Y(inward):
+        return int((gap_edge - d * inward) * SS)
+
+    ow = max(1, int(1.2 * s))
+
+    if style == "ring-washer":
+        # an open gold RING-LOOP (the classic ring-handle skewer end), drawn as an
+        # annulus so the hole shows sky -> reads as a loop, not a disc.
+        ro, ri, rc = 8, 4, 10
+        pygame.draw.circle(big, sk.INK, (cx, Y(rc)), int((ro + 1) * SS), int((ro - ri + 2) * SS))
+        pygame.draw.circle(big, sk.GOLD, (cx, Y(rc)), int(ro * SS), int((ro - ri) * SS))
+        pygame.draw.circle(big, sk.GOLD_BR, (cx - int(ro * 0.5 * SS), Y(rc) + int(ro * 0.4 * SS)),
+                           max(1, int(1.8 * s)))
+        return
+
     if style == "gem-tip":
-        RK._ORN_MOD.gem_thirdeye(big, cx, int((focal_y + point_dir * 18) * SS),
-                                 int(R * 0.50 * SS), (R * 0.50 / 12.0) * SS)
+        # a jewelled finial: a small gold socket-cup caps the rod, the cyan gem set in it
+        cup = [(cx - hw, Y(17)), (cx + hw, Y(17)),
+               (cx + int(hw * 1.6), Y(11)), (cx - int(hw * 1.6), Y(11))]
+        sk.triad_blob(big, sk.GOLD, [(int(x), int(y)) for x, y in cup], ow=ow)
+        RK._ORN_MOD.gem_thirdeye(big, cx, Y(8), int(6 * SS), (6 / 12.0) * SS)
         return
-    if style == "strand":                                # a bone bead knob caps the cord
-        sk.triad_circle(big, sk.BEAD, (cx, int((focal_y + point_dir * 16) * SS)),
-                        max(2, int(4.2 * s)), ow=max(1, int(1.0 * s)), core=False)
+
+    if style == "strand":
+        # a flat PADDLE / oar blade (the boat-oar pick), flat at the gap end
+        pw = int(7 * SS)
+        top, bot = min(Y(2), Y(15)), max(Y(2), Y(15))
+        rect = pygame.Rect(cx - pw, top, 2 * pw, bot - top)
+        pygame.draw.rect(big, sk.INK, rect.inflate(int(2.6 * s), int(2.6 * s)), border_radius=int(5 * s))
+        pygame.draw.rect(big, sk.BONE, rect, border_radius=int(5 * s))
+        pygame.draw.rect(big, sk.BONE_SH, pygame.Rect(cx - pw, top, max(1, int(2.0 * s)), bot - top),
+                         border_radius=int(3 * s))
         return
-    # plain / barbed / ring-washer -> a pointed bone tip (barbed = long recurved)
+
+    # plain -> sharp steel point ; barbed -> longer harpoon blade with backward barbs
     long = (style == "barbed")
-    tip = (focal_y + point_dir * (34 if long else 22)) * SS
-    barb = int((15 if long else 9) * SS)
-    spread = int((13 if long else 7) * SS)
-    pts = [(cx, tip), (cx - hw - barb, base + point_dir * spread),
-           (cx - hw, base), (cx + hw, base),
-           (cx + hw + barb, base + point_dir * spread)]
-    sk.triad_blob(big, sk.BONE, [(int(x), int(y)) for x, y in pts], ow=max(1, int(1.4 * s)))
-    pygame.draw.line(big, sk.GOLD, (cx, int(base)), (cx, int(tip)), max(1, int(1.8 * s)))
-    pygame.draw.circle(big, sk.GOLD_BR, (cx, int(tip)), max(1, int(2.2 * s)))
-    if long:                                             # recurved second barbs partway up
-        mid = (base + tip) // 2
-        for sgn in (-1, 1):
-            pygame.draw.polygon(big, sk.BONE,
-                                [(cx + sgn * hw, mid),
-                                 (cx + sgn * (hw + int(9 * SS)), mid + point_dir * int(7 * SS)),
-                                 (cx + sgn * hw, mid + point_dir * int(5 * SS))])
+    base = Y(17 if long else 16)
+    point = Y(1)
+    if long:
+        # a bold leaf HARPOON blade with two recurved backward barbs at its base
+        midw = int(hw * 2.4)
+        blade = [(cx, point), (cx + midw, Y(10)), (cx + hw, base), (cx - hw, base), (cx - midw, Y(10))]
+        sk.triad_blob(big, sk.BONE, [(int(x), int(y)) for x, y in blade], ow=ow)
+        for sgn in (-1, 1):                              # recurved barbs flaring back from the base
+            barb = [(cx + sgn * hw, base),
+                    (cx + sgn * (hw + int(8 * SS)), Y(21)),
+                    (cx + sgn * (hw + int(3 * SS)), Y(15))]
+            sk.triad_blob(big, sk.BONE, [(int(x), int(y)) for x, y in barb], ow=ow)
+        pygame.draw.line(big, sk.BONE_D, (cx, int(base)), (cx, int(point)), max(1, int(1.0 * s)))
+    else:
+        tri = [(cx - hw, base), (cx + hw, base), (cx, point)]
+        sk.triad_blob(big, sk.BONE, [(int(x), int(y)) for x, y in tri], ow=ow)
+        pygame.draw.line(big, sk.BONE_SH, (cx - int(hw * 0.35), int(base)), (cx, int(point)),
+                         max(1, int(1.2 * s)))
 
 
 def render_pillar_half(H, *, cap, recipe, with_skewer=False, skewer_style="plain",
@@ -162,11 +196,13 @@ def render_pillar_half(H, *, cap, recipe, with_skewer=False, skewer_style="plain
     big = pygame.Surface((PIPE_W * SS, H * SS), pygame.SRCALPHA)
     cx0 = PIPE_W * SS // 2
     metas = [_meta(t) for t in recipe]
-    margin = int(R * 1.05)
+    # skewered stacks sit a little further off the gap edge so the rod + its TIP
+    # have clean room to lance into the gap rather than crowding the focal skull.
+    margin = int(R * (1.75 if with_skewer else 1.05))
     if cap == "bottom":
-        focal_y, step, point_dir = H - margin, -1, +1
+        focal_y, step, point_dir, gap_edge = H - margin, -1, +1, H
     else:
-        focal_y, step, point_dir = margin, +1, -1
+        focal_y, step, point_dir, gap_edge = margin, +1, -1, 0
 
     # dense overlap for a solid plain tower; small GAPS for skewered so the rod shows
     factor = 1.14 if with_skewer else 0.84
@@ -179,14 +215,14 @@ def render_pillar_half(H, *, cap, recipe, with_skewer=False, skewer_style="plain
         return cx0 + (0 if i == 0 else int(lean * R * SS) * (1 if i % 2 else -1))
 
     if with_skewer:
-        _skewer_behind(big, cx0, centres, focal_y, point_dir, skewer_style)
+        _skewer_behind(big, cx0, centres, gap_edge, point_dir, skewer_style)
 
     for i in reversed(range(len(recipe))):               # far -> near: nearer overlaps toward the gap
         lit = (i == 0 and focal_lit and metas[i]["kind"] == "skull")
         draw_element(big, recipe[i], ex(i), centres[i] * SS, metas[i]["r"], lit=lit)
 
     if with_skewer:
-        _skewer_tip(big, cx0, focal_y, point_dir, skewer_style)
+        _skewer_tip(big, cx0, gap_edge, point_dir, skewer_style)
 
     return sk.grow_outline(pygame.transform.smoothscale(big, (PIPE_W, H)), sk.INK + (255,), 1)
 
