@@ -102,51 +102,81 @@ def test_rejection_reasons_empty_when_no_rejections():
     assert metrics.rejection_reasons(_frame(rows), days=7).empty
 
 
+def _flat_then_last(per_day: int, last_count: int, span: int = 30):
+    """Build a frame: `per_day` plays on each of the prior `span-1` days,
+    then `last_count` plays today — one bucket per calendar day so the
+    trailing Poisson band has a settled λ to judge today against."""
+    rows = []
+    rid = 0
+    for day in range(1, span):
+        for _ in range(per_day):
+            rid += 1
+            rows.append(_row(id_=rid, device_id="a",
+                             offset=pd.Timedelta(days=day, hours=1)))
+    for _ in range(last_count):
+        rid += 1
+        rows.append(_row(id_=rid, device_id="a", offset=pd.Timedelta(hours=1)))
+    return _frame(rows)
+
+
 def test_daily_plays_with_band_has_bounds_and_length():
     rows = [_row(id_=i, device_id="a", offset=pd.Timedelta(days=i % 10))
             for i in range(30)]
-    band = metrics.daily_plays_with_band(_frame(rows), days=14)
-    assert len(band) == 14
+    band = metrics.daily_plays_with_band(_frame(rows), days=30)
+    assert len(band) == 30
     assert set(band.columns) == {
         "date", "plays", "mean", "lo", "hi", "warmup", "outlier"}
     # Where the band exists (not warm-up) it is ordered and non-negative.
     settled = band[~band["warmup"]]
     assert (settled["lo"] <= settled["hi"]).all()
     assert (settled["lo"] >= 0).all()
+    # The Poisson lo edge never runs negative even at low λ — the failure
+    # the ±2σ Gaussian band hit and had to .clip().
+    assert (band["lo"].dropna() >= 0).all()
 
 
-def test_daily_plays_with_band_warmup_has_no_band():
-    """The first 7 days of any window are warm-up: no band, flagged, and
-    never marked an outlier (can't judge a day against empty history)."""
+def test_daily_plays_with_band_warmup_is_14_days():
+    """The first 14 days of any window are warm-up (14d trailing λ): no
+    band, flagged, and never marked an outlier (no history to judge)."""
     rows = [_row(id_=i, device_id="a", offset=pd.Timedelta(days=i % 10))
             for i in range(40)]
-    band = metrics.daily_plays_with_band(_frame(rows), days=20)
+    band = metrics.daily_plays_with_band(_frame(rows), days=30)
     warm = band[band["warmup"]]
-    assert len(warm) == 7
+    assert len(warm) == 14
     assert warm["mean"].isna().all()
     assert warm["lo"].isna().all() and warm["hi"].isna().all()
     assert not warm["outlier"].any()
 
 
 def test_daily_plays_with_band_flags_a_spike():
-    """A clear volume spike after a flat run lands outside the trailing
-    band and is flagged outlier — the whole point of the band."""
-    # 14 calendar days, ~2 plays/day flat, then a 50-play spike on the
-    # last day. Build by day-offset so each day gets its own bucket.
-    rows = []
-    rid = 0
-    for day in range(1, 14):           # days 13..1 ago, 2 plays each
-        for _ in range(2):
-            rid += 1
-            rows.append(_row(id_=rid, device_id="a",
-                             offset=pd.Timedelta(days=day, hours=1)))
-    for _ in range(50):                # today: spike
-        rid += 1
-        rows.append(_row(id_=rid, device_id="a", offset=pd.Timedelta(hours=1)))
-    band = metrics.daily_plays_with_band(_frame(rows), days=14)
+    """A clear volume spike after a flat run lands above the trailing
+    Poisson band and is flagged outlier — the spike side of the alert."""
+    band = metrics.daily_plays_with_band(_flat_then_last(2, 50), days=30)
     last = band.iloc[-1]
     assert last["plays"] >= 50
+    assert not bool(last["warmup"])
     assert bool(last["outlier"]) is True
+
+
+def test_daily_plays_with_band_flags_a_drop():
+    """A sudden DROP to zero after a steady run lands below the Poisson
+    band and is flagged outlier — the live-ops alert that matters most
+    (an outage shows as a collapse, not a spike). With λ≈12, a day of 0
+    is z = (0−12)/√12 ≈ −3.5, well past the −2 threshold."""
+    band = metrics.daily_plays_with_band(_flat_then_last(12, 0), days=30)
+    last = band.iloc[-1]
+    assert last["plays"] == 0
+    assert not bool(last["warmup"])
+    assert last["mean"] > 5          # λ was healthy before the drop
+    assert bool(last["outlier"]) is True
+
+
+def test_daily_plays_with_band_steady_run_is_not_flagged():
+    """A flat run within Poisson noise of λ must NOT flag — guards
+    against the old σ-breathing band crying wolf on normal variation."""
+    band = metrics.daily_plays_with_band(_flat_then_last(10, 11), days=30)
+    last = band.iloc[-1]
+    assert not bool(last["outlier"])
 
 
 def test_rejection_count_returns_numerator_and_denominator():

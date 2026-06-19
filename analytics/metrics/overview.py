@@ -80,7 +80,15 @@ def rejection_rate(df: pd.DataFrame, days: int = 7) -> float:
     """Share of runs in the window whose top-10 submit was rejected
     (submit_error not null). A spike is the cheat / client-bug signal —
     the column existed in telemetry but was never surfaced before.
-    Returns 0.0 on an empty window or when the column is absent."""
+    Returns 0.0 on an empty window or when the column is absent.
+
+    DENOMINATOR CAVEAT: the input `df` is plausibility-filtered
+    (filters.plausible) before it ever reaches here, so the denominator
+    is *plausible* runs, and any write-path rejection whose raw score
+    exceeds the read ceiling has already been dropped from the frame.
+    The most egregious cheats are therefore undercounted in this rate —
+    it captures borderline / chain / timing rejections, not the
+    score-ceiling blowouts that never made it into the loaded data."""
     if df.empty or "submit_error" not in df.columns:
         return 0.0
     recent = in_window(df, days)
@@ -92,7 +100,12 @@ def rejection_rate(df: pd.DataFrame, days: int = 7) -> float:
 def rejection_count(df: pd.DataFrame, days: int = 7) -> tuple[int, int]:
     """(rejected runs, total runs) in the window — the explicit
     numerator/denominator behind rejection_rate, so the KPI card can show
-    '2 / 64 runs' and the reader can size the noise. 0/0 on empty."""
+    '2 / 64 runs' and the reader can size the noise. 0/0 on empty.
+
+    Same DENOMINATOR CAVEAT as rejection_rate: `total` counts only
+    plausibility-filtered runs, so write-path rejections whose raw score
+    exceeded the read ceiling are absent from both numerator and
+    denominator — egregious score-ceiling cheats are undercounted."""
     if df.empty or "submit_error" not in df.columns:
         return 0, 0
     recent = in_window(df, days)
@@ -143,34 +156,60 @@ def by_day(df: pd.DataFrame, days: int = 30) -> pd.DataFrame:
     return grouped.reset_index().rename(columns={"index": "date"})
 
 
+# Trailing window for the count baseline λ. Daily plays are small Poisson
+# counts (~10/day), so a 7-point sample σ "breathes" wildly (a 5-wide band
+# one week, 20-wide the next) and reads its own noise as signal. A longer
+# 14-day window stabilises λ; the band width is set by the Poisson law
+# (σ = √λ), not by re-estimating σ from the same 7 noisy points.
+_BAND_WINDOW = 14
+# Poisson z threshold for the band edges. With no scipy in the deploy
+# image we use the variance-stabilised normal approximation to the
+# Poisson tail: a day is anomalous when |obs − λ| / √λ exceeds this,
+# i.e. roughly the central 95% of a Poisson(λ). The band drawn on the
+# chart is λ ± Z·√λ — the lo edge is clipped at 0 because that IS the
+# Poisson support (a count can't be negative), not because a symmetric
+# normal band wandered below zero.
+_BAND_Z = 2.0
+
+
 def daily_plays_with_band(df: pd.DataFrame, days: int = 30) -> pd.DataFrame:
-    """Daily plays plus a *trailing* rolling mean ± 2·std anomaly band.
+    """Daily plays plus a *trailing* **Poisson** anomaly band.
 
-    Two correctness choices over the naive version:
+    Daily plays are low Poisson-like counts (single/low-double digits),
+    where the natural spread of a day with mean λ is √λ — not a free σ
+    re-estimated from the same handful of points. The old ±2σ Gaussian
+    band had two failure modes this fixes:
 
-    * The band is trailing (`closed='left'`): each day is judged against
-      the 7 days *before* it, never against itself. A self-inclusive
-      window pulls the mean toward an outlier and shrinks σ, which masks
-      the very spike we want to flag.
-    * It needs a full 7-day warm-up (`min_periods=7`). A band fitted on
-      2–3 points has a meaningless σ — it would either collapse to the
-      point (never an outlier) or fire on noise. Warm-up days carry NaN
-      band columns and a `warmup=True` flag so the chart can grey them
-      out rather than drawing a fake band.
+    * It estimated σ from a short trailing sample, so the band width
+      breathed week to week (its own sampling noise read as signal).
+      Here the width is fixed by the Poisson law: lo/hi = λ ± 2·√λ.
+    * A symmetric normal band runs negative at low λ (the old
+      `.clip(lower=0)` was the tell). The √λ band's lower edge is
+      clipped at 0 because 0 is the floor of the count support, not to
+      paper over a band that wandered below zero.
+
+    A day is flagged `outlier` when its variance-stabilised Poisson
+    z-score `(obs − λ) / √λ` exceeds ±2 — symmetric, so a sudden *drop*
+    (the live-ops alert that matters most) flags just like a spike.
+
+    λ is a 14-day trailing mean (`closed='left'`, judged against the days
+    *before* each day, never itself). The warm-up runs until 14 prior
+    days exist; warm-up days carry NaN band columns and `warmup=True` so
+    the chart greys them rather than drawing a fabricated range.
 
     Columns: [date, plays, mean, lo, hi, warmup, outlier]."""
     base = by_day(df, days=days)
-    roll = base["plays"].rolling(7, min_periods=7, closed="left")
-    mean = roll.mean()
-    std = roll.std()
-    base["mean"] = mean
-    base["lo"] = (mean - 2 * std).clip(lower=0)
-    base["hi"] = mean + 2 * std
-    base["warmup"] = mean.isna()
-    base["outlier"] = (
-        ~base["warmup"]
-        & ((base["plays"] > base["hi"]) | (base["plays"] < base["lo"]))
-    )
+    lam = base["plays"].rolling(
+        _BAND_WINDOW, min_periods=_BAND_WINDOW, closed="left").mean()
+    sigma = lam.pow(0.5)  # Poisson σ = √λ
+    base["mean"] = lam
+    base["lo"] = (lam - _BAND_Z * sigma).clip(lower=0)
+    base["hi"] = lam + _BAND_Z * sigma
+    base["warmup"] = lam.isna()
+    # Variance-stabilised z; guard λ=0 (a dead trailing window) so a 0/0
+    # never NaNs out a legitimately-quiet day into a non-outlier.
+    z = (base["plays"] - lam) / sigma.where(sigma > 0)
+    base["outlier"] = ~base["warmup"] & (z.abs() > _BAND_Z)
     return base[["date", "plays", "mean", "lo", "hi", "warmup", "outlier"]]
 
 

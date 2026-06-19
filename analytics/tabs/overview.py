@@ -36,11 +36,24 @@ def render(df, window: int) -> None:
     health = m.health_status(df)
     color, dot, word = _STATUS_STYLE[health["level"]]
     reasons = " · ".join(health["reasons"])
+    # title= gives the most-prominent element on the tab an explanation
+    # of the three rules it rolls up (HTML title attr → native tooltip).
+    banner_help = (
+        "Rolls up three live-ops checks to the worst of the three:&#10;"
+        "• ALIVE — minutes since the last play vs the game's own recent "
+        "cadence (median 7d gap, 6h floor); ALERT at 3×, WATCH at 1.5×.&#10;"
+        "• GROWING — plays last 7d vs prior 7d; only a drop ≥30% flags, "
+        "and only WATCH (a volume dip is not an outage).&#10;"
+        "• CLEAN — rejected-submit rate over 7d, gated on ≥3 rejected runs "
+        "so one bad submit in a thin window can't trip an alert."
+    )
     st.markdown(
-        f"<div style='padding:10px 14px;border-left:4px solid {color};"
+        f"<div title='{banner_help}' style='padding:10px 14px;"
+        f"border-left:4px solid {color};cursor:help;"
         f"background:rgba(255,255,255,0.03);border-radius:4px;margin-bottom:8px'>"
         f"<span style='font-size:1.05rem;font-weight:600'>{dot} {word}</span>"
-        f"<span style='color:{MUTED};margin-left:10px'>{reasons}</span></div>",
+        f"<span style='color:{MUTED};margin-left:10px'>{reasons}</span>"
+        f"<span style='color:{MUTED};float:right;font-size:0.85rem'>ⓘ</span></div>",
         unsafe_allow_html=True,
     )
 
@@ -77,7 +90,11 @@ def render(df, window: int) -> None:
               help="Share of runs whose leaderboard submit failed a "
                    "plausibility gate — the cheat / client-bug signal. "
                    f"{rej_n} rejected of {rej_total} runs in the last 7d; "
-                   "low counts are noisy.")
+                   "low counts are noisy. Denominator caveat: the data is "
+                   "already plausibility-filtered, so write-path rejections "
+                   "whose raw score exceeded the read ceiling are dropped "
+                   "before counting — egregious score-ceiling cheats are "
+                   "undercounted here.")
 
     st.divider()
 
@@ -88,8 +105,11 @@ def render(df, window: int) -> None:
             use_container_width=True,
         )
     with right:
+        # Reasons share the rejection KPI's 7d window (not the chart
+        # `window`), so the operator never reads a 90d reason mix next to
+        # a 7d rate.
         st.plotly_chart(
-            c.rejection_reasons(m.rejection_reasons(df, days=window), days=window),
+            c.rejection_reasons(m.rejection_reasons(df, days=7), days=7),
             use_container_width=True,
         )
 
