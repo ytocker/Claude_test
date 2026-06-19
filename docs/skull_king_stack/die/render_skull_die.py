@@ -191,7 +191,21 @@ def _digit_at(col_surf, gx, cy, gh, sw, which):
         cap((gx - hw * 0.7, top + gh * 0.20), (gx, top))
         cap((gx - hw, bot), (gx + hw, bot))
     elif which == 0:
-        ring(cy)
+        # a TALL oval matching the '1' height with a cleanly OPEN centre (the squat
+        # ring read as a dumpy blob beside the slim '1'): solid oval, then punch an
+        # inner oval so an even bone tube remains, plus the upper-left pin-sheen.
+        ow, oh = gh * 0.40, gh * 0.50
+        pygame.draw.ellipse(col_surf, col,
+                            (int(gx - ow), int(cy - oh), int(2 * ow), int(2 * oh)))
+        punch = pygame.Surface(col_surf.get_size(), pygame.SRCALPHA)
+        punch.fill((255, 255, 255, 255))
+        iw, ih = max(1.0, ow - sw * 1.5), max(1.0, oh - sw * 1.5)
+        pygame.draw.ellipse(punch, (0, 0, 0, 0),
+                            (int(gx - iw), int(cy - ih), int(2 * iw), int(2 * ih)))
+        col_surf.blit(punch, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        d = oh * 0.42
+        pygame.draw.circle(col_surf, _DIGIT_CORE,
+                           (int(gx - ow * 0.5), int(cy - d)), max(1, int(sw * 0.55)))
 
 
 def _menace(surf, cx, cy, r, s, tier, triad):
