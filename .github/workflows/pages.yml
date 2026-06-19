@@ -23,13 +23,15 @@ name: Deploy main (/) + v5_skybit (/v5/) + v5_skybit_powerups_final (/v5_powerup
 # combined artifact. Drop when this folds into a formal version.
 #
 # EXCEPTION — v5_event_test (/v5_event_test/): same throwaway arrangement for
-# the v5_skybit_enrich branch — a scripted "Pagoda Warren" event test
-# (clown → dice → route → fall) that auto-launches in the browser. Added ONLY
-# on that branch, NOT synced anywhere; /v5_event_test/ stays live only until
-# the next push to a canonical deploy branch replaces the combined artifact.
-# This is the ONE deploy that also stages a few tools/ modules (the look-dev
-# clown/die/route renderers the demo lazily imports) — see the Stage step.
-# Drop when this folds into a formal version.
+# the v5_skybit_enrich branch — a scripted event test that auto-launches in the
+# browser: the clown event (clown → dice → route) followed by the Skull-King
+# event (a king-skull rolls a difficulty 6-10 → a hard route of stacked-skull
+# totems) → fall. Added ONLY on that branch, NOT synced anywhere; /v5_event_test/
+# stays live only until the next push to a canonical deploy branch replaces the
+# combined artifact. This is the ONE deploy that also stages pure-Python look-dev
+# modules (the clown/die/route renderers AND the stacked-skull engine + recipes
+# the demo lazily imports) — see the Stage step. Drop when this folds into a
+# formal version.
 #
 # Pygbag 0.9.2 has no built-in include / exclude flag — it bundles
 # every file in the directory it runs in. Without staging the
@@ -143,18 +145,33 @@ jobs:
             cp -r "$src/game"          "$stage/game"
             echo "$stage:"; du -sh "$stage"
           done
-          # v5_event_test is the ONE exception to "game/ only": its scripted
-          # Warren demo lazily imports the look-dev clown/die/route renderers,
-          # so stage just those 4 modules (a few KB of pure Python — the chain
-          # is jester_variants → clown_dice + warren_mockup; warren_routes →
-          # warren_mockup; all depend only on game/). __init__.py makes tools/
-          # an unambiguous package under the emscripten import path.
+          # v5_event_test is the ONE exception to "game/ only": its scripted demo
+          # (clown event + the Skull-King second event) lazily imports the look-dev
+          # renderers AND the stacked-skull engine. Stage the needed PURE-PYTHON
+          # modules (a few hundred KB; the design PNGs are excluded so the bundle
+          # stays small). Chains:
+          #   clown  : jester_variants -> clown_dice + warren_mockup ; warren_routes -> warren_mockup
+          #   route  : warren_all -> warren_routes2..5 (hard band 6-10)
+          #   skulls : game/pillar_skull -> pillar_engine -> render_skull_king_stack
+          #            -> render_switchbig + new8/classic8/ornaments ; 20 pillar recipes ; die
+          # __init__.py makes tools/ an unambiguous package under the emscripten path.
           mkdir -p v5et_stage/tools
-          for t in render_jester_variants render_clown_dice render_warren_mockup render_warren_routes; do
+          for t in render_jester_variants render_clown_dice render_warren_mockup \
+                   render_warren_routes render_warren_routes2 render_warren_routes3 \
+                   render_warren_routes4 render_warren_routes5 render_warren_all \
+                   render_skull_king_stack; do
             cp "v5et_src/tools/$t.py" "v5et_stage/tools/$t.py"
           done
           touch v5et_stage/tools/__init__.py
-          echo "v5et_stage/tools:"; du -sh v5et_stage/tools
+          # stacked-skull art: every .py under the skull tree (engine + 20 recipes +
+          # new8/classic8/ornaments + the die), paths preserved, PNGs excluded; plus
+          # the chosen king-skull design the engine reuses for its skull/palette fns.
+          ( cd v5et_src && find docs/skull_king_stack -name '*.py' -print0 \
+              | tar --null -cf - -T - ) | ( cd v5et_stage && tar -xf - )
+          mkdir -p v5et_stage/docs/skybit_devil/batch2/asthi_ringeye
+          cp v5et_src/docs/skybit_devil/batch2/asthi_ringeye/render_switchbig.py \
+             v5et_stage/docs/skybit_devil/batch2/asthi_ringeye/
+          echo "v5et_stage extras:"; du -sh v5et_stage/tools v5et_stage/docs
 
       - name: Build main WASM bundle
         working-directory: main_stage
