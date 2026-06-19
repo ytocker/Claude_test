@@ -345,8 +345,9 @@ _BAT_EAR    = (88, 64, 132)
 _BAT_FANG   = (250, 250, 245)
 
 
-def _bat_wing(angle_deg, sgn):
-    """Leathery scalloped membrane wing on 3 finger-struts."""
+def _bat_wing(angle_deg, sgn, scale=1.0):
+    """Leathery scalloped membrane wing on 3 finger-struts. `scale` shrinks
+    the near wing so it never crowds the face on the level frame."""
     w = pygame.Surface((52, 44), pygame.SRCALPHA)
     # Membrane with scalloped trailing edge.
     memb = [(8, 22), (24, 10), (40, 8), (50, 18), (44, 24),
@@ -359,6 +360,9 @@ def _bat_wing(angle_deg, sgn):
     for tx, ty in ((40, 8), (50, 18), (44, 38)):
         pygame.draw.line(w, _BAT_MEMB_D, (10, 24), (tx, ty), 2)
     pygame.draw.line(w, _BAT_MEMB_H, (11, 22), (38, 11), 1)
+    if scale != 1.0:
+        sz = (max(1, int(52 * scale)), max(1, int(44 * scale)))
+        w = pygame.transform.smoothscale(w, sz)
     out = pygame.transform.rotate(w, angle_deg)
     if sgn < 0:
         out = pygame.transform.flip(out, True, False)
@@ -400,8 +404,10 @@ def build_bat(wing_angle_deg):
                         [(HCX + 2, HCY + 6), (HCX + 4, HCY + 6),
                          (HCX + 3, HCY + 9)])
 
-    # Near wing (over body) — the hero span.
-    _rot_blit(surf, _bat_wing(-10 - spread, -1), (BCX - 14, BCY - 2))
+    # Near wing (over body) — the hero span. Anchor lowered ~4px and the
+    # surface shrunk ~15% so both eyes + both ears stay fully clear on the
+    # level frame in every pose, matching the already-clean dive frame.
+    _rot_blit(surf, _bat_wing(-10 - spread, -1, scale=0.85), (BCX - 14, BCY + 2))
     return surf
 
 
@@ -654,8 +660,9 @@ _DRG_SPIKE  = (255, 214, 90)
 _DRG_EMBER  = (255, 130, 50)
 
 
-def _drg_wing(angle_deg, sgn):
-    """Membrane wing on dragon finger-struts, jewel-teal."""
+def _drg_wing(angle_deg, sgn, scale=1.0):
+    """Membrane wing on dragon finger-struts, jewel-teal. `scale` shrinks
+    the near wing so it reads as supporting mass behind the horned head."""
     w = pygame.Surface((50, 44), pygame.SRCALPHA)
     memb = [(8, 22), (26, 8), (42, 6), (48, 16), (40, 22),
             (48, 28), (36, 30), (42, 38), (26, 32), (10, 30)]
@@ -663,9 +670,14 @@ def _drg_wing(angle_deg, sgn):
     pygame.draw.polygon(w, _DRG_WING,
                         [(9, 22), (26, 10), (42, 8), (45, 16),
                          (34, 26), (20, 30), (11, 27)])
-    for tx, ty in ((42, 6), (48, 16), (42, 38)):
+    # Struts kept off the topmost membrane point so the rotated-open near
+    # wing doesn't throw a thin dark spike up next to the horn silhouette.
+    for tx, ty in ((40, 10), (48, 16), (42, 38)):
         pygame.draw.line(w, _DRG_WING_D, (10, 24), (tx, ty), 2)
-    pygame.draw.line(w, _DRG_WING_H, (11, 22), (40, 9), 1)
+    pygame.draw.line(w, _DRG_WING_H, (11, 22), (40, 11), 1)
+    if scale != 1.0:
+        sz = (max(1, int(50 * scale)), max(1, int(44 * scale)))
+        w = pygame.transform.smoothscale(w, sz)
     out = pygame.transform.rotate(w, angle_deg)
     if sgn < 0:
         out = pygame.transform.flip(out, True, False)
@@ -710,27 +722,45 @@ def build_dragon(wing_angle_deg):
     _aaellipse(surf, _DRG_BODY_D, (HCX, HCY + 1), 11, 10)
     _aaellipse(surf, _DRG_BODY, (HCX - 1, HCY), 10, 9)
     _aaellipse(surf, _DRG_BODY_H, (HCX - 3, HCY - 3), 5, 3)
-    # Two back-swept horns breaking the crown.
+    # Two back-swept horns — taller (to CROWN_Y-10/-11) so the horned crown
+    # always breaks ABOVE the near wing across all four flap poses. The horn
+    # is the cheapest "dragon" signal at gameplay size, so it owns the top.
     for sgn, hx in ((-1, HCX - 5), (1, HCX + 4)):
+        pygame.draw.polygon(surf, _DRG_BODY_D,
+                            [(hx - 1, CROWN_Y + 6),
+                             (hx - sgn * 3, CROWN_Y - 11),
+                             (hx + 4, CROWN_Y + 5)])
         pygame.draw.polygon(surf, _DRG_HORN,
-                            [(hx, CROWN_Y + 6), (hx - sgn * 2, CROWN_Y - 5),
+                            [(hx, CROWN_Y + 6),
+                             (hx - sgn * 3, CROWN_Y - 10),
                              (hx + 3, CROWN_Y + 5)])
-    # Snout jutting forward with a tiny ember.
-    pygame.draw.polygon(surf, _DRG_BODY,
-                        [(HCX + 4, HCY - 2), (HCX + 14, HCY),
-                         (HCX + 13, HCY + 5), (HCX + 4, HCY + 5)])
-    pygame.draw.polygon(surf, _DRG_BODY_D,
-                        [(HCX + 4, HCY - 2), (HCX + 14, HCY),
-                         (HCX + 13, HCY + 5), (HCX + 4, HCY + 5)], 1)
-    pygame.draw.circle(surf, _DRG_EMBER, (HCX + 13, HCY + 1), 2)
-    pygame.draw.circle(surf, (255, 220, 120), (HCX + 13, HCY + 1), 1)
+        # Bright tip glint so the horn point survives the downscale.
+        pygame.draw.circle(surf, (255, 250, 230),
+                           (hx - sgn * 3, CROWN_Y - 9), 1)
+    # Snout — a BOLD, longer forward wedge (chunky, not a thin quad) with the
+    # ember at the very tip, set just clear of the body ellipse so the read
+    # order is horns → snout → tail spikes.
+    snout = [(HCX + 3, HCY - 4), (HCX + 17, HCY - 1),
+             (HCX + 17, HCY + 4), (HCX + 3, HCY + 6)]
+    pygame.draw.polygon(surf, _DRG_BODY, snout)
+    pygame.draw.polygon(surf, _DRG_BODY_H,
+                        [(HCX + 4, HCY - 3), (HCX + 15, HCY - 1),
+                         (HCX + 9, HCY + 1)])
+    pygame.draw.polygon(surf, _DRG_BODY_D, snout, 1)
+    # Nostril notch + glowing ember at the very tip, separated from the body.
+    pygame.draw.circle(surf, _DRG_BODY_D, (HCX + 13, HCY - 1), 1)
+    pygame.draw.circle(surf, (255, 90, 30), (HCX + 17, HCY + 1), 3)
+    pygame.draw.circle(surf, _DRG_EMBER, (HCX + 17, HCY + 1), 2)
+    pygame.draw.circle(surf, (255, 230, 140), (HCX + 17, HCY), 1)
     # Slit-pupil reptile eye.
     pygame.draw.circle(surf, (255, 220, 90), (HCX, HCY - 1), 4)
     pygame.draw.ellipse(surf, (30, 40, 30), (HCX - 1, HCY - 4, 2, 6))
     pygame.draw.circle(surf, (255, 255, 255), (HCX - 1, HCY - 2), 1)
 
-    # Near wing — hero membrane.
-    _rot_blit(surf, _drg_wing(-12 - spread, -1), (BCX - 14, BCY - 3))
+    # Near wing — shrunk ~20% and rotated more OPEN (less horizontal) so it
+    # sits as supporting mass BEHIND the spiky head/tail silhouette instead
+    # of lying flat across the snout + dorsal ridge.
+    _rot_blit(surf, _drg_wing(-40 - spread, -1, scale=0.8), (BCX - 11, BCY + 1))
 
     # Clawed feet.
     for fx in (29, 37):
@@ -801,19 +831,32 @@ def build_phoenix(wing_angle_deg):
     _aaellipse(surf, _PHX_GOLD, (HCX - 2, HCY + 1), 5, 5)
 
     # ── HERO: upswept flame crest breaking high above the crown ──
-    crest = [
-        (_PHX_DEEP,  [(HCX - 4, HCY - 4), (HCX - 10, CROWN_Y - 10),
-                      (HCX - 2, CROWN_Y - 2)]),
-        (_PHX_FLAME1, [(HCX - 1, HCY - 5), (HCX - 4, CROWN_Y - 14),
-                       (HCX + 4, CROWN_Y - 4)]),
-        (_PHX_FLAME2, [(HCX + 2, HCY - 5), (HCX + 5, CROWN_Y - 12),
-                       (HCX + 8, CROWN_Y - 2)]),
-    ]
-    for col, pts in crest:
-        pygame.draw.polygon(surf, col, pts)
-    pygame.draw.polygon(surf, _PHX_FLAME3,
-                        [(HCX - 1, HCY - 5), (HCX - 2, CROWN_Y - 10),
-                         (HCX + 2, CROWN_Y - 5)])
+    # FAT rounded flame tongues (wide base, rounded shoulders, fewer thin
+    # tips) so a clear flame shape survives the 40px downscale where the old
+    # thin single-poly slivers vanished. Three overlapping tongues, back to
+    # front, each a deep base flank + a bright inner lick.
+    def _tongue(col, bx, base_w, tip_x, tip_y, bend):
+        """One rounded flame tongue: a fat teardrop sweeping up + forward."""
+        pygame.draw.polygon(surf, col, [
+            (bx - base_w, HCY - 3),
+            (bx - base_w + 1, CROWN_Y - 2 + bend),
+            (tip_x - 2, tip_y + 2),
+            (tip_x, tip_y),
+            (tip_x + 1, tip_y + 3),
+            (bx + base_w, CROWN_Y + bend),
+            (bx + base_w, HCY - 3),
+        ])
+    # Back tongue (deep red), tallest, sweeping back.
+    _tongue(_PHX_DEEP,  HCX - 4, 4, HCX - 7, CROWN_Y - 12, -1)
+    # Mid tongue (orange), tallest centre lick.
+    _tongue(_PHX_FLAME1, HCX,    5, HCX + 1, CROWN_Y - 16, 0)
+    # Front tongue (gold), forward-swept.
+    _tongue(_PHX_FLAME2, HCX + 4, 4, HCX + 9, CROWN_Y - 11, 1)
+    # Bright inner heart so the flame glows hot at its core.
+    pygame.draw.polygon(surf, _PHX_FLAME3, [
+        (HCX - 2, HCY - 4), (HCX, CROWN_Y - 13),
+        (HCX + 2, CROWN_Y - 13), (HCX + 3, HCY - 4)])
+    pygame.draw.circle(surf, (255, 248, 210), (HCX + 1, CROWN_Y - 12), 2)
 
     # Bright eye + golden curved beak.
     _eye(surf, HCX, HCY - 1, 4, iris=(40, 22, 16))
