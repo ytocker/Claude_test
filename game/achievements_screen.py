@@ -25,6 +25,9 @@ from game.achievement_icons import draw_badge
 
 _WHITE = (245, 246, 255)
 _DIM   = (150, 150, 172)
+# A faint amethyst tint for masked Mystery rows so their "???" echoes the rarer
+# amethyst badge without ever competing with gold.
+_MYST_DIM = (176, 154, 200)
 
 # Layout (logical px).
 _HEADER_H = 56          # taller: title + a global progress bar live here
@@ -196,39 +199,34 @@ class AchievementsScene:
                                  _BADGE * S, _BADGE * S)
         draw_badge(surf, a.icon_key, badge_rect, unlocked, a.hidden)
 
-        # Text block.
+        # Text block. EVERY locked achievement is masked — title, description and
+        # any progress are hidden so the player discovers it in play rather than
+        # reading it off a checklist. Only the rarer Mystery tier gets a faintly
+        # amethyst-tinted hint to echo its badge.
         tx = int(rx + (8 + _BADGE + 10) * S)
-        hidden_locked = a.hidden and not unlocked
-        title = "???" if hidden_locked else a.title
         if unlocked:
-            desc = a.desc
+            title, desc = a.title, a.desc
             tcol, dcol = _GOLD_PALE, _WHITE
-        elif hidden_locked:
-            desc = "Hidden — keep playing to discover it."
-            tcol, dcol = _DIM, _DIM
+        elif a.hidden:
+            title, desc = "???", "A rare secret — find it in play."
+            tcol = dcol = _MYST_DIM
         else:
-            desc = a.desc
-            tcol, dcol = (200, 196, 220), _DIM
+            title, desc = "???", "Hidden — discover it in play."
+            tcol = dcol = _DIM
 
         ts = self._scaled_text(title, 17 * S, tcol)
         surf.blit(ts, (tx, int(ry + 9 * S)))
 
-        # Description / requirement (wrapped to one or two short lines).
+        # Description (wrapped to one or two short lines).
         self._blit_wrapped(surf, desc, tx, int(ry + 30 * S),
                            int((W - _PAD_X) * S - tx - 8 * S), 12 * S, dcol)
 
-        # Unlocked check, or progress bar for incremental life-scope locks.
+        # Earned star only — locked rows show no progress (it would betray the
+        # hidden goal).
         if unlocked:
             star_cx = int((W - _PAD_X) * S - 12 * S)
             star_cy = int(ry + 16 * S)
             self._draw_star(surf, star_cx, star_cy, 8 * S)
-        else:
-            cur = ach.current_value(store, a)
-            if cur is not None and a.target > 1:
-                frac = max(0.0, min(1.0, cur / a.target))
-                self._draw_progress(surf, tx, int(ry + rh - 14 * S),
-                                    int((W - _PAD_X) * S - tx - 8 * S), S,
-                                    frac, f"{min(cur, a.target)}/{a.target}")
 
     def _gilded_count(self, txt, size):
         """The header counter rendered with a vertical gold gradient fill (pale
@@ -274,21 +272,6 @@ class AchievementsScene:
         for i, ln in enumerate(lines[:2]):
             img = f.render(ln, True, color)
             surf.blit(img, (x, y + i * int(size * 1.15)))
-
-    def _draw_progress(self, surf, x, y, w, S, frac, label):
-        h = 7 * S
-        pygame.draw.rect(surf, (8, 5, 24), (x, y, w, h), border_radius=h // 2)
-        fw = int(w * frac)
-        if fw > 0:
-            bar = pygame.Surface((fw, h), pygame.SRCALPHA)
-            for yy in range(h):
-                t = yy / max(1, h - 1)
-                pygame.draw.line(bar, lerp_color(_GOLD_PALE, _GOLD_DEEP, t), (0, yy), (fw, yy))
-            pygame.draw.rect(bar, (255, 255, 255, 0), (0, 0, fw, h), border_radius=h // 2)
-            surf.blit(bar, (x, y))
-        pygame.draw.rect(surf, (*_GOLD_BRIGHT, 120), (x, y, w, h), width=max(1, S), border_radius=h // 2)
-        lab = self._scaled_text(label, 11 * S, _GOLD_PALE)
-        surf.blit(lab, (x + w - lab.get_width(), y - int(13 * S)))
 
     # ── per-frame render ─────────────────────────────────────────────────
     def render(self, surf, dt: float, store: dict) -> None:

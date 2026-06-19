@@ -13,18 +13,18 @@ hot-spot on the gold rim's upper-left crest, a darker recess ring where the
 enamel meets the rim, and a soft sheen on each glyph's top edge — so a badge
 reads as a real struck medal, not a flat enamel pin.
 
-State is one code path, but only the six "Mysteries" carry a hidden look;
-the other twelve are only ever unlocked or dormant:
+State is one code path. EVERY locked badge is masked to a "?" so the
+achievement stays unknown until it's earned in play — only the rim/well palette
+distinguishes a rare Mystery from an ordinary lock:
   * unlocked (normal)   — warm gold rim + navy enamel + embossed glyph.
   * unlocked (Mystery)  — gold rim + DESATURATED amethyst enamel well + a
                           sparkle/star ring, so a rare unlock feels special
                           while gold stays the only fully-saturated accent.
-  * dormant (known)     — the SAME medal asleep: rim value lifted and kept
-                          faintly warm (not a different greyed-out object),
-                          glyph still embossed so its shape teases the unlock.
-  * hidden + locked     — Mysteries only: an amethyst "?" disc ringed with a
-                          faint sparkle/star halo — enticingly rarer-looking
-                          than ordinary dormant pewter, no shape leaked.
+  * locked (normal)     — a warm-pewter "?" disc: the medal asleep AND masked,
+                          giving nothing away about what it rewards.
+  * locked (Mystery)    — an amethyst "?" disc ringed with a faint sparkle/star
+                          halo — enticingly rarer-looking than the pewter "?",
+                          still no shape leaked.
 
 Results are cached by ``(icon_key, size, unlocked, hidden)``. ``draw_badge`` is
 the only entry point the screen calls; the glyph table is the baseline the
@@ -613,14 +613,15 @@ def _build(icon_key: str, size: int, unlocked: bool, hidden: bool) -> pygame.Sur
             q = f.render("?", True, c)
             surf.blit(q, q.get_rect(center=(cx + dx, cy + dy)))
     else:
-        # Dormant: the real glyph shape is embossed faintly so it teases the
-        # unlock — lifted ~12% in value so it reads "asleep", not "disabled".
-        # Flag the two-tone glyphs to drop their saturated accents to bronze so
-        # the sleeping medal stays fully monochrome.
-        global _GLYPH_DORMANT
-        _GLYPH_DORMANT = True
-        _stamp_glyph(surf, icon_key, cx, cy, gr, _LOCK_GLY, _LOCK_GLY_SH)
-        _GLYPH_DORMANT = False
+        # Dormant (locked): the medal asleep AND masked — a pewter "?" disc, the
+        # same enamel-engraved "?" as the Mystery tier but in the warm-pewter
+        # palette so a normal locked badge gives nothing away while staying
+        # visually distinct from the rarer amethyst Mystery "?".
+        f = _glyph_font(int(R * 1.05))
+        off = max(1, R // 18)
+        for dx, dy, c in ((off, off, _LOCK_GLY_SH), (0, 0, _LOCK_GLY)):
+            q = f.render("?", True, c)
+            surf.blit(q, q.get_rect(center=(cx + dx, cy + dy)))
 
     return pygame.transform.smoothscale(surf, (size, size))
 
