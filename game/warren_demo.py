@@ -36,7 +36,7 @@ SK_REVEAL_PX = 118        # settled difficulty face popped as the reveal
 SKULL_ROUTE_N = 22        # pillars in the Skull-King route (windowed from a hard route)
 # The King-Skull CHARACTER (Asthi-Dakini) strolls in trailing its die, exactly as the
 # clown trails its die: the die LEADS, the figure TRAILS by SKULL_CHAR_DX.
-SKULL_CHAR_PX = 320       # rendered figure height (cached once); the chip is tightly
+SKULL_CHAR_PX = 275       # rendered figure height (cached once); the chip is tightly
                           # cropped so the WHOLE six-armed figure is visible
 SKULL_CHAR_DX = 150       # die sits this far LEFT of (ahead of) the figure
 SKULL_CHAR_SINK = 10      # plant the figure's feet just into the ground line
