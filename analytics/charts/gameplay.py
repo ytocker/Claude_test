@@ -3,6 +3,8 @@ Gameplay & balance Plotly builders.
 """
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -273,6 +275,16 @@ def score_vs_survival(sv_df: pd.DataFrame, powerup: str = "magnet") -> go.Figure
     title = f"Score vs survival ({label})"
     if sv_df.empty:
         return style(fig, title, subtitle=sub)
+    # Clip the score axis to a robust upper bound (same reasoning as
+    # score_hist): a lone near-ceiling whale otherwise pins the top of the
+    # log range and squashes the whole playing population into the floor,
+    # costing ~40% of the panel. Bound from low quantiles (whale-immune),
+    # keep all points but cap the view, and count what's above so nothing
+    # is hidden — just kept from dictating the scale.
+    scores = sv_df["score"].clip(lower=1)
+    clip = max(float(scores.quantile(0.95)) * 1.5,
+               float(scores.quantile(0.9)) * 2.5, 1.0)
+    n_over = int((scores > clip).sum())
     for picked, color, name in ((False, SKY_SOFT, f"No {label}"),
                                 (True, GOLD, label)):
         grp = sv_df[sv_df["picked"] == picked]
@@ -286,10 +298,16 @@ def score_vs_survival(sv_df: pd.DataFrame, powerup: str = "magnet") -> go.Figure
             hovertemplate="%{x:.0f}s alive · %{y:,.0f} pts<extra>" + name + "</extra>",
         )
     fig.update_layout(
-        yaxis=dict(type="log", title="Score (log)", tickvals=_LOG_TICKS),
+        yaxis=dict(type="log", title="Score (log)", tickvals=_LOG_TICKS,
+                   range=[0, math.log10(clip * 1.1)]),
         xaxis_title="Seconds alive",
         legend=dict(orientation="h", yanchor="top", y=-0.18, x=0),
     )
+    if n_over:
+        fig.add_annotation(x=1, y=1, xref="paper", yref="paper",
+                           xanchor="right", yanchor="bottom", showarrow=False,
+                           font=dict(size=10, color=MUTED),
+                           text=f"+{n_over} run(s) above {int(clip):,} not shown")
     return style(fig, title, subtitle=sub)
 
 

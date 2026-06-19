@@ -75,6 +75,9 @@ def render(df, window: int) -> None:
         "pickup. Efficacy is correlational — longer runs naturally see more "
         "power-up spawns. The excess bar (score lift − survival lift) is a "
         "partial control for that and a flag, not a verdict; the scatter shows "
-        "the same confound run-by-run. Bars marked * are below "
-        f"{m.MIN_EFFICACY_N} picked runs — noisy, read with caution."
+        "the same confound run-by-run. One caveat the excess control does *not* "
+        "remove: a power-up's “without” group skews toward short flame-out runs, "
+        "so a big lift is partly committed-players-vs-quitters, not the power-up "
+        f"alone. Bars marked * are below {m.MIN_EFFICACY_N} picked runs — noisy, "
+        "read with caution."
     )
