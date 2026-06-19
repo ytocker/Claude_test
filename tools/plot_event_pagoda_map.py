@@ -12,8 +12,10 @@ including the first-pillar seeded travel and the onboarding ramp), so every
 landmark lands on the real gameplay axis.
 
 Shows the three GAMEPLAY weather events (morning-thermal geysers, rain /
-thunderstorm, snow squall), the end-of-day treasure-box finale, and the newbie
-plateau + ramp. Cosmetic-only phenomena (calm breeze, dawn mist) are omitted.
+thunderstorm, snow squall), the two fixed-pillar power-up pickups (the genie
+lamp milestone + the rain umbrellas), the end-of-day treasure-box finale, and
+the newbie plateau + ramp. Cosmetic-only phenomena (calm breeze, dawn mist) are
+omitted.
 """
 from __future__ import annotations
 
@@ -167,6 +169,26 @@ def main() -> None:
             rotation=90, fontsize=8, fontweight="bold", color="#6b520f",
             va="center", ha="left")
 
+    # ── anchored power-ups — pickups placed at FIXED pillars (not the random
+    # spawn roll): the genie lamp milestone and the two rain umbrellas. ───────
+    POWERUP_ANCHORS = [
+        ("Genie lamp", [config.LATE_GAME_PILLAR], "#b83dba", "D"),
+        ("Umbrella", list(config.UMBRELLA_SPAWN_PILLARS), "#0f9090", "P"),
+    ]
+    for label, xs, color, mk in POWERUP_ANCHORS:
+        for j, x in enumerate(xs):
+            ax.axvline(x, color=color, linestyle=(0, (4, 3)), linewidth=1.6,
+                       alpha=0.85, zorder=4)
+            ax.plot([x], [1.04], marker=mk, color=color, markersize=11,
+                    markeredgecolor="white", markeredgewidth=0.8,
+                    clip_on=False, zorder=6,
+                    label=(label if j == 0 else None))
+        mid = sum(xs) / len(xs)
+        tag = f"{label} @ {', '.join(str(x) for x in xs)}"
+        ax.annotate(tag, (mid, 1.04), textcoords="offset points",
+                    xytext=(0, 9), ha="center", fontsize=7.5, color=color,
+                    fontweight="bold", clip_on=False)
+
     # Run-start marker + biome gridlines carried into the lower panel.
     ax.axvline(0, color="#222", linewidth=2)
     ax.annotate("RUN START", (0, 0.5), xytext=(6, 0),
@@ -185,8 +207,8 @@ def main() -> None:
 
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles, labels, loc="upper center",
-              bbox_to_anchor=(0.5, -0.13), ncol=3, framealpha=0.92,
-              fontsize=9)
+              bbox_to_anchor=(0.5, -0.13), ncol=4, framealpha=0.92,
+              fontsize=8.5)
 
     fig.tight_layout()
     out_path = os.path.join(out_dir, "event_pagoda_map.png")
@@ -198,6 +220,8 @@ def main() -> None:
         ys = [fn(ph) for ph in phases]
         pk_i = max(range(len(ys)), key=lambda i: ys[i])
         print(f"  {label}: peak at pillar {pillars[pk_i]} (intensity {ys[pk_i]:.2f})")
+    print(f"  Genie lamp: anchored at pillar {config.LATE_GAME_PILLAR}")
+    print(f"  Umbrella: anchored at pillars {config.UMBRELLA_SPAWN_PILLARS}")
 
 
 if __name__ == "__main__":
