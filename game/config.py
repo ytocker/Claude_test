@@ -212,21 +212,47 @@ HEELFLIP_DURATION     = 0.55
 KNIGHT_DURATION     = 30.0
 KNIGHT_INVULN       = 1.5
 
+# ── CLOWN EVENT ──────────────────────────────────────────────────────────────
+# A scripted set-piece inserted into every biome day: a tight "warren" gauntlet
+# of fused staff-pillars. It starts at CLOWN_START_PILLAR and RESERVES a fixed
+# CLOWN_SLOT_PILLARS-wide slot (the max gauntlet length) regardless of the rolled
+# length, so the rest of the timeline stays at deterministic pillar numbers — the
+# gauntlet is the rolled N (CLOWN_ROLL_MIN..MAX) warren pillars and any remaining
+# slot pillars are regular gameplay. Then CLOWN_TO_RAIN_BUFFER regular pillars
+# play before the rain block begins.
+CLOWN_START_PILLAR    = 65
+CLOWN_SLOT_PILLARS    = 25          # held max slot width (== CLOWN_ROLL_MAX)
+CLOWN_TO_RAIN_BUFFER  = 10
+CLOWN_ROLL_MIN        = 10
+CLOWN_ROLL_MAX        = 25
+CLOWN_WARREN_SPACING  = 72          # fused centre-to-centre spacing (vs PIPE_SPACING)
+CLOWN_WARREN_GAP      = 172         # per-pillar gap height inside the gauntlet
+
+# Inserting the slot + buffer pushes the rain block (and everything after it)
+# this many pillars later than the pre-clown anchor. The biome DAY phase is
+# lengthened by the matching run-time (DAY_EXTRA_SECONDS) so each later event
+# keeps its time-of-day — see biome.CYCLE_SECONDS.
+_RAIN_START_PILLAR_PRE_CLOWN = 70
+_SNOW_START_PILLAR_PRE_CLOWN = 139
+
 # RAIN + THUNDERSTORM anchor. The dusk storm block (drizzle build →
 # storm peak → fade, plus the in-game lightning gate) is shifted along
 # the biome phase axis so its drizzle's lower edge lands at this
-# pillar number. The block's SHAPE/WIDTH/PEAK HEIGHT is unchanged —
-# only the start anchor moves. Tune this to move the whole storm
-# earlier (smaller pillar) or later (larger pillar); weather.py
-# derives the phase shift from the same onboarding-ramp dwell math
-# the world uses, so the storm always lands at the chosen pillar.
-RAIN_START_PILLAR   = 70
+# pillar number. Anchored 10 pillars after the held clown slot so the
+# storm always trails the event; weather.py derives the phase shift from
+# the same onboarding-ramp dwell math the world uses.
+RAIN_START_PILLAR   = CLOWN_START_PILLAR + CLOWN_SLOT_PILLARS + CLOWN_TO_RAIN_BUFFER  # 100
+
+# How far the clown insertion shifts the whole post-clown timeline, and the
+# matching daytime added to the biome (the time to fly the inserted pillars at
+# post-ramp regular pace: spacing / scroll per pillar).
+_POST_CLOWN_SHIFT   = RAIN_START_PILLAR - _RAIN_START_PILLAR_PRE_CLOWN                 # +30
+DAY_EXTRA_SECONDS   = _POST_CLOWN_SHIFT * (PIPE_SPACING / SCROLL_BASE)                # 52.5s
 
 # SNOW SQUALL anchor. Same idea as RAIN_START_PILLAR but for the
-# predawn snow-squall block in `weather.storm_intensity`. The bump's
-# lower edge lands at this pillar; the SHAPE/WIDTH (half-width 0.10,
-# scale 1.045) stay unchanged, so only the start anchor moves.
-SNOW_START_PILLAR   = 139
+# predawn snow-squall block in `weather.storm_intensity`; shifted by the
+# same clown insertion so it keeps its predawn slot.
+SNOW_START_PILLAR   = _SNOW_START_PILLAR_PRE_CLOWN + _POST_CLOWN_SHIFT                # 169
 
 # Seconds of scroll buffer added to the first seeded pipe's spawn x so
 # the cottage opener has clean air to scroll behind Pip before pillars

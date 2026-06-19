@@ -189,31 +189,21 @@ def main() -> None:
                     xytext=(0, 9), ha="center", fontsize=7.5, color=color,
                     fontweight="bold", clip_on=False)
 
-    # ── candidate clown-event placements (ranked design recommendation) ──────
-    # Not shipped content — these are the four first-occurrence pillars under
-    # consideration, ranked best→worst, drawn so the proposal sits against the
-    # real run content. Badges for the two close candidates (32/35) are staggered
-    # vertically so they don't overlap.
+    # ── clown event — the chosen held slot (now shipped content) ─────────────
+    # The event reserves a fixed CLOWN_SLOT_PILLARS-wide slot from
+    # CLOWN_START_PILLAR, then CLOWN_TO_RAIN_BUFFER regular pillars before rain.
     CLOWN_COLOR = "#c1121f"
-    CLOWN_PLACEMENTS = [(1, 32), (2, 35), (3, 47), (4, 60)]  # (rank, pillar)
-    BADGE_Y = {1: 0.88, 2: 1.00, 3: 0.88, 4: 0.88}
-    for rank, x in CLOWN_PLACEMENTS:
-        a = 1.0 - 0.16 * (rank - 1)
-        lw = 2.8 - 0.45 * (rank - 1)
-        ax.axvline(x, color=CLOWN_COLOR, linewidth=lw, alpha=a, zorder=4)
-        by = BADGE_Y[rank]
-        ax.plot([x], [by], marker="o", color=CLOWN_COLOR, markersize=17,
-                markeredgecolor="white", markeredgewidth=1.3, alpha=a, zorder=7,
-                clip_on=False,
-                label=("Clown-event candidate (ranked #1→#4)"
-                       if rank == 1 else None))
-        ax.annotate(str(rank), (x, by), ha="center", va="center", fontsize=9,
-                    fontweight="bold", color="white", zorder=8, clip_on=False)
-        ax.annotate(f"clown @ {x}", (x, 0.5), rotation=90, ha="center",
-                    va="center", fontsize=7.5, fontweight="bold",
-                    color=CLOWN_COLOR, zorder=7,
-                    bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none",
-                              alpha=0.78))
+    c0 = config.CLOWN_START_PILLAR
+    c1 = c0 + config.CLOWN_SLOT_PILLARS
+    ax.axvspan(c0, c1, color=CLOWN_COLOR, alpha=0.16, linewidth=0,
+               label="Clown event (held 25-pillar slot)")
+    ax.axvspan(c1, config.RAIN_START_PILLAR, color=CLOWN_COLOR, alpha=0.06,
+               linewidth=0)  # buffer to rain
+    ax.axvline(c0, color=CLOWN_COLOR, linewidth=2.4, zorder=4)
+    ax.annotate(f"CLOWN EVENT\n@ pillar {c0}  (held {config.CLOWN_SLOT_PILLARS})",
+                (c0, 0.5), textcoords="offset points", xytext=(6, 0),
+                rotation=90, fontsize=8, fontweight="bold", color="#8a0d17",
+                va="center", ha="left", zorder=7)
 
     # Run-start marker + biome gridlines carried into the lower panel.
     ax.axvline(0, color="#222", linewidth=2)
@@ -250,7 +240,9 @@ def main() -> None:
           f"(geyser peak + {config.GENIE_PILLARS_AFTER_GEYSER_PEAK})")
     print(f"  Umbrella: pillars {config.UMBRELLA_SPAWN_PILLARS} "
           f"(rain start {config.RAIN_START_PILLAR} + 5/+17)")
-    print("  Clown-event candidates (ranked): #1 p32, #2 p35, #3 p47, #4 p60")
+    print(f"  Clown event: held slot {config.CLOWN_START_PILLAR}"
+          f"–{config.CLOWN_START_PILLAR + config.CLOWN_SLOT_PILLARS}, "
+          f"then {config.CLOWN_TO_RAIN_BUFFER} regular → rain")
 
 
 if __name__ == "__main__":

@@ -180,11 +180,25 @@ _KEYFRAMES: list[tuple[float, dict]] = [
 
 
 # One full day-cycle every CYCLE_SECONDS seconds of gameplay.
-# The day phase spans 0.00 -> 0.23125 = 74s; the remaining six phases
-# (golden hour through sunrise) each preserve their original 300s-cycle
-# wall-clock durations. Extending the cycle past 320 should shift the
-# non-day keyframes proportionally — don't change CYCLE_SECONDS alone.
-CYCLE_SECONDS = 320.0
+# The keyframe fractions above were authored against a 320s cycle (DAY spans
+# 0.00 -> 0.23125 = 74s). The clown event inserts content into the day; that
+# added run-time (config.DAY_EXTRA_SECONDS) is absorbed by the DAY phase so every
+# later time-of-day keeps its original wall-clock duration but starts later. We
+# grow the cycle by the same delta and remap each fraction:
+#     new_phase = (old_phase * BASE + DAY_EXTRA) / (BASE + DAY_EXTRA)   (i >= 1)
+# DAY stays at 0.0 and the wrap keyframe stays at 1.0.
+_BASE_CYCLE_SECONDS = 320.0
+from game.config import DAY_EXTRA_SECONDS as _DAY_EXTRA
+CYCLE_SECONDS = _BASE_CYCLE_SECONDS + _DAY_EXTRA
+
+if _DAY_EXTRA:
+    _last = len(_KEYFRAMES) - 1
+    _KEYFRAMES[:] = [
+        (frac if i == 0 else
+         1.0 if i == _last else
+         (frac * _BASE_CYCLE_SECONDS + _DAY_EXTRA) / CYCLE_SECONDS, pal)
+        for i, (frac, pal) in enumerate(_KEYFRAMES)
+    ]
 
 
 def phase_for_time(elapsed_seconds: float) -> float:

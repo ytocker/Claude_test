@@ -118,10 +118,13 @@ SNOW_STORM_WIDTH     = 0.13
 # Morning-thermal (geyser) phase window — long buildup, short fade. Named here
 # so the curve in `thermal_intensity` and anything anchored to the event (the
 # genie milestone below) read from one source: move the geyser by editing these
-# and its dependents follow. Cycle = 320s, so 50/96/112s map to these phases.
-THERMAL_START_PHASE  = 50.0 / 320.0
-THERMAL_PEAK_PHASE   = 96.0 / 320.0
-THERMAL_END_PHASE    = 112.0 / 320.0
+# and its dependents follow. Expressed as wall-clock SECONDS over the live cycle
+# so the geyser stays at the same time (~pillar 47, before the clown event) even
+# as the cycle lengthens to absorb the clown insertion — don't hard-code /320.
+from game.biome import CYCLE_SECONDS as _CYCLE_SECONDS
+THERMAL_START_PHASE  = 50.0 / _CYCLE_SECONDS
+THERMAL_PEAK_PHASE   = 96.0 / _CYCLE_SECONDS
+THERMAL_END_PHASE    = 112.0 / _CYCLE_SECONDS
 
 # Genie milestone pillar — anchored to the geyser event rather than hard-coded:
 # the lamp lands `GENIE_PILLARS_AFTER_GEYSER_PEAK` pillars past the thermal

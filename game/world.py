@@ -28,6 +28,8 @@ from game.config import (
     FLAP_V,
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
     SECRET_POWERUP_WEIGHTS, DEBUG_GENIE_PILLAR,
+    CLOWN_START_PILLAR, CLOWN_SLOT_PILLARS, CLOWN_ROLL_MIN, CLOWN_ROLL_MAX,
+    CLOWN_WARREN_SPACING,
     GENIE_OFFER_COUNT, GENIE_OFFER_Y_SLOTS,
     GENIE_CHAMBER_GAP_BOOST, GENIE_CHAMBER_SPACING,
     GENIE_CHAMBER_REVEAL_DIST,
@@ -71,8 +73,16 @@ from game.weather import (
     storm_intensity as _storm_intensity,
     thermal_intensity as _thermal_intensity,
     GENIE_PILLAR,
+    _phase_for_pillar,
 )
+from game.clown_routes import build_clown_route
 from game.ambient import AmbientScenes
+
+# Biome phase at which the clown event fires each day — the phase of
+# CLOWN_START_PILLAR. On day 1 this lands at pillar 65; on later days it recurs
+# at the same time-of-day (the run-length per day is constant after the biome
+# day was lengthened to absorb the event).
+CLOWN_EVENT_PHASE = _phase_for_pillar(CLOWN_START_PILLAR)
 
 
 def _lerp(a, b, t):
@@ -270,6 +280,12 @@ class World:
         self._last_biome_phase = 0.0
         self._finale_rush_remaining = 0
         self._finale_box_dropped = False
+        # Clown event: a held CLOWN_SLOT_PILLARS-wide slot, re-armed each day.
+        # `_clown_route` is the rolled gauntlet (list of (gap_cy, gap_h)); the
+        # first len(route) slot pillars are warren towers, the rest regular fill.
+        self._clown_slot_remaining = 0
+        self._clown_route = []
+        self._clown_fired_this_cycle = False
         # Transient flag so near-miss detection fires once per pillar.
         self._near_miss_flags: dict[int, bool] = {}
 
@@ -421,6 +437,16 @@ class World:
 
     def _current_spacing(self):
         return int(_lerp(PIPE_SPACING_NEWBIE, PIPE_SPACING, self._ramp_t()))
+
+    def _next_spacing(self):
+        """Spacing for the NEXT pillar to spawn. During the clown slot the
+        warren towers sit at the tight fused spacing; everything else (incl.
+        the slot's regular-fill tail) uses the normal ramped spacing."""
+        if self._clown_slot_remaining > 0:
+            idx = CLOWN_SLOT_PILLARS - self._clown_slot_remaining
+            if idx < len(self._clown_route):
+                return CLOWN_WARREN_SPACING
+        return self._current_spacing()
 
     def _current_powerup_chance(self):
         return _lerp(POWERUP_CHANCE_NEWBIE, POWERUP_CHANCE, self._ramp_t())
@@ -693,6 +719,25 @@ class World:
         # power-up. The visual announcement fires below.
         self.pipes_spawned += 1
         is_rush = (self.pipes_spawned % COIN_RUSH_INTERVAL == 0)
+        # ── Clown event slot ───────────────────────────────────────────────
+        # While the held slot is active, the first len(route) pillars are the
+        # warren gauntlet (tight is_staff towers on the rolled route, scoring +
+        # colliding but no coins/powerups/geyser); any remaining slot pillars
+        # are normal gameplay. Coin rush is suppressed across the whole slot so
+        # downstream pillar numbering stays deterministic.
+        if self._clown_slot_remaining > 0:
+            idx = CLOWN_SLOT_PILLARS - self._clown_slot_remaining
+            self._clown_slot_remaining -= 1
+            is_rush = False
+            if idx < len(self._clown_route):
+                route_cy, route_gap = self._clown_route[idx]
+                p = Pipe(x, float(route_cy), int(route_gap))
+                p.is_rush = False
+                p.spawn_index = self.pipes_spawned - 1
+                p.is_staff = True
+                self.pipes.append(p)
+                return
+            # else: regular-fill pillar — fall through to normal spawning.
         # Cycle-finale: while a finale is queued (5 pillars after the
         # day/night rollover), every pillar is forced into a coin rush.
         # The chamber path still wins if both coincide — the finale just
@@ -1348,6 +1393,9 @@ class World:
                 and _new_phase < CYCLE_FINALE_PHASE_LO):
             self._finale_rush_remaining = CYCLE_FINALE_RUSH_PILLARS
             self._finale_box_dropped = False
+            # Re-arm the clown event for the new day so it fires again when the
+            # phase next crosses CLOWN_EVENT_PHASE.
+            self._clown_fired_this_cycle = False
             # Day counter ticks once per cycle wrap. The banner that
             # rides the chest pickup later in this same finale rush
             # reads max(1, cycles_completed) so the first cycle the
@@ -1412,6 +1460,15 @@ class World:
                     CelebrationBalloonCluster(decor_left_x, right_x))
                 self.celebration_crowds.append(
                     CelebrationCrowd(decor_left_x, right_x, finish_x=finish_x))
+        # Clown event trigger: once per day, when the phase crosses the clown
+        # anchor, roll the gauntlet length and reserve the held slot. _spawn_pipe
+        # then lays the warren towers + regular fill as pillars scroll in.
+        if (not self._clown_fired_this_cycle
+                and self._last_biome_phase < CLOWN_EVENT_PHASE <= _new_phase):
+            self._clown_fired_this_cycle = True
+            n = random.randint(CLOWN_ROLL_MIN, CLOWN_ROLL_MAX)
+            self._clown_route = build_clown_route(n, random)
+            self._clown_slot_remaining = CLOWN_SLOT_PILLARS
         self._last_biome_phase = _new_phase
         # Weather tracks biome phase, scales with sdt so slowmo softens rain too.
         self.weather.update(sdt, self.biome_phase)
@@ -1561,7 +1618,7 @@ class World:
             # track and the right edge. After the ride ends the pipe
             # list may be empty (all rail pipes culled); re-seed one
             # fresh pipe so the player has something to navigate.
-            spacing = self._current_spacing()
+            spacing = self._next_spacing()
             if self.demo is None and not self.bird.cart_active:
                 if not self.pipes:
                     self._spawn_pipe(W + 60)
