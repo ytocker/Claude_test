@@ -10,33 +10,48 @@ Retention definitions (held constant so tests have known answers):
     fetched frame*. The app feeds a wide (~120d) frame here so the
     install day is real for cohorts at least `max_day` days old.
   • Dn retained  = two flavours, both supported:
-      - UNBOUNDED (default, "classic mobile" / rolling): the device was
-        active on install+n OR ANY later day. Monotone non-increasing by
-        construction, so it reads as an honest leak curve and D7 ≤ D1
-        always holds. This is the headline (KPIs + the curve chart).
-      - EXACT (day-n only): the device was active on precisely
-        install+n. Bumpy by nature — a player who skips a week then
-        returns on D7 lifts D7 above D6 — which is true but reads as
-        noise on a small-N casual game. Offered as a chart toggle, not a
-        KPI, because exact-day points are dominated by single-cohort
-        sampling here.
+      - EXACT (default, "classic Dn"): the device was active on precisely
+        install+n. This is the textbook same-day-n definition every
+        hyper-casual benchmark (D1 25–35%, D7 6–12%) is quoted against,
+        so it is the ONLY basis that may sit next to those benchmarks.
+        It drives the KPI cards AND the default curve. Bumpy on small N
+        (a player who skips a week then returns on D7 lifts that single
+        point) — banded with a Wilson CI so the eye reads the noise.
+      - UNBOUNDED ("rolling": active by day ≥ n): the device was active
+        on install+n OR ANY later day. Monotone non-increasing by
+        construction, so D7 ≤ D1 always holds — but it OVERSTATES classic
+        Dn and is NOT comparable to the benchmarks. Shown only as a
+        clearly-labelled secondary line on the curve, never on a card.
   • censoring    = a (cohort, offset) is only counted once enough wall
     time has passed (install + offset ≤ today); younger cells are
     omitted rather than counted as 0, so a fresh cohort doesn't drag
     the curve down.
 
+The definitional inequality unbounded(n) ≥ exact(n) holds at every
+offset (active-on-day-n implies active-by-day-≥-n), which is exactly why
+the two are not interchangeable and must never share a card. Pinned by
+test_unbounded_dominates_exact.
+
 Windowed-telemetry caveat: a device whose true first play predates the
 frame looks "new" the day it re-enters. Exact fix needs a server-side
-first_seen; out of scope. Surfaced in chart subtitles.
+first_seen; out of scope. Surfaced in chart subtitles AND on the cards.
 
 Small-N honesty: cohort sizes are tiny here (most are 1–2 devices), so a
 single returning player swings a per-cohort cell by 50–100%. The settled
-denominator (N) is carried on every curve row and the cohort sizes ride
-the triangle's row labels so the noise floor is visible, never hidden.
+denominator (N) is carried on every curve row, the exact curve is banded
+with a Wilson CI, and the triangle suppresses cohorts below n≥3 so the
+visible cells aren't n=1 noise.
 """
 from __future__ import annotations
 
+import math
+
 import pandas as pd
+
+# Below this cohort size a per-cohort retention row is one or two devices —
+# a single returner swings it 50–100%. The triangle suppresses smaller
+# cohorts so the heatmap shows signal, not sampling jitter.
+MIN_COHORT_SIZE = 3
 
 from metrics.common import day_floor_cutoff, in_window, window_cutoff
 
@@ -109,18 +124,46 @@ def new_players_today(df: pd.DataFrame) -> int:
     return int((_first_seen(df) == today).sum())
 
 
+def wilson_interval(retained: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """95% Wilson score interval for a binomial proportion retained/n.
+    Chosen over the normal approximation because it behaves at the tiny n
+    and the 0%/100% extremes this tab lives at (it never runs past [0,1]
+    and isn't degenerate when retained is 0 or n). Returns (lo, hi) as
+    fractions; (0.0, 0.0) when n == 0."""
+    if n <= 0:
+        return 0.0, 0.0
+    p = retained / n
+    denom = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / denom
+    half = (z / denom) * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
+    return max(0.0, centre - half), min(1.0, centre + half)
+
+
 def retention_summary(df: pd.DataFrame) -> dict[str, float]:
-    """{'d1': .., 'd7': ..} pooled across the settled cohort — the two
-    headline retention KPIs. Uses the UNBOUNDED curve so D7 ≤ D1 always
-    holds (a player active on day ≥7 also counts for day ≥1); the exact-
-    day flavour can put D7 above D6 on small N, which reads as a broken
-    KPI. 0.0 when no cohort is old enough."""
-    curve = retention_curve(df, max_day=7, mode="unbounded")
-    out = {"d1": 0.0, "d7": 0.0}
+    """The two headline retention KPIs, pooled across the settled cohort.
+    Uses the EXACT (classic Dn) curve — the same basis the hyper-casual
+    benchmarks (D1 25–35%, D7 6–12%) are quoted against, so the cards are
+    benchmark-comparable and equal the default curve's points. Each Dn
+    carries its Wilson 95% CI bounds (d1_lo/d1_hi/…) and the settled n so
+    a card can state its own uncertainty without the chart. 0.0 when no
+    cohort is old enough."""
+    curve = retention_curve(df, max_day=7, mode="exact")
+    out = {
+        "d1": 0.0, "d7": 0.0,
+        "d1_lo": 0.0, "d1_hi": 0.0, "d7_lo": 0.0, "d7_hi": 0.0,
+        "n": 0,
+    }
+    if curve.empty:
+        return out
+    n = int(curve["cohort_devices"].iloc[0])
+    out["n"] = n
     for off, key in ((1, "d1"), (7, "d7")):
         row = curve[curve["day_offset"] == off]
-        if not row.empty and int(row["cohort_devices"].iloc[0]) > 0:
+        if not row.empty and n > 0:
+            retained = int(row["retained"].iloc[0])
             out[key] = float(row["retained_frac"].iloc[0])
+            lo, hi = wilson_interval(retained, n)
+            out[f"{key}_lo"], out[f"{key}_hi"] = lo, hi
     return out
 
 
@@ -172,7 +215,7 @@ def cohort_retention(df: pd.DataFrame, max_day: int = 7) -> pd.DataFrame:
 
 
 def retention_curve(
-    df: pd.DataFrame, max_day: int = 7, mode: str = "unbounded",
+    df: pd.DataFrame, max_day: int = 7, mode: str = "exact",
 ) -> pd.DataFrame:
     """Single pooled D0..Dn curve over a CONSISTENT denominator: only
     cohorts old enough to be fully observed through `max_day`
@@ -181,16 +224,21 @@ def retention_curve(
     per-offset-eligible denominator per point) is half of the honest
     read; the other half is the retention *flavour*:
 
-      • mode="unbounded" (default): retained at offset n = device active
+      • mode="exact" (default): device active on precisely day install+n.
+        Classic Dn — the basis the benchmarks are quoted against, so it
+        drives the KPI cards and the default curve. Banded with a Wilson
+        CI (frac_lo/frac_hi columns) because it's bumpy on small N.
+      • mode="unbounded" ("rolling"): retained at offset n = device active
         on day install+n OR any LATER observed day. Monotone
-        non-increasing — the leak curve. Drives the KPIs.
-      • mode="exact": device active on precisely day install+n. Bumpy by
-        construction on small N; offered only as a chart toggle.
+        non-increasing, but it overstates classic Dn — shown only as a
+        labelled secondary curve line, never on a card.
 
-    Columns: [day_offset, cohort_devices, retained, retained_frac]. The
-    constant cohort_devices column is the small-N denominator, kept on
-    every row so callers can label the curve with N."""
-    cols = ["day_offset", "cohort_devices", "retained", "retained_frac"]
+    Columns: [day_offset, cohort_devices, retained, retained_frac,
+    frac_lo, frac_hi]. The constant cohort_devices column is the small-N
+    denominator, kept on every row so callers can label the curve with N;
+    frac_lo/frac_hi are the Wilson 95% bounds for the band."""
+    cols = ["day_offset", "cohort_devices", "retained", "retained_frac",
+            "frac_lo", "frac_hi"]
     if df.empty:
         return pd.DataFrame(columns=cols)
     if mode not in ("unbounded", "exact"):
@@ -217,20 +265,33 @@ def retention_curve(
             )
         else:
             retained = int((max_offset >= off).sum())
+        lo, hi = wilson_interval(retained, total)
         rows.append({
             "day_offset": off,
             "cohort_devices": total,
             "retained": retained,
             "retained_frac": retained / total,
+            "frac_lo": lo,
+            "frac_hi": hi,
         })
     return pd.DataFrame(rows, columns=cols)
 
 
-def retention_matrix(df: pd.DataFrame, max_day: int = 7) -> pd.DataFrame:
+def retention_matrix(
+    df: pd.DataFrame, max_day: int = 7, min_cohort: int = MIN_COHORT_SIZE,
+) -> pd.DataFrame:
     """Wide cohort × day-offset matrix of retained_frac — the classic
     retention triangle. Rows = cohort_date, cols = 0..max_day. Censored
-    cells are NaN so the heatmap leaves them blank."""
+    cells are NaN so the heatmap leaves them blank.
+
+    Cohorts smaller than `min_cohort` devices are suppressed: at the live
+    ~120d span most cohorts are a single device, where each cell is one
+    returner's coin-flip and ~25 such rows render as illegible noise.
+    Keeping only n≥`min_cohort` rows leaves the cells that carry signal."""
     cr = cohort_retention(df, max_day=max_day)
+    if cr.empty:
+        return pd.DataFrame()
+    cr = cr[cr["cohort_size"] >= min_cohort]
     if cr.empty:
         return pd.DataFrame()
     mat = cr.pivot(index="cohort_date", columns="day_offset", values="retained_frac")

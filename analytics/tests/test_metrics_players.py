@@ -63,15 +63,49 @@ def test_cohort_retention_known_fractions():
     assert sub.loc[1, "retained_frac"] == 2 / 3
 
 
-def test_retention_curve_summary_pooled():
-    # Summary uses the UNBOUNDED curve. On this frame exact and unbounded
-    # agree at D1/D7 (no device skips then returns within the cohort window
-    # below offset 7), so the historical headline values still hold:
-    #   D1 = devices reaching offset ≥1 = {A, B} = 2/3
-    #   D7 = devices reaching offset ≥7 = {A}    = 1/3
+def test_retention_curve_summary_is_exact_with_ci():
+    # Summary now uses the EXACT (classic Dn) curve so the cards are
+    # benchmark-comparable and equal the default curve's points.
+    #   D1 = devices active on EXACTLY offset 1 = {A, B} = 2/3
+    #   D7 = devices active on EXACTLY offset 7 = {A}    = 1/3
+    # (On this frame those happen to equal the unbounded values because
+    # A is active precisely at offsets 1 and 7.) The settled n is 3 and
+    # each Dn carries its Wilson 95% bounds, bracketing the point estimate.
     summ = m.retention_summary(_cohort_frame())
     assert summ["d1"] == 2 / 3
     assert summ["d7"] == 1 / 3
+    assert summ["n"] == 3
+    assert summ["d1_lo"] < summ["d1"] < summ["d1_hi"]
+    assert summ["d7_lo"] < summ["d7"] < summ["d7_hi"]
+    # Bounds match the Wilson helper on (retained, n).
+    assert (summ["d1_lo"], summ["d1_hi"]) == m.wilson_interval(2, 3)
+    assert (summ["d7_lo"], summ["d7_hi"]) == m.wilson_interval(1, 3)
+
+
+def test_wilson_interval_bounds_and_degenerate():
+    # Stays inside [0,1] at the 0% and 100% extremes, and is empty at n=0.
+    lo, hi = m.wilson_interval(0, 5)
+    assert lo == 0.0 and 0.0 < hi < 1.0
+    lo, hi = m.wilson_interval(5, 5)
+    assert 0.0 < lo < 1.0 and hi == 1.0
+    assert m.wilson_interval(0, 0) == (0.0, 0.0)
+
+
+def test_unbounded_dominates_exact():
+    # Definitional inequality: active-on-day-n ⊆ active-by-day-≥-n, so
+    # unbounded(offset) ≥ exact(offset) at EVERY offset. This is exactly
+    # why the two flavours are not interchangeable and must never share a
+    # KPI card. Asserted on the cohort frame, which has the A skip-return
+    # that drives a strict gap at offsets 2..6.
+    df = _cohort_frame()
+    ex = m.retention_curve(df, max_day=7, mode="exact").set_index("day_offset")
+    un = m.retention_curve(df, max_day=7, mode="unbounded").set_index("day_offset")
+    for off in range(0, 8):
+        assert un.loc[off, "retained"] >= ex.loc[off, "retained"], off
+        assert un.loc[off, "retained_frac"] >= ex.loc[off, "retained_frac"]
+    # And the gap is strict somewhere (offsets 2..6: A is alive unbounded,
+    # absent exact), proving they genuinely differ.
+    assert any(un.loc[o, "retained"] > ex.loc[o, "retained"] for o in range(2, 7))
 
 
 def test_retention_curve_unbounded_is_monotone():
@@ -130,10 +164,31 @@ def test_cohort_censors_future_offsets():
 def test_retention_matrix_shape_and_blank_cells():
     mat = m.retention_matrix(_cohort_frame(), max_day=7)
     assert list(mat.columns) == list(range(8))
-    # Today's cohort has only offset 0 observed; the rest must be NaN.
-    today = TODAY
-    assert mat.loc[today, 0] == 1.0
-    assert pd.isna(mat.loc[today, 1])
+    # The n=3 cohort (A, B, C, installed 10d ago) survives the n≥3
+    # suppression; today's single-device cohort (D, n=1) is dropped.
+    cohort = TODAY - pd.Timedelta(days=10)
+    assert cohort in mat.index
+    assert TODAY not in mat.index
+    # Within the kept cohort, offset 0 is fully observed (all 3 played
+    # install day) and offsets 4..6 had no activity → exact-day 0%, not NaN.
+    assert mat.loc[cohort, 0] == 1.0
+    assert mat.loc[cohort, 1] == 2 / 3
+    # Offsets beyond the observed span of this cohort (it's only 10d old,
+    # so all of D0..D7 are settled) are real values, not censored here.
+    assert not pd.isna(mat.loc[cohort, 7])
+
+
+def test_retention_matrix_suppresses_small_cohorts():
+    # A frame of only single-device cohorts → nothing clears n≥3, so the
+    # triangle is empty rather than 25 rows of one-returner coin-flips.
+    df = _frame([
+        _row(id_=1, device_id="P", days_ago=20),
+        _row(id_=2, device_id="Q", days_ago=18),
+        _row(id_=3, device_id="R", days_ago=15),
+    ])
+    assert m.retention_matrix(df, max_day=7).empty
+    # Lowering the threshold lets them back in (the knob works).
+    assert not m.retention_matrix(df, max_day=7, min_cohort=1).empty
 
 
 def test_new_players_today():
@@ -165,5 +220,7 @@ def test_retention_on_empty():
     assert m.retention_curve(_empty()).empty
     assert m.retention_matrix(_empty()).empty
     assert m.cohort_retention(_empty()).empty
-    assert m.retention_summary(_empty()) == {"d1": 0.0, "d7": 0.0}
+    summ = m.retention_summary(_empty())
+    assert summ["d1"] == 0.0 and summ["d7"] == 0.0 and summ["n"] == 0
+    assert summ["d1_lo"] == 0.0 and summ["d7_hi"] == 0.0
     assert m.new_players_today(_empty()) == 0

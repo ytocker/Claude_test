@@ -6,6 +6,7 @@ import pandas as pd
 
 import metrics
 from metrics import gameplay as m
+from charts import gameplay as c
 from constants import POWERUP_KEYS_ACTIVE
 
 NOW = pd.Timestamp.now(tz="UTC")
@@ -135,11 +136,67 @@ def test_coin_economy_ratio():
 def test_skill_proxy_columns_and_filters_short_runs():
     df = _frame([
         _row(id_=1, duration_s=1, pillars=5),   # <2s → dropped
-        _row(id_=2, duration_s=20, pillars=10, near_misses=4),
+        _row(id_=2, duration_s=20, score=40, pillars=10, near_misses=4),
     ])
     out = metrics.skill_proxy_by_day(df, days=30)
-    assert set(out.columns) == {"date", "pillars_per_s", "near_miss_rate"}
+    # Round 2: pillars/sec (near-constant by fixed-step design) replaced
+    # by score-per-second-alive (efficiency moves with skill).
+    assert set(out.columns) == {"date", "score_per_s", "near_miss_rate"}
     assert len(out) == 1  # only the 20s run survives
+    # 40 pts over 20s alive → 2.0 pts/s; 4 near-misses over 10 pillars → 0.4.
+    assert out["score_per_s"].iloc[0] == 2.0
+    assert out["near_miss_rate"].iloc[0] == 0.4
+
+
+def test_skill_proxy_score_per_s_robust_to_whale():
+    # The whale's per-second is huge but the day-level median ignores it.
+    rows = [_row(id_=i, score=30, duration_s=30) for i in range(5)]  # 1.0 pts/s
+    rows += [_row(id_=99, score=42000, duration_s=200)]              # 210 pts/s
+    out = metrics.skill_proxy_by_day(_frame(rows), days=30)
+    assert out["score_per_s"].iloc[0] == 1.0  # median, not mean → whale-proof
+
+
+def test_score_quantiles_low_n_guard():
+    # A thin day (< MIN_EFFICACY_N runs) is flagged low_n; a fat day isn't.
+    thin = [_row(id_=i, days_ago=3, score=100) for i in range(4)]
+    fat = [_row(id_=100 + i, days_ago=1, score=100) for i in range(m.MIN_EFFICACY_N + 2)]
+    out = metrics.score_quantiles_by_day(_frame(thin + fat), days=30)
+    assert set(out.columns) == {"date", "median", "p90", "n", "low_n"}
+    assert "max" not in out.columns  # dropped — whale line, not a tuning read
+    by_n = out.set_index("n")["low_n"]
+    assert bool(by_n.loc[4]) is True
+    assert bool(by_n.loc[m.MIN_EFFICACY_N + 2]) is False
+
+
+def test_score_vs_survival_flags_picked_runs():
+    rows = [_row(id_=i, score=200, duration_s=80, powerups=_pu(magnet=1))
+            for i in range(3)]
+    rows += [_row(id_=10 + i, score=50, duration_s=40, powerups=_pu())
+             for i in range(4)]
+    sv = m.score_vs_survival(_frame(rows), powerup="magnet", days=30)
+    assert set(sv.columns) == {"duration_s", "score", "picked"}
+    assert int(sv["picked"].sum()) == 3
+    assert len(sv) == 7
+
+
+def test_efficacy_chart_builds_with_low_n_row():
+    # The legend-swatch bug surfaced precisely when a row was low_n; the
+    # fix expresses low-N via marker OPACITY (array-safe) with a SCALAR-ish
+    # marker_color, so the chart must build cleanly on a low_n row.
+    few = [_row(id_=i, powerups=_pu(magnet=1)) for i in range(3)]   # low_n
+    many = [_row(id_=10 + i, powerups=_pu(triple=1)) for i in range(15)]
+    eff = m.powerup_efficacy(_frame(few + many), days=30)
+    assert bool(eff.set_index("powerup").loc["magnet", "low_n"]) is True
+    fig = c.powerup_efficacy(eff)   # must not raise
+    assert len(fig.data) >= 1
+
+
+def test_score_vs_survival_chart_builds():
+    rows = [_row(id_=i, powerups=_pu(magnet=1)) for i in range(3)]
+    rows += [_row(id_=10 + i, powerups=_pu()) for i in range(3)]
+    fig = c.score_vs_survival(m.score_vs_survival(_frame(rows), powerup="magnet"),
+                              powerup="magnet")
+    assert len(fig.data) >= 1
 
 
 def test_gameplay_metrics_on_empty():

@@ -25,20 +25,29 @@ def render(df, window: int) -> None:
     active = m.active_players(df, days=7)
     one_shot = m.one_shot_count(df, days=7)
     bounce = (one_shot / active * 100) if active else 0.0
+    n_settled = m.settled_cohort_size(df, max_day=7)
 
     k1, k2, k3, k4, k5 = st.columns(5)
     k1.metric("New players today", f"{m.new_players_today(df):,}",
               help="Devices whose first play seen in-window is today.")
     k2.metric("Returning rate (7d)", f"{m.returning_rate_7d(df) * 100:.0f}%",
               help="Share of 7d players active on ≥2 distinct days.")
-    n_settled = m.settled_cohort_size(df, max_day=7)
+    # Cards are EXACT classic Dn — the only basis comparable to the
+    # hyper-casual benchmarks — and equal the default curve's points. Each
+    # card states its basis, settled n, the Wilson 95% CI, and the
+    # windowed-install caveat so a screenshot of the card alone stays honest.
+    d1_ci = f"{ret['d1_lo'] * 100:.0f}–{ret['d1_hi'] * 100:.0f}%"
+    d7_ci = f"{ret['d7_lo'] * 100:.0f}–{ret['d7_hi'] * 100:.0f}%"
     k3.metric("D1 retention", f"{ret['d1'] * 100:.0f}%",
-              help=f"Unbounded: settled-cohort devices active on day ≥1. "
-                   f"n={n_settled} installs. Hyper-casual benchmark: 25–35%.")
+              help=f"Classic Dn (exact day-1 return), the benchmark-comparable "
+                   f"basis. n={n_settled} settled installs; 95% CI {d1_ci}. "
+                   "Hyper-casual benchmark: 25–35%. Install = first play seen "
+                   "in the fetched window (a pre-window return reads as new).")
     k4.metric("D7 retention", f"{ret['d7'] * 100:.0f}%",
-              help=f"Unbounded: settled-cohort devices active on day ≥7. "
-                   f"n={n_settled} installs. D7 ≤ D1 by construction. "
-                   "Hyper-casual benchmark: 6–12%.")
+              help=f"Classic Dn (exact day-7 return), the benchmark-comparable "
+                   f"basis. n={n_settled} settled installs; 95% CI {d7_ci}. "
+                   "Hyper-casual benchmark: 6–12%. Install = first play seen "
+                   "in the fetched window (a pre-window return reads as new).")
     k5.metric("Bounce (7d)", f"{bounce:.0f}%",
               delta=f"{one_shot:,} one-shots", delta_color="off",
               help="One-shot players as a share of 7d actives.")
@@ -47,15 +56,19 @@ def render(df, window: int) -> None:
 
     left, right = st.columns(2)
     with left:
-        mode = st.radio(
-            "Retention basis", ["unbounded", "exact"], horizontal=True,
-            key="players_retention_mode",
-            help="Unbounded (default) counts a device retained at day n if "
-                 "it was active on day n OR any later day — a monotone leak "
-                 "curve. Exact counts day-n activity only; bumpy on small N.",
+        show_rolling = st.checkbox(
+            "Overlay rolling (active by day ≥ n)", value=False,
+            key="players_show_rolling",
+            help="Adds a dashed secondary line: a device counts at day n if "
+                 "active on day n OR any later day. Monotone, but it overstates "
+                 "classic Dn and is NOT comparable to the 25–35% / 6–12% "
+                 "benchmarks. The solid line + cards are exact classic Dn.",
         )
+        rolling = (m.retention_curve(df, max_day=7, mode="unbounded")
+                   if show_rolling else None)
         st.plotly_chart(
-            c.retention_curve(m.retention_curve(df, max_day=7, mode=mode), mode=mode),
+            c.retention_curve(
+                m.retention_curve(df, max_day=7, mode="exact"), rolling_df=rolling),
             use_container_width=True,
         )
     with right:

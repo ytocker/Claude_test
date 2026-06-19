@@ -56,15 +56,25 @@ def render(df, window: int) -> None:
         st.plotly_chart(c.coin_economy(m.coin_economy_by_day(df, days=window)),
                         use_container_width=True)
 
-    # Marquee balance read, given full width: the paired score/survival bars
-    # need the room and this is the chart the team retunes against.
+    # The difficulty-shape view: one dot per run, coloured by the power-up
+    # the efficacy bar leads on (Magnet, the standout). Full width so the
+    # run cloud has room — it makes the exposure confound the efficacy chart
+    # nets out visible rather than asserted.
+    st.plotly_chart(
+        c.score_vs_survival(m.score_vs_survival(df, powerup="magnet", days=window),
+                            powerup="magnet"),
+        use_container_width=True)
+
+    # Marquee balance read, given full width: the diverging excess-lift bar
+    # is the single number the team retunes against and needs the room.
     st.plotly_chart(c.powerup_efficacy(m.powerup_efficacy(df, days=window)),
                     use_container_width=True)
 
     st.caption(
         "*Reverse* excluded (disabled in-game). *Surprise* counts only the box "
         "pickup. Efficacy is correlational — longer runs naturally see more "
-        "power-up spawns; the score-vs-survival gap is the partial control for "
-        "that. Bars marked * are below "
+        "power-up spawns. The excess bar (score lift − survival lift) is a "
+        "partial control for that and a flag, not a verdict; the scatter shows "
+        "the same confound run-by-run. Bars marked * are below "
         f"{m.MIN_EFFICACY_N} picked runs — noisy, read with caution."
     )

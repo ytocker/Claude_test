@@ -68,46 +68,66 @@ def coins_per_run(df: pd.DataFrame, days: int = 7) -> float:
 
 
 def score_quantiles_by_day(df: pd.DataFrame, days: int = 30) -> pd.DataFrame:
-    """Median / p90 / max score per UTC day. Empty days are dropped (the
-    chart will simply not draw a point there)."""
+    """Median / p90 score per UTC day, with the per-day run count `n` and a
+    `low_n` flag. Empty days are dropped (the chart will simply not draw a
+    point there).
+
+    `low_n` marks days under MIN_EFFICACY_N runs: on a thin day a single
+    near-ceiling run drags p90 into the tens of thousands and owns the log
+    axis. The chart de-emphasises those days so a 6-run day's whale-driven
+    p90 isn't read as a difficulty signal. (`max` is no longer returned —
+    it was only ever a whale/cheater line, never a tuning read.)"""
+    cols = ["date", "median", "p90", "n", "low_n"]
     if df.empty:
-        return pd.DataFrame(columns=["date", "median", "p90", "max"])
+        return pd.DataFrame(columns=cols)
     sub = df.copy()
     sub["date"] = sub["played_at"].dt.floor("D")
     sub = sub[sub["date"] >= day_floor_cutoff(days)]
     if sub.empty:
-        return pd.DataFrame(columns=["date", "median", "p90", "max"])
+        return pd.DataFrame(columns=cols)
     out = sub.groupby("date")["score"].agg(
         median="median",
         p90=lambda s: float(s.quantile(0.9)),
-        max="max",
+        n="size",
     ).reset_index()
-    return out
+    out["low_n"] = out["n"] < MIN_EFFICACY_N
+    return out[cols]
 
 
 def skill_proxy_by_day(df: pd.DataFrame, days: int = 30) -> pd.DataFrame:
-    """Median pillars-per-second + near-miss rate by day. Filters out
-    trivially-short runs (<2s) so a wave of immediate flame-outs doesn't
-    dominate the skill curve. (Previously computed but never rendered —
-    now wired into the gameplay tab.)"""
+    """Median score-per-second-alive + near-miss-rate-per-pillar by day.
+    Filters out trivially-short runs (<2s) so a wave of immediate
+    flame-outs doesn't dominate the curve.
+
+    Pillars/sec was dropped: scroll speed is fixed-step, so pillars/sec is
+    near-constant by design (a ±3% band a twin axis turns into a fake
+    story). The two signals kept actually move with play:
+      • `score_per_s` — points earned per second alive. Survival rate
+        can't move with skill the way efficiency can; a player threading
+        coin rushes scores faster per second even at equal survival.
+      • `near_miss_rate` — near-misses per pillar passed, the half-real
+        risk signal. Both render on a SINGLE axis (comparable units of
+        per-second / per-pillar are not, so the chart leads with
+        score-per-second and offers near-miss as a secondary line)."""
+    cols = ["date", "score_per_s", "near_miss_rate"]
     if df.empty:
-        return pd.DataFrame(columns=["date", "pillars_per_s", "near_miss_rate"])
+        return pd.DataFrame(columns=cols)
     sub = df[df["duration_s"] >= 2].copy()
     if sub.empty:
-        return pd.DataFrame(columns=["date", "pillars_per_s", "near_miss_rate"])
+        return pd.DataFrame(columns=cols)
     sub["date"] = sub["played_at"].dt.floor("D")
-    sub["pps"] = sub["pillars"] / sub["duration_s"].clip(lower=1)
+    sub["sps"] = sub["score"] / sub["duration_s"].clip(lower=1)
     sub = sub[sub["date"] >= day_floor_cutoff(days)]
     if sub.empty:
-        return pd.DataFrame(columns=["date", "pillars_per_s", "near_miss_rate"])
+        return pd.DataFrame(columns=cols)
     grouped = sub.groupby("date").apply(
         lambda g: pd.Series({
-            "pillars_per_s": float(g["pps"].median()),
+            "score_per_s": float(g["sps"].median()),
             "near_miss_rate": float(g["near_misses"].sum() / max(g["pillars"].sum(), 1)),
         }),
         include_groups=False,
     ).reset_index()
-    return grouped
+    return grouped[cols]
 
 
 def coin_economy_by_day(df: pd.DataFrame, days: int = 30) -> pd.DataFrame:
@@ -231,6 +251,33 @@ def powerup_efficacy(df: pd.DataFrame, days: int = 30) -> pd.DataFrame:
             "low_n": n_with < MIN_EFFICACY_N,
         })
     return pd.DataFrame(rows, columns=cols)
+
+
+def score_vs_survival(df: pd.DataFrame, powerup: str = "magnet",
+                      days: int = 30) -> pd.DataFrame:
+    """One row per run: survival seconds, score, and whether the run picked
+    `powerup` at least once. The raw difficulty-shape view the histograms
+    can't give — and the picture the efficacy chart only *summarises*: you
+    see directly that picked-runs cluster up-and-right (longer AND
+    higher-scoring), i.e. the exposure confound, rather than taking the
+    excess-lift number on faith.
+
+    Columns: [duration_s, score, picked]. Empty/zero-duration runs are
+    kept (a flame-out at t≈0 is itself a difficulty signal); the chart
+    clips the score axis, not the row set."""
+    cols = ["duration_s", "score", "picked"]
+    if df.empty:
+        return pd.DataFrame(columns=cols)
+    sub = in_window(df, days).copy()
+    if sub.empty:
+        return pd.DataFrame(columns=cols)
+    sub["picked"] = sub["powerups"].apply(
+        lambda d, key=powerup: isinstance(d, dict) and int(d.get(key, 0) or 0) > 0
+    )
+    out = sub[["duration_s", "score", "picked"]].copy()
+    out["duration_s"] = out["duration_s"].astype(float)
+    out["score"] = out["score"].astype(float)
+    return out.reset_index(drop=True)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────

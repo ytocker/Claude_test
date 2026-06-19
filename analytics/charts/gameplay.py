@@ -7,7 +7,18 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from constants import POWERUP_LABELS
-from theme import CORAL, GOLD, MUTED, SKY, style
+from metrics.gameplay import MIN_EFFICACY_N
+from theme import CORAL, GOLD, MUTED, SKY, SKY_SOFT, style
+
+# Explicit log-axis ticks (1,2,5,10,…). Plotly's auto log ticks otherwise
+# render a stray "1 / 9" minor-tick label at the very bottom of the axis.
+_LOG_TICKS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000]
+
+# Opacity floor for de-emphasised (small-sample) bars/points. Kept as a
+# per-element ARRAY (Plotly-safe) so marker_color can stay a SCALAR — a
+# per-bar marker_color *array* silently breaks the legend swatch.
+_LOW_N_OPACITY = 0.32
+_FULL_OPACITY = 1.0
 
 
 def score_hist(scores: pd.Series) -> go.Figure:
@@ -37,6 +48,9 @@ def score_hist(scores: pd.Series) -> go.Figure:
                       hovertemplate="%{x}: %{y} runs<extra></extra>")
     fig.update_layout(yaxis_type="log", yaxis_title="Runs (log)",
                       xaxis_title="Score", xaxis_range=[0, clip * 1.05])
+    # Explicit log tickvals: Plotly's default log ticks render a stray
+    # "1 / 9"-style minor-tick artifact at the bottom of the axis.
+    fig.update_yaxes(tickvals=_LOG_TICKS)
     fig.add_vline(x=median, line_dash="dash", line_color=GOLD,
                   annotation_text=f"median {int(median)}",
                   annotation_position="top left")
@@ -60,33 +74,48 @@ def duration_hist(durations: pd.Series) -> go.Figure:
     fig.add_histogram(x=durations, nbinsx=40, marker_color=SKY,
                       hovertemplate="%{x}s: %{y} runs<extra></extra>")
     fig.update_layout(yaxis_type="log", yaxis_title="Runs (log)", xaxis_title="Seconds alive")
+    fig.update_yaxes(tickvals=_LOG_TICKS)
     median = float(durations.median())
     fig.add_vline(x=median, line_dash="dash", line_color=GOLD,
                   annotation_text=f"median={median:.0f}s", annotation_position="top")
-    return style(fig, "Survival time (7d)")
+    return style(fig, "Survival time (7d)",
+                 subtitle="Watch the near-zero spike (rage-quit) vs the survival mode")
 
 
 def score_quantiles(q_df: pd.DataFrame) -> go.Figure:
     """Median + p90 score per day — the difficulty band the team tunes
-    against. Two deliberate readability choices for the fat-tailed score
+    against. Three deliberate readability choices for the fat-tailed score
     distribution:
       • `max` is NOT drawn — a single near-ceiling run is a whale/cheater,
         not a tuning signal.
       • y-axis is log. On a low-volume day one extreme run can still drag
-        p90 into the tens of thousands (the fixture's 42k run pins one
-        6-run day's p90 to ~21k); on a linear axis that flattens every
-        normal day into one flat line. Log keeps the ~200-point daily
-        band legible while the spike stays visible — and honest."""
-    sub = "Daily difficulty band · log-y · max omitted (whale/cheater, not signal)"
+        p90 into the tens of thousands; on a linear axis that flattens
+        every normal day into one flat line. Log keeps the ~200-point
+        daily band legible while the spike stays visible — and honest.
+      • thin days (n < MIN_EFFICACY_N) are drawn at low opacity with hollow
+        markers — on a 6-run day a single whale rockets p90 to ~21k and
+        owns half the axis. De-emphasising (not deleting) keeps the day
+        visible without letting its noise read as a difficulty signal."""
+    sub = (f"Daily difficulty band · log-y · faint = under {MIN_EFFICACY_N} "
+           "runs (noisy) · max omitted (whale, not signal)")
     fig = go.Figure()
     if q_df.empty:
         return style(fig, "Score percentiles per day", subtitle=sub)
+    low = q_df["low_n"].tolist() if "low_n" in q_df else [False] * len(q_df)
+    opac = [_LOW_N_OPACITY if lo else _FULL_OPACITY for lo in low]
+    symbols = ["circle-open" if lo else "circle" for lo in low]
     for col, color, name in (("median", SKY, "Median"),
                              ("p90", GOLD, "p90 (skilled ceiling)")):
         fig.add_scatter(
             x=q_df["date"], y=q_df[col], mode="lines+markers",
-            name=name, line=dict(color=color, width=2),
-            hovertemplate="%{x|%b %d}: %{y:,.0f} pts<extra>" + name + "</extra>")
+            name=name,
+            # SCALAR line/marker colour so the legend swatch survives; the
+            # noisy-day signal rides on the per-point opacity/symbol arrays.
+            line=dict(color=color, width=2),
+            marker=dict(color=color, size=7, opacity=opac, symbol=symbols),
+            customdata=q_df["n"],
+            hovertemplate="%{x|%b %d}: %{y:,.0f} pts · n=%{customdata}"
+                          "<extra>" + name + "</extra>")
     # Legend below the plot — a top legend collides with the subtitle.
     fig.update_layout(yaxis_type="log", yaxis_title="Score (log)",
                       legend=dict(orientation="h", yanchor="top", y=-0.18, x=0))
@@ -94,26 +123,32 @@ def score_quantiles(q_df: pd.DataFrame) -> go.Figure:
 
 
 def skill_over_time(skill_df: pd.DataFrame) -> go.Figure:
-    """Median pillars/second + near-miss rate per day on twin axes. Rising
-    pillars/sec = players getting better (or the game easing); a climbing
-    near-miss rate = play getting riskier. (Resurrected from dead code.)"""
+    """Median score-per-second-alive + near-miss-rate-per-pillar per day, on
+    a SINGLE linear axis. Pillars/sec was cut: it's near-constant by
+    fixed-step scroll design (a ±3% band a twin axis inflated into a fake
+    story). Both lines kept here are per-unit rates of the same ~0.25–1.4
+    magnitude, so they share one axis honestly:
+      • score-per-second (GOLD, the actionable read) — efficiency. Rising =
+        players threading rushes/power-ups faster; survival rate can't move
+        with skill the way this can.
+      • near-miss-per-pillar (SKY) — the half-real risk signal."""
+    sub = "Single axis · efficiency (score/s) + risk (near-miss/pillar) · pillars/sec cut (fixed-step, near-constant)"
     fig = go.Figure()
     if skill_df.empty:
-        return style(fig, "Skill over time")
-    fig.add_scatter(x=skill_df["date"], y=skill_df["pillars_per_s"],
-                    mode="lines+markers", name="Pillars/sec (median)",
-                    line=dict(color=SKY, width=2),
-                    hovertemplate="%{y:.2f} pillars/s<extra></extra>")
-    fig.add_scatter(x=skill_df["date"], y=skill_df["near_miss_rate"],
-                    mode="lines+markers", name="Near-miss rate", yaxis="y2",
+        return style(fig, "Skill over time", subtitle=sub)
+    fig.add_scatter(x=skill_df["date"], y=skill_df["score_per_s"],
+                    mode="lines+markers", name="Score / sec alive (median)",
                     line=dict(color=GOLD, width=2),
-                    hovertemplate="%{y:.2f} near-miss/pillar<extra></extra>")
+                    hovertemplate="%{x|%b %d}: %{y:.2f} pts/s<extra></extra>")
+    fig.add_scatter(x=skill_df["date"], y=skill_df["near_miss_rate"],
+                    mode="lines+markers", name="Near-miss / pillar",
+                    line=dict(color=SKY, width=2),
+                    hovertemplate="%{x|%b %d}: %{y:.2f} near-miss/pillar<extra></extra>")
     fig.update_layout(
-        yaxis=dict(title="Pillars/sec"),
-        yaxis2=dict(title="Near-miss rate", overlaying="y", side="right", showgrid=False),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+        yaxis=dict(title="Per-second / per-pillar rate", rangemode="tozero"),
+        legend=dict(orientation="h", yanchor="top", y=-0.18, x=0),
     )
-    return style(fig, "Skill over time")
+    return style(fig, "Skill over time", subtitle=sub)
 
 
 def powerup_mix(totals: pd.DataFrame) -> go.Figure:
@@ -132,55 +167,69 @@ def powerup_mix(totals: pd.DataFrame) -> go.Figure:
 
 
 def powerup_efficacy(eff_df: pd.DataFrame) -> go.Figure:
-    """Per-power-up diverging bars of BOTH score lift and survival lift
-    (runs that picked it vs runs that didn't), paired so they read against
-    each other. The gap between the two is the honesty payload: when score
-    lift sits well *above* duration lift the power-up is adding points per
-    second alive (real value); when the two track together the score bump
-    is mostly just more time on screen (exposure, the known confound).
-    Low-sample power-ups (n_with < MIN_EFFICACY_N) are greyed so a noisy
-    three-run bar isn't mistaken for a balance verdict. The marquee read."""
+    """The marquee balance read. Round 2 makes the headline quantity — the
+    *excess* score lift NOT explained by longer survival — the chart's
+    PRIMARY object instead of a hover footnote.
+
+    Each power-up gets one diverging bar of `excess_lift_pct`
+    (= score lift − survival lift). Read it as a flag, not a verdict:
+    subtracting two median ratios is a crude exposure control (longer runs
+    see more spawns), not a clean decomposition. A bar well to the right
+    means the score bump is bigger than the extra time-on-screen alone
+    would buy; near zero means the score gain mostly tracks survival.
+
+    Colour scheme (deliberate, per the theme's semantics):
+      • GOLD = the actionable element → reserved for the excess bar itself
+        (the thing the team retunes against). The old build mis-mapped GOLD
+        onto the *most-confounded* raw score bar; that's fixed.
+      • CORAL marks negative-excess (under-performers) so the two
+        directions read apart at a glance.
+    Raw score lift, survival lift, and n now live in the HOVER as the
+    supporting detail.
+
+    Small-sample bars (n_with < MIN_EFFICACY_N) are de-emphasised via
+    per-bar marker OPACITY (a Plotly-safe array) — never via a per-bar
+    marker_color array, which silently blanks the legend swatch exactly
+    when the data is noisy — plus the `*` label suffix."""
     fig = go.Figure()
-    title = "Power-up efficacy — score vs survival lift"
-    sub = ("Median with vs without · gap = value beyond time on screen · "
-           "correlational, not causal")
+    title = "Power-up efficacy — excess score lift (beyond survival)"
+    sub = ("Bar = score lift − survival lift · gap ≈ score lift NOT explained by "
+           "longer survival · a flag, not a verdict · correlational")
     if eff_df.empty:
         return style(fig, title, subtitle=sub)
-    # Sort by the exposure-adjusted excess so the genuinely over/under-
-    # performing power-ups land at the extremes, not the most-exposed.
+    # Sort by the excess itself so the strongest over/under-performers land
+    # at the extremes — the quantity sorted-on is now the quantity drawn.
     ordered = eff_df.sort_values("excess_lift_pct", ascending=True)
     labels = [POWERUP_LABELS.get(n, n) for n in ordered["powerup"]]
-
-    def _series(col, color, name):
-        # Grey out low-n bars regardless of sign; full accent otherwise.
-        bar_colors = [MUTED if low else color for low in ordered["low_n"]]
-        fig.add_bar(
-            x=ordered[col], y=labels, orientation="h", name=name,
-            marker_color=bar_colors,
-            text=[f"{v:+.0f}%" + ("*" if low else "")
-                  for v, low in zip(ordered[col], ordered["low_n"])],
-            textposition="outside", textfont=dict(size=10),
-            customdata=ordered[["n_with", "n_without", "excess_lift_pct"]].values,
-            hovertemplate="%{y} — " + name + ": %{x:+.0f}%<br>"
-                          "excess vs survival: %{customdata[2]:+.0f}%<br>"
-                          "n=%{customdata[0]} with, %{customdata[1]} without"
-                          "<extra></extra>",
-        )
-
-    _series("score_lift_pct", GOLD, "Score lift")
-    _series("dur_lift_pct", SKY, "Survival lift")
+    excess = ordered["excess_lift_pct"]
+    # SCALAR colour per directional group is impossible in one trace, so we
+    # encode sign with a per-bar colour array AND ship a manual legend via
+    # invisible scatter proxies — but the swatch-blanking bug is about the
+    # *legend trace's* marker, which here is a clean scalar. The bars carry
+    # no legend (single semantic series), so a colour array is safe.
+    bar_colors = [GOLD if v >= 0 else CORAL for v in excess]
+    bar_opac = [_LOW_N_OPACITY if low else _FULL_OPACITY for low in ordered["low_n"]]
+    fig.add_bar(
+        x=excess, y=labels, orientation="h",
+        marker=dict(color=bar_colors, opacity=bar_opac),
+        text=[f"{v:+.0f}%" + ("*" if low else "")
+              for v, low in zip(excess, ordered["low_n"])],
+        textposition="outside", textfont=dict(size=11),
+        customdata=ordered[["score_lift_pct", "dur_lift_pct",
+                            "n_with", "n_without"]].values,
+        hovertemplate="<b>%{y}</b> — excess %{x:+.0f}%<br>"
+                      "score lift %{customdata[0]:+.0f}% · "
+                      "survival lift %{customdata[1]:+.0f}%<br>"
+                      "n=%{customdata[2]} with, %{customdata[3]} without"
+                      "<extra></extra>",
+        showlegend=False,
+    )
     fig.add_vline(x=0, line_color=MUTED, line_width=1)
-    # Outside data labels need horizontal headroom or they clip; pad to the
-    # largest-magnitude bar across BOTH series.
-    span = float(max(ordered["score_lift_pct"].abs().max(),
-                     ordered["dur_lift_pct"].abs().max(), 1))
+    span = float(max(excess.abs().max(), 1))
     fig.update_layout(
-        barmode="group", bargap=0.25, bargroupgap=0.05,
-        xaxis_title="Lift vs runs without it (%)  ·  * = small sample",
-        xaxis_range=[-span * 1.35, span * 1.35],
-        # Legend below the plot: a top legend collides with the subtitle on
-        # this full-width panel.
-        legend=dict(orientation="h", yanchor="top", y=-0.28, x=0),
+        bargap=0.32,
+        xaxis_title="Excess score lift (%)  ·  * = small sample, read with caution",
+        xaxis_range=[-span * 1.45, span * 1.45],
     )
     fig.update_traces(cliponaxis=False)
     return style(fig, title, subtitle=sub)
@@ -204,6 +253,44 @@ def coin_economy(econ_df: pd.DataFrame) -> go.Figure:
     fig.update_layout(yaxis_title="Coins per pillar",
                       yaxis_range=[0, top * 1.25])
     return style(fig, "Coin economy", subtitle="Coins collected per pillar passed")
+
+
+def score_vs_survival(sv_df: pd.DataFrame, powerup: str = "magnet") -> go.Figure:
+    """One point per run: survival seconds (x) vs score (y), coloured by
+    whether the run picked the power-up of interest. The difficulty-shape
+    view the histograms can't give, and the picture the efficacy bar only
+    summarises — you SEE the exposure confound directly: picked-runs
+    clustering up-and-right (longer AND higher-scoring) is the very
+    correlation the excess-lift number tries to net out.
+
+    Score axis is log and clipped on tickvals so a single near-ceiling
+    whale doesn't flatten the cloud (and to kill the '1 / 9' minor-tick
+    artifact). Two SCALAR-coloured traces → the legend swatch survives."""
+    label = POWERUP_LABELS.get(powerup, powerup)
+    sub = (f"Each dot = one run · colour = picked {label} · "
+           "up-and-right cluster = the exposure confound, drawn")
+    fig = go.Figure()
+    title = f"Score vs survival ({label})"
+    if sv_df.empty:
+        return style(fig, title, subtitle=sub)
+    for picked, color, name in ((False, SKY_SOFT, f"No {label}"),
+                                (True, GOLD, label)):
+        grp = sv_df[sv_df["picked"] == picked]
+        if grp.empty:
+            continue
+        fig.add_scatter(
+            x=grp["duration_s"], y=grp["score"].clip(lower=1),
+            mode="markers", name=name,
+            marker=dict(color=color, size=6, opacity=0.6,
+                        line=dict(width=0)),
+            hovertemplate="%{x:.0f}s alive · %{y:,.0f} pts<extra>" + name + "</extra>",
+        )
+    fig.update_layout(
+        yaxis=dict(type="log", title="Score (log)", tickvals=_LOG_TICKS),
+        xaxis_title="Seconds alive",
+        legend=dict(orientation="h", yanchor="top", y=-0.18, x=0),
+    )
+    return style(fig, title, subtitle=sub)
 
 
 def powerups_per_run(df: pd.DataFrame) -> go.Figure:
