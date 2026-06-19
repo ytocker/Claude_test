@@ -36,9 +36,8 @@ SK_REVEAL_PX = 118        # settled difficulty face popped as the reveal
 SKULL_ROUTE_N = 22        # pillars in the Skull-King route (windowed from a hard route)
 # The King-Skull CHARACTER (Asthi-Dakini) strolls in trailing its die, exactly as the
 # clown trails its die: the die LEADS, the figure TRAILS by SKULL_CHAR_DX.
-SKULL_CHAR_PX = 264       # rendered figure height (cached once) — matches the clown's
-                          # ~250px on-screen presence; the chip is tightly cropped so
-                          # the WHOLE six-armed figure is visible at this height
+SKULL_CHAR_PX = 320       # rendered figure height (cached once); the chip is tightly
+                          # cropped so the WHOLE six-armed figure is visible
 SKULL_CHAR_DX = 150       # die sits this far LEFT of (ahead of) the figure
 SKULL_CHAR_SINK = 10      # plant the figure's feet just into the ground line
 
@@ -307,9 +306,6 @@ class WarrenDemo:
         if self.skull_char_x is not None and self.skull_char_x > -140:
             cx = int(self.skull_char_x + sx)
             fy = int(GROUND_Y + sy)
-            shadow = pygame.Surface((96, 16), pygame.SRCALPHA)
-            pygame.draw.ellipse(shadow, (0, 0, 0, 70), (0, 0, 96, 16))
-            surf.blit(shadow, (cx - 48, fy - 7))
             cs = self._skull_char_surface()
             if cs is not None:                       # tight crop: chip bottom == feet
                 surf.blit(cs, (cx - cs.get_width() // 2,
