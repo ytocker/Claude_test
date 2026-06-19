@@ -33,20 +33,26 @@ from game import store_data
 # Card grid metrics (2 columns). Thumbnails are pre-rendered once so the
 # per-frame cost is a flat blit rather than six smoothscales.
 _CARD_W = 162
-_CARD_H = 112
+_CARD_H = 110
 _GAP = 8
-_GRID_TOP = 104
+_GRID_TOP = 100
 _THUMB_BOX = 54
+_PER_PAGE = 6  # 2 columns x 3 rows; the roster pages when it exceeds this
 
 # Owned-but-equipped accent + buy/locked chip tints.
 _EQUIP_GREEN = (96, 210, 120)
 _LOCK_GREY = (150, 140, 155)
 
 
-def _build_thumb(skin_id: str, box: int) -> pygame.Surface:
-    """Render a skin's idle frame and fit it into a ``box``-square, aspect
-    preserved. Built once per store open."""
+def _fit_skin(skin_id: str, box: int) -> pygame.Surface:
+    """Render a skin's idle frame, crop to its opaque content, and fit that
+    into a ``box``-square (aspect preserved). Cropping first normalises the
+    different canvas sizes across skins (tall headgear composites vs the 64px
+    redraws) so every thumbnail/hero fills its box consistently."""
     src = parrot.get_skin_frame(skin_id, 1, 0.0)
+    bb = src.get_bounding_rect()
+    if bb.width > 0 and bb.height > 0:
+        src = src.subsurface(bb).copy()
     sw, sh = src.get_size()
     scale = box / max(sw, sh)
     return pygame.transform.smoothscale(
@@ -60,15 +66,21 @@ class StoreScene:
         self.back_rect: "pygame.Rect | None" = None
         self.item_rects: "dict[str, pygame.Rect]" = {}
         self.prize_rect: "pygame.Rect | None" = None
+        self.prev_rect: "pygame.Rect | None" = None
+        self.next_rect: "pygame.Rect | None" = None
         self._toast = ("", 0.0)  # (text, seconds remaining)
         # Sub-mode: the grid, or the Prize Machine reveal playing over it.
         # Kept internal so the gacha needs no extra App scene-state.
         self.mode = "grid"
         self.prize: "prize_machine.PrizeReveal | None" = None
         store_data.load()
-        # Catalog skins, cheapest first, with pre-built thumbnails.
+        # Catalog skins, cheapest first, with pre-built thumbnails. The roster
+        # outgrew one screen, so it pages (tap arrows) — drag-scroll isn't an
+        # option on the tap-only input path.
         self._skins = sorted(store_catalog.skin_ids(), key=store_catalog.cost)
-        self._thumbs = {sid: _build_thumb(sid, _THUMB_BOX) for sid in self._skins}
+        self._thumbs = {sid: _fit_skin(sid, _THUMB_BOX) for sid in self._skins}
+        self.page = 0
+        self.n_pages = max(1, (len(self._skins) + _PER_PAGE - 1) // _PER_PAGE)
 
     def update(self, dt: float) -> None:
         self.t += dt
@@ -95,7 +107,9 @@ class StoreScene:
         self._draw_balance(surf, cx=W // 2, y=68)
 
         base_x = (W - (_CARD_W * 2 + _GAP)) // 2
-        for idx, sid in enumerate(self._skins):
+        self.item_rects = {}
+        page_skins = self._skins[self.page * _PER_PAGE:(self.page + 1) * _PER_PAGE]
+        for idx, sid in enumerate(page_skins):
             col = idx % 2
             row = idx // 2
             x = base_x + col * (_CARD_W + _GAP)
@@ -105,12 +119,36 @@ class StoreScene:
             self._draw_card(surf, sid, rect)
 
         grid_bot = _GRID_TOP + 3 * (_CARD_H + _GAP)
-        self._draw_prize_card(surf, base_x, grid_bot + 2, _CARD_W * 2 + _GAP)
+        self._draw_page_controls(surf, base_x, grid_bot - 2, _CARD_W * 2 + _GAP)
+        self._draw_prize_card(surf, base_x, grid_bot + 26, _CARD_W * 2 + _GAP)
 
         self._draw_toast(surf)
         self.back_rect = _pill_btn(
             surf, (W // 2, H - 30), "BACK",
             size=18, alpha=235, min_width=160, dim=True, shadow=False)
+
+    def _draw_page_controls(self, surf, x, y, w) -> None:
+        """‹  PAGE n/N  › — tap arrows to flip pages (drag-scroll isn't
+        available on the tap-only input path). Hidden when it all fits."""
+        self.prev_rect = self.next_rect = None
+        if self.n_pages <= 1:
+            return
+        cy = y + 11
+        lbl = _font(12, True).render(
+            f"PAGE  {self.page + 1} / {self.n_pages}", True, _GOLD_PALE)
+        surf.blit(lbl, lbl.get_rect(center=(x + w // 2, cy)))
+        self.prev_rect = self._arrow(surf, x + 16, cy, "<", self.page > 0)
+        self.next_rect = self._arrow(surf, x + w - 16, cy, ">",
+                                     self.page < self.n_pages - 1)
+
+    def _arrow(self, surf, cx, cy, glyph, enabled) -> "pygame.Rect | None":
+        r = pygame.Rect(0, 0, 30, 22)
+        r.center = (cx, cy)
+        rounded_rect(surf, r, 11, _GOLD_DEEP if enabled else (60, 52, 64))
+        g = _font(15, True).render(glyph, True,
+                                   _GOLD_PALE if enabled else _LOCK_GREY)
+        surf.blit(g, g.get_rect(center=(cx, cy - 1)))
+        return r if enabled else None
 
     def _draw_prize_card(self, surf, x, y, w) -> None:
         """The gacha entry — a wide gold-rimmed card that stands apart from
@@ -233,6 +271,12 @@ class StoreScene:
             return "back"
         if self.back_rect and self.back_rect.collidepoint(pos):
             return "back"
+        if self.prev_rect and self.prev_rect.collidepoint(pos):
+            self.page = max(0, self.page - 1)
+            return None
+        if self.next_rect and self.next_rect.collidepoint(pos):
+            self.page = min(self.n_pages - 1, self.page + 1)
+            return None
         if self.prize_rect and self.prize_rect.collidepoint(pos):
             self._tap_prize()
             return None

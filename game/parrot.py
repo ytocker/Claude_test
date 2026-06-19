@@ -1227,8 +1227,35 @@ SKIN_BUILDERS = {
 }
 
 
+# The expanded skin roster lives in game/store_skins.py to keep this module
+# focused; it's imported lazily (after this module is fully loaded) so the two
+# can import each other without a circular-import hazard. store_skins entries
+# take precedence, so its dedicated cosmetic redraws override the power-up
+# sprites SKIN_BUILDERS reuses (top hat / skeleton / zombie).
+_STORE_SKINS: "dict | None" = None
+
+
+def _store_skin_builders() -> dict:
+    global _STORE_SKINS
+    if _STORE_SKINS is None:
+        try:
+            from game import store_skins
+            _STORE_SKINS = store_skins.BUILDERS
+        except Exception:
+            _STORE_SKINS = {}
+    return _STORE_SKINS
+
+
 def get_skin_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
     """Render the equipped cosmetic's frame. Unknown ids fall back to the base
     parrot so a stale save (skin removed from a later build) degrades to the
     default look rather than crashing the draw."""
-    return SKIN_BUILDERS.get(skin_id, get_parrot)(frame_idx, tilt_deg)
+    fn = _store_skin_builders().get(skin_id) \
+        or SKIN_BUILDERS.get(skin_id) or get_parrot
+    return fn(frame_idx, tilt_deg)
+
+
+def skin_builder_ids() -> set:
+    """All renderable skin ids (base + power-up-reuse + the store roster).
+    Used by tests to assert every catalog skin resolves to a builder."""
+    return set(SKIN_BUILDERS) | set(_store_skin_builders())

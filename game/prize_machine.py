@@ -53,7 +53,12 @@ def roll():
 
 
 def _build_hero(item_id: str) -> pygame.Surface:
+    # Crop to opaque content first so skins with tall headgear composites and
+    # the 64px redraws all fill the hero box consistently.
     src = parrot.get_skin_frame(item_id, 1, 0.0)
+    bb = src.get_bounding_rect()
+    if bb.width > 0 and bb.height > 0:
+        src = src.subsurface(bb).copy()
     sw, sh = src.get_size()
     scale = _HERO_BOX / max(sw, sh)
     return pygame.transform.smoothscale(

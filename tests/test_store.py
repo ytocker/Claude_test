@@ -226,11 +226,12 @@ class TestCatalogIntegrity(unittest.TestCase):
         # Imported here (not module-top) so the pure-data tests above don't
         # pull in pygame.
         from game import parrot
+        ids = parrot.skin_builder_ids()
         for sid in store_catalog.skin_ids():
-            self.assertIn(sid, parrot.SKIN_BUILDERS,
-                          f"{sid} has no builder in parrot.SKIN_BUILDERS")
+            self.assertIn(sid, ids,
+                          f"{sid} has no builder reachable from get_skin_frame")
         # Base skin is the implicit default and must also be drawable.
-        self.assertIn(store_catalog.BASE_SKIN, parrot.SKIN_BUILDERS)
+        self.assertIn(store_catalog.BASE_SKIN, ids)
 
 
 if __name__ == "__main__":

@@ -24,12 +24,24 @@ CATALOG_KINDS = ("skin", "pillar", "ground", "trail", "boost")
 # Costs are first-pass economy seeds — tuned once a full run's coin yield
 # is measured against how long we want each unlock to feel like a goal.
 CATALOG: dict[str, dict] = {
-    "skin_tophat":   {"name": "TOP HAT",  "cost": 120, "kind": "skin"},
-    "skin_skeleton": {"name": "SKELETON", "cost": 150, "kind": "skin"},
-    "skin_kfc":      {"name": "FRIED",    "cost": 180, "kind": "skin"},
-    "skin_ghost":    {"name": "GHOST",    "cost": 200, "kind": "skin"},
-    "skin_zombie":   {"name": "ZOMBIE",   "cost": 220, "kind": "skin"},
-    "skin_knight":   {"name": "KNIGHT",   "cost": 250, "kind": "skin"},
+    # Entry tier.
+    "skin_tophat":   {"name": "TOP HAT",   "cost": 120, "kind": "skin"},
+    "skin_pirate":   {"name": "PIRATE",    "cost": 140, "kind": "skin"},
+    "skin_skeleton": {"name": "SKELETON",  "cost": 150, "kind": "skin"},
+    "skin_cowboy":   {"name": "COWBOY",    "cost": 160, "kind": "skin"},
+    "skin_ninja":    {"name": "NINJA",     "cost": 170, "kind": "skin"},
+    "skin_kfc":      {"name": "FRIED",     "cost": 180, "kind": "skin"},
+    # Mid tier.
+    "skin_ghost":    {"name": "GHOST",     "cost": 200, "kind": "skin"},
+    "skin_viking":   {"name": "VIKING",    "cost": 200, "kind": "skin"},
+    "skin_zombie":   {"name": "ZOMBIE",    "cost": 220, "kind": "skin"},
+    "skin_wizard":   {"name": "WIZARD",    "cost": 220, "kind": "skin"},
+    "skin_knight":   {"name": "KNIGHT",    "cost": 250, "kind": "skin"},
+    # Premium tier.
+    "skin_astronaut": {"name": "ASTRONAUT", "cost": 280, "kind": "skin"},
+    "skin_crown":    {"name": "CROWN",     "cost": 300, "kind": "skin"},
+    "skin_pharaoh":  {"name": "PHARAOH",   "cost": 300, "kind": "skin"},
+    "skin_disco":    {"name": "DISCO",     "cost": 320, "kind": "skin"},
 }
 
 
