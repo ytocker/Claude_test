@@ -64,16 +64,19 @@ class WarrenDemo:
         )
         from tools.render_warren_routes import Route
         from tools.render_warren_mockup import assert_passable
-        # Skull-King draws its route from the HARD band (difficulty 6-10) of the same
-        # warren route catalog the clown's easy archetypes are cousins of.
-        from tools.render_warren_all import TIERS, get_pagodas
 
         self._build_jester = build_jester
         self._draw_die_face = _draw_die_face_noshadow
         self._Route = Route
         self._assert_passable = assert_passable
-        self._TIERS = TIERS
-        self._get_pagodas = get_pagodas
+        # Skull-King draws its route from the HARD band (6-10) of the warren catalog
+        # (tools.render_warren_all). That module pulls in render_warren_routes2..5,
+        # which a minimal web stage may not bundle, so it is loaded LAZILY + guarded
+        # (see _hard_route_tiers): a miss degrades the skull route to a flat tube and
+        # never breaks the clown demo's construction.
+        self._TIERS = None
+        self._get_pagodas = None
+        self._tiers_tried = False
         # Hero clown #13 ("Plum & Lime — FINAL"); `no_shadow` is a render_cell
         # flag, not a build_jester kwarg, so drop it (we draw our own shadow).
         spec = dict(JESTERS[-1][1])
@@ -466,13 +469,28 @@ class WarrenDemo:
         px = max(8, int(SK_REVEAL_PX * (0.5 + 0.5 * e)))
         draw_rolling_skull(surf, W // 2, 210, px, difficulty=self.difficulty)
 
+    def _hard_route_tiers(self):
+        """Lazily import the hard-route catalog (tools.render_warren_all), guarded so a
+        web stage that omits render_warren_routes2..5 just disables the curated routes
+        (the skull event then flies a flat tube) instead of crashing. Cached."""
+        if not self._tiers_tried:
+            self._tiers_tried = True
+            try:
+                from tools.render_warren_all import TIERS, get_pagodas
+                self._TIERS, self._get_pagodas = TIERS, get_pagodas
+            except Exception:
+                self._TIERS = self._get_pagodas = None
+        return self._TIERS, self._get_pagodas
+
     def _make_skull_route(self, world):
         """Pick a random HARD route rated exactly the rolled difficulty (6-10) from
         the warren catalog, window it to SKULL_ROUTE_N pillars, and assign each slot
-        a skull design. Falls back to a flat tube if no candidate stays passable."""
+        a skull design. Falls back to a flat tube if the catalog is unavailable or no
+        candidate stays passable."""
         d = self.difficulty
+        tiers, get_pagodas = self._hard_route_tiers()
         cands = []
-        for _tier, build, ratings in self._TIERS:
+        for _tier, build, ratings in (tiers or []):
             routes = build()
             for route, rd in zip(routes, ratings):
                 if rd == d:
@@ -480,10 +498,11 @@ class WarrenDemo:
         random.shuffle(cands)
         # prefer routes long enough to fill the 22-slot window (stable sort keeps the
         # shuffle order within each group → still a random pick among the long ones)
-        cands.sort(key=lambda r: 0 if len(self._get_pagodas(r)) >= SKULL_ROUTE_N else 1)
+        if get_pagodas is not None:
+            cands.sort(key=lambda r: 0 if len(get_pagodas(r)) >= SKULL_ROUTE_N else 1)
         pags = name = None
         for cand in cands:
-            p = self._get_pagodas(cand)[:SKULL_ROUTE_N]
+            p = get_pagodas(cand)[:SKULL_ROUTE_N]
             try:
                 self._assert_passable(cand.name, p)
                 pags, name = p, cand.name
@@ -491,9 +510,11 @@ class WarrenDemo:
             except Exception:
                 continue
         if pags is None:
+            # catalog missing or nothing passable → a plain flat tube (uses the Route
+            # builder's own .pagodas list, so it needs no get_pagodas helper)
             fb = self._Route("Skull Flat Tube", "fallback")
             fb.hold("flat", SKULL_ROUTE_N, 300, ROUTE_GAP)
-            pags, name = self._get_pagodas(fb)[:SKULL_ROUTE_N], "skull-flat"
+            pags, name = list(fb.pagodas)[:SKULL_ROUTE_N], "skull-flat"
         self.skull_route = [(cy, gap_h) for (_x, cy, gap_h, _s) in pags]
         # per-pillar design index, deterministic per chosen route (mirrors the figure's
         # seeded reroll so the column mix is stable for a given route)
