@@ -69,15 +69,18 @@ column and the only fang-heavy *plain* totem (P9's fangs were skewered).
 ## P14 — `child-relic-shrine`
 **Thesis:** A *small reliquary shrine* — a child-skull cradled and venerated at the
 gap (focal), with a single forehead-gem palm relic as a guardian above and an unlit
-r9 crown standing in vigil; a draped necklace garland ties the shrine together. The
+r9 crown standing in vigil; a dark-blue votive bead marks the subject. The
 tender/devotional read: tiny focal, larger protectors. Mixed family, COLLAR on.
-**Word-thumbnail:** ● tiny → ◉ gem-palm → ○ unlit crown, with a hung loop.
-- **RECIPE (focal→far):** `classic:child-skull` (FOCAL, lit) → `orn:ornament_necklace`
+**Word-thumbnail:** ● tiny → · bead → ◉ gem-palm → ○ unlit crown.
+- **RECIPE (focal→far):** `classic:child-skull` (FOCAL, lit) → `orn:bead_darkblue`
   → `palm:4` → `r9:0` → `palm:3`
 - **COLLAR:** ON (warm gold seam beads frame the shrine)
 - **LEAN:** 0
 - **Showcases:** `classic:child-skull` AS the focal (distinct from P11's far-end use),
-  `r9:0` (unlit crown), `orn:ornament_necklace` (draped guardian garland), `palm:3`.
+  `r9:0` (unlit crown), `orn:bead_darkblue` (votive accent), `palm:3`.
+- *AD revision:* dropped the draped `ornament_necklace` (it twinned the gold-ringed
+  halo with P19, the warlord that owns that drape) for a single dark-blue votive bead;
+  P14's read now rests on the child-skull focal + size-shrine idea alone.
 
 ## P15 — `darkblue-bone-rosary`
 **Thesis:** A *cold rosary* of bare classic bone domes threaded on dark-blue beads —
@@ -199,12 +202,12 @@ classic (P11, P14, P15, P16, P18→palm), new (P12, P13, P17, P20), crown (P19),
 | Part | Status before | Featured in (new) |
 | --- | --- | --- |
 | `classic:child-skull` | UNUSED | P11 (far nub), P14 (FOCAL) |
-| `orn:bead_darkblue` | UNUSED | P11, P15 (×3), P17, P20 |
+| `orn:bead_darkblue` | UNUSED | P11, P14, P15 (×3), P17, P20 |
 | `r9:0` (unlit crown) | UNUSED | P14, P15 (far terminal), P20 (mid-body) |
 | `palm:3` | once | P14, P18, P20 |
 | `classic:broad-zygo` | once | P11, P16 (×2) |
 | `orn:gem_thirdeye` | once | P12 (×3), P16, P20 |
-| `orn:ornament_necklace` | once | P14, P19 (×2) |
+| `orn:ornament_necklace` | once | P19 (×2) |
 | `new:cyclops-brow` | once | P12 (×2) |
 | `new:sabertooth-maw` | once | P13 (×2) |
 | `new:longjaw-relic` | once | P13 (×2), P20 (FOCAL) |

@@ -15,18 +15,28 @@ import pygame
 import pillar_engine as PE
 sk = PE.sk
 
-# id, slug, module filename, group
+# id, slug, module filename, group (original P1-P10 vs the new no-skewer P11-P20)
 PILLARS = [
-    (1,  "relic-reliquary-totem",        "render_relic_reliquary_totem.py",        "plain"),
-    (2,  "horned-warband",               "render_horned_warband.py",               "plain"),
-    (3,  "keystone-cairn",               "render_keystone_cairn.py",               "plain"),
-    (4,  "gaunt-hollow-spire",           "render_gaunt_hollow_spire.py",           "plain"),
-    (5,  "broken-bone-pile",             "render_broken_bone_pile.py",             "plain"),
-    (6,  "plain-bone-spit",              "render_plain_bone_spit.py",              "skewered"),
-    (7,  "gold-cored-scepter",           "render_gold_cored_scepter.py",           "skewered"),
-    (8,  "ring-eye-washer-axle",         "render_ring_eye_washer_axle.py",         "skewered"),
-    (9,  "barbed-fang-harpoon",          "render_barbed_fang_harpoon.py",          "skewered"),
-    (10, "bead-threaded-strand-spindle", "render_bead_threaded_strand_spindle.py", "skewered"),
+    (1,  "relic-reliquary-totem",        "render_relic_reliquary_totem.py",        "original"),
+    (2,  "horned-warband",               "render_horned_warband.py",               "original"),
+    (3,  "keystone-cairn",               "render_keystone_cairn.py",               "original"),
+    (4,  "gaunt-hollow-spire",           "render_gaunt_hollow_spire.py",           "original"),
+    (5,  "broken-bone-pile",             "render_broken_bone_pile.py",             "original"),
+    (6,  "plain-bone-spit",              "render_plain_bone_spit.py",              "original"),
+    (7,  "gold-cored-scepter",           "render_gold_cored_scepter.py",           "original"),
+    (8,  "ring-eye-washer-axle",         "render_ring_eye_washer_axle.py",         "original"),
+    (9,  "barbed-fang-harpoon",          "render_barbed_fang_harpoon.py",          "original"),
+    (10, "bead-threaded-strand-spindle", "render_bead_threaded_strand_spindle.py", "original"),
+    (11, "runt-cairn-taper",             "render_runt_cairn_taper.py",             "new"),
+    (12, "thirdeye-watchtower",          "render_thirdeye_watchtower.py",          "new"),
+    (13, "lopsided-fang-lean",           "render_lopsided_fang_lean.py",           "new"),
+    (14, "child-relic-shrine",           "render_child_relic_shrine.py",           "new"),
+    (15, "darkblue-bone-rosary",         "render_darkblue_bone_rosary.py",         "new"),
+    (16, "broad-block-bastion",          "render_broad_block_bastion.py",          "new"),
+    (17, "cracked-ruin-lean",            "render_cracked_ruin_lean.py",            "new"),
+    (18, "palm-jewel-pagoda",            "render_palm_jewel_pagoda.py",            "new"),
+    (19, "necklace-draped-warlord",      "render_necklace_draped_warlord.py",      "new"),
+    (20, "mongrel-generations-totem",    "render_mongrel_generations_totem.py",    "new"),
 ]
 
 HALF_H, GAP = 168, 120
@@ -61,26 +71,30 @@ for pid, slug, fname, group in PILLARS:
         print("MISSING", slug); continue
     cells.append((group, _cell(pid, slug, _load(slug, fname))))
 
-plain = [c for g, c in cells if g == "plain"]
-skew = [c for g, c in cells if g == "skewered"]
-gap, head, rowlab = 14, 64, 28
+# two sections (original P1-P10, new P11-P20), each wrapped at COLS per row so the
+# new additions read as their own block under the existing roster
+SECTIONS = [("ORIGINAL (P1-P10)", "original"), ("NEW (P11-P20) · no skewer", "new")]
+COLS = 5
+gap, head, rowlab = 14, 70, 28
 cw = max(c.get_width() for _, c in cells)
 ch = max(c.get_height() for _, c in cells)
-cols = max(len(plain), len(skew), 1)
-W = cols * cw + (cols + 1) * gap
-H = head + 2 * (ch + rowlab + gap)
+total_rows = sum(-(-sum(1 for g, _ in cells if g == key) // COLS) for _, key in SECTIONS)
+W = COLS * cw + (COLS + 1) * gap
+H = head + len(SECTIONS) * rowlab + total_rows * (ch + gap) + gap
 sheet = pygame.Surface((W, H)); sheet.fill(sk.BG)
-sheet.blit(sk.font(26).render("SKULL-KING event — 10 stacked-skull pillar designs", True, sk.LABEL), (gap, 16))
-sheet.blit(sk.font(14).render("top row = 5 plain (P1-P5) · bottom row = 5 skewered (P6-P10) · drawn from skulls #1-#30 + ornaments #31-#36", True, sk.LABEL_DIM), (gap, 44))
+sheet.blit(sk.font(26).render("SKULL-KING event — 20 stacked-skull pillar designs", True, sk.LABEL), (gap, 16))
+sheet.blit(sk.font(14).render("P1-P10 = original roster · P11-P20 = new no-skewer totems · drawn from skulls #1-#30 + ornaments #31-#36", True, sk.LABEL_DIM), (gap, 46))
 
 y = head
-for label, row in (("PLAIN", plain), ("SKEWERED", skew)):
+for label, key in SECTIONS:
     sheet.blit(sk.font(15).render(label, True, sk.LABEL_DIM), (gap, y))
     y += rowlab
-    x = gap
-    for c in row:
-        sheet.blit(c, (x, y)); x += cw + gap
-    y += ch + gap
+    row = [c for g, c in cells if g == key]
+    for i in range(0, len(row), COLS):
+        x = gap
+        for c in row[i:i + COLS]:
+            sheet.blit(c, (x, y)); x += cw + gap
+        y += ch + gap
 
 out = os.path.join(HERE, "showcase.png")
 pygame.image.save(sheet, out)

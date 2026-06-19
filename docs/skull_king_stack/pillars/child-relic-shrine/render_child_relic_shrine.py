@@ -6,13 +6,14 @@ import pillar_engine as PE
 # WHY a small reliquary shrine: a child-skull is cradled and venerated at the gap as
 # the FOCAL subject (distinct from the runt-cairn, where the child-skull is an exiled
 # far nub), with larger guardians standing above it — a forehead-gem palm relic and an
-# unlit r9 crown keeping vigil. A draped necklace garland ties the shrine together and
-# COLLAR is ON so warm gold seam beads frame the devotional read: tiny focal, larger
+# unlit r9 crown keeping vigil. A single dark-blue votive bead marks the shrine subject
+# (the draped halo garland is left to the warlord, which owns that ornament) and COLLAR
+# is ON so warm gold seam beads frame the devotional read: tiny focal, larger
 # protectors. The unlit crown reads as a relic in repose, not a reigning king.
 TITLE = "P14 child-relic-shrine"
 RECIPE = [
     "classic:child-skull",   # focal: the small venerated subject cradled at the gap
-    "orn:ornament_necklace", # a draped garland hung just above the shrine subject
+    "orn:bead_darkblue",     # a dark-blue votive bead set just above the shrine subject
     "palm:4",                # forehead-gem palm relic — the first guardian
     "r9:0",                  # unlit crown standing in vigil (no lit reign)
     "palm:3",                # far guardian closes the shrine

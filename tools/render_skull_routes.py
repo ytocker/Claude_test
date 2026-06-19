@@ -1,6 +1,6 @@
 """SKULL-KING event ROUTE figure: 5 hard routes (difficulty 6-10, one each) drawn
 as stacked-skull / skewer PILLARS — every pillar slot a (deterministic-)random one
-of the ten skull pillar designs P1-P10. The skull analogue of the clown event's
+of the twenty skull pillar designs P1-P20. The skull analogue of the clown event's
 warren route, but the skull event draws from the HARD band (6-10) instead of the
 clown's easy archetypes (2-4).
 
@@ -52,7 +52,8 @@ def _compress(pagodas):
     return [(START_X_SKULL + (x - base) * f, cy, gap_h, seed)
             for (x, cy, gap_h, seed) in pagodas]
 
-# the ten skull pillar designs in P1..P10 order
+# the twenty skull pillar designs in P1..P20 order (P11-P20 are no-skewer totems
+# that widen the pool so the routes stop visibly repeating)
 DESIGN_FILES = [
     ("relic-reliquary-totem",        "render_relic_reliquary_totem.py"),
     ("horned-warband",               "render_horned_warband.py"),
@@ -64,6 +65,16 @@ DESIGN_FILES = [
     ("ring-eye-washer-axle",         "render_ring_eye_washer_axle.py"),
     ("barbed-fang-harpoon",          "render_barbed_fang_harpoon.py"),
     ("bead-threaded-strand-spindle", "render_bead_threaded_strand_spindle.py"),
+    ("runt-cairn-taper",             "render_runt_cairn_taper.py"),
+    ("thirdeye-watchtower",          "render_thirdeye_watchtower.py"),
+    ("lopsided-fang-lean",           "render_lopsided_fang_lean.py"),
+    ("child-relic-shrine",           "render_child_relic_shrine.py"),
+    ("darkblue-bone-rosary",         "render_darkblue_bone_rosary.py"),
+    ("broad-block-bastion",          "render_broad_block_bastion.py"),
+    ("cracked-ruin-lean",            "render_cracked_ruin_lean.py"),
+    ("palm-jewel-pagoda",            "render_palm_jewel_pagoda.py"),
+    ("necklace-draped-warlord",      "render_necklace_draped_warlord.py"),
+    ("mongrel-generations-totem",    "render_mongrel_generations_totem.py"),
 ]
 
 
@@ -180,7 +191,7 @@ def main():
                                (245, 240, 235)), (PAD, PAD - 2))
     canvas.blit(f_sub.render(
         "the event rolls a random hard route (6-10) · each pillar = a random skull "
-        "design P1-P10 · one route per difficulty", True, (210, 180, 175)), (PAD, PAD + 40))
+        "design P1-P20 · one route per difficulty", True, (210, 180, 175)), (PAD, PAD + 40))
 
     y = TITLE_H
     for (d, name, tier, n, dur, shown, strip, native_w) in strips:
