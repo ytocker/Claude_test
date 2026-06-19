@@ -641,6 +641,13 @@ class App:
         # opener (post-house drifting off-screen-left) still plays for
         # the first ~2.5 s of bg_scroll.
         self.world = World()
+        # Apply the equipped cosmetic skin so the run's bird wears it; a
+        # mid-session purchase/equip therefore takes effect on the next run.
+        try:
+            self.world.bird.equipped_skin = store_data.equipped("skin") \
+                or "skin_base"
+        except Exception:
+            pass
         self.world.ready_t = 0.0
         self.world.flap()
         self.state = STATE_PLAY
@@ -688,6 +695,13 @@ class App:
         # Same contract as `_start_play`: the tap that triggered the
         # restart counts as the first flap, no ready freeze.
         self.world = World()
+        # Apply the equipped cosmetic skin so the run's bird wears it; a
+        # mid-session purchase/equip therefore takes effect on the next run.
+        try:
+            self.world.bird.equipped_skin = store_data.equipped("skin") \
+                or "skin_base"
+        except Exception:
+            pass
         self.world.ready_t = 0.0
         self.world.flap()
         self.state = STATE_PLAY

@@ -477,6 +477,10 @@ class Bird:
         self.ghost_active = False
         self.grow_active = False
         self.triple_active = False
+        # Equipped cosmetic skin from the Store — the bird's default look when
+        # no power-up skin is overriding it. Set per run from store_data in
+        # scenes._start_play; defaults to the base parrot.
+        self.equipped_skin = "skin_base"
         self.ghost_pulse = 0.0    # advances while ghost_active for fade effect
         # Shrink: collision-relevant flag flips at activation; the
         # visible sprite scale eases between 1.0 and SHRINK_SCALE over
@@ -685,7 +689,7 @@ class Bird:
             # the legacy upscale below — they pre-empt this branch.
             img = parrot.get_grow_parrot(frame_idx, tilt)
         else:
-            img = parrot.get_parrot(frame_idx, tilt)
+            img = parrot.get_skin_frame(self.equipped_skin, frame_idx, tilt)
         # POISON — generic chartreuse tint over whichever skin the cascade
         # chose (mask-clamped to the silhouette, ramped by poison_t), so the
         # poisoning reads on kfc/ghost/knight/hat rather than swapping to a

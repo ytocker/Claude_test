@@ -28,7 +28,7 @@ CATALOG: dict[str, dict] = {
     "skin_skeleton": {"name": "SKELETON", "cost": 150, "kind": "skin"},
     "skin_kfc":      {"name": "FRIED",    "cost": 180, "kind": "skin"},
     "skin_ghost":    {"name": "GHOST",    "cost": 200, "kind": "skin"},
-    "skin_dollar":   {"name": "DOLLAR",   "cost": 220, "kind": "skin"},
+    "skin_zombie":   {"name": "ZOMBIE",   "cost": 220, "kind": "skin"},
     "skin_knight":   {"name": "KNIGHT",   "cost": 250, "kind": "skin"},
 }
 

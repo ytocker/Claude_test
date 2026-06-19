@@ -1206,3 +1206,29 @@ def get_poisoned_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
         s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
         _poisoned_rot_cache[key] = s
     return s
+
+
+# ── Equipped cosmetic skins (Store) ───────────────────────────────────────────
+# A purchased skin is the bird's *default* look. The Bird.draw cascade hooks
+# this dispatcher in its bottom `else` branch, so an active power-up skin
+# (kfc/ghost/knight/…) still overrides it and reverts implicitly when its flag
+# clears. Every value shares the (frame_idx, tilt_deg) signature, so the skin
+# is purely a swap of which builder the base branch calls. Ids mirror
+# game.store_catalog.skin_ids(); a unit test asserts the two stay in sync so a
+# catalog entry can never point at a look this map can't draw.
+SKIN_BUILDERS = {
+    "skin_base":     get_parrot,
+    "skin_tophat":   get_hat_parrot,
+    "skin_skeleton": get_skeleton_parrot,
+    "skin_kfc":      get_fried_parrot,
+    "skin_ghost":    get_ghost_parrot,
+    "skin_zombie":   get_dead_parrot,
+    "skin_knight":   get_knight_parrot,
+}
+
+
+def get_skin_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Render the equipped cosmetic's frame. Unknown ids fall back to the base
+    parrot so a stale save (skin removed from a later build) degrades to the
+    default look rather than crashing the draw."""
+    return SKIN_BUILDERS.get(skin_id, get_parrot)(frame_idx, tilt_deg)

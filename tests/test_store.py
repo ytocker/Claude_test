@@ -195,6 +195,17 @@ class TestCatalogIntegrity(unittest.TestCase):
         for item_id in store_catalog.cosmetic_ids():
             self.assertNotEqual(store_catalog.kind(item_id), "boost")
 
+    def test_every_skin_resolves_in_renderer(self):
+        # The catalog must never offer a skin the bird renderer can't draw.
+        # Imported here (not module-top) so the pure-data tests above don't
+        # pull in pygame.
+        from game import parrot
+        for sid in store_catalog.skin_ids():
+            self.assertIn(sid, parrot.SKIN_BUILDERS,
+                          f"{sid} has no builder in parrot.SKIN_BUILDERS")
+        # Base skin is the implicit default and must also be drawable.
+        self.assertIn(store_catalog.BASE_SKIN, parrot.SKIN_BUILDERS)
+
 
 if __name__ == "__main__":
     unittest.main()
