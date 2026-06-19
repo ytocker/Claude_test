@@ -26,8 +26,7 @@ def test_every_chart_builder_handles_empty():
     grid = metrics.hourly_heatmap(_empty_plays())  # 7×24 zero grid
 
     figures = [
-        charts.plays_and_uniques(empty_df),
-        charts.plays_anomaly_band(empty_df),
+        charts.daily_activity(empty_df, empty_df),
         charts.rejection_reasons(empty_df),
         charts.avg_duration(empty_df),
         charts.hourly_heatmap(grid),

@@ -10,78 +10,51 @@ import plotly.graph_objects as go
 from theme import CORAL, GOLD, GRID, MUTED, SKY, SKY_SOFT, style
 
 
-def plays_and_uniques(by_day_df: pd.DataFrame, days: int = 30) -> go.Figure:
-    """Plays per day as bars + a centred-trend smoothing line + unique
-    players on a secondary axis. The smoothing line is a 7-day *display*
-    smoother (min_periods=1, fills in from day 1) — distinct from the
-    anomaly band's 14-day trailing baseline λ; labelled "smoothing" not
-    "avg" so the two 7-day-ish lines on the tab aren't conflated."""
-    fig = go.Figure()
-    if by_day_df.empty:
-        return style(fig, f"Plays & unique players ({days}d)")
-    fig.add_bar(
-        x=by_day_df["date"], y=by_day_df["plays"],
-        name="Plays", marker_color=SKY_SOFT, hovertemplate="%{y} plays<extra></extra>",
-    )
-    rolling = by_day_df["plays"].rolling(7, min_periods=1).mean()
-    fig.add_scatter(
-        x=by_day_df["date"], y=rolling, name="Plays (7d smoothing)",
-        mode="lines", line=dict(color=SKY, width=2),
-        hovertemplate="%{y:.1f} (7d smoothing)<extra></extra>",
-    )
-    fig.add_scatter(
-        x=by_day_df["date"], y=by_day_df["uniques"], name="Unique players",
-        mode="lines+markers", line=dict(color=GOLD, width=2), yaxis="y2",
-        hovertemplate="%{y} unique<extra></extra>",
-    )
-    # Tint each axis title to its series colour so the line→axis mapping
-    # is readable without tracing the legend: SKY = Plays (left),
-    # GOLD = Unique players (right).
-    fig.update_layout(
-        yaxis=dict(title=dict(text="Plays", font=dict(color=SKY))),
-        yaxis2=dict(title=dict(text="Unique players", font=dict(color=GOLD)),
-                    overlaying="y", side="right", showgrid=False,
-                    tickfont=dict(color=GOLD)),
-        # Below the plot so it never sits over the title bar.
-        legend=dict(orientation="h", yanchor="top", y=-0.16, x=0),
-    )
-    return style(fig, f"Plays & unique players ({days}d)")
+def daily_activity(band_df: pd.DataFrame, by_day_df: pd.DataFrame,
+                   days: int = 30) -> go.Figure:
+    """The single daily-activity panel: plays-per-day volume, whether that
+    volume is normal, and unique players — all in one chart so the tab
+    isn't showing the same series twice.
 
+      • Plays = SKY bars (primary axis).
+      • Expected range = a *trailing* Poisson band (λ ± 2√λ), drawn only
+        past the 14-day warm-up so no fabricated "normal range" shows on
+        thin history; λ as a dotted line.
+      • Anomalous days (Poisson z beyond ±2, spike or drop) = haloed coral
+        markers on the bar tops — unmistakable.
+      • Unique players = GOLD line on a secondary axis.
 
-def plays_anomaly_band(band_df: pd.DataFrame, days: int = 30) -> go.Figure:
-    """Daily plays against a *trailing* **Poisson** band (λ ± 2√λ). The
-    band is drawn only past the 14-day warm-up; warm-up days carry no
-    band, so the reader isn't shown a fabricated 'normal range' on thin
-    history. Anomalous days (Poisson z beyond ±2 — a spike *or* a drop)
-    are haloed coral; in-band gold; warm-up muted."""
+    Takes both pre-aggregated frames (band_df from daily_plays_with_band,
+    by_day_df from by_day) and aligns them on date — both are built over
+    the same continuous day index."""
     fig = go.Figure()
     if band_df.empty:
-        return style(fig, f"Daily volume vs expected range ({days}d)")
+        return style(fig, f"Daily activity ({days}d)")
 
-    # Band only over the warmed-up tail; NaNs on warm-up days leave a gap
-    # rather than a fake band collapsing to the point.
+    # Volume bars first so the band/markers/line read on top of them.
+    fig.add_bar(
+        x=band_df["date"], y=band_df["plays"], name="Plays",
+        marker_color=SKY_SOFT, hovertemplate="%{y} plays<extra></extra>",
+    )
+
+    # Poisson expected-range ribbon over the warmed-up tail (NaN on warm-up
+    # days leaves a gap rather than a fake band collapsing to the point).
     fig.add_scatter(
         x=band_df["date"], y=band_df["hi"], mode="lines",
-        line=dict(width=0), showlegend=False, hoverinfo="skip",
-        connectgaps=False,
+        line=dict(width=0), showlegend=False, hoverinfo="skip", connectgaps=False,
     )
     fig.add_scatter(
         x=band_df["date"], y=band_df["lo"], mode="lines", fill="tonexty",
-        fillcolor=SKY_SOFT, line=dict(width=0), name="Expected range (λ ± 2√λ)",
-        hoverinfo="skip", connectgaps=False,
+        fillcolor="rgba(77,163,255,0.16)", line=dict(width=0),
+        name="Expected range (λ ± 2√λ)", hoverinfo="skip", connectgaps=False,
     )
     fig.add_scatter(
         x=band_df["date"], y=band_df["mean"], mode="lines",
-        line=dict(color=SKY, width=1, dash="dot"), name="14d baseline λ (trailing)",
+        line=dict(color=SKY, width=1, dash="dot"), name="14d baseline λ",
         hovertemplate="%{y:.1f} expected (λ)<extra></extra>", connectgaps=False,
     )
 
-    warmup = band_df["warmup"].to_numpy()
-    outlier = band_df["outlier"].to_numpy()
-
-    # Faint marker over the warm-up region so the gap reads as "no band
-    # yet" rather than missing data. Annotation anchored on the warm-up
-    # midpoint when there is one.
+    # "warm-up (no band yet)" cue over the warm-up region.
     warm_dates = band_df.loc[band_df["warmup"], "date"]
     if not warm_dates.empty:
         mid = warm_dates.iloc[len(warm_dates) // 2]
@@ -92,37 +65,38 @@ def plays_anomaly_band(band_df: pd.DataFrame, days: int = 30) -> go.Figure:
             font=dict(size=10, color=MUTED), align="center", opacity=0.9,
         )
 
-    # In-band plays: gold dots, drawn first so the coral halos sit on top.
-    normal_mask = ~warmup & ~outlier
-    fig.add_scatter(
-        x=band_df.loc[normal_mask, "date"], y=band_df.loc[normal_mask, "plays"],
-        mode="markers", marker=dict(color=GOLD, size=7), name="Plays (in range)",
-        hovertemplate="%{y} plays (normal)<extra></extra>",
-    )
-    # Warm-up plays: muted, no band judged.
-    fig.add_scatter(
-        x=band_df.loc[warmup, "date"], y=band_df.loc[warmup, "plays"],
-        mode="markers", marker=dict(color=MUTED, size=6), showlegend=False,
-        hovertemplate="%{y} plays (warm-up)<extra></extra>",
-    )
-    # Outliers: large coral marker with a halo ring so they're
-    # unmistakable against the gold in-band dots.
+    # Anomalous days: haloed coral markers on the bar tops.
+    outlier = band_df["outlier"].to_numpy()
     fig.add_scatter(
         x=band_df.loc[outlier, "date"], y=band_df.loc[outlier, "plays"],
         mode="markers", name="Anomalous day",
-        marker=dict(color=CORAL, size=14, symbol="circle",
+        marker=dict(color=CORAL, size=13, symbol="circle",
                     line=dict(color="#FFE2D2", width=3)),
         hovertemplate="%{y} plays (anomalous)<extra></extra>",
     )
+
+    # Unique players on the secondary axis (GOLD). Aligned on date so a
+    # mismatched index can't silently misplot.
+    uniq = band_df[["date"]].merge(by_day_df[["date", "uniques"]],
+                                   on="date", how="left")
+    fig.add_scatter(
+        x=uniq["date"], y=uniq["uniques"], name="Unique players",
+        mode="lines+markers", line=dict(color=GOLD, width=2), yaxis="y2",
+        hovertemplate="%{y} unique<extra></extra>",
+    )
+
     n_out = int(outlier.sum())
     sub = (f"{n_out} day(s) outside the expected Poisson range (λ ± 2√λ)"
-           if n_out else "No days outside the expected Poisson range (λ ± 2√λ)")
-    # Legend sits below the plot so it never collides with the subtitle.
+           if n_out else "Volume within the expected Poisson range (λ ± 2√λ)")
+    # Tint each axis title to its series so line→axis mapping needs no legend.
     fig.update_layout(
+        yaxis=dict(title=dict(text="Plays", font=dict(color=SKY))),
+        yaxis2=dict(title=dict(text="Unique players", font=dict(color=GOLD)),
+                    overlaying="y", side="right", showgrid=False,
+                    tickfont=dict(color=GOLD), rangemode="tozero"),
         legend=dict(orientation="h", yanchor="top", y=-0.18, x=0),
-        yaxis_title="Plays",
     )
-    return style(fig, f"Daily volume vs expected range ({days}d)", subtitle=sub)
+    return style(fig, f"Daily activity ({days}d)", subtitle=sub)
 
 
 def rejection_reasons(reasons_df: pd.DataFrame, days: int = 7) -> go.Figure:

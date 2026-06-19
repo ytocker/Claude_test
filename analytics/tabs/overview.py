@@ -100,8 +100,11 @@ def render(df, window: int) -> None:
 
     left, right = st.columns([3, 2])
     with left:
+        # One panel for volume + normality + uniques (was two charts both
+        # plotting daily plays).
         st.plotly_chart(
-            c.plays_and_uniques(m.by_day(df, days=window), days=window),
+            c.daily_activity(m.daily_plays_with_band(df, days=window),
+                             m.by_day(df, days=window), days=window),
             use_container_width=True,
         )
     with right:
@@ -113,11 +116,10 @@ def render(df, window: int) -> None:
             use_container_width=True,
         )
 
-    st.plotly_chart(
-        c.plays_anomaly_band(m.daily_plays_with_band(df, days=window), days=window),
-        use_container_width=True,
-    )
-    st.plotly_chart(
-        c.hourly_heatmap(m.hourly_heatmap(df)),
-        use_container_width=True,
-    )
+    # Activity-by-hour is scheduling context, not a health signal — kept a
+    # click away so the default view stays a glance.
+    with st.expander("Activity by hour (UTC weekday × hour)", expanded=False):
+        st.plotly_chart(
+            c.hourly_heatmap(m.hourly_heatmap(df)),
+            use_container_width=True,
+        )

@@ -32,22 +32,16 @@ def render(df, window: int) -> None:
 
     st.divider()
 
+    # Difficulty: shape (last 7d) beside trend (over the window).
     left, right = st.columns(2)
     with left:
         st.plotly_chart(c.score_hist(m.score_distribution(df, days=7)),
                         use_container_width=True)
     with right:
-        st.plotly_chart(c.duration_hist(m.duration_distribution(df, days=7)),
-                        use_container_width=True)
-
-    left, right = st.columns(2)
-    with left:
         st.plotly_chart(c.score_quantiles(m.score_quantiles_by_day(df, days=window)),
                         use_container_width=True)
-    with right:
-        st.plotly_chart(c.skill_over_time(m.skill_proxy_by_day(df, days=window)),
-                        use_container_width=True)
 
+    # Balance + economy.
     left, right = st.columns(2)
     with left:
         st.plotly_chart(c.powerup_mix(m.powerup_totals(df, days=window)),
@@ -56,19 +50,24 @@ def render(df, window: int) -> None:
         st.plotly_chart(c.coin_economy(m.coin_economy_by_day(df, days=window)),
                         use_container_width=True)
 
-    # The difficulty-shape view: one dot per run, coloured by the power-up
-    # the efficacy bar leads on (Magnet, the standout). Full width so the
-    # run cloud has room — it makes the exposure confound the efficacy chart
-    # nets out visible rather than asserted.
-    st.plotly_chart(
-        c.score_vs_survival(m.score_vs_survival(df, powerup="magnet", days=window),
-                            powerup="magnet"),
-        use_container_width=True)
-
     # Marquee balance read, given full width: the diverging excess-lift bar
     # is the single number the team retunes against and needs the room.
     st.plotly_chart(c.powerup_efficacy(m.powerup_efficacy(df, days=window)),
                     use_container_width=True)
+
+    # Deeper diagnostics one click away: the survival-shape histogram, the
+    # run-level scatter that draws the exposure confound, and the skill
+    # trend. Valuable to a tuner, too much for the default glance.
+    with st.expander("Deep dive — survival shape, run scatter & skill trend",
+                     expanded=False):
+        st.plotly_chart(c.duration_hist(m.duration_distribution(df, days=7)),
+                        use_container_width=True)
+        st.plotly_chart(
+            c.score_vs_survival(m.score_vs_survival(df, powerup="magnet", days=window),
+                                powerup="magnet"),
+            use_container_width=True)
+        st.plotly_chart(c.skill_over_time(m.skill_proxy_by_day(df, days=window)),
+                        use_container_width=True)
 
     st.caption(
         "*Reverse* excluded (disabled in-game). *Surprise* counts only the box "

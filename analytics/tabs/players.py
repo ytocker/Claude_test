@@ -88,16 +88,18 @@ def render(df, window: int) -> None:
         )
     with right:
         st.plotly_chart(
-            c.sessions_histogram(m.sessions_per_active_day(df, days=window), days=window),
+            c.engagement_segments(m.engagement_segments(df, days=window), days=window),
             use_container_width=True,
         )
 
-    st.plotly_chart(
-        c.engagement_segments(m.engagement_segments(df, days=window), days=window),
-        use_container_width=True,
-    )
-
-    _roster_table(st, df, window)
+    # Session depth + the per-player roster are operational drill-downs, not
+    # the retention headline — one click away so the default view stays lean.
+    with st.expander("Player detail — session depth & roster", expanded=False):
+        st.plotly_chart(
+            c.sessions_histogram(m.sessions_per_active_day(df, days=window), days=window),
+            use_container_width=True,
+        )
+        _roster_table(st, df, window)
 
 
 def _roster_table(st, df, window: int) -> None:

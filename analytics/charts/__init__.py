@@ -7,9 +7,8 @@ from __future__ import annotations
 
 from charts.overview import (  # noqa: F401
     avg_duration,
+    daily_activity,
     hourly_heatmap,
-    plays_anomaly_band,
-    plays_and_uniques,
     rejection_reasons,
 )
 from charts.players import (  # noqa: F401
