@@ -81,6 +81,19 @@ _LOCK_GLY_SH = ( 28,  25,  34)
 _SS = 4  # supersample for crisp edges, then smoothscale down
 _BADGES: dict = {}
 
+# The two two-tone glyphs (magnet poles, fry-box tub) carry a saturated accent
+# (red/steel) that must appear ONLY on unlock — every dormant medal is bronze
+# monochrome, so a leaked red reads as a half-lit error and breaks the locked
+# convention. The builder sets this before stamping; the glyphs read it to pick
+# their accent, and colour returns as part of the unlock reward.
+_GLYPH_DORMANT = False
+
+
+def _accent(lit_col, dormant_col=_LOCK_GLY):
+    # Resolve a saturated glyph accent against the current state: the real
+    # colour when the medal is live, the dormant bronze tone when asleep.
+    return dormant_col if _GLYPH_DORMANT else lit_col
+
 # Hidden-tier icon keys get the amethyst enamel + rarity ring automatically so
 # the screen needn't pass a flag; mirrors the secret roster in achievements.py.
 _HIDDEN_KEYS = frozenset({"genie", "knight", "treasure", "lottery", "rail", "poison"})
@@ -174,32 +187,33 @@ def _glyph_clock(surf, cx, cy, r, col):
 
 
 def _glyph_wing(surf, cx, cy, r, col):
-    # A single clean feathered macaw wing — one filled silhouette with a
-    # scalloped trailing edge of feather tips, swept up to the right. Reads as
-    # ONE wing, not three fast-forward chevrons.
-    # Leading edge sweeps from the shoulder (lower-left) up to the wing-tip
-    # (upper-right); the trailing edge scallops back down in feather lobes.
-    sx, sy = cx - r * 0.72, cy + r * 0.46          # shoulder
-    tx, ty = cx + r * 0.70, cy - r * 0.60          # wing tip
-    outline = [(sx, sy), (cx - r * 0.30, cy - r * 0.06), (tx, ty)]
-    # feather lobes along the trailing edge, tip → shoulder
+    # A single clean macaw wing — one filled silhouette swept up to the right.
+    # The leading edge is a strong CONVEX arc (sampled from the shoulder up to
+    # the tip) so the wing reads as an arc, not an arrowhead; the trailing edge
+    # is a gentler scallop of just three feather lobes so it stays a wing, not
+    # a busy fan.
+    sx, sy = cx - r * 0.74, cy + r * 0.42          # shoulder
+    tx, ty = cx + r * 0.72, cy - r * 0.62          # wing tip
+    # Bowed leading edge: quadratic Bézier with the control point pushed up-left
+    # of the chord so the top of the wing bulges (a wing's camber), not a point.
+    lebx = cx - r * 0.52   # control point well above the chord
+    leby = cy - r * 0.70
+    leading = []
+    for i in range(9):
+        t = i / 8
+        mt = 1 - t
+        bx = mt * mt * sx + 2 * mt * t * lebx + t * t * tx
+        by = mt * mt * sy + 2 * mt * t * leby + t * t * ty
+        leading.append((bx, by))
+    # Trailing edge: three soft feather lobes, tip → shoulder. Fewer notches so
+    # the read stays "ONE wing".
     lobes = [
-        (cx + r * 0.42, cy - r * 0.06),
-        (cx + r * 0.50, cy + r * 0.22),
-        (cx + r * 0.10, cy + r * 0.14),
-        (cx + r * 0.18, cy + r * 0.46),
-        (cx - r * 0.22, cy + r * 0.34),
-        (cx - r * 0.14, cy + r * 0.62),
-        (cx - r * 0.50, cy + r * 0.50),
+        (cx + r * 0.46, cy + r * 0.04),
+        (cx + r * 0.04, cy + r * 0.20),
+        (cx - r * 0.36, cy + r * 0.50),
     ]
-    pts = outline + lobes
+    pts = leading + lobes
     pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in pts])
-    # two engraved feather quills hint at plumage without breaking the read
-    for k in (0.18, 0.42):
-        pygame.draw.line(surf, _GLYPH_SH,
-                         (int(cx - r * 0.34 + k * r * 0.4), int(cy + r * (0.30 - k))),
-                         (int(cx + r * (0.20 + k * 0.6)), int(cy - r * (0.10 + k * 0.4))),
-                         max(2, r // 14))
 
 
 def _glyph_magnet(surf, cx, cy, r, col):
@@ -220,9 +234,10 @@ def _glyph_magnet(surf, cx, cy, r, col):
         lx = cx + sgn * rr - leg_w // 2
         pygame.draw.rect(surf, col, (lx, leg_top, leg_w, leg_h))
     # banded pole-tips — one red, one steel — drawn as full caps so they read
-    # as poles, not specks
+    # as poles, not specks. The accents desaturate to bronze when dormant so a
+    # sleeping medal stays monochrome.
     tip_h = max(4, int(r * 0.20))
-    for sgn, tip in ((-1, (212, 64, 56)), (1, (224, 228, 240))):
+    for sgn, tip in ((-1, _accent((212, 64, 56))), (1, _accent((224, 228, 240)))):
         lx = cx + sgn * rr - leg_w // 2
         pygame.draw.rect(surf, tip, (lx, leg_top + leg_h, leg_w, tip_h))
 
@@ -231,7 +246,9 @@ def _glyph_kfc(surf, cx, cy, r, col):
     # A bucket of fries — trapezoid tub + a few sticks.
     tub = [(cx - r * 0.5, cy + r * 0.62), (cx + r * 0.5, cy + r * 0.62),
            (cx + r * 0.36, cy - r * 0.02), (cx - r * 0.36, cy - r * 0.02)]
-    pygame.draw.polygon(surf, (214, 74, 60), [(int(x), int(y)) for x, y in tub])
+    # The red fry-box desaturates to bronze when dormant so the sleeping medal
+    # stays monochrome; the brand red returns on unlock.
+    pygame.draw.polygon(surf, _accent((214, 74, 60)), [(int(x), int(y)) for x, y in tub])
     pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in tub], max(2, r // 14))
     for dx in (-0.22, 0.0, 0.22):
         x = int(cx + dx * r)
@@ -258,12 +275,15 @@ def _glyph_skate(surf, cx, cy, r, col):
         (cx - r * 0.78, yk - r * 0.30 + th),
     ]
     pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in deck])
-    # two wheels under the deck, gapped
-    wr = max(3, int(r * 0.16))
-    wy = yk + th + wr
-    for dx in (-0.40, 0.40):
-        pygame.draw.circle(surf, col, (int(cx + dx * r), int(wy)), wr)
-        pygame.draw.circle(surf, _GLYPH_SH, (int(cx + dx * r), int(wy)), max(1, wr // 2))
+    # Two fat wheels slung well below the deck so they break the badge's lower
+    # edge as two distinct dark circles — the cue that sells "skateboard" at
+    # 46px (a bare deck alone reads as a bowl/smile). Drawn in the engraved
+    # shadow tone so they stay dark against the gold deck.
+    wr = max(5, int(r * 0.23))
+    wy = yk + th + int(wr * 0.7)
+    for dx in (-0.42, 0.42):
+        pygame.draw.circle(surf, _GLYPH_SH, (int(cx + dx * r), int(wy)), wr)
+        pygame.draw.circle(surf, col, (int(cx + dx * r), int(wy)), max(1, wr // 3))
 
 
 def _glyph_genie(surf, cx, cy, r, col):
@@ -595,7 +615,12 @@ def _build(icon_key: str, size: int, unlocked: bool, hidden: bool) -> pygame.Sur
     else:
         # Dormant: the real glyph shape is embossed faintly so it teases the
         # unlock — lifted ~12% in value so it reads "asleep", not "disabled".
+        # Flag the two-tone glyphs to drop their saturated accents to bronze so
+        # the sleeping medal stays fully monochrome.
+        global _GLYPH_DORMANT
+        _GLYPH_DORMANT = True
         _stamp_glyph(surf, icon_key, cx, cy, gr, _LOCK_GLY, _LOCK_GLY_SH)
+        _GLYPH_DORMANT = False
 
     return pygame.transform.smoothscale(surf, (size, size))
 

@@ -110,8 +110,10 @@ sheet_h = max(640, GH) + cap_h + pad
 sheet = pygame.Surface((sheet_w, sheet_h), pygame.SRCALPHA)
 sheet.fill((5, 4, 16))
 
+# Drop the leading "ACHIEVEMENTS" word — it stutters directly above the
+# screen's own ACHIEVEMENTS wordmark in panel (A).
 cap = _font(18, True).render(
-    "ACHIEVEMENTS  ·  Courier's Commendation  ·  round 2", True, _GOLD_BRIGHT)
+    "Courier's Commendation  ·  round 3", True, _GOLD_BRIGHT)
 sheet.blit(cap, (pad, pad - 2))
 
 sheet.blit(scr, (pad, cap_h + pad // 2))
@@ -127,7 +129,7 @@ lb = _font(12, True).render(
 sheet.blit(lb, (gx, cap_h + pad // 2 + GH + 2))
 
 out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                   "docs", "achievements", "round_2.png")
+                   "docs", "achievements", "round_3.png")
 os.makedirs(os.path.dirname(out), exist_ok=True)
 pygame.image.save(sheet, out)
 print("saved", out, sheet.get_size())

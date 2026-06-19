@@ -345,22 +345,27 @@ class AchievementsScene:
         cnt = self._gilded_count(f"{got} / {total}", 14)
         surf.blit(cnt, (W - cnt.get_width() - 8, 6))
 
-        # Global progress bar — a thin gold bar spanning the header inset,
-        # showing total unlocked / total at a glance.
+        # Global progress bar — a gold bar spanning the header inset, showing
+        # total unlocked / total at a glance. Thickened and given a faint inner
+        # top-shadow on the empty track so the filled gold portion reads as a
+        # filled vessel, matching the minted-metal language of the badges.
+        gbh = 6
         gbx = _RULE_INSET
         gbw = W - _RULE_INSET * 2
-        gby = _HEADER_H - 9
+        gby = _HEADER_H - 11
         frac = (got / total) if total else 0.0
-        pygame.draw.rect(surf, (8, 5, 24), (gbx, gby, gbw, 4), border_radius=2)
+        pygame.draw.rect(surf, (8, 5, 24), (gbx, gby, gbw, gbh), border_radius=gbh // 2)
+        # inner top-shadow line so the track reads as a sunken channel
+        pygame.draw.line(surf, (4, 2, 14), (gbx + 1, gby + 1), (gbx + gbw - 2, gby + 1), 1)
         fw = int(gbw * max(0.0, min(1.0, frac)))
         if fw > 0:
-            bar = pygame.Surface((fw, 4), pygame.SRCALPHA)
+            bar = pygame.Surface((fw, gbh), pygame.SRCALPHA)
             for xx in range(fw):
                 t = xx / max(1, fw - 1)
-                bar.fill(lerp_color(_GOLD_PALE, _GOLD_BRIGHT, t), (xx, 0, 1, 4))
+                bar.fill(lerp_color(_GOLD_PALE, _GOLD_BRIGHT, t), (xx, 0, 1, gbh))
             surf.blit(bar, (gbx, gby))
-        pygame.draw.rect(surf, (*_GOLD_BRIGHT, 110), (gbx, gby, gbw, 4),
-                         width=1, border_radius=2)
+        pygame.draw.rect(surf, (*_GOLD_BRIGHT, 110), (gbx, gby, gbw, gbh),
+                         width=1, border_radius=gbh // 2)
 
         # Footer prompt — pulsing.
         ftr = pygame.Surface((W, _FOOTER_H), pygame.SRCALPHA)
