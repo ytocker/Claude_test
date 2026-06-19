@@ -32,16 +32,14 @@ import matplotlib.pyplot as plt
 
 from game import biome, weather, config
 
-# Biome keyframe phase → label (same list the seconds-axis plotter uses).
-PHASE_LABELS = [
-    (0.00000, "DAY"),
-    (0.23125, "GOLDEN\nHOUR"),
-    (0.36250, "SUNSET"),
-    (0.51250, "DUSK"),
-    (0.64375, "NIGHT"),
-    (0.79375, "PREDAWN"),
-    (0.90625, "SUNRISE"),
-]
+# Biome keyframe phase → label, read from the LIVE (possibly remapped) keyframes
+# so the labels/gridlines track the real day length — e.g. the DAY phase grows
+# when the cycle is lengthened to absorb the clown event. Names are in keyframe
+# order; the 8th keyframe is the wrap back to DAY.
+_PHASE_NAMES = ["DAY", "GOLDEN\nHOUR", "SUNSET", "DUSK", "NIGHT", "PREDAWN",
+                "SUNRISE"]
+PHASE_LABELS = [(biome._KEYFRAMES[i][0], _PHASE_NAMES[i])
+                for i in range(len(_PHASE_NAMES))]
 
 # The three gameplay weather events: (label, intensity-fn, colour).
 CURVES = [
