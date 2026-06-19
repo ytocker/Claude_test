@@ -997,6 +997,19 @@ _TELEMETRY_JS = """
         } catch (e) { rLog = false; }
     }
 
+    /* Local meta-progression (achievements). A single JSON string lives in
+       localStorage under a fixed key — synchronous, no network. Persists per
+       browser like the device UUID; degrades to "" / no-op in private mode. */
+    var ACH_KEY = 'skybit_ach';
+    function achLoad() {
+        try { return window.localStorage.getItem(ACH_KEY) || ''; }
+        catch (e) { return ''; }
+    }
+    function achSave(payload) {
+        try { window.localStorage.setItem(ACH_KEY, String(payload || '')); }
+        catch (e) {}
+    }
+
     function dispatch(action, payload, board) {
         switch (String(action || '')) {
             case 'submit':       doSubmit(payload, board); return null;
@@ -1007,6 +1020,8 @@ _TELEMETRY_JS = """
             case 'fetch_error':  return rFetchError;
             case 'log':          doLog(payload);    return null;
             case 'log_done':     return rLog;
+            case 'ach_load':     return achLoad();
+            case 'ach_save':     achSave(payload); return null;
             default:             return null;
         }
     }

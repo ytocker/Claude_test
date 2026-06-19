@@ -227,5 +227,10 @@ def play_treasure_pickup() -> None:
 
 def play_skateboard() -> None:   _play("grow", 0.70); _play("poof", 0.55)
 def play_knight() -> None:       _play("grow", 0.75); _play("thunder", 0.45)
+
+# Achievement-unlock chime — a bright two-layer fanfare reusing existing
+# OGGs (no new asset ships). Safe on both backends: the browser path routes
+# through window.skyPlay and never touches pygame.mixer.
+def play_achievement() -> None:  _play("triple_coin", 0.9); _play("magnet", 0.5)
 def play_backflip() -> None:     _play("poof", 0.50)
 def play_helmet_bonk() -> None:  _play("thunder", 0.50)

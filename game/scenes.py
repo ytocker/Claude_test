@@ -410,6 +410,7 @@ STATE_STATS = 5
 STATE_LEADERBOARD = 6
 STATE_INTRO = 7
 STATE_POWERUPS = 8
+STATE_ACHIEVEMENTS = 9
 
 # Background cloud depth slots: (base_x, base_y, scale). Geometry is fixed so the
 # parallax-depth spread stays good; all slots share one cloud design per run,
@@ -447,6 +448,14 @@ class App:
         # Built lazily when the intro auto-completes (not when the user
         # skips it). Lives until the player taps once on the help screen.
         self.powerup_help: object | None = None
+        # Achievements screen — built lazily when opened from the menu,
+        # torn down on dismiss. Owns its own scroll/drag state.
+        self.achievements: object | None = None
+        # Unlock-toast queue (achievement ids) + per-toast animation clock.
+        # Populated at end-of-run; surfaced one at a time on the run-summary
+        # screen so nothing runs during PLAY.
+        self._achv_toast_queue: list = []
+        self._achv_toast_t = 0.0
         # True when the intro was launched from the menu's HOW TO PLAY
         # button. _finish_intro reads this to land back on MENU instead
         # of the POWERUPS explainer.
@@ -598,6 +607,10 @@ class App:
                 self.state = STATE_POWERUPS
                 self._cooldown_t = 0.25
                 return
+            if pos and self.hud.menu_achv_rect \
+                    and self.hud.menu_achv_rect.collidepoint(pos):
+                self._open_achievements()
+                return
             if pos and self.hud.menu_top10_rect \
                     and self.hud.menu_top10_rect.collidepoint(pos):
                 self._open_leaderboard_from_menu()
@@ -676,6 +689,97 @@ class App:
             self.state = STATE_PAUSE
         elif self.state == STATE_PAUSE:
             self.state = STATE_PLAY
+
+    # ── achievements screen ───────────────────────────────────────────────────
+    def _open_achievements(self):
+        from game.achievements_screen import AchievementsScene
+        self.achievements = AchievementsScene()
+        self.state = STATE_ACHIEVEMENTS
+        self._cooldown_t = 0.25
+
+    def _close_achievements(self):
+        self.achievements = None
+        self.state = STATE_MENU
+        self._cooldown_t = 0.25
+
+    def _handle_achievements_event(self, e):
+        """Pointer/wheel/key routing for the scrollable achievements list. The
+        scene owns scroll + drag state; a near-stationary release is a tap that
+        dismisses back to the menu (gated by the entry cooldown so the opening
+        tap's echo can't bounce straight back out)."""
+        sc = self.achievements
+        if sc is None:
+            self.state = STATE_MENU
+            return
+        if e.type == pygame.KEYDOWN:
+            if e.key == pygame.K_ESCAPE or self._cooldown_t <= 0:
+                self._close_achievements()
+            return
+        if e.type == pygame.MOUSEWHEEL:
+            sc.scroll_by(-e.y * sc.WHEEL_STEP)
+        elif e.type == pygame.MOUSEBUTTONDOWN:
+            sc.pointer_down(e.pos[1])
+        elif e.type == pygame.MOUSEMOTION:
+            if e.buttons[0]:
+                sc.pointer_move(e.pos[1])
+        elif e.type == pygame.MOUSEBUTTONUP:
+            if sc.pointer_up() and self._cooldown_t <= 0:
+                self._close_achievements()
+        elif e.type == pygame.FINGERDOWN:
+            sc.pointer_down(int(e.y * H))
+        elif e.type == pygame.FINGERMOTION:
+            sc.pointer_move(int(e.y * H))
+        elif e.type == pygame.FINGERUP:
+            if sc.pointer_up() and self._cooldown_t <= 0:
+                self._close_achievements()
+
+    # ── achievement-unlock toast (run-summary screen) ─────────────────────────
+    _ACHV_TOAST_DUR = 2.8  # seconds each unlock toast stays up
+
+    def _advance_achv_toast(self, dt):
+        """Drive the unlock-toast queue: chime as each toast begins, retire it
+        once its window elapses so the next queues up behind it."""
+        if not self._achv_toast_queue:
+            return
+        if self._achv_toast_t == 0.0:
+            audio.play_achievement()
+        self._achv_toast_t += dt
+        if self._achv_toast_t >= self._ACHV_TOAST_DUR:
+            self._achv_toast_queue.pop(0)
+            self._achv_toast_t = 0.0
+
+    def _draw_achv_toast(self, surf):
+        if not self._achv_toast_queue:
+            return
+        from game import achievements
+        from game.achievement_icons import draw_badge
+        from game.hud import _dark_panel, _font, _GOLD_PALE, _GOLD_BRIGHT
+        a = achievements.BY_ID.get(self._achv_toast_queue[0])
+        if a is None:
+            return
+        dur = self._ACHV_TOAST_DUR
+        t = self._achv_toast_t
+        if t < 0.3:
+            k = t / 0.3
+        elif t > dur - 0.4:
+            k = max(0.0, (dur - t) / 0.4)
+        else:
+            k = 1.0
+        ease = k * k * (3 - 2 * k)            # smoothstep fade-in/out
+        alpha = max(0, min(255, int(255 * ease)))
+
+        pw, ph = W - 28, 52
+        px = (W - pw) // 2
+        py = 60 + int((1 - ease) * -22)       # slides down from above
+        panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
+        _dark_panel(panel, pygame.Rect(0, 0, pw, ph), radius=14, alpha=235)
+        draw_badge(panel, a.icon_key, pygame.Rect(8, (ph - 40) // 2, 40, 40), True)
+        panel.blit(_font(11, True).render("ACHIEVEMENT UNLOCKED", True, _GOLD_BRIGHT),
+                   (56, 9))
+        panel.blit(_font(16, True).render(a.title, True, _GOLD_PALE), (56, 24))
+        # Reliable per-pixel alpha fade (multiplies the surface's own alpha).
+        panel.fill((255, 255, 255, alpha), special_flags=pygame.BLEND_RGBA_MULT)
+        surf.blit(panel, (px, py))
 
     def _pick_cloud_variant(self):
         """Pick the single cloud design used by every cloud for the whole run,
@@ -842,6 +946,11 @@ class App:
         elif e.type == pygame.MOUSEBUTTONDOWN:
             if now - self._last_finger_t < self._finger_dedup_window:
                 return  # this MOUSEBUTTONDOWN is a touch echo — ignore
+        # The achievements list fully owns pointer + wheel + key input while
+        # open (scroll/drag/dismiss), so route every event there and stop.
+        if self.state == STATE_ACHIEVEMENTS:
+            self._handle_achievements_event(e)
+            return
         import sys as _sys
         if e.type == pygame.KEYDOWN:
             if e.key == pygame.K_p:
@@ -942,6 +1051,11 @@ class App:
                 self.powerup_help.update(dt)
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
             return
+        if self.state == STATE_ACHIEVEMENTS:
+            if self.achievements is not None:
+                self.achievements.update(dt)
+            self._cooldown_t = max(0.0, self._cooldown_t - dt)
+            return
         if self.state == STATE_MENU:
             self.world.world_idle_tick(dt)
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
@@ -956,6 +1070,7 @@ class App:
         elif self.state == STATE_STATS:
             self.world.update(dt)  # let particles/weather keep going behind
             self._stats_t += dt
+            self._advance_achv_toast(dt)
             # No auto-advance — the screen stays until the player taps
             # (handled in _flap_input).
         elif self.state == STATE_NAMEENTRY:
@@ -979,6 +1094,16 @@ class App:
             except RuntimeError:
                 # No running loop (e.g. headless smoke tests) — skip silently.
                 pass
+        # Evaluate achievements once against the finished run (never for the
+        # scripted demo). Newly-unlocked ids queue up for the run-summary toast.
+        self._achv_toast_queue = []
+        self._achv_toast_t = 0.0
+        if getattr(self.world, "demo", None) is None:
+            try:
+                from game import achievements
+                self._achv_toast_queue = achievements.evaluate_run(self.world)
+            except Exception:
+                self._achv_toast_queue = []
         # Game-over screen no longer plays its own jingle — death.ogg
         # at the moment of impact carries the whole "run ended" cue.
         self.state = STATE_STATS
@@ -1291,6 +1416,11 @@ class App:
         if self.state == STATE_POWERUPS and self.powerup_help is not None:
             self.powerup_help.render(self.screen)
             return
+        # Achievements list paints its own night background + scrolling list.
+        if self.state == STATE_ACHIEVEMENTS and self.achievements is not None:
+            from game import achievements as _ach
+            self.achievements.render(self.screen, 1 / 60, _ach.load())
+            return
         sx, sy = self.world.shake_offset() if self.state == STATE_PLAY else (0, 0)
         sx, sy = int(sx), int(sy)
         self._draw_background(self.screen)
@@ -1575,6 +1705,7 @@ class App:
             self.hud.draw_stats(self.screen, self.world, 1 / 60, self._stats_t,
                                 best=self.best, new_best=self._new_best,
                                 show_prompt=not self._fetch_pending)
+            self._draw_achv_toast(self.screen)
         elif self.state == STATE_NAMEENTRY:
             import sys as _sys
             if _sys.platform != "emscripten":

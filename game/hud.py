@@ -1538,6 +1538,7 @@ class HUD:
         self.menu_start_rect: "pygame.Rect | None" = None
         self.menu_howto_rect: "pygame.Rect | None" = None
         self.menu_powerups_rect: "pygame.Rect | None" = None
+        self.menu_achv_rect: "pygame.Rect | None" = None
         self.menu_top10_rect: "pygame.Rect | None" = None
         # Leaderboard tab hit-rects (CURRENT | LEGACY) — populated each frame
         # by draw_leaderboard in screen space, read by scenes.py to switch
@@ -1601,11 +1602,17 @@ class HUD:
         def _pill_h(text: str, size: int) -> int:
             return _font(size, True).render(text, True, WHITE).get_height() + 22
 
-        GAP = 12
+        # Four-pill stack (ACHIEVEMENTS joined the trio). GAP trimmed to 10
+        # so the taller block still clears the BEST/TOP-10 panels below and
+        # the subtitle divider above. Bottom pill is anchored first; the
+        # rest stack upward off each rendered height for even spacing.
+        GAP = 10
         h_start = _pill_h("START", 22)
         h_howto = _pill_h("HOW TO PLAY", 18)
         h_power = _pill_h("POWER-UPS", 18)
-        y_power = (H - 110) - 14 - h_power // 2
+        h_achv  = _pill_h("ACHIEVEMENTS", 18)
+        y_achv  = (H - 110) - 14 - h_achv // 2
+        y_power = y_achv - h_achv // 2 - GAP - h_power // 2
         y_howto = y_power - h_power // 2 - GAP - h_howto // 2
         y_start = y_howto - h_howto // 2 - GAP - h_start // 2
 
@@ -1621,6 +1628,9 @@ class HUD:
             size=18, alpha=230, min_width=220, dim=True, shadow=False)
         self.menu_powerups_rect = _pill_btn(
             surf, (W // 2, y_power), "POWER-UPS",
+            size=18, alpha=230, min_width=220, dim=True, shadow=False)
+        self.menu_achv_rect = _pill_btn(
+            surf, (W // 2, y_achv), "ACHIEVEMENTS",
             size=18, alpha=230, min_width=220, dim=True, shadow=False)
 
         # Twin panels at the bottom: BEST score (left) + TOP 10 trophy
