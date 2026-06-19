@@ -59,10 +59,12 @@ looks like it's lunging/sliding off its own base. The set's only negative-lean
 column and the only fang-heavy *plain* totem (P9's fangs were skewered).
 **Word-thumbnail:** ◣ leaning fangs cascading down-left.
 - **RECIPE (focal→far):** `new:sabertooth-maw` (FOCAL, lit) → `new:longjaw-relic`
-  → `orn:bead_darkblue` → `new:sabertooth-maw` → `new:longjaw-relic`
-- **COLLAR:** OFF · **LEAN:** −0.34 (negative — leans opposite to P5's +0.42)
-- **Showcases:** `new:sabertooth-maw` + `new:longjaw-relic` (plain, un-skewered),
-  negative LEAN, `orn:bead_darkblue` (mid-stack seam).
+  → `new:sabertooth-maw` → `new:longjaw-relic` → `classic:gaunt-hollow`
+- **COLLAR:** ON (gold seam beads strap the off-axis tiers like a holding strap) ·
+  **LEAN:** −0.34 (negative — leans opposite to P5's +0.42) · **MARGIN_R:** 2.4
+  (seat the focal off the gap edge so the sabre fangs clear the rim)
+- **Showcases:** `new:sabertooth-maw` (×2) + `new:longjaw-relic` (×2, plain,
+  un-skewered), negative LEAN, COLLAR-on fang strap.
 
 ## P14 — `child-relic-shrine`
 **Thesis:** A *small reliquary shrine* — a child-skull cradled and venerated at the
@@ -77,18 +79,20 @@ tender/devotional read: tiny focal, larger protectors. Mixed family, COLLAR on.
 - **Showcases:** `classic:child-skull` AS the focal (distinct from P11's far-end use),
   `r9:0` (unlit crown), `orn:ornament_necklace` (draped guardian garland), `palm:3`.
 
-## P15 — `darkblue-prayer-strand`
-**Thesis:** A *cold rosary* of bare royal crowns threaded on dark-blue beads — every
-seam carries a `bead_darkblue` so the column reads as a deep-indigo prayer strand of
-relic domes (the cool, midnight counterpart to P10's warm multi-colour strand, but
-PLAIN — no skewer underneath). Heaviest `bead_darkblue` use in the pool.
+## P15 — `darkblue-bone-rosary`
+**Thesis:** A *cold rosary* of bare classic bone domes threaded on dark-blue beads —
+every seam carries a `bead_darkblue` so the column reads as a deep-indigo prayer strand
+of relic domes (the cool, midnight counterpart to P10's warm multi-colour strand, but
+PLAIN — no skewer underneath). Built from classic domes (not royal crowns) so it stays
+distinct from P19's crown family. Heaviest `bead_darkblue` use in the pool.
 **Word-thumbnail:** ◗•◖•◗•◖ domes split by blue pips.
-- **RECIPE (focal→far):** `crown:2` (FOCAL, lit) → `orn:bead_darkblue` → `crown:1`
-  → `orn:bead_darkblue` → `crown:4` → `orn:bead_darkblue` → `r9:0`
+- **RECIPE (focal→far):** `classic:egg-dome` (FOCAL, lit) → `orn:bead_darkblue`
+  → `classic:round-cap` → `orn:bead_darkblue` → `classic:calvaria`
+  → `orn:bead_darkblue` → `r9:0`
 - **COLLAR:** OFF (the dark-blue pips ARE the seam rhythm; gold collar would fight them)
 - **LEAN:** 0
 - **Showcases:** `orn:bead_darkblue` (×3, the defining strand), `r9:0` (unlit crown
-  as the far terminal), royal-crown-only family.
+  as the far terminal), classic bone-dome family.
 
 ## P16 — `broad-block-bastion`
 **Thesis:** A *bulging fortress wall* — broad-zygo wide-cheek skulls stacked nearly
@@ -143,17 +147,19 @@ use.
 
 ## P20 — `mongrel-generations-totem`
 **Thesis:** A *museum of skull lineages* — one skull from every FAMILY in a single
-column (crown / palm / r9 / new / classic), so the blackout is a deliberately
-mismatched mongrel stack, each tier a different shape-language. The "one of each"
-sampler totem; the most heterogeneous silhouette of all twenty. Mixed beads, no two
-seams alike.
-**Word-thumbnail:** ◯ dome ▢ block ⊙ eye ◉ gem-dome ⩕ — all different.
-- **RECIPE (focal→far):** `r9:0` (FOCAL, lit) → `orn:bead_darkblue` → `classic:egg-dome`
-  → `orn:gem_thirdeye` → `new:longjaw-relic` → `palm:3`
+column (new / r9 / palm / classic), so the blackout is a deliberately mismatched
+mongrel stack, each tier a different shape-language. The "one of each" sampler totem;
+the most heterogeneous silhouette of all twenty. Mixed beads, no two seams alike. Leads
+with the long longjaw muzzle and climbs a loose size-ladder spine; the unlit r9 crown
+is demoted to a mid-body course and the terminal is a cracked-half (so cracked-half
+recurs across two columns).
+**Word-thumbnail:** ⩕ longjaw → ◉ gem-dome → ⊙ eye → ◯ unlit → ◗ cracked — all different.
+- **RECIPE (focal→far):** `new:longjaw-relic` (FOCAL, lit) → `orn:bead_darkblue`
+  → `palm:3` → `orn:gem_thirdeye` → `r9:0` → `new:cracked-half`
 - **COLLAR:** OFF (each seam ornament is chosen per-tier, not a uniform collar)
 - **LEAN:** −0.16 (slight negative; the mongrel stack leans casually left)
-- **Showcases:** `r9:0` AS the lit focal (an unlit crown profile pressed into focal
-  duty — its only focal appearance), `palm:3`, `new:longjaw-relic` (plain),
+- **Showcases:** `new:longjaw-relic` AS the lit focal (plain), `palm:3`, `r9:0` (unlit
+  crown demoted to a mid-body course), `new:cracked-half` (far terminal),
   `orn:bead_darkblue` + `orn:gem_thirdeye` mixed seams, negative lean.
 
 ---
@@ -170,17 +176,21 @@ P17 differs from P5 in break-mix, lean magnitude, and ornament).
 
 **No single skull defines two new columns as the IDENTITY:** child-skull is a far-nub
 in P11 but the FOCAL shrine subject in P14 (different role); broad-zygo is a taper
-base in P11 vs the repeated barrel course in P16; cracked-half anchors P17's ruin but
-P13/P20 lead with fang/lineage ideas. Each thesis rests on a different axis (taper,
-eye-ladder, lean, devotion, cold-strand, girth, ruin, pagoda, garland, mongrel).
+base in P11 vs the repeated barrel course in P16; cracked-half anchors P17's ruin (×2)
+and recurs as P20's terminal, while P13/P20 lead with fang/lineage ideas. P15 (cold
+classic bone-dome rosary) and P19 (warm royal-crown garland) no longer twin — P15 is
+the classic-dome family, P19 the royal-crown family. Each thesis rests on a different
+axis (taper, eye-ladder, lean, devotion, cold-strand, girth, ruin, pagoda, garland,
+mongrel).
 
-**Lever spread:** family mix — all-classic (P11, P16), all-palm (P18), all-crown/r9
-(P15), new-heavy (P12, P13), mixed (P14, P19, P20); COLLAR on (P14, P18) / off (rest);
-LEAN — upright (P11, P12, P14, P15, P16, P18), positive (P17 +0.22, P19 +0.12),
-negative (P13 −0.34, P20 −0.16); ornament placement — focal-adjacent (P14, P15),
-mid-stack keystone (P11, P16, P17), as-its-own-tier ladder (P12, P19), none (P13 uses
-one mid seam only); focal family — classic (P11, P14, P16, P18→palm), new (P12, P13,
-P17), crown (P15, P19), palm (P18), r9 (P20).
+**Lever spread:** family mix — all-classic (P11, P16), all-palm (P18), classic-dome
+rosary (P15), all-crown+antler (P19), new-heavy (P12, P13), mixed (P14, P20); COLLAR
+on (P13, P14, P18) / off (rest); LEAN — upright (P11, P12, P14, P15, P16, P18),
+positive (P17 +0.22, P19 +0.12), negative (P13 −0.34, P20 −0.16); ornament placement —
+focal-adjacent (P14, P15), mid-stack keystone (P11, P16), as-its-own-tier ladder (P12,
+P19), per-tier mixed seams (P20), none (P13 plain, collar only); focal family —
+classic (P11, P14, P15, P16, P18→palm), new (P12, P13, P17, P20), crown (P19), palm
+(P18).
 
 ---
 
@@ -189,17 +199,18 @@ P17), crown (P15, P19), palm (P18), r9 (P20).
 | Part | Status before | Featured in (new) |
 | --- | --- | --- |
 | `classic:child-skull` | UNUSED | P11 (far nub), P14 (FOCAL) |
-| `orn:bead_darkblue` | UNUSED | P11, P13, P15 (×3), P17, P20 |
-| `r9:0` (unlit crown) | UNUSED | P14, P15, P20 (as FOCAL) |
+| `orn:bead_darkblue` | UNUSED | P11, P15 (×3), P17, P20 |
+| `r9:0` (unlit crown) | UNUSED | P14, P15 (far terminal), P20 (mid-body) |
 | `palm:3` | once | P14, P18, P20 |
 | `classic:broad-zygo` | once | P11, P16 (×2) |
 | `orn:gem_thirdeye` | once | P12 (×3), P16, P20 |
 | `orn:ornament_necklace` | once | P14, P19 (×2) |
 | `new:cyclops-brow` | once | P12 (×2) |
 | `new:sabertooth-maw` | once | P13 (×2) |
-| `new:longjaw-relic` | once | P13, P20 |
-| `new:cracked-half` | once | P13, P17 (×2) |
+| `new:longjaw-relic` | once | P13 (×2), P20 (FOCAL) |
+| `new:cracked-half` | once | P17 (×2), P20 (terminal) |
 
-Every mandated unused part now FEATURES (child-skull and r9:0 each get a focal turn;
-bead_darkblue appears in five columns). Every under-used part recurs in at least two
-new columns. No skewer tokens anywhere — WITH_SKEWER = False across P11–P20.
+Every mandated unused part now FEATURES (child-skull gets a focal turn in P14;
+bead_darkblue appears in four columns, ×3 in the P15 rosary; r9:0 the far terminal of
+P15 and a mid-body course of P20). Every under-used part recurs in at least two new
+columns. No skewer tokens anywhere — WITH_SKEWER = False across P11–P20.
