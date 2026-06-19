@@ -521,7 +521,7 @@ import importlib.util as _ilu
 
 _NEW8_DIR = os.path.join(ROOT, "docs/skull_king_stack/new8")
 _NEW8_SPEC = [
-    ("horned-ram",     "render_horned_ram.py",     0.26, 0.50, True),
+    ("simple-skull",   "render_simple_skull.py",   0.30, 0.46, False),
     ("antler-stag",    "render_antler_stag.py",     0.33, 0.66, True),
     ("sabertooth-maw", "render_sabertooth_maw.py",  0.34, 0.34, True),
     ("cyclops-brow",   "render_cyclops_brow.py",    0.40, 0.52, True),

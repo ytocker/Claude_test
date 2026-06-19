@@ -16,13 +16,13 @@ TITLE = "P9 barbed-fang-harpoon"
 # OUTWARD/UP (antlers up, ram curls wide) for a ragged horizontal silhouette. Here
 # the read is VERTICAL and front-heavy — longjaw-relic's long muzzle wedge rhymes
 # the maw's downward thrust, so the whole column drives the eye DOWN the spear.
-# horned-ram is demoted to a SUPPORT tier: a single C-curl breath partway up that
-# breaks the taper without ever owning the silhouette — horns as accent, not lead.
+# a plain simple-skull sits as the SUPPORT tier partway up: a calm round break that
+# interrupts the taper without ever owning the silhouette — a rest, not a lead.
 #
 # Rhythm A-B-A-C-B: maw(A, the plunge) -> longjaw(B, down-rhyme) -> maw(A, the
-# plunge recurs as the spit's repeating motif) -> horned-ram(C, lone wide breath)
+# plunge recurs as the spit's repeating motif) -> simple-skull(C, calm round break)
 # -> longjaw(B, far cap whose muzzle still points back down the column). The two
-# down-plungers (A,B) dominate; the ram is the only sideways note.
+# down-plungers (A,B) dominate; the plain skull is the only quiet note.
 #
 # COLLAR=False: the barbed bone rod with its seam nubs is the sole joinery — bead
 # collars would soften the brutal harpoon read and add horizontal pips that fight
@@ -32,7 +32,7 @@ RECIPE = [
     "new:sabertooth-maw",   # focal at the gap — fangs + the barbed tip plunge as one spear
     "new:longjaw-relic",    # long muzzle wedge rhymes the downward thrust right above it
     "new:sabertooth-maw",   # the plunging maw recurs as the harpoon's repeating motif
-    "new:horned-ram",       # lone support tier — one wide C-curl breath breaks the taper
+    "new:simple-skull",     # lone support tier — a calm round break in the taper
     "new:longjaw-relic",    # far cap: muzzle points back down the column, sealing the lunge
 ]
 WITH_SKEWER = True

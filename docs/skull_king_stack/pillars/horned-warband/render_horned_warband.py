@@ -3,21 +3,19 @@ sys.path.insert(0, "/home/user/skybit/docs/skull_king_stack/pillars")
 import pygame
 import pillar_engine as PE
 
-# WHY this pillar reads as a WARBAND TOTEM and not the fang-DOWN harpoon: every
-# skull throws bone OUTWARD off the column — antler-stag spikes UP, horned-ram
-# curls wide OUT — so the silhouette is the most ragged, irregular blackout of the
-# set. Alternating the two appendage families up the stack keeps the column jagged
-# (tall spurs, then a wide span, repeat) instead of one repeated horn shape.
-# The gold beads sit as a single HORIZONTAL SPACER TIER (one bead element seated
-# between two skulls), a clean breath in the rack — never a vertical centre line,
-# which would read as a spine and fight the "appendages own the silhouette" thesis.
+# WHY this pillar still reads as a WARBAND TOTEM: the antler-stag racks throw bone
+# OUTWARD and UP off the column, so the silhouette stays ragged and irregular. The
+# plain simple-skulls between the racks are calm breaks that let each antler spread
+# read on its own (tall spurs, then a clean skull, repeat) instead of a solid horn
+# mass. The gold bead sits as a single HORIZONTAL SPACER TIER (one bead element
+# between two skulls), a clean breath in the rack — never a vertical centre line.
 TITLE = "P2 horned-warband"
 RECIPE = [
     "new:antler-stag",   # focal at the gap — tall branched rack announces the warband
-    "new:horned-ram",    # wide C-curls break the column outward right above it
+    "new:simple-skull",  # a calm plain skull between the racks
     "orn:bead_gold",     # lone horizontal spacer pip — a breath between the racks
     "new:antler-stag",   # rack again, far tine spread re-broadens the top
-    "new:horned-ram",    # crowning curls cap the totem wider-than-tall
+    "new:simple-skull",  # plain skull caps the totem under the top rack
 ]
 WITH_SKEWER = False
 SKEWER_STYLE = "plain"
