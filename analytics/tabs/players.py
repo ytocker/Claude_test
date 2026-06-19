@@ -31,11 +31,13 @@ def render(df, window: int) -> None:
               help="Devices whose first play seen in-window is today.")
     k2.metric("Returning rate (7d)", f"{m.returning_rate_7d(df) * 100:.0f}%",
               help="Share of 7d players active on ≥2 distinct days.")
+    n_settled = m.settled_cohort_size(df, max_day=7)
     k3.metric("D1 retention", f"{ret['d1'] * 100:.0f}%",
-              help="Cohort devices that played again the next day. "
-                   "Hyper-casual benchmark: 25–35%.")
+              help=f"Unbounded: settled-cohort devices active on day ≥1. "
+                   f"n={n_settled} installs. Hyper-casual benchmark: 25–35%.")
     k4.metric("D7 retention", f"{ret['d7'] * 100:.0f}%",
-              help="Cohort devices that played again on day 7. "
+              help=f"Unbounded: settled-cohort devices active on day ≥7. "
+                   f"n={n_settled} installs. D7 ≤ D1 by construction. "
                    "Hyper-casual benchmark: 6–12%.")
     k5.metric("Bounce (7d)", f"{bounce:.0f}%",
               delta=f"{one_shot:,} one-shots", delta_color="off",
@@ -45,11 +47,25 @@ def render(df, window: int) -> None:
 
     left, right = st.columns(2)
     with left:
-        st.plotly_chart(c.retention_curve(m.retention_curve(df, max_day=7)),
-                        use_container_width=True)
+        mode = st.radio(
+            "Retention basis", ["unbounded", "exact"], horizontal=True,
+            key="players_retention_mode",
+            help="Unbounded (default) counts a device retained at day n if "
+                 "it was active on day n OR any later day — a monotone leak "
+                 "curve. Exact counts day-n activity only; bumpy on small N.",
+        )
+        st.plotly_chart(
+            c.retention_curve(m.retention_curve(df, max_day=7, mode=mode), mode=mode),
+            use_container_width=True,
+        )
     with right:
-        st.plotly_chart(c.retention_matrix(m.retention_matrix(df, max_day=7)),
-                        use_container_width=True)
+        cr = m.cohort_retention(df, max_day=7)
+        sizes = (cr[cr["day_offset"] == 0]
+                 .set_index("cohort_date")["cohort_size"].to_dict())
+        st.plotly_chart(
+            c.retention_matrix(m.retention_matrix(df, max_day=7), sizes=sizes),
+            use_container_width=True,
+        )
 
     left, right = st.columns(2)
     with left:

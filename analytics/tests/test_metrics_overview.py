@@ -5,6 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 import metrics
+from metrics import overview as ov  # new metrics not re-exported in __init__
 from constants import POWERUP_KEYS_ACTIVE
 
 NOW = pd.Timestamp.now(tz="UTC")
@@ -106,6 +107,104 @@ def test_daily_plays_with_band_has_bounds_and_length():
             for i in range(30)]
     band = metrics.daily_plays_with_band(_frame(rows), days=14)
     assert len(band) == 14
-    assert set(band.columns) == {"date", "plays", "mean", "lo", "hi"}
-    assert (band["lo"] <= band["hi"]).all()
-    assert (band["lo"] >= 0).all()
+    assert set(band.columns) == {
+        "date", "plays", "mean", "lo", "hi", "warmup", "outlier"}
+    # Where the band exists (not warm-up) it is ordered and non-negative.
+    settled = band[~band["warmup"]]
+    assert (settled["lo"] <= settled["hi"]).all()
+    assert (settled["lo"] >= 0).all()
+
+
+def test_daily_plays_with_band_warmup_has_no_band():
+    """The first 7 days of any window are warm-up: no band, flagged, and
+    never marked an outlier (can't judge a day against empty history)."""
+    rows = [_row(id_=i, device_id="a", offset=pd.Timedelta(days=i % 10))
+            for i in range(40)]
+    band = metrics.daily_plays_with_band(_frame(rows), days=20)
+    warm = band[band["warmup"]]
+    assert len(warm) == 7
+    assert warm["mean"].isna().all()
+    assert warm["lo"].isna().all() and warm["hi"].isna().all()
+    assert not warm["outlier"].any()
+
+
+def test_daily_plays_with_band_flags_a_spike():
+    """A clear volume spike after a flat run lands outside the trailing
+    band and is flagged outlier — the whole point of the band."""
+    # 14 calendar days, ~2 plays/day flat, then a 50-play spike on the
+    # last day. Build by day-offset so each day gets its own bucket.
+    rows = []
+    rid = 0
+    for day in range(1, 14):           # days 13..1 ago, 2 plays each
+        for _ in range(2):
+            rid += 1
+            rows.append(_row(id_=rid, device_id="a",
+                             offset=pd.Timedelta(days=day, hours=1)))
+    for _ in range(50):                # today: spike
+        rid += 1
+        rows.append(_row(id_=rid, device_id="a", offset=pd.Timedelta(hours=1)))
+    band = metrics.daily_plays_with_band(_frame(rows), days=14)
+    last = band.iloc[-1]
+    assert last["plays"] >= 50
+    assert bool(last["outlier"]) is True
+
+
+def test_rejection_count_returns_numerator_and_denominator():
+    rows = [
+        _row(id_=1, device_id="a", offset=pd.Timedelta(hours=1)),
+        _row(id_=2, device_id="b", offset=pd.Timedelta(hours=2),
+             submit_error="chain: x"),
+        _row(id_=3, device_id="c", offset=pd.Timedelta(hours=3)),
+        _row(id_=4, device_id="d", offset=pd.Timedelta(days=30)),  # out of 7d
+    ]
+    assert ov.rejection_count(_frame(rows), days=7) == (1, 3)
+
+
+def test_rejection_count_empty():
+    assert ov.rejection_count(_empty(), days=7) == (0, 0)
+
+
+def test_health_status_empty_is_alert():
+    h = ov.health_status(_empty())
+    assert h["level"] == "ALERT"
+    assert h["alive"]["level"] == "ALERT"
+
+
+def test_health_status_keys_and_shape():
+    rows = [_row(id_=i, device_id=f"d{i%5}",
+                 offset=pd.Timedelta(hours=i)) for i in range(20)]
+    h = ov.health_status(_frame(rows))
+    assert h["level"] in {"OK", "WATCH", "ALERT"}
+    assert set(h) >= {"level", "reasons", "alive", "growing", "clean"}
+    assert isinstance(h["reasons"], list) and h["reasons"]
+
+
+def test_health_status_clean_when_fresh_and_no_rejects():
+    """A steady recent stream with no rejected submits reads OK."""
+    rows = [_row(id_=i, device_id=f"d{i%4}",
+                 offset=pd.Timedelta(hours=i)) for i in range(24)]
+    h = ov.health_status(_frame(rows))
+    assert h["alive"]["level"] == "OK"
+    assert h["clean"]["level"] == "OK"
+
+
+def test_health_status_single_reject_does_not_alert_clean():
+    """One rejected run in a small window must not escalate 'clean' to
+    ALERT — the absolute-count gate guards against small-N noise."""
+    rows = [_row(id_=i, device_id="a", offset=pd.Timedelta(hours=i))
+            for i in range(10)]
+    rows.append(_row(id_=99, device_id="a", offset=pd.Timedelta(hours=1),
+                     submit_error="score: huge"))
+    h = ov.health_status(_frame(rows))
+    assert h["clean"]["level"] == "OK"
+
+
+def test_health_status_many_rejects_alerts_clean():
+    """A high rejection rate over enough runs escalates 'clean' to ALERT."""
+    rows = [_row(id_=i, device_id="a", offset=pd.Timedelta(hours=i),
+                 submit_error="chain: mismatch") for i in range(5)]
+    rows += [_row(id_=100 + i, device_id="a", offset=pd.Timedelta(hours=i))
+             for i in range(3)]
+    h = ov.health_status(_frame(rows))
+    assert h["clean"]["level"] == "ALERT"
+    assert h["level"] == "ALERT"

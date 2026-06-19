@@ -35,7 +35,8 @@ def plays_and_uniques(by_day_df: pd.DataFrame, days: int = 30) -> go.Figure:
         yaxis=dict(title="Plays"),
         yaxis2=dict(title="Unique players", overlaying="y", side="right",
                     showgrid=False),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+        # Below the plot so it never sits over the title bar.
+        legend=dict(orientation="h", yanchor="top", y=-0.16, x=0),
     )
     return style(fig, f"Plays & unique players ({days}d)")
 
@@ -82,8 +83,11 @@ def plays_anomaly_band(band_df: pd.DataFrame, days: int = 30) -> go.Figure:
     n_out = int(outlier.sum())
     sub = (f"{n_out} day(s) outside the trailing ±2σ range"
            if n_out else "No days outside the trailing ±2σ range")
-    fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
-                      yaxis_title="Plays")
+    # Legend sits below the plot so it never collides with the subtitle.
+    fig.update_layout(
+        legend=dict(orientation="h", yanchor="top", y=-0.18, x=0),
+        yaxis_title="Plays",
+    )
     return style(fig, f"Daily volume vs normal band ({days}d)", subtitle=sub)
 
 
@@ -99,9 +103,15 @@ def rejection_reasons(reasons_df: pd.DataFrame, days: int = 7) -> go.Figure:
     ordered = reasons_df.sort_values("count", ascending=True)
     fig.add_bar(
         x=ordered["count"], y=ordered["reason"], orientation="h",
-        marker_color=CORAL, hovertemplate="%{y}: %{x}<extra></extra>",
+        marker_color=CORAL, text=ordered["count"], textposition="outside",
+        cliponaxis=False, hovertemplate="%{y}: %{x}<extra></extra>",
     )
-    fig.update_layout(xaxis_title="Rejected runs")
+    # Counts are integers — force integer ticks so a 1-vs-1 read doesn't
+    # show fractional 0.2/0.4 gridlines, and pad the axis for the labels.
+    top = int(ordered["count"].max())
+    fig.update_layout(
+        xaxis=dict(title="Rejected runs", dtick=1, range=[0, top + 1]),
+    )
     return style(fig, f"Rejected submits by reason ({days}d)",
                  subtitle="The plausibility gate that dropped each run")
 

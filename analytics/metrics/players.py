@@ -9,7 +9,17 @@ Retention definitions (held constant so tests have known answers):
   • install day  = a device's FIRST played_at UTC date *within the
     fetched frame*. The app feeds a wide (~120d) frame here so the
     install day is real for cohorts at least `max_day` days old.
-  • Dn retained  = a cohort device that played again on (install + n).
+  • Dn retained  = two flavours, both supported:
+      - UNBOUNDED (default, "classic mobile" / rolling): the device was
+        active on install+n OR ANY later day. Monotone non-increasing by
+        construction, so it reads as an honest leak curve and D7 ≤ D1
+        always holds. This is the headline (KPIs + the curve chart).
+      - EXACT (day-n only): the device was active on precisely
+        install+n. Bumpy by nature — a player who skips a week then
+        returns on D7 lifts D7 above D6 — which is true but reads as
+        noise on a small-N casual game. Offered as a chart toggle, not a
+        KPI, because exact-day points are dominated by single-cohort
+        sampling here.
   • censoring    = a (cohort, offset) is only counted once enough wall
     time has passed (install + offset ≤ today); younger cells are
     omitted rather than counted as 0, so a fresh cohort doesn't drag
@@ -18,6 +28,11 @@ Retention definitions (held constant so tests have known answers):
 Windowed-telemetry caveat: a device whose true first play predates the
 frame looks "new" the day it re-enters. Exact fix needs a server-side
 first_seen; out of scope. Surfaced in chart subtitles.
+
+Small-N honesty: cohort sizes are tiny here (most are 1–2 devices), so a
+single returning player swings a per-cohort cell by 50–100%. The settled
+denominator (N) is carried on every curve row and the cohort sizes ride
+the triangle's row labels so the noise floor is visible, never hidden.
 """
 from __future__ import annotations
 
@@ -95,15 +110,29 @@ def new_players_today(df: pd.DataFrame) -> int:
 
 
 def retention_summary(df: pd.DataFrame) -> dict[str, float]:
-    """{'d1': .., 'd7': ..} pooled across eligible cohorts — the two
-    headline retention KPIs. 0.0 when no cohort is old enough."""
-    curve = retention_curve(df, max_day=7)
+    """{'d1': .., 'd7': ..} pooled across the settled cohort — the two
+    headline retention KPIs. Uses the UNBOUNDED curve so D7 ≤ D1 always
+    holds (a player active on day ≥7 also counts for day ≥1); the exact-
+    day flavour can put D7 above D6 on small N, which reads as a broken
+    KPI. 0.0 when no cohort is old enough."""
+    curve = retention_curve(df, max_day=7, mode="unbounded")
     out = {"d1": 0.0, "d7": 0.0}
     for off, key in ((1, "d1"), (7, "d7")):
         row = curve[curve["day_offset"] == off]
         if not row.empty and int(row["cohort_devices"].iloc[0]) > 0:
             out[key] = float(row["retained_frac"].iloc[0])
     return out
+
+
+def settled_cohort_size(df: pd.DataFrame, max_day: int = 7) -> int:
+    """Number of devices in the settled denominator behind the pooled
+    curve (installs ≤ today − max_day). Surfaced in the curve subtitle so
+    the small-N noise floor is explicit rather than implied."""
+    if df.empty:
+        return 0
+    first = _first_seen(df)
+    today = pd.Timestamp.now(tz="UTC").normalize()
+    return int((first <= today - pd.Timedelta(days=max_day)).sum())
 
 
 # ── Cohort retention ─────────────────────────────────────────────────────────
@@ -142,17 +171,30 @@ def cohort_retention(df: pd.DataFrame, max_day: int = 7) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=cols)
 
 
-def retention_curve(df: pd.DataFrame, max_day: int = 7) -> pd.DataFrame:
+def retention_curve(
+    df: pd.DataFrame, max_day: int = 7, mode: str = "unbounded",
+) -> pd.DataFrame:
     """Single pooled D0..Dn curve over a CONSISTENT denominator: only
     cohorts old enough to be fully observed through `max_day`
     (install ≤ today − max_day) are counted, and every offset divides by
-    that same device set. Pooling per-offset-eligible cohorts instead
-    (different denominators per point) produces a misleading non-monotone
-    curve; fixing the population is the honest read. Columns:
-    [day_offset, cohort_devices, retained, retained_frac]."""
+    that same settled device set. Fixing the population (vs. a different
+    per-offset-eligible denominator per point) is half of the honest
+    read; the other half is the retention *flavour*:
+
+      • mode="unbounded" (default): retained at offset n = device active
+        on day install+n OR any LATER observed day. Monotone
+        non-increasing — the leak curve. Drives the KPIs.
+      • mode="exact": device active on precisely day install+n. Bumpy by
+        construction on small N; offered only as a chart toggle.
+
+    Columns: [day_offset, cohort_devices, retained, retained_frac]. The
+    constant cohort_devices column is the small-N denominator, kept on
+    every row so callers can label the curve with N."""
     cols = ["day_offset", "cohort_devices", "retained", "retained_frac"]
     if df.empty:
         return pd.DataFrame(columns=cols)
+    if mode not in ("unbounded", "exact"):
+        raise ValueError(f"mode must be 'unbounded' or 'exact', got {mode!r}")
     first = _first_seen(df)
     today = pd.Timestamp.now(tz="UTC").normalize()
     settled = first[first <= today - pd.Timedelta(days=max_day)]
@@ -164,9 +206,17 @@ def retention_curve(df: pd.DataFrame, max_day: int = 7) -> pd.DataFrame:
         settled.rename("cohort_date"), left_on="device_id", right_index=True,
     )
     active["day_offset"] = (active["day"] - active["cohort_date"]).dt.days
+    # For unbounded, a device "survives to offset n" iff its LAST observed
+    # offset ≥ n; compare that per-device max against each offset.
+    max_offset = active.groupby("device_id")["day_offset"].max()
     rows = []
     for off in range(0, max_day + 1):
-        retained = int(active[active["day_offset"] == off]["device_id"].nunique())
+        if mode == "exact":
+            retained = int(
+                active[active["day_offset"] == off]["device_id"].nunique()
+            )
+        else:
+            retained = int((max_offset >= off).sum())
         rows.append({
             "day_offset": off,
             "cohort_devices": total,

@@ -13,6 +13,11 @@ import pandas as pd
 from constants import POWERUP_KEYS_ACTIVE
 from metrics.common import day_floor_cutoff, in_window
 
+# Below this many picked-runs an efficacy bar is a coin-flip, not a
+# balance signal — flagged so the chart can grey it out and the team
+# doesn't re-tune a power-up off three noisy runs.
+MIN_EFFICACY_N = 10
+
 
 # ── Score & survival summaries ───────────────────────────────────────────────
 
@@ -173,12 +178,23 @@ def powerup_efficacy(df: pd.DataFrame, days: int = 30) -> pd.DataFrame:
     so. Still the fastest read on whether a power-up is pulling its
     weight or is dead weight / overpowered.
 
+    To partly net out the confound we also report `excess_lift_pct` =
+    score_lift_pct − dur_lift_pct: how much the score lift *exceeds* what
+    the longer survival alone would explain. Positive excess is the
+    closest honest read to "this power-up adds value per second alive";
+    near-zero excess means the score bump is just more time on screen.
+    Still not causal — read it as a flag, not a verdict.
+
+    `low_n` marks power-ups whose picked-group is below MIN_EFFICACY_N
+    so the chart can de-emphasise noisy small-sample bars.
+
     Columns: [powerup, n_with, n_without, score_with, score_without,
-    score_lift_pct, dur_with, dur_without, dur_lift_pct]. Power-ups never
-    picked in the window are omitted (no signal)."""
+    score_lift_pct, dur_with, dur_without, dur_lift_pct, excess_lift_pct,
+    low_n]. Power-ups never picked in the window are omitted (no signal)."""
     cols = ["powerup", "n_with", "n_without",
             "score_with", "score_without", "score_lift_pct",
-            "dur_with", "dur_without", "dur_lift_pct"]
+            "dur_with", "dur_without", "dur_lift_pct",
+            "excess_lift_pct", "low_n"]
     if df.empty:
         return pd.DataFrame(columns=cols)
     sub = in_window(df, days).copy()
@@ -199,16 +215,20 @@ def powerup_efficacy(df: pd.DataFrame, days: int = 30) -> pd.DataFrame:
         dur_with = float(with_grp["duration_s"].median())
         score_without = float(without_grp["score"].median()) if n_without else float("nan")
         dur_without = float(without_grp["duration_s"].median()) if n_without else float("nan")
+        score_lift = _lift(score_with, score_without)
+        dur_lift = _lift(dur_with, dur_without)
         rows.append({
             "powerup": k,
             "n_with": n_with,
             "n_without": n_without,
             "score_with": score_with,
             "score_without": score_without,
-            "score_lift_pct": _lift(score_with, score_without),
+            "score_lift_pct": score_lift,
             "dur_with": dur_with,
             "dur_without": dur_without,
-            "dur_lift_pct": _lift(dur_with, dur_without),
+            "dur_lift_pct": dur_lift,
+            "excess_lift_pct": score_lift - dur_lift,
+            "low_n": n_with < MIN_EFFICACY_N,
         })
     return pd.DataFrame(rows, columns=cols)
 

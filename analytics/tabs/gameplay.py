@@ -53,19 +53,18 @@ def render(df, window: int) -> None:
         st.plotly_chart(c.powerup_mix(m.powerup_totals(df, days=window)),
                         use_container_width=True)
     with right:
-        st.plotly_chart(c.powerup_efficacy(m.powerup_efficacy(df, days=window)),
-                        use_container_width=True)
-
-    left, right = st.columns(2)
-    with left:
         st.plotly_chart(c.coin_economy(m.coin_economy_by_day(df, days=window)),
                         use_container_width=True)
-    with right:
-        st.plotly_chart(c.powerups_per_run(m.powerups_per_run_by_day(df, days=window)),
-                        use_container_width=True)
+
+    # Marquee balance read, given full width: the paired score/survival bars
+    # need the room and this is the chart the team retunes against.
+    st.plotly_chart(c.powerup_efficacy(m.powerup_efficacy(df, days=window)),
+                    use_container_width=True)
 
     st.caption(
         "*Reverse* excluded (disabled in-game). *Surprise* counts only the box "
         "pickup. Efficacy is correlational — longer runs naturally see more "
-        "power-up spawns."
+        "power-up spawns; the score-vs-survival gap is the partial control for "
+        "that. Bars marked * are below "
+        f"{m.MIN_EFFICACY_N} picked runs — noisy, read with caution."
     )

@@ -89,6 +89,18 @@ def rejection_rate(df: pd.DataFrame, days: int = 7) -> float:
     return float(recent["submit_error"].notna().mean())
 
 
+def rejection_count(df: pd.DataFrame, days: int = 7) -> tuple[int, int]:
+    """(rejected runs, total runs) in the window — the explicit
+    numerator/denominator behind rejection_rate, so the KPI card can show
+    '2 / 64 runs' and the reader can size the noise. 0/0 on empty."""
+    if df.empty or "submit_error" not in df.columns:
+        return 0, 0
+    recent = in_window(df, days)
+    total = int(len(recent))
+    rejected = int(recent["submit_error"].notna().sum())
+    return rejected, total
+
+
 def rejection_reasons(df: pd.DataFrame, days: int = 7) -> pd.DataFrame:
     """Count of each distinct submit_error reason in the window, the gate
     name normalised to the text before the first ':'. Long frame

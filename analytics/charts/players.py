@@ -9,37 +9,58 @@ import plotly.graph_objects as go
 from theme import CORAL, GOLD, GRID, MUTED, SKY, SKY_SOFT, style
 
 _CAVEAT = "Install = first play seen in window; trailing cohorts are censored, not zero"
+_MODE_NOTE = {
+    "unbounded": "Unbounded: active on day n or any later day (monotone leak curve)",
+    "exact": "Exact day-n only — bumpy on small N; a late return lifts a single point",
+}
 
 
-def retention_curve(curve_df: pd.DataFrame) -> go.Figure:
+def retention_curve(curve_df: pd.DataFrame, mode: str = "unbounded") -> go.Figure:
     """Pooled D0..Dn retention curve with retained-% labels. The single
-    most important shape on the tab — how fast the game leaks players."""
+    most important shape on the tab — how fast the game leaks players.
+    `mode` only changes the subtitle wording; the maths lives in the
+    metric. N (the settled denominator) rides the subtitle so the small-N
+    noise floor is explicit."""
     fig = go.Figure()
+    note = _MODE_NOTE.get(mode, _MODE_NOTE["unbounded"])
     if curve_df.empty:
-        return style(fig, "Retention curve (D0–D7)", subtitle=_CAVEAT)
+        return style(fig, "Retention curve (D0–D7)", subtitle=note)
+    n = int(curve_df["cohort_devices"].iloc[0])
     pct = curve_df["retained_frac"] * 100
     fig.add_scatter(
         x=curve_df["day_offset"], y=pct, mode="lines+markers+text",
         line=dict(color=SKY, width=3), marker=dict(size=8, color=SKY),
         text=[f"{p:.0f}%" for p in pct], textposition="top center",
         textfont=dict(color=MUTED, size=11),
-        hovertemplate="D%{x}: %{y:.1f}% retained<extra></extra>",
+        customdata=curve_df["retained"],
+        hovertemplate="D%{x}: %{y:.1f}% (%{customdata} of "
+                      + f"{n})<extra></extra>",
     )
     fig.update_layout(
         xaxis=dict(title="Days since first play", dtick=1),
         yaxis=dict(title="Retained", ticksuffix="%", range=[0, 115]),
     )
-    return style(fig, "Retention curve (D0–D7)", subtitle=_CAVEAT)
+    subtitle = f"{note} · n={n} settled installs"
+    return style(fig, "Retention curve (D0–D7)", subtitle=subtitle)
 
 
-def retention_matrix(matrix_df: pd.DataFrame) -> go.Figure:
-    """Cohort × day-offset retention triangle. Censored cells stay blank."""
+def retention_matrix(matrix_df: pd.DataFrame, sizes=None) -> go.Figure:
+    """Cohort × day-offset retention triangle. Censored cells stay blank.
+    Row labels carry the cohort size (n=…) when `sizes` (a cohort_date →
+    size mapping) is supplied, so a vivid-looking 100% row that is really
+    one device can't masquerade as a trend."""
     fig = go.Figure()
     if matrix_df.empty:
         return style(fig, "Retention by cohort", subtitle=_CAVEAT)
     z = (matrix_df * 100).values
-    y = [d.strftime("%b %d") if hasattr(d, "strftime") else str(d)
-         for d in matrix_df.index]
+
+    def _label(d):
+        base = d.strftime("%b %d") if hasattr(d, "strftime") else str(d)
+        if sizes is not None and d in sizes:
+            return f"{base} · n={int(sizes[d])}"
+        return base
+
+    y = [_label(d) for d in matrix_df.index]
     fig.add_trace(go.Heatmap(
         z=z, x=[f"D{c}" for c in matrix_df.columns], y=y,
         colorscale="Blues", zmin=0, zmax=100,
@@ -47,7 +68,8 @@ def retention_matrix(matrix_df: pd.DataFrame) -> go.Figure:
         colorbar=dict(title="%"),
     ))
     fig.update_yaxes(autorange="reversed")
-    return style(fig, "Retention by cohort", subtitle=_CAVEAT)
+    return style(fig, "Retention by cohort",
+                 subtitle=_CAVEAT + " · row n = cohort size")
 
 
 def new_vs_returning(nvr_df: pd.DataFrame, days: int = 30) -> go.Figure:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 import metrics
+from metrics import gameplay as m
 from constants import POWERUP_KEYS_ACTIVE
 
 NOW = pd.Timestamp.now(tz="UTC")
@@ -86,6 +87,39 @@ def test_powerup_efficacy_guards_zero_baseline():
     eff = metrics.powerup_efficacy(_frame(rows), days=30).set_index("powerup")
     assert eff.loc["magnet", "n_without"] == 0
     assert eff.loc["magnet", "score_lift_pct"] == 0.0
+
+
+def test_powerup_efficacy_excess_lift_nets_out_exposure():
+    # Magnet runs are both higher-scoring AND longer; excess_lift is the
+    # score lift in *excess* of the survival lift (the exposure proxy).
+    rows = [_row(id_=i, score=200, duration_s=80, powerups=_pu(magnet=1))
+            for i in range(6)]
+    rows += [_row(id_=10 + i, score=100, duration_s=40, powerups=_pu())
+             for i in range(6)]
+    eff = m.powerup_efficacy(_frame(rows), days=30).set_index("powerup")
+    r = eff.loc["magnet"]
+    # score doubled (+100%), duration doubled (+100%) → excess ~0: the
+    # score gain is fully explained by more time on screen.
+    assert r["score_lift_pct"] == 100.0
+    assert r["dur_lift_pct"] == 100.0
+    assert abs(r["excess_lift_pct"]) < 1e-9
+
+
+def test_powerup_efficacy_low_n_flag():
+    # 5 magnet runs (< MIN_EFFICACY_N) → flagged low_n; magnet picked in
+    # enough to clear it when we add more.
+    few = [_row(id_=i, powerups=_pu(magnet=1)) for i in range(5)]
+    few += [_row(id_=10 + i, powerups=_pu(triple=1)) for i in range(20)]
+    eff = m.powerup_efficacy(_frame(few), days=30).set_index("powerup")
+    assert bool(eff.loc["magnet", "low_n"]) is True
+    assert bool(eff.loc["triple", "low_n"]) is False
+
+
+def test_powerup_efficacy_has_excess_and_low_n_columns():
+    rows = [_row(id_=i, powerups=_pu(magnet=1)) for i in range(3)]
+    rows += [_row(id_=10 + i, powerups=_pu()) for i in range(3)]
+    eff = m.powerup_efficacy(_frame(rows), days=30)
+    assert {"excess_lift_pct", "low_n"} <= set(eff.columns)
 
 
 def test_coin_economy_ratio():
