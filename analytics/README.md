@@ -1,13 +1,30 @@
 # Skybit Analytics Dashboard
 
 Live KPI dashboard for the Skybit game. Reads anonymous per-run
-telemetry from Supabase (`public.plays`) and renders DAU, engagement,
-skill, power-up economy, and an active-player roster — with each
-player shown as a deterministic petname + color swatch instead of a
-raw UUID.
+telemetry from Supabase (`public.plays`) and presents it across three
+tabs — **Overview / Live-ops**, **Players & Retention**, and **Gameplay
+& Balance** — with each player shown as a deterministic petname + color
+swatch instead of a raw UUID.
 
 Built with Streamlit + Plotly + pandas. Deployed to Streamlit
 Community Cloud.
+
+## Layout
+
+```
+app.py        entrypoint — sidebar, one wide data pull, 3× st.tabs → tabs/*
+data.py       Supabase REST fetch + 60s cache; fixture mode rebases to "now"
+filters.py    plausibility ceiling + date helpers
+theme.py      single Plotly visual identity (palette + style())
+metrics/      pure pandas aggregations, split overview/players/gameplay
+charts/       Plotly builders, split the same way
+tabs/         per-tab Streamlit render(df, window)
+identity.py   device_id → (petname, color)
+```
+
+`metrics/` and `charts/` re-export flat from their `__init__`, so
+`import metrics; metrics.dau_today(df)` and `charts.score_hist(...)`
+still work — the split is per-tab for editing, not for the namespace.
 
 ## Local development
 
@@ -41,15 +58,17 @@ pytest
 
 1. Sign in at <https://share.streamlit.io> with the GitHub account
    that owns `ytocker/skybit`.
-2. New app → branch `v4_skybit_analytics`, main file `analytics/app.py`.
+2. New app → branch `v5_analytics`, main file `analytics/app.py`.
+   (Pointing Cloud at a new branch is a manual step in the app's
+   Settings → General; do it once when promoting this revision.)
 3. Settings → Secrets, paste:
    ```toml
    [supabase]
    url = "https://<project-ref>.supabase.co"
    service_role_key = "..."
    ```
-4. Save. Streamlit Cloud builds and serves. Future pushes to
-   `v4_skybit_analytics` auto-redeploy.
+4. Save. Streamlit Cloud builds and serves. Future pushes to the
+   configured branch auto-redeploy.
 
 ## Why the service-role key (and why not GitHub Pages)
 
@@ -63,16 +82,24 @@ RLS (telemetry table becomes public-readable). Neither is acceptable.
 
 ## What's on the dashboard
 
-| Section | Visuals |
-|---|---|
-| Today (KPI row) | DAU, plays, plays-last-7d, returning rate |
-| Engagement | Plays + uniques per day, avg duration, hourly weekday × hour heatmap |
-| Skill | Score histogram (log-y) + median/p90/max per day |
-| Power-ups | Pickup mix (last 7d) + power-ups per run trend |
-| Active players | Top 50 by play count, nickname + color, best score, last seen |
+**Overview / Live-ops** — DAU & plays with day-over-day and 7d deltas,
+data freshness, cheat/rejection rate (`submit_error`); plays + uniques
+per day, rejected-submit reasons, a daily-volume anomaly band, and the
+weekday × hour heatmap.
 
-All charts apply the same plausibility filter as the in-game
-leaderboard (`score ≤ 10,000`).
+**Players & Retention** — new players, returning rate, D1/D7 retention,
+bounce; the pooled retention curve, a cohort retention triangle,
+new-vs-returning per day, session-depth histogram, engagement segments,
+and the top-50 active-player roster (petname + color).
+
+**Gameplay & Balance** — median/p90 score, median survival, coins-per-
+run; score & survival histograms, score percentiles per day, skill over
+time, power-up pickup mix, **power-up efficacy** (score lift with vs
+without each power-up), and the coin economy trend.
+
+All charts apply the same plausibility ceiling the game itself accepts
+(`score ≤ 100,000`). Retention always runs over a wide ≥120-day frame so
+cohorts are settled, independent of the sidebar window.
 
 ## Refresh strategy
 

@@ -1,6 +1,6 @@
 # Streamlit theme + behaviour for the Skybit analytics dashboard.
-# Sky-blue accent matches the game's biome palette; wide layout because
-# the dashboard packs eight visuals across two columns and a roster.
+# Sky-blue accent matches the game's biome palette; wide layout for the
+# three tabs (Overview / Players & Retention / Gameplay & Balance).
 
 [theme]
 base = "dark"
