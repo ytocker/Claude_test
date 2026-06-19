@@ -6,9 +6,9 @@ import pillar_engine as PE
 TITLE = "P1 relic-reliquary-totem"
 # The dignified baseline: pure crown+palm royal reliquary, focal crown at the gap.
 # Tier silhouettes alternate crown<->palm and step wide->narrow->wide so the column
-# breathes evenly; the uniform gold-pip seam-collars are the tell, so the skulls
-# stay calm and regular rather than fighting them.
-RECIPE = ["crown:2", "palm:1", "crown:0", "palm:4", "crown:5"]
+# breathes evenly; a single gold bead seated once mid-stack is the only added
+# ornament, so the skulls stay calm and regular rather than busy.
+RECIPE = ["crown:2", "palm:1", "crown:0", "orn:bead_gold", "palm:4", "crown:5"]
 WITH_SKEWER = False
 SKEWER_STYLE = "plain"
 COLLAR = True
