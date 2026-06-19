@@ -19,13 +19,14 @@ from __future__ import annotations
 
 import pygame
 
-from game.config import W, H
+from game.config import W, H, PRIZE_MACHINE_COST
 from game.hud import _font, _draw_overlay_stars, _pill_btn, _coin_icon, \
     _GOLD_BRIGHT, _GOLD_PALE, _GOLD_DEEP
 from game.draw import UI_CREAM, NEAR_BLACK, rounded_rect
 from game.powerup_help import _gradient_bg, _outlined_title, _seeded_stars, \
     _dark_panel
 from game import parrot
+from game import prize_machine
 from game import store_catalog
 from game import store_data
 
@@ -58,7 +59,12 @@ class StoreScene:
         self._stars = _seeded_stars()
         self.back_rect: "pygame.Rect | None" = None
         self.item_rects: "dict[str, pygame.Rect]" = {}
+        self.prize_rect: "pygame.Rect | None" = None
         self._toast = ("", 0.0)  # (text, seconds remaining)
+        # Sub-mode: the grid, or the Prize Machine reveal playing over it.
+        # Kept internal so the gacha needs no extra App scene-state.
+        self.mode = "grid"
+        self.prize: "prize_machine.PrizeReveal | None" = None
         store_data.load()
         # Catalog skins, cheapest first, with pre-built thumbnails.
         self._skins = sorted(store_catalog.skin_ids(), key=store_catalog.cost)
@@ -69,12 +75,18 @@ class StoreScene:
         text, ttl = self._toast
         if ttl > 0.0:
             self._toast = (text, max(0.0, ttl - dt))
+        if self.mode == "prize" and self.prize is not None:
+            self.prize.update(dt)
 
     def _flash(self, text: str) -> None:
         self._toast = (text, 1.6)
 
     # ── rendering ────────────────────────────────────────────────────────────
     def render(self, surf: pygame.Surface) -> None:
+        if self.mode == "prize" and self.prize is not None:
+            self.prize.render(surf)
+            return
+
         _gradient_bg(surf)
         _draw_overlay_stars(surf, self._stars, self.t + 1.4)
 
@@ -92,10 +104,41 @@ class StoreScene:
             self.item_rects[sid] = rect
             self._draw_card(surf, sid, rect)
 
+        grid_bot = _GRID_TOP + 3 * (_CARD_H + _GAP)
+        self._draw_prize_card(surf, base_x, grid_bot + 2, _CARD_W * 2 + _GAP)
+
         self._draw_toast(surf)
         self.back_rect = _pill_btn(
-            surf, (W // 2, H - 34), "BACK",
+            surf, (W // 2, H - 30), "BACK",
             size=18, alpha=235, min_width=160, dim=True, shadow=False)
+
+    def _draw_prize_card(self, surf, x, y, w) -> None:
+        """The gacha entry — a wide gold-rimmed card that stands apart from
+        the skin grid as the store's headline feature."""
+        rect = pygame.Rect(x, y, w, 56)
+        self.prize_rect = rect
+        _dark_panel(surf, rect, radius=14, alpha=225)
+        pygame.draw.rect(surf, _GOLD_BRIGHT, rect, width=2, border_radius=14)
+        # Gift-box "?" glyph on the left.
+        self._draw_gift(surf, rect.x + 34, rect.centery)
+        title = _font(16, True).render("PRIZE MACHINE", True, _GOLD_BRIGHT)
+        surf.blit(title, (rect.x + 64, rect.y + 9))
+        sub = _font(11, True).render("Roll for a random new skin", True, UI_CREAM)
+        sub.set_alpha(205)
+        surf.blit(sub, (rect.x + 64, rect.y + 31))
+        # Cost chip on the right.
+        affordable = store_data.balance() >= PRIZE_MACHINE_COST
+        self._chip(surf, rect.right - 44, rect.centery, str(PRIZE_MACHINE_COST),
+                   fg=_GOLD_PALE if affordable else _LOCK_GREY,
+                   bg=_GOLD_DEEP if affordable else (70, 60, 70), coin=1)
+
+    def _draw_gift(self, surf, cx, cy) -> None:
+        box = pygame.Rect(cx - 13, cy - 9, 26, 22)
+        rounded_rect(surf, box, 4, (200, 40, 40))
+        pygame.draw.rect(surf, _GOLD_BRIGHT, (cx - 2, cy - 9, 4, 22))
+        pygame.draw.rect(surf, _GOLD_BRIGHT, (cx - 13, cy - 1, 26, 4))
+        qm = _font(13, True).render("?", True, _GOLD_PALE)
+        surf.blit(qm, qm.get_rect(center=(cx, cy + 1)))
 
     def _draw_balance(self, surf, cx, y) -> None:
         val = str(store_data.balance())
@@ -181,15 +224,39 @@ class StoreScene:
 
     # ── input ────────────────────────────────────────────────────────────────
     def handle_tap(self, pos) -> "str | None":
+        if self.mode == "prize" and self.prize is not None:
+            if self.prize.handle_tap(pos) == "done":
+                self.prize = None
+                self.mode = "grid"
+            return None
         if pos is None:
             return "back"
         if self.back_rect and self.back_rect.collidepoint(pos):
             return "back"
+        if self.prize_rect and self.prize_rect.collidepoint(pos):
+            self._tap_prize()
+            return None
         for sid, rect in self.item_rects.items():
             if rect.collidepoint(pos):
                 self._tap_item(sid)
                 return None
         return None
+
+    def _tap_prize(self) -> None:
+        """Gate the gacha before charging: never spend when everything's
+        already owned or the wallet can't cover a roll. On a valid roll, spend
+        + grant the winner, then open the reveal."""
+        if not prize_machine.unowned_pool():
+            self._flash("EVERYTHING UNLOCKED!")
+            return
+        if store_data.balance() < PRIZE_MACHINE_COST:
+            self._flash("NEED MORE COINS")
+            return
+        won = prize_machine.roll()
+        store_data.try_spend(PRIZE_MACHINE_COST)
+        store_data.grant(won)
+        self.prize = prize_machine.PrizeReveal(won)
+        self.mode = "prize"
 
     def _tap_item(self, sid: str) -> None:
         if store_data.equipped("skin") == sid:
