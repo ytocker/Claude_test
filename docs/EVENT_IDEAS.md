@@ -101,3 +101,37 @@ expression of the "this world is alive, this is an adventure" goal.
 **Honorable mentions:** Crumbling Collapse (#18) for memorability, Mirage Truth
 (#34) for the perception twist, Symbiote Passenger (#31) for decision-rich
 trade-offs.
+
+---
+
+## DIRECTION TAKEN — the Warren route + two dice-gated character events
+
+### Why Pagoda Warren won in practice
+Pagoda Warren (#16) had the best novelty-per-effort on the board: it reuses the
+existing pillar + gap pipeline (cheap, on-brand) and is a *platform* rather than a
+one-off — Blind Bends, Strand Weave, narrowing throats and future set-pieces can all
+live inside it. So it became the spine of the work, maturing from "gaps link into one
+corridor" into a full scripted **route**.
+
+### The route + two dice-gated character events
+A route isn't entered cold: it's framed by a **boss character who strolls on
+trailing a floating die**. The player grabs the die, the die rolls, and the roll
+**sizes/grades the route** that then scrolls in. That gives every event the same
+living-world shape — a telegraphed character beat → a player grab → a bespoke route →
+a payoff — which breaks the flat gate-after-gate loop. Two events are realized:
+
+| Event | Character | Die roll | Route | Twist |
+|---|---|---|---|---|
+| **Clown / Dice** | fairground jester (Carousel-Barker scepter) | N = 10–25 pillars | fused-pagoda warren, one of 5 easy (d1–5) archetypes — Long Plunge, The Ascent, Rolling Hills, The Valley, The Crest | **GHOST** outcome — 10 pillars but Pip phases through them; prize-wheel celebration |
+| **King-Skull** | Asthi-Dakini, six-armed bone deity | difficulty 6–10 | 22-pillar hard-band route of stacked-skull totem pillars (20 column recipes) | the totem units are the chosen king-skull design's *own* small skulls (crown + palm), reused directly |
+
+### Status + where the detail lives
+Branch-only R&D prototype on `v5_skybit_enrich` — no spawn trigger, no score
+gating, no DB write yet; it runs only when the demo harness launches it
+(native, this branch). The connective detail lives in:
+
+- Event mechanics / route demo — [`game/warren_demo.py`](../game/warren_demo.py)
+- Warren route catalog — [`docs/pagoda_warren/ROUTES.md`](./pagoda_warren/ROUTES.md)
+- King-Skull character art lineage — [`docs/skybit_devil/batch2/DESIGN_JOURNEY.md`](./skybit_devil/batch2/DESIGN_JOURNEY.md) (chosen design: Asthi-Dakini **`SWITCHED + BIG`**)
+- Skull totem pillars — [`docs/skull_king_stack/README.md`](./skull_king_stack/README.md)
+- Clown columns — [`docs/clown_bone_columns/`](./clown_bone_columns/)
