@@ -1238,11 +1238,16 @@ _STORE_SKINS: "dict | None" = None
 def _store_skin_builders() -> dict:
     global _STORE_SKINS
     if _STORE_SKINS is None:
-        try:
-            from game import store_skins
-            _STORE_SKINS = store_skins.BUILDERS
-        except Exception:
-            _STORE_SKINS = {}
+        merged: dict = {}
+        # Costume + parrot-species skins, then the from-scratch animals (their
+        # module is added by the creature-roster work; tolerate its absence).
+        for modname in ("store_skins", "animal_skins"):
+            try:
+                mod = __import__("game." + modname, fromlist=["BUILDERS"])
+                merged.update(mod.BUILDERS)
+            except Exception:
+                pass
+        _STORE_SKINS = merged
     return _STORE_SKINS
 
 

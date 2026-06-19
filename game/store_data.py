@@ -66,8 +66,16 @@ def _coerce(raw: "dict | None") -> dict:
         for key in ("equipped_skin", "equipped_pillar", "equipped_ground",
                     "equipped_trail"):
             v = raw.get(key)
-            if v is not None:
-                state[key] = str(v)
+            if v is None:
+                continue
+            v = str(v)
+            # Guard against a stale equip pointing at a skin removed/renamed in
+            # a later build: fall back to the slot default so the store never
+            # shows the wrong card as "equipped" while the renderer silently
+            # draws the base look. (The base skin is always valid.)
+            if v != store_catalog.BASE_SKIN and not store_catalog.exists(v):
+                continue
+            state[key] = v
         if isinstance(raw.get("last_daily"), str):
             state["last_daily"] = raw["last_daily"]
     return state

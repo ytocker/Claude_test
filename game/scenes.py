@@ -878,7 +878,6 @@ class App:
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
             if self.store is not None:
                 self.store.update(dt)
-            self._cooldown_t = max(0.0, self._cooldown_t - dt)
             return
         if self.state == STATE_MENU:
             self.world.world_idle_tick(dt)

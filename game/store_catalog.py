@@ -4,16 +4,19 @@ Kept import-light (no pygame, no surface building) so the persistence
 layer (game/store_data.py) and the headless unit tests can read prices
 and validate inventory without pulling in the rendering stack.
 
-Every entry is ``id -> {name, cost, kind}``:
+Every entry is ``id -> {name, cost, kind, group}``:
 
   - ``kind`` is one of CATALOG_KINDS. New categories (pillar/ground/trail/
     boost) slot in without a schema change.
+  - ``group`` is one of GROUPS — the store's browsing tab (costume / parrot /
+    animal). Purely a UI grouping; the renderer and gacha ignore it.
   - skin ids must each resolve in ``parrot.get_skin_frame``'s dispatch map;
     tests assert that the two stay in sync so a catalog entry can never
     point at a look the renderer can't draw.
 
 ``BASE_SKIN`` is the default parrot. It is implicitly owned and never
-sold, so it is deliberately absent from CATALOG.
+sold, so it is deliberately absent from CATALOG (the store surfaces it as a
+free DEFAULT card in the PARROTS tab).
 """
 from __future__ import annotations
 
@@ -21,27 +24,40 @@ BASE_SKIN = "skin_base"
 
 CATALOG_KINDS = ("skin", "pillar", "ground", "trail", "boost")
 
-# Costs are first-pass economy seeds — tuned once a full run's coin yield
-# is measured against how long we want each unlock to feel like a goal.
+# Store browsing tabs, in display order.
+GROUPS = ("costume", "parrot", "animal")
+
+# Cost ladder is tuned so the first unlock is a goal (a few good runs) rather
+# than a side effect of session one: entry ~260, mid ~450-550, premium ~650-800,
+# fantasy showpieces ~1200-1500. Coin *earn* is left untouched (gameplay feel);
+# the daily reward gives a steady drip toward the higher tiers.
 CATALOG: dict[str, dict] = {
-    # Entry tier.
-    "skin_tophat":   {"name": "TOP HAT",   "cost": 120, "kind": "skin"},
-    "skin_pirate":   {"name": "PIRATE",    "cost": 140, "kind": "skin"},
-    "skin_skeleton": {"name": "SKELETON",  "cost": 150, "kind": "skin"},
-    "skin_cowboy":   {"name": "COWBOY",    "cost": 160, "kind": "skin"},
-    "skin_ninja":    {"name": "NINJA",     "cost": 170, "kind": "skin"},
-    "skin_kfc":      {"name": "FRIED",     "cost": 180, "kind": "skin"},
-    # Mid tier.
-    "skin_ghost":    {"name": "GHOST",     "cost": 200, "kind": "skin"},
-    "skin_viking":   {"name": "VIKING",    "cost": 200, "kind": "skin"},
-    "skin_zombie":   {"name": "ZOMBIE",    "cost": 220, "kind": "skin"},
-    "skin_wizard":   {"name": "WIZARD",    "cost": 220, "kind": "skin"},
-    "skin_knight":   {"name": "KNIGHT",    "cost": 250, "kind": "skin"},
-    # Premium tier.
-    "skin_astronaut": {"name": "ASTRONAUT", "cost": 280, "kind": "skin"},
-    "skin_crown":    {"name": "CROWN",     "cost": 300, "kind": "skin"},
-    "skin_pharaoh":  {"name": "PHARAOH",   "cost": 300, "kind": "skin"},
-    "skin_disco":    {"name": "DISCO",     "cost": 320, "kind": "skin"},
+    # ── COSTUMES (accessories/restyles on the macaw) ──────────────────────────
+    "skin_tophat":   {"name": "TOP HAT",   "cost": 260, "kind": "skin", "group": "costume"},
+    "skin_pirate":   {"name": "PIRATE",    "cost": 280, "kind": "skin", "group": "costume"},
+    "skin_skeleton": {"name": "SKELETON",  "cost": 300, "kind": "skin", "group": "costume"},
+    "skin_cowboy":   {"name": "COWBOY",    "cost": 320, "kind": "skin", "group": "costume"},
+    "skin_ninja":    {"name": "NINJA",     "cost": 340, "kind": "skin", "group": "costume"},
+    "skin_kfc":      {"name": "FRIED",     "cost": 360, "kind": "skin", "group": "costume"},
+    "skin_ghost":    {"name": "GHOST",     "cost": 450, "kind": "skin", "group": "costume"},
+    "skin_viking":   {"name": "VIKING",    "cost": 450, "kind": "skin", "group": "costume"},
+    "skin_zombie":   {"name": "ZOMBIE",    "cost": 480, "kind": "skin", "group": "costume"},
+    "skin_wizard":   {"name": "WIZARD",    "cost": 480, "kind": "skin", "group": "costume"},
+    "skin_knight":   {"name": "KNIGHT",    "cost": 550, "kind": "skin", "group": "costume"},
+    "skin_astronaut": {"name": "ASTRONAUT", "cost": 650, "kind": "skin", "group": "costume"},
+    "skin_pharaoh":  {"name": "PHARAOH",   "cost": 700, "kind": "skin", "group": "costume"},
+    "skin_crown":    {"name": "CROWN",     "cost": 750, "kind": "skin", "group": "costume"},
+    "skin_disco":    {"name": "DISCO",     "cost": 800, "kind": "skin", "group": "costume"},
+
+    # ── PARROTS (full-body species recolours) ─────────────────────────────────
+    "skin_bluegold":  {"name": "BLUE MACAW",  "cost": 280, "kind": "skin", "group": "parrot"},
+    "skin_amazon":    {"name": "AMAZON",      "cost": 300, "kind": "skin", "group": "parrot"},
+    "skin_sunconure": {"name": "SUN CONURE",  "cost": 360, "kind": "skin", "group": "parrot"},
+    "skin_hyacinth":  {"name": "HYACINTH",    "cost": 450, "kind": "skin", "group": "parrot"},
+    "skin_cockatoo":  {"name": "COCKATOO",    "cost": 520, "kind": "skin", "group": "parrot"},
+    "skin_lorikeet":  {"name": "LORIKEET",    "cost": 600, "kind": "skin", "group": "parrot"},
+
+    # ── ANIMALS (from-scratch creatures) — populated by the design loop. ───────
 }
 
 
@@ -63,6 +79,15 @@ def kind(item_id: str) -> str:
 
 def ids_of_kind(k: str) -> list[str]:
     return [i for i, v in CATALOG.items() if v["kind"] == k]
+
+
+def group(item_id: str) -> str:
+    return CATALOG[item_id].get("group", "costume")
+
+
+def ids_of_group(g: str) -> list[str]:
+    """Catalog ids in a store tab (costume / parrot / animal), in catalog order."""
+    return [i for i, v in CATALOG.items() if v.get("group", "costume") == g]
 
 
 def skin_ids() -> list[str]:

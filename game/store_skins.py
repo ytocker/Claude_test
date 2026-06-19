@@ -814,6 +814,144 @@ get_zombie_redraw = _make_prebuilt_skin(_build_zombie_redraw)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# PARROT SPECIES — full-body recolours of the macaw via the 24-slot palette
+# system (dollar_parrot_ghost._build_parrot_with_palette). These are *designs*,
+# not props: the whole bird is re-plumaged. Pip keeps his aviators across the
+# family (his signature), so the species read as "Pip's cousins" rather than a
+# generic recolour. The crested cockatoo adds a small geometry signature.
+# ─────────────────────────────────────────────────────────────────────────────
+
+P_BLUEGOLD = _pal(
+    tail=[(30, 90, 170), (40, 110, 190), (60, 140, 210), (90, 170, 230)],
+    tail_line=(20, 60, 120),
+    body_shadow=(25, 70, 140), body_main=(45, 110, 190),
+    body_chest=(235, 200, 70), body_belly=(245, 215, 90),
+    sheen=(255, 255, 255, 90),
+    wing_main=(35, 95, 175), wing_dark=(20, 55, 120), wing_tip=(70, 150, 220),
+    wing_secondary=(235, 200, 70), wing_highlight=(150, 200, 245),
+    head_shadow=(25, 70, 140), head_main=(50, 120, 200),
+    head_cheek=(240, 235, 235), head_crown=(70, 150, 220),
+    lens_frame=(240, 200, 80), lens_body=(20, 25, 45),
+    lens_tint=(60, 120, 190, 120), lens_glint=(255, 255, 255),
+    beak_main=(40, 40, 48), beak_dark=(15, 15, 20), beak_gloss=(120, 120, 130),
+    foot=(60, 55, 55),
+)
+
+P_AMAZON = _pal(
+    tail=[(40, 120, 50), (60, 150, 60), (90, 180, 80), (150, 200, 90)],
+    tail_line=(30, 90, 40),
+    body_shadow=(35, 100, 45), body_main=(70, 160, 70),
+    body_chest=(110, 190, 90), body_belly=(150, 205, 120),
+    sheen=(255, 255, 255, 80),
+    wing_main=(55, 140, 60), wing_dark=(30, 90, 40), wing_tip=(210, 70, 60),
+    wing_secondary=(240, 200, 70), wing_highlight=(170, 210, 130),
+    head_shadow=(40, 110, 50), head_main=(80, 170, 75),
+    head_cheek=(235, 210, 70), head_crown=(240, 220, 80),
+    lens_frame=(230, 200, 80), lens_body=(20, 30, 20),
+    lens_tint=(60, 140, 70, 120), lens_glint=(255, 255, 255),
+    beak_main=(190, 180, 170), beak_dark=(120, 110, 100),
+    beak_gloss=(235, 230, 220), foot=(120, 110, 90),
+)
+
+P_SUNCONURE = _pal(
+    tail=[(60, 130, 70), (120, 170, 70), (200, 170, 60), (240, 150, 50)],
+    tail_line=(120, 90, 30),
+    body_shadow=(210, 120, 30), body_main=(250, 180, 40),
+    body_chest=(252, 200, 60), body_belly=(255, 150, 40),
+    sheen=(255, 255, 255, 100),
+    wing_main=(245, 170, 40), wing_dark=(200, 110, 30), wing_tip=(70, 150, 70),
+    wing_secondary=(90, 170, 90), wing_highlight=(255, 225, 120),
+    head_shadow=(220, 120, 30), head_main=(252, 175, 45),
+    head_cheek=(250, 130, 50), head_crown=(255, 200, 70),
+    lens_frame=(60, 60, 60), lens_body=(25, 20, 15),
+    lens_tint=(255, 180, 80, 110), lens_glint=(255, 255, 255),
+    beak_main=(40, 38, 42), beak_dark=(15, 15, 18), beak_gloss=(110, 110, 115),
+    foot=(80, 70, 55),
+)
+
+P_HYACINTH = _pal(
+    tail=[(30, 40, 120), (35, 50, 140), (45, 65, 165), (60, 85, 190)],
+    tail_line=(20, 28, 90),
+    body_shadow=(25, 35, 110), body_main=(45, 60, 165),
+    body_chest=(60, 80, 185), body_belly=(75, 95, 200),
+    sheen=(255, 255, 255, 70),
+    wing_main=(38, 52, 150), wing_dark=(22, 30, 100), wing_tip=(70, 90, 195),
+    wing_secondary=None, wing_highlight=(120, 140, 220),
+    head_shadow=(25, 35, 110), head_main=(48, 64, 170),
+    head_cheek=(245, 210, 60), head_crown=(60, 80, 185),
+    lens_frame=(245, 210, 60), lens_body=(15, 18, 40),
+    lens_tint=(50, 65, 160, 130), lens_glint=(255, 255, 255),
+    beak_main=(30, 30, 38), beak_dark=(12, 12, 18), beak_gloss=(90, 90, 100),
+    foot=(45, 45, 55),
+)
+
+P_COCKATOO = _pal(
+    tail=[(235, 235, 240), (240, 240, 245), (245, 245, 250), (250, 250, 252)],
+    tail_line=(180, 180, 190),
+    body_shadow=(205, 205, 215), body_main=(245, 245, 250),
+    body_chest=(252, 252, 255), body_belly=(255, 255, 255),
+    sheen=(255, 255, 255, 120),
+    wing_main=(238, 238, 245), wing_dark=(200, 200, 212), wing_tip=(250, 220, 90),
+    wing_secondary=None, wing_highlight=(255, 255, 255),
+    head_shadow=(210, 210, 220), head_main=(248, 248, 252),
+    head_cheek=(250, 225, 90), head_crown=(255, 255, 255),
+    lens_frame=(80, 80, 90), lens_body=(25, 25, 32),
+    lens_tint=(200, 210, 230, 110), lens_glint=(255, 255, 255),
+    beak_main=(70, 70, 78), beak_dark=(35, 35, 42), beak_gloss=(140, 140, 150),
+    foot=(120, 115, 115),
+)
+
+P_LORIKEET = _pal(
+    tail=[(40, 120, 50), (70, 150, 60), (120, 180, 60), (180, 200, 60)],
+    tail_line=(30, 90, 40),
+    body_shadow=(180, 50, 40), body_main=(225, 70, 55),
+    body_chest=(245, 120, 50), body_belly=(250, 200, 70),
+    sheen=(255, 255, 255, 90),
+    wing_main=(55, 150, 65), wing_dark=(30, 100, 45), wing_tip=(240, 200, 70),
+    wing_secondary=(70, 170, 80), wing_highlight=(150, 210, 120),
+    head_shadow=(30, 60, 140), head_main=(50, 90, 190),
+    head_cheek=(70, 110, 210), head_crown=(60, 100, 200),
+    lens_frame=(245, 160, 50), lens_body=(20, 25, 45),
+    lens_tint=(80, 130, 200, 120), lens_glint=(255, 255, 255),
+    beak_main=(245, 130, 40), beak_dark=(180, 80, 20), beak_gloss=(255, 200, 120),
+    foot=(90, 80, 70),
+)
+
+
+def _species_getter(P):
+    return _make_prebuilt_skin(lambda a, _P=P: _build_parrot_with_palette(a, _P))
+
+
+get_bluegold_parrot = _species_getter(P_BLUEGOLD)
+get_amazon_parrot = _species_getter(P_AMAZON)
+get_sunconure_parrot = _species_getter(P_SUNCONURE)
+get_hyacinth_parrot = _species_getter(P_HYACINTH)
+get_lorikeet_parrot = _species_getter(P_LORIKEET)
+
+
+# Cockatoo = white palette + a recurved yellow head crest (geometry signature),
+# composited via the taller-canvas paint pattern so the plumes clear the crown.
+_COCK_CREST = (250, 215, 80)
+_COCK_CREST_D = (224, 182, 52)
+
+
+def _paint_cockatoo_crest(surf, _a):
+    base_y = CROWN_Y + 5  # just above the white crown
+    for dx, h, lean in ((-3, 16, 4), (0, 21, 6), (3, 17, 9)):
+        x = HX + dx
+        root = (x, base_y + 2)
+        mid = (x + lean // 2, base_y - h // 2)
+        tip = (x + lean, base_y - h)
+        pygame.draw.line(surf, _COCK_CREST_D, root, mid, 4)
+        pygame.draw.line(surf, _COCK_CREST, mid, tip, 3)
+
+
+get_cockatoo_parrot = _make_skin(
+    _paint_cockatoo_crest,
+    base_fn=lambda a: _build_parrot_with_palette(a, P_COCKATOO))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Production registry: catalog id -> getter. Consulted by
 # parrot.get_skin_frame (which checks this first, so the three redraws here
 # override the power-up-sprite mappings the base parrot keeps for buff use).
@@ -833,4 +971,11 @@ BUILDERS = {
     "skin_tophat":    get_tophat_redraw,
     "skin_skeleton":  get_skeleton_redraw,
     "skin_zombie":    get_zombie_redraw,
+    # Parrot species (full-body recolours + cockatoo crest).
+    "skin_bluegold":  get_bluegold_parrot,
+    "skin_amazon":    get_amazon_parrot,
+    "skin_sunconure": get_sunconure_parrot,
+    "skin_hyacinth":  get_hyacinth_parrot,
+    "skin_cockatoo":  get_cockatoo_parrot,
+    "skin_lorikeet":  get_lorikeet_parrot,
 }

@@ -133,6 +133,15 @@ class TestEquip(_StoreTestBase):
         self.assertTrue(store_data.is_owned(store_catalog.BASE_SKIN))
         self.assertTrue(store_data.equip(store_catalog.BASE_SKIN))
 
+    def test_equip_then_revert_to_default(self):
+        skin = store_catalog.skin_ids()[0]
+        store_data.grant(skin)
+        store_data.equip(skin)
+        self.assertEqual(store_data.equipped("skin"), skin)
+        # The DEFAULT card path: re-equip the base look.
+        self.assertTrue(store_data.equip(store_catalog.BASE_SKIN))
+        self.assertEqual(store_data.equipped("skin"), store_catalog.BASE_SKIN)
+
 
 class TestDaily(_StoreTestBase):
 
@@ -176,6 +185,23 @@ class TestResilience(_StoreTestBase):
         self.assertIn("skin_ghost", owned)
         self.assertNotIn("skin_phantom_xyz", owned)
 
+    def test_stale_equipped_skin_resets_to_base(self):
+        # A skin removed/renamed in a later build must not leave the UI showing
+        # a stale "equipped" while the renderer falls back to the base look.
+        with open(store_data.STORE_FILE, "w", encoding="utf-8") as f:
+            json.dump({"equipped_skin": "skin_removed_xyz"}, f)
+        store_data._reset_for_test()
+        store_data.load()
+        self.assertEqual(store_data.equipped("skin"), store_catalog.BASE_SKIN)
+
+    def test_valid_equipped_skin_preserved(self):
+        sid = store_catalog.skin_ids()[0]
+        with open(store_data.STORE_FILE, "w", encoding="utf-8") as f:
+            json.dump({"equipped_skin": sid}, f)
+        store_data._reset_for_test()
+        store_data.load()
+        self.assertEqual(store_data.equipped("skin"), sid)
+
 
 class TestPrizeMachine(_StoreTestBase):
 
@@ -216,6 +242,23 @@ class TestCatalogIntegrity(unittest.TestCase):
 
     def test_base_skin_not_sold(self):
         self.assertNotIn(store_catalog.BASE_SKIN, store_catalog.CATALOG)
+
+    def test_every_entry_has_valid_group(self):
+        for item_id, meta in store_catalog.CATALOG.items():
+            self.assertIn(meta.get("group"), store_catalog.GROUPS,
+                          f"{item_id} has an invalid/missing group")
+
+    def test_costume_and_parrot_tabs_populated(self):
+        # These two tabs ship with content; animals arrive via the design loop.
+        self.assertTrue(store_catalog.ids_of_group("costume"))
+        self.assertTrue(store_catalog.ids_of_group("parrot"))
+
+    def test_ids_of_group_partition(self):
+        # Every skin belongs to exactly one group; the union is the full roster.
+        by_group = []
+        for g in store_catalog.GROUPS:
+            by_group += store_catalog.ids_of_group(g)
+        self.assertEqual(sorted(by_group), sorted(store_catalog.skin_ids()))
 
     def test_cosmetic_pool_excludes_boosts(self):
         for item_id in store_catalog.cosmetic_ids():

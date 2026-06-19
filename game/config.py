@@ -388,5 +388,5 @@ SCORES_FILE = "skybit_scores.json"
 # run-end and buy cosmetics. PRIZE_MACHINE_COST is one gacha roll; DAILY_REWARD
 # is the once-per-day login grant that seeds the return-visit habit.
 STORE_FILE = "skybit_store.json"
-PRIZE_MACHINE_COST = 100
-DAILY_REWARD = 50
+PRIZE_MACHINE_COST = 250
+DAILY_REWARD = 75

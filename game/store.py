@@ -33,11 +33,14 @@ from game import store_data
 # Card grid metrics (2 columns). Thumbnails are pre-rendered once so the
 # per-frame cost is a flat blit rather than six smoothscales.
 _CARD_W = 162
-_CARD_H = 110
+_CARD_H = 100
 _GAP = 8
-_GRID_TOP = 100
-_THUMB_BOX = 54
-_PER_PAGE = 6  # 2 columns x 3 rows; the roster pages when it exceeds this
+_GRID_TOP = 116        # leaves room for the title + balance + tab bar above
+_THUMB_BOX = 48
+_PER_PAGE = 6          # 2 columns x 3 rows; each tab pages independently
+
+_TAB_Y = 92            # tab-bar centre line
+_TABS = (("COSTUMES", "costume"), ("PARROTS", "parrot"), ("ANIMALS", "animal"))
 
 # Owned-but-equipped accent + buy/locked chip tints.
 _EQUIP_GREEN = (96, 210, 120)
@@ -68,19 +71,39 @@ class StoreScene:
         self.prize_rect: "pygame.Rect | None" = None
         self.prev_rect: "pygame.Rect | None" = None
         self.next_rect: "pygame.Rect | None" = None
+        self.tab_rects: "list[pygame.Rect]" = []
+        self.daily_rect: "pygame.Rect | None" = None
         self._toast = ("", 0.0)  # (text, seconds remaining)
         # Sub-mode: the grid, or the Prize Machine reveal playing over it.
         # Kept internal so the gacha needs no extra App scene-state.
         self.mode = "grid"
         self.prize: "prize_machine.PrizeReveal | None" = None
         store_data.load()
-        # Catalog skins, cheapest first, with pre-built thumbnails. The roster
-        # outgrew one screen, so it pages (tap arrows) — drag-scroll isn't an
-        # option on the tap-only input path.
-        self._skins = sorted(store_catalog.skin_ids(), key=store_catalog.cost)
-        self._thumbs = {sid: _fit_skin(sid, _THUMB_BOX) for sid in self._skins}
+        # Per-tab skin lists, cheapest first. The PARROTS tab is fronted by a
+        # free DEFAULT card (the base macaw) so the player can always revert.
+        self._lists: "dict[str, list[str]]" = {}
+        for label, g in _TABS:
+            ids = sorted(store_catalog.ids_of_group(g), key=store_catalog.cost)
+            if g == "parrot":
+                ids = [store_catalog.BASE_SKIN] + ids
+            self._lists[g] = ids
+        self.tab = 0
         self.page = 0
-        self.n_pages = max(1, (len(self._skins) + _PER_PAGE - 1) // _PER_PAGE)
+        # Pre-build every thumbnail once (cropped-to-content; see _fit_skin).
+        all_ids = {sid for ids in self._lists.values() for sid in ids}
+        self._thumbs = {sid: _fit_skin(sid, _THUMB_BOX) for sid in all_ids}
+
+    def _cur_ids(self) -> list:
+        return self._lists[_TABS[self.tab][1]]
+
+    @property
+    def n_pages(self) -> int:
+        return max(1, (len(self._cur_ids()) + _PER_PAGE - 1) // _PER_PAGE)
+
+    @staticmethod
+    def _disp_name(sid: str) -> str:
+        return "DEFAULT" if sid == store_catalog.BASE_SKIN \
+            else store_catalog.name(sid)
 
     def update(self, dt: float) -> None:
         self.t += dt
@@ -102,13 +125,20 @@ class StoreScene:
         _gradient_bg(surf)
         _draw_overlay_stars(surf, self._stars, self.t + 1.4)
 
-        _outlined_title(surf, "STORE", (W // 2, 32),
-                        size=30, px=2, shadow_offset=(2, 3))
-        self._draw_balance(surf, cx=W // 2, y=68)
+        _outlined_title(surf, "STORE", (W // 2, 30),
+                        size=28, px=2, shadow_offset=(2, 3))
+        self._draw_balance(surf, cx=W // 2, y=62)
+        self._draw_daily(surf)
+        self._draw_tabs(surf)
 
         base_x = (W - (_CARD_W * 2 + _GAP)) // 2
         self.item_rects = {}
-        page_skins = self._skins[self.page * _PER_PAGE:(self.page + 1) * _PER_PAGE]
+        ids = self._cur_ids()
+        page_skins = ids[self.page * _PER_PAGE:(self.page + 1) * _PER_PAGE]
+        if not page_skins:
+            msg = _font(16, True).render("COMING SOON", True, _GOLD_PALE)
+            msg.set_alpha(200)
+            surf.blit(msg, msg.get_rect(center=(W // 2, _GRID_TOP + 150)))
         for idx, sid in enumerate(page_skins):
             col = idx % 2
             row = idx // 2
@@ -119,13 +149,51 @@ class StoreScene:
             self._draw_card(surf, sid, rect)
 
         grid_bot = _GRID_TOP + 3 * (_CARD_H + _GAP)
-        self._draw_page_controls(surf, base_x, grid_bot - 2, _CARD_W * 2 + _GAP)
-        self._draw_prize_card(surf, base_x, grid_bot + 26, _CARD_W * 2 + _GAP)
+        self._draw_page_controls(surf, base_x, grid_bot - 4, _CARD_W * 2 + _GAP)
+        self._draw_prize_card(surf, base_x, grid_bot + 22, _CARD_W * 2 + _GAP)
 
         self._draw_toast(surf)
         self.back_rect = _pill_btn(
-            surf, (W // 2, H - 30), "BACK",
+            surf, (W // 2, H - 28), "BACK",
             size=18, alpha=235, min_width=160, dim=True, shadow=False)
+
+    def _draw_tabs(self, surf) -> None:
+        """COSTUMES | PARROTS | ANIMALS — the active tab is gold-filled, the
+        rest are quiet outlines. Switching a tab resets that view to page 1."""
+        self.tab_rects = []
+        n = len(_TABS)
+        gap = 6
+        tw = (W - 24 - gap * (n - 1)) // n
+        x0 = 12
+        for i, (label, _g) in enumerate(_TABS):
+            r = pygame.Rect(x0 + i * (tw + gap), _TAB_Y - 13, tw, 26)
+            self.tab_rects.append(r)
+            active = (i == self.tab)
+            rounded_rect(surf, r, 9, _GOLD_DEEP if active else (34, 26, 56))
+            pygame.draw.rect(surf, _GOLD_BRIGHT if active else (90, 78, 120),
+                             r, width=1, border_radius=9)
+            col = (28, 18, 8) if active else _GOLD_PALE
+            t = _font(12, True).render(label, True, col)
+            surf.blit(t, t.get_rect(center=r.center))
+
+    def _draw_daily(self, surf) -> None:
+        """Top-right daily-reward pill: claimable shows the bonus in gold,
+        already-claimed greys out. The steady drip toward the higher tiers."""
+        from game.config import DAILY_REWARD
+        avail = store_data.daily_available()
+        txt = ("+" + str(DAILY_REWARD)) if avail else "✓"
+        f = _font(12, True)
+        timg = f.render(txt, True, (28, 18, 8) if avail else _LOCK_GREY)
+        lbl = f.render("DAILY", True, (28, 18, 8) if avail else _LOCK_GREY)
+        w = lbl.get_width() + 6 + timg.get_width() + 20
+        r = pygame.Rect(W - 12 - w, 14, w, 24)
+        self.daily_rect = r if avail else None
+        rounded_rect(surf, r, 11, _GOLD_DEEP if avail else (44, 36, 56))
+        pygame.draw.rect(surf, _GOLD_BRIGHT if avail else (80, 70, 100),
+                         r, width=1, border_radius=11)
+        surf.blit(lbl, lbl.get_rect(midleft=(r.x + 10, r.centery)))
+        surf.blit(timg, timg.get_rect(midleft=(r.x + 10 + lbl.get_width() + 6,
+                                               r.centery)))
 
     def _draw_page_controls(self, surf, x, y, w) -> None:
         """‹  PAGE n/N  › — tap arrows to flip pages (drag-scroll isn't
@@ -200,17 +268,17 @@ class StoreScene:
             pygame.draw.rect(surf, _GOLD_BRIGHT, rect, width=2, border_radius=14)
 
         thumb = self._thumbs[sid]
-        surf.blit(thumb, thumb.get_rect(center=(rect.centerx, rect.y + 34)))
+        surf.blit(thumb, thumb.get_rect(center=(rect.centerx, rect.y + 30)))
 
-        nimg = _font(14, True).render(store_catalog.name(sid), True, _GOLD_BRIGHT)
-        surf.blit(nimg, nimg.get_rect(center=(rect.centerx, rect.y + 70)))
+        nimg = _font(14, True).render(self._disp_name(sid), True, _GOLD_BRIGHT)
+        surf.blit(nimg, nimg.get_rect(center=(rect.centerx, rect.y + 60)))
 
         self._draw_state_chip(surf, sid, rect, owned, equipped)
 
     def _draw_state_chip(self, surf, sid, rect, owned, equipped) -> None:
         """The actionable state line: EQUIPPED / EQUIP / BUY <cost>, tinted so
         affordability and ownership read without reading the text."""
-        cy = rect.y + 92
+        cy = rect.y + 82
         if equipped:
             self._chip(surf, rect.centerx, cy, "EQUIPPED",
                        fg=NEAR_BLACK, bg=_EQUIP_GREEN, coin=0)
@@ -271,6 +339,17 @@ class StoreScene:
             return "back"
         if self.back_rect and self.back_rect.collidepoint(pos):
             return "back"
+        for i, r in enumerate(self.tab_rects):
+            if r.collidepoint(pos):
+                if i != self.tab:
+                    self.tab = i
+                    self.page = 0  # each tab starts at its first page
+                return None
+        if self.daily_rect and self.daily_rect.collidepoint(pos):
+            got = store_data.claim_daily()
+            if got > 0:
+                self._flash("DAILY BONUS  +" + str(got))
+            return None
         if self.prev_rect and self.prev_rect.collidepoint(pos):
             self.page = max(0, self.page - 1)
             return None
@@ -307,13 +386,13 @@ class StoreScene:
             return  # already worn
         if store_data.is_owned(sid):
             store_data.equip(sid)
-            self._flash(store_catalog.name(sid) + " EQUIPPED")
+            self._flash(self._disp_name(sid) + " EQUIPPED")
             return
         ok, reason = store_data.try_purchase(sid)
         if ok:
             # Auto-equip a fresh unlock so the player immediately sees their
             # new bird — the satisfying payoff of the purchase.
             store_data.equip(sid)
-            self._flash("UNLOCKED!  " + store_catalog.name(sid))
+            self._flash("UNLOCKED!  " + self._disp_name(sid))
         elif reason == "insufficient":
             self._flash("NEED MORE COINS")
