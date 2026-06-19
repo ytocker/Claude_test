@@ -36,9 +36,11 @@ SK_REVEAL_PX = 118        # settled difficulty face popped as the reveal
 SKULL_ROUTE_N = 22        # pillars in the Skull-King route (windowed from a hard route)
 # The King-Skull CHARACTER (Asthi-Dakini) strolls in trailing its die, exactly as the
 # clown trails its die: the die LEADS, the figure TRAILS by SKULL_CHAR_DX.
-SKULL_CHAR_PX = 320       # rendered figure height (cached once)
+SKULL_CHAR_PX = 264       # rendered figure height (cached once) — matches the clown's
+                          # ~250px on-screen presence; the chip is tightly cropped so
+                          # the WHOLE six-armed figure is visible at this height
 SKULL_CHAR_DX = 150       # die sits this far LEFT of (ahead of) the figure
-SKULL_CHAR_FEET_FRAC = 0.95   # plant the figure's feet near the ground line
+SKULL_CHAR_SINK = 10      # plant the figure's feet just into the ground line
 
 # ── warren geometry ──────────────────────────────────────────────────────────
 SP = 72                   # fused centre-to-centre spacing (warren window 62-84)
@@ -224,13 +226,16 @@ class WarrenDemo:
         elif self.phase == "interlude":
             # a few seconds of nothing — Pip free-flies — then the King-Skull
             # character strolls in from the right edge (its die leading) to start
-            # the second event.
+            # the second event. Use the idle beat to pre-bake the figure + die faces
+            # so neither the slide-in nor the tumble/reveal hitches.
+            self._prewarm_skull()
             if self.pt >= T_INTERLUDE:
                 self.skull_char_x = float(SPAWN_X + SKULL_CHAR_DX)
                 self.skull_x = self.skull_char_x - SKULL_CHAR_DX   # == SPAWN_X
                 self._goto("sk_offer")
 
         elif self.phase == "sk_offer":
+            self._prewarm_skull()    # finish any remaining die bakes before the grab
             # grab on contact, or auto-grab once the skull has scrolled past Pip
             if self._skull_hit(world) or self.skull_x < BIRD_X - 60:
                 self._collect_skull(world)
@@ -306,9 +311,9 @@ class WarrenDemo:
             pygame.draw.ellipse(shadow, (0, 0, 0, 70), (0, 0, 96, 16))
             surf.blit(shadow, (cx - 48, fy - 7))
             cs = self._skull_char_surface()
-            if cs is not None:
+            if cs is not None:                       # tight crop: chip bottom == feet
                 surf.blit(cs, (cx - cs.get_width() // 2,
-                               fy - int(cs.get_height() * SKULL_CHAR_FEET_FRAC)))
+                               fy - cs.get_height() + SKULL_CHAR_SINK))
 
         # Skull-King: the rolling king-skull during its offer/tumble (the settled
         # face pops as a fixed-spot reveal from draw_sign, layered over the route).
@@ -341,6 +346,19 @@ class WarrenDemo:
             except Exception:
                 self._clown_ok = False
         return self._clown_surf
+
+    def _prewarm_skull(self):
+        """Spread the Skull-King's heavy one-time bakes (the figure, then each SS=8 die
+        face) across idle pre-event frames — one render per call — so the slide-in and
+        the tumble/reveal stay smooth. Cheap no-op once everything is cached."""
+        if self._skull_char_surf is None and self._skull_char_ok:
+            self._skull_char_surface()               # bake the figure (one frame)
+            return
+        try:
+            from game.pillar_skull import prewarm_die_face
+            prewarm_die_face()                       # bake one remaining die face
+        except Exception:
+            pass
 
     def _skull_char_surface(self):
         """Render the King-Skull character (Asthi-Dakini SWITCHED+BIG) once into a

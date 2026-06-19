@@ -164,23 +164,77 @@ def draw_rolling_skull(surf, cx, cy, px, *, angle=0.0, difficulty=None, neutral=
     """Draw the king-skull "die" centred at (cx, cy): the tumbling skull (neutral or
     a flicker face) and, once settled, the distinctive difficulty face. Rotated by
     `angle` degrees for the tumble. Falls back to a plain bone glyph if the die art
-    module is absent, so the beat still plays."""
-    box = int(px * 1.7) + 10
-    scratch = pygame.Surface((box, box), pygame.SRCALPHA)
-    mod = _load_die()
-    drawn = False
-    if mod is not None and hasattr(mod, "draw_skull_die"):
-        try:
-            mod.draw_skull_die(scratch, box // 2, box // 2, int(px),
-                               difficulty=difficulty, neutral=neutral)
-            drawn = True
-        except Exception:
-            drawn = False
-    if not drawn:
-        _fallback_skull(scratch, box // 2, box // 2, int(px), difficulty, neutral)
-    if angle:
-        scratch = pygame.transform.rotate(scratch, angle)
-    surf.blit(scratch, scratch.get_rect(center=(int(cx), int(cy))))
+    module is absent, so the beat still plays.
+
+    The die art is supersampled (SS=8) procedural work — far too heavy to redraw
+    every frame, which made the roll + the growing reveal stutter. Each distinct face
+    (neutral + difficulties 6-10) is baked ONCE at a canonical size and cached; per
+    frame we only cheap-scale to `px` and rotate, so the whole beat costs at most six
+    real renders total."""
+    base = _die_scaled(px, difficulty, neutral)
+    img = pygame.transform.rotate(base, angle) if angle else base
+    surf.blit(img, img.get_rect(center=(int(cx), int(cy))))
+
+
+_CANON_DIE_PX = 128       # one bake per face at this size; all draws scale DOWN from it
+_die_base_cache = {}      # (difficulty|None, neutral) -> canonical-size base Surface
+_die_scaled_cache = {}    # (int(px), difficulty|None, neutral) -> base scaled to px
+
+# The faces the roll flickers through (neutral hovers pre-grab; 6-10 are the outcomes).
+_PREWARM_FACES = [(None, True)] + [(d, False) for d in (6, 7, 8, 9, 10)]
+
+
+def prewarm_die_face():
+    """Bake ONE not-yet-cached die face (the heavy SS=8 render). Call across the calm
+    frames before the grab so the tumble + reveal never pay a bake mid-roll. Returns
+    True while faces remain, False once every face is cached."""
+    for difficulty, neutral in _PREWARM_FACES:
+        if (difficulty, bool(neutral)) not in _die_base_cache:
+            _die_base(difficulty, neutral)
+            return True
+    return False
+
+
+def _die_base(difficulty, neutral):
+    """Bake one face (neutral or a difficulty) at the canonical size, cached forever."""
+    key = (None if neutral else difficulty, bool(neutral))
+    s = _die_base_cache.get(key)
+    if s is None:
+        px = _CANON_DIE_PX
+        box = int(px * 1.7) + 10
+        s = pygame.Surface((box, box), pygame.SRCALPHA)
+        mod = _load_die()
+        drawn = False
+        if mod is not None and hasattr(mod, "draw_skull_die"):
+            try:
+                mod.draw_skull_die(s, box // 2, box // 2, int(px),
+                                   difficulty=difficulty, neutral=neutral)
+                drawn = True
+            except Exception:
+                drawn = False
+        if not drawn:
+            _fallback_skull(s, box // 2, box // 2, int(px), difficulty, neutral)
+        _die_base_cache[key] = s
+    return s
+
+
+def _die_scaled(px, difficulty, neutral):
+    """The canonical base scaled to `px`, cached per size so the constant-size tumble
+    never re-scales and the growing reveal bakes one cheap scale per pop frame."""
+    ipx = int(px)
+    key = (ipx, None if neutral else difficulty, bool(neutral))
+    s = _die_scaled_cache.get(key)
+    if s is None:
+        base = _die_base(difficulty, neutral)
+        if ipx == _CANON_DIE_PX:
+            s = base
+        else:
+            f = px / _CANON_DIE_PX
+            s = pygame.transform.smoothscale(
+                base, (max(1, int(base.get_width() * f)),
+                       max(1, int(base.get_height() * f))))
+        _die_scaled_cache[key] = s
+    return s
 
 
 _DIFF_GLOW = {6: (245, 196, 90), 7: (245, 156, 70), 8: (242, 110, 60),
@@ -237,22 +291,27 @@ def _load_asthi():
 
 
 def render_king_skull(px):
-    """Return a cached Surface of the full King-Skull character (Asthi-Dakini) about
+    """Return a cached Surface of the full King-Skull character (Asthi-Dakini) exactly
     `px` tall, ready to blit (the demo strolls it through the scene like the clown).
-    Supersampled + smoothscaled + ink-outlined by render_creature_chip. One bake per
-    size. Returns None if the design module isn't present (caller falls back)."""
+    One bake per size. Returns None if the design module isn't present (caller falls
+    back).
+
+    The figure is six-armed and far wider than it is centred: a naive box clips the
+    outer arms (the "trimmed rectangle" look). So render at the known-good hero
+    framing — where the whole figure provably fits — crop to the TRUE non-transparent
+    bounds, then scale so the COMPLETE figure stands `px` tall (width follows its real
+    ~0.86 aspect). Nothing is cut off."""
     if px in _king_cache:
         return _king_cache[px]
     RS = _load_asthi()
     if RS is None:
         return None
     try:
-        # The figure is ~130 units tall at scale 1 and a touch taller than wide; size
-        # the box to it and centre the body a little high (mirrors export_hero's 0.53).
-        boxh = int(px)
-        boxw = int(px * 0.74)
-        chip = RS.render_creature_chip(boxw, boxh, boxw // 2, int(boxh * 0.53),
-                                       px / 130.0, ss=4)
+        full = RS.render_creature_chip(760, 1024, 380, 540, 3.7, ss=4)
+        rect = full.get_bounding_rect()          # tight figure bounds (arms included)
+        cropped = full.subsurface(rect).copy()
+        w = max(1, round(cropped.get_width() * px / cropped.get_height()))
+        chip = pygame.transform.smoothscale(cropped, (w, int(px)))
     except Exception:
         chip = None
     _king_cache[px] = chip
