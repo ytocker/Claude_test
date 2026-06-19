@@ -52,7 +52,7 @@ from game import foreground_zbuffer as _zbuf
 CYCLE = biome.CYCLE_SECONDS
 N = 1800                   # sample resolution across the cycle
 
-GENIE_PILLAR = config.LATE_GAME_PILLAR
+GENIE_PILLAR = weather.GENIE_PILLAR
 
 
 def _hex(rgb):

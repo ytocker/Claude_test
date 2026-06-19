@@ -27,7 +27,7 @@ from game.config import (
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
     FLAP_V,
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
-    SECRET_POWERUP_WEIGHTS, LATE_GAME_PILLAR, DEBUG_GENIE_PILLAR,
+    SECRET_POWERUP_WEIGHTS, DEBUG_GENIE_PILLAR,
     GENIE_OFFER_COUNT, GENIE_OFFER_Y_SLOTS,
     GENIE_CHAMBER_GAP_BOOST, GENIE_CHAMBER_SPACING,
     GENIE_CHAMBER_REVEAL_DIST,
@@ -70,6 +70,7 @@ from game.weather import (
     rain_intensity as _rain_intensity,
     storm_intensity as _storm_intensity,
     thermal_intensity as _thermal_intensity,
+    GENIE_PILLAR,
 )
 from game.ambient import AmbientScenes
 
@@ -323,7 +324,7 @@ class World:
 
         self.game_over = False
 
-        # One-shot: when pillars_passed crosses LATE_GAME_PILLAR, a genie
+        # One-shot: when pillars_passed crosses GENIE_PILLAR, a genie
         # lamp is placed in the gap between that pillar and the next one,
         # and from that point on the genie joins the regular spawn pool
         # and the Surprise Box re-roll pool.
@@ -1137,7 +1138,7 @@ class World:
             ))
 
     def _check_genie_milestone(self, last_scored_pipe):
-        """Fires once per run when pillars_passed crosses LATE_GAME_PILLAR
+        """Fires once per run when pillars_passed crosses GENIE_PILLAR
         (and a separate debug one-shot at DEBUG_GENIE_PILLAR). Called from
         the pipe-pass loop with the pipe just scored, so the genie lamp
         lands in the spacing immediately after it — the player encounters
@@ -1155,7 +1156,7 @@ class World:
             return
         if self._genie_milestone_fired:
             return
-        if self.pillars_passed < LATE_GAME_PILLAR:
+        if self.pillars_passed < GENIE_PILLAR:
             return
         self._genie_milestone_fired = True
         self._spawn_milestone_genie(last_scored_pipe)
@@ -1202,7 +1203,7 @@ class World:
             kinds.append(k)
             weights.append(w)
         # Secret late-game tier: only enters the roll once a genie
-        # milestone has fired (production at pillar LATE_GAME_PILLAR or
+        # milestone has fired (production at pillar GENIE_PILLAR or
         # the debug one-shot at DEBUG_GENIE_PILLAR). Kept out of
         # POWERUP_WEIGHTS so the gate can't be bypassed.
         if self._genie_milestone_fired or self._debug_genie_milestone_fired:

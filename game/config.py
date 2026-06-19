@@ -132,18 +132,25 @@ POWERUP_REPLACED_AT = {
 
 # ── Secret late-game power-ups ───────────────────────────────────────────────
 # A separate, undeclared tier that only enters the spawn roll once the run
-# crosses LATE_GAME_PILLAR pillars. Kept out of POWERUP_WEIGHTS (and the
+# crosses the genie milestone. Kept out of POWERUP_WEIGHTS (and the
 # Surprise re-roll) so the gate can't be bypassed, and out of the help screen
 # so the roster stays a surprise. Weights are normalized at pick time alongside
 # the normal pool.
 #
 # The milestone is keyed to PILLARS PASSED (not score) so it lands at the
 # same gameplay moment every run regardless of coin pickups, lottery wins,
-# or storm-jolt deductions. A genie lamp is placed in the spacing between
-# pillar LATE_GAME_PILLAR and the next pillar (so the player encounters it
-# right after scoring that pillar). From that moment, the genie is also added
-# to the regular spawn pool and the Surprise Box re-roll pool.
-LATE_GAME_PILLAR       = 50
+# or storm-jolt deductions. The genie lamp is placed in the spacing right after
+# its milestone pillar (so the player encounters it just after scoring that
+# pillar); from that moment the genie also joins the regular spawn pool and the
+# Surprise Box re-roll pool.
+#
+# The milestone pillar is anchored RELATIVE to the morning geyser event rather
+# than hard-coded: the lamp lands GENIE_PILLARS_AFTER_GEYSER_PEAK pillars past
+# the geyser's thermal peak (resolved in weather.GENIE_PILLAR, which owns the
+# pillar↔phase math). So if the geyser window — or the onboarding ramp that maps
+# pillars to time — is retuned, the genie travels with it and stays part of that
+# beat. With today's tuning this resolves to pillar 50.
+GENIE_PILLARS_AFTER_GEYSER_PEAK = 3
 # DEBUG: extra genie spawn early in the run so the pickup + chamber + wishes
 # can be exercised without playing through the full milestone. Same one-shot rules
 # as the production milestone (also flips on the genie pool + surprise-box
@@ -233,8 +240,12 @@ SPAWN_GRACE         = 1.5
 # both of which fall inside the dusk rain block, so the pickup naturally
 # only appears while it's raining (a cull step also drops any uncollected
 # umbrella once rain returns to 0).
+#
+# Anchored RELATIVE to the rain event (RAIN_START_PILLAR, the drizzle's lower
+# edge) rather than hard-coded, so the two pickups stay inside the storm — and
+# travel with it — if the rain is moved to a different pillar.
 UMBRELLA_DURATION       = 8.0
-UMBRELLA_SPAWN_PILLARS  = (75, 87)
+UMBRELLA_SPAWN_PILLARS  = (RAIN_START_PILLAR + 5, RAIN_START_PILLAR + 17)
 
 # TREASURE BOX — once-per-biome-cycle finale reward. When the day/night
 # cycle wraps from late-night back to dawn, the next CYCLE_FINALE_RUSH_PILLARS

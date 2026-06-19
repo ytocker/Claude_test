@@ -172,7 +172,7 @@ def main() -> None:
     # ── anchored power-ups — pickups placed at FIXED pillars (not the random
     # spawn roll): the genie lamp milestone and the two rain umbrellas. ───────
     POWERUP_ANCHORS = [
-        ("Genie lamp", [config.LATE_GAME_PILLAR], "#b83dba", "D"),
+        ("Genie lamp", [weather.GENIE_PILLAR], "#b83dba", "D"),
         ("Umbrella", list(config.UMBRELLA_SPAWN_PILLARS), "#0f9090", "P"),
     ]
     for label, xs, color, mk in POWERUP_ANCHORS:
@@ -220,8 +220,10 @@ def main() -> None:
         ys = [fn(ph) for ph in phases]
         pk_i = max(range(len(ys)), key=lambda i: ys[i])
         print(f"  {label}: peak at pillar {pillars[pk_i]} (intensity {ys[pk_i]:.2f})")
-    print(f"  Genie lamp: anchored at pillar {config.LATE_GAME_PILLAR}")
-    print(f"  Umbrella: anchored at pillars {config.UMBRELLA_SPAWN_PILLARS}")
+    print(f"  Genie lamp: pillar {weather.GENIE_PILLAR} "
+          f"(geyser peak + {config.GENIE_PILLARS_AFTER_GEYSER_PEAK})")
+    print(f"  Umbrella: pillars {config.UMBRELLA_SPAWN_PILLARS} "
+          f"(rain start {config.RAIN_START_PILLAR} + 5/+17)")
 
 
 if __name__ == "__main__":

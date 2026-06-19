@@ -9,7 +9,7 @@ matplotlib idiom — extended with:
     rain intensity ≥ ``UMBRELLA_SPAWN_RAIN`` (the umbrella spawns once
     per storm while raining — RAIN-tied, not pillar-tied)
   * the production GENIE one-shot marker at pillar
-    ``config.LATE_GAME_PILLAR``
+    ``weather.GENIE_PILLAR`` (anchored to the geyser event)
   * the cycle-finale celebration band at the right edge — chest +
     day-complete banner + parrot crowd + bunting + balloons fire when
     ``biome_phase`` wraps past ``CYCLE_FINALE_PHASE_HI``
@@ -42,7 +42,7 @@ from game import biome, weather, config
 
 CYCLE = biome.CYCLE_SECONDS
 N = 1800                                         # sample resolution
-GENIE_PILLAR = config.LATE_GAME_PILLAR
+GENIE_PILLAR = weather.GENIE_PILLAR
 # UMBRELLA spawn pillars (the umbrella fires at exactly these scored
 # pillars; see config.UMBRELLA_SPAWN_PILLARS).
 

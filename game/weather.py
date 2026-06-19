@@ -74,6 +74,17 @@ def _phase_for_pillar(pillar: int) -> float:
     return t / CYCLE_SECONDS
 
 
+def pillar_for_phase(phase: float) -> int:
+    """Inverse of `_phase_for_pillar`: the first pillar whose cumulative
+    biome phase reaches `phase`. The forward map is monotonic, so a plain
+    scan suffices; used to anchor pillar-placed content (e.g. the genie
+    milestone) to phase-locked events like the morning thermal."""
+    p = 1
+    while p < 10000 and _phase_for_pillar(p) < phase:
+        p += 1
+    return p
+
+
 # Baseline drizzle-start phase before any shift (the original literal).
 _RAIN_DRIZZLE_START_BASE = 0.32
 # Baseline snow-squall lower edge before any shift (center 0.85 − width
@@ -103,6 +114,21 @@ LIGHTNING_PHASE_MAX  = 0.58 + _RAIN_PHASE_SHIFT
 # Snow squall (shifted by config.SNOW_START_PILLAR).
 SNOW_STORM_CENTER    = 0.85 + _SNOW_PHASE_SHIFT
 SNOW_STORM_WIDTH     = 0.13
+
+# Morning-thermal (geyser) phase window — long buildup, short fade. Named here
+# so the curve in `thermal_intensity` and anything anchored to the event (the
+# genie milestone below) read from one source: move the geyser by editing these
+# and its dependents follow. Cycle = 320s, so 50/96/112s map to these phases.
+THERMAL_START_PHASE  = 50.0 / 320.0
+THERMAL_PEAK_PHASE   = 96.0 / 320.0
+THERMAL_END_PHASE    = 112.0 / 320.0
+
+# Genie milestone pillar — anchored to the geyser event rather than hard-coded:
+# the lamp lands `GENIE_PILLARS_AFTER_GEYSER_PEAK` pillars past the thermal
+# peak, so it tracks the geyser if the thermal window (or the onboarding ramp
+# that maps pillars→time) is retuned. Resolved once at import; world.py reads it.
+from game.config import GENIE_PILLARS_AFTER_GEYSER_PEAK as _GENIE_OFFSET
+GENIE_PILLAR = pillar_for_phase(THERMAL_PEAK_PHASE) + _GENIE_OFFSET
 
 
 # ── phase → intensity curves ────────────────────────────────────────────────
@@ -201,7 +227,8 @@ def thermal_intensity(phase: float) -> float:
     count and each geyser's duty-cycle also scale off it. Held off the opening
     (0 before ~50s) so the player feels the base game first; 0 outside the
     window. Cycle = 320s, so 50/96/112s → phases 0.15625/0.30/0.35."""
-    return _skew_bump(phase, 50.0 / 320.0, 96.0 / 320.0, 112.0 / 320.0)
+    return _skew_bump(phase, THERMAL_START_PHASE, THERMAL_PEAK_PHASE,
+                      THERMAL_END_PHASE)
 
 
 # Cold wash colour for the snow squall. The wash starts as a deep
