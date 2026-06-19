@@ -35,8 +35,9 @@ ROUTE_MARGIN_R = 1.05  # seat the focal skull at the gap edge so pillars frame t
 MAX_PILLARS = 30       # cap very long routes (legibility + render time)
 # skull columns only fill ~46px of the 58px slot (vs pagodas, which fill it + eaves),
 # so the routes' native 72px pitch leaves a big gap. Re-space the columns tighter so
-# the skull totems sit shoulder-to-shoulder — vertical gap path is untouched.
-SP_SKULL = 54
+# the skull totems sit shoulder-to-shoulder — vertical gap path is untouched. At 48px
+# pitch the ~46px columns nearly touch, packing the skewers into a near-continuous wall.
+SP_SKULL = 48
 START_X_SKULL = 46
 
 
