@@ -31,9 +31,25 @@ sys.path.insert(0, PILLARS_DIR)
 import pillar_engine as PE
 
 PHASE = 0.62          # dusk/night-leaning sky for the skull-king mood (bone reads on it)
-SP_PAD = 72
 ROUTE_MARGIN_R = 1.05  # seat the focal skull at the gap edge so pillars frame the channel
 MAX_PILLARS = 30       # cap very long routes (legibility + render time)
+# skull columns only fill ~46px of the 58px slot (vs pagodas, which fill it + eaves),
+# so the routes' native 72px pitch leaves a big gap. Re-space the columns tighter so
+# the skull totems sit shoulder-to-shoulder — vertical gap path is untouched.
+SP_SKULL = 54
+START_X_SKULL = 46
+
+
+def _compress(pagodas):
+    """Re-space a route's pillars to a tighter horizontal pitch (SP_SKULL) so the
+    narrow skull columns sit close together. Only x changes; gap centre/height stay."""
+    if not pagodas:
+        return pagodas
+    base = pagodas[0][0]
+    orig_pitch = (pagodas[1][0] - pagodas[0][0]) if len(pagodas) >= 2 else 72.0
+    f = SP_SKULL / orig_pitch
+    return [(START_X_SKULL + (x - base) * f, cy, gap_h, seed)
+            for (x, cy, gap_h, seed) in pagodas]
 
 # the ten skull pillar designs in P1..P10 order
 DESIGN_FILES = [
@@ -80,7 +96,8 @@ def _skull_half(hpx, cap, design):
 def render_skull_strip(pagodas, rng):
     """Mirror render_warren_all.render_strip but paint each gap slot with a random
     skull pillar (top + bottom halves) instead of a pagoda pair."""
-    native_w = pagodas[-1][0] + SP_PAD + 40
+    pagodas = _compress(pagodas)                     # tighten the column spacing
+    native_w = int(pagodas[-1][0] + SP_SKULL + 30)
     palette = shaped_palette(PHASE, dense=False)
     surf = pygame.Surface((native_w, H))
     draw_sky_ground(surf, native_w, H, palette)
