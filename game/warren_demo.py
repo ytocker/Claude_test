@@ -22,7 +22,7 @@ from game.config import W, GROUND_Y, BIRD_X, BIRD_R, PIPE_W
 from game.entities import Pipe
 
 # ── script timing (seconds) ──────────────────────────────────────────────────
-T_CLOWN_IN = 3.0          # empty-sky flight before the clown arrives
+T_FIRST_IN = 3.0          # empty-sky flight before the first event arrives
 T_SPIN = 0.9              # dice tumble before the rolled number is revealed
 T_AFTER_PICKUP = 2.7      # beat between the reveal and the route
 CELE_LIFE = 2.2           # result celebration banner life (< T_AFTER_PICKUP)
@@ -172,14 +172,16 @@ class WarrenDemo:
             self.sk_reveal_t = max(0.0, self.sk_reveal_t - dt)
 
         if self.phase == "fly_in":
-            if self.t >= T_CLOWN_IN:
-                # Spawn far enough right that the DIE (which sits DICE_DX left of
-                # the clown) starts off-screen at SPAWN_X and scrolls IN from the
-                # edge — otherwise it pops in mid-screen while the clown is still
-                # off the right. The die leads, the clown trails by DICE_DX.
-                self.clown_x = float(SPAWN_X + DICE_DX)
-                self.dice_x = self.clown_x - DICE_DX   # == SPAWN_X (off-screen right)
-                self._goto("offer")
+            # Pre-bake the King-Skull figure + its SS=8 die faces across this idle
+            # beat so its slide-in and the tumble/reveal never hitch.
+            self._prewarm_skull()
+            if self.t >= T_FIRST_IN:
+                # Spawn far enough right that the DIE (which sits SKULL_CHAR_DX left
+                # of the figure) starts off-screen at SPAWN_X and scrolls IN from the
+                # edge. The die leads, the King-Skull figure trails by SKULL_CHAR_DX.
+                self.skull_char_x = float(SPAWN_X + SKULL_CHAR_DX)
+                self.skull_x = self.skull_char_x - SKULL_CHAR_DX   # == SPAWN_X
+                self._goto("sk_offer")
 
         elif self.phase == "offer":
             # grab on contact, or auto-grab once the die has scrolled past Pip
@@ -216,22 +218,21 @@ class WarrenDemo:
                 self._spawn_next(world)
             # GHOST roll: Pip is already a ghost from the reveal (the single
             # window sized in _reveal_roll covers this whole stretch + a tail).
-            # clown route done once the last pillar has slipped past Pip → the
-            # Skull-King event follows after an empty-sky beat (NOT death yet)
+            # clown route done once the last pillar has slipped past Pip → the clown
+            # is the final event, so a short free-flight beat then Pip drops.
             if (self.spawned >= len(self.route) and self.route_pipes
                     and self.route_pipes[-1].x + PIPE_W < BIRD_X):
-                self._goto("interlude")
+                self._goto("post_route")
 
         elif self.phase == "interlude":
-            # a few seconds of nothing — Pip free-flies — then the King-Skull
-            # character strolls in from the right edge (its die leading) to start
-            # the second event. Use the idle beat to pre-bake the figure + die faces
-            # so neither the slide-in nor the tumble/reveal hitches.
-            self._prewarm_skull()
+            # a few seconds of nothing — Pip free-flies — then the clown strolls in
+            # from the right edge (its die leading) to start the second event. Bake
+            # the clown bitmap during the idle beat so its slide-in doesn't hitch.
+            self._clown_surface()
             if self.pt >= T_INTERLUDE:
-                self.skull_char_x = float(SPAWN_X + SKULL_CHAR_DX)
-                self.skull_x = self.skull_char_x - SKULL_CHAR_DX   # == SPAWN_X
-                self._goto("sk_offer")
+                self.clown_x = float(SPAWN_X + DICE_DX)
+                self.dice_x = self.clown_x - DICE_DX   # == SPAWN_X (off-screen right)
+                self._goto("offer")
 
         elif self.phase == "sk_offer":
             self._prewarm_skull()    # finish any remaining die bakes before the grab
@@ -266,9 +267,11 @@ class WarrenDemo:
                    and (not self.skull_route_pipes
                         or self.skull_route_pipes[-1].x <= SPAWN_X - SP)):
                 self._spawn_skull_next(world)
+            # skull route done once the last pillar has slipped past Pip → the clown
+            # event follows after an empty-sky beat (NOT death yet)
             if (self.sk_spawned >= len(self.skull_route) and self.skull_route_pipes
                     and self.skull_route_pipes[-1].x + PIPE_W < BIRD_X):
-                self._goto("post_route")
+                self._goto("interlude")
 
         elif self.phase == "post_route":
             if self.pt >= T_AFTER_ROUTE:
