@@ -8,9 +8,11 @@ JS bridge that connects the WASM-side Python game to the browser
 Contracts the game/Python code depends on (do not change without
 updating the corresponding Python callers):
 
-  window.__sk(action, payload)       — see game/leaderboard.py, game/play_log.py
+  window.__sk(action, payload)       — see game/leaderboard.py, game/play_log.py,
+                                       game/store_data.py
       actions: submit / submit_done / fetch / fetch_done / fetch_error /
-               log    / log_done
+               log    / log_done /
+               store_load (-> JSON string or '') / store_save (JSON -> bool)
   window.skyPlay(name, volume)       — see game/audio.py
   window.openNameEntry()             — see game/leaderboard.py
   window._pendingName                — string sentinel, polled at 50 ms by
@@ -997,6 +999,19 @@ _TELEMETRY_JS = """
         } catch (e) { rLog = false; }
     }
 
+    /* Coin Store wallet/inventory — device-local in localStorage. Synchronous
+       (no *_done poll): storeLoad returns the stored JSON string (or '' when
+       absent) directly; storeSave writes and reports ok. Cosmetics carry no
+       competitive weight, so this never touches Supabase. */
+    function storeLoad() {
+        try { return window.localStorage.getItem('skybit_store') || ''; }
+        catch (e) { return ''; }
+    }
+    function storeSave(payload) {
+        try { window.localStorage.setItem('skybit_store', String(payload)); return true; }
+        catch (e) { return false; }
+    }
+
     function dispatch(action, payload, board) {
         switch (String(action || '')) {
             case 'submit':       doSubmit(payload, board); return null;
@@ -1007,6 +1022,8 @@ _TELEMETRY_JS = """
             case 'fetch_error':  return rFetchError;
             case 'log':          doLog(payload);    return null;
             case 'log_done':     return rLog;
+            case 'store_load':   return storeLoad();
+            case 'store_save':   return storeSave(payload);
             default:             return null;
         }
     }

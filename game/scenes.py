@@ -14,6 +14,7 @@ from game.world import World
 from game.hud import HUD, _font
 from game import audio
 from game import play_log
+from game import store_data
 from game.config import BIRD_X, SCROLL_BASE, SPAWN_GRACE
 from game import intro as _intro
 from game.lottery_slot import draw_reveal as _draw_lottery_reveal
@@ -864,6 +865,14 @@ class App:
         self._new_best = score > self.session_best
         if self._new_best:
             self.session_best = score
+        # Bank this run's coins into the persistent Store wallet. _on_death is
+        # the single choke point every run-end passes through, so coins are
+        # credited exactly once per run regardless of where the player goes
+        # next (stats / name entry / menu).
+        try:
+            store_data.add_coins(self.world.coin_count)
+        except Exception:
+            pass
         # Fire-and-forget telemetry: send the run summary to Supabase
         # (browser-only; native is a silent no-op). Strong ref on
         # self prevents GC from killing the task mid-flight.
