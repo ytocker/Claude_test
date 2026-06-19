@@ -117,14 +117,37 @@ class AchievementsScene:
 
     def _draw_cat_header(self, surf, cat, y, store, S):
         got, total = ach.category_progress(store, cat)
-        label = self._scaled_text(cat.upper(), 15 * S, _GOLD_PALE)
-        surf.blit(label, (_PAD_X * S, int((y + 6) * S)))
+        complete = got >= total and total > 0
+        head_col = _GOLD_PALE if complete else _GOLD_BRIGHT
+
+        # A small gold diamond pip leads the section title — a struck-metal
+        # bullet that echoes the badge rim and sets the title off the rail.
+        py = int((y + _CAT_H * 0.5) * S)
+        d = int(4 * S)
+        pip = [(_PAD_X * S, py), (_PAD_X * S + d, py - d),
+               (_PAD_X * S + 2 * d, py), (_PAD_X * S + d, py + d)]
+        pygame.draw.polygon(surf, head_col, pip)
+        pygame.draw.polygon(surf, _GOLD_DEEP, pip, max(1, S))
+
+        label = self._scaled_text(cat.upper(), 15 * S, head_col)
+        lx = _PAD_X * S + 3 * d
+        surf.blit(label, (lx, int((y + 5) * S)))
+
         cnt = self._scaled_text(f"{got}/{total}", 13 * S, _GOLD_DEEP)
-        surf.blit(cnt, (int((W - _PAD_X) * S - cnt.get_width()), int((y + 7) * S)))
-        # underline rail
-        pygame.draw.line(surf, (*_GOLD_BRIGHT, 90),
-                         (_PAD_X * S, int((y + _CAT_H - 4) * S)),
-                         ((W - _PAD_X) * S, int((y + _CAT_H - 4) * S)), max(1, S))
+        cnt_x = int((W - _PAD_X) * S - cnt.get_width())
+        surf.blit(cnt, (cnt_x, int((y + 6) * S)))
+
+        # Engraved rule between the title and the count, fading toward the right
+        # so the header reads as one elegant band rather than a hard line.
+        ry = int((y + _CAT_H - 6) * S)
+        rail_l = lx + label.get_width() + 6 * S
+        rail_r = cnt_x - 6 * S
+        if rail_r > rail_l:
+            rail = pygame.Surface((rail_r - rail_l, max(1, S)), pygame.SRCALPHA)
+            for xx in range(rail.get_width()):
+                fade = 1.0 - xx / max(1, rail.get_width())
+                rail.fill((*_GOLD_BRIGHT, int(150 * fade)), (xx, 0, 1, max(1, S)))
+            surf.blit(rail, (rail_l, ry))
 
     def _scaled_text(self, txt, size, color):
         return _font(int(size), True).render(txt, True, color)
@@ -149,12 +172,23 @@ class AchievementsScene:
         panel.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
         border = (*_GOLD_BRIGHT, 180) if unlocked else (90, 86, 120, 140)
         pygame.draw.rect(panel, border, (0, 0, rw, rh), width=max(1, S), border_radius=rad)
+        # Earned rows wear a bright gold accent stripe down the left edge — a
+        # quick "this one's yours" read while scanning a long list.
+        if unlocked:
+            stripe = pygame.Surface((max(3, 4 * S), rh - 8 * S), pygame.SRCALPHA)
+            for yy in range(stripe.get_height()):
+                t = yy / max(1, stripe.get_height() - 1)
+                stripe.fill(lerp_color(_GOLD_PALE, _GOLD_DEEP, t), (0, yy, stripe.get_width(), 1))
+            sm = pygame.Surface(stripe.get_size(), pygame.SRCALPHA)
+            pygame.draw.rect(sm, (255, 255, 255, 255), sm.get_rect(), border_radius=max(1, 2 * S))
+            stripe.blit(sm, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+            panel.blit(stripe, (3 * S, 4 * S))
         surf.blit(panel, (rx, ry))
 
         # Badge.
         badge_rect = pygame.Rect(int(rx + 8 * S), int(ry + (rh - _BADGE * S) // 2),
                                  _BADGE * S, _BADGE * S)
-        draw_badge(surf, a.icon_key, badge_rect, unlocked)
+        draw_badge(surf, a.icon_key, badge_rect, unlocked, a.hidden)
 
         # Text block.
         tx = int(rx + (8 + _BADGE + 10) * S)
@@ -179,9 +213,9 @@ class AchievementsScene:
 
         # Unlocked check, or progress bar for incremental life-scope locks.
         if unlocked:
-            chk = self._scaled_text("★", 18 * S, _GOLD_BRIGHT)
-            surf.blit(chk, (int((W - _PAD_X) * S - chk.get_width() - 6 * S),
-                            int(ry + 8 * S)))
+            star_cx = int((W - _PAD_X) * S - 12 * S)
+            star_cy = int(ry + 16 * S)
+            self._draw_star(surf, star_cx, star_cy, 8 * S)
         else:
             cur = ach.current_value(store, a)
             if cur is not None and a.target > 1:
@@ -189,6 +223,17 @@ class AchievementsScene:
                 self._draw_progress(surf, tx, int(ry + rh - 14 * S),
                                     int((W - _PAD_X) * S - tx - 8 * S), S,
                                     frac, f"{min(cur, a.target)}/{a.target}")
+
+    def _draw_star(self, surf, cx, cy, rad):
+        """Procedural five-point "earned" star — the bundled bold font has no
+        U+2605 glyph, so the badge family's star is drawn instead of typeset."""
+        pts = []
+        for i in range(10):
+            ang = -math.pi / 2 + i * math.pi / 5
+            rr = rad if i % 2 == 0 else rad * 0.42
+            pts.append((cx + math.cos(ang) * rr, cy + math.sin(ang) * rr))
+        pygame.draw.polygon(surf, _GOLD_BRIGHT, [(int(x), int(y)) for x, y in pts])
+        pygame.draw.polygon(surf, _GOLD_DEEP, [(int(x), int(y)) for x, y in pts], max(1, _S))
 
     def _blit_wrapped(self, surf, text, x, y, maxw, size, color):
         f = _font(int(size), True)
