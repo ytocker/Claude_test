@@ -212,3 +212,48 @@ def _fallback_skull(surf, cx, cy, px, difficulty, neutral):
             surf.blit(t, t.get_rect(center=(cx, cy - int(r * 0.52))))
         except Exception:
             pass
+
+
+# ── King-Skull CHARACTER (Asthi-Dakini, latest design SWITCHED + BIG) ──────────
+_asthi_mod = None        # render_switchbig module, or False if unavailable
+_king_cache = {}         # px -> rendered character Surface (one bake per size)
+
+
+def _load_asthi():
+    """Import the chosen king-skull character design (Asthi-Dakini SWITCHED+BIG)
+    once. Returns the render_switchbig module or None if docs/ isn't present.
+    Cached. The figure is the same design the stacked-skull pillars derive from."""
+    global _asthi_mod
+    if _asthi_mod is not None:
+        return _asthi_mod or None
+    try:
+        root = _repo_root()
+        _add_paths(os.path.join(root, "docs", "skybit_devil", "batch2", "asthi_ringeye"))
+        import render_switchbig as RS
+        _asthi_mod = RS
+    except Exception:
+        _asthi_mod = False
+    return _asthi_mod or None
+
+
+def render_king_skull(px):
+    """Return a cached Surface of the full King-Skull character (Asthi-Dakini) about
+    `px` tall, ready to blit (the demo strolls it through the scene like the clown).
+    Supersampled + smoothscaled + ink-outlined by render_creature_chip. One bake per
+    size. Returns None if the design module isn't present (caller falls back)."""
+    if px in _king_cache:
+        return _king_cache[px]
+    RS = _load_asthi()
+    if RS is None:
+        return None
+    try:
+        # The figure is ~130 units tall at scale 1 and a touch taller than wide; size
+        # the box to it and centre the body a little high (mirrors export_hero's 0.53).
+        boxh = int(px)
+        boxw = int(px * 0.74)
+        chip = RS.render_creature_chip(boxw, boxh, boxw // 2, int(boxh * 0.53),
+                                       px / 130.0, ss=4)
+    except Exception:
+        chip = None
+    _king_cache[px] = chip
+    return chip

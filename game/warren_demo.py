@@ -34,6 +34,11 @@ SKULL_Y = 330             # reachable hover line for the rolling king-skull
 SK_PX = 74                # rolling-skull draw size (px); reveal scales this up
 SK_REVEAL_PX = 118        # settled difficulty face popped as the reveal
 SKULL_ROUTE_N = 22        # pillars in the Skull-King route (windowed from a hard route)
+# The King-Skull CHARACTER (Asthi-Dakini) strolls in trailing its die, exactly as the
+# clown trails its die: the die LEADS, the figure TRAILS by SKULL_CHAR_DX.
+SKULL_CHAR_PX = 320       # rendered figure height (cached once)
+SKULL_CHAR_DX = 150       # die sits this far LEFT of (ahead of) the figure
+SKULL_CHAR_FEET_FRAC = 0.95   # plant the figure's feet near the ground line
 
 # ── warren geometry ──────────────────────────────────────────────────────────
 SP = 72                   # fused centre-to-centre spacing (warren window 62-84)
@@ -117,6 +122,11 @@ class WarrenDemo:
         self.skull_route_pipes = []
         self.sk_spawned = 0
         self.skull_idxs = []       # per-pillar design index (0-19), one per route slot
+        # The King-Skull CHARACTER (Asthi-Dakini): world-anchored scenery that strolls
+        # in trailing the die and slides off, exactly like the clown.
+        self.skull_char_x = None
+        self._skull_char_surf = None   # cached figure bitmap (built on first draw)
+        self._skull_char_ok = True     # cleared if the design module ever throws
 
         self._clown_surf = None    # cached clown bitmap (built on first draw)
         self._clown_ok = True      # cleared if build_jester ever throws
@@ -146,11 +156,16 @@ class WarrenDemo:
             if self.clown_x < -160:
                 self.clown_x = None
 
-        # The rolling king-skull is world-anchored scenery too: once it enters it
-        # rides the scroll leftward until grabbed (then it tumbles in place on
-        # screen via the spin clock, no longer tracking world x).
-        if self.skull_x is not None and not self.skull_collected:
-            self.skull_x -= world._current_scroll() * dt
+        # The King-Skull CHARACTER anchors the die exactly as the clown does: the
+        # figure rides the scroll leftward and slides off; the die LEADS it by
+        # SKULL_CHAR_DX until grabbed (then the die freezes + tumbles in place while
+        # the figure keeps strolling off).
+        if self.skull_char_x is not None:
+            self.skull_char_x -= world._current_scroll() * dt
+            if not self.skull_collected:
+                self.skull_x = self.skull_char_x - SKULL_CHAR_DX
+            if self.skull_char_x < -160:
+                self.skull_char_x = None
 
         if self.sk_reveal_t > 0.0:
             self.sk_reveal_t = max(0.0, self.sk_reveal_t - dt)
@@ -207,10 +222,12 @@ class WarrenDemo:
                 self._goto("interlude")
 
         elif self.phase == "interlude":
-            # a few seconds of nothing — Pip free-flies — then the king-skull
-            # scrolls in from the right edge to start the second event.
+            # a few seconds of nothing — Pip free-flies — then the King-Skull
+            # character strolls in from the right edge (its die leading) to start
+            # the second event.
             if self.pt >= T_INTERLUDE:
-                self.skull_x = float(SPAWN_X)
+                self.skull_char_x = float(SPAWN_X + SKULL_CHAR_DX)
+                self.skull_x = self.skull_char_x - SKULL_CHAR_DX   # == SPAWN_X
                 self._goto("sk_offer")
 
         elif self.phase == "sk_offer":
@@ -280,6 +297,19 @@ class WarrenDemo:
             # The settled result is NOT painted on the cube — it pops as a
             # celebration banner in a fixed spot (see _draw_celebration).
 
+        # Skull-King CHARACTER (Asthi-Dakini) — strolls in trailing its die and
+        # slides off, drawn BEFORE the pillars so the route occludes it like the clown.
+        if self.skull_char_x is not None and self.skull_char_x > -140:
+            cx = int(self.skull_char_x + sx)
+            fy = int(GROUND_Y + sy)
+            shadow = pygame.Surface((96, 16), pygame.SRCALPHA)
+            pygame.draw.ellipse(shadow, (0, 0, 0, 70), (0, 0, 96, 16))
+            surf.blit(shadow, (cx - 48, fy - 7))
+            cs = self._skull_char_surface()
+            if cs is not None:
+                surf.blit(cs, (cx - cs.get_width() // 2,
+                               fy - int(cs.get_height() * SKULL_CHAR_FEET_FRAC)))
+
         # Skull-King: the rolling king-skull during its offer/tumble (the settled
         # face pops as a fixed-spot reveal from draw_sign, layered over the route).
         if self.skull_x is not None and self.phase in ("sk_offer", "sk_rolling"):
@@ -311,6 +341,20 @@ class WarrenDemo:
             except Exception:
                 self._clown_ok = False
         return self._clown_surf
+
+    def _skull_char_surface(self):
+        """Render the King-Skull character (Asthi-Dakini SWITCHED+BIG) once into a
+        cached bitmap and reuse it each frame, like the clown. The figure is the same
+        chosen design the stacked-skull pillars derive from."""
+        if self._skull_char_surf is None and self._skull_char_ok:
+            try:
+                from game import pillar_skull
+                self._skull_char_surf = pillar_skull.render_king_skull(SKULL_CHAR_PX)
+                if self._skull_char_surf is None:
+                    self._skull_char_ok = False
+            except Exception:
+                self._skull_char_ok = False
+        return self._skull_char_surf
 
     def _draw_floating_die(self, surf, dx, dy):
         """The pre-grab die: a clean bobbing 3D cube with a few orbiting
