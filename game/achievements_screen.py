@@ -27,13 +27,17 @@ _WHITE = (245, 246, 255)
 _DIM   = (150, 150, 172)
 
 # Layout (logical px).
-_HEADER_H = 52
+_HEADER_H = 56          # taller: title + a global progress bar live here
 _FOOTER_H = 30
 _CAT_H    = 30
-_ROW_H    = 62
-_ROW_GAP  = 6
+_ROW_H    = 56          # tightened ~10% for better scan density
+_ROW_GAP  = 5
 _PAD_X    = 12
-_BADGE    = 46
+_BADGE    = 44
+
+# The gold underline beneath the ACHIEVEMENTS title — the category hairlines
+# reuse this weight + horizontal inset so the whole screen reads as one system.
+_RULE_INSET = 40
 
 _S = 2  # supersample for the tall content surface
 
@@ -137,16 +141,18 @@ class AchievementsScene:
         cnt_x = int((W - _PAD_X) * S - cnt.get_width())
         surf.blit(cnt, (cnt_x, int((y + 6) * S)))
 
-        # Engraved rule between the title and the count, fading toward the right
-        # so the header reads as one elegant band rather than a hard line.
+        # Engraved rule between the title and the count — same weight + fade as
+        # the gold underline under the ACHIEVEMENTS title, so the category bands
+        # and the header read as one system rather than two unrelated rules.
         ry = int((y + _CAT_H - 6) * S)
         rail_l = lx + label.get_width() + 6 * S
         rail_r = cnt_x - 6 * S
         if rail_r > rail_l:
-            rail = pygame.Surface((rail_r - rail_l, max(1, S)), pygame.SRCALPHA)
+            rail = pygame.Surface((rail_r - rail_l, max(2, 2 * S)), pygame.SRCALPHA)
             for xx in range(rail.get_width()):
                 fade = 1.0 - xx / max(1, rail.get_width())
-                rail.fill((*_GOLD_BRIGHT, int(150 * fade)), (xx, 0, 1, max(1, S)))
+                rail.fill((*_GOLD_BRIGHT, int(160 * fade)),
+                          (xx, 0, 1, max(2, 2 * S)))
             surf.blit(rail, (rail_l, ry))
 
     def _scaled_text(self, txt, size, color):
@@ -223,6 +229,23 @@ class AchievementsScene:
                 self._draw_progress(surf, tx, int(ry + rh - 14 * S),
                                     int((W - _PAD_X) * S - tx - 8 * S), S,
                                     frac, f"{min(cur, a.target)}/{a.target}")
+
+    def _gilded_count(self, txt, size):
+        """The header counter rendered with a vertical gold gradient fill (pale
+        crest → deep base) so it matches the gilded title rather than sitting as
+        a flat orphaned label."""
+        base = _font(size, True).render(txt, True, _GOLD_PALE)
+        w, h = base.get_size()
+        grad = pygame.Surface((w, h), pygame.SRCALPHA)
+        for yy in range(h):
+            t = yy / max(1, h - 1)
+            grad.fill(lerp_color(_GOLD_PALE, _GOLD_DEEP, t), (0, yy, w, 1))
+        grad.blit(base, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        out = pygame.Surface((w + 2, h + 2), pygame.SRCALPHA)
+        sh = _font(size, True).render(txt, True, (20, 12, 4))
+        out.blit(sh, (1, 1))
+        out.blit(grad, (0, 0))
+        return out
 
     def _draw_star(self, surf, cx, cy, rad):
         """Procedural five-point "earned" star — the bundled bold font has no
@@ -306,12 +329,38 @@ class AchievementsScene:
         hdr.fill((*_NIGHT_DEEP, 235))
         pygame.draw.line(hdr, (*_GOLD_BRIGHT, 120), (0, _HEADER_H - 1), (W, _HEADER_H - 1), 1)
         surf.blit(hdr, (0, 0))
-        _outlined_text(surf, "ACHIEVEMENTS", (W // 2, _HEADER_H // 2 + 2),
+        _outlined_text(surf, "ACHIEVEMENTS", (W // 2, 16),
                        size=26, px=2, shadow_offset=(2, 3))
+        # Gilded gold underline under the title — the visual anchor the category
+        # hairlines echo.
+        uw = 132
+        ux = W // 2 - uw // 2
+        pygame.draw.line(surf, _GOLD_BRIGHT, (ux, 30), (ux + uw, 30), 2)
+
         total = len(ach.ACHIEVEMENTS)
         got = len(store.get("unlocked") or {})
-        cnt = _font(13, True).render(f"{got} / {total}", True, _GOLD_PALE)
+
+        # Gilded "N / total" counter — same gradient treatment as the title so
+        # it reads as part of the header, not an orphaned label.
+        cnt = self._gilded_count(f"{got} / {total}", 14)
         surf.blit(cnt, (W - cnt.get_width() - 8, 6))
+
+        # Global progress bar — a thin gold bar spanning the header inset,
+        # showing total unlocked / total at a glance.
+        gbx = _RULE_INSET
+        gbw = W - _RULE_INSET * 2
+        gby = _HEADER_H - 9
+        frac = (got / total) if total else 0.0
+        pygame.draw.rect(surf, (8, 5, 24), (gbx, gby, gbw, 4), border_radius=2)
+        fw = int(gbw * max(0.0, min(1.0, frac)))
+        if fw > 0:
+            bar = pygame.Surface((fw, 4), pygame.SRCALPHA)
+            for xx in range(fw):
+                t = xx / max(1, fw - 1)
+                bar.fill(lerp_color(_GOLD_PALE, _GOLD_BRIGHT, t), (xx, 0, 1, 4))
+            surf.blit(bar, (gbx, gby))
+        pygame.draw.rect(surf, (*_GOLD_BRIGHT, 110), (gbx, gby, gbw, 4),
+                         width=1, border_radius=2)
 
         # Footer prompt — pulsing.
         ftr = pygame.Surface((W, _FOOTER_H), pygame.SRCALPHA)

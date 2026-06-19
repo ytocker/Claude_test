@@ -8,12 +8,23 @@ than a flat ring), a beveled inner step, and a recessed enamel field stamped
 with an engraved per-key glyph. A twin-laurel sprig sits at the base so the
 whole family shares one silhouette.
 
-State is one code path, three looks:
-  * unlocked            — warm gold rim + navy enamel (+ amethyst & a rarity
-                          sparkle-ring for the hidden "Mysteries" tier).
-  * locked (known)      — dormant pewter: desaturated rim, the glyph still
-                          embossed faintly so its SHAPE teases the unlock.
-  * locked (hidden)     — a riveted iron blank stamped "?", no shape leaked.
+Lighting is one fixed upper-left source for the whole family — a specular
+hot-spot on the gold rim's upper-left crest, a darker recess ring where the
+enamel meets the rim, and a soft sheen on each glyph's top edge — so a badge
+reads as a real struck medal, not a flat enamel pin.
+
+State is one code path, but only the six "Mysteries" carry a hidden look;
+the other twelve are only ever unlocked or dormant:
+  * unlocked (normal)   — warm gold rim + navy enamel + embossed glyph.
+  * unlocked (Mystery)  — gold rim + DESATURATED amethyst enamel well + a
+                          sparkle/star ring, so a rare unlock feels special
+                          while gold stays the only fully-saturated accent.
+  * dormant (known)     — the SAME medal asleep: rim value lifted and kept
+                          faintly warm (not a different greyed-out object),
+                          glyph still embossed so its shape teases the unlock.
+  * hidden + locked     — Mysteries only: an amethyst "?" disc ringed with a
+                          faint sparkle/star halo — enticingly rarer-looking
+                          than ordinary dormant pewter, no shape leaked.
 
 Results are cached by ``(icon_key, size, unlocked, hidden)``. ``draw_badge`` is
 the only entry point the screen calls; the glyph table is the baseline the
@@ -26,38 +37,46 @@ import pygame
 
 from game.draw import lerp_color, blit_glow
 
-# Medallion palette — tuned to the menu's gold-on-navy family.
+# Medallion palette — tuned to the menu's gold-on-navy family. Gold is the
+# ONLY fully-saturated accent so "gold = earned" stays the dominant signal.
 _RING_HI   = (255, 234, 168)   # specular crest of the rim bevel
 _RING_MID  = (236, 186,  72)   # body gold
 _RING_LO   = (150, 102,  20)   # shadowed underside of the bevel
 _RIM_EDGE  = ( 70,  44,   8)   # thin outer keyline
+_SPEC_HOT  = (255, 250, 222)   # single upper-left specular hot-spot
 _FACE_TOP  = ( 44,  32,  92)   # enamel field, lit top
 _FACE_BOT  = ( 16,  10,  44)   # enamel field, shadowed base
+_RECESS    = ( 10,   6,  28)   # dark recess where enamel meets the rim
 _STEP_HI   = (255, 226, 150)
 _STEP_LO   = (140,  96,  22)
 _GLYPH     = (255, 236, 184)   # engraved glyph highlight
 _GLYPH_SH  = ( 32,  18,  44)   # engraved glyph inset shadow
-_GLYPH_DK  = (150,  96,  20)
+_GLYPH_SHEEN = (255, 252, 232) # soft top-edge sheen on the glyph
 
-# Hidden / secret tier — amethyst enamel reads as "rare".
-_SECRET_TOP = ( 74,  40, 116)
-_SECRET_BOT = ( 32,  14,  64)
+# Mystery tier — DESATURATED amethyst enamel: reads "rare" but never competes
+# with gold for saturation. Used both for the unlocked well and the "?" disc.
+_AME_TOP   = ( 96,  74, 128)   # amethyst enamel, lit top
+_AME_BOT   = ( 48,  34,  78)   # amethyst enamel, shadowed base
+_AME_RECESS = ( 30,  20,  54)
+_AME_GLY   = (214, 196, 240)   # cool amethyst glyph highlight
+_AME_GLY_SH = ( 34,  22,  58)
+_AME_SPARK = (228, 214, 250)   # sparkle-ring star colour
+# A cooler gold-with-violet-cast rim for the hidden "?" disc so its frame reads
+# rarer than dormant pewter without going fully saturated.
+_AME_RIM_HI = (200, 184, 224)
+_AME_RIM_MID = (150, 132, 184)
+_AME_RIM_LO = ( 86,  70, 118)
 
-# Dormant (locked, known) — cool pewter that keeps the glyph shape readable.
-_LOCK_HI   = (150, 152, 170)
-_LOCK_MID  = (104, 106, 126)
-_LOCK_LO   = ( 58,  60,  78)
-_LOCK_FACE_TOP = ( 40,  42,  58)
-_LOCK_FACE_BOT = ( 22,  23,  34)
-_LOCK_GLY  = (132, 134, 152)
-_LOCK_GLY_SH = ( 18, 19, 28)
-
-# Hidden + locked — a colder riveted-iron blank.
-_IRON_HI   = (118, 120, 138)
-_IRON_MID  = ( 78,  80,  98)
-_IRON_LO   = ( 40,  42,  56)
-_IRON_FACE_TOP = ( 30,  31,  44)
-_IRON_FACE_BOT = ( 16,  17,  26)
+# Dormant (locked, known) — the SAME medal asleep: a warm-tinted pewter (not a
+# cold grey object). Value-based contrast vs. gold stays colourblind-safe.
+_LOCK_HI   = (176, 168, 158)
+_LOCK_MID  = (132, 122, 108)
+_LOCK_LO   = ( 78,  70,  58)
+_LOCK_FACE_TOP = ( 52,  48,  60)
+_LOCK_FACE_BOT = ( 30,  27,  40)
+_LOCK_RECESS = ( 20,  17,  30)
+_LOCK_GLY  = (170, 162, 150)   # lifted ~12% so dormant reads inviting
+_LOCK_GLY_SH = ( 28,  25,  34)
 
 _SS = 4  # supersample for crisp edges, then smoothscale down
 _BADGES: dict = {}
@@ -127,20 +146,20 @@ def _glyph_storm(surf, cx, cy, r, col):
 
 
 def _glyph_nerve(surf, cx, cy, r, col):
-    # A sewing needle threaded through its eye — the long shaft + an oval eye
-    # near the top, with the thread looping out (Threadneedle / Close Shave).
-    nx0, ny0 = cx - int(r * 0.42), cy + int(r * 0.78)
-    nx1, ny1 = cx + int(r * 0.30), cy - int(r * 0.78)
-    pygame.draw.line(surf, col, (nx0, ny0), (nx1, ny1), max(3, r // 8))
-    # eye near the upper end
-    ex, ey = cx + int(r * 0.16), cy - int(r * 0.42)
-    pygame.draw.ellipse(surf, _GLYPH_SH,
-                        (ex - max(2, r // 9), ey - max(3, r // 6),
-                         max(4, r // 4), max(6, r // 3)))
-    # thread looping through
-    pygame.draw.arc(surf, col, (cx - int(r * 0.35), cy - int(r * 0.7),
-                                int(r * 0.7), int(r * 0.7)),
-                    math.radians(20), math.radians(220), max(2, r // 12))
+    # A heartbeat / EKG line — the close-call "pulse spike" past a near-miss.
+    # A flat baseline that leaps into a tall spike then settles: unmistakable
+    # at 46px and on-metaphor for a nerve-wracking close shave.
+    w = max(3, r // 8)
+    pts = [
+        (cx - r * 0.82, cy + r * 0.08),
+        (cx - r * 0.40, cy + r * 0.08),
+        (cx - r * 0.22, cy + r * 0.50),   # small dip
+        (cx - r * 0.02, cy - r * 0.66),   # tall spike up
+        (cx + r * 0.18, cy + r * 0.40),   # overshoot down
+        (cx + r * 0.36, cy + r * 0.08),
+        (cx + r * 0.82, cy + r * 0.08),
+    ]
+    pygame.draw.lines(surf, col, False, [(int(x), int(y)) for x, y in pts], w)
 
 
 def _glyph_clock(surf, cx, cy, r, col):
@@ -155,32 +174,57 @@ def _glyph_clock(surf, cx, cy, r, col):
 
 
 def _glyph_wing(surf, cx, cy, r, col):
-    # Layered macaw wing — three feather strokes for a courier-bird read.
-    base = [
-        (cx - r * 0.78, cy + r * 0.20),
-        (cx + r * 0.10, cy - r * 0.58),
-        (cx + r * 0.62, cy - r * 0.10),
-        (cx + r * 0.10, cy + r * 0.16),
-        (cx + r * 0.52, cy + r * 0.52),
-        (cx - r * 0.24, cy + r * 0.50),
+    # A single clean feathered macaw wing — one filled silhouette with a
+    # scalloped trailing edge of feather tips, swept up to the right. Reads as
+    # ONE wing, not three fast-forward chevrons.
+    # Leading edge sweeps from the shoulder (lower-left) up to the wing-tip
+    # (upper-right); the trailing edge scallops back down in feather lobes.
+    sx, sy = cx - r * 0.72, cy + r * 0.46          # shoulder
+    tx, ty = cx + r * 0.70, cy - r * 0.60          # wing tip
+    outline = [(sx, sy), (cx - r * 0.30, cy - r * 0.06), (tx, ty)]
+    # feather lobes along the trailing edge, tip → shoulder
+    lobes = [
+        (cx + r * 0.42, cy - r * 0.06),
+        (cx + r * 0.50, cy + r * 0.22),
+        (cx + r * 0.10, cy + r * 0.14),
+        (cx + r * 0.18, cy + r * 0.46),
+        (cx - r * 0.22, cy + r * 0.34),
+        (cx - r * 0.14, cy + r * 0.62),
+        (cx - r * 0.50, cy + r * 0.50),
     ]
-    pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in base])
-    for k in (0.0, 0.30):
+    pts = outline + lobes
+    pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in pts])
+    # two engraved feather quills hint at plumage without breaking the read
+    for k in (0.18, 0.42):
         pygame.draw.line(surf, _GLYPH_SH,
-                         (int(cx - r * 0.55 + k * r), int(cy + r * 0.18)),
-                         (int(cx + r * 0.18 + k * r), int(cy - r * 0.34)),
-                         max(2, r // 12))
+                         (int(cx - r * 0.34 + k * r * 0.4), int(cy + r * (0.30 - k))),
+                         (int(cx + r * (0.20 + k * 0.6)), int(cy - r * (0.10 + k * 0.4))),
+                         max(2, r // 14))
 
 
 def _glyph_magnet(surf, cx, cy, r, col):
-    rr = int(r * 0.66)
-    rect = pygame.Rect(cx - rr, cy - rr, rr * 2, rr * 2)
-    pygame.draw.arc(surf, col, rect, math.pi, math.tau, max(5, r // 4))
-    leg_w = max(5, r // 4)
-    for sgn, tip in ((-1, (210, 70, 60)), (1, (235, 235, 245))):
-        x = cx + sgn * rr - leg_w // 2
-        pygame.draw.rect(surf, col, (x, cy, leg_w, int(r * 0.5)))
-        pygame.draw.rect(surf, tip, (x, cy + int(r * 0.34), leg_w, int(r * 0.16)))
+    # A chunky horseshoe magnet pulled inward off the rim, with two
+    # unmistakable banded pole-tips at the bottom. Thicker U + a clear gap
+    # between the legs so it never reads as a smudge at 46px.
+    rr = int(r * 0.50)            # pulled inward off the rim
+    leg_w = max(6, int(r * 0.30))
+    bar = max(6, int(r * 0.32))
+    top = cy - int(r * 0.46)
+    # the arched top of the U
+    arc_rect = pygame.Rect(cx - rr, top, rr * 2, rr * 2)
+    pygame.draw.arc(surf, col, arc_rect, math.radians(6), math.radians(174), bar)
+    # the two straight legs hanging down
+    leg_top = top + rr
+    leg_h = int(r * 0.52)
+    for sgn in (-1, 1):
+        lx = cx + sgn * rr - leg_w // 2
+        pygame.draw.rect(surf, col, (lx, leg_top, leg_w, leg_h))
+    # banded pole-tips — one red, one steel — drawn as full caps so they read
+    # as poles, not specks
+    tip_h = max(4, int(r * 0.20))
+    for sgn, tip in ((-1, (212, 64, 56)), (1, (224, 228, 240))):
+        lx = cx + sgn * rr - leg_w // 2
+        pygame.draw.rect(surf, tip, (lx, leg_top + leg_h, leg_w, tip_h))
 
 
 def _glyph_kfc(surf, cx, cy, r, col):
@@ -197,12 +241,29 @@ def _glyph_kfc(surf, cx, cy, r, col):
 
 
 def _glyph_skate(surf, cx, cy, r, col):
-    deck = pygame.Rect(int(cx - r * 0.72), int(cy - r * 0.12), int(r * 1.44), max(5, r // 4))
-    pygame.draw.rect(surf, col, deck, border_radius=max(3, r // 6))
-    for dx in (-0.46, 0.46):
-        pygame.draw.line(surf, col, (int(cx + dx * r), int(cy + r * 0.06)),
-                         (int(cx + dx * r), int(cy + r * 0.28)), max(2, r // 12))
-        pygame.draw.circle(surf, col, (int(cx + dx * r), int(cy + r * 0.4)), max(3, r // 9))
+    # A skateboard in profile: a deck with upturned kick-tails (visible
+    # curvature) and two wheels tucked UNDER the deck with a clear gap between
+    # them — so it reads as a board, not a bench/table.
+    th = max(4, int(r * 0.18))
+    yk = cy - int(r * 0.10)                 # deck centre line
+    # concave deck: two raised ends, dipping in the middle, drawn as a polygon
+    deck = [
+        (cx - r * 0.78, yk - r * 0.30),     # left kick-tail tip (up)
+        (cx - r * 0.52, yk),
+        (cx + r * 0.52, yk),
+        (cx + r * 0.78, yk - r * 0.30),     # right kick-tail tip (up)
+        (cx + r * 0.78, yk - r * 0.30 + th),
+        (cx + r * 0.52, yk + th),
+        (cx - r * 0.52, yk + th),
+        (cx - r * 0.78, yk - r * 0.30 + th),
+    ]
+    pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in deck])
+    # two wheels under the deck, gapped
+    wr = max(3, int(r * 0.16))
+    wy = yk + th + wr
+    for dx in (-0.40, 0.40):
+        pygame.draw.circle(surf, col, (int(cx + dx * r), int(wy)), wr)
+        pygame.draw.circle(surf, _GLYPH_SH, (int(cx + dx * r), int(wy)), max(1, wr // 2))
 
 
 def _glyph_genie(surf, cx, cy, r, col):
@@ -252,14 +313,36 @@ def _glyph_lottery(surf, cx, cy, r, col):
 
 
 def _glyph_rail(surf, cx, cy, r, col):
-    for dx in (-0.24, 0.24):
-        x = int(cx + dx * r)
-        pygame.draw.line(surf, col, (x, int(cy - r * 0.72)), (x, int(cy + r * 0.72)),
-                         max(3, r // 9))
-    for dy in (-0.42, 0.0, 0.42):
-        y = int(cy + dy * r)
-        pygame.draw.line(surf, col, (int(cx - r * 0.46), y),
-                         (int(cx + r * 0.46), y), max(2, r // 12))
+    # A single angled grind rail with a board sliding along it. The rail runs
+    # lower-left to upper-right with two short support posts; the board sits on
+    # top mid-grind. Reads as a trick, not a window grid.
+    rw = max(3, int(r * 0.16))
+    x0, y0 = cx - r * 0.78, cy + r * 0.42       # lower-left
+    x1, y1 = cx + r * 0.78, cy - r * 0.34       # upper-right
+    pygame.draw.line(surf, col, (int(x0), int(y0)), (int(x1), int(y1)), rw)
+    # two support posts dropping from the rail
+    for f in (0.28, 0.72):
+        px = x0 + (x1 - x0) * f
+        py = y0 + (y1 - y0) * f
+        pygame.draw.line(surf, col, (int(px), int(py)),
+                         (int(px), int(py + r * 0.34)), max(2, r // 12))
+    # board sliding mid-rail, tilted to match the rail's slope
+    bf = 0.50
+    bx = x0 + (x1 - x0) * bf
+    by = y0 + (y1 - y0) * bf
+    dxn, dyn = (x1 - x0), (y1 - y0)
+    blen = math.hypot(dxn, dyn)
+    ux, uy = dxn / blen, dyn / blen             # along-rail unit
+    nx, ny = -uy, ux                            # rail normal (up-ish)
+    half = r * 0.42
+    lift = r * 0.16
+    board = [
+        (bx - ux * half + nx * lift,       by - uy * half + ny * lift),
+        (bx + ux * half + nx * lift,       by + uy * half + ny * lift),
+        (bx + ux * half + nx * (lift + r * 0.14), by + uy * half + ny * (lift + r * 0.14)),
+        (bx - ux * half + nx * (lift + r * 0.14), by - uy * half + ny * (lift + r * 0.14)),
+    ]
+    pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in board])
 
 
 def _glyph_poison(surf, cx, cy, r, col):
@@ -315,35 +398,48 @@ def _glyph_font(px: int):
 
 # ── medallion construction ────────────────────────────────────────────────────
 
-def _draw_rim(surf, cx, cy, R, hi, mid, lo):
-    """A lit gold rim: concentric arcs whose tone sweeps from the upper-left
-    specular crest round to the lower-right shadow, so the bevel reads as a
-    struck coin rather than a flat concentric ring."""
+# Single fixed light source for the whole family — upper-left.
+_LIGHT = math.radians(135)
+
+
+def _draw_rim(surf, cx, cy, R, hi, mid, lo, spec=None):
+    """A lit metal rim under a single upper-left light: concentric arcs whose
+    tone sweeps from the upper-left crest round to the lower-right shadow, then
+    one bright specular hot-spot painted on the upper-left so the bevel reads
+    as a real struck coin rather than a flat concentric ring."""
     inner = int(R * 0.72)
     # Base body ring (flat) — fills any seam the directional pass leaves.
     for i in range(R, inner, -1):
         t = (R - i) / max(1, R - inner)
         pygame.draw.circle(surf, lerp_color(hi, lo, t * 0.6 + 0.2), (cx, cy), i)
     # Directional sheen: thin arcs whose colour depends on angle from the light.
-    light = math.radians(135)  # upper-left
     steps = 48
     band = (R - inner)
     for seg in range(steps):
         a0 = seg / steps * math.tau
         a1 = (seg + 1) / steps * math.tau
         # cosine falloff: 1 facing the light, 0 facing away
-        d = (math.cos(a0 - light) + 1) * 0.5
+        d = (math.cos(a0 - _LIGHT) + 1) * 0.5
         col = lerp_color(lo, hi, d ** 1.4)
         rect = pygame.Rect(cx - R + band // 3, cy - R + band // 3,
                            (R - band // 3) * 2, (R - band // 3) * 2)
         pygame.draw.arc(surf, col, rect, -a1, -a0, max(2, band - band // 3))
+    # Single specular hot-spot on the upper-left crest of the bevel — a short
+    # bright arc so the whole rim has ONE obvious light, not an even sheen.
+    if spec is not None:
+        mid_r = (R + inner) // 2
+        hot = pygame.Rect(cx - mid_r, cy - mid_r, mid_r * 2, mid_r * 2)
+        pygame.draw.arc(surf, spec, hot, _LIGHT - 0.55, _LIGHT + 0.55,
+                        max(2, band // 2))
     pygame.draw.circle(surf, mid, (cx, cy), R, max(2, R // 22))
     pygame.draw.circle(surf, _RIM_EDGE, (cx, cy), R, max(1, R // 36))
 
 
-def _draw_face(surf, cx, cy, fr, top, bot):
-    """Recessed enamel disc — a vertical gradient masked to a circle, with a
-    soft inner shadow at the top edge so it reads as sunk below the rim."""
+def _draw_face(surf, cx, cy, fr, top, bot, recess):
+    """Recessed enamel disc — a vertical gradient masked to a circle. A 1–2px
+    darker recess ring runs the full inner edge where the enamel meets the rim,
+    plus a soft inner top shadow, so the enamel reads as sunk below the rim
+    (struck relief) rather than a flat enamel-pin fill."""
     face = pygame.Surface((fr * 2, fr * 2), pygame.SRCALPHA)
     for yy in range(fr * 2):
         t = yy / max(1, fr * 2 - 1)
@@ -351,8 +447,10 @@ def _draw_face(surf, cx, cy, fr, top, bot):
     mask = pygame.Surface((fr * 2, fr * 2), pygame.SRCALPHA)
     pygame.draw.circle(mask, (255, 255, 255, 255), (fr, fr), fr)
     face.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    # inner top shadow for the sunk look
-    pygame.draw.arc(face, (0, 0, 0, 120), (2, 2, fr * 2 - 4, fr * 2 - 4),
+    # Full-perimeter recess ring (darker) where enamel drops below the rim.
+    pygame.draw.circle(face, recess, (fr, fr), fr, max(2, fr // 12))
+    # Deeper inner top shadow so the recess catches the upper-left light.
+    pygame.draw.arc(face, (0, 0, 0, 140), (2, 2, fr * 2 - 4, fr * 2 - 4),
                     math.radians(20), math.radians(160), max(2, fr // 8))
     surf.blit(face, (cx - fr, cy - fr))
 
@@ -368,8 +466,10 @@ def _draw_step(surf, cx, cy, fr, hi, lo):
 
 def _draw_laurel(surf, cx, cy, R, col_l, col_d):
     """A twin-laurel sprig hugging the medallion's base — the shared signature
-    that ties the family together. Two arcs of leaf ticks sweeping up the
-    lower flanks toward a small bottom knot."""
+    that ties the family together. Two arcs of leaf ticks sweeping up the lower
+    flanks toward a small bottom knot. Each leaf is tinted by its angle to the
+    one upper-left light, so the sprig is lit like the rim (its upper-left side
+    catches more light) rather than evenly glowing all the way round."""
     leaves = 5
     for sgn in (-1, 1):
         base_a = math.radians(255 if sgn < 0 else 285)  # lower-left / lower-right
@@ -380,13 +480,16 @@ def _draw_laurel(surf, cx, cy, R, col_l, col_d):
             rr = R * (1.02 + 0.0 * f)
             bx = cx + math.cos(a) * rr
             by = cy + math.sin(a) * rr
+            # directional shade: leaves facing the upper-left light are lighter
+            d = (math.cos(a - _LIGHT) + 1) * 0.5
+            leaf_col = lerp_color(col_d, col_l, d ** 1.2)
             # each leaf: a short tapered ellipse pointing tangentially up-out
             leaf_len = R * (0.20 - 0.05 * f)
             ang = a - sgn * math.radians(60)
             tip = (bx + math.cos(ang) * leaf_len, by + math.sin(ang) * leaf_len)
             mid = (bx + math.cos(ang) * leaf_len * 0.5 - sgn * math.sin(ang) * leaf_len * 0.4,
                    by + math.sin(ang) * leaf_len * 0.5 + sgn * math.cos(ang) * leaf_len * 0.4)
-            pygame.draw.polygon(surf, col_l,
+            pygame.draw.polygon(surf, leaf_col,
                                 [(int(bx), int(by)), (int(mid[0]), int(mid[1])),
                                  (int(tip[0]), int(tip[1]))])
             pygame.draw.line(surf, col_d, (int(bx), int(by)),
@@ -396,14 +499,29 @@ def _draw_laurel(surf, cx, cy, R, col_l, col_d):
     pygame.draw.circle(surf, col_d, (cx, int(cy + R * 1.0)), max(2, R // 14), max(1, R // 40))
 
 
-def _stamp_glyph(surf, icon_key, cx, cy, gr, hi, sh):
-    """Engrave the glyph: a dark inset pass offset down-right, then the lit
-    pass on top — so every glyph in the family shares the same struck-metal
-    relief regardless of its silhouette."""
+def _stamp_glyph(surf, icon_key, cx, cy, gr, hi, sh, sheen=None):
+    """Engrave the glyph under the one upper-left light: a dark inset pass
+    offset down-right (the cast shadow), the lit body pass, then a faint sheen
+    pass offset up-left on the glyph's top edge — so every glyph shares the
+    same struck-metal relief regardless of its silhouette."""
     drawer = _GLYPHS.get(icon_key, _glyph_powerup)
     off = max(1, gr // 18)
     drawer(surf, cx + off, cy + off, gr, sh)
+    if sheen is not None:
+        drawer(surf, cx - off, cy - off, gr, sheen)
     drawer(surf, cx, cy, gr, hi)
+
+
+def _draw_sparkle_ring(surf, cx, cy, fr, R, col):
+    """Eight four-point twinkles riding just inside the rim — the rarity halo
+    shared by the Mystery tier in BOTH its hidden-locked and unlocked looks."""
+    for i in range(8):
+        a = i * math.tau / 8 - math.radians(20)
+        sx = cx + int(math.cos(a) * fr * 0.92)
+        sy = cy + int(math.sin(a) * fr * 0.92)
+        sr = max(2, R // 18)
+        pygame.draw.line(surf, col, (sx - sr, sy), (sx + sr, sy), max(1, R // 38))
+        pygame.draw.line(surf, col, (sx, sy - sr), (sx, sy + sr), max(1, R // 38))
 
 
 def _build(icon_key: str, size: int, unlocked: bool, hidden: bool) -> pygame.Surface:
@@ -412,58 +530,71 @@ def _build(icon_key: str, size: int, unlocked: bool, hidden: bool) -> pygame.Sur
     surf = pygame.Surface((px, px), pygame.SRCALPHA)
     cx = cy = px // 2
     R = int(px * 0.46)
-    is_secret = unlocked and icon_key in _HIDDEN_KEYS
+    is_mystery = icon_key in _HIDDEN_KEYS
+    is_secret = unlocked and is_mystery          # unlocked Mystery (amethyst)
 
     if unlocked:
-        glow_col = (190, 120, 255) if is_secret else (255, 200, 90)
+        glow_col = (170, 130, 220) if is_secret else (255, 200, 90)
         blit_glow(surf, cx, cy, int(R * 1.12), glow_col, 95)
+    elif hidden:
+        # the hidden "?" disc gets a faint cool halo so it's more enticing than
+        # ordinary dormant pewter
+        blit_glow(surf, cx, cy, int(R * 1.05), (140, 116, 196), 60)
 
-    if unlocked:
-        rim_hi, rim_mid, rim_lo = _RING_HI, _RING_MID, _RING_LO
-        face_top, face_bot = (_SECRET_TOP, _SECRET_BOT) if is_secret else (_FACE_TOP, _FACE_BOT)
+    if is_secret:
+        # Unlocked Mystery: gold rim, desaturated amethyst enamel well.
+        rim_hi, rim_mid, rim_lo, spec = _RING_HI, _RING_MID, _RING_LO, _SPEC_HOT
+        face_top, face_bot, recess = _AME_TOP, _AME_BOT, _AME_RECESS
+        step_hi, step_lo = _STEP_HI, _STEP_LO
+        laurel_l, laurel_d = _RING_HI, _RING_LO
+    elif unlocked:
+        # Normal earned medal: gold rim + navy enamel.
+        rim_hi, rim_mid, rim_lo, spec = _RING_HI, _RING_MID, _RING_LO, _SPEC_HOT
+        face_top, face_bot, recess = _FACE_TOP, _FACE_BOT, _RECESS
         step_hi, step_lo = _STEP_HI, _STEP_LO
         laurel_l, laurel_d = _RING_HI, _RING_LO
     elif hidden:
-        rim_hi, rim_mid, rim_lo = _IRON_HI, _IRON_MID, _IRON_LO
-        face_top, face_bot = _IRON_FACE_TOP, _IRON_FACE_BOT
-        step_hi, step_lo = _IRON_HI, _IRON_LO
-        laurel_l, laurel_d = _IRON_MID, _IRON_LO
+        # Hidden-locked Mystery: cool amethyst-cast rim + amethyst "?" well.
+        rim_hi, rim_mid, rim_lo, spec = _AME_RIM_HI, _AME_RIM_MID, _AME_RIM_LO, _AME_SPARK
+        face_top, face_bot, recess = _AME_TOP, _AME_BOT, _AME_RECESS
+        step_hi, step_lo = _AME_RIM_HI, _AME_RIM_LO
+        laurel_l, laurel_d = _AME_RIM_MID, _AME_RIM_LO
     else:
-        rim_hi, rim_mid, rim_lo = _LOCK_HI, _LOCK_MID, _LOCK_LO
-        face_top, face_bot = _LOCK_FACE_TOP, _LOCK_FACE_BOT
+        # Dormant (known): the SAME medal asleep — warm-tinted pewter.
+        rim_hi, rim_mid, rim_lo, spec = _LOCK_HI, _LOCK_MID, _LOCK_LO, None
+        face_top, face_bot, recess = _LOCK_FACE_TOP, _LOCK_FACE_BOT, _LOCK_RECESS
         step_hi, step_lo = _LOCK_HI, _LOCK_LO
         laurel_l, laurel_d = _LOCK_MID, _LOCK_LO
 
     # Laurel sits behind the medallion body.
     _draw_laurel(surf, cx, cy, R, laurel_l, laurel_d)
-    _draw_rim(surf, cx, cy, R, rim_hi, rim_mid, rim_lo)
+    _draw_rim(surf, cx, cy, R, rim_hi, rim_mid, rim_lo, spec)
     fr = int(R * 0.70)
     _draw_step(surf, cx, cy, fr + max(2, R // 16), step_hi, step_lo)
-    _draw_face(surf, cx, cy, fr, face_top, face_bot)
+    _draw_face(surf, cx, cy, fr, face_top, face_bot, recess)
 
-    # Rarity sparkle-ring for the unlocked secret tier — eight twinkles riding
-    # just inside the rim so the hidden achievements feel like a trophy.
-    if is_secret:
-        for i in range(8):
-            a = i * math.tau / 8 - math.radians(20)
-            sx = cx + int(math.cos(a) * fr * 0.92)
-            sy = cy + int(math.sin(a) * fr * 0.92)
-            sr = max(2, R // 20)
-            pygame.draw.line(surf, _GLYPH, (sx - sr, sy), (sx + sr, sy), max(1, R // 40))
-            pygame.draw.line(surf, _GLYPH, (sx, sy - sr), (sx, sy + sr), max(1, R // 40))
+    # Rarity sparkle-ring for the Mystery tier — both hidden-locked and unlocked
+    # wear it so the secret achievements always feel like a trophy.
+    if is_mystery and (unlocked or hidden):
+        _draw_sparkle_ring(surf, cx, cy, fr, R, _AME_SPARK if not unlocked else _GLYPH)
 
-    # Glyph (or the lock "?").
+    # Glyph (or the Mystery "?").
     gr = int(R * 0.56)
-    if unlocked:
-        _stamp_glyph(surf, icon_key, cx, cy, gr, _GLYPH, _GLYPH_SH)
+    if is_secret:
+        _stamp_glyph(surf, icon_key, cx, cy, gr, _AME_GLY, _AME_GLY_SH, _GLYPH_SHEEN)
+    elif unlocked:
+        _stamp_glyph(surf, icon_key, cx, cy, gr, _GLYPH, _GLYPH_SH, _GLYPH_SHEEN)
     elif hidden:
+        # Amethyst "?" engraved into the well — embossed like the real glyphs.
         f = _glyph_font(int(R * 1.05))
-        for o, c in (((max(1, R // 18), max(1, R // 18)), _IRON_LO), ((0, 0), _IRON_HI)):
+        off = max(1, R // 18)
+        for dx, dy, c in ((off, off, _AME_GLY_SH), (-off, -off, _GLYPH_SHEEN),
+                          (0, 0, _AME_GLY)):
             q = f.render("?", True, c)
-            surf.blit(q, q.get_rect(center=(cx + o[0], cy + o[1])))
+            surf.blit(q, q.get_rect(center=(cx + dx, cy + dy)))
     else:
         # Dormant: the real glyph shape is embossed faintly so it teases the
-        # unlock — desaturated, low-contrast, but unmistakably its shape.
+        # unlock — lifted ~12% in value so it reads "asleep", not "disabled".
         _stamp_glyph(surf, icon_key, cx, cy, gr, _LOCK_GLY, _LOCK_GLY_SH)
 
     return pygame.transform.smoothscale(surf, (size, size))
@@ -482,8 +613,9 @@ def get_badge(icon_key: str, size: int, unlocked: bool,
 def draw_badge(surf, icon_key: str, rect: "pygame.Rect", unlocked: bool,
                hidden: bool = False) -> None:
     """Blit a badge centered in ``rect`` (uses the smaller rect dimension).
-    ``hidden`` (locked + secret) swaps the dormant pewter look for a riveted
-    iron blank so the achievement's shape stays a mystery."""
+    ``hidden`` (a still-locked Mystery) swaps the dormant pewter look for an
+    amethyst "?" disc with a sparkle ring, so the secret's shape stays hidden
+    while reading rarer and more enticing than an ordinary dormant medal."""
     size = min(rect.width, rect.height)
     badge = get_badge(icon_key, size, unlocked, hidden and not unlocked)
     surf.blit(badge, badge.get_rect(center=rect.center))
