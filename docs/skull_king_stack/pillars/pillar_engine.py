@@ -29,7 +29,7 @@ def _meta(token):
     if token.startswith("orn:"):
         fn = token.split(":", 1)[1]
         if fn in _BEAD_FNS:
-            return dict(kind="bead", r=R * 0.30)
+            return dict(kind="bead", r=R * 0.36)        # chunky enough to register as a seam joint at 58px
         if fn == "gem_thirdeye":
             return dict(kind="gem", r=R * 0.54)
         return dict(kind="ring", r=R * 0.58)        # ornament_necklace
@@ -78,11 +78,26 @@ def _rod_plain(big, cx, ya, yb):
     pygame.draw.rect(big, sk.BONE_SH, (cx - hw, y, max(1, int(1.6 * s)), h))
 
 
+def _rod_gold(big, cx, ya, yb):
+    """A thick, bright GOLD scepter core (the King's staff) — gold-dominant and
+    WIDER than the bone rods so the through-line reads as a solid metal shaft, not a
+    bead cord (this is what separates the scepter from the bead-strand spindle)."""
+    s = S_UNIT * SS
+    hw = RK._SK_HW + int(1.6 * s)
+    y, h = int(min(ya, yb)), int(abs(yb - ya))
+    pygame.draw.rect(big, sk.INK, (cx - hw - int(1.4 * s), y, 2 * (hw + int(1.4 * s)), h))
+    pygame.draw.rect(big, sk.GOLD_D, (cx - hw, y, 2 * hw, h))
+    pygame.draw.rect(big, sk.GOLD, (cx - int(hw * 0.72), y, int(hw * 1.44), h))
+    pygame.draw.rect(big, sk.GOLD_BR, (cx - int(hw * 0.30), y, int(hw * 0.60), h))
+
+
 def _skewer_bg(big, cx, y0, y1, style):
     """The shaft drawn BEHIND the stack (shows in the gaps between tiers)."""
     cx = int(cx)
     if style == "plain":
         _rod_plain(big, cx, y0, y1)
+    elif style == "gem-tip":
+        _rod_gold(big, cx, y0, y1)                       # solid bright gold scepter core
     elif style == "strand":
         s = S_UNIT * SS; hw = max(1, int(2.4 * s))      # thin dark rod, hidden by the strand
         y, h = int(min(y0, y1)), int(abs(y1 - y0))
@@ -125,7 +140,7 @@ def _skewer_thread(big, cx, centres, point_y, point_dir, style):
         ya, yb = point_y * SS, centres[-1] * SS
         n = max(2, int(abs(yb - ya) / (7 * SS)))
         pts = [(cx, ya + (yb - ya) * k / n) for k in range(n + 1)]
-        sk.bead_strand(big, pts, int(3.8 * s), s, gold_every=2)
+        sk.bead_strand(big, pts, int(3.8 * s), s, gold_every=99)   # bone-white cord (no gold) vs the gold scepter
         sk.triad_circle(big, sk.BEAD, (cx, int(tip)), max(2, int(4.2 * s)), ow=max(1, int(1.0 * s)), core=False)
         return
 
@@ -135,7 +150,7 @@ def _skewer_thread(big, cx, centres, point_y, point_dir, style):
         RK._rod_seg(big, cx, base, (point_y + point_dir * 22) * SS)
         return
 
-    rod = _rod_plain if style == "plain" else RK._rod_seg
+    rod = {"plain": _rod_plain, "gem-tip": _rod_gold}.get(style, RK._rod_seg)
     for ym in seams:
         rod(big, cx, (ym - 7) * SS, (ym + 7) * SS)
 
