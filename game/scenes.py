@@ -370,6 +370,7 @@ STATE_STATS = 5
 STATE_LEADERBOARD = 6
 STATE_INTRO = 7
 STATE_POWERUPS = 8
+STATE_STORE = 9
 
 
 class App:
@@ -398,6 +399,9 @@ class App:
         # Built lazily when the intro auto-completes (not when the user
         # skips it). Lives until the player taps once on the help screen.
         self.powerup_help: object | None = None
+        # Coin Store — built lazily when the player taps the menu's STORE
+        # pill, torn down on exit back to MENU.
+        self.store: object | None = None
         # True when the intro was launched from the menu's HOW TO PLAY
         # button. _finish_intro reads this to land back on MENU instead
         # of the POWERUPS explainer.
@@ -511,6 +515,18 @@ class App:
             self.state = STATE_MENU
             self._cooldown_t = 0.25
             return
+        if self.state == STATE_STORE:
+            # Input is routed *into* the store (it's interactive, unlike the
+            # one-tap-dismiss help screen). The scene returns an action token;
+            # "back" tears it down to MENU, everything else stays in-store.
+            if self._cooldown_t > 0:
+                return
+            action = self.store.handle_tap(pos) if self.store else "back"
+            if action == "back":
+                self.store = None
+                self.state = STATE_MENU
+                self._cooldown_t = 0.25
+            return
         if self.state == STATE_MENU:
             # Single shared cooldown gate for every menu action. This is
             # what stops a follow-up event from the same physical tap
@@ -534,6 +550,13 @@ class App:
                 from game.powerup_help import PowerUpHelpScene
                 self.powerup_help = PowerUpHelpScene()
                 self.state = STATE_POWERUPS
+                self._cooldown_t = 0.25
+                return
+            if pos and self.hud.menu_store_rect \
+                    and self.hud.menu_store_rect.collidepoint(pos):
+                from game.store import StoreScene
+                self.store = StoreScene()
+                self.state = STATE_STORE
                 self._cooldown_t = 0.25
                 return
             if pos and self.hud.menu_top10_rect \
@@ -837,6 +860,10 @@ class App:
         if self.state == STATE_POWERUPS:
             if self.powerup_help is not None:
                 self.powerup_help.update(dt)
+        if self.state == STATE_STORE:
+            self._cooldown_t = max(0.0, self._cooldown_t - dt)
+            if self.store is not None:
+                self.store.update(dt)
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
             return
         if self.state == STATE_MENU:
@@ -1169,6 +1196,10 @@ class App:
         # Power-ups explainer also paints its own background — no world.
         if self.state == STATE_POWERUPS and self.powerup_help is not None:
             self.powerup_help.render(self.screen)
+            return
+        # Store paints its own background (night sky + cards) — no world.
+        if self.state == STATE_STORE and self.store is not None:
+            self.store.render(self.screen)
             return
         sx, sy = self.world.shake_offset() if self.state == STATE_PLAY else (0, 0)
         sx, sy = int(sx), int(sy)

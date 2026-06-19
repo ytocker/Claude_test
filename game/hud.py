@@ -1530,6 +1530,7 @@ class HUD:
         self.menu_start_rect: "pygame.Rect | None" = None
         self.menu_howto_rect: "pygame.Rect | None" = None
         self.menu_powerups_rect: "pygame.Rect | None" = None
+        self.menu_store_rect: "pygame.Rect | None" = None
         self.menu_top10_rect: "pygame.Rect | None" = None
         # Leaderboard tab hit-rects (CURRENT | LEGACY) — populated each frame
         # by draw_leaderboard in screen space, read by scenes.py to switch
@@ -1593,13 +1594,21 @@ class HUD:
         def _pill_h(text: str, size: int) -> int:
             return _font(size, True).render(text, True, WHITE).get_height() + 22
 
-        GAP = 12
+        # Four stacked pills now (STORE joined the original three). GAP and
+        # the secondary-pill size are trimmed a notch (12→10, 18→17) so the
+        # taller stack still clears the divider above and the BEST panel
+        # below on the 640 px canvas; the block is computed bottom-up from
+        # the same 14 px anchor above BEST, so only these constants change.
+        GAP = 10
+        SEC = 17  # secondary (non-START) pill text size
         h_start = _pill_h("START", 22)
-        h_howto = _pill_h("HOW TO PLAY", 18)
-        h_power = _pill_h("POWER-UPS", 18)
+        h_store = _pill_h("STORE", SEC)
+        h_howto = _pill_h("HOW TO PLAY", SEC)
+        h_power = _pill_h("POWER-UPS", SEC)
         y_power = (H - 110) - 14 - h_power // 2
         y_howto = y_power - h_power // 2 - GAP - h_howto // 2
-        y_start = y_howto - h_howto // 2 - GAP - h_start // 2
+        y_store = y_howto - h_howto // 2 - GAP - h_store // 2
+        y_start = y_store - h_store // 2 - GAP - h_start // 2
 
         btn_alpha = int(225 + math.sin(self.title_t * 3.6) * 30)
         # dim=True swaps the bright scarlet for the bordeaux variant so
@@ -1608,12 +1617,17 @@ class HUD:
             surf, (W // 2, y_start), "START",
             size=22, alpha=btn_alpha, min_width=220, primary=True, dim=True,
             shadow=False)
+        # STORE sits directly under START — it's the new headline
+        # destination, so it gets the rank just below the primary action.
+        self.menu_store_rect = _pill_btn(
+            surf, (W // 2, y_store), "STORE",
+            size=SEC, alpha=230, min_width=220, dim=True, shadow=False)
         self.menu_howto_rect = _pill_btn(
             surf, (W // 2, y_howto), "HOW TO PLAY",
-            size=18, alpha=230, min_width=220, dim=True, shadow=False)
+            size=SEC, alpha=230, min_width=220, dim=True, shadow=False)
         self.menu_powerups_rect = _pill_btn(
             surf, (W // 2, y_power), "POWER-UPS",
-            size=18, alpha=230, min_width=220, dim=True, shadow=False)
+            size=SEC, alpha=230, min_width=220, dim=True, shadow=False)
 
         # Twin panels at the bottom: BEST score (left) + TOP 10 trophy
         # (right). Same pill dimensions side-by-side so they read as a
