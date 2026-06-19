@@ -556,6 +556,48 @@ def _new8_chip(slug, cell_w, cell_h):
                            sk.INK + (255,), 1)
 
 
+# ── CLASSIC-8 showcase skulls ─────────────────────────────────────────────────
+# Eight plain/simple skulls — the timeless-skull counterpart to new8, matured each
+# in its own loop under docs/skull_king_stack/classic8/<slug>/. Same draw() contract;
+# all lit=False (plain BONE tier — no cyan device). Per-skull cy_frac/r_frac carry
+# the cell fit each was tuned against (tall egg, wide cheeks, jawless mass, etc.).
+_CLASSIC8_DIR = os.path.join(ROOT, "docs/skull_king_stack/classic8")
+_CLASSIC8_SPEC = [
+    ("round-cap",        "render_round_cap.py",        0.30, 0.46),
+    ("egg-dome",         "render_egg_dome.py",         0.28, 0.50),
+    ("broad-zygo",       "render_broad_zygo.py",       0.27, 0.50),
+    ("square-jaw",       "render_square_jaw.py",       0.27, 0.46),
+    ("calvaria",         "render_calvaria.py",         0.32, 0.46),
+    ("gaunt-hollow",     "render_gaunt_hollow.py",     0.29, 0.48),
+    ("child-skull",      "render_child_skull.py",      0.30, 0.48),
+    ("flat-brow-robust", "render_flat_brow_robust.py", 0.30, 0.50),
+]
+
+
+def _classic8_load(slug, fname):
+    spec = _ilu.spec_from_file_location("classic8_" + slug.replace("-", "_"),
+                                        os.path.join(_CLASSIC8_DIR, slug, fname))
+    m = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+_CLASSIC8 = {slug: (_classic8_load(slug, fn).draw, rf, cyf)
+             for (slug, fn, rf, cyf) in _CLASSIC8_SPEC}
+
+
+def _classic8_chip(slug, cell_w, cell_h):
+    """Chip for one of the eight classic designs, placed with its own cell fit."""
+    draw, rf, cyf = _CLASSIC8[slug]
+    ssr = 6
+    big = pygame.Surface((cell_w * ssr, cell_h * ssr), pygame.SRCALPHA)
+    r = int(min(cell_w, cell_h) * rf) * ssr
+    s = (int(min(cell_w, cell_h) * rf) / 12.0) * ssr
+    draw(big, cell_w * ssr // 2, int(cell_h * ssr * cyf), r, s, False)
+    return sk.grow_outline(pygame.transform.smoothscale(big, (cell_w, cell_h)),
+                           sk.INK + (255,), 1)
+
+
 def build_individual_sheet():
     """Every distinct small skull of the design, drawn on its own + labelled."""
     cw, ch = 116, 132
@@ -571,23 +613,30 @@ def build_individual_sheet():
          [("crown_orig", 0, False), ("crown_orig", 0, True)]),
         ("NEW designs (8) — wild + crown-relic mix (matured under docs/skull_king_stack/new8/)",
          [("new", slug, lit) for (slug, _f, _r, _c, lit) in _NEW8_SPEC]),
+        ("CLASSIC designs (8) — plain/simple skulls (matured under docs/skull_king_stack/classic8/)",
+         [("classic", slug, False) for (slug, _f, _r, _c) in _CLASSIC8_SPEC]),
     ]
     cols = max(len(items) for _t, items in rows)
     W = cols * cw + (cols + 1) * pad
     H = head + len(rows) * (ch + lab + pad + 26)
     sheet = pygame.Surface((W, H))
     sheet.fill(sk.BG)
-    _label(sheet, "SKULL-KING design — the original small skulls + 8 NEW designs (bottom row)", pad, 20)
-    _label(sheet, "source: Asthi-Dakini SWITCHED+BIG  (crown idx 0-5 · palm idx 0-5)  +  8 new wild/relic designs", pad, 48)
+    _label(sheet, "SKULL-KING design — every distinct small skull, numbered #1..#N (NEW + CLASSIC = bottom two rows)", pad, 20)
+    _label(sheet, "source: Asthi-Dakini SWITCHED+BIG (crown 0-5 · palm 0-5 · r9)  +  8 new wild/relic  +  8 classic/simple designs", pad, 48)
 
     y = head
+    gid = 0                              # running global ID — every chip is #1..#N
     for row_title, items in rows:
         _label(sheet, row_title, pad, y)
         y += 26
         x = pad
         for kind, idx, lit in items:
+            gid += 1
             if kind == "new":
                 chip = _new8_chip(idx, cw, ch)
+                tag = idx.split("-")[0]
+            elif kind == "classic":
+                chip = _classic8_chip(idx, cw, ch)
                 tag = idx.split("-")[0]
             else:
                 chip = _skull_chip(kind, idx, cw, ch, lit=lit)
@@ -596,7 +645,7 @@ def build_individual_sheet():
                 else:
                     tag = f"{kind} {idx}" + ("  (lit)" if lit else "")
             sheet.blit(chip, (x, y))
-            _label(sheet, tag, x + 6, y + ch + 2)
+            _label(sheet, f"#{gid}  {tag}", x + 6, y + ch + 2)
             x += cw + pad
         y += ch + lab + pad
     out = os.path.join(OUT, "skulls_individual.png")

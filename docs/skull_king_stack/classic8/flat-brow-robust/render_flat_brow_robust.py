@@ -49,10 +49,10 @@ def draw(surf, cx, cy, r, s, lit=False):
     # not a knife-edged box.
     vault = []
     # --- flat crown lid (left corner -> right corner), gently rounded ends ---
-    vault.append((cx - crown_hw, crown_y + ch * 0.05))
-    vault.append((cx - crown_hw * 0.78, crown_y))
-    vault.append((cx + crown_hw * 0.78, crown_y))
-    vault.append((cx + crown_hw, crown_y + ch * 0.05))
+    vault.append((cx - crown_hw, crown_y + ch * 0.02))
+    vault.append((cx - crown_hw * 0.94, crown_y))      # hard, near-square crown corners
+    vault.append((cx + crown_hw * 0.94, crown_y))      # so the flat top is unmistakable
+    vault.append((cx + crown_hw, crown_y + ch * 0.02))
     # --- right temple falls almost straight, flaring slightly to the shelf ---
     vault.append((cx + cw * 0.74, oy - ch * 0.34))
     # --- the BROW SHELF: the outline steps OUT to its widest point over the socket ---
@@ -72,11 +72,11 @@ def draw(surf, cx, cy, r, s, lit=False):
     # the shelf's UNDERSIDE shadow — a dark band tucked just beneath the brow
     # overhang so the shelf reads as a heavy protruding mass at hero scale (the
     # sockets sit IN this shadow). Kept inside the silhouette, never an added bar.
-    underbrow = [(cx - shelf_hw * 0.92, brow_y + ch * 0.06),
-                 (cx + shelf_hw * 0.92, brow_y + ch * 0.06),
-                 (cx + cheek_hw * 0.86, brow_y + ch * 0.30),
-                 (cx - cheek_hw * 0.86, brow_y + ch * 0.30)]
-    pygame.draw.polygon(surf, sk.BONE_D, [(int(x), int(y)) for x, y in underbrow])
+    underbrow = [(cx - shelf_hw * 0.94, brow_y + ch * 0.04),
+                 (cx + shelf_hw * 0.94, brow_y + ch * 0.04),
+                 (cx + cheek_hw * 0.86, brow_y + ch * 0.40),
+                 (cx - cheek_hw * 0.86, brow_y + ch * 0.40)]
+    pygame.draw.polygon(surf, sk.BONE_DD, [(int(x), int(y)) for x, y in underbrow])
 
     # one top-left sheen wedge across the flat crown lid + down the left temple (the
     # triad highlight) — a broad slab of light to sell the flat heavy cap.

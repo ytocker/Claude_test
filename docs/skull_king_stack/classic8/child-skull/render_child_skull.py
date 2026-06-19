@@ -75,8 +75,8 @@ def draw(surf, cx, cy, r, s, lit=False):
     # proportionally LARGE (baby's big-eyed look). WHY low + big: this is the trait
     # that separates child from egg-dome and from the round baseline — the eyes ride
     # near the dome's bottom flank so the whole forehead bulges empty above them.
-    socket_r = max(2, int(cw * 0.30))
-    ey = int(oy + ch * 0.82)
+    socket_r = max(2, int(cw * 0.26))   # a touch smaller + dropped lower → tinier face
+    ey = int(oy + ch * 0.86)
     for side in (-1, 1):
         ex = int(cx + side * cw * 0.36)
         pygame.draw.circle(surf, sk.INK, (ex, ey), socket_r + max(1, int(0.8 * s)))
@@ -94,15 +94,16 @@ def draw(surf, cx, cy, r, s, lit=False):
                                        (int(n_l[0]), int(n_l[1])),
                                        (int(n_r[0]), int(n_r[1]))])
 
-    # === SMALL TOOTH ROW — a few even INK slits in the little jaw bar ============
+    # === SMALL MOUTH — a single dark INK slot split into a FEW chunky teeth by two
+    # bone dividers. WHY a filled slot, not fine slits: at the chip the tiny face is
+    # only a few px, so hairline teeth turn to mush — a solid dark slot survives and
+    # the dividers read as 3 blocky baby teeth.
     ty0 = int(oy + ch * 1.22)
-    ty1 = int(oy + ch * 1.38)
-    pygame.draw.line(surf, sk.INK, (int(cx - cw * 0.20), ty0),
-                     (int(cx + cw * 0.20), ty0), ow_thin)
-    nteeth = 5
-    for j in range(nteeth):
-        tx = int(cx - cw * 0.17 + j * (cw * 0.34 / (nteeth - 1)))
-        pygame.draw.line(surf, sk.INK, (tx, ty0), (tx, ty1), max(1, int(1.0 * s)))
+    ty1 = int(oy + ch * 1.40)
+    mw = int(cw * 0.21)
+    pygame.draw.rect(surf, sk.INK, (cx - mw, ty0, 2 * mw, ty1 - ty0))
+    for dx in (-mw // 3, mw // 3):
+        pygame.draw.line(surf, sk.BONE, (cx + dx, ty0), (cx + dx, ty1), max(1, int(1.4 * s)))
 
 
 def _panel():

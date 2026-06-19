@@ -60,7 +60,7 @@ def draw(surf, cx, cy, r, s, lit=False):
     # pit with a darker BONE_DD core ring + a deep ink centre (the triad-style
     # carved hollow), giving roundness without any colour.
     sock_r = int(r * 0.34)
-    eye_y = int(cy + ch * 0.16)
+    eye_y = int(cy + ch * 0.08)        # lifted off the jaw so a proper dome reads above
     for sgn in (-1, 1):
         ex = int(cx + sgn * cw * 0.44)
         pygame.draw.circle(surf, sk.INK, (ex, eye_y), sock_r + max(1, int(0.9 * s)))

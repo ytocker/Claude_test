@@ -49,10 +49,10 @@ def _skull_outline(cx, cy, r):
     cheek must be an actual vertex with a sharp change of direction, so it cannot
     soften into an oval when the chip is downscaled."""
     # ── width ladder: cheeks are the WIDEST, jaw is the NARROWEST ──
-    cheek_w = r * 1.18          # zygomatic flare — the widest point of the skull
-    dome_w  = r * 0.92          # cranial vault — narrower than the cheeks
-    temple_w = r * 1.02         # just above the cheek, on the way up to the dome
-    jaw_w   = r * 0.50          # narrow tapered chin — well inside the cheek line
+    cheek_w = r * 1.36          # zygomatic flare — DECISIVELY the widest point
+    dome_w  = r * 0.84          # cranial vault — clearly narrower than the cheeks
+    temple_w = r * 0.92         # the cheek must out-reach the vault, so pull this in
+    jaw_w   = r * 0.48          # narrow tapered chin — well inside the cheek line
     # ── height ladder (y grows downward) ──
     crown_y = cy - r * 1.02     # top of the low broad vault
     temple_y = cy - r * 0.36    # where the dome meets the temple/cheek rise

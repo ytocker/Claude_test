@@ -35,10 +35,10 @@ def draw(surf, cx, cy, r, s, lit=False):
     # temple height (above the sockets), a modest OUTWARD cheekbone flare at socket
     # level, then a hard taper into a narrow jaw. The temple indent is the deepest
     # horizontal move in the whole silhouette so the dent survives the chip.
-    cw = r * 0.92                      # crown half-width (tall-ish, not broad)
+    cw = r * 0.98                      # broader round crown above the waist
     ch = r * 1.06                      # slightly tall vault — a lean, long head
-    temple_w = r * 0.58                # the WAIST — far inside the crown + cheek
-    cheek_w  = r * 0.86                # cheekbone flare sits just OUTSIDE the temple
+    temple_w = r * 0.46                # the WAIST — a deep dent far inside crown + cheek
+    cheek_w  = r * 0.92                # cheekbone flares back OUT well past the waist
     jaw_w    = r * 0.40                # narrow gaunt jaw
 
     # upper dome: top half-ring from brow round over the crown, but the lower brow

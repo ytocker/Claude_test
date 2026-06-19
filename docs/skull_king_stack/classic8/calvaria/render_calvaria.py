@@ -43,10 +43,10 @@ def draw(surf, cx, cy, r, s, lit=False):
         y = cy + r * 0.16 - math.cos(a) * (r * 1.22)    # crown apex at ang=0
         vault.append((x, y))
     pts = vault + [
-        (cx + hw * 0.74, cheek_y),       # right cheek pinches inward
-        (cx + hw * 0.60, tooth_y),       # drop to the flat tooth lip
-        (cx - hw * 0.60, tooth_y),       # flat bottom — the jawless truncation
-        (cx - hw * 0.74, cheek_y),       # left cheek, mirrored, back up to temple
+        (cx + hw * 0.88, cheek_y),       # right cheek barely pinches — stay broad
+        (cx + hw * 0.84, tooth_y),       # drop to the WIDE flat tooth lip
+        (cx - hw * 0.84, tooth_y),       # dead-flat wide bottom — the jawless truncation
+        (cx - hw * 0.88, cheek_y),       # left cheek, mirrored, back up to temple
     ]
     skull = [(int(x), int(y)) for x, y in pts]
     sk.triad_blob(surf, sk.BONE, skull, ow=ow_thick)
@@ -58,17 +58,17 @@ def draw(surf, cx, cy, r, s, lit=False):
 
     # faint cheek-shade so the pinch reads as rounded zygomatic bone, not a notch
     for side in (-1, 1):
-        sh = [(cx + side * hw * 0.74, cheek_y),
-              (cx + side * hw * 0.60, tooth_y),
-              (cx + side * hw * 0.42, tooth_y),
-              (cx + side * hw * 0.50, cheek_y + r * 0.04)]
+        sh = [(cx + side * hw * 0.88, cheek_y),
+              (cx + side * hw * 0.84, tooth_y),
+              (cx + side * hw * 0.64, tooth_y),
+              (cx + side * hw * 0.66, cheek_y + r * 0.04)]
         pygame.draw.polygon(surf, sk.BONE_D, [(int(x), int(y)) for x, y in sh])
 
     # === TWO ROUND SOCKETS — big, deep, set high on the vault ===================
     # WHY large & round: at chip scale the eye sockets are the second-strongest
     # cue after the truncation; oversized round pits punch through any downscale.
-    sock_r = max(2, int(r * 0.34))
-    sock_off = hw * 0.46
+    sock_r = max(2, int(r * 0.29))     # smaller, so the wide tooth-shelf is the focal cue
+    sock_off = hw * 0.44
     sock_y = cy - r * 0.16
     core = sk.BONE_DD if not lit else sk.lerp(sk.BONE_DD, sk.INK, 0.4)
     for side in (-1, 1):
@@ -96,8 +96,8 @@ def draw(surf, cx, cy, r, s, lit=False):
     # WHY ink clefts only (no carved gaps in the silhouette): the flat bottom must
     # stay a clean unbroken edge in blackout — the teeth are read as INTERIOR
     # division lines, so they sharpen the near read without softening the chip.
-    n_teeth = 6
-    span = hw * 1.10            # total tooth-row width
+    n_teeth = 8
+    span = hw * 1.56            # tooth row spans nearly the full wide flat lip
     x0 = cx - span * 0.5
     top_lip = cy + r * 0.44     # top of the tooth band
     for i in range(1, n_teeth):
