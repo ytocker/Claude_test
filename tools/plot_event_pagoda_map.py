@@ -189,6 +189,32 @@ def main() -> None:
                     xytext=(0, 9), ha="center", fontsize=7.5, color=color,
                     fontweight="bold", clip_on=False)
 
+    # ── candidate clown-event placements (ranked design recommendation) ──────
+    # Not shipped content — these are the four first-occurrence pillars under
+    # consideration, ranked best→worst, drawn so the proposal sits against the
+    # real run content. Badges for the two close candidates (32/35) are staggered
+    # vertically so they don't overlap.
+    CLOWN_COLOR = "#c1121f"
+    CLOWN_PLACEMENTS = [(1, 32), (2, 35), (3, 47), (4, 60)]  # (rank, pillar)
+    BADGE_Y = {1: 0.88, 2: 1.00, 3: 0.88, 4: 0.88}
+    for rank, x in CLOWN_PLACEMENTS:
+        a = 1.0 - 0.16 * (rank - 1)
+        lw = 2.8 - 0.45 * (rank - 1)
+        ax.axvline(x, color=CLOWN_COLOR, linewidth=lw, alpha=a, zorder=4)
+        by = BADGE_Y[rank]
+        ax.plot([x], [by], marker="o", color=CLOWN_COLOR, markersize=17,
+                markeredgecolor="white", markeredgewidth=1.3, alpha=a, zorder=7,
+                clip_on=False,
+                label=("Clown-event candidate (ranked #1→#4)"
+                       if rank == 1 else None))
+        ax.annotate(str(rank), (x, by), ha="center", va="center", fontsize=9,
+                    fontweight="bold", color="white", zorder=8, clip_on=False)
+        ax.annotate(f"clown @ {x}", (x, 0.5), rotation=90, ha="center",
+                    va="center", fontsize=7.5, fontweight="bold",
+                    color=CLOWN_COLOR, zorder=7,
+                    bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none",
+                              alpha=0.78))
+
     # Run-start marker + biome gridlines carried into the lower panel.
     ax.axvline(0, color="#222", linewidth=2)
     ax.annotate("RUN START", (0, 0.5), xytext=(6, 0),
@@ -224,6 +250,7 @@ def main() -> None:
           f"(geyser peak + {config.GENIE_PILLARS_AFTER_GEYSER_PEAK})")
     print(f"  Umbrella: pillars {config.UMBRELLA_SPAWN_PILLARS} "
           f"(rain start {config.RAIN_START_PILLAR} + 5/+17)")
+    print("  Clown-event candidates (ranked): #1 p32, #2 p35, #3 p47, #4 p60")
 
 
 if __name__ == "__main__":
