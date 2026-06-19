@@ -154,14 +154,13 @@ def _skewer_tip(big, cx, gap_edge, point_dir, style):
         return
 
     if style == "strand":
-        # a flat PADDLE / oar blade (the boat-oar pick), flat at the gap end
-        pw = int(7 * SS)
-        top, bot = min(Y(2), Y(15)), max(Y(2), Y(15))
-        rect = pygame.Rect(cx - pw, top, 2 * pw, bot - top)
-        pygame.draw.rect(big, sk.INK, rect.inflate(int(2.6 * s), int(2.6 * s)), border_radius=int(5 * s))
-        pygame.draw.rect(big, sk.BONE, rect, border_radius=int(5 * s))
-        pygame.draw.rect(big, sk.BONE_SH, pygame.Rect(cx - pw, top, max(1, int(2.0 * s)), bot - top),
-                         border_radius=int(3 * s))
+        # a SPINDLE point (true to the pillar's name): a slim elongated lens that
+        # swells at the middle and tapers to a sharp point at the gap — pointy, and
+        # distinct from the plain wide-based triangle.
+        w = int(hw * 1.5)
+        spindle = [(cx, Y(1)), (cx + w, Y(8)), (cx, Y(17)), (cx - w, Y(8))]
+        sk.triad_blob(big, sk.BONE, [(int(x), int(y)) for x, y in spindle], ow=ow)
+        pygame.draw.line(big, sk.BONE_SH, (cx, Y(15)), (cx, Y(3)), max(1, int(1.0 * s)))
         return
 
     # plain -> sharp steel point ; barbed -> longer harpoon blade with backward barbs
@@ -187,18 +186,20 @@ def _skewer_tip(big, cx, gap_edge, point_dir, style):
 
 
 def render_pillar_half(H, *, cap, recipe, with_skewer=False, skewer_style="plain",
-                       focal_lit=True, lean=0.0, collar=None):
+                       focal_lit=True, lean=0.0, collar=None, margin_r=None):
     """One pillar half. cap='bottom' -> TOP pillar (gap below); cap='top' -> BOTTOM
     pillar (gap above). Recipe runs gap-edge -> far; element 0 = focal skull at the
     gap. Skewered stacks leave small gaps between tiers so the rod (drawn behind)
-    shows through. `lean` jitters elements off-axis. `collar` is accepted but
-    ignored (beads are now explicit recipe elements, not an auto per-seam collar)."""
+    shows through. `lean` jitters elements off-axis. `margin_r` (in units of R)
+    overrides how far the focal skull sits off the gap edge — raise it when the
+    focal skull has long downward appendages (e.g. fangs) so the tip clears it.
+    `collar` is accepted but ignored (beads are explicit recipe elements now)."""
     big = pygame.Surface((PIPE_W * SS, H * SS), pygame.SRCALPHA)
     cx0 = PIPE_W * SS // 2
     metas = [_meta(t) for t in recipe]
-    # skewered stacks sit a little further off the gap edge so the rod + its TIP
-    # have clean room to lance into the gap rather than crowding the focal skull.
-    margin = int(R * (1.75 if with_skewer else 1.05))
+    if margin_r is None:
+        margin_r = 1.75 if with_skewer else 1.05
+    margin = int(R * margin_r)
     if cap == "bottom":
         focal_y, step, point_dir, gap_edge = H - margin, -1, +1, H
     else:
@@ -228,12 +229,12 @@ def render_pillar_half(H, *, cap, recipe, with_skewer=False, skewer_style="plain
 
 
 def render_pair(recipe, *, with_skewer=False, skewer_style="plain", collar=None, lean=0.0,
-                night=False, half_h=190, gap=150, pad=12):
+                night=False, half_h=190, gap=150, pad=12, margin_r=None):
     """A full top+bottom pillar pair framing the gap, composited on sky."""
-    top = render_pillar_half(half_h, cap="bottom", recipe=recipe,
-                             with_skewer=with_skewer, skewer_style=skewer_style, lean=lean)
-    bot = render_pillar_half(half_h, cap="top", recipe=recipe,
-                             with_skewer=with_skewer, skewer_style=skewer_style, lean=lean)
+    top = render_pillar_half(half_h, cap="bottom", recipe=recipe, with_skewer=with_skewer,
+                             skewer_style=skewer_style, lean=lean, margin_r=margin_r)
+    bot = render_pillar_half(half_h, cap="top", recipe=recipe, with_skewer=with_skewer,
+                             skewer_style=skewer_style, lean=lean, margin_r=margin_r)
     H = half_h * 2 + gap
     panel = RK._sky(PIPE_W + pad * 2, H, night=night)
     panel.blit(top, (pad, 0))

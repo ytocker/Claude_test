@@ -43,7 +43,8 @@ def _load(slug, fname):
 def _cell(pid, slug, mod):
     skewer = "skewer: " + mod.SKEWER_STYLE if mod.WITH_SKEWER else "no skewer"
     pair = PE.render_pair(mod.RECIPE, with_skewer=mod.WITH_SKEWER, skewer_style=mod.SKEWER_STYLE,
-                          collar=mod.COLLAR, lean=mod.LEAN, half_h=HALF_H, gap=GAP)
+                          collar=mod.COLLAR, lean=mod.LEAN, half_h=HALF_H, gap=GAP,
+                          margin_r=getattr(mod, "MARGIN_R", None))
     cw = max(pair.get_width() + 16, 150)
     ch = pair.get_height() + 64
     cell = pygame.Surface((cw, ch)); cell.fill(sk.PANEL)

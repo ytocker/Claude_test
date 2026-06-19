@@ -39,11 +39,15 @@ WITH_SKEWER = True
 SKEWER_STYLE = "barbed"
 COLLAR = False
 LEAN = 0.0
+# the focal sabertooth-maw plunges long fangs toward the gap, so seat the stack
+# further off the edge — this clears clean room for the harpoon to lance JUST
+# BELOW the last skull instead of tangling among its fangs.
+MARGIN_R = 2.4
 
 
 def _render():
-    day = PE.render_pair(RECIPE, with_skewer=WITH_SKEWER, skewer_style=SKEWER_STYLE, collar=COLLAR, lean=LEAN, night=False)
-    night = PE.render_pair(RECIPE, with_skewer=WITH_SKEWER, skewer_style=SKEWER_STYLE, collar=COLLAR, lean=LEAN, night=True)
+    day = PE.render_pair(RECIPE, with_skewer=WITH_SKEWER, skewer_style=SKEWER_STYLE, collar=COLLAR, lean=LEAN, margin_r=MARGIN_R, night=False)
+    night = PE.render_pair(RECIPE, with_skewer=WITH_SKEWER, skewer_style=SKEWER_STYLE, collar=COLLAR, lean=LEAN, margin_r=MARGIN_R, night=True)
     pad = 22
     W = day.get_width() + night.get_width() + pad*3; H = day.get_height() + 52
     sheet = pygame.Surface((W, H)); sheet.fill((26,24,30))
