@@ -96,6 +96,12 @@ These are project identity. Don't violate without explicit user OK.
   give its GitHub blob URL on the working branch — e.g.
   `https://github.com/ytocker/skybit/blob/<branch>/docs/<path>.png`.
   Never send or embed images in chat (no SendUserFile, no inline images).
+  This includes the `Read` tool: NEVER `Read` an image file (PNG/JPG/etc.)
+  — it renders the image inline in chat, which is the same violation. To
+  sanity-check a rendered figure, inspect it WITHOUT displaying it (e.g.
+  `python`/PIL to print size and sample pixels, or `file`/`identify` for
+  dimensions) — never by viewing it. Only the user opens the image, via
+  the git link.
 
 ## Power-ups (6 early-game + Surprise Box + late-game gated tier)
 
