@@ -598,6 +598,39 @@ def _classic8_chip(slug, cell_w, cell_h):
                            sk.INK + (255,), 1)
 
 
+# ── ORNAMENT swatches ─────────────────────────────────────────────────────────
+# The Skull-King's own decorative elements (beads + cyan jewels), pulled out of the
+# chosen design verbatim — see docs/skull_king_stack/ornaments/render_ornaments.py.
+# Each is (fn-name, chip r_frac, short label); jewels use a bigger r_frac than beads.
+_ORN_DIR = os.path.join(ROOT, "docs/skull_king_stack/ornaments")
+_ORN_SPEC = [
+    ("bead_white",        0.20, "white bead"),
+    ("bead_gold",         0.20, "gold pip"),
+    ("bead_cyan",         0.20, "cyan bead"),
+    ("bead_darkblue",     0.20, "dk-blue bead"),
+    ("gem_thirdeye",      0.32, "third-eye gem"),
+    ("ornament_necklace", 0.34, "necklace gem"),
+]
+_orn_spec = _ilu.spec_from_file_location("ornaments_mod",
+                                         os.path.join(_ORN_DIR, "render_ornaments.py"))
+_ORN_MOD = _ilu.module_from_spec(_orn_spec)
+_orn_spec.loader.exec_module(_ORN_MOD)
+_ORN_RF = {fn: rf for (fn, rf, _t) in _ORN_SPEC}
+_ORN_TAG = {fn: t for (fn, _rf, t) in _ORN_SPEC}
+
+
+def _orn_chip(fn, cell_w, cell_h):
+    """Chip for one ornament swatch, centred in the cell at its own r_frac."""
+    ssr = 6
+    big = pygame.Surface((cell_w * ssr, cell_h * ssr), pygame.SRCALPHA)
+    rf = _ORN_RF[fn]
+    r = int(min(cell_w, cell_h) * rf) * ssr
+    s = (int(min(cell_w, cell_h) * rf) / 12.0) * ssr
+    getattr(_ORN_MOD, fn)(big, cell_w * ssr // 2, cell_h * ssr // 2, r, s)
+    return sk.grow_outline(pygame.transform.smoothscale(big, (cell_w, cell_h)),
+                           sk.INK + (255,), 1)
+
+
 def build_individual_sheet():
     """Every distinct small skull of the design, drawn on its own + labelled."""
     cw, ch = 116, 132
@@ -615,14 +648,16 @@ def build_individual_sheet():
          [("new", slug, lit) for (slug, _f, _r, _c, lit) in _NEW8_SPEC]),
         ("CLASSIC designs (8) — plain/simple skulls (matured under docs/skull_king_stack/classic8/)",
          [("classic", slug, False) for (slug, _f, _r, _c) in _CLASSIC8_SPEC]),
+        ("ORNAMENTS (6) — the design's beads + jewels (docs/skull_king_stack/ornaments/)",
+         [("orn", fn, False) for (fn, _rf, _t) in _ORN_SPEC]),
     ]
     cols = max(len(items) for _t, items in rows)
     W = cols * cw + (cols + 1) * pad
     H = head + len(rows) * (ch + lab + pad + 26)
     sheet = pygame.Surface((W, H))
     sheet.fill(sk.BG)
-    _label(sheet, "SKULL-KING design — every distinct small skull, numbered #1..#N (NEW + CLASSIC = bottom two rows)", pad, 20)
-    _label(sheet, "source: Asthi-Dakini SWITCHED+BIG (crown 0-5 · palm 0-5 · r9)  +  8 new wild/relic  +  8 classic/simple designs", pad, 48)
+    _label(sheet, "SKULL-KING design — every distinct small skull + her ornaments, numbered #1..#N", pad, 20)
+    _label(sheet, "Asthi-Dakini SWITCHED+BIG (crown 0-5 · palm 0-5 · r9)  +  8 new wild/relic  +  8 classic/simple  +  6 ornaments (beads + jewels)", pad, 48)
 
     y = head
     gid = 0                              # running global ID — every chip is #1..#N
@@ -638,6 +673,9 @@ def build_individual_sheet():
             elif kind == "classic":
                 chip = _classic8_chip(idx, cw, ch)
                 tag = idx.split("-")[0]
+            elif kind == "orn":
+                chip = _orn_chip(idx, cw, ch)
+                tag = _ORN_TAG[idx]
             else:
                 chip = _skull_chip(kind, idx, cw, ch, lit=lit)
                 if kind == "crown_orig":
