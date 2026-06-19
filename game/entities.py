@@ -1376,6 +1376,13 @@ class Pipe:
         self.is_staff = False
         self._staff_cache: "pygame.Surface | None" = None
         self._staff_cache_dx = 0
+        # Skull-King stacked-skull totem re-skin (warren demo's second event): same
+        # bake-once bitmap treatment as the staff/KFC caches. `skull_idx` selects
+        # which of the 20 column designs this pillar wears (set at spawn).
+        self.is_skull_king = False
+        self.skull_idx = 0
+        self._skull_cache: "pygame.Surface | None" = None
+        self._skull_cache_dx = 0
         # Pagoda body + ornaments are far heavier than the retired sandstone
         # silhouette, and their internal draw helpers re-alias curved eaves
         # every call. Bake the pair once into a per-instance bitmap (same
@@ -1453,6 +1460,11 @@ class Pipe:
                 self._build_staff_cache(palette)
             surf.blit(self._staff_cache, (int(self.x) + self._staff_cache_dx, 0))
             return
+        if self.is_skull_king:
+            if self._skull_cache is None:
+                self._build_skull_cache(palette)
+            surf.blit(self._skull_cache, (int(self.x) + self._skull_cache_dx, 0))
+            return
         if self.is_kfc and kfc_visual:
             if self._kfc_cache is None:
                 self._build_kfc_cache(palette)
@@ -1509,6 +1521,14 @@ class Pipe:
             from game.pillar_staff import draw_pillar_pair_staff
             draw_pillar_pair_staff(surf, local_top, local_bot,
                                    _biome.palette_for_phase(0.0), self.seed)
+        elif self.is_skull_king:
+            from game.pillar_skull import draw_pillar_pair_skull
+            if not draw_pillar_pair_skull(surf, local_top, local_bot,
+                                          _biome.palette_for_phase(0.0),
+                                          self.seed, self.skull_idx):
+                key = VARIANT_KEYS[self.seed % VARIANT_COUNT]
+                CANDIDATES[key](surf, local_top, local_bot,
+                                _biome.palette_for_phase(0.0), self.seed)
         else:
             key = VARIANT_KEYS[self.seed % VARIANT_COUNT]
             CANDIDATES[key](surf, local_top, local_bot,
@@ -1582,6 +1602,33 @@ class Pipe:
         # Build the matching collision mask straight from the rendered cache (it
         # already holds the staff silhouette in its alpha) — re-rendering the staff
         # a second time here cost ~8ms/pillar and stuttered the route.
+        if self._collision_mask is None:
+            self._collision_mask = pygame.mask.from_surface(cache, 50)
+            self._collision_mask_dx = -margin
+
+    def _build_skull_cache(self, palette):
+        """Render the Skull-King stacked-skull totem pair once into a per-instance
+        SRCALPHA bitmap; later frames blit it at the scrolling x. Same margin +
+        bake-once treatment as the staff cache. If the skull engine isn't present in
+        this checkout (e.g. a stripped/web build), fall back to a plain pagoda pair
+        so the pillar stays visible and lethal instead of vanishing."""
+        from game.pillar_skull import draw_pillar_pair_skull
+        margin = 64
+        cache = pygame.Surface((PIPE_W + margin * 2, GROUND_Y), pygame.SRCALPHA)
+        local_top = pygame.Rect(margin, 0,
+                                PIPE_W, int(self.gap_y - self.gap_h / 2))
+        local_bot_top = int(self.gap_y + self.gap_h / 2)
+        local_bot = pygame.Rect(margin, local_bot_top,
+                                PIPE_W, GROUND_Y - local_bot_top)
+        ok = draw_pillar_pair_skull(cache, local_top, local_bot, palette,
+                                    self.seed, self.skull_idx)
+        if not ok:
+            draw_pillar_pair(cache, local_top, local_bot, palette, self.seed,
+                             phase=0.0, is_rush=self.is_rush,
+                             pillar_index=self.spawn_index)
+        self._skull_cache = cache
+        self._skull_cache_dx = -margin
+        # Collision mask straight from the rendered cache alpha (same as the staff).
         if self._collision_mask is None:
             self._collision_mask = pygame.mask.from_surface(cache, 50)
             self._collision_mask_dx = -margin

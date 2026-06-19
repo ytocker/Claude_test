@@ -26,7 +26,14 @@ T_CLOWN_IN = 3.0          # empty-sky flight before the clown arrives
 T_SPIN = 0.9              # dice tumble before the rolled number is revealed
 T_AFTER_PICKUP = 2.7      # beat between the reveal and the route
 CELE_LIFE = 2.2           # result celebration banner life (< T_AFTER_PICKUP)
-T_AFTER_ROUTE = 2.0       # free flight after the route before Pip drops
+T_AFTER_ROUTE = 2.0       # free flight after the (final) route before Pip drops
+T_INTERLUDE = 3.0         # empty-sky beat between the clown route and the Skull-King
+
+# ── Skull-King event (second beat) ───────────────────────────────────────────
+SKULL_Y = 330             # reachable hover line for the rolling king-skull
+SK_PX = 74                # rolling-skull draw size (px); reveal scales this up
+SK_REVEAL_PX = 118        # settled difficulty face popped as the reveal
+SKULL_ROUTE_N = 22        # pillars in the Skull-King route (windowed from a hard route)
 
 # ── warren geometry ──────────────────────────────────────────────────────────
 SP = 72                   # fused centre-to-centre spacing (warren window 62-84)
@@ -57,11 +64,16 @@ class WarrenDemo:
         )
         from tools.render_warren_routes import Route
         from tools.render_warren_mockup import assert_passable
+        # Skull-King draws its route from the HARD band (difficulty 6-10) of the same
+        # warren route catalog the clown's easy archetypes are cousins of.
+        from tools.render_warren_all import TIERS, get_pagodas
 
         self._build_jester = build_jester
         self._draw_die_face = _draw_die_face_noshadow
         self._Route = Route
         self._assert_passable = assert_passable
+        self._TIERS = TIERS
+        self._get_pagodas = get_pagodas
         # Hero clown #13 ("Plum & Lime — FINAL"); `no_shadow` is a render_cell
         # flag, not a build_jester kwarg, so drop it (we draw our own shadow).
         spec = dict(JESTERS[-1][1])
@@ -88,6 +100,20 @@ class WarrenDemo:
         self.route = None          # list of (gap_cy, gap_h) for N pillars
         self.route_pipes = []      # Pipes we spawned, in order
         self.spawned = 0
+
+        # ── Skull-King state (second event) ──────────────────────────────────
+        self.skull_x = None        # world x of the rolling king-skull (None until in)
+        self.skull_y = SKULL_Y
+        self.skull_collected = False
+        self.difficulty = None     # 6-10, the settled face → route difficulty
+        self.sk_spin_t = 0.0       # skull tumble clock (phase "sk_rolling")
+        self._sk_face = 8          # difficulty shown on the tumbling skull
+        self._sk_face_t = 0.0      # countdown to the next tumble face
+        self.sk_reveal_t = 0.0     # difficulty-reveal popup life
+        self.skull_route = None    # list of (gap_cy, gap_h)
+        self.skull_route_pipes = []
+        self.sk_spawned = 0
+        self.skull_idxs = []       # per-pillar design index (0-19), one per route slot
 
         self._clown_surf = None    # cached clown bitmap (built on first draw)
         self._clown_ok = True      # cleared if build_jester ever throws
@@ -116,6 +142,15 @@ class WarrenDemo:
                 self.dice_x = self.clown_x - DICE_DX
             if self.clown_x < -160:
                 self.clown_x = None
+
+        # The rolling king-skull is world-anchored scenery too: once it enters it
+        # rides the scroll leftward until grabbed (then it tumbles in place on
+        # screen via the spin clock, no longer tracking world x).
+        if self.skull_x is not None and not self.skull_collected:
+            self.skull_x -= world._current_scroll() * dt
+
+        if self.sk_reveal_t > 0.0:
+            self.sk_reveal_t = max(0.0, self.sk_reveal_t - dt)
 
         if self.phase == "fly_in":
             if self.t >= T_CLOWN_IN:
@@ -162,9 +197,53 @@ class WarrenDemo:
                 self._spawn_next(world)
             # GHOST roll: Pip is already a ghost from the reveal (the single
             # window sized in _reveal_roll covers this whole stretch + a tail).
-            # route done once the last pillar has slipped past Pip
+            # clown route done once the last pillar has slipped past Pip → the
+            # Skull-King event follows after an empty-sky beat (NOT death yet)
             if (self.spawned >= len(self.route) and self.route_pipes
                     and self.route_pipes[-1].x + PIPE_W < BIRD_X):
+                self._goto("interlude")
+
+        elif self.phase == "interlude":
+            # a few seconds of nothing — Pip free-flies — then the king-skull
+            # scrolls in from the right edge to start the second event.
+            if self.pt >= T_INTERLUDE:
+                self.skull_x = float(SPAWN_X)
+                self._goto("sk_offer")
+
+        elif self.phase == "sk_offer":
+            # grab on contact, or auto-grab once the skull has scrolled past Pip
+            if self._skull_hit(world) or self.skull_x < BIRD_X - 60:
+                self._collect_skull(world)
+                self._goto("sk_rolling")
+
+        elif self.phase == "sk_rolling":
+            # the king-skull tumbles in place; the shown difficulty flickers, settles
+            # on the real one for the last stretch, then the face reveals.
+            self.sk_spin_t += dt
+            if self.sk_spin_t >= T_SPIN - 0.18:
+                self._sk_face = self.difficulty
+            else:
+                self._sk_face_t -= dt
+                if self._sk_face_t <= 0.0:
+                    self._sk_face = random.randint(6, 10)
+                    self._sk_face_t = 0.06
+            if self.sk_spin_t >= T_SPIN:
+                self.sk_reveal_t = CELE_LIFE
+                self._make_skull_route(world)
+                self._goto("sk_wait_route")
+
+        elif self.phase == "sk_wait_route":
+            # the difficulty reveal is up; then the hard route scrolls in
+            if self.pt >= T_AFTER_PICKUP:
+                self._goto("sk_running")
+
+        elif self.phase == "sk_running":
+            while (self.sk_spawned < len(self.skull_route)
+                   and (not self.skull_route_pipes
+                        or self.skull_route_pipes[-1].x <= SPAWN_X - SP)):
+                self._spawn_skull_next(world)
+            if (self.sk_spawned >= len(self.skull_route) and self.skull_route_pipes
+                    and self.skull_route_pipes[-1].x + PIPE_W < BIRD_X):
                 self._goto("post_route")
 
         elif self.phase == "post_route":
@@ -198,11 +277,17 @@ class WarrenDemo:
             # The settled result is NOT painted on the cube — it pops as a
             # celebration banner in a fixed spot (see _draw_celebration).
 
+        # Skull-King: the rolling king-skull during its offer/tumble (the settled
+        # face pops as a fixed-spot reveal from draw_sign, layered over the route).
+        if self.skull_x is not None and self.phase in ("sk_offer", "sk_rolling"):
+            self._draw_rolling_skull(surf, sx, sy)
+
     def draw_sign(self, surf, world, sx, sy):
         """Hosts the result celebration banner — drawn AFTER the pillars so it
         layers in front of the route. (The old N-of-pillars plaque that hung
         from the first pagoda was removed; the banner already shows N.)"""
         self._draw_celebration(surf)               # fixed-spot popup; self-gated
+        self._draw_skull_reveal(surf)              # Skull-King difficulty reveal
 
     # ── internals ────────────────────────────────────────────────────────────
     def _clown_surface(self):
@@ -338,6 +423,100 @@ class WarrenDemo:
             total = T_AFTER_PICKUP + route_pass + T_AFTER_ROUTE
             world.ghost_timer = total
             world.ghost_timer_total = total
+
+    def _skull_hit(self, world):
+        b = world.bird
+        ddx = self.skull_x - b.x
+        ddy = self.skull_y - b.y
+        return ddx * ddx + ddy * ddy <= (DICE_PICK_R + BIRD_R) ** 2
+
+    def _collect_skull(self, world):
+        # Grab → the king-skull tumbles (phase "sk_rolling"); the settled face is a
+        # difficulty 6-10 that picks the hard route. No GHOST outcome here (clown-only).
+        self.skull_collected = True
+        self.difficulty = random.randint(6, 10)
+        self.sk_spin_t = 0.0
+        self._sk_face = random.randint(6, 10)
+        self._sk_face_t = 0.06
+
+    def _draw_rolling_skull(self, surf, sx, sy):
+        """The king-skull die: a gentle bob pre-grab (neutral), then a tumble whose
+        shown difficulty flickers and settles. Drawn via the game-side skull seam."""
+        from game.pillar_skull import draw_rolling_skull
+        cx = int(self.skull_x + sx)
+        if self.phase == "sk_offer":
+            cy = int(self.skull_y + sy + math.sin(self.pulse * 1.1) * 3)
+            draw_rolling_skull(surf, cx, cy, SK_PX, neutral=True)
+        else:                                            # sk_rolling
+            u = min(1.0, self.sk_spin_t / T_SPIN)
+            deg = 360.0 * 3 * (1.0 - (1.0 - u) ** 2)     # 3 turns, decelerate upright
+            draw_rolling_skull(surf, cx, int(self.skull_y + sy), SK_PX,
+                               angle=deg, difficulty=self._sk_face, neutral=False)
+
+    def _draw_skull_reveal(self, surf):
+        """The settled difficulty, popped as a fixed-spot reveal (the face carries the
+        number). Pop-scaled ease-out-back over ~0.3 s, same feel as the dice banner."""
+        if self.difficulty is None or self.sk_reveal_t <= 0.0:
+            return
+        from game.pillar_skull import draw_rolling_skull
+        age = max(0.0, CELE_LIFE - self.sk_reveal_t)
+        p = min(1.0, age / 0.30)
+        s = 1.70158
+        e = 1 + (s + 1) * (p - 1) ** 3 + s * (p - 1) ** 2
+        px = max(8, int(SK_REVEAL_PX * (0.5 + 0.5 * e)))
+        draw_rolling_skull(surf, W // 2, 210, px, difficulty=self.difficulty)
+
+    def _make_skull_route(self, world):
+        """Pick a random HARD route rated exactly the rolled difficulty (6-10) from
+        the warren catalog, window it to SKULL_ROUTE_N pillars, and assign each slot
+        a skull design. Falls back to a flat tube if no candidate stays passable."""
+        d = self.difficulty
+        cands = []
+        for _tier, build, ratings in self._TIERS:
+            routes = build()
+            for route, rd in zip(routes, ratings):
+                if rd == d:
+                    cands.append(route)
+        random.shuffle(cands)
+        # prefer routes long enough to fill the 22-slot window (stable sort keeps the
+        # shuffle order within each group → still a random pick among the long ones)
+        cands.sort(key=lambda r: 0 if len(self._get_pagodas(r)) >= SKULL_ROUTE_N else 1)
+        pags = name = None
+        for cand in cands:
+            p = self._get_pagodas(cand)[:SKULL_ROUTE_N]
+            try:
+                self._assert_passable(cand.name, p)
+                pags, name = p, cand.name
+                break
+            except Exception:
+                continue
+        if pags is None:
+            fb = self._Route("Skull Flat Tube", "fallback")
+            fb.hold("flat", SKULL_ROUTE_N, 300, ROUTE_GAP)
+            pags, name = self._get_pagodas(fb)[:SKULL_ROUTE_N], "skull-flat"
+        self.skull_route = [(cy, gap_h) for (_x, cy, gap_h, _s) in pags]
+        # per-pillar design index, deterministic per chosen route (mirrors the figure's
+        # seeded reroll so the column mix is stable for a given route)
+        from game import pillar_skull
+        ndsn = max(1, pillar_skull.design_count())
+        rng = random.Random("skull-demo::" + name)
+        self.skull_idxs = [rng.randrange(ndsn) for _ in range(len(self.skull_route))]
+        self.sk_spawned = 0
+        self.skull_route_pipes = []
+
+    def _spawn_skull_next(self, world):
+        gap_cy, gap_h = self.skull_route[self.sk_spawned]
+        p = Pipe(float(SPAWN_X), gap_cy, gap_h)
+        p.seed = ROUTE_SEED
+        p.spawn_index = self.sk_spawned + 1
+        p.is_rush = False
+        p.is_kfc = False
+        p.is_skull_king = True
+        p.skull_idx = (self.skull_idxs[self.sk_spawned]
+                       if self.sk_spawned < len(self.skull_idxs) else 0)
+        world.pipes.append(p)
+        self.skull_route_pipes.append(p)
+        self.sk_spawned += 1
 
     def _spawn_next(self, world):
         gap_cy, gap_h = self.route[self.spawned]
