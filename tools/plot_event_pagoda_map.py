@@ -1,5 +1,5 @@
 """Render the run's content map on a PAGODAS-PASSED axis under
-``docs/screenshots/event_pagoda_map_clown.png``. Run from the repo root:
+``docs/screenshots/event_pagoda_map_clown_v2.png``. Run from the repo root:
 
     python tools/plot_event_pagoda_map.py
 
@@ -32,14 +32,11 @@ import matplotlib.pyplot as plt
 
 from game import biome, weather, config
 
-# Biome keyframe phase → label, read from the LIVE (possibly remapped) keyframes
-# so the labels/gridlines track the real day length — e.g. the DAY phase grows
-# when the cycle is lengthened to absorb the clown event. Names are in keyframe
-# order; the 8th keyframe is the wrap back to DAY.
-_PHASE_NAMES = ["DAY", "GOLDEN\nHOUR", "SUNSET", "DUSK", "NIGHT", "PREDAWN",
-                "SUNRISE"]
-PHASE_LABELS = [(biome._KEYFRAMES[i][0], _PHASE_NAMES[i])
-                for i in range(len(_PHASE_NAMES))]
+# Biome named phase boundaries, read from the LIVE keyframes (via biome) so the
+# labels/gridlines track the real day length — incl. the extended DAY + its
+# solid-day hold absorbed for the clown event.
+PHASE_LABELS = [(f, n.replace("GOLDEN HOUR", "GOLDEN\nHOUR"))
+                for f, n in biome.PHASE_BOUNDARIES]
 
 # The three gameplay weather events: (label, intensity-fn, colour).
 CURVES = [
@@ -225,7 +222,7 @@ def main() -> None:
               fontsize=8.5)
 
     fig.tight_layout()
-    out_path = os.path.join(out_dir, "event_pagoda_map_clown.png")
+    out_path = os.path.join(out_dir, "event_pagoda_map_clown_v2.png")
     fig.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
     print(f"wrote {out_path}")

@@ -187,6 +187,18 @@ _KEYFRAMES: list[tuple[float, dict]] = [
 # grow the cycle by the same delta and remap each fraction:
 #     new_phase = (old_phase * BASE + DAY_EXTRA) / (BASE + DAY_EXTRA)   (i >= 1)
 # DAY stays at 0.0 and the wrap keyframe stays at 1.0.
+# Names parallel to _KEYFRAMES (the last keyframe is the wrap back to DAY).
+_KEYFRAME_NAMES = ["DAY", "GOLDEN HOUR", "SUNSET", "DUSK", "NIGHT",
+                   "PREDAWN", "SUNRISE", "DAY"]
+
+# Fraction of the (possibly extended) DAY span to hold at SOLID daytime before
+# the golden-hour fade begins. Without this, a single DAY→GOLDEN smoothstep
+# spans the whole — now much longer — day, so the sky drifts toward amber from
+# the very start and daytime never reads as dominant. Holding day for most of
+# the span and compressing the fade into the tail keeps DAY dominant while the
+# transition stays smooth. Only applied when the day is extended.
+DAY_HOLD_FRAC = 0.70
+
 _BASE_CYCLE_SECONDS = 320.0
 from game.config import DAY_EXTRA_SECONDS as _DAY_EXTRA
 CYCLE_SECONDS = _BASE_CYCLE_SECONDS + _DAY_EXTRA
@@ -199,6 +211,19 @@ if _DAY_EXTRA:
          (frac * _BASE_CYCLE_SECONDS + _DAY_EXTRA) / CYCLE_SECONDS, pal)
         for i, (frac, pal) in enumerate(_KEYFRAMES)
     ]
+    # Hold solid DAY for DAY_HOLD_FRAC of the day span, then fade to golden over
+    # the remainder — a DAY-coloured keyframe inserted just before golden hour.
+    _golden_phase = _KEYFRAMES[1][0]
+    _KEYFRAMES.insert(1, (_golden_phase * DAY_HOLD_FRAC, dict(_KEYFRAMES[0][1])))
+    _KEYFRAME_NAMES.insert(1, "")   # the hold is not a named time-of-day
+
+# Named phase boundaries (fraction, label) for any consumer that draws the
+# day cycle — excludes the unnamed DAY-hold and the wrap. Reads the LIVE
+# keyframes so it tracks the real (extended) day length.
+PHASE_BOUNDARIES = [
+    (frac, name) for (frac, _pal), name in zip(_KEYFRAMES, _KEYFRAME_NAMES)
+    if name and frac < 1.0
+]
 
 
 def phase_for_time(elapsed_seconds: float) -> float:
