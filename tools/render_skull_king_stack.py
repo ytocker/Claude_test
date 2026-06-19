@@ -510,13 +510,58 @@ def _skull_chip(kind, idx, cell_w, cell_h, *, lit=False):
     return sk.grow_outline(small, sk.INK + (255,), 1)
 
 
+# ── NEW-8 showcase skulls ─────────────────────────────────────────────────────
+# Eight extra designs (a wild + crown-relic mix) matured each in its own loop
+# under docs/skull_king_stack/new8/<slug>/. Their draw() fns are imported here so
+# the figure stays the single source of truth. WHY per-skull r_frac/cy_frac: the
+# appendage-heavy ones (horns out, antlers up, fangs below) would clip the
+# 116x132 cell at the default 0.40/0.52 placement, so each carries the cell fit it
+# was tuned against; lit=True lets the wild four show their capped cyan device.
+import importlib.util as _ilu
+
+_NEW8_DIR = os.path.join(ROOT, "docs/skull_king_stack/new8")
+_NEW8_SPEC = [
+    ("horned-ram",     "render_horned_ram.py",     0.26, 0.50, True),
+    ("antler-stag",    "render_antler_stag.py",     0.33, 0.66, True),
+    ("sabertooth-maw", "render_sabertooth_maw.py",  0.34, 0.34, True),
+    ("cyclops-brow",   "render_cyclops_brow.py",    0.40, 0.52, True),
+    ("longjaw-relic",  "render_longjaw_relic.py",   0.40, 0.30, False),
+    ("cracked-half",   "render_cracked_half.py",    0.40, 0.52, False),
+    ("flat-slab",      "render_flat_slab.py",       0.40, 0.52, False),
+    ("keyhole-relic",  "render_keyhole_relic.py",   0.40, 0.52, False),
+]
+
+
+def _new8_load(slug, fname):
+    spec = _ilu.spec_from_file_location("new8_" + slug.replace("-", "_"),
+                                        os.path.join(_NEW8_DIR, slug, fname))
+    m = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+_NEW8 = {slug: (_new8_load(slug, fn).draw, rf, cyf, lit)
+         for (slug, fn, rf, cyf, lit) in _NEW8_SPEC}
+
+
+def _new8_chip(slug, cell_w, cell_h):
+    """Chip for one of the eight new designs, placed with its own cell fit."""
+    draw, rf, cyf, lit = _NEW8[slug]
+    ssr = 6
+    big = pygame.Surface((cell_w * ssr, cell_h * ssr), pygame.SRCALPHA)
+    r = int(min(cell_w, cell_h) * rf) * ssr
+    s = (int(min(cell_w, cell_h) * rf) / 12.0) * ssr
+    draw(big, cell_w * ssr // 2, int(cell_h * ssr * cyf), r, s, lit)
+    return sk.grow_outline(pygame.transform.smoothscale(big, (cell_w, cell_h)),
+                           sk.INK + (255,), 1)
+
+
 def build_individual_sheet():
     """Every distinct small skull of the design, drawn on its own + labelled."""
     cw, ch = 116, 132
     pad = 16
     head = 90
     lab = 22
-    cols = 6
     rows = [
         ("CROWN skulls (above the head — bare relic skulls; idx 2 is the lit focal)",
          [("crown", i, i == 2) for i in range(6)]),
@@ -524,13 +569,16 @@ def build_individual_sheet():
          [("palm", i, False) for i in range(6)]),
         ("EARLIER crown skull (round 9, pre-variance) — one uniform design, all 6 positions alike",
          [("crown_orig", 0, False), ("crown_orig", 0, True)]),
+        ("NEW designs (8) — wild + crown-relic mix (matured under docs/skull_king_stack/new8/)",
+         [("new", slug, lit) for (slug, _f, _r, _c, lit) in _NEW8_SPEC]),
     ]
+    cols = max(len(items) for _t, items in rows)
     W = cols * cw + (cols + 1) * pad
     H = head + len(rows) * (ch + lab + pad + 26)
     sheet = pygame.Surface((W, H))
     sheet.fill(sk.BG)
-    _label(sheet, "SKULL-KING design — the 12 various small skulls, individually", pad, 20)
-    _label(sheet, "source: Asthi-Dakini SWITCHED+BIG  (crown_skull idx 0-5 · palm_skull idx 0-5)", pad, 48)
+    _label(sheet, "SKULL-KING design — the original small skulls + 8 NEW designs (bottom row)", pad, 20)
+    _label(sheet, "source: Asthi-Dakini SWITCHED+BIG  (crown idx 0-5 · palm idx 0-5)  +  8 new wild/relic designs", pad, 48)
 
     y = head
     for row_title, items in rows:
@@ -538,12 +586,16 @@ def build_individual_sheet():
         y += 26
         x = pad
         for kind, idx, lit in items:
-            chip = _skull_chip(kind, idx, cw, ch, lit=lit)
-            sheet.blit(chip, (x, y))
-            if kind == "crown_orig":
-                tag = "r9 (lit)" if lit else "r9 (resting)"
+            if kind == "new":
+                chip = _new8_chip(idx, cw, ch)
+                tag = idx.split("-")[0]
             else:
-                tag = f"{kind} {idx}" + ("  (lit)" if lit else "")
+                chip = _skull_chip(kind, idx, cw, ch, lit=lit)
+                if kind == "crown_orig":
+                    tag = "r9 (lit)" if lit else "r9 (resting)"
+                else:
+                    tag = f"{kind} {idx}" + ("  (lit)" if lit else "")
+            sheet.blit(chip, (x, y))
             _label(sheet, tag, x + 6, y + ch + 2)
             x += cw + pad
         y += ch + lab + pad
