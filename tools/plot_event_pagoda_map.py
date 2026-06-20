@@ -235,7 +235,7 @@ def main() -> None:
               fontsize=8.5)
 
     fig.tight_layout()
-    out_path = os.path.join(out_dir, "event_pagoda_map_clown_v4.png")
+    out_path = os.path.join(out_dir, "event_pagoda_map_clown_v5.png")
     fig.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
     print(f"wrote {out_path}")

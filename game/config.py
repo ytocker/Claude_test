@@ -247,7 +247,16 @@ RAIN_START_PILLAR   = CLOWN_START_PILLAR + CLOWN_SLOT_PILLARS + CLOWN_TO_RAIN_BU
 # matching daytime added to the biome (the time to fly the inserted pillars at
 # post-ramp regular pace: spacing / scroll per pillar).
 _POST_CLOWN_SHIFT   = RAIN_START_PILLAR - _RAIN_START_PILLAR_PRE_CLOWN                 # +30
-DAY_EXTRA_SECONDS   = _POST_CLOWN_SHIFT * (PIPE_SPACING / SCROLL_BASE)                # 52.5s
+
+# Clear pillars held open between the snow squall's tail and the cycle-finale
+# celebration, so the predawn snow fully fades before the treasure-box / crowd
+# fanfare arrives instead of the finale stepping on the snow tail. Adds matching
+# daytime to the cycle (same pillars->seconds conversion as the clown shift).
+# Snow stays pinned to SNOW_START_PILLAR and weather._WIDTH_SCALE holds every
+# event's duration, so this only pushes the wrap later — it lengthens no storm.
+_FINALE_SNOW_BUFFER_PILLARS = 12
+
+DAY_EXTRA_SECONDS   = (_POST_CLOWN_SHIFT + _FINALE_SNOW_BUFFER_PILLARS) * (PIPE_SPACING / SCROLL_BASE)
 
 # SNOW SQUALL anchor. Same idea as RAIN_START_PILLAR but for the
 # predawn snow-squall block in `weather.storm_intensity`; shifted by the
