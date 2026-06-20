@@ -270,20 +270,23 @@ def build_aurora_stag(wing_angle_deg):
         steps = 8
         for i in range(steps + 1):
             t = i / steps
-            # up first (cos eases the rise so the base is near-vertical), then a
-            # forward throw that accelerates toward the tip (t**1.6) so the beam
-            # arcs OVER the nose instead of leaning toward the midline.
+            # up first (the base is near-vertical), then a forward throw that
+            # accelerates toward the tip (t**1.6) so the beam arcs OVER the nose
+            # instead of leaning toward the midline.
             by = ry - rise * t
             bx = rx + fwd * (t ** 1.6) + 1.5 * math.sin(t * math.pi)
             pts.append((bx, by))
         return pts
 
-    # Near (forward) antler springs from the right ear-base and throws hard
-    # forward over the muzzle; far (rear) antler from the left ear-base with a
-    # gentler throw, sitting behind it. Both forward = no inward V.
+    # The two beams are STAGGERED in depth so they read as a rack of two beams,
+    # not a fused plume: the FAR (rear) beam roots further back/left, stands
+    # taller and more upright behind; the NEAR (front) beam roots forward over
+    # the muzzle, sits lower, and throws harder forward. Both lean +x — there is
+    # no inward V — but their offset starts and unequal throws keep a clear gap
+    # of sky between the two crowns. Far drawn first so near reads in front.
     beams = [
-        ("far",  beam_curve(skull_l + 2, HCY - 5, fwd=9.0,  rise=28.0)),
-        ("near", beam_curve(skull_r + 1, HCY - 5, fwd=13.0, rise=30.0)),
+        ("far",  beam_curve(skull_l - 1, HCY - 6, fwd=6.0,  rise=30.0)),
+        ("near", beam_curve(skull_r + 3, HCY - 3, fwd=13.0, rise=24.0)),
     ]
     for which, beam in beams:
         _aurora_ribbon(surf, beam, 5, phase)
@@ -307,8 +310,11 @@ def build_aurora_stag(wing_angle_deg):
         # notch from the beam tip so it reads as a DISCRETE floating point at 1×
         # (the old blob fused to the beam). Seated a hair down the final segment
         # so the cross's north arm clears the canvas top.
+        # Seat the star a touch inward (−1x) and down (+5y) from the apex so its
+        # size-4 cross + bloom keep a clean ≥1px margin off the top/right canvas
+        # edges through the dive rotation (the clip-safety contract).
         tipx, tipy = beam[-1]
-        star_pos = (tipx + 1, tipy + 4)
+        star_pos = (tipx - 1, tipy + 5)
         _star(surf, star_pos, 4,
               glow=(AUR_GREEN if which == "near" else AUR_VIO),
               notch_from=beam[-2])
