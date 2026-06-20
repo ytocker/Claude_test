@@ -19,21 +19,21 @@ def main():
     pygame.font.init()
     font = pygame.font.SysFont("monospace", 12)
 
-    sizes = [(120, 72), (48, 30), (16, 11)]
-    pad = 28
-    cell_w = max(w for w, _ in sizes) + 40
-    surf = pygame.Surface((cell_w * len(sizes), 150))
+    # facing=1 at three scales, then a facing=-1 thumbnail to confirm mirror.
+    cells = [(120, 72, 1), (48, 30, 1), (16, 11, 1), (120, 72, -1)]
+    cell_w = 160
+    surf = pygame.Surface((cell_w * len(cells), 150))
     surf.fill(_NAVY)
 
     cx = cell_w // 2
-    for (w, h) in sizes:
+    for (w, h, facing) in cells:
         bx = cx - w // 2
         by = 50
         # Faint box so we can see fit within the spec box at each scale.
         pygame.draw.rect(surf, (40, 34, 70), (bx, by, w, h), 1)
-        draw_shoe(surf, bx, by, w, h, facing=1)
-        # House outline approximation the caller would add, to sanity-check fit.
-        _label(surf, font, f"{w}x{h}", cx, by + max(h, 34) + 14)
+        draw_shoe(surf, bx, by, w, h, facing=facing)
+        tag = f"{w}x{h}" + ("  flip" if facing < 0 else "")
+        _label(surf, font, tag, cx, by + max(h, 34) + 14)
         cx += cell_w
 
     # One mirrored thumbnail to confirm facing=-1 symmetry.

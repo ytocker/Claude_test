@@ -25,7 +25,7 @@ BASE_SKIN = "skin_base"
 CATALOG_KINDS = ("skin", "pillar", "ground", "trail", "boost")
 
 # Store browsing tabs, in display order.
-GROUPS = ("costume", "parrot", "animal")
+GROUPS = ("costume", "parrot", "animal", "shoes")
 
 # Cost ladder is tuned so the first unlock is a goal (a few good runs) rather
 # than a side effect of session one: entry ~260, mid ~450-550, premium ~650-800,
@@ -67,6 +67,19 @@ CATALOG: dict[str, dict] = {
     "skin_eagle":    {"name": "EAGLE",     "cost": 700,  "kind": "skin", "group": "animal"},
     "skin_dragon":   {"name": "DRAGON",    "cost": 1200, "kind": "skin", "group": "animal"},
     "skin_phoenix":  {"name": "PHOENIX",   "cost": 1500, "kind": "skin", "group": "animal"},
+
+    # ── SHOES (stylized procedural sneaker/sandal homages Pip wears) ───────────
+    # Priced on desirability: sandals/slides cheap, classics mid, hype premium.
+    "skin_shoe_flipflops":  {"name": "FLIP-FLOPS",  "cost": 240, "kind": "skin", "group": "shoes"},
+    "skin_shoe_poolslides": {"name": "POOL SLIDES", "cost": 300, "kind": "skin", "group": "shoes"},
+    "skin_shoe_courtgreen": {"name": "COURT GREEN", "cost": 420, "kind": "skin", "group": "shoes"},
+    "skin_shoe_canvashigh": {"name": "CANVAS HIGH", "cost": 460, "kind": "skin", "group": "shoes"},
+    "skin_shoe_checkerslip": {"name": "CHECKER SLIP", "cost": 480, "kind": "skin", "group": "shoes"},
+    "skin_shoe_shelltoe":   {"name": "SHELL TOE",   "cost": 540, "kind": "skin", "group": "shoes"},
+    "skin_shoe_airflyer":   {"name": "AIR FLYER",   "cost": 620, "kind": "skin", "group": "shoes"},
+    "skin_shoe_airbubble":  {"name": "AIR BUBBLE",  "cost": 680, "kind": "skin", "group": "shoes"},
+    "skin_shoe_boostknit":  {"name": "BOOST KNIT",  "cost": 760, "kind": "skin", "group": "shoes"},
+    "skin_shoe_retro1":     {"name": "RETRO 1",     "cost": 850, "kind": "skin", "group": "shoes"},
 }
 
 

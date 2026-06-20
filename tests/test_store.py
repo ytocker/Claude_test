@@ -276,6 +276,23 @@ class TestCatalogIntegrity(unittest.TestCase):
         # Base skin is the implicit default and must also be drawable.
         self.assertIn(store_catalog.BASE_SKIN, ids)
 
+    def test_shoes_tab_populated(self):
+        # The SHOES tab ships with its full roster.
+        shoes = store_catalog.ids_of_group("shoes")
+        self.assertTrue(shoes)
+        self.assertTrue(all(store_catalog.kind(s) == "skin" for s in shoes))
+
+    def test_every_shoe_has_a_product_shot_icon(self):
+        # Shoes are presented by their own product-shot icon (the sneaker
+        # itself) rather than Pip wearing them, so every shoe id must resolve
+        # to a non-None get_skin_icon. Non-shoe skins return None (in-game look).
+        from game import parrot
+        for sid in store_catalog.ids_of_group("shoes"):
+            self.assertIsNotNone(parrot.get_skin_icon(sid),
+                                 f"{sid} is missing a product-shot icon")
+        # A representative non-shoe skin has no icon and falls back to the frame.
+        self.assertIsNone(parrot.get_skin_icon(store_catalog.BASE_SKIN))
+
 
 if __name__ == "__main__":
     unittest.main()

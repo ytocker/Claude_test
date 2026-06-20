@@ -1,7 +1,7 @@
 """Render docs/store/all_items.png — a single figure of every Store item.
 
 One contact sheet of the whole cosmetic roster (DEFAULT + all catalog skins),
-grouped by store tab (COSTUMES / PARROTS / ANIMALS) with each item's name and
+grouped by store tab (COSTUMES / PARROTS / ANIMALS / SHOES) with each item's name and
 coin cost. Re-run after adding skins:
 
     SDL_VIDEODRIVER=dummy python docs/store/render_gallery.py
@@ -32,7 +32,7 @@ CARD_RIM = (90, 78, 130)
 # Group → ordered ids (DEFAULT fronts the parrots, like the live store).
 SECTIONS = []
 for label, g in (("COSTUMES", "costume"), ("PARROTS", "parrot"),
-                 ("ANIMALS", "animal")):
+                 ("ANIMALS", "animal"), ("SHOES", "shoes")):
     ids = sorted(store_catalog.ids_of_group(g), key=store_catalog.cost)
     if g == "parrot":
         ids = [store_catalog.BASE_SKIN] + ids
@@ -40,7 +40,9 @@ for label, g in (("COSTUMES", "costume"), ("PARROTS", "parrot"),
 
 
 def _hero(sid, box):
-    src = parrot.get_skin_frame(sid, 1, 0.0)
+    # Shoes present as their product-shot icon (the sneaker itself); everything
+    # else as the in-game look — matching the live store/Prize-Machine.
+    src = parrot.get_skin_icon(sid) or parrot.get_skin_frame(sid, 1, 0.0)
     bb = src.get_bounding_rect()
     if bb.width > 0 and bb.height > 0:
         src = src.subsurface(bb).copy()
@@ -64,7 +66,7 @@ sheet.fill(BG)
 title = _font(30, True).render("SKYBIT STORE — ALL ITEMS", True, _GOLD_BRIGHT)
 sheet.blit(title, (PAD, 18))
 sub = _font(14, True).render(
-    f"{len(store_catalog.skin_ids())} skins across 3 tabs  ·  procedural, equippable",
+    f"{len(store_catalog.skin_ids())} skins across {len(SECTIONS)} tabs  ·  procedural, equippable",
     True, _GOLD_PALE)
 sheet.blit(sub, (PAD, 48))
 
