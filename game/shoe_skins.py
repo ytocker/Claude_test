@@ -56,12 +56,13 @@ def _build_icon(draw_shoe) -> pygame.Surface:
 
 
 # ── in-game look: Pip wearing the shoes ──────────────────────────────────────
-# The base macaw's two feet sit at roughly x 26-36, y 65-69 in COMPOSITE space
-# (base feet + PARROT_DY). Two small shoes there cover the bare foot lines; the
-# back foot is tucked up/left, the front foot forward, so they read as a stance.
+# The base macaw's bare feet sit at roughly x 26-36, y 65-69 in COMPOSITE space
+# (base feet + PARROT_DY). The shoes drop just below the belly underside as a
+# slightly split pair — low enough to clear the belly silhouette and read as
+# feet, not so low they dangle like landing gear.
 _FOOT_W, _FOOT_H = 17, 11
-_BACK_FOOT = (18, 60)
-_FRONT_FOOT = (29, 62)
+_BACK_FOOT = (17, 63)
+_FRONT_FOOT = (31, 65)
 
 
 def _foot_paint(draw_shoe):
