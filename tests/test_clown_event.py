@@ -152,5 +152,25 @@ class Pickup(unittest.TestCase):
         self.assertEqual(ev.phase, "rolling")
 
 
+class WeatherWidthInvariance(unittest.TestCase):
+    """Rain/snow event DURATIONS must stay fixed in wall-clock seconds (and so
+    in pillars) regardless of how long the biome day is — extending the cycle to
+    absorb the clown event must NOT stretch the storms. Their shape offsets are
+    scaled by (original cycle / current cycle); these products must equal the
+    original 320 s-cycle phase widths × 320."""
+
+    def test_rain_durations_are_cycle_invariant(self):
+        import game.weather as w
+        from game.biome import CYCLE_SECONDS as cyc
+        drizzle = (w.RAIN_DRIZZLE_END - w.RAIN_DRIZZLE_START) * cyc
+        self.assertAlmostEqual(drizzle, 0.18 * 320.0, places=4)
+        self.assertAlmostEqual(w.RAIN_STORM_WIDTH * cyc, 0.08 * 320.0, places=4)
+
+    def test_snow_duration_is_cycle_invariant(self):
+        import game.weather as w
+        from game.biome import CYCLE_SECONDS as cyc
+        self.assertAlmostEqual(w.SNOW_STORM_WIDTH * cyc, 0.13 * 320.0, places=4)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -94,26 +94,40 @@ _SNOW_LOWER_EDGE_BASE = 0.75
 # Resolved at import time so all downstream constants are stable.
 from game.config import (RAIN_START_PILLAR as _RAIN_START_PILLAR,
                          SNOW_START_PILLAR as _SNOW_START_PILLAR)
+from game.biome import (CYCLE_SECONDS as _CYCLE_SECONDS,
+                        _BASE_CYCLE_SECONDS as _BASE_CYCLE)
 _RAIN_PHASE_SHIFT = (_phase_for_pillar(_RAIN_START_PILLAR)
                      - _RAIN_DRIZZLE_START_BASE)
 _SNOW_PHASE_SHIFT = (_phase_for_pillar(_SNOW_START_PILLAR)
                      - _SNOW_LOWER_EDGE_BASE)
 
-# Module-level rain + lightning phase constants. Each is the original
-# literal + _RAIN_PHASE_SHIFT where applicable; widths stay the same.
-RAIN_DRIZZLE_START   = _RAIN_DRIZZLE_START_BASE + _RAIN_PHASE_SHIFT
-RAIN_DRIZZLE_PEAK    = 0.42 + _RAIN_PHASE_SHIFT
-RAIN_DRIZZLE_END     = 0.50 + _RAIN_PHASE_SHIFT
-RAIN_STORM_PEAK      = 0.50 + _RAIN_PHASE_SHIFT
-RAIN_STORM_WIDTH     = 0.08
-RAIN_COLOR_T_START   = 0.35 + _RAIN_PHASE_SHIFT
-RAIN_COLOR_T_RANGE   = 0.20
-LIGHTNING_PHASE_MIN  = 0.49 + _RAIN_PHASE_SHIFT
-LIGHTNING_PHASE_MAX  = 0.58 + _RAIN_PHASE_SHIFT
+# The rain/snow SHAPE offsets below are authored as phase fractions of the
+# ORIGINAL 320 s cycle. Since phase→time is phase × CYCLE_SECONDS, a fixed phase
+# width would STRETCH (in seconds AND pillars) when the day is lengthened to
+# absorb the clown event. Scale every offset/width from the event's anchor by
+# (original cycle / current cycle) so each event keeps its ORIGINAL wall-clock
+# duration (and pillar span) regardless of day length. The anchors (drizzle
+# start, snow lower edge) stay pinned to their start pillars. =1.0 on the
+# original cycle (no-op when the day isn't extended).
+_WIDTH_SCALE = _BASE_CYCLE / _CYCLE_SECONDS
 
-# Snow squall (shifted by config.SNOW_START_PILLAR).
-SNOW_STORM_CENTER    = 0.85 + _SNOW_PHASE_SHIFT
-SNOW_STORM_WIDTH     = 0.13
+# Module-level rain + lightning phase constants. The drizzle START is anchored to
+# RAIN_START_PILLAR; every offset/width from it is scaled to hold its duration.
+RAIN_DRIZZLE_START   = _RAIN_DRIZZLE_START_BASE + _RAIN_PHASE_SHIFT
+RAIN_DRIZZLE_PEAK    = RAIN_DRIZZLE_START + 0.10 * _WIDTH_SCALE
+RAIN_DRIZZLE_END     = RAIN_DRIZZLE_START + 0.18 * _WIDTH_SCALE
+RAIN_STORM_PEAK      = RAIN_DRIZZLE_START + 0.18 * _WIDTH_SCALE
+RAIN_STORM_WIDTH     = 0.08 * _WIDTH_SCALE
+RAIN_COLOR_T_START   = RAIN_DRIZZLE_START + 0.03 * _WIDTH_SCALE
+RAIN_COLOR_T_RANGE   = 0.20 * _WIDTH_SCALE
+LIGHTNING_PHASE_MIN  = RAIN_DRIZZLE_START + 0.17 * _WIDTH_SCALE
+LIGHTNING_PHASE_MAX  = RAIN_DRIZZLE_START + 0.26 * _WIDTH_SCALE
+
+# Snow squall: lower edge anchored to SNOW_START_PILLAR; center offset + width
+# scaled to hold the squall's original duration.
+_SNOW_LOWER_EDGE     = _SNOW_LOWER_EDGE_BASE + _SNOW_PHASE_SHIFT
+SNOW_STORM_CENTER    = _SNOW_LOWER_EDGE + 0.10 * _WIDTH_SCALE
+SNOW_STORM_WIDTH     = 0.13 * _WIDTH_SCALE
 
 # Morning-thermal (geyser) phase window — long buildup, short fade. Named here
 # so the curve in `thermal_intensity` and anything anchored to the event (the
@@ -121,7 +135,7 @@ SNOW_STORM_WIDTH     = 0.13
 # and its dependents follow. Expressed as wall-clock SECONDS over the live cycle
 # so the geyser stays at the same time (~pillar 47, before the clown event) even
 # as the cycle lengthens to absorb the clown insertion — don't hard-code /320.
-from game.biome import CYCLE_SECONDS as _CYCLE_SECONDS
+# (_CYCLE_SECONDS imported with the width-scale block above.)
 THERMAL_START_PHASE  = 50.0 / _CYCLE_SECONDS
 THERMAL_PEAK_PHASE   = 96.0 / _CYCLE_SECONDS
 THERMAL_END_PHASE    = 112.0 / _CYCLE_SECONDS

@@ -1,5 +1,5 @@
 """Render the run's content map on a PAGODAS-PASSED axis under
-``docs/screenshots/event_pagoda_map_clown_v3.png``. Run from the repo root:
+``docs/screenshots/event_pagoda_map_clown_v4.png``. Run from the repo root:
 
     python tools/plot_event_pagoda_map.py
 
@@ -235,7 +235,7 @@ def main() -> None:
               fontsize=8.5)
 
     fig.tight_layout()
-    out_path = os.path.join(out_dir, "event_pagoda_map_clown_v3.png")
+    out_path = os.path.join(out_dir, "event_pagoda_map_clown_v4.png")
     fig.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
     print(f"wrote {out_path}")
