@@ -114,6 +114,12 @@ ACHIEVEMENTS: tuple[Achievement, ...] = (
     Achievement("day_three", "Three-Day Weekend",
                 "Survive three full day cycles in one run.",
                 CAT_PROGRESS, "day", "cycles_completed", 3),
+    Achievement("frequent_flyer", "Frequent Flyer",
+                "Pass 1,000 pillars all-time.",
+                CAT_PROGRESS, "pillar", "total_pillars", 1000, scope="life"),
+    Achievement("globetrotter", "Globetrotter",
+                "Pass 10,000 pillars all-time.",
+                CAT_PROGRESS, "pillar", "total_pillars", 10000, scope="life"),
 
     # ── Riches ────────────────────────────────────────────────────────────
     Achievement("coin_25_run", "Pocket Change",
@@ -128,6 +134,12 @@ ACHIEVEMENTS: tuple[Achievement, ...] = (
     Achievement("coins_5000_life", "Coin Vault",
                 "Collect 5,000 coins all-time.",
                 CAT_RICHES, "coin", "total_coins", 5000, scope="life"),
+    Achievement("coin_tycoon", "Coin Tycoon",
+                "Collect 25,000 coins all-time.",
+                CAT_RICHES, "coin", "total_coins", 25000, scope="life"),
+    Achievement("midas", "Midas Touch",
+                "Collect 100,000 coins all-time.",
+                CAT_RICHES, "coin", "total_coins", 100000, scope="life"),
 
     # ── Power Player ──────────────────────────────────────────────────────
     Achievement("first_powerup", "Power Up!",
@@ -145,6 +157,12 @@ ACHIEVEMENTS: tuple[Achievement, ...] = (
     Achievement("greasy_fingers", "Finger Lickin'",
                 "Go into KFC mode.",
                 CAT_POWERUPS, "kfc", "pu:kfc", 1),
+    Achievement("power_hungry", "Power Hungry",
+                "Collect 100 power-ups all-time.",
+                CAT_POWERUPS, "powerup", "total_powerups", 100, scope="life"),
+    Achievement("power_addict", "Power Addict",
+                "Collect 500 power-ups all-time.",
+                CAT_POWERUPS, "powerup", "total_powerups", 500, scope="life"),
 
     # ── Stormchaser ───────────────────────────────────────────────────────
     Achievement("near_miss_5", "Close Shave",
@@ -165,11 +183,41 @@ ACHIEVEMENTS: tuple[Achievement, ...] = (
     Achievement("flap_life", "Tireless Wings",
                 "Flap 5,000 times all-time.",
                 CAT_STORM, "wing", "total_flaps", 5000, scope="life"),
+    Achievement("headbanger", "Headbanger",
+                "Bonk the ceiling 10 times in one run.",
+                CAT_STORM, "ceiling", "ceiling_hits", 10),
+    Achievement("hard_head", "Hard Head",
+                "Bonk the ceiling 200 times all-time.",
+                CAT_STORM, "ceiling", "total_ceiling", 200, scope="life"),
+    Achievement("iron_wings", "Iron Wings",
+                "Flap 50,000 times all-time.",
+                CAT_STORM, "wing", "total_flaps", 50000, scope="life"),
 
     # ── Skater ────────────────────────────────────────────────────────────
     Achievement("board_meeting", "Board Meeting",
                 "Catch a skateboard.",
                 CAT_SKATER, "skate", "pu:skateboard", 1),
+    Achievement("sponsored", "Sponsored",
+                "Catch 10 skateboards all-time.",
+                CAT_SKATER, "skate", "puseen:skateboard", 10, scope="life"),
+    Achievement("going_pro", "Going Pro",
+                "Catch 50 skateboards all-time.",
+                CAT_SKATER, "skate", "puseen:skateboard", 50, scope="life"),
+    Achievement("full_combo", "Full Combo",
+                "Land all four trick types in one run.",
+                CAT_SKATER, "skate", "trick_types", 4),
+    Achievement("trickster", "Trickster",
+                "Land 50 skateboard tricks all-time.",
+                CAT_SKATER, "skate", "total_tricks", 50, scope="life"),
+    Achievement("trick_legend", "Trick Legend",
+                "Land 500 skateboard tricks all-time.",
+                CAT_SKATER, "skate", "total_tricks", 500, scope="life"),
+    Achievement("grinder", "Grinder",
+                "Ride the rail cart 10 times all-time.",
+                CAT_SKATER, "rail", "puseen:rail", 10, scope="life"),
+    Achievement("rail_baron", "Rail Baron",
+                "Ride the rail cart 50 times all-time.",
+                CAT_SKATER, "rail", "puseen:rail", 50, scope="life"),
 
     # ── Mysteries (hidden) ────────────────────────────────────────────────
     Achievement("made_a_wish", "Three Wishes",
@@ -215,6 +263,8 @@ def _blank() -> dict:
             "total_flaps": 0,
             "total_time": 0,
             "best_cycles": 0,
+            "total_tricks": 0,          # skateboard tricks landed, all-time
+            "total_ceiling": 0,         # ceiling bonks, all-time
             "powerups_seen": {},        # kind -> lifetime pickup count
         },
     }
@@ -354,6 +404,8 @@ def _run_value(world, ach: Achievement) -> int:
         return sum(1 for v in pp.values() if v > 0)
     if s == "lottery_jackpot":
         return 1 if _has_jackpot(world) else 0
+    if s == "trick_types":
+        return len(getattr(world, "tricks_landed_types", ()) or ())
     if s.startswith("pu:"):
         return int(pp.get(s[3:], 0) or 0)
     return int(getattr(world, s, 0) or 0)
@@ -368,6 +420,8 @@ def _life_value(store: dict, ach: Achievement) -> int:
         return sum(1 for v in seen.values() if v > 0)
     if s == "magnet_life":
         return int(seen.get("magnet", 0) or 0) + int(seen.get("megamagnet", 0) or 0)
+    if s == "total_powerups":
+        return sum(int(v or 0) for v in seen.values())
     if s.startswith("puseen:"):
         return int(seen.get(s[7:], 0) or 0)
     return int(life.get(s, 0) or 0)
@@ -394,6 +448,8 @@ def _accumulate(store: dict, world) -> None:
     life["total_time"] = int(life.get("total_time", 0)) + int(getattr(world, "time_alive", 0) or 0)
     life["best_cycles"] = max(int(life.get("best_cycles", 0)),
                               int(getattr(world, "cycles_completed", 0) or 0))
+    life["total_tricks"] = int(life.get("total_tricks", 0)) + int(getattr(world, "tricks_landed", 0) or 0)
+    life["total_ceiling"] = int(life.get("total_ceiling", 0)) + int(getattr(world, "ceiling_hits", 0) or 0)
     seen = life.setdefault("powerups_seen", {})
     for kind, n in (getattr(world, "powerups_picked", {}) or {}).items():
         if n:

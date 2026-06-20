@@ -253,6 +253,14 @@ class World:
         # encountered coins grabbed" figure (coins still on screen don't
         # count as missed yet).
         self.coins_spawned = 0
+        # Ceiling bonks this run (Pip clamped against the top edge). Edge-detected
+        # via _was_ceiling_clamped so a held bonk counts once, not every frame.
+        self.ceiling_hits = 0
+        self._was_ceiling_clamped = False
+        # Skateboard tricks landed this run + the distinct trick types performed
+        # (for a "land all four in one run" goal). Both reset with the fresh World.
+        self.tricks_landed = 0
+        self.tricks_landed_types: set = set()
         self.powerups_picked = {
             "triple": 0, "magnet": 0, "megamagnet": 0, "slowmo": 0, "kfc": 0,
             "ghost": 0, "grow": 0, "reverse": 0, "surprise": 0,
@@ -1268,25 +1276,35 @@ class World:
         self.bird.backflip_t = BACKFLIP_DURATION
         self.bird.backflip_dur = BACKFLIP_DURATION
         audio.play_backflip()
+        self._record_trick("backflip")
         self._spawn_trick_bubble("BACKFLIP!")
 
     def _trigger_kickflip(self):
         self.bird.kickflip_t = KICKFLIP_DURATION
         self.bird.kickflip_dur = KICKFLIP_DURATION
         audio.play_backflip()
+        self._record_trick("kickflip")
         self._spawn_trick_bubble("KICKFLIP!")
 
     def _trigger_heelflip(self):
         self.bird.heelflip_t = HEELFLIP_DURATION
         self.bird.heelflip_dur = HEELFLIP_DURATION
         audio.play_backflip()
+        self._record_trick("heelflip")
         self._spawn_trick_bubble("HEELFLIP!")
 
     def _trigger_popshuvit(self):
         self.bird.popshuvit_t = POPSHUVIT_DURATION
         self.bird.popshuvit_dur = POPSHUVIT_DURATION
         audio.play_backflip()
+        self._record_trick("popshuvit")
         self._spawn_trick_bubble("POP SHUVIT!")
+
+    def _record_trick(self, kind: str):
+        # One landed trick: bump the run total and note the distinct type so a
+        # "land all four types in one run" goal can read len(tricks_landed_types).
+        self.tricks_landed += 1
+        self.tricks_landed_types.add(kind)
 
     # Trick bubble anchor zones — RIGHT of the score (original POW!
     # badge home) or a mirror LEFT anchor below the coins pill. Each
@@ -1854,6 +1872,12 @@ class World:
             if self.bird.vy < 0:
                 self.bird.vy = 0.0
             by = self.bird.y
+            # Count one bonk per contact (rising edge), not every clamped frame.
+            if not self._was_ceiling_clamped:
+                self.ceiling_hits += 1
+            self._was_ceiling_clamped = True
+        else:
+            self._was_ceiling_clamped = False
         # KNIGHT grace: brief window after a revive where Pip is immune to
         # ground + pipe collisions so he can clear the obstacle that hit him.
         if self.knight_invuln > 0:

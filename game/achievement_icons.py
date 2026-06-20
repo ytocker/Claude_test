@@ -384,6 +384,27 @@ def _glyph_powerup(surf, cx, cy, r, col):
     pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in pts])
 
 
+def _glyph_ceiling(surf, cx, cy, r, col):
+    # An up-arrow bonking the ceiling — "headbanger". A bar across the top, an
+    # arrowhead striking it from below, and two impact sparks at the contact.
+    w = max(3, r // 7)
+    bar_y = cy - int(r * 0.60)
+    pygame.draw.rect(surf, col, (cx - int(r * 0.80), bar_y - max(2, r // 9),
+                                 int(r * 1.60), max(3, r // 5)),
+                     border_radius=max(1, r // 12))
+    tip = (cx, bar_y + max(3, r // 7))
+    pygame.draw.lines(surf, col, False, [
+        (cx - int(r * 0.42), cy + int(r * 0.18)), tip,
+        (cx + int(r * 0.42), cy + int(r * 0.18)),
+    ], w)
+    pygame.draw.line(surf, col, (cx, cy + int(r * 0.80)), tip, w)
+    for sgn in (-1, 1):
+        sx = cx + sgn * int(r * 0.34)
+        pygame.draw.line(surf, col, (sx, bar_y + int(r * 0.16)),
+                         (sx + sgn * int(r * 0.18), bar_y + int(r * 0.36)),
+                         max(1, r // 14))
+
+
 _GLYPHS = {
     "pillar": _glyph_pillar,
     "coin": _glyph_coin,
@@ -403,6 +424,7 @@ _GLYPHS = {
     "lottery": _glyph_lottery,
     "rail": _glyph_rail,
     "poison": _glyph_poison,
+    "ceiling": _glyph_ceiling,
 }
 
 _glyph_fonts: dict = {}

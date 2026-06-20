@@ -34,6 +34,9 @@ class _FakeWorld:
         self.near_misses = kw.get("near_misses", 0)
         self.flap_count = kw.get("flap_count", 0)
         self.cycles_completed = kw.get("cycles_completed", 0)
+        self.ceiling_hits = kw.get("ceiling_hits", 0)
+        self.tricks_landed = kw.get("tricks_landed", 0)
+        self.tricks_landed_types = set(kw.get("tricks_landed_types", ()))
         self.powerups_picked = dict(ach._blank()["life"]["powerups_seen"])  # empty-ish
         self.powerups_picked = kw.get("powerups_picked", {})
         self._proof = _FakeProof(kw.get("events", []))
@@ -118,6 +121,47 @@ class TestAchievements(unittest.TestCase):
         store = ach._blank()
         w = _FakeWorld(pillars_passed=RAIN_START_PILLAR)
         self.assertIn("storm_rider", ach.evaluate_run(w, store))
+
+    def test_headbanger_run(self):
+        store = ach._blank()
+        self.assertNotIn("headbanger", ach.evaluate_run(_FakeWorld(ceiling_hits=9), store))
+        self.assertIn("headbanger", ach.evaluate_run(_FakeWorld(ceiling_hits=10), ach._blank()))
+
+    def test_full_combo_trick_types(self):
+        store = ach._blank()
+        three = _FakeWorld(tricks_landed=8,
+                           tricks_landed_types=("backflip", "kickflip", "heelflip"))
+        self.assertNotIn("full_combo", ach.evaluate_run(three, store))
+        four = _FakeWorld(tricks_landed=4,
+                          tricks_landed_types=("backflip", "kickflip", "heelflip", "popshuvit"))
+        self.assertIn("full_combo", ach.evaluate_run(four, ach._blank()))
+
+    def test_lifetime_tricks_and_ceiling_accumulate(self):
+        store = ach._blank()
+        got_trickster = False
+        for _ in range(5):
+            newly = ach.evaluate_run(_FakeWorld(tricks_landed=10, ceiling_hits=40), store)
+            got_trickster = got_trickster or ("trickster" in newly)
+        self.assertEqual(store["life"]["total_tricks"], 50)
+        self.assertEqual(store["life"]["total_ceiling"], 200)
+        self.assertTrue(got_trickster)               # 50 tricks all-time
+        self.assertIn("hard_head", store["unlocked"])  # 200 ceiling bonks all-time
+
+    def test_lifetime_skateboards_and_rails(self):
+        store = ach._blank()
+        for _ in range(10):
+            ach.evaluate_run(_FakeWorld(powerups_picked={"skateboard": 1, "rail": 1}), store)
+        self.assertEqual(store["life"]["powerups_seen"]["skateboard"], 10)
+        self.assertIn("sponsored", store["unlocked"])  # 10 skateboards
+        self.assertIn("grinder", store["unlocked"])    # 10 rails
+
+    def test_total_powerups_lifetime(self):
+        store = ach._blank()
+        # 25 power-ups per run across 4 runs = 100 → Power Hungry.
+        for _ in range(4):
+            ach.evaluate_run(_FakeWorld(powerups_picked={"triple": 13, "magnet": 12}), store)
+        self.assertIn("power_hungry", store["unlocked"])
+        self.assertNotIn("power_addict", store["unlocked"])
 
     def test_registry_ids_unique(self):
         ids = [a.id for a in ach.ACHIEVEMENTS]
