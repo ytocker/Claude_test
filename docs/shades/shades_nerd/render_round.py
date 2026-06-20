@@ -91,7 +91,7 @@ def main():
     sheet.blit(tiny.render("~7x zoom — eye reads through clear lens", True,
                            (20, 22, 28)), (zrect.left, zrect.bottom + 6))
 
-    out_path = os.path.join(_HERE, "round_1.png")
+    out_path = os.path.join(_HERE, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path, sheet.get_size())
 
