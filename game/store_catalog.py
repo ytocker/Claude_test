@@ -25,7 +25,7 @@ BASE_SKIN = "skin_base"
 CATALOG_KINDS = ("skin", "pillar", "ground", "trail", "boost")
 
 # Store browsing tabs, in display order.
-GROUPS = ("costume", "parrot", "animal", "shoes")
+GROUPS = ("costume", "parrot", "animal", "shoes", "hats")
 
 # Cost ladder is tuned so the first unlock is a goal (a few good runs) rather
 # than a side effect of session one: entry ~260, mid ~450-550, premium ~650-800,

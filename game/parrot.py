@@ -1243,10 +1243,10 @@ def _store_skin_builders() -> dict:
     global _STORE_SKINS
     if _STORE_SKINS is None:
         merged: dict = {}
-        # Costume + parrot-species skins, the from-scratch animals, then the
-        # shoes (each module is added by a later roster expansion; tolerate
-        # any being absent).
-        for modname in ("store_skins", "animal_skins", "shoe_skins"):
+        # Costume + parrot-species skins, the from-scratch animals, the shoes,
+        # then the hats (each module is added by a later roster expansion;
+        # tolerate any being absent).
+        for modname in ("store_skins", "animal_skins", "shoe_skins", "hat_skins"):
             try:
                 mod = __import__("game." + modname, fromlist=["BUILDERS"])
                 merged.update(mod.BUILDERS)
@@ -1263,7 +1263,7 @@ def _skin_icons() -> dict:
     global _SKIN_ICONS
     if _SKIN_ICONS is None:
         merged: dict = {}
-        for modname in ("shoe_skins",):
+        for modname in ("shoe_skins", "hat_skins"):
             try:
                 mod = __import__("game." + modname, fromlist=["ICONS"])
                 merged.update(getattr(mod, "ICONS", {}))

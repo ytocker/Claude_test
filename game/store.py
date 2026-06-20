@@ -41,11 +41,21 @@ _PER_PAGE = 6          # 2 columns x 3 rows; each tab pages independently
 
 _TAB_Y = 92            # tab-bar centre line
 _TABS = (("COSTUMES", "costume"), ("PARROTS", "parrot"),
-         ("ANIMALS", "animal"), ("SHOES", "shoes"))
+         ("ANIMALS", "animal"), ("SHOES", "shoes"), ("HATS", "hats"))
 
 # Owned-but-equipped accent + buy/locked chip tints.
 _EQUIP_GREEN = (96, 210, 120)
 _LOCK_GREY = (150, 140, 155)
+
+
+def _draw_chevron(surf, rect, direction) -> None:
+    """A small ``<`` / ``>`` scroll affordance at a tab-strip edge."""
+    rounded_rect(surf, rect, 9, (34, 26, 56))
+    pygame.draw.rect(surf, (90, 78, 120), rect, width=1, border_radius=9)
+    cx, cy = rect.center
+    d = direction  # -1 = left arrow, +1 = right arrow
+    pts = [(cx - 2 * d, cy - 5), (cx + 3 * d, cy), (cx - 2 * d, cy + 5)]
+    pygame.draw.lines(surf, _GOLD_BRIGHT, False, pts, 2)
 
 
 def _fit_skin(skin_id: str, box: int) -> pygame.Surface:
@@ -75,6 +85,12 @@ class StoreScene:
         self.prev_rect: "pygame.Rect | None" = None
         self.next_rect: "pygame.Rect | None" = None
         self.tab_rects: "list[pygame.Rect]" = []
+        self.tab_scroll = 0.0  # horizontal pan of the scrollable tab strip
+        self.tab_chev_l: "pygame.Rect | None" = None
+        self.tab_chev_r: "pygame.Rect | None" = None
+        self._tab_vp = pygame.Rect(12, _TAB_Y - 13, W - 24, 26)
+        self._tab_widths: "list[int]" = []
+        self._tab_gap = 6
         self.daily_rect: "pygame.Rect | None" = None
         self._toast = ("", 0.0)  # (text, seconds remaining)
         # Sub-mode: the grid, or the Prize Machine reveal playing over it.
@@ -161,23 +177,64 @@ class StoreScene:
             size=18, alpha=235, min_width=160, dim=True, shadow=False)
 
     def _draw_tabs(self, surf) -> None:
-        """COSTUMES | PARROTS | ANIMALS — the active tab is gold-filled, the
-        rest are quiet outlines. Switching a tab resets that view to page 1."""
+        """A horizontally scrollable strip of natural-width tab pills (the
+        active one gold-filled). With more tabs than fit the 360px row, the
+        strip clips to a viewport flanked by ``< >`` chevrons; the full font
+        stays readable and the item grid below keeps its place. Switching a
+        tab resets that view to page 1 and scrolls it into view."""
+        f = _font(12, True)
+        pad, gap = 11, 6
+        widths = [f.size(label)[0] + 2 * pad for label, _g in _TABS]
+        content_w = sum(widths) + gap * (len(_TABS) - 1)
+        full_vp = pygame.Rect(12, _TAB_Y - 13, W - 24, 26)
+        overflow = content_w > full_vp.width
+        chev = 18 if overflow else 0
+        vp = pygame.Rect(full_vp.x + chev, full_vp.y,
+                         full_vp.width - 2 * chev, 26)
+        max_scroll = max(0, content_w - vp.width)
+        self.tab_scroll = max(0.0, min(self.tab_scroll, float(max_scroll)))
+        # Stash layout so handle_tap can hit-test + scroll with the same metrics.
+        self._tab_vp, self._tab_widths, self._tab_gap = vp, widths, gap
+
+        prev_clip = surf.get_clip()
+        surf.set_clip(vp)
         self.tab_rects = []
-        n = len(_TABS)
-        gap = 6
-        tw = (W - 24 - gap * (n - 1)) // n
-        x0 = 12
+        cx = 0
         for i, (label, _g) in enumerate(_TABS):
-            r = pygame.Rect(x0 + i * (tw + gap), _TAB_Y - 13, tw, 26)
+            w = widths[i]
+            r = pygame.Rect(round(vp.x + cx - self.tab_scroll),
+                            _TAB_Y - 13, w, 26)
             self.tab_rects.append(r)
             active = (i == self.tab)
             rounded_rect(surf, r, 9, _GOLD_DEEP if active else (34, 26, 56))
             pygame.draw.rect(surf, _GOLD_BRIGHT if active else (90, 78, 120),
                              r, width=1, border_radius=9)
             col = (28, 18, 8) if active else _GOLD_PALE
-            t = _font(12, True).render(label, True, col)
+            t = f.render(label, True, col)
             surf.blit(t, t.get_rect(center=r.center))
+            cx += w + gap
+        surf.set_clip(prev_clip)
+
+        # Chevrons only when there's hidden content that way.
+        self.tab_chev_l = self.tab_chev_r = None
+        if overflow and self.tab_scroll > 1:
+            self.tab_chev_l = pygame.Rect(full_vp.x, full_vp.y, chev, 26)
+            _draw_chevron(surf, self.tab_chev_l, -1)
+        if overflow and self.tab_scroll < max_scroll - 1:
+            self.tab_chev_r = pygame.Rect(full_vp.right - chev, full_vp.y,
+                                          chev, 26)
+            _draw_chevron(surf, self.tab_chev_r, 1)
+
+    def _scroll_tab_into_view(self, i: int) -> None:
+        """Pan the strip so tab ``i`` is fully visible (used on tab select)."""
+        if not getattr(self, "_tab_widths", None):
+            return
+        x = sum(self._tab_widths[:i]) + self._tab_gap * i
+        w = self._tab_widths[i]
+        if x < self.tab_scroll:
+            self.tab_scroll = float(x)
+        elif x + w > self.tab_scroll + self._tab_vp.width:
+            self.tab_scroll = float(x + w - self._tab_vp.width)
 
     def _draw_daily(self, surf) -> None:
         """Top-right daily-reward pill: claimable shows the bonus in gold,
@@ -342,11 +399,20 @@ class StoreScene:
             return "back"
         if self.back_rect and self.back_rect.collidepoint(pos):
             return "back"
+        if self.tab_chev_l and self.tab_chev_l.collidepoint(pos):
+            self.tab_scroll = max(0.0, self.tab_scroll - self._tab_vp.width * 0.6)
+            return None
+        if self.tab_chev_r and self.tab_chev_r.collidepoint(pos):
+            self.tab_scroll += self._tab_vp.width * 0.6
+            return None
         for i, r in enumerate(self.tab_rects):
-            if r.collidepoint(pos):
+            # Only count taps inside the viewport so a pill peeking under a
+            # chevron isn't selectable by its hidden edge.
+            if r.collidepoint(pos) and self._tab_vp.collidepoint(pos):
                 if i != self.tab:
                     self.tab = i
                     self.page = 0  # each tab starts at its first page
+                    self._scroll_tab_into_view(i)
                 return None
         if self.daily_rect and self.daily_rect.collidepoint(pos):
             got = store_data.claim_daily()
