@@ -69,7 +69,7 @@ F_TAG = pygame.font.SysFont("Arial", 12, bold=True)
 TEXT = (236, 238, 250)
 SUB = (170, 186, 214)
 
-sheet.blit(F_TITLE.render("Skybit — THUNDERBIRD (legendary) · Round 2 · STORM-RAPTOR", True, TEXT), (PAD, 12))
+sheet.blit(F_TITLE.render("Skybit — THUNDERBIRD (legendary) · Round 3 · STORM-RAPTOR", True, TEXT), (PAD, 12))
 sheet.blit(F_SUB.render(
     "ONE converged design. v1 raptor + v4's single ASYMMETRIC under-wing fork (diagonal-outward). "
     "Hero 130px (clap) · 40px smooth · NEAREST x3 (clap / up-dive).",
@@ -162,6 +162,6 @@ for idx, (sky_name, sky_top, sky_bot, is_night) in enumerate(SKIES):
                             (90, 60, 20) if not is_night else (210, 200, 150)),
                (game_panel.x + 8, game_panel.bottom - 18))
 
-out_path = os.path.join(_here, "round_2.png")
+out_path = os.path.join(_here, "round_3.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())

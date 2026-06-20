@@ -1,7 +1,7 @@
-"""Round-2 review sheet for the single production AXOLOTL skin.
+"""Round-3 review sheet for the single production AXOLOTL skin.
 
-Round 1 was a 5-up exploration; round 2 converges to ONE design, so this sheet
-proofs that single build hard, the way the art-director asked:
+Round 1 was a 5-up exploration; rounds 2–3 proof ONE converged design hard,
+the way the art-director asked:
 
   * HERO 130px on a white field FIRST (the rim must survive near-white-on-pale),
     then on the real in-game bright-day and night skies.
@@ -97,11 +97,11 @@ W, H = 1180, 760
 sheet = pygame.Surface((W, H))
 _grad(sheet, sheet.get_rect(), (26, 22, 38), (42, 28, 50))
 
-sheet.blit(F_TITLE.render("Skybit — AXOLOTL Store Skin · Round 2 (production build)",
+sheet.blit(F_TITLE.render("Skybit — AXOLOTL Store Skin · Round 3 (production build)",
                           True, INK), (24, 16))
 sheet.blit(F_SUB.render(
-    "skin_axolotl · leucistic antler-crown · 1px #A03A5E rim · 5-fork crown (3/2) · closed dot-smile."
-    "  Skies = real game/biome.py DAY + NIGHT keyframes.", True, SUB), (24, 48))
+    "skin_axolotl · leucistic antler-crown · 1px #A03A5E rim · 5-fork crown (3/2) · 3-dot face."
+    "  Crown bloom capped ~98°; tines 2px full-length; dive face = 3 dots.", True, SUB), (24, 48))
 
 # ── row 1: hero on WHITE | DAY | NIGHT ───────────────────────────────────────
 hero_y = 78
@@ -147,7 +147,7 @@ for i, (label, top, bot, starseed) in enumerate((
 
 # ── row 3: pulse strip — down-pose (tight) vs up-pose (bloom) at 40px x5 ──────
 pulse_y = strip_y + 220
-sheet.blit(F_H.render("Crown pulse — down-pose (tight ~30°) → up-pose (bloom ~120°)",
+sheet.blit(F_H.render("Crown pulse — down-pose (tight ~30°) → up-pose (bloom ~98° capped)",
                       True, INK), (24, pulse_y))
 ppanel = pygame.Rect(24, pulse_y + 26, W - 48, 96)
 _grad(sheet, ppanel, (60, 52, 78), (40, 34, 56))
@@ -164,6 +164,6 @@ hu = smooth(3, 0, 86)
 sheet.blit(hd, hd.get_rect(center=(ppanel.right - 150, ppanel.centery)))
 sheet.blit(hu, hu.get_rect(center=(ppanel.right - 60, ppanel.centery)))
 
-out_path = os.path.join(_here, "round_2.png")
+out_path = os.path.join(_here, "round_3.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())

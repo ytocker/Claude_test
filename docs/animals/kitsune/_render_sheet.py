@@ -110,7 +110,7 @@ F_SUB = pygame.font.SysFont("Arial", 14)
 F_PANEL = pygame.font.SysFont("Arial", 18, bold=True)
 F_TAG = pygame.font.SysFont("Arial", 12, bold=True)
 
-sheet.blit(F_TITLE.render("Skybit — KITSUNE (legendary crown jewel) · Round 2", True, TEXT), (PAD, 14))
+sheet.blit(F_TITLE.render("Skybit — KITSUNE (legendary crown jewel) · Round 3", True, TEXT), (PAD, 14))
 sheet.blit(F_SUB.render(
     "ONE production build. HERO 130px (gold aura ring, store card) · 40px level & dive (smooth) · NEAREST x3 (honest gameplay read).",
     True, SUB), (PAD, 44))
@@ -178,6 +178,6 @@ day = build_panel("BRIGHT DAY SKY", DAY_TOP, DAY_BOT, False, (70, 92, 120))
 sheet.blit(night, (PAD, HEADER_H + PAD))
 sheet.blit(day, (PAD + PANEL_W + COL_GAP, HEADER_H + PAD))
 
-out_path = os.path.join(_here, "round_2.png")
+out_path = os.path.join(_here, "round_3.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())

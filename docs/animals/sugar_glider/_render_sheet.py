@@ -1,4 +1,4 @@
-"""Round-2 review sheet for the converged SUGAR GLIDER Store skin.
+"""Round-3 review sheet for the converged SUGAR GLIDER Store skin.
 
 One production design (V4 twilight, refined per the punch list). Shown at hero
 130px and at the in-game truth-test scale (40px, level + dive) on THREE skies:
@@ -61,7 +61,7 @@ F_SUB = pygame.font.SysFont("Arial", 14)
 F_NAME = pygame.font.SysFont("Arial", 19, bold=True)
 F_TAG = pygame.font.SysFont("Arial", 12, bold=True)
 
-sheet.blit(F_TITLE.render("Skybit — Sugar Glider Skin · Round 2 (converged)", True, TEXT), (PAD, 14))
+sheet.blit(F_TITLE.render("Skybit — Sugar Glider Skin · Round 3 (final pass)", True, TEXT), (PAD, 14))
 sheet.blit(F_SUB.render(
     "Single production build (skin_sugar_glider). HERO 130px + 40px NEAREST x3 (level+dive) on "
     "DAY / PALE-CLOUD / NIGHT. North star: lives or dies at 40px in motion.",
@@ -144,7 +144,7 @@ for fi in range(4):
     cx = strip.x + 90 + fi * 180
     img = nearest40(fi, 0, MAG)
     sheet.blit(img, img.get_rect(center=(cx, strip.centery)))
-    sheet.blit(F_TAG.render(["spread (glide)", "mid", "mid", "tucked (dart)"][fi], True, (200, 200, 230)),
+    sheet.blit(F_TAG.render(["tucked (dart)", "mid-tuck", "mid-spread", "spread (glide)"][fi], True, (200, 200, 230)),
                (cx - 40, strip.bottom - 18))
 
 # ── Section C · the honest 40px read, NEAREST x3, level + dive, all skies ─────
@@ -165,6 +165,6 @@ for i, (label, top, bot, stars, tagcol) in enumerate(SKIES):
     sheet.blit(dive, dive.get_rect(center=(r.centerx, r.y + r.h * 0.72)))
     sheet.blit(F_TAG.render(label + " · level / dive", True, tagcol), (r.x + 8, r.bottom - 20))
 
-out_path = os.path.join(_here, "round_2.png")
+out_path = os.path.join(_here, "round_3.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())

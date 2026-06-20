@@ -139,55 +139,46 @@ def _jewel_eye(surf, cx, cy, r, *, glow):
 
 # ═════════════════════════════════════════════════════════════════════════════
 # Raptorial club arm — a "boxing-glove" dactyl club on a folded arm.
-#   `s` 0..1 cocked→punched. The near (lead) club throws a full haymaker that
-#   crosses PAST the snout on the punch; the far (rear) club stays lower and
-#   shorter for depth. Both fists carry a dark heel rim so they never merge.
+#   Drawn in ABSOLUTE world coordinates straight onto the body surface so the
+#   two fists can be aimed at independent targets: the lead fist drives UP +
+#   FORWARD to OVERLAP the snout vector on the punch, the rear fist parks as a
+#   separate orange mass with a clear gap to the lead fist. Aiming in world
+#   space (not nested local offsets) is what keeps both reads honest at 40px.
 # ═════════════════════════════════════════════════════════════════════════════
-def _club_arm(s, *, club_col, club_hi, arm_col, length, club_r, lead,
-              glow):
-    """One raptorial club arm on its own surface, anchored at the shoulder.
+def _club_arm(surf, shoulder, elbow, fist, *, club_col, club_hi, arm_col,
+              club_r, lead, glow):
+    """Draw one raptorial club arm (shoulder→elbow→fist) at world coordinates.
 
-    lead=True  → the hero fist: cocked low+outward (clear of the snout), then
-                 punched up+forward crossing the snout line.
-    lead=False → the rear fist: damped, kept lower/back for the double-fist
-                 read with a sky-gap to the lead club.
-    Returns the surface; the caller blits it at the shoulder offset."""
-    w = pygame.Surface((44, 36), pygame.SRCALPHA)
-    sh = (8, 22)                                  # shoulder pivot
-
-    if lead:
-        # Cocked: fist pulled DOWN + OUTWARD so it never occludes the snout.
-        # Punched: elbow drives up, fist crosses up past the snout line.
-        elbow = (sh[0] + 7 + int(s * 5), sh[1] - 2 - int(s * 8))
-        fist  = (sh[0] + 10 + int(s * length),
-                 sh[1] + 8 - int(s * 18))
-    else:
-        # Rear fist: shorter throw, parked low+back for depth.
-        elbow = (sh[0] + 6 + int(s * 3), sh[1] + 2 - int(s * 3))
-        fist  = (sh[0] + 8 + int(s * length),
-                 sh[1] + 10 - int(s * 8))
-
+    The striking face points along the shoulder→fist vector so the club reads
+    as a hammer thrown in the punch direction, not a static ball. Each fist
+    keeps a dark heel rim so the twin fists never visually merge."""
     # Segmented limb: dark-rimmed so the arm separates from the shield.
-    pygame.draw.line(w, _RIM, sh, elbow, 5)
-    pygame.draw.line(w, arm_col, sh, elbow, 3)
-    pygame.draw.line(w, _RIM, elbow, fist, 5)
-    pygame.draw.line(w, arm_col, elbow, fist, 3)
-    pygame.draw.circle(w, arm_col, elbow, 2)
+    pygame.draw.line(surf, _RIM, shoulder, elbow, 5)
+    pygame.draw.line(surf, arm_col, shoulder, elbow, 3)
+    pygame.draw.line(surf, _RIM, elbow, fist, 5)
+    pygame.draw.line(surf, arm_col, elbow, fist, 3)
+    pygame.draw.circle(surf, arm_col, elbow, 2)
 
     # The dactyl club — a chunky rounded fist with a dark heel rim so the two
-    # fists keep a 1px dark separation even when they overlap in depth.
-    pygame.draw.circle(w, _STALK_RIM, fist, club_r + 1)
-    pygame.draw.circle(w, club_col, fist, club_r)
-    pygame.draw.circle(w, club_hi, (fist[0] - 1, fist[1] - 1), max(1, club_r - 2))
-    # Striking-face ridge so the club reads as a hammer, not a ball.
-    pygame.draw.line(w, _CLUB_D,
-                     (fist[0] + club_r - 1, fist[1] - club_r + 1),
-                     (fist[0] + club_r - 1, fist[1] + club_r - 1), 1)
-    # Hot strike-spark on the leading face (and a night halo on the lead fist).
-    pygame.draw.circle(w, _CLUB_TIP, (fist[0] + max(1, club_r - 2), fist[1]), 1)
+    # fists keep a 1px dark separation even when they sit close in depth.
+    pygame.draw.circle(surf, _STALK_RIM, fist, club_r + 1)
+    pygame.draw.circle(surf, club_col, fist, club_r)
+    pygame.draw.circle(surf, club_hi, (fist[0] - 1, fist[1] - 1), max(1, club_r - 2))
+
+    # Striking-face spark + ridge oriented along the throw so the hammer face
+    # leads. dx,dy is the unit-ish punch direction from the shoulder.
+    dx, dy = fist[0] - shoulder[0], fist[1] - shoulder[1]
+    mag = max(1.0, math.hypot(dx, dy))
+    ux, uy = dx / mag, dy / mag
+    fx, fy = int(fist[0] + ux * (club_r - 1)), int(fist[1] + uy * (club_r - 1))
+    pygame.draw.line(surf, _CLUB_D,
+                     (int(fist[0] + ux * club_r - uy * club_r),
+                      int(fist[1] + uy * club_r + ux * club_r)),
+                     (int(fist[0] + ux * club_r + uy * club_r),
+                      int(fist[1] + uy * club_r - ux * club_r)), 1)
+    pygame.draw.circle(surf, _CLUB_TIP, (fx, fy), 1)
     if glow and lead:
-        _glow_dot(w, fist[0] + club_r - 1, fist[1], max(2, club_r - 3), _CLUB)
-    return w
+        _glow_dot(surf, fx, fy, max(2, club_r - 3), _CLUB)
 
 
 def _segmented_tail(surf, cx, cy, *, count, span):
@@ -209,6 +200,10 @@ def _segmented_tail(surf, cx, cy, *, count, span):
             (tx, cy), (tx + dx, cy + dy), (tx + dx + 3, cy + dy)], 1)
 
 
+def _lerp_pt(a, b, t):
+    return (int(a[0] + (b[0] - a[0]) * t), int(a[1] + (b[1] - a[1]) * t))
+
+
 def _build(wing_angle_deg, *, glow):
     surf = _new()
     s = _strike(wing_angle_deg)
@@ -220,11 +215,21 @@ def _build(wing_angle_deg, *, glow):
     bcx, bcy = BCX + rcx, BCY + rcy
     hcx, hcy = HCX + rcx, HCY + rcy
 
-    # ── REAR fist: parked low+back, behind the shield, for the double-fist
-    #    read. Sits clearly below + behind the lead fist (sky-gap between them).
-    far = _club_arm(s * 0.6, club_col=_CLUB_D, club_hi=_CLUB,
-                    arm_col=_CARA_D, length=8, club_r=6, lead=False, glow=glow)
-    surf.blit(far, (hcx - 6, hcy + 9))
+    # Shared front-lower shoulder for both arms. World-space targets below are
+    # tuned so (a) the rear fist is ALWAYS a separate orange mass parked below
+    # the lead fist with a sky gap, and (b) the lead fist drives UP+FORWARD to
+    # OVERLAP the snout vector on the punch — the single dominant diagonal that
+    # sells "strike" at 40px.
+    sh = (bcx + 7, bcy + 3)
+
+    # ── REAR fist: behind the shield, the second of the two fists. Cocked it
+    #    sits low+forward; punched it rises a little but STAYS below the lead
+    #    fist's path so the two orange masses never collapse into one.
+    far_elbow = _lerp_pt((bcx + 10, bcy + 9), (bcx + 13, bcy + 8), s)
+    far_fist  = _lerp_pt((bcx + 14, bcy + 14), (bcx + 21, bcy + 10), s)
+    _club_arm(surf, (bcx + 4, bcy + 6), far_elbow, far_fist,
+              club_col=_CLUB_D, club_hi=_CLUB, arm_col=_CARA_D,
+              club_r=6, lead=False, glow=glow)
 
     # Segmented abdomen + orange tail-fan.
     _segmented_tail(surf, bcx - 7, bcy + 1, count=3, span=18)
@@ -264,11 +269,16 @@ def _build(wing_angle_deg, *, glow):
         pygame.draw.line(surf, _STALK, base, tip, 3)        # 3px stalk core
         _jewel_eye(surf, tip[0], tip[1], 6, glow=glow)      # jewel ≈ 2× stalk
 
-    # ── HERO: OVERSIZED lead club — the haymaker. On the punch it crosses up
-    #    PAST the snout line; cocked it sits low+outward, clear of the face.
-    near = _club_arm(s, club_col=_CLUB, club_hi=_CLUB_H,
-                     arm_col=_CARA_D, length=13, club_r=8, lead=True, glow=glow)
-    surf.blit(near, (hcx - 7, hcy + 4))
+    # ── HERO: OVERSIZED lead club — the haymaker, drawn IN FRONT of head+shield.
+    #    Cocked (s=0): pulled low+forward, clear of the face. Punched (s=1): the
+    #    fist drives UP + FORWARD to land OVER the snout — the orange mass clearly
+    #    overlaps the snout vector (hcx,hcy → eye-jewels), reading as a punch
+    #    thrown past the face, never a leg dangling under the gut.
+    near_elbow = _lerp_pt((bcx + 13, bcy + 6), (hcx + 5, hcy + 0), s)
+    near_fist  = _lerp_pt((bcx + 19, bcy + 11), (hcx + 15, hcy - 10), s)
+    _club_arm(surf, sh, near_elbow, near_fist,
+              club_col=_CLUB, club_hi=_CLUB_H, arm_col=_CARA_D,
+              club_r=8, lead=True, glow=glow)
     return surf
 
 

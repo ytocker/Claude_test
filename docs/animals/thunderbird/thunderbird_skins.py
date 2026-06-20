@@ -90,9 +90,16 @@ PLUME    = (58, 74, 107)        # #3A4A6B plumage
 PLUME_D  = (26, 34, 56)         # #1A2238 storm shadow
 PLUME_H  = (104, 124, 168)      # lifted plume highlight
 PLUME_HH = (150, 170, 214)      # sharpened plume-tip highlight (survives day)
+# Top-down value ramp: the raptor's back/top arc must read as the LIGHT side so
+# the silhouette separates from a pale-blue day sky instead of going flat-dark.
+PLUME_TOP = (92, 112, 156)      # lifted top-of-body value (~+18% on PLUME)
+BODY_KEY  = (176, 196, 234)     # cool key-light top-rim edge (1px back arc)
 BOLT     = (255, 225, 77)       # #FFE14D lightning
 BOLT_HOT = (255, 244, 168)      # hot inner yellow
 RIM      = (127, 208, 255)      # electric storm-blue rim
+# Belly stripe pulled DOWN a value-step and shifted teal so the white-cored EYE
+# stays the unambiguous single brightest blue point at 40px on bright day.
+BELLY    = (78, 150, 168)       # teal belly rim (was full RIM cyan)
 EYE_BLUE = (96, 196, 255)       # eye halo storm-blue
 FLASH    = (255, 255, 255)      # flash core
 
@@ -166,12 +173,20 @@ def build_thunderbird(wing_angle_deg):
     pygame.draw.polygon(surf, PLUME,
                         [(14, BCY - 2), (5, BCY + 5), (16, BCY + 9)])
 
-    # Broad body — fixed mass across all frames.
+    # Broad body — fixed mass across all frames. A top-down value ramp keeps the
+    # back/top arc light so the raptor separates from a pale day sky: dark base,
+    # mid body, a lifted upper cap, then a 1px cool key-light rim on the back.
     _aaellipse(surf, PLUME_D, (BCX + 1, BCY + 1), 18, 16)
     _aaellipse(surf, PLUME, (BCX, BCY), 17, 15)
-    _aaellipse(surf, PLUME_H, (BCX - 3, BCY - 3), 8, 5)
-    # Electric rim-light arc under the belly so the body reads as charged.
-    pygame.draw.arc(surf, RIM, (BCX - 16, BCY - 12, 32, 30),
+    _aaellipse(surf, PLUME_TOP, (BCX - 1, BCY - 5), 15, 9)
+    _aaellipse(surf, PLUME_H, (BCX - 3, BCY - 4), 8, 5)
+    # Cool key-light edge tracing the top-of-back arc — the 1px brighter stroke
+    # that pulls the silhouette off a bright-blue sky (light-top, dark-belly).
+    pygame.draw.arc(surf, BODY_KEY, (BCX - 17, BCY - 16, 34, 30),
+                    math.radians(28), math.radians(172), 2)
+    # Electric belly rim — pulled teal + a value-step down so it can't tie with
+    # the white-cored eye for 'brightest point' on bright day.
+    pygame.draw.arc(surf, BELLY, (BCX - 16, BCY - 12, 32, 30),
                     math.radians(200), math.radians(340), 2)
 
     # Head + two back-swept curved plumes (thunderbird crown). Sharpened tips:
@@ -187,6 +202,10 @@ def build_thunderbird(wing_angle_deg):
                             [(hx + 1, CROWN_Y + 5), tip, (hx, CROWN_Y - 4)])
         # Hard plume-tip stroke — the +1px sharper edge that holds at day-sky.
         pygame.draw.line(surf, PLUME_HH, (hx, CROWN_Y + 2), tip, 1)
+        # Cool-white tip edge — keeps the crest spiking against a pale day sky
+        # where PLUME_HH alone nearly dissolved into the body value.
+        pygame.draw.line(surf, BODY_KEY, (hx - sgn * 3, CROWN_Y - 2), tip, 1)
+        pygame.draw.circle(surf, BODY_KEY, tip, 1)
 
     # THE blazing eye — one storm-blue eye with a white-hot core. Built as the
     # single brightest point on the sprite so it stays a tell at 40px on both
@@ -217,22 +236,25 @@ def build_thunderbird(wing_angle_deg):
     # a faint stub on the up-pose.
     ox, oy = 18, BCY + 6                  # forward, mid-wing origin
     if s > 0.5:
-        # Clap: a single bold zig-zag driving DIAGONALLY down-and-out (each
-        # segment drifts further LEFT than it drops, so it reads as a sky-bolt
-        # angling away from the body — never a vertical pair that looks like
-        # legs). One short crackle branch peels off the same side for spectacle.
+        # Clap: a single bold zig-zag driving DIAGONALLY down-and-OUT — each
+        # segment now drifts more LEFT than it drops (steeper outward lean) so
+        # the fork visibly leaves the body into open sky and can't read as a
+        # near-vertical leg. It ends in ONE sharp zig-zag point (no lower split)
+        # so the terminal is never a two-toe foot. One mid crackle branch peels
+        # UP-and-out for spectacle — kept above the tip so it can't form a Y.
         reach = int((s - 0.5) * 2 * 10)
-        _bolt(surf, [(ox, oy), (ox - 6, oy + 6), (ox - 3, oy + 9),
-                     (ox - 11, oy + 15), (ox - 7, oy + 18),
-                     (ox - 17 - reach, oy + 24 + reach)],
+        _bolt(surf, [(ox, oy), (ox - 8, oy + 5), (ox - 4, oy + 9),
+                     (ox - 15, oy + 13), (ox - 10, oy + 17),
+                     (ox - 24 - reach, oy + 22 + reach)],
               core=FLASH, glow=BOLT, halo=RIM, w=2)
-        _bolt(surf, [(ox - 11, oy + 15), (ox - 18 - reach, oy + 17)],
+        _bolt(surf, [(ox - 15, oy + 13), (ox - 23 - reach, oy + 11)],
               core=BOLT_HOT, glow=BOLT, halo=RIM, w=1)
     elif s > 0.05:
-        # Mid-stroke: shorter single zig-zag, same diagonal-outward read.
+        # Mid-stroke: shorter single zig-zag, same steeper diagonal-outward
+        # read, ending in one sharp point.
         reach = int(s * 8)
-        _bolt(surf, [(ox, oy), (ox - 6, oy + 6), (ox - 3, oy + 9),
-                     (ox - 10 - reach, oy + 14 + reach)],
+        _bolt(surf, [(ox, oy), (ox - 8, oy + 5), (ox - 4, oy + 9),
+                     (ox - 14 - reach, oy + 13 + reach)],
               core=FLASH, glow=BOLT, halo=RIM, w=2)
     else:
         # Up-pose: faint stub only, kept short + forward so it never trails as

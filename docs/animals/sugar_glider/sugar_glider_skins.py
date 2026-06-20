@@ -88,8 +88,11 @@ _FUR_H   = (140, 144, 172)
 _MEMB    = (84, 88, 112)
 _MEMB_D  = (58, 62, 84)
 _RIM     = (34, 36, 50)          # dark membrane rim — the day-pop edge
-_SPINE   = (52, 55, 74)          # one value step darker than the slate fur
-_SPINE_D = (38, 40, 56)          # core of the spine line for 40px survival
+# A LIGHT dorsal spine: dark-on-dark drowns at 40px, so the stripe is the
+# leading-edge highlight value (one step LIGHTER than the slate fur). A single
+# 2px stroke in the 64px build lands as a solid 1px line at 40px and survives
+# the NIGHT panel, where a dark spine would be invisible.
+_SPINE   = _FUR_H                # == (140, 144, 172)
 _BELLY   = (228, 230, 212)       # warm cream, NOT pure white (capped glow)
 _BELLY_H = (238, 240, 224)
 _GLOW    = (176, 222, 200)       # mint eye-rim
@@ -99,10 +102,12 @@ def _night_eye(surf, cx, cy, r):
     """A big round nocturnal eye: dark mask ring, near-black pupil, one bright
     top-left catch-light, and a tight mint rim. The catch-light + the mint rim
     are the two things that survive 40px and keep the eyes reading as 'glowing'
-    without blooming into a neon orb."""
+    without blooming into a neon orb. The dark fill is held a full step inside
+    the rim so the mint reads as a clean RING, not a dark disc, and the two eyes
+    stay as two separate dots at 40px rather than fusing into one blob."""
     pygame.draw.circle(surf, (30, 32, 44), (cx, cy), r + 1)
     pygame.draw.circle(surf, (250, 248, 244), (cx, cy), r)
-    pygame.draw.circle(surf, (20, 21, 26), (cx, cy), max(2, r - 1))
+    pygame.draw.circle(surf, (20, 21, 26), (cx, cy), max(2, r - 2))
     pygame.draw.circle(surf, (255, 255, 255), (cx - r // 2, cy - r // 2),
                        max(1, r // 3))
     pygame.draw.circle(surf, _GLOW, (cx, cy), r + 1, 1)
@@ -112,12 +117,19 @@ def build_sugar_glider(wing_angle_deg):
     surf = _new()
     f = _flap(wing_angle_deg)
 
+    # Centre-EXPANDING remap of the pose factor: the two mid frames (f≈.33/.67)
+    # would otherwise sit near-identical, so we stretch them away from 0.5 — one
+    # mid pulled toward the spread, the other toward the tuck — clamped to [0,1].
+    # The 4-frame membrane sweep then travels visibly and monotonically every
+    # frame instead of stalling across the middle of the cycle.
+    fm = min(1.0, max(0.0, 0.5 + (f - 0.5) * 1.7))
+
     # Exaggerated glide cycle: wide+flat taut kite on the spread (down) pose,
     # a markedly narrower tucked dart on the up pose so the silhouette delta is
     # unmistakable in motion. The spread swing is large on purpose.
-    spread = int(27 - f * 13)        # 27 → 14 px half-span
-    droop = int(f * 6)               # limbs/membrane drop + steepen as they tuck
-    flat = int((1 - f) * 3)          # taut kite sits flatter when fully spread
+    spread = int(round(27 - fm * 13))   # 27 → 14 px half-span
+    droop = int(round(fm * 6))          # limbs/membrane drop + steepen as tucked
+    flat = int(round((1 - fm) * 3))     # taut kite sits flatter when fully spread
 
     # Plume tail trailing behind (left), with a bright spine highlight.
     pygame.draw.lines(surf, _FUR_D, False,
@@ -160,14 +172,6 @@ def build_sugar_glider(wing_angle_deg):
     _aaellipse(surf, _BELLY, (BCX - 2, BCY + 4), 6, 7)
     _aaellipse(surf, _BELLY_H, (BCX - 3, BCY + 1), 3, 3)
 
-    # ── HERO spine: a single continuous dorsal stripe nose-to-tail down the
-    #    centreline ON the dark body — one value step darker than the fur, with
-    #    a darker core so the line survives the 40px downscale as ONE stroke.
-    #    Runs from the tail root, OVER the body, up onto the brow so it reads as
-    #    one unbroken line rather than a short belly bar.
-    pygame.draw.line(surf, _SPINE, (BCX - 13, BCY - 3), (HCX + 1, HCY - 5), 5)
-    pygame.draw.line(surf, _SPINE_D, (BCX - 13, BCY - 3), (HCX + 1, HCY - 5), 2)
-
     # Head.
     _aaellipse(surf, _FUR_D, (HCX, HCY + 1), 9, 9)
     _aaellipse(surf, _FUR, (HCX - 1, HCY), 8, 8)
@@ -176,11 +180,22 @@ def build_sugar_glider(wing_angle_deg):
         pygame.draw.circle(surf, _FUR_D, (ex, CROWN_Y + 2), 4)
         pygame.draw.circle(surf, (150, 150, 175), (ex, CROWN_Y + 3), 2)
 
-    # Two oversized glowing night-eyes, resolved as clean DISTINCT rounds with a
-    # ~1px dark gap so they don't fuse into one blob at small scale.
-    _night_eye(surf, HCX - 2, HCY, 4)
-    _night_eye(surf, HCX + 6, HCY, 4)
-    pygame.draw.line(surf, (24, 26, 38), (HCX + 2, HCY - 3), (HCX + 2, HCY + 3), 1)
+    # ── HERO spine: a single continuous LIGHT dorsal stroke, one value step
+    #    lighter than the slate fur, drawn UNBROKEN from the tail root, over the
+    #    body, up onto the brow. 2px here downscales to a solid 1px at 40px and
+    #    reads as one continuous line on the dark night body (a dark spine drowns).
+    #    Drawn AFTER the head fill so it carries over the brow without a break.
+    pygame.draw.line(surf, _SPINE, (BCX - 13, BCY - 3), (HCX, HCY - 6), 2)
+
+    # Two oversized glowing night-eyes, resolved as clean DISTINCT rounds. The
+    # centres are held 12px apart (vs the eyes' own 4px radius) so the dark mask
+    # rings DON'T touch — a 2px fur separator in the 64px build survives as a real
+    # 1px column at 40px, keeping the eyes as two dots rather than one fused blob.
+    _night_eye(surf, HCX - 3, HCY, 4)
+    _night_eye(surf, HCX + 7, HCY, 4)
+    # Re-assert the fur column between the masks so the separator can't close up
+    # under the smoothscale at 40px (the dive pose is the worst case).
+    pygame.draw.line(surf, _FUR, (HCX + 2, HCY - 3), (HCX + 2, HCY + 3), 2)
 
     # Tiny dark nose to finish the muzzle.
     pygame.draw.circle(surf, (40, 42, 54), (HCX + 9, HCY + 3), 2)

@@ -7,14 +7,16 @@ via the `BUILDERS` dict at the bottom. The melanoid + gold morphs are kept as
 commented alt palettes so a future re-skin can swap them in.
 
 Design language (the 40px tell):
-  * A near-white leucistic body with a permanent dot-eyed CLOSED smile — the
-    only "shouldn't-fly amphibian" in the roster, charming even mid-dive.
+  * A near-white leucistic body with a permanent dot-eyed face — three dots
+    (two eyes + a mouth dot) so it stays charming and legible even mid-dive,
+    the only "shouldn't-fly amphibian" in the roster.
   * A bold gill CROWN of 5 forks (3 one side / 2 the other) ringing the head.
     The negative SKY-GAP between forks is the tell — not the pink itself — so
     it survives both a bright cyan day sky and a near-black night sky.
   * The flap is a frilled fin-stroke: forks sweep TIGHT (~30° total) on the
-    down-pose and BLOOM into a wide ~120° fan on the up-pose, so the crown
-    visibly pulses in motion even at 40px.
+    down-pose and BLOOM into a CAPPED ~98° fan on the up-pose, so the crown
+    visibly pulses in motion even at 40px without the outer forks splaying
+    down into the body outline.
 
 Why a hard 1px dark-coral rim (#A03A5E): the leucistic body is near-white and
 would dissolve into a pale-blue day sky without it. The rim is grown from the
@@ -131,15 +133,19 @@ def _legs(surf, color, *, splay=0):
 # pose; the constant-angle spacing keeps a clear sky-gap between every fork.
 # ═════════════════════════════════════════════════════════════════════════════
 def _fork(surf, base, ang, length):
-    """One bold gill fork: a tapered stalk that splits into two tines, with a
-    single lighter tip pixel per tine. Two pink values only."""
+    """One bold gill fork: a tapered stalk that splits into two tines. Every
+    segment is drawn 2px thick along its WHOLE length so a fork never thins to a
+    frayed 1px tendril under the smoothscale → nearest gameplay pixel; the only
+    other pink value is a single lighter tip pixel per tine. Two pink values."""
     bx, by = base
     mx = bx + math.cos(ang) * length
     my = by + math.sin(ang) * length
     pygame.draw.line(surf, _GILL, (bx, by), (mx, my), 3)
-    for da in (-0.40, 0.40):
+    # Narrow the tine split so two tines read as ONE fork (not a frayed pair),
+    # and keep each tine a constant 2px so it never tapers to a tendril.
+    for da in (-0.28, 0.28):
         tang = ang + da
-        tlen = length * 0.62
+        tlen = length * 0.55
         tx = mx + math.cos(tang) * tlen
         ty = my + math.sin(tang) * tlen
         pygame.draw.line(surf, _GILL, (mx, my), (tx, ty), 2)
@@ -149,8 +155,11 @@ def _fork(surf, base, ang, length):
 
 def _crown(surf, bloom):
     """Five forks ringing the head. `bloom` 0→1 widens the fan from a tight
-    ~30° sweep (down-pose, forks nearly parallel) to a ~120° bloom (up-pose,
-    forks splayed wide) so the crown visibly PULSES at 40px in motion.
+    ~30° sweep (down-pose, forks nearly parallel) to a CAPPED ~98° bloom (up-
+    pose) so the crown visibly PULSES at 40px in motion. The cap is the fix:
+    a 120° fan splayed the two OUTER forks down INTO the body outline, so they
+    fused with the head rim and the crown read as 6–7 frayed tendrils. ~98°
+    keeps the outer forks above the brow with a clean sky-gap in every pose.
 
     Two things sell the pulse and the sky-gap:
       * each fork's ANGLE is a fixed fraction of the fan, so the angular gap
@@ -159,8 +168,11 @@ def _crown(surf, bloom):
         roots separate too — a clear pixel of sky between every fork at 40px.
     Three forks lean left of the head's up-axis, two lean right (3/2 crown).
     Longer stalks (the antler read) so the tips clear the head when bloomed."""
-    half = math.radians(15 + bloom * 45)          # 30°→120° total spread
-    spread_px = 1 + bloom * 4                       # roots fan apart on bloom
+    half = math.radians(15 + bloom * 34)          # 30°→~98° total spread (capped)
+    # Pulled the root spread in (was 1+bloom*4): on a bloomed dive the outer
+    # roots used to slide so far along the brow that their coral rim merged with
+    # the head rim — now every fork launches from clear scalp.
+    spread_px = 1 + bloom * 2.4
     # fractions in [-1, 1] across the fan: three on the left, two on the right.
     fracs = (-1.0, -0.5, 0.0, 0.5, 1.0)
     for i, fr in enumerate(fracs):
@@ -175,14 +187,19 @@ def _crown(surf, bloom):
 # Body + face
 # ═════════════════════════════════════════════════════════════════════════════
 def _face(surf):
-    """v1's clean closed dot-smile: two dot eyes + a small upturned arc, plus
-    one soft blush pixel per cheek. Bold enough to survive a steep dive frame."""
-    pygame.draw.circle(surf, _FACE, (HCX - 1, HCY - 1), 2)
-    pygame.draw.circle(surf, _FACE, (HCX + 8, HCY - 1), 2)
-    pygame.draw.arc(surf, _FACE, (HCX, HCY + 2, 9, 7),
-                    math.radians(205), math.radians(335), 2)
-    surf.set_at((HCX - 4, HCY + 3), _BLUSH)
-    surf.set_at((HCX + 11, HCY + 3), _BLUSH)
+    """Closed dot-smile: two dot eyes + a small dot mouth, plus one soft blush
+    pixel per cheek.
+
+    The mouth is a 2px DOT, not an upturned arc, and the eyes sit ~1px wider
+    apart. A drawn arc plus the lower eye used to land in the same column once
+    the dive frame rotated, collapsing the whole face into a dark vertical
+    smudge. Three separated dots can't merge under rotation, so the face stays
+    legible as dot-eyes + dot-smile in the dive pose."""
+    pygame.draw.circle(surf, _FACE, (HCX - 2, HCY - 1), 2)
+    pygame.draw.circle(surf, _FACE, (HCX + 9, HCY - 1), 2)
+    pygame.draw.circle(surf, _FACE, (HCX + 4, HCY + 6), 1)   # 2px mouth dot
+    surf.set_at((HCX - 5, HCY + 3), _BLUSH)
+    surf.set_at((HCX + 12, HCY + 3), _BLUSH)
 
 
 def build_axolotl(wing_angle_deg):

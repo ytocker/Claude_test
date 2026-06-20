@@ -137,23 +137,33 @@ RIM          = (58, 30, 70)         # baked violet-dark rim for day-sky survival
 
 
 def _band(t):
-    """Map fan position t∈[0,1] (0 = inner/centre, 1 = outer tip) to a banded
-    gold→violet plume colour set. Three discrete steps, not a smooth lerp, so
-    the eye counts warm-vs-cool plumes instead of seeing a wash. Returns
-    (body, spine_hi, tip, tip_hot)."""
-    if t < 0.30:
+    """Map RADIAL band position t∈[0,1] (0 = inner/base, 1 = outer tip) to a
+    banded gold→violet plume colour set. Three discrete steps, not a smooth
+    lerp, so the eye counts warm-vs-cool plumes instead of seeing a wash.
+    Returns (body, spine_hi, tip, tip_hot).
+
+    Banding is radial, NOT arc-symmetric: gold owns the base/inner third and
+    violet owns the upper outer tips of EVERY plume, so the violet crown rings
+    the TOP of the fan on every flank instead of pooling on one side."""
+    if t < 0.34:
         return FAN_GOLD, FAN_GOLD_HOT, TIP_GOLD, TIP_GOLD_HOT
-    if t < 0.55:
+    if t < 0.62:
         return FAN_MID, FAN_VIOLET_H, _lerp(TIP_GOLD, TIP_VIOLET, 0.6), TIP_VIOLET_H
     return FAN_VIOLET, FAN_VIOLET_H, TIP_VIOLET, TIP_VIOLET_H
 
 
-def _plume(surf, base, ang_deg, length, width, body, spine, curl):
-    """One tail plume: a LONG tapering quill from `base` swept to `ang_deg`.
+def _plume(surf, base, ang_deg, length, width, curl):
+    """One tail plume: a LONG tapering quill from `base` swept to `ang_deg`,
+    coloured RADIALLY — gold at the root, cooling to a violet crown at the tip.
     Returns the tip point so the caller can stamp the flame on top. A 1px dark
     separator down each side keeps adjacent plumes from bleeding into one mass
     — that's the 'nine' tell. The plume narrows to a point; the flame puff is
-    drawn small + bright by the caller so the SHAPE survives 40px."""
+    drawn small + bright by the caller so the SHAPE survives 40px.
+
+    The radial fill is the round-3 fix: every plume — including the low,
+    back-swept flank plumes on the dive — carries GOLD at its base and only
+    turns VIOLET at the outer/upper tip, so violet always crowns the TOP of the
+    fan and never pools as a purple paw/wing on one flank."""
     bx, by = base
     a = math.radians(ang_deg)
     ax, ay = math.cos(a), -math.sin(a)
@@ -187,25 +197,74 @@ def _plume(surf, base, ang_deg, length, width, body, spine, curl):
         (b1x - px * (half - 1), b1y - py * (half - 1)),
         (bx - px * (half - 1) * 0.7, by - py * (half - 1) * 0.7),
     ]
-    pygame.draw.polygon(surf, body, [(int(x), int(y)) for x, y in inner])
-    # Lighter spine up the centre so each plume reads as a distinct quill.
-    pygame.draw.line(surf, spine, (int(bx), int(by)),
+    ipts_inner = [(int(x), int(y)) for x, y in inner]
+    # Base coat the whole quill gold, then over-paint the OUTER segments with the
+    # cooling mid/violet bands as radial wedges. Banding (not a smooth ramp) is
+    # what survives 40px and signals "expensive."
+    pygame.draw.polygon(surf, FAN_GOLD, ipts_inner)
+    for lo, hi, col in ((0.36, 0.66, FAN_MID), (0.62, 1.04, FAN_VIOLET)):
+        seg = _quill_segment(bx, by, ax, ay, px, py, half - 1, length,
+                             curl, lo, hi)
+        if len(seg) >= 3:
+            pygame.draw.polygon(surf, col, seg)
+    # Lighter spine: gold up the root, violet up the crown, so each plume reads
+    # as a distinct quill AND the gold-base/violet-tip axis stays legible.
+    pygame.draw.line(surf, FAN_GOLD_HOT, (int(bx), int(by)),
                      (int(b2x), int(b2y)), max(1, width // 3))
+    pygame.draw.line(surf, FAN_VIOLET_H, (int(b2x), int(b2y)),
+                     (int(tipx), int(tipy)), max(1, width // 3))
     return (tipx, tipy)
+
+
+def _quill_segment(bx, by, ax, ay, px, py, half, length, curl, lo, hi):
+    """A radial wedge of the quill between fractional positions lo..hi along its
+    length, used to over-paint the cooling colour bands on the outer plume. The
+    wedge tapers like the quill itself so the bands narrow toward the tip."""
+    def edge(f, sgn):
+        # Width tapers linearly from base to tip; curl shifts the spine over.
+        w = half * (1.0 - 0.78 * f)
+        cx = bx + ax * length * f + px * curl * length * min(1.0, f / 0.72)
+        cy = by + ay * length * f + py * curl * length * min(1.0, f / 0.72)
+        return (int(cx + px * w * sgn), int(cy + py * w * sgn))
+    hi = min(hi, 1.0)
+    return [edge(lo, 1), edge(hi, 1), edge(hi, -1), edge(lo, -1)]
 
 
 # ═════════════════════════════════════════════════════════════════════════════
 # PRODUCTION BUILD — CURLED ORACLE refined: gold-base/violet-crown vertical
 # nine-tail fan, white moon-disc brow blaze, open oracle eyes.
 # ═════════════════════════════════════════════════════════════════════════════
+AURA_CORE = (255, 246, 214)         # near-white warm-gold core
+AURA_MID  = (255, 214, 110)         # radiant gold body
+AURA_R    = 47                      # blooms PAST the fan tips → emitted light
+
+
 def build_kitsune_aura():
-    """The baked gold AURA RING for the store card, on its own surface so it can
-    be composited BEHIND the already-outlined fox — otherwise the sprite outline
-    pass would trace the soft halo and ring it in dark. Kept out of the 40px
-    gameplay frames entirely so it never costs legibility at scale."""
+    """The baked radiant warm-GOLD aura for the store card, on its own surface
+    so it composites BEHIND the already-outlined fox — otherwise the sprite
+    outline pass would trace the soft halo and ring it in dark. Kept out of the
+    40px gameplay frames entirely so it never costs legibility at scale.
+
+    Round-3 rebuild: a genuine emitted-light radial — a bright near-white-gold
+    CORE ramping smoothly out to fully transparent, blooming slightly past the
+    fan tips. Painted per-pixel as a single monotonic falloff (NO stacked
+    additive amber blobs, which previously over-summed into a muddy mid-brown
+    olive band and cheapened the most-expensive store card)."""
     surf = _new()
-    for r, a in ((36, 70), (31, 95), (26, 70)):
-        _soft_glow(surf, (BCX - 1, BCY - 4), r, AURA, a)
+    cx, cy = BCX - 1, BCY - 5
+    glow = pygame.Surface((AURA_R * 2 + 2, AURA_R * 2 + 2), pygame.SRCALPHA)
+    gc = AURA_R + 1
+    # Outer→inner so the brighter near rings overwrite the dim outer ones; the
+    # colour warms toward white at the core, never passing through brown.
+    for r in range(AURA_R, 0, -1):
+        f = r / AURA_R                          # 1 = rim, 0 = core
+        # Smooth ease-out falloff to transparent so there is no hard band edge.
+        a = int(150 * (1.0 - f) ** 1.6)
+        if a <= 0:
+            continue
+        col = _lerp(AURA_CORE, AURA_MID, f)
+        pygame.draw.circle(glow, (*col, a), (gc, gc), r)
+    surf.blit(glow, (cx - gc, cy - gc))
     return surf
 
 
@@ -228,28 +287,48 @@ def build_kitsune(wing_angle_deg):
     centre = 118 - g * 26                      # gathers back-left as it lifts
     n = 9
     tips = []
-    # Draw outer→inner so the gold inner plumes sit ON TOP of the violet crown,
-    # reinforcing the gold-base / violet-edge read.
+    # Draw outer→inner so the gold inner plumes sit ON TOP, reinforcing the
+    # gold-base read; the radial fill (see _plume) keeps violet at every TIP.
     order = sorted(range(n), key=lambda i: -abs(i / (n - 1) - 0.5))
     for i in order:
         t = i / (n - 1)
         ang = centre + (t - 0.5) * fan
         length = 33 + 6 * math.sin(t * math.pi) + spread * 3
-        edge = abs(t - 0.5) * 2                # 0 = centre/gold, 1 = edge/violet
-        body, spine, tipc, tiph = _band(edge)
-        tx, ty = _plume(surf, base, ang, length, 9, body, spine,
+        tx, ty = _plume(surf, base, ang, length, 9,
                         curl=0.10 + 0.08 * spread)
-        tips.append((tx, ty, edge, tipc, tiph))
-    # Stamp tight flame tips on top — gold inner, bright violet crown. 1-2px
-    # glow only, so tips read as distinct sparks, not a soft halo that bleeds
-    # the nine tails into one cloud.
-    for tx, ty, edge, tipc, tiph in tips:
-        if edge > 0.50:
+        tips.append((tx, ty))
+    # Crown by HEIGHT, not arc symmetry: the highest tips get the bright violet
+    # flame; the lowest (the back-swept flank roots near the body) stay gold —
+    # so the violet rings the TOP of the fan instead of pooling on one flank.
+    ty_vals = [p[1] for p in tips]
+    top_y, bot_y = min(ty_vals), max(ty_vals)
+    span = max(1.0, bot_y - top_y)
+    flame_tips = []
+    for tx, ty in tips:
+        crown = 1.0 - (ty - top_y) / span      # 1 = top of fan, 0 = lowest tip
+        _, _, tipc, tiph = _band(0.20 + crown * 0.80)
+        flame_tips.append((tx, ty, crown, tipc, tiph))
+    # Stamp tight flame tips on top — gold low, bright violet crown. 1-2px glow
+    # only, so tips read as distinct sparks, not a soft halo that bleeds the
+    # nine tails into one cloud.
+    for tx, ty, crown, tipc, tiph in flame_tips:
+        if crown > 0.50:
             # Crown tips get a 1px violet glow ring — pushed bright/larger so
             # the violet edge survives 40px as the "most-expensive" crown.
             _soft_glow(surf, (int(tx), int(ty)), 4, FAN_VIOLET, 150)
         pygame.draw.circle(surf, tipc, (int(tx), int(ty)), 3)
         pygame.draw.circle(surf, tiph, (int(tx), int(ty)), 2)
+
+    # ── Dive-pose rim separator ──
+    # On the bright-day dive the back-swept violet cluster overlaps the body and
+    # loses its lower edge into the body shadow. Lay 1px of the dark RIM along
+    # the fan↔body seam (only when gathered/lifting) so the fan stays distinct
+    # from the body on light sky.
+    if g > 0.45:
+        seam = pygame.Rect(0, 0, 26, 22)
+        seam.center = (BCX - 6, BCY - 6)
+        pygame.draw.arc(surf, RIM, seam,
+                        math.radians(40), math.radians(190), 2)
 
     # ── Curled seated oracle body — a calm rounded mass, tail wrapping front ──
     _aaellipse(surf, RIM, (BCX + 1, BCY + 3), 16, 14)        # baked dark rim

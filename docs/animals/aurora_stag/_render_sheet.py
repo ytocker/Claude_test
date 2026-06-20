@@ -1,10 +1,13 @@
-"""Round-2 review sheet for the AURORA STAG production skin (v4 LYRE winner).
+"""Round-3 review sheet for the AURORA STAG production skin (final pass).
 
-Round 2 converges to ONE design, so the sheet stress-tests that single build
-the way it will actually ship: hero 130px plus the in-game truth-test scale
-(40px level + dive, smooth AND NEAREST-NEIGHBOR x3) shown PROMINENTLY on a
-BRIGHT-DAY gradient (the chroma-read insurance the art-director demanded) as
-well as on night sky. Headless (SDL dummy) so it runs in CI / on the build box.
+Round 3 applies the art-director's minimal must-fix list (palette/halo/gap/clip
+frozen): re-aimed FORWARD brow-tines that flip horns→antlers, notch-detached
+true-cross tip-stars, and a higher tine anchor so the dive rotation keeps the
+lower tine legible. The sheet stress-tests the single ship build the way it
+will actually render: hero 130px plus the in-game truth-test scale (40px level
++ dive, smooth AND NEAREST-NEIGHBOR x3) shown PROMINENTLY on a BRIGHT-DAY
+gradient (the chroma-read insurance) and on night sky. Headless (SDL dummy) so
+it runs in CI / on the build box.
 """
 import os
 import sys
@@ -79,17 +82,19 @@ def vgrad(surf, rect, top, bot):
 
 
 pygame.font.init()
-F_TITLE = pygame.font.SysFont("Arial", 28, bold=True)
+F_TITLE = pygame.font.SysFont("Arial", 26, bold=True)
 F_SUB = pygame.font.SysFont("Arial", 14)
 F_PANEL = pygame.font.SysFont("Arial", 17, bold=True)
 F_TAG = pygame.font.SysFont("Arial", 12, bold=True)
 
 
 # ── layout: two big stress-test panels side by side (DAY left, NIGHT right) ──
+# The DIVE NEAREST x3 row is widened to THREE dive instances (the must-fix #3
+# re-check: forward tine + both tip-stars must stay legible post-rotation).
 PAD = 18
 HEADER_H = 70
-PANEL_W = 470
-PANEL_H = 360
+PANEL_W = 500
+PANEL_H = 380
 SHEET_W = PAD * 3 + PANEL_W * 2
 SHEET_H = HEADER_H + PANEL_H + PAD * 2
 
@@ -105,12 +110,12 @@ for _ in range(120):
     pygame.draw.circle(sheet, (b, b, min(255, b + 40)), (sx, sy), 1)
 
 sheet.blit(F_TITLE.render(
-    "Skybit — AURORA STAG (legendary) · Round 2 · v4 LYRE BEAMS (final)",
-    True, TEXT), (PAD, 14))
+    "Skybit — AURORA STAG (legendary) · Round 3 · FORWARD TINES + NOTCHED STARS",
+    True, TEXT), (PAD, 12))
 sheet.blit(F_SUB.render(
-    "ONE production build, composited on BRIGHT-DAY (sky bottom ~170,220,245) "
-    "and NIGHT.  Hero 130px · 40px level & dive (smooth + NEAREST x3).",
-    True, SUB), (PAD, 46))
+    "ONE production build on BRIGHT-DAY (sky bottom ~170,220,245) and NIGHT.  "
+    "Hero 130px · 40px level & dive (smooth) · 40px NEAREST x3 level + x3 DIVE.",
+    True, SUB), (PAD, 44))
 
 
 def draw_panel(px, py, label, top, bot, txt, sub):
@@ -121,25 +126,33 @@ def draw_panel(px, py, label, top, bot, txt, sub):
 
     # Hero (left half).
     hero = smooth(0, 0, HERO_PX)
-    hero_cx, hero_cy = px + 120, py + 190
+    hero_cx, hero_cy = px + 110, py + 175
     sheet.blit(hero, hero.get_rect(center=(hero_cx, hero_cy)))
     sheet.blit(F_TAG.render("130px hero", True, sub),
-               (px + 64, py + 330))
+               (px + 56, py + 320))
 
     # 40px smooth reference (level + dive), top right.
     g_level = smooth(2, 0, GAME_PX)
     g_dive = smooth(1, -32, GAME_PX)
-    sheet.blit(g_level, g_level.get_rect(center=(px + 290, py + 60)))
-    sheet.blit(g_dive, g_dive.get_rect(center=(px + 380, py + 60)))
+    sheet.blit(g_level, g_level.get_rect(center=(px + 290, py + 56)))
+    sheet.blit(g_dive, g_dive.get_rect(center=(px + 360, py + 56)))
     sheet.blit(F_TAG.render("40px smooth  (level / dive)", True, sub),
-               (px + 250, py + 88))
+               (px + 250, py + 84))
 
-    # 40px NEAREST x3 — the honest gameplay-pixel read (level + dive).
+    # 40px NEAREST x3 — the honest gameplay-pixel read.
+    # One LEVEL plus THREE DIVE instances (must-fix #3 re-check: forward tine +
+    # both tip-stars stay legible through the dive rotation).
     n_level = nearest40(2, 0, MAG)
-    n_dive = nearest40(1, -32, MAG)
-    sheet.blit(n_level, n_level.get_rect(center=(px + 300, py + 210)))
-    sheet.blit(n_dive, n_dive.get_rect(center=(px + 400, py + 210)))
-    sheet.blit(F_TAG.render("40px NEAREST x3  (level / dive)", True, sub),
+    sheet.blit(n_level, n_level.get_rect(center=(px + 250, py + 215)))
+    sheet.blit(F_TAG.render("level", True, sub), (px + 232, py + 268))
+
+    for k, dive_tilt in enumerate((-24, -32, -40)):
+        n_dive = nearest40(1, dive_tilt, MAG)
+        cx = px + 330 + k * 58
+        sheet.blit(n_dive, n_dive.get_rect(center=(cx, py + 215)))
+        sheet.blit(F_TAG.render(f"{dive_tilt}", True, sub),
+                   (cx - 12, py + 268))
+    sheet.blit(F_TAG.render("40px NEAREST x3  ·  level / DIVE x3", True, sub),
                (px + 250, py + 300))
 
 
@@ -148,6 +161,6 @@ draw_panel(PAD, HEADER_H + PAD, "BRIGHT DAY (worst case)",
 draw_panel(PAD * 2 + PANEL_W, HEADER_H + PAD, "NIGHT",
            NIGHT_TOP, NIGHT_BOT, TEXT, SUB)
 
-out_path = os.path.join(_here, "round_2.png")
+out_path = os.path.join(_here, "round_3.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())

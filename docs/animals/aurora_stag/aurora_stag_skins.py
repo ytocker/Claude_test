@@ -118,22 +118,34 @@ def _glow_dot(surf, color, pos, r, alpha=120):
               special_flags=pygame.BLEND_RGBA_ADD)
 
 
-def _star(surf, pos, size, glow=AUR_GREEN):
-    """The signature floating star: a tight WHITE 4-point star with a 1px
-    coloured bloom, sitting on a small coloured halo. Kept crisp and bright so
-    it survives the rotated dive frame at 40px — this is the legendary tell."""
+def _star(surf, pos, size, glow=AUR_GREEN, *, notch_from=None):
+    """The signature floating star: a true 4px WHITE N/S/E/W cross on a 2px hot
+    core, ringed by a 1px coloured bloom and a soft halo. A 2px hard NAVY notch
+    is punched between the star and the beam tip so the star reads as a DISCRETE
+    detached point — the legendary tell — instead of a rounded blob fused to the
+    beam. Kept crisp so it survives the rotated dive at 40px.
+
+    `notch_from` is the beam-tip pixel the star floats off; the navy notch is
+    laid on the segment between it and the star so they separate at 1×."""
     x, y = int(round(pos[0])), int(round(pos[1]))
     # soft coloured halo so the star reads as a light source, not a dot.
     _glow_dot(surf, glow, (x, y), size * 2 + 2, alpha=120)
+    # hard navy notch detaching the star from the beam tip (survives 1×).
+    if notch_from is not None:
+        fx, fy = int(round(notch_from[0])), int(round(notch_from[1]))
+        pygame.draw.line(surf, NAVY_HALO, (fx, fy), (x, y), 2)
     # 1px coloured bloom one pixel out from the white arms (the chroma rim).
     for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
         pygame.draw.line(surf, (*glow, 220),
                          (x + dx * (size + 1), y + dy * (size + 1)),
                          (x + dx, y + dy), 1)
-    # crisp white 4-point arms + hot core.
-    pygame.draw.line(surf, STAR, (x - size, y), (x + size, y), 1)
-    pygame.draw.line(surf, STAR, (x, y - size), (x, y + size), 1)
-    pygame.draw.circle(surf, STAR, (x, y), max(1, size // 2 + 1))
+    # true 4px N/S/E/W cross: single-pixel spokes off a 2px hot white core.
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+        pygame.draw.line(surf, STAR, (x + dx, y + dy),
+                         (x + dx * size, y + dy * size), 1)
+    pygame.draw.circle(surf, STAR, (x, y), 1)
+    surf.set_at((x, y), STAR)
+    surf.set_at((x + 1, y), STAR)
 
 
 def _aurora_ribbon(surf, pts, width, phase, *, hot=True):
@@ -248,18 +260,31 @@ def build_aurora_stag(wing_angle_deg):
             beam.append((bx, by))
         _aurora_ribbon(surf, beam, 5, phase)
 
-        # ONE short forward brow-tine, low on the arc — the antler tell. It
-        # juts FORWARD/up off the outer face of the beam so it reads as a tine,
-        # not as more of the arc.
-        bx0, by0 = beam[2]
-        brow = [(bx0, by0 + 1),
-                (bx0 + sgn * 6, by0 - 1),
-                (bx0 + sgn * 9, by0 - 6)]
+        # ONE short forward brow-tine per beam — THE thing that flips horns→
+        # antlers. A real stag's brow-tine springs off the OUTER face of the
+        # beam and throws FORWARD (toward the nose, +x) and UP, over the eyes.
+        # Both tines lean the same forward way (not mirrored inward) so the pair
+        # never reads as a lyre/wishbone. Anchored a touch HIGHER on the arc
+        # (beam[3]) so the dive rotation swings the lower tine clear of the body
+        # instead of burying it. Stubby ~5-6px fork with its own navy rim+chroma.
+        ax, ay = beam[4]
+        # branch point sits on the outer edge of the beam core.
+        bx0 = ax + sgn * 2
+        by0 = ay + 1
+        brow = [(bx0, by0),
+                (bx0 + 3, by0 - 4),          # forward + up
+                (bx0 + 7, by0 - 7)]          # forward + up tip
         _aurora_ribbon(surf, brow, 3, phase, hot=False)
-        _star(surf, brow[-1], 2, glow=AUR_GREEN)
+        _star(surf, brow[-1], 2, glow=AUR_GREEN, notch_from=brow[-2])
 
-        # Big crowning 4-point tip-star — the signature.
-        _star(surf, beam[-1], 4, glow=(AUR_VIO if sgn < 0 else AUR_GREEN))
+        # Big crowning 4-point tip-star — the signature, detached by a navy
+        # notch from the beam tip so it survives the 1× gameplay read. Seated a
+        # hair down the final segment so the 4px cross's north arm clears the
+        # canvas top (the beam apex itself is unchanged — gap/clip frozen).
+        tipx, tipy = beam[-1]
+        star_pos = (tipx, tipy + 5)
+        _star(surf, star_pos, 4, glow=(AUR_VIO if sgn < 0 else AUR_GREEN),
+              notch_from=beam[-2])
 
     # Slim deer legs hinting the hooved body.
     for fx in (28, 37):

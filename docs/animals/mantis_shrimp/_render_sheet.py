@@ -1,4 +1,4 @@
-"""Round-2 review sheet for the production MANTIS SHRIMP skin.
+"""Round-3 review sheet for the production MANTIS SHRIMP skin.
 
 One ship-ready design (the perfected v3 DUOTONE BRUISER), shown on BOTH a
 bright-day and a night backdrop. Each backdrop carries:
@@ -77,7 +77,7 @@ F_NAME = pygame.font.SysFont("Arial", 20, bold=True)
 F_FEAT = pygame.font.SysFont("Arial", 13)
 F_TAG = pygame.font.SysFont("Arial", 12, bold=True)
 
-sheet.blit(F_TITLE.render("Skybit — MANTIS SHRIMP skin · Round 2 (DUOTONE BRUISER, ship candidate)", True, TEXT), (PAD, 14))
+sheet.blit(F_TITLE.render("Skybit — MANTIS SHRIMP skin · Round 3 (DUOTONE BRUISER, final pass)", True, TEXT), (PAD, 14))
 sheet.blit(F_SUB.render(
     "Separated twin clubs · lead haymaker crosses the snout on the punch · jewel periscopes + banded mid-stripe · night glow on eyes+club-tips only.",
     True, SUB), (PAD, 46))
@@ -155,6 +155,6 @@ def _card(cx, cy, title, getter, day):
 _card(PAD, HEADER_H + PAD, "BRIGHT DAY  ·  flat duotone", DAY, day=True)
 _card(PAD + CARD_W + PAD, HEADER_H + PAD, "NIGHT  ·  glow on eyes + club-tips", NIGHT, day=False)
 
-out_path = os.path.join(_here, "round_2.png")
+out_path = os.path.join(_here, "round_3.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())
