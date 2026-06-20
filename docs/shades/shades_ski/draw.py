@@ -2,26 +2,31 @@
 
 A single big rounded-rectangular lens spans both eyes (NOT two discs), with a
 mirrored icy-blue→violet gradient tint and a hard diagonal sheen streak (the
-goggle "flash"). A soft foam-edged frame rings the lens, and a thick two-tone
+goggle "flash"). A clean white-plastic frame rings the lens, and one solid warm
 strap wraps from the far (-facing) edge back toward the ear.
+
+SET cohesion: every frame in the eyewear set standardizes on neutral plastic so
+the LENS colour carries the personality — here the icy-blue→violet mirror. The
+frame is plain white plastic; the strap is one flat warm band.
 
 Everything scales off `eye_w` so the chunky lens + frame + strap all still read
 in-game (eye_w=22) yet bloom into a clean product shot (eye_w=96). The lens is
 a FILLED inset rounded-rect (frame rect, then the tinted glass inset by the
 frame width) rather than a stroked outline — a 1px stroke stipples at tiny
-sizes, but an inset fill is always solid foam + glass.
+sizes, but an inset fill is always solid frame + glass. At 22px the simplified
+strap (one band, no stripe) and the inset highlight stop the goggle from
+reading as random specks bleeding past Pip's scarlet head edge.
 """
 import pygame
 
-_FOAM    = (244, 246, 250)          # bright foam frame top edge
-_FOAM_D  = (188, 196, 214)          # foam shadow side (lower rim)
-_FRAME   = (44, 52, 74)             # dark goggle frame between foam and lens
+_PLAS    = (248, 249, 252)          # white-plastic frame top edge
+_PLAS_D  = (196, 202, 214)          # plastic shadow side (lower rim)
+_FRAME   = (44, 52, 74)             # dark moulded line between plastic and lens
 _LENS_T  = (150, 214, 248)          # icy blue — top of the mirrored tint
 _LENS_M  = (108, 150, 234)          # cobalt mid
 _LENS_B  = (150, 96, 214)           # violet floor of the tint
 _SHEEN   = (236, 248, 255)          # diagonal flash streak
-_STRAP   = (236, 84, 110)           # warm coral strap base
-_STRAP_2 = (252, 198, 64)           # sunny stripe down the strap centre
+_STRAP   = (236, 84, 110)           # one solid warm strap band
 _GLINT   = (255, 255, 255)
 
 
@@ -73,49 +78,48 @@ def _lens(w, h, rad, facing):
 
 def draw_shades(surf, cx, cy, eye_w, facing=1):
     f = facing
-    lw   = max(8, int(eye_w * 1.05))           # one wide lens across both eyes
+    lw   = max(8, int(eye_w * 0.96))           # one wide lens across both eyes
     lh   = max(5, int(eye_w * 0.50))
-    foam = max(2, int(eye_w * 0.10))           # soft foam frame ring
+    plas = max(1, int(eye_w * 0.08))           # white-plastic frame ring
     rad  = max(2, int(lh * 0.42))              # rounded goggle corners
     x0   = cx - lw // 2
     y0   = cy - lh // 2
 
-    # Thick two-tone strap FIRST so the foam frame overlaps it cleanly. It wraps
-    # off the far (-facing) edge toward the ear, dipping slightly like webbing
-    # pulled around the head.
+    # One solid warm strap FIRST so the frame overlaps it cleanly. A single flat
+    # band (no centre stripe) so it never reads as a stray streak at 22px. It
+    # wraps off the far (-facing) edge toward the ear, dipping slightly like
+    # webbing pulled around the head.
     strap_h = max(3, int(eye_w * 0.30))
-    sx_in   = cx - f * (lw // 2 - foam)        # tuck under the lens edge
+    sx_in   = cx - f * (lw // 2 - plas)        # tuck under the lens edge
     sx_out  = cx - f * int(lw * 0.92)
     sy      = cy - max(1, int(eye_w * 0.02))
     dip     = max(1, int(eye_w * 0.10))        # sag toward the ear
-    base = [(sx_in, sy - strap_h // 2), (sx_out, sy - strap_h // 2 + dip),
+    band = [(sx_in, sy - strap_h // 2), (sx_out, sy - strap_h // 2 + dip),
             (sx_out, sy + strap_h // 2 + dip), (sx_in, sy + strap_h // 2)]
-    pygame.draw.polygon(surf, _STRAP, base)
-    # Sunny centre stripe down the webbing for the two-tone read.
-    st = max(1, strap_h // 3)
-    mid = [(sx_in, sy - st // 2), (sx_out, sy - st // 2 + dip),
-           (sx_out, sy + st // 2 + dip), (sx_in, sy + st // 2)]
-    pygame.draw.polygon(surf, _STRAP_2, mid)
+    pygame.draw.polygon(surf, _STRAP, band)
 
-    # Foam frame = bright rounded-rect; the lens glass is inset by `foam`.
-    fr = (x0 - foam, y0 - foam, lw + foam * 2, lh + foam * 2)
-    # Shadow-side foam first (offset down) so the lower rim reads as soft foam.
-    pygame.draw.rect(surf, _FOAM_D,
-                     (fr[0], fr[1] + max(1, foam // 2), fr[2], fr[3]),
-                     border_radius=rad + foam)
-    pygame.draw.rect(surf, _FOAM, fr, border_radius=rad + foam)
-    # Thin dark frame line between foam and glass sells the moulded rim.
+    # White-plastic frame = bright rounded-rect; the lens glass is inset by
+    # `plas`. Shadow-side plastic first (offset down) so the lower rim reads as
+    # a moulded plastic edge.
+    fr = (x0 - plas, y0 - plas, lw + plas * 2, lh + plas * 2)
+    pygame.draw.rect(surf, _PLAS_D,
+                     (fr[0], fr[1] + max(1, plas // 2), fr[2], fr[3]),
+                     border_radius=rad + plas)
+    pygame.draw.rect(surf, _PLAS, fr, border_radius=rad + plas)
+    # Thin dark frame line between plastic and glass sells the moulded rim.
     pygame.draw.rect(surf, _FRAME, (x0, y0, lw, lh),
-                     border_radius=rad, width=max(1, foam // 2))
+                     border_radius=rad, width=max(1, plas // 2))
 
     # The mirrored glass lens, inset inside the dark frame.
-    inset = max(1, foam // 2)
+    inset = max(1, plas // 2)
     gw, gh = lw - inset * 2, lh - inset * 2
     if gw > 2 and gh > 2:
         glass = _lens(gw, gh, max(1, rad - inset), f)
         surf.blit(glass, (x0 + inset, y0 + inset))
 
-    # One bright corner glint on the leading edge — the snow-goggle gloss pop.
-    gx = cx + f * (lw // 2 - foam - max(1, int(eye_w * 0.10)))
-    gy = cy - lh // 2 + max(1, int(eye_w * 0.07))
+    # White highlight pulled INWARD onto the glass (not the outer rim) so the
+    # gloss pop never bleeds past Pip's head edge at 22px. It rides the upper
+    # leading corner of the lens itself.
+    gx = cx + f * (lw // 2 - plas - max(2, int(eye_w * 0.16)))
+    gy = y0 + inset + max(1, int(eye_w * 0.07))
     pygame.draw.circle(surf, _GLINT, (gx, gy), max(1, int(eye_w * 0.05)))

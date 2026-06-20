@@ -1,31 +1,32 @@
 """STAR SHADES — novelty festival party glasses with 5-point STAR lenses.
 
-The star silhouette is the entire read, so the points are kept deliberately
-stubby (inner radius ~0.42*outer, not the thin ~0.38 of a "true" rendered
-star) and the fill stays a solid tinted polygon: a slender pointy star fills
-to nothing and vanishes at the in-game size (eye_w=22), but a bold stubby one
-keeps its 5-point silhouette even when each point is only a few pixels.
+The star silhouette is the entire read, so the points are kept CHUNKY: the
+inner radius is ~0.53 of the outer (not the ~0.38 of a "true" rendered star),
+which makes the five points stubby and fat. A slender pointy star fills to a
+near-circle and loses its points at the in-game size (eye_w=22); a fat stubby
+one keeps a countable 5-point silhouette even when each point is only a few
+pixels tall.
 
-Every dimension scales off `eye_w` so the same code is a clean glam product
-shot at eye_w=96 and a legible overlay over Pip's scarlet head at eye_w=22.
-Like the round-shades idiom, the metal "frame" is a slightly-larger star
-drawn BEHIND the glass (an outset disc-equivalent) rather than a 1px stroke,
-because a stroked star outline stipples and breaks at tiny radii while a
-filled backing star is always solid metal. The bridge sits behind both
-lenses so the lens polygons overlap it cleanly.
+To survive 22px the lens carries a SOLID GOLD backing star drawn behind the
+glass (an outset star, not a 1px stroke — a stroked star stipples and breaks
+at tiny radii while a filled backing star is always solid metal). The gold
+rim ties STAR into the set idiom (ROUND / MONOCLE / HEART all gold). The glass
+is a deep electric-blue, chosen for real value-contrast against Pip's scarlet
+head so the dark lens + bright gold points stay separable at tiny size.
+
+Every dimension scales off `eye_w` so the same code is a glam product shot at
+eye_w=96 and a legible overlay at eye_w=22. The bridge sits behind both lenses
+so the lens polygons overlap it cleanly.
 """
 import math
 import pygame
 
-_FRAME   = (224, 228, 236)          # cool chrome metal frame
-_FRAME_H = (255, 255, 255)          # top catch-light on the chrome
-_FRAME_D = (150, 158, 172)          # underside / shadow side of the frame
-_TINT_T  = (96, 196, 255)           # electric-blue top of the glass
-_TINT_B  = (24, 110, 210)           # deeper blue floor (vertical fade)
-_GLINT   = (255, 255, 255)
-# Gold alternate kept for an easy re-skin without touching geometry.
-_GOLD_T  = (255, 226, 120)
-_GOLD_B  = (224, 162, 40)
+_RIM    = (240, 198, 84)            # warm gold metal frame
+_RIM_H  = (255, 244, 178)           # bright catch-light on the gold
+_RIM_D  = (176, 124, 36)            # underside / shadow side of the gold
+_TINT_T = (70, 150, 240)            # electric-blue top of the glass
+_TINT_B = (16, 46, 120)             # deep navy floor (vertical fade)
+_GLINT  = (255, 255, 255)
 
 
 def _star_points(cx, cy, r_out, r_in, rot=-math.pi / 2):
@@ -61,52 +62,55 @@ def _tinted_star(r_out, r_in, top, bot, alpha):
 
 def draw_shades(surf, cx, cy, eye_w, facing=1):
     f = facing
-    r_out = max(5, int(eye_w * 0.30))
-    r_in  = max(2, int(r_out * 0.42))
-    sep   = max(6, int(eye_w * 0.46))
-    # Frame thickness as an outset of the backing star; min 1px so it never
-    # disappears, scaling up to a chunky chrome rim on the product shot.
-    fw    = max(1, int(eye_w * 0.05))
+    r_out = max(6, int(eye_w * 0.32))
+    # Fat stubby points: inner radius ~0.53*outer keeps the 5 points countable
+    # at 22px where a slender star would fill to a blob.
+    r_in  = max(3, int(r_out * 0.53))
+    sep   = max(6, int(eye_w * 0.50))
+    # Frame thickness as an outset of the backing star; min 2px so the gold rim
+    # never thins to nothing, scaling up to a chunky rim on the product shot.
+    fw    = max(2, int(eye_w * 0.07))
     near  = (cx + f * (sep // 2), cy)
     far   = (cx - f * (sep // 2), cy)
 
     # Bridge BEHIND the lenses so the lens stars overlap it; the lower pass is
-    # the chrome catch-light beneath the bridge wire.
-    by  = cy - max(1, int(r_out * 0.10))
-    bx0 = far[0] + f * int(r_in * 1.1)
-    bx1 = near[0] - f * int(r_in * 1.1)
-    pygame.draw.line(surf, _FRAME_D, (bx0, by + 1), (bx1, by + 1), max(2, fw))
-    pygame.draw.line(surf, _FRAME, (bx0, by), (bx1, by), max(1, fw))
+    # the gold catch-light beneath the bridge wire.
+    by  = cy - max(1, int(r_out * 0.08))
+    bx0 = far[0] + f * int(r_in * 1.0)
+    bx1 = near[0] - f * int(r_in * 1.0)
+    pygame.draw.line(surf, _RIM_D, (bx0, by + 1), (bx1, by + 1), max(2, fw))
+    pygame.draw.line(surf, _RIM, (bx0, by), (bx1, by), max(2, fw - 1))
 
-    # Temple arm toward the ear (-facing): straight metal wire with a shadow
+    # Temple arm toward the ear (-facing): straight gold wire with a shadow
     # underline so it reads off the scarlet head.
     ex = far[0] - f * (r_out + max(2, int(eye_w * 0.30)))
     ey = cy - max(1, int(eye_w * 0.05))
     hook = (far[0] - f * int(r_out * 0.5), cy)
-    pygame.draw.line(surf, _FRAME_D, hook, (ex, ey + 1), max(2, fw))
-    pygame.draw.line(surf, _FRAME, hook, (ex, ey), max(1, fw))
+    pygame.draw.line(surf, _RIM_D, hook, (ex, ey + 1), max(2, fw))
+    pygame.draw.line(surf, _RIM, hook, (ex, ey), max(2, fw - 1))
 
     for (lx, ly) in (far, near):
-        # Solid star frame = outset chrome star, then the tinted glass star
-        # inset by the frame width — always solid metal even at eye_w=22.
+        # Solid gold frame = outset gold star, then the tinted glass star inset
+        # by the frame width — always solid metal even at eye_w=22. The backing
+        # star uses a proportionally-grown inner radius so the gold preserves
+        # the fat-point silhouette out past the glass on every spoke.
         f_out = r_out + fw
-        f_in  = r_in + max(1, fw // 2)
-        pygame.draw.polygon(surf, _FRAME_D,
+        f_in  = r_in + fw
+        pygame.draw.polygon(surf, _RIM_D,
                             _star_points(lx, ly + 1, f_out, f_in))
-        pygame.draw.polygon(surf, _FRAME,
+        pygame.draw.polygon(surf, _RIM,
                             _star_points(lx, ly, f_out, f_in))
 
-        glass, c2 = _tinted_star(r_out, r_in, _TINT_T, _TINT_B, 215)
+        glass, c2 = _tinted_star(r_out, r_in, _TINT_T, _TINT_B, 225)
         surf.blit(glass, (lx - c2, ly - c2))
 
-        # Chrome highlight along the two upper-left point edges so the metal
-        # frame catches light and the star silhouette stays crisp.
+        # Gold catch-light along the two upper-left point edges so the metal
+        # frame pops and the star silhouette stays crisp on a warm head.
         sp = _star_points(lx, ly, f_out, f_in)
-        if max(2, fw) >= 2:
-            pygame.draw.lines(surf, _FRAME_H, False, [sp[8], sp[9], sp[0]],
-                              max(1, fw - 1))
+        pygame.draw.lines(surf, _RIM_H, False, [sp[8], sp[9], sp[0]],
+                          max(1, fw - 1))
 
     # Single bright glint inside the near lens body — sells the glossy glass.
     pygame.draw.circle(surf, _GLINT,
-                       (near[0] - f * (r_in // 2), cy - r_in // 2),
+                       (near[0] - f * (r_in // 3), cy - r_in // 3),
                        max(1, int(eye_w * 0.05)))

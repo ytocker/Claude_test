@@ -1,124 +1,118 @@
-"""CYBER VISOR — single-bar wraparound shade for Pip (side profile).
+"""CYBER VISOR — single dark wraparound visor with a cyan edge-light.
 
-ONE continuous dark glossy band across both eyes (Kamina / Cyclops /
-Geordi idiom), NOT two lenses. The read is three things stacked: a deep
-near-black band with a vertical top->bottom gloss, ONE bright neon edge
-line running its full length, and a faint diagonal scanline sheen. The
-leading (near, +facing) edge is raked forward a touch so the bar reads as
-a wraparound visor rather than a flat plate, with a short temple bar
-trailing toward the ear (-facing).
+ONE continuous band across both eyes (Kamina / Cyclops / Geordi idiom),
+NOT two lenses. The read at 22px is a VALUE SANDWICH: a dark near-black
+wedge mass with real vertical height, capped by a bright cyan edge-light
+along the BOTTOM. The dark mass is what survives the downscale and reads
+as eyewear against a scarlet head; the neon is the personality accent
+riding its lower lip, not the whole shape.
 
-The band is a FILLED rounded-rect (polygon, since the lead edge is raked)
-rather than a stroked outline, and the neon is a solid 1-2px line, not a
-soft blur: at eye_w=22 a blur washes out to nothing, but a filled band +
-a hard bright line both survive the downscale and still read as a visor.
-Everything scales off `eye_w` so the same code is a crisp 22px overlay and
-a glossy 96px product shot.
+Earlier single-bar pass collapsed to a thin cyan line and read as a
+scratch on scarlet. The fix here is mass first: the body is a FILLED
+wedge kept >=0.34*eye_w tall (>=~4px at eye_w=22) so the dark form holds,
+then the cyan is layered as a hard bottom edge so dark-over-bright gives
+contrast in BOTH directions. One off-center glint sells the gloss. A
+short temple bar trails toward the ear (-facing) to anchor it on the
+head. Everything scales off `eye_w` so the same code is a crisp 22px
+overlay and a glossy 96px product shot.
 """
 import pygame
 
-_BAND_T = (44, 50, 66)              # cool top of the band (catches sky light)
-_BAND_B = (10, 12, 20)              # near-black underside (vertical gloss)
-_FRAME  = (70, 80, 104)             # brushed-metal rim around the glass
-_FRAME_D = (24, 28, 40)             # rim shadow underside
-_NEON   = (60, 240, 255)           # cyan signature edge line
-_NEON_H = (200, 255, 255)           # hot core of the neon (1px highlight)
-_SCAN   = (130, 220, 255)           # scanline sheen tint
+_BODY_T = (38, 44, 60)              # cool top of the dark visor body
+_BODY_B = (8, 10, 18)               # near-black underside — the mass
+_FRAME  = (74, 84, 108)             # brushed-metal rim catching sky light
+_FRAME_D = (20, 24, 36)             # rim shadow underside
+_NEON   = (44, 230, 250)            # cyan edge-light (the signature)
+_NEON_H = (208, 255, 255)           # hot core of the edge-light
+_TOPTICK = (34, 120, 140)           # dim cyan tick on the top rim
 _GLINT  = (236, 252, 255)
-
-
-def _gloss_band(w, h, top, bot, alpha):
-    """Filled w x h surface with a vertical top->bot tint at `alpha`.
-    The vertical fade fakes the curve of glossy glass on a flat band."""
-    g = pygame.Surface((w, h), pygame.SRCALPHA)
-    span = max(1, h - 1)
-    for yy in range(h):
-        t = yy / span
-        c = (int(top[0] + (bot[0] - top[0]) * t),
-             int(top[1] + (bot[1] - top[1]) * t),
-             int(top[2] + (bot[2] - top[2]) * t), alpha)
-        pygame.draw.line(g, c, (0, yy), (w, yy))
-    return g
 
 
 def draw_shades(surf, cx, cy, eye_w, facing=1):
     f = facing
     half_w = max(4, int(eye_w * 0.50))      # ~1.0*eye_w total span
-    half_h = max(2, int(eye_w * 0.17))      # ~0.34*eye_w total height
-    rake = max(2, int(eye_w * 0.16))        # forward lean of the near edge
-    rim = max(1, int(eye_w * 0.05))
+    half_h = max(3, int(eye_w * 0.19))      # ~0.38*eye_w tall -> >=5px @22
+    rake = max(2, int(eye_w * 0.15))        # forward lean of the near edge
+    rim = max(1, int(eye_w * 0.045))
+
+    # Edge-light thickness must not eat the dark mass at tiny sizes: keep
+    # the body clearly taller than the cyan lip so the sandwich survives.
+    neon_t = max(2, int(eye_w * 0.075))
 
     near_x = cx + f * half_w
     far_x = cx - f * half_w
     top = cy - half_h
     bot = cy + half_h
 
-    # Raked wraparound silhouette: the near (+facing) edge slants forward
-    # at top and pulls back at bottom so the bar reads as a curved visor.
+    # Raked wraparound wedge: the near (+facing) edge slants forward at top
+    # and pulls back at bottom so the bar reads as a curved visor, and it
+    # tapers slightly toward the ear so the leading lens reads as the hero.
     quad = [
-        (far_x,          top),
-        (near_x + f * rake, top),
-        (near_x,         bot),
-        (far_x - f * rake // 2, bot),
+        (far_x,             top + max(1, half_h // 3)),   # rear top, dropped
+        (near_x + f * rake, top),                          # lead top, raised
+        (near_x,            bot),                          # lead bottom
+        (far_x - f * (rake // 2), bot - max(1, half_h // 4)),  # rear bottom
     ]
 
     # Short temple bar trailing toward the ear so it anchors on the head.
     tx = far_x - f * max(2, int(eye_w * 0.22))
-    ty = cy - max(1, int(eye_w * 0.04))
+    ty = cy - max(1, int(eye_w * 0.03))
     pygame.draw.line(surf, _FRAME_D, (far_x, cy + 1), (tx, ty + 1),
                      max(2, rim + 1))
     pygame.draw.line(surf, _FRAME, (far_x, cy), (tx, ty), max(1, rim))
 
-    # Metal rim = a slightly larger band drawn first, then the glass inset.
+    # Metal rim = a slightly larger wedge drawn under the body so a thin
+    # bright frame peeks around the dark mass and separates it from scarlet.
     rim_quad = [(x - f * (rim if i in (0, 3) else -rim),
                  y - rim if i < 2 else y + rim) for i, (x, y) in enumerate(quad)]
     pygame.draw.polygon(surf, _FRAME_D, [(x, y + 1) for x, y in rim_quad])
     pygame.draw.polygon(surf, _FRAME, rim_quad)
 
-    # Glass: a vertical-gloss band masked to the raked quad. Building the
-    # tint on its own surface and clipping by the polygon keeps the gloss
-    # axis-aligned (top bright, bottom black) regardless of the rake.
+    # BODY: the dark wedge mass with a vertical top->bottom tint. Built on
+    # its own surface and clipped to the raked quad so the gloss axis stays
+    # vertical (cool top, near-black bottom) regardless of the rake.
     bx0 = min(p[0] for p in quad)
     bx1 = max(p[0] for p in quad)
     bw = max(2, bx1 - bx0)
     bh = max(2, bot - top)
-    band = _gloss_band(bw, bh, _BAND_T, _BAND_B, 255)
+    body = pygame.Surface((bw, bh), pygame.SRCALPHA)
+    span = max(1, bh - 1)
+    for yy in range(bh):
+        t = yy / span
+        c = (int(_BODY_T[0] + (_BODY_B[0] - _BODY_T[0]) * t),
+             int(_BODY_T[1] + (_BODY_B[1] - _BODY_T[1]) * t),
+             int(_BODY_T[2] + (_BODY_B[2] - _BODY_T[2]) * t), 255)
+        pygame.draw.line(body, c, (0, yy), (bw, yy))
     mask = pygame.Surface((bw, bh), pygame.SRCALPHA)
     pygame.draw.polygon(mask, (255, 255, 255, 255),
                         [(x - bx0, y - top) for x, y in quad])
-    band.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    surf.blit(band, (bx0, top))
+    body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(body, (bx0, top))
 
-    # Diagonal scanline sheen — a few faint slashes across the glass sell the
-    # "screen" feel. Kept low-alpha so it never competes with the neon read.
-    sheen = pygame.Surface((bw, bh), pygame.SRCALPHA)
-    step = max(3, int(eye_w * 0.10))
-    for sx in range(-bh, bw, step * 2):
-        pygame.draw.line(sheen, (*_SCAN, 26),
-                         (sx, bh), (sx + bh, 0), max(1, rim))
-    sheen.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    surf.blit(sheen, (bx0, top))
-
-    # SIGNATURE: one bright neon line along the lower edge, full span. A dim
-    # under-pass first widens the glow, then the hot 1px core on top keeps a
-    # crisp line at tiny sizes where a soft blur would vanish.
-    lo_a = (far_x - f * rake // 2, bot)
-    lo_b = (near_x, bot)
-    pygame.draw.line(surf, _NEON, lo_a, lo_b, max(2, rim + 1))
+    # SIGNATURE: bright cyan edge-light riding the BOTTOM lip of the wedge.
+    # Drawn as a filled quad (a thin band, not a stroke) so it keeps real
+    # thickness when downscaled, with a hot core line on top for the glow.
+    le_top = bot - neon_t
+    lead_b = (near_x, bot)
+    rear_b = (far_x - f * (rake // 2), bot - max(1, half_h // 4))
+    lead_t = (near_x, le_top)
+    rear_t = (rear_b[0], rear_b[1] - neon_t)
+    pygame.draw.polygon(surf, _NEON, [rear_t, lead_t, lead_b, rear_b])
+    # Hot 1-2px core just above the lip keeps a crisp bright line at 22px
+    # where the band alone would muddy.
     pygame.draw.line(surf, _NEON_H,
-                     (lo_a[0], lo_a[1] - 1), (lo_b[0], lo_b[1] - 1),
+                     (rear_t[0], rear_t[1]), (lead_t[0], lead_t[1]),
+                     max(1, neon_t // 2))
+
+    # Dim cyan tick on the top rim ties the wrap together without competing
+    # with the bottom hero edge-light.
+    pygame.draw.line(surf, _TOPTICK,
+                     (far_x, top + max(1, half_h // 3) + 1),
+                     (near_x + f * rake, top + 1),
                      max(1, rim - 1) or 1)
 
-    # A thin, dimmer neon tick along the top edge ties the wrap together
-    # without competing with the bottom hero line. Drawn as a dark-cyan
-    # half-bright accent so the lower edge stays the unambiguous signature.
-    _TOP = (40, 150, 168)
-    pygame.draw.line(surf, _TOP,
-                     (far_x, top + 1), (near_x + f * rake, top + 1),
-                     max(1, rim - 1) or 1)
-
-    # Single pinprick glint on the leading edge — sells the glossy surface.
+    # Single off-center pinprick glint on the leading edge — sells gloss.
     pygame.draw.circle(surf, _GLINT,
-                       (near_x - f * max(2, int(eye_w * 0.10)),
-                        cy - max(1, int(eye_w * 0.06))),
-                       max(1, int(eye_w * 0.045)))
+                       (near_x - f * max(2, int(eye_w * 0.13)),
+                        cy - max(1, int(eye_w * 0.07))),
+                       max(1, int(eye_w * 0.04)))
