@@ -35,6 +35,9 @@ import game.weather
 # Pre-clown-event values (commit 18089a1f).
 OLD_RAIN_PILLAR = 70
 OLD_SNOW_PILLAR = 139
+# Pre-clown umbrella offsets relative to the rain start (the historical
+# placement the BEFORE panel snapshots); the AFTER panel reads live config.
+OLD_UMBRELLA_OFFSETS = (5, 17)
 
 CURVES = [
     ("Morning thermal (geysers)", "thermal_intensity", "#e0663a"),
@@ -57,7 +60,7 @@ def _pillar_for_phase(phase, phases):
     return float(len(phases) - 1)
 
 
-def _gather(biome, weather):
+def _gather(biome, weather, umbrellas):
     """Collect everything needed to draw one panel from the CURRENTLY-loaded
     biome/weather modules into a plain dict (decoupled from module state)."""
     pillars, phases, p, day_end = [0], [0.0], 1, None
@@ -83,7 +86,7 @@ def _gather(biome, weather):
         bounds=[(_pillar_for_phase(f, phases), PHASE_NAME_NL.get(n, n))
                 for f, n in biome.PHASE_BOUNDARIES],
         genie=weather.GENIE_PILLAR,
-        umbrellas=[rain_pillar + 5, rain_pillar + 17],
+        umbrellas=list(umbrellas),
         rain_start=rain_pillar,
     )
 
@@ -173,13 +176,15 @@ def main():
     config.DAY_EXTRA_SECONDS = 0.0
     importlib.reload(game.biome)
     importlib.reload(game.weather)
-    D_old = _gather(game.biome, game.weather)
+    D_old = _gather(game.biome, game.weather,
+                    [OLD_RAIN_PILLAR + o for o in OLD_UMBRELLA_OFFSETS])
 
     # CURRENT pass — restore, reload.
     config.RAIN_START_PILLAR, config.SNOW_START_PILLAR, config.DAY_EXTRA_SECONDS = orig
     importlib.reload(game.biome)
     importlib.reload(game.weather)
-    D_new = _gather(game.biome, game.weather)
+    D_new = _gather(game.biome, game.weather,
+                    list(config.UMBRELLA_SPAWN_PILLARS))
 
     xmax = D_new["day_end"] + config.CYCLE_FINALE_RUSH_PILLARS + 4
 

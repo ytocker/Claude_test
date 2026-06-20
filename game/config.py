@@ -280,7 +280,7 @@ SPAWN_GRACE         = 1.5
 # edge) rather than hard-coded, so the two pickups stay inside the storm — and
 # travel with it — if the rain is moved to a different pillar.
 UMBRELLA_DURATION       = 8.0
-UMBRELLA_SPAWN_PILLARS  = (RAIN_START_PILLAR + 5, RAIN_START_PILLAR + 17)
+UMBRELLA_SPAWN_PILLARS  = (RAIN_START_PILLAR + 12, RAIN_START_PILLAR + 24)
 
 # TREASURE BOX — once-per-biome-cycle finale reward. When the day/night
 # cycle wraps from late-night back to dawn, the next CYCLE_FINALE_RUSH_PILLARS

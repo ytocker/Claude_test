@@ -246,8 +246,10 @@ def main() -> None:
         print(f"  {label}: peak at pillar {pillars[pk_i]} (intensity {ys[pk_i]:.2f})")
     print(f"  Genie lamp: pillar {weather.GENIE_PILLAR} "
           f"(geyser peak + {config.GENIE_PILLARS_AFTER_GEYSER_PEAK})")
+    _umb_off = "/".join(f"+{u - config.RAIN_START_PILLAR}"
+                        for u in config.UMBRELLA_SPAWN_PILLARS)
     print(f"  Umbrella: pillars {config.UMBRELLA_SPAWN_PILLARS} "
-          f"(rain start {config.RAIN_START_PILLAR} + 5/+17)")
+          f"(rain start {config.RAIN_START_PILLAR} {_umb_off})")
     print(f"  Clown event: held slot {config.CLOWN_START_PILLAR}"
           f"–{config.CLOWN_START_PILLAR + config.CLOWN_SLOT_PILLARS}, "
           f"then {config.CLOWN_TO_RAIN_BUFFER} regular → rain")
