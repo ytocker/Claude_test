@@ -41,7 +41,8 @@ _PER_PAGE = 6          # 2 columns x 3 rows; each tab pages independently
 
 _TAB_Y = 92            # tab-bar centre line
 _TABS = (("COSTUMES", "costume"), ("PARROTS", "parrot"),
-         ("ANIMALS", "animal"), ("SHOES", "shoes"), ("HATS", "hats"))
+         ("ANIMALS", "animal"), ("SHOES", "shoes"), ("HATS", "hats"),
+         ("SHADES", "shades"))
 
 # Owned-but-equipped accent + buy/locked chip tints.
 _EQUIP_GREEN = (96, 210, 120)
@@ -98,12 +99,14 @@ class StoreScene:
         self.mode = "grid"
         self.prize: "prize_machine.PrizeReveal | None" = None
         store_data.load()
-        # Per-tab skin lists, cheapest first. The PARROTS tab is fronted by a
-        # free DEFAULT card (the base macaw) so the player can always revert.
+        # Per-tab skin lists, cheapest first. The PARROTS and SHADES tabs are
+        # fronted by a free DEFAULT card (the base macaw / its default aviators)
+        # so the player can always revert — on SHADES it reads as the full
+        # eyewear set: DEFAULT aviators, the alternatives, then NO SHADES.
         self._lists: "dict[str, list[str]]" = {}
         for label, g in _TABS:
             ids = sorted(store_catalog.ids_of_group(g), key=store_catalog.cost)
-            if g == "parrot":
+            if g in ("parrot", "shades"):
                 ids = [store_catalog.BASE_SKIN] + ids
             self._lists[g] = ids
         self.tab = 0

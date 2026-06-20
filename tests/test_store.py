@@ -309,6 +309,29 @@ class TestCatalogIntegrity(unittest.TestCase):
             self.assertIsNotNone(parrot.get_skin_icon(sid),
                                  f"{sid} is missing a product-shot icon")
 
+    def test_shades_tab_populated(self):
+        # The SHADES tab ships with its full roster, all skins with positive
+        # costs, and includes the NO SHADES remove option.
+        shades = store_catalog.ids_of_group("shades")
+        self.assertTrue(shades)
+        self.assertIn("skin_shades_none", shades)
+        self.assertTrue(all(store_catalog.kind(s) == "skin" for s in shades))
+        self.assertTrue(all(isinstance(store_catalog.cost(s), int)
+                            and store_catalog.cost(s) > 0 for s in shades))
+
+    def test_styled_shades_have_icons_but_no_shades_does_not(self):
+        # Every styled lens is shown by its product-shot icon (the glasses
+        # themselves). NO SHADES has no lenses, so it has no icon and is
+        # presented by the bare-eyed bird frame instead.
+        from game import parrot
+        for sid in store_catalog.ids_of_group("shades"):
+            if sid == "skin_shades_none":
+                self.assertIsNone(parrot.get_skin_icon(sid))
+                self.assertIsNotNone(parrot.get_skin_frame(sid, 1, 0.0))
+            else:
+                self.assertIsNotNone(parrot.get_skin_icon(sid),
+                                     f"{sid} is missing a product-shot icon")
+
 
 if __name__ == "__main__":
     unittest.main()

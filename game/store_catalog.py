@@ -25,7 +25,7 @@ BASE_SKIN = "skin_base"
 CATALOG_KINDS = ("skin", "pillar", "ground", "trail", "boost")
 
 # Store browsing tabs, in display order.
-GROUPS = ("costume", "parrot", "animal", "shoes", "hats")
+GROUPS = ("costume", "parrot", "animal", "shoes", "hats", "shades")
 
 # Cost ladder is tuned so the first unlock is a goal (a few good runs) rather
 # than a side effect of session one: entry ~260, mid ~450-550, premium ~650-800,
@@ -101,6 +101,22 @@ CATALOG: dict[str, dict] = {
     "skin_hat_sombrero":  {"name": "SOMBRERO",      "cost": 640, "kind": "skin", "group": "hats"},
     "skin_hat_santa":     {"name": "SANTA HAT",     "cost": 700, "kind": "skin", "group": "hats"},
     "skin_hat_nycap":     {"name": "NY CAP",        "cost": 850, "kind": "skin", "group": "hats"},
+
+    # ── SHADES (eyewear Pip wears over his eyes; NO SHADES removes them) ───────
+    # A mix of classic/fun/techy/quirky lenses. NO SHADES is the cheapest — the
+    # bare-eyed look — then a value ladder up to the premium cyber visor.
+    "skin_shades_none":    {"name": "NO SHADES",    "cost": 120, "kind": "skin", "group": "shades"},
+    "skin_shades_nerd":    {"name": "NERD SPECS",   "cost": 180, "kind": "skin", "group": "shades"},
+    "skin_shades_round":   {"name": "ROUND SHADES", "cost": 220, "kind": "skin", "group": "shades"},
+    "skin_shades_heart":   {"name": "HEART SHADES", "cost": 240, "kind": "skin", "group": "shades"},
+    "skin_shades_star":    {"name": "STAR SHADES",  "cost": 260, "kind": "skin", "group": "shades"},
+    "skin_shades_black":   {"name": "BLACK SHADES", "cost": 300, "kind": "skin", "group": "shades"},
+    "skin_shades_white":   {"name": "WHITE RETRO",  "cost": 320, "kind": "skin", "group": "shades"},
+    "skin_shades_3d":      {"name": "3D GLASSES",   "cost": 360, "kind": "skin", "group": "shades"},
+    "skin_shades_pixel":   {"name": "PIXEL SHADES", "cost": 400, "kind": "skin", "group": "shades"},
+    "skin_shades_ski":     {"name": "SKI GOGGLES",  "cost": 440, "kind": "skin", "group": "shades"},
+    "skin_shades_monocle": {"name": "MONOCLE",      "cost": 480, "kind": "skin", "group": "shades"},
+    "skin_shades_cyber":   {"name": "CYBER VISOR",  "cost": 560, "kind": "skin", "group": "shades"},
 }
 
 
