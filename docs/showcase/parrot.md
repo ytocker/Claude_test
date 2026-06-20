@@ -4,10 +4,9 @@
 
 ## In the store
 
-How the **PARROTS** tab looks in the shop (2 pages):
+How the **PARROTS** tab looks in the shop:
 
 <img src="img/store_parrot_p1.png" width="280">
-<img src="img/store_parrot_p2.png" width="280">
 
 ## In gameplay
 

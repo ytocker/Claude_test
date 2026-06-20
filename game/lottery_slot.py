@@ -343,53 +343,6 @@ def _draw_result_strip(surf, tier, delta, origin=(CAB_X, CAB_Y)):
                  strip.centery)))
 
 
-# ── Prize Machine (Store gacha) ───────────────────────────────────────────────
-# The store reuses the exact gacha cabinet — same reels, marquee bulbs, pay-
-# line and confetti — but at a caller-supplied origin (so it can sit centred
-# and larger) with a "PRIZE" marquee. Every roll that has a prize to give is a
-# win, so the reels always lock on the celebratory $$$ combo; the won skin's
-# hero sprite is composited on top by game.prize_machine (kept out of here so
-# this module never imports the parrot art).
-PRIZE_SPIN = 1.7  # seconds of reel spin before all three lock
-
-
-def _draw_label_strip(surf, text, origin, rim):
-    """Cream result pill with one centred engraved label — the prize-reveal
-    counterpart to _draw_result_strip's tier+value layout."""
-    cabinet = pygame.Rect(origin[0], origin[1], CAB_W, CAB_H)
-    reel_y = cabinet.y + 5 + 14 + 6
-    strip = pygame.Rect(cabinet.x + 8, reel_y + 32 + 6,
-                        cabinet.width - 16, 14)
-    pygame.draw.rect(surf, _CREAM_FACE, strip, border_radius=strip.height // 2)
-    pygame.draw.rect(surf, rim, strip, width=1, border_radius=strip.height // 2)
-    img = _engraved_text(text, 10, rim=rim)
-    surf.blit(img, img.get_rect(center=strip.center))
-
-
-def draw_prize_reveal(surf, anim, origin):
-    """Render the Prize Machine cabinet for the store. ``anim`` carries:
-        t    seconds since the roll started
-        win  True if a skin was won, False on the all-owned refund roll
-    The cabinet spins for PRIZE_SPIN, then locks on $$$ and (on a win) drops
-    confetti. The won skin's hero sprite is drawn by the caller."""
-    t = anim["t"]
-    win = anim.get("win", True)
-    stops = (PRIZE_SPIN * 0.55, PRIZE_SPIN * 0.75, PRIZE_SPIN * 0.95)
-    reel_progress = tuple(1.0 if t >= s else (t / s) for s in stops)
-    locked = "JACKPOT" if t >= stops[-1] else None
-    _draw_cabinet(surf, t, locked_tier=locked, reel_progress=reel_progress,
-                  origin=origin, marquee_label="PRIZE")
-    if locked is not None:
-        if win:
-            _draw_label_strip(surf, "WINNER!", origin, _RIM_GOLD)
-            if t >= PRIZE_SPIN:
-                _confetti_burst(surf, origin[0] + CAB_W // 2,
-                                origin[1] + CAB_H + 6,
-                                (t - PRIZE_SPIN) * 8, seed=7)
-        else:
-            _draw_label_strip(surf, "ALL OWNED", origin, _RIM_NEUTRAL)
-
-
 def draw_reveal(surf, anim):
     """Render the slot-machine reveal for ``World.lottery_anim``.
 

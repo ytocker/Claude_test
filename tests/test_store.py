@@ -203,32 +203,6 @@ class TestResilience(_StoreTestBase):
         self.assertEqual(store_data.equipped("skin"), sid)
 
 
-class TestPrizeMachine(_StoreTestBase):
-
-    def test_roll_never_returns_owned(self):
-        from game import prize_machine
-        # Own half the cosmetics; every roll must come from the rest.
-        cosmetics = store_catalog.cosmetic_ids()
-        for sid in cosmetics[: len(cosmetics) // 2]:
-            store_data.grant(sid)
-        for _ in range(200):
-            won = prize_machine.roll()
-            self.assertIsNotNone(won)
-            self.assertFalse(store_data.is_owned(won))
-
-    def test_roll_none_when_all_owned(self):
-        from game import prize_machine
-        for sid in store_catalog.cosmetic_ids():
-            store_data.grant(sid)
-        self.assertEqual(prize_machine.unowned_pool(), [])
-        self.assertIsNone(prize_machine.roll())
-
-    def test_pool_excludes_owned(self):
-        from game import prize_machine
-        store_data.grant("skin_ghost")
-        self.assertNotIn("skin_ghost", prize_machine.unowned_pool())
-
-
 class TestCatalogIntegrity(unittest.TestCase):
 
     def test_entries_well_formed(self):

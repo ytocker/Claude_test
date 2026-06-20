@@ -4,11 +4,10 @@
 
 ## In the store
 
-How the **COSTUMES** tab looks in the shop (3 pages):
+How the **COSTUMES** tab looks in the shop (2 pages):
 
 <img src="img/store_costume_p1.png" width="280">
 <img src="img/store_costume_p2.png" width="280">
-<img src="img/store_costume_p3.png" width="280">
 
 ## In gameplay
 
