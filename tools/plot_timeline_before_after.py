@@ -210,7 +210,7 @@ def main():
     fig.suptitle("Skybit timeline — BEFORE vs AFTER the clown event "
                  "(shared pagoda axis)", fontsize=13, y=0.995)
     fig.tight_layout(rect=(0, 0, 1, 0.99))
-    out_path = os.path.join(out_dir, "timeline_before_after_aligned.png")
+    out_path = os.path.join(out_dir, "timeline_before_after_aligned_v2.png")
     fig.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
     print(f"wrote {out_path}")
