@@ -16,6 +16,9 @@ thunderstorm, snow squall), the two fixed-pillar power-up pickups (the genie
 lamp milestone + the rain umbrellas), the end-of-day treasure-box finale, and
 the newbie plateau + ramp. Cosmetic-only phenomena (calm breeze, dawn mist) are
 omitted.
+
+``draw_map`` / ``compute_axis`` / ``phase_labels_for`` are factored out so other
+tools (e.g. the before/after sky-timing comparison) can reuse the full map.
 """
 from __future__ import annotations
 
@@ -50,27 +53,21 @@ def _hex(rgb):
     return "#%02x%02x%02x" % tuple(int(c) for c in rgb[:3])
 
 
-def _pillar_for_phase(phase, phases):
-    """First pillar index whose cumulative phase reaches `phase` (linear
-    interp between the bracketing samples for a smooth label position)."""
-    for p in range(1, len(phases)):
-        if phases[p] >= phase:
-            lo, hi = phases[p - 1], phases[p]
-            frac = (phase - lo) / (hi - lo) if hi > lo else 0.0
-            return (p - 1) + frac
-    return float(len(phases) - 1)
+def phase_labels_for(keyframes, names):
+    """Named phase boundaries (fraction, label) for a keyframe set — excludes
+    the unnamed DAY-hold and the wrap, mirroring biome.PHASE_BOUNDARIES."""
+    out = []
+    for (frac, _), name in zip(keyframes, names):
+        if name and 0.0 < frac < 1.0:
+            out.append((frac, name.replace("GOLDEN HOUR", "GOLDEN\nHOUR")))
+    return out
 
 
-def main() -> None:
-    out_dir = os.path.join(ROOT, "docs", "screenshots")
-    os.makedirs(out_dir, exist_ok=True)
-
-    # Walk pillars until phase wraps past 1.0 (the day boundary), then keep the
-    # finale-rush pillars so the end-of-day event sits fully on-screen.
-    pillars = [0]
-    phases = [0.0]
-    p = 1
-    day_end = None
+def compute_axis():
+    """Walk pillars for one full day plus the finale rush. Pillar→phase is the
+    live time-warp, independent of biome keyframe timing."""
+    pillars, phases = [0], [0.0]
+    p, day_end = 1, None
     while True:
         ph = weather._phase_for_pillar(p)
         pillars.append(p)
@@ -82,12 +79,26 @@ def main() -> None:
         p += 1
         if p > 400:  # safety net
             break
+    return pillars, phases, day_end
 
-    fig, (ax_sky, ax) = plt.subplots(
-        2, 1, figsize=(13, 6.2), dpi=130,
-        gridspec_kw=dict(height_ratios=[1, 6], hspace=0.08),
-        sharex=True,
-    )
+
+def _pillar_for_phase(phase, phases):
+    """First pillar index whose cumulative phase reaches `phase` (linear
+    interp between the bracketing samples for a smooth label position)."""
+    for p in range(1, len(phases)):
+        if phases[p] >= phase:
+            lo, hi = phases[p - 1], phases[p]
+            frac = (phase - lo) / (hi - lo) if hi > lo else 0.0
+            return (p - 1) + frac
+    return float(len(phases) - 1)
+
+
+def draw_map(ax_sky, ax, pillars, phases, day_end, phase_labels=None,
+             sky_title=None, show_xlabel=True, show_legend=True):
+    """Draw the sky banner (top) + the event/graph panel (bottom) onto the two
+    provided axes, sampling sky colour from the LIVE biome keyframes."""
+    if phase_labels is None:
+        phase_labels = PHASE_LABELS
 
     # ── top strip: sky colour sampled from the real palette per pillar ───────
     for i in range(len(pillars) - 1):
@@ -95,16 +106,17 @@ def main() -> None:
         ax_sky.axvspan(pillars[i], pillars[i + 1], color=col, linewidth=0)
     ax_sky.set_yticks([])
     ax_sky.set_ylabel("sky", rotation=0, ha="right", va="center", fontsize=9)
-    for phase, label in PHASE_LABELS:
+    for phase, label in phase_labels:
         x = _pillar_for_phase(phase, phases)
         ax_sky.axvline(x, color="white", alpha=0.55, linewidth=1)
         ax_sky.text(x + 1, 0.5, label, color="white", fontsize=7.5,
                     va="center", ha="left", fontweight="bold")
-    ax_sky.set_title(
-        f"Skybit — game content map by pagodas passed  "
-        f"(one full day ≈ {day_end} pagodas)   ·   live status; "
-        f"pillars are nominal — live counts run slightly lower",
-        fontsize=12, pad=8)
+    if sky_title is None:
+        sky_title = (
+            f"Skybit — game content map by pagodas passed  "
+            f"(one full day ≈ {day_end} pagodas)   ·   live status; "
+            f"pillars are nominal — live counts run slightly lower")
+    ax_sky.set_title(sky_title, fontsize=12, pad=8)
 
     # ── lower panel: the three gameplay weather events vs pillar ─────────────
     # Lightning window (shaded) — a state, not an intensity curve.
@@ -237,27 +249,26 @@ def main() -> None:
     ax.annotate("RUN START", (0, 0.5), xytext=(6, 0),
                 textcoords="offset points", rotation=90, fontsize=8.5,
                 fontweight="bold", color="#222", va="center", ha="left")
-    for phase, _ in PHASE_LABELS:
+    for phase, _ in phase_labels:
         ax.axvline(_pillar_for_phase(phase, phases), color="#bbb",
                    linestyle=":", linewidth=1, zorder=0)
 
     ax.set_xlim(0, pillars[-1])
     ax.set_ylim(0, 1.08)
-    ax.set_xlabel("pagodas passed (pillars scored)")
+    if show_xlabel:
+        ax.set_xlabel("pagodas passed (pillars scored)")
     ax.set_ylabel("event intensity (0–1)")
     ax.grid(True, axis="y", alpha=0.25)
     ax.set_xticks(range(0, pillars[-1] + 1, 10))
 
-    handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles, labels, loc="upper center",
-              bbox_to_anchor=(0.5, -0.13), ncol=4, framealpha=0.92,
-              fontsize=8.5)
+    if show_legend:
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(handles, labels, loc="upper center",
+                  bbox_to_anchor=(0.5, -0.13), ncol=4, framealpha=0.92,
+                  fontsize=8.5)
 
-    fig.tight_layout()
-    out_path = os.path.join(out_dir, "event_pagoda_map_clown_v5.png")
-    fig.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
-    print(f"wrote {out_path}")
+
+def print_summary(pillars, phases, day_end):
     print(f"day boundary pillar = {day_end}")
     for label, fn, _ in CURVES:
         ys = [fn(ph) for ph in phases]
@@ -277,6 +288,27 @@ def main() -> None:
     if _jolt:
         print(f"  Lightning strikes Pip (storm jolt): pillars {min(_jolt)}"
               f"–{max(_jolt)} (rain ≥ {config.STORM_JOLT_RAIN_MIN})")
+
+
+def main() -> None:
+    out_dir = os.path.join(ROOT, "docs", "screenshots")
+    os.makedirs(out_dir, exist_ok=True)
+
+    pillars, phases, day_end = compute_axis()
+
+    fig, (ax_sky, ax) = plt.subplots(
+        2, 1, figsize=(13, 6.2), dpi=130,
+        gridspec_kw=dict(height_ratios=[1, 6], hspace=0.08),
+        sharex=True,
+    )
+    draw_map(ax_sky, ax, pillars, phases, day_end)
+
+    fig.tight_layout()
+    out_path = os.path.join(out_dir, "event_pagoda_map_clown_v5.png")
+    fig.savefig(out_path, bbox_inches="tight")
+    plt.close(fig)
+    print(f"wrote {out_path}")
+    print_summary(pillars, phases, day_end)
 
 
 if __name__ == "__main__":
