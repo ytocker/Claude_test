@@ -156,6 +156,12 @@ def group(item_id: str) -> str:
     return CATALOG[item_id].get("group", "costume")
 
 
+def is_secret(item_id: str) -> bool:
+    """Secret items render masked (??? + a "?" icon, price still shown) in the
+    store until bought, then reveal. Opt-in per entry; absent means visible."""
+    return CATALOG.get(item_id, {}).get("secret", False)
+
+
 def ids_of_group(g: str) -> list[str]:
     """Catalog ids in a store tab (costume / parrot / animal), in catalog order."""
     return [i for i, v in CATALOG.items() if v.get("group", "costume") == g]

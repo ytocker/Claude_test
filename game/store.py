@@ -28,6 +28,7 @@ from game.powerup_help import _gradient_bg, _outlined_title, _seeded_stars, \
 from game import parrot
 from game import store_catalog
 from game import store_data
+from game.surprise_box_variants import _draw_qmark
 
 # Card grid metrics (2 columns). Thumbnails are pre-rendered once so the
 # per-frame cost is a flat blit rather than eight smoothscales.
@@ -46,6 +47,8 @@ _TABS = (("COSTUMES", "costume"), ("PARROTS", "parrot"),
 # Owned-but-equipped accent + buy/locked chip tints.
 _EQUIP_GREEN = (96, 210, 120)
 _LOCK_GREY = (150, 140, 155)
+# Mystery-violet rim that marks a still-masked secret card as special.
+_SECRET_RIM = (150, 110, 214)
 
 
 def _draw_chevron(surf, rect, direction) -> None:
@@ -282,17 +285,29 @@ class StoreScene:
     def _draw_card(self, surf, sid: str, rect: pygame.Rect) -> None:
         owned = store_data.is_owned(sid)
         equipped = (store_data.equipped("skin") == sid)
+        # A secret stays masked (??? + a "?" glyph) until bought; the price chip
+        # still shows, so the lure is a mystery card with a steep cost. Buying is
+        # blind and reveals the real art the moment ownership flips.
+        secret = store_catalog.is_secret(sid) and not owned
         _dark_panel(surf, rect, radius=14, alpha=215)
 
         # Equipped cards get a bright gold rim so the current look is obvious
-        # at a glance across the grid.
+        # at a glance; an unbought secret gets a mystery-violet rim instead.
         if equipped:
             pygame.draw.rect(surf, _GOLD_BRIGHT, rect, width=2, border_radius=14)
+        elif secret:
+            pygame.draw.rect(surf, _SECRET_RIM, rect, width=2, border_radius=14)
 
-        thumb = self._thumbs[sid]
-        surf.blit(thumb, thumb.get_rect(center=(rect.centerx, rect.y + 30)))
+        if secret:
+            _draw_qmark(surf, rect.centerx, rect.y + 30, 40,
+                        UI_CREAM, NEAR_BLACK, thick=2)
+            label = "???"
+        else:
+            thumb = self._thumbs[sid]
+            surf.blit(thumb, thumb.get_rect(center=(rect.centerx, rect.y + 30)))
+            label = self._disp_name(sid)
 
-        nimg = _font(14, True).render(self._disp_name(sid), True, _GOLD_BRIGHT)
+        nimg = _font(14, True).render(label, True, _GOLD_BRIGHT)
         surf.blit(nimg, nimg.get_rect(center=(rect.centerx, rect.y + 60)))
 
         self._draw_state_chip(surf, sid, rect, owned, equipped)
