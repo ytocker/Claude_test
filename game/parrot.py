@@ -103,7 +103,21 @@ def _draw_sunglasses(surf, cx, cy):
                      (right[0] + r_outer - 1, right[1] - r_outer + 2), 1)
 
 
-def _build_frame(wing_angle_deg):
+def _draw_eye(surf, cx, cy):
+    """Plain macaw eye — the bare-faced look that sits under the default
+    aviators. A pale bare-skin facial patch (the scarlet macaw's signature)
+    carrying a dark, glinting eye. It is the base the SHADES cosmetics paint
+    over, and the look the store's NO-SHADES option leaves showing."""
+    _aaellipse(surf, (250, 243, 236), (cx, cy), 6, 5)
+    # Faint feather-lines streak the bare patch the way a real macaw's does.
+    pygame.draw.line(surf, (236, 210, 205), (cx - 5, cy - 2), (cx + 5, cy - 2), 1)
+    pygame.draw.line(surf, (236, 210, 205), (cx - 5, cy + 2), (cx + 5, cy + 2), 1)
+    pygame.draw.circle(surf, (40, 26, 30), (cx + 1, cy), 3)
+    pygame.draw.circle(surf, (15, 10, 12), (cx + 1, cy), 3, 1)
+    pygame.draw.circle(surf, (255, 255, 255), (cx, cy - 1), 1)
+
+
+def _build_frame(wing_angle_deg, *, eyewear=True):
     surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
 
     # Tail: layered feather fan, vivid red→orange→yellow
@@ -152,8 +166,13 @@ def _build_frame(wing_angle_deg):
     # Crown highlight
     _aaellipse(surf, (255, 170, 170), (46, 16), 7, 3)
 
-    # Aviator sunglasses (replaces the plain eye)
-    _draw_sunglasses(surf, 50, 20)
+    # Aviator sunglasses (replaces the plain eye). The SHADES cosmetics start
+    # from the bare-eyed build (eyewear=False) and paint their own lenses over
+    # this anchor; NO SHADES leaves the plain eye showing.
+    if eyewear:
+        _draw_sunglasses(surf, 50, 20)
+    else:
+        _draw_eye(surf, 50, 20)
 
     # Beak — hooked, with a glossy highlight
     beak_pts = [
@@ -171,6 +190,12 @@ def _build_frame(wing_angle_deg):
     pygame.draw.line(surf, BIRD_BEAK_D, (34, 45), (36, 49), 2)
 
     return surf
+
+
+def _build_frame_bare(wing_angle_deg):
+    """The base macaw with a plain eye instead of the baked aviators — the
+    `base_fn` every SHADES skin builds on (glasses_skins.py)."""
+    return _build_frame(wing_angle_deg, eyewear=False)
 
 
 def _add_outline(src: pygame.Surface, outline_color=(20, 12, 18, 220)) -> pygame.Surface:
@@ -1246,7 +1271,8 @@ def _store_skin_builders() -> dict:
         # Costume + parrot-species skins, the from-scratch animals, the shoes,
         # then the hats (each module is added by a later roster expansion;
         # tolerate any being absent).
-        for modname in ("store_skins", "animal_skins", "shoe_skins", "hat_skins"):
+        for modname in ("store_skins", "animal_skins", "shoe_skins", "hat_skins",
+                        "glasses_skins"):
             try:
                 mod = __import__("game." + modname, fromlist=["BUILDERS"])
                 merged.update(mod.BUILDERS)
@@ -1263,7 +1289,7 @@ def _skin_icons() -> dict:
     global _SKIN_ICONS
     if _SKIN_ICONS is None:
         merged: dict = {}
-        for modname in ("shoe_skins", "hat_skins"):
+        for modname in ("shoe_skins", "hat_skins", "glasses_skins"):
             try:
                 mod = __import__("game." + modname, fromlist=["ICONS"])
                 merged.update(getattr(mod, "ICONS", {}))
