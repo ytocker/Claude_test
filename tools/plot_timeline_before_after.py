@@ -184,8 +184,8 @@ def main():
     xmax = D_new["day_end"] + config.CYCLE_FINALE_RUSH_PILLARS + 4
 
     fig, (axs_o, axc_o, axs_n, axc_n) = plt.subplots(
-        4, 1, figsize=(14, 9), dpi=130,
-        gridspec_kw=dict(height_ratios=[1, 5, 1, 5], hspace=0.12),
+        4, 1, figsize=(14, 9.4), dpi=130,
+        gridspec_kw=dict(height_ratios=[1, 5, 1, 5], hspace=0.22),
         sharex=True)
 
     _draw_panel(axs_o, axc_o, D_old,
@@ -198,6 +198,10 @@ def main():
                 f"snow @{config.SNOW_START_PILLAR}",
                 show_clown=True, xmax=xmax)
 
+    # Repeat the pagoda axis under the BEFORE panel too (sharex hides it by
+    # default) so the scale is readable in the gap between the two graphs.
+    axc_o.tick_params(axis="x", labelbottom=True)
+    axc_o.set_xlabel("pagodas passed (pillars scored)", fontsize=8)
     axc_n.set_xlabel("pagodas passed (pillars scored) — SAME axis on both panels")
     for ax in (axc_o, axc_n):
         h, l = ax.get_legend_handles_labels()
