@@ -91,17 +91,20 @@ def main():
                    (nat_rect.left + 18, nat_rect.bottom + 1))
 
         # On-Pip ~6x zoom (nearest-neighbour) — judge the true 22px read big.
-        zoom = pygame.transform.scale(pip, (pip.get_width() * 6,
-                                            pip.get_height() * 6))
+        # Crop tight on the head (eye anchor ~ (50,40) in composite + 2px
+        # outline pad) so the eye-through read is what the reviewer judges.
+        Z = 7
+        crop = pygame.Rect(38, 28, 28, 28)         # head window in composite+pad
+        head = pip.subsurface(crop.clip(pip.get_rect())).copy()
+        zoom = pygame.transform.scale(head, (head.get_width() * Z,
+                                             head.get_height() * Z))
         zoom_rect = pygame.Rect(nat_rect.right + 14, cell.top + 6, 184, 196)
         _checker(sheet, zoom_rect, a=(50, 56, 74), b=(42, 48, 64))
-        zr = zoom.get_rect(center=zoom_rect.center)
-        # Clip the blit to the cell window.
         sheet.set_clip(zoom_rect)
-        sheet.blit(zoom, zr.topleft)
+        sheet.blit(zoom, zoom.get_rect(center=zoom_rect.center).topleft)
         sheet.set_clip(None)
         pygame.draw.rect(sheet, (70, 78, 100), zoom_rect, 1)
-        sheet.blit(tiny.render("~6x zoom (in-game scale)", True,
+        sheet.blit(tiny.render("~7x zoom — eye-through read", True,
                                (190, 198, 216)),
                    (zoom_rect.left, zoom_rect.bottom + 1))
 

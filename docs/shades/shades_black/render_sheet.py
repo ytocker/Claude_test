@@ -36,49 +36,56 @@ pygame.font.init()
 font = pygame.font.SysFont("DejaVuSans", 18, bold=True)
 small = pygame.font.SysFont("DejaVuSans", 13)
 
-COL_W, ROW_H = 360, 250
+COL_W = 360
+TOP = 78
+ROW_H = 720
 BG = (118, 124, 140)
 CHECK_A, CHECK_B = (128, 134, 150), (108, 114, 130)
-sheet = pygame.Surface((COL_W * 3, ROW_H + 70))
+sheet = pygame.Surface((COL_W * 3, TOP + ROW_H))
 sheet.fill(BG)
 
 title = font.render("Skybit SHADES — shades_black (wayfarer)  ROUND 1", True, (255, 255, 255))
 sheet.blit(title, (16, 14))
 
+
+def checker(w, h):
+    p = pygame.Surface((w, h)); cs = 12
+    for yy in range(0, h, cs):
+        for xx in range(0, w, cs):
+            p.fill(CHECK_A if (xx // cs + yy // cs) % 2 else CHECK_B, (xx, yy, cs, cs))
+    return p
+
+
 for i, (vid, fn, name) in enumerate(VARS):
     ox = i * COL_W
     chosen = vid == CHOSEN
-    label = f"{vid} · {name}" + ("   [IMPLEMENTED]" if chosen else "")
+    label = f"{vid} · {name}" + ("  [IMPLEMENTED]" if chosen else "")
     col = (255, 232, 120) if chosen else (255, 255, 255)
     sheet.blit(font.render(label, True, col), (ox + 16, 50))
 
-    # checker panel behind transparent art
-    panel = pygame.Surface((COL_W - 24, ROW_H))
-    cs = 12
-    for yy in range(0, ROW_H, cs):
-        for xx in range(0, COL_W - 24, cs):
-            panel.fill(CHECK_A if (xx // cs + yy // cs) % 2 else CHECK_B,
-                       (xx, yy, cs, cs))
-    sheet.blit(panel, (ox + 12, 80))
+    panel = checker(COL_W - 24, ROW_H)
+    sheet.blit(panel, (ox + 12, TOP))
 
+    y = TOP + 12
     # product shot
     prod = product(fn)
-    sheet.blit(prod, (ox + 24, 96))
-    sheet.blit(small.render("product eye_w=96", True, (240, 240, 240)),
-               (ox + 24, 96 + prod.get_height() + 2))
+    sheet.blit(prod, (ox + (COL_W - prod.get_width()) // 2, y))
+    y += prod.get_height() + 4
+    sheet.blit(small.render("product  eye_w=96", True, (245, 245, 245)), (ox + 24, y))
+    y += 26
 
     # on-pip native @22
     pip = on_pip(fn)
-    px = ox + 24 + prod.get_width() + 18
-    sheet.blit(pip, (px, 96))
-    sheet.blit(small.render("@22 native", True, (240, 240, 240)),
-               (px, 96 + pip.get_height() + 2))
+    sheet.blit(pip, (ox + 24, y))
+    sheet.blit(small.render("on-Pip @22 native", True, (245, 245, 245)),
+               (ox + 24 + pip.get_width() + 14, y + 20))
+    y += pip.get_height() + 10
 
     # on-pip 6x zoom
     z = zoom(pip, 6)
-    sheet.blit(z, (px, 96 + pip.get_height() + 22))
-    sheet.blit(small.render("@22 ×6 zoom", True, (240, 240, 240)),
-               (px, 96 + pip.get_height() + 22 + z.get_height() + 0))
+    sheet.blit(z, (ox + (COL_W - z.get_width()) // 2, y))
+    y += z.get_height() + 2
+    sheet.blit(small.render("on-Pip @22  ×6 zoom", True, (245, 245, 245)), (ox + 24, y))
 
 OUT = "/home/user/skybit/docs/shades/shades_black/round_1.png"
 pygame.image.save(sheet, OUT)

@@ -99,23 +99,23 @@ for i, (name, fn) in enumerate(VARIANTS):
     sheet.blit(pip, (nrect.x + 4, nrect.y + 4))
     sheet.blit(small.render("Pip 1x", True, SUB), (nrect.x, nrect.bottom + 4))
 
-    # On-Pip 6x zoom (right).
+    # On-Pip 6x zoom (right), centred on the eye/head so the shades fill it.
     z = 6
     zoom = pygame.transform.scale(
         pip, (pip.get_width() * z, pip.get_height() * z))
     zrect = pygame.Rect(nrect.right + 16, panel.y + 30,
-                        min(zoom.get_width(), COL_W - (nrect.right - panel.x) - 40),
-                        ROW_H - 60)
+                        COL_W - (nrect.right - panel.x) - 40, ROW_H - 60)
     checker(sheet, zrect)
     pygame.draw.rect(sheet, (70, 76, 100), zrect, width=1)
-    # crop zoom to head region centred on the eye for a tight read.
     sheet.set_clip(zrect)
-    zr = zoom.get_rect()
-    # eye is roughly at composite (50,40)+outline pad; centre the zoom there.
-    zr.center = (zrect.centerx, zrect.centery)
-    sheet.blit(zoom, zr)
+    # Eye sits at composite (50,40); add the build's PARROT_DY-independent
+    # outline pad (~2px) before scaling, and centre that point in the panel.
+    eye_x = (50 + 2) * z
+    eye_y = (40 + 2) * z
+    sheet.blit(zoom, (zrect.centerx - eye_x, zrect.centery - eye_y))
     sheet.set_clip(None)
-    sheet.blit(small.render("Pip 6x", True, SUB), (zrect.x, zrect.bottom + 4))
+    sheet.blit(small.render("Pip 6x (eye)", True, SUB),
+               (zrect.x, zrect.bottom + 4))
 
 
 out = os.path.join(os.path.dirname(__file__), "round_1.png")

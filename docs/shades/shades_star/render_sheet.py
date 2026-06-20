@@ -99,15 +99,20 @@ def main():
         sheet.blit(pip, nr.topleft)
         sheet.blit(small_f.render("22px", True, (200, 206, 222)),
                    (pip_rect.left + 4, pip_rect.top + 4))
-        # 6x nearest-neighbour zoom of the head region so pixels are honest.
-        head = pygame.Surface((40, 40), pygame.SRCALPHA)
-        # Head sits around (50,40)+outline pad; sample a 40px box around it.
-        head.blit(pip, (-int(pip.get_width() * 0.42), -int(pip.get_height() * 0.18)))
-        zoom = pygame.transform.scale(head, (40 * 4, 40 * 4))
+        # Nearest-neighbour zoom centred on the EYE so the tiny star read is
+        # honest. The eye anchor is composite (50,40); _add_outline pads by 3
+        # (pad=2 + the bird's own +1 build offset), so it lands at ~(53,43) in
+        # the outlined pip surface. Sample a 34px box around it.
+        ex, ey = 53, 43
+        crop = 34
+        head = pygame.Surface((crop, crop), pygame.SRCALPHA)
+        head.blit(pip, (-(ex - crop // 2), -(ey - crop // 2)))
+        Z = 5
+        zoom = pygame.transform.scale(head, (crop * Z, crop * Z))
         zr = zoom.get_rect(midbottom=(pip_rect.centerx, pip_rect.bottom - 4))
         sheet.blit(zoom, zr.topleft)
         pygame.draw.rect(sheet, (70, 78, 100), zr, 1)
-        sheet.blit(small_f.render("~4x", True, (200, 206, 222)),
+        sheet.blit(small_f.render(f"~{Z}x eye", True, (200, 206, 222)),
                    (zr.left + 2, zr.top + 2))
 
         # Label.

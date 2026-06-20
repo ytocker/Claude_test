@@ -16,7 +16,7 @@ pygame.init()
 pygame.display.set_mode((1, 1))
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.dirname(os.path.dirname(_HERE))
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_HERE)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
@@ -62,7 +62,7 @@ def main():
     small = pygame.font.SysFont("Arial", 14, bold=True)
     tiny = pygame.font.SysFont("Arial", 11)
 
-    CELL_W, CELL_H = 420, 230
+    CELL_W, CELL_H = 560, 250
     MARGIN, TITLE_H = 24, 52
     sheet_w = MARGIN * 2 + CELL_W
     sheet_h = TITLE_H + MARGIN + len(VARIANTS) * CELL_H + MARGIN
@@ -76,13 +76,16 @@ def main():
     for i, (label, fn, chosen) in enumerate(VARIANTS):
         x = MARGIN
         y = TITLE_H + MARGIN + i * CELL_H
-        cell = pygame.Rect(x, y, CELL_W, CELL_H - 14)
+        cell = pygame.Rect(x, y, CELL_W, CELL_H - 16)
         border = (255, 210, 90) if chosen else (70, 78, 100)
         pygame.draw.rect(sheet, (40, 45, 62), cell, border_radius=10)
         pygame.draw.rect(sheet, border, cell, 2 if chosen else 1, border_radius=10)
 
+        col = (255, 210, 90) if chosen else (222, 228, 240)
+        sheet.blit(small.render(label, True, col), (cell.left + 12, cell.top + 8))
+
         # Product shot.
-        pr_rect = pygame.Rect(cell.left + 12, cell.top + 12, 180, 180)
+        pr_rect = pygame.Rect(cell.left + 12, cell.top + 30, 180, 180)
         _checker(sheet, pr_rect)
         pygame.draw.rect(sheet, (70, 78, 100), pr_rect, 1)
         prod = product(fn)
@@ -92,7 +95,7 @@ def main():
 
         pip = on_pip(fn)
         # On-Pip native @22.
-        nat_rect = pygame.Rect(pr_rect.right + 16, cell.top + 12, 96, 130)
+        nat_rect = pygame.Rect(pr_rect.right + 16, cell.top + 30, 96, 130)
         _checker(sheet, nat_rect, a=(48, 54, 72), b=(40, 46, 62))
         pygame.draw.rect(sheet, (70, 78, 100), nat_rect, 1)
         sheet.blit(pip, pip.get_rect(center=nat_rect.center).topleft)
@@ -100,16 +103,13 @@ def main():
                    (nat_rect.left, nat_rect.bottom + 2))
 
         # On-Pip ~6x zoom.
-        z_rect = pygame.Rect(nat_rect.right + 12, cell.top + 12, 200, 200)
+        z_rect = pygame.Rect(nat_rect.right + 12, cell.top + 30, 200, 200)
         _checker(sheet, z_rect, a=(48, 54, 72), b=(40, 46, 62))
         pygame.draw.rect(sheet, (70, 78, 100), z_rect, 1)
         zoom = pygame.transform.scale_by(pip, 6)
         sheet.blit(zoom, zoom.get_rect(center=z_rect.center).topleft)
         sheet.blit(tiny.render("~6x zoom (in-game read)", True, (200, 206, 220)),
                    (z_rect.left, z_rect.bottom + 2))
-
-        col = (255, 210, 90) if chosen else (222, 228, 240)
-        sheet.blit(small.render(label, True, col), (cell.left + 12, cell.bottom - 22))
 
     out = os.path.join(_HERE, "round_1.png")
     pygame.image.save(sheet, out)
