@@ -89,24 +89,67 @@ class Trigger(unittest.TestCase):
         w = World()
         self._arm_just_before_anchor(w)
         w.update(1 / 60.0)
-        self.assertEqual(w._clown_slot_remaining, CLOWN_SLOT_PILLARS,
-                         "crossing the clown anchor reserves the full slot")
+        # Crossing the anchor now sends in the cinematic controller; the slot is
+        # NOT reserved until the die is rolled (see Pickup tests).
+        self.assertIsNotNone(w.clown_event, "crossing the anchor spawns the clown")
         self.assertTrue(w._clown_fired_this_cycle)
-        self.assertGreaterEqual(len(w._clown_route), CLOWN_ROLL_MIN)
-        self.assertLessEqual(len(w._clown_route), CLOWN_ROLL_MAX)
+        self.assertEqual(w._clown_slot_remaining, 0,
+                         "slot is reserved on the die roll, not at the trigger")
 
     def test_does_not_refire_same_day(self):
         w = World()
         self._arm_just_before_anchor(w)
         w.update(1 / 60.0)
-        # Drain the slot, then keep advancing within the same day: must not
-        # re-arm until a cycle wrap re-sets the flag.
-        w._clown_slot_remaining = 0
+        first = w.clown_event
+        # Clear it and keep advancing within the same day: must not re-arm until a
+        # cycle wrap re-sets the flag.
+        w.clown_event = None
         w._last_biome_phase = CLOWN_EVENT_PHASE - 0.005
         w.biome_time = (CLOWN_EVENT_PHASE + 0.002) * CYCLE_SECONDS
         w.update(1 / 60.0)
-        self.assertEqual(w._clown_slot_remaining, 0,
-                         "clown must not re-fire twice in one day")
+        self.assertIsNotNone(first)
+        self.assertIsNone(w.clown_event, "clown must not re-fire twice in one day")
+
+
+class Pickup(unittest.TestCase):
+    """The die roll reserves the gauntlet and feeds N to the slot."""
+
+    def _roll(self, ghost=False):
+        from game.clown_event import ClownEvent
+        w = World()
+        ev = ClownEvent()
+        w.clown_event = ev
+        # Force the outcome deterministically, then run the collect→reveal path.
+        ev.collected = True
+        ev.ghost_run = ghost
+        ev.roll = 10 if ghost else 18
+        ev.spin_t = 0.0
+        ev.phase = "rolling"
+        ev._reveal(w)
+        return w, ev
+
+    def test_roll_reserves_slot(self):
+        w, ev = self._roll()
+        self.assertEqual(w._clown_slot_remaining, CLOWN_SLOT_PILLARS)
+        self.assertEqual(len(w._clown_route), 18, "route length == rolled N")
+        self.assertGreater(ev.die_pop_t, 0.0, "reveal banner armed")
+
+    def test_ghost_sets_bird_ghost(self):
+        w, ev = self._roll(ghost=True)
+        self.assertTrue(ev.ghost_run)
+        self.assertGreater(w.ghost_timer, 0.0, "GHOST roll phases Pip through")
+        self.assertEqual(w.ghost_timer_total, w.ghost_timer)
+        self.assertEqual(len(w._clown_route), 10, "ghost rolls the minimum")
+
+    def test_auto_grab_on_pass(self):
+        from game.clown_event import ClownEvent
+        w = World()
+        ev = ClownEvent()
+        # Park the die well left of Pip so the auto-grab fires this tick.
+        ev.dice_x = w.bird.x - 100
+        ev.update(w, 1 / 60.0)
+        self.assertTrue(ev.collected, "a die that drifts past Pip auto-grabs")
+        self.assertEqual(ev.phase, "rolling")
 
 
 if __name__ == "__main__":

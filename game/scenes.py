@@ -1333,6 +1333,9 @@ class App:
         # the strolling clown), mirroring the celebration-crowd layer above.
         if getattr(self.world, "demo", None) is not None:
             self.world.demo.draw_world(self.screen, self.world, sx, sy)
+        # Inline clown event (live gameplay) uses the same behind-pillars layer.
+        if getattr(self.world, "clown_event", None) is not None:
+            self.world.clown_event.draw_world(self.screen, self.world, sx, sy)
 
         pipe_palette = self.world.biome_palette
         kfc_active = self.world.bird.kfc_active
@@ -1566,6 +1569,14 @@ class App:
                 # While the banner is up, re-draw Pip ON TOP of it so the parrot
                 # flies in front of the banner (which still overlays the score).
                 if getattr(demo, "die_pop_t", 0) > 0:
+                    self.world.bird.draw(self.screen, sx, sy,
+                                         flipped=self.world.reverse_timer > 0)
+            # Inline clown event reveal banner — same after-HUD overlay + Pip-
+            # on-top redraw so the parrot flies in front of the banner.
+            ce = getattr(self.world, "clown_event", None)
+            if ce is not None:
+                ce.draw_sign(self.screen, self.world, 0, 0)
+                if getattr(ce, "die_pop_t", 0) > 0:
                     self.world.bird.draw(self.screen, sx, sy,
                                          flipped=self.world.reverse_timer > 0)
         elif self.state == STATE_PAUSE:

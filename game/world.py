@@ -28,8 +28,7 @@ from game.config import (
     FLAP_V,
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
     SECRET_POWERUP_WEIGHTS, DEBUG_GENIE_PILLAR,
-    CLOWN_START_PILLAR, CLOWN_SLOT_PILLARS, CLOWN_ROLL_MIN, CLOWN_ROLL_MAX,
-    CLOWN_WARREN_SPACING,
+    CLOWN_START_PILLAR, CLOWN_SLOT_PILLARS, CLOWN_WARREN_SPACING,
     GENIE_OFFER_COUNT, GENIE_OFFER_Y_SLOTS,
     GENIE_CHAMBER_GAP_BOOST, GENIE_CHAMBER_SPACING,
     GENIE_CHAMBER_REVEAL_DIST,
@@ -75,7 +74,7 @@ from game.weather import (
     GENIE_PILLAR,
     _phase_for_pillar,
 )
-from game.clown_routes import build_clown_route
+from game.clown_event import ClownEvent
 from game.ambient import AmbientScenes
 
 # Biome phase at which the clown event fires each day — the phase of
@@ -286,6 +285,9 @@ class World:
         self._clown_slot_remaining = 0
         self._clown_route = []
         self._clown_fired_this_cycle = False
+        # The cinematic controller (clown walk-in + die roll); set when the clown
+        # phase is crossed, reserves the gauntlet on the die roll, then clears.
+        self.clown_event = None
         # Transient flag so near-miss detection fires once per pillar.
         self._near_miss_flags: dict[int, bool] = {}
 
@@ -1461,14 +1463,17 @@ class World:
                 self.celebration_crowds.append(
                     CelebrationCrowd(decor_left_x, right_x, finish_x=finish_x))
         # Clown event trigger: once per day, when the phase crosses the clown
-        # anchor, roll the gauntlet length and reserve the held slot. _spawn_pipe
-        # then lays the warren towers + regular fill as pillars scroll in.
+        # anchor, send in the clown + die. The controller rolls the gauntlet
+        # length on pickup and reserves the held slot (see ClownEvent._reveal),
+        # which _spawn_pipe then lays as warren towers + regular fill.
         if (not self._clown_fired_this_cycle
                 and self._last_biome_phase < CLOWN_EVENT_PHASE <= _new_phase):
             self._clown_fired_this_cycle = True
-            n = random.randint(CLOWN_ROLL_MIN, CLOWN_ROLL_MAX)
-            self._clown_route = build_clown_route(n, random)
-            self._clown_slot_remaining = CLOWN_SLOT_PILLARS
+            self.clown_event = ClownEvent()
+        if self.clown_event is not None:
+            self.clown_event.update(self, sdt)
+            if self.clown_event.done:
+                self.clown_event = None
         self._last_biome_phase = _new_phase
         # Weather tracks biome phase, scales with sdt so slowmo softens rain too.
         self.weather.update(sdt, self.biome_phase)

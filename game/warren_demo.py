@@ -65,7 +65,7 @@ class WarrenDemo:
         # Lazy reuse of the look-dev kit. Constructed only when the demo runs,
         # so this import happens after the real display is up (the modules'
         # SDL_VIDEODRIVER=dummy setdefault is then a no-op) and never on web.
-        from tools.render_jester_variants import (
+        from game.clown_art import (
             build_jester, _draw_die_face_noshadow, JESTERS,
         )
         from tools.render_warren_routes import Route

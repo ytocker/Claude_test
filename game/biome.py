@@ -197,7 +197,7 @@ _KEYFRAME_NAMES = ["DAY", "GOLDEN HOUR", "SUNSET", "DUSK", "NIGHT",
 # the very start and daytime never reads as dominant. Holding day for most of
 # the span and compressing the fade into the tail keeps DAY dominant while the
 # transition stays smooth. Only applied when the day is extended.
-DAY_HOLD_FRAC = 0.70
+DAY_HOLD_FRAC = 0.60
 
 _BASE_CYCLE_SECONDS = 320.0
 from game.config import DAY_EXTRA_SECONDS as _DAY_EXTRA
