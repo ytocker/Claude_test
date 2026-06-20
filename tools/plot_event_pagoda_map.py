@@ -1,5 +1,6 @@
 """Render the run's content map on a PAGODAS-PASSED axis under
-``docs/screenshots/event_pagoda_map_clown_v4.png``. Run from the repo root:
+``docs/screenshots/event_pagoda_map_clown_v6.png`` (now also showing the clown
+event's clear-sky relief empties). Run from the repo root:
 
     python tools/plot_event_pagoda_map.py
 
@@ -233,9 +234,11 @@ def draw_map(ax_sky, ax, pillars, phases, day_end, phase_labels=None,
                linewidth=0)  # soft buffer to rain
     ax.axvline(c0, color=CLOWN_COLOR, linewidth=2.4, zorder=4)
     ax.annotate(
-        f"CLOWN appears ~{c0}\ndie roll → gauntlet\n"
+        f"CLOWN enters ~{c0}\ndie roll → warren gauntlet\n"
         f"N={config.CLOWN_ROLL_MIN}-{config.CLOWN_ROLL_MAX} of held "
-        f"{config.CLOWN_SLOT_PILLARS} (+ghost)",
+        f"{config.CLOWN_SLOT_PILLARS} (+ghost)\n"
+        f"bracketed by {config.CLOWN_LEADIN_PILLARS}+{config.CLOWN_OUTRO_PILLARS} "
+        f"clear-sky empties",
         (c0, 0.5), textcoords="offset points", xytext=(6, 0),
         rotation=90, fontsize=7.5, fontweight="bold", color="#8a0d17",
         va="center", ha="left", zorder=7)
@@ -243,6 +246,24 @@ def draw_map(ax_sky, ax, pillars, phases, day_end, phase_labels=None,
                 ((c1 + config.RAIN_START_PILLAR) / 2, 0.06),
                 textcoords="offset points", xytext=(0, 0), rotation=90,
                 fontsize=6.5, color="#8a0d17", va="bottom", ha="center", zorder=6)
+
+    # ── clear-sky RELIEF empties bracketing the gauntlet: a short calm as the
+    # clown enters + a breather right after the warren. They're phantom →
+    # UNSCORED, so they don't advance this pagodas-passed axis (they hide
+    # existing pillars, don't add any, and don't shift rain) — drawn as edge
+    # notches at the slot bounds rather than axis-width bands. ────────────────
+    RELIEF_COLOR = "#3a8fd6"
+    for x, n, tag in ((c0, config.CLOWN_LEADIN_PILLARS, "lead-in"),
+                      (c1, config.CLOWN_OUTRO_PILLARS, "outro")):
+        ax.plot([x], [1.0], marker="v", color=RELIEF_COLOR, markersize=9,
+                markeredgecolor="white", markeredgewidth=0.8, zorder=8,
+                clip_on=False,
+                label=("Clown relief — clear-sky empties (unscored)"
+                       if tag == "lead-in" else None))
+        ax.annotate(f"+{n} clear sky\n({tag})", (x, 1.0),
+                    textcoords="offset points", xytext=(0, 12), ha="center",
+                    fontsize=6.5, color=RELIEF_COLOR, fontweight="bold",
+                    clip_on=False, zorder=8)
 
     # Run-start marker + biome gridlines carried into the lower panel.
     ax.axvline(0, color="#222", linewidth=2)
@@ -283,6 +304,8 @@ def print_summary(pillars, phases, day_end):
     print(f"  Clown event: held slot {config.CLOWN_START_PILLAR}"
           f"–{config.CLOWN_START_PILLAR + config.CLOWN_SLOT_PILLARS}, "
           f"then {config.CLOWN_TO_RAIN_BUFFER} regular → rain")
+    print(f"  Clown relief: +{config.CLOWN_LEADIN_PILLARS} lead-in / "
+          f"+{config.CLOWN_OUTRO_PILLARS} outro clear-sky empties (unscored)")
     _jolt = [pillars[i] for i in range(len(pillars))
              if weather.rain_intensity(phases[i]) >= config.STORM_JOLT_RAIN_MIN]
     if _jolt:
@@ -304,7 +327,7 @@ def main() -> None:
     draw_map(ax_sky, ax, pillars, phases, day_end)
 
     fig.tight_layout()
-    out_path = os.path.join(out_dir, "event_pagoda_map_clown_v5.png")
+    out_path = os.path.join(out_dir, "event_pagoda_map_clown_v6.png")
     fig.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
     print(f"wrote {out_path}")
