@@ -234,7 +234,7 @@ CLOWN_WARREN_GAP      = 172         # per-pillar gap height inside the gauntlet
 # invisible / non-colliding / non-scoring) rather than adding any, so they take a
 # spawn slot a normal pillar would and shift NOTHING downstream — rain stays
 # anchored at RAIN_START_PILLAR. The gauntlet keeps its full CLOWN_ROLL range.
-CLOWN_LEADIN_PILLARS  = 2           # empty pillars as the clown enters
+CLOWN_LEADIN_PILLARS  = 4           # empty pillars as the clown enters (clear-sky runway before the gauntlet)
 CLOWN_OUTRO_PILLARS   = 2           # empty pillars right after the gauntlet
 
 # Inserting the slot + buffer pushes the rain block (and everything after it)

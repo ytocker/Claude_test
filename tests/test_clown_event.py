@@ -169,7 +169,7 @@ class SlotReservation(unittest.TestCase):
             ev.phase = "rolling"
             ev._reveal(w)
             w._clown_leadin_remaining = CLOWN_LEADIN_PILLARS
-            for _ in range(60 * 30):
+            for _ in range(60 * 40):
                 w.bird.y = 300.0
                 w.bird.vy = 0.0
                 w.update(1 / 60.0)
