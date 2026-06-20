@@ -31,12 +31,15 @@ import matplotlib.pyplot as plt
 from game import weather
 from tools.plot_event_pagoda_map import compute_axis, draw_map
 
-# (rank, pillar, one-word thesis, colour). #1 is the recommendation — drawn
-# heaviest; #2/#3 lighter so the eye lands on the pick first.
+# All candidates share ONE colour so the eye groups them as "the proposals" and
+# reads them apart from the CURRENT genie (purple, drawn by draw_map) and the
+# live event bands. #1 is the recommendation — same colour, just a star marker.
+CAND_COLOR = "#111111"
+# (rank, pillar, one-line thesis).
 CANDIDATES = [
-    (1, 55, "foreshadow (wish covers the gauntlet)", "#1f9d55"),
-    (2, 130, "post-storm reward", "#c77f0a"),
-    (3, 61, "ambush (inside the lead-in)", "#9b59b6"),
+    (1, 55, "foreshadow (wish covers the gauntlet)"),
+    (2, 130, "post-storm reward"),
+    (3, 61, "ambush (inside the lead-in)"),
 ]
 
 
@@ -65,25 +68,26 @@ def main() -> None:
                 ha="right", va="center", fontsize=7.5, fontweight="bold",
                 color="#7a2a7c", zorder=9)
 
-    # Candidate pillars — solid line + ranked top marker on the lower panel.
-    for rank, x, thesis, color in CANDIDATES:
+    # Candidate pillars — all ONE colour; the recommendation gets a star (same
+    # colour) so it stands out without adding a second hue to decode.
+    for rank, x, thesis in CANDIDATES:
         is_pick = rank == 1
-        ax.axvline(x, color=color, linewidth=2.6 if is_pick else 1.6,
-                   alpha=0.95 if is_pick else 0.7,
-                   linestyle="-" if is_pick else (0, (5, 3)), zorder=5)
+        ax.axvline(x, color=CAND_COLOR, linewidth=2.4,
+                   linestyle="-" if is_pick else (0, (5, 3)),
+                   alpha=0.95 if is_pick else 0.8, zorder=5)
         ax.plot([x], [1.065],
                 marker="*" if is_pick else "o",
-                color=color, markersize=18 if is_pick else 10,
+                color=CAND_COLOR, markersize=18 if is_pick else 10,
                 markeredgecolor="white", markeredgewidth=0.9,
                 clip_on=False, zorder=9,
                 label=(f"#{rank} candidate genie @ {x}"
-                       + ("  (recommended)" if is_pick else "")))
+                       + ("  ★ recommended" if is_pick else "")))
         ax.annotate(f"#{rank} @ {x}\n{thesis}", (x, 0.5),
                     textcoords="offset points", xytext=(6, 0), rotation=90,
                     ha="left", va="center",
                     fontsize=7.5 if is_pick else 7,
                     fontweight="bold" if is_pick else "normal",
-                    color=color, zorder=9)
+                    color=CAND_COLOR, zorder=9)
 
     fig.tight_layout()
     out_path = os.path.join(out_dir, "genie_placement_candidates.png")
@@ -91,7 +95,7 @@ def main() -> None:
     plt.close(fig)
     print(f"wrote {out_path}")
     print(f"current genie @ {cur}; candidates: "
-          + ", ".join(f"#{r} {p}" for r, p, _, _ in CANDIDATES))
+          + ", ".join(f"#{r} {p}" for r, p, _ in CANDIDATES))
 
 
 if __name__ == "__main__":
