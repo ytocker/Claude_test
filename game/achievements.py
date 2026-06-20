@@ -14,8 +14,22 @@ state + lifetime counters persist locally on both build targets:
               leaderboard bridge so a missing dispatcher degrades to "nothing
               unlocked" instead of crashing.
 
-Storage is kept behind ``load()`` / ``save()`` so a future account-scoped
-cloud mirror is an additive change that never touches the engine or the UI.
+Every ``save()`` also mirrors the blob to a Supabase ``profiles`` row keyed by
+the device's anonymous UUID (web only); ``sync_cloud()`` pulls + merges that
+backup once at startup, so a lost/cleared ``localStorage`` blob is restored as
+long as the device UUID survived. Storage stays behind ``load()`` / ``save()``.
+
+The blob also carries forward-looking sections so a future store and a
+player-statistics screen are purely additive:
+
+  * ``wallet`` — the spendable coin balance is *derived*, never stored
+    (``life["total_coins"]`` collected − ``wallet["spent"]``), so it can't
+    desync or be double-spent across a cloud restore.
+  * ``inventory`` — owned + equipped store items.
+
+Cloud-merge reconciles each section by its kind — grow-only maps union (earliest
+timestamp wins), monotonic counters take the element-wise max, mutable selections
+resolve last-write-wins by ``mtime``. See ``_merge``.
 
 Design rules:
   * Achievement ``id`` strings are PERMANENT. Renaming or reusing one orphans
@@ -44,8 +58,8 @@ _IS_BROWSER = sys.platform == "emscripten"
 _ACH_KEY = "achievements"
 # localStorage key for the browser path.
 _WEB_KEY = "skybit_ach"
-# Schema version of the persisted lifetime block.
-_SCHEMA_V = 1
+# Schema version of the persisted blob. v2 added mtime + wallet + inventory.
+_SCHEMA_V = 2
 
 # Jackpot coin delta, pulled from the live lottery table so a re-tune of the
 # top tier keeps the "hit the jackpot" achievement honest.
@@ -251,10 +265,19 @@ BY_CAT: "OrderedDict[str, list[Achievement]]" = OrderedDict(
 
 # ── Persistence ───────────────────────────────────────────────────────────────
 
+def _as_int(v) -> int:
+    """Coerce a possibly-missing / possibly-string JSON value to int (default 0)."""
+    try:
+        return int(v or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _blank() -> dict:
     """A fresh, fully-formed save blob."""
     return {
         "v": _SCHEMA_V,
+        "mtime": 0,                     # last local-write unix ts (LWW clock)
         "unlocked": {},                 # id -> unlock unix timestamp
         "life": {
             "total_runs": 0,
@@ -267,19 +290,34 @@ def _blank() -> dict:
             "total_ceiling": 0,         # ceiling bonks, all-time
             "powerups_seen": {},        # kind -> lifetime pickup count
         },
+        # Spendable balance is DERIVED (see coin_balance), never stored, so a
+        # cloud restore can't resurrect spent coins. Only the monotonic spent
+        # total lives here.
+        "wallet": {"spent": 0},         # lifetime coins spent in the store
+        "inventory": {
+            "owned": {},                # store item id -> first-owned unix ts
+            "equipped": {},             # slot -> equipped item id (LWW)
+        },
     }
 
 
 def _migrate(store: dict) -> dict:
     """Back-fill any keys a newer build expects onto an older save. Additive
-    only — never drops a player's unlocked ids."""
+    only — never drops a player's unlocked ids, owned items, or counters."""
     if not isinstance(store, dict):
         return _blank()
     base = _blank()
+    inv = store.get("inventory") or {}
     out = {
         "v": _SCHEMA_V,
+        "mtime": _as_int(store.get("mtime")),
         "unlocked": dict(store.get("unlocked") or {}),
         "life": {**base["life"], **(store.get("life") or {})},
+        "wallet": {**base["wallet"], **(store.get("wallet") or {})},
+        "inventory": {
+            "owned": dict(inv.get("owned") or {}),
+            "equipped": dict(inv.get("equipped") or {}),
+        },
     }
     seen = out["life"].get("powerups_seen")
     if not isinstance(seen, dict):
@@ -362,14 +400,17 @@ def load() -> dict:
 
 
 def save(store: "dict | None" = None) -> None:
-    """Persist the store (defaults to the cached one)."""
+    """Persist the store (defaults to the cached one). Stamps the local-write
+    clock and, on the web build, mirrors the blob to the Supabase backup."""
     global _store
     if store is not None:
         _store = store
     if _store is None:
         return
+    _store["mtime"] = int(time.time())
     if _IS_BROWSER:
         _save_web(_store)
+        _cloud_push(_store)
     else:
         _save_native(_store)
 
@@ -378,6 +419,177 @@ def reset_cache() -> None:
     """Drop the in-memory copy (tests / forced reload)."""
     global _store
     _store = None
+
+
+# ── Cloud backup (web only) ────────────────────────────────────────────────────
+#
+# A Supabase ``profiles`` row per device (keyed by the anon skybit_device_id
+# UUID, attached JS-side) holds a mirror of the blob. Push is fire-and-forget on
+# every save; pull + merge runs once at startup via sync_cloud(). This is a
+# backup + foundation for later account sync, NOT a cure for a full storage wipe
+# (which erases the device UUID too, orphaning the row).
+
+def _cloud_push(store: dict) -> None:
+    """Upsert the blob to the Supabase backup. Never throws into the caller."""
+    if not _IS_BROWSER:
+        return
+    try:
+        sk = _web_dispatcher()
+        if sk is None:
+            return
+        sk("profile_push", json.dumps(store, separators=(",", ":")))
+    except Exception:
+        pass
+
+
+async def _cloud_pull() -> "dict | None":
+    """Fetch this device's cloud blob (migrated) or None. Polls the bridge the
+    same way leaderboard.fetch_top10 does."""
+    if not _IS_BROWSER:
+        return None
+    try:
+        import asyncio
+        sk = _web_dispatcher()
+        if sk is None:
+            return None
+        sk("profile_pull")
+        tries = 0
+        while tries < 120:                  # 120 * 0.05s = 6s deadline
+            v = sk("profile_pull_done")
+            if v is not None:
+                raw = str(v)
+                return _migrate(json.loads(raw)) if raw else None
+            tries += 1
+            await asyncio.sleep(0.05)
+    except Exception:
+        return None
+    return None
+
+
+def _union_earliest(a: dict, b: dict) -> dict:
+    """Merge two grow-only ``id -> timestamp`` maps, keeping the earliest ts."""
+    out = dict(a)
+    for k, ts in b.items():
+        if k not in out or _as_int(ts) < _as_int(out[k]):
+            out[k] = ts
+    return out
+
+
+def _max_counters(a: dict, b: dict) -> dict:
+    """Element-wise max over two monotonic-counter maps."""
+    return {k: max(_as_int(a.get(k)), _as_int(b.get(k)))
+            for k in set(a) | set(b)}
+
+
+def _merge(a: dict, b: dict) -> dict:
+    """Reconcile two profile blobs by section kind (see the module docstring and
+    ADDENDUM 6 policy table): grow-only maps union on earliest ts, monotonic
+    counters take element-wise max, mutable selections (equipped) resolve
+    last-write-wins by ``mtime``. Order-independent for everything but the LWW
+    fields, which favour the more recently written blob."""
+    a = _migrate(a)
+    b = _migrate(b)
+    a_newer = _as_int(a.get("mtime")) >= _as_int(b.get("mtime"))
+
+    a_life = {k: v for k, v in a["life"].items() if k != "powerups_seen"}
+    b_life = {k: v for k, v in b["life"].items() if k != "powerups_seen"}
+    life = _max_counters(a_life, b_life)
+    life["powerups_seen"] = _max_counters(a["life"]["powerups_seen"],
+                                          b["life"]["powerups_seen"])
+
+    return {
+        "v": _SCHEMA_V,
+        "mtime": max(_as_int(a.get("mtime")), _as_int(b.get("mtime"))),
+        "unlocked": _union_earliest(a["unlocked"], b["unlocked"]),
+        "life": life,
+        "wallet": _max_counters(a["wallet"], b["wallet"]),
+        "inventory": {
+            "owned": _union_earliest(a["inventory"]["owned"],
+                                     b["inventory"]["owned"]),
+            "equipped": dict((a if a_newer else b)["inventory"]["equipped"]),
+        },
+    }
+
+
+async def sync_cloud() -> None:
+    """Web-only: reconcile the local profile with its Supabase backup once at
+    startup. Pulls the cloud copy, merges it into the cached store, and persists
+    the merged result (which re-pushes it). No-op when the bridge is absent or no
+    cloud copy exists — the local profile is authoritative on its own."""
+    global _store
+    if not _IS_BROWSER:
+        return
+    cloud = await _cloud_pull()
+    if cloud is None:
+        return
+    _store = _merge(load(), cloud)
+    save(_store)
+
+
+# ── Store / wallet / inventory API (data + merge here; catalog lives in config) ─
+#
+# The store's item catalog (ids, prices, art) is intentionally NOT stored in the
+# profile — it belongs in config.py + a procedural icon module like power-ups, so
+# re-pricing or re-skinning is a code change, not a save migration. The profile
+# holds only the per-player state: spent total + owned/equipped item ids.
+
+def coin_balance(store: "dict | None" = None) -> int:
+    """Spendable coins = lifetime coins collected − lifetime coins spent. Derived
+    (never stored) so it can't desync or be double-spent across a cloud restore."""
+    if store is None:
+        store = load()
+    earned = _as_int((store.get("life") or {}).get("total_coins"))
+    spent = _as_int((store.get("wallet") or {}).get("spent"))
+    return max(0, earned - spent)
+
+
+def spend_coins(n: int, store: "dict | None" = None) -> bool:
+    """Spend ``n`` coins if affordable: bump the lifetime spent counter and
+    persist. Returns False and writes nothing on an overdraw or non-positive n."""
+    if store is None:
+        store = load()
+    n = int(n)
+    if n <= 0 or coin_balance(store) < n:
+        return False
+    wallet = store.setdefault("wallet", {"spent": 0})
+    wallet["spent"] = _as_int(wallet.get("spent")) + n
+    save(store)
+    return True
+
+
+def owns(store: dict, item_id: str) -> bool:
+    return item_id in ((store.get("inventory") or {}).get("owned") or {})
+
+
+def grant_item(item_id: str, store: "dict | None" = None) -> None:
+    """Mark a store item owned (idempotent) and persist."""
+    if store is None:
+        store = load()
+    inv = store.setdefault("inventory", {"owned": {}, "equipped": {}})
+    owned = inv.setdefault("owned", {})
+    if item_id not in owned:
+        owned[item_id] = int(time.time())
+        save(store)
+
+
+def equip(slot: str, item_id: "str | None", store: "dict | None" = None) -> None:
+    """Set (or clear, with ``item_id=None``) the equipped item for a slot."""
+    if store is None:
+        store = load()
+    inv = store.setdefault("inventory", {"owned": {}, "equipped": {}})
+    equipped = inv.setdefault("equipped", {})
+    if item_id is None:
+        equipped.pop(slot, None)
+    else:
+        equipped[slot] = item_id
+    save(store)
+
+
+def lifetime_stats(store: "dict | None" = None) -> dict:
+    """Read-only snapshot of the lifetime counters for the stats screen."""
+    if store is None:
+        store = load()
+    return dict(store.get("life") or {})
 
 
 # ── Stat resolvers ────────────────────────────────────────────────────────────

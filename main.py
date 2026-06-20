@@ -23,6 +23,14 @@ async def _run_game():
             asyncio.create_task(_probe_leaderboard(_lb))
         except Exception:
             pass
+        # Reconcile the local profile with its Supabase backup once at startup
+        # (pull + merge), as a background task so it never blocks first paint.
+        # No-op if the bridge isn't ready or there's no cloud copy.
+        try:
+            from game import achievements as _ach
+            asyncio.create_task(_ach.sync_cloud())
+        except Exception:
+            pass
     await App().async_run()
 
 

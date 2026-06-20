@@ -171,5 +171,112 @@ class TestAchievements(unittest.TestCase):
             self.assertIn(a, ach.BY_CAT[a.category])
 
 
+class TestProfileSchemaAndMerge(unittest.TestCase):
+    """v2 blob: migration, cloud-merge policy, derived coin balance, inventory."""
+
+    def setUp(self):
+        self._orig_save = ach.save
+        ach.save = lambda store=None: None
+        ach.reset_cache()
+
+    def tearDown(self):
+        ach.save = self._orig_save
+        ach.reset_cache()
+
+    def test_migrate_v1_to_v2_backfills_without_loss(self):
+        v1 = {
+            "v": 1,
+            "unlocked": {"first_flight": 123},
+            "life": {"total_coins": 400, "powerups_seen": {"magnet": 3}},
+        }
+        out = ach._migrate(v1)
+        self.assertEqual(out["v"], ach._SCHEMA_V)
+        self.assertEqual(out["unlocked"], {"first_flight": 123})
+        self.assertEqual(out["life"]["total_coins"], 400)        # preserved
+        self.assertEqual(out["life"]["total_pillars"], 0)        # back-filled
+        self.assertEqual(out["wallet"], {"spent": 0})            # new section
+        self.assertEqual(out["inventory"], {"owned": {}, "equipped": {}})
+        self.assertEqual(out["mtime"], 0)
+
+    def test_merge_restores_from_blank_local(self):
+        # Local lost (blank), cloud holds progress → merge adopts the cloud copy.
+        cloud = ach._blank()
+        cloud["mtime"] = 500
+        cloud["unlocked"] = {"first_flight": 100}
+        cloud["life"]["total_coins"] = 900
+        cloud["wallet"]["spent"] = 120
+        cloud["inventory"]["owned"] = {"hat_gold": 50}
+        cloud["inventory"]["equipped"] = {"skin": "macaw_blue"}
+        merged = ach._merge(ach._blank(), cloud)
+        self.assertEqual(merged["unlocked"], {"first_flight": 100})
+        self.assertEqual(merged["life"]["total_coins"], 900)
+        self.assertEqual(merged["wallet"]["spent"], 120)
+        self.assertEqual(merged["inventory"]["owned"], {"hat_gold": 50})
+        self.assertEqual(merged["inventory"]["equipped"], {"skin": "macaw_blue"})
+
+    def test_merge_counters_take_max_no_regression(self):
+        a = ach._blank(); a["mtime"] = 10
+        a["life"]["total_coins"] = 1000
+        a["life"]["powerups_seen"] = {"magnet": 9}
+        a["wallet"]["spent"] = 300
+        b = ach._blank(); b["mtime"] = 5
+        b["life"]["total_coins"] = 200            # older, smaller
+        b["life"]["powerups_seen"] = {"magnet": 4, "ghost": 2}
+        b["wallet"]["spent"] = 100
+        merged = ach._merge(a, b)
+        self.assertEqual(merged["life"]["total_coins"], 1000)      # max
+        self.assertEqual(merged["life"]["powerups_seen"], {"magnet": 9, "ghost": 2})
+        self.assertEqual(merged["wallet"]["spent"], 300)           # max
+
+    def test_merge_unlocked_keeps_earliest_ts_and_unions(self):
+        a = {"unlocked": {"x": 100}}
+        b = {"unlocked": {"x": 50, "y": 200}}
+        merged = ach._merge(a, b)
+        self.assertEqual(merged["unlocked"], {"x": 50, "y": 200})
+
+    def test_merge_equipped_is_last_write_wins(self):
+        a = ach._blank(); a["mtime"] = 10
+        a["inventory"]["owned"] = {"hat_gold": 5}
+        a["inventory"]["equipped"] = {"skin": "old"}
+        b = ach._blank(); b["mtime"] = 20            # newer → its equipped wins
+        b["inventory"]["owned"] = {"cape_red": 7}
+        b["inventory"]["equipped"] = {"skin": "new"}
+        merged = ach._merge(a, b)
+        self.assertEqual(set(merged["inventory"]["owned"]), {"hat_gold", "cape_red"})
+        self.assertEqual(merged["inventory"]["equipped"], {"skin": "new"})
+
+    def test_coin_balance_derived_and_floored(self):
+        store = ach._blank()
+        store["life"]["total_coins"] = 100
+        store["wallet"]["spent"] = 30
+        self.assertEqual(ach.coin_balance(store), 70)
+        # Defensive: spent somehow exceeding earned never goes negative.
+        store["wallet"]["spent"] = 250
+        self.assertEqual(ach.coin_balance(store), 0)
+
+    def test_spend_coins_guards_and_records(self):
+        store = ach._blank()
+        store["life"]["total_coins"] = 100
+        self.assertFalse(ach.spend_coins(0, store))      # non-positive
+        self.assertFalse(ach.spend_coins(1000, store))   # overdraw → no write
+        self.assertEqual(store["wallet"]["spent"], 0)
+        self.assertTrue(ach.spend_coins(30, store))
+        self.assertEqual(store["wallet"]["spent"], 30)
+        self.assertEqual(ach.coin_balance(store), 70)
+        # No double-spend: a re-pushed merge of the post-spend state is stable.
+        merged = ach._merge(store, store)
+        self.assertEqual(ach.coin_balance(merged), 70)
+
+    def test_inventory_grant_and_equip(self):
+        store = ach._blank()
+        self.assertFalse(ach.owns(store, "hat_gold"))
+        ach.grant_item("hat_gold", store)
+        self.assertTrue(ach.owns(store, "hat_gold"))
+        ach.equip("skin", "macaw_blue", store)
+        self.assertEqual(store["inventory"]["equipped"]["skin"], "macaw_blue")
+        ach.equip("skin", None, store)                   # clear the slot
+        self.assertNotIn("skin", store["inventory"]["equipped"])
+
+
 if __name__ == "__main__":
     unittest.main()
