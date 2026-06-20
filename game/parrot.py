@@ -1235,13 +1235,18 @@ SKIN_BUILDERS = {
 _STORE_SKINS: "dict | None" = None
 
 
+_STORE_SKINS: "dict | None" = None
+_SKIN_ICONS: "dict | None" = None
+
+
 def _store_skin_builders() -> dict:
     global _STORE_SKINS
     if _STORE_SKINS is None:
         merged: dict = {}
-        # Costume + parrot-species skins, then the from-scratch animals (their
-        # module is added by the creature-roster work; tolerate its absence).
-        for modname in ("store_skins", "animal_skins"):
+        # Costume + parrot-species skins, the from-scratch animals, then the
+        # shoes (each module is added by a later roster expansion; tolerate
+        # any being absent).
+        for modname in ("store_skins", "animal_skins", "shoe_skins"):
             try:
                 mod = __import__("game." + modname, fromlist=["BUILDERS"])
                 merged.update(mod.BUILDERS)
@@ -1251,6 +1256,23 @@ def _store_skin_builders() -> dict:
     return _STORE_SKINS
 
 
+def _skin_icons() -> dict:
+    """Prebuilt product-shot surfaces for skins that want a store/hero icon
+    distinct from their in-game look (the shoes show the sneaker itself rather
+    than Pip wearing it). Lazily merged; modules without ICONS are tolerated."""
+    global _SKIN_ICONS
+    if _SKIN_ICONS is None:
+        merged: dict = {}
+        for modname in ("shoe_skins",):
+            try:
+                mod = __import__("game." + modname, fromlist=["ICONS"])
+                merged.update(getattr(mod, "ICONS", {}))
+            except Exception:
+                pass
+        _SKIN_ICONS = merged
+    return _SKIN_ICONS
+
+
 def get_skin_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
     """Render the equipped cosmetic's frame. Unknown ids fall back to the base
     parrot so a stale save (skin removed from a later build) degrades to the
@@ -1258,6 +1280,13 @@ def get_skin_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surf
     fn = _store_skin_builders().get(skin_id) \
         or SKIN_BUILDERS.get(skin_id) or get_parrot
     return fn(frame_idx, tilt_deg)
+
+
+def get_skin_icon(skin_id: str) -> "pygame.Surface | None":
+    """The store/hero product-shot for a skin, or None to fall back to the
+    in-game look. Used by the store thumbnail + Prize-Machine hero so shoe
+    cards show the sneaker itself."""
+    return _skin_icons().get(skin_id)
 
 
 def skin_builder_ids() -> set:

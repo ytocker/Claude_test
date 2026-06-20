@@ -40,7 +40,8 @@ _THUMB_BOX = 48
 _PER_PAGE = 6          # 2 columns x 3 rows; each tab pages independently
 
 _TAB_Y = 92            # tab-bar centre line
-_TABS = (("COSTUMES", "costume"), ("PARROTS", "parrot"), ("ANIMALS", "animal"))
+_TABS = (("COSTUMES", "costume"), ("PARROTS", "parrot"),
+         ("ANIMALS", "animal"), ("SHOES", "shoes"))
 
 # Owned-but-equipped accent + buy/locked chip tints.
 _EQUIP_GREEN = (96, 210, 120)
@@ -48,11 +49,13 @@ _LOCK_GREY = (150, 140, 155)
 
 
 def _fit_skin(skin_id: str, box: int) -> pygame.Surface:
-    """Render a skin's idle frame, crop to its opaque content, and fit that
+    """Render a skin's store thumbnail, crop to its opaque content, and fit that
     into a ``box``-square (aspect preserved). Cropping first normalises the
     different canvas sizes across skins (tall headgear composites vs the 64px
-    redraws) so every thumbnail/hero fills its box consistently."""
-    src = parrot.get_skin_frame(skin_id, 1, 0.0)
+    redraws) so every thumbnail fills its box consistently. Shoes supply a
+    product-shot icon (the sneaker itself) via ``get_skin_icon``; everything
+    else falls back to the in-game look."""
+    src = parrot.get_skin_icon(skin_id) or parrot.get_skin_frame(skin_id, 1, 0.0)
     bb = src.get_bounding_rect()
     if bb.width > 0 and bb.height > 0:
         src = src.subsurface(bb).copy()
