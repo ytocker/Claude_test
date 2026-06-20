@@ -28,9 +28,27 @@ _TIMEOUT_S = 15
 _FIXTURE_ENV = "STREAMLIT_USE_FIXTURE"
 _FIXTURE_PATH = Path(__file__).parent / "tests" / "fixtures" / "plays_sample.json"
 
+# PostgREST returns at most this many rows per request. Surfaced as a
+# constant (not a magic literal) so the cap is visible and the app can
+# warn when a fetch saturates it rather than silently truncating history.
+ROW_CAP = 50_000
+
 
 def _use_fixture() -> bool:
     return os.environ.get(_FIXTURE_ENV) == "1"
+
+
+def _rebase_to_now(df: pd.DataFrame) -> pd.DataFrame:
+    """Shift the (statically authored) fixture so its newest row lands at
+    'now', preserving all relative spacing. Keeps the offline demo looking
+    live — today's KPIs populate and retention cohorts stay settled —
+    regardless of when the dashboard is run. No-op on live data."""
+    if df.empty:
+        return df
+    shift = pd.Timestamp.now(tz="UTC") - df["played_at"].max()
+    df = df.copy()
+    df["played_at"] = df["played_at"] + shift
+    return df
 
 
 def _creds() -> tuple[str, str]:
@@ -84,6 +102,7 @@ def _normalise_plays(rows: list[dict]) -> pd.DataFrame:
             columns=[
                 "id", "device_id", "played_at", "score",
                 "duration_s", "coins", "pillars", "near_misses", "powerups",
+                "submit_error",
             ]
         )
     df = pd.DataFrame(rows)
@@ -94,6 +113,13 @@ def _normalise_plays(rows: list[dict]) -> pd.DataFrame:
             df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0).astype(int)
     if "powerups" not in df.columns:
         df["powerups"] = [{} for _ in range(len(df))]
+    # submit_error is null on the overwhelming majority of rows (only set
+    # when a top-10 submit was rejected). Default-fill so older fixtures
+    # and any pre-column rows still load, and keep it as nullable text —
+    # never coerce to a number.
+    if "submit_error" not in df.columns:
+        df["submit_error"] = None
+    df["submit_error"] = df["submit_error"].where(df["submit_error"].notna(), None)
     return df
 
 
@@ -107,16 +133,24 @@ def fetch_plays(days: int = 90) -> pd.DataFrame:
     default to keep first-page load under ~2s for reasonable volumes."""
     if _use_fixture():
         with open(_FIXTURE_PATH, "r", encoding="utf-8") as f:
-            return _normalise_plays(json.load(f))
+            df = _normalise_plays(json.load(f))
+        return _rebase_to_now(df)
     cutoff_iso = (pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=days)).isoformat()
     qs = parse.urlencode({
         "select": "id,device_id,played_at,score,duration_s,coins,"
-                  "pillars,near_misses,powerups",
+                  "pillars,near_misses,powerups,submit_error",
         "played_at": f"gte.{cutoff_iso}",
         "order": "played_at.desc",
-        "limit": 50_000,
+        "limit": ROW_CAP,
     })
     return _normalise_plays(_get_json(f"plays?{qs}"))
+
+
+def hit_row_cap(df: pd.DataFrame) -> bool:
+    """True when a fetch came back exactly at the cap, i.e. history was
+    likely truncated. The app surfaces a warning so the silent-drop the
+    bare 50k literal used to cause is now visible."""
+    return len(df) >= ROW_CAP
 
 
 @st.cache_data(ttl=60, show_spinner="Loading leaderboard…")
