@@ -452,15 +452,14 @@ class App:
         # of the POWERUPS explainer.
         self._intro_from_menu = False
         self.state = STATE_INTRO
-        # Branch-only prototype: this R&D branch (v5_skybit_enrich) is the
-        # "event test" deploy — running the game drops straight into the
-        # scripted Warren demo (clown → dice → route → fall), skipping the
-        # menu, on BOTH native and the pygbag/web build (the four look-dev
-        # renderers it reuses are staged into this branch's bundle by the
-        # deploy workflow). `--normal` (native CLI) opts out so the ordinary
-        # game is still runnable for regression checks.
+        # The scripted Warren demo (clown → dice → route → fall) is a dev
+        # harness kept opt-in behind `--warren` (native CLI only) so this
+        # merged line boots the normal intro → power-ups → menu flow on
+        # both native and the pygbag/web build. The clown event itself
+        # lives in real gameplay; the standalone demo has its own
+        # event-test deploy branch.
         import sys as _sys
-        self._warren_demo = "--normal" not in _sys.argv
+        self._warren_demo = "--warren" in _sys.argv
         if self._warren_demo:
             self._start_warren_demo()
         self._cloud_phase = 0.0
