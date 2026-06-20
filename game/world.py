@@ -1626,8 +1626,25 @@ class World:
             # fresh pipe so the player has something to navigate.
             spacing = self._next_spacing()
             if self.demo is None and not self.bird.cart_active:
+                # Warren (clown-gauntlet) towers must sit at the TRUE tight fused
+                # spacing. The normal path below triggers only once `prev.x +
+                # spacing` is already on-screen, then clamps the entry x up to
+                # W+60 so nothing pops mid-air after a rail ride — but that floor
+                # silently adds ~60px to whatever `spacing` asks for. It's
+                # invisible at the wide normal spacing yet nearly DOUBLES the
+                # 72px warren gap (→133px). So warren towers instead trigger off
+                # the off-screen spawn line, entering at the exact fused spacing.
+                warren_next = (self._clown_slot_remaining > 0
+                               and (CLOWN_SLOT_PILLARS - self._clown_slot_remaining)
+                               < len(self._clown_route))
                 if not self.pipes:
                     self._spawn_pipe(W + 60)
+                elif warren_next:
+                    if self.pipes[-1].x + spacing <= W + 60:
+                        # Enter just off the right edge at the true gap; the max
+                        # only bites the very first tower if the slot armed while
+                        # the prior pillar was already mid-screen (avoids a pop).
+                        self._spawn_pipe(max(self.pipes[-1].x + spacing, W + 60))
                 elif self.pipes[-1].x < W - spacing:
                     # Spawn off-screen on the right: after a rail ride the
                     # last tagged pipe sits near Pip (x≈80) so the natural

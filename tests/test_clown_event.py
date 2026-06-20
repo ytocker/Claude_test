@@ -61,6 +61,38 @@ class SlotReservation(unittest.TestCase):
         self.assertTrue(all(sp != CLOWN_WARREN_SPACING for _, _, sp in rows[n:]),
                         "regular-fill pillars use the normal spacing")
 
+    def test_warren_on_screen_spacing_is_not_inflated(self):
+        """Drive the real update() spawn loop (not the manual _lay_slot lay-out)
+        and assert adjacent warren towers actually land ~CLOWN_WARREN_SPACING
+        apart on screen. The normal-pillar spawn path clamps the entry x to
+        W+60, which silently added ~60px to every gap (72 -> ~133px); warren
+        towers must bypass that clamp."""
+        from game.entities import Pipe
+        orig = Pipe.collides_circle
+        Pipe.collides_circle = lambda *a, **k: False  # never die → spawns flow
+        try:
+            w = World()
+            w.ready_t = 0.0
+            w.flap()
+            w._clown_route = build_clown_route(CLOWN_ROLL_MAX, random.Random(0))
+            w._clown_slot_remaining = CLOWN_SLOT_PILLARS
+            gaps = set()
+            for _ in range(60 * 20):
+                w.bird.y = 300.0       # pin so no ground/ceiling death
+                w.bird.vy = 0.0
+                w.update(1 / 60.0)
+                xs = sorted(p.x for p in w.pipes
+                            if getattr(p, "is_staff", False))
+                for a, b in zip(xs, xs[1:]):
+                    gaps.add(round(b - a))
+        finally:
+            Pipe.collides_circle = orig
+        self.assertTrue(gaps, "warren towers should have spawned")
+        self.assertTrue(
+            all(abs(g - CLOWN_WARREN_SPACING) <= 3 for g in gaps),
+            f"warren on-screen spacing must be ~{CLOWN_WARREN_SPACING}px "
+            f"(not the +60 clamped gap), got {sorted(gaps)}")
+
     def test_coin_rush_suppressed_in_slot(self):
         _w, rows = self._lay_slot(CLOWN_ROLL_MAX)
         self.assertFalse(any(r for _, r, _ in rows),
