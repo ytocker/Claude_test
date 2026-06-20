@@ -32,9 +32,10 @@ CARD_RIM = (90, 78, 130)
 # Group → ordered ids (DEFAULT fronts the parrots, like the live store).
 SECTIONS = []
 for label, g in (("COSTUMES", "costume"), ("PARROTS", "parrot"),
-                 ("ANIMALS", "animal"), ("SHOES", "shoes"), ("HATS", "hats")):
+                 ("ANIMALS", "animal"), ("SHOES", "shoes"), ("HATS", "hats"),
+                 ("SHADES", "shades")):
     ids = sorted(store_catalog.ids_of_group(g), key=store_catalog.cost)
-    if g == "parrot":
+    if g in ("parrot", "shades"):
         ids = [store_catalog.BASE_SKIN] + ids
     SECTIONS.append((label, ids))
 
