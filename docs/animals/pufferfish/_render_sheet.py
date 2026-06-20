@@ -1,13 +1,11 @@
-"""Round-1 review sheet for the candidate PUFFERFISH Store skin.
+"""Round-2 review sheet for the PUFFERFISH Store skin.
 
-Renders each of the 5 variants at hero 130px (smooth) AND at the in-game
-truth-test scale: 40px level + dive tilt, plus a NEAREST-NEIGHBOR x3
-magnification of those 40px reads so the honest gameplay-pixel silhouette is
-visible (smoothscale flatters tiny detail that vanishes in motion). Headless
-(SDL dummy) so it runs in CI / on the build box.
-
-Also includes a small 4-frame flap strip per version so the inflate/deflate
-PULSE gag is legible on the sheet.
+Leads with the single production build (`skin_pufferfish`) blown up at hero
+130px on BOTH a bright-day and a night backdrop, with the in-game truth test
+(40px level + dive, NEAREST-NEIGHBOR x3) on each sky so the silhouette is
+checked honestly against both. A DESATURATED 40px thumbnail proves the read
+holds in grayscale — it must not depend on yellow alone. Two small alt
+variants follow for comparison. Headless (SDL dummy) so it runs in CI.
 """
 import os
 import sys
@@ -31,32 +29,28 @@ spec.loader.exec_module(pufferfish_skins)
 BUILDERS = pufferfish_skins.BUILDERS
 TELLS = pufferfish_skins.TELLS
 
-ORDER = list(BUILDERS.keys())
-
-# ── layout ───────────────────────────────────────────────────────────────────
-CARD_W, CARD_H = 540, 232
+# ── palette / layout ─────────────────────────────────────────────────────────
 PAD = 16
-HEADER_H = 64
+HEADER_H = 70
 HERO_PX = 130
 GAME_PX = 40
 MAG = 3
 
-# Two backdrops per card: a bright-day half (left) and a night half (right) so
-# we honestly check the silhouette against BOTH skies, per the brief.
-DAY_TOP = (120, 196, 240)
-DAY_BOT = (188, 228, 246)
-NIGHT_TOP = (24, 26, 52)
-NIGHT_BOT = (40, 30, 60)
-SHEET_TOP = (18, 20, 40)
-SHEET_BOT = (34, 26, 52)
+DAY_TOP, DAY_BOT = (118, 196, 240), (190, 228, 246)
+NIGHT_TOP, NIGHT_BOT = (22, 24, 50), (40, 30, 60)
+SHEET_TOP, SHEET_BOT = (18, 20, 40), (34, 26, 52)
+CARD_BG = (16, 17, 34)
 CARD_EDGE = (70, 80, 130)
+LEAD_EDGE = (210, 168, 70)
 TEXT = (236, 238, 250)
 SUB = (158, 164, 198)
+GAME_PANEL = (12, 13, 28)
 
-COLS = 1
-ROWS = len(ORDER)
-SHEET_W = PAD + COLS * (CARD_W + PAD)
-SHEET_H = HEADER_H + PAD + ROWS * (CARD_H + PAD)
+HERO_CARD_W, HERO_CARD_H = 760, 300
+ALT_CARD_W, ALT_CARD_H = 372, 196
+
+SHEET_W = PAD + HERO_CARD_W + PAD
+SHEET_H = (HEADER_H + PAD + HERO_CARD_H + PAD + ALT_CARD_H + PAD)
 
 sheet = pygame.Surface((SHEET_W, SHEET_H))
 for y in range(SHEET_H):
@@ -66,7 +60,7 @@ for y in range(SHEET_H):
 
 import random
 rng = random.Random(11)
-for _ in range(140):
+for _ in range(180):
     sx, sy = rng.randint(0, SHEET_W), rng.randint(0, SHEET_H)
     b = rng.randint(80, 190)
     pygame.draw.circle(sheet, (b, b, min(255, b + 30)), (sx, sy), rng.choice([1, 1, 2]))
@@ -74,14 +68,14 @@ for _ in range(140):
 pygame.font.init()
 F_TITLE = pygame.font.SysFont("Arial", 28, bold=True)
 F_SUB = pygame.font.SysFont("Arial", 14)
-F_NAME = pygame.font.SysFont("Arial", 19, bold=True)
+F_NAME = pygame.font.SysFont("Arial", 20, bold=True)
 F_FEAT = pygame.font.SysFont("Arial", 13)
 F_TAG = pygame.font.SysFont("Arial", 12, bold=True)
 
-sheet.blit(F_TITLE.render("Skybit — PUFFERFISH Store Skin · Round 1", True, TEXT), (PAD, 12))
+sheet.blit(F_TITLE.render("Skybit — PUFFERFISH Store Skin · Round 2 (converged)", True, TEXT), (PAD, 12))
 sheet.blit(F_SUB.render(
-    "5 distinct takes. HERO 130px (day|night) · 40px level+dive smooth · NEAREST x3 truth · 4-frame inflate PULSE.",
-    True, SUB), (PAD, 42))
+    "Lead = skin_pufferfish: V4 star body + V1 friendly face. HERO 130px day & night · 40px NEAREST x3 (level/dive) per sky · grayscale 40px proof.",
+    True, SUB), (PAD, 44))
 
 
 def _grad_rect(surf, rect, top, bot):
@@ -107,63 +101,106 @@ def smooth(getter, frame_idx, tilt, target_px):
         crop, (max(1, int(crop.get_width() * f)), max(1, int(crop.get_height() * f))))
 
 
+def small40(getter, frame_idx, tilt):
+    return smooth(getter, frame_idx, tilt, GAME_PX)
+
+
 def nearest40(getter, frame_idx, tilt, mag):
-    small = smooth(getter, frame_idx, tilt, GAME_PX)
+    small = small40(getter, frame_idx, tilt)
     return pygame.transform.scale(
         small, (small.get_width() * mag, small.get_height() * mag))
 
 
-for idx, key in enumerate(ORDER):
-    getter = BUILDERS[key]
-    cy = HEADER_H + PAD + idx * (CARD_H + PAD)
-    cx = PAD
-    card = pygame.Rect(cx, cy, CARD_W, CARD_H)
-
-    sheet.blit(F_NAME.render(key, True, TEXT), (cx + 4, cy - 2))
-    sheet.blit(F_FEAT.render("40px tell: " + TELLS[key], True, SUB), (cx + 4, cy + 22))
-
-    panel_top = cy + 42
-    pygame.draw.rect(sheet, CARD_EDGE, (cx, panel_top, CARD_W, CARD_H - 42), 2,
-                     border_radius=10)
-
-    # ── HERO 130px on a split day|night backdrop ──
-    hero_panel = pygame.Rect(cx + 8, panel_top + 8, 200, CARD_H - 60)
-    half = hero_panel.copy(); half.w //= 2
-    _grad_rect(sheet, half, DAY_TOP, DAY_BOT)
-    night = hero_panel.copy(); night.x += half.w; night.w = hero_panel.w - half.w
-    _grad_rect(sheet, night, NIGHT_TOP, NIGHT_BOT)
-    hero = smooth(getter, 0, 0, HERO_PX)
-    sheet.blit(hero, hero.get_rect(center=hero_panel.center))
-    sheet.blit(F_TAG.render("130px  day | night", True, (240, 240, 240)),
-               (hero_panel.x + 6, hero_panel.bottom - 18))
-
-    # ── 40px reads ──
-    gp = pygame.Rect(cx + 218, panel_top + 8, 168, CARD_H - 60)
-    pygame.draw.rect(sheet, (12, 13, 28), gp, border_radius=8)
-    g_level = smooth(getter, 2, 0, GAME_PX)
-    sheet.blit(g_level, g_level.get_rect(center=(gp.x + 44, gp.y + 30)))
-    g_dive = smooth(getter, 1, -32, GAME_PX)
-    sheet.blit(g_dive, g_dive.get_rect(center=(gp.x + 116, gp.y + 30)))
-    sheet.blit(F_TAG.render("40px smooth", True, SUB), (gp.x + 8, gp.y + 52))
-    n_level = nearest40(getter, 2, 0, MAG)
-    sheet.blit(n_level, n_level.get_rect(center=(gp.x + 48, gp.y + 116)))
-    n_dive = nearest40(getter, 1, -32, MAG)
-    sheet.blit(n_dive, n_dive.get_rect(center=(gp.x + 122, gp.y + 116)))
-    sheet.blit(F_TAG.render("40px NEAREST x3 (level / dive)", True, (210, 200, 150)),
-               (gp.x + 8, gp.bottom - 18))
-
-    # ── 4-frame inflate PULSE strip (down→up) at 56px ──
-    fp = pygame.Rect(cx + 396, panel_top + 8, CARD_W - 404, CARD_H - 60)
-    _grad_rect(sheet, fp, NIGHT_TOP, NIGHT_BOT)
-    pygame.draw.rect(sheet, CARD_EDGE, fp, 1, border_radius=8)
-    for fi in range(4):
-        fr = smooth(getter, fi, 0, 48)
-        fx = fp.x + 18 + fi * 30
-        sheet.blit(fr, fr.get_rect(center=(fx, fp.y + fp.h // 2 - 6)))
-    sheet.blit(F_TAG.render("PULSE: puff→deflate", True, (235, 220, 180)),
-               (fp.x + 6, fp.bottom - 18))
+def desaturate(src):
+    """Grayscale a surface preserving alpha — luminance test proves the
+    silhouette holds without leaning on the yellow hue."""
+    out = src.copy()
+    out.lock()
+    for yy in range(out.get_height()):
+        for xx in range(out.get_width()):
+            r, g, b, a = out.get_at((xx, yy))
+            lum = int(0.299 * r + 0.587 * g + 0.114 * b)
+            out.set_at((xx, yy), (lum, lum, lum, a))
+    out.unlock()
+    return out
 
 
-out_path = os.path.join(_here, "round_1.png")
+# ── LEAD CARD: skin_pufferfish, blown up on both skies + grayscale proof ──────
+lead = BUILDERS["skin_pufferfish"]
+cx, cy = PAD, HEADER_H
+pygame.draw.rect(sheet, CARD_BG, (cx, cy, HERO_CARD_W, HERO_CARD_H), border_radius=12)
+pygame.draw.rect(sheet, LEAD_EDGE, (cx, cy, HERO_CARD_W, HERO_CARD_H), 3, border_radius=12)
+sheet.blit(F_NAME.render("skin_pufferfish  (production lead)", True, LEAD_EDGE), (cx + 14, cy + 8))
+sheet.blit(F_FEAT.render("read: " + TELLS["skin_pufferfish"], True, SUB), (cx + 14, cy + 34))
+
+# Day hero (left).
+day_panel = pygame.Rect(cx + 14, cy + 58, 200, 226)
+_grad_rect(sheet, day_panel, DAY_TOP, DAY_BOT)
+pygame.draw.rect(sheet, CARD_EDGE, day_panel, 1, border_radius=10)
+hero = smooth(lead, 0, 0, HERO_PX)
+sheet.blit(hero, hero.get_rect(center=day_panel.center))
+sheet.blit(F_TAG.render("130px · DAY", True, (40, 50, 70)), (day_panel.x + 6, day_panel.bottom - 18))
+
+# Night hero (right of day).
+night_panel = pygame.Rect(day_panel.right + 12, cy + 58, 200, 226)
+_grad_rect(sheet, night_panel, NIGHT_TOP, NIGHT_BOT)
+pygame.draw.rect(sheet, CARD_EDGE, night_panel, 1, border_radius=10)
+hero_n = smooth(lead, 0, 0, HERO_PX)
+sheet.blit(hero_n, hero_n.get_rect(center=night_panel.center))
+sheet.blit(F_TAG.render("130px · NIGHT", True, (200, 206, 240)), (night_panel.x + 6, night_panel.bottom - 18))
+
+# Truth column: 40px NEAREST x3 level/dive on day (top) and night (bottom).
+truth = pygame.Rect(night_panel.right + 12, cy + 58, 196, 226)
+day_t = pygame.Rect(truth.x, truth.y, truth.w, truth.h // 2 - 2)
+night_t = pygame.Rect(truth.x, day_t.bottom + 4, truth.w, truth.h // 2 - 2)
+_grad_rect(sheet, day_t, DAY_TOP, DAY_BOT)
+_grad_rect(sheet, night_t, NIGHT_TOP, NIGHT_BOT)
+for panel, label, tc in ((day_t, "40px x3 · DAY", (40, 50, 70)),
+                         (night_t, "40px x3 · NIGHT", (200, 206, 240))):
+    nl = nearest40(lead, 2, 0, MAG)
+    sheet.blit(nl, nl.get_rect(center=(panel.x + 56, panel.y + 50)))
+    nd = nearest40(lead, 1, -32, MAG)
+    sheet.blit(nd, nd.get_rect(center=(panel.x + 132, panel.y + 50)))
+    sheet.blit(F_TAG.render(label + "  (level/dive)", True, tc), (panel.x + 6, panel.bottom - 18))
+    pygame.draw.rect(sheet, CARD_EDGE, panel, 1, border_radius=8)
+
+# Grayscale proof column.
+gray = pygame.Rect(truth.right + 12, cy + 58, HERO_CARD_W - (truth.right + 12 - cx) - 14, 226)
+pygame.draw.rect(sheet, (70, 70, 70), gray, border_radius=10)
+_grad_rect(sheet, gray.inflate(-4, -4), (96, 96, 96), (40, 40, 40))
+gl = desaturate(nearest40(lead, 2, 0, MAG))
+sheet.blit(gl, gl.get_rect(center=(gray.centerx, gray.y + 60)))
+gd = desaturate(nearest40(lead, 1, -32, MAG))
+sheet.blit(gd, gd.get_rect(center=(gray.centerx, gray.y + 150)))
+sheet.blit(F_TAG.render("40px GRAYSCALE proof", True, (235, 235, 235)), (gray.x + 6, gray.bottom - 18))
+sheet.blit(F_TAG.render("(level / dive)", True, (210, 210, 210)), (gray.x + 6, gray.bottom - 34))
+
+# ── ALT comparison row (two small cards) ──────────────────────────────────────
+alt_y = cy + HERO_CARD_H + PAD
+for i, key in enumerate(("alt_dense_star", "alt_coral_star")):
+    ax = PAD + i * (ALT_CARD_W + PAD)
+    pygame.draw.rect(sheet, CARD_BG, (ax, alt_y, ALT_CARD_W, ALT_CARD_H), border_radius=10)
+    pygame.draw.rect(sheet, CARD_EDGE, (ax, alt_y, ALT_CARD_W, ALT_CARD_H), 2, border_radius=10)
+    sheet.blit(F_NAME.render(key, True, TEXT), (ax + 12, alt_y + 8))
+    sheet.blit(F_FEAT.render(TELLS[key], True, SUB), (ax + 12, alt_y + 34))
+
+    g = BUILDERS[key]
+    dp = pygame.Rect(ax + 12, alt_y + 56, 120, 128)
+    _grad_rect(sheet, dp, DAY_TOP, DAY_BOT)
+    pygame.draw.rect(sheet, CARD_EDGE, dp, 1, border_radius=8)
+    h = smooth(g, 0, 0, 100)
+    sheet.blit(h, h.get_rect(center=dp.center))
+    sheet.blit(F_TAG.render("100px", True, (40, 50, 70)), (dp.x + 4, dp.bottom - 16))
+
+    tp = pygame.Rect(dp.right + 10, alt_y + 56, ALT_CARD_W - (dp.right + 10 - ax) - 12, 128)
+    pygame.draw.rect(sheet, GAME_PANEL, tp, border_radius=8)
+    nl = nearest40(g, 2, 0, MAG)
+    sheet.blit(nl, nl.get_rect(center=(tp.x + 56, tp.centery - 6)))
+    nd = nearest40(g, 1, -32, MAG)
+    sheet.blit(nd, nd.get_rect(center=(tp.x + 132, tp.centery - 6)))
+    sheet.blit(F_TAG.render("40px x3 (level/dive)", True, (210, 200, 150)), (tp.x + 6, tp.bottom - 16))
+
+
+out_path = os.path.join(_here, "round_2.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())
