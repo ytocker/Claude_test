@@ -194,10 +194,20 @@ _KEYFRAME_NAMES = ["DAY", "GOLDEN HOUR", "SUNSET", "DUSK", "NIGHT",
 # Fraction of the (possibly extended) DAY span to hold at SOLID daytime before
 # the golden-hour fade begins. Without this, a single DAY→GOLDEN smoothstep
 # spans the whole — now much longer — day, so the sky drifts toward amber from
-# the very start and daytime never reads as dominant. Holding day for most of
-# the span and compressing the fade into the tail keeps DAY dominant while the
-# transition stays smooth. Only applied when the day is extended.
-DAY_HOLD_FRAC = 0.60
+# the very start. We deliberately keep this hold SHORT so the fade is already
+# reading on screen within the first ~25-30 pillars: most runs end early, and a
+# 60% hold left the sky frozen on solid blue until ~pillar 42. Only applied when
+# the day is extended. Pairs with NIGHT_BORROW_SECONDS below, which trims the
+# same daytime length and hands it to the night.
+DAY_HOLD_FRAC = 0.51
+
+# Seconds trimmed off the GOLDEN..NIGHT keyframes and handed to the
+# NIGHT→PREDAWN span: an EQUAL swap that pulls the whole evening earlier (so the
+# sky starts changing sooner) and makes the night correspondingly longer,
+# WITHOUT changing the total cycle. PREDAWN/SUNRISE stay put, so the predawn
+# snow squall and the day-end finale keep their pillars. ~26s ≈ 15 early pillars.
+# Only meaningful while the day is extended.
+NIGHT_BORROW_SECONDS = 26.0
 
 _BASE_CYCLE_SECONDS = 320.0
 from game.config import DAY_EXTRA_SECONDS as _DAY_EXTRA
@@ -205,12 +215,20 @@ CYCLE_SECONDS = _BASE_CYCLE_SECONDS + _DAY_EXTRA
 
 if _DAY_EXTRA:
     _last = len(_KEYFRAMES) - 1
-    _KEYFRAMES[:] = [
-        (frac if i == 0 else
-         1.0 if i == _last else
-         (frac * _BASE_CYCLE_SECONDS + _DAY_EXTRA) / CYCLE_SECONDS, pal)
-        for i, (frac, pal) in enumerate(_KEYFRAMES)
-    ]
+
+    def _remap(i, frac):
+        # DAY pinned to 0, wrap pinned to 1. The evening block (GOLDEN..NIGHT,
+        # indices 1-4) is pulled earlier by the borrow; PREDAWN/SUNRISE keep the
+        # full DAY_EXTRA shift, so the gap they leave behind lengthens the night.
+        if i == 0:
+            return 0.0
+        if i == _last:
+            return 1.0
+        extra = _DAY_EXTRA - (NIGHT_BORROW_SECONDS if 1 <= i <= 4 else 0.0)
+        return (frac * _BASE_CYCLE_SECONDS + extra) / CYCLE_SECONDS
+
+    _KEYFRAMES[:] = [(_remap(i, frac), pal)
+                     for i, (frac, pal) in enumerate(_KEYFRAMES)]
     # Hold solid DAY for DAY_HOLD_FRAC of the day span, then fade to golden over
     # the remainder — a DAY-coloured keyframe inserted just before golden hour.
     _golden_phase = _KEYFRAMES[1][0]
