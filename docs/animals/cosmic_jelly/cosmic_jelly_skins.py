@@ -1,15 +1,15 @@
-"""Candidate COSMIC JELLY skins for the ANIMALS Store — round-1 exploration.
+"""COSMIC JELLY production skin (skin_cosmic_jelly) — round-2 final.
 
-A LEGENDARY spectacle skin, and the set's only NON-winged creature: a
-galaxy-filled translucent jellyfish bell trailing star-streamer tentacles —
-a jellyfish made of deep space. Five genuinely different takes on the same
-creature (bell shape, nebula colour scheme, tentacle style, translucency,
-halo strength), all on the production 64×84 SRCALPHA contract so the winner
-lifts straight into game/animal_skins.py.
+A LEGENDARY spectacle skin, and the ANIMALS set's only NON-winged creature:
+a galaxy-filled translucent jellyfish bell trailing star-streamer tentacles —
+a jellyfish made of deep space. This module exposes the SINGLE primary
+production build that won the round-1 review (V4 SOLID VOID-CORE), perfected
+against the art-director's round-1 punch list so it lifts straight into
+game/animal_skins.py.
 
 Contract (mirrors game/animal_skins.py):
 
-  * `build_<name>(wing_angle_deg) -> pygame.Surface`  draws one flat frame.
+  * `build_cosmic_jelly(wing_angle_deg) -> pygame.Surface`  draws one flat frame.
   * the bell DOME (body mass) is centred at (32,44) = (BCX,BCY); tentacles
     trail DOWN into the lower canvas. Collision is a fixed 14px circle at the
     body centre, so the bell stays anchored there for fairness.
@@ -22,21 +22,33 @@ Contract (mirrors game/animal_skins.py):
     `_make_prebuilt_skin(build_fn)`.
 
 Legendary-spectacle constraint: the skin returns ONE static sprite per frame —
-there is no live particle system. The nebula glow, stars and stardust are
-BAKED into each of the 4 frames; the pulse + drift are expressed purely by
-varying the internal swirl/star positions frame to frame. It must still read
-as a glowing bell-with-tentacles at 40px.
+there is no live particle system. The nebula glow, stars and core are BAKED
+into each of the 4 frames; the pulse + drift are expressed purely by varying
+the swirl/core/tentacle positions frame to frame.
 
-North star: "a skin lives or dies at 40px in motion." One bold bell
-silhouette + one high-contrast signature feature (the swirling nebula inside
-the dome) that survives the downscale against bright-day AND night skies.
+Round-2 punch list (art-director directives), all baked here:
+  1. A 1px DARKER-VIOLET rim is stamped UNDER the additive halo so the bell has
+     a hard edge that survives a bright-day sky — the halo blooms OUTSIDE that
+     edge instead of dissolving it.
+  2. A star-DIADEM (one dominant white-gold spike-star + two tiny flankers)
+     grafted onto the dome top breaks the silhouette like a crest — the
+     legendary "one high-value point", grown/dimmed on the contract pose so it
+     never competes with the breathing core.
+  3. The UPPER dome is ~18% more translucent (a brighter, see-through cap) over
+     a near-solid void lower body — it reads as JELLY, not a planet.
+  4. The white core BREATHES across the 4 frames: largest+brightest on the
+     billow (up-pose), small+dense on the contract (down-pose); the swirl
+     drifts ~26°/frame.
+  5. FIVE constellation tentacles, joined as 1px star-lines with a brighter
+     tip-node: bunched/short on the down-pose, streamed/long on the up-pose.
+  6. Two-hue swirl only — cyan + a BLUE-biased magenta (cold, distinct from the
+     phoenix's warm red) — over the white core.
 """
 import math
 import random as _random
 
 import pygame
 
-from game import parrot
 from game.parrot import (
     SPRITE_W, SPRITE_H, _WING_ANGLES, _add_outline, _aaellipse,
 )
@@ -79,8 +91,8 @@ def _new():
 
 
 def _rng(seed):
-    """Per-frame deterministic RNG so baked star positions twinkle/drift
-    across the 4 frames but stay stable within a frame."""
+    """Per-frame deterministic RNG so baked star positions twinkle/drift across
+    the 4 frames but stay stable within a frame."""
     return _random.Random(seed)
 
 
@@ -89,21 +101,19 @@ def _pulse(angle_deg):
 
     `_WING_ANGLES` runs 50→-40 (down-pose → up-pose). At 0 the bell is
     CONTRACTED (squashed wide+short, tentacles bunched); at 1 it BILLOWS open
-    (tall+narrow, tentacles streaming long). This is the non-winged
-    reinterpretation of the flap."""
+    (tall+narrow, tentacles streaming long)."""
     return (angle_deg + 40) / 90.0
 
 
 def _frame_idx(angle_deg):
-    """Which of the 4 baked frames this angle is — used to drive the slow
-    nebula DRIFT (swirl/star offset) so the cosmos appears to rotate even
-    though each sprite is static."""
+    """Which of the 4 baked frames this angle is — drives the slow nebula DRIFT
+    and core breathing so the cosmos appears alive though each sprite is static."""
     return _WING_ANGLES.index(angle_deg) if angle_deg in _WING_ANGLES else 0
 
 
 def _glow_blob(surf, cx, cy, r, color, layers=4, peak=120):
     """A baked soft radial glow — concentric translucent rings, brightest at
-    the core. The legendary halo with no live particle system."""
+    the core, blitted ADD. The legendary halo with no live particle system."""
     for i in range(layers, 0, -1):
         a = int(peak * (i / layers) ** 2)
         rr = int(r * i / layers)
@@ -123,10 +133,10 @@ def _star(surf, cx, cy, r, color=(255, 255, 255)):
         pygame.draw.line(surf, (*color, 150), (cx, cy - r - 1), (cx, cy + r + 1), 1)
 
 
-def _swirl(surf, cx, cy, rx, ry, phase, colors, arms=2, steps=22):
+def _swirl(surf, cx, cy, rx, ry, phase, colors, arms=2, steps=26):
     """A baked spiral-galaxy swirl inside the bell: `arms` log-spiral arcs of
     fading dots, rotated by `phase` (radians) so successive frames look like
-    the nebula slowly turns. Drawn additively so it glows over the void."""
+    the nebula slowly turns. Drawn ADD so it glows over the void."""
     for arm in range(arms):
         a0 = phase + arm * (2 * math.pi / arms)
         col = colors[arm % len(colors)]
@@ -136,7 +146,7 @@ def _swirl(surf, cx, cy, rx, ry, phase, colors, arms=2, steps=22):
             rad = 1.0 + t * 1.0                      # log-ish outward spiral
             x = cx + math.cos(ang) * rx * rad * 0.5
             y = cy + math.sin(ang) * ry * rad * 0.5
-            a = int(200 * (1.0 - t))
+            a = int(210 * (1.0 - t))
             dot = max(1, int(2.4 * (1.0 - t * 0.6)))
             g = pygame.Surface((dot * 2 + 2, dot * 2 + 2), pygame.SRCALPHA)
             pygame.draw.circle(g, (*col, a), (dot + 1, dot + 1), dot)
@@ -144,417 +154,175 @@ def _swirl(surf, cx, cy, rx, ry, phase, colors, arms=2, steps=22):
                       special_flags=pygame.BLEND_RGBA_ADD)
 
 
-# ── shared palette (the brief's cosmic set) ──────────────────────────────────
-VOID     = (26, 10, 51)         # #1A0A33
-VIOLET   = (122, 60, 255)       # #7A3CFF
-CYAN     = (60, 200, 255)       # #3CC8FF
-PINK     = (255, 107, 208)      # #FF6BD0
-WHITE    = (255, 255, 255)
-GOLD     = (255, 214, 120)
-AURORA   = (90, 255, 190)       # mint-green aurora accent
-DEEP     = (14, 6, 34)
+# ── COSMIC JELLY palette ─────────────────────────────────────────────────────
+# Two-hue cold swirl + white core. The magenta is biased BLUE (not red) so the
+# whole creature stays cold and never confuses with the warm phoenix.
+VOID       = (24, 10, 50)       # near-black violet body — the void core
+VOID_DEEP  = (12, 5, 30)        # darkest under-belly shade
+RIM_VIOLET = (58, 26, 110)      # the hard 1px silhouette rim baked UNDER the halo
+HALO       = (130, 70, 255)     # additive violet bloom that blooms OUTSIDE the rim
+CAP_LIGHT  = (150, 110, 255)    # translucent upper-dome cap (the "jelly" glass)
+CYAN       = (60, 200, 255)     # swirl hue A
+MAGENTA    = (190, 90, 255)     # swirl hue B — blue-biased magenta, cold
+WHITE      = (255, 255, 255)
+GOLD       = (255, 222, 140)    # the diadem's regal accent
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# V1 · CLASSIC DOME — moon-jelly low dome, violet/cyan nebula, a 2-arm spiral
-#     galaxy swirling inside, 5 long constellation-dot tentacles. Translucent
-#     bell rim catches a cyan light. The textbook "jellyfish made of space."
-#     40px tell: the round violet dome with a bright cyan swirl + dotted streamers.
+# build_cosmic_jelly — the single production build (perfected V4 SOLID VOID-CORE)
 # ═════════════════════════════════════════════════════════════════════════════
-def build_cosmic_jelly_v1(wing_angle_deg):
+def build_cosmic_jelly(wing_angle_deg):
     surf = _new()
-    p = _pulse(wing_angle_deg)
+    p = _pulse(wing_angle_deg)                       # 0 contract → 1 billow
     fi = _frame_idx(wing_angle_deg)
-    drift = fi * (math.pi / 6)                       # slow nebula rotation
+    drift = fi * math.radians(26)                    # ~26°/frame nebula spin
 
-    # Pulse: contracted = wide+short, billowed = tall+narrow.
-    rx = int(20 - p * 4)
-    ry = int(13 + p * 5)
-    rim_y = BCY + ry - 4
-
-    # Outer halo so the legendary glow reads before the bell does.
-    _glow_blob(surf, BCX, BCY, 24, VIOLET, layers=5, peak=70)
-
-    # Bell body: void core with a translucent violet shell.
-    _aaellipse(surf, (*VIOLET, 130), (BCX, BCY), rx + 1, ry + 1)
-    _aaellipse(surf, (*VOID, 235), (BCX, BCY), rx, ry)
-    # Bright translucent crown highlight (the gelatinous dome catching light).
-    _aaellipse(surf, (*CYAN, 90), (BCX - 3, BCY - ry // 2), rx // 2, ry // 3)
-
-    # Internal nebula: cyan/violet 2-arm spiral, drifting per frame.
-    _swirl(surf, BCX, BCY - 1, rx, ry, drift, (CYAN, VIOLET), arms=2)
-    # A few baked stars scattered in the dome, jittered by frame for twinkle.
-    rng = _rng(fi * 11 + 1)
-    for _ in range(7):
-        ang = rng.uniform(0, 2 * math.pi)
-        d = rng.uniform(0.2, 0.85)
-        sx = int(BCX + math.cos(ang) * rx * d)
-        sy = int(BCY + math.sin(ang) * ry * d)
-        _star(surf, sx, sy, rng.choice([1, 1, 2]),
-              rng.choice([WHITE, CYAN, PINK]))
-
-    # Scalloped bell rim (moon-jelly fringe) catching cyan rim-light.
-    for i in range(-rx, rx + 1, 4):
-        pygame.draw.circle(surf, (*CYAN, 160), (BCX + i, rim_y), 2)
-
-    # 5 long constellation-dot tentacles streaming down; longer when billowed.
-    length = int(20 + p * 8)
-    for k, tx0 in enumerate((-13, -6, 0, 7, 14)):
-        _tentacle_dots(surf, BCX + tx0, rim_y, length, k, fi, p,
-                       (WHITE, CYAN, VIOLET))
-    return surf
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# V2 · ONION BULLET — a tall onion/bullet bell (deep-sea siphonophore feel),
-#     PINK/GOLD nebula scheme, a dense star-cluster core instead of a spiral,
-#     3 thick ribbon tentacles with gold star-nodes. Solid, jewel-like bell.
-#     40px tell: the tall pink teardrop dome with a glowing gold heart.
-# ═════════════════════════════════════════════════════════════════════════════
-def build_cosmic_jelly_v2(wing_angle_deg):
-    surf = _new()
-    p = _pulse(wing_angle_deg)
-    fi = _frame_idx(wing_angle_deg)
-    drift = fi * (math.pi / 5)
-
-    # Tall onion bell: narrow + tall when billowed, fatter + shorter contracted.
-    rx = int(15 - p * 2)
-    ry = int(17 + p * 4)
-    top_y = BCY - ry - 3
-    rim_y = BCY + ry - 5
-
-    _glow_blob(surf, BCX, BCY, 23, PINK, layers=5, peak=64)
-
-    # Onion silhouette: an ellipse body with a drawn-up pointed crown.
-    pts = [(BCX - rx, BCY + 2), (BCX - rx + 1, BCY - ry + 2),
-           (BCX - rx // 3, top_y), (BCX, top_y - 2),
-           (BCX + rx // 3, top_y), (BCX + rx - 1, BCY - ry + 2),
-           (BCX + rx, BCY + 2)]
-    pygame.draw.polygon(surf, (*PINK, 150), pts)
-    _aaellipse(surf, (*PINK, 150), (BCX, BCY + 2), rx, ry - 6)
-    _aaellipse(surf, (*DEEP, 230), (BCX, BCY), rx - 2, ry - 2)
-    # Pointed-crown void fill so the onion tip stays dark/translucent.
-    pygame.draw.polygon(surf, (*DEEP, 220),
-                        [(BCX - rx // 3, top_y + 4), (BCX, top_y),
-                         (BCX + rx // 3, top_y + 4), (BCX, BCY)])
-
-    # Dense star-cluster heart (gold), not a spiral.
-    _glow_blob(surf, BCX, BCY + 1, 8, GOLD, layers=4, peak=150)
-    rng = _rng(fi * 17 + 3)
-    for _ in range(12):
-        ang = rng.uniform(0, 2 * math.pi) + drift
-        d = rng.uniform(0.0, 0.9)
-        sx = int(BCX + math.cos(ang) * (rx - 3) * d)
-        sy = int(BCY + math.sin(ang) * (ry - 5) * d)
-        _star(surf, sx, sy, rng.choice([1, 1, 2]),
-              rng.choice([WHITE, GOLD, PINK]))
-    # Bright gold core star.
-    _star(surf, BCX, BCY + 1, 2, GOLD)
-
-    # Glassy crown highlight.
-    _aaellipse(surf, (*WHITE, 80), (BCX - 2, BCY - ry + 4), 3, 5)
-
-    # 3 thick ribbon tentacles with gold star-nodes.
-    length = int(22 + p * 8)
-    for k, tx0 in enumerate((-8, 0, 8)):
-        _tentacle_ribbon(surf, BCX + tx0, rim_y, length, k, fi, p,
-                         PINK, GOLD)
-    return surf
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# V3 · MUSHROOM AURORA — a flat, wide mushroom-jelly bell, AURORA scheme
-#     (mint-green + cyan + violet), an aurora-band gradient sweeping across the
-#     dome instead of a point swirl, MANY (8) fine hair-thin tentacles. The
-#     most translucent, "ghostly veil" read. 40px tell: the wide flat cap with
-#     a horizontal green-cyan aurora ribbon.
-# ═════════════════════════════════════════════════════════════════════════════
-def build_cosmic_jelly_v3(wing_angle_deg):
-    surf = _new()
-    p = _pulse(wing_angle_deg)
-    fi = _frame_idx(wing_angle_deg)
-    drift = fi * 0.9
-
-    # Flat wide mushroom: very wide + flat contracted, a bit taller billowed.
-    rx = int(23 - p * 3)
-    ry = int(10 + p * 4)
-    rim_y = BCY + ry - 2
-
-    _glow_blob(surf, BCX, BCY, 25, AURORA, layers=5, peak=58)
-
-    # Translucent flat cap (low alpha — ghostly veil).
-    _aaellipse(surf, (*AURORA, 70), (BCX, BCY), rx + 1, ry + 1)
-    _aaellipse(surf, (*VOID, 170), (BCX, BCY), rx, ry)
-
-    # Aurora band: layered horizontal arcs (green→cyan→violet) sweeping the
-    # dome, phase-shifted per frame so the curtain appears to ripple.
-    band_cols = (AURORA, CYAN, VIOLET)
-    clip = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    for bi, col in enumerate(band_cols):
-        yb = BCY - 4 + bi * 4
-        pts = []
-        for xx in range(BCX - rx, BCX + rx + 1, 2):
-            t = (xx - (BCX - rx)) / (2 * rx)
-            wob = math.sin(t * math.pi * 2 + drift + bi) * 3
-            pts.append((xx, int(yb + wob)))
-        if len(pts) >= 2:
-            pygame.draw.lines(clip, (*col, 150), False, pts, 3)
-    # Mask the band to the dome ellipse so it reads as light INSIDE the jelly.
-    mask = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    _aaellipse(mask, (255, 255, 255, 255), (BCX, BCY), rx, ry)
-    clip.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-    surf.blit(clip, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-
-    # Sparse drifting stars.
-    rng = _rng(fi * 23 + 5)
-    for _ in range(6):
-        ang = rng.uniform(0, 2 * math.pi)
-        d = rng.uniform(0.2, 0.9)
-        sx = int(BCX + math.cos(ang) * rx * d)
-        sy = int(BCY + math.sin(ang) * ry * d)
-        _star(surf, sx, sy, rng.choice([1, 1, 2]),
-              rng.choice([WHITE, AURORA, CYAN]))
-
-    # Bright rim arc (top crown catching aurora light).
-    pygame.draw.arc(surf, (*AURORA, 200),
-                    (BCX - rx, BCY - ry, rx * 2, ry * 2),
-                    math.radians(20), math.radians(160), 2)
-
-    # 8 fine hair tentacles, very long when billowed — ghostly veil.
-    length = int(24 + p * 9)
-    spread = list(range(-rx + 3, rx - 2, max(3, (2 * rx - 5) // 7)))
-    for k, tx0 in enumerate(spread):
-        _tentacle_hair(surf, BCX + tx0, rim_y, length, k, fi, p,
-                       (AURORA, CYAN, WHITE))
-    return surf
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# V4 · SOLID VOID-CORE — a near-opaque, bold-silhouette dome (the most
-#     gameplay-robust read): deep void body with a HARD bright nebula swirl and
-#     a strong violet halo. 6 medium tentacles whose dots form clean
-#     constellation lines (joined). The "reads at 40px from a mile" version.
-#     40px tell: a solid dark bell with one searing cyan-pink swirl + a thick halo.
-# ═════════════════════════════════════════════════════════════════════════════
-def build_cosmic_jelly_v4(wing_angle_deg):
-    surf = _new()
-    p = _pulse(wing_angle_deg)
-    fi = _frame_idx(wing_angle_deg)
-    drift = fi * (math.pi / 4)
-
-    rx = int(19 - p * 3)
-    ry = int(14 + p * 4)
-    rim_y = BCY + ry - 4
-
-    # Strong legendary halo — thicker than the others.
-    _glow_blob(surf, BCX, BCY, 27, VIOLET, layers=6, peak=95)
-
-    # Near-opaque bell so the silhouette is rock-solid at distance.
-    _aaellipse(surf, (*VIOLET, 220), (BCX, BCY), rx + 1, ry + 1)
-    _aaellipse(surf, (*VOID, 255), (BCX, BCY), rx, ry)
-    # Inner shade ring for volume.
-    pygame.draw.arc(surf, (*VIOLET, 180),
-                    (BCX - rx, BCY - ry, rx * 2, ry * 2),
-                    math.radians(200), math.radians(340), 2)
-
-    # HARD high-contrast swirl: thick 2-arm spiral, bright cyan + pink.
-    _swirl(surf, BCX, BCY, rx, ry, drift, (CYAN, PINK), arms=2, steps=26)
-    # A searing white core where the arms meet.
-    _glow_blob(surf, BCX, BCY, 5, WHITE, layers=3, peak=200)
-    _star(surf, BCX, BCY, 2, WHITE)
-
-    # A handful of bright stars on the swirl path.
-    rng = _rng(fi * 29 + 7)
-    for _ in range(5):
-        ang = rng.uniform(0, 2 * math.pi)
-        d = rng.uniform(0.4, 0.9)
-        sx = int(BCX + math.cos(ang) * rx * d)
-        sy = int(BCY + math.sin(ang) * ry * d)
-        _star(surf, sx, sy, 2, rng.choice([WHITE, CYAN, PINK]))
-
-    # Glassy crown glint.
-    _aaellipse(surf, (*WHITE, 70), (BCX - 4, BCY - ry + 3), 3, 4)
-
-    # 6 medium constellation tentacles — dots JOINED with faint lines so they
-    # read as star-lines, not loose dust, even when small.
-    length = int(18 + p * 7)
-    for k, tx0 in enumerate((-14, -9, -3, 3, 9, 14)):
-        _tentacle_constellation(surf, BCX + tx0, rim_y, length, k, fi, p,
-                                (CYAN, PINK, WHITE))
-    return surf
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# V5 · CROWN COMET — a domed bell crowned with a bright STAR-DIADEM (3 spike
-#     stars breaking the silhouette top) + a full violet/cyan/pink tri-colour
-#     nebula, and 4 long comet-tail tentacles that taper to glowing points
-#     (stardust trails). The most "spectacle / regal legendary" read.
-#     40px tell: the bright star-crown above a tri-colour swirling dome.
-# ═════════════════════════════════════════════════════════════════════════════
-def build_cosmic_jelly_v5(wing_angle_deg):
-    surf = _new()
-    p = _pulse(wing_angle_deg)
-    fi = _frame_idx(wing_angle_deg)
-    drift = fi * (math.pi / 6)
-
-    rx = int(20 - p * 3)
-    ry = int(13 + p * 4)
+    # Pulse geometry: contracted = wide+short, billowed = tall+narrow.
+    rx = int(round(19 - p * 3))
+    ry = int(round(14 + p * 4))
     top_y = BCY - ry
     rim_y = BCY + ry - 4
 
-    _glow_blob(surf, BCX, BCY, 25, VIOLET, layers=5, peak=78)
+    # 1. HARD SILHOUETTE FIRST. Stamp a darker-violet rim ring that is a touch
+    #    larger than the body, THEN bloom the additive halo OUTSIDE it. Painting
+    #    the rim before the halo means the bloom adds light around a defined
+    #    edge instead of dissolving it — the bell keeps a crisp lip on day sky.
+    _aaellipse(surf, (*RIM_VIOLET, 255), (BCX, BCY), rx + 2, ry + 2)
+    _glow_blob(surf, BCX, BCY, 28, HALO, layers=6, peak=92)
+    # Re-stamp the rim over the inner halo edge so the lip stays hard-edged.
+    _aaellipse(surf, (*RIM_VIOLET, 255), (BCX, BCY), rx + 1, ry + 1)
 
-    # Bell: translucent violet shell, void core.
-    _aaellipse(surf, (*VIOLET, 150), (BCX, BCY), rx + 1, ry + 1)
-    _aaellipse(surf, (*VOID, 230), (BCX, BCY), rx, ry)
+    # 3. JELLY BODY: a solid void LOWER mass with a brighter, see-through UPPER
+    #    cap so it reads as gelatinous glass, not an opaque planet.
+    _aaellipse(surf, (*VOID, 255), (BCX, BCY), rx, ry)
+    # Darken the under-belly for bottom-weighted volume.
+    belly = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+    _aaellipse(belly, (*VOID_DEEP, 200), (BCX, BCY + ry // 2), rx, ry)
+    _clip_to_bell(belly, rx, ry)
+    surf.blit(belly, (0, 0))
+    # Upper-dome translucent cap: a brighter half-ellipse clipped to the top of
+    # the bell — ~18% lighter glass over the void so light reads "through" it.
+    cap = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+    _aaellipse(cap, (*CAP_LIGHT, 95), (BCX, BCY - ry // 3), rx - 1, ry)
+    _clip_to_bell(cap, rx, ry)
+    surf.blit(cap, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
-    # Tri-colour nebula: a 3-arm spiral (violet/cyan/pink) for a richer cosmos.
-    _swirl(surf, BCX, BCY, rx, ry, drift, (VIOLET, CYAN, PINK),
-           arms=3, steps=20)
+    # 6. TWO-HUE SWIRL (cyan + blue-magenta) drifting over the breathing core.
+    _swirl(surf, BCX, BCY, rx, ry, drift, (CYAN, MAGENTA), arms=2, steps=26)
 
-    # Scattered stars.
-    rng = _rng(fi * 31 + 9)
-    for _ in range(8):
-        ang = rng.uniform(0, 2 * math.pi)
-        d = rng.uniform(0.2, 0.85)
+    # 4. BREATHING WHITE CORE: largest + brightest on the billow, small + dense
+    #    on the contract. The swirl arms converge on it, so it reads as the
+    #    galactic heart pumping with each pulse.
+    core_r = 4 + int(round(p * 3))                   # 4 (contract) → 7 (billow)
+    core_peak = 170 + int(round(p * 70))             # 170 → 240
+    _glow_blob(surf, BCX, BCY, core_r, WHITE, layers=4, peak=core_peak)
+    _star(surf, BCX, BCY, 2 + int(round(p)), WHITE)
+
+    # A few bright stars riding the swirl path, jittered per frame to twinkle.
+    rng = _rng(fi * 29 + 7)
+    for _ in range(5):
+        ang = rng.uniform(0, 2 * math.pi) + drift
+        d = rng.uniform(0.45, 0.9)
         sx = int(BCX + math.cos(ang) * rx * d)
         sy = int(BCY + math.sin(ang) * ry * d)
         _star(surf, sx, sy, rng.choice([1, 1, 2]),
-              rng.choice([WHITE, CYAN, PINK, VIOLET]))
+              rng.choice([WHITE, CYAN, MAGENTA]))
 
-    # ── HERO: a STAR-DIADEM crowning the dome — 3 bright spike-stars breaking
-    #    the top silhouette, the regal legendary tell. Centre tallest.
-    crown = ((BCX - 9, top_y + 1, 7), (BCX, top_y - 5, 10), (BCX + 9, top_y + 1, 7))
-    for cx, cy, h in crown:
-        # Glow + 4-point sparkle star.
-        _glow_blob(surf, cx, cy, 5, GOLD, layers=3, peak=130)
-        pygame.draw.polygon(surf, WHITE,
-                            [(cx, cy - h // 2), (cx + 2, cy), (cx, cy + h // 2),
-                             (cx - 2, cy)])
-        pygame.draw.polygon(surf, (*GOLD, 220),
-                            [(cx - h // 2, cy), (cx, cy + 2), (cx + h // 2, cy),
-                             (cx, cy - 2)])
-        pygame.draw.circle(surf, WHITE, (cx, cy), 1)
+    # Glassy crown glint on the cap — sells the translucent dome.
+    _aaellipse(surf, (*WHITE, 70), (BCX - 4, BCY - ry + 3), 3, 4)
 
-    # Crown rim-light.
-    pygame.draw.arc(surf, (*CYAN, 180),
-                    (BCX - rx, BCY - ry, rx * 2, ry * 2),
-                    math.radians(20), math.radians(160), 2)
+    # 2. STAR-DIADEM: ONE dominant white-gold spike-star + two tiny flankers,
+    #    grafted onto the dome top to break the silhouette like a crest. Grown
+    #    and brightened on the billow, shrunk on the contract, so it pulses with
+    #    the body but never out-shouts the breathing core.
+    _diadem(surf, BCX, top_y, p)
 
-    # 4 long comet-tail tentacles tapering to glowing stardust points.
-    length = int(24 + p * 9)
-    for k, tx0 in enumerate((-12, -4, 4, 12)):
-        _tentacle_comet(surf, BCX + tx0, rim_y, length, k, fi, p,
-                        (VIOLET, CYAN, PINK))
+    # 5. FIVE constellation tentacles — 1px joined star-lines with a brighter
+    #    tip-node. Bunched + short on the contract, streamed + long on billow.
+    length = int(round(16 + p * 9))
+    # Roots fan WIDER as the bell billows so the 5 strands separate cleanly on
+    # the up-pose and bunch tight on the contract — and start just below the rim
+    # lip so the hard edge never swallows the strand roots.
+    step = 3.4 + p * 1.6
+    root_y = rim_y + 1
+    for k, base in enumerate((-2.0, -1.0, 0.0, 1.0, 2.0)):
+        tx0 = int(round(BCX + base * step))
+        _tentacle_constellation(surf, tx0, root_y, length, k, fi, p)
     return surf
 
 
-# ── tentacle styles (one per variant family; all trail DOWN from the rim) ────
-def _wave_x(base_x, j, length, k, fi, p):
+def _clip_to_bell(layer, rx, ry):
+    """Multiply a working layer by the bell ellipse so interior shading/cap
+    light stays inside the dome silhouette (no rectangular spill)."""
+    mask = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+    _aaellipse(mask, (255, 255, 255, 255), (BCX, BCY), rx, ry)
+    layer.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+
+def _diadem(surf, cx, top_y, p):
+    """The legendary crest: one dominant spike-star centred on the dome apex,
+    flanked by two tiny stars. Scaled by the pulse so it breathes with the bell
+    yet stays a single high-value point that reads at 40px."""
+    big_h = 8 + int(round(p * 3))                    # 8 (contract) → 11 (billow)
+    apex_y = top_y - (3 + int(round(p * 2)))         # lifts higher when billowed
+    # Soft gold aura so the crest glows off the dark dome.
+    _glow_blob(surf, cx, apex_y, 6, GOLD, layers=3, peak=120 + int(p * 40))
+    # Vertical white spike (the dominant point) over a gold horizontal cross.
+    pygame.draw.polygon(surf, WHITE,
+                        [(cx, apex_y - big_h // 2), (cx + 2, apex_y),
+                         (cx, apex_y + big_h // 2), (cx - 2, apex_y)])
+    pygame.draw.polygon(surf, (*GOLD, 230),
+                        [(cx - big_h // 2, apex_y), (cx, apex_y + 2),
+                         (cx + big_h // 2, apex_y), (cx, apex_y - 2)])
+    pygame.draw.circle(surf, WHITE, (cx, apex_y), 1)
+    # Two tiny flankers — kept small so the centre stays dominant.
+    for fx, fy in ((cx - 8, top_y + 1), (cx + 8, top_y + 1)):
+        _glow_blob(surf, fx, fy, 3, GOLD, layers=2, peak=90)
+        _star(surf, fx, fy, 1, WHITE)
+
+
+# ── tentacle style (joined constellation star-line) ──────────────────────────
+def _wave_x(base_x, j, k, fi, p):
     """Horizontal offset of a trailing tentacle point at depth fraction `j`
-    (0=rim, 1=tip). Tentacles sway with a sine whose phase shifts per frame
-    (drift) and whose amplitude grows when the bell BILLOWS (p high) — the
-    'trailing stardust on each pulse' read."""
-    amp = 1.5 + p * 2.5 + (k % 3)
+    (0=rim, 1=tip). Sways with a sine whose phase shifts per frame (drift) and
+    whose amplitude grows when the bell BILLOWS (p high) — the trailing-stardust
+    read on each pulse."""
+    amp = 1.2 + p * 2.6 + (k % 3)
     phase = fi * 0.8 + k * 1.3
     return base_x + int(math.sin(j * 3.2 + phase) * amp * j)
 
 
-def _tentacle_dots(surf, x0, y0, length, k, fi, p, cols):
-    """V1: a loose string of constellation dots, spaced, fading toward the tip."""
-    n = length // 3
-    for s in range(n):
-        j = s / max(1, n - 1)
-        x = _wave_x(x0, j, length, k, fi, p)
-        y = y0 + int(j * length)
-        a = int(220 * (1 - j * 0.6))
-        col = cols[s % len(cols)]
-        r = 2 if s % 3 == 0 else 1
+def _tentacle_constellation(surf, x0, y0, length, k, fi, p):
+    """Dots JOINED by a faint 1px line so they read as a star-line, not loose
+    dust, even small — with a brighter, larger TIP-NODE anchoring each strand."""
+    n = max(3, length // 4)
+    pts = []
+    for s in range(n + 1):
+        j = s / n
+        pts.append((_wave_x(x0, j, k, fi, p), y0 + int(j * length)))
+    # Faint joining line (cyan, fading) so the dots read as one strand.
+    if len(pts) >= 2:
+        line = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+        pygame.draw.lines(line, (*CYAN, 90), False, pts, 1)
+        surf.blit(line, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    # Star nodes alternating the two swirl hues, dimming toward the tip.
+    for s, (x, y) in enumerate(pts):
+        j = s / n
+        col = (WHITE, CYAN, MAGENTA)[s % 3]
+        r = 2 if s % 2 == 0 else 1
+        a = int(235 * (1 - j * 0.45))
         g = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
         pygame.draw.circle(g, (*col, a), (r + 1, r + 1), r)
         surf.blit(g, (x - r - 1, y - r - 1), special_flags=pygame.BLEND_RGBA_ADD)
-
-
-def _tentacle_ribbon(surf, x0, y0, length, k, fi, p, edge, node):
-    """V2: a thick translucent ribbon with bright star-nodes along it."""
-    pts = []
-    n = length // 2
-    for s in range(n + 1):
-        j = s / n
-        pts.append((_wave_x(x0, j, length, k, fi, p), y0 + int(j * length)))
-    if len(pts) >= 2:
-        pygame.draw.lines(surf, (*edge, 120), False, pts, 3)
-        pygame.draw.lines(surf, (*edge, 200), False, pts, 1)
-    for s in range(0, n + 1, 4):
-        x, y = pts[s]
-        _star(surf, x, y, 1 if s else 2, node)
-
-
-def _tentacle_hair(surf, x0, y0, length, k, fi, p, cols):
-    """V3: a single fine hair-line with a faint glow + sparse twinkles."""
-    pts = []
-    n = length // 2
-    for s in range(n + 1):
-        j = s / n
-        pts.append((_wave_x(x0, j, length, k, fi, p), y0 + int(j * length)))
-    col = cols[k % len(cols)]
-    if len(pts) >= 2:
-        pygame.draw.lines(surf, (*col, 110), False, pts, 1)
-    for s in range(2, n, 4):
-        x, y = pts[s]
-        a = int(200 * (1 - s / n))
-        g = pygame.Surface((4, 4), pygame.SRCALPHA)
-        pygame.draw.circle(g, (*WHITE, a), (2, 2), 1)
-        surf.blit(g, (x - 2, y - 2), special_flags=pygame.BLEND_RGBA_ADD)
-
-
-def _tentacle_constellation(surf, x0, y0, length, k, fi, p, cols):
-    """V4: dots JOINED by a faint line so they read as a star-line even small."""
-    pts = []
-    n = length // 4
-    for s in range(n + 1):
-        j = s / n
-        pts.append((_wave_x(x0, j, length, k, fi, p), y0 + int(j * length)))
-    if len(pts) >= 2:
-        pygame.draw.lines(surf, (*cols[0], 90), False, pts, 1)
-    for s, (x, y) in enumerate(pts):
-        col = cols[s % len(cols)]
-        r = 2 if s % 2 == 0 else 1
-        g = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
-        pygame.draw.circle(g, (*col, 230), (r + 1, r + 1), r)
-        surf.blit(g, (x - r - 1, y - r - 1), special_flags=pygame.BLEND_RGBA_ADD)
-
-
-def _tentacle_comet(surf, x0, y0, length, k, fi, p, cols):
-    """V5: a tapering comet tail — a fading glow stripe ending in a bright
-    stardust point (the 'stardust trail on each pulse')."""
-    pts = []
-    n = length // 2
-    for s in range(n + 1):
-        j = s / n
-        pts.append((_wave_x(x0, j, length, k, fi, p), y0 + int(j * length)))
-    col = cols[k % len(cols)]
-    # Tapering tail: thicker near rim, fading to the tip.
-    for s in range(len(pts) - 1):
-        j = s / n
-        w = max(1, int(3 * (1 - j)))
-        a = int(180 * (1 - j * 0.5))
-        seg = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-        pygame.draw.line(seg, (*col, a), pts[s], pts[s + 1], w)
-        surf.blit(seg, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-    # Bright stardust tip.
+    # Brighter glowing tip-node so each strand has a defined end-point.
     tx, ty = pts[-1]
-    _glow_blob(surf, tx, ty, 4, col, layers=3, peak=160)
+    _glow_blob(surf, tx, ty, 3, CYAN, layers=2, peak=150)
     _star(surf, tx, ty, 2, WHITE)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Candidate registry (label → getter). Each wrapped with the local factory.
+# Production registry — the single primary build, liftable into animal_skins.py.
 # ─────────────────────────────────────────────────────────────────────────────
-BUILDERS = {
-    "v1_classic_dome":   _make_prebuilt_skin(build_cosmic_jelly_v1),
-    "v2_onion_bullet":   _make_prebuilt_skin(build_cosmic_jelly_v2),
-    "v3_mushroom_aurora": _make_prebuilt_skin(build_cosmic_jelly_v3),
-    "v4_solid_voidcore": _make_prebuilt_skin(build_cosmic_jelly_v4),
-    "v5_crown_comet":    _make_prebuilt_skin(build_cosmic_jelly_v5),
-}
+get_cosmic_jelly = _make_prebuilt_skin(build_cosmic_jelly)
+
+BUILDERS = {"skin_cosmic_jelly": get_cosmic_jelly}

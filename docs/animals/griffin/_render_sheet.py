@@ -1,11 +1,15 @@
-"""Round-1 review sheet for the candidate GRIFFIN skin (5 variants).
+"""Round-2 review sheet for the SINGLE production GRIFFIN skin.
 
-Renders each variant at hero 130px AND at the in-game truth-test scale (40px,
-level + dive tilt), plus a NEAREST-NEIGHBOR magnification of those 40px reads so
-the true gameplay-pixel silhouette is honest (smoothscale flatters tiny detail
-that vanishes in motion). Each variant is shown over BOTH a night and a
-bright-day backdrop strip so the read survives both skies. Headless (SDL dummy)
-so it runs in CI / on the build box.
+Renders the converged V4 at hero 130px AND at the in-game truth-test scale
+(40px, level + dive), plus a NEAREST-NEIGHBOR x3 magnification of those 40px
+reads so the true gameplay-pixel silhouette is honest (smoothscale flatters
+tiny detail that vanishes in motion). Shown over BOTH a night and a bright-day
+backdrop so the read survives both skies.
+
+The distinctiveness proof is the right-hand strip: the SHIPPING bald-eagle skin
+(game/animal_skins.get_eagle) is rendered at the SAME 40px NEAREST x3 read
+directly beside the griffin, so the feather→fur / lion-rump separation is
+provable side-by-side. Headless (SDL dummy) so it runs in CI / on the build box.
 """
 import os
 import sys
@@ -26,39 +30,30 @@ spec = importlib.util.spec_from_file_location(
 griffin_skins = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(griffin_skins)
 
-BUILDERS = griffin_skins.BUILDERS
+from game.animal_skins import get_eagle
 
-ORDER = [
-    ("skin_griffin_v1", "V1 · HERALDIC REGAL", "white head + diagonal feather→fur split + big tuft"),
-    ("skin_griffin_v2", "V2 · FIERCE RAPTOR", "all-gold head + wide open wings + small tuft"),
-    ("skin_griffin_v3", "V3 · MANED TWO-TONE", "vertical feather|fur seam + lion mane collar"),
-    ("skin_griffin_v4", "V4 · SOARING WIDE-WING", "huge wingspan + tucked two-tone body"),
-    ("skin_griffin_v5", "V5 · CUB CHIBI", "big pale head + giant fluffy tail tuft"),
-]
+get_griffin = griffin_skins.BUILDERS["skin_griffin"]
 
-# ── layout ───────────────────────────────────────────────────────────────────
-COLS = 2
-ROWS = (len(ORDER) + COLS - 1) // COLS
-CARD_W, CARD_H = 430, 270
-PAD = 18
-HEADER_H = 64
-HERO_PX = 130
-GAME_PX = 40
-MAG = 3
-
+# ── colours ──────────────────────────────────────────────────────────────────
 NIGHT_TOP = (24, 26, 52)
 NIGHT_BOT = (40, 30, 60)
 DAY_TOP = (140, 200, 246)
 DAY_BOT = (206, 234, 250)
 CARD_BG = (16, 17, 34)
-CARD_EDGE = (190, 150, 70)               # gold rim — griffin is top-tier
+GOLD = (190, 150, 70)               # griffin is top-tier
 TEXT = (236, 238, 250)
 SUB = (150, 156, 190)
-HERO_PANEL = (28, 30, 56)
-GAME_PANEL = (12, 13, 28)
+PANEL = (12, 13, 28)
 
-SHEET_W = PAD + COLS * (CARD_W + PAD)
-SHEET_H = HEADER_H + PAD + ROWS * (CARD_H + PAD)
+HERO_PX = 130
+GAME_PX = 40
+MAG = 3
+
+# ── layout ───────────────────────────────────────────────────────────────────
+PAD = 18
+HEADER_H = 64
+SHEET_W = 860
+SHEET_H = 600
 
 sheet = pygame.Surface((SHEET_W, SHEET_H))
 for y in range(SHEET_H):
@@ -68,7 +63,7 @@ for y in range(SHEET_H):
 
 import random
 rng = random.Random(11)
-for _ in range(180):
+for _ in range(220):
     sx, sy = rng.randint(0, SHEET_W), rng.randint(0, SHEET_H)
     b = rng.randint(80, 200)
     pygame.draw.circle(sheet, (b, b, min(255, b + 30)), (sx, sy), rng.choice([1, 1, 2]))
@@ -76,13 +71,13 @@ for _ in range(180):
 pygame.font.init()
 F_TITLE = pygame.font.SysFont("Arial", 30, bold=True)
 F_SUB = pygame.font.SysFont("Arial", 15)
-F_NAME = pygame.font.SysFont("Arial", 19, bold=True)
+F_NAME = pygame.font.SysFont("Arial", 20, bold=True)
 F_FEAT = pygame.font.SysFont("Arial", 13)
 F_TAG = pygame.font.SysFont("Arial", 12, bold=True)
 
-sheet.blit(F_TITLE.render("Skybit — GRIFFIN Skin · Round 1", True, TEXT), (PAD, 14))
+sheet.blit(F_TITLE.render("Skybit — GRIFFIN Skin · Round 2 (V4 converged)", True, TEXT), (PAD, 14))
 sheet.blit(F_SUB.render(
-    "HERO 130px · 40px level & dive (day + night) · NEAREST-NEIGHBOR x3 (honest gameplay read). Tell = feather→fur split.",
+    "Single ship build. Lion rump + dark tail-tuft outside the wing · feather→fur value step · dark beak/outline · neck-ruff.",
     True, SUB), (PAD, 46))
 
 
@@ -122,55 +117,105 @@ def _grad_panel(rect, top, bot):
     sheet.blit(p2, rect.topleft)
 
 
-for idx, (key, name, feat) in enumerate(ORDER):
-    getter = BUILDERS[key]
-    r, c = divmod(idx, COLS)
-    cx = PAD + c * (CARD_W + PAD)
-    cy = HEADER_H + PAD + r * (CARD_H + PAD)
+def _bg_tile(rect, day):
+    _grad_panel(rect, DAY_TOP, DAY_BOT) if day else _grad_panel(rect, NIGHT_TOP, NIGHT_BOT)
 
-    card = pygame.Rect(cx, cy, CARD_W, CARD_H)
-    pygame.draw.rect(sheet, CARD_BG, card, border_radius=12)
-    pygame.draw.rect(sheet, CARD_EDGE, card, 3, border_radius=12)
 
-    sheet.blit(F_NAME.render(name, True, CARD_EDGE), (cx + 14, cy + 10))
-    sheet.blit(F_FEAT.render("read: " + feat, True, SUB), (cx + 14, cy + 34))
+# ── card 1: GRIFFIN — hero + 40px reads ──────────────────────────────────────
+cx, cy = PAD, HEADER_H + PAD
+CARD_W, CARD_H = 560, 480
+card = pygame.Rect(cx, cy, CARD_W, CARD_H)
+pygame.draw.rect(sheet, CARD_BG, card, border_radius=12)
+pygame.draw.rect(sheet, GOLD, card, 3, border_radius=12)
+sheet.blit(F_NAME.render("GRIFFIN  ·  skin_griffin", True, GOLD), (cx + 14, cy + 10))
+sheet.blit(F_FEAT.render("eagle fore + lion rump · enormous swept wings · dark-tipped tail · two-creature seam",
+                         True, SUB), (cx + 14, cy + 36))
 
-    # Hero panel (left) — half night / half day so colour reads on both.
-    hero_panel = pygame.Rect(cx + 12, cy + 58, 160, 196)
-    _grad_panel(pygame.Rect(hero_panel.x, hero_panel.y, hero_panel.w, hero_panel.h // 2),
-                NIGHT_TOP, NIGHT_BOT)
-    _grad_panel(pygame.Rect(hero_panel.x, hero_panel.y + hero_panel.h // 2,
-                            hero_panel.w, hero_panel.h - hero_panel.h // 2),
-                DAY_TOP, DAY_BOT)
-    hero = smooth(getter, 0, 0, HERO_PX)
-    sheet.blit(hero, hero.get_rect(center=hero_panel.center))
-    sheet.blit(F_TAG.render("130px", True, (230, 230, 235)),
-               (hero_panel.x + 6, hero_panel.bottom - 18))
+# Hero panel — half night / half day.
+hero_panel = pygame.Rect(cx + 14, cy + 62, 200, 280)
+_grad_panel(pygame.Rect(hero_panel.x, hero_panel.y, hero_panel.w, hero_panel.h // 2),
+            NIGHT_TOP, NIGHT_BOT)
+_grad_panel(pygame.Rect(hero_panel.x, hero_panel.y + hero_panel.h // 2,
+                        hero_panel.w, hero_panel.h - hero_panel.h // 2),
+            DAY_TOP, DAY_BOT)
+hero = smooth(get_griffin, 0, 0, HERO_PX)
+sheet.blit(hero, hero.get_rect(center=hero_panel.center))
+sheet.blit(F_TAG.render("130px hero (night / day)", True, (230, 230, 235)),
+           (hero_panel.x + 6, hero_panel.bottom - 18))
 
-    # Game panel (right): smooth 40px (day + night) + NEAREST x3 truth.
-    game_panel = pygame.Rect(cx + 182, cy + 58, 234, 196)
-    pygame.draw.rect(sheet, GAME_PANEL, game_panel, border_radius=10)
+# Game panel — smooth 40px (day + night) + NEAREST x3 across all 4 poses.
+gp = pygame.Rect(cx + 226, cy + 62, 320, 280)
+pygame.draw.rect(sheet, PANEL, gp, border_radius=10)
 
-    # Row 1: smooth 40px level over NIGHT, dive over DAY.
-    nrect = pygame.Rect(game_panel.x + 8, game_panel.y + 8, 100, 58)
-    drect = pygame.Rect(game_panel.x + 122, game_panel.y + 8, 100, 58)
-    _grad_panel(nrect, NIGHT_TOP, NIGHT_BOT)
-    _grad_panel(drect, DAY_TOP, DAY_BOT)
-    g_level = smooth(getter, 2, 0, GAME_PX)
-    sheet.blit(g_level, g_level.get_rect(center=nrect.center))
-    g_dive = smooth(getter, 1, -32, GAME_PX)
-    sheet.blit(g_dive, g_dive.get_rect(center=drect.center))
-    sheet.blit(F_TAG.render("40px  night-level / day-dive", True, SUB),
-               (game_panel.x + 8, game_panel.y + 70))
+# Row 1: smooth 40px level over NIGHT, dive over DAY.
+nrect = pygame.Rect(gp.x + 10, gp.y + 10, 140, 70)
+drect = pygame.Rect(gp.x + 168, gp.y + 10, 140, 70)
+_bg_tile(nrect, day=False)
+_bg_tile(drect, day=True)
+gl = smooth(get_griffin, 2, 0, GAME_PX)
+sheet.blit(gl, gl.get_rect(center=nrect.center))
+gd = smooth(get_griffin, 1, -32, GAME_PX)
+sheet.blit(gd, gd.get_rect(center=drect.center))
+sheet.blit(F_TAG.render("40px smooth  ·  night-level / day-dive", True, SUB),
+           (gp.x + 10, gp.y + 84))
 
-    # Row 2: NEAREST-NEIGHBOR x3 magnified level + dive (the honest read).
-    n_level = nearest40(getter, 2, 0, MAG)
-    sheet.blit(n_level, n_level.get_rect(center=(game_panel.x + 62, game_panel.y + 134)))
-    n_dive = nearest40(getter, 1, -32, MAG)
-    sheet.blit(n_dive, n_dive.get_rect(center=(game_panel.x + 172, game_panel.y + 134)))
-    sheet.blit(F_TAG.render("40px NEAREST x3  (level / dive)", True, (210, 200, 150)),
-               (game_panel.x + 8, game_panel.bottom - 18))
+# Row 2: NEAREST x3 honest read — level over NIGHT, dive over DAY.
+nlev = pygame.Rect(gp.x + 10, gp.y + 104, 140, 92)
+ndiv = pygame.Rect(gp.x + 168, gp.y + 104, 140, 92)
+_bg_tile(nlev, day=False)
+_bg_tile(ndiv, day=True)
+nl = nearest40(get_griffin, 2, 0, MAG)
+sheet.blit(nl, nl.get_rect(center=nlev.center))
+nd = nearest40(get_griffin, 1, -32, MAG)
+sheet.blit(nd, nd.get_rect(center=ndiv.center))
+sheet.blit(F_TAG.render("40px NEAREST x3  ·  night-level / day-dive", True, (210, 200, 150)),
+           (gp.x + 10, gp.y + 200))
 
-out_path = os.path.join(_here, "round_1.png")
+# Row 3: the two widest down-pose frames NEAREST x3 (rump must stay visible).
+wlev = pygame.Rect(gp.x + 10, gp.y + 220, 140, 56)
+wdiv = pygame.Rect(gp.x + 168, gp.y + 220, 140, 56)
+_bg_tile(wlev, day=False)
+_bg_tile(wdiv, day=True)
+wl = nearest40(get_griffin, 0, 0, MAG)        # widest down-pose
+sheet.blit(wl, wl.get_rect(center=wlev.center))
+wd = nearest40(get_griffin, 0, -20, MAG)
+sheet.blit(wd, wd.get_rect(center=wdiv.center))
+sheet.blit(F_TAG.render("down-pose (widest wings) — rump + tail still outside the wing",
+                        True, (210, 200, 150)), (gp.x + 10, gp.bottom - 16))
+
+# ── card 2: DISTINCTIVENESS — griffin vs SHIPPING eagle, same 40px read ──────
+ex0 = cx + CARD_W + PAD
+ecard = pygame.Rect(ex0, cy, SHEET_W - ex0 - PAD, CARD_H)
+pygame.draw.rect(sheet, CARD_BG, ecard, border_radius=12)
+pygame.draw.rect(sheet, (120, 130, 160), ecard, 3, border_radius=12)
+sheet.blit(F_NAME.render("vs SHIPPING EAGLE", True, (200, 210, 230)), (ex0 + 14, cy + 10))
+sheet.blit(F_FEAT.render("same 40px NEAREST x3", True, SUB), (ex0 + 14, cy + 36))
+
+
+def _vs_row(y, label, g_frame, g_tilt, e_frame, e_tilt, day):
+    bg = pygame.Rect(ex0 + 14, y, ecard.w - 28, 92)
+    _bg_tile(bg, day=day)
+    gimg = nearest40(get_griffin, g_frame, g_tilt, MAG)
+    eimg = nearest40(get_eagle, e_frame, e_tilt, MAG)
+    sheet.blit(gimg, gimg.get_rect(center=(bg.x + bg.w // 4, bg.centery)))
+    sheet.blit(eimg, eimg.get_rect(center=(bg.x + 3 * bg.w // 4, bg.centery)))
+    tagcol = (40, 50, 70) if day else (210, 215, 235)
+    sheet.blit(F_TAG.render("GRIFFIN", True, tagcol), (bg.x + 8, bg.y + 6))
+    sheet.blit(F_TAG.render("EAGLE", True, tagcol), (bg.x + 3 * bg.w // 4 - 18, bg.y + 6))
+    sheet.blit(F_FEAT.render(label, True, SUB), (ex0 + 14, bg.bottom + 2))
+
+
+_vs_row(cy + 62, "level — night", 2, 0, 2, 0, day=False)
+_vs_row(cy + 178, "level — bright day", 2, 0, 2, 0, day=True)
+_vs_row(cy + 294, "dive — bright day", 1, -32, 1, -32, day=True)
+for i, line in enumerate((
+        "Tell: griffin keeps a gold lion rump +",
+        "dark tail-tuft OUTSIDE the wing; eagle",
+        "is one brown body, no tuft. Wing",
+        "feathers darker/cooler = real value step.")):
+    sheet.blit(F_FEAT.render(line, True, (210, 200, 150)),
+               (ex0 + 14, cy + 404 + i * 17))
+
+out_path = os.path.join(_here, "round_2.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())

@@ -1,80 +1,77 @@
-"""Round-1 review sheet for the candidate AXOLOTL Store skins.
+"""Round-2 review sheet for the single production AXOLOTL skin.
 
-Renders each of the 5 variants at hero 130px AND at the in-game truth-test
-scale (40px, level + dive tilt), plus a NEAREST-NEIGHBOR x3 magnification of
-those 40px reads so the true gameplay-pixel silhouette is honest. Each card is
-split DAY (left) / NIGHT (right) behind the hero so the brief's "read against
-bright-day AND night skies" is checkable at a glance. Headless (SDL dummy).
+Round 1 was a 5-up exploration; round 2 converges to ONE design, so this sheet
+proofs that single build hard, the way the art-director asked:
+
+  * HERO 130px on a white field FIRST (the rim must survive near-white-on-pale),
+    then on the real in-game bright-day and night skies.
+  * 40px NEAREST x3 of BOTH the level pose AND the dive pose, on bright-day AND
+    night backdrops — the honest gameplay-pixel read.
+  * a down-pose vs up-pose strip so the crown's tight→bloom pulse is checkable.
+
+Sky colours are lifted from game/biome.py keyframes (DAY phase 0.0, NIGHT phase
+0.64) so "bright-day AND night" means the actual shipped skies, not a guess.
+Headless (SDL dummy).
 """
 import os
-import sys
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
+import importlib.util
+import random
 import pygame
+
 pygame.init()
 pygame.display.set_mode((1, 1))
+pygame.font.init()
 
-import importlib.util
 _here = os.path.dirname(__file__)
 spec = importlib.util.spec_from_file_location(
     "axolotl_skins", os.path.join(_here, "axolotl_skins.py"))
 axolotl_skins = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(axolotl_skins)
 
-VARIANTS = axolotl_skins.VARIANTS
-FEATURES = axolotl_skins.FEATURES
+getter = axolotl_skins.get_axolotl
+build = axolotl_skins.build_axolotl
 
-ORDER = list(VARIANTS.keys())
+# ── honest in-game skies (game/biome.py keyframes) ───────────────────────────
+DAY_TOP, DAY_BOT = (40, 110, 200), (170, 220, 245)      # bright cyan day
+NIGHT_TOP, NIGHT_BOT = (5, 8, 30), (35, 55, 115)        # moonlit night
+WHITE_TOP, WHITE_BOT = (252, 252, 255), (236, 240, 248)  # pale stress field
 
-# ── layout ───────────────────────────────────────────────────────────────────
-COLS = 3
-ROWS = (len(ORDER) + COLS - 1) // COLS
-CARD_W, CARD_H = 360, 250
-PAD = 16
-HEADER_H = 60
-HERO_PX = 130
 GAME_PX = 40
-MAG = 3
+MAG = 5
+HERO_PX = 130
 
-BG_TOP = (28, 24, 40)
-BG_BOT = (44, 30, 52)
-CARD_BG = (18, 16, 30)
-CARD_EDGE = (90, 70, 110)
-TEXT = (240, 234, 246)
-SUB = (172, 158, 190)
+INK = (236, 232, 244)
+SUB = (176, 164, 198)
+TAG = (210, 200, 150)
+PANEL_EDGE = (96, 76, 116)
 
-DAY_TOP = (150, 210, 245)            # bright-day sky
-DAY_BOT = (210, 238, 250)
-NIGHT_TOP = (20, 22, 48)             # night sky
-NIGHT_BOT = (34, 26, 56)
-GAME_PANEL = (14, 12, 24)
-
-SHEET_W = PAD + COLS * (CARD_W + PAD)
-SHEET_H = HEADER_H + PAD + ROWS * (CARD_H + PAD)
-
-sheet = pygame.Surface((SHEET_W, SHEET_H))
-for y in range(SHEET_H):
-    t = y / SHEET_H
-    col = tuple(int(BG_TOP[i] + (BG_BOT[i] - BG_TOP[i]) * t) for i in range(3))
-    pygame.draw.line(sheet, col, (0, y), (SHEET_W, y))
-
-pygame.font.init()
-F_TITLE = pygame.font.SysFont("Arial", 30, bold=True)
-F_SUB = pygame.font.SysFont("Arial", 15)
-F_NAME = pygame.font.SysFont("Arial", 18, bold=True)
-F_FEAT = pygame.font.SysFont("Arial", 13)
+F_TITLE = pygame.font.SysFont("Arial", 28, bold=True)
+F_SUB = pygame.font.SysFont("Arial", 14)
+F_H = pygame.font.SysFont("Arial", 16, bold=True)
 F_TAG = pygame.font.SysFont("Arial", 12, bold=True)
 
-sheet.blit(F_TITLE.render("Skybit — AXOLOTL Store Skin · Round 1", True, TEXT),
-           (PAD, 12))
-sheet.blit(F_SUB.render(
-    "HERO 130px (split DAY | NIGHT) · 40px level & dive (smooth) · NEAREST x3 magnified 40px (the honest gameplay read).",
-    True, SUB), (PAD, 42))
+
+def _grad(target, rect, top, bot):
+    for y in range(rect.height):
+        t = y / max(1, rect.height)
+        col = tuple(int(top[i] + (bot[i] - top[i]) * t) for i in range(3))
+        pygame.draw.line(target, col, (rect.x, rect.y + y), (rect.right, rect.y + y))
 
 
-def _crop(getter, frame_idx, tilt):
+def _stars(target, rect, seed):
+    rng = random.Random(seed)
+    for _ in range(int(rect.width * rect.height / 260)):
+        sx = rng.randint(rect.x, rect.right - 1)
+        sy = rng.randint(rect.y, rect.bottom - 1)
+        b = rng.randint(150, 235)
+        target.set_at((sx, sy), (b, b, min(255, b + 25)))
+
+
+def _crop(frame_idx, tilt):
     s = getter(frame_idx, tilt)
     rect = s.get_bounding_rect()
     if rect.w == 0 or rect.h == 0:
@@ -82,83 +79,91 @@ def _crop(getter, frame_idx, tilt):
     return s.subsurface(rect).copy()
 
 
-def smooth(getter, frame_idx, tilt, target_px):
-    crop = _crop(getter, frame_idx, tilt)
+def smooth(frame_idx, tilt, px):
+    crop = _crop(frame_idx, tilt)
     longest = max(crop.get_width(), crop.get_height())
-    f = target_px / longest
+    f = px / longest
     return pygame.transform.smoothscale(
         crop, (max(1, int(crop.get_width() * f)), max(1, int(crop.get_height() * f))))
 
 
-def nearest40(getter, frame_idx, tilt, mag):
-    small = smooth(getter, frame_idx, tilt, GAME_PX)
-    return pygame.transform.scale(
-        small, (small.get_width() * mag, small.get_height() * mag))
+def nearest(frame_idx, tilt, px, mag):
+    small = smooth(frame_idx, tilt, px)
+    return pygame.transform.scale(small, (small.get_width() * mag, small.get_height() * mag))
 
 
-def _grad_rect(target, rect, top, bot):
-    for y in range(rect.height):
-        t = y / max(1, rect.height)
-        col = tuple(int(top[i] + (bot[i] - top[i]) * t) for i in range(3))
-        pygame.draw.line(target, col, (rect.x, rect.y + y),
-                         (rect.right, rect.y + y))
+# ── layout ───────────────────────────────────────────────────────────────────
+W, H = 1180, 760
+sheet = pygame.Surface((W, H))
+_grad(sheet, sheet.get_rect(), (26, 22, 38), (42, 28, 50))
 
+sheet.blit(F_TITLE.render("Skybit — AXOLOTL Store Skin · Round 2 (production build)",
+                          True, INK), (24, 16))
+sheet.blit(F_SUB.render(
+    "skin_axolotl · leucistic antler-crown · 1px #A03A5E rim · 5-fork crown (3/2) · closed dot-smile."
+    "  Skies = real game/biome.py DAY + NIGHT keyframes.", True, SUB), (24, 48))
 
-for idx, key in enumerate(ORDER):
-    getter = VARIANTS[key]
-    feat = FEATURES[key]
-    r, c = divmod(idx, COLS)
-    cx = PAD + c * (CARD_W + PAD)
-    cy = HEADER_H + PAD + r * (CARD_H + PAD)
+# ── row 1: hero on WHITE | DAY | NIGHT ───────────────────────────────────────
+hero_y = 78
+hero_w = 360
+for i, (label, top, bot, starseed) in enumerate((
+        ("HERO 130px · WHITE stress field", WHITE_TOP, WHITE_BOT, None),
+        ("HERO 130px · in-game DAY sky", DAY_TOP, DAY_BOT, None),
+        ("HERO 130px · in-game NIGHT sky", NIGHT_TOP, NIGHT_BOT, 11))):
+    px = 24 + i * (hero_w + 8)
+    panel = pygame.Rect(px, hero_y, hero_w, 210)
+    _grad(sheet, panel, top, bot)
+    if starseed is not None:
+        _stars(sheet, panel, starseed)
+    pygame.draw.rect(sheet, PANEL_EDGE, panel, 1, border_radius=8)
+    hero = smooth(0, 0, HERO_PX)
+    sheet.blit(hero, hero.get_rect(center=panel.center))
+    lab_col = (40, 44, 64) if i == 0 else (235, 240, 250)
+    sheet.blit(F_TAG.render(label, True, lab_col), (panel.x + 8, panel.y + 6))
 
-    card = pygame.Rect(cx, cy, CARD_W, CARD_H)
-    pygame.draw.rect(sheet, CARD_BG, card, border_radius=12)
-    pygame.draw.rect(sheet, CARD_EDGE, card, 2, border_radius=12)
+# ── row 2: 40px NEAREST x3 — level + dive, on DAY and NIGHT ───────────────────
+mag_y = hero_y + 230
+sheet.blit(F_H.render("40px gameplay read — NEAREST x5 (level + dive)", True, INK),
+           (24, mag_y))
+strip_y = mag_y + 26
+strip_w = 568
+for i, (label, top, bot, starseed) in enumerate((
+        ("in-game DAY sky", DAY_TOP, DAY_BOT, None),
+        ("in-game NIGHT sky", NIGHT_TOP, NIGHT_BOT, 23))):
+    px = 24 + i * (strip_w + 8)
+    panel = pygame.Rect(px, strip_y, strip_w, 200)
+    _grad(sheet, panel, top, bot)
+    if starseed is not None:
+        _stars(sheet, panel, starseed)
+    pygame.draw.rect(sheet, PANEL_EDGE, panel, 1, border_radius=8)
+    lab_col = (235, 240, 250) if i == 1 else (40, 44, 64)
+    sheet.blit(F_TAG.render(label, True, lab_col), (panel.x + 8, panel.y + 6))
+    n_level = nearest(2, 0, GAME_PX, MAG)
+    sheet.blit(n_level, n_level.get_rect(center=(panel.x + 150, panel.centery + 6)))
+    n_dive = nearest(1, -32, GAME_PX, MAG)
+    sheet.blit(n_dive, n_dive.get_rect(center=(panel.x + 410, panel.centery + 6)))
+    sheet.blit(F_TAG.render("LEVEL", True, lab_col), (panel.x + 122, panel.bottom - 22))
+    sheet.blit(F_TAG.render("DIVE", True, lab_col), (panel.x + 388, panel.bottom - 22))
 
-    sheet.blit(F_NAME.render(key, True, TEXT), (cx + 14, cy + 10))
-    sheet.blit(F_FEAT.render("read: " + feat, True, SUB), (cx + 14, cy + 34))
+# ── row 3: pulse strip — down-pose (tight) vs up-pose (bloom) at 40px x5 ──────
+pulse_y = strip_y + 220
+sheet.blit(F_H.render("Crown pulse — down-pose (tight ~30°) → up-pose (bloom ~120°)",
+                      True, INK), (24, pulse_y))
+ppanel = pygame.Rect(24, pulse_y + 26, W - 48, 96)
+_grad(sheet, ppanel, (60, 52, 78), (40, 34, 56))
+pygame.draw.rect(sheet, PANEL_EDGE, ppanel, 1, border_radius=8)
+labels = ("down 50°", "20°", "-10°", "up -40°")
+for fi in range(4):
+    n = nearest(fi, 0, GAME_PX, MAG)
+    cx = ppanel.x + 90 + fi * 150
+    sheet.blit(n, n.get_rect(center=(cx, ppanel.centery)))
+    sheet.blit(F_TAG.render(labels[fi], True, TAG), (cx - 24, ppanel.bottom - 18))
+# hero down vs up side by side on the right for clarity
+hd = smooth(0, 0, 86)
+hu = smooth(3, 0, 86)
+sheet.blit(hd, hd.get_rect(center=(ppanel.right - 150, ppanel.centery)))
+sheet.blit(hu, hu.get_rect(center=(ppanel.right - 60, ppanel.centery)))
 
-    # Hero panel (left), split day/night so we judge both skies at once.
-    hero_panel = pygame.Rect(cx + 12, cy + 56, 150, 178)
-    half = hero_panel.copy()
-    half.width //= 2
-    _grad_rect(sheet, half, DAY_TOP, DAY_BOT)
-    half2 = half.copy()
-    half2.x += half.width
-    _grad_rect(sheet, half2, NIGHT_TOP, NIGHT_BOT)
-    # a few stars on the night half
-    import random
-    rng = random.Random(idx * 7 + 3)
-    for _ in range(20):
-        sx = rng.randint(half2.x, half2.right)
-        sy = rng.randint(half2.y, half2.bottom)
-        b = rng.randint(120, 220)
-        pygame.draw.circle(sheet, (b, b, min(255, b + 30)), (sx, sy), 1)
-    pygame.draw.rect(sheet, CARD_EDGE, hero_panel, 1, border_radius=10)
-
-    hero = smooth(getter, 0, 0, HERO_PX)
-    sheet.blit(hero, hero.get_rect(center=hero_panel.center))
-    sheet.blit(F_TAG.render("130px  DAY|NIGHT", True, (40, 40, 60)),
-               (hero_panel.x + 6, hero_panel.y + 4))
-
-    # Game panel (right) — smooth 40px (top) + NEAREST x3 truth (bottom).
-    game_panel = pygame.Rect(cx + 170, cy + 56, 178, 178)
-    pygame.draw.rect(sheet, GAME_PANEL, game_panel, border_radius=10)
-
-    g_level = smooth(getter, 2, 0, GAME_PX)
-    sheet.blit(g_level, g_level.get_rect(center=(game_panel.x + 44, game_panel.y + 30)))
-    g_dive = smooth(getter, 1, -32, GAME_PX)
-    sheet.blit(g_dive, g_dive.get_rect(center=(game_panel.x + 110, game_panel.y + 30)))
-    sheet.blit(F_TAG.render("40px smooth", True, SUB),
-               (game_panel.x + 8, game_panel.y + 54))
-
-    n_level = nearest40(getter, 2, 0, MAG)
-    sheet.blit(n_level, n_level.get_rect(center=(game_panel.x + 50, game_panel.y + 118)))
-    n_dive = nearest40(getter, 1, -32, MAG)
-    sheet.blit(n_dive, n_dive.get_rect(center=(game_panel.x + 128, game_panel.y + 118)))
-    sheet.blit(F_TAG.render("40px NEAREST x3  (level / dive)", True, (210, 200, 150)),
-               (game_panel.x + 8, game_panel.bottom - 18))
-
-out_path = os.path.join(_here, "round_1.png")
+out_path = os.path.join(_here, "round_2.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())

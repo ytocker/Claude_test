@@ -1,26 +1,33 @@
-"""Candidate AXOLOTL skins for the coin Store — round-1 exploration.
+"""AXOLOTL Store skin — round-2 production build (leucistic antler lead).
 
-Five GENUINELY DIFFERENT takes on one creature: the smiling pink amphibian
-with a fan of feathery external gills. The gill-frill halo + dot-eyed grin is
-the 40px tell — nothing else in the roster wears a "headdress". The flap is
-reinterpreted as a frilled fin-stroke: gills sweep BACK on the down-pose and
-BLOOM open on the up-pose, like fronds pulsing through water.
+Round 1 explored five morphs; the art-director picked **v3 ANTLER LEUCISTIC**
+and asked to converge to one ship-ready design. This file now exposes a single
+primary build, `build_axolotl`, that lifts straight into game/animal_skins.py
+via the `BUILDERS` dict at the bottom. The melanoid + gold morphs are kept as
+commented alt palettes so a future re-skin can swap them in.
+
+Design language (the 40px tell):
+  * A near-white leucistic body with a permanent dot-eyed CLOSED smile — the
+    only "shouldn't-fly amphibian" in the roster, charming even mid-dive.
+  * A bold gill CROWN of 5 forks (3 one side / 2 the other) ringing the head.
+    The negative SKY-GAP between forks is the tell — not the pink itself — so
+    it survives both a bright cyan day sky and a near-black night sky.
+  * The flap is a frilled fin-stroke: forks sweep TIGHT (~30° total) on the
+    down-pose and BLOOM into a wide ~120° fan on the up-pose, so the crown
+    visibly pulses in motion even at 40px.
+
+Why a hard 1px dark-coral rim (#A03A5E): the leucistic body is near-white and
+would dissolve into a pale-blue day sky without it. The rim is grown from the
+alpha mask AFTER the frame is built, so body AND crown share one continuous
+silhouette outline. We test on a white field, not the dark review card.
 
 Contract mirrors game/animal_skins.py so the winner lifts straight in:
-
-  * `build_axolotl_v<N>(wing_angle_deg) -> pygame.Surface`  one flat frame on
-    a 64×84 SRCALPHA canvas (COMPOSITE_W=64, COMPOSITE_H=84).
+  * `build_axolotl(wing_angle_deg) -> pygame.Surface` — one flat frame on a
+    64×84 SRCALPHA canvas (COMPOSITE_W=64, COMPOSITE_H=84).
   * body mass centred at (32,44); head near (44,34); ~24px top headroom for the
-    gill halo; collision is a fixed 14px circle at the body centre.
+    crown; collision stays a fixed 14px circle at the body centre.
   * a cached `(frame_idx, tilt_deg) -> Surface` getter via `_make_prebuilt_skin`.
-  * a label→getter dict at the bottom for the review sheet.
-
-The five takes differ in SILHOUETTE, not palette tweaks:
-  v1 CLASSIC PINK    — six tidy feathery fronds, plump body, tiny dot smile.
-  v2 BUSHY CORAL     — dense bushy gill clusters (pom-poms), chunkier body.
-  v3 ANTLER LEUCISTIC— bold antler-like branching gills, white morph, wide grin.
-  v4 MELANOID DARK   — dark morph, glowing magenta gill cores as the contrast.
-  v5 GOLDEN GILD     — gold morph, swept feather-fan gills, sparkle iridophores.
+  * `BUILDERS = {"skin_axolotl": get_axolotl}` for the lift.
 """
 import math
 import pygame
@@ -29,7 +36,7 @@ import pygame
 # ── tall-canvas constants (mirrors game/animal_skins.py) ─────────────────────
 SPRITE_W = 64
 COMPOSITE_W = SPRITE_W          # 64
-COMPOSITE_H = 84                # headroom for the gill-frill halo
+COMPOSITE_H = 84                # headroom for the gill crown
 DY          = 12
 
 BCX, BCY = 32, 32 + DY          # body centre  → (32, 44)
@@ -39,16 +46,33 @@ CROWN_Y  = 12 + DY              # top of head  → 24
 _WING_ANGLES = (50, 20, -10, -40)
 
 
-# ── self-contained outline (local copy so the candidate runs standalone) ─────
-def _add_outline(src, outline_color=(40, 18, 30, 230)):
-    """House silhouette outline: a dark 1px rim grown from the alpha mask so
-    the creature reads against bright-day AND night skies."""
+# ── leucistic lead palette ───────────────────────────────────────────────────
+# Body is near-white so it reads as the canonical leucistic morph; the rim
+# carries the contrast. Crown holds to ONE pink in exactly two values.
+_BODY   = (250, 244, 247)        # near-white leucistic body
+_BODY_D = (224, 210, 220)        # soft shade for the back/underlap
+_BODY_H = (255, 255, 255)        # belly highlight
+_GILL   = (255, 110, 150)        # #FF6E96  crown core (the one pink)
+_GILL_H = (255, 178, 200)        # single lighter tip value
+_FACE   = (74, 40, 56)           # #4A2838 closed smile + dot eyes
+_BLUSH  = (255, 168, 190)        # one soft cheek pixel
+_OUTLINE = (160, 58, 94, 255)    # #A03A5E permanent dark-coral rim
+
+
+# ── permanent silhouette outline ─────────────────────────────────────────────
+def _add_outline(src, outline_color=_OUTLINE):
+    """Grow a solid 1px dark-coral rim from the alpha mask so the near-white
+    body + crown read as one shape against a bright/pale day sky as well as a
+    dark night sky. 8-neighbour so diagonal frond tips don't leak."""
     mask = pygame.mask.from_surface(src)
     outline = pygame.Surface(src.get_size(), pygame.SRCALPHA)
+    pts = mask.outline()
     for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1),
                    (-1, -1), (1, -1), (-1, 1), (1, 1)):
-        for px, py in mask.outline():
-            outline.set_at((px + dx, py + dy), outline_color)
+        for px, py in pts:
+            ox, oy = px + dx, py + dy
+            if 0 <= ox < src.get_width() and 0 <= oy < src.get_height():
+                outline.set_at((ox, oy), outline_color)
     outline.blit(src, (0, 0))
     return outline
 
@@ -76,406 +100,142 @@ def _new():
 
 
 def _aaellipse(surf, color, center, rx, ry):
-    """Filled ellipse with a 1px anti-aliased rim (matches the house helper)."""
     cx, cy = center
     rect = pygame.Rect(cx - rx, cy - ry, rx * 2, ry * 2)
     pygame.draw.ellipse(surf, color, rect)
 
 
 def _flap(angle_deg):
-    """0 = down-pose (gills swept back), 1 = up-pose (gills bloomed open)."""
-    return (angle_deg + 40) / 90.0
+    """bloom 0 = down-pose (crown swept tight), 1 = up-pose (crown bloomed wide).
+
+    Wing 50° is the down-pose (frame 0) and -40° is the up-pose (frame 3), so
+    the bloom is inverted relative to the raw angle: tight on the down-stroke,
+    full fan on the up-stroke — the frill pulses open as the wing lifts."""
+    return 1.0 - (angle_deg + 40) / 90.0
 
 
-# ── stubby legs shared treatment, parameterised per version ──────────────────
 def _legs(surf, color, *, splay=0):
     """Two little forward limbs + two rear; they paddle out on the up-pose."""
     for fx, sgn in ((BCX - 6, -1), (BCX + 8, 1)):
         ex = fx + sgn * (2 + splay)
         pygame.draw.line(surf, color, (fx, BCY + 11), (ex, BCY + 18), 3)
-        # tiny toes
         for t in (-2, 0, 2):
             pygame.draw.line(surf, color, (ex, BCY + 18),
                              (ex + t, BCY + 21), 1)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# Gill helpers — each version reinterprets the frond shape, but all bloom on
-# the up-pose so the flap reads as a frilled fin-stroke through water.
+# The CROWN — exactly 5 bold forks ringing the head (3 left, 2 right). Each
+# fork is a short stalk that splits into two tines, so the silhouette branches
+# like an antler. Forks fan TIGHT on the down-pose and bloom WIDE on the up-
+# pose; the constant-angle spacing keeps a clear sky-gap between every fork.
 # ═════════════════════════════════════════════════════════════════════════════
-def _feather_frond(surf, base, tip, core_col, fil_col, n=4):
-    """One feathery gill stalk: a tapered core with paired filaments — the
-    classic axolotl frond. `n` filament pairs along the rachis."""
+def _fork(surf, base, ang, length):
+    """One bold gill fork: a tapered stalk that splits into two tines, with a
+    single lighter tip pixel per tine. Two pink values only."""
     bx, by = base
-    tx, ty = tip
-    pygame.draw.line(surf, core_col, base, tip, 3)
-    for i in range(1, n + 1):
-        t = i / (n + 1)
-        px = bx + (tx - bx) * t
-        py = by + (ty - by) * t
-        # perpendicular filaments, shrinking toward the tip
-        dx, dy = (tx - bx), (ty - by)
-        ln = max(1e-3, math.hypot(dx, dy))
-        nx, ny = -dy / ln, dx / ln
-        fl = (1 - t) * 7 + 2
-        pygame.draw.line(surf, fil_col, (px, py),
-                         (px + nx * fl, py + ny * fl), 2)
-        pygame.draw.line(surf, fil_col, (px, py),
-                         (px - nx * fl, py - ny * fl), 2)
-    pygame.draw.circle(surf, fil_col, tip, 2)
+    mx = bx + math.cos(ang) * length
+    my = by + math.sin(ang) * length
+    pygame.draw.line(surf, _GILL, (bx, by), (mx, my), 3)
+    for da in (-0.40, 0.40):
+        tang = ang + da
+        tlen = length * 0.62
+        tx = mx + math.cos(tang) * tlen
+        ty = my + math.sin(tang) * tlen
+        pygame.draw.line(surf, _GILL, (mx, my), (tx, ty), 2)
+        # one lighter pixel at each tine tip — the second (and only other) value
+        surf.set_at((int(round(tx)), int(round(ty))), _GILL_H)
+
+
+def _crown(surf, bloom):
+    """Five forks ringing the head. `bloom` 0→1 widens the fan from a tight
+    ~30° sweep (down-pose, forks nearly parallel) to a ~120° bloom (up-pose,
+    forks splayed wide) so the crown visibly PULSES at 40px in motion.
+
+    Two things sell the pulse and the sky-gap:
+      * each fork's ANGLE is a fixed fraction of the fan, so the angular gap
+        between neighbours stays even and opens up as the fan blooms;
+      * each fork's BASE also slides along the brow by the same fraction, so the
+        roots separate too — a clear pixel of sky between every fork at 40px.
+    Three forks lean left of the head's up-axis, two lean right (3/2 crown).
+    Longer stalks (the antler read) so the tips clear the head when bloomed."""
+    half = math.radians(15 + bloom * 45)          # 30°→120° total spread
+    spread_px = 1 + bloom * 4                       # roots fan apart on bloom
+    # fractions in [-1, 1] across the fan: three on the left, two on the right.
+    fracs = (-1.0, -0.5, 0.0, 0.5, 1.0)
+    for i, fr in enumerate(fracs):
+        ang = -math.pi / 2 + fr * half             # measured off straight-up
+        bx = HCX - 2 + fr * spread_px
+        by = HCY - 7 + abs(fr) * 1.5               # outer roots ride a touch up
+        length = 14 - abs(fr) * 2                   # outer forks slightly shorter
+        _fork(surf, (bx, by), ang, length)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# 1 · CLASSIC PINK — six tidy feathery fronds fanning back, plump body, the
-#     canonical pale-pink leucistic look with a tiny dot smile. The default.
+# Body + face
 # ═════════════════════════════════════════════════════════════════════════════
-_AX_BODY   = (255, 200, 221)        # #FFC8DD
-_AX_BODY_D = (236, 158, 188)
-_AX_BODY_H = (255, 232, 240)        # #FFE8F0 belly highlight
-_AX_GILL   = (255, 122, 168)        # #FF7AA8 gill core
-_AX_GILL_H = (255, 176, 200)
-_AX_FACE   = (90, 42, 62)           # #5A2A3E smile + eye dots
+def _face(surf):
+    """v1's clean closed dot-smile: two dot eyes + a small upturned arc, plus
+    one soft blush pixel per cheek. Bold enough to survive a steep dive frame."""
+    pygame.draw.circle(surf, _FACE, (HCX - 1, HCY - 1), 2)
+    pygame.draw.circle(surf, _FACE, (HCX + 8, HCY - 1), 2)
+    pygame.draw.arc(surf, _FACE, (HCX, HCY + 2, 9, 7),
+                    math.radians(205), math.radians(335), 2)
+    surf.set_at((HCX - 4, HCY + 3), _BLUSH)
+    surf.set_at((HCX + 11, HCY + 3), _BLUSH)
 
 
-def build_axolotl_v1(wing_angle_deg):
+def build_axolotl(wing_angle_deg):
+    """The single production AXOLOTL frame — leucistic antler-crown morph."""
     surf = _new()
-    f = _flap(wing_angle_deg)
-    bloom = f               # 0 swept back, 1 bloomed open
+    bloom = _flap(wing_angle_deg)
 
-    # Six fronds: three each side, sweeping back (down) → out+up (up-pose).
-    for sgn in (-1, 1):
-        for k, spread in enumerate((-1, 0, 1)):
-            base = (HCX - 2, HCY - 6)
-            ang = math.radians(
-                -90 + sgn * (38 + spread * 18) - (1 - bloom) * sgn * 26)
-            ln = 17 - abs(spread) * 2
-            tip = (base[0] + math.cos(ang) * ln,
-                   base[1] + math.sin(ang) * ln * 1.05)
-            _feather_frond(surf, base, tip, _AX_GILL, _AX_GILL_H, n=4)
+    # Crown drawn first so the body overlaps the fork bases (rooted in the head).
+    _crown(surf, bloom)
 
-    # Plump body.
-    _aaellipse(surf, _AX_BODY_D, (BCX + 1, BCY + 1), 18, 15)
-    _aaellipse(surf, _AX_BODY, (BCX, BCY), 17, 14)
-    _aaellipse(surf, _AX_BODY_H, (BCX - 1, BCY + 4), 11, 8)
+    # Plump near-white body.
+    _aaellipse(surf, _BODY_D, (BCX + 1, BCY + 1), 18, 15)
+    _aaellipse(surf, _BODY, (BCX, BCY), 17, 14)
+    _aaellipse(surf, _BODY_H, (BCX - 1, BCY + 4), 11, 8)
 
     # Fat tapering tail off the back.
-    pygame.draw.polygon(surf, _AX_BODY_D,
+    pygame.draw.polygon(surf, _BODY_D,
                         [(BCX - 14, BCY - 4), (BCX - 26, BCY),
                          (BCX - 14, BCY + 5)])
-    pygame.draw.polygon(surf, _AX_BODY,
+    pygame.draw.polygon(surf, _BODY,
                         [(BCX - 14, BCY - 2), (BCX - 22, BCY),
                          (BCX - 14, BCY + 3)])
 
-    _legs(surf, _AX_BODY_D, splay=int(bloom * 3))
+    _legs(surf, _BODY_D, splay=int(bloom * 3))
 
     # Head fused to the body (axolotls have no neck).
-    _aaellipse(surf, _AX_BODY_D, (HCX, HCY + 1), 13, 12)
-    _aaellipse(surf, _AX_BODY, (HCX - 1, HCY), 12, 11)
-    _aaellipse(surf, _AX_BODY_H, (HCX - 2, HCY + 3), 6, 4)
+    _aaellipse(surf, _BODY_D, (HCX, HCY + 1), 13, 12)
+    _aaellipse(surf, _BODY, (HCX - 1, HCY), 12, 11)
+    _aaellipse(surf, _BODY_H, (HCX - 2, HCY + 3), 6, 4)
 
-    # The permanent smile: two dot eyes + a tiny upturned mouth.
-    pygame.draw.circle(surf, _AX_FACE, (HCX - 1, HCY - 1), 2)
-    pygame.draw.circle(surf, _AX_FACE, (HCX + 8, HCY - 1), 2)
-    pygame.draw.arc(surf, _AX_FACE, (HCX - 1, HCY + 2, 9, 7),
-                    math.radians(200), math.radians(340), 2)
-    # Rosy cheeks.
-    pygame.draw.circle(surf, _AX_GILL_H, (HCX - 3, HCY + 3), 2)
-    pygame.draw.circle(surf, _AX_GILL_H, (HCX + 10, HCY + 3), 2)
+    _face(surf)
     return surf
 
 
-get_axolotl_v1 = _make_prebuilt_skin(build_axolotl_v1)
+get_axolotl = _make_prebuilt_skin(build_axolotl)
+
+
+# ── liftable registry (drops into game/animal_skins.py) ──────────────────────
+BUILDERS = {"skin_axolotl": get_axolotl}
+
+
+# ── review-sheet hooks ───────────────────────────────────────────────────────
+VARIANTS = {"skin_axolotl  ANTLER LEUCISTIC": get_axolotl}
+FEATURES = {"skin_axolotl  ANTLER LEUCISTIC":
+            "5-fork pink crown (3/2) · closed dot-smile · 1px #A03A5E rim"}
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# 2 · BUSHY CORAL — gills are dense bushy pom-pom clusters instead of tidy
-#     fronds; chunkier rounder body; a slightly open happy mouth. Reads as a
-#     fluffy coral halo at 40px.
+# Alt palettes (kept for a future re-skin; not part of the production build).
+# Swap these into the _BODY/_GILL/_FACE constants above to retint build_axolotl.
+#
+#   MELANOID DARK   body (78,64,92) shade (52,42,66) hi (118,100,138)
+#                   crown (255,64,150)/(255,150,210) · bright eyes (250,244,250)
+#   GOLDEN GILD     body (255,214,120) shade (228,168,70) hi (255,244,196)
+#                   crown (255,150,96)/(255,206,150) · face (90,54,30)
 # ═════════════════════════════════════════════════════════════════════════════
-_BC_BODY   = (255, 190, 210)
-_BC_BODY_D = (232, 146, 178)
-_BC_BODY_H = (255, 228, 238)
-_BC_GILL   = (255, 96, 142)
-_BC_GILL_H = (255, 154, 186)
-_BC_FACE   = (84, 36, 56)
-
-
-def _bush(surf, cx, cy, r, core, hi):
-    """A bushy gill cluster: overlapping blobs reading as a feathery pom-pom."""
-    for ox, oy, rr in ((0, 0, r), (-r // 2, -1, r - 2), (r // 2, -1, r - 2),
-                       (0, -r // 2, r - 2)):
-        pygame.draw.circle(surf, core, (int(cx + ox), int(cy + oy)), rr)
-    pygame.draw.circle(surf, hi, (int(cx - 1), int(cy - 2)), max(1, r // 2))
-
-
-def build_axolotl_v2(wing_angle_deg):
-    surf = _new()
-    f = _flap(wing_angle_deg)
-    bloom = f
-
-    # Three bushy clusters per side; they spread apart + rise on the up-pose.
-    for sgn in (-1, 1):
-        for k, spread in enumerate((0, 1, 2)):
-            ang = math.radians(-90 + sgn * (30 + spread * 22)
-                               - (1 - bloom) * sgn * 22)
-            dist = 13 + bloom * 3
-            cx = HCX - 2 + math.cos(ang) * dist
-            cy = HCY - 6 + math.sin(ang) * dist
-            _bush(surf, cx, cy, 5 - spread // 2, _BC_GILL, _BC_GILL_H)
-
-    # Chunkier rounder body.
-    _aaellipse(surf, _BC_BODY_D, (BCX + 1, BCY + 1), 19, 17)
-    _aaellipse(surf, _BC_BODY, (BCX, BCY), 18, 16)
-    _aaellipse(surf, _BC_BODY_H, (BCX - 1, BCY + 4), 12, 9)
-
-    pygame.draw.polygon(surf, _BC_BODY_D,
-                        [(BCX - 15, BCY - 5), (BCX - 27, BCY + 1),
-                         (BCX - 15, BCY + 6)])
-    pygame.draw.polygon(surf, _BC_BODY,
-                        [(BCX - 15, BCY - 3), (BCX - 23, BCY + 1),
-                         (BCX - 15, BCY + 4)])
-
-    _legs(surf, _BC_BODY_D, splay=int(bloom * 3))
-
-    _aaellipse(surf, _BC_BODY_D, (HCX, HCY + 1), 14, 13)
-    _aaellipse(surf, _BC_BODY, (HCX - 1, HCY), 13, 12)
-    _aaellipse(surf, _BC_BODY_H, (HCX - 2, HCY + 3), 7, 5)
-
-    # Big happy open mouth.
-    pygame.draw.circle(surf, _BC_FACE, (HCX - 2, HCY - 1), 2)
-    pygame.draw.circle(surf, _BC_FACE, (HCX + 8, HCY - 1), 2)
-    pygame.draw.ellipse(surf, _BC_FACE, (HCX, HCY + 4, 8, 5))
-    pygame.draw.circle(surf, (255, 120, 150), (HCX + 4, HCY + 6), 2)  # tongue
-    pygame.draw.circle(surf, _BC_GILL_H, (HCX - 4, HCY + 3), 3)
-    pygame.draw.circle(surf, _BC_GILL_H, (HCX + 11, HCY + 3), 3)
-    return surf
-
-
-get_axolotl_v2 = _make_prebuilt_skin(build_axolotl_v2)
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# 3 · ANTLER LEUCISTIC — gills branch like bold ANTLERS (forking stalks) rather
-#     than soft feathers; a crisp white/cream leucistic morph with a wide grin.
-#     The branching antler-crown is the strongest "headdress" silhouette.
-# ═════════════════════════════════════════════════════════════════════════════
-_AL_BODY   = (248, 240, 244)        # leucistic near-white
-_AL_BODY_D = (212, 198, 210)
-_AL_BODY_H = (255, 255, 255)
-_AL_GILL   = (255, 110, 150)
-_AL_GILL_H = (255, 168, 192)
-_AL_FACE   = (74, 40, 56)
-
-
-def _antler(surf, base, ang, length, depth, core, hi):
-    """A forking antler-gill: a stalk that splits into two tined branches,
-    recursively, for a bold branching crown."""
-    bx, by = base
-    tx = bx + math.cos(ang) * length
-    ty = by + math.sin(ang) * length
-    pygame.draw.line(surf, core, (bx, by), (tx, ty), max(2, depth))
-    if depth <= 1:
-        pygame.draw.circle(surf, hi, (int(tx), int(ty)), 2)
-        return
-    for da in (-0.5, 0.5):
-        _antler(surf, (tx, ty), ang + da, length * 0.7, depth - 1, core, hi)
-
-
-def build_axolotl_v3(wing_angle_deg):
-    surf = _new()
-    f = _flap(wing_angle_deg)
-    bloom = f
-
-    # Three antler-stalks per side; spread wider on the up-pose.
-    for sgn in (-1, 1):
-        for spread in (-1, 0, 1):
-            ang = math.radians(-90 + sgn * (32 + spread * 20)
-                               - (1 - bloom) * sgn * 24)
-            _antler(surf, (HCX - 2, HCY - 7), ang, 9 + (1 - abs(spread)) * 2,
-                    3, _AL_GILL, _AL_GILL_H)
-
-    _aaellipse(surf, _AL_BODY_D, (BCX + 1, BCY + 1), 18, 15)
-    _aaellipse(surf, _AL_BODY, (BCX, BCY), 17, 14)
-    _aaellipse(surf, _AL_BODY_H, (BCX - 1, BCY + 4), 11, 8)
-
-    pygame.draw.polygon(surf, _AL_BODY_D,
-                        [(BCX - 14, BCY - 4), (BCX - 26, BCY),
-                         (BCX - 14, BCY + 5)])
-    pygame.draw.polygon(surf, _AL_BODY,
-                        [(BCX - 14, BCY - 2), (BCX - 22, BCY),
-                         (BCX - 14, BCY + 3)])
-
-    _legs(surf, _AL_BODY_D, splay=int(bloom * 3))
-
-    _aaellipse(surf, _AL_BODY_D, (HCX, HCY + 1), 13, 12)
-    _aaellipse(surf, _AL_BODY, (HCX - 1, HCY), 12, 11)
-    _aaellipse(surf, _AL_BODY_H, (HCX - 2, HCY + 3), 6, 4)
-
-    # Wide cheerful grin.
-    pygame.draw.circle(surf, _AL_FACE, (HCX - 1, HCY - 1), 2)
-    pygame.draw.circle(surf, _AL_FACE, (HCX + 8, HCY - 1), 2)
-    pygame.draw.arc(surf, _AL_FACE, (HCX - 3, HCY + 1, 13, 9),
-                    math.radians(195), math.radians(345), 3)
-    pygame.draw.circle(surf, _AL_GILL_H, (HCX - 3, HCY + 4), 2)
-    pygame.draw.circle(surf, _AL_GILL_H, (HCX + 10, HCY + 4), 2)
-    return surf
-
-
-get_axolotl_v3 = _make_prebuilt_skin(build_axolotl_v3)
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# 4 · MELANOID DARK — a dark slate/charcoal morph where the contrast is carried
-#     entirely by GLOWING magenta gill cores + bright eyes against the night-
-#     reading dark body. The "stealth" axolotl: silhouette + neon frill.
-# ═════════════════════════════════════════════════════════════════════════════
-_MD_BODY   = (78, 64, 92)           # desaturated dark plum
-_MD_BODY_D = (52, 42, 66)
-_MD_BODY_H = (118, 100, 138)
-_MD_GILL   = (255, 64, 150)         # neon magenta core
-_MD_GILL_H = (255, 150, 210)
-_MD_GLOW   = (255, 96, 170)
-_MD_FACE   = (250, 244, 250)        # bright eyes pop on the dark face
-
-
-def build_axolotl_v4(wing_angle_deg):
-    surf = _new()
-    f = _flap(wing_angle_deg)
-    bloom = f
-
-    # Soft glow halo behind the gills (additive-ish, low alpha).
-    glow = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    _aaellipse(glow, (*_MD_GLOW, 60), (HCX - 1, HCY - 8), 18, 16)
-    surf.blit(glow, (0, 0))
-
-    # Six bright fronds; on the dark body they are the whole signature.
-    for sgn in (-1, 1):
-        for spread in (-1, 0, 1):
-            base = (HCX - 2, HCY - 6)
-            ang = math.radians(-90 + sgn * (36 + spread * 18)
-                               - (1 - bloom) * sgn * 26)
-            ln = 17 - abs(spread) * 2
-            tip = (base[0] + math.cos(ang) * ln,
-                   base[1] + math.sin(ang) * ln * 1.05)
-            _feather_frond(surf, base, tip, _MD_GILL, _MD_GILL_H, n=4)
-
-    _aaellipse(surf, _MD_BODY_D, (BCX + 1, BCY + 1), 18, 15)
-    _aaellipse(surf, _MD_BODY, (BCX, BCY), 17, 14)
-    _aaellipse(surf, _MD_BODY_H, (BCX - 2, BCY - 2), 8, 5)
-
-    pygame.draw.polygon(surf, _MD_BODY_D,
-                        [(BCX - 14, BCY - 4), (BCX - 26, BCY),
-                         (BCX - 14, BCY + 5)])
-    pygame.draw.polygon(surf, _MD_BODY,
-                        [(BCX - 14, BCY - 2), (BCX - 22, BCY),
-                         (BCX - 14, BCY + 3)])
-
-    _legs(surf, _MD_BODY_D, splay=int(bloom * 3))
-
-    _aaellipse(surf, _MD_BODY_D, (HCX, HCY + 1), 13, 12)
-    _aaellipse(surf, _MD_BODY, (HCX - 1, HCY), 12, 11)
-    _aaellipse(surf, _MD_BODY_H, (HCX - 3, HCY - 2), 5, 3)
-
-    # Big bright eyes carry the read on the dark face.
-    for ex in (HCX - 1, HCX + 8):
-        pygame.draw.circle(surf, _MD_FACE, (ex, HCY - 1), 3)
-        pygame.draw.circle(surf, (30, 24, 40), (ex + 1, HCY - 1), 1)
-    pygame.draw.arc(surf, _MD_GILL_H, (HCX - 1, HCY + 2, 9, 7),
-                    math.radians(200), math.radians(340), 2)
-    return surf
-
-
-get_axolotl_v4 = _make_prebuilt_skin(build_axolotl_v4)
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# 5 · GOLDEN GILD — a golden-albino morph: warm gold body with reflective
-#     iridophore sparkles, and the gills drawn as a SWEPT FEATHER-FAN (a single
-#     broad fan per side, like a fin) rather than discrete stalks. Premium glow.
-# ═════════════════════════════════════════════════════════════════════════════
-_GG_BODY   = (255, 214, 120)        # warm gold
-_GG_BODY_D = (228, 168, 70)
-_GG_BODY_H = (255, 244, 196)
-_GG_GILL   = (255, 150, 96)         # coral-orange fan
-_GG_GILL_D = (228, 110, 70)
-_GG_GILL_H = (255, 206, 150)
-_GG_FACE   = (90, 54, 30)
-
-
-def _fan(surf, cx, cy, ang0, spread, n, length, core, dark, hi):
-    """A broad swept feather-fan: n fronds radiating through `spread` radians
-    around `ang0`, drawn dark→core→highlight for a finny ridge."""
-    for col, off in ((dark, 1.0), (core, 0.85), (hi, 0.5)):
-        for i in range(n):
-            t = i / (n - 1) - 0.5
-            ang = ang0 + t * spread
-            ln = length * off * (1 - abs(t) * 0.3)
-            tx = cx + math.cos(ang) * ln
-            ty = cy + math.sin(ang) * ln
-            pygame.draw.line(surf, col, (cx, cy), (tx, ty),
-                             3 if off > 0.9 else 2)
-
-
-def build_axolotl_v5(wing_angle_deg):
-    surf = _new()
-    f = _flap(wing_angle_deg)
-    bloom = f
-
-    # One broad fan per side; the fan's spread WIDENS on the up-pose (bloom).
-    spread = math.radians(46 + bloom * 26)
-    for sgn in (-1, 1):
-        ang0 = math.radians(-90 + sgn * (30 - (1 - bloom) * 16))
-        _fan(surf, HCX - 2, HCY - 6, ang0, spread, 4, 17,
-             _GG_GILL, _GG_GILL_D, _GG_GILL_H)
-
-    _aaellipse(surf, _GG_BODY_D, (BCX + 1, BCY + 1), 18, 15)
-    _aaellipse(surf, _GG_BODY, (BCX, BCY), 17, 14)
-    _aaellipse(surf, _GG_BODY_H, (BCX - 1, BCY + 4), 11, 8)
-    # Iridophore sparkles — the gold-morph tell.
-    for sx, sy in ((26, 46), (34, 50), (38, 42), (22, 44), (30, 54)):
-        pygame.draw.circle(surf, _GG_BODY_H, (sx, sy), 1)
-
-    pygame.draw.polygon(surf, _GG_BODY_D,
-                        [(BCX - 14, BCY - 4), (BCX - 26, BCY),
-                         (BCX - 14, BCY + 5)])
-    pygame.draw.polygon(surf, _GG_BODY,
-                        [(BCX - 14, BCY - 2), (BCX - 22, BCY),
-                         (BCX - 14, BCY + 3)])
-
-    _legs(surf, _GG_BODY_D, splay=int(bloom * 3))
-
-    _aaellipse(surf, _GG_BODY_D, (HCX, HCY + 1), 13, 12)
-    _aaellipse(surf, _GG_BODY, (HCX - 1, HCY), 12, 11)
-    _aaellipse(surf, _GG_BODY_H, (HCX - 2, HCY + 3), 6, 4)
-
-    pygame.draw.circle(surf, _GG_FACE, (HCX - 1, HCY - 1), 2)
-    pygame.draw.circle(surf, _GG_FACE, (HCX + 8, HCY - 1), 2)
-    # glint in each eye for the reflective gold morph
-    pygame.draw.circle(surf, (255, 255, 240), (HCX - 2, HCY - 2), 1)
-    pygame.draw.circle(surf, (255, 255, 240), (HCX + 7, HCY - 2), 1)
-    pygame.draw.arc(surf, _GG_FACE, (HCX - 1, HCY + 2, 9, 7),
-                    math.radians(200), math.radians(340), 2)
-    pygame.draw.circle(surf, _GG_GILL_H, (HCX - 3, HCY + 3), 2)
-    pygame.draw.circle(surf, _GG_GILL_H, (HCX + 10, HCY + 3), 2)
-    return surf
-
-
-get_axolotl_v5 = _make_prebuilt_skin(build_axolotl_v5)
-
-
-# ── label → getter (for the review sheet) ────────────────────────────────────
-VARIANTS = {
-    "v1 CLASSIC PINK":     get_axolotl_v1,
-    "v2 BUSHY CORAL":      get_axolotl_v2,
-    "v3 ANTLER LEUCISTIC": get_axolotl_v3,
-    "v4 MELANOID DARK":    get_axolotl_v4,
-    "v5 GOLDEN GILD":      get_axolotl_v5,
-}
-
-FEATURES = {
-    "v1 CLASSIC PINK":     "6 feathery fronds + dot smile",
-    "v2 BUSHY CORAL":      "bushy pom-pom gill halo + open grin",
-    "v3 ANTLER LEUCISTIC": "branching antler crown + wide grin",
-    "v4 MELANOID DARK":    "neon magenta frill on dark body",
-    "v5 GOLDEN GILD":      "swept gold feather-fan + sparkles",
-}
