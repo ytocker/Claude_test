@@ -1,86 +1,82 @@
-"""SHADES style `shades_3d` — retro anaglyph cinema glasses (CARDBOARD).
+"""SHADES style `shades_3d` — retro anaglyph cinema glasses (PLASTIC).
 
 The two-colour lens pair is the whole read: the EAR-side (far/back) lens is
 RED, the BEAK-side (front/near) lens is CYAN, matching how anaglyph glasses
 sit on a face. Pip faces RIGHT (facing=1) so cyan is to the right and the
-flat paper temple arm runs left toward the ear.
+plastic temple arm runs left toward the ear.
 
-Round-1 pick: the cheap-and-cheerful white-cardboard look — a continuous cut
-brow-bar, square-ish cut-out lenses with a visible fold shadow, and a soft
-translucent gel wash over each colour so the film reads as lit cellophane
-rather than flat paint. Everything scales off `eye_w` (via max(1,int(...)))
-so the red/cyan pair stays distinct from the product size down to eye_w=22.
+A thin DARK plastic frame rings every lens and runs as a divider down the
+bridge: on a scarlet parrot head the RED lens would otherwise melt into the
+head, so the black outline is what gives it an edge, and it lets the CYAN
+read crisp beside it. The cyan film is pushed bright so the colour split is
+unmistakable even at eye_w=22. Everything scales off `eye_w` so the look
+holds from a 96px product shot down to a 22px in-game sprite.
 """
 import pygame
 
-# Anaglyph film — vivid so red vs cyan never collapse at 22px.
-_RED      = (235, 42, 56)
-_RED_H    = (255, 120, 124)
-_RED_GEL  = (255, 70, 84, 150)
-_CYAN     = (30, 198, 222)
-_CYAN_H   = (165, 246, 250)
-_CYAN_GEL = (90, 224, 240, 150)
+# Anaglyph film — cyan pushed bright so the red/cyan split never collapses,
+# and so the cyan lens visibly pops against the dark frame at 22px.
+_RED      = (228, 36, 50)
+_RED_H    = (255, 132, 138)
+_CYAN     = (44, 226, 246)
+_CYAN_H   = (190, 252, 255)
 _GLINT    = (255, 255, 255)
 
-# White cardboard frame + two darkening edge tones for the cut/fold shadows.
-_CARD    = (247, 244, 234)
-_CARD_D  = (198, 192, 176)
-_CARD_DD = (150, 144, 128)
+# Thin black/charcoal plastic frame — the dark edge that keeps the red lens
+# from camouflaging on the scarlet head and divides the two lenses.
+_FRAME    = (26, 28, 34)
+_FRAME_HI = (96, 100, 112)   # top-edge catch-light so the plastic reads round
 
 
 def draw_shades(surf, cx, cy, eye_w, facing=1):
     f = facing
-    lw = max(5, int(eye_w * 0.42))
+    lw = max(5, int(eye_w * 0.44))
     lh = max(5, int(eye_w * 0.40))
-    sep = max(5, int(eye_w * 0.46))
-    rad = max(1, int(eye_w * 0.05))    # barely rounded — it is cut paper
-    thick = max(2, int(eye_w * 0.10))
+    sep = max(6, int(eye_w * 0.50))
+    rad = max(1, int(eye_w * 0.09))
+    # Frame ring thickness — kept >=2 so the divider survives at eye_w=22.
+    fr = max(2, int(eye_w * 0.085))
 
     near = (cx + f * (sep // 2), cy)      # BEAK side -> cyan
     far = (cx - f * (sep // 2), cy)       # EAR side  -> red
 
-    # One continuous card brow-bar so the frame reads as a single cut sheet.
-    brow = pygame.Rect(0, 0, sep + lw + thick, max(2, int(eye_w * 0.12)))
-    brow.center = (cx, cy - lh // 2 - thick // 2)
-    pygame.draw.rect(surf, _CARD_D, brow.move(0, 1))
-    pygame.draw.rect(surf, _CARD, brow)
-
-    for (lx, ly), lens_c, lens_h, gel in (
-            (far, _RED, _RED_H, _RED_GEL), (near, _CYAN, _CYAN_H, _CYAN_GEL)):
-        outer = pygame.Rect(0, 0, lw + thick * 2, lh + thick * 2)
-        outer.center = (lx, ly)
-        pygame.draw.rect(surf, _CARD_DD, outer.move(0, 1), border_radius=rad)
-        pygame.draw.rect(surf, _CARD, outer, border_radius=rad)
-        # Inner fold shadow so the lens reads as a punched-out card window.
-        pygame.draw.rect(surf, _CARD_D, outer.inflate(-thick, -thick),
-                         max(1, thick // 2), border_radius=rad)
-        # Coloured film: flat base + translucent gel wash for the glow.
+    for (lx, ly), lens_c, lens_h in (
+            (far, _RED, _RED_H), (near, _CYAN, _CYAN_H)):
+        # Dark plastic frame drawn as a filled rounded rect under the film,
+        # so every lens carries its own outline against head and sky.
+        frame = pygame.Rect(0, 0, lw + fr * 2, lh + fr * 2)
+        frame.center = (lx, ly)
+        pygame.draw.rect(surf, _FRAME, frame, border_radius=rad + fr)
+        # Coloured film sits inside the ring.
         inner = pygame.Rect(0, 0, lw, lh)
         inner.center = (lx, ly)
-        pygame.draw.rect(surf, lens_c, inner, border_radius=max(1, rad))
-        gel_s = pygame.Surface(inner.size, pygame.SRCALPHA)
-        pygame.draw.rect(gel_s, gel, gel_s.get_rect(), border_radius=max(1, rad))
-        surf.blit(gel_s, inner.topleft)
-        # Diagonal sheen + corner glint so the film looks lit, not printed.
-        pygame.draw.line(surf, lens_h,
-                         (lx - lw * 0.30, ly + lh * 0.10),
-                         (lx + lw * 0.10, ly - lh * 0.28),
+        pygame.draw.rect(surf, lens_c, inner, border_radius=rad)
+        # Top-inner band lightens the film so it reads as lit glass, not paint.
+        band = inner.inflate(-fr, -lh // 2)
+        band.bottom = inner.centery
+        pygame.draw.rect(surf, lens_h, band, border_radius=max(1, rad // 2))
+        # '/' sheen + corner glint so the film looks lit on both lenses.
+        pygame.draw.line(surf, _GLINT,
+                         (lx - lw * 0.22, ly + lh * 0.18),
+                         (lx + lw * 0.16, ly - lh * 0.24),
                          max(1, int(eye_w * 0.05)))
         pygame.draw.circle(surf, _GLINT,
-                           (int(lx - lw * 0.26), int(ly - lh * 0.26)),
-                           max(1, int(eye_w * 0.045)))
+                           (int(lx - lw * 0.24), int(ly - lh * 0.22)),
+                           max(1, int(eye_w * 0.05)))
+        # Thin top catch-light on the frame so the plastic looks rounded.
+        pygame.draw.line(surf, _FRAME_HI,
+                         (frame.left + rad, frame.top + max(1, fr // 2)),
+                         (frame.right - rad, frame.top + max(1, fr // 2)),
+                         max(1, fr // 2))
 
-    # Card bridge dipping between the lenses (the paper nose notch).
-    pygame.draw.line(surf, _CARD, (far[0] + f * (lw // 2), cy + lh // 6),
-                     (near[0] - f * (lw // 2), cy + lh // 6), thick + 1)
-    pygame.draw.line(surf, _CARD_D, (far[0] + f * (lw // 2), cy + lh // 6 + 1),
-                     (near[0] - f * (lw // 2), cy + lh // 6 + 1), 1)
+    # Dark plastic bridge — also the divider that separates the two lenses.
+    pygame.draw.line(surf, _FRAME,
+                     (far[0] + f * (lw // 2), cy - lh // 8),
+                     (near[0] - f * (lw // 2), cy - lh // 8),
+                     fr + 1)
 
-    # Flat folded paper temple arm toward the ear.
-    arm_x = far[0] - f * (lw // 2 + thick)
-    arm_end = (far[0] - f * (lw // 2 + max(3, int(eye_w * 0.34))),
-               cy - max(2, int(eye_w * 0.11)))
-    pygame.draw.line(surf, _CARD_D, (arm_x, cy - lh // 6 + 1),
-                     (arm_end[0], arm_end[1] + 1), thick)
-    pygame.draw.line(surf, _CARD, (arm_x, cy - lh // 6),
-                     arm_end, max(1, thick - 1))
+    # Dark plastic temple arm hinging toward the ear.
+    arm_root = (far[0] - f * (lw // 2 + fr), cy - lh // 5)
+    arm_end = (far[0] - f * (lw // 2 + max(3, int(eye_w * 0.32))),
+               cy - max(2, int(eye_w * 0.14)))
+    pygame.draw.line(surf, _FRAME, arm_root, arm_end, max(2, fr))
