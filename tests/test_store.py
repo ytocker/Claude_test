@@ -293,6 +293,22 @@ class TestCatalogIntegrity(unittest.TestCase):
         # A representative non-shoe skin has no icon and falls back to the frame.
         self.assertIsNone(parrot.get_skin_icon(store_catalog.BASE_SKIN))
 
+    def test_hats_tab_populated(self):
+        # The HATS tab ships with its full roster, all skins with positive costs.
+        hats = store_catalog.ids_of_group("hats")
+        self.assertTrue(hats)
+        self.assertTrue(all(store_catalog.kind(h) == "skin" for h in hats))
+        self.assertTrue(all(isinstance(store_catalog.cost(h), int)
+                            and store_catalog.cost(h) > 0 for h in hats))
+
+    def test_every_hat_has_a_product_shot_icon(self):
+        # Hats, like shoes, are presented by a product-shot icon, so every hat
+        # id must resolve to a non-None get_skin_icon (the hat itself).
+        from game import parrot
+        for sid in store_catalog.ids_of_group("hats"):
+            self.assertIsNotNone(parrot.get_skin_icon(sid),
+                                 f"{sid} is missing a product-shot icon")
+
 
 if __name__ == "__main__":
     unittest.main()

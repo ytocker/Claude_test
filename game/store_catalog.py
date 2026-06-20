@@ -80,6 +80,27 @@ CATALOG: dict[str, dict] = {
     "skin_shoe_airbubble":  {"name": "AIR BUBBLE",  "cost": 680, "kind": "skin", "group": "shoes"},
     "skin_shoe_boostknit":  {"name": "BOOST KNIT",  "cost": 760, "kind": "skin", "group": "shoes"},
     "skin_shoe_retro1":     {"name": "RETRO 1",     "cost": 850, "kind": "skin", "group": "shoes"},
+
+    # ── HATS (stylized procedural headwear Pip wears, NY cap as the hero) ──────
+    # Priced on desirability: novelty/casual cheap, classics mid-high, the
+    # seasonal Santa and the signature NY cap premium.
+    "skin_hat_partyhat":  {"name": "PARTY HAT",     "cost": 220, "kind": "skin", "group": "hats"},
+    "skin_hat_visor":     {"name": "VISOR",         "cost": 240, "kind": "skin", "group": "hats"},
+    "skin_hat_strawhat":  {"name": "STRAW HAT",     "cost": 260, "kind": "skin", "group": "hats"},
+    "skin_hat_beanie":    {"name": "BEANIE",        "cost": 300, "kind": "skin", "group": "hats"},
+    "skin_hat_beret":     {"name": "BERET",         "cost": 320, "kind": "skin", "group": "hats"},
+    "skin_hat_buckethat": {"name": "BUCKET HAT",    "cost": 360, "kind": "skin", "group": "hats"},
+    "skin_hat_flatcap":   {"name": "FLAT CAP",      "cost": 380, "kind": "skin", "group": "hats"},
+    "skin_hat_propeller": {"name": "PROPELLER CAP", "cost": 420, "kind": "skin", "group": "hats"},
+    "skin_hat_trucker":   {"name": "TRUCKER CAP",   "cost": 440, "kind": "skin", "group": "hats"},
+    "skin_hat_snapback":  {"name": "SNAPBACK",      "cost": 460, "kind": "skin", "group": "hats"},
+    "skin_hat_gradcap":   {"name": "GRAD CAP",      "cost": 500, "kind": "skin", "group": "hats"},
+    "skin_hat_chef":      {"name": "CHEF TOQUE",    "cost": 520, "kind": "skin", "group": "hats"},
+    "skin_hat_bowler":    {"name": "BOWLER",        "cost": 560, "kind": "skin", "group": "hats"},
+    "skin_hat_fedora":    {"name": "FEDORA",        "cost": 600, "kind": "skin", "group": "hats"},
+    "skin_hat_sombrero":  {"name": "SOMBRERO",      "cost": 640, "kind": "skin", "group": "hats"},
+    "skin_hat_santa":     {"name": "SANTA HAT",     "cost": 700, "kind": "skin", "group": "hats"},
+    "skin_hat_nycap":     {"name": "NY CAP",        "cost": 850, "kind": "skin", "group": "hats"},
 }
 
 
