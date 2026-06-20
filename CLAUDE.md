@@ -264,3 +264,10 @@ into one round — brainstorm first, then mature each on its own:
   no checkpoint between the brainstorm and the per-direction loops.
 
 Trivial fixes (typos, colour tweaks) may skip the loop at the user's discretion.
+
+## Work summaries
+
+After finishing a significant multi-commit effort (a feature, system, or sizeable
+fix), offer to run the `work-summary` skill (`/work-summary`) to capture a
+structured write-up under `docs/work-summaries/`. Trivial one-off changes don't
+need one.
