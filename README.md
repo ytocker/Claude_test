@@ -67,6 +67,23 @@ Every 15th pillar widens its gap by 30% and packs in a ~14-coin
 formation — sine wave, S-curve, chevron, oval, or double-arc, picked
 fresh each rush. No power-ups during a rush; just dive in.
 
+## Store
+
+Spend the coins you bank each run in the coin **Store** (reached from the
+main menu): a growing roster of **30+ cosmetic skins** across three tabs —
+**Costumes** (pirate, ninja, wizard, astronaut…), **Parrot species** (blue &
+gold macaw, hyacinth, crested cockatoo, rainbow lorikeet…), and other
+**Animals** (owl, penguin, flamingo, and premium dragon & phoenix). Plus a
+**Prize Machine** gacha and a **daily reward**. Skins are pure looks — no
+pay-to-win — and every one is drawn from code and animates over Pip's wing
+frames.
+
+**[▶ Browse all store items (one figure) →](docs/store/README.md)**
+
+<p align="center">
+  <a href="docs/store/README.md"><img src="docs/store/all_items.png" width="460"></a>
+</p>
+
 ## Difficulty
 
 The first 25 pillars are an onboarding ramp: gaps tighten (225 → 170 px),
