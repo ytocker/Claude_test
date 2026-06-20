@@ -1,10 +1,14 @@
-"""Round-1 review sheet for the candidate PAPER PLANE Store skins.
+"""Round-2 review sheet for the production PAPER PLANE Store skin (DOLLAR-BILL).
 
-Renders each dart at hero 130px AND at the in-game truth-test scale (40px,
-level + dive) magnified x3 with NEAREST-NEIGHBOR so the true gameplay-pixel
-silhouette is honest — and does it twice, once on a DAY sky and once on a
+Renders the dart at hero 130px (day | night) AND at the in-game truth-test
+scale (40px, level + dive) magnified x3 with NEAREST-NEIGHBOR so the true
+gameplay-pixel silhouette is honest — twice, once on a DAY sky and once on a
 NIGHT sky, because a folded-paper skin's value structure must hold against
 both. Headless (SDL dummy) so it runs in CI / on the build box.
+
+Each 40px cell shows exactly ONE silhouette in its pose: the level cell and the
+dive cell live in separate sub-panels so they can never overlap into a broken
+double-image.
 """
 import os
 import sys
@@ -25,19 +29,18 @@ spec = importlib.util.spec_from_file_location(
 pp = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pp)
 
-BUILDERS = pp.BUILDERS
-LABELS = pp.LABELS
-ORDER = ["v1_notebook", "v2_lined", "v3_newspaper", "v4_dollar", "v5_kraft"]
+# Hero panels use the size-only gold flourish; 40px panels use the production
+# getter so the truth-test matches exactly what ships.
+HERO_GETTER = pp.get_paper_plane_hero
+GAME_GETTER = pp.get_paper_plane
 
 # ── layout ───────────────────────────────────────────────────────────────────
-CARD_W, CARD_H = 720, 250
-PAD = 16
-HEADER_H = 64
+PAD = 18
+HEADER_H = 70
 HERO_PX = 130
 GAME_PX = 40
 MAG = 3
 
-# Day + night sky swatches (the two real backdrops a flyer must survive).
 DAY_TOP = (150, 206, 240)
 DAY_BOT = (236, 222, 188)
 NIGHT_TOP = (24, 26, 52)
@@ -48,8 +51,18 @@ CARD_EDGE = (190, 150, 70)               # gold rim — this is a premium secret
 TEXT = (236, 238, 250)
 SUB = (150, 156, 190)
 
+# Geometry. One wide card. Six panels in a row:
+#   DAY hero | NIGHT hero | DAY level | DAY dive | NIGHT level | NIGHT dive
+HERO_PW = 168
+GAME_PW = 132
+PANEL_H = 178
+GAP = 8
+
+CARD_W = 14 + HERO_PW + GAP + HERO_PW + GAP + GAME_PW * 4 + GAP * 3 + 14
+CARD_H = 58 + PANEL_H + 16
+
 SHEET_W = PAD + CARD_W + PAD
-SHEET_H = HEADER_H + PAD + len(ORDER) * (CARD_H + PAD)
+SHEET_H = HEADER_H + PAD + CARD_H + PAD
 
 sheet = pygame.Surface((SHEET_W, SHEET_H))
 for y in range(SHEET_H):
@@ -60,14 +73,14 @@ for y in range(SHEET_H):
 pygame.font.init()
 F_TITLE = pygame.font.SysFont("Arial", 30, bold=True)
 F_SUB = pygame.font.SysFont("Arial", 15)
-F_NAME = pygame.font.SysFont("Arial", 19, bold=True)
+F_NAME = pygame.font.SysFont("Arial", 20, bold=True)
 F_FEAT = pygame.font.SysFont("Arial", 13)
 F_TAG = pygame.font.SysFont("Arial", 12, bold=True)
 
-sheet.blit(F_TITLE.render("Skybit — PAPER PLANE Store Skin · Round 1", True, TEXT), (PAD, 12))
+sheet.blit(F_TITLE.render("Skybit — PAPER PLANE Store Skin · Round 2 (DOLLAR-BILL)", True, TEXT), (PAD, 14))
 sheet.blit(F_SUB.render(
-    "Secret premium NON-creature flyer. HERO 130px (day | night) · 40px NEAREST x3 level/dive on DAY and NIGHT. Flap = bank + nose-bob.",
-    True, SUB), (PAD, 44))
+    "Production build. HERO 130px (day | night) · 40px NEAREST x3 — ONE silhouette per cell: level + dive, on DAY and NIGHT. Flap = banked nose-bob.",
+    True, SUB), (PAD, 48))
 
 
 def _grad(w, h, top, bot):
@@ -82,7 +95,7 @@ def _stars(surf, seed):
     import random
     rng = random.Random(seed)
     w, h = surf.get_size()
-    for _ in range(60):
+    for _ in range(50):
         sx, sy = rng.randint(0, w), rng.randint(0, h)
         b = rng.randint(120, 220)
         pygame.draw.circle(surf, (b, b, min(255, b + 30)), (sx, sy), rng.choice([1, 1, 2]))
@@ -109,50 +122,54 @@ def nearest40(getter, frame_idx, tilt, mag):
     return pygame.transform.scale(small, (small.get_width() * mag, small.get_height() * mag))
 
 
-for idx, key in enumerate(ORDER):
-    getter = BUILDERS[key]
-    name, feat = LABELS[key]
-    cx = PAD
-    cy = HEADER_H + PAD + idx * (CARD_H + PAD)
+cx = PAD
+cy = HEADER_H + PAD
 
-    card = pygame.Rect(cx, cy, CARD_W, CARD_H)
-    pygame.draw.rect(sheet, CARD_BG, card, border_radius=12)
-    pygame.draw.rect(sheet, CARD_EDGE, card, 3, border_radius=12)
+card = pygame.Rect(cx, cy, CARD_W, CARD_H)
+pygame.draw.rect(sheet, CARD_BG, card, border_radius=12)
+pygame.draw.rect(sheet, CARD_EDGE, card, 3, border_radius=12)
 
-    sheet.blit(F_NAME.render(name, True, CARD_EDGE), (cx + 14, cy + 10))
-    sheet.blit(F_FEAT.render("40px tell: " + feat, True, SUB), (cx + 14, cy + 36))
+sheet.blit(F_NAME.render("DOLLAR-BILL DART", True, CARD_EDGE), (cx + 14, cy + 10))
+sheet.blit(F_FEAT.render(
+    "40px tell: green dart + HARD-fold value break (bright top facet / dark under-fold) + ringed portrait medallion + baked self-rim",
+    True, SUB), (cx + 14, cy + 36))
 
-    panel_y = cy + 58
-    panel_h = 178
-    # Four panels across: DAY hero | NIGHT hero | DAY 40px | NIGHT 40px.
-    panels = [
-        ("DAY hero", DAY_TOP, DAY_BOT, False, "hero"),
-        ("NIGHT hero", NIGHT_TOP, NIGHT_BOT, True, "hero"),
-        ("DAY 40px x3", DAY_TOP, DAY_BOT, False, "game"),
-        ("NIGHT 40px x3", NIGHT_TOP, NIGHT_BOT, True, "game"),
-    ]
-    pw = 168
-    for pi, (tag, top, bot, night, mode) in enumerate(panels):
-        px = cx + 14 + pi * (pw + 8)
-        prect = pygame.Rect(px, panel_y, pw, panel_h)
-        bg = _grad(pw, panel_h, top, bot)
-        if night:
-            _stars(bg, 3 + pi)
-        sheet.blit(bg, prect)
-        pygame.draw.rect(sheet, (10, 10, 20), prect, 1, border_radius=8)
+panel_y = cy + 58
 
-        if mode == "hero":
-            hero = smooth(getter, 0, 0, HERO_PX)
-            sheet.blit(hero, hero.get_rect(center=prect.center))
-        else:
-            n_level = nearest40(getter, 2, 0, MAG)
-            sheet.blit(n_level, n_level.get_rect(center=(prect.x + 52, prect.centery)))
-            n_dive = nearest40(getter, 1, -32, MAG)
-            sheet.blit(n_dive, n_dive.get_rect(center=(prect.x + 118, prect.centery)))
+# Each entry: (tag, top, bot, night, mode). One pose per panel for the 40px
+# cells so there is never an overlapping double-image.
+panels = [
+    ("DAY hero",     DAY_TOP,   DAY_BOT,   False, "hero", HERO_PW),
+    ("NIGHT hero",   NIGHT_TOP, NIGHT_BOT, True,  "hero", HERO_PW),
+    ("DAY 40px lvl", DAY_TOP,   DAY_BOT,   False, "level", GAME_PW),
+    ("DAY 40px dive", DAY_TOP,  DAY_BOT,   False, "dive",  GAME_PW),
+    ("NIGHT 40px lvl", NIGHT_TOP, NIGHT_BOT, True, "level", GAME_PW),
+    ("NIGHT 40px dive", NIGHT_TOP, NIGHT_BOT, True, "dive", GAME_PW),
+]
 
-        tagcol = (245, 245, 250) if night else (30, 34, 50)
-        sheet.blit(F_TAG.render(tag, True, tagcol), (prect.x + 6, prect.bottom - 18))
+px = cx + 14
+for tag, top, bot, night, mode, pw in panels:
+    prect = pygame.Rect(px, panel_y, pw, PANEL_H)
+    bg = _grad(pw, PANEL_H, top, bot)
+    if night:
+        _stars(bg, hash(tag) & 0xff)
+    sheet.blit(bg, prect)
+    pygame.draw.rect(sheet, (10, 10, 20), prect, 1, border_radius=8)
 
-out_path = os.path.join(_here, "round_1.png")
+    if mode == "hero":
+        hero = smooth(HERO_GETTER, 0, 0, HERO_PX)
+        sheet.blit(hero, hero.get_rect(center=prect.center))
+    elif mode == "level":
+        spr = nearest40(GAME_GETTER, 2, 0, MAG)        # level pose, no tilt
+        sheet.blit(spr, spr.get_rect(center=prect.center))
+    else:  # dive
+        spr = nearest40(GAME_GETTER, 1, -32, MAG)      # dive pose, nose-down tilt
+        sheet.blit(spr, spr.get_rect(center=prect.center))
+
+    tagcol = (245, 245, 250) if night else (30, 34, 50)
+    sheet.blit(F_TAG.render(tag, True, tagcol), (prect.x + 6, prect.bottom - 18))
+    px += pw + GAP
+
+out_path = os.path.join(_here, "round_2.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())
