@@ -1,5 +1,5 @@
 """Render the run's content map on a PAGODAS-PASSED axis under
-``docs/screenshots/event_pagoda_map_clown_v2.png``. Run from the repo root:
+``docs/screenshots/event_pagoda_map_clown_v3.png``. Run from the repo root:
 
     python tools/plot_event_pagoda_map.py
 
@@ -102,7 +102,9 @@ def main() -> None:
                     va="center", ha="left", fontweight="bold")
     ax_sky.set_title(
         f"Skybit — game content map by pagodas passed  "
-        f"(one full day ≈ {day_end} pagodas)", fontsize=13, pad=8)
+        f"(one full day ≈ {day_end} pagodas)   ·   live status; "
+        f"pillars are nominal — live counts run slightly lower",
+        fontsize=12, pad=8)
 
     # ── lower panel: the three gameplay weather events vs pillar ─────────────
     # Lightning window (shaded) — a state, not an intensity curve.
@@ -184,21 +186,32 @@ def main() -> None:
                     xytext=(0, 9), ha="center", fontsize=7.5, color=color,
                     fontweight="bold", clip_on=False)
 
-    # ── clown event — the chosen held slot (now shipped content) ─────────────
-    # The event reserves a fixed CLOWN_SLOT_PILLARS-wide slot from
-    # CLOWN_START_PILLAR, then CLOWN_TO_RAIN_BUFFER regular pillars before rain.
+    # ── clown event — the now-shipped interactive cinematic ──────────────────
+    # HONEST status: at the clown phase (~CLOWN_START_PILLAR) the clown strolls in
+    # with a floating die; on the die roll (a ~1s grab+spin beat, so the gauntlet
+    # actually begins a few pillars LATER) a held CLOWN_SLOT_PILLARS-wide slot is
+    # reserved — N=ROLL_MIN..ROLL_MAX warren towers + regular fill, with a small
+    # GHOST chance. Then ~CLOWN_TO_RAIN_BUFFER pillars before rain (soft: warren
+    # density + grab timing shift it). Bands are nominal _phase_for_pillar pillars.
     CLOWN_COLOR = "#c1121f"
     c0 = config.CLOWN_START_PILLAR
     c1 = c0 + config.CLOWN_SLOT_PILLARS
     ax.axvspan(c0, c1, color=CLOWN_COLOR, alpha=0.16, linewidth=0,
-               label="Clown event (held 25-pillar slot)")
+               label="Clown event — die roll → warren gauntlet (held 25)")
     ax.axvspan(c1, config.RAIN_START_PILLAR, color=CLOWN_COLOR, alpha=0.06,
-               linewidth=0)  # buffer to rain
+               linewidth=0)  # soft buffer to rain
     ax.axvline(c0, color=CLOWN_COLOR, linewidth=2.4, zorder=4)
-    ax.annotate(f"CLOWN EVENT\n@ pillar {c0}  (held {config.CLOWN_SLOT_PILLARS})",
-                (c0, 0.5), textcoords="offset points", xytext=(6, 0),
-                rotation=90, fontsize=8, fontweight="bold", color="#8a0d17",
-                va="center", ha="left", zorder=7)
+    ax.annotate(
+        f"CLOWN appears ~{c0}\ndie roll → gauntlet\n"
+        f"N={config.CLOWN_ROLL_MIN}-{config.CLOWN_ROLL_MAX} of held "
+        f"{config.CLOWN_SLOT_PILLARS} (+ghost)",
+        (c0, 0.5), textcoords="offset points", xytext=(6, 0),
+        rotation=90, fontsize=7.5, fontweight="bold", color="#8a0d17",
+        va="center", ha="left", zorder=7)
+    ax.annotate(f"~{config.CLOWN_TO_RAIN_BUFFER} → rain (soft)",
+                ((c1 + config.RAIN_START_PILLAR) / 2, 0.06),
+                textcoords="offset points", xytext=(0, 0), rotation=90,
+                fontsize=6.5, color="#8a0d17", va="bottom", ha="center", zorder=6)
 
     # Run-start marker + biome gridlines carried into the lower panel.
     ax.axvline(0, color="#222", linewidth=2)
@@ -222,7 +235,7 @@ def main() -> None:
               fontsize=8.5)
 
     fig.tight_layout()
-    out_path = os.path.join(out_dir, "event_pagoda_map_clown_v2.png")
+    out_path = os.path.join(out_dir, "event_pagoda_map_clown_v3.png")
     fig.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
     print(f"wrote {out_path}")
