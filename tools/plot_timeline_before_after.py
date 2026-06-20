@@ -183,10 +183,15 @@ def main():
 
     xmax = D_new["day_end"] + config.CYCLE_FINALE_RUSH_PILLARS + 4
 
-    fig, (axs_o, axc_o, axs_n, axc_n) = plt.subplots(
-        4, 1, figsize=(14, 9.4), dpi=130,
-        gridspec_kw=dict(height_ratios=[1, 5, 1, 5], hspace=0.22),
-        sharex=True)
+    # 5-row grid with an empty SPACER row (index 2) between the BEFORE block
+    # (sky+curves) and the AFTER block, so the BEFORE panel's x-axis labels have
+    # dedicated room and never collide with the AFTER title/sky strip.
+    fig = plt.figure(figsize=(14, 10), dpi=130)
+    gs = fig.add_gridspec(5, 1, height_ratios=[1, 5, 1.1, 1, 5], hspace=0.16)
+    axs_o = fig.add_subplot(gs[0])
+    axc_o = fig.add_subplot(gs[1], sharex=axs_o)
+    axs_n = fig.add_subplot(gs[3], sharex=axs_o)
+    axc_n = fig.add_subplot(gs[4], sharex=axs_o)
 
     _draw_panel(axs_o, axc_o, D_old,
                 f"BEFORE — pre-clown-event: 320 s day · rain @{OLD_RAIN_PILLAR} · "
@@ -210,7 +215,7 @@ def main():
     fig.suptitle("Skybit timeline — BEFORE vs AFTER the clown event "
                  "(shared pagoda axis)", fontsize=13, y=0.995)
     fig.tight_layout(rect=(0, 0, 1, 0.99))
-    out_path = os.path.join(out_dir, "timeline_before_after_aligned_v2.png")
+    out_path = os.path.join(out_dir, "timeline_before_after_aligned_v3.png")
     fig.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
     print(f"wrote {out_path}")
