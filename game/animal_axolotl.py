@@ -133,32 +133,22 @@ def _legs(surf, color, *, splay=0):
 # pose; the constant-angle spacing keeps a clear sky-gap between every fork.
 # ═════════════════════════════════════════════════════════════════════════════
 def _fork(surf, base, ang, length):
-    """One bold gill fork: a thick stalk that TAPERS to a thin tip. The stalk is
-    3px at the root and the tine pair narrows to 1px at the tip, so the fan's
-    WIDEST point (the tips) carries the thinnest pink — that is what lets a clear
-    sky-gap survive between neighbours after the dive rotate→NEAREST downsample,
-    where a constant-2px tip would have bled into its neighbour and fused the
-    whole crown into a solid paddle. The root stays fat (2–3px) so a fork never
-    reads as a frayed tendril; only the LAST pixel of each tine is the lighter
-    `_GILL_H` value (the second and only other pink)."""
+    """One bold gill fork: a tapered stalk that splits into two tines. Every
+    segment is drawn 2px thick along its WHOLE length so a fork never thins to a
+    frayed 1px tendril under the smoothscale → nearest gameplay pixel; the only
+    other pink value is a single lighter tip pixel per tine. Two pink values."""
     bx, by = base
-    # split the stalk so it tapers 3px → 2px before the tines branch
-    mx0 = bx + math.cos(ang) * (length * 0.55)
-    my0 = by + math.sin(ang) * (length * 0.55)
     mx = bx + math.cos(ang) * length
     my = by + math.sin(ang) * length
-    pygame.draw.line(surf, _GILL, (bx, by), (mx0, my0), 3)
-    pygame.draw.line(surf, _GILL, (mx0, my0), (mx, my), 2)
-    # Each tine: a 2px mid then a 1px outer reach, so the tip is a single pink
-    # pixel with sky on either side — the inter-fork gap reads even at 40px.
-    for da in (-0.30, 0.30):
+    pygame.draw.line(surf, _GILL, (bx, by), (mx, my), 3)
+    # Narrow the tine split so two tines read as ONE fork (not a frayed pair),
+    # and keep each tine a constant 2px so it never tapers to a tendril.
+    for da in (-0.28, 0.28):
         tang = ang + da
-        midx = mx + math.cos(tang) * (length * 0.30)
-        midy = my + math.sin(tang) * (length * 0.30)
-        tx = mx + math.cos(tang) * (length * 0.58)
-        ty = my + math.sin(tang) * (length * 0.58)
-        pygame.draw.line(surf, _GILL, (mx, my), (midx, midy), 2)
-        pygame.draw.line(surf, _GILL, (midx, midy), (tx, ty), 1)
+        tlen = length * 0.55
+        tx = mx + math.cos(tang) * tlen
+        ty = my + math.sin(tang) * tlen
+        pygame.draw.line(surf, _GILL, (mx, my), (tx, ty), 2)
         # one lighter pixel at each tine tip — the second (and only other) value
         surf.set_at((int(round(tx)), int(round(ty))), _GILL_H)
 
@@ -177,29 +167,19 @@ def _crown(surf, bloom):
       * each fork's BASE also slides along the brow by the same fraction, so the
         roots separate too — a clear pixel of sky between every fork at 40px.
     Three forks lean left of the head's up-axis, two lean right (3/2 crown).
-    Longer stalks (the antler read) so the tips clear the head when bloomed.
-
-    The splay FLOOR was raised (was 15°+bloom*34 → 30°..98°): the DIVE pose sits
-    near bloom 0.33, and at the old ~53° spread the five tips packed inside ~13°
-    each and the rotate→NEAREST downsample fused them into a solid coral paddle.
-    A 46°-floor fan (≈18° per gap even on the dive) keeps five distinct fronds
-    after rotation; the pulse still reads because the up-pose still blooms ~2×
-    wider than the down-pose."""
-    half = math.radians(23 + bloom * 27)          # 46°→100° total spread (capped)
-    # Root spread scales with the fan so the five roots separate as it blooms but
-    # never slide so far along the brow that the outer coral rim merges with the
-    # head rim — every fork still launches from clear scalp on the night dive.
-    spread_px = 1.6 + bloom * 2.2
-    # Non-linear fractions push the OUTER forks proportionally further apart than
-    # the inner pair, so the widest part of the fan opens its sky-gaps first —
-    # that is the gap that has to survive the dive downsample. Three lean left,
-    # two lean right (3/2 crown).
-    fracs = (-1.0, -0.46, 0.0, 0.46, 1.0)
+    Longer stalks (the antler read) so the tips clear the head when bloomed."""
+    half = math.radians(15 + bloom * 34)          # 30°→~98° total spread (capped)
+    # Pulled the root spread in (was 1+bloom*4): on a bloomed dive the outer
+    # roots used to slide so far along the brow that their coral rim merged with
+    # the head rim — now every fork launches from clear scalp.
+    spread_px = 1 + bloom * 2.4
+    # fractions in [-1, 1] across the fan: three on the left, two on the right.
+    fracs = (-1.0, -0.5, 0.0, 0.5, 1.0)
     for i, fr in enumerate(fracs):
         ang = -math.pi / 2 + fr * half             # measured off straight-up
         bx = HCX - 2 + fr * spread_px
         by = HCY - 7 + abs(fr) * 1.5               # outer roots ride a touch up
-        length = 14 - abs(fr) * 1.5                 # outer forks slightly shorter
+        length = 14 - abs(fr) * 2                   # outer forks slightly shorter
         _fork(surf, (bx, by), ang, length)
 
 

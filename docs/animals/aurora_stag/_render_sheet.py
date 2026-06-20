@@ -1,13 +1,15 @@
-"""Round-3 review sheet for the AURORA STAG production skin (final pass).
+"""Round-4 review sheet for the AURORA STAG production skin (FINAL pass).
 
-Round 3 applies the art-director's minimal must-fix list (palette/halo/gap/clip
-frozen): re-aimed FORWARD brow-tines that flip horns→antlers, notch-detached
-true-cross tip-stars, and a higher tine anchor so the dive rotation keeps the
-lower tine legible. The sheet stress-tests the single ship build the way it
-will actually render: hero 130px plus the in-game truth-test scale (40px level
-+ dive, smooth AND NEAREST-NEIGHBOR x3) shown PROMINENTLY on a BRIGHT-DAY
-gradient (the chroma-read insurance) and on night sky. Headless (SDL dummy) so
-it runs in CI / on the build box.
+Round 4 is the structural rebuild the art-director root-caused: the inward V is
+gone, each antler is now ONE beam rising off the skull then curving FORWARD over
+the nose, with two short forward-raked tines off its outer edge (stag, not lyre)
+and ≥2px-spoke notch-detached tip-stars. The sheet stress-tests the single ship
+build the way it actually renders: hero 130px plus the in-game truth-test scale
+(40px level + dive, smooth AND NEAREST-NEIGHBOR x3) shown PROMINENTLY on a
+BRIGHT-DAY gradient (the chroma-read insurance) and on night sky. The DIVE
+NEAREST row carries three rotations (−24/−32/−40) so the re-anchored geometry —
+beams staying OVER the head, both tip-stars + forward tines legible — can be
+read straight off the sheet. Headless (SDL dummy) so it runs in CI / build box.
 """
 import os
 import sys
@@ -89,8 +91,6 @@ F_TAG = pygame.font.SysFont("Arial", 12, bold=True)
 
 
 # ── layout: two big stress-test panels side by side (DAY left, NIGHT right) ──
-# The DIVE NEAREST x3 row is widened to THREE dive instances (the must-fix #3
-# re-check: forward tine + both tip-stars must stay legible post-rotation).
 PAD = 18
 HEADER_H = 70
 PANEL_W = 500
@@ -110,7 +110,7 @@ for _ in range(120):
     pygame.draw.circle(sheet, (b, b, min(255, b + 40)), (sx, sy), 1)
 
 sheet.blit(F_TITLE.render(
-    "Skybit — AURORA STAG (legendary) · Round 3 · FORWARD TINES + NOTCHED STARS",
+    "Skybit — AURORA STAG (legendary) · Round 4 · FORWARD-THROW RACK (no lyre)",
     True, TEXT), (PAD, 12))
 sheet.blit(F_SUB.render(
     "ONE production build on BRIGHT-DAY (sky bottom ~170,220,245) and NIGHT.  "
@@ -140,8 +140,8 @@ def draw_panel(px, py, label, top, bot, txt, sub):
                (px + 250, py + 84))
 
     # 40px NEAREST x3 — the honest gameplay-pixel read.
-    # One LEVEL plus THREE DIVE instances (must-fix #3 re-check: forward tine +
-    # both tip-stars stay legible through the dive rotation).
+    # One LEVEL plus THREE DIVE instances (must-fix re-check: forward tines +
+    # both tip-stars stay legible and beams stay OVER the head post-rotation).
     n_level = nearest40(2, 0, MAG)
     sheet.blit(n_level, n_level.get_rect(center=(px + 250, py + 215)))
     sheet.blit(F_TAG.render("level", True, sub), (px + 232, py + 268))
@@ -161,6 +161,6 @@ draw_panel(PAD, HEADER_H + PAD, "BRIGHT DAY (worst case)",
 draw_panel(PAD * 2 + PANEL_W, HEADER_H + PAD, "NIGHT",
            NIGHT_TOP, NIGHT_BOT, TEXT, SUB)
 
-out_path = os.path.join(_here, "round_3.png")
+out_path = os.path.join(_here, "round_4.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())

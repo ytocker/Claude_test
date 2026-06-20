@@ -1,12 +1,17 @@
-"""Round-3 review sheet for the production MANTIS SHRIMP skin.
+"""Round-4 review sheet for the production MANTIS SHRIMP skin (FINAL pass).
 
 One ship-ready design (the perfected v3 DUOTONE BRUISER), shown on BOTH a
-bright-day and a night backdrop. Each backdrop carries:
+bright-day and a night backdrop. Round 4 zeroes in on the last failure: the
+COCKED / level pose (the most common on-screen state) must read as TWO distinct
+orange fists at 40px, not one fist plus body striping. So this sheet leads with
+the cocked two-fist read and shows it large + at gameplay pixels.
+
+Each backdrop carries:
 
   * hero 130px (cocked/level + punch poses), and
   * the in-game truth test: 40px down-sampled then NEAREST-NEIGHBOR x3 so the
     honest gameplay-pixel silhouette is visible (smoothscale flatters tiny
-    detail that vanishes in motion).
+    detail that vanishes in motion). The cocked tile is shown x3 prominently.
 
 Day uses the flat-duotone build; night uses the glow build so the eye-jewel +
 club-tip night halos are reviewable in context. Headless (SDL dummy).
@@ -39,6 +44,7 @@ HEADER_H = 70
 HERO_PX = 130
 GAME_PX = 40
 MAG = 3
+MAG_BIG = 4
 
 CARD_W, CARD_H = 520, 470
 
@@ -77,9 +83,9 @@ F_NAME = pygame.font.SysFont("Arial", 20, bold=True)
 F_FEAT = pygame.font.SysFont("Arial", 13)
 F_TAG = pygame.font.SysFont("Arial", 12, bold=True)
 
-sheet.blit(F_TITLE.render("Skybit — MANTIS SHRIMP skin · Round 3 (DUOTONE BRUISER, final pass)", True, TEXT), (PAD, 14))
+sheet.blit(F_TITLE.render("Skybit — MANTIS SHRIMP skin · Round 4 (DUOTONE BRUISER, FINAL)", True, TEXT), (PAD, 14))
 sheet.blit(F_SUB.render(
-    "Separated twin clubs · lead haymaker crosses the snout on the punch · jewel periscopes + banded mid-stripe · night glow on eyes+club-tips only.",
+    "TWO distinct orange fists in the cocked/level pose · rear fist parked low+back with a sky gap · tightened night club-tip halo · punch geometry frozen.",
     True, SUB), (PAD, 46))
 
 
@@ -131,30 +137,42 @@ def _card(cx, cy, title, getter, day):
     hero_punch = smooth(getter, 3, 0, HERO_PX)      # haymaker thrown
     sheet.blit(hero_cock, hero_cock.get_rect(center=(hero_panel.centerx, hero_panel.y + 110)))
     sheet.blit(hero_punch, hero_punch.get_rect(center=(hero_panel.centerx, hero_panel.y + 300)))
-    sheet.blit(F_TAG.render("130px  COCKED / level", True, tag_col), (hero_panel.x + 8, hero_panel.y + 6))
-    sheet.blit(F_TAG.render("130px  PUNCH (crosses snout)", True, tag_col), (hero_panel.x + 8, hero_panel.centery + 80))
+    sheet.blit(F_TAG.render("130px  COCKED / level  (two fists)", True, tag_col), (hero_panel.x + 8, hero_panel.y + 6))
+    sheet.blit(F_TAG.render("130px  PUNCH (frozen geometry)", True, tag_col), (hero_panel.x + 8, hero_panel.centery + 80))
 
-    # Game panel (right): 40px smooth (top) + NEAREST x3 truth (bottom).
+    # Game panel (right): the COCKED two-fist read up top (the failure we fixed),
+    # at 40px NEAREST x4 — large — plus the punch/dive truth tiles below.
     game_panel = pygame.Rect(cx + 278, cy + 46, CARD_W - 278 - 16, 408)
     pygame.draw.rect(sheet, GAME_PANEL, game_panel, border_radius=10)
 
-    g_cock = smooth(getter, 0, 0, GAME_PX)
-    g_dive = smooth(getter, 3, -32, GAME_PX)
-    sheet.blit(g_cock, g_cock.get_rect(center=(game_panel.x + 56, game_panel.y + 44)))
-    sheet.blit(g_dive, g_dive.get_rect(center=(game_panel.x + 148, game_panel.y + 44)))
-    sheet.blit(F_TAG.render("40px smooth (cock / punch+dive)", True, SUB), (game_panel.x + 10, game_panel.y + 86))
+    sheet.blit(F_TAG.render("COCKED — 40px NEAREST x4  (read TWO fists)", True, (210, 200, 150)),
+               (game_panel.x + 10, game_panel.y + 8))
+    n_cock_big = nearest40(getter, 0, 0, MAG_BIG)
+    sheet.blit(n_cock_big, n_cock_big.get_rect(center=(game_panel.centerx, game_panel.y + 110)))
 
+    sheet.blit(F_TAG.render("40px smooth — cock / punch / dive", True, SUB),
+               (game_panel.x + 10, game_panel.y + 196))
+    g_cock = smooth(getter, 0, 0, GAME_PX)
+    g_punch = smooth(getter, 3, 0, GAME_PX)
+    g_dive = smooth(getter, 3, -32, GAME_PX)
+    sheet.blit(g_cock, g_cock.get_rect(center=(game_panel.x + 44, game_panel.y + 246)))
+    sheet.blit(g_punch, g_punch.get_rect(center=(game_panel.x + 110, game_panel.y + 246)))
+    sheet.blit(g_dive, g_dive.get_rect(center=(game_panel.x + 176, game_panel.y + 246)))
+
+    sheet.blit(F_TAG.render("40px NEAREST x3 — cock / punch / dive", True, (210, 200, 150)),
+               (game_panel.x + 10, game_panel.bottom - 92))
     n_cock = nearest40(getter, 0, 0, MAG)
+    n_punch = nearest40(getter, 3, 0, MAG)
     n_dive = nearest40(getter, 3, -32, MAG)
-    sheet.blit(n_cock, n_cock.get_rect(center=(game_panel.x + 60, game_panel.y + 250)))
-    sheet.blit(n_dive, n_dive.get_rect(center=(game_panel.x + 168, game_panel.y + 250)))
-    sheet.blit(F_TAG.render("40px NEAREST x3  (cock / punch+dive)", True, (210, 200, 150)),
-               (game_panel.x + 10, game_panel.bottom - 22))
+    yb = game_panel.bottom - 46
+    sheet.blit(n_cock, n_cock.get_rect(center=(game_panel.x + 48, yb)))
+    sheet.blit(n_punch, n_punch.get_rect(center=(game_panel.x + 124, yb)))
+    sheet.blit(n_dive, n_dive.get_rect(center=(game_panel.x + 200, yb)))
 
 
 _card(PAD, HEADER_H + PAD, "BRIGHT DAY  ·  flat duotone", DAY, day=True)
 _card(PAD + CARD_W + PAD, HEADER_H + PAD, "NIGHT  ·  glow on eyes + club-tips", NIGHT, day=False)
 
-out_path = os.path.join(_here, "round_3.png")
+out_path = os.path.join(_here, "round_4.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())

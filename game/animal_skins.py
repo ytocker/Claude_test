@@ -902,3 +902,19 @@ BUILDERS = {
     "skin_dragon":   get_dragon,     # premium gacha showpiece
     "skin_phoenix":  get_phoenix,    # premium gacha showpiece
 }
+
+
+# The v5 creature wave (axolotl … kitsune) lives one-module-per-creature so each
+# creature's private helpers and palette constants stay in their own namespace —
+# concatenating them into this file would collide (shared names like RIM, FUR,
+# _star, _strike). Merge only each module's canonical "skin_<id>" getter; their
+# exploration alt-builds are intentionally left unregistered.
+for _modname in (
+    "animal_axolotl", "animal_pufferfish", "animal_chameleon",
+    "animal_red_panda", "animal_sugar_glider", "animal_mantis_shrimp",
+    "animal_griffin", "animal_thunderbird", "animal_cosmic_jelly",
+    "animal_aurora_stag", "animal_kitsune",
+):
+    _mod = __import__("game." + _modname, fromlist=["BUILDERS"])
+    BUILDERS.update({k: v for k, v in _mod.BUILDERS.items()
+                     if k.startswith("skin_")})

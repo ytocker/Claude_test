@@ -1,13 +1,16 @@
-"""Round-3 review sheet for the single production AXOLOTL skin.
+"""Round-4 review sheet for the single production AXOLOTL skin.
 
-Round 1 was a 5-up exploration; rounds 2–3 proof ONE converged design hard,
-the way the art-director asked:
+Round 1 was a 5-up exploration; rounds 2–4 proof ONE converged design hard,
+the way the art-director asked. Round 4 is the FINAL pass and targets the one
+remaining failure: the DIVE-pose gill crown collapsing into a solid coral
+paddle. So this sheet leads with a big zoomed DIVE crown on day AND night —
+the read that had to be fixed — before the standard proof rows:
 
-  * HERO 130px on a white field FIRST (the rim must survive near-white-on-pale),
-    then on the real in-game bright-day and night skies.
-  * 40px NEAREST x3 of BOTH the level pose AND the dive pose, on bright-day AND
-    night backdrops — the honest gameplay-pixel read.
-  * a down-pose vs up-pose strip so the crown's tight→bloom pulse is checkable.
+  * a PROMINENT DIVE-crown zoom (40px NEAREST x6) on DAY and NIGHT skies first,
+    so "five distinct fronds, five sky-gaps" is checkable at a glance.
+  * HERO 130px on a white field, then on the real in-game bright-day / night.
+  * 40px NEAREST x3 of BOTH the level pose AND the dive pose, on day AND night.
+  * a down-pose vs up-pose strip so the crown's tight→bloom pulse still reads.
 
 Sky colours are lifted from game/biome.py keyframes (DAY phase 0.0, NIGHT phase
 0.64) so "bright-day AND night" means the actual shipped skies, not a guess.
@@ -43,6 +46,7 @@ WHITE_TOP, WHITE_BOT = (252, 252, 255), (236, 240, 248)  # pale stress field
 GAME_PX = 40
 MAG = 5
 HERO_PX = 130
+DIVE_FRAME, DIVE_TILT = 1, -32       # the pose the fix targets
 
 INK = (236, 232, 244)
 SUB = (176, 164, 198)
@@ -93,25 +97,46 @@ def nearest(frame_idx, tilt, px, mag):
 
 
 # ── layout ───────────────────────────────────────────────────────────────────
-W, H = 1180, 760
+W, H = 1180, 940
 sheet = pygame.Surface((W, H))
 _grad(sheet, sheet.get_rect(), (26, 22, 38), (42, 28, 50))
 
-sheet.blit(F_TITLE.render("Skybit — AXOLOTL Store Skin · Round 3 (production build)",
+sheet.blit(F_TITLE.render("Skybit — AXOLOTL Store Skin · Round 4 (FINAL pass)",
                           True, INK), (24, 16))
 sheet.blit(F_SUB.render(
-    "skin_axolotl · leucistic antler-crown · 1px #A03A5E rim · 5-fork crown (3/2) · 3-dot face."
-    "  Crown bloom capped ~98°; tines 2px full-length; dive face = 3 dots.", True, SUB), (24, 48))
+    "skin_axolotl · leucistic antler-crown · the fix: DIVE crown re-gapped — tapered 3px→1px tips, "
+    "46°→100° splay (was 30°→98°), wider outer forks. Reads as 5 distinct fronds, not a paddle.",
+    True, SUB), (24, 48))
+
+# ── row 0 (the fix): big DIVE crown zoom on DAY and NIGHT ─────────────────────
+fix_y = 78
+sheet.blit(F_H.render("THE FIX — DIVE crown at 40px NEAREST x6 (five distinct fronds · five sky-gaps)",
+                      True, INK), (24, fix_y))
+dive_y = fix_y + 26
+dive_w = 574
+for i, (label, top, bot, starseed) in enumerate((
+        ("in-game DAY sky", DAY_TOP, DAY_BOT, None),
+        ("in-game NIGHT sky", NIGHT_TOP, NIGHT_BOT, 31))):
+    px = 24 + i * (dive_w + 8)
+    panel = pygame.Rect(px, dive_y, dive_w, 250)
+    _grad(sheet, panel, top, bot)
+    if starseed is not None:
+        _stars(sheet, panel, starseed)
+    pygame.draw.rect(sheet, PANEL_EDGE, panel, 1, border_radius=8)
+    lab_col = (235, 240, 250) if i == 1 else (40, 44, 64)
+    sheet.blit(F_TAG.render(label, True, lab_col), (panel.x + 8, panel.y + 6))
+    big = nearest(DIVE_FRAME, DIVE_TILT, GAME_PX, 6)
+    sheet.blit(big, big.get_rect(center=panel.center))
 
 # ── row 1: hero on WHITE | DAY | NIGHT ───────────────────────────────────────
-hero_y = 78
+hero_y = dive_y + 270
 hero_w = 360
 for i, (label, top, bot, starseed) in enumerate((
         ("HERO 130px · WHITE stress field", WHITE_TOP, WHITE_BOT, None),
         ("HERO 130px · in-game DAY sky", DAY_TOP, DAY_BOT, None),
         ("HERO 130px · in-game NIGHT sky", NIGHT_TOP, NIGHT_BOT, 11))):
     px = 24 + i * (hero_w + 8)
-    panel = pygame.Rect(px, hero_y, hero_w, 210)
+    panel = pygame.Rect(px, hero_y, hero_w, 190)
     _grad(sheet, panel, top, bot)
     if starseed is not None:
         _stars(sheet, panel, starseed)
@@ -121,8 +146,8 @@ for i, (label, top, bot, starseed) in enumerate((
     lab_col = (40, 44, 64) if i == 0 else (235, 240, 250)
     sheet.blit(F_TAG.render(label, True, lab_col), (panel.x + 8, panel.y + 6))
 
-# ── row 2: 40px NEAREST x3 — level + dive, on DAY and NIGHT ───────────────────
-mag_y = hero_y + 230
+# ── row 2: 40px NEAREST x5 — level + dive, on DAY and NIGHT ───────────────────
+mag_y = hero_y + 210
 sheet.blit(F_H.render("40px gameplay read — NEAREST x5 (level + dive)", True, INK),
            (24, mag_y))
 strip_y = mag_y + 26
@@ -131,7 +156,7 @@ for i, (label, top, bot, starseed) in enumerate((
         ("in-game DAY sky", DAY_TOP, DAY_BOT, None),
         ("in-game NIGHT sky", NIGHT_TOP, NIGHT_BOT, 23))):
     px = 24 + i * (strip_w + 8)
-    panel = pygame.Rect(px, strip_y, strip_w, 200)
+    panel = pygame.Rect(px, strip_y, strip_w, 178)
     _grad(sheet, panel, top, bot)
     if starseed is not None:
         _stars(sheet, panel, starseed)
@@ -140,14 +165,14 @@ for i, (label, top, bot, starseed) in enumerate((
     sheet.blit(F_TAG.render(label, True, lab_col), (panel.x + 8, panel.y + 6))
     n_level = nearest(2, 0, GAME_PX, MAG)
     sheet.blit(n_level, n_level.get_rect(center=(panel.x + 150, panel.centery + 6)))
-    n_dive = nearest(1, -32, GAME_PX, MAG)
+    n_dive = nearest(DIVE_FRAME, DIVE_TILT, GAME_PX, MAG)
     sheet.blit(n_dive, n_dive.get_rect(center=(panel.x + 410, panel.centery + 6)))
     sheet.blit(F_TAG.render("LEVEL", True, lab_col), (panel.x + 122, panel.bottom - 22))
     sheet.blit(F_TAG.render("DIVE", True, lab_col), (panel.x + 388, panel.bottom - 22))
 
 # ── row 3: pulse strip — down-pose (tight) vs up-pose (bloom) at 40px x5 ──────
-pulse_y = strip_y + 220
-sheet.blit(F_H.render("Crown pulse — down-pose (tight ~30°) → up-pose (bloom ~98° capped)",
+pulse_y = strip_y + 198
+sheet.blit(F_H.render("Crown pulse — down-pose (tight ~46°) → up-pose (bloom ~100° capped)",
                       True, INK), (24, pulse_y))
 ppanel = pygame.Rect(24, pulse_y + 26, W - 48, 96)
 _grad(sheet, ppanel, (60, 52, 78), (40, 34, 56))
@@ -164,6 +189,6 @@ hu = smooth(3, 0, 86)
 sheet.blit(hd, hd.get_rect(center=(ppanel.right - 150, ppanel.centery)))
 sheet.blit(hu, hu.get_rect(center=(ppanel.right - 60, ppanel.centery)))
 
-out_path = os.path.join(_here, "round_3.png")
+out_path = os.path.join(_here, "round_4.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())
