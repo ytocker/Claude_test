@@ -24,22 +24,28 @@ pygame.display.set_mode((360, 640))
 from game.world import World, CLOWN_EVENT_PHASE  # noqa: E402
 from game.clown_routes import build_clown_route  # noqa: E402
 from game.config import (  # noqa: E402
-    CLOWN_SLOT_PILLARS, CLOWN_WARREN_SPACING, CLOWN_ROLL_MIN, CLOWN_ROLL_MAX)
+    CLOWN_SLOT_PILLARS, CLOWN_WARREN_SPACING, CLOWN_ROLL_MIN, CLOWN_ROLL_MAX,
+    CLOWN_LEADIN_PILLARS, CLOWN_OUTRO_PILLARS)
 from game.biome import CYCLE_SECONDS  # noqa: E402
 
 
 class SlotReservation(unittest.TestCase):
     def _lay_slot(self, n):
+        """Lay the reserved slot by hand: drive _spawn_pipe directly with the
+        slot pre-armed (no lead-in here — that's armed at the live trigger).
+        Loops past the slot width by CLOWN_OUTRO_PILLARS, since the outro
+        empties (armed on the last warren tower) take spawn slots WITHOUT
+        draining the reserved count."""
         w = World()
         w._clown_route = build_clown_route(n, random.Random(0))
         w._clown_slot_remaining = CLOWN_SLOT_PILLARS
-        rows = []  # (is_staff, is_rush, spacing-for-this-pillar)
+        rows = []  # (is_staff, is_phantom, is_rush, spacing-for-this-pillar)
         x = 500.0
-        for _ in range(CLOWN_SLOT_PILLARS):
+        for _ in range(CLOWN_SLOT_PILLARS + CLOWN_OUTRO_PILLARS):
             sp = w._next_spacing()
             w._spawn_pipe(x)
             p = w.pipes[-1]
-            rows.append((getattr(p, "is_staff", False),
+            rows.append((getattr(p, "is_staff", False), p.is_phantom,
                          getattr(p, "is_rush", False), sp))
             x += sp
         return w, rows
@@ -47,19 +53,31 @@ class SlotReservation(unittest.TestCase):
     def test_short_roll_fills_to_slot_width(self):
         n = 14
         w, rows = self._lay_slot(n)
-        staff = [s for s, _, _ in rows]
-        self.assertEqual(staff, [True] * n + [False] * (CLOWN_SLOT_PILLARS - n),
-                         "first N pillars warren, the rest regular fill")
+        staff = [s for s, _ph, _r, _sp in rows]
+        phantom = [ph for _s, ph, _r, _sp in rows]
+        # n warren towers, then the outro empties, then the regular-fill tail
+        # padding the warren run to the fixed slot width.
         self.assertEqual(sum(staff), n)
+        self.assertEqual(staff[:n], [True] * n, "first N pillars are warren")
+        self.assertEqual(phantom[n:n + CLOWN_OUTRO_PILLARS],
+                         [True] * CLOWN_OUTRO_PILLARS,
+                         "outro empties immediately follow the gauntlet")
+        fill = rows[n + CLOWN_OUTRO_PILLARS:]
+        self.assertEqual(len(fill), CLOWN_SLOT_PILLARS - n,
+                         "fill pads the warren run to the fixed slot width")
+        self.assertTrue(all(not s and not ph for s, ph, _r, _sp in fill),
+                        "fill pillars are normal (not warren, not phantom)")
         self.assertEqual(w._clown_slot_remaining, 0, "slot fully consumed")
 
     def test_warren_uses_fused_spacing(self):
         n = 12
         _w, rows = self._lay_slot(n)
-        self.assertTrue(all(sp == CLOWN_WARREN_SPACING for _, _, sp in rows[:n]),
+        self.assertTrue(all(sp == CLOWN_WARREN_SPACING
+                            for _s, _ph, _r, sp in rows[:n]),
                         "warren pillars sit at the fused spacing")
-        self.assertTrue(all(sp != CLOWN_WARREN_SPACING for _, _, sp in rows[n:]),
-                        "regular-fill pillars use the normal spacing")
+        self.assertTrue(all(sp != CLOWN_WARREN_SPACING
+                            for _s, _ph, _r, sp in rows[n:]),
+                        "outro empties + regular fill use the normal spacing")
 
     def test_warren_on_screen_spacing_is_not_inflated(self):
         """Drive the real update() spawn loop (not the manual _lay_slot lay-out)
@@ -95,14 +113,92 @@ class SlotReservation(unittest.TestCase):
 
     def test_coin_rush_suppressed_in_slot(self):
         _w, rows = self._lay_slot(CLOWN_ROLL_MAX)
-        self.assertFalse(any(r for _, r, _ in rows),
+        self.assertFalse(any(r for _s, _ph, r, _sp in rows),
                          "no coin rush anywhere inside the clown slot")
 
     def test_full_roll_is_all_warren(self):
         n = CLOWN_ROLL_MAX
         _w, rows = self._lay_slot(n)
-        self.assertTrue(all(s for s, _, _ in rows),
-                        "a max roll fills the slot entirely with warren towers")
+        staff = [s for s, _ph, _r, _sp in rows]
+        self.assertEqual(sum(staff), n,
+                         "a max roll fills the slot entirely with warren towers")
+        self.assertTrue(all(staff[:n]), "first N (= slot width) are all warren")
+        # The only trailing pillars are the outro empties.
+        self.assertTrue(all(ph for _s, ph, _r, _sp in rows[n:]),
+                        "the only pillars after the gauntlet are outro empties")
+
+    def test_relief_empties_bracket_the_gauntlet(self):
+        """Drive the live event end-to-end and assert the gauntlet is bracketed
+        by exactly CLOWN_LEADIN_PILLARS empty (phantom) pillars before the first
+        staff tower and CLOWN_OUTRO_PILLARS after the last — HIDING existing
+        pillars (the gauntlet keeps its full length), not adding any. Phantoms
+        never score."""
+        from game.entities import Pipe
+        from game.clown_event import ClownEvent
+        orig_collide = Pipe.collides_circle
+        orig_spawn = World._spawn_pipe
+        Pipe.collides_circle = lambda *a, **k: False  # never die → spawns flow
+        # Record the spawn-ORDERED type from inside _spawn_pipe — tracking pipes
+        # by id() in self.pipes undercounts, since CPython reuses an id once a
+        # culled pipe is freed.
+        seq = []  # "staff" / "phantom" / "normal"
+
+        def _hook(self, x):
+            n0 = len(self.pipes)
+            orig_spawn(self, x)
+            if len(self.pipes) > n0:
+                p = self.pipes[-1]
+                seq.append("staff" if getattr(p, "is_staff", False)
+                           else ("phantom" if p.is_phantom else "normal"))
+        World._spawn_pipe = _hook
+        try:
+            w = World()
+            w.ready_t = 0.0
+            w.bird.alive = True
+            w.game_over = False
+            w.pillars_passed = 40          # past the newbie ramp → full scroll
+            w.flap()
+            # Reserve a full gauntlet via the real reveal path + arm the lead-in
+            # exactly as the live trigger does.
+            ev = ClownEvent()
+            w.clown_event = ev
+            ev.collected = True
+            ev.ghost_run = False
+            ev.roll = CLOWN_ROLL_MAX
+            ev.spin_t = 0.0
+            ev.phase = "rolling"
+            ev._reveal(w)
+            w._clown_leadin_remaining = CLOWN_LEADIN_PILLARS
+            for _ in range(60 * 30):
+                w.bird.y = 300.0
+                w.bird.vy = 0.0
+                w.update(1 / 60.0)
+                # Phantoms must never score (the relief slots are "not there").
+                self.assertFalse(any(p.is_phantom and p.scored for p in w.pipes),
+                                 "a relief empty must never award a point")
+        finally:
+            Pipe.collides_circle = orig_collide
+            World._spawn_pipe = orig_spawn
+        staff = [i for i, t in enumerate(seq) if t == "staff"]
+        self.assertEqual(len(staff), CLOWN_ROLL_MAX,
+                         "the full gauntlet still spawns (length not capped)")
+        first, last = staff[0], staff[-1]
+        lead = 0
+        for t in reversed(seq[:first]):
+            if t == "phantom":
+                lead += 1
+            else:
+                break
+        out = 0
+        for t in seq[last + 1:]:
+            if t == "phantom":
+                out += 1
+            else:
+                break
+        self.assertEqual(lead, CLOWN_LEADIN_PILLARS,
+                         "lead-in empties immediately precede the gauntlet")
+        self.assertEqual(out, CLOWN_OUTRO_PILLARS,
+                         "outro empties immediately follow the gauntlet")
 
 
 class Trigger(unittest.TestCase):

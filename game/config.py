@@ -228,6 +228,15 @@ CLOWN_ROLL_MAX        = 25
 CLOWN_WARREN_SPACING  = 72          # fused centre-to-centre spacing (vs PIPE_SPACING)
 CLOWN_WARREN_GAP      = 172         # per-pillar gap height inside the gauntlet
 
+# Relief "empties" bracketing the gauntlet: a short clear-sky stretch as the
+# clown appears (draws attention to the incoming event) and another right after
+# the gauntlet ends (breather). These HIDE existing pillars (spawned as phantom:
+# invisible / non-colliding / non-scoring) rather than adding any, so they take a
+# spawn slot a normal pillar would and shift NOTHING downstream — rain stays
+# anchored at RAIN_START_PILLAR. The gauntlet keeps its full CLOWN_ROLL range.
+CLOWN_LEADIN_PILLARS  = 2           # empty pillars as the clown enters
+CLOWN_OUTRO_PILLARS   = 2           # empty pillars right after the gauntlet
+
 # Inserting the slot + buffer pushes the rain block (and everything after it)
 # this many pillars later than the pre-clown anchor. The biome DAY phase is
 # lengthened by the matching run-time (DAY_EXTRA_SECONDS) so each later event

@@ -29,6 +29,7 @@ from game.config import (
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
     SECRET_POWERUP_WEIGHTS, DEBUG_GENIE_PILLAR,
     CLOWN_START_PILLAR, CLOWN_SLOT_PILLARS, CLOWN_WARREN_SPACING,
+    CLOWN_LEADIN_PILLARS, CLOWN_OUTRO_PILLARS,
     GENIE_OFFER_COUNT, GENIE_OFFER_Y_SLOTS,
     GENIE_CHAMBER_GAP_BOOST, GENIE_CHAMBER_SPACING,
     GENIE_CHAMBER_REVEAL_DIST,
@@ -286,6 +287,11 @@ class World:
         self._clown_slot_remaining = 0
         self._clown_route = []
         self._clown_fired_this_cycle = False
+        # Relief empties bracketing the gauntlet (spawned as phantom pillars):
+        # lead-in armed when the clown enters, outro armed on the last warren
+        # tower. Both take precedence over the slot in _spawn_pipe.
+        self._clown_leadin_remaining = 0
+        self._clown_outro_remaining = 0
         # The cinematic controller (clown walk-in + die roll); set when the clown
         # phase is crossed, reserves the gauntlet on the die roll, then clears.
         self.clown_event = None
@@ -443,8 +449,12 @@ class World:
 
     def _next_spacing(self):
         """Spacing for the NEXT pillar to spawn. During the clown slot the
-        warren towers sit at the tight fused spacing; everything else (incl.
-        the slot's regular-fill tail) uses the normal ramped spacing."""
+        warren towers sit at the tight fused spacing; everything else (the
+        relief empties, the slot's regular-fill tail, normal play) uses the
+        normal ramped spacing."""
+        # Relief empties are normal-spaced clear-sky gaps, not warren towers.
+        if self._clown_leadin_remaining > 0 or self._clown_outro_remaining > 0:
+            return self._current_spacing()
         if self._clown_slot_remaining > 0:
             idx = CLOWN_SLOT_PILLARS - self._clown_slot_remaining
             if idx < len(self._clown_route):
@@ -716,12 +726,39 @@ class World:
             self._spawn_pipe(x)
             x += spacing
 
+    def _spawn_phantom_relief(self, x):
+        """A clear-sky relief slot bracketing the clown gauntlet: an invisible,
+        non-colliding, non-scoring phantom pillar that still scrolls and consumes
+        a spawn slot, so it HIDES a pillar without shifting the timeline (same
+        device as the cycle-finale phantoms). Gap geometry is inert (never drawn
+        or collided)."""
+        p = Pipe(x, GROUND_Y * 0.5, int(self._current_gap()))
+        p.is_phantom = True
+        p.spawn_index = self.pipes_spawned - 1
+        self.pipes.append(p)
+
     def _spawn_pipe(self, x):
         gap_h = self._current_gap()
         # Every Nth pipe is a "coin rush": wider gap + dense coin arc, no
         # power-up. The visual announcement fires below.
         self.pipes_spawned += 1
         is_rush = (self.pipes_spawned % COIN_RUSH_INTERVAL == 0)
+        # ── Clown relief empties ────────────────────────────────────────────
+        # Two short clear-sky stretches bracket the gauntlet: a lead-in armed
+        # when the clown enters (the field is clear as it appears, drawing the
+        # eye) and an outro armed on the last warren tower (a breather). They
+        # spawn as phantom pillars — invisible / non-colliding / non-scoring —
+        # each taking a normal spawn slot, so they HIDE pillars without shifting
+        # the timeline. Checked before the slot so they always bracket the warren
+        # run even if the die rolled quickly.
+        if self._clown_leadin_remaining > 0:
+            self._clown_leadin_remaining -= 1
+            self._spawn_phantom_relief(x)
+            return
+        if self._clown_outro_remaining > 0:
+            self._clown_outro_remaining -= 1
+            self._spawn_phantom_relief(x)
+            return
         # ── Clown event slot ───────────────────────────────────────────────
         # While the held slot is active, the first len(route) pillars are the
         # warren gauntlet (tight is_staff towers on the rolled route, scoring +
@@ -739,6 +776,9 @@ class World:
                 p.spawn_index = self.pipes_spawned - 1
                 p.is_staff = True
                 self.pipes.append(p)
+                # Last warren tower → arm the post-gauntlet relief breather.
+                if idx == len(self._clown_route) - 1:
+                    self._clown_outro_remaining = CLOWN_OUTRO_PILLARS
                 return
             # else: regular-fill pillar — fall through to normal spawning.
         # Cycle-finale: while a finale is queued (5 pillars after the
@@ -1471,6 +1511,8 @@ class World:
                 and self._last_biome_phase < CLOWN_EVENT_PHASE <= _new_phase):
             self._clown_fired_this_cycle = True
             self.clown_event = ClownEvent()
+            # Clear the field as the clown enters (lead-in relief empties).
+            self._clown_leadin_remaining = CLOWN_LEADIN_PILLARS
         if self.clown_event is not None:
             self.clown_event.update(self, sdt)
             if self.clown_event.done:
@@ -1634,7 +1676,9 @@ class World:
                 # invisible at the wide normal spacing yet nearly DOUBLES the
                 # 72px warren gap (→133px). So warren towers instead trigger off
                 # the off-screen spawn line, entering at the exact fused spacing.
-                warren_next = (self._clown_slot_remaining > 0
+                warren_next = (self._clown_leadin_remaining == 0
+                               and self._clown_outro_remaining == 0
+                               and self._clown_slot_remaining > 0
                                and (CLOWN_SLOT_PILLARS - self._clown_slot_remaining)
                                < len(self._clown_route))
                 if not self.pipes:
