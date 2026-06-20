@@ -57,7 +57,16 @@ CATALOG: dict[str, dict] = {
     "skin_cockatoo":  {"name": "COCKATOO",    "cost": 520, "kind": "skin", "group": "parrot"},
     "skin_lorikeet":  {"name": "LORIKEET",    "cost": 600, "kind": "skin", "group": "parrot"},
 
-    # ── ANIMALS (from-scratch creatures) — populated by the design loop. ───────
+    # ── ANIMALS (from-scratch creatures) ──────────────────────────────────────
+    "skin_bee":      {"name": "BEE",       "cost": 400,  "kind": "skin", "group": "animal"},
+    "skin_owl":      {"name": "OWL",       "cost": 480,  "kind": "skin", "group": "animal"},
+    "skin_toucan":   {"name": "TOUCAN",    "cost": 480,  "kind": "skin", "group": "animal"},
+    "skin_penguin":  {"name": "PENGUIN",   "cost": 520,  "kind": "skin", "group": "animal"},
+    "skin_bat":      {"name": "BAT",       "cost": 520,  "kind": "skin", "group": "animal"},
+    "skin_flamingo": {"name": "FLAMINGO",  "cost": 560,  "kind": "skin", "group": "animal"},
+    "skin_eagle":    {"name": "EAGLE",     "cost": 700,  "kind": "skin", "group": "animal"},
+    "skin_dragon":   {"name": "DRAGON",    "cost": 1200, "kind": "skin", "group": "animal"},
+    "skin_phoenix":  {"name": "PHOENIX",   "cost": 1500, "kind": "skin", "group": "animal"},
 }
 
 
