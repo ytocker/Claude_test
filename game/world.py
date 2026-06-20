@@ -45,6 +45,7 @@ from game.config import (
     CYCLE_FINALE_PHASE_HI, CYCLE_FINALE_PHASE_LO,
     WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP, WEATHER_PIP_SHIVER_AMP,
     WEATHER_FLAP_DAMPEN_MAX, WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
+    STORM_JOLT_RAIN_MIN,
     THERMAL_SPAWN_THRESHOLD, THERMAL_SPAWN_CHANCE_MAX,
     GEYSER_MAX_CONCURRENT,
     ROCK_SPAWN_THRESHOLD, ROCK_PER_PILLAR_MAX, ROCK_RING_COUNT,
@@ -511,7 +512,7 @@ class World:
         # to lose. Kicks off a ~4.4 s buildup of telegraph bolts → the strike.
         if self._storm_jolt_lockout > 0:
             self._storm_jolt_lockout = max(0.0, self._storm_jolt_lockout - dt)
-        elif (ri > 0.85
+        elif (ri > STORM_JOLT_RAIN_MIN
               and self.score > 0
               and not self.game_over
               and self.ready_t <= 0

@@ -336,6 +336,12 @@ WEATHER_COIN_SHAKE_AMP   = 4.0
 WEATHER_PIP_SHIVER_AMP   = 1.5
 WEATHER_FLAP_DAMPEN_MAX  = 0.18
 
+# Storm jolt: the bolt that actually STRIKES Pip and docks score (distinct
+# from the cosmetic background flashes). Only armed once rain intensity is at
+# or above this near-peak level, so the strike can only land in the heart of
+# the downpour — the exact pillar within that window is random.
+STORM_JOLT_RAIN_MIN      = 0.85
+
 # Tailwind event (predawn, phase ~0.85). Two effects scaled by
 # weather.wind_intensity(phase):
 #   - WEATHER_WIND_LEAN_AMP: max RIGHTWARD visual x-offset on

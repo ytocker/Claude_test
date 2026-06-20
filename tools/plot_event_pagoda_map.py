@@ -139,6 +139,25 @@ def main() -> None:
                 textcoords="offset points", xytext=(6, 26),
                 ha="center", fontsize=7.5, color="#2f6fb0", fontweight="bold")
 
+    # ── storm-jolt strike zone — the bolt that actually HITS Pip and docks
+    # score (distinct from the cosmetic flash window above). Armed only where
+    # rain ≥ STORM_JOLT_RAIN_MIN, so the strike can land anywhere in this band;
+    # the exact pillar is random. Marked at the band centre. ─────────────────
+    jolt = [pillars[i] for i in range(len(pillars))
+            if weather.rain_intensity(phases[i]) >= config.STORM_JOLT_RAIN_MIN]
+    if jolt:
+        jlo, jhi = min(jolt), max(jolt)
+        ax.axvspan(jlo, jhi, facecolor="#d62828", alpha=0.16, linewidth=0,
+                   hatch="xx", edgecolor="#d62828",
+                   label="Lightning strikes Pip (storm jolt, −score)")
+        jmid = (jlo + jhi) / 2
+        ax.plot([jmid], [1.0], marker=r"$⚡$", color="#d62828",
+                markersize=16, zorder=7, clip_on=False)
+        ax.annotate(f"⚡ strikes Pip\npillars {jlo}–{jhi}", (jmid, 1.0),
+                    textcoords="offset points", xytext=(0, 12), ha="center",
+                    fontsize=7.5, color="#a31515", fontweight="bold",
+                    clip_on=False)
+
     # ── newbie onboarding band — plateau then ramp, in pillars ───────────────
     ax.axvspan(0, config.PLATEAU_PIPES, color="#3ca34d", alpha=0.22,
                linewidth=0, label="Newbie plateau / ramp", zorder=0)
@@ -253,6 +272,11 @@ def main() -> None:
     print(f"  Clown event: held slot {config.CLOWN_START_PILLAR}"
           f"–{config.CLOWN_START_PILLAR + config.CLOWN_SLOT_PILLARS}, "
           f"then {config.CLOWN_TO_RAIN_BUFFER} regular → rain")
+    _jolt = [pillars[i] for i in range(len(pillars))
+             if weather.rain_intensity(phases[i]) >= config.STORM_JOLT_RAIN_MIN]
+    if _jolt:
+        print(f"  Lightning strikes Pip (storm jolt): pillars {min(_jolt)}"
+              f"–{max(_jolt)} (rain ≥ {config.STORM_JOLT_RAIN_MIN})")
 
 
 if __name__ == "__main__":
