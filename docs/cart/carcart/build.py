@@ -30,19 +30,23 @@ BCX, BCY = 32, 32 + DY          # dominant mass centre → (32, 44)
 
 
 # ── palette ──────────────────────────────────────────────────────────────────
-# Candy-red car body is the day hero; cabin glass + wheel keyline carry night.
-CAR_RED      = (226, 59, 59)        # #E23B3B candy-red body
+# Candy-red car body is the unambiguous day+night hero. The rear basket is a
+# small, WARM-DARK steel mass tuned to RECEDE so red leads the focal hierarchy
+# on both skies — only its bright top rail keyline punches forward.
+CAR_RED      = (230, 58, 58)        # #E63A3A candy-red body (a touch hotter)
 CAR_RED_D    = (156, 36, 36)        # #9C2424 shaded lower body / hood
-CAR_RED_HI   = (255, 132, 122)      # warm top-edge sheen on the body
+CAR_RED_HI   = (255, 138, 126)      # warm top-edge sheen on the body
 CABIN_GLASS  = (191, 228, 242)      # #BFE4F2 bubble-cabin glass
 CABIN_GLASS_D= (132, 186, 210)      # lower cabin glass (shaded)
-CABIN_GLINT  = (245, 252, 255)      # bright glass specular (carries at night)
-BASKET_STEEL = (159, 176, 190)      # #9FB0BE basket box
-BASKET_STEEL_D=(108, 126, 142)      # basket shade / underside
-BASKET_HI    = (214, 226, 234)      # basket top rail keyline
+CABIN_GLINT  = (250, 254, 255)      # bright glass specular (carries at night)
+# Warm-grey steel: nudged toward the red family + darkened so it sits BEHIND the
+# hero rather than out-weighing it. Smaller + dimmer = secondary mass.
+BASKET_STEEL = (132, 134, 142)      # #84868E muted warm steel (recedes)
+BASKET_STEEL_D=(86,  90,  100)      # basket shade / underside (dark)
+BASKET_HI    = (208, 220, 230)      # basket top rail keyline (the one bright bit)
 WHEEL_DARK   = (43, 49, 56)         # #2B3138 tyre
-WHEEL_KEY    = (244, 246, 248)      # #F4F6F8 rim keyline (carries both skies)
-HUB_RED      = (226, 59, 59)        # toy hubcap centre (echoes the body red)
+WHEEL_KEY    = (248, 250, 252)      # rim keyline (carries both skies, hot at night)
+HUB_RED      = (230, 58, 58)        # toy hubcap centre (echoes the body red)
 HEAD_OFF     = (120, 96, 40)        # headlight when unlit (dim amber bulb)
 HEAD_ON      = (255, 226, 120)      # headlight blink (lit on the squash)
 HEAD_ON_HOT  = (255, 250, 230)      # hot core of the lit headlight
@@ -79,17 +83,21 @@ def _phase(angle_deg):
     return int(round((50 - angle_deg) / 30.0)) % 4
 
 
-# The bounce: a kid pushing the toy down on its springs and rebounding.
+# The bounce: a kid pushing the toy down on its springs and rebounding. The
+# whole CAR body travels vertically against a FIXED ground gap, so the read is
+# a clear 4-beat compress→rebound — not a wobble. Width squash/stretch is pushed
+# to ~3-4px so the deformation is legible at 40px. The basket rides at a FIXED
+# height (it does NOT swing) so its mass never masquerades as wobble.
 #   phase 0  → neutral ride height
-#   phase 1  → SQUASH (body 2px shorter + wider, sits lower) → headlight BLINKS
-#   phase 2  → neutral
-#   phase 3  → STRETCH (body 2px taller + narrower, lifts up)
+#   phase 1  → SQUASH  (body shorter + wider, sits LOW into the springs) → blink
+#   phase 2  → neutral (rebounding up through ride height)
+#   phase 3  → STRETCH (body taller + narrower, LIFTS off the ground)
 # Each entry: (vertical squash px, horizontal stretch px, body drop px, lit?)
 _BOUNCE = {
-    0: (0,  0, 0, False),
-    1: (2,  2, 2, True),
-    2: (0,  0, 0, False),
-    3: (-2, -1, -1, False),
+    0: (0,  0,  0, False),
+    1: (3,  4,  4, True),
+    2: (0,  0,  0, False),
+    3: (-2, -3, -3, False),
 }
 
 
@@ -111,46 +119,52 @@ def build(wing_angle_deg):
     # Ground line the wheels sit on — fixed, so the bounce reads against it.
     ground_y = BCY + 17
 
-    # ── REAR BASKET (steel box riding HIGH at the back) ──────────────────────
-    # A small rectangular box, tapered like a real wire basket (wider at top),
-    # sitting up and behind the car. It does NOT bounce as hard as the car —
-    # half the drop — so the two stacked masses read as separate.
-    b_drop = drop // 2
-    bx = BCX + 6                       # basket centred to the rear-right
-    b_top = BCY - 16 + b_drop
-    b_bot = BCY + 4 + b_drop
-    b_top_w, b_bot_w = 18, 14          # tapered: wider rim than floor
+    # ── REAR BASKET (small wire box riding behind the cabin) ─────────────────
+    # A SMALL, UPRIGHT wire basket — cut ~35% from round 1 and squared off so it
+    # reads as a basket, not a back-tipped slab. It sits at a FIXED height (no
+    # swing) so its mass never reads as wobble, and its warm-dark steel recedes
+    # behind the candy-red hero. Only the bright top rail keyline punches.
+    bx = BCX + 8                       # basket tucked to the rear-right
+    b_top = BCY - 11                   # lower top than r1 — secondary, smaller
+    b_bot = BCY + 2                    # short box (13px tall vs r1's 20)
+    b_top_w, b_bot_w = 11, 9           # ~35% narrower; gentle taper (real basket)
     basket_pts = [
         (bx - b_top_w, b_top), (bx + b_top_w, b_top),
         (bx + b_bot_w, b_bot), (bx - b_bot_w, b_bot),
     ]
     pygame.draw.polygon(surf, BASKET_STEEL, basket_pts)
-    # shaded lower half of the box for volume
+    # dark underside band so the box has a floor and reads as an open container
     pygame.draw.polygon(surf, BASKET_STEEL_D, [
-        (bx - b_bot_w - 1, b_bot - 6), (bx + b_bot_w + 1, b_bot - 6),
+        (bx - b_bot_w - 1, b_bot - 3), (bx + b_bot_w + 1, b_bot - 3),
         (bx + b_bot_w, b_bot), (bx - b_bot_w, b_bot),
     ])
-    # wire-mesh hint: two vertical + one horizontal seam (cheap, reads at 40px)
-    for fx in (-9, 0, 9):
+    # WIRE-MESH cross-hatch: 3 verticals + 2 horizontals so the box reads as a
+    # mesh basket (not a solid slab) even at 40px.
+    mid_y = (b_top + b_bot) // 2
+    for fx in (-6, 0, 6):
         pygame.draw.line(surf, BASKET_STEEL_D,
-                         (bx + fx, b_top + 2), (bx + int(fx * 0.78), b_bot - 1), 1)
-    pygame.draw.line(surf, BASKET_STEEL_D,
-                     (bx - b_top_w + 2, (b_top + b_bot) // 2),
-                     (bx + b_top_w - 2, (b_top + b_bot) // 2), 1)
-    # bright top rail keyline — holds the basket rim against a dark night sky
+                         (bx + fx, b_top + 1),
+                         (bx + int(fx * 0.78), b_bot - 1), 1)
+    for hy in (mid_y - 3, mid_y + 2):
+        w = b_top_w - 1 if hy < mid_y else b_bot_w
+        pygame.draw.line(surf, BASKET_STEEL_D, (bx - w, hy), (bx + w, hy), 1)
+    # BRIGHT top rail keyline — the basket's single bright accent; holds the rim
+    # against any sky without letting the grey out-weigh the red.
     pygame.draw.line(surf, BASKET_HI,
                      (bx - b_top_w, b_top), (bx + b_top_w, b_top), 2)
-    # a short handle bar poking up off the back rail (the "you push here" tell)
+    # a short handle nub off the back rail at a FIXED angle (no swing → no fake
+    # wobble); just enough to say "push here" without adding grey mass.
     pygame.draw.line(surf, BASKET_STEEL_D,
-                     (bx + b_top_w - 1, b_top + 1), (bx + b_top_w + 4, b_top - 4), 3)
+                     (bx + b_top_w - 1, b_top), (bx + b_top_w + 3, b_top - 4), 2)
     pygame.draw.line(surf, BASKET_HI,
-                     (bx + b_top_w - 1, b_top), (bx + b_top_w + 4, b_top - 5), 1)
+                     (bx + b_top_w - 1, b_top - 1), (bx + b_top_w + 3, b_top - 5), 1)
 
     # ── CAR BODY (long low hood + tail, FRONT and LOW) ───────────────────────
     # The dominant mass, centred at (BCX,BCY). It carries the full bounce: a
-    # squash widens + shortens it and drops it toward the ground.
+    # squash widens + shortens it and drops it toward the ground. Lifted a hair
+    # vs r1 so a clean unbroken lower-centre RED shelf sits above Pip's parcel.
     cx = BCX - 6                       # car pushed forward (left = nose)
-    body_cy = BCY + 4 + drop
+    body_cy = BCY + 2 + drop           # lifted 2px → leaves room for the parcel
     half_w = 24 + st_h                 # long body; stretches wider on squash
     half_h = 9 - sq_v                  # low body; flattens on squash
     nose_x = cx - half_w               # front bumper (left)
@@ -159,10 +173,17 @@ def build(wing_angle_deg):
     # Long rounded car body — a capsule-ish hull: low, wide, rounded ends.
     body_rect = pygame.Rect(nose_x, body_cy - half_h, (tail_x - nose_x), half_h * 2)
     _rounded_rect(surf, CAR_RED, body_rect, half_h)
-    # Hood/lower shade — the bottom third in the darker red for a chunky toy look.
-    shade_rect = pygame.Rect(nose_x + 1, body_cy + half_h - 6,
-                             (tail_x - nose_x) - 2, 6)
-    _rounded_rect(surf, CAR_RED_D, shade_rect, 3)
+    # CLEAN lower-centre RED shelf: a solid red band runs the full width of the
+    # hull's underside in candy-red (NOT a dark shade) so the parcel composited
+    # just below reads as distinct cargo UNDER an unbroken red car, never fused.
+    shelf_rect = pygame.Rect(nose_x + 2, body_cy + half_h - 5,
+                             (tail_x - nose_x) - 4, 5)
+    _rounded_rect(surf, CAR_RED, shelf_rect, 2)
+    # a thin darker hairline ABOVE the shelf for a chunky-toy lower edge — kept
+    # off the very bottom so the shelf's silhouette stays a solid red block.
+    pygame.draw.line(surf, CAR_RED_D,
+                     (nose_x + 4, body_cy + half_h - 5),
+                     (tail_x - 5, body_cy + half_h - 5), 1)
     # Raised hood scoop at the nose (front of the toy car) — a small red bump.
     _aaellipse(surf, CAR_RED, (nose_x + 8, body_cy - half_h + 1), 8, 5)
     # warm top-edge sheen (a stripe of highlight along the upper hull)
@@ -172,10 +193,11 @@ def build(wing_angle_deg):
     # front bumper keyline so the nose reads as a hard chrome lip
     pygame.draw.line(surf, WHEEL_KEY,
                      (nose_x + 1, body_cy - 2), (nose_x + 1, body_cy + 4), 2)
-    # dark seam where the car body meets the basket behind it
+    # short dark seam where the car body meets the basket — kept high on the
+    # hull so it does NOT break the lower-centre red shelf.
     pygame.draw.line(surf, TRIM_DARK,
                      (cx + half_w - 8, body_cy - half_h),
-                     (cx + half_w - 8, body_cy + half_h), 2)
+                     (cx + half_w - 8, body_cy + half_h - 6), 2)
 
     # ── BUBBLE CABIN (rounded glass dome over the front of the car) ───────────
     # A clear half-bubble windshield — the "kid sits here" read. It rides on
