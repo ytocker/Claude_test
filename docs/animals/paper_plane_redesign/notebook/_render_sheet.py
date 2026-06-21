@@ -1,10 +1,11 @@
-"""Round-1 review sheet for the NOTEBOOK PAPER paper-plane redesign.
+"""Round-2 review sheet for the NOTEBOOK PAPER paper-plane redesign.
 
-Renders each of the 5 sub-takes at hero 130px AND at the in-game truth-test
-scale (40px, level + dive tilt) on BOTH a DAY and a NIGHT sky, plus a
-NEAREST-NEIGHBOR x3 magnification of those 40px reads so the true gameplay-pixel
+Single converged production build (`build_notebook`). Renders the hero at 130px
+plus the in-game truth-test scale (40px, level + dive tilt) on DAY sky, NIGHT
+sky, AND a DAY-GROUND / SANDSTONE-PILLAR case (the contrast trap from round 1),
+each with a NEAREST-NEIGHBOR x3 magnification so the true gameplay-pixel
 silhouette is honest (smoothscale flatters tiny detail that vanishes in motion).
-Headless (SDL dummy) so it runs in CI / on the build box.
+Backdrop colours are the real `game/biome.py` DAY phase. Headless (SDL dummy).
 """
 import os
 import sys
@@ -25,36 +26,25 @@ spec = importlib.util.spec_from_file_location(
 notebook_skins = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(notebook_skins)
 
-BUILDERS = notebook_skins.BUILDERS
-HERO_BUILDERS = notebook_skins.HERO_BUILDERS
-
-ORDER = [
-    ("skin_notebook_v1", "V1  CLASSIC RULED",
-     "straight blue rules + red KEEL margin · spiral holes"),
-    ("skin_notebook_v2", "V2  FOLD-FOLLOWING",
-     "rules bend along facets (3D) · red TOP-edge margin"),
-    ("skin_notebook_v3", "V3  CREAM + BIRO STAR",
-     "warm cream · bold rules · biro star doodle"),
-    ("skin_notebook_v4", "V4  GRADED A+",
-     "dense rules · red 'A+' scrawl · torn fringe"),
-    ("skin_notebook_v5", "V5  BOLD LOOSE-LEAF",
-     "2 heavy rules + bold margin (40px-first) · ring holes"),
-]
+getter = notebook_skins.get_notebook
 
 # ── layout ───────────────────────────────────────────────────────────────────
-COLS = 1
-CARD_W, CARD_H = 760, 210
 PAD = 16
-HEADER_H = 64
+HEADER_H = 70
 HERO_PX = 130
 GAME_PX = 40
 MAG = 3
 
-# Day sky (warm sunset stone) + night sky (deep indigo) — the two truth tests.
-DAY_TOP = (250, 214, 150)
-DAY_BOT = (236, 170, 120)
+# Real game/biome.py DAY phase colours.
+DAY_SKY_TOP = (90, 170, 230)         # sky_mid → bright cyan
+DAY_SKY_BOT = (170, 220, 245)        # sky_bot → pale near-white blue (the trap)
 NIGHT_TOP = (26, 28, 56)
 NIGHT_BOT = (42, 32, 64)
+STONE_LIGHT = (225, 195, 155)        # sunlit sandstone (warm — the off-white trap)
+STONE_MID = (175, 140, 105)
+STONE_DARK = (95, 70, 55)
+GROUND_TOP = (80, 200, 80)
+GROUND_MID = (40, 150, 40)
 
 SHEET_BG_T = (18, 19, 38)
 SHEET_BG_B = (34, 26, 50)
@@ -62,11 +52,14 @@ CARD_BG = (22, 23, 42)
 CARD_EDGE = (74, 78, 128)
 TEXT = (238, 240, 250)
 SUB = (158, 164, 196)
-PANEL_DAY = (244, 200, 150)
-PANEL_NIGHT = (20, 22, 44)
 
-SHEET_W = PAD + COLS * (CARD_W + PAD)
-SHEET_H = HEADER_H + PAD + len(ORDER) * (CARD_H + PAD)
+CARD_W = 760
+HERO_CARD_H = 200
+TRUTH_CARD_H = 196
+
+SHEET_W = PAD + CARD_W + PAD
+SHEET_H = (HEADER_H + PAD + HERO_CARD_H + PAD
+           + 3 * (TRUTH_CARD_H + PAD))
 
 sheet = pygame.Surface((SHEET_W, SHEET_H))
 for y in range(SHEET_H):
@@ -76,22 +69,22 @@ for y in range(SHEET_H):
     pygame.draw.line(sheet, col, (0, y), (SHEET_W, y))
 
 pygame.font.init()
-F_TITLE = pygame.font.SysFont("Arial", 28, bold=True)
+F_TITLE = pygame.font.SysFont("Arial", 26, bold=True)
 F_SUB = pygame.font.SysFont("Arial", 14)
 F_NAME = pygame.font.SysFont("Arial", 18, bold=True)
 F_FEAT = pygame.font.SysFont("Arial", 13)
 F_TAG = pygame.font.SysFont("Arial", 12, bold=True)
 
 sheet.blit(F_TITLE.render(
-    "Skybit — Paper Plane redesign · NOTEBOOK PAPER · Round 1", True, TEXT),
-    (PAD, 14))
+    "Skybit — Paper Plane · NOTEBOOK PAPER · Round 2 (ship build)", True, TEXT),
+    (PAD, 12))
 sheet.blit(F_SUB.render(
-    "HERO 130px · 40px level & dive · NEAREST-NEIGHBOR x3 (the honest gameplay "
-    "read) on DAY and NIGHT sky. Nose points RIGHT.",
-    True, SUB), (PAD, 44))
+    "V5 · BOLD LOOSE-LEAF converged. HERO 130px + 40px level/dive · "
+    "NEAREST x3 on DAY sky, NIGHT sky, and the real DAY-GROUND/SANDSTONE case.",
+    True, SUB), (PAD, 42))
 
 
-def _crop(getter, frame_idx, tilt):
+def _crop(frame_idx, tilt):
     s = getter(frame_idx, tilt)
     rect = s.get_bounding_rect()
     if rect.w == 0 or rect.h == 0:
@@ -99,8 +92,8 @@ def _crop(getter, frame_idx, tilt):
     return s.subsurface(rect).copy()
 
 
-def smooth(getter, frame_idx, tilt, target_px):
-    crop = _crop(getter, frame_idx, tilt)
+def smooth(frame_idx, tilt, target_px):
+    crop = _crop(frame_idx, tilt)
     longest = max(crop.get_width(), crop.get_height())
     f = target_px / longest
     return pygame.transform.smoothscale(
@@ -108,8 +101,8 @@ def smooth(getter, frame_idx, tilt, target_px):
                max(1, int(crop.get_height() * f))))
 
 
-def nearest40(getter, frame_idx, tilt, mag):
-    small = smooth(getter, frame_idx, tilt, GAME_PX)
+def nearest40(frame_idx, tilt, mag):
+    small = smooth(frame_idx, tilt, GAME_PX)
     return pygame.transform.scale(
         small, (small.get_width() * mag, small.get_height() * mag))
 
@@ -137,63 +130,106 @@ def _night_stars(rect, n, seed):
         pygame.draw.circle(sheet, (b, b, min(255, b + 30)), (sx, sy), 1)
 
 
-for idx, (key, name, feat) in enumerate(ORDER):
-    getter = BUILDERS[key]
-    hero_getter = HERO_BUILDERS[key]
-    cx = PAD
-    cy = HEADER_H + PAD + idx * (CARD_H + PAD)
+def _day_ground_panel(rect, radius=10):
+    """A real DAY-phase backdrop: pale-blue sky, a sandstone pillar column, and
+    a green ground band — the three surfaces the dart must hold contrast on."""
+    p = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+    horizon = int(rect.h * 0.72)
+    for y in range(rect.h):
+        if y < horizon:
+            t = y / max(1, horizon)
+            col = tuple(int(DAY_SKY_TOP[i] + (DAY_SKY_BOT[i] - DAY_SKY_TOP[i]) * t)
+                        for i in range(3))
+        else:
+            t = (y - horizon) / max(1, rect.h - horizon)
+            col = tuple(int(GROUND_TOP[i] + (GROUND_MID[i] - GROUND_TOP[i]) * t)
+                        for i in range(3))
+        pygame.draw.line(p, col, (0, y), (rect.w, y))
+    # A sandstone pillar column rising through the sky band (the off-white trap).
+    col_x, col_w = int(rect.w * 0.40), 70
+    for x in range(col_w):
+        t = x / col_w
+        # Lit edge on the left, falling to shadow on the right.
+        shade = abs(t - 0.32)
+        col = tuple(int(STONE_LIGHT[i] + (STONE_DARK[i] - STONE_LIGHT[i])
+                        * min(1.0, shade * 1.6)) for i in range(3))
+        pygame.draw.line(p, col, (col_x + x, 0), (col_x + x, horizon + 6))
+    pygame.draw.line(p, STONE_MID, (col_x, 0), (col_x, horizon + 6), 2)
+    mask = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255),
+                     mask.get_rect(), border_radius=radius)
+    p.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    sheet.blit(p, rect.topleft)
+    return col_x + col_w // 2     # x where a dart should sit ON the pillar
 
-    card = pygame.Rect(cx, cy, CARD_W, CARD_H)
-    pygame.draw.rect(sheet, CARD_BG, card, border_radius=12)
-    pygame.draw.rect(sheet, CARD_EDGE, card, 2, border_radius=12)
 
-    sheet.blit(F_NAME.render(name, True, TEXT), (cx + 14, cy + 10))
-    sheet.blit(F_FEAT.render("tell: " + feat, True, SUB), (cx + 14, cy + 34))
+def _truth_block(panel, label, txt_col, dart_x_hint=None):
+    """Smooth-40 level + dive, then NEAREST x3 level + dive. If dart_x_hint is
+    given the smooth reads straddle that x so one dart sits over the pillar."""
+    lx = (dart_x_hint - panel.x) if dart_x_hint is not None else 40
+    lx = max(40, min(panel.w - 120, lx))
+    g_level = smooth(2, 0, GAME_PX)
+    sheet.blit(g_level, g_level.get_rect(center=(panel.x + lx, panel.y + 56)))
+    g_dive = smooth(1, -32, GAME_PX)
+    sheet.blit(g_dive, g_dive.get_rect(center=(panel.x + lx + 52, panel.y + 56)))
+    n_level = nearest40(2, 0, MAG)
+    sheet.blit(n_level, n_level.get_rect(center=(panel.x + 162, panel.y + 60)))
+    n_dive = nearest40(1, -32, MAG)
+    sheet.blit(n_dive, n_dive.get_rect(center=(panel.x + 236, panel.y + 60)))
+    sheet.blit(F_TAG.render(label, True, txt_col), (panel.x + 8, panel.y + 10))
+    sheet.blit(F_TAG.render("smooth 40 · NEAREST x3 (level / dive)", True,
+                            txt_col), (panel.x + 8, panel.bottom - 18))
 
-    # ── Hero panel (left) — split day/night halves to vet both grounds. ──
-    hero_panel = pygame.Rect(cx + 14, cy + 56, 168, 140)
-    _grad_panel(pygame.Rect(hero_panel.x, hero_panel.y,
-                            hero_panel.w // 2, hero_panel.h), DAY_TOP, DAY_BOT)
-    night_half = pygame.Rect(hero_panel.x + hero_panel.w // 2, hero_panel.y,
-                             hero_panel.w - hero_panel.w // 2, hero_panel.h)
-    _grad_panel(night_half, NIGHT_TOP, NIGHT_BOT)
-    _night_stars(night_half, 26, idx + 1)
-    hero = smooth(hero_getter, 0, 0, HERO_PX)
-    sheet.blit(hero, hero.get_rect(center=hero_panel.center))
-    sheet.blit(F_TAG.render("130px  day | night", True, TEXT),
-               (hero_panel.x + 6, hero_panel.bottom - 18))
 
-    # ── 40px truth panels: a DAY block and a NIGHT block, each with smooth +
-    #    NEAREST x3 level/dive. ──
-    def _truth_block(px, top, bot, dark_bg, label):
-        panel = pygame.Rect(px, cy + 56, 270, 140)
-        _grad_panel(panel, top, bot)
-        if dark_bg:
-            _night_stars(panel, 40, idx * 7 + (0 if top is DAY_TOP else 13))
-        txt_col = (60, 40, 30) if not dark_bg else (220, 224, 240)
-        # Row 1: smooth 40px level + dive.
-        g_level = smooth(getter, 2, 0, GAME_PX)
-        sheet.blit(g_level, g_level.get_rect(
-            center=(panel.x + 40, panel.y + 28)))
-        g_dive = smooth(getter, 1, -32, GAME_PX)
-        sheet.blit(g_dive, g_dive.get_rect(
-            center=(panel.x + 92, panel.y + 28)))
-        # Row 2: NEAREST x3 level + dive (honest read).
-        n_level = nearest40(getter, 2, 0, MAG)
-        sheet.blit(n_level, n_level.get_rect(
-            center=(panel.x + 150, panel.y + 34)))
-        n_dive = nearest40(getter, 1, -32, MAG)
-        sheet.blit(n_dive, n_dive.get_rect(
-            center=(panel.x + 224, panel.y + 34)))
-        sheet.blit(F_TAG.render(label, True, txt_col),
-                   (panel.x + 8, panel.y + 60))
-        sheet.blit(F_TAG.render("smooth 40 · NEAREST x3 (level/dive)",
-                                True, txt_col),
-                   (panel.x + 8, panel.bottom - 18))
+# ── Hero card: 130px on a split DAY-sky | DAY-ground | NIGHT triptych. ───────
+cy = HEADER_H + PAD
+card = pygame.Rect(PAD, cy, CARD_W, HERO_CARD_H)
+pygame.draw.rect(sheet, CARD_BG, card, border_radius=12)
+pygame.draw.rect(sheet, CARD_EDGE, card, 2, border_radius=12)
+sheet.blit(F_NAME.render("HERO 130px — silhouette on every day surface", True,
+                         TEXT), (PAD + 14, cy + 10))
 
-    _truth_block(cx + 192, DAY_TOP, DAY_BOT, False, "DAY")
-    _truth_block(cx + 472, NIGHT_TOP, NIGHT_BOT, True, "NIGHT")
+third = (CARD_W - 28) // 3
+hp_day = pygame.Rect(PAD + 14, cy + 38, third - 6, 150)
+hp_grd = pygame.Rect(hp_day.right + 6, cy + 38, third - 6, 150)
+hp_ngt = pygame.Rect(hp_grd.right + 6, cy + 38, CARD_W - 28 - 2 * (third), 150)
+_grad_panel(hp_day, DAY_SKY_TOP, DAY_SKY_BOT)
+_day_ground_panel(hp_grd)
+_grad_panel(hp_ngt, NIGHT_TOP, NIGHT_BOT)
+_night_stars(hp_ngt, 30, 7)
+hero = smooth(0, 0, HERO_PX)
+for hp, tag in ((hp_day, "DAY SKY"), (hp_grd, "DAY GROUND"), (hp_ngt, "NIGHT")):
+    sheet.blit(hero, hero.get_rect(center=hp.center))
+    tcol = (60, 40, 30) if hp is not hp_ngt else (220, 224, 240)
+    sheet.blit(F_TAG.render(tag, True, tcol), (hp.x + 6, hp.bottom - 18))
 
-out_path = os.path.join(_here, "round_1.png")
+
+# ── Three truth cards: DAY sky, DAY ground/pillar, NIGHT. ────────────────────
+def _truth_card(idx, title, kind):
+    ty = HEADER_H + PAD + HERO_CARD_H + PAD + idx * (TRUTH_CARD_H + PAD)
+    c = pygame.Rect(PAD, ty, CARD_W, TRUTH_CARD_H)
+    pygame.draw.rect(sheet, CARD_BG, c, border_radius=12)
+    pygame.draw.rect(sheet, CARD_EDGE, c, 2, border_radius=12)
+    sheet.blit(F_NAME.render(title, True, TEXT), (PAD + 14, ty + 8))
+    panel = pygame.Rect(PAD + 14, ty + 34, CARD_W - 28, 150)
+    dart_hint = None
+    if kind == "day":
+        _grad_panel(panel, DAY_SKY_TOP, DAY_SKY_BOT)
+        txt_col = (60, 40, 30)
+    elif kind == "ground":
+        dart_hint = _day_ground_panel(panel)
+        txt_col = (60, 40, 30)
+    else:
+        _grad_panel(panel, NIGHT_TOP, NIGHT_BOT)
+        _night_stars(panel, 46, idx * 11 + 3)
+        txt_col = (220, 224, 240)
+    _truth_block(panel, title, txt_col, dart_hint)
+
+
+_truth_card(0, "DAY SKY — bright pale-blue cloud band", "day")
+_truth_card(1, "DAY GROUND — sandstone pillar + green ground", "ground")
+_truth_card(2, "NIGHT — deep indigo", "night")
+
+out_path = os.path.join(_here, "round_2.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())
