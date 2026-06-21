@@ -31,19 +31,25 @@ BCX, BCY = 32, 32 + DY          # dominant mass centre → (32, 44)
 
 # ── palette ──────────────────────────────────────────────────────────────────
 # Candy-red car body is the unambiguous day+night hero. The rear basket is a
-# small, WARM-DARK steel mass tuned to RECEDE so red leads the focal hierarchy
-# on both skies — only its bright top rail keyline punches forward.
+# small OPEN-TOPPED carry box kept inside the car's warm colour family (a
+# desaturated terracotta, NOT grey) so it stays subordinate to the red but
+# never reads as a foreign cargo block — and so it separates cleanly from
+# Pip's cool-brown parcel below.
 CAR_RED      = (230, 58, 58)        # #E63A3A candy-red body (a touch hotter)
 CAR_RED_D    = (156, 36, 36)        # #9C2424 shaded lower body / hood
 CAR_RED_HI   = (255, 138, 126)      # warm top-edge sheen on the body
 CABIN_GLASS  = (191, 228, 242)      # #BFE4F2 bubble-cabin glass
 CABIN_GLASS_D= (132, 186, 210)      # lower cabin glass (shaded)
 CABIN_GLINT  = (250, 254, 255)      # bright glass specular (carries at night)
-# Warm-grey steel: nudged toward the red family + darkened so it sits BEHIND the
-# hero rather than out-weighing it. Smaller + dimmer = secondary mass.
-BASKET_STEEL = (132, 134, 142)      # #84868E muted warm steel (recedes)
-BASKET_STEEL_D=(86,  90,  100)      # basket shade / underside (dark)
-BASKET_HI    = (208, 220, 230)      # basket top rail keyline (the one bright bit)
+# Terracotta basket: in the red family but desaturated + dimmer so it recedes
+# behind the candy-red hero. The OPEN interior is a lighter warm tone so the
+# basket reads as a hollow container, not a solid slab; bold staves + a bright
+# top rail keyline are the parts that actually survive at 40px.
+BASKET_BODY  = (176, 96, 74)        # #B0604A terracotta basket wall (warm-red)
+BASKET_BODY_D=(126, 64, 50)         # #7E4032 basket shade / floor (dark warm)
+BASKET_IN    = (214, 160, 138)      # #D6A08A bright OPEN interior (says hollow)
+BASKET_STAVE = (110, 54, 42)        # bold vertical staves (survive at 40px)
+BASKET_HI    = (250, 224, 206)      # warm top-rail keyline arcing over the mouth
 WHEEL_DARK   = (43, 49, 56)         # #2B3138 tyre
 WHEEL_KEY    = (248, 250, 252)      # rim keyline (carries both skies, hot at night)
 HUB_RED      = (230, 58, 58)        # toy hubcap centre (echoes the body red)
@@ -85,19 +91,24 @@ def _phase(angle_deg):
 
 # The bounce: a kid pushing the toy down on its springs and rebounding. The
 # whole CAR body travels vertically against a FIXED ground gap, so the read is
-# a clear 4-beat compress→rebound — not a wobble. Width squash/stretch is pushed
-# to ~3-4px so the deformation is legible at 40px. The basket rides at a FIXED
-# height (it does NOT swing) so its mass never masquerades as wobble.
+# a clear 4-beat compress→rebound — not a wobble. The bounce now lives almost
+# entirely in VERTICAL travel (+4 drop / −3 lift) so the toy-car SILHOUETTE
+# survives every frame; HULL-WIDTH squash is capped at +2px (was +4) so the
+# cabin bubble never crushes out of shape. A small WHEEL-SPREAD on the squash
+# carries the "compressed springs" beat instead of crushing the hull. The
+# basket rides at a FIXED height (it does NOT swing) so its mass never reads as
+# wobble.
 #   phase 0  → neutral ride height
-#   phase 1  → SQUASH  (body shorter + wider, sits LOW into the springs) → blink
+#   phase 1  → SQUASH  (body sits LOW into the springs, wheels spread) → blink
 #   phase 2  → neutral (rebounding up through ride height)
-#   phase 3  → STRETCH (body taller + narrower, LIFTS off the ground)
-# Each entry: (vertical squash px, horizontal stretch px, body drop px, lit?)
+#   phase 3  → STRETCH (body taller + a hair narrower, LIFTS off the ground)
+# Each entry:
+#   (vertical squash px, horizontal stretch px, body drop px, wheel spread px, lit?)
 _BOUNCE = {
-    0: (0,  0,  0, False),
-    1: (3,  4,  4, True),
-    2: (0,  0,  0, False),
-    3: (-2, -3, -3, False),
+    0: (0,   0,  0, 0, False),
+    1: (3,   2,  4, 2, True),
+    2: (0,   0,  0, 0, False),
+    3: (-2, -1, -3, 0, False),
 }
 
 
@@ -114,47 +125,58 @@ def build(wing_angle_deg):
     deforms with the bounce so the tell survives grayscale."""
     surf = _new()
     ph = _phase(wing_angle_deg)
-    sq_v, st_h, drop, lit = _BOUNCE[ph]
+    sq_v, st_h, drop, spread, lit = _BOUNCE[ph]
 
     # Ground line the wheels sit on — fixed, so the bounce reads against it.
     ground_y = BCY + 17
 
-    # ── REAR BASKET (small wire box riding behind the cabin) ─────────────────
-    # A SMALL, UPRIGHT wire basket — cut ~35% from round 1 and squared off so it
-    # reads as a basket, not a back-tipped slab. It sits at a FIXED height (no
-    # swing) so its mass never reads as wobble, and its warm-dark steel recedes
-    # behind the candy-red hero. Only the bright top rail keyline punches.
+    # ── REAR BASKET (small OPEN-TOPPED carry box behind the cabin) ────────────
+    # The fine cross-hatch from r2 never survived at 40px, so the rear now reads
+    # honestly: an OPEN-TOPPED container in the car's warm colour family. The
+    # tells that actually carry at play size are (1) a lighter OPEN interior that
+    # says "hollow", (2) 2-3 BOLD vertical staves, and (3) a bright top-rail
+    # keyline arcing over the open mouth. It rides at a FIXED height (no swing)
+    # so its mass never reads as wobble, and its desaturated terracotta keeps it
+    # subordinate to the candy-red hero while separating from Pip's parcel.
     bx = BCX + 8                       # basket tucked to the rear-right
-    b_top = BCY - 11                   # lower top than r1 — secondary, smaller
-    b_bot = BCY + 2                    # short box (13px tall vs r1's 20)
-    b_top_w, b_bot_w = 11, 9           # ~35% narrower; gentle taper (real basket)
+    b_top = BCY - 11                   # rim of the open mouth
+    b_bot = BCY + 2                    # short box (secondary, smaller)
+    b_top_w, b_bot_w = 11, 9           # gentle taper (real basket walls)
     basket_pts = [
         (bx - b_top_w, b_top), (bx + b_top_w, b_top),
         (bx + b_bot_w, b_bot), (bx - b_bot_w, b_bot),
     ]
-    pygame.draw.polygon(surf, BASKET_STEEL, basket_pts)
-    # dark underside band so the box has a floor and reads as an open container
-    pygame.draw.polygon(surf, BASKET_STEEL_D, [
-        (bx - b_bot_w - 1, b_bot - 3), (bx + b_bot_w + 1, b_bot - 3),
+    # outer wall
+    pygame.draw.polygon(surf, BASKET_BODY, basket_pts)
+    # OPEN INTERIOR: a lighter warm pocket inset from the walls + an elliptical
+    # mouth at the rim — the single strongest "this is hollow, not a slab" cue.
+    in_top_w, in_bot_w = b_top_w - 3, b_bot_w - 2
+    pygame.draw.polygon(surf, BASKET_IN, [
+        (bx - in_top_w, b_top + 1), (bx + in_top_w, b_top + 1),
+        (bx + in_bot_w, b_bot - 2), (bx - in_bot_w, b_bot - 2),
+    ])
+    _aaellipse(surf, BASKET_IN, (bx, b_top + 1), in_top_w, 2)
+    # dark floor band so the open pocket bottoms out in shadow (depth read)
+    pygame.draw.polygon(surf, BASKET_BODY_D, [
+        (bx - in_bot_w, b_bot - 4), (bx + in_bot_w, b_bot - 4),
         (bx + b_bot_w, b_bot), (bx - b_bot_w, b_bot),
     ])
-    # WIRE-MESH cross-hatch: 3 verticals + 2 horizontals so the box reads as a
-    # mesh basket (not a solid slab) even at 40px.
-    mid_y = (b_top + b_bot) // 2
-    for fx in (-6, 0, 6):
-        pygame.draw.line(surf, BASKET_STEEL_D,
-                         (bx + fx, b_top + 1),
-                         (bx + int(fx * 0.78), b_bot - 1), 1)
-    for hy in (mid_y - 3, mid_y + 2):
-        w = b_top_w - 1 if hy < mid_y else b_bot_w
-        pygame.draw.line(surf, BASKET_STEEL_D, (bx - w, hy), (bx + w, hy), 1)
-    # BRIGHT top rail keyline — the basket's single bright accent; holds the rim
-    # against any sky without letting the grey out-weigh the red.
+    # BOLD vertical staves — only THREE, 2px wide, drawn over the interior so
+    # they survive at 40px and read as a basket frame (not a flat panel).
+    for fx in (-7, 0, 7):
+        x0 = bx + fx
+        x1 = bx + int(fx * 0.78)
+        pygame.draw.line(surf, BASKET_STAVE, (x0, b_top + 1), (x1, b_bot - 1), 2)
+    # BRIGHT top-rail keyline arcing over the OPEN mouth — the keyline that sells
+    # "basket": a bright rim that bows up across the opening, not a flat lid.
+    pygame.draw.arc(surf, BASKET_HI,
+                    pygame.Rect(bx - b_top_w, b_top - 3, b_top_w * 2, 8),
+                    0.15, 2.99, 2)
     pygame.draw.line(surf, BASKET_HI,
                      (bx - b_top_w, b_top), (bx + b_top_w, b_top), 2)
     # a short handle nub off the back rail at a FIXED angle (no swing → no fake
-    # wobble); just enough to say "push here" without adding grey mass.
-    pygame.draw.line(surf, BASKET_STEEL_D,
+    # wobble); just enough to say "push here" in the car's warm family.
+    pygame.draw.line(surf, BASKET_STAVE,
                      (bx + b_top_w - 1, b_top), (bx + b_top_w + 3, b_top - 4), 2)
     pygame.draw.line(surf, BASKET_HI,
                      (bx + b_top_w - 1, b_top - 1), (bx + b_top_w + 3, b_top - 5), 1)
@@ -165,8 +187,8 @@ def build(wing_angle_deg):
     # vs r1 so a clean unbroken lower-centre RED shelf sits above Pip's parcel.
     cx = BCX - 6                       # car pushed forward (left = nose)
     body_cy = BCY + 2 + drop           # lifted 2px → leaves room for the parcel
-    half_w = 24 + st_h                 # long body; stretches wider on squash
-    half_h = 9 - sq_v                  # low body; flattens on squash
+    half_w = 24 + st_h                 # long body; width squash capped at +2px
+    half_h = 9 - sq_v                  # low body; flattens slightly on squash
     nose_x = cx - half_w               # front bumper (left)
     tail_x = cx + half_w - 4           # rear, tucks under the basket
 
@@ -204,7 +226,11 @@ def build(wing_angle_deg):
     # the squashing body, so it dips and rises with the bounce.
     cab_cx = cx - 5
     cab_cy = body_cy - half_h - 2
-    cab_rx, cab_ry = 12, 9 - sq_v       # cabin flattens slightly on squash too
+    # PROTECT the bubble: the dome keeps a near-constant radius across all four
+    # frames (at most a 1px flatten on the deepest squash) so it never vanishes
+    # — the bounce is carried by the body's vertical travel, not by crushing the
+    # cabin. Without this the squash frame stopped reading as the same toy car.
+    cab_rx, cab_ry = 12, 9 - min(sq_v, 1)
     # red cabin frame (a thin red ring under the glass) for the toy-car pillar
     _aaellipse(surf, CAR_RED_D, (cab_cx, cab_cy + 1), cab_rx + 1, cab_ry + 1)
     _aaellipse(surf, CABIN_GLASS, (cab_cx, cab_cy), cab_rx, cab_ry)
@@ -229,8 +255,11 @@ def build(wing_angle_deg):
     # They sit on the fixed ground_y, so when the body squashes DOWN toward
     # them, the springs read as compressed.
     wheel_r = 9
-    front_wx = nose_x + 9
-    rear_wx = cx + half_w - 9
+    # On the squash beat the wheels SPREAD apart (front forward, rear back) so the
+    # "springs compressed, weight settling" beat reads through the stance instead
+    # of through a crushed hull.
+    front_wx = nose_x + 9 - spread
+    rear_wx = cx + half_w - 9 + spread
     for wx in (front_wx, rear_wx):
         # tyre
         pygame.draw.circle(surf, WHEEL_DARK, (wx, ground_y), wheel_r)
