@@ -1,0 +1,3 @@
+# Scratch composite tiles emitted by render.py while building the round_N sheet.
+# Only the stitched round_N.png (+ round_N.md, render.py) are deliverables.
+_*.png
