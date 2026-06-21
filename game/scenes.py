@@ -411,6 +411,7 @@ STATE_LEADERBOARD = 6
 STATE_INTRO = 7
 STATE_POWERUPS = 8
 STATE_ACHIEVEMENTS = 9
+STATE_ACHV_EARNED = 10
 
 # Background cloud depth slots: (base_x, base_y, scale). Geometry is fixed so the
 # parallax-depth spread stays good; all slots share one cloud design per run,
@@ -451,11 +452,10 @@ class App:
         # Achievements screen — built lazily when opened from the menu,
         # torn down on dismiss. Owns its own scroll/drag state.
         self.achievements: object | None = None
-        # Unlock-toast queue (achievement ids) + per-toast animation clock.
-        # Populated at end-of-run; surfaced one at a time on the run-summary
-        # screen so nothing runs during PLAY.
-        self._achv_toast_queue: list = []
-        self._achv_toast_t = 0.0
+        # The end-of-run "ACHIEVEMENT EARNED!" screen — built on death when a
+        # run unlocks one or more achievements, shown before the run summary,
+        # torn down on the continue tap. Owns its own scroll/drag state.
+        self.achv_earned: object | None = None
         # True when the intro was launched from the menu's HOW TO PLAY
         # button. _finish_intro reads this to land back on MENU instead
         # of the POWERUPS explainer.
@@ -733,53 +733,45 @@ class App:
             if sc.pointer_up() and self._cooldown_t <= 0:
                 self._close_achievements()
 
-    # ── achievement-unlock toast (run-summary screen) ─────────────────────────
-    _ACHV_TOAST_DUR = 2.8  # seconds each unlock toast stays up
+    # ── achievement-earned screen (end of run) ────────────────────────────────
+    def _continue_from_achv_earned(self):
+        """Tap on the ACHIEVEMENT EARNED! screen → hand off to the run summary,
+        restarting its reveal timer so the summary animates in fresh."""
+        self.achv_earned = None
+        self.state = STATE_STATS
+        self._stats_t = 0.0
+        self._cooldown_t = 0.25
 
-    def _advance_achv_toast(self, dt):
-        """Drive the unlock-toast queue: chime as each toast begins, retire it
-        once its window elapses so the next queues up behind it."""
-        if not self._achv_toast_queue:
+    def _handle_achv_earned_event(self, e):
+        """Pointer/wheel/key routing for the scrollable earned screen. The scene
+        owns scroll + drag; a near-stationary release is a tap that continues to
+        the run summary (gated by the entry cooldown so the death tap's echo
+        can't skip it instantly)."""
+        sc = self.achv_earned
+        if sc is None:
+            self.state = STATE_STATS
             return
-        if self._achv_toast_t == 0.0:
-            audio.play_achievement()
-        self._achv_toast_t += dt
-        if self._achv_toast_t >= self._ACHV_TOAST_DUR:
-            self._achv_toast_queue.pop(0)
-            self._achv_toast_t = 0.0
-
-    def _draw_achv_toast(self, surf):
-        if not self._achv_toast_queue:
+        if e.type == pygame.KEYDOWN:
+            if e.key == pygame.K_ESCAPE or self._cooldown_t <= 0:
+                self._continue_from_achv_earned()
             return
-        from game import achievements
-        from game.achievement_icons import draw_badge
-        from game.hud import _dark_panel, _font, _GOLD_PALE, _GOLD_BRIGHT
-        a = achievements.BY_ID.get(self._achv_toast_queue[0])
-        if a is None:
-            return
-        dur = self._ACHV_TOAST_DUR
-        t = self._achv_toast_t
-        if t < 0.3:
-            k = t / 0.3
-        elif t > dur - 0.4:
-            k = max(0.0, (dur - t) / 0.4)
-        else:
-            k = 1.0
-        ease = k * k * (3 - 2 * k)            # smoothstep fade-in/out
-        alpha = max(0, min(255, int(255 * ease)))
-
-        pw, ph = W - 28, 52
-        px = (W - pw) // 2
-        py = 60 + int((1 - ease) * -22)       # slides down from above
-        panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
-        _dark_panel(panel, pygame.Rect(0, 0, pw, ph), radius=14, alpha=235)
-        draw_badge(panel, a.icon_key, pygame.Rect(8, (ph - 40) // 2, 40, 40), True)
-        panel.blit(_font(11, True).render("ACHIEVEMENT UNLOCKED", True, _GOLD_BRIGHT),
-                   (56, 9))
-        panel.blit(_font(16, True).render(a.title, True, _GOLD_PALE), (56, 24))
-        # Reliable per-pixel alpha fade (multiplies the surface's own alpha).
-        panel.fill((255, 255, 255, alpha), special_flags=pygame.BLEND_RGBA_MULT)
-        surf.blit(panel, (px, py))
+        if e.type == pygame.MOUSEWHEEL:
+            sc.scroll_by(-e.y * sc.WHEEL_STEP)
+        elif e.type == pygame.MOUSEBUTTONDOWN:
+            sc.pointer_down(e.pos[1])
+        elif e.type == pygame.MOUSEMOTION:
+            if e.buttons[0]:
+                sc.pointer_move(e.pos[1])
+        elif e.type == pygame.MOUSEBUTTONUP:
+            if sc.pointer_up() and self._cooldown_t <= 0:
+                self._continue_from_achv_earned()
+        elif e.type == pygame.FINGERDOWN:
+            sc.pointer_down(int(e.y * H))
+        elif e.type == pygame.FINGERMOTION:
+            sc.pointer_move(int(e.y * H))
+        elif e.type == pygame.FINGERUP:
+            if sc.pointer_up() and self._cooldown_t <= 0:
+                self._continue_from_achv_earned()
 
     def _pick_cloud_variant(self):
         """Pick the single cloud design used by every cloud for the whole run,
@@ -951,6 +943,11 @@ class App:
         if self.state == STATE_ACHIEVEMENTS:
             self._handle_achievements_event(e)
             return
+        # The end-of-run earned screen likewise owns all pointer/wheel/key input
+        # (scroll/drag/continue) while it's up.
+        if self.state == STATE_ACHV_EARNED:
+            self._handle_achv_earned_event(e)
+            return
         import sys as _sys
         if e.type == pygame.KEYDOWN:
             if e.key == pygame.K_p:
@@ -1056,6 +1053,11 @@ class App:
                 self.achievements.update(dt)
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
             return
+        if self.state == STATE_ACHV_EARNED:
+            if self.achv_earned is not None:
+                self.achv_earned.update(dt)
+            self._cooldown_t = max(0.0, self._cooldown_t - dt)
+            return
         if self.state == STATE_MENU:
             self.world.world_idle_tick(dt)
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
@@ -1070,7 +1072,6 @@ class App:
         elif self.state == STATE_STATS:
             self.world.update(dt)  # let particles/weather keep going behind
             self._stats_t += dt
-            self._advance_achv_toast(dt)
             # No auto-advance — the screen stays until the player taps
             # (handled in _flap_input).
         elif self.state == STATE_NAMEENTRY:
@@ -1095,19 +1096,26 @@ class App:
                 # No running loop (e.g. headless smoke tests) — skip silently.
                 pass
         # Evaluate achievements once against the finished run (never for the
-        # scripted demo). Newly-unlocked ids queue up for the run-summary toast.
-        self._achv_toast_queue = []
-        self._achv_toast_t = 0.0
+        # scripted demo). Any newly-unlocked ids get a full-screen
+        # "ACHIEVEMENT EARNED!" card screen (scrollable) before the run summary.
+        newly = []
         if getattr(self.world, "demo", None) is None:
             try:
                 from game import achievements
-                self._achv_toast_queue = achievements.evaluate_run(self.world)
+                newly = achievements.evaluate_run(self.world)
             except Exception:
-                self._achv_toast_queue = []
-        # Game-over screen no longer plays its own jingle — death.ogg
-        # at the moment of impact carries the whole "run ended" cue.
-        self.state = STATE_STATS
+                newly = []
         self._stats_t = 0.0
+        if newly:
+            from game.achievement_earned import AchievementEarnedScene
+            self.achv_earned = AchievementEarnedScene(newly)
+            audio.play_achievement()
+            self.state = STATE_ACHV_EARNED
+            self._cooldown_t = 0.35       # so the death tap's echo can't skip it
+        else:
+            # Game-over screen no longer plays its own jingle — death.ogg
+            # at the moment of impact carries the whole "run ended" cue.
+            self.state = STATE_STATS
         # Reset the run-summary intent so a freshly opened stats
         # screen defaults to "main menu" until the player explicitly
         # taps PLAY AGAIN.
@@ -1421,6 +1429,10 @@ class App:
             from game import achievements as _ach
             self.achievements.render(self.screen, 1 / 60, _ach.load())
             return
+        # End-of-run earned screen paints its own full-screen night + card stack.
+        if self.state == STATE_ACHV_EARNED and self.achv_earned is not None:
+            self.achv_earned.render(self.screen, 1 / 60)
+            return
         sx, sy = self.world.shake_offset() if self.state == STATE_PLAY else (0, 0)
         sx, sy = int(sx), int(sy)
         self._draw_background(self.screen)
@@ -1705,7 +1717,6 @@ class App:
             self.hud.draw_stats(self.screen, self.world, 1 / 60, self._stats_t,
                                 best=self.best, new_best=self._new_best,
                                 show_prompt=not self._fetch_pending)
-            self._draw_achv_toast(self.screen)
         elif self.state == STATE_NAMEENTRY:
             import sys as _sys
             if _sys.platform != "emscripten":
