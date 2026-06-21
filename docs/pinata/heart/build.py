@@ -1,25 +1,36 @@
-"""HEART PIÑATA — secret flyer skin concept (round 1).
+"""HEART PIÑATA — secret flyer skin concept (round 2).
 
 A flying candy-heart piñata that replaces the bird. The whole identity is one
 job: a bold two-lobe heart with a pronounced cleft, dressed in horizontal
 crepe-fringe bands (the universal piñata cue), that reads "heart" instantly at
 40px. There are NO wings and NO live particles — the four flap poses are a
-baked SEAM-SPLIT & SPILL down the vertical centre cleft:
+baked SEAM-GLOW SWING down the vertical centre cleft:
 
-    frame 0  hairline seam, faint inner glow      (sealed)
-    frame 1  seam parts, gold sugar-glow widens
-    frame 2  seam at full gape, one heart-candy peeks out  (the spill)
-    frame 3  seam reseals to a thin warm line       (back toward sealed)
+    frame 0  thin warm line, faint glow      (sealed)
+    frame 1  seam brightens, glow widens
+    frame 2  full bright bloom + a single gold sugar-spark above the cleft
+    frame 3  glow falls back to a thin warm line
+
+ROUND 2 — kill the "T". Round 1 ran the WHITE top crepe band straight across the
+gold seam, so at 40px / grayscale the bright white bar + the vertical seam read
+as a medical-cross "T". The fix: the top white band now stops ~4px CLEAR on
+either side of centre, so the gold seam runs through an unbroken red/coral field
+and the brightest grayscale shape is a single VERTICAL bar — never a "T". The
+seam itself is now a pure vertical GOLD WEDGE (widest at the cleft, tapering to
+the point) with one hot sugar-white core column dead-centre and NO horizontal
+competitor. The flap tell is sold in GLOW (radius + brightness swing + a 1px
+lateral peel of the cream rim edges), not in how wide the heart gapes.
 
 This is deliberately a SINGLE vertical split down a symmetric lobed shape (not
 a radial crack) so it can't be confused with a cracked egg/shell concept. In
 grayscale it survives as a centre-line value bloom — the seam glow is the
-brightest pixels on the sprite, dead-centre.
+brightest pixels on the sprite, dead-centre, as a vertical bar.
 
-Night read: the warm gold seam-glow is the bright anchor; a pale cream
-crepe-fringe keyline rims the top lobes so the red doesn't vanish into a dark
-sky. Day read: the saturated red/coral fringe holds against a pale sky and the
-cream rim keylines the silhouette.
+Night read: the warm gold seam-glow is the bright anchor; a pale cream rim
+keylines the LOBE TOPS so the red doesn't vanish into a dark sky. Day read: the
+saturated red/coral fringe holds against a pale sky and the cream rim keylines
+the silhouette. The heart is lifted a few px and its point sharpened/narrowed so
+the tip clears Pip's parcel knot instead of fusing into one brown blob.
 
 Contract mirrors game/animal_ufo.py: 64x84 SRCALPHA canvas, dominant heart mass
 centred at (BCX,BCY)=(32,44); `build(wing_angle_deg)->Surface`; frames driven
@@ -38,10 +49,14 @@ BCX, BCY = 32, 32 + DY          # heart mass centre → (32, 44)
 
 # Heart geometry. The lobes sit ABOVE centre and the point hangs just below, so
 # the dominant mass + the seam tell stay centred on the 14px collision circle.
+# The whole heart is lifted ~3px vs round 1 and the point pulled in/up, so the
+# tip clears Pip's parcel knot (composited below by the game) instead of fusing
+# into one brown blob on the day frame.
 LOBE_RX, LOBE_RY = 13, 11       # each top lobe radius
 LOBE_DX = 9                     # half-distance between the two lobe centres
-LOBE_CY = BCY - 6               # lobe centres sit above body centre
-POINT_Y = BCY + 19              # the bottom tip of the heart
+LOBE_CY = BCY - 9               # lobe centres sit above body centre (lifted)
+POINT_Y = BCY + 14              # the bottom tip of the heart (raised + sharper)
+POINT_TUCK = 3                  # narrow the triangle base → a sharper point
 
 
 # ── palette (crepe fringe red→coral→white, gold seam, cream rim) ─────────────
@@ -65,13 +80,15 @@ def _phase(angle_deg):
     return int(round((50 - angle_deg) / 30.0)) % 4
 
 
-# Per-phase seam drive: (half-gape px, glow radius, candy-peek 0..1).
-# Phase 2 is the full spill; 0 is sealed; 3 reseals on the way back.
+# Per-phase seam drive: (rim-peel px, glow radius, glow alpha mul, spark 0/1).
+# The motion is sold in GLOW, not gape — phase 2 is a clear bright bloom with a
+# single gold sugar-spark; phase 0/3 fall back to a thin warm line. The rim-peel
+# only laterally offsets the two cream seam edges by ~1px so the seam shimmers.
 _SEAM = {
-    0: (0.6, 3.0, 0.0),
-    1: (1.8, 4.6, 0.0),
-    2: (3.0, 6.2, 1.0),
-    3: (1.2, 3.8, 0.0),
+    0: (0.5, 3.0, 0.55, 0.0),
+    1: (1.0, 4.6, 0.85, 0.0),
+    2: (1.4, 6.4, 1.20, 1.0),
+    3: (0.8, 3.6, 0.65, 0.0),
 }
 
 
@@ -83,39 +100,70 @@ def _heart_mask_surface():
     # crisp at 40px — far more reliable than a single polygon sweep.
     _aaellipse(m, (255, 255, 255), (BCX - LOBE_DX, LOBE_CY), LOBE_RX, LOBE_RY)
     _aaellipse(m, (255, 255, 255), (BCX + LOBE_DX, LOBE_CY), LOBE_RX, LOBE_RY)
+    # Narrower triangle base (POINT_TUCK) → the sides converge sooner, giving a
+    # sharper tip that doesn't merge with the parcel knot below.
     pygame.draw.polygon(m, (255, 255, 255), [
-        (BCX - LOBE_RX - LOBE_DX + 1, LOBE_CY + 2),
-        (BCX + LOBE_RX + LOBE_DX - 1, LOBE_CY + 2),
+        (BCX - LOBE_RX - LOBE_DX + 1 + POINT_TUCK, LOBE_CY + 2),
+        (BCX + LOBE_RX + LOBE_DX - 1 - POINT_TUCK, LOBE_CY + 2),
         (BCX, POINT_Y),
     ])
     return m
+
+
+# Half-width of the CLEAR channel kept down the centre of the WHITE top band.
+# Round 1's "T" came from a white bar crossing the gold seam. Round 2 keeps a
+# WIDE clear channel (no white anywhere near centre) AND only lets the single
+# topmost crepe row carry the white — and only out on the OUTER lobe shoulders.
+# That puts two small white crests left + right of a coral crown, so the bright
+# grayscale mass is the vertical core, flanked by two separated dots, never a
+# horizontal bar joining over the seam.
+WHITE_CHANNEL = 8
 
 
 def _fringe_body(top_y, bot_y):
     """Render the horizontal crepe-fringe bands as a full rectangle, then the
     caller clips it to the heart mask. Bands run RED (bottom) → CORAL (mid) →
     WHITE (top), the real piñata stacking order, with a fringed lower lip and a
-    1px shade line per row so the layered-paper depth survives shrink-down."""
+    1px shade line per row so the layered-paper depth survives shrink-down.
+
+    Only the SINGLE topmost row is white, split into two outer side panels with
+    a WIDE clear coral channel down the centre, so no bright horizontal bar ever
+    crosses the gold seam — the seam runs through colour, not white, and the two
+    white crests sit out on the lobe shoulders as separated dots."""
     band = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
     rows = []
     y = bot_y
     step = 4
     # Build band colours from bottom to top across the heart's vertical extent.
     span = bot_y - top_y
+    top_t = 0.0
     while y > top_y - step:
         t = (bot_y - y) / max(1, span)        # 0 at bottom, 1 at top
-        if t < 0.42:
-            col = FRINGE_RED
-        elif t < 0.74:
-            col = FRINGE_CORAL
-        else:
-            col = FRINGE_WHITE
-        rows.append((y, col))
+        top_t = max(top_t, t)
+        rows.append([y, t])
         y -= step
+    for r in rows:
+        t = r[1]
+        if t < 0.42:
+            r.append((FRINGE_RED, False))
+        elif t < top_t - 0.001:               # everything but the crown → coral
+            r.append((FRINGE_CORAL, False))
+        else:                                  # only the single topmost row
+            r.append((FRINGE_WHITE, True))
 
-    for (ry, col) in rows:
-        # solid band
-        pygame.draw.rect(band, col, pygame.Rect(0, ry - step, COMPOSITE_W, step + 1))
+    for (ry, _t, (col, white)) in rows:
+        rect = pygame.Rect(0, ry - step, COMPOSITE_W, step + 1)
+        if white:
+            # coral bed across the whole crown row, white only on the two outer
+            # shoulders well clear of the centre channel.
+            pygame.draw.rect(band, FRINGE_CORAL, rect)
+            lw = BCX - WHITE_CHANNEL
+            rw = BCX + WHITE_CHANNEL
+            pygame.draw.rect(band, col, pygame.Rect(0, ry - step, lw, step + 1))
+            pygame.draw.rect(band, col,
+                             pygame.Rect(rw, ry - step, COMPOSITE_W - rw, step + 1))
+        else:
+            pygame.draw.rect(band, col, rect)
         # 1px darker shade along the band's lower edge → stacked-paper depth.
         shade = FRINGE_SHADE if col is FRINGE_RED else tuple(
             max(0, int(c * 0.82)) for c in col)
@@ -126,54 +174,53 @@ def _fringe_body(top_y, bot_y):
     return band
 
 
-def _seam_glow(surf, half_gape, glow_r, candy_t):
-    """The vertical SEAM-SPLIT & SPILL down the centre cleft. An additive gold
-    sugar-glow column blooms inside the split (brightest at night), capped by a
-    hot sugar core, with one heart-candy peeking out at full spill (phase 2).
-    The glow lives on the centre line so grayscale shows a clean central value
-    bloom — the signature tell."""
+def _seam_glow(surf, peel, glow_r, glow_mul, spark_t):
+    """The vertical SEAM down the centre cleft, drawn as a pure GOLD WEDGE —
+    widest at the cleft, tapering to the point — with one hot sugar-white core
+    column dead-centre and NO horizontal competitor. The flap tell is sold in
+    GLOW (radius + brightness swing via glow_r/glow_mul) and a 1px lateral peel
+    of the two cream rim edges, not in how wide the heart gapes. The whole tell
+    lives on the centre line so grayscale shows a clean central VERTICAL bar."""
     seam_top = LOBE_CY - 2
-    seam_bot = POINT_Y - 4
+    seam_bot = POINT_Y - 3
     seam_h = seam_bot - seam_top
 
-    # Additive glow column — soft wide bloom, narrowing toward the point.
+    # Additive gold WEDGE — widest at the cleft, pinching to the point. Two soft
+    # layers so the bloom has a body + a hotter inner gold. Brightness swings
+    # with glow_mul so phase 2 reads as a clear bloom and 0/3 as a thin line.
     glow = pygame.Surface((int(glow_r * 2) + 8, seam_h + 8), pygame.SRCALPHA)
     gw = glow.get_width() // 2
     for i in range(seam_h):
         t = i / seam_h
-        # taper: widest at the cleft, pinching to the point
-        w = glow_r * (1.0 - 0.55 * t)
-        for layer, (mul, alpha) in enumerate(((1.0, 70), (0.55, 120))):
+        w = glow_r * (1.0 - 0.62 * t)         # wedge taper toward the point
+        for mul, alpha in ((1.0, 60), (0.5, 130)):
             rr = max(1, int(w * mul))
-            pygame.draw.line(glow, (*SEAM_GOLD, alpha),
-                             (gw - rr, i), (gw + rr, i))
+            a = min(255, int(alpha * glow_mul))
+            pygame.draw.line(glow, (*SEAM_GOLD, a), (gw - rr, i), (gw + rr, i))
     surf.blit(glow, (BCX - gw, seam_top), special_flags=pygame.BLEND_RGBA_ADD)
 
-    # The split itself: two cream rim edges peeled apart by `half_gape`, with a
-    # hot sugar-white inner line — this is what makes the crack read as a SEAM.
-    if half_gape > 0.7:
-        pygame.draw.line(surf, RIM_CREAM,
-                         (BCX - half_gape, seam_top + 1),
-                         (BCX - half_gape * 0.4, seam_bot), 1)
-        pygame.draw.line(surf, RIM_CREAM,
-                         (BCX + half_gape, seam_top + 1),
-                         (BCX + half_gape * 0.4, seam_bot), 1)
-    # hot sugar core down the dead centre
-    core_w = max(1, int(half_gape * 0.7))
-    pygame.draw.line(surf, SUGAR_WHITE, (BCX, seam_top + 1), (BCX, seam_bot - 2),
-                     core_w)
+    # Two cream rim edges peeled apart by `peel` (~1px) — the lateral shimmer
+    # that animates the seam without gaping the heart. They flank the core, not
+    # cross it, so nothing reads horizontal.
+    pygame.draw.line(surf, RIM_CREAM,
+                     (BCX - peel, seam_top + 1),
+                     (BCX - peel * 0.4, seam_bot - 2), 1)
+    pygame.draw.line(surf, RIM_CREAM,
+                     (BCX + peel, seam_top + 1),
+                     (BCX + peel * 0.4, seam_bot - 2), 1)
 
-    # The candy peek: a tiny heart-candy emerging from the cleft at full spill.
-    if candy_t > 0.0:
-        cy = seam_top + 5
-        r = int(3 * candy_t)
-        if r >= 2:
-            _aaellipse(surf, CANDY_PINK, (BCX - 2, cy), r, r)
-            _aaellipse(surf, CANDY_PINK, (BCX + 2, cy), r, r)
-            pygame.draw.polygon(surf, CANDY_PINK, [
-                (BCX - r - 1, cy + 1), (BCX + r + 1, cy + 1), (BCX, cy + r + 3)])
-            pygame.draw.line(surf, CANDY_HOT, (BCX, cy - 1), (BCX, cy + 1))
-            _aaellipse(surf, SUGAR_WHITE, (BCX - 2, cy - 1), 1, 1)
+    # ONE hot sugar-white core column dead-centre — the single brightest pixels,
+    # a vertical bar. Slightly thicker at the cleft so the wedge reads as gold.
+    pygame.draw.line(surf, SUGAR_WHITE, (BCX, seam_top + 2), (BCX, seam_bot - 2), 1)
+    pygame.draw.line(surf, SUGAR_WHITE, (BCX, seam_top + 2), (BCX, seam_top + 5), 1)
+
+    # Phase-2 only: a single 2px gold sugar-spark popping just above the cleft —
+    # replaces the round-1 candy dab (invisible at 40px). Reads as a flash of
+    # escaping sugar at the moment of the bloom.
+    if spark_t > 0.0:
+        sx, sy = BCX, seam_top - 4
+        _aaellipse(surf, SEAM_GOLD, (sx, sy), 2, 2)
+        _aaellipse(surf, SUGAR_WHITE, (sx, sy), 1, 1)
 
 
 def build(wing_angle_deg):
@@ -182,7 +229,7 @@ def build(wing_angle_deg):
     is applied later by the getter, so no rotation is baked here."""
     surf = _new()
     ph = _phase(wing_angle_deg)
-    half_gape, glow_r, candy_t = _SEAM[ph]
+    peel, glow_r, glow_mul, spark_t = _SEAM[ph]
 
     mask = _heart_mask_surface()
     top_y = LOBE_CY - LOBE_RY
@@ -202,6 +249,20 @@ def build(wing_angle_deg):
     # restamp the fringe so the rim sits only OUTSIDE, not over the bands.
     surf.blit(fringe, (0, 0))
 
+    # 2b) NIGHT ANCHOR: a thin cream rim arc on each LOBE CROWN. With the white
+    # top band now broken at the centre, this keeps the lobes keylined against a
+    # dark sky so the silhouette never dissolves. Each arc hugs only the OUTER
+    # crown of its lobe (and stops short of the centre seam) so the two arcs read
+    # as two separate crests, never a continuous horizontal line over the seam.
+    crown = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+    for cx, (a0, a1) in ((BCX - LOBE_DX, (1.15, 2.7)),
+                         (BCX + LOBE_DX, (0.44, 1.99))):
+        rect = pygame.Rect(cx - LOBE_RX + 2, LOBE_CY - LOBE_RY + 1,
+                           (LOBE_RX - 2) * 2, (LOBE_RY) * 2)
+        pygame.draw.arc(crown, RIM_CREAM, rect, a0, a1, 1)
+    crown.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(crown, (0, 0))
+
     # 3) a soft top-lobe sheen so the rounded candy form catches light.
     sheen = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
     _aaellipse(sheen, (255, 255, 255, 60), (BCX - LOBE_DX - 2, LOBE_CY - 4), 5, 3)
@@ -209,9 +270,9 @@ def build(wing_angle_deg):
     sheen.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
     surf.blit(sheen, (0, 0))
 
-    # 4) the vertical seam-split & spill — the signature tell, drawn last so the
-    # glow + candy sit on top of the fringe and read at the centre line.
-    _seam_glow(surf, half_gape, glow_r, candy_t)
+    # 4) the vertical seam GOLD WEDGE — the signature tell, drawn last so the
+    # glow + spark sit on top of the fringe and read as a vertical bar at centre.
+    _seam_glow(surf, peel, glow_r, glow_mul, spark_t)
 
     return surf
 
