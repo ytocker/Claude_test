@@ -7,11 +7,17 @@ twin-handle peak over a solid bucket is the icon; the absence of wheels
 is what makes it distinct from any rolling cart.
 
 There are NO wings and NO live particles. The 4-frame tell is the
-CARGO — two or three chunky grocery lumps poking over the rim bob and
-re-stack across the frames while the handles sway slightly. The cargo
-IS the animation; in grayscale it survives as moving high-contrast blobs
-over the rim line, and the deep red bucket holds its value on both day
-and night skies with the pale rim highlight as the night keyline.
+CARGO — three chunky grocery lumps poking OVER the rim bob and re-stack
+across the frames while the handles sway slightly. The cargo IS the
+animation; in grayscale it survives as moving high-contrast blobs over
+the rim line, and the deep red bucket holds its value on both day and
+night skies with the pale rim highlight as the night keyline.
+
+IMPORTANT — the skin draws NO parcel/gift-box of its own. The game
+composites Pip's real parcel hanging BELOW the flyer centre; this skin
+renders only groceries-poking-over-the-rim so the live parcel reads as
+the distinct "cargo slung under the basket". Anything box-shaped on the
+basket front would collide with that real parcel (two stacked parcels).
 """
 import math
 import pygame
@@ -48,15 +54,21 @@ BASKET_DEEP  = (104, 24, 20)    # darker still — the bucket interior void
 SLOT_LINE    = (170, 48, 42)    # vertical basket-slot ribs (texture, subtle)
 
 HANDLE_RED   = (196, 58, 52)    # handle loops — a touch darker than the body
-HANDLE_HI    = (242, 201, 197)  # handle top highlight (catches the keyline read)
+# Two keyline strengths: a softer day highlight (so the loop doesn't read as a
+# plasticky-glossy rail against the bright sky) and the full pale keyline that
+# the house outline already gives the loop at night. We bake the SOFT one.
+HANDLE_HI    = (224, 150, 142)  # softened day highlight — ~10% pulled down
 
-GROC_GREEN   = (111, 178, 74)   # #6FB24A  round fruit / apple
-GROC_GREEN_D = (74, 128, 46)
-GROC_YELLOW  = (240, 192, 58)   # #F0C03A  bottle / banana pop
-GROC_YELLOW_D = (190, 146, 30)
-GROC_BREAD   = (232, 226, 212)  # #E8E2D4  baguette / bread
-GROC_BREAD_D = (196, 186, 162)
-GROC_BOTTLE  = (212, 84, 96)    # a juice-bottle red-pink, distinct from basket
+# Grocery trio is tuned for DISTINCT GRAYSCALE VALUES so the jostle reads as
+# three separate lumps re-stacking even with hue removed: the green fruit is
+# pushed to a MID value, the bottle to a darker-saturated value, and the bread
+# stays light — three rungs on the value ladder, dark→mid→light.
+GROC_GREEN   = (78, 134, 52)    # darker apple — lands MID-grey, not pale
+GROC_GREEN_D = (50, 92, 34)
+GROC_BOTTLE  = (196, 64, 78)    # juice bottle — DARK value rung, distinct hue
+GROC_BOTTLE_D = (138, 40, 52)
+GROC_BREAD   = (240, 232, 214)  # #F0E8D6  baguette / bread — the LIGHT rung
+GROC_BREAD_D = (198, 186, 158)
 
 
 def _new():
@@ -143,9 +155,11 @@ def _handles(surf, sway):
     l_foot = BCX - 12
     r_foot = BCX + 12
     peak_y = RIM_Y - 22
-    # the two loop apexes meet near centre, parting slightly with sway.
-    l_apex = (BCX - 2 - sway, peak_y)
-    r_apex = (BCX + 2 + sway, peak_y)
+    # The two loop apexes stay PARTED at centre so the "twin folding handle"
+    # silhouette survives at 40px (round 1 fused into one hump). A wider base
+    # parting (±4 + sway) plus the dark interior gap below keep the apex open.
+    l_apex = (BCX - 4 - sway, peak_y)
+    r_apex = (BCX + 4 + sway, peak_y)
 
     # Each handle is an arc-like loop drawn as a thick poly-line from its rim
     # foot up to the apex. A subtle inner highlight catches the keyline.
@@ -159,13 +173,19 @@ def _handles(surf, sway):
             y = (1 - t) * (1 - t) * base_y + 2 * (1 - t) * t * (peak_y + 4) + t * t * apex[1]
             pts.append((x, y))
         pygame.draw.lines(surf, HANDLE_RED, False, pts, 4)
-        # thin pale keyline along the top-outer of the loop
+        # softer day highlight along the top-outer of the loop (not a glossy rail)
         pygame.draw.lines(surf, HANDLE_HI, False, pts[3:], 1)
         # a small hinge knuckle where the handle meets the rim
         pygame.draw.circle(surf, BASKET_SHADE, (int(foot_x), int(base_y)), 2)
 
-    _loop(l_foot, l_apex, lean=4)
-    _loop(r_foot, r_apex, lean=-4)
+    _loop(l_foot, l_apex, lean=5)
+    _loop(r_foot, r_apex, lean=-5)
+
+    # 1px interior shadow gap down the centre of the apex: carve a dark sliver
+    # BETWEEN the two loops so they never merge into one solid hump. Drawn as a
+    # thin vertical dark line from just below the apexes down into the opening.
+    gap_x = BCX
+    pygame.draw.line(surf, BASKET_DEEP, (gap_x, peak_y - 1), (gap_x, peak_y + 9), 1)
 
 
 # ── groceries (the 4-frame tell) ─────────────────────────────────────────────
@@ -176,11 +196,12 @@ def _round_fruit(surf, cx, cy, r, base, shade):
 
 
 def _bottle(surf, cx, top_y, h, base, shade):
-    """A bottle neck poking over the rim: a slim capsule with a darker cap."""
+    """A bottle neck poking over the rim: a slim capsule with a darker cap.
+    Drawn as the DARK value rung so it separates from the bread in grayscale."""
     pygame.draw.line(surf, shade, (cx + 1, top_y), (cx + 1, top_y + h), 5)
     pygame.draw.line(surf, base, (cx, top_y), (cx, top_y + h), 5)
     pygame.draw.circle(surf, base, (cx, top_y), 2)
-    pygame.draw.circle(surf, (60, 50, 46), (cx, top_y - 1), 2)   # cap
+    pygame.draw.circle(surf, (54, 44, 40), (cx, top_y - 1), 2)   # dark cap
 
 
 def _bread(surf, cx, cy, length, base, shade):
@@ -197,9 +218,11 @@ def _bread(surf, cx, cy, length, base, shade):
 
 
 def _groceries(surf, phase):
-    """Three chunky lumps poking over the rim. Each frame bobs them by a small
-    vertical offset and re-stacks the trio so the cargo visibly jostles across
-    the 4 poses — the cargo IS the animation. Offsets are baked per phase."""
+    """Three chunky lumps poking OVER the rim — NOT a box on the basket front.
+    Every lump's body sits at or ABOVE the rim line so the read is "groceries
+    spilling over the top", leaving the basket front clean for the live parcel
+    slung below. Each frame bobs and re-stacks the trio so the cargo visibly
+    jostles across the 4 poses — the cargo IS the animation."""
     # per-phase vertical bob (px) for [fruit, bottle, bread] — they take turns
     # rising/sinking so the eye reads a re-stacking jostle, not a uniform bounce.
     bob = [
@@ -211,19 +234,20 @@ def _groceries(surf, phase):
     # slight horizontal shuffle so lumps re-stack rather than just bob in place.
     shuf = [0, -1, 1, 0][phase]
 
+    # Anchor lumps to the rim TOP, not the basket interior, so none of them
+    # drops onto the front face (where it would read as a parcel/gift box).
     rim = RIM_Y
 
-    # green round fruit — left, the heaviest blob
-    _round_fruit(surf, BCX - 9 + shuf, rim - 4 + bob[0], 6, GROC_GREEN, GROC_GREEN_D)
+    # bottle — the DARK value rung, centre-right, the tall pop poking highest.
+    _bottle(surf, BCX + 7 - shuf, rim - 14 + bob[1], 11, GROC_BOTTLE, GROC_BOTTLE_D)
 
-    # bottle neck — centre-right, the tall pop
-    _bottle(surf, BCX + 8 - shuf, rim - 13 + bob[1], 11, GROC_YELLOW, GROC_YELLOW_D)
+    # green round fruit — the MID value rung, left, the heaviest blob, riding
+    # ON the rim line (its lower half tucks just behind the lip cap).
+    _round_fruit(surf, BCX - 9 + shuf, rim - 5 + bob[0], 6, GROC_GREEN, GROC_GREEN_D)
 
-    # baguette tip — bridging the middle, angled
-    _bread(surf, BCX - 1 + shuf, rim - 6 + bob[2], 18, GROC_BREAD, GROC_BREAD_D)
-
-    # a small red juice-bottle shoulder peeking far right for a fuller cart read
-    _round_fruit(surf, BCX + 13, rim - 3 + bob[0] // 2, 4, GROC_BOTTLE, (150, 50, 60))
+    # baguette tip — the LIGHT value rung, angled out over the rim between the
+    # other two. Lifted so it crowns the rim rather than lying across the front.
+    _bread(surf, BCX + 1 + shuf, rim - 8 + bob[2], 17, GROC_BREAD, GROC_BREAD_D)
 
 
 # ── frame builder ────────────────────────────────────────────────────────────
@@ -258,7 +282,7 @@ def _handles_top(surf, sway):
     above the groceries. Cheap: reuses the same bend math as `_handles`."""
     base_y = RIM_Y - 1
     peak_y = RIM_Y - 22
-    for foot_x, apex_dx, lean in ((BCX - 12, -2 - sway, 4), (BCX + 12, 2 + sway, -4)):
+    for foot_x, apex_dx, lean in ((BCX - 12, -4 - sway, 5), (BCX + 12, 4 + sway, -5)):
         apex = (BCX + apex_dx, peak_y)
         ctrl_x = foot_x + lean
         pts = []
@@ -269,6 +293,9 @@ def _handles_top(surf, sway):
             pts.append((x, y))
         pygame.draw.lines(surf, HANDLE_RED, False, pts, 4)
         pygame.draw.lines(surf, HANDLE_HI, False, pts, 1)
+    # re-carve the interior shadow gap so the apexes stay two distinct loops
+    # even after the upper arcs are restated over the cargo.
+    pygame.draw.line(surf, BASKET_DEEP, (BCX, peak_y - 1), (BCX, peak_y + 9), 1)
 
 
 if __name__ == "__main__":
