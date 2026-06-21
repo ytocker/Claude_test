@@ -266,7 +266,11 @@ def build_jet_fighter(wing_angle_deg):
     for ny in (BCY - _NOZ_DY, BCY + _NOZ_DY):
         pygame.draw.circle(surf, (255, 206, 130), (tail_x, ny), 2)
         pygame.draw.circle(surf, (255, 255, 245), (tail_x - 1, ny), 1)
-    return surf
+
+    # Secret-skin signature: fly INVERTED with the nose pitched up. The planform
+    # is drawn nose-left / canopy-up, so a 205° spin lands it nose-forward (the
+    # bird faces right), belly-up, in a cocky nose-high attitude.
+    return pygame.transform.rotate(surf, 205)
 
 
 get_jet_fighter = _make_prebuilt_skin(build_jet_fighter)
