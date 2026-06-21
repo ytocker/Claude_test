@@ -240,6 +240,19 @@ class TestCatalogIntegrity(unittest.TestCase):
         for item_id in store_catalog.cosmetic_ids():
             self.assertNotEqual(store_catalog.kind(item_id), "boost")
 
+    def test_rarity_tiers(self):
+        # Every catalog item maps to one of the four price-tier rarities, and
+        # the free defaults read as common.
+        for sid in store_catalog.CATALOG:
+            self.assertIn(store_catalog.rarity(sid), store_catalog.RARITIES)
+        self.assertEqual(store_catalog.rarity(store_catalog.BASE_SKIN), "common")
+        self.assertEqual(store_catalog.rarity(store_catalog.PARCEL_BASE), "common")
+        # Band boundaries spot-checked on representative items.
+        self.assertEqual(store_catalog.rarity("skin_shades_none"), "common")   # 120
+        self.assertEqual(store_catalog.rarity("skin_owl"), "rare")             # 480
+        self.assertEqual(store_catalog.rarity("skin_dragon"), "epic")          # 1200
+        self.assertEqual(store_catalog.rarity("skin_kitsune"), "legendary")    # 3500
+
     def test_every_skin_resolves_in_renderer(self):
         # The catalog must never offer a skin the bird renderer can't draw.
         # Imported here (not module-top) so the pure-data tests above don't

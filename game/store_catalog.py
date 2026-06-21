@@ -194,6 +194,25 @@ def is_secret(item_id: str) -> bool:
     return CATALOG.get(item_id, {}).get("secret", False)
 
 
+# Rarity tiers by price — the ladder the store draws as each card's outline
+# colour (common→gray, rare→blue, epic→purple, legendary→orange). Intrinsic to
+# the item (unlike the transient equipped highlight). The bands are chosen so
+# every tab spans several tiers and the legendary band is reserved for the
+# genuine showpieces (the dearest animals, parcels, and the secret flyers).
+RARITIES = ("common", "rare", "epic", "legendary")
+_RARITY_BANDS = ((400, "common"), (800, "rare"), (2500, "epic"))
+
+
+def rarity(item_id: str) -> str:
+    """The price-tier rarity of an item. Free defaults (BASE_SKIN / PARCEL_BASE,
+    absent from CATALOG) read as common."""
+    c = CATALOG.get(item_id, {}).get("cost", 0)
+    for ceiling, tier in _RARITY_BANDS:
+        if c < ceiling:
+            return tier
+    return "legendary"
+
+
 def ids_of_group(g: str) -> list[str]:
     """Catalog ids in a store tab (costume / parrot / animal), in catalog order."""
     return [i for i, v in CATALOG.items() if v.get("group", "costume") == g]

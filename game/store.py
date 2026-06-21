@@ -47,8 +47,17 @@ _TABS = (("COSTUMES", "costume"), ("PARROTS", "parrot"),
 # Owned-but-equipped accent + buy/locked chip tints.
 _EQUIP_GREEN = (96, 210, 120)
 _LOCK_GREY = (150, 140, 155)
-# Mystery-violet rim that marks a still-masked secret card as special.
-_SECRET_RIM = (150, 110, 214)
+
+# Rarity-tier card-outline colours, keyed by store_catalog.rarity() (price
+# band): common→gray, rare→blue, epic→purple, legendary→orange. This is the
+# default card rim; an equipped card overrides it with the bright gold rim so
+# the active look still reads at a glance.
+_RARITY_RIM = {
+    "common":    (150, 156, 168),
+    "rare":      ( 78, 154, 240),
+    "epic":      (170, 104, 226),
+    "legendary": (242, 158,  56),
+}
 
 
 def _draw_chevron(surf, rect, direction) -> None:
@@ -307,12 +316,16 @@ class StoreScene:
         secret = store_catalog.is_secret(sid) and not owned
         _dark_panel(surf, rect, radius=14, alpha=215)
 
-        # Equipped cards get a bright gold rim so the current look is obvious
-        # at a glance; an unbought secret gets a mystery-violet rim instead.
+        # The card rim encodes the item's rarity tier by price (gray / blue /
+        # purple / orange); an equipped card overrides it with the bright gold
+        # rim so the current look stays obvious at a glance. A still-masked
+        # secret keeps its rarity rim (always legendary) — the ??? glyph and the
+        # price chip already mark it as a mystery, so the rim isn't a spoiler.
         if equipped:
             pygame.draw.rect(surf, _GOLD_BRIGHT, rect, width=2, border_radius=14)
-        elif secret:
-            pygame.draw.rect(surf, _SECRET_RIM, rect, width=2, border_radius=14)
+        else:
+            rim = _RARITY_RIM[store_catalog.rarity(sid)]
+            pygame.draw.rect(surf, rim, rect, width=2, border_radius=14)
 
         if secret:
             _draw_qmark(surf, rect.centerx, rect.y + 30, 40,
