@@ -29,17 +29,26 @@ from game.parrot import _WING_ANGLES, _add_outline, _aaellipse
 COMPOSITE_W = 64
 COMPOSITE_H = 84
 DY = 12
-BCX, BCY = 32, 32 + DY          # bucket mass centre → (32, 44)
+BCX, BCY = 32, 32 + DY          # flyer/bird centre → (32, 44)
 
 
 # ── geometry ─────────────────────────────────────────────────────────────────
-# A DEEP bucket: tall, flat-ish bottom, gently flared walls. Width chosen so the
-# mass dominates the 64px canvas; height deep enough to read "carry-basket" and
-# leave room for groceries poking over the top rim and handles peaking above.
+# The GAME composites Pip's real parcel at a FIXED spot: centred, hanging 12px
+# below the bird centre (32,44) → parcel centre at canvas y≈56, and the 22px
+# parcel sprite reaches up to a TOP edge at canvas y≈45. So the whole basket is
+# pinned into the UPPER half of the 64×84 canvas, with its rounded base ABOVE
+# y≈40 — that leaves a clean band of sky between the basket base and the parcel
+# top, and the live read is "basket up top, parcel dangling beneath on the
+# sling", never "parcel sitting on the basket front". The bucket is therefore
+# anchored to its OWN base line (BOT_Y), not to the bird centre.
 RIM_HALF   = 21                # half-width of the top rim line
 BOT_HALF   = 16                # half-width of the bottom (narrower → flared U)
-RIM_Y      = BCY - 12          # top rim line height
-BOT_Y      = BCY + 18          # bottom of the bucket
+BOT_Y      = 35                # bottom of the bucket — base ellipse reaches ~41,
+                               # ~4px of sky above the parcel top at ~45 while the
+                               # handle apex keeps ~2px headroom under the canvas top
+RIM_Y      = BOT_Y - 18        # top rim line — an 18px bucket wall in the upper
+                               # canvas (shallower than r2 so the base clears the
+                               # parcel, still unmistakably a flared bucket)
 RIM_THICK  = 4                 # the bold lip cap thickness
 
 
@@ -154,7 +163,10 @@ def _handles(surf, sway):
     # anchor feet on the rim — each handle is hinged near the rim shoulders.
     l_foot = BCX - 12
     r_foot = BCX + 12
-    peak_y = RIM_Y - 22
+    # Handle rise is sized so the twin loops crown near the canvas top without
+    # clipping — the bucket sits higher now, so a 14px rise keeps the apex in
+    # frame while still arcing a clear head above the rim.
+    peak_y = RIM_Y - 14
     # The two loop apexes stay PARTED at centre so the "twin folding handle"
     # silhouette survives at 40px (round 1 fused into one hump). A wider base
     # parting (±4 + sway) plus the dark interior gap below keep the apex open.
@@ -281,7 +293,7 @@ def _handles_top(surf, sway):
     """Redraw only the upper third of each handle loop so it reads as arcing
     above the groceries. Cheap: reuses the same bend math as `_handles`."""
     base_y = RIM_Y - 1
-    peak_y = RIM_Y - 22
+    peak_y = RIM_Y - 14
     for foot_x, apex_dx, lean in ((BCX - 12, -4 - sway, 5), (BCX + 12, 4 + sway, -5)):
         apex = (BCX + apex_dx, peak_y)
         ctrl_x = foot_x + lean

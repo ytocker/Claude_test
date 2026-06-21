@@ -36,14 +36,16 @@ BCX, BCY = 32, 32 + DY          # round body centre → (32, 41)
 BODY_RX, BODY_RY = 16, 17       # fat round-bellied perched-bird mass
 HEAD_RX, HEAD_RY = 11, 10       # chunky head, set high-right on the body
 
-# The tail no longer hangs dead-centre (where the parcel occludes it). It pivots
-# from the LOWER-LEFT haunch of the body and swings down-and-out into OPEN SKY
-# to the LEFT of the parcel — the parcel hangs centred-low and the red head is
-# upper-right, so the lower-left is clean sky the blade can sweep through and
-# always be read against background, never behind the gift box.
-TAIL_PIVOT_X = 22               # left haunch of the body
-TAIL_PIVOT_Y = 46               # low-left so the down-and-out sweep clears parcel
-TAIL_LEN = 24                   # long crepe tail (the moving line)
+# The tail no longer hangs dead-centre (where the parcel occludes it). Its ROOT
+# is welded DEEP INSIDE the lower-left flank (pulled up-and-in so the round body
+# overlaps the root with NO sky between them) and the blade swings down-and-out
+# into OPEN SKY to the LEFT of the parcel — the parcel hangs centred-low and the
+# red head is upper-right, so the lower-left is clean sky the blade sweeps
+# through. Only the wag TIP crosses centre in open sky; the root stays buried in
+# the flank so tail and body read as one creature.
+TAIL_PIVOT_X = 26               # pulled IN toward body-centre → root buried in flank
+TAIL_PIVOT_Y = 43               # pulled UP into the flank so body mass overlaps it
+TAIL_LEN = 25                   # long crepe tail (the moving line)
 TAIL_HALF = 9                   # half-width of the tail blade — kept BOLD/WIDE
 
 
@@ -73,6 +75,10 @@ FRINGE_DK    = (212, 192, 152)   # fringe shade so the rim has its own form
 
 # TAIL value paddle: a DARK rib and a CREAM rib alternate down the blade so the
 # tail is its own light/dark shape, never a continuation of the body bands.
+# But the tail ROOT carries the body's own mid-green (TAIL_ROOT_GREEN) so one
+# continuous green band flows out of the flank into the blade — the value bridge
+# that welds tail to body. The dark/cream paddle only takes over past the root.
+TAIL_ROOT_GREEN = ( 44, 158,  66)  # flank-matching green that fills the root → bridge
 TAIL_DARK    = ( 22,  78,  40)   # deep dark rib — the value anchor of the paddle
 TAIL_DARK_D  = ( 14,  54,  30)   # darkest tail shade (form under the dark ribs)
 TAIL_CREAM   = (255, 244, 214)   # cream rib — the bright paddle band
@@ -97,7 +103,7 @@ def _phase(angle_deg):
 # crossing UNDER the centreline (stage 2, near straight-down) — the bright tip
 # is the obvious mover, visibly changing which side of centre it sits on across
 # the loop. All four poses keep the blade clear of the centred parcel.
-_TAIL_SWEEP_BY_STAGE = (205.0, 232.0, 262.0, 232.0)
+_TAIL_SWEEP_BY_STAGE = (214.0, 234.0, 262.0, 234.0)
 
 # Head bob (px, +down) per stage — a small counter-bob opposite the tail so the
 # whole body reads as "alive" without spreading a wing. Kept subtle so the head
@@ -117,15 +123,22 @@ def _tail(surf, sweep_deg):
     # sweep is measured from horizontal-right (+CCW/up). Convert to a screen
     # direction vector (screen-y grows DOWN, so up = negative dy).
     a = math.radians(sweep_deg)
-    cx, cy = TAIL_PIVOT_X, TAIL_PIVOT_Y
     dx, dy = math.cos(a), -math.sin(a)
     px, py = -dy, dx                     # perpendicular = blade half-width axis
 
-    # blade quad: a wide root at the pivot tapering to a slightly narrower tip,
-    # long and bold — the largest moving shape, always against sky.
-    root_hw, tip_hw = TAIL_HALF, TAIL_HALF - 1
-    tip_x = cx + dx * TAIL_LEN
-    tip_y = cy + dy * TAIL_LEN
+    # The blade ROOT is pushed BACK along the sweep axis past the pivot, up INTO
+    # the body, so the quad's near end is buried under the green mass with no sky
+    # seam. (root_back) is how far the root reaches back toward body-centre — kept
+    # generous so even the extreme down-left swing keeps its root under the flank.
+    root_back = 12
+    cx = TAIL_PIVOT_X - dx * root_back
+    cy = TAIL_PIVOT_Y - dy * root_back
+
+    # blade quad: a wide root buried in the flank, tapering to a narrower tip,
+    # long and bold — the largest moving shape, always against sky past the root.
+    root_hw, tip_hw = TAIL_HALF + 2, TAIL_HALF - 1  # fatter root so the neck never thins to sky
+    tip_x = cx + dx * (TAIL_LEN + root_back)
+    tip_y = cy + dy * (TAIL_LEN + root_back)
     rl = (cx + px * root_hw, cy + py * root_hw)
     rr = (cx - px * root_hw, cy - py * root_hw)
     tl = (tip_x + px * tip_hw, tip_y + py * tip_hw)
@@ -136,20 +149,39 @@ def _tail(surf, sweep_deg):
     pygame.draw.polygon(surf, TAIL_DARK_D, [rl, tl, tr, rr])
     pygame.draw.polygon(surf, TAIL_DARK, [rl, tl, tr, rr])
 
+    # BRIDGE: flood the root third of the blade with the body's mid-green so one
+    # continuous green band flows out of the flank into the tail. The body is
+    # drawn AFTER the tail and overlaps this root, so flank→tail reads as one
+    # creature with the dark/cream paddle only taking over past the body edge.
+    bridge_t = 0.42
+    bx2 = cx + dx * (TAIL_LEN + root_back) * bridge_t
+    by2 = cy + dy * (TAIL_LEN + root_back) * bridge_t
+    hwb = root_hw + (tip_hw - root_hw) * bridge_t
+    pygame.draw.polygon(surf, TAIL_ROOT_GREEN, [
+        rl, rr,
+        (bx2 - px * hwb, by2 - py * hwb),
+        (bx2 + px * hwb, by2 + py * hwb)])
+
     # alternating CREAM ribs banded across the blade — the bright half of the
-    # value paddle. Dark base + cream ribs = a rhythmic light/dark ladder that
-    # changes position as the blade swings (the grayscale-only wag read).
-    for i in range(1, 5):
-        t = i / 5.0
-        mx = cx + dx * TAIL_LEN * t
-        my = cy + dy * TAIL_LEN * t
+    # value paddle. Start PAST the green bridge so the ribs belong to the swinging
+    # outer blade, not the welded root. Dark base + cream ribs = a rhythmic
+    # light/dark ladder that changes position as the blade swings.
+    total = TAIL_LEN + root_back
+    for i in range(2, 6):
+        t = i / 6.0
+        mx = cx + dx * total * t
+        my = cy + dy * total * t
         hw = root_hw + (tip_hw - root_hw) * t
-        if i % 2 == 1:                   # cream ribs on the odd steps
+        if i % 2 == 0:                   # cream ribs on the even steps (past root)
             pygame.draw.line(surf, TAIL_CREAM, (mx + px * hw, my + py * hw),
                              (mx - px * hw, my - py * hw), 3)
 
-    # cream crepe-fringe keyline around the whole blade — the night-survival rim
-    pygame.draw.polygon(surf, FRINGE, [rl, tl, tr, rr], 2)
+    # cream crepe-fringe keyline only along the two OUTER long edges (sky-facing)
+    # and the tip cap — NEVER across the root, so no keyline fences the tail off
+    # from the flank. The root seam is left open to blend under the body.
+    pygame.draw.line(surf, FRINGE, rl, tl, 2)
+    pygame.draw.line(surf, FRINGE, rr, tr, 2)
+    pygame.draw.line(surf, FRINGE, tl, tr, 2)
 
     # DOMINANT scalloped cream-pom tip — the tail's own signature, so it never
     # reads as a continuation of the flank bands. A fat row of cream poms with
@@ -170,6 +202,13 @@ def _body(surf, cx, cy):
     yellow+blue Lotería wing-band stripe wrapped across the flank, a darker
     green core-shadow down the sky-facing (lower-left) belly, and a cream
     crepe-fringe rim keyline so the green survives the night sky."""
+    # A lower-LEFT haunch lobe extends the green mass down toward the tail pivot
+    # so the flank physically reaches the tail root in the extreme swing — this is
+    # what guarantees no sky seam between body and tail in any frame. Drawn under
+    # the main body so it reads as one continuous flank, not a bolted-on bump.
+    _aaellipse(surf, BODY_GREEN_D, (cx - 8, cy + 8), 9, 8)
+    _aaellipse(surf, BODY_GREEN, (cx - 8, cy + 7), 9, 7)
+
     _aaellipse(surf, BODY_GREEN_D, (cx, cy + 2), BODY_RX, BODY_RY)       # shadow
     _aaellipse(surf, BODY_GREEN, (cx, cy), BODY_RX, BODY_RY)             # body
     _aaellipse(surf, BODY_GREEN_H, (cx - 4, cy - 6), BODY_RX - 7, BODY_RY - 9)
@@ -217,6 +256,17 @@ def _head_and_beak(surf, cx, cy, bob):
 
     _aaellipse(surf, HEAD_RED_D, (hx, hy + 1), HEAD_RX, HEAD_RY)   # head shadow
     _aaellipse(surf, HEAD_RED, (hx, hy), HEAD_RX, HEAD_RY)         # red head
+
+    # NECK PINCH (the day-frame "head" read): a dark contour notch along the
+    # lower-LEFT of the head where it meets the green shoulder, so the red head
+    # steps off the body as a HEAD instead of a ball sunk into a green lump.
+    # Drawn AFTER the head so it sits crisply on the seam — a short dark arc
+    # hugging the head's underside plus a 1px shadow into the shoulder green.
+    pinch = pygame.Rect(hx - HEAD_RX, hy - HEAD_RY + 3, HEAD_RX * 2, HEAD_RY * 2)
+    pygame.draw.arc(surf, BODY_CORE_D, pinch,
+                    math.radians(195), math.radians(265), 2)
+    pygame.draw.line(surf, BODY_GREEN_D, (hx - HEAD_RX + 1, hy + HEAD_RY - 2),
+                     (hx - HEAD_RX + 5, hy + HEAD_RY + 1), 2)
     _aaellipse(surf, HEAD_RED_H, (hx - 2, hy - 5), HEAD_RX - 5, 3) # crown sheen
     # cream rim keyline so the red head survives the night sky as its own block
     pygame.draw.ellipse(surf, FRINGE,
