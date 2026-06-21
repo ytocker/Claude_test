@@ -1,35 +1,40 @@
-"""WIDE GLIDER — redesign candidates for the secret PAPER PLANE skin.
+"""WIDE GLIDER — production build for the secret PAPER PLANE skin (KEEL GLIDER).
 
-Five from-scratch takes on ONE concept: a broad FLAT-WING paper glider (a wide
-delta / "Harrier"-style fold) seen 3/4 from above-behind, nosing RIGHT. This is
-deliberately a DIFFERENT silhouette from the production dollar-bill dart — the
-dart is a narrow triangle reaching forward; the glider is a WIDE planform that
-reads as a slow soaring craft.
+Converged from Round-1 winner V5 · KEEL GLIDER: a broad FLAT-WING paper glider
+seen 3/4 from above-behind, nosing RIGHT, built around a BOLD raised central keel
+(fuselage ridge) flanked by two wide flat wing shelves. This is deliberately a
+DIFFERENT silhouette from the production dollar-bill DART — the dart is a narrow
+forward triangle; the glider is a WIDE planform reading as a slow soaring craft,
+and the chunky lit-spine-vs-shadow-shelf keel is what gives it the 3D structure
+that flat deltas lack.
 
-Contract (mirrors game/animal_paper_plane.py so a winning take lifts straight
-into a standalone game module):
+Contract (mirrors game/animal_paper_plane.py so this lifts straight into a
+standalone game/animal_paper_plane.py module):
 
-  * `build_glider_wide_vN(wing_angle_deg) -> pygame.Surface`  one flat frame on
-    a 64x84 SRCALPHA canvas, mass centred at (32, 44).
-  * NOSE POINTS RIGHT (forward). The bird faces right; the glider noses right.
+  * `build_glider_wide(wing_angle_deg) -> pygame.Surface`  one flat frame on a
+    64x84 SRCALPHA canvas, mass centred at (32, 44).
+  * NOSE POINTS RIGHT (forward): the rightmost, narrowest pixel cluster is the
+    nose; the wide wing span sits LEFT/behind. The keel is the forward-right
+    spine. It must never read as a backward kite — the wide end is the tail.
   * No wings — the 4 base poses (_WING_ANGLES 50..-40) become a gentle
     BANK/FLUTTER + slow nose-bob + a soaring pitch sway, since a wide glider
     rides air rather than flaps.
-  * a cached `(frame_idx, tilt_deg) -> Surface` getter from a LOCAL
+  * a cached `(frame_idx, tilt_deg) -> Surface` getter from
     `_make_prebuilt_skin(build_fn)`.
-  * `BUILDERS = {"skin_glider_wide": ...}` registry at the bottom.
+  * `BUILDERS = {"skin_glider_wide": get_glider_wide}` registry at the bottom.
 
-North star: "a skin lives or dies at 40px in motion." A wide-but-thin wing can
-vanish at gameplay scale, so every take leans on ONE bold WIDE silhouette + a
-hard-value FOLD: a bright lit upper facet vs a distinctly darker under/shadow
-facet, split along the centre keel, plus a baked 1px self-rim so the planform
-holds on day AND night skies without any host outline.
+North star: "a skin lives or dies at 40px in motion." The keel is the hero — a
+tall, chunky lit ridge against a hard-darkened shadow shelf, with two crisp rear
+points so the silhouette reads as a deliberate WIDE wing (not a narrow dart, not
+a frayed blob). The brightest manila is held a notch below white so it never
+flares against bright day sky, and a baked 1px self-rim hugs the whole planform
+(tightened on the shadow side) so it holds on day AND night with no host outline.
 """
 import math
 import pygame
 
 from game.parrot import (
-    SPRITE_W, _WING_ANGLES, _add_outline, _aaellipse,
+    SPRITE_W, _WING_ANGLES, _add_outline,
 )
 
 
@@ -79,23 +84,28 @@ def _poly(surf, color, pts, width=0):
 def _bank(pts, cx, cy, roll_deg, bob, pitch=0.0):
     """Roll a point list about (cx, cy), lift by `bob`, and add a slow forward
     `pitch` shear (nose lifts/drops) so the whole rigid folded sheet sways as
-    one — the most paper-honest read of 'flap' for a wingless glider."""
+    one — the most paper-honest read of 'flap' for a wingless glider.
+
+    Pitch shears y by horizontal distance from the mass centre, so the nose
+    (positive dx, right) rises/falls opposite the tail. Roll is clamped by the
+    caller so the wide planform never rolls far enough to read as a backward
+    kite — the forward-right nose stays the rightmost cluster at all poses."""
     r = math.radians(roll_deg)
     cos_r, sin_r = math.cos(r), math.sin(r)
     out = []
     for x, y in pts:
         dx, dy = x - cx, y - cy
-        # Pitch shears y by horizontal distance from the mass centre: the nose
-        # (positive dx, right) rises/falls opposite the tail.
         out.append((cx + dx * cos_r - dy * sin_r,
                     cy + dx * sin_r + dy * cos_r + bob + dx * pitch))
     return out
 
 
 def _self_rim(surf, rim_color):
-    """Bake a 1px self-rim hugging the painted silhouette so the planform reads
-    on any sky without leaning on the host outline. Built from the alpha mask
-    and stamped UNDER the art so it only shows as a clean lip."""
+    """Bake a tight 1px self-rim hugging the painted silhouette so the planform
+    reads on any sky without leaning on the host outline. Built from the alpha
+    mask and stamped UNDER the art (4-neighbour only, no diagonals) so it stays a
+    consistent 1px lip — on night it is what carries the shadow-shelf rear edge,
+    where the soft trailing corners would otherwise drop into the dark sky."""
     mask = pygame.mask.from_surface(surf, threshold=8)
     rim = mask.to_surface(setcolor=rim_color, unsetcolor=(0, 0, 0, 0))
     out = _new()
@@ -105,270 +115,114 @@ def _self_rim(surf, rim_color):
     return out
 
 
-# Roll clamps keep the wide planform from rolling so far it collapses edge-on.
-_ROLL_MAX = 5.0
+# Roll clamp keeps the wide planform from rolling so far it collapses edge-on or
+# rotates the keel into a backward-kite read; intentionally tight for a glider.
+_ROLL_MAX = 4.0
 
 
 # =============================================================================
-# V1 - WIDE DELTA (white printer paper)
-#
-# The archetypal wide delta: a broad triangle whose trailing edge spans nearly
-# the full canvas width, a blunt-ish nose, and a single centre keel splitting a
-# bright LIT half from a shadowed half. Big, slow, unmistakably a glider.
-# =============================================================================
-_V1_TOP    = (244, 246, 250)        # lit upper facet (bright white paper)
-_V1_TOP_H  = (255, 255, 255)        # leading-edge catch-light
-_V1_UNDER  = (176, 188, 206)        # shadowed under-fold (cool grey, ~28% down)
-_V1_UNDER_D = (150, 164, 186)       # deepest under wedge
-_V1_KEEL   = (118, 130, 152)        # centre fold spine (hard value break)
-_V1_RIM    = (96, 108, 132)
-
-
-def build_glider_wide_v1(wing_angle_deg):
-    surf = _new()
-    f = _flutter(wing_angle_deg)
-    roll = max(-_ROLL_MAX, min(_ROLL_MAX, f * 4.5))
-    bob = -f * 1.2
-    pitch = f * 0.06
-
-    # Wide delta planform, nose RIGHT. The trailing edge is the far-left vertical
-    # span; the nose is a blunt forward point.
-    nose      = (BCX + 24, BCY)
-    far_tip   = (BCX - 19, BCY - 17)        # upper (lit) trailing corner
-    near_tip  = (BCX - 19, BCY + 17)        # lower (shadow) trailing corner
-    tail_in   = (BCX - 12, BCY)             # trailing-edge notch toward keel
-
-    def bk(pts):
-        return _bank(pts, BCX, BCY, roll, bob, pitch)
-
-    # UNDER (lower) half first.
-    _poly(surf, _V1_UNDER, bk([nose, near_tip, tail_in]))
-    _poly(surf, _V1_UNDER_D, bk([nose, near_tip, (BCX - 4, BCY + 6)]))
-    # TOP (lit) half.
-    _poly(surf, _V1_TOP, bk([nose, far_tip, tail_in]))
-    _poly(surf, _V1_TOP_H, bk([nose, (BCX + 6, BCY - 7), (BCX + 9, BCY - 1)]))
-
-    # HARD centre keel (the fold spine) nose -> trailing notch.
-    a, b = bk([nose, tail_in])
-    pygame.draw.line(surf, _V1_KEEL, (int(a[0]), int(a[1])),
-                     (int(b[0]), int(b[1])), 3)
-    return _self_rim(surf, _V1_RIM)
-
-
-# =============================================================================
-# V2 - SQUARE HARRIER (manila / kraft paper)
-#
-# A near-square stubby planform: short fuselage, almost-straight trailing edge,
-# wide blunt nose. The "Harrier" read - boxy, flat, slow. Warm manila paper so
-# it separates from V1's cool white. A raised fuselage strip down the centre.
-# =============================================================================
-_V2_TOP    = (226, 204, 158)        # lit manila facet
-_V2_TOP_H  = (244, 228, 190)        # leading highlight
-_V2_UNDER  = (168, 144, 100)        # shadow facet (~28% down)
-_V2_UNDER_D = (144, 122, 82)
-_V2_KEEL   = (110, 92, 60)
-_V2_STRIP  = (200, 178, 132)        # raised fuselage strip (lit)
-_V2_RIM    = (92, 76, 50)
-
-
-def build_glider_wide_v2(wing_angle_deg):
-    surf = _new()
-    f = _flutter(wing_angle_deg)
-    roll = max(-_ROLL_MAX, min(_ROLL_MAX, f * 4.0))
-    bob = -f * 1.1
-    pitch = f * 0.05
-
-    # Square, stubby planform: wings reach far left/right with little taper.
-    nose     = (BCX + 18, BCY)
-    far_lead = (BCX + 10, BCY - 18)         # broad swept leading corner (upper)
-    far_tail = (BCX - 18, BCY - 16)         # upper trailing corner
-    near_lead = (BCX + 10, BCY + 18)
-    near_tail = (BCX - 18, BCY + 16)
-    tail_in  = (BCX - 14, BCY)
-
-    def bk(pts):
-        return _bank(pts, BCX, BCY, roll, bob, pitch)
-
-    # UNDER half (lower wing + its trailing block).
-    _poly(surf, _V2_UNDER, bk([nose, near_lead, near_tail, tail_in]))
-    _poly(surf, _V2_UNDER_D, bk([tail_in, near_tail, (BCX - 4, BCY + 6)]))
-    # TOP half.
-    _poly(surf, _V2_TOP, bk([nose, far_lead, far_tail, tail_in]))
-    _poly(surf, _V2_TOP_H, bk([nose, far_lead, (BCX + 4, BCY - 5)]))
-
-    # Raised centre fuselage strip (lit), bordered by the hard keel.
-    _poly(surf, _V2_STRIP, bk([(BCX + 16, BCY - 2), (BCX - 12, BCY - 3),
-                               (BCX - 12, BCY + 1), (BCX + 16, BCY + 2)]))
-    a, b = bk([nose, tail_in])
-    pygame.draw.line(surf, _V2_KEEL, (int(a[0]), int(a[1])),
-                     (int(b[0]), int(b[1])), 3)
-    return _self_rim(surf, _V2_RIM)
-
-
-# =============================================================================
-# V3 - SWEPT GLIDER (pale blue construction paper)
-#
-# A wide planform with strongly SWEPT-back leading edges - a fast-soaring arrow
-# delta. Sharper nose than V1/V2 but still WIDE at the trailing span. Pale-blue
-# construction paper, so the colour identity differs again. The sweep gives a
-# dynamic leading line the eye tracks at speed.
-# =============================================================================
-_V3_TOP    = (198, 222, 244)        # lit pale-blue facet
-_V3_TOP_H  = (228, 240, 252)
-_V3_UNDER  = (138, 168, 204)        # shadow facet
-_V3_UNDER_D = (114, 146, 186)
-_V3_KEEL   = (84, 114, 156)
-_V3_RIM    = (70, 98, 138)
-
-
-def build_glider_wide_v3(wing_angle_deg):
-    surf = _new()
-    f = _flutter(wing_angle_deg)
-    roll = max(-_ROLL_MAX, min(_ROLL_MAX, f * 5.0))
-    bob = -f * 1.3
-    pitch = f * 0.07
-
-    # Swept delta: nose forward + right, leading edges rake back to a WIDE
-    # trailing span. Wider than tall so it reads as a glider, not a dart.
-    nose      = (BCX + 25, BCY - 1)
-    far_tip   = (BCX - 20, BCY - 18)
-    near_tip  = (BCX - 20, BCY + 18)
-    tail_in   = (BCX - 13, BCY)
-
-    def bk(pts):
-        return _bank(pts, BCX, BCY, roll, bob, pitch)
-
-    # UNDER half.
-    _poly(surf, _V3_UNDER, bk([nose, near_tip, tail_in]))
-    _poly(surf, _V3_UNDER_D, bk([nose, near_tip, (BCX - 6, BCY + 5)]))
-    # TOP half + a swept inner facet line accentuating the rake.
-    _poly(surf, _V3_TOP, bk([nose, far_tip, tail_in]))
-    _poly(surf, _V3_TOP_H, bk([nose, (BCX + 4, BCY - 8), (BCX + 8, BCY - 2)]))
-    # Mid-wing crease echoing the swept leading edge (lit/shadow sub-split).
-    c, d = bk([(BCX + 14, BCY - 5), far_tip])
-    pygame.draw.line(surf, _V3_UNDER, (int(c[0]), int(c[1])),
-                     (int(d[0]), int(d[1])), 1)
-
-    a, b = bk([nose, tail_in])
-    pygame.draw.line(surf, _V3_KEEL, (int(a[0]), int(a[1])),
-                     (int(b[0]), int(b[1])), 3)
-    return _self_rim(surf, _V3_RIM)
-
-
-# =============================================================================
-# V4 - WINGLET DELTA (white, with up-folded wingtips)
-#
-# The wide delta of V1 but with the wingtips UP-FOLDED into little winglets -
-# the cleanest tip read: two dark vertical fins breaking the trailing corners so
-# the wide span never blurs into the sky. The premium "real glider" detail.
-# =============================================================================
-_V4_TOP    = (242, 246, 252)
-_V4_TOP_H  = (255, 255, 255)
-_V4_UNDER  = (172, 186, 206)
-_V4_UNDER_D = (146, 162, 186)
-_V4_KEEL   = (112, 126, 150)
-_V4_WINGLET = (120, 136, 162)       # up-folded tip fin (catches edge light)
-_V4_WINGLET_D = (88, 102, 128)
-_V4_RIM    = (92, 106, 132)
-
-
-def build_glider_wide_v4(wing_angle_deg):
-    surf = _new()
-    f = _flutter(wing_angle_deg)
-    roll = max(-_ROLL_MAX, min(_ROLL_MAX, f * 4.5))
-    bob = -f * 1.2
-    pitch = f * 0.06
-
-    nose      = (BCX + 23, BCY)
-    far_tip   = (BCX - 17, BCY - 16)
-    near_tip  = (BCX - 17, BCY + 16)
-    tail_in   = (BCX - 11, BCY)
-
-    def bk(pts):
-        return _bank(pts, BCX, BCY, roll, bob, pitch)
-
-    # UNDER + TOP wide-delta halves.
-    _poly(surf, _V4_UNDER, bk([nose, near_tip, tail_in]))
-    _poly(surf, _V4_UNDER_D, bk([nose, near_tip, (BCX - 4, BCY + 6)]))
-    _poly(surf, _V4_TOP, bk([nose, far_tip, tail_in]))
-    _poly(surf, _V4_TOP_H, bk([nose, (BCX + 6, BCY - 7), (BCX + 9, BCY - 1)]))
-
-    # Up-folded WINGLETS at both trailing corners: a small fin standing proud of
-    # the planform. Far (upper) winglet leans away (lit edge), near leans toward.
-    _poly(surf, _V4_WINGLET, bk([far_tip, (BCX - 21, BCY - 22),
-                                 (BCX - 14, BCY - 20), (BCX - 13, BCY - 14)]))
-    _poly(surf, _V4_WINGLET_D, bk([near_tip, (BCX - 21, BCY + 22),
-                                   (BCX - 14, BCY + 20), (BCX - 13, BCY + 14)]))
-
-    a, b = bk([nose, tail_in])
-    pygame.draw.line(surf, _V4_KEEL, (int(a[0]), int(a[1])),
-                     (int(b[0]), int(b[1])), 3)
-    return _self_rim(surf, _V4_RIM)
-
-
-# =============================================================================
-# V5 - KEEL GLIDER (manila, deep central fuselage strip)
+# KEEL GLIDER (manila) — production
 #
 # Wide flat wings flanking a BOLD raised central keel/fuselage strip that runs
-# the full length and stands proud as its own lit-vs-shadow ridge. The fuselage
-# is the hero here: a chunky paper spine the eye locks onto, with the wings as
-# broad flat shelves to either side. Warm manila, distinct from V2's stubby box.
+# the full length nose->tail and stands proud as its own lit-vs-shadow ridge.
+# The keel is the hero: a chunky paper spine the eye locks onto, with the wings
+# as broad flat shelves either side. Two crisp rear points pin the WIDE wing
+# read. Warm manila, held a notch below white so it never flares on day sky.
+#
+# Value structure (the work happens here, not in hue) at 40px:
+#   * lit wing shelf (near/lower, faces light) vs a hard-darkened shadow shelf
+#     (far/upper, tilts away) — the split is widened ~15% from Round 1 so the
+#     central ridge reads as a 3D crease, not a soft gradient,
+#   * the keel itself is a taller/wider dual-facet ridge: a bright lit top and a
+#     distinctly darker shadow side, so the spine dominates the silhouette,
+#   * a hard crease line caps the keel ridge,
+#   * a baked 1px self-rim, tightened on the shadow side, guarantees the wide
+#     planform on day AND night.
 # =============================================================================
-_V5_WING   = (208, 186, 142)        # flat wing shelf (lit, manila)
-_V5_WING_D = (160, 138, 98)         # shadow wing shelf (far/under)
-_V5_KEEL_L = (236, 220, 182)        # raised keel ridge - lit top
-_V5_KEEL_S = (150, 128, 88)         # raised keel ridge - shadow side
-_V5_KEEL_C = (104, 86, 56)          # keel crease (hard break)
-_V5_RIM    = (88, 72, 48)
+# Brightest manila held a notch below white (max ~238) so it never flares out
+# against bright day sky or a pale pillar — verified against both.
+_WING    = (210, 188, 142)        # lit wing shelf (near/lower, manila)
+_WING_D  = (138, 116, 78)         # shadow wing shelf (far/upper) — ~15% darker
+                                  #   value split than R1 so the ridge pops hard
+_WING_DD = (120, 100, 66)         # deepest shadow wedge under the keel shoulder
+_KEEL_L  = (238, 222, 184)        # raised keel ridge — lit top (held below white)
+_KEEL_LH = (250, 240, 214)        # narrow nose-spine catch-light (not full white)
+_KEEL_S  = (132, 110, 74)         # raised keel ridge — shadow side (hard-darkened)
+_KEEL_C  = (96, 78, 50)           # keel crease (hard value break / hero ridge cap)
+_RIM     = (84, 68, 46)           # baked self-rim — silhouette guarantee
 
 
-def build_glider_wide_v5(wing_angle_deg):
+def build_glider_wide(wing_angle_deg):
+    """One flat KEEL GLIDER frame, nose RIGHT, on the 64x84 canvas.
+
+    Geometry is locked so the nose is always the rightmost, narrowest cluster
+    and the wide trailing span sits left/behind — the forward read the flat
+    deltas lost. The keel is built taller/wider than the Round-1 take so the
+    lit-spine-vs-shadow-shelf ridge is the dominant structure at gameplay scale."""
     surf = _new()
     f = _flutter(wing_angle_deg)
-    roll = max(-_ROLL_MAX, min(_ROLL_MAX, f * 4.0))
+    # Tight roll + bob + pitch: a slow soaring sway. Clamped so the dive pose
+    # never rotates the keel off its forward-right spine into a backward kite.
+    roll = max(-_ROLL_MAX, min(_ROLL_MAX, f * 3.6))
     bob = -f * 1.1
     pitch = f * 0.05
 
-    nose      = (BCX + 22, BCY)
-    far_tip   = (BCX - 18, BCY - 17)
-    near_tip  = (BCX - 18, BCY + 17)
-    tail_in   = (BCX - 12, BCY)
+    # ── Planform anchors ─────────────────────────────────────────────────────
+    # Nose is a tight forward-RIGHT point (rightmost, narrowest). The two rear
+    # corners are pulled to CRISP points and splayed wide (the trailing span) so
+    # the silhouette reads as a deliberate WIDE wing, not a narrow dart.
+    nose      = (BCX + 23, BCY)
+    far_tip   = (BCX - 19, BCY - 19)        # upper (shadow) rear point — crisp
+    near_tip  = (BCX - 19, BCY + 19)        # lower (lit) rear point — crisp
+    tail_in   = (BCX - 13, BCY)             # trailing notch toward the keel
 
     def bk(pts):
         return _bank(pts, BCX, BCY, roll, bob, pitch)
 
-    # Far (upper) flat wing shelf — in shadow because it tilts away from light.
-    _poly(surf, _V5_WING_D, bk([nose, far_tip, tail_in]))
-    # Near (lower) flat wing shelf — lit, facing the viewer/light.
-    _poly(surf, _V5_WING, bk([nose, near_tip, tail_in]))
+    # ── Wing shelves (the wide flats either side of the keel) ────────────────
+    # Far (upper) shelf in shadow — tilts away from light. Near (lower) shelf
+    # lit — faces the viewer/light. Hard value split so the ridge is a crease.
+    _poly(surf, _WING_D, bk([nose, far_tip, tail_in]))
+    _poly(surf, _WING,   bk([nose, near_tip, tail_in]))
+    # Deepest wedge in the shadow shelf right under the keel shoulder, so the
+    # crease has a dark floor to pop against at 40px.
+    _poly(surf, _WING_DD, bk([(BCX + 4, BCY), far_tip, tail_in]))
 
-    # BOLD raised central keel running nose -> tail, drawn as two facets so the
-    # spine itself has a lit top and a shadow side — a chunky paper fuselage.
-    keel_top = bk([nose, (BCX - 14, BCY - 4), (BCX - 14, BCY), (BCX + 18, BCY)])
-    keel_sh  = bk([nose, (BCX - 14, BCY), (BCX - 14, BCY + 4), (BCX + 18, BCY + 1)])
-    _poly(surf, _V5_KEEL_S, keel_sh)
-    _poly(surf, _V5_KEEL_L, keel_top)
-    # Hard crease along the very top of the keel ridge.
-    a, b = bk([nose, (BCX - 14, BCY - 4)])
-    pygame.draw.line(surf, _V5_KEEL_C, (int(a[0]), int(a[1])),
+    # ── BOLD raised central keel (the hero ridge), nose -> tail ──────────────
+    # Built ~20% taller/wider than Round 1 as two facets so the spine carries
+    # its own lit top + shadow side and DOMINATES the silhouette. The lit top is
+    # the upper half of the ridge (catches light); the shadow side is the lower
+    # half (turns away) and is hard-darkened so the spine reads 3D, not flat.
+    keel_back = BCX - 16
+    keel_sh  = bk([nose, (keel_back, BCY),     (keel_back, BCY + 5),
+                   (BCX + 18, BCY + 2)])
+    keel_top = bk([nose, (keel_back, BCY - 6), (keel_back, BCY),
+                   (BCX + 18, BCY)])
+    _poly(surf, _KEEL_S, keel_sh)
+    _poly(surf, _KEEL_L, keel_top)
+
+    # Hard crease capping the very top of the keel ridge — the hero fold line.
+    a, b = bk([nose, (keel_back, BCY - 6)])
+    pygame.draw.line(surf, _KEEL_C, (int(a[0]), int(a[1])),
                      (int(b[0]), int(b[1])), 2)
-    # Bright nose catch-light on the keel point.
-    nx, ny = bk([(BCX + 18, BCY - 1)])[0]
-    pygame.draw.circle(surf, (252, 244, 220), (int(nx), int(ny)), 2)
-    return _self_rim(surf, _V5_RIM)
+    # Second crease at the keel-to-shelf shoulder on the shadow side, so the
+    # ridge reads as a raised box, not a painted stripe.
+    c, d = bk([nose, (keel_back, BCY + 5)])
+    pygame.draw.line(surf, _KEEL_C, (int(c[0]), int(c[1])),
+                     (int(d[0]), int(d[1])), 1)
+
+    # Narrow nose-spine catch-light: a short bright run along the lit keel top
+    # at the forward point — held below white so it never flares on day sky.
+    e, g = bk([(BCX + 18, BCY - 2), (BCX + 4, BCY - 3)])
+    pygame.draw.line(surf, _KEEL_LH, (int(e[0]), int(e[1])),
+                     (int(g[0]), int(g[1])), 2)
+
+    return _self_rim(surf, _RIM)
 
 
-# label -> getter dict (mirrors creature_skins.BUILDERS shape)
-get_glider_wide_v1 = _make_prebuilt_skin(build_glider_wide_v1)
-get_glider_wide_v2 = _make_prebuilt_skin(build_glider_wide_v2)
-get_glider_wide_v3 = _make_prebuilt_skin(build_glider_wide_v3)
-get_glider_wide_v4 = _make_prebuilt_skin(build_glider_wide_v4)
-get_glider_wide_v5 = _make_prebuilt_skin(build_glider_wide_v5)
+get_glider_wide = _make_prebuilt_skin(build_glider_wide)
 
-BUILDERS = {
-    "glider_wide_v1": get_glider_wide_v1,
-    "glider_wide_v2": get_glider_wide_v2,
-    "glider_wide_v3": get_glider_wide_v3,
-    "glider_wide_v4": get_glider_wide_v4,
-    "glider_wide_v5": get_glider_wide_v5,
-}
+
+# label -> getter dict (mirrors creature_skins.BUILDERS shape). Single
+# production build, liftable into game/animal_paper_plane.py as the skin entry.
+BUILDERS = {"skin_glider_wide": get_glider_wide}
