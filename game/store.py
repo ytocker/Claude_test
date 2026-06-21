@@ -7,24 +7,27 @@ here grows as the player flies.
 
 This module owns the whole frame for STATE_STORE. The App's `_render` hands
 it the screen surface; the App's `_flap_input` routes taps *into*
-`handle_tap`, which returns an action token ("back" / "open_prize" / None) —
-the store is interactive, so taps are dispatched here rather than blanket-
-dismissing the screen like the one-tap help explainer.
+`handle_tap`, which returns an action token ("back" / None) — the store is
+interactive, so taps are dispatched here rather than blanket-dismissing the
+screen like the one-tap help explainer.
 
-Visual language is shared with the power-ups explainer and the menu (night-
-sky gradient, twinkling stars, gold-on-red title, Pip Scarlet cards) so the
-store reads as part of the same family.
+Visual language ("Obsidian & Gold", art-director locked spec B+): obsidian
+top-lit cards on a night-sky gradient, a fine gold inner bezel, a rarity
+SHELF-LIGHT BAR glowing up from each card base (the primary tier cue), a small
+inset faceted GEM badge (secondary), the procedural thumbnail on a clean dark
+inset disc, and a luxe gold balance capsule. Rarity reads by HUE *and* VALUE so
+the four tiers + the mystery state stay colourblind-safe.
 """
 from __future__ import annotations
 
+import math
 import pygame
 
 from game.config import W, H
-from game.hud import _font, _draw_overlay_stars, _pill_btn, _coin_icon, \
-    _GOLD_BRIGHT, _GOLD_PALE, _GOLD_DEEP
-from game.draw import UI_CREAM, NEAR_BLACK, rounded_rect
-from game.powerup_help import _gradient_bg, _outlined_title, _seeded_stars, \
-    _dark_panel
+from game.hud import _font, _draw_overlay_stars, \
+    _GOLD_BRIGHT, _GOLD_PALE, _GOLD_DEEP, _RED_OUTLINE
+from game.draw import UI_CREAM, NEAR_BLACK, WHITE, rounded_rect, lerp_color
+from game.powerup_help import _seeded_stars
 from game import parrot
 from game import store_catalog
 from game import store_data
@@ -44,39 +47,324 @@ _TABS = (("COSTUMES", "costume"), ("PARROTS", "parrot"),
          ("ANIMALS", "animal"), ("SHOES", "shoes"), ("HATS", "hats"),
          ("SHADES", "shades"), ("PARCELS", "parcels"))
 
-# Owned-but-equipped accent + buy/locked chip tints.
-_EQUIP_GREEN = (96, 210, 120)
-_LOCK_GREY = (150, 140, 155)
+# Night-sky gradient stops the obsidian cards were tuned against.
+_BG_STOPS = ((8, 8, 24), (12, 12, 36), (18, 16, 48), (24, 20, 58))
 
-# Rarity-tier card-outline colours, keyed by store_catalog.rarity() (price
-# band): common→gray, rare→blue, epic→purple, legendary→orange. This is the
-# default card rim; an equipped card overrides it with the bright gold rim so
-# the active look still reads at a glance.
-_RARITY_RIM = {
-    "common":    (150, 156, 168),
-    "rare":      ( 78, 154, 240),
-    "epic":      (170, 104, 226),
-    "legendary": (242, 158,  56),
+# Obsidian card body stops — near-black, subtly top-lit (never rarity-tinted).
+_OBS_TOP = (26, 24, 32)
+_OBS_BOT = (9, 8, 15)
+
+# ── rarity language (locked spec) ────────────────────────────────────────────
+# The four tiers + the mystery state separate by HUE *and* VALUE so they survive
+# grayscale (colourblind-safe). Both the shelf-bar and the gem pull the same
+# per-tier triplet so a card reads as one jewel. Grayscale ladder (gem luma):
+# epic < common < rare < legendary < mystery — five separable steps, brightest
+# reserved for the un-tiered mystery.
+_RARITY = {
+    "common":    {"gem": (208, 178, 132), "glow": (196, 162, 110), "deep": (96, 74, 44)},
+    "rare":      {"gem": (96, 196, 240),  "glow": (64, 172, 230),  "deep": (20, 78, 116)},
+    "epic":      {"gem": (190, 104, 236), "glow": (170, 78, 232),  "deep": (70, 28, 104)},
+    "legendary": {"gem": (255, 168, 56),  "glow": (255, 138, 30),  "deep": (132, 64, 10)},
 }
+# MYSTERY (secret ???): neutral iridescent silver — highest value, no saturated
+# hue, so it claims NO tier and never collides with RARE's blue.
+_MYSTERY = {"gem": (214, 218, 224), "glow": (176, 196, 214), "deep": (78, 84, 98)}
+
+# Unified chip family: one pill silhouette + hairline rim for every state; only
+# the fill + content differ. The can't-afford "locked" chip is dark cool slate-
+# blue (never warm gold) so it can't be mistaken for the EQUIP chip.
+_CHIP_STATES = {
+    "price":    {"fg": _GOLD_PALE,     "bg": _GOLD_DEEP,     "rim": (*_GOLD_BRIGHT, 150)},
+    "equip":    {"fg": UI_CREAM,       "bg": (96, 74, 24),   "rim": (*_GOLD_BRIGHT, 150)},
+    "equipped": {"fg": (10, 30, 14),   "bg": (84, 196, 112), "rim": (200, 255, 210, 200)},
+    "locked":   {"fg": (150, 166, 190), "bg": (40, 46, 62),  "rim": (88, 102, 132, 180)},
+}
+
+
+# ── cached primitives (the store is a menu screen; cache the heavy builds) ────
+_panel_cache: dict = {}
+_disc_cache: dict = {}
+_shelf_cache: dict = {}
+_coin_cache: dict = {}
+
+
+def _vgrad_panel(w, h, radius, top, bot, alpha=255):
+    """Rounded vertical-gradient panel (top brighter), corner-masked. Cached by
+    args — every card shares one body surface, so this builds once."""
+    key = (w, h, radius, top, bot, alpha)
+    cached = _panel_cache.get(key)
+    if cached is not None:
+        return cached
+    body = pygame.Surface((w, h), pygame.SRCALPHA)
+    for y in range(h):
+        c = lerp_color(top, bot, y / max(1, h - 1))
+        pygame.draw.line(body, (*c, alpha), (0, y), (w - 1, y))
+    mask = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, w, h), border_radius=radius)
+    body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    _panel_cache[key] = body
+    return body
+
+
+def _coin_glyph(surf, cx, cy, r):
+    """The one coin used everywhere (price chip, balance, modal): a flat-gold
+    disc with a single diagonal bevel + a stamped "$" — no gear teeth (those
+    read as muddy noise at chip scale). Cached per radius."""
+    key = int(r)
+    face = _coin_cache.get(key)
+    if face is None:
+        d = r * 2
+        face = pygame.Surface((d + 2, d + 2), pygame.SRCALPHA)
+        c = r + 1
+        for yy in range(d + 2):
+            for xx in range(d + 2):
+                dx, dy = xx - c, yy - c
+                if dx * dx + dy * dy > r * r:
+                    continue
+                diag = (dx + dy) / (2 * r) + 0.5
+                col = lerp_color((255, 230, 150), (188, 132, 30),
+                                 max(0.0, min(1.0, diag)) ** 0.85)
+                face.set_at((xx, yy), (*col, 255))
+        pygame.draw.circle(face, (*_GOLD_DEEP, 230), (c, c), r, 1)
+        hl = pygame.Surface((d + 2, d + 2), pygame.SRCALPHA)
+        pygame.draw.circle(hl, (255, 250, 220, 220), (c, c),
+                           max(1, r - 2), max(1, r // 6))
+        for yy in range(d + 2):
+            for xx in range(d + 2):
+                if (xx - c) + (yy - c) > -r * 0.45:
+                    hl.set_at((xx, yy), (0, 0, 0, 0))
+        face.blit(hl, (0, 0))
+        sf = _font(max(9, int(r * 1.5)), True)
+        face.blit(sf.render("$", True, (120, 80, 16)),
+                  sf.render("$", True, (120, 80, 16)).get_rect(center=(c, c)))
+        sg2 = sf.render("$", True, (255, 238, 180))
+        face.blit(sg2, sg2.get_rect(center=(c, c - 1)))
+        _coin_cache[key] = face
+    surf.blit(face, face.get_rect(center=(cx, cy)))
+
+
+def _soft_glow(surf, cx, cy, radius, color, peak_alpha, layers=6):
+    """Layered additive bloom — cheap (no per-pixel) so elements emit light."""
+    for i in range(layers, 0, -1):
+        r = int(radius * i / layers)
+        a = int(peak_alpha * (1 - (i - 1) / layers) ** 1.7)
+        if r <= 0 or a <= 0:
+            continue
+        g = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
+        pygame.draw.circle(g, (*color, a), (r + 1, r + 1), r)
+        surf.blit(g, (cx - r - 1, cy - r - 1), special_flags=pygame.BLEND_ADD)
+
+
+def _drop_shadow(surf, rect, radius, blur=6, alpha=120, dy=4):
+    """Soft drop shadow under a card."""
+    for i in range(blur, 0, -1):
+        a = int(alpha * (i / blur) ** 2 / blur * 2.2)
+        if a <= 0:
+            continue
+        r = pygame.Rect(rect.x - i, rect.y - i + dy, rect.w + 2 * i, rect.h + 2 * i)
+        s = pygame.Surface(r.size, pygame.SRCALPHA)
+        pygame.draw.rect(s, (0, 0, 0, a), s.get_rect(), border_radius=radius + i)
+        surf.blit(s, r.topleft)
+
+
+def _inset_disc(surf, cx, cy, r, tint=(6, 6, 12)):
+    """A clean dark inset disc for the thumbnail (never rarity-tinted). Cached."""
+    key = (r, tint)
+    disc = _disc_cache.get(key)
+    if disc is None:
+        disc = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
+        for i in range(r, 0, -1):
+            c = lerp_color((30, 28, 40), tint, (i / r) ** 1.3)
+            pygame.draw.circle(disc, (*c, 255), (r + 1, r + 1), i)
+        pygame.draw.circle(disc, (0, 0, 0, 130), (r + 1, r + 1), r, 2)
+        pygame.draw.circle(disc, (*_GOLD_DEEP, 60), (r + 1, r + 1), r - 1, 1)
+        _disc_cache[key] = disc
+    surf.blit(disc, (cx - r - 1, cy - r - 1))
+
+
+def _shelf_bar(surf, rect, tier, intensity=1.0, mystery=False):
+    """The rarity SHELF-LIGHT BAR along the card base — an additive horizontal
+    gradient strip in the tier colour that glows UP into the body like a vitrine
+    light. PRIMARY rarity cue. Cached per (width, tier)."""
+    bw = rect.w - 28
+    key = (bw, "mystery" if mystery else tier, round(intensity, 2))
+    pair = _shelf_cache.get(key)
+    if pair is None:
+        pal = _MYSTERY if mystery else _RARITY[tier]
+        glow, gem = pal["glow"], pal["gem"]
+        wash_h = int(10 * intensity) + 6
+        wash = pygame.Surface((bw, wash_h), pygame.SRCALPHA)
+        peak = int(22 * intensity) + 8
+        for y in range(wash_h):
+            f = 1.0 - y / wash_h
+            a = int(peak * f ** 2.6)
+            if a <= 0:
+                continue
+            for seg in range(0, bw, 2):
+                hx = abs(seg - bw / 2) / (bw / 2)
+                ha = int(a * (1.0 - 0.6 * hx ** 2))
+                if ha > 0:
+                    wash.set_at((seg, wash_h - 1 - y), (*glow, ha))
+                    if seg + 1 < bw:
+                        wash.set_at((seg + 1, wash_h - 1 - y), (*glow, ha))
+        core = pygame.Surface((bw, 3), pygame.SRCALPHA)
+        for sx in range(bw):
+            hx = abs(sx - bw / 2) / (bw / 2)
+            c = lerp_color(lerp_color(gem, WHITE, 0.4), pal["deep"], hx ** 1.4)
+            a = int(255 * (1.0 - 0.4 * hx ** 2))
+            for sy in range(3):
+                core.set_at((sx, sy), (*c, a))
+        mask = pygame.Surface((bw, 3), pygame.SRCALPHA)
+        pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, bw, 3), border_radius=1)
+        core.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        pair = (wash, core, wash_h)
+        _shelf_cache[key] = pair
+    wash, core, wash_h = pair
+    bx = rect.x + 14
+    by = rect.bottom - 8
+    surf.blit(wash, (bx, by - wash_h + 3), special_flags=pygame.BLEND_ADD)
+    surf.blit(core, (bx, by))
+
+
+def _gold_leaf(surf, cx, cy, sx):
+    """A tiny two-leaf gold sprig flourish for LEGENDARY cards only (faint)."""
+    leaf = pygame.Surface((20, 16), pygame.SRCALPHA)
+    pygame.draw.line(leaf, (*_GOLD_DEEP, 170), (10, 14), (10, 3), 1)
+    pygame.draw.ellipse(leaf, (*_GOLD_BRIGHT, 150), (4, 4, 7, 9))
+    pygame.draw.ellipse(leaf, (*_GOLD_BRIGHT, 150), (10, 5, 7, 9))
+    if sx < 0:
+        leaf = pygame.transform.flip(leaf, True, False)
+    surf.blit(leaf, (cx - 10, cy - 6))
+
+
+def _gem(surf, cx, cy, r, tier, t=0.0, inset=True, mystery=False):
+    """Faceted rarity gem badge inset in the card corner — a three-value cut
+    (lit TL, mid right, shaded BL, darker BR shadow facet) + a white specular
+    pip, seated in a dark keyline well. SECONDARY rarity marker."""
+    pal = _MYSTERY if mystery else _RARITY[tier]
+    base, glow, deep = pal["gem"], pal["glow"], pal["deep"]
+    if inset:
+        seat = pygame.Surface((r * 2 + 8, r * 2 + 8), pygame.SRCALPHA)
+        pygame.draw.circle(seat, (0, 0, 0, 150), (r + 4, r + 4), r + 3)
+        pygame.draw.circle(seat, (*_GOLD_DEEP, 90), (r + 4, r + 4), r + 3, 1)
+        surf.blit(seat, (cx - r - 4, cy - r - 4))
+    _soft_glow(surf, cx, cy, int(r * 1.5), glow,
+               int(70 + 30 * (0.5 + 0.5 * math.sin(t * 3))), layers=4)
+    top, bot = (cx, cy - r), (cx, cy + r)
+    left, right = (cx - r, cy), (cx + r, cy)
+    ctr = (cx, cy)
+    if mystery:
+        f1 = lerp_color((196, 214, 226), (214, 202, 224), 0.5)
+        hi, mid = lerp_color(f1, WHITE, 0.55), f1
+        sh = lerp_color(f1, deep, 0.45)
+        dk = lerp_color(deep, NEAR_BLACK, 0.25)
+    else:
+        hi, mid = lerp_color(base, WHITE, 0.5), base
+        sh = lerp_color(base, deep, 0.5)
+        dk = lerp_color(deep, NEAR_BLACK, 0.3)
+    pygame.draw.polygon(surf, hi, [top, left, ctr])
+    pygame.draw.polygon(surf, mid, [top, right, ctr])
+    pygame.draw.polygon(surf, sh, [left, bot, ctr])
+    pygame.draw.polygon(surf, dk, [right, bot, ctr])
+    pygame.draw.polygon(surf, lerp_color(deep, NEAR_BLACK, 0.45),
+                        [top, right, bot, left], width=1)
+    pr = max(1, r // 4)
+    pip = pygame.Surface((pr * 2 + 2, pr * 2 + 2), pygame.SRCALPHA)
+    pygame.draw.circle(pip, (255, 255, 255, 245), (pr + 1, pr + 1), pr)
+    surf.blit(pip, (cx - pr - r // 3, cy - pr - r // 3), special_flags=pygame.BLEND_ADD)
+
+
+def _gold_rule(surf, x0, x1, y, peak=170):
+    """A soft gold GRADIENT rule — bright at centre, fading at both ends."""
+    w = x1 - x0
+    line = pygame.Surface((w, 3), pygame.SRCALPHA)
+    for sx in range(w):
+        hx = abs(sx - w / 2) / (w / 2)
+        a = int(peak * (1.0 - hx ** 1.6))
+        if a <= 0:
+            continue
+        line.set_at((sx, 1), (*_GOLD_BRIGHT, a))
+        line.set_at((sx, 0), (*_GOLD_PALE, a // 2))
+        line.set_at((sx, 2), (*_GOLD_DEEP, a // 2))
+    surf.blit(line, (x0, y - 1))
+
+
+def _gradient_text(surf, txt, font_obj, center, top, bot, outline=None, shadow=True):
+    """Vertical gold-gradient text with optional outline + drop shadow."""
+    base = font_obj.render(txt, True, WHITE)
+    w, h = base.get_size()
+    grad = pygame.Surface((w, h), pygame.SRCALPHA)
+    for y in range(h):
+        pygame.draw.line(grad, lerp_color(top, bot, y / max(1, h - 1)),
+                         (0, y), (w, y))
+    grad.blit(base, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    r = base.get_rect(center=center)
+    if outline:
+        out = font_obj.render(txt, True, outline)
+        for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2),
+                       (-2, -2), (2, -2), (-2, 2), (2, 2)):
+            surf.blit(out, (r.x + ox, r.y + oy))
+    if shadow:
+        sh = font_obj.render(txt, True, NEAR_BLACK)
+        sh.set_alpha(150)
+        surf.blit(sh, (r.x + 1, r.y + 2))
+    surf.blit(grad, r.topleft)
+    return r
+
+
+def _lock_glyph(surf, cx, cy, col):
+    """Tiny padlock for the can't-afford chip — body + shackle."""
+    rounded_rect(surf, pygame.Rect(cx - 4, cy - 1, 8, 6), 2, col)
+    pygame.draw.arc(surf, col, (cx - 3, cy - 6, 6, 8), 0.2, math.pi - 0.2, 2)
+    surf.set_at((cx, cy + 2), (24, 28, 38))
+
+
+def _chip(surf, cx, cy, text, state, coin=False, h=24, lock=False):
+    """The single chip silhouette for all states: pill body (gradient), hairline
+    rim, optional coin glyph or lock, centred on (cx, cy)."""
+    sp = _CHIP_STATES[state]
+    f = _font(max(12, int(h * 0.56)), True)
+    timg = f.render(text, True, sp["fg"])
+    coin_d = int(h * 0.62)
+    pre_w = (coin_d + 4) if coin else (12 if lock else 0)
+    pad = 12
+    w = pre_w + timg.get_width() + pad * 2
+    chip = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
+    surf.blit(_vgrad_panel(w, h, h // 2, lerp_color(sp["bg"], WHITE, 0.18),
+                           sp["bg"]), chip.topleft)
+    sheen_peak = 28 if state == "locked" else 46
+    sheen = pygame.Surface((w - 6, h // 2), pygame.SRCALPHA)
+    for y in range(h // 2):
+        pygame.draw.line(sheen, (255, 255, 255, int(sheen_peak * (1 - y / (h // 2)))),
+                         (0, y), (w - 6, y))
+    smask = pygame.Surface((w - 6, h // 2), pygame.SRCALPHA)
+    pygame.draw.rect(smask, (255, 255, 255, 255), smask.get_rect(), border_radius=h // 2)
+    sheen.blit(smask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(sheen, (chip.x + 3, chip.y + 2))
+    pygame.draw.rect(surf, sp["rim"], chip, width=1, border_radius=h // 2)
+    x = chip.x + pad
+    if coin:
+        _coin_glyph(surf, x + coin_d // 2, cy, coin_d // 2)
+        x += coin_d + 4
+    elif lock:
+        _lock_glyph(surf, x + 4, cy, sp["fg"])
+        x += 12
+    surf.blit(timg, timg.get_rect(midleft=(x, cy)))
+    return chip
 
 
 def _draw_chevron(surf, rect, direction) -> None:
     """A small ``<`` / ``>`` scroll affordance at a tab-strip edge."""
-    rounded_rect(surf, rect, 9, (34, 26, 56))
-    pygame.draw.rect(surf, (90, 78, 120), rect, width=1, border_radius=9)
     cx, cy = rect.center
-    d = direction  # -1 = left arrow, +1 = right arrow
+    d = direction
     pts = [(cx - 2 * d, cy - 5), (cx + 3 * d, cy), (cx - 2 * d, cy + 5)]
-    pygame.draw.lines(surf, _GOLD_BRIGHT, False, pts, 2)
+    pygame.draw.lines(surf, (*_GOLD_PALE, 220), False, pts, 2)
 
 
 def _fit_skin(skin_id: str, box: int) -> pygame.Surface:
     """Render a skin's store thumbnail, crop to its opaque content, and fit that
-    into a ``box``-square (aspect preserved). Cropping first normalises the
-    different canvas sizes across skins (tall headgear composites vs the 64px
-    redraws) so every thumbnail fills its box consistently. Shoes supply a
-    product-shot icon (the sneaker itself) via ``get_skin_icon``; everything
-    else falls back to the in-game look."""
+    into a ``box``-square (aspect preserved). Shoes/parcels supply a product-shot
+    icon via ``get_skin_icon``; everything else falls back to the in-game look."""
     src = parrot.get_skin_icon(skin_id) or parrot.get_skin_frame(skin_id, 1, 0.0)
     bb = src.get_bounding_rect()
     if bb.width > 0 and bb.height > 0:
@@ -89,8 +377,7 @@ def _fit_skin(skin_id: str, box: int) -> pygame.Surface:
 
 def _slot_of(sid: str) -> str:
     """The equip slot a store card belongs to (its catalog ``kind``), so the
-    equipped-accent + tap-to-equip logic works for parcels as well as skins.
-    The two free defaults aren't in the catalog, so map them explicitly."""
+    equipped-accent + tap-to-equip logic works for parcels as well as skins."""
     if sid == store_catalog.PARCEL_BASE:
         return "parcel"
     if sid == store_catalog.BASE_SKIN or not store_catalog.exists(sid):
@@ -123,18 +410,14 @@ class StoreScene:
         self.confirm_yes_rect: "pygame.Rect | None" = None
         self.confirm_no_rect: "pygame.Rect | None" = None
         store_data.load()
-        # Per-tab skin lists, cheapest first. The PARROTS and SHADES tabs are
-        # fronted by a free DEFAULT card (the base macaw / its default aviators)
-        # so the player can always revert — on SHADES it reads as the full
-        # eyewear set: DEFAULT aviators, the alternatives, then NO SHADES.
+        # Per-tab skin lists, cheapest first. PARROTS/SHADES/PARCELS are fronted
+        # by a free DEFAULT card so the player can always revert.
         self._lists: "dict[str, list[str]]" = {}
         for label, g in _TABS:
             ids = sorted(store_catalog.ids_of_group(g), key=store_catalog.cost)
             if g in ("parrot", "shades"):
                 ids = [store_catalog.BASE_SKIN] + ids
             elif g == "parcels":
-                # Front the PARCELS tab with the free DEFAULT box so the player
-                # can always revert to Pip's classic parcel.
                 ids = [store_catalog.PARCEL_BASE] + ids
             self._lists[g] = ids
         self.tab = 0
@@ -167,12 +450,9 @@ class StoreScene:
 
     # ── rendering ────────────────────────────────────────────────────────────
     def render(self, surf: pygame.Surface) -> None:
-        _gradient_bg(surf)
-        _draw_overlay_stars(surf, self._stars, self.t + 1.4)
-
-        _outlined_title(surf, "STORE", (W // 2, 30),
-                        size=28, px=2, shadow_offset=(2, 3))
-        self._draw_balance(surf, cx=W // 2, y=62)
+        self._draw_bg(surf)
+        self._draw_title(surf)
+        self._draw_balance(surf, cx=W // 2, y=60)
         self._draw_daily(surf)
         self._draw_tabs(surf)
 
@@ -185,10 +465,8 @@ class StoreScene:
             msg.set_alpha(200)
             surf.blit(msg, msg.get_rect(center=(W // 2, _GRID_TOP + 150)))
         for idx, sid in enumerate(page_skins):
-            col = idx % 2
-            row = idx // 2
-            x = base_x + col * (_CARD_W + _GAP)
-            y = _GRID_TOP + row * (_CARD_H + _GAP)
+            x = base_x + (idx % 2) * (_CARD_W + _GAP)
+            y = _GRID_TOP + (idx // 2) * (_CARD_H + _GAP)
             rect = pygame.Rect(x, y, _CARD_W, _CARD_H)
             self.item_rects[sid] = rect
             self._draw_card(surf, sid, rect)
@@ -197,18 +475,78 @@ class StoreScene:
         self._draw_page_controls(surf, base_x, grid_bot - 4, _CARD_W * 2 + _GAP)
 
         self._draw_toast(surf)
-        self.back_rect = _pill_btn(
-            surf, (W // 2, H - 28), "BACK",
-            size=18, alpha=235, min_width=160, dim=True, shadow=False)
+        self._draw_back(surf)
         # The buy-confirmation overlays everything else when active.
         self._draw_confirm(surf)
 
+    def _draw_bg(self, surf) -> None:
+        n = len(_BG_STOPS)
+        for y in range(H):
+            f = y / (H - 1)
+            seg = min(n - 2, int(f * (n - 1)))
+            local = (f * (n - 1)) - seg
+            pygame.draw.line(surf, lerp_color(_BG_STOPS[seg], _BG_STOPS[seg + 1],
+                                              local), (0, y), (W - 1, y))
+        _draw_overlay_stars(surf, self._stars, self.t + 1.4)
+
+    def _draw_title(self, surf) -> None:
+        f = _font(28, True)
+        _gradient_text(surf, "STORE", f, (W // 2, 30),
+                       (255, 240, 180), (236, 170, 60),
+                       outline=_RED_OUTLINE, shadow=True)
+
+    def _draw_balance(self, surf, cx, y) -> None:
+        """Luxe recessed gold capsule + gradient-gold digits with the coin glyph
+        — the brightest glow on the screen, per the locked glow hierarchy."""
+        val = f"{store_data.balance():,}"
+        vf = _font(22, True)
+        vimg_w = vf.size(val)[0]
+        coin_d, gap_coin, pad = 24, 9, 16
+        w = coin_d + gap_coin + vimg_w + pad * 2
+        cap = pygame.Rect(cx - w // 2, y - 18, w, 36)
+        _drop_shadow(surf, cap, 18, blur=4, alpha=90)
+        surf.blit(_vgrad_panel(cap.w, cap.h, 18, (44, 32, 18), (20, 14, 8), 252),
+                  cap.topleft)
+        pygame.draw.rect(surf, (0, 0, 0, 120), cap.inflate(-2, -2), width=1,
+                         border_radius=17)
+        pygame.draw.rect(surf, (*_GOLD_BRIGHT, 190), cap, width=1, border_radius=18)
+        x = cap.x + pad
+        _soft_glow(surf, x + coin_d // 2, y, coin_d + 4, (255, 206, 92), 110, layers=5)
+        _coin_glyph(surf, x + coin_d // 2, y, coin_d // 2)
+        x += coin_d + gap_coin
+        _gradient_text(surf, val, vf, (x + vimg_w // 2, y),
+                       (255, 246, 196), (236, 170, 60), shadow=True)
+
+    def _draw_daily(self, surf) -> None:
+        """Top-right daily-reward pill: claimable shows the bonus in gold,
+        already-claimed mutes. The steady drip toward the higher tiers."""
+        from game.config import DAILY_REWARD
+        avail = store_data.daily_available()
+        f = _font(12, True)
+        fg = (28, 18, 8) if avail else (150, 140, 155)
+        txt = ("+" + str(DAILY_REWARD)) if avail else "✓"
+        timg = f.render(txt, True, fg)
+        lbl = f.render("DAILY", True, fg)
+        w = lbl.get_width() + 6 + timg.get_width() + 22
+        r = pygame.Rect(W - 12 - w, 14, w, 24)
+        self.daily_rect = r if avail else None
+        if avail:
+            surf.blit(_vgrad_panel(r.w, r.h, 11, (255, 215, 120), _GOLD_DEEP, 255),
+                      r.topleft)
+            pygame.draw.rect(surf, (*_GOLD_BRIGHT, 200), r, width=1, border_radius=11)
+        else:
+            surf.blit(_vgrad_panel(r.w, r.h, 11, (44, 36, 56), (28, 22, 40), 240),
+                      r.topleft)
+            pygame.draw.rect(surf, (80, 70, 100), r, width=1, border_radius=11)
+        surf.blit(lbl, lbl.get_rect(midleft=(r.x + 11, r.centery)))
+        surf.blit(timg, timg.get_rect(midleft=(r.x + 11 + lbl.get_width() + 6, r.centery)))
+
     def _draw_tabs(self, surf) -> None:
-        """A horizontally scrollable strip of natural-width tab pills (the
-        active one gold-filled). With more tabs than fit the 360px row, the
-        strip clips to a viewport flanked by ``< >`` chevrons; the full font
-        stays readable and the item grid below keeps its place. Switching a
-        tab resets that view to page 1 and scrolls it into view."""
+        """Horizontally scrollable tab strip. ONE active treatment — a brighter
+        gold label + a glowing gold underline on the active tab, dimmed labels
+        elsewhere (no pills). With more tabs than fit, the strip clips to a
+        viewport flanked by ``< >`` chevrons; switching resets that tab to page 1
+        and scrolls it into view."""
         f = _font(12, True)
         pad, gap = 11, 6
         widths = [f.size(label)[0] + 2 * pad for label, _g in _TABS]
@@ -216,11 +554,9 @@ class StoreScene:
         full_vp = pygame.Rect(12, _TAB_Y - 13, W - 24, 26)
         overflow = content_w > full_vp.width
         chev = 18 if overflow else 0
-        vp = pygame.Rect(full_vp.x + chev, full_vp.y,
-                         full_vp.width - 2 * chev, 26)
+        vp = pygame.Rect(full_vp.x + chev, full_vp.y, full_vp.width - 2 * chev, 26)
         max_scroll = max(0, content_w - vp.width)
         self.tab_scroll = max(0.0, min(self.tab_scroll, float(max_scroll)))
-        # Stash layout so handle_tap can hit-test + scroll with the same metrics.
         self._tab_vp, self._tab_widths, self._tab_gap = vp, widths, gap
 
         prev_clip = surf.get_clip()
@@ -229,27 +565,32 @@ class StoreScene:
         cx = 0
         for i, (label, _g) in enumerate(_TABS):
             w = widths[i]
-            r = pygame.Rect(round(vp.x + cx - self.tab_scroll),
-                            _TAB_Y - 13, w, 26)
+            r = pygame.Rect(round(vp.x + cx - self.tab_scroll), _TAB_Y - 13, w, 26)
             self.tab_rects.append(r)
             active = (i == self.tab)
-            rounded_rect(surf, r, 9, _GOLD_DEEP if active else (34, 26, 56))
-            pygame.draw.rect(surf, _GOLD_BRIGHT if active else (90, 78, 120),
-                             r, width=1, border_radius=9)
-            col = (28, 18, 8) if active else _GOLD_PALE
-            t = f.render(label, True, col)
-            surf.blit(t, t.get_rect(center=r.center))
+            col = _GOLD_BRIGHT if active else (150, 142, 158)
+            timg = f.render(label, True, col)
+            if not active:
+                timg.set_alpha(175)
+            tr = timg.get_rect(center=r.center)
+            surf.blit(timg, tr)
+            if active:
+                ur = pygame.Rect(tr.x - 2, r.bottom - 4, tr.w + 4, 3)
+                uglow = pygame.Surface((ur.w + 12, 10), pygame.SRCALPHA)
+                for gy in range(10):
+                    pygame.draw.line(uglow, (255, 200, 80, int(40 * (1 - gy / 10))),
+                                     (0, gy), (ur.w + 12, gy))
+                surf.blit(uglow, (ur.x - 6, ur.y - 2), special_flags=pygame.BLEND_ADD)
+                rounded_rect(surf, ur, 2, _GOLD_BRIGHT)
             cx += w + gap
         surf.set_clip(prev_clip)
 
-        # Chevrons only when there's hidden content that way.
         self.tab_chev_l = self.tab_chev_r = None
         if overflow and self.tab_scroll > 1:
             self.tab_chev_l = pygame.Rect(full_vp.x, full_vp.y, chev, 26)
             _draw_chevron(surf, self.tab_chev_l, -1)
         if overflow and self.tab_scroll < max_scroll - 1:
-            self.tab_chev_r = pygame.Rect(full_vp.right - chev, full_vp.y,
-                                          chev, 26)
+            self.tab_chev_r = pygame.Rect(full_vp.right - chev, full_vp.y, chev, 26)
             _draw_chevron(surf, self.tab_chev_r, 1)
 
     def _scroll_tab_into_view(self, i: int) -> None:
@@ -263,34 +604,89 @@ class StoreScene:
         elif x + w > self.tab_scroll + self._tab_vp.width:
             self.tab_scroll = float(x + w - self._tab_vp.width)
 
-    def _draw_daily(self, surf) -> None:
-        """Top-right daily-reward pill: claimable shows the bonus in gold,
-        already-claimed greys out. The steady drip toward the higher tiers."""
-        from game.config import DAILY_REWARD
-        avail = store_data.daily_available()
-        txt = ("+" + str(DAILY_REWARD)) if avail else "✓"
-        f = _font(12, True)
-        timg = f.render(txt, True, (28, 18, 8) if avail else _LOCK_GREY)
-        lbl = f.render("DAILY", True, (28, 18, 8) if avail else _LOCK_GREY)
-        w = lbl.get_width() + 6 + timg.get_width() + 20
-        r = pygame.Rect(W - 12 - w, 14, w, 24)
-        self.daily_rect = r if avail else None
-        rounded_rect(surf, r, 11, _GOLD_DEEP if avail else (44, 36, 56))
-        pygame.draw.rect(surf, _GOLD_BRIGHT if avail else (80, 70, 100),
-                         r, width=1, border_radius=11)
-        surf.blit(lbl, lbl.get_rect(midleft=(r.x + 10, r.centery)))
-        surf.blit(timg, timg.get_rect(midleft=(r.x + 10 + lbl.get_width() + 6,
-                                               r.centery)))
+    def _draw_card(self, surf, sid: str, rect: pygame.Rect) -> None:
+        """Locked B+ card: obsidian top-lit body (never rarity-tinted) + a 2px
+        gold inner bezel + a rarity SHELF-LIGHT BAR at the base (primary cue) + an
+        inset GEM badge top-right (secondary) + the thumbnail on a dark inset
+        disc, with a full gold rim + edge halo when equipped."""
+        owned = store_data.is_owned(sid)
+        equipped = (store_data.equipped(_slot_of(sid)) == sid)
+        # A secret stays masked (??? + a "?" glyph) until bought; the price chip
+        # still shows, so the lure is a mystery card with a steep cost.
+        secret = store_catalog.is_secret(sid) and not owned
+        tier = store_catalog.rarity(sid)
+
+        _drop_shadow(surf, rect, 13, blur=6, alpha=140)
+        surf.blit(_vgrad_panel(rect.w, rect.h, 13, _OBS_TOP, _OBS_BOT, 252),
+                  rect.topleft)
+        pygame.draw.rect(surf, (*_GOLD_DEEP, 210), rect.inflate(-7, -7),
+                         width=2, border_radius=8)
+        sheen = pygame.Surface((rect.w - 10, 16), pygame.SRCALPHA)
+        for y in range(16):
+            pygame.draw.line(sheen, (255, 255, 255, int(30 * (1 - y / 16))),
+                             (0, y), (rect.w - 10, y))
+        surf.blit(sheen, (rect.x + 5, rect.y + 4))
+
+        _shelf_bar(surf, rect, tier, mystery=secret)
+
+        disc_cy = rect.y + 34
+        _inset_disc(surf, rect.centerx, disc_cy, 27)
+        if secret:
+            _draw_qmark(surf, rect.centerx, disc_cy, 36, UI_CREAM, NEAR_BLACK, thick=2)
+            name = "???"
+        else:
+            thumb = self._thumbs[sid]
+            surf.blit(thumb, thumb.get_rect(center=(rect.centerx, disc_cy)))
+            name = self._disp_name(sid)
+
+        if tier == "legendary" and not secret:
+            _gold_leaf(surf, rect.x + 13, rect.y + 12, 1)
+        _gem(surf, rect.right - 15, rect.y + 15, 6, tier, self.t, mystery=secret)
+
+        nimg = _font(13, True).render(name, True, _GOLD_PALE)
+        nsh = _font(13, True).render(name, True, NEAR_BLACK)
+        nsh.set_alpha(150)
+        nr = nimg.get_rect(center=(rect.centerx, rect.y + 62))
+        surf.blit(nsh, (nr.x + 1, nr.y + 1))
+        surf.blit(nimg, nr)
+
+        self._state_chip(surf, sid, rect.centerx, rect.y + 82, owned, equipped, secret)
+
+        if equipped:
+            halo = pygame.Surface((rect.w + 16, rect.h + 16), pygame.SRCALPHA)
+            for k in range(4, 0, -1):
+                pygame.draw.rect(halo, (*_GOLD_BRIGHT, int(20 * k / 4)),
+                                 (8 - k, 8 - k, rect.w + 2 * k, rect.h + 2 * k),
+                                 width=2, border_radius=13 + k)
+            surf.blit(halo, (rect.x - 8, rect.y - 8), special_flags=pygame.BLEND_ADD)
+            pygame.draw.rect(surf, lerp_color(_GOLD_BRIGHT, NEAR_BLACK, 0.4), rect,
+                             width=2, border_radius=13)
+            pygame.draw.rect(surf, _GOLD_BRIGHT, rect.inflate(-2, -2), width=1,
+                             border_radius=12)
+
+    def _state_chip(self, surf, sid, cx, cy, owned, equipped, secret, h=24) -> None:
+        """The actionable state line: EQUIPPED / EQUIP / price / can't-afford,
+        in the one unified chip silhouette."""
+        if equipped:
+            _chip(surf, cx, cy, "EQUIPPED", "equipped", h=h)
+            return
+        if owned and not secret:
+            _chip(surf, cx, cy, "EQUIP", "equip", h=h)
+            return
+        price = store_catalog.cost(sid)
+        if store_data.balance() >= price:
+            _chip(surf, cx, cy, f"{price:,}", "price", coin=True, h=h)
+        else:
+            _chip(surf, cx, cy, f"{price:,}", "locked", lock=True, h=h)
 
     def _draw_page_controls(self, surf, x, y, w) -> None:
-        """‹  PAGE n/N  › — tap arrows to flip pages (drag-scroll isn't
-        available on the tap-only input path). Hidden when it all fits."""
+        """‹  PAGE n/N  › — tap arrows to flip pages. Hidden when it all fits."""
         self.prev_rect = self.next_rect = None
         if self.n_pages <= 1:
             return
         cy = y + 11
-        lbl = _font(12, True).render(
-            f"PAGE  {self.page + 1} / {self.n_pages}", True, _GOLD_PALE)
+        lbl = _font(12, True).render(f"PAGE  {self.page + 1} / {self.n_pages}",
+                                     True, _GOLD_PALE)
         surf.blit(lbl, lbl.get_rect(center=(x + w // 2, cy)))
         self.prev_rect = self._arrow(surf, x + 16, cy, "<", self.page > 0)
         self.next_rect = self._arrow(surf, x + w - 16, cy, ">",
@@ -299,115 +695,48 @@ class StoreScene:
     def _arrow(self, surf, cx, cy, glyph, enabled) -> "pygame.Rect | None":
         r = pygame.Rect(0, 0, 30, 22)
         r.center = (cx, cy)
-        rounded_rect(surf, r, 11, _GOLD_DEEP if enabled else (60, 52, 64))
+        surf.blit(_vgrad_panel(r.w, r.h, 11, (44, 34, 20) if enabled else (44, 40, 50),
+                               (24, 18, 10) if enabled else (28, 24, 32)), r.topleft)
+        pygame.draw.rect(surf, (*_GOLD_BRIGHT, 190) if enabled else (88, 80, 90),
+                         r, width=1, border_radius=11)
         g = _font(15, True).render(glyph, True,
-                                   _GOLD_PALE if enabled else _LOCK_GREY)
+                                   _GOLD_PALE if enabled else (140, 132, 146))
         surf.blit(g, g.get_rect(center=(cx, cy - 1)))
         return r if enabled else None
 
-    def _draw_balance(self, surf, cx, y) -> None:
-        val = str(store_data.balance())
-        vf = _font(22, True)
-        vimg = vf.render(val, True, _GOLD_BRIGHT)
-        coin_d = 22
-        gap = 6
-        total_w = coin_d + gap + vimg.get_width()
-        x0 = cx - total_w // 2
-        _coin_icon(surf, x0 + coin_d // 2, y, coin_d // 2)
-        surf.blit(vimg, vimg.get_rect(midleft=(x0 + coin_d + gap, y)))
-
-    def _draw_card(self, surf, sid: str, rect: pygame.Rect) -> None:
-        owned = store_data.is_owned(sid)
-        equipped = (store_data.equipped(_slot_of(sid)) == sid)
-        # A secret stays masked (??? + a "?" glyph) until bought; the price chip
-        # still shows, so the lure is a mystery card with a steep cost. Buying is
-        # blind and reveals the real art the moment ownership flips.
-        secret = store_catalog.is_secret(sid) and not owned
-        _dark_panel(surf, rect, radius=14, alpha=215)
-
-        # The card rim encodes the item's rarity tier by price (gray / blue /
-        # purple / orange); an equipped card overrides it with the bright gold
-        # rim so the current look stays obvious at a glance. A still-masked
-        # secret keeps its rarity rim (always legendary) — the ??? glyph and the
-        # price chip already mark it as a mystery, so the rim isn't a spoiler.
-        if equipped:
-            pygame.draw.rect(surf, _GOLD_BRIGHT, rect, width=2, border_radius=14)
-        else:
-            rim = _RARITY_RIM[store_catalog.rarity(sid)]
-            pygame.draw.rect(surf, rim, rect, width=2, border_radius=14)
-
-        if secret:
-            _draw_qmark(surf, rect.centerx, rect.y + 30, 40,
-                        UI_CREAM, NEAR_BLACK, thick=2)
-            label = "???"
-        else:
-            thumb = self._thumbs[sid]
-            surf.blit(thumb, thumb.get_rect(center=(rect.centerx, rect.y + 30)))
-            label = self._disp_name(sid)
-
-        nimg = _font(14, True).render(label, True, _GOLD_BRIGHT)
-        surf.blit(nimg, nimg.get_rect(center=(rect.centerx, rect.y + 60)))
-
-        self._draw_state_chip(surf, sid, rect, owned, equipped)
-
-    def _draw_state_chip(self, surf, sid, rect, owned, equipped) -> None:
-        """The actionable state line: EQUIPPED / EQUIP / BUY <cost>, tinted so
-        affordability and ownership read without reading the text."""
-        cy = rect.y + 82
-        if equipped:
-            self._chip(surf, rect.centerx, cy, "EQUIPPED",
-                       fg=NEAR_BLACK, bg=_EQUIP_GREEN, coin=0)
-        elif owned:
-            self._chip(surf, rect.centerx, cy, "EQUIP",
-                       fg=UI_CREAM, bg=_GOLD_DEEP, coin=0)
-        else:
-            price = store_catalog.cost(sid)
-            affordable = store_data.balance() >= price
-            bg = _GOLD_DEEP if affordable else (70, 60, 70)
-            fg = _GOLD_PALE if affordable else _LOCK_GREY
-            self._chip(surf, rect.centerx, cy, str(price), fg=fg, bg=bg,
-                       coin=1)
-
-    def _chip(self, surf, cx, cy, text, fg, bg, coin: int) -> None:
-        f = _font(13, True)
-        timg = f.render(text, True, fg)
-        coin_d = 16
-        cgap = 4 if coin else 0
-        inner = (coin_d + cgap if coin else 0) + timg.get_width()
-        pad = 12
-        w = inner + pad * 2
-        h = 24
-        chip = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
-        rounded_rect(surf, chip, h // 2, bg)
-        pygame.draw.rect(surf, (*_GOLD_BRIGHT, 90), chip, width=1,
-                         border_radius=h // 2)
-        x = chip.x + pad
-        if coin:
-            _coin_icon(surf, x + coin_d // 2, cy, coin_d // 2)
-            x += coin_d + cgap
-        surf.blit(timg, timg.get_rect(midleft=(x, cy)))
+    def _draw_back(self, surf) -> None:
+        r = pygame.Rect(0, 0, 160, 36)
+        r.center = (W // 2, H - 26)
+        _drop_shadow(surf, r, 18, blur=4, alpha=90)
+        surf.blit(_vgrad_panel(r.w, r.h, 18, (40, 32, 56), (22, 16, 38), 240),
+                  r.topleft)
+        pygame.draw.rect(surf, (*_GOLD_BRIGHT, 185), r, width=1, border_radius=18)
+        timg = _font(18, True).render("BACK", True, _GOLD_PALE)
+        surf.blit(timg, timg.get_rect(center=r.center))
+        self.back_rect = r
 
     def _draw_toast(self, surf) -> None:
         text, ttl = self._toast
         if ttl <= 0.0 or not text:
             return
         alpha = int(255 * min(1.0, ttl / 0.4))  # fade out over the last 0.4 s
-        f = _font(15, True)
-        timg = f.render(text, True, _GOLD_BRIGHT)
+        timg = _font(15, True).render(text, True, _GOLD_BRIGHT)
         timg.set_alpha(alpha)
         bg = pygame.Rect(0, 0, timg.get_width() + 28, 30)
-        bg.center = (W // 2, H - 66)
+        bg.center = (W // 2, H - 70)
         panel = pygame.Surface(bg.size, pygame.SRCALPHA)
         rounded_rect(panel, panel.get_rect(), 15, (20, 12, 40),
                      alpha=min(220, alpha))
+        pygame.draw.rect(panel, (*_GOLD_BRIGHT, min(150, alpha)),
+                         panel.get_rect(), width=1, border_radius=15)
         surf.blit(panel, bg.topleft)
         surf.blit(timg, timg.get_rect(center=bg.center))
 
     def _draw_confirm(self, surf) -> None:
-        """The buy-confirmation modal: a dimmed scrim + a centred panel showing
-        the item, its price, and BUY / CANCEL. Spending is gated behind this so
-        an accidental tap on an unowned card can never drain the wallet. The BUY
-        button greys out (with a 'NOT ENOUGH COINS' note) when unaffordable."""
+        """The buy-confirmation modal: a ~70% scrim + a centred obsidian panel —
+        the item on a connected disc+shelf stage, its rarity word, a single price
+        chip, and a BUY / CANCEL row. Spending is gated here so an accidental tap
+        can never drain the wallet; BUY locks (with a note) when unaffordable."""
         self._confirm_panel = None
         self.confirm_yes_rect = self.confirm_no_rect = None
         sid = self._confirm
@@ -415,58 +744,91 @@ class StoreScene:
             return
 
         scrim = pygame.Surface((W, H), pygame.SRCALPHA)
-        scrim.fill((6, 6, 14, 185))
+        scrim.fill((4, 4, 10, 180))
         surf.blit(scrim, (0, 0))
 
-        pw, ph = 292, 240
+        secret = store_catalog.is_secret(sid) and not store_data.is_owned(sid)
+        tier = store_catalog.rarity(sid)
+        pw, ph = 252, 286
         panel = pygame.Rect((W - pw) // 2, (H - ph) // 2, pw, ph)
         self._confirm_panel = panel
-        _dark_panel(surf, panel, radius=16, alpha=246)
-        pygame.draw.rect(surf, _GOLD_BRIGHT, panel, width=2, border_radius=16)
+        _drop_shadow(surf, panel, 18, blur=8, alpha=170)
+        surf.blit(_vgrad_panel(pw, ph, 18, (28, 24, 38), (12, 10, 22), 255),
+                  panel.topleft)
+        pygame.draw.rect(surf, lerp_color(_GOLD_BRIGHT, NEAR_BLACK, 0.45), panel,
+                         width=2, border_radius=18)
+        pygame.draw.rect(surf, (*_GOLD_BRIGHT, 230), panel.inflate(-2, -2),
+                         width=1, border_radius=16)
 
-        head = _font(14, True).render("CONFIRM PURCHASE", True, _GOLD_PALE)
-        surf.blit(head, head.get_rect(center=(panel.centerx, panel.y + 22)))
+        cx = panel.centerx
+        head = _font(13, True).render("CONFIRM PURCHASE", True, _GOLD_PALE)
+        surf.blit(head, head.get_rect(center=(cx, panel.y + 22)))
+        _gold_rule(surf, panel.x + 28, panel.right - 28, panel.y + 38)
 
-        # The item itself — a still-masked secret stays a "?" so the buy is
-        # blind, matching the card.
-        secret = store_catalog.is_secret(sid) and not store_data.is_owned(sid)
-        tcx, tcy = panel.centerx, panel.y + 60
+        # Connected disc + shelf stage so they read as one lit vitrine element.
+        stage = pygame.Rect(cx - 48, panel.y + 52, 96, 96)
+        surf.blit(_vgrad_panel(stage.w, stage.h, 12, (18, 16, 26), (8, 7, 14)),
+                  stage.topleft)
+        pygame.draw.rect(surf, (0, 0, 0, 150), stage, width=1, border_radius=12)
+        disc_cy = stage.y + 40
+        _inset_disc(surf, cx, disc_cy, 38)
         if secret:
-            _draw_qmark(surf, tcx, tcy - 16, 36, UI_CREAM, NEAR_BLACK, thick=2)
+            _draw_qmark(surf, cx, disc_cy, 50, UI_CREAM, NEAR_BLACK, thick=3)
             name = "???"
         else:
             thumb = self._thumbs[sid]
-            surf.blit(thumb, thumb.get_rect(center=(tcx, tcy)))
+            surf.blit(thumb, thumb.get_rect(center=(cx, disc_cy)))
             name = self._disp_name(sid)
-        nimg = _font(16, True).render(name, True, _GOLD_BRIGHT)
-        surf.blit(nimg, nimg.get_rect(center=(panel.centerx, panel.y + 100)))
+        _shelf_bar(surf, stage, tier, mystery=secret)
+        _gem(surf, stage.right - 4, stage.y + 4, 7, tier, self.t, mystery=secret)
+
+        nimg = _font(17, True).render(name, True, _GOLD_BRIGHT)
+        surf.blit(nimg, nimg.get_rect(center=(cx, panel.y + 162)))
+        rword_txt = "MYSTERY" if secret else tier.upper()
+        rword_col = _MYSTERY["gem"] if secret else _RARITY[tier]["gem"]
+        rword = _font(11, True).render(rword_txt, True, rword_col)
+        surf.blit(rword, rword.get_rect(center=(cx, panel.y + 180)))
 
         price = store_catalog.cost(sid)
         affordable = store_data.balance() >= price
-        self._chip(surf, panel.centerx, panel.y + 130, str(price),
-                   fg=_GOLD_PALE, bg=_GOLD_DEEP, coin=1)
-        if not affordable:
-            warn = _font(11, True).render("NOT ENOUGH COINS", True, _LOCK_GREY)
-            surf.blit(warn, warn.get_rect(center=(panel.centerx, panel.y + 154)))
+        if affordable:
+            _chip(surf, cx, panel.y + 204, f"{price:,}", "price", coin=True, h=28)
+        else:
+            _chip(surf, cx, panel.y + 200, f"{price:,}", "locked", lock=True, h=28)
+            warn = _font(10, True).render("NOT ENOUGH COINS", True, (150, 166, 190))
+            surf.blit(warn, warn.get_rect(center=(cx, panel.y + 222)))
 
-        bw, bh = 118, 36
-        by = panel.bottom - 22
-        no = pygame.Rect(panel.x + 14, by - bh // 2, bw, bh)
-        yes = pygame.Rect(panel.right - 14 - bw, by - bh // 2, bw, bh)
-        rounded_rect(surf, no, bh // 2, (62, 54, 72))
-        pygame.draw.rect(surf, (122, 112, 134), no, width=1, border_radius=bh // 2)
+        bw, bh, gutter = 100, 38, 16
+        by = panel.bottom - 30
+        nx = cx - (bw * 2 + gutter) // 2
+        cancel = pygame.Rect(nx, by - bh // 2, bw, bh)
+        buy = pygame.Rect(nx + bw + gutter, by - bh // 2, bw, bh)
+        surf.blit(_vgrad_panel(bw, bh, bh // 2, (70, 62, 80), (44, 38, 56)),
+                  cancel.topleft)
+        pygame.draw.rect(surf, (126, 116, 138), cancel, width=1, border_radius=bh // 2)
         ct = _font(14, True).render("CANCEL", True, UI_CREAM)
-        surf.blit(ct, ct.get_rect(center=no.center))
-        ybg = _GOLD_DEEP if affordable else (54, 46, 54)
-        yfg = (28, 18, 8) if affordable else _LOCK_GREY
-        rounded_rect(surf, yes, bh // 2, ybg)
-        pygame.draw.rect(surf, _GOLD_BRIGHT if affordable else (92, 82, 92),
-                         yes, width=1, border_radius=bh // 2)
-        yt = _font(14, True).render("BUY", True, yfg)
-        surf.blit(yt, yt.get_rect(center=yes.center))
-
-        self.confirm_no_rect = no
-        self.confirm_yes_rect = yes if affordable else None
+        surf.blit(ct, ct.get_rect(center=cancel.center))
+        if affordable:
+            bglow = pygame.Surface((bw + 10, bh + 10), pygame.SRCALPHA)
+            for k in range(4, 0, -1):
+                pygame.draw.rect(bglow, (255, 200, 80, int(22 * k / 4)),
+                                 (5 - k, 5 - k, bw + 2 * k, bh + 2 * k),
+                                 border_radius=bh // 2 + k)
+            surf.blit(bglow, (buy.x - 5, buy.y - 5), special_flags=pygame.BLEND_ADD)
+            surf.blit(_vgrad_panel(bw, bh, bh // 2,
+                                   lerp_color(_GOLD_BRIGHT, WHITE, 0.2), _GOLD_DEEP),
+                      buy.topleft)
+            pygame.draw.rect(surf, _GOLD_PALE, buy, width=1, border_radius=bh // 2)
+            yt = _font(15, True).render("BUY", True, (40, 24, 8))
+            surf.blit(yt, yt.get_rect(center=buy.center))
+            self.confirm_yes_rect = buy
+        else:
+            surf.blit(_vgrad_panel(bw, bh, bh // 2, (48, 44, 58), (30, 28, 40)),
+                      buy.topleft)
+            pygame.draw.rect(surf, (92, 84, 104), buy, width=1, border_radius=bh // 2)
+            yt = _font(15, True).render("BUY", True, (120, 116, 134))
+            surf.blit(yt, yt.get_rect(center=buy.center))
+        self.confirm_no_rect = cancel
 
     # ── input ────────────────────────────────────────────────────────────────
     def handle_tap(self, pos) -> "str | None":
