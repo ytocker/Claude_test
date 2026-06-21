@@ -1,11 +1,12 @@
-"""Round-1 review sheet for the FLYING-WING STEALTH jet redesign.
+"""Round-2 convergence sheet for the FLYING-WING STEALTH jet redesign.
 
-Each candidate is shown at hero 130px AND at the in-game truth-test scale
-(40px, level + dive tilt), the 40px reads NEAREST-NEIGHBOR x3 magnified so the
-honest gameplay-pixel silhouette is visible — on BOTH a day stone sky and a
-night sky, because a dark low-vis wing must survive both. The CURRENT
-production Steel Raptor leads the sheet as the silhouette-contrast baseline.
-Headless (SDL dummy) so it runs in CI / on the build box.
+Single production build (v2 · YF-23 DIAMOND, refined per the art-director punch
+list). Shown at hero 130px AND at the in-game truth-test scale (40px, level +
+dive tilt), the 40px reads NEAREST-NEIGHBOR x3 magnified so the honest
+gameplay-pixel silhouette is visible — on a DAY sandstone-sunset sky, a DAY
+warm-STONE case (the brown-out stress test), and a NIGHT sky, because a dark
+low-vis wing must survive all three. The current production Steel Raptor leads
+as the silhouette-contrast baseline. Headless (SDL dummy) so it runs in CI.
 """
 import os
 import sys
@@ -28,22 +29,18 @@ spec.loader.exec_module(flyingwing_skins)
 
 from game.animal_jet_fighter import get_jet_fighter   # current production baseline
 
-BUILDERS = flyingwing_skins.BUILDERS
+get_flyingwing = flyingwing_skins.get_flyingwing
 
-# Current jet leads as the silhouette-contrast baseline, then the 5 candidates.
+# Current jet leads as the silhouette-contrast baseline, then the production build.
 ORDER = [
-    ("__current__", "CURRENT · STEEL RAPTOR", "pointy dart + delta + twin tail (the silhouette to differ from)"),
-    ("v1 B-2 CRESCENT", "v1 · B-2 CRESCENT", "smooth crescent + double-W sawtooth, matte charcoal"),
-    ("v2 YF-23 DIAMOND", "v2 · YF-23 DIAMOND", "angular diamond kite + cool-blue edge-glow"),
-    ("v3 ARROWHEAD WING", "v3 · ARROWHEAD WING", "sharp arrowhead + two-tone panels + amber slit"),
-    ("v4 SWEPT MANTA", "v4 · SWEPT MANTA", "widest boomerang + deep sawtooth + blue glow"),
-    ("v5 OBSIDIAN SPLIT", "v5 · OBSIDIAN SPLIT", "matte-black value-split stress test + amber slit"),
+    ("__current__", "CURRENT · STEEL RAPTOR",
+     "pointy dart + delta + twin tail (the silhouette to differ from)", get_jet_fighter),
+    ("__build__", "SHIP · YF-23 DIAMOND (flyingwing)",
+     "buried-slot ember · amber slit (warm focal) + 1px blue edge (cool)", get_flyingwing),
 ]
 
 # ── layout ───────────────────────────────────────────────────────────────────
-COLS = 2
-ROWS = (len(ORDER) + COLS - 1) // COLS
-CARD_W, CARD_H = 560, 268
+CARD_W, CARD_H = 760, 268
 PAD = 16
 HEADER_H = 64
 HERO_PX = 130
@@ -54,19 +51,23 @@ SHEET_BG_T = (22, 24, 40)
 SHEET_BG_B = (34, 28, 48)
 CARD_BG = (16, 17, 30)
 CARD_EDGE = (60, 64, 104)
-CUR_EDGE = (150, 156, 176)        # neutral rim for the baseline card
+SHIP_EDGE = (120, 196, 120)        # green rim for the ship build
+CUR_EDGE = (150, 156, 176)         # neutral rim for the baseline card
 TEXT = (236, 238, 250)
 SUB = (150, 156, 190)
 
-# Day = warm sandstone sunset; Night = deep blue. Both are real in-game skies.
+# Three real in-game skies. DAY = warm sandstone sunset; STONE = the warm-brown
+# brown-out stress test; NIGHT = deep blue.
 DAY_T = (224, 176, 120)
 DAY_B = (196, 132, 96)
+STONE_T = (186, 146, 108)
+STONE_B = (150, 112, 82)
 NIGHT_T = (20, 24, 50)
 NIGHT_B = (36, 30, 58)
 HERO_PANEL = (28, 30, 52)
 
-SHEET_W = PAD + COLS * (CARD_W + PAD)
-SHEET_H = HEADER_H + PAD + ROWS * (CARD_H + PAD)
+SHEET_W = PAD + CARD_W + PAD
+SHEET_H = HEADER_H + PAD + len(ORDER) * (CARD_H + PAD)
 
 sheet = pygame.Surface((SHEET_W, SHEET_H))
 for y in range(SHEET_H):
@@ -76,7 +77,7 @@ for y in range(SHEET_H):
 
 import random
 rng = random.Random(23)
-for _ in range(200):
+for _ in range(220):
     sx, sy = rng.randint(0, SHEET_W), rng.randint(0, SHEET_H)
     b = rng.randint(70, 180)
     pygame.draw.circle(sheet, (b, b, min(255, b + 26)), (sx, sy), rng.choice([1, 1, 2]))
@@ -88,9 +89,9 @@ F_NAME = pygame.font.SysFont("Arial", 19, bold=True)
 F_FEAT = pygame.font.SysFont("Arial", 13)
 F_TAG = pygame.font.SysFont("Arial", 12, bold=True)
 
-sheet.blit(F_TITLE.render("Skybit — JET redesign · FLYING-WING STEALTH · Round 1", True, TEXT), (PAD, 12))
+sheet.blit(F_TITLE.render("Skybit — JET redesign · FLYING-WING STEALTH · Round 2 (ship)", True, TEXT), (PAD, 12))
 sheet.blit(F_SUB.render(
-    "HERO 130px · 40px NEAREST x3 (level / dive) on DAY stone + NIGHT sky — the honest wide-wing read. Current Steel Raptor leads as the silhouette baseline.",
+    "HERO 130px · 40px NEAREST x3 (level / dive) on DAY sunset + DAY warm STONE (brown-out test) + NIGHT. Current Steel Raptor leads as the silhouette baseline.",
     True, SUB), (PAD, 42))
 
 
@@ -124,8 +125,7 @@ def nearest40(getter, frame_idx, tilt, mag):
 
 
 def _read_block(panel_x, panel_y, getter, top, bot, label):
-    """One sky panel: hero is shared above; here we draw the 40px NEAREST x3
-    level + dive reads over a real sky gradient."""
+    """One sky panel: the 40px NEAREST x3 level + dive reads over a real sky."""
     panel = pygame.Rect(panel_x, panel_y, 196, 168)
     _vpanel(sheet, panel, top, bot)
     pygame.draw.rect(sheet, (0, 0, 0), panel, 1)
@@ -141,20 +141,17 @@ def _read_block(panel_x, panel_y, getter, top, bot, label):
                (panel.x + 128, panel.bottom - 18))
 
 
-for idx, (key, name, feat) in enumerate(ORDER):
-    getter = get_jet_fighter if key == "__current__" else BUILDERS[key]
+for idx, (key, name, feat, getter) in enumerate(ORDER):
     is_cur = key == "__current__"
-    r, c = divmod(idx, COLS)
-    cx = PAD + c * (CARD_W + PAD)
-    cy = HEADER_H + PAD + r * (CARD_H + PAD)
+    cx = PAD
+    cy = HEADER_H + PAD + idx * (CARD_H + PAD)
 
     card = pygame.Rect(cx, cy, CARD_W, CARD_H)
+    edge = CUR_EDGE if is_cur else SHIP_EDGE
     pygame.draw.rect(sheet, CARD_BG, card, border_radius=12)
-    pygame.draw.rect(sheet, CUR_EDGE if is_cur else CARD_EDGE,
-                     card, 3 if is_cur else 2, border_radius=12)
+    pygame.draw.rect(sheet, edge, card, 3, border_radius=12)
 
-    sheet.blit(F_NAME.render(name, True, CUR_EDGE if is_cur else TEXT),
-               (cx + 14, cy + 10))
+    sheet.blit(F_NAME.render(name, True, edge), (cx + 14, cy + 10))
     sheet.blit(F_FEAT.render("read: " + feat, True, SUB), (cx + 14, cy + 36))
 
     # Hero panel (left) on neutral dark so the finish reads true.
@@ -165,10 +162,11 @@ for idx, (key, name, feat) in enumerate(ORDER):
     sheet.blit(F_TAG.render("130px", True, SUB),
                (hero_panel.x + 6, hero_panel.bottom - 18))
 
-    # Day + Night truth panels (right).
-    _read_block(cx + 162, cy + 60, getter, DAY_T, DAY_B, "DAY 40px x3")
-    _read_block(cx + 362, cy + 60, getter, NIGHT_T, NIGHT_B, "NIGHT 40px x3")
+    # Day sunset + Day warm-stone + Night truth panels (right).
+    _read_block(cx + 162, cy + 60, getter, DAY_T, DAY_B, "DAY sunset 40px x3")
+    _read_block(cx + 362, cy + 60, getter, STONE_T, STONE_B, "DAY stone 40px x3")
+    _read_block(cx + 562, cy + 60, getter, NIGHT_T, NIGHT_B, "NIGHT 40px x3")
 
-out_path = os.path.join(_here, "round_1.png")
+out_path = os.path.join(_here, "round_2.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())
