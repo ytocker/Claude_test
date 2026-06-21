@@ -1,15 +1,15 @@
-"""Round-1 review sheet for the RETRO CHROME jet-fighter redesign.
+"""Round-2 review sheet for the RETRO CHROME jet (single production build).
 
-Renders each of the 5 chrome takes at hero 130px AND at the in-game
-truth-test scale (40px, level + dive tilt), plus a NEAREST-NEIGHBOR x3
-magnification of those 40px reads — the honest gameplay-pixel silhouette
-(smoothscale flatters tiny detail that vanishes in motion). Both DAY and
-NIGHT backdrops per card, because the north star is "reads at 40px day AND
-night". Headless (SDL dummy) so it runs in CI / on the build box.
+V3 · BLUE-ANGEL TRIM converged to one ship-ready `build_chrome`. The sheet is
+a focused hero (130px) plus the in-game truth-test at 40px (smooth + NEAREST
+x3, level + dive) on BOTH day and night — because the north star is "reads
+CHROME at 40px on day AND night". NEAREST x3 is the honest gameplay-pixel read
+(smoothscale flatters tiny detail that vanishes in motion). Headless (SDL
+dummy) so it runs in CI / on the build box.
 
-The builds draw nose-RIGHT, upright, level. The secret skin flies inverted
-nose-up in game, so the sheet applies the production 205° spin to every
-read — what the reviewer sees is the true in-game attitude.
+The build draws nose-RIGHT, upright, level. The secret skin flies inverted
+nose-up in game, so the sheet applies the production 205° spin to every read —
+what the reviewer sees is the true in-game attitude.
 """
 import os
 import sys
@@ -30,31 +30,15 @@ spec = importlib.util.spec_from_file_location(
 chrome_skins = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(chrome_skins)
 
-BUILDERS = chrome_skins.BUILDERS
+getter = chrome_skins.BUILDERS["skin_chrome"]
 
 # The secret skin flies inverted nose-up; bake that spin into every read so the
 # sheet shows the true in-game attitude rather than the flat planform.
 GAME_SPIN = 205
 
-ORDER = [
-    ("chrome_v1", "V1 · SABRE RED-NOSE",
-     "red radome + checker tail · swept · top-band chrome"),
-    ("chrome_v2", "V2 · MIG RED-STAR",
-     "red intake + fuselage star · straight wing · facet chrome"),
-    ("chrome_v3", "V3 · BLUE-ANGEL TRIM",
-     "blue+yellow spine stripe · swept · big bubble canopy"),
-    ("chrome_v4", "V4 · RACING No.7",
-     "black 7 roundel + anti-glare · deep-swept · raw mirror"),
-    ("chrome_v5", "V5 · GOLD-BAR SABRE",
-     "yellow rec-band + rivet panels · swept · red tips"),
-]
-
 # ── layout ───────────────────────────────────────────────────────────────────
-COLS = 2
-ROWS = (len(ORDER) + COLS - 1) // COLS
-CARD_W, CARD_H = 470, 250
-PAD = 16
-HEADER_H = 64
+PAD = 18
+HEADER_H = 70
 HERO_PX = 130
 GAME_PX = 40
 MAG = 3
@@ -66,14 +50,14 @@ CARD_EDGE = (96, 102, 140)
 TEXT = (236, 238, 250)
 SUB = (152, 158, 192)
 
-# Day + night sky swatches for the dual-read panels.
 DAY_TOP = (150, 200, 240)
 DAY_BOT = (206, 230, 248)
 NIGHT_TOP = (18, 20, 46)
 NIGHT_BOT = (34, 26, 56)
 
-SHEET_W = PAD + COLS * (CARD_W + PAD)
-SHEET_H = HEADER_H + PAD + ROWS * (CARD_H + PAD)
+CARD_W, CARD_H = 700, 470
+SHEET_W = PAD + CARD_W + PAD
+SHEET_H = HEADER_H + PAD + CARD_H + PAD
 
 sheet = pygame.Surface((SHEET_W, SHEET_H))
 for y in range(SHEET_H):
@@ -84,14 +68,14 @@ for y in range(SHEET_H):
 pygame.font.init()
 F_TITLE = pygame.font.SysFont("Arial", 28, bold=True)
 F_SUB = pygame.font.SysFont("Arial", 14)
-F_NAME = pygame.font.SysFont("Arial", 18, bold=True)
-F_FEAT = pygame.font.SysFont("Arial", 12)
-F_TAG = pygame.font.SysFont("Arial", 11, bold=True)
+F_NAME = pygame.font.SysFont("Arial", 20, bold=True)
+F_FEAT = pygame.font.SysFont("Arial", 13)
+F_TAG = pygame.font.SysFont("Arial", 12, bold=True)
 
-sheet.blit(F_TITLE.render("Skybit — Secret JET FIGHTER · RETRO CHROME · Round 1", True, TEXT), (PAD, 12))
+sheet.blit(F_TITLE.render("Skybit — Secret JET FIGHTER · RETRO CHROME · Round 2 (ship-ready)", True, TEXT), (PAD, 14))
 sheet.blit(F_SUB.render(
-    "5 takes on a polished bare-metal Cold-War jet. HERO 130px · 40px level+dive (smooth) · NEAREST x3 (honest read) · DAY and NIGHT.",
-    True, SUB), (PAD, 42))
+    "V3 · BLUE-ANGEL TRIM converged to one production build. Value-band chrome · single blue spine · V4 anti-glare panel · dark belly. HERO 130px · 40px smooth + NEAREST x3 (level / dive) · DAY and NIGHT.",
+    True, SUB), (PAD, 46))
 
 
 def _grad_rect(target, rect, top, bot, radius=10):
@@ -107,7 +91,7 @@ def _grad_rect(target, rect, top, bot, radius=10):
     target.blit(g, rect.topleft)
 
 
-def _crop(getter, frame_idx, tilt):
+def _crop(frame_idx, tilt):
     s = getter(frame_idx, tilt)
     rect = s.get_bounding_rect()
     if rect.w == 0 or rect.h == 0:
@@ -115,77 +99,78 @@ def _crop(getter, frame_idx, tilt):
     return s.subsurface(rect).copy()
 
 
-def smooth(getter, frame_idx, tilt, target_px):
-    crop = _crop(getter, frame_idx, tilt)
+def smooth(frame_idx, tilt, target_px):
+    crop = _crop(frame_idx, tilt)
     longest = max(crop.get_width(), crop.get_height())
     f = target_px / longest
     return pygame.transform.smoothscale(
         crop, (max(1, int(crop.get_width() * f)), max(1, int(crop.get_height() * f))))
 
 
-def nearest40(getter, frame_idx, tilt, mag):
-    small = smooth(getter, frame_idx, tilt, GAME_PX)
+def nearest40(frame_idx, tilt, mag):
+    small = smooth(frame_idx, tilt, GAME_PX)
     return pygame.transform.scale(
         small, (small.get_width() * mag, small.get_height() * mag))
 
 
-# The game spins the flat planform 205° into the inverted nose-up attitude.
-# The getter takes a tilt_deg; feeding GAME_SPIN (plus a dive delta) shows the
-# real in-game pose. Level = pure spin; dive = spin minus a pitch-down delta.
 LEVEL = GAME_SPIN
 DIVE = GAME_SPIN - 32
 
-for idx, (key, name, feat) in enumerate(ORDER):
-    getter = BUILDERS[key]
-    r, c = divmod(idx, COLS)
-    cx = PAD + c * (CARD_W + PAD)
-    cy = HEADER_H + PAD + r * (CARD_H + PAD)
+cx, cy = PAD, HEADER_H + PAD
+card = pygame.Rect(cx, cy, CARD_W, CARD_H)
+pygame.draw.rect(sheet, CARD_BG, card, border_radius=14)
+pygame.draw.rect(sheet, CARD_EDGE, card, 2, border_radius=14)
 
-    card = pygame.Rect(cx, cy, CARD_W, CARD_H)
-    pygame.draw.rect(sheet, CARD_BG, card, border_radius=12)
-    pygame.draw.rect(sheet, CARD_EDGE, card, 2, border_radius=12)
+sheet.blit(F_NAME.render("V3 · BLUE-ANGEL TRIM — production", True, TEXT), (cx + 16, cy + 12))
+sheet.blit(F_FEAT.render(
+    "value-band chrome (hot top / hard break / dark belly) · single blue spine on the break · V4 anti-glare matte · saturated canopy dot · swept · big bubble",
+    True, SUB), (cx + 16, cy + 38))
 
-    sheet.blit(F_NAME.render(name, True, TEXT), (cx + 14, cy + 10))
-    sheet.blit(F_FEAT.render(feat, True, SUB), (cx + 14, cy + 33))
+# ── Hero: two big 130px reads on a split day | night ground ──
+hero_panel = pygame.Rect(cx + 16, cy + 64, 300, 200)
+_grad_rect(sheet, pygame.Rect(hero_panel.x, hero_panel.y, hero_panel.w // 2, hero_panel.h),
+           DAY_TOP, DAY_BOT)
+_grad_rect(sheet, pygame.Rect(hero_panel.x + hero_panel.w // 2, hero_panel.y,
+                              hero_panel.w - hero_panel.w // 2, hero_panel.h),
+           NIGHT_TOP, NIGHT_BOT)
+hero_day = smooth(0, LEVEL, HERO_PX)
+sheet.blit(hero_day, hero_day.get_rect(center=(hero_panel.x + hero_panel.w // 4, hero_panel.centery)))
+hero_night = smooth(0, LEVEL, HERO_PX)
+sheet.blit(hero_night, hero_night.get_rect(center=(hero_panel.x + 3 * hero_panel.w // 4, hero_panel.centery)))
+sheet.blit(F_TAG.render("HERO 130px   day | night", True, (40, 44, 60)),
+           (hero_panel.x + 8, hero_panel.bottom - 20))
 
-    # Hero panel (left) on a split day/night ground so the chrome value reads
-    # on both skies at large scale.
-    hero_panel = pygame.Rect(cx + 12, cy + 52, 150, 182)
-    _grad_rect(sheet, pygame.Rect(hero_panel.x, hero_panel.y, hero_panel.w // 2, hero_panel.h),
-               DAY_TOP, DAY_BOT)
-    _grad_rect(sheet, pygame.Rect(hero_panel.x + hero_panel.w // 2, hero_panel.y,
-                                  hero_panel.w - hero_panel.w // 2, hero_panel.h),
-               NIGHT_TOP, NIGHT_BOT)
-    hero = smooth(getter, 0, LEVEL, HERO_PX)
-    sheet.blit(hero, hero.get_rect(center=hero_panel.center))
-    sheet.blit(F_TAG.render("130px  day | night", True, (40, 44, 60)),
-               (hero_panel.x + 6, hero_panel.bottom - 16))
+# ── Hero detail callout (right of hero): a single 130px dive on day ──
+det_panel = pygame.Rect(cx + 332, cy + 64, 352, 200)
+_grad_rect(sheet, det_panel, DAY_TOP, DAY_BOT)
+hero_dive = smooth(1, DIVE, HERO_PX)
+sheet.blit(hero_dive, hero_dive.get_rect(center=det_panel.center))
+sheet.blit(F_TAG.render("HERO 130px   DAY dive — belly-to-sky contrast check", True, (40, 44, 60)),
+           (det_panel.x + 8, det_panel.bottom - 20))
 
-    # Right block: a DAY row and a NIGHT row, each with smooth 40px + NEAREST x3
-    # for level and dive.
-    rx = cx + 174
-    rw = CARD_W - (174 + 14)
-    for ri, (label, top, bot, txt) in enumerate((
-            ("DAY", DAY_TOP, DAY_BOT, (40, 44, 60)),
-            ("NIGHT", NIGHT_TOP, NIGHT_BOT, (200, 206, 235)))):
-        ry = cy + 52 + ri * 92
-        panel = pygame.Rect(rx, ry, rw, 86)
-        _grad_rect(sheet, panel, top, bot)
-        sheet.blit(F_TAG.render(label, True, txt), (panel.x + 6, panel.y + 4))
+# ── Truth-test rows: DAY then NIGHT, each smooth 40px + NEAREST x3 (level/dive) ──
+rx = cx + 16
+rw = CARD_W - 32
+for ri, (label, top, bot, txt) in enumerate((
+        ("DAY", DAY_TOP, DAY_BOT, (40, 44, 60)),
+        ("NIGHT", NIGHT_TOP, NIGHT_BOT, (200, 206, 235)))):
+    ry = cy + 276 + ri * 92
+    panel = pygame.Rect(rx, ry, rw, 86)
+    _grad_rect(sheet, panel, top, bot)
+    sheet.blit(F_TAG.render(label, True, txt), (panel.x + 8, panel.y + 5))
+    sheet.blit(F_TAG.render("40px smooth (level / dive)          NEAREST x3 — honest gameplay read (level / dive)", True, txt),
+               (panel.x + 120, panel.y + 5))
 
-        # smooth 40px level + dive
-        g_level = smooth(getter, 2, LEVEL, GAME_PX)
-        sheet.blit(g_level, g_level.get_rect(center=(panel.x + 36, panel.y + 46)))
-        g_dive = smooth(getter, 1, DIVE, GAME_PX)
-        sheet.blit(g_dive, g_dive.get_rect(center=(panel.x + 78, panel.y + 46)))
-        # NEAREST x3 level + dive (the honest read)
-        n_level = nearest40(getter, 2, LEVEL, MAG)
-        sheet.blit(n_level, n_level.get_rect(center=(panel.x + 150, panel.y + 46)))
-        n_dive = nearest40(getter, 1, DIVE, MAG)
-        sheet.blit(n_dive, n_dive.get_rect(center=(panel.x + 232, panel.y + 46)))
-        sheet.blit(F_TAG.render("40px smooth      NEAREST x3  (level / dive)", True, txt),
-                   (panel.x + 70, panel.y + 4))
+    g_level = smooth(2, LEVEL, GAME_PX)
+    sheet.blit(g_level, g_level.get_rect(center=(panel.x + 60, panel.y + 50)))
+    g_dive = smooth(1, DIVE, GAME_PX)
+    sheet.blit(g_dive, g_dive.get_rect(center=(panel.x + 130, panel.y + 50)))
 
-out_path = os.path.join(_here, "round_1.png")
+    n_level = nearest40(2, LEVEL, MAG)
+    sheet.blit(n_level, n_level.get_rect(center=(panel.x + 360, panel.y + 50)))
+    n_dive = nearest40(1, DIVE, MAG)
+    sheet.blit(n_dive, n_dive.get_rect(center=(panel.x + 560, panel.y + 50)))
+
+out_path = os.path.join(_here, "round_2.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())
