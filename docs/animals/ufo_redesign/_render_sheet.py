@@ -1,4 +1,4 @@
-"""Round-1 comparison sheet for the UFO Store skin REDESIGN (5 concepts).
+"""Comparison sheet for the UFO Store skin REDESIGN (5 concepts).
 
 For EACH concept it renders: a hero (~130px), the 40px x3 NEAREST truth test on
 BOTH a bright DAY sky and a dark NIGHT sky, and the 4 baked animation frames.
@@ -16,6 +16,10 @@ import random
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+
+# Round number drives the title + output filename. `python _render_sheet.py 2`
+# (or SK_ROUND=2) renders round_2.png; defaults to 2 (the current round).
+ROUND = int(os.environ.get("SK_ROUND", sys.argv[1] if len(sys.argv) > 1 else "2"))
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
@@ -107,8 +111,9 @@ for y in range(SHEET_H):
     pygame.draw.line(sheet, tuple(int(BG_TOP[i] + (BG_BOT[i] - BG_TOP[i]) * t)
                                   for i in range(3)), (0, y), (SHEET_W, y))
 
-sheet.blit(F_TITLE.render("Skybit — UFO Store Skin REDESIGN (skin_ufo) · Round 1 · 5 concepts",
-                          True, TEXT), (PAD, 14))
+sheet.blit(F_TITLE.render(
+    "Skybit — UFO Store Skin REDESIGN (skin_ufo) · Round %d · 5 concepts" % ROUND,
+    True, TEXT), (PAD, 14))
 sheet.blit(F_SUB.render(
     "Each concept: HERO 130px + 40px NEAREST x3 truth test on BRIGHT DAY and NIGHT + 4 baked "
     "life-cycle frames. No wings — flap = chase / pulse / throb / facet shimmer.",
@@ -211,6 +216,6 @@ for idx, (name, getter) in enumerate(getters):
     sheet.blit(F_TAG.render("4 baked frames (life cycle)", True, TEXT), (fp.x + 6, fp.bottom - 16))
 
 
-out_path = os.path.join(_here, "round_1.png")
+out_path = os.path.join(_here, "round_%d.png" % ROUND)
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())
