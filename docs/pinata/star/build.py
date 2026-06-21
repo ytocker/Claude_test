@@ -43,17 +43,21 @@ COMPOSITE_H = 84
 BCX, BCY = 32, 30               # core hull centre, raised off centre
 
 CORE_R = 14                     # round core hull radius (the spikes sit on it)
-SPIKE_LEN = 13                  # cone reach beyond the hull edge (STUBBY)
+SPIKE_LEN = 10                  # cone reach beyond the hull edge (STUBBY); pulled
+                                # in so the apex can be the clear longest tip yet
+                                # still keep its vertex a few px below the ceiling.
 SPIKE_HALF = 8                  # half-width of a cone base on the hull rim
 N_SPIKES = 7                    # the canonical 7 points
 
 # The bottom pair of the 7-fold ring is shortened + splayed so no spike drives
 # straight down into the parcel; the full star then reads ABOVE the parcel.
 BOTTOM_SPIKE_SCALE = 0.74       # length of the two lowest spikes vs the rest
-# The apex is grown to the canvas ceiling (its tip just clears the top edge at
-# BCY=30); going further would clip the point, so this is the max lead the
-# raised-star layout allows while keeping the KEEP'd parcel clearance.
-APEX_SPIKE_SCALE = 1.15
+# The apex is the SINGLE longest tip. It is sized so the cone vertex lands a few
+# px below the canvas ceiling — headroom the tip needs so its true single point
+# (not a clipped flat top) is the topmost occupied pixel, widening monotonically
+# downward into the cone. Pushing further would jam the vertex into row 0 and
+# re-introduce a clipped plateau.
+APEX_SPIKE_SCALE = 1.30
 
 
 # ── palette ──────────────────────────────────────────────────────────────────
@@ -94,17 +98,19 @@ def _phase(angle_deg):
     return int(round((50 - angle_deg) / 30.0)) % 4
 
 
-# The crack tell is read as FOUR DISTINCT VALUE BEATS on the grayscale strip.
-# Two ramps drive it, decoupled so geometry and brightness can be tuned apart:
-#   _CRACK_BY_STAGE  → lens WIDTH (how far the seam has parted)
-#   _LENS_VAL_BY_STAGE → lens LUMINANCE (how hot the interior glows)
-# The luminance ramp is the acceptance criterion: four EVENLY-SPACED steps
-# (sealed-dark → dim → brightest → a clearly different mid) so stages 1 and 3 do
-# NOT collapse to the same gray. The mid beat (stage 3) sits between dim and
-# bright, giving the pulse a living "breath" rather than a one-way wipe — but it
-# is a genuinely distinct value, not a repeat of the dim stage.
-_CRACK_BY_STAGE = (0.00, 0.40, 1.00, 0.60)
-_LENS_VAL_BY_STAGE = (0.00, 0.34, 1.00, 0.50)
+# The crack tell is read as FOUR DISTINCT BEATS on the grayscale strip, each
+# carrying a UNIQUE crack GEOMETRY as well as a unique value so they never
+# collapse to the same gray:
+#   stage 0  sealed seam      — a thin dark line, DARKEST
+#   stage 1  hairline crack   — dim + thin, a small fracture just parted
+#   stage 2  wide jagged gash — WHITE-HOT, the brightest beat, candy spilling
+#   stage 3  shattered web    — a LARGER spiderweb fracture at a clearly LOWER
+#                               value than stage 2 (the candy light fading as the
+#                               shell breaks apart)
+# Decoupled ramps so geometry and brightness tune apart. The value ramp targets
+# ≥40 luma between EVERY adjacent stage on the rendered grayscale strip.
+_CRACK_BY_STAGE = (0.00, 0.30, 1.00, 0.82)
+_LENS_VAL_BY_STAGE = (0.00, 0.40, 1.00, 0.30)
 
 
 def _spike_geom(i):
@@ -154,10 +160,15 @@ def _spike(surf, cx, cy, ang, length_scale, tip_color, tip_shade):
     pygame.draw.polygon(surf, tip_color, lit)
     # cream crepe keyline around the cone — the night-survival rim (KEEP AS-IS)
     pygame.draw.polygon(surf, FRINGE, poly, 1)
-    # fringe pom cap centred ON the single point so the tip reads as one nub,
-    # never a needle and never a split flat cap.
-    pygame.draw.circle(surf, FRINGE, (int(tip_x), int(tip_y)), 2)
-    pygame.draw.circle(surf, FRINGE_DK, (int(tip_x), int(tip_y)), 2, 1)
+    # fringe pom NUB pulled BACK from the vertex toward the hull, so the cone's
+    # true single point still pokes above it as the topmost pixel (≤3px, widening
+    # monotonically) instead of a radius-2 disc capping the tip with a flat
+    # plateau whose corners straddle the axis. The pom keeps the tip from reading
+    # as a bare needle without ever forking the point.
+    pom_x = tip_x - math.cos(ang) * 2.6
+    pom_y = tip_y - math.sin(ang) * 2.6
+    pygame.draw.circle(surf, FRINGE, (int(round(pom_x)), int(round(pom_y))), 2)
+    pygame.draw.circle(surf, FRINGE_DK, (int(round(pom_x)), int(round(pom_y))), 2, 1)
 
 
 def _hull_fringe_rings(surf, cx, cy):
@@ -175,32 +186,55 @@ def _hull_fringe_rings(surf, cx, cy):
             pygame.draw.line(surf, col, (x0, y0), (x1, y1), 1)
 
 
-def _crack_and_glow(surf, cx, cy, crack, lens_val):
-    """The signature tell. A VERTICAL diamond seam down the core hull. As
-    `crack` grows the seam parts into a vertical candy-glow LENS (a diamond,
-    not a horizontal slot) with dark crack lips left + right; at the widest
-    opening 1-2 candy dots peek through. A vertical/diamond lens never reads as
-    a smiling mouth. Kept centred on the (raised) hull so it sits well above the
-    parcel. VALUE-FIRST so it survives grayscale: `lens_val` (0..1) sets the
-    interior luminance directly, decoupled from the geometric crack width, so
-    the four stages land on four EVENLY-SPACED grayscale beats (no two stages
-    collapse to the same gray)."""
+def _jagged_lens(cx, cy, half_h, open_w, jag):
+    """Vertical diamond lens outline with `jag` lateral wobble on the side
+    vertices — a clean diamond at jag=0, a jagged gash as jag grows. The shape
+    cue (smooth vs jagged vs shattered) is a NON-VALUE tell so stages stay
+    distinguishable even where their grayscale values sit close."""
+    return [
+        (cx, cy - half_h),
+        (cx + open_w, cy - jag),
+        (cx + max(1, open_w - jag), cy),
+        (cx + open_w, cy + jag),
+        (cx, cy + half_h),
+        (cx - open_w, cy + jag),
+        (cx - max(1, open_w - jag), cy),
+        (cx - open_w, cy - jag),
+    ]
+
+
+def _crack_and_glow(surf, cx, cy, stage, crack, lens_val):
+    """The signature tell. A VERTICAL diamond seam down the core hull whose
+    GEOMETRY and VALUE both change per stage, so the four poses stay readable on
+    a hue-free grayscale strip:
+
+      stage 0  sealed seam   — thin dark vertical line, DARKEST.
+      stage 1  hairline      — a narrow dim lens just parted (thin, dim).
+      stage 2  wide jagged   — a wide WHITE-HOT gash, candy spilling (brightest).
+      stage 3  shattered web — a LARGER spiderweb fracture (radiating cracks) at
+                               a clearly LOWER value than stage 2.
+
+    A vertical/diamond lens never reads as a smiling mouth. `lens_val` (0..1)
+    sets the interior luminance directly, decoupled from the crack width, and is
+    tuned so adjacent stages differ by ≥40 luma on the rendered grayscale strip;
+    `crack`/`stage` drive the distinct shape per beat."""
     seam_cx, seam_cy = cx, cy        # the lens is centred on the hull
     half_h = CORE_R - 3              # the seam runs most of the hull height
     open_w = int(1 + crack * 8)      # horizontal half-width of the open lens
+    # the jagged wobble grows with the stage so each opening has its own outline
+    jag = (0, 0, 2, 3)[stage]
 
     if crack > 0.02:
         # warm glow lens behind the crack, drawn additive so it blooms at night.
-        # Reach kept wide (night focal anchor); peak alpha pulled back ~10% from
-        # round 2 so the bloom no longer bleeds over the white lens edge at 40px.
-        # Alpha tracks `lens_val` so the brightest beat (stage 2) blooms most.
+        # Alpha tracks `lens_val` so the brightest beat (stage 2) blooms most and
+        # the lower-value shattered beat (stage 3) blooms visibly less.
         gw = open_w * 2 + 28
         gh = half_h * 2 + 28
         glow = pygame.Surface((gw, gh), pygame.SRCALPHA)
         gx, gy = gw // 2, gh // 2
         for i in range(4, 0, -1):
             rr = i / 4.0
-            a = int(170 * lens_val * (1.0 - (i - 1) / 4.0)) + 30
+            a = int(170 * lens_val * (1.0 - (i - 1) / 4.0)) + 24
             col = GLOW_WARM if i > 1 else GLOW_CORE
             pygame.draw.ellipse(
                 glow, (*col, a),
@@ -210,37 +244,25 @@ def _crack_and_glow(surf, cx, cy, crack, lens_val):
                   special_flags=pygame.BLEND_RGBA_ADD)
 
     if crack > 0.04:
-        # bright hot diamond core fill of the open lens (non-additive so it
-        # stays solid and reads as a lit interior even on a bright day sky).
-        # The lens VALUE tracks `lens_val` (not the crack width) so the four
-        # stages land on evenly-spaced grayscale beats: a DIM lens at stage 1,
-        # the white-hot peak at stage 2, a distinct MID at stage 3.
-        warm = tuple(min(255, int(GLOW_WARM[c] * (0.42 + 0.58 * lens_val)))
+        # solid hot lens fill (non-additive so it reads as a lit interior even on
+        # a bright day sky). The lens VALUE tracks `lens_val` (not the crack
+        # width) so stage 1 is a DIM lens, stage 2 white-hot, stage 3 a clearly
+        # lower mid — ≥40 luma between each on the grayscale strip.
+        warm = tuple(min(255, int(GLOW_WARM[c] * (0.34 + 0.66 * lens_val)))
                      for c in range(3))
-        diamond = [
-            (seam_cx, seam_cy - half_h),
-            (seam_cx + open_w, seam_cy),
-            (seam_cx, seam_cy + half_h),
-            (seam_cx - open_w, seam_cy),
-        ]
-        pygame.draw.polygon(surf, warm, diamond)
-        # the white-hot inner core scales with luminance, so the brightest beat
-        # reads near-white and the mid beat stays a clearly cooler amber.
-        if lens_val > 0.4:
-            t = min(1.0, (lens_val - 0.4) / 0.6)
+        lens = _jagged_lens(seam_cx, seam_cy, half_h, open_w, jag)
+        pygame.draw.polygon(surf, warm, lens)
+        # white-hot inner core only at the brightest beat so stage 2 reads
+        # near-white and stage 3 (lower lens_val) stays a cooler amber.
+        if lens_val > 0.6:
+            t = min(1.0, (lens_val - 0.6) / 0.4)
             core = tuple(int(GLOW_WARM[c] + (GLOW_CORE[c] - GLOW_WARM[c]) * t)
                          for c in range(3))
-            inner = [
-                (seam_cx, seam_cy - int(half_h * 0.72)),
-                (seam_cx + max(1, int(open_w * 0.72)), seam_cy),
-                (seam_cx, seam_cy + int(half_h * 0.72)),
-                (seam_cx - max(1, int(open_w * 0.72)), seam_cy),
-            ]
+            inner = _jagged_lens(seam_cx, seam_cy, int(half_h * 0.7),
+                                 max(1, int(open_w * 0.66)), max(0, jag - 1))
             pygame.draw.polygon(surf, core, inner)
 
     # the dark crack lips LEFT & RIGHT — the value contrast that survives gray.
-    # As the lens widens the lips pull apart; this is the dark frame around the
-    # bright interior that makes the value swing legible with no hue.
     lip = max(2, int(half_h * (1.0 - 0.12 * crack)))
     pygame.draw.line(surf, SEAM_DARK,
                      (seam_cx - open_w, seam_cy - lip),
@@ -248,17 +270,26 @@ def _crack_and_glow(surf, cx, cy, crack, lens_val):
     pygame.draw.line(surf, SEAM_DARK,
                      (seam_cx + open_w, seam_cy - lip),
                      (seam_cx + open_w, seam_cy + lip), 2)
-    # the closed-seam groove when sealed so the tell exists even shut — a deep
-    # near-black VERTICAL bar so stage 0 reads unambiguously DARKEST on the
-    # grayscale strip (the dark anchor the bright lens stages swing away from).
-    if crack <= 0.12:
-        pygame.draw.line(surf, SEAM_DARK, (seam_cx - 1, seam_cy - lip),
-                         (seam_cx - 1, seam_cy + lip), 2)
-        pygame.draw.line(surf, SEAM_DARK, (seam_cx + 1, seam_cy - lip),
-                         (seam_cx + 1, seam_cy + lip), 2)
 
-    # candy dots spilling at the widest opening
-    if crack > 0.7:
+    if stage == 0:
+        # SEALED: a single deep near-black vertical groove — the darkest beat and
+        # the simplest geometry (no lens at all), the anchor the others swing off.
+        pygame.draw.line(surf, SEAM_DARK, (seam_cx, seam_cy - lip),
+                         (seam_cx, seam_cy + lip), 2)
+    elif stage == 3:
+        # SHATTERED: dark spiderweb fractures radiating off the lens — the
+        # distinct LARGER-fracture geometry at a clearly lower value than the
+        # white-hot stage 2. These thin cracks read as a broken shell even where
+        # the lens value approaches the others.
+        for dx, dy in ((-1.0, -0.5), (1.0, -0.5), (-1.0, 0.5), (1.0, 0.5),
+                       (0.0, -1.0), (0.0, 1.0)):
+            ex = seam_cx + dx * (open_w + 5)
+            ey = seam_cy + dy * (half_h + 3)
+            pygame.draw.line(surf, SEAM_DARK, (seam_cx, seam_cy),
+                             (ex, ey), 1)
+
+    # candy dots spilling at the WIDE jagged beat (stage 2) only.
+    if stage == 2:
         for k, (dx, dy) in enumerate(((-1, -4), (2, 4), (-2, 1))):
             r = 2 if k < 2 else 1
             pygame.draw.circle(surf, CANDY_DOTS[k % 3],
@@ -292,6 +323,6 @@ def build(wing_angle_deg):
     # 3) Crepe fringe bands wrapped on the hull, then the crack-&-glow tell on
     #    top so the glow is never buried under the fringe texture.
     _hull_fringe_rings(surf, cx, cy)
-    _crack_and_glow(surf, cx, cy, crack, lens_val)
+    _crack_and_glow(surf, cx, cy, ph, crack, lens_val)
 
     return surf
