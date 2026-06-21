@@ -646,6 +646,8 @@ class App:
         try:
             self.world.bird.equipped_skin = store_data.equipped("skin") \
                 or "skin_base"
+            self.world.bird.equipped_parcel = store_data.equipped("parcel") \
+                or "parcel_base"
         except Exception:
             pass
         self.world.ready_t = 0.0
@@ -700,6 +702,8 @@ class App:
         try:
             self.world.bird.equipped_skin = store_data.equipped("skin") \
                 or "skin_base"
+            self.world.bird.equipped_parcel = store_data.equipped("parcel") \
+                or "parcel_base"
         except Exception:
             pass
         self.world.ready_t = 0.0

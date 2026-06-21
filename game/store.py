@@ -42,7 +42,7 @@ _PER_PAGE = 8          # 2 columns x 4 rows; each tab pages independently
 _TAB_Y = 92            # tab-bar centre line
 _TABS = (("COSTUMES", "costume"), ("PARROTS", "parrot"),
          ("ANIMALS", "animal"), ("SHOES", "shoes"), ("HATS", "hats"),
-         ("SHADES", "shades"))
+         ("SHADES", "shades"), ("PARCELS", "parcels"))
 
 # Owned-but-equipped accent + buy/locked chip tints.
 _EQUIP_GREEN = (96, 210, 120)
@@ -78,6 +78,17 @@ def _fit_skin(skin_id: str, box: int) -> pygame.Surface:
         src, (max(1, int(sw * scale)), max(1, int(sh * scale))))
 
 
+def _slot_of(sid: str) -> str:
+    """The equip slot a store card belongs to (its catalog ``kind``), so the
+    equipped-accent + tap-to-equip logic works for parcels as well as skins.
+    The two free defaults aren't in the catalog, so map them explicitly."""
+    if sid == store_catalog.PARCEL_BASE:
+        return "parcel"
+    if sid == store_catalog.BASE_SKIN or not store_catalog.exists(sid):
+        return "skin"
+    return store_catalog.kind(sid)
+
+
 class StoreScene:
     def __init__(self) -> None:
         self.t = 0.0
@@ -105,6 +116,10 @@ class StoreScene:
             ids = sorted(store_catalog.ids_of_group(g), key=store_catalog.cost)
             if g in ("parrot", "shades"):
                 ids = [store_catalog.BASE_SKIN] + ids
+            elif g == "parcels":
+                # Front the PARCELS tab with the free DEFAULT box so the player
+                # can always revert to Pip's classic parcel.
+                ids = [store_catalog.PARCEL_BASE] + ids
             self._lists[g] = ids
         self.tab = 0
         self.page = 0
@@ -121,7 +136,8 @@ class StoreScene:
 
     @staticmethod
     def _disp_name(sid: str) -> str:
-        return "DEFAULT" if sid == store_catalog.BASE_SKIN \
+        return "DEFAULT" if sid in (store_catalog.BASE_SKIN,
+                                    store_catalog.PARCEL_BASE) \
             else store_catalog.name(sid)
 
     def update(self, dt: float) -> None:
@@ -284,7 +300,7 @@ class StoreScene:
 
     def _draw_card(self, surf, sid: str, rect: pygame.Rect) -> None:
         owned = store_data.is_owned(sid)
-        equipped = (store_data.equipped("skin") == sid)
+        equipped = (store_data.equipped(_slot_of(sid)) == sid)
         # A secret stays masked (??? + a "?" glyph) until bought; the price chip
         # still shows, so the lure is a mystery card with a steep cost. Buying is
         # blind and reveals the real art the moment ownership flips.
@@ -404,7 +420,7 @@ class StoreScene:
         return None
 
     def _tap_item(self, sid: str) -> None:
-        if store_data.equipped("skin") == sid:
+        if store_data.equipped(_slot_of(sid)) == sid:
             return  # already worn
         if store_data.is_owned(sid):
             store_data.equip(sid)

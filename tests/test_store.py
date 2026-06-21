@@ -307,5 +307,46 @@ class TestCatalogIntegrity(unittest.TestCase):
                                      f"{sid} is missing a product-shot icon")
 
 
+class TestParcels(_StoreTestBase):
+    """The PARCELS tab: a new independent equip slot whose free DEFAULT is the
+    classic kraft box, fronted like PARROTS/SHADES. Every parcel must resolve in
+    the parcel renderer and carry a store-card icon."""
+
+    def test_parcels_group_registered(self):
+        self.assertIn("parcels", store_catalog.GROUPS)
+        self.assertIn("parcel", store_catalog.CATALOG_KINDS)
+
+    def test_parcel_base_owned_and_equips(self):
+        # The default parcel is implicitly owned (never sold) and equips into
+        # its own slot, independent of the bird skin.
+        self.assertTrue(store_data.is_owned(store_catalog.PARCEL_BASE))
+        self.assertEqual(store_data.equipped("parcel"), store_catalog.PARCEL_BASE)
+        self.assertTrue(store_data.equip(store_catalog.PARCEL_BASE))
+        self.assertEqual(store_data.equipped("parcel"), store_catalog.PARCEL_BASE)
+        # Equipping a parcel must not disturb the skin slot.
+        self.assertEqual(store_data.equipped("skin"), store_catalog.BASE_SKIN)
+
+    def test_parcel_catalog_entries_well_formed(self):
+        for pid in store_catalog.ids_of_group("parcels"):
+            self.assertEqual(store_catalog.kind(pid), "parcel")
+            self.assertGreater(store_catalog.cost(pid), 0)
+
+    def test_every_parcel_resolves_in_renderer(self):
+        # Base + every catalog parcel must produce a 22×22 sprite via the
+        # parcel dispatch, and register in the parcel builders.
+        from game import parrot
+        builders = parrot._store_parcel_builders()
+        for pid in [store_catalog.PARCEL_BASE] + store_catalog.ids_of_group("parcels"):
+            surf = parrot.get_parcel("normal", pid)
+            self.assertEqual(surf.get_size(), (parrot.PARCEL_SIZE,) * 2)
+            self.assertIn(pid, builders, f"{pid} missing a parcel builder")
+
+    def test_every_parcel_has_a_product_shot_icon(self):
+        from game import parrot
+        for pid in [store_catalog.PARCEL_BASE] + store_catalog.ids_of_group("parcels"):
+            self.assertIsNotNone(parrot.get_skin_icon(pid),
+                                 f"{pid} is missing a product-shot icon")
+
+
 if __name__ == "__main__":
     unittest.main()

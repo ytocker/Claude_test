@@ -31,7 +31,7 @@ _VERSION = 1
 
 # Equip slots map one-to-one onto the cosmetic ``kind``s that can be worn.
 # Boosts are consumables, not equippable, so they have no slot here.
-_EQUIP_SLOTS = ("skin", "pillar", "ground", "trail")
+_EQUIP_SLOTS = ("skin", "pillar", "ground", "trail", "parcel")
 
 _STATE: "dict | None" = None  # lazy: populated on first load()
 
@@ -45,6 +45,7 @@ def _default_state() -> dict:
         "equipped_pillar": None,
         "equipped_ground": None,
         "equipped_trail": None,
+        "equipped_parcel": store_catalog.PARCEL_BASE,
         "last_daily": "",
         # skin_id -> design index, for skins whose look is a random 1-of-N
         # pick locked at unlock (e.g. the secret jet fighter).
@@ -68,7 +69,7 @@ def _coerce(raw: "dict | None") -> dict:
             # leave a dangling entry that looks owned but can't be equipped.
             state["owned"] = [str(i) for i in owned if store_catalog.exists(str(i))]
         for key in ("equipped_skin", "equipped_pillar", "equipped_ground",
-                    "equipped_trail"):
+                    "equipped_trail", "equipped_parcel"):
             v = raw.get(key)
             if v is None:
                 continue
@@ -76,8 +77,9 @@ def _coerce(raw: "dict | None") -> dict:
             # Guard against a stale equip pointing at a skin removed/renamed in
             # a later build: fall back to the slot default so the store never
             # shows the wrong card as "equipped" while the renderer silently
-            # draws the base look. (The base skin is always valid.)
-            if v != store_catalog.BASE_SKIN and not store_catalog.exists(v):
+            # draws the base look. (The base skin / base parcel are always valid.)
+            if v not in (store_catalog.BASE_SKIN, store_catalog.PARCEL_BASE) \
+                    and not store_catalog.exists(v):
                 continue
             state[key] = v
         if isinstance(raw.get("last_daily"), str):
@@ -193,7 +195,7 @@ def add_coins(n: int) -> None:
 
 
 def is_owned(item_id: str) -> bool:
-    if item_id == store_catalog.BASE_SKIN:
+    if item_id in (store_catalog.BASE_SKIN, store_catalog.PARCEL_BASE):
         return True
     return item_id in _ensure()["owned"]
 
@@ -244,8 +246,14 @@ def equip(item_id: str) -> bool:
     or its kind has no equip slot."""
     if not is_owned(item_id):
         return False
-    k = store_catalog.kind(item_id) if store_catalog.exists(item_id) \
-        else ("skin" if item_id == store_catalog.BASE_SKIN else None)
+    if store_catalog.exists(item_id):
+        k = store_catalog.kind(item_id)
+    elif item_id == store_catalog.BASE_SKIN:
+        k = "skin"
+    elif item_id == store_catalog.PARCEL_BASE:
+        k = "parcel"
+    else:
+        k = None
     if k not in _EQUIP_SLOTS:
         return False
     _ensure()[_slot_key(k)] = item_id

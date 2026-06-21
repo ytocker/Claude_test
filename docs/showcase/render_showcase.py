@@ -44,6 +44,7 @@ IMG.mkdir(parents=True, exist_ok=True)
 GROUPS = [
     ("costume", "COSTUMES"), ("parrot", "PARROTS"), ("animal", "ANIMALS"),
     ("shoes", "SHOES"), ("hats", "HATS"), ("shades", "SHADES"),
+    ("parcels", "PARCELS"),
 ]
 
 CYCLE = _biome.CYCLE_SECONDS
@@ -67,6 +68,8 @@ def _tab_order(group: str) -> list[str]:
     ids = [i for i in ids if not store_catalog.is_secret(i)]
     if group in ("parrot", "shades"):
         ids = [store_catalog.BASE_SKIN] + ids
+    elif group == "parcels":
+        ids = [store_catalog.PARCEL_BASE] + ids
     return ids
 
 

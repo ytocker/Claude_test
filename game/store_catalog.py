@@ -22,10 +22,15 @@ from __future__ import annotations
 
 BASE_SKIN = "skin_base"
 
-CATALOG_KINDS = ("skin", "pillar", "ground", "trail", "boost")
+# Default parcel (the kraft-box Pip always carried). Like BASE_SKIN it is
+# implicitly owned and never sold — the PARCELS tab surfaces it as a free
+# DEFAULT card so the player can always revert.
+PARCEL_BASE = "parcel_base"
+
+CATALOG_KINDS = ("skin", "pillar", "ground", "trail", "boost", "parcel")
 
 # Store browsing tabs, in display order.
-GROUPS = ("costume", "parrot", "animal", "shoes", "hats", "shades")
+GROUPS = ("costume", "parrot", "animal", "shoes", "hats", "shades", "parcels")
 
 # Cost ladder is tuned so the first unlock is a goal (a few good runs) rather
 # than a side effect of session one: entry ~260, mid ~450-550, premium ~650-800,

@@ -481,6 +481,9 @@ class Bird:
         # no power-up skin is overriding it. Set per run from store_data in
         # scenes._start_play; defaults to the base parrot.
         self.equipped_skin = "skin_base"
+        # Equipped parcel cosmetic (PARCELS store tab). Set per run from
+        # store_data in scenes._start_play; "parcel_base" = the legacy box.
+        self.equipped_parcel = "parcel_base"
         self.ghost_pulse = 0.0    # advances while ghost_active for fade effect
         # Shrink: collision-relevant flag flips at activation; the
         # visible sprite scale eases between 1.0 and SHRINK_SCALE over
@@ -846,7 +849,7 @@ class Bird:
             mode = "triple"
         else:
             mode = "normal"
-        parcel = parrot.get_parcel(mode)
+        parcel = parrot.get_parcel(mode, self.equipped_parcel)
         from game.config import GROW_SCALE, PARCEL_Y_OFFSET
         scale = GROW_SCALE if self.grow_active else 1.0
         if scale != 1.0:

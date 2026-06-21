@@ -684,11 +684,38 @@ def _build_parcel_variant(palette: dict) -> pygame.Surface:
 # Lazy: building all four parcel variants up front costs ~40-80 ms on
 # the WASM cold path. Built on first get_parcel() call instead.
 _PARCELS: "dict[str, pygame.Surface] | None" = None
+_STORE_PARCELS: "dict | None" = None
 
 
-def get_parcel(mode: str = "normal") -> pygame.Surface:
-    """Return the parcel sprite for a visual mode. Falls back to 'normal'
-    on unknown keys so the parcel never disappears."""
+def _store_parcel_builders() -> dict:
+    """Lazily merge ``parcel_skins.BUILDERS`` — the swappable parcel cosmetics
+    sold in the PARCELS store tab. Mirrors ``_store_skin_builders``; an absent
+    or broken module degrades to the legacy palette box."""
+    global _STORE_PARCELS
+    if _STORE_PARCELS is None:
+        merged: dict = {}
+        try:
+            mod = __import__("game.parcel_skins", fromlist=["BUILDERS"])
+            merged.update(mod.BUILDERS)
+        except Exception:
+            pass
+        _STORE_PARCELS = merged
+    return _STORE_PARCELS
+
+
+def get_parcel(mode: str = "normal",
+               parcel_id: "str | None" = None) -> pygame.Surface:
+    """Return the parcel sprite. A custom equipped ``parcel_id`` routes to its
+    cosmetic builder (mode-agnostic — it keeps its own look across power-ups);
+    the default / None / ``parcel_base`` path uses the legacy per-mode palette
+    box. Falls back to 'normal' on any miss so the parcel never disappears."""
+    if parcel_id and parcel_id != "parcel_base":
+        fn = _store_parcel_builders().get(parcel_id)
+        if fn is not None:
+            try:
+                return fn(mode)
+            except Exception:
+                pass
     global _PARCELS
     if _PARCELS is None:
         _PARCELS = {name: _build_parcel_variant(pal)
@@ -1289,7 +1316,8 @@ def _skin_icons() -> dict:
     global _SKIN_ICONS
     if _SKIN_ICONS is None:
         merged: dict = {}
-        for modname in ("shoe_skins", "hat_skins", "glasses_skins"):
+        for modname in ("shoe_skins", "hat_skins", "glasses_skins",
+                        "parcel_skins"):
             try:
                 mod = __import__("game." + modname, fromlist=["ICONS"])
                 merged.update(getattr(mod, "ICONS", {}))
