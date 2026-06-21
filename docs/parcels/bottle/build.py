@@ -1,26 +1,42 @@
 """MESSAGE BOTTLE parcel cosmetic (MID tier).
 
 A corked bottle laid HORIZONTALLY with a rolled cream scroll inside —
-adventure mail. The long wide-not-tall profile is unique in the PARCELS tab:
-round sea-glass belly on the left, a beefed-up tapered neck and cork nub on
-the right, the cream scroll the high-value keyline inside the translucent
-glass. Built at 2× (44px) then smoothscaled to 22 so the dark outline, the
-neck pinch, and the single glass highlight streak survive the tiny in-play
-read and the bird's tilt rotation."""
+adventure mail. The one wide-not-tall object in the PARCELS tab.
+
+Carry-pose geometry is the whole game: the bottle is built with the CORK ON
+THE LEFT (down-left tip) and baked with a ~-25° lean so, slung below Pip, the
+cork juts into OPEN SKY instead of vanishing into his belly. That broken
+silhouette against the sky is what reads "bottle" rather than "orb". The
+long lying-down axis is exaggerated (~17 wide × 9 tall) so it survives the
+downscale instead of collapsing to a round lozenge. Built at 2× then
+smoothscaled to 22 so the dark outline, the neck pinch and the cork seam hold
+at the tiny in-play read and through the bird's tilt rotation."""
+import math
 import pygame
 
 SIZE = 22
 SS = 44  # 2× supersample; smoothscaled down for a crisp outline at 22px
 
+# Baked lean — the parcel anchor sits at Pip's belly-bottom, so the bottle's
+# UPPER half tucks under his body and only the lower half shows. Leaning the
+# cork-left bottle DOWN-left (positive = CCW tips the left/cork end downward)
+# drops the cork tip clear of Pip's silhouette into open sky — the broken
+# outline that converts "orb" → "bottle".
+LEAN_DEG = 45
+
 # DAY palette — sea-glass green translucent glass over a lighter core, warm
-# cork, cream scroll. Night leans on the cream keyline + a faint glass glow.
-GLASS = (0x5F, 0xA8, 0x8C)       # sea-glass green wall
-CORE = (0x9F, 0xD3, 0xBC)        # lighter translucent core
-CORK = (0xC9, 0xA3, 0x68)        # warm cork nub
-CORK_HI = (0xE3, 0xC6, 0x95)
-SCROLL = (0xF2, 0xE7, 0xC8)      # cream rolled paper — the high-value content
+# cork, cream scroll. Glass wall darkened vs round 1 so the glyph holds against
+# the bright upper sky band. Night leans on the cream keyline + faint glow.
+GLASS = (0x3E, 0x86, 0x6E)       # deeper sea-glass wall (was 5FA88C — melted on sky)
+CORE = (0x86, 0xC4, 0xAA)        # lighter translucent core
+SKY_TELL = (0xC9, 0xE8, 0xDC)    # near-sky value sliver low on the belly
+GLASS_KEY = (0xE6, 0xFB, 0xF4)   # bright top-edge glass keyline (translucency tell)
+CORK = (0xCF, 0x9A, 0x4E)        # warm cork nub, punchier hue
+CORK_HI = (0xF0, 0xCE, 0x8E)
+CORK_SEAM = (0x5A, 0x3E, 0x1E)   # dark seam ring at the cork→neck join
+SCROLL = (0xF6, 0xEC, 0xCE)      # cream rolled paper — the high-value content
 SCROLL_SH = (0xCE, 0xBD, 0x93)   # scroll roll shading for the coil read
-OUTLINE = (0x16, 0x32, 0x29)     # dark high-value edge to hold the silhouette
+OUTLINE = (0x10, 0x2A, 0x22)     # dark high-value edge to hold the silhouette
 
 
 def _lerp(a, b, t):
@@ -33,55 +49,63 @@ def build(mode="normal"):  # mode ignored — parcel is mode-agnostic, one surfa
     s = pygame.Surface((SS, SS), pygame.SRCALPHA)
     cy = SS // 2
 
-    # ---- Silhouette as one closed polygon so the outline is a single bold
-    # edge. Built left→right: rounded belly, shoulder, tapered NECK, cork.
-    belly_l = 4          # leftmost of the glass belly
-    belly_r = 26         # belly meets the shoulder
-    neck_l = 30          # shoulder pinches into the neck here
-    neck_r = 36          # neck meets the cork
-    cork_r = 41          # cork tip
-    belly_hh = 11        # belly half-height (round body)
+    # ---- Silhouette as one closed polygon, built CORK→BELLY (left→right) so
+    # the cork tip is the leftmost point. Proportions exaggerated horizontal:
+    # the belly is wide and only moderately tall (the lying-down vessel axis).
+    cork_l = 3           # cork tip (leftmost — juts into open sky once leaned)
+    neck_l = 8           # cork meets the neck
+    neck_r = 13          # neck meets the shoulder
+    belly_l = 16         # shoulder pinch into the round belly
+    belly_r = 41         # rounded belly end (rightmost)
+    belly_hh = 9         # belly half-height — wide-not-tall (~17×9 at carry)
     neck_hh = 5          # BEEFED-UP neck half-height so it survives 22px
     cork_hh = 6          # cork slightly proud of the neck
 
-    # Glass body outline silhouette — belly arc + tapering shoulder to neck.
+    # Glass body outline silhouette — neck on the LEFT, big rounded belly right.
     glass_poly = [
-        (belly_l, cy),
-        (belly_l + 2, cy - belly_hh + 3),
-        (belly_l + 7, cy - belly_hh),
-        (belly_r - 2, cy - belly_hh),
-        (belly_r + 2, cy - belly_hh + 2),
         (neck_l, cy - neck_hh),
         (neck_r, cy - neck_hh),
+        (belly_l, cy - belly_hh + 2),
+        (belly_l + 6, cy - belly_hh),
+        (belly_r - 7, cy - belly_hh),
+        (belly_r - 2, cy - belly_hh + 3),
+        (belly_r, cy),
+        (belly_r - 2, cy + belly_hh - 3),
+        (belly_r - 7, cy + belly_hh),
+        (belly_l + 6, cy + belly_hh),
+        (belly_l, cy + belly_hh - 2),
         (neck_r, cy + neck_hh),
         (neck_l, cy + neck_hh),
-        (belly_r + 2, cy + belly_hh - 2),
-        (belly_r - 2, cy + belly_hh),
-        (belly_l + 7, cy + belly_hh),
-        (belly_l + 2, cy + belly_hh - 3),
     ]
 
     # Dark outline pass — draw the silhouette fat first, fill sits inside it.
     pygame.draw.polygon(s, OUTLINE, glass_poly)
-    pygame.draw.line(s, OUTLINE, (belly_l, cy - belly_hh + 4),
-                     (belly_l, cy + belly_hh - 4), 5)
+    # Round the belly cap so the right end never reads as a flat box.
+    pygame.draw.circle(s, OUTLINE, (belly_r - belly_hh, cy), belly_hh)
 
-    # ---- Glass fill — horizontal-banded green→core→green so the round belly
-    # reads as a cylinder lit down its spine. Masked into the silhouette.
+    # ---- Glass fill — horizontal-banded core→wall so the round belly reads as
+    # a cylinder lit down its spine. Masked into the silhouette.
     fill = pygame.Surface((SS, SS), pygame.SRCALPHA)
-    pygame.draw.polygon(fill, (255, 255, 255, 255),
-                        [(x, y) for x, y in glass_poly])
+    pygame.draw.polygon(fill, (255, 255, 255, 255), glass_poly)
+    pygame.draw.circle(fill, (255, 255, 255, 255),
+                       (belly_r - belly_hh, cy), belly_hh)
     glass = pygame.Surface((SS, SS), pygame.SRCALPHA)
     for y in range(cy - belly_hh, cy + belly_hh + 1):
-        t = abs(y - cy) / belly_hh           # 0 at spine, 1 at the wall
-        col = _lerp(CORE, GLASS, min(1.0, t))
-        glass.fill(col + (235,), pygame.Rect(0, y, SS, 1))
+        t = (y - cy) / belly_hh              # -1 top, 0 spine, +1 bottom wall
+        if t < 0:                            # upper wall — lit toward the core
+            col = _lerp(CORE, GLASS, min(1.0, -t))
+            a = 240
+        else:                                # lower belly — let a sky-value
+            col = _lerp(CORE, SKY_TELL, t)   # sliver glow through for the
+            a = 210 if t > 0.55 else 240     # translucency tell at 22px
+        glass.fill(col + (a,), pygame.Rect(0, y, SS, 1))
     glass.blit(fill, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     s.blit(glass, (0, 0))
 
     # ---- Rolled SCROLL inside the belly — the cream content that names this a
-    # message bottle. A horizontal capsule with two coil end-caps.
-    sc_l, sc_r = belly_l + 6, belly_r - 4
+    # message bottle. A horizontal capsule with two coil end-caps. Cream is the
+    # brightest value on the sprite so it carries the read day and night.
+    sc_l, sc_r = belly_l + 4, belly_r - 5
     sc_hh = 5
     scroll_rect = pygame.Rect(sc_l, cy - sc_hh, sc_r - sc_l, sc_hh * 2)
     pygame.draw.rect(s, _lerp(SCROLL, SCROLL_SH, 0.3), scroll_rect,
@@ -101,24 +125,30 @@ def build(mode="normal"):  # mode ignored — parcel is mode-agnostic, one surfa
     pygame.draw.line(s, _lerp(SCROLL_SH, OUTLINE, 0.5),
                      (sc_l + 6, cy + 2), (sc_r - 8, cy + 2), 1)
 
-    # ---- CORK nub — warm plug capping the neck. Rounded rectangle, lit top.
-    cork = pygame.Rect(neck_r - 1, cy - cork_hh, cork_r - neck_r + 1,
-                       cork_hh * 2)
+    # ---- CORK nub — warm plug capping the neck on the LEFT. Bigger + warmer
+    # than round 1 with a dark seam so it stays a distinct cap, never smearing
+    # into the neck. It's the iconic tell and the first thing to vanish.
+    cork = pygame.Rect(cork_l, cy - cork_hh, neck_l - cork_l + 3, cork_hh * 2)
     pygame.draw.rect(s, OUTLINE, cork.inflate(2, 2), border_radius=3)
     pygame.draw.rect(s, CORK, cork, border_radius=3)
     pygame.draw.line(s, CORK_HI, (cork.x + 1, cork.y + 1),
-                     (cork.right - 2, cork.y + 1), 1)
-    # Seam where cork meets glass lip.
-    pygame.draw.line(s, OUTLINE, (neck_r, cy - neck_hh),
-                     (neck_r, cy + neck_hh), 2)
+                     (cork.right - 1, cork.y + 1), 2)
+    # Dark seam ring where cork meets the glass lip — keeps the two separate.
+    pygame.draw.line(s, CORK_SEAM, (neck_l + 1, cy - neck_hh - 1),
+                     (neck_l + 1, cy + neck_hh + 1), 2)
 
-    # ---- Glass HIGHLIGHT streak — the diagonal cue that this is glass. Sits
-    # high on the belly, the one bright specular across the curved wall.
-    pygame.draw.line(s, (0xEE, 0xFB, 0xF5, 220),
-                     (belly_l + 5, cy - belly_hh + 3),
-                     (belly_r - 4, cy - belly_hh + 5), 2)
-    pygame.draw.line(s, (255, 255, 255, 150),
-                     (belly_l + 6, cy - belly_hh + 2),
-                     (belly_l + 11, cy - belly_hh + 2), 1)
+    # ---- Glass KEYLINE — a bright translucency tell along the top edge of the
+    # belly that survives the downscale (a thin specular rim, not a dab).
+    pygame.draw.line(s, GLASS_KEY + (235,),
+                     (belly_l + 4, cy - belly_hh + 2),
+                     (belly_r - 6, cy - belly_hh + 2), 2)
+    pygame.draw.line(s, (255, 255, 255, 170),
+                     (belly_l + 5, cy - belly_hh + 1),
+                     (belly_l + 11, cy - belly_hh + 1), 1)
 
-    return pygame.transform.smoothscale(s, (SIZE, SIZE))
+    # ---- Bake the lean so the carried bottle lies on a diagonal with the cork
+    # tip lowest, breaking the silhouette into open sky below-left of Pip.
+    leaned = pygame.transform.rotozoom(s, LEAN_DEG, 1.0)
+    out = pygame.Surface((SS, SS), pygame.SRCALPHA)
+    out.blit(leaned, leaned.get_rect(center=(SS // 2, SS // 2)))
+    return pygame.transform.smoothscale(out, (SIZE, SIZE))
