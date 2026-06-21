@@ -1,12 +1,17 @@
 """BAMBOO STEAMER parcel cosmetic (MID tier).
 
-A stacked dim-sum steamer: two shallow bamboo drums under a domed lid — a tidy
-ringed tower. Horizontal banding stripes + the dome carry the "steamer" read at
-22px. This is a TALL ringed-drum silhouette, distinct from every box/bag/jar.
+ONE closed dim-sum steamer: three shallow woven bamboo tiers that STEP inward
+going up, capped by a separate domed lid whose overhang lip is ASYMMETRIC, with
+a compact opaque steam puff above. This is a TALL, narrow stacked tower (~2:3
+width:height) — the stack carries the height, the lid is a thin crown — so the
+silhouette steps inward and reads as a stacked steamer, never a squat
+bucket/barrel. There is no handle and no cloth; it is a closed stack.
 
-Built at 2× then smoothscaled to 22 so the dark outline and the band shadows
-survive the tiny read and the bird's tilt rotation. The steam puff is kept tiny
-and centred on top so it doesn't smear oddly when the sprite banks."""
+Built at 2× then smoothscaled to 22 so the dark keyline, the dark tier SEAMS,
+and the lid overhang survive the tiny in-play read and the bird's tilt rotation.
+The steam is a small OPAQUE warm-white puff centred above the lid (with a soft
+glow halo) so it reads as steam even on the bright day sky and doesn't smear
+into a tail when the sprite banks."""
 import pygame
 
 SIZE = 22
@@ -15,9 +20,11 @@ SS = 44  # 2× supersample; smoothscaled down for a crisp outline at 22px
 # DAY palette — pale woven bamboo, darker band shadows, deep rim under the lid.
 BAMBOO = (0xD8, 0xB8, 0x77)
 BAND_SH = (0xA0, 0x7C, 0x3C)
+SEAM = (0x6A, 0x4C, 0x20)     # dark seam between tiers — the "stacked" cue
 LID_RIM = (0x7A, 0x5A, 0x28)
-HILITE = (0xEF, 0xDF, 0xB4)   # top sheen on the dome, also lifts the day read
-STEAM = (0xEF, 0xE6, 0xD2)    # warm steam-glow puff above the lid
+HILITE = (0xEF, 0xDF, 0xB4)   # top sheen on each tier + the dome
+STEAM = (0xFB, 0xF6, 0xEA)    # near-white opaque steam puff
+STEAM_GLOW = (0xF0, 0xE4, 0xC8)  # warm halo so the puff blooms at night
 OUTLINE = (0x2C, 0x1C, 0x0E)  # dark high-value edge to hold the silhouette
 
 
@@ -27,66 +34,93 @@ def _lerp(a, b, t):
             round(a[2] + (b[2] - a[2]) * t))
 
 
-def _drum(s, rect, top_shade=False):
-    """A shallow bamboo cylinder: dark outline frame, vertical weave gradient
-    masked into a soft rounded body, then a band-shadow line so two of them
-    stacked read as a ringed tower."""
-    pygame.draw.rect(s, OUTLINE, rect.inflate(4, 4), border_radius=5)
+def _tier(s, cx, cy, half_w, h):
+    """One shallow woven bamboo tier centred at (cx, cy): dark keyline frame, a
+    top-lit weave gradient masked into a soft rounded body, a top sheen line and
+    a dark SEAM at its base so a column of these reads as a stacked tower."""
+    rect = pygame.Rect(cx - half_w, cy - h // 2, half_w * 2, h)
+    # Dark keyline frame baked behind the fill so the edge stays bold at 22px.
+    pygame.draw.rect(s, OUTLINE, rect.inflate(3, 3), border_radius=4)
+
     fill = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
     for y in range(rect.h):
         t = y / max(1, rect.h - 1)
-        # Lighter at the top of each ring, sinking to band shadow at its base —
-        # the cue that this is a stack of woven rings, not a smooth tube.
-        col = _lerp(BAMBOO, BAND_SH, t * 0.8)
-        fill.fill(col + (255,), pygame.Rect(0, y, rect.w, 1))
+        # Light at the top of the tier, sinking to band shadow at its base —
+        # the woven-ring shading that makes the stack read as separate drums.
+        fill.fill(_lerp(BAMBOO, BAND_SH, t * 0.85) + (255,),
+                  pygame.Rect(0, y, rect.w, 1))
     mask = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
     pygame.draw.rect(mask, (255, 255, 255, 255), mask.get_rect(), border_radius=3)
     fill.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     s.blit(fill, rect.topleft)
-    # Top weave-sheen so each ring catches light.
+
+    # Top weave-sheen so each tier catches light along its rim.
     pygame.draw.line(s, HILITE, (rect.x + 3, rect.y + 1),
                      (rect.right - 4, rect.y + 1), 1)
-    if top_shade:
-        return
-    # Band-shadow seam at the base of the ring — the horizontal stripe that
-    # makes the silhouette unmistakably a stacked steamer.
-    pygame.draw.line(s, BAND_SH, (rect.x + 1, rect.bottom - 2),
-                     (rect.right - 2, rect.bottom - 2), 2)
-    pygame.draw.line(s, OUTLINE, (rect.x + 1, rect.bottom - 1),
-                     (rect.right - 2, rect.bottom - 1), 1)
+    # Dark band SEAM at the base — the horizontal stripe between tiers.
+    pygame.draw.line(s, SEAM, (rect.x + 1, rect.bottom - 1),
+                     (rect.right - 2, rect.bottom - 1), 2)
+    return rect
 
 
 def build(mode="normal"):  # mode ignored — parcel is mode-agnostic, one surface
     s = pygame.Surface((SS, SS), pygame.SRCALPHA)
     cx = SS // 2
-    DRUM_W = 30
-    DRUM_H = 11
 
-    # Tiny steam wisp first so the tower bakes over its base — a short centred
-    # puff that survives rotation without smearing into a tail.
-    for dy, r, a in ((-2, 5, 70), (1, 4, 110), (4, 3, 150)):
-        puff = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
-        pygame.draw.circle(puff, STEAM + (a,), (r + 1, r + 1), r)
-        s.blit(puff, (cx - r - 1, 4 + dy))
+    # --- Steam first so the tower bakes over its base: a compact OPAQUE puff
+    # above the lid with a soft warm halo, so it reads as steam on day AND night
+    # and stays a short bloom (not a tail) when the sprite banks.
+    steam_y = 5
+    halo = pygame.Surface((16, 14), pygame.SRCALPHA)
+    pygame.draw.circle(halo, STEAM_GLOW + (90,), (8, 7), 7)
+    pygame.draw.circle(halo, STEAM_GLOW + (60,), (8, 7), 5)
+    s.blit(halo, (cx - 8, steam_y - 4))
+    # Two overlapping opaque blobs — a small billow, clearly above the lid.
+    pygame.draw.circle(s, STEAM, (cx - 1, steam_y + 2), 3)
+    pygame.draw.circle(s, STEAM, (cx + 2, steam_y), 2)
+    pygame.draw.circle(s, HILITE, (cx - 2, steam_y + 1), 1)
 
-    # Two stacked drums forming the ringed tower body.
-    lower = pygame.Rect(0, 0, DRUM_W, DRUM_H)
-    lower.center = (cx, 33)
-    upper = pygame.Rect(0, 0, DRUM_W, DRUM_H)
-    upper.center = (cx, 33 - DRUM_H)
-    _drum(s, lower)
-    _drum(s, upper)
+    # --- Three stacked tiers that STEP inward going up. Heights biased into the
+    # STACK (not the lid); each upper tier is ~2px narrower per side so the
+    # silhouette tapers in and never reads as one straight tub.
+    base_cy = 36
+    tier_h = 7
+    bottom_hw = 12   # widest tier half-width
+    tiers = []
+    for i in range(3):
+        cy = base_cy - i * (tier_h - 1)   # 1px overlap so seams sit tight
+        hw = bottom_hw - i * 2            # step inward going up
+        tiers.append((cy, hw))
+    # Draw bottom-up so each tier's keyline overlaps the one below cleanly.
+    top_cy, top_hw = None, None
+    for cy, hw in tiers:
+        r = _tier(s, cx, cy, hw, tier_h)
+        top_cy, top_hw = r.y, hw
 
-    # Domed LID — a low rim band plus a shallow cap, the crown of the tower.
-    rim = pygame.Rect(upper.x - 2, upper.y - 5, DRUM_W + 4, 6)
-    pygame.draw.rect(s, OUTLINE, rim.inflate(2, 2), border_radius=3)
+    # --- Domed LID — a thin rim band + a shallow cap, its own crown over the
+    # top tier with an ASYMMETRIC overhang lip so the 90° bank never flattens it
+    # into a symmetric crate slab.
+    lid_hw = top_hw + 2              # overhang past the top tier
+    rim_y = top_cy - 1
+    rim_h = 4
+    rim = pygame.Rect(cx - lid_hw, rim_y - rim_h, lid_hw * 2, rim_h)
+    # Nudge the rim left so the overhang reads asymmetric, not a centred slab.
+    rim.x -= 1
+    pygame.draw.rect(s, OUTLINE, rim.inflate(3, 3), border_radius=3)
     rimfill = pygame.Surface((rim.w, rim.h), pygame.SRCALPHA)
     for y in range(rim.h):
         rimfill.fill(_lerp(BAMBOO, LID_RIM, y / max(1, rim.h - 1)) + (255,),
                      pygame.Rect(0, y, rim.w, 1))
     s.blit(rimfill, rim.topleft)
+    # Dark seam where the lid lip meets the top tier — the overhang shadow.
+    pygame.draw.line(s, SEAM, (rim.x + 1, rim.bottom - 1),
+                     (rim.right - 2, rim.bottom - 1), 1)
 
-    dome = pygame.Rect(rim.x + 4, rim.y - 6, rim.w - 8, 12)
+    # Shallow dome cap sitting on the rim; offset its centre slightly so the
+    # sheen + overhang stay asymmetric and the lid never mirrors into a slab.
+    dome_w = lid_hw * 2 - 4
+    dome_h = 9
+    dome = pygame.Rect(rim.x + 1, rim.y - dome_h + 2, dome_w, dome_h)
     pygame.draw.ellipse(s, OUTLINE, dome.inflate(2, 2))
     capmask = pygame.Surface((dome.w, dome.h), pygame.SRCALPHA)
     pygame.draw.ellipse(capmask, (255, 255, 255, 255), capmask.get_rect())
@@ -96,9 +130,10 @@ def build(mode="normal"):  # mode ignored — parcel is mode-agnostic, one surfa
                  pygame.Rect(0, y, dome.w, 1))
     cap.blit(capmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     s.blit(cap, dome.topleft)
-    # Dome sheen + a tiny knob so the lid reads as a lid, not a third ring.
-    pygame.draw.arc(s, HILITE, dome.inflate(-3, -2), 0.5, 2.4, 2)
-    pygame.draw.circle(s, LID_RIM, (cx, dome.y + 1), 2)
-    pygame.draw.circle(s, OUTLINE, (cx, dome.y + 1), 2, 1)
+    # Dome sheen + a tiny centre knob so the lid reads as a lid, not a tier.
+    pygame.draw.arc(s, HILITE, dome.inflate(-3, -2), 0.6, 2.5, 2)
+    knob = (dome.centerx, dome.y + 2)
+    pygame.draw.circle(s, LID_RIM, knob, 2)
+    pygame.draw.circle(s, OUTLINE, knob, 2, 1)
 
     return pygame.transform.smoothscale(s, (SIZE, SIZE))
