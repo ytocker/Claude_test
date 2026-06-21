@@ -415,6 +415,11 @@ class StoreScene:
             # Auto-equip a fresh unlock so the player immediately sees their
             # new bird — the satisfying payoff of the purchase.
             store_data.equip(sid)
+            if sid == "skin_jet_fighter":
+                # Bind the preview to the design just rolled for this unlock so
+                # the card shows the actual jet, not a stale lazy default.
+                from game import animal_jet_fighter
+                animal_jet_fighter.sync_from_store()
             self._flash("UNLOCKED!  " + self._disp_name(sid))
         elif reason == "insufficient":
             self._flash("NEED MORE COINS")

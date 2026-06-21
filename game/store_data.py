@@ -20,6 +20,7 @@ from __future__ import annotations
 import sys
 import json
 import time
+import random
 
 from game.config import STORE_FILE
 from game import store_catalog
@@ -45,6 +46,9 @@ def _default_state() -> dict:
         "equipped_ground": None,
         "equipped_trail": None,
         "last_daily": "",
+        # skin_id -> design index, for skins whose look is a random 1-of-N
+        # pick locked at unlock (e.g. the secret jet fighter).
+        "skin_variants": {},
     }
 
 
@@ -78,6 +82,16 @@ def _coerce(raw: "dict | None") -> dict:
             state[key] = v
         if isinstance(raw.get("last_daily"), str):
             state["last_daily"] = raw["last_daily"]
+        variants = raw.get("skin_variants")
+        if isinstance(variants, dict):
+            for k, v in variants.items():
+                k = str(k)
+                if not store_catalog.exists(k):
+                    continue  # drop a roll for a renamed/removed skin
+                try:
+                    state["skin_variants"][k] = int(v)
+                except (TypeError, ValueError):
+                    pass
     return state
 
 
@@ -188,6 +202,32 @@ def owned_ids() -> set:
     return set(_ensure()["owned"])
 
 
+def skin_variant(item_id: str) -> "int | None":
+    """The design index rolled for a random-look skin at unlock, or None if the
+    skin has no rolled variant. Read by the art module to render the locked
+    look (the same fighter every run)."""
+    v = _ensure().get("skin_variants", {}).get(item_id)
+    return None if v is None else int(v)
+
+
+def _roll_skin_variant(st: dict, item_id: str) -> None:
+    """If a skin's look is a random 1-of-N pick locked at unlock, roll it once
+    and persist the index. The pool size is owned by the art module, lazy-
+    imported here so the wallet path stays pygame-free until an actual variant
+    skin is unlocked."""
+    pools = {
+        "skin_jet_fighter": lambda: __import__(
+            "game.animal_jet_fighter", fromlist=["POOL_SIZE"]).POOL_SIZE,
+    }
+    get_n = pools.get(item_id)
+    if get_n is None:
+        return
+    try:
+        st.setdefault("skin_variants", {})[item_id] = random.randrange(int(get_n()))
+    except Exception:
+        pass
+
+
 def _slot_key(slot: str) -> str:
     return "equipped_skin" if slot == "skin" else "equipped_" + slot
 
@@ -227,6 +267,7 @@ def try_purchase(item_id: str) -> "tuple[bool, str]":
         return False, "insufficient"
     st["wallet"] = int(st["wallet"]) - price
     st["owned"].append(item_id)
+    _roll_skin_variant(st, item_id)
     save()
     return True, ""
 
@@ -248,7 +289,9 @@ def grant(item_id: str) -> bool:
     daily-reward unlock). No-op if already owned or unknown."""
     if not store_catalog.exists(item_id) or is_owned(item_id):
         return False
-    _ensure()["owned"].append(item_id)
+    st = _ensure()
+    st["owned"].append(item_id)
+    _roll_skin_variant(st, item_id)
     save()
     return True
 
