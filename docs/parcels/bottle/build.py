@@ -24,18 +24,23 @@ import pygame
 SIZE = 22
 SS = 44  # 2× supersample; smoothscaled down for a crisp outline at 22px
 
-# Baked lean — steep so the long lying-down axis lies along Pip's flight line
-# and BREAKS FREE of his round-body silhouette instead of hiding inside it.
-# Positive = CCW tips the left/cork end downward; ~63° puts the cork lowest
-# and the belly highest, the broken outline that converts "orb" → "bottle".
-LEAN_DEG = 63
+# Baked lean — the bottle lies on a steep down-left diagonal so its long axis
+# escapes Pip's round-body silhouette into the open sky off his lower-left flank
+# (a purely-vertical bottle hides its belly under him; a flat one tucks fully
+# beneath his width — the diagonal is the only pose that shows the long axis AND
+# floats the cork in sky). Built lying flat (cork-left = horizontal); a POSITIVE
+# screen rotation drops the cork end and lifts the belly, leaving the cork the
+# lowest, leftmost point — the broken outline that converts "orb" → "bottle".
+LEAN_DEG = 48
 
-# Post-lean translation (in SS / 2× pixels): the centred sprite is ~70% eaten
-# by Pip's body, so shove the whole bottle toward the LOWER-LEFT of the canvas.
-# This drops the corked neck + ~40% of the body OUT of his lower-left silhouette
-# onto open sky — the cork lands on sky, not on his warm-red feathers.
-CARRY_DX = -13  # left
-CARRY_DY = 9    # down
+# Post-lean translation (SS / 2× pixels): the sprite is centred on an anchor at
+# Pip's belly-bottom, so a centred bottle is ~70% eaten by his round body. Nudge
+# the whole bottle toward the LOWER-LEFT so the corked neck + ~40% of the body
+# clear his lower-left silhouette onto OPEN SKY — the cork lands on sky, not on
+# his warm-red feathers. Kept small enough that the long axis never clips the
+# canvas edge before the downscale.
+CARRY_DX = -6   # left
+CARRY_DY = 8    # down
 
 # DAY palette — sea-glass green translucent glass over a lighter core, warm
 # cork, cream scroll. Glass wall darkened vs round 1 so the glyph holds against
@@ -174,10 +179,15 @@ def build(mode="normal"):  # mode ignored — parcel is mode-agnostic, one surfa
                     -math.pi / 2.2, math.pi / 2.2, 2)
 
     # ---- Bake the lean so the carried bottle lies on a steep diagonal with the
-    # cork tip lowest, then shove it toward the lower-left so the corked neck and
+    # cork tip lowest, then nudge it toward the lower-left so the corked neck and
     # ~40% of the body clear Pip's silhouette into open sky below-left of him.
+    # Composite on a roomy surface first so the diagonal long axis never clips,
+    # then crop back to SS centred on the shifted bottle centre.
     leaned = pygame.transform.rotozoom(s, LEAN_DEG, 1.0)
-    out = pygame.Surface((SS, SS), pygame.SRCALPHA)
-    out.blit(leaned, leaned.get_rect(
-        center=(SS // 2 + CARRY_DX, SS // 2 + CARRY_DY)))
+    pad = SS // 2
+    big = pygame.Surface((SS + 2 * pad, SS + 2 * pad), pygame.SRCALPHA)
+    bc = (big.get_width() // 2 + CARRY_DX, big.get_height() // 2 + CARRY_DY)
+    big.blit(leaned, leaned.get_rect(center=bc))
+    out = big.subsurface(
+        pygame.Rect(pad, pad, SS, SS)).copy()
     return pygame.transform.smoothscale(out, (SIZE, SIZE))
