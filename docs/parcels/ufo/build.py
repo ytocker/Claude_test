@@ -1,26 +1,28 @@
 """MINI UFO parcel cosmetic (PREMIUM tier).
 
 A tiny flying saucer tractor-beaming Pip's cargo: a WIDE FLAT chrome SAUCER
-disc with a domed teal CANOPY on top and a glowing trapezoid BEAM-CONE
-projected DOWN below it. At 22px the read is the classic "hat-on-a-line-of-
-light" — a wide thin disc capped by a small dome, with an unmistakable cone
-of light spilling beneath. Nothing else in the parcel set has a beam or a
-chrome body, so the sci-fi tell is exclusive.
+disc with a domed teal CANOPY on top and a glowing HARD-EDGED BEAM projected
+DOWN below it. At 22px the read is the classic "hat-on-a-line-of-light" — a
+wide thin disc capped by a small dome, with an unmistakable column of light
+spilling beneath. Nothing else in the parcel set has a beam or a chrome body,
+so the sci-fi tell is exclusive.
 
 Carry composition drives the layout: in gameplay the parcel rides centred ~12px
-below Pip, so the TOP half of the 22px sprite is buried in his red belly. We
-therefore weight the whole saucer LOW — the full chrome disc sits in the visible
-lower half and the dome is the only part allowed to vanish into shadow. A hard
-value/hue break (light rim + dark gap) along the disc's TOP edge stops the
-chrome fusing into his red, and a teal rim-glow on the disc's LOWER leading edge
-keeps the chrome+teal contrast in the part that actually shows.
+below Pip, so the TOP-LEFT of the 22px sprite is buried in his red belly and
+TAIL. We therefore weight the whole saucer LOW and nudge it slightly RIGHT so
+the full chrome disc + both rim points clear his wing/tail; the dome is the only
+part allowed to vanish into shadow. A hard value/hue break (light rim + dark
+gap) along the disc's TOP edge stops the chrome fusing into his red, and a teal
+rim-glow on the disc's LOWER leading edge keeps the chrome+teal contrast in the
+part that actually shows.
 
-The beam is BAKED as a downward additive vertical gradient clipped to a wide
-trapezoid that flares well past the sprite floor, so the cone survives carry
-occlusion AND the smoothscale, reading as light spilling beneath the saucer at
-any bank angle. A brighter cool-white core stripe with a faint cool-dark edge
-holds the cone's shape against the bright day sky. Rim-light dots stay tiny so
-they don't muddy the disc silhouette at 22px.
+The beam is the required tractor-beam tell, and a soft gradient cone DIES in
+carry (it became a few pale specks under Pip). It is therefore baked as a
+HARD-EDGED trapezoid with a SOLID near-white CORE COLUMN and a thin teal
+outline — value, not hue, carries the read so it survives the grayscale /
+colourblind check and wins the value fight against both day clouds and the
+night purple. The column is weighted to the BOTTOM of the sprite so a solid
+chunk of unambiguous beam survives below the disc rim at 1× in both biomes.
 """
 import pygame
 
@@ -37,31 +39,31 @@ CANOPY_HI = (170, 246, 238)     # dome crown catch
 CANOPY_LO = (40, 150, 142)      # shaded dome base
 OUTLINE = (24, 34, 44)          # dark high-value keyline for the bright sky
 
-# Teal/cool bake — beam glow, rim-light dots, and the lower-edge teal rim.
-BEAM_CORE = (124, 240, 224)     # #7CF0E0 beam apex colour
-BEAM_STRIPE = (210, 255, 248)   # #D2FFF8 bright core stripe (holds on day sky)
-BEAM_EDGE = (30, 96, 104)       # cool-dark cone outline so day doesn't wash it
+# Teal/cool bake — beam, rim-light dots, and the lower-edge teal rim.
+BEAM_CORE = (244, 255, 252)     # near-white solid beam column (value-first tell)
+BEAM_GLOW = (150, 246, 232)     # teal flare flanking the core inside the trapezoid
+BEAM_EDGE = (26, 110, 116)      # thin teal outline that frames the hard beam
 RIM_DOT = (159, 255, 240)       # #9FFFF0 rim-light pip
 TEAL_RIM = (96, 232, 218)       # teal leading-edge glow on the visible disc lip
 
 
-def _bake_beam(size, apex_x, apex_y, half_top, half_bot, top_y, bot_y,
-               core, core_alpha):
-    """A downward additive light-cone: a trapezoid that widens as it falls,
-    filled with a vertical gradient that fades core→transparent. Baked onto
-    its own SRCALPHA layer so the rotation in the harness carries it as one
-    glowing cone trailing off the disc."""
+def _hard_beam(size, apex_x, apex_y, half_top, half_bot, top_y, bot_y,
+               colour, alpha, taper=0.55):
+    """A HARD-EDGED downward trapezoid filled with a near-flat colour. Unlike a
+    soft cone, the alpha holds (only a gentle taper toward the mouth) so the
+    shape is an unmistakable solid bar of light, not a vanishing gradient — this
+    is what lets the beam survive carry occlusion + smoothscale in both biomes."""
     layer = pygame.Surface((size, size), pygame.SRCALPHA)
     span = max(1, bot_y - top_y)
     for y in range(top_y, bot_y):
         t = (y - top_y) / span
-        # Cone widens linearly toward the bottom; brightness falls off so the
-        # apex glows hot under the saucer and the mouth dissolves into air.
         half = half_top + (half_bot - half_top) * t
-        a = int(core_alpha * (1.0 - t) ** 1.25)
-        if a <= 0:
+        # Near-flat alpha: keep the column solid, only soften the very mouth so
+        # it doesn't end in a hard horizontal line.
+        a = int(alpha * (1.0 - taper * t))
+        if a <= 0 or half < 0.5:
             continue
-        pygame.draw.line(layer, core + (a,),
+        pygame.draw.line(layer, colour + (a,),
                          (apex_x - half, y), (apex_x + half, y))
     return layer
 
@@ -70,35 +72,38 @@ def build(mode: str = "normal") -> pygame.Surface:
     # mode is ignored — the UFO keeps its chrome/teal look across power-ups.
     SIZE = 44
     surf = pygame.Surface((SIZE, SIZE), pygame.SRCALPHA)
-    cx = SIZE // 2
 
-    # Vertical stack tuned for CARRY occlusion: the sprite midline (y≈22 on the
-    # 44px canvas, y≈11 at 22px) is where Pip's belly cuts in. Everything below
-    # it shows, so the full disc lives BELOW the midline and the beam flares to
-    # the floor. Only the dome pokes above the midline — it's the part allowed
-    # to disappear into his shadow.
-    disc_cy = 27                    # disc fully in the visible lower half
+    # Carry nudge: the parcel rides centred below Pip but his TAIL eats the
+    # sprite's left third. Shift the whole UFO ~2px RIGHT (4px on the 44px
+    # canvas) and ~2px LOWER so the full chrome ellipse + both rim points clear
+    # his wing/tail. cx is no longer the canvas centre — it's the UFO centreline.
+    cx = SIZE // 2 + 4
+
+    disc_cy = 26                    # low enough for carry, high enough for beam
     disc_rx, disc_ry = 18, 6        # wide + flat: the saucer signature
     dome_cx, dome_cy = cx, disc_cy - 7
     dome_rx, dome_ry = 9, 8
 
-    # ── BEAM CONE (bottom layer so the disc rim caps its apex) ──────────────
-    # Apex tucked just under the disc belly; mouth flares WIDE to the canvas
-    # floor so the cone spills clearly past Pip's body even when carried.
-    # Cool-dark edge first (slightly wider) so the bright core reads as a shape
-    # against the day sky instead of dissolving.
-    beam_edge = _bake_beam(SIZE, cx, disc_cy + disc_ry, 9, 22,
-                           disc_cy + disc_ry, 44, BEAM_EDGE, 180)
-    surf.blit(beam_edge, (0, 0))
-    beam = _bake_beam(SIZE, cx, disc_cy + disc_ry, 7, 19,
-                      disc_cy + disc_ry, 44, BEAM_CORE, 215)
-    surf.blit(beam, (0, 0), special_flags=pygame.BLEND_PREMULTIPLIED)
-    # A brighter cool-white inner stripe sells the projector hot-spot and gives
-    # the cone a hard centre line that holds against a bright sky — kept high
-    # alpha so the beam reads even when its apex is occluded by Pip in carry.
-    core = _bake_beam(SIZE, cx, disc_cy + disc_ry, 3, 9,
-                      disc_cy + disc_ry, 43, BEAM_STRIPE, 210)
-    surf.blit(core, (0, 0), special_flags=pygame.BLEND_PREMULTIPLIED)
+    # ── BEAM (bottom layer so the disc rim caps its apex) ───────────────────
+    # A HARD-EDGED trapezoid built in three stacked passes: a thin teal OUTLINE
+    # frame (slightly wider/darker), a teal GLOW fill, and a SOLID near-white
+    # CORE COLUMN down the middle. The core is the tell: a value-bright bar that
+    # holds against day clouds AND night purple, and survives grayscale.
+    beam_top = disc_cy + disc_ry - 1
+    beam_bot = 44
+    # Outline frame — thin teal border so the hard beam has a defined edge.
+    frame = _hard_beam(SIZE, cx, beam_top, 8, 12, beam_top, beam_bot,
+                       BEAM_EDGE, 235, taper=0.30)
+    surf.blit(frame, (0, 0))
+    # Teal glow fill inside the frame.
+    glow = _hard_beam(SIZE, cx, beam_top, 6, 9, beam_top, beam_bot,
+                      BEAM_GLOW, 230, taper=0.40)
+    surf.blit(glow, (0, 0))
+    # SOLID near-white core column — the load-bearing tell. Kept narrow + tall
+    # so ~6-8px of unambiguous bright beam survives below the disc rim at 1×.
+    core = _hard_beam(SIZE, cx, beam_top, 3, 5, beam_top, beam_bot,
+                      BEAM_CORE, 255, taper=0.35)
+    surf.blit(core, (0, 0))
 
     # ── DOME canopy ─────────────────────────────────────────────────────────
     # Dark keyline behind a teal gradient dome. Drawn before the disc so the
@@ -164,7 +169,8 @@ def build(mode: str = "normal") -> pygame.Surface:
     # ── TEAL LOWER-EDGE RIM ───────────────────────────────────────────────────
     # The disc's LOWER leading lip is the part that always shows in carry, so it
     # carries the chrome+teal signature: a teal glow rim catching the beam light
-    # bouncing back up onto the saucer belly.
+    # bouncing back up onto the saucer belly. It also snaps the disc off Pip's
+    # red where the beam erupts beneath it.
     lip_y = disc_cy + disc_ry - 1
     pygame.draw.line(surf, TEAL_RIM,
                      (cx - disc_rx + 4, lip_y),
@@ -182,5 +188,23 @@ def build(mode: str = "normal") -> pygame.Surface:
         pygame.draw.circle(surf, (RIM_DOT[0], RIM_DOT[1], RIM_DOT[2], 90),
                            (dx, dy), 3)
         pygame.draw.circle(surf, RIM_DOT, (dx, dy), 1)
+
+    # ── BEAM CORE RE-EMIT (over the disc) ─────────────────────────────────────
+    # The disc + its inflated keyline are drawn AFTER the beam and overpaint the
+    # column's top rows down to ~y+2 past the rim, which crushed the surviving
+    # beam to ~2px after smoothscale. Re-emit the SOLID core + teal frame just
+    # below the lip, on TOP of the disc, so a full hard column erupts from the
+    # rim and ~6-8px of unambiguous beam survives below the disc at 1× in both
+    # biomes. The disc keyline still caps the apex visually a couple px up.
+    re_top = disc_cy + disc_ry
+    re_frame = _hard_beam(SIZE, cx, re_top, 7, 12, re_top, 44,
+                          BEAM_EDGE, 235, taper=0.30)
+    surf.blit(re_frame, (0, 0))
+    re_glow = _hard_beam(SIZE, cx, re_top, 5, 9, re_top, 44,
+                         BEAM_GLOW, 230, taper=0.40)
+    surf.blit(re_glow, (0, 0))
+    re_core = _hard_beam(SIZE, cx, re_top, 3, 5, re_top, 44,
+                         BEAM_CORE, 255, taper=0.30)
+    surf.blit(re_core, (0, 0))
 
     return pygame.transform.smoothscale(surf, (22, 22))
