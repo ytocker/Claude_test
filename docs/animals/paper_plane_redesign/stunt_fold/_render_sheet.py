@@ -1,10 +1,12 @@
-"""Round-1 review sheet for the STUNT / FIGHTER FOLD paper-plane candidates.
+"""Round-2 review sheet for the STUNT / FIGHTER FOLD paper-plane production build.
 
-Renders each of the 5 takes at hero 130px, plus the in-game truth-test scale
-(40px level + dive) shown NEAREST-NEIGHBOR x3 so the true gameplay-pixel
-silhouette is honest — and crucially on BOTH a DAY and a NIGHT sky panel, since
-the north star is "reads at 40px on day AND night". Headless (SDL dummy) so it
-runs in CI / on the build box.
+Round 2 converges to ONE ship-ready design — V1 · RED RACING STRIPE — so this
+sheet stages the PRODUCTION build beside the CURRENT dollar-bill dart (the
+baseline to beat). Each is shown at hero 130px plus the in-game truth-test
+scale: 40px NEAREST-NEIGHBOR x3 (the honest gameplay-pixel silhouette) for
+LEVEL and DIVE poses, on BOTH a DAY and a NIGHT sky — the north star is "reads
+at 40px on day AND night". The DIVE frame is the value stress-test (the fold
+flattens most there). Headless (SDL dummy) so it runs in CI / on the build box.
 """
 import os
 import sys
@@ -25,25 +27,25 @@ spec = importlib.util.spec_from_file_location(
 stunt_fold_skins = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(stunt_fold_skins)
 
-LABELS = stunt_fold_skins.LABELS
-
-# Also pull the current PRODUCTION dollar-bill dart so the sheet shows what we
-# are improving on (the brief: a DIFFERENT, more dynamic design).
+# Pull the current PRODUCTION dollar-bill dart so the sheet shows the baseline
+# we must beat — obviously more dynamic, while staying equally legible.
 prod_spec = importlib.util.spec_from_file_location(
     "animal_paper_plane",
     os.path.join(_root, "game", "animal_paper_plane.py"))
 animal_paper_plane = importlib.util.module_from_spec(prod_spec)
 prod_spec.loader.exec_module(animal_paper_plane)
-CURRENT = ("CURRENT · dollar-bill dart", animal_paper_plane.get_paper_plane,
-           "production glider — the baseline to beat")
 
-ORDER = [(lbl, g, feat) for lbl, (_, g, feat) in LABELS.items()]
-ORDER.append(CURRENT)
+ORDER = [
+    ("STUNT FOLD · RED RACING STRIPE", stunt_fold_skins.get_stunt_fold,
+     "production build — white top / red keel band / dark under-fold"),
+    ("CURRENT · dollar-bill dart", animal_paper_plane.get_paper_plane,
+     "production glider — the baseline to beat"),
+]
 
 # ── layout ───────────────────────────────────────────────────────────────────
-COLS = 3
-ROWS = (len(ORDER) + COLS - 1) // COLS
-CARD_W, CARD_H = 392, 256
+COLS = 1
+ROWS = len(ORDER)
+CARD_W, CARD_H = 760, 256
 PAD = 16
 HEADER_H = 64
 HERO_PX = 130
@@ -59,7 +61,7 @@ NIGHT_BOT = (40, 30, 62)
 SHEET_TOP = (24, 26, 52)
 SHEET_BOT = (40, 30, 60)
 CARD_BG = (16, 17, 34)
-CARD_EDGE = (60, 64, 110)
+CARD_EDGE = (90, 96, 160)
 CUR_EDGE = (110, 120, 90)            # muted rim for the baseline card
 TEXT = (236, 238, 250)
 SUB = (150, 156, 190)
@@ -91,11 +93,11 @@ F_FEAT = pygame.font.SysFont("Arial", 13)
 F_TAG = pygame.font.SysFont("Arial", 12, bold=True)
 
 sheet.blit(F_TITLE.render(
-    "Skybit — Paper Plane redesign · STUNT / FIGHTER FOLD · Round 1",
+    "Skybit — Paper Plane redesign · STUNT / FIGHTER FOLD · Round 2 (production)",
     True, TEXT), (PAD, 14))
 sheet.blit(F_SUB.render(
-    "HERO 130px · 40px NEAREST x3 (the honest gameplay read) level / dive on DAY and NIGHT sky. "
-    "Nose points RIGHT (forward). Current dart shown last as the baseline.",
+    "HERO 130px · 40px NEAREST x3 (the honest gameplay read) LEVEL / DIVE on DAY and NIGHT sky. "
+    "Nose points RIGHT (forward). Current dart shown below as the baseline to beat.",
     True, SUB), (PAD, 46))
 
 
@@ -134,9 +136,8 @@ def _grad_panel(rect, top, bot):
 
 
 for idx, (name, getter, feat) in enumerate(ORDER):
-    r, c = divmod(idx, COLS)
-    cx = PAD + c * (CARD_W + PAD)
-    cy = HEADER_H + PAD + r * (CARD_H + PAD)
+    cx = PAD
+    cy = HEADER_H + PAD + idx * (CARD_H + PAD)
 
     is_cur = name.startswith("CURRENT")
     card = pygame.Rect(cx, cy, CARD_W, CARD_H)
@@ -156,19 +157,21 @@ for idx, (name, getter, feat) in enumerate(ORDER):
     sheet.blit(F_TAG.render("130px", True, SUB),
                (hero_panel.x + 6, hero_panel.bottom - 18))
 
-    # Truth panel (right) split into a DAY half (top) and NIGHT half (bottom).
-    tx = cx + 170
-    tw = CARD_W - 170 - 14
+    # Truth panels (right): a DAY column and a NIGHT column, each split into
+    # level + dive — the honest 40px gameplay read on both skies side by side.
+    tx = cx + 176
+    tw = (CARD_W - 176 - PAD - 14) // 2
 
-    day_panel = pygame.Rect(tx, cy + 54, tw, 92)
+    day_panel = pygame.Rect(tx, cy + 54, tw, 190)
     sheet.blit(_grad_panel(day_panel, DAY_TOP, DAY_BOT), day_panel.topleft)
     pygame.draw.rect(sheet, (90, 120, 150), day_panel, 1, border_radius=8)
-    night_panel = pygame.Rect(tx, cy + 150, tw, 92)
+
+    night_panel = pygame.Rect(tx + tw + 14, cy + 54, tw, 190)
     sheet.blit(_grad_panel(night_panel, NIGHT_TOP, NIGHT_BOT),
                night_panel.topleft)
     pygame.draw.rect(sheet, (70, 76, 120), night_panel, 1, border_radius=8)
     # A few night stars for honesty against a dark sky.
-    for _ in range(20):
+    for _ in range(24):
         sx = rng.randint(night_panel.x + 2, night_panel.right - 2)
         sy = rng.randint(night_panel.y + 2, night_panel.bottom - 2)
         b = rng.randint(120, 210)
@@ -180,13 +183,14 @@ for idx, (name, getter, feat) in enumerate(ORDER):
                                 (200, 206, 230))):
         n_level = nearest40(getter, 2, 0, MAG)
         sheet.blit(n_level, n_level.get_rect(
-            center=(panel.x + 46, panel.y + 40)))
+            center=(panel.x + panel.w // 2, panel.y + 56)))
+        # DIVE: the value stress-test pose (the fold flattens most here).
         n_dive = nearest40(getter, 1, -32, MAG)
         sheet.blit(n_dive, n_dive.get_rect(
-            center=(panel.x + 128, panel.y + 40)))
+            center=(panel.x + panel.w // 2, panel.y + 132)))
         sheet.blit(F_TAG.render(tag, True, tagcol),
                    (panel.x + 8, panel.bottom - 16))
 
-out_path = os.path.join(_here, "round_1.png")
+out_path = os.path.join(_here, "round_2.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())
