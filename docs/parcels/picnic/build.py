@@ -1,15 +1,18 @@
 """PICNIC BASKET parcel cosmetic (MID tier).
 
-A wicker picnic basket: a wide rounded BASKET body, a tall DOUBLE-ARCH
-handle springing from the rim, and a red-check CLOTH bulge spilling over
-the rim. At 22px the read is the combined glyph — handle arch over a fat
-rounded body with a bright check lump breaking the rim line. Weave is
-suggested with ≤3 horizontal hatch lines (fine wicker dies at this size);
-the silhouette + one warm body colour + the red/cream check carry it.
+A wicker picnic basket: a wide rounded BASKET body, a single tall HANDLE
+arch springing from the rim with an open SKY-HOLE under it, and a red-check
+CLOTH bulge spilling over the rim. At 22px the read is the combined glyph —
+one clean handle arch over a fat rounded body with a bright check lump
+breaking the rim line. Weave is suggested with ≤3 horizontal hatch lines
+(fine wicker dies at this size); the silhouette + one warm body colour +
+the bold red/cream check carry it.
 
-The handle is the rotation-survival anchor: a bold dark-keylined arch that
-stays legible banked from −25° to 90°, so the basket still reads as a
-basket at every tilt the bird flies through.
+The handle is the rotation-survival anchor: ONE bold dark-keylined arch with
+a clear hole beneath it, so the basket still reads as a basket banked from
+−25° to 90°. The check is the picnic tell — deliberately blocky, SATURATED,
+dark-enough red squares so it survives both the smoothscale AND grayscale,
+where a fine grid or a pastel red would collapse to a smudge.
 """
 import pygame
 
@@ -21,8 +24,10 @@ WICKER_HI = (197, 150, 88)        # lit wicker, lighter than #B98A4A base
 WICKER_BASE = (185, 138, 74)      # #B98A4A wicker body
 WICKER_LO = (146, 104, 54)        # shaded lower belly
 WEAVE = (126, 90, 42)             # #7E5A2A darker weave hatch
-CLOTH_RED = (217, 67, 58)         # #D9433A red-check cloth
-CLOTH_CREAM = (244, 236, 224)     # #F4ECE0 cream check
+# A DARK, saturated red so it separates from cream by VALUE (survives
+# grayscale) — a brighter pastel red collapses to the same gray as cream.
+CLOTH_RED = (190, 38, 36)         # deep checker red
+CLOTH_CREAM = (246, 238, 224)     # bright cream check ground
 OUTLINE = (52, 32, 16)            # dark high-value keyline for the bright sky
 HANDLE_HI = (210, 166, 104)       # lit cane on the handle's inner edge
 
@@ -44,23 +49,24 @@ def build(mode: str = "normal") -> pygame.Surface:
     pygame.draw.ellipse(sh, (8, 4, 14, 120), sh.get_rect())
     surf.blit(sh, (cx - 17, bot_y - 2))
 
-    # Double-arch HANDLE first so the rim + cloth overlap its feet — the arch
-    # then reads as rising out of the basket, not floating above it. Two thin
-    # arcs side by side give the "double-arch" tell; a 5px dark keyline under a
-    # 3px cane keeps the handle alive through the smoothscale and the bank.
-    foot_y = rim_y - 1
+    # ONE clean HANDLE arch, drawn first so the rim + cloth cover its feet and
+    # the arch reads as rising out of the basket. The arch is a thick dark
+    # keyline with a thinner cane laid inside it, leaving an OPEN sky-hole under
+    # the crown — that hole is the "carry handle" tell and must stay clear, so
+    # nothing (no twin band, no mid-gray pool) is drawn across it.
+    foot_y = rim_y + 1
     arc_top = 5
-    # Outer dark keyline arch.
-    h_rect = pygame.Rect(cx - 11, arc_top, 22, 24)
-    pygame.draw.arc(surf, OUTLINE, h_rect, 0.32, 2.82, 5)
-    pygame.draw.line(surf, OUTLINE, (cx - 10, arc_top + 9), (cx - 10, foot_y), 5)
-    pygame.draw.line(surf, OUTLINE, (cx + 10, arc_top + 9), (cx + 10, foot_y), 5)
-    # Cane fill + inner-edge highlight; a second inner arc reads as the twin
-    # handle band without adding clutter at 22px.
-    pygame.draw.arc(surf, WICKER_BASE, h_rect, 0.32, 2.82, 3)
-    pygame.draw.line(surf, WICKER_BASE, (cx - 10, arc_top + 9), (cx - 10, foot_y), 3)
-    pygame.draw.line(surf, WICKER_BASE, (cx + 10, arc_top + 9), (cx + 10, foot_y), 3)
-    pygame.draw.arc(surf, HANDLE_HI, h_rect.inflate(-4, -4), 0.5, 2.6, 1)
+    h_rect = pygame.Rect(cx - 11, arc_top, 22, 26)
+    # Dark keyline arch (outer) — sharp edges that survive the smoothscale.
+    pygame.draw.arc(surf, OUTLINE, h_rect, 0.30, 2.84, 5)
+    pygame.draw.line(surf, OUTLINE, (cx - 10, arc_top + 11), (cx - 10, foot_y), 5)
+    pygame.draw.line(surf, OUTLINE, (cx + 10, arc_top + 11), (cx + 10, foot_y), 5)
+    # Cane fill sits inside the keyline; a single inner highlight gives it round
+    # cane volume without a second arc (the muddy twin band read as noise).
+    pygame.draw.arc(surf, WICKER_BASE, h_rect, 0.30, 2.84, 2)
+    pygame.draw.line(surf, WICKER_BASE, (cx - 10, arc_top + 11), (cx - 10, foot_y), 2)
+    pygame.draw.line(surf, WICKER_BASE, (cx + 10, arc_top + 11), (cx + 10, foot_y), 2)
+    pygame.draw.arc(surf, HANDLE_HI, h_rect.inflate(-3, -3), 0.5, 2.6, 1)
 
     # Body OUTLINE frame — an inflated rounded body behind the gradient fill.
     out_rect = pygame.Rect(cx - top_hw - 2, rim_y - 2,
@@ -98,24 +104,39 @@ def build(mode: str = "normal") -> pygame.Surface:
     pygame.draw.line(surf, WICKER_HI, (cx - top_hw + 2, rim_y - 1),
                      (cx + top_hw - 4, rim_y - 1), 1)
 
-    # CLOTH bulge — the "full" personality. A cream lobe spilling over the rim,
-    # outlined dark so it pops on the bright sky, with two red check blocks so
-    # the red-check tell survives even when the fine grid dies at 22px.
+    # CLOTH bulge — the "full" personality and the picnic tell. A cream lobe
+    # spilling over the rim, CONTAINED within the rim half-width so it can't
+    # spill past the keyline and split the silhouette, outlined dark so it pops
+    # on the bright sky. Its crown meets the handle cleanly (the handle cane is
+    # narrow here, so no third mid-gray material pools between them).
+    lobe_hw = 10                    # < top_hw so the lobe stays inside the rim
     cloth_pts = [
-        (cx - 11, rim_y + 1), (cx - 9, rim_y - 4), (cx - 4, rim_y - 6),
-        (cx + 2, rim_y - 6), (cx + 8, rim_y - 4), (cx + 11, rim_y + 1),
+        (cx - lobe_hw, rim_y + 1), (cx - lobe_hw + 2, rim_y - 4),
+        (cx - 4, rim_y - 6), (cx + 2, rim_y - 6),
+        (cx + lobe_hw - 2, rim_y - 4), (cx + lobe_hw, rim_y + 1),
     ]
     pygame.draw.polygon(surf, OUTLINE, _expand(cloth_pts, cx, rim_y, 1))
     pygame.draw.polygon(surf, CLOTH_CREAM, cloth_pts)
-    # Red check blocks alternating with the cream ground.
-    pygame.draw.rect(surf, CLOTH_RED, pygame.Rect(cx - 9, rim_y - 4, 4, 4))
-    pygame.draw.rect(surf, CLOTH_RED, pygame.Rect(cx - 1, rim_y - 5, 4, 4))
-    pygame.draw.rect(surf, CLOTH_RED, pygame.Rect(cx + 5, rim_y - 3, 3, 4))
-    pygame.draw.rect(surf, CLOTH_RED, pygame.Rect(cx - 5, rim_y - 1, 4, 3))
-    pygame.draw.rect(surf, CLOTH_RED, pygame.Rect(cx + 3, rim_y - 1, 3, 3))
+
+    # BOLD blocky CHECKER — a deliberate 2-row checker of big SATURATED red
+    # squares on cream, sized to survive the smoothscale to 22px AND grayscale.
+    # Squares are ~3px (≈1.5px at 22) and packed edge-to-edge so the red
+    # coverage stays high enough to read as a checked tablecloth, not a smudge.
+    sq = 3
+    top_row = rim_y - 5
+    bot_row = rim_y - 2
+    # Top row: red squares at the left and right of the crown.
+    pygame.draw.rect(surf, CLOTH_RED, pygame.Rect(cx - 7, top_row, sq, sq))
+    pygame.draw.rect(surf, CLOTH_RED, pygame.Rect(cx - 1, top_row, sq, sq))
+    pygame.draw.rect(surf, CLOTH_RED, pygame.Rect(cx + 5, top_row, sq, sq))
+    # Bottom row: offset by one square so the checker alternates over/under.
+    pygame.draw.rect(surf, CLOTH_RED, pygame.Rect(cx - 4, bot_row, sq, sq))
+    pygame.draw.rect(surf, CLOTH_RED, pygame.Rect(cx + 2, bot_row, sq, sq))
+    pygame.draw.rect(surf, CLOTH_RED, pygame.Rect(cx - 10, bot_row, sq, sq))
+    pygame.draw.rect(surf, CLOTH_RED, pygame.Rect(cx + 8, bot_row, sq, sq))
     # Cream highlight catch on the crest of the bulge.
-    pygame.draw.line(surf, (255, 252, 246), (cx - 4, rim_y - 5),
-                     (cx + 1, rim_y - 5), 1)
+    pygame.draw.line(surf, (255, 252, 246), (cx - 4, rim_y - 6),
+                     (cx + 1, rim_y - 6), 1)
 
     return pygame.transform.smoothscale(surf, (22, 22))
 
