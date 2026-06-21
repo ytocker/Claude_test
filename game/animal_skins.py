@@ -914,6 +914,8 @@ for _modname in (
     "animal_red_panda", "animal_sugar_glider", "animal_mantis_shrimp",
     "animal_griffin", "animal_thunderbird", "animal_cosmic_jelly",
     "animal_aurora_stag", "animal_kitsune",
+    # Secret ultra-premium NON-creature flyers (masked as ??? in the store).
+    "animal_paper_plane", "animal_jet_fighter", "animal_ufo", "animal_toaster",
 ):
     _mod = __import__("game." + _modname, fromlist=["BUILDERS"])
     BUILDERS.update({k: v for k, v in _mod.BUILDERS.items()
