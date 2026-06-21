@@ -59,8 +59,12 @@ def _phase_to_time(phase: float) -> float:
 
 def _tab_order(group: str) -> list[str]:
     """The exact card order the live store shows for a tab: cheapest-first,
-    with the free DEFAULT card fronting PARROTS and SHADES."""
+    with the free DEFAULT card fronting PARROTS and SHADES. Secret items are
+    omitted from this gameplay-gallery order so the committed docs don't spoil
+    them — the store-page render still shows them, masked as ???, since it draws
+    a real StoreScene whose throwaway wallet owns nothing."""
     ids = sorted(store_catalog.ids_of_group(group), key=store_catalog.cost)
+    ids = [i for i in ids if not store_catalog.is_secret(i)]
     if group in ("parrot", "shades"):
         ids = [store_catalog.BASE_SKIN] + ids
     return ids
