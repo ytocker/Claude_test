@@ -115,6 +115,13 @@ class StoreScene:
         self._tab_gap = 6
         self.daily_rect: "pygame.Rect | None" = None
         self._toast = ("", 0.0)  # (text, seconds remaining)
+        # Pending buy-confirmation: the sid awaiting a CONFIRM/CANCEL, plus the
+        # modal's hit rects. Coins are never spent until CONFIRM, so a stray tap
+        # on an unowned card can't drain the wallet by accident.
+        self._confirm: "str | None" = None
+        self._confirm_panel: "pygame.Rect | None" = None
+        self.confirm_yes_rect: "pygame.Rect | None" = None
+        self.confirm_no_rect: "pygame.Rect | None" = None
         store_data.load()
         # Per-tab skin lists, cheapest first. The PARROTS and SHADES tabs are
         # fronted by a free DEFAULT card (the base macaw / its default aviators)
@@ -193,6 +200,8 @@ class StoreScene:
         self.back_rect = _pill_btn(
             surf, (W // 2, H - 28), "BACK",
             size=18, alpha=235, min_width=160, dim=True, shadow=False)
+        # The buy-confirmation overlays everything else when active.
+        self._draw_confirm(surf)
 
     def _draw_tabs(self, surf) -> None:
         """A horizontally scrollable strip of natural-width tab pills (the
@@ -394,8 +403,77 @@ class StoreScene:
         surf.blit(panel, bg.topleft)
         surf.blit(timg, timg.get_rect(center=bg.center))
 
+    def _draw_confirm(self, surf) -> None:
+        """The buy-confirmation modal: a dimmed scrim + a centred panel showing
+        the item, its price, and BUY / CANCEL. Spending is gated behind this so
+        an accidental tap on an unowned card can never drain the wallet. The BUY
+        button greys out (with a 'NOT ENOUGH COINS' note) when unaffordable."""
+        self._confirm_panel = None
+        self.confirm_yes_rect = self.confirm_no_rect = None
+        sid = self._confirm
+        if sid is None:
+            return
+
+        scrim = pygame.Surface((W, H), pygame.SRCALPHA)
+        scrim.fill((6, 6, 14, 185))
+        surf.blit(scrim, (0, 0))
+
+        pw, ph = 292, 240
+        panel = pygame.Rect((W - pw) // 2, (H - ph) // 2, pw, ph)
+        self._confirm_panel = panel
+        _dark_panel(surf, panel, radius=16, alpha=246)
+        pygame.draw.rect(surf, _GOLD_BRIGHT, panel, width=2, border_radius=16)
+
+        head = _font(14, True).render("CONFIRM PURCHASE", True, _GOLD_PALE)
+        surf.blit(head, head.get_rect(center=(panel.centerx, panel.y + 22)))
+
+        # The item itself — a still-masked secret stays a "?" so the buy is
+        # blind, matching the card.
+        secret = store_catalog.is_secret(sid) and not store_data.is_owned(sid)
+        tcx, tcy = panel.centerx, panel.y + 60
+        if secret:
+            _draw_qmark(surf, tcx, tcy - 16, 36, UI_CREAM, NEAR_BLACK, thick=2)
+            name = "???"
+        else:
+            thumb = self._thumbs[sid]
+            surf.blit(thumb, thumb.get_rect(center=(tcx, tcy)))
+            name = self._disp_name(sid)
+        nimg = _font(16, True).render(name, True, _GOLD_BRIGHT)
+        surf.blit(nimg, nimg.get_rect(center=(panel.centerx, panel.y + 100)))
+
+        price = store_catalog.cost(sid)
+        affordable = store_data.balance() >= price
+        self._chip(surf, panel.centerx, panel.y + 130, str(price),
+                   fg=_GOLD_PALE, bg=_GOLD_DEEP, coin=1)
+        if not affordable:
+            warn = _font(11, True).render("NOT ENOUGH COINS", True, _LOCK_GREY)
+            surf.blit(warn, warn.get_rect(center=(panel.centerx, panel.y + 154)))
+
+        bw, bh = 118, 36
+        by = panel.bottom - 22
+        no = pygame.Rect(panel.x + 14, by - bh // 2, bw, bh)
+        yes = pygame.Rect(panel.right - 14 - bw, by - bh // 2, bw, bh)
+        rounded_rect(surf, no, bh // 2, (62, 54, 72))
+        pygame.draw.rect(surf, (122, 112, 134), no, width=1, border_radius=bh // 2)
+        ct = _font(14, True).render("CANCEL", True, UI_CREAM)
+        surf.blit(ct, ct.get_rect(center=no.center))
+        ybg = _GOLD_DEEP if affordable else (54, 46, 54)
+        yfg = (28, 18, 8) if affordable else _LOCK_GREY
+        rounded_rect(surf, yes, bh // 2, ybg)
+        pygame.draw.rect(surf, _GOLD_BRIGHT if affordable else (92, 82, 92),
+                         yes, width=1, border_radius=bh // 2)
+        yt = _font(14, True).render("BUY", True, yfg)
+        surf.blit(yt, yt.get_rect(center=yes.center))
+
+        self.confirm_no_rect = no
+        self.confirm_yes_rect = yes if affordable else None
+
     # ── input ────────────────────────────────────────────────────────────────
     def handle_tap(self, pos) -> "str | None":
+        # While the buy-confirmation is up it is modal: only its own buttons
+        # (and a tap on the scrim, which cancels) are hit-testable.
+        if self._confirm is not None:
+            return self._handle_confirm_tap(pos)
         if pos is None:
             return "back"
         if self.back_rect and self.back_rect.collidepoint(pos):
@@ -436,8 +514,33 @@ class StoreScene:
         if store_data.equipped(_slot_of(sid)) == sid:
             return  # already worn
         if store_data.is_owned(sid):
+            # Equipping a look already owned is free + reversible, so it stays a
+            # one-tap action; only a coin-spending purchase needs confirming.
             store_data.equip(sid)
             self._flash(self._disp_name(sid) + " EQUIPPED")
+            return
+        # Unowned: a tap raises the buy-confirmation; nothing is spent yet.
+        self._confirm = sid
+
+    def _handle_confirm_tap(self, pos) -> None:
+        if pos is None:                       # device back / escape cancels
+            self._confirm = None
+            return None
+        if self.confirm_yes_rect and self.confirm_yes_rect.collidepoint(pos):
+            self._commit_purchase()
+            return None
+        if self.confirm_no_rect and self.confirm_no_rect.collidepoint(pos):
+            self._confirm = None
+            return None
+        # A tap on the dimmed scrim (outside the panel) dismisses; a tap inside
+        # the panel that misses both buttons is ignored.
+        if self._confirm_panel and not self._confirm_panel.collidepoint(pos):
+            self._confirm = None
+        return None
+
+    def _commit_purchase(self) -> None:
+        sid, self._confirm = self._confirm, None
+        if sid is None:
             return
         ok, reason = store_data.try_purchase(sid)
         if ok:

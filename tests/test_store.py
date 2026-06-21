@@ -369,5 +369,75 @@ class TestParcels(_StoreTestBase):
                                  f"{pid} is missing a product-shot icon")
 
 
+class TestBuyConfirmFlow(_StoreTestBase):
+    """The store gates every coin-spending purchase behind a confirm modal: a
+    tap on an unowned card only opens the modal; coins move on CONFIRM, never
+    on the first tap. Needs a headless pygame surface, so it builds a StoreScene.
+    """
+
+    def setUp(self):
+        super().setUp()
+        os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+        os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+        import pygame
+        pygame.init()
+        pygame.display.set_mode((360, 640))
+        from game.store import StoreScene
+        self.surf = pygame.Surface((360, 640))
+        self.scene = StoreScene()
+        store_data.add_coins(99999)
+        # A known unowned, non-secret catalog item.
+        self.item = "skin_owl"
+
+    def _render(self):
+        self.scene.render(self.surf)
+
+    def test_tap_unowned_opens_modal_without_buying(self):
+        self.scene._tap_item(self.item)
+        self.assertEqual(self.scene._confirm, self.item)
+        self.assertFalse(store_data.is_owned(self.item))
+        self.assertEqual(store_data.balance(), 99999)
+
+    def test_confirm_buys_and_equips(self):
+        self.scene._tap_item(self.item)
+        self._render()  # lays out confirm_yes_rect
+        self.scene.handle_tap(self.scene.confirm_yes_rect.center)
+        self.assertTrue(store_data.is_owned(self.item))
+        self.assertEqual(store_data.equipped("skin"), self.item)
+        self.assertEqual(store_data.balance(), 99999 - store_catalog.cost(self.item))
+        self.assertIsNone(self.scene._confirm)
+
+    def test_cancel_dismisses_without_buying(self):
+        self.scene._tap_item(self.item)
+        self._render()
+        self.scene.handle_tap(self.scene.confirm_no_rect.center)
+        self.assertFalse(store_data.is_owned(self.item))
+        self.assertEqual(store_data.balance(), 99999)
+        self.assertIsNone(self.scene._confirm)
+
+    def test_tap_scrim_outside_panel_dismisses(self):
+        self.scene._tap_item(self.item)
+        self._render()
+        self.scene.handle_tap((4, 4))  # corner of the scrim, off the panel
+        self.assertFalse(store_data.is_owned(self.item))
+        self.assertIsNone(self.scene._confirm)
+
+    def test_unaffordable_disables_buy(self):
+        store_data.try_spend(store_data.balance())  # empty the wallet
+        self.scene._tap_item(self.item)
+        self._render()
+        self.assertIsNone(self.scene.confirm_yes_rect)  # BUY not actionable
+        self.assertFalse(store_data.is_owned(self.item))
+
+    def test_modal_is_exclusive(self):
+        # With the modal up, a tap that isn't a modal control can't switch tabs
+        # or buy; it just (when on the scrim) dismisses.
+        self.scene._tap_item(self.item)
+        self._render()
+        before = self.scene.tab
+        self.scene.handle_tap((4, 4))
+        self.assertEqual(self.scene.tab, before)
+
+
 if __name__ == "__main__":
     unittest.main()
