@@ -151,9 +151,23 @@ _ZOOM_BOX = 150
 _ZOOM_SCALE = 2.5
 
 
+def _is_parcel(item_id):
+    return (item_id == store_catalog.PARCEL_BASE
+            or store_catalog.CATALOG.get(item_id, {}).get("kind") == "parcel")
+
+
 def render_look(world, base, skin_id):
-    """Return (full_surface, zoom_surface) of the bird wearing skin_id."""
-    world.bird.equipped_skin = skin_id
+    """Return (full_surface, zoom_surface) of the bird wearing skin_id.
+
+    Parcels equip into their own slot, so a parcel card swaps the carried gift
+    on the base bird, while every other look swaps the bird skin — both reset to
+    default each call so a render never leaks the previous item."""
+    if _is_parcel(skin_id):
+        world.bird.equipped_skin = store_catalog.BASE_SKIN
+        world.bird.equipped_parcel = skin_id
+    else:
+        world.bird.equipped_skin = skin_id
+        world.bird.equipped_parcel = store_catalog.PARCEL_BASE
     full = base.copy()
     world.bird.draw(full, 0, 0)
 
@@ -200,7 +214,7 @@ def render_store_pages():
 # ── markdown ─────────────────────────────────────────────────────────────────
 
 def _disp(skin_id):
-    if skin_id == store_catalog.BASE_SKIN:
+    if skin_id in (store_catalog.BASE_SKIN, store_catalog.PARCEL_BASE):
         return "DEFAULT", "FREE"
     return store_catalog.name(skin_id), str(store_catalog.cost(skin_id))
 
