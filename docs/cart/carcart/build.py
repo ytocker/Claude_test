@@ -45,7 +45,12 @@ CABIN_GLINT  = (250, 254, 255)      # bright glass specular (carries at night)
 # behind the candy-red hero. The OPEN interior is a lighter warm tone so the
 # basket reads as a hollow container, not a solid slab; bold staves + a bright
 # top rail keyline are the parts that actually survive at 40px.
-BASKET_BODY  = (176, 96, 74)        # #B0604A terracotta basket wall (warm-red)
+# One value-step darker than the r3 #B0604A wall: against the bright DAY sky
+# this tightens "red leads" so the rear recedes a touch further behind the
+# candy-red hero, while staying in the same terracotta hue. On the dark NIGHT
+# sky the step is negligible (the rear already read correctly there), so the
+# single shared sprite honours the day-only nudge without a per-sky build.
+BASKET_BODY  = (162, 86, 66)        # #A25642 terracotta basket wall (warm-red)
 BASKET_BODY_D=(126, 64, 50)         # #7E4032 basket shade / floor (dark warm)
 BASKET_IN    = (214, 160, 138)      # #D6A08A bright OPEN interior (says hollow)
 BASKET_STAVE = (110, 54, 42)        # bold vertical staves (survive at 40px)
@@ -131,13 +136,15 @@ def build(wing_angle_deg):
     ground_y = BCY + 17
 
     # ── REAR BASKET (small OPEN-TOPPED carry box behind the cabin) ────────────
-    # The fine cross-hatch from r2 never survived at 40px, so the rear now reads
-    # honestly: an OPEN-TOPPED container in the car's warm colour family. The
-    # tells that actually carry at play size are (1) a lighter OPEN interior that
-    # says "hollow", (2) 2-3 BOLD vertical staves, and (3) a bright top-rail
-    # keyline arcing over the open mouth. It rides at a FIXED height (no swing)
-    # so its mass never reads as wobble, and its desaturated terracotta keeps it
-    # subordinate to the candy-red hero while separating from Pip's parcel.
+    # At 40px fine weave blurs into a warm BUNDLE/SACK, so the rear leans on the
+    # ONE cue that survives downscale: a clear open MOUTH. The top edge is a
+    # concave ELLIPSE — a dark interior-shadow rim along the back lip with a
+    # lighter interior pocket dropping below it — so the eye reads DOWN INTO the
+    # box. Two bold FRONT-face staves + a silhouette rim-lip overhang carry the
+    # "basket, not sack" read; interior detail is deliberately minimal. It rides
+    # at a FIXED height (no swing) so its mass never reads as wobble, and its
+    # desaturated terracotta keeps it subordinate to the candy-red hero while
+    # separating from Pip's parcel.
     bx = BCX + 8                       # basket tucked to the rear-right
     b_top = BCY - 11                   # rim of the open mouth
     b_bot = BCY + 2                    # short box (secondary, smaller)
@@ -146,34 +153,39 @@ def build(wing_angle_deg):
         (bx - b_top_w, b_top), (bx + b_top_w, b_top),
         (bx + b_bot_w, b_bot), (bx - b_bot_w, b_bot),
     ]
-    # outer wall
+    # outer wall (front-facing terracotta)
     pygame.draw.polygon(surf, BASKET_BODY, basket_pts)
-    # OPEN INTERIOR: a lighter warm pocket inset from the walls + an elliptical
-    # mouth at the rim — the single strongest "this is hollow, not a slab" cue.
-    in_top_w, in_bot_w = b_top_w - 3, b_bot_w - 2
-    pygame.draw.polygon(surf, BASKET_IN, [
-        (bx - in_top_w, b_top + 1), (bx + in_top_w, b_top + 1),
-        (bx + in_bot_w, b_bot - 2), (bx - in_bot_w, b_bot - 2),
-    ])
-    _aaellipse(surf, BASKET_IN, (bx, b_top + 1), in_top_w, 2)
-    # dark floor band so the open pocket bottoms out in shadow (depth read)
-    pygame.draw.polygon(surf, BASKET_BODY_D, [
-        (bx - in_bot_w, b_bot - 4), (bx + in_bot_w, b_bot - 4),
-        (bx + b_bot_w, b_bot), (bx - b_bot_w, b_bot),
-    ])
-    # BOLD vertical staves — only THREE, 2px wide, drawn over the interior so
-    # they survive at 40px and read as a basket frame (not a flat panel).
-    for fx in (-7, 0, 7):
+    # OPEN MOUTH — the single change that flips bundle→basket. The interior
+    # pocket is a lighter warm ellipse dropped BELOW a dark back-lip shadow rim,
+    # so the rim reads as a concave opening the eye looks down into, not a domed
+    # top. Drawn dark-rim-first then the bright pocket nested inside it.
+    mouth_cy = b_top + 3               # pocket sits below the back lip
+    mouth_rx = b_top_w - 2
+    # dark interior-shadow rim hugging the BACK lip (the far wall in shadow)
+    _aaellipse(surf, BASKET_BODY_D, (bx, b_top + 1), mouth_rx, 3)
+    # lighter interior pocket dropping below the rim → "look down into the box"
+    _aaellipse(surf, BASKET_IN, (bx, mouth_cy), mouth_rx - 1, 3)
+    # dark floor crescent so the pocket bottoms out in shadow (depth read)
+    _aaellipse(surf, BASKET_BODY_D, (bx, mouth_cy + 2), mouth_rx - 2, 2)
+    # TWO bold FRONT-face staves — 2px, full-height, on the front wall where
+    # they catch the most pixels and hold high contrast against the terracotta.
+    # Two (not three) stays legible across the ~10px curve instead of becoming
+    # noise. They start BELOW the open mouth so they don't fill the pocket.
+    for fx in (-5, 5):
         x0 = bx + fx
         x1 = bx + int(fx * 0.78)
-        pygame.draw.line(surf, BASKET_STAVE, (x0, b_top + 1), (x1, b_bot - 1), 2)
-    # BRIGHT top-rail keyline arcing over the OPEN mouth — the keyline that sells
-    # "basket": a bright rim that bows up across the opening, not a flat lid.
-    pygame.draw.arc(surf, BASKET_HI,
-                    pygame.Rect(bx - b_top_w, b_top - 3, b_top_w * 2, 8),
-                    0.15, 2.99, 2)
+        pygame.draw.line(surf, BASKET_STAVE, (x0, mouth_cy + 2), (x1, b_bot - 1), 2)
+    # BRIGHT front-lip keyline along the near rim — the bright edge of the mouth
+    # that the eye reads as the front wall of the opening (not a flat lid).
     pygame.draw.line(surf, BASKET_HI,
-                     (bx - b_top_w, b_top), (bx + b_top_w, b_top), 2)
+                     (bx - b_top_w, b_top + 1), (bx + b_top_w, b_top + 1), 2)
+    # SILHOUETTE NOTCH — a 2px dark rim-lip overhang where the back wall meets the
+    # arc-rail, breaking the smooth top-back corner so the OUTLINE itself carries
+    # the basket read (silhouette cues survive scale; interior cues don't).
+    pygame.draw.line(surf, TRIM_DARK,
+                     (bx + b_top_w - 1, b_top - 2), (bx + b_top_w + 1, b_top), 2)
+    pygame.draw.line(surf, TRIM_DARK,
+                     (bx + b_top_w - 1, b_top), (bx + b_top_w - 1, b_top + 3), 2)
     # a short handle nub off the back rail at a FIXED angle (no swing → no fake
     # wobble); just enough to say "push here" in the car's warm family.
     pygame.draw.line(surf, BASKET_STAVE,
