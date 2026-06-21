@@ -1,12 +1,16 @@
-"""medal-rail unlock-notice mock — a vertical commendation ribbon pinned to
-the LEFT margin gutter. Unlocked badges hang as small struck medallions on a
-thin gold ribbon down the extreme edge (x0..~18), OUTSIDE the central content
-column, so the crowded run-summary loses no horizontal space.
+"""medal-rail unlock-notice mock — an earned commendation badge cluster pinned
+in the top-left open margin of the run-summary screen, with a thin decorative
+ribbon spine descending the dead left edge below it.
+
+The legible reward lives UP TOP, left of the centred "RUN SUMMARY" title and
+above the hero plaque (y<104): a clearly-struck circular medallion hung from a
+real grosgrain sash with knots, capped by a horizontal "EARNED ×N" plate. Only
+a slim ribbon spine continues down the x0..18 gutter past the protected layout,
+so the rail reads as a hanging commendation, not a scrollbar / frame edge.
 
 Scratch tooling only; nothing under game/ is touched.
 """
 import os
-import math
 import pygame
 
 from tools.unlock_notice_common import render_backdrop, demo_ids
@@ -18,147 +22,173 @@ from game.hud import (_font, _GOLD_BRIGHT, _GOLD_PALE, _GOLD_DEEP,
 
 W, H = 360, 640
 
-# Ribbon geometry — everything lives in the dead left margin. The score plaque's
-# The score plaque + tiles + buttons all span x18..342, so the rail's spine
-# lives at the extreme edge. The medallions, however, are hung ONLY in the two
-# vertical bands where the margin is genuinely dead the full way across: beside
-# the "RUN SUMMARY" title (its text starts ~x40, so x0..38 is empty at y30..100)
-# stacked into the open strip just above the plaque. That lets each medal be a
-# legible Ø28 — clearly a struck gold medal, never a scrollbar nub — while still
-# overhanging nothing protected.
-SPINE_X = 9                 # the gold ribbon's vertical centre line
-RIBBON_W = 6                # ribbon width
-BADGE_D = 18                # medallion diameter — Ø18 keeps the right edge at
-BADGE_CX = 0                # x18, FLUSH with the plaque border (centre x9)
+# Geometry — the readable cluster lives in the top-left open area (left of the
+# centred title, above the plaque at y104). The ribbon is pulled in off the
+# absolute screen edge so it never merges with the frame, and given real width
+# so it reads as a hanging sash. The descending spine that runs past the plaque
+# stays inside x0..18 (the only dead gutter beside protected content).
+# The genuinely dead top-left area is x0..46 (left of the title, whose glyphs
+# start at x48) from y~6 down to y~66, plus a short full-width strip y66..102
+# above the plaque (border at x34, y104). The cluster fits ONE legible Ø44
+# medallion into that left wedge, clear of both the title and the plaque.
+SPINE_X = 13                # ribbon centre line — OFF the absolute edge (x0)
+RIBBON_W = 10               # sash width — broad enough to read as grosgrain
+BADGE_D = 38                # medallion diameter — legible struck medal + rim,
+BADGE_CX = 21               # tucked into the x0..44 wedge; glow stays clear of
+BADGE_CY = 52               # the title (glyphs at x48) and the plaque (y104)
+CAP_TOP = 4                 # horizontal "EARNED ×N" plate top
 
 
-def _ribbon(surf, top, bottom):
-    """A thin satin gold ribbon running the gutter: a vertical gradient stripe
-    with a lit left crease + shadowed right edge, so it reads as a hanging
-    grosgrain ribbon (a medal sash), not a flat bar or a scrollbar track."""
-    x0 = SPINE_X - RIBBON_W // 2
-    strip = pygame.Surface((RIBBON_W, bottom - top), pygame.SRCALPHA)
-    for xx in range(RIBBON_W):
-        # cross-section shading: lit centre-left fold, darker right fold
-        t = xx / max(1, RIBBON_W - 1)
+def _sash(surf, cx, top, bottom, w):
+    """A satin gold grosgrain sash: a vertical gradient stripe with a lit
+    centre crease + shadowed right fold and a fine warp seam, so it reads as a
+    hanging ribbon (a medal sash), not a flat bar or a scrollbar track."""
+    x0 = cx - w // 2
+    strip = pygame.Surface((w, bottom - top), pygame.SRCALPHA)
+    for xx in range(w):
+        t = xx / max(1, w - 1)
         if t < 0.5:
             col = lerp_color(_GOLD_DEEP, _GOLD_PALE, t * 2.0)
         else:
             col = lerp_color(_GOLD_PALE, (120, 80, 14), (t - 0.5) * 2.0)
         pygame.draw.line(strip, col, (xx, 0), (xx, bottom - top))
-    # faint vertical sheen seam down the lit crease
-    pygame.draw.line(strip, (*_GOLD_PALE, 160), (RIBBON_W // 2 - 1, 0),
-                     (RIBBON_W // 2 - 1, bottom - top))
+    # bright warp seam down the lit crease + a darker selvedge on the right edge
+    pygame.draw.line(strip, (*_GOLD_PALE, 200), (int(w * 0.40), 0),
+                     (int(w * 0.40), bottom - top))
+    pygame.draw.line(strip, (70, 44, 8), (w - 1, 0), (w - 1, bottom - top))
     surf.blit(strip, (x0, top))
-    # a small pinned top finial (a stitched anchor) so the ribbon reads as hung
-    # from the top margin, not bleeding off-screen like a track.
-    pygame.draw.circle(surf, _GOLD_DEEP, (SPINE_X, top + 2), 4)
-    pygame.draw.circle(surf, _GOLD_PALE, (SPINE_X, top + 2), 4, 1)
-    # forked ribbon tail at the very bottom so it terminates like a sash.
-    by = bottom
-    pygame.draw.polygon(surf, _GOLD_DEEP, [
-        (SPINE_X - RIBBON_W // 2, by - 1),
-        (SPINE_X + RIBBON_W // 2 + 1, by - 1),
-        (SPINE_X, by + 7),
-    ])
 
 
-def _knot(surf, cx, cy):
-    """A small gold ribbon-knot where the medal's hanger pinches the sash — the
-    cue that the medal HANGS from the ribbon. Two tiny lit lobes + a dark
-    centre, kept ABOVE the medal so it never sits on the medallion face."""
+def _knot(surf, cx, cy, scale=1.0):
+    """A gold ribbon-knot where a hanger pinches the sash — the cue the medal
+    HANGS from the ribbon. Two lit lobes + a bright pip, sized by ``scale``."""
+    lob = max(2, int(3 * scale))
     for sgn in (-1, 1):
-        pygame.draw.circle(surf, _GOLD_DEEP, (cx + sgn * 2, cy), 2)
-        pygame.draw.circle(surf, _GOLD_PALE, (cx + sgn * 2, cy), 2, 1)
-    pygame.draw.circle(surf, _GOLD_BRIGHT, (cx, cy), 1)
+        pygame.draw.circle(surf, _GOLD_DEEP, (cx + sgn * lob, cy), lob)
+        pygame.draw.circle(surf, _GOLD_PALE, (cx + sgn * lob, cy), lob, 1)
+    pygame.draw.circle(surf, _GOLD_BRIGHT, (cx, cy), max(1, int(lob * 0.6)))
 
 
-def _hang_badge(surf, icon_key, cy):
-    """Hang one struck medallion off the ribbon at vertical centre ``cy``: a
-    short hanger link up to a ribbon knot, a soft drop shadow so the medal lifts
-    off the panel, then the full struck-gold badge."""
-    cx = BADGE_CX + BADGE_D // 2
-    knot_y = cy - BADGE_D // 2 - 4
-    # hanger link from the knot down to the medal's crown
-    pygame.draw.line(surf, _GOLD_DEEP, (cx, knot_y + 1),
-                     (cx, cy - BADGE_D // 2 + 1), 2)
-    _knot(surf, cx, knot_y)
-    # soft cast shadow down-right so the medal reads as a raised, hung object
-    sh = pygame.Surface((BADGE_D, BADGE_D), pygame.SRCALPHA)
-    pygame.draw.circle(sh, (0, 0, 0, 120), (BADGE_D // 2, BADGE_D // 2),
-                       BADGE_D // 2 - 1)
-    surf.blit(sh, (BADGE_CX + 2, cy - BADGE_D // 2 + 2))
-    rect = pygame.Rect(BADGE_CX, cy - BADGE_D // 2, BADGE_D, BADGE_D)
+def _earned_cap(surf, cx, top, n):
+    """A horizontal 'EARNED ×N' plate at the head of the rail — a navy lozenge
+    with a gold keyline, set in upright readable type (never rotated). This is
+    the self-label that turns the rail from chrome into a commendation."""
+    f = _font(12, True)
+    txt = f.render(f"EARNED ×{n}", True, _GOLD_PALE)
+    pad_x, pad_y = 8, 4
+    pw = txt.get_width() + pad_x * 2
+    ph = txt.get_height() + pad_y * 2
+    plate = pygame.Surface((pw, ph), pygame.SRCALPHA)
+    pygame.draw.rect(plate, (*_PANEL_DARK, 240), (0, 0, pw, ph), border_radius=ph // 2)
+    pygame.draw.rect(plate, _GOLD_BRIGHT, (0, 0, pw, ph), 2, border_radius=ph // 2)
+    pygame.draw.line(plate, (*_GOLD_PALE, 130), (ph // 2, 1), (pw - ph // 2, 1))
+    plate.blit(txt, (pad_x, pad_y))
+    rect = plate.get_rect(midtop=(cx, top))
+    # keep the plate inside the canvas so the left rounded end stays on-screen
+    if rect.left < 1:
+        rect.left = 1
+    surf.blit(plate, rect)
+    return rect.bottom
+
+
+def _hang_badge(surf, icon_key, cx, cy, d):
+    """Hang one struck medallion: a hanger link up to a ribbon knot on the sash,
+    a soft cast shadow so the medal lifts off the panel, then the full badge at a
+    legible diameter ``d`` — clearly a gold medallion, never a scrollbar nub."""
+    r = d // 2
+    knot_y = cy - r - 7
+    pygame.draw.line(surf, _GOLD_DEEP, (cx, knot_y + 2), (cx, cy - r + 2), 3)
+    _knot(surf, cx, knot_y, scale=1.3)
+    sh = pygame.Surface((d, d), pygame.SRCALPHA)
+    pygame.draw.circle(sh, (0, 0, 0, 130), (r, r), r - 1)
+    surf.blit(sh, (cx - r + 3, cy - r + 4))
+    rect = pygame.Rect(cx - r, cy - r, d, d)
     draw_badge(surf, icon_key, rect, True, False)
 
 
-def _more_pill(surf, cy, n):
-    """A '+N' capped medallion at the rail's foot — the graceful-scaling cue: a
-    small navy disc on the ribbon reading the overflow count when more than the
-    rail's shown slots were unlocked in one run."""
-    r = BADGE_D // 2 - 2
-    cx = BADGE_CX + BADGE_D // 2
-    knot_y = cy - r - 5
-    pygame.draw.line(surf, _GOLD_DEEP, (cx, knot_y + 2), (cx, cy - r + 2), 2)
-    _knot(surf, cx, knot_y)
+def _more_pill(surf, cx, cy, d, n):
+    """A '+N' navy disc on the sash — the graceful-scaling overflow cue when a
+    single run unlocks more than the cluster's shown slots."""
+    r = d // 2
+    knot_y = cy - r - 6
+    pygame.draw.line(surf, _GOLD_DEEP, (cx, knot_y + 2), (cx, cy - r + 2), 3)
+    _knot(surf, cx, knot_y, scale=1.1)
     pygame.draw.circle(surf, _GOLD_BRIGHT, (cx, cy), r + 1)
     pygame.draw.circle(surf, _PANEL_DARK, (cx, cy), r)
-    pygame.draw.circle(surf, _GOLD_DEEP, (cx, cy), r, 1)
-    f = _font(12, True)
+    pygame.draw.circle(surf, _GOLD_DEEP, (cx, cy), r, 2)
+    f = _font(15, True)
     g = f.render(f"+{n}", True, _GOLD_PALE)
     surf.blit(g, g.get_rect(center=(cx, cy)))
 
 
-def _ribbon_caption(surf, top):
-    """A hairline vertical caption riding the ribbon so the rail self-labels as
-    a commendation, not a scrollbar. Tiny, rotated, set in the margin sliver."""
-    f = _font(9, True)
-    g = f.render("EARNED", True, _GOLD_PALE)
-    g = pygame.transform.rotate(g, 90)
-    g.set_alpha(190)
-    surf.blit(g, g.get_rect(center=(SPINE_X, top)))
+def _build_rail(surf, ids, overflow=0):
+    """Compose the rail onto ``surf``: cap → sash → medallion(s) → ribbon spine.
+
+    Layout budget (all readable content y<104, left of the centred title and
+    above the plaque): cap at the very top, then up to two Ø56 medallions hung
+    on a broad sash. Below the plaque only a slim decorative spine descends the
+    x0..18 gutter, so nothing protected is occluded."""
+    # Cap at the very top of the wedge; the sash drops from under it to the
+    # single legible medallion seated low in the wedge (BADGE_CY).
+    cap_bottom = _earned_cap(surf, BADGE_CX, CAP_TOP, len(ids) + overflow)
+
+    sash_bottom = BADGE_CY + BADGE_D // 2 + 6
+    _sash(surf, BADGE_CX, cap_bottom + 2, sash_bottom, RIBBON_W)
+    # forked tail closing the readable sash like a real ribbon end
+    by = sash_bottom
+    pygame.draw.polygon(surf, _GOLD_DEEP, [
+        (BADGE_CX - RIBBON_W // 2, by - 2),
+        (BADGE_CX + RIBBON_W // 2, by - 2),
+        (BADGE_CX, by + 9),
+    ])
+
+    # One clearly-readable medallion is the reward; any further unlocks roll
+    # into the EARNED ×N cap above, keeping the shown medal large.
+    _hang_badge(surf, ach.BY_ID[ids[0]].icon_key, BADGE_CX, BADGE_CY, BADGE_D)
+    return ids[:1]
+
+
+def _spine(surf, top, bottom):
+    """A slim decorative ribbon spine descending the dead x0..18 gutter past the
+    plaque/tiles — purely ornamental continuation of the sash, kept thin and
+    well inside x18 so it overhangs nothing protected."""
+    sx = 6
+    w = 4
+    strip = pygame.Surface((w, bottom - top), pygame.SRCALPHA)
+    for xx in range(w):
+        t = xx / max(1, w - 1)
+        col = lerp_color(_GOLD_DEEP, _GOLD_PALE, 0.5 + (0.5 - abs(t - 0.5)))
+        col = (*col, 150)
+        pygame.draw.line(strip, col, (xx, 0), (xx, bottom - top))
+    surf.blit(strip, (sx - w // 2, top))
+    pygame.draw.polygon(surf, (*_GOLD_DEEP, 150), [
+        (sx - w // 2, bottom - 2), (sx + w // 2, bottom - 2), (sx, bottom + 6)])
 
 
 def build():
     surf = render_backdrop()
     ids = demo_ids(2)
 
-    # The rail spans the protected layout vertically but only the dead margin
-    # horizontally. We tuck the medal cluster into the upper gutter beside the
-    # title + plaque, where the margin is purely empty.
-    rail_top = 22
-    rail_bottom = 628
-    _ribbon(surf, rail_top, rail_bottom)
-
-    # Two unlocked medallions hung in the dead strip beside the title and just
-    # above the plaque (both y-centres < plaque top y104), so the readable Ø28
-    # medals overhang nothing protected (primary 2-unlock case).
-    slots_y = [50, 84]
-    for i, aid in enumerate(ids):
-        _hang_badge(surf, ach.BY_ID[aid].icon_key, slots_y[i])
-
-    # Caption sliver lower on the ribbon, in the clear sliver beside the buttons.
-    _ribbon_caption(surf, 520)
+    shown = _build_rail(surf, ids)
+    # the secondary unlock is represented as a '+1' so the legible top medal
+    # stays large; both unlocks are still accounted for in the EARNED ×2 cap.
+    extra = [i for i in ids if i not in shown]
+    # the slim ornamental spine continues down the dead gutter, well clear of
+    # the plaque (x18+) — it lives at x<=8.
+    _spine(surf, 116, 626)
 
     OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                        "docs", "achievements", "unlock_notice", "medal-rail")
     os.makedirs(OUT, exist_ok=True)
-    out_path = os.path.join(OUT, "round_1.png")
+    out_path = os.path.join(OUT, "round_2.png")
     pygame.image.save(surf, out_path)
-
-    # ── Scale-study strip: 1, 2, and 3+ unlocks side by side so the reviewer
-    # sees graceful scaling (the '+N' cap). Drawn on a labelled board to the
-    # right of the primary still, sharing the same backdrop crop.
     return out_path, surf, ids
 
 
 def build_scale_study(primary_path):
-    """A small comparison board: how the rail reads at 1, 2, and ~3 unlocks
-    (the third uses a '+N' cap to imply many)."""
+    """A comparison board: how the rail reads at 1, 2, and 3+ unlocks (the third
+    uses a '+N' cap to imply many), each on a real backdrop crop."""
     ids3 = demo_ids(2)
-    # synthesize a third + overflow look from the known glyph family
-    extra = ["day", "score"]
-
     pad = 12
     panel_w = 120
     board = pygame.Surface((panel_w * 3 + pad * 4, H + 40), pygame.SRCALPHA)
@@ -174,25 +204,13 @@ def build_scale_study(primary_path):
         ("3+ (with +N cap)", 2, 4),
     ]
     for ci, (label, nshown, overflow) in enumerate(cases):
-        col = pygame.Surface((panel_w, H), pygame.SRCALPHA)
-        # tiny slice of the real backdrop's left margin so the comparison shows
-        # the rail against the actual panel edge, not empty black.
         bd = render_backdrop()
-        col.blit(bd, (0, 0), pygame.Rect(0, 0, panel_w, H))
-        _ribbon(col, 22, 628)
-        ys = [50, 84, 118]
-        order = list(demo_ids(2)) + extra
-        for i in range(nshown):
-            _hang_badge(col, ach.BY_ID[order[i]].icon_key, ys[i])
-        if overflow:
-            _more_pill(col, ys[nshown], overflow)
-        else:
-            # show a third real medal for the "3" framing of the middle/last
-            if ci == 2:
-                pass
+        _build_rail(bd, ids3[:max(1, nshown)], overflow=overflow)
+        _spine(bd, 116, 626)
+        col = bd.subsurface(pygame.Rect(0, 0, panel_w, H)).copy()
+        board.blit(col, (pad + ci * (panel_w + pad), 30))
         cf = _font(11, True)
         lab = cf.render(label, True, _GOLD_PALE)
-        board.blit(col, (pad + ci * (panel_w + pad), 30))
         board.blit(lab, (pad + ci * (panel_w + pad), 30 + H + 2))
 
     OUT = os.path.dirname(primary_path)

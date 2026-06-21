@@ -1,13 +1,15 @@
 """Scratch mockup: the `corner-rosette` unlock-notice concept.
 
-A single bold "commendation rosette" stamped into the top-right dead corner —
-the way a certificate carries a gold-foil seal. A scalloped foil disc with a
-short sunburst behind it reads as STRUCK INTO the paper (flat, no ribbon, no
-hung medal), so it stays clearly distinct from the medal-rail badge-on-ribbon
-language. One always-present object + a "2 EARNED" count-badge — not a stack.
+A single bold "commendation seal" stamped into the top-right dead corner —
+the way a certificate carries a gold-foil seal. A scalloped/notched foil disc
+(NO sunburst rays) reads as STRUCK INTO the paper (flat, no ribbon, no hung
+medal), so it stays clearly distinct from the medal-rail badge-on-ribbon
+language AND from the full-screen award beat, which owns the only radiating
+rays in the option set. One always-present object + a "2 EARNED" count-badge.
 
-Anchored into the top strip / right margin so it occludes nothing: title,
-hero plaque, stat tiles, power-up strip, and buttons all stay clear.
+The seal is tucked FULLY into the corner wedge above the 'RUN SUMMARY' title
+baseline (title lettering occupies y48-64, right edge ~x310), so it occludes
+nothing: title, hero plaque, stat tiles, power-up strip, and buttons stay clear.
 
 Scratch tooling only; `game/` is untouched.
 """
@@ -25,7 +27,6 @@ _FOIL_HI   = (255, 240, 188)   # foil crest catching the upper-left light
 _FOIL_MID  = (236, 190,  78)   # body gold of the foil
 _FOIL_LO   = (168, 116,  28)   # shadowed lower-right of the foil
 _FOIL_EDGE = ( 96,  62,  14)   # thin keyline round the seal
-_RAY_GOLD  = (252, 214, 120)
 _INK_NAVY  = (14, 9, 40)
 
 
@@ -35,42 +36,43 @@ def _lerp(a, b, t):
             int(a[2] + (b[2] - a[2]) * t))
 
 
-def _draw_sunburst(surf, cx, cy, r_in, r_out, n, col):
-    """A short ring of tapered triangular rays fanned behind the seal — the
-    celebratory 'struck commendation' burst, kept low so the seal reads stamped
-    into the corner rather than radiating across the protected bands."""
-    burst = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    half = math.radians(360 / n * 0.34)   # ray half-width
+def _draw_notched_rim(surf, cx, cy, R, n, col):
+    """A scalloped foil-disc rim: a continuous gold ring whose outer edge is
+    notched with shallow bumps and grooves, like the milled border pressed into
+    a wax/foil certificate seal. Deliberately NON-radiating — no rays leave the
+    disc — so the corner seal never competes with the award-beat's sunburst."""
+    rim = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    bump = R * 0.16          # how far each scallop bulges past the base radius
+    r_out = R + bump
+    # Outer scalloped contour: a polygon whose radius oscillates with a cosine,
+    # so the silhouette gains soft rounded notches rather than sharp teeth.
+    steps = n * 6
+    outer = []
+    for i in range(steps):
+        a = i * math.tau / steps
+        rr = R + bump * (math.cos(a * n) * 0.5 + 0.5)
+        outer.append((cx + math.cos(a) * rr, cy + math.sin(a) * rr))
+    # Light the rim from the upper-left so it ties to the foil's single source.
+    pygame.draw.polygon(rim, _lerp(_FOIL_LO, col, 0.55), outer)
+    surf.blit(rim, (0, 0))
+    # A thin keyline traces the scalloped edge to crisp the pressed border.
+    pygame.draw.polygon(surf, _FOIL_EDGE, outer, 2)
+    # Small recessed dots in each notch valley read as the milled punch marks.
     for i in range(n):
-        a = i * math.tau / n - math.radians(12)
-        tip = (cx + math.cos(a) * r_out, cy + math.sin(a) * r_out)
-        b1 = (cx + math.cos(a - half) * r_in, cy + math.sin(a - half) * r_in)
-        b2 = (cx + math.cos(a + half) * r_in, cy + math.sin(a + half) * r_in)
-        # rays facing the upper-left light read brighter — ties the burst to the
-        # foil's single light source instead of glowing evenly all round.
+        a = (i + 0.5) * math.tau / n
+        dx = cx + math.cos(a) * (R + bump * 0.5)
+        dy = cy + math.sin(a) * (R + bump * 0.5)
         d = (math.cos(a - math.radians(135)) + 1) * 0.5
-        rc = _lerp(_FOIL_LO, col, 0.35 + 0.65 * d ** 1.3)
-        pygame.draw.polygon(burst, (*rc, 210), [tip, b1, b2])
-    surf.blit(burst, (0, 0))
-
-
-def _draw_scallop_ring(surf, cx, cy, r, n, col):
-    """The certificate-seal scalloped edge: a ring of small bumps round the foil
-    rim, so the disc reads as a pressed paper seal, not a coin."""
-    for i in range(n):
-        a = i * math.tau / n
-        bx = cx + math.cos(a) * r
-        by = cy + math.sin(a) * r
-        d = (math.cos(a - math.radians(135)) + 1) * 0.5
-        bc = _lerp(_FOIL_LO, col, 0.3 + 0.7 * d ** 1.2)
-        pygame.draw.circle(surf, bc, (int(bx), int(by)), max(2, int(r * 0.12)))
+        dc = _lerp(_FOIL_LO, _FOIL_HI, 0.25 + 0.55 * d)
+        pygame.draw.circle(surf, dc, (int(dx), int(dy)), max(1, int(R * 0.07)))
+    return r_out
 
 
 def _draw_seal(surf, cx, cy, R, badge_id):
-    """A struck gold-foil seal: scalloped edge, a domed foil disc lit upper-left,
-    a recessed navy well, and the unlocked badge emblem pressed into it."""
-    # Scalloped paper-seal edge sits just behind the foil disc.
-    _draw_scallop_ring(surf, cx, cy, int(R * 1.0), 22, _FOIL_MID)
+    """A struck gold-foil seal: scalloped/notched rim, a domed foil disc lit
+    upper-left, a recessed navy well, and the unlocked badge pressed into it."""
+    # Notched foil rim sits just behind the domed disc.
+    _draw_notched_rim(surf, cx, cy, int(R * 1.0), 18, _FOIL_MID)
 
     # Domed foil disc — radial-ish shading via stacked circles, light upper-left.
     for i in range(R, 0, -1):
@@ -84,12 +86,12 @@ def _draw_seal(surf, cx, cy, R, badge_id):
         pygame.draw.circle(bloom, (*_FOIL_HI, int(120 * (1 - t))),
                            (int(R * 0.78), int(R * 0.74)), i)
     surf.blit(bloom, (cx - R, cy - R))
-    pygame.draw.circle(surf, _FOIL_EDGE, (cx, cy), R, max(1, R // 20))
+    pygame.draw.circle(surf, _FOIL_EDGE, (cx, cy), R, max(1, R // 16))
 
     # Recessed navy well that carries the emblem — a stamped inner field.
     wr = int(R * 0.62)
     pygame.draw.circle(surf, _INK_NAVY, (cx, cy), wr)
-    pygame.draw.circle(surf, _FOIL_LO, (cx, cy), wr, max(1, R // 22))
+    pygame.draw.circle(surf, _FOIL_LO, (cx, cy), wr, max(1, R // 18))
     # The earned emblem, pressed into the well.
     em = int(wr * 1.86)
     draw_badge(surf, badge_id, pygame.Rect(cx - em // 2, cy - em // 2, em, em),
@@ -97,10 +99,10 @@ def _draw_seal(surf, cx, cy, R, badge_id):
 
 
 def _draw_count_badge(surf, right_x, ccy, n):
-    """A compact dark '2 EARNED' count-pill notched onto the seal's lower-left
-    rim — the tally that turns one always-present seal into a counter without a
-    second seal. A gold numeral chip + small caption, right-anchored so it never
-    drifts over the title lettering or off the screen edge."""
+    """A compact dark '2 EARNED' count-pill — the tally that turns one
+    always-present seal into a counter without a second seal. A gold numeral
+    chip + small caption, right-anchored so it never drifts over the title
+    lettering or off the screen edge."""
     f_num = _font(16, bold=True)
     f_lbl = _font(11, bold=True)
     num = f_num.render(str(n), True, _NIGHT_DEEP)
@@ -132,20 +134,17 @@ def main():
     surf = render_backdrop()
     ids = demo_ids(2)
 
-    # Anchor hard into the top-right dead corner ABOVE the title. The
-    # 'RUN SUMMARY' title is centred at y~56 and nearly fills the width, so the
-    # only true dead zone is the corner wedge over its right shoulder. Keep the
-    # seal compact and high (centre near y24) so its body sits in the y0-40 top
-    # strip and only the count-pill drops into the clear right margin beside the
-    # plaque corner — occluding none of the protected bands.
-    R = 27
-    cx = 360 - R - 4
-    cy = R - 2
+    # Tuck the seal FULLY into the top-right corner wedge ABOVE the title. The
+    # 'RUN SUMMARY' lettering occupies y48-64 with its right edge near x310, so
+    # the seal — shrunk ~25% to R=20 and including its notched rim (~R*1.16) —
+    # is centred high and tight enough that its entire body and rim sit clear of
+    # the title (bottom of rim ~y42 < y48) and right of x312, in true dead space.
+    R = 20
+    cx = 360 - int(R * 1.16) - 2
+    cy = int(R * 1.16) - 1
 
-    # Sunburst behind, kept short so rays stay inside the corner wedge.
-    _draw_sunburst(surf, cx, cy, int(R * 0.94), int(R * 1.5), 16, _RAY_GOLD)
     _draw_seal(surf, cx, cy, R, ids[0])
-    # '2 EARNED' pill in the clear band between the title bottom (~y73) and the
+    # '2 EARNED' pill in the clear band between the title bottom (~y66) and the
     # plaque top (y104), right-anchored to the edge — a genuine dead strip so it
     # occludes neither the title lettering nor the hero plaque.
     _draw_count_badge(surf, 360 - 6, 90, 2)
@@ -153,7 +152,7 @@ def main():
     OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                        "docs", "achievements", "unlock_notice", "corner-rosette")
     os.makedirs(OUT, exist_ok=True)
-    out = os.path.join(OUT, "round_1.png")
+    out = os.path.join(OUT, "round_2.png")
     pygame.image.save(surf, out)
     print(out)
 
