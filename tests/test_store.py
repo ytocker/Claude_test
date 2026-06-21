@@ -228,11 +228,13 @@ class TestCatalogIntegrity(unittest.TestCase):
         self.assertTrue(store_catalog.ids_of_group("parrot"))
 
     def test_ids_of_group_partition(self):
-        # Every skin belongs to exactly one group; the union is the full roster.
+        # Every catalog item belongs to exactly one group tab; the union is the
+        # full roster (skins across costume/parrot/animal/shoes/hats/shades plus
+        # the parcels tab).
         by_group = []
         for g in store_catalog.GROUPS:
             by_group += store_catalog.ids_of_group(g)
-        self.assertEqual(sorted(by_group), sorted(store_catalog.skin_ids()))
+        self.assertEqual(sorted(by_group), sorted(store_catalog.CATALOG.keys()))
 
     def test_cosmetic_pool_excludes_boosts(self):
         for item_id in store_catalog.cosmetic_ids():
@@ -332,13 +334,19 @@ class TestParcels(_StoreTestBase):
             self.assertGreater(store_catalog.cost(pid), 0)
 
     def test_every_parcel_resolves_in_renderer(self):
-        # Base + every catalog parcel must produce a 22×22 sprite via the
-        # parcel dispatch, and register in the parcel builders.
+        # Base + every catalog parcel must produce a square sprite via the
+        # parcel dispatch, and register in the parcel builders. Most are exactly
+        # PARCEL_SIZE; a few run larger to carry a glow skirt (e.g. the lantern),
+        # so the contract is "square, at least PARCEL_SIZE" — the draw code
+        # anchors on centre so an oversize sprite still hangs correctly.
         from game import parrot
         builders = parrot._store_parcel_builders()
         for pid in [store_catalog.PARCEL_BASE] + store_catalog.ids_of_group("parcels"):
             surf = parrot.get_parcel("normal", pid)
-            self.assertEqual(surf.get_size(), (parrot.PARCEL_SIZE,) * 2)
+            w, h = surf.get_size()
+            self.assertEqual(w, h, f"{pid} sprite must be square")
+            self.assertGreaterEqual(w, parrot.PARCEL_SIZE,
+                                    f"{pid} sprite smaller than PARCEL_SIZE")
             self.assertIn(pid, builders, f"{pid} missing a parcel builder")
 
     def test_every_parcel_has_a_product_shot_icon(self):

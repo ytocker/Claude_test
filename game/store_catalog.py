@@ -140,6 +140,24 @@ CATALOG: dict[str, dict] = {
     "skin_shades_ski":     {"name": "SKI GOGGLES",  "cost": 440, "kind": "skin", "group": "shades"},
     "skin_shades_monocle": {"name": "MONOCLE",      "cost": 480, "kind": "skin", "group": "shades"},
     "skin_shades_cyber":   {"name": "CYBER VISOR",  "cost": 560, "kind": "skin", "group": "shades"},
+
+    # ── PARCELS (the gift Pip carries below him; PARCEL_BASE is the free default) ─
+    # A tiered ladder from cheap everyday containers up to out-of-the-box
+    # spectacle pieces; the two priciest premiums are masked ??? until bought.
+    "parcel_envelope":  {"name": "ENVELOPE",       "cost": 180,  "kind": "parcel", "group": "parcels"},
+    "parcel_sack":      {"name": "BURLAP SACK",    "cost": 220,  "kind": "parcel", "group": "parcels"},
+    "parcel_takeout":   {"name": "TAKEOUT PAIL",   "cost": 280,  "kind": "parcel", "group": "parcels"},
+    "parcel_jar":       {"name": "JAM JAR",        "cost": 320,  "kind": "parcel", "group": "parcels"},
+    "parcel_picnic":    {"name": "PICNIC BASKET",  "cost": 380,  "kind": "parcel", "group": "parcels"},
+    "parcel_steamer":   {"name": "DIM SUM STEAMER", "cost": 700, "kind": "parcel", "group": "parcels"},
+    "parcel_bottle":    {"name": "MESSAGE BOTTLE", "cost": 950,  "kind": "parcel", "group": "parcels"},
+    "parcel_balloon":   {"name": "HOT-AIR BALLOON", "cost": 1300, "kind": "parcel", "group": "parcels"},
+    "parcel_chest":     {"name": "TREASURE CHEST", "cost": 2800, "kind": "parcel", "group": "parcels"},
+    "parcel_lantern":   {"name": "PAPER LANTERN",  "cost": 3400, "kind": "parcel", "group": "parcels"},
+    "parcel_flask":     {"name": "GENIE FLASK",    "cost": 4500, "kind": "parcel", "group": "parcels"},
+    "parcel_ufo":       {"name": "MINI UFO",       "cost": 7000, "kind": "parcel", "group": "parcels"},
+    "parcel_comet":     {"name": "COMET",          "cost": 8500, "kind": "parcel", "group": "parcels", "secret": True},
+    "parcel_snowglobe": {"name": "SNOWGLOBE",      "cost": 9500, "kind": "parcel", "group": "parcels", "secret": True},
 }
 
 

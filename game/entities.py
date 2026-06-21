@@ -877,7 +877,10 @@ class Bird:
         surf.blit(parcel_rot, pr.topleft)
         # Snow settles on the parcel too (objects get capped, not the underside)
         # — fades in only at high load, matched to the parcel's transform chain.
-        if self.snow_load > snow_fx.PARCEL_ONSET and not skeleton_visible:
+        # The cap is shaped for the default kraft box, so it's skipped for an
+        # equipped custom parcel rather than draping box-snow over a balloon.
+        base_parcel = self.equipped_parcel in (None, "parcel_base")
+        if base_parcel and self.snow_load > snow_fx.PARCEL_ONSET and not skeleton_visible:
             pov = snow_fx.get_parcel_snow(mode, self.snow_load)
             if pov is not None:
                 if scale != 1.0:
