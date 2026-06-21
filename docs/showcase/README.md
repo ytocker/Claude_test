@@ -1,6 +1,6 @@
 # Skybit Store — visual showcase
 
-Every cosmetic in the coin Store, **category by category**: how each tab looks in the shop, and the parrot **Pip wearing every one of the 84 looks** (+ the free DEFAULT) in real gameplay. All art is procedural (drawn from code).
+Every cosmetic in the coin Store, **category by category**: how each tab looks in the shop, and the parrot **Pip wearing every one of the 87 looks** (+ the free DEFAULT) in real gameplay. All art is procedural (drawn from code).
 
 Each gameplay frame is staged in the same daytime scene so the looks compare cleanly; click any thumbnail for the full 360×640 screen.
 

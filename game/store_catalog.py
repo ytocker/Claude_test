@@ -88,7 +88,10 @@ CATALOG: dict[str, dict] = {
     # Ridiculously expensive, completely out-of-the-box NON-creature flyers.
     "skin_paper_plane":  {"name": "PAPER PLANE",   "cost": 5000,  "kind": "skin", "group": "animal", "secret": True},
     "skin_ufo":          {"name": "UFO",           "cost": 7000,  "kind": "skin", "group": "animal", "secret": True},
+    "skin_pinata_burro":  {"name": "BURRO PIÑATA",  "cost": 8000,  "kind": "skin", "group": "animal", "secret": True},
+    "skin_pinata_cactus": {"name": "CACTUS PIÑATA", "cost": 8500,  "kind": "skin", "group": "animal", "secret": True},
     "skin_toaster":      {"name": "FLYING TOASTER", "cost": 9000, "kind": "skin", "group": "animal", "secret": True},
+    "skin_pinata_parrot": {"name": "PARROT PIÑATA", "cost": 11000, "kind": "skin", "group": "animal", "secret": True},
     "skin_jet_fighter":  {"name": "JET FIGHTER",   "cost": 12000, "kind": "skin", "group": "animal", "secret": True},
 
     # ── SHOES (stylized procedural sneaker/sandal homages Pip wears) ───────────

@@ -4,11 +4,12 @@
 
 ## In the store
 
-How the **ANIMALS** tab looks in the shop (3 pages):
+How the **ANIMALS** tab looks in the shop (4 pages):
 
 <img src="img/store_animal_p1.png" width="280">
 <img src="img/store_animal_p2.png" width="280">
 <img src="img/store_animal_p3.png" width="280">
+<img src="img/store_animal_p4.png" width="280">
 
 ## In gameplay
 
