@@ -4,4 +4,4 @@ sys.path.insert(0, str(HERE.parents[1]))   # docs/animals/ufo_redesign -> _gamep
 sys.path.insert(0, str(HERE))               # build.py
 import _gameplay_lib as L
 from build import build
-L.render_concept_sheet(build, "LANDER POD", str(HERE / "round_1.png"))
+L.render_concept_sheet(build, "LANDER POD", str(HERE / "round_2.png"))
