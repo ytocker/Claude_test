@@ -1,30 +1,36 @@
 """GENIE FLASK parcel cosmetic (HIGH tier).
 
-A faceted teardrop perfume/genie flask: a wide-bottomed DIAMOND glass body
-that tapers to a narrow shoulder, capped by a gold COLLAR and a round domed
-STOPPER — a gem-on-a-stem outline. The only cool-blue jewel tone in HIGH, so
-it reads as an angular sapphire rather than the round message bottle. Built at
-2× (44px) then smoothscaled to 22 so the dark keyline, the facet seams, and
-the gold collar survive the tiny in-play read and the bird's tilt rotation.
+A cut-sapphire genie flask: the JEWEL lives in the SILHOUETTE, not in
+interior facet seams (which die below 22px). The body is an angular
+briolette — flat angled SHOULDERS up top, straight tapering walls, and a
+chiselled multi-faceted POINT at the base — so even as a flat fill the
+outline reads "cut gem", never a round potion/gumball. A bold horizontal
+GOLD COLLAR band rings the lower-visible half, double-edged with the dark
+sapphire keyline so it separates from Pip's red body AND his gold goggles.
+A small domed stopper crowns the top. Built at 2× (44px) then smoothscaled
+to 22 so the angular outline and the gold band survive the tiny in-play
+read and the bird's tilt rotation.
 
-Carry context: Pip's red body occludes the TOP, so the main tell — the
-faceted blue body — sits in the LOWER/visible half; the warm gold collar gives
-a colour break against Pip's red where the two meet."""
+Carry context: Pip's red body occludes the TOP ~60%, so the design is
+weighted LOW — the faceted point + gold band sit in the bottom ~40% that
+actually clears Pip. The angular gem outline is what separates it from the
+ROUND message-bottle sibling in a grayscale silhouette."""
 import pygame
 
 SIZE = 22
 SS = 44  # 2× supersample; smoothscaled down for a crisp outline at 22px
 
-# DAY palette — sapphire glass over a lighter core, gold collar/stopper, icy
-# highlight. Night holds the glass and leans on a faint inner glow.
-GLASS = (0x3A, 0x6F, 0xD8)       # sapphire glass wall
-CORE = (0x7F, 0xA8, 0xF2)        # lighter translucent core (lit facet)
-COLLAR = (0xE8, 0xB2, 0x3C)      # gold collar / stopper
-COLLAR_HI = (0xFF, 0xDD, 0x88)   # gold sheen
-COLLAR_SH = (0xB0, 0x82, 0x20)   # gold underside
-HI = (0xDC, 0xEB, 0xFF)          # icy glass highlight / facet line
+# DAY palette — DEEP saturated sapphire so the gem out-values the day sky;
+# a tight icy facet glint, a bold gold band, and a faint inner glow for night.
+GLASS = (0x1E, 0x4F, 0xC0)       # deep saturated sapphire core
+GLASS_HI = (0x4E, 0x86, 0xF0)    # lit sapphire wall (one facet plane)
+GLASS_SH = (0x14, 0x33, 0x86)    # shaded sapphire wall (opposite plane)
+GLINT = (0xDC, 0xEB, 0xFF)       # icy white facet glint — reserved + tight
+COLLAR = (0xE8, 0xB2, 0x3C)      # gold collar band
+COLLAR_HI = (0xFF, 0xDD, 0x88)   # gold sheen (top edge)
+COLLAR_SH = (0xA8, 0x78, 0x1E)   # gold underside
 GLOW = (0x9F, 0xC0, 0xFF)        # faint inner glow tint (night read)
-OUTLINE = (0x12, 0x22, 0x4A)     # dark high-value sapphire edge
+OUTLINE = (0x0C, 0x1A, 0x44)     # near-black sapphire keyline
 
 
 def _lerp(a, b, t):
@@ -37,99 +43,118 @@ def build(mode="normal"):  # mode ignored — parcel is mode-agnostic, one surfa
     s = pygame.Surface((SS, SS), pygame.SRCALPHA)
     cx = SS // 2
 
-    # ---- Vertical layout. The teardrop body is bottom-heavy so its widest,
-    # most identifiable part lives in the lower/visible half under Pip; the
-    # collar + stopper crown the top where Pip's body crops in.
-    body_bot = 39        # widest base of the teardrop
-    body_top = 19        # narrow shoulder where glass meets the collar
-    body_hw = 13         # half-width at the base
-    collar_y = body_top  # gold collar band sits on the shoulder
-    stop_cy = 11         # centre of the round domed stopper
+    # ---- Vertical layout, weighted LOW. The carry crop only clears the bottom
+    # ~40%, so the gem's tell — angular point + gold band — lives below the
+    # mid-line; the stopper crowns the top where Pip's body crops in.
+    pt_y = 42            # the chiselled base POINT (lowest)
+    waist_y = 28         # gold band sits here, high enough that the faceted
+                         # point dominates the lower-visible carry half
+    shoulder_y = 17      # flat angled shoulders — the top of the cut crown
+    crown_y = 14         # narrow top facet where glass meets the collar neck
+    body_hw = 13         # half-width at the widest (the shoulder line)
+    waist_hw = 12        # half-width at the gold band
+    stop_cy = 8          # round domed stopper centre
 
-    # Teardrop / diamond silhouette — wide rounded base tapering to a point-ish
-    # shoulder. Drawn as one closed polygon so the outline is a single edge.
+    # ---- ANGULAR briolette silhouette as one closed polygon. HARD flat
+    # shoulders (the table/crown of the cut), straight tapering girdle walls,
+    # then a deep faceted chevron POINT — a hard-edged gem outline, no curves.
     body_poly = [
-        (cx,              body_top),                 # shoulder apex
-        (cx + body_hw - 4, body_top + 4),
-        (cx + body_hw,     body_bot - 8),            # widest below centre
-        (cx + body_hw - 5, body_bot - 1),
-        (cx,               body_bot + 1),            # rounded base tip
-        (cx - body_hw + 5, body_bot - 1),
-        (cx - body_hw,     body_bot - 8),
-        (cx - body_hw + 4, body_top + 4),
+        (cx,               crown_y),              # narrow top crown
+        (cx + body_hw,     shoulder_y),            # hard right shoulder corner
+        (cx + waist_hw,    waist_y - 2),           # right girdle into the band
+        (cx + waist_hw,    waist_y + 2),           # right girdle below the band
+        (cx + waist_hw - 6, pt_y - 7),             # right lower facet break
+        (cx,               pt_y),                  # chiselled base point
+        (cx - waist_hw + 6, pt_y - 7),             # left lower facet break
+        (cx - waist_hw,    waist_y + 2),           # left girdle below the band
+        (cx - waist_hw,    waist_y - 2),           # left girdle into the band
+        (cx - body_hw,     shoulder_y),            # hard left shoulder corner
     ]
 
-    # Dark outline pass — fat silhouette first, the gem fill sits inside it.
+    # Dark keyline pass — fat silhouette first; the gem fill sits inside it.
     pygame.draw.polygon(s, OUTLINE, body_poly)
 
-    # ---- Faceted glass fill. A left dark wall, a bright central facet, and a
-    # right mid wall fake the cut-jewel read: the central wedge catches light.
+    # ---- Faceted FILL by VALUE PLANES, not seam lines. A bright-lit left half
+    # and a shaded right half split down the spine fake a two-plane cut so the
+    # gem reads dimensional even when interior detail washes out.
     fill = pygame.Surface((SS, SS), pygame.SRCALPHA)
-    inner = [(cx, body_top + 2)]
-    inner += [(x - (1 if x > cx else -1) if x != cx else x,
-               y) for x, y in body_poly[1:]]
     pygame.draw.polygon(fill, (255, 255, 255, 255), body_poly)
-
     gem = pygame.Surface((SS, SS), pygame.SRCALPHA)
-    # Horizontal gradient across the body: dark left wall → bright spine →
-    # mid right, so the diamond reads as a faceted cylinder of light.
     left = cx - body_hw
     for x in range(left, cx + body_hw + 1):
         t = (x - left) / (2 * body_hw)
-        if t < 0.45:
-            col = _lerp(GLASS, CORE, t / 0.45)
-        else:
-            col = _lerp(CORE, GLASS, (t - 0.45) / 0.55 * 0.7)
-        gem.fill(col + (245,), pygame.Rect(x, 0, 1, SS))
+        if t < 0.42:                       # lit left plane → deep core
+            col = _lerp(GLASS_HI, GLASS, t / 0.42)
+        elif t < 0.58:                     # deep central spine
+            col = GLASS
+        else:                              # shaded right plane
+            col = _lerp(GLASS, GLASS_SH, (t - 0.58) / 0.42)
+        gem.fill(col + (255,), pygame.Rect(x, 0, 1, SS))
     gem.blit(fill, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     s.blit(gem, (0, 0))
 
-    # ---- Facet SEAMS — two angular lines from the shoulder fanning to the
-    # base corners. These are the cut-gem tell that separates it from a round
-    # bottle. A bright spine seam + a shaded right seam.
-    pygame.draw.line(s, _lerp(HI, CORE, 0.2),
-                     (cx, body_top + 4), (cx - 4, body_bot - 3), 2)
-    pygame.draw.line(s, _lerp(OUTLINE, GLASS, 0.55),
-                     (cx, body_top + 4), (cx + 6, body_bot - 5), 1)
-    # A short upper facet line catching the shoulder.
-    pygame.draw.line(s, _lerp(HI, CORE, 0.35),
-                     (cx - 4, body_top + 6), (cx, body_top + 4), 1)
+    # ---- ONE tight angular GLINT — a sharp icy wedge on the upper-left facet,
+    # the wet-cut-gem tell. A short bright triangle, not a soft blob.
+    glint = [
+        (cx - 5, shoulder_y + 3),
+        (cx - 1, shoulder_y + 4),
+        (cx - 4, waist_y - 4),
+        (cx - 7, waist_y - 6),
+    ]
+    pygame.draw.polygon(s, GLINT, glint)
+    pygame.draw.line(s, (255, 255, 255), (cx - 5, shoulder_y + 3),
+                     (cx - 6, waist_y - 7), 1)
 
-    # ---- Bright specular glint high on the left facet — the wet-glass cue.
-    pygame.draw.line(s, (0xFF, 0xFF, 0xFF, 220),
-                     (cx - 6, body_top + 7), (cx - 7, body_bot - 12), 2)
-    pygame.draw.circle(s, (255, 255, 255, 230), (cx - 6, body_top + 8), 2)
+    # ---- Chiselled POINT facets in the LOWER-visible half. A central spine +
+    # two angular seams split the point into bright-left / dark-right chevron
+    # planes so the base reads as a faceted cut, not a smooth taper. This lives
+    # below the band where the carry crop keeps it.
+    pygame.draw.line(s, _lerp(OUTLINE, GLASS, 0.45),
+                     (cx, waist_y + 3), (cx, pt_y - 2), 1)
+    pygame.draw.line(s, GLASS_HI,
+                     (cx - waist_hw + 4, waist_y + 3), (cx, pt_y - 2), 1)
+    pygame.draw.line(s, GLASS_SH,
+                     (cx + waist_hw - 4, waist_y + 3), (cx, pt_y - 2), 1)
 
-    # ---- GOLD COLLAR — a flat band capping the shoulder, the warm break
-    # against Pip's red. Drawn as a rounded bar with a lit top edge.
-    col_w, col_h = 11, 5
-    collar = pygame.Rect(cx - col_w // 2, collar_y - col_h + 1, col_w, col_h)
-    pygame.draw.rect(s, OUTLINE, collar.inflate(2, 2), border_radius=2)
-    for i in range(col_h):
-        t = i / max(1, col_h - 1)
-        c = _lerp(COLLAR_HI, COLLAR_SH, t)
-        pygame.draw.line(s, c, (collar.x, collar.y + i),
-                         (collar.right - 1, collar.y + i))
-    pygame.draw.line(s, COLLAR_HI, (collar.x + 1, collar.y),
-                     (collar.right - 2, collar.y), 1)
+    # ---- BOLD GOLD COLLAR — a wide horizontal band across the lower-visible
+    # half, ringed on BOTH edges with the dark keyline so it separates from
+    # Pip's red body AND his gold goggles in the carry crop.
+    band_h = 6
+    band_top = waist_y - band_h // 2
+    bx_l = cx - waist_hw - 1
+    bx_r = cx + waist_hw + 1
+    # Dark keyline above + below the band (the both-edge ring).
+    band_bg = pygame.Rect(bx_l - 1, band_top - 2, (bx_r - bx_l) + 2, band_h + 4)
+    pygame.draw.rect(s, OUTLINE, band_bg, border_radius=2)
+    # Gold band proper, lit top → shaded bottom for a metal sheen.
+    for i in range(band_h):
+        t = i / max(1, band_h - 1)
+        c = _lerp(COLLAR_HI, COLLAR_SH, t) if t < 0.6 else _lerp(COLLAR, COLLAR_SH, t)
+        pygame.draw.line(s, c, (bx_l, band_top + i), (bx_r, band_top + i))
+    # Bright top sheen line + a couple of stud highlights so it reads as metal.
+    pygame.draw.line(s, COLLAR_HI, (bx_l + 1, band_top),
+                     (bx_r - 1, band_top), 1)
+    for sx in (cx - 6, cx, cx + 6):
+        pygame.draw.circle(s, COLLAR_HI, (sx, band_top + 1), 1)
 
-    # ---- Domed STOPPER — a round gold gem perched on the collar, the
-    # gem-on-a-stem crown. Short neck links it to the collar.
+    # ---- Short NECK + domed STOPPER crowning the top (mostly under Pip, but it
+    # crowns the gem on the hero/tilt rows). Kept compact and high.
     pygame.draw.rect(s, OUTLINE,
-                     pygame.Rect(cx - 2, stop_cy + 4, 4, collar_y - stop_cy - 5))
+                     pygame.Rect(cx - 3, stop_cy + 3, 6, crown_y - stop_cy - 2),
+                     border_radius=1)
     pygame.draw.rect(s, COLLAR,
-                     pygame.Rect(cx - 1, stop_cy + 4, 2, collar_y - stop_cy - 5))
-    stop_r = 5
+                     pygame.Rect(cx - 2, stop_cy + 3, 4, crown_y - stop_cy - 2))
+    stop_r = 4
     pygame.draw.circle(s, OUTLINE, (cx, stop_cy), stop_r + 1)
     pygame.draw.circle(s, COLLAR, (cx, stop_cy), stop_r)
     pygame.draw.circle(s, COLLAR_SH, (cx, stop_cy), stop_r, 1)
-    pygame.draw.circle(s, COLLAR_HI, (cx - 2, stop_cy - 2), 2)
+    pygame.draw.circle(s, COLLAR_HI, (cx - 1, stop_cy - 1), 1)
 
-    # ---- Faint inner GLOW — a soft sapphire bloom low in the body so the
-    # glass still reads as lit on the dark NIGHT sky.
+    # ---- Faint inner GLOW low in the gem so it still reads as lit on the dark
+    # NIGHT sky — masked to the silhouette so it never blooms past the cut edge.
     glow = pygame.Surface((SS, SS), pygame.SRCALPHA)
-    pygame.draw.circle(glow, GLOW + (70,), (cx, body_bot - 9), 7)
-    pygame.draw.circle(glow, GLOW + (40,), (cx, body_bot - 9), 11)
+    pygame.draw.circle(glow, GLOW + (70,), (cx, pt_y - 8), 6)
+    pygame.draw.circle(glow, GLOW + (38,), (cx, pt_y - 8), 10)
     g_mask = pygame.Surface((SS, SS), pygame.SRCALPHA)
     pygame.draw.polygon(g_mask, (255, 255, 255, 255), body_poly)
     glow.blit(g_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
