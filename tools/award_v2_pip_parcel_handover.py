@@ -31,8 +31,8 @@ from game.entities import CelebrationFireworkBurst, PoofGrain
 
 # Diagonal axis anchors — the spine the whole composition reads along.
 BOX_C   = (130, 454)          # opened-parcel mouth (foot of the diagonal)
-BADGE_C = (252, 232)          # hero medallion (payoff, upper-right)
-R       = 56                  # medallion radius -> ~112px badge
+BADGE_C = (250, 228)          # hero medallion (payoff, upper-right)
+R       = 64                  # medallion radius -> ~128px badge
 
 
 def _starfield(surf, rng, n=46):
@@ -290,23 +290,24 @@ def build():
 
     # ── 7. The firework starburst out of the box mouth, BEHIND the badge ──
     bursts = [
-        CelebrationFireworkBurst(BADGE_C[0], BADGE_C[1], 0.0, (255, 220, 110), 1.15),
+        CelebrationFireworkBurst(BADGE_C[0], BADGE_C[1], 0.0, (255, 220, 110), 0.95),
         CelebrationFireworkBurst(BADGE_C[0] - 18, BADGE_C[1] + 14, 0.12,
-                                 (255, 150, 70), 0.78),
+                                 (255, 150, 70), 0.64),
         CelebrationFireworkBurst(BADGE_C[0] + 20, BADGE_C[1] - 10, 0.18,
-                                 (252, 244, 218), 0.70),
+                                 (252, 244, 218), 0.58),
     ]
     _step_fx(bursts, 1 / 60, 22)               # ~0.37s in: rays at full flare
     for b in bursts:
         b.draw(surf)
 
     # ── 8. The HERO medallion — the single brightest object, the payoff ──
-    # warm radiance hugging the medal so it owns the brightest value on screen —
-    # tight inner core + a soft wide falloff so it reads as a light SOURCE, not a
-    # flat orange disc pasted behind the coin.
-    blit_glow(surf, *BADGE_C, int(R * 1.85), (255, 178, 84), 42)
-    blit_glow(surf, *BADGE_C, int(R * 1.18), (255, 214, 130), 80)
-    blit_glow(surf, *BADGE_C, int(R * 0.78), (255, 240, 188), 90)
+    # warm radiance hugging the medal. The outer peach halo is dimmed +
+    # desaturated and pulled tighter so it FRAMES the medal rather than
+    # outshining it; the inner core is pushed bright so the gold medallion
+    # itself is the single brightest, highest-contrast value on screen.
+    blit_glow(surf, *BADGE_C, int(R * 1.55), (176, 120, 70), 26)
+    blit_glow(surf, *BADGE_C, int(R * 1.05), (236, 184, 112), 52)
+    blit_glow(surf, *BADGE_C, int(R * 0.74), (255, 244, 196), 130)
     badge_rect = pygame.Rect(BADGE_C[0] - R, BADGE_C[1] - R, R * 2, R * 2)
     draw_badge(surf, a0.icon_key, badge_rect, True, False)
     _crest_glint(surf, *BADGE_C, R)
@@ -355,7 +356,7 @@ def main():
                        "docs", "achievements", "unlock_notice",
                        "award_interstitial_v2", "pip-parcel-handover")
     os.makedirs(out, exist_ok=True)
-    path = os.path.join(out, "round_1.png")
+    path = os.path.join(out, "round_2.png")
     pygame.image.save(surf, path)
     print(path)
 
