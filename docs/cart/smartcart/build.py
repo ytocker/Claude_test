@@ -1,13 +1,15 @@
 """SMART CART — secret legendary-tier flyer skin concept.
 
 The AI self-checkout cart (Caper / Amazon Dash idiom) replaces Pip: a sleek
-SQUARED basket on two bold dark wheels, topped by a slim POST that cantilevers
-a flat rectangular SCREEN forward over the front of the basket — a self-checkout
-TERMINAL, a "tablet on a stick", not a robot head. The screen sits lifted off
-the body with a sliver of post showing beneath it, so the eye reads terminal,
-never helmet. No other cart concept pairs a squared (non-flared) basket with a
-cantilevered emissive terminal screen, so that silhouette reads INSTANTLY as a
-high-tech cart at 40px.
+SQUARED basket on two bold dark wheels, topped by a thin POST that holds a
+COMPACT flat SCREEN clear of the basket — a self-checkout TERMINAL, a "tablet on
+a stick", not a robot head. A REAL air gap shows daylight beneath the screen and
+a thin two-tone post column bridges it, while the screen cantilevers forward so
+its leading edge overhangs the basket front. The bezel stays a thin even border
+(a screen, never a hood / cowl) so the eye reads terminal, never helmet. No
+other cart concept pairs a squared (non-flared) basket with a small cantilevered
+emissive terminal screen, so that silhouette reads INSTANTLY as a high-tech cart
+at 40px.
 
 There are NO wings and NO live particles. The signature 4-frame tell is a
 whole-screen VALUE PULSE: the glass luminosity steps hot → dim → hot → dark
@@ -196,49 +198,48 @@ def build(wing_angle_deg):
     pygame.draw.line(surf, BODY_HI, (basket.x + 2, BCY + 2),
                      (basket.right - 3, BCY + 2), 1)
 
-    # ── POST: a slim mast rising from the back, cantilevering the screen ──────
-    # The post is the thing that makes this a TERMINAL, not a helmet: the screen
-    # is lifted clear of the body on it and tilts FORWARD over the front of the
-    # basket. A sliver of post stays visible beneath the screen so the eye reads
-    # "tablet on a stick". Two-tone so it doesn't read as a flat stick.
-    post_x = basket.right - 9
-    post_top = basket.top - 14          # screen rides ABOVE the basket top
-    pygame.draw.line(surf, POST_LO, (post_x, basket.top - 1), (post_x, post_top + 4), 4)
-    pygame.draw.line(surf, POST_HI, (post_x - 1, basket.top - 1), (post_x - 1, post_top + 4), 2)
+    # ── POST: a thin two-tone mast holding the screen clear of the basket ─────
+    # The post is the thing that makes this a TERMINAL, not a helmet: it lifts
+    # the screen clear of the body on a slim column, leaving a REAL air gap so
+    # daylight shows UNDER the screen at 40px. It is a tight 3px-wide vertical
+    # stick (NO diagonal arm, NO wrap behind the basket) — the moment any mass
+    # arcs up-and-over the basket the silhouette reads as a hood, so the mount
+    # stays a pure stick. Two-tone (lit front edge / shadow back) so it doesn't
+    # flatten. The gap between basket.top and the screen bottom is the tell.
+    post_x = basket.right - 8
+    gap_top = basket.top - 5            # bottom of the screen rides 5px clear
+    pygame.draw.line(surf, POST_LO, (post_x, basket.top - 1), (post_x, gap_top), 3)
+    pygame.draw.line(surf, POST_HI, (post_x - 1, basket.top - 1), (post_x - 1, gap_top), 1)
 
     # ── the SCREEN: a flat teal terminal cantilevered FORWARD off the post ────
-    # This is the tell. It sits ABOVE centre, lifted off the body and pushed
-    # toward the flight direction (left) so it overhangs the front of the
-    # basket. The additive bloom blooms at night; the whole glass luminosity
-    # pulses across the 4 frames. A small mounting neck links post→screen so the
-    # cantilever reads, and the gap beneath the screen shows a sliver of post.
-    sw, sh = 23, 14
+    # This is the tell. It is a COMPACT flat panel lifted clear of the body with
+    # an unmistakable air gap beneath it, and pushed toward the flight direction
+    # (left) so its leading edge overhangs the basket front. The overhang + the
+    # gap underneath together sell "terminal on a stick"; the bezel stays a thin
+    # even border (a screen, never a hood). The additive bloom blooms at night;
+    # the whole glass luminosity pulses across the 4 frames.
+    sw, sh = 22, 13
     screen = pygame.Rect(0, 0, sw, sh)
-    # forward (leftward) cantilever: screen centre sits left of the post, and
-    # ABOVE the basket top with a clear air gap (the lift off the body).
-    screen.center = (BCX - 3, post_top - 1)
-
-    # mounting neck: a stubby diagonal arm from the post up to the screen's back
-    # corner, so the screen visibly hangs off the mast rather than floating.
-    neck_top = (screen.right - 3, screen.bottom - 2)
-    pygame.draw.line(surf, POST_LO, (post_x, post_top + 3), neck_top, 4)
-    pygame.draw.line(surf, POST_HI, (post_x - 1, post_top + 3), (neck_top[0] - 1, neck_top[1]), 2)
+    # forward (leftward) cantilever: screen centre sits left of the post so its
+    # leading edge overhangs the basket front, and its bottom clears the gap.
+    screen.midbottom = (BCX - 3, gap_top - 1)
 
     # ── night bloom (additive) ── stamped BEFORE the bezel so the steel body
     # and the dusk receive the spill. Pulses with the glass level; on day the
     # pale sky swallows it (restrained), on night it lights up the upper steel.
     _glow_bloom(surf, screen, SCREEN_CORE, 0.30 + 0.70 * level)
 
-    # teal bezel + deep glass base — the bezel carries the DAY silhouette so the
-    # screen never goes flat / flashlight-glitchy when the bloom is dialled down.
-    pygame.draw.rect(surf, SCREEN_FRAME, screen.inflate(3, 3), border_radius=4)
-    pygame.draw.rect(surf, SCREEN_DARK, screen, border_radius=3)
+    # teal bezel + deep glass base — a THIN even border (inflate 2, not a hood):
+    # the bezel carries the DAY silhouette as a tidy screen, so it never balloons
+    # into a cowl and the screen never goes flat when the bloom is dialled down.
+    pygame.draw.rect(surf, SCREEN_FRAME, screen.inflate(2, 2), border_radius=3)
+    pygame.draw.rect(surf, SCREEN_DARK, screen, border_radius=2)
 
     # the lit glass — WHOLE-PANEL luminosity is the pulse. Hot poses go toward
     # near-white; the dim pose is mid teal; the dark floor (f3) is a dim teal
     # that never goes black, so the screen stays in the silhouette and gains NO
     # new internal shapes (pure dimming).
-    glass = screen.inflate(-4, -4)
+    glass = screen.inflate(-3, -3)
     if level >= 0.99:
         glass_col = SCREEN_HOT
     elif level <= 0.01:

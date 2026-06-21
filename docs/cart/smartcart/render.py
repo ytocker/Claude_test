@@ -5,4 +5,4 @@ sys.path.insert(0, str(ROOT / "docs" / "animals" / "ufo_redesign"))
 sys.path.insert(0, str(HERE))
 import _gameplay_lib as L
 from build import build
-L.render_concept_sheet(build, "SMART CART", str(HERE / "round_2.png"))
+L.render_concept_sheet(build, "SMART CART", str(HERE / "round_3.png"))
