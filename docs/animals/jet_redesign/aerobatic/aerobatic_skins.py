@@ -1,38 +1,35 @@
-"""Candidate JET FIGHTER redesign — AEROBATIC TEAM JET, round-1 exploration.
+"""Production JET redesign — AEROBATIC TEAM JET · BLUE ANGEL, round-2 converged.
 
-The priciest secret skin, re-imagined as an AIR-SHOW DISPLAY jet (Blue
-Angels / Thunderbirds / Red Arrows energy): high-gloss, brightly liveried,
-the flashiest skin in the store. There is no flapping — the 4 base wing
-poses (`parrot._WING_ANGLES`) are an AFTERBURNER PULSE: the baked exhaust
-glow flares and shrinks and the nose pitches a touch. No live particles;
-the spectacle is baked per frame. Some variants bake a tiny display
-SMOKE-TRAIL puff (the show-jet tell) so long as it reads clean.
+The priciest secret skin re-imagined as an AIR-SHOW DISPLAY jet (Blue Angels
+energy): a near-black NAVY gloss body wearing ONE bold GOLD spear nose-to-tail.
+There is no flapping — the 4 base wing poses (`parrot._WING_ANGLES`) are an
+AFTERBURNER PULSE: a baked cool exhaust glow flares and shrinks across the 4
+frames and the nose pitches a touch. No live particles; the spectacle is baked.
 
-These are 5 genuinely different takes on ONE concept — they differ by
-LIVERY (the bold structural colour shape that is the tell at 40px) and by
-planform (sharp delta vs swept wing):
+Round-2 direction (art-director, SHIP v1 BLUE ANGEL):
 
-  v1 BLUE ANGEL   — deep navy gloss, GOLD nose + gold spear down the spine.
-  v2 THUNDERBIRD  — white body, a red→blue ARROW sweeping down the fuselage.
-  v3 RED ARROW    — all-red, white belly diamond + a white smoke-trail puff.
-  v4 SUNBURST     — diagonal hard two-tone split (white / hot magenta-orange)
-                    with a lightning bolt down the wing: a racing scheme.
-  v5 GOLD JACKET  — black gloss with a gold chevron wrap + gold leading edges.
+  * The GOLD spear is the SINGLE dominant graphic — one uninterrupted stroke
+    nose-cap → spine → tail, widened so it reads as ONE diagonal at 40px, not a
+    thin line plus bits. It is the only livery tell.
+  * Body stays almost pure NAVY: the gold wing leading-edges are gone, so the
+    spear is the only gold mass and owns the focal hierarchy.
+  * A subtle COOL self-rim is baked onto the navy body (top-right per the skin
+    light direction) so the silhouette holds on night sky without the gold.
+  * Burner is COOL and SMALL — pulled down ~20% so gold owns the read.
+  * The 40px NEAREST read resolves to exactly TWO values + ONE accent: dark
+    navy body, light rim, gold spear.
 
-The livery is STRUCTURE — one bold high-contrast shape (a spear, an arrow,
-a hard split, a chevron) — never fussy detail, so it survives the downscale
-as a clean graphic.
+Contract (mirrors game/animal_jet_fighter.py so this lifts straight into a
+production game/animal_jet_fighter.py later):
 
-Contract (mirrors game/animal_jet_fighter.py so the winner lifts straight
-into production):
-
-  * `build_aerobatic_vN(wing_angle_deg) -> pygame.Surface`  draws ONE flat
-    frame on a 64×84 SRCALPHA canvas, fuselage mass centred at (32,44),
-    NOSE-RIGHT / UPRIGHT / LEVEL (clean planform). Rotation/flip is applied
-    by the game later — we do NOT bake it here.
-  * a cached `(frame_idx, tilt_deg) -> Surface` getter from the local
-    `_make_prebuilt_skin(build_fn)`.
-  * `BUILDERS = {"skin_aerobatic": get_aerobatic, ...}` registry at the end.
+  * `build_aerobatic(wing_angle_deg) -> pygame.Surface`  draws ONE flat frame
+    on a 64×84 SRCALPHA canvas, fuselage mass centred at (32,44), NOSE-RIGHT /
+    UPRIGHT / LEVEL (clean planform). Rotation/flip is applied by the game
+    later — we do NOT bake it here.
+  * `get_aerobatic`: a cached `(frame_idx, tilt_deg) -> Surface` getter from the
+    local `_make_prebuilt_skin(build_aerobatic)`.
+  * `BUILDERS = {"skin_aerobatic": get_aerobatic}` for the review sheet and the
+    production registry.
 
 Why the geometry sits where it does: collision is a fixed 14px circle at the
 BODY centre, so the fuselage mass stays near (32,44) for fairness — wings may
@@ -136,8 +133,9 @@ def _baked_flame(length, width, core, mid, outer):
 
 
 def _glow(radius, color, alpha=120):
-    """Soft radial halo baked once — the warm aura behind the burner. Held
-    small (rear-third) so it supports the silhouette without swallowing it."""
+    """Soft radial halo baked once — the cool aura behind the burner. Held
+    small (rear-third) so it supports the silhouette without swallowing it,
+    and so the gold spear stays the focal point, not the flame."""
     d = radius * 2
     s = pygame.Surface((d, d), pygame.SRCALPHA)
     steps = 8
@@ -157,13 +155,14 @@ _NOZ_DY = 8
 
 
 def _burner(surf, tail_x, p, *, core, mid, outer, glow_col):
-    """Shared twin-afterburner: each nozzle gets its own tight halo + plume,
-    capped to the rear so the liveried nose stays the dominant read. Drawn
-    NOSE-RIGHT, so plumes stream LEFT of the tail."""
-    flame_len = int(13 + p * 11)
-    halo_r = int((10 + p * 5) * 0.84)
-    glow = _glow(halo_r, glow_col, alpha=int(60 + p * 60))
-    flame = _baked_flame(flame_len, 8, core, mid, outer)
+    """Twin cool afterburner: each nozzle gets its own tight halo + plume,
+    capped to the rear AND pulled ~20% smaller/dimmer than the fighter burner
+    so the GOLD spear owns the focal hierarchy, not the flame. Drawn NOSE-RIGHT,
+    so plumes stream LEFT of the tail."""
+    flame_len = int((13 + p * 11) * 0.80)
+    halo_r = int((10 + p * 5) * 0.84 * 0.80)
+    glow = _glow(halo_r, glow_col, alpha=int((60 + p * 60) * 0.80))
+    flame = _baked_flame(flame_len, 7, core, mid, outer)
     for ny in (BCY - _NOZ_DY, BCY + _NOZ_DY):
         _blit_c(surf, glow, (tail_x - flame_len // 2 + 2, ny))
         surf.blit(flame, (tail_x + 2 - flame.get_width(), ny - flame.get_height() // 2))
@@ -171,24 +170,14 @@ def _burner(surf, tail_x, p, *, core, mid, outer, glow_col):
 
 def _nozzle_mouths(surf, tail_x):
     for ny in (BCY - _NOZ_DY, BCY + _NOZ_DY):
-        pygame.draw.circle(surf, (255, 206, 130), (tail_x, ny), 2)
-        pygame.draw.circle(surf, (255, 255, 245), (tail_x + 1, ny), 1)
-
-
-def _smoke_puff(surf, tail_x, color):
-    """Tiny baked display-smoke puff trailing the tail — the air-show tell.
-    Kept low-alpha + soft so it reads as a coloured contrail, not a blob, and
-    never fights the burner. Drawn NOSE-RIGHT → trails LEFT (aft) of the tail."""
-    puff = pygame.Surface((26, 16), pygame.SRCALPHA)
-    for i, (dx, r, a) in enumerate(((20, 5, 150), (14, 6, 110), (7, 7, 70), (1, 7, 36))):
-        pygame.draw.circle(puff, (*color, a), (dx, 8), r)
-    surf.blit(puff, (tail_x - 26, BCY - 8))
+        pygame.draw.circle(surf, (210, 226, 255), (tail_x, ny), 2)
+        pygame.draw.circle(surf, (245, 250, 255), (tail_x + 1, ny), 1)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# Shared planform builders (NOSE-RIGHT, UPRIGHT, LEVEL). Each livery variant
-# composes: tail fins → wings → fuselage → livery shape → canopy → burner.
-# `delta=True` draws a sharp single delta; otherwise a swept trapezoid wing.
+# Planform builders (NOSE-RIGHT, UPRIGHT, LEVEL). SHARP DELTA — the team-jet
+# read. Wings are kept almost pure NAVY (a darker value edge only) so they add
+# no competing gold mass; the gold lives ONLY in the spine spear.
 # ═════════════════════════════════════════════════════════════════════════════
 def _tail_fins(surf, tail_x, body_d):
     for sgn in (-1, 1):
@@ -198,7 +187,9 @@ def _tail_fins(surf, tail_x, body_d):
 
 
 def _delta_wings(surf, nose_x, tail_x, body, body_d, body_h, edge):
-    """Sharp delta swept hard back from mid-fuselage (NOSE-RIGHT)."""
+    """Sharp delta swept hard back from mid-fuselage (NOSE-RIGHT). Value-only
+    shading — dark underside, lit top facet, dark leading-edge line — so the
+    wing reads by LUMINANCE on day AND night with no gold accent."""
     for sgn in (-1, 1):
         pygame.draw.polygon(surf, body_d, [
             (nose_x - 18, BCY + sgn * 2), (tail_x + 2, BCY + sgn * 20),
@@ -213,26 +204,9 @@ def _delta_wings(surf, nose_x, tail_x, body, body_d, body_h, edge):
                          (tail_x + 4, BCY + sgn * 18), 1)
 
 
-def _swept_wings(surf, nose_x, tail_x, body, body_d, body_h, edge):
-    """Trapezoidal swept wing with a squared tip — a different planform read
-    from the pure delta (chunkier shoulder, straight trailing edge)."""
-    for sgn in (-1, 1):
-        root_x = nose_x - 14
-        pygame.draw.polygon(surf, body_d, [
-            (root_x, BCY + sgn * 3), (root_x - 16, BCY + sgn * 17),
-            (root_x - 24, BCY + sgn * 17), (root_x - 14, BCY + sgn * 6)])
-        pygame.draw.polygon(surf, body, [
-            (root_x - 1, BCY + sgn * 3), (root_x - 15, BCY + sgn * 15),
-            (root_x - 22, BCY + sgn * 15), (root_x - 14, BCY + sgn * 6)])
-        pygame.draw.line(surf, body_h, (root_x - 1, BCY + sgn * 4),
-                         (root_x - 16, BCY + sgn * 15), 1)
-        pygame.draw.line(surf, edge, (root_x, BCY + sgn * 3),
-                         (root_x - 16, BCY + sgn * 17), 1)
-
-
 def _fuselage(surf, nose_x, tail_x, body, body_h, edge):
     """Long dart arrowhead fuselage (NOSE-RIGHT). Returns the body polygon so
-    livery shapes can be clipped to it via a mask blit."""
+    the spear livery can be clipped to it via a mask blit."""
     body_poly = [(nose_x, BCY), (nose_x - 16, BCY - 6), (tail_x - 4, BCY - 5),
                  (tail_x - 6, BCY), (tail_x - 4, BCY + 5), (nose_x - 16, BCY + 6)]
     pygame.draw.polygon(surf, body, body_poly)
@@ -245,8 +219,8 @@ def _fuselage(surf, nose_x, tail_x, body, body_h, edge):
 
 def _clip_to_body(surf, shape_surf, body_poly):
     """Blit a livery overlay but keep only the part that lands on the fuselage,
-    so a bold colour shape can be drawn freely then trimmed to the body
-    silhouette (the livery reads as paint ON the jet, not floating)."""
+    so the gold spear can be drawn freely then trimmed to the body silhouette
+    (the spear reads as paint ON the jet, not floating)."""
     mask = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
     pygame.draw.polygon(mask, (255, 255, 255, 255), body_poly)
     shape_surf.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
@@ -259,286 +233,80 @@ def _canopy(surf, nose_x, canopy, canopy_h):
     pygame.draw.circle(surf, canopy_h, (nose_x - 12, BCY - 1), 1)
 
 
-_CANOPY  = (60, 150, 205)
-_CANOPY_H = (180, 230, 250)
-
-
 # ═════════════════════════════════════════════════════════════════════════════
-# v1 · BLUE ANGEL — deep navy gloss, sharp delta. LIVERY = a bold GOLD nose +
-#     a gold SPEAR running the spine to the tail. Premium navy/gold.
+# BLUE ANGEL — deep near-black NAVY gloss, sharp delta. The livery is ONE bold
+# GOLD spear running nose-cap → spine → tail. Navy/gold is the premium read AND
+# colourblind-safe on value alone (no red/blue distinction relied on).
 # ═════════════════════════════════════════════════════════════════════════════
-_BA_BODY  = (28, 52, 138)
-_BA_BODY_D = (16, 32, 96)
-_BA_BODY_H = (70, 104, 200)
-_BA_EDGE  = (10, 20, 64)
-_BA_GOLD  = (255, 204, 60)
-_BA_GOLD_D = (212, 158, 24)
-_BA_GOLD_H = (255, 234, 150)
+_BA_BODY   = (24, 42, 110)        # deep navy, near-black so gold pops
+_BA_BODY_D = (12, 24, 72)
+_BA_BODY_H = (58, 88, 178)
+_BA_EDGE   = (8, 16, 52)
+_BA_RIM    = (150, 186, 255)      # cool self-rim — holds the night silhouette
+_BA_GOLD   = (255, 200, 52)
+_BA_GOLD_D = (206, 150, 20)
+_BA_GOLD_H = (255, 236, 158)
 
 
-def build_aerobatic_v1(wing_angle_deg):
+def build_aerobatic(wing_angle_deg):
     surf = _new()
     p = _pulse(wing_angle_deg)
     pit = _pitch(wing_angle_deg)
     nose_x = 52 - pit
     tail_x = 14
 
-    _burner(surf, tail_x, p, core=(255, 255, 244), mid=(150, 190, 255),
-            outer=(60, 110, 230), glow_col=(90, 140, 255))
+    # Cool, small burner first so it sits behind the body and reads quiet.
+    _burner(surf, tail_x, p, core=(244, 250, 255), mid=(150, 190, 255),
+            outer=(56, 104, 224), glow_col=(96, 150, 255))
     _tail_fins(surf, tail_x, _BA_BODY_D)
     _delta_wings(surf, nose_x, tail_x, _BA_BODY, _BA_BODY_D, _BA_BODY_H, _BA_EDGE)
     body_poly = _fuselage(surf, nose_x, tail_x, _BA_BODY, _BA_BODY_H, _BA_EDGE)
 
-    # LIVERY: gold nose cap + a tapering gold spear down the spine to the tail.
-    livery = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    pygame.draw.polygon(livery, _BA_GOLD, [
-        (nose_x, BCY), (nose_x - 12, BCY - 5), (nose_x - 12, BCY + 5)])
-    pygame.draw.polygon(livery, _BA_GOLD, [
-        (nose_x - 10, BCY - 3), (tail_x + 2, BCY - 1),
-        (tail_x + 2, BCY + 1), (nose_x - 10, BCY + 3)])
-    _clip_to_body(surf, livery, body_poly)
-    pygame.draw.polygon(surf, _BA_GOLD_H, [
-        (nose_x - 2, BCY - 1), (nose_x - 10, BCY - 2), (nose_x - 10, BCY)])
-    # Gold leading-edge accent on the delta — ties the wing into the livery.
-    for sgn in (-1, 1):
-        pygame.draw.line(surf, _BA_GOLD, (nose_x - 19, BCY + sgn * 2),
-                         (tail_x + 6, BCY + sgn * 15), 1)
+    # ── LIVERY: ONE uninterrupted GOLD spear, nose-cap → spine → tail ────────
+    # Drawn as a single tapering wedge polygon (no separate spine line), wide at
+    # the nose and tapering to the tail, so it reads as ONE bold diagonal at
+    # 40px — the only gold mass on the jet.
+    spear = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+    pygame.draw.polygon(spear, _BA_GOLD, [
+        (nose_x, BCY),                       # sharp nose tip
+        (nose_x - 13, BCY - 5),              # nose-cap shoulder (top)
+        (tail_x + 3, BCY - 2),               # spine taper to tail (top)
+        (tail_x + 1, BCY),                   # tail point
+        (tail_x + 3, BCY + 2),               # spine taper to tail (bottom)
+        (nose_x - 13, BCY + 5)])             # nose-cap shoulder (bottom)
+    # Warm top-facet highlight along the spear's upper edge (light top-right):
+    # one stroke, so the spear catches a gloss without breaking into bits.
+    pygame.draw.polygon(spear, _BA_GOLD_H, [
+        (nose_x - 2, BCY - 1), (nose_x - 12, BCY - 4),
+        (tail_x + 3, BCY - 1)])
+    # Thin darker keel under the spear's lower edge so it reads dimensional.
+    pygame.draw.line(spear, _BA_GOLD_D, (nose_x - 12, BCY + 4),
+                     (tail_x + 3, BCY + 1), 1)
+    _clip_to_body(surf, spear, body_poly)
 
-    _canopy(surf, nose_x, (40, 70, 150), (160, 200, 255))
+    # ── Baked COOL self-rim on the navy body (top-right per skin light dir) ──
+    # A thin light edge tracing the upper fuselage chine + the upper wing
+    # leading edges, so the navy silhouette holds on a dark night sky WITHOUT
+    # leaning on the gold. Value-based, colourblind-safe.
+    pygame.draw.line(surf, _BA_RIM, (nose_x - 4, BCY - 5),
+                     (tail_x - 1, BCY - 4), 1)
+    for sgn in (-1, 1):
+        # Only the TOP wing's leading edge gets the bright rim; the bottom gets
+        # a fainter hint so the light stays directional, not a full outline.
+        rim_col = _BA_RIM if sgn == -1 else (96, 124, 196)
+        pygame.draw.line(surf, rim_col, (nose_x - 20, BCY + sgn * 2),
+                         (tail_x + 6, BCY + sgn * 17), 1)
+
+    _canopy(surf, nose_x, (40, 70, 150), (170, 206, 255))
     _nozzle_mouths(surf, tail_x)
     return surf
 
 
-get_aerobatic_v1 = _make_prebuilt_skin(build_aerobatic_v1)
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# v2 · THUNDERBIRD — white gloss body, sharp delta. LIVERY = a bold RED→BLUE
-#     ARROW sweeping down the fuselage (the air-show classic). The arrow IS
-#     the silhouette tell. White reads brilliant on day AND night.
-# ═════════════════════════════════════════════════════════════════════════════
-_TB_BODY  = (244, 246, 250)
-_TB_BODY_D = (196, 202, 216)
-_TB_BODY_H = (255, 255, 255)
-_TB_EDGE  = (120, 128, 150)
-_TB_RED   = (224, 48, 52)
-_TB_BLUE  = (32, 72, 190)
-_TB_BLUE_H = (90, 130, 240)
-
-
-def build_aerobatic_v2(wing_angle_deg):
-    surf = _new()
-    p = _pulse(wing_angle_deg)
-    pit = _pitch(wing_angle_deg)
-    nose_x = 52 - pit
-    tail_x = 14
-
-    _burner(surf, tail_x, p, core=(255, 255, 244), mid=(255, 170, 70),
-            outer=(236, 80, 44), glow_col=(255, 150, 64))
-    _tail_fins(surf, tail_x, (60, 90, 200))
-    _delta_wings(surf, nose_x, tail_x, _TB_BODY, _TB_BODY_D, _TB_BODY_H, _TB_EDGE)
-    body_poly = _fuselage(surf, nose_x, tail_x, _TB_BODY, _TB_BODY_H, _TB_EDGE)
-
-    # LIVERY: a swept ARROW down the body — red leading wedge, blue trailing
-    # tail-band, both clipped to the fuselage. A single high-contrast graphic.
-    livery = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    pygame.draw.polygon(livery, _TB_RED, [
-        (nose_x, BCY), (nose_x - 8, BCY - 5), (nose_x - 22, BCY - 3),
-        (nose_x - 14, BCY), (nose_x - 22, BCY + 3), (nose_x - 8, BCY + 5)])
-    pygame.draw.polygon(livery, _TB_BLUE, [
-        (nose_x - 22, BCY - 3), (nose_x - 34, BCY - 2),
-        (nose_x - 34, BCY + 2), (nose_x - 22, BCY + 3), (nose_x - 14, BCY)])
-    pygame.draw.polygon(livery, _TB_BLUE, [
-        (tail_x + 10, BCY - 4), (tail_x + 2, BCY - 4),
-        (tail_x + 2, BCY + 4), (tail_x + 10, BCY + 4)])
-    _clip_to_body(surf, livery, body_poly)
-    # Red wingtip flashes + blue inboard band so the arrow reads onto the wing.
-    for sgn in (-1, 1):
-        pygame.draw.line(surf, _TB_RED, (nose_x - 19, BCY + sgn * 2),
-                         (tail_x + 7, BCY + sgn * 14), 2)
-        pygame.draw.circle(surf, _TB_BLUE, (tail_x + 5, BCY + sgn * 16), 2)
-
-    _canopy(surf, nose_x, (40, 60, 150), (170, 200, 255))
-    _nozzle_mouths(surf, tail_x)
-    return surf
-
-
-get_aerobatic_v2 = _make_prebuilt_skin(build_aerobatic_v2)
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# v3 · RED ARROW — all-red gloss, sharp delta. LIVERY = a bold WHITE belly
-#     diamond + white leading edges, and a baked WHITE smoke-trail puff (the
-#     Red Arrows tell). Pure, iconic, the most "display team" of the five.
-# ═════════════════════════════════════════════════════════════════════════════
-_RA_BODY  = (214, 38, 44)
-_RA_BODY_D = (158, 22, 30)
-_RA_BODY_H = (255, 96, 88)
-_RA_EDGE  = (110, 14, 22)
-_RA_WHITE = (250, 250, 248)
-_RA_WHITE_D = (210, 212, 218)
-
-
-def build_aerobatic_v3(wing_angle_deg):
-    surf = _new()
-    p = _pulse(wing_angle_deg)
-    pit = _pitch(wing_angle_deg)
-    nose_x = 52 - pit
-    tail_x = 14
-
-    # White display smoke first (furthest aft), then the burner over it.
-    _smoke_puff(surf, tail_x, (236, 240, 246))
-    _burner(surf, tail_x, p, core=(255, 255, 244), mid=(255, 180, 80),
-            outer=(236, 80, 44), glow_col=(255, 150, 64))
-    _tail_fins(surf, tail_x, _RA_BODY_D)
-    _delta_wings(surf, nose_x, tail_x, _RA_BODY, _RA_BODY_D, _RA_BODY_H, _RA_EDGE)
-    body_poly = _fuselage(surf, nose_x, tail_x, _RA_BODY, _RA_BODY_H, _RA_EDGE)
-
-    # LIVERY: a bold white diamond down the centre of the fuselage + white nose.
-    livery = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    pygame.draw.polygon(livery, _RA_WHITE, [
-        (nose_x, BCY), (nose_x - 10, BCY - 4), (nose_x - 10, BCY + 4)])
-    pygame.draw.polygon(livery, _RA_WHITE, [
-        (nose_x - 14, BCY), (nose_x - 28, BCY - 4),
-        (tail_x + 6, BCY), (nose_x - 28, BCY + 4)])
-    _clip_to_body(surf, livery, body_poly)
-    # White leading edges — the Red Arrows wing flash.
-    for sgn in (-1, 1):
-        pygame.draw.line(surf, _RA_WHITE, (nose_x - 19, BCY + sgn * 2),
-                         (tail_x + 4, BCY + sgn * 18), 2)
-
-    _canopy(surf, nose_x, (40, 60, 140), (170, 200, 255))
-    _nozzle_mouths(surf, tail_x)
-    return surf
-
-
-get_aerobatic_v3 = _make_prebuilt_skin(build_aerobatic_v3)
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# v4 · SUNBURST RACER — swept wing (different planform). LIVERY = a HARD
-#     diagonal two-tone split (white fore / hot magenta-orange aft) with a
-#     yellow LIGHTNING bolt down the wing. A modern racing scheme, the most
-#     graphic of the five.
-# ═════════════════════════════════════════════════════════════════════════════
-_SB_WHITE = (248, 248, 250)
-_SB_WHITE_D = (206, 208, 216)
-_SB_HOT   = (255, 70, 120)        # hot magenta
-_SB_HOT_D = (210, 36, 92)
-_SB_HOT_H = (255, 140, 170)
-_SB_ORANGE = (255, 150, 40)
-_SB_BOLT  = (255, 226, 60)
-_SB_EDGE  = (120, 40, 70)
-
-
-def build_aerobatic_v4(wing_angle_deg):
-    surf = _new()
-    p = _pulse(wing_angle_deg)
-    pit = _pitch(wing_angle_deg)
-    nose_x = 52 - pit
-    tail_x = 14
-
-    _burner(surf, tail_x, p, core=(255, 255, 244), mid=(255, 150, 90),
-            outer=(255, 70, 120), glow_col=(255, 100, 150))
-    _tail_fins(surf, tail_x, _SB_HOT_D)
-    # Swept (not delta) wing in hot magenta with a lightning bolt.
-    _swept_wings(surf, nose_x, tail_x, _SB_HOT, _SB_HOT_D, _SB_HOT_H, _SB_EDGE)
-    for sgn in (-1, 1):
-        root_x = nose_x - 14
-        pygame.draw.lines(surf, _SB_BOLT, False, [
-            (root_x - 3, BCY + sgn * 6), (root_x - 9, BCY + sgn * 9),
-            (root_x - 7, BCY + sgn * 11), (root_x - 15, BCY + sgn * 14)], 2)
-
-    # Body: hard diagonal split — white nose half, hot-magenta tail half.
-    body_poly = [(nose_x, BCY), (nose_x - 16, BCY - 6), (tail_x - 4, BCY - 5),
-                 (tail_x - 6, BCY), (tail_x - 4, BCY + 5), (nose_x - 16, BCY + 6)]
-    pygame.draw.polygon(surf, _SB_WHITE, body_poly)
-    split = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    # Diagonal so the split reads as a swept slash, not a vertical bar.
-    pygame.draw.polygon(split, _SB_HOT, [
-        (nose_x - 20, BCY - 6), (nose_x - 12, BCY + 6),
-        (tail_x - 4, BCY + 6), (tail_x - 6, BCY - 6)])
-    # A thin orange seam right on the diagonal — the sunburst edge.
-    pygame.draw.line(split, _SB_ORANGE, (nose_x - 20, BCY - 6),
-                     (nose_x - 12, BCY + 6), 2)
-    _clip_to_body(surf, split, body_poly)
-    pygame.draw.polygon(surf, _SB_EDGE, body_poly, 1)
-    pygame.draw.polygon(surf, _SB_WHITE_D,
-                        [(nose_x - 4, BCY - 4), (nose_x - 16, BCY - 4),
-                         (nose_x - 16, BCY - 6), (nose_x - 4, BCY - 5)])
-
-    _canopy(surf, nose_x, (40, 50, 80), (200, 210, 240))
-    _nozzle_mouths(surf, tail_x)
-    return surf
-
-
-get_aerobatic_v4 = _make_prebuilt_skin(build_aerobatic_v4)
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# v5 · GOLD JACKET — black gloss body, sharp delta. LIVERY = a bold GOLD
-#     CHEVRON wrapping the nose + gold leading edges + gold tail band. Black/
-#     gold = the most "expensive" reading; gold survives on day AND night.
-# ═════════════════════════════════════════════════════════════════════════════
-_GJ_BODY  = (34, 36, 44)
-_GJ_BODY_D = (18, 20, 26)
-_GJ_BODY_H = (78, 82, 96)
-_GJ_EDGE  = (8, 8, 12)
-_GJ_GOLD  = (255, 200, 56)
-_GJ_GOLD_D = (206, 150, 24)
-_GJ_GOLD_H = (255, 234, 150)
-
-
-def build_aerobatic_v5(wing_angle_deg):
-    surf = _new()
-    p = _pulse(wing_angle_deg)
-    pit = _pitch(wing_angle_deg)
-    nose_x = 52 - pit
-    tail_x = 14
-
-    _burner(surf, tail_x, p, core=(255, 255, 244), mid=(255, 210, 110),
-            outer=(255, 150, 50), glow_col=(255, 190, 80))
-    _tail_fins(surf, tail_x, _GJ_BODY_D)
-    _delta_wings(surf, nose_x, tail_x, _GJ_BODY, _GJ_BODY_D, _GJ_BODY_H, _GJ_EDGE)
-    body_poly = _fuselage(surf, nose_x, tail_x, _GJ_BODY, _GJ_BODY_H, _GJ_EDGE)
-
-    # LIVERY: a bold gold chevron wrapping the nose, a thin gold spine line,
-    # and a gold tail band — black/gold reads premium and high-contrast.
-    livery = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    pygame.draw.polygon(livery, _GJ_GOLD, [
-        (nose_x, BCY), (nose_x - 13, BCY - 5), (nose_x - 18, BCY - 4),
-        (nose_x - 9, BCY), (nose_x - 18, BCY + 4), (nose_x - 13, BCY + 5)])
-    pygame.draw.polygon(livery, _GJ_GOLD, [
-        (nose_x - 9, BCY - 1), (tail_x + 4, BCY - 1),
-        (tail_x + 4, BCY + 1), (nose_x - 9, BCY + 1)])
-    pygame.draw.polygon(livery, _GJ_GOLD, [
-        (tail_x + 9, BCY - 4), (tail_x + 3, BCY - 4),
-        (tail_x + 3, BCY + 4), (tail_x + 9, BCY + 4)])
-    _clip_to_body(surf, livery, body_poly)
-    pygame.draw.polygon(surf, _GJ_GOLD_H, [
-        (nose_x - 1, BCY - 1), (nose_x - 12, BCY - 4), (nose_x - 12, BCY - 3)])
-    # Gold delta leading edges — the chevron continues onto the wing.
-    for sgn in (-1, 1):
-        pygame.draw.line(surf, _GJ_GOLD, (nose_x - 19, BCY + sgn * 2),
-                         (tail_x + 4, BCY + sgn * 18), 2)
-        pygame.draw.circle(surf, _GJ_GOLD_H, (nose_x - 19, BCY + sgn * 2), 1)
-
-    _canopy(surf, nose_x, (60, 55, 30), (255, 230, 150))
-    _nozzle_mouths(surf, tail_x)
-    return surf
-
-
-get_aerobatic_v5 = _make_prebuilt_skin(build_aerobatic_v5)
+get_aerobatic = _make_prebuilt_skin(build_aerobatic)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Review-sheet registry. label → getter.
+# Production registry: the single registered skin lifts into
+# game/animal_jet_fighter.py as the AEROBATIC TEAM JET (BLUE ANGEL).
 # ─────────────────────────────────────────────────────────────────────────────
-BUILDERS = {
-    "skin_aerobatic": get_aerobatic_v1,   # primary registered id (winner lifts here)
-    "v1_blue_angel":  get_aerobatic_v1,
-    "v2_thunderbird": get_aerobatic_v2,
-    "v3_red_arrow":   get_aerobatic_v3,
-    "v4_sunburst":    get_aerobatic_v4,
-    "v5_gold_jacket": get_aerobatic_v5,
-}
+BUILDERS = {"skin_aerobatic": get_aerobatic}

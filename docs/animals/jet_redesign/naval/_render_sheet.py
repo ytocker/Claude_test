@@ -1,16 +1,18 @@
-"""Round-1 review sheet for the NAVAL INTERCEPTOR jet redesign candidates.
+"""Round-2 review sheet for the NAVAL INTERCEPTOR jet redesign — the single
+converged production build (JOLLY ROGERS).
 
-Renders each of the 5 sub-takes at hero 130px AND at the in-game truth-test
-scale (40px, level + dive tilt), with a NEAREST-NEIGHBOR x3 magnification of
-those 40px reads so the true gameplay-pixel silhouette is honest (smoothscale
-flatters tiny detail that vanishes in motion). Crucially, every read is shown
-on BOTH a DAY sky and a NIGHT sky panel — the north star is "reads at 40px on
-day AND night". Headless (SDL dummy) so it runs in CI / on the build box.
+Renders the ONE build at hero 130px AND at the in-game truth-test scale
+(40px, level + dive tilt), with a NEAREST-NEIGHBOR x3 magnification of those
+40px reads so the true gameplay-pixel silhouette is honest (smoothscale
+flatters tiny detail that vanishes in motion). Every read is shown on THREE
+backgrounds — a DAY sky, a NIGHT sky, AND a DAY warm-sandstone-PILLAR case —
+because the north star is "reads at 40px on day AND night, and never melts
+into a pillar". Headless (SDL dummy) so it runs in CI / on the build box.
 
-NOTE on attitude: the candidates draw the jet NOSE-RIGHT / UPRIGHT / LEVEL
-(no baked rotation), matching the redesign brief — the game applies the
-inverted nose-up presentation later. So this sheet shows the clean upright
-planform, which is what the builds must nail.
+NOTE on attitude: the build draws the jet NOSE-RIGHT / UPRIGHT / LEVEL (no
+baked rotation), matching the redesign brief — the game applies the inverted
+nose-up presentation later. So this sheet shows the clean upright planform,
+which is what the build must nail.
 """
 import os
 import sys
@@ -31,14 +33,13 @@ spec = importlib.util.spec_from_file_location(
 naval_skins = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(naval_skins)
 
-VARIANTS = naval_skins.VARIANTS
-ORDER = ["naval_v1", "naval_v2", "naval_v3", "naval_v4", "naval_v5"]
+from game.draw import get_stone_pillar_body
+
+GETTER = naval_skins.get_naval
 
 # ── layout ───────────────────────────────────────────────────────────────────
-COLS = 1
-CARD_W, CARD_H = 720, 196
 PAD = 16
-HEADER_H = 64
+HEADER_H = 70
 HERO_PX = 130
 GAME_PX = 40
 MAG = 3
@@ -49,19 +50,25 @@ DAY_BOT = (196, 228, 240)
 NIGHT_TOP = (20, 24, 52)
 NIGHT_BOT = (38, 30, 62)
 
+# DAY sandstone pillar palette (game/biome.py DAY phase) — the warm
+# background the dark airframe must NOT melt into.
+STONE_LIGHT = (225, 195, 155)
+STONE_MID   = (175, 140, 105)
+STONE_DARK  = (95, 70, 55)
+STONE_ACCENT = (255, 220, 170)
+
 SHEET_BG_TOP = (16, 18, 36)
 SHEET_BG_BOT = (30, 24, 50)
 CARD_BG = (18, 20, 38)
-CARD_EDGE = (70, 76, 124)
-LEAD_EDGE = (210, 168, 80)             # gold rim on the lead candidate (v1)
+LEAD_EDGE = (210, 168, 80)
 TEXT = (236, 238, 250)
 SUB = (152, 158, 192)
 TAGD = (60, 70, 86)
 TAGN = (200, 206, 240)
 
-ROWS = len(ORDER)
-SHEET_W = PAD + COLS * (CARD_W + PAD)
-SHEET_H = HEADER_H + PAD + ROWS * (CARD_H + PAD)
+PW, PH = 320, 196
+SHEET_W = PAD + 3 * (PW + PAD)
+SHEET_H = HEADER_H + PAD + PH + PAD + 120
 
 sheet = pygame.Surface((SHEET_W, SHEET_H))
 for y in range(SHEET_H):
@@ -71,20 +78,19 @@ for y in range(SHEET_H):
     pygame.draw.line(sheet, col, (0, y), (SHEET_W, y))
 
 pygame.font.init()
-F_TITLE = pygame.font.SysFont("Arial", 28, bold=True)
-F_SUB = pygame.font.SysFont("Arial", 14)
-F_NAME = pygame.font.SysFont("Arial", 19, bold=True)
-F_FEAT = pygame.font.SysFont("Arial", 13)
+F_TITLE = pygame.font.SysFont("Arial", 26, bold=True)
+F_SUB = pygame.font.SysFont("Arial", 13)
+F_NAME = pygame.font.SysFont("Arial", 18, bold=True)
+F_FEAT = pygame.font.SysFont("Arial", 12)
 F_TAG = pygame.font.SysFont("Arial", 11, bold=True)
 
 sheet.blit(F_TITLE.render(
-    "Skybit — JET FIGHTER redesign · NAVAL INTERCEPTOR · Round 1", True, TEXT),
-    (PAD, 14))
+    "Skybit — JET FIGHTER redesign · NAVAL INTERCEPTOR · Round 2 (production)",
+    True, TEXT), (PAD, 12))
 sheet.blit(F_SUB.render(
-    "F-14 Tomcat vibe: variable-sweep wings + twin canted tails + tandem fuselage. "
-    "HERO 130px · 40px level/dive NEAREST x3 (the honest read) on DAY and NIGHT skies. "
-    "Drawn nose-right/upright (game inverts later).",
-    True, SUB), (PAD, 42))
+    "v3 JOLLY ROGERS converged: deep-navy single mass · CONTINUOUS gold leading-edge "
+    "rail · cool canopy · warm twin burner. HERO 130px + 40px NEAREST x3 level/dive "
+    "on DAY · NIGHT · DAY-PILLAR.", True, SUB), (PAD, 42))
 
 
 def _sky(w, h, top, bot, stars=False):
@@ -100,6 +106,26 @@ def _sky(w, h, top, bot, stars=False):
             sx, sy = rng.randint(0, w - 1), rng.randint(0, h - 1)
             b = rng.randint(120, 220)
             pygame.draw.circle(s, (b, b, min(255, b + 30)), (sx, sy), 1)
+    return s
+
+
+def _pillar_bg(w, h):
+    """Day sky with two warm sandstone pillar columns intruding from top and
+    bottom — the worst-case 'dark airframe over warm stone' read. The jet is
+    centred so its dark body overlaps a warm pillar where it would otherwise
+    melt in."""
+    s = _sky(w, h, DAY_TOP, DAY_BOT)
+    body_seed = 3
+    col_w = 78
+    for cx in (96, w - 96):
+        # Top pillar hanging down, bottom pillar rising up.
+        top = get_stone_pillar_body(col_w, h // 2 + 10, STONE_LIGHT, STONE_MID,
+                                    STONE_DARK, STONE_ACCENT, body_seed)
+        s.blit(top, (cx - col_w // 2, 0))
+        bot = get_stone_pillar_body(col_w, h // 2 + 10, STONE_LIGHT, STONE_MID,
+                                    STONE_DARK, STONE_ACCENT, body_seed + 1)
+        s.blit(bot, (cx - col_w // 2, h - (h // 2 + 10)))
+        body_seed += 2
     return s
 
 
@@ -126,63 +152,54 @@ def nearest40(getter, frame_idx, tilt, mag):
         small, (small.get_width() * mag, small.get_height() * mag))
 
 
-def _panel(label, sky, getter):
-    """One sky panel: hero 130px on the left, then 40px-smooth (top) and
-    40px-NEAREST-x3 (bottom) level/dive reads — the honest read."""
+def _panel(sky, getter):
+    """One background panel: hero 130px on the left, then 40px-smooth (top)
+    and 40px-NEAREST-x3 (bottom) level/dive reads — the honest read."""
     p = sky.copy()
     pygame.draw.rect(p, (255, 255, 255, 30), p.get_rect(), 1)
-    # Hero.
     hero = smooth(getter, 0, 0, HERO_PX)
-    p.blit(hero, hero.get_rect(center=(78, p.get_height() // 2)))
-    # 40px smooth level + dive.
+    p.blit(hero, hero.get_rect(center=(76, p.get_height() // 2)))
     g_level = smooth(getter, 2, 0, GAME_PX)
-    p.blit(g_level, g_level.get_rect(center=(178, 36)))
+    p.blit(g_level, g_level.get_rect(center=(176, 44)))
     g_dive = smooth(getter, 1, -32, GAME_PX)
-    p.blit(g_dive, g_dive.get_rect(center=(232, 36)))
-    # 40px NEAREST x3 level + dive.
+    p.blit(g_dive, g_dive.get_rect(center=(230, 44)))
     n_level = nearest40(getter, 2, 0, MAG)
-    p.blit(n_level, n_level.get_rect(center=(182, 118)))
+    p.blit(n_level, n_level.get_rect(center=(180, 132)))
     n_dive = nearest40(getter, 1, -32, MAG)
-    p.blit(n_dive, n_dive.get_rect(center=(252, 118)))
+    p.blit(n_dive, n_dive.get_rect(center=(250, 132)))
     return p
 
 
-for idx, key in enumerate(ORDER):
-    name, feat, getter = VARIANTS[key]
-    cy = HEADER_H + PAD + idx * (CARD_H + PAD)
-    cx = PAD
-    is_lead = key == "naval_v1"
-    card = pygame.Rect(cx, cy, CARD_W, CARD_H)
-    pygame.draw.rect(sheet, CARD_BG, card, border_radius=12)
-    pygame.draw.rect(sheet, LEAD_EDGE if is_lead else CARD_EDGE,
-                     card, 3 if is_lead else 2, border_radius=12)
+py = HEADER_H + 4
+panels = [
+    ("DAY", TAGD, _sky(PW, PH, DAY_TOP, DAY_BOT)),
+    ("NIGHT", TAGN, _sky(PW, PH, NIGHT_TOP, NIGHT_BOT, stars=True)),
+    ("DAY · WARM PILLAR", (120, 80, 40), _pillar_bg(PW, PH)),
+]
+for i, (label, tagcol, bg) in enumerate(panels):
+    px = PAD + i * (PW + PAD)
+    panel = _panel(bg, GETTER)
+    sheet.blit(panel, (px, py))
+    sheet.blit(F_TAG.render(label, True, tagcol), (px + 6, py + 4))
+    sheet.blit(F_TAG.render("130px", True, (90, 90, 90)), (px + 6, py + PH - 16))
+    sheet.blit(F_TAG.render("40px smooth", True, (200, 200, 200)),
+               (px + 150, py + 4))
+    sheet.blit(F_TAG.render("40px NEAREST x3  (level / dive)", True,
+                            (210, 190, 130)), (px + 138, py + PH - 16))
 
-    sheet.blit(F_NAME.render(("v%d · " % (idx + 1)) + name, True,
-                             LEAD_EDGE if is_lead else TEXT), (cx + 14, cy + 8))
-    sheet.blit(F_FEAT.render(feat, True, SUB), (cx + 14, cy + 32))
-    if is_lead:
-        sheet.blit(F_TAG.render("LEAD (skin_naval)", True, LEAD_EDGE),
-                   (CARD_W - 110, cy + 12))
+# ── Frame strip: all 4 baked poses at 40px NEAREST x3 to prove the burner
+#    footprint pulses ~2px between frames + the gold rail / canopy are
+#    constant across the pulse. ───────────────────────────────────────────────
+fy = py + PH + PAD
+sheet.blit(F_NAME.render("All 4 afterburner-pulse frames  ·  40px NEAREST x3  ·  "
+                         "burner footprint pulses, gold rail + canopy constant",
+                         True, LEAD_EDGE), (PAD, fy))
+strip = _sky((PW + PAD) * 3, 84, NIGHT_TOP, NIGHT_BOT, stars=True)
+for f in range(4):
+    img = nearest40(GETTER, f, 0, MAG)
+    strip.blit(img, img.get_rect(center=(70 + f * 150, 44)))
+sheet.blit(strip, (PAD, fy + 26))
 
-    PW, PH = 320, 144
-    py = cy + 46
-    day = _sky(PW, PH, DAY_TOP, DAY_BOT)
-    night = _sky(PW, PH, NIGHT_TOP, NIGHT_BOT, stars=True)
-    dpanel = _panel(name, day, getter)
-    npanel = _panel(name, night, getter)
-    sheet.blit(dpanel, (cx + 14, py))
-    sheet.blit(npanel, (cx + 14 + PW + 16, py))
-
-    # Panel captions.
-    sheet.blit(F_TAG.render("DAY", True, TAGD), (cx + 18, py + 2))
-    sheet.blit(F_TAG.render("NIGHT", True, TAGN), (cx + 14 + PW + 20, py + 2))
-    for bx in (cx + 14, cx + 14 + PW + 16):
-        sheet.blit(F_TAG.render("130px", True, (90, 90, 90)), (bx + 4, py + PH - 16))
-        sheet.blit(F_TAG.render("40px smooth", True, (90, 90, 90)),
-                   (bx + 150, py + 2))
-        sheet.blit(F_TAG.render("40px NEAREST x3  (level / dive)", True,
-                               (200, 180, 120)), (bx + 138, py + PH - 16))
-
-out_path = os.path.join(_here, "round_1.png")
+out_path = os.path.join(_here, "round_2.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path, sheet.get_size())
