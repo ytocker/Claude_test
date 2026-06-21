@@ -198,48 +198,65 @@ def build(wing_angle_deg):
     pygame.draw.line(surf, BODY_HI, (basket.x + 2, BCY + 2),
                      (basket.right - 3, BCY + 2), 1)
 
-    # ── POST: a thin two-tone mast holding the screen clear of the basket ─────
+    # ── POST: a fat two-tone mast holding the screen well clear of the basket ─
     # The post is the thing that makes this a TERMINAL, not a helmet: it lifts
-    # the screen clear of the body on a slim column, leaving a REAL air gap so
-    # daylight shows UNDER the screen at 40px. It is a tight 3px-wide vertical
-    # stick (NO diagonal arm, NO wrap behind the basket) — the moment any mass
-    # arcs up-and-over the basket the silhouette reads as a hood, so the mount
-    # stays a pure stick. Two-tone (lit front edge / shadow back) so it doesn't
-    # flatten. The gap between basket.top and the screen bottom is the tell.
-    post_x = basket.right - 8
-    gap_top = basket.top - 5            # bottom of the screen rides 5px clear
-    pygame.draw.line(surf, POST_LO, (post_x, basket.top - 1), (post_x, gap_top), 3)
-    pygame.draw.line(surf, POST_HI, (post_x - 1, basket.top - 1), (post_x - 1, gap_top), 1)
+    # the screen clear of the body on a stalk, leaving a REAL air gap so daylight
+    # shows UNDER the screen at 40px. It is a 5px-wide vertical stick with a
+    # bright LIT FRONT EDGE for value contrast — wide enough that "thing on a
+    # stalk" survives the play-size blur (NO diagonal arm, NO wrap behind the
+    # basket — the moment any dark mass arcs up-and-over the basket it reads as a
+    # hood, so the mount stays a pure stick and ALL dark teal hugs the glass).
+    # The SKY GAP between basket.top and the screen bottom is the load-bearing
+    # tell: it is exaggerated so background sky is plainly visible there at 40px.
+    sw, sh = 18, 10
+    GAP = 14                             # visible sky band under the screen
+    gap_top = basket.top - GAP          # bottom of the bezel rides GAP px clear
+    # The stalk sits roughly UNDER the screen (centred on flight-rear of it) so
+    # the screen genuinely floats ON it, leaving open sky on BOTH sides of the
+    # stalk within the gap. Drawn after the screen rect is known.
 
     # ── the SCREEN: a flat teal terminal cantilevered FORWARD off the post ────
     # This is the tell. It is a COMPACT flat panel lifted clear of the body with
     # an unmistakable air gap beneath it, and pushed toward the flight direction
     # (left) so its leading edge overhangs the basket front. The overhang + the
-    # gap underneath together sell "terminal on a stick"; the bezel stays a thin
-    # even border (a screen, never a hood). The additive bloom blooms at night;
-    # the whole glass luminosity pulses across the 4 frames.
-    sw, sh = 22, 13
+    # gap underneath together sell "terminal on a stick"; the bezel is a TRUE
+    # THIN RIM (a screen, never a hood). The additive bloom blooms at night; the
+    # whole glass luminosity pulses across the 4 frames.
     screen = pygame.Rect(0, 0, sw, sh)
-    # forward (leftward) cantilever: screen centre sits left of the post so its
-    # leading edge overhangs the basket front, and its bottom clears the gap.
-    screen.midbottom = (BCX - 3, gap_top - 1)
+    # forward (leftward) cantilever: screen centre sits left of basket centre so
+    # its leading edge overhangs the basket front, and its bottom clears the gap.
+    screen.midbottom = (BCX - 3, gap_top)
+
+    # stalk under the flight-rear of the screen — a BRIGHT lit column (mostly
+    # POST_HI, with just a 1px shadow back edge) so at 44px the gap reads as a
+    # pale stalk against open sky rather than a dark mass bonding the screen to
+    # the basket. Open sky stays on BOTH sides of the slim column so the gap
+    # plainly shows background at play size. Drawn first so the screen sits on
+    # top of the column's upper end.
+    post_x = screen.centerx + 4
+    post_top = gap_top - 1
+    pygame.draw.line(surf, POST_LO, (post_x + 1, basket.top - 1), (post_x + 1, post_top), 2)
+    pygame.draw.line(surf, POST_HI, (post_x - 1, basket.top - 1), (post_x - 1, post_top), 3)
 
     # ── night bloom (additive) ── stamped BEFORE the bezel so the steel body
     # and the dusk receive the spill. Pulses with the glass level; on day the
     # pale sky swallows it (restrained), on night it lights up the upper steel.
     _glow_bloom(surf, screen, SCREEN_CORE, 0.30 + 0.70 * level)
 
-    # teal bezel + deep glass base — a THIN even border (inflate 2, not a hood):
-    # the bezel carries the DAY silhouette as a tidy screen, so it never balloons
-    # into a cowl and the screen never goes flat when the bloom is dialled down.
-    pygame.draw.rect(surf, SCREEN_FRAME, screen.inflate(2, 2), border_radius=3)
-    pygame.draw.rect(surf, SCREEN_DARK, screen, border_radius=2)
+    # teal bezel — a TRUE THIN even RIM hugging the glass on all four sides by
+    # ~2px (NEVER a hood): the dark teal stays within 2px of the glass rectangle
+    # so no overhead/overhang dark mass can read as a cowl. The TOP corners are
+    # squared (radius 1) so the upper edge reads "device", not "helmet dome";
+    # only the bottom keeps a hint of round.
+    bezel = screen.inflate(3, 3)
+    pygame.draw.rect(surf, SCREEN_FRAME, bezel, border_radius=1)
+    pygame.draw.rect(surf, SCREEN_DARK, screen, border_radius=1)
 
     # the lit glass — WHOLE-PANEL luminosity is the pulse. Hot poses go toward
     # near-white; the dim pose is mid teal; the dark floor (f3) is a dim teal
     # that never goes black, so the screen stays in the silhouette and gains NO
     # new internal shapes (pure dimming).
-    glass = screen.inflate(-3, -3)
+    glass = screen.inflate(-2, -2)
     if level >= 0.99:
         glass_col = SCREEN_HOT
     elif level <= 0.01:
