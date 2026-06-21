@@ -13,9 +13,14 @@ small WHITE-HOT centre dot ON TOP — the halo can bloom but the heart never
 washes to mush. NIGHT is the showpiece: warm additive halos bake a real bloom
 against the dark sky.
 
-Carry context: Pip's red body occludes the TOP, so the core + the brightest tail
-mass live in the LOWER/visible half; the white-gold core separates cleanly from
-Pip's red, and the tail trails down-and-back away from his body."""
+Carry context: the parcel rides centred 12px below Pip, so the whole TOP half of
+the sprite buries inside Pip's belly and only the bottom ~40% clears. The core +
+tail root are therefore weighted to the BOTTOM of the sprite — the white-hot core
+and the brightest tail mass sit in the lowest band where they read as a separate
+light BELOW Pip, not a highlight ON him. The night bloom is sized so its halo
+bleeds PAST Pip's edge even while the core is partly occluded — that escaping
+aura is what announces 'legendary' at a glance. The tail trails up-and-back into
+the occluded zone, so it reads as motion streaming off the visible head."""
 import math
 import pygame
 
@@ -116,22 +121,33 @@ def _star_core(s, cx, cy, r):
 def build(mode="normal"):  # mode ignored — parcel is mode-agnostic, one surface
     s = pygame.Surface((SS, SS), pygame.SRCALPHA)
 
-    # Core sits in the LOWER half so Pip's red body (occluding the top in carry)
-    # never covers the bright heart; the tail streaks up-and-back from it.
-    core_cx = SS * 0.62
-    core_cy = SS * 0.60
-    core_r = 7.5
+    # The parcel rides centred 12px below Pip, whose body radius exceeds that
+    # offset — so the sprite centre buries inside his belly and only the LOWEST
+    # rows clear him. The core is shoved to the bottom band (≈0.84 down) and
+    # grown a touch, so the whole white-hot heart and the tail root sit clearly
+    # BELOW his silhouette and read as a separate light, not a highlight on him.
+    core_cx = SS * 0.55
+    core_cy = SS * 0.84
+    core_r = 8.2
 
-    # Tail tip up and to the left — a long comma trailing behind the head. When
-    # the parcel rotates with the bird, this trail swings to read as MOTION.
-    tip = (SS * 0.16, SS * 0.18)
+    # Tail tip up-and-back, climbing into the zone Pip occludes — the visible
+    # head streams a trail UP toward his belly. As the parcel banks with the
+    # bird this comma swings to read as MOTION.
+    tip = (SS * 0.12, SS * 0.34)
 
-    # ---- NIGHT bloom halos, baked UNDER the core so the comet emits light.
-    _glow_halo(s, core_cx, core_cy, 21, HALO_HOT, HALO_PLASMA, 78)
-    _glow_halo(s, core_cx, core_cy, 12, CORE, HALO_HOT, 120)
+    # ---- NIGHT bloom halos, baked UNDER the core so the comet emits light. Pip
+    # eats almost the whole sprite, so the bloom's job is to ESCAPE — three
+    # stacked halos, the widest reaching far enough that its skirt spills well
+    # past Pip's lower edge as a soft aura, the mid carrying the warm body, the
+    # inner keeping the heart bright. Brighter peaks so the escaping glow still
+    # reads against both the dark night sky and Pip's red.
+    _glow_halo(s, core_cx, core_cy, 21, HALO_HOT, HALO_PLASMA, 104)
+    _glow_halo(s, core_cx, core_cy, 33, HALO_PLASMA, HALO_PLASMA, 72)
+    _glow_halo(s, core_cx, core_cy, 14, CORE, HALO_HOT, 155)
 
-    # ---- TAIL under the core so the head sits crisply over its own root.
-    _tail(s, tip, core_cx, core_cy, core_r * 0.92, None, None)
+    # ---- TAIL under the core so the head sits crisply over its own root. A
+    # touch more root mass now that the bottom band has room.
+    _tail(s, tip, core_cx, core_cy, core_r * 1.05, None, None)
 
     # ---- STAR/ORB CORE on top — the brightest cluster, the legendary heart.
     _star_core(s, core_cx, core_cy, core_r)
