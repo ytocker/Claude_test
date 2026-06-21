@@ -50,6 +50,10 @@ N_SPIKES = 7                    # the canonical 7 points
 # The bottom pair of the 7-fold ring is shortened + splayed so no spike drives
 # straight down into the parcel; the full star then reads ABOVE the parcel.
 BOTTOM_SPIKE_SCALE = 0.74       # length of the two lowest spikes vs the rest
+# The apex is grown to the canvas ceiling (its tip just clears the top edge at
+# BCY=30); going further would clip the point, so this is the max lead the
+# raised-star layout allows while keeping the KEEP'd parcel clearance.
+APEX_SPIKE_SCALE = 1.15
 
 
 # ── palette ──────────────────────────────────────────────────────────────────
@@ -90,11 +94,17 @@ def _phase(angle_deg):
     return int(round((50 - angle_deg) / 30.0)) % 4
 
 
-# Crack opening (0..1) per stage. Tuned so the four poses read as FOUR DISTINCT
-# VALUE STEPS on the grayscale strip (sealed-dark → dim-lens → bright-lens →
-# mid), not just hue. A non-monotonic curve makes the pulse read as a living
-# "breath", not a one-way wipe.
-_CRACK_BY_STAGE = (0.00, 0.45, 1.00, 0.60)
+# The crack tell is read as FOUR DISTINCT VALUE BEATS on the grayscale strip.
+# Two ramps drive it, decoupled so geometry and brightness can be tuned apart:
+#   _CRACK_BY_STAGE  → lens WIDTH (how far the seam has parted)
+#   _LENS_VAL_BY_STAGE → lens LUMINANCE (how hot the interior glows)
+# The luminance ramp is the acceptance criterion: four EVENLY-SPACED steps
+# (sealed-dark → dim → brightest → a clearly different mid) so stages 1 and 3 do
+# NOT collapse to the same gray. The mid beat (stage 3) sits between dim and
+# bright, giving the pulse a living "breath" rather than a one-way wipe — but it
+# is a genuinely distinct value, not a repeat of the dim stage.
+_CRACK_BY_STAGE = (0.00, 0.40, 1.00, 0.60)
+_LENS_VAL_BY_STAGE = (0.00, 0.34, 1.00, 0.50)
 
 
 def _spike_geom(i):
@@ -110,14 +120,21 @@ def _spike_geom(i):
     scale = 1.0
     if downness > 0.6:
         scale = BOTTOM_SPIKE_SCALE
+    elif i == 0:
+        # the apex spoke is grown a touch so it is unambiguously the SINGLE
+        # longest tip — the one point that reads as straight up at 40px.
+        scale = APEX_SPIKE_SCALE
     return ang, scale
 
 
 def _spike(surf, cx, cy, ang, length_scale, tip_color, tip_shade):
-    """One stubby cone spike radiating from the hull centre along `ang` (rad).
-    The cone base sits on the hull rim; the tip is fringe-tipped (a cream cap),
-    never a thin needle, so it doesn't vanish at 40px. A cream keyline traces
-    the whole cone so the dark candy colour survives the night sky."""
+    """One cone spike radiating from the hull centre along `ang` (rad). The cone
+    base sits on the hull rim and converges to a SINGLE point at the tip — a true
+    triangle, not a flat-capped trapezoid (the flat cap's two corners used to
+    straddle the vertical at the apex and read as two tips). A small cream pom
+    sits dead-centre on the point so the tip never thins to a needle at 40px,
+    while the single apex still reads as ONE point straight up. A cream keyline
+    traces the whole cone so the dark candy colour survives the night sky."""
     reach = SPIKE_LEN * length_scale
     base_x = cx + math.cos(ang) * (CORE_R - 2)
     base_y = cy + math.sin(ang) * (CORE_R - 2)
@@ -127,20 +144,18 @@ def _spike(surf, cx, cy, ang, length_scale, tip_color, tip_shade):
     px, py = -math.sin(ang), math.cos(ang)
     bl = (base_x + px * SPIKE_HALF, base_y + py * SPIKE_HALF)
     br = (base_x - px * SPIKE_HALF, base_y - py * SPIKE_HALF)
-    # blunt the tip into a short flat cap (the fringe pom) instead of a point
-    tl = (tip_x + px * 2.4, tip_y + py * 2.4)
-    tr = (tip_x - px * 2.4, tip_y - py * 2.4)
+    tip = (tip_x, tip_y)
 
-    poly = [bl, tl, tr, br]
+    poly = [bl, tip, br]
     # shade half (lower side of the cone) then the lit candy colour on top
     pygame.draw.polygon(surf, tip_shade, poly)
-    lit = [bl, tl, ((tl[0] + tr[0]) / 2, (tl[1] + tr[1]) / 2),
-           ((bl[0] + br[0]) / 2, (bl[1] + br[1]) / 2)]
+    mid_base = ((bl[0] + br[0]) / 2, (bl[1] + br[1]) / 2)
+    lit = [bl, tip, mid_base]
     pygame.draw.polygon(surf, tip_color, lit)
     # cream crepe keyline around the cone — the night-survival rim (KEEP AS-IS)
     pygame.draw.polygon(surf, FRINGE, poly, 1)
-    # fringe pom cap at the tip (a small cream nub) so the point never needles
-    pygame.draw.line(surf, FRINGE, tl, tr, 2)
+    # fringe pom cap centred ON the single point so the tip reads as one nub,
+    # never a needle and never a split flat cap.
     pygame.draw.circle(surf, FRINGE, (int(tip_x), int(tip_y)), 2)
     pygame.draw.circle(surf, FRINGE_DK, (int(tip_x), int(tip_y)), 2, 1)
 
@@ -160,28 +175,32 @@ def _hull_fringe_rings(surf, cx, cy):
             pygame.draw.line(surf, col, (x0, y0), (x1, y1), 1)
 
 
-def _crack_and_glow(surf, cx, cy, crack):
+def _crack_and_glow(surf, cx, cy, crack, lens_val):
     """The signature tell. A VERTICAL diamond seam down the core hull. As
     `crack` grows the seam parts into a vertical candy-glow LENS (a diamond,
     not a horizontal slot) with dark crack lips left + right; at the widest
     opening 1-2 candy dots peek through. A vertical/diamond lens never reads as
     a smiling mouth. Kept centred on the (raised) hull so it sits well above the
-    parcel. VALUE-FIRST so it survives grayscale: the four crack stages step
-    cleanly in value from a near-black sealed seam to a white-hot lens."""
+    parcel. VALUE-FIRST so it survives grayscale: `lens_val` (0..1) sets the
+    interior luminance directly, decoupled from the geometric crack width, so
+    the four stages land on four EVENLY-SPACED grayscale beats (no two stages
+    collapse to the same gray)."""
     seam_cx, seam_cy = cx, cy        # the lens is centred on the hull
     half_h = CORE_R - 3              # the seam runs most of the hull height
     open_w = int(1 + crack * 8)      # horizontal half-width of the open lens
 
     if crack > 0.02:
         # warm glow lens behind the crack, drawn additive so it blooms at night.
-        # Boosted reach + alpha (~35%) so the seam is the night focal anchor.
+        # Reach kept wide (night focal anchor); peak alpha pulled back ~10% from
+        # round 2 so the bloom no longer bleeds over the white lens edge at 40px.
+        # Alpha tracks `lens_val` so the brightest beat (stage 2) blooms most.
         gw = open_w * 2 + 28
         gh = half_h * 2 + 28
         glow = pygame.Surface((gw, gh), pygame.SRCALPHA)
         gx, gy = gw // 2, gh // 2
         for i in range(4, 0, -1):
             rr = i / 4.0
-            a = int(190 * crack * (1.0 - (i - 1) / 4.0)) + 36
+            a = int(170 * lens_val * (1.0 - (i - 1) / 4.0)) + 30
             col = GLOW_WARM if i > 1 else GLOW_CORE
             pygame.draw.ellipse(
                 glow, (*col, a),
@@ -193,9 +212,11 @@ def _crack_and_glow(surf, cx, cy, crack):
     if crack > 0.04:
         # bright hot diamond core fill of the open lens (non-additive so it
         # stays solid and reads as a lit interior even on a bright day sky).
-        # The lens VALUE tracks `crack` so the four stages step cleanly in
-        # brightness on grayscale (dim lens at stage 1, white-hot at stage 2).
-        warm = tuple(int(GLOW_WARM[c] * (0.62 + 0.38 * crack)) for c in range(3))
+        # The lens VALUE tracks `lens_val` (not the crack width) so the four
+        # stages land on evenly-spaced grayscale beats: a DIM lens at stage 1,
+        # the white-hot peak at stage 2, a distinct MID at stage 3.
+        warm = tuple(min(255, int(GLOW_WARM[c] * (0.42 + 0.58 * lens_val)))
+                     for c in range(3))
         diamond = [
             (seam_cx, seam_cy - half_h),
             (seam_cx + open_w, seam_cy),
@@ -203,11 +224,12 @@ def _crack_and_glow(surf, cx, cy, crack):
             (seam_cx - open_w, seam_cy),
         ]
         pygame.draw.polygon(surf, warm, diamond)
-        # the white-hot inner core only fills in as the crack nears its widest,
-        # so stage 1 stays a DIM lens and stage 2 is the bright peak.
-        if crack > 0.3:
-            core = tuple(int(GLOW_WARM[c] + (GLOW_CORE[c] - GLOW_WARM[c]) *
-                             min(1.0, (crack - 0.3) / 0.7)) for c in range(3))
+        # the white-hot inner core scales with luminance, so the brightest beat
+        # reads near-white and the mid beat stays a clearly cooler amber.
+        if lens_val > 0.4:
+            t = min(1.0, (lens_val - 0.4) / 0.6)
+            core = tuple(int(GLOW_WARM[c] + (GLOW_CORE[c] - GLOW_WARM[c]) * t)
+                         for c in range(3))
             inner = [
                 (seam_cx, seam_cy - int(half_h * 0.72)),
                 (seam_cx + max(1, int(open_w * 0.72)), seam_cy),
@@ -249,6 +271,7 @@ def build(wing_angle_deg):
     surf = _new()
     ph = _phase(wing_angle_deg)
     crack = _CRACK_BY_STAGE[ph]
+    lens_val = _LENS_VAL_BY_STAGE[ph]
     cx, cy = BCX, BCY
 
     # 1) Seven cone spikes FIRST so the round hull overlaps their roots and the
@@ -269,6 +292,6 @@ def build(wing_angle_deg):
     # 3) Crepe fringe bands wrapped on the hull, then the crack-&-glow tell on
     #    top so the glow is never buried under the fringe texture.
     _hull_fringe_rings(surf, cx, cy)
-    _crack_and_glow(surf, cx, cy, crack)
+    _crack_and_glow(surf, cx, cy, crack, lens_val)
 
     return surf
