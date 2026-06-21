@@ -1,10 +1,15 @@
 """TAKEOUT PAIL parcel cosmetic (LOW tier).
 
-The classic Chinese-takeout paper pail: a trapezoid narrower at the BASE,
-two folded top flaps, and a thin arched wire handle. The trapezoid + the
-half-circle handle loop is the whole glyph at 22px — so the body stays a
-single bold silhouette and the handle is drawn 2px (4px at 2×) to survive
-the smoothscale and the tilt-row banking.
+The classic Chinese-takeout oyster pail: a trapezoid that SPLAYS wide at the
+top and pinches NARROW at the base, a folded red top of two angled fold-tabs
+meeting at a centre notch (an inverted-V break along the top edge), and a tall
+thin near-semicircular WIRE bail rising clearly above the body.
+
+The whole glyph has to survive a smoothscale down to 22px and the tilt-row
+banking, so it is drawn at 2× and the proportions are pushed hard: the
+top is twice as wide as the base, the fold-notch is several px across, and the
+bail is a 2px wire (4px at 2×) over a dark keyline so it never breaks up. Pinch
+dimples at the top rim corners are the cheap, instantly-readable pail cue.
 """
 import pygame
 
@@ -14,11 +19,12 @@ from game.parrot import _lerp_color
 # Day palette per brief; night relies on the white body self-lighting, with
 # only a faint cool keyline so the box doesn't smear into the dark sky.
 BODY_HI = (244, 241, 234)        # #F4F1EA white paper, lit edge
-BODY_LO = (212, 206, 192)        # shaded fold side for a touch of form
-FLAP = (211, 58, 44)             # #D33A2C red fold-flap accent
+BODY_LO = (208, 202, 188)        # shaded fold side for a touch of form
+FLAP = (211, 58, 44)             # #D33A2C red fold-tab accent
 FLAP_HI = (236, 110, 96)
-WIRE = (122, 122, 130)           # #7A7A82 grey wire
-WIRE_HI = (170, 170, 180)
+FLAP_LO = (158, 38, 30)          # shadowed second tab so the fold reads
+WIRE = (132, 132, 140)           # #7A7A82-ish grey wire, a touch brighter
+WIRE_HI = (188, 188, 198)
 OUTLINE = (40, 28, 24)           # dark high-value keyline for the bright sky
 
 
@@ -29,9 +35,11 @@ def build(mode: str = "normal") -> pygame.Surface:
 
     cx = SIZE // 2
 
-    # Trapezoid body — WIDER at the top, NARROWER at the base (the pail tell).
-    top_y, bot_y = 18, 38
-    top_hw, bot_hw = 14, 10
+    # Trapezoid body — WIDE at the top, NARROW at the base. Pushed hard so the
+    # inverted-taper oyster-pail silhouette survives the smoothscale: the top is
+    # twice the base half-width (16 vs 8 at this 2× scale).
+    top_y, bot_y = 16, 39
+    top_hw, bot_hw = 16, 8
     body = [
         (cx - top_hw, top_y),
         (cx + top_hw, top_y),
@@ -40,24 +48,29 @@ def build(mode: str = "normal") -> pygame.Surface:
     ]
 
     # Drop shadow grounds the pail under Pip.
-    sh = pygame.Surface((30, 8), pygame.SRCALPHA)
+    sh = pygame.Surface((26, 8), pygame.SRCALPHA)
     pygame.draw.ellipse(sh, (8, 4, 14, 120), sh.get_rect())
-    surf.blit(sh, (cx - 15, bot_y - 2))
+    surf.blit(sh, (cx - 13, bot_y - 1))
 
-    # Wire handle FIRST so the body's top edge overlaps its feet — the arch
-    # then reads as rising out of the box rather than floating above it.
-    hl_x, hr_x = cx - 10, cx + 10
-    foot_y = top_y + 2
-    arc_top = 5
-    pygame.draw.line(surf, OUTLINE, (hl_x, foot_y), (cx - 9, arc_top + 2), 5)
-    pygame.draw.line(surf, OUTLINE, (hr_x, foot_y), (cx + 9, arc_top + 2), 5)
-    arc_rect = pygame.Rect(cx - 9, arc_top - 4, 18, 16)
-    pygame.draw.arc(surf, OUTLINE, arc_rect, 0.15, 3.0, 5)
-    # Grey wire on top of the dark keyline, 2px@22 (4px@2×).
-    pygame.draw.line(surf, WIRE, (hl_x, foot_y), (cx - 9, arc_top + 2), 3)
-    pygame.draw.line(surf, WIRE, (hr_x, foot_y), (cx + 9, arc_top + 2), 3)
-    pygame.draw.arc(surf, WIRE, arc_rect, 0.15, 3.0, 3)
-    pygame.draw.arc(surf, WIRE_HI, arc_rect.inflate(0, -2), 1.2, 2.6, 1)
+    # Tall thin near-semicircular WIRE bail FIRST so the body top edge overlaps
+    # its feet — the arch then reads as a flimsy wire rising out of the pail
+    # rather than a purse strap. Feet land at the inner top corners; the arch
+    # rises well above the body to a clear semicircle. Dark keyline backing so
+    # it never breaks up at 22px, then a 2px@22 (4px@2×) grey wire on top.
+    foot_y = top_y + 1
+    fl_x, fr_x = cx - 9, cx + 9
+    arc_top = 3
+    arc_rect = pygame.Rect(fl_x, arc_top, (fr_x - fl_x), (foot_y - arc_top) * 2)
+    # Keyline backing: stubby legs + the full half-circle arch.
+    pygame.draw.line(surf, OUTLINE, (fl_x, foot_y), (fl_x, arc_top + 6), 5)
+    pygame.draw.line(surf, OUTLINE, (fr_x, foot_y), (fr_x, arc_top + 6), 5)
+    pygame.draw.arc(surf, OUTLINE, arc_rect, 0.0, 3.1416, 5)
+    # Grey wire over the keyline.
+    pygame.draw.line(surf, WIRE, (fl_x, foot_y), (fl_x, arc_top + 6), 4)
+    pygame.draw.line(surf, WIRE, (fr_x, foot_y), (fr_x, arc_top + 6), 4)
+    pygame.draw.arc(surf, WIRE, arc_rect, 0.0, 3.1416, 4)
+    # Thin top highlight so the wire catches light and reads as round metal.
+    pygame.draw.arc(surf, WIRE_HI, arc_rect.inflate(0, -3), 0.5, 2.6, 1)
 
     # Body outline frame, then a vertical gradient fill clipped to the shape.
     out_body = [
@@ -79,22 +92,41 @@ def build(mode: str = "normal") -> pygame.Surface:
 
     # Lit left edge — gives the white paper a crisp self-lit keyline at night.
     pygame.draw.line(surf, (255, 253, 248),
-                     (cx - top_hw + 2, top_y + 2),
+                     (cx - top_hw + 2, top_y + 3),
                      (cx - bot_hw + 2, bot_y - 2), 1)
 
-    # Red folded top flaps — a wide band with a central notch reads as the two
-    # crimped flaps even when fine detail dies at 22px.
-    flap_y0, flap_y1 = top_y, top_y + 6
+    # Folded RED TOP — the hero tell. Two overlapping angled fold-tabs that meet
+    # at a centre peak, leaving a wide inverted-V notch break along the top edge
+    # so the silhouette is unmistakably the crimped paper top, NOT a flat band.
+    notch_w = 5                                  # well past 1px so it survives downscale
+    peak_y = top_y - 3                           # tabs rise above the rim into a peak
+    fold_y = top_y + 7                           # how far the tabs fold down the body
+    # Left tab: rises from the left rim up to the centre peak, folds down.
     pygame.draw.polygon(surf, FLAP, [
-        (cx - top_hw, flap_y0), (cx + top_hw, flap_y0),
-        (cx + top_hw - 2, flap_y1), (cx - top_hw + 2, flap_y1),
+        (cx - top_hw, top_y),
+        (cx - notch_w, peak_y),
+        (cx, top_y + 2),
+        (cx - top_hw + 1, fold_y),
     ])
-    # Central V notch between the two flaps.
-    pygame.draw.polygon(surf, OUTLINE, [
-        (cx - 2, flap_y0), (cx + 2, flap_y0), (cx, flap_y0 + 4),
+    # Right tab: the second, slightly shadowed flap behind the centre notch.
+    pygame.draw.polygon(surf, FLAP_LO, [
+        (cx + top_hw, top_y),
+        (cx + notch_w, peak_y),
+        (cx, top_y + 2),
+        (cx + top_hw - 1, fold_y),
     ])
+    # Keyline the centre notch + peak edges so the inverted-V break is crisp.
+    pygame.draw.line(surf, OUTLINE, (cx - notch_w, peak_y), (cx, top_y + 2), 2)
+    pygame.draw.line(surf, OUTLINE, (cx + notch_w, peak_y), (cx, top_y + 2), 2)
+    pygame.draw.line(surf, OUTLINE, (cx - top_hw, top_y), (cx - notch_w, peak_y), 1)
+    pygame.draw.line(surf, OUTLINE, (cx + top_hw, top_y), (cx + notch_w, peak_y), 1)
+    # Lit crease on the front tab.
     pygame.draw.line(surf, FLAP_HI,
-                     (cx - top_hw + 2, flap_y0 + 1),
-                     (cx - 2, flap_y0 + 1), 1)
+                     (cx - top_hw + 2, top_y + 1), (cx - 1, top_y + 1), 1)
+
+    # Wire-attachment PINCH DIMPLES at the top rim corners — small dark notches
+    # where the bail pinches the paper, an instantly-readable pail cue.
+    pygame.draw.line(surf, OUTLINE, (fl_x - 1, top_y), (fl_x + 1, top_y + 2), 2)
+    pygame.draw.line(surf, OUTLINE, (fr_x - 1, top_y + 2), (fr_x + 1, top_y), 2)
 
     return pygame.transform.smoothscale(surf, (22, 22))
