@@ -455,9 +455,16 @@ def build_scout(wing_angle_deg):
     open_t = (0.28, 0.62, 1.0, 0.62)[ph]         # pupil dilation cycle
     _aaellipse(surf, C4_IRIS, (BCX, BCY + 1), iris_r, iris_r - 1)
     pygame.draw.circle(surf, C4_ORB_DEEP, (BCX, BCY + 1), iris_r, 1)
-    pupil_r = max(2, int(2 + (iris_r - 3) * open_t))
-    # contained pupil: small halo + a hard bright disc, no wide bloom
-    _glow_dot(surf, (BCX, BCY + 1), pupil_r, C4_PUPIL, halo=1.5, contour=None,
+    # CLAMP the peak pupil so a dark iris well (>=3px ring) ALWAYS survives around
+    # the bright pupil at 40px: the tell must read as an EYE OPENING, not a lamp
+    # switching on. The halo is also held tight so the bloom can't erode that ring.
+    pupil_cap = iris_r - 4                        # leave a guaranteed dark rim
+    pupil_r = min(pupil_cap, max(2, int(2 + (iris_r - 4) * open_t)))
+    # re-stamp the dark iris well just inside the pupil's halo footprint so the
+    # surviving ring stays genuinely DARK even on the wide-open peak frame
+    pygame.draw.circle(surf, C4_IRIS, (BCX, BCY + 1), pupil_r + 2)
+    # contained pupil: tight halo + a hard bright disc, no wide bloom
+    _glow_dot(surf, (BCX, BCY + 1), pupil_r, C4_PUPIL, halo=1.25, contour=None,
               core=(255, 255, 255))
 
     # Hard specular hotspot high-left on the GLASS shell (above the iris) — the
@@ -466,11 +473,14 @@ def build_scout(wing_angle_deg):
     surf.set_at((BCX - 9, BCY - 10), (255, 255, 255))
 
     # Two BOLD high-contrast guard lamps (3px lit) that swap sides per frame, so
-    # they actually read at 40px instead of vanishing as a faint ring.
+    # they actually read at 40px instead of vanishing as a faint ring. Each lamp
+    # sits in a DARK socket ring so its value stays ABOVE the orb/aura bloom on
+    # the peak-open frame — the lamps must never wash out into the dome glow.
     side = 1 if ph % 2 == 0 else -1
     for s in (side, -side):
         gx = BCX + s * (R + 1)
         gy = BCY - 2
+        pygame.draw.circle(surf, C4_ORB_DARK, (gx, gy), 4)   # dark socket, holds contrast
         if s == side:
             _glow_dot(surf, (gx, gy), 3, C4_GUARD_LIT, halo=2.2, contour=(8, 26, 36))
         else:
@@ -488,14 +498,22 @@ def build_scout(wing_angle_deg):
 #   silhouette (top ridges + lower lip) so the hard geometry survives a bright
 #   sky as one connected shape, not a bright crown over a black blob.
 # ═════════════════════════════════════════════════════════════════════════════
-C5_FACET_DARK = (52, 34, 82)
-C5_FACET_MID  = (104, 72, 162)
-C5_FACET_HI   = (196, 168, 248)     # the one travelling lit facet
-C5_EDGE       = (236, 226, 255)
-C5_LIP        = (186, 164, 226)     # lower-lip keyline (closes the belly)
+# Mid-hull facet bases lifted hard so there is no dark dead-band between the top
+# ridge and the glowing core — the eye must read ONE continuous faceted disc, a
+# mid-value gem whose facets only differ by a gentle cut step (not light/dark
+# banding). The lit facet is only a touch above mid so the core, not a bright
+# island, stays the single value peak.
+C5_FACET_DARK = (118, 90, 168)
+C5_FACET_MID  = (148, 116, 204)
+C5_FACET_HI   = (190, 162, 240)     # the one travelling lit facet
+# Top-ridge keyline dropped ~28% off the old (236,226,255) so the ridge no longer
+# detaches as a glowing wishbone floating above a dark wedge.
+C5_EDGE       = (170, 152, 210)
+C5_RIDGE      = (150, 134, 188)     # the dimmest ridge line — sits ON the body
+C5_LIP        = (172, 150, 210)     # lower-lip keyline (closes the belly)
 C5_CORE       = (224, 188, 255)
 C5_CORE_HOT   = (255, 244, 255)
-C5_UNDER      = (28, 18, 48)
+C5_UNDER      = (52, 36, 84)        # lifted off pure black so belly→hull is a single falloff
 C5_RIM_LIT    = (214, 178, 255)
 C5_RIM_DIM    = (70, 50, 110)
 C5_BEAM       = (190, 150, 255)
@@ -523,8 +541,21 @@ def build_crystal(wing_angle_deg):
     pygame.draw.line(surf, C5_LIP, under[0], under[3], 1)   # left cut edge
     pygame.draw.line(surf, C5_LIP, under[3], under[2], 1)   # belly edge
 
-    # faceted top disc — a fan of angular planes around a peak above centre.
-    peak = (BCX, BCY - 9)
+    # Solid mid-value upper disc UNDER the facets so no dark sky shows between the
+    # facet fan and the elliptical keyline — the gem reads as one filled mass, then
+    # the facet triangles only add cut detail on top of it. The top rows stay near
+    # mid value (not dark) so there is no dark cap crescent above the bright core.
+    for row in range(-ry, 2):
+        t = (row + ry) / ry
+        col = _lerp(C5_FACET_MID, C5_FACET_HI, t * 0.7)
+        span = (rx - 1) * math.sqrt(max(0.0, 1.0 - (row / ry) ** 2))
+        pygame.draw.line(surf, col, (BCX - span, BCY + row), (BCX + span, BCY + row))
+
+    # faceted top disc — a fan of angular planes around a peak above centre. The
+    # peak sits near the top edge so the cut planes track the silhouette; because
+    # the solid disc above already fills the mass, the facets just score cut lines
+    # over a continuous gem (no dark wedge between ridge and core).
+    peak = (BCX, BCY - 8)
     rim = []
     seg = 8
     for i in range(seg + 1):
@@ -541,9 +572,10 @@ def build_crystal(wing_angle_deg):
             col = C5_FACET_MID if i % 2 == 0 else C5_FACET_DARK
         _facet(surf, [peak, rim[i], rim[i + 1]], col, C5_EDGE)
 
-    # bright cut keyline along the top ridge silhouette
-    pygame.draw.line(surf, C5_EDGE, rim[0], peak, 1)
-    pygame.draw.line(surf, C5_EDGE, rim[-1], peak, 1)
+    # cut keyline along the top ridge silhouette — dimmed (C5_RIDGE) so the ridge
+    # sits ON the body as a cut edge, not a glowing wishbone above a dark wedge.
+    pygame.draw.line(surf, C5_RIDGE, rim[0], peak, 1)
+    pygame.draw.line(surf, C5_RIDGE, rim[-1], peak, 1)
     # Continuous keyline: bright top ridge + a closing lower lip so the faceted
     # disc reads as ONE connected gem on the bright day band and at night.
     _keyline_full(surf, BCX, BCY, rx - 1, ry, C5_EDGE, C5_LIP)
