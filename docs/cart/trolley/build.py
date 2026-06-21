@@ -1,17 +1,31 @@
-"""CLASSIC TROLLEY — secret flyer skin concept (round 1).
+"""CLASSIC TROLLEY — secret flyer skin concept (round 2).
 
 A flying supermarket cart replaces Pip. The universal cart read is a
 trapezoid basket FLARED OPEN at the top, narrow at the bottom, sitting on
 two wheels, with a single curved push-handle hooking up off the back-right.
-There are NO wings: the "flap" is reinterpreted as SPINNING WHEELS — each
-wheel hub cycles a 4-phase spoke cross (+ → × → + → ×) and the whole cart
-bobs 1px so it reads as rolling through the air.
+There are NO wings: the "flap" is reinterpreted as SPINNING WHEELS.
 
-The prior-failure trap for a wire trolley is that thin diagonal grid lines
-VANISH at 40px and turn to mush. So the load-bearing read here is a BOLD
-FILLED basket mass + two BOLD wheels; the wire grid is only SUGGESTED by a
-few fat verticals that are allowed to drop entirely at 40px without losing
-the silhouette.
+Round-2 fix — the spin tell is the concept's whole motion premise and it
+died at 40px, so the wheels are rebuilt around legibility at true scale:
+  * FAT round wheels with a bright hub plate and a SINGLE bold spoke BAR
+    (not a fine cross cut into a small disc — that turned to sub-pixel mush).
+  * The spin is re-told as that bar ROTATING through ~4 stepped angles
+    (vertical → diagonal → horizontal → diagonal). A rotating bar is NOT
+    rotationally self-similar the way a +→× flip is, so it reads as MOTION
+    in grayscale at 40px. Paired with a 1px bob.
+  * Tyres lifted off near-black to a dark STEEL so the two wheels don't
+    collapse into one black blob on a bright DAY sky; the bright keyline
+    ring carries the per-wheel edge so the pair stays visually SEPARATE.
+  * Wider wheel TRACK so a strip of sky shows between the two circles —
+    a visible gap is what actually sells "two wheels" at 40px.
+  * Cargo is seated HIGHER inside the basket, clear of the wheel zone, so
+    nothing occludes the wheels (the wheels are the tell). Pip's parcel is
+    composited by the game and now sits above the wheels, not on them.
+
+The prior wire-trolley trap (thin diagonal grid lines vanish at 40px) is
+still avoided: the load-bearing read is a BOLD FILLED basket mass + two
+BOLD wheels; the wire grid is only SUGGESTED by a few fat verticals that
+are allowed to drop entirely at 40px without losing the silhouette.
 
 Contract mirrors game/animal_ufo.py so the winner lifts straight into a
 production module:
@@ -42,10 +56,15 @@ STEEL_MID   = (159, 176, 190)   # #9FB0BE mid steel
 STEEL_LO    = (91, 107, 120)    # #5B6B78 shadow steel
 STEEL_EDGE  = (60, 74, 86)      # darker rim/contour so the mass has a hard edge
 
-WHEEL_DARK  = (43, 49, 56)      # #2B3138 near-black tyre
-WHEEL_KEY   = (242, 245, 248)   # #F2F5F8 keyline — pops the wheels on night sky
-WHEEL_HUB   = (232, 237, 242)   # bright hub plate (the value-flip disc)
-SPOKE_DARK  = (43, 49, 56)      # spoke cross cut into the bright hub (value flip)
+# Tyres are dark STEEL, not near-black: on a bright DAY sky two near-black
+# discs an axle apart muddied into one dark blob. Dark steel + a bright
+# keyline ring per wheel keeps each circle reading as its own object.
+WHEEL_TYRE  = (74, 84, 96)      # #4A5460 dark steel tyre (lifted off black)
+WHEEL_TYRE_LO = (54, 62, 72)    # lower-arc tyre shade for a touch of roundness
+WHEEL_KEY   = (244, 247, 250)   # #F4F7FA keyline ring — the per-wheel edge
+WHEEL_HUB   = (236, 240, 245)   # bright hub plate (the disc the bar sits on)
+SPOKE_DARK  = (40, 46, 54)      # the single bold spoke BAR (dark on the bright hub)
+AXLE_DARK   = (40, 46, 54)      # tiny centre cap so the bar reads anchored at the axle
 
 CARGO       = (240, 162, 58)    # #F0A23A warm cargo accent
 CARGO_HI    = (255, 198, 110)   # cargo highlight
@@ -100,28 +119,41 @@ def _vbanded_polygon(surf, pts, top_y, bot_y, c_hi, c_mid, c_lo):
     surf.blit(layer, (x0, y0))
 
 
+# The bar steps through these absolute angles, one per spin phase. They are
+# NOT 90°-apart (that would make a single bar look the same every other frame
+# the way + and × do); ~45° steps walk the bar vertical → diagonal →
+# horizontal → diagonal so consecutive frames are always distinguishable.
+_BAR_ANGLES = (90, 45, 0, 135)   # degrees: vertical, /, horizontal, \
+
+
 def _wheel(surf, cx, cy, r, phase):
-    """A BOLD near-black wheel with a bright keyline ring, a bright hub plate,
-    and a spoke cross cut into the hub as a VALUE FLIP (dark spokes on the
-    bright plate). The cross orientation cycles + → × → + → × across the four
-    phases, which is the rolling tell that survives grayscale (a value flip
-    inside a solid disc, not a hue change)."""
-    # bright keyline ring first so it haloes the tyre on a dark night sky
+    """A FAT wheel built for 40px legibility: a bright keyline ring (the per-
+    wheel edge), a dark-STEEL tyre, a bright hub plate, and a SINGLE bold
+    spoke BAR across the hub. The bar steps through _BAR_ANGLES so it visibly
+    ROTATES frame to frame — a rotating bar is not rotationally self-similar,
+    so the spin survives grayscale at true scale (the round-1 fine spoke
+    cross was sub-pixel mush). The bar runs edge-to-edge through the hub so
+    it stays ~2px even after downscale."""
+    # bright keyline ring first — haloes the tyre and, crucially, draws a
+    # bright edge between the two wheels so the pair never fuses into a blob.
     pygame.draw.circle(surf, WHEEL_KEY, (cx, cy), r + 1)
-    # near-black tyre body
-    pygame.draw.circle(surf, WHEEL_DARK, (cx, cy), r)
-    # bright hub plate — the disc the spoke cross is cut into
+    # dark-steel tyre body (lifted off near-black so it separates on day sky)
+    pygame.draw.circle(surf, WHEEL_TYRE, (cx, cy), r)
+    # a hair of lower-arc shade for roundness, without darkening the whole tyre
+    pygame.draw.circle(surf, WHEEL_TYRE_LO, (cx, cy + 1), r, 2)
+    # bright hub plate — the disc the single bar is read against (value flip)
     hub_r = r - 2
     pygame.draw.circle(surf, WHEEL_HUB, (cx, cy), hub_r)
-    # spoke cross: phase 0/2 → upright "+", phase 1/3 → diagonal "×"
-    ang0 = 0 if phase % 2 == 0 else 45
-    for k in range(4):
-        a = math.radians(ang0 + k * 90)
-        ex = cx + int(round(math.cos(a) * hub_r))
-        ey = cy + int(round(math.sin(a) * hub_r))
-        pygame.draw.line(surf, SPOKE_DARK, (cx, cy), (ex, ey), 2)
-    # small dark centre cap so the cross reads as anchored at the axle
-    pygame.draw.circle(surf, WHEEL_DARK, (cx, cy), 2)
+    # the single bold spoke BAR, drawn edge-to-edge across the hub at the
+    # phase's angle. Width 3 in the 64px build so it survives the ~0.65x
+    # downscale to play size as a clear ~2px bar.
+    a = math.radians(_BAR_ANGLES[phase % 4])
+    dx = math.cos(a) * hub_r
+    dy = math.sin(a) * hub_r
+    pygame.draw.line(surf, SPOKE_DARK,
+                     (cx - dx, cy - dy), (cx + dx, cy + dy), 3)
+    # tiny centre cap so the bar reads anchored at the axle
+    pygame.draw.circle(surf, AXLE_DARK, (cx, cy), 2)
 
 
 def build(wing_angle_deg):
@@ -144,15 +176,19 @@ def build(wing_angle_deg):
         (BCX - bot_hw, bot_y),                    # bottom-left
     ]
 
-    # cargo block sitting IN the basket (warm accent) — drawn first so the
-    # basket front grid overlaps it and it reads as goods inside the cart.
+    # cargo block sitting HIGH in the basket (warm accent) — drawn first so
+    # the basket front grid overlaps it and it reads as goods inside the cart.
+    # Seated near the flared mouth and kept well ABOVE the basket base so it
+    # never reaches down into the wheel zone (the wheels are the spin tell;
+    # nothing — cargo or Pip's composited parcel — should occlude them).
+    cargo_bot = top_y + 11
     cargo = [
         (BCX - 13, top_y + 2),
         (BCX + 13, top_y + 2),
-        (BCX + 9, BCY + 2 + bob),
-        (BCX - 9, BCY + 2 + bob),
+        (BCX + 10, cargo_bot),
+        (BCX - 10, cargo_bot),
     ]
-    _vbanded_polygon(surf, cargo, top_y + 2, BCY + 2 + bob, CARGO_HI, CARGO, CARGO_LO)
+    _vbanded_polygon(surf, cargo, top_y + 2, cargo_bot, CARGO_HI, CARGO, CARGO_LO)
     pygame.draw.line(surf, CARGO_HI, (BCX - 11, top_y + 3), (BCX + 11, top_y + 3), 1)
 
     # BOLD filled basket mass — chrome vertical banding. This is the load-
@@ -201,14 +237,20 @@ def build(wing_angle_deg):
     pygame.draw.circle(surf, HANDLE_HI, (hx - 6, rise_top), 2)
 
     # ── two spinning wheels under the narrow base ──
-    wy = bot_y + 5 + bob
-    wr = 6
-    _wheel(surf, BCX - 9, wy, wr, ph)
-    _wheel(surf, BCX + 9, wy, wr, ph)
-    # short steel struts from the base corners down to each axle (fat, survive)
-    pygame.draw.line(surf, STEEL_LO, (BCX - bot_hw + 2, bot_y), (BCX - 9, wy), 3)
-    pygame.draw.line(surf, STEEL_LO, (BCX + bot_hw - 2, bot_y), (BCX + 9, wy), 3)
-    pygame.draw.line(surf, STEEL_HI, (BCX - bot_hw + 2, bot_y), (BCX - 9, wy), 1)
-    pygame.draw.line(surf, STEEL_HI, (BCX + bot_hw - 2, bot_y), (BCX + 9, wy), 1)
+    # FAT wheels (r=8) on a WIDE track (±13) so a clear strip of sky shows
+    # between the two circles at 40px — centres 26px apart vs 16px edge-to-
+    # edge tyre, ~10px gap in the 64px build → a real gap survives downscale.
+    # That visible gap is what reads as TWO wheels rather than one blob. They
+    # sit a touch lower so the clean cargo-free space below the basket frames
+    # them. Struts are drawn first so the wheels overlap the strut tops.
+    wy = bot_y + 7 + bob
+    wr = 8
+    wtrack = 13
+    pygame.draw.line(surf, STEEL_LO, (BCX - bot_hw + 2, bot_y), (BCX - wtrack, wy - 3), 3)
+    pygame.draw.line(surf, STEEL_LO, (BCX + bot_hw - 2, bot_y), (BCX + wtrack, wy - 3), 3)
+    pygame.draw.line(surf, STEEL_HI, (BCX - bot_hw + 2, bot_y), (BCX - wtrack, wy - 3), 1)
+    pygame.draw.line(surf, STEEL_HI, (BCX + bot_hw - 2, bot_y), (BCX + wtrack, wy - 3), 1)
+    _wheel(surf, BCX - wtrack, wy, wr, ph)
+    _wheel(surf, BCX + wtrack, wy, wr, ph)
 
     return surf

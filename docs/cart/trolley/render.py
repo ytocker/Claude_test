@@ -5,4 +5,4 @@ sys.path.insert(0, str(ROOT / "docs" / "animals" / "ufo_redesign"))
 sys.path.insert(0, str(HERE))
 import _gameplay_lib as L
 from build import build
-L.render_concept_sheet(build, "CLASSIC TROLLEY", str(HERE / "round_1.png"))
+L.render_concept_sheet(build, "CLASSIC TROLLEY", str(HERE / "round_2.png"))
