@@ -52,6 +52,15 @@ def demo_titles(n: int = 2):
     return [ach.BY_ID[i].title for i in demo_ids(n)]
 
 
+def demo_varied_ids(n: int = 3):
+    """The first achievement of each of the first `n` categories — distinct
+    icon glyphs (pillar / coin / power-up / nerve …) and short titles, so a
+    LIST of unlocked achievements reads as visually varied rows rather than a
+    column of identical badges."""
+    from game import achievements as ach
+    return [ach.BY_CAT[cat][0].id for cat in ach.CATEGORY_ORDER[:n]]
+
+
 def render_backdrop():
     """Return a fresh 360x640 Surface holding the real RUN SUMMARY screen with
     NO unlock notice drawn — the clean canvas each concept composites onto."""
