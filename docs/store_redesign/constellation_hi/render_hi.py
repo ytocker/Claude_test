@@ -1010,6 +1010,47 @@ def draw_const_thread(surf, rect, gx, gy, cx, cy, pal):
     surf.blit(thread, rect.topleft, special_flags=pygame.BLEND_ADD)
 
 
+def _name_on(surf, name, cx, cy, max_w):
+    """Item name in cream with a tight dark keyline, auto-shrunk to fit."""
+    sz = 13.5
+    f = font(sz)
+    while _glyph_base(name, f, 0).get_width() > max_w and sz > 9:
+        sz -= 0.5
+        f = font(sz)
+    plain_text(surf, name, f, (cx, cy), (250, 248, 240), shadow_a=160,
+               weight=m(0.9), keyline=(6, 6, 16), kw=m(1.0))
+
+
+def _ribbon(surf, tier_word, cx, cy, max_w, pal):
+    """A tier-coloured banner with notched ends carrying the tier word (the
+    rarity read for the crest layout). No bright gold keyline — just the tier
+    gradient + a dark defined edge."""
+    f = font(8.5)
+    tw = _glyph_base(tier_word, f, m(1.4)).get_width()
+    pad = m(12)
+    w = min(max_w, tw + pad * 2)
+    h = m(15)
+    notch = m(5)
+    x0, y0 = cx - w // 2, cy - h // 2
+    top = lerp_color(pal["gem"], WHITE, 0.1)
+    bot = lerp_color(pal["deep"], NEAR_BLACK, 0.05)
+    body = vgrad_stops(w, h, 0, [(0.0, top), (0.5, pal["glow"]), (1.0, bot)],
+                       255, gamma=1.08)
+    poly = [(notch, 0), (w - notch, 0), (w, h // 2), (w - notch, h),
+            (notch, h), (0, h // 2)]
+    pmask = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.polygon(pmask, (255, 255, 255, 255), poly)
+    body.blit(pmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    sh = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.polygon(sh, (0, 0, 0, 120), poly)
+    surf.blit(sh, (x0, y0 + m(2)))
+    surf.blit(body, (x0, y0))
+    abspoly = [(x0 + px, y0 + py) for px, py in poly]
+    pygame.draw.polygon(surf, (4, 5, 16), abspoly, width=max(1, m(1.4)))
+    plain_text(surf, tier_word, f, (cx, cy), (14, 12, 26), shadow_a=0,
+               tracking=m(1.4), weight=m(0.7))
+
+
 def _corner_brackets(surf, rect, pal):
     """Tier-tinted L-brackets hugging the card corners (top-left lit, bottom-right
     shaded) so the rarity frames the whole ticket and reads from the periphery."""
@@ -1062,47 +1103,20 @@ def draw_card(surf, sid, rect, equipped, variant=PRICE_VARIANT):
     pygame.draw.rect(surf, (4, 5, 16), rect, width=max(1, m(2)), border_radius=rad)
     bevel_rim(surf, rect, rad, CARD_RING_DEEP, (*CARD_RING_BRIGHT, 235),
               w=max(1, m(2.0)))
-    # ── RARITY FRAME (chosen treatment): the whole ticket is framed by its tier
-    # — a tier-tinted inner bezel, a soft tier edge-wash, a TOP ACCENT BAR that
-    # spells the tier, and tier-tinted corner brackets. Loud + scannable while
-    # the obsidian body + gold edge survive. ───────────────────────────────────
+    # ── RARITY CREST (chosen treatment, no burst): the rarity reads from a
+    # notched tier RIBBON banner + a larger faceted tier GEM promoted to a rank
+    # badge in the top-right corner (the gear/sunburst aura is deliberately
+    # omitted). Neutral gold inner tray; obsidian body + gold edge survive. ─────
     tray = rect.inflate(-m(7), -m(7))
     trad = rad - m(4)
     pygame.draw.rect(surf, (10, 10, 24, 200), tray.inflate(m(2), m(2)),
                      width=max(1, m(1)), border_radius=trad + m(1))
-    ring_col = lerp_color(pal["gem"], pal["glow"], 0.3)
-    pygame.draw.rect(surf, (*ring_col, 220), tray, width=max(1, m(1.5)),
+    pygame.draw.rect(surf, (*CARD_RING_BRIGHT, 90), tray, width=max(1, m(1)),
                      border_radius=trad)
-    wash = pygame.Surface(rect.size, pygame.SRCALPHA)
-    for i in range(m(10)):
-        a = int(40 * (1 - i / m(10)) ** 1.6)
-        pygame.draw.rect(wash, (*pal["glow"], a),
-                         (i, i, rect.w - 2 * i, rect.h - 2 * i),
-                         width=max(1, m(1)), border_radius=rad - i)
-    surf.blit(wash, rect.topleft, special_flags=pygame.BLEND_ADD)
 
-    # TOP ACCENT BAR — a tier gradient strip carrying the tier word.
-    tier_word = "MYSTERY" if secret else _rarity(sid).upper()
-    bar_h = m(17)
-    bar = pygame.Rect(rect.x + m(5), rect.y + m(5), rect.w - m(10), bar_h)
-    brad = bar_h // 2
-    surf.blit(vgrad_stops(bar.w, bar.h, brad,
-                          [(0.0, lerp_color(pal["gem"], WHITE, 0.12)),
-                           (0.55, pal["glow"]),
-                           (1.0, lerp_color(pal["deep"], NEAR_BLACK, 0.12))],
-                          255, gamma=1.08), bar.topleft)
-    top_sheen(surf, bar, brad, m(7), peak=72)
-    pygame.draw.rect(surf, (4, 5, 16), bar, width=max(1, m(1.2)), border_radius=brad)
-    plain_text(surf, tier_word, font(8.5), bar.center, (14, 12, 26),
-               shadow_a=0, tracking=m(1.6), weight=m(0.7))
-
-    _corner_brackets(surf, rect, pal)
-
-    # BAND A — cabochon, shifted DOWN to clear the accent bar; gem in the free
-    # left corner at the dome's mid-line.
-    cx = rect.centerx
-    cy = rect.y + m(CY_DISC) + m(8)
-    soft_glow(surf, cx, cy, m(R_DISC + 3), pal["glow"], 36, layers=8)
+    # BAND A — cabochon (dome + rim-lit hero) with a soft tier aura
+    cx, cy = rect.centerx, rect.y + m(CY_DISC)
+    soft_glow(surf, cx, cy, m(R_DISC + 3), pal["glow"], 30, layers=8)
     cabochon(surf, cx, cy, m(R_DISC), CABO_LO, CABO_HI, ring=pal["gem"], ring_a=50)
     if secret:
         _draw_qmark(surf, cx, cy, m(R_DISC + 6), CREAM, NEAR_BLACK, thick=m(2))
@@ -1111,14 +1125,17 @@ def draw_card(surf, sid, rect, equipped, variant=PRICE_VARIANT):
         blit_thumb(surf, sid, cx, cy, m(R_DISC) * 1.5)
         name = _name(sid)
     cabochon_glass(surf, cx, cy, m(R_DISC), tint=pal["gem"])
-    facet_gem(surf, rect.x + m(17), cy, m(GEM_R - 1), pal["gem"], pal["deep"],
-              mystery=secret)
 
-    # BAND B — name
-    fit_name(surf, name, cx, rect.y + m(Y_NAME) + m(3), rect.w - m(26))
-    # BAND C — chip
-    state_chip(surf, sid, cx, rect.y + m(Y_CHIP) + m(1), equipped, secret,
-               m(20), variant=variant)
+    # CREST GEM — a larger faceted tier gem in the top-right corner, NO burst.
+    facet_gem(surf, rect.right - m(19), rect.y + m(19), m(GEM_R + 3),
+              pal["gem"], pal["deep"], mystery=secret)
+
+    # rarity RIBBON (tier word) -> name -> chip, each in its own clear lane.
+    tier_word = "MYSTERY" if secret else _rarity(sid).upper()
+    _ribbon(surf, tier_word, cx, rect.y + m(55), rect.w - m(34), pal)
+    _name_on(surf, name, cx, rect.y + m(70), rect.w - m(26))
+    state_chip(surf, sid, cx, rect.y + m(88), equipped, secret, m(20),
+               variant=variant)
 
     if equipped:
         # restrained outer halo (glow rank #1, but kept restrained so it never
