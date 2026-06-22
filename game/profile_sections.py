@@ -435,33 +435,14 @@ def _curio(surf, rect, kind, title, sub, cost):
     _panel(surf, rect, radius=11, top=(38, 30, 50), bot=(22, 16, 34))
     _sheen(surf, rect, 8)
     icx, icy = rect.x + 36, rect.centery
-    if kind == 0:      # crystal ball
-        _soft_glow(surf, icx, icy, 18, (150, 200, 240), 50, layers=4)
-        pygame.draw.circle(surf, (40, 60, 90), (icx, icy), 16)
-        pygame.draw.circle(surf, (170, 210, 245), (icx, icy), 16, 2)
-        pygame.draw.circle(surf, (220, 240, 255), (icx - 5, icy - 5), 3)
-        pygame.draw.polygon(surf, (150, 120, 70),
-                            [(icx - 13, icy + 14), (icx + 13, icy + 14),
-                             (icx + 8, icy + 19), (icx - 8, icy + 19)])
-    elif kind == 1:    # vending machine
-        m = pygame.Rect(icx - 14, icy - 18, 28, 36)
-        surf.blit(_vgrad_panel(m.w, m.h, 4, (70, 60, 90), (40, 32, 58), 255),
-                  m.topleft)
-        pygame.draw.rect(surf, (150, 130, 190), m, width=1, border_radius=4)
-        pygame.draw.circle(surf, (240, 200, 90), (m.centerx, m.y + 10), 6)
-        pygame.draw.rect(surf, (30, 24, 40), (m.x + 5, m.bottom - 8, 18, 4))
-    else:              # sage parrot
-        _soft_glow(surf, icx, icy, 16, (230, 120, 80), 40, layers=4)
-        pygame.draw.circle(surf, (200, 80, 60), (icx, icy), 13)
-        pygame.draw.circle(surf, (150, 50, 40), (icx, icy), 13, 1)
-        pygame.draw.circle(surf, (240, 240, 245), (icx + 4, icy - 3), 3)
-        pygame.draw.circle(surf, (20, 20, 24), (icx + 5, icy - 3), 1)
-        pygame.draw.polygon(surf, (240, 180, 70),
-                            [(icx + 10, icy), (icx + 17, icy + 2),
-                             (icx + 10, icy + 5)])
-        pygame.draw.lines(surf, (220, 220, 226), False,
-                          [(icx - 3, icy + 7), (icx - 4, icy + 16),
-                           (icx, icy + 13), (icx + 3, icy + 16)], 1)
+    if kind == 0:
+        _soft_glow(surf, icx, icy, 16, (150, 200, 240), 40, layers=4)
+        profile_art.curio_crystal(surf, icx, icy - 1, 17)
+    elif kind == 1:
+        profile_art.curio_vending(surf, icx, icy, 0.9)
+    else:
+        _soft_glow(surf, icx, icy, 14, (230, 150, 90), 32, layers=4)
+        profile_art.curio_beakon(surf, icx, icy - 2, 0.92)
     tx = rect.x + 64
     _module_header(surf, tx, rect.centery - 9, title, size=12)
     sub_img = _font(8, True).render(sub, True, (190, 180, 210))

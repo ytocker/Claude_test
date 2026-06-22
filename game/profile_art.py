@@ -197,3 +197,97 @@ def shame_badge(surf, cx, cy, r, tier, kind, locked):
     pygame.draw.circle(surf, lerp_color(t["rim"], WHITE, 0.3), (cx, cy), r - 1, 1)
     _tier_gem(surf, cx, cy, r, t)
     _drip(surf, cx, cy + r - 2, ink, t["patina"])
+
+
+# ── ARCADE curio icons (compact, faithful to the locked element designs) ─────
+
+def curio_crystal(surf, cx, cy, r=18):
+    """Teal/gold fortune orb on a gold claw cradle (the locked crystal-ball
+    look, idle state) — never purple, so it stays clear of the rarity-gem hue."""
+    for dx in (-0.7, 0.0, 0.7):
+        pygame.draw.line(surf, (200, 160, 84),
+                         (cx + dx * r * 0.5, cy + r * 0.5),
+                         (cx + dx * r, cy + r * 1.15), 3)
+    pygame.draw.ellipse(surf, (176, 138, 70),
+                        (cx - r * 0.85, cy + r * 0.9, r * 1.7, r * 0.55))
+    for i in range(r, 0, -1):
+        f = i / r
+        c = lerp_color((156, 208, 228), (26, 52, 72), (1 - f) ** 1.2)
+        pygame.draw.circle(surf, c, (cx, cy), i)
+    pygame.draw.circle(surf, (66, 116, 146), (int(cx + r * 0.16), int(cy + r * 0.18)),
+                       int(r * 0.42))
+    pygame.draw.circle(surf, (236, 250, 255),
+                       (int(cx - r * 0.32), int(cy - r * 0.34)), max(2, int(r * 0.18)))
+    pygame.draw.circle(surf, (230, 200, 120), (cx, cy), r, 2)
+
+
+def _capsule(surf, cx, cy, w, h, col):
+    """A two-tone gachapon capsule: glossy clear dome over a solid base, one pip
+    and a crisp equator seam — the look that says cheap plastic, not gem."""
+    top = pygame.Rect(int(cx - w / 2), int(cy - h / 2), int(w), int(h / 2))
+    bot = pygame.Rect(int(cx - w / 2), int(cy), int(w), int(h / 2))
+    pygame.draw.ellipse(surf, lerp_color(col, WHITE, 0.55), top)
+    pygame.draw.ellipse(surf, col, bot)
+    pygame.draw.line(surf, lerp_color(col, NEAR_BLACK, 0.3),
+                     (cx - w / 2, cy), (cx + w / 2, cy), 1)
+    pygame.draw.circle(surf, (255, 255, 255), (int(cx - w * 0.18), int(cy - h * 0.22)),
+                       max(1, int(w * 0.1)))
+
+
+def curio_vending(surf, cx, cy, s=1.0):
+    """Obsidian gachapon cabinet: gold-crowned capsule globe, coin slot, and a
+    capsule sitting in the chute (the locked vending look)."""
+    w, h = int(34 * s), int(46 * s)
+    body = pygame.Rect(int(cx - w / 2), int(cy - h / 2), w, h)
+    surf.blit(_vgrad_panel(body.w, body.h, 6, (48, 40, 62), (26, 22, 38), 255),
+              body.topleft)
+    pygame.draw.rect(surf, (150, 130, 190), body, 1, border_radius=6)
+    gcy = body.y + int(13 * s)
+    gr = int(12 * s)
+    pygame.draw.circle(surf, (16, 20, 32), (cx, gcy), gr)
+    for ox, oy, col in ((-0.35, -0.1, (224, 96, 96)), (0.28, 0.12, (96, 156, 224)),
+                        (-0.08, 0.4, (236, 204, 96)), (0.42, -0.3, (120, 204, 144))):
+        _capsule(surf, cx + ox * gr, gcy + oy * gr, gr * 0.62, gr * 0.7, col)
+    pygame.draw.circle(surf, (224, 188, 112), (cx, gcy), gr, 2)
+    pygame.draw.arc(surf, (236, 204, 120),
+                    (cx - gr, gcy - gr - int(5 * s), gr * 2, gr * 2),
+                    math.radians(20), math.radians(160), 2)
+    pygame.draw.circle(surf, (228, 196, 110), (int(cx + w * 0.22), int(cy + h * 0.04)),
+                       max(2, int(3 * s)))
+    pygame.draw.rect(surf, (228, 196, 110), (cx - w * 0.28, cy + h * 0.02, w * 0.16, 2))
+    chute = pygame.Rect(int(cx - w * 0.32), int(body.bottom - 11 * s), int(w * 0.64),
+                        int(8 * s))
+    pygame.draw.rect(surf, (14, 12, 20), chute, border_radius=2)
+    _capsule(surf, chute.centerx, chute.centery, gr * 0.7, gr * 0.7, (236, 204, 96))
+
+
+def curio_beakon(surf, cx, cy, s=1.0):
+    """Compact bust of the elder-macaw sage: heavy brow, half-lidded deadpan eye,
+    hooked beak, single forked wedge-beard, folded wing hint (the locked option-A
+    look). Aged/muted scarlet so he's recognizably the game's macaw, grown old."""
+    hr = int(16 * s)
+    pygame.draw.ellipse(surf, (66, 86, 148),
+                        (cx - hr * 1.15, cy + hr * 0.1, hr * 1.7, hr * 1.4))
+    pygame.draw.ellipse(surf, (40, 56, 104),
+                        (cx - hr * 1.15, cy + hr * 0.1, hr * 1.7, hr * 1.4), 1)
+    pygame.draw.line(surf, (236, 196, 96), (cx - hr * 0.5, cy + hr * 0.8),
+                     (cx - hr * 0.1, cy + hr * 1.0), 2)            # folded-wing tip
+    pygame.draw.circle(surf, (196, 70, 56), (cx, cy), hr)
+    pygame.draw.circle(surf, (150, 46, 40), (cx, cy), hr, 1)
+    pygame.draw.line(surf, (120, 34, 30), (cx - hr * 0.55, cy - hr * 0.18),
+                     (cx + hr * 0.4, cy - hr * 0.42), max(2, int(3 * s)))   # brow
+    pygame.draw.circle(surf, (242, 240, 244), (int(cx - hr * 0.06), int(cy - hr * 0.02)),
+                       max(2, int(hr * 0.24)))
+    pygame.draw.circle(surf, (20, 20, 26), (int(cx), int(cy)), max(1, int(hr * 0.12)))
+    pygame.draw.line(surf, (150, 46, 40), (cx - hr * 0.32, cy - hr * 0.14),
+                     (cx + hr * 0.22, cy - hr * 0.2), max(2, int(2 * s)))   # heavy lid
+    pygame.draw.polygon(surf, (44, 40, 50),
+                        [(cx + hr * 0.5, cy - hr * 0.12), (cx + hr * 1.12, cy + hr * 0.12),
+                         (cx + hr * 0.5, cy + hr * 0.36)])                  # hooked beak
+    pygame.draw.line(surf, (20, 18, 24), (cx + hr * 0.55, cy + hr * 0.12),
+                     (cx + hr * 1.0, cy + hr * 0.12), 1)
+    by = cy + hr * 0.7
+    beard = [(cx - hr * 0.32, by), (cx + hr * 0.32, by), (cx + hr * 0.2, by + hr * 0.85),
+             (cx, by + hr * 0.5), (cx - hr * 0.2, by + hr * 0.85)]
+    pygame.draw.polygon(surf, (206, 206, 212), beard)
+    pygame.draw.polygon(surf, (150, 150, 158), beard, 1)
