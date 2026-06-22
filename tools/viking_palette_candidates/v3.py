@@ -29,10 +29,14 @@ from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
 
 
 # ── STORMGREY material palette (brief spec) ──────────────────────────────────
-BODY       = (110, 118, 130)        # #6E7682 neutral slate plumage
-BODY_SHADE = (68, 74, 84)           # #444A54 body shadow / line work
-CHEST      = (130, 138, 150)        # #828A96 lighter chest
-BELLY      = (90, 97, 107)          # #5A616B belly
+# Round-2 ITERATE: the v3 body ran cold (R-minus-B ~ -20, an overcast-blue lean
+# that risked reading as frost). Warmed toward neutral-warm slate by raising R
+# and dropping B so R-minus-B lands ~ +2..+4 — plain iron-grey, not icy. Value
+# is held roughly constant so the night read and mass hierarchy are unchanged.
+BODY       = (124, 120, 122)        # #7C787A neutral-warm slate plumage
+BODY_SHADE = (80, 76, 77)           # #504C4D body shadow / line work
+CHEST      = (148, 142, 143)        # #948E8F lighter chest (one value step up)
+BELLY      = (102, 98, 99)          # #666263 belly
 
 HELM       = (90, 96, 104)          # #5A6068 dark-steel helm
 HELM_DARK  = (52, 56, 62)           # #34383E helm shadow / horn fill mass
@@ -45,10 +49,14 @@ BEARD      = (74, 70, 62)           # #4A463E grey-brown braid
 BEARD_DARK = (46, 44, 40)           # #2E2C28 braid shadow
 BEARD_RING = (198, 204, 212)        # #C6CCD4 silver beard-ring
 
-SHIELD_PLANK = (110, 116, 126)      # #6E747E steel-grey planks
-SHIELD_FIELD = (74, 90, 110)        # #4A5A6E muted blue-grey painted field
-IRON         = (52, 56, 62)         # iron boss / rim base
-IRON_HI      = (170, 178, 188)      # iron highlight
+# Round-2 ITERATE: against the warmed body the shield field must read as a
+# deliberate PAINTED accent, not a hole. Field pushed bluer AND darker so it
+# pops cool against the warm body, and the iron rim/boss base is deepened ~12
+# value to frame the disc as a hard ring around it.
+SHIELD_PLANK = (112, 116, 124)      # #70747C cool steel-grey planks
+SHIELD_FIELD = (58, 78, 104)        # #3A4E68 deep painted blue-grey field
+IRON         = (40, 44, 50)         # #282C32 deepened iron boss / rim base
+IRON_HI      = (172, 180, 190)      # iron highlight
 
 # Frost relied on a cold mid-dark keyline so the pale mass held an edge on day
 # sky. Stormgrey is mid-dark already, but the keyline still does the day-read
@@ -63,31 +71,33 @@ KEYLINE = (34, 38, 44, 235)         # #22262C charcoal outer keyline
 # mass still holds a crisp edge on a bright day sky. Lenses are dropped so the
 # helm brow + beard own the face, exactly as the winning structure did.
 P_STORM = _pal(
-    tail=[(96, 103, 114), (108, 116, 128), (120, 128, 140), (138, 146, 158)],
+    tail=[(108, 104, 105), (120, 116, 117), (132, 128, 129), (150, 145, 146)],
     tail_line=BODY_SHADE,
-    body_shadow=(74, 80, 90),       # near BODY_SHADE so the back/belly edge
-                                    # separates from a blue day sky
+    body_shadow=(86, 82, 83),       # warmed with the body; near BODY_SHADE so
+                                    # the back/belly edge still holds an edge
     body_main=BODY,
     body_chest=CHEST,
     body_belly=BELLY,
-    sheen=(230, 236, 244, 70),      # restrained steel sheen, not icy glint
-    wing_main=(100, 108, 120),
-    wing_dark=(60, 66, 76),
-    wing_tip=(150, 158, 170),       # cool steel edge on the leading tips
+    sheen=(238, 236, 234, 70),      # restrained warm-steel sheen, not icy glint
+    # Wing/back kept one hair COOLER and a touch darker than the warmed body so
+    # the front chest mass reads forward of the wing without going pale.
+    wing_main=(108, 109, 116),
+    wing_dark=(66, 66, 72),
+    wing_tip=(156, 156, 162),       # cool steel edge on the leading tips
     wing_secondary=None,
-    wing_highlight=(160, 168, 180), # crisp steel rim on the wing
-    head_shadow=(74, 80, 90),
+    wing_highlight=(166, 166, 172), # crisp steel rim on the wing
+    head_shadow=(86, 82, 83),
     head_main=BODY,
-    head_cheek=(124, 132, 144),
-    head_crown=(134, 142, 154),
-    lens_frame=(98, 104, 114),
-    lens_body=(40, 44, 50),
+    head_cheek=(138, 133, 134),
+    head_crown=(148, 143, 144),
+    lens_frame=(108, 105, 108),
+    lens_body=(44, 42, 43),
     lens_tint=None,
     lens_glint=None,
-    beak_main=(120, 124, 130),      # cool grey horn, nothing warm survives
+    beak_main=(128, 124, 122),      # neutral-warm grey horn, matches the body
     beak_dark=BODY_SHADE,
-    beak_gloss=(170, 176, 184),
-    foot=(96, 100, 108),
+    beak_gloss=(176, 172, 170),
+    foot=(104, 100, 99),
 )
 
 
