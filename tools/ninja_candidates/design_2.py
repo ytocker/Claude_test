@@ -188,7 +188,11 @@ def _paint(surf, wing_angle_deg):
     pygame.draw.line(surf, STEEL, (HX - 9, HY), (HX + 11, HY - 3), 2)  # slit
 
     # ── HEAD · steel forehead plate: solid diamond + one corner highlight ────
-    px, py = HX + 1, HY - 6
+    # Nudged up 1px and the gap to the slit darkened with the charcoal band
+    # value, so plate and slit read as TWO marks (plate above, slit below) and
+    # don't fuse into one steel blob when the NEAREST shrink collapses the row.
+    px, py = HX + 1, HY - 7
+    pygame.draw.line(surf, CHARCOAL, (px - 5, py + 4), (px + 5, py + 4), 1)  # dark divider
     plate = [(px, py - 4), (px + 5, py), (px, py + 4), (px - 5, py)]
     pygame.draw.polygon(surf, STEEL, plate)
     pygame.draw.circle(surf, STEEL_HI, (px - 2, py - 1), 2)  # single corner glint
