@@ -468,24 +468,26 @@ def render_sheet():
     cx = sw // 2
     _label(surf, "CONSTELLATION — CHIP FAMILY", cx, m(20), size=13,
            col=(255, 244, 206))
+    _label(surf, "PRICE = SINGLE SMOOTH GOLD GRADIENT", cx, m(38), size=9,
+           col=(196, 182, 220))
 
     ch = m(30)                                   # showcase chip height (large)
     # ── three single-gradient PRICE ramps, each at 280 / 1,500 / 7,000 ────────
     col_x = [sw // 4, sw // 2, sw - sw // 4]
-    ramp_labels = {"A": "RAMP A — ROYAL GOLD",
-                   "B": "RAMP B — HONEY GOLD",
-                   "C": "RAMP C — BURNISHED GOLD"}
+    ramp_top = {"A": "RAMP A", "B": "RAMP B", "C": "RAMP C"}
+    ramp_sub = {"A": "ROYAL GOLD", "B": "HONEY GOLD", "C": "BURNISHED"}
     values = ["280", "1,500", "7,000"]
-    y0 = m(54)
+    y0 = m(64)
     for col, ramp in enumerate("ABC"):
         x = col_x[col]
-        _label(surf, ramp_labels[ramp], x, y0, size=10)
+        _label(surf, ramp_top[ramp], x, y0, size=11, col=(255, 232, 168))
+        _label(surf, ramp_sub[ramp], x, y0 + m(15), size=9)
         for i, v in enumerate(values):
-            price_chip(surf, x, y0 + m(28) + i * m(46), v, ch, ramp=ramp,
+            price_chip(surf, x, y0 + m(40) + i * m(46), v, ch, ramp=ramp,
                        state="afford")
 
     # ── the matching states (share the exact pill + edge finish) ─────────────
-    sy = y0 + m(28) + 3 * m(46) + m(34)
+    sy = y0 + m(40) + 3 * m(46) + m(34)
     gold_rule_y = sy - m(18)
     rule = pygame.Surface((sw - m(40), m(3)), pygame.SRCALPHA)
     for sx in range(rule.get_width()):
@@ -496,11 +498,11 @@ def render_sheet():
     _label(surf, "STATES — ONE PILL, ONE EDGE FINISH", cx, sy, size=12,
            col=(255, 244, 206))
 
-    row_y = sy + m(38)
+    row_y = sy + m(40)
     sx3 = [sw // 4, sw // 2, sw - sw // 4]
-    _label(surf, "EQUIP", sx3[0], row_y - m(22), size=10)
-    _label(surf, "EQUIPPED", sx3[1], row_y - m(22), size=10)
-    _label(surf, "LOCKED  (can't afford)", sx3[2], row_y - m(22), size=10)
+    _label(surf, "EQUIP", sx3[0], row_y - m(24), size=10)
+    _label(surf, "EQUIPPED", sx3[1], row_y - m(24), size=10)
+    _label(surf, "LOCKED", sx3[2], row_y - m(24), size=10)
     status_chip(surf, sx3[0], row_y, "EQUIP", ch, kind="equip")
     status_chip(surf, sx3[1], row_y, "EQUIPPED", ch, kind="equipped")
     price_chip(surf, sx3[2], row_y, "7,000", ch, ramp="A", state="locked")
