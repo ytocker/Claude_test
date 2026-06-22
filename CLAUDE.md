@@ -196,6 +196,35 @@ or restyles a visual (e.g. a new power-up icon, a parrot/pillar/sky look):
 
 Trivial recolors may skip the loop at the user's discretion.
 
+## Costume redesign loop (standing)
+
+Store-costume redesigns (the `group: "costume"` skins in `store_catalog.py`)
+follow a fixed shape — the user wants it applied to EVERY costume without
+re-stating it. When asked to redesign costume `<item>`:
+
+1. `novelty-designer` → **5 distinct, buildable concepts**, each layering
+   MULTIPLE themed objects across the bird (head + back + body + limbs — never
+   one lonely accessory), each with a name / hero silhouette / object list +
+   placement / 3–5 hex palette / distinctness line. Write to
+   `docs/store_redesign/costume/<item>/concepts.md`; numbers map to design_1…5.
+2. Run **five independent design loops IN PARALLEL** (the Design loop above, per
+   concept), batched by phase: R1 designers → C1 critics → R2 designers → C2
+   critics → R3 designers; same ≤3-designer/≤2-critic cap, early-exit on
+   SHIP-READY. Candidates are scratch builders wrapped by
+   `store_skins._make_skin` (body recolors via a `base_fn` from
+   `dollar_parrot_ghost._build_parrot_with_palette`), **never** registered in
+   `store_skins.BUILDERS`. Save each to `tools/<item>_candidates/design_<N>.py`
+   (exposing `build`); render in-gameplay via the generic
+   `tools/ninja_render.py` harness.
+3. Deliverable = ONE comparison figure
+   `docs/store_redesign/costume/<item>/final_comparison.png` (original skin +
+   the 5 finals, each Pip mid-flight in a real gameplay scene, side by side) +
+   its GitHub link + a one-line evolution note per design.
+
+Exploration only — production `store_skins.py` / catalog stay untouched until
+the user picks a winner; only then wire the chosen builder in under the SAME
+item id/name (e.g. the ninja redraw kept `skin_ninja` / "NINJA").
+
 ## Data analysis loop (orchestrator-run)
 
 Same shape as the Design loop above, but for the Streamlit analytics product
