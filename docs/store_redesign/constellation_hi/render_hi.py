@@ -742,63 +742,29 @@ def draw_bg(surf):
 
 # ── header ────────────────────────────────────────────────────────────────────
 def title_wordmark(surf, txt, center, size, tracking):
-    """Royal-Match-style gold BEVEL wordmark: ONE clean specular-swept gold fill
-    with consistent stroke weight, a fine bright top emboss, a dark keyline for
-    crisp delineation, and a single soft contact shadow. No chunky faux-3D
-    extrude (that read amateur) — depth comes from the bevel + shadow only."""
+    """The standard Skybit menu title: a solid gold fill + red outline + a soft
+    near-black drop shadow (the gold-on-red wordmark used across the menus). No
+    bevel/specular sweep — that sheen painted a horizontal line across the flat
+    letter tops; plain Skybit colours read cleaner and match the other screens."""
     f = font(size)
-    base = _glyph_base(txt, f, tracking)
-    base = _stamp_bold(base, m(1.3))
-    w, hh = base.get_size()
+    base = _stamp_bold(_glyph_base(txt, f, tracking), m(1.1))  # thick + crisp
     r = base.get_rect(center=center)
-    # soft contact shadow (single, blurred by multi-offset falloff)
-    for k, a in ((m(3), 60), (m(2), 90), (m(1), 120)):
-        sh = base.copy()
-        sh.fill((6, 4, 14, 255), special_flags=pygame.BLEND_RGBA_MULT)
-        sh.set_alpha(a)
-        surf.blit(sh, (r.x, r.y + k + m(2)))
-    # NOTE: no additive offset-glow here. Offset additive copies of the glyph
-    # accumulate in the inter-stroke gaps and read as pale blocks behind the
-    # letters; the clean Royal-Match wordmark gets its depth from the contact
-    # shadow + dark keyline + bevel crown instead.
-    # crisp dark keyline contour so the gold edges read clean against the sky
-    kl = base.copy()
-    kl.fill((78, 40, 8, 255), special_flags=pygame.BLEND_RGBA_MULT)
-    for ang in range(0, 360, 30):
-        dx = int(round(m(1.6) * math.cos(math.radians(ang))))
-        dy = int(round(m(1.6) * math.sin(math.radians(ang))))
-        surf.blit(kl, (r.x + dx, r.y + dy))
-    # the gold body: a clean vertical gold gradient (consistent stroke weight,
-    # no faux-3D extrude). Warm gold, NOT near-white, so the letterforms stay
-    # legible; a single tight specular band sits in the upper third only.
-    # The gold body. The gradient is mapped over the GLYPH's own vertical extent
-    # (not the padded surface), so the bright crown sits at the true cap and the
-    # deep amber at the true baseline — and the top stop is a warm gold, never
-    # near-white, so the caps don't blow out to white blocks.
-    bb = base.get_bounding_rect()
-    top_y, gh = bb.y, max(1, bb.h)
-    grad = pygame.Surface((w, hh), pygame.SRCALPHA)
-    for y in range(hh):
-        t = max(0.0, min(1.0, (y - top_y) / gh))
-        if t < 0.5:
-            c = lerp_color((252, 208, 116), (242, 180, 78), t / 0.5)
-        else:
-            c = lerp_color((242, 180, 78), (188, 118, 32), (t - 0.5) / 0.5)
-        pygame.draw.line(grad, c, (0, y), (w, y))
-    body = base.copy()
-    body.blit(grad, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-    surf.blit(body, r.topleft)
-    # a single thin specular glint hugging just the cap edge (a few rows), low
-    # alpha so it reads as a polished bevel crown, not a white cap.
-    spec = pygame.Surface((w, hh), pygame.SRCALPHA)
-    glint = max(1, int(gh * 0.07))
-    for i in range(glint):
-        a = int(40 * (1 - i / glint) ** 1.5)
-        pygame.draw.line(spec, (255, 244, 206, a), (0, top_y + i), (w, top_y + i))
-    sm = base.copy()
-    sm.fill((255, 255, 255, 255), special_flags=pygame.BLEND_RGBA_MULT)
-    spec.blit(sm, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    surf.blit(spec, r.topleft, special_flags=pygame.BLEND_ADD)
+    # red outline, 8-direction (like game.powerup_help._outlined_title)
+    out = base.copy()
+    out.fill((*TITLE_OUT, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    px = m(2)
+    for ox, oy in ((-px, 0), (px, 0), (0, -px), (0, px),
+                   (-px, -px), (px, -px), (-px, px), (px, px)):
+        surf.blit(out, (r.x + ox, r.y + oy))
+    # soft near-black drop shadow
+    sh = base.copy()
+    sh.fill((*NEAR_BLACK, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    sh.set_alpha(170)
+    surf.blit(sh, (r.x + m(2), r.y + m(3)))
+    # solid Skybit gold fill
+    gold = base.copy()
+    gold.fill((*GOLD, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(gold, r.topleft)
     return r
 
 
