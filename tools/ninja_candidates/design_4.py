@@ -34,6 +34,9 @@ GLOW     = (123, 63, 228)          # #7B3FE4 violet glow / eye / blade rim
 CORE     = (233, 221, 255)         # #E9DDFF hot core glint
 STEEL    = (74, 80, 100)           # ninjato blade body (cool, off the violet)
 STEEL_H  = (185, 192, 214)         # bright steel edge so the blade reads at 40px
+WRAP     = (96, 104, 132)          # desaturated steel-blue tsuka wrap — kept OFF
+                                   # the violet so the eye-slit owns the only
+                                   # violet hotspot on the upper figure
 
 # Smoke must never climb above this y so the head/upper body stays hard-edged
 # shinobi-black against the bright day sky (the "it's a ninja, not a blob" line).
@@ -104,10 +107,10 @@ def _paint(surf, wing_angle_deg):
     # so it reads as a teleport double at gameplay scale, not a smudge. Offset
     # and fade swing with the flap so Pip looks mid-step rather than just blurred.
     clone_mask = pygame.mask.from_surface(bird, 8)
-    cdx = -15 - int(3 * pulse)
+    cdx = -17 - int(3 * pulse)
     cdy = -4 + int(2 * breathe)
     clone = clone_mask.to_surface(
-        setcolor=(*GLOW, 58), unsetcolor=(0, 0, 0, 0))
+        setcolor=(*GLOW, 72), unsetcolor=(0, 0, 0, 0))
     surf.blit(clone, (cdx, cdy))
 
     # ── 2 · smoke plume swallowing ONLY the lower body / tail ──────────────
@@ -115,10 +118,14 @@ def _paint(surf, wing_angle_deg):
     # alpha that creeps above it, so the upper silhouette stays crisp black.
     smoke = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
     drift = int(3 * breathe)
-    _smoke_lobe(smoke, HX - 22, HY + 26, 18, 11, SMOKE_D, 155)
-    _smoke_lobe(smoke, HX - 32 + drift, HY + 22, 12, 9, SMOKE_D, 135)
-    _smoke_lobe(smoke, HX - 14, HY + 30, 13, 9, SMOKE_M, 125)
-    _smoke_lobe(smoke, HX - 28 - drift, HY + 28, 9, 7, SMOKE_M, 115)
+    # Base lobes BOB vertically and breathe their alpha frame-to-frame so the
+    # plume reads as evaporating, not pinned — high-juice for the legendary tier.
+    bob = int(2 * breathe)
+    ba = int(18 * pulse)          # base-alpha breathe
+    _smoke_lobe(smoke, HX - 22, HY + 26 - bob, 18, 11, SMOKE_D, 155 - ba)
+    _smoke_lobe(smoke, HX - 32 + drift, HY + 22 + bob, 12, 9, SMOKE_D, 135 + ba)
+    _smoke_lobe(smoke, HX - 14, HY + 30 - bob, 13, 9, SMOKE_M, 125 + ba)
+    _smoke_lobe(smoke, HX - 28 - drift, HY + 28 + bob, 9, 7, SMOKE_M, 115 - ba)
     # Rising highlight wisps (the part that pulses brightest) — kept low so they
     # curl off the tail, not over the head.
     wisp_a = int(120 + 80 * pulse)
@@ -161,8 +168,9 @@ def _paint(surf, wing_angle_deg):
     pygame.draw.line(surf, rim, (bx0 + 2, by0 - 2), (bx1 + 2, by1 - 2), 1)
     pygame.draw.line(surf, CORE, (bx1 - 4, by1 + 5), (bx1 + 1, by1 - 1), 1)
     # Square tsuba (guard) + wrapped tsuka with a clear knob poking above crown.
+    # Wrap kept STEEL-BLUE (not violet) so it never competes with the eye-slit.
     pygame.draw.rect(surf, (16, 16, 24), (bx1 - 4, by1, 6, 4))
-    pygame.draw.rect(surf, GLOW, (bx1 - 3, by1 + 1, 4, 2))
+    pygame.draw.rect(surf, WRAP, (bx1 - 3, by1 + 1, 4, 2))
     pygame.draw.line(surf, (20, 22, 30), (bx1, by1), (bx1 + 6, by1 - 7), 4)
     pygame.draw.circle(surf, STEEL_H, (bx1 + 6, by1 - 7), 2)          # pommel knob
     pygame.draw.circle(surf, CORE, (bx1 + 6, by1 - 7), 1)
@@ -175,14 +183,19 @@ def _paint(surf, wing_angle_deg):
     store_skins._poly(surf, SHADOW_H,
                       [(HX - 8, HY + 3), (HX + 6, HY + 2),
                        (HX + 5, HY + 5), (HX - 7, HY + 6)])
-    # SINGLE horizontal eye-slit: dark recess + one violet glow bar (floored so
-    # the face never blinks out) + one hot-core glint near the leading (front) end.
-    pygame.draw.rect(surf, (6, 6, 10), (HX - 5, HY - 2, 18, 5), border_radius=2)
+    # SINGLE horizontal eye-slit, sat in the UPPER third of the head (HY-4) so it
+    # reads as masked EYES, not an open mouth — the dark face-wrap fold above
+    # stays BELOW it. High brightness floor + a CORE leading bar so the slit wins
+    # the focal contest and lands 2nd in the read (right after the silhouette).
+    eye_y = HY - 4
+    pygame.draw.rect(surf, (6, 6, 10), (HX - 5, eye_y - 1, 18, 5), border_radius=2)
     slit_glow = pygame.Surface((24, 11), pygame.SRCALPHA)
-    slit_a = int(170 + 70 * pulse)
+    slit_a = int(210 + 45 * pulse)
     pygame.draw.rect(slit_glow, (*GLOW, slit_a), (3, 3, 17, 4), border_radius=2)
-    surf.blit(slit_glow, (HX - 8, HY - 5), special_flags=pygame.BLEND_RGBA_ADD)
-    pygame.draw.circle(surf, CORE, (HX + 9, HY), 2)                   # leading glint
+    surf.blit(slit_glow, (HX - 8, eye_y - 4), special_flags=pygame.BLEND_RGBA_ADD)
+    # Hot-core leading glint as a 2px bar (not a dot) so the slit reads as a
+    # bright horizontal dash even at 40px.
+    pygame.draw.rect(surf, CORE, (HX + 7, eye_y, 4, 2), border_radius=1)
 
     # Headband over the crown; tails flick to the RIGHT (front) so they read
     # against the sky, NOT into the violet smoke on the left.
