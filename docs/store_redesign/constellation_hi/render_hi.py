@@ -161,10 +161,10 @@ CREAM = (246, 244, 232)
 # gold (lane 2 = rarity gem hues incl. the deliberately-brighter legendary;
 # lane 3 = the cabochon bezel + card ring above). A single smooth vertical ramp.
 GOLD_A_STOPS = [
-    (0.00, (255, 224, 150)),
-    (0.34, (250, 198, 92)),
-    (0.68, (224, 154, 44)),
-    (1.00, (176, 110, 22)),
+    (0.00, (255, 214, 122)),
+    (0.30, (248, 188, 78)),
+    (0.62, (214, 144, 40)),
+    (1.00, (168, 104, 20)),
 ]
 GOLD_A_RIM_DARK = (86, 50, 8)
 GOLD_A_RIM_BRIGHT = (255, 240, 190)
@@ -894,7 +894,7 @@ def tab_strip(surf, y):
             pill = pygame.Rect(cxx - pw // 2, y - th // 2 + m(4), pw, th - m(8))
             drop_shadow(surf, pill, pill.h // 2, blur=m(3), alpha=120, dy=m(2))
             surf.blit(gold_a_fill(pill.w, pill.h, pill.h // 2), pill.topleft)
-            gloss_sweep(surf, pill, pill.h // 2, peak=110)
+            gloss_sweep(surf, pill, pill.h // 2, peak=72)
             pygame.draw.rect(surf, GOLD_A_RIM_DARK, pill, width=max(1, m(1.4)),
                              border_radius=pill.h // 2)
             bevel_rim(surf, pill, pill.h // 2, GOLD_A_RIM_DARK,
@@ -910,12 +910,14 @@ def tab_strip(surf, y):
 
 # ── chip family ───────────────────────────────────────────────────────────────
 def gloss_sweep(surf, rect, radius, peak=120):
-    """A diagonal specular sweep across the upper third — the wet-gloss tell
-    that reads as polished metal/candy. Clipped to the chip's rounded body."""
+    """A specular sheen that eases smoothly over the FULL button height — bright
+    at the crown, tapering to nothing at the foot — so the body reads as ONE
+    gradual gradient. (Was a top-half band that fell to zero at the midline,
+    which read as two colours split by a horizontal line.)"""
     sweep = pygame.Surface(rect.size, pygame.SRCALPHA)
-    h = max(1, int(rect.h * 0.5))
+    h = max(1, rect.h)
     for y in range(h):
-        a = int(peak * (1 - y / h) ** 1.6)
+        a = int(peak * (1 - y / h) ** 2.4)
         pygame.draw.line(sweep, (255, 255, 255, a), (0, y), (rect.w, y))
     sm = pygame.Surface(rect.size, pygame.SRCALPHA)
     pygame.draw.rect(sm, (255, 255, 255, 255), sm.get_rect(), border_radius=radius)
@@ -962,12 +964,12 @@ def price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
     r = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
     if affordable:
         chip_body_stops(surf, r, h // 2, GOLD_A_STOPS, GOLD_A_RIM_DARK,
-                        GOLD_A_RIM_BRIGHT, gloss=130, gamma=GOLD_A_GAMMA)
+                        GOLD_A_RIM_BRIGHT, gloss=74, gamma=GOLD_A_GAMMA)
         num_col = GOLD_A_NUM
         coin_rim = GOLD_A_COIN_RIM
     else:
         chip_body(surf, r, h // 2, (96, 102, 124), (52, 56, 76),
-                  (14, 16, 26), (168, 176, 198), gloss=80)
+                  (14, 16, 26), (168, 176, 198), gloss=60)
         num_col = (236, 240, 250)
         coin_rim = (78, 84, 104)
     x = r.x + pad
@@ -1001,7 +1003,7 @@ def status_chip(surf, cx, cy, text, h, kind="equip"):
         gapc = m(7)
         w = pad + ckw + gapc + nw + pad
         r = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
-        chip_body(surf, r, h // 2, top, bot, rim_dark, rim_bright, gloss=120)
+        chip_body(surf, r, h // 2, top, bot, rim_dark, rim_bright, gloss=74)
         ck = r.x + pad
         pygame.draw.lines(surf, num, False,
                           [(ck, cy + m(1)), (ck + m(5), cy + m(6)),
@@ -1012,7 +1014,7 @@ def status_chip(surf, cx, cy, text, h, kind="equip"):
     else:
         w = pad * 2 + nw
         r = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
-        chip_body(surf, r, h // 2, top, bot, rim_dark, rim_bright, gloss=120)
+        chip_body(surf, r, h // 2, top, bot, rim_dark, rim_bright, gloss=74)
         plain_text(surf, text, f, r.center, num, shadow_a=0, weight=m(0.9))
     return r
 
@@ -1155,7 +1157,7 @@ def draw_page_controls(surf, base_x):
         r.center = (gx, cy)
         drop_shadow(surf, r, rad, blur=m(4), alpha=100, dy=m(2))
         surf.blit(gold_a_fill(r.w, r.h, rad), r.topleft)
-        gloss_sweep(surf, r, rad, peak=90)
+        gloss_sweep(surf, r, rad, peak=64)
         pygame.draw.rect(surf, GOLD_A_RIM_DARK, r, width=max(1, m(1.8)),
                          border_radius=rad)
         bevel_rim(surf, r, rad, GOLD_A_RIM_DARK, (*GOLD_A_RIM_BRIGHT, 230),
@@ -1278,11 +1280,12 @@ def draw_modal(surf, sid, variant=PRICE_VARIANT):
     # BUY body = the canonical GOLD RAMP A (the one gold), so the CTA is the same
     # gold as the price chip + tab pill, just the brightest instance (glow + gloss).
     surf.blit(gold_a_fill(bw, bh, bh // 2), buy.topleft)
-    gloss_sweep(surf, buy, bh // 2, peak=150)
-    # subtle inner glow: a soft bright bloom seated just inside the top edge
+    # keep the CTA a GRADUAL gold (not a white-top/gold-bottom split): a gentle
+    # full-height sheen + a restrained inner bloom near the crown only.
+    gloss_sweep(surf, buy, bh // 2, peak=84)
     inner = pygame.Surface((bw, bh), pygame.SRCALPHA)
-    soft_glow(inner, bw // 2, int(bh * 0.32), int(bw * 0.42), (255, 250, 220),
-              90, layers=6)
+    soft_glow(inner, bw // 2, int(bh * 0.24), int(bw * 0.18), (255, 250, 220),
+              30, layers=6)
     im = pygame.Surface((bw, bh), pygame.SRCALPHA)
     pygame.draw.rect(im, (255, 255, 255, 255), im.get_rect(), border_radius=bh // 2)
     inner.blit(im, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
