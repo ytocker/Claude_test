@@ -73,7 +73,10 @@ def _crimson_base(angle_deg):
 
 def _kunai(surf, tail_x, tail_y, tip_x, tip_y):
     """A ringed-pommel kunai (throwing dagger): steel leaf blade + charcoal
-    wrapped grip + a ring pommel. Drawn tail->tip so the X can angle each."""
+    wrapped grip + a ring pommel. Drawn tail->tip so the X can angle each.
+    Sized so the crossed pair is the dominant silhouette-breaker at 40px:
+    fat grip (6px) + a wide blade shoulder so each diagonal survives the
+    NEAREST shrink as a solid bar, not a thread."""
     dx, dy = tip_x - tail_x, tip_y - tail_y
     L = math.hypot(dx, dy) or 1.0
     ux, uy = dx / L, dy / L          # blade axis
@@ -83,20 +86,16 @@ def _kunai(surf, tail_x, tail_y, tip_x, tip_y):
     gx, gy = tail_x + ux * 4, tail_y + uy * 4
     bx, by = tail_x + ux * (L * 0.46), tail_y + uy * (L * 0.46)
 
-    # Charcoal wrapped handle.
-    pygame.draw.line(surf, CHARCOAL, (gx, gy), (bx, by), 4)
-    pygame.draw.line(surf, CHARCOAL_HI, (gx, gy), (bx, by), 1)
-    for t in (0.25, 0.5, 0.75):     # whipping bands across the grip
-        wx, wy = gx + (bx - gx) * t, gy + (by - gy) * t
-        pygame.draw.line(surf, (8, 9, 12),
-                         (wx + px * 2, wy + py * 2), (wx - px * 2, wy - py * 2), 1)
+    # Charcoal wrapped handle — fat enough to read as a bar after the shrink.
+    pygame.draw.line(surf, CHARCOAL, (gx, gy), (bx, by), 6)
+    pygame.draw.line(surf, CHARCOAL_HI, (gx, gy), (bx, by), 2)
 
-    # Ring pommel.
-    pygame.draw.circle(surf, STEEL_D, (int(tail_x), int(tail_y)), 3, 1)
-    pygame.draw.circle(surf, STEEL_HI, (int(tail_x - px), int(tail_y - py)), 1)
+    # Ring pommel — a solid steel disc (no 1px hoop to vanish at scale).
+    pygame.draw.circle(surf, STEEL_D, (int(tail_x), int(tail_y)), 3)
+    pygame.draw.circle(surf, STEEL_HI, (int(tail_x - ux), int(tail_y - uy)), 2)
 
-    # Steel leaf blade — a diamond from the grip shoulder to the tip.
-    sw = 3.0                         # shoulder half-width
+    # Steel leaf blade — a wide diamond from the grip shoulder to the tip.
+    sw = 4.5                         # shoulder half-width (was 3.0)
     shoulder_l = (bx + px * sw, by + py * sw)
     shoulder_r = (bx - px * sw, by - py * sw)
     pygame.draw.polygon(surf, STEEL,
@@ -104,11 +103,10 @@ def _kunai(surf, tail_x, tail_y, tip_x, tip_y):
                          (bx + ux * 2, by + uy * 2)])
     pygame.draw.polygon(surf, STEEL_D,
                         [shoulder_l, (tip_x, tip_y), shoulder_r,
-                         (bx + ux * 2, by + uy * 2)], 1)
-    # Centre fuller + tip glint carry the metal read at 40px.
+                         (bx + ux * 2, by + uy * 2)], 2)
+    # Centre fuller carries the metal read at 40px (2px min).
     pygame.draw.line(surf, STEEL_HI, (bx + ux * 2, by + uy * 2),
-                     (tip_x - ux * 2, tip_y - uy * 2), 1)
-    pygame.draw.circle(surf, STEEL_HI, (int(tip_x), int(tip_y)), 1)
+                     (tip_x - ux * 3, tip_y - uy * 3), 2)
 
 
 def _paint(surf, wing_angle_deg):
@@ -116,87 +114,84 @@ def _paint(surf, wing_angle_deg):
     # 4 frames, so the scarf lifts on the up-stroke and trails on the down.
     flap = max(0.0, wing_angle_deg) / 18.0
 
-    # ── BACK · crossed kunai X, handles up past the crown ────────────────────
-    # Drawn first so the body/scarf overlap their lower halves naturally.
-    cx, cy = HX - 2, CROWN_Y + 6      # crossing point just behind the shoulders
-    # NW->SE blade and NE->SW blade; pommels rise above the crown.
-    _kunai(surf, cx - 9, cy - 13, cx + 11, cy + 11)
-    _kunai(surf, cx + 9, cy - 13, cx - 11, cy + 11)
-    # A binding wrap at the crossing knots the X together.
-    pygame.draw.circle(surf, CHARCOAL, (cx, cy), 3)
-    pygame.draw.circle(surf, CHARCOAL_HI, (cx - 1, cy - 1), 1)
+    # ── BACK · crossed kunai X, the single dominant silhouette-breaker ───────
+    # Drawn first so the body/scarf overlap their lower halves naturally. The
+    # crossing sits behind the shoulders; both pommels are pushed clearly above
+    # CROWN_Y and the diagonals span ~22px so the X is unmistakable at 40px.
+    cx, cy = HX - 3, CROWN_Y + 5      # crossing point just behind the shoulders
+    # Pommels at y = CROWN_Y - 8 (well above the crown), tips down past the back.
+    _kunai(surf, cx - 11, cy - 13, cx + 13, cy + 12)   # NW->SE
+    _kunai(surf, cx + 11, cy - 13, cx - 13, cy + 12)   # NE->SW
+    # A fat binding wrap knots the X together at the crossing.
+    pygame.draw.circle(surf, CHARCOAL, (cx, cy), 4)
+    pygame.draw.circle(surf, CHARCOAL_HI, (cx - 1, cy - 1), 2)
 
     # ── NECK · charcoal scarf streaming back past the tail (dynamic) ──────────
     # Anchored at the throat, sweeping down-left off the tail; the tip lifts
     # with the flap so it animates as the most alive element.
     lift = int(flap * 6)
-    nx, ny = HX - 4, HY + 8
+    nx, ny = HX - 3, HY + 6
+    # The streaming tip angles UP and further back so its forked end clears the
+    # crimson tail outline instead of merging into it — the scarf rides ABOVE
+    # the tail line and reads as a separate trailing element, not tail mass.
     p0 = (nx, ny)
-    p1 = (nx - 14, ny + 6 - lift)
-    p2 = (nx - 28, ny + 14 - lift * 2)
-    tip = (nx - 40, ny + 8 - lift * 3)
+    p1 = (nx - 15, ny - 3 - lift)
+    p2 = (nx - 31, ny - 9 - lift * 2)
+    tip = (nx - 45, ny - 16 - lift * 3)
     # Body of the scarf as a tapering ribbon (two edges + fill).
     upper = [p0, p1, p2, tip]
-    lower = [(p0[0], p0[1] + 7), (p1[0], p1[1] + 8),
-             (p2[0], p2[1] + 6), (tip[0], tip[1] + 3)]
+    lower = [(p0[0], p0[1] + 7), (p1[0], p1[1] + 7),
+             (p2[0], p2[1] + 6), (tip[0], tip[1] + 4)]
     pygame.draw.polygon(surf, CHARCOAL, upper + lower[::-1])
     pygame.draw.lines(surf, (10, 11, 15), False, lower, 2)
-    pygame.draw.lines(surf, CHARCOAL_HI, False, upper, 1)
+    # Lifted highlight along the FULL upper run — the value break that separates
+    # the charcoal scarf from the crimson tail behind it at a glance.
+    pygame.draw.lines(surf, CHARCOAL_HI, False, upper, 2)
     # A forked, split tail so the end reads as cloth, not a bar.
     pygame.draw.polygon(surf, CHARCOAL,
-                        [tip, (tip[0] - 8, tip[1] - 3 - lift),
+                        [tip, (tip[0] - 9, tip[1] - 4 - lift),
                          (tip[0] - 6, tip[1] + 2 - lift)])
     pygame.draw.polygon(surf, CHARCOAL,
-                        [(tip[0], tip[1] + 5), (tip[0] - 9, tip[1] + 7 - lift),
+                        [(tip[0], tip[1] + 5), (tip[0] - 10, tip[1] + 6 - lift),
                          (tip[0] - 5, tip[1] + 9 - lift)])
 
-    # ── BODY · charcoal obi with crimson cross-lacing down the front ─────────
+    # ── BODY · flat charcoal obi band + one crimson knot ─────────────────────
+    # The cross-lacing is gone: the ONLY X on the costume is the kunai up top,
+    # so the back weapons own the hero read. The obi is a clean charcoal band
+    # with a single crimson knot at its near end.
     oy = HY + 13
     pygame.draw.rect(surf, CHARCOAL, (HX - 16, oy, 22, 7), border_radius=2)
-    pygame.draw.line(surf, CHARCOAL_HI, (HX - 15, oy + 1), (HX + 4, oy + 1), 1)
-    # Crimson lacing crossing the obi (the cross-tie pattern).
-    for i in range(3):
-        lx = HX - 13 + i * 7
-        pygame.draw.line(surf, CRIMSON_HI, (lx, oy), (lx + 4, oy + 7), 2)
-        pygame.draw.line(surf, CRIMSON_HI, (lx + 4, oy), (lx, oy + 7), 2)
-    # Knotted side end of the obi with a short hanging tongue.
+    pygame.draw.line(surf, CHARCOAL_HI, (HX - 15, oy + 1), (HX + 4, oy + 1), 2)
+    # One crimson knot with a short hanging tongue at the near (left) end.
     pygame.draw.circle(surf, CRIMSON, (HX - 16, oy + 3), 3)
+    pygame.draw.circle(surf, CRIMSON_HI, (HX - 17, oy + 2), 1)
     pygame.draw.polygon(surf, CRIMSON,
                         [(HX - 18, oy + 4), (HX - 14, oy + 4), (HX - 16, oy + 11)])
-
-    # ── BODY · a single shuriken tucked at the hip/sash (small star detail) ──
-    sx, sy = HX - 14, oy + 1
-    store_skins._star5(surf, sx, sy, 3, STEEL)
-    pygame.draw.circle(surf, CHARCOAL, (sx, sy), 1)
 
     # ── WING/LEG · black wrist & shin wraps (a couple of bands each) ─────────
     for wx in (HX - 7, HX - 3):       # forearm wraps near the wing root
         pygame.draw.line(surf, CHARCOAL, (wx, HY + 22), (wx + 3, HY + 26), 3)
-        pygame.draw.line(surf, CHARCOAL_HI, (wx, HY + 22), (wx + 3, HY + 26), 1)
+        pygame.draw.line(surf, CHARCOAL_HI, (wx, HY + 22), (wx + 3, HY + 26), 2)
     for fx in (HX - 19, HX - 13):     # shin wraps above the feet
         pygame.draw.line(surf, CHARCOAL, (fx, HY + 24), (fx, HY + 28), 3)
 
-    # ── HEAD · crimson face wrap + black eye-slit band ───────────────────────
+    # ── HEAD · one readable ninja mask: crimson wrap + a single eye-slit ─────
     # Wrap fold across the lower face (crimson, ties into the body plumage).
     pygame.draw.polygon(surf, CRIMSON_SH,
                         [(HX - 9, HY + 3), (HX + 13, HY + 1),
                          (HX + 12, HY + 9), (HX - 8, HY + 10)])
-    pygame.draw.line(surf, CRIMSON_HI, (HX - 7, HY + 4), (HX + 11, HY + 2), 1)
-    # Black eye-slit band wrapping the brow — the can't-miss face tell.
+    pygame.draw.line(surf, CRIMSON_HI, (HX - 7, HY + 4), (HX + 11, HY + 2), 2)
+    # Solid charcoal band wrapping the brow with ONE continuous thin steel slit
+    # INSIDE it — a horizontal slit reads as "masked face"; no eye dots (two
+    # dots read as eyes and break the wrapped-face tell).
     pygame.draw.line(surf, CHARCOAL, (HX - 11, HY + 1), (HX + 13, HY - 3), 6)
-    pygame.draw.line(surf, (10, 11, 15), (HX - 11, HY + 2), (HX + 13, HY - 2), 1)
-    # Two cold eye glints peering out of the slit.
-    pygame.draw.circle(surf, STEEL_HI, (HX + 1, HY - 1), 1)
-    pygame.draw.circle(surf, STEEL_HI, (HX + 8, HY - 2), 1)
+    pygame.draw.line(surf, STEEL, (HX - 9, HY), (HX + 11, HY - 3), 2)  # slit
 
-    # ── HEAD · steel forehead plate (diamond) centred on the brow, glinting ──
+    # ── HEAD · steel forehead plate: solid diamond + one corner highlight ────
     px, py = HX + 1, HY - 6
     plate = [(px, py - 4), (px + 5, py), (px, py + 4), (px - 5, py)]
-    pygame.draw.polygon(surf, STEEL_D, plate)
-    inner = [(px, py - 3), (px + 4, py), (px, py + 3), (px - 4, py)]
-    pygame.draw.polygon(surf, STEEL, inner)
-    pygame.draw.line(surf, STEEL_HI, (px - 2, py - 1), (px, py - 3), 1)  # glint
-    pygame.draw.circle(surf, STEEL_HI, (px - 1, py - 1), 1)
+    pygame.draw.polygon(surf, STEEL, plate)
+    pygame.draw.circle(surf, STEEL_HI, (px - 2, py - 1), 2)  # single corner glint
 
 
 build = store_skins._make_skin(_paint, base_fn=_crimson_base)
