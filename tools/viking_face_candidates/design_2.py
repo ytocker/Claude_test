@@ -25,6 +25,11 @@ CROWN_Y = 31
 def _paint_face(surf, wing_angle, P):
     beard, beard_hi = P["beard"], P["beard_hi"]
     bone = P["bone"]
+    # IRONCLAD collapses to brown-on-brown, so every feature edge needs a hard
+    # value step or a near-black keyline. The keyline RGB (alpha dropped) is the
+    # darkest tone available and the same separator the base costume rings with,
+    # so 1px of it reads in BOTH palettes without inventing a new colour.
+    key = P["keyline"][:3]
 
     # The horned helm caps the head down to ~y45; below it the bird's CHEEK/BEAK
     # pokes out. The face reads as a clean vertical stack on that exposed front:
@@ -36,7 +41,8 @@ def _paint_face(surf, wing_angle, P):
     # ── BROAD SQUARE BEARD (bottom of the stack) ─────────────────────────────
     # One big shaggy block onto the chest, squared at the bottom so the brute
     # silhouette stays heavy. Its TOP edge stops below the moustache so the eye
-    # and 'stache aren't swallowed.
+    # and 'stache aren't swallowed. NO per-strand lines — at 40px they were noise;
+    # the squared mass + one strong side highlight does the legible work.
     by0 = FY + 4
     beard_block = [
         (FX - 12, by0),      # left jaw
@@ -49,44 +55,51 @@ def _paint_face(surf, wing_angle, P):
         (FX + 6, by0 - 1),   # right jaw, under the beak
         (FX - 3, by0),
     ]
+    # Keyline ring first so the dark beard separates from the dark fur/body on
+    # the rust BLOODAXE merge — a faint outline does what value alone can't there.
+    S._poly(surf, key, [(x, y + 1) for x, y in beard_block])
     S._poly(surf, beard, beard_block)
-    for tx, ty in ((FX - 11, by0 + 14), (FX - 4, by0 + 16), (FX + 3, by0 + 15), (FX + 7, by0 + 10)):
-        S._poly(surf, beard, [(tx - 2, ty - 2), (tx + 2, ty - 2), (tx, ty + 2)])
-    # Volume highlight + strand lines so the mass reads as combed hair.
+    # ONE bold highlight carried down the LEFT face of the block — a single broad
+    # band, not strands. Brighter so it survives on BLOODAXE's near-black beard.
     S._poly(surf, beard_hi, [
-        (FX - 12, by0 + 1), (FX - 8, by0 + 1), (FX - 9, by0 + 12), (FX - 13, by0 + 10),
+        (FX - 12, by0 + 1), (FX - 7, by0 + 2), (FX - 8, by0 + 12), (FX - 13, by0 + 11),
     ])
-    for sx in (FX - 9, FX - 5, FX - 1, FX + 3):
-        pygame.draw.line(surf, beard_hi, (sx, by0 + 2), (sx + 1, by0 + 13), 1)
-    for sx in (FX - 7, FX - 3, FX + 1, FX + 5):
-        pygame.draw.line(surf, P["eye_pupil"], (sx, by0 + 3), (sx, by0 + 12), 1)
+    # Hard square bottom edge keyed dark so the silhouette reads as a clean block.
+    pygame.draw.line(surf, key, (FX - 12, by0 + 14), (FX + 7, by0 + 11), 1)
 
     # ── LIGHT CHEEK PATCH (so the eye + 'stache have contrast) ───────────────
-    # A bone-pale skin patch under the helm rim where the eye sits, so the face
-    # holds its value gap against the dark beard/helm even at 40px.
-    S._poly(surf, P["bone"], [
+    # A pale skin patch under the helm rim where the eye sits, so the face holds
+    # its value gap against the dark beard/helm even at 40px.
+    S._poly(surf, P["eye_skin"], [
         (FX - 8, FY - 7), (FX + 8, FY - 6), (FX + 9, FY + 1), (FX - 7, FY + 2),
     ])
 
-    # ── SCOWLING BROW ────────────────────────────────────────────────────────
-    # A hard dark wedge angled down toward the beak — the rage line over the eye.
+    # ── SCOWLING BROW (lifted to open a bone gap over the eye) ───────────────
+    # A hard dark wedge angled down toward the beak — the rage line. Pulled up
+    # ~2px so a clean strip of pale eye_skin sits between brow and eye-white;
+    # that bone gap is the strongest tell that the eye is OPEN, not a dark smear.
     S._poly(surf, P["eye_pupil"], [
-        (FX - 8, FY - 8), (FX + 8, FY - 6), (FX + 8, FY - 3), (FX - 8, FY - 5),
+        (FX - 8, FY - 10), (FX + 8, FY - 8), (FX + 8, FY - 6), (FX - 8, FY - 7),
     ])
-    pygame.draw.line(surf, P["helm_hi"], (FX - 7, FY - 8), (FX + 7, FY - 6), 1)
+    pygame.draw.line(surf, P["helm_hi"], (FX - 7, FY - 10), (FX + 7, FY - 8), 1)
+    # The bone brow-line: a lit sliver of skin just under the brow.
+    pygame.draw.line(surf, P["eye_skin"], (FX - 7, FY - 5), (FX + 8, FY - 4), 1)
 
-    # ── ONE WIDE STARING EYE ─────────────────────────────────────────────────
-    # Big almond eye-white + dark pupil + white glint on the pale cheek patch —
-    # oversized so the single stare survives the downscale.
-    ex, ey = FX - 4, FY - 4
-    pygame.draw.ellipse(surf, P["white"], (ex, ey, 10, 6))
-    pygame.draw.circle(surf, P["eye_pupil"], (ex + 5, ey + 3), 3)
-    pygame.draw.circle(surf, P["eye_glint"], (ex + 6, ey + 2), 1)
-    pygame.draw.line(surf, P["eye_pupil"], (ex, ey + 5), (ex + 9, ey + 5), 1)
+    # ── ONE WIDE STARING EYE (grown ~30% to read as a bright spot) ───────────
+    # Big almond eye-white + dark pupil + single white glint on the pale cheek —
+    # oversized so the lone stare survives the downscale as a clear light dot.
+    ex, ey = FX - 5, FY - 3
+    pygame.draw.ellipse(surf, P["white"], (ex, ey, 13, 7))
+    pygame.draw.ellipse(surf, key, (ex, ey, 13, 7), 1)   # crisp rim on the white
+    pygame.draw.circle(surf, P["eye_pupil"], (ex + 7, ey + 4), 3)
+    pygame.draw.circle(surf, P["eye_glint"], (ex + 8, ey + 2), 1)
+    pygame.draw.line(surf, P["eye_pupil"], (ex, ey + 6), (ex + 12, ey + 6), 1)
 
     # ── BUSHY WALRUS MOUSTACHE (middle band, framing the beak) ───────────────
-    # A heavy dark band slung under the cheek that droops at both corners; sits
-    # BETWEEN the light cheek and the beard so it reads as its own feature.
+    # A heavy band slung under the cheek that droops at both corners; sits
+    # BETWEEN the light cheek and the beard. It is filled at beard_hi — a whole
+    # LIGHTER band — so it reads as a distinct walrus 'stache resting on the
+    # darker beard below, not as one continuous dark mass.
     mly = FY + 1
     moustache = [
         (FX - 12, mly),           # far-left swell
@@ -100,11 +113,16 @@ def _paint_face(surf, wing_angle, P):
         (FX + 11, mly),           # far-right swell
         (FX, mly - 2),            # top centre, just under the cheek/eye
     ]
-    S._poly(surf, beard, moustache)
-    pygame.draw.line(surf, beard_hi, (FX - 11, mly + 1), (FX - 2, mly), 1)
-    pygame.draw.line(surf, beard_hi, (FX, mly), (FX + 10, mly + 1), 1)
-    for bx, byy in ((FX - 10, mly + 3), (FX - 6, mly + 5), (FX + 5, mly + 5), (FX + 9, mly + 3)):
-        pygame.draw.line(surf, beard_hi, (bx, byy), (bx, byy + 2), 1)
+    S._poly(surf, key, moustache)        # keyline base separates it from beard
+    S._poly(surf, beard_hi, [(x, y - 1) for x, y in moustache])  # lighter band on top
+    # Combed grain in the darker beard tone so the lighter band still reads hairy.
+    for bx, byy in ((FX - 10, mly + 2), (FX - 6, mly + 4), (FX + 5, mly + 4), (FX + 9, mly + 2)):
+        pygame.draw.line(surf, beard, (bx, byy), (bx, byy + 2), 1)
+    # Continuous dark underline along the full droop so the band's lower edge
+    # reads hard against the beard mass in either palette.
+    pygame.draw.lines(surf, key, False,
+                      [(FX - 13, mly + 5), (FX - 8, mly + 8), (FX, mly + 6),
+                       (FX + 10, mly + 8), (FX + 13, mly + 4)], 1)
     # Bone beads clasping the droop tips — the only ornament; keeps the V-read.
     pygame.draw.circle(surf, bone, (FX - 8, mly + 8), 1)
     pygame.draw.circle(surf, bone, (FX + 10, mly + 8), 1)
@@ -113,27 +131,27 @@ def _paint_face(surf, wing_angle, P):
 def _paint_axe(surf, wing_angle, P):
     blade, blade_dk, blade_hi = P["blade"], P["blade_dk"], P["blade_hi"]
     haft, haft_hi = P["haft"], P["haft_hi"]
-    ring, white = P["ring"], P["white"]
+    ring, white, bone = P["ring"], P["white"], P["bone"]
+    key = P["keyline"][:3]
 
     # Two-fisted grip across the chest/belly, head hoisted HIGH over the far
     # (back) shoulder so it clears the helm AND the right-side face entirely and
-    # breaks the silhouette on the upper-left — the classic raised-axe brute pose.
+    # breaks the silhouette on the upper-left. Nudged 3px further up-left (tx-3,
+    # ty-2) so the big head sits tight over the shoulder and stops crowding the
+    # face — the head was the dominant mass before.
     gx, gy = 47, 60          # lower fist at the belly
     ux, uy = 40, 48          # upper fist across the chest
-    tx, ty = 27, 14          # axe head centre, hoisted high-left over the shoulder
+    tx, ty = 24, 12          # axe head centre, hoisted high-left over the shoulder
 
-    # ── HAFT ─────────────────────────────────────────────────────────────────
-    pygame.draw.line(surf, (0, 0, 0), (gx, gy), (tx, ty), 5)      # dark core
-    pygame.draw.line(surf, haft, (gx, gy), (tx, ty), 4)
+    # ── HAFT (thicker so the held shaft reads at 40px) ───────────────────────
+    pygame.draw.line(surf, key, (gx, gy), (tx, ty), 6)           # dark core
+    pygame.draw.line(surf, haft, (gx, gy), (tx, ty), 5)
     pygame.draw.line(surf, haft_hi, (gx - 1, gy), (tx - 1, ty), 1)
     # Whipping bands so the haft reads as wrapped wood.
     for t in (0.30, 0.55, 0.78):
         wx = int(gx + (tx - gx) * t)
         wy = int(gy + (ty - gy) * t)
         pygame.draw.line(surf, blade_dk, (wx - 2, wy), (wx + 2, wy), 1)
-    # Butt cap below the lower fist.
-    pygame.draw.circle(surf, ring, (gx - 1, gy + 2), 2)
-    pygame.draw.circle(surf, white, (gx - 2, gy + 1), 1)
 
     # ── HEAVY DOUBLE-BIT HEAD (twin crescent blades flanking the haft) ───────
     # Each bit is a crescent with a CONCAVE inner waist so the two read as
@@ -178,13 +196,24 @@ def _paint_axe(surf, wing_angle, P):
     pygame.draw.rect(surf, blade_dk, (tx - 2, ty - 8, 4, 16))
     pygame.draw.circle(surf, ring, (tx, ty), 1)
 
-    # ── TWO FISTS / CLAW KNUCKLES on the haft (grip read) ────────────────────
-    for fx, fy in ((gx, gy), (ux, uy)):
-        pygame.draw.circle(surf, P["beard"], (fx, fy), 3)
-        pygame.draw.circle(surf, P["beard_hi"], (fx - 1, fy - 1), 2)
-        # Three knuckle pips across each fist.
-        for k in (-2, 0, 2):
-            pygame.draw.circle(surf, P["eye_pupil"], (fx + k, fy - 2), 1)
+    # ── TWO FISTS gripping the haft (grip read) ──────────────────────────────
+    # Upper fist: a small knuckled fist across the chest.
+    pygame.draw.circle(surf, key, (ux, uy), 4)
+    pygame.draw.circle(surf, P["beard"], (ux, uy), 3)
+    pygame.draw.circle(surf, P["beard_hi"], (ux - 1, uy - 1), 2)
+    for k in (-2, 0, 2):
+        pygame.draw.circle(surf, key, (ux + k, uy - 2), 1)
+
+    # LOWER fist at the belly: an unmistakable contrasting gripping blob. A
+    # bone/ring knuckle wrap over a keyed fist anchors the "hand holding the
+    # haft" read — the brightest non-steel mass at the belly so the grip is
+    # never ambiguous, in either palette.
+    pygame.draw.circle(surf, key, (gx, gy), 5)
+    pygame.draw.circle(surf, P["beard"], (gx, gy), 4)
+    pygame.draw.circle(surf, ring, (gx + 1, gy), 3)        # bronze/steel knuckle wrap
+    for k in (-2, 1):
+        pygame.draw.circle(surf, bone, (gx + k, gy - 1), 1)  # lit knuckle bumps
+    pygame.draw.line(surf, key, (gx - 3, gy + 3), (gx + 4, gy + 3), 1)  # base of fist
 
 
 build_ironclad = S.make_build(_paint_face, _paint_axe, S.IRONCLAD)
