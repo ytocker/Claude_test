@@ -132,10 +132,13 @@ def _paint(surf, wing_angle_deg):
     pygame.draw.circle(surf, (255, 255, 255), (int(hi[0] - 1), int(hi[1] - 1)), 1)
 
     # Steel scabbard-butt cap (kojiri) glinting at the LOW tip past the tail —
-    # the second hard metal note, so both ends of the bar read as steel.
-    pygame.draw.circle(surf, _METAL_D, (int(lo[0]), int(lo[1])), 3)
-    pygame.draw.circle(surf, _METAL, (int(lo[0]), int(lo[1])), 2)
+    # the second hard metal note. The _METAL core is widened to r3 (was r2) so
+    # both sword tips throw an EQUAL-weight steel break at 40px on night, where
+    # the low tip was the softer of the two reads.
+    pygame.draw.circle(surf, _METAL_D, (int(lo[0]), int(lo[1])), 4)
+    pygame.draw.circle(surf, _METAL, (int(lo[0]), int(lo[1])), 3)
     pygame.draw.circle(surf, (255, 255, 255), (int(lo[0] + 1), int(lo[1] - 1)), 1)
+    pygame.draw.circle(surf, (255, 255, 255), (int(lo[0]), int(lo[1] - 1)), 1)
 
     # ── headband tails streaming off the BACK of the skull (drawn before the
     #    head wrap so the wrap roots them). Two crimson ribbons, ~1 feather
@@ -196,6 +199,14 @@ def _paint(surf, wing_angle_deg):
                              (kx + 1, ky + 9), (kx - 3, ky + 8)])
     _poly(surf, _CRIMSON, [(kx, ky + 3), (kx + 2, ky + 3),
                            (kx + 1, ky + 8), (kx - 1, ky + 8)])
+
+    # ── lower wing/tail back-edge rim: a single 1px cloth-highlight stroke
+    #    tracing the underside silhouette that faces open sky, so the dark mass
+    #    keeps a crisp lower edge against dark night backgrounds. Pure edge rim —
+    #    no interior detail — held one tone above shadow so the day read (where
+    #    the body already separates on bright sky) is untouched.
+    pygame.draw.lines(surf, _CLOTH_H, False,
+                      [(15, 40), (22, 44), (28, 47), (38, 47), (45, 43)], 1)
 
     # ── forearm wrap: ONE thicker black band near the wing root (R1's three
     #    1px-spaced bands went to mush at 40px) with a single crimson tie so the
