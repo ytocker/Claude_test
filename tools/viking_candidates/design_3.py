@@ -54,6 +54,9 @@ GOLD_H  = (245, 214, 140)     # gold highlight bead
 TEAL    = (42, 111, 126)      # #2A6F7E shield-paint, the only cool mass
 TEAL_D  = (24, 70, 82)        # teal shadow
 TEAL_H  = (96, 178, 192)      # teal highlight
+# The shield's upper-left sheen sits one step down from the full TEAL_H glint so it
+# stays a soft sheen, not a second hotspot, and the gold boss owns the focal point.
+TEAL_SHEEN = (69, 145, 159)
 SKIN    = (232, 201, 160)     # #E8C9A0 braid sheen + highlight
 FUR     = (214, 198, 170)     # pale fur trim on the pauldron
 FUR_D   = (150, 134, 110)
@@ -124,12 +127,15 @@ def _paint(surf, wing_angle_deg):
     # Y so there are clearly TWO trailing braids, not one smear off the tail — the
     # upper sweeps shallow-up, the lower plunges far down-left and flicks harder,
     # breaking the egg silhouette where nothing else does.
+    # Root anchors are splayed an extra ~2px in Y (upper -2, lower +7) so the two
+    # braids separate at the root and read as TWO plaits at product-shot zoom, not
+    # one mass — the 40px read already had them apart via the splayed tails.
     root_x, root_y = HX - 9, CROWN_Y + 6        # back-of-skull anchor
-    upper = [(root_x, root_y - 1),
+    upper = [(root_x, root_y - 2),
              (root_x - 13, root_y - 2 + flick),
              (root_x - 25, root_y + 1 + flick * 2),
              (root_x - 35, root_y + 6 + flick * 2)]
-    lower = [(root_x + 1, root_y + 5),
+    lower = [(root_x + 1, root_y + 7),
              (root_x - 12, root_y + 15 + flick),
              (root_x - 23, root_y + 28 + flick * 2),
              (root_x - 31, root_y + 40 + flick * 3)]
@@ -219,7 +225,7 @@ def _paint(surf, wing_angle_deg):
     # contrast; the cooler-bluer teal keeps the disc off the foliage greens.
     pygame.draw.circle(surf, TEAL_D, (scx, scy), sr - 2)
     pygame.draw.circle(surf, TEAL, (scx, scy - 1), sr - 4)
-    pygame.draw.circle(surf, TEAL_H, (scx - 3, scy - 4), 3)        # upper-left sheen
+    pygame.draw.circle(surf, TEAL_SHEEN, (scx - 3, scy - 4), 3)    # upper-left sheen
     # ONE iron cross (two planks, not four) from the boss to the rim — enough to
     # say "painted war-shield" without the spokes muddying the disc at 40px.
     for a in (0, 90, 180, 270):
