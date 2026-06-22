@@ -1047,6 +1047,37 @@ def draw_const_thread(surf, rect, gx, gy, cx, cy, pal):
     surf.blit(thread, rect.topleft, special_flags=pygame.BLEND_ADD)
 
 
+def _corner_brackets(surf, rect, pal):
+    """Tier-tinted L-brackets hugging the card corners (top-left lit, bottom-right
+    shaded) so the rarity frames the whole ticket and reads from the periphery."""
+    rad = m(CARD_RAD)
+    L = m(20)
+    inset = m(4)
+    lit = lerp_color(pal["gem"], WHITE, 0.4)
+    dk = lerp_color(pal["deep"], NEAR_BLACK, 0.2)
+    th = max(1, m(2.2))
+    for (corner, col) in (("tl", lit), ("br", dk)):
+        s = pygame.Surface(rect.size, pygame.SRCALPHA)
+        if corner == "tl":
+            pygame.draw.line(s, (*col, 230), (inset + rad - m(4), inset),
+                             (inset + L, inset), th)
+            pygame.draw.line(s, (*col, 230), (inset, inset + rad - m(4)),
+                             (inset, inset + L), th)
+            pygame.draw.arc(s, (*col, 230), (inset, inset, m(20), m(20)),
+                            math.radians(90), math.radians(180), th)
+        else:
+            x1 = rect.w - inset
+            y1 = rect.h - inset
+            pygame.draw.line(s, (*col, 220), (x1 - rad + m(4), y1),
+                             (x1 - L, y1), th)
+            pygame.draw.line(s, (*col, 220), (x1, y1 - rad + m(4)),
+                             (x1, y1 - L), th)
+            pygame.draw.arc(s, (*col, 220),
+                            (x1 - m(20), y1 - m(20), m(20), m(20)),
+                            math.radians(270), math.radians(360), th)
+        surf.blit(s, rect.topleft)
+
+
 def draw_card(surf, sid, rect, equipped, variant=PRICE_VARIANT):
     secret = _is_secret(sid)
     pal = MYSTERY if secret else RARITY[_rarity(sid)]
@@ -1068,25 +1099,50 @@ def draw_card(surf, sid, rect, equipped, variant=PRICE_VARIANT):
     pygame.draw.rect(surf, (4, 5, 16), rect, width=max(1, m(2)), border_radius=rad)
     bevel_rim(surf, rect, rad, CARD_RING_DEEP, (*CARD_RING_BRIGHT, 235),
               w=max(1, m(2.0)))
-    # winning variant B — INNER TRAY: a routed gold hairline set inside the bevel
-    # so the content reads as sitting DOWN into the card (the strongest
-    # floating-object edge), with a faint dark line just inside it for the recess.
+    # ── RARITY FRAME (chosen treatment): the whole ticket is framed by its tier
+    # — a tier-tinted inner bezel, a soft tier edge-wash, a TOP ACCENT BAR that
+    # spells the tier, and tier-tinted corner brackets. Loud + scannable while
+    # the obsidian body + gold edge survive. ───────────────────────────────────
     tray = rect.inflate(-m(7), -m(7))
     trad = rad - m(4)
     pygame.draw.rect(surf, (10, 10, 24, 200), tray.inflate(m(2), m(2)),
                      width=max(1, m(1)), border_radius=trad + m(1))
-    pygame.draw.rect(surf, (*CARD_RING_BRIGHT, 90), tray, width=max(1, m(1)),
+    ring_col = lerp_color(pal["gem"], pal["glow"], 0.3)
+    pygame.draw.rect(surf, (*ring_col, 220), tray, width=max(1, m(1.5)),
                      border_radius=trad)
+    wash = pygame.Surface(rect.size, pygame.SRCALPHA)
+    for i in range(m(10)):
+        a = int(40 * (1 - i / m(10)) ** 1.6)
+        pygame.draw.rect(wash, (*pal["glow"], a),
+                         (i, i, rect.w - 2 * i, rect.h - 2 * i),
+                         width=max(1, m(1)), border_radius=rad - i)
+    surf.blit(wash, rect.topleft, special_flags=pygame.BLEND_ADD)
 
-    cx, cy = rect.centerx, rect.y + m(CY_DISC)
-    gx, gy = rect.right - m(17), rect.y + m(17)
-    draw_const_thread(surf, rect, gx, gy, cx, cy, pal)
+    # TOP ACCENT BAR — a tier gradient strip carrying the tier word.
+    tier_word = "MYSTERY" if secret else _rarity(sid).upper()
+    bar_h = m(17)
+    bar = pygame.Rect(rect.x + m(5), rect.y + m(5), rect.w - m(10), bar_h)
+    brad = bar_h // 2
+    surf.blit(vgrad_stops(bar.w, bar.h, brad,
+                          [(0.0, lerp_color(pal["gem"], WHITE, 0.12)),
+                           (0.55, pal["glow"]),
+                           (1.0, lerp_color(pal["deep"], NEAR_BLACK, 0.12))],
+                          255, gamma=1.08), bar.topleft)
+    top_sheen(surf, bar, brad, m(7), peak=72)
+    pygame.draw.rect(surf, (4, 5, 16), bar, width=max(1, m(1.2)), border_radius=brad)
+    pygame.draw.rect(surf, (*CARD_RING_BRIGHT, 170), bar.inflate(-m(1.2), -m(1.2)),
+                     width=max(1, m(0.7)), border_radius=brad)
+    plain_text(surf, tier_word, font(8.5), bar.center, (14, 12, 26),
+               shadow_a=0, tracking=m(1.6), weight=m(0.7))
 
-    # BAND A — cabochon (glass dome over thumbnail). A whisper-soft tier aura
-    # behind the dome (NOT a hard ring) so the macaw stays the hero.
-    soft_glow(surf, cx, cy, m(R_DISC + 3), pal["glow"], 32, layers=8)
-    cabochon(surf, cx, cy, m(R_DISC), CABO_LO, CABO_HI,
-             ring=pal["gem"], ring_a=50)
+    _corner_brackets(surf, rect, pal)
+
+    # BAND A — cabochon, shifted DOWN to clear the accent bar; gem in the free
+    # left corner at the dome's mid-line.
+    cx = rect.centerx
+    cy = rect.y + m(CY_DISC) + m(8)
+    soft_glow(surf, cx, cy, m(R_DISC + 3), pal["glow"], 36, layers=8)
+    cabochon(surf, cx, cy, m(R_DISC), CABO_LO, CABO_HI, ring=pal["gem"], ring_a=50)
     if secret:
         _draw_qmark(surf, cx, cy, m(R_DISC + 6), CREAM, NEAR_BLACK, thick=m(2))
         name = "???"
@@ -1094,15 +1150,14 @@ def draw_card(surf, sid, rect, equipped, variant=PRICE_VARIANT):
         blit_thumb(surf, sid, cx, cy, m(R_DISC) * 1.5)
         name = _name(sid)
     cabochon_glass(surf, cx, cy, m(R_DISC), tint=pal["gem"])
-
-    # corner GEM — seated with margin
-    facet_gem(surf, gx, gy, m(GEM_R), pal["gem"], pal["deep"], mystery=secret)
+    facet_gem(surf, rect.x + m(17), cy, m(GEM_R - 1), pal["gem"], pal["deep"],
+              mystery=secret)
 
     # BAND B — name
-    fit_name(surf, name, rect.centerx, rect.y + m(Y_NAME), rect.w - m(26))
+    fit_name(surf, name, cx, rect.y + m(Y_NAME) + m(3), rect.w - m(26))
     # BAND C — chip
-    state_chip(surf, sid, rect.centerx, rect.y + m(Y_CHIP), equipped, secret,
-               m(21), variant=variant)
+    state_chip(surf, sid, cx, rect.y + m(Y_CHIP) + m(1), equipped, secret,
+               m(20), variant=variant)
 
     if equipped:
         # restrained outer halo (glow rank #1, but kept restrained so it never
