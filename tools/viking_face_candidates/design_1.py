@@ -34,13 +34,17 @@ def _paint_face(surf, wing_angle, P):
     ring, bone, white = P["ring"], P["bone"], P["white"]
     eye_skin, eye_pupil, eye_glint = P["eye_skin"], P["eye_pupil"], P["eye_glint"]
     dark = _shade(beard)
+    key = P["keyline"][:3]   # near-black separator that works in BOTH palettes
+    brow_dk = _shade(dark)   # brow one value below the beard so the glare reads
 
     # ── one fierce EYE in the cheek, just right of the nasal and below the brow
-    #    band, so it always clears the helm. Heavy brow line + pale almond +
-    #    dark pupil + white glint give the glare.
+    #    band, so it always clears the helm. The brow is one value DARKER than the
+    #    beard and the almond is pushed 1px taller on top, so a hard light-over-dark
+    #    step sits under the brow — that step is what makes it scan as a GLARE in
+    #    IRONCLAD where brown-on-brown would otherwise flatten.
     ex, ey = 49, 45
-    pygame.draw.line(surf, eye_pupil, (ex - 5, ey - 4), (ex + 4, ey - 3), 3)  # heavy brow
-    pygame.draw.ellipse(surf, eye_skin, (ex - 5, ey - 2, 11, 6))             # almond white
+    pygame.draw.line(surf, brow_dk, (ex - 5, ey - 5), (ex + 4, ey - 4), 3)    # heavy dark brow
+    pygame.draw.ellipse(surf, eye_skin, (ex - 5, ey - 3, 11, 7))             # almond, 1px taller
     pygame.draw.circle(surf, eye_pupil, (ex + 1, ey + 1), 3)                 # pupil
     pygame.draw.circle(surf, eye_glint, (ex, ey - 1), 1)                    # glint
 
@@ -48,17 +52,27 @@ def _paint_face(surf, wing_angle, P):
     #    the cheek outline. Kept right of the nasal and low enough that the beak
     #    still pokes out above-right (x≈58-61).
     mcx, mcy = 50, 50
-    _poly(surf, beard, [
+    stash = [
         (mcx - 6, mcy - 1), (mcx + 6, mcy - 1),       # top edge, under the beak
         (mcx + 9, mcy - 6),                           # RIGHT end sweeps UP
         (mcx + 6, mcy - 3), (mcx + 2, mcy + 3),       # right droop
         (mcx - 3, mcy + 3), (mcx - 6, mcy - 2),       # left droop
         (mcx - 9, mcy - 6),                           # LEFT end sweeps UP
         (mcx - 6, mcy - 1),
-    ])
+    ]
+    _poly(surf, beard, stash)
     pygame.draw.circle(surf, beard, (mcx + 9, mcy - 6), 2)   # curled right tip
     pygame.draw.circle(surf, beard, (mcx - 9, mcy - 6), 2)   # curled left tip
-    pygame.draw.line(surf, beard_hi, (mcx - 4, mcy - 1), (mcx + 4, mcy - 1), 1)  # lit ridge
+    # 1px near-black keyline tracing the OUTER edge of the mustache so the whole
+    # handlebar peels off the cheek/body even when beard≈body value (IRONCLAD).
+    pygame.draw.lines(surf, key, False, stash, 1)
+    pygame.draw.circle(surf, key, (mcx + 9, mcy - 6), 2, 1)
+    pygame.draw.circle(surf, key, (mcx - 9, mcy - 6), 2, 1)
+    # Lift the mustache by VALUE not size: a thick bright lit ridge along the
+    # handlebar's TOP edge and up BOTH swept ends, so it catches against the cheek.
+    pygame.draw.line(surf, beard_hi, (mcx - 5, mcy - 2), (mcx + 5, mcy - 2), 2)  # top ridge
+    pygame.draw.line(surf, beard_hi, (mcx + 5, mcy - 2), (mcx + 9, mcy - 6), 1)  # up right end
+    pygame.draw.line(surf, beard_hi, (mcx - 5, mcy - 2), (mcx - 9, mcy - 6), 1)  # up left end
 
     # ── forked twin-braid BEARD hanging from the chin over the body, two fat
     #    braids splaying apart with a clean V-notch between and a P['ring'] band
@@ -68,28 +82,37 @@ def _paint_face(surf, wing_angle, P):
         # Each fat braid is a dark base column with a BRIGHTER lit face on its
         # outer flank, so the two braids hold their own silhouette against the
         # body rather than merging into one dark blob.
+        flank = []                                     # track the OUTER edge to keyline
         for j in range(5):
             yy = by0 + j * 3
             xx = bx + sgn * (j + 1)                    # the braids splay apart going down
             r = 4 - (j // 3)
             pygame.draw.circle(surf, dark, (xx, yy), r)
             pygame.draw.circle(surf, beard, (xx + sgn, yy - 1), max(1, r - 1))  # lit outer flank
+            flank.append((xx + sgn * (r + 1), yy))     # outermost pixel of this lobe
         for j in range(4):                             # plaited cross-weave ticks
             yy = by0 + 1 + j * 3
             xx = bx + sgn * (j + 1)
             pygame.draw.line(surf, beard_hi, (xx, yy), (xx + sgn * 2, yy - 1), 1)
+        # 1px near-black keyline down the OUTER flank where the braid meets the
+        # body/fur — the single biggest IRONCLAD win, since brown braid on brown
+        # body has no value edge of its own without it.
+        pygame.draw.lines(surf, key, False, flank, 1)
         # ring-capped braid tip — a bright metal band that pops on the dark braid.
         tipx, tipy = bx + sgn * 6, by0 + 14
         pygame.draw.circle(surf, dark, (tipx, tipy + 1), 3)
         pygame.draw.rect(surf, ring, (tipx - 3, tipy - 2, 6, 4))
+        pygame.draw.rect(surf, key, (tipx - 3, tipy - 2, 6, 4), 1)             # keyline the cap
         pygame.draw.line(surf, P["helm_hi"], (tipx - 2, tipy - 2), (tipx + 2, tipy - 2), 1)
         pygame.draw.circle(surf, bone, (tipx, tipy + 3), 1)   # tassel
-    # V-notch: a wedge of body-colour driven up between the braids so the FORK
-    # reads as two braids, not one mass. A bright centre seam sharpens the split.
-    _poly(surf, dark, [(49, by0 + 13), (46, by0 + 2), (52, by0 + 2)])
-    pygame.draw.line(surf, eye_pupil, (49, by0 + 2), (49, by0 + 11), 1)
-    pygame.draw.line(surf, beard_hi, (47, by0 + 3), (47, by0 + 9), 1)
-    pygame.draw.line(surf, beard_hi, (51, by0 + 3), (51, by0 + 9), 1)
+    # V-notch: a wedge of body-colour driven up between the braids — widened ~1px
+    # each side — so the FORK reads as two braids, not one mass. A BRIGHT centre
+    # seam (eye_glint/white) caps the top of the notch to split the two braids.
+    _poly(surf, dark, [(49, by0 + 13), (45, by0 + 2), (53, by0 + 2)])
+    pygame.draw.line(surf, key, (45, by0 + 2), (49, by0 + 13), 1)              # notch flanks
+    pygame.draw.line(surf, key, (53, by0 + 2), (49, by0 + 13), 1)
+    pygame.draw.line(surf, eye_glint, (49, by0 + 2), (49, by0 + 4), 2)        # bright seam cap
+    pygame.draw.line(surf, beard_hi, (49, by0 + 4), (49, by0 + 11), 1)        # seam down
 
 
 def _paint_axe(surf, wing_angle, P):
@@ -126,6 +149,11 @@ def _paint_axe(surf, wing_angle, P):
         kx = gx - ux * 2 + px * k * 2
         ky = gy - uy * 2 + py * k * 2
         pygame.draw.circle(surf, eye_pupil, (int(kx), int(ky)), 2)
+    # Sell the grip: a 2px bright knuckle highlight where the haft crosses the
+    # belly, so the wrapping hand catches light and reads as gripping the pole.
+    kx = gx - ux * 2 + px * (-2)
+    ky = gy - uy * 2 + py * (-2)
+    pygame.draw.circle(surf, P["bone"], (int(kx), int(ky)), 2)
     pygame.draw.circle(surf, haft_hi, (gx - 1, gy - 1), 1)
 
     # ── bearded AXE HEAD crowning the haft, fitted to the 64px canvas: a single
