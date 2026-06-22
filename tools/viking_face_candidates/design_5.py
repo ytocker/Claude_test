@@ -11,10 +11,13 @@ brute beards, beak kept visible.
 
 Reads at 40px because each landmark owns one value tier and one silhouette: the
 eye is a pale almond punched under a heavy dark brow; the mustache is two thin
-dark whiskers whose fine tips break the cheek past the beak; the goatee is a
-single narrow tuft separated from the brown body by a darker keyed core, capped
-by a P['ring'] bead. The axe is drawn at NATIVE res (a supersample smears the
-small bit) with a dark-keyed back, bright steel face, and a white edge glint.
+dark whiskers whose fine tips break the cheek past the beak; the goatee is one
+clean pointed wedge keyed LIGHTER than the body and rimmed by a near-black
+separator (so it holds on the rust palette where a dark core would vanish),
+capped by the single P['ring'] chin bead. The hatchet head is a chunky flat
+WEDGE thrust into open sky past the beak — a straight top, a full-width leading
+cutting arc carrying a continuous bright-steel edge — so it names "axe" at
+distance. Drawn at NATIVE res (a supersample smears the small bit).
 
 Scratch exploration only — NOT registered in store_skins.BUILDERS; the live
 skin_viking is untouched.
@@ -68,20 +71,23 @@ def _paint_face(surf, wing_angle, P):
         pygame.draw.line(surf, beard_hi, (rootx, mcy - 1), (tipx, tipy), 1)     # lit ridge
         pygame.draw.circle(surf, beard, (tipx, tipy), 1)                        # fine tip
 
-    # ── SHORT POINTED GOATEE: a compact chin tuft DIRECTLY below the mustache,
-    #    tapering to ONE point, kept lighter than the brute beards with a darker
-    #    keyed core so it separates from the brown body, capped by a ring bead.
-    cx, top = 53, 51
-    _poly(surf, dark, [(cx - 4, top), (cx + 4, top), (cx + 2, top + 4),
-                       (cx, top + 7), (cx - 2, top + 4)])                       # keyed core
-    _poly(surf, beard, [(cx - 3, top + 1), (cx + 3, top + 1),
-                        (cx + 1, top + 4), (cx, top + 6), (cx - 1, top + 4)])    # lighter tuft
-    pygame.draw.line(surf, beard_hi, (cx - 2, top + 2), (cx + 1, top + 4), 1)   # plait sheen
-    # Bright bead at the goatee tip — a high-value dot (like the braid rings on
-    # the brutes) so the chin point still names the goatee at 40px.
-    pygame.draw.circle(surf, dark, (cx, top + 8), 3)                           # bead seat
-    pygame.draw.circle(surf, ring, (cx, top + 8), 2)                           # ring bead
-    pygame.draw.circle(surf, bone, (cx - 1, top + 7), 1)                       # bead glint
+    # ── SHORT POINTED GOATEE: ONE clean pointed wedge hanging clearly BELOW the
+    #    beak line — no busy keyed-core/plait detail (it turns to mud at 40px). A
+    #    single slightly-longer triangle, keyed LIGHTER than the body (beard_hi)
+    #    so it survives on BLOODAXE where a dark core would vanish, ringed by a
+    #    1px near-black separator so it never melts into the chest. The P['ring']
+    #    bead is the ONLY bead near the chin and unambiguously caps the tip.
+    key = P["keyline"][:3]
+    cx, top = 53, 52
+    goatee = [(cx - 3, top), (cx + 3, top), (cx, top + 9)]                      # one long point
+    pygame.draw.polygon(surf, key, [(cx - 4, top - 1), (cx + 4, top - 1),
+                                    (cx, top + 11)])                            # near-black rim
+    _poly(surf, beard_hi, goatee)                                              # light pointed tuft
+    pygame.draw.line(surf, beard, (cx, top + 1), (cx, top + 8), 1)             # central shade seam
+    # The ONE chin bead — capping the goatee point, clear of the helm braid rings.
+    pygame.draw.circle(surf, key, (cx, top + 10), 3)                           # bead seat (near-black)
+    pygame.draw.circle(surf, ring, (cx, top + 10), 2)                          # ring bead
+    pygame.draw.circle(surf, bone, (cx - 1, top + 9), 1)                       # bead glint
 
 
 def _paint_axe(surf, wing_angle, P):
@@ -101,7 +107,7 @@ def _paint_axe(surf, wing_angle, P):
     # of the face, distinct from the across-body holds whose heads ride up past
     # the SHOULDER behind the head.
     gx, gy = 45, 57          # gripping claw at the belly
-    sx, sy = 64, 49          # hatchet socket, forward at beak level (clear of the horn)
+    sx, sy = 67, 48          # hatchet socket, pushed further into OPEN SKY past the beak
     ux, uy = sx - gx, sy - gy
     ln = (ux * ux + uy * uy) ** 0.5 or 1.0
     ux, uy = ux / ln, uy / ln
@@ -119,37 +125,33 @@ def _paint_axe(surf, wing_angle, P):
                          (wx - px * 2, wy - py * 2), 1)
     pygame.draw.circle(surf, dark, (int(butt[0]), int(butt[1])), 2)   # butt cap
 
-    # ── bearded HATCHET HEAD thrust FORWARD of the socket into clear sky in front
-    #    of the beak: ux leads FORWARD (the pointed toe), the long lower beard
-    #    hooks DOWN (more edge on the bottom, the defining bearded shape). Chunky
-    #    enough to survive the 40px shrink. Dark keyed back, bright steel face
-    #    inset, white edge glint on the leading arc.
+    # ── bearded HATCHET HEAD thrust FORWARD into clear sky past the beak, redrawn
+    #    as a CHUNKY FLAT WEDGE (not a lump): a crisp STRAIGHT top edge runs
+    #    forward (ux), the leading CUTTING ARC fans the full width (px) from an
+    #    up-forward top corner down to a long bearded bottom hook, so the
+    #    silhouette reads unmistakably as an axe blade. ~28% larger than before.
+    #    Dark-keyed back, bright steel face, and a continuous bright-steel edge.
     cx, cy = sx, sy
-    head = [
-        (cx - ux * 2 - px * 5, cy - uy * 2 - py * 5),    # back-top heel
-        (cx + ux * 11 - px * 4, cy + uy * 11 - py * 4),  # leading TOE (forward point)
-        (cx + ux * 12 + px * 3, cy + uy * 12 + py * 3),  # cutting-edge front-top
-        (cx + ux * 7 + px * 11, cy + uy * 7 + py * 11),  # bearded HOOK (forward-down, widest)
-        (cx - ux * 1 + px * 9, cy - uy * 1 + py * 9),    # lower heel
-        (cx - ux * 2 + px * 3, cy - uy * 2 + py * 3),    # back-bottom inner
-    ]
+
+    def pt(f, p):
+        return (cx + ux * f + px * p, cy + uy * f + py * p)
+
+    # leading cutting-edge corners (top -> bottom) and the back heels.
+    edge_top = pt(15, -3)     # forward-TOP toe of the blade
+    edge_bot = pt(11, 14)     # long bearded bottom hook (most edge on the underside)
+    top_back = pt(2, -6)      # crisp straight TOP back corner
+    bot_back = pt(-1, 10)     # bottom-back heel
+    head = [top_back, edge_top, edge_bot, bot_back, pt(-2, 2)]
     _poly(surf, blade_dk, head)
-    face = [
-        (cx + ux * 9 - px * 2, cy + uy * 9 - py * 2),
-        (cx + ux * 9 + px * 2, cy + uy * 9 + py * 2),
-        (cx + ux * 6 + px * 9, cy + uy * 6 + py * 9),
-        (cx + ux * 1 + px * 7, cy + uy * 1 + py * 7),
-        (cx + ux * 1 + px * 2, cy + uy * 1 + py * 2),
-    ]
+    # bright steel FACE inset, leaving a dark-keyed back rim so the wedge has body.
+    face = [pt(2, -3), pt(12, -1), pt(9, 11), pt(1, 8), pt(1, 0)]
     _poly(surf, blade, face)
-    pygame.draw.line(surf, blade_hi,
-                     (cx + ux * 8 + px * 1, cy + uy * 8 + py * 1),
-                     (cx + ux * 5 + px * 8, cy + uy * 5 + py * 8), 1)
-    # WHITE edge glint along the leading cutting arc — the hero sparkle.
-    pygame.draw.line(surf, white,
-                     (cx + ux * 11 - px * 3, cy + uy * 11 - py * 3),
-                     (cx + ux * 7 + px * 9, cy + uy * 7 + py * 9), 1)
-    pygame.draw.circle(surf, white, (int(cx + ux * 11 - px * 4), int(cy + uy * 11 - py * 4)), 1)  # toe spark
+    pygame.draw.line(surf, blade_hi, pt(4, -2), pt(11, 0), 1)        # top-face sheen
+    # CONTINUOUS 2px bright-steel EDGE down the full leading cutting arc — the
+    # single feature that names "axe" at distance.
+    pygame.draw.line(surf, blade_hi, edge_top, edge_bot, 2)
+    pygame.draw.line(surf, white, edge_top, pt(13, 6), 1)           # whitest near the toe
+    pygame.draw.circle(surf, white, (int(edge_top[0]), int(edge_top[1])), 1)  # toe spark
     # iron socket where the haft passes through.
     pygame.draw.circle(surf, blade_dk, (int(cx), int(cy)), 2)
     pygame.draw.circle(surf, blade_hi, (int(cx + px), int(cy - py)), 1)
