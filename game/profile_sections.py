@@ -26,6 +26,7 @@ from game.store import (
 )
 from game import profile_stats as ps
 from game import shame as shame_mod
+from game import profile_art
 
 # ── shared layout contract (matches the locked mock) ─────────────────────────
 SIDE = 12
@@ -360,43 +361,41 @@ def draw_stats(surf, t, stats):
 
 # ── SHAME ────────────────────────────────────────────────────────────────────
 
-_TIER_TONE = {
-    "bronze": ((120, 86, 52), (70, 48, 28), (210, 156, 92)),
-    "silver": ((126, 130, 140), (74, 78, 90), (200, 206, 216)),
-    "gold": ((150, 120, 60), (92, 70, 30), (235, 196, 120)),
+# shame badge id -> glyph kind in profile_art._glyph
+_GLYPH_FOR = {
+    "goose_egg": "egg", "icarus": "icarus", "hummingbird": "humming",
+    "early_checkout": "stopwatch", "denial": "denial", "habit": "loop",
+    "kfc_incident": "fry", "scrooge": "scrooge", "the_49er": "tomb",
+    "ghost_wall": "ghostwall", "frequent_flyer": "oneway",
 }
 
 
 def _badge_cell(surf, rect, b, stats):
     earned = b.earned(stats)
-    if earned:
-        top, bot, metal = _TIER_TONE.get(b.tier, _TIER_TONE["bronze"])
-    else:
-        top, bot, metal = (58, 50, 44), (34, 30, 26), (96, 86, 76)
+    top, bot = ((46, 36, 30), (26, 20, 16)) if earned else ((34, 32, 40), (20, 18, 24))
     _drop_shadow(surf, rect, 11, blur=5, alpha=110)
     surf.blit(_vgrad_panel(rect.w, rect.h, 11, top, bot, 252), rect.topleft)
-    rim = (188, 142, 86) if earned else (96, 86, 76)
-    pygame.draw.rect(surf, rim, rect, width=1, border_radius=11)
-    cy = rect.y + 30
-    pygame.draw.circle(surf, (28, 20, 12), (rect.centerx, cy), 16)
-    pygame.draw.circle(surf, metal, (rect.centerx, cy), 15, 2)
-    _mini_glyph(surf, 2, rect.centerx, cy, metal, scale=1.0)
+    pygame.draw.rect(surf, (150, 116, 78) if earned else (88, 92, 110), rect,
+                     width=1, border_radius=11)
+    profile_art.shame_badge(surf, rect.centerx, rect.y + 26, 20, b.tier,
+                            _GLYPH_FOR.get(b.id, "denial"), not earned)
     name = b.name.upper()
-    while _font(8, True).size(name)[0] > rect.w - 8 and " " in name:
+    f = _font(7, True)
+    while f.size(name)[0] > rect.w - 6 and " " in name:
         name = name.rsplit(" ", 1)[0]
-    lc = (236, 208, 158) if earned else (140, 130, 120)
-    _cap(surf, rect.centerx, rect.y + 54, name, size=8, col=lc,
-         alpha=235 if earned else 175)
+    lc = (236, 208, 158) if earned else (152, 162, 186)
+    _cap(surf, rect.centerx, rect.y + 52, name, size=7, col=lc,
+         alpha=235 if earned else 190)
     if earned:
         return
     cur, tgt = b.progress(stats)
-    bar = pygame.Rect(rect.x + 8, rect.bottom - 14, rect.w - 16, 5)
-    rounded_rect(surf, bar, 2, (24, 22, 28))
+    bar = pygame.Rect(rect.x + 10, rect.bottom - 11, rect.w - 20, 5)
+    rounded_rect(surf, bar, 2, (22, 20, 26))
     frac = 0 if tgt <= 0 else max(0.0, min(1.0, cur / tgt))
     if frac > 0:
-        fill = pygame.Rect(bar.x, bar.y, max(2, int(bar.w * frac)), bar.h)
-        rounded_rect(surf, fill, 2, _GOLD_DEEP)
-    _cap(surf, rect.centerx, bar.y - 5, f"{cur} / {tgt}", size=7,
+        rounded_rect(surf, pygame.Rect(bar.x, bar.y, max(2, int(bar.w * frac)),
+                                       bar.h), 2, _GOLD_DEEP)
+    _cap(surf, rect.centerx, bar.y - 6, f"{cur} / {tgt}", size=7,
          col=(150, 142, 158), alpha=200)
 
 
@@ -418,7 +417,7 @@ def draw_shame(surf, t, stats):
     rows = (len(badges) + cols - 1) // cols
     gx = GAP
     cw2 = (W - 2 * SIDE - gx * (cols - 1)) // cols
-    ch = 76
+    ch = 80
     grid_h = rows * ch + GAP * (rows - 1)
     top0 = chip.bottom + 12
     grid_top = top0 + max(0, (COL_BOT - top0 - grid_h) // 2)
