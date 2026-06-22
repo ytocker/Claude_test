@@ -384,13 +384,10 @@ def facet_gem(surf, cx, cy, r, base, deep, mystery=False):
     well, a girdle keyline, and a SINGLE hot top-left specular pip. Tier colour
     is lane 2 (the gem's own hue); mystery is a half-step brighter, neutral
     silver so it clearly claims NO tier."""
-    # the shared 5-step value ramp off one top-left light
-    if mystery:
-        # half-step brighter + neutral than common so it never collapses onto a
-        # real tier in greyscale (the locked mystery fix).
-        body = lerp_color((206, 222, 234), (224, 218, 234), 0.5)
-    else:
-        body = base
+    # the shared 5-step value ramp off one top-left light. The gem always takes
+    # its TIER hue (lane 2) so it matches its banner — mystery included (mystery
+    # now owns a real colour, red, so it no longer needs the old silver override).
+    body = base
     t_table = lerp_color(body, WHITE, 0.34)        # flat top, brightest
     t_hi = lerp_color(body, WHITE, 0.55)            # lit top-left crown
     t_sh = lerp_color(body, deep, 0.5)              # shaded crown
