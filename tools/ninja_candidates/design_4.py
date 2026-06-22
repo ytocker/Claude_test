@@ -1,15 +1,18 @@
 """SMOKE PHANTOM — Mystic Shadow-Clone Ninja (LEGENDARY showpiece candidate).
 
 Scratch exploration only — NOT wired into store_skins.BUILDERS; the live
-skin_ninja stays untouched. Pip mid-teleport: a black shinobi whose lower
-body dissolves into a curling violet smoke plume, trailed by two faint
-after-image clone silhouettes (the doubled outline is the signature) with a
-few shuriken orbiting in the haze and a soft animated eye-slit glow.
+skin_ninja stays untouched. Pip mid-teleport: a hard-edged black shinobi whose
+upper head/body stays a crisp silhouette against the day sky while ONLY the
+tail/lower body dissolves into a curling violet smoke plume. He is trailed by a
+single deliberate violet-tinted shadow-clone (the doubled-outline signature),
+wears a single glowing horizontal eye-slit, and carries a steel ninjato slung
+across the back with its hilt-knob poking above the crown.
 
-The spectacle is keyed off ``wing_angle_deg`` so the smoke breathes, the
-clones drift, and the violet rim-light pulses — earning the legendary tier
-while the still frame already reads as a wrapped ninja from the eye-slit,
-headband and back-blade.
+The spectacle is keyed off ``wing_angle_deg`` so the smoke breathes, the clone
+drifts and the violet rim pulses — earning the legendary tier — but the read is
+carried by the cool-steel blade + black silhouette so it survives even with the
+violet desaturated. Order of read at 40px: masked figure → glowing slit eye →
+sword on the back → dissolving into smoke.
 """
 from __future__ import annotations
 import math
@@ -29,8 +32,12 @@ SMOKE_M  = (96, 56, 150)           # mid violet
 SMOKE_H  = (185, 140, 255)         # #B98CFF smoke highlight
 GLOW     = (123, 63, 228)          # #7B3FE4 violet glow / eye / blade rim
 CORE     = (233, 221, 255)         # #E9DDFF hot core glint
-STEEL    = (70, 74, 92)            # ninjato blade body (cool, off the violet)
-STEEL_H  = (150, 156, 178)
+STEEL    = (74, 80, 100)           # ninjato blade body (cool, off the violet)
+STEEL_H  = (185, 192, 214)         # bright steel edge so the blade reads at 40px
+
+# Smoke must never climb above this y so the head/upper body stays hard-edged
+# shinobi-black against the bright day sky (the "it's a ninja, not a blob" line).
+SMOKE_CAP_Y = HY + 14
 
 
 # Black shadow body so Pip reads as a shinobi the instant smoke is stripped.
@@ -75,7 +82,7 @@ def _shuriken(layer, cx, cy, r, spin, color, alpha):
     """4-point throwing star, spun by `spin` radians, with a hole core."""
     pts = []
     for i in range(8):
-        rad = r if i % 2 == 0 else r * 0.36
+        rad = r if i % 2 == 0 else r * 0.40
         a = spin + i * math.pi / 4
         pts.append((cx + rad * math.cos(a), cy + rad * math.sin(a)))
     pygame.draw.polygon(layer, (*color, alpha), pts)
@@ -88,114 +95,115 @@ def _paint(surf, wing_angle_deg):
     breathe = math.sin(t * math.tau)             # -1..1, drives drift/pulse
     pulse = 0.5 + 0.5 * math.sin(t * math.tau)   # 0..1 glow strength
 
-    # The bird as drawn so far — captured so the smoke/clone layers can sit
+    # The bird as drawn so far — captured so the smoke/clone/aura layers can sit
     # BEHIND it while we still build through _make_skin's paint hook.
     bird = surf.copy()
 
-    # ── 1 · after-image clone silhouettes (the doubled-outline signature) ──
-    # Two ghost copies of the bird, offset back/up-left and tinted violet, the
-    # trailing one fainter. Offset and fade swing with the flap so Pip looks
-    # mid-teleport rather than just blurred.
+    # ── 1 · single shadow-clone silhouette (the doubled-outline signature) ──
+    # One deliberate after-image offset back/up-left and tinted violet (NOT grey)
+    # so it reads as a teleport double at gameplay scale, not a smudge. Offset
+    # and fade swing with the flap so Pip looks mid-step rather than just blurred.
     clone_mask = pygame.mask.from_surface(bird, 8)
-    for i, (dx, dy, base_a) in enumerate((
-            (-7 - int(3 * pulse), -2, 86),
-            (-13 - int(5 * pulse), -4, 46))):
-        tint = clone_mask.to_surface(
-            setcolor=(*GLOW, base_a), unsetcolor=(0, 0, 0, 0))
-        # A touch of hot core on the leading clone's edge keeps it from muddying.
-        surf.blit(tint, (dx, dy + int(2 * breathe)))
+    cdx = -15 - int(3 * pulse)
+    cdy = -4 + int(2 * breathe)
+    clone = clone_mask.to_surface(
+        setcolor=(*GLOW, 58), unsetcolor=(0, 0, 0, 0))
+    surf.blit(clone, (cdx, cdy))
 
-    # ── 2 · smoke plume swallowing the lower body / tail ──────────────────
+    # ── 2 · smoke plume swallowing ONLY the lower body / tail ──────────────
+    # Every lobe centre sits at/below SMOKE_CAP_Y, and a hard cut clears any
+    # alpha that creeps above it, so the upper silhouette stays crisp black.
     smoke = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
     drift = int(3 * breathe)
-    # Big base cloud under the belly + tail, then lighter curls rising off it.
-    _smoke_lobe(smoke, HX - 22, HY + 24, 18, 12, SMOKE_D, 150)
-    _smoke_lobe(smoke, HX - 30 + drift, HY + 18, 12, 9, SMOKE_D, 130)
-    _smoke_lobe(smoke, HX - 14, HY + 28, 13, 10, SMOKE_M, 120)
-    _smoke_lobe(smoke, HX - 26 - drift, HY + 26, 9, 7, SMOKE_M, 110)
-    # Rising highlight wisps (the part that pulses brightest).
+    _smoke_lobe(smoke, HX - 22, HY + 26, 18, 11, SMOKE_D, 155)
+    _smoke_lobe(smoke, HX - 32 + drift, HY + 22, 12, 9, SMOKE_D, 135)
+    _smoke_lobe(smoke, HX - 14, HY + 30, 13, 9, SMOKE_M, 125)
+    _smoke_lobe(smoke, HX - 28 - drift, HY + 28, 9, 7, SMOKE_M, 115)
+    # Rising highlight wisps (the part that pulses brightest) — kept low so they
+    # curl off the tail, not over the head.
     wisp_a = int(120 + 80 * pulse)
-    _smoke_lobe(smoke, HX - 33 + drift, HY + 9, 6, 7, SMOKE_H, wisp_a)
-    _smoke_lobe(smoke, HX - 20, HY + 36, 7, 5, SMOKE_H, wisp_a - 30)
-    _smoke_lobe(smoke, HX - 38 - drift, HY + 16, 4, 5, SMOKE_H, wisp_a - 50)
+    _smoke_lobe(smoke, HX - 34 + drift, HY + 16, 6, 6, SMOKE_H, wisp_a)
+    _smoke_lobe(smoke, HX - 20, HY + 38, 7, 5, SMOKE_H, wisp_a - 30)
+    _smoke_lobe(smoke, HX - 39 - drift, HY + 22, 4, 5, SMOKE_H, wisp_a - 50)
+    # Hard cap: zero the alpha above SMOKE_CAP_Y so the head never goes hazy.
+    smoke.fill((0, 0, 0, 0), (0, 0, COMPOSITE_W, SMOKE_CAP_Y),
+               special_flags=pygame.BLEND_RGBA_MULT)
     surf.blit(smoke, (0, 0))
 
     # ── 3 · violet aura behind the head so the phantom self-illuminates ────
     aura = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    ar = 14 + int(3 * pulse)
-    pygame.draw.circle(aura, (*GLOW, int(60 + 40 * pulse)), (HX, HY - 1), ar)
-    pygame.draw.circle(aura, (*SMOKE_H, int(35 + 25 * pulse)),
+    ar = 13 + int(3 * pulse)
+    pygame.draw.circle(aura, (*GLOW, int(55 + 35 * pulse)), (HX, HY - 1), ar)
+    pygame.draw.circle(aura, (*SMOKE_H, int(30 + 22 * pulse)),
                        (HX, HY - 1), ar - 4)
     surf.blit(aura, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
-    # Re-stamp the real bird on top of smoke + clones + aura.
+    # Re-stamp the real bird on top of smoke + clone + aura → crisp silhouette.
     surf.blit(bird, (0, 0))
 
-    # ── 4 · ninjato slung across the back, blade catching a violet rim ─────
-    g = STEEL
-    # Scabbard/blade bar from below the tail up past the crown.
-    pygame.draw.line(surf, (20, 22, 30), (HX - 18, HY + 12),
-                     (HX + 6, CROWN_Y - 8), 5)
-    pygame.draw.line(surf, g, (HX - 18, HY + 12), (HX + 6, CROWN_Y - 8), 3)
-    pygame.draw.line(surf, STEEL_H, (HX - 16, HY + 10),
-                     (HX + 5, CROWN_Y - 7), 1)
-    # Animated violet rim-light running the blade edge.
-    rim = (int(GLOW[0]), int(GLOW[1]), int(min(255, GLOW[2] + 20)))
-    pygame.draw.line(surf, rim, (HX - 13, HY + 9),
-                     (HX + 5, CROWN_Y - 6), 1)
-    # Wrapped handle (tsuka) poking above the crown + a small square guard.
-    pygame.draw.line(surf, (16, 16, 24), (HX + 4, CROWN_Y - 5),
-                     (HX + 9, CROWN_Y - 12), 4)
-    pygame.draw.rect(surf, GLOW, (HX + 1, CROWN_Y - 6, 5, 3))
-    for hy in range(CROWN_Y - 12, CROWN_Y - 6, 2):
-        pygame.draw.line(surf, SMOKE_H, (HX + 4, hy), (HX + 8, hy - 2), 1)
+    # Faint cool rim along the crown / back of the head so the masked figure's
+    # top edge stays separated from the violet smoke — carries the silhouette
+    # read even when the violet hue is desaturated.
+    pygame.draw.line(surf, SMOKE_H, (HX - 8, CROWN_Y + 1),
+                     (HX + 8, CROWN_Y - 1), 1)
 
-    # ── 5 · head wrap + headband with the glowing eye-slit (the up-top read) ─
-    # Slim black face wrap fold across the lower face.
+    # ── 4 · ninjato slung across the back (cool steel — carries the read) ──
+    # Steeper diagonal from below the tail up past the crown, bright steel edge
+    # + a full-length violet/hot rim, and a hilt-knob clearly ABOVE the crown.
+    bx0, by0 = HX - 20, HY + 14            # lower (tail) end
+    bx1, by1 = HX + 10, CROWN_Y - 11       # upper (above crown) end
+    pygame.draw.line(surf, (18, 20, 28), (bx0, by0), (bx1, by1), 6)   # shadow
+    pygame.draw.line(surf, STEEL, (bx0, by0), (bx1, by1), 4)          # body
+    pygame.draw.line(surf, STEEL_H, (bx0 + 1, by0 - 1),
+                     (bx1 + 1, by1 - 1), 2)                            # bright edge
+    # Full-length animated violet/hot rim running the leading blade edge.
+    rim = (int(GLOW[0]), int(GLOW[1]), min(255, GLOW[2] + 20))
+    pygame.draw.line(surf, rim, (bx0 + 2, by0 - 2), (bx1 + 2, by1 - 2), 1)
+    pygame.draw.line(surf, CORE, (bx1 - 4, by1 + 5), (bx1 + 1, by1 - 1), 1)
+    # Square tsuba (guard) + wrapped tsuka with a clear knob poking above crown.
+    pygame.draw.rect(surf, (16, 16, 24), (bx1 - 4, by1, 6, 4))
+    pygame.draw.rect(surf, GLOW, (bx1 - 3, by1 + 1, 4, 2))
+    pygame.draw.line(surf, (20, 22, 30), (bx1, by1), (bx1 + 6, by1 - 7), 4)
+    pygame.draw.circle(surf, STEEL_H, (bx1 + 6, by1 - 7), 2)          # pommel knob
+    pygame.draw.circle(surf, CORE, (bx1 + 6, by1 - 7), 1)
+
+    # ── 5 · head wrap + headband with the single glowing eye-slit ──────────
+    # Slim black face wrap fold across the lower face (hard-edged, no smoke).
     store_skins._poly(surf, SHADOW,
                       [(HX - 9, HY + 3), (HX + 13, HY + 1),
                        (HX + 12, HY + 9), (HX - 8, HY + 10)])
     store_skins._poly(surf, SHADOW_H,
                       [(HX - 8, HY + 3), (HX + 6, HY + 2),
                        (HX + 5, HY + 5), (HX - 7, HY + 6)])
-    # Eye-slit: dark recess + an animated violet glow bar + hot core glint.
-    pygame.draw.rect(surf, (6, 6, 10), (HX - 5, HY - 2, 18, 6),
-                     border_radius=3)
-    slit_glow = pygame.Surface((24, 12), pygame.SRCALPHA)
-    pygame.draw.rect(slit_glow, (*GLOW, int(150 + 90 * pulse)),
-                     (3, 3, 18, 6), border_radius=3)
-    surf.blit(slit_glow, (HX - 8, HY - 5),
-              special_flags=pygame.BLEND_RGBA_ADD)
-    pygame.draw.circle(surf, CORE, (HX, HY + 1), 2)
-    pygame.draw.circle(surf, CORE, (HX + 8, HY), 2)
-    pygame.draw.circle(surf, GLOW, (HX + 4, HY + 1), 1)
+    # SINGLE horizontal eye-slit: dark recess + one violet glow bar (floored so
+    # the face never blinks out) + one hot-core glint near the leading (front) end.
+    pygame.draw.rect(surf, (6, 6, 10), (HX - 5, HY - 2, 18, 5), border_radius=2)
+    slit_glow = pygame.Surface((24, 11), pygame.SRCALPHA)
+    slit_a = int(170 + 70 * pulse)
+    pygame.draw.rect(slit_glow, (*GLOW, slit_a), (3, 3, 17, 4), border_radius=2)
+    surf.blit(slit_glow, (HX - 8, HY - 5), special_flags=pygame.BLEND_RGBA_ADD)
+    pygame.draw.circle(surf, CORE, (HX + 9, HY), 2)                   # leading glint
 
-    # Headband over the crown with two trailing tails that flick on the flap.
-    by = CROWN_Y + 1
-    pygame.draw.line(surf, (8, 8, 14), (HX - 12, by + 1), (HX + 12, by - 1), 5)
-    pygame.draw.line(surf, SHADOW, (HX - 12, by), (HX + 12, by - 2), 3)
-    pygame.draw.line(surf, GLOW, (HX - 10, by - 1), (HX + 6, by - 2), 1)
+    # Headband over the crown; tails flick to the RIGHT (front) so they read
+    # against the sky, NOT into the violet smoke on the left.
+    by = CROWN_Y - 1
+    pygame.draw.line(surf, (8, 8, 14), (HX - 11, by + 1), (HX + 12, by - 1), 5)
+    pygame.draw.line(surf, SHADOW, (HX - 11, by), (HX + 12, by - 2), 3)
+    pygame.draw.line(surf, GLOW, (HX - 8, by - 1), (HX + 8, by - 2), 1)
     flick = int(4 * breathe)
     for off, w in ((0, 3), (4, 2)):
-        pygame.draw.line(surf, SHADOW, (HX - 11, by + off),
-                         (HX - 24, by + off + 5 + flick), w)
-    pygame.draw.line(surf, GLOW, (HX - 12, by + 1),
-                     (HX - 22, by + 5 + flick), 1)
+        pygame.draw.line(surf, SHADOW, (HX + 11, by + off - 1),
+                         (HX + 22, by + off + 4 + flick), w)
+    pygame.draw.line(surf, GLOW, (HX + 12, by),
+                     (HX + 21, by + 4 + flick), 1)
 
-    # ── 6 · shuriken orbiting in the smoke (drawn last so they read crisp) ─
+    # ── 6 · ONE readable shuriken in clear upper-left space ────────────────
     spin = t * math.tau
+    sx, sy = HX - 30, HY - 14
+    wob = 2 * math.sin(t * math.tau)
     orbit = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    for i, (ox, oy, r, ph) in enumerate((
-            (HX - 28, HY + 6, 4, 0.0),
-            (HX - 20, HY + 34, 3, 2.1),
-            (HX - 36, HY + 24, 3, 4.0))):
-        wob = 2 * math.sin(t * math.tau + ph)
-        a = int(150 + 70 * math.sin(t * math.tau + ph))
-        a = max(70, min(220, a))
-        _shuriken(orbit, ox + wob, oy - wob, r, spin + ph, STEEL_H, a)
-        # Tiny violet glint so the steel reads in the violet haze.
-        pygame.draw.circle(orbit, (*CORE, a),
-                           (int(ox + wob), int(oy - wob)), 1)
+    _shuriken(orbit, sx + wob, sy - wob, 5, spin, STEEL_H, 230)
+    pygame.draw.circle(orbit, (*CORE, 230), (int(sx + wob), int(sy - wob)), 1)
     surf.blit(orbit, (0, 0))
 
 
