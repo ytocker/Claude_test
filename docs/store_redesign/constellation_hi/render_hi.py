@@ -843,7 +843,7 @@ def balance_capsule(surf, cx, y):
     bevel_rim(surf, cap, h // 2, lerp_color(GOLD, NEAR_BLACK, 0.4),
               (*GOLD_PALE, 240), w=max(1, m(1.8)))
     x = cap.x + padl
-    soft_glow(surf, x + coin_d // 2, y, coin_d, (255, 206, 92), 120, layers=6)
+    soft_glow(surf, x + coin_d // 2, y, int(coin_d * 0.40), (255, 206, 92), 42, layers=6)
     coin_glyph(surf, x + coin_d // 2, y, coin_d // 2)
     x += coin_d + gapc
     # the LOUD balance number is a canonical GOLD RAMP A fill (the one gold)
