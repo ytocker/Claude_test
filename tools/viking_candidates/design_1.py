@@ -122,6 +122,13 @@ def _paint(surf, _a):
     for i in (-3, 0, 3):
         pygame.draw.line(surf, _FUR_H, (mcx + i * 4, mcy + 1),
                          (mcx + i * 4, mcy + 5), 1)
+    # Lower-right fur flank rides right up against the near-black beard; in the
+    # night column that edge flirts with brown-on-brown. A 1px _FUR_H lift on
+    # the outer-right fringe tips buys a hair more separation from the beard.
+    for i in (3, 4):
+        tx = mcx + i * 4
+        pygame.draw.line(surf, _FUR_H, (tx, mcy + 4),
+                         (tx, mcy + 7 + (abs(i) % 2) * 2), 1)
 
     # ── near-black braided beard ballooning from the beak-base to the chest.
     #    Pushed near-black so it reads OFF the scarlet body and is the dark
@@ -136,9 +143,12 @@ def _paint(surf, _a):
         pygame.draw.line(surf, _BEARD_H, (bx - 1, HY + 12),
                          (bx - 1, HY + 12 + blen), 1)
     # One gold beard-ring — the single warm glint allowed on the dark mass.
+    # Nudged a step darker (toward _GOLD_D, no _GOLD_H pip) so it can't read as
+    # a twin gold dot beside the shield boss in the tilted poses; the boss stays
+    # the sole bright-gold focal point.
+    _RING = (192, 146, 48)             # between _GOLD_D and _GOLD
     pygame.draw.circle(surf, _GOLD_D, (HX + 7, HY + 21), 3)
-    pygame.draw.circle(surf, _GOLD, (HX + 7, HY + 21), 3, 1)
-    pygame.draw.circle(surf, _GOLD_H, (HX + 6, HY + 20), 1)
+    pygame.draw.circle(surf, _RING, (HX + 7, HY + 21), 3, 1)
 
     # ── HORNS — the hero pair, drawn before the dome so their roots tuck under
     #    the helm rim while the tips sweep ~9px clear on each side.
