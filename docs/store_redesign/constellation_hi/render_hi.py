@@ -161,13 +161,22 @@ CREAM = (246, 244, 232)
 # gold (lane 2 = rarity gem hues incl. the deliberately-brighter legendary;
 # lane 3 = the cabochon bezel + card ring above). A single smooth vertical ramp.
 GOLD_A_STOPS = [
-    (0.00, (255, 214, 122)),
-    (0.30, (248, 188, 78)),
-    (0.62, (214, 144, 40)),
-    (1.00, (168, 104, 20)),
+    (0.00, (244, 192, 88)),
+    (0.32, (228, 162, 56)),
+    (0.66, (196, 124, 34)),
+    (1.00, (150, 92, 18)),
 ]
 GOLD_A_RIM_DARK = (86, 50, 8)
 GOLD_A_RIM_BRIGHT = (255, 240, 190)
+# Price chip gets its OWN deeper amber ramp so it never reads white on the dark
+# modal panel (user note: white is a poor price background).
+PRICE_STOPS = [
+    (0.00, (236, 176, 72)),
+    (0.45, (204, 132, 42)),
+    (1.00, (150, 90, 18)),
+]
+PRICE_RIM_DARK = (78, 44, 8)
+PRICE_RIM_BRIGHT = (255, 226, 150)
 GOLD_A_NUM = (52, 28, 4)
 GOLD_A_COIN_RIM = (120, 74, 14)
 GOLD_A_GAMMA = 1.06
@@ -356,36 +365,15 @@ def plain_text(surf, txt, font_obj, center, color, shadow_a=150, tracking=0,
 
 
 def coin_glyph(surf, cx, cy, r, rim=GOLD_A_COIN_RIM):
-    """Beveled gold coin — radial face lit top-left + crisp rim + $ relief."""
-    d = r * 2
-    face = pygame.Surface((d + m(2), d + m(2)), pygame.SRCALPHA)
-    c = r + m(1)
-    edge = max(1, int(r * 0.10))
-    for i in range(r, 0, -1):
-        t = 1 - i / r
-        # bright top-left to deep bottom-right body
-        col = lerp_color((255, 233, 158), (196, 138, 36), t ** 0.85)
-        pygame.draw.circle(face, (*col, 255), (c, c), i)
-    # directional sheen: brighten the top-left arc
-    sheen = pygame.Surface((d + m(2), d + m(2)), pygame.SRCALPHA)
-    pygame.draw.circle(sheen, (255, 248, 214, 150),
-                       (c - r // 3, c - r // 3), int(r * 0.6))
-    smask = pygame.Surface((d + m(2), d + m(2)), pygame.SRCALPHA)
-    pygame.draw.circle(smask, (255, 255, 255, 255), (c, c), r - edge)
-    sheen.blit(smask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    face.blit(sheen, (0, 0), special_flags=pygame.BLEND_ADD)
-    # crisp double rim so the coin reads as a tactile object: dark contact
-    # keyline outermost, bright gold inside it.
-    pygame.draw.circle(face, (90, 56, 12, 255), (c, c), r, max(1, m(1.2)))
-    pygame.draw.circle(face, (*rim, 240), (c, c), r - max(1, m(0.8)), max(1, m(1)))
-    pygame.draw.circle(face, (255, 248, 206, 150), (c, c), r - edge, max(1, int(m(0.7))))
-    if r >= m(5):
-        sf = font(max(7, r * 0.95 / SS))
-        sh = sf.render("$", True, (120, 80, 16))
-        face.blit(sh, sh.get_rect(center=(c, c + m(1))))
-        gl = sf.render("$", True, (255, 240, 188))
-        face.blit(gl, gl.get_rect(center=(c, c - m(0.5))))
-    surf.blit(face, face.get_rect(center=(cx, cy)))
+    """The EXACT in-game coin (entities._get_coin_face: gold gradient body,
+    twisted-rope rim, embossed parrot, top-left specular) smoothscaled to the
+    requested radius — so the store coin is identical to the one the player
+    collects in play."""
+    from game.entities import _get_coin_face
+    face = _get_coin_face()
+    d = max(2, int(r * 2))
+    img = pygame.transform.smoothscale(face, (d, d))
+    surf.blit(img, img.get_rect(center=(cx, cy)))
 
 
 def facet_gem(surf, cx, cy, r, base, deep, mystery=False):
@@ -668,10 +656,10 @@ def blit_thumb(surf, sid, cx, cy, box_px):
 # =============================================================================
 CARD_W, CARD_H, GAP = 165, 99, 8
 CARD_RAD = 17
-R_DISC = 23
-CY_DISC = 34
-Y_NAME = 70
-Y_CHIP = 86
+R_DISC = 20
+CY_DISC = 30
+Y_NAME = 63
+Y_CHIP = 84
 GEM_R = 8
 GRID_TOP = 146
 
@@ -963,8 +951,8 @@ def price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
     w = pad + coin_d + gapc + nw + pad
     r = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
     if affordable:
-        chip_body_stops(surf, r, h // 2, GOLD_A_STOPS, GOLD_A_RIM_DARK,
-                        GOLD_A_RIM_BRIGHT, gloss=74, gamma=GOLD_A_GAMMA)
+        chip_body_stops(surf, r, h // 2, PRICE_STOPS, PRICE_RIM_DARK,
+                        PRICE_RIM_BRIGHT, gloss=40, gamma=1.04)
         num_col = GOLD_A_NUM
         coin_rim = GOLD_A_COIN_RIM
     else:
@@ -1110,14 +1098,11 @@ def draw_card(surf, sid, rect, equipped, variant=PRICE_VARIANT):
     # corner GEM — seated with margin
     facet_gem(surf, gx, gy, m(GEM_R), pal["gem"], pal["deep"], mystery=secret)
 
-    # gold map-rule under the name lane
-    gold_rule(surf, rect.x + m(30), rect.right - m(30),
-              rect.y + m(Y_NAME) + m(12), GOLD, peak=80)
     # BAND B — name
     fit_name(surf, name, rect.centerx, rect.y + m(Y_NAME), rect.w - m(26))
     # BAND C — chip
     state_chip(surf, sid, rect.centerx, rect.y + m(Y_CHIP), equipped, secret,
-               m(23), variant=variant)
+               m(21), variant=variant)
 
     if equipped:
         # restrained outer halo (glow rank #1, but kept restrained so it never
