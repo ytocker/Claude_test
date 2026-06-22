@@ -44,6 +44,10 @@ FUR_HI    = (216, 196, 154)         # #D8C49A fur highlight
 
 BEARD     = (201, 162, 75)          # #C9A24B blonde braid
 BEARD_DK  = (154, 122, 52)          # #9A7A34 braid shadow
+# A step deeper than BEARD_DK, used only for the under-chin core so the blonde
+# beard carves off the near-same-value sandy chest at 40px (reads as a beard,
+# not a lower-face shadow).
+BEARD_DKR = (120, 92, 36)           # #745C24 beard core under the chin
 
 WOOD      = (196, 154, 82)          # #C49A52 honey shield planks
 GOLD      = (227, 178, 60)          # #E3B23C gold accent / beard-ring
@@ -102,6 +106,11 @@ def _paint(surf, wing_angle_deg):
     # back outline reads as a solid raider's shield at 40px.
     sx, sy, sr = HX - 26, HY + 11, 13
     pygame.draw.circle(surf, BEARD_DK, (sx, sy), sr + 1)           # dark seat
+    # Dark seat is fattened to 2px on the helm-facing (upper-right) arc so a
+    # crisp dark sliver always sits between the cool-grey shield boss and the
+    # cool-grey helm dome — they kiss on the wings-up frame and otherwise read
+    # as one grey smear in fast motion.
+    pygame.draw.circle(surf, BEARD_DKR, (sx + 1, sy - 1), sr + 1)
     pygame.draw.circle(surf, WOOD, (sx, sy), sr)                   # plank face
     # Plank seams across the wood face.
     for dx in (-7, 0, 7):
@@ -138,7 +147,9 @@ def _paint(surf, wing_angle_deg):
     # Tawny-blonde braids hanging under the beak. Icicle fangs are removed: the
     # braids end in plain rounded tips, and a single gold beard-ring clasps one
     # braid — the beard's one warm accent. Metal glints replace ice flecks.
-    pygame.draw.ellipse(surf, BEARD_DK, (HX - 3, HY + 6, 17, 12))
+    # Deeper core under the chin so the blonde beard separates from the sandy
+    # chest below it (the two were near-identical values at 40px).
+    pygame.draw.ellipse(surf, BEARD_DKR, (HX - 3, HY + 6, 17, 12))
     pygame.draw.ellipse(surf, BEARD, (HX - 2, HY + 5, 15, 10))
     for bx in (HX + 1, HX + 7):
         pygame.draw.line(surf, BEARD_DK, (bx, HY + 9), (bx, HY + 16), 3)
