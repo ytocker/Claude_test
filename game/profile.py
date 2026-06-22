@@ -22,7 +22,7 @@ import pygame
 from game.config import W, H, PARCEL_Y_OFFSET
 from game.hud import _font, _draw_overlay_stars, \
     _GOLD_BRIGHT, _GOLD_PALE, _GOLD_DEEP, _RED_OUTLINE
-from game.draw import UI_CREAM, NEAR_BLACK, WHITE, rounded_rect, lerp_color
+from game.draw import NEAR_BLACK, WHITE, rounded_rect, lerp_color
 from game.powerup_help import _seeded_stars
 from game import parrot
 from game import store_catalog
@@ -31,7 +31,7 @@ from game import store_data
 # wholesale so the two screens can never drift apart.
 from game.store import (
     _vgrad_panel, _drop_shadow, _inset_disc, _shelf_bar, _gem, _gold_leaf,
-    _gradient_text, _gold_rule, _chip, _draw_chevron, _fit_skin, _slot_of,
+    _gradient_text, _chip, _draw_chevron, _fit_skin, _slot_of,
     _coin_glyph, _soft_glow,
     _CARD_W, _CARD_H, _GAP, _THUMB_BOX, _TABS, _BG_STOPS, _OBS_TOP, _OBS_BOT,
 )
@@ -180,9 +180,11 @@ class ProfileScene:
 
     def _draw_loadout(self, surf) -> None:
         """The persistent hero stage: a wide obsidian panel with the live bird on
-        a lit disc at the left, and the equipped skin/parcel names + coin balance
-        at the right. Always on screen so the player sees their current look while
-        they browse the grid below."""
+        a gold-rimmed disc at the left and a small CURRENTLY EQUIPPED caption over
+        the coin balance at the right. The bird itself is the readout of what's
+        worn — a loadout is several items at once, so no single item is named.
+        Always on screen so the player sees their current look while they browse
+        the grid below; the right band stays light for a future stats block."""
         panel = pygame.Rect(12, 48, W - 24, 140)
         _drop_shadow(surf, panel, 16, blur=6, alpha=140)
         surf.blit(_vgrad_panel(panel.w, panel.h, 16, _OBS_TOP, _OBS_BOT, 252),
@@ -197,10 +199,15 @@ class ProfileScene:
 
         # Lit stage disc + the animated bird (wings cycle off self.t at the
         # entity's idle flap rate; four frames, modulo'd by the skin builders).
+        # A warm-gold rim (not the old periwinkle halo, which read as the RARE
+        # rarity blue) keeps the perimeter in the screen's gold furniture without
+        # borrowing a rarity hue.
         stage_cx = panel.x + 78
         stage_cy = panel.centery + 4
-        _soft_glow(surf, stage_cx, stage_cy, 56, (90, 110, 170), 60, layers=5)
+        _soft_glow(surf, stage_cx, stage_cy, 56, (236, 190, 96), 46, layers=5)
         _inset_disc(surf, stage_cx, stage_cy, 50)
+        pygame.draw.circle(surf, (*_GOLD_BRIGHT, 220), (stage_cx, stage_cy), 50, 2)
+        pygame.draw.circle(surf, (*_GOLD_DEEP, 180), (stage_cx, stage_cy), 48, 1)
         fidx = int(self.t * 8.0) % 4
         sprite = self._loadout_sprite(skin, pid, fidx)
         box = 86
@@ -210,30 +217,18 @@ class ProfileScene:
             sprite, (max(1, int(sw * scale)), max(1, int(sh * scale))))
         surf.blit(sprite, sprite.get_rect(center=(stage_cx, stage_cy)))
 
-        # Right column: what's worn + the wallet.
-        tx = panel.x + 142
-        lbl = _font(10, True).render("CURRENTLY EQUIPPED", True, _GOLD_PALE)
-        lbl.set_alpha(200)
-        surf.blit(lbl, (tx, panel.y + 18))
-
-        sname = self._disp_name(skin)
-        _gradient_text(surf, sname, _font(19, True),
-                       (tx + _font(19, True).size(sname)[0] // 2, panel.y + 46),
-                       (255, 246, 196), (236, 170, 60), shadow=True)
-        _gold_rule(surf, tx, panel.right - 18, panel.y + 62)
-
-        pf = _font(11, True)
-        plabel = pf.render("PARCEL", True, (150, 142, 158))
-        surf.blit(plabel, (tx, panel.y + 74))
-        pname = _font(14, True).render(self._disp_name(pid), True, UI_CREAM)
-        surf.blit(pname, (tx, panel.y + 88))
-
-        # Coin balance — quieter than the Store's hero capsule (nothing is spent
+        # Right column: a compact group centred against the stage — the caption
+        # over the wallet. Quieter than the Store's hero capsule (nothing is spent
         # here), just a small ledger of what the player has banked.
-        by = panel.y + 116
-        _coin_glyph(surf, tx + 8, by, 8)
-        bimg = _font(15, True).render(f"{store_data.balance():,}", True, _GOLD_BRIGHT)
-        surf.blit(bimg, bimg.get_rect(midleft=(tx + 22, by)))
+        tx = panel.x + 152
+        gcy = stage_cy
+        lbl = _font(11, True).render("CURRENTLY EQUIPPED", True, _GOLD_PALE)
+        lbl.set_alpha(210)
+        surf.blit(lbl, (tx, gcy - 22))
+        by = gcy + 12
+        _coin_glyph(surf, tx + 9, by, 9)
+        bimg = _font(18, True).render(f"{store_data.balance():,}", True, _GOLD_BRIGHT)
+        surf.blit(bimg, bimg.get_rect(midleft=(tx + 26, by)))
 
     # ── tab strip (owned tabs only) ────────────────────────────────────────────
     def _draw_tabs(self, surf) -> None:
