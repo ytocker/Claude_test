@@ -139,7 +139,9 @@ def _paint(surf, wing_angle_deg):
         pygame.draw.circle(surf, ICE_WHITE, (fx, ruff_y), r - 1)
     # Ruff tops sit at ICE_WHITE, not pure white, so the HELM TIPS stay the
     # single brightest point — hierarchy is helm tips > shield boss > ruff.
-    for i in range(-2, 3):
+    # Three bright dots, not five: on the brightest day frames a five-dot band
+    # crowded the eye toward the ruff and competed with the helm tips.
+    for i in range(-1, 2):
         pygame.draw.circle(surf, ICE_WHITE, (HX - 1 + i * 5, ruff_y - 1), 1)
 
     # ── FROSTED BRAIDED BEARD with ICICLE ends ───────────────────────────────
@@ -162,8 +164,12 @@ def _paint(surf, wing_angle_deg):
     # Pale steel head with a faint cold-blue rim-glint, hafted low so the blade
     # breaks the lower-front silhouette. Drawn before the helm so the helm reads
     # on top of the head.
-    hxr, hyr = HX + 14, HY + 18          # haft top near the wing
-    htx, hty = HX + 9, HY + 30           # haft bottom
+    # Haft nudged ~2px lower-front so the swept blade silhouette clears the
+    # beard fangs instead of overlapping them — at 40px the lower-front cluster
+    # merged into one bright smear, so separating the blade adds a countable
+    # shape without introducing a new object.
+    hxr, hyr = HX + 16, HY + 20          # haft top near the wing
+    htx, hty = HX + 11, HY + 32          # haft bottom
     pygame.draw.line(surf, COLD_SHADE, (hxr, hyr), (htx, hty), 4)
     pygame.draw.line(surf, (150, 178, 200), (hxr, hyr), (htx, hty), 2)
     # Bearded axe head — a swept crescent off the haft top.
@@ -214,8 +220,9 @@ def _paint(surf, wing_angle_deg):
     pygame.draw.rect(surf, COLD_SHADE, (HX + 1, cy + 4, 3, 11))
     pygame.draw.rect(surf, (150, 178, 200), (HX + 1, cy + 4, 2, 10))
     # One icicle drip off the brim — a single deliberate spike, not a fringe
-    # competing with the beard fangs and shield crystals for the eye.
-    _icicle(surf, HX + 9, cy + 6, 6, w=2)
+    # competing with the beard fangs and shield crystals for the eye. Shifted
+    # 1px inboard so it no longer muddies the right-horn-root corner at 40px.
+    _icicle(surf, HX + 8, cy + 6, 6, w=2)
 
     # ── FUR BOOT CUFFS on the feet (base feet sit at y~65-69 in composite) ───
     for fx, fy in ((27, 65), (35, 65)):
