@@ -60,6 +60,30 @@ def font(size):
     return _font(max(1, int(round(size * SS))), True)
 
 
+def _stamp_bold(base, weight):
+    """Faux-bold: composite the glyph onto itself at a RING of offsets one
+    `weight` out (8 compass points) so strokes grow ~`weight` px evenly on all
+    sides without filling counters solid. The project ships only the Bold ttf,
+    so authored 'thicker' is this multi-stamp at SS where the fractional growth
+    survives the downscale. Weights are small (≈1px target) on purpose."""
+    # Callers express weight in logical px (m()); the visible thickening at the
+    # downscaled target wants only ~0.5px, so the device ring radius is kept to
+    # 1-2px regardless of SS.
+    weight = max(0, min(m(0.5), int(round(weight * 0.42))))
+    if weight <= 0:
+        return base
+    w, h = base.get_size()
+    pad = weight + m(1)
+    out = pygame.Surface((w + pad * 2, h + pad * 2), pygame.SRCALPHA)
+    ring = [(-weight, 0), (weight, 0), (0, -weight), (0, weight)]
+    d = max(1, int(round(weight * 0.71)))
+    ring += [(-d, -d), (d, -d), (-d, d), (d, d)]
+    for dx, dy in ring:
+        out.blit(base, (pad + dx, pad + dy))
+    out.blit(base, (pad, pad))                     # center on top, crisp core
+    return out
+
+
 # ── catalog adapters ──────────────────────────────────────────────────────────
 def _cost(sid):
     return store_catalog.cost(sid) if store_catalog.exists(sid) else 0
@@ -191,9 +215,8 @@ def drop_shadow(surf, rect, radius, blur, alpha, dy):
         surf.blit(s, r.topleft)
 
 
-def gradient_text(surf, txt, font_obj, center, top, bot,
-                  outline=None, ox=None, shadow=True, tracking=0, glow=None):
-    """Gradient-filled type with optional outline, soft glow + drop shadow."""
+def _glyph_base(txt, font_obj, tracking):
+    """White glyph master at SS, with optional letter tracking."""
     if tracking:
         widths = [font_obj.size(ch)[0] for ch in txt]
         total = sum(widths) + tracking * (len(txt) - 1)
@@ -203,8 +226,21 @@ def gradient_text(surf, txt, font_obj, center, top, bot,
         for ch, wch in zip(txt, widths):
             base.blit(font_obj.render(ch, True, WHITE), (x, 0))
             x += wch + tracking
-    else:
-        base = font_obj.render(txt, True, WHITE)
+        return base
+    return font_obj.render(txt, True, WHITE)
+
+
+def gradient_text(surf, txt, font_obj, center, top, bot,
+                  outline=None, ox=None, shadow=True, tracking=0, glow=None,
+                  weight=None, keyline=None, kw=None):
+    """Gradient-filled type, faux-bolded for weight, with a crisp dark keyline
+    outline so body/title type reads heavy + sharp at the downscaled target.
+    `weight` thickens strokes; `keyline` is a tight dark contour; `outline` is
+    the wider coloured rim (e.g. the title's rust red)."""
+    base = _glyph_base(txt, font_obj, tracking)
+    if weight is None:
+        weight = m(0.9)
+    base = _stamp_bold(base, weight)
     w, hh = base.get_size()
     grad = pygame.Surface((w, hh), pygame.SRCALPHA)
     for y in range(hh):
@@ -212,6 +248,11 @@ def gradient_text(surf, txt, font_obj, center, top, bot,
                          (0, y), (w, y))
     grad.blit(base, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
     r = base.get_rect(center=center)
+    if shadow:
+        sh = base.copy()
+        sh.fill((*NEAR_BLACK, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        sh.set_alpha(150)
+        surf.blit(sh, (r.x + m(0.5), r.y + m(2)))
     if glow:
         gs = base.copy()
         gs.fill((*glow, 255), special_flags=pygame.BLEND_RGBA_MULT)
@@ -222,36 +263,46 @@ def gradient_text(surf, txt, font_obj, center, top, bot,
         p = ox if ox is not None else m(1.5)
         out = base.copy()
         out.fill((*outline, 255), special_flags=pygame.BLEND_RGBA_MULT)
-        for dx, dy in ((-p, 0), (p, 0), (0, -p), (0, p),
-                       (-p, -p), (p, -p), (-p, p), (p, p)):
+        for ang in range(0, 360, 30):
+            dx = int(round(p * math.cos(math.radians(ang))))
+            dy = int(round(p * math.sin(math.radians(ang))))
             surf.blit(out, (r.x + dx, r.y + dy))
-    if shadow:
-        sh = base.copy()
-        sh.fill((*NEAR_BLACK, 255), special_flags=pygame.BLEND_RGBA_MULT)
-        sh.set_alpha(150)
-        surf.blit(sh, (r.x + m(0.5), r.y + m(1.5)))
+    if keyline:
+        p = kw if kw is not None else m(1)
+        kl = base.copy()
+        kl.fill((*keyline, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        for ang in range(0, 360, 45):
+            dx = int(round(p * math.cos(math.radians(ang))))
+            dy = int(round(p * math.sin(math.radians(ang))))
+            surf.blit(kl, (r.x + dx, r.y + dy))
     surf.blit(grad, r.topleft)
     return r
 
 
-def plain_text(surf, txt, font_obj, center, color, shadow_a=150, tracking=0):
-    if tracking:
-        widths = [font_obj.size(ch)[0] for ch in txt]
-        total = sum(widths) + tracking * (len(txt) - 1)
-        hh = font_obj.get_height()
-        img = pygame.Surface((max(1, total), hh), pygame.SRCALPHA)
-        x = 0
-        for ch, wch in zip(txt, widths):
-            img.blit(font_obj.render(ch, True, color), (x, 0))
-            x += wch + tracking
-    else:
-        img = font_obj.render(txt, True, color)
+def plain_text(surf, txt, font_obj, center, color, shadow_a=150, tracking=0,
+               weight=None, keyline=None, kw=None):
+    """Solid-colour type, faux-bolded for weight, with an optional crisp dark
+    keyline so labels read heavy + sharp against the dark store ground."""
+    base = _glyph_base(txt, font_obj, tracking)
+    if weight is None:
+        weight = m(0.8)
+    base = _stamp_bold(base, weight)
+    img = base.copy()
+    img.fill((*color, 255), special_flags=pygame.BLEND_RGBA_MULT)
     r = img.get_rect(center=center)
     if shadow_a:
-        sh = img.copy()
+        sh = base.copy()
         sh.fill((*NEAR_BLACK, 255), special_flags=pygame.BLEND_RGBA_MULT)
         sh.set_alpha(shadow_a)
-        surf.blit(sh, (r.x, r.y + m(1)))
+        surf.blit(sh, (r.x, r.y + m(1.5)))
+    if keyline:
+        p = kw if kw is not None else m(1)
+        kl = base.copy()
+        kl.fill((*keyline, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        for ang in range(0, 360, 45):
+            dx = int(round(p * math.cos(math.radians(ang))))
+            dy = int(round(p * math.sin(math.radians(ang))))
+            surf.blit(kl, (r.x + dx, r.y + dy))
     surf.blit(img, r)
     return r
 
@@ -275,8 +326,11 @@ def coin_glyph(surf, cx, cy, r, rim=GOLD_DEEP):
     pygame.draw.circle(smask, (255, 255, 255, 255), (c, c), r - edge)
     sheen.blit(smask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     face.blit(sheen, (0, 0), special_flags=pygame.BLEND_ADD)
-    pygame.draw.circle(face, (*rim, 235), (c, c), r, max(1, m(0.8)))
-    pygame.draw.circle(face, (255, 244, 200, 120), (c, c), r - edge, max(1, int(m(0.6))))
+    # crisp double rim so the coin reads as a tactile object: dark contact
+    # keyline outermost, bright gold inside it.
+    pygame.draw.circle(face, (90, 56, 12, 255), (c, c), r, max(1, m(1.2)))
+    pygame.draw.circle(face, (*rim, 240), (c, c), r - max(1, m(0.8)), max(1, m(1)))
+    pygame.draw.circle(face, (255, 248, 206, 150), (c, c), r - edge, max(1, int(m(0.7))))
     if r >= m(5):
         sf = font(max(7, r * 0.95 / SS))
         sh = sf.render("$", True, (120, 80, 16))
@@ -485,6 +539,35 @@ def contact_shadow(surf, rect, radius, depth, alpha=90):
 _thumb_cache = {}
 
 
+def _punch_contrast(img, boost=28):
+    """Lift the skin's value separation from the dark dome WITHOUT inventing
+    detail (AD note 4): a flat additive brighten across the silhouette so the
+    macaw's mids/highlights gain range against the near-black well. Alpha is
+    untouched (BLEND_RGB_ADD), so the silhouette edge stays clean."""
+    out = img.copy()
+    out.fill((boost, boost, boost, 0), special_flags=pygame.BLEND_RGB_ADD)
+    return out
+
+
+def _rim_light(img, color=(255, 248, 220), alpha=150, off=None):
+    """Crisp top-left rim light so the silhouette pops off the dome: the alpha
+    mask nudged up-left, minus the body, tinted bright = a contour highlight."""
+    w, h = img.get_size()
+    if off is None:
+        off = max(1, m(0.6))
+    rim = pygame.Surface((w, h), pygame.SRCALPHA)
+    # silhouette tinted bright
+    sil = img.copy()
+    sil.fill((*color, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    rim.blit(sil, (-off, -off))
+    # subtract the body so only the protruding top-left edge survives
+    cut = img.copy()
+    cut.fill((255, 255, 255, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    rim.blit(cut, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+    rim.set_alpha(alpha)
+    return rim
+
+
 def thumb(sid, box_px):
     key = (sid, box_px)
     out = _thumb_cache.get(key)
@@ -495,10 +578,20 @@ def thumb(sid, box_px):
             src = src.subsurface(bb).copy()
         sw, sh = src.get_size()
         s = box_px / max(sw, sh)
-        out = pygame.transform.smoothscale(
+        scaled = pygame.transform.smoothscale(
             src, (max(1, int(sw * s)), max(1, int(sh * s))))
+        out = _punch_contrast(scaled)
         _thumb_cache[key] = out
     return out
+
+
+def blit_thumb(surf, sid, cx, cy, box_px):
+    """Place the (contrast-lifted) skin with a crisp top-left rim light so it
+    reads as the lit hero inside the dome, not a flat sticker."""
+    t = thumb(sid, box_px)
+    r = t.get_rect(center=(cx, cy))
+    surf.blit(_rim_light(t), r.topleft, special_flags=pygame.BLEND_ADD)
+    surf.blit(t, r.topleft)
 
 
 # =============================================================================
@@ -508,8 +601,8 @@ CARD_W, CARD_H, GAP = 165, 99, 8
 CARD_RAD = 17
 R_DISC = 23
 CY_DISC = 34
-Y_NAME = 71
-Y_CHIP = 89
+Y_NAME = 70
+Y_CHIP = 86
 GEM_R = 8
 GRID_TOP = 146
 
@@ -581,189 +674,343 @@ def draw_bg(surf):
 
 
 # ── header ────────────────────────────────────────────────────────────────────
+def title_wordmark(surf, txt, center, size, tracking):
+    """Royal-Match-style gold BEVEL wordmark: ONE clean specular-swept gold fill
+    with consistent stroke weight, a fine bright top emboss, a dark keyline for
+    crisp delineation, and a single soft contact shadow. No chunky faux-3D
+    extrude (that read amateur) — depth comes from the bevel + shadow only."""
+    f = font(size)
+    base = _glyph_base(txt, f, tracking)
+    base = _stamp_bold(base, m(1.3))
+    w, hh = base.get_size()
+    r = base.get_rect(center=center)
+    # soft contact shadow (single, blurred by multi-offset falloff)
+    for k, a in ((m(3), 60), (m(2), 90), (m(1), 120)):
+        sh = base.copy()
+        sh.fill((6, 4, 14, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        sh.set_alpha(a)
+        surf.blit(sh, (r.x, r.y + k + m(2)))
+    # NOTE: no additive offset-glow here. Offset additive copies of the glyph
+    # accumulate in the inter-stroke gaps and read as pale blocks behind the
+    # letters; the clean Royal-Match wordmark gets its depth from the contact
+    # shadow + dark keyline + bevel crown instead.
+    # crisp dark keyline contour so the gold edges read clean against the sky
+    kl = base.copy()
+    kl.fill((78, 40, 8, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    for ang in range(0, 360, 30):
+        dx = int(round(m(1.6) * math.cos(math.radians(ang))))
+        dy = int(round(m(1.6) * math.sin(math.radians(ang))))
+        surf.blit(kl, (r.x + dx, r.y + dy))
+    # the gold body: a clean vertical gold gradient (consistent stroke weight,
+    # no faux-3D extrude). Warm gold, NOT near-white, so the letterforms stay
+    # legible; a single tight specular band sits in the upper third only.
+    # The gold body. The gradient is mapped over the GLYPH's own vertical extent
+    # (not the padded surface), so the bright crown sits at the true cap and the
+    # deep amber at the true baseline — and the top stop is a warm gold, never
+    # near-white, so the caps don't blow out to white blocks.
+    bb = base.get_bounding_rect()
+    top_y, gh = bb.y, max(1, bb.h)
+    grad = pygame.Surface((w, hh), pygame.SRCALPHA)
+    for y in range(hh):
+        t = max(0.0, min(1.0, (y - top_y) / gh))
+        if t < 0.5:
+            c = lerp_color((252, 208, 116), (242, 180, 78), t / 0.5)
+        else:
+            c = lerp_color((242, 180, 78), (188, 118, 32), (t - 0.5) / 0.5)
+        pygame.draw.line(grad, c, (0, y), (w, y))
+    body = base.copy()
+    body.blit(grad, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(body, r.topleft)
+    # a single thin specular glint hugging just the cap edge (a few rows), low
+    # alpha so it reads as a polished bevel crown, not a white cap.
+    spec = pygame.Surface((w, hh), pygame.SRCALPHA)
+    glint = max(1, int(gh * 0.07))
+    for i in range(glint):
+        a = int(40 * (1 - i / glint) ** 1.5)
+        pygame.draw.line(spec, (255, 244, 206, a), (0, top_y + i), (w, top_y + i))
+    sm = base.copy()
+    sm.fill((255, 255, 255, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    spec.blit(sm, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(spec, r.topleft, special_flags=pygame.BLEND_ADD)
+    return r
+
+
 def draw_header(surf):
     # soft darkening band behind the title lane for legibility
-    band = pygame.Surface((DW, m(98)), pygame.SRCALPHA)
-    for y in range(m(98)):
-        a = int(120 * (1 - y / m(98)) ** 1.2)
+    band = pygame.Surface((DW, m(112)), pygame.SRCALPHA)
+    for y in range(m(112)):
+        a = int(120 * (1 - y / m(112)) ** 1.2)
         pygame.draw.line(band, (16, 16, 48, a), (0, y), (DW, y))
     surf.blit(band, (0, 0))
     # screen frame hairline
     pygame.draw.rect(surf, (*GOLD, 60), (m(3), m(3), DW - m(6), DH - m(6)),
                      width=max(1, m(1)), border_radius=m(12))
-    # TITLE lane
-    gradient_text(surf, "STORE", font(30), (DW // 2, m(30)),
-                  TITLE_TOP, TITLE_BOT, outline=TITLE_OUT, tracking=m(3),
-                  glow=(120, 96, 30))
-    balance_capsule(surf, DW // 2, m(70))
-    tab_strip(surf, m(118))
+    # TITLE — clean gold bevel wordmark. Baseline raised so the gap to the
+    # balance capsule grows ~50% (AD note 2).
+    title_wordmark(surf, "STORE", (DW // 2, m(28)), 31, tracking=m(4))
+    balance_capsule(surf, DW // 2, m(74))
+    tab_strip(surf, m(122))
 
 
 def balance_capsule(surf, cx, y):
-    """Jewel-grade recessed gold capsule: coin in its own left cell with a real
-    gap before gradient-gold digits; lit top sheen + dark inner contact rim."""
+    """Jewel-grade recessed gold capsule. This is the money screen, so the
+    NUMBER is large + loud (faux-bold gradient gold with a dark keyline); the
+    coin sits in its own left cell with a guaranteed gap to the first digit
+    (enforced at SS so it survives downscale); a crisp dark keyline + bright
+    bevel make the capsule a clearly delineated object (user point 2)."""
     val = f"{BALANCE:,}"
-    vf = font(20)
-    vw = vf.size(val)[0]
-    coin_d, gapc, padl, padr = m(24), m(14), m(14), m(18)
+    vf = font(25)                                  # larger/louder (AD note 2)
+    vw = _glyph_base(val, vf, 0).get_width() + m(2)  # account for faux-bold
+    coin_d, gapc, padl, padr = m(28), m(18), m(15), m(22)
     w = padl + coin_d + gapc + vw + padr
-    h = m(38)
+    h = m(44)
     cap = pygame.Rect(cx - w // 2, y - h // 2, w, h)
-    drop_shadow(surf, cap, h // 2, blur=m(5), alpha=120, dy=m(3))
-    surf.blit(vgrad(cap.w, cap.h, h // 2, (52, 38, 20), (22, 15, 8), 255, gamma=1.1),
+    drop_shadow(surf, cap, h // 2, blur=m(6), alpha=130, dy=m(3))
+    surf.blit(vgrad(cap.w, cap.h, h // 2, (58, 42, 22), (22, 15, 8), 255, gamma=1.1),
               cap.topleft)
-    top_sheen(surf, cap, h // 2, m(14), peak=44)
-    # recessed inner well (contact shadow) + lit gold rim
+    top_sheen(surf, cap, h // 2, m(16), peak=50)
+    # recessed inner well (contact shadow) + crisp double rim
     contact_shadow(surf, cap, h // 2, m(5), alpha=110)
-    pygame.draw.rect(surf, (0, 0, 0, 150), cap.inflate(-m(2), -m(2)),
-                     width=max(1, m(1)), border_radius=h // 2 - m(1))
+    pygame.draw.rect(surf, (0, 0, 0, 200), cap, width=max(1, m(1.8)),
+                     border_radius=h // 2)
     bevel_rim(surf, cap, h // 2, lerp_color(GOLD, NEAR_BLACK, 0.4),
-              (*GOLD_PALE, 230), w=max(1, m(1.4)))
+              (*GOLD_PALE, 240), w=max(1, m(1.8)))
     x = cap.x + padl
-    soft_glow(surf, x + coin_d // 2, y, coin_d, (255, 206, 92), 110, layers=6)
+    soft_glow(surf, x + coin_d // 2, y, coin_d, (255, 206, 92), 120, layers=6)
     coin_glyph(surf, x + coin_d // 2, y, coin_d // 2)
     x += coin_d + gapc
-    gradient_text(surf, val, vf, (x + vw // 2, y), (255, 248, 200), (236, 172, 64))
+    gradient_text(surf, val, vf, (x + vw // 2, y), (255, 250, 214), (240, 178, 66),
+                  weight=m(1.0), keyline=(96, 56, 12), kw=m(1.2), shadow=True)
 
 
 def tab_strip(surf, y):
+    """ONE committed active state (AD note 5): a filled gold-tinted pill with
+    dark bold text; inactive tabs clearly muted. Even cell spacing inside a
+    recessed track with symmetric inner margins so PARCELS no longer hugs the
+    right edge."""
     tabs = ("PARROTS", "ANIMALS", "COSTUMES", "PARCELS")
     active = 1
     f = font(12)
-    pad, gap = m(12), m(8)
-    widths = [f.size(t)[0] + 2 * pad for t in tabs]
-    total = sum(widths) + gap * (len(tabs) - 1)
-    while total > DW - m(16) and pad > m(5):
-        pad -= m(1)
-        gap = max(m(4), gap - m(1))
-        widths = [f.size(t)[0] + 2 * pad for t in tabs]
-        total = sum(widths) + gap * (len(tabs) - 1)
-    x = (DW - total) // 2
-    th = m(30)
-    track = pygame.Rect(x - m(8), y - th // 2, total + m(16), th)
+    th = m(32)
+    edge = m(10)                                   # symmetric inner margin
+    track_w = DW - m(2 * 14)                        # generous side gutters
+    track = pygame.Rect((DW - track_w) // 2, y - th // 2, track_w, th)
     ts = pygame.Surface(track.size, pygame.SRCALPHA)
-    pygame.draw.rect(ts, (8, 9, 22, 150), ts.get_rect(), border_radius=th // 2)
-    pygame.draw.rect(ts, (255, 255, 255, 18), (0, 0, track.w, th // 2),
-                     border_top_left_radius=th // 2, border_top_right_radius=th // 2)
+    pygame.draw.rect(ts, (8, 9, 22, 170), ts.get_rect(), border_radius=th // 2)
     surf.blit(ts, track.topleft)
-    pygame.draw.rect(surf, (*GOLD, 70), track, width=max(1, m(1)), border_radius=th // 2)
+    pygame.draw.rect(surf, (0, 0, 0, 170), track, width=max(1, m(1.4)),
+                     border_radius=th // 2)
+    pygame.draw.rect(surf, (*GOLD, 80), track.inflate(-m(1.4), -m(1.4)),
+                     width=max(1, m(1)), border_radius=th // 2)
+    # equal-width cells so spacing is even end to end
+    cell_w = (track_w - 2 * edge) / len(tabs)
     for i, t in enumerate(tabs):
-        w = widths[i]
-        cxx = x + w // 2
+        cxx = int(track.x + edge + cell_w * (i + 0.5))
         is_active = (i == active)
         if is_active:
-            pill = pygame.Rect(x + m(3), y - th // 2 + m(4), w - m(6), th - m(8))
+            pw = int(cell_w) - m(4)
+            pill = pygame.Rect(cxx - pw // 2, y - th // 2 + m(4), pw, th - m(8))
             surf.blit(vgrad(pill.w, pill.h, pill.h // 2,
-                            lerp_color(GOLD, WHITE, 0.15), GOLD_DEEP, 255),
+                            (255, 214, 102), (200, 134, 34), 255, gamma=1.06),
                       pill.topleft)
-            top_sheen(surf, pill, pill.h // 2, m(8), peak=70)
-            pygame.draw.rect(surf, GOLD_PALE, pill, width=max(1, m(1)),
+            gloss_sweep(surf, pill, pill.h // 2, peak=110)
+            pygame.draw.rect(surf, (92, 56, 12), pill, width=max(1, m(1.4)),
                              border_radius=pill.h // 2)
-            plain_text(surf, t, f, (cxx, y), (44, 28, 8), shadow_a=0)
+            bevel_rim(surf, pill, pill.h // 2, (92, 56, 12),
+                      (*GOLD_PALE, 230), w=max(1, m(1.2)))
+            plain_text(surf, t, f, (cxx, y), (52, 30, 6), shadow_a=0,
+                       weight=m(0.9))
         else:
-            plain_text(surf, t, f, (cxx, y), (196, 192, 212), shadow_a=120)
-        x += w + gap
+            plain_text(surf, t, f, (cxx, y), (138, 138, 162), shadow_a=140,
+                       weight=m(0.6))
 
 
 # ── chip family ───────────────────────────────────────────────────────────────
-def chip(surf, cx, cy, text, fg, bg, rim, h, coin=False, lock=False):
-    f = font(h * 0.52 / SS)
-    timg = f.render(text, True, fg)
-    coin_d = int(h * 0.64)
-    pre = (coin_d + m(5)) if coin else (m(13) if lock else 0)
-    pad = m(13)
-    w = pre + timg.get_width() + pad * 2
-    r = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
-    drop_shadow(surf, r, h // 2, blur=m(3), alpha=90, dy=m(2))
-    surf.blit(vgrad(w, h, h // 2, lerp_color(bg, WHITE, 0.22), bg, 255, gamma=1.1),
-              r.topleft)
-    top_sheen(surf, r, h // 2, h // 2, peak=56)
-    contact_shadow(surf, r, h // 2, m(3), alpha=70)
-    pygame.draw.rect(surf, rim, r, width=max(1, m(1)), border_radius=h // 2)
-    x = r.x + pad
-    if coin:
-        coin_glyph(surf, x + coin_d // 2, cy, coin_d // 2)
-        x += coin_d + m(5)
-    elif lock:
-        bw, bh = m(9), m(7)
-        rounded_body = pygame.Rect(x, cy - m(1), bw, bh)
-        pygame.draw.rect(surf, fg, rounded_body, border_radius=m(2))
-        pygame.draw.arc(surf, fg, (x + m(1), cy - m(7), bw - m(2), m(10)),
-                        0.2, math.pi - 0.2, max(1, m(1.4)))
-        x += m(13)
-    surf.blit(timg, timg.get_rect(midleft=(x, cy)))
-    return r
+def gloss_sweep(surf, rect, radius, peak=120):
+    """A diagonal specular sweep across the upper third — the wet-gloss tell
+    that reads as polished metal/candy. Clipped to the chip's rounded body."""
+    sweep = pygame.Surface(rect.size, pygame.SRCALPHA)
+    h = max(1, int(rect.h * 0.5))
+    for y in range(h):
+        a = int(peak * (1 - y / h) ** 1.6)
+        pygame.draw.line(sweep, (255, 255, 255, a), (0, y), (rect.w, y))
+    sm = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(sm, (255, 255, 255, 255), sm.get_rect(), border_radius=radius)
+    sweep.blit(sm, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(sweep, rect.topleft, special_flags=pygame.BLEND_ADD)
 
 
-CHIP_COLORS = {
-    "price": (GOLD_PALE, GOLD_DEEP, (*GOLD, 180)),
-    "equip": (CREAM, (96, 74, 24), (*GOLD, 180)),
-    "equipped": ((10, 32, 16), (88, 200, 116), (200, 255, 212)),
-    "locked": ((158, 172, 196), (38, 44, 60), (96, 110, 138)),
+def chip_body(surf, r, radius, top, bot, rim_dark, rim_bright, gloss=120,
+              gamma=1.05):
+    """One chip-body finish shared across the whole chip family: gradient fill,
+    a diagonal gloss sweep, a crisp dark outer keyline AND a bright top-left
+    bevel so every chip reads as a delineated tactile object (user point 2)."""
+    drop_shadow(surf, r, radius, blur=m(4), alpha=110, dy=m(2))
+    surf.blit(vgrad(r.w, r.h, radius, top, bot, 255, gamma=gamma), r.topleft)
+    gloss_sweep(surf, r, radius, peak=gloss)
+    contact_shadow(surf, r, radius, m(3), alpha=80)
+    # dark contact keyline first so the bright bevel sits inside a defined edge
+    pygame.draw.rect(surf, rim_dark, r, width=max(1, m(1.6)), border_radius=radius)
+    bevel_rim(surf, r, radius, rim_dark, (*rim_bright, 235), w=max(1, m(1.5)))
+
+
+# Two price-chip colour options the user can pick between. Option 1 is a single
+# rich warm gold; option 2 is a brighter two-tone (champagne crown over amber).
+PRICE_OPT = {
+    # A — single rich warm gold, deep amber shade, dark-brown numerals.
+    1: dict(top=(255, 206, 84), bot=(190, 124, 26),
+            rim_dark=(92, 54, 10), rim_bright=(255, 238, 184),
+            num=(54, 30, 4), coin_rim=(118, 72, 14)),
+    # B — brighter champagne two-tone: a pale champagne crown over a saturated
+    # amber base with a wider bright rim, for a more 'candy' premium feel.
+    2: dict(top=(255, 244, 198), bot=(228, 158, 36),
+            rim_dark=(116, 70, 12), rim_bright=(255, 252, 226),
+            num=(86, 46, 6), coin_rim=(150, 92, 18), two_tone=True),
 }
 
 
-def state_chip(surf, sid, cx, cy, equipped, secret, h):
+def price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
+    """Premium coin-price chip: rich separated gold body, crisp double rim,
+    gloss sweep, a clean beveled coin glyph in its own cell, and dark
+    high-contrast numerals (user point 3). Can't-afford uses a muted slate
+    body + a small lock, sharing the same finish family."""
+    opt = PRICE_OPT.get(variant, PRICE_OPT[1])
+    coin_d = int(h * 0.66)
+    pad = m(13)
+    gapc = m(6)
+    f = font(h * 0.50 / SS)
+    nw = _glyph_base(text, f, 0).get_width() + m(2)  # account for faux-bold
+    w = pad + coin_d + gapc + nw + pad
+    r = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
+    if affordable:
+        chip_body(surf, r, h // 2, opt["top"], opt["bot"],
+                  opt["rim_dark"], opt["rim_bright"], gloss=130, gamma=1.08)
+        if opt.get("two_tone"):
+            # a defined champagne crown over the top ~46% so option B reads as a
+            # distinct brighter two-tone, not a near-identical single gold.
+            crown_h = int(r.h * 0.46)
+            crown = pygame.Surface((r.w, crown_h), pygame.SRCALPHA)
+            for yy in range(crown_h):
+                a = int(150 * (1 - yy / crown_h) ** 1.2)
+                pygame.draw.line(crown, (255, 250, 224, a), (0, yy), (r.w, yy))
+            cm = pygame.Surface((r.w, crown_h), pygame.SRCALPHA)
+            pygame.draw.rect(cm, (255, 255, 255, 255), (0, 0, r.w, h),
+                             border_radius=h // 2)
+            crown.blit(cm, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+            surf.blit(crown, r.topleft)
+        num_col = opt["num"]
+        coin_rim = opt["coin_rim"]
+    else:
+        # can't-afford: a muted-but-still-legible slate body (one value step up
+        # from before) with LIGHT numerals for contrast. The dimmed coin + cool
+        # slate already read 'priced but locked', so no colliding lock glyph.
+        chip_body(surf, r, h // 2, (96, 102, 124), (52, 56, 76),
+                  (14, 16, 26), (168, 176, 198), gloss=80)
+        num_col = (236, 240, 250)
+        coin_rim = (78, 84, 104)
+    x = r.x + pad
+    coin_glyph(surf, x + coin_d // 2, cy, coin_d // 2, rim=coin_rim)
+    x += coin_d + gapc
+    plain_text(surf, text, f, (x + nw // 2, cy), num_col, shadow_a=0,
+               weight=m(1.0), keyline=(20, 24, 38) if not affordable else None,
+               kw=m(0.7))
+    return r
+
+
+def status_chip(surf, cx, cy, text, h, kind="equip"):
+    """EQUIP / EQUIPPED chips, same finish family as the price chip so the row
+    reads as one product line."""
+    if kind == "equipped":
+        top, bot = (92, 214, 132), (30, 132, 70)
+        rim_dark, rim_bright = (10, 60, 30), (190, 255, 214)
+        num = (8, 40, 18)
+    else:  # equip (owned, not active) — neutral cream-gold
+        top, bot = (240, 236, 224), (176, 168, 148)
+        rim_dark, rim_bright = (60, 52, 32), (255, 252, 244)
+        num = (52, 40, 18)
+    f = font(h * 0.48 / SS)
+    nw = _glyph_base(text, f, 0).get_width() + m(2)
+    pad = m(15)
+    w = pad * 2 + nw
+    r = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
+    chip_body(surf, r, h // 2, top, bot, rim_dark, rim_bright, gloss=120)
+    plain_text(surf, text, f, r.center, num, shadow_a=0, weight=m(0.9))
+    return r
+
+
+# The default price-chip colour used across the live store screen.
+PRICE_VARIANT = 1
+
+
+def state_chip(surf, sid, cx, cy, equipped, secret, h, variant=PRICE_VARIANT):
     if equipped:
-        fg, bg, rim = CHIP_COLORS["equipped"]
-        return chip(surf, cx, cy, "EQUIPPED", fg, bg, rim, h=h)
+        return status_chip(surf, cx, cy, "EQUIPPED", h, kind="equipped")
     price = _cost(sid)
-    if BALANCE >= price:
-        fg, bg, rim = CHIP_COLORS["price"]
-        return chip(surf, cx, cy, f"{price:,}", fg, bg, rim, h=h, coin=True)
-    fg, bg, rim = CHIP_COLORS["locked"]
-    return chip(surf, cx, cy, f"{price:,}", fg, bg, rim, h=h, lock=True)
+    return price_chip(surf, cx, cy, f"{price:,}", h, variant=variant,
+                      affordable=BALANCE >= price)
 
 
 # ── card ──────────────────────────────────────────────────────────────────────
 def fit_name(surf, name, cx, cy, max_w):
-    sz = 14
+    sz = 16                                        # larger item name (user pt 1)
     f = font(sz)
-    while f.size(name)[0] > max_w and sz > 9:
+    while _glyph_base(name, f, 0).get_width() > max_w and sz > 10:
         sz -= 1
         f = font(sz)
-    plain_text(surf, name, f, (cx, cy), NAME_COL, shadow_a=160)
+    # heavy + crisp: faux-bold + a dark keyline for strong contrast on the card
+    plain_text(surf, name, f, (cx, cy), NAME_COL, shadow_a=170,
+               weight=m(1.0), keyline=(8, 8, 20), kw=m(1.1))
 
 
-def draw_card(surf, sid, rect, equipped):
+def draw_const_thread(surf, rect, gx, gy, cx, cy, pal):
+    """A deliberate brighter TAPERED thread (corner gem -> dome) with a node
+    star (AD note 6): drawn as stacked lines of decreasing width so it reads
+    as an intentional constellation link, not a stray hairline."""
+    mid = (rect.centerx + m(16), cy - m(R_DISC) - m(4))
+    thread = pygame.Surface(rect.size, pygame.SRCALPHA)
+    a, b = (gx - rect.x, gy - rect.y), (mid[0] - rect.x, mid[1] - rect.y)
+    for wth, al in ((m(2.0), 60), (m(1.2), 130), (m(0.6), 210)):
+        pygame.draw.line(thread, (*pal["glow"], al), a, b, max(1, int(wth)))
+    nx, ny = (a[0] + b[0]) // 2, (a[1] + b[1]) // 2
+    soft_glow(thread, nx, ny, m(3.5), pal["gem"], 150, layers=5)
+    pygame.draw.circle(thread, (255, 255, 255, 230), (nx, ny), max(1, m(1.4)))
+    pygame.draw.circle(thread, (*pal["gem"], 255), (nx, ny), max(1, m(1.0)))
+    surf.blit(thread, rect.topleft, special_flags=pygame.BLEND_ADD)
+
+
+def draw_card(surf, sid, rect, equipped, variant=PRICE_VARIANT):
     secret = _is_secret(sid)
     pal = MYSTERY if secret else RARITY[_rarity(sid)]
     rad = m(CARD_RAD)
     # DEPTH STACK: soft multi-layer drop shadow (top-left light => offset down)
-    drop_shadow(surf, rect, rad, blur=m(7), alpha=150, dy=m(4))
-    # body gradient + glossy top sheen + bevel rim + bottom-right contact AO
+    drop_shadow(surf, rect, rad, blur=m(8), alpha=160, dy=m(4))
+    # body gradient + glossy top sheen + bevel rim + bottom-right contact AO.
+    # Sheen + rim authored brighter/wider so the GRID cards carry the same lit
+    # tactile finish as detail.png (AD note 3 / user point 2).
     surf.blit(vgrad(rect.w, rect.h, rad, CARD_T, CARD_B, 252, gamma=1.15),
               rect.topleft)
-    top_sheen(surf, rect, rad, m(20), peak=46)
-    contact_shadow(surf, rect, rad, m(6), alpha=85)
-    bevel_rim(surf, rect, rad, CARD_RING_DEEP, (*CARD_RING_BRIGHT, 200),
-              w=max(1, m(1.6)))
+    top_sheen(surf, rect, rad, m(30), peak=62)
+    contact_shadow(surf, rect, rad, m(7), alpha=95)
+    # crisp dark outer keyline UNDER the bright bevel so the card edge is clearly
+    # defined against the dark sky.
+    pygame.draw.rect(surf, (4, 5, 16), rect, width=max(1, m(2)), border_radius=rad)
+    bevel_rim(surf, rect, rad, CARD_RING_DEEP, (*CARD_RING_BRIGHT, 235),
+              w=max(1, m(2.0)))
 
     cx, cy = rect.centerx, rect.y + m(CY_DISC)
-    # constellation thread: corner gem -> cabochon top, with a node star
-    gx, gy = rect.right - m(16), rect.y + m(16)
-    mid = (rect.centerx + m(14), cy - m(R_DISC) - m(3))
-    thread = pygame.Surface(rect.size, pygame.SRCALPHA)
-    pygame.draw.line(thread, (*pal["glow"], 120),
-                     (gx - rect.x, gy - rect.y), (mid[0] - rect.x, mid[1] - rect.y),
-                     max(1, m(0.8)))
-    nx, ny = (gx + mid[0]) // 2, (gy + mid[1]) // 2
-    soft_glow(thread, nx - rect.x, ny - rect.y, m(2.5), pal["gem"], 110, layers=4)
-    pygame.draw.circle(thread, (*pal["gem"], 230), (nx - rect.x, ny - rect.y),
-                       max(1, m(1)))
-    surf.blit(thread, rect.topleft, special_flags=pygame.BLEND_ADD)
+    gx, gy = rect.right - m(17), rect.y + m(17)
+    draw_const_thread(surf, rect, gx, gy, cx, cy, pal)
 
     # BAND A — cabochon (glass dome over thumbnail). A whisper-soft tier aura
     # behind the dome (NOT a hard ring) so the macaw stays the hero.
-    soft_glow(surf, cx, cy, m(R_DISC + 3), pal["glow"], 30, layers=8)
+    soft_glow(surf, cx, cy, m(R_DISC + 3), pal["glow"], 32, layers=8)
     cabochon(surf, cx, cy, m(R_DISC), CABO_LO, CABO_HI,
              ring=pal["gem"], ring_a=50)
     if secret:
         _draw_qmark(surf, cx, cy, m(R_DISC + 6), CREAM, NEAR_BLACK, thick=m(2))
         name = "???"
     else:
-        t = thumb(sid, m(R_DISC) * 1.5)
-        surf.blit(t, t.get_rect(center=(cx, cy)))
+        blit_thumb(surf, sid, cx, cy, m(R_DISC) * 1.5)
         name = _name(sid)
     cabochon_glass(surf, cx, cy, m(R_DISC), tint=pal["gem"])
 
@@ -776,7 +1023,8 @@ def draw_card(surf, sid, rect, equipped):
     # BAND B — name
     fit_name(surf, name, rect.centerx, rect.y + m(Y_NAME), rect.w - m(26))
     # BAND C — chip
-    state_chip(surf, sid, rect.centerx, rect.y + m(Y_CHIP), equipped, secret, m(22))
+    state_chip(surf, sid, rect.centerx, rect.y + m(Y_CHIP), equipped, secret,
+               m(23), variant=variant)
 
     if equipped:
         halo = pygame.Surface((rect.w + m(16), rect.h + m(16)), pygame.SRCALPHA)
@@ -792,42 +1040,51 @@ def draw_card(surf, sid, rect, equipped):
 # ── page controls + back ──────────────────────────────────────────────────────
 def draw_page_controls(surf, base_x):
     grid_bottom = m(GRID_TOP) + 4 * m(CARD_H) + 3 * m(GAP)
-    cy = grid_bottom + m(16)
-    plain_text(surf, "PAGE  1 / 3", font(12), (DW // 2, cy), GOLD_PALE, shadow_a=140)
+    cy = grid_bottom + m(15)
+    plain_text(surf, "PAGE  1 / 3", font(12), (DW // 2, cy), GOLD_PALE,
+               shadow_a=150, weight=m(0.8), keyline=(10, 10, 22), kw=m(0.8))
+    # +15% tap targets (AD note 8): 34x24 -> ~39x28, crisp double rim
+    aw, ah = m(39), m(28)
     for gx, glyph in ((base_x + m(20), "<"),
                       (base_x + m(CARD_W) * 2 + m(GAP) - m(20), ">")):
-        r = pygame.Rect(0, 0, m(34), m(24))
+        r = pygame.Rect(0, 0, aw, ah)
         r.center = (gx, cy)
-        drop_shadow(surf, r, m(12), blur=m(3), alpha=90, dy=m(2))
-        surf.blit(vgrad(r.w, r.h, m(12), (50, 38, 22), (26, 19, 11), 255), r.topleft)
-        top_sheen(surf, r, m(12), m(7), peak=50)
-        pygame.draw.rect(surf, (*GOLD, 200), r, width=max(1, m(1)), border_radius=m(12))
-        plain_text(surf, glyph, font(15), (gx, cy - m(1)), GOLD_PALE, shadow_a=0)
+        drop_shadow(surf, r, m(13), blur=m(4), alpha=100, dy=m(2))
+        surf.blit(vgrad(r.w, r.h, m(13), (58, 44, 24), (26, 19, 11), 255), r.topleft)
+        top_sheen(surf, r, m(13), m(9), peak=56)
+        pygame.draw.rect(surf, (12, 10, 4), r, width=max(1, m(1.4)),
+                         border_radius=m(13))
+        bevel_rim(surf, r, m(13), (60, 40, 12), (*GOLD_PALE, 220), w=max(1, m(1.2)))
+        plain_text(surf, glyph, font(16), (gx, cy - m(1)), GOLD_PALE, shadow_a=0,
+                   weight=m(0.9))
 
 
 def draw_back(surf):
-    r = pygame.Rect(0, 0, m(168), m(36))
-    r.center = (DW // 2, DH - m(24))
-    drop_shadow(surf, r, m(18), blur=m(5), alpha=120, dy=m(3))
-    surf.blit(vgrad(r.w, r.h, m(18), (32, 30, 66), (16, 16, 40), 250), r.topleft)
-    top_sheen(surf, r, m(18), m(13), peak=42)
-    contact_shadow(surf, r, m(18), m(4), alpha=80)
-    bevel_rim(surf, r, m(18), lerp_color(GOLD, NEAR_BLACK, 0.45),
-              (*GOLD, 200), w=max(1, m(1.2)))
+    # more bottom margin (AD note 8): center raised off the screen edge
+    r = pygame.Rect(0, 0, m(172), m(38))
+    r.center = (DW // 2, DH - m(30))
+    drop_shadow(surf, r, m(19), blur=m(6), alpha=130, dy=m(3))
+    surf.blit(vgrad(r.w, r.h, m(19), (34, 32, 70), (16, 16, 40), 250), r.topleft)
+    top_sheen(surf, r, m(19), m(15), peak=50)
+    contact_shadow(surf, r, m(19), m(4), alpha=85)
+    pygame.draw.rect(surf, (4, 5, 16), r, width=max(1, m(1.8)), border_radius=m(19))
+    bevel_rim(surf, r, m(19), lerp_color(GOLD, NEAR_BLACK, 0.4),
+              (*GOLD, 220), w=max(1, m(1.5)))
     # left chevron
-    cxx = r.x + m(26)
+    cxx = r.x + m(28)
     pygame.draw.lines(surf, GOLD_PALE, False,
-                      [(cxx + m(4), r.centery - m(6)),
+                      [(cxx + m(5), r.centery - m(7)),
                        (cxx - m(3), r.centery),
-                       (cxx + m(4), r.centery + m(6))], max(1, m(2)))
-    plain_text(surf, "BACK", font(17), (r.centerx + m(6), r.centery),
-               GOLD_PALE, shadow_a=160)
+                       (cxx + m(5), r.centery + m(7))], max(1, m(2.4)))
+    plain_text(surf, "BACK", font(18), (r.centerx + m(8), r.centery),
+               GOLD_PALE, shadow_a=170, weight=m(1.0), keyline=(40, 26, 6), kw=m(1.0))
 
 
 # ── modal ─────────────────────────────────────────────────────────────────────
-def draw_modal(surf, sid):
+def draw_modal(surf, sid, variant=PRICE_VARIANT):
+    # flatter, cleaner scrim so the panel pops (AD note 7): ~70% flat dim
     scrim = pygame.Surface((DW, DH), pygame.SRCALPHA)
-    scrim.fill((4, 4, 12, 190))
+    scrim.fill((3, 4, 10, 180))
     surf.blit(scrim, (0, 0))
     secret = _is_secret(sid)
     tier = _rarity(sid)
@@ -835,64 +1092,87 @@ def draw_modal(surf, sid):
     pw, ph = m(264), m(322)
     panel = pygame.Rect((DW - pw) // 2, (DH - ph) // 2, pw, ph)
     rad = m(20)
-    drop_shadow(surf, panel, rad, blur=m(10), alpha=185, dy=m(6))
-    surf.blit(vgrad(pw, ph, rad, (28, 28, 66), (12, 12, 36), 255, gamma=1.15),
+    drop_shadow(surf, panel, rad, blur=m(12), alpha=200, dy=m(7))
+    surf.blit(vgrad(pw, ph, rad, (30, 30, 70), (12, 12, 36), 255, gamma=1.15),
               panel.topleft)
-    top_sheen(surf, panel, rad, m(26), peak=44)
-    contact_shadow(surf, panel, rad, m(8), alpha=90)
+    top_sheen(surf, panel, rad, m(34), peak=58)
+    contact_shadow(surf, panel, rad, m(8), alpha=95)
+    pygame.draw.rect(surf, (3, 4, 14), panel, width=max(1, m(2)), border_radius=rad)
     bevel_rim(surf, panel, rad, lerp_color(GOLD, NEAR_BLACK, 0.4),
-              (*GOLD, 230), w=max(1, m(1.8)))
+              (*GOLD, 240), w=max(1, m(2.0)))
     cx = panel.centerx
-    plain_text(surf, "CONFIRM PURCHASE", font(13), (cx, panel.y + m(28)),
-               GOLD_PALE, shadow_a=140, tracking=m(1))
+    plain_text(surf, "CONFIRM PURCHASE", font(14), (cx, panel.y + m(28)),
+               GOLD_PALE, shadow_a=150, tracking=m(1), weight=m(0.9),
+               keyline=(10, 10, 24), kw=m(0.9))
     gold_rule(surf, panel.x + m(30), panel.right - m(30), panel.y + m(46), GOLD, peak=180)
     # STAGE — large cabochon dome
     disc_cy = panel.y + m(108)
     R = m(44)
-    soft_glow(surf, cx, disc_cy, R + m(4), pal["glow"], 40, layers=8)
+    soft_glow(surf, cx, disc_cy, R + m(4), pal["glow"], 44, layers=8)
     cabochon(surf, cx, disc_cy, R, CABO_LO, CABO_HI, ring=pal["gem"], ring_a=55)
     if secret:
         _draw_qmark(surf, cx, disc_cy, R + m(8), CREAM, NEAR_BLACK, thick=m(3))
         name = "???"
     else:
-        t = thumb(sid, R * 1.5)
-        surf.blit(t, t.get_rect(center=(cx, disc_cy)))
+        blit_thumb(surf, sid, cx, disc_cy, R * 1.5)
         name = _name(sid)
     cabochon_glass(surf, cx, disc_cy, R, tint=pal["gem"])
-    facet_gem(surf, cx + m(42), disc_cy - m(40), m(9), pal["gem"], pal["deep"],
-              mystery=secret)
-    plain_text(surf, name, font(18), (cx, panel.y + m(182)), GOLD, shadow_a=150)
+    # seat the corner gem deliberately ON the dome rim (45° up-right) so it reads
+    # as set into the bezel, not floating (AD note 7).
+    grad45 = R * 0.7071
+    facet_gem(surf, int(cx + grad45), int(disc_cy - grad45), m(10),
+              pal["gem"], pal["deep"], mystery=secret)
+    plain_text(surf, name, font(20), (cx, panel.y + m(182)), GOLD, shadow_a=160,
+               weight=m(1.0), keyline=(60, 36, 8), kw=m(1.1))
     rword = "MYSTERY" if secret else tier.upper()
-    plain_text(surf, rword, font(11), (cx, panel.y + m(202)), pal["gem"],
-               shadow_a=120, tracking=m(1))
+    plain_text(surf, rword, font(11), (cx, panel.y + m(203)), pal["gem"],
+               shadow_a=130, tracking=m(1), weight=m(0.7))
     price = _cost(sid)
-    fg, bg, rim = CHIP_COLORS["price"]
-    chip(surf, cx, panel.y + m(230), f"{price:,}", fg, bg, rim, h=m(30), coin=True)
+    price_chip(surf, cx, panel.y + m(232), f"{price:,}", m(32), variant=variant,
+               affordable=True)
     # buttons
-    bw, bh, gut = m(106), m(40), m(16)
-    by = panel.bottom - m(32)
+    bw, bh, gut = m(106), m(42), m(16)
+    by = panel.bottom - m(34)
     nx = cx - (bw * 2 + gut) // 2
     cancel = pygame.Rect(nx, by - bh // 2, bw, bh)
     buy = pygame.Rect(nx + bw + gut, by - bh // 2, bw, bh)
-    drop_shadow(surf, cancel, bh // 2, blur=m(3), alpha=90, dy=m(2))
-    surf.blit(vgrad(bw, bh, bh // 2, (74, 66, 86), (44, 38, 58)), cancel.topleft)
-    top_sheen(surf, cancel, bh // 2, bh // 2, peak=40)
-    pygame.draw.rect(surf, (132, 122, 144), cancel, width=max(1, m(1)),
+    # CANCEL — one value step lighter than the panel so it reads as a secondary
+    # control on the panel, not part of it (AD note 7).
+    drop_shadow(surf, cancel, bh // 2, blur=m(3), alpha=100, dy=m(2))
+    surf.blit(vgrad(bw, bh, bh // 2, (84, 80, 104), (52, 48, 70)), cancel.topleft)
+    top_sheen(surf, cancel, bh // 2, m(14), peak=46)
+    pygame.draw.rect(surf, (18, 18, 30), cancel, width=max(1, m(1.6)),
                      border_radius=bh // 2)
-    plain_text(surf, "CANCEL", font(14), cancel.center, CREAM, shadow_a=120)
-    bglow = pygame.Surface((bw + m(12), bh + m(12)), pygame.SRCALPHA)
-    for k in range(5, 0, -1):
-        pygame.draw.rect(bglow, (*GOLD, int(24 * k / 5)),
-                         (m(6) - k * m(1), m(6) - k * m(1),
-                          bw + 2 * k * m(1), bh + 2 * k * m(1)),
-                         border_radius=bh // 2 + k * m(1))
-    surf.blit(bglow, (buy.x - m(6), buy.y - m(6)), special_flags=pygame.BLEND_ADD)
-    drop_shadow(surf, buy, bh // 2, blur=m(3), alpha=90, dy=m(2))
-    surf.blit(vgrad(bw, bh, bh // 2, lerp_color(GOLD, WHITE, 0.22), GOLD_DEEP),
+    bevel_rim(surf, cancel, bh // 2, (18, 18, 30), (188, 184, 204, 220),
+              w=max(1, m(1.2)))
+    plain_text(surf, "CANCEL", font(15), cancel.center, CREAM, shadow_a=130,
+               weight=m(0.9), keyline=(14, 14, 26), kw=m(0.9))
+    # BUY — primary CTA: outer glow + gradient gold body + gloss sweep + a subtle
+    # inner top glow so it reads as the lit, pressable hero (AD note 7).
+    bglow = pygame.Surface((bw + m(16), bh + m(16)), pygame.SRCALPHA)
+    for k in range(6, 0, -1):
+        pygame.draw.rect(bglow, (*GOLD, int(28 * k / 6)),
+                         (m(8) - k * m(1.4), m(8) - k * m(1.4),
+                          bw + 2 * k * m(1.4), bh + 2 * k * m(1.4)),
+                         border_radius=bh // 2 + int(k * m(1.4)))
+    surf.blit(bglow, (buy.x - m(8), buy.y - m(8)), special_flags=pygame.BLEND_ADD)
+    drop_shadow(surf, buy, bh // 2, blur=m(3), alpha=100, dy=m(2))
+    surf.blit(vgrad(bw, bh, bh // 2, (255, 218, 108), (200, 132, 32), gamma=1.06),
               buy.topleft)
-    top_sheen(surf, buy, bh // 2, bh // 2, peak=80)
-    pygame.draw.rect(surf, GOLD_PALE, buy, width=max(1, m(1)), border_radius=bh // 2)
-    plain_text(surf, "BUY", font(15), buy.center, (40, 24, 8), shadow_a=0)
+    gloss_sweep(surf, buy, bh // 2, peak=150)
+    # subtle inner glow: a soft bright bloom seated just inside the top edge
+    inner = pygame.Surface((bw, bh), pygame.SRCALPHA)
+    soft_glow(inner, bw // 2, int(bh * 0.32), int(bw * 0.42), (255, 250, 220),
+              90, layers=6)
+    im = pygame.Surface((bw, bh), pygame.SRCALPHA)
+    pygame.draw.rect(im, (255, 255, 255, 255), im.get_rect(), border_radius=bh // 2)
+    inner.blit(im, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(inner, buy.topleft, special_flags=pygame.BLEND_ADD)
+    pygame.draw.rect(surf, (90, 54, 10), buy, width=max(1, m(1.6)),
+                     border_radius=bh // 2)
+    bevel_rim(surf, buy, bh // 2, (90, 54, 10), (*GOLD_PALE, 235), w=max(1, m(1.4)))
+    plain_text(surf, "BUY", font(17), buy.center, (52, 30, 6), shadow_a=0,
+               weight=m(1.0))
 
 
 # =============================================================================
@@ -920,23 +1200,50 @@ def downscale(device_surf, scale=1):
 
 
 def render_detail_device():
-    """A 2-3 card detail strip at SS for close inspection of dome/gem/chip."""
+    """A close-inspection sheet: the 3 hero cards on top (dome / gem / thread /
+    finish) PLUS a dedicated price-chip OPTIONS bay so the user can pick the
+    cost-chip colour. Option A is the default used in the live screen."""
     ids = DETAIL_IDS
     pad = m(20)
     g = m(16)
     cols = len(ids)
     sw = m(CARD_W) * cols + g * (cols - 1) + pad * 2
-    sh = m(CARD_H) + pad * 2 + m(30)
+    chip_bay = m(132)                              # extra height for the chip row
+    sh = m(CARD_H) + pad * 2 + m(30) + chip_bay
     strip = pygame.Surface((sw, sh))
     strip.blit(multistop_v(sw, sh, BG_STOPS), (0, 0))
-    soft_glow(strip, sw // 2, sh // 2, m(120), NEBULA_GLOW, 50, layers=8)
-    plain_text(strip, "GLASS DOME  /  GEM FACETS  /  CHIP  /  CONSTELLATION THREAD",
-               font(11), (sw // 2, m(15)), GOLD_PALE, shadow_a=120)
+    soft_glow(strip, sw // 2, m(120), m(150), NEBULA_GLOW, 50, layers=8)
+    plain_text(strip, "GLASS DOME  /  GEM FACETS  /  RIM-LIT SKIN  /  CONSTELLATION THREAD",
+               font(11), (sw // 2, m(15)), GOLD_PALE, shadow_a=130, weight=m(0.8),
+               keyline=(10, 10, 24), kw=m(0.7))
     for i, sid in enumerate(ids):
         x = pad + i * (m(CARD_W) + g)
         y = m(30) + pad
         draw_card(strip, sid, pygame.Rect(x, y, m(CARD_W), m(CARD_H)),
                   sid == EQUIPPED_ID)
+
+    # ── price-chip colour options bay ────────────────────────────────────────
+    by0 = m(30) + pad + m(CARD_H) + m(24)
+    # a faint divider rule
+    gold_rule(strip, pad, sw - pad, by0 - m(10), GOLD, peak=120, thick=m(1.2))
+    plain_text(strip, "PRICE CHIP — PICK A COLOUR  (Option A is the default)",
+               font(11), (sw // 2, by0 + m(4)), GOLD_PALE, shadow_a=130,
+               weight=m(0.8), keyline=(10, 10, 24), kw=m(0.7))
+    row_y = by0 + m(46)
+    ch = m(28)
+    col_l = sw // 3
+    col_r = sw - sw // 3
+    plain_text(strip, "OPTION A — RICH GOLD", font(10), (col_l, by0 + m(26)),
+               (236, 214, 150), shadow_a=120, weight=m(0.7))
+    plain_text(strip, "OPTION B — CHAMPAGNE TWO-TONE", font(10), (col_r, by0 + m(26)),
+               (236, 214, 150), shadow_a=120, weight=m(0.7))
+    # affordable + locked sample, both variants
+    price_chip(strip, col_l, row_y, "1,200", ch, variant=1, affordable=True)
+    price_chip(strip, col_l, row_y + m(40), "7,000", ch, variant=1, affordable=False)
+    price_chip(strip, col_r, row_y, "1,200", ch, variant=2, affordable=True)
+    price_chip(strip, col_r, row_y + m(40), "7,000", ch, variant=2, affordable=False)
+    # the shared EQUIPPED / EQUIP finish (one family)
+    status_chip(strip, sw // 2, row_y + m(40), "EQUIPPED", ch, kind="equipped")
     return strip
 
 
