@@ -12,7 +12,7 @@ pygame.init()
 from tools import ninja_render
 from tools.ninja_candidates.design_1 import build
 
-OUT = "docs/store_redesign/costume/ninja/design_1/round_1.png"
+OUT = "docs/store_redesign/costume/ninja/design_1/round_2.png"
 TITLE = "DESIGN 1 — SHADOWSTRIKE  (Classic Black Shadow Shinobi)"
 
 
