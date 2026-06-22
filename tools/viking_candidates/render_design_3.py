@@ -19,7 +19,7 @@ spec.loader.exec_module(design_3)
 from tools import ninja_render
 
 CONCEPT = "SHIELDMAIDEN FREYA  ·  Braided Warrior-Maiden"
-OUT = "/home/user/skybit/docs/store_redesign/costume/viking/design_3/round_1.png"
+OUT = "/home/user/skybit/docs/store_redesign/costume/viking/design_3/round_2.png"
 
 BG = (18, 16, 24)
 INK = (236, 238, 246)
@@ -64,9 +64,10 @@ def main():
     sheet.fill(BG)
 
     _label(sheet, CONCEPT, pad, 20, INK, 26, bold=True)
-    _label(sheet, "design_3 · round_1 · braids-back + teal shield-front · "
-                  "slim circlet, fur pauldron, corset-lacing · "
-                  "exploration (live skin_viking untouched)",
+    _label(sheet, "design_3 · round_2 · THREE-idea cut: chunked ringed braids "
+                  "(splayed) + bright-rimmed bluer-teal shield + raised leather "
+                  "tunic mass · seax/straps/winglet→texture · exploration "
+                  "(live skin_viking untouched)",
            pad, 54, SUB, 13)
 
     x = pad
