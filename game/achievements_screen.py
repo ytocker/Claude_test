@@ -28,9 +28,14 @@ _DIM   = (150, 150, 172)
 # A faint amethyst tint for masked Mystery rows so their "???" echoes the rarer
 # amethyst badge without ever competing with gold.
 _MYST_DIM = (176, 154, 200)
+# Bronze-tinted dim for masked Wall-of-Shame rows, echoing the tarnished badge.
+_SHAME_DIM = (180, 150, 120)
+_BRONZE    = (198, 132, 66)     # Shame accent (mirrors gold on Fame)
+_BRONZE_DEEP = (110, 64, 28)
 
 # Layout (logical px).
 _HEADER_H = 56          # taller: title + a global progress bar live here
+_TAB_H    = 32          # FAME | SHAME segmented toggle, below the header
 _FOOTER_H = 30
 _CAT_H    = 30
 _ROW_H    = 56          # tightened ~10% for better scan density
@@ -59,6 +64,25 @@ class AchievementsScene:
         self._content: "pygame.Surface | None" = None
         self._content_h = 0          # logical content height
         self._cache_key = None
+        # Two walls on one screen: "fame" (gold) | "shame" (tarnished). The two
+        # share the flat unlocked map; the active tab picks the roster + tone.
+        self._tab = "fame"
+        self.tab_fame_rect: "pygame.Rect | None" = None
+        self.tab_shame_rect: "pygame.Rect | None" = None
+
+    def _roster(self):
+        """(category order, by-cat map, total, badge tone) for the active tab."""
+        if self._tab == "shame":
+            return (ach.SHAME_CATEGORY_ORDER, ach.BY_CAT_SHAME,
+                    len(ach.SHAME_ACHIEVEMENTS), "tarnished")
+        return (ach.CATEGORY_ORDER, ach.BY_CAT, len(ach.ACHIEVEMENTS), "gold")
+
+    def set_tab(self, name: str) -> None:
+        if name not in ("fame", "shame") or name == self._tab:
+            return
+        self._tab = name
+        self.scroll_offset = 0.0
+        self._cache_key = None       # force a rebuild for the new roster
 
     # ── input ────────────────────────────────────────────────────────────
     def scroll_by(self, dpx: float) -> None:
@@ -89,32 +113,33 @@ class AchievementsScene:
 
     # ── content build (cached) ───────────────────────────────────────────
     def _viewport(self) -> "tuple[int, int]":
-        top = _HEADER_H
+        top = _HEADER_H + _TAB_H
         bot = H - _FOOTER_H
         return top, bot
 
     def _ensure_content(self, store: dict) -> None:
-        key = (ach.unlocked_signature(store),)
+        order, by_cat, _total, tone = self._roster()
+        key = (self._tab, ach.unlocked_signature(store))
         if self._content is not None and key == self._cache_key:
             return
         self._cache_key = key
 
         # Measure logical height first.
         h = 4
-        for cat in ach.CATEGORY_ORDER:
+        for cat in order:
             h += _CAT_H
-            h += len(ach.BY_CAT[cat]) * (_ROW_H + _ROW_GAP)
+            h += len(by_cat[cat]) * (_ROW_H + _ROW_GAP)
         h += 6
         self._content_h = h
 
         S = _S
         surf = pygame.Surface((W * S, h * S), pygame.SRCALPHA)
         y = 4
-        for cat in ach.CATEGORY_ORDER:
+        for cat in order:
             self._draw_cat_header(surf, cat, y, store, S)
             y += _CAT_H
-            for a in ach.BY_CAT[cat]:
-                self._draw_row(surf, a, y, store, S)
+            for a in by_cat[cat]:
+                self._draw_row(surf, a, y, store, S, tone)
                 y += _ROW_H + _ROW_GAP
         self._content = surf
 
@@ -161,8 +186,9 @@ class AchievementsScene:
     def _scaled_text(self, txt, size, color):
         return _font(int(size), True).render(txt, True, color)
 
-    def _draw_row(self, surf, a: "ach.Achievement", y, store, S):
+    def _draw_row(self, surf, a: "ach.Achievement", y, store, S, tone="gold"):
         unlocked = ach.is_unlocked(store, a.id)
+        shame = (tone == "tarnished")
         rx = _PAD_X * S
         rw = (W - _PAD_X * 2) * S
         ry = y * S
@@ -197,16 +223,19 @@ class AchievementsScene:
         # Badge.
         badge_rect = pygame.Rect(int(rx + 8 * S), int(ry + (rh - _BADGE * S) // 2),
                                  _BADGE * S, _BADGE * S)
-        draw_badge(surf, a.icon_key, badge_rect, unlocked, a.hidden)
+        draw_badge(surf, a.icon_key, badge_rect, unlocked, a.hidden, tone)
 
         # Text block. EVERY locked achievement is masked — title, description and
         # any progress are hidden so the player discovers it in play rather than
-        # reading it off a checklist. Only the rarer Mystery tier gets a faintly
-        # amethyst-tinted hint to echo its badge.
+        # reading it off a checklist. Mystery (amethyst) and Shame (bronze) rows
+        # get a faintly tinted hint to echo their badge.
         tx = int(rx + (8 + _BADGE + 10) * S)
         if unlocked:
             title, desc = a.title, a.desc
             tcol, dcol = _GOLD_PALE, _WHITE
+        elif shame:
+            title, desc = "???", "Disgrace yourself in play to reveal."
+            tcol = dcol = _SHAME_DIM
         elif a.hidden:
             title, desc = "???", "A rare secret — find it in play."
             tcol = dcol = _MYST_DIM
@@ -228,16 +257,16 @@ class AchievementsScene:
             star_cy = int(ry + 16 * S)
             self._draw_star(surf, star_cx, star_cy, 8 * S)
 
-    def _gilded_count(self, txt, size):
-        """The header counter rendered with a vertical gold gradient fill (pale
-        crest → deep base) so it matches the gilded title rather than sitting as
-        a flat orphaned label."""
-        base = _font(size, True).render(txt, True, _GOLD_PALE)
+    def _gilded_count(self, txt, size, hi=_GOLD_PALE, lo=_GOLD_DEEP):
+        """The header counter rendered with a vertical gradient fill (pale crest
+        → deep base) so it matches the gilded title rather than sitting as a flat
+        orphaned label. ``hi``/``lo`` recolour it per active wall."""
+        base = _font(size, True).render(txt, True, hi)
         w, h = base.get_size()
         grad = pygame.Surface((w, h), pygame.SRCALPHA)
         for yy in range(h):
             t = yy / max(1, h - 1)
-            grad.fill(lerp_color(_GOLD_PALE, _GOLD_DEEP, t), (0, yy, w, 1))
+            grad.fill(lerp_color(hi, lo, t), (0, yy, w, 1))
         grad.blit(base, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
         out = pygame.Surface((w + 2, h + 2), pygame.SRCALPHA)
         sh = _font(size, True).render(txt, True, (20, 12, 4))
@@ -273,6 +302,47 @@ class AchievementsScene:
             img = f.render(ln, True, color)
             surf.blit(img, (x, y + i * int(size * 1.15)))
 
+    # ── tab bar ──────────────────────────────────────────────────────────
+    def _draw_tab_bar(self, surf) -> None:
+        y = _HEADER_H
+        band = pygame.Surface((W, _TAB_H), pygame.SRCALPHA)
+        band.fill((*_NIGHT_DEEP, 235))
+        surf.blit(band, (0, y))
+        pad, gap = 10, 6
+        seg_w = (W - pad * 2 - gap) // 2
+        self.tab_fame_rect = pygame.Rect(pad, y + 4, seg_w, _TAB_H - 8)
+        self.tab_shame_rect = pygame.Rect(pad + seg_w + gap, y + 4, seg_w, _TAB_H - 8)
+        self._draw_tab(surf, self.tab_fame_rect, "WALL OF FAME",
+                       self._tab == "fame", _GOLD_BRIGHT, _GOLD_DEEP)
+        self._draw_tab(surf, self.tab_shame_rect, "WALL OF SHAME",
+                       self._tab == "shame", _BRONZE, _BRONZE_DEEP)
+        pygame.draw.line(surf, (*_GOLD_BRIGHT, 110),
+                         (0, y + _TAB_H - 1), (W, y + _TAB_H - 1), 1)
+
+    def _draw_tab(self, surf, rect, label, active, accent, accent_lo) -> None:
+        """One segment. Active = filled accent→deep pill with near-black text;
+        inactive = hollow navy with a dimmed accent label, so the toggle reads
+        from value alone (not hue) for colourblind/low-vision safety."""
+        rad = rect.h // 2
+        if active:
+            grad = pygame.Surface(rect.size, pygame.SRCALPHA)
+            for yy in range(rect.h):
+                t = yy / max(1, rect.h - 1)
+                grad.fill((*lerp_color(accent, accent_lo, t), 255), (0, yy, rect.w, 1))
+            m = pygame.Surface(rect.size, pygame.SRCALPHA)
+            pygame.draw.rect(m, (255, 255, 255, 255), (0, 0, rect.w, rect.h), border_radius=rad)
+            grad.blit(m, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+            surf.blit(grad, rect.topleft)
+            pygame.draw.rect(surf, accent, rect, width=2, border_radius=rad)
+            txt = _font(13, True).render(label, True, _NIGHT_DEEP)
+            surf.blit(txt, txt.get_rect(center=rect.center))
+        else:
+            pygame.draw.rect(surf, (*_PANEL_DARK, 235), rect, border_radius=rad)
+            pygame.draw.rect(surf, (*accent, 140), rect, width=1, border_radius=rad)
+            txt = _font(13, True).render(label, True, accent)
+            txt.set_alpha(150)
+            surf.blit(txt, txt.get_rect(center=rect.center))
+
     # ── per-frame render ─────────────────────────────────────────────────
     def render(self, surf, dt: float, store: dict) -> None:
         self._t += dt
@@ -307,48 +377,48 @@ class AchievementsScene:
             pygame.draw.rect(surf, _GOLD_BRIGHT, (track_x, thumb_y, 3, thumb_h),
                              border_radius=2)
 
-        # Header bar (over the scrolling content).
+        # Header bar (over the scrolling content) — title = the ACTIVE wall, with
+        # its counter + progress bar recoloured (gold for Fame, bronze for Shame).
+        order, by_cat, total, _tone = self._roster()
+        got = sum(1 for cat in order for a in by_cat[cat]
+                  if ach.is_unlocked(store, a.id))
+        is_shame = self._tab == "shame"
+        accent = _BRONZE if is_shame else _GOLD_BRIGHT
+        accent_lo = _BRONZE_DEEP if is_shame else _GOLD_DEEP
+        accent_hi = (228, 182, 130) if is_shame else _GOLD_PALE
+
         hdr = pygame.Surface((W, _HEADER_H), pygame.SRCALPHA)
         hdr.fill((*_NIGHT_DEEP, 235))
-        pygame.draw.line(hdr, (*_GOLD_BRIGHT, 120), (0, _HEADER_H - 1), (W, _HEADER_H - 1), 1)
         surf.blit(hdr, (0, 0))
-        _outlined_text(surf, "ACHIEVEMENTS", (W // 2, 16),
-                       size=26, px=2, shadow_offset=(2, 3))
-        # Gilded gold underline under the title — the visual anchor the category
-        # hairlines echo.
-        uw = 132
+        _outlined_text(surf, "WALL OF SHAME" if is_shame else "WALL OF FAME",
+                       (W // 2, 16), size=22, px=2, shadow_offset=(2, 3))
+        uw = 152
         ux = W // 2 - uw // 2
-        pygame.draw.line(surf, _GOLD_BRIGHT, (ux, 30), (ux + uw, 30), 2)
+        pygame.draw.line(surf, accent, (ux, 30), (ux + uw, 30), 2)
 
-        total = len(ach.ACHIEVEMENTS)
-        got = len(store.get("unlocked") or {})
-
-        # Gilded "N / total" counter — same gradient treatment as the title so
-        # it reads as part of the header, not an orphaned label.
-        cnt = self._gilded_count(f"{got} / {total}", 14)
+        cnt = self._gilded_count(f"{got} / {total}", 14, accent_hi, accent_lo)
         surf.blit(cnt, (W - cnt.get_width() - 8, 6))
 
-        # Global progress bar — a gold bar spanning the header inset, showing
-        # total unlocked / total at a glance. Thickened and given a faint inner
-        # top-shadow on the empty track so the filled gold portion reads as a
-        # filled vessel, matching the minted-metal language of the badges.
+        # Global progress bar for the active wall.
         gbh = 6
         gbx = _RULE_INSET
         gbw = W - _RULE_INSET * 2
         gby = _HEADER_H - 11
         frac = (got / total) if total else 0.0
         pygame.draw.rect(surf, (8, 5, 24), (gbx, gby, gbw, gbh), border_radius=gbh // 2)
-        # inner top-shadow line so the track reads as a sunken channel
         pygame.draw.line(surf, (4, 2, 14), (gbx + 1, gby + 1), (gbx + gbw - 2, gby + 1), 1)
         fw = int(gbw * max(0.0, min(1.0, frac)))
         if fw > 0:
             bar = pygame.Surface((fw, gbh), pygame.SRCALPHA)
             for xx in range(fw):
                 t = xx / max(1, fw - 1)
-                bar.fill(lerp_color(_GOLD_PALE, _GOLD_BRIGHT, t), (xx, 0, 1, gbh))
+                bar.fill(lerp_color(accent_lo, accent, t), (xx, 0, 1, gbh))
             surf.blit(bar, (gbx, gby))
-        pygame.draw.rect(surf, (*_GOLD_BRIGHT, 110), (gbx, gby, gbw, gbh),
+        pygame.draw.rect(surf, (*accent, 110), (gbx, gby, gbw, gbh),
                          width=1, border_radius=gbh // 2)
+
+        # FAME | SHAME segmented toggle, just below the header.
+        self._draw_tab_bar(surf)
 
         # Footer prompt — pulsing.
         ftr = pygame.Surface((W, _FOOTER_H), pygame.SRCALPHA)

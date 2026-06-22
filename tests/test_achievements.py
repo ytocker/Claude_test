@@ -40,6 +40,13 @@ class _FakeWorld:
         self.powerups_picked = dict(ach._blank()["life"]["powerups_seen"])  # empty-ish
         self.powerups_picked = kw.get("powerups_picked", {})
         self._proof = _FakeProof(kw.get("events", []))
+        # Wall-of-Shame signals (death-moment snapshot + per-run extras).
+        self.coins_spawned = kw.get("coins_spawned", 0)
+        self.death_ghost = kw.get("death_ghost", False)
+        self.death_kfc = kw.get("death_kfc", False)
+        self.max_flaps_per_sec = kw.get("max_flaps_per_sec", 0)
+        self._lottery_pulled = kw.get("_lottery_pulled", False)
+        self.died_early_phase = kw.get("died_early_phase", False)
 
 
 class TestAchievements(unittest.TestCase):
@@ -169,6 +176,83 @@ class TestAchievements(unittest.TestCase):
         # Every achievement belongs to a known category bucket.
         for a in ach.ACHIEVEMENTS:
             self.assertIn(a, ach.BY_CAT[a.category])
+
+
+class TestWallOfShame(unittest.TestCase):
+    """Anti-achievements: triggers fire at threshold, lifetime tallies fold in,
+    and shame ids stay disjoint from the Fame roster."""
+
+    def setUp(self):
+        self._orig_save = ach.save
+        ach.save = lambda store=None: None
+        ach.reset_cache()
+
+    def tearDown(self):
+        ach.save = self._orig_save
+        ach.reset_cache()
+
+    def test_ids_disjoint_and_registered(self):
+        fame = {a.id for a in ach.ACHIEVEMENTS}
+        self.assertTrue(ach.SHAME_IDS.isdisjoint(fame))
+        for sid in ach.SHAME_IDS:
+            self.assertIn(sid, ach.BY_ID)          # unified lookup covers shame
+            self.assertTrue(ach.is_shame(sid))
+        for a in ach.SHAME_ACHIEVEMENTS:
+            self.assertIn(a, ach.BY_CAT_SHAME[a.category])
+
+    def test_goose_egg_and_icarus(self):
+        store = ach._blank()
+        newly = ach.evaluate_run(
+            _FakeWorld(score=0, coin_count=0, pillars_passed=0), store)
+        self.assertIn("goose_egg", newly)
+        self.assertIn("icarus", newly)            # pillars_passed <= 1
+        self.assertEqual(store["life"]["scoreless_deaths"], 1)
+        self.assertEqual(store["life"]["pillar1_deaths"], 1)
+
+    def test_goose_egg_needs_zero_coins(self):
+        store = ach._blank()
+        # A coin disqualifies the Goose Egg (stricter than a pillar-1 death).
+        newly = ach.evaluate_run(
+            _FakeWorld(score=0, coin_count=3, pillars_passed=0), store)
+        self.assertNotIn("goose_egg", newly)
+        self.assertIn("icarus", newly)
+
+    def test_ghost_and_kfc_death(self):
+        store = ach._blank()
+        newly = ach.evaluate_run(
+            _FakeWorld(pillars_passed=20, death_ghost=True, death_kfc=True), store)
+        self.assertIn("denial", newly)
+        self.assertIn("kfc_incident", newly)
+
+    def test_hummingbird_threshold(self):
+        store = ach._blank()
+        self.assertNotIn(
+            "hummingbird",
+            ach.evaluate_run(_FakeWorld(pillars_passed=5, max_flaps_per_sec=9), store))
+        self.assertIn(
+            "hummingbird",
+            ach.evaluate_run(_FakeWorld(pillars_passed=5, max_flaps_per_sec=10),
+                             ach._blank()))
+
+    def test_49er_and_night_owl_and_lottery(self):
+        self.assertIn("the_49er",
+                      ach.evaluate_run(_FakeWorld(pillars_passed=49), ach._blank()))
+        self.assertNotIn("the_49er",
+                         ach.evaluate_run(_FakeWorld(pillars_passed=50), ach._blank()))
+        self.assertIn("night_owl",
+                      ach.evaluate_run(_FakeWorld(died_early_phase=True), ach._blank()))
+        self.assertIn("lottery_loser",
+                      ach.evaluate_run(_FakeWorld(_lottery_pulled=True), ach._blank()))
+
+    def test_lifetime_scrooge_and_early_checkout(self):
+        store = ach._blank()
+        # 25 sub-3s runs unlock Early Checkout; coins-flown-past accrue toward Scrooge.
+        for _ in range(24):
+            ach.evaluate_run(_FakeWorld(time_alive=1.0, coin_count=0, coins_spawned=10), store)
+        self.assertNotIn("early_checkout", store["unlocked"])
+        ach.evaluate_run(_FakeWorld(time_alive=1.0, coin_count=0, coins_spawned=10), store)
+        self.assertIn("early_checkout", store["unlocked"])
+        self.assertEqual(store["life"]["coins_missed_life"], 25 * 10)
 
 
 class TestProfileSchemaAndMerge(unittest.TestCase):

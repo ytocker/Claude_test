@@ -78,6 +78,25 @@ _LOCK_RECESS = ( 20,  17,  30)
 _LOCK_GLY  = (170, 162, 150)   # lifted ~12% so dormant reads inviting
 _LOCK_GLY_SH = ( 28,  25,  34)
 
+# Tarnished (Wall of Shame) — a cold, cracked anti-trophy. Cool pewter (kept
+# brighter/cooler than the warm dormant pewter so the two never converge, and
+# lifted so the silhouette ring + crack read at 44px row size); bronze is the
+# only saturated tone here, mirroring gold as Fame's only saturated tone.
+_TARN_RIM_HI   = (178, 184, 198)
+_TARN_RIM_MID  = (120, 126, 142)
+_TARN_RIM_LO   = ( 60,  64,  80)
+_TARN_SPEC     = (212, 218, 230)
+_TARN_FACE_TOP = ( 58,  62,  84)   # lighter than the navy row so it never merges
+_TARN_FACE_BOT = ( 30,  33,  52)
+_TARN_RECESS   = ( 16,  16,  30)
+_TARN_STEP_HI  = (150, 156, 172)
+_TARN_STEP_LO  = ( 74,  78,  94)
+_TARN_GLY      = (200, 206, 220)
+_TARN_GLY_SH   = ( 16,  16,  28)
+_BRONZE_HI = (200, 132, 66)        # crack lit lip / drip gloss
+_BRONZE_MID = (140, 84, 38)        # crack oxide / drip body
+_BRONZE_LO = ( 84,  48, 20)        # crack deep gouge
+
 _SS = 4  # supersample for crisp edges, then smoothscale down
 _BADGES: dict = {}
 
@@ -405,7 +424,80 @@ def _glyph_ceiling(surf, cx, cy, r, col):
                          max(1, r // 14))
 
 
+def _glyph_egg(surf, cx, cy, r, col):
+    # A goose egg — a tall oval ring reading as the zero of a scoreless run.
+    w = int(r * 0.74)
+    h = int(r * 1.02)
+    pygame.draw.ellipse(surf, col, (cx - w // 2, cy - h // 2, w, h), max(3, r // 8))
+
+
+def _glyph_skull(surf, cx, cy, r, col):
+    # A blunt line-art skull — domed cranium ring, squared jaw, two eye dots,
+    # a nasal notch and a couple of teeth. Reads as "death" at 44px.
+    lw = max(3, r // 9)
+    rr = int(r * 0.58)
+    pygame.draw.circle(surf, col, (cx, cy - int(r * 0.10)), rr, lw)
+    jw = int(rr * 1.05)
+    top = cy + int(r * 0.34)
+    jl, jr = cx - jw // 2, cx + jw // 2
+    jy = cy + int(r * 0.18)
+    pygame.draw.lines(surf, col, False,
+                      [(jl, jy), (jl, top), (jr, top), (jr, jy)], lw)
+    er = max(2, r // 7)
+    pygame.draw.circle(surf, col, (cx - int(rr * 0.44), cy - int(r * 0.10)), er)
+    pygame.draw.circle(surf, col, (cx + int(rr * 0.44), cy - int(r * 0.10)), er)
+    pygame.draw.line(surf, col, (cx, cy), (cx, cy + int(r * 0.12)), lw)
+    for dx in (-int(r * 0.14), int(r * 0.14)):
+        pygame.draw.line(surf, col, (cx + dx, jy), (cx + dx, top), max(1, lw - 1))
+
+
+def _draw_tarnish_crack(surf, cx, cy, R):
+    """One bold diagonal fracture that breaks the rim on both ends, drawn in
+    three passes (deep gouge → bronze oxide → lit lip) so it reads as a struck
+    crack at small sizes. No forks — a single decisive break."""
+    pts = [
+        (cx - int(R * 0.78), cy - int(R * 0.62)),
+        (cx - int(R * 0.16), cy - int(R * 0.10)),
+        (cx + int(R * 0.06), cy + int(R * 0.20)),
+        (cx + int(R * 0.66), cy + int(R * 0.82)),
+    ]
+    pts = [(int(x), int(y)) for x, y in pts]
+    pygame.draw.lines(surf, _BRONZE_LO, False, pts, max(3, R // 7))
+    pygame.draw.lines(surf, _BRONZE_MID, False, pts, max(2, R // 11))
+    pygame.draw.lines(surf, _BRONZE_HI, False, pts, max(1, R // 22))
+
+
+def _draw_tarnish_drip(surf, cx, cy, R):
+    """A single dripping-bronze bead hanging off the lower-right rim — the
+    tarnished badge's signature, sized to stay a visible nub at 44px."""
+    sx = cx + int(R * 0.34)
+    sy = cy + int(R * 0.74)
+    by = cy + int(R * 1.04)
+    pygame.draw.line(surf, _BRONZE_MID, (sx, sy), (sx, by), max(2, R // 12))
+    br = max(3, R // 7)
+    pygame.draw.circle(surf, _BRONZE_MID, (sx, by), br)
+    pygame.draw.circle(surf, _BRONZE_LO, (sx, by), br, max(1, R // 26))
+    pygame.draw.circle(surf, _BRONZE_HI, (sx - br // 3, by - br // 3), max(1, br // 3))
+
+
+def _draw_shame_x(surf, cx, cy, R):
+    """The masked mark for an UNEARNED shame badge — a struck bronze ✕, its own
+    symbol so the Shame tab never shares Fame's dormant "?"."""
+    e = int(R * 0.40)
+    w = max(3, R // 7)
+    o = max(1, R // 22)
+    for col, off in ((_BRONZE_LO, o), (_BRONZE_MID, 0)):
+        pygame.draw.line(surf, col, (cx - e + off, cy - e + off),
+                         (cx + e + off, cy + e + off), w)
+        pygame.draw.line(surf, col, (cx - e + off, cy + e + off),
+                         (cx + e + off, cy - e + off), w)
+    pygame.draw.line(surf, _BRONZE_HI, (cx - e, cy - e), (cx + e, cy + e), max(1, w // 3))
+    pygame.draw.line(surf, _BRONZE_HI, (cx - e, cy + e), (cx + e, cy - e), max(1, w // 3))
+
+
 _GLYPHS = {
+    "egg": _glyph_egg,
+    "skull": _glyph_skull,
     "pillar": _glyph_pillar,
     "coin": _glyph_coin,
     "day": _glyph_day,
@@ -566,7 +658,8 @@ def _draw_sparkle_ring(surf, cx, cy, fr, R, col):
         pygame.draw.line(surf, col, (sx, sy - sr), (sx, sy + sr), max(1, R // 38))
 
 
-def _build(icon_key: str, size: int, unlocked: bool, hidden: bool) -> pygame.Surface:
+def _build(icon_key: str, size: int, unlocked: bool, hidden: bool,
+           tone: str = "gold") -> pygame.Surface:
     S = _SS
     px = size * S
     surf = pygame.Surface((px, px), pygame.SRCALPHA)
@@ -574,8 +667,12 @@ def _build(icon_key: str, size: int, unlocked: bool, hidden: bool) -> pygame.Sur
     R = int(px * 0.46)
     is_mystery = icon_key in _HIDDEN_KEYS
     is_secret = unlocked and is_mystery          # unlocked Mystery (amethyst)
+    tarnished = (tone == "tarnished")            # Wall of Shame anti-trophy
 
-    if unlocked:
+    if tarnished:
+        if unlocked:
+            blit_glow(surf, cx, cy, int(R * 1.05), (120, 88, 56), 60)
+    elif unlocked:
         glow_col = (170, 130, 220) if is_secret else (255, 200, 90)
         blit_glow(surf, cx, cy, int(R * 1.12), glow_col, 95)
     elif hidden:
@@ -583,7 +680,16 @@ def _build(icon_key: str, size: int, unlocked: bool, hidden: bool) -> pygame.Sur
         # ordinary dormant pewter
         blit_glow(surf, cx, cy, int(R * 1.05), (140, 116, 196), 60)
 
-    if is_secret:
+    if tarnished:
+        # Earned-tarnished and locked-masked both wear the cracked pewter frame;
+        # a locked one sits a touch darker (asleep) and shows a ✕, not the glyph.
+        rim_hi, rim_mid, rim_lo, spec = _TARN_RIM_HI, _TARN_RIM_MID, _TARN_RIM_LO, _TARN_SPEC
+        face_top, face_bot, recess = (
+            (_TARN_FACE_TOP, _TARN_FACE_BOT, _TARN_RECESS) if unlocked
+            else (_TARN_FACE_BOT, (18, 18, 30), _TARN_RECESS))
+        step_hi, step_lo = _TARN_STEP_HI, _TARN_STEP_LO
+        laurel_l, laurel_d = _TARN_RIM_MID, _TARN_RIM_LO
+    elif is_secret:
         # Unlocked Mystery: gold rim, desaturated amethyst enamel well.
         rim_hi, rim_mid, rim_lo, spec = _RING_HI, _RING_MID, _RING_LO, _SPEC_HOT
         face_top, face_bot, recess = _AME_TOP, _AME_BOT, _AME_RECESS
@@ -615,14 +721,24 @@ def _build(icon_key: str, size: int, unlocked: bool, hidden: bool) -> pygame.Sur
     _draw_step(surf, cx, cy, fr + max(2, R // 16), step_hi, step_lo)
     _draw_face(surf, cx, cy, fr, face_top, face_bot, recess)
 
+    # Tarnished badges wear a single bronze fracture + a drip bead over the
+    # frame — the anti-trophy signature, on both earned and masked-locked.
+    if tarnished:
+        _draw_tarnish_crack(surf, cx, cy, R)
+        _draw_tarnish_drip(surf, cx, cy, R)
+
     # Rarity sparkle-ring for the Mystery tier — both hidden-locked and unlocked
     # wear it so the secret achievements always feel like a trophy.
-    if is_mystery and (unlocked or hidden):
+    if is_mystery and (unlocked or hidden) and not tarnished:
         _draw_sparkle_ring(surf, cx, cy, fr, R, _AME_SPARK if not unlocked else _GLYPH)
 
     # Glyph (or the Mystery "?").
     gr = int(R * 0.56)
-    if is_secret:
+    if tarnished and unlocked:
+        _stamp_glyph(surf, icon_key, cx, cy, gr, _TARN_GLY, _TARN_GLY_SH)
+    elif tarnished:
+        _draw_shame_x(surf, cx, cy, R)
+    elif is_secret:
         _stamp_glyph(surf, icon_key, cx, cy, gr, _AME_GLY, _AME_GLY_SH, _GLYPH_SHEEN)
     elif unlocked:
         _stamp_glyph(surf, icon_key, cx, cy, gr, _GLYPH, _GLYPH_SH, _GLYPH_SHEEN)
@@ -649,21 +765,22 @@ def _build(icon_key: str, size: int, unlocked: bool, hidden: bool) -> pygame.Sur
 
 
 def get_badge(icon_key: str, size: int, unlocked: bool,
-              hidden: bool = False) -> pygame.Surface:
-    key = (icon_key, size, unlocked, hidden)
+              hidden: bool = False, tone: str = "gold") -> pygame.Surface:
+    key = (icon_key, size, unlocked, hidden, tone)
     s = _BADGES.get(key)
     if s is None:
-        s = _build(icon_key, size, unlocked, hidden)
+        s = _build(icon_key, size, unlocked, hidden, tone)
         _BADGES[key] = s
     return s
 
 
 def draw_badge(surf, icon_key: str, rect: "pygame.Rect", unlocked: bool,
-               hidden: bool = False) -> None:
+               hidden: bool = False, tone: str = "gold") -> None:
     """Blit a badge centered in ``rect`` (uses the smaller rect dimension).
     ``hidden`` (a still-locked Mystery) swaps the dormant pewter look for an
-    amethyst "?" disc with a sparkle ring, so the secret's shape stays hidden
-    while reading rarer and more enticing than an ordinary dormant medal."""
+    amethyst "?" disc with a sparkle ring. ``tone="tarnished"`` draws the Wall of
+    Shame anti-trophy: cracked cool pewter + a bronze drip; an unearned tarnished
+    badge shows a bronze ✕ instead of Fame's "?"."""
     size = min(rect.width, rect.height)
-    badge = get_badge(icon_key, size, unlocked, hidden and not unlocked)
+    badge = get_badge(icon_key, size, unlocked, hidden and not unlocked, tone)
     surf.blit(badge, badge.get_rect(center=rect.center))

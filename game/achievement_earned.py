@@ -94,7 +94,7 @@ def _draw_card(surf, rect, item, newest=False):
     """One flat 2-D gilt commendation plate: drop-shadow gap, soft halo (newest
     only), navy plate gradient, gilt DOUBLE-rule frame, inner bevel, recessed
     well, then the medallion socket + name + requirement + corner ribbon."""
-    icon_key, name, desc, hidden = item
+    icon_key, name, desc, hidden, tone = item
 
     # Drop-shadow gap so each plate reads as a separate inset on the stack.
     sh_off = 12 if newest else 5
@@ -143,7 +143,7 @@ def _draw_card(surf, rect, item, newest=False):
     pygame.draw.circle(surf, _GOLD_DEEP, (sock_cx, sock_cy), sock_d // 2 + 5, 1)
     brect = pygame.Rect(0, 0, sock_d, sock_d)
     brect.center = (sock_cx, sock_cy)
-    draw_badge(surf, icon_key, brect, True, hidden)
+    draw_badge(surf, icon_key, brect, True, hidden, tone)
 
     # NAME (gold bold) over DESCRIPTION (pale), right of the socket.
     text_x = sock_cx + sock_d // 2 + 14
@@ -157,7 +157,15 @@ def _draw_card(surf, rect, item, newest=False):
     ry = name_y + nimg.get_height() + 3
     pygame.draw.line(surf, _GOLD_DEEP, (text_x, ry), (text_x + rule_w, ry), 1)
     df = _font(12, True)
-    surf.blit(df.render(desc, True, (198, 188, 220)), (text_x, ry + 5))
+    # Roasts can be long; the full text wraps on the Wall screen, so truncate to
+    # the card width here rather than overflow the plate edge.
+    avail = rect.right - 14 - text_x
+    d = desc
+    if df.size(d)[0] > avail:
+        while d and df.size(d + "…")[0] > avail:
+            d = d[:-1]
+        d = d.rstrip() + "…"
+    surf.blit(df.render(d, True, (198, 188, 220)), (text_x, ry + 5))
 
     _corner_ribbon(surf, rect, newest)
 
@@ -202,7 +210,10 @@ class AchievementEarnedScene:
 
     def __init__(self, ids):
         self.ids = list(ids)
-        self.items = [(a.icon_key, a.title, a.desc, a.hidden)
+        # Shame unlocks ride the same end-of-run card but in the tarnished tone
+        # — "ACHIEVEMENT EARNED!" over a roast is the joke.
+        self.items = [(a.icon_key, a.title, a.desc, a.hidden,
+                       "tarnished" if ach.is_shame(a.id) else "gold")
                       for a in (ach.BY_ID[i] for i in self.ids) if a is not None]
         self._t = 0.0
         self.scroll_offset = 0.0

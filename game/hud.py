@@ -1630,7 +1630,7 @@ class HUD:
             surf, (W // 2, y_power), "POWER-UPS",
             size=18, alpha=230, min_width=220, dim=True, shadow=False)
         self.menu_achv_rect = _pill_btn(
-            surf, (W // 2, y_achv), "ACHIEVEMENTS",
+            surf, (W // 2, y_achv), "WALL OF FAME",
             size=18, alpha=230, min_width=220, dim=True, shadow=False)
 
         # Twin panels at the bottom: BEST score (left) + TOP 10 trophy

@@ -80,6 +80,15 @@ CATEGORY_ORDER = (
     CAT_PROGRESS, CAT_RICHES, CAT_POWERUPS, CAT_STORM, CAT_SKATER, CAT_SECRET,
 )
 
+# Wall of Shame — anti-achievements for blooper-reel play. Disjoint ids + their
+# own categories so they live on a separate tab; they share the flat unlocked{}
+# map and the one evaluate_run loop. Every roast punches at the play, not the
+# player, and is out-grindable.
+CAT_SHAME_BLOOPER = "Blooper Reel"     # per-run pratfalls
+CAT_SHAME_LOWS    = "Lifetime Lows"    # cumulative low-lights
+
+SHAME_CATEGORY_ORDER = (CAT_SHAME_BLOOPER, CAT_SHAME_LOWS)
+
 
 @dataclass(frozen=True)
 class Achievement:
@@ -254,13 +263,75 @@ ACHIEVEMENTS: tuple[Achievement, ...] = (
                 CAT_SECRET, "poison", "pu:poison", 1, hidden=True),
 )
 
+# ── Wall of Shame roster (anti-achievements) ──────────────────────────────────
+# Most read free per-run signals; a few read a small death-moment snapshot the
+# World captures in _die() (death_ghost / death_kfc / died_early_phase /
+# _lottery_pulled / max_flaps_per_sec). All thresholds tunable; all escapable.
+
+SHAME_ACHIEVEMENTS: tuple[Achievement, ...] = (
+    # ── Blooper Reel (per-run) ────────────────────────────────────────────
+    Achievement("goose_egg", "The Goose Egg",
+                "End a run with zero points and zero coins — nothing at all.",
+                CAT_SHAME_BLOOPER, "egg", "goose_egg", 1),
+    Achievement("icarus", "The Icarus Award",
+                "Die on or before the very first pillar.",
+                CAT_SHAME_BLOOPER, "pillar", "pillar1_death", 1),
+    Achievement("hummingbird", "The Hummingbird",
+                "Panic-flap 10+ times in a single second.",
+                CAT_SHAME_BLOOPER, "wing", "max_flaps_per_sec", 10),
+    Achievement("denial", "Denial",
+                "Die with Ghost active — you phased around the gap into a wall.",
+                CAT_SHAME_BLOOPER, "skull", "died_ghost", 1),
+    Achievement("kfc_incident", "The KFC Incident",
+                "Die in KFC fry-skin mode. Finger lickin' fatal.",
+                CAT_SHAME_BLOOPER, "kfc", "died_kfc", 1),
+    Achievement("so_close", "So Close, So Far",
+                "Graze 8 pillars by a hair in one run, then die anyway.",
+                CAT_SHAME_BLOOPER, "nerve", "near_misses", 8),
+    Achievement("lottery_loser", "The Lottery Loser",
+                "Pull the lottery slot, then die before it ever mattered.",
+                CAT_SHAME_BLOOPER, "lottery", "lottery_pulled", 1),
+    Achievement("the_49er", "The 49er",
+                "Die on pillar 49 — one short of the genie at 50.",
+                CAT_SHAME_BLOOPER, "genie", "pillar_49", 1),
+    Achievement("night_owl", "Night Owl's Revenge",
+                "Die in the first 5 seconds of a new biome phase.",
+                CAT_SHAME_BLOOPER, "day", "early_phase_death", 1),
+
+    # ── Lifetime Lows (cumulative) ────────────────────────────────────────
+    Achievement("the_scrooge", "The Scrooge",
+                "Fly past 5,000 coins all-time. They're still out there.",
+                CAT_SHAME_LOWS, "coin", "coins_missed_life", 5000, scope="life"),
+    Achievement("early_checkout", "Early Checkout",
+                "End 25 runs all-time in under 3 seconds.",
+                CAT_SHAME_LOWS, "clock", "sub3_deaths", 25, scope="life"),
+)
+
+# Both walls share one flat unlocked{} map + one evaluate loop; the two BY_CAT
+# maps keep them on separate tabs.
+ALL_ACHIEVEMENTS: tuple[Achievement, ...] = ACHIEVEMENTS + SHAME_ACHIEVEMENTS
+SHAME_IDS: frozenset = frozenset(a.id for a in SHAME_ACHIEVEMENTS)
+
 # Derived lookups, built once.
-BY_ID: dict[str, Achievement] = {a.id: a for a in ACHIEVEMENTS}
+BY_ID: dict[str, Achievement] = {a.id: a for a in ALL_ACHIEVEMENTS}
 
 BY_CAT: "OrderedDict[str, list[Achievement]]" = OrderedDict(
     (cat, [a for a in ACHIEVEMENTS if a.category == cat])
     for cat in CATEGORY_ORDER
 )
+BY_CAT_SHAME: "OrderedDict[str, list[Achievement]]" = OrderedDict(
+    (cat, [a for a in SHAME_ACHIEVEMENTS if a.category == cat])
+    for cat in SHAME_CATEGORY_ORDER
+)
+# Combined view so category_progress resolves a category on either wall.
+BY_CAT_ALL: "OrderedDict[str, list[Achievement]]" = OrderedDict(
+    list(BY_CAT.items()) + list(BY_CAT_SHAME.items())
+)
+
+
+def is_shame(ach_id: str) -> bool:
+    """True for Wall-of-Shame ids (drives the tarnished badge tone)."""
+    return ach_id in SHAME_IDS
 
 
 # ── Persistence ───────────────────────────────────────────────────────────────
@@ -289,6 +360,13 @@ def _blank() -> dict:
             "total_tricks": 0,          # skateboard tricks landed, all-time
             "total_ceiling": 0,         # ceiling bonks, all-time
             "powerups_seen": {},        # kind -> lifetime pickup count
+            # Wall-of-Shame lifetime tallies (also feed future saddled titles).
+            "scoreless_deaths": 0,      # runs ending 0 score & 0 coins
+            "pillar1_deaths": 0,        # runs dying on/before pillar 1
+            "sub3_deaths": 0,           # runs ending in under 3 seconds
+            "coins_missed_life": 0,     # coins flown past, all-time
+            "last_death_pillar": -1,    # pillar # of the previous death
+            "repeat_pillar_streak": 0,  # consecutive deaths on the same pillar
         },
         # Spendable balance is DERIVED (see coin_balance), never stored, so a
         # cloud restore can't resurrect spent coins. Only the monotonic spent
@@ -620,6 +698,23 @@ def _run_value(world, ach: Achievement) -> int:
         return len(getattr(world, "tricks_landed_types", ()) or ())
     if s.startswith("pu:"):
         return int(pp.get(s[3:], 0) or 0)
+    # ── Wall of Shame run-scope triggers ──────────────────────────────────
+    if s == "goose_egg":
+        return 1 if (int(getattr(world, "score", 0) or 0) == 0
+                     and int(getattr(world, "coin_count", 0) or 0) == 0) else 0
+    if s == "pillar1_death":
+        return 1 if int(getattr(world, "pillars_passed", 0) or 0) <= 1 else 0
+    if s == "pillar_49":
+        return 1 if int(getattr(world, "pillars_passed", 0) or 0) == 49 else 0
+    if s == "died_ghost":
+        return 1 if getattr(world, "death_ghost", False) else 0
+    if s == "died_kfc":
+        return 1 if getattr(world, "death_kfc", False) else 0
+    if s == "lottery_pulled":
+        return 1 if getattr(world, "_lottery_pulled", False) else 0
+    if s == "early_phase_death":
+        return 1 if getattr(world, "died_early_phase", False) else 0
+    # max_flaps_per_sec, near_misses, … fall through to the plain world attr.
     return int(getattr(world, s, 0) or 0)
 
 
@@ -667,6 +762,25 @@ def _accumulate(store: dict, world) -> None:
         if n:
             seen[kind] = int(seen.get(kind, 0)) + int(n)
 
+    # Wall-of-Shame lifetime tallies. _accumulate runs once per finished run
+    # (a death), never on a quit, so these never punish disengagement.
+    score = int(getattr(world, "score", 0) or 0)
+    coin_count = int(getattr(world, "coin_count", 0) or 0)
+    pillars = int(getattr(world, "pillars_passed", 0) or 0)
+    if score == 0 and coin_count == 0:
+        life["scoreless_deaths"] = int(life.get("scoreless_deaths", 0)) + 1
+    if pillars <= 1:
+        life["pillar1_deaths"] = int(life.get("pillar1_deaths", 0)) + 1
+    if float(getattr(world, "time_alive", 0) or 0) < 3.0:
+        life["sub3_deaths"] = int(life.get("sub3_deaths", 0)) + 1
+    life["coins_missed_life"] = int(life.get("coins_missed_life", 0)) + max(
+        0, int(getattr(world, "coins_spawned", 0) or 0) - coin_count)
+    if pillars == int(life.get("last_death_pillar", -1)):
+        life["repeat_pillar_streak"] = int(life.get("repeat_pillar_streak", 0)) + 1
+    else:
+        life["repeat_pillar_streak"] = 1
+    life["last_death_pillar"] = pillars
+
 
 def evaluate_run(world, store: "dict | None" = None) -> list[str]:
     """Evaluate the whole roster against a finished run. Accumulates lifetime
@@ -679,7 +793,7 @@ def evaluate_run(world, store: "dict | None" = None) -> list[str]:
     unlocked = store["unlocked"]
     now = int(time.time())
     newly: list[str] = []
-    for ach in ACHIEVEMENTS:
+    for ach in ALL_ACHIEVEMENTS:
         if ach.id in unlocked:
             continue
         value = _run_value(world, ach) if ach.scope == "run" else _life_value(store, ach)
@@ -703,8 +817,8 @@ def unlocked_count() -> int:
 
 
 def category_progress(store: dict, category: str) -> "tuple[int, int]":
-    """(unlocked, total) for a category's section header."""
-    items = BY_CAT.get(category, [])
+    """(unlocked, total) for a category's section header (either wall)."""
+    items = BY_CAT_ALL.get(category, [])
     got = sum(1 for a in items if is_unlocked(store, a.id))
     return got, len(items)
 

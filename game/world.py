@@ -261,6 +261,17 @@ class World:
         # (for a "land all four in one run" goal). Both reset with the fresh World.
         self.tricks_landed = 0
         self.tricks_landed_types: set = set()
+        # Wall of Shame: a small death-moment snapshot (filled in _die) + two
+        # live trackers. max_flaps_per_sec is the worst 1-second flap burst this
+        # run (panic-spike roast); _lottery_pulled marks a lottery slot pull.
+        self.death_pillar = 0
+        self.death_ghost = False
+        self.death_kfc = False
+        self.died_early_phase = False
+        self._lottery_pulled = False
+        self.max_flaps_per_sec = 0
+        self._flap_window_t = 0.0
+        self._flap_window_n = 0
         self.powerups_picked = {
             "triple": 0, "magnet": 0, "megamagnet": 0, "slowmo": 0, "kfc": 0,
             "ghost": 0, "grow": 0, "reverse": 0, "surprise": 0,
@@ -1236,6 +1247,9 @@ class World:
             sign = -1 if self.reverse_timer > 0 else 1
             self.bird.flap(gravity_sign=sign)
             self.flap_count += 1
+            self._flap_window_n += 1
+            if self._flap_window_n > self.max_flaps_per_sec:
+                self.max_flaps_per_sec = self._flap_window_n
             audio.play_flap()
             # SKATEBOARD tricks. The detector handles 4 tap patterns:
             #   1) 3 FAST taps   (gap ≤ BACKFLIP_TAP_WINDOW)   → backflip
@@ -1646,6 +1660,12 @@ class World:
 
             # Time alive
             self.time_alive += dt
+
+            # Wall of Shame: tumbling 1-second window for the worst flap burst.
+            self._flap_window_t += dt
+            if self._flap_window_t >= 1.0:
+                self._flap_window_t -= 1.0
+                self._flap_window_n = 0
 
             # collisions
             self._check_collisions()
@@ -2082,6 +2102,14 @@ class World:
             self.bird.poison_t = 0.0
             self._revive_knight()
             return
+        # Wall of Shame: snapshot the death-moment context while effect state is
+        # still live (read post-death by achievements.evaluate_run). Only a real
+        # death reaches here — a knight revive returned above.
+        self.death_pillar = self.pillars_passed
+        self.death_ghost = bool(self.bird.ghost_active)
+        self.death_kfc = bool(self.bird.kfc_active)
+        self.died_early_phase = (self.cycles_completed >= 1
+                                 and (self.biome_time % biome.CYCLE_SECONDS) < 5.0)
         self.game_over = True
         self.bird.alive = False
         # Start the dead-Pip cross-fade. Tiny non-zero value gates the
@@ -3244,6 +3272,7 @@ class World:
         deltas = {t[0]: t[2] for t in LOTTERY_TIERS}
         tier = random.choices(labels, weights=weights, k=1)[0]
         delta = deltas[tier]
+        self._lottery_pulled = True   # Wall of Shame: "Lottery Loser" trigger
         self.lottery_anim = {
             "t": 0.0,
             "tier": tier,
