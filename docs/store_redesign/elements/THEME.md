@@ -81,3 +81,67 @@ variants, ON the shared night-sky bg, using REAL items/thumbnails where relevant
 via `parrot.get_skin_icon/get_skin_frame` + `store_catalog`) + `notes.md`.
 Files only — the orchestrator commits and assembles. Both build targets safe
 (pure pygame, no numpy/desktop-only APIs).
+
+---
+
+# COHESION CANON (locked after the round-1 holistic critique)
+
+The element exploration is done. These are the LOCKED winning variants + the
+single canonical values every element must converge to in assembly. The
+art-director flagged gold-tone drift as the #1 amateur tell — so gold is
+unified to ONE ramp, with only the two named exceptions.
+
+## Winning variants
+- atmosphere → **B** (deep, low bloom, sparse stars) but pull central bloom
+  radius ~15% / peak ~20% so the card-grid band stays dark; constellation
+  thread at ~A density with B's taper; darkest bands top/bottom 12%.
+- header → **C wordmark** (clean gold bevel, NO extrude) + loud-number capsule.
+- tabs → **C** (raised jewel), active pill retoned to the canonical gold ramp.
+- card → **B** (inner tray); thicken the EQUIPPED gold frame (2-step bevel + halo).
+- cabochon → **C** dome, with the specular FIX below.
+- rarity → faceted **8-facet (B)** cut as the ONE gem shape for all 5 tiers.
+- chips → price **Ramp A** (royal gold) single gradient.
+- controls_modal → dark BACK pill (gold keyline, NOT filled gold) + leftmost modal.
+
+## Canonical GOLD RAMP A — the ONE gold for every gold FILL
+Used for: tab active pill, header balance number, price chip, BUY CTA, page
+highlights. Single smooth vertical ramp (gamma 1.06):
+- stops: 0.00 (255,224,150) · 0.34 (250,198,92) · 0.68 (224,154,44) · 1.00 (176,110,22)
+- rim_dark (86,50,8) · rim_bright (255,240,190) · numerals (52,28,4) · coin_rim (120,74,14)
+Nothing else invents a gold.
+
+## The 3 locked GOLD LANES (do not cross-harmonize)
+1. Gold FILLS → Ramp A (above).
+2. Rarity gems → own the COLOURED hue space (their gem/glow/deep triplets).
+   Legendary gem gold (255,202,104 / glow 255,168,58 / deep 150,92,22) is
+   INTENTIONALLY brighter than Ramp A so legendary stays the standout — never
+   harmonize it down.
+3. Cabochon bezel + card gold RING → bright (236,202,116) / deep (58,48,22).
+
+## Canonical EDGE (every element, identical)
+Dark OUTER keyline ~`m(1.8)` UNDER a bright top-left bevel ~`m(1)`. Applied to:
+header capsule, tab pills + chevrons, card chassis, all chips, BACK pill, page
+arrows, modal panel. One weight everywhere (chevrons + arrows currently flat — fix).
+
+## Canonical RADIUS family
+cards 17 · pills/chips/arrows/BACK fully rounded (h/2) · modal 20. (Re-round the
+square page-arrow buttons.)
+
+## Canonical MATERIAL (single top-left light)
+Every surface: bright top-left bevel + ONE gloss sheen on top + bottom-right
+contact/AO shadow. No extrude (header), no flat (card), no two-tone gold (chips).
+
+## Glow ranking (brightest → restrained)
+equipped card halo > legendary gem > BUY CTA gloss > everything else.
+The cabochon specular is a **translucent SHEEN, not a glow**: a THIN top-left
+crescent at ~50–65% alpha so the skin reads THROUGH it (round-1's opaque white
+slab ate the parrot — the single biggest quality fix). After the fix, push the
+skin's rim-light contrast ~20% so the content out-pops its frame.
+
+## Other locked fixes
+- Mystery gem: half-step brighter/neutral so it clearly claims NO tier (was
+  collapsing onto common in grayscale).
+- Inactive tab labels: lift to ~55–60% L (legible muted cream/gold).
+- Coin glyph (chips + header capsule): same beveled coin, clear gap before digits.
+- Modal title stamped to project bold; CANCEL one value step under the panel;
+  scrim ~70% (may need +5–10% over the live grid).
