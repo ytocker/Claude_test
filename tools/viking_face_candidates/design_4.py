@@ -35,58 +35,47 @@ def _paint_face(surf, wing_angle, P):
     beard, beard_hi = P["beard"], P["beard_hi"]
     ring = P["ring"]
     white = P["white"]
+    key = P["keyline"][:3]                 # near-black contour for both palettes
 
     # The face sits on the HEAD/beak zone (the bird looks right; the beak is at
     # x~55-61). Beard hangs below the chin and down the jaw toward the body, the
     # mustache frames the beak, and the eye reads under the helm brow at ~(51,43).
 
-    # ── rounded full beard (a groomed wedge under the chin, not a blob) ───────
-    # Widest at the jaw just under the cheek, pinched at the ring, tapering to a
-    # single point. Centred on the head (ring ~(52,55)) so it clasps the chin —
-    # not floating out on the belly.
+    # ── beard as ONE solid dark silhouette (a chin-block, not a textured slab) ─
+    # The IRONCLAD failure was beard/body/haft/fur all in the same brown band, so
+    # the face melted into the torso. The fix is value+contour: a single flat
+    # P['beard'] wedge, widened ~15% at the jaw, with NO internal comb strands or
+    # bone fills (that noise vanished at 40px and only muddied the mass). A hard
+    # keyline traced jaw->point->jaw closes the silhouette so the dark chin-block
+    # is unmistakable even when the body behind it is the same brown family.
     ring_x, ring_y = 50, 55               # clasp centre (under the chin)
-    jaw_l, jaw_r = 43, 57                 # jawline width, hugging the beak base
+    jaw_l, jaw_r = 41, 59                 # jawline WIDER (~15%) so the chin-block reads
     jaw_y = 48
     tip_x, tip_y = 49, 62                 # tapered point below the clasp
     # Outer beard mass: jaw -> bulge -> pinch at the ring -> point -> back up.
     _shape = [
         (jaw_l, jaw_y),
         (jaw_l, 52),
-        (ring_x - 6, ring_y - 1),         # pinch in toward the ring (near side)
+        (ring_x - 7, ring_y - 1),         # pinch in toward the ring (near side)
         (ring_x - 4, ring_y + 3),
         (tip_x, tip_y),                   # tapered point
         (ring_x + 5, ring_y + 3),
-        (ring_x + 7, ring_y - 1),         # pinch in toward the ring (far side)
+        (ring_x + 8, ring_y - 1),         # pinch in toward the ring (far side)
         (jaw_r, 52),
         (jaw_r, jaw_y),
         (52, 47),                         # under-beak notch so the beak shows
     ]
     pygame.draw.polygon(surf, beard, _shape)
-    # A 1px darker edge under the jaw so the beard separates from the brown body.
-    pygame.draw.lines(surf, P["eye_pupil"], False,
-                      [(jaw_l, 52), (ring_x - 6, ring_y - 1), (ring_x - 4, ring_y + 3),
+    # HARD KEYLINE around the whole silhouette (jaw->point->jaw): the closed dark
+    # contour is what separates the beard from the body when both are brown.
+    pygame.draw.lines(surf, key, False,
+                      [(jaw_l, jaw_y), (jaw_l, 52),
+                       (ring_x - 7, ring_y - 1), (ring_x - 4, ring_y + 3),
                        (tip_x, tip_y), (ring_x + 5, ring_y + 3),
-                       (ring_x + 7, ring_y - 1), (jaw_r, 52)], 1)
-
-    # Combed strand lines — symmetrical, converging on the ring/point so the
-    # beard reads as parted hair gathered by the clasp, not a textured slab.
-    # `bone` (much lighter than the brown body) catches the comb so the beard
-    # pops as groomed hair against the body; `beard_hi` fills between.
-    # Combed hair radiating from the cheeks toward the ring/point — staggered
-    # lengths so they read as parted strands, not two parallel bars. `bone`
-    # (much lighter than the body) catches a few; `beard_hi` fills the rest.
-    bone = P["bone"]
-    strands = [
-        ((jaw_l + 1, jaw_y + 2), (ring_x - 4, 53), bone),
-        ((jaw_l + 3, 51), (ring_x - 3, ring_y + 1), beard_hi),
-        ((51, jaw_y + 3), (tip_x, tip_y - 2), beard_hi),
-        ((jaw_r - 1, jaw_y + 2), (ring_x + 4, 53), bone),
-        ((jaw_r - 3, 51), (ring_x + 3, ring_y + 1), beard_hi),
-    ]
-    for a, b, col in strands:
-        pygame.draw.line(surf, col, a, b, 1)
-    # A lit top rim on the cheek mass (bone) so the rounded groomed form reads.
-    pygame.draw.line(surf, bone, (jaw_l + 1, jaw_y + 1), (52, jaw_y + 1), 1)
+                       (ring_x + 8, ring_y - 1), (jaw_r, 52), (jaw_r, jaw_y)], 1)
+    # A single lit top rim along the jaw so the rounded groomed form still reads
+    # without re-introducing the noisy internal combing.
+    pygame.draw.line(surf, beard_hi, (jaw_l + 1, jaw_y + 1), (52, jaw_y + 1), 1)
 
     # ── ornate ring clasping the beard's centre, pinching it to the point ────
     # Drawn a touch larger and brighter so the single clasp is unmistakable as
@@ -97,24 +86,12 @@ def _paint_face(surf, wing_angle, P):
     pygame.draw.circle(surf, ring, (ring_x, ring_y), 4, 1)      # raised rim
     pygame.draw.circle(surf, white, (ring_x - 1, ring_y - 1), 1)  # bead glint
 
-    # ── groomed mustache framing the beak (neat, symmetric sweep) ────────────
-    # Two combed wings sitting across the base of the gold beak (where the dark
-    # hair pops against the light beak), sweeping out and curling down at the
-    # corners — trimmed, not bushy.
+    # ── mustache: ONE bold dark bar across the beak base ─────────────────────
+    # The two curled wings were invisible at 40px and only muddied the beak. A
+    # single ~2px dark bar (in the keyline value) reads as the clean line that
+    # just separates the gold beak from the dark beard below.
     mcx, must_y = 55, 45
-    for sgn in (-1, 1):
-        rootx = mcx + sgn * 1
-        midx = mcx + sgn * 5
-        tipx = mcx + sgn * 8
-        wing = [
-            (rootx, must_y - 1),
-            (midx, must_y),
-            (tipx, must_y + 3),           # outer tip curls down past the beak
-            (midx, must_y + 3),
-            (rootx, must_y + 2),
-        ]
-        pygame.draw.polygon(surf, beard, wing)
-        pygame.draw.line(surf, beard_hi, (rootx, must_y), (tipx, must_y + 2), 1)
+    pygame.draw.line(surf, key, (mcx - 7, must_y), (mcx + 7, must_y), 2)
 
     # ── the calm commanding eye (drawn last so the brow never covers it) ─────
     ex, ey = 51, 43
@@ -140,6 +117,12 @@ def _paint_axe(surf, wing_angle, P):
     haft, haft_hi = P["haft"], P["haft_hi"]
     white = P["white"]
     ring = P["ring"]
+    key = P["keyline"][:3]                 # near-black contour for both palettes
+    # In IRONCLAD the haft sat in the same brown band as body/beard/fur, so the
+    # shaft vanished. Darken the haft core toward the keyline there so the shaft
+    # is a continuous dark diagonal the eye can trace head->haft->claw in one
+    # stroke. BLOODAXE already separates, so keep its wood warm.
+    haft_core = key if P["name"] == "IRONCLAD" else haft
 
     # The bird faces RIGHT, so the NEAR shoulder is on the right. A regal
     # over-the-shoulder carry rests the head up-and-right above that shoulder
@@ -157,8 +140,11 @@ def _paint_axe(surf, wing_angle, P):
     px, py = -uy, ux                    # unit perpendicular (points up-right)
 
     # ── haft: a turned wooden shaft from grip to head ────────────────────────
-    pygame.draw.line(surf, blade_dk, (gx, gy), (hx, hy), 5)      # dark keyline
-    pygame.draw.line(surf, haft, (gx, gy), (hx, hy), 3)
+    # Thickened + darkened so the axe reads as HELD: a wider dark under-keyline
+    # (6px) carries a fatter core (4px) so the shaft is an unmissable continuous
+    # diagonal from the head down to the gripping claw.
+    pygame.draw.line(surf, key, (gx, gy), (hx, hy), 6)          # dark under-keyline
+    pygame.draw.line(surf, haft_core, (gx, gy), (hx, hy), 4)
     pygame.draw.line(surf, haft_hi,
                      (gx - px, gy - py), (hx - px, hy - py), 1)  # lit edge
     # one bronze binding ring high on the shaft (clear of the face) — the ornate,
@@ -204,12 +190,16 @@ def _paint_axe(surf, wing_angle, P):
                      (sx - px * 1, sy - py * 1), 2)
 
     # ── the gripping claw at the belly, closed over the haft ─────────────────
+    # A 1px dark keyline ring around the grip knot makes a clear "anchor dot"
+    # that terminates the haft: head up + fist down + a visible shaft between =
+    # unmistakably HELD.
     pygame.draw.circle(surf, P["beard"], (gx, gy), 3)             # paw shadow
     pygame.draw.circle(surf, haft, (gx, gy), 2)                   # wood through grip
     for k in (-1, 0, 1):                                          # three toes over haft
         cxk = gx - 2 + k * 2
         pygame.draw.line(surf, P["beard"], (cxk, gy - 2), (cxk, gy + 2), 1)
     pygame.draw.circle(surf, P["beard_hi"], (gx + 1, gy - 1), 1)
+    pygame.draw.circle(surf, key, (gx, gy), 4, 1)                 # anchor-dot keyline
 
 
 build_ironclad = S.make_build(_paint_face, _paint_axe, S.IRONCLAD)

@@ -101,7 +101,7 @@ for r, (label, build) in enumerate(ROWS):
                (PAD + 2, y + PANEL_H + 4))
 
 out = os.path.join("docs", "store_redesign", "costume", "viking", "face",
-                   "design_4", "round_1.png")
+                   "design_4", "round_2.png")
 os.makedirs(os.path.dirname(out), exist_ok=True)
 pygame.image.save(sheet, out)
 print("SAVED", out, sheet.get_size())
