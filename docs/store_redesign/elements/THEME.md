@@ -38,7 +38,7 @@ Reference implementation of the pipeline + primitives:
   - rare    gem(108,188,252) glow(74,158,248)  deep(24,78,142)   — cyan-blue
   - epic    gem(194,122,248) glow(172,94,244)  deep(80,34,126)   — violet
   - legendary gem(255,202,104) glow(255,168,58) deep(150,92,22)  — warm gold-orange (standout)
-  - MYSTERY gem(226,232,244) glow(196,214,236) deep(90,98,124)   — neutral silver, claims NO tier
+  - MYSTERY gem(244,96,96) glow(236,64,64) deep(120,22,26)   — RED, its own colour (was silver; too close to common)
 
 ## Materials (recipes — keep identical across elements)
 - **Glass cabochon:** dark domed well (CABO_LO→CABO_HI), the skin set INSIDE the
