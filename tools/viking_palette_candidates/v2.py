@@ -15,7 +15,6 @@ the top, the deep-red painted shield owns the back, and the near-black beard
 anchors the lower silhouette. Every object is mass + one bright accent so the
 stack survives the downscale.
 """
-import math
 import pygame
 
 from game import store_skins
@@ -36,12 +35,19 @@ IRON_HI    = (166, 174, 184)        # #A6AEB8 iron highlight / beard-rings
 RING_IRON  = (176, 182, 192)        # #B0B6C0 bright iron beard-rings
 
 FUR        = (74, 53, 38)           # #4A3526 dark-brown fur mantle
-FUR_HI     = (107, 78, 54)          # #6B4E36 fur highlight
+FUR_HI     = (122, 90, 64)          # #7A5A40 fur highlight, nudged ~10% so the
+                                    # ruff keeps one readable tuft-line above the
+                                    # near-black beard on a dark night sky
 
 BEARD      = (36, 26, 20)           # #241A14 near-black braided beard
 BEARD_HI   = (62, 44, 32)           # #3E2C20 braid highlight
 
-SHIELD_RED = (142, 31, 22)          # #8E1F16 deep-red painted shield field
+SHIELD_RED = (110, 20, 16)          # #6E1410 deep-red field, dropped a full
+                                    # value step below the body red so the disc
+                                    # reads as the DARKEST of the three reds at
+                                    # 40px (body mid > shield dark > iron pip).
+                                    # Darkened, never brightened — brightening
+                                    # would pull the disc toward fry-mode orange.
 BRASS      = (199, 154, 58)         # #C79A3A brass studs
 BONE       = (214, 198, 168)        # warm bone horn tip
 
@@ -100,25 +106,26 @@ def _paint(surf, wing_angle_deg):
     # frost crystals — a plain raider's round shield reading at 40px by its
     # red disc, dark rim and bright boss.
     sx, sy, sr = HX - 26, HY + 11, 13
-    pygame.draw.circle(surf, IRON_DARK, (sx, sy), sr + 1)      # iron rim base
-    pygame.draw.circle(surf, SHIELD_RED, (sx, sy), sr)         # red painted field
+    # A solid 2-3px IRON_DARK rim base, then the red field inset by 2px, so a
+    # proud dark ring (not a 1px line) frames the disc and survives the
+    # downscale — the dark frame is what keeps the shield from melting into the
+    # rust body at 40px.
+    pygame.draw.circle(surf, IRON_DARK, (sx, sy), sr + 2)      # proud iron rim
+    pygame.draw.circle(surf, SHIELD_RED, (sx, sy), sr - 2)     # red painted field
     # Plank seams across the painted face.
-    for dx in (-7, 0, 7):
-        pygame.draw.line(surf, RUST_DARK, (sx + dx, sy - sr + 2),
-                         (sx + dx, sy + sr - 2), 1)
-    # Brass studs ringing the rim (four on clean diagonals so each survives the
-    # downscale as a deliberate dot, not an even fringe that blurs to a halo).
-    for ang in (45, 135, 225, 315):
-        rad = math.radians(ang)
-        bxp = int(sx + (sr - 2) * math.cos(rad))
-        byp = int(sy + (sr - 2) * math.sin(rad))
-        pygame.draw.circle(surf, BRASS, (bxp, byp), 2)
-        pygame.draw.circle(surf, (240, 210, 130), (bxp, byp), 1)
-    # Iron rim ring + bright iron boss with a hard glint.
-    pygame.draw.circle(surf, IRON_DARK, (sx, sy), sr, 2)
-    pygame.draw.circle(surf, IRON_DARK, (sx, sy), 5)
-    pygame.draw.circle(surf, IRON_HI, (sx, sy), 4)
-    pygame.draw.circle(surf, IRON_DARK, (sx, sy), 4, 1)
+    for dx in (-6, 0, 6):
+        pygame.draw.line(surf, RUST_DARK, (sx + dx, sy - sr + 4),
+                         (sx + dx, sy + sr - 4), 1)
+    # A SINGLE brass stud at the top of the boss — at 40px the four-stud ring
+    # blurred into an orange fringe that read as a halo, so the metal accent is
+    # carried by the boss plus this one deliberate dot.
+    pygame.draw.circle(surf, BRASS, (sx, sy - sr + 2), 2)
+    pygame.draw.circle(surf, (240, 210, 130), (sx, sy - sr + 2), 1)
+    # Bright iron boss, bumped ~1px so the pip is the brightest read of the disc
+    # — keep the hard white glint.
+    pygame.draw.circle(surf, IRON_DARK, (sx, sy), 6)
+    pygame.draw.circle(surf, IRON_HI, (sx, sy), 5)
+    pygame.draw.circle(surf, IRON_DARK, (sx, sy), 5, 1)
     pygame.draw.circle(surf, (255, 255, 255), (sx - 1, sy - 1), 1)
 
     # ── DARK-BROWN FUR MANTLE ringing the neck ───────────────────────────────

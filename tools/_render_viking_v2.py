@@ -85,8 +85,8 @@ def main():
     sheet.fill((24, 22, 30))
     label(sheet, "VIKING PALETTE v2 — BLOODAXE (warm rust/red raider)",
           16, 12, (255, 210, 180), 22)
-    label(sheet, "PLAIN-Viking recolour of design_4 (FROSTREAVER) structure "
-          "— ice removed", 16, 40, (180, 180, 190), 15)
+    label(sheet, "round 2 — darker shield disc + proud iron rim + single stud "
+          "+ brighter fur tuft", 16, 40, (180, 180, 190), 15)
 
     # Hero shots on day + night cards.
     hero_day = hero_panel(build, 230, frame_idx=FRAME_IDX, tilt=0.0,
@@ -134,7 +134,7 @@ def main():
         pygame.draw.rect(sheet, (90, 90, 100), (tx, yy, 20, 18), 1)
         label(sheet, nm, tx + 28, yy - 1, (210, 210, 215), 13)
 
-    out = "/home/user/skybit/docs/store_redesign/costume/viking/palette/v2/round_1.png"
+    out = "/home/user/skybit/docs/store_redesign/costume/viking/palette/v2/round_2.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print("saved", out)
