@@ -371,6 +371,7 @@ STATE_LEADERBOARD = 6
 STATE_INTRO = 7
 STATE_POWERUPS = 8
 STATE_STORE = 9
+STATE_PROFILE = 10
 
 
 class App:
@@ -402,6 +403,9 @@ class App:
         # Coin Store — built lazily when the player taps the menu's STORE
         # pill, torn down on exit back to MENU.
         self.store: object | None = None
+        # Profile — cosmetics inventory + live loadout; lazily built on the
+        # menu's PROFILE pill, torn down on exit back to MENU.
+        self.profile: object | None = None
         # True when the intro was launched from the menu's HOW TO PLAY
         # button. _finish_intro reads this to land back on MENU instead
         # of the POWERUPS explainer.
@@ -527,6 +531,17 @@ class App:
                 self.state = STATE_MENU
                 self._cooldown_t = 0.25
             return
+        if self.state == STATE_PROFILE:
+            # Same interactive-scene contract as the store: taps route in, a
+            # "back" token tears the profile down to MENU.
+            if self._cooldown_t > 0:
+                return
+            action = self.profile.handle_tap(pos) if self.profile else "back"
+            if action == "back":
+                self.profile = None
+                self.state = STATE_MENU
+                self._cooldown_t = 0.25
+            return
         if self.state == STATE_MENU:
             # Single shared cooldown gate for every menu action. This is
             # what stops a follow-up event from the same physical tap
@@ -557,6 +572,13 @@ class App:
                 from game.store import StoreScene
                 self.store = StoreScene()
                 self.state = STATE_STORE
+                self._cooldown_t = 0.25
+                return
+            if pos and self.hud.menu_profile_rect \
+                    and self.hud.menu_profile_rect.collidepoint(pos):
+                from game.profile import ProfileScene
+                self.profile = ProfileScene()
+                self.state = STATE_PROFILE
                 self._cooldown_t = 0.25
                 return
             if pos and self.hud.menu_top10_rect \
@@ -882,6 +904,11 @@ class App:
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
             if self.store is not None:
                 self.store.update(dt)
+            return
+        if self.state == STATE_PROFILE:
+            self._cooldown_t = max(0.0, self._cooldown_t - dt)
+            if self.profile is not None:
+                self.profile.update(dt)
             return
         if self.state == STATE_MENU:
             self.world.world_idle_tick(dt)
@@ -1217,6 +1244,10 @@ class App:
         # Store paints its own background (night sky + cards) — no world.
         if self.state == STATE_STORE and self.store is not None:
             self.store.render(self.screen)
+            return
+        # Profile paints its own background (night sky + loadout + grid) — no world.
+        if self.state == STATE_PROFILE and self.profile is not None:
+            self.profile.render(self.screen)
             return
         sx, sy = self.world.shake_offset() if self.state == STATE_PLAY else (0, 0)
         sx, sy = int(sx), int(sy)

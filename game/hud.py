@@ -1531,6 +1531,7 @@ class HUD:
         self.menu_howto_rect: "pygame.Rect | None" = None
         self.menu_powerups_rect: "pygame.Rect | None" = None
         self.menu_store_rect: "pygame.Rect | None" = None
+        self.menu_profile_rect: "pygame.Rect | None" = None
         self.menu_top10_rect: "pygame.Rect | None" = None
         # Leaderboard tab hit-rects (CURRENT | LEGACY) — populated each frame
         # by draw_leaderboard in screen space, read by scenes.py to switch
@@ -1603,11 +1604,16 @@ class HUD:
         SEC = 17  # secondary (non-START) pill text size
         h_start = _pill_h("START", 22)
         h_store = _pill_h("STORE", SEC)
+        h_profile = _pill_h("PROFILE", SEC)
         h_howto = _pill_h("HOW TO PLAY", SEC)
         h_power = _pill_h("POWER-UPS", SEC)
+        # Five pills now (PROFILE joined under STORE — the two are a pair: buy in
+        # the Store, equip/manage in the Profile). The taller stack still clears
+        # the divider above and the BEST panel below on the 640 px canvas.
         y_power = (H - 110) - 14 - h_power // 2
         y_howto = y_power - h_power // 2 - GAP - h_howto // 2
-        y_store = y_howto - h_howto // 2 - GAP - h_store // 2
+        y_profile = y_howto - h_howto // 2 - GAP - h_profile // 2
+        y_store = y_profile - h_profile // 2 - GAP - h_store // 2
         y_start = y_store - h_store // 2 - GAP - h_start // 2
 
         btn_alpha = int(225 + math.sin(self.title_t * 3.6) * 30)
@@ -1621,6 +1627,9 @@ class HUD:
         # destination, so it gets the rank just below the primary action.
         self.menu_store_rect = _pill_btn(
             surf, (W // 2, y_store), "STORE",
+            size=SEC, alpha=230, min_width=220, dim=True, shadow=False)
+        self.menu_profile_rect = _pill_btn(
+            surf, (W // 2, y_profile), "PROFILE",
             size=SEC, alpha=230, min_width=220, dim=True, shadow=False)
         self.menu_howto_rect = _pill_btn(
             surf, (W // 2, y_howto), "HOW TO PLAY",
