@@ -29,9 +29,13 @@ LAC    = (110, 22, 34)        # #6E1622 deep oxblood lacquer plate
 LAC_D  = (61, 14, 24)         # #3D0E18 lacquer shadow
 LAC_H  = (150, 44, 54)        # muted lacquer specular so each slat still reads
 IRON   = (17, 19, 26)         # #11131A helmet iron + under-cloth
+IRON_D = (8, 9, 13)           # #08090D darkest iron — cap rim, seals the dome
 IRON_H = (54, 58, 72)         # iron edge so the black survives day sky
 GOLD   = (227, 178, 60)       # #E3B23C crest + lacing dots + menpo trim
 GOLD_H = (255, 226, 150)      # gold highlight bead
+GOLD_BR = (168, 120, 44)      # #A8782C brow-band gold, pushed darker/redder so
+                              # the crest stays the single brightest head note
+                              # (two equal gold arcs would split the focal read)
 STEEL  = (217, 220, 227)      # #D9DCE3 blade glint
 
 # Darkened macaw under-body. Oxblood-on-iron everywhere so the bird that shows
@@ -104,9 +108,17 @@ def _paint(surf, _wing_angle_deg):
     pygame.draw.line(surf, IRON, (HX - 33, HY - 9), (HX - 15, HY - 11), 2)
     pygame.draw.line(surf, GOLD, (HX - 33, HY - 9), (HX - 33, HY + 7), 1)
 
-    # ── Body: do (chest cuirass) — stacked lacquer rows with bright lacing,
-    # the heavy core mass under the head; kept narrower than the flared sode.
-    _slat_plate(surf, HX - 13, HY + 7, 24, 4, slat_h=4, gap=1)
+    # ── Body: do (chest cuirass) — stacked lacquer rows, the heavy core mass
+    # under the head; kept narrower than the flared sode. The 1px lacing dots
+    # vanish at 40px and let the body bottom-2/3 go muddy, so over the slats we
+    # lay CONTINUOUS gold lacing lines (one per slat seam): a survivable mid-
+    # value gold accent on the dark body, re-balancing the value that round_2
+    # had concentrated entirely in the crown.
+    do_x, do_y, do_w = HX - 13, HY + 7, 24
+    _slat_plate(surf, do_x, do_y, do_w, 4, slat_h=4, gap=1, lace=False)
+    for ly in (do_y + 4, do_y + 9, do_y + 14):
+        pygame.draw.line(surf, GOLD, (do_x + 2, ly), (do_x + do_w - 3, ly), 2)
+        pygame.draw.line(surf, GOLD_H, (do_x + 2, ly - 1), (do_x + 7, ly - 1), 1)
     # Obi sash peeking below the cuirass (dark, with one gold edge line).
     pygame.draw.rect(surf, IRON, (HX - 12, HY + 28, 22, 4))
     pygame.draw.rect(surf, GOLD, (HX - 12, HY + 28, 22, 1))
@@ -132,43 +144,59 @@ def _paint(surf, _wing_angle_deg):
     pygame.draw.circle(surf, (255, 232, 180), (HX + 8, HY - 3), 2)
     pygame.draw.circle(surf, (210, 150, 70), (HX + 8, HY - 3), 1)
 
-    # ── Head: a WELDED kabuto. A solid iron+gold helmet bowl rises from the brow
-    # band up to the crest mount with NO sky between band and crest, so the gold
-    # arc + dark dome read as one helmeted head at 40px.
-    by = CROWN_Y + 2
-    # Iron bowl: a filled dome from the brow up over the crown.
-    pygame.draw.ellipse(surf, IRON, (HX - 13, CROWN_Y - 7, 26, 20))
-    pygame.draw.ellipse(surf, IRON_H, (HX - 11, CROWN_Y - 6, 22, 9))
-    # Gold brow band riveted across the bowl front.
-    pygame.draw.line(surf, GOLD, (HX - 12, by), (HX + 12, by - 2), 3)
-    pygame.draw.line(surf, GOLD_H, (HX - 10, by - 1), (HX + 4, by - 2), 1)
-    for rx in (HX - 8, HX, HX + 8):
-        pygame.draw.circle(surf, GOLD_H, (rx, by - 1), 1)
-    # A short gold mount stem from the bowl top up to the crescent, so the crest
-    # sits ON the dome (no floating gap).
-    mount_y = CROWN_Y - 6
-    pygame.draw.line(surf, GOLD, (HX, CROWN_Y - 2), (HX, mount_y), 3)
-    pygame.draw.line(surf, GOLD_H, (HX, CROWN_Y - 2), (HX, mount_y), 1)
+    # ── Head: a WELDED kabuto. The round_2 bowl read as a hollow gold ring with
+    # the dark head showing through the centre — a doughnut at 40px. The fix is
+    # a SOLID FILLED dark cap sitting ON the head crown, painted LAST among the
+    # head pieces so nothing shows through it; gold only CROWNS the dark (brow
+    # band + crest), it never replaces the dome. The cap is snugged to ~22px so
+    # it's a helmet, not a wide ring, and its top edge is the silhouette's
+    # continuous dark dome.
+    cap_w = 22
+    cap_x = HX - cap_w // 2
+    cap_top = CROWN_Y - 6
+    cap_h = 17
+    # Filled iron dome — fully opaque so the crown never bleeds through.
+    pygame.draw.ellipse(surf, IRON_D, (cap_x - 1, cap_top - 1, cap_w + 2, cap_h + 2))
+    pygame.draw.ellipse(surf, IRON, (cap_x, cap_top, cap_w, cap_h))
+    # Iron specular only across the upper dome so the dark top still has form
+    # against day sky without breaking the continuous-dark silhouette.
+    pygame.draw.ellipse(surf, IRON_H, (cap_x + 2, cap_top + 1, cap_w - 4, 7))
+    pygame.draw.ellipse(surf, IRON, (cap_x + 3, cap_top + 4, cap_w - 6, 5))
 
-    # Crescent maedate: an outer gold horn-arc minus an inner cut, rising high
-    # above the welded bowl. Built as a thick gold arc with a dark relief inside.
-    cx, cy = HX, mount_y
+    # Gold brow band riveted across the bowl front — pushed darker (GOLD_BR) so
+    # the crest above stays the single brightest gold note and owns the focal
+    # hierarchy (two equal gold arcs stacked would compete).
+    by = CROWN_Y + 4
+    pygame.draw.line(surf, GOLD_BR, (HX - 11, by), (HX + 11, by - 2), 3)
+    pygame.draw.line(surf, GOLD, (HX - 9, by - 1), (HX + 3, by - 2), 1)
+    for rx in (HX - 7, HX, HX + 7):
+        pygame.draw.circle(surf, GOLD, (rx, by - 1), 1)
+
+    # Crescent maedate: a gold horn-arc GROWING FROM the dome top, smaller than
+    # the dome (≈ 60-70% of cap width) and seated so its base overlaps the dark
+    # cap rather than floating above it — the dome stays the silhouette apex and
+    # the gold crest is the clearly-smaller crown that grows out of it.
+    cx = HX
+    arc_c = cap_top - 2                       # arc centre just over the dome top
     crescent = []
-    R, r = 13, 8
+    # ≈16px wide ≈ 70% of the 22px dome. The inner cut is kept shallow (r small,
+    # dropped lower) so the crest reads as a solid horn-fan rather than a thin
+    # ring — a smaller inner hole is what kept the round_2 read doughnut-ish.
+    R, r = 8, 4
     for a in range(150, 391, 10):            # outer sweep, opening downward
         rad = math.radians(a)
-        crescent.append((cx + R * math.cos(rad), cy - 9 + R * math.sin(rad)))
+        crescent.append((cx + R * math.cos(rad), arc_c + R * math.sin(rad)))
     for a in range(390, 149, -10):           # inner sweep back
         rad = math.radians(a)
-        crescent.append((cx + r * math.cos(rad), cy - 7 + r * math.sin(rad)))
+        crescent.append((cx + r * math.cos(rad), arc_c + 3 + r * math.sin(rad)))
     _poly(surf, GOLD, crescent)
     # Re-trace the outer rim brighter so the points survive the downscale.
     rim = [crescent[i] for i in range(0, 25)]
     if len(rim) >= 2:
         pygame.draw.lines(surf, GOLD_H, False, rim, 1)
     # Sharpen the two horn tips into bright points.
-    pygame.draw.circle(surf, GOLD_H, (int(cx - R + 1), int(cy - 9)), 2)
-    pygame.draw.circle(surf, GOLD_H, (int(cx + R - 1), int(cy - 9)), 2)
+    pygame.draw.circle(surf, GOLD_H, (int(cx - R + 1), int(arc_c)), 2)
+    pygame.draw.circle(surf, GOLD_H, (int(cx + R - 1), int(arc_c)), 2)
 
 
 build = store_skins._make_skin(_paint, base_fn=_ronin_base)
