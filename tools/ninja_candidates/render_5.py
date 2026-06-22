@@ -50,7 +50,7 @@ def night_gameplay_panel(source, w, h):
     return pygame.transform.smoothscale(scene.subsurface(crop).copy(), (w, h))
 
 FONT = "/home/user/skybit/game/assets/LiberationSans-Bold.ttf"
-OUT = "/home/user/skybit/docs/store_redesign/costume/ninja/design_5/round_1.png"
+OUT = "/home/user/skybit/docs/store_redesign/costume/ninja/design_5/round_2.png"
 
 BG = (16, 17, 24)
 INK = (236, 240, 250)
@@ -64,22 +64,32 @@ def _label(sheet, text, x, y, size=20, color=INK):
 
 
 def _truth_read(box):
-    """The '40px truth read': render the bird small, downscale to 40px with
-    NEAREST neighbour (no smoothing — the honest in-flight pixel read), then
-    magnify 3x, again NEAREST, so the reviewer sees exactly what survives."""
-    frame = build(2, 10.0)
-    bb = frame.get_bounding_rect()
-    if bb.width and bb.height:
-        frame = frame.subsurface(bb).copy()
-    sw, sh = frame.get_size()
-    scale = 40 / max(sw, sh)
-    small = pygame.transform.scale(
-        frame, (max(1, int(sw * scale)), max(1, int(sh * scale))))
-    big = pygame.transform.scale(small, (small.get_width() * 3,
-                                         small.get_height() * 3))
+    """The '40px truth read', x3: render the bird small at THREE flap frames,
+    downscale each to 40px with NEAREST neighbour (no smoothing — the honest
+    in-flight pixel read), then magnify 3x, again NEAREST, and tile them so the
+    reviewer sees exactly what survives across the beat. The carbon head + one
+    bright diagonal blade + visor slit must hold in every frame, with zero warm
+    pixel anywhere on the bird."""
     panel = pygame.Surface((box, box), pygame.SRCALPHA)
     pygame.draw.rect(panel, (8, 9, 14), panel.get_rect(), border_radius=14)
-    panel.blit(big, big.get_rect(center=(box // 2, box // 2)))
+    tiles = []
+    for fi in (0, 2, 3):
+        frame = build(fi, 10.0)
+        bb = frame.get_bounding_rect()
+        if bb.width and bb.height:
+            frame = frame.subsurface(bb).copy()
+        sw, sh = frame.get_size()
+        scale = 40 / max(sw, sh)
+        small = pygame.transform.scale(
+            frame, (max(1, int(sw * scale)), max(1, int(sh * scale))))
+        tiles.append(pygame.transform.scale(
+            small, (small.get_width() * 3, small.get_height() * 3)))
+    gap = 6
+    total_w = sum(t.get_width() for t in tiles) + gap * (len(tiles) - 1)
+    x = (box - total_w) // 2
+    for t in tiles:
+        panel.blit(t, (x, (box - t.get_height()) // 2))
+        x += t.get_width() + gap
     return panel
 
 
@@ -90,7 +100,7 @@ def main():
     sheet.fill(BG)
 
     _label(sheet, "NEON SEVER", 28, 22, 36, INK)
-    _label(sheet, "Cyber-Kunoichi  ·  LEGENDARY  ·  ninja redesign / design_5",
+    _label(sheet, "Cyber-Kunoichi  ·  LEGENDARY  ·  ninja redesign / design_5  ·  ROUND 2",
            30, 64, 18, ACCENT)
     pygame.draw.line(sheet, (40, 44, 58), (28, 96), (W - 28, 96), 2)
 
@@ -111,8 +121,8 @@ def main():
     # 40px truth read (NEAREST shrink, magnified 3x).
     tr = _truth_read(300)
     sheet.blit(tr, (pad * 3 + 600, top))
-    _label(sheet, "40px TRUTH READ  ·  3x nearest", pad * 3 + 600, top + 304,
-           16, SUB)
+    _label(sheet, "40px TRUTH READ x3  ·  nearest, frames 0/2/3", pad * 3 + 600,
+           top + 304, 16, SUB)
 
     # In-gameplay panels over the daytime AND night biome (the harness scene).
     # Kept near the 360x640 canvas aspect so the harness crop stays inside the

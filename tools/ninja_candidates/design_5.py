@@ -17,10 +17,24 @@ wing-keyed pulse just makes the neon breathe so it feels alive in flight.
 
 Layering, back-to-front: energy blade glow halo → blade core bar → carbon
 body neon edge-piping → tech face mask → visor band → headband + emblem chip →
-forearm/shin neon wrap rings → floating holo-shuriken at the hip. Glow halos
-are drawn onto SRCALPHA layers and additively bloomed (BLEND_RGB_ADD) so the
-emissive parts read as light, not paint — matching the disco shimmer / astro
-visor masking idiom already in store_skins.
+floating holo-shuriken at the hip. Glow halos are drawn onto SRCALPHA layers
+and additively bloomed (BLEND_RGB_ADD) so the emissive parts read as light,
+not paint — matching the disco shimmer / astro visor masking idiom already in
+store_skins.
+
+R2 (art-director ITERATE): the round-1 carbon flood let a warm emblem chip
+read as a yellow crown dot at 40px and scattered seven sub-2px glow strokes
+into an all-over haze that fought the carbon read. This round commits to a
+strict two-tone language — CYAN is the suit, MAGENTA is the weapon, and
+nothing else — so the silhouette resolves to "dark bird + one bright diagonal
+blade + visor slit": (1) the carbon flood is re-applied AFTER the mask draws,
+guaranteeing zero base-macaw colour survives; (2) the emblem chip is recolored
+hot-white so the only warm pixel on the bird is gone; (3) body neon is one
+continuous cyan leading-edge piping run (the forearm/shin rings, shin-ring
+magenta and belly seam are deleted); (4) magenta is reserved strictly for the
+blade emitter/hilt; (5) the hip holo-shuriken is demoted so it stops reading
+as belly damage-glow; (6) the painted (non-additive) cyan core alpha is raised
+so the edge holds on the washed-out DAY biome under the house 1px outline.
 """
 import math
 import pygame
@@ -36,11 +50,12 @@ _CARBON   = (10, 11, 16)           # #0A0B10 carbon body
 _PANEL    = (21, 23, 31)           # #15171F panel shade (object separation)
 _PANEL_H  = (38, 42, 54)           # faint matte sheen so black survives night
 _CYAN     = (25, 224, 255)         # #19E0FF cyan neon piping / visor (pulses)
-_CYAN_D   = (14, 120, 150)
-_MAGENTA  = (255, 45, 155)         # #FF2D9B magenta accent + blade core
-_MAGENTA_D = (150, 24, 92)
+_MAGENTA  = (255, 45, 155)         # #FF2D9B magenta — weapon only (blade/hilt)
 _HOT      = (234, 251, 255)        # #EAFBFF hot glow core
-_CHIP     = (255, 210, 90)         # warm emblem chip — one off-neon spark
+# Painted (non-additive) cyan for the piping seam itself — sits ON the carbon
+# under the house outline so the edge stays legible on the washed-out DAY sky,
+# where the additive bloom alone barely registers. Raised ~15% from R1.
+_CYAN_PAINT = (70, 210, 240)
 
 
 def _glow_line(layer, color, a, b, w, alpha):
@@ -55,6 +70,22 @@ def _glow_dot(layer, color, c, r, alpha):
     pygame.draw.circle(layer, (*color, alpha // 3), c, r + 3)
     pygame.draw.circle(layer, (*color, alpha // 2), c, r + 1)
     pygame.draw.circle(layer, (*color, alpha), c, r)
+
+
+def _carbon_flood(surf):
+    """Flood the whole macaw silhouette to flat matte carbon, clamped to its
+    own alpha so the transparent margin is untouched. A flat carbon fill is
+    BLEND_RGBA_MIN'd against the sprite's silhouette mask (white inside,
+    transparent outside) then blitted opaque over the bird, so every base
+    macaw pixel — body red, crown highlight, the red→yellow tail, the bare
+    eye — is replaced. Called BEFORE the neon so glows sit on carbon, and
+    AGAIN after the matte face panels so no base colour can survive."""
+    carbon = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+    carbon.fill((*_CARBON, 255))
+    sil = pygame.mask.from_surface(surf, 8).to_surface(
+        setcolor=(255, 255, 255, 255), unsetcolor=(0, 0, 0, 0))
+    carbon.blit(sil, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(carbon, (0, 0))
 
 
 def _paint(surf, wing_angle_deg):
@@ -74,12 +105,7 @@ def _paint(surf, wing_angle_deg):
     #    flat carbon fill clamped to the silhouette (mask-min keeps it off the
     #    transparent margin), with a faint top sheen so the black survives night
     #    sky. Drawn before any neon so every glowing edge sits ON the carbon.
-    carbon = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    carbon.fill((*_CARBON, 255))
-    sil = pygame.mask.from_surface(surf, 8).to_surface(
-        setcolor=(255, 255, 255, 255), unsetcolor=(0, 0, 0, 0))
-    carbon.blit(sil, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    surf.blit(carbon, (0, 0))
+    _carbon_flood(surf)
     # Matte body sheen + a panel break so the carbon mass isn't a flat void.
     pygame.draw.ellipse(surf, _PANEL, (20, 46, 18, 6))
     pygame.draw.ellipse(surf, _PANEL_H, (24, 47, 8, 3))
@@ -133,35 +159,43 @@ def _paint(surf, wing_angle_deg):
     pygame.draw.line(glow, (*_HOT, 220), (gx + px * 5, gy + py * 5),
                      (gx - px * 5, gy - py * 5), 2)
 
-    # ── CARBON BODY EDGE-PIPING: trace a cyan neon seam along the leading body
-    #    edge + wing edge so the matte black silhouette reads as light-lined,
-    #    not a hole. Body centre ~(32, 52), head centre at (HX, HY).
-    chest = [(HX - 4, HY + 8), (24, 44), (17, 53), (22, 62)]
-    pygame.draw.lines(surf, _PANEL, False, chest, 3)
-    _glow_line(glow, _CYAN, chest[0], chest[1], 1, A_CY)
-    pygame.draw.lines(glow, (*_CYAN, A_CY), False, chest, 1)
-    # Wing trailing-edge seam — a short diagonal off the wing root.
-    we_a, we_b = (40, 44), (52, 38)
-    _glow_line(glow, _CYAN, we_a, we_b, 1, A_CY)
-    # A magenta belly seam so the second neon shows below the cyan.
-    bs_a, bs_b = (20, 58), (33, 60)
-    _glow_line(glow, _MAGENTA, bs_a, bs_b, 1, int(A_CY * 0.8))
-
     # ── TECH FACE MASK: matte-black hard-panel mask over the head, paneled so
-    #    it reads as a helmet rather than cloth. Sits below the visor.
+    #    it reads as a helmet rather than cloth. Drawn over the head FIRST, then
+    #    a guaranteed re-flood (below) re-darkens any base-macaw pixel the mask
+    #    didn't reach — the crown highlight + bare eye that survived in R1 — so
+    #    the brightest non-neon mass at 40px can never be a warm dot.
     pygame.draw.ellipse(surf, _PANEL, (HX - 13, CROWN_Y - 1, 26, 25))
     pygame.draw.ellipse(surf, _CARBON, (HX - 12, CROWN_Y, 24, 23))
-    # Panel break lines (matte sheen) — the hard-surface read.
-    pygame.draw.line(surf, _PANEL_H, (HX - 9, HY + 1), (HX + 11, HY - 1), 1)
-    pygame.draw.line(surf, _PANEL_H, (HX - 6, CROWN_Y + 3), (HX - 6, HY + 6), 1)
-    # Lower-face respirator panel across the beak base, with two vent slits.
+    # Lower-face respirator panel across the beak base.
     fold = [(HX - 10, HY + 4), (HX + 12, HY + 2),
             (HX + 12, HY + 10), (HX - 9, HY + 11)]
     _poly(surf, _PANEL, fold)
     _poly(surf, _CARBON, [(HX - 9, HY + 5), (HX + 11, HY + 3),
                           (HX + 11, HY + 9), (HX - 8, HY + 10)])
-    for vy in (HY + 6, HY + 8):
-        pygame.draw.line(surf, _PANEL_H, (HX + 2, vy), (HX + 9, vy - 1), 1)
+
+    # GUARANTEED FULL-BODY CARBON KILL: re-flood the whole silhouette to carbon
+    # now that the matte panels are down, so zero base-macaw colour can survive
+    # anywhere on the bird at 40px. The matte sheen + panel breaks are repainted
+    # on TOP of this pass so the carbon mass still reads as faceted, not a void.
+    _carbon_flood(surf)
+    pygame.draw.ellipse(surf, _PANEL, (20, 46, 18, 6))      # body sheen
+    pygame.draw.ellipse(surf, _PANEL_H, (24, 47, 8, 3))
+    pygame.draw.line(surf, _PANEL_H, (HX - 9, HY + 1), (HX + 11, HY - 1), 1)
+    pygame.draw.line(surf, _PANEL_H, (HX - 6, CROWN_Y + 3), (HX - 6, HY + 6), 1)
+    for vy_ in (HY + 6, HY + 8):                            # respirator vents
+        pygame.draw.line(surf, _PANEL_H, (HX + 2, vy_), (HX + 9, vy_ - 1), 1)
+
+    # ── CARBON BODY EDGE-PIPING: ONE continuous cyan neon seam tracing the
+    #    leading body edge — the single line that lifts the matte silhouette off
+    #    the sky so it reads as light-lined, not a hole. Two-tone law: cyan is
+    #    the suit, magenta is reserved for the weapon, so there is exactly one
+    #    cyan run on the body and no stippled rings/seams to haze the carbon.
+    #    A raised-alpha PAINTED core under the additive bloom holds the edge on
+    #    the washed-out day sky where the bloom alone barely registers.
+    chest = [(HX - 4, HY + 8), (24, 44), (17, 53), (22, 62)]
+    pygame.draw.lines(surf, _CYAN_PAINT, False, chest, 2)
+    _glow_line(glow, _CYAN, chest[0], chest[1], 1, A_CY)
+    pygame.draw.lines(glow, (*_CYAN, A_CY), False, chest, 1)
 
     # ── NEON VISOR BAND: a single horizontal cyan slit across the eyes — the
     #    face's hero light. Hot-white inner core so it reads as an emitter.
@@ -174,38 +208,34 @@ def _paint(surf, wing_angle_deg):
     _glow_dot(glow, _HOT, (HX + 9, vy), 1, 230)
 
     # ── HEADBAND + EMBLEM CHIP: thin carbon band over the mask with a small
-    #    glowing emblem chip front-centre (the one warm off-neon spark).
+    #    glowing emblem chip front-centre. Recolored hot-white (was warm-yellow)
+    #    so the bird carries ZERO warm pixels — the only colour on the carbon is
+    #    cyan suit + magenta weapon, the strict two-tone the read depends on.
     by = CROWN_Y + 3
     pygame.draw.line(surf, _CARBON, (HX - 12, by + 1), (HX + 12, by - 1), 4)
     pygame.draw.line(surf, _PANEL, (HX - 12, by), (HX + 12, by - 2), 2)
     pygame.draw.line(surf, _PANEL_H, (HX - 10, by - 1), (HX + 4, by - 2), 1)
-    _glow_dot(glow, _CHIP, (HX, by - 1), 2, int(180 + 60 * throb))
+    _glow_dot(glow, _HOT, (HX, by - 1), 2, int(170 + 60 * throb))
     pygame.draw.circle(surf, _HOT, (HX, by - 1), 1)
 
-    # ── NEON WRAP RINGS: thin glowing cyan rings banding the forearm (wing
-    #    root) and shin — the tech-wrap detail that ties the limbs to the suit.
-    for rx0, ry0, rx1, ry1 in ((38, 47, 46, 45), (39, 50, 47, 48)):
-        _glow_line(glow, _CYAN, (rx0, ry0), (rx1, ry1), 1, int(A_CY * 0.85))
-    # Shin ring on the near foot tuck (carbon tabi below it).
-    for fx0, fy0, fx1, fy1 in ((25, 65, 23, 70), (34, 65, 36, 70)):
-        pygame.draw.line(surf, _CARBON, (fx0, fy0), (fx1, fy1), 3)
-    _glow_line(glow, _MAGENTA, (24, 66), (28, 66), 1, int(A_CY * 0.8))
-    _glow_line(glow, _MAGENTA, (33, 66), (37, 66), 1, int(A_CY * 0.8))
-
     # ── FLOATING HOLO-SHURIKEN at the hip: a glowing ring-star spinning with
-    #    the beat — a holographic projectile orbiting Pip. Spin keyed to the
-    #    wing angle so it rotates as he flaps.
+    #    the beat — a holographic projectile orbiting Pip. DEMOTED this round:
+    #    its R1 aura (r5, hot) read as belly damage-glow and competed with the
+    #    blade. Aura tightened to r3 at lower alpha so it stays a small accent
+    #    and the blade + visor carry the silhouette. All-cyan (weapon-magenta
+    #    is reserved for the blade).
     sxc, syc = 17, 56
     spin = math.radians(wing_angle_deg * 4)
-    _glow_dot(glow, _CYAN, (sxc, syc), 5, int(110 + 70 * throb))   # holo aura
+    _glow_dot(glow, _CYAN, (sxc, syc), 3, int(70 + 45 * throb))   # holo aura
     # Four-point ring-star: outer points + an inner ring, hot-white edged.
+    A_SH = int(A_CY * 0.7)
     for k in range(4):
         a = spin + k * math.pi / 2
-        ox, oy = sxc + 6 * math.cos(a), syc + 6 * math.sin(a)
+        ox, oy = sxc + 5 * math.cos(a), syc + 5 * math.sin(a)
         ix, iy = sxc + 2 * math.cos(a + math.pi / 4), syc + 2 * math.sin(a + math.pi / 4)
-        pygame.draw.line(glow, (*_CYAN, A_CY), (sxc, syc), (ox, oy), 2)
-        pygame.draw.line(glow, (*_HOT, A_CY), (ix, iy), (ox, oy), 1)
-    pygame.draw.circle(glow, (*_HOT, A_CY), (sxc, syc), 2, 1)
+        pygame.draw.line(glow, (*_CYAN, A_SH), (sxc, syc), (ox, oy), 1)
+        pygame.draw.line(glow, (*_HOT, A_SH), (ix, iy), (ox, oy), 1)
+    pygame.draw.circle(glow, (*_HOT, A_SH), (sxc, syc), 2, 1)
 
     # Additively bloom every emissive layer at once so overlaps brighten and
     # the neon reads as emitted light against the dark sky it's tuned for.
