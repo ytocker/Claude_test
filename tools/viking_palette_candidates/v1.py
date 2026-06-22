@@ -40,14 +40,19 @@ HELM_DK   = (74, 80, 96)            # #4A5060 dark iron
 HELM_HI   = (198, 206, 218)         # #C6CEDA iron highlight
 
 FUR       = (107, 83, 58)           # #6B533A warm-brown fur mantle
-FUR_HI    = (138, 110, 76)          # #8A6E4C fur highlight
+# Pushed lighter + very slightly cooler vs the old #8A6E4C so the scalloped
+# ruff registers as its own band at 40px instead of dissolving brown-on-brown
+# between the body and the beard.
+FUR_HI    = (152, 124, 92)          # #987C5C fur highlight
 
 BEARD     = (58, 42, 27)            # #3A2A1B dark-brown beard
 BEARD_HI  = (90, 70, 50)            # #5A4632 beard braid highlight
 
 BRONZE    = (200, 144, 46)          # #C8902E bronze rings / rivets / buckle
 SHIELD_RED = (178, 58, 42)          # #B23A2A red painted shield field
-OAK       = (138, 106, 69)          # #8A6A45 oak shield planks
+# One step darker than the BODY hex so the oak plank ring reads as its own
+# border against the warm body in the hero shot, rather than sharing its tone.
+OAK       = (122, 92, 60)           # #7A5C3C oak shield planks
 BONE      = (214, 200, 170)         # plain bone/metal horn tip
 
 # The warm mass dissolves into a bright day sky just like the frost mass did;
