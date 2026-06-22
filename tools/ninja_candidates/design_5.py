@@ -144,10 +144,14 @@ def _paint(surf, wing_angle_deg):
         by = gy + (hi[1] - gy) * t1
         col = lerp_color(_MAGENTA, _CYAN, t0)
         _glow_line(glow, col, (ax, ay), (bx, by), 3, A_BL)
-    # White-hot core + a brighter flaring tip.
+    # White-hot core line, but the tip itself flares CYAN, not white: a bright
+    # white tip dot right above the crown re-read as a second light source on the
+    # head at 40px (the "white-head blob"). The tip's hero colour is the cyan
+    # blade glow (bigger bloom); the white is dimmed and un-bloomed so it only
+    # sharpens the very point instead of clustering with the visor/emblem whites.
     pygame.draw.line(glow, (*_HOT, 230), (gx, gy), hi, 1)
-    _glow_dot(glow, _CYAN, (int(hi[0]), int(hi[1])), 3, A_BL)
-    _glow_dot(glow, _HOT, (int(hi[0]), int(hi[1])), 1, 250)
+    _glow_dot(glow, _CYAN, (int(hi[0]), int(hi[1])), 4, A_BL)
+    pygame.draw.circle(glow, (*_HOT, 150), (int(hi[0]), int(hi[1])), 1)
 
     # Square energy guard (tsuba) at the emitter, glowing hot-white edged.
     guard = [
@@ -201,22 +205,32 @@ def _paint(surf, wing_angle_deg):
     #    face's hero light. Hot-white inner core so it reads as an emitter.
     vy = HY - 1
     pygame.draw.rect(surf, (4, 5, 8), (HX - 7, vy - 3, 21, 7), border_radius=3)
-    _glow_line(glow, _CYAN, (HX - 5, vy), (HX + 12, vy), 2, A_CY)
-    pygame.draw.line(glow, (*_HOT, int(A_CY * 0.9)), (HX - 4, vy), (HX + 11, vy), 1)
-    # Two brighter nodes in the slit so it reads as a sensor visor, not a bar.
-    _glow_dot(glow, _HOT, (HX + 1, vy), 1, 230)
-    _glow_dot(glow, _HOT, (HX + 9, vy), 1, 230)
+    # PAINTED cyan core under the bloom so the slit is the brightest CYAN feature
+    # on the face and resolves as a horizontal line at 40px — the two-tone
+    # promise that the face's hero light is unmistakably cyan, not white.
+    pygame.draw.line(surf, _CYAN, (HX - 5, vy), (HX + 12, vy), 2)
+    _glow_line(glow, _CYAN, (HX - 5, vy), (HX + 12, vy), 3, A_CY)
+    # The inner core line stays CYAN (was white-hot): a white core re-clustered
+    # with the other head whites into a blob. A faint white pinpoint only.
+    pygame.draw.line(glow, (*_CYAN, A_CY), (HX - 4, vy), (HX + 11, vy), 1)
+    # Two brighter CYAN nodes in the slit so it reads as a sensor visor, not a
+    # bar — cyan, not white, so the visor wins the face read.
+    _glow_dot(glow, _CYAN, (HX + 1, vy), 1, 245)
+    _glow_dot(glow, _CYAN, (HX + 9, vy), 1, 245)
 
     # ── HEADBAND + EMBLEM CHIP: thin carbon band over the mask with a small
-    #    glowing emblem chip front-centre. Recolored hot-white (was warm-yellow)
-    #    so the bird carries ZERO warm pixels — the only colour on the carbon is
-    #    cyan suit + magenta weapon, the strict two-tone the read depends on.
+    #    glowing emblem chip front-centre. DEMOTED to a small CYAN node (was
+    #    hot-white): a loud white chip on the crown simply re-created the warm
+    #    crown dot it replaced, now in white, stacking with the visor/blade-tip
+    #    whites into a head blob. As a dim cyan node it folds into the suit's
+    #    two-tone instead of fighting the visor for the face's hero light, and
+    #    the carbon head stays dark with one cyan slit.
     by = CROWN_Y + 3
     pygame.draw.line(surf, _CARBON, (HX - 12, by + 1), (HX + 12, by - 1), 4)
     pygame.draw.line(surf, _PANEL, (HX - 12, by), (HX + 12, by - 2), 2)
     pygame.draw.line(surf, _PANEL_H, (HX - 10, by - 1), (HX + 4, by - 2), 1)
-    _glow_dot(glow, _HOT, (HX, by - 1), 2, int(170 + 60 * throb))
-    pygame.draw.circle(surf, _HOT, (HX, by - 1), 1)
+    _glow_dot(glow, _CYAN, (HX, by - 1), 1, int(90 + 40 * throb))
+    pygame.draw.circle(surf, _CYAN_PAINT, (HX, by - 1), 1)
 
     # ── FLOATING HOLO-SHURIKEN at the hip: a glowing ring-star spinning with
     #    the beat — a holographic projectile orbiting Pip. DEMOTED this round:
