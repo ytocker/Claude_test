@@ -89,7 +89,11 @@ def _wing_pts(sgn, cy, lift):
     # tip carrying the widest, tallest silhouette break (well past the crown).
     t1 = (rootx + sgn * 5,  cy + 1)                       # low inner feather
     t2 = (rootx + sgn * 11, cy - 11 - lift)
-    t3 = (rootx + sgn * 16, cy - 22 - int(lift * 1.6))   # hero outer tip
+    # Round the t3/t4 lift identically (round, not truncate) so the outer tip and
+    # trailing tip sit at the SAME height on both wings — the int() truncation
+    # used to bias one side a pixel lower/fatter in the store beauty-shot.
+    lift16 = int(round(lift * 1.6))
+    t3 = (rootx + sgn * 16, cy - 22 - lift16)             # hero outer tip
     t4 = (rootx + sgn * 22, cy - 14 - lift)
     return rootx, rooty, [t1, t2, t3, t4]
 
@@ -217,6 +221,11 @@ def _paint(surf, wing_angle_deg):
     pygame.draw.circle(surf, _GOLD, (bx, HY + 19), 3)            # one bright end-ring
     pygame.draw.circle(surf, _GOLD_H, (bx - 1, HY + 18), 1)
     pygame.draw.circle(surf, _HOT, (bx - 1, HY + 18), 1)
+    # A 1px bright-gold pip on the upper rim of the end-ring (between the valknut
+    # base ~HY+10 and the ring ~HY+19) so on the down-beat the dark beard mass and
+    # the violet/valknut chest don't merge into one lump — it keeps a lit gold
+    # separation line through the throat cluster.
+    pygame.draw.circle(surf, _GOLD_H, (bx, HY + 15), 1)
 
     # ── valknut brooch at the throat — the single bright gold knot, now BIGGER
     # (~7px) and the animated tell: three interlocking triangles whose bloom
