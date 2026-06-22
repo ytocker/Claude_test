@@ -66,20 +66,23 @@ def _paint(surf, wing_angle_deg):
     # Now a single unbroken fur mass climbs up OVER the wing's leading edge and
     # falls down across the entire back into the tail base, so the rear third of
     # the silhouette reads FUR-brown, never red. Drawn first, under everything.
-    cloak = [(HX - 4, HY - 3),            # up over the wing-root / nape
-             (HX - 16, HY - 1),           # leading edge of the wing, covered
+    # First two vertices seat the fur UNDER the helm brow (up+out ~2px) so no
+    # red nape gap survives behind the helm; the central fall is dropped lower
+    # so the dark mass fully overlaps the down-flap tail tip + underwing.
+    cloak = [(HX - 6, HY - 5),            # up over the wing-root / nape (sealed)
+             (HX - 18, HY - 3),           # leading edge of the wing, covered
              (HX - 27, HY + 8),           # widest rear bulge
              (HX - 30, HY + 22),
              (HX - 32, HY + 31),          # down OVER the red tail base (kills leak)
              (HX - 22, HY + 34),
-             (HX - 12, HY + 30),
-             (HX - 6, HY + 22),
-             (HX - 2, HY + 12)]
+             (HX - 12, HY + 31),
+             (HX - 4, HY + 26),           # central fall pushed lower over tail tip
+             (HX + 3, HY + 18)]
     _poly(surf, FUR_D, cloak)
-    _poly(surf, FUR, [(HX - 5, HY - 1), (HX - 15, HY + 1), (HX - 24, HY + 9),
+    _poly(surf, FUR, [(HX - 6, HY - 3), (HX - 16, HY - 1), (HX - 24, HY + 9),
                       (HX - 27, HY + 22), (HX - 28, HY + 30),
-                      (HX - 20, HY + 32), (HX - 12, HY + 28),
-                      (HX - 7, HY + 21), (HX - 4, HY + 12)])
+                      (HX - 20, HY + 32), (HX - 12, HY + 29),
+                      (HX - 5, HY + 24), (HX + 1, HY + 17)])
     # Lumpy tuft rim down the cloak's outer fall so it reads fur, not a smooth pad.
     for k in range(8):
         ty = HY + 2 + k * 4
@@ -91,15 +94,28 @@ def _paint(surf, wing_angle_deg):
     # The down-flap wing tip flares to the far rear-left; left bare it was the
     # last scarlet patch behind the gold. A dark fur mass lands on it so the
     # cloak reads as draping right over the wing — the rear stays fur-brown.
-    _fur_lump(surf, HX - 33, HY + 10, 11, 7)
+    # Raised + widened so it also catches the leading-edge red that rides
+    # highest on the up-flap frame (thinnest fur), not just the rest pose.
+    _fur_lump(surf, HX - 34, HY + 8, 13, 9)
+
+    # ── TAIL TIP · one fur lump sealing the down-flap tail base (red + blue) ──
+    # The macaw's tail tip + underwing dip below the central fall on the down-
+    # flap frames; a dark fur lump seated right on the tail base overlaps the
+    # last ~6 scarlet + ~6 underwing-blue px across ALL four wing frames.
+    _fur_lump(surf, HX - 3, HY + 23, 11, 7)
+
+    # ── NAPE · short fur lump under the helm brow sealing the red nape streak ─
+    # Seated a hair higher-left so the nape fur seats fully under the helm brow
+    # with no red gap behind it on any frame; the helm dome seals the very top.
+    _fur_lump(surf, HX - 13, HY - 5, 9, 6)
 
     # ── SHOULDERS · wolf/bear RUFF flaring PAST both shoulders (widest point) ──
     # The hero silhouette break: the two flank masses are pushed UP + OUT so the
     # dark fur — not the helm, not the wing — is the WIDEST horizontal extent on
     # both sides at 40px. A lower central swag keeps clear of the beard below.
     _fur_lump(surf, HX - 22, HY + 5, 13, 8)       # near (left) shoulder — widest L
-    _fur_lump(surf, HX + 18, HY + 4, 11, 8)       # far (right) shoulder — widest R
-    _fur_lump(surf, HX - 1, HY + 13, 10, 6)       # lower central swag (under beard)
+    _fur_lump(surf, HX + 16, HY + 3, 12, 8)       # far (right) shoulder — widest R
+    _fur_lump(surf, HX - 1, HY + 14, 10, 6)       # lower central swag (de-crowds buckle)
 
     # ── FACE · broad blonder braided beard with stacked gold beard-rings ──────
     # A leather chin-root knits the beard to the body, then a wide blonde braid
@@ -121,7 +137,9 @@ def _paint(surf, wing_angle_deg):
     # ── HEAD · gilded spangenhelm dome with engraved rune-dot brow band ───────
     # Bright gold so the head carries the read; the spangen seam down the front
     # and the riveted band are the gold detail that survives downscale.
-    pygame.draw.ellipse(surf, GOLD_D, (HX - 12, cy - 6, 25, 18))
+    # Dark shadow base runs a hair wider-left so the helm itself seals the last
+    # up-flap underwing pixel at its rounded nape edge (no fur poke needed).
+    pygame.draw.ellipse(surf, GOLD_D, (HX - 14, cy - 7, 27, 19))
     pygame.draw.ellipse(surf, GOLD, (HX - 11, cy - 6, 23, 15))
     pygame.draw.ellipse(surf, GOLD_H, (HX - 6, cy - 5, 9, 4))     # dome specular
     # Spangen seam riveted down the front of the bowl.
