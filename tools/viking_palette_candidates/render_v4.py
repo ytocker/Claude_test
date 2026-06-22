@@ -19,7 +19,7 @@ from game.draw import get_sky_surface_biome, draw_mountains, draw_ground, draw_c
 from game.entities import Pipe
 from game.config import W as GW, H as GH, GROUND_Y
 
-OUT = "docs/store_redesign/costume/viking/palette/v4/round_1.png"
+OUT = "docs/store_redesign/costume/viking/palette/v4/round_2.png"
 TITLE = "VIKING PALETTE v4 — WOADGREEN  (woad-painted forest raider)"
 
 # Night phase from biome.py's keyframe table (NIGHT keyframe).

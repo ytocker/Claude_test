@@ -39,14 +39,20 @@ HELM      = (154, 122, 58)          # #9A7A3A bronze helm
 HELM_DK   = (94, 74, 34)            # #5E4A22 bronze shadow
 HELM_HI   = (210, 184, 106)         # #D2B86A bronze highlight
 
-FUR       = (90, 70, 50)            # #5A4632 brown fur mantle
-FUR_HI    = (122, 96, 68)           # #7A6044 lit fur
+# Fur lightened to a warmer TAN with brighter tufts so the collar reads a clear
+# value step above the auburn beard — at 40px the two warm-brown bands fused
+# into one before. The collar is now the lighter of the two warm masses.
+FUR       = (124, 98, 66)           # #7C6242 warm tan fur mantle
+FUR_HI    = (164, 134, 96)          # #A48660 lit fur tuft (brighter highlight)
 
 BEARD     = (110, 58, 30)           # #6E3A1E auburn beard
 BEARD_DK  = (74, 38, 20)            # #4A2614 beard shadow
 RING      = (200, 154, 58)          # #C89A3A bronze beard-ring
 
-SHIELD_FLD= (62, 107, 58)           # #3E6B3A green painted shield field
+# Shield field shifted OFF foliage-green to a desaturated deep TEAL. A warm
+# yellow-green field camouflaged against the vines/bushes/coins; this cool
+# blue-green disc reads as a deliberate painted shield, not a foliage patch.
+SHIELD_FLD= (50, 96, 96)            # #326060 deep teal shield field
 SHIELD_RIM= (110, 82, 56)           # #6E5238 wood shield rim
 IRON      = (96, 96, 100)           # iron boss / rim (cool grey)
 IRON_DK   = (52, 52, 56)            # iron shadow
@@ -109,9 +115,10 @@ def _paint(surf, wing_angle_deg):
     sx, sy, sr = HX - 26, HY + 11, 13
     pygame.draw.circle(surf, SHIELD_RIM, (sx, sy), sr + 1)     # wood rim
     pygame.draw.circle(surf, SHIELD_FLD, (sx, sy), sr)         # green field
-    # Plank seams across the painted face.
+    # Plank seams cooled to a darker teal so the disc reads as ONE cool unit —
+    # a warm-green seam re-tied the field back to the foliage.
     for dx in (-7, 0, 7):
-        pygame.draw.line(surf, (48, 84, 46), (sx + dx, sy - sr + 2),
+        pygame.draw.line(surf, (34, 70, 70), (sx + dx, sy - sr + 2),
                          (sx + dx, sy + sr - 2), 1)
     # Iron rim band + bright iron boss with a hard glint.
     pygame.draw.circle(surf, IRON, (sx, sy), sr, 2)
