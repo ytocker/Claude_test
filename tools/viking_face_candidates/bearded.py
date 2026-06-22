@@ -115,6 +115,10 @@ def _face(surf, wing_angle, P):
     beard, beard_hi = P["beard"], P["beard_hi"]
     ring, white, bone = P["ring"], P["white"], P["bone"]
     key = P["keyline"][:3]
+    # IRONCLAD's chin beard sat too close to the brown body; drop the chin tone
+    # a notch darker than the 'stache beard so it doesn't melt into the chest.
+    iron_face = P["name"] == "IRONCLAD"
+    chin_tone = (40, 28, 18) if iron_face else beard
 
     # The facial-hair value plan: a DARK narrow CHIN BEARD (bottom of the stack)
     # under a LIGHTER walrus MOUSTACHE with two long braids dropping to metal
@@ -146,8 +150,11 @@ def _face(surf, wing_angle, P):
         (cx0 + 4, cy0),           # right edge, body-side of the beak
         (cx0,     cy0 - 1),
     ]
+    # A doubled keyline (offset 1px down + the rim) strengthens the chin edge
+    # so it reads against the body brown even before the darker fill helps.
+    _poly(surf, key, [(x, y + 2) for x, y in chin])
     _poly(surf, key, [(x, y + 1) for x, y in chin])
-    _poly(surf, beard, chin)
+    _poly(surf, chin_tone, chin)
     _poly(surf, beard_hi, [
         (cx0 - 4, cy0 + 1), (cx0 - 1, cy0 + 1),
         (cx0 - 2, cy0 + 8), (cx0 - 5, cy0 + 6),
@@ -223,17 +230,29 @@ def _face(surf, wing_angle, P):
 #     twin-blade head simply pokes up past the back shoulder.
 # ─────────────────────────────────────────────────────────────────────────────
 def _carried_axe(surf, P):
-    blade, blade_dk, blade_hi = P["blade"], P["blade_dk"], P["blade_hi"]
+    iron = P["name"] == "IRONCLAD"
     haft, haft_hi = P["haft"], P["haft_hi"]
     ring, white, bone = P["ring"], P["white"], P["bone"]
     key = P["keyline"][:3]
 
-    # Diagonal slung pose, modelled on the shipped skin_ninja back-ninjato: butt
-    # LOW out past the tail, axe-head HIGH up past the back shoulder/crown. The
-    # head x is pulled inboard of the ninjato's so the WIDE twin-bit head clears
-    # the canvas edge on the right (a thin ninjato tip didn't need that room).
-    lo = (HX - 31, HY + 28)        # haft butt, past the tail
-    hi = (HX + 6, CROWN_Y - 17)    # axe-head centre, up past the back shoulder
+    # IRONCLAD's grey blade fused with the grey helm steel, so here the blade
+    # tone is WARMED + DARKENED a notch toward gunmetal/iron away from the
+    # cool helm steel (P['blade']); BLOODAXE's blade already contrasts the
+    # rust body, so it keeps the frozen steel tone. The hot outer-arc edge
+    # highlight is what still sells "blade" once the silhouette is fixed.
+    if iron:
+        blade, blade_dk, blade_hi = (92, 96, 104), (52, 54, 62), (176, 182, 192)
+    else:
+        blade, blade_dk, blade_hi = P["blade"], P["blade_dk"], P["blade_hi"]
+
+    # Back-slung pose: butt LOW past the tail (left), head HIGH up past the
+    # back shoulder so it clears the crown into OPEN SKY (not tucked on the
+    # helm). The diagonal is steepened vs round-1 and the head pulled higher
+    # and back-of-crown so its outer bits silhouette against sky on the
+    # tail/crown side, and a run of wrapped haft shows on the tail-side body
+    # between the shield bottom and the butt-cap.
+    lo = (HX - 30, HY + 30)        # haft butt, low past the tail
+    hi = (HX - 3, CROWN_Y - 23)    # axe-head centre, high above the back crown
 
     dx, dy = hi[0] - lo[0], hi[1] - lo[1]
     blen = math.hypot(dx, dy)
@@ -243,8 +262,8 @@ def _carried_axe(surf, P):
     # ── HAFT running the whole diagonal (a dark core + wood + lit edge). It
     # stops a touch short of the head centre so the bits sit on its end. ───────
     hx0, hy0 = lo
-    hx1 = hi[0] - ux * 9
-    hy1 = hi[1] - uy * 9
+    hx1 = hi[0] - ux * 8
+    hy1 = hi[1] - uy * 8
     pygame.draw.line(surf, key, (hx0, hy0), (hx1, hy1), 6)
     pygame.draw.line(surf, haft, (hx0, hy0), (hx1, hy1), 4)
     pygame.draw.line(surf, haft_hi, (hx0 + px, hy0 + py), (hx1 + px, hy1 + py), 1)
@@ -260,44 +279,50 @@ def _carried_axe(surf, P):
 
     # ── TWIN-CRESCENT DOUBLE-BIT HEAD at hi, aligned to the haft so both bits
     # flank the shaft. Built in haft-local axes (u along the haft, p across) so
-    # the BERSERKER crescent shape rides the diagonal instead of sitting flat. ─
+    # the crescent shape rides the diagonal instead of sitting flat. ──────────
     tx, ty = hi
 
     def L(a, b):
         # a = offset along the haft (toward the tip is +), b = offset across.
         return (tx + ux * a + px * b, ty + uy * a + py * b)
 
-    # Each bit is a crescent: inner-top near the socket -> flared upper horn
-    # POINT -> cutting-edge waist -> flared lower horn POINT -> inner-bottom ->
-    # CONCAVE neck pinched back toward the socket (the waist is what reads the
-    # two as blades on a slim socket, not one solid block). One bit to each side
-    # of the haft (b<0 and b>0); cross-reach kept to 11 so both fit in-canvas.
+    # Each bit is a true CRESCENT held off the haft by a SLIM socket, joined to
+    # it only by thin necks at the socket's top and bottom — so a wedge of OPEN
+    # SKY (transparent) bites in between the bit's inner arc and the socket on
+    # each side. That negative-space notch, not a painted line, is what splits
+    # the head into a clean "><" twin-crescent instead of one solid block. The
+    # outer cutting edge bulges to b=±13 with SHARP horn points; the inner arc
+    # caves back to b=±8, leaving the daylight gap to the b=±2 socket. The bit
+    # WAIST + the daylight notch are what carry the read at 40px.
     for side in (-1, 1):
         bit = [
-            L(5,  side * 4),      # inner top, near the socket
-            L(7,  side * 9),      # upper horn POINT (flared past the edge)
-            L(0,  side * 12),     # cutting-edge waist (widest point)
-            L(-7, side * 9),      # lower horn POINT
-            L(-5, side * 4),      # inner bottom
-            L(-1, side * 6),      # CONCAVE neck pinched toward the socket
-            L(0,  side * 5),
-            L(1,  side * 6),
+            L(8,  side * 4),      # upper neck — thin join to the socket top
+            L(8,  side * 8),      # upper horn POINT — sharp, little flare
+            L(4,  side * 12),
+            L(0,  side * 13),     # cutting-edge waist (widest, outermost)
+            L(-4, side * 12),
+            L(-8, side * 8),      # lower horn POINT — sharp
+            L(-8, side * 4),      # lower neck — thin join to the socket bottom
+            L(-5, side * 7),      # inner arc caves back in...
+            L(0,  side * 8),      # ...deepest of the concave inner edge
+            L(5,  side * 7),
         ]
         _poly(surf, blade_dk, bit)
         # Brighter inner bevel facet on each bit.
         facet = [
-            L(4,  side * 5), L(5, side * 8), L(0, side * 10),
-            L(-5, side * 8), L(-3, side * 5),
+            L(6,  side * 6), L(6, side * 9), L(0, side * 11),
+            L(-6, side * 9), L(-6, side * 6), L(0, side * 9),
         ]
         _poly(surf, blade, facet)
         # Hot cutting-edge highlight along the outer arc.
         pygame.draw.lines(surf, blade_hi, False,
-                          [L(7, side * 9), L(0, side * 12), L(-7, side * 9)], 2)
-        pygame.draw.line(surf, white, L(0, side * 12), L(0, side * 11), 1)
-    # Slim socket band where the bits clamp the haft (a thin dark column along
-    # the haft axis), one ring stud at the centre.
-    pygame.draw.line(surf, blade_dk, L(6, 0), L(-7, 0), 4)
-    pygame.draw.line(surf, blade, L(5, 0), L(-6, 0), 2)
+                          [L(8, side * 8), L(0, side * 13), L(-8, side * 8)], 2)
+        pygame.draw.line(surf, white, L(0, side * 13), L(0, side * 12), 1)
+    # Slim socket column hugging the haft (much narrower than the bit reach so
+    # the daylight notches stay open), one ring stud at the centre.
+    pygame.draw.line(surf, key, L(8, 0), L(-8, 0), 5)
+    pygame.draw.line(surf, blade_dk, L(8, 0), L(-8, 0), 3)
+    pygame.draw.line(surf, blade, L(7, 0), L(-7, 0), 1)
     pygame.draw.circle(surf, ring, (int(tx), int(ty)), 1)
 
 

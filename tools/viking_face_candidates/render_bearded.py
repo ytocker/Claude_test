@@ -2,7 +2,7 @@
 
 For EACH palette (IRONCLAD then BLOODAXE): a hero zoom (face + carried axe
 legible) + an in-gameplay panel + a 40px NEAREST "truth read" of the actual
-in-game size. Saved to docs/store_redesign/costume/viking/bearded/round_1.png.
+in-game size. Saved to docs/store_redesign/costume/viking/bearded/round_2.png.
 Scratch exploration — no production art is touched.
 """
 import os
@@ -76,7 +76,7 @@ def main():
 
     out_dir = "/home/user/skybit/docs/store_redesign/costume/viking/bearded"
     os.makedirs(out_dir, exist_ok=True)
-    out = os.path.join(out_dir, "round_1.png")
+    out = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out)
     print("saved", out, sheet.get_size())
 
