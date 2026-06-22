@@ -187,8 +187,6 @@ def draw_card_nameplate(surf, sid, rect, equipped):
     tier = TIER_WORD[sid]
     plain_text(surf, tier, font(7.5), (cx, plate.y + m(8)), (14, 12, 26),
                shadow_a=0, tracking=m(1.4), weight=m(0.7))
-    gold_rule(surf, plate.x + m(10), plate.right - m(10), plate.y + m(14),
-              CARD_RING_BRIGHT, peak=130, thick=m(0.8))
     # the name in cream with a tight dark keyline so it pops on the colour plate
     _name_on(surf, name, cx, plate.y + m(23), plate_w - m(14))
     R.state_chip(surf, sid, cx, rect.y + m(91), equipped, _is_secret(sid),
@@ -251,8 +249,6 @@ def _tier_tag(surf, sid, cx, cy, pal):
     surf.blit(vgrad(r.w, r.h, rad, lerp_color(pal["gem"], pal["glow"], 0.4),
                     lerp_color(pal["deep"], NEAR_BLACK, 0.1), 255), r.topleft)
     pygame.draw.rect(surf, (4, 5, 16), r, width=max(1, m(1.1)), border_radius=rad)
-    pygame.draw.rect(surf, (*CARD_RING_BRIGHT, 150), r.inflate(-m(1.1), -m(1.1)),
-                     width=max(1, m(0.7)), border_radius=rad)
     plain_text(surf, tier, f, (cx, cy - m(0.5)), (16, 14, 28), shadow_a=0,
                tracking=m(1.0), weight=m(0.6))
 
@@ -299,8 +295,6 @@ def draw_card_frame(surf, sid, rect, equipped):
     top_sheen(surf, bar, brad, m(7), peak=72)
     pygame.draw.rect(surf, (4, 5, 16), bar, width=max(1, m(1.2)),
                      border_radius=brad)
-    pygame.draw.rect(surf, (*CARD_RING_BRIGHT, 170), bar.inflate(-m(1.2), -m(1.2)),
-                     width=max(1, m(0.7)), border_radius=brad)
     plain_text(surf, TIER_WORD[sid], font(8.5), bar.center, (14, 12, 26),
                shadow_a=0, tracking=m(1.6), weight=m(0.7))
 
@@ -450,10 +444,6 @@ def _ribbon(surf, sid, cx, cy, max_w, pal):
     # gold keyline around the notched silhouette (lane-3 card gold)
     abspoly = [(x0 + px, y0 + py) for px, py in poly]
     pygame.draw.polygon(surf, (4, 5, 16), abspoly, width=max(1, m(1.4)))
-    pygame.draw.polygon(surf, (*CARD_RING_BRIGHT, 200),
-                        [(x0 + px, y0 + py + m(0.6)) for px, py in poly][:3]
-                        + [(x0 + poly[5][0], y0 + poly[5][1] + m(0.6))],
-                        width=max(1, m(0.8)))
     # small top sheen along the upper edge
     plain_text(surf, tier, f, (cx, cy), (14, 12, 26), shadow_a=0,
                tracking=m(1.4), weight=m(0.7))

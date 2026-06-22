@@ -1096,8 +1096,6 @@ def draw_card(surf, sid, rect, equipped, variant=PRICE_VARIANT):
                           255, gamma=1.08), bar.topleft)
     top_sheen(surf, bar, brad, m(7), peak=72)
     pygame.draw.rect(surf, (4, 5, 16), bar, width=max(1, m(1.2)), border_radius=brad)
-    pygame.draw.rect(surf, (*CARD_RING_BRIGHT, 170), bar.inflate(-m(1.2), -m(1.2)),
-                     width=max(1, m(0.7)), border_radius=brad)
     plain_text(surf, tier_word, font(8.5), bar.center, (14, 12, 26),
                shadow_a=0, tracking=m(1.6), weight=m(0.7))
 
