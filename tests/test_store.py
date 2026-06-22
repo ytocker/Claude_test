@@ -178,11 +178,11 @@ class TestResilience(_StoreTestBase):
 
     def test_unknown_owned_ids_dropped(self):
         with open(store_data.STORE_FILE, "w", encoding="utf-8") as f:
-            json.dump({"owned": ["skin_ghost", "skin_phantom_xyz"]}, f)
+            json.dump({"owned": ["skin_tophat", "skin_phantom_xyz"]}, f)
         store_data._reset_for_test()
         store_data.load()
         owned = store_data.owned_ids()
-        self.assertIn("skin_ghost", owned)
+        self.assertIn("skin_tophat", owned)
         self.assertNotIn("skin_phantom_xyz", owned)
 
     def test_stale_equipped_skin_resets_to_base(self):
