@@ -27,6 +27,7 @@ from game.powerup_help import _seeded_stars
 from game import parrot
 from game import store_catalog
 from game import store_data
+from game import profile_sections
 # The Store owns the locked visual language; the Profile borrows its primitives
 # wholesale so the two screens can never drift apart.
 from game.store import (
@@ -59,6 +60,11 @@ class ProfileScene:
         self._tab_widths: "list[int]" = []
         self._tab_gap = 6
         self._toast = ("", 0.0)
+        # Top-level section: GEAR (loadout+inventory) | STATS | SHAME | ARCADE.
+        # GEAR keeps the original screen; the others render via profile_sections.
+        self.section = 0
+        self.switch_rects: "list[pygame.Rect]" = []
+        self.arcade_rects: "dict[str, pygame.Rect]" = {}
         store_data.load()
 
         # Owned-only per-tab lists, cheapest first — same ordering + free DEFAULT
@@ -117,11 +123,28 @@ class ProfileScene:
     def render(self, surf: pygame.Surface) -> None:
         self._draw_bg(surf)
         self._draw_title(surf)
+        self.switch_rects = profile_sections.draw_switcher(surf, self.section)
+        self.item_rects = {}
+        self.arcade_rects = {}
+
+        if self.section == 0:
+            self._render_gear(surf)
+        elif self.section == 1:
+            profile_sections.draw_stats(surf, self.t, store_data.all_stats())
+        elif self.section == 2:
+            profile_sections.draw_shame(surf, self.t, store_data.all_stats())
+        else:
+            self.arcade_rects = profile_sections.draw_arcade(
+                surf, self.t, store_data.all_stats())
+
+        self._draw_toast(surf)
+        self._draw_back(surf)
+
+    def _render_gear(self, surf: pygame.Surface) -> None:
+        """The original Profile: live loadout hero + owned-cosmetics grid."""
         self._draw_loadout(surf)
         self._draw_tabs(surf)
-
         base_x = (W - (_CARD_W * 2 + _GAP)) // 2
-        self.item_rects = {}
         ids = self._cur_ids()
         page_ids = ids[self.page * _PER_PAGE:(self.page + 1) * _PER_PAGE]
         for idx, sid in enumerate(page_ids):
@@ -130,12 +153,8 @@ class ProfileScene:
             rect = pygame.Rect(x, y, _CARD_W, _CARD_H)
             self.item_rects[sid] = rect
             self._draw_card(surf, sid, rect)
-
         grid_bot = _GRID_TOP + 3 * (_CARD_H + _GAP)
         self._draw_page_controls(surf, base_x, grid_bot - 4, _CARD_W * 2 + _GAP)
-
-        self._draw_toast(surf)
-        self._draw_back(surf)
 
     def _draw_bg(self, surf) -> None:
         n = len(_BG_STOPS)
@@ -185,7 +204,7 @@ class ProfileScene:
         worn — a loadout is several items at once, so no single item is named.
         Always on screen so the player sees their current look while they browse
         the grid below; the right band stays light for a future stats block."""
-        panel = pygame.Rect(12, 48, W - 24, 140)
+        panel = pygame.Rect(12, 88, W - 24, 100)
         _drop_shadow(surf, panel, 16, blur=6, alpha=140)
         surf.blit(_vgrad_panel(panel.w, panel.h, 16, _OBS_TOP, _OBS_BOT, 252),
                   panel.topleft)
@@ -202,15 +221,15 @@ class ProfileScene:
         # A warm-gold rim (not the old periwinkle halo, which read as the RARE
         # rarity blue) keeps the perimeter in the screen's gold furniture without
         # borrowing a rarity hue.
-        stage_cx = panel.x + 78
-        stage_cy = panel.centery + 4
-        _soft_glow(surf, stage_cx, stage_cy, 56, (236, 190, 96), 46, layers=5)
-        _inset_disc(surf, stage_cx, stage_cy, 50)
-        pygame.draw.circle(surf, (*_GOLD_BRIGHT, 220), (stage_cx, stage_cy), 50, 2)
-        pygame.draw.circle(surf, (*_GOLD_DEEP, 180), (stage_cx, stage_cy), 48, 1)
+        stage_cx = panel.x + 70
+        stage_cy = panel.centery
+        _soft_glow(surf, stage_cx, stage_cy, 48, (236, 190, 96), 46, layers=5)
+        _inset_disc(surf, stage_cx, stage_cy, 42)
+        pygame.draw.circle(surf, (*_GOLD_BRIGHT, 220), (stage_cx, stage_cy), 42, 2)
+        pygame.draw.circle(surf, (*_GOLD_DEEP, 180), (stage_cx, stage_cy), 40, 1)
         fidx = int(self.t * 8.0) % 4
         sprite = self._loadout_sprite(skin, pid, fidx)
-        box = 86
+        box = 74
         sw, sh = sprite.get_size()
         scale = box / max(sw, sh)
         sprite = pygame.transform.smoothscale(
@@ -402,6 +421,22 @@ class ProfileScene:
             return "back"
         if self.back_rect and self.back_rect.collidepoint(pos):
             return "back"
+        for i, r in enumerate(self.switch_rects):
+            if r.collidepoint(pos):
+                if i != self.section:
+                    self.section = i
+                    self.page = 0
+                return None
+        if self.section == 0:
+            return self._tap_gear(pos)
+        if self.section == 3:
+            for key, r in self.arcade_rects.items():
+                if r.collidepoint(pos):
+                    self._tap_curio(key)
+                    return None
+        return None
+
+    def _tap_gear(self, pos) -> "str | None":
         if self.tab_chev_l and self.tab_chev_l.collidepoint(pos):
             self.tab_scroll = max(0.0, self.tab_scroll - self._tab_vp.width * 0.6)
             return None
@@ -426,6 +461,38 @@ class ProfileScene:
                 self._tap_item(sid)
                 return None
         return None
+
+    def _tap_curio(self, key: str) -> None:
+        """Arcade taps: the crystal ball is free, the vending machine costs 5,
+        Beakon costs 20. Spends route through store_data (dual-backend); the
+        result is flashed as a toast (a richer reveal lands with the final art)."""
+        import random
+        from game import arcade
+        st = store_data.all_stats()
+        if key == "crystal":
+            self._flash(arcade.crystal_prediction(st, random.Random())["text"])
+        elif key == "vending":
+            if store_data.try_spend(arcade.VENDING_COST):
+                out = arcade.vend(random.Random())
+                if out["coins_back"]:
+                    store_data.add_coins(out["coins_back"])
+                st.setdefault("junk_drawer", []).append(out["id"])
+                store_data.save()
+                self._flash(out["name"])
+            else:
+                self._flash("NEED 5 COINS")
+        elif key == "beakon":
+            if store_data.try_spend(arcade.BEAKON_COST):
+                tip = arcade.beakon_tip(random.Random(),
+                                        len(st.get("wisdom_scroll", [])))
+                if tip["refund"]:
+                    store_data.add_coins(arcade.BEAKON_COST)
+                else:
+                    st.setdefault("wisdom_scroll", []).append(tip["text"])
+                    store_data.save()
+                self._flash(tip["text"])
+            else:
+                self._flash("NEED 20 COINS")
 
     def _tap_item(self, sid: str) -> None:
         if store_data.equipped(_slot_of(sid)) == sid:
