@@ -421,20 +421,26 @@ def status_chip(surf, cx, cy, text, h, kind="equip"):
     f = font(h * 0.48 / SS)
     nw = _glyph_base(text, f, 0).get_width() + m(2)
     pad = m(17)
-    w = pad * 2 + nw
-    r = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
-    chip_body(surf, r, h // 2, top, bot, rim_dark, rim_bright, gloss=118)
     if kind == "equipped":
-        # a tiny check mark before the word so EQUIPPED reads as a confirmed
-        # state, sharing the cell-then-label rhythm of the price chip
-        cxk = r.x + pad - m(2)
-        plain_text(surf, text, f, (r.centerx + m(5), cy), num, shadow_a=0,
-                   weight=m(0.9))
-        ck = cxk
+        # a tiny check mark leads the word (the confirmed-state tell), sitting in
+        # its own cell with a clear gap before the label — the same cell->label
+        # rhythm as the price chip's coin
+        ckw = m(14)
+        gapc = m(7)
+        w = pad + ckw + gapc + nw + pad
+        r = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
+        chip_body(surf, r, h // 2, top, bot, rim_dark, rim_bright, gloss=118)
+        ck = r.x + pad
         pygame.draw.lines(surf, num, False,
-                          [(ck, cy + m(1)), (ck + m(4), cy + m(5)),
-                           (ck + m(11), cy - m(6))], max(1, m(2.6)))
+                          [(ck, cy + m(1)), (ck + m(5), cy + m(6)),
+                           (ck + ckw, cy - m(7))], max(1, m(2.8)))
+        tx = ck + ckw + gapc
+        plain_text(surf, text, f, (tx + nw // 2, cy), num, shadow_a=0,
+                   weight=m(0.9))
     else:
+        w = pad * 2 + nw
+        r = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
+        chip_body(surf, r, h // 2, top, bot, rim_dark, rim_bright, gloss=118)
         plain_text(surf, text, f, r.center, num, shadow_a=0, weight=m(0.9))
     return r
 
@@ -499,24 +505,35 @@ def render_sheet():
            col=(255, 244, 206))
 
     row_y = sy + m(40)
-    sx3 = [sw // 4, sw // 2, sw - sw // 4]
-    _label(surf, "EQUIP", sx3[0], row_y - m(24), size=10)
-    _label(surf, "EQUIPPED", sx3[1], row_y - m(24), size=10)
-    _label(surf, "LOCKED", sx3[2], row_y - m(24), size=10)
-    status_chip(surf, sx3[0], row_y, "EQUIP", ch, kind="equip")
-    status_chip(surf, sx3[1], row_y, "EQUIPPED", ch, kind="equipped")
-    price_chip(surf, sx3[2], row_y, "7,000", ch, ramp="A", state="locked")
+    # lay the three states out by measured width with even gaps so the wide
+    # EQUIPPED pill never crowds its neighbours
+    tmp = pygame.Surface((sw, ch * 3), pygame.SRCALPHA)
+    we = status_chip(tmp, sw // 2, ch * 1.5, "EQUIP", ch, kind="equip").w
+    wq = status_chip(tmp, sw // 2, ch * 1.5, "EQUIPPED", ch, kind="equipped").w
+    wl = price_chip(tmp, sw // 2, ch * 1.5, "7,000", ch, ramp="A", state="locked").w
+    sgap = m(20)
+    stotal = we + wq + wl + sgap * 2
+    sx = (sw - stotal) // 2
+    centers = []
+    for cw in (we, wq, wl):
+        centers.append(sx + cw // 2)
+        sx += cw + sgap
+    _label(surf, "EQUIP", centers[0], row_y - m(24), size=10)
+    _label(surf, "EQUIPPED", centers[1], row_y - m(24), size=10)
+    _label(surf, "LOCKED", centers[2], row_y - m(24), size=10)
+    status_chip(surf, centers[0], row_y, "EQUIP", ch, kind="equip")
+    status_chip(surf, centers[1], row_y, "EQUIPPED", ch, kind="equipped")
+    price_chip(surf, centers[2], row_y, "7,000", ch, ramp="A", state="locked")
 
-    # ── a 'family line-up' row: the default gold price beside its siblings so
-    #    the shared silhouette + double rim reads at a glance ──────────────────
-    line_y = row_y + m(58)
-    _label(surf, "FAMILY LINE-UP (default ramp A)", cx, line_y - m(20), size=11,
-           col=(236, 214, 150))
-    lx = [m(70), m(150), m(232), m(312)]
-    price_chip(surf, lx[0], line_y + m(14), "1,500", ch, ramp="A", state="afford")
-    status_chip(surf, lx[1], line_y + m(14), "EQUIP", ch, kind="equip")
-    status_chip(surf, lx[2], line_y + m(14), "EQUIPPED", ch, kind="equipped")
-    price_chip(surf, lx[3], line_y + m(14), "7,000", ch, ramp="A", state="locked")
+    # ── default-ramp price across the three target values, large, so the AD can
+    #    read the gold ramp + dark numerals at the size the chip actually ships ─
+    show_y = row_y + m(64)
+    _label(surf, "DEFAULT (RAMP A) — 280 / 1,500 / 7,000", cx, show_y - m(22),
+           size=11, col=(236, 214, 150))
+    bigh = m(34)
+    bx = [sw // 4, sw // 2, sw - sw // 4]
+    for x, v in zip(bx, ["280", "1,500", "7,000"]):
+        price_chip(surf, x, show_y + m(16), v, bigh, ramp="A", state="afford")
 
     return surf, (LW, LH)
 

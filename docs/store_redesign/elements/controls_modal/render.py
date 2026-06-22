@@ -348,8 +348,10 @@ def _bg_tile(w, h, seed=0):
     """A slice of the shared CONSTELLATION background for any sub-surface."""
     surf = pygame.Surface((w, h))
     surf.blit(multistop_v(w, h, BG_STOPS), (0, 0))
-    soft_glow(surf, w // 2, int(h * 0.42), int(min(w, h) * 0.7), NEBULA_GLOW,
-              58, layers=10)
+    # gentler, wider bloom on this landscape sheet so it doesn't read as hard
+    # concentric rings behind the chrome row (the live store is portrait).
+    soft_glow(surf, w // 2, int(h * 0.5), int(w * 0.55), NEBULA_GLOW,
+              34, layers=12)
     rnd = __import__("random").Random(70 + seed)
     for n, rmin, rmax, amin, amax in ((90, 0.4, 0.9, 30, 90),
                                        (36, 0.9, 1.6, 70, 150),
@@ -420,8 +422,11 @@ def main():
     R._build_static_bg()                           # primes shared bg caches
     sheet = render_sheet()
     sw, sh = sheet.get_size()
-    # one smoothscale down from SS author space to a crisp review target
-    out = pygame.transform.smoothscale(sheet, (int(sw / SS_), int(sh / SS_)))
+    # one smoothscale down from SS author space. Keep 1.6x logical detail so the
+    # SS-crisp edges + faceted gems survive on the review sheet.
+    zoom = 1.6
+    out = pygame.transform.smoothscale(
+        sheet, (int(sw / SS_ * zoom), int(sh / SS_ * zoom)))
     path = os.path.join(_HERE, "round_1.png")
     pygame.image.save(out, path)
     print("saved", path, out.get_size())

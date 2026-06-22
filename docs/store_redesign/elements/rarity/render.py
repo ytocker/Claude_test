@@ -73,7 +73,9 @@ RARITY = {
     "epic":      {"gem": (194, 122, 248), "glow": (172, 94, 244),  "deep": (80, 34, 126)},
     "legendary": {"gem": (255, 202, 104), "glow": (255, 168, 58),  "deep": (150, 92, 22)},
 }
-MYSTERY = {"gem": (226, 232, 244), "glow": (196, 214, 236), "deep": (90, 98, 124)}
+# mystery kept neutral-cool but a step DARKER in value than common's pale
+# lilac so the two pale reads don't collapse to the same greyscale bar.
+MYSTERY = {"gem": (198, 208, 224), "glow": (172, 190, 216), "deep": (74, 82, 108)}
 
 TIERS = ["common", "rare", "epic", "legendary"]
 ORDER = TIERS + ["mystery"]
@@ -388,18 +390,17 @@ def card_corner(surf, x, y, w, h):
     return rect
 
 
-def grayscale_strip(surf, x, y, w, h):
-    """Take a slice of the rendered sheet, desaturate it (luma), and re-blit so
-    the colourblind-safety claim is PROVEN, not asserted: if two tiers collapse
-    to the same bar here, the colour read was a crutch."""
-    src = surf.subsurface(pygame.Rect(x, y, w, h)).copy()
+def grayscale_of(src):
+    """Desaturate a surface by luma so the colourblind-safety claim is PROVEN,
+    not asserted: if two tiers collapse to the same bar here, the colour read
+    was a crutch. Coarse grid sampling is plenty for a proof strip."""
+    w, h = src.get_size()
     gray = pygame.Surface((w, h))
     src.lock()
-    # column-luma is enough for a proof strip; sample a coarse grid for speed
     step = max(1, SS)
     for gy in range(0, h, step):
         for gx in range(0, w, step):
-            r, g, b, _ = src.get_at((gx, gy))
+            r, g, b = src.get_at((gx, gy))[:3]
             lum = int(0.299 * r + 0.587 * g + 0.114 * b)
             pygame.draw.rect(gray, (lum, lum, lum), (gx, gy, step, step))
     src.unlock()
@@ -415,7 +416,7 @@ def render_device():
     gem_band = m(150)
     label_band = m(40)
     proof_h = m(96)
-    thread_band = m(190)
+    thread_band = m(250)
     sheet_h = (title_h + gem_band + label_band + proof_h + m(34)
                + thread_band + pad)
 
@@ -427,16 +428,25 @@ def render_device():
                tracking=m(1), keyline=(10, 10, 24), kw=m(0.8))
 
     # ── ROW 1: the five tier gems at large SS-crisp scale (round brilliant) ───
+    # The gem row is rendered onto its OWN flat-ground strip so the greyscale
+    # proof below samples clean gems against an even value — not the uneven
+    # nebula bloom, which would corrupt the value-separation read. The same
+    # strip is then desaturated for the proof.
     gem_cy = title_h + gem_band // 2 + m(6)
     gem_r = m(40)
     strip_x = pad
     strip_y = gem_cy - gem_r - m(8)
     strip_h = gem_r * 2 + m(34)
+    strip_w = col_w * n
+    row = pygame.Surface((strip_w, strip_h))
+    row.fill((12, 13, 34))                          # flat neutral card-dark ground
+    row_cy = strip_h // 2
     for i, key in enumerate(ORDER):
-        cx = pad + col_w * i + col_w // 2
+        rcx = col_w * i + col_w // 2
         pal = pal_of(key)
-        soft_glow(surf, cx, gem_cy, int(gem_r * 1.5), pal["glow"], 40, layers=8)
-        gem_round(surf, cx, gem_cy, gem_r, pal, mystery=(key == "mystery"))
+        soft_glow(row, rcx, row_cy, int(gem_r * 1.5), pal["glow"], 40, layers=8)
+        gem_round(row, rcx, row_cy, gem_r, pal, mystery=(key == "mystery"))
+    surf.blit(row, (strip_x, strip_y))
 
     # tier word labels (the LANGUAGE), gem-tinted so name + colour agree
     lab_y = title_h + gem_band + m(8)
@@ -448,11 +458,11 @@ def render_device():
                    shadow_a=150, tracking=m(1), keyline=(8, 8, 20), kw=m(1.0))
 
     # ── ROW 2: grayscale proof strip (desaturate the gem row) ─────────────────
-    proof_y = lab_y + label_band - m(6)
+    proof_y = lab_y + label_band - m(2)
     plain_text(surf, "GRAYSCALE PROOF  (value separation — colourblind-safe)",
-               font(10), (sheet_w // 2, proof_y - m(2)), (200, 204, 220),
-               shadow_a=120, tracking=m(1))
-    gray = grayscale_strip(surf, strip_x, strip_y, col_w * n, strip_h)
+               font(10), (sheet_w // 2, proof_y - m(4)), (214, 218, 232),
+               shadow_a=160, tracking=m(1), keyline=(8, 8, 20), kw=m(0.7))
+    gray = grayscale_of(row)
     gp_y = proof_y + m(14)
     # frame + the desaturated gem row
     pygame.draw.rect(surf, (40, 42, 60), (strip_x - m(2), gp_y - m(2),
