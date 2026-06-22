@@ -944,6 +944,13 @@ class App:
             store_data.add_coins(self.world.coin_count)
         except Exception:
             pass
+        # Fold the finished run into the persistent Profile stats (lifetime
+        # totals, personal bests, death-context counters). Internally guarded,
+        # but wrapped again so nothing here can interrupt the run-end flow.
+        try:
+            store_data.record_run(self.world)
+        except Exception:
+            pass
         # Fire-and-forget telemetry: send the run summary to Supabase
         # (browser-only; native is a silent no-op). Strong ref on
         # self prevents GC from killing the task mid-flight.

@@ -241,6 +241,12 @@ class World:
         self.time_alive = 0.0
         self.near_misses = 0
         self.flap_count = 0
+        # Profile run-accounting only (never read by the sim): the worst
+        # flaps-in-any-1s-window panic spike, and which buffs were still
+        # active at the instant of death.
+        self.max_flaps_per_sec = 0
+        self._flap_times: "list[float]" = []
+        self.death_powerups: "list[str]" = []
         # Every Coin construction increments this; the stats screen uses
         # coin_count / max(1, coins_spawned - len(coins)) as the "% of
         # encountered coins grabbed" figure (coins still on screen don't
@@ -1194,6 +1200,11 @@ class World:
             sign = -1 if self.reverse_timer > 0 else 1
             self.bird.flap(gravity_sign=sign)
             self.flap_count += 1
+            self._flap_times.append(self.time_alive)
+            while self._flap_times and self._flap_times[0] < self.time_alive - 1.0:
+                self._flap_times.pop(0)
+            self.max_flaps_per_sec = max(self.max_flaps_per_sec,
+                                         len(self._flap_times))
             audio.play_flap()
             # SKATEBOARD tricks. The detector handles 4 tap patterns:
             #   1) 3 FAST taps   (gap ≤ BACKFLIP_TAP_WINDOW)   → backflip
@@ -2011,6 +2022,19 @@ class World:
             self._revive_knight()
             return
         self.game_over = True
+        # Snapshot still-active buffs for the run record's "died with a
+        # power-up" shame counter (knight is already consumed by the revive
+        # path above, so reaching here means it wasn't shielding the hit).
+        self.death_powerups = [
+            kind for kind, t in (
+                ("triple", self.triple_timer), ("magnet", self.magnet_timer),
+                ("megamagnet", self.megamagnet_timer), ("slowmo", self.slowmo_timer),
+                ("kfc", self.kfc_timer), ("ghost", self.ghost_timer),
+                ("grow", self.grow_timer), ("reverse", self.reverse_timer),
+                ("shrink", self.shrink_timer),
+                ("skateboard", self.skateboard_timer), ("knight", self.knight_timer),
+            ) if t > 0
+        ]
         self.bird.alive = False
         # Start the dead-Pip cross-fade. Tiny non-zero value gates the
         # overlay in Bird.draw; world.update advances it each frame.

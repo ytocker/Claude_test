@@ -36,6 +36,55 @@ _EQUIP_SLOTS = ("skin", "pillar", "ground", "trail", "parcel")
 _STATE: "dict | None" = None  # lazy: populated on first load()
 
 
+# Death-pillar histogram is capped so a marathon run can't grow the save file
+# without bound; the final bucket reads as "that pillar or beyond".
+_HIST_CAP = 200
+
+
+def _default_stats() -> dict:
+    """Persistent Profile stats — lifetime totals, personal bests, the
+    death-context counters the Stats / Hall of Shame sections read, and the
+    container state the Arcade curios persist into. All start empty; record_run
+    folds each finished run in. Kept under one key so the wallet/equip paths
+    never have to know these exist."""
+    return {
+        # lifetime totals
+        "runs_played": 0,
+        "total_time_s": 0.0,
+        "total_pillars": 0,
+        "total_coins_earned": 0,
+        "total_flaps": 0,
+        "total_near_misses": 0,
+        "total_powerups": 0,
+        "powerups_by_kind": {},
+        "coins_ignored": 0,
+        # personal bests (best single run, not lifetime sums)
+        "best_score": 0,
+        "best_pillars": 0,
+        "best_time_s": 0.0,
+        "best_near_misses": 0,
+        # death context — what your crashes look like
+        "scoreless_deaths": 0,
+        "pillar1_deaths": 0,
+        "sub3s_deaths": 0,
+        "deaths_with_powerup": {},
+        "last_death_pillar": -1,
+        "same_pillar_streak": 0,
+        "death_pillar_histogram": [],
+        "max_flaps_per_sec": 0,
+        # "days since last dignified flight" board
+        "last_dignified_date": "",
+        "dignified_record_gap": 0,
+        # interactive-section state (owned by shame.py / arcade.py)
+        "equipped_title": "",
+        "unlocked_shame": {},
+        "junk_drawer": [],
+        "wisdom_scroll": [],
+        "prophecy": {},
+        "crystal_last_session": "",
+    }
+
+
 def _default_state() -> dict:
     return {
         "version": _VERSION,
@@ -50,6 +99,7 @@ def _default_state() -> dict:
         # skin_id -> design index, for skins whose look is a random 1-of-N
         # pick locked at unlock (e.g. the secret jet fighter).
         "skin_variants": {},
+        "stats": _default_stats(),
     }
 
 
@@ -94,7 +144,42 @@ def _coerce(raw: "dict | None") -> dict:
                     state["skin_variants"][k] = int(v)
                 except (TypeError, ValueError):
                     pass
+        _coerce_stats(state["stats"], raw.get("stats"))
     return state
+
+
+def _coerce_stats(base: dict, raw: "dict | None") -> None:
+    """Merge a loaded stats blob onto fresh defaults in place, copying each
+    known key only when the loaded value matches the default's type. Unknown
+    keys are dropped and missing keys keep their default, so a save from an
+    older build (before a counter existed) upgrades silently."""
+    if not isinstance(raw, dict):
+        return
+    for key, default in base.items():
+        if key not in raw:
+            continue
+        v = raw[key]
+        if isinstance(default, bool):
+            continue  # no bool stats today; guard against int/bool confusion
+        if isinstance(default, float):
+            try:
+                base[key] = float(v)
+            except (TypeError, ValueError):
+                pass
+        elif isinstance(default, int):
+            try:
+                base[key] = int(v)
+            except (TypeError, ValueError):
+                pass
+        elif isinstance(default, str):
+            if isinstance(v, str):
+                base[key] = v
+        elif isinstance(default, list):
+            if isinstance(v, list):
+                base[key] = v
+        elif isinstance(default, dict):
+            if isinstance(v, dict):
+                base[key] = dict(v)
 
 
 # ── Native local-JSON helpers (mirror leaderboard._load_local/_save_local) ────
@@ -192,6 +277,105 @@ def add_coins(n: int) -> None:
     st = _ensure()
     st["wallet"] = int(st["wallet"]) + n
     save()
+
+
+# ── Profile stats ─────────────────────────────────────────────────────────────
+
+def all_stats() -> dict:
+    """The live persistent-stats dict (see _default_stats). Callers read it for
+    the Profile's Stats / Shame / Arcade sections; mutate only through the
+    helpers below so every change is written through."""
+    st = _ensure()
+    if not isinstance(st.get("stats"), dict):
+        st["stats"] = _default_stats()
+    return st["stats"]
+
+
+def _days_between(d1: str, d2: str) -> int:
+    """Whole calendar days between two ISO dates, or 0 if either is unparseable
+    — never raises, so a corrupt date can't break the run record."""
+    try:
+        from datetime import date
+        return abs((date.fromisoformat(d2) - date.fromisoformat(d1)).days)
+    except Exception:
+        return 0
+
+
+def record_run(world) -> None:
+    """Fold one finished run into the persistent Profile stats: lifetime totals,
+    personal bests, and the death-context counters the Stats / Hall of Shame /
+    Arcade sections read. Called once per run from scenes._on_death, right after
+    the wallet is credited. Never raises into the game loop — a stats glitch
+    must not cost the player their run-end flow."""
+    try:
+        s = all_stats()
+        score = int(getattr(world, "score", 0))
+        pillars = int(getattr(world, "pillars_passed", 0))
+        t_alive = float(getattr(world, "time_alive", 0.0))
+        coins = int(getattr(world, "coin_count", 0))
+        spawned = int(getattr(world, "coins_spawned", 0))
+        flaps = int(getattr(world, "flap_count", 0))
+        nmiss = int(getattr(world, "near_misses", 0))
+        picked = dict(getattr(world, "powerups_picked", {}) or {})
+
+        s["runs_played"] = int(s["runs_played"]) + 1
+        s["total_time_s"] = float(s["total_time_s"]) + t_alive
+        s["total_pillars"] = int(s["total_pillars"]) + pillars
+        s["total_coins_earned"] = int(s["total_coins_earned"]) + coins
+        s["total_flaps"] = int(s["total_flaps"]) + flaps
+        s["total_near_misses"] = int(s["total_near_misses"]) + nmiss
+        s["total_powerups"] = int(s["total_powerups"]) + sum(
+            int(v) for v in picked.values())
+        for k, v in picked.items():
+            s["powerups_by_kind"][k] = int(s["powerups_by_kind"].get(k, 0)) + int(v)
+        s["coins_ignored"] = int(s["coins_ignored"]) + max(0, spawned - coins)
+
+        s["best_score"] = max(int(s["best_score"]), score)
+        s["best_pillars"] = max(int(s["best_pillars"]), pillars)
+        s["best_time_s"] = max(float(s["best_time_s"]), t_alive)
+        s["best_near_misses"] = max(int(s["best_near_misses"]), nmiss)
+
+        if score == 0:
+            s["scoreless_deaths"] = int(s["scoreless_deaths"]) + 1
+        if pillars == 0:
+            s["pillar1_deaths"] = int(s["pillar1_deaths"]) + 1
+        if t_alive < 3.0:
+            s["sub3s_deaths"] = int(s["sub3s_deaths"]) + 1
+        for kind in (getattr(world, "death_powerups", []) or []):
+            s["deaths_with_powerup"][kind] = int(
+                s["deaths_with_powerup"].get(kind, 0)) + 1
+
+        if pillars == int(s["last_death_pillar"]):
+            s["same_pillar_streak"] = int(s["same_pillar_streak"]) + 1
+        else:
+            s["same_pillar_streak"] = 1
+        s["last_death_pillar"] = pillars
+
+        hist = s["death_pillar_histogram"]
+        if not isinstance(hist, list):
+            hist, s["death_pillar_histogram"] = [], []
+            hist = s["death_pillar_histogram"]
+        idx = min(pillars, _HIST_CAP)
+        while len(hist) <= idx:
+            hist.append(0)
+        hist[idx] = int(hist[idx]) + 1
+
+        s["max_flaps_per_sec"] = max(int(s["max_flaps_per_sec"]),
+                                     int(getattr(world, "max_flaps_per_sec", 0)))
+
+        # A "dignified" run is simply one that wasn't an instant, scoreless, or
+        # pillar-one washout; the safety board counts days since the last one.
+        if not (score == 0 or t_alive < 3.0 or pillars == 0):
+            today = time.strftime("%Y-%m-%d")
+            prev = s.get("last_dignified_date") or ""
+            if prev:
+                s["dignified_record_gap"] = max(
+                    int(s["dignified_record_gap"]), _days_between(prev, today))
+            s["last_dignified_date"] = today
+
+        save()
+    except Exception:
+        pass
 
 
 def is_owned(item_id: str) -> bool:
