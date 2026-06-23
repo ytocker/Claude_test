@@ -734,7 +734,7 @@ class App:
                 self._achv_tap_or_close(sc, (int(e.x * W), int(e.y * H)))
 
     def _achv_tap_or_close(self, sc, pos):
-        """A stationary tap on the WALL OF FAME / WALL OF SHAME tabs switches the
+        """A stationary tap on the HALL OF FAME / HALL OF SHAME tabs switches the
         active wall; the MENU button dismisses. Taps elsewhere (e.g. on a row) do
         nothing, so the list feels solid — only the button or ESC exits."""
         tf = getattr(sc, "tab_fame_rect", None)

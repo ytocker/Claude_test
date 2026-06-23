@@ -348,9 +348,9 @@ class AchievementsScene:
         seg_w = (W - pad * 2 - gap) // 2
         self.tab_fame_rect = pygame.Rect(pad, y + 4, seg_w, _TAB_H - 8)
         self.tab_shame_rect = pygame.Rect(pad + seg_w + gap, y + 4, seg_w, _TAB_H - 8)
-        self._draw_tab(surf, self.tab_fame_rect, "WALL OF FAME",
+        self._draw_tab(surf, self.tab_fame_rect, "HALL OF FAME",
                        self._tab == "fame", _GOLD_BRIGHT, _GOLD_DEEP)
-        self._draw_tab(surf, self.tab_shame_rect, "WALL OF SHAME",
+        self._draw_tab(surf, self.tab_shame_rect, "HALL OF SHAME",
                        self._tab == "shame", _BRONZE, _BRONZE_DEEP)
         pygame.draw.line(surf, (*_GOLD_BRIGHT, 110),
                          (0, y + _TAB_H - 1), (W, y + _TAB_H - 1), 1)
@@ -443,7 +443,7 @@ class AchievementsScene:
         hdr = pygame.Surface((W, _HEADER_H), pygame.SRCALPHA)
         hdr.fill((*_NIGHT_DEEP, 235))
         surf.blit(hdr, (0, 0))
-        _outlined_text(surf, "WALL OF SHAME" if is_shame else "WALL OF FAME",
+        _outlined_text(surf, "HALL OF SHAME" if is_shame else "HALL OF FAME",
                        (W // 2, 16), size=22, px=2, shadow_offset=(2, 3))
         uw = 152
         ux = W // 2 - uw // 2
