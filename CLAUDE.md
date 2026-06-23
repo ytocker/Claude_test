@@ -198,6 +198,10 @@ Trivial recolors may skip the loop at the user's discretion.
 
 ## Costume redesign loop (standing)
 
+Codified as the **`item-design` skill** (`.claude/skills/item-design/SKILL.md`) —
+invoke it whenever asked to design/restyle ANY store item, not just costumes.
+The summary below is the same procedure.
+
 Store-costume redesigns (the `group: "costume"` skins in `store_catalog.py`)
 follow a fixed shape — the user wants it applied to EVERY costume without
 re-stating it. When asked to redesign costume `<item>`:
