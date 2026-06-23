@@ -40,6 +40,8 @@ _GOLD       = (231, 154, 31)       # #E79A1F warm/orange gold visor (sibling tel
 _GOLD_D     = (170, 104, 18)
 _GOLD_H     = (255, 222, 150)
 _TAN        = (201, 165, 107)      # #C9A56B lunar-dust regolith stain
+_TAN_BOOT   = (211, 176, 117)      # boot mass pushed ~1 value brighter/warmer
+                                   # so TAN — not the sole — is the 40px grounding cue
 _TAN_D      = (158, 124, 74)       # darker scuff line on the boots
 _AMBER      = (242, 193, 78)       # #F2C14E amber RCU display
 _DARK       = (58, 46, 34)         # #3A2E22 strap / continuous keyline brown-black
@@ -110,12 +112,16 @@ def _antenna(surf, pack, wing_angle_deg):
     # wobbles a touch with the flap so it feels like a real whip antenna, but
     # the base/tip stay well clear of the helmet so it never reads as clutter.
     bx, by, bw, bh = pack
-    base = (bx + bw - 5, by + 1)
+    # Base sits ~2px inboard (toward pack centre) so the whip reads as a clean
+    # thin line off the pack, not a lump welded to the shoulder corner.
+    base = (bx + bw - 7, by + 1)
     wobble = math.sin(math.radians(wing_angle_deg) * 1.6) * 3.0
     mid = (base[0] + 1 - wobble * 0.4, base[1] - 9)
     tip = (base[0] - 5 + wobble, base[1] - 18)
     pygame.draw.lines(surf, _DARK, False, [base, mid, tip], 2)
-    pygame.draw.circle(surf, _AMBER, (int(tip[0]), int(tip[1])), 2)
+    # Tip-bead is light-grey/white, NOT amber, so the only chest-level amber is
+    # the RCU and the only big amber is the visor — one warm read per zone.
+    pygame.draw.circle(surf, _SUIT_SH, (int(tip[0]), int(tip[1])), 2)
     pygame.draw.circle(surf, _WHITE, (int(tip[0]) - 1, int(tip[1]) - 1), 1)
 
 
@@ -137,24 +143,26 @@ def _dusty_legs(surf):
     bootx, booty, bootw, booth = 21, 61, 23, 10
     pygame.draw.rect(surf, _TAN_D, (bootx - 1, booty - 1, bootw + 2, booth + 2),
                      border_radius=4)
-    pygame.draw.rect(surf, _TAN, (bootx, booty, bootw, booth), border_radius=4)
+    pygame.draw.rect(surf, _TAN_BOOT, (bootx, booty, bootw, booth), border_radius=4)
     # Dusty stain creeping up the shins above the boot line.
-    _aaellipse(surf, _TAN, (bootx + 6, booty - 2), 5, 4)
-    _aaellipse(surf, _TAN, (bootx + bootw - 6, booty - 2), 5, 4)
-    # Split the two boots + a hard scuffed sole keyline.
+    _aaellipse(surf, _TAN_BOOT, (bootx + 6, booty - 2), 5, 4)
+    _aaellipse(surf, _TAN_BOOT, (bootx + bootw - 6, booty - 2), 5, 4)
+    # Split the two boots + a hard scuffed sole keyline thinned to 2px so the
+    # bright TAN mass — not the black sole — grounds the silhouette at 40px.
     pygame.draw.line(surf, _TAN_D, (bootx + bootw // 2, booty + 1),
-                     (bootx + bootw // 2, booty + booth - 3), 2)
-    pygame.draw.rect(surf, _DARK, (bootx, booty + booth - 3, bootw, 3),
-                     border_radius=2)
+                     (bootx + bootw // 2, booty + booth - 2), 2)
+    pygame.draw.rect(surf, _DARK, (bootx, booty + booth - 2, bootw, 2),
+                     border_radius=1)
     # One scuff streak so the tan reads as field-worn, not a clean tan boot.
     pygame.draw.line(surf, _TAN_D, (bootx + 3, booty + 4),
                      (bootx + 9, booty + 3), 1)
 
 
 def _chest_harness(surf):
-    # ONE readable chest beat: a dark utility strap crossing the torso holding
-    # two small pouch nubs and an amber RCU display block. Held deliberately
-    # sparse so the gold visor still owns the central band at 40px.
+    # ONE readable chest beat held to a single idea: a dark utility strap +
+    # the amber RCU block. The two pouch/tool nubs are CUT — at 40px they were
+    # sub-pixel noise stealing the band the gold visor should own, so the strap
+    # + RCU now carry the whole chest read.
     # Diagonal strap line.
     pygame.draw.line(surf, _DARK, (HX - 12, HY + 8), (HX + 4, HY + 20), 3)
     pygame.draw.line(surf, _SUIT_SH, (HX - 12, HY + 8), (HX + 4, HY + 20), 1)
@@ -164,10 +172,6 @@ def _chest_harness(surf):
     pygame.draw.rect(surf, _AMBER, rcu, border_radius=2)
     pygame.draw.line(surf, _WHITE, (rcu.x + 1, rcu.y + 1),
                      (rcu.right - 2, rcu.y + 1), 1)
-    # Two small pouch/tool nubs hanging off the strap.
-    pygame.draw.circle(surf, _DARK, (HX - 2, HY + 17), 3)
-    pygame.draw.circle(surf, _SUIT, (HX - 2, HY + 16), 2)
-    pygame.draw.circle(surf, _DARK, (HX + 4, HY + 21), 2)
 
 
 def _glove(surf):
