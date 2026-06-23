@@ -103,19 +103,19 @@ def _candy_stripes(surf, x, y, w, *, horiz=True, t=3):
 
 
 def _plss(surf):
-    # Squared-off hard WHITE PLSS brick past the crown and out past the back —
-    # boxier/cleaner than MOONWALKER's. Drawn FIRST so the head/body overlap its
-    # front edge → it reads as worn ON the back, a subordinate block, never a
-    # second head. Low internal contrast (suit-shadow only) keeps it quiet next
-    # to the bright dome.
-    bx, by, bw, bh = HX - 34, CROWN_Y - 7, 23, 46
+    # Squared-off life-support brick worn on the BACK. Deliberately SUBORDINATE:
+    # smaller (16×34) and dropped a full value step to the suit-shadow tone so it
+    # recedes and the bright bubble dome stays the largest single mass. Pushed
+    # further left/back so the torso shell overlaps its front edge — it reads as
+    # a pack tucked behind the body, never a competing second head.
+    bx, by, bw, bh = HX - 32, CROWN_Y - 2, 16, 34
     pygame.draw.rect(surf, _KEY, (bx - 2, by - 2, bw + 4, bh + 4), border_radius=3)
-    pygame.draw.rect(surf, _SUIT_SH, (bx, by, bw, bh), border_radius=2)
-    pygame.draw.rect(surf, _SUIT, (bx + 2, by + 2, bw - 4, bh - 4), border_radius=2)
+    pygame.draw.rect(surf, _SUIT_SH_D, (bx, by, bw, bh), border_radius=2)
+    pygame.draw.rect(surf, _SUIT_SH, (bx + 2, by + 2, bw - 4, bh - 4), border_radius=2)
     # Top vent slot — the one hard detail that says "life-support brick".
-    pygame.draw.rect(surf, _KEY, (bx + 3, by + 4, bw - 6, 4), border_radius=1)
-    pygame.draw.line(surf, _SUIT_SH_D, (bx + bw // 2, by + 11),
-                     (bx + bw // 2, by + bh - 4), 2)   # split seam
+    pygame.draw.rect(surf, _KEY, (bx + 3, by + 4, bw - 6, 3), border_radius=1)
+    pygame.draw.line(surf, _SUIT_SH_D, (bx + bw // 2, by + 9),
+                     (bx + bw // 2, by + bh - 4), 1)   # split seam
 
 
 def _suit_keyline(surf):
@@ -148,36 +148,26 @@ def _paint(surf, wing_angle_deg):
     _aaellipse(surf, _SUIT_SH, (tcx, tcy + 1), 17, 12)      # shell shadow
     _aaellipse(surf, _SUIT, (tcx - 1, tcy), 16, 11)         # inflated shell
     _aaellipse(surf, _WHITE, (tcx - 5, tcy - 5), 7, 3)      # top sheen
-    # Rectangular chest control panel — the one readable chest beat.
-    px, py = tcx + 1, tcy - 1
-    pygame.draw.rect(surf, _KEY, (px - 8, py - 4, 16, 10), border_radius=2)
-    pygame.draw.rect(surf, (58, 62, 72), (px - 7, py - 3, 14, 8), border_radius=2)
-    # 3 status pips: two cyan/green, one white — the lone glow on the suit.
-    pygame.draw.circle(surf, _PIP, (px - 4, py + 1), 2)
-    pygame.draw.circle(surf, _PIP, (px + 1, py + 1), 2)
-    pygame.draw.circle(surf, _WHITE, (px + 6, py + 1), 1)
-    # Fat chest candy-stripe band across the lower shell — the central,
-    # always-visible Artemis tell that carries the colour read at 40px.
-    _candy_stripes(surf, tcx - 13, tcy + 6, 25, horiz=True, t=3)
+    # Small chest control panel — cut ~30% and held to ONE status pip so it no
+    # longer competes with the macaw eye for the darkest spot on the figure.
+    px, py = tcx, tcy - 2
+    pygame.draw.rect(surf, _KEY, (px - 5, py - 3, 11, 8), border_radius=2)
+    pygame.draw.rect(surf, (58, 62, 72), (px - 4, py - 2, 9, 6), border_radius=2)
+    pygame.draw.circle(surf, _PIP, (px, py + 1), 2)   # the lone glow on the suit
+    # ONE bold blue-over-red candy band across the chest — the central, always-
+    # visible Artemis tell that carries the whole colour read at 40px. The legs
+    # are left plain white so this band is unmistakably the single hero stripe.
+    _candy_stripes(surf, tcx - 14, tcy + 7, 27, horiz=True, t=3)
 
-    # ── Round mission patch on the near shoulder — a small blue disc with a
-    #    white star, the official Artemis crew-patch nod. ──────────────────────
-    sx, sy = tcx + 13, tcy - 7
-    pygame.draw.circle(surf, _SUIT_SH_D, (sx, sy), 5)
-    pygame.draw.circle(surf, _BLUE, (sx, sy), 4)
-    store_skins._star5(surf, sx, sy, 3, _WHITE)
-    pygame.draw.arc(surf, _RED, (sx - 4, sy - 4, 8, 8), 3.4, 6.0, 1)
-
-    # ── LIMBS: candy-striped leg + white boot with a blue sole line, drawn in
-    #    FRONT of the shell so the leg stripe sits clear below the torso ───────
+    # ── LIMBS: plain white boot with a blue sole line, drawn in FRONT of the
+    #    shell. No leg stripe — the chest band is the sole candy-stripe so the
+    #    two-band confusion at 40px is gone. ──────────────────────────────────
     bx, by, bw, bh = 23, 62, 20, 9
     pygame.draw.rect(surf, _SUIT_SH, (bx, by, bw, bh), border_radius=3)
     pygame.draw.rect(surf, _SUIT, (bx + 1, by, bw - 2, bh - 3), border_radius=3)
     pygame.draw.rect(surf, _BLUE, (bx, by + bh - 3, bw, 3), border_radius=1)  # sole
     pygame.draw.line(surf, _SUIT_SH_D, (bx + bw // 2, by + 1),
                      (bx + bw // 2, by + bh - 3), 2)   # split the two boots
-    # Leg candy-stripe wrapping the shin right above the boot.
-    _candy_stripes(surf, bx + 1, by - 7, bw - 2, horiz=True, t=3)
 
     # ── ARM candy-stripe + white glove on the near wing ───────────────────────
     _candy_stripes(surf, 44, 44, 9, horiz=False, t=3)      # upper-arm bands
@@ -190,11 +180,13 @@ def _paint(surf, wing_angle_deg):
     #    through; a thin chrome ring frames the glass and a soft top highlight
     #    sells the dome. The eye is painted INSIDE so the face is the highest-
     #    contrast read within the glass. ──────────────────────────────────────
-    cx, cyh = HX + 1, HY - 1
-    r = 16
-    # EVA neck-rim collar tying dome to the suit shell.
-    pygame.draw.ellipse(surf, _KEY, (cx - 13, cyh + 9, 28, 11))
-    pygame.draw.ellipse(surf, _SUIT, (cx - 12, cyh + 9, 26, 8))
+    cx, cyh = HX - 6, HY - 2
+    r = 17
+    # EVA neck-rim collar tying the dome ONTO the suit shell: pulled inboard and
+    # up so the dome visibly overlaps the torso (the collar sits over the shell
+    # top), converting "box + ball" into one astronaut mass.
+    pygame.draw.ellipse(surf, _KEY, (cx - 13, cyh + 11, 28, 12))
+    pygame.draw.ellipse(surf, _SUIT, (cx - 12, cyh + 11, 26, 9))
 
     # Chrome ring shadow, then a faint glass tint ABOVE the face so the bubble
     # reads as a transparent sphere without hiding the warm macaw underneath.
@@ -233,9 +225,6 @@ def _paint(surf, wing_angle_deg):
     pygame.draw.circle(surf, _KEY, (cx, cyh), r + 1, 1)
     pygame.draw.circle(surf, _WHITE, (cx - 7, cyh - 9), 3)
     pygame.draw.circle(surf, _WHITE, (cx - 5, cyh - 11), 1)
-    # Tiny side comms nub on the helmet.
-    pygame.draw.circle(surf, _SUIT_SH, (cx - r + 1, cyh + 2), 3)
-    pygame.draw.circle(surf, _RED, (cx - r + 1, cyh + 2), 1)
 
     # ── final pass: ONE continuous dark keyline behind everything ─────────────
     _suit_keyline(surf)
