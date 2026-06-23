@@ -1,21 +1,29 @@
 """design_3 STARFARER — the LEGENDARY cosmic/galaxy deep-space explorer.
 
-A walking galaxy: a deep cosmic-blue/violet suited macaw with a GLOWING
-down-visor helmet breaking the crown, an ENERGY THRUSTER on the back
-streaming a comet-trail of stars past the tail, a starfield-speckled torso
-with a nebula wisp, and a glowing constellation panel on the chest. Cyan
-glow seams trace the wing root and legs. The legendary "tell" is motion:
-the visor rim pulse, the back star-trail length, and the aura halo all
-ride ``wing_angle_deg`` so the skin shimmers with every flap — yet the
-STILL frame already reads as an astronaut (dome + visor + back pack +
-suited body) at 40px.
+A deep cosmic-blue/violet suited macaw whose silhouette is built to survive
+the 40px downscale as FIVE separable things, in priority order: (1) a bright
+hard-edged GLOWING down-visor helmet DOME that owns the read, (2) the cyan/
+magenta visor glass, (3) a hard two-value indigo BACK-PACK silhouette with a
+single cyan nozzle, (4) a short directional glow DART off the pack (read as a
+thruster, never a smear that touches the head), (5) a dark suited body with a
+thin lit rim so it doesn't vanish on night sky.
+
+Why the dome wins: at small sizes a soft additive comet smear reads as one
+glowing blob, so the helmet shell carries its own hard white/cyan rim-light
+arc (a lit sphere edge that survives nearest-downscale) and the aura behind
+the head is kept small and dim so it FRAMES the dome instead of swallowing
+it. Everything else is subordinated — the torso is ONE cosmic system (nebula
+wisp + a few star dots), no sub-pixel panel/seam noise.
 
 Why a full-body recolor + additive bloom (mirrors the dragon/phoenix/disco
 shimmer idiom): the cosmic identity has to survive against BOTH a bright day
 sky and a dark night sky, so the body is re-plumaged dark cosmic-navy (self-
 contrasting on day) while the cyan/magenta glow is laid down with
-BLEND_RGB_ADD bloom layers that punch through on night. Neither read leans
-on the background.
+BLEND_RGB_ADD bloom layers that punch through on night. A thin cyan/violet
+rim down the suit edge carries the night read without brightening the whole
+suit and killing the day self-contrast. The legendary "tell" is ONE clean
+motion: the dart length and a single visor-brightness step ride
+``wing_angle_deg`` so the flap reads, not a field of competing twinkles.
 
 Exploration only — wrapped by ``store_skins._make_skin``; NOT registered in
 ``store_skins.BUILDERS`` and production art is untouched.
@@ -98,93 +106,77 @@ def _bloom(surf, cx, cy, radius, color, alpha):
 
 
 def _paint(surf, wing_angle_deg):
-    # The base wing angles run +50..-40 across the flap; remap to 0..1 phase so
-    # the trail streams longest and the visor pulses brightest on the downbeat.
+    # The base wing angles run +50..-40 across the flap; remap to 0..1 phase.
+    # ONE animation system: the dart grows with phase and the visor steps up
+    # one brightness notch on the downbeat — no competing per-element twinkles.
     phase = (50 - wing_angle_deg) / 90.0           # 0 on up-flap → 1 on down
     pulse = 0.55 + 0.45 * math.sin(phase * math.pi)
 
     cx, cy = HX + 1, HY - 2
     r = 14
 
-    # ── ENERGY THRUSTER + comet star-trail (drawn FIRST, behind the body) ──
-    # A small dark unit low on the back with a gradient streak + star particles
-    # flowing out past the tail; the streak grows with the flap = legendary tell.
-    tx, ty = HX - 22, HY + 12                       # thruster mount on the back
-    trail_len = 16 + int(14 * phase)
-    # Additive comet streak fanning down-left into open sky behind the tail.
-    for i in range(6):
-        t = i / 5.0
-        ex = tx - int(trail_len * t) - 4
-        ey = ty + 6 + int(10 * t)
-        col = _CYAN if i % 2 == 0 else _MAGENTA
-        _bloom(surf, ex, ey, 6 - i // 2, col, int(150 * (1 - t) * pulse))
-    # Discrete star particles riding the trail (twinkle scales with the flap).
-    for i, (sx, sy, sr) in enumerate(((tx - 9, ty + 9, 2), (tx - 16, ty + 13, 2),
-                                      (tx - 23, ty + 16, 1), (tx - 12, ty + 4, 1),
-                                      (tx - 20, ty + 7, 1))):
-        bright = i % 2 == 0
-        if bright or phase > 0.5:
-            store_skins._spark(surf, sx, sy, sr + (1 if bright else 0), _STAR)
-    # Thruster nozzle glow at the mount.
-    _bloom(surf, tx - 2, ty + 4, 7, _CYAN, int(170 * pulse))
+    # ── BACK-PACK + thruster DART (drawn FIRST, behind the body) ──
+    # The pack is a HARD two-value indigo silhouette (structure, not glow) so
+    # the back element survives downscale even on the up-flap when the dart is
+    # short. A single tight directional dart streams off the nozzle — 3 discs,
+    # low alpha, short — a separable thruster tell that never touches the head.
+    tx, ty = HX - 22, HY + 12                       # pack mount on the back
+    # Tight directional glow dart (start ~10 → grow to ~18 with the flap).
+    dart_len = 10 + int(8 * phase)
+    for i in range(3):
+        t = i / 2.0
+        ex = tx - 6 - int(dart_len * t)
+        ey = ty + 7 + int(7 * t)
+        _bloom(surf, ex, ey, 5 - i, _CYAN, int(90 * (1 - 0.4 * t)))
 
-    # ── aura halo behind everything on the head (faint, pulses) ──
-    _bloom(surf, cx, cy, r + 9, _MID, int(70 + 40 * pulse))
-    _bloom(surf, cx, cy, r + 4, (90, 70, 200), int(60 + 50 * pulse))
+    # ── aura halo behind the head — SMALL + DIM so it FRAMES the dome ──
+    _bloom(surf, cx, cy, r + 3, (90, 70, 200), int(40 + 30 * pulse))
 
-    # ── thruster body unit (a small dark pack, NOT a metal backpack) ──
+    # Hard two-value indigo pack silhouette (no soft ellipse glow).
     pygame.draw.ellipse(surf, _INDIGO_DK, (tx - 6, ty - 3, 16, 18))
-    pygame.draw.ellipse(surf, _MID_DK, (tx - 5, ty - 3, 13, 15))
-    pygame.draw.ellipse(surf, _MID, (tx - 3, ty - 2, 8, 7))
-    # Glowing vent line + nozzle ring on the pack.
-    pygame.draw.line(surf, _CYAN, (tx - 4, ty + 9), (tx + 6, ty + 7), 2)
-    pygame.draw.circle(surf, _CYAN, (tx - 2, ty + 6), 2)
-    pygame.draw.circle(surf, _STAR, (tx - 2, ty + 6), 1)
+    pygame.draw.ellipse(surf, _MID_DK, (tx - 4, ty - 1, 11, 13))
+    # ONE bright cyan nozzle dot — the single hard glow tell on the pack.
+    pygame.draw.circle(surf, _CYAN, (tx - 2, ty + 7), 2)
+    pygame.draw.circle(surf, _STAR, (tx - 2, ty + 7), 1)
 
-    # ── COSMIC TORSO: baked starfield + nebula wisp on the recolored body ──
+    # ── NIGHT-SURVIVAL rim on the suit body ──
+    # One thin cyan/violet rim down the back + belly edge so the navy body
+    # doesn't vanish on a dark sky / dark pillars — without brightening the
+    # whole suit (which would kill the day self-contrast).
+    _RIM = (96, 86, 180)
+    pygame.draw.lines(surf, _RIM, False,
+                      [(24, 30), (22, 37), (24, 44), (29, 48)], 1)   # back edge
+    pygame.draw.lines(surf, _RIM, False,
+                      [(40, 31), (43, 38), (40, 45)], 1)             # belly edge
+
+    # ── COSMIC TORSO: ONE system — nebula wisp + a few brightest stars ──
     body_cx, body_cy = 31, 33
-    # Soft nebula wisp (magenta→teal additive patch on the chest).
-    _bloom(surf, body_cx + 1, body_cy - 2, 11, _MAGENTA, 60)
-    _bloom(surf, body_cx - 3, body_cy + 3, 9, _CYAN, 45)
-    # Baked white starfield speckles across the torso (static — the "galaxy").
-    for sx, sy, sr in ((25, 27, 1), (33, 24, 1), (38, 31, 1), (22, 36, 1),
-                       (30, 39, 1), (36, 38, 1), (27, 32, 1), (41, 27, 1),
-                       (24, 41, 1), (34, 30, 1)):
-        pygame.draw.circle(surf, _STAR, (sx, sy), sr)
-    # A couple of brighter twinkles to lift the field.
-    store_skins._spark(surf, 28, 29, 2, _STAR)
-    store_skins._spark(surf, 37, 35, 2, _STAR)
+    _bloom(surf, body_cx + 1, body_cy - 2, 10, _MAGENTA, 55)
+    _bloom(surf, body_cx - 3, body_cy + 3, 8, _CYAN, 42)
+    # Only the 3–4 brightest star dots survive 40px; the dense field is cut.
+    for sx, sy in ((27, 30), (34, 28), (30, 39), (38, 35)):
+        pygame.draw.circle(surf, _STAR, (sx, sy), 1)
+    store_skins._spark(surf, 31, 33, 2, _STAR)
 
-    # ── CONSTELLATION chest panel (in place of a button panel) ──
-    # 4 star nodes joined by thin glowing lines — a tiny stitched constellation.
-    nodes = [(26, 44), (31, 40), (36, 43), (33, 47)]
-    for a, b in ((0, 1), (1, 2), (1, 3)):
-        pygame.draw.line(surf, _CYAN_DK, nodes[a], nodes[b], 2)
-        pygame.draw.line(surf, _CYAN, nodes[a], nodes[b], 1)
-    for nx, ny in nodes:
-        _bloom(surf, nx, ny, 3, _CYAN, 150)
-        pygame.draw.circle(surf, _STAR, (nx, ny), 1)
-
-    # ── LIMB glow seams ──
-    # Cyan glow seam along the wing root + a thin glow line down each leg.
-    pygame.draw.line(surf, _CYAN_DK, (38, 47), (47, 44), 3)
-    pygame.draw.line(surf, _CYAN, (38, 47), (47, 44), 1)
-    for lx0, lx1 in ((28, 26), (34, 36)):
-        pygame.draw.line(surf, _CYAN, (lx0, 45), (lx1, 49), 1)
-    # Star-twinkle at the wingtip (rides the flap so the tip sparkles).
-    if phase > 0.35:
-        store_skins._spark(surf, 47, 43, 2, _STAR)
-
-    # ── GLOWING DOWN-VISOR HELMET (breaks the crown; owns the face) ──
+    # ── GLOWING DOWN-VISOR HELMET (the brightest, biggest, hardest shape) ──
     # White EVA collar ring behind the dome so the helmet reads as seated.
     pygame.draw.ellipse(surf, (210, 214, 230), (cx - 11, cy + 8, 24, 9))
     pygame.draw.ellipse(surf, (150, 156, 180), (cx - 11, cy + 12, 24, 5))
-    # Outer glow ring around the dome (additive — the legendary halo on the head).
-    _bloom(surf, cx, cy, r + 5, _CYAN, int(90 + 60 * pulse))
 
     # Dark dome shell.
     pygame.draw.circle(surf, _INDIGO_DK, (cx, cy), r)
     pygame.draw.circle(surf, _INDIGO, (cx, cy - 1), r - 1)
+
+    # HARD lit edge on the DOME SHELL itself: a 2px bright cyan/white rim-light
+    # arc on the top-left. This is the read that survives the downscale — the
+    # sphere keeps a crisp lit edge instead of dissolving into the aura.
+    shell = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
+    sc = r + 2
+    pygame.draw.arc(shell, (215, 245, 255), (sc - r, sc - r, r * 2, r * 2),
+                    math.radians(95), math.radians(195), 2)
+    pygame.draw.arc(shell, (*_CYAN, 200), (sc - r, sc - r, r * 2, r * 2),
+                    math.radians(85), math.radians(205), 2)
+    surf.blit(shell, (cx - sc, cy - sc))
 
     # The DOWN visor: a deep-indigo curved glass filling the dome, clipped to a
     # circle so it stays a clean shape. Built on its own layer to clip cleanly.
@@ -194,30 +186,29 @@ def _paint(surf, wing_angle_deg):
     # Magenta→cyan vertical nebula sheen baked into the glass.
     pygame.draw.ellipse(visor, (60, 30, 110), (5, 6, r * 2 - 6, r - 2))
     clip = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
-    pygame.draw.circle(clip, (255, 255, 255, 255), (vc, vc), r - 2)
+    pygame.draw.circle(clip, (255, 255, 255, 255), (vc, vc), r - 3)
     visor.blit(clip, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(visor, (cx - vc, cy - vc))
 
-    # Tiny star sparkles twinkling ON the glass.
+    # Two star sparkles on the glass (kept minimal — no flap twinkle here).
     pygame.draw.circle(surf, _STAR, (cx - 5, cy - 4), 1)
     pygame.draw.circle(surf, _STAR, (cx + 4, cy + 2), 1)
-    if phase > 0.5:
-        store_skins._spark(surf, cx + 2, cy - 6, 2, _STAR)
 
-    # Visor RIM glow: cyan-to-magenta rim that PULSES with the flap. Two arcs
-    # so the cyan owns the top-left and magenta the lower-right of the curve.
+    # Visor RIM glow: cyan top-left, magenta lower-right, with ONE clean
+    # brightness step on the downbeat (the single visor animation).
     rim = pygame.Surface((r * 2 + 8, r * 2 + 8), pygame.SRCALPHA)
     rc = r + 4
-    pygame.draw.arc(rim, (*_CYAN, int(180 * pulse + 70)),
+    step = 70 if phase > 0.5 else 0                 # one discrete brightness notch
+    pygame.draw.arc(rim, (*_CYAN, 170 + step),
                     (rc - r, rc - r, r * 2, r * 2),
                     math.radians(30), math.radians(200), 3)
-    pygame.draw.arc(rim, (*_MAGENTA, int(180 * pulse + 70)),
+    pygame.draw.arc(rim, (*_MAGENTA, 170 + step),
                     (rc - r, rc - r, r * 2, r * 2),
                     math.radians(200), math.radians(390), 3)
     surf.blit(rim, (cx - rc, cy - rc), special_flags=pygame.BLEND_RGB_ADD)
-    # Additive rim bloom so the pulse glows rather than just brightens a line.
-    _bloom(surf, cx - 8, cy - 6, 5, _CYAN, int(120 * pulse))
-    _bloom(surf, cx + 8, cy + 4, 5, _MAGENTA, int(120 * pulse))
+    # Additive rim bloom so the cyan+magenta read as light, not just lines.
+    _bloom(surf, cx - 8, cy - 6, 5, _CYAN, 110 + step // 2)
+    _bloom(surf, cx + 8, cy + 4, 5, _MAGENTA, 110 + step // 2)
 
     # Single crisp specular sweep across the glass — keeps it a sphere.
     pygame.draw.line(surf, (180, 220, 255), (cx - 7, cy - 6), (cx - 2, cy - 9), 2)

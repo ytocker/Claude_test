@@ -141,7 +141,7 @@ def main():
     strip_y = 470
     pygame.draw.line(sheet, (54, 50, 84), (28, strip_y - 12),
                      (W - 28, strip_y - 12), 1)
-    text(sheet, "4-FRAME FILMSTRIP - animated visor pulse + back star-trail + aura",
+    text(sheet, "4-FRAME FILMSTRIP - one tell: dart grows + single visor brightness step",
          (28, strip_y - 8))
     cell = 184
     gap = (W - 56 - cell * 4) // 3
@@ -152,7 +152,7 @@ def main():
         text(sheet, f"frame {i} - {labels[i]}",
              (cxp + 6, strip_y + 18 + cell + 2), F_SMALL, SUB)
 
-    out = "/home/user/skybit/docs/store_redesign/costume/astronaut/design_3/round_1.png"
+    out = "/home/user/skybit/docs/store_redesign/costume/astronaut/design_3/round_2.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print("SAVED", out)

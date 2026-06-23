@@ -49,11 +49,11 @@ _GRAY_D     = (104, 110, 122)
 _GRAY_H     = (206, 211, 220)
 _DARK       = (30, 35, 48)          # #1E2330 visor-glass tint / boots
 _GLASS      = (150, 178, 205, 90)   # clear fishbowl fill (translucent)
+_GLASS_LIT  = (214, 230, 244, 120)  # lighter core behind the face → dark-on-light
 _GLASS_RIM  = (224, 240, 252)       # bright dome rim
+_BEAK       = (255, 196, 64)        # saturated horn-yellow beak inside the dome
 _PATCH_BLUE = (38, 78, 150)         # mission-patch field
-_PATCH_RED  = (206, 64, 40)         # patch ring
-_STAR       = (255, 232, 150)       # patch star + comms glint
-_COMMS      = (188, 194, 204)       # silver comms connector
+_STAR       = (255, 232, 150)       # patch star + visor band
 
 
 # Full launch-orange re-plumage of the macaw. The beak stays warm horn so the
@@ -95,47 +95,37 @@ def _orange_base(angle_deg):
 
 
 def _paint(surf, _a):
-    # ── WHITE survival/parachute pack on the BACK, above + behind the shoulders
-    #    (drawn FIRST so the body sits in front of it and it reads as a pack
-    #    bulging out behind). Rounded squarish, softer than a hard EVA PLSS so it
-    #    stays distinct from the white-EVA skin. Sky-side edge breaks the back
-    #    silhouette into open sky.
-    px0, py0 = HX - 24, HY - 4
-    pygame.draw.rect(surf, _WHITE_D, (px0 - 1, py0 - 1, 18, 24), border_radius=7)
-    pygame.draw.rect(surf, _WHITE, (px0, py0, 16, 22), border_radius=6)
-    pygame.draw.rect(surf, _GRAY_H, (px0 + 2, py0 + 2, 5, 18), border_radius=3)
+    # ── WHITE survival pack on the BACK, drawn FIRST so the body sits in front
+    #    and it reads as a separate mass bulging behind the shoulder. Pushed a
+    #    couple px FURTHER into open sky (sky-side edge clear of the body) and
+    #    wrapped in a hard DARK keyline so it holds as its own block on BOTH
+    #    biomes instead of washing into the orange/white.
+    px0, py0 = HX - 27, HY - 5
+    pygame.draw.rect(surf, _DARK, (px0 - 1, py0 - 1, 18, 25), border_radius=7)
+    pygame.draw.rect(surf, _WHITE_D, (px0, py0, 16, 23), border_radius=6)
+    pygame.draw.rect(surf, _WHITE, (px0 + 1, py0 + 1, 13, 20), border_radius=5)
+    pygame.draw.rect(surf, _GRAY_H, (px0 + 2, py0 + 2, 4, 17), border_radius=3)
     # Two pack straps arcing over the shoulder onto the chest.
-    pygame.draw.line(surf, _WHITE_D, (px0 + 12, py0 + 3), (HX - 2, HY + 9), 4)
-    pygame.draw.line(surf, _WHITE, (px0 + 12, py0 + 3), (HX - 2, HY + 9), 2)
-    pygame.draw.line(surf, _WHITE_D, (px0 + 13, py0 + 12), (HX + 2, HY + 13), 4)
-    pygame.draw.line(surf, _WHITE, (px0 + 13, py0 + 12), (HX + 2, HY + 13), 2)
+    pygame.draw.line(surf, _WHITE_D, (px0 + 12, py0 + 4), (HX - 2, HY + 9), 4)
+    pygame.draw.line(surf, _WHITE, (px0 + 12, py0 + 4), (HX - 2, HY + 9), 2)
+    pygame.draw.line(surf, _WHITE_D, (px0 + 13, py0 + 13), (HX + 2, HY + 13), 4)
+    pygame.draw.line(surf, _WHITE, (px0 + 13, py0 + 13), (HX + 2, HY + 13), 2)
 
-    # ── BODY suit detail (over the orange base): a WHITE vertical zip line down
-    #    the chest centre + gray segment rings at the belly. Body centre is
+    # ── BODY suit detail (over the orange base): ONLY the WHITE vertical chest
+    #    zip — the belly segment rings + comms dot + zip-stitch dots were chest
+    #    confetti that turned to noise at 40px, so they're cut. Body centre is
     #    ~(32, 52) in composite space.
     bcx, bcy = 32, 52
-    # Vertical chest zip.
     pygame.draw.line(surf, _WHITE_D, (bcx + 1, bcy - 11), (bcx + 1, bcy + 9), 3)
     pygame.draw.line(surf, _WHITE, (bcx, bcy - 11), (bcx, bcy + 9), 1)
-    for ty in (bcy - 8, bcy - 3, bcy + 2, bcy + 7):
-        pygame.draw.circle(surf, _GRAY_D, (bcx, ty), 1)
-    # Two gray segment rings curving across the lower belly (suit joints).
-    for ry in (bcy + 4, bcy + 8):
-        pygame.draw.arc(surf, _GRAY_D, (bcx - 15, ry - 4, 30, 12),
-                        math.radians(205), math.radians(335), 3)
-        pygame.draw.arc(surf, _GRAY, (bcx - 15, ry - 4, 30, 12),
-                        math.radians(205), math.radians(335), 1)
 
-    # ── CHEST mission patch: a small round NASA-ish badge with a tiny star on
-    #    the upper chest, plus a short silver comms-connector dot beside it.
-    mx, my = bcx + 6, bcy - 6
-    pygame.draw.circle(surf, _PATCH_RED, (mx, my), 5)
+    # ── CHEST mission patch: a single FLAT coloured disc with one bright star —
+    #    the double ring + connector dot read as a smear when shrunk, so it's a
+    #    clean badge now.
+    mx, my = bcx + 6, bcy - 5
+    pygame.draw.circle(surf, _DARK, (mx, my), 5)
     pygame.draw.circle(surf, _PATCH_BLUE, (mx, my), 4)
     store_skins._star5(surf, mx, my, 3, _STAR)
-    pygame.draw.circle(surf, (255, 255, 255), (mx - 1, my - 1), 1)
-    # Silver comms-connector dot just below the patch.
-    pygame.draw.circle(surf, _COMMS, (mx - 7, my + 3), 2)
-    pygame.draw.circle(surf, _STAR, (mx - 8, my + 2), 1)
 
     # ── LIMBS: gray/silver gloves at the wingtips, black boots on the feet, a
     #    thin gray stripe on the wing root. Wing root ~(40, 47); the visible
@@ -165,37 +155,48 @@ def _paint(surf, _a):
     r = 16
     dome = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
     pygame.draw.circle(dome, _GLASS, (r + 2, r + 2), r)
-    # Clip the fill to the upper sphere so the open face-port shows the bird.
+    # LIGHTEN the glass directly behind the face so the dark eye/beak read as
+    # dark-on-light, not gray-on-gray — a brighter inner core under the upper
+    # sphere. Clip both fills to the upper sphere so the open port shows the bird.
+    pygame.draw.circle(dome, _GLASS_LIT, (r + 2, r), r - 3)
     cut = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
     pygame.draw.rect(cut, (255, 255, 255, 255), (0, 0, r * 2 + 4, r + 6))
     dome.blit(cut, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(dome, (cx - r - 2, cy - r - 2))
 
-    # Repaint the bare friendly macaw eye INSIDE the glass so the face stays the
-    # cheerful rookie (the base dropped lenses). Matches the macaw eye idiom.
+    # Repaint the bare friendly macaw eye INSIDE the glass, ENLARGED so the face
+    # is the brightest highest-contrast thing in the dome: pure-white sclera +
+    # dark pupil = the unmistakable focal point at 40px.
     ex, ey = HX + 3, HY - 2
-    _aaellipse(surf, (250, 246, 240), (ex, ey), 5, 5)
-    pygame.draw.circle(surf, (32, 26, 30), (ex + 1, ey), 3)
-    pygame.draw.circle(surf, (12, 9, 12), (ex + 1, ey), 3, 1)
-    pygame.draw.circle(surf, (255, 255, 255), (ex, ey - 1), 1)
+    _aaellipse(surf, (255, 255, 255), (ex, ey), 6, 6)
+    pygame.draw.circle(surf, (20, 16, 22), (ex + 1, ey), 4)
+    pygame.draw.circle(surf, (4, 3, 6), (ex + 1, ey), 4, 1)
+    pygame.draw.circle(surf, (255, 255, 255), (ex - 1, ey - 1), 1)
+    # 2px saturated horn-yellow beak so the friendly face reads as a beaked bird.
+    pygame.draw.line(surf, _BEAK, (HX + 7, HY + 1), (HX + 13, HY + 2), 2)
 
-    # Bright crisp dome rim (reads the sphere at 40px) + the single curved shine.
+    # Thin DARK outer keyline so the glass sphere holds its circle against the
+    # bright day sky, then the bright crisp inner rim + the single shine arc.
+    pygame.draw.circle(surf, _DARK, (cx, cy), r + 1, 1)
     pygame.draw.circle(surf, _GLASS_RIM, (cx, cy), r, 2)
     pygame.draw.arc(surf, (255, 255, 255), (cx - r + 3, cy - r + 3, r, r),
                     math.radians(60), math.radians(160), 2)
 
-    # The flipped-UP visor: a thin gold-tint shell standing above the crown so
-    # it reads as "visor raised", not a band across the glass.
-    pygame.draw.arc(surf, _ORANGE_D, (cx - r, cy - r - 7, r * 2, r + 4),
-                    math.radians(20), math.radians(160), 4)
-    pygame.draw.arc(surf, _STAR, (cx - r, cy - r - 7, r * 2, r + 4),
-                    math.radians(25), math.radians(155), 2)
+    # #1 FIX: a hard DARK shadow line under the dome's lower rim so the bubble
+    # does NOT merge with the white neck ring below it into one mushy blob —
+    # this is the seam that separates the two white-ish masses at 40px.
+    pygame.draw.arc(surf, _DARK, (cx - r, cy - r + 1, r * 2, r * 2),
+                    math.radians(200), math.radians(340), 2)
 
-    # ── Antenna stub on the dome side — a short white stalk + one bright tip so
-    #    the headgear breaks the crown outline into open sky.
-    pygame.draw.line(surf, _WHITE, (cx + 12, cy - 9), (cx + 17, cy - 15), 2)
-    pygame.draw.circle(surf, _PATCH_RED, (cx + 17, cy - 15), 2)
-    pygame.draw.circle(surf, (255, 200, 190), (cx + 16, cy - 16), 1)
+    # The flipped-UP visor: ONE thick gold band standing clearly ABOVE the dome
+    # crown, detached, with a dark sliver under it — reads as "visor raised",
+    # not a fried-egg halo of thin strokes crushed onto the glass.
+    vb = (cx - r + 2, cy - r - 6, (r - 2) * 2, r)
+    pygame.draw.arc(surf, _DARK, vb, math.radians(30), math.radians(150), 2)
+    pygame.draw.arc(surf, _ORANGE_D, (vb[0], vb[1] - 2, vb[2], vb[3]),
+                    math.radians(28), math.radians(152), 5)
+    pygame.draw.arc(surf, _STAR, (vb[0], vb[1] - 2, vb[2], vb[3]),
+                    math.radians(32), math.radians(148), 3)
 
 
 build = store_skins._make_skin(_paint, base_fn=_orange_base)
