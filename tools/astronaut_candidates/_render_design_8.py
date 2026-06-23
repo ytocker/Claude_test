@@ -15,7 +15,11 @@ from game import biome
 from game.draw import get_sky_surface_biome
 from game.config import W as GW, H as GH, GROUND_Y
 
-OUT = "/home/user/skybit/docs/store_redesign/costume/astronaut/design_8/round_1.png"
+# The genuinely dark NIGHT keyframe (sky_top ≈ (5,8,30)); phase 0.5 is DUSK
+# (lavender) and is NOT a real night truth-read for the all-navy pack + keyline.
+NIGHT_PHASE = 0.64375
+
+OUT = "/home/user/skybit/docs/store_redesign/costume/astronaut/design_8/round_2.png"
 
 
 def _font(sz, bold=True):
@@ -31,7 +35,10 @@ def _truth_read(box, *, phase):
     NEAREST so the shrunk pixels are judgeable — the read the player gets in
     motion."""
     pal = biome.palette_for_phase(phase)
-    sky = get_sky_surface_biome(GW, GH, GROUND_Y, pal, 0)
+    # The sky surface is cached by phase_bucket; passing a literal 0 for every
+    # phase collides day + night on one cache entry (day wins) — so the night
+    # swatch was secretly the day sky. Key each phase to its real bucket.
+    sky = get_sky_surface_biome(GW, GH, GROUND_Y, pal, biome.phase_bucket(phase))
     swatch = pygame.transform.smoothscale(sky.subsurface((0, 10, 120, 120)).copy(),
                                           (box, box))
     frame = _frame(build, 2, 10.0)
@@ -83,7 +90,7 @@ def main():
     _label(sheet, "40px TRUTH READ (NEAREST) — lives or dies at size:", PAD, trow - 24, sz=15)
     sheet.blit(_truth_read(TR, phase=0.0), (PAD, trow))
     _label(sheet, "day sky", PAD + 6, trow + TR + 4, sz=13, col=(190, 195, 205))
-    sheet.blit(_truth_read(TR, phase=0.5), (PAD + TR + PAD, trow))
+    sheet.blit(_truth_read(TR, phase=NIGHT_PHASE), (PAD + TR + PAD, trow))
     _label(sheet, "night sky", PAD + TR + PAD + 6, trow + TR + 4, sz=13, col=(190, 195, 205))
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
@@ -97,8 +104,9 @@ def _night_gameplay(w, h):
     from game.draw import draw_mountains, draw_ground, draw_cloud
     from game.entities import Pipe
     scene = pygame.Surface((GW, GH))
-    palette = biome.palette_for_phase(0.5)
-    scene.blit(get_sky_surface_biome(GW, GH, GROUND_Y, palette, 0), (0, 0))
+    palette = biome.palette_for_phase(NIGHT_PHASE)
+    scene.blit(get_sky_surface_biome(GW, GH, GROUND_Y, palette,
+                                     biome.phase_bucket(NIGHT_PHASE)), (0, 0))
     for bx, by, sc, variant in ((40, 90, 0.9, 0), (200, 130, 1.1, 2), (300, 70, 0.7, 1)):
         draw_cloud(scene, bx, by, sc, variant=variant)
     draw_mountains(scene, 40.0, GROUND_Y, GW, palette['mtn_far'], palette['mtn_near'])

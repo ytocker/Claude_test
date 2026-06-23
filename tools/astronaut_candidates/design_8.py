@@ -92,82 +92,74 @@ def _paint(surf, wing_angle_deg):
     #    Anchored LOW and TIGHT to the shoulder; the flared NOZZLES poke past the
     #    back/side like fins (the outline-breaker), but the slab top sits well
     #    below the crown so the chrome helmet stays the largest+highest mass.
-    pkx, pky = BCX - 12, BCY + 2          # back-shoulder anchor, low + tucked in
+    pkx, pky = BCX - 11, BCY - 2          # back-shoulder anchor, raised + tucked tighter
     # Squared maneuvering-unit slab: a clean white box, slightly canted so the
     # back corner is higher (a worn pack), never a vertical bar mirroring the head.
-    pack = [(pkx - 6, pky - 7), (pkx + 5, pky - 9), (pkx + 8, pky + 2),
-            (pkx + 7, pky + 12), (pkx - 5, pky + 13), (pkx - 7, pky + 3)]
+    # Pulled tight under the shoulder so the body overlaps its inner (front) edge
+    # and only the flared fin tips clear the silhouette.
+    pack = [(pkx - 5, pky - 6), (pkx + 5, pky - 8), (pkx + 8, pky + 1),
+            (pkx + 7, pky + 9), (pkx - 4, pky + 10), (pkx - 6, pky + 2)]
     _poly(surf, _SUIT_SH, [(x, y + 1) for x, y in pack])   # soft underside
     _poly(surf, _SUIT_W, pack)
     pygame.draw.polygon(surf, _NAVY, pack, 1)              # navy keyline on the pack
-    # Navy control panel band low on the slab (keeps the dark mass small + low).
-    _poly(surf, _NAVY, [(pkx - 4, pky + 6), (pkx + 6, pky + 6),
-                        (pkx + 5, pky + 11), (pkx - 4, pky + 11)])
-    pygame.draw.line(surf, _ORANGE, (pkx - 2, pky + 8), (pkx + 3, pky + 8), 1)
-    pygame.draw.line(surf, _NAVY_H, (pkx - 4, pky - 5), (pkx + 5, pky - 7), 1)
-    # Two side hand-controller arms hinting at the pack edges (MMU tell).
-    pygame.draw.line(surf, _NAVY, (pkx - 6, pky - 1), (pkx - 10, pky + 2), 2)
-    pygame.draw.line(surf, _NAVY, (pkx + 7, pky + 4), (pkx + 11, pky + 7), 2)
-    pygame.draw.circle(surf, _ORANGE, (pkx - 10, pky + 2), 1)
+    # Navy control band — the SMALLEST, HIGHEST-contained dark mass on the pack.
+    _poly(surf, _NAVY, [(pkx - 3, pky - 1), (pkx + 5, pky - 1),
+                        (pkx + 4, pky + 4), (pkx - 3, pky + 4)])
+    pygame.draw.line(surf, _NAVY_H, (pkx - 3, pky - 4), (pkx + 5, pky - 6), 1)
 
-    # Flared thruster NOZZLES at the pack corners/sides — short navy cones whose
-    # mouths flare OUT past the silhouette like fins. This is the unmistakable
-    # free-flyer tell; faint additive jet glints puff from the mouths on a flap.
-    nozzles = [
-        (pkx - 8, pky - 6, -1, -1),   # upper-back corner
-        (pkx - 9, pky + 11, -1,  1),  # lower-back corner
-        (pkx + 9, pky + 12,  1,  1),  # lower-front, flares past the body side
-        (pkx + 10, pky - 4,  1, -1),  # upper-front
+    # TWO flared thruster FINS along the upper-back edge — hard angular trapezoids,
+    # clearly WIDER at the mouth than the throat, long axis raked UP-AND-BACK so
+    # they read as crisp propulsion fins breaking the silhouette, never as balls.
+    # (nx,ny) = throat root on the pack; the fin rakes out toward (mx,my).
+    fins = [
+        (pkx - 5, pky - 4, pkx - 11, pky - 9),   # upper fin, rakes back + up
+        (pkx - 4, pky + 4, pkx - 11, pky + 3),   # lower-of-the-pair, rakes straight back
     ]
-    for nx, ny, sx, sy in nozzles:
-        mouth = (nx + sx * 4, ny + sy * 3)
-        # Short cone: a navy trapezoid widening to the flared mouth.
-        cone = [(nx - sy * 2, ny + sx * 2), (nx + sy * 2, ny - sx * 2),
-                (mouth[0] + sy * 3, mouth[1] - sx * 3),
-                (mouth[0] - sy * 3, mouth[1] + sx * 3)]
-        _poly(surf, _NAVY, cone)
-        pygame.draw.line(surf, _CHROME_D, (nx, ny), mouth, 1)   # bright bore line
-        # Faint thruster glint on the downbeat — additive so it puffs on the sky.
+    for nx, ny, mx, my in fins:
+        dx, dy = mx - nx, my - ny
+        d = math.hypot(dx, dy) or 1.0
+        # Perpendicular unit, used to splay the mouth wide and pinch the throat.
+        px, py = -dy / d, dx / d
+        throat = 1.4
+        mouth_w = 4.0
+        fin = [(nx + px * throat, ny + py * throat),
+               (nx - px * throat, ny - py * throat),
+               (mx - px * mouth_w, my - py * mouth_w),
+               (mx + px * mouth_w, my + py * mouth_w)]
+        _poly(surf, _NAVY, fin)
+        pygame.draw.line(surf, _CHROME_D, (nx, ny), (mx, my), 1)   # bright bore line
+        # Cool blue-white thruster glint on the downbeat — additive, pushed hard so
+        # the propulsion reads and stays distinct from warm coin/KFC glow.
         if thrust > 0.05:
-            a = int(120 * thrust)
-            glow = pygame.Surface((9, 9), pygame.SRCALPHA)
-            pygame.draw.circle(glow, (255, 200, 120, a), (4, 4), 4)
-            pygame.draw.circle(glow, (255, 240, 200, min(255, a + 60)), (4, 4), 2)
-            surf.blit(glow, (mouth[0] + sy * 3 - 4, mouth[1] + sx * 3 - 4),
+            a = min(180, int(180 * thrust))
+            glow = pygame.Surface((11, 11), pygame.SRCALPHA)
+            pygame.draw.circle(glow, (150, 200, 255, a), (5, 5), 5)
+            pygame.draw.circle(glow, (220, 240, 255, min(255, a + 50)), (5, 5), 2)
+            surf.blit(glow, (mx - 5, my - 5),
                       special_flags=pygame.BLEND_RGBA_ADD)
 
-    # ── BODY: NAVY shoulder yoke band across the upper chest — the one body panel
-    #    that survives at 40px — plus a single RED commander stripe down the near
-    #    arm. White stays clean below so the suit reads glossy and uncluttered.
+    # ── BODY: the ONE body accent — a NAVY shoulder yoke band across the upper
+    #    chest (the only panel that survives at 40px). Red lives as a single short
+    #    chevron ON the navy field (a dark ground it can read against), not lost on
+    #    white. Everything else is cut so the suit stays glossy + uncluttered and
+    #    the chrome helmet owns the focal read.
     yoke = [(BCX - 14, BCY - 7), (BCX - 4, BCY - 12), (BCX + 9, BCY - 11),
             (BCX + 15, BCY - 5), (BCX + 9, BCY - 5), (BCX - 2, BCY - 7),
             (BCX - 11, BCY - 3)]
     _poly(surf, _NAVY, yoke)
     pygame.draw.line(surf, _NAVY_H, (BCX - 11, BCY - 6), (BCX + 11, BCY - 8), 1)
-    # Red commander stripe running down the near (right) arm/wing root.
-    pygame.draw.line(surf, _RED, (BCX + 9, BCY - 9), (BCX + 16, BCY - 3), 3)
-    pygame.draw.line(surf, (255, 120, 130), (BCX + 10, BCY - 9), (BCX + 15, BCY - 4), 1)
+    # Single 2px red commander chevron centred on the navy yoke.
+    pygame.draw.lines(surf, _RED, False,
+                      [(BCX - 3, BCY - 9), (BCX + 1, BCY - 7), (BCX + 5, BCY - 9)], 2)
 
-    # ── CHEST: compact navy controller module with an ORANGE toggle + blue pips —
-    #    the command-deck accent, kept off the face so the visor read stays pure.
-    mx, my = BCX + 1, BCY + 2
-    pygame.draw.rect(surf, _NAVY, (mx - 6, my - 3, 13, 9), border_radius=2)
-    pygame.draw.rect(surf, _NAVY_H, (mx - 6, my - 3, 13, 9), 1, border_radius=2)
-    pygame.draw.rect(surf, _ORANGE, (mx - 4, my - 1, 4, 3))           # orange toggle
-    pygame.draw.circle(surf, _CHROME_H, (mx + 3, my), 1)             # blue-white pips
-    pygame.draw.circle(surf, _CHROME_H, (mx + 5, my + 3), 1)
-    pygame.draw.circle(surf, _ORANGE_H, (mx - 3, my + 4), 1)
-
-    # ── LIMBS: navy gloves + boots with thin ORANGE cuff rings — the command
-    #    palette reaches every extremity without adding a new colour.
+    # ── LIMBS: navy gloves so the command palette still reaches the extremities,
+    #    but no confetti rings; boots stay a clean small navy cap.
     pygame.draw.line(surf, _NAVY, (BCX + 4, BCY - 6), (BCX + 14, BCY - 9), 2)
     pygame.draw.circle(surf, _NAVY, (BCX + 16, BCY - 4), 3)           # wingtip glove
-    pygame.draw.circle(surf, _ORANGE, (BCX + 14, BCY - 6), 1)        # cuff ring
     pygame.draw.circle(surf, _WHITE_HI, (BCX + 15, BCY - 5), 1)
-    for fx in (BCX - 6, BCX):                                         # boots
-        pygame.draw.line(surf, _NAVY, (fx, BCY + 13), (fx - 1, BCY + 17), 3)
-        pygame.draw.circle(surf, _NAVY, (fx - 1, BCY + 17), 2)
-        pygame.draw.circle(surf, _ORANGE, (fx, BCY + 13), 1)         # orange cuff ring
+    for fx in (BCX - 6, BCX):                                         # boots — shrunk
+        pygame.draw.line(surf, _NAVY, (fx, BCY + 13), (fx - 1, BCY + 16), 3)
+        pygame.draw.circle(surf, _NAVY, (fx - 1, BCY + 16), 1)
 
     # ── HEAD: white helmet shell, navy collar, an orange comms-cap stripe over the
     #    crown, then the flat CHROME MIRROR visor (the cold, polished focal mass).
