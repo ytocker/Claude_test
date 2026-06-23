@@ -126,31 +126,15 @@ def _rocket_pack(surf, t):
 
 
 def _suit_details(surf):
-    # ── full-suit hardware all over the body ── a vertical row of big round red
-    # buttons down the chest, a small circular gauge dial beside them, a wide
-    # belt with a square buckle at the waist, and red ringed cuffs at the wing
-    # roots + chunky silver boots with a red sole stripe.
-    # Buttons: 3 bold round red buttons marching down the chest centre.
-    for i, (bxp, byp) in enumerate(((30, 30), (29, 37), (28, 44))):
-        pygame.draw.circle(surf, RED_D, (bxp, byp + 1), 3)
-        pygame.draw.circle(surf, RED, (bxp, byp), 3)
-        pygame.draw.circle(surf, (255, 170, 170), (bxp - 1, byp - 1), 1)
-
-    # Circular gauge dial (retro instrument) beside the top button.
-    gx, gy = 38, 33
-    pygame.draw.circle(surf, DARK, (gx, gy), 4)
-    pygame.draw.circle(surf, GLASS_HI, (gx, gy), 3)
-    pygame.draw.circle(surf, DARK, (gx, gy), 3, 1)
-    pygame.draw.line(surf, RED, (gx, gy), (gx + 2, gy - 2), 1)   # needle
-    pygame.draw.circle(surf, DARK, (gx, gy), 1)
-
-    # Wide belt with a square buckle at the waist.
-    pygame.draw.line(surf, SILVER_SH, (18, 49), (42, 47), 5)
-    pygame.draw.line(surf, SILVER, (18, 48), (42, 46), 3)
-    pygame.draw.line(surf, SILVER_HI, (20, 47), (38, 45), 1)
-    pygame.draw.rect(surf, DARK, (27, 44, 7, 7))
-    pygame.draw.rect(surf, RED, (28, 45, 5, 5))
-    pygame.draw.rect(surf, (255, 170, 170), (29, 46, 2, 2))
+    # ── minimal suit hardware ── the chest used to stack 3 buttons + a gauge
+    # dial + a belt buckle right under the chin, which collapsed at 40px into a
+    # red smudge that read as a wound crossing the face line. Cut to ONE small
+    # red button placed LOW and off-centre on the belly, well clear of the face,
+    # so the chrome torso stays clean and nothing red touches the dome.
+    bxp, byp = 26, 45            # low + left of centre, below the face line
+    pygame.draw.circle(surf, RED_D, (bxp, byp + 1), 2)
+    pygame.draw.circle(surf, RED, (bxp, byp), 2)
+    pygame.draw.circle(surf, (255, 170, 170), (bxp - 1, byp - 1), 1)
 
     # Chunky silver boots with a red sole stripe (over the bare feet).
     for fx in (26, 35):
@@ -167,6 +151,21 @@ def _cuffs(surf):
     pygame.draw.line(surf, (255, 170, 170), (wrx - 4, wry), (wrx + 5, wry - 3), 1)
 
 
+def _keyline(surf):
+    # Trace a 1px DARK outline around the opaque silhouette by stamping the
+    # alpha mask offset in 8 directions under the figure. Cheap, target-agnostic
+    # (no per-pixel loop / shader), and identical on desktop + WASM.
+    mask = pygame.mask.from_surface(surf, 80)
+    outline = mask.to_surface(setcolor=(*DARK, 255), unsetcolor=(0, 0, 0, 0))
+    out = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1),
+                   (-1, -1), (1, -1), (-1, 1), (1, 1)):
+        out.blit(outline, (dx, dy))    # fattened dark silhouette
+    out.blit(surf, (0, 0))             # original figure over its own dark ring
+    surf.fill((0, 0, 0, 0))
+    surf.blit(out, (0, 0))
+
+
 def _fishbowl(surf, t):
     # ── tall clear FISHBOWL helmet (visor UP) over the head ── Pip's macaw face
     # stays fully visible inside; a bright CHROME RIM RING at the base seats it
@@ -174,13 +173,30 @@ def _fishbowl(surf, t):
     # bobbing ANTENNA with a glowing ball pokes up past the dome.
     cx, cy = HX + 1, HY - 1
     r = 16
-    # Faint cool glass tint behind the face (kept low alpha so the face reads).
+
+    # ── FACE READ FIRST ── the chrome recolor erased Pip's eye, leaving a blank
+    # grey head behind blank grey glass: the dome read as a featureless blob at
+    # 40px. Fix it BEFORE the glass goes on. The macaw eye/beak live on the
+    # lower-right of the head (native (50,20)/(52..61,21..28) → composite here).
+    # 1) Brighten the head VALUE directly behind the face so it lifts off the
+    #    cool glass tint and the dark eye has something pale to sit on.
+    eye_x, eye_y = HX + 4, HY - 1          # ≈ (51, 40) — where the lens used to be
+    _aaellipse(surf, (236, 240, 247), (HX + 2, HY), 8, 7)
+    # 2) Punch a bold dark eye + bright catch-light: the single highest-contrast
+    #    mark in the dome, so the face is unmistakably the thing you read.
+    pygame.draw.circle(surf, (24, 26, 34), (eye_x, eye_y), 3)
+    pygame.draw.circle(surf, (8, 9, 13), (eye_x, eye_y), 2)
+    pygame.draw.circle(surf, GLASS_HI, (eye_x - 1, eye_y - 1), 1)
+
+    # Faint cool glass tint behind the face, but punched OUT around the eye so
+    # the tint never greys-down the one mark that carries the read.
     glass = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    pygame.draw.circle(glass, (*GLASS, 60), (cx, cy - 1), r - 1)
+    pygame.draw.circle(glass, (*GLASS, 55), (cx, cy - 1), r - 1)
+    pygame.draw.circle(glass, (0, 0, 0, 0), (eye_x, eye_y), 5)   # clear over face
     surf.blit(glass, (0, 0))
 
     # Bold reflection streak across the upper-left glass — the "it's a bubble"
-    # tell, drawn over the (already-present) face so it reads as on the dome.
+    # tell, kept up and LEFT so it never crosses the face on the right.
     arc = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
     pygame.draw.line(arc, (*GLASS_HI, 150), (cx - 9, cy - 8), (cx - 3, cy - 12), 3)
     pygame.draw.line(arc, (*GLASS_HI, 110), (cx - 11, cy - 2), (cx - 6, cy - 9), 2)
@@ -193,14 +209,12 @@ def _fishbowl(surf, t):
     pygame.draw.arc(surf, GLASS, (cx - r, cy - r, r * 2, r * 2),
                     math.radians(200), math.radians(340), 1)
 
-    # Chrome rim RING at the base of the bubble (the neck seal) — the brightest
-    # hard band on the head so the dome clearly sits on the suit.
-    pygame.draw.ellipse(surf, DARK, (cx - 13, cy + 9, 27, 9))
-    pygame.draw.ellipse(surf, SILVER, (cx - 12, cy + 9, 25, 6))
-    pygame.draw.ellipse(surf, SILVER_HI, (cx - 9, cy + 9, 9, 3))
-    # Two rivets on the rim.
-    pygame.draw.circle(surf, DARK, (cx - 9, cy + 12), 1)
-    pygame.draw.circle(surf, DARK, (cx + 9, cy + 12), 1)
+    # ── ONE bright rim band at the neck seal ── previously a dark base ellipse +
+    # silver band + two rivets stacked into three competing grey shapes by the
+    # antenna root. Collapse to a single bright silver band on a thin dark seat
+    # so the dome cleanly "sits" on the suit without visual clutter.
+    pygame.draw.ellipse(surf, DARK, (cx - 12, cy + 10, 25, 6))
+    pygame.draw.ellipse(surf, SILVER_HI, (cx - 11, cy + 9, 23, 4))
 
     # ── bobbing ANTENNA with a glowing ball tip, poking past the dome ──
     # The stalk angle + tip position WOBBLE with the flap so it springs/bounces.
@@ -230,6 +244,12 @@ def _paint(surf, wing_angle_deg):
     surf.fill((0, 0, 0, 0))
     _rocket_pack(surf, t)
     surf.blit(bird, (0, 0))
+
+    # ── 1px dark keyline around the body + dome OUTER silhouette ── the silver
+    # suit and clear dome washed straight into the pale day sky (the red fins
+    # already pop because they carry a keyline). Trace the bird's alpha edge in
+    # DARK so the whole chrome figure reads as a crisp shape on any background.
+    _keyline(surf)
 
     # Suit hardware over the body, cuffs on the wing root, then the fishbowl on
     # top of the (now silver) head so the face shows through the glass.
