@@ -8,15 +8,15 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame
 pygame.init()
 
-from tools.ninja_render import gameplay_panel, hero_panel, _frame
+from tools.ninja_render import hero_panel, _frame
 from tools.astronaut_candidates.design_1 import build
 from game import biome
 from game.draw import get_sky_surface_biome, draw_mountains, draw_ground, draw_cloud
 from game.entities import Pipe
 from game.config import W as GW, H as GH, GROUND_Y
 
-OUT = "docs/store_redesign/costume/astronaut/design_1/round_1.png"
-TITLE = "ASTRONAUT  design_1  MOONWALKER"
+OUT = "docs/store_redesign/costume/astronaut/design_1/round_2.png"
+TITLE = "ASTRONAUT  design_1  MOONWALKER  (R2)"
 
 
 def _gameplay_phase(phase):
@@ -38,6 +38,18 @@ def _gameplay_phase(phase):
     return scene, (pip_cx, pip_cy)
 
 
+def _gameplay_crop(phase, w, h):
+    """Pip mid-flight at the given phase, cropped to a panel and scaled —
+    mirrors ninja_render.gameplay_panel but parameterised by day/night phase."""
+    scene, (cx, cy) = _gameplay_phase(phase)
+    crop_h = int(GH * 0.78)
+    crop_w = int(crop_h * w / h)
+    crop = pygame.Rect(0, 0, crop_w, crop_h)
+    crop.center = (cx + 34, cy - 20)
+    crop.clamp_ip(pygame.Rect(0, 0, GW, GH))
+    return pygame.transform.smoothscale(scene.subsurface(crop).copy(), (w, h))
+
+
 def _truth_read(phase, px=40):
     """Shrink the gameplay frame to ~40px then NEAREST-upscale ×3 — the brutal
     'does it still read at thumbnail size' test, day and night."""
@@ -56,7 +68,8 @@ def main():
     small = pygame.font.SysFont("Arial", 13)
 
     hero = hero_panel(build, 300)
-    play = gameplay_panel(build, 230, 345)
+    play_day = _gameplay_crop(0.0, 200, 345)
+    play_night = _gameplay_crop(0.5, 200, 345)
     read_day = _truth_read(0.0)
     read_night = _truth_read(0.5)
 
@@ -64,7 +77,7 @@ def main():
     label_h = 26
     top = 56
     body_h = 345
-    sheet_w = pad + 300 + pad + 230 + pad + 120 + pad
+    sheet_w = pad + 300 + pad + 200 + pad + 200 + pad + 120 + pad
     sheet_h = top + label_h + body_h + pad
 
     sheet = pygame.Surface((sheet_w, sheet_h))
@@ -77,10 +90,14 @@ def main():
     sheet.blit(small.render("hero", True, (180, 186, 200)), (x, y))
     sheet.blit(hero, (x, y + label_h))
     x += 300 + pad
-    # Gameplay
+    # Gameplay — day
     sheet.blit(small.render("in-gameplay (day)", True, (180, 186, 200)), (x, y))
-    sheet.blit(play, (x, y + label_h))
-    x += 230 + pad
+    sheet.blit(play_day, (x, y + label_h))
+    x += 200 + pad
+    # Gameplay — night
+    sheet.blit(small.render("in-gameplay (night)", True, (180, 186, 200)), (x, y))
+    sheet.blit(play_night, (x, y + label_h))
+    x += 200 + pad
     # 40px truth reads, stacked
     sheet.blit(small.render("40px read  day / night", True, (180, 186, 200)), (x, y))
     sheet.blit(read_day, (x, y + label_h))
