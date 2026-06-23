@@ -1,8 +1,8 @@
 """DESIGN 5 — STARLINER: the sleek modern SpaceX-IVA pilot. The premium
 near-future astronaut — a crisp two-tone WHITE bird in a glossy suit with a
 small ANGULAR black-visor helmet (visor DOWN, hard hexagonal faceplate) and a
-SLIM low-profile black flight-pack rather than a fat PLSS. The whole read is
-black-on-white: sharp, minimal, glossy.
+low-profile GRAY flight-pack tucked onto the shoulder rather than a fat PLSS.
+The whole read is black-on-white: sharp, minimal, glossy.
 
 Scratch exploration only — wrapped by ``store_skins._make_skin`` and rendered
 via ``tools/ninja_render.py``; NOT registered in ``store_skins.BUILDERS`` so
@@ -10,12 +10,14 @@ the live ``skin_astronaut`` is untouched.
 
 Reads at 40px in both day and night because the suit is recoloured to near-
 white through the palette system (so the whole bird is a bright blob the dark
-sky never swallows) and every hero object is HARD BLACK on that white: the
-angular faceplate owns the head as one dark hexagon, the slim flight-pack +
-gray umbilical break the back outline, and black shoulder/side panels + boots
-+ wingtip gloves carry the two-tone all the way down the body. One thin CYAN
-status line on the chest module is the single colour accent — the modern HUD
-tell that keeps it from reading as a penguin.
+sky never swallows) and the HELMET wins the focal fight unambiguously: the
+black faceplate is the single largest+darkest mass. The flight-pack is GRAY
+with only a thin black accent and sits LOW behind the shoulder, overlapped by
+the body and tied in by a white strap, so it reads "pack on back" not "second
+head." The dominant white diagonal glint plus the round dark head carry the
+"visor" read at size; one bold black shoulder yoke is the only body panel that
+survives. The single CYAN status line on the chest module is the lone colour
+accent — kept away from the face so the helmet read stays pure.
 """
 import pygame
 
@@ -75,42 +77,37 @@ def _paint(surf, wing_angle_deg):
     # Body centre in composite space (parrot body centre (32,32) + PARROT_DY).
     BCX, BCY = 32, 52
 
-    # ── BACK: slim black flight-pack + gray umbilical (drawn first so the body
-    #    overlaps its inner edge → it reads as worn on the back, low-profile, not
-    #    a fat backpack). A narrow vertical slab rising just past the crown and
-    #    poking past the back-shoulder, with a single thin gloss seam.
-    pkx, pky = BCX - 16, BCY - 6        # back-shoulder anchor, left/up of body
-    pygame.draw.rect(surf, _GRAY, (pkx - 5, pky - 17, 11, 30), border_radius=4)
-    pygame.draw.rect(surf, _BLACK, (pkx - 4, pky - 16, 9, 28), border_radius=3)
-    pygame.draw.line(surf, _GRAY, (pkx - 1, pky - 13), (pkx - 1, pky + 8), 1)
-    # Two slim cyan status pips on the pack top so the dark slab self-separates
-    # from the night sky and ties to the chest accent.
-    pygame.draw.circle(surf, _CYAN, (pkx + 2, pky - 13), 1)
-    pygame.draw.circle(surf, _WHITE_HI, (pkx - 2, pky - 13), 1)
-    # Gray umbilical hose curving from the pack base around to the hip.
-    pygame.draw.lines(surf, _GRAY, False,
-                      [(pkx + 3, pky + 11), (pkx + 9, pky + 16),
-                       (BCX - 2, BCY + 9), (BCX + 8, BCY + 7)], 3)
-    pygame.draw.lines(surf, _BLACK, False,
-                      [(pkx + 3, pky + 11), (pkx + 9, pky + 16),
-                       (BCX - 2, BCY + 9), (BCX + 8, BCY + 7)], 1)
+    # ── BACK: low-profile GRAY flight-pack hugging the shoulder. Drawn first so
+    #    the body silhouette overlaps its inner ~40% → it reads as worn ON the
+    #    back, attached, not a second mass beside the head. It is GRAY (not black)
+    #    and sits LOW (top well below the crown) so the dark faceplate stays the
+    #    single largest+darkest shape and unambiguously wins the focal fight. The
+    #    top is angled/canted (an asymmetric shoulder shape), never a vertical bar
+    #    mirroring the round helmet, and a thin white strap ties it to the suit.
+    pkx, pky = BCX - 13, BCY + 1        # back-shoulder anchor, low + tucked in
+    # Canted slab: top-back corner higher than top-front so the silhouette slopes
+    # down toward the body — an angled pack shoulder, not a mirrored stick.
+    pack = [(pkx - 5, pky - 6), (pkx + 4, pky - 9), (pkx + 7, pky + 1),
+            (pkx + 6, pky + 12), (pkx - 4, pky + 13), (pkx - 6, pky + 3)]
+    _poly(surf, _GRAY, pack)
+    pygame.draw.line(surf, _SUIT_SH, (pkx - 4, pky - 5), (pkx + 5, pky + 11), 1)
+    # BLACK only as a thin lower accent band — keeps the pack's dark area small.
+    _poly(surf, _BLACK, [(pkx - 4, pky + 8), (pkx + 6, pky + 8),
+                         (pkx + 5, pky + 12), (pkx - 4, pky + 12)])
+    # White shoulder strap arcing from the pack top over the shoulder into the
+    # body — the explicit "attached" cue at any size.
+    pygame.draw.line(surf, _WHITE_HI, (pkx + 3, pky - 8), (BCX + 1, BCY - 9), 2)
+    pygame.draw.line(surf, _SUIT_SH, (pkx + 3, pky - 7), (BCX + 1, BCY - 8), 1)
 
-    # ── BODY two-tone: black across the collarbone/shoulders, then a black
-    #    stripe down each visible side. Clamp to the body silhouette by sizing
-    #    each panel to the white blob so the suit reads glossy, not painted-over.
-    # Collarbone/shoulder yoke — a black band arcing over the upper chest.
+    # ── BODY two-tone: ONE bold black shoulder YOKE band across the upper chest
+    #    — the single body panel that survives at 40px. The white body stays clean
+    #    below it (no side stripe, no belly seam) so the suit reads glossy and the
+    #    eye isn't split across competing dark marks.
     yoke = [(BCX - 14, BCY - 7), (BCX - 4, BCY - 12), (BCX + 9, BCY - 11),
-            (BCX + 15, BCY - 5), (BCX + 9, BCY - 6), (BCX - 2, BCY - 8),
-            (BCX - 11, BCY - 4)]
+            (BCX + 15, BCY - 5), (BCX + 9, BCY - 5), (BCX - 2, BCY - 7),
+            (BCX - 11, BCY - 3)]
     _poly(surf, _BLACK, yoke)
     pygame.draw.line(surf, _GRAY, (BCX - 11, BCY - 6), (BCX + 11, BCY - 8), 1)
-    # Side accent stripe down the near (right) flank.
-    side = [(BCX + 13, BCY - 4), (BCX + 16, BCY - 1),
-            (BCX + 13, BCY + 9), (BCX + 9, BCY + 7)]
-    _poly(surf, _BLACK, side)
-    pygame.draw.line(surf, _SUIT_SH, (BCX + 12, BCY - 2), (BCX + 11, BCY + 6), 1)
-    # Far-side stripe hint along the belly/tail seam so the two-tone wraps.
-    pygame.draw.line(surf, _BLACK, (BCX - 12, BCY + 6), (BCX - 4, BCY + 10), 3)
 
     # ── CHEST: minimalist rectangular black module with one thin CYAN status
     #    line + dot — the single modern-HUD colour accent on the whole skin.
@@ -150,13 +147,14 @@ def _paint(surf, wing_angle_deg):
     _poly(surf, _BLACK, face)
     # Slim gray bezel along the faceplate top so the hexagon edge stays crisp.
     pygame.draw.line(surf, _GRAY, (fx - 6, fy - 7), (fx + 8, fy - 6), 1)
-    # One sharp diagonal white glint sweeping across the dark glass.
-    pygame.draw.line(surf, _WHITE_HI, (fx - 6, fy + 4), (fx + 4, fy - 5), 2)
-    pygame.draw.line(surf, _CYAN, (fx + 1, fy + 2), (fx + 5, fy - 2), 1)
-    # Small black chin/comms wedge under the faceplate.
+    # One bold diagonal white glint sweeping across the dark glass — longer and
+    #    brighter than the round_1 mark so it is the DOMINANT feature of the
+    #    faceplate. With the round dark head it does the whole "visor" read at
+    #    40px (the hexagon edges won't survive); no cyan anywhere near the face.
+    pygame.draw.line(surf, _WHITE_HI, (fx - 8, fy + 5), (fx + 6, fy - 6), 3)
+    # Small black chin/comms wedge under the faceplate (no cyan tell).
     _poly(surf, _BLACK, [(fx - 4, fy + 7), (fx + 6, fy + 7),
                          (fx + 3, fy + 12), (fx - 2, fy + 12)])
-    pygame.draw.line(surf, _CYAN, (fx, fy + 9), (fx + 2, fy + 9), 1)
 
 
 build = store_skins._make_skin(_paint, base_fn=_white_base)
