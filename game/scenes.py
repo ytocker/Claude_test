@@ -735,17 +735,18 @@ class App:
 
     def _achv_tap_or_close(self, sc, pos):
         """A stationary tap on the WALL OF FAME / WALL OF SHAME tabs switches the
-        active wall; a tap anywhere else dismisses to the menu (cooldown-gated so
-        the opening tap's echo can't bounce straight back out)."""
+        active wall; the MENU button dismisses. Taps elsewhere (e.g. on a row) do
+        nothing, so the list feels solid — only the button or ESC exits."""
         tf = getattr(sc, "tab_fame_rect", None)
         ts = getattr(sc, "tab_shame_rect", None)
+        mb = getattr(sc, "menu_btn_rect", None)
         if tf and tf.collidepoint(pos):
             sc.set_tab("fame")
             return
         if ts and ts.collidepoint(pos):
             sc.set_tab("shame")
             return
-        if self._cooldown_t <= 0:
+        if mb and mb.collidepoint(pos) and self._cooldown_t <= 0:
             self._close_achievements()
 
     # ── achievement-earned screen (end of run) ────────────────────────────────

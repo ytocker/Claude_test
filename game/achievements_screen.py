@@ -16,8 +16,9 @@ import pygame
 from game.config import W, H
 from game.draw import lerp_color
 from game.hud import (
-    _font, _outlined_text,
-    _GOLD_BRIGHT, _GOLD_PALE, _GOLD_DEEP,
+    _font, _outlined_text, _outline_pill_btn,
+    _draw_overlay_stars, _draw_mountain_silhouette,
+    _GOLD_BRIGHT, _GOLD_PALE, _GOLD_DEEP, _GOLD_MUTED,
     _PANEL_DARK, _PANEL_LIGHTER, _NIGHT_DEEP,
 )
 from game import achievements as ach
@@ -30,16 +31,17 @@ _DIM   = (150, 150, 172)
 _MYST_DIM = (176, 154, 200)
 # Bronze-tinted dim for masked Wall-of-Shame rows, echoing the tarnished badge.
 _SHAME_DIM = (180, 150, 120)
-_BRONZE    = (198, 132, 66)     # Shame accent (mirrors gold on Fame)
+_BRONZE      = (198, 132, 66)     # Shame accent (mirrors gold on Fame)
+_BRONZE_PALE = (228, 182, 130)
 _BRONZE_DEEP = (110, 64, 28)
 
 # Layout (logical px).
 _HEADER_H = 56          # taller: title + a global progress bar live here
 _TAB_H    = 32          # FAME | SHAME segmented toggle, below the header
-_FOOTER_H = 30
+_FOOTER_H = 54          # a grounded band for the real MENU button
 _CAT_H    = 30
 _ROW_H    = 56          # tightened ~10% for better scan density
-_ROW_GAP  = 5
+_ROW_GAP  = 7
 _PAD_X    = 12
 _BADGE    = 44
 
@@ -47,7 +49,19 @@ _BADGE    = 44
 # reuse this weight + horizontal inset so the whole screen reads as one system.
 _RULE_INSET = 40
 
-_S = 2  # supersample for the tall content surface
+_S = 3  # supersample for the tall content surface (matches the leaderboard)
+
+
+# Seeded twinkle field so the wall lives in the same night world as the menu.
+_STARS = []
+def _star_field():
+    if not _STARS:
+        import random as _r
+        rng = _r.Random(42)
+        for _ in range(46):
+            _STARS.append((rng.randint(6, W - 6), rng.randint(8, H - 150),
+                           rng.choice((1, 1, 1, 2)), rng.uniform(0, 6.28)))
+    return _STARS
 
 
 class AchievementsScene:
@@ -69,6 +83,7 @@ class AchievementsScene:
         self._tab = "fame"
         self.tab_fame_rect: "pygame.Rect | None" = None
         self.tab_shame_rect: "pygame.Rect | None" = None
+        self.menu_btn_rect: "pygame.Rect | None" = None
 
     def _roster(self):
         """(category order, by-cat map, total, badge tone) for the active tab."""
@@ -189,15 +204,27 @@ class AchievementsScene:
     def _draw_row(self, surf, a: "ach.Achievement", y, store, S, tone="gold"):
         unlocked = ach.is_unlocked(store, a.id)
         shame = (tone == "tarnished")
+        acc, acc_pale, acc_deep = ((_BRONZE, _BRONZE_PALE, _BRONZE_DEEP) if shame
+                                   else (_GOLD_BRIGHT, _GOLD_PALE, _GOLD_DEEP))
         rx = _PAD_X * S
         rw = (W - _PAD_X * 2) * S
         ry = y * S
         rh = _ROW_H * S
         rad = 12 * S
 
-        # Row panel.
-        body_top = _PANEL_LIGHTER if unlocked else (18, 14, 40)
-        body_bot = _PANEL_DARK if unlocked else (10, 7, 26)
+        # Soft drop shadow so each card sits proud of the night field.
+        sh = pygame.Surface((rw, rh), pygame.SRCALPHA)
+        pygame.draw.rect(sh, (0, 0, 0, 120 if unlocked else 70),
+                         (0, 0, rw, rh), border_radius=rad)
+        surf.blit(sh, (rx, ry + 4 * S))
+
+        # Minted card body — a gradient plate. Earned rows sit a clear tier above
+        # the masked ones (which drop ~28% in value and lose the accent border),
+        # so "earned" is carried by the body + star, not a loud ring of gold.
+        if unlocked:
+            body_top, body_bot = _PANEL_LIGHTER, _PANEL_DARK
+        else:
+            body_top, body_bot = (12, 9, 30), (7, 4, 18)
         panel = pygame.Surface((rw, rh), pygame.SRCALPHA)
         for yy in range(rh):
             t = yy / max(1, rh - 1)
@@ -205,19 +232,28 @@ class AchievementsScene:
         mask = pygame.Surface((rw, rh), pygame.SRCALPHA)
         pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, rw, rh), border_radius=rad)
         panel.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-        border = (*_GOLD_BRIGHT, 180) if unlocked else (90, 86, 120, 140)
-        pygame.draw.rect(panel, border, (0, 0, rw, rh), width=max(1, S), border_radius=rad)
-        # Earned rows wear a bright gold accent stripe down the left edge — a
-        # quick "this one's yours" read while scanning a long list.
+
         if unlocked:
+            # Top sheen + bottom inner shadow = the menu's minted emboss.
+            pygame.draw.line(panel, (*acc_pale, 110), (10 * S, 3 * S),
+                             (rw - 10 * S, 3 * S), max(1, S))
+            pygame.draw.line(panel, (4, 2, 14), (12 * S, rh - 3 * S),
+                             (rw - 12 * S, rh - 3 * S), max(1, S))
+            # A thin, low-chroma accent border (not a bright ring) + a left stripe.
+            pygame.draw.rect(panel, (*acc_deep, 210), (0, 0, rw, rh),
+                             width=max(1, S), border_radius=rad)
             stripe = pygame.Surface((max(3, 4 * S), rh - 8 * S), pygame.SRCALPHA)
             for yy in range(stripe.get_height()):
                 t = yy / max(1, stripe.get_height() - 1)
-                stripe.fill(lerp_color(_GOLD_PALE, _GOLD_DEEP, t), (0, yy, stripe.get_width(), 1))
-            sm = pygame.Surface(stripe.get_size(), pygame.SRCALPHA)
-            pygame.draw.rect(sm, (255, 255, 255, 255), sm.get_rect(), border_radius=max(1, 2 * S))
-            stripe.blit(sm, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+                stripe.fill(lerp_color(acc_pale, acc_deep, t), (0, yy, stripe.get_width(), 1))
+            stm = pygame.Surface(stripe.get_size(), pygame.SRCALPHA)
+            pygame.draw.rect(stm, (255, 255, 255, 255), stm.get_rect(), border_radius=max(1, 2 * S))
+            stripe.blit(stm, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
             panel.blit(stripe, (3 * S, 4 * S))
+        else:
+            # Masked rows read as empty slots — a faint cool hairline, no accent.
+            pygame.draw.rect(panel, (66, 62, 92, 90), (0, 0, rw, rh),
+                             width=max(1, S), border_radius=rad)
         surf.blit(panel, (rx, ry))
 
         # Badge.
@@ -251,11 +287,11 @@ class AchievementsScene:
                            int((W - _PAD_X) * S - tx - 8 * S), 12 * S, dcol)
 
         # Earned star only — locked rows show no progress (it would betray the
-        # hidden goal).
+        # hidden goal). The star carries "earned", recoloured per wall.
         if unlocked:
             star_cx = int((W - _PAD_X) * S - 12 * S)
             star_cy = int(ry + 16 * S)
-            self._draw_star(surf, star_cx, star_cy, 8 * S)
+            self._draw_star(surf, star_cx, star_cy, 8 * S, acc, acc_deep)
 
     def _gilded_count(self, txt, size, hi=_GOLD_PALE, lo=_GOLD_DEEP):
         """The header counter rendered with a vertical gradient fill (pale crest
@@ -274,7 +310,7 @@ class AchievementsScene:
         out.blit(grad, (0, 0))
         return out
 
-    def _draw_star(self, surf, cx, cy, rad):
+    def _draw_star(self, surf, cx, cy, rad, fill=_GOLD_BRIGHT, edge=_GOLD_DEEP):
         """Procedural five-point "earned" star — the bundled bold font has no
         U+2605 glyph, so the badge family's star is drawn instead of typeset."""
         pts = []
@@ -282,8 +318,8 @@ class AchievementsScene:
             ang = -math.pi / 2 + i * math.pi / 5
             rr = rad if i % 2 == 0 else rad * 0.42
             pts.append((cx + math.cos(ang) * rr, cy + math.sin(ang) * rr))
-        pygame.draw.polygon(surf, _GOLD_BRIGHT, [(int(x), int(y)) for x, y in pts])
-        pygame.draw.polygon(surf, _GOLD_DEEP, [(int(x), int(y)) for x, y in pts], max(1, _S))
+        pygame.draw.polygon(surf, fill, [(int(x), int(y)) for x, y in pts])
+        pygame.draw.polygon(surf, edge, [(int(x), int(y)) for x, y in pts], max(1, _S))
 
     def _blit_wrapped(self, surf, text, x, y, maxw, size, color):
         f = _font(int(size), True)
@@ -348,10 +384,13 @@ class AchievementsScene:
         self._t += dt
         self._ensure_content(store)
 
-        # Background — deep night gradient.
+        # Background — the menu's night world: deep gradient + twinkle starfield
+        # + a dim mountain silhouette low down, so the wall sits in the same place.
         for yy in range(H):
             t = yy / (H - 1)
             pygame.draw.line(surf, lerp_color(_NIGHT_DEEP, (14, 8, 36), t), (0, yy), (W, yy))
+        _draw_overlay_stars(surf, _star_field(), self._t)
+        _draw_mountain_silhouette(surf, alpha=130)
 
         top, bot = self._viewport()
         view_h = bot - top
@@ -366,16 +405,30 @@ class AchievementsScene:
             scaled = pygame.transform.smoothscale(sub, (W, src_h // S))
             surf.blit(scaled, (0, top))
 
-        # Scrollbar.
+        # Recessed metallic scrollbar — a sunken channel + a brighter rounded
+        # thumb with a gold rim, the energy-bar language. Self-documents the
+        # drag, so no "drag to scroll" caption is needed.
         if self.max_scroll > 0:
-            track_x = W - 5
-            pygame.draw.rect(surf, (255, 255, 255, 30), (track_x, top, 3, view_h),
-                             border_radius=2)
-            thumb_h = max(24, int(view_h * view_h / (self._content_h)))
+            is_shame = self._tab == "shame"
+            acc = _BRONZE if is_shame else _GOLD_BRIGHT
+            acc_lo = _BRONZE_DEEP if is_shame else _GOLD_DEEP
+            tw = 6
+            tx = W - tw - 3
+            pygame.draw.rect(surf, (4, 2, 14), (tx, top, tw, view_h), border_radius=tw // 2)
+            pygame.draw.line(surf, (2, 1, 8), (tx + 1, top + 1), (tx + 1, bot - 1), 1)
+            thumb_h = max(30, int(view_h * view_h / self._content_h))
             travel = view_h - thumb_h
             thumb_y = top + int((self.scroll_offset / self.max_scroll) * travel)
-            pygame.draw.rect(surf, _GOLD_BRIGHT, (track_x, thumb_y, 3, thumb_h),
-                             border_radius=2)
+            thumb = pygame.Surface((tw, thumb_h), pygame.SRCALPHA)
+            for yy in range(thumb_h):
+                t = yy / max(1, thumb_h - 1)
+                thumb.fill((*lerp_color(acc, acc_lo, t), 255), (0, yy, tw, 1))
+            tm = pygame.Surface((tw, thumb_h), pygame.SRCALPHA)
+            pygame.draw.rect(tm, (255, 255, 255, 255), (0, 0, tw, thumb_h), border_radius=tw // 2)
+            thumb.blit(tm, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+            surf.blit(thumb, (tx, thumb_y))
+            pygame.draw.line(surf, _GOLD_PALE, (tx + 2, thumb_y + 4),
+                             (tx + 2, thumb_y + thumb_h // 3), 1)
 
         # Header bar (over the scrolling content) — title = the ACTIVE wall, with
         # its counter + progress bar recoloured (gold for Fame, bronze for Shame).
@@ -420,12 +473,15 @@ class AchievementsScene:
         # FAME | SHAME segmented toggle, just below the header.
         self._draw_tab_bar(surf)
 
-        # Footer prompt — pulsing.
+        # Footer — a grounded band carrying the real MENU button (a secondary
+        # navy+gold pill, matching the run-summary MAIN MENU). A full-width gold
+        # hairline divides the list from the footer so the button sits in its
+        # own band; the recessed scrollbar already signals "drag to scroll".
+        fy = H - _FOOTER_H
         ftr = pygame.Surface((W, _FOOTER_H), pygame.SRCALPHA)
-        ftr.fill((*_NIGHT_DEEP, 230))
-        pygame.draw.line(ftr, (*_GOLD_BRIGHT, 100), (0, 0), (W, 0), 1)
-        surf.blit(ftr, (0, H - _FOOTER_H))
-        a = int(180 + 60 * math.sin(self._t * 4.0))
-        tip = _font(13, True).render("TAP TO RETURN  ·  DRAG TO SCROLL", True, _GOLD_PALE)
-        tip.set_alpha(a)
-        surf.blit(tip, tip.get_rect(center=(W // 2, H - _FOOTER_H // 2)))
+        ftr.fill((*_NIGHT_DEEP, 236))
+        surf.blit(ftr, (0, fy))
+        pygame.draw.line(surf, (*_GOLD_BRIGHT, 120), (0, fy), (W, fy), 1)
+        self.menu_btn_rect = _outline_pill_btn(
+            surf, (W // 2, fy + _FOOTER_H // 2), "MENU",
+            size=15, min_width=150)

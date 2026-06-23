@@ -97,7 +97,7 @@ _BRONZE_HI = (200, 132, 66)        # crack lit lip / drip gloss
 _BRONZE_MID = (140, 84, 38)        # crack oxide / drip body
 _BRONZE_LO = ( 84,  48, 20)        # crack deep gouge
 
-_SS = 4  # supersample for crisp edges, then smoothscale down
+_SS = 6  # supersample for crisp edges, then smoothscale down (razor-sharp rims)
 _BADGES: dict = {}
 
 # The two two-tone glyphs (magnet poles, fry-box tub) carry a saturated accent
