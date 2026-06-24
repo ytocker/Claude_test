@@ -1,3 +1,53 @@
+# LAGOON STILT-MARKET — store bazaar landing (round 4)
+
+## Round 4 — final polish pass (4 targeted fixes, round_3 kept as the "before")
+The round_3 lagoon was loved; this pass lands four specific craft fixes and
+saves to NEW files (`round_4.png` / `round_4@2x.png`) — round_3 is untouched.
+
+1. **Pip is now an AIRBORNE distant flyer, not a jetty merchant.** `draw_pip`
+   was decoupled from the hut layer entirely — its signature is now
+   `draw_pip(surf, px, py)` (sky coords, not `deck_y`) and it's called ONCE from
+   `render_device` in the open sky gutter (`0.60, 0.255` of the canvas) between
+   the sun and the right palm, below the TAP-A-STALL chip and above the back-row
+   roofs. He's the wings-up flap frame (`get_parrot(0, 8.0)`) at a slight upward
+   bank, scaled DOWN to `m(30)` so he reads as a far macaw mid-flap. Dropped: the
+   on-deck contact shadow, the dark separation halo, and the jetty coin + sparkle
+   ticks (they read odd mid-air). The empty front jetty is rebalanced by making
+   PARCELS a normal front stall (see #4).
+2. **Premium stilt water-contact ripples.** `draw_stilts` previously drew two
+   additive `GLITTER (255,232,178)` ellipses (BLEND_ADD, α120/60) — a bright gold
+   glitter fleck. Rebuilt as FOUR graduated concentric rings on a cool dusk-water
+   tone (`(150,178,196)→(96,130,158)` cooling outward), NORMAL blend, smooth
+   alpha falloff (α30→96 inner-brighter), each foreshortened to a flat surface
+   ellipse, plus a sunlit meniscus crescent arc on the lit (top-left) edge. Each
+   post now reads as genuinely displacing the water surface.
+3. **Killed the remaining white aura.** Added the proven `capped_glow` helper
+   (vendored from `sky_bazaar/render.py`) — composites rings with
+   `BLEND_RGBA_MAX` so the strongest ring wins and a glow caps at one opaque pass
+   of its own colour, never summing to white. Pip's two additive auras
+   (`SUN_AURA` 10× α56 + `SUN_CORE` 6× α78) are GONE — he gets a single faint
+   capped warm rim (α34). The dome glow (was `soft_glow` GOLD α46/34) and the
+   balance-coin glow are now `capped_glow`. Pixel sampling confirms zero
+   white-bloom blobs around Pip or the domes; the only near-white left is the
+   approved sun-glitter column specular on water (count is LOWER than round_3
+   since the gold stilt flecks are gone).
+4. **PARCELS de-mystified — a normal stall showing its real item.** All hero
+   special-casing stripped: `_place_thumb` no longer calls `_draw_mystery_crate`
+   (left unused) and routes PARCELS through the SAME `_group_thumb("parcels")` →
+   `parrot.get_skin_icon(...)` path as the other six — its first item
+   `parcel_envelope` (kraft padded mailer + twine cross + wax seal) now sits in
+   the dome with the same contain factor, rim-light and contrast-punch. Hero
+   tells normalized in `draw_hut`/`_hut_label`: dropped the gold underglow, dome
+   glow back to standard α34, standard glass tint, standard dome size/position,
+   and the STANDARD dark-timber name board (no deep-red gold-text board). The
+   `hero` flag now only marks it the front/closest stall, treated as a peer.
+
+Kept per the brief: NO red-from-beneath, all 7 stalls read, warm-gold disc sun +
+star carve-out, gold-on-red STORE header + balance capsule, palm-framed depth,
+cool natural water reflections, and the constellation sky bridge.
+
+---
+
 # LAGOON STILT-MARKET — store bazaar landing (round 3)
 
 A tropical **over-water stilt-village market at golden hour** — the most overtly

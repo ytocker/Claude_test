@@ -50,6 +50,25 @@ from docs.store_redesign.constellation_hi.render_hi import (
 )
 
 
+def capped_glow(surf, cx, cy, radius, color, peak_alpha, layers=10):
+    """A feathered glow whose rings composite with BLEND_RGBA_MAX so overlapping
+    centres take the STRONGEST ring alpha instead of SUMMING. soft_glow's additive
+    stack is the white-out engine here — warm rings summed every channel past 255
+    into pure white where auras + coin glows + the gold dome all overlapped. MAX
+    caps a glow at one opaque pass of its OWN colour, so a gold bloom stays gold
+    and can never reach white. (The proven sky_bazaar fix, vendored verbatim.)"""
+    tmp = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    for i in range(layers, 0, -1):
+        r = int(radius * i / layers)
+        a = int(peak_alpha * (1 - (i - 1) / layers) ** 1.8)
+        if r <= 0 or a <= 0:
+            continue
+        g = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
+        pygame.draw.circle(g, (*color, a), (r + 1, r + 1), r)
+        tmp.blit(g, (cx - r - 1, cy - r - 1), special_flags=pygame.BLEND_RGBA_MAX)
+    surf.blit(tmp, (0, 0))
+
+
 # =============================================================================
 # Palette — golden-hour lagoon easing UP to the indigo+gold jewel nebula apex.
 # Warm low sun rakes top-left. The apex stops are the CONSTELLATION BG anchors
@@ -467,13 +486,32 @@ def draw_stilts(surf, cx, deck_y, half_w, post_len):
         pygame.draw.line(surf, lerp_color(WOOD_HI, WHITE, 0.3),
                          (lx - post_w // 2 + m(1), deck_y),
                          (lx - post_w // 2 + m(1), foot_y), max(1, m(1)))
-        # contact ripple at the waterline
-        rr = m(11)
-        rip = pygame.Surface((rr * 2, rr), pygame.SRCALPHA)
-        pygame.draw.ellipse(rip, (*GLITTER, 120), (0, 0, rr * 2, rr), max(1, m(1.2)))
-        pygame.draw.ellipse(rip, (*GLITTER, 60),
-                            (m(3), m(2), rr * 2 - m(6), rr - m(4)), max(1, m(1)))
-        surf.blit(rip, (lx - rr, water_y - rr // 2), special_flags=pygame.BLEND_ADD)
+        # contact ripple where the post displaces the lagoon: several graduated
+        # concentric rings on a cool DUSK-WATER tone (NOT bright gold), NORMAL
+        # blend so they read as the water surface being disturbed rather than an
+        # additive glitter fleck. Outer rings are wide + faint, inner rings tight
+        # + a touch brighter, each foreshortened to a flat ellipse on the surface;
+        # a small lifted-water crescent on the lit (top-left) edge sells the
+        # meniscus where the timber breaks the surface.
+        rr = m(15)
+        rip = pygame.Surface((rr * 2 + m(2), rr + m(2)), pygame.SRCALPHA)
+        rc = (rr + m(1), (rr + m(2)) // 2)
+        rings = ((1.00, 30, 0.9), (0.74, 52, 1.0), (0.50, 78, 1.2), (0.30, 96, 1.3))
+        for fr, a, th in rings:
+            ew = int(rr * 2 * fr)
+            eh = int(rr * fr)
+            if ew <= 2 or eh <= 1:
+                continue
+            # cool ripple tone cooling outward — disturbed dusk water, never gold
+            tone = lerp_color((150, 178, 196), (96, 130, 158), 1.0 - fr)
+            pygame.draw.ellipse(rip, (*tone, a),
+                                (rc[0] - ew // 2, rc[1] - eh // 2, ew, eh),
+                                max(1, m(th)))
+        # the sunlit meniscus crescent on the upper-left of the contact point
+        pygame.draw.arc(rip, (*lerp_color((200, 214, 222), GLITTER, 0.35), 150),
+                        (rc[0] - rr + m(3), rc[1] - rr // 2, rr * 2 - m(6), rr),
+                        math.radians(150), math.radians(250), max(1, m(1.4)))
+        surf.blit(rip, (lx - rc[0], water_y - rc[1]))
         # short submerged reflection of the post
         sub = vgrad(post_w, m(14), 0, WOOD_LO, WOOD_EDGE, alpha=110)
         surf.blit(sub, (lx - post_w // 2, water_y), special_flags=pygame.BLEND_ADD)
@@ -523,8 +561,9 @@ def draw_hut(surf, cx, deck_y, scale, group, label, hero=False):
       awning front  ->  a shaded stall interior carrying a glass cabochon with
       the category's REAL preview thumbnail  ->  a bold gold-keyline label.
 
-    `hero` (PARCELS) glows red as the mystery stall. Returns the hut's footprint
-    so the caller can wire reflections + tap-target bookkeeping."""
+    `hero` (PARCELS) is the FRONT/closest stall but a visual PEER — same
+    treatment as the other six, just previewing its real envelope item. Returns
+    the hut's footprint so the caller can wire reflections + tap bookkeeping."""
     half_w = int(m(58) * scale)
     body_h = int(m(64) * scale)
     roof_h = int(m(40) * scale)
@@ -534,11 +573,6 @@ def draw_hut(surf, cx, deck_y, scale, group, label, hero=False):
     roof_apex_y = body_top - roof_h
 
     # ── soft seat under the whole hut so it sits ON the deck ──
-    # The hero gets a restrained WARM-GOLD halo (the store's coin hue) so it
-    # reads as "the prize stall", never a red sun-aura bleeding onto the water.
-    if hero:
-        soft_glow(surf, cx, body_top + int(body_h * 0.42), int(half_w * 1.25),
-                  MYST_GOLD, 34, layers=12)
     soft_glow(surf, cx, deck_y, half_w + eave, (0, 0, 0), 110, layers=6)
 
     # ── stall body (shaded interior box behind the awning) ──
@@ -635,32 +669,29 @@ def draw_hut(surf, cx, deck_y, scale, group, label, hero=False):
 
     # ── glass cabochon holding the category's real preview thumbnail ──
     # Domes are floored to a minimum radius so the BACK ROW (smallest scale)
-    # still carries an identifiable preview; the hero dome is the largest.
-    if hero:
-        dome_r = int(m(29) * scale)
-    else:
-        dome_r = max(m(24), int(m(28) * scale))
+    # still carries an identifiable preview. PARCELS uses the SAME dome size,
+    # position, glow alpha + glass tint as every other stall — it is a peer.
+    dome_r = max(m(24), int(m(28) * scale))
     dome_cx = cx
-    dome_cy = body_top + int(body_h * (0.40 if hero else 0.46))
-    soft_glow(surf, dome_cx, dome_cy, dome_r + m(6), GOLD,
-              46 if hero else 34, layers=8)
+    dome_cy = body_top + int(body_h * 0.46)
+    # capped_glow (MAX, never additive) so the warm dome bloom can never sum to
+    # white where it overlaps the awning/timber behind it — standard α34 for ALL.
+    capped_glow(surf, dome_cx, dome_cy, dome_r + m(6), GOLD, 34, layers=8)
     # SHADES is the one dark-on-dark preview (dark sunglasses on a dark parrot):
     # against the near-black dome well it collapses in value. Give it a LIGHTER
     # cool-slate dome backing so the eyewear reads as a positive shape like the
     # other previews; everything else keeps the standard deep glass well.
-    if group == "shades" and not hero:
+    if group == "shades":
         C.cabochon(surf, dome_cx, dome_cy, dome_r, (96, 104, 134), (44, 50, 78))
     else:
         C.cabochon(surf, dome_cx, dome_cy, dome_r, C.CABO_LO, C.CABO_HI)
     _place_thumb(surf, group, dome_cx, dome_cy, dome_r, hero)
-    # Hero glass takes a warm GOLD tint (was mystery-red) so the prize dome stays
-    # in the warm-gold family the rest of the village + the coin live in.
-    C.cabochon_glass(surf, dome_cx, dome_cy, dome_r,
-                     tint=(255, 222, 168) if hero else (240, 224, 196))
+    # standard glass tint for every stall including PARCELS — no hero exception.
+    C.cabochon_glass(surf, dome_cx, dome_cy, dome_r, tint=(240, 224, 196))
 
     # ── bold gold-keyline category label on a small banner under the dome ──
-    # The hero's board is deferred to render_device (drawn AFTER Pip + the coin)
-    # so it sits frontmost in a clean horizontal lane with nothing crossing it.
+    # The hero's board is deferred to render_device (drawn AFTER the front
+    # composition is settled) so it sits frontmost in a clean horizontal lane.
     if not hero:
         # nudged ~3px lower so the board clears the awning/roof-eave shadow above
         # it (it was kissing that shadow on the back row).
@@ -672,14 +703,9 @@ def draw_hut(surf, cx, deck_y, scale, group, label, hero=False):
 def _place_thumb(surf, group, cx, cy, dome_r, hero):
     """Drop the category's REAL preview into the dome, contained (letterboxed)
     so aspect-extreme items (flip-flops, party hat) sit fully inside the glass
-    instead of being clipped. The PARCELS hero shows a glowing red '?' mystery
-    mark instead of a literal thumbnail."""
-    if hero:
-        # Re-branded mystery: a GOLD-BANDED CRATE behind a bold gold "?" — the
-        # mystery now reads by SHAPE + GOLD (the store's prize hue), never a red
-        # sun-aura. Drawn inside the dark glass dome so the warm gold pops.
-        _draw_mystery_crate(surf, cx, cy, dome_r)
-        return
+    instead of being clipped. PARCELS goes through the SAME path as the other six
+    — it previews its first real item (the kraft padded mailer) as a peer stall,
+    no mystery special-casing."""
     src, letterbox = _group_thumb(group)
     w, h = src.get_size()
     # Previews enlarged ~22% over R1 so the category item is identifiable at 1x;
@@ -751,18 +777,11 @@ def _hut_label(surf, label, cx, cy, scale, hero):
     r = pygame.Rect(cx - bw // 2, cy - bh // 2, bw, bh)
     rad = bh // 2
     drop_shadow(surf, r, rad, blur=m(4), alpha=120, dy=m(2))
-    # board body: dark timber for normal stalls; the hero echoes the STORE
-    # header's gold-on-deep-red (the store identity) so PARCELS reads as the
-    # prize banner — GOLD type on a deep-red board, a tiny crisp object that
-    # nothing glows out from.
-    if hero:
-        surf.blit(vgrad(r.w, r.h, rad, (132, 28, 30), (78, 14, 16)), r.topleft)
-        rim_d, rim_b = (50, 8, 10), (*GOLD_PALE, 235)
-        txt_top, txt_bot, key = GOLD_A_TOP, GOLD_A_BOT, (60, 10, 8)
-    else:
-        surf.blit(vgrad(r.w, r.h, rad, (44, 30, 18), (24, 15, 8)), r.topleft)
-        rim_d, rim_b = (60, 38, 14), (*GOLD_PALE, 230)
-        txt_top, txt_bot, key = GOLD_A_TOP, GOLD_A_BOT, LABEL_KEY
+    # board body: the SAME dark-timber gold-keyline board for EVERY stall —
+    # PARCELS is a peer now, no deep-red gold-text hero board.
+    surf.blit(vgrad(r.w, r.h, rad, (44, 30, 18), (24, 15, 8)), r.topleft)
+    rim_d, rim_b = (60, 38, 14), (*GOLD_PALE, 230)
+    txt_top, txt_bot, key = GOLD_A_TOP, GOLD_A_BOT, LABEL_KEY
     top_sheen(surf, r, rad, bh // 2, peak=46)
     pygame.draw.rect(surf, (0, 0, 0, 180), r, width=max(1, m(1.4)),
                      border_radius=rad)
@@ -773,58 +792,26 @@ def _hut_label(surf, label, cx, cy, scale, hero):
 
 
 # =============================================================================
-# Pip — the jetty merchant on the central stilt-jetty, with a spinning coin.
+# Pip — a small macaw banking through the upper sky over the village.
 # =============================================================================
-def draw_pip(surf, cx, deck_y):
-    """Pip selling from the central jetty: the real macaw scaled up, with a warm
-    sun aura + contact shadow + a spinning gold coin floating beside him, all
-    clear of the hut labels."""
-    pip = parrot.get_parrot(1, 0.0)
+def draw_pip(surf, px, py):
+    """Pip as a tasteful DISTANT FLYER in the upper sky — banking between the sun
+    and the village, NOT tied to any deck. He's scaled down so he reads as a far
+    macaw mid-flap, given a slight upward bank tilt + the wings-up flap frame, and
+    kept CLEAN: no heavy bloom (the round-3 white-out engine), just a soft warm
+    rim catch from the low sun so he separates from the sky without glowing."""
+    # wings-up flap frame + a gentle left-bank tilt so he reads as in motion, not
+    # a pasted sprite. The parrot art faces right; banking up-left toward the sun.
+    pip = parrot.get_parrot(0, 8.0)
     pw, ph = pip.get_size()
-    target = m(38)
+    target = m(30)                       # distant flyer — clearly smaller than a hut dome
     s = target / max(pw, ph)
     pip = pygame.transform.smoothscale(pip, (int(pw * s), int(ph * s)))
-    pr = pip.get_rect()
-    # Pip stands at the FRONT-LEFT corner of the jetty deck — pushed further
-    # left + DOWN off the deck lip than R3 so his silhouette FULLY clears the
-    # gold crate behind/above (crate-first, merchant-second front-to-back read)
-    # rather than merging with the crate face at the same value.
-    px = cx - m(42)
-    py = deck_y - pr.height // 2 + m(13)
-    # warm aura behind Pip
-    soft_glow(surf, px, py, m(26), SUN_AURA, 56, layers=10)
-    soft_glow(surf, px, py, m(15), SUN_CORE, 78, layers=6)
-    # a dark separation halo hugging Pip so his lit silhouette pops off the
-    # crate face it sits in front of (a thin dark contour, not a cast shadow).
-    sep = pygame.Surface((pr.width + m(10), pr.height + m(10)), pygame.SRCALPHA)
-    pygame.draw.ellipse(sep, (8, 6, 14, 150), sep.get_rect())
-    surf.blit(sep, (px - sep.get_width() // 2, py - sep.get_height() // 2))
-    # darker + wider contact shadow on the jetty deck so he grounds clearly
-    sh = pygame.Surface((pr.width + m(10), m(13)), pygame.SRCALPHA)
-    pygame.draw.ellipse(sh, (0, 0, 0, 175), sh.get_rect())
-    surf.blit(sh, (px - (pr.width + m(10)) // 2, deck_y + m(1)))
-    surf.blit(pip, pip.get_rect(center=(px, py)).topleft)
-    # a small spinning coin floating to Pip's upper-LEFT, well clear of the dome
-    # rim + the name board (foreshortened => a thin ellipse, reads mid-spin).
-    coin_cx, coin_cy = px - m(22), py - m(20)
-    soft_glow(surf, coin_cx, coin_cy, m(11), (255, 206, 92), 70, layers=8)
-    face = _spin_coin(m(7), squash=0.45)
-    surf.blit(face, face.get_rect(center=(coin_cx, coin_cy)).topleft)
-    for dx, dy, L in ((m(8), -m(6), m(3)), (-m(7), m(5), m(2.5))):
-        sx, sy = coin_cx + dx, coin_cy + dy
-        pygame.draw.line(surf, (255, 246, 210), (sx - L, sy), (sx + L, sy), max(1, m(1)))
-        pygame.draw.line(surf, (255, 246, 210), (sx, sy - L), (sx, sy + L), max(1, m(1)))
-
-
-def _spin_coin(r, squash):
-    """The real in-game coin squashed horizontally to read as mid-spin (a thin
-    ellipse) — reuses entities._get_coin_face so the jetty coin is the exact
-    coin the player collects."""
-    from game.entities import _get_coin_face
-    face = _get_coin_face()
-    d = max(2, int(r * 2))
-    img = pygame.transform.smoothscale(face, (max(2, int(d * squash)), d))
-    return img
+    pr = pip.get_rect(center=(px, py))
+    # a single faint warm rim catch BEHIND him (capped, never additive) so a far
+    # macaw still lifts off the dusk sky — minimal, no bloom, can't reach white.
+    capped_glow(surf, px, py, m(13), (255, 196, 120), 34, layers=6)
+    surf.blit(pip, pr.topleft)
 
 
 # =============================================================================
@@ -900,7 +887,9 @@ def _balance_capsule(surf, cx, y):
     bevel_rim(surf, cap, h // 2, lerp_color(GOLD, NEAR_BLACK, 0.4),
               (*GOLD_PALE, 240), w=max(1, m(1.8)))
     x = cap.x + padl
-    soft_glow(surf, x + coin_d // 2, y, int(coin_d * 0.40), (255, 206, 92), 42, layers=6)
+    # capped (MAX) so the coin's warm seat can never sum to white inside the gold
+    # capsule well — one opaque pass of its own warm gold, then the coin on top.
+    capped_glow(surf, x + coin_d // 2, y, int(coin_d * 0.40), (255, 206, 92), 42, layers=6)
     coin_glyph(surf, x + coin_d // 2, y, coin_d // 2)
     x += coin_d + gapc
     gradient_text(surf, val, vf, (x + vw // 2, y), GOLD_A_TOP, GOLD_A_BOT,
@@ -976,12 +965,16 @@ def render_device():
         draw_hut(surf, h["cx"], h["deck_y"], h["scale"], h["group"],
                  h["label"], hero=h["hero"])
         if h["hero"]:
-            # Pip stands on the hero jetty deck, in front of the PARCELS hut;
-            # then the name board is stamped frontmost on the deck front so it
-            # owns a clean horizontal lane that nothing crosses.
-            draw_pip(surf, h["cx"], h["deck_y"] - m(2))
-            _hut_label(surf, h["label"], h["cx"], h["deck_y"] + m(8),
-                       h["scale"], True)
+            # PARCELS is now a peer stall — its board sits in the SAME under-dome
+            # lane as the other six (no deferred frontmost hero board, no Pip on
+            # the deck), so the front jetty reads as one more clean stall.
+            _hut_label(surf, h["label"], h["cx"],
+                       h["deck_y"] - int(m(16) * h["scale"]), h["scale"], True)
+
+    # Pip flies in the upper sky in the open gutter between the sun (upper-left)
+    # and the right palm — below the TAP-A-STALL chip, above the back-row roofs,
+    # clear of the sun disc + the palm fronds, banking up-left toward the light.
+    draw_pip(surf, int(DW * 0.60), int(DH * 0.255))
 
     draw_header(surf)
 
@@ -1009,10 +1002,10 @@ def render_device():
 def main():
     _build_static_sky()
     dev = render_device()
-    pygame.image.save(downscale(dev, 1), os.path.join(_HERE, "round_3.png"))
-    pygame.image.save(downscale(dev, 2), os.path.join(_HERE, "round_3@2x.png"))
+    pygame.image.save(downscale(dev, 1), os.path.join(_HERE, "round_4.png"))
+    pygame.image.save(downscale(dev, 2), os.path.join(_HERE, "round_4@2x.png"))
     print("SS =", SS, "device =", DW, "x", DH)
-    print("saved round_3.png (360x640) + round_3@2x.png (720x1280)")
+    print("saved round_4.png (360x640) + round_4@2x.png (720x1280)")
 
 
 if __name__ == "__main__":
