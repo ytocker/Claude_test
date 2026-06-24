@@ -165,16 +165,22 @@ def skull(surf, P, socket_fill=None, draw_socket=True):
     """Rounded macaw cranium with a large hollow eye socket. ``socket_fill``
     lets a theme put fire/gold in the socket; default is a dark hollow."""
     sf = socket_fill if socket_fill is not None else P.socket
-    # Keyline dome first so the bright cranium never touches the sky.
-    _aaellipse(surf, P.keyline,   (46, 17), 11, 10)
-    _aaellipse(surf, P.bone,      (46, 17), 10, 9)        # cranium
-    _aaellipse(surf, P.bone_sh,   (46, 21), 9, 5)         # under-edge shade
+    # Keyline dome first so the bright cranium never touches the sky. Cranium
+    # kept a hair smaller (rx 10→9) so the hooked beak wins the head silhouette
+    # rather than reading as a big mammal skull with a stub.
+    _aaellipse(surf, P.keyline,   (46, 17), 10, 9)
+    _aaellipse(surf, P.bone,      (46, 17), 9, 8)         # cranium
+    _aaellipse(surf, P.bone_sh,   (46, 21), 8, 5)         # under-edge shade
     _aaellipse(surf, P.bone,      (47, 21), 8, 5)         # cheek / jaw front
+    # A 1px dark notch under the beak base so the forward beak bone doesn't weld
+    # to the cheek.
+    pygame.draw.line(surf, P.body_deep, (50, 18), (51, 21), 1)
     if draw_socket:
-        # One big round eye socket set high+back near the beak base (parrot eye).
-        pygame.draw.circle(surf, P.bone_deep, (45, 16), 4)
-        pygame.draw.circle(surf, sf, (45, 16), 3)
-        pygame.draw.circle(surf, P.glint, (47, 14), 1)   # life glint
+        # One big round eye socket set forward near the cere (parrot eye), nudged
+        # toward the beak so the head reads parrot, not mammal.
+        pygame.draw.circle(surf, P.bone_deep, (46, 17), 4)
+        pygame.draw.circle(surf, sf, (46, 17), 3)
+        pygame.draw.circle(surf, P.glint, (48, 15), 1)   # life glint
 
 
 def beak(surf, P):
@@ -187,25 +193,29 @@ def beak(surf, P):
     survives the 40px read. (v1 cut it long+horizontal and it read as a raptor
     snout — the down-hook is what says 'parrot'.)"""
     # Upper mandible — deep comma: tall base on the skull front, short forward
-    # bulge, then a hard down-curl to a tip that drops below the lower jaw.
-    upper = [(50, 9), (56, 10), (59, 14), (60, 19), (58, 25),
-             (55, 30), (52, 30), (51, 24), (50, 18), (48, 13)]
+    # bulge, then a hard down-curl to a tip that drops CLEARLY below the lower
+    # jaw (the overhang — not the length — is the parrot tell at 40px).
+    upper = [(50, 9), (56, 10), (59, 14), (60, 19), (58, 26),
+             (55, 32), (52, 31), (51, 24), (50, 18), (48, 13)]
     _poly(surf, P.keyline, [(x + 1, y) for x, y in upper])        # dark rim
     _poly(surf, P.bone, upper)
-    _poly(surf, P.bone_sh, [(58, 25), (55, 30), (53, 27), (56, 22)])  # hook shade
+    _poly(surf, P.bone_sh, [(58, 26), (55, 32), (53, 28), (56, 22)])  # hook shade
     pygame.draw.line(surf, P.bone_sh, (51, 11), (58, 16), 1)      # ridge highlight
-    pygame.draw.circle(surf, P.bone, (53, 29), 1)                 # bright hook nub
+    pygame.draw.circle(surf, P.bone, (53, 31), 1)                 # bright hook nub
     # Cere/nostril hollow at the beak base.
     pygame.draw.circle(surf, P.bone_deep, (52, 13), 1)
-    # Dark notch parting the beak base from the cranium (beak reads forward).
-    pygame.draw.line(surf, P.body_deep, (49, 11), (49, 18), 2)
-    # Curved dark gape between the mandibles — this shadow IS the hook read.
-    pygame.draw.lines(surf, P.body_deep, False, [(50, 19), (54, 22), (56, 25)], 2)
-    # Lower mandible — a short bone scoop tucked under the hook (~half the upper).
-    lower = [(50, 20), (56, 23), (55, 27), (51, 26)]
+    # Dark notch parting the beak base from the cranium (beak reads forward) —
+    # a full 1px-wide vertical break so the hook detaches from the cranium mass.
+    pygame.draw.line(surf, P.body_deep, (49, 11), (49, 20), 2)
+    # Curved dark gape between the mandibles — this shadow IS the hook read;
+    # 3px and run the full length so the two mandibles never clot into a ball.
+    pygame.draw.lines(surf, P.body_deep, False, [(50, 19), (54, 23), (56, 27)], 3)
+    # Lower mandible — a short bone scoop pulled IN so the upper hook overhangs
+    # below it (tip y27 sits above the hook tip y32).
+    lower = [(50, 20), (55, 23), (54, 27), (51, 26)]
     _poly(surf, P.keyline, [(x, y + 1) for x, y in lower])
     _poly(surf, P.bone, lower)
-    _poly(surf, P.bone_sh, [(51, 24), (55, 27), (51, 26)])
+    _poly(surf, P.bone_sh, [(51, 24), (54, 27), (51, 26)])
 
 
 # ── full assembly ─────────────────────────────────────────────────────────────
