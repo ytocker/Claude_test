@@ -39,6 +39,7 @@ from game.config import W, H
 from game.draw import lerp_color, NEAR_BLACK, WHITE
 from game import parrot
 from game import store_catalog
+from game.surprise_box_variants import _draw_qmark
 
 # Reuse the constellation store's locked primitive kit + palette anchors so the
 # bazaar shares the exact glass dome, gold ramp, type finish + coin the player
@@ -368,9 +369,9 @@ def draw_envelope(surf):
     bounce on the underside; two macaw-red accent bands + a gold cartouche so it
     looks intentional. Gold-bound rim, crown finial, soft cast shadow."""
     cx = m(180)
-    cy = m(148)
+    cy = m(138)
     rw = m(124)                                     # half width (~11% narrower)
-    rh = m(82)                                       # half height
+    rh = m(78)                                       # half height
     # soft cast shadow the envelope throws on the sky/deck beneath it
     sh = pygame.Surface((DW, DH), pygame.SRCALPHA)
     soft_glow(sh, cx + m(8), cy + rh + m(40), m(110), (10, 6, 24), 70, layers=10)
@@ -971,9 +972,10 @@ def render_device():
     draw_hull(surf)
 
     # upper-rigging star-glints foreshadow the constellation jewel store the
-    # stalls open into (a few gold sparkles on the top rigging band).
-    for gx, gy in ((m(120), m(196)), (m(180), m(186)), (m(238), m(196)),
-                   (m(96), m(214)), (m(262), m(214))):
+    # stalls open into (a few gold sparkles on the top rigging band, tucked just
+    # under the balloon rim and between the booth columns).
+    for gx, gy in ((m(126), m(224)), (m(234), m(224)), (m(40), m(238)),
+                   (m(320), m(238)), (m(180), m(214))):
         soft_glow(surf, gx, gy, m(3), (255, 240, 200), 110, layers=5)
         pygame.draw.line(surf, (255, 246, 214, 220), (gx - m(3), gy),
                          (gx + m(3), gy), max(1, m(0.7)))
@@ -984,12 +986,12 @@ def render_device():
     # foredeck) + the PARCELS mystery hero, each booth a ≥88px tap target with
     # generous padding so nothing overlaps at 360px. Row 1 hangs from the rigging
     # tier (centre booth raised on the mainmast); row 2 sits on the mid-deck.
-    draw_booth(surf, m(72),  m(244), *STALLS[0])     # COSTUMES
-    draw_booth(surf, m(180), m(232), *STALLS[1])     # PARROTS  (centre, raised)
-    draw_booth(surf, m(288), m(244), *STALLS[2])     # ANIMALS
-    draw_booth(surf, m(72),  m(334), *STALLS[3])     # SHOES
-    draw_booth(surf, m(180), m(334), *STALLS[4])     # HATS
-    draw_booth(surf, m(288), m(334), *STALLS[5])     # SHADES
+    draw_booth(surf, m(72),  m(258), *STALLS[0])     # COSTUMES
+    draw_booth(surf, m(180), m(252), *STALLS[1])     # PARROTS  (centre)
+    draw_booth(surf, m(288), m(258), *STALLS[2])     # ANIMALS
+    draw_booth(surf, m(72),  m(346), *STALLS[3])     # SHOES
+    draw_booth(surf, m(180), m(346), *STALLS[4])     # HATS
+    draw_booth(surf, m(288), m(346), *STALLS[5])     # SHADES
     # PARCELS — the differentiated mystery hero crate, lifted so its nameboard
     # clears the gunwale.
     draw_parcels_hero(surf, m(180), m(424))

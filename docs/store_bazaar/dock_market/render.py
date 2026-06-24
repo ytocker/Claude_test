@@ -104,7 +104,7 @@ MYST_DEEP = MYSTERY["deep"]               # (120, 22, 26)
 BALANCE = 14250
 
 # top-left sun direction (everything lit from up-left). Logical sun anchor.
-SUN_X = int(DW * 0.27)
+SUN_X = int(DW * 0.20)
 
 
 # ── stall manifest: 7 categories -> group key + preview id ────────────────────
@@ -172,7 +172,7 @@ def _rim_lit(img, color=(255, 246, 214), alpha=175):
 # Backdrop — indigo->gold sky, low sun, mountains, clouds, glitter water
 # =============================================================================
 WATER_TOP = m(222)                        # logical y where the water band begins
-WATER_BOT = m(268)                        # ...and ends (the near-deck waterline)
+WATER_BOT = m(283)                        # ...and ends (the near-deck waterline)
 
 
 def draw_sky(surf):
@@ -203,14 +203,16 @@ def draw_sky(surf):
     # warm band) — the jewel-store sky bleeding through the dusk.
     _draw_high_stars(surf, horizon_y)
 
-    # the low golden-hour sun, raking from the upper-left. Restrained warm bloom
-    # (amber, not white) kept up + left so it never washes the stalls.
-    sun_y = int(horizon_y * 0.46)
-    soft_glow(surf, SUN_X, sun_y, m(64), (255, 198, 116), 38, layers=14)
-    soft_glow(surf, SUN_X, sun_y, m(26), (255, 224, 168), 70, layers=10)
-    disc = pygame.Surface((m(48), m(48)), pygame.SRCALPHA)
-    pygame.draw.circle(disc, (255, 238, 204, 235), (m(24), m(24)), m(17))
-    surf.blit(disc, (SUN_X - m(24), sun_y - m(24)))
+    # the low golden-hour sun, raking from the upper-left. Dimmed + shrunk +
+    # biased UP and LEFT (the rake direction) so it never blows to white behind
+    # the capsule — the STORE title gold must own the brightest value on screen.
+    sun_x = SUN_X
+    sun_y = int(horizon_y * 0.36)
+    soft_glow(surf, sun_x, sun_y, m(50), (250, 188, 108), 26, layers=14)
+    soft_glow(surf, sun_x, sun_y, m(20), (255, 214, 150), 48, layers=10)
+    disc = pygame.Surface((m(40), m(40)), pygame.SRCALPHA)
+    pygame.draw.circle(disc, (255, 226, 178, 215), (m(20), m(20)), m(14))
+    surf.blit(disc, (sun_x - m(20), sun_y - m(20)))
 
     # distant tropical islands in the warm haze — drawn onto a SHORT strip just
     # above the waterline + clipped, so they read as low hazy islands instead of
