@@ -19,7 +19,7 @@ from game.config import W as GW, H as GH, GROUND_Y
 # (lavender) and is NOT a real night truth-read for the all-navy pack + keyline.
 NIGHT_PHASE = 0.64375
 
-OUT = "/home/user/skybit/docs/store_redesign/costume/astronaut/design_8/round_2.png"
+OUT = "/home/user/skybit/docs/store_redesign/costume/astronaut/design_8/round_3.png"
 
 
 def _font(sz, bold=True):

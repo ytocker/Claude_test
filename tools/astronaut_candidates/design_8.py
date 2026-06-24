@@ -101,11 +101,13 @@ def _paint(surf, wing_angle_deg):
             (pkx + 7, pky + 9), (pkx - 4, pky + 10), (pkx - 6, pky + 2)]
     _poly(surf, _SUIT_SH, [(x, y + 1) for x, y in pack])   # soft underside
     _poly(surf, _SUIT_W, pack)
-    pygame.draw.polygon(surf, _NAVY, pack, 1)              # navy keyline on the pack
-    # Navy control band — the SMALLEST, HIGHEST-contained dark mass on the pack.
-    _poly(surf, _NAVY, [(pkx - 3, pky - 1), (pkx + 5, pky - 1),
-                        (pkx + 4, pky + 4), (pkx - 3, pky + 4)])
-    pygame.draw.line(surf, _NAVY_H, (pkx - 3, pky - 4), (pkx + 5, pky - 6), 1)
+    pygame.draw.polygon(surf, _NAVY, pack, 1)              # THIN navy keyline only
+    # NIGHT value-survival: the pack BODY stays suit-white so it joins the bright
+    # blob — the dark on the pack is carried ONLY by the flared fins below. One
+    # thin navy seam (a single line, not a filled band) hints at the control panel
+    # without dumping a solid dark lump into the silhouette.
+    pygame.draw.line(surf, _NAVY, (pkx - 3, pky + 1), (pkx + 5, pky), 1)
+    pygame.draw.line(surf, _SUIT_SH, (pkx - 3, pky - 3), (pkx + 4, pky - 4), 1)
 
     # TWO flared thruster FINS along the upper-back edge — hard angular trapezoids,
     # clearly WIDER at the mouth than the throat, long axis raked UP-AND-BACK so
@@ -131,10 +133,13 @@ def _paint(surf, wing_angle_deg):
         # Cool blue-white thruster glint on the downbeat — additive, pushed hard so
         # the propulsion reads and stays distinct from warm coin/KFC glow.
         if thrust > 0.05:
-            a = min(180, int(180 * thrust))
+            a = min(190, int(190 * thrust))
             glow = pygame.Surface((11, 11), pygame.SRCALPHA)
-            pygame.draw.circle(glow, (150, 200, 255, a), (5, 5), 5)
-            pygame.draw.circle(glow, (220, 240, 255, min(255, a + 50)), (5, 5), 2)
+            # Cool halo stays blue-white, but the CORE is pushed to near-white so
+            # the glint survives additively over the bright DAY sky (a pure-blue
+            # core washes to nothing on light-blue) while still reading cold.
+            pygame.draw.circle(glow, (140, 195, 255, a), (5, 5), 5)
+            pygame.draw.circle(glow, (245, 250, 255, min(255, a + 60)), (5, 5), 2)
             surf.blit(glow, (mx - 5, my - 5),
                       special_flags=pygame.BLEND_RGBA_ADD)
 
@@ -143,30 +148,40 @@ def _paint(surf, wing_angle_deg):
     #    chevron ON the navy field (a dark ground it can read against), not lost on
     #    white. Everything else is cut so the suit stays glossy + uncluttered and
     #    the chrome helmet owns the focal read.
-    yoke = [(BCX - 14, BCY - 7), (BCX - 4, BCY - 12), (BCX + 9, BCY - 11),
-            (BCX + 15, BCY - 5), (BCX + 9, BCY - 5), (BCX - 2, BCY - 7),
-            (BCX - 11, BCY - 3)]
+    # NIGHT value-survival: the yoke is lifted to a THIN shoulder band high on the
+    # chest (its lower edge pulled UP from BCY-3 to BCY-6) so the white belly/chest
+    # mass below it stays the dominant value across the whole lower body on the
+    # dark sky — the navy footprint on the lower silhouette drops from ~40% to ~20%.
+    yoke = [(BCX - 13, BCY - 8), (BCX - 4, BCY - 12), (BCX + 9, BCY - 11),
+            (BCX + 14, BCY - 7), (BCX + 8, BCY - 6), (BCX - 2, BCY - 8),
+            (BCX - 10, BCY - 6)]
     _poly(surf, _NAVY, yoke)
-    pygame.draw.line(surf, _NAVY_H, (BCX - 11, BCY - 6), (BCX + 11, BCY - 8), 1)
+    pygame.draw.line(surf, _NAVY_H, (BCX - 10, BCY - 7), (BCX + 10, BCY - 9), 1)
     # Single 2px red commander chevron centred on the navy yoke.
     pygame.draw.lines(surf, _RED, False,
-                      [(BCX - 3, BCY - 9), (BCX + 1, BCY - 7), (BCX + 5, BCY - 9)], 2)
+                      [(BCX - 3, BCY - 10), (BCX + 1, BCY - 8), (BCX + 5, BCY - 10)], 2)
 
-    # ── LIMBS: navy gloves so the command palette still reaches the extremities,
-    #    but no confetti rings; boots stay a clean small navy cap.
-    pygame.draw.line(surf, _NAVY, (BCX + 4, BCY - 6), (BCX + 14, BCY - 9), 2)
-    pygame.draw.circle(surf, _NAVY, (BCX + 16, BCY - 4), 3)           # wingtip glove
+    # ── LIMBS: NIGHT value-survival — gloves + boots are now mostly WHITE so they
+    #    stop punching dark holes in the bright blob (day) and stop vanishing into
+    #    the sky (night). Navy survives only as a 1px keyline cap on the white.
+    pygame.draw.line(surf, _NAVY, (BCX + 4, BCY - 6), (BCX + 14, BCY - 9), 1)  # thin arm seam
+    pygame.draw.circle(surf, _SUIT_W, (BCX + 16, BCY - 4), 3)         # white wingtip glove
+    pygame.draw.circle(surf, _NAVY, (BCX + 16, BCY - 4), 3, 1)        # 1px navy cap
     pygame.draw.circle(surf, _WHITE_HI, (BCX + 15, BCY - 5), 1)
-    for fx in (BCX - 6, BCX):                                         # boots — shrunk
-        pygame.draw.line(surf, _NAVY, (fx, BCY + 13), (fx - 1, BCY + 16), 3)
+    for fx in (BCX - 6, BCX):                                         # boots — white w/ 1px cap
+        pygame.draw.line(surf, _SUIT_W, (fx, BCY + 13), (fx - 1, BCY + 16), 3)
+        pygame.draw.line(surf, _NAVY, (fx + 1, BCY + 13), (fx, BCY + 16), 1)
         pygame.draw.circle(surf, _NAVY, (fx - 1, BCY + 16), 1)
 
     # ── HEAD: white helmet shell, navy collar, an orange comms-cap stripe over the
     #    crown, then the flat CHROME MIRROR visor (the cold, polished focal mass).
     hcx, hcy = HX + 1, HY - 1
-    # Navy collar ring behind/under the dome so the helmet seats on the suit.
-    pygame.draw.ellipse(surf, _NAVY, (hcx - 12, hcy + 7, 26, 10))
-    pygame.draw.ellipse(surf, _NAVY_H, (hcx - 10, hcy + 8, 22, 4))
+    # Navy collar ring behind/under the dome so the helmet seats on the suit —
+    # NIGHT value-survival: thinned to a shallow seam (was a 10px-tall filled band)
+    # so it no longer adds a dark neck-bar to the lower silhouette; just enough to
+    # read as the helmet's seating line.
+    pygame.draw.ellipse(surf, _NAVY, (hcx - 12, hcy + 8, 26, 6))
+    pygame.draw.ellipse(surf, _SUIT_W, (hcx - 10, hcy + 9, 22, 3))
     # Thin white helmet shell hugging the head, with a crisp navy rim so the shell
     # separates from the white body (the outline pass only edges the outer
     # silhouette, so this internal rim carries the read at size).
