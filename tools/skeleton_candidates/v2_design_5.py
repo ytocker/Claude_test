@@ -33,12 +33,15 @@ P = A.Pal(
     rib=(22, 18, 14),
 )
 
-# Mantle is a TATTERED dark cape SHAPE (#16121F), not a void: a torn cloth hem
-# with jagged downward points, rimmed on its outer leading edge with a 1px
-# deep-gold (#E0A21E) keyline so the dark silhouette holds against the night sky
-# instead of dissolving into it. Contained behind the shoulders only.
-_MANTLE   = (22, 18, 31)          # #16121F tattered hood body
-_MANTLE_D = (15, 12, 22)          # depth fold behind the points
+# Mantle is a TATTERED dark cape SHAPE, not a void: a torn cloth hem with jagged
+# downward points, rimmed on its outer leading edge AND its bottom hem with a 1px
+# deep-gold keyline so the dark silhouette holds against the sky instead of
+# dissolving into it. Body value is lifted off the floor (≈(34,28,46)) so the
+# bottom no longer pools into one dark mass that reads as a hole on the bright
+# day sky. Contained behind the shoulders only, shrunk so it never bulges below
+# the spine line or competes with the tail's negative space.
+_MANTLE   = (34, 28, 46)          # lifted tattered hood body (off the void floor)
+_MANTLE_D = (22, 18, 31)          # depth fold behind the points
 _MANTLE_RIM = (224, 162, 30)      # deep-gold (#E0A21E) edge keyline
 _DEEP_GOLD = (224, 162, 30)       # #E0A21E rib/coin core gold
 _TOP_HI   = (255, 226, 122)       # #FFE27A bone/rib top-edge highlight
@@ -62,21 +65,28 @@ def _mantle(surf, angle_deg, P):
     gold skull/spine/tail own the read and the mantle is a quiet cape behind."""
     # Collar peak tucked behind the crown, down the nape, then a torn hem of
     # three triangular points; the leftmost point stops short of the back so the
-    # spine + tail stay clear of the cape.
+    # spine + tail stay clear of the cape. The hem points are raised ~2-3px and
+    # the collar tightened (shoulder edge pulled in from y23→y21) so the cape is a
+    # collar-and-hem HINT behind the shoulders, not a slab bulging below the
+    # spine line — it must not compete with the tail's negative space.
     drape = [
         (40, 10),                       # collar peak behind the crown
-        (49, 15), (49, 23),             # tight near-shoulder collar edge
-        (45, 30), (43, 24),             # point 1 (tatter) + notch
-        (39, 31), (37, 25),             # point 2 + notch
-        (33, 30), (31, 24),             # point 3 (innermost) + notch
-        (30, 17),                       # nape rise back up to the collar
+        (48, 15), (48, 21),             # tighter near-shoulder collar edge
+        (44, 27), (43, 22),             # point 1 (tatter, raised) + notch
+        (38, 28), (37, 23),             # point 2 (raised) + notch
+        (33, 27), (32, 22),             # point 3 (innermost, raised) + notch
+        (30, 16),                       # nape rise back up to the collar
     ]
     _poly(surf, _MANTLE_D, [(x + 1, y + 1) for x, y in drape])
     _poly(surf, _MANTLE, drape)
-    # Deep-gold keyline on the OUTER leading edge (collar + first tatter) only —
-    # the seam that reads against the sky; the inner notches stay unlit dark.
+    # Deep-gold keyline along BOTH the outer leading edge (collar) AND the bottom
+    # hem (the tatter tips) so the cape's lower boundary carries an edge instead
+    # of dissolving into the sky as a dark hole; the inner notches stay unlit dark
+    # so the points still read as torn cloth.
     pygame.draw.lines(surf, _MANTLE_RIM, False,
-                      [(30, 17), (40, 10), (49, 15), (49, 23), (45, 30)], 1)
+                      [(30, 16), (40, 10), (48, 15), (48, 21), (44, 27)], 1)
+    pygame.draw.lines(surf, _MANTLE_RIM, False,
+                      [(44, 27), (38, 28), (33, 27)], 1)
 
 
 def _ribs(surf):
