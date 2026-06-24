@@ -362,12 +362,13 @@ def draw_balloon(surf, cx, cy, rw, rh, hero=False, gores=8):
             # surface rolls under so we clamp to a deepening base term.
             syf = (vy - 0.34) / 0.34                 # -1 crown .. +1 equator-ish
             r2 = sx * sx + syf * syf
-            if r2 < 1.0:
+            if r2 < 0.985:
                 nz = math.sqrt(1.0 - r2)
-                lam = sx * lx + syf * ly + nz * lz   # Lambert
             else:
-                # past the visible hemisphere (lower bulb) — grazing, goes dark
-                lam = sx * lx + (1.0) * ly
+                # near/over the limb: ease nz to 0 smoothly so the terminator
+                # doesn't read as a noisy ring at the bulb edge.
+                nz = 0.0
+            lam = sx * lx + syf * ly + nz * lz       # Lambert
             lam = max(0.0, lam)
             # base falls off below the equator regardless (gravity-lit teardrop).
             base_fall = 1.0 - max(0.0, (vy - 0.55)) * 0.7

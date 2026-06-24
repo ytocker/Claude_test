@@ -250,19 +250,17 @@ def draw_water(surf):
                          (1.00, WATER_DEEP)], 255, gamma=1.06)
     surf.blit(water, (0, WATER_TOP))
 
-    # the reflection column straight under the sun (classic sun-on-water vertical
-    # smear). Kept RESTRAINED + warm (not white) and broken into a few feathered
-    # bands so it reads as a shimmer path, never a washed pale blob.
-    col_w = m(64)
+    # the reflection path straight under the sun (classic sun-on-water shimmer).
+    # Authored as a SOFT warm vertical smear (a feathered amber column, brightest
+    # on the sun's x, fading to the flanks) — NO hatching, NO white — so it reads
+    # as a gentle glow path the bright dashes then sparkle along.
+    col_w = m(60)
     colsurf = pygame.Surface((col_w, band_h), pygame.SRCALPHA)
     for sx in range(col_w):
         hx = abs(sx - col_w / 2) / (col_w / 2)
-        base = 44 * (1 - hx ** 1.4)
-        for yy in range(band_h):
-            ripple = 0.5 + 0.5 * math.sin(yy * 0.5 + sx * 0.2)
-            a = int(base * ripple)
-            if a > 0:
-                colsurf.set_at((sx, yy), (255, 230, 168, a))
+        a = int(34 * (1 - hx ** 1.6))
+        if a > 0:
+            pygame.draw.line(colsurf, (255, 224, 156, a), (sx, 0), (sx, band_h))
     surf.blit(colsurf, (SUN_X - col_w // 2, WATER_TOP),
               special_flags=pygame.BLEND_ADD)
 
@@ -282,21 +280,29 @@ def draw_water(surf):
             dist_sun = abs(x - SUN_X) / (DW * 0.5)
             bright = max(0.10, 1.0 - dist_sun)
             ln = m(4.0 + depth * 9.0) * rng.uniform(0.85, 1.2)
-            a = int(240 * bright)
+            a = int(238 * bright)
             col = lerp_color((255, 228, 156), (255, 252, 236), bright)
             y = ry + int(rng.uniform(-m(2), m(2)))
-            if bright > 0.55:
-                soft_glow(surf, x, y, int(ln * 0.6), (255, 222, 144),
-                          int(56 * bright), layers=5)
+            # a thin ELONGATED horizontal underglow (never a round bubble) so the
+            # bright glints sit on a faint warm smear, in keeping with shimmer.
+            if bright > 0.5:
+                ug = pygame.Surface((int(ln * 3), m(5)), pygame.SRCALPHA)
+                for gy in range(m(5)):
+                    ga = int(40 * bright * (1 - abs(gy - m(2.5)) / m(2.5)))
+                    pygame.draw.line(ug, (255, 222, 150, max(0, ga)),
+                                     (0, gy), (int(ln * 3), gy))
+                surf.blit(ug, (x - int(ln * 1.5), y - m(2)),
+                          special_flags=pygame.BLEND_ADD)
             dash = pygame.Surface((int(ln * 2) + m(2), m(3)), pygame.SRCALPHA)
             pygame.draw.line(dash, (*col, a), (0, m(1)), (int(ln * 2), m(1)),
                              max(1, m(1.6)))
             surf.blit(dash, (x - int(ln), y - m(1)), special_flags=pygame.BLEND_ADD)
+            # a hot 4-point star kiss on the very brightest glints (the sparkle)
             if bright > 0.74:
                 L = int(ln * 0.9)
-                pygame.draw.line(surf, (255, 255, 248, 215), (x - L, y), (x + L, y),
+                pygame.draw.line(surf, (255, 255, 248, 210), (x - L, y), (x + L, y),
                                  max(1, m(0.8)))
-                pygame.draw.line(surf, (255, 255, 248, 170), (x, y - m(3)),
+                pygame.draw.line(surf, (255, 255, 248, 165), (x, y - m(3)),
                                  (x, y + m(3)), max(1, m(0.8)))
 
     # far waterline lip catching the sun (defines the back jetty's foot)
@@ -349,14 +355,16 @@ def _moored_boat(surf, cx, wl_y, scale, hull, hull_hi, sail=None,
     pygame.draw.line(surf, (74, 50, 28), (mast_x, wl_y),
                      (mast_x, wl_y - mast_h), max(1, int(m(1.6) * scale)))
     if sail is not None:
-        sailp = [(mast_x + m(1), wl_y - mast_h + m(2)),
-                 (int(mast_x + hw * 0.85), wl_y - m(2)),
-                 (mast_x + m(1), wl_y - m(2))]
-        pygame.draw.polygon(surf, sail, sailp)
-        pygame.draw.polygon(surf, lerp_color(sail, (200, 120, 90), 0.4), sailp,
+        # a slim warm sail (not a big pale triangle) so the boat stays a tidy
+        # silhouette in the glitter rather than a bright blob.
+        sailp = [(mast_x + m(1), wl_y - mast_h + m(3)),
+                 (int(mast_x + hw * 0.55), wl_y - m(3)),
+                 (mast_x + m(1), wl_y - m(3))]
+        pygame.draw.polygon(surf, lerp_color(sail, (212, 150, 96), 0.45), sailp)
+        pygame.draw.polygon(surf, lerp_color(sail, (150, 90, 60), 0.5), sailp,
                             width=max(1, m(0.8)))
-        # warm sun-kiss on the sail's lit edge
-        pygame.draw.line(surf, (255, 240, 210), sailp[0], sailp[2],
+        # warm sun-kiss on the sail's lit (mast) edge
+        pygame.draw.line(surf, (255, 234, 200), sailp[0], sailp[2],
                          max(1, m(1.0)))
     # broken reflection under the hull — kept dim + warm so it reads as a few
     # ripple dashes, never a muddy smear.

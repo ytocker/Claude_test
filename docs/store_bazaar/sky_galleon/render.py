@@ -408,7 +408,7 @@ def draw_envelope(surf):
                    (cx - rw * 0.26, cy + rh * 0.98),
                    (cx + rw * 0.26, cy + rh * 0.98),
                    (cx + rw * 0.70, cy + rh * 0.78)]
-    hull_top = HULL_TOP
+    hull_top = m(HULL_TOP)
     anchors_bot = [(m(58), hull_top), (m(132), hull_top - m(4)),
                    (m(228), hull_top - m(4)), (m(302), hull_top)]
     for (ax, ay), (bx2, by2) in zip(anchors_top, anchors_bot):
@@ -423,10 +423,10 @@ def draw_hull(surf):
     gold gunwale rail, plank lines, portholes, and a deep contact shadow + cloud
     wisps trailing below so the ship reads as floating, not grounded."""
     # hull silhouette (a long shallow boat, bow right, stern left, both raised)
-    top_y = HULL_TOP
-    deck_y = top_y + m(14)
+    top_y = m(HULL_TOP)
+    deck_y = m(HULL_TOP + 14)
     hx0, hx1 = m(30), m(330)
-    keel_y = top_y + m(100)
+    keel_y = m(HULL_TOP + 100)
     pts = [
         (hx0, top_y - m(10)),                # stern rail top
         (hx0 + m(8), deck_y),
@@ -672,42 +672,54 @@ def draw_booth(surf, cx, cy, group, label, hero=False):
 # Pip the captain at the helm + a coin
 # =============================================================================
 def draw_captain(surf, cx, cy):
-    """Pip as the airship captain at the helm: the real base parrot, scaled,
-    on a small ship's-wheel + a soft warm aura, holding a coin clear of any
-    label so he reads as the merchant who runs the market."""
+    """Pip as the airship captain on the stern poop-deck: a small lit deck shelf
+    under his feet, the ship's wheel (helm) just to his right, Pip himself the
+    real base parrot scaled with a restrained warm key-light, and a coin he
+    presents — so he reads unmistakably as the merchant, NOT another booth dome
+    (no glass cabochon around him)."""
     src = parrot.get_parrot(1, 0.0)
     bb = src.get_bounding_rect()
     if bb.width > 0 and bb.height > 0:
         src = src.subsurface(bb).copy()
-    box = m(50)
+    box = m(54)
     sw, sh = src.get_size()
     s = box / max(sw, sh)
     pip = pygame.transform.smoothscale(
         src, (max(1, int(sw * s)), max(1, int(sh * s))))
 
-    # ship's wheel behind/under Pip (a small gold-spoked helm)
-    wr = m(22)
-    wheel = pygame.Surface((wr * 2 + m(8), wr * 2 + m(8)), pygame.SRCALPHA)
-    wc = wr + m(4)
-    pygame.draw.circle(wheel, (40, 24, 10), (wc, wc), wr, max(1, m(3)))
-    pygame.draw.circle(wheel, lerp_color(WOOD_HI, GOLD, 0.3), (wc, wc), wr,
-                       max(1, m(1.6)))
+    # the stern poop-deck shelf Pip stands on (a short lit plank with a rail)
+    shelf = pygame.Rect(cx - m(34), cy + m(20), m(80), m(16))
+    surf.blit(vgrad(shelf.w, shelf.h, m(4), DECK_HI, DECK_LO, 255, gamma=1.2),
+              shelf.topleft)
+    pygame.draw.rect(surf, (28, 16, 8), shelf, width=max(1, m(1.4)),
+                     border_radius=m(4))
+    pygame.draw.line(surf, (*GOLD, 150), (shelf.x + m(3), shelf.y + m(1)),
+                     (shelf.right - m(3), shelf.y + m(1)), max(1, m(1)))
+
+    # ship's wheel (helm) to Pip's RIGHT so he stands AT it, not inside it
+    wr = m(17)
+    wcx, wcy = cx + m(30), cy + m(2)
+    wheel = pygame.Surface((wr * 2 + m(10), wr * 2 + m(10)), pygame.SRCALPHA)
+    wc = wr + m(5)
+    pygame.draw.circle(wheel, (40, 24, 10), (wc, wc), wr, max(1, m(2.6)))
+    pygame.draw.circle(wheel, lerp_color(WOOD_HI, GOLD, 0.35), (wc, wc), wr,
+                       max(1, m(1.4)))
     for a in range(0, 360, 45):
-        ax = wc + math.cos(math.radians(a)) * (wr + m(5))
-        ay = wc + math.sin(math.radians(a)) * (wr + m(5))
-        ix = wc + math.cos(math.radians(a)) * (wr - m(5))
-        iy = wc + math.sin(math.radians(a)) * (wr - m(5))
-        pygame.draw.line(wheel, lerp_color(WOOD_MID, GOLD, 0.3),
-                         (ix, iy), (ax, ay), max(1, m(2.4)))
-        pygame.draw.circle(wheel, GOLD, (int(ax), int(ay)), m(2.4))
-    pygame.draw.circle(wheel, lerp_color(WOOD_HI, GOLD, 0.4), (wc, wc), m(5))
-    surf.blit(wheel, (cx - wc, cy + m(6) - wc))
+        ax = wc + math.cos(math.radians(a)) * (wr + m(4))
+        ay = wc + math.sin(math.radians(a)) * (wr + m(4))
+        ix = wc + math.cos(math.radians(a)) * (wr - m(4))
+        iy = wc + math.sin(math.radians(a)) * (wr - m(4))
+        pygame.draw.line(wheel, lerp_color(WOOD_MID, GOLD, 0.35),
+                         (ix, iy), (ax, ay), max(1, m(2)))
+        pygame.draw.circle(wheel, GOLD, (int(ax), int(ay)), m(2))
+    pygame.draw.circle(wheel, lerp_color(WOOD_HI, GOLD, 0.45), (wc, wc), m(4))
+    surf.blit(wheel, (wcx - wc, wcy - wc))
 
-    # soft warm aura so Pip pops off the deck
-    soft_glow(surf, cx, cy, m(40), (255, 222, 150), 60, layers=12)
+    # a restrained warm key-light ABOVE Pip (a soft halo, kept low + tight so it
+    # never blooms to the white disc that read as a booth dome).
+    soft_glow(surf, cx, cy - m(4), m(26), (255, 220, 150), 34, layers=8)
 
-    pr = pip.get_rect(center=(cx, cy - m(4)))
-    # rim-light + contact shadow so Pip sits in the scene
+    pr = pip.get_rect(center=(cx, cy - m(2)))
     sh = pip.copy()
     sh.fill((0, 0, 0, 255), special_flags=pygame.BLEND_RGBA_MULT)
     sh.set_alpha(120)
@@ -715,10 +727,10 @@ def draw_captain(surf, cx, cy):
     surf.blit(_rim_light(pip, alpha=150), pr.topleft, special_flags=pygame.BLEND_ADD)
     surf.blit(pip, pr.topleft)
 
-    # a coin he presents, clear to his lower-right
-    coin_cx, coin_cy = cx + m(26), cy + m(14)
-    soft_glow(surf, coin_cx, coin_cy, m(10), (255, 206, 92), 70, layers=6)
-    coin_glyph(surf, coin_cx, coin_cy, m(9))
+    # a coin he presents, clear to his lower-left (away from the helm)
+    coin_cx, coin_cy = cx - m(22), cy + m(12)
+    soft_glow(surf, coin_cx, coin_cy, m(9), (255, 206, 92), 60, layers=6)
+    coin_glyph(surf, coin_cx, coin_cy, m(8))
 
 
 # =============================================================================
@@ -777,7 +789,7 @@ def render_device():
 
     # the galleon, back-to-front: envelope + suspension, masts/rigging, hull
     mast_xs = [m(86), m(180), m(274)]
-    top_y = HULL_TOP
+    top_y = m(HULL_TOP)
     draw_envelope(surf)
     draw_masts_and_decor(surf, mast_xs, top_y)
     draw_hull(surf)
