@@ -697,6 +697,102 @@ def draw_booth(surf, cx, cy, group, label):
     _nameboard(surf, label, cx, board.bottom - m(4))
 
 
+def _wax_crate(surf, cx, cy, w, h):
+    """A wax-sealed mystery CRATE silhouette (loot, not an inbox envelope): a
+    lit wooden chest with iron-banded corners, a domed lid, a red wax seal +
+    '?' so the eye reads 'surprise reward'. Borrows the surprise-box body
+    language (dark frame, gradient fill, top sheen) but at SS crate scale."""
+    body = pygame.Rect(cx - w // 2, cy - h // 2 + m(4), w, h - m(6))
+    # dark outer frame
+    pygame.draw.rect(surf, (28, 16, 8), body.inflate(m(4), m(4)),
+                     border_radius=m(4))
+    # crate body: lit wood gradient
+    surf.blit(vgrad(body.w, body.h, m(4), (150, 102, 56), (78, 46, 24), 255,
+                    gamma=1.15), body.topleft)
+    # plank seams + a top sheen
+    for k in (1, 2):
+        ly = body.y + body.h * k // 3
+        pygame.draw.line(surf, (40, 24, 12, 200), (body.x + m(3), ly),
+                         (body.right - m(3), ly), max(1, m(1)))
+    pygame.draw.line(surf, (220, 180, 130, 220), (body.x + m(4), body.y + m(3)),
+                     (body.right - m(4), body.y + m(3)), max(1, m(1.4)))
+    # domed lid arc
+    lid = pygame.Rect(body.x - m(2), body.y - m(10), body.w + m(4), m(22))
+    pygame.draw.rect(surf, (28, 16, 8), lid.inflate(m(3), m(2)),
+                     border_top_left_radius=m(11), border_top_right_radius=m(11))
+    surf.blit(vgrad(lid.w, lid.h, m(11), (168, 116, 64), (104, 64, 32), 255),
+              lid.topleft)
+    pygame.draw.line(surf, (230, 190, 140, 220), (lid.x + m(6), lid.y + m(3)),
+                     (lid.right - m(6), lid.y + m(3)), max(1, m(1.2)))
+    # iron corner bands (brass-lit) at the four corners + a centre vertical band
+    band = lerp_color(WOOD_LO, (180, 160, 120), 0.5)
+    for bx in (body.x + m(4), body.right - m(7)):
+        pygame.draw.rect(surf, band, (bx, body.y, m(3), body.h))
+        pygame.draw.rect(surf, (20, 12, 6), (bx, body.y, m(3), body.h),
+                         max(1, m(0.6)))
+    pygame.draw.rect(surf, band, (cx - m(2), body.y, m(4), body.h))
+    pygame.draw.rect(surf, (20, 12, 6), (cx - m(2), body.y, m(4), body.h),
+                     max(1, m(0.6)))
+    # gold corner studs
+    for sx in (body.x + m(5), body.right - m(5)):
+        for sy in (body.y + m(4), body.bottom - m(4)):
+            pygame.draw.circle(surf, GOLD, (sx, sy), m(2))
+            pygame.draw.circle(surf, (40, 24, 10), (sx, sy), m(2), max(1, m(0.5)))
+    # the red wax seal + '?' dead centre (the mystery tell)
+    sr = m(13)
+    soft_glow(surf, cx, cy + m(2), sr + m(2), (255, 120, 90), 90, layers=6)
+    pygame.draw.circle(surf, (150, 26, 26), (cx, cy + m(2)), sr)
+    pygame.draw.circle(surf, (214, 58, 52), (cx, cy + m(2)), sr - m(2))
+    pygame.draw.circle(surf, (110, 16, 16), (cx, cy + m(2)), sr, max(1, m(1.2)))
+    soft_glow(surf, cx - m(3), cy - m(2), m(3), (255, 200, 190), 120, layers=4)
+    _draw_qmark(surf, cx, cy + m(2), m(15), (250, 236, 214), (90, 12, 12),
+                thick=m(1.4))
+
+
+def draw_parcels_hero(surf, cx, cy):
+    """PARCELS — the differentiated mystery HERO. Not a 7th striped booth: a
+    rope-lashed cargo dais with brass-cornered framing, a wax-sealed treasure
+    crate on top, and a DEFINED red glow ring with a dark vignette behind it so
+    the hero punches out of the sunset instead of muddying into it."""
+    R = m(34)
+    # dark vignette behind the hero so the red bloom reads as a defined ring
+    vig = pygame.Surface((R * 5, R * 5), pygame.SRCALPHA)
+    soft_glow(vig, R * 5 // 2, R * 5 // 2, int(R * 2.2), (6, 4, 16), 120, layers=12)
+    surf.blit(vig, (cx - R * 5 // 2, cy - R * 5 // 2))
+    # a tight, DEFINED red glow ring (bloom + a crisp inner ring stroke)
+    ring = pygame.Surface((R * 4, R * 4), pygame.SRCALPHA)
+    rc = R * 2
+    soft_glow(ring, rc, rc, int(R * 1.5), (244, 96, 70), 110, layers=12)
+    for k in range(3, 0, -1):
+        pygame.draw.circle(ring, (255, 140, 110, int(110 * k / 3)), (rc, rc),
+                           R + m(8) + k * m(2), max(1, m(2)))
+    surf.blit(ring, (cx - rc, cy - rc), special_flags=pygame.BLEND_ADD)
+
+    # the rope-lashed cargo dais (a wide low pallet the crate sits on)
+    dais = pygame.Rect(cx - int(R * 1.5), cy + int(R * 0.62), int(R * 3), m(20))
+    drop_shadow(surf, dais, m(6), blur=m(7), alpha=140, dy=m(4))
+    surf.blit(vgrad(dais.w, dais.h, m(5), DECK_HI, DECK_LO, 255, gamma=1.2),
+              dais.topleft)
+    pygame.draw.rect(surf, (24, 14, 6), dais, width=max(1, m(1.6)),
+                     border_radius=m(5))
+    bevel_rim(surf, dais, m(5), (60, 36, 14), (*GOLD, 180), w=max(1, m(1.2)))
+    # brass corner caps on the dais
+    for dx in (dais.x + m(4), dais.right - m(4)):
+        pygame.draw.circle(surf, GOLD, (dx, dais.y + m(4)), m(3))
+        pygame.draw.circle(surf, (40, 24, 10), (dx, dais.y + m(4)), m(3),
+                           max(1, m(0.6)))
+    # rope lashing across the dais
+    for rx in (cx - int(R * 0.7), cx + int(R * 0.7)):
+        pygame.draw.line(surf, lerp_color(WOOD_MID, (200, 180, 140), 0.4),
+                         (rx, dais.y - m(2)), (rx, dais.bottom + m(1)), max(1, m(2)))
+
+    # the wax-sealed treasure crate, lifted so its lid clears the awning gap
+    _wax_crate(surf, cx, cy + m(2), int(R * 1.7), int(R * 1.5))
+
+    # hero nameboard
+    _nameboard(surf, "PARCELS", cx, dais.bottom + m(16), hero=True)
+
+
 # =============================================================================
 # Pip the captain at the helm + a coin
 # =============================================================================

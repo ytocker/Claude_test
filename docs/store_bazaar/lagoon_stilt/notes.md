@@ -11,8 +11,43 @@ stall screen.
 ## Files
 - `render.py` — headless generator (run from repo root):
   `SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy python docs/store_bazaar/lagoon_stilt/render.py`
-- `round_1.png` — 360×640 ship-scale target
-- `round_1@2x.png` — 720×1280 (review zoom)
+- `round_2.png` — 360×640 ship-scale target (current)
+- `round_2@2x.png` — 720×1280 (review zoom)
+- `round_1.png` / `round_1@2x.png` — prior round, kept for comparison
+
+## Round 2 — art-director ITERATE pass (one revision)
+Verdict was ITERATE: strong concept + real craft, undermined mainly by the
+oversized sun. The prioritized punch list, all addressed in this pass:
+
+1. **Tamed the sun** (highest impact): shrunk ~38% (core glow `m(64)→m(40)`,
+   halo `m(150)→m(96)`), dropped LOWER behind the rooflines (`0.30→0.355`),
+   and killed the blown white core — now a warm saturated gold disc
+   (`SUN_CORE (255,210,130)`, centre pip `(255,218,150)`) with a restrained
+   halo, so the back row sits against SKY, not glare.
+2. **Back-row scrim**: a soft cool dusk band (`(40,38,78)`, sin-feathered
+   across `0.36–0.50` of the sky) behind COSTUMES/ANIMALS/HATS so they read
+   against atmosphere, not the sun's glow.
+3. **Enlarged previews ~22%**: dome radius floored
+   (`max(m(24), m(28)*scale)`, hero `m(29)*scale`) so the BACK ROW carries an
+   identifiable preview, and the contain box bumped (`1.5→1.84`, letterboxed
+   `1.32→1.62`). Glass dome sheen preserved.
+4. **Cleared the hero label lane**: hero hut lifted ~14px (`0.870→0.848`),
+   Pip pushed front-left + down (`cx-m(24)→cx-m(36)`, `+m(2)→+m(7)`) with the
+   coin moved to his upper-LEFT, and the PARCELS name board DEFERRED to draw
+   frontmost on the deck front (`deck_y+m(8)`) so nothing crosses it.
+5. **Row separation**: back row dropped (`~0.60→~0.62`) and mid row pushed
+   down (`~0.79→~0.81`) so no roof ridge clips the eaves of the hut behind it.
+6. **Promoted TAP A STALL**: now a faint recessed gold-ruled CHIP (low-alpha
+   pill + hairline gold rim + flanking gold rules + gradient-gold type) with
+   ~8px more air under the capsule, so it reads as the CTA, not a caption.
+7. **Accessibility**: the hero `?` is a bold near-white glyph
+   (`(255,250,244)`) with a thick very-dark contour (`(28,6,8)`, `m(3.4)`) so
+   the mystery hut reads by SHAPE + VALUE, not red hue alone (red/green-blind
+   safe).
+
+Kept intact: the gold-on-red STORE wordmark + balance capsule + real coin
+glyph, the golden-hour→indigo gradient + dusk stars + glitter column, the red
+awnings + carved name boards, and the staggered village depth.
 
 ## Pipeline
 SS=4 supersample: authored at logical 360×640, rendered on a 1440×2560 device

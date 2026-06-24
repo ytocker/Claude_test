@@ -840,20 +840,25 @@ def render_device():
     surf = pygame.Surface((DW, DH))
     draw_bg(surf)
 
-    # pennant swags stringing the caravan together (drawn behind the balloons).
-    swags = [(0, 1), (2, 3), (4, 5)]
-    for ai, bi in swags:
-        ax, ay, asc, _ = LAYOUT[ai]
-        bx, by, bsc, _ = LAYOUT[bi]
-        draw_pennant_string(surf, m(ax), m(ay - 56 * asc),
-                            m(bx), m(by - 56 * bsc), n=5)
+    # Heavier GOLD pennant swags binding each vertically-adjacent stall pair into
+    # one caravan, routed down the OUTER columns so they never cross Pip's central
+    # lane. Each carries 2-3 drifting coins. Anchored at the balloon crowns.
+    def crown(i):
+        cxL, cyL, sc, _ = LAYOUT[i]
+        return cxL, cyL - 58 * sc, sc
 
-    # drifting coins threading the caravan (depth sparkle between units).
+    swags = [(0, 2), (1, 3), (2, 4), (3, 5), (4, 6), (5, 6)]
+    for ai, bi in swags:
+        axL, ayL, _ = crown(ai)
+        bxL, byL, _ = crown(bi)
+        ncoins = 3 if bi == 6 else 2
+        draw_pennant_string(surf, m(axL), m(ayL), m(bxL), m(byL),
+                            n=6, sag=16, coins=ncoins)
+
+    # a few extra drifting coins riding the upper apex (clear of the lane).
     rnd = random.Random(9)
-    coin_spots = [(186, 232), (78, 350), (300, 372), (170, 490), (250, 540),
-                  (96, 200)]
-    for cxL, cyL in coin_spots:
-        coin_glyph(surf, m(cxL), m(cyL), m(rnd.uniform(5.5, 7.5)))
+    for cxL, cyL in [(70, 196), (308, 210), (44, 300), (320, 320)]:
+        coin_glyph(surf, m(cxL), m(cyL), m(rnd.uniform(5.5, 7.0)))
 
     draw_header(surf)
 
@@ -877,10 +882,10 @@ def downscale(device_surf, scale=1):
 def main():
     _build_stars()
     dev = render_device()
-    pygame.image.save(downscale(dev, 1), os.path.join(_HERE, "round_1.png"))
-    pygame.image.save(downscale(dev, 2), os.path.join(_HERE, "round_1@2x.png"))
+    pygame.image.save(downscale(dev, 1), os.path.join(_HERE, "round_2.png"))
+    pygame.image.save(downscale(dev, 2), os.path.join(_HERE, "round_2@2x.png"))
     print("SS =", SS, "device =", DW, "x", DH)
-    print("saved round_1.png (360x640) + round_1@2x.png (720x1280)")
+    print("saved round_2.png (360x640) + round_2@2x.png (720x1280)")
 
 
 if __name__ == "__main__":
