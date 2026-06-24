@@ -1,11 +1,12 @@
 """
 STORE BAZAAR — concept #4: GOLDEN-HOUR DOCK MARKET (selection-sheet prototype).
 
-A tropical harbor boardwalk at golden hour. Two tiers of category stalls split
-by a band of glittering gold water, palms framing the left/right edges, Pip the
-scarlet macaw at a dockside cart, and the signature: animated-looking sun-glitter
-specular dashes raked across the water. The most overtly "scarlet macaw island"
-of the five bazaar concepts.
+A tropical harbor market at golden hour. Seven category stalls line a wooden
+boardwalk that runs in two tiers — a larger front row and a smaller back jetty —
+split by a strip of sun-glittering gold water, with palms framing the edges,
+distant moored boats for depth, and Pip the scarlet macaw selling from a
+dockside cart. PARCELS is the glowing-red mystery hero crate stacked on a moored
+boat. The low golden-hour sun rakes light in from the top-left.
 
 DOCS-ONLY mockup. Not wired into the game. The whole frame is authored
 resolution-independently at SS=4 (1440x2560 device) and ONE smoothscale brings
@@ -13,12 +14,13 @@ it down to 360x640 — the downscale is what turns oversized geometry into crisp
 anti-aliased edges, exactly like the constellation hi-res store sheet whose
 primitive kit this reuses.
 
-Palette comes from the real golden-hour biome keyframe
-(game.biome.palette_for_phase(~0.23)) + the biome sky surface, so the dock reads
-as the same game world; the Skybit warm-gold + gem UI kit (the constellation
-store's m()/vgrad/gold_a_fill/coin_glyph/cabochon/facet_gem/etc.) sits on top so
-it still leads cleanly into the jewel store. A small night/indigo jewel accent
-(the PARCELS "mystery hero" lantern) seeds the dissolve into that night souk.
+Round 2 polish: planks read as solid lit wood (top-left light, plank seams, AO
+under every stall) instead of a flat disc of raking light; the water is a sparse
+tasteful specular shimmer, not noise; the sky eases UP from the warm golden-hour
+low (255,196,112) to the indigo+gold jewel-store nebula near the top so entering
+a stall dissolves cohesively; previews are letterboxed inside the dome so
+aspect-extreme items (flip-flops, party hat) never clip; SHADES falls back to a
+real sunglasses item icon instead of a bare parrot.
 
 Both build targets safe: pure pygame, no numpy, no desktop/browser-only API.
 """
@@ -55,7 +57,7 @@ from render_hi import (
     vgrad, vgrad_stops, gold_a_fill, soft_glow, drop_shadow,
     gradient_text, plain_text, facet_gem, cabochon, cabochon_glass,
     coin_glyph, bevel_rim, top_sheen, gold_rule, title_wordmark, downscale,
-    GOLD, GOLD_PALE, GOLD_DEEP, RARITY,
+    GOLD, GOLD_PALE, GOLD_DEEP, RARITY, MYSTERY,
     GOLD_A_STOPS, GOLD_A_RIM_DARK, GOLD_A_RIM_BRIGHT, GOLD_A_NUM,
     gloss_sweep, contact_shadow, _glyph_base, _stamp_bold,
 )
@@ -66,31 +68,46 @@ GH_PHASE = 0.23125                       # the GOLDEN HOUR biome keyframe exactl
 PAL = biome.palette_for_phase(GH_PHASE)
 PHASE_BUCKET = biome.phase_bucket(GH_PHASE)
 
-# Warm anchors pulled toward the verified Skybit golden-hour tones.
+# Warm golden-hour anchors. The signature low is (255,196,112) per the brief;
+# the upper frame eases to the constellation indigo+gold nebula so the bazaar
+# dissolves cohesively into the jewel store.
+GH_LOW = (255, 196, 112)                 # the warm golden-hour low (brief anchor)
 SKY_HI = PAL["sky_bot"]                   # (255,210,160) peachy upper
 HORIZON = PAL["horizon"]                  # (255,220,140) hot horizon band
-WATER_GOLD = (244, 190, 92)              # gold water body
-WATER_DEEP = (150, 96, 38)               # shaded trough between glints
-AWNING_RED = (168, 32, 16)               # macaw-red awning (verified #A82010-ish)
-AWNING_RED_HI = (214, 78, 44)
-CREAM = (246, 238, 214)
-WOOD_HI = (206, 150, 92)                 # sunlit plank
-WOOD_MID = (160, 108, 62)
-WOOD_DK = (96, 60, 34)
+NEBULA_TOP = (16, 16, 52)                # indigo jewel-store ceiling
+NEBULA_MID = (40, 30, 84)                # violet bloom toward mid sky
+NEBULA_GLOW = (96, 78, 190)              # the constellation central bloom
+
+WATER_GOLD = (246, 192, 96)             # gold water body
+WATER_HOT = (255, 232, 168)             # hot far-shore highlight
+WATER_DEEP = (146, 92, 36)              # shaded trough between glints
+AWNING_RED = (170, 34, 18)              # macaw-red awning
+AWNING_RED_HI = (218, 82, 46)
+CREAM = (248, 240, 218)
+WOOD_HI = (212, 156, 96)                 # sunlit plank crown
+WOOD_MID = (162, 110, 64)
+WOOD_DK = (92, 58, 32)
+WOOD_SEAM = (58, 36, 18)
 PALM_TRUNK = (120, 82, 48)
-PALM_TRUNK_HI = (172, 124, 76)
-FROND_DK = (38, 92, 56)
-FROND_MID = (66, 138, 74)
-FROND_HI = (132, 196, 96)
+PALM_TRUNK_HI = (176, 128, 78)
+FROND_DK = (36, 90, 54)
+FROND_MID = (64, 136, 72)
+FROND_HI = (134, 198, 98)
 # the night/jewel accent that seeds the dissolve into the constellation store
-JEWEL_INDIGO = (24, 20, 64)
+JEWEL_INDIGO = (26, 22, 66)
 JEWEL_INDIGO_DEEP = (10, 10, 36)
+# the glowing-red mystery accent (the constellation store's MYSTERY hue)
+MYST_RED = MYSTERY["gem"]                 # (244, 96, 96)
+MYST_GLOW = MYSTERY["glow"]               # (236, 64, 64)
+MYST_DEEP = MYSTERY["deep"]               # (120, 22, 26)
 
 BALANCE = 14250
 
+# top-left sun direction (everything lit from up-left). Logical sun anchor.
+SUN_X = int(DW * 0.27)
+
 
 # ── stall manifest: 7 categories -> group key + preview id ────────────────────
-# The brief's category labels map onto the catalog's group keys (some singular).
 STALL_GROUPS = [
     ("COSTUMES", "costume"),
     ("PARROTS",  "parrot"),
@@ -103,19 +120,32 @@ STALL_GROUPS = [
 
 
 def _preview_id(group):
+    """The representative item for a stall. For SHADES the catalog's first entry
+    is `skin_shades_none` (a bare parrot, no glasses) which has no icon and reads
+    as 'no item' — so fall back to the first shades entry that DOES carry a real
+    icon, giving a clear sunglasses preview."""
     ids = store_catalog.ids_of_group(group)
-    return ids[0] if ids else None
+    if not ids:
+        return None
+    sid = ids[0]
+    if group == "shades" and parrot.get_skin_icon(sid) is None:
+        for alt in ids[1:]:
+            if parrot.get_skin_icon(alt) is not None:
+                return alt
+    return sid
 
 
 def _preview_icon(sid, box_px):
-    """Representative paid item thumbnail for a stall, fit to a box, bounding-
-    boxed + contrast-lifted so it reads as the lit hero under the awning."""
+    """Representative paid item thumbnail for a stall, bounding-boxed + fit
+    INSIDE a square box with letterboxing (aspect preserved) so aspect-extreme
+    items (flip-flops, party hat) are contained, never clipped at the dome edge.
+    Contrast-lifted so it reads as the lit hero under the awning."""
     src = parrot.get_skin_icon(sid) or parrot.get_skin_frame(sid, 1, 0.0)
     bb = src.get_bounding_rect()
     if bb.width > 0 and bb.height > 0:
         src = src.subsurface(bb).copy()
     sw, sh = src.get_size()
-    s = box_px / max(sw, sh)
+    s = box_px / max(sw, sh)                 # fit the LONGER side => fully contained
     scaled = pygame.transform.smoothscale(
         src, (max(1, int(sw * s)), max(1, int(sh * s))))
     lift = scaled.copy()
@@ -123,7 +153,7 @@ def _preview_icon(sid, box_px):
     return lift
 
 
-def _rim_lit(img, color=(255, 244, 210), alpha=170):
+def _rim_lit(img, color=(255, 246, 214), alpha=175):
     """Crisp top-left contour highlight so a thumbnail pops off the dark dome."""
     w, h = img.get_size()
     off = max(1, m(0.6))
@@ -139,197 +169,323 @@ def _rim_lit(img, color=(255, 244, 210), alpha=170):
 
 
 # =============================================================================
-# Backdrop — biome sky + mountains + clouds + golden glitter water
+# Backdrop — indigo->gold sky, low sun, mountains, clouds, glitter water
 # =============================================================================
-WATER_TOP = m(218)                        # logical y where the water band begins
-WATER_BOT = m(266)                        # ...and ends (the near-deck waterline)
+WATER_TOP = m(222)                        # logical y where the water band begins
+WATER_BOT = m(268)                        # ...and ends (the near-deck waterline)
 
 
 def draw_sky(surf):
-    """The real golden-hour biome sky (reused cache surface) stretched over the
-    upper frame, with biome mountains + a few clouds for tropical depth."""
+    """The golden-hour harbor sky: warm at the low horizon (the brief's
+    (255,196,112)) easing UP to the constellation indigo+gold nebula so entering
+    a stall dissolves into the jewel store. The biome golden-hour sky cache seeds
+    the warm lower band; an authored indigo gradient + a soft violet bloom take
+    over the upper frame; the low sun blooms top-left."""
     horizon_y = WATER_TOP
-    sky = get_sky_surface_biome(DW, DH, horizon_y, PAL, PHASE_BUCKET)
+    # authored sky: indigo ceiling -> violet mid -> warm golden-hour horizon.
+    sky = vgrad_stops(DW, horizon_y, 0,
+                      [(0.00, NEBULA_TOP),
+                       (0.26, NEBULA_MID),
+                       (0.52, lerp_color(NEBULA_MID, (150, 96, 96), 0.55)),
+                       (0.74, lerp_color((214, 132, 90), GH_LOW, 0.5)),
+                       (1.00, GH_LOW)], 255, gamma=1.04)
     surf.blit(sky, (0, 0))
-    # the biome golden-hour sky is pale near the horizon; lay a warm amber
-    # gradient over it (strongest low, near the sun) so the sky reads GOLDEN
-    # hour, not washed white, while keeping the biome hues underneath.
-    warm = pygame.Surface((DW, horizon_y), pygame.SRCALPHA)
-    for y in range(horizon_y):
-        f = y / max(1, horizon_y - 1)
-        a = int(70 + 150 * f ** 1.5)               # warm up top, hot amber at horizon
-        col = lerp_color((242, 150, 78), (255, 196, 120), f)
-        pygame.draw.line(warm, (*col, a), (0, y), (DW, y))
-    surf.blit(warm, (0, 0))
+    # the constellation central violet bloom near the top so the jewel-store
+    # nebula is already present above the market line.
+    soft_glow(surf, int(DW * 0.5), int(horizon_y * 0.30), m(150),
+              NEBULA_GLOW, 40, layers=12)
+    # a sparse high starfield in the indigo ceiling only (fades out before the
+    # warm band) — the jewel-store sky bleeding through the dusk.
+    _draw_high_stars(surf, horizon_y)
 
-    # the low sun: a warm bloom near the horizon, slightly off-centre. Kept in
-    # check so it never blooms to a white wash over the stalls.
-    sun_x, sun_y = int(DW * 0.62), int(horizon_y * 0.74)
-    soft_glow(surf, sun_x, sun_y, m(66), (255, 214, 140), 46, layers=12)
-    soft_glow(surf, sun_x, sun_y, m(28), (255, 236, 190), 90, layers=10)
-    disc = pygame.Surface((m(48), m(48)), pygame.SRCALPHA)
-    pygame.draw.circle(disc, (255, 244, 214, 235), (m(24), m(24)), m(18))
-    surf.blit(disc, (sun_x - m(24), sun_y - m(24)))
+    # the low golden-hour sun, raking from the upper-left. Restrained bloom so it
+    # never washes the stalls white.
+    sun_y = int(horizon_y * 0.64)
+    soft_glow(surf, SUN_X, sun_y, m(72), (255, 206, 128), 50, layers=14)
+    soft_glow(surf, SUN_X, sun_y, m(30), (255, 234, 188), 96, layers=10)
+    disc = pygame.Surface((m(52), m(52)), pygame.SRCALPHA)
+    pygame.draw.circle(disc, (255, 246, 220, 240), (m(26), m(26)), m(19))
+    surf.blit(disc, (SUN_X - m(26), sun_y - m(26)))
 
-    # distant tropical islands / mountains in the warm haze, kept low + hazy
+    # distant tropical islands in the warm haze, kept low + hazy
     draw_mountains(surf, scroll=140, ground_y=horizon_y, w=DW,
-                   far_color=PAL["mtn_far"], near_color=PAL["mtn_near"])
+                   far_color=lerp_color(PAL["mtn_far"], GH_LOW, 0.35),
+                   near_color=lerp_color(PAL["mtn_near"], (180, 120, 80), 0.3))
 
-    # two small soft clouds catching the low light, kept HIGH so they never
-    # drift over the stall band or the water glitter.
-    for x, y, sc, v in ((m(48), m(40), SS * 0.85, 2),
-                        (m(280), m(30), SS * 0.7, 3)):
+    # two small clouds catching the low light, kept HIGH so they never drift over
+    # the stall band or the water glitter, tinted warm.
+    for x, y, sc, v in ((m(96), m(58), SS * 0.78, 2),
+                        (m(286), m(40), SS * 0.62, 3)):
         draw_cloud(surf, x, y, scale=sc, variant=v)
 
 
+def _draw_high_stars(surf, horizon_y):
+    """A sparse starfield confined to the indigo ceiling, alpha-faded to zero
+    before the warm horizon band — the jewel-store night bleeding through dusk."""
+    rng = random.Random(91)
+    fade_y = int(horizon_y * 0.42)            # stars gone by here
+    for _ in range(70):
+        x = rng.randint(0, DW)
+        y = rng.randint(0, fade_y)
+        f = 1.0 - y / max(1, fade_y)
+        a = int(rng.randint(40, 150) * f)
+        if a <= 0:
+            continue
+        r = max(1, m(rng.uniform(0.4, 1.2)))
+        tint = rng.choice([(255, 252, 240), (214, 222, 255), (255, 238, 206)])
+        pygame.draw.circle(surf, (*tint, a), (x, y), r)
+
+
 def draw_water(surf):
-    """The glittering gold harbor band that splits the two boardwalk tiers, with
-    the SIGNATURE sun-glitter: a sparse field of large bright specular dashes +
-    soft glows raking across the water under the low sun. Sparse + large so it
-    reads premium, not noisy, at 360px."""
+    """The glittering gold harbor band splitting the two tiers. The SIGNATURE is
+    a SPARSE specular shimmer: a hot reflection column straight under the sun, a
+    few rows of clean horizontal gold dashes brightest in that column and
+    thinning to the dark flanks, plus moored-boat + jetty-post reflections.
+    Sparse + large so it reads premium, not noisy, at 360px."""
     band_h = WATER_BOT - WATER_TOP
     # base water gradient: hot gold at the far shore deepening toward the viewer
     water = vgrad_stops(DW, band_h, 0,
-                        [(0.00, lerp_color(WATER_GOLD, (255, 232, 168), 0.4)),
-                         (0.35, WATER_GOLD),
-                         (1.00, WATER_DEEP)], 255, gamma=1.05)
+                        [(0.00, WATER_HOT),
+                         (0.30, WATER_GOLD),
+                         (1.00, WATER_DEEP)], 255, gamma=1.06)
     surf.blit(water, (0, WATER_TOP))
 
-    # jetty support posts dropping into the harbor + wobbly dark reflections
-    for px in range(m(46), DW - m(36), m(54)):
-        pygame.draw.line(surf, (78, 48, 26), (px, WATER_TOP - m(2)),
-                         (px, WATER_TOP + m(20)), max(1, m(3.2)))
-        pygame.draw.line(surf, (*PALM_TRUNK_HI, 150), (px - m(1), WATER_TOP - m(2)),
-                         (px - m(1), WATER_TOP + m(14)), max(1, m(1.0)))
-        # broken reflection streak under each post
-        for ry in range(WATER_TOP + m(20), WATER_BOT - m(4), m(4)):
-            jit = int(math.sin(ry * 0.6 + px) * m(1.4))
-            pygame.draw.line(surf, (60, 36, 18, 90), (px + jit, ry),
-                             (px + jit, ry + m(2)), max(1, m(2.4)))
-
-    # a hot reflection column straight under the sun (the classic sun-on-water
-    # vertical smear), kept to the sun's x and feathered at the edges.
-    sun_x = int(DW * 0.62)
-    col_w = m(58)
+    # the reflection column straight under the sun (classic sun-on-water vertical
+    # smear). Kept RESTRAINED + warm (not white) and broken into a few feathered
+    # bands so it reads as a shimmer path, never a washed pale blob.
+    col_w = m(64)
     colsurf = pygame.Surface((col_w, band_h), pygame.SRCALPHA)
     for sx in range(col_w):
         hx = abs(sx - col_w / 2) / (col_w / 2)
-        a = int(54 * (1 - hx ** 1.4))              # restrained so it never blows white
-        if a > 0:
-            pygame.draw.line(colsurf, (255, 238, 184, a), (sx, 0), (sx, band_h))
-    surf.blit(colsurf, (sun_x - col_w // 2, WATER_TOP),
+        base = 44 * (1 - hx ** 1.4)
+        for yy in range(band_h):
+            ripple = 0.5 + 0.5 * math.sin(yy * 0.5 + sx * 0.2)
+            a = int(base * ripple)
+            if a > 0:
+                colsurf.set_at((sx, yy), (255, 230, 168, a))
+    surf.blit(colsurf, (SUN_X - col_w // 2, WATER_TOP),
               special_flags=pygame.BLEND_ADD)
 
     # SIGNATURE specular glitter — sparse, large, brightest in the sun column,
-    # thinning toward the dark flanks. Seeded so the layout is stable.
+    # thinning toward the dark flanks. Seeded so the layout is stable. Authored
+    # as clean horizontal dashes (+ a hot 4-point star on the very brightest) so
+    # it reads as raked sun-glitter, never blobby noise.
     rng = random.Random(404)
-    # SPARSE + LARGE specular dashes (the AD risk-note for water shimmer): a few
-    # rows of horizontal gold glints, brightest in the sun column, thinning to
-    # the dark flanks. Authored as clean dashes — no blobby glows.
-    rows = [WATER_TOP + int(band_h * f) for f in (0.20, 0.40, 0.62, 0.84)]
+    rows = [WATER_TOP + int(band_h * f) for f in (0.22, 0.44, 0.66, 0.86)]
     for ri, ry in enumerate(rows):
         depth = (ry - WATER_TOP) / max(1, band_h)
-        count = 6 + ri                              # more glints in the near rows
+        count = 5 + ri                              # more glints in the near rows
         for c in range(count):
-            x = int((c + rng.uniform(0.2, 0.8)) * DW / count)
+            x = int((c + rng.uniform(0.25, 0.75)) * DW / count)
             x += int(rng.uniform(-m(6), m(6)))
-            x = max(m(8), min(DW - m(8), x))
-            dist_sun = abs(x - sun_x) / (DW * 0.55)
-            bright = max(0.12, 1.0 - dist_sun)
-            ln = m(3.0 + depth * 8.0) * rng.uniform(0.8, 1.2)
-            a = int(235 * bright)
-            col = lerp_color((255, 226, 150), (255, 252, 232), bright)
-            y = ry + int(rng.uniform(-m(3), m(3)))
-            # a soft underglow only for the brightest glints near the sun path
+            x = max(m(10), min(DW - m(10), x))
+            dist_sun = abs(x - SUN_X) / (DW * 0.5)
+            bright = max(0.10, 1.0 - dist_sun)
+            ln = m(4.0 + depth * 9.0) * rng.uniform(0.85, 1.2)
+            a = int(240 * bright)
+            col = lerp_color((255, 228, 156), (255, 252, 236), bright)
+            y = ry + int(rng.uniform(-m(2), m(2)))
             if bright > 0.55:
-                soft_glow(surf, x, y, int(ln * 0.7), (255, 220, 140),
-                          int(60 * bright), layers=5)
+                soft_glow(surf, x, y, int(ln * 0.6), (255, 222, 144),
+                          int(56 * bright), layers=5)
             dash = pygame.Surface((int(ln * 2) + m(2), m(3)), pygame.SRCALPHA)
             pygame.draw.line(dash, (*col, a), (0, m(1)), (int(ln * 2), m(1)),
                              max(1, m(1.6)))
             surf.blit(dash, (x - int(ln), y - m(1)), special_flags=pygame.BLEND_ADD)
-            # a hot 4-point star kiss on the brightest, on the sun path
-            if bright > 0.72:
-                L = int(ln * 1.0)
-                pygame.draw.line(surf, (255, 255, 246, 210), (x - L, y), (x + L, y),
+            if bright > 0.74:
+                L = int(ln * 0.9)
+                pygame.draw.line(surf, (255, 255, 248, 215), (x - L, y), (x + L, y),
                                  max(1, m(0.8)))
-                pygame.draw.line(surf, (255, 255, 246, 170), (x, y - m(3)),
+                pygame.draw.line(surf, (255, 255, 248, 170), (x, y - m(3)),
                                  (x, y + m(3)), max(1, m(0.8)))
 
-    # far waterline lip (catches the sun, defines the back jetty's foot) and a
-    # dark contact line at the near edge where the front boardwalk meets water.
-    pygame.draw.line(surf, (255, 244, 200, 230), (0, WATER_TOP),
-                     (DW, WATER_TOP), max(1, m(1.6)))
-    near_shade = pygame.Surface((DW, m(8)), pygame.SRCALPHA)
-    for yy in range(m(8)):
-        near_shade.fill((40, 22, 8, int(150 * (yy / m(8)))),
-                        (0, yy, DW, 1))
-    surf.blit(near_shade, (0, WATER_BOT - m(8)))
+    # far waterline lip catching the sun (defines the back jetty's foot)
+    pygame.draw.line(surf, (255, 248, 208, 235), (0, WATER_TOP),
+                     (DW, WATER_TOP), max(1, m(1.8)))
+    # a thin warm reflection just under the lip
+    pygame.draw.line(surf, (255, 224, 160, 120), (0, WATER_TOP + m(3)),
+                     (DW, WATER_TOP + m(3)), max(1, m(1.0)))
+
+
+def draw_distant_boats(surf):
+    """A couple of small moored boats on the far water for depth — simple hull +
+    mast silhouettes catching the low sun, with broken reflections. Sparse so
+    they add depth without clutter. Drawn on the water band, behind the front
+    tier. The right-hand boat is the PARCELS mystery boat (drawn separately)."""
+    band_h = WATER_BOT - WATER_TOP
+    # kept off the bright sun column (left) so their hulls read as silhouettes,
+    # not lost in the glitter. One mid-left with a sail, one small further right.
+    for bx, scale in ((int(DW * 0.13), 0.78), (int(DW * 0.42), 0.58)):
+        by = WATER_TOP + int(band_h * 0.34)
+        _moored_boat(surf, bx, by, scale, hull=(112, 70, 38),
+                     hull_hi=(178, 126, 74), sail=(240, 226, 198))
+
+
+def _moored_boat(surf, cx, wl_y, scale, hull, hull_hi, sail=None,
+                 reflect=True):
+    """A small moored boat: a curved hull sitting on the waterline `wl_y`, a thin
+    mast, an optional triangular sail, and (on water) a broken reflection."""
+    cx, wl_y = int(cx), int(wl_y)
+    hw = int(m(34) * scale)
+    hh = int(m(13) * scale)
+    # hull as a filled lens (two arcs)
+    hull_poly = [(cx - hw, wl_y)]
+    for i in range(13):
+        t = i / 12
+        hx = int(cx - hw + 2 * hw * t)
+        hy = int(wl_y + hh * math.sin(math.pi * t) * 0.9)
+        hull_poly.append((hx, hy))
+    hull_poly.append((cx + hw, wl_y))
+    pygame.draw.polygon(surf, hull, hull_poly)
+    # lit upper deck line (top-left light) + a warm gunwale strip
+    pygame.draw.line(surf, hull_hi, (cx - hw, wl_y), (cx + hw, wl_y),
+                     max(1, int(m(2.0) * scale)))
+    pygame.draw.line(surf, lerp_color(hull_hi, WHITE, 0.3),
+                     (int(cx - hw * 0.7), wl_y - m(1)),
+                     (int(cx + hw * 0.2), wl_y - m(1)), max(1, m(1.0)))
+    # mast
+    mast_h = int(m(30) * scale)
+    mast_x = int(cx - hw * 0.1)
+    pygame.draw.line(surf, (74, 50, 28), (mast_x, wl_y),
+                     (mast_x, wl_y - mast_h), max(1, int(m(1.6) * scale)))
+    if sail is not None:
+        sailp = [(mast_x + m(1), wl_y - mast_h + m(2)),
+                 (int(mast_x + hw * 0.85), wl_y - m(2)),
+                 (mast_x + m(1), wl_y - m(2))]
+        pygame.draw.polygon(surf, sail, sailp)
+        pygame.draw.polygon(surf, lerp_color(sail, (200, 120, 90), 0.4), sailp,
+                            width=max(1, m(0.8)))
+        # warm sun-kiss on the sail's lit edge
+        pygame.draw.line(surf, (255, 240, 210), sailp[0], sailp[2],
+                         max(1, m(1.0)))
+    # broken reflection under the hull — kept dim + warm so it reads as a few
+    # ripple dashes, never a muddy smear.
+    if not reflect:
+        return
+    for k in range(3):
+        ry = int(wl_y + m(3) + k * m(3) * scale)
+        jit = int(math.sin(k * 1.7 + cx) * m(2))
+        a = int(70 * (1 - k / 3))
+        pygame.draw.line(surf, (88, 54, 26, a), (int(cx - hw * 0.5) + jit, ry),
+                         (int(cx + hw * 0.4) + jit, ry), max(1, int(m(1.4) * scale)))
 
 
 # =============================================================================
 # Boardwalk decks (the two tiers) + palms + dock posts
 # =============================================================================
-def _plank_deck(surf, rect, plank_h, light, mid, dark, scroll=0, joist=True):
+def _plank_deck(surf, rect, plank_h, light, mid, dark, perspective=True):
     """A wooden boardwalk deck: horizontal planks receding in perspective with a
-    lit top edge, dark seams, and a few grain streaks. Authored oversized so the
-    seams downscale to crisp hairlines."""
+    lit top crown (top-left light), dark seams, a thin lit lip below each seam,
+    and a few grain streaks. Authored oversized so seams downscale to crisp
+    hairlines. Light biased toward the left (the sun side)."""
+    # base body: a left-lit gradient (warmer/brighter at the sunlit left)
     deck = vgrad_stops(rect.w, rect.h, 0,
-                       [(0.0, light), (0.5, mid), (1.0, dark)], 255, gamma=1.05)
+                       [(0.0, light), (0.5, mid), (1.0, dark)], 255, gamma=1.06)
+    # rake a left->right horizontal darkening so the deck is lit from the sun side
+    shade = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+    for x in range(0, rect.w, max(1, m(2))):
+        a = int(60 * (x / max(1, rect.w)) ** 1.2)
+        pygame.draw.line(shade, (40, 24, 10, a), (x, 0), (x, rect.h), max(1, m(2)))
+    deck.blit(shade, (0, 0))
     surf.blit(deck, rect.topleft)
+
     rng = random.Random(7 + rect.y)
     y = rect.y
-    i = 0
     while y < rect.bottom:
-        # planks grow toward the viewer (simple perspective)
         f = (y - rect.y) / max(1, rect.h)
-        ph = int(plank_h * (0.7 + f * 0.9))
-        # seam: dark groove + a thin lit lip just below it
-        pygame.draw.line(surf, (*dark, 255), (rect.x, y), (rect.right, y),
-                         max(1, m(1.2)))
-        pygame.draw.line(surf, (*lerp_color(light, WHITE, 0.2), 150),
-                         (rect.x, y + max(1, m(0.8))),
-                         (rect.right, y + max(1, m(0.8))), max(1, m(0.8)))
-        # a couple of grain streaks per plank
+        ph = int(plank_h * (0.7 + f * 0.95)) if perspective else plank_h
+        # dark seam groove
+        pygame.draw.line(surf, WOOD_SEAM, (rect.x, y), (rect.right, y),
+                         max(1, m(1.4)))
+        # a thin lit lip just below the seam (the plank crown catching the sun)
+        pygame.draw.line(surf, (*lerp_color(light, WHITE, 0.35), 190),
+                         (rect.x, y + max(1, m(1.0))),
+                         (rect.right, y + max(1, m(1.0))), max(1, m(1.0)))
+        # grain streaks
         for _ in range(3):
             gx = rng.randint(rect.x, rect.right - m(20))
-            gw = rng.randint(m(18), m(60))
-            ga = rng.randint(20, 55)
+            gw = rng.randint(m(18), m(64))
+            ga = rng.randint(22, 56)
             pygame.draw.line(surf, (60, 36, 18, ga),
                              (gx, y + ph // 2), (gx + gw, y + ph // 2),
                              max(1, m(0.8)))
         y += ph
-        i += 1
-    # board butt-joints (vertical seams) staggered per row for a real deck read
+    # staggered board butt-joints (vertical seams) for a real deck read
     rng2 = random.Random(99 + rect.y)
-    for _ in range(8):
+    for _ in range(9):
         vx = rng2.randint(rect.x + m(20), rect.right - m(20))
         vy = rng2.randint(rect.y, rect.bottom - m(10))
-        pygame.draw.line(surf, (50, 30, 16, 120), (vx, vy), (vx, vy + m(14)),
+        pygame.draw.line(surf, (50, 30, 16, 130), (vx, vy), (vx, vy + m(16)),
                          max(1, m(0.9)))
-    # lit front lip of the deck
-    pygame.draw.line(surf, (*lerp_color(light, WHITE, 0.35), 220),
-                     (rect.x, rect.y), (rect.right, rect.y), max(1, m(1.4)))
+    # lit front crown of the deck
+    pygame.draw.line(surf, (*lerp_color(light, WHITE, 0.45), 230),
+                     (rect.x, rect.y), (rect.right, rect.y), max(1, m(1.6)))
 
 
 def draw_back_jetty(surf):
-    """The upper boardwalk tier (back jetty) the 3 back stalls sit on. A thin
-    deck just behind the water with support posts dropping into the harbor."""
-    deck = pygame.Rect(m(20), m(210), DW - m(40), m(14))
-    _plank_deck(surf, deck, 7, WOOD_HI, WOOD_MID, WOOD_DK)
+    """The upper boardwalk tier (back jetty) the 3 back stalls sit on — a thin
+    lit deck just behind the water with support posts dropping into the harbor."""
+    deck = pygame.Rect(m(14), m(206), DW - m(28), m(16))
+    _plank_deck(surf, deck, m(7), WOOD_HI, WOOD_MID, WOOD_DK, perspective=False)
+    # dark contact line under the jetty (where it meets the water lip)
+    pygame.draw.line(surf, (44, 26, 12), (deck.x, deck.bottom),
+                     (deck.right, deck.bottom), max(1, m(1.6)))
+    # support posts dropping into the harbor with broken reflections
+    for px in range(m(40), DW - m(30), m(58)):
+        pygame.draw.line(surf, (80, 50, 28), (px, deck.bottom - m(2)),
+                         (px, deck.bottom + m(18)), max(1, m(3.0)))
+        pygame.draw.line(surf, (*PALM_TRUNK_HI, 150), (px - m(1), deck.bottom - m(2)),
+                         (px - m(1), deck.bottom + m(12)), max(1, m(1.0)))
+        for ry in range(deck.bottom + m(18), WATER_BOT - m(4), m(4)):
+            jit = int(math.sin(ry * 0.6 + px) * m(1.4))
+            pygame.draw.line(surf, (60, 36, 18, 90), (px + jit, ry),
+                             (px + jit, ry + m(2)), max(1, m(2.2)))
 
 
 def draw_front_boardwalk(surf):
     """The lower, larger boardwalk tier the 4 front stalls + Pip's cart sit on —
-    it fills the bottom of the frame and reads as the floor the player stands on."""
+    fills the bottom of the frame and reads as the floor the player stands on.
+    A warm sun-rake from the upper-left tints the LEFT planks (sun side) — kept
+    as a soft directional warm wash, NOT a circular spotlight disc."""
     deck = pygame.Rect(0, WATER_BOT, DW, DH - WATER_BOT)
-    _plank_deck(surf, deck, 9, lerp_color(WOOD_HI, (235, 196, 150), 0.3),
+    _plank_deck(surf, deck, m(10), lerp_color(WOOD_HI, (236, 198, 150), 0.32),
                 WOOD_MID, WOOD_DK)
-    # warm light raking from the low sun across the near deck — kept subtle so
-    # it warms the planks without reading as a hard spotlight.
-    pool = pygame.Surface((DW, deck.h), pygame.SRCALPHA)
-    soft_glow(pool, int(DW * 0.58), m(70), m(170), (255, 198, 120), 16, layers=10)
-    surf.blit(pool, deck.topleft, special_flags=pygame.BLEND_ADD)
+    # the contact shadow where the front deck meets the water (AO at the seam)
+    seam = pygame.Surface((DW, m(10)), pygame.SRCALPHA)
+    for yy in range(m(10)):
+        seam.fill((30, 16, 6, int(150 * (1 - yy / m(10)))), (0, yy, DW, 1))
+    surf.blit(seam, (0, WATER_BOT))
+    # directional warm sun-rake biased to the upper-LEFT (sun side) — a soft
+    # gradient wedge, feathered, so the near deck warms toward the sun without a
+    # hard spotlight pool.
+    rake = pygame.Surface((DW, deck.h), pygame.SRCALPHA)
+    for y in range(0, deck.h, max(1, m(2))):
+        fy = 1.0 - y / deck.h
+        for x in range(0, DW, max(1, m(6))):
+            fx = 1.0 - x / DW
+            a = int(40 * (fx ** 1.4) * (fy ** 0.8))
+            if a > 0:
+                pygame.draw.rect(rake, (255, 200, 122, a), (x, y, m(6), m(2)))
+    surf.blit(rake, deck.topleft, special_flags=pygame.BLEND_ADD)
+
+
+def _deck_ao(surf, cx, top_y, w, depth=None, alpha=150):
+    """A soft elliptical ambient-occlusion shadow on the planks directly under a
+    stall/cart so it sits ON the deck rather than floating. Top-left light => the
+    shadow pools slightly down-right."""
+    depth = depth if depth is not None else m(16)
+    ao = pygame.Surface((w + m(28), depth), pygame.SRCALPHA)
+    for i in range(depth, 0, -1):
+        a = int(alpha * (i / depth) ** 1.6)
+        rw = int((w + m(28)) * (i / depth))
+        rh = int(depth * (i / depth))
+        if rw <= 0 or rh <= 0:
+            continue
+        e = pygame.Surface((rw, rh), pygame.SRCALPHA)
+        pygame.draw.ellipse(e, (18, 9, 3, a), e.get_rect())
+        ao.blit(e, ((w + m(28) - rw) // 2 + m(4), (depth - rh) // 2),
+                special_flags=pygame.BLEND_RGBA_MAX)
+    surf.blit(ao, (cx - (w + m(28)) // 2, top_y - depth // 2))
 
 
 def draw_palm(surf, x_base, y_base, height, lean, flip=False, behind=False):
@@ -338,44 +494,38 @@ def draw_palm(surf, x_base, y_base, height, lean, flip=False, behind=False):
     into the haze so the back-edge palms read as further away."""
     seg = 14
     pts_l, pts_r = [], []
-    trunk_w_base = m(11) if not behind else m(8)
+    trunk_w_base = m(11) if not behind else m(7)
     sway = lean
     top_x = x_base + sway
     top_y = y_base - height
     for i in range(seg + 1):
         t = i / seg
-        # quadratic-ish curve out toward the top
         cx = x_base + sway * (t * t)
         cy = y_base - height * t
         w_here = trunk_w_base * (1.0 - 0.45 * t)
         pts_l.append((cx - w_here / 2, cy))
         pts_r.append((cx + w_here / 2, cy))
     trunk_poly = pts_l + pts_r[::-1]
-    tcol = lerp_color(PALM_TRUNK, (60, 40, 24), 0.25) if behind else PALM_TRUNK
+    tcol = lerp_color(PALM_TRUNK, (54, 38, 24), 0.4) if behind else PALM_TRUNK
     pygame.draw.polygon(surf, tcol, trunk_poly)
-    # lit left edge of trunk
     if not behind:
         pygame.draw.lines(surf, lerp_color(PALM_TRUNK_HI, WHITE, 0.1), False,
                           pts_l, max(1, m(1.6)))
-    # ring scars
     for i in range(2, seg, 2):
         a, b = pts_l[i], pts_r[i]
         pygame.draw.line(surf, (70, 46, 26), a, b, max(1, m(1.0)))
-    # crown fronds — layered teardrops radiating from the top
     cxr, cyr = top_x, top_y
-    soft_glow(surf, int(cxr), int(cyr), m(20), (120, 200, 120), 30, layers=6)
+    if not behind:
+        soft_glow(surf, int(cxr), int(cyr), m(18), (120, 200, 120), 26, layers=6)
     n_fronds = 9
-    base_ang = 200 if not flip else 340
     for k in range(n_fronds):
         ang = math.radians(-150 + (300 / (n_fronds - 1)) * k)
-        flen = height * (0.42 if not behind else 0.34) * (0.8 + 0.4 * abs(math.cos(ang)))
+        flen = height * (0.42 if not behind else 0.32) * (0.8 + 0.4 * abs(math.cos(ang)))
         ex = cxr + math.cos(ang) * flen
-        # fronds droop: pull tips down
         ey = cyr + math.sin(ang) * flen * 0.55 + flen * 0.22
-        # frond as a tapered triangle fan with a darker spine
         midx = (cxr + ex) / 2 + math.cos(ang + math.pi / 2) * flen * 0.10
         midy = (cyr + ey) / 2 - flen * 0.12
-        wfr = m(7) if not behind else m(5)
+        wfr = m(7) if not behind else m(4)
         perp = (math.cos(ang + math.pi / 2), math.sin(ang + math.pi / 2))
         leaf = [
             (cxr, cyr),
@@ -385,12 +535,11 @@ def draw_palm(surf, x_base, y_base, height, lean, flip=False, behind=False):
         ]
         shade = FROND_DK if (k % 2 == 0) else FROND_MID
         if behind:
-            shade = lerp_color(shade, (50, 60, 50), 0.45)
+            shade = lerp_color(shade, (52, 62, 52), 0.5)
         pygame.draw.polygon(surf, shade, leaf)
-        # lit upper edge of frond
-        pygame.draw.line(surf, lerp_color(FROND_HI, WHITE, 0.1),
-                         (cxr, cyr), (ex, ey), max(1, m(1.0)))
-    # coconuts clustered at the crown base
+        if not behind:
+            pygame.draw.line(surf, lerp_color(FROND_HI, WHITE, 0.1),
+                             (cxr, cyr), (ex, ey), max(1, m(1.0)))
     if not behind:
         for dx, dy in ((-m(4), m(3)), (m(3), m(5)), (0, m(8))):
             pygame.draw.circle(surf, (74, 52, 30),
@@ -403,19 +552,18 @@ def draw_palm(surf, x_base, y_base, height, lean, flip=False, behind=False):
 # =============================================================================
 # Stall — the shared awning-tile template (vary sign + preview only)
 # =============================================================================
-def draw_stall(surf, label, sid, cx, top_y, w, h, front=True, mystery=False):
-    """One category stall: a striped macaw-red awning over a driftwood counter,
-    a glass-dome preview well holding the category's representative item, and a
+def draw_stall(surf, label, sid, cx, top_y, w, h, front=True):
+    """One category stall: a striped macaw-red awning over a driftwood counter, a
+    glass-dome preview well holding the category's representative item, and a
     thick gold-keyline category sign. `front` stalls are larger + brighter than
-    the back-jetty stalls; `mystery` (PARCELS) gets the night/indigo jewel-glow
-    treatment that seeds the dissolve into the constellation store."""
+    the back-jetty stalls. Lit from the top-left; a deck AO grounds it."""
     rect = pygame.Rect(cx - w // 2, top_y, w, h)
     rad = m(10)
 
-    # ── post legs + soft cast shadow on the deck ──────────────────────────────
-    drop = pygame.Surface((w + m(20), m(16)), pygame.SRCALPHA)
-    pygame.draw.ellipse(drop, (20, 10, 4, 120), drop.get_rect())
-    surf.blit(drop, (rect.centerx - (w + m(20)) // 2, rect.bottom - m(8)))
+    # AO on the deck under the stall so it reads as sitting ON the planks
+    _deck_ao(surf, rect.centerx, rect.bottom - m(2), w, depth=m(18), alpha=150)
+
+    # ── post legs ──────────────────────────────────────────────────────────────
     leg_col = (104, 68, 38)
     for lx in (rect.x + m(8), rect.right - m(8)):
         pygame.draw.line(surf, leg_col, (lx, rect.y + m(20)),
@@ -426,45 +574,35 @@ def draw_stall(surf, label, sid, cx, top_y, w, h, front=True, mystery=False):
     # ── counter / backboard the preview sits on ───────────────────────────────
     board = pygame.Rect(rect.x, rect.y + m(20), w, h - m(20))
     surf.blit(vgrad_stops(board.w, board.h, rad,
-                          [(0.0, lerp_color(WOOD_HI, CREAM, 0.25)),
-                           (1.0, WOOD_DK)], 248, gamma=1.1), board.topleft)
-    if mystery:
-        # the night/jewel accent: an indigo inner panel + violet bloom (the
-        # constellation store's ground), so PARCELS reads as the mystery hero
-        # and pre-loads the jewel store on tap.
-        inner = board.inflate(-m(8), -m(8))
-        surf.blit(vgrad(inner.w, inner.h, rad - m(2), JEWEL_INDIGO,
-                        JEWEL_INDIGO_DEEP, 235), inner.topleft)
-        soft_glow(surf, board.centerx, board.centery, m(26), (120, 96, 220),
-                  46, layers=8)
-    top_sheen(surf, board, rad, m(12), peak=44)
-    contact_shadow(surf, board, rad, m(5), alpha=90)
+                          [(0.0, lerp_color(WOOD_HI, CREAM, 0.28)),
+                           (1.0, WOOD_DK)], 250, gamma=1.1), board.topleft)
+    top_sheen(surf, board, rad, m(12), peak=46)
+    contact_shadow(surf, board, rad, m(5), alpha=95)
     pygame.draw.rect(surf, (40, 22, 10), board, width=max(1, m(1.6)),
                      border_radius=rad)
-    bevel_rim(surf, board, rad, (60, 38, 16), (*GOLD_PALE, 200),
+    bevel_rim(surf, board, rad, (60, 38, 16), (*GOLD_PALE, 205),
               w=max(1, m(1.2)))
 
     # ── preview well (the constellation glass cabochon) + thumbnail ───────────
     # A warm-amber well (not the night store's near-black) so previews read in
-    # the golden-hour light; mystery keeps the indigo jewel well.
-    disc_r = m(23) if front else m(18)
-    disc_cy = board.y + (m(34) if front else m(28))
-    tier_glow = (130, 104, 230) if mystery else (255, 200, 120)
-    soft_glow(surf, board.centerx, disc_cy, disc_r + m(4), tier_glow, 40, layers=8)
-    cabochon(surf, board.centerx, disc_cy, disc_r,
-             (40, 36, 78) if mystery else (96, 66, 36),
-             (12, 12, 32) if mystery else (40, 24, 10))
+    # the golden-hour light.
+    disc_r = m(24) if front else m(20)
+    disc_cy = board.y + (m(34) if front else m(30))
+    soft_glow(surf, board.centerx, disc_cy, disc_r + m(4), (255, 204, 124),
+              40, layers=8)
+    cabochon(surf, board.centerx, disc_cy, disc_r, (96, 66, 36), (40, 24, 10))
     if sid is not None:
-        box = int(disc_r * 1.7)
+        # letterbox the preview INSIDE the dome (fit the longer side to ~1.55x
+        # the radius) so aspect-extreme items stay contained, never clipped.
+        box = int(disc_r * 1.55)
         thumb = _preview_icon(sid, box)
         tr = thumb.get_rect(center=(board.centerx, disc_cy))
         surf.blit(_rim_lit(thumb), tr.topleft, special_flags=pygame.BLEND_ADD)
         surf.blit(thumb, tr.topleft)
-    cabochon_glass(surf, board.centerx, disc_cy, disc_r,
-                   tint=(190, 162, 255) if mystery else GOLD_PALE)
-    # a tier gem set on the dome's upper-right rim (the jewel-store DNA)
+    cabochon_glass(surf, board.centerx, disc_cy, disc_r, tint=GOLD_PALE)
+    # a legendary tier gem set on the dome's upper-right rim (the jewel-store DNA)
     g45 = disc_r * 0.7071
-    gpal = RARITY["epic"] if mystery else RARITY["legendary"]
+    gpal = RARITY["legendary"]
     facet_gem(surf, int(board.centerx + g45), int(disc_cy - g45),
               m(6 if front else 5), gpal["gem"], gpal["deep"])
 
@@ -472,87 +610,166 @@ def draw_stall(surf, label, sid, cx, top_y, w, h, front=True, mystery=False):
     sign_y = board.bottom - (m(15) if front else m(13))
     sf = font(12 if front else 10)
     label_w = _glyph_base(label, sf, m(0.6)).get_width()
-    plaque = pygame.Rect(0, 0, label_w + m(20), m(20 if front else 17))
+    plaque = pygame.Rect(0, 0, label_w + m(20), m(21 if front else 18))
     plaque.center = (board.centerx, sign_y)
     surf.blit(gold_a_fill(plaque.w, plaque.h, plaque.h // 2), plaque.topleft)
-    gloss_sweep(surf, plaque, plaque.h // 2, peak=60)
+    gloss_sweep(surf, plaque, plaque.h // 2, peak=64)
     pygame.draw.rect(surf, GOLD_A_RIM_DARK, plaque, width=max(1, m(1.6)),
                      border_radius=plaque.h // 2)
     bevel_rim(surf, plaque, plaque.h // 2, GOLD_A_RIM_DARK,
-              (*GOLD_A_RIM_BRIGHT, 230), w=max(1, m(1.1)))
+              (*GOLD_A_RIM_BRIGHT, 235), w=max(1, m(1.1)))
     plain_text(surf, label, sf, plaque.center, GOLD_A_NUM, shadow_a=0,
                tracking=m(0.6), weight=m(0.9))
 
     # ── striped awning on top (drawn LAST so it overhangs the counter) ────────
-    _awning(surf, rect.x - m(2), rect.y, w + m(4),
-            m(24) if front else m(18), front=front)
+    _awning(surf, rect.x - m(3), rect.y, w + m(6),
+            m(24) if front else m(19), front=front)
 
 
 def _awning(surf, x, y, w, h, front=True):
     """A scalloped striped awning in macaw red + cream — the shared bazaar
-    signature across all 7 stalls. Slight forward droop + a lit top ridge."""
+    signature across all 7 stalls. A lit top ridge, a shaded valance, and a
+    gold trim along the scallop crest. Lit from the top-left."""
     n_stripe = 5
     sw = w / n_stripe
-    # the awning slopes forward: front edge dips down h*0.55
-    front_dip = int(h * 0.55)
+    scallop = int(h * 0.5)
     top = y
-    # solid back board of the awning
-    pygame.draw.rect(surf, (60, 14, 6), (x, top - m(3), w, m(4)))
+    # solid back board behind the awning
+    pygame.draw.rect(surf, (58, 14, 6), (x, top - m(4), w, m(5)))
     for i in range(n_stripe):
         sx = x + i * sw
         red = (i % 2 == 0)
-        c_top = AWNING_RED_HI if red else lerp_color(CREAM, WHITE, 0.2)
+        c_top = AWNING_RED_HI if red else lerp_color(CREAM, WHITE, 0.25)
         c_bot = AWNING_RED if red else CREAM
-        poly = [(sx, top), (sx + sw, top),
-                (sx + sw, top + h), (sx + sw / 2, top + h + front_dip * 0.0 + m(6)),
-                (sx, top + h)]
-        # build the stripe as a gradient quad then a scalloped lower edge
-        quad = [(sx, top), (sx + sw, top), (sx + sw, top + h), (sx, top + h)]
         stripe = vgrad_stops(int(sw) + 2, h, 0,
                              [(0.0, c_top), (1.0, c_bot)], 255, gamma=1.05)
         surf.blit(stripe, (int(sx), top))
         # scallop: a filled half-disc hanging off the bottom of each stripe
-        scal = pygame.Surface((int(sw) + 2, int(front_dip) + m(4)), pygame.SRCALPHA)
+        scal = pygame.Surface((int(sw) + 2, scallop * 2 + m(4)), pygame.SRCALPHA)
         pygame.draw.ellipse(scal, (*c_bot, 255),
-                            (0, -int(front_dip), int(sw) + 2, int(front_dip) * 2))
+                            (0, -scallop, int(sw) + 2, scallop * 2))
         surf.blit(scal, (int(sx), top + h - m(1)))
-    # lit top ridge + dark seam between stripes
-    pygame.draw.line(surf, (255, 230, 190, 220), (x, top), (x + w, top),
-                     max(1, m(1.6)))
+        # a soft shade on the scallop underside so the valance reads dimensional
+        sh = pygame.Surface((int(sw) + 2, scallop), pygame.SRCALPHA)
+        pygame.draw.ellipse(sh, (0, 0, 0, 60), (0, -scallop // 2, int(sw) + 2, scallop))
+        surf.blit(sh, (int(sx), top + h + scallop // 2 - m(1)))
+    # lit top ridge + dark seams between stripes
+    pygame.draw.line(surf, (255, 234, 196, 230), (x, top), (x + w, top),
+                     max(1, m(1.8)))
     for i in range(1, n_stripe):
         sx = x + i * sw
-        pygame.draw.line(surf, (40, 12, 6, 140), (sx, top), (sx, top + h),
+        pygame.draw.line(surf, (40, 12, 6, 150), (sx, top), (sx, top + h),
                          max(1, m(0.8)))
     # a thin gold valance trim along the scallop crest
-    pygame.draw.line(surf, (*GOLD, 200), (x, top + h), (x + w, top + h),
-                     max(1, m(1.2)))
+    pygame.draw.line(surf, (*GOLD, 210), (x, top + h), (x + w, top + h),
+                     max(1, m(1.4)))
+
+
+# =============================================================================
+# PARCELS — the glowing red mystery hero crate stacked on a moored boat
+# =============================================================================
+def draw_parcels_boat(surf, cx, wl_y, scale):
+    """PARCELS as the mystery hero: a small boat pulled up to the dock carrying a
+    stack of crates crowned by a single glowing-red mystery crate with a bold
+    '?' — the constellation MYSTERY red that pre-loads the jewel store on tap. A
+    gold-keyline PARCELS plaque sits beneath it. Its own clear zone, lower-right,
+    deliberately apart from the stall grid."""
+    cx, wl_y = int(cx), int(wl_y)
+    hw = int(m(34) * scale)
+    # AO on the planks under the boat so it sits ON the deck
+    _deck_ao(surf, cx, wl_y + m(6), int(hw * 2.2), depth=m(18), alpha=150)
+    # the boat hull itself (no water reflection — it's beached on the dock)
+    _moored_boat(surf, cx, wl_y, scale, hull=(110, 66, 34),
+                 hull_hi=(180, 126, 74), reflect=False)
+
+    # ── crate stack on the deck ───────────────────────────────────────────────
+    base_y = wl_y - m(2)
+    # two plain wooden crates as the base
+    for (dx, dy, cw, ch) in (((-m(13)), m(0), m(20), m(16)),
+                             ((m(9)), m(2), m(18), m(15))):
+        cr = pygame.Rect(int(cx + dx), int(base_y - dy - ch), int(cw), int(ch))
+        surf.blit(vgrad_stops(cr.w, cr.h, m(2),
+                              [(0.0, (168, 118, 70)), (1.0, (96, 60, 32))], 255),
+                  cr.topleft)
+        pygame.draw.rect(surf, (52, 32, 16), cr, width=max(1, m(1.2)),
+                         border_radius=m(2))
+        # plank cross-lines
+        pygame.draw.line(surf, (60, 38, 18, 160),
+                         (cr.x, cr.centery), (cr.right, cr.centery), max(1, m(0.8)))
+
+    # ── the glowing-red mystery hero crate on top ─────────────────────────────
+    mw, mh = m(30), m(28)
+    mcrate = pygame.Rect(int(cx - mw / 2), int(base_y - m(16) - mh), mw, mh)
+    # outer red bloom so it's unmistakably the hero
+    soft_glow(surf, mcrate.centerx, mcrate.centery, m(34), MYST_GLOW, 70, layers=12)
+    soft_glow(surf, mcrate.centerx, mcrate.centery, m(18), (255, 120, 110),
+              90, layers=8)
+    # crate body: deep crimson wood with a lit top-left face
+    surf.blit(vgrad_stops(mcrate.w, mcrate.h, m(3),
+                          [(0.0, (214, 70, 56)), (1.0, MYST_DEEP)], 255,
+                          gamma=1.08), mcrate.topleft)
+    top_sheen(surf, mcrate, m(3), m(10), peak=60)
+    pygame.draw.rect(surf, (60, 12, 14), mcrate, width=max(1, m(1.8)),
+                     border_radius=m(3))
+    bevel_rim(surf, mcrate, m(3), (60, 12, 14), (255, 196, 180, 230),
+              w=max(1, m(1.2)))
+    # crate banding (corner straps) for a real crate read
+    for fx in (mcrate.x + m(2), mcrate.right - m(2)):
+        pygame.draw.line(surf, (90, 18, 18, 200), (fx, mcrate.y + m(2)),
+                         (fx, mcrate.bottom - m(2)), max(1, m(1.4)))
+    pygame.draw.line(surf, (90, 18, 18, 200), (mcrate.x, mcrate.centery),
+                     (mcrate.right, mcrate.centery), max(1, m(1.2)))
+    # a bold cream '?' stamped on the crate face
+    qf = font(20)
+    plain_text(surf, "?", qf, mcrate.center, CREAM, shadow_a=170,
+               weight=m(1.4), keyline=(60, 10, 12), kw=m(1.2))
+    # a hot specular pip on the upper-left edge (top-left light)
+    soft_glow(surf, mcrate.x + m(5), mcrate.y + m(5), m(4), (255, 230, 220),
+              150, layers=6)
+
+    # ── PARCELS gold-keyline plaque beneath the boat ──────────────────────────
+    sf = font(11)
+    label_w = _glyph_base("PARCELS", sf, m(0.6)).get_width()
+    plaque = pygame.Rect(0, 0, label_w + m(20), m(19))
+    plaque.center = (int(cx), int(wl_y + m(14)))
+    surf.blit(gold_a_fill(plaque.w, plaque.h, plaque.h // 2), plaque.topleft)
+    gloss_sweep(surf, plaque, plaque.h // 2, peak=64)
+    pygame.draw.rect(surf, GOLD_A_RIM_DARK, plaque, width=max(1, m(1.6)),
+                     border_radius=plaque.h // 2)
+    bevel_rim(surf, plaque, plaque.h // 2, GOLD_A_RIM_DARK,
+              (*GOLD_A_RIM_BRIGHT, 235), w=max(1, m(1.1)))
+    plain_text(surf, "PARCELS", sf, plaque.center, GOLD_A_NUM, shadow_a=0,
+               tracking=m(0.6), weight=m(0.9))
 
 
 # =============================================================================
 # Pip at the dockside cart
 # =============================================================================
 def draw_pip_cart(surf, cx, base_y):
-    """Pip the scarlet macaw tending a small wooden dockside cart, gold aviators
-    catching the low sun, a coin spinning above the cart. Lower-centre anchor."""
+    """Pip the scarlet macaw tending a small wooden dockside cart, a coin spinning
+    above the cart with a soft aura, set lower-centre clear of the stall labels."""
+    # AO on the planks under the whole cart
+    _deck_ao(surf, cx, base_y + m(8), m(120), depth=m(22), alpha=160)
+
     # ── the cart: a two-wheel barrow with a crate of goods ────────────────────
-    cw, ch = m(96), m(34)
+    cw, ch = m(100), m(36)
     cart = pygame.Rect(int(cx - cw / 2), int(base_y - ch), cw, ch)
     surf.blit(vgrad_stops(cart.w, cart.h, m(5),
-                          [(0.0, lerp_color(WOOD_HI, CREAM, 0.2)),
+                          [(0.0, lerp_color(WOOD_HI, CREAM, 0.22)),
                            (1.0, WOOD_DK)], 252, gamma=1.1), cart.topleft)
-    top_sheen(surf, cart, m(5), m(10), peak=46)
+    top_sheen(surf, cart, m(5), m(10), peak=48)
+    contact_shadow(surf, cart, m(5), m(4), alpha=90)
     pygame.draw.rect(surf, (44, 24, 10), cart, width=max(1, m(1.6)),
                      border_radius=m(5))
-    bevel_rim(surf, cart, m(5), (60, 36, 16), (*GOLD_PALE, 200), w=max(1, m(1.1)))
-    # plank lines on the cart face
+    bevel_rim(surf, cart, m(5), (60, 36, 16), (*GOLD_PALE, 205), w=max(1, m(1.1)))
     for k in range(1, 4):
         ly = cart.y + cart.h * k // 4
         pygame.draw.line(surf, (50, 30, 14, 150), (cart.x + m(2), ly),
                          (cart.right - m(2), ly), max(1, m(0.8)))
     # wheels
-    for wx in (cart.x + m(20), cart.right - m(20)):
+    for wx in (cart.x + m(22), cart.right - m(22)):
         pygame.draw.circle(surf, (40, 24, 12), (wx, cart.bottom + m(6)), m(11))
-        pygame.draw.circle(surf, (150, 110, 66), (wx, cart.bottom + m(6)), m(11),
+        pygame.draw.circle(surf, (152, 112, 68), (wx, cart.bottom + m(6)), m(11),
                            max(1, m(2)))
         pygame.draw.circle(surf, (90, 60, 32), (wx, cart.bottom + m(6)), m(3))
         for sp in range(0, 360, 45):
@@ -560,40 +777,35 @@ def draw_pip_cart(surf, cx, base_y):
             ey = cart.bottom + m(6) + math.sin(math.radians(sp)) * m(9)
             pygame.draw.line(surf, (110, 76, 42), (wx, cart.bottom + m(6)),
                              (ex, ey), max(1, m(1.2)))
-    # a couple of crated goods + a tiny awning over the cart
-    pygame.draw.rect(surf, (120, 30, 16), (cart.x + m(6), cart.y - m(10), m(20), m(12)),
-                     border_radius=m(2))
-    pygame.draw.rect(surf, (40, 12, 6), (cart.x + m(6), cart.y - m(10), m(20), m(12)),
-                     width=max(1, m(1)), border_radius=m(2))
+    # a crated good on the cart + a tiny red sack
+    pygame.draw.rect(surf, (120, 30, 16), (cart.right - m(28), cart.y - m(11),
+                     m(20), m(13)), border_radius=m(2))
+    pygame.draw.rect(surf, (40, 12, 6), (cart.right - m(28), cart.y - m(11),
+                     m(20), m(13)), width=max(1, m(1)), border_radius=m(2))
 
-    # ── coin spinning above the cart ──────────────────────────────────────────
-    coin_cx, coin_cy = cx + m(34), int(base_y - ch - m(30))
-    soft_glow(surf, coin_cx, coin_cy, m(13), (255, 210, 110), 70, layers=8)
-    coin_glyph(surf, coin_cx, coin_cy, m(11))
-    # a little sparkle off the coin
-    pygame.draw.line(surf, (255, 255, 240, 220), (coin_cx + m(10), coin_cy - m(8)),
-                     (coin_cx + m(16), coin_cy - m(14)), max(1, m(1)))
+    # ── coin spinning above the cart with a soft aura ─────────────────────────
+    coin_cx, coin_cy = int(cx + m(36)), int(base_y - ch - m(34))
+    soft_glow(surf, coin_cx, coin_cy, m(16), (255, 212, 112), 80, layers=10)
+    coin_glyph(surf, coin_cx, coin_cy, m(12))
+    pygame.draw.line(surf, (255, 255, 242, 220), (coin_cx + m(10), coin_cy - m(9)),
+                     (coin_cx + m(16), coin_cy - m(15)), max(1, m(1)))
 
-    # ── Pip himself: the real parrot frame, scaled, set behind/beside the cart ─
-    bird = parrot.get_parrot(1, -6.0)
+    # ── Pip himself: the real parrot frame, scaled, beside the cart ───────────
+    bird = parrot.get_parrot(1, 0.0)
     bw, bh = bird.get_size()
-    target_h = m(78)
+    target_h = m(84)
     s = target_h / bh
     bird = pygame.transform.smoothscale(bird, (int(bw * s), int(bh * s)))
     br = bird.get_rect()
-    br.midbottom = (int(cx - m(30)), int(base_y - ch + m(10)))
-    # soft contact shadow under Pip
-    sh = pygame.Surface((br.w, m(12)), pygame.SRCALPHA)
-    pygame.draw.ellipse(sh, (20, 10, 4, 130), sh.get_rect())
-    surf.blit(sh, (br.centerx - br.w // 2, base_y - ch + m(6)))
-    # a warm rim light on Pip from the low sun
+    br.midbottom = (int(cx - m(34)), int(base_y - ch + m(12)))
+    # soft aura behind Pip so he reads as the warmly-lit merchant — restrained +
+    # warm so it never reads as a white oval behind him.
+    soft_glow(surf, br.centerx, br.centery, m(30), (255, 188, 104), 20, layers=10)
+    # a warm rim light on Pip from the low sun (top-left)
     rim = bird.copy()
-    rim.fill((255, 220, 150, 255), special_flags=pygame.BLEND_RGBA_MULT)
-    surf.blit(rim, (br.x + m(2), br.y - m(1)), special_flags=pygame.BLEND_ADD)
+    rim.fill((255, 222, 152, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(rim, (br.x - m(2), br.y - m(2)), special_flags=pygame.BLEND_ADD)
     surf.blit(bird, br.topleft)
-    # gold aviator flare — two hot pips where the sun hits the lenses
-    soft_glow(surf, br.centerx + m(6), br.y + int(br.h * 0.30), m(5),
-              (255, 244, 200), 150, layers=6)
 
 
 # =============================================================================
@@ -601,21 +813,20 @@ def draw_pip_cart(surf, cx, base_y):
 # =============================================================================
 def draw_header(surf):
     # a soft warm darkening band so the gold wordmark + capsule read on the sky
-    band = pygame.Surface((DW, m(96)), pygame.SRCALPHA)
-    for y in range(m(96)):
-        a = int(110 * (1 - y / m(96)) ** 1.2)
-        pygame.draw.line(band, (90, 40, 16, a), (0, y), (DW, y))
+    band = pygame.Surface((DW, m(100)), pygame.SRCALPHA)
+    for y in range(m(100)):
+        a = int(120 * (1 - y / m(100)) ** 1.2)
+        pygame.draw.line(band, (28, 20, 56, a), (0, y), (DW, y))
     surf.blit(band, (0, 0))
     # screen frame hairline (warm gold)
     pygame.draw.rect(surf, (*GOLD, 70), (m(3), m(3), DW - m(6), DH - m(6)),
                      width=max(1, m(1)), border_radius=m(12))
-    # Skybit gold-on-red wordmark
-    title_wordmark(surf, "BAZAAR", (DW // 2, m(26)), 28, tracking=m(3))
-    balance_capsule(surf, DW // 2, m(64))
-    # the "tap a stall" hint, small + warm
+    # Skybit gold-on-red STORE wordmark
+    title_wordmark(surf, "STORE", (DW // 2, m(27)), 30, tracking=m(4))
+    balance_capsule(surf, DW // 2, m(66))
     plain_text(surf, "TAP A STALL TO BROWSE", font(9),
-               (DW // 2, m(86)), (255, 234, 188), shadow_a=140,
-               tracking=m(1.2), weight=m(0.6), keyline=(80, 36, 14), kw=m(0.6))
+               (DW // 2, m(89)), (255, 236, 192), shadow_a=150,
+               tracking=m(1.2), weight=m(0.6), keyline=(70, 32, 12), kw=m(0.6))
 
 
 def balance_capsule(surf, cx, y):
@@ -628,15 +839,15 @@ def balance_capsule(surf, cx, y):
     w = padl + coin_d + gapc + vw + padr
     h = m(40)
     cap = pygame.Rect(cx - w // 2, y - h // 2, w, h)
-    drop_shadow(surf, cap, h // 2, blur=m(6), alpha=130, dy=m(3))
+    drop_shadow(surf, cap, h // 2, blur=m(6), alpha=140, dy=m(3))
     surf.blit(vgrad(cap.w, cap.h, h // 2, (74, 48, 22), (32, 18, 8), 255, gamma=1.1),
               cap.topleft)
-    top_sheen(surf, cap, h // 2, m(14), peak=50)
-    contact_shadow(surf, cap, h // 2, m(5), alpha=110)
-    pygame.draw.rect(surf, (0, 0, 0, 200), cap, width=max(1, m(1.8)),
+    top_sheen(surf, cap, h // 2, m(14), peak=52)
+    contact_shadow(surf, cap, h // 2, m(5), alpha=115)
+    pygame.draw.rect(surf, (0, 0, 0, 205), cap, width=max(1, m(1.8)),
                      border_radius=h // 2)
     bevel_rim(surf, cap, h // 2, lerp_color(GOLD, NEAR_BLACK, 0.4),
-              (*GOLD_PALE, 240), w=max(1, m(1.8)))
+              (*GOLD_PALE, 245), w=max(1, m(1.8)))
     x = cap.x + padl
     soft_glow(surf, x + coin_d // 2, y, int(coin_d * 0.40), (255, 206, 92), 42,
               layers=6)
@@ -654,42 +865,48 @@ def render_device():
     surf = pygame.Surface((DW, DH))
     draw_sky(surf)
 
-    # ── BACK ROW: 3 stalls on the far jetty (smaller), seated ABOVE the water
-    # so the glitter band reads clearly between the two tiers. Drawn before the
-    # water/jetty so their post-legs land on the jetty deck. ───────────────────
+    # ── BACK ROW: 3 stalls on the far jetty (≥80px tall), seated ABOVE the
+    # water so the glitter band reads clearly between the two tiers. ────────────
     draw_back_jetty(surf)
     back = [("COSTUMES", "costume"), ("HATS", "hats"), ("SHADES", "shades")]
-    back_w = m(90)
-    back_xs = [int(DW * f) for f in (0.215, 0.50, 0.785)]
+    back_w = m(96)
+    back_xs = [int(DW * f) for f in (0.205, 0.50, 0.795)]
     for (label, group), bx in zip(back, back_xs):
-        draw_stall(surf, label, _preview_id(group), bx, m(150), back_w, m(60),
+        draw_stall(surf, label, _preview_id(group), bx, m(122), back_w, m(84),
                    front=False)
 
     # back-edge palms (hazy) framing the jetty so depth reads
-    draw_palm(surf, m(14), m(214), m(118), -m(24), flip=False, behind=True)
-    draw_palm(surf, DW - m(14), m(214), m(118), m(24), flip=True, behind=True)
+    draw_palm(surf, m(12), m(210), m(112), -m(22), flip=False, behind=True)
+    draw_palm(surf, DW - m(12), m(210), m(112), m(22), flip=True, behind=True)
 
-    # ── the signature glitter water between the tiers ─────────────────────────
+    # ── the signature glitter water between the tiers + moored boats ──────────
     draw_water(surf)
+    draw_distant_boats(surf)
 
     # ── near boardwalk fills the lower frame ──────────────────────────────────
     draw_front_boardwalk(surf)
 
     # front-edge palms framing the lower corners (full, lit)
-    draw_palm(surf, m(6), DH - m(6), m(232), -m(50), flip=False)
-    draw_palm(surf, DW - m(6), DH - m(6), m(232), m(50), flip=True)
+    draw_palm(surf, m(4), DH - m(4), m(238), -m(50), flip=False)
+    draw_palm(surf, DW - m(4), DH - m(4), m(238), m(50), flip=True)
 
-    # ── FRONT ROW: 4 stalls (larger): PARROTS / ANIMALS / SHOES / PARCELS ──────
-    front = [("PARROTS", "parrot"), ("ANIMALS", "animal"),
-             ("SHOES", "shoes"), ("PARCELS", "parcels")]
-    front_w = m(84)
-    front_xs = [int(DW * f) for f in (0.155, 0.385, 0.615, 0.845)]
+    # ── FRONT ROW: 3 larger stalls (PARROTS / ANIMALS / SHOES). PARCELS is the
+    # mystery boat on the water, not a stall. ──────────────────────────────────
+    front = [("PARROTS", "parrot"), ("ANIMALS", "animal"), ("SHOES", "shoes")]
+    front_w = m(96)
+    front_xs = [int(DW * f) for f in (0.20, 0.50, 0.80)]
     for (label, group), fx in zip(front, front_xs):
-        draw_stall(surf, label, _preview_id(group), fx, m(296), front_w, m(96),
-                   front=True, mystery=(group == "parcels"))
+        draw_stall(surf, label, _preview_id(group), fx, m(300), front_w, m(98),
+                   front=True)
 
-    # ── Pip at his dockside cart, lower-centre on the near boardwalk ──────────
-    draw_pip_cart(surf, int(DW * 0.5), DH - m(58))
+    # ── PARCELS mystery hero crate on a moored boat, pulled up to the lower-
+    # right of the near boardwalk — its own clear zone, filling the front deck
+    # and deliberately apart from the stall grid + Pip. ────────────────────────
+    draw_parcels_boat(surf, int(DW * 0.755), DH - m(118), 1.05)
+
+    # ── Pip at his dockside cart, lower-LEFT of centre on the near boardwalk so
+    # he reads clear of the PARCELS boat. ──────────────────────────────────────
+    draw_pip_cart(surf, int(DW * 0.36), DH - m(54))
 
     draw_header(surf)
     return surf
@@ -697,10 +914,10 @@ def render_device():
 
 def main():
     dev = render_device()
-    pygame.image.save(downscale(dev, 1), os.path.join(_HERE, "round_1.png"))
-    pygame.image.save(downscale(dev, 2), os.path.join(_HERE, "round_1@2x.png"))
+    pygame.image.save(downscale(dev, 1), os.path.join(_HERE, "round_2.png"))
+    pygame.image.save(downscale(dev, 2), os.path.join(_HERE, "round_2@2x.png"))
     print("SS =", SS, "device =", DW, "x", DH)
-    print("saved round_1.png + round_1@2x.png")
+    print("saved round_2.png + round_2@2x.png")
 
 
 if __name__ == "__main__":

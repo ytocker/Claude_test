@@ -7,8 +7,43 @@ linked by gold rope-bridges, with Pip hovering mid-frame as the un-grounded
 flying vendor.
 
 - Render: `docs/store_bazaar/sky_bazaar/render.py`
-- Outputs: `round_1.png` (360×640), `round_1@2x.png` (720×1280)
+- Outputs: `round_2.png` (360×640), `round_2@2x.png` (720×1280)
+  (round 1: `round_1.png` / `round_1@2x.png`)
 - Run: `python docs/store_bazaar/sky_bazaar/render.py`
+
+## Round 2 — good → premium
+
+Held the concept; raised the craft:
+
+- **Cloud platforms now read as SOLID LIT VOLUMES**, not flat puffs. ONE
+  top-left key drives a continuous body ramp (hot cream crown → dusk-rose mid →
+  violet keel → deepest keel), a soft top-left sheen wash on the crown, a
+  translucent violet **ambient-occlusion shelf** cupping the lower-right
+  underbelly (painted as a normal alpha overlay, not a channel-subtract — the
+  round-1 subtract skewed the dusk body toward muddy green), and a fluffy
+  round-shaded lit-crown fringe. The signature gold keyline is now **continuous
+  all the way round**: a defined full contour, a brighter warm-gold rim on the
+  lit upper-left crown, and a **hotter gold under-rim** along the lit lower-left
+  foot (golden-hour bounce) so the island never dissolves into the sky.
+- **Data fixes on the previews.** SHADES' first catalog item is `skin_shades_none`
+  ("NO SHADES", no icon) — round 1 fronted the stall with a bare base parrot.
+  Round 2 detects the missing icon and draws a clean **synthetic aviator-shades
+  icon** (gold rim / black lens / sky-tint / glint, matching the game's
+  eyewear). Aspect-extreme previews (wide flip-flops 2.9:1, tall party hat
+  0.6:1) are now **contained on both dims** and **letterboxed** inside the
+  cabochon — the box is held inside the dome's inscribed square (≈R·1.30) so
+  nothing clips the glass rim.
+- **PARCELS is the red MYSTERY hero.** It always wears the red `MYSTERY` gem +
+  glow and gets a red aura blooming behind its dome at the foot, instead of the
+  round-1 common-grey tile.
+- **Pip** carries a clearer, compact **focal spotlight** (warm aura → hot core)
+  that crowns him without bleeding onto the neighbouring stall labels.
+- **Atmosphere.** The golden-hour sun bloom is tamed (no blown-out white core)
+  and pushed to the very lower-right so the centre PARCELS stall keeps its own
+  red aura. The apex gains the **indigo-and-gold jewel-store nebula** (soft
+  violet bloom + faint warm-gold core) so entering a stall dissolves cohesively
+  into the constellation store; the **star bed is densest/brightest at the apex**
+  (fade¹·⁵) and gone before the warm band — emerging stars, no mid-sky haze.
 
 ## Pipeline
 
@@ -52,7 +87,9 @@ exactly as the live store would: `sid = store_catalog.ids_of_group(group)[0]`
 → `parrot.get_skin_icon(sid) or parrot.get_skin_frame(sid, 1, 0.0)`, contrast-
 lifted + top-left rim-lit inside the dome (mirrors the store's `blit_thumb`).
 Resolved previews: COSTUMES→TOP HAT, PARROTS→BLUE MACAW, ANIMALS→BEE,
-SHOES→FLIP-FLOPS, HATS→PARTY HAT, SHADES→shades item, PARCELS→ENVELOPE.
+SHOES→FLIP-FLOPS (letterboxed), HATS→PARTY HAT (letterboxed), SHADES→synthetic
+aviator-shades icon (the catalog's first SHADES item is NO-SHADES, which has no
+icon), PARCELS→ENVELOPE on the red MYSTERY aura.
 
 ## Pip — the flying vendor
 
