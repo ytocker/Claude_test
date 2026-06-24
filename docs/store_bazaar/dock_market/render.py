@@ -311,8 +311,8 @@ def draw_water(surf):
             if bright > 0.5:
                 ug = pygame.Surface((int(ln * 3), m(5)), pygame.SRCALPHA)
                 for gy in range(m(5)):
-                    ga = int(40 * bright * (1 - abs(gy - m(2.5)) / m(2.5)))
-                    pygame.draw.line(ug, (255, 222, 150, max(0, ga)),
+                    ga = int(26 * bright * (1 - abs(gy - m(2.5)) / m(2.5)))
+                    pygame.draw.line(ug, (255, 220, 148, max(0, ga)),
                                      (0, gy), (int(ln * 3), gy))
                 surf.blit(ug, (x - int(ln * 1.5), y - m(2)),
                           special_flags=pygame.BLEND_ADD)
@@ -462,9 +462,24 @@ def _plank_deck(surf, rect, plank_h, light, mid, dark, perspective=True):
 
 def draw_back_jetty(surf):
     """The upper boardwalk tier (back jetty) the 3 back stalls sit on — a thin
-    lit deck just behind the water with support posts dropping into the harbor."""
+    lit deck just behind the water with support posts dropping into the harbor.
+    A cooler contact-AO shelf is laid just ABOVE + behind it so the whole tier
+    reads as further back + in lower light, not floating in the warm haze."""
     deck = pygame.Rect(m(14), m(206), DW - m(28), m(16))
+    # cool contact-AO shelf BEHIND the jetty: a soft cool-indigo band the back
+    # stalls' feet sit against, separating the tier from the warm horizon haze.
+    shelf = pygame.Surface((DW, m(30)), pygame.SRCALPHA)
+    for yy in range(m(30)):
+        f = yy / m(30)
+        a = int(96 * (f ** 1.3))                     # darkest right at the deck
+        pygame.draw.line(shelf, (40, 36, 70, a), (0, yy), (DW, yy))
+    surf.blit(shelf, (0, deck.y - m(28)))
     _plank_deck(surf, deck, m(7), WOOD_HI, WOOD_MID, WOOD_DK, perspective=False)
+    # a cool shadow directly under the jetty front edge (where it meets the lip)
+    underao = pygame.Surface((DW, m(8)), pygame.SRCALPHA)
+    for yy in range(m(8)):
+        underao.fill((28, 26, 52, int(120 * (1 - yy / m(8)))), (0, yy, DW, 1))
+    surf.blit(underao, (0, deck.bottom))
     # dark contact line under the jetty (where it meets the water lip)
     pygame.draw.line(surf, (44, 26, 12), (deck.x, deck.bottom),
                      (deck.right, deck.bottom), max(1, m(1.6)))
