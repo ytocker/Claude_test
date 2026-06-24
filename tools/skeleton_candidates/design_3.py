@@ -9,6 +9,12 @@ The aura/halo + socket flames are painted onto a separate SRCALPHA layer and
 blitted with BLEND_RGB_ADD so they bloom on a dark night sky (the night flex);
 the bone is then stamped on top with solid 2px edges so the skeleton read
 survives even where the glow flattens out on a bright day sky.
+
+Round-2 read priority: the SKULL (dark hollow sockets), RIBS (dark inter-rib
+negative space under bright core-green arcs), and SPINE (bright bead column)
+must survive 40px on a DARK sky FIRST — the aura is a bonus, not the read. The
+socket bloom is kept tight so the two sockets stay discrete points, and the
+dark hollow behind each flame is what actually says "skull".
 """
 from __future__ import annotations
 import math
@@ -22,11 +28,11 @@ from game.parrot import _aaellipse
 # ── WISP palette ─────────────────────────────────────────────────────────────
 _W_CORE   = (201, 255, 227)        # #C9FFE3 bone core highlight — brightest
 _W_BONE   = (84, 240, 160)         # #54F0A0 spectral green bone — THEME
-_W_BONE_D = (40, 168, 120)         # darker bone underside for roundness
+_W_BONE_D = (28, 120, 86)          # darker bone underside / inter-rib floor
 _W_AURA   = (25, 200, 166)         # #19C8A6 aura mid-glow — additive
 _W_FLESH  = (11, 42, 36)           # #0B2A24 dark translucent flesh base
 _W_FLAME  = (140, 255, 230)        # cyan-green socket flame core
-_W_SOCK   = (4, 18, 16)            # near-black hollow socket behind the flame
+_W_SOCK   = (3, 14, 12)            # near-black hollow socket behind the flame
 
 
 def _add_glow(layer, color, center, radius, peak=160):
@@ -44,18 +50,31 @@ def _add_glow(layer, color, center, radius, peak=160):
 
 
 def _flesh_ellipse(surf, center, rx, ry, alpha):
-    """Semi-transparent flesh blob — kept translucent so the body reads
-    ethereal rather than solid (the wispy ghost tell)."""
+    """Semi-transparent flesh blob — kept thin (low alpha) so the bone on top
+    stays the brightest element and the ribs/spine read through it."""
     tmp = pygame.Surface((rx * 2 + 2, ry * 2 + 2), pygame.SRCALPHA)
     _aaellipse(tmp, (*_W_FLESH, alpha), (rx + 1, ry + 1), rx, ry)
     surf.blit(tmp, (int(center[0] - rx - 1), int(center[1] - ry - 1)))
 
 
 def _bone_line(surf, p0, p1, width=2):
-    """A spectral bone segment: dark underside, theme green, then a core
-    highlight pip at the joints so the bone reads luminous, not flat."""
-    pygame.draw.line(surf, _W_BONE_D, p0, p1, width)
+    """A spectral bone segment: dark underside, then theme green on top so the
+    bone reads luminous against both bright sky and the dark flesh."""
+    pygame.draw.line(surf, _W_BONE_D, p0, p1, width + 1)
     pygame.draw.line(surf, _W_BONE, p0, p1, max(1, width - 1))
+
+
+def _tendril(surf, ox, oy, dx, dy, alpha, length, width=2):
+    """A single graded additive wisp tendril streaming downward — the ghostly
+    dissolve. Drawn on its own SRCALPHA scratch then added so it blooms."""
+    pad = 4
+    w = abs(dx) + width * 2 + pad * 2
+    h = length + width * 2 + pad * 2
+    t = pygame.Surface((w, h), pygame.SRCALPHA)
+    sx = pad + (width if dx < 0 else 0) + max(0, -dx)
+    pygame.draw.line(t, (*_W_AURA, alpha), (sx, pad), (sx + dx, pad + dy), width)
+    surf.blit(t, (int(ox - sx), int(oy - pad)),
+              special_flags=pygame.BLEND_RGB_ADD)
 
 
 def _wisp_wing(angle_deg):
@@ -73,10 +92,11 @@ def _wisp_wing(angle_deg):
     tips = [(46 + ox, 14 + oy), (50 + ox, 24 + oy),
             (44 + ox, 36 + oy), (32 + ox, 44 + oy)]
 
-    # Translucent spectral membrane between the wrist and the finger tips.
+    # Translucent spectral membrane between the wrist and the finger tips —
+    # kept faint so it never buries the chest bones beneath the shoulder.
     membrane = [wrist] + tips
     mem = pygame.Surface(base.get_size(), pygame.SRCALPHA)
-    _poly(mem, (*_W_FLESH, 120), membrane)
+    _poly(mem, (*_W_FLESH, 90), membrane)
     base.blit(mem, (0, 0))
 
     # Glow streaks trailing each finger-bone (additive).
@@ -99,84 +119,94 @@ def _wisp_wing(angle_deg):
 
 def _build_design3(wing_angle_deg):
     """Full WISP redraw on the 64×60 sprite canvas. Aura/flame bloom first on an
-    additive layer, then translucent flesh, then solid bone on top."""
+    additive layer, then a thin translucent flesh, then the WING, then the bone
+    structure (spine → ribs → skull → beak) stamped LAST so the bones win the
+    read at 40px even where the glow flattens out."""
     surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
+
+    # Skull geometry — centred ~(47,21) r9; sockets pushed wide so they stay two
+    # discrete dark points at 40px instead of blooming into one mass.
+    skull_c = (47, 21)
+    sock_r = (51, 19)
+    sock_l = (43, 20)
 
     # ── 1 · Additive aura layer — soft green halo, brightest at skull + rib core.
     glow = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
-    _add_glow(glow, _W_AURA, (33, 32), 22, peak=120)     # body/rib-core halo
-    _add_glow(glow, _W_AURA, (47, 21), 18, peak=150)     # brightest at skull
-    _add_glow(glow, _W_AURA, (16, 36), 12, peak=90)      # wispy tail haze
-    # Twin socket flames — bright cyan-green bloom (the hero tell).
-    _add_glow(glow, _W_FLAME, (50, 19), 7, peak=210)
-    _add_glow(glow, _W_FLAME, (44, 20), 7, peak=210)
+    _add_glow(glow, _W_AURA, (32, 33), 20, peak=110)     # body/rib-core halo
+    _add_glow(glow, _W_AURA, skull_c, 16, peak=130)      # brightest at skull
+    _add_glow(glow, _W_AURA, (16, 38), 11, peak=80)      # wispy tail haze
+    # Twin socket flames — tight bloom so each socket stays a discrete point.
+    _add_glow(glow, _W_FLAME, sock_r, 4, peak=150)
+    _add_glow(glow, _W_FLAME, sock_l, 4, peak=150)
     surf.blit(glow, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
-    # ── 2 · Translucent flesh base — wispy tail dissolving into the haze.
-    # Tail as a fading fan of three thin wisp tendrils instead of a solid fan.
-    for ty, taper in ((26, 130), (32, 100), (38, 70)):
-        _bone_line(surf, (22, ty), (8, ty + 4), 2)
-        wisp = pygame.Surface((20, 12), pygame.SRCALPHA)
-        pygame.draw.line(wisp, (*_W_AURA, taper), (18, 6), (2, 6 + (ty - 32) // 3), 2)
-        surf.blit(wisp, (0, ty - 6), special_flags=pygame.BLEND_RGB_ADD)
+    # ── 2 · Thin translucent flesh — wispy tail + body, kept low-alpha so bone wins.
+    _flesh_ellipse(surf, (33, 33), 18, 13, 90)           # body (lightened)
+    _flesh_ellipse(surf, skull_c, 11, 10, 110)           # head
 
-    _flesh_ellipse(surf, (33, 33), 18, 13, 150)          # body
-    _flesh_ellipse(surf, (47, 21), 11, 10, 170)          # head
+    # Wispy dissolve below the hip line: graded value-fade tendrils streaming
+    # down (longer than stubs) so the lower body reads ghostly, not amputated.
+    for i, (hx, alpha) in enumerate(
+            ((24, 130), (29, 100), (34, 60), (39, 30))):
+        _tendril(surf, hx, 40, (i - 1) * 3 - 2, 16 - i * 2, alpha, 16)
 
     # ── 3 · Wing (additive streaks baked in) centred on the shoulder anchor.
     wing = _wisp_wing(wing_angle_deg)
     surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
 
-    # ── 4 · Luminous vertebra SPINE — bright near the skull, dimming downward.
-    spine = [(40, 24), (36, 28), (31, 32), (26, 35), (22, 37)]
+    # ── 4 · Luminous vertebra SPINE — stamped over the wing so the column reads.
+    spine = [(40, 23), (35, 27), (30, 31), (25, 34), (21, 36)]
     for i in range(len(spine) - 1):
         _bone_line(surf, spine[i], spine[i + 1], 2)
-    for i, (vx, vy) in enumerate(spine):
-        c = _W_CORE if i == 0 else _W_BONE
-        pygame.draw.circle(surf, c, (vx, vy), 2 if i < 2 else 1)
+    for vx, vy in spine:
+        pygame.draw.circle(surf, _W_BONE_D, (vx, vy), 3)   # dark seat
+        pygame.draw.circle(surf, _W_CORE, (vx, vy), 2)     # bright bead
 
-    # ── 5 · Glowing rib-arcs across the chest.
+    # ── 5 · Glowing rib-arcs across the chest — bright core-green over a darker
+    # underside, with a dark inter-rib floor so the NEGATIVE SPACE reads as ribs.
     for off_x in (-5, 0, 5):
-        rect = (24 + off_x, 24, 13, 16)
+        rect = (24 + off_x, 24, 14, 17)
         pygame.draw.arc(surf, _W_BONE_D, rect,
-                        math.radians(200), math.radians(340), 2)
+                        math.radians(198), math.radians(342), 3)   # dark underside
         pygame.draw.arc(surf, _W_BONE, rect,
-                        math.radians(202), math.radians(338), 2)
+                        math.radians(202), math.radians(338), 2)   # bright core
+        pygame.draw.arc(surf, _W_CORE, rect,
+                        math.radians(250), math.radians(290), 1)   # sternum sheen
 
-    # ── 6 · Spectral SKULL — green dome with hollow sockets + flame pips.
-    _aaellipse(surf, _W_BONE_D, (47, 22), 10, 9)
-    _aaellipse(surf, _W_BONE, (47, 21), 9, 8)
-    _aaellipse(surf, _W_CORE, (45, 18), 4, 3)            # crown highlight
-    _aaellipse(surf, _W_BONE_D, (47, 25), 6, 3)          # jaw shadow
+    # ── 6 · Spectral SKULL — green dome with two near-black hollow sockets.
+    _aaellipse(surf, _W_BONE_D, (skull_c[0], skull_c[1] + 1), 10, 9)
+    _aaellipse(surf, _W_BONE, skull_c, 9, 8)
+    _aaellipse(surf, _W_CORE, (skull_c[0] - 3, skull_c[1] - 3), 4, 3)  # crown highlight
+    _aaellipse(surf, _W_BONE_D, (skull_c[0], skull_c[1] + 4), 6, 3)    # jaw shadow
 
-    # Hollow sockets, each holding a bright cyan-green flame pip.
-    for sx, sy in ((50, 19), (44, 20)):
-        pygame.draw.circle(surf, _W_SOCK, (sx, sy), 3)
-        # Flame pip — teardrop core licking up out of the socket.
-        _poly(surf, _W_FLAME, [(sx, sy - 4), (sx + 2, sy + 1), (sx - 2, sy + 1)])
-        pygame.draw.circle(surf, (255, 255, 255), (sx, sy - 1), 1)
+    # Hollow sockets — the dark hole is the skull tell; the flame is the spark
+    # inside it. Big near-black hollow (r=4) survives the bloom; 1px gap keeps
+    # the two holes from merging.
+    for (sx, sy) in (sock_r, sock_l):
+        pygame.draw.circle(surf, _W_SOCK, (sx, sy), 4)
+        # Tight flame pip — small teardrop core licking up out of the hollow.
+        _poly(surf, _W_FLAME, [(sx, sy - 3), (sx + 2, sy + 1), (sx - 2, sy + 1)])
+        pygame.draw.circle(surf, (236, 255, 248), (sx, sy - 1), 1)
 
     # Nose hollow + a thin glowing tooth grin.
-    _poly(surf, _W_SOCK, [(47, 23), (49, 23), (48, 25)])
+    _poly(surf, _W_SOCK, [(46, 24), (48, 24), (47, 26)])
     for gx in (44, 47, 50):
         pygame.draw.line(surf, _W_CORE, (gx, 27), (gx, 29), 1)
 
-    # ── 7 · Beak — spectral bone outline over a translucent flesh beak.
+    # ── 7 · Beak — translucent flesh beak with a bright core-green top edge so
+    # the forward facing stays legible in motion even when the body glow flares.
     beak_pts = [(55, 21), (61, 24), (58, 28), (52, 26)]
-    _poly(surf, (*_W_FLESH, 160), beak_pts)
+    _poly(surf, (*_W_FLESH, 150), beak_pts)
     pygame.draw.polygon(surf, _W_BONE, beak_pts, 2)
+    pygame.draw.line(surf, _W_CORE, (55, 21), (61, 24), 1)   # lit top edge
 
     # ── 8 · Thin glowing leg-bones fading into wisp tendrils at the feet.
     for hipx, kneex, footx in ((28, 27, 25), (34, 35, 37)):
-        _bone_line(surf, (hipx, 43), (kneex, 47), 2)
-        pygame.draw.circle(surf, _W_CORE, (kneex, 47), 1)      # knee knob
-        # Foot dissolves into an additive downward wisp instead of a claw.
-        foot = pygame.Surface((10, 12), pygame.SRCALPHA)
-        for k in range(3):
-            a = 130 - k * 40
-            pygame.draw.line(foot, (*_W_AURA, a),
-                             (5, 0), (5 + (k - 1) * 3, 10), 2)
-        surf.blit(foot, (footx - 5, 47), special_flags=pygame.BLEND_RGB_ADD)
+        _bone_line(surf, (hipx, 42), (kneex, 46), 2)
+        pygame.draw.circle(surf, _W_CORE, (kneex, 46), 1)      # knee knob
+        # Foot dissolves into graded additive downward wisps instead of a claw.
+        for k, a in enumerate((120, 80, 40)):
+            _tendril(surf, footx + (k - 1) * 2, 46, (k - 1) * 2, 10, a, 10)
 
     return surf
 
