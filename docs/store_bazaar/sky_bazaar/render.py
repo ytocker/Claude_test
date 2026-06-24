@@ -1,5 +1,5 @@
 """
-FLOATING SKY-BAZAAR — store landing HUB mockup (concept #3).
+FLOATING SKY-BAZAAR — store landing HUB mockup (concept #3), round 2.
 
 A flying game deserves a flying shop. Seven category stalls perch on golden
 cloud platforms zig-zagging down a twilight portrait; thin gold rope-bridges
@@ -7,6 +7,16 @@ link them top-to-bottom and Pip hovers mid-frame in his natural flap pose as
 the un-grounded flying vendor. The sky opens at golden hour up top and converges
 toward the indigo night-jewel palette at the foot so the push into the
 constellation jewel store is a seamless dissolve.
+
+Round-2 polish raises it from good to premium: the cloud platforms are now
+sculpted SOLID lit volumes (a top sheen crown + a bottom ambient-occlusion
+shelf + a crisp continuous gold under-rim) lit from ONE top-left key, the seven
+stalls are evenly bedded with generous padding, every preview is contained in
+its dome (extreme-aspect items letterboxed, the NO-SHADES category fronted by a
+clean synthetic aviator-shades icon instead of a bare base parrot), Pip carries
+a clear focal spotlight clear of the labels, and the sky reads as a warm
+golden-hour foot easing into the indigo-and-gold jewel-store nebula at the apex
+where the stars emerge.
 
 Authored resolution-independently at SS=4 (1440x2560 device canvas) with ONE
 smoothscale down to 360x640, exactly like the constellation hi-res store — the
@@ -74,10 +84,16 @@ SKY_STOPS = [
 ]
 SUN_GLOW = (255, 206, 130)    # the low golden-hour sun bloom
 HAZE = (255, 210, 150)        # warm horizon haze
-CLOUD_RIM = (255, 232, 168)   # gold rim-light on platform clouds
-CLOUD_HI = (250, 238, 220)    # lit cloud crown (warm cream)
-CLOUD_MID = (208, 178, 196)   # cloud mid (dusk-tinted)
-CLOUD_LO = (120, 96, 138)     # cloud underbelly shadow (violet)
+# Cloud volume ramp — ONE top-left key. A bright warm-cream crown rolls through
+# a dusk-rose mid into a deep violet underbelly so each platform reads as a solid
+# lit dome, not a flat puff. Gold rim/under-rim wrap it as the premium keyline.
+CLOUD_RIM = (255, 234, 176)   # warm-gold rim-light on the lit crown
+CLOUD_UNDERRIM = (255, 198, 120)  # hotter gold under-rim catching the foot glow
+CLOUD_CROWN = (255, 247, 232)  # hot lit crown (top-left key)
+CLOUD_HI = (244, 226, 214)    # lit body (warm cream)
+CLOUD_MID = (196, 162, 184)   # cloud mid (dusk-rose)
+CLOUD_LO = (104, 80, 124)     # cloud underbelly shadow (violet AO)
+CLOUD_LO2 = (70, 52, 92)      # deepest keel shadow
 
 # Stall categories in store order, each with its display label + group key.
 # The preview thumbnail is the group's representative paid item ([0] of the
