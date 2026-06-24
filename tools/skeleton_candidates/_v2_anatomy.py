@@ -136,7 +136,7 @@ def finger_wing(angle_deg, P):
     return pygame.transform.rotate(w, angle_deg)
 
 
-def wing(surf, P, angle_deg, center=(30, 24)):
+def wing(surf, P, angle_deg, center=(28, 21)):
     img = finger_wing(angle_deg, P)
     surf.blit(img, img.get_rect(center=center).topleft)
 
@@ -173,26 +173,28 @@ def skull(surf, P, socket_fill=None, draw_socket=True):
 
 
 def beak(surf, P):
-    """The PARROT tell: a big down-curved HOOKED bone beak. A long upper mandible
-    sweeps forward off the skull and hooks sharply DOWN to a point; a shorter
-    scooped lower mandible sits under it. Bone-bright with a keyline so it reads
-    as the bird's defining feature, not a small dark nub."""
-    # Upper mandible — comma/hook: base high on the skull front, curving down to
-    # a hooked tip well forward of the cranium.
-    upper = [(50, 11), (56, 12), (60, 17), (61, 23), (58, 26),
-             (55, 22), (53, 17), (50, 16)]
-    _poly(surf, P.keyline, [(x + 1, y) for x, y in upper])   # dark rim
+    """The PARROT tell: a big down-curved HOOKED bone beak — the bird's defining
+    feature. A long, deep upper mandible sweeps forward off the skull and hooks
+    sharply DOWN past the jawline to a point; a scooped lower mandible sits under
+    it with a clear dark gape between. Sized large (tip reaches x62, well clear of
+    the cranium) and keyline-wrapped so it survives the 40px read."""
+    # Upper mandible — a big comma/hook: high wide base on the skull front,
+    # bulging forward then curving hard down to a hooked point below the jaw.
+    upper = [(49, 9), (57, 10), (62, 15), (63, 21), (61, 27), (57, 29),
+             (55, 24), (54, 19), (49, 17)]
+    _poly(surf, P.keyline, [(x + 1, y + 1) for x, y in upper])    # dark rim
     _poly(surf, P.bone, upper)
-    _poly(surf, P.bone_sh, [(58, 26), (55, 22), (57, 21), (60, 23)])  # hook shade
+    _poly(surf, P.bone_sh, [(61, 27), (57, 29), (56, 24), (60, 22)])  # hook shade
+    pygame.draw.line(surf, P.bone_sh, (50, 11), (60, 16), 1)      # ridge highlight
     # Cere/nostril hollow at the beak base.
-    pygame.draw.circle(surf, P.bone_deep, (53, 15), 1)
+    pygame.draw.circle(surf, P.bone_deep, (53, 13), 1)
     # The dark gape line separating the mandibles (defines the hook).
-    pygame.draw.line(surf, P.body_deep, (51, 19), (58, 24), 2)
+    pygame.draw.line(surf, P.body_deep, (51, 19), (59, 25), 2)
     # Lower mandible — a shorter bone scoop tucked under the hook.
-    lower = [(51, 20), (58, 25), (56, 28), (51, 26)]
+    lower = [(51, 21), (60, 26), (57, 30), (51, 27)]
     _poly(surf, P.keyline, [(x, y + 1) for x, y in lower])
     _poly(surf, P.bone, lower)
-    _poly(surf, P.bone_sh, [(51, 24), (56, 28), (51, 26)])
+    _poly(surf, P.bone_sh, [(51, 25), (57, 30), (51, 27)])
 
 
 # ── full assembly ─────────────────────────────────────────────────────────────
