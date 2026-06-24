@@ -1,5 +1,12 @@
 """
-FLOATING SKY-BAZAAR — store landing HUB mockup (concept #3), round 2.
+FLOATING SKY-BAZAAR — store landing HUB mockup (concept #3), round 3.
+
+Round-3 craft pass. The brief's #1 complaint was a cheap near-WHITE aura bleeding
+out of many places (cloud key-light, glass specular, Pip halo, awning/plate
+sheens, header glitter, the sun outer ring, shades glints) that read over-lit and
+plastic. Every one of those is retuned to a disciplined WARM-GOLD lighting model
+at lower alpha so the scene reads premium and cohesive with the dark-indigo +
+gold constellation jewel store, while the concept stays intact.
 
 A flying game deserves a flying shop. Seven category stalls perch on golden
 cloud platforms zig-zagging down a twilight portrait; thin gold rope-bridges
@@ -56,7 +63,7 @@ pygame.display.set_mode((1, 1))
 import render_hi as C
 from render_hi import (
     SS, DW, DH, m, mf, font, vgrad, vgrad_stops, gold_a_fill, soft_glow,
-    drop_shadow, gradient_text, plain_text, facet_gem, cabochon, cabochon_glass,
+    drop_shadow, gradient_text, plain_text, facet_gem, cabochon,
     coin_glyph, bevel_rim, top_sheen, gold_rule, title_wordmark, multistop_v,
     gloss_sweep, contact_shadow, _glyph_base, downscale,
     GOLD, GOLD_PALE, GOLD_DEEP, RARITY, MYSTERY, NEAR_BLACK, WHITE, CREAM,
@@ -64,6 +71,65 @@ from render_hi import (
     GOLD_A_RIM_BRIGHT, GOLD_A_COIN_RIM, CARD_RING_BRIGHT, CARD_RING_DEEP,
     TITLE_OUT,
 )
+
+# Warm-gold rim tint reused everywhere a contour highlight is needed, REPLACING
+# the constellation default near-white (255,248,220). Keeping every rim light on
+# this single warm hue is the core of the round-3 anti-white-aura discipline.
+RIM_WARM = (255, 224, 150)
+
+
+def cabochon_glass(surf, cx, cy, r, tint=(240, 234, 252)):
+    """Local override of the constellation glass dome whose stock specular is a
+    pure-white crescent (α150) + a white edge glint (α120) that read as shiny
+    PLASTIC on these stalls. Here both the crescent and the rim kiss are a warm
+    pale-GOLD at lower alpha so the dome reads as glass set in gold, not plastic.
+    The bottom-right refraction arc + the gold bezel are kept as-is."""
+    pad = m(4)
+    over = pygame.Surface((r * 2 + pad * 2, r * 2 + pad * 2), pygame.SRCALPHA)
+    c = r + pad
+    # faint bottom-right interior refraction shadow (unchanged — it is cool/dark,
+    # not part of the white-aura problem).
+    arc = pygame.Surface(over.get_size(), pygame.SRCALPHA)
+    for k in range(m(5)):
+        a = int(56 * (1 - k / m(5)))
+        pygame.draw.arc(arc, (8, 10, 26, a),
+                        (c - r + k, c - r + k, (r - k) * 2, (r - k) * 2),
+                        math.radians(248), math.radians(342), max(1, m(1)))
+    amask = pygame.Surface(over.get_size(), pygame.SRCALPHA)
+    pygame.draw.circle(amask, (255, 255, 255, 255), (c, c), r - m(1))
+    arc.blit(amask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    over.blit(arc, (0, 0))
+    # warm pale-gold top-left crescent specular at ~90 (was white α150): a lit
+    # disc MINUS an offset disc so only a SLIM arc hugging the upper-left rim
+    # survives. The thumbnail still reads through it, now without a white sheen.
+    spec = pygame.Surface(over.get_size(), pygame.SRCALPHA)
+    sr = int(r * 0.74)
+    pygame.draw.circle(spec, (255, 238, 196, 90),
+                       (c - int(r * 0.20), c - int(r * 0.20)), sr)
+    cut = pygame.Surface(over.get_size(), pygame.SRCALPHA)
+    cut.fill((255, 255, 255, 255))
+    pygame.draw.circle(cut, (0, 0, 0, 0),
+                       (c + int(r * 0.10), c + int(r * 0.10)), int(r * 0.84))
+    spec.blit(cut, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    smask = pygame.Surface(over.get_size(), pygame.SRCALPHA)
+    pygame.draw.circle(smask, (255, 255, 255, 255), (c, c), r - m(2))
+    spec.blit(smask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    over.blit(spec, (0, 0), special_flags=pygame.BLEND_ADD)
+    surf.blit(over, (cx - c, cy - c))
+    # the polished gold bezel (the card-ring gold lane) — unchanged: dark contact
+    # keyline, warm-gold rim, inner pale glint.
+    pygame.draw.circle(surf, (0, 0, 0, 190), (cx, cy), r, max(1, m(1.4)))
+    pygame.draw.circle(surf, (*CARD_RING_BRIGHT, 230), (cx, cy), r - m(0.9),
+                       max(1, m(1.2)))
+    pygame.draw.circle(surf, (246, 220, 140, 150), (cx, cy), r - m(1.8),
+                       max(1, m(0.7)))
+    # warm pale-gold glass kiss on the upper-left rim arc only (was white α120)
+    edge = pygame.Surface((r * 2 + m(4), r * 2 + m(4)), pygame.SRCALPHA)
+    ec = r + m(2)
+    pygame.draw.arc(edge, (255, 234, 184, 70),
+                    (ec - r + m(1), ec - r + m(1), r * 2 - m(2), r * 2 - m(2)),
+                    math.radians(108), math.radians(192), max(1, m(1)))
+    surf.blit(edge, (cx - ec, cy - ec), special_flags=pygame.BLEND_ADD)
 from game.draw import lerp_color
 from game import parrot
 from game import store_catalog
@@ -87,13 +153,15 @@ HAZE = (255, 210, 150)        # warm horizon haze
 # Cloud volume ramp — ONE top-left key. A bright warm-cream crown rolls through
 # a dusk-rose mid into a deep violet underbelly so each platform reads as a solid
 # lit dome, not a flat puff. Gold rim/under-rim wrap it as the premium keyline.
-CLOUD_RIM = (255, 234, 176)   # warm-gold rim-light on the lit crown
-CLOUD_UNDERRIM = (255, 198, 120)  # hotter gold under-rim catching the foot glow
-CLOUD_CROWN = (255, 247, 232)  # hot lit crown (top-left key)
-CLOUD_HI = (244, 226, 214)    # lit body (warm cream)
-CLOUD_MID = (196, 162, 184)   # cloud mid (dusk-rose)
-CLOUD_LO = (104, 80, 124)     # cloud underbelly shadow (violet AO)
-CLOUD_LO2 = (70, 52, 92)      # deepest keel shadow
+CLOUD_RIM = (255, 226, 158)   # warm-gold rim-light on the lit crown
+CLOUD_UNDERRIM = (255, 194, 112)  # hotter gold under-rim catching the foot glow
+# Crown warmed off pure white to a gold-lit cream so the lit shoulder reads as
+# sun-kissed cloud, never a blown-out white highlight.
+CLOUD_CROWN = (255, 240, 210)  # gold-lit crown (top-left key)
+CLOUD_HI = (240, 218, 196)    # lit body (warm cream)
+CLOUD_MID = (192, 158, 180)   # cloud mid (dusk-rose)
+CLOUD_LO = (98, 76, 120)      # cloud underbelly shadow (violet AO)
+CLOUD_LO2 = (64, 48, 88)      # deepest keel shadow
 
 # Stall categories in store order, each with its display label + group key.
 # The preview thumbnail is the group's representative paid item ([0] of the
@@ -142,8 +210,10 @@ def _build_bg():
     # scene + rakes light top-left across the islands. Kept restrained (no blown-
     # out white core) and off the bottom-CENTRE so the PARCELS treasure stall
     # keeps its own controlled red aura instead of being swallowed by the sun.
-    soft_glow(bg, int(DW * 0.94), int(DH * 0.96), m(160), SUN_GLOW, 50, layers=14)
-    soft_glow(bg, int(DW * 0.94), int(DH * 0.96), m(64), (255, 238, 196), 56, layers=10)
+    soft_glow(bg, int(DW * 0.94), int(DH * 0.96), m(160), SUN_GLOW, 44, layers=14)
+    # the inner sun core: warmed amber-gold + lower alpha (was a pale (255,238,196)
+    # near-white wash that bled across the mid-canvas) so it warms the corner only.
+    soft_glow(bg, int(DW * 0.94), int(DH * 0.96), m(58), (250, 196, 120), 44, layers=10)
 
     # warm horizon haze lifting off the bottom third
     haze = pygame.Surface((DW, DH), pygame.SRCALPHA)
@@ -171,15 +241,18 @@ def _build_bg():
         tint = rnd.choice([(255, 252, 240), (216, 222, 255), (255, 232, 190),
                            (255, 240, 210)])
         pygame.draw.circle(stars, (*tint, a), (x, y), max(1, int(r)))
-    for _ in range(10):
+    # the brighter apex cross-stars: warmed to a soft gold + shorter spikes + a
+    # tamer bloom (was a pale (255,244,206)/(255,240,200) near-white glint) so the
+    # night sky twinkles in gold instead of washing pale.
+    for _ in range(8):
         x = rnd.randint(m(20), DW - m(20))
-        y = rnd.randint(m(20), int(DH * 0.30))
-        L = m(rnd.uniform(3, 5.5))
-        a = rnd.randint(140, 210)
-        col = (255, 244, 206, a)
+        y = rnd.randint(m(20), int(DH * 0.26))
+        L = m(rnd.uniform(2.4, 4.2))
+        a = rnd.randint(110, 165)
+        col = (255, 226, 168, a)
         pygame.draw.line(stars, col, (x - L, y), (x + L, y), max(1, m(0.8)))
         pygame.draw.line(stars, col, (x, y - L), (x, y + L), max(1, m(0.8)))
-        soft_glow(stars, x, y, m(3.2), (255, 240, 200), 80, layers=4)
+        soft_glow(stars, x, y, m(2.6), (255, 216, 150), 52, layers=4)
     bg.blit(stars, (0, 0), special_flags=pygame.BLEND_ADD)
 
     # far parallax clouds drifting low + small (depth below the platforms); kept
@@ -286,11 +359,16 @@ def cloud_platform(surf, cx, cy, rw, rh):
     body.blit(bmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     isl.blit(body, (0, 0))
 
-    # top-left key light: a soft hot-cream wash on the upper-left crown so the
-    # mass has a clearly lit shoulder, all consistent with the one light source.
+    # top-left key light: a WARM-GOLD wash on the upper-left crown (was a near-
+    # white (255,248,230) α78 halo r·0.95 that bloomed across the cloud and bled
+    # onto neighbours — the brief's #1 offender). Now a disciplined gold at α44,
+    # tightened radius, so the shoulder reads sun-LIT and voluminous, not blown
+    # out. A second tiny hot kiss adds a believable specular roll on the crown.
     lit = pygame.Surface((surf_w, surf_h), pygame.SRCALPHA)
-    soft_glow(lit, int(ox - rw * 0.34), int(oy - rh * 0.42), int(rw * 0.95),
-              (255, 248, 230), 78, layers=12)
+    soft_glow(lit, int(ox - rw * 0.34), int(oy - rh * 0.42), int(rw * 0.66),
+              (240, 200, 120), 44, layers=12)
+    soft_glow(lit, int(ox - rw * 0.30), int(oy - rh * 0.46), int(rw * 0.30),
+              (255, 226, 168), 40, layers=8)
     lit.blit(bmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     isl.blit(lit, (0, 0), special_flags=pygame.BLEND_ADD)
 
@@ -312,22 +390,46 @@ def cloud_platform(surf, cx, cy, rw, rh):
     isl.blit(ao, (0, 0))
 
     # fluffy puff fringe ONLY along the lit top crown — rounded lobes hugging the
-    # top silhouette, each shaded round (lit cap -> dusk base) so the upper edge
-    # reads as soft, tactile cloud and the keel stays a smooth turning volume.
+    # top silhouette, each sculpted with an OFFSET-centre value ramp (lit cap top-
+    # left -> dusk base bottom-right) plus a soft violet AO crescent on each lobe's
+    # lower-right so the lobes read as overlapping 3D balls of cloud, not flat
+    # discs. A tiny warm-gold rim sits on each lit cap to tie them to the keyline.
     rnd = random.Random(int(cx * 5 + cy))
     crown = [p for p in sil if p[1] < oy - rh * 0.2]
+    crown.sort(key=lambda p: p[0])
     for pxp, pyp in crown:
-        pr = rnd.uniform(rh * 0.36, rh * 0.52)
+        pr = rnd.uniform(rh * 0.40, rh * 0.56)
         f = max(0.0, min(1.0, (pxp - (ox - rw)) / (rw * 2)))
-        cap = lerp_color(CLOUD_CROWN, CLOUD_HI, f * 0.6)
-        base = lerp_color(CLOUD_HI, CLOUD_MID, 0.55 + f * 0.3)
-        s = pygame.Surface((int(pr * 2 + 4), int(pr * 2 + 4)), pygame.SRCALPHA)
-        cc = int(pr + 2)
+        cap = lerp_color(CLOUD_CROWN, CLOUD_HI, f * 0.55)
+        base = lerp_color(CLOUD_MID, CLOUD_LO, 0.30 + f * 0.30)
+        s = pygame.Surface((int(pr * 2 + 6), int(pr * 2 + 6)), pygame.SRCALPHA)
+        cc = int(pr + 3)
+        lcx = cc - int(pr * 0.30)                    # light centre up-left
+        lcy = cc - int(pr * 0.34)
         for i in range(int(pr), 0, -1):
-            ff = i / pr                              # 1 at lit cap -> 0 at base
-            cv = lerp_color(base, cap, ff ** 0.8)
-            pygame.draw.circle(s, (*cv, 255),
-                               (cc - int(pr * 0.18), cc - int(pr * 0.22)), i)
+            ff = i / pr                              # 1 at lit cap -> 0 at rim
+            cv = lerp_color(base, cap, ff ** 0.9)
+            pygame.draw.circle(s, (*cv, 255), (lcx, lcy), i)
+        # core-shadow crescent on the lower-right of each lobe (turning away from
+        # the key) for real roundness
+        for k in range(6, 0, -1):
+            rr = int(pr * 0.62 * k / 6)
+            aa = int(70 * (1 - (k - 1) / 6) ** 1.6)
+            if rr <= 0 or aa <= 0:
+                continue
+            g = pygame.Surface((rr * 2 + 2, rr * 2 + 2), pygame.SRCALPHA)
+            pygame.draw.circle(g, (*CLOUD_LO2, aa), (rr + 1, rr + 1), rr)
+            s.blit(g, (cc + int(pr * 0.30) - rr - 1,
+                       cc + int(pr * 0.34) - rr - 1))
+        # clip the AO back inside the lobe so it never spills as a halo
+        lmask = pygame.Surface(s.get_size(), pygame.SRCALPHA)
+        pygame.draw.circle(lmask, (255, 255, 255, 255), (lcx, lcy), int(pr))
+        s.blit(lmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        # warm-gold cap rim arc tying the lit lobes to the gold keyline
+        pygame.draw.arc(s, (*CLOUD_RIM, 150),
+                        (lcx - int(pr * 0.92), lcy - int(pr * 0.92),
+                         int(pr * 1.84), int(pr * 1.84)),
+                        math.radians(118), math.radians(214), max(1, m(1.2)))
         isl.blit(s, (int(pxp - cc), int(pyp - cc + rh * 0.06)))
 
     # the CONTINUOUS gold keyline — the platform's signature. A clean full gold
@@ -434,11 +536,13 @@ def _awning(surf, cx, top_y, w, h, scallops=5):
         col = red if i % 2 == 0 else cream
         rx = x0 + i * sw + sw / 2
         pygame.draw.circle(surf, col, (int(rx), top_y + h), int(sw / 2))
-    # top sheen + a defined edge
+    # top sheen + a defined edge: a WARM pale-gold gloss at α22 (was pure-white
+    # α70 that made the awning read as toy plastic) so the stripes look like
+    # matte sun-lit canvas, not vinyl.
     sheen = pygame.Surface((w, h), pygame.SRCALPHA)
     for y in range(h):
-        a = int(70 * (1 - y / h) ** 1.4)
-        pygame.draw.line(sheen, (255, 255, 255, a), (0, y), (w, y))
+        a = int(22 * (1 - y / h) ** 1.4)
+        pygame.draw.line(sheen, (255, 240, 206, a), (0, y), (w, y))
     surf.blit(sheen, (x0, top_y))
     pygame.draw.line(surf, (40, 8, 6), (x0, top_y), (x0 + w, top_y), max(1, m(1.4)))
     # a tiny gold valance rail
@@ -458,7 +562,7 @@ def category_label(surf, txt, cx, cy, w):
     drop_shadow(surf, rail, h // 2, blur=m(3), alpha=120, dy=m(2))
     surf.blit(vgrad(rail.w, rail.h, h // 2, (40, 24, 12), (16, 10, 5), 252,
                     gamma=1.1), rail.topleft)
-    top_sheen(surf, rail, h // 2, m(8), peak=44)
+    top_sheen(surf, rail, h // 2, m(8), peak=24)
     pygame.draw.rect(surf, (3, 3, 10), rail, width=max(1, m(1.4)),
                      border_radius=h // 2)
     bevel_rim(surf, rail, h // 2, lerp_color(GOLD, NEAR_BLACK, 0.45),
@@ -570,11 +674,12 @@ def _shades_icon(px):
         tint = pygame.Surface((lr * 2, lr), pygame.SRCALPHA)
         pygame.draw.ellipse(tint, (*TINT, 150), tint.get_rect())
         s.blit(tint, (lcx - lr, cy - lr + 1))
-        # bright top-left glint + a small secondary
-        pygame.draw.circle(s, (255, 255, 255), (lcx - lr // 2, cy - lr // 2),
-                           max(2, int(lr * 0.26)))
-        pygame.draw.circle(s, (255, 255, 255, 200),
-                           (lcx + lr // 3, cy + lr // 3), max(1, int(lr * 0.16)))
+        # warm pale-gold glints (were pure-white opaque dots that read as a hard
+        # white aura on the lens) — a small lit catch, not a flare.
+        pygame.draw.circle(s, (255, 240, 206), (lcx - lr // 2, cy - lr // 2),
+                           max(2, int(lr * 0.22)))
+        pygame.draw.circle(s, (255, 232, 188, 190),
+                           (lcx + lr // 3, cy + lr // 3), max(1, int(lr * 0.14)))
     # gold bridge between the lenses
     pygame.draw.line(s, GF, (lx + lr, cy), (rx - lr, cy), max(2, int(px * 0.04)))
     return s
@@ -624,9 +729,11 @@ def _blit_preview(surf, sid, cx, cy, box_px):
             out = _preview_box(src, box_px, rotate=rot)
         _preview_cache[key] = out
     r = out.get_rect(center=(cx, cy))
-    # ~25% stronger top-left rim than the dome default so dark previews (blue
-    # macaw, black aviators, the envelope) pop their contour off the well floor.
-    rim = C._rim_light(out, alpha=min(255, int(C.CABO_RIM_ALPHA * 1.25)))
+    # warm-gold top-left rim (was the near-white dome default) so dark previews
+    # (blue macaw, black aviators, the envelope) pop their contour off the well
+    # floor without a cold white edge fighting the warm scene.
+    rim = C._rim_light(out, color=RIM_WARM,
+                       alpha=min(255, int(C.CABO_RIM_ALPHA * 1.20)))
     surf.blit(rim, r.topleft, special_flags=pygame.BLEND_ADD)
     surf.blit(out, r.topleft)
 
@@ -661,11 +768,11 @@ def draw_pip(surf, cx, cy, scale):
         pygame.draw.circle(scrim, (16, 14, 40, a), (sc, sc), rr)
     surf.blit(scrim, (cx - sc, cy - sc))
 
-    # a TIGHT hot warm-gold focal core with a clean falloff (no broad grey outer
-    # ring that mushed into the cloud crown in round 2) so Pip reads as the hero
-    # without his halo bleeding onto the platform behind him.
-    soft_glow(surf, cx, cy, int(target * 0.50), (255, 198, 110), 62, layers=12)
-    soft_glow(surf, cx, cy, int(target * 0.30), (255, 234, 178), 56, layers=9)
+    # a TIGHT warm-GOLD focal core with a clean falloff. The inner kiss is dropped
+    # to a true gold at α40 (was a pale (255,234,178) α56 that read as a white
+    # halo around the macaw) so his scarlet silhouette stays clean with NO bloom.
+    soft_glow(surf, cx, cy, int(target * 0.50), (250, 188, 100), 56, layers=12)
+    soft_glow(surf, cx, cy, int(target * 0.28), (255, 214, 138), 40, layers=9)
 
     # a soft hover shadow drifting below (sells the float)
     shadow = pygame.Surface((target, int(target * 0.4)), pygame.SRCALPHA)
@@ -681,8 +788,9 @@ def draw_pip(surf, cx, cy, scale):
         coin_glyph(surf, px, py, m(cr))
 
     r = pip.get_rect(center=(cx, cy))
-    # crisp top-left rim light so the macaw pops off the twilight sky
-    rim = C._rim_light(pip, alpha=195)
+    # crisp WARM-GOLD top-left rim light (was near-white (255,248,220) α195 that
+    # haloed his outline) at α150 so the macaw pops off the twilight sky cleanly.
+    rim = C._rim_light(pip, color=RIM_WARM, alpha=150)
     surf.blit(rim, r.topleft, special_flags=pygame.BLEND_ADD)
     surf.blit(pip, r.topleft)
 
@@ -706,24 +814,19 @@ def draw_header(surf):
     # ground glows like the jewel store instead of going dead flat.
     soft_glow(surf, int(DW * 0.50), m(20), m(150), (70, 58, 138), 30, layers=12)
     soft_glow(surf, int(DW * 0.42), m(8), m(86), (150, 118, 78), 22, layers=10)
+    # a CALM scatter of faint gold star-dust (was a busy 26-dot + 4 cross-spike
+    # field with (255,236,196) α90 blooms that read as cheap glitter): far fewer,
+    # dimmer, warm-gold only — so the header stays a deep-indigo lane and the gold
+    # wordmark owns the value. No cross-spikes / no blooms.
     hrnd = random.Random(914)
     spark = pygame.Surface((DW, m(118)), pygame.SRCALPHA)
-    for _ in range(26):
+    for _ in range(13):
         x = hrnd.randint(m(8), DW - m(8))
         yy = hrnd.randint(m(6), m(114))
-        r = m(hrnd.uniform(0.5, 1.5))
-        a = hrnd.randint(70, 180)
-        tint = hrnd.choice([(255, 250, 232), (255, 226, 168), (214, 220, 255)])
+        r = m(hrnd.uniform(0.5, 1.3))
+        a = hrnd.randint(45, 100)
+        tint = hrnd.choice([(255, 232, 184), (255, 220, 160), (200, 200, 235)])
         pygame.draw.circle(spark, (*tint, a), (x, yy), max(1, int(r)))
-    for _ in range(4):
-        x = hrnd.randint(m(20), DW - m(20))
-        yy = hrnd.randint(m(8), m(40))
-        L = m(hrnd.uniform(3, 4.5))
-        pygame.draw.line(spark, (255, 240, 198, 190), (x - L, yy), (x + L, yy),
-                         max(1, m(0.8)))
-        pygame.draw.line(spark, (255, 240, 198, 190), (x, yy - L), (x, yy + L),
-                         max(1, m(0.8)))
-        soft_glow(spark, x, yy, m(3), (255, 236, 196), 90, layers=4)
     surf.blit(spark, (0, 0), special_flags=pygame.BLEND_ADD)
     # screen frame hairline (matches the jewel store chrome)
     pygame.draw.rect(surf, (*GOLD, 64), (m(3), m(3), DW - m(6), DH - m(6)),
@@ -761,7 +864,7 @@ def balance_capsule(surf, cx, y):
     drop_shadow(surf, cap, h // 2, blur=m(6), alpha=140, dy=m(3))
     surf.blit(vgrad(cap.w, cap.h, h // 2, (58, 42, 22), (22, 15, 8), 255,
                     gamma=1.1), cap.topleft)
-    top_sheen(surf, cap, h // 2, m(16), peak=50)
+    top_sheen(surf, cap, h // 2, m(16), peak=24)
     contact_shadow(surf, cap, h // 2, m(5), alpha=110)
     pygame.draw.rect(surf, (0, 0, 0, 200), cap, width=max(1, m(1.8)),
                      border_radius=h // 2)
@@ -843,10 +946,10 @@ def main():
     C._build_static_bg()        # primes any constellation-hi caches it needs
     _build_bg()
     dev = render_device()
-    pygame.image.save(downscale(dev, 1), os.path.join(_HERE, "round_2.png"))
-    pygame.image.save(downscale(dev, 2), os.path.join(_HERE, "round_2@2x.png"))
+    pygame.image.save(downscale(dev, 1), os.path.join(_HERE, "round_3.png"))
+    pygame.image.save(downscale(dev, 2), os.path.join(_HERE, "round_3@2x.png"))
     print("SS =", SS, "device =", DW, "x", DH)
-    print("saved round_2.png (360x640) + round_2@2x.png (720x1280)")
+    print("saved round_3.png (360x640) + round_3@2x.png (720x1280)")
 
 
 if __name__ == "__main__":

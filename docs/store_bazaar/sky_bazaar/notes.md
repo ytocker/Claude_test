@@ -7,16 +7,65 @@ linked by gold rope-bridges, with Pip hovering mid-frame as the un-grounded
 flying vendor.
 
 - Render: `docs/store_bazaar/sky_bazaar/render.py`
-- Outputs: `round_2.png` (360×640), `round_2@2x.png` (720×1280) — the latest
-  sheet folds in the round-3 punch list below (filenames kept stable)
+- Outputs: `round_3.png` (360×640), `round_3@2x.png` (720×1280) — the current
+  sheet. `round_2*.png` is kept as the "before" for the white-aura comparison.
   (round 1: `round_1.png` / `round_1@2x.png`)
 - Run: `python docs/store_bazaar/sky_bazaar/render.py`
 
-## Round 3 — final art-director punch list (overwrites `round_2*.png`)
+## Round 3 — kill the white aura, lift the craft (→ `round_3*.png`)
 
-ITERATE verdict on round 2; all seven prioritized notes addressed in one pass,
-keeping the round-2 wins (continuous gold cloud rim + under-rim, PARCELS red
-aura/gem at centre-foot, 6-stop sky + apex nebula, scalloped awnings, bridges):
+The user liked concept #3 but said it still read like "a basic idea" and, above
+all, that "a white aura coming out of many places makes it look really bad."
+That was justified: the scene was full of additive near-white glows/sheens that
+read cheap and over-lit. Round 3 retunes EVERY cheap white aura to a warm-gold
+discipline (recoloured + alpha-tamed, never just deleted — the lighting stays)
+and pushes overall craft, keeping the concept and layout intact.
+
+- **Cloud key light (biggest offender).** `cloud_platform()`'s upper-left crown
+  wash was a near-white `(255,248,230)` α78 at radius 0.95·rw — a halo bleeding
+  across each cloud and onto its neighbours. Recoloured to warm gold
+  `(240,200,120)` at **α44**, radius tightened to 0.66·rw, plus a tiny hot
+  `(255,226,168)` α40 specular kiss. Clouds now read sun-LIT and voluminous, not
+  blown out. The crown anchor was also warmed off pure white (`(255,247,232)` →
+  `(255,240,210)`).
+- **Cabochon glass.** The constellation `cabochon_glass` paints a pure-white
+  crescent (α150) + white edge glint (α120) — plastic on these domes. Overridden
+  LOCALLY in this render: the crescent is now warm pale-gold `(255,238,196)`
+  **α90** and the rim kiss `(255,234,184)` **α70**, so the glass reads as glass
+  set in gold, not shiny plastic. (Refraction arc + gold bezel kept.)
+- **Pip.** Inner glow `(255,234,178)` α56 → warm gold `(255,214,138)` **α40**;
+  rim light `(255,248,220)` α195 → warm `RIM_WARM (255,224,150)` **α150**. His
+  scarlet silhouette is now clean with NO white bloom; the dark back-scrim stays.
+- **Top sheens.** Awning gloss `(255,255,255)` α70 → warm `(255,240,206)` **α22**;
+  nameplate `top_sheen` peak 44 → **24**; balance-capsule `top_sheen` peak 50 →
+  **24**. Surfaces now read matte-premium gold, not toy vinyl.
+- **Header sparkle.** The busy 26-dot field + 4 white cross-spikes with
+  `(255,236,196)` α90 blooms (cheap glitter) is cut to **13 faint warm-gold dots,
+  no spikes, no blooms** — the header is a calm deep-indigo lane with the gold
+  wordmark owning the value.
+- **Sun + apex stars.** The sun's inner core `(255,238,196)` α56 near-white wash
+  → amber-gold `(250,196,120)` α44, radius tightened, outer ring α50 → 44. The
+  apex cross-stars warmed (`(255,244,206)`→`(255,226,168)`), shorter spikes,
+  tamer blooms (α80→52) — gold twinkle, no pale mid-sky wash.
+- **Shades glints.** The pure-white opaque lens dots → warm pale-gold
+  `(255,240,206)` / `(255,232,188)` α190, smaller — a lit catch, not a flare.
+- **Preview rims.** Every dome thumbnail's top-left rim light was the
+  constellation near-white default; now `RIM_WARM`, so dark previews still pop
+  their contour but with no cold white edge fighting the warm scene.
+- **Craft push — cloud volume.** The crown puff fringe is re-sculpted: each lobe
+  now has an OFFSET-centre value ramp (lit cap top-left → dusk base) plus a soft
+  violet AO core-shadow crescent clipped inside the lobe and a thin warm-gold cap
+  rim arc, so the lobes read as overlapping 3D balls of cloud tied to the gold
+  keyline — not flat discs.
+
+Net: a cohesive warm-gold-on-deep-indigo read with no white aura anywhere,
+coherent with the constellation jewel store the stalls open into.
+
+## Earlier punch list (folded into `round_2*.png`)
+
+A prior ITERATE pass; seven prioritized notes addressed in one pass, keeping the
+round-2 wins (continuous gold cloud rim + under-rim, PARCELS red aura/gem at
+centre-foot, 6-stop sky + apex nebula, scalloped awnings, bridges):
 
 1. **Header on deep indigo, not a grey slab.** The flat grey legibility band is
    replaced by an indigo deepening that **carries the apex nebula UP behind the
