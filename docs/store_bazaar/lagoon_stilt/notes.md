@@ -59,6 +59,40 @@ palms framing, Pip the jetty merchant), the gold-on-red STORE header + balance
 capsule + real coin glyph, the golden-hour→indigo CONSTELLATION sky bridge, the
 tasteful gold sun-glitter column, the red/cream awnings + carved name boards.
 
+## Round 3 — final ITERATE pass (AD confirmed both big wins; closed 5 beats)
+The art-director's review of round_3 confirmed the two big wins are GENUINELY
+fixed and must be KEPT — (A) the red-from-beneath is gone (natural cool
+reflections, pixel-sample verified) and (B) all 7 stalls read — and returned
+VERDICT: ITERATE on five fixable beats. All five landed in this same round_3
+(overwritten in place):
+
+1. **SHADES preview legibility** (top priority — the one stall that still
+   near-failed): dark sunglasses on a dark parrot collapsed against the near-
+   black dome well. FIX: the SHADES dome interior now gets a LIGHTER cool-slate
+   backing (`cabochon((96,104,134),(44,50,78))` instead of the deep
+   `CABO_LO/HI`), plus an extra GOLD key rim-light (`_rim_light((255,224,150),
+   alpha=210)`) on the eyewear. The lenses now read as a positive shape like the
+   other previews.
+2. **Guttered the hero crate off its flankers**: the lifted PARCELS hero
+   overlapped PARROTS (left) + SHOES (right), reading as one central mass. FIX:
+   PARROTS `0.180→0.142` and SHOES `0.820→0.858` pulled to the canvas edges, and
+   the hero scale shaved `1.00→0.96`, so a clear dark-water gutter separates the
+   three central stalls. (COSTUMES/HATS nudged out `0.165/0.835→0.155/0.845` to
+   match.)
+3. **Separated Pip from the crate**: Pip pushed further front-left + DOWN off the
+   deck lip (`cx-m(36)→cx-m(42)`, `+m(7)→+m(13)`), given a thin dark separation
+   halo behind his silhouette + a darker/wider contact shadow (α130→175), so the
+   read order is crate-first, merchant-second in a clean front-to-back stack.
+4. **(polish) Back-row board air**: non-hero name boards lifted `deck_y-m(20)→
+   deck_y-m(16)` so they clear the awning/roof-eave shadow above them.
+5. **(polish) TAP A STALL rules**: the flanking gold rules were near-invisible
+   hairlines → committed to bright `GOLD_PALE` at `peak 160→235`, `thick
+   m(1)→m(1.6)` so they read as intentional rules, not render noise.
+
+Preserved per the AD note: the gold-banded `?` crate, the warm-gold disc sun +
+star carve-out, the gold-on-red STORE header echo, the palm-framed depth, and
+the constellation sky bridge.
+
 ## Round 2 — art-director ITERATE pass (one revision)
 Verdict was ITERATE: strong concept + real craft, undermined mainly by the
 oversized sun. The prioritized punch list, all addressed in this pass:

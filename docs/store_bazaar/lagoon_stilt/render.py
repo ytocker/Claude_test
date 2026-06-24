@@ -644,7 +644,14 @@ def draw_hut(surf, cx, deck_y, scale, group, label, hero=False):
     dome_cy = body_top + int(body_h * (0.40 if hero else 0.46))
     soft_glow(surf, dome_cx, dome_cy, dome_r + m(6), GOLD,
               46 if hero else 34, layers=8)
-    C.cabochon(surf, dome_cx, dome_cy, dome_r, C.CABO_LO, C.CABO_HI)
+    # SHADES is the one dark-on-dark preview (dark sunglasses on a dark parrot):
+    # against the near-black dome well it collapses in value. Give it a LIGHTER
+    # cool-slate dome backing so the eyewear reads as a positive shape like the
+    # other previews; everything else keeps the standard deep glass well.
+    if group == "shades" and not hero:
+        C.cabochon(surf, dome_cx, dome_cy, dome_r, (96, 104, 134), (44, 50, 78))
+    else:
+        C.cabochon(surf, dome_cx, dome_cy, dome_r, C.CABO_LO, C.CABO_HI)
     _place_thumb(surf, group, dome_cx, dome_cy, dome_r, hero)
     # Hero glass takes a warm GOLD tint (was mystery-red) so the prize dome stays
     # in the warm-gold family the rest of the village + the coin live in.
@@ -655,7 +662,9 @@ def draw_hut(surf, cx, deck_y, scale, group, label, hero=False):
     # The hero's board is deferred to render_device (drawn AFTER Pip + the coin)
     # so it sits frontmost in a clean horizontal lane with nothing crossing it.
     if not hero:
-        _hut_label(surf, label, cx, deck_y - int(m(20) * scale), scale, hero)
+        # nudged ~3px lower so the board clears the awning/roof-eave shadow above
+        # it (it was kissing that shadow on the back row).
+        _hut_label(surf, label, cx, deck_y - int(m(16) * scale), scale, hero)
 
     return half_w, roof_apex_y
 
@@ -684,6 +693,12 @@ def _place_thumb(surf, group, cx, cy, dome_r, hero):
     # CONSTELLATION thumbnail treatment) so it reads as the lit hero in glass.
     img = C._punch_contrast(img)
     r = img.get_rect(center=(cx, cy))
+    # SHADES' dark lenses need an extra GOLD key rim (on top of the standard
+    # rim light) so the eyewear silhouette pops off its slate backing rather
+    # than melting into it — the difference between "reads" and "near-reads".
+    if group == "shades":
+        surf.blit(C._rim_light(img, color=(255, 224, 150), alpha=210),
+                  r.topleft, special_flags=pygame.BLEND_ADD)
     surf.blit(C._rim_light(img), r.topleft, special_flags=pygame.BLEND_ADD)
     surf.blit(img, r.topleft)
 
@@ -771,17 +786,23 @@ def draw_pip(surf, cx, deck_y):
     pip = pygame.transform.smoothscale(pip, (int(pw * s), int(ph * s)))
     pr = pip.get_rect()
     # Pip stands at the FRONT-LEFT corner of the jetty deck — pushed further
-    # left + down than R1 so his silhouette sits BESIDE the centred name board
-    # (not across it) and clears the "?" dome above. The board lane stays clean.
-    px = cx - m(36)
-    py = deck_y - pr.height // 2 + m(7)
+    # left + DOWN off the deck lip than R3 so his silhouette FULLY clears the
+    # gold crate behind/above (crate-first, merchant-second front-to-back read)
+    # rather than merging with the crate face at the same value.
+    px = cx - m(42)
+    py = deck_y - pr.height // 2 + m(13)
     # warm aura behind Pip
     soft_glow(surf, px, py, m(26), SUN_AURA, 56, layers=10)
     soft_glow(surf, px, py, m(15), SUN_CORE, 78, layers=6)
-    # contact shadow on the jetty deck
-    sh = pygame.Surface((pr.width + m(6), m(11)), pygame.SRCALPHA)
-    pygame.draw.ellipse(sh, (0, 0, 0, 130), sh.get_rect())
-    surf.blit(sh, (px - (pr.width + m(6)) // 2, deck_y - m(3)))
+    # a dark separation halo hugging Pip so his lit silhouette pops off the
+    # crate face it sits in front of (a thin dark contour, not a cast shadow).
+    sep = pygame.Surface((pr.width + m(10), pr.height + m(10)), pygame.SRCALPHA)
+    pygame.draw.ellipse(sep, (8, 6, 14, 150), sep.get_rect())
+    surf.blit(sep, (px - sep.get_width() // 2, py - sep.get_height() // 2))
+    # darker + wider contact shadow on the jetty deck so he grounds clearly
+    sh = pygame.Surface((pr.width + m(10), m(13)), pygame.SRCALPHA)
+    pygame.draw.ellipse(sh, (0, 0, 0, 175), sh.get_rect())
+    surf.blit(sh, (px - (pr.width + m(10)) // 2, deck_y + m(1)))
     surf.blit(pip, pip.get_rect(center=(px, py)).topleft)
     # a small spinning coin floating to Pip's upper-LEFT, well clear of the dome
     # rim + the name board (foreshortened => a thin ellipse, reads mid-spin).
@@ -847,10 +868,12 @@ def _tap_hint(surf, cx, cy):
                      border_radius=rad)
     pygame.draw.rect(surf, (*GOLD, 150), r.inflate(-m(1.2), -m(1.2)),
                      width=max(1, m(1)), border_radius=rad)
-    # short gold rules flanking the type
-    gold_rule(surf, r.x + m(8), r.x + m(8) + m(16), cy, GOLD, peak=160, thick=m(1))
-    gold_rule(surf, r.right - m(8) - m(16), r.right - m(8), cy, GOLD, peak=160,
-              thick=m(1))
+    # short gold rules flanking the type — committed to a brighter pale-gold at
+    # +value + thicker so they read as intentional rules, not hairline noise.
+    gold_rule(surf, r.x + m(8), r.x + m(8) + m(16), cy, GOLD_PALE, peak=235,
+              thick=m(1.6))
+    gold_rule(surf, r.right - m(8) - m(16), r.right - m(8), cy, GOLD_PALE,
+              peak=235, thick=m(1.6))
     gradient_text(surf, "TAP  A  STALL", f, (cx, cy), GOLD_A_TOP, GOLD_A_BOT,
                   weight=m(0.9), keyline=(40, 22, 12), kw=m(0.9), shadow=False,
                   tracking=m(3))
@@ -900,13 +923,16 @@ LAYOUT = [
     # 0.68->0.80 and mid-row 0.84/0.76->0.92/0.86 so no stall feels tucked-away.
     # The two outer huts of each non-hero row are pulled to the canvas edges and
     # the centre hut sits a touch higher so all three roofs stay separated.
-    ("costume",  0.165, 0.572, 0.80, False),   # back-left
+    ("costume",  0.155, 0.572, 0.80, False),   # back-left
     ("animal",   0.500, 0.548, 0.80, False),   # back-centre (lifted)
-    ("hats",     0.835, 0.572, 0.80, False),   # back-right
-    ("parrot",   0.180, 0.788, 0.92, False),   # mid-left
-    ("shoes",    0.820, 0.788, 0.92, False),   # mid-right
+    ("hats",     0.845, 0.572, 0.80, False),   # back-right
+    # PARROTS + SHOES pulled ~8px further to the canvas edges so a clear
+    # dark-water gutter separates them from the lifted hero deck (was 0.180 /
+    # 0.820 — they crowded the hero, reading as one central mass).
+    ("parrot",   0.142, 0.788, 0.92, False),   # mid-left
+    ("shoes",    0.858, 0.788, 0.92, False),   # mid-right
     ("shades",   0.500, 0.704, 0.86, False),   # mid-centre, tucked slightly back
-    ("parcels",  0.500, 0.862, 1.00, True),    # hero jetty, frontmost
+    ("parcels",  0.500, 0.862, 0.96, True),    # hero jetty, frontmost (deck shaved)
 ]
 LABELS = {g: lbl for g, lbl in STALLS}
 
