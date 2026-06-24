@@ -360,69 +360,112 @@ def _poly_grad(surf, pts, top_col, bot_col, gamma=1.0):
 
 
 def draw_envelope(surf):
-    """The great canvas balloon-envelope holding the ship aloft: a fat gold-
-    rimmed teardrop of stitched cream sail panels, catching the low sun on its
-    left flank, casting a soft shadow down onto the deck below. It sits HIGH +
-    WIDE so its dome crown reads clear above the booth row."""
+    """The great canvas balloon-envelope holding the ship aloft — rebuilt as a
+    GORED dirigible (narrowed ~11% so it reads as an airship, not a wide tan
+    blob): real cross-section panels with darker valley shading at each gore
+    seam and a warm crown highlight down each panel so the curvature reads; a
+    broad curve-following sheen (no white specular sticker) + a warm sunset
+    bounce on the underside; two macaw-red accent bands + a gold cartouche so it
+    looks intentional. Gold-bound rim, crown finial, soft cast shadow."""
     cx = m(180)
-    cy = m(150)
-    rw = m(140)                                     # half width
-    rh = m(78)                                       # half height
+    cy = m(148)
+    rw = m(124)                                     # half width (~11% narrower)
+    rh = m(82)                                       # half height
     # soft cast shadow the envelope throws on the sky/deck beneath it
     sh = pygame.Surface((DW, DH), pygame.SRCALPHA)
-    soft_glow(sh, cx + m(8), cy + rh + m(40), m(120), (10, 6, 24), 70, layers=10)
+    soft_glow(sh, cx + m(8), cy + rh + m(40), m(110), (10, 6, 24), 70, layers=10)
     surf.blit(sh, (0, 0))
 
-    # body as a stack of horizontal ellipse rows = a smooth lit teardrop
-    body = pygame.Surface((rw * 2 + m(20), rh * 2 + m(40)), pygame.SRCALPHA)
-    bx, by = rw + m(10), rh + m(10)
-    rows = rh * 2
-    for i in range(rows):
-        t = i / rows
-        # teardrop profile: rounded top, gently narrowing toward a keeled base
-        prof = math.sin(math.pi * (0.12 + 0.82 * t))
-        ww = rw * (0.30 + 0.70 * prof)
-        yy = by - rh + i
-        # left-lit: brighter on the left third, shading to the right
-        col = lerp_color(ENV_MID, ENV_LO, t * 0.7)
-        pygame.draw.line(body, (*col, 255), (bx - ww, yy), (bx + ww, yy))
-    # left-flank sun highlight (a soft lit crescent)
-    hi = pygame.Surface(body.get_size(), pygame.SRCALPHA)
-    soft_glow(hi, int(bx - rw * 0.42), int(by - rh * 0.30), int(rw * 0.62),
-              ENV_HI, 120, layers=12)
+    pad = m(20)
+    body = pygame.Surface((rw * 2 + pad * 2, rh * 2 + pad * 2), pygame.SRCALPHA)
+    bx, by = rw + pad, rh + pad
     hmask = pygame.Surface(body.get_size(), pygame.SRCALPHA)
     pygame.draw.ellipse(hmask, (255, 255, 255, 255),
                         (bx - rw, by - rh, rw * 2, rh * 2))
-    hi.blit(hmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    body.blit(hi, (0, 0))
-    # right-flank ambient shade for volume
-    shd = pygame.Surface(body.get_size(), pygame.SRCALPHA)
-    soft_glow(shd, int(bx + rw * 0.46), int(by + rh * 0.18), int(rw * 0.66),
-              ENV_SHADE, 90, layers=12)
-    shd.blit(hmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    body.blit(shd, (0, 0))
 
-    # vertical gold seam stitching dividing the canvas into panels
-    seams = pygame.Surface(body.get_size(), pygame.SRCALPHA)
-    for fx in (-0.66, -0.33, 0.0, 0.33, 0.66):
-        x = int(bx + rw * fx)
-        # follow the ellipse so seams arc with the body
-        for yy in range(int(by - rh), int(by + rh)):
-            t = (yy - (by - rh)) / (rh * 2)
-            prof = math.sin(math.pi * (0.12 + 0.82 * t))
-            half = rw * (0.30 + 0.70 * prof)
-            sx = bx + (x - bx) * (half / rw if rw else 1)
-            seams.set_at((int(sx), yy), (*lerp_color(GOLD_DEEP, GOLD, 0.5), 175))
-            seams.set_at((int(sx) + 1, yy), (*lerp_color(GOLD_DEEP, NEAR_BLACK, 0.3), 90))
-    seams.blit(hmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    body.blit(seams, (0, 0))
+    # base body: a smooth lit ellipse, left-lit (warm) -> right (shade)
+    for i in range(rh * 2):
+        t = i / (rh * 2)
+        prof = math.sqrt(max(0.0, 1 - (2 * t - 1) ** 2))     # ellipse half-width
+        ww = rw * prof
+        yy = by - rh + i
+        col = lerp_color(ENV_MID, ENV_LO, t * 0.65)
+        pygame.draw.line(body, (*col, 255), (bx - ww, yy), (bx + ww, yy))
+
+    # GORED PANELS: divide the width into vertical gores. For each gore, paint a
+    # warm crown highlight down its centre and a darker valley at its two seams,
+    # all scaled by the ellipse half-width per row so the shading hugs the curve.
+    GORES = 7
+    for yy in range(int(by - rh), int(by + rh)):
+        t = (yy - (by - rh)) / (rh * 2)
+        half = rw * math.sqrt(max(0.0, 1 - (2 * t - 1) ** 2))
+        if half < 1:
+            continue
+        for g in range(GORES):
+            gc = -1.0 + (g + 0.5) * 2.0 / GORES          # gore centre in [-1,1]
+            # foreshorten: gores near the silhouette edge compress
+            for sub in range(-3, 4):
+                fx = gc + sub * (2.0 / GORES) / 7.0
+                if abs(fx) >= 1:
+                    continue
+                x = bx + fx * half
+                # distance from this gore's centre, normalised to gore half-width
+                d = abs(sub) / 3.5
+                # warm crown at centre, dark valley at the seam edges
+                shade = lerp_color((255, 248, 222), (150, 96, 64), d ** 1.3)
+                a = int(120 * (1 - d) + 60 * d)
+                body.set_at((int(x), yy), (*shade, a))
+        # the crisp gold seam lines between gores
+        for g in range(1, GORES):
+            fx = -1.0 + g * 2.0 / GORES
+            x = bx + fx * half
+            body.set_at((int(x), yy), (*lerp_color(GOLD_DEEP, GOLD, 0.45), 200))
+
+    # broad curve-following SHEEN (top-left), a soft band hugging the upper arc —
+    # replaces the round white blob; never an opaque sticker.
+    sheen = pygame.Surface(body.get_size(), pygame.SRCALPHA)
+    for k in range(m(7)):
+        a = int(70 * (1 - k / m(7)))
+        pygame.draw.arc(sheen, (255, 252, 236, a),
+                        (bx - rw + m(8) + k, by - rh + m(6) + k,
+                         rw * 2 - m(16) - 2 * k, rh * 2 - m(12) - 2 * k),
+                        math.radians(118), math.radians(202), max(1, m(2)))
+    body.blit(sheen, (0, 0))
+    # warm SUNSET bounce on the underside (a low amber band lit from below-right)
+    bounce = pygame.Surface(body.get_size(), pygame.SRCALPHA)
+    soft_glow(bounce, int(bx + rw * 0.18), int(by + rh * 0.72), int(rw * 0.7),
+              (255, 176, 110), 80, layers=12)
+    bounce.blit(hmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    body.blit(bounce, (0, 0), special_flags=pygame.BLEND_ADD)
+
+    # clip everything to the ellipse, then commit
+    body.blit(hmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(body, (cx - bx, cy - by))
 
-    # gold rim around the whole envelope: dark keyline under a bright lip
+    # two macaw-red accent bands hugging the body curvature (top + lower thirds)
+    for fy in (-0.42, 0.46):
+        ry = cy + rh * fy
+        # band follows the ellipse: draw as a thin arc pair top + bottom edge
+        bh2 = int(rh * 0.12)
+        band = pygame.Surface((rw * 2 + m(8), rh * 2 + m(8)), pygame.SRCALPHA)
+        bc = rw + m(4), rh + m(4)
+        for yy in range(int(bc[1] + rh * fy - bh2), int(bc[1] + rh * fy + bh2)):
+            tt = (yy - (bc[1] - rh)) / (rh * 2)
+            if tt <= 0 or tt >= 1:
+                continue
+            half = rw * math.sqrt(max(0.0, 1 - (2 * tt - 1) ** 2))
+            col = AWN_RED_HI if abs(yy - (bc[1] + rh * fy)) < bh2 * 0.5 else AWN_RED_LO
+            pygame.draw.line(band, (*col, 200), (bc[0] - half, yy),
+                             (bc[0] + half, yy))
+        bmask = pygame.Surface(band.get_size(), pygame.SRCALPHA)
+        pygame.draw.ellipse(bmask, (255, 255, 255, 255),
+                            (bc[0] - rw, bc[1] - rh, rw * 2, rh * 2))
+        band.blit(bmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        surf.blit(band, (cx - bc[0], cy - bc[1]))
+
+    # gold rim: dark keyline under a bright gold lip, brightest top-left arc
     pygame.draw.ellipse(surf, (40, 22, 10),
                         (cx - rw, cy - rh, rw * 2, rh * 2), max(1, m(3)))
-    # a full bright gold rim around the whole envelope, brightest on the lit
-    # upper-left arc so the canvas reads as gold-bound, not a flat beige blob.
     pygame.draw.ellipse(surf, (*GOLD, 220),
                         (cx - rw + m(1), cy - rh + m(1), rw * 2 - m(2), rh * 2 - m(2)),
                         max(1, m(2)))
@@ -431,13 +474,20 @@ def draw_envelope(surf):
                     (m(2), m(2), rw * 2, rh * 2),
                     math.radians(110), math.radians(245), max(1, m(2.4)))
     surf.blit(rim, (cx - rw - m(2), cy - rh - m(2)), special_flags=pygame.BLEND_ADD)
-    # the gold nose-band + crown finial cap at the very top of the envelope
+
+    # a small gold cartouche emblem on the flank (a coin-medallion crest) so the
+    # canvas reads as a branded merchant balloon, not blank cloth.
+    em_cx, em_cy = cx, cy + m(2)
+    pygame.draw.circle(surf, (40, 24, 10), (em_cx, em_cy), m(15))
+    pygame.draw.circle(surf, GOLD, (em_cx, em_cy), m(13))
+    pygame.draw.circle(surf, lerp_color(GOLD, NEAR_BLACK, 0.35), (em_cx, em_cy),
+                       m(13), max(1, m(1.4)))
+    coin_glyph(surf, em_cx, em_cy, m(9))
+
+    # gold nose-band + crown finial cap at the very top
     pygame.draw.circle(surf, (40, 24, 10), (cx, cy - rh), m(6))
     pygame.draw.circle(surf, GOLD, (cx, cy - rh), m(5))
     soft_glow(surf, cx, cy - rh - m(1), m(4), (255, 246, 210), 130, layers=6)
-    # a hot specular kiss top-left
-    soft_glow(surf, int(cx - rw * 0.5), int(cy - rh * 0.55), m(16),
-              (255, 250, 230), 120, layers=8)
 
     # suspension ropes from the envelope's lower rim to the hull's gunwale
     rope = lerp_color(WOOD_LO, NEAR_BLACK, 0.2)
@@ -495,10 +545,11 @@ def draw_hull(surf):
         x_in = hx0 + m(14) + int(m(30) * fy)
         x_out = hx1 - m(10) - int(m(34) * fy)
         dip = int(m(10) * math.sin(math.pi * fy))
-        pygame.draw.line(seam, (*WOOD_DK, 150), (x_in, y),
-                         (x_out, y + dip), max(1, m(1)))
-        pygame.draw.line(seam, (*WOOD_HI, 60), (x_in, y - m(1)),
-                         (x_out, y - m(1) + dip), max(1, m(0.6)))
+        # deepened one value step: a darker seam valley under a brighter plank lip
+        pygame.draw.line(seam, (24, 13, 7, 210), (x_in, y),
+                         (x_out, y + dip), max(1, m(1.4)))
+        pygame.draw.line(seam, (*WOOD_HI, 90), (x_in, y - m(1.4)),
+                         (x_out, y - m(1.4) + dip), max(1, m(0.8)))
         surf.blit(seam, (0, 0))
     # round brass portholes with gold rims along the hull
     for fx in (0.28, 0.44, 0.60, 0.76):
