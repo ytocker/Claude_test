@@ -338,9 +338,9 @@ def draw_envelope(surf):
     left flank, casting a soft shadow down onto the deck below. It sits HIGH +
     WIDE so its dome crown reads clear above the booth row."""
     cx = m(180)
-    cy = m(118)
-    rw = m(158)                                     # half width
-    rh = m(86)                                       # half height
+    cy = m(150)
+    rw = m(140)                                     # half width
+    rh = m(78)                                       # half height
     # soft cast shadow the envelope throws on the sky/deck beneath it
     sh = pygame.Surface((DW, DH), pygame.SRCALPHA)
     soft_glow(sh, cx + m(8), cy + rh + m(40), m(120), (10, 6, 24), 70, layers=10)
@@ -385,22 +385,32 @@ def draw_envelope(surf):
             prof = math.sin(math.pi * (0.12 + 0.82 * t))
             half = rw * (0.30 + 0.70 * prof)
             sx = bx + (x - bx) * (half / rw if rw else 1)
-            seams.set_at((int(sx), yy), (*lerp_color(GOLD_DEEP, GOLD, 0.4), 120))
+            seams.set_at((int(sx), yy), (*lerp_color(GOLD_DEEP, GOLD, 0.5), 175))
+            seams.set_at((int(sx) + 1, yy), (*lerp_color(GOLD_DEEP, NEAR_BLACK, 0.3), 90))
     seams.blit(hmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     body.blit(seams, (0, 0))
     surf.blit(body, (cx - bx, cy - by))
 
     # gold rim around the whole envelope: dark keyline under a bright lip
     pygame.draw.ellipse(surf, (40, 22, 10),
-                        (cx - rw, cy - rh, rw * 2, rh * 2), max(1, m(2.4)))
+                        (cx - rw, cy - rh, rw * 2, rh * 2), max(1, m(3)))
+    # a full bright gold rim around the whole envelope, brightest on the lit
+    # upper-left arc so the canvas reads as gold-bound, not a flat beige blob.
+    pygame.draw.ellipse(surf, (*GOLD, 220),
+                        (cx - rw + m(1), cy - rh + m(1), rw * 2 - m(2), rh * 2 - m(2)),
+                        max(1, m(2)))
     rim = pygame.Surface((rw * 2 + m(8), rh * 2 + m(8)), pygame.SRCALPHA)
-    pygame.draw.arc(rim, (*GOLD, 230),
+    pygame.draw.arc(rim, (*GOLD_A_RIM_BRIGHT, 235),
                     (m(2), m(2), rw * 2, rh * 2),
-                    math.radians(40), math.radians(230), max(1, m(2.2)))
+                    math.radians(110), math.radians(245), max(1, m(2.4)))
     surf.blit(rim, (cx - rw - m(2), cy - rh - m(2)), special_flags=pygame.BLEND_ADD)
+    # the gold nose-band + crown finial cap at the very top of the envelope
+    pygame.draw.circle(surf, (40, 24, 10), (cx, cy - rh), m(6))
+    pygame.draw.circle(surf, GOLD, (cx, cy - rh), m(5))
+    soft_glow(surf, cx, cy - rh - m(1), m(4), (255, 246, 210), 130, layers=6)
     # a hot specular kiss top-left
-    soft_glow(surf, int(cx - rw * 0.5), int(cy - rh * 0.55), m(18),
-              (255, 250, 230), 130, layers=8)
+    soft_glow(surf, int(cx - rw * 0.5), int(cy - rh * 0.55), m(16),
+              (255, 250, 230), 120, layers=8)
 
     # suspension ropes from the envelope's lower rim to the hull's gunwale
     rope = lerp_color(WOOD_LO, NEAR_BLACK, 0.2)

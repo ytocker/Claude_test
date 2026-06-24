@@ -683,35 +683,40 @@ def draw_parcels_boat(surf, cx, wl_y, scale):
     gold-keyline PARCELS plaque sits beneath it. Its own clear zone, lower-right,
     deliberately apart from the stall grid."""
     cx, wl_y = int(cx), int(wl_y)
-    hw = int(m(34) * scale)
+    bscale = scale * 1.2
+    hw = int(m(40) * bscale)
     # AO on the planks under the boat so it sits ON the deck
-    _deck_ao(surf, cx, wl_y + m(6), int(hw * 2.2), depth=m(18), alpha=150)
-    # the boat hull itself (no water reflection — it's beached on the dock)
-    _moored_boat(surf, cx, wl_y, scale, hull=(110, 66, 34),
-                 hull_hi=(180, 126, 74), reflect=False)
+    _deck_ao(surf, cx, wl_y + m(8), int(hw * 2.2), depth=m(20), alpha=160)
+    # the boat hull itself, enlarged + with a clear raised gunwale so it reads as
+    # a moored boat carrying the crates (no water reflection — pulled to the dock)
+    _moored_boat(surf, cx, wl_y, bscale, hull=(118, 72, 38),
+                 hull_hi=(188, 134, 80), reflect=False)
+    # a raised bow + stern post so the silhouette reads unmistakably as a boat
+    for sx in (cx - hw + m(2), cx + hw - m(2)):
+        pygame.draw.line(surf, (96, 58, 30), (sx, wl_y), (sx, wl_y - m(10)),
+                         max(1, m(2.4)))
+        pygame.draw.circle(surf, (150, 106, 62), (sx, wl_y - m(10)), m(2))
 
-    # ── crate stack on the deck ───────────────────────────────────────────────
-    base_y = wl_y - m(2)
-    # two plain wooden crates as the base
-    for (dx, dy, cw, ch) in (((-m(13)), m(0), m(20), m(16)),
-                             ((m(9)), m(2), m(18), m(15))):
+    # ── crate stack seated DOWN IN the hull so the boat clearly reads ──────────
+    base_y = wl_y + m(1)
+    for (dx, dy, cw, ch) in (((-m(15)), m(0), m(21), m(15)),
+                             ((m(12)), m(2), m(19), m(14))):
         cr = pygame.Rect(int(cx + dx), int(base_y - dy - ch), int(cw), int(ch))
         surf.blit(vgrad_stops(cr.w, cr.h, m(2),
-                              [(0.0, (168, 118, 70)), (1.0, (96, 60, 32))], 255),
+                              [(0.0, (172, 122, 74)), (1.0, (96, 60, 32))], 255),
                   cr.topleft)
         pygame.draw.rect(surf, (52, 32, 16), cr, width=max(1, m(1.2)),
                          border_radius=m(2))
-        # plank cross-lines
         pygame.draw.line(surf, (60, 38, 18, 160),
                          (cr.x, cr.centery), (cr.right, cr.centery), max(1, m(0.8)))
 
     # ── the glowing-red mystery hero crate on top ─────────────────────────────
-    mw, mh = m(30), m(28)
-    mcrate = pygame.Rect(int(cx - mw / 2), int(base_y - m(16) - mh), mw, mh)
-    # outer red bloom so it's unmistakably the hero
-    soft_glow(surf, mcrate.centerx, mcrate.centery, m(34), MYST_GLOW, 70, layers=12)
-    soft_glow(surf, mcrate.centerx, mcrate.centery, m(18), (255, 120, 110),
-              90, layers=8)
+    mw, mh = m(32), m(30)
+    mcrate = pygame.Rect(int(cx - mw / 2), int(base_y - m(14) - mh), mw, mh)
+    # outer red bloom so it's unmistakably the hero — warm RED, never white.
+    soft_glow(surf, mcrate.centerx, mcrate.centery, m(38), MYST_GLOW, 60, layers=12)
+    soft_glow(surf, mcrate.centerx, mcrate.centery, m(20), (240, 100, 86),
+              72, layers=8)
     # crate body: deep crimson wood with a lit top-left face
     surf.blit(vgrad_stops(mcrate.w, mcrate.h, m(3),
                           [(0.0, (214, 70, 56)), (1.0, MYST_DEEP)], 255,
@@ -731,15 +736,15 @@ def draw_parcels_boat(surf, cx, wl_y, scale):
     qf = font(20)
     plain_text(surf, "?", qf, mcrate.center, CREAM, shadow_a=170,
                weight=m(1.4), keyline=(60, 10, 12), kw=m(1.2))
-    # a hot specular pip on the upper-left edge (top-left light)
-    soft_glow(surf, mcrate.x + m(5), mcrate.y + m(5), m(4), (255, 230, 220),
-              150, layers=6)
+    # a hot specular pip on the upper-left edge (top-left light), kept warm
+    soft_glow(surf, mcrate.x + m(5), mcrate.y + m(5), m(4), (255, 224, 200),
+              140, layers=6)
 
     # ── PARCELS gold-keyline plaque beneath the boat ──────────────────────────
     sf = font(11)
     label_w = _glyph_base("PARCELS", sf, m(0.6)).get_width()
     plaque = pygame.Rect(0, 0, label_w + m(20), m(19))
-    plaque.center = (int(cx), int(wl_y + m(14)))
+    plaque.center = (int(cx), int(wl_y + m(20)))
     surf.blit(gold_a_fill(plaque.w, plaque.h, plaque.h // 2), plaque.topleft)
     gloss_sweep(surf, plaque, plaque.h // 2, peak=64)
     pygame.draw.rect(surf, GOLD_A_RIM_DARK, plaque, width=max(1, m(1.6)),

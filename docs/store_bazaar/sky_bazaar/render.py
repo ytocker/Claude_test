@@ -492,6 +492,7 @@ def draw_stall(surf, label, group, cx, deck_y, scale=1.0):
     dome_cy = deck_y - R - int(R * 0.12)
     soft_glow(surf, cx, dome_cy, R + m(4), pal["glow"], 34, layers=8)
     cabochon(surf, cx, dome_cy, R, ring=pal["gem"], ring_a=55)
+    _well_floor(surf, cx, dome_cy, R)
     if sid:
         # box kept inside the dome's inscribed square (≈R*1.41) with a little
         # breathing room so even square previews never kiss the glass rim.
@@ -507,6 +508,31 @@ def draw_stall(surf, label, group, cx, deck_y, scale=1.0):
 
 
 _preview_cache = {}
+
+
+def _well_floor(surf, cx, cy, r):
+    """A lifted cool-violet value FLOOR pooled in the lower half of the dome well
+    so dark thumbs (blue macaw, black aviators, the envelope) have a lit ground
+    to read against instead of dying near-black-on-near-black. Kept low + masked
+    inside the rim so the dome still reads as a deep crystalline well, just no
+    longer a black hole under dark contents."""
+    floor = pygame.Surface((r * 2 + m(4), r * 2 + m(4)), pygame.SRCALPHA)
+    fc = r + m(2)
+    # a soft cool-violet bloom seated low-centre of the well
+    for i in range(10, 0, -1):
+        rr = int(r * 0.86 * i / 10)
+        a = int(70 * (1 - (i - 1) / 10) ** 1.6)
+        if rr <= 0 or a <= 0:
+            continue
+        g = pygame.Surface((rr * 2 + 2, rr * 2 + 2), pygame.SRCALPHA)
+        pygame.draw.circle(g, (70, 66, 108, a), (rr + 1, rr + 1), rr)
+        floor.blit(g, (fc - rr - 1, fc + int(r * 0.22) - rr - 1),
+                   special_flags=pygame.BLEND_ADD)
+    # clip to inside the bezel so it never spills onto the gold rim
+    mask = pygame.Surface(floor.get_size(), pygame.SRCALPHA)
+    pygame.draw.circle(mask, (255, 255, 255, 255), (fc, fc), r - m(2))
+    floor.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(floor, (cx - fc, cy - fc))
 
 
 def _shades_icon(px):
@@ -583,7 +609,9 @@ def _blit_preview(surf, sid, cx, cy, box_px):
             out = _preview_box(src, box_px)
         _preview_cache[key] = out
     r = out.get_rect(center=(cx, cy))
-    rim = C._rim_light(out)
+    # ~25% stronger top-left rim than the dome default so dark previews (blue
+    # macaw, black aviators, the envelope) pop their contour off the well floor.
+    rim = C._rim_light(out, alpha=min(255, int(C.CABO_RIM_ALPHA * 1.25)))
     surf.blit(rim, r.topleft, special_flags=pygame.BLEND_ADD)
     surf.blit(out, r.topleft)
 
@@ -637,12 +665,40 @@ def draw_pip(surf, cx, cy, scale):
 # Header — Skybit gold-on-red wordmark, recessed balance capsule, tap hint
 # =============================================================================
 def draw_header(surf):
-    # legibility band behind the title lane
+    # The wordmark sits on DEEP INDIGO carrying the apex nebula UP behind it (the
+    # jewel-store near-black-indigo header), NOT a flat grey slab: a soft indigo
+    # deepening that preserves the violet nebula bloom + a kiss of gold core, with
+    # a few gold sparkle stars scattered in the header zone so the lane reads as
+    # the same jewel sky, just calmer for legibility.
     band = pygame.Surface((DW, m(118)), pygame.SRCALPHA)
     for y in range(m(118)):
-        a = int(130 * (1 - y / m(118)) ** 1.2)
-        pygame.draw.line(band, (12, 12, 40, a), (0, y), (DW, y))
+        t = 1 - y / m(118)
+        a = int(150 * t ** 1.25)
+        pygame.draw.line(band, (14, 13, 46, a), (0, y), (DW, y))
     surf.blit(band, (0, 0))
+    # re-bloom the indigo+gold nebula INSIDE the header lane so the wordmark
+    # ground glows like the jewel store instead of going dead flat.
+    soft_glow(surf, int(DW * 0.50), m(20), m(150), (70, 58, 138), 30, layers=12)
+    soft_glow(surf, int(DW * 0.42), m(8), m(86), (150, 118, 78), 22, layers=10)
+    hrnd = random.Random(914)
+    spark = pygame.Surface((DW, m(118)), pygame.SRCALPHA)
+    for _ in range(26):
+        x = hrnd.randint(m(8), DW - m(8))
+        yy = hrnd.randint(m(6), m(114))
+        r = m(hrnd.uniform(0.5, 1.5))
+        a = hrnd.randint(70, 180)
+        tint = hrnd.choice([(255, 250, 232), (255, 226, 168), (214, 220, 255)])
+        pygame.draw.circle(spark, (*tint, a), (x, yy), max(1, int(r)))
+    for _ in range(4):
+        x = hrnd.randint(m(20), DW - m(20))
+        yy = hrnd.randint(m(8), m(40))
+        L = m(hrnd.uniform(3, 4.5))
+        pygame.draw.line(spark, (255, 240, 198, 190), (x - L, yy), (x + L, yy),
+                         max(1, m(0.8)))
+        pygame.draw.line(spark, (255, 240, 198, 190), (x, yy - L), (x, yy + L),
+                         max(1, m(0.8)))
+        soft_glow(spark, x, yy, m(3), (255, 236, 196), 90, layers=4)
+    surf.blit(spark, (0, 0), special_flags=pygame.BLEND_ADD)
     # screen frame hairline (matches the jewel store chrome)
     pygame.draw.rect(surf, (*GOLD, 64), (m(3), m(3), DW - m(6), DH - m(6)),
                      width=max(1, m(1)), border_radius=m(12))
