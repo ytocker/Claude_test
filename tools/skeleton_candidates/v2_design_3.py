@@ -25,6 +25,9 @@ _MARIGOLD, _MARI_D = (255, 150, 28), (214, 110, 12)
 _MARI_HI = (255, 198, 96)
 _CYAN, _CYAN_D = (24, 206, 224), (16, 150, 168)
 _MAGENTA = (236, 46, 136)
+# Heart deliberately darker/desaturated than the cyan ring so it reads as the
+# THIRD focal element, not co-equal with the socket — keeps the eye-zone calm.
+_HEART = (200, 40, 116)
 
 
 def _petal(surf, cx, cy, ang, length, color, color_d):
@@ -65,8 +68,10 @@ def _paint(surf, angle_deg, P):
         ry = cry + math.sin(a) * 2
         pygame.draw.line(surf, P.body_deep, (crx, cry), (rx, ry), 3)  # dark root
         _petal(surf, crx, cry, a, 7, col, cold)
-    pygame.draw.circle(surf, _MARI_D, (crx, cry), 2)            # dark crown hub
-    pygame.draw.circle(surf, _MARIGOLD, (crx, cry), 1)
+    # Hub 1px denser so the marigold spike-mass reads as one confident
+    # silhouette anchor rather than a ring of loose points.
+    pygame.draw.circle(surf, _MARI_D, (crx, cry), 3)            # dark crown hub
+    pygame.draw.circle(surf, _MARIGOLD, (crx, cry), 2)
 
     # ── Cyan socket ring — the best-surviving calavera tell at 40px. A bold 1px
     # loop plus six bead-dots around the anatomy's eye socket (~45,16); a dark
@@ -80,23 +85,19 @@ def _paint(surf, angle_deg, P):
         by = ey + int(round(math.sin(a) * 5))
         pygame.draw.circle(surf, _CYAN, (bx, by), 1)
 
-    # ── Magenta cheek heart — relocated DOWN onto the jaw front (the crown
-    # version vanished into the crown at 40px). A clean 2px solid heart with
-    # bone around it, set on the cheek so it reads as a distinct calavera mark.
-    hx, hy = 46, 20
-    pygame.draw.circle(surf, _MAGENTA, (hx - 1, hy), 1)
-    pygame.draw.circle(surf, _MAGENTA, (hx + 1, hy), 1)
-    _poly(surf, _MAGENTA, [(hx - 2, hy), (hx + 2, hy), (hx, hy + 3)])
+    # ── Magenta cheek heart — pushed DOWN onto the jaw front so a clear band of
+    # clean bone separates it from the cyan socket ring (ring at ey≈16, heart at
+    # hy≈23): a two-beat ring→heart gap stops them fusing into one smudge at
+    # 40px. Darkened/desaturated (_HEART) so it reads as the third element.
+    hx, hy = 46, 23
+    pygame.draw.circle(surf, _HEART, (hx - 1, hy), 1)
+    pygame.draw.circle(surf, _HEART, (hx + 1, hy), 1)
+    _poly(surf, _HEART, [(hx - 2, hy), (hx + 2, hy), (hx, hy + 3)])
 
     # ── Marigold beak stroke — ONE short stroke high on the UPPER mandible only.
     # The down-hook tip (lower beak) and the dark gape stay PURE BONE so the
     # parrot hook reads as bone; the scroll is demoted to a single 1px filigree.
     pygame.draw.line(surf, _MARIGOLD, (53, 12), (56, 13), 1)
-
-    # ── Two tiny accents framing the jaw grin — keep the colour off the ribs/
-    # tail entirely so skull->ribs->wing->tail still parses as bone structure.
-    pygame.draw.circle(surf, _CYAN, (42, 23), 1)
-    pygame.draw.circle(surf, _MAGENTA, (49, 24), 1)
 
 
 def _build(wing_angle_deg):
