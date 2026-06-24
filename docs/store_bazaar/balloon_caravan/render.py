@@ -303,9 +303,9 @@ def draw_bg(surf):
     surf.blit(_sky_grad(DW, DH, SKY_STOPS), (0, 0))
     # restrained indigo apex nebula bloom — kept dim so the apex stays a deep
     # near-black vault (the jewel-store ground), just softly clouded.
-    soft_glow(surf, int(DW * 0.5), int(DH * 0.08), m(200), APEX_NEBULA, 34,
-              layers=10)
-    soft_glow(surf, int(DW * 0.68), int(DH * 0.03), m(140), (96, 78, 170), 24,
+    soft_glow(surf, int(DW * 0.5), int(DH * 0.07), m(210), APEX_NEBULA, 26,
+              layers=11)
+    soft_glow(surf, int(DW * 0.68), int(DH * 0.02), m(150), (90, 74, 160), 18,
               layers=8)
     # golden-hour horizon glow welling up from the foot (bottom ~40% only).
     soft_glow(surf, int(DW * 0.42), int(DH * 1.02), m(280), HORIZON_GLOW, 78,
@@ -757,7 +757,11 @@ def draw_pip(surf, cx, cy, scale):
     s = box / max(sw, sh)
     img = pygame.transform.smoothscale(src, (max(1, int(sw * s)),
                                              max(1, int(sh * s))))
-    soft_glow(surf, cx, cy, int(box * 0.7), (255, 224, 170), 60, layers=9)
+    # warm aura, kept low + feathered so it's a glow on the dark sky, not a hard
+    # white disc (it sat over a bright peach ground in round 1; the sky is dark
+    # now so the same alpha read as an opaque puck).
+    soft_glow(surf, cx, cy, int(box * 0.62), (255, 214, 150), 34, layers=10)
+    soft_glow(surf, cx, cy, int(box * 0.34), (255, 232, 180), 28, layers=7)
     r = img.get_rect(center=(cx, cy))
     # contact/cast shadow drop
     sh_img = img.copy()

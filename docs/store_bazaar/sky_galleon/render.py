@@ -919,22 +919,33 @@ def render_device():
     draw_masts_and_decor(surf, mast_xs, top_y)
     draw_hull(surf)
 
-    # 7 booths arrayed along the deck in two clean rows + the PARCELS hero, each
-    # booth compact (≥88px short-axis tap target) with generous horizontal
-    # padding so nothing overlaps at 360px. Row 1 hangs from the rigging tier
-    # (centre booth raised on the mainmast); row 2 sits on the mid-deck; PARCELS
-    # is the glowing red mystery hero crate centred on the foredeck.
-    draw_booth(surf, m(72),  m(252), *STALLS[0])     # COSTUMES
-    draw_booth(surf, m(180), m(240), *STALLS[1])     # PARROTS  (centre, raised)
-    draw_booth(surf, m(288), m(252), *STALLS[2])     # ANIMALS
-    draw_booth(surf, m(72),  m(344), *STALLS[3])     # SHOES
-    draw_booth(surf, m(180), m(344), *STALLS[4])     # HATS
-    draw_booth(surf, m(288), m(344), *STALLS[5])     # SHADES
-    # PARCELS — the glowing red mystery hero crate, large, on the foredeck centre.
-    draw_booth(surf, m(180), m(444), *STALLS[6], hero=True)
+    # upper-rigging star-glints foreshadow the constellation jewel store the
+    # stalls open into (a few gold sparkles on the top rigging band).
+    for gx, gy in ((m(120), m(196)), (m(180), m(186)), (m(238), m(196)),
+                   (m(96), m(214)), (m(262), m(214))):
+        soft_glow(surf, gx, gy, m(3), (255, 240, 200), 110, layers=5)
+        pygame.draw.line(surf, (255, 246, 214, 220), (gx - m(3), gy),
+                         (gx + m(3), gy), max(1, m(0.7)))
+        pygame.draw.line(surf, (255, 246, 214, 220), (gx, gy - m(3)),
+                         (gx, gy + m(3)), max(1, m(0.7)))
 
-    # Pip the captain at the helm on the stern poop-deck, clear of every label.
-    draw_captain(surf, m(64), m(448))
+    # 6 striped booths in two clean rows (grid nudged up to declutter the
+    # foredeck) + the PARCELS mystery hero, each booth a ≥88px tap target with
+    # generous padding so nothing overlaps at 360px. Row 1 hangs from the rigging
+    # tier (centre booth raised on the mainmast); row 2 sits on the mid-deck.
+    draw_booth(surf, m(72),  m(244), *STALLS[0])     # COSTUMES
+    draw_booth(surf, m(180), m(232), *STALLS[1])     # PARROTS  (centre, raised)
+    draw_booth(surf, m(288), m(244), *STALLS[2])     # ANIMALS
+    draw_booth(surf, m(72),  m(334), *STALLS[3])     # SHOES
+    draw_booth(surf, m(180), m(334), *STALLS[4])     # HATS
+    draw_booth(surf, m(288), m(334), *STALLS[5])     # SHADES
+    # PARCELS — the differentiated mystery hero crate, lifted so its nameboard
+    # clears the gunwale.
+    draw_parcels_hero(surf, m(180), m(424))
+
+    # Pip the captain at the helm on the stern poop-deck, raised so his whole
+    # silhouette clears the gunwale, clear of every label.
+    draw_captain(surf, m(64), m(430))
 
     draw_header(surf)
     return surf
@@ -947,10 +958,10 @@ def downscale(device_surf, scale=1):
 def main():
     _build_bg()
     dev = render_device()
-    pygame.image.save(downscale(dev, 1), os.path.join(_HERE, "round_1.png"))
-    pygame.image.save(downscale(dev, 2), os.path.join(_HERE, "round_1@2x.png"))
+    pygame.image.save(downscale(dev, 1), os.path.join(_HERE, "round_2.png"))
+    pygame.image.save(downscale(dev, 2), os.path.join(_HERE, "round_2@2x.png"))
     print("SS =", SS, "device =", DW, "x", DH)
-    print("saved round_1.png (360x640) + round_1@2x.png (720x1280)")
+    print("saved round_2.png (360x640) + round_2@2x.png (720x1280)")
 
 
 if __name__ == "__main__":
