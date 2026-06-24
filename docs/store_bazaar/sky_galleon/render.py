@@ -53,6 +53,7 @@ from docs.store_redesign.constellation_hi.render_hi import (
     GOLD, GOLD_PALE, GOLD_DEEP, GOLD_A_TOP, GOLD_A_BOT,
     GOLD_A_STOPS, GOLD_A_RIM_DARK, GOLD_A_RIM_BRIGHT,
     GOLD_A_NUM, GOLD_A_COIN_RIM, CARD_RING_BRIGHT,
+    CABO_LO, CABO_HI,
 )
 
 
@@ -132,15 +133,21 @@ def _preview_id(group):
     return sid
 
 
-# ── preview thumbnail (icon-first, contained to fit the dome, never clipped) ──
+# ── preview thumbnail (icon-first; fills the dome; flat goods angled) ─────────
 _thumb_cache = {}
 
+# Genuinely-flat product shots (a thin bar at 0°/90°) get a slight in-plane
+# rotation so they occupy 2D area in the dome instead of reading as a 1px smear.
+# Keyed by group so it tracks whichever id the booth surfaces.
+_ANGLE_GROUPS = {"shoes": -24, "shades": -20}
 
-def _preview_surface(sid, box_px):
-    """The category's REAL product shot, contained inside box_px (letterboxed,
-    NEVER cropped) so aspect-extreme goods (flip-flops, party hat) sit whole in
-    the dome. Icon first; else the in-game frame."""
-    key = (sid, box_px)
+
+def _preview_surface(sid, box_px, group=None):
+    """The category's REAL product shot, sized so its LONGER axis fills ~86% of
+    the dome (was a timid big-letterbox contain that left SHOES a thin smear and
+    SHADES a tiny rectangle). Genuinely-flat goods are angled ~20-25 deg so they
+    claim area. Icon first; else the in-game frame. Nothing is cropped."""
+    key = (sid, box_px, group)
     out = _thumb_cache.get(key)
     if out is not None:
         return out
@@ -148,16 +155,22 @@ def _preview_surface(sid, box_px):
     bb = src.get_bounding_rect()
     if bb.width > 0 and bb.height > 0:
         src = src.subsurface(bb).copy()
+    ang = _ANGLE_GROUPS.get(group, 0)
+    if ang:
+        src = pygame.transform.rotate(src, ang)
+        bb = src.get_bounding_rect()
+        if bb.width > 0 and bb.height > 0:
+            src = src.subsurface(bb).copy()
     sw, sh = src.get_size()
-    # contain (fit the LONGER axis) so nothing is clipped; extreme aspects just
-    # leave dome margin on the short axis (letterboxed), which reads fine.
+    # fill the longer axis to box_px (caller passes ~0.86 of the dome diameter);
+    # short-axis margin is fine, but the good now reads at a glance.
     s = box_px / max(sw, sh)
     scaled = pygame.transform.smoothscale(
         src, (max(1, int(sw * s)), max(1, int(sh * s))))
     # flat additive lift so the skin separates from the dark dome (same trick as
     # the jewel store) without inventing detail.
     lift = scaled.copy()
-    lift.fill((30, 30, 30, 0), special_flags=pygame.BLEND_RGB_ADD)
+    lift.fill((34, 34, 34, 0), special_flags=pygame.BLEND_RGB_ADD)
     _thumb_cache[key] = lift
     return lift
 
@@ -176,11 +189,25 @@ def _rim_light(img, color=(255, 248, 220), alpha=170):
     return rim
 
 
-def blit_preview(surf, sid, cx, cy, box_px):
-    t = _preview_surface(sid, box_px)
+def blit_preview(surf, sid, cx, cy, box_px, group=None):
+    t = _preview_surface(sid, box_px, group)
     r = t.get_rect(center=(cx, cy))
     surf.blit(_rim_light(t), r.topleft, special_flags=pygame.BLEND_ADD)
     surf.blit(t, r.topleft)
+
+
+def _dome_floor(surf, cx, cy, R):
+    """The cabochon well re-floored to the jewel store's near-black NAVY (CABO_LO/
+    CABO_HI) so the sunset stops bleeding through behind a preview, PLUS a soft
+    radial value-lift at the centre so dark previews (shades, parcels) don't
+    vanish into the well. Drawn BEFORE the preview; the glass dome lands after."""
+    cabochon(surf, cx, cy, R, CABO_LO, CABO_HI)
+    lift = pygame.Surface((R * 2, R * 2), pygame.SRCALPHA)
+    soft_glow(lift, R, R, int(R * 0.74), (70, 78, 120), 60, layers=10)
+    lmask = pygame.Surface((R * 2, R * 2), pygame.SRCALPHA)
+    pygame.draw.circle(lmask, (255, 255, 255, 255), (R, R), R - m(2))
+    lift.blit(lmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(lift, (cx - R, cy - R), special_flags=pygame.BLEND_ADD)
 
 
 # =============================================================================
@@ -615,22 +642,39 @@ def draw_awning(surf, cx, top_y, half_w, drop, hero=False):
                      max(1, m(1)))
 
 
-def draw_booth(surf, cx, cy, group, label, hero=False):
-    """ONE market booth: the awning above, a glass cabochon dome below holding
-    the category's REAL preview good, and a bold gold-keyline label on a small
-    wooden nameboard. The whole booth is one ≥88px tap target."""
-    R = m(30 if hero else 25)
+def _nameboard(surf, label, cx, by, hero=False):
+    """A small wooden sign carrying the bold gold-keyline label (the canonical
+    defined edge: dark keyline under a bright bevel)."""
+    f = font(12 if hero else 10)
+    lw = _glyph_base(label, f, m(0.5)).get_width() + m(2)
+    nb = pygame.Rect(0, 0, lw + m(20), m(24 if hero else 22))
+    nb.center = (cx, by)
+    surf.blit(vgrad(nb.w, nb.h, m(6), (66, 40, 18), (34, 20, 10), 255),
+              nb.topleft)
+    pygame.draw.rect(surf, (20, 12, 6), nb, width=max(1, m(1.4)),
+                     border_radius=m(6))
+    bevel_rim(surf, nb, m(6), (60, 36, 14), (*GOLD, 190), w=max(1, m(1.1)))
+    gradient_text(surf, label, f, nb.center, GOLD_A_TOP, GOLD_A_BOT,
+                  tracking=m(0.5), weight=m(1.0), keyline=(20, 10, 4), kw=m(1.0),
+                  shadow=True)
+    return nb
+
+
+def draw_booth(surf, cx, cy, group, label):
+    """ONE market booth: a striped awning above, a navy glass cabochon dome
+    holding the category's REAL preview good (longer axis filling ~86% of the
+    dome), and a bold gold-keyline nameboard. The whole booth is one ≥88px tap
+    target."""
+    R = m(25)
     dome_cy = cy
 
-    # booth backboard plank the dome + label sit on (a small lit wooden panel
-    # behind the dome so the preview reads on solid wood, not busy sky)
-    bw = int(R * (2.3 if hero else 2.1))
+    # booth backboard plank the dome + label sit on
+    bw = int(R * 2.1)
     bh = int(R * 2.0)
     board = pygame.Rect(cx - bw // 2, dome_cy - int(R * 1.05), bw, bh + m(24))
     drop_shadow(surf, board, m(12), blur=m(7), alpha=120, dy=m(4))
     surf.blit(vgrad(board.w, board.h, m(12), DECK_HI, DECK_LO, 255, gamma=1.18),
               board.topleft)
-    # plank lines on the backboard
     for k in range(1, 3):
         ly = board.y + board.h * k // 3
         pygame.draw.line(surf, (*WOOD_DK, 120), (board.x + m(3), ly),
@@ -641,41 +685,16 @@ def draw_booth(surf, cx, cy, group, label, hero=False):
                      border_radius=m(12))
     bevel_rim(surf, board, m(12), (60, 36, 14), (*GOLD_PALE, 170), w=max(1, m(1.4)))
 
-    # the striped awning hung above the booth from its mast
-    draw_awning(surf, cx, board.y - m(16), int(R * 1.42), m(26), hero=hero)
+    draw_awning(surf, cx, board.y - m(16), int(R * 1.42), m(26))
 
-    # the glass dome with the REAL category preview inside
+    # navy glass dome (re-floored, centre value-lift) + the larger preview
     sid = _preview_id(group)
-    soft_glow(surf, cx, dome_cy, R + m(4),
-              MYSTERY_GLOW if hero else (255, 226, 150), 40, layers=8)
-    cabochon(surf, cx, dome_cy, R)
-    blit_preview(surf, sid, cx, dome_cy, R * 1.55)
-    cabochon_glass(surf, cx, dome_cy, R,
-                   tint=MYSTERY_GLOW if hero else (240, 234, 252))
+    soft_glow(surf, cx, dome_cy, R + m(4), (255, 226, 150), 40, layers=8)
+    _dome_floor(surf, cx, dome_cy, R)
+    blit_preview(surf, sid, cx, dome_cy, R * 1.72, group=group)   # ~86% of dome
+    cabochon_glass(surf, cx, dome_cy, R, tint=(240, 234, 252))
 
-    if hero:
-        # PARCELS mystery hero: a treasure-crate glow ring + a faint ?-spark so
-        # the eye lands here first (the deliberately-undeclared surprise good).
-        ring = pygame.Surface((R * 4, R * 4), pygame.SRCALPHA)
-        for k in range(6, 0, -1):
-            pygame.draw.circle(ring, (*MYSTERY_GLOW, int(26 * k / 6)),
-                               (R * 2, R * 2), R + k * m(2), max(1, m(2)))
-        surf.blit(ring, (cx - R * 2, dome_cy - R * 2), special_flags=pygame.BLEND_ADD)
-
-    # nameboard — a small wooden sign carrying the bold gold-keyline label
-    f = font(11 if hero else 10)
-    lw = _glyph_base(label, f, m(0.5)).get_width() + m(2)
-    nb = pygame.Rect(0, 0, lw + m(18), m(22))
-    nb.center = (cx, board.bottom - m(4))
-    surf.blit(vgrad(nb.w, nb.h, m(6), (66, 40, 18), (34, 20, 10), 255),
-              nb.topleft)
-    pygame.draw.rect(surf, (20, 12, 6), nb, width=max(1, m(1.4)),
-                     border_radius=m(6))
-    bevel_rim(surf, nb, m(6), (60, 36, 14), (*GOLD, 180), w=max(1, m(1.1)))
-    # bold gold label with a dark keyline = the canonical "defined edge"
-    gradient_text(surf, label, f, nb.center, GOLD_A_TOP, GOLD_A_BOT,
-                  tracking=m(0.5), weight=m(1.0), keyline=(20, 10, 4), kw=m(1.0),
-                  shadow=True)
+    _nameboard(surf, label, cx, board.bottom - m(4))
 
 
 # =============================================================================

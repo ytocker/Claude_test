@@ -209,25 +209,29 @@ def _build_stars():
     global _stars
     rnd = random.Random(71)
     stars = pygame.Surface((DW, DH), pygame.SRCALPHA)
-    for n, rmin, rmax, amin, amax in ((130, 0.4, 0.9, 26, 80),
-                                      (46, 0.9, 1.5, 60, 130),
-                                      (15, 1.3, 2.3, 110, 200)):
+    # the dark indigo vault now reaches ~58% of height, so stars populate that
+    # whole band and fade out before the warm horizon. Counts bumped + warmer
+    # gold tints so they read as the jewel-store's emergent gold stars.
+    band = 0.56
+    for n, rmin, rmax, amin, amax in ((170, 0.4, 0.9, 34, 96),
+                                      (60, 0.9, 1.5, 70, 150),
+                                      (22, 1.3, 2.4, 130, 220)):
         for _ in range(n):
             x = rnd.randint(0, DW)
-            # bias high: more stars near the apex, none past the rose band
-            fy = rnd.random() ** 2.2
-            y = int(fy * DH * 0.46)
-            fade = 1.0 - (y / (DH * 0.46))
+            fy = rnd.random() ** 1.8
+            y = int(fy * DH * band)
+            fade = 1.0 - (y / (DH * band))
             if fade <= 0.05:
                 continue
             r = m(rnd.uniform(rmin, rmax))
             a = int(rnd.randint(amin, amax) * fade)
-            tint = rnd.choice([(255, 252, 240), (220, 226, 255), (255, 238, 206)])
+            tint = rnd.choice([(255, 250, 232), (220, 226, 255),
+                               (255, 232, 188), (255, 240, 206)])
             pygame.draw.circle(stars, (*tint, a), (x, y), max(1, int(r)))
-    for _ in range(10):
+    for _ in range(14):
         x = rnd.randint(m(20), DW - m(20))
-        y = rnd.randint(m(16), int(DH * 0.30))
-        fade = 1.0 - (y / (DH * 0.30))
+        y = rnd.randint(m(16), int(DH * 0.40))
+        fade = 1.0 - (y / (DH * 0.40))
         L = m(rnd.uniform(3, 6))
         a = int(rnd.randint(120, 200) * max(0.2, fade))
         col = (255, 246, 214, a)
@@ -236,6 +240,24 @@ def _build_stars():
         soft_glow(stars, x, y, m(3), (255, 244, 210), int(70 * max(0.2, fade)),
                   layers=4)
     _stars = stars
+
+
+def _draw_constellation(surf, nodes, chains):
+    """The constellation store's gold thread + node-star treatment (borrowed): a
+    faint gold hairline links the nodes; each node is a soft gold glow with a hot
+    white pip. Used behind the top two balloons so the climb-into-the-jewel-store
+    read lands at the dark apex."""
+    layer = pygame.Surface((DW, DH), pygame.SRCALPHA)
+    for chain in chains:
+        for a, b in zip(chain, chain[1:]):
+            pygame.draw.line(layer, (*CONST_THREAD, 60),
+                             (m(a[0]), m(a[1])), (m(b[0]), m(b[1])), max(1, m(0.8)))
+    for px, py in nodes:
+        soft_glow(layer, m(px), m(py), m(3.4), (255, 226, 160), 120, layers=5)
+        pygame.draw.circle(layer, (255, 255, 255, 235), (m(px), m(py)),
+                           max(1, m(1.3)))
+        pygame.draw.circle(layer, (*CONST_NODE, 255), (m(px), m(py)), max(1, m(0.9)))
+    surf.blit(layer, (0, 0), special_flags=pygame.BLEND_ADD)
 
 
 def _cloud_isle(surf, cx, cy, w, h, warm, alpha):
@@ -267,20 +289,35 @@ def _cloud_isle(surf, cx, cy, w, h, warm, alpha):
     for lx, ly, lr in lobes:
         soft_glow(isle, lx - int(lr * 0.3), ly - int(lr * 0.4),
                   int(lr * 0.5), (255, 230, 190), int(alpha * 0.5), layers=5)
+    # one CRISP warm highlight rim along each lobe's lit upper-left arc so the
+    # isles read as defined cloud forms, not muddy haze at the horizon.
+    rim_a = min(235, int(alpha * 2.4) + 70)
+    for lx, ly, lr in lobes:
+        pygame.draw.arc(isle, (255, 240, 208, rim_a),
+                        (lx - lr, ly - lr, lr * 2, lr * 2),
+                        math.radians(40), math.radians(165), max(1, m(1.1)))
     surf.blit(isle, (cx - ox - w // 2, cy - oy - h // 2))
 
 
 def draw_bg(surf):
     surf.blit(_sky_grad(DW, DH, SKY_STOPS), (0, 0))
-    # indigo apex nebula bloom — soft violet so the emerging stars sit in cloud.
-    soft_glow(surf, int(DW * 0.5), int(DH * 0.10), m(220), APEX_NEBULA, 46,
+    # restrained indigo apex nebula bloom — kept dim so the apex stays a deep
+    # near-black vault (the jewel-store ground), just softly clouded.
+    soft_glow(surf, int(DW * 0.5), int(DH * 0.08), m(200), APEX_NEBULA, 34,
               layers=10)
-    soft_glow(surf, int(DW * 0.66), int(DH * 0.04), m(150), (120, 96, 200), 34,
+    soft_glow(surf, int(DW * 0.68), int(DH * 0.03), m(140), (96, 78, 170), 24,
               layers=8)
-    # golden-hour horizon glow welling up from the foot.
-    soft_glow(surf, int(DW * 0.42), int(DH * 1.0), m(300), HORIZON_GLOW, 70,
+    # golden-hour horizon glow welling up from the foot (bottom ~40% only).
+    soft_glow(surf, int(DW * 0.42), int(DH * 1.02), m(280), HORIZON_GLOW, 78,
               layers=12)
     surf.blit(_stars, (0, 0), special_flags=pygame.BLEND_ADD)
+    # gold constellation behind the top two balloons (the climb-into-store read).
+    _draw_constellation(
+        surf,
+        nodes=[(70, 120), (128, 96), (188, 132), (250, 104), (308, 138),
+               (158, 70), (40, 168)],
+        chains=[[(70, 120), (128, 96), (188, 132), (250, 104), (308, 138)],
+                [(128, 96), (158, 70)]])
     # far cloud-isles below for depth (small, hazy, low-contrast, warm-lit).
     _cloud_isle(surf, int(DW * 0.18), int(DH * 0.72), m(120), m(30),
                 (206, 144, 126), 42)
@@ -736,16 +773,18 @@ def draw_pip(surf, cx, cy, scale):
 # Header
 # =============================================================================
 def draw_header(surf):
-    # darkening band behind the title lane for legibility over the bright apex.
-    band = pygame.Surface((DW, m(108)), pygame.SRCALPHA)
-    for y in range(m(108)):
-        a = int(110 * (1 - y / m(108)) ** 1.2)
-        pygame.draw.line(band, (16, 12, 40, a), (0, y), (DW, y))
+    # a light darkening band keeps the chrome legible; the apex is already dark
+    # now so it can be subtler than round 1.
+    band = pygame.Surface((DW, m(112)), pygame.SRCALPHA)
+    for y in range(m(112)):
+        a = int(86 * (1 - y / m(112)) ** 1.2)
+        pygame.draw.line(band, (10, 9, 30, a), (0, y), (DW, y))
     surf.blit(band, (0, 0))
     pygame.draw.rect(surf, (*GOLD, 60), (m(3), m(3), DW - m(6), DH - m(6)),
                      width=max(1, m(1)), border_radius=m(12))
     title_wordmark(surf, "STORE", (DW // 2, m(28)), 31, tracking=m(4))
-    _balance_capsule(surf, DW // 2, m(72))
+    # +4px gap under the wordmark before the balance capsule (round-2 polish).
+    _balance_capsule(surf, DW // 2, m(76))
 
 
 def _balance_capsule(surf, cx, y):

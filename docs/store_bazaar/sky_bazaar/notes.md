@@ -7,9 +7,45 @@ linked by gold rope-bridges, with Pip hovering mid-frame as the un-grounded
 flying vendor.
 
 - Render: `docs/store_bazaar/sky_bazaar/render.py`
-- Outputs: `round_2.png` (360×640), `round_2@2x.png` (720×1280)
+- Outputs: `round_2.png` (360×640), `round_2@2x.png` (720×1280) — the latest
+  sheet folds in the round-3 punch list below (filenames kept stable)
   (round 1: `round_1.png` / `round_1@2x.png`)
 - Run: `python docs/store_bazaar/sky_bazaar/render.py`
+
+## Round 3 — final art-director punch list (overwrites `round_2*.png`)
+
+ITERATE verdict on round 2; all seven prioritized notes addressed in one pass,
+keeping the round-2 wins (continuous gold cloud rim + under-rim, PARCELS red
+aura/gem at centre-foot, 6-stop sky + apex nebula, scalloped awnings, bridges):
+
+1. **Header on deep indigo, not a grey slab.** The flat grey legibility band is
+   replaced by an indigo deepening that **carries the apex nebula UP behind the
+   wordmark** (a re-bloomed violet + warm-gold core) plus a scatter of gold
+   sparkle stars in the header lane — the STORE wordmark + balance capsule now
+   sit on the jewel-store's near-black-indigo sky.
+2. **Cabochon preview legibility.** A lifted **cool-violet value FLOOR** pools in
+   the lower half of each dome well (`_well_floor`) so dark thumbs — blue macaw,
+   black aviators, the envelope — read against a lit ground instead of dying
+   dark-on-dark, and every thumb's **top-left rim light is ~25% stronger** to pop
+   its contour. PARROTS / SHADES / PARCELS now match COSTUMES / ANIMALS.
+3. **Pip clean.** The muddy white outer ring is gone — the aura is a **tight hot
+   warm-gold core with a clean falloff**, Pip is **nudged up** (deck-y 362→344),
+   and a soft **indigo back-scrim** is laid directly behind him so his scarlet
+   silhouette stays 100% unbroken over any cloud crown; his own rim light is
+   lifted too.
+4. **Nameplate type.** Bigger cap height (+~10%, 11.5→12.7), a **stronger
+   near-black keyline** (wider, darker), and a **thinner gold bevel** so the gold
+   letters read crisp at 1× (no gold smear) — matched to the jewel-store tabs.
+5. **Coins trimmed ~30%.** Bridge leads cut from two-per-bridge to a `[2,1,1,
+   2,1,1]` pattern (12→8) plus Pip's drifting coins 3→2, and every floating coin
+   is lifted well clear of the ropes so none lands on a nameplate or dome rim.
+6. **Tier gem continuity.** The gem set on each dome rim is the jewel-store's own
+   `facet_gem` (same 8-facet brilliant cut + single specular pip) for a seamless
+   stall → grid read.
+7. **SHOES legible.** The ultra-wide flip-flop (2.9:1) is **rotated to a 3/4
+   pose** (24°) inside its dome so the footwear silhouette reads as a shoe rather
+   than a thin horizontal sliver. (The representative `[0]` shoe id is kept per
+   the store-seeding convention; only its angle changes.)
 
 ## Round 2 — good → premium
 

@@ -170,11 +170,12 @@ def _build_static_sky():
     # and dropped LOWER so it sits behind the rooflines, with a RESTRAINED halo
     # so the back row reads against sky instead of a white glare. No white core.
     sx, sy = int(DW * 0.30), int(DH * 0.355)
-    soft_glow(sky, sx, sy, m(96), SUN_HALO, 46, layers=12)
-    soft_glow(sky, sx, sy, m(40), SUN_CORE, 110, layers=10)
+    soft_glow(sky, sx, sy, m(96), SUN_HALO, 44, layers=12)
+    soft_glow(sky, sx, sy, m(40), SUN_CORE, 100, layers=10)
     pygame.draw.circle(sky, SUN_CORE, (sx, sy), m(16))
-    # a tiny hotter pip so the disc still has a sun centre (kept warm, not white)
-    pygame.draw.circle(sky, (255, 226, 168), (sx - m(2), sy - m(2)), m(7))
+    # a slightly warmer-brighter centre so the disc has a sun core — kept a
+    # saturated warm gold, NOT white, so it never blows out.
+    pygame.draw.circle(sky, (255, 218, 150), (sx - m(2), sy - m(2)), m(7))
 
     # emerging dusk stars — only in the upper indigo band, fading out before the
     # warm haze so they never sparkle over daylight.
@@ -584,7 +585,10 @@ def draw_hut(surf, cx, deck_y, scale, group, label, hero=False):
                      tint=MYST_GLOW if hero else (240, 224, 196))
 
     # ── bold gold-keyline category label on a small banner under the dome ──
-    _hut_label(surf, label, cx, deck_y - int(m(20) * scale), scale, hero)
+    # The hero's board is deferred to render_device (drawn AFTER Pip + the coin)
+    # so it sits frontmost in a clean horizontal lane with nothing crossing it.
+    if not hero:
+        _hut_label(surf, label, cx, deck_y - int(m(20) * scale), scale, hero)
 
     return half_w, roof_apex_y
 
@@ -840,8 +844,12 @@ def render_device():
         draw_hut(surf, h["cx"], h["deck_y"], h["scale"], h["group"],
                  h["label"], hero=h["hero"])
         if h["hero"]:
-            # Pip stands on the hero jetty deck, in front of the PARCELS hut
+            # Pip stands on the hero jetty deck, in front of the PARCELS hut;
+            # then the name board is stamped frontmost on the deck front so it
+            # owns a clean horizontal lane that nothing crosses.
             draw_pip(surf, h["cx"], h["deck_y"] - m(2))
+            _hut_label(surf, h["label"], h["cx"], h["deck_y"] + m(8),
+                       h["scale"], True)
 
     draw_header(surf)
 
