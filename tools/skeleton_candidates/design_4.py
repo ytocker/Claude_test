@@ -2,12 +2,20 @@
 
 Concept #4 from docs/store_redesign/costume/skeleton/concepts.md: a
 swashbuckling pirate skeleton. Bone is the bright value anchor (#F4EFE0);
-the strong themed layer is pirate GEAR — a red bandana with a knot-tail past
-the crown, a black eyepatch over one socket, a gold hoop earring, a crossed-
-bone Jolly-Roger motif, and a steel cutlass slung diagonally across the back.
+the strong themed layer is pirate GEAR — a red bandana wrapping the cranium
+with a short knot-tail flicked UP-and-FORWARD past the crown, a black eyepatch
+over one socket, a hollow bone socket for the other, a gold hoop earring, a
+dark-on-bone ribcage + crossbones motif, and a thin steel cutlass crossing
+OUTSIDE the back silhouette.
 
-Full bone redraw (not a paint overlay): every bone is redrawn so the bird
-reads as a skeleton + pirate at 40px. Wrapped with
+Round-2 priorities (art-director ITERATE): the skull is the brightest,
+forward-most mass with a 2px dark keyline so it separates from sky AND body;
+ONE crisp hollow socket vs. a clearly-different oval eyepatch (two distinct
+dark shapes, never one blob); the cutlass is a thin steel diagonal breaking
+the outline (no dark back-blob); chunky DARK rib-arcs + an X crossbones laid
+ON the bright chest so they survive at 40px.
+
+Full bone redraw (not a paint overlay): wrapped with
 ``store_skins._make_prebuilt_skin`` so the 4 flap poses + outline come for
 free. NEVER registered in BUILDERS — exploration only.
 """
@@ -28,6 +36,8 @@ _RED_D  = (150, 22, 32)
 _RED_H  = (236, 92, 96)          # bandana sheen
 _BLACK  = (26, 20, 16)           # #1A1410 body + eyepatch
 _BLACK_H = (54, 46, 40)          # faint rim so black reads on day sky
+_KEY    = (40, 30, 24)           # dark keyline around the skull (day-sky anchor)
+_RIB    = (96, 80, 64)           # dark-on-bone rib/crossbone arcs (survive at 40px)
 _GOLD   = (232, 178, 58)         # #E8B23A earring + crossguard
 _GOLD_H = (255, 224, 140)
 _STEEL  = (185, 192, 201)        # #B9C0C9 blade
@@ -36,52 +46,41 @@ _STEEL_D = (120, 128, 138)
 
 
 def _cutlass(surf):
-    """Cutlass slung diagonally across the back — butt low past the tail,
-    curved blade tip high past the back shoulder into open sky. Drawn FIRST
-    (behind the body) so it reads as slung, breaking the silhouette."""
-    # Hilt low-left near the tail/hip; blade sweeps up to the right shoulder.
-    grip_lo = (10, 44)
-    guard   = (18, 36)
-    # Steel grip from butt to crossguard.
-    pygame.draw.line(surf, _STEEL_D, grip_lo, guard, 5)
-    pygame.draw.line(surf, _STEEL, grip_lo, guard, 3)
-    pygame.draw.line(surf, _STEEL_H, (grip_lo[0], grip_lo[1] - 1),
-                     (guard[0], guard[1] - 1), 1)
-    # Pommel knob.
-    pygame.draw.circle(surf, _GOLD, grip_lo, 3)
-    pygame.draw.circle(surf, _GOLD_H, (grip_lo[0] - 1, grip_lo[1] - 1), 1)
+    """A thin steel cutlass crossing OUTSIDE the back silhouette — a clear
+    recognizable blade (not a back-blob): straight steel diagonal with a gold
+    crossguard nub low-near-the-tail and a curved tip that breaks the outline
+    high past the back shoulder. Drawn FIRST so the body overlaps its middle,
+    selling 'slung across the back'."""
+    # Guard sits just behind the hip; tip sweeps up-left into open sky so the
+    # cutlass reads as a separate object breaking the silhouette, not a cape.
+    guard = (18, 40)
+    butt  = (10, 47)               # pommel below/behind the tail
+    tip   = (3, 8)                 # curved point high past the back shoulder
 
-    # Gold crossguard — a short bar across the blade base.
+    # Short grip from the pommel up to the crossguard.
+    pygame.draw.line(surf, _STEEL_D, butt, guard, 4)
+    pygame.draw.line(surf, _STEEL, butt, guard, 2)
+    pygame.draw.circle(surf, _GOLD, butt, 3)          # pommel knob
+    pygame.draw.circle(surf, _GOLD_H, (butt[0] - 1, butt[1] - 1), 1)
+
+    # Gold crossguard nub — a short bar across the blade base.
     gx, gy = guard
-    pygame.draw.line(surf, _GOLD, (gx - 5, gy + 4), (gx + 5, gy - 4), 4)
-    pygame.draw.line(surf, _GOLD_H, (gx - 4, gy + 3), (gx + 4, gy - 3), 1)
+    pygame.draw.line(surf, _GOLD, (gx - 4, gy + 4), (gx + 4, gy - 4), 4)
+    pygame.draw.line(surf, _GOLD_H, (gx - 3, gy + 3), (gx + 3, gy - 3), 1)
 
-    # Curved steel blade — a fat crescent sweeping up past the back shoulder.
-    # Built as a filled poly (outer + inner curve) so the cutlass curve reads.
-    outer = []
-    inner = []
-    bx, by = gx + 3, gy - 4          # blade root just past the guard
-    tipx, tipy = 40, 6               # tip high into open sky past the shoulder
-    for t in (0.0, 0.22, 0.44, 0.66, 0.85, 1.0):
-        # Quadratic-ish sweep with a belly bowing toward the back-top.
-        mx = bx + (tipx - bx) * t
-        my = by + (tipy - by) * t
-        bow = math.sin(t * math.pi) * 6.0     # curvature of the cutlass belly
-        nx, ny = -(tipy - by), (tipx - bx)
-        nl = math.hypot(nx, ny) or 1.0
-        nx, ny = nx / nl, ny / nl
-        width = 4.0 * (1.0 - t * 0.5)          # tapers toward the point
-        cx = mx + nx * bow
-        cy = my + ny * bow
-        outer.append((cx + nx * width, cy + ny * width))
-        inner.append((cx - nx * width, cy - ny * width))
-    blade_poly = outer + inner[::-1]
-    _poly(surf, _STEEL_D, blade_poly)
-    # Bright edge highlight along the cutting (outer) curve.
-    pygame.draw.lines(surf, _STEEL, False, outer, 2)
-    pygame.draw.lines(surf, _STEEL_H, False, outer[1:-1], 1)
-    # Sharp white glint at the very tip.
-    pygame.draw.circle(surf, (255, 255, 255), (tipx, tipy), 1)
+    # Straight steel blade up the back, bending into a curved tip near the top
+    # so the silhouette break reads as a cutlass point, not a stick.
+    spine = [(gx - 1, gy - 4), (15, 28), (12, 16), (9, 10), tip]
+    # Dark steel underline first (gives the thin blade a 3px keyed body).
+    pygame.draw.lines(surf, _STEEL_D, False,
+                      [(x + 1, y) for x, y in spine], 3)
+    pygame.draw.lines(surf, _STEEL, False, spine, 2)
+    pygame.draw.lines(surf, _STEEL_H, False, spine[:-1], 1)
+    # Curved cutlass tip: a small hook off the point that clearly breaks out.
+    pygame.draw.line(surf, _STEEL, tip, (tip[0] + 4, tip[1] - 2), 2)
+    pygame.draw.line(surf, _STEEL_D, (tip[0] + 1, tip[1] + 1),
+                     (tip[0] + 5, tip[1] - 1), 2)
+    pygame.draw.circle(surf, (255, 255, 255), tip, 1)   # tip glint
 
 
 def _wing(angle_deg):
@@ -113,12 +112,13 @@ def _wing(angle_deg):
 def _build_design4(wing_angle_deg):
     surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
 
-    # 1) Cutlass slung across the back — behind everything.
+    # 1) Cutlass crossing the back — behind everything so the body overlaps it.
     _cutlass(surf)
 
-    # 2) Tail — black bone-flesh fan.
-    _poly(surf, _BLACK, [(2, 26), (17, 24), (23, 36), (12, 42)])
-    _poly(surf, _BLACK_H, [(2, 26), (17, 24), (20, 30)])
+    # 2) Tail — black bone-flesh fan (kept SMALL/low so it never out-masses
+    #    the forward skull cluster: orientation = head is the biggest mass).
+    _poly(surf, _BLACK, [(4, 28), (16, 26), (21, 35), (11, 40)])
+    _poly(surf, _BLACK_H, [(4, 28), (16, 26), (18, 31)])
 
     # 3) Body — near-black "flesh" so bright bone reads on top.
     _aaellipse(surf, _BLACK, (33, 33), 19, 14)
@@ -126,94 +126,104 @@ def _build_design4(wing_angle_deg):
     _aaellipse(surf, _BLACK_H, (28, 28), 9, 5)            # faint top sheen
 
     # 4) Spine — vertebra-bead column from skull base down into the ribcage.
-    spine = [(40, 24), (37, 28), (33, 32), (29, 36), (25, 39)]
+    spine = [(41, 25), (38, 29), (34, 33), (30, 37), (26, 40)]
     for i in range(len(spine) - 1):
         pygame.draw.line(surf, _BONE_D, spine[i], spine[i + 1], 3)
     for vx, vy in spine:
         pygame.draw.circle(surf, _BONE, (vx, vy), 2)
 
-    # 5) Ribcage — bright paired bone arcs sweeping off the spine.
-    for off, span in ((-2, 14), (3, 16), (8, 17)):
-        rx, ry = 22 + off, 25
-        pygame.draw.arc(surf, _BONE_D, (rx, ry + 1, span, 18),
-                        math.radians(198), math.radians(342), 3)
-        pygame.draw.arc(surf, _BONE, (rx, ry, span, 17),
-                        math.radians(198), math.radians(342), 2)
+    # 5) Ribcage — chunky DARK-on-bone arcs. A bright bone field is laid first
+    #    so the dark ribs read AS ribs (dark lines on light bone), which is how
+    #    arcs survive on a bright body at 40px (white-on-dark vanishes here).
+    _aaellipse(surf, _BONE_D, (30, 35), 12, 9)
+    _aaellipse(surf, _BONE, (30, 34), 11, 8)
+    for off, span in ((-3, 15), (2, 16), (7, 16), (11, 15)):
+        rx = 21 + off
+        pygame.draw.arc(surf, _RIB, (rx, 28, span, 16),
+                        math.radians(200), math.radians(340), 2)
 
-    # 6) Crossed-bone Jolly-Roger motif on the chest, below the sternum.
+    # 6) Crossed-bone Jolly-Roger motif — a single bold X below the sternum,
+    #    dark-on-bone so it survives downscale.
     def _xbone(ax, ay, bx, by):
-        pygame.draw.line(surf, _BONE_D, (ax, ay + 1), (bx, by + 1), 3)
-        pygame.draw.line(surf, _BONE, (ax, ay), (bx, by), 2)
+        pygame.draw.line(surf, _RIB, (ax, ay), (bx, by), 3)
         for ex, ey in ((ax, ay), (bx, by)):
             pygame.draw.circle(surf, _BONE, (ex, ey), 2)
-    _xbone(24, 38, 32, 44)
-    _xbone(24, 44, 32, 38)
+            pygame.draw.circle(surf, _RIB, (ex, ey), 2, 1)
+    _xbone(25, 40, 35, 46)
+    _xbone(25, 46, 35, 40)
 
     # 7) Wing — skeletal phalanges + bandana-cloth wrist.
     wing = _wing(wing_angle_deg)
     surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
 
-    # 8) Skull dome — bright ivory at the head anchor.
+    # ── HEAD CLUSTER (forward, right side) — the biggest, brightest mass ──────
+    # 8) Dark keyline halo behind the skull so the white cranium separates from
+    #    BOTH the day sky and the dark body (the day-sky-wash fix).
+    _aaellipse(surf, _KEY, (47, 21), 13, 12)
+
+    # 9) Skull dome — bright ivory at the head anchor (brightest value).
     _aaellipse(surf, _BONE_D, (47, 22), 12, 11)
     _aaellipse(surf, _BONE, (47, 21), 11, 10)
-    # Cheekbone / jaw shelf for skull roundness.
-    _aaellipse(surf, _BONE_D, (47, 26), 8, 4)
+    _aaellipse(surf, _BONE_D, (47, 26), 8, 4)            # cheekbone / jaw shelf
 
-    # 9) Hollow socket (the eye WITHOUT the patch) — deep black hole + rim.
-    pygame.draw.circle(surf, _BONE_DD, (44, 20), 4)
-    pygame.draw.circle(surf, _BLACK, (44, 20), 3)
-    pygame.draw.circle(surf, (8, 6, 5), (44, 20), 2)
+    # 10) ONE crisp hollow socket — a clean black circle with a hard 2px rim,
+    #     a clearly DIFFERENT shape from the oval eyepatch so the two darks read
+    #     as two separate features, never one blob. Forward (beak-side) eye.
+    pygame.draw.circle(surf, _BONE_DD, (50, 20), 4)      # rim
+    pygame.draw.circle(surf, _BLACK, (50, 20), 3)        # hollow
+    pygame.draw.circle(surf, (6, 5, 4), (50, 20), 2)     # deepest
 
-    # Nose hollow + bone grin (tooth gaps) so the skull face reads.
-    _poly(surf, _BLACK, [(47, 24), (49, 24), (48, 26)])
-    pygame.draw.line(surf, _BONE_D, (43, 28), (52, 28), 2)   # grin line
-    for gx in (44, 47, 50):
-        pygame.draw.line(surf, _BONE_DD, (gx, 27), (gx, 30), 1)
+    # 11) Nose hollow + bone grin so the skull face reads.
+    _poly(surf, _BLACK, [(52, 24), (54, 24), (53, 26)])
+    pygame.draw.line(surf, _RIB, (47, 28), (55, 28), 2)  # grin line
+    for gx in (48, 51, 54):
+        pygame.draw.line(surf, _RIB, (gx, 27), (gx, 30), 1)
 
-    # 10) Beak — bone-outlined over a black beak.
-    beak = [(55, 21), (61, 24), (58, 28), (52, 26)]
+    # 12) Beak — bone-outlined over a black beak (forward end).
+    beak = [(56, 22), (62, 24), (59, 28), (53, 27)]
     _poly(surf, _BLACK, beak)
     pygame.draw.polygon(surf, _BONE, beak, 2)
 
-    # 11) Gold hoop earring at the jaw.
-    pygame.draw.circle(surf, _GOLD, (43, 30), 3, 2)
-    pygame.draw.circle(surf, _GOLD_H, (42, 29), 1)
+    # 13) Black EYEPATCH over the OTHER (back-side) socket — a black OVAL of a
+    #     clearly different shape than the round hollow, ringed with a thin bone
+    #     rim so it stays a SEPARATE dark lens against the dark keyline (not one
+    #     mass), plus a 1px strap line. Two distinct dark shapes.
+    pygame.draw.line(surf, _BLACK, (40, 11), (45, 24), 2)   # strap over crown→jaw
+    _aaellipse(surf, _BONE_D, (42, 20), 5, 4)               # bone rim frames patch
+    _aaellipse(surf, _BLACK, (42, 20), 4, 3)                # oval patch lens
+    _aaellipse(surf, _BLACK_H, (41, 19), 2, 1)              # tiny patch sheen
 
-    # 12) Red bandana wrapping the cranium + knot-tail past the crown (tell #1).
-    # Wrap band across the top of the skull.
-    band = [(36, 17), (58, 17), (57, 11), (38, 11)]
+    # 14) Gold hoop earring at the jaw (clean dot tell).
+    pygame.draw.circle(surf, _GOLD, (45, 30), 2)
+    pygame.draw.circle(surf, _GOLD_H, (44, 29), 1)
+
+    # 15) Red bandana wrapping the CRANIUM ONLY + a short knot-tail flicked
+    #     UP-and-FORWARD past the crown. Tightened to the skull (no banner),
+    #     and the knot-tail aims toward the beak end to fix orientation.
+    band = [(40, 16), (56, 16), (55, 10), (42, 11)]
     _poly(surf, _RED, band)
-    _poly(surf, _RED_D, [(36, 17), (58, 17), (58, 15), (36, 15)])
-    pygame.draw.line(surf, _RED_H, (38, 13), (56, 13), 2)
+    _poly(surf, _RED_D, [(40, 16), (56, 16), (56, 14), (40, 14)])
+    pygame.draw.line(surf, _RED_H, (43, 12), (54, 12), 2)
     # Tiny polka dots on the bandana for the pirate-cloth read.
-    for dx in (41, 47, 53):
-        pygame.draw.circle(surf, _BONE, (dx, 13), 1)
-    # Knot at the back-left of the crown.
-    _poly(surf, _RED, [(34, 12), (40, 10), (41, 16), (35, 18)])
-    _poly(surf, _RED_D, [(34, 12), (35, 18), (37, 14)])
-    # Two knot-tails flicking up/back past the crown — breaks the outline.
-    _poly(surf, _RED, [(35, 13), (28, 6), (32, 5), (38, 11)])
-    _poly(surf, _RED_D, [(35, 13), (32, 5), (34, 9)])
-    _poly(surf, _RED, [(34, 15), (26, 13), (28, 9), (37, 13)])
-    pygame.draw.line(surf, _RED_H, (33, 7), (29, 5), 1)
+    for dx in (45, 50, 54):
+        pygame.draw.circle(surf, _BONE, (dx, 12), 1)
+    # Knot at the crown (over the back-top of the skull).
+    _poly(surf, _RED, [(40, 12), (45, 10), (46, 16), (41, 17)])
+    _poly(surf, _RED_D, [(40, 12), (41, 17), (43, 14)])
+    # Short knot-tails flicking UP-and-FORWARD past the crown (toward beak) —
+    # a tight flick, not a banner; breaks the outline at the forward-top.
+    _poly(surf, _RED, [(45, 11), (54, 4), (57, 7), (49, 13)])
+    _poly(surf, _RED_D, [(45, 11), (49, 13), (50, 8)])
+    _poly(surf, _RED, [(46, 13), (53, 9), (55, 12), (48, 15)])
+    pygame.draw.line(surf, _RED_H, (47, 11), (53, 6), 1)
 
-    # 13) Black eyepatch + strap over the OTHER socket (tell, near eye).
-    # Strap runs from under the bandana across to the jaw.
-    pygame.draw.line(surf, _BLACK, (50, 15), (54, 27), 3)
-    pygame.draw.line(surf, _BLACK_H, (50, 15), (54, 27), 1)
-    # Patch — a rounded black lens over the near socket.
-    _aaellipse(surf, _BLACK, (51, 20), 4, 4)
-    _aaellipse(surf, _BLACK_H, (50, 18), 2, 1)              # tiny patch sheen
-
-    # 14) Legs — bone leg-pair; one foot is a peg-leg stub for character.
-    # Normal bone leg (front).
+    # 16) Legs — bone leg-pair; one foot is a peg-leg stub for character.
     pygame.draw.line(surf, _BONE_D, (35, 45), (36, 50), 3)
     pygame.draw.line(surf, _BONE, (35, 45), (36, 50), 2)
     pygame.draw.circle(surf, _BONE, (35, 45), 2)           # knee knob
-    # Three bone claw-toes.
     for tx in (33, 36, 39):
         pygame.draw.line(surf, _BONE, (36, 50), (tx, 53), 1)
-    # Peg-leg stub (back leg) — a short tapered bone peg, no foot.
+    # Peg-leg stub (back leg) — a short tapered bone peg, no foot, bottom-center.
     _poly(surf, _BONE_D, [(27, 44), (31, 44), (30, 52), (28, 52)])
     _poly(surf, _BONE, [(27, 44), (30, 44), (29, 51), (28, 51)])
     pygame.draw.line(surf, _BONE_DD, (28, 46), (28, 50), 1)
