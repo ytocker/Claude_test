@@ -62,49 +62,79 @@ def _add_glow(layer, color, center, radius, peak=150):
 
 
 def _aura(surf, angle_deg, P):
-    # Additive bloom behind the whole bird — the night flex. Concentrated on the
+    # Additive bloom behind the whole bird — the night flex, pushed harder this
+    # round (peaks 160/175) since dark sky has the headroom. Concentrated on the
     # torso + skull so it lifts the dense bone cluster; kept OFF the beak tip
-    # (~x60) and tail tip (~x2) so those two parrot tells don't dissolve into the
-    # halo. A separate additive surface keeps the bloom from washing the opaque
-    # bone out when stamped on top.
+    # (~x60) and tail tip (~x0) so those two parrot tells don't dissolve into the
+    # halo. A faint rim-bloom traces the continuous spine line so the backbone
+    # glows as a through-line at night. A separate additive surface keeps the
+    # bloom from washing the opaque bone out when stamped on top.
     glow = pygame.Surface((A.SPRITE_W, A.SPRITE_H), pygame.SRCALPHA)
-    _add_glow(glow, _AURA, (30, 33), 17, peak=120)     # torso / rib-core halo
-    _add_glow(glow, _AURA, (45, 18), 13, peak=135)     # skull — brightest mass
-    _add_glow(glow, _AURA, (16, 38), 9, peak=70)       # faint tail-root haze
+    _add_glow(glow, _AURA, (30, 33), 17, peak=160)     # torso / rib-core halo
+    _add_glow(glow, _AURA, (45, 18), 13, peak=175)     # skull — brightest mass
+    _add_glow(glow, _AURA, (16, 38), 9, peak=80)       # faint tail-root haze
+    # Spine rim-bloom: a thin #54F0A0 additive trace along the through-line so the
+    # backbone reads as one glowing arc at night (mid-green keeps it under the
+    # opaque bright spine beads stamped later, not competing with them).
+    spine_path = [(41, 24), (37, 27), (33, 30), (28, 33), (23, 35), (18, 35)]
+    pygame.draw.lines(glow, (*P.bone_sh, 90), False, spine_path, 3)
     surf.blit(glow, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
 
 def _fire(surf, angle_deg, P):
     # Socket flame-pip + a capped set of rising wisp sparks. Drawn LAST: first a
-    # thin opaque re-emphasis of the spine/rib/beak core so the structure wins
-    # the day read over the wing, then the additive flame + sparks for the night
-    # flex. The dark socket hollow behind the flame is what actually says "skull".
+    # thin opaque re-emphasis that sets the day VALUE HIERARCHY (bright spine +
+    # beak hook win; ribs + legs drop to mid so they support, not compete), then
+    # the additive flame + sparks for the night flex. The dark socket hollow
+    # behind the flame is what actually says "skull". The 40px day target is a
+    # three-read trace: hooked beak → bright spine line → bright tail line.
 
-    # ── opaque day re-emphasis (no blend) — re-lay the tells on top of the wing.
-    # Spine bead column re-capped in the bright core so the vertebrae read where
-    # the wing crosses the back.
-    for vx, vy in ((41, 24), (37, 27), (33, 30), (28, 33), (23, 35), (18, 35)):
+    # ── DROP the legs to the mid value (#54F0A0) so the bright tail LINE wins ──
+    # The shared anatomy stamps legs in bright `bone`; re-lay them in `bone_sh`
+    # so the lower body recedes and the one bold bright tail line is unrivalled.
+    for hx, fx in ((27, 26), (33, 34)):
+        knee = (hx, 45)
+        foot = (fx, 49)
+        pygame.draw.line(surf, P.bone_sh, (hx, 41), knee, 2)
+        pygame.draw.line(surf, P.bone_sh, knee, foot, 2)
+        for dx in (-2, 0, 2):
+            pygame.draw.line(surf, P.bone_deep, foot, (foot[0] + dx, foot[1] + 3), 1)
+
+    # ── opaque spine re-emphasis (no blend) — the bright through-line read ──
+    # Continuous bright core line UNDER re-capped beads so the backbone is one
+    # unbroken bright stroke where the wing crosses it (beads alone scatter).
+    spine_path = [(41, 24), (37, 27), (33, 30), (28, 33), (23, 35), (18, 35)]
+    pygame.draw.lines(surf, P.keyline, False, spine_path, 3)
+    pygame.draw.lines(surf, _CORE, False, spine_path, 1)
+    for vx, vy in spine_path:
         pygame.draw.circle(surf, P.keyline, (vx, vy), 3, 1)
         pygame.draw.circle(surf, _CORE, (vx, vy), 2)
-    # Rib-core caps — brighten the front rib arcs so 3 rungs stay distinct.
-    for i, ty in enumerate((30, 35, 40)):
-        sx = 33 - i * 3
-        pygame.draw.arc(surf, _CORE, (sx - 12, ty - 5, 13, 12),
-                        math.radians(40), math.radians(140), 1)
+    # Ribs stay MID (#54F0A0, drawn by shared ribcage) — a 3-rung ladder under the
+    # bright spine, NOT re-capped to core, so they read as supporting structure.
+    # Thin the hip/leg-root dots so the rib ladder isn't lost in body clutter.
+    pygame.draw.circle(surf, P.bone_sh, (27, 41), 1)
+    pygame.draw.circle(surf, P.bone_sh, (33, 41), 1)
+
     # Dark hollow socket behind the flame keeps it a SKULL, not a green dot.
     pygame.draw.circle(surf, P.socket, (45, 16), 4)
-    # Beak top-edge lit in the core so the hook stays the forward-most read.
-    pygame.draw.line(surf, _CORE, (50, 11), (61, 16), 1)
-    pygame.draw.line(surf, _CORE, (60, 16), (61, 21), 1)
+
+    # ── carve the beak NOTCH + re-lay the hook top-edge at the NEW geometry ──
+    # Dark #062019 keyline notch at the cranium↔beak junction (x49, y13-18) so the
+    # hook reads as a separate forward bone; then the upper-mandible top edge lit
+    # in #C9FFE3 core along the NEW down-hook so the curl is unmistakable on blue.
+    pygame.draw.line(surf, P.keyline, (49, 13), (49, 18), 2)        # green notch
+    top_edge = [(50, 9), (56, 10), (59, 14), (60, 19), (58, 25), (55, 30)]
+    pygame.draw.lines(surf, _CORE, False, top_edge, 2)             # hook top-curl
+    pygame.draw.circle(surf, _CORE, (55, 30), 1)                   # hooked tip nub
 
     # ── additive flame + capped wisp sparks (the night flex) ──
     spark = pygame.Surface((A.SPRITE_W, A.SPRITE_H), pygame.SRCALPHA)
-    _add_glow(spark, _FLAME, (45, 16), 4, peak=170)        # socket flame bloom
-    _poly(spark, (*_FLAME, 230), [(45, 12), (47, 16), (43, 16)])  # teardrop tongue
-    pygame.draw.circle(spark, (235, 255, 247), (45, 14), 1)
+    _add_glow(spark, _FLAME, (45, 16), 5, peak=200)        # socket flame bloom
+    _poly(spark, (*_FLAME, 235), [(45, 11), (47, 16), (43, 16)])  # teardrop tongue
+    pygame.draw.circle(spark, (240, 255, 248), (45, 14), 1)        # bright pip core
     # Capped rising sparks (4), seated on the mid-body / hip line only — never on
     # the beak or tail, so the lower body reads as a coherent ghost, not confetti.
-    for sx, sy, a in ((43, 10, 110), (34, 25, 95), (27, 30, 80), (21, 34, 70)):
+    for sx, sy, a in ((43, 9, 120), (34, 25, 95), (27, 30, 80), (21, 34, 70)):
         pygame.draw.circle(spark, (*_FLAME, a), (sx, sy), 1)
     surf.blit(spark, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
