@@ -414,57 +414,129 @@ get_wizard_parrot = _make_skin(_paint_wizard)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4 · ASTRONAUT — read it as a HARD sphere: opaque crisp bright rim (2px) +
-#     one strong specular hot-spot. Visor cooled to blue-steel + a hard dark
-#     edge so it never reads as the macaw's gold beak. Antenna committed to a
-#     2px bright tip on a 2px stalk.
+# 4 · ASTRONAUT — a sleek modern flight-suit with an oval white helmet shell and
+#     a hard hexagonal black faceplate (visor DOWN).
 #
-# R1 fail: translucent dome read "out of focus"; gold visor doubled the beak.
+# The whole macaw is re-plumaged near-WHITE through
+# the palette system, so the bird is a bright blob the dark sky never swallows,
+# and the HELMET wins the read — the hard black faceplate is the single largest
+# dark mass, carried at 40px by one dominant white diagonal glint. The flight-
+# pack is GRAY (not black) and sits LOW behind the shoulder, overlapped by the
+# body and tied in by a white strap, so it reads "pack on back", not a second
+# head. One black shoulder yoke is the only body panel; the lone colour is a
+# single cyan status line on the chest, kept off the face.
 # ─────────────────────────────────────────────────────────────────────────────
-_AST_RING   = (236, 240, 246)
-_AST_RING_D = (170, 178, 190)
-_AST_GLASS  = (108, 150, 186)      # opaque cool glass tone
-_AST_GLASS_D = (70, 104, 140)
-_AST_RIM    = (220, 244, 255)
-_AST_VISOR  = (70, 120, 170)       # cool blue-steel, NOT gold
-_AST_VISOR_D = (28, 54, 86)
-_AST_VISOR_H = (150, 200, 240)
+_AST_W     = (244, 246, 250)       # glossy suit white
+_AST_SH    = (200, 205, 214)       # suit shadow
+_AST_BLACK = (21, 23, 28)          # visor / accent panels
+_AST_GRAY  = (90, 97, 112)         # flight-pack / mid shadow
+_AST_CYAN  = (43, 198, 224)        # cyan status accent
+_AST_HI    = (255, 255, 255)
+
+# Full near-white suit re-plumage. Every slot becomes glossy white with a cool
+# shadow doing the line work so the dark sky never eats the silhouette; lenses
+# dropped so the angular faceplate owns the face; beak goes dark so no warm gold
+# survives the two-tone.
+P_ASTRONAUT = _pal(
+    tail=[(214, 219, 228), (224, 228, 236), (234, 237, 243), (244, 246, 250)],
+    tail_line=_AST_SH,
+    body_shadow=(196, 201, 211),
+    body_main=_AST_W,
+    body_chest=(255, 255, 255),
+    body_belly=(232, 236, 242),
+    sheen=(255, 255, 255, 150),
+    wing_main=(228, 232, 239),
+    wing_dark=_AST_SH,
+    wing_tip=(248, 250, 253),
+    wing_secondary=None,
+    wing_highlight=_AST_HI,
+    head_shadow=(200, 205, 214),
+    head_main=_AST_W,
+    head_cheek=(248, 250, 253),
+    head_crown=(255, 255, 255),
+    lens_frame=(200, 205, 214),
+    lens_body=_AST_BLACK,
+    lens_tint=None,
+    lens_glint=None,
+    beak_main=(70, 76, 90),
+    beak_dark=_AST_BLACK,
+    beak_gloss=(150, 156, 170),
+    foot=_AST_BLACK,
+)
 
 
-def _paint_astronaut(surf, _a):
-    cx, cy = HX + 1, HY - 2
-    r = 15
-    # White EVA collar ring behind the dome.
-    pygame.draw.ellipse(surf, _AST_RING_D, (cx - 12, cy + 8, 26, 10))
-    pygame.draw.ellipse(surf, _AST_RING, (cx - 11, cy + 8, 24, 7))
-
-    # OPAQUE glass dome — a hard sphere, not a translucent veil.
-    pygame.draw.circle(surf, _AST_GLASS_D, (cx, cy), r)
-    pygame.draw.circle(surf, _AST_GLASS, (cx, cy - 1), r - 1)
-
-    # Cool blue-steel visor band across the lower-front, with a hard dark edge.
-    visor = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
-    pygame.draw.ellipse(visor, _AST_VISOR, (4, r - 1, r * 2 - 4, r))
-    clip = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
-    pygame.draw.circle(clip, (255, 255, 255, 255), (r + 2, r + 2), r - 2)
-    visor.blit(clip, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    surf.blit(visor, (cx - r - 2, cy - r - 2))
-    pygame.draw.line(surf, _AST_VISOR_D, (cx - 11, cy + 2), (cx + 9, cy), 2)
-    pygame.draw.line(surf, _AST_VISOR_H, (cx - 8, cy + 4), (cx + 5, cy + 3), 1)
-
-    # Crisp opaque bright rim (2px) — reads the sphere at 40px.
-    pygame.draw.circle(surf, _AST_RIM, (cx, cy), r, 2)
-    # One strong specular hot-spot top-left.
-    pygame.draw.circle(surf, (255, 255, 255), (cx - 6, cy - 7), 3)
-    pygame.draw.circle(surf, (255, 255, 255), (cx - 4, cy - 9), 1)
-
-    # Antenna: committed 2px stalk + 2px bright tip.
-    pygame.draw.line(surf, _AST_RING, (cx + 11, cy - 10), (cx + 16, cy - 17), 2)
-    pygame.draw.circle(surf, (255, 90, 80), (cx + 16, cy - 17), 2)
-    pygame.draw.circle(surf, (255, 200, 190), (cx + 15, cy - 18), 1)
+def _astronaut_base(angle_deg):
+    # Glossy-white suited bird, no aviators — the angular faceplate owns the head.
+    return _build_parrot_with_palette(angle_deg, P_ASTRONAUT, draw_lenses=False)
 
 
-get_astronaut_parrot = _make_skin(_paint_astronaut)
+def _paint_astronaut(surf, wing_angle_deg):
+    # Body centre in composite space (parrot body centre (32,32) + PARROT_DY).
+    BCX, BCY = 32, 52
+
+    # Low-profile GRAY flight-pack hugging the shoulder. Drawn first so the body
+    # overlaps its inner edge → reads worn ON the back, attached, not a second
+    # mass. Gray + low (top below the crown) so the dark faceplate stays the
+    # single largest dark shape; the top is canted (never a vertical bar
+    # mirroring the helmet) and a white strap ties it to the suit.
+    pkx, pky = BCX - 13, BCY + 1
+    pack = [(pkx - 5, pky - 6), (pkx + 4, pky - 9), (pkx + 7, pky + 1),
+            (pkx + 6, pky + 12), (pkx - 4, pky + 13), (pkx - 6, pky + 3)]
+    _poly(surf, _AST_GRAY, pack)
+    pygame.draw.line(surf, _AST_SH, (pkx - 4, pky - 5), (pkx + 5, pky + 11), 1)
+    _poly(surf, _AST_BLACK, [(pkx - 4, pky + 8), (pkx + 6, pky + 8),
+                             (pkx + 5, pky + 12), (pkx - 4, pky + 12)])
+    pygame.draw.line(surf, _AST_HI, (pkx + 3, pky - 8), (BCX + 1, BCY - 9), 2)
+    pygame.draw.line(surf, _AST_SH, (pkx + 3, pky - 7), (BCX + 1, BCY - 8), 1)
+
+    # ONE bold black shoulder YOKE across the upper chest — the single body panel
+    # that survives at 40px; the white body stays clean below it.
+    yoke = [(BCX - 14, BCY - 7), (BCX - 4, BCY - 12), (BCX + 9, BCY - 11),
+            (BCX + 15, BCY - 5), (BCX + 9, BCY - 5), (BCX - 2, BCY - 7),
+            (BCX - 11, BCY - 3)]
+    _poly(surf, _AST_BLACK, yoke)
+    pygame.draw.line(surf, _AST_GRAY, (BCX - 11, BCY - 6), (BCX + 11, BCY - 8), 1)
+
+    # Minimalist black chest module with one thin CYAN status line + dot — the
+    # single colour accent on the whole skin.
+    mx, my = BCX + 1, BCY + 1
+    pygame.draw.rect(surf, _AST_BLACK, (mx - 6, my - 3, 13, 9), border_radius=2)
+    pygame.draw.rect(surf, _AST_GRAY, (mx - 6, my - 3, 13, 9), 1, border_radius=2)
+    pygame.draw.line(surf, _AST_CYAN, (mx - 4, my + 1), (mx + 3, my + 1), 1)
+    pygame.draw.circle(surf, _AST_CYAN, (mx + 5, my - 1), 1)
+    pygame.draw.circle(surf, _AST_HI, (mx - 4, my + 3), 1)
+
+    # Black glove at the near wingtip, black boots, and a thin seam up the wing
+    # root → the two-tone reaches every extremity.
+    pygame.draw.line(surf, _AST_BLACK, (BCX + 4, BCY - 6), (BCX + 14, BCY - 9), 2)
+    pygame.draw.circle(surf, _AST_BLACK, (BCX + 16, BCY - 4), 3)
+    pygame.draw.circle(surf, _AST_SH, (BCX + 15, BCY - 5), 1)
+    for fx in (BCX - 6, BCX):
+        pygame.draw.line(surf, _AST_BLACK, (fx, BCY + 13), (fx - 1, BCY + 17), 3)
+        pygame.draw.circle(surf, _AST_BLACK, (fx - 1, BCY + 17), 2)
+
+    # Oval white helmet shell with a crisp gray rim (the outline pass only edges
+    # the outer silhouette, so this internal rim separates shell from white body),
+    # then a hard hexagonal BLACK faceplate (visor DOWN) with one dominant white
+    # diagonal glint and a chin/comms wedge. The flatter oval is the modern read.
+    hcx, hcy = HX + 1, HY - 1
+    pygame.draw.ellipse(surf, _AST_GRAY, (hcx - 14, hcy - 14, 29, 27))
+    pygame.draw.ellipse(surf, _AST_W, (hcx - 13, hcy - 13, 27, 25))
+    pygame.draw.ellipse(surf, _AST_GRAY, (hcx - 13, hcy - 13, 27, 25), 1)
+    pygame.draw.ellipse(surf, _AST_HI, (hcx - 9, hcy - 12, 11, 4))
+    fx, fy = hcx + 1, hcy + 1
+    face = [(fx - 11, fy - 4), (fx - 6, fy - 8), (fx + 9, fy - 7),
+            (fx + 12, fy - 1), (fx + 8, fy + 7), (fx - 7, fy + 7),
+            (fx - 11, fy + 2)]
+    _poly(surf, (8, 9, 12), [(x, y + 1) for x, y in face])
+    _poly(surf, _AST_BLACK, face)
+    pygame.draw.line(surf, _AST_GRAY, (fx - 6, fy - 7), (fx + 8, fy - 6), 1)
+    pygame.draw.line(surf, _AST_HI, (fx - 8, fy + 5), (fx + 6, fy - 6), 3)
+    _poly(surf, _AST_BLACK, [(fx - 4, fy + 7), (fx + 6, fy + 7),
+                             (fx + 3, fy + 12), (fx - 2, fy + 12)])
+
+
+get_astronaut_parrot = _make_skin(_paint_astronaut, base_fn=_astronaut_base)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
