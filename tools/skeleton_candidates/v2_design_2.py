@@ -36,7 +36,10 @@ P = A.Pal(
 )
 
 _RED, _RED_D, _RED_H = (200, 32, 43), (150, 22, 32), (236, 92, 96)
-_BLACK, _BLACK_H = (26, 20, 16), (60, 50, 44)
+_BLACK, _BLACK_H = (26, 20, 16), (78, 66, 58)
+# Bone-deep rim laid OUTSIDE the black felt so the tricorn silhouette survives
+# against night pillars/dark body where pure black would vanish.
+_HAT_RIM = (150, 142, 122)
 _GOLD, _GOLD_H = (232, 178, 58), (255, 224, 140)
 _STEEL, _STEEL_D, _STEEL_H = (185, 192, 201), (120, 128, 138), (228, 233, 238)
 
@@ -56,9 +59,13 @@ def _cutlass(surf, angle_deg, P):
     blade = [(gx - 1, gy - 4), (15, 28), (12, 16), (9, 10), tip]
     pygame.draw.lines(surf, _STEEL_D, False, [(x + 1, y) for x, y in blade], 3)
     pygame.draw.lines(surf, _STEEL, False, blade, 2)
-    pygame.draw.lines(surf, _STEEL_H, False, blade[:-1], 1)
-    pygame.draw.line(surf, _STEEL, tip, (tip[0] + 4, tip[1] - 2), 2)   # curved point
-    pygame.draw.circle(surf, (255, 255, 255), tip, 1)
+    # Highlight runs the FULL blade incl. the tip so it reads as a sharpened
+    # edge of light, not a stray bone with a dull point.
+    pygame.draw.lines(surf, _STEEL_H, False, blade, 1)
+    # Sharpened upswept point — curved tip kicked up 1px so it reads as a blade.
+    pygame.draw.line(surf, _STEEL, tip, (tip[0] + 5, tip[1] - 4), 2)
+    pygame.draw.line(surf, _STEEL_H, tip, (tip[0] + 5, tip[1] - 4), 1)
+    pygame.draw.circle(surf, (255, 255, 255), (tip[0] + 5, tip[1] - 4), 1)
 
 
 def _eyepatch(surf, P):
@@ -76,9 +83,12 @@ def _eyepatch(surf, P):
 
 
 def _earring(surf, P):
-    """Gold hoop at the jaw — nudged off the keyline so the gold survives day."""
-    pygame.draw.circle(surf, _GOLD, (43, 26), 2)
-    pygame.draw.circle(surf, _GOLD_H, (42, 25), 1)
+    """Gold hoop at the jaw-TIP front (~48,27) where the dark body sits behind it
+    so the gold hoop reads as a distinct shape instead of dissolving into the
+    bone jaw at 40px."""
+    pygame.draw.circle(surf, _GOLD, (48, 27), 2)
+    pygame.draw.circle(surf, _GOLD, (48, 27), 2, 1)
+    pygame.draw.circle(surf, _GOLD_H, (47, 26), 1)
 
 
 def _bandana(surf, P, plume=False):
@@ -137,28 +147,56 @@ def _v2_pre(surf, angle_deg, P):
     _cutlass(surf, angle_deg, P)
 
 
+def _captain_chest_x(surf, P, cx=31, cy=40):
+    """The bone crossbones laid DIRECTLY on the ribcage as the single brightest
+    mass — no dark cartouche disc. A 1px keyline halo hugs each bone so the
+    bone-on-rib X stays legible without a competing dark plate stealing focus
+    from the hat front."""
+    arms = (((cx - 5, cy - 3), (cx + 5, cy + 3)),
+            ((cx - 5, cy + 3), (cx + 5, cy - 3)))
+    for (ax, ay), (bx, by) in arms:
+        pygame.draw.line(surf, P.keyline, (ax, ay), (bx, by), 4)   # tight halo
+        pygame.draw.line(surf, P.bone, (ax, ay), (bx, by), 2)      # bright core
+        for ex, ey in ((ax, ay), (bx, by)):
+            pygame.draw.circle(surf, P.keyline, (ex, ey), 2, 1)
+            pygame.draw.circle(surf, P.bone, (ex, ey), 1)
+
+
 def _v2_hat(surf, P):
     """Three-cornered captain's hat sitting on the cranium crown, NOT over the
     beak. A dark felt brim sweeping up at front and back corners, a bone-white
-    crossbones cockade pinned at the front — the captain's-hat alt to a wrap."""
+    crossbones cockade pinned at the front — the captain's-hat alt to a wrap.
+
+    The black felt is RIMMED with a bone-deep stroke laid OUTSIDE it so the
+    tricorn silhouette survives on night where pure black fuses with the dark
+    pillars/body."""
     brim = [(31, 9), (38, 4), (49, 2), (56, 6), (52, 9), (40, 10)]
+    front_peak = [(54, 6), (58, 1), (57, 7)]
+    back_peak = [(33, 9), (28, 4), (31, 10)]
+    # Bone-deep rim OUTSIDE the black, drawn first so the felt overpaints its
+    # interior and only the outer edge survives as a night-legible silhouette.
+    pygame.draw.polygon(surf, _HAT_RIM, brim, 3)
+    pygame.draw.polygon(surf, _HAT_RIM, front_peak, 2)
+    pygame.draw.polygon(surf, _HAT_RIM, back_peak, 2)
     _poly(surf, _BLACK, brim)
-    _poly(surf, _BLACK_H, [(38, 4), (49, 2), (49, 4), (39, 6)])   # top sheen
-    # Up-swept front and back corners (the tricorn tell).
-    _poly(surf, _BLACK, [(54, 6), (58, 1), (57, 7)])              # front peak
-    _poly(surf, _BLACK, [(33, 9), (28, 4), (31, 10)])             # back peak
+    _poly(surf, _BLACK, front_peak)                              # front peak
+    _poly(surf, _BLACK, back_peak)                               # back peak
+    # Widened top sheen (lightened felt) so the crown catches a little light.
+    _poly(surf, _BLACK_H, [(38, 4), (49, 2), (49, 5), (39, 7)])
     # Bone crossbones cockade pinned at the front of the brim.
     for (ax, ay), (bx, by) in (((44, 4), (49, 8)), ((44, 8), (49, 4))):
         pygame.draw.line(surf, P.bone, (ax, ay), (bx, by), 2)
     pygame.draw.circle(surf, P.bone, (46, 6), 2)
     pygame.draw.circle(surf, P.keyline, (46, 6), 2, 1)
+    # One bright glint dot at the hat front so the eye locks the cockade focal.
+    pygame.draw.circle(surf, P.glint, (45, 5), 1)
 
 
 def _v2_post(surf, angle_deg, P):
     _eyepatch(surf, P)
     _earring(surf, P)
     _v2_hat(surf, P)
-    _crossbones_x(surf, P)
+    _captain_chest_x(surf, P)
 
 
 # ── v3 BALDRIC — bandana + dark baldric strap w/ crossbones plaque, sabre ──────
@@ -257,4 +295,4 @@ build_v3 = _mk(_v3_pre, _v3_post)     # BALDRIC
 build_v4 = _mk(_v4_pre, _v4_post)     # FLAGBEARER
 build_v5 = _mk(_v5_pre, _v5_post)     # BUCCANEER
 
-build = build_v1                      # lead candidate / harness default
+build = build_v2                      # CAPTAIN — art-director's lead take
