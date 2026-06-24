@@ -95,7 +95,7 @@ def _glyph_poisoned(surf, cx, cy, r, col):
                     math.radians(-60), math.radians(120), max(3, r // 11))
     # Skull, enlarged and centred over the lamp's shoulder.
     skx = cx - int(r * 0.06)
-    sky = cy - int(r * 0.50)
+    sky = cy - int(r * 0.56)
     cr = int(r * 0.50)                             # big cranium
     pygame.draw.circle(surf, col, (skx, sky), cr)
     # Squared jaw block below the cranium.
@@ -189,12 +189,12 @@ def _glyph_treasure_hunter(surf, cx, cy, r, col):
     # Engraved X across the lid face, recessed in the shadow tone.
     lcx = (hinge[0] + lift[0]) // 2 + int(nx * th * 0.5)
     lcy = (hinge[1] + lift[1]) // 2 + int(ny * th * 0.5)
-    xr = int(r * 0.30)
-    xw = max(2, r // 12)
-    pygame.draw.line(surf, _GLYPH_SH, (lcx - xr, lcy - int(xr * 0.5)),
-                     (lcx + xr, lcy + int(xr * 0.5)), xw)
-    pygame.draw.line(surf, _GLYPH_SH, (lcx - xr, lcy + int(xr * 0.5)),
-                     (lcx + xr, lcy - int(xr * 0.5)), xw)
+    xr = int(r * 0.34)
+    xw = max(3, r // 9)                             # bolder so the X survives 44px
+    pygame.draw.line(surf, _GLYPH_SH, (lcx - xr, lcy - int(xr * 0.55)),
+                     (lcx + xr, lcy + int(xr * 0.55)), xw)
+    pygame.draw.line(surf, _GLYPH_SH, (lcx - xr, lcy + int(xr * 0.55)),
+                     (lcx + xr, lcy - int(xr * 0.55)), xw)
     # A clasp nub on the chest front so the body reads as a chest.
     pygame.draw.rect(surf, _GLYPH_SH, (cx - max(3, r // 11), by0 + int(bh * 0.46),
                                        max(6, r // 5), int(bh * 0.42)),
@@ -233,50 +233,62 @@ def _glyph_jackpot(surf, cx, cy, r, col):
 
 
 def _glyph_rail_rider(surf, cx, cy, r, col):
-    # Off the rails: a mine-cart LEAPING off a visibly SNAPPED rail end. The rail
-    # runs in from the left and breaks mid-glyph, its far stub dropping away; the
-    # cart is airborne and tilted past the break, a motion-arc trailing it. The
-    # cart (a tub on two wheels) makes it the rail-CART, not a board.
-    # Intact rail coming in from the left, sloping up to the break.
-    rw = max(3, int(r * 0.16))
-    x0, y0 = cx - int(r * 0.86), cy + int(r * 0.46)
-    bx, by = cx - int(r * 0.06), cy + int(r * 0.10)   # the break point
+    # Off the rails: a mine-cart LEAPING off a HARD-SNAPPED rail end. The rail
+    # runs in low from the left to a clean angular break, past which a short
+    # stub bends sharply DOWN — a crisp jagged snap with an open angular gap, not
+    # feathered shards. The cart is flung UP-AND-OFF the break, tilted nose-up
+    # with a motion-arc trailing, so "leaping off / airborne" is the whole read
+    # and it can't be mistaken for Skater's carts sitting flat ON the rail.
+    rw = max(4, int(r * 0.18))
+    # Intact rail coming in nearly level from the lower-left to the break point.
+    x0, y0 = cx - int(r * 0.90), cy + int(r * 0.52)
+    bx, by = cx - int(r * 0.10), cy + int(r * 0.40)   # the break point
     pygame.draw.line(surf, col, (x0, y0), (bx, by), rw)
     # Two cross-ties under the intact rail so it reads as track.
-    for f in (0.3, 0.7):
+    for f in (0.3, 0.66):
         tx = x0 + (bx - x0) * f
         ty = y0 + (by - y0) * f
-        pygame.draw.line(surf, col, (int(tx), int(ty + r * 0.06)),
-                         (int(tx), int(ty + r * 0.30)), max(2, r // 13))
-    # The snapped-off stub, dropping away down-right with a jagged broken tip.
-    sx, sy = bx + int(r * 0.30), by + int(r * 0.40)
-    pygame.draw.line(surf, col, (bx, by), (sx, sy), rw)
+        pygame.draw.line(surf, col, (int(tx), int(ty + r * 0.04)),
+                         (int(tx), int(ty + r * 0.26)), max(2, r // 13))
+    # Jagged snapped tip on the standing rail — a small notch at the break.
     pygame.draw.polygon(surf, col, [
-        (bx, by - max(2, r // 12)),
-        (bx + int(r * 0.10), by + int(r * 0.04)),
-        (bx, by + max(3, r // 9)),
+        (bx, by - rw),
+        (bx + int(r * 0.12), by - int(r * 0.02)),
+        (bx, by + rw),
+        (bx - int(r * 0.06), by),
     ])
-    # Motion-arc sweeping the cart up off the break.
-    pygame.draw.arc(surf, col, (cx - int(r * 0.30), cy - int(r * 0.62),
-                               int(r * 0.90), int(r * 0.70)),
-                    math.radians(200), math.radians(330), max(2, r // 13))
-    # The cart — an open tub, tilted nose-up as it launches off the rail.
-    ccx, ccy = cx + int(r * 0.34), cy - int(r * 0.30)
-    tilt = math.radians(-22)
+    # The snapped-off stub bent HARD downward past an open angular gap — it
+    # starts beyond a clear gap and drops steeply, the broken end pointing down.
+    gx, gy = bx + int(r * 0.26), by + int(r * 0.06)   # stub starts after a gap
+    ex, ey = gx + int(r * 0.16), gy + int(r * 0.58)   # bent sharply down
+    pygame.draw.line(surf, col, (gx, gy), (ex, ey), rw)
+    # Jagged broken tip on the stub's upper (gap-facing) end.
+    pygame.draw.polygon(surf, col, [
+        (gx - int(r * 0.10), gy - int(r * 0.02)),
+        (gx + int(r * 0.06), gy - int(r * 0.06)),
+        (gx + int(r * 0.04), gy + int(r * 0.10)),
+    ])
+    # Motion-arc sweeping the cart up off the break — the launch trail.
+    pygame.draw.arc(surf, col, (cx - int(r * 0.22), cy - int(r * 0.66),
+                               int(r * 0.96), int(r * 0.78)),
+                    math.radians(205), math.radians(345), max(3, r // 12))
+    # The cart — an open tub, flung up and tilted nose-up, clear of the rail.
+    ccx, ccy = cx + int(r * 0.40), cy - int(r * 0.34)
+    tilt = math.radians(-30)
     ct, st = math.cos(tilt), math.sin(tilt)
 
     def _rot(dx, dy):
         return (int(ccx + dx * ct - dy * st), int(ccy + dx * st + dy * ct))
 
-    tub = [_rot(-r * 0.40, -r * 0.06), _rot(r * 0.40, -r * 0.06),
-           _rot(r * 0.30, r * 0.34), _rot(-r * 0.30, r * 0.34)]
+    tub = [_rot(-r * 0.42, -r * 0.08), _rot(r * 0.42, -r * 0.08),
+           _rot(r * 0.32, r * 0.34), _rot(-r * 0.32, r * 0.34)]
     pygame.draw.polygon(surf, col, tub)
     # Hollow the tub so it reads as an open cart, not a solid block.
-    inner = [_rot(-r * 0.28, -r * 0.18), _rot(r * 0.28, -r * 0.18),
-             _rot(r * 0.20, r * 0.18), _rot(-r * 0.20, r * 0.18)]
+    inner = [_rot(-r * 0.30, -r * 0.20), _rot(r * 0.30, -r * 0.20),
+             _rot(r * 0.22, r * 0.16), _rot(-r * 0.22, r * 0.16)]
     pygame.draw.polygon(surf, _GLYPH_SH, inner)
     # Two cart-wheels under the tub (airborne, so no track contact).
-    for dx in (-r * 0.24, r * 0.24):
+    for dx in (-r * 0.26, r * 0.26):
         wc = _rot(dx, r * 0.46)
         pygame.draw.circle(surf, col, wc, max(3, int(r * 0.14)))
         pygame.draw.circle(surf, _GLYPH_SH, wc, max(1, int(r * 0.05)))

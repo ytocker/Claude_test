@@ -127,10 +127,14 @@ def _board_catch(surf, cx, cy, r, col, tier):
         pygame.draw.line(surf, col, (sx, sy - s), (sx, sy + s), max(2, r // 12))
 
     if tier == 1:
-        # sponsor star sticker on the deck belly
-        cxx, cyy = _pt(0, th * 0.5)
-        _star(surf, int(cxx), int(cyy - r * 0.02), r * 0.26, _SH)
-        _star(surf, int(cxx), int(cyy - r * 0.02), r * 0.20, col)
+        # BOLD deck-spanning sponsor star riding ON the deck so it breaks the
+        # flat top silhouette — at 44px the rung 1->2 read IS the star, not a
+        # sub-pixel sticker. Its lower points overlap the deck while the top
+        # point rises clear above it, so board_meeting (bare deck) and sponsored
+        # (deck wearing a big star) read apart even at row size.
+        cxx, cyy = _pt(0, -r * 0.06)
+        _star(surf, int(cxx), int(cyy), r * 0.56, _SH)
+        _star(surf, int(cxx), int(cyy), r * 0.48, col)
         _wreath(surf, cx, cy, r, col)
 
     if airborne:

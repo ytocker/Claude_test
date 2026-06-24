@@ -52,13 +52,17 @@ def _glyph_sampler(surf, cx, cy, r, col):
     # A thin plate ring carrying FOUR IDENTICAL filled dots evenly spaced on it
     # — quantity-on-a-container, not shape variety (distinct morsels die at row
     # size). The ring keeps it a plate, not a magnet horseshoe.
-    ring_r = int(r * 0.80)
-    pygame.draw.circle(surf, col, (cx, cy), ring_r, max(3, int(r * 0.14)))
-    dot_r = max(4, int(r * 0.20))
+    # Thin plate ring kept smaller, with four FAT dots ringed fully OUTSIDE it
+    # and detached — so at 44px the read is four discrete blobs (count carries
+    # it), not a single hollow diamond fused to the outline.
+    ring_r = int(r * 0.52)
+    pygame.draw.circle(surf, col, (cx, cy), ring_r, max(3, int(r * 0.11)))
+    dot_r = max(5, int(r * 0.28))
+    dot_orbit = ring_r + dot_r + max(2, int(r * 0.12))   # clear gap to the ring
     for i in range(4):
         a = -math.pi / 2 + i * math.pi / 2     # top, right, bottom, left
-        dx = cx + int(math.cos(a) * ring_r)
-        dy = cy + int(math.sin(a) * ring_r)
+        dx = cx + int(math.cos(a) * dot_orbit)
+        dy = cy + int(math.sin(a) * dot_orbit)
         pygame.draw.circle(surf, col, (dx, dy), dot_r)
 
 
@@ -179,34 +183,58 @@ def _appetite(surf, cx, cy, r, col, stage):
         pygame.draw.circle(surf, ai._GLYPH_SH,
                            (int(jx - jr * 0.18), int(jy - jr * 0.40)),
                            max(3, int(r * 0.13)))
-        # The sparkle caught in the gape (upper-right), with a bite-notch out of
-        # its lower-left corner where the jaw has chomped it.
-        sx, sy = cx + int(r * 0.46), cy - int(r * 0.34)
-        sr = r * 0.50
+        # The sparkle pushed INTO the gape (overlapping the mouth opening) and
+        # enlarged, with one bold bite-notch missing from its NEAR (lower-left)
+        # edge — the half toward the jaw — so it reads as "mouth devouring a
+        # sparkle," not a lone Pac-Man beside a speck.
+        sx, sy = cx + int(r * 0.30), cy - int(r * 0.20)
+        sr = r * 0.66
         star = _sparkle_pts(sx, sy, sr)
         pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in star])
         pygame.draw.circle(surf, ai._GLYPH_SH,
-                           (int(sx - sr * 0.46), int(sy + sr * 0.50)),
-                           max(3, int(r * 0.20)))
+                           (int(sx - sr * 0.52), int(sy + sr * 0.54)),
+                           max(4, int(r * 0.28)))
     else:
-        # Sparkle-vortex: a central sparkle with three more spiralling inward,
-        # each smaller and trailing a curved motion-arc — insatiable.
-        cstar = _sparkle_pts(cx, cy, r * 0.50)
-        pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in cstar])
+        # Sparkle-WHIRLPOOL: ONE dominant central sparkle with three satellite
+        # sparkles caught on a clear inward SPIRAL — each seated on a thick arc
+        # that curls toward the centre, shrinking as it goes (a vortex, not a
+        # sprinkle) — plus a bold simplified crown arc on top, so the
+        # one-bite→whirlpool climb past power_hungry reads at chip size.
+        cy_v = cy + int(r * 0.10)                       # seat below the crown
+        # Spiral arms first so the satellites sit on top of their own tails.
         for i in range(3):
-            a = -math.pi / 2 + i * (2 * math.pi / 3)
-            rad = r * 0.74
+            a0 = -math.pi / 2 + i * (2 * math.pi / 3)   # arm start angle
+            arc_r = int(r * (0.86 - i * 0.04))
+            rect = pygame.Rect(cx - arc_r, cy_v - arc_r, arc_r * 2, arc_r * 2)
+            # Each arm sweeps ~150° inward; same handedness for all three reads
+            # as one rotating whirlpool.
+            pygame.draw.arc(surf, col, rect, a0, a0 + math.radians(150),
+                            max(2, int(r * 0.12)))
+        # Dominant centre sparkle.
+        cstar = _sparkle_pts(cx, cy_v, r * 0.56)
+        pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in cstar])
+        # Three satellite sparkles riding the spiral, shrinking toward centre.
+        for i in range(3):
+            a = -math.pi / 2 + i * (2 * math.pi / 3) + math.radians(150)
+            rad = r * (0.84 - i * 0.06)
             mx = cx + math.cos(a) * rad
-            my = cy + math.sin(a) * rad
-            ms = r * (0.34 - i * 0.04)
+            my = cy_v + math.sin(a) * rad
+            ms = r * (0.30 - i * 0.05)
             mote = _sparkle_pts(mx, my, ms)
             pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in mote])
-            # Spiral-arm arc curving from the mote toward the centre.
-            arc_r = int(rad)
-            a0 = a + math.radians(18)
-            a1 = a + math.radians(78)
-            rect = pygame.Rect(cx - arc_r, cy - arc_r, arc_r * 2, arc_r * 2)
-            pygame.draw.arc(surf, col, rect, a0, a1, max(2, int(r * 0.10)))
+        # Bold three-point crown arc seated on top — the L4 insatiable rung.
+        cw = r * 0.62
+        cyt = cy - int(r * 0.78)
+        crown = [
+            (cx - cw, cyt + r * 0.22),
+            (cx - cw, cyt),
+            (cx - cw * 0.5, cyt + r * 0.16),
+            (cx, cyt - r * 0.10),
+            (cx + cw * 0.5, cyt + r * 0.16),
+            (cx + cw, cyt),
+            (cx + cw, cyt + r * 0.22),
+        ]
+        pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in crown])
 
 
 def _glyph_power_hungry(surf, cx, cy, r, col):

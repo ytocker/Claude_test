@@ -84,45 +84,45 @@ def _pips(surf, cx, cy, r, col, n):
 # ── rung 1: coin_25_run — Pocket Change ──────────────────────────────────────
 
 def _glyph_coin_25_run(surf, cx, cy, r, col):
-    # ONE ``$`` coin, slightly tilted, with two tiny coin-edge nicks beside it —
-    # loose pocket change. The bare coin (no container) is the bottom rung.
-    cox, coy = cx - int(r * 0.06), cy - int(r * 0.04)
-    _coin(surf, cox, coy, r, col, rscale=0.66)
-    # two edge-nick coins peeking from behind, lower-right — "loose change"
-    for dx, dy, sc in ((0.50, 0.42, 0.30), (0.66, 0.20, 0.24)):
-        nx, ny = cx + int(r * dx), cy + int(r * dy)
-        nr = max(4, int(r * sc))
-        pygame.draw.circle(surf, _GLYPH_SH, (nx + 1, ny + 1), nr)
-        pygame.draw.circle(surf, col, (nx, ny), nr)
-        pygame.draw.circle(surf, _GLYPH_SH, (nx, ny), nr, max(1, nr // 3))
+    # ONE clean ``$`` coin with a single small notch-dot at its foot — the lone-
+    # coin bottom rung. No second coin, so it never competes with the 3-stack of
+    # the next rung at row size; just one unmistakable ringed ``$``.
+    _coin(surf, cx, cy - int(r * 0.06), r, col, rscale=0.72)
+    # one tiny notch-dot tucked lower-right (a single chip of loose change)
+    nx, ny = cx + int(r * 0.60), cy + int(r * 0.58)
+    nr = max(4, int(r * 0.17))
+    pygame.draw.circle(surf, _GLYPH_SH, (nx + 1, ny + 1), nr)
+    pygame.draw.circle(surf, col, (nx, ny), nr)
+    pygame.draw.circle(surf, _GLYPH_SH, (nx, ny), nr, max(1, nr // 3))
 
 
 # ── rung 2: coin_100_run — Coin Run ──────────────────────────────────────────
 
 def _glyph_coin_100_run(surf, cx, cy, r, col):
-    # A short STACK of 3 ``$`` coins — solid overlapping discs climbing up-left,
-    # each a thick coin-edge rim with a dark gap between so the COUNT reads, the
-    # top one face-on showing the ringed ``$``. Container = a stack. L1 pips.
-    cr = int(r * 0.40)               # each coin's radius
-    rim = max(3, cr // 3)            # thick struck edge
-    # back-to-front: lower-right coin first, climbing up-left
+    # A fanned RUN of 3 ``$`` coins — three discs fanned diagonally with wide
+    # lateral offset and a deep inset-shadow gap rimming each, so the COUNT (3)
+    # never fuses into a blob at row size. The front (lower-right, nearest) coin
+    # carries a BOLD face-on ringed ``$`` — both the count and the dollar thread
+    # survive the 44px shrink. Container = a stack/run of coins. L1 pip.
+    cr = int(r * 0.42)               # each coin's radius
+    gap = max(2, int(r * 0.07))      # dark separation halo between coins
+    # back coins first (up-left, faint), front coin last (down-right, the ``$``)
     centres = [
-        (cx + int(r * 0.24), cy + int(r * 0.40)),
-        (cx, cy + int(r * 0.06)),
-        (cx - int(r * 0.24), cy - int(r * 0.30)),   # top, face-on with ``$``
+        (cx - int(r * 0.50), cy - int(r * 0.30)),   # back
+        (cx - int(r * 0.10), cy + int(r * 0.02)),   # middle
+        (cx + int(r * 0.40), cy + int(r * 0.36)),   # front, face-on ``$``
     ]
     for i, (px, py) in enumerate(centres):
-        # dark backing disc gives each coin a clean edge against its neighbour
-        pygame.draw.circle(surf, _GLYPH_SH, (px, py), cr + max(1, rim // 2))
-        pygame.draw.circle(surf, col, (px, py), cr)
+        # wide dark halo cuts a clean gap to the coin behind/beside it
+        pygame.draw.circle(surf, _GLYPH_SH, (px, py), cr + gap)
         if i < 2:
-            # lower coins read edge-on: hollow ring + a single centre score line
-            pygame.draw.circle(surf, _GLYPH_SH, (px, py), cr - rim)
-            pygame.draw.line(surf, col, (px - cr + rim, py), (px + cr - rim, py),
-                             max(2, rim // 2))
+            # back coins read edge-on: solid disc + a hollow ring score
+            pygame.draw.circle(surf, col, (px, py), cr)
+            pygame.draw.circle(surf, _GLYPH_SH, (px, py), max(2, cr - cr // 3))
+            pygame.draw.circle(surf, col, (px, py), max(3, cr - cr // 2))
     tx, ty = centres[-1]
-    _coin(surf, tx, ty, r, col, rscale=0.40)
-    _pips(surf, cx, cy + int(r * 0.80), r, col, 1)
+    _coin(surf, tx, ty, r, col, rscale=0.42)
+    _pips(surf, cx, cy + int(r * 0.86), r, col, 1)
 
 
 # ── rung 3: coins_500_life — Coin Collector ──────────────────────────────────
@@ -205,22 +205,25 @@ def _glyph_coins_5000_life(surf, cx, cy, r, col):
 # ── rung 5: coin_tycoon — Coin Tycoon ────────────────────────────────────────
 
 def _glyph_coin_tycoon(surf, cx, cy, r, col):
-    # A treasure HOARD: a mound of stacked coins topped by a face-on ``$`` coin,
-    # two arcs of coins flanking it, crowned by the L4 coronet — wealth
-    # overflowing. Container = an open pile (no walls; the money spills out).
-    base_y = cy + int(r * 0.62)
-    # the mound silhouette — a low heaped trapezoid of bullion
+    # A treasure HOARD that visibly OUT-SCALES the pouch and vault: a broad,
+    # tall heaped mound of bullion topped by a face-on ``$`` coin and crowned by
+    # the L4 coronet, with loose coins spilling PAST the mound's base outline on
+    # both flanks — the money is overflowing its own pile. Container = an open
+    # hoard with no walls (the wealth literally can't be contained).
+    base_y = cy + int(r * 0.78)
+    # the mound silhouette — a wide, tall heap of bullion (out-scales the others)
     mound = [
-        (cx - int(r * 0.92), base_y),
-        (cx - int(r * 0.52), base_y - int(r * 0.42)),
-        (cx + int(r * 0.52), base_y - int(r * 0.42)),
-        (cx + int(r * 0.92), base_y),
+        (cx - int(r * 1.06), base_y),
+        (cx - int(r * 0.60), base_y - int(r * 0.66)),
+        (cx + int(r * 0.60), base_y - int(r * 0.66)),
+        (cx + int(r * 1.06), base_y),
     ]
     pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in mound])
-    # two flanking arcs of stacked coins riding the mound's shoulders
+    # coins heaped up the mound's shoulders, the lowest pair SPILLING past the
+    # base outline so the hoard clearly overflows
     for sgn in (-1, 1):
-        for i, (fx, fy, sc) in enumerate((
-            (0.66, 0.30, 0.22), (0.40, 0.50, 0.22), (0.18, 0.62, 0.22))):
+        for fx, fy, sc in ((0.74, 0.34, 0.24), (0.46, 0.56, 0.24),
+                           (0.92, -0.10, 0.22)):   # last one spills below base_y
             nx = cx + sgn * int(r * fx)
             ny = base_y - int(r * fy)
             nr = max(4, int(r * sc))
@@ -229,65 +232,67 @@ def _glyph_coin_tycoon(surf, cx, cy, r, col):
             pygame.draw.circle(surf, _GLYPH_SH, (nx, ny), nr, max(1, nr // 3))
     # the crowning face-on ``$`` coin riding clear above the heap (the constant
     # thread) — a dark backing disc lifts it off the mound so it never merges
-    coy = base_y - int(r * 0.74)
-    pygame.draw.circle(surf, _GLYPH_SH, (cx, coy), int(r * 0.40) + 2)
-    _coin(surf, cx, coy, r, col, rscale=0.40)
+    coy = base_y - int(r * 0.92)
+    pygame.draw.circle(surf, _GLYPH_SH, (cx, coy), int(r * 0.42) + 2)
+    _coin(surf, cx, coy, r, col, rscale=0.42)
     # L4 crownlet seated above the hoard — the wealth is royal now
-    _crownlet(surf, cx, cy - int(r * 0.74), r, col)
+    _crownlet(surf, cx, coy - int(r * 0.50), r, col)
 
 
 # ── rung 6: midas — Midas Touch ──────────────────────────────────────────────
 
 def _glyph_midas(surf, cx, cy, r, col):
-    # An open PALM (three fat finger-stubs + a thumb, no knuckle detail) beneath
-    # a RADIANT ``$`` coin, with a single unlock-only GOLD gem-spark at the
-    # fingertip. The HAND is exclusive to Midas — the apex of the wealth ladder:
-    # the touch that turns coins to gold.
-    # radiant coin riding high, the constant thread, with short emanating rays
-    coy = cy - int(r * 0.40)
-    cor = int(r * 0.40)
-    for i in range(8):
-        a = i * math.pi / 4
-        x1 = cx + int(math.cos(a) * cor * 1.30)
-        y1 = coy + int(math.sin(a) * cor * 1.30)
-        x2 = cx + int(math.cos(a) * cor * 1.74)
-        y2 = coy + int(math.sin(a) * cor * 1.74)
-        pygame.draw.line(surf, col, (x1, y1), (x2, y2), max(2, r // 10))
-    _coin(surf, cx, coy, r, col, rscale=0.40)
-    # the open palm cupped below, reaching up toward the coin — a rounded heel
-    pw = int(r * 0.74)        # palm half-width
-    py = cy + int(r * 0.70)   # palm base line
-    fy_top = py - int(r * 0.30)
+    # An open PALM (three fat WIDELY-SPACED finger-stubs + a thumb, no knuckle
+    # detail) reaching up to a RADIANT ``$`` coin that hangs LOW, nearly touching
+    # the fingertips, with the unlock-only GOLD gem-spark exactly at that contact
+    # point. The HAND is exclusive to Midas — the apex of the wealth ladder: the
+    # touch that turns the coin to gold. The reach-and-touch gesture must survive
+    # row size, so the fingers fan with big dark gaps and the coin sits close.
+    # the open palm — a rounded heel low in the box
+    pw = int(r * 0.80)        # palm half-width
+    py = cy + int(r * 0.78)   # palm base line
+    fy_top = py - int(r * 0.26)
     palm = [
         (cx - pw, fy_top),
-        (cx - int(pw * 0.78), py),                   # heel left
+        (cx - int(pw * 0.74), py),                   # heel left
         (cx, py + int(r * 0.18)),                    # rounded heel bottom
-        (cx + int(pw * 0.78), py),                   # heel right
+        (cx + int(pw * 0.74), py),                   # heel right
         (cx + pw, fy_top),
     ]
     pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in palm])
-    # three fat finger-stubs splayed up off the heel toward the coin, each set
-    # off by a dark gap so the fingers read as separate stubs, not a paddle
+    # three fat finger-stubs fanned WIDE off the heel, each carved out by a broad
+    # dark slot so the trio reads as separate fingers — not a paddle — at 44px
     finger_w = max(6, int(r * 0.24))
-    flen = int(r * 0.46)
-    for fx in (-0.50, 0.0, 0.50):
+    flen = int(r * 0.42)
+    for fx in (-0.62, 0.0, 0.62):
         x = cx + int(pw * fx)
-        # dark slot between fingers
         pygame.draw.rect(surf, _GLYPH_SH,
-                         (x - finger_w // 2 - 2, fy_top - flen,
-                          finger_w + 4, flen + 4),
-                         border_radius=finger_w // 2 + 2)
+                         (x - finger_w // 2 - 3, fy_top - flen,
+                          finger_w + 6, flen + 5),
+                         border_radius=finger_w // 2 + 3)
         pygame.draw.rect(surf, col, (x - finger_w // 2, fy_top - flen,
                                      finger_w, flen + max(2, r // 12)),
                          border_radius=finger_w // 2)
-    # thumb angled out off the right heel (open-hand gesture, reaching the coin)
+    # thumb angled out off the right heel (open-hand gesture)
     thumb_w = max(6, int(r * 0.22))
-    pygame.draw.line(surf, col, (cx + int(pw * 0.78), py - int(r * 0.04)),
-                     (cx + int(pw * 1.08), fy_top - int(r * 0.18)), thumb_w)
-    # single GOLD four-point gem-spark over the middle fingertip — the only
-    # saturated accent in the family, desaturating to bronze when dormant
+    pygame.draw.line(surf, col, (cx + int(pw * 0.74), py - int(r * 0.04)),
+                     (cx + int(pw * 1.08), fy_top - int(r * 0.16)), thumb_w)
+    # radiant ``$`` coin dropped LOW so it nearly touches the middle fingertip,
+    # the constant thread, ringed by short emanating rays
+    cor = int(r * 0.36)
+    coy = fy_top - flen - cor - int(r * 0.04)
+    for i in range(8):
+        a = i * math.pi / 4
+        x1 = cx + int(math.cos(a) * cor * 1.28)
+        y1 = coy + int(math.sin(a) * cor * 1.28)
+        x2 = cx + int(math.cos(a) * cor * 1.70)
+        y2 = coy + int(math.sin(a) * cor * 1.70)
+        pygame.draw.line(surf, col, (x1, y1), (x2, y2), max(2, r // 11))
+    _coin(surf, cx, coy, r, col, rscale=0.36)
+    # single GOLD four-point gem-spark at the fingertip-to-coin contact — the
+    # only saturated accent in the family, desaturating to bronze when dormant
     gx = cx
-    gy = fy_top - flen - int(r * 0.10)
+    gy = fy_top - flen - int(r * 0.02)
     gold = _accent((255, 214, 92))
     sp = max(4, int(r * 0.22))
     pygame.draw.polygon(surf, _GLYPH_SH, [

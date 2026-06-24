@@ -52,18 +52,29 @@ def _needle_thread(surf, cx, cy, r, col, tier):
     ew, eh = int(r * 0.30), int(r * 0.44)
     eye_rect = pygame.Rect(int(eye_c[0] - ew / 2), int(eye_c[1] - eh / 2), ew, eh)
     pygame.draw.ellipse(surf, col, eye_rect, max(2, int(r * 0.10)))
-    # Thread: a swung loop passing through the eye, trailing down to the right.
-    loop = pygame.Rect(int(cx - r * 0.12), int(cy - r * 0.74),
-                       int(r * 0.74), int(r * 0.62))
-    pygame.draw.arc(surf, col, loop, math.radians(-40), math.radians(210),
+    # Thread loop swinging off the eye (up top), then a STRAIGHT lower segment
+    # running down-right that the beads are strung on — a clean baseline so the
+    # bead COUNT reads cleanly instead of smearing into the loop.
+    loop = pygame.Rect(int(cx - r * 0.16), int(cy - r * 0.74),
+                       int(r * 0.58), int(r * 0.50))
+    pygame.draw.arc(surf, col, loop, math.radians(-30), math.radians(210),
                     max(2, int(r * 0.11)))
-    # Beads strung along the trailing thread — the COUNT carries the tier.
+    # Straightened thread run holding the beads, well clear of the loop.
+    str_a = (cx + r * 0.04, cy + r * 0.06)
+    str_b = (cx + r * 0.74, cy + r * 0.80)
+    pygame.draw.line(surf, col, (int(str_a[0]), int(str_a[1])),
+                     (int(str_b[0]), int(str_b[1])), max(2, int(r * 0.09)))
+    # Beads on that straight run — fat discs so the 1 vs 3 COUNT is unmistakable
+    # at chip size. Each beads' centre is evenly spaced along the segment.
     n = 1 if tier == 0 else 3
-    bead_r = max(3, int(r * 0.13))
-    for i in range(n):
-        f = (i + 1) / (n + 1)
-        bx = cx + r * (0.10 + 0.62 * f)
-        by = cy + r * (-0.02 + 0.74 * f)
+    bead_r = max(4, int(r * 0.15))
+    if n == 1:
+        fracs = [0.55]
+    else:
+        fracs = [0.30, 0.55, 0.80]
+    for f in fracs:
+        bx = str_a[0] + (str_b[0] - str_a[0]) * f
+        by = str_a[1] + (str_b[1] - str_a[1]) * f
         pygame.draw.circle(surf, col, (int(bx), int(by)), bead_r)
         # tiny dark bead-hole so each reads as a strung bead, not a dot
         pygame.draw.circle(surf, _GLYPH_SH, (int(bx), int(by)), max(1, bead_r // 3))
@@ -85,32 +96,38 @@ def _glyph_near_miss_15(surf, cx, cy, r, col):
 
 def _ceiling_bonk(surf, cx, cy, r, col, tier):
     w = max(3, int(r * 0.15))
+    # Bar geometry is IDENTICAL across both tiers — the shared anchor. hard_head
+    # only carves damage INTO this same bar (same width / position / thickness).
     bar_y = cy - int(r * 0.56)
-    bar_h = max(3, int(r * 0.22))
+    bar_h = max(4, int(r * 0.24))
     bar_l, bar_w = cx - int(r * 0.84), int(r * 1.68)
+    top = bar_y - bar_h // 2
+    bot = bar_y + bar_h // 2
     if tier == 0:
         # Clean ceiling bar.
-        pygame.draw.rect(surf, col, (bar_l, bar_y - bar_h // 2, bar_w, bar_h),
+        pygame.draw.rect(surf, col, (bar_l, top, bar_w, bar_h),
                          border_radius=max(1, int(r * 0.08)))
     else:
-        # Dented bar — a V-notch punched up into the underside where the head
-        # rams it, so the ceiling visibly gives before the head does.
-        d = int(r * 0.22)
-        top = bar_y - bar_h // 2
-        bot = bar_y + bar_h // 2
+        # Same bar, now visibly damaged: a deep V-notch bitten UP into the
+        # underside where the head rams it. The notch eats most of the bar's
+        # thickness so the dent is unmistakable beside headbanger's clean bar.
+        d = int(bar_h * 0.92)                 # dent nearly through the bar
+        nw = int(r * 0.30)                    # notch mouth half-width
         pts = [
             (bar_l, top), (bar_l + bar_w, top),
             (bar_l + bar_w, bot),
-            (cx + int(r * 0.24), bot),
-            (cx, bot - d),                    # the dent apex pushed up
-            (cx - int(r * 0.24), bot),
+            (cx + nw, bot),
+            (cx, bot - d),                    # the dent apex driven up
+            (cx - nw, bot),
             (bar_l, bot),
         ]
         pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in pts])
-        # a hairline crack lancing up out of the dent
-        pygame.draw.line(surf, _GLYPH_SH, (cx, bar_y - bar_h // 2),
-                         (cx + int(r * 0.10), bar_y - int(r * 0.34)),
-                         max(2, int(r * 0.07)))
+        # crack-ticks lancing up out of the dent apex into the bar body, in the
+        # engraved-shadow tone so they read as fractures struck into the metal.
+        for ddx in (-int(r * 0.12), int(r * 0.13)):
+            pygame.draw.line(surf, _GLYPH_SH, (cx, bot - d),
+                             (cx + ddx, top + max(1, int(r * 0.03))),
+                             max(2, int(r * 0.08)))
 
     contact_y = bar_y + bar_h // 2 + int(r * 0.04)
     if tier == 0:
@@ -137,16 +154,20 @@ def _ceiling_bonk(surf, cx, cy, r, col, tier):
                          (cx - int(r * 0.14), head_c[1] + head_r - int(r * 0.04),
                           int(r * 0.28), int(r * 0.30)))
 
-    # Impact sparks at the contact point — COUNT grows with the tier.
-    spark_xs = ([-0.40, 0.40] if tier == 0
-                else [-0.62, -0.32, 0.32, 0.62])
+    # Impact sparks at the contact point — COUNT carries the tier: a clear pair
+    # (headbanger) vs a busy four (hard_head). Tier 0's two are drawn longer +
+    # bolder so the count reads as exactly 2.
+    if tier == 0:
+        spark_xs, slen, sw = [-0.44, 0.44], 0.28, 0.11
+    else:
+        spark_xs, slen, sw = [-0.64, -0.34, 0.34, 0.64], 0.20, 0.08
     for fx in spark_xs:
         sgn = 1 if fx > 0 else -1
         sx = cx + int(fx * r)
-        sy = bar_y + int(r * 0.18)
+        sy = bar_y + int(r * 0.20)
         pygame.draw.line(surf, col, (sx, sy),
-                         (sx + sgn * int(r * 0.16), sy + int(r * 0.20)),
-                         max(2, int(r * 0.08)))
+                         (sx + sgn * int(r * slen), sy + int(r * (slen * 0.72))),
+                         max(2, int(r * sw)))
 
 
 def _glyph_headbanger(surf, cx, cy, r, col):

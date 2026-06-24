@@ -35,49 +35,44 @@ def _ring_dollar(surf, cx, cy, r, col, rr):
 
 
 def _glyph_the_scrooge(surf, cx, cy, r, col):
-    # A `$` coin neglected into dust: the coin sits low-right while a cobweb is
-    # slung across its upper-left corner (three radiating strands + two sagging
-    # cross-threads), and a single bead drips off the coin's underside. The web
-    # over money is the whole read — "never spent, never taken".
+    # A `$` coin neglected into dust: the coin sits low-right while a corner
+    # spiderweb hangs off its upper-left rim, and a single bead drips off the
+    # coin's underside. The web over money is the whole read — "never spent,
+    # never taken".
     rr = int(r * 0.50)
     coin_cx = cx + int(r * 0.14)
     coin_cy = cy + int(r * 0.12)
     _ring_dollar(surf, coin_cx, coin_cy, r, col, rr)
 
-    # Cobweb slung across the coin's upper-left corner: radiating strands from a
-    # corner anchor, tied together by sagging cross-threads so the read is a
-    # corner spiderweb (neglect/dust), not a starburst. Bold strands so the web
-    # survives the engrave + crack at 44px.
-    web_w = max(3, r // 8)
-    ax = cx - int(r * 0.78)        # anchor corner (upper-left)
-    ay = cy - int(r * 0.78)
-    # Three radiating strands sweeping down-right, fanned wide enough to drape
-    # over the coin's upper-left quadrant.
-    strand_angles = (math.radians(2), math.radians(36), math.radians(70))
-    strand_len = r * 1.30
-    ends = []
-    for a in strand_angles:
-        ex = ax + math.cos(a) * strand_len
-        ey = ay + math.sin(a) * strand_len
-        ends.append((ex, ey))
-        pygame.draw.line(surf, col, (ax, ay), (int(ex), int(ey)), web_w)
+    # A TRUE corner cobweb: radial spoke strands fanning out from an anchor on
+    # the coin's upper-left rim, crossed by nested concentric arcs. Drawn as open
+    # arcs (never a closed polygon) so the rings stay see-through and read as a
+    # spiderweb at 44px instead of collapsing into a filled wedge.
+    web_w = max(3, r // 10)
+    ang0 = math.radians(218)       # anchor toward upper-left, on the coin rim
+    ax = coin_cx + math.cos(ang0) * rr
+    ay = coin_cy + math.sin(ang0) * rr
+    # Three radial spokes fanning into the upper-left quadrant (up, up-left, left)
+    # measured from screen +x with y pointing down.
+    spoke_angles = (math.radians(248), math.radians(212), math.radians(176))
+    spoke_len = r * 0.94
+    for a in spoke_angles:
+        ex = ax + math.cos(a) * spoke_len
+        ey = ay + math.sin(a) * spoke_len
+        pygame.draw.line(surf, col, (int(ax), int(ay)), (int(ex), int(ey)), web_w)
 
-    # Two concentric arcs of cross-thread connecting adjacent strands. Each
-    # segment sags outward (away from the corner) for the slack-web droop.
-    cross_w = max(3, r // 11)
-    for frac in (0.50, 0.84):
-        prev = None
-        for (ex, ey) in ends:
-            px = ax + (ex - ax) * frac
-            py = ay + (ey - ay) * frac
-            if prev is not None:
-                mx = (prev[0] + px) * 0.5 + r * 0.07
-                my = (prev[1] + py) * 0.5 + r * 0.09
-                pygame.draw.lines(surf, col, False,
-                                  [(int(prev[0]), int(prev[1])),
-                                   (int(mx), int(my)),
-                                   (int(px), int(py))], cross_w)
-            prev = (px, py)
+    # Three nested concentric arcs spanning the spoke fan — the web's rings. Each
+    # is centred on the anchor at a growing radius, so the gaps between rings stay
+    # open and the spiderweb reads.
+    a_lo = min(spoke_angles)
+    a_hi = max(spoke_angles)
+    arc_w = max(2, r // 12)
+    for frac in (0.40, 0.66, 0.92):
+        rad = spoke_len * frac
+        rect = pygame.Rect(int(ax - rad), int(ay - rad), int(rad * 2), int(rad * 2))
+        # pygame arc angles are CCW from +x; screen y is flipped, so negate the
+        # spoke span to make the arc connect the radial strands.
+        pygame.draw.arc(surf, col, rect, -a_hi, -a_lo, arc_w)
 
     # A single dust-drip hanging off the coin's lower edge — the "gathered dust"
     # tick. A short stem + a teardrop bead, bold enough to survive at 44px.

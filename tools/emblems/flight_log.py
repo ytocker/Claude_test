@@ -137,15 +137,32 @@ def _glyph_pillar_tier(surf, cx, cy, r, col, tier):
 
     if tier == 2:
         # Route Veteran — three posts stepping up in height (a colonnade
-        # receding to the right reads as DEPTH / a row).
-        sw = max(3, int(r * 0.24))
-        cw = int(sw * 1.7)
-        ch = max(2, int(r * 0.13))
-        cols = (-0.60, 0.0, 0.60)
-        heights = (1.04, 1.30, 1.54)
+        # receding to the right reads as DEPTH). Bold flared capitals PLUS a
+        # shared stepped entablature lintel riding all three caps, so the trio
+        # reads as a portico of PILLARS, never a flat-topped equalizer bar-chart.
+        sw = max(3, int(r * 0.26))
+        cw = int(sw * 2.0)
+        ch = max(3, int(r * 0.18))
+        cols = (-0.62, 0.0, 0.62)
+        heights = (1.02, 1.28, 1.54)
+        tops = []
         for fx, fh in zip(cols, heights):
             h = r * fh
-            _draw_one_pillar(surf, cx + fx * r, base_y - h, h, sw, cw, ch, col)
+            top = base_y - h
+            tops.append((cx + fx * r, top))
+            _draw_one_pillar(surf, cx + fx * r, top, h, sw, cw, ch, col)
+        # entablature: a sloped lintel band bridging the shortest cap (left) up
+        # to the tallest (right), tying the three into one colonnade roof.
+        (rx, ry) = tops[0]          # shortest (left)
+        (lx, ly) = tops[-1]         # tallest (right)
+        lh = max(2, int(r * 0.12))
+        lintel = [
+            (int(rx - cw * 0.55), int(ry - ch * 0.10)),
+            (int(lx + cw * 0.55), int(ly - ch * 0.10)),
+            (int(lx + cw * 0.55), int(ly - ch * 0.10 - lh)),
+            (int(rx - cw * 0.55), int(ry - ch * 0.10 - lh)),
+        ]
+        pygame.draw.polygon(surf, col, lintel)
         _rank_wreath(surf, cx, base_y + r * 0.14, r, _GLYPH_SH)
         return
 

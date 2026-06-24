@@ -88,40 +88,41 @@ def _glyph_icarus(surf, cx, cy, r, col):
 
 
 def _glyph_hummingbird(surf, cx, cy, r, col):
-    # A panic-flap blur: a small bird body with THREE overlapping wing-arcs
-    # fanned behind it (capped at 3 so it never muds to a blob) plus a couple
-    # of jitter-ticks. The over-multiplied wings are the joke vs the dignified
-    # single wing of flap_life.
-    bx, by = cx + int(r * 0.18), cy + int(r * 0.06)
-    # bird body — a small teardrop leaning right
+    # A panic-flap blur: a BOLD bird-body wedge with TWO thick, well-spaced
+    # wing-arcs fanned off its shoulder — the "too many wings on one bird" joke.
+    # Dropped from three arcs to two (three collapsed into a wifi/signal fan at
+    # 44px) and anchored on a clear body so the bird is never lost.
+    bx, by = cx + int(r * 0.30), cy + int(r * 0.10)
+    # Bird body — a fat rightward teardrop, clearly the largest mass so the eye
+    # locks onto a BIRD before it reads the flapping.
     body = [
-        (bx - int(r * 0.10), by - int(r * 0.26)),
-        (bx + int(r * 0.30), by - int(r * 0.06)),
-        (bx + int(r * 0.10), by + int(r * 0.30)),
-        (bx - int(r * 0.22), by + int(r * 0.14)),
+        (bx - int(r * 0.14), by - int(r * 0.34)),
+        (bx + int(r * 0.40), by - int(r * 0.04)),
+        (bx + int(r * 0.12), by + int(r * 0.40)),
+        (bx - int(r * 0.30), by + int(r * 0.16)),
     ]
     pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in body])
-    # tiny beak
+    # eye dot + long needle beak so the body reads unmistakably as a hummingbird
+    pygame.draw.circle(surf, _SH, (bx + int(r * 0.10), by - int(r * 0.08)),
+                       max(2, r // 12))
     pygame.draw.polygon(surf, col, [
-        (bx + int(r * 0.28), by - int(r * 0.10)),
-        (bx + int(r * 0.56), by - int(r * 0.02)),
-        (bx + int(r * 0.28), by + int(r * 0.04)),
+        (bx + int(r * 0.34), by - int(r * 0.12)),
+        (bx + int(r * 0.74), by - int(r * 0.02)),
+        (bx + int(r * 0.34), by + int(r * 0.04)),
     ])
-    # three motion-blur wing arcs fanned up-left from the shoulder
-    w = max(3, r // 9)
-    sh = (bx - int(r * 0.12), by - int(r * 0.10))
-    for k, (sweep, rad) in enumerate(((0.82, 0.62), (0.58, 0.78), (0.34, 0.92))):
+    # TWO thick motion-blur wing arcs fanned up-left off the shoulder, spaced
+    # far enough apart that they read as separate wing ghosts, not a signal fan.
+    w = max(4, r // 7)
+    sh = (bx - int(r * 0.22), by - int(r * 0.14))
+    for sweep, rad in ((0.95, 0.58), (0.62, 0.94)):
         rect = pygame.Rect(sh[0] - int(r * rad), sh[1] - int(r * rad),
                            int(r * rad * 2), int(r * rad * 2))
-        a0 = math.radians(120)
-        a1 = math.radians(120 + 110 * sweep)
+        a0 = math.radians(105)
+        a1 = math.radians(105 + 120 * sweep)
         pygame.draw.arc(surf, col, rect, a0, a1, w)
-    # jitter ticks — the frantic shimmer
-    for sgn in (-1, 1):
-        jx = bx - int(r * 0.36)
-        jy = by + sgn * int(r * 0.40)
-        pygame.draw.line(surf, col, (jx, jy), (jx - int(r * 0.16), jy),
-                         max(2, r // 13))
+    # one jitter tick — the frantic shimmer, kept minimal so it doesn't crowd
+    pygame.draw.line(surf, col, (bx - int(r * 0.46), by + int(r * 0.44)),
+                     (bx - int(r * 0.66), by + int(r * 0.44)), max(2, r // 12))
 
 
 def _glyph_denial(surf, cx, cy, r, col):
@@ -163,63 +164,71 @@ def _glyph_denial(surf, cx, cy, r, col):
 
 
 def _glyph_kfc_incident(surf, cx, cy, r, col):
-    # The fry bucket KNOCKED OVER (tipped ~35°) with fries spilling out and a
-    # grease-splat tick — died in fry mode. Distinct from upright greasy_fingers
-    # by the tilt + the spill. The red box accent stays bronze until earned.
-    ang = math.radians(36)
+    # The fry bucket KNOCKED OVER — lying nearly on its side (~70° from upright)
+    # with its mouth pointing DOWN-LEFT and fries spilling OUT in a directional
+    # fan. Died in fry mode. The spill DIRECTION (out the down-tilted mouth)
+    # sells "tipped over" rather than a bucket merely rotated. Distinct from the
+    # upright greasy_fingers bucket; the red box accent stays bronze until earned.
+    # The tub's local frame: +x runs base->mouth, +y across the mouth. We aim
+    # +x down-left so the open mouth faces the ground.
+    ang = math.radians(200)
     ca, sa = math.cos(ang), math.sin(ang)
+    # Shift the whole bucket up-right so the spilled fan has room below-left.
+    bcx, bcy = cx + int(r * 0.30), cy - int(r * 0.18)
 
     def rot(px, py):
-        # rotate a local (right=+x, down=+y) point about the bucket centre
-        return (cx + int(px * ca - py * sa), cy + int(px * sa + py * ca))
+        return (bcx + int(px * ca - py * sa), bcy + int(px * sa + py * ca))
 
-    # tilted trapezoid tub — wide mouth (left, where it spills), narrow base
-    tl = rot(-r * 0.02, -r * 0.50)
-    tr = rot(-r * 0.02, r * 0.50)
-    br = rot(r * 0.70, r * 0.34)
-    bl = rot(r * 0.70, -r * 0.34)
-    tub = [tl, tr, br, bl]
+    # Trapezoid tub — wide mouth (toward +x, now down-left), narrower base.
+    mouth_l = rot(r * 0.60, -r * 0.52)
+    mouth_r = rot(r * 0.60, r * 0.52)
+    base_r = rot(-r * 0.34, r * 0.34)
+    base_l = rot(-r * 0.34, -r * 0.34)
+    tub = [mouth_l, mouth_r, base_r, base_l]
     pygame.draw.polygon(surf, ai._accent((214, 74, 60)), tub)
     pygame.draw.polygon(surf, col, tub, max(2, r // 14))
-    # fries spilling OUT of the mouth (up-left), fanned at angles
-    mouth = rot(-r * 0.02, 0)
-    for da, ln in ((-0.55, 0.74), (-0.18, 0.86), (0.20, 0.78)):
-        fa = ang + math.pi + da   # point away from the base, out the mouth
-        ex = mouth[0] + int(math.cos(fa) * r * ln)
-        ey = mouth[1] + int(math.sin(fa) * r * ln)
-        sx = mouth[0] + int(math.cos(fa) * r * 0.10)
-        sy = mouth[1] + int(math.sin(fa) * r * 0.10)
+    # Mouth rim line so the open end reads as the opening the fries pour from.
+    pygame.draw.line(surf, col, mouth_l, mouth_r, max(2, r // 13))
+    # Fries spilling OUT of the mouth as a tight directional fan, all aimed
+    # down-left (the way the bucket is pointing) — a spill, not scattered crumbs.
+    mouth_c = rot(r * 0.60, 0)
+    for da, ln in ((-0.34, 0.92), (-0.04, 1.02), (0.26, 0.88)):
+        fa = ang + da             # roughly along +x, out the mouth, down-left
+        sx = mouth_c[0] + int(math.cos(fa) * r * 0.06)
+        sy = mouth_c[1] + int(math.sin(fa) * r * 0.06)
+        ex = mouth_c[0] + int(math.cos(fa) * r * ln)
+        ey = mouth_c[1] + int(math.sin(fa) * r * ln)
         pygame.draw.line(surf, col, (sx, sy), (ex, ey), max(3, r // 9))
-    # grease-splat tick under the spill
-    gx, gy = cx - int(r * 0.30), cy + int(r * 0.62)
+    # grease-splat tick where the fries land
+    gx, gy = cx - int(r * 0.46), cy + int(r * 0.66)
     pygame.draw.circle(surf, col, (gx, gy), max(3, r // 8))
-    pygame.draw.circle(surf, col, (gx - int(r * 0.20), gy + int(r * 0.10)),
+    pygame.draw.circle(surf, col, (gx + int(r * 0.22), gy + int(r * 0.06)),
                        max(2, r // 13))
 
 
 def _glyph_so_close(surf, cx, cy, r, col):
-    # Abstract "this close" pinch (v2 lock — bars, not fingers): two short
-    # opposed bars closing toward a tiny gap, a near-miss spark crackling in
-    # the gap. Distinct from the nerve-spike near-misses by being a static
-    # pinch, not a pulse line.
-    bar_w = max(4, int(r * 0.22))
-    bar_len = int(r * 0.78)
-    gap = int(r * 0.16)
-    # top bar pressing down toward the gap
-    pygame.draw.rect(surf, col, (cx - bar_w // 2, cy - gap // 2 - bar_len,
-                                 bar_w, bar_len), border_radius=max(1, r // 14))
-    # bottom bar pressing up
-    pygame.draw.rect(surf, col, (cx - bar_w // 2, cy + gap // 2,
-                                 bar_w, bar_len), border_radius=max(1, r // 14))
-    # spark in the gap — a 4-point twinkle, "so close"
-    s = int(r * 0.30)
-    pygame.draw.line(surf, col, (cx - s, cy), (cx + s, cy), max(2, r // 12))
-    pygame.draw.line(surf, col, (cx, cy - int(s * 0.7)), (cx, cy + int(s * 0.7)),
-                     max(2, r // 12))
-    for dx, dy in ((-0.6, -0.6), (0.6, -0.6), (-0.6, 0.6), (0.6, 0.6)):
+    # Abstract "this much" pinch (v2 lock — bars, not fingers): two short
+    # HORIZONTAL opposed bars reaching in from left and right toward a clear
+    # VERTICAL gap between their tips, with a near-miss spark pinched in the gap.
+    # The pinch only reads when the gap is horizontal/obvious, so the bars lie
+    # flat and almost meet. No vertical crossbar (that read as a plus/dagger).
+    bar_h = max(5, int(r * 0.26))
+    bar_len = int(r * 0.62)
+    gap = int(r * 0.20)                            # the small horizontal gap
+    # left bar reaching right toward the gap
+    pygame.draw.rect(surf, col, (cx - gap // 2 - bar_len, cy - bar_h // 2,
+                                 bar_len, bar_h), border_radius=max(1, r // 14))
+    # right bar reaching left toward the gap
+    pygame.draw.rect(surf, col, (cx + gap // 2, cy - bar_h // 2,
+                                 bar_len, bar_h), border_radius=max(1, r // 14))
+    # near-miss spark pinched in the gap — a compact 4-point twinkle
+    s = int(r * 0.22)
+    pygame.draw.line(surf, col, (cx, cy - s), (cx, cy + s), max(2, r // 13))
+    pygame.draw.line(surf, col, (cx - int(s * 0.5), cy),
+                     (cx + int(s * 0.5), cy), max(2, r // 13))
+    for dx, dy in ((-0.62, -0.62), (0.62, -0.62), (-0.62, 0.62), (0.62, 0.62)):
         pygame.draw.line(surf, col, (cx, cy),
-                         (cx + int(dx * s * 0.7), cy + int(dy * s * 0.7)),
-                         max(1, r // 16))
+                         (cx + int(dx * s), cy + int(dy * s)), max(1, r // 18))
 
 
 def _glyph_lottery_loser(surf, cx, cy, r, col):
