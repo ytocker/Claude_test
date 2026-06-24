@@ -633,22 +633,33 @@ def draw_pip(surf, cx, cy, scale):
     pip = pygame.transform.smoothscale(
         frame, (max(1, int(fw * s)), max(1, int(fh * s))))
 
-    # a clear FOCAL SPOTLIGHT so Pip is unmistakably the hero of the frame: a
-    # warm-gold aura grading to a tight hot core under him, kept compact so it
-    # crowns the bird without bleeding onto the neighbouring stall labels.
-    soft_glow(surf, cx, cy + int(target * 0.16), int(target * 0.74),
-              (255, 196, 108), 60, layers=14)
-    soft_glow(surf, cx, cy, int(target * 0.48), (255, 230, 168), 50, layers=10)
-    soft_glow(surf, cx, cy - int(target * 0.04), int(target * 0.26),
-              (255, 248, 220), 44, layers=8)
+    # a soft indigo back-scrim directly behind Pip so his silhouette never breaks
+    # up against a bright white cloud crown — the warm aura then reads on a calm
+    # dark ground and his scarlet body stays 100% legible.
+    scrim = pygame.Surface((target * 2, target * 2), pygame.SRCALPHA)
+    sc = target
+    for i in range(12, 0, -1):
+        rr = int(target * 0.70 * i / 12)
+        a = int(120 * (1 - (i - 1) / 12) ** 1.7)
+        if rr <= 0 or a <= 0:
+            continue
+        pygame.draw.circle(scrim, (16, 14, 40, a), (sc, sc), rr)
+    surf.blit(scrim, (cx - sc, cy - sc))
+
+    # a TIGHT hot warm-gold focal core with a clean falloff (no broad grey outer
+    # ring that mushed into the cloud crown in round 2) so Pip reads as the hero
+    # without his halo bleeding onto the platform behind him.
+    soft_glow(surf, cx, cy, int(target * 0.50), (255, 198, 110), 62, layers=12)
+    soft_glow(surf, cx, cy, int(target * 0.30), (255, 234, 178), 56, layers=9)
 
     # a soft hover shadow drifting below (sells the float)
     shadow = pygame.Surface((target, int(target * 0.4)), pygame.SRCALPHA)
     pygame.draw.ellipse(shadow, (20, 12, 34, 90), shadow.get_rect())
     surf.blit(shadow, (cx - target // 2, cy + int(target * 0.62)))
 
-    # a few motion-sparkle coins drifting up around him (the vendor's coins)
-    for ang, rr, cr in ((-40, 0.62, 7), (210, 0.7, 6), (150, 0.55, 5)):
+    # two motion-sparkle vendor coins drifting up beside him (trimmed from three;
+    # the third sat too close to the neighbouring nameplate edge).
+    for ang, rr, cr in ((-42, 0.66, 7), (208, 0.72, 6)):
         px = cx + int(math.cos(math.radians(ang)) * target * rr)
         py = cy + int(math.sin(math.radians(ang)) * target * rr)
         soft_glow(surf, px, py, m(7), (255, 208, 110), 55, layers=5)
@@ -656,7 +667,7 @@ def draw_pip(surf, cx, cy, scale):
 
     r = pip.get_rect(center=(cx, cy))
     # crisp top-left rim light so the macaw pops off the twilight sky
-    rim = C._rim_light(pip, alpha=150)
+    rim = C._rim_light(pip, alpha=195)
     surf.blit(rim, r.topleft, special_flags=pygame.BLEND_ADD)
     surf.blit(pip, r.topleft)
 
@@ -766,7 +777,7 @@ SLOTS = [
     (258, 522, 58, 0.92),   # SHADES    (lower-right)
     (180, 582, 70, 1.06),   # PARCELS   (centre foot — treasure anchor)
 ]
-PIP_SLOT = (180, 362, 1.16)     # Pip hovers dead-centre, between the columns
+PIP_SLOT = (180, 344, 1.16)     # Pip hovers dead-centre, lifted clear of crowns
 
 
 def render_device():

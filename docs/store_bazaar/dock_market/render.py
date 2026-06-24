@@ -191,9 +191,10 @@ def draw_sky(surf):
                        (1.00, GH_LOW)], 255, gamma=1.04)
     surf.blit(sky, (0, 0))
     # the constellation central violet bloom near the top so the jewel-store
-    # nebula is already present above the market line.
-    soft_glow(surf, int(DW * 0.5), int(horizon_y * 0.30), m(150),
-              NEBULA_GLOW, 40, layers=12)
+    # nebula is already present above the market line — kept restrained + high so
+    # it never rings into a rainbow halo behind the wordmark.
+    soft_glow(surf, int(DW * 0.5), int(horizon_y * 0.16), m(180),
+              NEBULA_GLOW, 26, layers=14)
     # a sparse high starfield in the indigo ceiling only (fades out before the
     # warm band) — the jewel-store sky bleeding through the dusk.
     _draw_high_stars(surf, horizon_y)
@@ -212,11 +213,15 @@ def draw_sky(surf):
                    far_color=lerp_color(PAL["mtn_far"], GH_LOW, 0.35),
                    near_color=lerp_color(PAL["mtn_near"], (180, 120, 80), 0.3))
 
-    # two small clouds catching the low light, kept HIGH so they never drift over
-    # the stall band or the water glitter, tinted warm.
-    for x, y, sc, v in ((m(96), m(58), SS * 0.78, 2),
-                        (m(286), m(40), SS * 0.62, 3)):
-        draw_cloud(surf, x, y, scale=sc, variant=v)
+    # two small clouds catching the low light, pushed to the upper CORNERS (clear
+    # of the wordmark) + dimmed so they read as distant haze, not a white bloom
+    # behind the title.
+    cl = pygame.Surface((DW, horizon_y), pygame.SRCALPHA)
+    for x, y, sc, v in ((m(40), m(116), SS * 0.5, 2),
+                        (m(316), m(96), SS * 0.42, 3)):
+        draw_cloud(cl, x, y, scale=sc, variant=v)
+    cl.set_alpha(120)
+    surf.blit(cl, (0, 0))
 
 
 def _draw_high_stars(surf, horizon_y):

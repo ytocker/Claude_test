@@ -64,8 +64,11 @@ SKY_STOPS = [
     (0.78, (255, 196, 112)),     # the low sun core (brief anchor)
     (0.86, (255, 214, 140)),     # hottest band right above the water
 ]
-SUN_CORE = (255, 238, 196)
-SUN_HALO = (255, 188, 96)
+# A warm SATURATED gold disc, not a blown-white core — the back row must read
+# against sky, not glare, so the core stays a rich gold and the halo restrained.
+SUN_CORE = (255, 210, 130)
+SUN_HALO = (255, 176, 88)
+SUN_AURA = (255, 150, 78)        # warm aura behind Pip on the jetty
 
 # Lagoon water — gold sun-glitter band over a deep teal-violet bed so the warm
 # top reflection sits on cool depth (the classic golden-hour-on-water read).
@@ -163,11 +166,15 @@ def _build_static_sky():
     sky = pygame.Surface((DW, DH))
     sky.blit(multistop_v(DW, DH, SKY_STOPS), (0, 0))
 
-    # the low golden-hour sun, raked toward the top-left light origin
-    sx, sy = int(DW * 0.30), int(DH * 0.30)
-    soft_glow(sky, sx, sy, m(150), SUN_HALO, 70, layers=12)
-    soft_glow(sky, sx, sy, m(64), SUN_CORE, 150, layers=10)
-    pygame.draw.circle(sky, SUN_CORE, (sx, sy), m(26))
+    # the low golden-hour sun: a warm saturated gold disc ~38% smaller than R1
+    # and dropped LOWER so it sits behind the rooflines, with a RESTRAINED halo
+    # so the back row reads against sky instead of a white glare. No white core.
+    sx, sy = int(DW * 0.30), int(DH * 0.355)
+    soft_glow(sky, sx, sy, m(96), SUN_HALO, 46, layers=12)
+    soft_glow(sky, sx, sy, m(40), SUN_CORE, 110, layers=10)
+    pygame.draw.circle(sky, SUN_CORE, (sx, sy), m(16))
+    # a tiny hotter pip so the disc still has a sun centre (kept warm, not white)
+    pygame.draw.circle(sky, (255, 226, 168), (sx - m(2), sy - m(2)), m(7))
 
     # emerging dusk stars — only in the upper indigo band, fading out before the
     # warm haze so they never sparkle over daylight.
@@ -193,6 +200,18 @@ def _build_static_sky():
         pygame.draw.line(stars, col, (x - L, y), (x + L, y), max(1, m(0.7)))
         pygame.draw.line(stars, col, (x, y - L), (x, y + L), max(1, m(0.7)))
     sky.blit(stars, (0, 0), special_flags=pygame.BLEND_ADD)
+
+    # back-row scrim: a soft cool atmospheric band across the lower sky (where
+    # the back row's thatch ridges sit) so COSTUMES/ANIMALS/HATS read against
+    # dusky sky, not against the sun's glow. A gentle dusk haze, peaking just
+    # under the back-row rooflines and feathering out top + bottom.
+    scrim = pygame.Surface((DW, DH), pygame.SRCALPHA)
+    s0, s1 = 0.36, 0.50          # the back-row roofline band
+    for y in range(int(s0 * DH), int(s1 * DH)):
+        t = (y - s0 * DH) / ((s1 - s0) * DH)
+        a = int(78 * math.sin(t * math.pi) ** 0.9)
+        pygame.draw.line(scrim, (40, 38, 78, a), (0, y), (DW, y))
+    sky.blit(scrim, (0, 0))
 
     # distant hazy islets sitting on the waterline (depth cue behind the huts)
     horizon = int(DH * 0.485)
@@ -732,13 +751,16 @@ def _balance_capsule(surf, cx, y):
 # Each hut's deck sits on the lagoon; back-to-front draw order gives depth.
 LAYOUT = [
     # group,      cx fraction, deck_y fraction, scale, hero
-    ("costume",  0.180, 0.605, 0.68, False),   # back-left
-    ("animal",   0.500, 0.592, 0.68, False),   # back-centre
-    ("hats",     0.820, 0.605, 0.68, False),   # back-right
-    ("parrot",   0.165, 0.792, 0.84, False),   # mid-left
-    ("shoes",    0.835, 0.792, 0.84, False),   # mid-right
-    ("shades",   0.500, 0.735, 0.76, False),   # mid-centre, tucked slightly back
-    ("parcels",  0.500, 0.870, 1.00, True),    # hero jetty, frontmost
+    # Back row dropped lower + mid row pushed down so each roof ridge clears the
+    # eaves of the hut behind it (no row clipping); hero lifted ~14px so its
+    # name board gets a clean horizontal lane.
+    ("costume",  0.180, 0.628, 0.68, False),   # back-left
+    ("animal",   0.500, 0.616, 0.68, False),   # back-centre
+    ("hats",     0.820, 0.628, 0.68, False),   # back-right
+    ("parrot",   0.165, 0.808, 0.84, False),   # mid-left
+    ("shoes",    0.835, 0.808, 0.84, False),   # mid-right
+    ("shades",   0.500, 0.752, 0.76, False),   # mid-centre, tucked slightly back
+    ("parcels",  0.500, 0.848, 1.00, True),    # hero jetty, frontmost
 ]
 LABELS = {g: lbl for g, lbl in STALLS}
 
