@@ -31,6 +31,7 @@ _W_BONE   = (84, 240, 160)         # #54F0A0 spectral green bone — THEME
 _W_BONE_D = (28, 120, 86)          # darker bone underside / inter-rib floor
 _W_AURA   = (25, 200, 166)         # #19C8A6 aura mid-glow — additive
 _W_FLESH  = (11, 42, 36)           # #0B2A24 dark translucent flesh base
+_W_KEY    = (6, 32, 27)            # #06201B day keyline — darker than flesh
 _W_FLAME  = (140, 255, 230)        # cyan-green socket flame core
 _W_SOCK   = (3, 14, 12)            # near-black hollow socket behind the flame
 
@@ -58,10 +59,15 @@ def _flesh_ellipse(surf, center, rx, ry, alpha):
 
 
 def _bone_line(surf, p0, p1, width=2):
-    """A spectral bone segment: dark underside, then theme green on top so the
-    bone reads luminous against both bright sky and the dark flesh."""
+    """A spectral bone segment. The DAY read is the whole verdict: on bright
+    sky the additive aura is dead weight, so the bone must carry the structure
+    on opaque value alone. A dark keyline underlay (#0B2A24, full opacity) cuts
+    the stroke out of the blue; the THEME green sits over it; the CORE highlight
+    is the brightest opaque value and does the actual structural work."""
+    pygame.draw.line(surf, _W_KEY, p0, p1, width + 2)      # dark day keyline
     pygame.draw.line(surf, _W_BONE_D, p0, p1, width + 1)
-    pygame.draw.line(surf, _W_BONE, p0, p1, max(1, width - 1))
+    pygame.draw.line(surf, _W_BONE, p0, p1, width)
+    pygame.draw.line(surf, _W_CORE, p0, p1, max(1, width - 2))  # opaque core
 
 
 def _tendril(surf, ox, oy, dx, dy, alpha, length, width=2):
@@ -99,12 +105,14 @@ def _wisp_wing(angle_deg):
     _poly(mem, (*_W_FLESH, 90), membrane)
     base.blit(mem, (0, 0))
 
-    # Glow streaks trailing each finger-bone (additive).
-    for tx, ty in tips:
-        _add_glow(glow, _W_AURA, (tx, ty), 7, peak=120)
+    # Glow streaks trailing the finger-bones (additive). Capped at 3 tips and
+    # softened so the flap reads as a faint coherent glow-hint, not a particle
+    # cloud — frames 2–3 were over-particled at gameplay scale.
+    for tx, ty in tips[:3]:
+        _add_glow(glow, _W_AURA, (tx, ty), 5, peak=90)
         # streak back toward the wrist
         mx, my = (wrist[0] + tx) // 2, (wrist[1] + ty) // 2
-        pygame.draw.line(glow, (*_W_AURA, 90), wrist, (mx, my), 3)
+        pygame.draw.line(glow, (*_W_AURA, 70), wrist, (mx, my), 2)
     base.blit(glow, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
     # Solid 2px finger-bones over the glow so the wing survives downscale.
@@ -145,9 +153,10 @@ def _build_design3(wing_angle_deg):
     _flesh_ellipse(surf, skull_c, 11, 10, 110)           # head
 
     # Wispy dissolve below the hip line: graded value-fade tendrils streaming
-    # down (longer than stubs) so the lower body reads ghostly, not amputated.
+    # down. Fade FLOOR raised 30→70 so the lower body holds a faint coherent
+    # shape at gameplay scale instead of dissolving into confetti.
     for i, (hx, alpha) in enumerate(
-            ((24, 130), (29, 100), (34, 60), (39, 30))):
+            ((24, 130), (29, 105), (34, 85), (39, 70))):
         _tendril(surf, hx, 40, (i - 1) * 3 - 2, 16 - i * 2, alpha, 16)
 
     # ── 3 · Wing (additive streaks baked in) centred on the shoulder anchor.
@@ -155,25 +164,37 @@ def _build_design3(wing_angle_deg):
     surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
 
     # ── 4 · Luminous vertebra SPINE — stamped over the wing so the column reads.
+    # Raised to 3px and capped with the OPAQUE core so the bead-column survives
+    # the 40px day read where the additive halo flattens to nothing.
     spine = [(40, 23), (35, 27), (30, 31), (25, 34), (21, 36)]
     for i in range(len(spine) - 1):
-        _bone_line(surf, spine[i], spine[i + 1], 2)
+        _bone_line(surf, spine[i], spine[i + 1], 3)
     for vx, vy in spine:
+        pygame.draw.circle(surf, _W_KEY, (vx, vy), 4)      # day keyline seat
         pygame.draw.circle(surf, _W_BONE_D, (vx, vy), 3)   # dark seat
-        pygame.draw.circle(surf, _W_CORE, (vx, vy), 2)     # bright bead
+        pygame.draw.circle(surf, _W_CORE, (vx, vy), 2)     # bright opaque bead
 
-    # ── 5 · Glowing rib-arcs across the chest — bright core-green over a darker
-    # underside, with a dark inter-rib floor so the NEGATIVE SPACE reads as ribs.
-    for off_x in (-5, 0, 5):
-        rect = (24 + off_x, 24, 14, 17)
+    # ── 5 · Rib-arc LADDER across the chest. The DAY verdict lives here: the
+    # opaque dark inter-rib floor (full alpha) holds the negative-space rhythm,
+    # and each rib is capped in the OPAQUE CORE highlight (the brightest value)
+    # so 4–5 distinct bars survive a 40px day read instead of smearing to a blob.
+    rib_offs = (-6, -2, 2, 6, 10)        # 5 bars → 4–5 distinct rungs at 40px
+    # Opaque dark floor behind the whole ladder keeps the inter-rib gaps black.
+    for off_x in rib_offs:
+        rect = (24 + off_x, 24, 13, 17)
+        pygame.draw.arc(surf, _W_KEY, rect,
+                        math.radians(196), math.radians(344), 4)   # day keyline floor
+    for off_x in rib_offs:
+        rect = (24 + off_x, 24, 13, 17)
         pygame.draw.arc(surf, _W_BONE_D, rect,
-                        math.radians(198), math.radians(342), 3)   # dark underside
-        pygame.draw.arc(surf, _W_BONE, rect,
-                        math.radians(202), math.radians(338), 2)   # bright core
+                        math.radians(200), math.radians(340), 3)   # dark underside
         pygame.draw.arc(surf, _W_CORE, rect,
-                        math.radians(250), math.radians(290), 1)   # sternum sheen
+                        math.radians(204), math.radians(336), 2)   # bright opaque rung
 
     # ── 6 · Spectral SKULL — green dome with two near-black hollow sockets.
+    # Opaque dark keyline ring under the dome cuts the skull out of bright day
+    # sky (the additive halo does this on night; this carries it on day).
+    _aaellipse(surf, _W_KEY, (skull_c[0], skull_c[1] + 1), 11, 10)
     _aaellipse(surf, _W_BONE_D, (skull_c[0], skull_c[1] + 1), 10, 9)
     _aaellipse(surf, _W_BONE, skull_c, 9, 8)
     _aaellipse(surf, _W_CORE, (skull_c[0] - 3, skull_c[1] - 3), 4, 3)  # crown highlight
@@ -204,8 +225,9 @@ def _build_design3(wing_angle_deg):
     for hipx, kneex, footx in ((28, 27, 25), (34, 35, 37)):
         _bone_line(surf, (hipx, 42), (kneex, 46), 2)
         pygame.draw.circle(surf, _W_CORE, (kneex, 46), 1)      # knee knob
-        # Foot dissolves into graded additive downward wisps instead of a claw.
-        for k, a in enumerate((120, 80, 40)):
+        # Foot dissolves into a couple of coherent downward wisps (floor raised
+        # so the feet read as a faint shape, not scattered confetti).
+        for k, a in enumerate((120, 85)):
             _tendril(surf, footx + (k - 1) * 2, 46, (k - 1) * 2, 10, a, 10)
 
     return surf
