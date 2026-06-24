@@ -3,9 +3,14 @@
 The "instantly legible" sibling: thick chunky PURE WHITE bones with crisp
 dark keylines, in the Day-of-the-Dead / Saturday-morning-cartoon register.
 No glow, no gradient — clean graphic white-on-dark that pops on the bright
-day sky AND the night navy. Anatomy is fixed in `_v4_xray_base`; this file
-only fattens the stroke widths and post-thickens the dominant beak bone so
-it reads as the hero at 40px.
+day sky AND the night navy.
+
+R2 is all about NEGATIVE SPACE: at 40px the white bones flood-filled into a
+blob, so this pass forces dark flesh BETWEEN bones — thin fill bones (ribs,
+keel) so 4 distinct rib arcs survive, a hard dark gap at the skull/beak
+hinge so the beak reads as its own projecting wedge, an enlarged pure-dark
+eye-socket so the thumbnail keeps one skull eye-hole, and a single clean
+forward beak wedge with the hook below the jawline (no sub-pixel ticks).
 
 NOT registered in store_skins.BUILDERS. Production is untouched.
 """
@@ -14,12 +19,15 @@ import pygame
 from tools.skeleton_candidates import _v4_xray_base as XB
 
 
-# Fat shafts + a hard near-black keyline so every bone separates on day sky.
-# Pure-white beak fill makes the dominant beak bone the brightest mass.
+# Structural bones stay fat (spine/legs/skull = w_long); FILL bones (ribs,
+# keel) are thinned so dark flesh survives between them at thumbnail size.
 STYLE = dict(
     bone=(250, 252, 255), hi=(255, 255, 255), sh=(12, 13, 22),
-    w_long=5, w_rib=4, w_fine=4, beak=(255, 255, 255),
+    w_long=5, w_rib=2, w_fine=4, beak=(255, 255, 255),
 )
+
+# Pure-dark flesh tone used to CARVE negative space back between bones.
+_VOID = (8, 9, 16)
 
 # Darker flesh than the base default — sinks the body so chunky white bone
 # carries the entire read at thumbnail size.
@@ -53,32 +61,51 @@ def _flesh_base(angle_deg):
     return XB._build_parrot_with_palette(angle_deg, _FLESH, draw_lenses=False)
 
 
-def _beak_post(surf):
-    """Fatten the dominant beak bone into a big chunky TRIANGULAR hero bone.
+def _rib_gaps(surf):
+    """Carve pure-dark slots BETWEEN the white rib arcs so 4 distinct ribs
+    survive instead of flooding into one chest blob — ribs are the #1
+    'this is a skeleton' cue. Slots sit between adjacent _RIB_ROOTS, angled
+    to follow the ribcage curve down toward the keel."""
+    for x0 in (35, 30, 25, 21):          # between the four rib arcs
+        pygame.draw.line(surf, _VOID, (x0, XB.DY + 27), (x0 - 5, XB.DY + 40), 2)
 
-    Drawn AFTER paint_skeleton so it sits on top: a bold double-keylined
-    white wedge with a clean dark commissure line and hollow nostril — the
-    single most salient mass on the bird at any size."""
+
+def _eye_socket(surf):
+    """Re-stamp an enlarged pure-dark eye-hole so even the 40px thumbnail
+    keeps one skull eye — the dot that sells 'skull'. Skull centre (HX,HY)."""
+    cx, cy = XB.HX + 2, XB.HY - 1
+    pygame.draw.circle(surf, STYLE["bone"], (cx, cy), 6, 2)   # bone rim
+    pygame.draw.circle(surf, _VOID, (cx, cy), 5)              # hollow socket
+
+
+def _beak_post(surf):
+    """The DOMINANT beak bone: one big clean forward-projecting triangular
+    wedge, hook tip clearly below the jawline, anchored to the skull at a
+    single bone knuckle and framed top + bottom by pure-dark flesh so it
+    detaches cleanly. No commissure/culmen ticks — they read as a gaping
+    mouth at 1x; the dark frame does the separation."""
     bone = STYLE["bone"]
     key = STYLE["sh"]
-    # Triangular upper mandible, wider/heavier than the base hooked outline,
-    # ending in a downward raptor hook. Forward-projecting like the original.
-    upper = [(53, 36), (68, 41), (69, 47), (63, 48), (57, 45), (53, 42)]
-    lower = [(54, 45), (64, 47), (63, 50), (54, 48)]
-    # Two-step keyline (fat dark, then white) for the bold cartoon separation.
-    pygame.draw.polygon(surf, key, [(x - 2, y + 2) for x, y in upper])
-    pygame.draw.polygon(surf, key, [(x - 2, y + 2) for x, y in lower])
-    pygame.draw.polygon(surf, bone, upper)
-    pygame.draw.polygon(surf, bone, lower)
-    pygame.draw.polygon(surf, key, upper, 2)
-    pygame.draw.polygon(surf, key, lower, 2)
-    pygame.draw.line(surf, key, (54, 45), (64, 46), 2)        # commissure
-    pygame.draw.circle(surf, (8, 9, 16), (58, 41), 2)         # hollow nostril
-    pygame.draw.line(surf, (255, 255, 255), (54, 38), (66, 43), 1)  # culmen tick
+    # Dark frame ABOVE and BELOW the beak root so its edges touch void, not
+    # the white skull — this is what makes it read as its own bone at 40px.
+    pygame.draw.line(surf, _VOID, (55, 35), (66, 39), 2)     # over the culmen
+    pygame.draw.line(surf, _VOID, (55, 47), (62, 50), 2)     # under the jaw
+    # Big triangular wedge: broad root at the skull hinge → long taper to a
+    # hook that drops below the lower jaw. The biggest, most-salient bone.
+    wedge = [(56, 38), (72, 44), (70, 50), (63, 49), (59, 46), (56, 44)]
+    pygame.draw.polygon(surf, key, [(x, y + 1) for x, y in wedge])  # drop keyline
+    pygame.draw.polygon(surf, bone, wedge)
+    pygame.draw.polygon(surf, key, wedge, 2)                 # crisp dark outline
+    knob = XB.knob
+    knob(surf, bone, (56, 41), 2)                            # skull/beak knuckle
+    pygame.draw.circle(surf, _VOID, (60, 42), 1)            # nostril
 
 
 def _paint(surf, angle):
     XB.paint_skeleton(surf, angle, style=STYLE)
+    # Carve the negative space the base's white fill destroyed.
+    _rib_gaps(surf)
+    _eye_socket(surf)
     _beak_post(surf)
 
 
