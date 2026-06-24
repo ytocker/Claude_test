@@ -70,21 +70,22 @@ def _vertebra(surf, P, pts):
 
 # ── TAIL — long bony macaw tail (the "skeleton goes all the way back") ────────
 def tail(surf, P):
-    """A long pygostyle bone sweeping back-and-down off the hips, plus three
-    splayed tail-feather bones radiating from it — gives the macaw's long tail.
-    Drawn before the body so the body overlaps the roots and they read attached."""
+    """The macaw's long tail as ONE bold clean pygostyle bone sweeping back-and-
+    down off the hips to a bright terminal — the second parrot tell. A single
+    strong line reads at 40px where a splayed fan turns to noise; just two thin
+    hint feather-bones near the root suggest the fan without cluttering. Drawn
+    before the body so the body overlaps the root and it reads attached."""
     root = (18, 35)
-    # Central pygostyle bone, long and tapering to the tail tip far left.
-    pyg = [(18, 35), (12, 38), (6, 42), (2, 46)]
+    # Central pygostyle — long, lengthened past the old tip to the sprite edge.
+    pyg = [(18, 35), (12, 39), (6, 43), (0, 49)]
     pygame.draw.lines(surf, P.keyline, False, pyg, 4)
     pygame.draw.lines(surf, P.bone, False, pyg, 2)
-    pygame.draw.circle(surf, P.bone, (2, 46), 2)
-    # Three splayed tail-feather bones fanning down-left from near the root.
-    for tx, ty in ((1, 40), (1, 47), (4, 52)):
-        _bone_line(surf, P, root, (tx, ty), 2)
-        # a mid joint pip for the segmented look
-        mid = ((root[0] + tx) // 2, (root[1] + ty) // 2)
-        pygame.draw.circle(surf, P.bone_sh, mid, 1)
+    pygame.draw.circle(surf, P.keyline, (0, 49), 3, 1)
+    pygame.draw.circle(surf, P.bone, (0, 49), 2)        # bright terminal cap
+    # Two thin hint feather-bones near the root (kept few + thin = no 40px noise).
+    for tx, ty in ((2, 42), (3, 53)):
+        pygame.draw.line(surf, P.keyline, root, (tx, ty), 3)
+        pygame.draw.line(surf, P.bone, root, (tx, ty), 1)
     pygame.draw.circle(surf, P.bone, root, 2)
 
 
@@ -111,9 +112,13 @@ def ribcage(surf, P):
 
 def spine(surf, P):
     """Cervical S-curve from the skull base, continuing through the torso to the
-    tail root — one unbroken vertebral line so the skeleton reads full-length."""
-    _vertebra(surf, P, [(41, 24), (37, 27), (33, 30),
-                        (28, 33), (23, 35), (18, 35)])
+    tail root — one unbroken vertebral line so the skeleton reads full-length.
+    A continuous bone line is laid UNDER the vertebra beads so the eye traces an
+    unbroken skull→tail backbone at 40px (beads alone read as scattered dots)."""
+    path = [(41, 24), (37, 27), (33, 30), (28, 33), (23, 35), (18, 35)]
+    pygame.draw.lines(surf, P.keyline, False, path, 3)
+    pygame.draw.lines(surf, P.bone, False, path, 1)
+    _vertebra(surf, P, path)
 
 
 # ── WING — radiating finger-bones (flaps with the pose) ───────────────────────
@@ -173,28 +178,34 @@ def skull(surf, P, socket_fill=None, draw_socket=True):
 
 
 def beak(surf, P):
-    """The PARROT tell: a big down-curved HOOKED bone beak — the bird's defining
-    feature. A long, deep upper mandible sweeps forward off the skull and hooks
-    sharply DOWN past the jawline to a point; a scooped lower mandible sits under
-    it with a clear dark gape between. Sized large (tip reaches x62, well clear of
-    the cranium) and keyline-wrapped so it survives the 40px read."""
-    # Upper mandible — a big comma/hook: high wide base on the skull front,
-    # bulging forward then curving hard down to a hooked point below the jaw.
-    upper = [(49, 9), (57, 10), (62, 15), (63, 21), (61, 27), (57, 29),
-             (55, 24), (54, 19), (49, 17)]
-    _poly(surf, P.keyline, [(x + 1, y + 1) for x, y in upper])    # dark rim
+    """The PARROT tell: a SHORT, DEEP, DOWN-CURVED hooked bone beak — the macaw
+    'comma'. The upper mandible is a deep wedge off the skull front that bulges
+    only modestly forward (to ~x60) then curls HARD DOWN to a hooked tip that
+    hangs BELOW the short scooped lower mandible, pointing back at the throat. A
+    dark notch parts the beak base from the cranium so it reads as a separate
+    forward bone, and a curved dark gape defines the hook. Keyline-wrapped so it
+    survives the 40px read. (v1 cut it long+horizontal and it read as a raptor
+    snout — the down-hook is what says 'parrot'.)"""
+    # Upper mandible — deep comma: tall base on the skull front, short forward
+    # bulge, then a hard down-curl to a tip that drops below the lower jaw.
+    upper = [(50, 9), (56, 10), (59, 14), (60, 19), (58, 25),
+             (55, 30), (52, 30), (51, 24), (50, 18), (48, 13)]
+    _poly(surf, P.keyline, [(x + 1, y) for x, y in upper])        # dark rim
     _poly(surf, P.bone, upper)
-    _poly(surf, P.bone_sh, [(61, 27), (57, 29), (56, 24), (60, 22)])  # hook shade
-    pygame.draw.line(surf, P.bone_sh, (50, 11), (60, 16), 1)      # ridge highlight
+    _poly(surf, P.bone_sh, [(58, 25), (55, 30), (53, 27), (56, 22)])  # hook shade
+    pygame.draw.line(surf, P.bone_sh, (51, 11), (58, 16), 1)      # ridge highlight
+    pygame.draw.circle(surf, P.bone, (53, 29), 1)                 # bright hook nub
     # Cere/nostril hollow at the beak base.
-    pygame.draw.circle(surf, P.bone_deep, (53, 13), 1)
-    # The dark gape line separating the mandibles (defines the hook).
-    pygame.draw.line(surf, P.body_deep, (51, 19), (59, 25), 2)
-    # Lower mandible — a shorter bone scoop tucked under the hook.
-    lower = [(51, 21), (60, 26), (57, 30), (51, 27)]
+    pygame.draw.circle(surf, P.bone_deep, (52, 13), 1)
+    # Dark notch parting the beak base from the cranium (beak reads forward).
+    pygame.draw.line(surf, P.body_deep, (49, 11), (49, 18), 2)
+    # Curved dark gape between the mandibles — this shadow IS the hook read.
+    pygame.draw.lines(surf, P.body_deep, False, [(50, 19), (54, 22), (56, 25)], 2)
+    # Lower mandible — a short bone scoop tucked under the hook (~half the upper).
+    lower = [(50, 20), (56, 23), (55, 27), (51, 26)]
     _poly(surf, P.keyline, [(x, y + 1) for x, y in lower])
     _poly(surf, P.bone, lower)
-    _poly(surf, P.bone_sh, [(51, 25), (57, 30), (51, 27)])
+    _poly(surf, P.bone_sh, [(51, 24), (55, 27), (51, 26)])
 
 
 # ── full assembly ─────────────────────────────────────────────────────────────
