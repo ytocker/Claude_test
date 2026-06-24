@@ -182,13 +182,17 @@ def draw_sky(surf):
     the warm lower band; an authored indigo gradient + a soft violet bloom take
     over the upper frame; the low sun blooms top-left."""
     horizon_y = WATER_TOP
-    # authored sky: indigo ceiling -> violet mid -> warm golden-hour horizon.
+    # authored sky: a single smooth ramp from the indigo jewel-store ceiling down
+    # through a warm dusk into the golden-hour horizon — tuned so there is no
+    # mauve mid-band and no violet ring (the dissolve into the night souk is the
+    # ceiling colour, the market sits in warm gold).
     sky = vgrad_stops(DW, horizon_y, 0,
                       [(0.00, NEBULA_TOP),
-                       (0.26, NEBULA_MID),
-                       (0.52, lerp_color(NEBULA_MID, (150, 96, 96), 0.55)),
-                       (0.74, lerp_color((214, 132, 90), GH_LOW, 0.5)),
-                       (1.00, GH_LOW)], 255, gamma=1.04)
+                       (0.22, (44, 32, 86)),
+                       (0.44, (108, 70, 92)),
+                       (0.62, (196, 120, 92)),
+                       (0.80, (248, 176, 110)),
+                       (1.00, GH_LOW)], 255, gamma=1.02)
     surf.blit(sky, (0, 0))
     # the constellation central violet bloom near the top so the jewel-store
     # nebula is already present above the market line — kept restrained + high so
@@ -199,19 +203,26 @@ def draw_sky(surf):
     # warm band) — the jewel-store sky bleeding through the dusk.
     _draw_high_stars(surf, horizon_y)
 
-    # the low golden-hour sun, raking from the upper-left. Restrained bloom so it
-    # never washes the stalls white.
-    sun_y = int(horizon_y * 0.64)
-    soft_glow(surf, SUN_X, sun_y, m(72), (255, 206, 128), 50, layers=14)
-    soft_glow(surf, SUN_X, sun_y, m(30), (255, 234, 188), 96, layers=10)
-    disc = pygame.Surface((m(52), m(52)), pygame.SRCALPHA)
-    pygame.draw.circle(disc, (255, 246, 220, 240), (m(26), m(26)), m(19))
-    surf.blit(disc, (SUN_X - m(26), sun_y - m(26)))
+    # the low golden-hour sun, raking from the upper-left. Restrained warm bloom
+    # (amber, not white) kept up + left so it never washes the stalls.
+    sun_y = int(horizon_y * 0.46)
+    soft_glow(surf, SUN_X, sun_y, m(64), (255, 198, 116), 38, layers=14)
+    soft_glow(surf, SUN_X, sun_y, m(26), (255, 224, 168), 70, layers=10)
+    disc = pygame.Surface((m(48), m(48)), pygame.SRCALPHA)
+    pygame.draw.circle(disc, (255, 238, 204, 235), (m(24), m(24)), m(17))
+    surf.blit(disc, (SUN_X - m(24), sun_y - m(24)))
 
-    # distant tropical islands in the warm haze, kept low + hazy
-    draw_mountains(surf, scroll=140, ground_y=horizon_y, w=DW,
-                   far_color=lerp_color(PAL["mtn_far"], GH_LOW, 0.35),
-                   near_color=lerp_color(PAL["mtn_near"], (180, 120, 80), 0.3))
+    # distant tropical islands in the warm haze — drawn onto a SHORT strip just
+    # above the waterline + clipped, so they read as low hazy islands instead of
+    # tall peaks whose pale auto-tinted back layer washes the sky white. Warm
+    # silhouette colours keep them in golden-hour key.
+    isl_h = m(46)
+    isl = pygame.Surface((DW, isl_h), pygame.SRCALPHA)
+    draw_mountains(isl, scroll=140, ground_y=isl_h, w=DW,
+                   far_color=lerp_color(PAL["mtn_far"], (150, 96, 70), 0.5),
+                   near_color=lerp_color(PAL["mtn_near"], (120, 74, 52), 0.45))
+    isl.set_alpha(200)
+    surf.blit(isl, (0, horizon_y - isl_h))
 
     # two small clouds catching the low light, pushed to the upper CORNERS (clear
     # of the wordmark) + dimmed so they read as distant haze, not a white bloom

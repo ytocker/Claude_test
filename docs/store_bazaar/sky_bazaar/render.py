@@ -401,12 +401,15 @@ def rope_bridge(surf, p0, p1, coins=2):
                          (x, y - m(2.2)), (x, y + m(2.2)), max(1, m(1.4)))
     surf.blit(bridge, (0, 0))
 
-    # floating lead coins riding the bridge curve
+    # floating lead coins riding the bridge curve, lifted well CLEAR of the ropes
+    # (and therefore of any nameplate edge below) so they read as airborne leads,
+    # never as a coin stuck on a sign.
     for c in range(coins):
         t = (c + 1) / (coins + 1)
         x, y = pt(t)
-        soft_glow(surf, int(x), int(y - m(9)), m(8), (255, 210, 110), 60, layers=6)
-        coin_glyph(surf, int(x), int(y - m(9)), m(6))
+        cyc = int(y - m(15))
+        soft_glow(surf, int(x), cyc, m(8), (255, 210, 110), 60, layers=6)
+        coin_glyph(surf, int(x), cyc, m(6))
 
 
 # =============================================================================
@@ -445,21 +448,24 @@ def _awning(surf, cx, top_y, w, h, scallops=5):
 
 def category_label(surf, txt, cx, cy, w):
     """The stall's category name in thick gold-keyline type on a recessed gold
-    nameplate rail — the tappable affordance's headline."""
-    f = font(11.5)
-    h = m(20)
+    nameplate rail — the tappable affordance's headline. Matched to the jewel-
+    store category tabs: bigger cap height, a stronger near-black keyline so the
+    gold letters stay crisp at 1x (not a gold smear), and a THINNER gold bevel so
+    the rim frames the rail without competing with the type."""
+    f = font(12.7)                                   # +~10% cap height
+    h = m(22)
     rail = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
-    drop_shadow(surf, rail, h // 2, blur=m(3), alpha=110, dy=m(2))
-    surf.blit(vgrad(rail.w, rail.h, h // 2, (40, 24, 12), (18, 11, 6), 252,
+    drop_shadow(surf, rail, h // 2, blur=m(3), alpha=120, dy=m(2))
+    surf.blit(vgrad(rail.w, rail.h, h // 2, (40, 24, 12), (16, 10, 5), 252,
                     gamma=1.1), rail.topleft)
     top_sheen(surf, rail, h // 2, m(8), peak=44)
-    pygame.draw.rect(surf, (4, 4, 12), rail, width=max(1, m(1.4)),
+    pygame.draw.rect(surf, (3, 3, 10), rail, width=max(1, m(1.4)),
                      border_radius=h // 2)
-    bevel_rim(surf, rail, h // 2, lerp_color(GOLD, NEAR_BLACK, 0.4),
-              (*GOLD_PALE, 230), w=max(1, m(1.2)))
+    bevel_rim(surf, rail, h // 2, lerp_color(GOLD, NEAR_BLACK, 0.45),
+              (*GOLD_PALE, 225), w=max(1, m(0.9)))
     gradient_text(surf, txt, f, rail.center, GOLD_A_TOP, GOLD_A_BOT,
-                  weight=m(1.0), keyline=(70, 40, 8), kw=m(1.1),
-                  tracking=m(1.0), shadow=False)
+                  weight=m(1.0), keyline=(24, 12, 2), kw=m(1.5),
+                  tracking=m(1.1), shadow=False)
 
 
 def draw_stall(surf, label, group, cx, deck_y, scale=1.0):
@@ -574,11 +580,15 @@ def _shades_icon(px):
     return s
 
 
-def _preview_box(src, box_px):
+def _preview_box(src, box_px, rotate=0.0):
     """Scale a trimmed preview to FIT entirely inside the dome's box (contain on
     BOTH dims, not just the long edge) so aspect-extreme items — wide flip-flops,
     tall party hats — are letterboxed in the cabochon rather than clipped by the
-    glass rim. Then the contrast lift for legibility on the dark dome."""
+    glass rim. An optional rotation tilts ultra-wide footwear into a 3/4 pose so
+    the silhouette reads as a shoe, not a flat sliver. Then the contrast lift for
+    legibility on the dark dome."""
+    if rotate:
+        src = pygame.transform.rotate(src, rotate)
     bb = src.get_bounding_rect()
     if bb.width > 0 and bb.height > 0:
         src = src.subsurface(bb).copy()
@@ -602,11 +612,16 @@ def _blit_preview(surf, sid, cx, cy, box_px):
     out = _preview_cache.get(key)
     if out is None:
         icon = parrot.get_skin_icon(sid)
-        if icon is None and store_catalog.group(sid) == "shades":
+        grp = store_catalog.group(sid)
+        if icon is None and grp == "shades":
             out = _preview_box(_shades_icon(m(64)), box_px)
         else:
             src = icon or parrot.get_skin_frame(sid, 1, 0.0)
-            out = _preview_box(src, box_px)
+            # ultra-wide footwear (flip-flops 2.9:1) tilts into a 3/4 so it reads
+            # as a shoe instead of a thin horizontal sliver in the dome.
+            bb0 = src.get_bounding_rect()
+            rot = 24.0 if (grp == "shoes" and bb0.width >= bb0.height * 2.4) else 0.0
+            out = _preview_box(src, box_px, rotate=rot)
         _preview_cache[key] = out
     r = out.get_rect(center=(cx, cy))
     # ~25% stronger top-left rim than the dome default so dark previews (blue
@@ -792,13 +807,17 @@ def render_device():
 
     # rope-bridges weaving the zig-zag: each platform to the next, anchored a
     # touch inboard on the cloud crowns so the swag reads as tied to the islands.
+    # Coin leads trimmed ~30% from round 2 (single coin on alternating bridges)
+    # so the trail still leads the eye down without cluttering or landing on a
+    # nameplate; one coin per bridge except the long top/bottom spans get two.
+    bridge_coins = [2, 1, 1, 2, 1, 1]
     for i in range(len(SLOTS) - 1):
         (cx0, cyl0, hw0, _), (cx1, cyl1, hw1, _) = SLOTS[i], SLOTS[i + 1]
         a = (m(cx0 + (hw0 * 0.5 if cx1 > cx0 else -hw0 * 0.5)),
              decks[i][1] - m(2))
         b = (m(cx1 + (-hw1 * 0.5 if cx1 > cx0 else hw1 * 0.5)),
              decks[i + 1][1] - m(2))
-        rope_bridge(surf, a, b, coins=2)
+        rope_bridge(surf, a, b, coins=bridge_coins[i])
 
     # PARCELS is the glowing treasure anchor — a red MYSTERY aura blooms BEHIND
     # its dome (drawn before the stall) so the mystery hero radiates red, the

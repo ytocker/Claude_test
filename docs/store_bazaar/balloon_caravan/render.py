@@ -54,21 +54,26 @@ from docs.store_redesign.constellation_hi.render_hi import (
 )
 
 
-# ── concept palette: golden-hour low -> indigo+gold nebula apex ────────────────
-# The sky is the whole stage here (not the constellation's flat night). A warm
-# horizon glow at the foot rises through amber/rose into a deep indigo apex where
-# the jewel-store stars emerge — the visual promise that entering a stall climbs
-# into the night-jewel store.
+# ── concept palette: deep indigo jewel-store apex -> golden-hour foot ──────────
+# The stalls climb INTO the near-black indigo jewel store, so the top ~58% of the
+# canvas must read as midnight-vault (genuine deep indigo/violet, borrowed from
+# the constellation store) with emergent GOLD stars; the warm golden-hour glow is
+# reserved for the bottom ~40% where the cloud-isles + PARCELS hero sit. This is
+# the climb from daytime-fair foot to night-vault apex (round-2 highest impact).
 SKY_STOPS = [
-    (0.00, (18, 14, 52)),     # indigo apex (where the stars live)
-    (0.16, (32, 22, 72)),     # violet
-    (0.40, (78, 44, 96)),     # plum dusk
-    (0.62, (158, 86, 96)),    # rose band
-    (0.80, (224, 140, 84)),   # warm amber
-    (1.00, (255, 196, 110)),  # golden-hour horizon glow
+    (0.00, (8, 9, 28)),       # near-black indigo apex (the jewel-store ground)
+    (0.22, (14, 13, 44)),     # deep indigo
+    (0.44, (26, 19, 62)),     # indigo->violet (stars still live up here)
+    (0.58, (52, 30, 76)),     # violet — the transition shoulder ~58%
+    (0.72, (118, 56, 86)),    # plum dusk
+    (0.86, (210, 118, 84)),   # warm amber band
+    (1.00, (255, 192, 118)),  # golden-hour horizon glow (bottom only)
 ]
-HORIZON_GLOW = (255, 206, 140)
-APEX_NEBULA = (96, 78, 178)
+HORIZON_GLOW = (255, 200, 134)
+APEX_NEBULA = (70, 56, 140)
+# the constellation store's gold thread/node-star colours (borrowed treatment)
+CONST_THREAD = (208, 182, 118)
+CONST_NODE = (255, 234, 180)
 
 # Balloon envelope = macaw-red body + warm cream gore stripes, gold-rimmed.
 BALLOON_RED_HI = (236, 96, 78)
@@ -77,10 +82,15 @@ BALLOON_RED_LO = (138, 30, 38)
 BALLOON_CREAM_HI = (255, 244, 218)
 BALLOON_CREAM = (246, 224, 176)
 BALLOON_CREAM_LO = (196, 158, 110)
-# PARCELS hero envelope runs a hotter mystery-red so it reads as the prize.
-HERO_RED_HI = (255, 120, 96)
-HERO_RED = (236, 64, 64)
-HERO_RED_LO = (150, 24, 30)
+# PARCELS hero envelope: a distinct CRIMSON-to-GOLD gore so it separates from the
+# macaw-red SHADES/HATS neighbours and reads as "special", not just "closest".
+# The deep gores run a richer crimson; the stripe gores run gold (not cream).
+HERO_RED_HI = (255, 96, 78)
+HERO_RED = (214, 40, 52)
+HERO_RED_LO = (128, 16, 34)
+HERO_GOLD_HI = (255, 232, 150)
+HERO_GOLD = (244, 192, 84)
+HERO_GOLD_LO = (158, 100, 28)
 MYSTERY = {"gem": (244, 96, 96), "glow": (236, 64, 64), "deep": (120, 22, 26)}
 
 WICKER_HI = (208, 158, 96)
@@ -97,10 +107,13 @@ BALANCE = 14250
 # a clear shades icon (skin_shades_round) so it never shows the bare base parrot
 # that group[0] (NO SHADES) would. PARCELS is the glowing red mystery hero,
 # anchored bottom/foreground; its envelope runs the hotter mystery-red.
+# `head` marks the parrot-family stalls whose preview is a full-body parrot frame
+# (unreadable as a tiny thumbnail) — these crop to the HEAD/SHOULDERS so a big
+# parrot face reads instantly inside the dome.
 STALLS = [
-    {"label": "COSTUMES", "group": "costume"},
-    {"label": "PARROTS",  "group": "parrot"},
-    {"label": "ANIMALS",  "group": "animal"},
+    {"label": "COSTUMES", "group": "costume", "head": True},
+    {"label": "PARROTS",  "group": "parrot",  "head": True},
+    {"label": "ANIMALS",  "group": "animal",  "head": True},
     {"label": "SHOES",    "group": "shoes"},
     {"label": "HATS",     "group": "hats"},
     {"label": "SHADES",   "group": "shades", "fallback": "skin_shades_round"},
@@ -145,13 +158,25 @@ def stall_thumb(stall, box_px):
     bb = src.get_bounding_rect()
     if bb.width > 0 and bb.height > 0:
         src = src.subsurface(bb).copy()
+    if stall.get("head"):
+        # parrot-family preview: crop to the HEAD/SHOULDERS (the bird faces
+        # right, so the head is the right ~58% of the bbox, upper ~82%) so a big
+        # legible face fills the dome instead of an unreadable tiny full body.
+        sw, sh = src.get_size()
+        hx = int(sw * 0.42)
+        hh = int(sh * 0.82)
+        src = src.subsurface(pygame.Rect(hx, 0, sw - hx, hh)).copy()
+        cbb = src.get_bounding_rect()
+        if cbb.width > 0 and cbb.height > 0:
+            src = src.subsurface(cbb).copy()
     sw, sh = src.get_size()
     # CONTAIN, not cover — extreme aspects are letterboxed within the dome.
     s = box_px / max(sw, sh)
     scaled = pygame.transform.smoothscale(
         src, (max(1, int(sw * s)), max(1, int(sh * s))))
+    # raise value contrast against the glass tint so silhouettes pop at 360px.
     lift = scaled.copy()
-    lift.fill((46, 46, 46, 0), special_flags=pygame.BLEND_RGB_ADD)  # punch value
+    lift.fill((58, 58, 58, 0), special_flags=pygame.BLEND_RGB_ADD)
     _thumb_cache[key] = lift
     return lift
 
@@ -378,8 +403,13 @@ def draw_balloon(surf, cx, cy, rw, rh, hero=False, gores=8):
             g = ((u) * gores)
             stripe = (int(g) % 2 == 1)
             if stripe:
-                col = lerp_color(BALLOON_CREAM_LO, BALLOON_CREAM_HI, f)
-                col = lerp_color(col, BALLOON_CREAM, 0.12)
+                if hero:
+                    # gold stripe gore (hero reads crimson-and-gold, not red-cream)
+                    col = lerp_color(HERO_GOLD_LO, HERO_GOLD_HI, f)
+                    col = lerp_color(col, HERO_GOLD, 0.12)
+                else:
+                    col = lerp_color(BALLOON_CREAM_LO, BALLOON_CREAM_HI, f)
+                    col = lerp_color(col, BALLOON_CREAM, 0.12)
             else:
                 col = lerp_color(lo_r, md_r, min(1.0, f * 1.5))
                 if f > 0.7:
@@ -463,32 +493,42 @@ def draw_balloon(surf, cx, cy, rw, rh, hero=False, gores=8):
     return mouth_y, mw
 
 
-def draw_pennant_string(surf, x0, y0, x1, y1, n=6):
-    """A swag of gold/cream triangular pennants between two caravan anchors,
-    hung on a fine catenary thread."""
-    # catenary-ish sag
+def draw_pennant_string(surf, x0, y0, x1, y1, n=6, sag=14, coins=2):
+    """A heavier GOLD pennant swag between two caravan anchors, hung on a twin
+    gold catenary thread, with 2-3 drifting coins riding the swag — the festival
+    connective tissue that binds the seven balloons into one caravan."""
     def pt(t):
         x = x0 + (x1 - x0) * t
-        sag = math.sin(math.pi * t) * m(10)
-        y = y0 + (y1 - y0) * t + sag
+        s = math.sin(math.pi * t) * m(sag)
+        y = y0 + (y1 - y0) * t + s
         return x, y
+    pts = [pt(i / 28) for i in range(29)]
     thread = pygame.Surface((DW, DH), pygame.SRCALPHA)
-    pts = [pt(i / 24) for i in range(25)]
-    pygame.draw.lines(thread, (230, 206, 150, 150), False, pts, max(1, m(0.8)))
+    # twin cord: a dark under-strand + a bright gold over-strand = a defined edge
+    pygame.draw.lines(thread, (96, 64, 18, 200), False,
+                      [(px, py + m(1.2)) for px, py in pts], max(1, m(1.6)))
+    pygame.draw.lines(thread, (250, 214, 132, 235), False, pts, max(1, m(1.1)))
     surf.blit(thread, (0, 0))
-    cols = [(244, 196, 96), (246, 226, 170), (224, 96, 78)]
+    # gold flag gores, alternating bright/deep gold so the bunting reads as one
+    # warm garland (not the round-1 red/cream/gold confetti).
+    cols = [(250, 210, 110), (228, 168, 70), (255, 232, 160)]
     for i in range(n):
         t = (i + 0.5) / n
         ax, ay = pt(t - 0.5 / n)
         bx, by = pt(t + 0.5 / n)
-        mx, my = (ax + bx) / 2, (ay + by) / 2 + m(10)
+        mx, my = (ax + bx) / 2, (ay + by) / 2 + m(13)
         c = cols[i % len(cols)]
-        pygame.draw.polygon(surf, lerp_color(c, NEAR_BLACK, 0.25),
-                            [(ax, ay + m(1)), (bx, by + m(1)), (mx, my + m(1))])
+        # dark contact keyline behind each flag so the bunting has a defined edge
+        pygame.draw.polygon(surf, (70, 44, 10),
+                            [(ax, ay + m(1)), (bx, by + m(1)), (mx, my + m(1.4))])
         pygame.draw.polygon(surf, c, [(ax, ay), (bx, by), (mx, my)])
-        # lit kiss top-left of each pennant
-        pygame.draw.line(surf, (255, 244, 210),
-                         (ax, ay), (mx, my), max(1, m(0.6)))
+        # lit kiss down the left leg of each flag
+        pygame.draw.line(surf, (255, 248, 214), (ax, ay), (mx, my), max(1, m(0.7)))
+    # 2-3 coins riding the swag at the bright nodes
+    for k in range(coins):
+        t = (k + 1) / (coins + 1)
+        cxp, cyp = pt(t)
+        coin_glyph(surf, int(cxp), int(cyp - m(2)), m(6))
 
 
 def draw_basket(surf, cx, top_y, bw, bh, mouth_y, mw, label, stall, hero=False):
@@ -548,7 +588,7 @@ def draw_basket(surf, cx, top_y, bw, bh, mouth_y, mw, label, stall, hero=False):
     bevel_rim(surf, box, rad, (40, 22, 8), (255, 226, 160, 220), w=max(1, m(1.2)))
 
     # ── glass cabochon stall window holding the preview thumbnail ──
-    disc_r = int(min(bw, bh) * 0.40)
+    disc_r = int(min(bw, bh) * 0.42)
     dcx = cx
     dcy = box.y + int(bh * 0.40)
     pal = MYSTERY if hero else RARITY["legendary"]
@@ -556,7 +596,20 @@ def draw_basket(surf, cx, top_y, bw, bh, mouth_y, mw, label, stall, hero=False):
     # a touch airier glass so the small previews read inside the dome.
     cabochon(surf, dcx, dcy, disc_r, glass_lo=(46, 40, 70), glass_hi=(16, 14, 32),
              ring=pal["gem"], ring_a=55)
-    thumb = stall_thumb(stall, int(disc_r * 1.5))
+    # lighter inner BACKING DISC behind the preview so the (often dark) silhouette
+    # pops instead of vanishing into the near-black glass — a soft warm-neutral
+    # radial pad, kept inside the bezel.
+    if not hero:
+        back = pygame.Surface((disc_r * 2, disc_r * 2), pygame.SRCALPHA)
+        br = int(disc_r * 0.78)
+        for i in range(br, 0, -1):
+            t = i / br
+            col = lerp_color((150, 148, 168), (70, 66, 96), t ** 1.2)
+            a = int(150 * (1 - t ** 2))
+            pygame.draw.circle(back, (*col, a), (disc_r, disc_r), i)
+        surf.blit(back, (dcx - disc_r, dcy - disc_r))
+    # contents enlarged ~28% over round 1 so the silhouette reads at 360px.
+    thumb = stall_thumb(stall, int(disc_r * 1.62))
     if thumb.get_width() > 2:
         tr = thumb.get_rect(center=(dcx, dcy))
         # top-left rim light so the preview reads as the lit hero under glass

@@ -209,7 +209,7 @@ def _build_static_sky():
     s0, s1 = 0.36, 0.50          # the back-row roofline band
     for y in range(int(s0 * DH), int(s1 * DH)):
         t = (y - s0 * DH) / ((s1 - s0) * DH)
-        a = int(78 * math.sin(t * math.pi) ** 0.9)
+        a = int(78 * max(0.0, math.sin(t * math.pi)) ** 0.9)
         pygame.draw.line(scrim, (40, 38, 78, a), (0, y), (DW, y))
     sky.blit(scrim, (0, 0))
 
@@ -567,7 +567,12 @@ def draw_hut(surf, cx, deck_y, scale, group, label, hero=False):
                          (sx, deck_rect.bottom), max(1, m(0.8)))
 
     # ── glass cabochon holding the category's real preview thumbnail ──
-    dome_r = int(m(28 if hero else 26) * scale)
+    # Domes are floored to a minimum radius so the BACK ROW (smallest scale)
+    # still carries an identifiable preview; the hero dome is the largest.
+    if hero:
+        dome_r = int(m(29) * scale)
+    else:
+        dome_r = max(m(24), int(m(28) * scale))
     dome_cx = cx
     dome_cy = body_top + int(body_h * (0.40 if hero else 0.46))
     pal_glow = MYST_GLOW if hero else GOLD
@@ -590,15 +595,19 @@ def _place_thumb(surf, group, cx, cy, dome_r, hero):
     instead of being clipped. The PARCELS hero shows a glowing red '?' mystery
     mark instead of a literal thumbnail."""
     if hero:
+        # The mystery hero must read by SHAPE + VALUE, not red hue alone
+        # (red/green-blind safe): a bold near-white "?" with a thick very-dark
+        # contour so it holds maximum contrast against the red dome.
         from game.surprise_box_variants import _draw_qmark
-        _draw_qmark(surf, cx, cy, dome_r + m(4),
-                    (255, 226, 220), (90, 14, 16), thick=m(3))
+        _draw_qmark(surf, cx, cy, dome_r + m(5),
+                    (255, 250, 244), (28, 6, 8), thick=m(3.4))
         return
     src, letterbox = _group_thumb(group)
     w, h = src.get_size()
-    # contain inside ~1.5x the radius box; aspect-extreme items get a tighter
-    # fit factor so the long axis is fully inside the dome.
-    box = dome_r * (1.32 if letterbox else 1.5)
+    # Previews enlarged ~22% over R1 so the category item is identifiable at 1x;
+    # aspect-extreme items (flip-flops, party hat) still get a tighter contain
+    # factor so the long axis stays fully inside the glass.
+    box = dome_r * (1.62 if letterbox else 1.84)
     s = box / max(w, h)
     img = pygame.transform.smoothscale(
         src, (max(1, int(w * s)), max(1, int(h * s))))
@@ -648,25 +657,26 @@ def draw_pip(surf, cx, deck_y):
     clear of the hut labels."""
     pip = parrot.get_parrot(1, 0.0)
     pw, ph = pip.get_size()
-    target = m(40)
+    target = m(38)
     s = target / max(pw, ph)
     pip = pygame.transform.smoothscale(pip, (int(pw * s), int(ph * s)))
     pr = pip.get_rect()
-    # Pip stands at the FRONT-LEFT of the jetty deck so the PARCELS dome + the
-    # "?" mystery mark stay visible above + right of him.
-    px = cx - m(24)
-    py = deck_y - pr.height // 2 + m(2)
+    # Pip stands at the FRONT-LEFT corner of the jetty deck — pushed further
+    # left + down than R1 so his silhouette sits BESIDE the centred name board
+    # (not across it) and clears the "?" dome above. The board lane stays clean.
+    px = cx - m(36)
+    py = deck_y - pr.height // 2 + m(7)
     # warm aura behind Pip
-    soft_glow(surf, px, py, m(28), SUN_HALO, 60, layers=10)
-    soft_glow(surf, px, py, m(16), SUN_CORE, 80, layers=6)
+    soft_glow(surf, px, py, m(26), SUN_AURA, 56, layers=10)
+    soft_glow(surf, px, py, m(15), SUN_CORE, 78, layers=6)
     # contact shadow on the jetty deck
     sh = pygame.Surface((pr.width + m(6), m(11)), pygame.SRCALPHA)
     pygame.draw.ellipse(sh, (0, 0, 0, 130), sh.get_rect())
-    surf.blit(sh, (px - (pr.width + m(6)) // 2, deck_y - m(5)))
+    surf.blit(sh, (px - (pr.width + m(6)) // 2, deck_y - m(3)))
     surf.blit(pip, pip.get_rect(center=(px, py)).topleft)
-    # a small spinning coin floating to Pip's upper-right, clear of the dome +
-    # the hut label (foreshortened => a thin ellipse so it reads mid-spin).
-    coin_cx, coin_cy = px + m(28), py - m(16)
+    # a small spinning coin floating to Pip's upper-LEFT, well clear of the dome
+    # rim + the name board (foreshortened => a thin ellipse, reads mid-spin).
+    coin_cx, coin_cy = px - m(22), py - m(20)
     soft_glow(surf, coin_cx, coin_cy, m(11), (255, 206, 92), 70, layers=8)
     face = _spin_coin(m(7), squash=0.45)
     surf.blit(face, face.get_rect(center=(coin_cx, coin_cy)).topleft)
@@ -695,9 +705,9 @@ def draw_header(surf):
     carrying the REAL in-game coin + gradient-gold number, and the TAP A STALL
     call-to-action — all on a soft darkening band so the chrome stays legible
     over the bright golden-hour sky."""
-    band = pygame.Surface((DW, m(118)), pygame.SRCALPHA)
-    for y in range(m(118)):
-        a = int(150 * (1 - y / m(118)) ** 1.25)
+    band = pygame.Surface((DW, m(126)), pygame.SRCALPHA)
+    for y in range(m(126)):
+        a = int(150 * (1 - y / m(126)) ** 1.25)
         pygame.draw.line(band, (10, 10, 34, a), (0, y), (DW, y))
     surf.blit(band, (0, 0))
     # screen frame hairline (matches the stall screen)
@@ -705,12 +715,36 @@ def draw_header(surf):
                      width=max(1, m(1)), border_radius=m(12))
     title_wordmark(surf, "STORE", (DW // 2, m(26)), 30, tracking=m(4))
     _balance_capsule(surf, DW // 2, m(66))
-    # TAP A STALL hint on its own little gold-ruled lane under the capsule so it
-    # never collides with the number row.
-    gold_rule(surf, m(116), DW - m(116), m(97), GOLD, peak=120, thick=m(1))
-    plain_text(surf, "TAP  A  STALL", font(11), (DW // 2, m(108)),
-               (255, 234, 198), shadow_a=160, weight=m(0.8),
-               keyline=(40, 22, 12), kw=m(0.8), tracking=m(3))
+    _tap_hint(surf, DW // 2, m(112))
+
+
+def _tap_hint(surf, cx, cy):
+    """The TAP A STALL call-to-action promoted onto its own faint gold-ruled
+    chip with clear air under the capsule so it reads as the CTA, not a caption:
+    a low-alpha recessed pill, a hairline gold rim, and bright gradient-gold
+    type flanked by short gold rules."""
+    f = font(11)
+    tw = _glyph_base("TAP  A  STALL", f, m(3)).get_width()
+    pad = m(20)
+    w = tw + pad * 2
+    h = m(26)
+    r = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
+    rad = h // 2
+    # faint recessed chip body so the CTA sits in its own object
+    chip = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.rect(chip, (18, 14, 10, 150), chip.get_rect(), border_radius=rad)
+    surf.blit(chip, r.topleft)
+    pygame.draw.rect(surf, (0, 0, 0, 150), r, width=max(1, m(1.2)),
+                     border_radius=rad)
+    pygame.draw.rect(surf, (*GOLD, 150), r.inflate(-m(1.2), -m(1.2)),
+                     width=max(1, m(1)), border_radius=rad)
+    # short gold rules flanking the type
+    gold_rule(surf, r.x + m(8), r.x + m(8) + m(16), cy, GOLD, peak=160, thick=m(1))
+    gold_rule(surf, r.right - m(8) - m(16), r.right - m(8), cy, GOLD, peak=160,
+              thick=m(1))
+    gradient_text(surf, "TAP  A  STALL", f, (cx, cy), GOLD_A_TOP, GOLD_A_BOT,
+                  weight=m(0.9), keyline=(40, 22, 12), kw=m(0.9), shadow=False,
+                  tracking=m(3))
 
 
 def _balance_capsule(surf, cx, y):
@@ -835,10 +869,10 @@ def render_device():
 def main():
     _build_static_sky()
     dev = render_device()
-    pygame.image.save(downscale(dev, 1), os.path.join(_HERE, "round_1.png"))
-    pygame.image.save(downscale(dev, 2), os.path.join(_HERE, "round_1@2x.png"))
+    pygame.image.save(downscale(dev, 1), os.path.join(_HERE, "round_2.png"))
+    pygame.image.save(downscale(dev, 2), os.path.join(_HERE, "round_2@2x.png"))
     print("SS =", SS, "device =", DW, "x", DH)
-    print("saved round_1.png (360x640) + round_1@2x.png (720x1280)")
+    print("saved round_2.png (360x640) + round_2@2x.png (720x1280)")
 
 
 if __name__ == "__main__":
