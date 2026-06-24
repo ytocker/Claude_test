@@ -259,7 +259,7 @@ class AchievementsScene:
         # Badge.
         badge_rect = pygame.Rect(int(rx + 8 * S), int(ry + (rh - _BADGE * S) // 2),
                                  _BADGE * S, _BADGE * S)
-        draw_badge(surf, a.icon_key, badge_rect, unlocked, a.hidden, tone)
+        draw_badge(surf, a.id, badge_rect, unlocked, a.hidden, tone)
 
         # Text block. EVERY locked achievement is masked — title, description and
         # any progress are hidden so the player discovers it in play rather than

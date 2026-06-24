@@ -784,3 +784,13 @@ def draw_badge(surf, icon_key: str, rect: "pygame.Rect", unlocked: bool,
     size = min(rect.width, rect.height)
     badge = get_badge(icon_key, size, unlocked, hidden and not unlocked, tone)
     surf.blit(badge, badge.get_rect(center=rect.center))
+
+
+# Bespoke per-achievement emblems live in the game.emblems package (one module
+# per category). Imported last so the engrave helpers above (_GLYPH_SH, _accent,
+# _glyph_font, …) are already defined when the glyph modules bind them. Each
+# achievement keys its badge by its own id, so every row shows its own emblem;
+# the Mystery ids join _HIDDEN_KEYS for the amethyst secret-tier treatment.
+from game.emblems import EMBLEM_GLYPHS, MYSTERY_KEYS  # noqa: E402
+_GLYPHS.update(EMBLEM_GLYPHS)
+_HIDDEN_KEYS = _HIDDEN_KEYS | MYSTERY_KEYS

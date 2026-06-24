@@ -212,7 +212,7 @@ class AchievementEarnedScene:
         self.ids = list(ids)
         # Shame unlocks ride the same end-of-run card but in the tarnished tone
         # — "ACHIEVEMENT EARNED!" over a roast is the joke.
-        self.items = [(a.icon_key, a.title, a.desc, a.hidden,
+        self.items = [(a.id, a.title, a.desc, a.hidden,
                        "tarnished" if ach.is_shame(a.id) else "gold")
                       for a in (ach.BY_ID[i] for i in self.ids) if a is not None]
         self._t = 0.0
