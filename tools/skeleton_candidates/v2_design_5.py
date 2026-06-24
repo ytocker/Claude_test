@@ -26,15 +26,22 @@ P = A.Pal(
     bone=(255, 226, 122), bone_sh=(214, 150, 26), bone_deep=(140, 92, 12),
     body=(20, 17, 13), body_deep=(12, 10, 8), keyline=(48, 32, 8),
     socket=(20, 8, 26), glint=(255, 246, 206),
-    rib=(224, 162, 30),
+    # Kill the shared smeary rib arcs by pulling ``rib`` down to the body floor;
+    # this design re-draws ~3 clean two-tone rib arcs locally in ``_ribs`` so the
+    # torso reads as a few crisp ribs, not gold noise, and the spine stays the
+    # brightest vertical.
+    rib=(22, 18, 14),
 )
 
-# Mantle pulled to a DARK anchor (#16121F) with saturation ~halved so the upper
-# silhouette reads as a dark hood SHAPE, never a violet glow; its only framing
-# is a thin gold-dark rim so it reads as ATTACHED behind the gold, not a cloud.
-_MANTLE   = (22, 18, 31)          # #16121F-family tattered hood, near-body value
-_MANTLE_D = (15, 12, 22)          # depth fold
-_MANTLE_RIM = (74, 54, 18)        # gold-dark collar rim framing the hood
+# Mantle is a TATTERED dark cape SHAPE (#16121F), not a void: a torn cloth hem
+# with jagged downward points, rimmed on its outer leading edge with a 1px
+# deep-gold (#E0A21E) keyline so the dark silhouette holds against the night sky
+# instead of dissolving into it. Contained behind the shoulders only.
+_MANTLE   = (22, 18, 31)          # #16121F tattered hood body
+_MANTLE_D = (15, 12, 22)          # depth fold behind the points
+_MANTLE_RIM = (224, 162, 30)      # deep-gold (#E0A21E) edge keyline
+_DEEP_GOLD = (224, 162, 30)       # #E0A21E rib/coin core gold
+_TOP_HI   = (255, 226, 122)       # #FFE27A bone/rib top-edge highlight
 _VIOLET_C = (184, 120, 255)       # violet rune-fire core  (#B878FF)
 _VIOLET_M = (120, 74, 220)        # violet rune-fire mid
 _GOLD_H   = (255, 248, 210)       # gold highlight (crown band, coin glint)
@@ -47,23 +54,54 @@ NIGHT = 1.0
 
 
 def _mantle(surf, angle_deg, P):
-    """A DARK tattered mantle behind the shoulders only — a flat dark SHAPE that
-    breaks the silhouette, kept small (near-shoulder collar + one thin drape) and
-    well below the gold value so the gold skull/ribs define the upper read. A
-    1px gold-dark rim along the leading edge frames it as an attached hood."""
+    """A TATTERED dark cape behind the shoulders — a torn cloth hem (3-4 jagged
+    downward points) in #16121F, NOT a black void. Its outer leading edge carries
+    a 1px deep-gold (#E0A21E) keyline so the dark shape holds against the night
+    sky instead of reading as a hole. Contained to the upper-right shoulder/nape
+    block: it never crosses the spine line (back at y>=33) or the tail, so the
+    gold skull/spine/tail own the read and the mantle is a quiet cape behind."""
+    # Collar peak tucked behind the crown, down the nape, then a torn hem of
+    # three triangular points; the leftmost point stops short of the back so the
+    # spine + tail stay clear of the cape.
     drape = [
-        (40, 11),            # collar peak tucked behind the crown
-        (47, 16), (47, 27),  # tight near-shoulder collar
-        (41, 35),            # tattered hem notch
-        (35, 28),
-        (29, 36),            # one thin tattered drape
-        (24, 28),            # far-shoulder tatter, pulled in
-        (27, 19),
+        (40, 10),                       # collar peak behind the crown
+        (49, 15), (49, 23),             # tight near-shoulder collar edge
+        (45, 30), (43, 24),             # point 1 (tatter) + notch
+        (39, 31), (37, 25),             # point 2 + notch
+        (33, 30), (31, 24),             # point 3 (innermost) + notch
+        (30, 17),                       # nape rise back up to the collar
     ]
     _poly(surf, _MANTLE_D, [(x + 1, y + 1) for x, y in drape])
     _poly(surf, _MANTLE, drape)
+    # Deep-gold keyline on the OUTER leading edge (collar + first tatter) only —
+    # the seam that reads against the sky; the inner notches stay unlit dark.
     pygame.draw.lines(surf, _MANTLE_RIM, False,
-                      [(27, 19), (40, 11), (47, 16), (47, 27)], 1)
+                      [(30, 17), (40, 10), (49, 15), (49, 23), (45, 30)], 1)
+
+
+def _ribs(surf):
+    """Three CLEAN rib arcs on the chest (the shared smeary rib pass is killed via
+    P.rib): each is a deep-gold (#E0A21E) core stroke with a single #FFE27A
+    top-edge highlight, separated by 1px #16121F gaps so they read as discrete
+    ribs, not a gold smear. Hung off the sternum BELOW the spine line so the
+    continuous spine stays the brightest vertical (skull→tail tracks clean)."""
+    import math as _m
+    # (rect, start_deg, end_deg) for the three sweeping ribs, descending the chest
+    # forward of the wing; arcs open downward off the sternum.
+    arcs = [
+        ((25, 28, 13, 11), 22, 150),
+        ((23, 33, 13, 11), 26, 154),
+        ((21, 38, 13, 11), 30, 158),
+    ]
+    for (rx, ry, rw, rh), a0, a1 in arcs:
+        rect = (rx, ry, rw, rh)
+        # 1px dark gap-rim under the core keeps neighbouring ribs from fusing.
+        pygame.draw.arc(surf, _MANTLE, (rx, ry + 1, rw, rh),
+                        _m.radians(a0), _m.radians(a1), 2)
+        pygame.draw.arc(surf, _DEEP_GOLD, rect,
+                        _m.radians(a0), _m.radians(a1), 2)
+        pygame.draw.arc(surf, _TOP_HI, (rx, ry - 1, rw, rh),
+                        _m.radians(a0 + 8), _m.radians(a1 - 8), 1)
 
 
 def _socket_bloom(cx, cy, r, intensity):
@@ -87,6 +125,16 @@ def _runes(surf, angle_deg, P):
     feet. The gold dome/socket-rim from the anatomy already sit under this; we
     re-punch the socket void + drop the hot pip so the gold all around stays gold
     and only the two cores glow."""
+    # Three clean two-tone rib arcs on the chest (shared smear killed via P.rib),
+    # then re-assert the spine as the single brightest vertical over them so the
+    # eye tracks an unbroken skull→tail backbone past the ribs.
+    _ribs(surf)
+    spine_path = [(41, 24), (37, 27), (33, 30), (28, 33), (23, 35), (18, 35)]
+    pygame.draw.lines(surf, P.keyline, False, spine_path, 3)
+    pygame.draw.lines(surf, _TOP_HI, False, spine_path, 1)
+    for vx, vy in spine_path:
+        pygame.draw.circle(surf, _TOP_HI, (vx, vy), 1)
+
     # Re-gild a crisp dark socket rim around the anatomy's eye socket so the
     # violet core reads as fire inside a GOLD ring, not a smear on the cheek.
     sock = (45, 16)
@@ -111,12 +159,15 @@ def _runes(surf, angle_deg, P):
     pygame.draw.circle(surf, P.bone, (46, 9), 2)
     pygame.draw.circle(surf, _GOLD_H, (45, 8), 1)
 
-    # ONE clean gold coin disc at the feet (dark keyline, single glint, no
-    # speckle) so nothing at the feet competes with the skull or reads as noise.
-    pygame.draw.circle(surf, P.body_deep, (30, 53), 4)
-    pygame.draw.circle(surf, P.bone_deep, (30, 53), 3)
-    pygame.draw.circle(surf, P.bone, (30, 53), 2)
-    pygame.draw.circle(surf, _GOLD_H, (29, 52), 1)
+    # ONE clean round gold coin disc at the feet — unmistakably a coin, not a
+    # bone nub: solid #E0A21E fill inside a 1px #16121F keyline, with a #FFE27A
+    # upper-left rim-light arc matching the bone/rib highlight direction.
+    import math as _m
+    coin = (30, 53)
+    pygame.draw.circle(surf, _MANTLE, coin, 4)            # 1px dark keyline
+    pygame.draw.circle(surf, _DEEP_GOLD, coin, 3)         # solid gold fill
+    pygame.draw.arc(surf, _TOP_HI, (coin[0] - 3, coin[1] - 3, 6, 6),
+                    _m.radians(60), _m.radians(200), 1)   # upper-left rim-light
 
 
 def _build(wing_angle_deg):
