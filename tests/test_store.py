@@ -385,6 +385,10 @@ class TestBuyConfirmFlow(_StoreTestBase):
         from game.store import StoreScene
         self.surf = pygame.Surface((360, 640))
         self.scene = StoreScene()
+        # The buy-confirm flow lives in the category grid; a purchase is only
+        # reachable after drilling into a stall from the lagoon hub, so drive the
+        # scene there before exercising it (the hub itself sells nothing).
+        self.scene.view = "category"
         store_data.add_coins(99999)
         # A known unowned, non-secret catalog item.
         self.item = "skin_owl"
