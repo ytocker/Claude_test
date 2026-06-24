@@ -260,8 +260,10 @@ def _corona_twigs(surf, cx, cy, R, core, hi, lo, n=13, broken=False):
         # uneven angular spacing + a per-branch lean so no two branches are alike
         jit = (((i * 53) % 17) - 8) / 8.0
         a = (i / n) * math.tau - math.pi / 2 + math.radians(10) * jit
-        # length varies branch-to-branch (long/medium/short, pseudo-random)
-        lf = (0.62 + 0.40 * (((i * 31) % 11) / 10.0))
+        # length varies branch-to-branch (long/medium/short, pseudo-random);
+        # capped so even the longest kinked branch + its side-twig stay inside
+        # the badge bound
+        lf = (0.52 + 0.30 * (((i * 31) % 11) / 10.0))
         length = span * lf
         if broken:
             a += math.radians(((i * 41) % 19) - 9)   # everything leans crooked
@@ -288,7 +290,7 @@ def shame_corona(surf, cx, cy, R, glyph_key):
     _corona_twigs(surf, cx, cy, R, core, _S_TWIG_HI, _S_TWIG_LO, n=13,
                   broken=True)
     # a couple of dead leaves shed below, pulled inside the badge bound
-    for fx, fy, fl, fa in ((-0.30, 0.86, 0.26, 1.7), (0.34, 0.80, 0.24, 2.4)):
+    for fx, fy, fl, fa in ((-0.28, 0.66, 0.22, 1.7), (0.32, 0.60, 0.20, 2.4)):
         _shed_leaf(surf, cx + R * fx, cy + R * fy, R * fl, fa,
                    _S_LEAF_DEAD, _S_LEAF_LO)
     _core_disc(surf, cx, cy, core, glyph_key=glyph_key, **_shame_kw())
@@ -304,57 +306,68 @@ def shame_corona(surf, cx, cy, R, glyph_key):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _woven_band(surf, cx, cy, core, hi, lo, unravel=False):
-    """A basket-weave band: short twig segments laid at alternating +/- diagonals
-    so they read as branches woven OVER and UNDER each other around the rim — a
-    real plaited circlet, not a smooth blob. ``unravel`` springs a stretch of the
-    upper-right band loose (segments lift away + a gap) so the weave comes apart."""
-    band = core * 1.08
-    n = 22
+    """A plaited basket-weave band drawn in TWO interleaved passes so the strands
+    visibly cross OVER and UNDER each other (true weave texture, not a smooth
+    ring): an under-layer of diagonal twigs leaning one way, then an over-layer
+    leaning the other way offset by half a cell, so every cell shows an X
+    crossing even at 44px. ``unravel`` springs the upper-right loose with a gap."""
+    band = core * 1.12
+    n = 14
     seg = math.tau / n
+    rin, rout = band - core * 0.085, band + core * 0.085
+    gap_lo, gap_hi = math.radians(318), math.radians(346)
     loose_lo, loose_hi = math.radians(300), math.radians(360)
-    for i in range(n):
-        a = (i + 0.5) * seg
-        loose = unravel and loose_lo < a < loose_hi
-        if unravel and math.radians(320) < a < math.radians(344):
-            continue                          # a gap where the weave broke open
-        col = _dir_shade(a, lo, hi)
-        # each strand is a short diagonal twig spanning ~1.4 segments, tilted +/-
-        tilt = seg * 0.7 * (1 if i % 2 == 0 else -1)
-        lift = (a - loose_lo) / (loose_hi - loose_lo) * core * 0.22 if loose else 0.0
-        a0, a1 = a - tilt, a + tilt
-        x0 = cx + math.cos(a0) * (band - core * 0.05 + lift)
-        y0 = cy + math.sin(a0) * (band - core * 0.05 + lift)
-        x1 = cx + math.cos(a1) * (band + core * 0.05 + lift)
-        y1 = cy + math.sin(a1) * (band + core * 0.05 + lift)
-        _twig(surf, x0, y0, x1, y1, max(2, int(core * 0.05)), col, edge=lo)
+    # under-layer (leans +), then over-layer (leans -, offset half a cell) so the
+    # second pass paints across the first → visible cross-overs
+    for layer, (lean, off) in enumerate(((+1, 0.0), (-1, 0.5))):
+        for i in range(n):
+            a = (i + off) * seg
+            if unravel and gap_lo < (a % math.tau) < gap_hi:
+                continue                      # the weave broke open here
+            loose = unravel and loose_lo < (a % math.tau) < loose_hi
+            lift = ((a - loose_lo) / (loose_hi - loose_lo) * core * 0.20
+                    if loose else 0.0)
+            tilt = seg * 0.62 * lean
+            col = _dir_shade(a, lo, hi)
+            x0 = cx + math.cos(a - tilt) * (rin + lift)
+            y0 = cy + math.sin(a - tilt) * (rin + lift)
+            x1 = cx + math.cos(a + tilt) * (rout + lift)
+            y1 = cy + math.sin(a + tilt) * (rout + lift)
+            # over-layer a touch lighter so the crossing pops as over/under
+            c = col if layer == 0 else lerp_color(col, hi, 0.18)
+            _twig(surf, x0, y0, x1, y1, max(2, int(core * 0.058)), c, edge=lo)
 
 
 def _peak(surf, cx, cy, base_r, ax, h, w, hi, lo, snapped=False, leafy=True):
-    """One upswept crown peak — a tapered twig spire rising radially off the band
-    at angle ``ax``, with a small leaf cluster at the tip (Fame). ``snapped``
-    lops it to a jagged bare stub."""
+    """One upswept crown spire — a tapered twig rising off the band at ``ax`` that
+    FORKS into a Y of two twig-tips at the top (a real branch end, not a smooth
+    peg). Fame tucks a small leaf on each fork. ``snapped`` lops it to a jagged
+    bare stub with no fork."""
     bx = cx + math.cos(ax) * base_r
     by = cy + math.sin(ax) * base_r
-    ph = h * (0.34 if snapped else 1.0)
-    tx = cx + math.cos(ax) * (base_r + ph)
-    ty = cy + math.sin(ax) * (base_r + ph)
+    ph = h * (0.36 if snapped else 0.74)
+    fkx = cx + math.cos(ax) * (base_r + ph)         # where the spire forks
+    fky = cy + math.sin(ax) * (base_r + ph)
     col = _dir_shade(ax, lo, hi)
-    _twig(surf, bx, by, tx, ty, w, col, edge=lo)
+    _twig(surf, bx, by, fkx, fky, w, col, edge=lo)
     if snapped:
-        # frayed broken top — two tiny split slivers
+        # frayed broken top — two tiny split slivers, no fork
         for sgn in (-1, 1):
-            sx = tx + math.cos(ax + sgn * 0.5) * h * 0.10
-            sy = ty + math.sin(ax + sgn * 0.5) * h * 0.10
-            pygame.draw.line(surf, lo, (int(tx), int(ty)), (int(sx), int(sy)),
+            sx = fkx + math.cos(ax + sgn * 0.5) * h * 0.12
+            sy = fky + math.sin(ax + sgn * 0.5) * h * 0.12
+            pygame.draw.line(surf, lo, (int(fkx), int(fky)), (int(sx), int(sy)),
                              max(1, int(w * 0.6)))
         return
-    if leafy:
-        # a small paired leaf tuft at the tip — kept tight so the spire's POINT
-        # stays the silhouette, the leaves just soften it
-        for sgn in (-1, 1):
-            _leaf(surf, tx, ty, ax + sgn * math.radians(58), h * 0.20, h * 0.08,
+    # the Y-fork: two diverging twig-tips
+    for sgn in (-1, 1):
+        fa = ax + sgn * math.radians(24)
+        tx = fkx + math.cos(fa) * h * 0.34
+        ty = fky + math.sin(fa) * h * 0.34
+        _twig(surf, fkx, fky, tx, ty, max(2, int(w * 0.72)),
+              _dir_shade(fa, lo, hi), edge=lo)
+        if leafy:
+            _leaf(surf, tx, ty, fa + sgn * math.radians(40), h * 0.20, h * 0.08,
                   lerp_color(lo, hi, 0.62), lo)
-        pygame.draw.circle(surf, hi, (int(tx), int(ty)), max(2, int(w * 0.8)))
 
 
 def fame_circlet(surf, cx, cy, R, glyph_key):
@@ -366,8 +379,9 @@ def fame_circlet(surf, cx, cy, R, glyph_key):
     # spire stops short of R so its tip LEAF CLUSTER still fits inside the bound.
     peak_h = (R - base_r)
     # centre spire tallest, two flanking shorter & splayed wide — three clearly
-    # separate crown spires above the band
-    _peak(surf, cx, cy, base_r, math.radians(-90), peak_h * 0.92,
+    # separate forked crown spires above the band. Heights leave headroom for the
+    # Y-fork + leaf so the tip stays inside the bound.
+    _peak(surf, cx, cy, base_r, math.radians(-90), peak_h * 0.78,
           max(4, int(R * 0.07)), _G_TWIG_HI, _G_TWIG_LO)
     for sgn in (-1, 1):
         _peak(surf, cx, cy, base_r, math.radians(-90 + sgn * 46), peak_h * 0.62,
@@ -381,12 +395,12 @@ def shame_circlet(surf, cx, cy, R, glyph_key):
     _woven_band(surf, cx, cy, core, _S_TWIG_HI, _S_TWIG_LO, unravel=True)
     peak_h = (R - base_r)
     # centre spire survives but bare & leafless; both flanks snapped to stubs
-    _peak(surf, cx, cy, base_r, math.radians(-90), peak_h * 0.92,
+    _peak(surf, cx, cy, base_r, math.radians(-90), peak_h * 0.78,
           max(4, int(R * 0.07)), _S_TWIG_HI, _S_TWIG_LO, leafy=False)
     for sgn in (-1, 1):
         _peak(surf, cx, cy, base_r, math.radians(-90 + sgn * 46), peak_h * 0.62,
               max(3, int(R * 0.06)), _S_TWIG_HI, _S_TWIG_LO, snapped=True)
-    for fx, fy, fl, fa in ((-0.26, 0.88, 0.24, 1.7), (0.30, 0.82, 0.22, 2.5)):
+    for fx, fy, fl, fa in ((-0.26, 0.64, 0.20, 1.7), (0.30, 0.60, 0.18, 2.5)):
         _shed_leaf(surf, cx + R * fx, cy + R * fy, R * fl, fa,
                    _S_LEAF_DEAD, _S_LEAF_LO)
     _core_disc(surf, cx, cy, core, glyph_key=glyph_key, **_shame_kw())
@@ -402,11 +416,14 @@ def shame_circlet(surf, cx, cy, R, glyph_key):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _thorn_ring(surf, cx, cy, core, hi, lo, withered=False):
-    ring_r = core * 1.10
-    amp = core * 0.05
+    """A wiry branch ring studded with a FEW big discrete hooked thorns (not a
+    fuzzy halo). ``withered`` snaps the ring open with a wide GAP, breaks most
+    thorns to blunt root-nubs and drops the leaves."""
+    ring_r = core * 1.12
+    amp = core * 0.045
     N = 80
     pts = []
-    gap_lo, gap_hi = math.radians(36), math.radians(70)   # where it splits
+    gap_lo, gap_hi = math.radians(30), math.radians(78)   # a WIDE visible split
     drawn = []
     for k in range(N + 1):
         a = k / N * math.tau
@@ -423,11 +440,12 @@ def _thorn_ring(surf, cx, cy, core, hi, lo, withered=False):
         line = [(int(x), int(y)) for x, y, _ in seg]
         if len(line) < 2:
             continue
-        pygame.draw.lines(surf, lo, False, line, max(3, int(core * 0.07)))
-        pygame.draw.lines(surf, col, False, line, max(2, int(core * 0.04)))
-    # paired barbs every few steps, pointing out then in (thorn lineage)
-    barb_n = 22
-    broken = {2, 5, 9, 12, 16, 19} if withered else set()
+        pygame.draw.lines(surf, lo, False, line, max(3, int(core * 0.085)))
+        pygame.draw.lines(surf, col, False, line, max(2, int(core * 0.055)))
+    # HALF as many barbs, each a big discrete outward-hooking thorn (a curved
+    # branch-hook drawn as two segments) so it reads as a thorn, not hair
+    barb_n = 11
+    broken = {1, 3, 6, 8, 10} if withered else set()
     for j in range(barb_n):
         a = j / barb_n * math.tau
         if withered and gap_lo < a < gap_hi:
@@ -435,22 +453,24 @@ def _thorn_ring(surf, cx, cy, core, hi, lo, withered=False):
         rr = ring_r + math.sin(a * 5) * amp
         bx, by = cx + math.cos(a) * rr, cy + math.sin(a) * rr
         tcol = _dir_shade(a, lo, hi)
-        tl = core * (0.10 if (j in broken) else 0.22)
-        for outward in (1, -1):
-            ta = a if outward > 0 else a + math.pi
-            # tangential lean so barbs hook rather than radiate straight
-            ta += math.radians(26) * (1 if j % 2 else -1)
-            tx = bx + math.cos(ta) * tl * outward
-            ty = by + math.sin(ta) * tl * outward
-            if withered and outward < 0:
-                continue                       # inner barbs broke off
-            _twig(surf, bx, by, tx, ty, max(1, int(core * 0.028)), tcol, edge=lo)
+        brk = j in broken
+        tl = core * (0.12 if brk else 0.30)
+        lean = math.radians(30) * (1 if j % 2 else -1)
+        # root segment straight out, then the tip hooks tangentially → a barb
+        mx = bx + math.cos(a) * tl * 0.6
+        my = by + math.sin(a) * tl * 0.6
+        _twig(surf, bx, by, mx, my, max(2, int(core * 0.05)), tcol, edge=lo)
+        if not brk:
+            ta = a + lean
+            tx = mx + math.cos(ta) * tl * 0.7
+            ty = my + math.sin(ta) * tl * 0.7
+            _twig(surf, mx, my, tx, ty, max(2, int(core * 0.04)), tcol, edge=lo)
     if not withered:
         # a few sparse leaves at the cardinal flanks
         for a in (math.radians(150), math.radians(210), math.radians(30)):
             rr = ring_r + math.sin(a * 5) * amp
             lx, ly = cx + math.cos(a) * rr, cy + math.sin(a) * rr
-            _leaf(surf, lx, ly, a + math.radians(40), core * 0.26, core * 0.10,
+            _leaf(surf, lx, ly, a + math.radians(40), core * 0.28, core * 0.11,
                   lerp_color(lo, hi, 0.6), lo)
 
 
@@ -480,7 +500,8 @@ def shame_thorn(surf, cx, cy, R, glyph_key):
 
 def _ivy_crown(surf, cx, cy, core, vine_hi, vine_lo, leaf_hi, leaf_lo,
                leaf_dead=None, withered=False):
-    ring_r = core * 1.08
+    # pulled in ~7% so the outermost leaf tips never touch the badge bound
+    ring_r = core * 1.00
     # the woody vine the leaves ride on
     N = 64
     vpts = []
@@ -522,35 +543,39 @@ def shame_ivy(surf, cx, cy, R, glyph_key):
     _ivy_crown(surf, cx, cy, core, _S_TWIG_HI, _S_TWIG_LO, _S_LEAF_HI,
                _S_LEAF_LO, leaf_dead=_S_LEAF_DEAD, withered=True)
     # shed ivy leaves tumbling below (rounded, so they read as the same leaf)
-    for fx, fy, fa in ((-0.28, 0.86, 1.8), (0.10, 0.92, 2.3), (0.40, 0.80, 2.7)):
-        _ivy_leaf(surf, cx + R * fx, cy + R * fy, fa, R * 0.18,
+    for fx, fy, fa in ((-0.26, 0.62, 1.8), (0.08, 0.68, 2.3), (0.34, 0.58, 2.7)):
+        _ivy_leaf(surf, cx + R * fx, cy + R * fy, fa, R * 0.16,
                   _S_LEAF_DEAD, _S_LEAF_LO)
     _core_disc(surf, cx, cy, core, glyph_key=glyph_key, **_shame_kw())
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 5) BIRCH — slender drooping BIRCH/WILLOW twig crown: fine whip-like twigs
-#    arching up off the rim and DRAOPING back down, each hung with little oval
-#    buds/catkins like beads. Delicate, weeping, airy — distinct from every
-#    other concept's read.
-#    Shame: the buds have DROPPED off (bare whips), several twigs snapped, the
-#    whips withered grey, a scatter of fallen buds at the base.
+# 5) BIRCH — a leafy birch-twig crown: stout branch strokes spring off the rim
+#    and ARC UP toward the top, each carrying a row of small almond LEAVES (not
+#    bead-dots), the longest branches meeting at the crown's apex. Branches sweep
+#    the top ~250deg and leave the BASE open, so an upward crown silhouette
+#    emerges (not a full radial firework).
+#    Shame: the leaves are gone (bare branches), several branches snapped to
+#    stubs with frayed tips, the wood withered grey, a few dead leaves fallen.
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _weeping_whip(surf, cx, cy, base_r, a, length, hi, lo, bud_col,
-                  snapped=False, budless=False):
-    """One drooping willow whip: rises radially then curls back tangentially
-    (a weeping arc), strung with small oval buds. ``snapped`` cuts it short and
-    bare; ``budless`` keeps the whip but drops every bud."""
+def _birch_branch(surf, cx, cy, base_r, a, length, w, hi, lo, leaf_hi, leaf_lo,
+                  snapped=False, bare=False):
+    """A stout birch branch arcing up off the rim toward the crown apex, lined
+    with small almond leaves. ``snapped`` cuts it to a frayed bare stub; ``bare``
+    keeps the branch but strips every leaf (the withered read)."""
     bx = cx + math.cos(a) * base_r
     by = cy + math.sin(a) * base_r
-    rise = length * (0.34 if snapped else 1.0)
-    # control point pushed out + tangential so the tip weeps sideways-down
-    cax = a + math.radians(40)
-    px = bx + math.cos(a) * rise
-    py = by + math.sin(a) * rise
-    tx = px + math.cos(cax) * rise * 0.5
-    ty = py + math.sin(cax) * rise * 0.5 + rise * 0.25     # droop
+    rise = length * (0.40 if snapped else 1.0)
+    # the branch arcs toward the top of the badge (apex above centre) so the whole
+    # crown leans UPWARD rather than radiating evenly
+    apex = (cx, cy - (base_r + length) * 0.86)
+    px = bx + math.cos(a) * rise * 0.55
+    py = by + math.sin(a) * rise * 0.55
+    tx = px + (apex[0] - px) * (0.40 if not snapped else 0.0)
+    ty = py + (apex[1] - py) * (0.40 if not snapped else 0.0)
+    if snapped:
+        tx, ty = px, py
     pts = []
     for k in range(11):
         t = k / 10
@@ -559,49 +584,63 @@ def _weeping_whip(surf, cx, cy, base_r, a, length, hi, lo, bud_col,
         y = mt * mt * by + 2 * mt * t * py + t * t * ty
         pts.append((x, y))
     col = _dir_shade(a, lo, hi)
+    # a real branch stroke (thick, dark-edged), not a hairline
     pygame.draw.lines(surf, lo, False,
-                      [(int(x), int(y)) for x, y in pts], max(2, int(length * 0.10)))
+                      [(int(x), int(y)) for x, y in pts], max(3, int(w * 1.5)))
     pygame.draw.lines(surf, col, False,
-                      [(int(x), int(y)) for x, y in pts], max(1, int(length * 0.06)))
-    if snapped or budless:
+                      [(int(x), int(y)) for x, y in pts], max(2, int(w)))
+    if snapped:
+        sx = pts[-1][0] + (pts[-1][0] - pts[-2][0]) * 0.5
+        sy = pts[-1][1] + (pts[-1][1] - pts[-2][1]) * 0.5
+        pygame.draw.line(surf, lo, (int(pts[-1][0]), int(pts[-1][1])),
+                         (int(sx), int(sy)), max(1, int(w * 0.7)))
         return
-    # oval buds/catkins strung along the outer half of the whip
-    for k in (4, 6, 8, 10):
+    if bare:
+        return
+    # small almond leaves alternating off the outer half of the branch
+    for idx, k in enumerate((4, 6, 8, 9)):
         x, y = pts[k]
-        br = max(2, int(length * 0.10))
-        pygame.draw.ellipse(surf, bud_col,
-                            (int(x - br * 0.7), int(y - br), int(br * 1.4), int(br * 2)))
+        nxx, nyy = pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]
+        bang = math.atan2(nyy, nxx) + math.radians(54) * (1 if idx % 2 else -1)
+        lc = _dir_shade(bang, leaf_lo, leaf_hi)
+        _leaf(surf, x, y, bang, length * 0.24, length * 0.10, lc, leaf_lo)
+
+
+def _birch_crown(surf, cx, cy, R, twig_hi, twig_lo, leaf_hi, leaf_lo,
+                 withered=False):
+    core = int(R * _CORE)
+    base_r = int(core * 1.02)
+    length = (R - base_r) * 0.90
+    n = 11
+    # branches sweep the TOP ~250deg, leaving the base open → a crown, not a ring
+    span = math.radians(250)
+    start = math.radians(-90) - span / 2
+    snap = {1, 5, 9} if withered else set()
+    w = max(3, int(R * 0.05))
+    for i in range(n):
+        a = start + span * (i / (n - 1))
+        # branches nearer the apex are longer (the crown rises in the middle)
+        rise_f = 0.70 + 0.30 * (1 - abs((i / (n - 1)) - 0.5) * 2)
+        _birch_branch(surf, cx, cy, base_r, a, length * rise_f, w,
+                      twig_hi, twig_lo, leaf_hi, leaf_lo,
+                      snapped=(i in snap), bare=withered)
+    return core
 
 
 def fame_birch(surf, cx, cy, R, glyph_key):
-    blit_glow(surf, cx, cy, int(R * 1.0), (255, 214, 130), 50)
-    core = int(R * _CORE)
-    base_r = int(core * 1.04)
-    length = (R - base_r) * 0.94
-    n = 12
-    for i in range(n):
-        a = i / n * math.tau - math.pi / 2
-        _weeping_whip(surf, cx, cy, base_r, a, length, _G_TWIG_HI, _G_TWIG_LO,
-                      _G_BUD)
+    blit_glow(surf, cx, cy, int(R * 0.98), (255, 214, 130), 50)
+    core = _birch_crown(surf, cx, cy, R, _G_TWIG_HI, _G_TWIG_LO,
+                        _G_LEAF_HI, _G_LEAF_LO)
     _core_disc(surf, cx, cy, core, glyph_key=glyph_key, **_gold_kw())
 
 
 def shame_birch(surf, cx, cy, R, glyph_key):
-    core = int(R * _CORE)
-    base_r = int(core * 1.04)
-    length = (R - base_r) * 0.94
-    n = 12
-    snap = {1, 4, 8, 11}
-    for i in range(n):
-        a = i / n * math.tau - math.pi / 2
-        _weeping_whip(surf, cx, cy, base_r, a, length, _S_TWIG_HI, _S_TWIG_LO,
-                      _S_BUD, snapped=(i in snap), budless=True)
-    # fallen buds scattered at the base, inside the badge bound
-    for fx, fy in ((-0.22, 0.84), (0.06, 0.92), (0.30, 0.82), (-0.04, 0.78)):
-        x, y = cx + R * fx, cy + R * fy
-        br = max(2, int(R * 0.035))
-        pygame.draw.ellipse(surf, _S_BUD, (int(x - br), int(y - br),
-                                           int(br * 2), int(br * 2.4)))
+    core = _birch_crown(surf, cx, cy, R, _S_TWIG_HI, _S_TWIG_LO,
+                        _S_LEAF_HI, _S_LEAF_LO, withered=True)
+    # a few dead leaves fallen at the open base, inside the badge bound
+    for fx, fy, fa in ((-0.24, 0.62, 1.8), (0.08, 0.68, 2.3), (0.32, 0.58, 2.7)):
+        _shed_leaf(surf, cx + R * fx, cy + R * fy, R * 0.20, fa,
+                   _S_LEAF_DEAD, _S_LEAF_LO)
     _core_disc(surf, cx, cy, core, glyph_key=glyph_key, **_shame_kw())
 
 
