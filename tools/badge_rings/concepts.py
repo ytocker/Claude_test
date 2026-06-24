@@ -259,6 +259,30 @@ def shame_wreath(surf, cx, cy, R, glyph_key):
     _center(surf, glyph_key, cx, cy, R, _WD_GLY, _WD_GLY_SH)
 
 
+def shame_wreath_fit(surf, cx, cy, R, glyph_key):
+    """Identical to ``shame_wreath`` EXCEPT the three shed leaves are pulled in to
+    nestle on the lower rim band — within ~0.49*size of center — so none clip the
+    badge edge under the real ``_build`` geometry (R = 0.46*size)."""
+    _metal_band(surf, cx, cy, R, int(R * 0.74), _WD_RIM_HI, _WD_RIM_LO,
+                spec=None, edge=_WD_EDGE)
+    _oxide_mottle(surf, cx, cy, int(R * 0.82), int(R * 0.96),
+                  (_WD_LEAF_LO, _WD_RIM_LO), seed=11, n=16)
+    pygame.draw.circle(surf, _WD_RIM_MID, (cx, cy), R, max(2, R // 24))
+    # pulled inside: lower-rim radius ~0.66-0.80*R instead of 1.06-1.30*R
+    for fx, fy, fl, fa in ((-0.42, 0.70, 0.38, 1.6),
+                           (0.06, 0.80, 0.36, 2.2),
+                           (0.46, 0.66, 0.38, 2.6)):
+        _fallen_leaf(surf, cx + R * fx, cy + R * fy, R * fl, fa,
+                     _WD_LEAF_DEAD, _WD_LEAF_LO, R)
+    _laurel_sprig(surf, cx, cy, R, _WD_LEAF_HI, _WD_LEAF_LO,
+                  leaves=8, droop=1.0, curl=0.6, shed_lo=True)
+    _laurel_bow(surf, cx, cy, R, _WD_LEAF_HI, _WD_LEAF_LO, undone=True)
+    fr = int(R * 0.70)
+    ai._draw_step(surf, cx, cy, fr + max(2, R // 16), _WD_RIM_HI, _WD_RIM_LO)
+    ai._draw_face(surf, cx, cy, fr, _WD_FACE_TOP, _WD_FACE_BOT, _WD_RECESS)
+    _center(surf, glyph_key, cx, cy, R, _WD_GLY, _WD_GLY_SH)
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 2) SASH — a star-medal hung on a draped ribbon sash + suspension bar.
 #    Fame: a crisp gold suspension bar at the top, two bright royal-blue ribbon
