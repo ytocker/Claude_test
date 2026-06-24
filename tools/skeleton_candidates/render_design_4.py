@@ -1,4 +1,4 @@
-"""Render the round_2 review sheet for skeleton design_4 (DEADMAN'S FLAG).
+"""Render the round_3 review sheet for skeleton design_4 (DEADMAN'S FLAG).
 
 Day gameplay + night gameplay + hero close-up + a 40px NEAREST "truth read",
 composited onto one labeled sheet via the shared ninja_render harness.
@@ -91,7 +91,7 @@ def main():
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((30, 28, 38))
 
-    title = font.render("SKELETON design_4 — DEADMAN'S FLAG — round 2",
+    title = font.render("SKELETON design_4 — DEADMAN'S FLAG — round 3",
                         True, (244, 239, 224))
     sheet.blit(title, (pad, 12))
 
@@ -106,7 +106,7 @@ def main():
     draw_row(cols_top, title_h + pad)
     draw_row(cols_bot, title_h + pad + row1_h + pad)
 
-    out = "docs/store_redesign/costume/skeleton/design_4/round_2.png"
+    out = "docs/store_redesign/costume/skeleton/design_4/round_3.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print("wrote", out, sheet.get_size())

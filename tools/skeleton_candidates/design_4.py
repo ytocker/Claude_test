@@ -169,9 +169,11 @@ def _build_design4(wing_angle_deg):
     # 10) ONE crisp hollow socket — a clean black circle with a hard 2px rim,
     #     a clearly DIFFERENT shape from the oval eyepatch so the two darks read
     #     as two separate features, never one blob. Forward (beak-side) eye.
-    pygame.draw.circle(surf, _BONE_DD, (50, 20), 4)      # rim
-    pygame.draw.circle(surf, _BLACK, (50, 20), 3)        # hollow
-    pygame.draw.circle(surf, (6, 5, 4), (50, 20), 2)     # deepest
+    #     Dropped low/forward to (49,22) so it parts company with the eyepatch
+    #     band and the socket-hole never fuses into a horizontal dark visor.
+    pygame.draw.circle(surf, _BONE_DD, (49, 22), 4)      # rim
+    pygame.draw.circle(surf, _BLACK, (49, 22), 3)        # hollow
+    pygame.draw.circle(surf, (6, 5, 4), (49, 22), 2)     # deepest
 
     # 11) Nose hollow + bone grin so the skull face reads.
     _poly(surf, _BLACK, [(52, 24), (54, 24), (53, 26)])
@@ -179,56 +181,71 @@ def _build_design4(wing_angle_deg):
     for gx in (48, 51, 54):
         pygame.draw.line(surf, _RIB, (gx, 27), (gx, 30), 1)
 
-    # 12) Beak — bone-outlined over a black beak (forward end).
-    beak = [(56, 22), (62, 24), (59, 28), (53, 27)]
-    _poly(surf, _BLACK, beak)
+    # 12) Beak — bone-outlined over a LIGHTER fill, trimmed ~2px shorter
+    #     (tip 62→60). A 2px _BONE keyline over a _BLACK_H (not pure black) fill
+    #     keeps the beak a SEPARATE feature on day sky instead of fusing with the
+    #     sockets into one dark mass.
+    beak = [(56, 22), (60, 24), (58, 28), (53, 27)]
+    _poly(surf, _BLACK_H, beak)
     pygame.draw.polygon(surf, _BONE, beak, 2)
 
-    # 13) Black EYEPATCH over the OTHER (back-side) socket — a black OVAL of a
-    #     clearly different shape than the round hollow, ringed with a thin bone
-    #     rim so it stays a SEPARATE dark lens against the dark keyline (not one
-    #     mass), plus a 1px strap line. Two distinct dark shapes.
-    pygame.draw.line(surf, _BLACK, (40, 11), (45, 24), 2)   # strap over crown→jaw
-    _aaellipse(surf, _BONE_D, (42, 20), 5, 4)               # bone rim frames patch
-    _aaellipse(surf, _BLACK, (42, 20), 4, 3)                # oval patch lens
-    _aaellipse(surf, _BLACK_H, (41, 19), 2, 1)              # tiny patch sheen
+    # 13) Black EYEPATCH over the OTHER (back-side) socket — a small black OVAL
+    #     of a clearly different shape than the round hollow, ringed with a thin
+    #     bone rim so it stays a SEPARATE dark lens against the dark keyline (not
+    #     one mass), plus a 1px strap line. Shrunk to (4,3) and centered (41,19)
+    #     so it pulls back off the socket's left edge. Two distinct dark shapes.
+    pygame.draw.line(surf, _BLACK, (39, 11), (44, 24), 2)   # strap over crown→jaw
+    _aaellipse(surf, _BONE_D, (41, 19), 5, 4)               # bone rim frames patch
+    _aaellipse(surf, _BLACK, (41, 19), 4, 3)                # oval patch lens
+    _aaellipse(surf, _BLACK_H, (40, 18), 2, 1)              # tiny patch sheen
 
-    # 14) Gold hoop earring at the jaw (clean dot tell).
-    pygame.draw.circle(surf, _GOLD, (45, 30), 2)
-    pygame.draw.circle(surf, _GOLD_H, (44, 29), 1)
+    # A bright 1px _BONE bridge between the socket and the patch so a light gap
+    # ALWAYS parts the two darks at 1× — without it they smear into one band.
+    pygame.draw.line(surf, _BONE, (45, 18), (45, 23), 1)
+    pygame.draw.line(surf, _BONE, (46, 19), (46, 22), 1)
 
-    # 15) Red bandana wrapping the CRANIUM ONLY + a short knot-tail flicked
-    #     UP-and-FORWARD past the crown. Tightened to the skull (no banner),
-    #     and the knot-tail aims toward the beak end to fix orientation.
-    band = [(40, 16), (56, 16), (55, 10), (42, 11)]
+    # 14) Gold hoop earring at the jaw (clean dot tell) — nudged 1px off the jaw
+    #     so the dark keyline doesn't swallow the gold on day sky.
+    pygame.draw.circle(surf, _GOLD, (44, 31), 2)
+    pygame.draw.circle(surf, _GOLD_H, (43, 30), 1)
+
+    # 15) Red bandana wrapping the CRANIUM ONLY + a short knot-tail trailing
+    #     back-and-down. Lowered to hug the BROW (band top 10→12 / 11→13) so it
+    #     stops reading as a peaked Santa crown; widened 1px past the back skull
+    #     edge so the WRAP reads (a hat never wraps); the knot-tail flattened to
+    #     trail back/down instead of a peaked up-forward tip.
+    band = [(39, 16), (56, 16), (55, 12), (40, 13)]
     _poly(surf, _RED, band)
-    _poly(surf, _RED_D, [(40, 16), (56, 16), (56, 14), (40, 14)])
-    pygame.draw.line(surf, _RED_H, (43, 12), (54, 12), 2)
-    # Tiny polka dots on the bandana for the pirate-cloth read.
-    for dx in (45, 50, 54):
-        pygame.draw.circle(surf, _BONE, (dx, 12), 1)
-    # Knot at the crown (over the back-top of the skull).
-    _poly(surf, _RED, [(40, 12), (45, 10), (46, 16), (41, 17)])
-    _poly(surf, _RED_D, [(40, 12), (41, 17), (43, 14)])
-    # Short knot-tails flicking UP-and-FORWARD past the crown (toward beak) —
-    # a tight flick, not a banner; breaks the outline at the forward-top.
-    _poly(surf, _RED, [(45, 11), (54, 4), (57, 7), (49, 13)])
-    _poly(surf, _RED_D, [(45, 11), (49, 13), (50, 8)])
-    _poly(surf, _RED, [(46, 13), (53, 9), (55, 12), (48, 15)])
-    pygame.draw.line(surf, _RED_H, (47, 11), (53, 6), 1)
+    _poly(surf, _RED_D, [(39, 16), (56, 16), (56, 15), (39, 15)])
+    pygame.draw.line(surf, _RED_H, (43, 14), (54, 14), 2)
+    # Knot at the back-top of the skull (over the crown's back edge).
+    _poly(surf, _RED, [(39, 13), (44, 12), (45, 17), (40, 18)])
+    _poly(surf, _RED_D, [(39, 13), (40, 18), (42, 15)])
+    # Short knot-tails trailing BACK-and-DOWN off the knot (not a peaked
+    # up-forward flick) — breaks the outline at the back, reading as cloth ends.
+    _poly(surf, _RED, [(40, 14), (33, 12), (32, 16), (40, 18)])
+    _poly(surf, _RED_D, [(40, 18), (32, 16), (36, 15)])
+    _poly(surf, _RED, [(39, 17), (33, 18), (34, 21), (40, 19)])
+    pygame.draw.line(surf, _RED_H, (39, 15), (34, 14), 1)
+    # At most one low polka dot near the knot (a single cloth tell, not a row of
+    # fur-trim dots over the crown).
+    pygame.draw.circle(surf, _BONE, (37, 16), 1)
 
-    # 16) Legs — bone leg-pair; one foot is a peg-leg stub for character.
+    # 16) Legs — bone leg-pair; one foot is a peg-leg stub for character. The
+    #     clawed foot drops to 2 claws (was 3) so the toes don't merge to a blob
+    #     at downscale.
     pygame.draw.line(surf, _BONE_D, (35, 45), (36, 50), 3)
     pygame.draw.line(surf, _BONE, (35, 45), (36, 50), 2)
     pygame.draw.circle(surf, _BONE, (35, 45), 2)           # knee knob
-    for tx in (33, 36, 39):
-        pygame.draw.line(surf, _BONE, (36, 50), (tx, 53), 1)
-    # Peg-leg stub (back leg) — a short tapered bone peg, no foot, bottom-center.
-    _poly(surf, _BONE_D, [(27, 44), (31, 44), (30, 52), (28, 52)])
-    _poly(surf, _BONE, [(27, 44), (30, 44), (29, 51), (28, 51)])
-    pygame.draw.line(surf, _BONE_DD, (28, 46), (28, 50), 1)
+    for tx in (34, 39):
+        pygame.draw.line(surf, _BONE, (36, 50), (tx, 53), 2)
+    # Peg-leg stub (back leg) — a clean 3px tapered bone peg, no foot, so the leg
+    # survives the gameplay downscale.
+    pygame.draw.line(surf, _BONE_D, (29, 44), (29, 52), 4)
+    pygame.draw.line(surf, _BONE, (29, 44), (29, 51), 3)
+    pygame.draw.circle(surf, _BONE, (29, 44), 2)           # peg knee knob
     # A red cloth wrap where the peg meets the bone (pirate detail).
-    pygame.draw.line(surf, _RED, (27, 45), (31, 45), 2)
+    pygame.draw.line(surf, _RED, (27, 46), (31, 46), 2)
 
     return surf
 
