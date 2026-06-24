@@ -1,0 +1,252 @@
+"""Shared foundation for the v4 SKELETON x-ray explorations (scratch only).
+
+The whole point of v4 is that every candidate is an x-ray of the EXACT
+original Pip macaw — same silhouette, same beak location, same tail
+location — with a COMPLETE skeleton inside it and a dominant beak bone.
+Faithfulness comes for free by recolouring the real sprite geometry
+(`_build_parrot_with_palette`) to a dark "flesh", then painting bones
+*through* it.
+
+To kill the "some bones are missing" failure for good, the anatomy lives
+here ONCE: `paint_skeleton()` lays down the full bird skeleton (skull,
+hollow eye-socket, dominant beak bone, cervical→caudal spine, full
+ribcage + keel, shoulder + wing arm-bones and phalanges that flap in
+register with the wing, pelvis, both legs, clawed feet, tail bones). The
+five designs import it and differ ONLY in the STYLE dict + an optional
+post-pass (bloom / glow / hatching) — so anatomy is identical and only the
+bone *material* changes.
+
+NOT registered in store_skins.BUILDERS. Production is untouched.
+"""
+import math
+import pygame
+
+from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
+from game.store_skins import COMPOSITE_W, COMPOSITE_H, PARROT_DY
+
+
+# ── dark translucent "flesh": the original silhouette, x-ray-dimmed ───────────
+# Near-black cool charcoal so bright bone reads as showing THROUGH the body.
+# A hair of lift on belly/crown keeps the silhouette alive on the night sky;
+# the bones carry the read either way.
+P_FLESH = _pal(
+    tail=[(20, 22, 34), (26, 28, 42), (32, 35, 50), (38, 41, 58)],
+    tail_line=(12, 13, 22),
+    body_shadow=(12, 13, 22),
+    body_main=(26, 28, 42),
+    body_chest=(32, 35, 50),
+    body_belly=(40, 44, 62),
+    sheen=None,
+    wing_main=(22, 24, 38),
+    wing_dark=(13, 14, 24),
+    wing_tip=(30, 33, 50),
+    wing_secondary=None,
+    wing_highlight=None,
+    head_shadow=(16, 18, 28),
+    head_main=(30, 33, 50),
+    head_cheek=(38, 42, 60),
+    head_crown=(42, 46, 66),
+    lens_frame=(0, 0, 0), lens_body=(0, 0, 0),
+    lens_tint=None, lens_glint=None,
+    beak_main=(24, 26, 40),
+    beak_dark=(14, 15, 26),
+    beak_gloss=(34, 37, 56),
+    foot=(20, 22, 34),
+)
+
+
+def bone_parrot(angle_deg):
+    """The exact original macaw silhouette recoloured to dark flesh."""
+    return _build_parrot_with_palette(angle_deg, P_FLESH, draw_lenses=False)
+
+
+# ── anatomy, in COMPOSITE space (base coords + PARROT_DY on y) ────────────────
+# Original anchors (parrot.py): head centre (47,21) r~11; beak quad
+# (55,21)(61,24)(58,28)(52,26); body centre (32,32) r 19×14; wing centre
+# (34,28); feet (28,45)/(34,45). +PARROT_DY(20) on every y to reach composite.
+DY = PARROT_DY
+HX, HY = 47, 21 + DY                       # skull centre → (47,41)
+WING_CENTER = (34, 28 + DY)                # (34,48) — matches _build_wing blit
+
+# Cervical → thoracic → lumbar → caudal vertebra centres (skull base to tail).
+_SPINE = [(43, 23 + DY), (39, 25 + DY), (34, 27 + DY), (29, 29 + DY),
+          (24, 31 + DY), (19, 33 + DY), (14, 34 + DY)]
+
+# Rib roots on the spine (thoracic) → each curves down to the keel.
+_RIB_ROOTS = [(37, 26 + DY), (32, 28 + DY), (27, 30 + DY), (22, 32 + DY)]
+_KEEL = [(20, 42 + DY), (26, 44 + DY), (33, 43 + DY), (39, 39 + DY)]  # sternum
+
+# Wing arm-bones + phalanges in the 50×50 WING-LOCAL space (so they rotate
+# with the wing exactly like the feather polygon does).
+_WING_LOCAL = {
+    "humerus": [(24, 24), (35, 18)],
+    "radius":  [(35, 18), (46, 25)],
+    "phalanges": [
+        [(46, 25), (45, 14)],
+        [(46, 25), (49, 22)],
+        [(46, 25), (40, 31)],
+        [(42, 22), (45, 16)],
+    ],
+    "joints": [(24, 24), (35, 18), (46, 25)],
+}
+
+
+def _lerp(a, b, t):
+    return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+
+
+def _rib_curve(root, t_out=1.0):
+    """A rib arcing from its spine root down/around to the keel line."""
+    # Pick the keel target nearest under the root, bow it outward.
+    kx = root[0] - 2
+    ky = _KEEL[0][1] + 4
+    mid = (root[0] - 9, (root[1] + ky) / 2 + 3)        # bowed-out belly point
+    pts = []
+    for i in range(7):
+        t = i / 6 * t_out
+        a = _lerp(root, mid, t)
+        b = _lerp(mid, (kx, ky), t)
+        pts.append(_lerp(a, b, t))
+    return pts
+
+
+# ── styled stroke primitives ─────────────────────────────────────────────────
+
+def stroke(surf, color, p0, p1, w):
+    """A bone shaft with rounded caps."""
+    pygame.draw.line(surf, color, p0, p1, w)
+    r = max(1, w // 2)
+    pygame.draw.circle(surf, color, (int(round(p0[0])), int(round(p0[1]))), r)
+    pygame.draw.circle(surf, color, (int(round(p1[0])), int(round(p1[1]))), r)
+
+
+def polybone(surf, color, pts, w):
+    for i in range(len(pts) - 1):
+        stroke(surf, color, pts[i], pts[i + 1], w)
+
+
+def knob(surf, color, p, r):
+    pygame.draw.circle(surf, color, (int(round(p[0])), int(round(p[1]))), r)
+
+
+# Default STYLE keys a design can override:
+#   bone   — main bone colour (the bright element)
+#   hi     — highlight rim (None to skip)
+#   sh     — keyline/shadow under bone for day-sky legibility (None to skip)
+#   w_long / w_rib / w_fine — stroke widths for long bones / ribs / fine bones
+#   beak   — dominant-beak fill colour (defaults to bone)
+DEFAULT_STYLE = dict(
+    bone=(238, 240, 246), hi=(255, 255, 255), sh=(20, 22, 34),
+    w_long=3, w_rib=2, w_fine=2, beak=None,
+)
+
+
+def _wing_bone_layer(angle_deg, style):
+    """Render wing arm-bones + phalanges in local space, rotate by the wing
+    angle, return the rotated surface and its blit topleft for WING_CENTER."""
+    w = pygame.Surface((50, 50), pygame.SRCALPHA)
+    col, sh, hi = style["bone"], style["sh"], style["hi"]
+    wl, wf = style["w_long"], style["w_fine"]
+    if sh is not None:
+        stroke(w, sh, *_WING_LOCAL["humerus"], wl + 2)
+        stroke(w, sh, *_WING_LOCAL["radius"], wl + 2)
+        for ph in _WING_LOCAL["phalanges"]:
+            stroke(w, sh, *ph, wf + 1)
+    stroke(w, col, *_WING_LOCAL["humerus"], wl)
+    stroke(w, col, *_WING_LOCAL["radius"], wl)
+    for ph in _WING_LOCAL["phalanges"]:
+        stroke(w, col, *ph, wf)
+    for j in _WING_LOCAL["joints"]:
+        knob(w, col, j, max(2, wl - 1))
+        if hi is not None:
+            knob(w, hi, (j[0] - 1, j[1] - 1), 1)
+    rot = pygame.transform.rotate(w, angle_deg)
+    tl = rot.get_rect(center=WING_CENTER).topleft
+    return rot, tl
+
+
+def paint_skeleton(surf, angle_deg, style=None):
+    """Paint the COMPLETE bird skeleton onto the composite (over dark flesh).
+
+    Designs pass a STYLE dict for the bone material; anatomy is fixed here so
+    no bone can go missing. Wing phalanges rotate in register with `angle_deg`.
+    """
+    st = dict(DEFAULT_STYLE)
+    if style:
+        st.update(style)
+    bone, hi, sh = st["bone"], st["hi"], st["sh"]
+    wl, wr, wf = st["w_long"], st["w_rib"], st["w_fine"]
+    beak_col = st["beak"] or bone
+
+    # ── keyline pass (drawn first, slightly fatter, for day-sky legibility) ──
+    if sh is not None:
+        for r0 in _RIB_ROOTS:
+            polybone(surf, sh, _rib_curve(r0), wr + 1)
+        polybone(surf, sh, _SPINE, wl + 1)
+        polybone(surf, sh, _KEEL, wr + 1)
+
+    # ── wing arm-bones + phalanges (behind the body bones, flapping) ─────────
+    layer, tl = _wing_bone_layer(angle_deg, st)
+    surf.blit(layer, tl)
+
+    # ── ribcage ──────────────────────────────────────────────────────────────
+    for r0 in _RIB_ROOTS:
+        polybone(surf, bone, _rib_curve(r0), wr)
+    polybone(surf, bone, _KEEL, wr)                     # sternum/keel
+
+    # ── spine + vertebra knobs ───────────────────────────────────────────────
+    polybone(surf, bone, _SPINE, wl)
+    for v in _SPINE:
+        knob(surf, bone, v, max(2, wl - 1))
+        if hi is not None:
+            knob(surf, hi, (v[0] - 1, v[1] - 1), 1)
+
+    # ── pelvis + two legs + clawed feet ──────────────────────────────────────
+    pelvis = (22, 33 + DY)
+    knob(surf, bone, pelvis, wl)
+    for hipx, foot, splay in ((25, (26, 49 + DY), -3), (30, (36, 49 + DY), 3)):
+        knee = (hipx + splay, 45 + DY)
+        stroke(surf, bone, pelvis, knee, wl)            # femur
+        stroke(surf, bone, knee, foot, wf)              # tibia
+        # 3-toe claw
+        for dx in (-3, 0, 3):
+            stroke(surf, bone, foot, (foot[0] + dx, foot[1] + 3), max(1, wf - 1))
+
+    # ── tail bones (caudal vertebrae fanning into the original tail) ─────────
+    tail_root = _SPINE[-1]
+    for tip in ((3, 35 + DY), (4, 41 + DY), (9, 42 + DY), (15, 39 + DY)):
+        stroke(surf, bone, tail_root, tip, wf)
+
+    # ── skull + hollow eye-socket ────────────────────────────────────────────
+    skull_r = 11
+    if sh is not None:
+        pygame.draw.circle(surf, sh, (HX, HY), skull_r + 1, wf + 1)
+    pygame.draw.circle(surf, bone, (HX, HY), skull_r, wf)
+    pygame.draw.circle(surf, bone, (HX - 1, HY - 4), 5, max(1, wf - 1))  # cranium dome
+    # hollow eye socket (dark, ringed in bone)
+    pygame.draw.circle(surf, (8, 9, 16), (HX + 3, HY - 1), 4)
+    pygame.draw.circle(surf, bone, (HX + 3, HY - 1), 4, max(1, wf - 1))
+    knob(surf, bone, (HX + 2, HY - 2), 1)
+
+    # ── DOMINANT beak bone (the signature element) ───────────────────────────
+    # Original beak sits forward of the skull, tip ~(61,44) composite. Built up
+    # into an oversized hooked avian beak-bone that PROJECTS FORWARD (not up):
+    # long upper mandible curving to a downward raptor hook, hinged lower jaw,
+    # nostril notch — the biggest, most-salient bone on the bird.
+    upper = [(54, 37), (66, 42), (67, 47), (62, 47), (57, 44), (54, 42)]
+    lower = [(55, 45), (63, 46), (62, 49), (55, 47)]
+    if sh is not None:
+        pygame.draw.polygon(surf, sh, [(p[0], p[1] + 1) for p in upper])
+    pygame.draw.polygon(surf, beak_col, upper)
+    pygame.draw.polygon(surf, beak_col, lower)
+    pygame.draw.line(surf, st["sh"] or beak_col, (55, 44), (63, 45), 1)  # mandible gap
+    knob(surf, (8, 9, 16), (57, 41), 1)                 # nostril
+    if hi is not None:
+        pygame.draw.line(surf, hi, (55, 39), (65, 43), 1)  # culmen gloss
+
+
+def _frames_from_paint(paint_fn):
+    """Helper for designs: build the 4 outlined, x-ray frames via the standard
+    skin factory using bone_parrot as the dark-flesh base."""
+    from game import store_skins
+    return store_skins._make_skin(paint_fn, base_fn=bone_parrot)
