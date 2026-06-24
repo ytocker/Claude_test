@@ -466,11 +466,12 @@ def hut_reflection(surf, cx, deck_y, width, scale, horizon):
 # =============================================================================
 # Stilt hut — the market stall as an over-water thatched hut.
 # =============================================================================
-def draw_stilts(surf, cx, deck_y, half_w, post_len):
+def draw_stilts(surf, cx, deck_y, half_w, post_len, ring_scale=1.0):
     """The wooden posts the hut stands on, driven into the lagoon: four legs
     with cross-bracing, lit top-left, each with a contact ripple where it meets
     the water + a short submerged reflection. `post_len` is how far the posts
-    drop below the deck into the water."""
+    drop below the deck into the water. `ring_scale` widens the contact rings for
+    NEARER huts so closer water reads as a larger displacement (a depth cue)."""
     legs_x = [cx - half_w + m(6), cx - half_w + m(20),
               cx + half_w - m(20), cx + half_w - m(6)]
     water_y = deck_y + int(post_len * 0.74)
@@ -493,7 +494,7 @@ def draw_stilts(surf, cx, deck_y, half_w, post_len):
         # + a touch brighter, each foreshortened to a flat ellipse on the surface;
         # a small lifted-water crescent on the lit (top-left) edge sells the
         # meniscus where the timber breaks the surface.
-        rr = m(15)
+        rr = int(m(15) * ring_scale)
         rip = pygame.Surface((rr * 2 + m(2), rr + m(2)), pygame.SRCALPHA)
         rc = (rr + m(1), (rr + m(2)) // 2)
         rings = ((1.00, 30, 0.9), (0.74, 52, 1.0), (0.50, 78, 1.2), (0.30, 96, 1.3))
@@ -700,6 +701,39 @@ def draw_hut(surf, cx, deck_y, scale, group, label, hero=False):
     return half_w, roof_apex_y
 
 
+def _draw_parcel_padding(surf, cx, cy, dome_r):
+    """A padded-mailer body painted behind the real envelope icon so PARCELS
+    reads as a THICK 3D package, not a flat card: a rounded warm-kraft block,
+    slightly squarer-than-wide, with a BULGED lower edge (a soft brown belly arc)
+    that sells the stuffing, a lit top sheen, and a dark seated contour. Drawn in
+    the dome's own kraft family so the genuine icon (twine X + wax seal) sits on
+    top as the lit detail."""
+    KRAFT_HI = (196, 158, 108)
+    KRAFT = (168, 130, 84)
+    KRAFT_LO = (118, 88, 54)
+    bw = int(dome_r * 1.34)
+    bh = int(dome_r * 1.42)              # squarer/taller than the flat envelope
+    rect = pygame.Rect(cx - bw // 2, cy - bh // 2, bw, bh)
+    rad = int(dome_r * 0.28)
+    # seated contour first so the block sits in the glass well
+    sh = rect.inflate(m(4), m(4)); sh.move_ip(0, m(2))
+    pygame.draw.rect(surf, (14, 10, 6, 160), sh, border_radius=rad)
+    # kraft body — vertical gradient, lit top easing to shaded base
+    surf.blit(vgrad(rect.w, rect.h, rad, KRAFT_HI, KRAFT_LO), rect.topleft)
+    # the BULGED belly: a soft brown arc filling the lower third so the package
+    # reads as stuffed/rounded rather than a flat panel.
+    belly = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+    by = int(rect.h * 0.52)
+    pygame.draw.ellipse(belly, (*KRAFT, 150),
+                        (int(rect.w * 0.06), by,
+                         int(rect.w * 0.88), rect.h - by + int(rect.h * 0.20)))
+    surf.blit(belly, rect.topleft)
+    # lit top sheen + dark keyline so the padded block has volume + a defined edge
+    top_sheen(surf, rect, rad, rect.h // 3, peak=60)
+    pygame.draw.rect(surf, (40, 26, 14), rect, width=max(1, m(1.4)),
+                     border_radius=rad)
+
+
 def _place_thumb(surf, group, cx, cy, dome_r, hero):
     """Drop the category's REAL preview into the dome, contained (letterboxed)
     so aspect-extreme items (flip-flops, party hat) sit fully inside the glass
@@ -712,6 +746,14 @@ def _place_thumb(surf, group, cx, cy, dome_r, hero):
     # aspect-extreme items (flip-flops, party hat) still get a tighter contain
     # factor so the long axis stays fully inside the glass.
     box = dome_r * (1.62 if letterbox else 1.84)
+    # PARCELS' flat kraft mailer can be misread as a card/letter. Paint a PADDED
+    # body behind the real icon — a rounded warm-kraft block with a slightly
+    # bulged lower edge + soft top sheen — so the silhouette reads as a THICK 3D
+    # package, not a flat card. The genuine parcel_envelope icon still draws on
+    # top (twine X + wax seal), so it stays the real category content.
+    if group == "parcels":
+        box *= 0.86            # shrink the icon a hair so the padding shows around it
+        _draw_parcel_padding(surf, cx, cy, dome_r)
     s = box / max(w, h)
     img = pygame.transform.smoothscale(
         src, (max(1, int(w * s)), max(1, int(h * s))))
@@ -802,9 +844,11 @@ def draw_pip(surf, px, py):
     rim catch from the low sun so he separates from the sky without glowing."""
     # wings-up flap frame + a gentle left-bank tilt so he reads as in motion, not
     # a pasted sprite. The parrot art faces right; banking up-left toward the sun.
-    pip = parrot.get_parrot(0, 8.0)
+    # A shallow tilt keeps the wing spread horizontal so the macaw silhouette is
+    # unmistakable (not a kite/banner) against the indigo sky.
+    pip = parrot.get_parrot(0, 5.0)
     pw, ph = pip.get_size()
-    target = m(30)                       # distant flyer — clearly smaller than a hut dome
+    target = m(34)                       # distant flyer, but enough spread to read as a bird
     s = target / max(pw, ph)
     pip = pygame.transform.smoothscale(pip, (int(pw * s), int(ph * s)))
     pr = pip.get_rect(center=(px, py))
@@ -961,7 +1005,12 @@ def render_device():
         # posts drop from the deck into the water; deeper (lower) huts sit on
         # shorter posts since their deck is already near the waterline.
         post_len = max(m(26), int(m(70) * h["scale"]))
-        draw_stilts(surf, h["cx"], h["deck_y"], half_w, post_len)
+        # nearer (lower-on-canvas) huts get WIDER contact rings — closer water
+        # reads as a larger displacement, reinforcing depth. Mapped from the
+        # hut's deck fraction across the back row (~0.55) to the front (~0.86).
+        depth_t = max(0.0, min(1.0, (h["deck_y"] / DH - 0.55) / 0.31))
+        ring_scale = 1.0 + 0.45 * depth_t
+        draw_stilts(surf, h["cx"], h["deck_y"], half_w, post_len, ring_scale)
         draw_hut(surf, h["cx"], h["deck_y"], h["scale"], h["group"],
                  h["label"], hero=h["hero"])
         if h["hero"]:
@@ -972,9 +1021,10 @@ def render_device():
                        h["deck_y"] - int(m(16) * h["scale"]), h["scale"], True)
 
     # Pip flies in the upper sky in the open gutter between the sun (upper-left)
-    # and the right palm — below the TAP-A-STALL chip, above the back-row roofs,
-    # clear of the sun disc + the palm fronds, banking up-left toward the light.
-    draw_pip(surf, int(DW * 0.60), int(DH * 0.255))
+    # and the right palm — biased lower + left into clearer indigo so he's value-
+    # separated from the TAP-A-STALL chip's red star (avoids a red-Pip + red-star
+    # cluster up-right), above the back-row roofs, banking up-left toward the sun.
+    draw_pip(surf, int(DW * 0.50), int(DH * 0.285))
 
     draw_header(surf)
 

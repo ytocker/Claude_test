@@ -1,6 +1,31 @@
 # LAGOON STILT-MARKET — store bazaar landing (round 4)
 
-## Round 4 — final polish pass (4 targeted fixes, round_3 kept as the "before")
+## Round 4 — SHIP-READY tightening (3 optional polish notes, overwrote round_4)
+The art-director gave round_4 VERDICT: SHIP-READY. These three non-blocking
+polish notes were folded into the SAME round_4 files (overwritten in place);
+nothing that was working regressed (capped-glow/no-white-aura verified by pixel
+sampling, PARCELS peer treatment, all 7 stalls, sun, header, reflections intact).
+
+1. **PARCELS now reads as a PARCEL without its label.** The flat kraft envelope
+   could be misread as a card/letter. Added `_draw_parcel_padding` — a PADDED
+   MAILER body painted behind the real `parcel_envelope` icon: a rounded warm-
+   kraft block (squarer/taller than the flat envelope) with a BULGED lower-edge
+   belly arc, a lit top sheen + dark seated keyline, so the silhouette reads as a
+   THICK 3D package. The genuine icon (twine X + red wax seal) still draws on top
+   (shrunk ~14% so the padding shows around it) — same cabochon style as the
+   other six, still real PARCELS category content.
+2. **Pip = "bird, not banner".** Bumped his size `m(30)→m(34)` and shallowed the
+   bank tilt `8°→5°` so the wing spread stays horizontal and the macaw silhouette
+   is unmistakable. Biased him lower + left (`0.60,0.255 → 0.50,0.285`) into
+   clearer indigo so he's value-separated from the TAP-A-STALL chip's red star
+   (no more red-Pip + red-star cluster up-right). Still the wings-up flap frame,
+   still a clean capped warm rim (no bloom).
+3. **Ripple depth cue.** `draw_stilts` gained a `ring_scale` arg; the call maps
+   each hut's deck fraction (back ~0.55 → front ~0.86) to `1.0→1.45`, so the
+   nearer front-row stilts (PARROTS / SHOES / PARCELS) get visibly WIDER contact
+   rings than the back row — closer water reads as larger displacement.
+
+## Round 4 — original polish pass (4 targeted fixes, round_3 kept as the "before")
 The round_3 lagoon was loved; this pass lands four specific craft fixes and
 saves to NEW files (`round_4.png` / `round_4@2x.png`) — round_3 is untouched.
 
