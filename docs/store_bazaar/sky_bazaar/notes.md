@@ -12,7 +12,47 @@ flying vendor.
   (round 1: `round_1.png` / `round_1@2x.png`)
 - Run: `python docs/store_bazaar/sky_bazaar/render.py`
 
-## Round 3 — kill the white aura, lift the craft (→ `round_3*.png`)
+## Round 3b — the REAL white-aura cause: additive glow saturation (→ `round_3*.png`)
+
+Round 3a (below) recoloured the small glows but the headline complaint did NOT
+move: pixel-measured, the cloud BODIES were still 35–61% pure `(255,255,255)`.
+The root cause was finally isolated and fixed:
+
+**`render_hi.soft_glow()` composites its feathered rings with `BLEND_ADD`.**
+Where rings overlap (every glow centre) the channels SUM past 255 → literal
+pure white. Three places did this onto already-bright ground and produced the
+"white aura the user is reacting to":
+
+1. **The cloud keel underglow** — `soft_glow(... (236,158,96) ...)` stacked dead-
+   centre of every cloud's lower body → a pure-white blob filling the cloud
+   middle. THIS was the cloud white, not the crown.
+2. **The apex nebula** (3 stacked glows) → the entire top sky behind the header
+   blew out to pure white instead of deep indigo.
+3. **The PARCELS red MYSTERY aura** → summed red onto the light foot cloud into a
+   white core (also killing the red treasure signal).
+
+Fix: a new local `capped_glow()` composites rings with `BLEND_RGBA_MAX` (the
+strongest ring wins, never sums), so a glow caps at ONE opaque pass of its own
+colour — a violet bloom stays violet, gold stays gold, red stays red, none can
+reach white. Applied to the keel kiss, the cloud key-light (also rebuilt as a
+single MAX pass), the apex + header nebula, the sun bloom, and the PARCELS aura.
+
+Plus the round-3b craft asks: cloud body anchors capped so the lit cap tops out
+at warm cream `(248,234,205)` (~88% luminance, never white); a real top-left→
+base value ramp driven through each crown lobe (cream cap → dusk-rose → violet
+keel, the upper 60% no longer a white card); a deeper violet AO; and an indigo
+rim-shadow on each cloud's shadowed right/lower edge so neighbouring clouds /
+Pip / nameplate caps stop merging white-on-white into one blob. The warm-gold
+crown rim is the brightest mark on every cloud — gold owns the light.
+
+**Sanity gate (pixel-measured on `round_3@2x.png`):**
+
+- Cloud bodies (isolated): **worst 1.48% pure white** (was 35–61%) — the residual
+  is only the thin gold rim-arc specular kisses.
+- Full composite: **4,846 pure-white px = 0.53%** (was ~120k ≈ 13%), the residue
+  being Pip's beak/coin catch-lights + gold rim kisses (intentional specular).
+
+## Round 3a — kill the small white auras (folded into the same files)
 
 The user liked concept #3 but said it still read like "a basic idea" and, above
 all, that "a white aura coming out of many places makes it look really bad."
