@@ -1,8 +1,10 @@
 """Render the AUREX (design_5) review sheet — scratch exploration only.
 
-One sheet: day-sky gameplay, night-sky gameplay (violet rune-fire should
-blaze), a hero close-up, a 40px NEAREST "truth read", and a 4-frame flap
-filmstrip showing the gold wing + violet trail across the four poses.
+One sheet: day-sky gameplay (gold must read with near-zero glow assist),
+night-sky gameplay (violet rune-fire blazes), a hero close-up, a 40px NEAREST
+"truth read" (must clock GOLD SKULL → two violet socket points → gold crown),
+and a 4-frame flap filmstrip. Day uses the near-silent-glow variant, night the
+blazing one, so the day/night glow gating is honestly shown.
 """
 from __future__ import annotations
 import os
@@ -20,9 +22,9 @@ from game.entities import Pipe
 from game.config import W as GW, H as GH, GROUND_Y
 
 from tools.ninja_render import hero_panel
-from tools.skeleton_candidates.design_5 import build as DESIGN5
+from tools.skeleton_candidates.design_5 import build_day, build_night
 
-OUT = "docs/store_redesign/costume/skeleton/design_5/round_1.png"
+OUT = "docs/store_redesign/costume/skeleton/design_5/round_2.png"
 
 FRAME_IDX = 2
 TILT = 10.0
@@ -58,8 +60,8 @@ def _gameplay_panel(source, w, h, phase, *, frame_idx=FRAME_IDX, tilt=TILT):
 
 
 def _truth_read(source, box):
-    """The 40px NEAREST downscale — does the gold skull + rib + rune read clock
-    at gameplay size, blown back up with hard pixels."""
+    """The 40px NEAREST downscale — must clock GOLD SKULL → two violet socket
+    points → gold crown, gold the brightest legible mass."""
     frame = source(FRAME_IDX, 0.0)
     bb = frame.get_bounding_rect()
     if bb.width and bb.height:
@@ -76,8 +78,8 @@ def _truth_read(source, box):
 
 
 def _filmstrip(source, cell, n=4):
-    """The 4 flap poses side by side on a dark panel — the showpiece read of
-    the gold wing sweeping with its violet rune-trail."""
+    """The 4 flap poses side by side — the gold wing sweeping; on the night
+    variant a faint violet trail rides the swept-up poses."""
     strip = pygame.Surface((cell * n, cell), pygame.SRCALPHA)
     for i in range(n):
         pygame.draw.rect(strip, (20, 17, 30),
@@ -100,7 +102,6 @@ def _label(sheet, font, text, x, y):
 
 def main():
     pygame.font.init()
-    font = pygame.font.SysFont("dejavusans", 16, bold=True)
     small = pygame.font.SysFont("dejavusans", 13)
 
     pad = 18
@@ -120,32 +121,37 @@ def main():
 
     # Title.
     sheet.blit(pygame.font.SysFont("dejavusans", 26, bold=True).render(
-        "SKELETON — design_5  AUREX  (cursed gold-lich)", True, BONE), (pad, 12))
+        "SKELETON — design_5  AUREX  (cursed gold-lich)  round 2", True, BONE),
+        (pad, 12))
 
     y0 = title_h
-    # Day gameplay.
-    day = _gameplay_panel(DESIGN5, gp_w, gp_h, 0.0)
+    # Day gameplay — gold carries, glow near-silent.
+    day = _gameplay_panel(build_day, gp_w, gp_h, 0.0)
     sheet.blit(day, (pad, y0))
-    _label(sheet, small, "gameplay — DAY sky", pad + 4, y0 + gp_h + 2)
+    _label(sheet, small, "gameplay — DAY sky (gold carries, glow near-silent)",
+           pad + 4, y0 + gp_h + 2)
 
     # Night gameplay (rune-fire blazes).
     x1 = pad * 2 + gp_w
-    night = _gameplay_panel(DESIGN5, gp_w, gp_h, 0.64375)
+    night = _gameplay_panel(build_night, gp_w, gp_h, 0.64375)
     sheet.blit(night, (x1, y0))
-    _label(sheet, small, "gameplay — NIGHT sky (violet rune-fire)", x1 + 4, y0 + gp_h + 2)
+    _label(sheet, small, "gameplay — NIGHT sky (violet rune-fire blazes)",
+           x1 + 4, y0 + gp_h + 2)
 
-    # Hero close-up.
+    # Hero close-up (night variant for the showpiece detail).
     x2 = pad * 3 + gp_w * 2
-    sheet.blit(hero_panel(DESIGN5, hero, tilt=0.0, bg=(20, 16, 28)), (x2, y0))
+    sheet.blit(hero_panel(build_night, hero, tilt=0.0, bg=(20, 16, 28)), (x2, y0))
     _label(sheet, small, "hero close-up", x2 + 4, y0 + hero + 2)
 
-    # Second row: truth read + filmstrip.
+    # Second row: truth read (day variant — the honest 40px gold-first read)
+    # plus the filmstrip (night variant for the wing trail).
     y1 = y0 + row1_h + pad + 18
-    sheet.blit(_truth_read(DESIGN5, truth), (pad, y1))
-    _label(sheet, small, "40px truth read (NEAREST)", pad + 4, y1 + truth + 2)
+    sheet.blit(_truth_read(build_day, truth), (pad, y1))
+    _label(sheet, small, "40px truth read — GOLD SKULL > violet points > crown",
+           pad + 4, y1 + truth + 2)
 
     xs = pad * 2 + truth
-    sheet.blit(_filmstrip(DESIGN5, cell), (xs, y1))
+    sheet.blit(_filmstrip(build_night, cell), (xs, y1))
     _label(sheet, small, "4-frame flap filmstrip — gold wing + violet trail",
            xs + 4, y1 + cell + 2)
 
