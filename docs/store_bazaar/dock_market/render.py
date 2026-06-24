@@ -272,13 +272,18 @@ def draw_water(surf):
     # Authored as a SOFT warm vertical smear (a feathered amber column, brightest
     # on the sun's x, fading to the flanks) — NO hatching, NO white — so it reads
     # as a gentle glow path the bright dashes then sparkle along.
-    col_w = m(60)
+    col_w = m(52)
     colsurf = pygame.Surface((col_w, band_h), pygame.SRCALPHA)
     for sx in range(col_w):
         hx = abs(sx - col_w / 2) / (col_w / 2)
-        a = int(34 * (1 - hx ** 1.6))
-        if a > 0:
-            pygame.draw.line(colsurf, (255, 224, 156, a), (sx, 0), (sx, band_h))
+        # also fade the column vertically (strongest at the far shore) so it
+        # never sums with the glints into a solid pale block.
+        for yy in range(0, band_h, max(1, m(2))):
+            fy = 1.0 - yy / band_h
+            a = int(20 * (1 - hx ** 1.6) * (0.4 + 0.6 * fy))
+            if a > 0:
+                pygame.draw.line(colsurf, (255, 226, 162, a),
+                                 (sx, yy), (sx, yy + m(2)))
     surf.blit(colsurf, (SUN_X - col_w // 2, WATER_TOP),
               special_flags=pygame.BLEND_ADD)
 
@@ -323,12 +328,20 @@ def draw_water(surf):
                 pygame.draw.line(surf, (255, 255, 248, 165), (x, y - m(3)),
                                  (x, y + m(3)), max(1, m(0.8)))
 
-    # far waterline lip catching the sun (defines the back jetty's foot)
-    pygame.draw.line(surf, (255, 248, 208, 235), (0, WATER_TOP),
-                     (DW, WATER_TOP), max(1, m(1.8)))
-    # a thin warm reflection just under the lip
-    pygame.draw.line(surf, (255, 224, 160, 120), (0, WATER_TOP + m(3)),
-                     (DW, WATER_TOP + m(3)), max(1, m(1.0)))
+    # ── a CLEAR dark waterline edge top AND bottom so the channel-of-water idea
+    # lands (the brief's framed strip). Top: a dark shoreline shadow under the
+    # back jetty, then a hot sunlit lip. Bottom: a dark contact shadow where the
+    # near deck meets the water. ──────────────────────────────────────────────
+    # far (top) shoreline: a dark band, then a hot sunlit lip on top of it
+    pygame.draw.line(surf, (84, 50, 24), (0, WATER_TOP - m(1)),
+                     (DW, WATER_TOP - m(1)), max(1, m(2.2)))
+    pygame.draw.line(surf, (255, 248, 208, 240), (0, WATER_TOP + m(1)),
+                     (DW, WATER_TOP + m(1)), max(1, m(1.8)))
+    # near (bottom) waterline: a firm dark edge so the strip closes cleanly
+    pygame.draw.line(surf, (62, 36, 16), (0, WATER_BOT - m(1)),
+                     (DW, WATER_BOT - m(1)), max(1, m(2.4)))
+    pygame.draw.line(surf, (255, 222, 150, 110), (0, WATER_BOT - m(3)),
+                     (DW, WATER_BOT - m(3)), max(1, m(1.0)))
 
 
 def draw_distant_boats(surf):
@@ -337,12 +350,13 @@ def draw_distant_boats(surf):
     they add depth without clutter. Drawn on the water band, behind the front
     tier. The right-hand boat is the PARCELS mystery boat (drawn separately)."""
     band_h = WATER_BOT - WATER_TOP
-    # kept off the bright sun column (left) so their hulls read as silhouettes,
-    # not lost in the glitter. One mid-left with a sail, one small further right.
-    for bx, scale in ((int(DW * 0.13), 0.78), (int(DW * 0.42), 0.58)):
-        by = WATER_TOP + int(band_h * 0.34)
-        _moored_boat(surf, bx, by, scale, hull=(112, 70, 38),
-                     hull_hi=(178, 126, 74), sail=(240, 226, 198))
+    # READABLE dark silhouettes against the gold water: a deep umber hull + a
+    # proper triangular sail, kept clear of the bright sun column (right of it)
+    # so they read as little anchored boats, not blobs in the glitter.
+    for bx, scale in ((int(DW * 0.46), 0.92), (int(DW * 0.66), 0.66)):
+        by = WATER_TOP + int(band_h * 0.30)
+        _moored_boat(surf, bx, by, scale, hull=(78, 46, 24),
+                     hull_hi=(150, 100, 56), sail=(96, 58, 34))
 
 
 def _moored_boat(surf, cx, wl_y, scale, hull, hull_hi, sail=None,
@@ -373,17 +387,15 @@ def _moored_boat(surf, cx, wl_y, scale, hull, hull_hi, sail=None,
     pygame.draw.line(surf, (74, 50, 28), (mast_x, wl_y),
                      (mast_x, wl_y - mast_h), max(1, int(m(1.6) * scale)))
     if sail is not None:
-        # a slim warm sail (not a big pale triangle) so the boat stays a tidy
-        # silhouette in the glitter rather than a bright blob.
-        sailp = [(mast_x + m(1), wl_y - mast_h + m(3)),
-                 (int(mast_x + hw * 0.55), wl_y - m(3)),
+        # a proper triangular silhouette sail so the boat READS as a boat against
+        # the gold water (dark canvas, a warm sun-kiss on its lit mast edge).
+        sailp = [(mast_x + m(1), wl_y - mast_h),
+                 (int(mast_x + hw * 0.62), wl_y - m(3)),
                  (mast_x + m(1), wl_y - m(3))]
-        pygame.draw.polygon(surf, lerp_color(sail, (212, 150, 96), 0.45), sailp)
-        pygame.draw.polygon(surf, lerp_color(sail, (150, 90, 60), 0.5), sailp,
-                            width=max(1, m(0.8)))
+        pygame.draw.polygon(surf, sail, sailp)
         # warm sun-kiss on the sail's lit (mast) edge
-        pygame.draw.line(surf, (255, 234, 200), sailp[0], sailp[2],
-                         max(1, m(1.0)))
+        pygame.draw.line(surf, (210, 150, 96), sailp[0], sailp[2],
+                         max(1, m(1.2)))
     # broken reflection under the hull — kept dim + warm so it reads as a few
     # ripple dashes, never a muddy smear.
     if not reflect:
@@ -692,77 +704,101 @@ def _awning(surf, x, y, w, h, front=True):
 
 
 # =============================================================================
-# PARCELS — the glowing red mystery hero crate stacked on a moored boat
+# PARCELS — the gold-banded crimson MYSTERY CHEST on the dock (the hero)
 # =============================================================================
-def draw_parcels_boat(surf, cx, wl_y, scale):
-    """PARCELS as the mystery hero: a small boat pulled up to the dock carrying a
-    stack of crates crowned by a single glowing-red mystery crate with a bold
-    '?' — the constellation MYSTERY red that pre-loads the jewel store on tap. A
-    gold-keyline PARCELS plaque sits beneath it. Its own clear zone, lower-right,
-    deliberately apart from the stall grid."""
-    cx, wl_y = int(cx), int(wl_y)
-    bscale = scale * 1.2
-    hw = int(m(40) * bscale)
-    # AO on the planks under the boat so it sits ON the deck
-    _deck_ao(surf, cx, wl_y + m(8), int(hw * 2.2), depth=m(20), alpha=160)
-    # the boat hull itself, enlarged + with a clear raised gunwale so it reads as
-    # a moored boat carrying the crates (no water reflection — pulled to the dock)
-    _moored_boat(surf, cx, wl_y, bscale, hull=(118, 72, 38),
-                 hull_hi=(188, 134, 80), reflect=False)
-    # a raised bow + stern post so the silhouette reads unmistakably as a boat
-    for sx in (cx - hw + m(2), cx + hw - m(2)):
-        pygame.draw.line(surf, (96, 58, 30), (sx, wl_y), (sx, wl_y - m(10)),
-                         max(1, m(2.4)))
-        pygame.draw.circle(surf, (150, 106, 62), (sx, wl_y - m(10)), m(2))
+def draw_parcels_chest(surf, cx, base_y):
+    """PARCELS as the mystery hero: a gold-banded crimson treasure chest seated
+    on the boardwalk (like Pip's cart — no half-drawn boat). Gold straps + corner
+    bosses + a domed lid + a big gold '?' so it reads as a TREASURE chest that
+    separates from the awning-reds and echoes the jewel-store gold. A warm
+    crimson/gold halo (never white) marks it the hero; the gold PARCELS plaque
+    sits clearly BELOW, clear of the chest."""
+    cx, base_y = int(cx), int(base_y)
+    cw, lid_h, body_h = m(56), m(22), m(34)
+    chest = pygame.Rect(int(cx - cw / 2), base_y - body_h, cw, body_h)
 
-    # ── crate stack seated DOWN IN the hull so the boat clearly reads ──────────
-    base_y = wl_y + m(1)
-    for (dx, dy, cw, ch) in (((-m(15)), m(0), m(21), m(15)),
-                             ((m(12)), m(2), m(19), m(14))):
-        cr = pygame.Rect(int(cx + dx), int(base_y - dy - ch), int(cw), int(ch))
-        surf.blit(vgrad_stops(cr.w, cr.h, m(2),
-                              [(0.0, (172, 122, 74)), (1.0, (96, 60, 32))], 255),
-                  cr.topleft)
-        pygame.draw.rect(surf, (52, 32, 16), cr, width=max(1, m(1.2)),
-                         border_radius=m(2))
-        pygame.draw.line(surf, (60, 38, 18, 160),
-                         (cr.x, cr.centery), (cr.right, cr.centery), max(1, m(0.8)))
+    # AO on the planks so the chest sits ON the deck (a flat straight-edged pool)
+    _deck_ao(surf, cx, base_y + m(2), int(cw * 1.5), depth=m(18), alpha=165)
 
-    # ── the glowing-red mystery hero crate on top ─────────────────────────────
-    mw, mh = m(32), m(30)
-    mcrate = pygame.Rect(int(cx - mw / 2), int(base_y - m(14) - mh), mw, mh)
-    # outer red bloom so it's unmistakably the hero — warm RED, never white.
-    soft_glow(surf, mcrate.centerx, mcrate.centery, m(38), MYST_GLOW, 60, layers=12)
-    soft_glow(surf, mcrate.centerx, mcrate.centery, m(20), (240, 100, 86),
-              72, layers=8)
-    # crate body: deep crimson wood with a lit top-left face
-    surf.blit(vgrad_stops(mcrate.w, mcrate.h, m(3),
-                          [(0.0, (214, 70, 56)), (1.0, MYST_DEEP)], 255,
-                          gamma=1.08), mcrate.topleft)
-    top_sheen(surf, mcrate, m(3), m(10), peak=60)
-    pygame.draw.rect(surf, (60, 12, 14), mcrate, width=max(1, m(1.8)),
+    # warm crimson hero halo — RESTRAINED so it never blows to a white disc on
+    # the pale planks (additive glow on bright wood whitens fast). A soft crimson
+    # outer bloom + a single thin gold accent ring read as 'prize' without mush.
+    glow_cy = base_y - body_h - m(4)
+    soft_glow(surf, cx, glow_cy, m(50), MYST_GLOW, 30, layers=14)
+    soft_glow(surf, cx, glow_cy, m(30), (224, 96, 60), 28, layers=10)
+    ring = pygame.Surface((m(110), m(110)), pygame.SRCALPHA)
+    pygame.draw.circle(ring, (*GOLD, 70), (m(55), m(55)), m(44), max(1, m(1.4)))
+    surf.blit(ring, (cx - m(55), glow_cy - m(55)), special_flags=pygame.BLEND_ADD)
+
+    # ── chest body: crimson planks with a lit top-left face ───────────────────
+    surf.blit(vgrad_stops(chest.w, chest.h, m(4),
+                          [(0.0, (206, 64, 50)), (1.0, MYST_DEEP)], 255,
+                          gamma=1.1), chest.topleft)
+    top_sheen(surf, chest, m(4), m(10), peak=46)
+    contact_shadow(surf, chest, m(4), m(4), alpha=95)
+    # vertical plank seams on the body
+    for k in range(1, 4):
+        sx = chest.x + chest.w * k // 4
+        pygame.draw.line(surf, (96, 18, 18, 170), (sx, chest.y + m(2)),
+                         (sx, chest.bottom - m(2)), max(1, m(1.0)))
+    pygame.draw.rect(surf, (54, 10, 12), chest, width=max(1, m(1.8)),
+                     border_radius=m(4))
+
+    # ── domed lid (a half-rounded crimson cap) ────────────────────────────────
+    lid = pygame.Rect(chest.x - m(2), chest.y - lid_h + m(2), chest.w + m(4), lid_h)
+    lidsurf = pygame.Surface((lid.w, lid.h), pygame.SRCALPHA)
+    for y in range(lid.h):
+        f = y / max(1, lid.h - 1)
+        col = lerp_color((222, 84, 64), (150, 30, 30), f)
+        # round the top corners by skipping the outer pixels near the crown
+        inset = int((lid.w * 0.5) * (1 - math.sin(math.pi * 0.5 * (1 - f))) * 0.32)
+        pygame.draw.line(lidsurf, col, (inset, y), (lid.w - inset, y))
+    surf.blit(lidsurf, lid.topleft)
+    pygame.draw.line(surf, (255, 196, 170, 210), (lid.x + m(6), lid.y + m(2)),
+                     (lid.right - m(6), lid.y + m(2)), max(1, m(1.4)))
+
+    # ── GOLD bands: two horizontal straps + a central vertical strap + lock ────
+    gold_strap = GOLD
+    gold_dk = lerp_color(GOLD, NEAR_BLACK, 0.45)
+    for sy in (lid.bottom - m(2), chest.centery + m(2)):
+        strap = pygame.Rect(chest.x - m(1), int(sy - m(3)), chest.w + m(2), m(6))
+        surf.blit(vgrad_stops(strap.w, strap.h, m(1),
+                              [(0.0, GOLD_PALE), (1.0, gold_dk)], 255),
+                  strap.topleft)
+        pygame.draw.rect(surf, gold_dk, strap, width=max(1, m(0.8)))
+    # central vertical strap behind the lock
+    vstrap = pygame.Rect(int(cx - m(4)), lid.y + m(4), m(8), base_y - lid.y - m(6))
+    surf.blit(vgrad_stops(vstrap.w, vstrap.h, m(1),
+                          [(0.0, GOLD_PALE), (1.0, gold_dk)], 255), vstrap.topleft)
+    pygame.draw.rect(surf, gold_dk, vstrap, width=max(1, m(0.8)))
+    # corner bosses (gold rivets) at the four chest corners
+    for bx, by in ((chest.x + m(3), chest.y + m(3)),
+                   (chest.right - m(3), chest.y + m(3)),
+                   (chest.x + m(3), chest.bottom - m(3)),
+                   (chest.right - m(3), chest.bottom - m(3))):
+        pygame.draw.circle(surf, gold_dk, (bx, by), m(2.4))
+        pygame.draw.circle(surf, GOLD_PALE, (bx - m(0.6), by - m(0.6)), m(1.2))
+
+    # ── the big gold '?' on a dark lock plate (the mystery tell) ──────────────
+    plate = pygame.Rect(0, 0, m(20), m(22))
+    plate.center = (cx, chest.centery + m(1))
+    surf.blit(vgrad_stops(plate.w, plate.h, m(3),
+                          [(0.0, gold_strap), (1.0, gold_dk)], 255), plate.topleft)
+    pygame.draw.rect(surf, (40, 22, 4), plate, width=max(1, m(1.2)),
                      border_radius=m(3))
-    bevel_rim(surf, mcrate, m(3), (60, 12, 14), (255, 196, 180, 230),
-              w=max(1, m(1.2)))
-    # crate banding (corner straps) for a real crate read
-    for fx in (mcrate.x + m(2), mcrate.right - m(2)):
-        pygame.draw.line(surf, (90, 18, 18, 200), (fx, mcrate.y + m(2)),
-                         (fx, mcrate.bottom - m(2)), max(1, m(1.4)))
-    pygame.draw.line(surf, (90, 18, 18, 200), (mcrate.x, mcrate.centery),
-                     (mcrate.right, mcrate.centery), max(1, m(1.2)))
-    # a bold cream '?' stamped on the crate face
-    qf = font(20)
-    plain_text(surf, "?", qf, mcrate.center, CREAM, shadow_a=170,
-               weight=m(1.4), keyline=(60, 10, 12), kw=m(1.2))
-    # a hot specular pip on the upper-left edge (top-left light), kept warm
-    soft_glow(surf, mcrate.x + m(5), mcrate.y + m(5), m(4), (255, 224, 200),
-              140, layers=6)
+    bevel_rim(surf, plate, m(3), (40, 22, 4), (*GOLD_PALE, 220), w=max(1, m(0.9)))
+    qf = font(15)
+    plain_text(surf, "?", qf, plate.center, (52, 28, 4), shadow_a=0,
+               weight=m(1.2))
+    # a hot specular kiss on the lid's upper-left (top-left light), kept warm
+    soft_glow(surf, lid.x + m(8), lid.y + m(4), m(4), (255, 220, 188), 130,
+              layers=6)
 
-    # ── PARCELS gold-keyline plaque beneath the boat ──────────────────────────
+    # ── PARCELS gold-keyline plaque clearly BELOW the chest ───────────────────
     sf = font(11)
     label_w = _glyph_base("PARCELS", sf, m(0.6)).get_width()
     plaque = pygame.Rect(0, 0, label_w + m(20), m(19))
-    plaque.center = (int(cx), int(wl_y + m(20)))
+    plaque.center = (cx, base_y + m(16))
     surf.blit(gold_a_fill(plaque.w, plaque.h, plaque.h // 2), plaque.topleft)
     gloss_sweep(surf, plaque, plaque.h // 2, peak=64)
     pygame.draw.rect(surf, GOLD_A_RIM_DARK, plaque, width=max(1, m(1.6)),
@@ -771,6 +807,45 @@ def draw_parcels_boat(surf, cx, wl_y, scale):
               (*GOLD_A_RIM_BRIGHT, 235), w=max(1, m(1.1)))
     plain_text(surf, "PARCELS", sf, plaque.center, GOLD_A_NUM, shadow_a=0,
                tracking=m(0.6), weight=m(0.9))
+
+
+# =============================================================================
+# Foreground dressing — one coiled dock rope (bottom-left anchor)
+# =============================================================================
+def draw_coiled_rope(surf, cx, base_y):
+    """A single coiled mooring rope on the planks (bottom-left), the one small
+    foreground prop that balances the PARCELS chest on the right. Warm hemp
+    tone, top-left lit, a flat straight-edged contact shadow so it sits ON the
+    deck without fighting the plank grid."""
+    cx, base_y = int(cx), int(base_y)
+    rope_lo = (150, 112, 64)
+    rope_hi = (206, 168, 110)
+    rope_dk = (96, 66, 32)
+    # flat contact shadow (a low ellipse, wide + shallow — reads as a deck line)
+    sh = pygame.Surface((m(72), m(12)), pygame.SRCALPHA)
+    pygame.draw.ellipse(sh, (24, 12, 4, 130), sh.get_rect())
+    surf.blit(sh, (cx - m(36), base_y - m(4)))
+    # concentric coils, drawn outer -> inner so each loop overlaps the last
+    for i, rr in enumerate((m(28), m(21), m(14), m(8))):
+        col = lerp_color(rope_dk, rope_hi, i / 3)
+        ring = pygame.Surface((rr * 2 + m(6), rr + m(6)), pygame.SRCALPHA)
+        rc = (rr + m(3), (rr + m(6)) // 2)
+        pygame.draw.ellipse(ring, (*rope_dk, 255),
+                            (0, 0, rr * 2 + m(4), rr + m(4)), max(1, m(3.0)))
+        pygame.draw.ellipse(ring, (*col, 255),
+                            (m(1), m(0.6), rr * 2 + m(2), rr + m(2)), max(1, m(2.2)))
+        # a top-left lit arc on each coil
+        pygame.draw.arc(ring, (*rope_hi, 220),
+                        (m(1), m(0.6), rr * 2 + m(2), rr + m(2)),
+                        math.radians(120), math.radians(210), max(1, m(1.6)))
+        surf.blit(ring, (cx - rc[0], base_y - rc[1]))
+    # the loose tail snaking off to the left
+    pygame.draw.lines(surf, rope_dk, False,
+                      [(cx - m(26), base_y), (cx - m(40), base_y + m(3)),
+                       (cx - m(52), base_y - m(1))], max(1, m(3.4)))
+    pygame.draw.lines(surf, rope_hi, False,
+                      [(cx - m(26), base_y - m(1)), (cx - m(40), base_y + m(2)),
+                       (cx - m(52), base_y - m(2))], max(1, m(1.6)))
 
 
 # =============================================================================
@@ -930,14 +1005,18 @@ def render_device():
         draw_stall(surf, label, _preview_id(group), fx, m(300), front_w, m(98),
                    front=True)
 
-    # ── PARCELS mystery hero crate on a moored boat, pulled up to the lower-
-    # right of the near boardwalk — its own clear zone, filling the front deck
-    # and deliberately apart from the stall grid + Pip. ────────────────────────
-    draw_parcels_boat(surf, int(DW * 0.755), DH - m(118), 1.05)
+    # ── ONE foreground anchor bottom-LEFT (a coiled dock rope) to balance the
+    # PARCELS chest on the right. ──────────────────────────────────────────────
+    draw_coiled_rope(surf, int(DW * 0.165), DH - m(34))
+
+    # ── PARCELS mystery chest on the dock, lower-right — pulled LEFT off the edge
+    # so its hero halo no longer reads as a glitch bleeding off-frame; its own
+    # clear zone, deliberately apart from the stall grid + Pip. ────────────────
+    draw_parcels_chest(surf, int(DW * 0.70), DH - m(96))
 
     # ── Pip at his dockside cart, lower-LEFT of centre on the near boardwalk so
-    # he reads clear of the PARCELS boat. ──────────────────────────────────────
-    draw_pip_cart(surf, int(DW * 0.36), DH - m(54))
+    # he reads clear of the PARCELS chest. ─────────────────────────────────────
+    draw_pip_cart(surf, int(DW * 0.40), DH - m(50))
 
     draw_header(surf)
     return surf

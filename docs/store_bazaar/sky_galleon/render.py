@@ -384,80 +384,93 @@ def draw_envelope(surf):
     pygame.draw.ellipse(hmask, (255, 255, 255, 255),
                         (bx - rw, by - rh, rw * 2, rh * 2))
 
-    # base body: a smooth lit ellipse, left-lit (warm) -> right (shade)
+    # GORED PANELS done RIGHT: each row is shaded by VERTICAL gore position. For
+    # every pixel we map its x to a normalised fx in [-1,1] across that row's
+    # ellipse half-width, find which gore it falls in, and shade by the distance
+    # from that gore's centre (warm crown at centre -> dark valley at the seam),
+    # plus a global left-lit -> right vertical-curvature term. Gores compress
+    # toward the silhouette automatically because fx is row-normalised. Stepped
+    # in x for speed; the SS downscale smooths the steps.
+    GORES = 9
+    gw = 2.0 / GORES                                     # gore width in fx units
+    step = max(1, m(0.5))
     for i in range(rh * 2):
         t = i / (rh * 2)
-        prof = math.sqrt(max(0.0, 1 - (2 * t - 1) ** 2))     # ellipse half-width
-        ww = rw * prof
-        yy = by - rh + i
-        col = lerp_color(ENV_MID, ENV_LO, t * 0.65)
-        pygame.draw.line(body, (*col, 255), (bx - ww, yy), (bx + ww, yy))
-
-    # GORED PANELS: divide the width into vertical gores. For each gore, paint a
-    # warm crown highlight down its centre and a darker valley at its two seams,
-    # all scaled by the ellipse half-width per row so the shading hugs the curve.
-    GORES = 7
-    for yy in range(int(by - rh), int(by + rh)):
-        t = (yy - (by - rh)) / (rh * 2)
         half = rw * math.sqrt(max(0.0, 1 - (2 * t - 1) ** 2))
         if half < 1:
             continue
-        for g in range(GORES):
-            gc = -1.0 + (g + 0.5) * 2.0 / GORES          # gore centre in [-1,1]
-            # foreshorten: gores near the silhouette edge compress
-            for sub in range(-3, 4):
-                fx = gc + sub * (2.0 / GORES) / 7.0
-                if abs(fx) >= 1:
-                    continue
-                x = bx + fx * half
-                # distance from this gore's centre, normalised to gore half-width
-                d = abs(sub) / 3.5
-                # warm crown at centre, dark valley at the seam edges
-                shade = lerp_color((255, 248, 222), (150, 96, 64), d ** 1.3)
-                a = int(120 * (1 - d) + 60 * d)
-                body.set_at((int(x), yy), (*shade, a))
-        # the crisp gold seam lines between gores
+        yy = by - rh + i
+        base_v = lerp_color(ENV_MID, ENV_LO, t * 0.55)   # body vertical shade
+        x = bx - half
+        while x <= bx + half:
+            fx = (x - bx) / half                         # -1 .. 1
+            # gore-local: -1 (left seam) .. 0 (crown) .. 1 (right seam)
+            gi = (fx + 1) / gw
+            local = (gi - math.floor(gi)) * 2 - 1
+            d = abs(local)
+            # left-lit horizontal term so the whole envelope still turns to light
+            sidecurve = lerp_color(WHITE, NEAR_BLACK, (fx + 1) / 2 * 0.30)
+            crown = lerp_color(base_v, sidecurve, 0.18)
+            col = lerp_color(lerp_color(crown, ENV_HI, 0.22 * (1 - d)),
+                             ENV_SHADE, 0.42 * d ** 1.4)
+            pygame.draw.line(body, (*col, 255), (int(x), yy),
+                             (int(x) + step, yy))
+            x += step
+        # crisp gold seam stitch lines between gores (follow the row half-width)
         for g in range(1, GORES):
-            fx = -1.0 + g * 2.0 / GORES
-            x = bx + fx * half
-            body.set_at((int(x), yy), (*lerp_color(GOLD_DEEP, GOLD, 0.45), 200))
+            fx = -1.0 + g * gw
+            sx = bx + fx * half
+            body.set_at((int(sx), yy), (*lerp_color(GOLD_DEEP, GOLD, 0.5), 210))
 
-    # broad curve-following SHEEN (top-left), a soft band hugging the upper arc —
-    # replaces the round white blob; never an opaque sticker.
+    # broad curve-following SHEEN: a thin soft arc hugging the UPPER-LEFT rim
+    # only (kept restrained so it never blooms into a central white window the
+    # way a round specular did). Drawn as a few stacked arcs, fading inward.
     sheen = pygame.Surface(body.get_size(), pygame.SRCALPHA)
-    for k in range(m(7)):
-        a = int(70 * (1 - k / m(7)))
+    for k in range(m(4)):
+        a = int(48 * (1 - k / m(4)))
         pygame.draw.arc(sheen, (255, 252, 236, a),
                         (bx - rw + m(8) + k, by - rh + m(6) + k,
                          rw * 2 - m(16) - 2 * k, rh * 2 - m(12) - 2 * k),
-                        math.radians(118), math.radians(202), max(1, m(2)))
+                        math.radians(120), math.radians(196), max(1, m(2)))
     body.blit(sheen, (0, 0))
-    # warm SUNSET bounce on the underside (a low amber band lit from below-right)
+    # warm SUNSET bounce on the underside — a slim amber rim-light hugging the
+    # lower-right edge (NOT a central bloom), so the gores stay legible.
     bounce = pygame.Surface(body.get_size(), pygame.SRCALPHA)
-    soft_glow(bounce, int(bx + rw * 0.18), int(by + rh * 0.72), int(rw * 0.7),
-              (255, 176, 110), 80, layers=12)
-    bounce.blit(hmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    for k in range(m(5)):
+        a = int(46 * (1 - k / m(5)))
+        pygame.draw.arc(bounce, (255, 176, 110, a),
+                        (bx - rw + m(6) + k, by - rh + m(6) + k,
+                         rw * 2 - m(12) - 2 * k, rh * 2 - m(12) - 2 * k),
+                        math.radians(310), math.radians(20), max(1, m(2)))
     body.blit(bounce, (0, 0), special_flags=pygame.BLEND_ADD)
 
     # clip everything to the ellipse, then commit
     body.blit(hmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(body, (cx - bx, cy - by))
 
-    # two macaw-red accent bands hugging the body curvature (top + lower thirds)
-    for fy in (-0.42, 0.46):
-        ry = cy + rh * fy
-        # band follows the ellipse: draw as a thin arc pair top + bottom edge
-        bh2 = int(rh * 0.12)
-        band = pygame.Surface((rw * 2 + m(8), rh * 2 + m(8)), pygame.SRCALPHA)
-        bc = rw + m(4), rh + m(4)
-        for yy in range(int(bc[1] + rh * fy - bh2), int(bc[1] + rh * fy + bh2)):
+    # two slim macaw-red accent HOOPS encircling the nose + tail of the envelope
+    # (thin and curvature-following, so they read as airship livery banding, not
+    # the bold beach-umbrella stripes of the first attempt). Each hoop is a pair
+    # of thin arcs whose width tracks the ellipse half-width, with a darker keel
+    # edge so it sits ON the curved canvas.
+    bc = (rw + m(8), rh + m(8))
+    for fy in (-0.50, 0.52):
+        band = pygame.Surface((rw * 2 + m(16), rh * 2 + m(16)), pygame.SRCALPHA)
+        bh2 = max(2, int(rh * 0.055))
+        y_mid = bc[1] + rh * fy
+        for yy in range(int(y_mid - bh2), int(y_mid + bh2)):
             tt = (yy - (bc[1] - rh)) / (rh * 2)
             if tt <= 0 or tt >= 1:
                 continue
             half = rw * math.sqrt(max(0.0, 1 - (2 * tt - 1) ** 2))
-            col = AWN_RED_HI if abs(yy - (bc[1] + rh * fy)) < bh2 * 0.5 else AWN_RED_LO
-            pygame.draw.line(band, (*col, 200), (bc[0] - half, yy),
-                             (bc[0] + half, yy))
+            edge = abs(yy - y_mid) / max(1, bh2)
+            col = lerp_color(AWN_RED_HI, AWN_RED_LO, edge)
+            # left-lit so the hoop turns with the body
+            for xx in range(int(bc[0] - half), int(bc[0] + half)):
+                fxn = (xx - bc[0]) / half
+                c = lerp_color(col, NEAR_BLACK, max(0.0, fxn) * 0.30)
+                c = lerp_color(c, WHITE, max(0.0, -fxn) * 0.18)
+                band.set_at((xx, yy), (*c, 210))
         bmask = pygame.Surface(band.get_size(), pygame.SRCALPHA)
         pygame.draw.ellipse(bmask, (255, 255, 255, 255),
                             (bc[0] - rw, bc[1] - rh, rw * 2, rh * 2))
