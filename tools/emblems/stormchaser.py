@@ -208,32 +208,36 @@ def _macaw_wing(surf, cx, cy, r, col, tier):
     pts = _wing_shape(cx, cy, r)
     pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in pts])
     if tier == 0:
-        # Feather wing flapping: three motion-streak ticks trailing the shoulder.
-        for i, dy in enumerate((-0.30, 0.04, 0.38)):
-            x0 = cx - r * (0.80 + 0.06 * i)
+        # Feather wing flapping: three parallel motion-streak ticks set in CLEAR
+        # space behind (left of) the shoulder, not touching the wing, so they
+        # read as speed-lines rather than damage to the feather.
+        for dy in (-0.40, -0.06, 0.28):
+            x1 = cx - r * 1.04                 # outer end, well off the wing
+            x0 = cx - r * 0.78                 # inner end, clear of the shoulder
             y = cy + r * dy
-            pygame.draw.line(surf, col, (int(x0), int(y)),
-                             (int(x0 - r * 0.26), int(y)), max(2, int(r * 0.10)))
+            pygame.draw.line(surf, col, (int(x1), int(y)),
+                             (int(x0), int(y)), max(3, int(r * 0.11)))
     else:
-        # Riveted iron: split the lobe span into three plate segments with groove
-        # lines, drop a rivet-dot on each — the feathered wing forged into armour.
-        grooves = [
-            ((cx + r * 0.34, cy - r * 0.34), (cx + r * 0.30, cy + r * 0.08)),
-            ((cx - r * 0.02, cy - r * 0.18), (cx - r * 0.06, cy + r * 0.26)),
-            ((cx - r * 0.34, cy - r * 0.02), (cx - r * 0.40, cy + r * 0.42)),
+        # Riveted iron: split the wing into just THREE bold plate segments with
+        # WIDE seam grooves between them, and ONE clear rivet-dot per plate — so
+        # "plated metal" survives the chip instead of dissolving into noise.
+        seams = [
+            ((cx + r * 0.28, cy - r * 0.42), (cx + r * 0.22, cy + r * 0.12)),
+            ((cx - r * 0.14, cy - r * 0.24), (cx - r * 0.18, cy + r * 0.34)),
         ]
-        for a, b in grooves:
+        for a, b in seams:
             pygame.draw.line(surf, _GLYPH_SH, (int(a[0]), int(a[1])),
-                             (int(b[0]), int(b[1])), max(2, int(r * 0.09)))
+                             (int(b[0]), int(b[1])), max(3, int(r * 0.13)))
+        # One rivet centred in each of the three plates.
         rivets = [
-            (cx + r * 0.48, cy - r * 0.32),
-            (cx + r * 0.14, cy - r * 0.10),
-            (cx - r * 0.20, cy + r * 0.14),
+            (cx + r * 0.46, cy - r * 0.28),
+            (cx + r * 0.06, cy - r * 0.04),
+            (cx - r * 0.34, cy + r * 0.22),
         ]
-        rr = max(2, int(r * 0.09))
+        rr = max(3, int(r * 0.11))
         for rx, ry in rivets:
             pygame.draw.circle(surf, _GLYPH_SH, (int(rx), int(ry)), rr)
-            pygame.draw.circle(surf, col, (int(rx), int(ry)), rr, max(1, rr // 2))
+            pygame.draw.circle(surf, col, (int(rx), int(ry)), max(1, rr - max(2, int(r * 0.05))))
 
 
 def _glyph_flap_life(surf, cx, cy, r, col):
@@ -266,10 +270,16 @@ def _glyph_marathon(surf, cx, cy, r, col):
     pygame.draw.line(surf, col, (cx, cyd),
                      (cx + int(rr * 0.50), cyd - int(rr * 0.14)),
                      max(2, int(r * 0.10)))
-    # the road dash — a bold lane-marking segment running beneath the watch
-    dash_y = cy + int(r * 0.74)
-    pygame.draw.line(surf, col, (cx - int(r * 0.40), dash_y),
-                     (cx + int(r * 0.40), dash_y), max(3, int(r * 0.16)))
+    # the road — a bold SEGMENTED lane marking clearly below the dial: three
+    # fat dashes so the running-road cue (what separates this from any clock)
+    # survives at chip size.
+    dash_y = cy + int(r * 0.78)
+    dash_w = max(4, int(r * 0.18))
+    seg = r * 0.26
+    for fx in (-0.46, 0.0, 0.46):
+        x0 = cx + fx * r - seg / 2
+        pygame.draw.line(surf, col, (int(x0), dash_y),
+                         (int(x0 + seg), dash_y), dash_w)
 
 
 # ── standalone: storm_rider — rain cloud + lightning bolt + streaks ───────────

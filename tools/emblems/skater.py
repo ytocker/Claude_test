@@ -217,9 +217,13 @@ def _trick_rotation(surf, cx, cy, r, col, tier):
         _spin_board(surf, cx, cy, r * 0.82, col, math.radians(-38))
         _crownlet(surf, cx, cy, r, col)
     else:
-        # HALF rotation: an open ~210° kickflip arc with an arrowhead on its
-        # leading end, wrapping a 45°-tilted board; one landing-spark
-        pygame.draw.arc(surf, col, rect, math.radians(20), math.radians(230), w)
+        # HALF rotation: an OPEN ~210° kickflip arc with an arrowhead on its
+        # leading end, wrapping a small tilted board. The arc stroke is thinned
+        # ~20% (vs the full ring) and the board is shrunk + pushed to a clean 45°
+        # chevron centred LOW, so board and arc separate at 44px and the open
+        # arc stays distinct from trick_legend's closed ring.
+        wt = max(2, int(w * 0.8))
+        pygame.draw.arc(surf, col, rect, math.radians(20), math.radians(230), wt)
         # arrowhead at the arc's leading (upper-right) end
         a = math.radians(20)
         ex, ey = cx + math.cos(a) * ring_r, cy - math.sin(a) * ring_r
@@ -227,9 +231,11 @@ def _trick_rotation(surf, cx, cy, r, col, tier):
         pygame.draw.polygon(surf, col, [
             (int(ex - ah * 0.2), int(ey - ah)), (int(ex + ah), int(ey)),
             (int(ex - ah), int(ey + ah * 0.4))])
-        _spin_board(surf, cx, cy + int(r * 0.04), r * 0.9, col, math.radians(45))
+        # smaller board, dropped below the arc's centre so the loop reads as
+        # negative space AROUND it rather than crossing it
+        _spin_board(surf, cx, cy + int(r * 0.22), r * 0.66, col, math.radians(45))
         # landing-spark at lower-left
-        sx, sy = cx - int(r * 0.50), cy + int(r * 0.56)
+        sx, sy = cx - int(r * 0.48), cy + int(r * 0.60)
         s = max(2, int(r * 0.16))
         pygame.draw.line(surf, col, (sx - s, sy), (sx + s, sy), max(2, r // 13))
         pygame.draw.line(surf, col, (sx, sy - s), (sx, sy + s), max(2, r // 13))
@@ -312,25 +318,32 @@ def _rail_ride(surf, cx, cy, r, col, tier):
             pygame.draw.circle(surf, col, (int(wx), int(wy)), max(1, wr // 3))
         _crownlet(surf, cx, cy, r, col)
     else:
-        # a board mid-grind, tilted to the rail's slope
-        lift = r * 0.16
+        # a board mid-grind, lifted CLEAR above the rail line (so board and rail
+        # don't collapse into one diagonal bar) and tilted to the rail's slope
+        lift = r * 0.34
         half = r * 0.42
         board = [
             (bx - ux * half + nx * lift, by - uy * half + ny * lift),
             (bx + ux * half + nx * lift, by + uy * half + ny * lift),
-            (bx + ux * half + nx * (lift + r * 0.14),
-             by + uy * half + ny * (lift + r * 0.14)),
-            (bx - ux * half + nx * (lift + r * 0.14),
-             by - uy * half + ny * (lift + r * 0.14)),
+            (bx + ux * half + nx * (lift + r * 0.16),
+             by + uy * half + ny * (lift + r * 0.16)),
+            (bx - ux * half + nx * (lift + r * 0.16),
+             by - uy * half + ny * (lift + r * 0.16)),
         ]
         pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in board])
-        # two grind-sparks flying off the contact point
-        for sgn in (-1, 1):
-            spx = bx - nx * r * 0.06 + sgn * ux * r * 0.18
-            spy = by - ny * r * 0.06 + sgn * uy * r * 0.18
-            pygame.draw.line(surf, col, (int(spx), int(spy)),
-                             (int(spx - ny * r * 0.22 * sgn),
-                              int(spy + nx * r * 0.22 * sgn)), max(2, r // 13))
+        # BOLD grind BURST at the board-rail junction — a fat star of rays
+        # between the board's underside and the rail, the focal "grinding here"
+        # read that separates this from rail_baron's rolling cart.
+        jx = bx + nx * (lift * 0.4)
+        jy = by + ny * (lift * 0.4)
+        bw = max(2, int(r * 0.12))
+        for ang in range(0, 360, 45):
+            a = math.radians(ang)
+            length = r * (0.30 if ang % 90 == 0 else 0.20)
+            pygame.draw.line(surf, col, (int(jx), int(jy)),
+                             (int(jx + math.cos(a) * length),
+                              int(jy + math.sin(a) * length)), bw)
+        pygame.draw.circle(surf, col, (int(jx), int(jy)), max(2, int(r * 0.10)))
         _pips(surf, cx, cy, r, col, 1)
 
 

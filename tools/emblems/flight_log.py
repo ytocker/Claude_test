@@ -166,31 +166,44 @@ def _glyph_pillar_tier(surf, cx, cy, r, col, tier):
         _rank_wreath(surf, cx, base_y + r * 0.14, r, _GLYPH_SH)
         return
 
-    # tier 3 — Centurion: a triumphal arch (a thick semicircle bridging two
-    # posts), the colonnade resolved into a single monument, crowned.
-    sw = max(4, int(r * 0.30))
-    span = r * 0.56                 # half-distance between the two post centres
-    leg_top = cy - r * 0.20
+    # tier 3 — Centurion: a triumphal MONUMENT that out-masses the gateway. Two
+    # heavy piers carry a thick arch, capped by a bold stepped keystone block —
+    # the colonnade resolved into a single mass (NOT a thin horseshoe).
+    sw = max(5, int(r * 0.36))      # heavier piers than the gateway's posts
+    span = r * 0.52                 # half-distance between the two pier centres
+    leg_top = cy - r * 0.06
     leg_h = base_y - leg_top
     for sgn in (-1, 1):
         px = cx + sgn * span
         pygame.draw.rect(surf, col, (int(px - sw / 2), int(leg_top),
                                      int(sw), int(leg_h)))
-        # base block
+        # impost block where the arch springs, + a base block — solid masonry.
+        pygame.draw.rect(surf, col, (int(px - sw * 0.78), int(leg_top - r * 0.04),
+                                     int(sw * 1.56), max(2, int(r * 0.13))),
+                         border_radius=max(1, int(r * 0.04)))
         pygame.draw.rect(surf, col, (int(px - sw * 0.85), int(base_y - r * 0.16),
                                      int(sw * 1.7), max(2, int(r * 0.16))),
                          border_radius=max(1, int(r * 0.05)))
-    # the arch: a thick semicircular band springing from the two post tops.
+    # the arch: a fat semicircular band springing from the two pier tops.
     arc_r = span + sw / 2
     rect = pygame.Rect(int(cx - arc_r), int(leg_top - arc_r),
                        int(arc_r * 2), int(arc_r * 2))
     pygame.draw.arc(surf, col, rect, math.radians(0), math.radians(180),
-                    max(4, int(sw * 0.95)))
-    # keystone block at the apex.
-    pygame.draw.rect(surf, col, (int(cx - r * 0.13), int(leg_top - arc_r - r * 0.04),
-                                 int(r * 0.26), int(r * 0.24)),
+                    max(5, int(sw * 1.05)))
+    # Bold STEPPED triumphal keystone crowning the arch: a wide lower plinth, a
+    # taller narrower attic block on top — the monument's apex mass, replacing
+    # the sub-pixel crownlet so the "100" rung reads as a built memorial.
+    apex_y = leg_top - arc_r
+    plinth_w, plinth_h = r * 0.62, r * 0.20
+    attic_w, attic_h = r * 0.40, r * 0.30
+    pygame.draw.rect(surf, col, (int(cx - plinth_w / 2), int(apex_y - plinth_h),
+                                 int(plinth_w), int(plinth_h)),
                      border_radius=max(1, int(r * 0.04)))
-    _rank_crownlet(surf, cx, leg_top - arc_r - r * 0.18, r, col)
+    pygame.draw.rect(surf, col, (int(cx - attic_w / 2), int(apex_y - plinth_h - attic_h),
+                                 int(attic_w), int(attic_h)),
+                     border_radius=max(1, int(r * 0.04)))
+    # a small crownlet seated on the attic — the L4 cherry-on-top.
+    _rank_crownlet(surf, cx, apex_y - plinth_h - attic_h, r, col)
 
 
 def _glyph_first_flight(surf, cx, cy, r, col):
@@ -237,7 +250,9 @@ def _glyph_score_tier(surf, cx, cy, r, col, tier):
     step = r * 0.46                 # vertical spacing between stacked chevrons
     # Stack rises up-right: each higher chevron is nudged right so the climb
     # reads as a delivery-flight ascent, not a static stack.
-    top_apex = cy - (n - 1) * step / 2 - r * 0.18
+    # score_500 nudges the whole stack down so its added wing flag has clear air
+    # above the apex.
+    top_apex = cy - (n - 1) * step / 2 - r * 0.18 + (r * 0.14 if tier else 0)
     for i in range(n):
         ax = cx + (i - (n - 1) / 2) * r * 0.16
         ay = top_apex + (n - 1 - i) * step
@@ -251,18 +266,20 @@ def _glyph_score_tier(surf, cx, cy, r, col, tier):
             pygame.draw.line(surf, col, (int(x), int(ty)),
                              (int(x), int(ty + r * 0.22)), max(2, int(r * 0.10)))
     else:
-        # a small wing-pip lifting off ABOVE the top chevron — the only added
-        # flourish (NO ray halo, which would mud into the chevrons). Set clear of
-        # the chevron stack and given a 2-lobe trailing edge so it reads as a
-        # wing, not a fourth chevron.
-        wx = cx + r * 0.06
-        wy = top_apex - r * 0.46
+        # a bold 2-lobe WING FLAG riding the apex above the top chevron — the
+        # only added flourish (NO ray halo, which muds into the chevrons). Drawn
+        # big with a clear convex leading edge and a 2-lobe trailing scallop so
+        # it never reads as a stray spur / fourth chevron at 44px.
+        wcx = cx
+        wy = top_apex - r * 0.40
         wing = [
-            (wx - r * 0.40, wy + r * 0.14),     # shoulder
-            (wx + r * 0.06, wy - r * 0.30),     # leading edge to tip
-            (wx + r * 0.40, wy - r * 0.36),     # tip
-            (wx + r * 0.14, wy - r * 0.08),     # trailing lobe 1
-            (wx + r * 0.02, wy + r * 0.06),     # trailing lobe 2
+            (wcx - r * 0.52, wy + r * 0.20),    # shoulder
+            (wcx - r * 0.18, wy - r * 0.18),    # leading-edge camber
+            (wcx + r * 0.30, wy - r * 0.40),    # leading edge to tip
+            (wcx + r * 0.58, wy - r * 0.42),    # tip
+            (wcx + r * 0.28, wy - r * 0.10),    # trailing lobe 1
+            (wcx + r * 0.06, wy + r * 0.06),    # trailing lobe 2
+            (wcx - r * 0.22, wy + r * 0.18),    # inner trailing
         ]
         pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in wing])
 
@@ -326,19 +343,22 @@ def _glyph_day_tier(surf, cx, cy, r, col, tier):
         pygame.draw.arc(surf, col, orb, math.radians(-20), math.radians(150),
                         max(2, int(r * 0.07)))
     else:
-        # three identical moon-discs arcing over the sun in a row — the COUNT is
-        # the read; a faint orbit arc threads them.
-        arc_cx, arc_cy = cx, cy + r * 0.34
-        arc_r = r * 0.86
+        # three identical moon-discs on an EVEN rising-then-setting arc over the
+        # sun — the deliberate COUNT-of-3 is the read. The arc is drawn first as
+        # a faint orbit, then the discs sit at symmetric, well-separated angles
+        # on it (left-low, centre-high, right-low) so it never reads as scatter.
+        m3 = r * 0.20
+        arc_cx, arc_cy = cx, cy + r * 0.46
+        arc_r = r * 0.92
         orb = pygame.Rect(int(arc_cx - arc_r), int(arc_cy - arc_r),
                           int(arc_r * 2), int(arc_r * 2))
-        pygame.draw.arc(surf, col, orb, math.radians(28), math.radians(152),
+        pygame.draw.arc(surf, col, orb, math.radians(34), math.radians(146),
                         max(2, int(r * 0.07)))
-        for ang in (148, 90, 32):
+        for ang in (140, 90, 40):       # symmetric about the apex, evenly spaced
             a = math.radians(ang)
             mx = arc_cx + math.cos(a) * arc_r
             my = arc_cy - math.sin(a) * arc_r
-            pygame.draw.circle(surf, col, (int(mx), int(my)), int(moon_r))
+            pygame.draw.circle(surf, col, (int(mx), int(my)), int(m3))
         _rank_wreath(surf, cx, horizon_y + r * 0.34, r, _GLYPH_SH)
 
 
@@ -391,14 +411,16 @@ def _glyph_lifetime_tier(surf, cx, cy, r, col, tier):
         _rank_wreath(surf, cx, cy + r * 0.96, r, _GLYPH_SH)
         return
 
-    # tier 1 — the route closes into a full lap: a dashed flight-orbit ellipse
-    # wraps the globe at a jaunty tilt, with a parrot-silhouette pip on it.
-    _draw_globe(surf, gcx, gcy, gr, col)
-    orb_rx, orb_ry = r * 0.96, r * 0.50
-    tilt = math.radians(-22)
-    n = 22
-    dash_w = max(2, int(r * 0.10))
-    pip_at = None
+    # tier 1 — the route closes into a full lap: ONE bold dashed flight-orbit
+    # ellipse clearly OUTSIDE the globe, crowned. No parrot pip (it mushed into
+    # the orbit at row size); the closed dashed ring alone says "a full lap of
+    # the world", and the crown is the tier topper.
+    gr2 = r * 0.46                  # globe shrunk so the orbit clears it cleanly
+    _draw_globe(surf, gcx, gcy, gr2, col)
+    orb_rx, orb_ry = r * 0.94, r * 0.52
+    tilt = math.radians(-20)
+    n = 16
+    dash_w = max(3, int(r * 0.12))
     for i in range(n):
         if i % 2:                    # every other segment skipped → dashed look
             continue
@@ -411,24 +433,12 @@ def _glyph_lifetime_tier(surf, cx, cy, r, col, tier):
             rx = ex * math.cos(tilt) - ey * math.sin(tilt)
             ry = ex * math.sin(tilt) + ey * math.cos(tilt)
             seg.append((int(gcx + rx), int(gcy + ry)))
-        # behind the globe (top arc) → inset tone; in front (bottom) → lit, so
-        # the ring reads as wrapping AROUND the globe.
+        # the front (lower) arc lit, the rear (upper) arc in the inset tone, so
+        # the dashed ring reads as wrapping AROUND the globe.
         a_mid = (a0 + a1) / 2
         front = math.sin(a_mid) > 0
         pygame.draw.line(surf, col if front else _GLYPH_SH, seg[0], seg[1], dash_w)
-        if abs(a_mid - math.radians(20)) < math.radians(18):
-            pip_at = seg[1]
-    # parrot-pip: a small body + beak chevron riding the front of the orbit.
-    if pip_at is None:
-        pip_at = (int(gcx + orb_rx * 0.92), int(gcy + orb_ry * 0.2))
-    px, py = pip_at
-    pygame.draw.circle(surf, col, (px, py), max(3, int(r * 0.13)))
-    pygame.draw.polygon(surf, col, [
-        (px + int(r * 0.10), py - int(r * 0.04)),
-        (px + int(r * 0.28), py + int(r * 0.02)),
-        (px + int(r * 0.10), py + int(r * 0.10)),
-    ])
-    _rank_crownlet(surf, cx, gcy - gr - r * 0.10, r, col)
+    _rank_crownlet(surf, cx, gcy - gr2 - r * 0.30, r, col)
 
 
 def _glyph_frequent_flyer(surf, cx, cy, r, col):

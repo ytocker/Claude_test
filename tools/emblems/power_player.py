@@ -68,41 +68,41 @@ def _glyph_sampler(surf, cx, cy, r, col):
 
 # ── magnet_life — Animal Magnetism ───────────────────────────────────────────
 def _glyph_magnet_life(surf, cx, cy, r, col):
-    # The horseshoe magnet pulling a $ coin toward its banded poles, with two
-    # short attraction-arc ticks — "magnetism, 15x". Reuses the franchise red /
-    # steel pole accent (unlock-only) via _accent. Magnet shifted up-left so the
-    # coin being yanked in has room at the lower-right.
-    mx, my = cx - int(r * 0.18), cy - int(r * 0.16)
-    rr = int(r * 0.42)
-    leg_w = max(6, int(r * 0.26))
-    bar = max(6, int(r * 0.28))
+    # A DOMINANT horseshoe magnet (poles DOWN) with banded red/steel pole-tips,
+    # pulling ONE $ coin toward it on a single attraction-arc tick — "magnetism,
+    # 15x". Pared to three elements so the horseshoe silhouette owns the glyph at
+    # 44px. Red/steel poles via _accent (unlock-only).
+    mx = cx - int(r * 0.10)
+    my = cy - int(r * 0.22)
+    rr = int(r * 0.46)
+    leg_w = max(6, int(r * 0.30))
+    bar = max(6, int(r * 0.32))
     top = my - int(r * 0.40)
     arc_rect = pygame.Rect(mx - rr, top, rr * 2, rr * 2)
     pygame.draw.arc(surf, col, arc_rect, math.radians(6), math.radians(174), bar)
     leg_top = top + rr
-    leg_h = int(r * 0.46)
+    leg_h = int(r * 0.50)
     for sgn in (-1, 1):
         lx = mx + sgn * rr - leg_w // 2
         pygame.draw.rect(surf, col, (lx, leg_top, leg_w, leg_h))
-    tip_h = max(4, int(r * 0.18))
+    tip_h = max(4, int(r * 0.20))
     for sgn, tip in ((-1, ai._accent((212, 64, 56))), (1, ai._accent((224, 228, 240)))):
         lx = mx + sgn * rr - leg_w // 2
         pygame.draw.rect(surf, tip, (lx, leg_top + leg_h, leg_w, tip_h))
-    # The $ coin being drawn toward the poles, parked at the lower-right with a
-    # clear gap below the steel pole so the two never merge.
-    coin_x = cx + int(r * 0.56)
-    coin_y = cy + int(r * 0.54)
-    coin_r = int(r * 0.28)
+    pole_y = leg_top + leg_h + tip_h
+    # ONE $ coin being yanked toward the poles, parked just below-right.
+    coin_x = cx + int(r * 0.50)
+    coin_y = cy + int(r * 0.60)
+    coin_r = int(r * 0.30)
     pygame.draw.circle(surf, col, (coin_x, coin_y), coin_r, max(2, int(r * 0.10)))
     f = ai._glyph_font(int(coin_r * 2.0))
     g = f.render("$", True, col)
     surf.blit(g, g.get_rect(center=(coin_x, coin_y)))
-    # Two attraction arcs between the poles and the coin (the pull).
-    for off in (-0.10, 0.14):
-        ax = mx + int(r * 0.30)
-        ay = leg_top + leg_h + int(r * (0.30 + off))
-        pygame.draw.arc(surf, col, (ax, ay, int(r * 0.46), int(r * 0.46)),
-                        math.radians(200), math.radians(320), max(2, int(r * 0.09)))
+    # A SINGLE attraction-arc tick spanning the gap between the poles and coin.
+    ax = mx - int(r * 0.20)
+    pygame.draw.arc(surf, col, (ax, pole_y + int(r * 0.02),
+                                int(r * 0.70), int(r * 0.50)),
+                    math.radians(196), math.radians(330), max(3, int(r * 0.11)))
 
 
 # ── powerup_collector — Gotta Grab 'Em All ───────────────────────────────────
@@ -124,38 +124,51 @@ def _glyph_collector(surf, cx, cy, r, col):
 
 # ── greasy_fingers — Finger Lickin' ──────────────────────────────────────────
 def _glyph_greasy(surf, cx, cy, r, col):
-    # An UPRIGHT striped KFC bucket with fries fanned out the top + a grease
-    # shine-tick — distinct from kfc_incident's tipped/spilled bucket. Brand-red
-    # tub accent via _accent (unlock-only). Fan splays wide so it reads as a
-    # full upright bucket of fries, not the plain trapezoid tub.
-    # Fries fanned out FIRST so the bucket rim overlaps their base.
-    fry_w = max(3, int(r * 0.16))
-    base_x, base_y = cx, int(cy + r * 0.10)
-    for ang in (-46, -22, 0, 22, 46):
-        a = math.radians(ang - 90)
-        tx = base_x + int(math.cos(a) * r * 0.86)
-        ty = base_y + int(math.sin(a) * r * 0.86)
-        pygame.draw.line(surf, col, (base_x, base_y), (tx, ty), fry_w)
-        pygame.draw.circle(surf, col, (tx, ty), max(2, fry_w // 2))
-    # Upright tapered tub (narrower at the base than the rim) — the bucket body.
-    tub = [
-        (cx - r * 0.52, cy - r * 0.04),     # rim left
-        (cx + r * 0.52, cy - r * 0.04),     # rim right
-        (cx + r * 0.40, cy + r * 0.74),     # base right
-        (cx - r * 0.40, cy + r * 0.74),     # base left
-    ]
-    pygame.draw.polygon(surf, ai._accent((214, 74, 60)),
-                        [(int(x), int(y)) for x, y in tub])
-    pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in tub],
-                        max(2, int(r * 0.10)))
-    # Two vertical bucket stripes so it reads as the striped tub, upright.
+    # An UPRIGHT, symmetrical striped KFC bucket with THREE bold WEDGE-shaped
+    # fries splayed above its dead-vertical rim — the upright stance is the whole
+    # contrast with the Shame kfc_incident's tipped/spilled bucket. Red tub
+    # accent via _accent (unlock-only).
+    rim_y = int(cy - r * 0.02)
+    # Three fat tapered fry wedges (wider at the splayed top, narrow where they
+    # plant in the bucket), drawn FIRST so the rim overlaps their feet.
+    base_x = cx
+    base_y = rim_y + int(r * 0.06)
+    half = max(3, int(r * 0.12))                 # fry half-width at the foot
+    top_half = max(4, int(r * 0.17))             # fry half-width at the tip
+    for ang in (-34, 0, 34):
+        a = math.radians(ang - 90)               # splay up and out
+        nx, ny = math.cos(a), math.sin(a)
+        px, py = -ny, nx                         # across-fry normal
+        fx = base_x + int(nx * 0)                # all rooted at the same foot row
+        foot = (base_x, base_y)
+        tip = (base_x + nx * r * 0.92, base_y + ny * r * 0.92)
+        wedge = [
+            (foot[0] + px * half,  foot[1] + py * half),
+            (foot[0] - px * half,  foot[1] - py * half),
+            (tip[0] - px * top_half, tip[1] - py * top_half),
+            (tip[0] + px * top_half, tip[1] + py * top_half),
+        ]
+        pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in wedge])
+    # Dead-vertical, symmetrical bucket: a slightly tapered tub with a flat,
+    # level rim cap — upright, never tilted.
+    rim = [(cx - r * 0.54, rim_y - int(r * 0.10)),
+           (cx + r * 0.54, rim_y - int(r * 0.10)),
+           (cx + r * 0.54, rim_y + int(r * 0.06)),
+           (cx - r * 0.54, rim_y + int(r * 0.06))]
+    tub = [(cx - r * 0.50, rim_y + int(r * 0.06)),
+           (cx + r * 0.50, rim_y + int(r * 0.06)),
+           (cx + r * 0.38, cy + int(r * 0.78)),
+           (cx - r * 0.38, cy + int(r * 0.78))]
+    for poly in (tub, rim):
+        pygame.draw.polygon(surf, ai._accent((214, 74, 60)),
+                            [(int(x), int(y)) for x, y in poly])
+        pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in poly],
+                            max(2, int(r * 0.09)))
+    # Two symmetric vertical bucket stripes so it reads as the striped tub.
     for dx in (-0.18, 0.18):
         x = int(cx + dx * r)
-        pygame.draw.line(surf, col, (x, int(cy + r * 0.02)),
-                         (x, int(cy + r * 0.68)), max(2, int(r * 0.08)))
-    # Grease shine-tick on the rim's lit upper-left.
-    pygame.draw.line(surf, col, (int(cx - r * 0.30), int(cy + r * 0.12)),
-                     (int(cx - r * 0.12), int(cy + r * 0.12)), max(2, int(r * 0.08)))
+        pygame.draw.line(surf, col, (x, rim_y + int(r * 0.10)),
+                         (x, int(cy + r * 0.70)), max(2, int(r * 0.08)))
 
 
 # ── power_hungry / power_addict — appetite grows (shared helper) ─────────────
@@ -200,7 +213,7 @@ def _appetite(surf, cx, cy, r, col, stage):
         # that curls toward the centre, shrinking as it goes (a vortex, not a
         # sprinkle) — plus a bold simplified crown arc on top, so the
         # one-bite→whirlpool climb past power_hungry reads at chip size.
-        cy_v = cy + int(r * 0.10)                       # seat below the crown
+        cy_v = cy + int(r * 0.18)                       # seat below the crown
         # Spiral arms first so the satellites sit on top of their own tails.
         for i in range(3):
             a0 = -math.pi / 2 + i * (2 * math.pi / 3)   # arm start angle
@@ -222,19 +235,24 @@ def _appetite(surf, cx, cy, r, col, stage):
             ms = r * (0.30 - i * 0.05)
             mote = _sparkle_pts(mx, my, ms)
             pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in mote])
-        # Bold three-point crown arc seated on top — the L4 insatiable rung.
-        cw = r * 0.62
-        cyt = cy - int(r * 0.78)
+        # Bold three-point crown seated on top — the L4 insatiable rung. Taller
+        # spikes + a solid base band so the crown survives at chip size.
+        cw = r * 0.64
+        cyt = cy - int(r * 0.70)
         crown = [
-            (cx - cw, cyt + r * 0.22),
-            (cx - cw, cyt),
-            (cx - cw * 0.5, cyt + r * 0.16),
-            (cx, cyt - r * 0.10),
-            (cx + cw * 0.5, cyt + r * 0.16),
-            (cx + cw, cyt),
-            (cx + cw, cyt + r * 0.22),
+            (cx - cw, cyt + r * 0.30),
+            (cx - cw, cyt + r * 0.02),
+            (cx - cw * 0.52, cyt + r * 0.20),
+            (cx, cyt - r * 0.26),
+            (cx + cw * 0.52, cyt + r * 0.20),
+            (cx + cw, cyt + r * 0.02),
+            (cx + cw, cyt + r * 0.30),
         ]
         pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in crown])
+        # Solid base band under the spikes so the crown reads as one mass.
+        pygame.draw.rect(surf, col,
+                         (int(cx - cw), int(cyt + r * 0.18),
+                          int(cw * 2), max(3, int(r * 0.14))))
 
 
 def _glyph_power_hungry(surf, cx, cy, r, col):

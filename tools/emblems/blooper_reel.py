@@ -247,27 +247,30 @@ def _glyph_lottery_loser(surf, cx, cy, r, col):
     for i in (1, 2):
         dx = fx + i * fw // 3
         pygame.draw.line(surf, col, (dx, fy + 2), (dx, fy + fh - 2), max(2, r // 14))
-    # three mismatched marks — distinguished by SHAPE-fill, not legible symbol:
-    # cell 0 = solid disc, cell 1 = hollow ring, cell 2 = bar. The mismatch is
-    # the read.
+    # Three mismatched marks — three OBVIOUSLY different bold shapes so "none
+    # match" reads at 44px: a solid DISC, an X-CROSS, and a horizontal BAR.
+    # (A disc + hollow-ring pairing looked near-identical and lost the joke.)
     cyc = fy + fh // 2
     c0 = fx + fw // 6
     c1 = fx + fw // 2
     c2 = fx + 5 * fw // 6
     mr = max(4, int(r * 0.20))
     pygame.draw.circle(surf, col, (c0, cyc), mr)                       # disc
-    pygame.draw.circle(surf, col, (c1, cyc), mr, max(2, r // 12))      # ring
+    xw = max(3, r // 11)                                               # X-cross
+    pygame.draw.line(surf, col, (c1 - mr, cyc - mr), (c1 + mr, cyc + mr), xw)
+    pygame.draw.line(surf, col, (c1 - mr, cyc + mr), (c1 + mr, cyc - mr), xw)
     pygame.draw.rect(surf, col, (c2 - mr, cyc - mr // 2, mr * 2, mr),  # bar
                      border_radius=max(1, r // 16))
-    # sad down-tick under the window
+    # Enlarged sad down-tick (a bold arrow) under the window — the loss.
     sx = cx
-    sy = fy + fh + int(r * 0.06)
-    pygame.draw.line(surf, col, (sx, sy), (sx, sy + int(r * 0.22)), max(2, r // 12))
+    sy = fy + fh + int(r * 0.08)
+    aw = max(3, r // 10)
+    pygame.draw.line(surf, col, (sx, sy), (sx, sy + int(r * 0.34)), aw)
     pygame.draw.lines(surf, col, False, [
-        (sx - int(r * 0.12), sy + int(r * 0.10)),
-        (sx, sy + int(r * 0.26)),
-        (sx + int(r * 0.12), sy + int(r * 0.10)),
-    ], max(2, r // 13))
+        (sx - int(r * 0.18), sy + int(r * 0.16)),
+        (sx, sy + int(r * 0.40)),
+        (sx + int(r * 0.18), sy + int(r * 0.16)),
+    ], aw)
 
 
 def _glyph_the_49er(surf, cx, cy, r, col):
@@ -303,20 +306,26 @@ def _glyph_the_49er(surf, cx, cy, r, col):
         (px - int(r * 0.46), cy + int(r * 0.64)),
     ]
     pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in chunk])
-    # the unreachable lamp-wisp floating past the broken top (upper-right)
-    lx, ly = cx + int(r * 0.50), cy - int(r * 0.52)
-    lamp = pygame.Rect(lx - int(r * 0.26), ly, int(r * 0.50), int(r * 0.24))
-    pygame.draw.ellipse(surf, col, lamp)
-    # lamp spout
+    # The unreachable genie LAMP floating past the broken top (upper-right) — a
+    # clear, bold little lamp (rounded body + a triangular spout + a single wisp
+    # dot), NOT a curling squiggle (the old thin ellipse + curl read as a music
+    # note). The lamp = the genie at 50 the death-at-49 never reached.
+    lcx, lcy = cx + int(r * 0.48), cy - int(r * 0.40)
+    # Bold rounded body, taller than the old sliver so it reads as a vessel.
+    pygame.draw.ellipse(surf, col, (lcx - int(r * 0.30), lcy - int(r * 0.14),
+                                    int(r * 0.56), int(r * 0.32)))
+    # Triangular spout flicking up to the right.
     pygame.draw.polygon(surf, col, [
-        (lx + int(r * 0.20), ly + int(r * 0.04)),
-        (lx + int(r * 0.42), ly - int(r * 0.06)),
-        (lx + int(r * 0.22), ly + int(r * 0.16)),
+        (lcx + int(r * 0.18), lcy - int(r * 0.04)),
+        (lcx + int(r * 0.50), lcy - int(r * 0.22)),
+        (lcx + int(r * 0.24), lcy + int(r * 0.08)),
     ])
-    # a tiny wisp curling up from the spout — the genie just out of reach
-    pygame.draw.arc(surf, col, (lx - int(r * 0.10), ly - int(r * 0.42),
-                                int(r * 0.36), int(r * 0.40)),
-                    -math.pi * 0.1, math.pi * 0.8, max(2, r // 13))
+    # Lid knob so the dome reads as a lamp lid.
+    pygame.draw.circle(surf, col, (lcx - int(r * 0.04), lcy - int(r * 0.18)),
+                       max(2, r // 13))
+    # A single wisp dot drifting off the spout — the genie just out of reach.
+    pygame.draw.circle(surf, col, (lcx + int(r * 0.44), lcy - int(r * 0.40)),
+                       max(2, r // 12))
 
 
 def _glyph_night_owl(surf, cx, cy, r, col):
