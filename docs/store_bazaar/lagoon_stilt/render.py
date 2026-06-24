@@ -101,9 +101,18 @@ PALM_FROND_HI = (86, 142, 92)
 PALM_TRUNK = (96, 66, 38)
 ISLET = (58, 56, 96)             # distant hazy violet islets
 
-# The mystery PARCELS hero hut glows red (the store's MYSTERY hue).
-MYST_GLOW = (236, 64, 64)
-MYST_DEEP = (120, 22, 26)
+# The mystery PARCELS hero hut is re-branded by SHAPE + GOLD, never a red sun
+# aura. A warm GOLD trim/crate read carries the mystery, so nothing glows red
+# from below the village. (MYST_DEEP kept only for the deep name-board body.)
+MYST_GOLD = (255, 206, 110)      # hero accent — warm gold, the store's coin hue
+MYST_GOLD_D = (196, 138, 56)
+MYST_DEEP = (120, 22, 26)        # deep accent reserved for the hero name board
+
+# Natural water reflection tints — cool + desaturated, NORMAL blend, low alpha.
+# A reflection is a darkened, slightly-blued echo of the hut, never an additive
+# coloured aura. These read as wet timber/thatch on dusk water.
+REFL_HUT = (52, 48, 62)          # generic hut reflection (cool, muted)
+REFL_THATCH = (78, 60, 54)       # warmer streak for the lit thatch ridge echo
 
 
 # =============================================================================
@@ -166,16 +175,50 @@ def _build_static_sky():
     sky = pygame.Surface((DW, DH))
     sky.blit(multistop_v(DW, DH, SKY_STOPS), (0, 0))
 
-    # the low golden-hour sun: a warm saturated gold disc ~38% smaller than R1
-    # and dropped LOWER so it sits behind the rooflines, with a RESTRAINED halo
-    # so the back row reads against sky instead of a white glare. No white core.
-    sx, sy = int(DW * 0.30), int(DH * 0.355)
-    soft_glow(sky, sx, sy, m(96), SUN_HALO, 44, layers=12)
-    soft_glow(sky, sx, sy, m(40), SUN_CORE, 100, layers=10)
-    pygame.draw.circle(sky, SUN_CORE, (sx, sy), m(16))
-    # a slightly warmer-brighter centre so the disc has a sun core — kept a
-    # saturated warm gold, NOT white, so it never blows out.
-    pygame.draw.circle(sky, (255, 218, 150), (sx - m(2), sy - m(2)), m(7))
+    # the low golden-hour sun, tucked upper-left so it FRAMES the village. Built
+    # as a SELF-CONTAINED NORMAL-blend radial so it can never additively stack to
+    # a white moon-blob (the round-2 fault): a warm gold core easing OUT through
+    # amber to a transparent rim, painted from concentric radius rings.
+    sx, sy = int(DW * 0.26), int(DH * 0.300)
+    # halo UNDER the disc as a NORMAL-blend translucent radial (NOT additive):
+    # additive glows desaturate to a white ring as their layers stack near the
+    # disc edge (the round-2/3 fault). A normal-blend amber halo composites by
+    # alpha, so it can only ever read as warm amber dissolving into the sky.
+    halo_r = m(120)
+    halo = pygame.Surface((halo_r * 2, halo_r * 2), pygame.SRCALPHA)
+    for i in range(halo_r, 0, -1):
+        t = i / halo_r
+        # warm amber, fading from a soft inner glow to nothing at the rim
+        a = int(150 * (1.0 - t) ** 2.2)
+        pygame.draw.circle(halo, (255, 158, 88, a), (halo_r, halo_r), i)
+    sky.blit(halo, (sx - halo_r, sy - halo_r))
+    # the disc itself: an OPAQUE warm-gold body with a brighter core, drawn on
+    # NORMAL blend so its colour is exactly the gold defined here. The rim is a
+    # solid amber edge (no alpha feather) so the additive bloom can never bleed
+    # through it as a bright cream band — the bloom lives only OUTSIDE the disc.
+    disc_r = m(46)
+    sun_disc = pygame.Surface((disc_r * 2, disc_r * 2), pygame.SRCALPHA)
+    sun_stops = [
+        (0.00, (255, 222, 150)),    # warm gold core — the hottest point
+        (0.45, (255, 200, 116)),
+        (0.78, (255, 174, 96)),     # body amber
+        (1.00, (242, 150, 80)),     # solid amber rim (opaque, clean edge)
+    ]
+    for i in range(disc_r, 0, -1):
+        t = i / disc_r          # i is the ring radius; t=0 core, t=1 rim
+        for k in range(len(sun_stops) - 1):
+            t0, c0 = sun_stops[k]
+            t1, c1 = sun_stops[k + 1]
+            if t0 <= t <= t1:
+                f = (t - t0) / (t1 - t0) if t1 > t0 else 0.0
+                col = tuple(int(c0[j] + (c1[j] - c0[j]) * f) for j in range(3))
+                break
+        else:
+            col = sun_stops[-1][1]
+        # full alpha everywhere so the disc is a clean object; the outermost 2px
+        # gets a soft anti-alias by the SS downscale, no manual feather needed.
+        pygame.draw.circle(sun_disc, (*col, 255), (disc_r, disc_r), i)
+    sky.blit(sun_disc, (sx - disc_r, sy - disc_r))
 
     # emerging dusk stars — only in the upper indigo band, fading out before the
     # warm haze so they never sparkle over daylight.
@@ -200,6 +243,9 @@ def _build_static_sky():
         col = (255, 244, 210, a)
         pygame.draw.line(stars, col, (x - L, y), (x + L, y), max(1, m(0.7)))
         pygame.draw.line(stars, col, (x, y - L), (x, y + L), max(1, m(0.7)))
+    # carve the sun out of the star field so no sparkle speckles the gold disc
+    # (a clean sun reads as a sun, not a star-pocked blob).
+    pygame.draw.circle(stars, (0, 0, 0, 0), (sx, sy), int(disc_r * 1.35))
     sky.blit(stars, (0, 0), special_flags=pygame.BLEND_ADD)
 
     # back-row scrim: a soft cool atmospheric band across the lower sky (where
@@ -322,7 +368,7 @@ def draw_water(surf):
 
     # the gold sun-glitter column under the sun, widening with depth then
     # fading — the signature golden-hour-on-water read.
-    sun_x = int(DW * 0.30)
+    sun_x = int(DW * 0.26)
     rnd = random.Random(91)
     glit = pygame.Surface((DW, water_h), pygame.SRCALPHA)
     rows = 56
@@ -362,22 +408,40 @@ def draw_water(surf):
     return horizon
 
 
-def hut_reflection(surf, cx, top_y, base_y, width, tint, horizon):
-    """A soft vertical reflection of a hut smeared on the water: a tinted column
-    fading with depth, rippled by alternating alpha bands so it reads as a
-    reflection on moving water, not a mirror."""
-    if base_y < horizon:
-        return
-    refl_h = int((base_y - top_y) * 0.85)
-    if refl_h <= 0:
+def hut_reflection(surf, cx, deck_y, width, scale, horizon):
+    """A NATURAL water reflection of a hut: a cool, desaturated, low-alpha echo
+    of the roof + body that fades with depth and is broken up by horizontal
+    ripple gaps + a subtle side-to-side wobble — like real dusk water, never a
+    coloured aura. NORMAL blend (darkens the water it sits on), never additive.
+
+    The reflection mirrors the hut's value structure (warmer lit ridge near the
+    top, cooling into the body echo below) so it reads as a true mirror image
+    rather than a flat wash. It starts at the deck waterline and reaches down
+    ~roughly the hut's own height."""
+    refl_h = int(m(120) * scale)
+    if refl_h <= 0 or deck_y < horizon:
         return
     col = pygame.Surface((width, refl_h), pygame.SRCALPHA)
+    half = width / 2
     for y in range(refl_h):
         t = y / refl_h
-        a = int(80 * (1.0 - t) ** 1.4)
-        ripple = 0.6 + 0.4 * math.sin(y / m(6))
-        pygame.draw.line(col, (*tint, int(a * ripple)), (0, y), (width, y))
-    surf.blit(col, (cx - width // 2, base_y), special_flags=pygame.BLEND_ADD)
+        # warm ridge echo at the top easing into a cool muted body echo below,
+        # then dissolving — a reflection loses energy fast on rippled water.
+        tone = lerp_color(REFL_THATCH, REFL_HUT, min(1.0, t * 1.7))
+        depth = (1.0 - t) ** 1.5
+        # ripple gaps: thin horizontal bands where the water surface breaks the
+        # image, so it never looks like a solid mirror smear.
+        ripple = 0.45 + 0.55 * (0.5 + 0.5 * math.sin(y / m(5.0)))
+        a = int(46 * depth * ripple)
+        if a <= 0:
+            continue
+        # gentle horizontal wobble + taper so edges feather into the water.
+        wob = math.sin(y / m(13.0)) * m(4) * (1.0 - t)
+        taper = half * (0.94 - 0.30 * t)
+        x0 = half + wob - taper
+        x1 = half + wob + taper
+        pygame.draw.line(col, (*tone, a), (x0, y), (x1, y))
+    surf.blit(col, (int(cx - half), deck_y))
 
 
 # =============================================================================
@@ -469,10 +533,12 @@ def draw_hut(surf, cx, deck_y, scale, group, label, hero=False):
     body_top = deck_y - body_h
     roof_apex_y = body_top - roof_h
 
-    # ── soft seat / aura under the whole hut so it sits ON the deck ──
+    # ── soft seat under the whole hut so it sits ON the deck ──
+    # The hero gets a restrained WARM-GOLD halo (the store's coin hue) so it
+    # reads as "the prize stall", never a red sun-aura bleeding onto the water.
     if hero:
-        soft_glow(surf, cx, body_top + body_h // 2, int(half_w * 1.5),
-                  MYST_GLOW, 46, layers=12)
+        soft_glow(surf, cx, body_top + int(body_h * 0.42), int(half_w * 1.25),
+                  MYST_GOLD, 34, layers=12)
     soft_glow(surf, cx, deck_y, half_w + eave, (0, 0, 0), 110, layers=6)
 
     # ── stall body (shaded interior box behind the awning) ──
@@ -576,13 +642,14 @@ def draw_hut(surf, cx, deck_y, scale, group, label, hero=False):
         dome_r = max(m(24), int(m(28) * scale))
     dome_cx = cx
     dome_cy = body_top + int(body_h * (0.40 if hero else 0.46))
-    pal_glow = MYST_GLOW if hero else GOLD
-    soft_glow(surf, dome_cx, dome_cy, dome_r + m(6), pal_glow,
-              50 if hero else 34, layers=8)
+    soft_glow(surf, dome_cx, dome_cy, dome_r + m(6), GOLD,
+              46 if hero else 34, layers=8)
     C.cabochon(surf, dome_cx, dome_cy, dome_r, C.CABO_LO, C.CABO_HI)
     _place_thumb(surf, group, dome_cx, dome_cy, dome_r, hero)
+    # Hero glass takes a warm GOLD tint (was mystery-red) so the prize dome stays
+    # in the warm-gold family the rest of the village + the coin live in.
     C.cabochon_glass(surf, dome_cx, dome_cy, dome_r,
-                     tint=MYST_GLOW if hero else (240, 224, 196))
+                     tint=(255, 222, 168) if hero else (240, 224, 196))
 
     # ── bold gold-keyline category label on a small banner under the dome ──
     # The hero's board is deferred to render_device (drawn AFTER Pip + the coin)
@@ -599,12 +666,10 @@ def _place_thumb(surf, group, cx, cy, dome_r, hero):
     instead of being clipped. The PARCELS hero shows a glowing red '?' mystery
     mark instead of a literal thumbnail."""
     if hero:
-        # The mystery hero must read by SHAPE + VALUE, not red hue alone
-        # (red/green-blind safe): a bold near-white "?" with a thick very-dark
-        # contour so it holds maximum contrast against the red dome.
-        from game.surprise_box_variants import _draw_qmark
-        _draw_qmark(surf, cx, cy, dome_r + m(5),
-                    (255, 250, 244), (28, 6, 8), thick=m(3.4))
+        # Re-branded mystery: a GOLD-BANDED CRATE behind a bold gold "?" — the
+        # mystery now reads by SHAPE + GOLD (the store's prize hue), never a red
+        # sun-aura. Drawn inside the dark glass dome so the warm gold pops.
+        _draw_mystery_crate(surf, cx, cy, dome_r)
         return
     src, letterbox = _group_thumb(group)
     w, h = src.get_size()
@@ -623,6 +688,43 @@ def _place_thumb(surf, group, cx, cy, dome_r, hero):
     surf.blit(img, r.topleft)
 
 
+def _draw_mystery_crate(surf, cx, cy, dome_r):
+    """The PARCELS prize, drawn inside its glass dome: a small dark crate bound
+    by warm GOLD bands with a bold gold "?" floating over it. This carries the
+    'mystery' by SHAPE + GOLD only — there is no red anywhere, so the village
+    casts no scarlet aura. Gold band + dark crate + value contrast keep the "?"
+    legible (red/green-blind safe)."""
+    cw = int(dome_r * 1.30)
+    ch = int(dome_r * 1.14)
+    rect = pygame.Rect(cx - cw // 2, cy - ch // 2 + m(3), cw, ch)
+    # crate body — dark warm timber so the gold bands read as the hero accent
+    surf.blit(vgrad(rect.w, rect.h, m(2), (58, 42, 30), (30, 20, 14)),
+              rect.topleft)
+    pygame.draw.rect(surf, (18, 12, 8), rect, width=max(1, m(1.4)),
+                     border_radius=m(2))
+    # gold strap bands (vertical + horizontal) with a lit top edge each
+    band_w = max(m(4), int(cw * 0.13))
+    for bx in (rect.left + int(cw * 0.20), rect.right - int(cw * 0.20) - band_w):
+        b = pygame.Rect(bx, rect.top, band_w, rect.h)
+        surf.blit(vgrad(b.w, b.h, 0, MYST_GOLD, MYST_GOLD_D), b.topleft)
+        pygame.draw.line(surf, (255, 240, 200), (b.left + m(1), b.top),
+                         (b.left + m(1), b.bottom), max(1, m(0.8)))
+    by = rect.centery - band_w // 2
+    hb = pygame.Rect(rect.left, by, rect.w, band_w)
+    surf.blit(vgrad(hb.w, hb.h, 0, MYST_GOLD, MYST_GOLD_D), hb.topleft)
+    pygame.draw.line(surf, (255, 240, 200), (hb.left, hb.top + m(1)),
+                     (hb.right, hb.top + m(1)), max(1, m(0.8)))
+    # a gold rivet where the straps cross
+    for sx in (rect.left + int(cw * 0.20) + band_w // 2,
+               rect.right - int(cw * 0.20) - band_w // 2):
+        pygame.draw.circle(surf, (255, 244, 206), (sx, rect.centery), max(1, m(1.6)))
+    # bold gold "?" centred on the crate, dark contour for contrast so it reads
+    # by SHAPE + VALUE (red/green-blind safe) — the prize mark, all gold.
+    from game.surprise_box_variants import _draw_qmark
+    _draw_qmark(surf, cx, cy - m(1), dome_r + m(1),
+                MYST_GOLD, (22, 12, 6), thick=m(2.8))
+
+
 def _hut_label(surf, label, cx, cy, scale, hero):
     """A small carved-timber name board under the dome carrying the category in
     bold gradient gold with a dark keyline — the canonical defined-edge label."""
@@ -634,11 +736,14 @@ def _hut_label(surf, label, cx, cy, scale, hero):
     r = pygame.Rect(cx - bw // 2, cy - bh // 2, bw, bh)
     rad = bh // 2
     drop_shadow(surf, r, rad, blur=m(4), alpha=120, dy=m(2))
-    # board body: dark timber for normal stalls, deep mystery red for the hero
+    # board body: dark timber for normal stalls; the hero echoes the STORE
+    # header's gold-on-deep-red (the store identity) so PARCELS reads as the
+    # prize banner — GOLD type on a deep-red board, a tiny crisp object that
+    # nothing glows out from.
     if hero:
-        surf.blit(vgrad(r.w, r.h, rad, (150, 30, 34), (84, 14, 18)), r.topleft)
-        rim_d, rim_b = (60, 8, 12), (255, 196, 188)
-        txt_top, txt_bot, key = (255, 244, 230), (255, 206, 196), (70, 8, 12)
+        surf.blit(vgrad(r.w, r.h, rad, (132, 28, 30), (78, 14, 16)), r.topleft)
+        rim_d, rim_b = (50, 8, 10), (*GOLD_PALE, 235)
+        txt_top, txt_bot, key = GOLD_A_TOP, GOLD_A_BOT, (60, 10, 8)
     else:
         surf.blit(vgrad(r.w, r.h, rad, (44, 30, 18), (24, 15, 8)), r.topleft)
         rim_d, rim_b = (60, 38, 14), (*GOLD_PALE, 230)
@@ -789,16 +894,19 @@ def _balance_capsule(surf, cx, y):
 # Each hut's deck sits on the lagoon; back-to-front draw order gives depth.
 LAYOUT = [
     # group,      cx fraction, deck_y fraction, scale, hero
-    # Back row dropped lower + mid row pushed down so each roof ridge clears the
-    # eaves of the hut behind it (no row clipping); hero lifted ~14px so its
-    # name board gets a clean horizontal lane.
-    ("costume",  0.180, 0.628, 0.68, False),   # back-left
-    ("animal",   0.500, 0.616, 0.68, False),   # back-centre
-    ("hats",     0.820, 0.628, 0.68, False),   # back-right
-    ("parrot",   0.165, 0.808, 0.84, False),   # mid-left
-    ("shoes",    0.835, 0.808, 0.84, False),   # mid-right
-    ("shades",   0.500, 0.752, 0.76, False),   # mid-centre, tucked slightly back
-    ("parcels",  0.500, 0.848, 1.00, True),    # hero jetty, frontmost
+    # All 7 huts enlarged + spread so each reads confidently at 360px with its
+    # category dome. With the sun shrunk + lifted, the village owns the lower
+    # two-thirds. Three clean tiers + a frontmost hero; back-row scale lifted
+    # 0.68->0.80 and mid-row 0.84/0.76->0.92/0.86 so no stall feels tucked-away.
+    # The two outer huts of each non-hero row are pulled to the canvas edges and
+    # the centre hut sits a touch higher so all three roofs stay separated.
+    ("costume",  0.165, 0.572, 0.80, False),   # back-left
+    ("animal",   0.500, 0.548, 0.80, False),   # back-centre (lifted)
+    ("hats",     0.835, 0.572, 0.80, False),   # back-right
+    ("parrot",   0.180, 0.788, 0.92, False),   # mid-left
+    ("shoes",    0.820, 0.788, 0.92, False),   # mid-right
+    ("shades",   0.500, 0.704, 0.86, False),   # mid-centre, tucked slightly back
+    ("parcels",  0.500, 0.862, 1.00, True),    # hero jetty, frontmost
 ]
 LABELS = {g: lbl for g, lbl in STALLS}
 
@@ -830,13 +938,11 @@ def render_device():
     for i in order:
         h = huts[i]
         half_w = int(m(58) * h["scale"])
-        body_h = int(m(64) * h["scale"])
-        roof_h = int(m(40) * h["scale"])
-        top_y = h["deck_y"] - body_h - roof_h
-        # reflection under the hut on the water (drawn before stilts/hut)
-        tint = MYST_GLOW if h["hero"] else AWN_RED
-        hut_reflection(surf, h["cx"], top_y, h["deck_y"] + m(60),
-                       int(half_w * 1.4), tint, horizon)
+        # natural cool reflection under the hut on the water (drawn before the
+        # stilts/hut). No red tint, no additive blend, no hero exception — the
+        # mystery is carried by GOLD + shape on the hut itself, not the water.
+        hut_reflection(surf, h["cx"], h["deck_y"], int(half_w * 1.7),
+                       h["scale"], horizon)
         # posts drop from the deck into the water; deeper (lower) huts sit on
         # shorter posts since their deck is already near the waterline.
         post_len = max(m(26), int(m(70) * h["scale"]))
@@ -877,10 +983,10 @@ def render_device():
 def main():
     _build_static_sky()
     dev = render_device()
-    pygame.image.save(downscale(dev, 1), os.path.join(_HERE, "round_2.png"))
-    pygame.image.save(downscale(dev, 2), os.path.join(_HERE, "round_2@2x.png"))
+    pygame.image.save(downscale(dev, 1), os.path.join(_HERE, "round_3.png"))
+    pygame.image.save(downscale(dev, 2), os.path.join(_HERE, "round_3@2x.png"))
     print("SS =", SS, "device =", DW, "x", DH)
-    print("saved round_2.png (360x640) + round_2@2x.png (720x1280)")
+    print("saved round_3.png (360x640) + round_3@2x.png (720x1280)")
 
 
 if __name__ == "__main__":

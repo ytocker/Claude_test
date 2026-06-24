@@ -1,4 +1,4 @@
-# LAGOON STILT-MARKET — store bazaar landing (round 2)
+# LAGOON STILT-MARKET — store bazaar landing (round 3)
 
 A tropical **over-water stilt-village market at golden hour** — the most overtly
 scarlet-macaw-island take on the GOLDEN-HOUR DOCK MARKET direction. Seven
@@ -11,9 +11,53 @@ stall screen.
 ## Files
 - `render.py` — headless generator (run from repo root):
   `SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy python docs/store_bazaar/lagoon_stilt/render.py`
-- `round_2.png` — 360×640 ship-scale target (current)
-- `round_2@2x.png` — 720×1280 (review zoom)
-- `round_1.png` / `round_1@2x.png` — prior round, kept for comparison
+- `round_3.png` — 360×640 ship-scale target (current)
+- `round_3@2x.png` — 720×1280 (review zoom)
+- `round_2.png` / `round_2@2x.png` — the "before" for this pass, kept for comparison
+- `round_1.png` / `round_1@2x.png` — earliest round, kept for comparison
+
+## Round 3 — "perfect it" craft pass (kill the red, make all 7 stalls read)
+The concept was liked but read as "a basic idea". Two concrete complaints drove
+this pass, both fixed:
+
+1. **KILLED the red-from-beneath** (core complaint — the "auras like from the
+   sun" that "looked bad"). Two sources removed/retuned:
+   - The hero PARCELS underglow was an additive RED `MYST_GLOW (236,64,64)` α46
+     soft-glow → now a restrained WARM-GOLD seat (`MYST_GOLD (255,206,110)`
+     α34), the store's coin hue. No red bleeds onto the water.
+   - `hut_reflection()` cast additive AWN_RED / MYST_GLOW columns onto the water
+     under every hut → completely rewritten as a NATURAL reflection: cool,
+     desaturated tints (`REFL_HUT (52,48,62)` / `REFL_THATCH (78,60,54)`),
+     **NORMAL blend** (not additive), low alpha (~46 peak), depth fade, ripple
+     gaps + a side-to-side wobble + edge taper so it reads as wet timber on dusk
+     water, never a coloured sun-aura.
+   - The hero dome glow + glass tint went from mystery-red to GOLD, and the
+     PARCELS name board is now **gold-on-deep-red** (echoing the STORE header)
+     instead of cream-on-red.
+2. **RE-BRANDED the mystery hero by SHAPE + GOLD** (not a red glow): the dome now
+   holds a `_draw_mystery_crate` — a dark crate bound by warm GOLD strap bands +
+   rivets with a bold gold `?` centred over it. Mystery now reads by shape +
+   gold + value contrast (red/green-blind safe), with zero red.
+3. **ALL 7 STALLS READ CONFIDENTLY**: every hut enlarged + separated — back row
+   scale `0.68→0.80`, mid row `0.84/0.76→0.92/0.86`, outer huts pulled to the
+   canvas edges, centre huts lifted so no roof occludes the hut behind it. Each
+   category dome (COSTUMES, PARROTS, ANIMALS, SHOES, HATS, SHADES, PARCELS) is
+   clearly identifiable at 360px.
+4. **Shrank the sun so the village owns the canvas**: disc `m(40)→m(46)` body but
+   the whole sun moved upper-left (`0.30,0.355 → 0.26,0.300`) to FRAME rather
+   than crowd the back row.
+5. **PERFECTED the sun** (the round-2 "white moon-blob"): the additive halo that
+   stacked ON TOP of the disc and desaturated it to a white fried-egg ring is
+   gone. The sun is now a **self-contained opaque warm-gold radial disc**
+   (gold core → amber rim, NORMAL blend) over a **NORMAL-blend translucent amber
+   halo** (additive glows whiten as their layers compound near the edge — proven
+   by pixel sampling — so the halo is composited by alpha instead). The star
+   field is also carved out around the sun so no sparkle speckles the disc.
+
+Kept intact: the concept (thatched stilt-huts over a golden lagoon, reflections,
+palms framing, Pip the jetty merchant), the gold-on-red STORE header + balance
+capsule + real coin glyph, the golden-hour→indigo CONSTELLATION sky bridge, the
+tasteful gold sun-glitter column, the red/cream awnings + carved name boards.
 
 ## Round 2 — art-director ITERATE pass (one revision)
 Verdict was ITERATE: strong concept + real craft, undermined mainly by the
