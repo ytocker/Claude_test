@@ -46,6 +46,9 @@ _TAB_Y = 92            # tab-bar centre line
 _TABS = (("COSTUMES", "costume"), ("PARROTS", "parrot"),
          ("ANIMALS", "animal"), ("SHOES", "shoes"), ("HATS", "hats"),
          ("SHADES", "shades"), ("PARCELS", "parcels"))
+# Stall group -> tab index, so a tap on a lagoon-hub stall lands on that
+# category's grid. Keyed on the same group ids the hub returns its rects under.
+_GROUP_TAB = {g: i for i, (_label, g) in enumerate(_TABS)}
 
 # Night-sky gradient stops the obsidian cards were tuned against.
 _BG_STOPS = ((8, 8, 24), (12, 12, 36), (18, 16, 48), (24, 20, 58))
@@ -388,6 +391,12 @@ def _slot_of(sid: str) -> str:
 class StoreScene:
     def __init__(self) -> None:
         self.t = 0.0
+        # Two-level store: open onto the lagoon "hub" (a stall per category);
+        # tapping a stall drills into that category's "category" grid. The hub's
+        # heavy procedural backdrop is built lazily on first hub render so the
+        # store-open transition isn't blocked, and is then cached process-wide.
+        self.view = "hub"
+        self.hub: object | None = None
         self._stars = _seeded_stars()
         self.back_rect: "pygame.Rect | None" = None
         self.item_rects: "dict[str, pygame.Rect]" = {}
@@ -450,6 +459,22 @@ class StoreScene:
 
     # ── rendering ────────────────────────────────────────────────────────────
     def render(self, surf: pygame.Surface) -> None:
+        if self.view == "hub":
+            self._render_hub(surf)
+        else:
+            self._render_category(surf)
+
+    def _render_hub(self, surf: pygame.Surface) -> None:
+        """The lagoon stilt-market landing: the cached procedural scene owns the
+        STORE wordmark + balance capsule, so the chrome here is just the BACK
+        affordance (which exits the store from the hub)."""
+        if self.hub is None:
+            from game.store_hub import LagoonHub
+            self.hub = LagoonHub()
+        self.hub.render(surf, store_data.balance(), self.t)
+        self._draw_back(surf)
+
+    def _render_category(self, surf: pygame.Surface) -> None:
         self._draw_bg(surf)
         self._draw_title(surf)
         self._draw_balance(surf, cx=W // 2, y=60)
@@ -836,10 +861,19 @@ class StoreScene:
         # (and a tap on the scrim, which cancels) are hit-testable.
         if self._confirm is not None:
             return self._handle_confirm_tap(pos)
+        # Device back / escape steps OUT one level: category -> hub -> exit store.
         if pos is None:
+            if self.view == "category":
+                self.view = "hub"
+                return None
             return "back"
+        if self.view == "hub":
+            return self._handle_hub_tap(pos)
+        # BACK from a category returns to the hub, not all the way out, so the
+        # lagoon stays the store's home.
         if self.back_rect and self.back_rect.collidepoint(pos):
-            return "back"
+            self.view = "hub"
+            return None
         if self.tab_chev_l and self.tab_chev_l.collidepoint(pos):
             self.tab_scroll = max(0.0, self.tab_scroll - self._tab_vp.width * 0.6)
             return None
@@ -869,6 +903,22 @@ class StoreScene:
         for sid, rect in self.item_rects.items():
             if rect.collidepoint(pos):
                 self._tap_item(sid)
+                return None
+        return None
+
+    def _handle_hub_tap(self, pos) -> "str | None":
+        # On the lagoon hub BACK exits the store; a stall drills into its
+        # category. The hub may not be built yet on a stray first-frame tap.
+        if self.back_rect and self.back_rect.collidepoint(pos):
+            return "back"
+        if self.hub is None:
+            return None
+        for group, r in self.hub.stall_rects.items():
+            if r.collidepoint(pos):
+                self.tab = _GROUP_TAB[group]
+                self.page = 0  # each category opens on its first page
+                self._scroll_tab_into_view(self.tab)
+                self.view = "category"
                 return None
         return None
 
