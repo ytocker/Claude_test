@@ -38,8 +38,10 @@ P = A.Pal(
 _RED, _RED_D, _RED_H = (200, 32, 43), (150, 22, 32), (236, 92, 96)
 _BLACK, _BLACK_H = (26, 20, 16), (78, 66, 58)
 # Bone-deep rim laid OUTSIDE the black felt so the tricorn silhouette survives
-# against night pillars/dark body where pure black would vanish.
-_HAT_RIM = (150, 142, 122)
+# against night pillars/dark body where pure black would vanish. Darkened one
+# step toward this so it reads as an EDGE, not a bone fill competing with the
+# skull/cockade — the black felt stays the dominant value of the hat.
+_HAT_RIM = (120, 114, 98)
 _GOLD, _GOLD_H = (232, 178, 58), (255, 224, 140)
 _STEEL, _STEEL_D, _STEEL_H = (185, 192, 201), (120, 128, 138), (228, 233, 238)
 
@@ -71,23 +73,25 @@ def _cutlass(surf, angle_deg, P):
 def _eyepatch(surf, P):
     """Black oval eyepatch over the BACK socket + a bright bone bridge so it
     reads as a distinct dark from the round bone socket (never one visor).
-    The anatomy's own socket lives forward at ~(45,16); this patch sits back at
-    ~(40,15) with a 1px bone gap kept between them."""
-    pygame.draw.line(surf, _BLACK, (37, 9), (42, 19), 2)        # strap crown→jaw
-    A._aaellipse(surf, P.bone_sh, (40, 15), 5, 4)              # bone rim frame
-    A._aaellipse(surf, _BLACK, (40, 15), 4, 3)                 # oval lens
-    A._aaellipse(surf, _BLACK_H, (39, 14), 2, 1)              # faint sheen
-    # Bright bone bridge parting the patch from the round socket at (45,16).
-    pygame.draw.line(surf, P.bone, (44, 13), (44, 18), 1)
-    pygame.draw.line(surf, P.bone, (43, 14), (43, 17), 1)
+    The anatomy's own socket lives forward at ~(45,16); this patch is nudged
+    back ~1px to ~(39,15) and a 2px-solid bone bridge kept between them so the
+    two darks don't fuse into one visor smear at 40px on night."""
+    pygame.draw.line(surf, _BLACK, (36, 9), (41, 19), 2)        # strap crown→jaw
+    A._aaellipse(surf, P.bone_sh, (39, 15), 5, 4)              # bone rim frame
+    A._aaellipse(surf, _BLACK, (39, 15), 4, 3)                 # oval lens
+    A._aaellipse(surf, _BLACK_H, (38, 14), 2, 1)              # faint sheen
+    # Solid 2px bone bridge parting the patch from the round socket at (45,16) —
+    # widened so the two darks stay two darks at the truth read.
+    pygame.draw.line(surf, P.bone, (44, 13), (44, 18), 2)
+    pygame.draw.line(surf, P.bone, (43, 13), (43, 18), 1)
 
 
 def _earring(surf, P):
-    """Gold hoop at the jaw-TIP front (~48,27) where the dark body sits behind it
-    so the gold hoop reads as a distinct shape instead of dissolving into the
-    bone jaw at 40px."""
+    """Gold stud at the jaw-TIP front (~48,27) where the dark body sits behind it
+    so the gold reads as a distinct shape instead of dissolving into the bone
+    jaw at 40px. A SOLID 2px dot with a 1px glint — a hollow ring loses its hole
+    at the truth read and turns to ambiguous noise."""
     pygame.draw.circle(surf, _GOLD, (48, 27), 2)
-    pygame.draw.circle(surf, _GOLD, (48, 27), 2, 1)
     pygame.draw.circle(surf, _GOLD_H, (47, 26), 1)
 
 
@@ -148,18 +152,19 @@ def _v2_pre(surf, angle_deg, P):
 
 
 def _captain_chest_x(surf, P, cx=31, cy=40):
-    """The bone crossbones laid DIRECTLY on the ribcage as the single brightest
-    mass — no dark cartouche disc. A 1px keyline halo hugs each bone so the
-    bone-on-rib X stays legible without a competing dark plate stealing focus
-    from the hat front."""
+    """The bone crossbones laid DIRECTLY on the ribcage as a clear SECONDARY
+    focal — no dark cartouche disc. Cored one value step down from bone to
+    ``bone_sh`` (with a 1px keyline halo) so the hat cockade glint stays the
+    single brightest hat-area focal; the X keeps its full crossed shape but
+    yields the value crown to the cockade."""
     arms = (((cx - 5, cy - 3), (cx + 5, cy + 3)),
             ((cx - 5, cy + 3), (cx + 5, cy - 3)))
     for (ax, ay), (bx, by) in arms:
         pygame.draw.line(surf, P.keyline, (ax, ay), (bx, by), 4)   # tight halo
-        pygame.draw.line(surf, P.bone, (ax, ay), (bx, by), 2)      # bright core
+        pygame.draw.line(surf, P.bone_sh, (ax, ay), (bx, by), 2)   # core (1 step down)
         for ex, ey in ((ax, ay), (bx, by)):
             pygame.draw.circle(surf, P.keyline, (ex, ey), 2, 1)
-            pygame.draw.circle(surf, P.bone, (ex, ey), 1)
+            pygame.draw.circle(surf, P.bone_sh, (ex, ey), 1)
 
 
 def _v2_hat(surf, P):
@@ -167,17 +172,20 @@ def _v2_hat(surf, P):
     beak. A dark felt brim sweeping up at front and back corners, a bone-white
     crossbones cockade pinned at the front — the captain's-hat alt to a wrap.
 
-    The black felt is RIMMED with a bone-deep stroke laid OUTSIDE it so the
-    tricorn silhouette survives on night where pure black fuses with the dark
-    pillars/body."""
+    The black felt is RIMMED with a thin darkened bone-deep EDGE laid OUTSIDE it
+    so the tricorn silhouette survives on night where pure black fuses with the
+    dark pillars/body — kept thin (brim 2px, peaks 1px) so the black felt stays
+    the dominant value and doesn't read as a bone lump. The two upswept corners
+    are pushed out (front tip ~(60,0), back tip ~(26,3)) so two distinct horns
+    read against the sky — the tricorn-vs-generic-cap tell."""
     brim = [(31, 9), (38, 4), (49, 2), (56, 6), (52, 9), (40, 10)]
-    front_peak = [(54, 6), (58, 1), (57, 7)]
-    back_peak = [(33, 9), (28, 4), (31, 10)]
-    # Bone-deep rim OUTSIDE the black, drawn first so the felt overpaints its
-    # interior and only the outer edge survives as a night-legible silhouette.
-    pygame.draw.polygon(surf, _HAT_RIM, brim, 3)
-    pygame.draw.polygon(surf, _HAT_RIM, front_peak, 2)
-    pygame.draw.polygon(surf, _HAT_RIM, back_peak, 2)
+    front_peak = [(54, 6), (60, 0), (57, 7)]
+    back_peak = [(33, 9), (26, 3), (31, 10)]
+    # Thin bone-deep EDGE OUTSIDE the black, drawn first so the felt overpaints
+    # its interior and only the outer edge survives as a night-legible outline.
+    pygame.draw.polygon(surf, _HAT_RIM, brim, 2)
+    pygame.draw.polygon(surf, _HAT_RIM, front_peak, 1)
+    pygame.draw.polygon(surf, _HAT_RIM, back_peak, 1)
     _poly(surf, _BLACK, brim)
     _poly(surf, _BLACK, front_peak)                              # front peak
     _poly(surf, _BLACK, back_peak)                               # back peak
