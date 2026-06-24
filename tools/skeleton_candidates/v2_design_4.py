@@ -89,6 +89,21 @@ def _fire(surf, angle_deg, P):
     # behind the flame is what actually says "skull". The 40px day target is a
     # three-read trace: hooked beak → bright spine line → bright tail line.
 
+    # ── SEPARATE tail from legs by ANGLE + a dark gap (top day fix) ──
+    # The shared tail and the legs both exit the hips down-left at nearly the same
+    # vector, so at 40px they fuse into one fan. Re-lay the bright tail core as a
+    # SHALLOWER, LONGER horizontal sweep (out past the old tip toward the sprite
+    # edge) so it reads as a long tail, not a leg; then drop a 1px dark keyline gap
+    # between the tail root and the hip/leg cluster so the eye parts "one long
+    # horizontal tail" from "two short vertical legs".
+    tail_sweep = [(18, 35), (13, 38), (8, 40), (4, 42), (0, 44)]
+    pygame.draw.lines(surf, P.keyline, False, tail_sweep, 4)
+    pygame.draw.lines(surf, _CORE, False, tail_sweep, 2)
+    pygame.draw.circle(surf, P.keyline, (0, 44), 3, 1)
+    pygame.draw.circle(surf, _CORE, (0, 44), 2)            # bright terminal cap
+    # 1px #062019 keyline gap between the tail root and the hips so they unfuse.
+    pygame.draw.line(surf, P.keyline, (20, 38), (22, 43), 1)
+
     # ── DROP the legs to the mid value (#54F0A0) so the bright tail LINE wins ──
     # The shared anatomy stamps legs in bright `bone`; re-lay them in `bone_sh`
     # so the lower body recedes and the one bold bright tail line is unrivalled.
@@ -100,17 +115,30 @@ def _fire(surf, angle_deg, P):
         for dx in (-2, 0, 2):
             pygame.draw.line(surf, P.bone_deep, foot, (foot[0] + dx, foot[1] + 3), 1)
 
+    # ── RECEDE the ribs to ONE darker mid so the spine reads as a single line ──
+    # The shared ribcage stamps three bright-ish rib arcs that scatter the chest;
+    # over-stamp them in `bone_deep` (the darkest bone shade) so they sink to a
+    # quiet supporting ladder and the only bright thing crossing the wing is the
+    # spine. Also thicken the keyline directly under the spine so the bright core
+    # spine pops off the mid-green wing/ribs around it.
+    for i, ty in enumerate((30, 35, 40)):
+        sx = 33 - i * 3
+        pygame.draw.arc(surf, P.bone_deep, (sx - 12, ty - 5, 13, 12),
+                        math.radians(20), math.radians(150), 2)
+        pygame.draw.arc(surf, P.bone_deep, (sx - 1, ty - 5, 13, 12),
+                        math.radians(30), math.radians(160), 2)
+
     # ── opaque spine re-emphasis (no blend) — the bright through-line read ──
     # Continuous bright core line UNDER re-capped beads so the backbone is one
-    # unbroken bright stroke where the wing crosses it (beads alone scatter).
+    # unbroken bright stroke where the wing crosses it (beads alone scatter). A
+    # 4px keyline under-stroke (1px fatter than the bead rim) walls the bright
+    # spine off the receded mid ribs/wing so it pops as one clean line.
     spine_path = [(41, 24), (37, 27), (33, 30), (28, 33), (23, 35), (18, 35)]
-    pygame.draw.lines(surf, P.keyline, False, spine_path, 3)
+    pygame.draw.lines(surf, P.keyline, False, spine_path, 4)
     pygame.draw.lines(surf, _CORE, False, spine_path, 1)
     for vx, vy in spine_path:
         pygame.draw.circle(surf, P.keyline, (vx, vy), 3, 1)
         pygame.draw.circle(surf, _CORE, (vx, vy), 2)
-    # Ribs stay MID (#54F0A0, drawn by shared ribcage) — a 3-rung ladder under the
-    # bright spine, NOT re-capped to core, so they read as supporting structure.
     # Thin the hip/leg-root dots so the rib ladder isn't lost in body clutter.
     pygame.draw.circle(surf, P.bone_sh, (27, 41), 1)
     pygame.draw.circle(surf, P.bone_sh, (33, 41), 1)
@@ -119,13 +147,15 @@ def _fire(surf, angle_deg, P):
     pygame.draw.circle(surf, P.socket, (45, 16), 4)
 
     # ── carve the beak NOTCH + re-lay the hook top-edge at the NEW geometry ──
-    # Dark #062019 keyline notch at the cranium↔beak junction (x49, y13-18) so the
-    # hook reads as a separate forward bone; then the upper-mandible top edge lit
-    # in #C9FFE3 core along the NEW down-hook so the curl is unmistakable on blue.
-    pygame.draw.line(surf, P.keyline, (49, 13), (49, 18), 2)        # green notch
-    top_edge = [(50, 9), (56, 10), (59, 14), (60, 19), (58, 25), (55, 30)]
+    # Dark #062019 keyline notch at the cranium↔beak junction so the hook reads as
+    # a separate forward bone — re-stamped the full y12→20 break so the green fill
+    # can't soften the head into a rounded snout; then the upper-mandible top edge
+    # lit in #C9FFE3 core along the NEW deepened down-hook (hook tip ~(55,32)) so
+    # the down-curl breaks the head's round outline and the curl is unmistakable.
+    pygame.draw.line(surf, P.keyline, (49, 12), (49, 20), 1)        # crisp notch
+    top_edge = [(50, 9), (56, 10), (59, 14), (60, 19), (58, 26), (55, 32)]
     pygame.draw.lines(surf, _CORE, False, top_edge, 2)             # hook top-curl
-    pygame.draw.circle(surf, _CORE, (55, 30), 1)                   # hooked tip nub
+    pygame.draw.circle(surf, _CORE, (55, 32), 1)                   # hooked tip nub
 
     # ── additive flame + capped wisp sparks (the night flex) ──
     spark = pygame.Surface((A.SPRITE_W, A.SPRITE_H), pygame.SRCALPHA)
