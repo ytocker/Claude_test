@@ -1,14 +1,18 @@
-# Store bazaar landing — GOLDEN-HOUR DOCK MARKET (round 2)
+# Store bazaar landing — GOLDEN-HOUR DOCK MARKET (round 3 — overwrites round_2.png)
 
 A tropical harbor market at golden hour. Seven category stalls line a wooden
 boardwalk in **two tiers** — a larger front row and a smaller back jetty — split
 by a strip of **sun-glittering gold water**. Palms frame the left/right edges,
-distant moored boats add depth, and **Pip** the scarlet macaw sells from a
-dockside cart. **PARCELS** is the **glowing-red mystery hero crate** on a moored
-boat pulled up to the lower-right of the dock. The low golden-hour sun rakes
-light in from the top-left; the sky eases UP from the warm horizon to the
-indigo+gold jewel-store nebula so entering a stall dissolves cohesively into the
-constellation store.
+distant boat silhouettes add depth, and **Pip** the scarlet macaw sells from a
+dockside cart. **PARCELS** is the **gold-banded crimson mystery CHEST** seated on
+the dock lower-right (on a spotlit crimson/gold dais). A coiled mooring rope
+anchors the bottom-left. The low golden-hour sun rakes light in from the
+top-left; the sky eases UP from the warm horizon to the indigo+gold jewel-store
+nebula so entering a stall dissolves cohesively into the constellation store.
+
+> Round 3 is the art-director ITERATE pass on round 2. Per the loop convention
+> the final sheet keeps the `round_2.png` / `round_2@2x.png` filenames
+> (overwritten in place); this notes file records the round-2 → round-3 deltas.
 
 ## Files
 - `render.py` — headless SS=4 renderer. Run:
@@ -39,15 +43,15 @@ Each stall maps a store group to its first item's **real preview thumbnail**
 inside a glass cabochon: `sid = store_catalog.ids_of_group(group)[0]`, then
 `parrot.get_skin_icon(sid) or parrot.get_skin_frame(sid, 1, 0.0)`.
 
-| stall | tier | group | preview |
+| stall | tier | group | preview (round 3) |
 |---|---|---|---|
-| COSTUMES | back | costume | base-parrot frame wearing the TOP HAT skin |
+| COSTUMES | back | costume | TOP HAT costume scaled +18% & lifted so the HAT breaks the dome (the costume reads, not the bird) |
 | HATS | back | hats | PARTY HAT icon (letterboxed, contained) |
 | SHADES | back | shades | **fallback to first shades id with a real icon** (`skin_shades_round`) — group[0] is `skin_shades_none` (bare parrot, no icon) |
-| PARROTS | front | parrot | BLUE-GOLD MACAW frame |
+| PARROTS | front | parrot | clean **head-on bust** crop (head + breast) of the BLUE-GOLD MACAW — distinct from COSTUMES |
 | ANIMALS | front | animal | BEE frame |
-| SHOES | front | shoes | FLIP-FLOPS icon (letterboxed in the dome) |
-| PARCELS | hero | parcels | glowing-red mystery `?` crate on a moored boat |
+| SHOES | front | shoes | a **crossed PAIR** of flip-flops (one tilted 3/4 + a mirrored second), scaled up so it reads as footwear |
+| PARCELS | hero | parcels | gold-banded crimson **mystery CHEST** on a spotlit dais (`?` lock plate) |
 
 - **Back row is ≥80px** (84px tall) so the upper tier is comfortably tappable;
   even spacing at x = {0.205, 0.50, 0.795}, nothing cramped at 360px.
@@ -93,13 +97,52 @@ inside a glass cabochon: `sid = store_catalog.ids_of_group(group)[0]`, then
   kept off the bright sun column so they read as silhouettes) + hazy back-edge
   palms behind the jetty.
 
+## Round 2 → round 3 changes (art-director ITERATE punch list)
+1. **PARCELS HERO re-skinned + de-glitched.** Dropped the half-drawn boat (clutter,
+   not depth) and seated a **gold-banded crimson treasure chest** on the dock like
+   Pip's cart (`draw_parcels_chest`): a domed crimson lid, two gold horizontal
+   straps + a central vertical strap, four gold corner bosses, and a big gold `?`
+   on a dark lock plate — so it separates from the awning-reds AND echoes the
+   jewel-store gold. Pulled ~40px LEFT off the right edge. The white-blowing
+   additive halo is replaced by a **NON-additive crimson dais** (a darkened warm
+   seat the chest sits in) + a single thin gold accent ring — reads as "prize on
+   a spotlit dais", never a white disc. The PARCELS plaque now sits cleanly BELOW
+   the chest (un-collided).
+2. **White killed / value hierarchy fixed.** The sun disc is dimmed (−~30% peak),
+   shrunk, and biased UP + LEFT (the rake direction) off `SUN_X = 0.20`, so it no
+   longer sits behind the capsule or blows the horizon white — the STORE gold now
+   owns the brightest value on screen. The water's pale "block" (an additive
+   per-row sun column that whitened) is rebuilt as ONE translucent normal-blit
+   bell overlay.
+3. **Preview legibility.** SHOES is now a **crossed pair** of flip-flops (tilt +
+   mirror + scale-up) instead of a flat beige stick; PARROTS is a **head-on bust**
+   crop so the macaw's face — not its flying body — fills the dome, making it
+   distinct from COSTUMES, which scales the HAT up + lifts it to break the dome.
+4. **Back-row separation.** A cooler indigo **contact-AO shelf** is laid behind +
+   under the back jetty so the upper tier reads as further back + in lower light,
+   not floating in the warm horizon haze.
+5. **Cabochon glint varied.** Each dome's specular kiss is nudged in position +
+   size off a per-stall `glint` index (all still top-left lit) so the row no
+   longer shares one stamped highlight.
+6. **Water strip.** +15px taller (`WATER_BOT` m(268)→m(283)) with a clear dark
+   waterline edge TOP **and** bottom so the channel-of-water idea lands; the two
+   distant boats are now **readable dark silhouettes** (deep-umber hull + a proper
+   triangular sail) kept right of the sun path.
+7. **Foreground.** One **coiled mooring rope** anchors the bottom-left to balance
+   the PARCELS chest on the right; prop contact shadows are flat/straight-edged so
+   they don't fight the plank grid.
+
+**Protected (kept, per the AD):** the gold-on-red `title_wordmark("STORE")` +
+recessed gold balance capsule + REAL `coin_glyph` (header DNA, pixel-match
+cohesion), the solid lit boardwalk planks, the sparse gold glint dashes, the
+palms, and the Pip-on-cart concept. The header's restrained-gold-on-dark
+discipline is carried into the body (chest straps, dais ring, water edges).
+
 ## Open questions for the art director
 - The indigo→gold sky still carries a faint violet arc at the upper corners
   (the nebula limb meeting the darker frame). Read as intentional jewel-store
   nebula, or push the corners cleaner?
-- The near boardwalk's lower-left has the most open plank space (Pip's cart
-  anchors it). Keep it as deliberate "floor you stand on" breathing room, or add
-  a coil of rope / a barrel for foreground interest?
-- PARCELS shares the macaw-red family with the awnings but separates via the hot
-  mystery bloom + `?` + boat. Enough hero distinction, or push the crate further
-  (e.g. a gold-banded chest) to set it apart from the awning reds?
+- COSTUMES now scales the costumed bird up so the hat breaks the dome; it reads
+  distinct from the PARROTS bust, but the bird is still present under the hat —
+  push to a hat-only silhouette, or is "parrot wearing the costume" the clearer
+  category tell?

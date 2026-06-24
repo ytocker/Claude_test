@@ -135,21 +135,55 @@ def _preview_id(group):
     return sid
 
 
-def _preview_icon(sid, box_px):
-    """Representative paid item thumbnail for a stall, bounding-boxed + fit
-    INSIDE a square box with letterboxing (aspect preserved) so aspect-extreme
-    items (flip-flops, party hat) are contained, never clipped at the dome edge.
-    Contrast-lifted so it reads as the lit hero under the awning."""
-    src = parrot.get_skin_icon(sid) or parrot.get_skin_frame(sid, 1, 0.0)
+def _fit_box(src, box_px, scale=1.0):
+    """Bounding-box `src` and fit its LONGER side to box_px*scale (letterboxed,
+    aspect kept) — so aspect-extreme items stay contained, never clipped."""
     bb = src.get_bounding_rect()
     if bb.width > 0 and bb.height > 0:
         src = src.subsurface(bb).copy()
     sw, sh = src.get_size()
-    s = box_px / max(sw, sh)                 # fit the LONGER side => fully contained
-    scaled = pygame.transform.smoothscale(
+    s = box_px * scale / max(sw, sh)
+    return pygame.transform.smoothscale(
         src, (max(1, int(sw * s)), max(1, int(sh * s))))
-    lift = scaled.copy()
+
+
+def _preview_icon(sid, box_px):
+    """Default stall thumbnail: the item icon (or skin frame), fit + contrast-
+    lifted so it reads as the lit hero under the awning."""
+    src = parrot.get_skin_icon(sid) or parrot.get_skin_frame(sid, 1, 0.0)
+    lift = _fit_box(src, box_px).copy()
     lift.fill((30, 30, 30, 0), special_flags=pygame.BLEND_RGB_ADD)
+    return lift
+
+
+def _preview_crossed_shoes(sid, box_px):
+    """SHOES reads as a thin beige stick when shown flat: build a clear PAIR by
+    angling one flip-flop 3/4 and crossing a mirrored second behind it, scaled up
+    so it reads unmistakably as footwear."""
+    icon = (parrot.get_skin_icon(sid) or parrot.get_skin_frame(sid, 1, 0.0))
+    one = _fit_box(icon, int(box_px * 0.78))
+    a = pygame.transform.rotate(one, 26)             # front flop, tilted 3/4
+    b = pygame.transform.rotate(pygame.transform.flip(one, True, False), -22)
+    out = pygame.Surface((box_px, box_px), pygame.SRCALPHA)
+    # back flop offset up-left, front flop down-right => a crossed pair
+    out.blit(b, b.get_rect(center=(int(box_px * 0.42), int(box_px * 0.40))))
+    out.blit(a, a.get_rect(center=(int(box_px * 0.58), int(box_px * 0.58))))
+    out.fill((30, 30, 30, 0), special_flags=pygame.BLEND_RGB_ADD)
+    return out
+
+
+def _preview_bust(sid, box_px, head_frac=0.62):
+    """PARROTS reads as a clean head-ON bust: crop the upper `head_frac` of the
+    skin frame's bounding box (the head + chest) and scale it up so the macaw's
+    face — not its whole flying body — fills the dome (distinct from COSTUMES)."""
+    src = parrot.get_skin_frame(sid, 1, 0.0)
+    bb = src.get_bounding_rect()
+    if bb.width > 0 and bb.height > 0:
+        # keep the TOP portion (head + breast); the parrot frame faces right.
+        crop = pygame.Rect(bb.x, bb.y, bb.width, int(bb.height * head_frac))
+        src = src.subsurface(crop).copy()
+    lift = _fit_box(src, box_px, scale=1.12).copy()
+    lift.fill((34, 34, 34, 0), special_flags=pygame.BLEND_RGB_ADD)
     return lift
 
 
@@ -272,20 +306,21 @@ def draw_water(surf):
     # Authored as a SOFT warm vertical smear (a feathered amber column, brightest
     # on the sun's x, fading to the flanks) — NO hatching, NO white — so it reads
     # as a gentle glow path the bright dashes then sparkle along.
-    col_w = m(52)
+    # built once as a single feathered surface (a soft bell across x, fading down)
+    # then set_alpha + NORMAL blit — additive stacking of per-row lines whitened
+    # into a hard block, so this is one translucent overlay instead.
+    col_w = m(84)
     colsurf = pygame.Surface((col_w, band_h), pygame.SRCALPHA)
     for sx in range(col_w):
         hx = abs(sx - col_w / 2) / (col_w / 2)
-        # also fade the column vertically (strongest at the far shore) so it
-        # never sums with the glints into a solid pale block.
-        for yy in range(0, band_h, max(1, m(2))):
+        edge = max(0.0, (1 - hx ** 2)) ** 1.6
+        for yy in range(band_h):
             fy = 1.0 - yy / band_h
-            a = int(20 * (1 - hx ** 1.6) * (0.4 + 0.6 * fy))
+            a = int(96 * edge * (0.25 + 0.75 * fy))
             if a > 0:
-                pygame.draw.line(colsurf, (255, 226, 162, a),
-                                 (sx, yy), (sx, yy + m(2)))
-    surf.blit(colsurf, (SUN_X - col_w // 2, WATER_TOP),
-              special_flags=pygame.BLEND_ADD)
+                colsurf.set_at((sx, yy),
+                               (*lerp_color(WATER_GOLD, (255, 236, 184), 0.7), a))
+    surf.blit(colsurf, (SUN_X - col_w // 2, WATER_TOP))
 
     # SIGNATURE specular glitter — sparse, large, brightest in the sun column,
     # thinning toward the dark flanks. Seeded so the layout is stable. Authored
@@ -306,16 +341,8 @@ def draw_water(surf):
             a = int(238 * bright)
             col = lerp_color((255, 228, 156), (255, 252, 236), bright)
             y = ry + int(rng.uniform(-m(2), m(2)))
-            # a thin ELONGATED horizontal underglow (never a round bubble) so the
-            # bright glints sit on a faint warm smear, in keeping with shimmer.
-            if bright > 0.5:
-                ug = pygame.Surface((int(ln * 3), m(5)), pygame.SRCALPHA)
-                for gy in range(m(5)):
-                    ga = int(26 * bright * (1 - abs(gy - m(2.5)) / m(2.5)))
-                    pygame.draw.line(ug, (255, 220, 148, max(0, ga)),
-                                     (0, gy), (int(ln * 3), gy))
-                surf.blit(ug, (x - int(ln * 1.5), y - m(2)),
-                          special_flags=pygame.BLEND_ADD)
+            # NO underglow — the elongated additive underglows clustered near the
+            # sun column into a pale block. Clean dashes alone read as shimmer.
             dash = pygame.Surface((int(ln * 2) + m(2), m(3)), pygame.SRCALPHA)
             pygame.draw.line(dash, (*col, a), (0, m(1)), (int(ln * 2), m(1)),
                              max(1, m(1.6)))
@@ -605,11 +632,15 @@ def draw_palm(surf, x_base, y_base, height, lean, flip=False, behind=False):
 # =============================================================================
 # Stall — the shared awning-tile template (vary sign + preview only)
 # =============================================================================
-def draw_stall(surf, label, sid, cx, top_y, w, h, front=True):
+def draw_stall(surf, label, sid, cx, top_y, w, h, front=True, glint=0,
+               group=None):
     """One category stall: a striped macaw-red awning over a driftwood counter, a
     glass-dome preview well holding the category's representative item, and a
     thick gold-keyline category sign. `front` stalls are larger + brighter than
-    the back-jetty stalls. Lit from the top-left; a deck AO grounds it."""
+    the back-jetty stalls. Lit from the top-left; a deck AO grounds it. `glint`
+    nudges this dome's specular kiss so the 6 domes don't share one stamped tell
+    (all still top-left lit). `group` picks a category-legible preview build
+    (crossed shoes / parrot bust) so the thumbnail reads as the CATEGORY."""
     rect = pygame.Rect(cx - w // 2, top_y, w, h)
     rad = m(10)
 
@@ -645,14 +676,33 @@ def draw_stall(surf, label, sid, cx, top_y, w, h, front=True):
               40, layers=8)
     cabochon(surf, board.centerx, disc_cy, disc_r, (96, 66, 36), (40, 24, 10))
     if sid is not None:
-        # letterbox the preview INSIDE the dome (fit the longer side to ~1.55x
-        # the radius) so aspect-extreme items stay contained, never clipped.
+        # category-legible preview build: SHOES => a crossed PAIR; PARROTS => a
+        # head-on bust; COSTUMES => the costume scaled up + shifted so the HAT
+        # breaks the dome rim (the category reads, not the bird); everything else
+        # => the default letterboxed icon, contained in the dome.
         box = int(disc_r * 1.55)
-        thumb = _preview_icon(sid, box)
-        tr = thumb.get_rect(center=(board.centerx, disc_cy))
+        if group == "shoes":
+            thumb, ty = _preview_crossed_shoes(sid, box), disc_cy
+        elif group == "parrot":
+            thumb, ty = _preview_bust(sid, box), disc_cy
+        elif group == "costume":
+            thumb = _preview_icon(sid, int(box * 1.18))
+            ty = disc_cy - int(disc_r * 0.18)        # lift so the hat pokes up
+        else:
+            thumb, ty = _preview_icon(sid, box), disc_cy
+        tr = thumb.get_rect(center=(board.centerx, ty))
         surf.blit(_rim_lit(thumb), tr.topleft, special_flags=pygame.BLEND_ADD)
         surf.blit(thumb, tr.topleft)
     cabochon_glass(surf, board.centerx, disc_cy, disc_r, tint=GOLD_PALE)
+    # a small per-dome specular kiss, varied in position + size off `glint`, so
+    # the row's glass highlights don't all sit in the identical stamped spot
+    # (all still biased to the top-left lit quadrant).
+    gv = [(-0.42, -0.40, 0.20), (-0.30, -0.50, 0.16), (-0.50, -0.28, 0.18),
+          (-0.36, -0.44, 0.22), (-0.46, -0.36, 0.15), (-0.28, -0.46, 0.19)]
+    gx, gy, gs = gv[glint % len(gv)]
+    soft_glow(surf, int(board.centerx + disc_r * gx),
+              int(disc_cy + disc_r * gy), int(disc_r * gs),
+              (255, 250, 232), 150, layers=5)
     # a legendary tier gem set on the dome's upper-right rim (the jewel-store DNA)
     g45 = disc_r * 0.7071
     gpal = RARITY["legendary"]
@@ -735,15 +785,27 @@ def draw_parcels_chest(surf, cx, base_y):
     # AO on the planks so the chest sits ON the deck (a flat straight-edged pool)
     _deck_ao(surf, cx, base_y + m(2), int(cw * 1.5), depth=m(18), alpha=165)
 
-    # warm crimson hero halo — RESTRAINED so it never blows to a white disc on
-    # the pale planks (additive glow on bright wood whitens fast). A soft crimson
-    # outer bloom + a single thin gold accent ring read as 'prize' without mush.
-    glow_cy = base_y - body_h - m(4)
-    soft_glow(surf, cx, glow_cy, m(50), MYST_GLOW, 30, layers=14)
-    soft_glow(surf, cx, glow_cy, m(30), (224, 96, 60), 28, layers=10)
-    ring = pygame.Surface((m(110), m(110)), pygame.SRCALPHA)
-    pygame.draw.circle(ring, (*GOLD, 70), (m(55), m(55)), m(44), max(1, m(1.4)))
-    surf.blit(ring, (cx - m(55), glow_cy - m(55)), special_flags=pygame.BLEND_ADD)
+    # warm hero halo — additive glow on the pale planks blows to a WHITE disc, so
+    # instead lay a NON-additive radial 'spotlight': a darkened crimson seat that
+    # the chest sits in (giving the warm gold a ground to read against), then a
+    # restrained additive gold rim ring. Reads as 'prize on a spotlit dais', not
+    # a white blob.
+    glow_cy = base_y - body_h + m(4)
+    seat_r = m(56)
+    seat = pygame.Surface((seat_r * 2, seat_r * 2), pygame.SRCALPHA)
+    for i in range(seat_r, 0, -1):
+        f = i / seat_r
+        # warm dusk crimson that DARKENS the bright deck near the rim, warming in
+        col = lerp_color((150, 70, 50), (96, 40, 44), f)
+        a = int(120 * (f ** 1.4))
+        pygame.draw.circle(seat, (*col, a), (seat_r, seat_r), i)
+    surf.blit(seat, (cx - seat_r, glow_cy - seat_r))
+    # a soft additive crimson bloom kept LOW so it tints rather than whitens
+    soft_glow(surf, cx, glow_cy - m(6), m(34), (210, 70, 54), 26, layers=12)
+    # a single thin gold accent ring (the jewel-store gold echo)
+    ring = pygame.Surface((seat_r * 2, seat_r * 2), pygame.SRCALPHA)
+    pygame.draw.circle(ring, (*GOLD, 130), (seat_r, seat_r), m(46), max(1, m(1.6)))
+    surf.blit(ring, (cx - seat_r, glow_cy - seat_r))
 
     # ── chest body: crimson planks with a lit top-left face ───────────────────
     surf.blit(vgrad_stops(chest.w, chest.h, m(4),
@@ -992,9 +1054,9 @@ def render_device():
     back = [("COSTUMES", "costume"), ("HATS", "hats"), ("SHADES", "shades")]
     back_w = m(96)
     back_xs = [int(DW * f) for f in (0.205, 0.50, 0.795)]
-    for (label, group), bx in zip(back, back_xs):
+    for i, ((label, group), bx) in enumerate(zip(back, back_xs)):
         draw_stall(surf, label, _preview_id(group), bx, m(122), back_w, m(84),
-                   front=False)
+                   front=False, glint=i, group=group)
 
     # back-edge palms (hazy) framing the jetty so depth reads
     draw_palm(surf, m(12), m(210), m(112), -m(22), flip=False, behind=True)
@@ -1012,13 +1074,13 @@ def render_device():
     draw_palm(surf, DW - m(4), DH - m(4), m(238), m(50), flip=True)
 
     # ── FRONT ROW: 3 larger stalls (PARROTS / ANIMALS / SHOES). PARCELS is the
-    # mystery boat on the water, not a stall. ──────────────────────────────────
+    # mystery CHEST on the dock (drawn later), not a stall. ────────────────────
     front = [("PARROTS", "parrot"), ("ANIMALS", "animal"), ("SHOES", "shoes")]
     front_w = m(96)
     front_xs = [int(DW * f) for f in (0.20, 0.50, 0.80)]
-    for (label, group), fx in zip(front, front_xs):
+    for i, ((label, group), fx) in enumerate(zip(front, front_xs)):
         draw_stall(surf, label, _preview_id(group), fx, m(300), front_w, m(98),
-                   front=True)
+                   front=True, glint=i + 3, group=group)
 
     # ── ONE foreground anchor bottom-LEFT (a coiled dock rope) to balance the
     # PARCELS chest on the right. ──────────────────────────────────────────────
