@@ -23,7 +23,7 @@ from tools.skeleton_candidates.design_2 import build
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "..",
                    "docs", "store_redesign", "costume", "skeleton",
-                   "design_2", "round_1.png")
+                   "design_2", "round_2.png")
 
 
 def _night_gameplay_panel(source, w, h):
@@ -76,7 +76,7 @@ def main():
     sheet.fill((18, 16, 24))
 
     title = pygame.font.SysFont("dejavusans", 22, bold=True)
-    sheet.blit(title.render("SKELETON  design_2  MARIGOLD CALAVERA  round_1",
+    sheet.blit(title.render("SKELETON  design_2  MARIGOLD CALAVERA  round_2",
                             True, (255, 220, 180)), (pad, 6))
 
     y0 = 36
