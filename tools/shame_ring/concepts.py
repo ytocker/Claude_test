@@ -132,9 +132,11 @@ def ring_rosette(surf, cx, cy, R, glyph_key):
         a1 = (i + 1) / pleats * math.tau
         am = (a0 + a1) / 2
         d = (math.cos(am - _LIGHT) + 1) * 0.5
-        # alternate crest/valley so the fabric reads as folded pleats
-        fold = 0.85 if i % 2 == 0 else 0.30
-        col = lerp_color(_ROS_PLEAT_LO, _ROS_PLEAT_HI, (d ** 1.2) * fold + 0.1)
+        # alternate crest/valley so the fabric reads as folded pleats — the
+        # fold contrast is flattened ~15% (compressed toward its midpoint) so the
+        # pleats stay a soft frame and don't fight the centre emblem at 44px.
+        fold = 0.79 if i % 2 == 0 else 0.38
+        col = lerp_color(_ROS_PLEAT_LO, _ROS_PLEAT_HI, (d ** 1.2) * fold + 0.14)
         p = [
             (cx + math.cos(a0) * inner, cy + math.sin(a0) * inner),
             (cx + math.cos(a0) * outer, cy + math.sin(a0) * outer),
@@ -175,63 +177,80 @@ def ring_rosette(surf, cx, cy, R, glyph_key):
 #    crossing behind the disc — paddle up-left, handle down-right — the classic
 #    last-place award. Palette: honey/oak browns + cream highlight.
 # ═══════════════════════════════════════════════════════════════════════════
-_SPN_RIM_HI  = (224, 176, 110)    # lit oak crest
-_SPN_RIM_MID = (176, 122,  64)    # oak body
-_SPN_RIM_LO  = (110,  70,  32)    # shadowed grain
-_SPN_RIM_EDGE = ( 72,  44,  18)
-_SPN_SPEC    = (244, 214, 160)
-_SPN_WOOD_HI = (214, 162,  98)    # spoon lit face
-_SPN_WOOD_LO = (132,  86,  42)    # spoon shadow
-_SPN_FACE_TOP = (248, 232, 200)   # warm cream bowl-of-the-spoon well
-_SPN_FACE_BOT = (200, 162, 116)
-_SPN_RECESS   = (150, 110,  70)
-_SPN_GLY      = (104,  66,  30)   # burnt-in branding read on pale wood
-_SPN_GLY_SH   = (244, 224, 188)
+# Lifted off muddy oak toward a cheerful honey/blonde maple: brighter, warmer,
+# higher value so the medal feels playful rather than earthbound.
+_SPN_RIM_HI  = (252, 222, 160)    # lit blonde crest
+_SPN_RIM_MID = (224, 176, 110)    # honey body
+_SPN_RIM_LO  = (170, 118,  62)    # warm shadow (not muddy brown)
+_SPN_RIM_EDGE = (120,  78,  36)
+_SPN_SPEC    = (255, 240, 204)
+_SPN_WOOD_HI = (248, 210, 146)    # spoon lit face — bright blonde
+_SPN_WOOD_LO = (188, 132,  74)    # spoon warm shadow
+_SPN_FACE_TOP = (255, 244, 220)   # creamy well
+_SPN_FACE_BOT = (224, 192, 148)
+_SPN_RECESS   = (176, 138,  96)
+_SPN_GLY      = (150,  98,  48)   # toasty branding read on pale wood
+_SPN_GLY_SH   = (255, 240, 214)
 
 
 def _wood_spoon(surf, cx, cy, R, hi, lo):
-    # A long spoon laid diagonally behind the disc: an oval paddle up-left and a
-    # tapered handle running to the lower-right, both passing under the medal.
-    ang = math.radians(-38)              # paddle up-left, handle down-right
+    # The spoon stands UP behind the medal: a fat bowl poking clearly ABOVE the
+    # top of the rim (the unmistakable spoon read) with the tapered handle
+    # running down through the disc to the lower-right. Tilted slightly so it
+    # feels jaunty, not stiff. The bowl-above-rim is the whole legibility fix.
+    ang = math.radians(-118)             # bowl up (+slightly right), handle down
     ca, sa = math.cos(ang), math.sin(ang)
 
     def rot(px, py):
+        # +x runs base->bowl (up), +y across the spoon's width.
         return (cx + px * ca - py * sa, cy + px * sa + py * ca)
 
-    # handle — a long tapered quad from disc centre out to lower-right
-    h0 = rot(R * 0.10, -R * 0.12)
-    h1 = rot(R * 0.10, R * 0.12)
-    h2 = rot(R * 1.42, R * 0.05)
-    h3 = rot(R * 1.42, -R * 0.05)
-    pygame.draw.polygon(surf, lerp_color(hi, lo, 0.4),
+    # handle — a long tapered quad from below the disc up toward the bowl
+    h0 = rot(-R * 1.30, -R * 0.11)
+    h1 = rot(-R * 1.30, R * 0.11)
+    h2 = rot(R * 0.74, R * 0.05)
+    h3 = rot(R * 0.74, -R * 0.05)
+    pygame.draw.polygon(surf, lerp_color(hi, lo, 0.38),
                         [(int(x), int(y)) for x, y in (h0, h1, h2, h3)])
+    pygame.draw.polygon(surf, _SPN_RIM_EDGE,
+                        [(int(x), int(y)) for x, y in (h0, h1, h2, h3)],
+                        max(2, R // 30))
     pygame.draw.line(surf, hi, (int(h0[0]), int(h0[1])),
-                     (int(h3[0]), int(h3[1])), max(2, R // 22))
-    # rounded handle end-knob
-    pygame.draw.circle(surf, lerp_color(hi, lo, 0.45),
-                       (int(rot(R * 1.42, 0)[0]), int(rot(R * 1.42, 0)[1])),
-                       max(3, R // 14))
-    # paddle — a fat oval shifted far enough up-left that a clear bowl pokes out
-    # past the rim, drawn as a rotated ellipse via a polygon ring.
-    pcx, pcy = rot(-R * 1.40, 0)
-    pw, ph = R * 0.74, R * 0.54
+                     (int(h3[0]), int(h3[1])), max(2, R // 24))
+    # rounded handle end-knob at the bottom
+    kx, ky = rot(-R * 1.30, 0)
+    pygame.draw.circle(surf, lerp_color(hi, lo, 0.42),
+                       (int(kx), int(ky)), max(3, R // 13))
+    pygame.draw.circle(surf, _SPN_RIM_EDGE, (int(kx), int(ky)),
+                       max(3, R // 13), max(1, R // 34))
+
+    # bowl — a fat oval whose centre sits ABOVE the top of the rim so a clear
+    # spoon-head reads, drawn as a rotated ellipse via a polygon ring.
+    pcx, pcy = rot(R * 1.18, 0)
+    pw, ph = R * 0.86, R * 0.62        # long axis along the handle (+x)
     pts = []
-    for i in range(24):
-        t = i / 24 * math.tau
+    for i in range(28):
+        t = i / 28 * math.tau
         ex = pw * math.cos(t)
         ey = ph * math.sin(t)
         pts.append((pcx + ex * ca - ey * sa, pcy + ex * sa + ey * ca))
-    pygame.draw.polygon(surf, lerp_color(hi, lo, 0.42),
+    pygame.draw.polygon(surf, lerp_color(hi, lo, 0.34),
                         [(int(x), int(y)) for x, y in pts])
     pygame.draw.polygon(surf, _SPN_RIM_EDGE,
                         [(int(x), int(y)) for x, y in pts], max(2, R // 26))
-    # carved scoop highlight inside the bowl so it reads as a concave spoon
-    spx, spy = rot(-R * 1.46, 0)
-    pygame.draw.ellipse(surf, lerp_color(hi, lo, 0.2),
-                        (int(spx - pw * 0.5), int(spy - ph * 0.5),
-                         int(pw), int(ph)))
+    # concave scoop — a smaller inset oval in a darker tone + a lit crescent so
+    # the bowl reads as the hollow of a spoon, not a flat paddle.
+    icx, icy = rot(R * 1.22, 0)
+    ipts = []
+    for i in range(24):
+        t = i / 24 * math.tau
+        ex = pw * 0.60 * math.cos(t)
+        ey = ph * 0.60 * math.sin(t)
+        ipts.append((icx + ex * ca - ey * sa, icy + ex * sa + ey * ca))
+    pygame.draw.polygon(surf, lerp_color(hi, lo, 0.62),
+                        [(int(x), int(y)) for x, y in ipts])
     pygame.draw.lines(surf, hi, True,
-                      [(int(x), int(y)) for x, y in pts[6:14]], max(2, R // 22))
+                      [(int(x), int(y)) for x, y in pts[7:16]], max(2, R // 22))
 
 
 def ring_spoon(surf, cx, cy, R, glyph_key):
@@ -287,13 +306,14 @@ def ring_confetti(surf, cx, cy, R, glyph_key):
     pygame.draw.circle(surf, _CNF_RIM_MID, (cx, cy), R, max(2, R // 24))
     pygame.draw.circle(surf, _CNF_RIM_EDGE, (cx, cy), R, max(1, R // 38))
 
-    # Confetti scatter riding ON and just outside the rim — deterministic from a
-    # fixed angle table so the badge is stable (no RNG between renders). Mix of
-    # filled dots, tilted rectangle flecks and tiny streamer arcs in candy hues.
-    n = 22
+    # Confetti scatter HUGGING the rim — deterministic from a fixed angle table
+    # so the badge is stable (no RNG between renders). Count cut ~40% (22→13) and
+    # pulled tight to the rim band so it reads as a crisp festive trim, not a
+    # noisy halo that crowds the centre emblem at 44px.
+    n = 13
     for i in range(n):
-        a = i / n * math.tau + (i % 3) * 0.21
-        rad = R * (1.02 + 0.10 * ((i * 7) % 5) / 4)
+        a = i / n * math.tau + (i % 3) * 0.18
+        rad = R * (1.00 + 0.05 * ((i * 7) % 3) / 2)     # tight to the rim
         px = cx + int(math.cos(a) * rad)
         py = cy + int(math.sin(a) * rad)
         col = _CNF_CONFETTI[i % len(_CNF_CONFETTI)]
@@ -312,10 +332,10 @@ def ring_confetti(surf, cx, cy, R, glyph_key):
             rr = pygame.Rect(px - sz, py - sz, sz * 2, sz * 2)
             pygame.draw.arc(surf, col, rr, 0.2, math.pi * 1.3, max(2, R // 26))
 
-    # a few four-point pop-flecks for the party-popper sparkle
-    for i in range(6):
-        a = i / 6 * math.tau + 0.4
-        rad = R * 1.14
+    # a few four-point pop-flecks for the party-popper sparkle, also kept tight
+    for i in range(4):
+        a = i / 4 * math.tau + 0.6
+        rad = R * 1.08
         px = cx + int(math.cos(a) * rad)
         py = cy + int(math.sin(a) * rad)
         col = _CNF_CONFETTI[(i + 2) % len(_CNF_CONFETTI)]
