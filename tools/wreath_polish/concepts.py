@@ -263,24 +263,35 @@ def _sprig_fan(surf, cx, cy, anchor_a, R, n, shame, spread, leaf_len):
 
 def _v2_sparse(surf, cx, cy, R, shame, icon_key, phase="ring"):
     if phase == "fallen":
-        # the crown accent fan has shed entirely — its leaves lie in the disc
+        # Shame loss reads at row size: the top accent + the right sprig have
+        # dropped, so 3 browned leaves rest inside the lower disc.
         rng = random.Random(3)
-        for _ in range(2):
-            ap = math.radians(rng.uniform(80, 100))
-            dist = R * rng.uniform(0.5, 0.76)
+        for _ in range(3):
+            ap = math.radians(rng.uniform(72, 108))
+            dist = R * rng.uniform(0.48, 0.78)
             _fallen_leaf(surf, cx, cy, ap, dist, rng.uniform(0, math.tau),
-                         R * 0.16, R * 0.06, R)
+                         R * 0.17, R * 0.065, R)
         return
     # Two graceful 3-leaf sprigs low on the flanks + a single top accent leaf —
     # generous breathing room, the badge reads almost bare. Long, well-splayed
     # blades so each fan reads as a little branch, not a clump of buds.
     _sprig_fan(surf, cx, cy, math.radians(150), R, 3, shame,
                math.radians(64), R * 0.30)
-    _sprig_fan(surf, cx, cy, math.radians(30), R, 3, shame,
-               math.radians(64), R * 0.30)
     if not shame:
+        # right sprig + top accent only on the pristine wreath; in Shame they've
+        # shed, opening an obvious bare gap on the right + top (the loss reads).
+        _sprig_fan(surf, cx, cy, math.radians(30), R, 3, False,
+                   math.radians(64), R * 0.30)
         _sprig_fan(surf, cx, cy, math.radians(-90), R, 1, False,
                    math.radians(0), R * 0.16)
+    else:
+        # the right sprig is now just a bare snapped stem (browned), no leaves
+        sx = cx + math.cos(math.radians(30)) * R * 0.9
+        sy = cy + math.sin(math.radians(30)) * R * 0.9
+        ex = cx + math.cos(math.radians(30)) * R * 1.0
+        ey = cy + math.sin(math.radians(30)) * R * 1.0
+        pygame.draw.line(surf, _WILT_LO, (int(sx), int(sy)), (int(ex), int(ey)),
+                         max(1, R // 28))
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -301,31 +312,25 @@ def _v3_twin(surf, cx, cy, R, shame, icon_key, phase="ring"):
                 _fallen_leaf(surf, cx, cy, ap, dist, rng.uniform(0, math.tau),
                              R * 0.16, R * 0.055, R)
         return
-    pairs = 7
+    # Two MIRRORED sprigs, each a chain of 3 discrete leaf clusters climbing the
+    # flank from the bottom bow toward the top — symmetric left/right, with bare
+    # gold between the clusters so it never fuses into a gear. Shame sheds the top
+    # cluster of each sprig (the open top yawns) + droops.
+    n_clusters = 3
     for sgn in (-1, 1):
-        base_a = math.radians(100 if sgn < 0 else 80)
-        top_a = math.radians(-62) - sgn * math.radians(6)   # meet near the top
-        for i in range(pairs):
-            f = i / (pairs - 1)
+        # cluster anchor angles up each flank (bottom → upper), symmetric
+        base_a = math.radians(108 if sgn < 0 else 72)
+        top_a = math.radians(-44) - sgn * math.radians(0)
+        for k in range(n_clusters):
+            f = k / (n_clusters - 1)
             a = base_a + (top_a - base_a) * f
-            if shame and f > 0.5 and (i % 2 == 1):
-                continue   # gaps up the wilting sprig
-            rr = R * (0.9 - (0.05 * f if shame else 0.0))
-            bx = cx + math.cos(a) * rr
-            by = cy + math.sin(a) * rr
-            out = a
-            length = R * (0.27 - 0.08 * f)   # graceful taper toward the top
-            width = R * 0.09
-            droop = math.radians(26) if shame else 0
-            # paired leaves both sides of the sprig (the refined twin look)
-            for branch, w in ((sgn, 1.0), (-sgn, 0.72)):
-                la = out + branch * math.radians(46) + droop
-                col = (_lit(_WILT_LO, _WILT_HI, la) if shame
-                       else _lit(_GOLD_LO, _GOLD_HI, la))
-                edge = _WILT_LO if shame else _GOLD_LO
-                ln = _clamp_len(bx, by, la, length * (1.0 if w == 1.0 else 0.78),
-                                cx, cy, R)
-                _leaf_blade(surf, bx, by, la, ln, width * w, col, edge)
+            if shame and k == n_clusters - 1:
+                continue                    # top cluster of each sprig shed
+            leaf_len = R * (0.26 - 0.06 * f)
+            _leaf_cluster(surf, cx, cy, a, R, shame, n=4,
+                          spread=math.radians(58),
+                          leaf_len=leaf_len, width_f=0.075,
+                          shed_outer=1)
     # ribbon bow at the base (kept inside the rim so it never clips)
     knot_y = int(cy + R * 0.86)
     bow_col = _WILT_MID if shame else _GOLD_MID
@@ -377,39 +382,22 @@ def _v4_olive(surf, cx, cy, R, shame, icon_key, phase="ring"):
             _fallen_leaf(surf, cx, cy, ap, dist, rng.uniform(0, math.tau),
                          R * 0.15, R * 0.04, R)
         return
-    n = 10
+    # 3 spaced leaf+berry clusters per side (~half the old leaf count) with clear
+    # bare gaps between them, so the GAPS survive the shrink and the gold berries
+    # stay visible (the signature). Slim leaves, but few + grouped so they read as
+    # clusters, not fused teeth. Shame: berries shrivel/drop, top clusters shed.
     for sgn in (-1, 1):
-        base_a = math.radians(102 if sgn < 0 else 78)
-        top_a = math.radians(-70)
-        for i in range(n):
-            f = i / (n - 1)
+        base_a = math.radians(110 if sgn < 0 else 70)
+        top_a = math.radians(-48)
+        for k in range(3):
+            f = k / 2
             a = base_a + (top_a - base_a) * f
-            if shame and (i in (3, 6, 8)):
-                continue
-            rr = R * (0.9 - (0.04 * f if shame else 0.0))
-            bx = cx + math.cos(a) * rr
-            by = cy + math.sin(a) * rr
-            out = a
-            droop = math.radians(16) if shame else 0
-            la = out + sgn * math.radians(14) + droop
-            length = R * 0.27           # slim + long, narrow olive leaf
-            width = R * 0.05
-            col = _lit(_WILT_LO, _WILT_HI, la) if shame else _lit(_GOLD_LO, _GOLD_HI, la)
-            edge = _WILT_LO if shame else _GOLD_LO
-            length = _clamp_len(bx, by, la, length, cx, cy, R)
-            _leaf_blade(surf, bx, by, la, length, width, col, edge, vein=False)
-            # round berry sitting at the rim crest at every other joint
-            if i % 2 == 1:
-                if shame and i >= 5:
-                    continue  # berries shrivelled away near the top
-                br = max(2, int(R * (0.055 if not shame else 0.04)))
-                berry = _WILT_LO if shame else _GOLD_MID
-                bhi = _WILT_MID if shame else _GOLD_HI
-                bxx = bx + math.cos(out) * R * 0.12
-                byy = by + math.sin(out) * R * 0.12
-                pygame.draw.circle(surf, berry, (int(bxx), int(byy)), br)
-                pygame.draw.circle(surf, bhi, (int(bxx - br // 3), int(byy - br // 3)),
-                                   max(1, br // 2))
+            if shame and k == 2:
+                continue                    # top cluster has shed
+            _leaf_cluster(surf, cx, cy, a, R, shame, n=3,
+                          spread=math.radians(34),
+                          leaf_len=R * 0.27, width_f=0.045,
+                          berry=not (shame and k >= 1), shed_outer=1)
     # base join
     jc = _WILT_MID if shame else _GOLD_MID
     pygame.draw.circle(surf, jc, (cx, int(cy + R * 0.86)), max(2, R // 14))
@@ -434,37 +422,19 @@ def _v5_lush(surf, cx, cy, R, shame, icon_key, phase="ring"):
                 _fallen_leaf(surf, cx, cy, ap, dist, rng.uniform(0, math.tau),
                              R * rng.uniform(0.12, 0.17), R * 0.06, R)
         return
-    n = 26
-    # Shame sheds whole arcs — pick two bald gaps
-    bald = []
-    if shame:
-        bald = [(math.radians(-30), math.radians(40)),
-                (math.radians(150), math.radians(205))]
-    for i in range(n):
-        a = i / n * math.tau - math.pi / 2
-        if shame:
-            in_bald = any(g0 <= a <= g1 or g0 <= a + math.tau <= g1 for g0, g1 in bald)
-            if in_bald:
-                continue
-            if rng.random() < 0.18:
-                continue   # scattered thinning
-        droop = 0.0
-        if shame:
-            droop = 0.05 * max(0.0, math.sin(a))   # heavier droop on the lower half
-        rr = R * (0.9 - droop)
-        bx = cx + math.cos(a) * rr
-        by = cy + math.sin(a) * rr
-        out = a
-        # two layered leaves per node (dense, overlapping) — fans both ways so
-        # the ring reads as a solid leafy band, not a spike row
-        for k, (offa, lenf, wf) in enumerate(((40, 1.0, 1.0), (-28, 0.85, 0.95))):
-            la = out + math.radians(offa) + (math.radians(16) if shame else 0)
-            length = R * 0.21 * lenf
-            width = R * 0.085 * wf
-            col = _lit(_WILT_LO, _WILT_HI, la) if shame else _lit(_GOLD_LO, _GOLD_HI, la)
-            edge = _WILT_LO if shame else _GOLD_LO
-            length = _clamp_len(bx, by, la, length, cx, cy, R)
-            _leaf_blade(surf, bx, by, la, length, width, col, edge, vein=False)
+    # The "fullest" option, but still DISCRETE: 6 big leaf TUFTS at evenly-spaced
+    # points (skipping the very top so the emblem reads), each a fat fan of bold
+    # leaves pulled OFF the disc (base on the rim crest, tips outward) with clear
+    # bare gold between tufts — so it never pinches the emblem or fuses to a gear,
+    # yet has the biggest, boldest leaves of the set. Shame: two whole tufts shed.
+    anchors = [math.radians(d) for d in (130, 90, 50, 230, 270, 310)]
+    shed = {1, 4} if shame else set()       # drop a lower + upper tuft in Shame
+    for k, a in enumerate(anchors):
+        if k in shed:
+            continue
+        _leaf_cluster(surf, cx, cy, a, R, shame, n=5,
+                      spread=math.radians(72), leaf_len=R * 0.27,
+                      width_f=0.10, shed_outer=2)
 
 
 VARIATIONS = [
