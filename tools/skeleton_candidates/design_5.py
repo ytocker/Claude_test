@@ -28,8 +28,11 @@ _AU_GOLD    = (224, 162, 30)       # gold bone body — the theme metal
 _AU_GOLD_D  = (150, 104, 18)       # gold shadow / under-edge for roundness
 _AU_BODY    = (22, 18, 31)         # deep void-violet-black "flesh"
 _AU_BODY_D  = (14, 11, 21)         # darker void for the mantle depths
-_AU_MANTLE  = (28, 22, 40)         # tattered hood/collar (a touch above body)
-_AU_MANTLE_D = (16, 12, 26)
+# Mantle pulled to a DARK anchor (value well below the gold, saturation ~halved)
+# so the upper silhouette reads as a dark hood SHAPE, not a violet glow — the
+# only hot violet on the bird is then the two socket pips (+ night wing trail).
+_AU_MANTLE  = (22, 18, 31)         # tattered hood/collar — dark, near-body value
+_AU_MANTLE_D = (16, 13, 23)        # #100D17-ish depth
 _AU_MANTLE_RIM = (62, 44, 22)      # gold-dark rim framing the hood as attached
 _AU_SOCK    = (16, 6, 18)          # socket void behind the rune-fire (near-black)
 _AU_RUNE_C  = (179, 136, 255)      # violet rune-fire core  (#B388FF)
@@ -134,33 +137,27 @@ def _build_design5(wing_angle_deg):
     cranium. All non-socket blooms scale by the module NIGHT factor."""
     surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
 
-    # ── Mantle layer (BEHIND everything) — a dark tattered hood rising past the
-    #    crown and draping behind the shoulders; a flat dark slab, not a hood of
-    #    glow. A 1px gold-dark rim frames its leading/collar edge so it reads as
-    #    an ATTACHED dark hood around the gold, not a free glow cloud.
+    # ── Mantle layer (BEHIND everything) — a DARK collar/hood behind the head
+    #    plus a thin drape, ~25-30% smaller than a full shoulder mass so the
+    #    gold ribs + skull dome (not the mantle) define the upper silhouette.
+    #    A flat dark SHAPE, no glow: a 1px gold-dark rim frames its leading edge
+    #    so it reads as an ATTACHED dark hood around the gold, not a glow cloud.
     mantle = [
-        (50, 8),                       # hood peak rising past the crown
-        (60, 16), (60, 30),            # near shoulder drape
-        (54, 40),                      # tattered hem notch
-        (47, 32),
-        (38, 42),                      # tattered hem notch
-        (33, 30),
-        (24, 40),                      # far shoulder tatter
-        (28, 22),
-        (40, 10),                      # collar sweeping back up to the hood
+        (49, 10),                      # hood peak, tucked just behind the crown
+        (57, 17), (57, 28),            # tightened near-shoulder collar
+        (51, 36),                      # tattered hem notch
+        (45, 30),
+        (38, 38),                      # thin tattered drape
+        (33, 29),
+        (28, 35),                      # far-shoulder tatter (pulled in)
+        (31, 23),
+        (40, 12),                      # collar sweeping back up to the hood
     ]
     _poly(surf, _AU_MANTLE_D, [(x + 1, y + 1) for x, y in mantle])
     _poly(surf, _AU_MANTLE, mantle)
     # Gold-dark rim along the hood's leading/collar edge (frames the gold).
     pygame.draw.lines(surf, _AU_MANTLE_RIM, False,
-                      [(40, 10), (50, 8), (60, 16), (60, 30)], 1)
-    # A whisper of violet inside the hood — NIGHT-gated, very low so the mantle
-    # stays a dark slab on the day sky.
-    if NIGHT > 0.02:
-        inner_glow = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
-        b, off = _rune_bloom(52, 16, 7, intensity=0.15 * NIGHT)
-        inner_glow.blit(b, off, special_flags=pygame.BLEND_RGB_ADD)
-        _add_glow(surf, inner_glow)
+                      [(40, 12), (49, 10), (57, 17), (57, 28)], 1)
 
     # ── Tail — void fan with a gilded leading edge.
     tail = [(2, 26), (17, 24), (23, 36), (12, 42)]
@@ -224,6 +221,9 @@ def _build_design5(wing_angle_deg):
     _add_glow(surf, sock_glow)
 
     # 2a. Gold skull dome RE-GILDED OVER the bloom — this is the brightest mass.
+    #     A 1px #16121F keyline sits just outside the dome so the gold edge stays
+    #     crisp against bright blue day sky and the silhouette doesn't soften.
+    _aaellipse(surf, _AU_BODY, (48, 22), 12, 11)
     _aaellipse(surf, _AU_GOLD_D, (48, 22), 11, 10)
     _aaellipse(surf, _AU_GOLD, (47, 21), 10, 9)
     # Bright metallic sheen crescent on the cranium.
@@ -254,12 +254,14 @@ def _build_design5(wing_angle_deg):
         pygame.draw.line(surf, _AU_GOLD_H, (gx, 28), (gx, 30), 2)
         pygame.draw.line(surf, _AU_GOLD_D, (gx + 1, 28), (gx + 1, 30), 1)
 
-    # ── Crown-band / coin across the brow — a gold band with a coin medallion.
-    pygame.draw.line(surf, _AU_GOLD_D, (40, 15), (54, 15), 3)
-    pygame.draw.line(surf, _AU_GOLD, (40, 14), (54, 14), 2)
-    pygame.draw.line(surf, _AU_GOLD_H, (41, 13), (53, 13), 1)
+    # ── Crown-band across the brow — ONE clean gold horizontal band at the
+    #    dome-highlight value (#FFE27A) with a 1px DARK under-keyline; the band
+    #    is distinct from the dome only by that keyline, so it stays the legible
+    #    third read at 40px instead of melting into the cranium.
+    pygame.draw.line(surf, _AU_BODY_D, (40, 16), (55, 16), 1)   # dark under-keyline
+    pygame.draw.line(surf, _AU_GOLD_H, (40, 14), (55, 14), 2)   # bright gold band
     # Brow coin medallion (the cursed-hoard tell on the head).
-    pygame.draw.circle(surf, _AU_GOLD_D, (47, 14), 3)
+    pygame.draw.circle(surf, _AU_BODY_D, (47, 14), 3, 1)
     pygame.draw.circle(surf, _AU_GOLD, (47, 14), 2)
     pygame.draw.circle(surf, _AU_GOLD_H, (46, 13), 1)
 
@@ -269,23 +271,19 @@ def _build_design5(wing_angle_deg):
     pygame.draw.polygon(surf, _AU_GOLD_D, beak, 3)
     pygame.draw.polygon(surf, _AU_GOLD, beak, 2)
 
-    # ── Leg-bones — gilded struts with knee knobs.
-    _gild_bone_line(surf, (28, 44), (27, 49), 2)
-    _gild_bone_line(surf, (34, 44), (35, 49), 2)
-    _gild_knob(surf, (28, 44), 1)
-    _gild_knob(surf, (34, 44), 1)
+    # ── Leg-bones — gilded struts with knee knobs, each carrying a 1px dark
+    #    separation from the body so they don't smear into a bright foot-band.
+    for (kx, ky), (fx, fy) in (((28, 44), (27, 49)), ((34, 44), (35, 49))):
+        pygame.draw.line(surf, _AU_BODY_D, (kx - 1, ky), (fx - 1, fy), 1)
+        _gild_bone_line(surf, (kx, ky), (fx, fy), 2)
+        _gild_knob(surf, (kx, ky), 1)
 
-    # ── Cursed hoard — a couple of gold coins / small treasure at the feet.
-    for cx, cy, rr in ((25, 51, 3), (31, 52, 2), (37, 51, 3)):
-        pygame.draw.circle(surf, _AU_GOLD_D, (cx, cy), rr)
-        pygame.draw.circle(surf, _AU_GOLD, (cx, cy), max(1, rr - 1))
-        pygame.draw.circle(surf, _AU_GOLD_H, (cx - 1, cy - 1), 1)
-    # A faint warm glint where the hoard catches the rune-light — NIGHT-gated.
-    if NIGHT > 0.02:
-        hoard_glow = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
-        b, off = _rune_bloom(31, 51, 5, intensity=0.12 * NIGHT)
-        hoard_glow.blit(b, off, special_flags=pygame.BLEND_RGB_ADD)
-        _add_glow(surf, hoard_glow)
+    # ── Cursed hoard — ONE clear gold coin disc at the feet (1px dark keyline,
+    #    no pale highlight dots, no glow) so nothing at the feet competes with
+    #    the skull for brightness or reads as a speckled band at 40px.
+    pygame.draw.circle(surf, _AU_BODY_D, (31, 51), 4)        # dark keyline
+    pygame.draw.circle(surf, _AU_GOLD_D, (31, 51), 3)
+    pygame.draw.circle(surf, _AU_GOLD, (31, 51), 2)
 
     return surf
 
