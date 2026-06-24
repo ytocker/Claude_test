@@ -197,14 +197,21 @@ def _laurel_bow(surf, cx, cy, R, hi, lo, undone=False):
             pygame.draw.ellipse(surf, lo, loop, max(1, R // 40))
         pygame.draw.circle(surf, hi, (cx, topy), max(2, R // 16))
     else:
-        # a slumped, half-untied bow with a limp tail hanging down-left
-        loop = pygame.Rect(cx - int(R * 0.22), topy - int(R * 0.04),
+        # a slumped, half-untied bow with a single long tail UNRAVELLING far
+        # down the left flank — a bold dangling streamer that survives 44px.
+        loop = pygame.Rect(cx - int(R * 0.24), topy - int(R * 0.04),
                            int(R * 0.26), int(R * 0.20))
         pygame.draw.ellipse(surf, lerp_color(hi, lo, 0.5), loop)
         pygame.draw.ellipse(surf, lo, loop, max(1, R // 44))
+        tail = [(cx, topy),
+                (cx - int(R * 0.20), topy + int(R * 0.34)),
+                (cx - int(R * 0.42), topy + int(R * 0.78)),
+                (cx - int(R * 0.34), topy + int(R * 0.82)),
+                (cx - int(R * 0.12), topy + int(R * 0.38)),
+                (cx + int(R * 0.06), topy + int(R * 0.04))]
+        pygame.draw.polygon(surf, lerp_color(hi, lo, 0.4), tail)
         pygame.draw.line(surf, lo, (cx, topy),
-                         (cx - int(R * 0.26), topy + int(R * 0.30)),
-                         max(2, R // 22))
+                         (cx - int(R * 0.40), topy + int(R * 0.80)), max(1, R // 40))
         pygame.draw.circle(surf, lerp_color(hi, lo, 0.5), (cx, topy),
                            max(2, R // 18))
 
@@ -234,9 +241,12 @@ def shame_wreath(surf, cx, cy, R, glyph_key):
     _oxide_mottle(surf, cx, cy, int(R * 0.82), int(R * 0.96),
                   (_WD_LEAF_LO, _WD_RIM_LO), seed=11, n=16)
     pygame.draw.circle(surf, _WD_RIM_MID, (cx, cy), R, max(2, R // 24))
-    # fallen leaves tumbling off the lower rim — several, so the shedding reads
-    for fx, fy, fl, fa in ((-0.46, 1.06, 0.30, 1.7), (-0.10, 1.22, 0.26, 2.2),
-                           (0.30, 1.16, 0.28, 2.5), (0.58, 0.98, 0.24, 2.0)):
+    # THREE large, well-separated shed leaves peeling off the lower rim — fewer
+    # and bigger than before so each stays a clear leaf silhouette at 44px
+    # instead of blurring into a fuzzy brown fringe.
+    for fx, fy, fl, fa in ((-0.40, 1.14, 0.46, 1.6),
+                           (0.16, 1.30, 0.42, 2.2),
+                           (0.62, 1.06, 0.44, 2.6)):
         _fallen_leaf(surf, cx + R * fx, cy + R * fy, R * fl, fa,
                      _WD_LEAF_DEAD, _WD_LEAF_LO, R)
     # the wilted sprigs themselves — browned, drooping, shedding lowest leaves
@@ -287,25 +297,26 @@ _SH_GLY      = (172, 168, 158)
 _SH_GLY_SH   = ( 16,  14,  16)
 
 
-def _sash_tail(surf, x0, y0, length, w, hi, lo, sgn, torn=False):
-    """A ribbon tail draping down-out from the suspension bar. ``torn`` rips it
-    roughly in half with a frayed, ragged lower edge."""
+def _sash_tail(surf, x0, y0, length, w, hi, lo, sgn, torn=False, splay=0.30):
+    """A ribbon tail draping down-out from the suspension bar. ``splay`` sets how
+    far it fans outward (Fame keeps it tight so it never crowds the centre).
+    ``torn`` rips it raggedly so the surviving stub hangs limp and crooked with a
+    frayed end."""
     pts_l, pts_r = [], []
-    steps = 9
-    cut = 5 if torn else steps      # a torn tail ends abruptly mid-drape
+    steps = 11
     for i in range(steps + 1):
         f = i / steps
         yy = y0 + int(length * f)
-        splay = int(f * length * 0.30 * sgn)
+        sp = int(f * length * splay * sgn)
         wave = int(math.sin(f * math.pi * 1.2) * w * 0.18 * sgn)
         if torn:
-            # the surviving stub narrows raggedly toward the rip
-            taper = max(0.15, 1.0 - (f / (cut / steps)) * 0.6) if i <= cut else 0
+            # a torn tail necks in then dangles limp — width wobbles unevenly and
+            # the whole stub drifts to one side (a slack hanging shred)
+            taper = max(0.22, 1.0 - 0.5 * f - 0.18 * math.sin(f * 7))
+            sp += int(f * f * w * 1.1 * sgn)        # drifts crooked as it falls
         else:
             taper = 1.0
-        if taper <= 0:
-            break
-        off = splay + wave
+        off = sp + wave
         pts_l.append((x0 - w * taper / 2 + off, yy))
         pts_r.append((x0 + w * taper / 2 + off, yy))
     poly = pts_l + pts_r[::-1]
@@ -320,22 +331,22 @@ def _sash_tail(surf, x0, y0, length, w, hi, lo, sgn, torn=False):
         pygame.draw.polygon(surf, lo, [(int(bx), int(by)), (int(ex), int(by)),
                                        (int((bx + ex) / 2), int(by - w * 0.5))])
     else:
-        # ragged frayed rip — a few uneven threads dangling off the cut
+        # ragged frayed rip — several long uneven threads dangling off the cut so
+        # the torn end reads even at small sizes
         bx, by = pts_l[-1]
         ex = pts_r[-1][0]
-        for k in range(5):
-            tx = bx + (ex - bx) * (k / 4)
-            tl = w * (0.18 + 0.30 * ((k * 5) % 3) / 2)
+        for k in range(6):
+            tx = bx + (ex - bx) * (k / 5)
+            tl = w * (0.40 + 0.55 * ((k * 5) % 3) / 2)
             pygame.draw.line(surf, lo, (int(tx), int(by)),
-                             (int(tx + sgn * w * 0.06), int(by + tl)),
-                             max(1, w // 12))
+                             (int(tx + sgn * w * 0.12), int(by + tl)),
+                             max(1, w // 9))
 
 
 def _suspension_bar(surf, cx, cy, R, hi, lo, edge, bent=False):
     bw = int(R * 0.92)
     bh = int(R * 0.26)
     by = int(cy - R * 1.14)
-    tilt = math.radians(7) if bent else 0
     rect = pygame.Surface((bw, bh), pygame.SRCALPHA)
     for yy in range(bh):
         t = yy / max(1, bh - 1)
@@ -343,7 +354,10 @@ def _suspension_bar(surf, cx, cy, R, hi, lo, edge, bent=False):
     pygame.draw.rect(rect, edge, rect.get_rect(), max(1, R // 40),
                      border_radius=max(2, R // 14))
     if bent:
-        rect = pygame.transform.rotate(rect, math.degrees(tilt))
+        # a dramatic crooked tilt + a sideways shove so the whole hanger reads as
+        # knocked askew, a clear silhouette break vs. the level Fame bar
+        rect = pygame.transform.rotate(rect, 19)
+        cx = cx - int(R * 0.10)
     surf.blit(rect, rect.get_rect(center=(cx, by)))
 
 
@@ -367,10 +381,12 @@ def _sash_star(surf, cx, cy, R, hi, lo, edge, snapped=False):
 
 def fame_sash(surf, cx, cy, R, glyph_key):
     _suspension_bar(surf, cx, cy, R, _SA_BAR_HI, _SA_BAR_LO, _SA_EDGE)
+    # ribbons hang from the OUTER ends of the bar and stay tight (low splay) so
+    # they drape past the rim's flanks instead of bunching behind the emblem
     for sgn in (-1, 1):
-        _sash_tail(surf, cx + sgn * int(R * 0.26), int(cy - R * 1.02),
-                   int(R * 1.95), int(R * 0.46),
-                   _SA_RIB_HI, _SA_RIB_LO, sgn, torn=False)
+        _sash_tail(surf, cx + sgn * int(R * 0.44), int(cy - R * 1.04),
+                   int(R * 1.90), int(R * 0.40),
+                   _SA_RIB_HI, _SA_RIB_LO, sgn, torn=False, splay=0.16)
     _metal_band(surf, cx, cy, R, int(R * 0.74), _SA_RIM_HI, _SA_RIM_LO,
                 spec=_SA_SPEC, edge=_SA_EDGE)
     pygame.draw.circle(surf, _SA_RIM_MID, (cx, cy), R, max(2, R // 24))
@@ -383,11 +399,14 @@ def fame_sash(surf, cx, cy, R, glyph_key):
 
 def shame_sash(surf, cx, cy, R, glyph_key):
     _suspension_bar(surf, cx, cy, R, _SH_BAR_HI, _SH_BAR_LO, _SH_EDGE, bent=True)
-    # one tail torn short, the other a long ragged frayed drape — lopsided
-    _sash_tail(surf, cx - int(R * 0.26), int(cy - R * 1.02),
-               int(R * 1.00), int(R * 0.46), _SH_RIB_HI, _SH_RIB_LO, -1, torn=True)
-    _sash_tail(surf, cx + int(R * 0.30), int(cy - R * 1.02),
-               int(R * 1.95), int(R * 0.46), _SH_RIB_HI, _SH_RIB_LO, 1, torn=True)
+    # one tail ripped to a short crooked stub, the other a long shred DROOPING
+    # well past the bottom of the ring — the lopsided dangle breaks the outline
+    _sash_tail(surf, cx - int(R * 0.30), int(cy - R * 1.02),
+               int(R * 0.92), int(R * 0.42), _SH_RIB_HI, _SH_RIB_LO, -1,
+               torn=True, splay=0.20)
+    _sash_tail(surf, cx + int(R * 0.34), int(cy - R * 1.02),
+               int(R * 2.40), int(R * 0.42), _SH_RIB_HI, _SH_RIB_LO, 1,
+               torn=True, splay=0.22)
     _metal_band(surf, cx, cy, R, int(R * 0.74), _SH_RIM_HI, _SH_RIM_LO,
                 spec=None, edge=_SH_EDGE)
     _oxide_mottle(surf, cx, cy, int(R * 0.78), int(R * 0.98),
@@ -439,15 +458,25 @@ def _sunburst(surf, cx, cy, R, ray_hi, ray_lo, n=16, base=None,
     each ray off-axis, snaps a deterministic subset to short stubs, and tips the
     survivors with ``soot`` so the burst reads dead rather than blazing."""
     base = base if base is not None else R * 1.04
+    # On a mangled burst a few rays are SNAPPED to short stubs and a few clearly
+    # DROOP (a big sideways bend) — a silhouette break, not just a grey recolour,
+    # so the dead-burst read survives the shrink to 44px.
+    snapped_set = {0, 6, 11} if mangled else set()
+    droop_set = {3, 9, 14} if mangled else set()
     for i in range(n):
         a = i / n * math.tau - math.pi / 2
         long_ray = (i % 2 == 0)
         tip_len = (R * 0.46 if long_ray else R * 0.26)
-        # deterministic damage pattern
-        snapped = mangled and (i % 5 == 0 or i % 7 == 3)
-        kink = math.radians(((i * 53) % 17) - 8) if mangled else 0
+        snapped = i in snapped_set
+        drooped = i in droop_set
+        kink = 0
         if snapped:
-            tip_len *= 0.32
+            tip_len *= 0.28                 # broken off near the root
+        elif drooped:
+            kink = math.radians(26)         # ray bent hard down to one side
+            tip_len *= 0.86
+        elif mangled:
+            kink = math.radians(((i * 53) % 13) - 6)
         ad = a + kink
         tip = (cx + math.cos(ad) * (base + tip_len),
                cy + math.sin(ad) * (base + tip_len))
@@ -461,11 +490,11 @@ def _sunburst(surf, cx, cy, R, ray_hi, ray_lo, n=16, base=None,
                                         (int(b1[0]), int(b1[1]))])
         if soot is not None and not snapped:
             # soot the outer third of each surviving ray — a small dark wedge at
-            # the tip, narrowing toward the burnt point
-            m0 = (cx + math.cos(a - half * 0.5) * (base + tip_len * 0.58),
-                  cy + math.sin(a - half * 0.5) * (base + tip_len * 0.58))
-            m1 = (cx + math.cos(a + half * 0.5) * (base + tip_len * 0.58),
-                  cy + math.sin(a + half * 0.5) * (base + tip_len * 0.58))
+            # the (possibly bent) tip, narrowing toward the burnt point
+            m0 = (cx + math.cos(ad - half * 0.5) * (base + tip_len * 0.58),
+                  cy + math.sin(ad - half * 0.5) * (base + tip_len * 0.58))
+            m1 = (cx + math.cos(ad + half * 0.5) * (base + tip_len * 0.58),
+                  cy + math.sin(ad + half * 0.5) * (base + tip_len * 0.58))
             pygame.draw.polygon(surf, soot, [(int(m0[0]), int(m0[1])),
                                              (int(tip[0]), int(tip[1])),
                                              (int(m1[0]), int(m1[1]))])
@@ -541,19 +570,36 @@ def _gear(surf, cx, cy, R, tooth_hi, tooth_lo, n=12, broken=False,
     the ring so the gear reads corroded."""
     rin = int(R * 0.96)            # tooth root sits just outside the rim band
     rout = int(R * 1.20)
+    # broken gear: two teeth are GONE entirely (flat notches in the outline) and
+    # two more are sheared to jagged half-stubs — a real SILHOUETTE break that
+    # survives a dark sky and 44px where the rust colour alone would not read.
+    missing = {2, 9} if broken else set()
+    half_stub = {5, 11} if broken else set()
     for i in range(n):
+        if i in missing:
+            continue
         a0 = (i + 0.18) / n * math.tau
         a1 = (i + 0.82) / n * math.tau
-        chipped = broken and (i % 4 == 1 or i % 5 == 2)
-        top = rin + int((rout - rin) * (0.30 if chipped else 1.0))
-        d = (math.cos((a0 + a1) / 2 - _LIGHT) + 1) * 0.5
+        am = (a0 + a1) / 2
+        d = (math.cos(am - _LIGHT) + 1) * 0.5
         col = lerp_color(tooth_lo, tooth_hi, d ** 1.3)
-        pts = [
-            (cx + math.cos(a0) * rin, cy + math.sin(a0) * rin),
-            (cx + math.cos(a0 + 0.04) * top, cy + math.sin(a0 + 0.04) * top),
-            (cx + math.cos(a1 - 0.04) * top, cy + math.sin(a1 - 0.04) * top),
-            (cx + math.cos(a1) * rin, cy + math.sin(a1) * rin),
-        ]
+        if i in half_stub:
+            # one corner sheared off at root height — a jagged snapped tooth
+            top = rin + int((rout - rin) * 0.45)
+            pts = [
+                (cx + math.cos(a0) * rin, cy + math.sin(a0) * rin),
+                (cx + math.cos(a0 + 0.04) * top, cy + math.sin(a0 + 0.04) * top),
+                (cx + math.cos(am) * rin, cy + math.sin(am) * rin),
+                (cx + math.cos(a1) * rin, cy + math.sin(a1) * rin),
+            ]
+        else:
+            top = rout
+            pts = [
+                (cx + math.cos(a0) * rin, cy + math.sin(a0) * rin),
+                (cx + math.cos(a0 + 0.04) * top, cy + math.sin(a0 + 0.04) * top),
+                (cx + math.cos(a1 - 0.04) * top, cy + math.sin(a1 - 0.04) * top),
+                (cx + math.cos(a1) * rin, cy + math.sin(a1) * rin),
+            ]
         pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in pts])
     # the solid wheel body the teeth ride on
     pygame.draw.circle(surf, lerp_color(tooth_lo, tooth_hi, 0.4), (cx, cy), rin)
@@ -650,39 +696,63 @@ def _coronet(surf, cx, cy, R, arch_hi, arch_lo, edge, n=7, gems=None,
     band_r = int(R * 0.98)
     span = math.radians(244)        # leaves the base of the disc open
     a_start = math.radians(-212)    # sweep across the top
+    # ASYMMETRIC wreckage so the crown's outline itself looks broken: one point
+    # is snapped clean off (gone), two are sheared to jagged half-height stubs,
+    # the rest survive but bent. The damage is uneven left-vs-right on purpose.
+    gone = {4} if wrecked else set()
+    snapped = {1, 5} if wrecked else set()
+    gem_r = max(3, int(R * 0.11))
     for i in range(n):
         f = i / (n - 1)
         a = a_start + span * f
-        # a triangular crown point (fleuron) rising off the rim band — a filled
-        # merlon, not a stick, so the frame reads as regalia
-        peak_h = R * (0.34 if i % 2 == 0 else 0.22)
-        bend = math.radians(((i * 41) % 13) - 6) if wrecked else 0
-        ad = a + bend
         half = math.radians(360 / n * 0.30)
         b0 = (cx + math.cos(a - half) * band_r, cy + math.sin(a - half) * band_r)
         b1 = (cx + math.cos(a + half) * band_r, cy + math.sin(a + half) * band_r)
+        if i in gone:
+            # the whole point broke off — a raw dark stump notch in the silhouette
+            stump = (cx + math.cos(a) * (band_r + R * 0.06),
+                     cy + math.sin(a) * (band_r + R * 0.06))
+            pygame.draw.polygon(surf, edge, [(int(b0[0]), int(b0[1])),
+                                             (int(stump[0]), int(stump[1])),
+                                             (int(b1[0]), int(b1[1]))])
+            continue
+        # a triangular crown point (fleuron) rising off the rim band — a filled
+        # merlon, not a stick, so the frame reads as regalia
+        peak_h = R * (0.34 if i % 2 == 0 else 0.22)
+        if i in snapped:
+            peak_h *= 0.42                      # sheared to a jagged stub
+        bend = math.radians(((i * 41) % 17) - 8) if wrecked else 0
+        ad = a + bend
         peak = (cx + math.cos(ad) * (band_r + peak_h),
                 cy + math.sin(ad) * (band_r + peak_h))
         d = (math.cos(a - _LIGHT) + 1) * 0.5
         col = lerp_color(arch_lo, arch_hi, d ** 1.3)
-        pygame.draw.polygon(surf, col, [(int(b0[0]), int(b0[1])),
-                                        (int(peak[0]), int(peak[1])),
-                                        (int(b1[0]), int(b1[1]))])
+        if i in snapped:
+            # a chunk knocked off one upper corner so the stub reads as broken
+            mid = (cx + math.cos(ad) * (band_r + peak_h * 0.55),
+                   cy + math.sin(ad) * (band_r + peak_h * 0.55))
+            pygame.draw.polygon(surf, col, [(int(b0[0]), int(b0[1])),
+                                            (int(peak[0]), int(peak[1])),
+                                            (int(mid[0]), int(mid[1])),
+                                            (int(b1[0]), int(b1[1]))])
+        else:
+            pygame.draw.polygon(surf, col, [(int(b0[0]), int(b0[1])),
+                                            (int(peak[0]), int(peak[1])),
+                                            (int(b1[0]), int(b1[1]))])
         pygame.draw.line(surf, edge, (int(b0[0]), int(b0[1])),
                          (int(peak[0]), int(peak[1])), max(1, R // 50))
         pygame.draw.line(surf, edge, (int(b1[0]), int(b1[1])),
                          (int(peak[0]), int(peak[1])), max(1, R // 50))
         if wrecked:
-            # a chunk snapped out of the point's tip
-            mx = (b0[0] + peak[0]) / 2
-            my = (b0[1] + peak[1]) / 2
-            pygame.draw.circle(surf, edge, (int(mx), int(my)), max(1, int(R * 0.04)))
-        gem_r = max(3, int(R * 0.11))
-        if wrecked:
-            # gem fallen out → dark empty socket cup at the arch tip
+            # gem fallen out → a hollow dark socket: a dark cup with a lit lower
+            # lip so it reads as an EMPTY hole, not a black gem
             pygame.draw.circle(surf, socket, (int(peak[0]), int(peak[1])), gem_r)
             pygame.draw.circle(surf, edge, (int(peak[0]), int(peak[1])),
-                               gem_r, max(1, R // 44))
+                               gem_r, max(2, R // 30))
+            pygame.draw.arc(surf, arch_hi,
+                            (int(peak[0]) - gem_r, int(peak[1]) - gem_r,
+                             gem_r * 2, gem_r * 2),
+                            math.radians(200), math.radians(340), max(1, R // 40))
         else:
             gc = gems[i % len(gems)]
             pygame.draw.circle(surf, gc, (int(peak[0]), int(peak[1])), gem_r)
@@ -712,6 +782,17 @@ def fame_coronet(surf, cx, cy, R, glyph_key):
 
 
 def shame_coronet(surf, cx, cy, R, glyph_key):
+    # The dropped gems first, tumbling at the lower rim — dimmed jewel tones so
+    # they read as the SAME stones that fell out of the empty sockets above.
+    for gx, gy, gr, gc in ((-0.42, 1.16, 0.10, (150, 56, 60)),    # dim ruby
+                           (0.10, 1.30, 0.085, (52, 84, 150)),    # dim sapphire
+                           (0.50, 1.10, 0.095, (54, 132, 92))):   # dim emerald
+        cx2, cy2 = cx + int(R * gx), cy + int(R * gy)
+        rr = max(2, int(R * gr))
+        pygame.draw.circle(surf, gc, (cx2, cy2), rr)
+        pygame.draw.circle(surf, _WC_EDGE, (cx2, cy2), rr, max(1, R // 50))
+        pygame.draw.circle(surf, (210, 210, 218),
+                           (cx2 - rr // 3, cy2 - rr // 3), max(1, rr // 3))
     _coronet(surf, cx, cy, R, _WC_ARCH_HI, _WC_ARCH_LO, _WC_EDGE, n=7,
              socket=_WC_SOCKET, wrecked=True)
     _metal_band(surf, cx, cy, R, int(R * 0.74), _WC_RIM_HI, _WC_RIM_LO,
