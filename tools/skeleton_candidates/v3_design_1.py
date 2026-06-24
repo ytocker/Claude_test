@@ -55,46 +55,58 @@ def _paint(surf, wing_angle_deg):
     _aaellipse(surf, _BONE,    (47, 39), 10, 9)
     _aaellipse(surf, _BONE_SH, (45, 35),  6, 4)            # crown form light
     # Jaw/cheek shelf carrying the skull down to meet the original bone beak.
-    pygame.draw.polygon(surf, _BONE,    [(48, 44), (60, 43), (58, 47), (46, 47)])
-    pygame.draw.polygon(surf, _KEY,     [(48, 44), (60, 43), (58, 47), (46, 47)], 1)
+    # Lifted ~1px (top y43→y42) with an unbroken _KEY outline so the cranium
+    # reads as a distinct lobe (Pip's head) rather than melting into the chest.
+    pygame.draw.polygon(surf, _BONE,    [(48, 43), (60, 42), (58, 47), (46, 47)])
+    pygame.draw.polygon(surf, _KEY,     [(48, 43), (60, 42), (58, 47), (46, 47)], 1)
     pygame.draw.line(surf, _BONE_SH, (49, 45), (58, 44), 1)   # mandible line
 
-    # ── ONE clean hollow eye-socket — a round/teardrop HOLE at the original eye
-    # spot (50,40). Keyline ring → void fill → a single life-glint on the rim.
+    # ── ONE clean hollow eye-socket — a round HOLE at the original eye spot
+    # (50,40), with a darker inner-lower rim so it reads as a socket with a back
+    # wall (depth), not a hole punched clean through the skull.
     pygame.draw.circle(surf, _BONE, (50, 40), 5)             # bone orbit ring
     pygame.draw.circle(surf, _KEY,  (50, 40), 4)
     pygame.draw.circle(surf, _VOID, (50, 40), 3)             # the empty socket
-    pygame.draw.line(surf, _VOID, (50, 43), (52, 44), 1)     # teardrop duct
+    pygame.draw.arc(surf, _BONE_SH, (47, 38, 6, 6),          # inner-lower back wall
+                    math.radians(200), math.radians(340), 1)
     pygame.draw.circle(surf, _BONE, (49, 38), 1)             # life glint
     # Nostril dot on the bone beak so the original bill reads skeletal.
     pygame.draw.circle(surf, _VOID, (55, 44), 1)
 
-    # ── Spine — one clear vertebra-bead column, skull base → tail root.
-    spine = [(41, 47), (35, 50), (29, 53), (23, 55), (18, 56)]
+    # ── Spine — THREE clear vertebra beads only (skull base / mid / tail root);
+    # the intermediate beads read as a fat white worm at 40px, so they're cut.
+    spine = [(41, 47), (29, 53), (18, 56)]
     pygame.draw.lines(surf, _KEY, False, spine, 3)
     for vx, vy in spine:
         _bead(surf, vx, vy, 2)
 
-    # ── Ribcage — a clean sternum + THREE bold, well-spaced rib rungs on the
-    # chest. Each rib is a keylined white arc so it pops; spaced so it never
-    # turns into a busy mesh at 40px.
-    pygame.draw.line(surf, _KEY,  (38, 48), (29, 61), 4)
-    pygame.draw.line(surf, _BONE, (38, 48), (29, 61), 2)     # sternum bar
-    for i, (rx, ry) in enumerate(((37, 50), (35, 54), (33, 58))):
-        rect = (rx - 13, ry - 6, 14, 13)
+    # ── Sternum — a short bone bar that sits clearly ABOVE the spine line, with
+    # dark flesh between it and the spine so the two never smear into one bar.
+    pygame.draw.line(surf, _KEY,  (37, 49), (31, 57), 4)
+    pygame.draw.line(surf, _BONE, (37, 49), (31, 57), 2)
+
+    # ── Ribcage — TWO widened rib rungs only. A _VOID wash under each so they
+    # read as bone-on-black and the dark gap of flesh between them survives at
+    # 40px (three 4px-apart rungs fused into a mesh).
+    for (rx, ry) in ((37, 50), (34, 56)):
+        rect = (rx - 15, ry - 7, 16, 15)
+        pygame.draw.arc(surf, _VOID, rect, math.radians(10), math.radians(170), 4)
         pygame.draw.arc(surf, _KEY,  rect, math.radians(15), math.radians(165), 3)
         pygame.draw.arc(surf, _BONE, rect, math.radians(20), math.radians(160), 2)
 
     # ── Tail — a single white tail-feather bone over the original tail fan
-    # (x2–23 / y44–62), keylined so it reads on bright sky.
-    pygame.draw.line(surf, _KEY,  (19, 51), (5, 54), 4)
-    pygame.draw.line(surf, _BONE, (19, 51), (6, 54), 2)
-    pygame.draw.circle(surf, _BONE, (6, 54), 2)              # feather tip knob
+    # (x2–23 / y44–62). Fattened to a 3px stroke + r3 tip knob, keylined, because
+    # the tail is a primary Pip silhouette anchor that otherwise vanishes at 40px.
+    pygame.draw.line(surf, _KEY,  (19, 51), (5, 54), 5)
+    pygame.draw.line(surf, _BONE, (19, 51), (6, 54), 3)
+    pygame.draw.circle(surf, _KEY,  (6, 54), 4)
+    pygame.draw.circle(surf, _BONE, (6, 54), 3)              # feather tip knob
 
-    # ── Legs — knob knees on the original bone leg lines (feet 26,69 / 36,69).
+    # ── Legs — ONE clean knee knob per leg, sat on the ankle so each leg reads
+    # as a single bone line rather than a beaded ladder.
     for kx in (28, 34):
-        pygame.draw.circle(surf, _KEY,  (kx, 65), 3)
-        pygame.draw.circle(surf, _BONE, (kx, 65), 2)
+        pygame.draw.circle(surf, _KEY,  (kx, 66), 3)
+        pygame.draw.circle(surf, _BONE, (kx, 66), 2)
 
 
 build = store_skins._make_skin(_paint, base_fn=_bone_parrot_wing)
