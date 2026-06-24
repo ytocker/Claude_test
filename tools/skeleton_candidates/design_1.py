@@ -41,17 +41,21 @@ def _key_dot(surf, p, r):
 
 
 def _finger_wing(angle_deg):
-    """Wing as radiating finger-bones (phalanges) fanning from a bone wrist.
-    No solid membrane — the dark is only thin negative space BETWEEN the white
-    bones, so the wing reads skeletal (not a cape blob) and the flap clatters
-    those bones across all 4 poses. Each phalange is keyline-rimmed so it holds
-    against the day sky even between the fingers."""
-    w = pygame.Surface((52, 52), pygame.SRCALPHA)
-    wrist = (24, 30)
+    """Wing as THREE radiating finger-bones (leading/mid/trailing phalanges)
+    fanning from a bone wrist. Round 2 fanned five bones that crowded to sub-2px
+    gaps and mushed at 40px; three well-separated 2px-white bones with a 4px
+    keyline read as discrete bones across all 4 flap poses. The fan is ~30%
+    wider so the gaps stay open, and the tips reach far enough that — once the
+    body ellipse is shrunk — the white fingers OVERHANG the dark silhouette into
+    the sky/keyline and visibly clatter, the way the base macaw wing breaks the
+    body outline. Each phalange is keyline-rimmed so it holds on the day sky."""
+    w = pygame.Surface((56, 56), pygame.SRCALPHA)
+    wrist = (22, 30)
 
-    # Splayed phalange tips — a long leading finger fanning down to a short
-    # trailing one. Kept as discrete bones with dark gaps, never a filled field.
-    tips = [(49, 16), (50, 26), (45, 36), (37, 43), (28, 44)]
+    # Three splayed tips fanned ~30% wider than the old five — a long leading
+    # finger up-and-out, a mid finger, and a shorter trailing one. The wide
+    # angular spread keeps a clear dark gap between each white bone.
+    tips = [(54, 12), (52, 30), (38, 48)]
     for tip in tips:
         # Keyline underlay (drawn fatter first) so a #3A3D47 rim hugs each bone.
         pygame.draw.line(w, _KEY, wrist, tip, 4)
@@ -59,13 +63,12 @@ def _finger_wing(angle_deg):
     pygame.draw.circle(w, _KEY, wrist, 4)              # wrist keyline
 
     for i, tip in enumerate(tips):
-        col = _BONE if i < 3 else _BONE_SH
+        col = _BONE if i < 2 else _BONE_SH
         pygame.draw.line(w, col, wrist, tip, 2)        # the bone itself
         pygame.draw.circle(w, _BONE, tip, 2)           # knuckle cap
-        # A mid-bone joint pip on the longer fingers for the segmented look.
-        if i < 3:
-            mid = ((wrist[0] + tip[0]) // 2, (wrist[1] + tip[1]) // 2)
-            pygame.draw.circle(w, _BONE_SH, mid, 1)
+        # A mid-bone joint pip for the segmented phalange look.
+        mid = ((wrist[0] + tip[0]) // 2, (wrist[1] + tip[1]) // 2)
+        pygame.draw.circle(w, _BONE_SH, mid, 1)
     pygame.draw.circle(w, _BONE, wrist, 3)             # wrist knob
     pygame.draw.circle(w, _BODY_D, wrist, 1)
     return pygame.transform.rotate(w, angle_deg)
@@ -87,37 +90,49 @@ def _build_design1(wing_angle_deg):
     surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
 
     # Tail + body + head as near-black masses (the value floor the bone sits on).
-    # The tail is ribbed with white tail-feather bones so the dark fan never
-    # reads as a solid cape — no near-black field wider than ~6px is left bare.
-    tail = [(2, 26), (17, 24), (23, 36), (12, 42)]
+    # Round 2 left a solid near-black field exactly where the wing fingers fan,
+    # so the wing read as a dark blob with white speckle. The body ellipse is
+    # shrunk ~15% (r18×13 → r15×11) and the tail pulled in, so the WHITE wing
+    # phalanges now overhang PAST this dark silhouette into the sky/keyline and
+    # visibly clatter instead of disappearing into the back-mass.
+    tail = [(4, 28), (16, 26), (21, 35), (12, 40)]
     _poly(surf, _BODY, tail)
     pygame.draw.polygon(surf, _BODY_D, tail, 1)
-    for (a, b) in (((19, 27), (4, 29)), ((20, 31), (5, 34)), ((20, 35), (9, 40))):
-        pygame.draw.line(surf, _KEY,  a, b, 3)                  # feather-bone keyline
-        pygame.draw.line(surf, _BONE, a, b, 1)                  # white tail-feather bone
-    _aaellipse(surf, _BODY_D, (33, 33), 19, 14)
-    _aaellipse(surf, _BODY, (32, 32), 18, 13)
+    # ONE clean white tail-feather bone — round 2 had two competing white
+    # clusters aft of the skull fighting the ribcage read; one keyed bone keeps
+    # the tail a single quiet tell.
+    pygame.draw.line(surf, _KEY,  (19, 30), (5, 33), 3)        # feather-bone keyline
+    pygame.draw.line(surf, _BONE, (19, 30), (5, 33), 1)        # white tail-feather bone
+    _aaellipse(surf, _BODY_D, (33, 33), 16, 12)
+    _aaellipse(surf, _BODY, (32, 32), 15, 11)
     _aaellipse(surf, _BODY_D, (48, 21), 13, 12)
     _aaellipse(surf, _BODY, (47, 20), 12, 11)
 
     # Spine — vertebra beads from the skull base down toward the ribcage.
-    _vertebra(surf, (42, 26), (22, 38), 6)
+    _vertebra(surf, (42, 26), (24, 38), 6)
 
-    # Ribcage — a bold ladder of PAIRED white rib-arcs off a central sternum,
-    # keyline-rimmed underneath so the arcs survive on bright sky.
-    pygame.draw.line(surf, _KEY,  (38, 24), (24, 40), 4)        # sternum keyline
-    pygame.draw.line(surf, _BONE, (38, 25), (24, 39), 2)        # sternum
-    for i, ty in enumerate((26, 30, 34, 38)):
-        sx = 38 - i * 3
+    # Ribcage — THREE paired white rib-arcs off a central sternum, keyline-rimmed
+    # underneath so they survive on bright sky. Round 2 packed four rungs at ~4px
+    # so they mushed into the wing; three rungs at ~5px vertical spacing read as
+    # distinct rungs, and they sit forward/below the wing wrist (chest) so wing
+    # and ribcage never share pixels.
+    pygame.draw.line(surf, _KEY,  (37, 27), (26, 42), 4)        # sternum keyline
+    pygame.draw.line(surf, _BONE, (37, 28), (26, 41), 2)        # sternum
+    for i, ty in enumerate((30, 35, 40)):
+        sx = 36 - i * 3
         # Each rung is a pair of arcs sweeping out either side of the sternum.
         pygame.draw.arc(surf, _BONE, (sx - 12, ty - 5, 13, 12),
                         math.radians(20), math.radians(150), 2)
         pygame.draw.arc(surf, _BONE_SH, (sx - 1, ty - 5, 13, 12),
                         math.radians(30), math.radians(160), 2)
 
-    # Wing — radiating finger-bones over the chest, centred + rotated by flap.
+    # Wing — three radiating finger-bones, seated UP-AND-BACK off the chest so
+    # the fan clears the ribcage and overhangs the shrunk body into the sky.
     wing = _finger_wing(wing_angle_deg)
-    surf.blit(wing, wing.get_rect(center=(33, 28)).topleft)
+    surf.blit(wing, wing.get_rect(center=(30, 24)).topleft)
+    # A 1px dark gap between the wing wrist and the ribcage so the eye parses
+    # skull → ribs → wing as three separate tells, not one merged cluster.
+    pygame.draw.line(surf, _BODY_D, (31, 32), (28, 38), 1)
 
     # Leg bones — thin paired bones with knob knees + 3-claw bone feet, each
     # keyline-rimmed so the tips read against the ground.

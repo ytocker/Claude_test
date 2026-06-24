@@ -114,7 +114,7 @@ def main():
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((30, 30, 38))
     title = title_font.render(
-        "SKELETON redesign — design_1  BONEWHITE  (round 2)",
+        "SKELETON redesign — design_1  BONEWHITE  (round 3 — final)",
         True, (255, 255, 255))
     sheet.blit(title, (pad, 14))
 
@@ -128,7 +128,7 @@ def main():
     sheet.blit(hero, (x, y))
     sheet.blit(bar, (x + hero.get_width() + pad, y))
 
-    out = os.path.join(OUT_DIR, "round_2.png")
+    out = os.path.join(OUT_DIR, "round_3.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
