@@ -71,7 +71,7 @@ def main():
     sheet.fill((18, 16, 24))
 
     title = FONT.render(
-        "SKELETON · v2_design_3 CALAVERA-MACAW — Dia de Muertos sugar-skull (round 1)",
+        "SKELETON · v2_design_3 CALAVERA-MACAW — Dia de Muertos sugar-skull (round 2)",
         True, (255, 198, 96))
     sheet.blit(title, (pad, 6))
 
@@ -119,7 +119,7 @@ def main():
 
     out = os.path.abspath(os.path.join(
         os.path.dirname(__file__), "..", "..", "docs", "store_redesign",
-        "costume", "skeleton", "v2", "design_3", "round_1.png"))
+        "costume", "skeleton", "v2", "design_3", "round_2.png"))
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print("WROTE", out, sheet.get_size())

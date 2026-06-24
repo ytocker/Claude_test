@@ -2,9 +2,10 @@
 
 The corrected ``_v2_anatomy`` parrot skeleton (hooked bone beak + long tail) in
 near-white bone, painted as a festive calavera: cyan-ringed eye sockets, a
-a teardrop marigold petal crown spiking off the cranium, a low magenta forehead
-heart, and a curling marigold scroll on the big hooked beak. Bone stays the value
-anchor; the paint is the third read, never drowning the skeleton. Scratch only.
+teardrop marigold petal crown spiking off the cranium, a magenta cheek heart,
+and a single marigold stroke high on the upper mandible. The hooked beak tip and
+the dark gape stay PURE BONE so the parrot down-hook reads as bone; the paint is
+the third read, never drowning the skeleton. Scratch only.
 """
 import math
 
@@ -54,8 +55,11 @@ def _paint(surf, angle_deg, P):
                   (_MARI_HI, _MARI_D), (_MARIGOLD, _MARI_D), (_MAGENTA, _MARI_D),
                   (_MARIGOLD, _MARI_D))
     n = len(petal_cols)
+    # Span pulled UP (was -156..-24): the leftmost petals were tipping over the
+    # cyan socket in the flap frames; -144..-30 keeps every petal above the
+    # cranium so the crown->socket->beak read order is protected.
     for k in range(n):
-        a = math.radians(-156 + k * (132.0 / (n - 1)))
+        a = math.radians(-144 + k * (114.0 / (n - 1)))
         col, cold = petal_cols[k]
         rx = crx + math.cos(a) * 2
         ry = cry + math.sin(a) * 2
@@ -76,21 +80,18 @@ def _paint(surf, angle_deg, P):
         by = ey + int(round(math.sin(a) * 5))
         pygame.draw.circle(surf, _CYAN, (bx, by), 1)
 
-    # ── Magenta forehead heart — small and set LOW, between the brow and crown,
-    # so it never merges with the crown's magenta above it.
-    hx, hy = 45, 12
+    # ── Magenta cheek heart — relocated DOWN onto the jaw front (the crown
+    # version vanished into the crown at 40px). A clean 2px solid heart with
+    # bone around it, set on the cheek so it reads as a distinct calavera mark.
+    hx, hy = 46, 20
     pygame.draw.circle(surf, _MAGENTA, (hx - 1, hy), 1)
     pygame.draw.circle(surf, _MAGENTA, (hx + 1, hy), 1)
-    _poly(surf, _MAGENTA, [(hx - 2, hy + 1), (hx + 2, hy + 1), (hx, hy + 3)])
+    _poly(surf, _MAGENTA, [(hx - 2, hy), (hx + 2, hy), (hx, hy + 3)])
 
-    # ── Marigold beak scroll — a curling filigree painted ON the big hooked
-    # upper mandible. Two short curve-strokes + bead dots follow the beak's
-    # forward bulge, decorating it WITHOUT flooding the bone so the hook read
-    # (the parrot tell) survives. A cyan tip-bead caps it like a flower core.
-    pygame.draw.lines(surf, _MARIGOLD, False, [(52, 13), (56, 14), (59, 17)], 2)
-    pygame.draw.line(surf, _MARI_D, (53, 16), (57, 19), 1)     # under-curl
-    pygame.draw.circle(surf, _MAGENTA, (54, 13), 1)            # scroll bead
-    pygame.draw.circle(surf, _CYAN, (60, 18), 1)               # tip flower core
+    # ── Marigold beak stroke — ONE short stroke high on the UPPER mandible only.
+    # The down-hook tip (lower beak) and the dark gape stay PURE BONE so the
+    # parrot hook reads as bone; the scroll is demoted to a single 1px filigree.
+    pygame.draw.line(surf, _MARIGOLD, (53, 12), (56, 13), 1)
 
     # ── Two tiny accents framing the jaw grin — keep the colour off the ribs/
     # tail entirely so skull->ribs->wing->tail still parses as bone structure.
