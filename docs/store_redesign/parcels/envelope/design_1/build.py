@@ -3,13 +3,20 @@
 The classic airmail envelope. A ~22px slab carried below Pip that rotates with
 his bank, so the read must survive the rotozoom on DAY and NIGHT sky. The
 IDENTITY is the red+blue dashed candy-stripe perimeter border — no other
-envelope concept has the candy edge — so the stripe is drawn bold and full-
-perimeter, the one thing that must register before any detail. A small red
-postage stamp (top-right), a blue "PAR AVION" label bar (lower-left), and a
-faint flap V (top) layer on so the body is never a blank card.
+envelope concept has the candy edge.
 
-Drawn on a 44px work surface then smoothscaled to 22 so the thin stripe segments
-and the keyline antialias cleanly. A baked dark outline is drawn first (slightly
+The stripe is deliberately COARSE: a solid red/blue nib pins each of the four
+corners (the corner clump that wrecked the hard-bank frames is gone, and the
+nibs double as four rotation-stable anchors), and only a few fat ticks march the
+straight runs between them. At the downscaled 22px size a fine 20-dash stripe
+collapsed into red/blue confetti, so 3–4 discrete ticks per edge is the most
+that survives. A single saturated red stamp (top-right, held a pixel off the
+border) is the one separated red mass; the PAR-AVION bar is dropped — a solid
+blue bar only fought the blue border — so the enlarged white quiet zone carries
+the read. A faint flap V (top) keeps the body from being a blank card.
+
+Drawn on a 44px work surface then smoothscaled to 22 so the stripe ticks and the
+keyline antialias cleanly. A baked dark outline is drawn first (slightly
 inflated) so the white body still reads as a shape on bright day sky; a warm
 night keyline rim rides just inside the body so the white slab also reads on dark
 night sky without a per-mode sprite. The body is kept off the surface edges so
@@ -22,7 +29,10 @@ import pygame
 PAPER = (242, 239, 230)        # ~#F2EFE6 warm white body
 PAPER_SHADE = (222, 218, 206)  # gentle lower-body shade for a hint of volume
 RED = (210,  67,  58)          # ~#D2433A airmail red
-BLUE = ( 46,  95, 168)         # ~#2E5FA8 airmail blue
+# Pushed darker than the spec #2E5FA8 so red-vs-blue holds a VALUE difference,
+# not just hue — the candy edge has to survive the grayscale tilt row, where a
+# same-value red/blue pair collapsed to one mushy ring.
+BLUE = ( 39,  79, 140)         # ~#274F8C airmail blue (deepened)
 INK = ( 42,  46,  58)          # ~#2A2E3A dark ink / stamp lines
 OUTLINE = ( 30,  33,  44)      # dark, high-value: reads on bright day sky
 KEYLINE = (221, 230, 240)      # cool rim (~#DDE6F0) — the NIGHT lifeline
@@ -68,60 +78,70 @@ def build(mode="normal") -> pygame.Surface:
     pygame.draw.line(surf, INK, (rect.x + 2, rect.y + 2), apex, 1)
     pygame.draw.line(surf, INK, (rect.right - 3, rect.y + 2), apex, 1)
 
-    # The IDENTITY: red+blue dashed candy-stripe perimeter border. A strict
-    # red / blue alternation marched clockwise around the inset edge — the one
-    # mark that must read before anything else. A single shared phase counter
-    # runs continuously across all four sides so dashes don't clump or double-up
-    # at the corners (red was piling up top-right otherwise), giving an even
-    # candy alternation that survives the smoothscale to 22px and the rotozoom.
-    border = rect.inflate(-4, -4)
-    seg = 5                       # dash pitch along the run
+    # The IDENTITY: red+blue COARSE candy-stripe perimeter border. Pulled in 1px
+    # vs R1 (-6 not -4) so the white quiet zone grows ~20% and a clean centre
+    # field survives in every tilt frame. Four solid corner nibs anchor the ring
+    # (and stay put under rotation); only a few fat ticks march each straight run,
+    # because a fine dash count smeared into red/blue confetti at the 22px
+    # downscale. The starting tick colour alternates per edge so the candy still
+    # reads as red+blue rather than a run of one colour.
+    border = rect.inflate(-6, -6)
+    NIB = 3                       # solid corner nib half-length (px on each arm)
+    DASH = 3                      # fat tick width along the run
+    GAP = 4                       # paper gap between ticks (coarse = survives)
     colors = (RED, BLUE)
-    ci = [0]
 
-    def _march(start, end):
+    def _nib(corner, ax, ay, c0, c1):
+        # Solid 2px L-bracket nib: a short red arm + blue arm meeting at a corner,
+        # giving a discrete coloured anchor instead of a clump of merged dashes.
+        x, y = corner
+        pygame.draw.line(surf, c0, (x, y), (x + ax * NIB, y), 2)
+        pygame.draw.line(surf, c1, (x, y), (x, y + ay * NIB), 2)
+
+    def _march(start, end, first):
+        # Lay fat ticks from `start` toward `end`, leaving the corners (the nibs)
+        # clear. `first` picks the starting colour so adjacent edges alternate.
         x0, y0 = start
         x1, y1 = end
         dx, dy = x1 - x0, y1 - y0
         length = max(abs(dx), abs(dy))
-        steps = max(1, round(length / seg))
-        ux, uy = dx / steps, dy / steps
-        for k in range(steps):
-            col = colors[ci[0] % 2]
-            ci[0] += 1
-            # Tiny paper gap between dashes keeps red and blue from bleeding into
-            # one purple smear once smoothscaled.
-            a = (x0 + ux * k, y0 + uy * k)
-            b = (x0 + ux * (k + 1) - ux * 0.18, y0 + uy * (k + 1) - uy * 0.18)
-            pygame.draw.line(surf, col, a, b, 3)
+        ux, uy = dx / length, dy / length
+        # Keep clear of both nibs; pitch = dash + gap → 3–4 ticks per long edge.
+        run = length - 2 * (NIB + 1)
+        pitch = DASH + GAP
+        n = max(1, int(run // pitch))
+        # Centre the tick run on the edge so it sits symmetric between the nibs.
+        s0 = (NIB + 1) + (run - (n * DASH + (n - 1) * GAP)) / 2
+        ci = first
+        for k in range(n):
+            d = s0 + k * pitch
+            a = (x0 + ux * d, y0 + uy * d)
+            b = (x0 + ux * (d + DASH), y0 + uy * (d + DASH))
+            pygame.draw.line(surf, colors[ci % 2], a, b, 3)
+            ci += 1
 
     tl = (border.x, border.y)
     tr = (border.right, border.y)
     brc = (border.right, border.bottom)
     bl = (border.x, border.bottom)
-    _march(tl, tr)
-    _march(tr, brc)
-    _march(brc, bl)
-    _march(bl, tl)
+    _nib(tl,  1,  1, RED, BLUE)
+    _nib(tr, -1,  1, BLUE, RED)
+    _nib(brc, -1, -1, RED, BLUE)
+    _nib(bl,  1, -1, BLUE, RED)
+    _march(tl, tr, 0)             # top:    R B R B ...
+    _march(tr, brc, 1)           # right:  B R B ...
+    _march(brc, bl, 0)           # bottom: R B R ...
+    _march(bl, tl, 1)            # left:   B R B ...
 
-    # Small red postage stamp, top-right corner — a saturated block with a thin
-    # ink edge so it reads as a stamp, not a smudge, even at true size. A 1px
-    # paper halo lifts it clear of the candy border so the two don't merge into
-    # a red corner clump.
-    st = pygame.Rect(rect.right - 11, rect.y + 4, 7, 8)
+    # Single red postage stamp, top-right — pulled 1px inboard so it never
+    # touches the border, and reduced to ONE solid saturated square with a 1px
+    # ink edge: the single clearly-separated red mass. The internal postmark tick
+    # is dropped (invisible at 22px, only muddied the block). A 1px paper halo
+    # keeps it from fusing with the candy edge.
+    st = pygame.Rect(rect.right - 12, rect.y + 5, 6, 6)
     pygame.draw.rect(surf, PAPER, st.inflate(2, 2))
     pygame.draw.rect(surf, RED, st)
     pygame.draw.rect(surf, INK, st, 1)
-    # Tiny ink tick inside = a postmark hint, the one detail that survives.
-    pygame.draw.line(surf, INK, (st.x + 1, st.centery),
-                     (st.right - 2, st.centery), 1)
-
-    # Blue "PAR AVION" label bar, lower-left — a solid blue bar (legible block
-    # over micro-text) with a lighter centre line standing in for the wording.
-    lb = pygame.Rect(rect.x + 4, rect.bottom - 9, 14, 5)
-    pygame.draw.rect(surf, BLUE, lb)
-    pygame.draw.line(surf, PAPER, (lb.x + 1, lb.centery),
-                     (lb.right - 2, lb.centery), 1)
 
     # Warm/cool keyline rim INSIDE the outline — a glowing edge on night sky that
     # stays subtle on day, so the slab reads on both skies from one sprite. Drawn

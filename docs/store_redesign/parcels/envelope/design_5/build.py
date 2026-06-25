@@ -3,11 +3,13 @@
 The one concept that breaks the rectangular envelope silhouette: a letter
 folded mid-flight into an origami dart. The identity is the folded triangular
 paper body + the sharp crease lines (spine + wing fold), so those are drawn
-boldest; a cool-blue under-shadow gives the paper real fold depth, and a small
-dashed flight-path arc trails behind so it reads as "mail IN MOTION", not a
-static plane. Because the parcel rotates with Pip's bank (-25°..90°), the dart
-is kept compact and centred so it still reads as a creased paper wedge at every
-angle — not just nose-up — and never clips under the gameplay rotozoom.
+boldest. Tucked under Pip at true size the pale wedge needs a colour hook that
+lives ON the body, so the sky-blue accent is baked into the keel spine + nose
+band rather than spent on a trail the rotozoom eats; the lower wing is dropped
+into a darker, cooler fold-shadow so the V-fold survives the downscale, and a
+contact drop-shadow separates the dart from Pip's red belly and the night sky.
+Because the parcel rotates with Pip's bank (-25°..90°), the dart is kept
+compact and centred so it reads as a creased paper wedge at every angle.
 """
 import pygame
 
@@ -15,9 +17,10 @@ from game.draw import lerp_color as _lerp_color
 
 PAPER = (237, 237, 230)        # ~#EDEDE6 paper-white
 PAPER_HI = (250, 250, 246)     # lit upper wing
-FOLD_SHADE = (194, 203, 216)   # ~#B4BDCB cool fold-shadow (lower wing), lifted
+FOLD_SHADE = (154, 166, 186)   # ~#9AA6BA cool fold-shadow (lower wing), deeper
 CREASE = (136, 147, 164)       # ~#8893A4 crease lines
-SKY_ACCENT = (74, 144, 217)    # ~#4A90D9 dashed flight-path arc
+SKY_ACCENT = (74, 144, 217)    # ~#4A90D9 sky-blue body accent (keel + nose)
+SKY_ACCENT_HI = (126, 184, 240)  # lit lip of the keel spine
 OUTLINE = (46, 52, 62)         # ~#2E343E dark, reads on bright day sky
 KEYLINE = (224, 230, 240)      # cool-white rim — the NIGHT lifeline
 
@@ -40,37 +43,52 @@ def build(mode="normal") -> pygame.Surface:
     upper = [nose, tail_top, spine_tail]   # top wing (catches light)
     lower = [nose, spine_tail, tail_bot]   # bottom wing (in fold shadow)
 
-    # --- Baked outline (drawn first, slightly inflated) ---------------------
-    # The dark silhouette that survives on the (170,220,245) day sky. Inflating
-    # the whole dart hull keeps a clean 2px frame around every fold edge.
+    # --- Contact drop-shadow (drawn first, under everything) -----------------
+    # A dark, low-alpha copy of the hull offset +1y so the dart separates from
+    # Pip's body when carried below him — the cheapest fix for the night melt.
     hull = [nose, tail_top, tail_bot]
+    shadow = _inflate_poly(hull, (cx, cy), 1.4)
+    pygame.draw.polygon(surf, (10, 12, 18, 120),
+                        [(x, y + 2) for x, y in shadow])
+
+    # --- Baked outline (slightly inflated) ----------------------------------
+    # The dark silhouette that survives on the (170,220,245) day sky. The lower
+    # / tail edge is anchored heavier (~3px) where it meets Pip's red belly and
+    # the night sky; the top lead edge stays a crisp 2px.
     out_hull = _inflate_poly(hull, (cx, cy), 2.2)
     pygame.draw.polygon(surf, OUTLINE, out_hull)
     pygame.draw.line(surf, OUTLINE, _ext(nose, spine_tail, 2), spine_tail, 4)
+    # Heavy dark anchor along the lower + tail edges.
+    o_nose = _inflate_poly([nose], (cx, cy), 2.2)[0]
+    o_bot = _inflate_poly([tail_bot], (cx, cy), 2.2)[0]
+    o_top = _inflate_poly([tail_top], (cx, cy), 2.2)[0]
+    pygame.draw.line(surf, OUTLINE, o_nose, o_bot, 3)      # lower edge, heavy
+    pygame.draw.line(surf, OUTLINE, o_bot, o_top, 3)       # tail edge, heavy
+    pygame.draw.line(surf, OUTLINE, o_top, o_nose, 2)      # top lead edge, crisp
 
-    # --- Flight-path arc (drawn BEHIND the dart so it trails the tail) -------
-    # A dashed sky-blue arc sweeping up into the tail = mail in motion. Each dash
-    # gets a dark halo so the trail survives on bright day AND dark night sky;
-    # dashes grow toward the dart so it reads as accelerating, not a static line.
-    _dashed_arc(surf, (cx - 21, cy + 8), (cx - 12, cy + 3), SKY_ACCENT, OUTLINE)
-
-    # --- Lower wing: cool fold-shadow gradient ------------------------------
-    # The far wing sits in shade — a vertical paper-white->cool gradient sells
-    # the crease as a real fold, not a printed line.
-    _grad_poly(surf, lower, FOLD_SHADE, _lerp_color(FOLD_SHADE, OUTLINE, 0.25),
+    # --- Lower wing: deeper cool fold-shadow gradient ------------------------
+    # The far wing sits in shade — a vertical cool gradient pushed darker so the
+    # crease/fold split survives the downscale instead of flattening to white.
+    _grad_poly(surf, lower, FOLD_SHADE, _lerp_color(FOLD_SHADE, OUTLINE, 0.30),
                (cx, cy))
 
     # --- Upper wing: lit paper-white gradient -------------------------------
     _grad_poly(surf, upper, PAPER_HI, PAPER, (cx, cy))
 
-    # --- Crease lines: the identity -----------------------------------------
-    # Spine (nose->tail notch) is the central keel fold; the wing crease runs
-    # nose->upper-tail to split the top wing. Drawn dark + a thin highlight
-    # alongside so each fold reads as a crisp pinched edge even at true size.
-    pygame.draw.line(surf, CREASE, nose, spine_tail, 2)          # keel/spine
-    pygame.draw.line(surf, PAPER_HI, _off(nose, 0, -1),
-                     _off(spine_tail, 0, -1), 1)                 # spine hi-lip
-    pygame.draw.line(surf, CREASE, nose, tail_top, 1)            # upper wing fold
+    # --- Sky-blue keel spine: the colour hook + the crease identity ----------
+    # The central fold is stroked in SKY_ACCENT (not grey) so the paper-plane
+    # blue lives ON the body and survives true size; a lit lip alongside reads
+    # the keel as a pinched edge, and a short blue nose-band points the dart.
+    pygame.draw.line(surf, SKY_ACCENT, nose, spine_tail, 2)      # blue keel/spine
+    pygame.draw.line(surf, SKY_ACCENT_HI, _off(nose, 0, -1),
+                     _off(spine_tail, 0, -1), 1)                 # keel hi-lip
+    pygame.draw.line(surf, CREASE, nose, tail_top, 1)           # upper wing fold
+
+    # Blue nose-band: a 2px wedge across the tip so the dart keeps its point and
+    # its direction read at shallow bank angles where the white nose vanishes.
+    band_a = _lerp(nose, tail_top, 0.18)
+    band_b = _lerp(nose, spine_tail, 0.18)
+    pygame.draw.line(surf, SKY_ACCENT, band_a, band_b, 2)
 
     # --- Cool keyline rim INSIDE the outline --------------------------------
     # Traces the lit leading edge so the dart glows on night sky without a
@@ -85,6 +103,10 @@ def build(mode="normal") -> pygame.Surface:
 
 def _off(p, dx, dy):
     return (p[0] + dx, p[1] + dy)
+
+
+def _lerp(a, b, t):
+    return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
 
 
 def _ext(a, b, d):
@@ -127,23 +149,3 @@ def _grad_poly(surf, pts, top_col, bot_col, c):
                         [(p[0] - x0, p[1] - y0) for p in pts])
     strip.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(strip, (x0, y0))
-
-
-def _dashed_arc(surf, a, b, col, halo):
-    # Dashes stepping from `a` toward `b` with an upward bow — a motion trail,
-    # not a solid line. Each dash gets a dark halo first so the cool-blue trail
-    # holds contrast on both skies; dashes grow toward the dart (accelerating).
-    import math
-    n = 4
-    pts = []
-    for i in range(n):
-        t = i / (n - 1)
-        bow = -3.5 * math.sin(t * math.pi)   # gentle upward arc
-        x = a[0] + (b[0] - a[0]) * t
-        y = a[1] + (b[1] - a[1]) * t + bow
-        r = 1 + i // 2                       # 1,1,2,2 — bigger nearer the dart
-        pts.append((int(x), int(y), r))
-    for x, y, r in pts:
-        pygame.draw.circle(surf, halo, (x, y), r + 1)
-    for x, y, r in pts:
-        pygame.draw.circle(surf, col, (x, y), r)

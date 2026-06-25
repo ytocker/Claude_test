@@ -3,9 +3,9 @@
 A franked vintage postal envelope: a manila slab struck by a bold round rubber-
 stamp CANCELLATION mark across the top-right. The inked concentric rings are the
 identity — the only "postmarked / in-transit" read in the envelope roster — so
-they are drawn the boldest, biggest, most legible mark on the sprite. A small
-perforated postage stamp sits in the opposite corner and a few faint address
-ruling lines keep the body from reading as a blank card.
+they are drawn as the most legible mark on the sprite, sized so the manila gap
+between the two rings survives the downscale. A small perforated red postage
+stamp in the opposite corner is the colourblind-safe second anchor.
 
 It is the FLATTEST object in the parcel roster — a slab, not a volume — and is
 carried below Pip rotating with his bank, so the read must survive the rotozoom
@@ -28,7 +28,6 @@ MANILA_HI = (235, 208, 156)
 STAMP_INK = ( 52,  48,  42)     # ~#34302A — cancellation ring ink
 POSTAGE_RED = (192,  57,  43)   # ~#C0392B
 POSTAGE_HI = (222, 120, 108)
-RULE = (150, 122,  78)          # faint address ruling
 OUTLINE = ( 44,  38,  32)       # ~#2C2620 — dark, high-value: reads on day sky
 KEYLINE = (236, 210, 158)       # warm rim — the NIGHT lifeline
 
@@ -61,18 +60,13 @@ def build(mode="normal") -> pygame.Surface:
     surf.blit(body, rect.topleft)
 
     # Envelope flap: a shallow downward V from the top corners to a centred dip,
-    # the cue that this slab is a closed envelope and not a plain card. Kept
-    # faint (shade tone) so it never competes with the cancellation mark.
-    apex = (cx, rect.y + 9)
-    pygame.draw.lines(surf, MANILA_SHADE, False,
+    # the cue that this slab is a closed envelope and not a plain card. Drawn in
+    # OUTLINE (one value step darker than shade) with a deeper apex so the
+    # closed-envelope read holds at hard bank instead of washing out.
+    apex = (cx, rect.y + 10)
+    pygame.draw.lines(surf, OUTLINE, False,
                       [(rect.x + 2, rect.y + 1), apex,
                        (rect.right - 3, rect.y + 1)], 1)
-
-    # Address ruling lines — 2 faint short rules lower-left, so the body never
-    # reads as a blank card. Placed clear of the stamp + cancellation marks.
-    for i in range(2):
-        ly = cy + 3 + i * 5
-        pygame.draw.line(surf, RULE, (rect.x + 4, ly), (rect.x + 16, ly), 1)
 
     # Perforated postage stamp — small red square in the BOTTOM-LEFT corner,
     # opposite the cancellation mark. A dark rim reads as the perforated edge and
@@ -90,27 +84,33 @@ def build(mode="normal") -> pygame.Surface:
     # short radial bars, the universal "postmarked" read. Drawn LAST and biggest
     # so it dominates the sprite. No micro-text — bold legible geometry that holds
     # at 22px and under rotation.
-    mx, my = rect.right - 9, rect.y + 10
-    r_out, r_in = 9, 5
-    # A faint lighter halo first: lifts the manila under the mark so the dark ink
-    # rings separate from the body shade and the concentric read survives the
-    # downscale instead of smearing into one blob.
-    pygame.draw.circle(surf, MANILA_HI, (mx, my), r_out + 1)
-    # Two concentric ink rings — the postmark.
-    pygame.draw.circle(surf, STAMP_INK, (mx, my), r_out, 2)
-    pygame.draw.circle(surf, STAMP_INK, (mx, my), r_in, 2)
-    # Short radial cancellation bars bridging the two rings (top/bottom/sides),
-    # the "killer bars" that make it read as a strike rather than a target.
+    # Inset ~2px off the right edge so a sliver of manila always separates the
+    # outer ring from the dark body frame at every bank angle (they fused on the
+    # right under tilt when the mark hugged the edge).
+    mx, my = rect.right - 11, rect.y + 10
+    r_out, r_in = 7, 4
+    # A brighter, wider lighter halo pad: lifts the manila under the mark so the
+    # dark ink rings always sit on a light pad and separate from the darker lower
+    # body, and so the concentric read survives the 44->22 downscale rather than
+    # smearing into one blob. Widened one step past the outer ring.
+    pygame.draw.circle(surf, MANILA_HI, (mx, my), r_out + 2)
+    # Two concentric ink rings — the postmark. 1px rings keep the manila gap
+    # between them alive; that gap IS the postmark signal.
+    pygame.draw.circle(surf, STAMP_INK, (mx, my), r_out, 1)
+    pygame.draw.circle(surf, STAMP_INK, (mx, my), r_in, 1)
+    # Short radial cancellation bars between the rings, SHORTENED so they stop
+    # short of the inner ring — the manila gap survives and the mark reads as a
+    # strike rather than a solid gear. 1px so they never plug the gap.
     for ang in (90, 270, 0, 180):
         a = math.radians(ang)
-        x0 = mx + r_in * math.cos(a)
-        y0 = my - r_in * math.sin(a)
-        x1 = mx + r_out * math.cos(a)
-        y1 = my - r_out * math.sin(a)
-        pygame.draw.line(surf, STAMP_INK, (x0, y0), (x1, y1), 2)
-    # Solid inked hub dot — a firm centre reads cleaner at true size than a
-    # 5-spoke star that turns to mush on the downscale.
-    pygame.draw.circle(surf, STAMP_INK, (mx, my), 2)
+        x0 = mx + (r_in + 1.5) * math.cos(a)
+        y0 = my - (r_in + 1.5) * math.sin(a)
+        x1 = mx + (r_out - 0.5) * math.cos(a)
+        y1 = my - (r_out - 0.5) * math.sin(a)
+        pygame.draw.line(surf, STAMP_INK, (x0, y0), (x1, y1), 1)
+    # Single inked hub pixel — a firm centre that reads at true size without
+    # bulking up into a disc that swallows the inner ring's gap.
+    pygame.draw.circle(surf, STAMP_INK, (mx, my), 1)
 
     # Warm keyline rim INSIDE the outline — a glowing edge on night sky that
     # stays subtle against day. Drawn last so it crowns the silhouette.
