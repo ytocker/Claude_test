@@ -23,7 +23,7 @@ from tools.parrot_wave2_candidates import design_1
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                    "..", "..", "docs", "store_redesign", "parrot", "wave2",
-                   "design_1", "round_1.png")
+                   "design_1", os.environ.get("ROUND_PNG", "round_1.png"))
 
 
 def gameplay_panel_phase(source, w, h, phase, *, frame_idx=FRAME_IDX, tilt=TILT):
@@ -93,7 +93,9 @@ fig_h = TITLE_H + top_h + PAD + tr_h + PAD
 fig = pygame.Surface((fig_w, fig_h))
 fig.fill((18, 18, 26))
 
-title = f_title.render("THORNCREST MACAW — EPIC  ·  round 1", True, (242, 200, 210))
+title = f_title.render(
+    "THORNCREST MACAW — EPIC  ·  " + os.environ.get("ROUND_LABEL", "round 1"),
+    True, (242, 200, 210))
 fig.blit(title, (PAD, 14))
 sub = f_sub.render("briar-rose crest over a deep rose-red macaw  ·  matte, no glow",
                    True, (170, 150, 160))
