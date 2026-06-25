@@ -43,17 +43,22 @@ from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
 
 # ── palette (brief) ───────────────────────────────────────────────────────────
 _PEARL     = (243, 238, 248)       # #F3EEF8 pearl body
+_PEARL_HL  = (252, 250, 254)       # top-lit pearl highlight (crown / upper back)
 _LILAC     = (185, 168, 214)       # #B9A8D6 lilac shadow
-_MINT      = (217, 240, 226)       # #D9F0E2 mint sheen
+_LILAC_DK  = (122, 104, 166)       # deepened core-shadow — the day-side dark anchor
+_MINT      = (224, 240, 232)       # mint sheen, warmed off greenish toward pearl
 _MOONGOLD  = (246, 230, 168)       # #F6E6A8 moon-gold halo / pollen
-_DEEPLILAC = (142, 124, 184)       # #8E7CB8 deep lilac line
+_DEEPLILAC = (130, 112, 174)       # deep lilac line (a touch darker than #8E7CB8)
 _VIOLET    = (198, 184, 224)       # aviator moon-violet tint
 _GLINT     = (255, 255, 255)       # white petal / lens glint
+# Warm dark-LILAC house outline — holds the pearl body off bright blue without
+# the graphic-black of the default rim, so the silhouette stays organic-moonlit.
+_OUTLINE   = (56, 42, 80, 235)
 
 # Petal & pollen ramps. Petals run a luminous white at the tip → lilac toward
 # the root so each one reads as a curved moonlit petal, never a flat lozenge.
 _PETAL_HI  = (250, 247, 252)       # near-white petal tip
-_PETAL_LO  = (197, 182, 220)       # lilac petal root
+_PETAL_LO  = (188, 170, 214)       # lilac petal root
 _POLLEN_HI = (255, 247, 200)       # luminous pollen-heart / mote core
 
 
@@ -62,38 +67,39 @@ def _petal_mix(t):
     return lerp_color(_PETAL_HI, _PETAL_LO, t)
 
 
-# Body re-plumage: a luminous pearl macaw with a cool lilac shadow doing the
-# line work and a mint-pearl sheen, so the whole bird reads as moonlit petals,
-# not a flat white void. Every value is LIFTED so the bird is a bright blob a
-# dark night sky can't swallow, yet the lilac line work + deep-lilac shadow give
-# enough internal contrast to survive a bright day sky. The aviators are KEPT
-# (Pip's signature) and tinted moon-violet with a soft white glint; the beak is
-# warmed toward moon-gold so the macaw face still reads.
+# Body re-plumage: a luminous pearl macaw built with REAL light-to-dark
+# structure (not an even pearl wash, which is what dissolved the day silhouette).
+# The crown / chest / upper back stay top-lit near-white pearl; the belly,
+# back-underside, lower wing and tail-root drop to a deep lilac core-shadow
+# (_LILAC_DK) so the bird carries a dark anchor against bright blue while still
+# reading moonlit. The aviators are KEPT (Pip's signature) and tinted
+# moon-violet with a soft white glint; the beak is warmed toward moon-gold so
+# the macaw face still reads.
 P_MOONBLOOM = _pal(
-    tail=[(206, 192, 226), (218, 206, 234), (231, 222, 242), (243, 238, 248)],
+    tail=[(176, 158, 204), (196, 180, 220), (218, 206, 234), (240, 234, 248)],
     tail_line=_DEEPLILAC,
-    body_shadow=(196, 180, 218),
+    body_shadow=_LILAC_DK,
     body_main=_PEARL,
-    body_chest=(250, 246, 252),
-    body_belly=(224, 214, 238),
-    sheen=(220, 244, 230, 120),
-    wing_main=(224, 214, 238),
-    wing_dark=_LILAC,
+    body_chest=(252, 250, 254),
+    body_belly=(200, 184, 222),
+    sheen=(228, 240, 234, 110),
+    wing_main=(214, 202, 230),
+    wing_dark=_LILAC_DK,
     wing_tip=(248, 244, 252),
     wing_secondary=None,
-    wing_highlight=(255, 255, 255),
-    head_shadow=(196, 180, 218),
+    wing_highlight=_PEARL_HL,
+    head_shadow=_LILAC,
     head_main=_PEARL,
     head_cheek=(250, 246, 252),
-    head_crown=(232, 224, 244),
-    lens_frame=(150, 134, 188),
-    lens_body=(74, 62, 104),
+    head_crown=_PEARL_HL,
+    lens_frame=(140, 124, 180),
+    lens_body=(70, 58, 100),
     lens_tint=(198, 184, 224, 150),
-    lens_glint=(248, 246, 252),
+    lens_glint=(250, 248, 254),
     beak_main=(238, 220, 168),
-    beak_dark=(176, 150, 96),
+    beak_dark=(170, 144, 92),
     beak_gloss=(252, 242, 206),
-    foot=(176, 158, 200),
+    foot=(170, 152, 196),
 )
 
 
@@ -123,25 +129,47 @@ def _smooth_curve(p0, p1, p2, steps=10):
     return pts
 
 
-def _petal_poly(tip, root, width, curve=0.0):
-    """A rounded teardrop petal: a smooth outline from the root, bulging out to
-    `width` near the tip end, rounding over the tip, and back. `curve` bows the
-    whole petal sideways (its spine) so a fanned crest doesn't read as a rigid
-    star. Returns (outline_pts, spine_pts)."""
+def _petal_poly(tip, root, width, curve=0.0, blunt=0.0):
+    """A petal outline as a smooth bowed lobe from `root` out to `tip`.
+
+    `blunt` (0..1) controls the tip: 0 tapers to a point (teardrop, used for the
+    flowing tail streamers); toward 1 the lobe stays WIDE right up to a rounded
+    BLUNT tip — a fat flower-petal whose tip survives the 40px downscale ≥3px
+    wide. `curve` bows the spine sideways so a fanned cluster reads as petals
+    fanning, not a rigid star. Returns (outline_pts, spine_pts)."""
     dx, dy = tip[0] - root[0], tip[1] - root[1]
     length = math.hypot(dx, dy) or 1.0
     ux, uy = dx / length, dy / length
     px, py = -uy, ux                                   # perpendicular
-    # Bow the spine sideways by `curve` at the midpoint.
     mid = (root[0] + dx * 0.5 + px * curve, root[1] + dy * 0.5 + py * curve)
-    spine = _smooth_curve(root, mid, tip, steps=7)
-    # Build a rounded outline that swells widest ~65% out toward the tip.
+    spine = _smooth_curve(root, mid, tip, steps=8)
+    # Width profile along the spine: narrow at the root (where it springs from
+    # the crown), swelling to full `width`, then — for a blunt flower petal —
+    # holding near-full width up to the tip instead of pinching to a point.
     left, right = [], []
+    n = len(spine) - 1
     for i, (sx, sy) in enumerate(spine):
-        t = i / (len(spine) - 1)
-        w = width * math.sin(min(1.0, t * 1.15) * math.pi) ** 0.7
+        t = i / n
+        if t < 0.30:                                   # root taper
+            w = width * (t / 0.30) ** 0.7
+        else:
+            tt = (t - 0.30) / 0.70
+            # Point tip (blunt=0): sin falloff. Blunt tip (blunt=1): stays wide.
+            point = math.sin((1 - tt) * math.pi / 2)
+            blunt_w = 1.0 - tt * tt * 0.35             # only a gentle round-off
+            w = width * (point * (1 - blunt) + blunt_w * blunt)
         left.append((sx + px * w, sy + py * w))
         right.append((sx - px * w, sy - py * w))
+    # Cap a blunt tip with a small rounded arc so it reads as a soft lobe, not a
+    # flat-cut edge, at the top of the bloom.
+    if blunt > 0.4:
+        cap = []
+        tipw = width * (1.0 - 0.35) * blunt
+        for k in range(5):
+            a = math.pi * (k / 4)                       # sweep across the tip
+            cap.append((tip[0] + px * math.cos(a) * tipw - ux * math.sin(a) * tipw,
+                        tip[1] + py * math.cos(a) * tipw - uy * math.sin(a) * tipw))
+        return left + cap + right[::-1], spine
     return left + right[::-1], spine
 
 
@@ -242,25 +270,31 @@ def _moonbloom_back(surf, angle_deg):
         pygame.draw.circle(det, _MINT, (int(tip[0]), int(tip[1])), 2)
         pygame.draw.circle(det, _GLINT, (int(tip[0]), int(tip[1])), 1)
 
-    # Full-moon DISC behind the head: an opaque pale-gold rim (so the halo
-    # survives a bright day sky), a faint inner moon-face fill lifted just above
-    # the sky, and two brighter beads on the flanks where the disc clears the
-    # silhouette — the legendary back-lit tell, kept soft.
-    pygame.draw.circle(det, (250, 240, 200, 70), (hcx, hcy), moon_r - 2)
-    pygame.draw.circle(det, (255, 246, 210), (hcx, hcy), moon_r, 3)
-    pygame.draw.circle(det, _MOONGOLD, (hcx, hcy), moon_r, 1)
-    for fa in (math.radians(200), math.radians(340)):
+    # Full-moon DISC behind the head — the legendary halo TELL, which MUST be
+    # visible in the 40px DAY read (additive bloom does nothing on bright blue,
+    # so the read is carried by HARD opaque rings here): a soft inner moon-face
+    # fill, then a bold 2px opaque pale-gold ring (#F6E6A8) over a faint
+    # pale-gold under-ring so the halo reads as a hard disc-arc on the flanks
+    # behind the head; the additive fill from pass 1 sits on top for night.
+    pygame.draw.circle(det, (250, 240, 200, 90), (hcx, hcy), moon_r - 2)
+    pygame.draw.circle(det, (255, 248, 214, 200), (hcx, hcy), moon_r + 1, 3)
+    pygame.draw.circle(det, _MOONGOLD, (hcx, hcy), moon_r, 2)
+    # Brighter beads on the flanks where the disc clears the silhouette — the
+    # part of the halo that actually reads as a ring separating head from sky.
+    for fa in (math.radians(196), math.radians(212), math.radians(328),
+               math.radians(344)):
         bx = int(hcx + math.cos(fa) * moon_r)
         by = int(hcy + math.sin(fa) * moon_r)
         pygame.draw.circle(det, (255, 250, 224), (bx, by), 2)
         pygame.draw.circle(det, _GLINT, (bx, by), 1)
 
-    # Pollen-mote cores: a warm gold dot + a white pinpoint, the drifting
-    # spores that sell the night-flora theme against either sky.
+    # Pollen-mote cores — warmed toward moon-gold (not white): a gold halo + a
+    # warm pollen core, tying them to the halo + pollen-heart. Gold reads on both
+    # skies where a white mote vanishes on day and reads as generic sparkle on
+    # night; only a tiny warm pip lifts the core, no pure-white dot.
     for mx, my, r in motes:
         pygame.draw.circle(det, _MOONGOLD, (int(mx), int(my)), r + 1)
         pygame.draw.circle(det, _POLLEN_HI, (int(mx), int(my)), r)
-        pygame.draw.circle(det, _GLINT, (int(mx), int(my)), 1)
 
     surf.blit(det, (0, 0))
 
@@ -283,33 +317,40 @@ def _moonbloom_front(surf, angle_deg):
     base_y = CROWN_Y + 2
     cbx = HX - 1                                        # crest root x
 
-    # OPENED MOONFLOWER — 5 broad rounded petals springing from ONE crown base
-    # and fanning OUTWARD past the crown, the cluster wider than it is tall so it
-    # reads as a flower opening over the skull. Drawn longest-first so the centre
-    # petal tucks behind the leans. Each petal: a deep-lilac edge for separation,
-    # a white→lilac field, a pale-gold inner rim catching the moonlight.
+    # OPENED MOONFLOWER — 5 FAT, BLUNT-tipped rounded petals springing from ONE
+    # crown base. The cluster is now TALLER than it is wide (a vertical bloom, a
+    # stronger silhouette-break above the crown) and every petal is a wide lobe
+    # with a rounded tip ≥3px after downscale, so it reads as flower MASS, not a
+    # spiky crown/star. Drawn longest-first so the centre petal tucks behind the
+    # side leans. Each petal: a deep-lilac edge for separation, a white→lilac
+    # field, a pale-gold inner rim catching the moonlight.
+    #
+    # (dx, dy, bow, ramp). dy is the tall reach; the side petals stay near the
+    # centre in x (narrow fan) but rise high, so the bloom is upright.
     petals = (
-        (-13, -13, -7, 0.05),    # far left, low, bows left
-        (-7, -19, -4, 0.28),     # left
-        (-1, -22, 0, 0.50),      # centre, tallest
-        (6, -18, 4, 0.72),       # right
-        (12, -12, 7, 0.95),      # far right, low, bows right
+        (-9, -19, -5, 0.10),     # outer left, high, bows left
+        (-4, -25, -2, 0.32),     # inner left, taller
+        (0, -29, 0, 0.50),       # centre, tallest
+        (4, -25, 2, 0.68),       # inner right, taller
+        (9, -19, 5, 0.90),       # outer right, high, bows right
     )
     drawn = []
     for dx, dy, bow, t in petals:
         tip = (cbx + dx, base_y + dy)
-        root = (cbx + dx * 0.18, base_y + 1)
-        poly, spine = _petal_poly(tip, root, 4.6, curve=bow)
+        root = (cbx + dx * 0.22, base_y + 1)
+        poly, spine = _petal_poly(tip, root, 5.2, curve=bow, blunt=0.85)
         drawn.append((poly, spine, tip, t))
     for poly, spine, tip, t in sorted(drawn, key=lambda p: p[2][1], reverse=True):
         pygame.draw.polygon(surf, _DEEPLILAC, poly)
         cx = sum(p[0] for p in poly) / len(poly)
         cy = sum(p[1] for p in poly) / len(poly)
-        field = [(cx + (x - cx) * 0.76, cy + (y - cy) * 0.82) for x, y in poly]
+        field = [(cx + (x - cx) * 0.80, cy + (y - cy) * 0.84) for x, y in poly]
         pygame.draw.polygon(surf, _petal_mix(t * 0.5), field)
-        # Pale-gold inner rim hugging the tip end so each petal catches the moon.
+        # Pale-gold inner rim up the petal's lit side so each lobe catches the
+        # moon and the blunt tip gets a warm cap that survives 40px.
         rim = spine[len(spine) // 2:]
-        pygame.draw.lines(surf, _MOONGOLD, False, rim, 1)
+        pygame.draw.lines(surf, _MOONGOLD, False, rim, 2)
+        pygame.draw.circle(surf, _MOONGOLD, (int(tip[0]), int(tip[1])), 2)
         pygame.draw.circle(surf, _PETAL_HI, (int(tip[0]), int(tip[1])), 1)
 
     # Luminous pollen-HEART at the flower centre — a warm gold core with a bright
@@ -346,13 +387,22 @@ def _moonbloom_front(surf, angle_deg):
     )
     for a, b in veins:
         pygame.draw.line(surf, (*_DEEPLILAC, 150), a, b, 1)
-    # A couple of mint sheen ticks catching the moonlight on the back.
+    # A couple of pearl-lilac sheen ticks catching the moonlight on the back —
+    # warmed off the old greenish mint so the body stays flora-in-moonlight,
+    # never sea-glass.
     for sx, sy in ((26, 40), (32, 43), (38, 42)):
-        pygame.draw.circle(surf, _MINT, (sx, sy), 1)
+        pygame.draw.circle(surf, (236, 230, 246), (sx, sy), 1)
 
-    # Re-assert Pip's face at 40px: a bright specular glint on the near lens and
-    # a sharpened beak top-edge so the macaw identity survives the downscale.
-    pygame.draw.circle(surf, _GLINT, (HX + 6, HY - 3), 2)
+    # Relight the EYE/AVIATOR so the lens zone stops reading as a dark hole that
+    # steals focus from the bloom: a pale moon-violet top rim over the near
+    # frame, a soft pearl lens glint, and a faint violet underglow so the eye
+    # reads as a glinting lens, not a void. Beak top-edge re-asserted so the
+    # macaw identity survives the downscale.
+    ex, ey = HX + 6, HY - 2
+    pygame.draw.line(surf, _VIOLET, (ex - 6, ey - 4), (ex + 5, ey - 5), 2)  # top rim
+    pygame.draw.line(surf, (120, 104, 158), (ex - 5, ey + 4), (ex + 4, ey + 4), 1)
+    pygame.draw.circle(surf, _GLINT, (ex, ey - 1), 2)                       # lens glint
+    pygame.draw.circle(surf, _VIOLET, (ex - 3, ey + 1), 1)
     pygame.draw.line(surf, _PETAL_HI, (HX + 8, HY + 1), (HX + 13, HY + 4), 2)
 
 
@@ -372,7 +422,7 @@ def _moonbloom_getter():
         bird = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
         bird.blit(_moonbloom_base(wing_angle), (0, PARROT_DY))
         _moonbloom_front(bird, wing_angle)
-        bird = _add_outline(bird)
+        bird = _add_outline(bird, outline_color=_OUTLINE)
 
         aura = pygame.Surface(bird.get_size(), pygame.SRCALPHA)
         pad = (bird.get_width() - COMPOSITE_W) // 2
