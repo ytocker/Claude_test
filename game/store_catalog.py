@@ -108,7 +108,6 @@ CATALOG: dict[str, dict] = {
     # Priced on desirability: novelty/casual cheap, classics mid-high, the
     # seasonal Santa and the signature NY cap premium.
     "skin_hat_partyhat":  {"name": "PARTY HAT",     "cost": 220, "kind": "skin", "group": "hats"},
-    "skin_hat_visor":     {"name": "VISOR",         "cost": 240, "kind": "skin", "group": "hats"},
     "skin_hat_strawhat":  {"name": "STRAW HAT",     "cost": 260, "kind": "skin", "group": "hats"},
     "skin_hat_beanie":    {"name": "BEANIE",        "cost": 300, "kind": "skin", "group": "hats"},
     "skin_hat_beret":     {"name": "BERET",         "cost": 320, "kind": "skin", "group": "hats"},

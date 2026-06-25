@@ -10,7 +10,7 @@ Each gameplay frame is staged in the same daytime scene so the looks compare cle
 - [**PARROTS** — 7 looks](parrot.md)
 - [**ANIMALS** — 20 looks](animal.md)
 - [**SHOES** — 10 looks](shoes.md)
-- [**HATS** — 17 looks](hats.md)
+- [**HATS** — 16 looks](hats.md)
 - [**SHADES** — 13 looks](shades.md)
 - [**PARCELS** — 13 looks](parcels.md)
 

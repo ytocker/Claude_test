@@ -20,7 +20,7 @@ from game import parrot
 from game.store_skins import _make_skin, HX, CROWN_Y
 
 from game import (
-    hat_nycap, hat_snapback, hat_trucker, hat_buckethat, hat_visor, hat_beanie,
+    hat_nycap, hat_snapback, hat_trucker, hat_buckethat, hat_beanie,
     hat_beret, hat_fedora, hat_flatcap, hat_bowler, hat_partyhat, hat_santa,
     hat_gradcap, hat_propeller, hat_chef, hat_sombrero, hat_strawhat,
 )
@@ -31,7 +31,6 @@ _DRAW = {
     "skin_hat_snapback":  hat_snapback.draw_hat,
     "skin_hat_trucker":   hat_trucker.draw_hat,
     "skin_hat_buckethat": hat_buckethat.draw_hat,
-    "skin_hat_visor":     hat_visor.draw_hat,
     "skin_hat_beanie":    hat_beanie.draw_hat,
     "skin_hat_beret":     hat_beret.draw_hat,
     "skin_hat_fedora":    hat_fedora.draw_hat,
@@ -81,7 +80,6 @@ _HEAD_HW = 30
 # Tuned against an on-Pip render with the crown anchor + head circle overlaid.
 _SEAT = {
     "skin_hat_partyhat":  {"hw": 26, "dx": -2, "dy": 13},
-    "skin_hat_visor":     {"dx": -4, "dy": 4},
     "skin_hat_strawhat":  {"dy": 1},
     "skin_hat_beanie":    {"hw": 28, "dy": 6},
     "skin_hat_beret":     {"dx": -7, "dy": 13},
