@@ -20,7 +20,7 @@ from game.config import W as GW, H as GH, GROUND_Y
 from tools.ninja_render import gameplay_panel, hero_panel
 from tools.parrot_rarity_candidates.design_4 import build
 
-OUT = "/home/user/skybit/docs/store_redesign/parrot/design_4/round_2.png"
+OUT = "/home/user/skybit/docs/store_redesign/parrot/design_4/round_3.png"
 NIGHT_PHASE = 0.64375
 
 
@@ -57,8 +57,8 @@ def main():
     W, H = 1180, 720
     sheet = pygame.Surface((W, H))
     sheet.fill((18, 17, 30))
-    _label(sheet, "design_4 · AURORA MACAW — LEGENDARY (~2800)", 24, 16, (200, 230, 255), 26)
-    _label(sheet, "halo ring + nebula crest + aurora ribbon tail + starry midnight plumage",
+    _label(sheet, "design_4 · AURORA MACAW — LEGENDARY (~2800) · R3", 24, 16, (200, 230, 255), 26)
+    _label(sheet, "halo crescent + connected nebula crest + green→magenta ribbon tail + starry plumage",
            24, 48, (150, 160, 190), 16)
 
     # Gameplay — DAY.
