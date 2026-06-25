@@ -110,14 +110,17 @@ def _star5(surf, cx, cy, r, color, rot=-math.pi / 2):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1 · PIRATE — lightened mid-felt tricorn pushed UP off the crown, a big
-#     white skull cockade dead-centre-front, a continuous bright gold band,
-#     and the eyepatch over the NEAR eye so it reads.
+# 1 · PIRATE (Swashbuckler) — slate tricorn + continuous gold brim + white skull
+#     cockade + near-eye eyepatch carry the identity; a curved steel cutlass
+#     slung behind the body is the silhouette-break, a leather baldric + single
+#     brass buckle cross the chest, and a wooden peg leg replaces the near foot.
 #
-# R1 fail: dark tricorn fused with the dark head into a brown lump.
-# R2: felt is mid-value blue-grey (separates from the scarlet head), the
-#     gold rope is one continuous 2px bright band carrying the read, and a
-#     ~4px white skull sits front-and-centre as the hero pop.
+# Mid-value slate felt lifts the hat off the scarlet head; the gold rope is one
+# continuous bright band so the brim reads at 40px. Steel carries a bright
+# highlight edge because a blade only reads as a weapon if it glints, and the
+# blade tip + brass guard overshoot the back outline so the cutlass reads
+# against open sky however the body fills. The lower body is kept sparse — one
+# buckle, the hilt, the peg — so nothing collapses into mud at the downscale.
 # ─────────────────────────────────────────────────────────────────────────────
 _PIR_FELT   = (74, 78, 96)        # mid-value slate so it lifts off scarlet
 _PIR_FELT_D = (48, 52, 70)
@@ -126,9 +129,97 @@ _PIR_TRIM   = (255, 205, 70)
 _PIR_TRIM_H = (255, 240, 160)
 _PIR_GOLD   = (255, 205, 70)
 _PIR_SKULL  = (244, 246, 240)
+# Steel/brass/leather/wood for the cutlass, baldric, and peg. Steel gets three
+# values (shadow/body/highlight) so the curve keeps a glint edge after the
+# downscale; the peg body is one step up from the belt leather so the stump
+# separates from the dark browns above it.
+_PIR_STEEL     = (199, 208, 218)
+_PIR_STEEL_D   = (124, 135, 148)
+_PIR_STEEL_H   = (240, 245, 250)
+_PIR_BRASS     = (217, 164, 65)
+_PIR_BRASS_D   = (150, 110, 40)
+_PIR_BRASS_H   = (255, 233, 168)
+_PIR_WOOD      = (90, 58, 34)
+_PIR_PEG       = (110, 74, 44)
+_PIR_LEATHER   = (62, 42, 26)
+_PIR_LEATHER_H = (96, 68, 44)
+_PIR_LEATHER_HH = (132, 100, 66)
+_PIR_SCAR      = (150, 60, 60)
+
+
+def _pirate_blade(surf, p0, ctrl, p1, color, width):
+    """Quadratic-bezier polyline so the cutlass reads as a CURVED sabre, not a
+    straight bar. Sampled coarse — the curve survives downscale, extra points
+    don't."""
+    pts = []
+    for i in range(9):
+        t = i / 8.0
+        mt = 1 - t
+        x = mt * mt * p0[0] + 2 * mt * t * ctrl[0] + t * t * p1[0]
+        y = mt * mt * p0[1] + 2 * mt * t * ctrl[1] + t * t * p1[1]
+        pts.append((x, y))
+    pygame.draw.lines(surf, color, False, pts, width)
 
 
 def _paint_pirate(surf, _a):
+    # Cutlass slung diagonally BEHIND the body (painted first so the body covers
+    # all but the parts that overshoot the silhouette). The hilt sits at the
+    # waist; the curved blade sweeps up-and-back so the tip + guard break the
+    # outline against the sky. A short, stubby hanger — tip pulled in toward the
+    # body yet still clearing the back outline.
+    hilt = (HX - 2, HY + 24)
+    btip = (HX - 22, CROWN_Y - 2)
+    bctrl = (HX - 19, HY + 6)
+    _pirate_blade(surf, hilt, bctrl, btip, _PIR_STEEL_D, 6)   # shadow underlay
+    _pirate_blade(surf, hilt, bctrl, btip, _PIR_STEEL, 4)
+    # Bright back-edge glint — the single highest value that makes steel read as
+    # a blade at 40px. Offset toward the spine of the curve.
+    hi0 = (hilt[0] - 2, hilt[1] - 2)
+    hictrl = (bctrl[0] - 3, bctrl[1] - 3)
+    hi1 = (btip[0] + 1, btip[1] - 1)
+    _pirate_blade(surf, hi0, hictrl, hi1, _PIR_STEEL_H, 2)
+    _poly(surf, _PIR_STEEL_H, [(btip[0] - 1, btip[1] - 3), (btip[0] + 4, btip[1] + 1),
+                               (btip[0] - 2, btip[1] + 2)])   # sharp tip cap
+
+    # Hilt where the blade meets the body — a bright brass guard-cross + one short
+    # grip stub. A crowded D-guard collapsed into mud at 40px; three clean marks
+    # (cross / stub / glint) read as "hilt" without competing with the blade.
+    gx, gy = hilt
+    pygame.draw.line(surf, _PIR_BRASS_D, (gx - 5, gy - 4), (gx + 5, gy + 4), 4)
+    pygame.draw.line(surf, _PIR_BRASS, (gx - 5, gy - 4), (gx + 5, gy + 4), 2)
+    pygame.draw.line(surf, _PIR_BRASS_H, (gx - 4, gy - 4), (gx + 1, gy), 1)
+    pygame.draw.line(surf, _PIR_WOOD, (gx + 4, gy + 3), (gx + 8, gy + 9), 4)
+    pygame.draw.circle(surf, _PIR_BRASS, (gx + 9, gy + 11), 2)   # pommel cap
+
+    # Leather baldric across the chest, raised TWO value steps so the diagonal
+    # strap survives against the dark-blue lower body — a dark strap on a dark
+    # body vanished at 40px.
+    s0 = (HX - 4, HY + 10)
+    s1 = (HX - 26, HY + 26)
+    pygame.draw.line(surf, _PIR_LEATHER_H, s0, s1, 6)
+    pygame.draw.line(surf, _PIR_LEATHER_HH, (s0[0] - 1, s0[1] + 1), (s1[0] - 1, s1[1] + 1), 1)
+    # One clean brass buckle — a 1px brass cross + a top glint reads as metal,
+    # not a black hole punched in the body.
+    bkx, bky = (HX - 14), (HY + 18)
+    pygame.draw.rect(surf, _PIR_BRASS_D, (bkx - 4, bky - 4, 8, 8), border_radius=2)
+    pygame.draw.rect(surf, _PIR_BRASS, (bkx - 3, bky - 3, 6, 6), border_radius=2)
+    pygame.draw.line(surf, _PIR_BRASS_D, (bkx, bky - 3), (bkx, bky + 3), 1)
+    pygame.draw.line(surf, _PIR_BRASS_D, (bkx - 3, bky), (bkx + 3, bky), 1)
+    pygame.draw.line(surf, _PIR_BRASS_H, (bkx - 3, bky - 3), (bkx + 2, bky - 3), 2)
+
+    # Classic wooden peg leg over the NEAR foot. The base foot is only ~2px, so
+    # the peg is drawn chunkier and a value step lighter than the belt leather to
+    # survive downscale, and pokes below the body to break the lower silhouette.
+    # Far foot is left as a normal foot.
+    px, ptop, pbot = 26, 65, 79
+    pwide = ptop + int((pbot - ptop) * 2 / 3)   # chunky upper two-thirds
+    pygame.draw.line(surf, _PIR_LEATHER, (px - 2, ptop), (px - 2, pbot - 2), 1)   # shadow side
+    pygame.draw.line(surf, _PIR_PEG, (px, ptop), (px, pwide), 5)
+    pygame.draw.line(surf, _PIR_PEG, (px, pwide), (px, pbot - 3), 3)              # taper to tip
+    _poly(surf, _PIR_PEG, [(px - 1, pbot - 3), (px + 1, pbot - 3), (px, pbot)])   # whittled point
+    pygame.draw.line(surf, _PIR_LEATHER_H, (px + 2, ptop + 1), (px + 2, pwide), 1)  # glint
+    pygame.draw.line(surf, _PIR_LEATHER, (px - 2, ptop), (px + 2, ptop), 2)      # ferrule
+
     # Gold hoop earring under the head.
     pygame.draw.circle(surf, _PIR_GOLD, (HX - 8, HY + 10), 3, 2)
     pygame.draw.circle(surf, _PIR_TRIM_H, (HX - 9, HY + 9), 1)
@@ -138,6 +229,10 @@ def _paint_pirate(surf, _a):
                      (HX - 6, CROWN_Y), 2)
     pygame.draw.ellipse(surf, _PIR_FELT_D, (HX + 6, HY - 5, 9, 9))
     pygame.draw.ellipse(surf, _PIR_FELT, (HX + 7, HY - 4, 7, 7))
+
+    # Tiny cheek scar below the patched eye — the fighter's face.
+    pygame.draw.line(surf, _PIR_SCAR, (HX + 9, HY + 5), (HX + 11, HY + 9), 2)
+    pygame.draw.line(surf, _PIR_SKULL, (HX + 9, HY + 5), (HX + 10, HY + 7), 1)
 
     # Tricorn lifted a row higher so the brim breaks the crown outline.
     cy = CROWN_Y - 3
@@ -155,13 +250,14 @@ def _paint_pirate(surf, _a):
     pygame.draw.lines(surf, _PIR_TRIM, False, band, 2)
     pygame.draw.lines(surf, _PIR_TRIM_H, False,
                       [(HX - 13, cy + 3), (HX - 4, cy - 6), (HX + 3, cy - 7)], 1)
-    # Big white skull cockade dead-centre-front.
+    # Big white skull cockade dead-centre-front. Eyes pulled tight + jaw short so
+    # the read isn't a wide-eyed surprised face.
     sx, sy = HX, cy + 1
     pygame.draw.circle(surf, _PIR_SKULL, (sx, sy), 4)
-    pygame.draw.polygon(surf, _PIR_SKULL, [(sx - 3, sy + 2), (sx + 3, sy + 2),
-                                           (sx + 1, sy + 5), (sx - 1, sy + 5)])
-    pygame.draw.circle(surf, (40, 30, 40), (sx - 2, sy - 1), 1)
-    pygame.draw.circle(surf, (40, 30, 40), (sx + 2, sy - 1), 1)
+    pygame.draw.polygon(surf, _PIR_SKULL, [(sx - 2, sy + 2), (sx + 2, sy + 2),
+                                           (sx + 1, sy + 4), (sx - 1, sy + 4)])
+    pygame.draw.circle(surf, (40, 30, 40), (sx - 1, sy - 1), 1)
+    pygame.draw.circle(surf, (40, 30, 40), (sx + 1, sy - 1), 1)
 
 
 get_pirate_parrot = _make_skin(_paint_pirate)
