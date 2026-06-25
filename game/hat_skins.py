@@ -89,7 +89,7 @@ _SEAT = {
     "skin_hat_trucker":   {"dy": 8},
     "skin_hat_snapback":  {"dx": 0, "dy": 8},
     "skin_hat_gradcap":   {"dx": -5, "dy": 11},
-    "skin_hat_chef":      {"hw": 27, "dy": 26},
+    "skin_hat_chef":      {"hw": 27, "dx": -2, "dy": 8},
     "skin_hat_bowler":    {"dy": 1},
     "skin_hat_fedora":    {},
     "skin_hat_sombrero":  {"dy": 6},
