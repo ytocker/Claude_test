@@ -20,10 +20,10 @@ import pygame
 from game import parrot
 from game.store_catalog import PARCEL_BASE
 from game.parcel_designs import (
-    sack, takeout, jar, picnic,
-    steamer, balloon, bottle,
+    sack, takeout, picnic,
+    balloon, bottle,
     chest, lantern, flask,
-    ufo, comet, snowglobe,
+    comet, snowglobe,
     airmail, love_letter, post_office,
     water_bottle, plastic_bottle, tumbler, coconut,
 )
@@ -71,7 +71,6 @@ def _none_icon(box: int = 46) -> pygame.Surface:
 _DESIGNS = {
     "parcel_sack":      sack,
     "parcel_takeout":   takeout,
-    "parcel_jar":       jar,
     "parcel_airmail":   airmail,
     "parcel_love":      love_letter,
     "parcel_postmark":  post_office,
@@ -80,13 +79,11 @@ _DESIGNS = {
     "parcel_tumbler":   tumbler,
     "parcel_coconut":   coconut,
     "parcel_picnic":    picnic,
-    "parcel_steamer":   steamer,
     "parcel_balloon":   balloon,
     "parcel_bottle":    bottle,
     "parcel_chest":     chest,
     "parcel_lantern":   lantern,
     "parcel_flask":     flask,
-    "parcel_ufo":       ufo,
     "parcel_comet":     comet,
     "parcel_snowglobe": snowglobe,
 }
