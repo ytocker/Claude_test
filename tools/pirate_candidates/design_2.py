@@ -66,29 +66,35 @@ def _paint_companion(surf, wing_angle_deg):
     # Pip's crown on every wing-beat frame.
     cx, cy = HX - 25, CROWN_Y + 2 + bob
 
-    # Body — one plump green oval, ~25-30% larger than R1, no inner wing/tail
-    # polys to muddy it. A single dark rim turns the form without splitting it.
+    # Body — one plump DARK-green oval. Leaning the lower body on the dark tone
+    # sets up the value break: a dark body under a light head reads "bird" at
+    # 40px with no internal detail. The mid-green only catches the upper turn.
     pygame.draw.ellipse(surf, _COMP_GREEN_D, (cx - 8, cy - 5, 17, 16))
-    pygame.draw.ellipse(surf, _COMP_GREEN, (cx - 7, cy - 5, 15, 14))
-    pygame.draw.ellipse(surf, _COMP_GREEN_H, (cx - 5, cy - 4, 8, 6))
+    pygame.draw.ellipse(surf, _COMP_GREEN_D, (cx - 7, cy - 5, 15, 14))
+    pygame.draw.ellipse(surf, _COMP_GREEN, (cx - 6, cy - 4, 11, 7))
 
-    # Head — a distinctly separated round mass sitting up-and-forward, with a
-    # 1px dark gap below it so the viewer reads head-then-body, not one lump.
+    # Head — a distinctly separated round mass filled with the LIGHT green so it
+    # wins as the bright end of the silhouette (light head over dark body =
+    # "bird looking up-and-forward"). A 1px dark gap below keeps head/body split.
     hx, hy = cx + 6, cy - 6
     pygame.draw.circle(surf, _COMP_GREEN_D, (hx, hy), 6)
-    pygame.draw.circle(surf, _COMP_GREEN, (hx, hy), 5)
-    pygame.draw.circle(surf, _COMP_GREEN_H, (hx - 1, hy - 2), 2)
+    pygame.draw.circle(surf, _COMP_GREEN_H, (hx, hy), 5)
+    pygame.draw.circle(surf, (180, 232, 196), (hx - 1, hy - 2), 2)
 
-    # The hooked beak — the key parrot cue. A solid black wedge jutting forward
-    # into the gap toward Pip, thick enough (2px+) to survive the 40px shrink.
-    _poly(surf, _COMP_BEAK, [(hx + 4, hy - 2), (hx + 10, hy + 1),
-                             (hx + 7, hy + 3), (hx + 4, hy + 3)])
+    # The hooked beak — the key parrot cue. A solid black 3px wedge angled clearly
+    # down-and-forward; at 40px this dark notch on the bright head IS the parrot
+    # read, so it's the thickest mark on the companion.
+    _poly(surf, _COMP_BEAK, [(hx + 3, hy - 1), (hx + 11, hy + 2),
+                             (hx + 8, hy + 5), (hx + 4, hy + 4)])
     # Hook curl at the tip so it reads as a parrot's, not a sparrow's, beak.
-    pygame.draw.line(surf, _COMP_BEAK, (hx + 9, hy + 1), (hx + 8, hy + 3), 2)
+    pygame.draw.line(surf, _COMP_BEAK, (hx + 10, hy + 2), (hx + 8, hy + 5), 3)
 
-    # ONE gold accent only — the macaw cheek/face patch under the eye.
-    pygame.draw.circle(surf, _COMP_GOLD, (hx + 1, hy + 2), 2)
-    pygame.draw.circle(surf, _COMP_GOLD_H, (hx + 1, hy + 2), 1)
+    # ONE gold accent only — the macaw cheek, a 2-3px crescent on the head's
+    # forward-LOWER edge so it sits half-on-green / half-against-sky where the
+    # value break makes it a visible spark (and doubles as the macaw cue).
+    pygame.draw.circle(surf, _COMP_GOLD, (hx + 3, hy + 3), 3)
+    pygame.draw.circle(surf, _COMP_GREEN_H, (hx + 1, hy + 2), 2)
+    pygame.draw.circle(surf, _COMP_GOLD_H, (hx + 4, hy + 4), 1)
 
     # Eye + white catch so the tiny head reads as a face.
     pygame.draw.circle(surf, _COMP_EYE, (hx + 2, hy - 1), 1)
@@ -120,15 +126,16 @@ def _paint_bandana(surf):
     # One crisp highlight crease so the dark band reads as cloth, not a void.
     pygame.draw.line(surf, _BAND_RED_H, (HX - 8, HY - 4), (HX + 8, HY - 5), 1)
 
-    # ONE bold knot tail trailing back-left into the SKY behind the head, with a
-    # dark outline so it stays legible against the body and breaks the outline.
-    kx, ky = HX - 11, HY - 2
+    # ONE bold knot tail pushed DOWN-AND-BACK so its dark-maroon shape clears the
+    # back-of-head/neck outline against the sky — a tail breaking the silhouette
+    # is visible at 40px where a band buried in the head is not.
+    kx, ky = HX - 11, HY + 2
     pygame.draw.circle(surf, (90, 22, 16), (kx, ky), 4)
     pygame.draw.circle(surf, _BAND_RED_D, (kx, ky), 3)
-    tail = [(kx, ky + 1), (kx - 6, ky + 2), (kx - 12, ky + 6)]
+    tail = [(kx, ky + 1), (kx - 5, ky + 5), (kx - 9, ky + 11)]
     pygame.draw.lines(surf, (90, 22, 16), False, tail, 4)
-    pygame.draw.lines(surf, _BAND_RED_D, False, tail, 2)
-    pygame.draw.line(surf, _BAND_RED_H, (kx - 1, ky), (kx - 6, ky + 1), 1)
+    pygame.draw.lines(surf, _BAND_RED_D, False, tail, 3)
+    pygame.draw.line(surf, _BAND_RED_H, (kx - 1, ky + 1), (kx - 5, ky + 4), 1)
 
 
 def _paint_pirate_core(surf):
