@@ -47,7 +47,7 @@ def main():
     out = pygame.Surface((cols_w, TOP + PANEL_H + BOT))
     out.fill(BG)
     title = _font(22, bold=True).render(
-        "SKELETON v4 — x-ray of the ORIGINAL Pip, full skeleton + dominant beak bone",
+        "SKELETON v4 — x-ray skeleton of the ORIGINAL Pip in a hooded open-front CLOAK (dominant beak bone)",
         True, (236, 238, 246))
     out.blit(title, (PAD, 16))
 
