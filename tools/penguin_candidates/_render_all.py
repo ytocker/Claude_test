@@ -13,8 +13,11 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 import importlib
+import sys
 import pygame
 pygame.init()
+
+ROUND = sys.argv[1] if len(sys.argv) > 1 else "round_1"
 
 import tools.ninja_render as nr
 from game import biome
@@ -119,7 +122,8 @@ def render_design(slug, name):
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((18, 16, 26))
 
-    _label(sheet, f"PENGUIN  ·  {name}  ·  round 1", pad, 16, size=26)
+    _label(sheet, f"PENGUIN  ·  {name}  ·  {ROUND.replace('_', ' ')}",
+           pad, 16, size=26)
 
     y0 = 56
     sheet.blit(day, (pad, y0))
@@ -135,7 +139,7 @@ def render_design(slug, name):
     sheet.blit(truth, (col3, y0 + 340))
     _label(sheet, "40px", col3 + 4, y0 + 342, size=14)
 
-    out = f"{OUT_DIR}/{slug}/round_1.png"
+    out = f"{OUT_DIR}/{slug}/{ROUND}.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     return out

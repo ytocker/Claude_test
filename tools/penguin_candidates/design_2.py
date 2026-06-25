@@ -22,9 +22,10 @@ _EM_SLATE_D = (28, 34, 55)          # deeper shadow rim
 _EM_STEEL   = (90, 106, 134)        # #5A6A86 lighter steel (gradient base)
 _EM_BELLY   = (255, 253, 246)       # #FFFDF6 white belly
 _EM_BELLY_D = (210, 212, 218)       # soft belly undershadow
-_EM_ORANGE  = (255, 122, 24)        # #FF7A18 ear-patch orange
-_EM_AMBER   = (255, 190, 50)        # amber mid-tone in the ear-to-throat melt
-_EM_YELLOW  = (255, 210, 74)        # #FFD24A golden-yellow throat bib
+_EM_ORANGE  = (240, 138, 40)        # #F08A28 burnt-amber ear-patch (cooled for regal)
+_EM_AMBER   = (248, 184, 70)        # amber mid-tone in the ear-to-throat melt
+_EM_YELLOW  = (255, 218, 106)       # #FFDA6A golden-yellow throat bib (lifted)
+_EM_YELLOW_U = (228, 168, 60)       # amber underline so the collar separates from belly
 _EM_CORAL   = (255, 156, 176)       # #FF9CB0 coral lower-mandible stripe
 _EM_FLIPRIM = (170, 194, 222)       # pale-blue flipper leading-edge rim
 _EM_FOOT    = (60, 72, 96)          # dark slate-grey webbed feet
@@ -56,6 +57,10 @@ def build_emperor(wing_angle_deg):
     # White belly oval.
     _aaellipse(surf, _EM_BELLY,   (BCX + 1, BCY + 4),  11, 13)
     _aaellipse(surf, _EM_BELLY_D, (BCX + 1, BCY + 10),  9,  5)
+    # Pale-steel lit edge on the upper-left back — a 1px rim so the slate form
+    # keeps separation against dark night pillars (matches the flipper rim).
+    pygame.draw.arc(surf, _EM_FLIPRIM,
+                    (BCX - 16, BCY - 17, 22, 26), 1.4, 3.0, 2)
 
     # Far slate flipper.
     _rot_blit(surf, _em_flipper(wing_angle_deg * 0.5 - 16), (BCX + 11, BCY))
@@ -64,24 +69,26 @@ def build_emperor(wing_angle_deg):
     _aaellipse(surf, _EM_SLATE_D, (HCX,     HCY + 2), 12, 12)
     _aaellipse(surf, _EM_SLATE,   (HCX - 1, HCY + 1), 11, 11)
 
-    # ── Ear-to-throat melt: orange teardrop → amber → yellow bib ──
-    # Three overlapping ellipses per side shrink in saturation as they descend,
-    # creating the king/emperor "headphones bleeding into a glowing collar" read.
-    # Drawn before the face mask so the white face sits cleanly on top.
+    # ── Ear-to-throat melt: a narrow vertical teardrop down each side of the
+    # neck into the chest bib — the real king/emperor silhouette. Small,
+    # outboard, diagonal so the warm reads as an elegant accent, not a mask. ──
     for sx in (-1, 1):
-        ex = HCX + sx * 8
-        _aaellipse(surf, _EM_YELLOW, (ex, HCY + 10), 5, 7)    # bib tip
-        _aaellipse(surf, _EM_AMBER,  (ex, HCY + 5),  5, 6)    # mid fade
-        _aaellipse(surf, _EM_ORANGE, (ex, HCY),      5, 5)    # bright ear-patch
-    # Soft yellow chest bib connecting both sides.
-    _aaellipse(surf, _EM_YELLOW, (HCX, HCY + 11), 9, 5)
+        ex = HCX + sx * 9
+        _aaellipse(surf, _EM_YELLOW, (ex - sx, HCY + 9), 4, 6)   # bib tip (inner/low)
+        _aaellipse(surf, _EM_AMBER,  (ex,      HCY + 4), 4, 5)   # mid fade
+        _aaellipse(surf, _EM_ORANGE, (ex + sx, HCY - 1), 4, 4)   # ear-patch (outer/high)
+    # Glowing yellow chest bib connecting both sides, with an amber underline so
+    # the collar separates cleanly from the white belly at 40px.
+    _aaellipse(surf, _EM_YELLOW,   (HCX, HCY + 11), 9, 5)
+    _aaellipse(surf, _EM_YELLOW_U, (HCX, HCY + 14), 8, 2)
 
-    # White face (no rosy cheek — stately).
+    # White face (no rosy cheek — stately). Drawn over the melt so the eyes sit
+    # on white, never on the warm patches.
     _aaellipse(surf, _EM_BELLY, (HCX, HCY + 3), 8, 8)
 
-    # Eyes — close dark dots, regal-neutral.
-    _eye(surf, HCX - 2, HCY, 3)
-    _eye(surf, HCX + 5, HCY, 3)
+    # Eyes — symmetric dark dots with a catch-light, regal-forward gaze.
+    _eye(surf, HCX - 3, HCY, 3)
+    _eye(surf, HCX + 3, HCY, 3)
 
     # Long slender beak: upper mandible in soft slate, lower in coral pink.
     pygame.draw.polygon(surf, _EM_STEEL,

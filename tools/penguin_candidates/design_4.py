@@ -40,9 +40,9 @@ def _dive_fin(angle_deg):
     blade = [(19, 9), (28, 16), (26, 36), (12, 32), (15, 16)]
     pygame.draw.polygon(w, NAVY_D, blade)
     pygame.draw.polygon(w, NAVY, [(19, 10), (26, 17), (24, 32), (14, 29)])
-    # Cyan leading-edge stripe — the fin tell.
-    pygame.draw.line(w, CYAN, (19, 12), (25, 18), 2)
-    pygame.draw.line(w, CYAN_H, (19, 12), (22, 15), 1)
+    # Full-length 2px cyan leading edge so the "swim-fin" tell survives downscale.
+    pygame.draw.line(w, CYAN, (19, 11), (25, 34), 2)
+    pygame.draw.line(w, CYAN_H, (19, 12), (22, 17), 1)
     return pygame.transform.rotate(w, angle_deg * 0.7)
 
 
@@ -56,12 +56,15 @@ def build_diver(wing_angle_deg):
     # Egg body (navy back).
     _aaellipse(surf, NAVY_D, (BCX + 1, BCY + 1), 17, 18)
     _aaellipse(surf, NAVY, (BCX, BCY), 16, 17)
+    # Cool rim-light on the upper-left back so the navy body keeps its silhouette
+    # against the night sky — without it only the belly + mask float at night.
+    pygame.draw.arc(surf, NAVY_H, (BCX - 16, BCY - 16, 22, 26), 1.3, 3.1, 2)
     # White belly oval — the high-contrast split.
     _aaellipse(surf, BELLY, (BCX + 1, BCY + 3), 11, 14)
     _aaellipse(surf, BELLY_D, (BCX + 1, BCY + 9), 9, 6)
 
-    # Far fin behind the body.
-    _rot_blit(surf, _dive_fin(wing_angle_deg * 0.5 - 16), (BCX + 11, BCY))
+    # Far fin behind the body — nudged out so it's not swallowed by the body.
+    _rot_blit(surf, _dive_fin(wing_angle_deg * 0.5 - 16), (BCX + 13, BCY))
 
     # Head merges into body (penguin little-neck).
     _aaellipse(surf, NAVY_D, (HCX, HCY + 2), 12, 12)
@@ -81,8 +84,10 @@ def build_diver(wing_angle_deg):
         (HCX - 1, CROWN_Y - 11),            # crests the top
         (HCX - 5, CROWN_Y - 8),             # forward hook tip
     ]
-    pygame.draw.lines(surf, RUBBER, False, snk, 4)
-    pygame.draw.lines(surf, NAVY_H, False, snk[:4], 1)   # rim sheen
+    # Fat rubber tube (5px) with a cyan highlight stripe down its outer edge so
+    # it reads as cyan dive-gear at 40px, not a thin black wire.
+    pygame.draw.lines(surf, RUBBER, False, snk, 5)
+    pygame.draw.lines(surf, CYAN, False, snk, 2)         # cyan gear sheen
     snk_tip = snk[-1]
     # Cyan mouthpiece nub at the elbow.
     pygame.draw.circle(surf, CYAN, (HCX + 8, HCY + 5), 2)
@@ -94,8 +99,6 @@ def build_diver(wing_angle_deg):
     _aaellipse(surf, CYAN, (mcx, mcy), 9, 7)             # glass lens
     # Top-left lens glint — sells the domed glass.
     _aaellipse(surf, CYAN_H, (mcx - 3, mcy - 3), 4, 2)
-    # Rubber strap band crossing toward the side of the head.
-    pygame.draw.line(surf, RUBBER, (mcx + 9, mcy + 1), (HCX + 11, HCY + 4), 2)
     # Enlarged happy eyes seen through the lens (bigger than the bare r=3).
     _eye(surf, mcx - 4, mcy, 4, white=(250, 250, 248))
     _eye(surf, mcx + 4, mcy, 4, white=(250, 250, 248))
@@ -112,7 +115,9 @@ def build_diver(wing_angle_deg):
     # Sizes grow as they rise; a small per-frame drift keyed to the flap so
     # they shimmer with motion. Each gets a tiny white glint.
     drift = int((f - 0.5) * 3)
-    for i, (dx, dy, r) in enumerate(((-2, -4, 2), (-5, -10, 2), (-7, -17, 3))):
+    # Start at the tip and rise mostly vertically so the column reads as bubbles
+    # blown FROM the snorkel, not drifting off into empty sky.
+    for i, (dx, dy, r) in enumerate(((-1, -3, 2), (-2, -9, 2), (-3, -16, 3))):
         bx = snk_tip[0] + dx + drift
         by = snk_tip[1] + dy - i
         pygame.draw.circle(surf, BUBBLE, (bx, by), r)
