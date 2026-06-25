@@ -12,8 +12,8 @@ pygame.init()
 from tools import ninja_render
 from tools.pirate_candidates.design_3 import build
 
-OUT = "docs/store_redesign/costume/pirate/design_3/round_2.png"
-TITLE = "DESIGN 3 — SWASHBUCKLER  round 2  (Armed for a Fight: cutlass + baldric)"
+OUT = "docs/store_redesign/costume/pirate/design_3/round_3.png"
+TITLE = "DESIGN 3 — SWASHBUCKLER  round 3  (shorter cutlass + peg leg)"
 
 
 def _label(surf, text, x, y, size=18, color=(236, 238, 246)):

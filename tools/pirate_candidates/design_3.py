@@ -72,8 +72,10 @@ def _paint(surf, _a):
     #    tip + guard break the outline against the sky. Three steel values give
     #    the curve a bright highlight edge that reads at 40px.
     hilt = (HX - 2, HY + 24)          # brass guard, at the waist (near wing)
-    btip = (HX - 33, CROWN_Y - 6)     # blade tip, up past the tail/back outline
-    bctrl = (HX - 28, HY + 8)         # control pulls the belly of the curve down-left
+    # Shorter, stubbier hanger — tip pulled IN toward the body and down so the
+    # blade is ~a third shorter, yet still overshoots the back/tail outline.
+    btip = (HX - 22, CROWN_Y - 2)     # blade tip, still past the back outline
+    bctrl = (HX - 19, HY + 6)         # control keeps the curved-sabre belly
     # Shadow underlay (widest) so the bright blade has a dark edge against sky.
     _curved_blade(surf, hilt, bctrl, btip, _STEEL_D, 6)
     _curved_blade(surf, hilt, bctrl, btip, _STEEL, 4)
@@ -118,6 +120,16 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _BRASS_D, (bkx, bky - 3), (bkx, bky + 3), 1)   # brass cross
     pygame.draw.line(surf, _BRASS_D, (bkx - 3, bky), (bkx + 3, bky), 1)
     pygame.draw.line(surf, _BRASS_H, (bkx - 3, bky - 3), (bkx + 2, bky - 3), 2)
+
+    # ── CLASSIC WOODEN PEG LEG over the NEAR foot. The base foot is only ~2px so
+    #    the peg is drawn chunkier (3-4px) to survive downscale, and pokes below the
+    #    body to break the lower silhouette. Far foot is left as a normal foot.
+    px, ptop, pbot = 26, 65, 78
+    pygame.draw.line(surf, _LEATHER, (px - 1, ptop), (px - 1, pbot), 1)   # shadow side
+    pygame.draw.line(surf, _WOOD, (px, ptop), (px, pbot - 1), 4)          # peg body
+    pygame.draw.line(surf, _WOOD, (px, pbot - 1), (px, pbot), 2)          # whittled tip
+    pygame.draw.line(surf, _LEATHER_H, (px + 1, ptop + 1), (px + 1, pbot - 2), 1)  # glint
+    pygame.draw.line(surf, _LEATHER, (px - 2, ptop), (px + 2, ptop), 2)   # ferrule at body
 
     # ── PIRATE IDENTITY (the anchor read) — earring, eyepatch, tricorn, gold
     #    brim, skull cockade. Same family as production so it stays "pirate".
