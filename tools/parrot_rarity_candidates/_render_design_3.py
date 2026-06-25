@@ -19,7 +19,7 @@ from game.config import W as GW, H as GH, GROUND_Y
 from tools.ninja_render import gameplay_panel, hero_panel, _frame, FRAME_IDX, TILT
 from tools.parrot_rarity_candidates.design_3 import build
 
-OUT = "docs/store_redesign/parrot/design_3/round_1.png"
+OUT = "docs/store_redesign/parrot/design_3/round_2.png"
 FONT = pygame.font.SysFont("Arial", 16, bold=True)
 SMALL = pygame.font.SysFont("Arial", 13)
 

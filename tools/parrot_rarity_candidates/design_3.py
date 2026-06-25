@@ -1,9 +1,12 @@
 """design_3 · MAGMA CONURE — EPIC parrot rarity candidate (exploration only).
 
 A charcoal Pip lit from within by molten glow. The read is pure value
-contrast: a near-black body where the only warm light is the cracks, a
-smoke-wisp crest tipped with embers breaking the crown silhouette, and a
-few rising sparks above the back. Built on the palette-recolour contract
+contrast: a body lifted one value step off true black where the only warm
+light is the cracks, a SHORT charcoal smoke-wisp FEATHER crest (three
+tapering plumes each tipped with one small ember) breaking the crown
+silhouette behind a clear forward face, and a few rising sparks above the
+back. The crest is deliberately subordinate so the head + amber aviators
+win the eye, tiering the bird as EPIC. Built on the palette-recolour contract
 (`_build_parrot_with_palette` + `_pal`) wrapped by `store_skins._make_skin`.
 
 Why a custom compose: a soft magma underglow is laid down BEHIND the body
@@ -37,34 +40,37 @@ _SMOKE      = (138, 138, 138)     # #8A8A8A smoke grey
 _SMOKE_D    = (92, 92, 96)
 _WHITE      = (255, 248, 230)
 
-# Near-black charcoal re-plumage. Crown/chest lifted a touch above the deep
-# so the dark mass keeps internal form on night sky; the only warm slots are
-# the retinted aviators — every other warm note comes from the painted glow.
+# Charcoal re-plumage lifted ONE value step off true black (#3A3034 main over
+# #322A2E shadow) so the cracks have a plumage surface to live on instead of
+# floating on stone — and so a faint warm rim-light reads as smouldering
+# feather, not rock. Crown/chest sit highest; the only warm slots are the
+# retinted aviators — every other warm note comes from the painted glow.
+_BODY = (58, 48, 52)              # #3A3034 lifted body main
 P_MAGMA = _pal(
-    tail=[(22, 18, 21), (30, 25, 28), (40, 33, 37), (52, 44, 48)],
-    tail_line=(16, 13, 15),
-    body_shadow=(30, 24, 28),
-    body_main=_CHARCOAL,
-    body_chest=(60, 51, 55),
-    body_belly=(40, 33, 37),
-    sheen=(255, 150, 70, 45),
-    wing_main=(38, 31, 35),
-    wing_dark=(22, 18, 21),
-    wing_tip=(58, 48, 52),
+    tail=[(26, 21, 24), (34, 28, 31), (46, 38, 42), (60, 50, 54)],
+    tail_line=(20, 16, 18),
+    body_shadow=(50, 42, 46),     # #322A2E — the old main is now the shadow
+    body_main=_BODY,
+    body_chest=(72, 60, 64),
+    body_belly=(48, 40, 44),
+    sheen=(255, 150, 70, 50),
+    wing_main=(50, 41, 45),
+    wing_dark=(30, 24, 28),
+    wing_tip=(70, 58, 62),
     wing_secondary=None,
-    wing_highlight=(96, 78, 82),
-    head_shadow=(30, 24, 28),
-    head_main=_CHARCOAL,
-    head_cheek=(64, 54, 58),
-    head_crown=(70, 59, 63),
-    lens_frame=(120, 70, 30),
-    lens_body=(24, 16, 14),
-    lens_tint=(255, 120, 50, 150),
-    lens_glint=(255, 230, 180),
-    beak_main=(36, 30, 33),
-    beak_dark=(18, 14, 16),
-    beak_gloss=(150, 90, 50),
-    foot=(34, 28, 31),
+    wing_highlight=(110, 90, 94),
+    head_shadow=(40, 33, 37),
+    head_main=_BODY,
+    head_cheek=(78, 66, 70),
+    head_crown=(86, 72, 76),
+    lens_frame=(150, 88, 38),
+    lens_body=(26, 17, 15),
+    lens_tint=(255, 130, 55, 165),
+    lens_glint=(255, 236, 190),
+    beak_main=(44, 36, 39),
+    beak_dark=(22, 17, 19),
+    beak_gloss=(170, 102, 56),
+    foot=(40, 33, 36),
 )
 
 
@@ -93,33 +99,55 @@ def _crack(surf, pts, behind):
     pygame.draw.lines(surf, _EMBER, False, pts, 1)
 
 
+def _smoke_plume(surf, root, lean, h, ember_r, behind):
+    """A short charcoal smoke-wisp FEATHER (not a stalk): a tapering quill that
+    starts wide+dark at the crown and narrows to a single small ember tip. The
+    body is smoke-charcoal that recedes into the silhouette so it reads as
+    plumage breaking the outline, while the lone ember tip is one of the two
+    hottest hues — the wisp carries the bird's heat up without becoming the
+    whole shape."""
+    rx, ry = root
+    mid = (rx + lean // 2, ry - h * 3 // 5)
+    tip = (rx + lean, ry - h)
+    # Wide-to-narrow quill: a thick dark base stroke tapering to a thin neck.
+    pygame.draw.lines(surf, _SMOKE_D, False, [root, mid], 5)
+    pygame.draw.lines(surf, _SMOKE_D, False, [mid, tip], 3)
+    pygame.draw.lines(surf, _SMOKE, False, [(rx, ry - 1), mid, tip], 1)
+    # One small ember at the very tip — held to the two hottest hues only.
+    _glow_dot(behind, tip[0], tip[1], ember_r + 2, _MAGMA)
+    pygame.draw.circle(surf, _MAGMA, tip, ember_r)
+    pygame.draw.circle(surf, _EMBER, tip, max(1, ember_r - 1))
+
+
 def _paint_magma(surf, wing_angle_deg, behind):
     # Body centre in composite space (native (32,32) + PARROT_DY) and the
     # wing pivot — the cracks trace the actual plumage masses.
     bcx, bcy = 32, 32 + PARROT_DY
 
-    # ── Smoke-wisp crest: a curling grey plume rising past the crown, tipped
-    # with bright embers. Two offset wisps so the silhouette break reads as
-    # rising smoke, not a single horn. The embers are the hottest points and
-    # sit highest, so they break the outline first at 40px.
-    base = CROWN_Y + 3
-    for sx, lean, h in ((-2, -6, 20), (3, 5, 24)):
-        x = HX + sx
-        root = (x, base + 1)
-        mid = (x + lean // 2, base - h // 2)
-        tip = (x + lean, base - h)
-        pygame.draw.lines(surf, _SMOKE_D, False, [root, mid, tip], 4)
-        pygame.draw.lines(surf, _SMOKE, False, [root, (mid[0] + 1, mid[1]), tip], 2)
-        # Ember tip — a hot core with a soft bloom so it glows past the smoke.
-        _glow_dot(behind, tip[0], tip[1], 5, _MAGMA)
-        pygame.draw.circle(surf, _MAGMA, tip, 3)
-        pygame.draw.circle(surf, _EMBER, tip, 2)
-        pygame.draw.circle(surf, _WHITE, (tip[0], tip[1] - 1), 1)
-    # A third small mid-crest ember so 2–3 embers crown the bird.
-    mex, mey = HX + 1, base - 13
-    _glow_dot(behind, mex, mey, 4, _MAGMA)
-    pygame.draw.circle(surf, _EMBER, (mex, mey), 2)
-    pygame.draw.circle(surf, _WHITE, (mex, mey - 1), 1)
+    # ── Smoke-wisp crest, re-cut ~40% shorter and reshaped as FEATHERS. Three
+    # short tapering charcoal plumes sit BEHIND/ABOVE the back of the crown
+    # (pulled left of the face), each tipped with ONE small ember. They break
+    # the crown silhouette without becoming the silhouette — the head and
+    # aviators stay forward and unmistakable.
+    base = CROWN_Y + 2
+    for sx, lean, h, er in ((-5, -4, 12, 2), (-1, -2, 14, 2), (2, 3, 11, 2)):
+        _smoke_plume(surf, (HX + sx, base), lean, h, er, behind)
+
+    # ── Forward face read: re-establish the head. A warm rim hugs the crown's
+    # FRONT and the beak wedge so the face catches the molten light and wins
+    # the eye ahead of the crest. The amber aviator already lives in the base
+    # build at native (50,20); we punch a hot glint so the lens reads brightest.
+    bx0, bx1 = 55, 61                      # native beak wedge tip span
+    pygame.draw.line(surf, _MAGMA, (bx0, 21 + PARROT_DY),
+                     (bx1, 24 + PARROT_DY), 2)
+    pygame.draw.line(surf, _EMBER, (bx0, 22 + PARROT_DY),
+                     (bx1 - 1, 24 + PARROT_DY), 1)
+    # Aviator-winning glints: bloom + hot specular on each amber lens so the
+    # eye lands on the face, not the crown.
+    for lx, ly in ((50, 20 + PARROT_DY), (56, 20 + PARROT_DY)):
+        _glow_dot(behind, lx, ly, 4, _MAGMA)
+        pygame.draw.circle(surf, _EMBER, (lx - 1, ly - 1), 1)
+        pygame.draw.circle(surf, _WHITE, (lx - 1, ly - 2), 1)
 
     # ── Magma crack-lines tracing the body. Held off the near-black store-card
     # edge of the silhouette: each vein runs across the BODY INTERIOR (chest /
@@ -129,10 +157,24 @@ def _paint_magma(surf, wing_angle_deg, behind):
     _crack(surf, [(bcx - 11, bcy + 4), (bcx - 6, bcy + 6),
                   (bcx - 3, bcy + 11)], behind)
 
-    # Wing leading-edge crack — the wing root toward the tip, so the flapping
-    # plane carries a hot line too. Wing pivot is native (34,28) → composite.
+    # ── Wing shape, so the wing crack has a feather edge to trace instead of
+    # floating on a shapeless mass. A faint warm rim-light traces the wing's
+    # leading edge + lower feather fan; the leading-edge crack then runs just
+    # inboard of that lit edge. Wing pivot is native (34,28) → composite.
     wx, wy = 34, 28 + PARROT_DY
+    wing_edge = [(wx - 5, wy + 11), (wx + 1, wy + 5),
+                 (wx + 8, wy + 1), (wx + 14, wy)]
+    pygame.draw.lines(surf, (150, 96, 70), False, wing_edge, 1)   # warm rim
+    # Lower feather-fan ticks define the wing as plumage with a trailing edge.
+    for tx, ty in ((wx + 13, wy + 2), (wx + 9, wy + 6), (wx + 4, wy + 9)):
+        pygame.draw.line(surf, (110, 78, 64), (tx, ty), (tx - 2, ty + 3), 1)
     _crack(surf, [(wx - 4, wy + 9), (wx + 4, wy + 4), (wx + 12, wy)], behind)
+
+    # ── Faint warm rim-light along the back/upper edge — gives the dark mass a
+    # lit contour so it reads as smouldering plumage, not stone.
+    back_edge = [(bcx - 9, bcy - 6), (bcx - 4, bcy - 9),
+                 (bcx + 3, bcy - 8), (bcx + 9, bcy - 4)]
+    pygame.draw.lines(surf, (140, 88, 64), False, back_edge, 1)
 
     # ── Ember-tipped feather ends: a couple of tail/wing tips glow as if the
     # plumage is smouldering. Small hot dots with a bloom, kept inboard of the
