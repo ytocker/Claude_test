@@ -5,6 +5,13 @@ dark keylines, in the Day-of-the-Dead / Saturday-morning-cartoon register.
 No glow, no gradient — clean graphic white-on-dark that pops on the bright
 day sky AND the night navy.
 
+The black "back" mass is now a HOODED OPEN-FRONT CLOAK (shared cloak base):
+a cowl wraps the back of the skull, the drape flares to a tattered hem, and
+the open chest V keeps the ribcage + spine + dominant beak as the hero. To
+stay in the BOLD register the cloth is flat near-black with ONE crisp,
+clearly-lighter cool-steel keyline on the hood rim + hem — a bold clean
+shape, not fussy folds — that survives the 40px downscale.
+
 R2 is all about NEGATIVE SPACE: at 40px the white bones flood-filled into a
 blob, so this pass forces dark flesh BETWEEN bones — thin fill bones (ribs,
 keel) so 4 distinct rib arcs survive, a hard dark gap at the skull/beak
@@ -57,8 +64,22 @@ _FLESH = XB._pal(
 )
 
 
+# BOLD keyline for the cloak: one crisp, clearly-lighter cool-steel edge so the
+# hood + tattered hem read as a single bold clean shape against the near-black
+# cloth — same graphic register as the thick high-contrast bones (no fussy
+# folds, just a hard rim that survives the 40px downscale on day AND night).
+_CLOAK_EDGE = (176, 184, 214)
+
+
 def _flesh_base(angle_deg):
-    return XB._build_parrot_with_palette(angle_deg, _FLESH, draw_lenses=False)
+    # Shared cloak shape on YOUR near-black cloth, then re-strike the hood-rim
+    # and tattered-hem keylines one step thicker so the cloak reads as a single
+    # bold graphic shape — matching the chunky high-contrast bones, not the
+    # base's hairline default rim.
+    surf = XB.cloak_base(angle_deg, _FLESH, edge=_CLOAK_EDGE)
+    pygame.draw.lines(surf, _CLOAK_EDGE, False, XB._HOOD_RIM, 2)
+    pygame.draw.lines(surf, _CLOAK_EDGE, False, XB._HEM_EDGE, 2)
+    return surf
 
 
 def _rib_gaps(surf):
