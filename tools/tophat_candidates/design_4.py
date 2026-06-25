@@ -74,10 +74,10 @@ def _paint(surf, _a):
     # only the knob + tip overshoot the silhouette. The knob is the hero glint,
     # held clear of the body so it stays a pale glowing bead at 40px on night.
     knob = (HX - 23, CROWN_Y + 1)
-    foot = (HX - 4, HY + 30)
+    foot = (HX - 6, HY + 24)
     pygame.draw.line(surf, _UND_COAT, knob, foot, 3)          # dark-on-dark shaft
-    pygame.draw.line(surf, (20, 20, 26), (foot[0], foot[1]),  # tip overshoot
-                     (foot[0] + 2, foot[1] + 4), 3)
+    pygame.draw.line(surf, (20, 20, 26), (foot[0], foot[1]),  # tip kept in footprint
+                     (foot[0] + 1, foot[1] + 2), 3)
     # Silver skull knob — a clean glowing bead: bright core + cool halo so it
     # survives downscale and reads as the costume's hero glint on any sky.
     kx, ky = knob
@@ -88,43 +88,44 @@ def _paint(surf, _a):
     pygame.draw.circle(surf, _UND_COAT, (kx - 1, ky + 1), 1)  # eye sockets
     pygame.draw.circle(surf, _UND_COAT, (kx + 1, ky + 1), 1)
 
-    # ── BODY: long black frock coat over the charcoal body. A tall slim tower
-    # (the Undertaker silhouette) with a continuous 2px cool rim down the BACK
-    # edge so the coat separates from a night sky. Widened charcoal lapels split
-    # the front into a clear V band so the chest reads as a coat at 40px.
-    coat = [(HX - 14, HY + 8), (HX - 16, HY + 30), (HX - 10, HY + 36),
-            (HX + 8, HY + 36), (HX + 12, HY + 28), (HX + 10, HY + 8)]
+    # ── BODY: black frock coat hugging the charcoal body, its hem held INSIDE the
+    # base Pip footprint (bottom ~HY+23) so the figure reads at the bird's true
+    # size, not a tower hanging past its feet. A continuous 2px cool rim runs the
+    # BACK edge so the coat separates from a night sky; widened charcoal lapels
+    # split the front into a clear V band so the chest reads as a coat at 40px.
+    coat = [(HX - 14, HY + 8), (HX - 15, HY + 18), (HX - 11, HY + 23),
+            (HX + 8, HY + 23), (HX + 12, HY + 18), (HX + 10, HY + 8)]
     _poly(surf, _UND_COAT, coat)
     # Continuous 2px cool rim-light tracing the back (left) edge + shoulder —
     # the single device that keeps the all-dark silhouette legible on dark sky.
     pygame.draw.lines(surf, _UND_RIM, False,
-                      [(HX - 14, HY + 8), (HX - 16, HY + 30),
-                       (HX - 10, HY + 36)], 2)
+                      [(HX - 14, HY + 8), (HX - 15, HY + 18),
+                       (HX - 11, HY + 23)], 2)
     # Charcoal-grey lapels — a wide V opening from the collar down the chest, a
     # clear 3-4px value step off the black coat so the front reads at 40px.
-    _poly(surf, _UND_LAPEL, [(HX - 5, HY + 9), (HX - 9, HY + 28),
-                             (HX - 3, HY + 24), (HX - 1, HY + 9)])
-    _poly(surf, _UND_LAPEL, [(HX + 7, HY + 9), (HX + 10, HY + 26),
-                             (HX + 3, HY + 24), (HX + 2, HY + 9)])
+    _poly(surf, _UND_LAPEL, [(HX - 5, HY + 9), (HX - 8, HY + 21),
+                             (HX - 3, HY + 18), (HX - 1, HY + 9)])
+    _poly(surf, _UND_LAPEL, [(HX + 7, HY + 9), (HX + 9, HY + 20),
+                             (HX + 3, HY + 18), (HX + 2, HY + 9)])
     # The dark chest V between the lapels reads as the shirt-front gap.
     _poly(surf, _UND_COAT, [(HX - 1, HY + 11), (HX + 2, HY + 11),
-                            (HX + 1, HY + 26), (HX, HY + 26)])
+                            (HX + 1, HY + 20), (HX, HY + 20)])
     # Jet button + thin silver watch-chain swag across the lower chest.
-    pygame.draw.circle(surf, (4, 4, 8), (HX, HY + 24), 2)
-    pygame.draw.circle(surf, _UND_LAPEL, (HX - 1, HY + 23), 1)
+    pygame.draw.circle(surf, (4, 4, 8), (HX, HY + 19), 2)
+    pygame.draw.circle(surf, _UND_LAPEL, (HX - 1, HY + 18), 1)
     pygame.draw.lines(surf, _UND_PALE_D, False,
-                      [(HX - 5, HY + 20), (HX - 1, HY + 24), (HX + 5, HY + 20)], 1)
-    pygame.draw.line(surf, _UND_PALE_H, (HX + 5, HY + 20), (HX + 6, HY + 18), 1)
+                      [(HX - 5, HY + 16), (HX - 1, HY + 20), (HX + 5, HY + 16)], 1)
+    pygame.draw.line(surf, _UND_PALE_H, (HX + 5, HY + 16), (HX + 6, HY + 14), 1)
 
-    # ── FEET: black buttoned ankle boots with dull silver spat buttons. A value
-    # step over the coat hem, poked below the body to break the lower outline;
-    # a rim glint keeps them off a dark floor.
+    # ── FEET: black buttoned ankle boots with dull silver spat buttons, tucked at
+    # the coat hem so they sit on the base Pip's feet line (~HY+24..27) rather
+    # than hanging below it. A value step over the hem + a rim glint keeps them
+    # legible and off a dark floor without extending the silhouette downward.
     for fx in (HX - 7, HX + 1):
-        pygame.draw.rect(surf, _UND_COAT, (fx, HY + 33, 8, 8), border_radius=2)
-        pygame.draw.line(surf, _UND_RIM, (fx, HY + 34), (fx, HY + 40), 1)
-        pygame.draw.line(surf, _UND_COAT, (fx, HY + 41), (fx + 9, HY + 41), 2)  # sole
-        pygame.draw.circle(surf, _UND_PALE_D, (fx + 6, HY + 35), 1)  # spat button
-        pygame.draw.circle(surf, _UND_PALE_D, (fx + 6, HY + 38), 1)
+        pygame.draw.rect(surf, _UND_COAT, (fx, HY + 22, 7, 5), border_radius=2)
+        pygame.draw.line(surf, _UND_RIM, (fx, HY + 23), (fx, HY + 26), 1)
+        pygame.draw.line(surf, _UND_COAT, (fx, HY + 27), (fx + 8, HY + 27), 2)  # sole
+        pygame.draw.circle(surf, _UND_PALE_D, (fx + 5, HY + 24), 1)  # spat button
 
     # ── NECK: pale ash wing-collar + black silk cravat. The brightest mass on
     # the whole figure — a crisp pale wedge under the beak that anchors the
