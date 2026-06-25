@@ -44,10 +44,10 @@ The orchestrator (you) runs the loop — subagents can't call each other. Read
   catalog until the user picks a winner. Procedural art only (no PNG sprites).
 
 ## 3 · Five design loops, run IN PARALLEL (batched by phase)
-`R1 designers(5) → C1 critics(5) → R2 designers(5) → C2 critics(5) → R3 designers(5)`
-- **Cap:** ≤3 designer + ≤2 critic turns per design, ending on a designer
+`R1 designers(5) → C1 critics(5) → R2 designers(5)`
+- **Cap:** ≤2 designer + ≤1 critic turns per design, ending on a designer
   revision; early-exit a design on `VERDICT: SHIP-READY`; always run ≥1 critique.
-  Honor a tighter cap if the user asks (e.g. "max 2 designer / 1 critic").
+  Honor a tighter cap if the user asks (e.g. "max 1 designer / 1 critic").
 - **graphics-designer** builds its candidate and renders it in-gameplay via the
   generic harness `tools/ninja_render.py` (`gameplay_panel` + `hero_panel` + a
   40px NEAREST "truth read"; legendaries get a 4-frame filmstrip), saving
