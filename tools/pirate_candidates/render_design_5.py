@@ -12,8 +12,8 @@ pygame.init()
 from tools import ninja_render
 from tools.pirate_candidates.design_5 import build
 
-OUT = "docs/store_redesign/costume/pirate/design_5/round_1.png"
-TITLE = "DESIGN 5 — GOLD-LADEN  (The Treasure Raider)"
+OUT = "docs/store_redesign/costume/pirate/design_5/round_2.png"
+TITLE = "DESIGN 5 — GOLD-LADEN  (The Treasure Raider)  ·  R2 subtraction + hierarchy"
 
 
 def _label(surf, text, x, y, size=18, color=(236, 238, 246)):

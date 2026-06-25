@@ -4,22 +4,23 @@ Scratch exploration only; NOT registered in store_skins.BUILDERS, so the live
 ``skin_pirate`` is untouched.
 
 Concept: keep the pirate IDENTITY (slate tricorn + white skull cockade) but
-bury the scarlet macaw under PLUNDER. Gold reads beautifully on scarlet, so the
-body stays the default red bird and every new object is gold layered across
-multiple zones for sheer wealth-mass:
+drape the scarlet macaw in PLUNDER. The body stays scarlet and reads scarlet
+FIRST — gold is the second beat, hung in a tight HIERARCHY so it never eats the
+bird at 40px:
 
-  * head — tricorn whose brim band carries a ROW of tiny coins/gems, plus a red
-    gem set into the skull cockade's brow,
-  * chest — THREE draped coin-chains arcing across the body, each a beaded line
-    of 2px gold dots with a bright highlight pip so the arcs stay distinct and
-    don't merge into a blob when the bird shrinks,
-  * belt — a bulging leather coin pouch with a couple of coins spilling out,
-  * foot — a curved gold hook hint over the near foot.
+  * head — original continuous gold brim band (the proven identity read) plus a
+    single red brow gem on the skull cockade; no studs (they speckle at scale),
+  * chest — TWO staggered coin-chains: a bright HERO strand high and a deep
+    RECESSED strand low, with a band of clean SCARLET showing between them so
+    the gold reads as draped on a red bird, not a gold blob,
+  * chest centre — ONE hero medallion as the single hot focal (beats nine pips),
+  * belt — a bulging leather coin pouch (the best non-gold beat) with one bright
+    spill-coin at its lip as a secondary focal,
+  * foot — a curved gold hook outlined in dark gold so it survives night sky.
 
-The 40px read, in order of value: a scarlet bird, the white skull + gold brim
-anchoring it as a PIRATE, then a cascade of gold across the chest reading as
-wealth. Strokes are ≥2px and each gold mass gets a single bright highlight so
-the gold pops on day AND night without muddying.
+The 40px read, in value order: a SCARLET bird, the white skull + gold brim
+anchoring it as a PIRATE, then ONE bright chain + medallion reading as wealth.
+Target balance ~60/40 scarlet/gold so the bird never disappears under loot.
 """
 import math
 import pygame
@@ -35,7 +36,6 @@ _GOLD     = (255, 205, 70)         # #FFCD46 body gold
 _GOLD_D   = (200, 146, 42)         # #C8922A deep gold (shadow / under-edge)
 _GOLD_H   = (255, 240, 160)        # #FFF0A0 hot highlight pip
 _GEM_RED  = (210, 53, 58)          # #D2353A ruby
-_GEM_GRN  = (54, 178, 107)         # #36B26B emerald
 _LEATHER  = (90, 58, 34)           # #5A3A22 pouch leather
 _LEATHER_D = (60, 38, 22)          # pouch shadow / seam
 
@@ -55,11 +55,16 @@ def _coin(surf, cx, cy, r):
     pygame.draw.circle(surf, _GOLD_H, (cx - 1, cy - 1), 1)
 
 
-def _chain(surf, p0, p1, p2, beads):
+def _chain(surf, p0, p1, p2, beads, hero):
     """A draped coin-chain: a quadratic-bezier arc of gold beads from p0 through
-    control p1 to p2. Each bead is a 2px gold dot over a deep-gold under-dot, so
-    the arc reads as a distinct beaded line — not a smear — at 40px. A few beads
-    get a bright pip to keep the cascade sparkling."""
+    control p1 to p2. ``hero`` controls the value tier so two chains can stagger
+    HARD instead of merging into one speckled blob:
+
+      hero=True  → bright strand: 3px gold beads over a deep-gold line, ONE
+                   shared light read, no per-bead highlight pips (those are the
+                   primary speckle-noise source at 40px).
+      hero=False → recessed strand: 2px DEEP-gold beads only, no bright tone,
+                   so it sits back in shadow and lets the hero strand lead."""
     pts = []
     for i in range(beads):
         t = i / (beads - 1)
@@ -67,63 +72,73 @@ def _chain(surf, p0, p1, p2, beads):
         x = mt * mt * p0[0] + 2 * mt * t * p1[0] + t * t * p2[0]
         y = mt * mt * p0[1] + 2 * mt * t * p1[1] + t * t * p2[1]
         pts.append((x, y))
-    # Deep-gold shadow line first so the chain reads as one continuous object,
-    # then the bright beads on top — the line stops the beads dissolving when
-    # the bird shrinks and the gaps close up.
-    pygame.draw.lines(surf, _GOLD_D, False, pts, 2)
-    for i, (x, y) in enumerate(pts):
-        pygame.draw.circle(surf, _GOLD, (int(x), int(y)), 2)
-        if i % 2 == 0:
-            pygame.draw.circle(surf, _GOLD_H, (int(x - 1), int(y - 1)), 1)
+    if hero:
+        pygame.draw.lines(surf, _GOLD_D, False, pts, 3)
+        for x, y in pts:
+            pygame.draw.circle(surf, _GOLD, (int(x), int(y)), 3)
+    else:
+        # Recessed strand: dark line + dark beads only — deliberately dim.
+        pygame.draw.lines(surf, _GOLD_D, False, pts, 2)
+        for x, y in pts:
+            pygame.draw.circle(surf, _GOLD_D, (int(x), int(y)), 2)
 
 
 def _paint(surf, _a):
-    # ── THREE draped coin-chains across the chest (drawn FIRST so the pouch,
-    #    belt and any hat detail can overlap them). Body centre ~(32, 52); the
-    #    arcs sag low across the breast and stagger in depth so the cascade
-    #    reads as layered loot, not one band. This is the hero density.
+    # ── TWO draped coin-chains across the chest, staggered HARD in value with a
+    #    clean band of SCARLET between them (drawn FIRST so the pouch can overlap).
+    #    Body centre ~(31, 52). Endpoints pulled INWARD (bcx ± 12) so the chains
+    #    don't reach the wing edge — the scarlet wing reads as a clean red shape
+    #    framing the gold. The recessed strand is dropped low enough that a red
+    #    gap shows between it and the bright hero strand: that red is what makes
+    #    the gold read as DRAPED ON A RED BIRD, not a gold blob.
     bcx, bcy = 31, 52
-    _chain(surf, (bcx - 16, bcy - 6), (bcx, bcy + 4),  (bcx + 16, bcy - 4), 9)
-    _chain(surf, (bcx - 15, bcy - 1), (bcx, bcy + 10), (bcx + 16, bcy + 1), 10)
-    _chain(surf, (bcx - 13, bcy + 4), (bcx, bcy + 14), (bcx + 15, bcy + 6), 9)
+    # Hero strand — bright, high on the breast.
+    _chain(surf, (bcx - 12, bcy - 4), (bcx, bcy + 4),  (bcx + 12, bcy - 2), 8, True)
+    # Recessed strand — deep gold only, dropped low, wide red gap above it.
+    _chain(surf, (bcx - 11, bcy + 7), (bcx, bcy + 15), (bcx + 12, bcy + 8), 8, False)
 
-    # A single fat medallion hanging off the lowest chain so the eye lands on a
-    # hero gold spot at chest centre.
-    _coin(surf, bcx + 1, bcy + 14, 3)
-    pygame.draw.circle(surf, _GEM_RED, (bcx + 1, bcy + 14), 1)
+    # ── HERO MEDALLION at chest centre: the single hot focal of the whole build.
+    #    One bright disc with a ruby boss beats nine scattered highlight pips.
+    mx, my = bcx + 1, bcy + 4
+    pygame.draw.circle(surf, _GOLD_D, (mx, my), 4)
+    pygame.draw.circle(surf, _GOLD, (mx, my), 3)
+    pygame.draw.circle(surf, _GEM_RED, (mx, my), 1)
+    pygame.draw.circle(surf, _GOLD_H, (mx - 1, my - 2), 1)
 
-    # ── bulging coin pouch on the belt (near/right of the waist) with a couple
-    #    of coins spilling out the cinched top. Leather mass + seam, gold spill.
+    # ── bulging coin pouch on the belt (near/right of the waist) — the best
+    #    non-gold beat. Bumped +1px and given ONE bright spill-coin at the lip as
+    #    a secondary focal. Spilled-coin count kept low so gold stays second.
     px, py = bcx + 14, bcy + 9
-    pygame.draw.ellipse(surf, _LEATHER_D, (px - 6, py - 4, 13, 14))
-    pygame.draw.ellipse(surf, _LEATHER, (px - 5, py - 3, 11, 12))
+    pygame.draw.ellipse(surf, _LEATHER_D, (px - 7, py - 4, 15, 16))
+    pygame.draw.ellipse(surf, _LEATHER, (px - 6, py - 3, 13, 14))
     # Cinched neck of the pouch.
-    pygame.draw.line(surf, _LEATHER_D, (px - 4, py - 3), (px + 5, py - 3), 2)
-    pygame.draw.line(surf, _GOLD_D, (px - 4, py - 4), (px + 5, py - 4), 1)
-    # Coins spilling over the lip.
-    _coin(surf, px - 2, py - 5, 2)
-    _coin(surf, px + 3, py - 4, 2)
-    _coin(surf, px + 1, py + 9, 2)   # one tumbling out the bottom
+    pygame.draw.line(surf, _LEATHER_D, (px - 5, py - 3), (px + 6, py - 3), 2)
+    pygame.draw.line(surf, _GOLD_D, (px - 5, py - 4), (px + 6, py - 4), 1)
+    # One bright coin perched at the lip — the pouch's secondary focal.
+    _coin(surf, px, py - 5, 2)
 
-    # ── curved gold hook over the NEAR (right) foot, below the body. Feet sit
-    #    below body centre; a short gold shank into a C-curve so it reads as a
-    #    pirate hook, not a claw.
+    # ── curved gold hook over the NEAR (right) foot, below the body. A short gold
+    #    shank into a C-curve so it reads as a pirate hook, not a claw. A 1px dark
+    #    outline behind the whole curve anchors it on near-black NIGHT sky.
     fx, fy = bcx + 6, bcy + 22
-    pygame.draw.line(surf, _GOLD_D, (fx, fy - 6), (fx, fy), 3)
-    pygame.draw.line(surf, _GOLD, (fx, fy - 6), (fx, fy), 2)
     hook = [(fx, fy), (fx + 3, fy + 2), (fx + 4, fy + 5),
             (fx + 2, fy + 7), (fx - 1, fy + 6)]
+    # Dark anchor pass (shank + curve), then the gold on top.
+    pygame.draw.line(surf, _LEATHER_D, (fx, fy - 6), (fx, fy), 4)
+    pygame.draw.lines(surf, _LEATHER_D, False, hook, 4)
+    pygame.draw.line(surf, _GOLD_D, (fx, fy - 6), (fx, fy), 3)
+    pygame.draw.line(surf, _GOLD, (fx, fy - 6), (fx, fy), 2)
     pygame.draw.lines(surf, _GOLD_D, False, hook, 3)
     pygame.draw.lines(surf, _GOLD, False, hook, 2)
-    pygame.draw.circle(surf, _GOLD_H, (fx - 1, fy - 4), 1)
 
     # ── gold hoop earring under the head (kept from the identity).
     pygame.draw.circle(surf, _GOLD, (HX - 8, HY + 10), 3, 2)
     pygame.draw.circle(surf, _GOLD_H, (HX - 9, HY + 9), 1)
 
     # ── tricorn lifted off the crown (same geometry as production so it still
-    #    reads PIRATE), but the brim band is now a ROW OF COINS/GEMS, not a plain
-    #    rope — the head's share of the wealth read.
+    #    reads PIRATE). The brim band reverts to the ORIGINAL single continuous
+    #    gold rope — the cleanest, proven identity read. Studs are gone: at 40px
+    #    a coin/gem row on the band just speckled.
     cy = CROWN_Y - 3
     brim = [(HX - 17, cy + 5), (HX - 5, cy - 7), (HX + 4, cy - 8),
             (HX + 16, cy + 4), (HX + 6, cy + 9), (HX - 6, cy + 9)]
@@ -134,35 +149,24 @@ def _paint(surf, _a):
     _poly(surf, _FELT_H, [(HX - 4, cy - 5), (HX + 3, cy - 6),
                           (HX + 2, cy - 2), (HX - 3, cy - 2)])
 
-    # Coin/gem-studded brim band tracing the front edge. A deep-gold base line
-    # carries the band; small coins + two gems sit on it so the head sparkles.
+    # Continuous gold brim band tracing the front edge — deep-gold under, bright
+    # gold over, one continuous rope. No studs.
     band = [(HX - 15, cy + 4), (HX - 4, cy - 5), (HX + 3, cy - 6),
             (HX + 14, cy + 3)]
     pygame.draw.lines(surf, _GOLD_D, False, band, 3)
     pygame.draw.lines(surf, _GOLD, False, band, 2)
-    studs = [(HX - 12, cy + 1), (HX - 6, cy - 3), (HX + 1, cy - 5),
-             (HX + 8, cy - 2), (HX + 12, cy + 1)]
-    for i, (gx, gy) in enumerate(studs):
-        if i == 1:
-            pygame.draw.circle(surf, _GEM_RED, (gx, gy), 2)
-            pygame.draw.circle(surf, (255, 200, 200), (gx - 1, gy - 1), 1)
-        elif i == 3:
-            pygame.draw.circle(surf, _GEM_GRN, (gx, gy), 2)
-            pygame.draw.circle(surf, (200, 255, 220), (gx - 1, gy - 1), 1)
-        else:
-            _coin(surf, gx, gy, 2)
 
-    # ── white skull cockade dead-centre-front with a RED GEM set in its brow —
-    #    the kept identity anchor, now jewelled.
+    # ── white skull cockade dead-centre-front with a RED BROW GEM — the kept
+    #    identity anchor, jewelled with the head's ONE wealth accent (no studs).
     sx, sy = HX, cy + 2
     pygame.draw.circle(surf, _SKULL, (sx, sy), 4)
     _poly(surf, _SKULL, [(sx - 3, sy + 2), (sx + 3, sy + 2),
                          (sx + 1, sy + 5), (sx - 1, sy + 5)])
     pygame.draw.circle(surf, (40, 30, 40), (sx - 2, sy), 1)
     pygame.draw.circle(surf, (40, 30, 40), (sx + 2, sy), 1)
-    # Red brow gem set above the skull's eyes.
-    pygame.draw.circle(surf, _GOLD_D, (sx, sy - 3), 2)
-    pygame.draw.circle(surf, _GEM_RED, (sx, sy - 3), 1)
+    # Red brow gem set above the skull's eyes — 2px ruby with a hot pink pip.
+    pygame.draw.circle(surf, _GEM_RED, (sx, sy - 3), 2)
+    pygame.draw.circle(surf, (255, 200, 200), (sx - 1, sy - 4), 1)
 
 
 build = store_skins._make_skin(_paint)
