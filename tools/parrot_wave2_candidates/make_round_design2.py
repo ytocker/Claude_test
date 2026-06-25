@@ -25,9 +25,10 @@ from tools.ninja_render import hero_panel, FRAME_IDX, TILT, _frame
 design_2 = importlib.import_module("tools.parrot_wave2_candidates.design_2")
 BUILD = design_2.build
 
+ROUND = os.environ.get("ROUND", "2")
 OUT = os.path.abspath(os.path.join(
     os.path.dirname(__file__), "..", "..",
-    "docs", "store_redesign", "parrot", "wave2", "design_2", "round_1.png"))
+    "docs", "store_redesign", "parrot", "wave2", "design_2", f"round_{ROUND}.png"))
 
 
 def gameplay_panel_phase(source, w, h, phase, *, frame_idx=FRAME_IDX, tilt=TILT):
@@ -105,7 +106,7 @@ f_title = pygame.font.SysFont("DejaVuSans", 26, bold=True)
 f_lbl = pygame.font.SysFont("DejaVuSans", 16, bold=True)
 f_small = pygame.font.SysFont("DejaVuSans", 13)
 
-title = f_title.render("design_2 · JADE-CARVING MACAW — EPIC  (round 1)",
+title = f_title.render(f"design_2 · JADE-CARVING MACAW — EPIC  (round {ROUND})",
                        True, (235, 240, 238))
 fig.blit(title, (PAD, (TITLE_H - title.get_height()) // 2))
 
