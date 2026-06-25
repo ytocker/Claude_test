@@ -98,12 +98,26 @@ def _flesh_base(angle_deg):
 
 
 def _rib_gaps(surf):
-    """Carve pure-dark slots BETWEEN the white rib arcs so 4 distinct ribs
-    survive instead of flooding into one chest blob — ribs are the #1
-    'this is a skeleton' cue. Slots sit between adjacent _RIB_ROOTS, angled
-    to follow the ribcage curve down toward the keel."""
-    for x0 in (35, 30, 25, 21):          # between the four rib arcs
-        pygame.draw.line(surf, _VOID, (x0, XB.DY + 27), (x0 - 5, XB.DY + 40), 2)
+    """Carve pure-dark flesh BETWEEN the white rib arcs so each rib of the
+    basket reads SEPARATELY at 40px — ribs are the #1 'this is a skeleton'
+    cue, and white-on-white floods them into one blob. Instead of hardcoded
+    slots, this traces the negative space BETWEEN consecutive rib curves so
+    the gaps bend with the cage, plus a hard dark moat under the keel so the
+    cage doesn't bleed into the pelvis/leg white mass below it."""
+    ribs = [XB._rib_curve(i) for i in range(len(XB._RIB_ROOTS))]
+    # Inter-rib flesh: for each adjacent pair, draw a dark curve down the gap
+    # between them (averaged path, nudged so it sits clear of both ribs).
+    for a, b in zip(ribs, ribs[1:]):
+        gap = [((pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2 + 0.5)
+               for pa, pb in zip(a, b)]
+        pygame.draw.lines(surf, _VOID, False,
+                          [(round(x), round(y)) for x, y in gap[1:]], 2)
+    # Bottom boundary: a dark moat just UNDER the keel that walls the cage off
+    # from the pelvis + leg bones, giving the basket a clear bottom edge.
+    keel = XB._KEEL
+    moat = [(x, y + 3) for x, y in keel]
+    pygame.draw.lines(surf, _VOID, False,
+                      [(round(x), round(y)) for x, y in moat], 3)
 
 
 def _eye_socket(surf):

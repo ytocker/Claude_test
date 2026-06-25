@@ -198,9 +198,25 @@ WING_CENTER = (34, 28 + DY)                # (34,48) — matches _build_wing bli
 _SPINE = [(43, 23 + DY), (39, 25 + DY), (34, 27 + DY), (29, 29 + DY),
           (24, 31 + DY), (19, 33 + DY), (14, 34 + DY)]
 
-# Rib roots on the spine (thoracic) → each curves down to the keel.
-_RIB_ROOTS = [(37, 26 + DY), (32, 28 + DY), (27, 30 + DY), (22, 32 + DY)]
-_KEEL = [(20, 42 + DY), (26, 44 + DY), (33, 43 + DY), (39, 39 + DY)]  # sternum
+# ── avian ribcage ─────────────────────────────────────────────────────────────
+# A bird ribcage reads as a rounded BASKET: each rib springs off the thoracic
+# spine, bows OUT and DOWN around the chest, then curves FORWARD to land on a
+# deep breastbone (the keel/sternum). At 40px it only reads as a cage if there
+# are ENOUGH ribs at an EVEN pitch with a clear top (spine) and bottom (keel)
+# boundary — a few straight slashes read as claw-marks, not bone.
+#
+# 6 rib roots, evenly pitched along the thoracic spine, spreading BACK from the
+# shoulder (x 37) to the lumbar region (x 20). Roots sit on the spine = the
+# cage's top/back boundary.
+_RIB_ROOTS = [(37, 25 + DY), (34, 26 + DY), (31, 28 + DY),
+              (27, 29 + DY), (24, 31 + DY), (20, 32 + DY)]
+# Sternum/keel: the breastbone the ribs sweep FORWARD onto. It is a short deep
+# plate at the FRONT-BOTTOM of the chest (x 30→39, the avian "boat keel"), so
+# every rib arcs from its spread-out spine root forward-and-down to land here —
+# the convergence is what makes the chest read as a rounded basket, not a fence
+# of parallel bars. The keel is the cage's hard bottom-front boundary.
+_KEEL = [(39, 41 + DY), (38, 44 + DY), (36, 46 + DY),
+         (33, 47 + DY), (31, 46 + DY), (30, 44 + DY)]
 
 # Wing arm-bones + phalanges in the 50×50 WING-LOCAL space (so they rotate
 # with the wing exactly like the feather polygon does).
@@ -221,18 +237,35 @@ def _lerp(a, b, t):
     return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
 
 
-def _rib_curve(root, t_out=1.0):
-    """A rib arcing from its spine root down/around to the keel line."""
-    # Pick the keel target nearest under the root, bow it outward.
-    kx = root[0] - 2
-    ky = _KEEL[0][1] + 4
-    mid = (root[0] - 9, (root[1] + ky) / 2 + 3)        # bowed-out belly point
+def _rib_curve(i):
+    """Rib `i` as a smooth C-curve: springs off the spine root, bows OUT and
+    DOWN around the chest, then sweeps FORWARD onto its keel landing — a single
+    rib of the basket. Quadratic Bézier root→belly-control→keel so the curve
+    actually bends (the old version was nearly straight, reading as a slash).
+
+    Accepts either a rib index OR a root tuple (the frozen designs 1/3/4/5
+    iterate `for r0 in _RIB_ROOTS` and pass the root), so both call styles work.
+    """
+    if not isinstance(i, int):
+        i = _RIB_ROOTS.index(i)
+    root = _RIB_ROOTS[i]
+    keel = _KEEL[i]
+    # Belly control point pushed DOWN and BACK (lower x) of the root→keel chord
+    # so the rib bulges OUT into a rounded basket wall before sweeping forward to
+    # the keel. Back ribs (high i, roots far behind the keel) get a deeper, more
+    # lateral bulge so the cage rounds off at the back instead of going straight.
+    bulge = 5.0 + i * 0.8                       # deeper toward the back
+    back = 2.5 + i * 1.2                        # push the belly behind the chord
+    cx = (root[0] + keel[0]) / 2 - back
+    cy = max(root[1], keel[1]) + bulge
+    ctrl = (cx, cy)
     pts = []
-    for i in range(7):
-        t = i / 6 * t_out
-        a = _lerp(root, mid, t)
-        b = _lerp(mid, (kx, ky), t)
-        pts.append(_lerp(a, b, t))
+    for s in range(9):
+        t = s / 8.0
+        u = 1 - t
+        x = u * u * root[0] + 2 * u * t * ctrl[0] + t * t * keel[0]
+        y = u * u * root[1] + 2 * u * t * ctrl[1] + t * t * keel[1]
+        pts.append((x, y))
     return pts
 
 
@@ -306,8 +339,8 @@ def paint_skeleton(surf, angle_deg, style=None):
 
     # ── keyline pass (drawn first, slightly fatter, for day-sky legibility) ──
     if sh is not None:
-        for r0 in _RIB_ROOTS:
-            polybone(surf, sh, _rib_curve(r0), wr + 1)
+        for i in range(len(_RIB_ROOTS)):
+            polybone(surf, sh, _rib_curve(i), wr + 1)
         polybone(surf, sh, _SPINE, wl + 1)
         polybone(surf, sh, _KEEL, wr + 1)
 
@@ -316,8 +349,8 @@ def paint_skeleton(surf, angle_deg, style=None):
     surf.blit(layer, tl)
 
     # ── ribcage ──────────────────────────────────────────────────────────────
-    for r0 in _RIB_ROOTS:
-        polybone(surf, bone, _rib_curve(r0), wr)
+    for i in range(len(_RIB_ROOTS)):
+        polybone(surf, bone, _rib_curve(i), wr)
     polybone(surf, bone, _KEEL, wr)                     # sternum/keel
 
     # ── spine + vertebra knobs ───────────────────────────────────────────────
