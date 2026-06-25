@@ -44,13 +44,16 @@ STYLE = dict(
 # Warm-dark flesh: charcoal pushed FURTHER toward brown (aged specimen) so the
 # ivory reads as old bone in a genuinely warm body, and the silhouette survives
 # day and night. R2: more red/ochre lean so the "aged body" story actually shows.
+# R3: the body/tail tones are now the CLOAK CLOTH. Warmed and lifted a touch
+# toward aged-brown wool so the drape reads as fabric (cloak_base derives the
+# cloth fill from body_main and the fold shadows from tail_line).
 _FLESH = XB._pal(
-    tail=[(34, 27, 22), (41, 33, 26), (48, 39, 31), (55, 45, 36)],
-    tail_line=(22, 17, 13),
-    body_shadow=(22, 17, 13),
-    body_main=(41, 33, 26),
-    body_chest=(50, 40, 31),
-    body_belly=(61, 49, 38),
+    tail=[(44, 35, 27), (52, 41, 32), (58, 46, 36), (64, 51, 40)],
+    tail_line=(26, 20, 15),
+    body_shadow=(26, 20, 15),
+    body_main=(52, 41, 31),
+    body_chest=(60, 48, 37),
+    body_belly=(70, 56, 43),
     sheen=None,
     wing_main=(36, 29, 23),
     wing_dark=(23, 18, 14),
@@ -70,8 +73,18 @@ _FLESH = XB._pal(
 )
 
 
+# Cloak material: the dark "back" mass now reads as an aged hooded cloak, not a
+# plain body. Pushed toward warm dark-BROWN aged fabric so the ivory bones read
+# as old bone draped in old cloth. `edge` is a soft warm tan rim on hood/hem (a
+# half-step under the bone tan so the cloth edge stays calm next to the bright
+# bones); `inner` is a deep warm brown for the chest opening + hood interior the
+# ribcage/spine/skull recess into.
+CLOAK_EDGE  = (132, 110, 78)        # warm tan fold/hem rim — softer than the bone tan
+CLOAK_INNER = (24, 18, 13)          # deep warm-brown recess (chest V + hood interior)
+
+
 def _flesh_base(angle_deg):
-    return XB._build_parrot_with_palette(angle_deg, _FLESH, draw_lenses=False)
+    return XB.cloak_base(angle_deg, _FLESH, edge=CLOAK_EDGE, inner=CLOAK_INNER)
 
 
 # ── naturalist roundness: warm shadow + cream highlight along the long bones ──
@@ -169,12 +182,33 @@ def _beak_hero(surf):
     pygame.draw.circle(surf, BONE_DEEP, (58, 41), 1)           # nostril fossa
 
 
+def _throat_clasp(surf):
+    """A small ivory bone clasp where the hood meets the open chest — a short
+    cord slung across the collar with a little carved bone toggle/bead, in the
+    ivory bone tone, so the cloak reads as a deliberate naturalist fastening
+    rather than loose cloth. Sits at the native hood/chest seam (~46,31) lifted
+    to composite (+PARROT_DY), just below/forward of the skull. Kept ≥2px and
+    drawn over the dark hood interior so it survives the 40px read."""
+    DY = XB.DY
+    # cord slung across the collar (two tan-shadowed strands so it has depth)
+    a, b = (42, 30 + DY), (51, 31 + DY)
+    pygame.draw.line(surf, BONE_DEEP, (a[0], a[1] + 1), (b[0], b[1] + 1), 2)  # cord shadow
+    pygame.draw.line(surf, BONE_TAN, a, b, 2)                                  # cord
+    # carved bone toggle/bead at the centre of the cord
+    bead = (46, 31 + DY)
+    pygame.draw.circle(surf, BONE_DEEP, (bead[0], bead[1] + 1), 2)            # drop shadow
+    pygame.draw.circle(surf, BONE_IVORY, bead, 2)                            # ivory toggle
+    pygame.draw.circle(surf, BONE_CREAM, (bead[0] - 1, bead[1] - 1), 1)      # lit highlight
+
+
 def _paint(surf, angle):
     """Paint the warm ivory skeleton: lay the full fixed anatomy, then add the
-    naturalist roundness/detail and the longer hero beak bone on top."""
+    naturalist roundness/detail, the longer hero beak bone, and the bone-cord
+    cloak clasp on top."""
     XB.paint_skeleton(surf, angle, style=STYLE)
     _naturalist_pass(surf)
     _beak_hero(surf)
+    _throat_clasp(surf)
 
 
 def _make():
