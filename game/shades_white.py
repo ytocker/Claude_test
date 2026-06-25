@@ -54,7 +54,10 @@ def draw_shades(surf, cx, cy, eye_w, facing=1):
     sep  = max(6, int(eye_w * 0.46))          # centre-to-centre lens spacing
     rim  = max(2, int(eye_w * 0.09))          # chunky white rim
     rad  = max(2, int(eye_w * 0.12))          # squarish-rounded 80s corner
-    near = (cx + f * (sep // 2), cy)
+    # Tall chunky lens (hh ~0.30 eye_w) drapes below the eye; seat it UP onto the
+    # eye and pull the near lens back so the bottom-front rim clears the beak.
+    cy   = cy - max(2, int(eye_w * 0.15))
+    near = (cx + f * (sep // 2) - f * max(1, int(eye_w * 0.05)), cy)
     far  = (cx - f * (sep // 2), cy)
 
     def frame_rect(c):

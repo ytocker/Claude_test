@@ -62,15 +62,20 @@ def _tinted_star(r_out, r_in, top, bot, alpha):
 
 def draw_shades(surf, cx, cy, eye_w, facing=1):
     f = facing
-    r_out = max(6, int(eye_w * 0.32))
+    # Shrunk from 0.32 so the two stars sit ON the eye area instead of sprawling
+    # over the beak; still fat-pointed enough to read as a star at 22px.
+    r_out = max(5, int(eye_w * 0.26))
     # Fat stubby points: inner radius ~0.53*outer keeps the 5 points countable
     # at 22px where a slender star would fill to a blob.
     r_in  = max(3, int(r_out * 0.53))
-    sep   = max(6, int(eye_w * 0.50))
+    sep   = max(6, int(eye_w * 0.44))
     # Frame thickness as an outset of the backing star; min 2px so the gold rim
     # never thins to nothing, scaling up to a chunky rim on the product shot.
     fw    = max(2, int(eye_w * 0.07))
-    near  = (cx + f * (sep // 2), cy)
+    # Seat the pair UP onto the high eye and pull the near star back so its lower
+    # point clears the forward beak.
+    cy    = cy - max(2, int(eye_w * 0.12))
+    near  = (cx + f * (sep // 2) - f * max(1, int(eye_w * 0.04)), cy)
     far   = (cx - f * (sep // 2), cy)
 
     # Bridge BEHIND the lenses so the lens stars overlap it; the lower pass is

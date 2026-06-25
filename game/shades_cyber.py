@@ -30,10 +30,16 @@ _GLINT  = (236, 252, 255)
 
 def draw_shades(surf, cx, cy, eye_w, facing=1):
     f = facing
-    half_w = max(4, int(eye_w * 0.50))      # ~1.0*eye_w total span
+    # Narrowed from 0.50 and the whole band shifted BACK toward the ear: the wide
+    # raked visor reached its leading edge well past the beak. A tighter span +
+    # smaller rake keeps the wraparound read while the lead edge clears the beak.
+    half_w = max(4, int(eye_w * 0.40))      # ~0.8*eye_w total span
     half_h = max(3, int(eye_w * 0.19))      # ~0.38*eye_w tall -> >=5px @22
-    rake = max(2, int(eye_w * 0.15))        # forward lean of the near edge
+    rake = max(1, int(eye_w * 0.09))        # forward lean of the near edge
     rim = max(1, int(eye_w * 0.045))
+    # Seat UP onto the high eye and shift back so the leading edge stays off beak.
+    cy = cy - max(2, int(eye_w * 0.10))
+    cx = cx - f * max(1, int(eye_w * 0.10))
 
     # Edge-light thickness must not eat the dark mass at tiny sizes: keep
     # the body clearly taller than the cyan lip so the sandwich survives.

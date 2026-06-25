@@ -50,9 +50,11 @@ def draw_shades(surf, cx, cy, eye_w, facing=1):
     r   = max(3, int(eye_w * 0.30))
     # Heavier rim than before so the gold band survives + reads as a frame.
     rim = max(2, int(eye_w * 0.10))
-    # Sit the lens over the near eye, nudged to the +facing side of (cx,cy).
-    lx = cx + f * int(eye_w * 0.18)
-    ly = cy
+    # Sit the lens over the near eye. The forward nudge is trimmed (was 0.18) and
+    # the lens lifted UP onto the high eye so the disc + its lower chain anchor
+    # stay off the beak that protrudes forward-and-below.
+    lx = cx + f * int(eye_w * 0.06)
+    ly = cy - max(2, int(eye_w * 0.12))
 
     tiny = eye_w < 30   # at tiny scale, collapse the chain to a solid hook
 

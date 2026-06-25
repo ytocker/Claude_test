@@ -78,10 +78,16 @@ def _lens(w, h, rad, facing):
 
 def draw_shades(surf, cx, cy, eye_w, facing=1):
     f = facing
-    lw   = max(8, int(eye_w * 0.96))           # one wide lens across both eyes
-    lh   = max(5, int(eye_w * 0.50))
+    # Narrowed from 0.96: the full-face goggle swallowed the beak. A tighter span
+    # still reads as one wide single-lens snow goggle but stays off the beak.
+    lw   = max(8, int(eye_w * 0.70))           # one wide lens across both eyes
+    lh   = max(5, int(eye_w * 0.46))
     plas = max(1, int(eye_w * 0.08))           # white-plastic frame ring
     rad  = max(2, int(lh * 0.42))              # rounded goggle corners
+    # Seat the goggle UP onto the high eye and shift it BACK toward the ear so its
+    # leading edge clears the forward beak instead of centring on the face.
+    cy   = cy - max(2, int(eye_w * 0.12))
+    cx   = cx - f * max(1, int(eye_w * 0.10))
     x0   = cx - lw // 2
     y0   = cy - lh // 2
 

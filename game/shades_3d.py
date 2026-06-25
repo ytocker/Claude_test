@@ -30,14 +30,20 @@ _FRAME_HI = (96, 100, 112)   # top-edge catch-light so the plastic reads round
 
 def draw_shades(surf, cx, cy, eye_w, facing=1):
     f = facing
-    lw = max(5, int(eye_w * 0.44))
-    lh = max(5, int(eye_w * 0.40))
-    sep = max(6, int(eye_w * 0.50))
+    # Narrowed from 0.44/0.50: the wide anaglyph pair pushed the cyan (near) lens
+    # right over the beak. A tighter lens + tighter spacing keeps the two-colour
+    # read while the front lens stays off the beak.
+    lw = max(5, int(eye_w * 0.36))
+    lh = max(5, int(eye_w * 0.38))
+    sep = max(6, int(eye_w * 0.42))
     rad = max(1, int(eye_w * 0.09))
     # Frame ring thickness — kept >=2 so the divider survives at eye_w=22.
     fr = max(2, int(eye_w * 0.085))
 
-    near = (cx + f * (sep // 2), cy)      # BEAK side -> cyan
+    # Seat the pair UP onto the high eye and pull the near (cyan) lens back so its
+    # forward rim clears the beak.
+    cy = cy - max(2, int(eye_w * 0.12))
+    near = (cx + f * (sep // 2) - f * max(1, int(eye_w * 0.05)), cy)  # BEAK side -> cyan
     far = (cx - f * (sep // 2), cy)       # EAR side  -> red
 
     for (lx, ly), lens_c, lens_h in (

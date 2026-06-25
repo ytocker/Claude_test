@@ -42,6 +42,9 @@ def draw_shades(surf, cx, cy, eye_w, facing=1):
     r    = max(3, int(eye_w * 0.26))
     sep  = max(4, int(eye_w * 0.46))
     rim  = max(1, int(eye_w * 0.065))
+    # Small lift onto the high eye so the rose discs centre on the eye rather
+    # than hanging toward the beak; round already clears, this only tidies it.
+    cy   = cy - max(1, int(eye_w * 0.10))
     near = (cx + f * (sep // 2), cy)
     far  = (cx - f * (sep // 2), cy)
 

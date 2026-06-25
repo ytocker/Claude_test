@@ -66,7 +66,10 @@ def draw_shades(surf, cx, cy, eye_w, facing=1):
     r    = max(3, int(eye_w * 0.26))
     sep  = max(4, int(eye_w * 0.46))
     rim  = max(2, int(eye_w * 0.085))   # chunky acetate is thicker than wire
-    near = (cx + f * (sep // 2), cy)
+    # Wayfarer lens drops below centre (dn ~0.92r); seat it UP onto the eye and
+    # pull the near lens back so the lower-inner corner stays off the beak.
+    cy   = cy - max(2, int(eye_w * 0.13))
+    near = (cx + f * (sep // 2) - f * max(1, int(eye_w * 0.04)), cy)
     far  = (cx - f * (sep // 2), cy)
 
     # Chunky bridge BEHIND the lenses so the frame trapezoids overlap it clean;
