@@ -76,7 +76,7 @@ sheet = pygame.Surface((sheet_w, sheet_h))
 sheet.fill((18, 16, 26))
 
 title = _font(28, True).render(
-    "KOI MACAW — EPIC  ·  wave2 design_2  ·  round 1  ·  lacquer koi + trailing fin streamers",
+    "KOI MACAW — EPIC  ·  wave2 design_2  ·  round 2  ·  swept webbed fin crest + 2 cool-tipped streamers",
     True, _GOLD_PALE)
 sheet.blit(title, title.get_rect(midtop=(sheet_w // 2, 22)))
 
@@ -120,7 +120,7 @@ for bg, tag in (((150, 205, 224), "on day sky"), ((26, 32, 58), "on night sky"))
     caption(tx, y2 + t.get_height() + 4, "40px TRUTH", tag)
     tx += t.get_width() + GUT * 3
 
-out = os.path.join("docs", "store_redesign", "parrot", "wave2", "design_2", "round_1.png")
+out = os.path.join("docs", "store_redesign", "parrot", "wave2", "design_2", "round_2.png")
 os.makedirs(os.path.dirname(out), exist_ok=True)
 pygame.image.save(sheet, out)
 print("SAVED", out, sheet.get_size())

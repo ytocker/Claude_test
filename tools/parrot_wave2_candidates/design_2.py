@@ -39,8 +39,10 @@ _ORANGE_H = (255, 150, 96)        # lit orange edge
 _INK     = (28, 28, 34)           # #1C1C22 ink black markings
 _GOLD    = (232, 196, 90)         # #E8C45A gold sumi edge
 _GOLD_H  = (255, 232, 160)        # bright gold glint
+_SUMI    = (150, 86, 24)          # darker red-gold sumi outline — survives 40px
 _BUBBLE  = (159, 216, 224)        # #9FD8E0 water-bubble accent
 _BUBBLE_H = (224, 248, 252)       # bubble rim shine
+_CYAN    = (120, 198, 212)        # cool fin-tip glaze (ties to the bubbles)
 _IVORY_SH = (226, 218, 204)       # warm ivory shadow line
 
 # Lacquer-white (kohaku) re-plumage. The white body is the canvas the painted
@@ -117,36 +119,40 @@ def _koi_back(surf, angle_deg):
     reach = 26 + int(phase * 8)              # fins extend on the up-beat
     droop = (1.0 - phase) * 4                # and dip on the down-beat
 
-    # Three overlapping fin streamers fanning down-back out of the tail root.
-    # k spreads them vertically; each is an S-curve (two control bows pulling
-    # the spine opposite ways) so it ripples like a swimming carp's caudal fin.
+    # TWO bold fin streamers fanning down-back out of the tail root (was three —
+    # fewer + thicker reads better at 40px). k spreads them vertically; each is
+    # an S-curve (two control bows pulling the spine opposite ways) so it ripples
+    # like a swimming carp's caudal fin.
     def fin_path(k):
-        bx, by = 12, HY + 6 + k * 5          # tail-root anchor (left of body)
+        bx, by = 12, HY + 6 + k * 7          # tail-root anchor (left of body)
         c1 = (bx - reach * 0.40, by - 2 + k * 2)              # bow up first
-        c2 = (bx - reach * 0.78, by + 8 + k * 4 + droop)      # then down → S
-        tip = (bx - reach, by + 13 + k * 6 + droop)
+        c2 = (bx - reach * 0.78, by + 8 + k * 5 + droop)      # then down → S
+        tip = (bx - reach, by + 13 + k * 7 + droop)
         return _smooth_curve((bx, by), c1, c2, steps=7) + \
             _smooth_curve(c2, ((c2[0] + tip[0]) / 2, tip[1] - 1), tip, steps=5)
 
-    for k in range(3):
+    for k in range(2):
         path = fin_path(k)
-        # White at the root → koi orange at the trailing tip, the lucky-carp ramp.
-        tipcol = lerp_color(_ORANGE_H, _ORANGE, k / 2.0)
+        n = len(path)
         # Translucent membrane: fill between the spine and an offset lower edge
-        # so each fin reads as a soft finned vane, not a wire.
-        edge = [(x, y + 5 + k) for x, y in path]
-        pygame.draw.polygon(surf, (*tipcol, 90), path + edge[::-1])
-        # Thin ivory backing keeps a crisp edge on a bright sky; bright spine
-        # over it; orange tip glint so the trailing end reads as koi colour.
-        pygame.draw.lines(surf, (*_IVORY_SH, 200), False, path, 4)
-        pygame.draw.lines(surf, _WHITE, False, path[:len(path) // 2], 3)
-        pygame.draw.lines(surf, tipcol, False, path[len(path) // 2 - 1:], 2)
-        pygame.draw.circle(surf, _ORANGE, (int(path[-1][0]), int(path[-1][1])), 2)
-        # A few soft fin-ray ticks across the membrane sell the carp-fin texture.
+        # so each fin reads as a soft finned vane, not a wire. Wider band so the
+        # fin has body even after the 40px downscale.
+        edge = [(x, y + 6 + k * 2) for x, y in path]
+        pygame.draw.polygon(surf, (*_ORANGE, 95), path + edge[::-1])
+        # Held ≥2px throughout: a dark sumi backing for crisp edges on any sky,
+        # a white→orange warm body, then a COOL cyan→gold tip break so the
+        # trailing end reads on a dark night sky (warm-on-warm was dying at 40px)
+        # and the cool note frames the silhouette, tying to the bubbles.
+        pygame.draw.lines(surf, _SUMI, False, path, 5)
+        pygame.draw.lines(surf, _WHITE, False, path[:n // 2], 3)
+        pygame.draw.lines(surf, _ORANGE, False, path[n // 2 - 1:int(n * 0.78)], 3)
+        pygame.draw.lines(surf, _CYAN, False, path[int(n * 0.78) - 1:], 2)
+        pygame.draw.circle(surf, _GOLD_H, (int(path[-1][0]), int(path[-1][1])), 2)
+        # Soft fin-ray ticks across the membrane sell the carp-fin texture.
         for ti in (0.45, 0.7):
-            i = int(len(path) * ti)
+            i = int(n * ti)
             sx, sy = path[i]
-            pygame.draw.line(surf, (*tipcol, 150), (sx, sy), (sx + 2, sy + 5 + k), 1)
+            pygame.draw.line(surf, (*_ORANGE_H, 150), (sx, sy), (sx + 2, sy + 6 + k * 2), 1)
 
     # Water bubbles drifting up off the back — the watery signature tell. A
     # cool cyan rim + bright shine so they read as water, the only cool accent
@@ -162,8 +168,10 @@ def _koi_back(surf, angle_deg):
 
 def _blotch(surf, pts, *, ink=False):
     """One painted koi patch: a bold orange (or ink) marbled blob edged with a
-    thin gold sumi line, exactly as hand-painted urushi koi scales are outlined.
-    A darker core gives the patch dimension so it doesn't read as a flat sticker."""
+    darker red-gold sumi line, exactly as hand-painted urushi koi scales are
+    outlined. A darker core gives the patch dimension so it doesn't read as a
+    flat sticker, and the sumi edge is held at 2px so it survives the 40px
+    downscale instead of vanishing."""
     main = _INK if ink else _ORANGE
     core = (12, 12, 16) if ink else _ORANGE_D
     pygame.draw.polygon(surf, main, pts)
@@ -174,7 +182,10 @@ def _blotch(surf, pts, *, ink=False):
     pygame.draw.polygon(surf, core, inner)
     if not ink:
         pygame.draw.polygon(surf, _ORANGE_H, inner, 1)
-    # Thin gold sumi edge tracing the patch — the signature urushi outline.
+    # Sumi edge: a 2px DARK red-gold line under a 1px bright gold highlight, so
+    # the outline holds at 40px (the bright gold alone washed out against orange)
+    # and still glints up close — the signature urushi keyline.
+    pygame.draw.polygon(surf, _SUMI, pts, 2)
     pygame.draw.polygon(surf, _GOLD, pts, 1)
 
 
@@ -183,50 +194,63 @@ def _koi_front(surf, angle_deg):
     detail only): the koi blotch pattern with gold sumi edges, the swept koi-fin
     crest past the crown, and a re-asserted amber-lensed face so Pip survives
     the 40px downscale."""
-    # ── koi blotch pattern: 3 bold orange patches + 1 ink patch over the white
-    # body. Placed on the back/wing/cheek so the white belly stays clean and the
-    # marbling reads as a hand-painted kohaku koi, not noise. Coords in composite
+    # ── koi blotch pattern: exactly THREE bold orange patches over the white
+    # body, with clear white-lacquer GAPS between them — the kohaku read comes
+    # from negative space, not the quantity of orange, so no flecks and no extra
+    # ink patch (both were noise at 1×). Placed back / mid-wing / lower-belly,
+    # spaced so a clean white channel runs between each. Coords in composite
     # space (body ellipse roughly x∈[13,53], y∈[38,66]).
-    _blotch(surf, [(18, 42), (27, 39), (31, 46), (26, 52), (18, 50)])      # back/shoulder
-    _blotch(surf, [(34, 47), (44, 45), (47, 53), (40, 58), (33, 54)])      # mid-wing
-    _blotch(surf, [(24, 55), (31, 54), (33, 61), (26, 63), (21, 59)])      # lower belly-edge
-    _blotch(surf, [(40, 41), (47, 42), (45, 47), (39, 46)], ink=True)      # small ink patch on the back
-
-    # A small ink fleck + an orange fleck near the wing root add the marbled
-    # broken-edge look real koi have, without becoming busy.
-    pygame.draw.circle(surf, _INK, (49, 49), 2)
-    pygame.draw.polygon(surf, _GOLD, [(47, 49), (51, 47), (51, 51), (47, 51)], 1)
+    _blotch(surf, [(17, 41), (28, 38), (32, 46), (27, 53), (18, 51)])      # broad back/shoulder
+    _blotch(surf, [(37, 48), (47, 47), (48, 55), (41, 60), (36, 54)])      # mid-wing
+    _blotch(surf, [(22, 57), (30, 56), (32, 63), (24, 65), (20, 61)])      # lower belly-edge
 
     # Cheek koi-mark — a single orange teardrop on the head so the face also
-    # carries the kohaku pattern, gold-edged to match.
+    # carries the kohaku pattern, sumi-edged to match.
     cheek = [(HX - 9, HY - 1), (HX - 3, HY - 3), (HX - 2, HY + 3), (HX - 8, HY + 4)]
     pygame.draw.polygon(surf, _ORANGE, cheek)
     pygame.draw.polygon(surf, _ORANGE_D, [(HX - 8, HY), (HX - 4, HY - 1),
                                           (HX - 4, HY + 2), (HX - 7, HY + 3)])
-    pygame.draw.polygon(surf, _GOLD, cheek, 1)
+    pygame.draw.polygon(surf, _SUMI, cheek, 1)
 
-    # ── swept koi-FIN crest past the crown: two flowing orange-and-white finned
-    # plumes arcing UP and slightly back off the crown (soft, never spikes). Each
-    # is a white→orange tapering fin with a couple of gold ray lines, so it reads
-    # as a carp's dorsal fin breaking the silhouette, not a cockatoo crest.
-    crest_root = (HX - 2, CROWN_Y + 2)
-    for dx, lean, t in ((-7, -6, 0.0), (4, 7, 1.0)):
-        tip = (crest_root[0] + dx, CROWN_Y - 16)
-        ctrl = (crest_root[0] + dx * 0.4 + lean, CROWN_Y - 8)
-        spine = _smooth_curve(crest_root, ctrl, tip, steps=9)
-        col = lerp_color(_ORANGE_H, _ORANGE, t)
-        # Membrane fin: a filled vane between the spine and an offset trailing edge.
-        edge = [(x + lean * 0.18, y + 4) for x, y in spine]
-        pygame.draw.polygon(surf, (*col, 170), spine + edge[::-1])
-        pygame.draw.lines(surf, _ORANGE_D, False, spine, 3)
-        pygame.draw.lines(surf, _WHITE, False, spine[:len(spine) // 2], 2)
-        pygame.draw.lines(surf, col, False, spine[len(spine) // 2 - 1:], 2)
-        # Gold sumi ray + tip glint.
-        pygame.draw.line(surf, _GOLD, spine[2], (spine[2][0] + lean * 0.3, spine[2][1] - 6), 1)
-        pygame.draw.circle(surf, _GOLD_H, (int(tip[0]), int(tip[1])), 1)
-    # A small gold root knot ties the two plumes into one crest base.
-    pygame.draw.circle(surf, _GOLD, crest_root, 2)
-    pygame.draw.circle(surf, _GOLD_H, (crest_root[0], crest_root[1] - 1), 1)
+    # ── swept koi-FIN crest: a SINGLE broad dorsal-fin membrane sweeping
+    # BACKWARD over the crown in the flight direction (toward the tail, i.e.
+    # leftward), wider than it is tall, with a WEBBED scalloped trailing edge.
+    # The previous two narrow up-and-apart plumes read as antlers; one swept
+    # webbed sheet that lies low and back along the skull is unmistakably a koi's
+    # soft dorsal fin instead. A leading spine runs root→front-tip; the trailing
+    # edge scallops down to the crown so the whole thing reads as one fin, and a
+    # slight asymmetry (a longer front lobe) keeps it organic, never a symmetric
+    # crown.
+    root = (HX + 6, CROWN_Y + 1)             # springs from the FRONT of the crown
+    # Leading spine: a low backward arc to the swept rear tip, past the skull.
+    front_tip = (HX + 9, CROWN_Y - 9)        # short front lobe, slightly up
+    rear_tip = (HX - 16, CROWN_Y - 4)        # long rear sweep, low and back
+    lead = _smooth_curve((HX + 7, CROWN_Y - 5), front_tip,
+                         (HX + 2, CROWN_Y - 8), steps=5) + \
+        _smooth_curve((HX + 2, CROWN_Y - 8), (HX - 8, CROWN_Y - 9), rear_tip, steps=8)
+    # Webbed trailing edge scalloping back down to the crown — the fin's webbing.
+    web_base = [(HX - 14, CROWN_Y), (HX - 9, CROWN_Y + 3), (HX - 4, CROWN_Y + 1),
+                (HX + 1, CROWN_Y + 3), (HX + 6, CROWN_Y + 1)]
+    fin = lead + web_base[::-1] + [root]
+    # Translucent membrane fill, white→orange from leading edge to webbing.
+    pygame.draw.polygon(surf, (*_ORANGE, 150), fin)
+    pygame.draw.polygon(surf, (*_WHITE, 110),
+                        [front_tip, (HX + 2, CROWN_Y - 7), root, (HX + 6, CROWN_Y)])
+    # Sumi-dark leading spine held ≥2px, white root half → orange swept tip, then
+    # a cool cyan glaze on the rear tip tying the fin to the bubbles + streamers.
+    n = len(lead)
+    pygame.draw.lines(surf, _SUMI, False, lead, 3)
+    pygame.draw.lines(surf, _WHITE, False, lead[:n // 2], 2)
+    pygame.draw.lines(surf, _ORANGE, False, lead[n // 2 - 1:int(n * 0.8)], 2)
+    pygame.draw.lines(surf, _CYAN, False, lead[int(n * 0.8) - 1:], 2)
+    # Fin rays: a few gold ray lines fanning from the root through the membrane,
+    # the urushi-painted detail that sells "fin" up close.
+    for tx, ty in ((HX + 6, CROWN_Y - 6), (HX - 1, CROWN_Y - 6), (HX - 9, CROWN_Y - 5)):
+        pygame.draw.line(surf, _GOLD, (root[0] - 1, CROWN_Y), (tx, ty), 1)
+    # Webbed trailing edge picked out so the scallop reads as webbing, not a blob.
+    pygame.draw.lines(surf, _SUMI, False, web_base, 2)
+    pygame.draw.circle(surf, _CYAN, (int(rear_tip[0]), int(rear_tip[1])), 2)
+    pygame.draw.circle(surf, _GOLD_H, (int(front_tip[0]), int(front_tip[1])), 1)
 
     # ── re-assert Pip's face at 40px: a bright specular glint on the near amber
     # lens and a sharpened beak top edge so the macaw identity survives downscale.
