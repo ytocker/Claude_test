@@ -41,6 +41,9 @@ _TYC_WHITE_H = (255, 255, 252)     # brightest glint
 _TYC_GOLD    = (232, 194, 74)      # #E8C24A chain / $ disc
 _TYC_GOLD_D  = (158, 126, 40)
 _TYC_GOLD_H  = (255, 236, 158)
+# Dim bronze for the monocle rim + watch-chain so only the belly "$" disc keeps a
+# bright gold value — two competing golds was the smear the cane got lost in.
+_TYC_BRONZE  = (104, 84, 38)
 
 _TYC_BUFF    = (217, 201, 160)     # #D9C9A0 waistcoat
 _TYC_BUFF_D  = (172, 156, 118)
@@ -50,14 +53,15 @@ _TYC_SCARLET = (124, 14, 18)       # #7C0E12 lapel-edge accent (the surviving re
 
 
 def _paint(surf, _a):
-    # ── BLACK I-CANE held DOWN-FRONT of the body, painted FIRST so the coat block
-    #    buries the upper shaft and only the lower stick + the gold "$" grip
-    #    overshoot the belly silhouette into clear sky. The grip sits low-front-
-    #    centre (well clear of the head + the loud wing feathers, so the gold reads
-    #    as one clean coin) and the ferrule drops below the body to break the
-    #    lower outline the way the pirate's peg leg does.
-    grip = (HX - 17, HY + 30)           # $-disc grip, low-front-centre belly
-    foot = (HX - 22, HY + 48)           # ferrule tip, below the body line
+    # ── BLACK "$"-CANE dropped to the LOW-FRONT-CENTRE BELLY, painted FIRST so the
+    #    coat block buries the upper shaft and only the lower stick + the gold "$"
+    #    grip overshoot the belly silhouette into clear sky. Pulled OFF the face
+    #    (where it smeared into the monocle/moustache gold + wing rainbow) so the
+    #    gold coin now sits ALONE against the black coat with clear air around it —
+    #    the one surviving gold focal point. The ferrule drops below the body line
+    #    to break the lower outline the way the pirate's peg leg does.
+    grip = (HX - 10, HY + 34)           # $-disc grip, low-front-centre belly
+    foot = (HX - 14, HY + 50)           # ferrule tip, below the body line
     pygame.draw.line(surf, _TYC_BLACK_D, (grip[0] + 1, grip[1] + 1),
                      (foot[0] + 1, foot[1] + 1), 4)        # shadow underlay
     pygame.draw.line(surf, _TYC_BLACK, grip, foot, 3)      # ebony shaft
@@ -65,17 +69,18 @@ def _paint(surf, _a):
                      ((grip[0] + foot[0]) // 2, (grip[1] + foot[1]) // 2), 1)  # glint
     pygame.draw.circle(surf, _TYC_BLACK, foot, 2)          # rubber ferrule tip
 
-    # Glowing gold "$" disc at the grip — the legendary flourish. Halo → core →
-    # rim → glyph → glint so the tiny coin still reads as money at 40px.
+    # Glowing gold "$" disc at the grip — the legendary flourish, now the SOLE gold
+    # focal point. Bumped to r6 with a FULL bright rim RING (not a 1px arc) so the
+    # coin still reads as money at 40px against the surrounding black coat.
     gx, gy = grip
-    pygame.draw.circle(surf, _TYC_GOLD_D, (gx, gy), 6)     # soft halo / shadow ring
-    pygame.draw.circle(surf, _TYC_GOLD, (gx, gy), 5)       # gold disc body
-    pygame.draw.circle(surf, _TYC_GOLD_H, (gx, gy), 5, 1)  # bright rim
+    pygame.draw.circle(surf, _TYC_GOLD_D, (gx, gy), 7)     # soft halo / shadow ring
+    pygame.draw.circle(surf, _TYC_GOLD, (gx, gy), 6)       # gold disc body
+    pygame.draw.circle(surf, _TYC_GOLD_H, (gx, gy), 6, 2)  # full bright rim ring
     # The "$" glyph — a short vertical bar with a tiny serif kick so it reads as
     # currency, not a blank coin.
-    pygame.draw.line(surf, _TYC_BLACK_D, (gx, gy - 3), (gx, gy + 3), 1)
-    pygame.draw.line(surf, _TYC_BLACK_D, (gx - 2, gy - 1), (gx + 2, gy - 2), 1)
-    pygame.draw.line(surf, _TYC_BLACK_D, (gx - 2, gy + 2), (gx + 2, gy + 1), 1)
+    pygame.draw.line(surf, _TYC_BLACK_D, (gx, gy - 4), (gx, gy + 4), 1)
+    pygame.draw.line(surf, _TYC_BLACK_D, (gx - 3, gy - 2), (gx + 3, gy - 3), 1)
+    pygame.draw.line(surf, _TYC_BLACK_D, (gx - 3, gy + 3), (gx + 3, gy + 2), 1)
     pygame.draw.circle(surf, _TYC_GOLD_H, (gx - 2, gy - 2), 1)  # top-left glint
 
     # ── BLACK MORNING-COAT painted OVER the scarlet body. Body centre ~(32, 52).
@@ -85,9 +90,20 @@ def _paint(surf, _a):
     # Coat body — one broad rounded block that reaches UP-and-BACK over the wing so
     # the macaw's loud rainbow feathers are buried under near-black; the open
     # feathers were the chaos that read as noise at 40px, so the coat must cover
-    # them for the black-vs-white value pair to hold.
-    pygame.draw.ellipse(surf, _TYC_BLACK_D, (HX - 36, HY + 1, 42, 36))
-    pygame.draw.ellipse(surf, _TYC_BLACK, (HX - 35, HY + 1, 40, 34))
+    # them for the black-vs-white value pair to hold. Raised the top + widened the
+    # back so the near-black mass swallows the upper-right green/blue/magenta
+    # feather cluster that was poking out as confetti; chest now reads pure
+    # black-coat → white-wedge → red-edge and nothing else.
+    pygame.draw.ellipse(surf, _TYC_BLACK_D, (HX - 39, HY - 7, 46, 44))
+    pygame.draw.ellipse(surf, _TYC_BLACK, (HX - 38, HY - 7, 44, 42))
+    # A small near-black collar cap tucked under the hat-brim's back-left edge to
+    # bury the last green/blue/magenta head-feather pixels that peeked between the
+    # brim and the coat top and read as confetti at 40px. The narrow patch at the
+    # band/brim seam (HX-8..HX-6, just below CROWN_Y) seals the exact 2px window the
+    # macaw's blue head-feathers poked through.
+    pygame.draw.ellipse(surf, _TYC_BLACK_D, (HX - 20, CROWN_Y - 1, 22, 14))
+    pygame.draw.ellipse(surf, _TYC_BLACK, (HX - 19, CROWN_Y - 1, 20, 12))
+    pygame.draw.rect(surf, _TYC_BLACK, (HX - 10, CROWN_Y - 4, 8, 6))
     # Coat tail sweeping down-back so the formalwear reads below the body line.
     _poly(surf, _TYC_BLACK_D, [(HX - 32, HY + 28), (HX - 20, HY + 24),
                                (HX - 22, HY + 44), (HX - 34, HY + 40)])
@@ -106,14 +122,12 @@ def _paint(surf, _a):
         pygame.draw.circle(surf, _TYC_BLACK_D, (HX - 8, by), 2)
         pygame.draw.circle(surf, _TYC_BUFF_H, (HX - 9, by - 1), 1)
 
-    # Draped GOLD pocket-watch chain swag across the belly — a shallow catenary
-    # from a waistcoat button down and back up to a pocket, with a fob dot.
-    chain = [(HX - 4, HY + 18), (HX - 9, HY + 25), (HX - 15, HY + 22)]
-    pygame.draw.lines(surf, _TYC_GOLD_D, False,
-                      [(p[0], p[1] + 1) for p in chain], 2)
-    pygame.draw.lines(surf, _TYC_GOLD, False, chain, 1)
-    pygame.draw.circle(surf, _TYC_GOLD_H, (HX - 4, HY + 18), 1)   # link glint
-    pygame.draw.circle(surf, _TYC_GOLD, (HX - 16, HY + 22), 1)    # watch fob
+    # Draped pocket-watch chain swag across the belly — kept to the DIM gold-shadow
+    # value (no bright core, no glint) so it stays quiet and subordinate and the
+    # belly "$" coin is the only bright gold focal point at 40px.
+    chain = [(HX - 4, HY + 18), (HX - 9, HY + 24), (HX - 15, HY + 21)]
+    pygame.draw.lines(surf, _TYC_BRONZE, False, chain, 1)
+    pygame.draw.circle(surf, _TYC_BRONZE, (HX - 16, HY + 21), 1)  # watch fob
 
     # Thin SCARLET lapel edge framing the open coat V — the surviving macaw red,
     # the one warm accent that keeps Pip's identity under all the black-and-white.
@@ -140,11 +154,13 @@ def _paint(surf, _a):
     _poly(surf, _TYC_WHITE_D, [(p[0], p[1] + 1) for p in collar])
     _poly(surf, _TYC_WHITE, collar)
     pygame.draw.line(surf, _TYC_WHITE_H, (HX + 3, HY + 3), (HX - 7, HY + 5), 1)
-    # Slim black bow tie sitting at the collar point.
+    # Black BOW TIE sitting at the collar point — pushed to pure shadow-black and
+    # 1px wider so it cuts a clean dark NOTCH across the white wedge, splitting it
+    # into collar-above / shirt-below instead of one undifferentiated blob.
     bx, by = HX - 3, HY + 8
-    _poly(surf, _TYC_BLACK, [(bx - 4, by - 2), (bx - 1, by), (bx - 4, by + 2)])
-    _poly(surf, _TYC_BLACK, [(bx + 3, by - 2), (bx, by), (bx + 3, by + 2)])
-    pygame.draw.circle(surf, _TYC_BLACK_D, (bx, by), 1)           # centre knot
+    _poly(surf, _TYC_BLACK_D, [(bx - 5, by - 3), (bx - 1, by), (bx - 5, by + 3)])
+    _poly(surf, _TYC_BLACK_D, [(bx + 4, by - 3), (bx, by), (bx + 4, by + 3)])
+    pygame.draw.circle(surf, _TYC_BLACK_D, (bx, by), 2)           # centre knot
 
     # ── TALL BLACK SILK TOP HAT rising well above CROWN_Y — the identity anchor.
     cy = CROWN_Y
@@ -175,23 +191,37 @@ def _paint(surf, _a):
     # bright because it is THE comedy tell that survives the 40px downscale; a
     # shadow underlay first gives the white fur form against the scarlet face.
     mx, my = HX + 4, HY + 6
-    _poly(surf, _TYC_WHITE_D, [(mx + 8, my), (mx - 10, my + 1),
+    # Raised + extended the RIGHT wing up over the upper lip so the white fur buries
+    # the macaw's bright yellow BEAK base — that beak gold was the second bright
+    # gold competing with the belly "$" coin; with it covered the "$" is the lone
+    # gold focal point.
+    _poly(surf, _TYC_WHITE_D, [(mx + 14, my - 4), (mx - 10, my + 1),
                               (mx - 8, my + 8), (mx + 2, my + 6)])
-    _poly(surf, _TYC_WHITE, [(mx + 8, my - 1), (mx - 10, my),
+    _poly(surf, _TYC_WHITE, [(mx + 14, my - 5), (mx - 10, my),
                             (mx - 7, my + 7), (mx + 2, my + 5)])
     # Two drooping curl tips so it reads as a walrus, not a smear.
     _poly(surf, _TYC_WHITE, [(mx - 10, my), (mx - 8, my + 7), (mx - 12, my + 5)])
-    _poly(surf, _TYC_WHITE, [(mx + 7, my - 1), (mx + 9, my + 4), (mx + 4, my + 3)])
-    pygame.draw.line(surf, _TYC_WHITE_H, (mx + 6, my), (mx - 8, my + 1), 1)
+    # Right shoulder raised square over the beak so the bright macaw beak no longer
+    # peeks above the fur and steals gold from the belly "$".
+    _poly(surf, _TYC_WHITE, [(mx + 5, my - 5), (mx + 18, my - 5),
+                            (mx + 16, my + 2), (mx + 5, my + 1)])
+    _poly(surf, _TYC_WHITE_D, [(mx + 16, my - 4), (mx + 18, my + 1), (mx + 12, my + 2)])
+    pygame.draw.line(surf, _TYC_WHITE_H, (mx + 12, my - 3), (mx - 8, my + 1), 1)
+    # One row of white-SHADOW under the lower droop edge so the moustache catches a
+    # hard bottom contour — the curl-tips read as a walrus droop, not a paint spill.
+    pygame.draw.line(surf, _TYC_WHITE_D, (mx - 11, my + 6), (mx - 8, my + 8), 1)
+    pygame.draw.line(surf, _TYC_WHITE_D, (mx - 8, my + 8), (mx + 2, my + 7), 1)
+    pygame.draw.line(surf, _TYC_WHITE_D, (mx + 2, my + 7), (mx + 8, my + 5), 1)
 
-    # Round gold-rimmed MONOCLE on the near eye + a 1px white glint + a thin
-    # cord down to the waistcoat. Raised above the moustache so the two reads
-    # don't collide, and the rim kept 1px so the gold disc still reads as glass.
+    # Round MONOCLE on the near eye + a 1px white glint + a thin cord down to the
+    # waistcoat. Its rim is DIMMED to the low gold-shadow value (no bright core) so
+    # only the belly "$" coin survives as the single gold focal point at 40px — two
+    # competing golds was the smear the cane got lost in.
     ex, ey = HX + 6, HY - 2
-    pygame.draw.circle(surf, _TYC_GOLD_D, (ex, ey), 5, 1)
-    pygame.draw.circle(surf, _TYC_GOLD, (ex, ey), 4, 1)
+    pygame.draw.circle(surf, _TYC_BRONZE, (ex, ey), 5, 1)
+    pygame.draw.circle(surf, _TYC_BRONZE, (ex, ey), 4, 1)
     pygame.draw.circle(surf, _TYC_WHITE_H, (ex - 2, ey - 2), 1)   # glint
-    pygame.draw.line(surf, _TYC_GOLD_D, (ex + 1, ey + 4), (ex + 1, HY + 6), 1)
+    pygame.draw.line(surf, _TYC_BRONZE, (ex + 1, ey + 4), (ex + 1, HY + 6), 1)
 
 
 build = store_skins._make_skin(_paint)
