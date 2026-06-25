@@ -52,14 +52,16 @@ def build_chick(wing_angle_deg):
     surf = _new()
 
     # ── Body: small fuzzy down egg (the head will dominate) ──
-    # Fuzz ring first (behind), then the solid body over its roots.
-    _fuzz_ring(surf, BCX, BCY + 2, 14, 14, _BC_DOWN_D, 30, 2, 1)
+    # Fuzz ring first (behind), then the solid body over its roots. Fewer body
+    # ticks so the lower silhouette stays soft-round (not spiky) against the sky.
+    _fuzz_ring(surf, BCX, BCY + 2, 14, 14, _BC_DOWN_D, 24, 2, 1)
     _aaellipse(surf, _BC_DOWN_D, (BCX + 1, BCY + 3), 14, 14)
     _aaellipse(surf, _BC_DOWN,   (BCX,     BCY + 2), 13, 13)
     _aaellipse(surf, _BC_DOWN_H, (BCX - 4, BCY - 3),  5,  4)   # chest light
-    # Pale belly with a sheen.
+    # Pale belly with a brighter sheen so the body isn't a dead grey blob by day.
     _aaellipse(surf, _BC_BELLY,   (BCX + 1, BCY + 5), 9, 10)
-    _aaellipse(surf, _BC_BELLY_H, (BCX,     BCY + 1), 6,  5)
+    _aaellipse(surf, _BC_BELLY_H, (BCX,     BCY + 1), 7,  6)
+    _aaellipse(surf, (250, 251, 254), (BCX - 1, BCY),  4, 3)   # hot sheen core
 
     # Far flipper.
     _rot_blit(surf, _bc_flipper(wing_angle_deg * 0.5 - 16), (BCX + 11, BCY + 2))
@@ -74,19 +76,19 @@ def build_chick(wing_angle_deg):
     _aaellipse(surf, _BC_FACE, (HCX, HCY + 3), 10, 9)
     _aaellipse(surf, _BC_DOWN_H, (HCX - 4, HCY - 2), 4, 3)    # head sheen
 
-    # ── HERO: huge sparkly eyes ──
-    pygame.draw.circle(surf, _BC_SURR, (HCX - 3, HCY + 2), 7)
-    pygame.draw.circle(surf, _BC_SURR, (HCX + 6, HCY + 2), 7)
-    _eye(surf, HCX - 3, HCY + 2, 6, iris=(26, 28, 38))
-    _eye(surf, HCX + 6, HCY + 2, 6, iris=(26, 28, 38))
-    # Extra lower catch-light in each iris for the sparkle.
-    surf.set_at((HCX - 4, HCY + 4), (255, 255, 255))
-    surf.set_at((HCX + 5, HCY + 4), (255, 255, 255))
+    # ── HERO: huge SPARKLY eyes — two SEPARATE eyes (clear dark gap between),
+    # a thin white ring around a smaller iris (pupil-in-white, not black sockets),
+    # and an oversized catch-light that survives the 40px downscale. ──
+    for ex in (HCX - 4, HCX + 8):
+        pygame.draw.circle(surf, _BC_SURR, (ex, HCY + 1), 6)   # white sclera
+        pygame.draw.circle(surf, (28, 30, 42), (ex, HCY + 1), 4)  # iris (ring of white left)
+        pygame.draw.circle(surf, (255, 255, 255), (ex - 1, HCY - 1), 2)  # big catch-light
+        pygame.draw.circle(surf, (235, 240, 250), (ex + 1, HCY + 3), 1)  # secondary sparkle
 
-    # ── Tiny stubby dark beak between the eyes ──
+    # ── Tiny stubby dark beak, dropped BELOW the eye-line so it stops carving a
+    # "nose socket" between the eyes. ──
     pygame.draw.polygon(surf, _BC_BEAK,
-                        [(HCX + 1, HCY + 5), (HCX + 6, HCY + 6),
-                         (HCX + 1, HCY + 8)])
+                        [(HCX, HCY + 8), (HCX + 5, HCY + 9), (HCX, HCY + 11)])
 
     # Near flipper.
     _rot_blit(surf, _bc_flipper(wing_angle_deg), (BCX - 6, BCY + 3))

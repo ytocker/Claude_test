@@ -23,9 +23,9 @@ _AD_BELLY   = (246, 247, 251)       # #F6F7FB off-white belly
 _AD_BELLY_D = (208, 214, 226)       # belly undershadow
 _AD_BELLY_H = (255, 255, 255)       # belly top sheen
 _AD_RING    = (238, 240, 248)       # white eye-ring
-_AD_BEAK    = (44, 34, 48)          # #2A2230 dark stubby beak
-_AD_BEAK_W  = (210, 120, 50)        # warm orange base wash
-_AD_BEAK_H  = (150, 120, 150)       # beak highlight line
+_AD_BEAK    = (210, 120, 50)        # #D27832 warm orange beak (the colour anchor)
+_AD_BEAK_D  = (168, 88, 28)         # #A8581C lower-mandible shadow / outline
+_AD_BEAK_H  = (240, 168, 88)        # #F0A858 warm top highlight
 _AD_FOOT    = (255, 154, 60)        # #FF9A3C foot orange
 _AD_FOOT_D  = (200, 110, 32)        # foot shadow / outline
 
@@ -43,16 +43,17 @@ def _ad_flipper(angle_deg):
 def build_adelie(wing_angle_deg):
     surf = _new()
 
-    # Stubby tail — layered so it reads as plumage, not a flat triangle.
+    # Stubby tail — layered, outer point pulled in so it stays attached to the
+    # body mass at flap angles (no detached spike).
     pygame.draw.polygon(surf, _AD_BACK_D,
-                        [(13, BCY + 7), (5, BCY + 14), (18, BCY + 13)])
+                        [(14, BCY + 7), (7, BCY + 13), (18, BCY + 13)])
     pygame.draw.polygon(surf, _AD_BACK,
-                        [(14, BCY + 8), (8, BCY + 12), (18, BCY + 12)])
+                        [(15, BCY + 8), (10, BCY + 12), (18, BCY + 12)])
 
     # ── Body: 3-layer glossy blue-black egg + chest highlight ──
     _aaellipse(surf, _AD_BACK_D, (BCX + 1, BCY + 1), 18, 18)   # shadow rim
     _aaellipse(surf, _AD_BACK,   (BCX,     BCY),     17, 17)   # main
-    _aaellipse(surf, _AD_BACK_H, (BCX - 5, BCY - 6),  7,  6)   # cool chest light
+    _aaellipse(surf, _AD_BACK_H, (BCX - 7, BCY - 8),  5,  4)   # cool backlight (up onto back)
 
     # Gloss-sheen overlay top-left — the premium wet read (toucan technique).
     sheen = pygame.Surface((22, 9), pygame.SRCALPHA)
@@ -77,24 +78,27 @@ def build_adelie(wing_angle_deg):
     pygame.draw.ellipse(sh, (12, 16, 28, 90), sh.get_rect())
     surf.blit(sh, (HCX - 12, HCY + 8))
 
-    # ── HERO: clean white eye-rings on the blue-black head ──
-    # A pale ring behind each eye is the Adélie tell; bigger r4 eyes read at 40px.
-    pygame.draw.circle(surf, _AD_RING, (HCX - 2, HCY), 5)
-    pygame.draw.circle(surf, _AD_RING, (HCX + 6, HCY), 5)
-    _eye(surf, HCX - 2, HCY, 4, iris=(18, 16, 22))
-    _eye(surf, HCX + 6, HCY, 4, iris=(18, 16, 22))
+    # ── HERO: two SEPARATE white eye-rings on the blue-black head ──
+    # Spaced wide with a dark gap of _AD_BACK between, and only a thin rim of
+    # white around a big r4 iris (the real Adélie look — a rim, not a white mask).
+    for ex in (HCX - 3, HCX + 8):
+        pygame.draw.circle(surf, _AD_RING, (ex, HCY), 5)
+    _eye(surf, HCX - 3, HCY, 4, iris=(18, 16, 22))
+    _eye(surf, HCX + 8, HCY, 4, iris=(18, 16, 22))
 
-    # ── Neat short beak: dark with a warm base wash + highlight line ──
-    beak = [(HCX + 3, HCY + 3), (HCX + 12, HCY + 6), (HCX + 3, HCY + 9)]
-    pygame.draw.polygon(surf, _AD_BEAK_W, beak)              # warm base
-    pygame.draw.polygon(surf, _AD_BEAK,
-                        [(HCX + 6, HCY + 4), (HCX + 12, HCY + 6),
-                         (HCX + 6, HCY + 8)])                # dark tip
-    pygame.draw.polygon(surf, _AD_BACK_D, beak, 1)           # outline
-    pygame.draw.line(surf, _AD_BEAK_H, (HCX + 4, HCY + 5), (HCX + 10, HCY + 6), 1)
+    # ── Neat short ORANGE beak (the one warm colour anchor): banded + highlight,
+    # sat below the eye-line so it never collides with the rings. ──
+    beak = [(HCX + 3, HCY + 5), (HCX + 12, HCY + 7), (HCX + 3, HCY + 10)]
+    pygame.draw.polygon(surf, _AD_BEAK, beak)
+    pygame.draw.polygon(surf, _AD_BEAK_D,
+                        [(HCX + 3, HCY + 8), (HCX + 12, HCY + 7),
+                         (HCX + 3, HCY + 10)])               # lower-mandible shadow
+    pygame.draw.polygon(surf, _AD_BEAK_D, beak, 1)           # outline
+    pygame.draw.line(surf, _AD_BEAK_H, (HCX + 4, HCY + 6), (HCX + 10, HCY + 7), 1)
 
-    # Near flipper over the body.
-    _rot_blit(surf, _ad_flipper(wing_angle_deg), (BCX - 7, BCY + 1))
+    # Near flipper over the body — lifted so its dark edge doesn't gash the
+    # white belly sheen.
+    _rot_blit(surf, _ad_flipper(wing_angle_deg), (BCX - 7, BCY - 2))
 
     # ── Tidy orange feet: toe split + outline ──
     for fx in (27, 38):

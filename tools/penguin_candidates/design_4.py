@@ -30,27 +30,30 @@ _RH_EYE     = (242, 64, 46)         # #F2402E fiery red iris
 
 
 def _rh_flipper(angle_deg):
-    """Navy flipper with feather-texture lines + a cool leading edge."""
+    """Navy flipper with a strong cool leading-edge highlight so it reads as a
+    wing (interior feather ticks dropped — sub-pixel noise at gameplay scale)."""
     w = pygame.Surface((34, 42), pygame.SRCALPHA)
     pts = [(18, 9), (27, 16), (22, 35), (13, 30)]
     pygame.draw.polygon(w, _RH_BACK_D, pts)
     pygame.draw.polygon(w, _RH_BACK, [(18, 11), (25, 17), (20, 31), (15, 27)])
-    pygame.draw.line(w, _RH_BACK_H, (18, 12), (24, 18), 1)
-    # Feather texture ticks.
-    pygame.draw.line(w, _RH_BACK_D, (19, 22), (21, 28), 1)
-    pygame.draw.line(w, _RH_BACK_D, (17, 24), (19, 29), 1)
+    pygame.draw.line(w, _RH_BACK_H, (18, 11), (25, 18), 2)
     return pygame.transform.rotate(w, angle_deg * 0.7)
 
 
 def _crest_plume(surf, root_x, root_y, tip_x, tip_y, base_w):
-    """One fat upswept brow plume: deep flank + bright inner lick so the spike
-    survives the 40px downscale; the wide base keeps the point from vanishing."""
+    """One FAT upswept brow plume: dark keyline + deep flank + bright inner lick
+    so the spike survives the 40px downscale AND separates from the sky and from
+    the neighbouring plumes (gold-on-blue has weak value contrast on its own)."""
+    outer = [(root_x - base_w, root_y), (tip_x, tip_y), (root_x + base_w, root_y + 1)]
+    pygame.draw.polygon(surf, _RH_BACK_D, outer)             # dark keyline base
     pygame.draw.polygon(surf, _RH_CREST_D, [
-        (root_x - base_w, root_y), (tip_x, tip_y), (root_x + base_w, root_y + 1)])
-    pygame.draw.polygon(surf, _RH_CREST, [
         (root_x - base_w + 1, root_y), (tip_x, tip_y + 1),
         (root_x + base_w - 1, root_y)])
-    pygame.draw.line(surf, _RH_CREST_H, (root_x, root_y - 1), (tip_x, tip_y + 1), 1)
+    pygame.draw.polygon(surf, _RH_CREST, [
+        (root_x - base_w + 2, root_y), (tip_x, tip_y + 2),
+        (root_x + base_w - 2, root_y)])
+    pygame.draw.line(surf, _RH_CREST_H, (root_x, root_y - 1), (tip_x, tip_y + 2), 1)
+    pygame.draw.polygon(surf, _RH_BACK_D, outer, 1)          # outer keyline stroke
 
 
 def build_rockhopper(wing_angle_deg):
@@ -80,16 +83,20 @@ def build_rockhopper(wing_angle_deg):
     _aaellipse(surf, _RH_BELLY_H, (BCX,     BCY - 2),  8,  6)
     _aaellipse(surf, _RH_BELLY_D, (BCX + 1, BCY + 10), 9,  5)
 
-    # Head dome (3-layer).
+    # Head dome (3-layer) + a cool rim-light on the crown/upper-back so the
+    # navy dome pops off dark night skies.
     _aaellipse(surf, _RH_BACK_D, (HCX,     HCY + 2), 12, 12)
     _aaellipse(surf, _RH_BACK,   (HCX - 1, HCY + 1), 11, 11)
     _aaellipse(surf, _RH_BACK_H, (HCX - 4, HCY - 3),  4,  4)
+    pygame.draw.arc(surf, _RH_BACK_H, (HCX - 11, HCY - 10, 22, 20), 0.5, 2.4, 1)
+    pygame.draw.arc(surf, _RH_BACK_H, (BCX - 16, BCY - 16, 22, 26), 1.3, 2.6, 1)
 
-    # ── HERO: bold spiky golden brow-fan, 4 fat wide-splayed plumes ──
-    _crest_plume(surf, HCX - 6, CROWN_Y + 5, HCX - 16, CROWN_Y - 9, 4)
-    _crest_plume(surf, HCX - 1, CROWN_Y + 3, HCX - 2, CROWN_Y - 16, 5)
-    _crest_plume(surf, HCX + 4, CROWN_Y + 4, HCX + 8, CROWN_Y - 13, 4)
-    _crest_plume(surf, HCX + 8, CROWN_Y + 5, HCX + 18, CROWN_Y - 7, 4)
+    # ── HERO: bold spiky golden brow-fan — 4 FAT wide-splayed plumes with dark
+    # keylines so the crest carries the silhouette in flight, not just in close-up.
+    _crest_plume(surf, HCX - 6, CROWN_Y + 5, HCX - 18, CROWN_Y - 9, 6)
+    _crest_plume(surf, HCX - 1, CROWN_Y + 3, HCX - 3, CROWN_Y - 17, 8)
+    _crest_plume(surf, HCX + 5, CROWN_Y + 4, HCX + 9, CROWN_Y - 14, 7)
+    _crest_plume(surf, HCX + 9, CROWN_Y + 5, HCX + 20, CROWN_Y - 7, 6)
 
     # Red eyes on a pale face bed so they read against the dark head.
     _aaellipse(surf, _RH_BELLY, (HCX + 1, HCY), 7, 6)

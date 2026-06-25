@@ -63,40 +63,46 @@ def build_gentoo(wing_angle_deg):
     _aaellipse(surf, _GE_BELLY_H, (BCX,     BCY - 1),  9,  6)   # upper sheen
     _aaellipse(surf, _GE_BELLY_D, (BCX + 1, BCY + 11), 11, 5)   # lower shadow
 
-    # Head — large and round for the chibi read.
-    _aaellipse(surf, _GE_BACK_D, (HCX,     HCY + 2), 13, 13)
-    _aaellipse(surf, _GE_BACK,   (HCX - 1, HCY + 1), 12, 12)
-    _aaellipse(surf, _GE_BACK_H, (HCX - 4, HCY - 3),  4,  4)
+    # Head — large round chibi head, nudged up + narrowed 1px and given a dark
+    # rim at the body junction so it pops off the body instead of fusing at 40px.
+    _aaellipse(surf, _GE_BACK_D, (HCX,     HCY),     13, 13)
+    _aaellipse(surf, _GE_BACK,   (HCX - 1, HCY - 1), 11, 12)
+    _aaellipse(surf, _GE_BACK_H, (HCX - 4, HCY - 4),  4,  4)
+    pygame.draw.arc(surf, _GE_BACK_D, (HCX - 12, HCY + 4, 24, 14), 3.4, 6.0, 2)
 
     # AO chin shadow.
     sh = pygame.Surface((22, 8), pygame.SRCALPHA)
     pygame.draw.ellipse(sh, (14, 16, 26, 95), sh.get_rect())
-    surf.blit(sh, (HCX - 13, HCY + 9))
+    surf.blit(sh, (HCX - 13, HCY + 8))
 
-    # ── HERO: gentoo white bonnet sweeping over the crown + behind each eye ──
+    # ── HERO: the gentoo white BONNET — a band ear-to-ear OVER the crown that
+    # dips to a point behind each eye, leaving the lower face BLACK (the real
+    # species tell: white headband on a black head, not a white face). ──
     pygame.draw.polygon(surf, _GE_BELLY, [
-        (HCX - 11, HCY - 1), (HCX - 9, CROWN_Y + 1), (HCX, CROWN_Y - 1),
-        (HCX + 9, CROWN_Y + 1), (HCX + 11, HCY - 1),
-        (HCX + 8, HCY - 4), (HCX - 8, HCY - 4),
+        (HCX - 11, HCY - 3), (HCX - 10, CROWN_Y), (HCX, CROWN_Y - 2),
+        (HCX + 10, CROWN_Y), (HCX + 11, HCY - 3),
+        (HCX + 8, HCY - 5), (HCX - 8, HCY - 5),
     ])
-    # The bonnet wraps down behind each eye as a comma.
-    pygame.draw.circle(surf, _GE_BELLY, (HCX - 6, HCY + 1), 3)
-    pygame.draw.circle(surf, _GE_BELLY, (HCX + 9, HCY + 1), 3)
+    # Thin tapered tails sweeping down-back behind each eye (not filled discs).
+    pygame.draw.polygon(surf, _GE_BELLY,
+                        [(HCX - 9, HCY - 3), (HCX - 6, HCY - 2), (HCX - 9, HCY + 4)])
+    pygame.draw.polygon(surf, _GE_BELLY,
+                        [(HCX + 11, HCY - 3), (HCX + 9, HCY - 2), (HCX + 12, HCY + 4)])
 
-    # ── HERO: oversized friendly eyes on pale surround patches ──
-    pygame.draw.circle(surf, _GE_SURR, (HCX - 2, HCY + 1), 6)
-    pygame.draw.circle(surf, _GE_SURR, (HCX + 7, HCY + 1), 6)
-    _eye(surf, HCX - 2, HCY + 1, 5, iris=(22, 20, 28))
-    _eye(surf, HCX + 7, HCY + 1, 5, iris=(22, 20, 28))
+    # ── HERO: oversized friendly eyes (raised 1px) on small pale surrounds ──
+    pygame.draw.circle(surf, _GE_SURR, (HCX - 2, HCY), 5)
+    pygame.draw.circle(surf, _GE_SURR, (HCX + 7, HCY), 5)
+    _eye(surf, HCX - 2, HCY, 5, iris=(22, 20, 28))
+    _eye(surf, HCX + 7, HCY, 5, iris=(22, 20, 28))
 
-    # ── Bright banded orange beak (deep root → bright tip) + outline + shine ──
-    root = [(HCX + 3, HCY + 5), (HCX + 13, HCY + 8), (HCX + 3, HCY + 11)]
+    # ── Bright banded orange beak, root moved OUT so it clears the right eye ──
+    root = [(HCX + 5, HCY + 5), (HCX + 14, HCY + 8), (HCX + 5, HCY + 11)]
     pygame.draw.polygon(surf, _GE_BEAK1, root)
     pygame.draw.polygon(surf, _GE_BEAK2,
-                        [(HCX + 8, HCY + 6), (HCX + 13, HCY + 8),
-                         (HCX + 8, HCY + 10)])               # bright tip
+                        [(HCX + 10, HCY + 6), (HCX + 14, HCY + 8),
+                         (HCX + 10, HCY + 10)])              # bright tip
     pygame.draw.polygon(surf, _GE_BEAK_D, root, 1)
-    pygame.draw.line(surf, (255, 220, 150), (HCX + 4, HCY + 7), (HCX + 11, HCY + 8), 1)
+    pygame.draw.line(surf, (255, 220, 150), (HCX + 6, HCY + 7), (HCX + 12, HCY + 8), 1)
 
     # Near flipper.
     _rot_blit(surf, _ge_flipper(wing_angle_deg), (BCX - 8, BCY + 2))
