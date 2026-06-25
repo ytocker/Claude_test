@@ -1,17 +1,19 @@
 """design_1 · STORM MACAW — EPIC parrot rarity-spectrum exploration.
 
 A stormcloud-slate macaw crackling with electricity. The signature is ONE
-bold energy zone: a jagged 3-prong cyan lightning crest spiking UP past the
-crown to break the silhouette, a charged cyan wingtip with one forked
-micro-bolt, a faint cyan back rim-light, and a few static spark dots orbiting
-the head. Pip keeps his gold aviators — only the body is re-plumaged slate.
+bold energy zone: a single ASYMMETRIC zig-zag lightning bolt discharging UP
+past the crown to break the silhouette, with one short fork, a charged cyan
+wingtip glow + tick, a faint cyan back rim-light, and two static spark dots
+hugging the bolt. Pip keeps his gold aviators — only the body is re-plumaged.
 
-The 40px truth-read is carried by the lightning crest: the highest-value cyan
-sits at the prong TIPS (spark-white cores) so the zig-zag silhouette reads as
-a bolt against both day and night sky. Cyan is held off the near-black slate
-by a soft additive head-glow painted BEHIND the body, so the charge separates
-from the body mass without smearing — hence the custom compose (back glow →
-slate body → front bolt/spark overlay) rather than the body-first _make_skin.
+The 40px truth-read is carried by that one bolt: it kinks hard left-right-left
+(with a deliberate lateral zag mid-climb so it reads as lightning, never an
+antenna) and tapers thick-root → spark-white tip, so the discharge direction
+and the bolt silhouette survive the downscale on both day and night sky. Cyan
+is held off the near-black slate by a soft additive head-glow painted BEHIND
+the body, so the charge separates from the body mass without smearing — hence
+the custom compose (back glow → slate body → front bolt/spark overlay) rather
+than the body-first _make_skin.
 
 Scratch only — never registered in store_skins.BUILDERS.
 """
@@ -70,13 +72,31 @@ def _back_glow(surf):
     blit_glow(surf, HX, CROWN_Y - 4, 11, (110, 200, 240), alpha=80)
 
 
-def _bolt(surf, pts):
-    # A jagged lightning prong: deep-slate keyline first so cyan never abuts the
-    # slate body directly, then a cyan core, brightest spark-white at the TIP —
-    # the value gradient that makes the zig-zag read as a charged bolt at 40px.
-    pygame.draw.lines(surf, _SLATE_DEEP, False, pts, 4)
-    pygame.draw.lines(surf, _CYAN, False, pts, 3)
-    pygame.draw.lines(surf, _SPARK, False, pts[-2:], 2)
+def _bolt(surf, pts, *, root_w=3, fork=None):
+    # One jagged bolt, drawn segment-by-segment so the stroke TAPERS from a fat
+    # 3px root at the crown down to a bright 2px spark tip — the value+width
+    # gradient that gives the discharge a direction and reads as lightning, not
+    # a fixed-width antenna. A deep-slate keyline under each segment keeps cyan
+    # off the slate body; spark-white takes over the final two segments.
+    n = len(pts) - 1
+    for i in range(n):
+        a, b = pts[i], pts[i + 1]
+        t = i / max(1, n - 1)              # 0 at root → 1 at tip
+        w = max(2, round(root_w - t * (root_w - 2)))
+        pygame.draw.line(surf, _SLATE_DEEP, a, b, w + 1)
+    for i in range(n):
+        a, b = pts[i], pts[i + 1]
+        col = _SPARK if i >= n - 2 else _CYAN
+        t = i / max(1, n - 1)
+        w = max(2, round(root_w - t * (root_w - 2)))
+        pygame.draw.line(surf, col, a, b, w)
+    # One short fork branching off a mid-bolt vertex — the single permitted fork,
+    # thin so it never reads as a second tine.
+    if fork is not None:
+        f0, f1 = fork
+        pygame.draw.line(surf, _SLATE_DEEP, f0, f1, 3)
+        pygame.draw.line(surf, _CYAN, f0, f1, 2)
+        pygame.draw.circle(surf, _SPARK, f1, 1)
     tip = pts[-1]
     pygame.draw.circle(surf, _SPARK, tip, 2)
     pygame.draw.circle(surf, (255, 255, 255), (tip[0], tip[1] - 1), 1)
@@ -88,38 +108,37 @@ def _paint_storm(surf, wing_angle_deg):
     pygame.draw.lines(surf, _CYAN, False,
                       [(14, 38), (22, 44), (30, 47), (40, 46), (47, 41)], 1)
 
-    # 3-prong jagged lightning crest spiking UP past CROWN_Y. The middle prong
-    # overshoots highest so the bolt clearly breaks the egg silhouette; the side
-    # prongs zig the opposite way so the cluster reads as forked lightning, not
-    # three parallel feathers. Roots sit on the crown so the bolt looks rooted in
-    # the head, not floating.
+    # ONE asymmetric lightning bolt discharging up off the crown. Vertices kink
+    # hard left → right → left as it climbs, and the mid-bolt makes a deliberate
+    # LATERAL zag (the third vertex jumps right of the root before the tip cuts
+    # back left) so the silhouette breaks vertical sameness and reads as a real
+    # bolt rather than a straight antenna. Rooted just left of head-centre, the
+    # tip overshoots well past CROWN_Y to break the egg outline. A single short
+    # fork peels off the lateral elbow — the only branch, kept thin.
     base_y = CROWN_Y + 3
-    _bolt(surf, [(HX - 2, base_y), (HX - 7, base_y - 7),
-                 (HX - 3, base_y - 9), (HX - 10, base_y - 19)])
-    _bolt(surf, [(HX + 1, base_y), (HX + 5, base_y - 9),
-                 (HX, base_y - 12), (HX + 4, base_y - 25)])
-    _bolt(surf, [(HX + 3, base_y - 1), (HX + 9, base_y - 6),
-                 (HX + 6, base_y - 9), (HX + 13, base_y - 16)])
+    crest = [
+        (HX - 1, base_y),          # root on the crown
+        (HX - 6, base_y - 6),      # kink LEFT
+        (HX + 3, base_y - 11),     # hard kink RIGHT — the lateral zag
+        (HX - 4, base_y - 17),     # cut back LEFT
+        (HX + 2, base_y - 27),     # spark tip, overshooting the crown
+    ]
+    _bolt(surf, crest, root_w=3,
+          fork=((HX + 3, base_y - 11), (HX + 10, base_y - 13)))
 
-    # Charged electric-cyan wingtip glow + one forked micro-bolt arcing off the
-    # LEADING wingtip into open sky — the second energy zone that ties the wing
-    # to the crest. Wing leading tip sits up-right of the body in this pose.
+    # Charged electric-cyan wingtip: the glow carries this zone (a micro-bolt is
+    # invisible at 40px), so just a soft cyan glow + one ≥2px cyan tick with a
+    # spark core — the second, quieter energy note tying the wing to the crest.
     wtx, wty = 46, 44
-    blit_glow(surf, wtx, wty, 7, (80, 180, 220), alpha=120)
-    pygame.draw.circle(surf, _CYAN, (wtx, wty), 2)
-    pygame.draw.circle(surf, _SPARK, (wtx, wty), 1)
-    # Forked micro-bolt: a short zig with a single fork, brightest at both tips.
-    fork = [(wtx + 1, wty - 1), (wtx + 6, wty - 4), (wtx + 4, wty - 6),
-            (wtx + 10, wty - 9)]
-    pygame.draw.lines(surf, _SLATE_DEEP, False, fork, 3)
-    pygame.draw.lines(surf, _CYAN, False, fork, 2)
-    pygame.draw.line(surf, _CYAN, (wtx + 4, wty - 6), (wtx + 8, wty - 3), 2)
-    pygame.draw.circle(surf, _SPARK, (wtx + 10, wty - 9), 2)
-    pygame.draw.circle(surf, _SPARK, (wtx + 8, wty - 3), 1)
+    blit_glow(surf, wtx, wty, 8, (80, 180, 220), alpha=130)
+    pygame.draw.circle(surf, _CYAN, (wtx, wty), 3)
+    pygame.draw.circle(surf, _SPARK, (wtx, wty), 2)
+    pygame.draw.circle(surf, (255, 255, 255), (wtx, wty - 1), 1)
 
-    # 3 static spark dots orbiting the head — small charged motes, each a cyan
-    # core with a spark-white centre so they survive downscale (≥2px cores).
-    for sx, sy in ((HX - 13, CROWN_Y + 6), (HX + 14, HY - 4), (HX + 4, CROWN_Y - 7)):
+    # Two static spark motes hugging the bolt — each a cyan core with a spark-
+    # white centre (≥2px) so they survive downscale; placed tight to the crest
+    # tips so they read as charge crackling off the bolt, not orbiting noise.
+    for sx, sy in ((HX + 7, base_y - 22), (HX - 7, base_y - 13)):
         pygame.draw.circle(surf, _CYAN, (sx, sy), 2)
         pygame.draw.circle(surf, _SPARK, (sx, sy), 1)
 

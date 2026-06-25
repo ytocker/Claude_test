@@ -20,7 +20,7 @@ from game.config import W as GW, H as GH, GROUND_Y
 from tools import ninja_render
 from tools.parrot_rarity_candidates.design_1 import build
 
-OUT = "/home/user/skybit/docs/store_redesign/parrot/design_1/round_1.png"
+OUT = "/home/user/skybit/docs/store_redesign/parrot/design_1/round_2.png"
 FONT = pygame.font.SysFont("DejaVuSans", 15, bold=True)
 SMALL = pygame.font.SysFont("DejaVuSans", 12)
 
@@ -74,7 +74,7 @@ def label(surf, text, x, y, font=SMALL, color=(230, 235, 245)):
 W, H = 760, 520
 sheet = pygame.Surface((W, H))
 sheet.fill((18, 18, 26))
-label(sheet, "design_1 · STORM MACAW — EPIC  (rarity exploration, NOT registered)",
+label(sheet, "design_1 · STORM MACAW — EPIC  R2  (single asymmetric bolt crest)",
       16, 12, FONT, (127, 227, 255))
 
 # Day + night gameplay panels.
