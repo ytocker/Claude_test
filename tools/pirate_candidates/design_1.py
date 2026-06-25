@@ -57,16 +57,17 @@ def _paint(surf, _a):
     #    shoulders down so the scarlet chest still shows between them — the coat
     #    DRESSES the bird, it doesn't repaint it.
     bcx, bcy = 32, 52
-    # Near (right) front panel — the larger sweep that now drives DOWN-RIGHT past
-    # the belly so it breaks up the blue wing/tail block fighting the white jabot
-    # in the lower-right. Drawn shadow-first so the fill sits inside a dark frame.
-    near = [(bcx + 18, bcy - 9), (bcx + 21, bcy + 3),
-            (bcx + 17, bcy + 14), (bcx + 8, bcy + 16),
-            (bcx + 4, bcy + 6), (bcx + 7, bcy - 5), (bcx + 11, bcy - 7)]
+    # Near (right) front panel — one clean wine WEDGE. Its bottom point is pulled
+    # UP so the wine stops SHORT of the blue tail block instead of fighting it; the
+    # lower body now reads scarlet → one wine lapel → gold buttons, nothing else.
+    # Drawn shadow-first so the fill sits inside a dark frame.
+    near = [(bcx + 18, bcy - 9), (bcx + 21, bcy + 2),
+            (bcx + 14, bcy + 11), (bcx + 6, bcy + 9),
+            (bcx + 4, bcy + 1), (bcx + 7, bcy - 5), (bcx + 11, bcy - 7)]
     _poly(surf, _COAT_D, near)
-    near_in = [(bcx + 17, bcy - 7), (bcx + 19, bcy + 3),
-               (bcx + 15, bcy + 12), (bcx + 8, bcy + 13),
-               (bcx + 6, bcy + 5), (bcx + 8, bcy - 3), (bcx + 11, bcy - 5)]
+    near_in = [(bcx + 17, bcy - 7), (bcx + 19, bcy + 2),
+               (bcx + 13, bcy + 9), (bcx + 7, bcy + 7),
+               (bcx + 6, bcy + 1), (bcx + 8, bcy - 3), (bcx + 11, bcy - 5)]
     _poly(surf, _COAT, near_in)
     # Far (left) panel — narrower, peeking past the near wing so the coat wraps.
     far = [(bcx - 16, bcy - 6), (bcx - 9, bcy - 8),
@@ -79,46 +80,39 @@ def _paint(surf, _a):
     # body — this is the edge that survives even if the coat fill bleeds into the
     # body, so the lapel always reads as a distinct cloth panel, not mud.
     pygame.draw.lines(surf, _COAT_S, False,
-                      [(bcx + 11, bcy - 7), (bcx + 7, bcy + 1),
-                       (bcx + 5, bcy + 7), (bcx + 8, bcy + 15)], 2)
+                      [(bcx + 11, bcy - 7), (bcx + 7, bcy - 1),
+                       (bcx + 5, bcy + 3), (bcx + 6, bcy + 9)], 2)
     # Lifted lapel edge on the near panel so the coat catches light, not mud.
     pygame.draw.lines(surf, _COAT_H, False,
                       [(bcx + 12, bcy - 5), (bcx + 18, bcy + 1),
-                       (bcx + 15, bcy + 11)], 1)
+                       (bcx + 14, bcy + 9)], 1)
 
-    # Gold-button row down the centre placket between the lapels — three studs,
-    # each on a dark backing pip so the gold survives downscale against the coat.
-    for k, by in enumerate((bcy - 3, bcy + 2, bcy + 7)):
+    # Gold-button placket down the lapel — TWO studs with wide vertical spacing so
+    # each reads as a DISTINCT gold point at 40px (three blurred into one gold smear
+    # against the epaulette on the night read). Each on a dark backing pip so the
+    # gold survives downscale against the coat.
+    for k, by in enumerate((bcy - 2, bcy + 5)):
         pygame.draw.circle(surf, _COAT_S, (bcx + 9, by), 3)
         pygame.draw.circle(surf, _LACE, (bcx + 9, by), 2)
         pygame.draw.circle(surf, _LACE_H, (bcx + 8, by - 1), 1)
 
-    # ── turned-back gold CUFF at the near wing — a bright band that widens the
-    #    wing outline so the bird reads "dressed" even in silhouette. Sits at the
-    #    wing root over the lower body; gold so it pops on both biomes.
-    wcx, wcy = 44, 50
-    cuff = [(wcx - 6, wcy + 1), (wcx + 6, wcy - 4),
-            (wcx + 8, wcy + 1), (wcx - 4, wcy + 6)]
-    _poly(surf, _COAT_S, cuff)
-    pygame.draw.line(surf, _LACE, (wcx - 5, wcy + 1), (wcx + 6, wcy - 3), 3)
-    pygame.draw.line(surf, _LACE_H, (wcx - 4, wcy), (wcx + 4, wcy - 3), 1)
-
     # ── slim white lace jabot tucked DIRECTLY under the beak base so it connects
-    #    to the head (not a floating sail). ~30% narrower than R1 and TAPERED to a
-    #    point so it reads as a ruffle, not a square bib; its left edge is broken
-    #    by the coat wine so it isn't a clean white rectangle against the sky.
-    jx, jy = HX + 4, HY + 5         # pulled up + in, hard under the beak base
+    #    to the head (not a floating sail). Just TWO tiers now, pulled ~2px tighter
+    #    under the beak, and the lowest tier is painted in _SKULL_D (off-white) so
+    #    ONLY the skull cockade holds the brightest white crown. Its left edge is
+    #    broken by the coat wine so it isn't a clean white rectangle against sky.
+    jx, jy = HX + 4, HY + 3         # pulled ~2px tighter under the beak base
     # Coat-wine wedge biting the left side of the ruffle so the white edge breaks.
     _poly(surf, _COAT_D, [(jx - 4, jy + 1), (jx - 1, jy + 2),
-                          (jx - 2, jy + 9), (jx - 5, jy + 6)])
+                          (jx - 2, jy + 7), (jx - 5, jy + 5)])
     _poly(surf, _SKULL_D, [(jx - 3, jy), (jx + 4, jy),
-                           (jx + 1, jy + 12), (jx - 2, jy + 11)])
-    for t, (w, dy) in enumerate(((3, 0), (3, 4), (2, 8))):
+                           (jx + 1, jy + 9), (jx - 2, jy + 8)])
+    # Top tier the brighter lace-white; lower tier off-white so it yields the
+    # brightest-white crown to the skull cockade above.
+    for t, (w, dy, col) in enumerate(((3, 0, _SKULL), (2, 4, _SKULL_D))):
         cy = jy + dy
-        # Taper the tiers narrower the further down they cascade → point at base.
         ww = w - t
-        _poly(surf, _SKULL, [(jx - ww, cy), (jx + ww + 1, cy),
-                             (jx, cy + 5)])
+        _poly(surf, col, [(jx - ww, cy), (jx + ww + 1, cy), (jx, cy + 5)])
         pygame.draw.line(surf, _SKULL_D, (jx - ww + 1, cy + 2), (jx, cy + 4), 1)
         pygame.draw.line(surf, _SKULL_D, (jx, cy + 4), (jx + ww, cy + 2), 1)
 
