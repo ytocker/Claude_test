@@ -44,26 +44,35 @@ def _label(surf, text, x, y, size, color):
     surf.blit(font.render(text, True, color), (x, y))
 
 
+HERO_BOX = 220
+
+
 def main():
     pad = 16
     head = 64
+    cap = 44                      # caption strip under each hero
     n = len(COLUMNS)
     sheet_w = pad + n * (PANEL_W + pad)
-    sheet_h = head + PANEL_H + pad
+    sheet_h = head + HERO_BOX + cap + PANEL_H + pad
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((18, 16, 26))
 
-    _label(sheet, "PENGUIN  ·  redesign comparison  ·  Pip mid-flight",
+    _label(sheet, "PENGUIN  ·  redesign comparison  ·  hero close-up + Pip mid-flight",
            pad, 14, 24, (242, 238, 252))
 
     for i, (tag, name, spec) in enumerate(COLUMNS):
         x = pad + i * (PANEL_W + pad)
-        panel = nr.gameplay_panel(_source(spec), PANEL_W, PANEL_H)
-        sheet.blit(panel, (x, head))
-        # column captions
-        _label(sheet, tag, x + 6, head + 4, 17,
+        src = _source(spec)
+        # Row 1 — large hero close-up so the craft reads.
+        hero = nr.hero_panel(src, HERO_BOX)
+        sheet.blit(hero, (x + (PANEL_W - HERO_BOX) // 2, head))
+        # captions
+        _label(sheet, tag, x + 6, head + HERO_BOX + 2, 18,
                (255, 224, 130) if tag == "ORIGINAL" else (190, 220, 255))
-        _label(sheet, name, x + 6, head + 24, 15, (236, 236, 244))
+        _label(sheet, name, x + 6, head + HERO_BOX + 23, 16, (236, 236, 244))
+        # Row 2 — Pip mid-flight in a real gameplay scene.
+        panel = nr.gameplay_panel(src, PANEL_W, PANEL_H)
+        sheet.blit(panel, (x, head + HERO_BOX + cap))
 
     out = "docs/store_redesign/animal/penguin/final_comparison.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)
