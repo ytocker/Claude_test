@@ -10,9 +10,9 @@ bird at 40px:
 
   * head — original continuous gold brim band (the proven identity read) plus a
     single red brow gem on the skull cockade; no studs (they speckle at scale),
-  * chest — TWO staggered coin-chains: a bright HERO strand high and a deep
-    RECESSED strand low, with a band of clean SCARLET showing between them so
-    the gold reads as draped on a red bird, not a gold blob,
+  * chest — ONE bright HERO coin-chain high on the breast, with clean SCARLET
+    owning the whole belly below it so the gold reads as draped on a red bird,
+    not a gold blob,
   * chest centre — ONE hero medallion as the single hot focal (beats nine pips),
   * belt — a bulging leather coin pouch (the best non-gold beat) with one bright
     spill-coin at its lip as a secondary focal,
@@ -57,14 +57,9 @@ def _coin(surf, cx, cy, r):
 
 def _chain(surf, p0, p1, p2, beads, hero):
     """A draped coin-chain: a quadratic-bezier arc of gold beads from p0 through
-    control p1 to p2. ``hero`` controls the value tier so two chains can stagger
-    HARD instead of merging into one speckled blob:
-
-      hero=True  → bright strand: 3px gold beads over a deep-gold line, ONE
-                   shared light read, no per-bead highlight pips (those are the
-                   primary speckle-noise source at 40px).
-      hero=False → recessed strand: 2px DEEP-gold beads only, no bright tone,
-                   so it sits back in shadow and lets the hero strand lead."""
+    control p1 to p2. ``hero=True`` draws the single bright strand — 3px gold
+    beads over a deep-gold line, ONE shared light read with no per-bead highlight
+    pips (those are the primary speckle-noise source at 40px)."""
     pts = []
     for i in range(beads):
         t = i / (beads - 1)
@@ -84,18 +79,17 @@ def _chain(surf, p0, p1, p2, beads, hero):
 
 
 def _paint(surf, _a):
-    # ── TWO draped coin-chains across the chest, staggered HARD in value with a
-    #    clean band of SCARLET between them (drawn FIRST so the pouch can overlap).
-    #    Body centre ~(31, 52). Endpoints pulled INWARD (bcx ± 12) so the chains
-    #    don't reach the wing edge — the scarlet wing reads as a clean red shape
-    #    framing the gold. The recessed strand is dropped low enough that a red
-    #    gap shows between it and the bright hero strand: that red is what makes
-    #    the gold read as DRAPED ON A RED BIRD, not a gold blob.
+    # ── ONE draped coin-chain across the chest (drawn FIRST so the pouch can
+    #    overlap). Body centre ~(31, 52). Endpoints pulled INWARD (bcx ± 12) so
+    #    the chain doesn't reach the wing edge — the scarlet wing reads as a clean
+    #    red shape framing the gold, and the empty scarlet belly below it is what
+    #    makes the gold read as DRAPED ON A RED BIRD, not a gold blob.
     bcx, bcy = 31, 52
-    # Hero strand — bright, high on the breast.
+    # ONE hero strand only — bright, high on the breast. The low recessed strand
+    # is dropped: at 40px it didn't read as a 2nd chain, it just filled the red
+    # gap. Clean scarlet now owns the whole belly below this single chain, which
+    # is what sells "gold draped on a red bird".
     _chain(surf, (bcx - 12, bcy - 4), (bcx, bcy + 4),  (bcx + 12, bcy - 2), 8, True)
-    # Recessed strand — deep gold only, dropped low, wide red gap above it.
-    _chain(surf, (bcx - 11, bcy + 7), (bcx, bcy + 15), (bcx + 12, bcy + 8), 8, False)
 
     # ── HERO MEDALLION at chest centre: the single hot focal of the whole build.
     #    One bright disc with a ruby boss beats nine scattered highlight pips.
@@ -123,13 +117,14 @@ def _paint(surf, _a):
     fx, fy = bcx + 6, bcy + 22
     hook = [(fx, fy), (fx + 3, fy + 2), (fx + 4, fy + 5),
             (fx + 2, fy + 7), (fx - 1, fy + 6)]
-    # Dark anchor pass (shank + curve), then the gold on top.
+    # Dark anchor pass (shank + curve), then DEEP gold only — no bright pip — so
+    # the hook stays dim and the value fight is won by scarlet. The only full
+    # bright _GOLD masses left on the bird are the hat rope, the one hero chain,
+    # the medallion and the single spill-coin.
     pygame.draw.line(surf, _LEATHER_D, (fx, fy - 6), (fx, fy), 4)
     pygame.draw.lines(surf, _LEATHER_D, False, hook, 4)
-    pygame.draw.line(surf, _GOLD_D, (fx, fy - 6), (fx, fy), 3)
-    pygame.draw.line(surf, _GOLD, (fx, fy - 6), (fx, fy), 2)
-    pygame.draw.lines(surf, _GOLD_D, False, hook, 3)
-    pygame.draw.lines(surf, _GOLD, False, hook, 2)
+    pygame.draw.line(surf, _GOLD_D, (fx, fy - 6), (fx, fy), 2)
+    pygame.draw.lines(surf, _GOLD_D, False, hook, 2)
 
     # ── gold hoop earring under the head (kept from the identity).
     pygame.draw.circle(surf, _GOLD, (HX - 8, HY + 10), 3, 2)
@@ -149,12 +144,15 @@ def _paint(surf, _a):
     _poly(surf, _FELT_H, [(HX - 4, cy - 5), (HX + 3, cy - 6),
                           (HX + 2, cy - 2), (HX - 3, cy - 2)])
 
-    # Continuous gold brim band tracing the front edge — deep-gold under, bright
-    # gold over, one continuous rope. No studs.
+    # Thin gold rope on the FRONT brim edge only — matched to production's 2px
+    # bright over 1px highlight so slate felt out-masses gold ~3:1. Clipped to the
+    # front edge (HX-15 → HX+14): no gold wrapping the head or bleeding down the
+    # right felt, which is what made the hat read as a gold helmet.
     band = [(HX - 15, cy + 4), (HX - 4, cy - 5), (HX + 3, cy - 6),
             (HX + 14, cy + 3)]
-    pygame.draw.lines(surf, _GOLD_D, False, band, 3)
-    pygame.draw.lines(surf, _GOLD, False, band, 2)
+    pygame.draw.lines(surf, _GOLD_D, False, band, 2)
+    pygame.draw.lines(surf, _GOLD_H, False,
+                      [(HX - 13, cy + 3), (HX - 4, cy - 6), (HX + 3, cy - 7)], 1)
 
     # ── white skull cockade dead-centre-front with a RED BROW GEM — the kept
     #    identity anchor, jewelled with the head's ONE wealth accent (no studs).
