@@ -69,6 +69,32 @@ def truth_read(source, px=40):
     return small, pygame.transform.scale(small, (small.get_width() * 4, small.get_height() * 4))
 
 
+def _sky_swatch(phase, box):
+    """A flat crop of the real biome sky at `phase`, sized `box` — the honest
+    backdrop the bird must hold its value against at 40px."""
+    sky = get_sky_surface_biome(GW, GH, GROUND_Y, biome.palette_for_phase(phase),
+                                int(phase * 16))
+    crop = sky.subsurface(pygame.Rect(40, 120, GW - 80, GW - 80)).copy()
+    return pygame.transform.smoothscale(crop, (box, box))
+
+
+def truth_on_sky(source, phase, scale=5):
+    """The A/B check that decides ship: the bird downscaled to a 40px-tall sprite
+    composited onto the REAL sky of `phase`, then nearest-up. If the night value
+    floor holds, the lower body keeps a lit edge against the navy; if it fails,
+    the underbelly dissolves into the sky here."""
+    frame = source(2, 8.0)
+    bb = frame.get_bounding_rect()
+    frame = frame.subsurface(bb).copy() if bb.width else frame
+    sw, sh = frame.get_size()
+    sc = 40 / max(sw, sh)
+    bird = pygame.transform.smoothscale(frame, (max(1, int(sw * sc)), max(1, int(sh * sc))))
+    box = 52
+    cell = _sky_swatch(phase, box)
+    cell.blit(bird, bird.get_rect(center=(box // 2, box // 2)))
+    return pygame.transform.scale(cell, (box * scale, box * scale))
+
+
 def masked_card(source, box):
     """The secret store-card state: a darkened silhouette of the bird with a big
     '???' — how the locked skin reads before purchase. Built from the real frame
@@ -94,15 +120,15 @@ def masked_card(source, box):
 
 # ── compose the sheet ─────────────────────────────────────────────────────────
 PAD = 26
-sheet_w, sheet_h = 1180, 880
+sheet_w, sheet_h = 1180, 1170
 sheet = pygame.Surface((sheet_w, sheet_h))
 sheet.fill((18, 16, 28))
 
 title = _font(30, True).render(
-    "CHROME MACAW — SECRET (~6000, masked ???)  ·  design_5 · ROUND 1", True, _GOLD)
+    "CHROME MACAW — SECRET (~6000, masked ???)  ·  design_5 · ROUND 2", True, _GOLD)
 sheet.blit(title, (PAD, 18))
 sub = _font(14, False).render(
-    "liquid-chrome Pip · oil-slick holo ring + bladed tail-vanes + fin-crest + mirror aviators · value-jump metal at 40px",
+    "R2: night value floor +18% · bottom rim-light · 2-hue magenta/cyan ring · travelling wing hotspot + up-flap rivet pop · hard spec on rear tail-vanes",
     True, (174, 168, 196))
 sheet.blit(sub, (PAD, 54))
 
@@ -156,7 +182,26 @@ sheet.blit(masked_card(CHROME, 200), (xm, y1 + 22))
 sheet.blit(_font(13, True).render("???  ·  6000", True, (150, 160, 190)),
            (xm + 56, y1 + 22 + 206))
 
-out = os.path.join("docs", "store_redesign", "parrot", "wave2", "design_5", "round_1.png")
+# Row 3: the A/B that decides ship — 40px-on-DAY-sky vs 40px-on-NIGHT-sky, so
+# the night value-floor fix can be judged against the actual sky it dissolved
+# into in R1. Same bird, same scale, only the backdrop changes.
+y2 = y1 + 280
+label(PAD, y2, "40px ON REAL SKY · DAY  vs  NIGHT  (night value-floor A/B — the ship check)")
+ab_day = truth_on_sky(CHROME, 0.0)
+ab_night = truth_on_sky(CHROME, 0.64375)
+pygame.draw.rect(sheet, (108, 188, 252), (PAD - 2, y2 + 20, ab_day.get_width() + 4, ab_day.get_height() + 4), 2)
+sheet.blit(ab_day, (PAD, y2 + 22))
+sheet.blit(_font(13, True).render("DAY", True, (140, 200, 255)), (PAD + 4, y2 + 26))
+nx = PAD + ab_day.get_width() + 40
+pygame.draw.rect(sheet, (120, 130, 200), (nx - 2, y2 + 20, ab_night.get_width() + 4, ab_night.get_height() + 4), 2)
+sheet.blit(ab_night, (nx, y2 + 22))
+sheet.blit(_font(13, True).render("NIGHT", True, (170, 180, 230)), (nx + 4, y2 + 26))
+note = _font(13, False).render(
+    "check: underbelly + tail keep a lit edge on navy (rim-light) · ring reads as a RING not rainbow pixels · hotspot lands as one clean white",
+    True, (160, 154, 184))
+sheet.blit(note, (nx + ab_night.get_width() + 40, y2 + 28))
+
+out = os.path.join("docs", "store_redesign", "parrot", "wave2", "design_5", "round_2.png")
 os.makedirs(os.path.dirname(out), exist_ok=True)
 pygame.image.save(sheet, out)
 print("SAVED", out, sheet.get_size())
