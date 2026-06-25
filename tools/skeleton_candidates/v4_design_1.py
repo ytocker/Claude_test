@@ -59,15 +59,42 @@ def _bloom_from(layer, factor, alpha, tint):
 
 # A crisp cool steel-blue fabric edge so the hood arc + tattered hem read as
 # CLOTH even under the bright bone bloom — without it the radiograph halo (same
-# blue family) tends to swallow the cowl outline at gameplay size.
-_CLOAK_EDGE = (118, 150, 210)
+# blue family) tends to swallow the cowl outline at gameplay size. Brightened
+# from R3 so the hood-rim + hem edge survives the 40px NIGHT read.
+_CLOAK_EDGE = (150, 185, 245)
+
+# A faint navy-lifted cloth so the garment doesn't sink into the night sky —
+# kept far below bone luminance so the skull/ribcage/beak stay the hero, but
+# enough above pure navy that the cloak mass itself reads as a shape, not a hole.
+_CLOAK_CLOTH = (40, 47, 70)
+
+# Brighter cool-blue rim emissive than the base default so the bone-glow rim
+# actually carries onto the cloak's OUTER edge on navy.
+_RIM_GLOW = (160, 198, 255)
+
+
+def _rim_emissive(surf):
+    """Strengthen the base's faint hood-rim + hem glow with a second, brighter
+    emissive pass along the SAME outer-edge point lists the base uses, so the
+    cool bone-glow rim is unmistakably present on the cloak silhouette at night.
+    Drawn additively so it lifts the navy edge without flattening the cloth."""
+    g = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    # Wide soft underglow, then a tighter brighter line, along hood + hem.
+    pygame.draw.lines(g, (*_RIM_GLOW, 70), False, XB._HOOD_RIM, 4)
+    pygame.draw.lines(g, (*_RIM_GLOW, 70), False, XB._HEM_EDGE, 4)
+    pygame.draw.lines(g, (*_RIM_GLOW, 150), False, XB._HOOD_RIM, 2)
+    pygame.draw.lines(g, (*_RIM_GLOW, 150), False, XB._HEM_EDGE, 2)
+    surf.blit(g, (0, store_skins.PARROT_DY), special_flags=pygame.BLEND_RGB_ADD)
 
 
 def _cloak(angle):
     """The cloaked-Pip base for this design: the dark back mass redrawn as a
     hooded open-front cloak, with a cool-blue emissive rim/hem so the cloth
-    edge carries a faint radiograph luminance like the bones do."""
-    return XB.cloak_base(angle, XB.P_FLESH, glow=_GLOW_TINT, edge=_CLOAK_EDGE)
+    edge carries a faint radiograph luminance like the bones do. The cloth is
+    lifted a touch off navy and the rim glow brightened so the garment survives
+    the NIGHT read instead of sinking into the sky."""
+    return XB.cloak_base(angle, XB.P_FLESH, glow=_RIM_GLOW,
+                         edge=_CLOAK_EDGE, cloth=_CLOAK_CLOTH)
 
 
 def _silhouette_mask(angle):
@@ -102,6 +129,11 @@ def _restrike_cores(surf):
 
 
 def _paint(surf, angle):
+    # Lift the cloak's OUTER edge with a brighter cool-blue emissive rim first,
+    # UNDER the bones, so the garment silhouette carries radiograph luminance on
+    # navy while the skull/ribcage/beak still strike crisp on top as the hero.
+    _rim_emissive(surf)
+
     # Skeleton on its own transparent layer so the glow is built from bone only,
     # not from the dark flesh underneath.
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
