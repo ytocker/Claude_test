@@ -14,16 +14,22 @@ from tools.partyhat_candidates._template import make_build, make_icon
 
 # Foil colourway. Two body tones (lit/shade) read as a metallic sheen far
 # better than a smooth gradient at head_w~26, where blends turn to mud.
-_FOIL = (255, 46, 126)        # #FF2E7E magenta foil
-_FOIL_LO = (123, 47, 247)     # #7B2FF7 violet — shaded flank
+_FOIL = (255, 46, 126)        # #FF2E7E magenta foil (lit flank)
+_FOIL_LO = (74, 30, 140)      # #4A1E8C deep indigo — shaded flank, real value
+                              # range vs Pip's warm body so the cone never
+                              # merges into the bird on a bright day sky.
 _FOIL_HI = (255, 255, 255)    # foil specular band
+# Near-black violet keyline rings the whole silhouette so the warm-hued cone
+# stays separated from Pip's warm body against the day sky.
+_KEYLINE = (40, 20, 70)
 _GOLD = (255, 210, 63)        # #FFD23F
 _TEAL = (25, 195, 201)        # #19C3C9
 _VIOLET = (123, 47, 247)
 _MAGENTA = (255, 46, 126)
+_WHITE = (245, 248, 255)
 _TRIM = (255, 210, 63)
 _TRIM_LO = (214, 168, 40)
-_RIBBON = (_GOLD, _TEAL, _MAGENTA, _VIOLET)
+_RIBBON = (_GOLD, _TEAL)
 
 
 def draw_hat(surf, cx, base_y, head_w, facing=1):
@@ -59,7 +65,8 @@ def draw_hat(surf, cx, base_y, head_w, facing=1):
     cone = [(tip_x, tip_y)] + bottom
     pygame.draw.polygon(surf, _FOIL, cone)
 
-    # Trailing flank a step darker (violet) for cheap metallic roundness.
+    # Trailing flank a step darker (deep indigo) for cheap metallic roundness
+    # and a true lit/shade value split.
     shade = [
         (tip_x, tip_y),
         (cx + f * -r * 0.10, base_y_line),
@@ -76,11 +83,16 @@ def draw_hat(surf, cx, base_y, head_w, facing=1):
     if head_w >= 22:
         _draw_confetti(surf, tip_x, tip_y, left_x, right_x, base_y_line, r, f)
 
+    # Dark keyline around the full cone silhouette — drawn over body+sheen so
+    # the warm foil never bleeds into Pip's warm body on the day sky.
+    kw = max(1, int(r * 0.10))
+    pygame.draw.polygon(surf, _KEYLINE, cone, kw)
+
     # Gold foil collar at the base.
     _draw_trim(surf, left_x, right_x, base_cy, r)
 
     # Curly ribbon streamers spiralling off the tip, above a small foil pom.
-    _draw_pom(surf, tip_x, tip_y, r)
+    _draw_pom(surf, tip_x, tip_y, r, head_w)
     _draw_streamers(surf, tip_x, tip_y, r, f, head_w)
 
 
@@ -122,18 +134,23 @@ def _draw_sheen(surf, tip_x, tip_y, left_x, right_x, base_y_line, r, f):
 
 
 def _draw_confetti(surf, tip_x, tip_y, left_x, right_x, base_y_line, r, f):
-    cols = (_GOLD, _TEAL, _VIOLET, _GOLD, _MAGENTA, _TEAL, _GOLD, _VIOLET)
     # Barycentric spots inside the cone triangle — deterministic so the dots
     # don't jitter frame to frame. (u toward base, v toward lit edge.)
     spots = ((0.55, 0.30), (0.72, 0.55), (0.40, 0.62), (0.82, 0.30),
              (0.62, 0.78), (0.50, 0.42), (0.86, 0.62), (0.34, 0.40))
     dot = max(1, int(r * 0.11))
-    for (u, v), col in zip(spots, cols):
+    # The shade flank sits behind the dividing edge that runs from the tip to
+    # cx - f*r*0.10 at the base; everything magenta-lit is on the other side.
+    div_v = 0.5 - f * 0.10 / 2.0
+    for u, v in spots:
         # Blend tip -> base-left -> base-right by (1-u, u*(1-v), u*v).
         bx = left_x + (right_x - left_x) * v
         x = tip_x + (bx - tip_x) * u
         y = tip_y + (base_y_line - tip_y) * u
-        # Keep clear of the very edges so dots don't bleed past the outline.
+        # Pick dot colour for contrast against the flank it lands on: cool
+        # white/teal pop on the magenta lit flank; magenta on the indigo shade.
+        on_shade = (v < div_v) if f >= 0 else (v > div_v)
+        col = _MAGENTA if on_shade else (_WHITE if (int(u * 100) % 2) else _TEAL)
         pygame.draw.circle(surf, col, (int(x), int(y)), dot)
         if dot >= 2:  # tiny specular fleck makes each dot read as foil
             pygame.draw.circle(surf, _FOIL_HI,
@@ -142,20 +159,35 @@ def _draw_confetti(surf, tip_x, tip_y, left_x, right_x, base_y_line, r, f):
 
 
 def _draw_trim(surf, left_x, right_x, base_cy, r):
+    # Taller, brighter gold collar so the party-hat triad (gold tip + gold
+    # base + magenta cone) survives below the confetti gate.
     band_y = base_cy + r * 0.24
-    band_h = max(2, int(r * 0.20))
+    band_h = max(3, int(r * 0.20) + 1)
     pygame.draw.rect(surf, _TRIM_LO,
                      (int(left_x), int(band_y), int(right_x - left_x), band_h))
     pygame.draw.rect(surf, _TRIM,
                      (int(left_x), int(band_y), int(right_x - left_x),
                       max(1, band_h - 1)))
+    # Centred specular line so the collar reads symmetric, not skewed.
+    inset = r * 0.18
     pygame.draw.line(surf, _FOIL_HI,
-                     (int(left_x + r * 0.1), int(band_y + 1)),
-                     (int(right_x - r * 0.5), int(band_y + 1)), 1)
+                     (int(left_x + inset), int(band_y + 1)),
+                     (int(right_x - inset), int(band_y + 1)), 1)
 
 
-def _draw_pom(surf, tip_x, tip_y, r):
+def _draw_pom(surf, tip_x, tip_y, r, head_w):
+    # The gold tip pom is the third leg of the recognizable triad, so below the
+    # confetti gate it collapses to ONE clean gold disc (with keyline) that
+    # still reads at 40px; above it, the foil-cluster look returns.
     pom_r = max(2, int(r * 0.22))
+    if head_w < 22:
+        pygame.draw.circle(surf, _KEYLINE, (int(tip_x), int(tip_y)),
+                           pom_r + 1)
+        pygame.draw.circle(surf, _GOLD, (int(tip_x), int(tip_y)), pom_r)
+        pygame.draw.circle(surf, _FOIL_HI,
+                           (int(tip_x - pom_r * 0.3), int(tip_y - pom_r * 0.3)),
+                           max(1, int(pom_r * 0.4)))
+        return
     offs = [(-0.5, 0.25, _GOLD), (0.5, 0.25, _TRIM_LO), (0.0, 0.5, _TRIM_LO),
             (-0.3, -0.15, _GOLD), (0.3, -0.15, _GOLD)]
     for dx, dy, col in offs:
@@ -173,13 +205,13 @@ def _draw_streamers(surf, tip_x, tip_y, r, f, head_w):
     # corkscrew. Curl tightness + reach scale with r so they survive small.
     if head_w < 18:
         return
-    lw = max(1, int(r * 0.10))
+    lw = max(1, int(r * 0.13))
     n = 14
-    # Three ribbons fanning up-and-back over the tip.
+    # Two wider, lower-frequency ribbons so the curls read as ribbon, not as
+    # aliased static at the tip.
     configs = (
-        (_RIBBON[0], -0.55 * f, 1.35, 0.55, 4.2),
-        (_RIBBON[1],  0.35 * f, 1.55, 0.42, 5.0),
-        (_RIBBON[2], -0.15 * f, 1.15, 0.70, 3.6),
+        (_RIBBON[0], -0.55 * f, 1.20, 0.55, 3.2),
+        (_RIBBON[1],  0.35 * f, 1.35, 0.42, 3.8),
     )
     for col, fan, reach, amp, freq in configs:
         pts = []
@@ -198,5 +230,5 @@ def _draw_streamers(surf, tip_x, tip_y, r, f, head_w):
                 pygame.draw.lines(surf, hi, False, pts[: n // 2], 1)
 
 
-build = make_build(draw_hat, seat={"hw": 26, "dx": -2, "dy": 14})
+build = make_build(draw_hat, seat={"hw": 26, "dx": -2, "dy": 17})
 icon = make_icon(draw_hat)
