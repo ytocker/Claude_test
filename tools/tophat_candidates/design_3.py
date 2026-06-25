@@ -42,37 +42,26 @@ _LD_JABOT_D = (196, 192, 178)
 
 _LD_GREY    = (176, 178, 186)      # grey Vandyke goatee + moustache
 _LD_GREY_D  = (120, 122, 132)
-_LD_EBONY   = (28, 26, 32)         # ebony walking-stick shaft
 _LD_SILVER  = (214, 218, 226)      # one silver medal so the cluster isn't all gold
 _LD_SILVER_D = (150, 154, 164)
 _LD_SHOE    = (18, 18, 24)         # court shoe black
 _LD_SHOE_H  = (70, 72, 86)
 
 
-def _medal(surf, cx, cy, face, face_d):
+def _medal(surf, cx, cy, face, face_d, r=4):
     """A round chest medal: tiny ribbon bar above a two-value disc with a glint.
-    Kept ~5px so two or three cluster without muddying the sash at 40px."""
-    pygame.draw.rect(surf, _LD_SASH_D, (cx - 2, cy - 4, 4, 2))        # ribbon bar
-    pygame.draw.circle(surf, face_d, (cx, cy), 3)
-    pygame.draw.circle(surf, face, (cx, cy), 2)
+    Slightly larger now (two-medal cluster) so each glints clearly while sitting
+    well below the sash line rather than speckling it."""
+    pygame.draw.rect(surf, _LD_SASH_D, (cx - 2, cy - r - 2, 4, 3))    # ribbon bar
+    pygame.draw.circle(surf, face_d, (cx, cy), r)
+    pygame.draw.circle(surf, face, (cx, cy), r - 1)
     pygame.draw.circle(surf, _LD_GOLD_H, (cx - 1, cy - 1), 1)         # glint
 
 
 def _paint(surf, _a):
-    # ── GOLD-TOPPED EBONY WALKING STICK slung diagonally BEHIND the body (painted
-    #    first so the body covers all but the parts that overshoot the silhouette).
-    #    The gold knob sits up near the slung wing; the shaft sweeps down past the
-    #    lower body so the tip breaks the outline against open sky.
-    knob = (HX - 6, HY + 18)
-    tip  = (HX - 26, HY + 40)
-    pygame.draw.line(surf, _LD_EBONY, (knob[0], knob[1]), (tip[0], tip[1]), 3)
-    pygame.draw.line(surf, _LD_NAVY_H, (knob[0] - 1, knob[1] + 1),
-                     (tip[0] - 1, tip[1] + 1), 1)                     # shaft glint
-    pygame.draw.circle(surf, _LD_GOLD_D, knob, 4)
-    pygame.draw.circle(surf, _LD_GOLD, knob, 3)
-    pygame.draw.circle(surf, _LD_GOLD_H, (knob[0] - 1, knob[1] - 1), 1)
-    _poly(surf, _LD_GOLD, [(tip[0] - 1, tip[1] - 1), (tip[0] + 2, tip[1] + 1),
-                           (tip[0] - 2, tip[1] + 2)])                 # ferrule cap
+    # The walking stick was dropped: its gold knob + shaft swept at nearly the sash
+    # angle, so two gold diagonals fought and muddied the hero. Court shoes + medals
+    # already carry the "peer" read; the sash now owns the diagonal alone.
 
     # ── NAVY CEREMONIAL COAT painted OVER the body. A trapezoid across body centre
     #    (~32,52) with gold-trim front edges + a small collar notch. Three navy
@@ -90,31 +79,32 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _LD_GOLD_D, (HX - 4, HY + 7), (HX - 2, HY + 35), 2)
     pygame.draw.line(surf, _LD_GOLD, (HX - 4, HY + 7), (HX - 3, HY + 35), 1)
 
-    # ── DIAGONAL RED+GOLD SASH (THE HERO). A single bold band shoulder-to-hip,
-    #    gold-bordered on BOTH edges so it stays the dominant accent and survives
-    #    the downscale. Drawn BEFORE the medals so the medals sit on top yet stay
-    #    small; the sash is never let collapse to mud under them.
-    sh = (HX - 2, HY + 6)            # high at the near shoulder
-    hp = (HX - 26, HY + 34)          # low at the off hip
-    pygame.draw.line(surf, _LD_GOLD_D, sh, hp, 11)                    # outer gold edge
-    pygame.draw.line(surf, _LD_GOLD, sh, hp, 9)
-    pygame.draw.line(surf, _LD_SASH_D, sh, hp, 6)                     # scarlet field
-    pygame.draw.line(surf, _LD_SASH, (sh[0], sh[1] - 1), (hp[0], hp[1] - 1), 4)
-    # One bright gold rail along the upper border — the glint that keeps the
-    # diagonal singing at 40px against both skies.
-    pygame.draw.line(surf, _LD_GOLD_H, (sh[0] + 3, sh[1] - 2),
-                     (hp[0] + 3, hp[1] - 2), 1)
+    # ── DIAGONAL GOLD-EDGED SASH (THE HERO). One clean band shoulder-to-hip: a
+    #    narrow scarlet core framed by a continuous bright-gold spine on the upper
+    #    edge. It is sat HIGH so it crosses the NAVY chest panel (not the scarlet
+    #    wing below) — red-on-red was making it vanish at 40px. Goal: a single
+    #    unbroken gold-edged diagonal that reads SASH first against day AND night.
+    sh = (HX - 4, HY + 7)            # high at the near shoulder, over the navy lapel
+    hp = (HX - 24, HY + 26)          # ends at the hip ABOVE the scarlet wing
+    pygame.draw.line(surf, _LD_GOLD_D, sh, hp, 9)                     # gold underframe
+    pygame.draw.line(surf, _LD_SASH_D, sh, hp, 5)                     # scarlet shadow
+    pygame.draw.line(surf, _LD_SASH, (sh[0] - 1, sh[1]), (hp[0] - 1, hp[1]), 3)
+    # Continuous 2px bright-gold spine on the upper edge, shoulder-to-hip — the one
+    # mark that has to survive the downscale, so it gets the brightest value.
+    pygame.draw.line(surf, _LD_GOLD, (sh[0] + 2, sh[1] - 3),
+                     (hp[0] + 2, hp[1] - 3), 3)
+    pygame.draw.line(surf, _LD_GOLD_H, (sh[0] + 2, sh[1] - 4),
+                     (hp[0] + 2, hp[1] - 4), 1)
 
-    # ── MEDALS clustered at the chest — two gold, one silver, each tiny. Set just
-    #    off the sash so they read as a row of decorations without crowding the
-    #    diagonal into clutter.
-    _medal(surf, HX - 11, HY + 22, _LD_GOLD, _LD_GOLD_D)
-    _medal(surf, HX - 16, HY + 25, _LD_SILVER, _LD_SILVER_D)
-    _medal(surf, HX - 8, HY + 27, _LD_GOLD, _LD_GOLD_D)
+    # ── TWO MEDALS on the navy coat BELOW the sash's lower end — one gold, one
+    #    silver — pulled fully off the diagonal so the sash zone stays clean. Read
+    #    as two metal glints under the band, third in the hierarchy after sash+hat.
+    _medal(surf, HX - 19, HY + 31, _LD_GOLD, _LD_GOLD_D)
+    _medal(surf, HX - 11, HY + 33, _LD_SILVER, _LD_SILVER_D)
 
     # ── JABOT lace at the throat — a soft off-white blob with a shadow underside
     #    so it reads as spilling lace, the bright value that frames the goatee.
-    jx, jy = HX - 2, HY + 9
+    jx, jy = HX - 2, HY + 7
     pygame.draw.ellipse(surf, _LD_JABOT_D, (jx - 5, jy - 1, 10, 9))
     pygame.draw.ellipse(surf, _LD_JABOT, (jx - 4, jy - 1, 8, 7))
     pygame.draw.line(surf, _LD_JABOT_D, (jx, jy + 1), (jx, jy + 6), 1)  # lace fold
