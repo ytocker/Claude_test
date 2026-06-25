@@ -19,9 +19,12 @@ import pygame
 
 
 # ── concept palette (per the spec) + derived shadow/highlight steps ──────────
-_DN_LAV     = (200, 194, 218)     # #C8C2DA dove-lavender coat
-_DN_LAV_D   = (150, 144, 172)     # coat shadow / fold
-_DN_LAV_H   = (228, 224, 240)     # coat highlight ridge
+# Coat base dropped ~12% in value to #B0AAC6 so the lavender reads as a CRISP
+# SHAPE against the bright day biome instead of melting into it; the original
+# #C8C2DA is reserved for a single highlight ridge.
+_DN_LAV     = (176, 170, 198)     # #B0AAC6 dove-lavender coat (lifted off sky)
+_DN_LAV_D   = (138, 132, 162)     # coat shadow / fold
+_DN_LAV_H   = (200, 194, 218)     # #C8C2DA single highlight ridge
 _DN_HAT     = (21, 23, 28)        # #15171C near-black topper
 _DN_HAT_D   = (10, 11, 15)
 _DN_HAT_H   = (66, 70, 82)        # cool silk sheen on the crown
@@ -53,78 +56,82 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _DN_IVORY,   grip, tip, 3)
     pygame.draw.line(surf, _DN_IVORY_D, (grip[0] - 1, grip[1] + 1),
                      (tip[0] - 1, tip[1] + 1), 1)
-    # Gold ferrule tip + a round gold knob at the grip — the bright cane tells.
+    # The ferrule tip is left ivory (no gold) — gold is reserved for the ONE
+    # accent so it doesn't smear. The cane KNOB at the grip is that single
+    # strong gold tell: a fat round knob breaking the outline against the sky.
     pygame.draw.circle(surf, _DN_OUTLINE, tip, 3)
-    pygame.draw.circle(surf, _DN_GOLD_D, tip, 2)
-    pygame.draw.circle(surf, _DN_GOLD,   (tip[0], tip[1] - 1), 1)
-    pygame.draw.circle(surf, _DN_OUTLINE, grip, 4)
-    pygame.draw.circle(surf, _DN_GOLD_D,  grip, 3)
-    pygame.draw.circle(surf, _DN_GOLD,    grip, 2)
+    pygame.draw.circle(surf, _DN_IVORY,   tip, 2)
+    pygame.draw.circle(surf, _DN_OUTLINE, grip, 5)
+    pygame.draw.circle(surf, _DN_GOLD_D,  grip, 4)
+    pygame.draw.circle(surf, _DN_GOLD,    grip, 3)
     pygame.draw.circle(surf, _DN_GOLD_H,  (grip[0] - 1, grip[1] - 1), 1)
 
     # ── 2 · LAVENDER TAILCOAT — painted OVER the scarlet body. Two shoulder
     # panels flare down and out to the waist, opening at the centre to expose the
-    # emerald wedge. A dark outline traces the coat edge so the pale dove-lavender
-    # never dissolves into a bright day sky.
+    # emerald wedge. The RIGHT panel is pushed wider (out to cx+18) so it fully
+    # COVERS the bird's native blue/teal wing feather that used to punch through
+    # the coat opening; the centre notch is kept narrow so only emerald shows in
+    # the gap, never bare wing. A dark outline traces the coat edge so the pale
+    # dove-lavender never dissolves into a bright day sky.
     cx = 32
-    coat = [(cx - 12, HY + 6), (cx - 16, HY + 30), (cx - 6, HY + 34),
-            (cx, HY + 22),                                   # centre notch (open)
-            (cx + 6, HY + 34), (cx + 16, HY + 30), (cx + 12, HY + 6)]
-    _poly(surf, _DN_OUTLINE, [(x, y + 1) for (x, y) in coat])  # drop edge
+    coat = [(cx - 13, HY + 6), (cx - 17, HY + 31), (cx - 6, HY + 35),
+            (cx, HY + 24),                                   # narrow centre notch
+            (cx + 6, HY + 35), (cx + 21, HY + 33), (cx + 16, HY + 3)]
+    _poly(surf, _DN_OUTLINE, [(x, y + 2) for (x, y) in coat])  # 2px sky-facing edge
     _poly(surf, _DN_LAV, coat)
-    # Shoulder/fold shading on each panel + a highlight ridge down the near side.
-    _poly(surf, _DN_LAV_D, [(cx - 16, HY + 30), (cx - 13, HY + 14),
-                            (cx - 9, HY + 16), (cx - 7, HY + 32), (cx - 6, HY + 34)])
-    _poly(surf, _DN_LAV_D, [(cx + 16, HY + 30), (cx + 13, HY + 14),
-                            (cx + 9, HY + 16), (cx + 7, HY + 32), (cx + 6, HY + 34)])
-    pygame.draw.line(surf, _DN_LAV_H, (cx - 8, HY + 9), (cx - 11, HY + 27), 1)
-    pygame.draw.line(surf, _DN_LAV_H, (cx + 8, HY + 9), (cx + 11, HY + 27), 1)
+    # Right shoulder cap — buries the native blue/orange wing crest that peeks
+    # above the coat collar on the far side, so no stray feather survives at 40px.
+    _poly(surf, _DN_LAV_D, [(cx + 3, HY), (cx + 17, HY - 1),
+                            (cx + 19, HY + 13), (cx + 5, HY + 13)])
+    # Shoulder/fold shading on each panel + ONE highlight ridge down the near side.
+    _poly(surf, _DN_LAV_D, [(cx - 17, HY + 31), (cx - 13, HY + 14),
+                            (cx - 9, HY + 16), (cx - 7, HY + 33), (cx - 6, HY + 35)])
+    _poly(surf, _DN_LAV_D, [(cx + 21, HY + 33), (cx + 13, HY + 14),
+                            (cx + 9, HY + 16), (cx + 7, HY + 33), (cx + 6, HY + 35)])
+    pygame.draw.line(surf, _DN_LAV_H, (cx - 9, HY + 9), (cx - 12, HY + 28), 1)
     # Peaked lapels framing the open front — a darker lavender so the V reads.
-    _poly(surf, _DN_LAV_D, [(cx - 11, HY + 7), (cx - 2, HY + 9),
-                            (cx - 5, HY + 22), (cx - 9, HY + 16)])
-    _poly(surf, _DN_LAV_D, [(cx + 11, HY + 7), (cx + 2, HY + 9),
-                            (cx + 5, HY + 22), (cx + 9, HY + 16)])
+    _poly(surf, _DN_LAV_D, [(cx - 12, HY + 7), (cx - 3, HY + 9),
+                            (cx - 5, HY + 22), (cx - 10, HY + 16)])
+    _poly(surf, _DN_LAV_D, [(cx + 14, HY + 7), (cx + 3, HY + 9),
+                            (cx + 5, HY + 22), (cx + 11, HY + 16)])
 
-    # ── 3 · EMERALD WAISTCOAT WEDGE — the saturated HERO, bold and central so the
-    # pastel coat has a high-chroma anchor that holds day AND night. A bright V
-    # of emerald filling the open coat front, outlined dark, with a lighter ridge.
-    wedge = [(cx - 6, HY + 9), (cx + 6, HY + 9), (cx + 4, HY + 26),
-             (cx, HY + 30), (cx - 4, HY + 26)]
+    # ── 3 · EMERALD WAISTCOAT WEDGE — the saturated HERO, now ~40% wider and
+    # RAISED so its mass sits centred directly under the ascot: emerald is the
+    # second thing the eye catches after the hat. A broad bright V of emerald
+    # fills the open coat front, outlined dark, with a lighter ridge. Pushed up
+    # to HY+7 so the wide top edge anchors the chest under the throat.
+    wedge = [(cx - 9, HY + 7), (cx + 9, HY + 7), (cx + 6, HY + 27),
+             (cx, HY + 31), (cx - 6, HY + 27)]
     _poly(surf, _DN_OUTLINE, [(x, y + 1) for (x, y) in wedge])
     _poly(surf, _DN_EMER, wedge)
-    _poly(surf, _DN_EMER_D, [(cx + 2, HY + 11), (cx + 6, HY + 9),
-                             (cx + 4, HY + 26), (cx + 1, HY + 24)])
-    pygame.draw.line(surf, _DN_EMER_H, (cx - 3, HY + 11), (cx - 1, HY + 24), 1)
+    _poly(surf, _DN_EMER_D, [(cx + 3, HY + 9), (cx + 9, HY + 7),
+                             (cx + 6, HY + 27), (cx + 2, HY + 25)])
+    pygame.draw.line(surf, _DN_EMER_H, (cx - 5, HY + 9), (cx - 2, HY + 25), 2)
 
-    # Three gold waistcoat buttons down the centre of the wedge.
-    for by in (HY + 13, HY + 18, HY + 23):
+    # ONE gold accent on the chest: two LARGER waistcoat buttons (the gold tell),
+    # plus a single 1px chain hint so the gold doesn't smear into a smudge.
+    for by in (HY + 13, HY + 21):
         pygame.draw.circle(surf, _DN_GOLD_D, (cx, by), 2)
-        pygame.draw.circle(surf, _DN_GOLD,   (cx, by), 1)
-    # Slim gold watch-chain swagging across the belly from a button to the pocket.
-    pygame.draw.lines(surf, _DN_GOLD_D, False,
-                      [(cx, HY + 18), (cx + 3, HY + 24), (cx + 7, HY + 22)], 2)
-    pygame.draw.lines(surf, _DN_GOLD, False,
-                      [(cx, HY + 18), (cx + 3, HY + 23), (cx + 7, HY + 21)], 1)
+        pygame.draw.circle(surf, _DN_GOLD,   (cx, by), 2, 1)
+        pygame.draw.circle(surf, _DN_GOLD_H, (cx - 1, by - 1), 1)
+    pygame.draw.line(surf, _DN_GOLD, (cx, HY + 13), (cx + 5, HY + 18), 1)  # chain hint
 
     # ── 4 · ASCOT / CRAVAT — bright emerald-and-gold puff at the throat, sitting
     # just under the head where the wedge meets the collar. A small saturated
     # blob carries the colour up to the face so the wedge isn't an island.
-    ax, ay = cx, HY + 6
-    _poly(surf, _DN_OUTLINE, [(ax - 5, ay - 2), (ax + 5, ay - 2),
+    ax, ay = cx, HY + 5
+    _poly(surf, _DN_OUTLINE, [(ax - 6, ay - 2), (ax + 6, ay - 2),
                               (ax + 4, ay + 5), (ax - 4, ay + 5)])
-    _poly(surf, _DN_EMER, [(ax - 4, ay - 2), (ax + 4, ay - 2),
+    _poly(surf, _DN_EMER, [(ax - 5, ay - 2), (ax + 5, ay - 2),
                            (ax + 3, ay + 4), (ax - 3, ay + 4)])
-    pygame.draw.line(surf, _DN_EMER_H, (ax - 2, ay - 1), (ax - 1, ay + 3), 1)
-    # Gold ascot pin glinting at the knot.
-    pygame.draw.circle(surf, _DN_GOLD,   (ax, ay + 1), 1)
-    pygame.draw.circle(surf, _DN_GOLD_H, (ax - 1, ay), 1)
+    pygame.draw.line(surf, _DN_EMER_H, (ax - 3, ay - 1), (ax - 2, ay + 3), 1)
+    # No gold pin at the knot — gold is reserved for the single cane/button tell.
 
-    # ── 5 · ROSE BOUTONNIÈRE — scarlet bloom on the near lapel (a nod to Pip's
-    # native red), a small layered red flower with a green leaf flick.
-    rx, ry = cx - 8, HY + 11
+    # ── 5 · ROSE BOUTONNIÈRE — bumped to a solid 3px scarlet dot high on the near
+    # lapel (a nod to Pip's native red) so the bloom survives a touch at 40px.
+    rx, ry = cx - 9, HY + 10
     pygame.draw.circle(surf, _DN_OUTLINE, (rx, ry), 4)
-    pygame.draw.circle(surf, _DN_ROSE_D, (rx, ry), 3)
-    pygame.draw.circle(surf, _DN_ROSE,   (rx, ry), 2)
+    pygame.draw.circle(surf, _DN_ROSE,   (rx, ry), 3)
     pygame.draw.circle(surf, _DN_ROSE_H, (rx - 1, ry - 1), 1)
     pygame.draw.line(surf, _DN_EMER_D, (rx - 2, ry + 3), (rx - 4, ry + 6), 2)  # leaf
 
@@ -160,15 +167,18 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _DN_LAV_H, (HX - 7, cy - 5), (HX + 7, cy - 5), 1)
 
     # ── 8 · FACE — pencil-thin curled moustache + round tortoiseshell SPECTACLES
-    # (two small rings) instead of a monocle, for the jazz-age look.
-    # Spectacles: two gold-brown rings over both eyes + a bridge.
+    # (two small rings) instead of a monocle, for the jazz-age look. The frames
+    # are TORTOISESHELL brown, NOT gold — keeping gold to the single cane/button
+    # tell so the chest read stays clean (the specs are hero-only charm anyway).
+    _TORT   = (96, 62, 38)
+    _TORT_H = (150, 108, 70)
     lx, rx2 = HX + 2, HX + 9
     sy2 = HY
-    pygame.draw.circle(surf, _DN_GOLD_D, (lx, sy2), 3, 1)
-    pygame.draw.circle(surf, _DN_GOLD_D, (rx2, sy2), 3, 1)
-    pygame.draw.circle(surf, _DN_GOLD,   (lx, sy2), 2, 1)
-    pygame.draw.circle(surf, _DN_GOLD,   (rx2, sy2), 2, 1)
-    pygame.draw.line(surf, _DN_GOLD, (lx + 2, sy2 - 1), (rx2 - 2, sy2 - 1), 1)  # bridge
+    pygame.draw.circle(surf, _TORT,   (lx, sy2), 3, 1)
+    pygame.draw.circle(surf, _TORT,   (rx2, sy2), 3, 1)
+    pygame.draw.circle(surf, _TORT_H, (lx, sy2), 2, 1)
+    pygame.draw.circle(surf, _TORT_H, (rx2, sy2), 2, 1)
+    pygame.draw.line(surf, _TORT, (lx + 2, sy2 - 1), (rx2 - 2, sy2 - 1), 1)     # bridge
     pygame.draw.circle(surf, (255, 255, 255), (lx - 1, sy2 - 1), 1)            # glint
     # Pencil-thin curled moustache under the beak — two strands flicking up.
     mx, my = HX + 7, HY + 7
