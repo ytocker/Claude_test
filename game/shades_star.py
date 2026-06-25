@@ -72,10 +72,11 @@ def draw_shades(surf, cx, cy, eye_w, facing=1):
     # Frame thickness as an outset of the backing star; min 2px so the gold rim
     # never thins to nothing, scaling up to a chunky rim on the product shot.
     fw    = max(2, int(eye_w * 0.07))
-    # Seat the pair UP onto the high eye and pull the near star back so its lower
-    # point clears the forward beak.
-    cy    = cy - max(2, int(eye_w * 0.12))
-    near  = (cx + f * (sep // 2) - f * max(1, int(eye_w * 0.04)), cy)
+    # Seat the pair on the eye but ride it slightly FORWARD so the near star laps
+    # the beak base naturally; a modest lift keeps its lower point off the beak
+    # tip rather than retreating the whole pair away from the beak.
+    cy    = cy - max(1, int(eye_w * 0.07))
+    near  = (cx + f * (sep // 2) + f * max(1, int(eye_w * 0.03)), cy)
     far   = (cx - f * (sep // 2), cy)
 
     # Bridge BEHIND the lenses so the lens stars overlap it; the lower pass is

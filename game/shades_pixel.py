@@ -116,12 +116,12 @@ def draw_shades(surf, cx, cy, eye_w, facing=1):
     top_h  = c * 3                              # tall block mass
     bot_h  = c                                  # stepped lower row
     bridge = c * 2
-    # Seat the whole unit UP onto the high eye (a full block of lift) and pull it
-    # back off the beak by tucking the near block one cell toward the bridge, so
-    # the forward edge stops short of the beak that sits below-and-ahead.
-    top_y  = cy - top_h
-    near_in = cx + f * (bridge // 2) - f * c
-    far_in  = cx - f * (bridge // 2) - f * c
+    # Seat the unit on the eye but ride it slightly FORWARD so the near block laps
+    # the beak base naturally: drop the lift by one cell so the lower row grazes
+    # the beak, and shift the whole pair one cell toward the beak (+facing).
+    top_y  = cy - top_h + c
+    near_in = cx + f * (bridge // 2)
+    far_in  = cx - f * (bridge // 2)
 
     def lens(inner_x, sign):
         x0 = inner_x if sign > 0 else inner_x - lens_w

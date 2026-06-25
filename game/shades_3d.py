@@ -40,10 +40,10 @@ def draw_shades(surf, cx, cy, eye_w, facing=1):
     # Frame ring thickness — kept >=2 so the divider survives at eye_w=22.
     fr = max(2, int(eye_w * 0.085))
 
-    # Seat the pair UP onto the high eye and pull the near (cyan) lens back so its
-    # forward rim clears the beak.
-    cy = cy - max(2, int(eye_w * 0.12))
-    near = (cx + f * (sep // 2) - f * max(1, int(eye_w * 0.05)), cy)  # BEAK side -> cyan
+    # Seat the pair on the eye but ride it slightly FORWARD so the near (cyan)
+    # lens laps the beak base naturally; a modest lift keeps it off the beak tip.
+    cy = cy - max(1, int(eye_w * 0.07))
+    near = (cx + f * (sep // 2) + f * max(1, int(eye_w * 0.03)), cy)  # BEAK side -> cyan
     far = (cx - f * (sep // 2), cy)       # EAR side  -> red
 
     for (lx, ly), lens_c, lens_h in (

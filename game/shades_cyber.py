@@ -37,9 +37,11 @@ def draw_shades(surf, cx, cy, eye_w, facing=1):
     half_h = max(3, int(eye_w * 0.19))      # ~0.38*eye_w tall -> >=5px @22
     rake = max(1, int(eye_w * 0.09))        # forward lean of the near edge
     rim = max(1, int(eye_w * 0.045))
-    # Seat UP onto the high eye and shift back so the leading edge stays off beak.
-    cy = cy - max(2, int(eye_w * 0.10))
-    cx = cx - f * max(1, int(eye_w * 0.10))
+    # Seat on the eye but ride slightly FORWARD so the leading edge laps the beak
+    # base naturally; a small lift and small forward shift keep the visor over the
+    # eye like a worn wraparound rather than retreating toward the ear.
+    cy = cy - max(1, int(eye_w * 0.06))
+    cx = cx + f * max(1, int(eye_w * 0.03))
 
     # Edge-light thickness must not eat the dark mass at tiny sizes: keep
     # the body clearly taller than the cyan lip so the sandwich survives.

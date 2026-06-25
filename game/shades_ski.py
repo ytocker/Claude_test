@@ -84,10 +84,11 @@ def draw_shades(surf, cx, cy, eye_w, facing=1):
     lh   = max(5, int(eye_w * 0.46))
     plas = max(1, int(eye_w * 0.08))           # white-plastic frame ring
     rad  = max(2, int(lh * 0.42))              # rounded goggle corners
-    # Seat the goggle UP onto the high eye and shift it BACK toward the ear so its
-    # leading edge clears the forward beak instead of centring on the face.
-    cy   = cy - max(2, int(eye_w * 0.12))
-    cx   = cx - f * max(1, int(eye_w * 0.10))
+    # Seat the goggle on the eye but ride it slightly FORWARD so its leading edge
+    # laps the beak base naturally; only a small lift and a small forward shift so
+    # it covers the eye like a worn goggle rather than retreating toward the ear.
+    cy   = cy - max(1, int(eye_w * 0.07))
+    cx   = cx + f * max(1, int(eye_w * 0.03))
     x0   = cx - lw // 2
     y0   = cy - lh // 2
 

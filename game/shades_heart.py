@@ -83,13 +83,12 @@ def draw_shades(surf, cx, cy, eye_w, facing=1):
     # Rim is a FAT band, not a stroke: a big fraction of the lens with a hard
     # floor so the gold heart silhouette survives downscaling to ~22px on red.
     rim  = max(2, int(r * 0.42))
-    # The heart silhouette hangs its point well BELOW centre (cy + ~0.94r), so a
-    # centroid-on-eye placement drapes the tip over the forward beak. Lift the
-    # whole pair UP by most of that downward reach so the lobes sit on the eye
-    # and the points stop short of the beak, and pull the near lens back off the
-    # +facing beak edge.
-    cy   = cy - max(3, int(r * 0.62))
-    near = (cx + f * (sep // 2) - f * max(1, int(eye_w * 0.05)), cy)
+    # The heart hangs its point below centre, so keep enough lift that the tip
+    # stops short of the beak TIP — but ride the pair slightly FORWARD so the
+    # near heart laps the beak base, the natural forward seat of glasses on a
+    # face (don't retreat it off the beak entirely).
+    cy   = cy - max(2, int(r * 0.48))
+    near = (cx + f * (sep // 2) + f * max(1, int(eye_w * 0.03)), cy)
     far  = (cx - f * (sep // 2), cy)
 
     # Bridge BEHIND the lenses so the heart lobes overlap it cleanly; the

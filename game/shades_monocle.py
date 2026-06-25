@@ -50,11 +50,11 @@ def draw_shades(surf, cx, cy, eye_w, facing=1):
     r   = max(3, int(eye_w * 0.30))
     # Heavier rim than before so the gold band survives + reads as a frame.
     rim = max(2, int(eye_w * 0.10))
-    # Sit the lens over the near eye. The forward nudge is trimmed (was 0.18) and
-    # the lens lifted UP onto the high eye so the disc + its lower chain anchor
-    # stay off the beak that protrudes forward-and-below.
-    lx = cx + f * int(eye_w * 0.06)
-    ly = cy - max(2, int(eye_w * 0.12))
+    # Sit the lens over the near eye, ridden slightly FORWARD so the gold ring
+    # laps the beak base the way a worn monocle grips the socket; a small lift
+    # keeps the disc + lower chain anchor off the beak tip.
+    lx = cx + f * int(eye_w * 0.10)
+    ly = cy - max(1, int(eye_w * 0.07))
 
     tiny = eye_w < 30   # at tiny scale, collapse the chain to a solid hook
 
@@ -92,11 +92,22 @@ def draw_shades(surf, cx, cy, eye_w, facing=1):
     pygame.draw.circle(surf, _RIM_EDGE, (lx, ly), r)
     pygame.draw.circle(surf, _RIM_D, (lx, ly + 1), r - edge)  # underside wire
     pygame.draw.circle(surf, _RIM, (lx, ly), max(2, r - edge))
+    # The gold ring and the orange beak are near-identical in hue/value, so at
+    # the beak-side (+facing) arc they fuse into one blob. Lay a hard dark edge
+    # only on that forward arc (>=1px even tiny) so the ring reads as a separate
+    # framed lens against the beak behind it.
+    bedge = max(1, int(eye_w * 0.045))
+    pygame.draw.arc(surf, _RIM_EDGE, (lx - r, ly - r, r * 2, r * 2),
+                    -1.15, 1.15, bedge)
     gr = max(2, r - rim)
     # Low alpha so the dark eye behind the lens still reads through the tint —
     # an opaque disc here would look like a solid gold coin, not eyewear.
     glass = _tinted_disc(gr, _GLASS_T, _GLASS_B, 110)
     surf.blit(glass, (lx - gr, ly - gr))
+    # A small dark PUPIL inside the lens so the monocle reads as glass-over-eye
+    # (not a blank gold coin) and stays legible at native scale through the amber.
+    pup = max(1, int(eye_w * 0.06))
+    pygame.draw.circle(surf, (40, 26, 12), (lx + f * (gr // 4), ly), pup)
 
     # Bright top crescent so the round metal pops off the scarlet head.
     pygame.draw.arc(surf, _RIM_H, (lx - r, ly - r, r * 2, r * 2),

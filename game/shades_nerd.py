@@ -68,12 +68,12 @@ def draw_shades(surf, cx, cy, eye_w, facing=1):
     brow = rim + max(1, int(eye_w * 0.035))
     hh   = int(hw * 1.05)                       # lens half-height (square-ish)
     rad  = max(2, int(hw * 0.42))               # softly rounded corners
-    # Seat the frame UP onto the high eye so the lens mass clears the beak that
-    # protrudes forward-and-below the eye; the near lens also rides slightly less
-    # far forward than the eye anchor so its lower rim never laps the beak.
-    lift = max(2, int(eye_w * 0.16))
+    # Seat the frame on the eye but riding slightly FORWARD so the near lens
+    # grazes the beak base the way real specs sit on a face — a modest lift keeps
+    # the lens mass off the beak TIP while the front rim laps the beak naturally.
+    lift = max(1, int(eye_w * 0.10))
     cy   = cy - lift
-    near = (cx + f * (sep // 2) - f * max(1, int(eye_w * 0.04)), cy)
+    near = (cx + f * (sep // 2) + f * max(1, int(eye_w * 0.03)), cy)
     far  = (cx - f * (sep // 2), cy)            # back lens (toward ear)
 
     def lens_rect(c):
