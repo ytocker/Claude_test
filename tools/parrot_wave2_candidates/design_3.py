@@ -116,24 +116,25 @@ def _halo_spine():
 # a few bright nodes that read as stars caught on the orbit.
 def _halo_glints():
     spine = _halo_spine()
-    return [spine[1], spine[6], spine[12], spine[len(spine) - 2]]
+    return [spine[2], spine[8], spine[len(spine) - 3]]
 
 
 def _comet_nodes(phase):
-    """Comet trail replacing the feather fan: a tapering line of gold star-nodes
-    (big→small) streaming DOWN-BACK into open sky past the body's back edge
-    (body back ≈ x13), brightest node at the ROOT. A fixed hand-placed line (NOT
-    random) so the 4 frames stay stable; the tail end drifts 1px with the flap so
+    """Comet trail replacing the feather fan, rebuilt BOLD + SPARSE so it survives
+    40px (the many-tiny-nodes version collapsed to a dark wedge). Only FOUR nodes:
+    a clearly-largest root (≥3px at native so it holds ≥3px after the downscale),
+    stepping down in size, streaming DOWN-BACK well past the tail silhouette (body
+    back ≈ x13) into open sky so it breaks the egg. A fixed hand-placed line (NOT
+    random) so the 4 frames stay stable; the tail end drifts ~1px with the flap so
     the comet feels like it's streaming. Each entry: (x, y, radius)."""
-    drift = (phase - 0.5) * 2.0
-    # Root sits at the upper tail join; the line sweeps down-and-back so the
-    # nodes clearly clear the silhouette into open sky. Big root → small tip.
+    drift = (phase - 0.5) * 1.5
+    # Root sits at the upper tail join and is BIG; the line steps down-and-back so
+    # the nodes clearly clear the silhouette into open sky. Big root → small tip.
     return [
-        (15,            HY + 6,             3),   # brightest root node
-        (11,            HY + 11,            3),
-        (7,             HY + 16 + drift,    2),
-        (3,             HY + 21 + drift,    2),
-        (0,             HY + 26 + drift * 2, 1),  # faint tail tip
+        (13,           HY + 9,             4),   # brightest, largest root node
+        (8,            HY + 16,            3),
+        (3,            HY + 23 + drift,    2),
+        (-2,           HY + 30 + drift,    1),   # small tail tip
     ]
 
 
@@ -157,47 +158,42 @@ def _constellation_back(surf, angle_deg):
     glints = _halo_glints()
     nodes = _comet_nodes(phase)
 
-    # ── pass 1: additive bloom (night twinkle) ───────────────────────────────
+    # pass 1: restrained additive bloom (night twinkle, POINTS only) — half the
+    # R1 radius/intensity and kept OFF the lines and OFF the halo arc, so the
+    # discrete gold points twinkle while dark lapis sky survives BETWEEN them and
+    # the chart reads as engraved dots, never a continuous gold haze.
     glow = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    # Faint gold wash along the whole orbit so the ring reads as lit on dark sky.
-    for i, (gx, gy) in enumerate(halo):
-        if i % 3 == 0:
-            blit_glow(glow, int(gx), int(gy), 5, _GOLD, alpha=55)
-    # Brighter blooms under the pinned halo glints — these are the twinkles.
     for gx, gy in glints:
-        blit_glow(glow, int(gx), int(gy), 6, _GLINT, alpha=120)
-        blit_glow(glow, int(gx), int(gy), 3, (255, 255, 255), alpha=150)
-    # Comet nodes bloom big→small, brightest at the root — the aft light-source.
+        blit_glow(glow, int(gx), int(gy), 3, _GLINT, alpha=90)
     for nx, ny, r in nodes:
-        blit_glow(glow, int(nx), int(ny), 4 + r, _GOLD, alpha=110)
-        blit_glow(glow, int(nx), int(ny), r + 1, _GLINT, alpha=140)
+        blit_glow(glow, int(nx), int(ny), r + 1, _GOLD, alpha=80)
     surf.blit(glow, (0, 0), special_flags=pygame.BLEND_ADD)
 
-    # ── pass 2: opaque bright detail (day + night) ───────────────────────────
+    # pass 2: opaque bright detail (day + night)
     det = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
 
-    # ORBITAL HALO — the legendary tell: a clean 2px gold band over a 4px faint
-    # ink backing (so it survives a bright sky), with the pinned star-glints as
-    # bright gold/white dots. Thin and precise so it reads as a struck gold ring,
-    # not a glow.
-    pygame.draw.lines(det, _INK, False, halo, 4)
-    pygame.draw.lines(det, _GOLD, False, halo, 2)
-    # A hair of brighter gold along the top-rear of the arc for a struck sheen.
-    sheen = _arc(_HALO_CX, _HALO_CY, _HALO_R, math.radians(210), math.radians(300))
+    # ORBITAL HALO — the legendary tell, rebuilt as a DISCRETE gold RING (not a
+    # glow): a 3px solid gold band over a 1px dark ink backing, sitting clearly
+    # OUTSIDE the skull on the rear/flanks so a player reads a struck gold orbit
+    # on both biomes. The crescent owns the very top, so the arc wraps the rear.
+    pygame.draw.lines(det, _INK, False, halo, 5)
+    pygame.draw.lines(det, _GOLD, False, halo, 3)
+    # A pale struck sheen along the top-rear of the arc so the metal catches light.
+    sheen = _arc(_HALO_CX, _HALO_CY, _HALO_R, math.radians(206), math.radians(300))
     pygame.draw.lines(det, _GLINT, False, sheen, 1)
     for gx, gy in glints:
         pygame.draw.circle(det, _INK, (int(gx), int(gy)), 3)
         pygame.draw.circle(det, _GLINT, (int(gx), int(gy)), 2)
         pygame.draw.circle(det, (255, 255, 255), (int(gx), int(gy)), 1)
 
-    # COMET TRAIL — the aft silhouette-breaker. A thin gold line threading the
-    # nodes (over an ink backing for day contrast), then each node as a struck
-    # gold disc (ink ring → gold → white-hot core) big→small, brightest at the
-    # root. The line + tapering nodes read unmistakably as a comet streaming
-    # down-back, not a feather fan.
+    # COMET TRAIL — the aft silhouette-breaker, BOLD + SPARSE. One thick OPAQUE
+    # gold connecting line over an ink backing threads four struck gold discs
+    # (ink ring → gold → white core), big root → small tip, streaming down-back
+    # into open sky. The thick line survives day sky even with the bloom dialed
+    # back; the big root + clear taper read as a comet, not a feather fan.
     line = [(x, y) for x, y, _ in nodes]
-    pygame.draw.lines(det, _INK, False, line, 3)
-    pygame.draw.lines(det, _GOLD, False, line, 1)
+    pygame.draw.lines(det, _INK, False, line, 4)
+    pygame.draw.lines(det, _GOLD, False, line, 2)
     for nx, ny, r in nodes:
         pygame.draw.circle(det, _INK, (int(nx), int(ny)), r + 1)
         pygame.draw.circle(det, _GOLD, (int(nx), int(ny)), r)
@@ -248,15 +244,18 @@ def _constellation_front(surf, angle_deg):
     #    nodes are chosen to suggest a wing-spread bird-constellation across the
     #    body. Lines are opaque gold over a faint ink channel so they survive the
     #    40px day read; nodes get a gold disc + white core.
+    # The lower cluster is pulled UP + IN vs R1 so a band of dark lapis sky sits
+    # between the lowest chart node and the comet root (~x13,y50) — chest-chart
+    # and tail then read as TWO distinct gold events, not one smeared mass.
     nodes = (
         (24, 47, 2),   # back-shoulder (brightest, near the chart's "head")
         (30, 44, 2),   # upper back
         (37, 46, 2),   # chest-top, toward the wing
         (44, 49, 2),   # wing leading shoulder
-        (33, 53, 1),   # chest centre
-        (27, 56, 1),   # lower belly
-        (40, 56, 1),   # lower chest, toward tail-side
-        (21, 52, 1),   # rear flank, toward the comet root
+        (33, 52, 1),   # chest centre
+        (29, 54, 1),   # lower belly (pulled up+in off the comet)
+        (39, 54, 1),   # lower chest, toward tail-side
+        (25, 50, 1),   # rear-flank node, pulled IN so it clears the comet root
     )
     # Edge list joining the nodes into one connected constellation figure.
     edges = (
@@ -294,10 +293,15 @@ def _constellation_front(surf, angle_deg):
     pygame.draw.lines(surf, _INK, False, crown_rim, 3)
     pygame.draw.lines(surf, _GOLD, False, crown_rim, 2)
 
-    # 5. Re-assert Pip's macaw FACE at 40px — a bright gold glint on the near lens
-    #    and a sharpened beak top edge so the identity survives the downscale.
-    pygame.draw.circle(surf, _GLINT, (HX + 6, HY - 4), 2)        # near-lens top glint
-    pygame.draw.line(surf, _GLINT, (HX + 8, HY + 1), (HX + 13, HY + 4), 2)  # beak top edge
+    # 5. AVIATORS — kept deep sapphire (subordinate to the chart, the "ascended
+    #    aviators" identity), but each lens now gets a 2px bright GOLD top-rim arc
+    #    (#FFF3C8) so the shades read as glasses at 40px without recoloring the
+    #    lens fully gold. Lens centres mirror _draw_lenses' (cx=50, cy=20)+DY anchors.
+    for lx, ly in ((HX - 3, HY - 1), (HX + 6, HY - 2)):
+        rim = _arc(lx, ly, 6, math.radians(205), math.radians(335), steps=7)
+        pygame.draw.lines(surf, _GLINT, False, rim, 2)          # gold top-rim glint
+    # Sharpened beak top edge so the macaw wedge survives the downscale.
+    pygame.draw.line(surf, _GLINT, (HX + 8, HY + 1), (HX + 13, HY + 4), 2)
 
 
 # ── custom compose + getter (halo + comet need a back layer) ──────────────────

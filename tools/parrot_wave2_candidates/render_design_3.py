@@ -23,7 +23,7 @@ from tools.parrot_wave2_candidates.design_3 import build
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                    "..", "..", "docs", "store_redesign", "parrot", "wave2",
-                   "design_3", "round_1.png")
+                   "design_3", "round_2.png")
 
 NIGHT_PHASE = 0.64375     # NIGHT keyframe — the dark-sky stress test
 
@@ -93,8 +93,8 @@ fig_h = top_h + PAD + strip_h + PAD
 fig = pygame.Surface((fig_w, fig_h))
 fig.fill((18, 18, 26))
 
-fig.blit(f_title.render("design_3 · CONSTELLATION MACAW", True, (240, 240, 245)),
-         (PAD, 14))
+fig.blit(f_title.render("design_3 · CONSTELLATION MACAW · round 2", True,
+                        (240, 240, 245)), (PAD, 14))
 fig.blit(f_sub.render("LEGENDARY — gold star-chart on lapis · orbital halo · "
                       "crescent crest · comet tail", True, (255, 200, 90)),
          (PAD, 46))
