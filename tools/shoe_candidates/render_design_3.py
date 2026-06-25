@@ -86,7 +86,7 @@ def main():
 
     # Title
     sheet.blit(pygame.font.SysFont("dejavusans", 22, bold=True).render(
-        "SHOE design_3 — NEON CIRCUIT (epic ~1800) — round 1", True, (230, 236, 248)), (24, 16))
+        "SHOE design_3 — NEON CIRCUIT (epic ~1800) — round 2", True, (230, 236, 248)), (24, 16))
 
     # ── product-shot icon (big) ─────────────────────────────────────────────────
     icon = shoe_skins._build_icon(draw_shoe)
@@ -127,7 +127,7 @@ def main():
 
     out = os.path.abspath(os.path.join(
         os.path.dirname(__file__), "..", "..",
-        "docs", "store_redesign", "shoes", "design_3", "round_1.png"))
+        "docs", "store_redesign", "shoes", "design_3", "round_2.png"))
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print("SAVED", out, "exists:", os.path.exists(out))
