@@ -156,7 +156,6 @@ CATALOG: dict[str, dict] = {
     "parcel_water":     {"name": "WATER BOTTLE",  "cost": 300,  "kind": "parcel", "group": "parcels"},
     "parcel_picnic":    {"name": "PICNIC BASKET",  "cost": 380,  "kind": "parcel", "group": "parcels"},
     "parcel_steamer":   {"name": "DIM SUM STEAMER", "cost": 700, "kind": "parcel", "group": "parcels"},
-    "parcel_gun":       {"name": "MACHINE GUN",    "cost": 750,  "kind": "parcel", "group": "parcels"},
     "parcel_bottle":    {"name": "MESSAGE BOTTLE", "cost": 950,  "kind": "parcel", "group": "parcels"},
     "parcel_balloon":   {"name": "HOT-AIR BALLOON", "cost": 1300, "kind": "parcel", "group": "parcels"},
     "parcel_chest":     {"name": "TREASURE CHEST", "cost": 2800, "kind": "parcel", "group": "parcels"},
