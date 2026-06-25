@@ -57,13 +57,27 @@ def _bloom_from(layer, factor, alpha, tint):
     return glow
 
 
+# A crisp cool steel-blue fabric edge so the hood arc + tattered hem read as
+# CLOTH even under the bright bone bloom — without it the radiograph halo (same
+# blue family) tends to swallow the cowl outline at gameplay size.
+_CLOAK_EDGE = (118, 150, 210)
+
+
+def _cloak(angle):
+    """The cloaked-Pip base for this design: the dark back mass redrawn as a
+    hooded open-front cloak, with a cool-blue emissive rim/hem so the cloth
+    edge carries a faint radiograph luminance like the bones do."""
+    return XB.cloak_base(angle, XB.P_FLESH, glow=_GLOW_TINT, edge=_CLOAK_EDGE)
+
+
 def _silhouette_mask(angle):
-    """A white-on-transparent mask of the dark-flesh body silhouette, used to
-    keep the body bloom INSIDE the outline so the glow can't spill past it and
-    soften the read."""
+    """A white-on-transparent mask of the CLOAKED body silhouette, used to keep
+    the body bloom INSIDE the outline so the glow can't spill past the cloak and
+    soften the read. Repointed from the old ellipse body to the cloak so the
+    bloom clips to the new draped shape."""
     mask = pygame.Surface((store_skins.COMPOSITE_W, store_skins.COMPOSITE_H),
                           pygame.SRCALPHA)
-    mask.blit(XB.bone_parrot(angle), (0, store_skins.PARROT_DY))
+    mask.blit(_cloak(angle), (0, store_skins.PARROT_DY))
     # Collapse to a flat white fill carrying only the body's alpha.
     white = pygame.Surface(mask.get_size(), pygame.SRCALPHA)
     white.fill((255, 255, 255, 255))
@@ -130,4 +144,4 @@ def _paint(surf, angle):
     XB.knob(surf, (8, 9, 16), (57, 41), 1)              # nostril stays hollow
 
 
-build = store_skins._make_skin(_paint, base_fn=XB.bone_parrot)
+build = store_skins._make_skin(_paint, base_fn=_cloak)
