@@ -7,16 +7,17 @@ Concept: keep the pirate IDENTITY (slate tricorn + bright-gold brim + white
 skull cockade + eyepatch) but bristle it with steel. The hero silhouette-break
 is a CUTLASS slung diagonally BEHIND the body — a curved steel blade whose tip
 and brass guard overshoot the tail/back outline so the weapon reads against
-open sky no matter how the body fills. Layered density: a leather baldric with
-a big square brass buckle across the chest, and a flintlock pistol grip + curved
-butt tucked at the waist near the near wing. A tiny cheek scar finishes the
-fighter's face.
+open sky no matter how the body fills. The lower body is kept deliberately
+sparse — body + ONE clean baldric buckle + the cutlass hilt, three things not
+seven — so the blade stays the hero and nothing collapses into mud at 40px. A
+tiny cheek scar finishes the fighter's face.
 
 At 40px the read, in order of value: (1) a pirate-shaped bird, (2) the gold brim
 + white skull popping at the crown, (3) a curved steel blade behind the bird
-with a hard highlight edge so it survives the downscale, and (4) the brass
-buckle + pistol butt as warm metal on the body. Every steel object carries a
-bright highlight edge because steel only reads as a blade if it glints.
+with a hard highlight edge so it survives the downscale, and (4) a single warm
+brass buckle on a raised-value baldric strap crossing the chest. Every steel
+object carries a bright highlight edge because steel only reads as a blade if it
+glints.
 """
 import math
 import pygame
@@ -33,9 +34,9 @@ _BRASS    = (217, 164, 65)         # #D9A441 guard / buckle
 _BRASS_D  = (150, 110, 40)
 _BRASS_H  = (255, 233, 168)        # #FFE9A8 buckle highlight
 _WOOD     = (90, 58, 34)           # #5A3A22 grip wood
-_WOOD_H   = (132, 92, 56)
 _LEATHER  = (62, 42, 26)           # #3E2A1A belt leather
-_LEATHER_H = (96, 68, 44)
+_LEATHER_H = (96, 68, 44)          # raised baldric body — reads on dark-blue lower body
+_LEATHER_HH = (132, 100, 66)       # baldric top-edge glint so the strap reads as a line
 
 # Pirate identity — same family as the production _paint_pirate so the read
 # stays unmistakably "pirate" while the steel is layered around it.
@@ -86,47 +87,37 @@ def _paint(surf, _a):
     _poly(surf, _STEEL_H, [(btip[0] - 1, btip[1] - 3), (btip[0] + 4, btip[1] + 1),
                            (btip[0] - 2, btip[1] + 2)])
 
-    # Brass D-guard + grip at the hilt — warm metal anchoring the low end of the
-    # diagonal so the weapon reads as carried, not floating.
+    # Simplified hilt where the blade meets the body — let the BLADE be the hero,
+    # so this is just a bright brass guard-cross + ONE short grip stub. A crowded
+    # D-guard + wrapped grip + pommel collapsed into mud at 40px; three clean marks
+    # (cross / stub / glint) read as "hilt" without competing with the cutlass.
     gx, gy = hilt
-    pygame.draw.line(surf, _BRASS_D, (gx - 5, gy - 5), (gx + 5, gy + 5), 5)
-    pygame.draw.line(surf, _BRASS, (gx - 5, gy - 5), (gx + 5, gy + 5), 3)
-    pygame.draw.line(surf, _BRASS_H, (gx - 4, gy - 5), (gx + 2, gy - 1), 1)
-    # Curved knuckle-bow of the D-guard sweeping below the grip.
-    pygame.draw.arc(surf, _BRASS, (gx - 2, gy - 1, 12, 13),
-                    math.radians(40), math.radians(200), 3)
-    # Wrapped wooden grip below the guard.
-    pygame.draw.line(surf, _WOOD, (gx + 3, gy + 4), (gx + 9, gy + 12), 5)
-    pygame.draw.line(surf, _WOOD_H, (gx + 4, gy + 5), (gx + 8, gy + 11), 1)
-    pygame.draw.circle(surf, _BRASS, (gx + 10, gy + 13), 2)   # pommel cap
+    # Bright brass guard-cross — the warm anchor that says "this end is the handle".
+    pygame.draw.line(surf, _BRASS_D, (gx - 5, gy - 4), (gx + 5, gy + 4), 4)
+    pygame.draw.line(surf, _BRASS, (gx - 5, gy - 4), (gx + 5, gy + 4), 2)
+    pygame.draw.line(surf, _BRASS_H, (gx - 4, gy - 4), (gx + 1, gy), 1)
+    # ONE short grip stub below the cross; pommel kept ≥2px and pushed clear of the
+    # body edge so it reads as a separate dot, not a smear on the silhouette.
+    pygame.draw.line(surf, _WOOD, (gx + 4, gy + 3), (gx + 8, gy + 9), 4)
+    pygame.draw.circle(surf, _BRASS, (gx + 9, gy + 11), 2)   # pommel cap
 
-    # ── LEATHER BALDRIC across the chest (over the body) with a big square brass
-    #    buckle. Body centre ~(32, 52); the strap runs shoulder-to-hip diagonally.
+    # ── LEATHER BALDRIC across the chest (over the body). Raised TWO value steps so
+    #    the diagonal strap survives against the dark-blue lower body at 40px — a
+    #    dark strap on a dark body just vanished. Body centre ~(32, 52); the strap
+    #    runs shoulder-to-hip diagonally.
     s0 = (HX - 4, HY + 10)            # up at the near shoulder
     s1 = (HX - 26, HY + 26)           # down toward the off hip
-    pygame.draw.line(surf, _LEATHER, s0, s1, 6)
-    pygame.draw.line(surf, _LEATHER_H, (s0[0] - 1, s0[1] + 1), (s1[0] - 1, s1[1] + 1), 1)
-    # Big square brass buckle centred on the strap — warm metal on the body.
+    pygame.draw.line(surf, _LEATHER_H, s0, s1, 6)
+    pygame.draw.line(surf, _LEATHER_HH, (s0[0] - 1, s0[1] + 1), (s1[0] - 1, s1[1] + 1), 1)
+    # ONE clean brass buckle — shrunk ~25% (≈8px), dark leather window dropped for a
+    # 1px brass cross + a brightened top glint so it reads as a glint of metal, not a
+    # black hole punched in the body.
     bkx, bky = (HX - 14), (HY + 18)
-    pygame.draw.rect(surf, _BRASS_D, (bkx - 5, bky - 5, 11, 11), border_radius=2)
-    pygame.draw.rect(surf, _BRASS, (bkx - 4, bky - 4, 9, 9), border_radius=2)
-    pygame.draw.rect(surf, _LEATHER, (bkx - 2, bky - 2, 5, 5))      # buckle window
-    pygame.draw.line(surf, _BRASS_H, (bkx - 4, bky - 4), (bkx + 4, bky - 4), 2)
-
-    # ── FLINTLOCK pistol tucked at the waist near the near wing — a curved wooden
-    #    butt + a hint of brass barrel/lock poking up so the body bristles with a
-    #    second weapon. Sits forward of the baldric so both read.
-    pgx, pgy = HX + 7, HY + 20
-    # Curved wooden grip/butt.
-    _poly(surf, _WOOD, [(pgx, pgy - 2), (pgx + 7, pgy + 2), (pgx + 6, pgy + 9),
-                        (pgx + 1, pgy + 8), (pgx - 1, pgy + 3)])
-    pygame.draw.line(surf, _WOOD_H, (pgx + 1, pgy), (pgx + 4, pgy + 7), 1)
-    # Brass butt-cap + a short barrel/lock hint angled up out of the belt.
-    pygame.draw.circle(surf, _BRASS, (pgx + 5, pgy + 8), 2)
-    pygame.draw.line(surf, _STEEL_D, (pgx + 1, pgy - 1), (pgx - 4, pgy - 7), 4)
-    pygame.draw.line(surf, _STEEL, (pgx + 1, pgy - 1), (pgx - 4, pgy - 7), 2)
-    pygame.draw.line(surf, _STEEL_H, (pgx, pgy - 2), (pgx - 4, pgy - 7), 1)
-    pygame.draw.circle(surf, _BRASS, (pgx, pgy + 1), 2)            # lock plate
+    pygame.draw.rect(surf, _BRASS_D, (bkx - 4, bky - 4, 8, 8), border_radius=2)
+    pygame.draw.rect(surf, _BRASS, (bkx - 3, bky - 3, 6, 6), border_radius=2)
+    pygame.draw.line(surf, _BRASS_D, (bkx, bky - 3), (bkx, bky + 3), 1)   # brass cross
+    pygame.draw.line(surf, _BRASS_D, (bkx - 3, bky), (bkx + 3, bky), 1)
+    pygame.draw.line(surf, _BRASS_H, (bkx - 3, bky - 3), (bkx + 2, bky - 3), 2)
 
     # ── PIRATE IDENTITY (the anchor read) — earring, eyepatch, tricorn, gold
     #    brim, skull cockade. Same family as production so it stays "pirate".
@@ -158,13 +149,14 @@ def _paint(surf, _a):
     pygame.draw.lines(surf, _PIR_TRIM, False, band, 2)
     pygame.draw.lines(surf, _PIR_TRIM_H, False,
                       [(HX - 13, cy + 3), (HX - 4, cy - 6), (HX + 3, cy - 7)], 1)
-    # Big white skull cockade dead-centre-front.
+    # Big white skull cockade dead-centre-front. Eyes pulled tighter together and
+    # the jaw shortened a touch so the hero read isn't a wide-eyed surprised face.
     sx, sy = HX, cy + 1
     pygame.draw.circle(surf, _PIR_SKULL, (sx, sy), 4)
-    pygame.draw.polygon(surf, _PIR_SKULL, [(sx - 3, sy + 2), (sx + 3, sy + 2),
-                                           (sx + 1, sy + 5), (sx - 1, sy + 5)])
-    pygame.draw.circle(surf, (40, 30, 40), (sx - 2, sy - 1), 1)
-    pygame.draw.circle(surf, (40, 30, 40), (sx + 2, sy - 1), 1)
+    pygame.draw.polygon(surf, _PIR_SKULL, [(sx - 2, sy + 2), (sx + 2, sy + 2),
+                                           (sx + 1, sy + 4), (sx - 1, sy + 4)])
+    pygame.draw.circle(surf, (40, 30, 40), (sx - 1, sy - 1), 1)
+    pygame.draw.circle(surf, (40, 30, 40), (sx + 1, sy - 1), 1)
 
 
 build = store_skins._make_skin(_paint)
