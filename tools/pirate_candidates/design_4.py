@@ -31,19 +31,22 @@ from game.store_skins import HX, HY, CROWN_Y, _poly
 _BEARD    = (169, 172, 182)        # #A9ACB6 weathered mid-grey main mass
 _BEARD_D  = (120, 123, 134)        # #787B86 braid shadow / diagonal parting
 _BEARD_H  = (231, 233, 238)        # #E7E9EE thin near-edge catch only, never a stripe
+_BEARD_SEP = (90, 92, 102)         # #5A5C66 dark separation edge under the beard
 
 _SCARF    = (162, 48, 38)          # #A23026 deep-red headscarf
 _SCARF_D  = (108, 28, 22)          # #6C1C16 knot / fold shadow
 _SCARF_H  = (206, 92, 78)          # #CE5C4E lifted scarf highlight
 
-# Pipe pushed to a DARK clay silhouette so the stem reads as a solid shape against
-# the sky rather than a pale line that washes out at 40px; the ember is the only
-# bit small enough to survive downscale, so it carries the whole "pipe" read.
-_PIPE_CLAY = (92, 70, 52)          # dark clay stem silhouette against sky
-_PIPE_CLAY_D = (58, 44, 32)        # darkest clay edge
-_PIPE_EMBER = (232, 120, 56)       # #E87838 warm ember ring
+# Pipe lightened one step so its 4px stem holds ~2px of silhouette against the
+# scarlet coat at 40px; the ember is moved UP into clear sky off the beak and
+# enlarged so it becomes the second-warmest point after the gold brim — the
+# unique "old salt" survivor cue at downscale.
+_PIPE_CLAY = (122, 92, 66)         # #7A5C42 lighter clay stem, holds against coat
+_PIPE_CLAY_D = (74, 56, 40)        # darkest clay edge
+_PIPE_EMBER = (232, 120, 56)       # #E87838 warm ember glow ring
 _PIPE_CORE  = (255, 220, 130)      # #FFDC82 hot ember core
-_SMOKE    = (210, 214, 224, 220)   # cool-grey smoke curl, high alpha to survive
+_PIPE_SPARK = (255, 240, 160)      # #FFF0A0 single spark above the core
+_SMOKE    = (210, 214, 224, 240)   # cool-grey smoke curl, high alpha to survive
 
 # Reuse the original pirate's felt + gold so the tricorn matches the live look.
 _FELT     = (74, 78, 96)
@@ -67,11 +70,16 @@ def _paint(surf, wing_angle_deg):
     bx, by = HX - 11, CROWN_Y + 6           # side-knot anchor, back-left of head
     for k, spread in ((0, 0), (1, 6)):
         t0 = (bx + 1, by + k * 2)
-        t1 = (bx - 15, by + 4 + flick + spread)
-        t2 = (bx - 28, by + 9 + flick * 2 + spread)
+        t1 = (bx - 16, by + 5 + flick + spread)
+        # Tips extended ~5px further left/down so they clear the wing silhouette
+        # into open sky — lost red-on-red against the scarlet coat otherwise.
+        t2 = (bx - 33, by + 12 + flick * 2 + spread)
         pygame.draw.lines(surf, _SCARF_D, False, [t0, t1, t2], 5)
         pygame.draw.lines(surf, _SCARF, False, [t0, t1, t2], 3)
-        pygame.draw.lines(surf, _SCARF_H, False, [t0, t1, t2], 1)
+        # Outer HALF of each tail pushed to the lifted highlight so the tip reads
+        # visibly lighter/redder than the scarlet coat behind it at 40px.
+        pygame.draw.lines(surf, _SCARF_H, False, [t1, t2], 3)
+        pygame.draw.circle(surf, _SCARF_H, t2, 2)
 
     # Scarf band across the brow, wrapping the crown under where the hat sits.
     band = [(HX - 13, CROWN_Y + 9), (HX + 13, CROWN_Y + 7),
@@ -100,32 +108,35 @@ def _paint(surf, wing_angle_deg):
     #    it flares to max width around HY+7..9 and closes to a soft ROUNDED
     #    bottom by ~HY+12. No long vertical tips reach the tail — that braided
     #    column was what produced the barcode/bib look on downscale.
-    # Shadow underbody first, offset down-right, so the mass has a rounded
-    # lower edge rather than a hard polygon cut.
-    _poly(surf, _BEARD_D, [
-        (HX - 4, HY + 5), (HX + 11, HY + 6), (HX + 12, HY + 9),
-        (HX + 8, HY + 13), (HX + 1, HY + 14), (HX - 6, HY + 11)])
-    # Main rounded grey mass.
+    # Dark SEPARATION edge first, sitting just BELOW the beard's bottom line
+    # (~HY+12..14), so a clear dark gap divides the beard from the grey wing /
+    # blue sash below — without this the mid-grey beard fused into the body at
+    # 40px. Drawn under the mass so only its lower lip shows as the gap line.
+    _poly(surf, _BEARD_SEP, [
+        (HX - 5, HY + 9), (HX + 11, HY + 9), (HX + 9, HY + 14),
+        (HX + 2, HY + 15), (HX - 5, HY + 13)])
+    # Main rounded grey mass — bottom corners pulled ~2px IN toward the chin so
+    # the silhouette closes to a rounded jaw/chin, not a wide chest plate.
     mass = [(HX - 5, HY + 3), (HX + 2, HY + 2), (HX + 11, HY + 3),
-            (HX + 12, HY + 7), (HX + 9, HY + 12), (HX + 2, HY + 13),
-            (HX - 5, HY + 11), (HX - 7, HY + 7)]
+            (HX + 12, HY + 7), (HX + 7, HY + 11), (HX + 2, HY + 12),
+            (HX - 3, HY + 10), (HX - 7, HY + 7)]
     _poly(surf, _BEARD, mass)
     # Rounded chin caps soften the silhouette so it never reads as a flat block.
-    pygame.draw.circle(surf, _BEARD, (HX + 2, HY + 11), 3)
-    pygame.draw.circle(surf, _BEARD, (HX + 7, HY + 9), 3)
+    pygame.draw.circle(surf, _BEARD, (HX + 2, HY + 10), 3)
+    pygame.draw.circle(surf, _BEARD, (HX + 6, HY + 9), 3)
 
     # DIAGONAL parting lines RADIATING from the chin point — never vertical, so
     # they cannot align into stripes when the sprite is shrunk to 40px.
-    chin = (HX + 3, HY + 12)
+    chin = (HX + 3, HY + 11)
     for ex, ey in ((HX - 4, HY + 4), (HX + 1, HY + 3), (HX + 8, HY + 4)):
         pygame.draw.line(surf, _BEARD_D, chin, (ex, ey), 2)
     # ONE thin near-edge highlight catch along the near jaw — 1px, never a
     # full-height stripe; the skull stays the single brightest white.
-    pygame.draw.line(surf, _BEARD_H, (HX - 6, HY + 6), (HX - 3, HY + 10), 1)
+    pygame.draw.line(surf, _BEARD_H, (HX - 6, HY + 6), (HX - 3, HY + 9), 1)
 
     # Two gold bead rings tucked at the rounded bottom edge as accents (no long
     # braids dangling) — they punctuate the mass without breaking the round shape.
-    for tx, ty in ((HX + 1, HY + 13), (HX + 6, HY + 11)):
+    for tx, ty in ((HX + 1, HY + 11), (HX + 5, HY + 10)):
         pygame.draw.circle(surf, _GOLD, (tx, ty), 2)
         pygame.draw.circle(surf, _GOLD_H, (tx, ty - 1), 1)
 
@@ -160,30 +171,31 @@ def _paint(surf, wing_angle_deg):
     pygame.draw.circle(surf, (40, 30, 40), (sx + 2, sy - 1), 1)
 
     # ── Short clay pipe gripped in the beak, drawn LAST so nothing covers it.
-    #    The bowl is pulled IN to ~x58 so it sits FULLY on the 64px canvas (it was
-    #    clipping the edge before). The stem is a thick DARK clay silhouette so it
-    #    survives against the sky; the bowl carries a 2px ember + hot core, the one
-    #    detail small + bright enough to read "pipe" at 40px.
+    #    The bowl + ember are lifted UP and OUT to ~(60, HY-3) so the ember sits
+    #    above the beak line against OPEN SKY — clear of the dark hat felt and the
+    #    grey beard mass — which is what lets it survive the 40px downscale as the
+    #    second-warmest point after the gold brim. The 4px lightened stem holds a
+    #    ~2px silhouette against the scarlet coat.
     stem_root = (HX + 12, HY + 1)               # at the beak base, well on-canvas
-    bowl = (58, HY + 6)                          # bowl mouth, fully in bounds
-    pygame.draw.line(surf, _PIPE_CLAY_D, stem_root, (bowl[0], bowl[1] - 1), 5)
-    pygame.draw.line(surf, _PIPE_CLAY, stem_root, (bowl[0], bowl[1] - 1), 3)
-    # Bowl cup rising off the stem end.
-    pygame.draw.line(surf, _PIPE_CLAY_D, (bowl[0], bowl[1]),
-                     (bowl[0] - 1, bowl[1] - 5), 5)
-    pygame.draw.line(surf, _PIPE_CLAY, (bowl[0], bowl[1]),
-                     (bowl[0] - 1, bowl[1] - 5), 3)
-    # Ember at the bowl mouth — 2px glow + a 1px hot core, the survivor accent.
-    pygame.draw.circle(surf, _PIPE_EMBER, (bowl[0] - 1, bowl[1] - 5), 2)
-    pygame.draw.circle(surf, _PIPE_CORE, (bowl[0] - 1, bowl[1] - 5), 1)
+    ember = (60, HY - 3)                          # bowl/ember in clear sky off beak
+    pygame.draw.line(surf, _PIPE_CLAY_D, stem_root, ember, 6)
+    pygame.draw.line(surf, _PIPE_CLAY, stem_root, ember, 4)
+    # Bowl cup rising off the stem end up toward the ember.
+    pygame.draw.line(surf, _PIPE_CLAY_D, (ember[0], ember[1] + 3), ember, 6)
+    pygame.draw.line(surf, _PIPE_CLAY, (ember[0], ember[1] + 3), ember, 4)
+    # Enlarged ember: 3px glow ring + 2px hot core + a 1px spark above, so it is
+    # the second-warmest point after the gold brim and unmistakably "lit pipe".
+    pygame.draw.circle(surf, _PIPE_EMBER, ember, 3)
+    pygame.draw.circle(surf, _PIPE_CORE, ember, 2)
+    pygame.draw.circle(surf, _PIPE_SPARK, (ember[0], ember[1] - 3), 1)
 
-    # Smoke: a high-alpha cool-grey curl clearing the crown into OPEN SKY, drifting
-    # with the beat so it reads as motion and breaks the upper outline.
+    # Smoke: a high-alpha cool-grey curl rising off the ember into OPEN SKY,
+    # drifting with the beat so it reads as motion and breaks the upper outline.
     sm = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    wisp = [(bowl[0] - 1, bowl[1] - 7),
-            (bowl[0] - 4, bowl[1] - 12 + flick),
-            (bowl[0], bowl[1] - 17 + flick),
-            (bowl[0] - 5, bowl[1] - 22 + flick * 2)]
+    wisp = [(ember[0], ember[1] - 4),
+            (ember[0] - 4, ember[1] - 9 + flick),
+            (ember[0], ember[1] - 14 + flick),
+            (ember[0] - 5, ember[1] - 19 + flick * 2)]
     pygame.draw.lines(sm, _SMOKE, False, wisp, 2)
     surf.blit(sm, (0, 0))
 

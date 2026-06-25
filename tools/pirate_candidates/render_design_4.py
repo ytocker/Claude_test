@@ -12,8 +12,8 @@ pygame.init()
 from tools import ninja_render
 from tools.pirate_candidates.design_4 import build
 
-OUT = "docs/store_redesign/costume/pirate/design_4/round_2.png"
-TITLE = "DESIGN 4 — OLD SEA-DOG  (the grizzled veteran)  R2"
+OUT = "docs/store_redesign/costume/pirate/design_4/round_3.png"
+TITLE = "DESIGN 4 — OLD SEA-DOG  (the grizzled veteran)  R3"
 
 
 def _label(surf, text, x, y, size=18, color=(236, 238, 246)):
