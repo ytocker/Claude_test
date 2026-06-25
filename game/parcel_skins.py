@@ -21,9 +21,9 @@ from game import parrot
 from game.store_catalog import PARCEL_BASE
 from game.parcel_designs import (
     sack, takeout, picnic,
-    balloon, bottle,
+    bottle,
     chest, lantern, flask,
-    comet, snowglobe,
+    snowglobe,
     airmail, love_letter, post_office,
     water_bottle, plastic_bottle, tumbler, coconut,
 )
@@ -79,12 +79,10 @@ _DESIGNS = {
     "parcel_tumbler":   tumbler,
     "parcel_coconut":   coconut,
     "parcel_picnic":    picnic,
-    "parcel_balloon":   balloon,
     "parcel_bottle":    bottle,
     "parcel_chest":     chest,
     "parcel_lantern":   lantern,
     "parcel_flask":     flask,
-    "parcel_comet":     comet,
     "parcel_snowglobe": snowglobe,
 }
 

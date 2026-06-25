@@ -158,11 +158,9 @@ CATALOG: dict[str, dict] = {
     "parcel_coconut":   {"name": "COCONUT",       "cost": 360,  "kind": "parcel", "group": "parcels"},
     "parcel_picnic":    {"name": "PICNIC BASKET",  "cost": 380,  "kind": "parcel", "group": "parcels"},
     "parcel_bottle":    {"name": "MESSAGE BOTTLE", "cost": 950,  "kind": "parcel", "group": "parcels"},
-    "parcel_balloon":   {"name": "HOT-AIR BALLOON", "cost": 1300, "kind": "parcel", "group": "parcels"},
     "parcel_chest":     {"name": "TREASURE CHEST", "cost": 2800, "kind": "parcel", "group": "parcels"},
     "parcel_lantern":   {"name": "PAPER LANTERN",  "cost": 3400, "kind": "parcel", "group": "parcels"},
     "parcel_flask":     {"name": "GENIE FLASK",    "cost": 4500, "kind": "parcel", "group": "parcels"},
-    "parcel_comet":     {"name": "COMET",          "cost": 8500, "kind": "parcel", "group": "parcels", "secret": True},
     "parcel_snowglobe": {"name": "SNOWGLOBE",      "cost": 9500, "kind": "parcel", "group": "parcels", "secret": True},
 }
 
