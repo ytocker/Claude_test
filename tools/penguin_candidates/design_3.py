@@ -1,161 +1,122 @@
-"""POLAR EXPLORER penguin — design_3 of the penguin store-skin redesign.
+"""EMPEROR penguin — design_3, WAVE 2 from-scratch redraw.
 
-The character/charm pick: a penguin bundled for its own habitat, stacking the
-most winter gear of any concept. The 40px hero reads are the chunky knitted
-bobble-beanie pom-pom above the crown AND a fat striped scarf flaring past
-the body outline — two silhouette breaks from two directions, instantly "cozy
-adventurer" at thumbnail size.
-
-Built on the same chassis as ``animal_skins.build_penguin``. Scratch-only —
-NOT registered in ``animal_skins.BUILDERS``.
+The regal premium adult: tall and stately, carried by a smooth slate→steel
+VERTICAL GRADIENT body (the flat fill can't show it) with a narrow orange→yellow
+ear-to-throat melt and a long slender bicolor beak. Reuses the project's gradient
+helper (``game.draw.make_gradient_surface``) masked to the body ellipse. Scratch-
+only — NOT registered in ``animal_skins.BUILDERS``.
 """
 import pygame
 
 from game.animal_skins import (
-    _make_prebuilt_skin, _new, _aaellipse, _rot_blit, _eye, _flap,
+    _make_prebuilt_skin, _new, _aaellipse, _rot_blit, _eye,
     BCX, BCY, HCX, HCY, CROWN_Y,
 )
+from game.draw import lerp_color
 
-# ── POLAR EXPLORER palette ────────────────────────────────────────────────────
-_EX_BACK   = (30, 34, 51)           # #1E2233 navy head/back
-_EX_BACK_D = (18, 20, 34)
-_EX_BACK_H = (78, 86, 112)
-_EX_BELLY  = (247, 244, 236)        # #F7F4EC white belly/face
-_EX_BELLY_D = (212, 210, 202)
-_EX_BEAK   = (255, 138, 30)         # #FF8A1E orange beak/feet
-_EX_BEAK_D = (198, 96, 16)
-_EX_CHEEK  = (255, 158, 150)        # rosy cold-nipped cheek
-_EX_RED    = (210, 75, 75)          # #D24B4B scarf/beanie red stripe
-_EX_BLUE   = (59, 125, 216)         # #3B7DD8 scarf/beanie blue stripe
-_EX_CREAM  = (245, 230, 200)        # #F5E6C8 pom-pom / knit highlight
-_EX_GOGGLE = (150, 132, 96)         # smoky amber-grey lens (kept off the scarf blue)
-_EX_RUBBER = (60, 48, 36)           # warm brown goggle strap (distinct from cool scarf)
-_EX_RIM    = (78, 86, 112)          # #4E5670 cool rim-light for night separation
+# ── EMPEROR palette ───────────────────────────────────────────────────────────
+_EM_TOP     = (44, 53, 80)          # #2C3550 slate (gradient top)
+_EM_BOT     = (90, 106, 134)        # #5A6A86 steel (gradient base)
+_EM_DARK    = (28, 34, 55)          # shadow rim
+_EM_BELLY   = (244, 246, 251)       # #F4F6FB belly
+_EM_BELLY_D = (212, 216, 226)       # belly undershadow
+_EM_BELLY_H = (255, 255, 255)       # belly sheen
+_EM_RIM     = (174, 198, 224)       # #AEC6E0 pale-blue flipper / chest rim
+_EM_ORANGE  = (240, 153, 44)        # #F0992C ear-patch (cooled, regal)
+_EM_AMBER   = (250, 188, 80)        # amber mid-melt
+_EM_YELLOW  = (255, 214, 106)       # #FFD66A golden throat bib
+_EM_YELLOW_U = (228, 168, 64)       # amber bib underline
+_EM_CORAL   = (255, 156, 176)       # #FF9CB0 coral lower mandible
+_EM_FOOT    = (62, 74, 98)          # cool slate feet
 
 
-def _explorer_flipper(angle_deg):
-    """Standard penguin flipper with a knit-cuff mitten stripe at the tip."""
-    w = pygame.Surface((34, 44), pygame.SRCALPHA)
-    pts = [(18, 10), (26, 16), (22, 34), (14, 30)]
-    pygame.draw.polygon(w, _EX_BACK_D, pts)
-    pygame.draw.polygon(w, _EX_BACK, [(18, 11), (24, 17), (20, 30), (15, 27)])
-    pygame.draw.line(w, _EX_BACK_H, (18, 13), (22, 18), 1)
-    # Knit mitten cuff at the tip — red then blue band.
-    pygame.draw.line(w, _EX_RED,  (15, 30), (22, 32), 2)
-    pygame.draw.line(w, _EX_BLUE, (15, 33), (22, 35), 2)
+def _grad_ellipse(surf, cx, cy, rx, ry, top, bot):
+    """A vertical top→bot gradient clipped to an ellipse — premium body shading
+    the flat fill can't do. Builds the gradient straight into an SRCALPHA layer
+    (no display needed), masks it with an ellipse alpha, then blits at anchor."""
+    w, h = rx * 2, ry * 2
+    grad = pygame.Surface((w, h), pygame.SRCALPHA)
+    for i in range(h):
+        pygame.draw.line(grad, lerp_color(top, bot, i / max(1, h - 1)),
+                         (0, i), (w - 1, i))
+    mask = pygame.Surface((w, h), pygame.SRCALPHA)
+    _aaellipse(mask, (255, 255, 255, 255), (rx, ry), rx - 1, ry - 1)
+    grad.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(grad, (cx - rx, cy - ry))
+
+
+def _em_flipper(angle_deg):
+    """Slate flipper with a pale-blue rim."""
+    w = pygame.Surface((34, 42), pygame.SRCALPHA)
+    pts = [(18, 9), (26, 16), (21, 34), (14, 30)]
+    pygame.draw.polygon(w, _EM_DARK, pts)
+    pygame.draw.polygon(w, _EM_TOP, [(18, 11), (24, 17), (19, 30), (15, 27)])
+    pygame.draw.line(w, _EM_RIM, (18, 12), (24, 18), 1)
     return pygame.transform.rotate(w, angle_deg * 0.7)
 
 
-def build_explorer(wing_angle_deg):
+def build_emperor(wing_angle_deg):
     surf = _new()
-    f = _flap(wing_angle_deg)
 
     # Stubby tail.
-    pygame.draw.polygon(surf, _EX_BACK_D,
-                        [(13, BCY + 8), (6, BCY + 14), (18, BCY + 14)])
-    # Egg body (navy back).
-    _aaellipse(surf, _EX_BACK_D, (BCX + 1, BCY + 1), 17, 18)
-    _aaellipse(surf, _EX_BACK, (BCX, BCY), 16, 17)
-    # Cool rim-light on the upper-left back so the navy body keeps a silhouette
-    # against the night sky (the lower-back edge otherwise dissolves).
-    pygame.draw.arc(surf, _EX_RIM, (BCX - 16, BCY - 16, 22, 26), 1.3, 3.1, 2)
-    # White belly oval.
-    _aaellipse(surf, _EX_BELLY, (BCX + 1, BCY + 3), 11, 14)
-    _aaellipse(surf, _EX_BELLY_D, (BCX + 1, BCY + 9), 9, 6)
+    pygame.draw.polygon(surf, _EM_DARK,
+                        [(13, BCY + 8), (6, BCY + 14), (18, BCY + 13)])
 
-    # Far flipper (with mitten cuff).
-    _rot_blit(surf, _explorer_flipper(wing_angle_deg * 0.5 - 16), (BCX + 11, BCY))
+    # ── Body: TALL upright egg with a slate→steel vertical gradient ──
+    _aaellipse(surf, _EM_DARK, (BCX + 1, BCY + 1), 17, 20)     # shadow rim
+    _grad_ellipse(surf, BCX, BCY, 16, 19, _EM_TOP, _EM_BOT)    # gradient body
+    # Cool chest rim catching light on the upper-left.
+    pygame.draw.arc(surf, _EM_RIM, (BCX - 15, BCY - 18, 20, 26), 1.3, 2.9, 2)
 
-    # ── Fat striped scarf flaring from the neck ──
-    # A chunky red/blue band wrapping the lower head + neck, with a tail that
-    # stays a continuous tapering flag from neck → tip (an intermediate point
-    # bridges the gap so it never detaches into a floating bar). Sway is clamped
-    # so the tip never clears the body edge, and the tail carries a dark outline
-    # so it always reads as "scarf in front of body."
-    scarf_tail_x = BCX - 11 - int(f * 2)   # clamped flap-driven side-sway
-    scarf_tail_y = BCY - 2 + int(f * 2)
-    scarf_pts = [
-        (HCX - 9, HCY + 9),
-        (HCX + 8, HCY + 9),
-        (HCX + 7, HCY + 13),
-        (BCX - 7, BCY - 3),                 # bridge point — keeps the flag solid
-        (scarf_tail_x + 4, scarf_tail_y + 5),
-        (scarf_tail_x, scarf_tail_y),
-        (BCX - 8, BCY - 6),                 # upper bridge back to the wrap
-        (HCX - 6, HCY + 13),
-    ]
-    # Red base layer + dark outline so it reads in front of the body at any sway.
-    pygame.draw.polygon(surf, _EX_RED, scarf_pts)
-    pygame.draw.polygon(surf, _EX_BACK_D, scarf_pts, 1)
-    # Blue stripe across the middle.
-    pygame.draw.line(surf, _EX_BLUE,
-                     (HCX - 8, HCY + 11), (HCX + 7, HCY + 11), 3)
-    # Cream highlight edge.
-    pygame.draw.line(surf, _EX_CREAM,
-                     (HCX - 7, HCY + 9), (HCX + 7, HCY + 9), 1)
+    # Far slate flipper.
+    _rot_blit(surf, _em_flipper(wing_angle_deg * 0.5 - 16), (BCX + 12, BCY))
 
-    # Head dome (navy, no crest — beanie sits on top).
-    _aaellipse(surf, _EX_BACK_D, (HCX, HCY + 2), 12, 12)
-    _aaellipse(surf, _EX_BACK, (HCX - 1, HCY + 1), 11, 11)
-    # White face mask.
-    _aaellipse(surf, _EX_BELLY, (HCX, HCY + 3), 8, 8)
-    # Rosy cold-nipped cheek.
-    pygame.draw.circle(surf, _EX_CHEEK, (HCX - 3, HCY + 4), 3)
-    # Eyes.
-    _eye(surf, HCX - 2, HCY, 3)
-    _eye(surf, HCX + 5, HCY, 3)
+    # ── White belly with sheen + undershadow ──
+    _aaellipse(surf, _EM_BELLY,   (BCX + 1, BCY + 4), 11, 15)
+    _aaellipse(surf, _EM_BELLY_H, (BCX,     BCY - 2),  7,  6)
+    _aaellipse(surf, _EM_BELLY_D, (BCX + 1, BCY + 11), 9,  5)
 
-    # ── Snow-goggles on the brow ──
-    # Two smoky amber-grey lenses with a warm rubber bridge — kept off the cool
-    # scarf blue so the two never merge into one band at 40px.
-    for gx in (HCX - 3, HCX + 5):
-        pygame.draw.circle(surf, _EX_RUBBER, (gx, HCY - 3), 4)
-        pygame.draw.circle(surf, _EX_GOGGLE, (gx, HCY - 3), 3)
-        pygame.draw.circle(surf, (235, 222, 190), (gx - 1, HCY - 4), 1)  # glint
-    pygame.draw.line(surf, _EX_RUBBER, (HCX, HCY - 3), (HCX + 2, HCY - 3), 2)
+    # Head — smooth, crest-less slate dome.
+    _aaellipse(surf, _EM_DARK, (HCX,     HCY + 2), 12, 12)
+    _grad_ellipse(surf, HCX - 1, HCY + 1, 11, 11, _EM_TOP, _EM_BOT)
 
-    # Orange beak (unchanged — rosy cold-nipped read).
-    pygame.draw.polygon(surf, _EX_BEAK,
-                        [(HCX + 2, HCY + 4), (HCX + 11, HCY + 6),
-                         (HCX + 2, HCY + 8)])
-    pygame.draw.polygon(surf, _EX_BEAK_D,
-                        [(HCX + 2, HCY + 4), (HCX + 11, HCY + 6),
-                         (HCX + 2, HCY + 8)], 1)
+    # ── Narrow vertical ear-to-throat melt down each side of the neck ──
+    for sx in (-1, 1):
+        ex = HCX + sx * 9
+        _aaellipse(surf, _EM_YELLOW, (ex - sx, HCY + 9), 4, 6)   # bib tip
+        _aaellipse(surf, _EM_AMBER,  (ex,      HCY + 4), 4, 5)   # mid fade
+        _aaellipse(surf, _EM_ORANGE, (ex + sx, HCY - 1), 4, 4)   # ear-patch
+    # Golden throat bib + amber underline so the collar separates from belly.
+    _aaellipse(surf, _EM_YELLOW,   (HCX, HCY + 11), 9, 5)
+    _aaellipse(surf, _EM_YELLOW_U, (HCX, HCY + 14), 8, 2)
 
-    # ── HERO: chunky bobble-beanie pushing past the crown ──
-    # Brim band, ribbed dome, pom-pom circle above CROWN_Y. Drawn last so it
-    # sits on top of the head and goggles. Alternating red/blue knit ridges.
-    brim_y = CROWN_Y + 6
-    # Brim fold band.
-    pygame.draw.ellipse(surf, _EX_RED,
-                        (HCX - 9, brim_y, 18, 5))
-    pygame.draw.ellipse(surf, _EX_BLUE,
-                        (HCX - 9, brim_y + 2, 18, 4))
-    # Dome cap.
-    _aaellipse(surf, _EX_RED,  (HCX - 1, brim_y - 3), 9, 7)
-    _aaellipse(surf, _EX_BLUE, (HCX - 1, brim_y - 5), 8, 5)
-    # Knit ridge lines on the dome.
-    for dy in (brim_y - 2, brim_y - 5):
-        pygame.draw.line(surf, _EX_CREAM, (HCX - 7, dy), (HCX + 5, dy), 1)
-    # Cream pom-pom above the crown — bobs 1px with the flap so the head motion
-    # ties into the body.
-    pom_y = CROWN_Y - 3 - int(f)
-    pygame.draw.circle(surf, _EX_CREAM, (HCX - 1, pom_y), 5)
-    pygame.draw.circle(surf, (255, 248, 230), (HCX - 2, pom_y - 1), 3)  # sheen
+    # White face over the melt so the eyes sit on white.
+    _aaellipse(surf, _EM_BELLY, (HCX, HCY + 3), 8, 8)
 
-    # Near flipper (with mitten cuff).
-    _rot_blit(surf, _explorer_flipper(wing_angle_deg), (BCX - 6, BCY + 1))
+    # Symmetric eyes with glint.
+    _eye(surf, HCX - 3, HCY, 4, iris=(20, 22, 34))
+    _eye(surf, HCX + 3, HCY, 4, iris=(20, 22, 34))
 
-    # Orange webbed feet, set a touch wider with a gap so they read as two feet,
-    # not one orange paddle, at 40px.
-    for fx in (26, 38):
-        pygame.draw.polygon(surf, _EX_BEAK,
-                            [(fx - 3, BCY + 16), (fx + 3, BCY + 16),
-                             (fx + 4, BCY + 20), (fx - 4, BCY + 20)])
-        pygame.draw.polygon(surf, _EX_BEAK_D,
-                            [(fx - 3, BCY + 16), (fx + 3, BCY + 16),
-                             (fx + 4, BCY + 20), (fx - 4, BCY + 20)], 1)
+    # ── Long slender bicolor beak: slate upper, coral lower + highlight ──
+    pygame.draw.polygon(surf, _EM_BOT,
+                        [(HCX + 2, HCY + 3), (HCX + 14, HCY + 6),
+                         (HCX + 2, HCY + 7)])
+    pygame.draw.polygon(surf, _EM_CORAL,
+                        [(HCX + 2, HCY + 7), (HCX + 14, HCY + 6),
+                         (HCX + 2, HCY + 9)])
+    pygame.draw.line(surf, _EM_RIM, (HCX + 3, HCY + 4), (HCX + 12, HCY + 6), 1)
+
+    # Near slate flipper.
+    _rot_blit(surf, _em_flipper(wing_angle_deg), (BCX - 7, BCY + 1))
+
+    # Cool slate feet, toe split.
+    for fx in (27, 38):
+        foot = [(fx - 3, BCY + 16), (fx + 4, BCY + 16),
+                (fx + 5, BCY + 20), (fx - 4, BCY + 20)]
+        pygame.draw.polygon(surf, _EM_FOOT, foot)
+        pygame.draw.polygon(surf, _EM_DARK, foot, 1)
+        pygame.draw.line(surf, _EM_DARK, (fx + 1, BCY + 20), (fx + 1, BCY + 18), 1)
     return surf
 
 
-build = _make_prebuilt_skin(build_explorer)
+build = _make_prebuilt_skin(build_emperor)

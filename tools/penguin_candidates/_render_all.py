@@ -27,11 +27,11 @@ from game.entities import Pipe
 from game.config import W as GW, H as GH, GROUND_Y
 
 DESIGNS = [
-    ("design_1", "ROCKHOPPER"),
-    ("design_2", "EMPEROR"),
-    ("design_3", "POLAR EXPLORER"),
-    ("design_4", "SCUBA DIVER"),
-    ("design_5", "AURORA KING"),
+    ("design_1", "ADÉLIE"),
+    ("design_2", "GENTOO"),
+    ("design_3", "EMPEROR"),
+    ("design_4", "ROCKHOPPER"),
+    ("design_5", "BABY CHICK"),
 ]
 
 OUT_DIR = "docs/store_redesign/animal/penguin"

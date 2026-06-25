@@ -1,115 +1,114 @@
-"""EMPEROR penguin — design_2 of the penguin store-skin redesign.
+"""GENTOO penguin — design_2, WAVE 2 from-scratch redraw.
 
-The regal gradient royal: the premium grown-up penguin, carried by a vertical
-slate→steel body gradient and an orange→yellow ear-to-throat melt that the flat
-build can never show. No crest — elegance by colour, deliberate contrast to the
-spiky ROCKHOPPER. The 40px hero read is the warm orange ear-patch bleeding into
-a golden-yellow bib against a cool slate body.
-
-Built on the same chassis as ``animal_skins.build_penguin``. Scratch-only —
-NOT registered in ``animal_skins.BUILDERS``.
+The chubby cutie: a plump round casual-mascot penguin with the gentoo white
+bonnet stripe across the eyes and oversized friendly eyes. Full from-scratch
+build with 3-layer body shading, a generous belly gloss sheen, an AO chin
+shadow, an eye-surround patch and a banded orange beak. Scratch-only — NOT
+registered in ``animal_skins.BUILDERS``.
 """
 import pygame
 
 from game.animal_skins import (
-    _make_prebuilt_skin, _new, _aaellipse, _rot_blit, _eye, _pen_flipper,
+    _make_prebuilt_skin, _new, _aaellipse, _rot_blit, _eye,
     BCX, BCY, HCX, HCY, CROWN_Y,
 )
 
-# ── EMPEROR palette ───────────────────────────────────────────────────────────
-_EM_SLATE   = (44, 53, 80)          # #2C3550 dark slate (body gradient top)
-_EM_SLATE_D = (28, 34, 55)          # deeper shadow rim
-_EM_STEEL   = (90, 106, 134)        # #5A6A86 lighter steel (gradient base)
-_EM_BELLY   = (255, 253, 246)       # #FFFDF6 white belly
-_EM_BELLY_D = (210, 212, 218)       # soft belly undershadow
-_EM_ORANGE  = (240, 138, 40)        # #F08A28 burnt-amber ear-patch (cooled for regal)
-_EM_AMBER   = (248, 184, 70)        # amber mid-tone in the ear-to-throat melt
-_EM_YELLOW  = (255, 218, 106)       # #FFDA6A golden-yellow throat bib (lifted)
-_EM_YELLOW_U = (228, 168, 60)       # amber underline so the collar separates from belly
-_EM_CORAL   = (255, 156, 176)       # #FF9CB0 coral lower-mandible stripe
-_EM_FLIPRIM = (170, 194, 222)       # pale-blue flipper leading-edge rim
-_EM_FOOT    = (60, 72, 96)          # dark slate-grey webbed feet
+# ── GENTOO palette ───────────────────────────────────────────────────────────
+_GE_BACK    = (35, 40, 58)          # #23283A slate-black
+_GE_BACK_D  = (18, 21, 31)          # #12151F shadow
+_GE_BACK_H  = (78, 90, 120)         # cool highlight
+_GE_SHEEN   = (150, 168, 205)       # gloss overlay
+_GE_BELLY   = (250, 250, 244)       # #FAFAF4 belly / bonnet
+_GE_BELLY_D = (214, 216, 224)       # belly undershadow
+_GE_BELLY_H = (255, 255, 255)       # belly top sheen
+_GE_SURR    = (212, 222, 236)       # pale eye-surround patch
+_GE_BEAK1   = (255, 122, 30)        # #FF7A1E deep-orange root
+_GE_BEAK2   = (255, 179, 71)        # #FFB347 bright-orange tip
+_GE_BEAK_D  = (190, 92, 16)         # beak outline
+_GE_FOOT    = (255, 138, 42)        # #FF8A2A feet
 
 
-def _em_flipper(angle_deg):
-    """Slate flipper with a thin pale-blue leading-edge rim for the regal read."""
+def _ge_flipper(angle_deg):
+    """Stubby slate flipper with a cool leading highlight."""
     w = pygame.Surface((34, 40), pygame.SRCALPHA)
-    pts = [(18, 10), (26, 16), (22, 34), (14, 30)]
-    pygame.draw.polygon(w, _EM_SLATE_D, pts)
-    pygame.draw.polygon(w, _EM_SLATE, [(18, 11), (24, 17), (20, 30), (15, 27)])
-    pygame.draw.line(w, _EM_FLIPRIM, (18, 13), (22, 18), 1)
+    pts = [(18, 10), (26, 16), (21, 33), (14, 29)]
+    pygame.draw.polygon(w, _GE_BACK_D, pts)
+    pygame.draw.polygon(w, _GE_BACK, [(18, 11), (24, 17), (19, 29), (15, 26)])
+    pygame.draw.line(w, _GE_BACK_H, (18, 13), (23, 18), 1)
     return pygame.transform.rotate(w, angle_deg * 0.7)
 
 
-def build_emperor(wing_angle_deg):
+def build_gentoo(wing_angle_deg):
     surf = _new()
 
-    # Stubby tail — slate-dark.
-    pygame.draw.polygon(surf, _EM_SLATE_D,
-                        [(13, BCY + 8), (6, BCY + 14), (18, BCY + 14)])
+    # Tiny tail.
+    pygame.draw.polygon(surf, _GE_BACK_D,
+                        [(14, BCY + 9), (8, BCY + 14), (19, BCY + 13)])
 
-    # ── Taller egg body with a faked vertical slate→steel gradient ──
-    # Three nested ellipses shrinking upward produce a cooler-dark top and a
-    # lighter steel lower-body; the white belly oval completes the emperor split.
-    _aaellipse(surf, _EM_SLATE_D, (BCX + 1, BCY + 1), 17, 19)   # shadow rim
-    _aaellipse(surf, _EM_SLATE,   (BCX,     BCY),      16, 18)   # top slate
-    _aaellipse(surf, _EM_STEEL,   (BCX + 1, BCY + 7),  15, 12)  # steel belly
-    # White belly oval.
-    _aaellipse(surf, _EM_BELLY,   (BCX + 1, BCY + 4),  11, 13)
-    _aaellipse(surf, _EM_BELLY_D, (BCX + 1, BCY + 10),  9,  5)
-    # Pale-steel lit edge on the upper-left back — a 1px rim so the slate form
-    # keeps separation against dark night pillars (matches the flipper rim).
-    pygame.draw.arc(surf, _EM_FLIPRIM,
-                    (BCX - 16, BCY - 17, 22, 26), 1.4, 3.0, 2)
+    # ── Body: plump, WIDER-than-tall chibi egg, 3-layer ──
+    _aaellipse(surf, _GE_BACK_D, (BCX + 1, BCY + 2), 19, 17)   # shadow rim
+    _aaellipse(surf, _GE_BACK,   (BCX,     BCY + 1), 18, 16)   # main
+    _aaellipse(surf, _GE_BACK_H, (BCX - 6, BCY - 4),  7,  5)   # cool chest light
 
-    # Far slate flipper.
-    _rot_blit(surf, _em_flipper(wing_angle_deg * 0.5 - 16), (BCX + 11, BCY))
+    # Gloss-sheen overlay top-left.
+    sheen = pygame.Surface((24, 10), pygame.SRCALPHA)
+    pygame.draw.ellipse(sheen, (*_GE_SHEEN, 110), sheen.get_rect())
+    surf.blit(sheen, (BCX - 16, BCY - 13))
 
-    # Head — smooth, crest-less slate dome merging into body.
-    _aaellipse(surf, _EM_SLATE_D, (HCX,     HCY + 2), 12, 12)
-    _aaellipse(surf, _EM_SLATE,   (HCX - 1, HCY + 1), 11, 11)
+    # Far flipper behind.
+    _rot_blit(surf, _ge_flipper(wing_angle_deg * 0.5 - 16), (BCX + 13, BCY + 1))
 
-    # ── Ear-to-throat melt: a narrow vertical teardrop down each side of the
-    # neck into the chest bib — the real king/emperor silhouette. Small,
-    # outboard, diagonal so the warm reads as an elegant accent, not a mask. ──
-    for sx in (-1, 1):
-        ex = HCX + sx * 9
-        _aaellipse(surf, _EM_YELLOW, (ex - sx, HCY + 9), 4, 6)   # bib tip (inner/low)
-        _aaellipse(surf, _EM_AMBER,  (ex,      HCY + 4), 4, 5)   # mid fade
-        _aaellipse(surf, _EM_ORANGE, (ex + sx, HCY - 1), 4, 4)   # ear-patch (outer/high)
-    # Glowing yellow chest bib connecting both sides, with an amber underline so
-    # the collar separates cleanly from the white belly at 40px.
-    _aaellipse(surf, _EM_YELLOW,   (HCX, HCY + 11), 9, 5)
-    _aaellipse(surf, _EM_YELLOW_U, (HCX, HCY + 14), 8, 2)
+    # ── Big round white belly with sheen + undershadow ──
+    _aaellipse(surf, _GE_BELLY,   (BCX + 1, BCY + 4), 14, 14)
+    _aaellipse(surf, _GE_BELLY_H, (BCX,     BCY - 1),  9,  6)   # upper sheen
+    _aaellipse(surf, _GE_BELLY_D, (BCX + 1, BCY + 11), 11, 5)   # lower shadow
 
-    # White face (no rosy cheek — stately). Drawn over the melt so the eyes sit
-    # on white, never on the warm patches.
-    _aaellipse(surf, _EM_BELLY, (HCX, HCY + 3), 8, 8)
+    # Head — large and round for the chibi read.
+    _aaellipse(surf, _GE_BACK_D, (HCX,     HCY + 2), 13, 13)
+    _aaellipse(surf, _GE_BACK,   (HCX - 1, HCY + 1), 12, 12)
+    _aaellipse(surf, _GE_BACK_H, (HCX - 4, HCY - 3),  4,  4)
 
-    # Eyes — symmetric dark dots with a catch-light, regal-forward gaze.
-    _eye(surf, HCX - 3, HCY, 3)
-    _eye(surf, HCX + 3, HCY, 3)
+    # AO chin shadow.
+    sh = pygame.Surface((22, 8), pygame.SRCALPHA)
+    pygame.draw.ellipse(sh, (14, 16, 26, 95), sh.get_rect())
+    surf.blit(sh, (HCX - 13, HCY + 9))
 
-    # Long slender beak: upper mandible in soft slate, lower in coral pink.
-    pygame.draw.polygon(surf, _EM_STEEL,
-                        [(HCX + 2, HCY + 3), (HCX + 13, HCY + 6),
-                         (HCX + 2, HCY + 7)])
-    pygame.draw.polygon(surf, _EM_CORAL,
-                        [(HCX + 2, HCY + 7), (HCX + 13, HCY + 6),
-                         (HCX + 2, HCY + 9)])
+    # ── HERO: gentoo white bonnet sweeping over the crown + behind each eye ──
+    pygame.draw.polygon(surf, _GE_BELLY, [
+        (HCX - 11, HCY - 1), (HCX - 9, CROWN_Y + 1), (HCX, CROWN_Y - 1),
+        (HCX + 9, CROWN_Y + 1), (HCX + 11, HCY - 1),
+        (HCX + 8, HCY - 4), (HCX - 8, HCY - 4),
+    ])
+    # The bonnet wraps down behind each eye as a comma.
+    pygame.draw.circle(surf, _GE_BELLY, (HCX - 6, HCY + 1), 3)
+    pygame.draw.circle(surf, _GE_BELLY, (HCX + 9, HCY + 1), 3)
 
-    # Near slate flipper.
-    _rot_blit(surf, _em_flipper(wing_angle_deg), (BCX - 6, BCY + 1))
+    # ── HERO: oversized friendly eyes on pale surround patches ──
+    pygame.draw.circle(surf, _GE_SURR, (HCX - 2, HCY + 1), 6)
+    pygame.draw.circle(surf, _GE_SURR, (HCX + 7, HCY + 1), 6)
+    _eye(surf, HCX - 2, HCY + 1, 5, iris=(22, 20, 28))
+    _eye(surf, HCX + 7, HCY + 1, 5, iris=(22, 20, 28))
 
-    # Dark slate-grey webbed feet.
-    for fx in (27, 37):
-        pygame.draw.polygon(surf, _EM_FOOT,
-                            [(fx - 3, BCY + 16), (fx + 3, BCY + 16),
-                             (fx + 4, BCY + 20), (fx - 4, BCY + 20)])
-        pygame.draw.polygon(surf, _EM_SLATE_D,
-                            [(fx - 3, BCY + 16), (fx + 3, BCY + 16),
-                             (fx + 4, BCY + 20), (fx - 4, BCY + 20)], 1)
+    # ── Bright banded orange beak (deep root → bright tip) + outline + shine ──
+    root = [(HCX + 3, HCY + 5), (HCX + 13, HCY + 8), (HCX + 3, HCY + 11)]
+    pygame.draw.polygon(surf, _GE_BEAK1, root)
+    pygame.draw.polygon(surf, _GE_BEAK2,
+                        [(HCX + 8, HCY + 6), (HCX + 13, HCY + 8),
+                         (HCX + 8, HCY + 10)])               # bright tip
+    pygame.draw.polygon(surf, _GE_BEAK_D, root, 1)
+    pygame.draw.line(surf, (255, 220, 150), (HCX + 4, HCY + 7), (HCX + 11, HCY + 8), 1)
+
+    # Near flipper.
+    _rot_blit(surf, _ge_flipper(wing_angle_deg), (BCX - 8, BCY + 2))
+
+    # ── Chunky orange feet, toe split ──
+    for fx in (27, 39):
+        foot = [(fx - 4, BCY + 16), (fx + 4, BCY + 16),
+                (fx + 5, BCY + 21), (fx - 5, BCY + 21)]
+        pygame.draw.polygon(surf, _GE_FOOT, foot)
+        pygame.draw.polygon(surf, _GE_BEAK_D, foot, 1)
+        pygame.draw.line(surf, _GE_BEAK_D, (fx, BCY + 21), (fx, BCY + 18), 1)
     return surf
 
 
-build = _make_prebuilt_skin(build_emperor)
+build = _make_prebuilt_skin(build_gentoo)

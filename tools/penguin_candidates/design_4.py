@@ -1,144 +1,122 @@
-"""PENGUIN store-skin candidate — DESIGN 4: SCUBA DIVER (snorkel goof).
+"""ROCKHOPPER penguin — design_4, WAVE 2 from-scratch redraw.
 
-The aquatic in-joke: a flightless swimmer geared up to swim. Hero read is the
-domed cyan dive-mask over the eyes plus a J-curved snorkel hooking up past the
-crown — cyan is a colour no other penguin concept uses, so it owns the
-silhouette at 40px. Built on the shared penguin chassis (navy-back / white-
-belly egg, 4-pose flipper flap) so it lifts straight into game/animal_skins.py.
-
-Scratch exploration only — exposes ``build`` but is intentionally NOT registered
-in animal_skins.BUILDERS.
+The punk crested penguin, rebuilt from scratch on a properly crafted body (wave 1
+just bolted the crest onto the flat chassis). Bold integrated spiky golden brow
+crest + fiery red eyes over a 3-layer navy body with a chest highlight, gloss
+sheen and feather-textured flippers, plus a chunky outlined beak. Scratch-only —
+NOT registered in ``animal_skins.BUILDERS``.
 """
-import math
 import pygame
 
 from game.animal_skins import (
-    _make_prebuilt_skin, _new, _aaellipse, _rot_blit, _eye, _flap,
+    _make_prebuilt_skin, _new, _aaellipse, _rot_blit, _eye,
     BCX, BCY, HCX, HCY, CROWN_Y,
 )
 
-# Navy back/head + warm-white belly split — the one penguin constant.
-NAVY    = (30, 34, 51)              # #1E2233
-NAVY_D  = (20, 23, 38)
-NAVY_H  = (74, 82, 110)
-BELLY   = (247, 244, 236)          # #F7F4EC
-BELLY_D = (210, 212, 218)
-CYAN    = (25, 182, 196)           # #19B6C4 lens + fin accents
-CYAN_H  = (150, 232, 240)          # bright lens glint
-RUBBER  = (34, 42, 51)             # #222A33 mask rim + snorkel tube
-BEAK    = (255, 138, 30)           # #FF8A1E beak + feet
-BEAK_D  = (200, 96, 18)
-BUBBLE  = (207, 246, 251)          # #CFF6FB drifting bubbles
+# ── ROCKHOPPER palette ────────────────────────────────────────────────────────
+_RH_BACK    = (38, 43, 64)          # #262B40 navy
+_RH_BACK_D  = (21, 25, 42)          # #15192A shadow
+_RH_BACK_H  = (90, 100, 134)        # #5A6486 cool highlight
+_RH_SHEEN   = (150, 166, 205)       # gloss overlay
+_RH_BELLY   = (247, 244, 236)       # #F7F4EC belly
+_RH_BELLY_D = (212, 210, 202)       # belly undershadow
+_RH_BELLY_H = (255, 255, 255)       # belly sheen
+_RH_CREST   = (255, 210, 30)        # #FFD21E crest plume
+_RH_CREST_D = (214, 162, 14)        # #D6A20E plume root / flank
+_RH_CREST_H = (255, 236, 130)       # #FFEC82 bright plume lick
+_RH_BEAK    = (255, 138, 30)        # #FF8A1E orange beak / feet
+_RH_BEAK_D  = (198, 96, 16)         # beak shadow / outline
+_RH_EYE     = (242, 64, 46)         # #F2402E fiery red iris
 
 
-def _dive_fin(angle_deg):
-    """Penguin flipper widened into a paddle-like swim-fin: broader trailing
-    tip + a cyan leading-edge accent so it reads 'fin' not bare flipper. Same
-    angle*0.7 damping as the base flipper so it flaps identically."""
-    w = pygame.Surface((36, 44), pygame.SRCALPHA)
-    # Wider blade than _pen_flipper — fat paddle bottom.
-    blade = [(19, 9), (28, 16), (26, 36), (12, 32), (15, 16)]
-    pygame.draw.polygon(w, NAVY_D, blade)
-    pygame.draw.polygon(w, NAVY, [(19, 10), (26, 17), (24, 32), (14, 29)])
-    # Full-length 2px cyan leading edge so the "swim-fin" tell survives downscale.
-    pygame.draw.line(w, CYAN, (19, 11), (25, 34), 2)
-    pygame.draw.line(w, CYAN_H, (19, 12), (22, 17), 1)
+def _rh_flipper(angle_deg):
+    """Navy flipper with feather-texture lines + a cool leading edge."""
+    w = pygame.Surface((34, 42), pygame.SRCALPHA)
+    pts = [(18, 9), (27, 16), (22, 35), (13, 30)]
+    pygame.draw.polygon(w, _RH_BACK_D, pts)
+    pygame.draw.polygon(w, _RH_BACK, [(18, 11), (25, 17), (20, 31), (15, 27)])
+    pygame.draw.line(w, _RH_BACK_H, (18, 12), (24, 18), 1)
+    # Feather texture ticks.
+    pygame.draw.line(w, _RH_BACK_D, (19, 22), (21, 28), 1)
+    pygame.draw.line(w, _RH_BACK_D, (17, 24), (19, 29), 1)
     return pygame.transform.rotate(w, angle_deg * 0.7)
 
 
-def build_diver(wing_angle_deg):
+def _crest_plume(surf, root_x, root_y, tip_x, tip_y, base_w):
+    """One fat upswept brow plume: deep flank + bright inner lick so the spike
+    survives the 40px downscale; the wide base keeps the point from vanishing."""
+    pygame.draw.polygon(surf, _RH_CREST_D, [
+        (root_x - base_w, root_y), (tip_x, tip_y), (root_x + base_w, root_y + 1)])
+    pygame.draw.polygon(surf, _RH_CREST, [
+        (root_x - base_w + 1, root_y), (tip_x, tip_y + 1),
+        (root_x + base_w - 1, root_y)])
+    pygame.draw.line(surf, _RH_CREST_H, (root_x, root_y - 1), (tip_x, tip_y + 1), 1)
+
+
+def build_rockhopper(wing_angle_deg):
     surf = _new()
-    f = _flap(wing_angle_deg)            # 1 = flipper up; drives bubble drift
 
-    # Stubby tail.
-    pygame.draw.polygon(surf, NAVY_D,
-                        [(13, BCY + 8), (6, BCY + 14), (18, BCY + 14)])
-    # Egg body (navy back).
-    _aaellipse(surf, NAVY_D, (BCX + 1, BCY + 1), 17, 18)
-    _aaellipse(surf, NAVY, (BCX, BCY), 16, 17)
-    # Cool rim-light on the upper-left back so the navy body keeps its silhouette
-    # against the night sky — without it only the belly + mask float at night.
-    pygame.draw.arc(surf, NAVY_H, (BCX - 16, BCY - 16, 22, 26), 1.3, 3.1, 2)
-    # White belly oval — the high-contrast split.
-    _aaellipse(surf, BELLY, (BCX + 1, BCY + 3), 11, 14)
-    _aaellipse(surf, BELLY_D, (BCX + 1, BCY + 9), 9, 6)
+    # Stubby layered tail.
+    pygame.draw.polygon(surf, _RH_BACK_D,
+                        [(13, BCY + 7), (5, BCY + 14), (18, BCY + 13)])
+    pygame.draw.polygon(surf, _RH_BACK,
+                        [(14, BCY + 8), (8, BCY + 12), (18, BCY + 12)])
 
-    # Far fin behind the body — nudged out so it's not swallowed by the body.
-    _rot_blit(surf, _dive_fin(wing_angle_deg * 0.5 - 16), (BCX + 13, BCY))
+    # ── Body: 3-layer navy egg + chest highlight ──
+    _aaellipse(surf, _RH_BACK_D, (BCX + 1, BCY + 1), 18, 18)
+    _aaellipse(surf, _RH_BACK,   (BCX,     BCY),     17, 17)
+    _aaellipse(surf, _RH_BACK_H, (BCX - 5, BCY - 6),  7,  6)
 
-    # Head merges into body (penguin little-neck).
-    _aaellipse(surf, NAVY_D, (HCX, HCY + 2), 12, 12)
-    _aaellipse(surf, NAVY, (HCX - 1, HCY + 1), 11, 11)
-    # White face mask kept — the belly tone wrapping onto the face.
-    _aaellipse(surf, BELLY, (HCX, HCY + 3), 8, 8)
+    # Gloss-sheen overlay.
+    sheen = pygame.Surface((22, 9), pygame.SRCALPHA)
+    pygame.draw.ellipse(sheen, (*_RH_SHEEN, 100), sheen.get_rect())
+    surf.blit(sheen, (BCX - 15, BCY - 14))
 
-    # ── HERO 2: J-curved snorkel hooking UP past the crown ──
-    # Drawn before the mask so the mask rim caps its lower mouthpiece elbow.
-    # A thick rubber spine: mouthpiece elbow at the cheek → up the side of the
-    # head → over the crown → a short forward hook at the tip.
-    snk = [
-        (HCX + 8, HCY + 4),                 # mouthpiece elbow at the cheek
-        (HCX + 10, HCY - 4),
-        (HCX + 9, CROWN_Y - 2),
-        (HCX + 5, CROWN_Y - 9),             # rises well past CROWN_Y (=24)
-        (HCX - 1, CROWN_Y - 11),            # crests the top
-        (HCX - 5, CROWN_Y - 8),             # forward hook tip
-    ]
-    # Fat rubber tube (5px) with a cyan highlight stripe down its outer edge so
-    # it reads as cyan dive-gear at 40px, not a thin black wire.
-    pygame.draw.lines(surf, RUBBER, False, snk, 5)
-    pygame.draw.lines(surf, CYAN, False, snk, 2)         # cyan gear sheen
-    snk_tip = snk[-1]
-    # Cyan mouthpiece nub at the elbow.
-    pygame.draw.circle(surf, CYAN, (HCX + 8, HCY + 5), 2)
+    # Far flipper.
+    _rot_blit(surf, _rh_flipper(wing_angle_deg * 0.5 - 16), (BCX + 12, BCY))
 
-    # ── HERO 1: domed cyan dive-mask over the eye zone ──
-    # Dark rubber rim oval, inset pale-cyan lens, eyes MAGNIFIED through it.
-    mcx, mcy = HCX + 1, HCY - 1
-    _aaellipse(surf, RUBBER, (mcx, mcy), 11, 9)          # rubber rim
-    _aaellipse(surf, CYAN, (mcx, mcy), 9, 7)             # glass lens
-    # Top-left lens glint — sells the domed glass.
-    _aaellipse(surf, CYAN_H, (mcx - 3, mcy - 3), 4, 2)
-    # Enlarged happy eyes seen through the lens (bigger than the bare r=3).
-    _eye(surf, mcx - 4, mcy, 4, white=(250, 250, 248))
-    _eye(surf, mcx + 4, mcy, 4, white=(250, 250, 248))
+    # ── White belly with sheen + undershadow ──
+    _aaellipse(surf, _RH_BELLY,   (BCX + 1, BCY + 3), 12, 14)
+    _aaellipse(surf, _RH_BELLY_H, (BCX,     BCY - 2),  8,  6)
+    _aaellipse(surf, _RH_BELLY_D, (BCX + 1, BCY + 10), 9,  5)
 
-    # Small orange beak peeking BELOW the mask.
-    pygame.draw.polygon(surf, BEAK,
-                        [(HCX + 2, HCY + 7), (HCX + 11, HCY + 9),
-                         (HCX + 2, HCY + 11)])
-    pygame.draw.polygon(surf, BEAK_D,
-                        [(HCX + 2, HCY + 7), (HCX + 11, HCY + 9),
-                         (HCX + 2, HCY + 11)], 1)
+    # Head dome (3-layer).
+    _aaellipse(surf, _RH_BACK_D, (HCX,     HCY + 2), 12, 12)
+    _aaellipse(surf, _RH_BACK,   (HCX - 1, HCY + 1), 11, 11)
+    _aaellipse(surf, _RH_BACK_H, (HCX - 4, HCY - 3),  4,  4)
 
-    # ── Bubbles drifting up-and-off the snorkel tip (moving aquatic tell) ──
-    # Sizes grow as they rise; a small per-frame drift keyed to the flap so
-    # they shimmer with motion. Each gets a tiny white glint.
-    drift = int((f - 0.5) * 3)
-    # Start at the tip and rise mostly vertically so the column reads as bubbles
-    # blown FROM the snorkel, not drifting off into empty sky.
-    for i, (dx, dy, r) in enumerate(((-1, -3, 2), (-2, -9, 2), (-3, -16, 3))):
-        bx = snk_tip[0] + dx + drift
-        by = snk_tip[1] + dy - i
-        pygame.draw.circle(surf, BUBBLE, (bx, by), r)
-        pygame.draw.circle(surf, CYAN, (bx, by), r, 1)
-        pygame.draw.circle(surf, (255, 255, 255), (bx - 1, by - 1), 1)
+    # ── HERO: bold spiky golden brow-fan, 4 fat wide-splayed plumes ──
+    _crest_plume(surf, HCX - 6, CROWN_Y + 5, HCX - 16, CROWN_Y - 9, 4)
+    _crest_plume(surf, HCX - 1, CROWN_Y + 3, HCX - 2, CROWN_Y - 16, 5)
+    _crest_plume(surf, HCX + 4, CROWN_Y + 4, HCX + 8, CROWN_Y - 13, 4)
+    _crest_plume(surf, HCX + 8, CROWN_Y + 5, HCX + 18, CROWN_Y - 7, 4)
 
-    # Near fin over the body.
-    _rot_blit(surf, _dive_fin(wing_angle_deg), (BCX - 6, BCY + 1))
+    # Red eyes on a pale face bed so they read against the dark head.
+    _aaellipse(surf, _RH_BELLY, (HCX + 1, HCY), 7, 6)
+    _eye(surf, HCX - 1, HCY, 4, iris=_RH_EYE)
+    _eye(surf, HCX + 5, HCY, 4, iris=_RH_EYE)
 
-    # Elongated orange fin-feet — broader + longer than the stubby penguin web.
-    for fx in (27, 38):
-        pygame.draw.polygon(surf, BEAK,
-                            [(fx - 4, BCY + 16), (fx + 3, BCY + 16),
-                             (fx + 6, BCY + 21), (fx - 6, BCY + 21)])
-        pygame.draw.polygon(surf, BEAK_D,
-                            [(fx - 4, BCY + 16), (fx + 3, BCY + 16),
-                             (fx + 6, BCY + 21), (fx - 6, BCY + 21)], 1)
-        # Cyan fin-ray accents echoing the dive theme.
-        for rx in (fx - 2, fx + 1):
-            pygame.draw.line(surf, CYAN, (rx, BCY + 17), (rx + 1, BCY + 20), 1)
+    # ── Chunky outlined orange beak + lower-mandible wedge + highlight ──
+    beak = [(HCX + 2, HCY + 3), (HCX + 12, HCY + 7), (HCX + 2, HCY + 10)]
+    pygame.draw.polygon(surf, _RH_BEAK, beak)
+    pygame.draw.polygon(surf, _RH_BEAK_D,
+                        [(HCX + 2, HCY + 7), (HCX + 12, HCY + 7),
+                         (HCX + 2, HCY + 10)])
+    pygame.draw.polygon(surf, _RH_BACK_D, beak, 1)
+    pygame.draw.line(surf, (255, 200, 120), (HCX + 3, HCY + 5), (HCX + 10, HCY + 6), 1)
+
+    # Near flipper.
+    _rot_blit(surf, _rh_flipper(wing_angle_deg), (BCX - 7, BCY + 1))
+
+    # ── Wide-set hopping feet with toe splits ──
+    for fx in (25, 39):
+        foot = [(fx - 3, BCY + 16), (fx + 3, BCY + 16),
+                (fx + 4, BCY + 20), (fx - 4, BCY + 20)]
+        pygame.draw.polygon(surf, _RH_BEAK, foot)
+        pygame.draw.polygon(surf, _RH_BEAK_D, foot, 1)
+        for tx in (fx - 1, fx + 2):
+            pygame.draw.line(surf, _RH_BEAK_D, (tx, BCY + 20), (tx, BCY + 18), 1)
     return surf
 
 
-build = _make_prebuilt_skin(build_diver)
+build = _make_prebuilt_skin(build_rockhopper)

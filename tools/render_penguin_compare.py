@@ -22,11 +22,11 @@ import tools.ninja_render as nr
 
 COLUMNS = [
     ("ORIGINAL", "PENGUIN", "skin_penguin"),
-    ("DESIGN 1", "ROCKHOPPER", "design_1"),
-    ("DESIGN 2", "EMPEROR", "design_2"),
-    ("DESIGN 3", "POLAR EXPLORER", "design_3"),
-    ("DESIGN 4", "SCUBA DIVER", "design_4"),
-    ("DESIGN 5", "AURORA KING", "design_5"),
+    ("DESIGN 1", "ADÉLIE", "design_1"),
+    ("DESIGN 2", "GENTOO", "design_2"),
+    ("DESIGN 3", "EMPEROR", "design_3"),
+    ("DESIGN 4", "ROCKHOPPER", "design_4"),
+    ("DESIGN 5", "BABY CHICK", "design_5"),
 ]
 
 PANEL_W, PANEL_H = 220, 392
