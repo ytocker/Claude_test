@@ -147,7 +147,6 @@ CATALOG: dict[str, dict] = {
     # NO PARCEL is the cheapest — the empty-handed look (mirrors NO SHADES); it
     # only hides the sprite, Pip's parcel hitbox is unchanged so difficulty holds.
     "parcel_none":      {"name": "NO PARCEL",      "cost": 120,  "kind": "parcel", "group": "parcels"},
-    "parcel_envelope":  {"name": "ENVELOPE",       "cost": 180,  "kind": "parcel", "group": "parcels"},
     "parcel_airmail":   {"name": "AIRMAIL",        "cost": 200,  "kind": "parcel", "group": "parcels"},
     "parcel_love":      {"name": "LOVE LETTER",    "cost": 240,  "kind": "parcel", "group": "parcels"},
     "parcel_postmark":  {"name": "POSTMARK",       "cost": 260,  "kind": "parcel", "group": "parcels"},

@@ -20,7 +20,7 @@ import pygame
 from game import parrot
 from game.store_catalog import PARCEL_BASE
 from game.parcel_designs import (
-    sack, takeout, jar, envelope, picnic,
+    sack, takeout, jar, picnic,
     steamer, balloon, bottle,
     chest, lantern, flask,
     ufo, comet, snowglobe,
@@ -71,7 +71,6 @@ _DESIGNS = {
     "parcel_sack":      sack,
     "parcel_takeout":   takeout,
     "parcel_jar":       jar,
-    "parcel_envelope":  envelope,
     "parcel_airmail":   airmail,
     "parcel_love":      love_letter,
     "parcel_postmark":  post_office,
