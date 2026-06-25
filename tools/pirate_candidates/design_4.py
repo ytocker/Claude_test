@@ -120,35 +120,6 @@ def _paint(surf, wing_angle_deg):
         pygame.draw.circle(surf, _GOLD, (tx, ty + 1), 2)
         pygame.draw.circle(surf, _GOLD_H, (tx, ty), 1)
 
-    # ── Short clay pipe gripped in the beak, the STEM poking clearly FORWARD
-    #    past the beak tip so it breaks the front silhouette, then turning up to
-    #    a small glowing bowl. Beak tip is ~(61,41); the stem roots just under it
-    #    and runs right so it sits against the open sky, not buried in the head.
-    stem_root = (59, HY + 2)
-    stem_end = (stem_root[0] + 6, stem_root[1] - 4)
-    pygame.draw.line(surf, _PIPE_CLAY_D, stem_root, stem_end, 4)
-    pygame.draw.line(surf, _PIPE_CLAY,
-                     (stem_root[0], stem_root[1] - 1),
-                     (stem_end[0], stem_end[1] - 1), 2)
-    # Bowl turns up at the forward end with a warm ember — pushed UP into clear
-    # sky above-right of the beak so it clears the narrow right canvas edge.
-    bowl = (stem_end[0] + 1, stem_end[1] - 6)
-    pygame.draw.line(surf, _PIPE_CLAY_D, stem_end, bowl, 5)
-    pygame.draw.line(surf, _PIPE_CLAY, (stem_end[0], stem_end[1] - 1),
-                     (bowl[0], bowl[1] + 1), 3)
-    pygame.draw.circle(surf, _PIPE_EMBER, (bowl[0], bowl[1] - 1), 2)
-    pygame.draw.circle(surf, (255, 210, 120), (bowl[0], bowl[1] - 1), 1)
-
-    # Smoke wisp: a taller translucent curl rising and drifting with the beat so
-    # it breaks the silhouette up-forward. Drawn on a temp surface for alpha.
-    sm = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    wisp = [(bowl[0], bowl[1] - 3),
-            (bowl[0] + 4, bowl[1] - 9 + flick),
-            (bowl[0] - 1, bowl[1] - 15 + flick),
-            (bowl[0] + 4, bowl[1] - 21 + flick * 2)]
-    pygame.draw.lines(sm, _SMOKE, False, wisp, 3)
-    surf.blit(sm, (0, 0))
-
     # ── Battered tricorn worn on TOP of the scarf, lifted off the crown so the
     #    brim breaks the outline (same felt + gold + skull as the live pirate,
     #    kept as the anchor read). A couple of dents/nicks read it as "battered".
@@ -178,6 +149,35 @@ def _paint(surf, wing_angle_deg):
                          (sx + 1, sy + 5), (sx - 1, sy + 5)])
     pygame.draw.circle(surf, (40, 30, 40), (sx - 2, sy - 1), 1)
     pygame.draw.circle(surf, (40, 30, 40), (sx + 2, sy - 1), 1)
+
+    # ── Short clay pipe gripped in the beak, drawn LAST so nothing covers it.
+    #    The composite is only 64px wide and the beak tip already sits at x=61,
+    #    so the pipe stays within bounds: the stem dips forward-DOWN off the beak
+    #    to a bowl that turns up just shy of the right edge, with the smoke wisp
+    #    rising vertically so it breaks the front-upper silhouette into open sky.
+    stem_root = (60, HY + 1)                    # at the beak tip
+    bowl = (63, HY + 6)                         # bowl mouth, low + forward
+    pygame.draw.line(surf, _PIPE_CLAY_D, stem_root, (bowl[0], bowl[1] - 1), 4)
+    pygame.draw.line(surf, _PIPE_CLAY,
+                     (stem_root[0] - 1, stem_root[1] - 1),
+                     (bowl[0] - 1, bowl[1] - 2), 2)
+    # Bowl cup rising off the stem end with a warm ember at the mouth.
+    pygame.draw.line(surf, _PIPE_CLAY_D, (bowl[0], bowl[1]),
+                     (bowl[0] - 1, bowl[1] - 5), 4)
+    pygame.draw.line(surf, _PIPE_CLAY, (bowl[0] - 1, bowl[1] - 1),
+                     (bowl[0] - 2, bowl[1] - 5), 2)
+    pygame.draw.circle(surf, _PIPE_EMBER, (bowl[0] - 1, bowl[1] - 5), 2)
+    pygame.draw.circle(surf, (255, 220, 130), (bowl[0] - 1, bowl[1] - 5), 1)
+
+    # Smoke wisp: a translucent curl rising off the bowl, drifting with the beat
+    # so it reads as motion and breaks the upper-front outline. Alpha temp surf.
+    sm = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    wisp = [(bowl[0] - 1, bowl[1] - 7),
+            (bowl[0] - 4, bowl[1] - 12 + flick),
+            (bowl[0] - 1, bowl[1] - 17 + flick),
+            (bowl[0] - 4, bowl[1] - 22 + flick * 2)]
+    pygame.draw.lines(sm, _SMOKE, False, wisp, 3)
+    surf.blit(sm, (0, 0))
 
 
 build = store_skins._make_skin(_paint)
