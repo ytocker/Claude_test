@@ -93,7 +93,7 @@ def main():
     W, H = 1280, 740
     sheet = pygame.Surface((W, H))
     sheet.fill((24, 22, 30))
-    label(sheet, "JELLYCORE — shoes design_2 — epic ~1200 — round 1", 24, 16,
+    label(sheet, "JELLYCORE — shoes design_2 — epic ~1200 — round 2", 24, 16,
           (255, 180, 230))
 
     # Product-shot hero, top-left on a soft checker so translucency shows.
@@ -124,7 +124,7 @@ def main():
     label(sheet, "40px TRUTH — NIGHT (1x|4x)", x4 + 4, 250)
 
     out = os.path.join(_ROOT, "docs", "store_redesign", "shoes", "design_2",
-                       "round_1.png")
+                       "round_2.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print("saved", out, "exists:", os.path.exists(out))

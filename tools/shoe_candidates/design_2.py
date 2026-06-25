@@ -19,6 +19,10 @@ _CYAN    = ( 96, 230, 255)
 _LILAC   = (201, 168, 255)
 _DEEP    = ( 58,  46,  85)
 _WHITE   = (255, 255, 255)
+# High-key opaque substrate laid down first so every translucent band
+# composites over a bright base — translucency over light = candy, over
+# dark = bruise. A pale lilac reads as frosted gel, not paper.
+_BASE    = (244, 238, 252)
 
 
 def _lerp(a, b, t):
@@ -56,24 +60,52 @@ def draw_shoe(surf, x, y, w, h, facing=1):
                          max(1, int(round(width))))
 
     def bubble(cx, cy, r, alpha):
+        # A trapped air/light pocket: lighter-than-surround fill, a bright
+        # rim, and a hard white specular hotspot. Reads as a lit cavity, not
+        # a dark pellet. Sub-3px bubbles are noise, so they're clamped out.
         rr = max(1, int(round(w * r)))
+        if rr < 3:
+            return
         c = (px(cx), py(cy))
-        pygame.draw.circle(lay, (*_WHITE, max(20, alpha // 3)), c, rr)
-        pygame.draw.circle(lay, (*_WHITE, alpha),
-                           (c[0] - rr * 0.35, c[1] - rr * 0.35), max(1, int(rr * 0.45)))
+        pygame.draw.circle(lay, (*_BASE, min(255, alpha + 40)), c, rr)
+        pygame.draw.circle(lay, (*_WHITE, min(255, alpha)), c, rr,
+                           max(1, int(rr * 0.28)))
+        pygame.draw.circle(lay, (*_WHITE, 255),
+                           (c[0] - rr * 0.32, c[1] - rr * 0.32),
+                           max(1, int(rr * 0.4)))
 
     sole_top = 0.74
+
+    # ── opaque high-key substrate — fill the whole silhouette with a near-
+    # white pale lilac at full alpha BEFORE any translucent band. This is
+    # the bright candy ground the gel sits on; without it the translucency
+    # averages toward the dark outline and bruises. ──
+    substrate = [
+        (0.10, 0.46), (0.17, 0.30), (0.30, 0.23), (0.45, 0.24),
+        (0.58, 0.30), (0.74, 0.40), (0.88, 0.52), (0.965, 0.86),
+        (0.94, 0.97), (0.86, 0.995), (0.10, 0.995),
+    ]
+    poly(_BASE, substrate, alpha=255)
 
     # ── soft inner bloom — a wide low-alpha halo under the midsole so the
     # shoe reads as if it is glowing from inside before any solid colour. ──
     glow = pygame.Surface(lay.get_size(), pygame.SRCALPHA)
-    gcx, gcy = px(0.5), py(0.80)
+    gcx, gcy = px(0.42), py(0.80)
     grx, gry = int(iw * 0.62), int(ih * 0.40)
     for k in range(5, 0, -1):
-        a = 16 + (5 - k) * 6
+        a = 18 + (5 - k) * 9  # peak ~45 at the core so the bloom truly blooms
         pygame.draw.ellipse(glow, (*_CYAN, a),
                             (gcx - grx * k / 5, gcy - gry * k / 5,
                              grx * 2 * k / 5, gry * 2 * k / 5))
+    # A warm pink bloom node near the toe balances the cool cyan core so the
+    # inside glow reads two-tone candy rather than a single cyan wash.
+    pcx, pcy = px(0.78), py(0.82)
+    prx, pry = int(iw * 0.34), int(ih * 0.30)
+    for k in range(4, 0, -1):
+        a = 16 + (4 - k) * 9
+        pygame.draw.ellipse(glow, (*_PINK, a),
+                            (pcx - prx * k / 4, pcy - pry * k / 4,
+                             prx * 2 * k / 4, pry * 2 * k / 4))
     lay.blit(glow, (0, 0))
 
     # ── translucent candy outsole — pink (toe) -> lilac -> cyan (heel),
@@ -83,7 +115,7 @@ def draw_shoe(surf, x, y, w, h, facing=1):
         (0.05, 0.985), (0.12, sole_top), (0.88, sole_top),
         (0.965, 0.86), (0.94, 0.97), (0.86, 0.995), (0.10, 0.995),
     ]
-    poly(_LILAC, sole, alpha=120)
+    poly(_LILAC, sole, alpha=160)
     bands = 9
     for i in range(bands):
         t0 = i / bands
@@ -96,17 +128,30 @@ def draw_shoe(surf, x, y, w, h, facing=1):
             (xa, sole_top + 0.02),
             (xb, sole_top + 0.02),
             (xb, 0.985 - 0.02 * (1 - abs(t1 - 0.5) * 2)),
-        ], alpha=95)
+        ], alpha=130)
+
+    # Two GUARANTEED opaque candy bands inside the sole — one cyan at the
+    # heel, one pink at the toe, at full alpha. When everything translucent
+    # averages out at the 40px foot read, these keep the two-tone identity
+    # alive so the foot stays candy, not the dark outline colour.
+    poly(_CYAN, [
+        (0.10, 0.90), (0.10, sole_top + 0.04), (0.30, sole_top + 0.04),
+        (0.27, 0.90),
+    ], alpha=255)
+    poly(_PINK, [
+        (0.70, 0.90), (0.72, sole_top + 0.04), (0.92, sole_top + 0.04),
+        (0.93, 0.86), (0.90, 0.92),
+    ], alpha=255)
 
     # Glossy meniscus highlight running along the top of the sole — the
-    # wet line where the jelly upper meets the candy sole.
+    # wet line where the jelly upper meets the candy sole. Full white at
+    # the seam is the cheapest, most legible "wet surface" jelly cue.
     line(_WHITE, (0.13, sole_top + 0.015), (0.86, sole_top + 0.015),
-         max(1, h * 0.05), alpha=150)
+         max(1, h * 0.045), alpha=255)
 
-    # A couple of gel bubbles suspended IN the clear sole.
-    bubble(0.30, 0.86, 0.045, 120)
-    bubble(0.58, 0.89, 0.055, 130)
-    bubble(0.74, 0.84, 0.035, 100)
+    # Two big air pockets suspended IN the clear sole — light, not pellets.
+    bubble(0.40, 0.87, 0.06, 150)
+    bubble(0.68, 0.85, 0.05, 140)
 
     # ── glossy jelly upper — rounded wet body, semi-translucent so the
     # candy hue carries up into it but solid enough to hold the shoe shape. ─
@@ -116,23 +161,27 @@ def draw_shoe(surf, x, y, w, h, facing=1):
         (0.74, 0.40), (0.88, 0.52), (0.93, 0.66),
         (0.93, sole_top + 0.01),
     ]
-    aapoly(_PINK, upper, alpha=150)
+    aapoly(_PINK, upper, alpha=190)
     # Lilac core tint low on the upper to bridge into the sole gradient.
     poly(_LILAC, [
         (0.10, sole_top + 0.01), (0.10, 0.52), (0.55, 0.46),
         (0.93, 0.64), (0.93, sole_top + 0.01),
-    ], alpha=90)
+    ], alpha=130)
     # Cyan cast at the heel so the upper echoes the sole's two-tone candy.
     poly(_CYAN, [
         (0.10, sole_top + 0.01), (0.10, 0.46), (0.26, 0.30),
         (0.30, 0.50), (0.20, sole_top + 0.01),
-    ], alpha=80)
+    ], alpha=130)
+    # An opaque cyan heel slab so the upper carries the candy two-tone even
+    # when the translucent washes average out at foot scale.
+    poly(_CYAN, [
+        (0.10, 0.62), (0.10, 0.46), (0.20, 0.38), (0.22, 0.60),
+    ], alpha=255)
 
-    # Inner gel bubbles trapped in the jelly upper — the gummy texture cue.
-    bubble(0.34, 0.40, 0.05, 150)
-    bubble(0.50, 0.50, 0.04, 130)
-    bubble(0.66, 0.55, 0.035, 120)
-    bubble(0.24, 0.55, 0.03, 110)
+    # Inner gel bubbles trapped in the jelly upper — 3 light air pockets.
+    bubble(0.34, 0.40, 0.055, 165)
+    bubble(0.52, 0.50, 0.045, 150)
+    bubble(0.68, 0.56, 0.04, 140)
 
     # ── wet specular gloss — a bright curved sweep over the toe shoulder so
     # the upper reads glassy/wet, plus a thin rim-light along the top edge. ─
