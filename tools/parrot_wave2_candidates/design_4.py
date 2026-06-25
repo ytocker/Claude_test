@@ -1,37 +1,33 @@
-"""design_4 · STAINED-GLASS MACAW — LEGENDARY parrot-wave2 exploration.
+"""design_4 · MOONBLOOM MACAW — LEGENDARY parrot-wave2 exploration.
 
-A cathedral window given wings — but SILHOUETTE FIRST: the bird is the clean
-4-frame macaw the epics use (teardrop body, one bold wing, hooked beak, defined
-tail), and the stained glass is a SURFACE applied to that silhouette, never a
-replacement for it. The reader sees "red bird + jewel crown" in the outline
-before a single pane resolves.
+A night-blooming moonflower given wings: a luminous pearl-white / lilac macaw
+wearing a full OPENED moonflower as a crest, haloed by a soft pale-gold
+full-moon disc behind the head, and trailing a petal-and-pollen tail. This is
+night-FLORA in moonlight — soft pearls + warm moon-gold + drifting pollen — and
+is deliberately steered clear of deep-sea biolumen (no abyssal navy, no
+lure-stalk, no teal photophores) and of ice (organic petals, warm lilac/gold
+cast, never crystal spikes).
 
-Round-2 from-the-studs rebuild of everything below the crest, designed at 40px
-first:
+Structure mirrors store_skins._aurora_getter exactly, because the halo + petal
+tail must paint BEHIND the body and their soft glow must live OUTSIDE the house
+outline (else the dark rim would box the bloom into a dark-edged island):
 
-  * ONE calm dominant field: the body stays a deep RUBY macaw (a large, readable
-    red mass); sapphire/emerald/amber are reserved for a SMALL number of accent
-    panes (wing fan + one chest blaze). No equal-saturation confetti.
-  * Lead grid + back-light are CLIPPED to the bird's own alpha, so panes and the
-    luminosity gradient can never escape the silhouette into a rainbow blob.
-  * Coarse panes only at gameplay scale (≥4-5px); the finer rose-window tracery
-    is HERO-GATED (detail=True) so it never renders at 40px.
-  * Tail = 3 SOLID lancet panes echoing the crest inverted — long pointed
-    cathedral panes, one bold colour each, hard lead outline + white pinnacle.
-  * Crest WINS the crown: the rose window is demoted to a thin single-colour
-    AMBER glow ring sitting BEHIND and LARGER than the crest (concentric, not
-    colliding).
-  * Aviators thinned to a slim smoky band on the eye line (not a black bar
-    bisecting the body).
-  * A SINGLE diagonal back-light gradient (bright top-left → deep bottom-right)
-    across every pane sells one window lit from one side.
+  _moonbloom_back  → moon-disc halo + petal-streamer tail + pollen-motes, in
+                     TWO passes (an additive under-glow for night, then opaque
+                     pale-rim detail that survives a bright day sky).
+  _moonbloom_base  → pearl/lilac re-plumaged body (_build_parrot_with_palette).
+  _moonbloom_front → the opened 5-petal moonflower crest past the crown, the
+                     petal-vein scatter, and the cool moon rim — all OPAQUE.
+  _add_outline     → the house silhouette over the OPAQUE bird only.
+  rotation cache   → per-(frame, 3°-bucket), with the aura laid UNDER the
+                     outlined bird, padded to the outline grow.
 
-The gothic-arch crest (3 lancets + white pinnacle tips), the jewel palette, and
-the black-came-line concept are KEPT — the wave's best legendary tell.
+North star is "lives or dies at 40px in motion": the make-or-break is the
+DAY-sky read of a bright pearl bird, so the opaque pale-gold moon rim, the
+lilac petal cores, and the deep-lilac line work all carry hard value contrast
+against bright blue — the additive glow is a night-only bonus on top.
 
-The halo/tail paint BEHIND the body and glow OUTSIDE the house outline, so this
-uses a custom getter (aurora/viking pattern), not store_skins._make_skin's
-body-first compose. Exploration only — NEVER registered in store_skins.BUILDERS.
+Exploration only — NEVER registered in store_skins.BUILDERS.
 """
 import math
 
@@ -46,308 +42,345 @@ from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
 
 
 # ── palette (brief) ───────────────────────────────────────────────────────────
-_RUBY    = (200, 32, 54)           # the dominant body field
-_SAPPH   = (31, 95, 196)           # #1F5FC4
-_EMERALD = (31, 168, 115)          # #1FA873
-_AMBER   = (242, 178, 62)          # #F2B23E
-_LEAD    = (21, 19, 26)            # #15131A lead line / dark came
-_GLINT   = (255, 250, 235)         # back-light hotspot / pinnacle white
+_PEARL     = (243, 238, 248)       # #F3EEF8 pearl body
+_LILAC     = (185, 168, 214)       # #B9A8D6 lilac shadow
+_MINT      = (217, 240, 226)       # #D9F0E2 mint sheen
+_MOONGOLD  = (246, 230, 168)       # #F6E6A8 moon-gold halo / pollen
+_DEEPLILAC = (142, 124, 184)       # #8E7CB8 deep lilac line
+_VIOLET    = (198, 184, 224)       # aviator moon-violet tint
+_GLINT     = (255, 255, 255)       # white petal / lens glint
 
-# Lit jewel cores (the brighter top-left of each pane under the back-light).
-_RUBY_LIT    = (255, 96, 116)
-_SAPPH_LIT   = (110, 170, 252)
-_EMERALD_LIT = (110, 232, 182)
-_AMBER_LIT   = (255, 226, 158)
+# Petal & pollen ramps. Petals run a luminous white at the tip → lilac toward
+# the root so each one reads as a curved moonlit petal, never a flat lozenge.
+_PETAL_HI  = (250, 247, 252)       # near-white petal tip
+_PETAL_LO  = (197, 182, 220)       # lilac petal root
+_POLLEN_HI = (255, 247, 200)       # luminous pollen-heart / mote core
 
-# Body re-plumage: a CALM, readable deep-ruby macaw. Unlike round 1 this is NOT
-# a per-slot jewel scramble — the whole body is ruby with lead-dark line work,
-# so the base bird already reads as "red parrot" before any glass is applied.
-# Crown is amber so the gothic crest springs from a warm window-top; the wing is
-# a deeper ruby so the sapphire accent panes sit ON it without fighting. Lead
-# owns every shadow/line. Lenses dropped here — the slim aviators paint later.
-P_GLASS = _pal(
-    tail=[_RUBY, (180, 30, 50), (160, 28, 46), (140, 26, 42)],
-    tail_line=_LEAD,
-    body_shadow=_LEAD,
-    body_main=_RUBY,
-    body_chest=(228, 60, 78),
-    body_belly=(168, 30, 48),
-    sheen=(255, 220, 210, 70),
-    wing_main=(150, 28, 44),
-    wing_dark=_LEAD,
-    wing_tip=(210, 60, 76),
+
+def _petal_mix(t):
+    """White petal-tip → lilac petal-root, the moonbloom's signature ramp."""
+    return lerp_color(_PETAL_HI, _PETAL_LO, t)
+
+
+# Body re-plumage: a luminous pearl macaw with a cool lilac shadow doing the
+# line work and a mint-pearl sheen, so the whole bird reads as moonlit petals,
+# not a flat white void. Every value is LIFTED so the bird is a bright blob a
+# dark night sky can't swallow, yet the lilac line work + deep-lilac shadow give
+# enough internal contrast to survive a bright day sky. The aviators are KEPT
+# (Pip's signature) and tinted moon-violet with a soft white glint; the beak is
+# warmed toward moon-gold so the macaw face still reads.
+P_MOONBLOOM = _pal(
+    tail=[(206, 192, 226), (218, 206, 234), (231, 222, 242), (243, 238, 248)],
+    tail_line=_DEEPLILAC,
+    body_shadow=(196, 180, 218),
+    body_main=_PEARL,
+    body_chest=(250, 246, 252),
+    body_belly=(224, 214, 238),
+    sheen=(220, 244, 230, 120),
+    wing_main=(224, 214, 238),
+    wing_dark=_LILAC,
+    wing_tip=(248, 244, 252),
     wing_secondary=None,
-    wing_highlight=(255, 130, 140),
-    head_shadow=_LEAD,
-    head_main=_RUBY,
-    head_cheek=(255, 110, 124),
-    head_crown=(196, 138, 40),       # amber crown → window-top
-    lens_frame=(70, 66, 80),
-    lens_body=(22, 20, 28),
-    lens_tint=(120, 124, 138, 130),
-    lens_glint=(228, 230, 238),
-    beak_main=(214, 176, 96),
-    beak_dark=_LEAD,
-    beak_gloss=(248, 226, 168),
-    foot=(70, 66, 80),
+    wing_highlight=(255, 255, 255),
+    head_shadow=(196, 180, 218),
+    head_main=_PEARL,
+    head_cheek=(250, 246, 252),
+    head_crown=(232, 224, 244),
+    lens_frame=(150, 134, 188),
+    lens_body=(74, 62, 104),
+    lens_tint=(198, 184, 224, 150),
+    lens_glint=(248, 246, 252),
+    beak_main=(238, 220, 168),
+    beak_dark=(176, 150, 96),
+    beak_gloss=(252, 242, 206),
+    foot=(176, 158, 200),
 )
 
 
-def _glass_base(angle_deg):
-    return _build_parrot_with_palette(angle_deg, P_GLASS, draw_lenses=False)
+def _moonbloom_base(angle_deg):
+    return _build_parrot_with_palette(angle_deg, P_MOONBLOOM)
 
 
 # ── shared helpers ────────────────────────────────────────────────────────────
 
 def _flap_phase(angle_deg):
-    """0 on the down-stroke (wing 50°) → 1 on the up-stroke (-40°). The tail
-    lancets fan a touch wider on the up-beat so the baked window feels alive."""
+    """0 on the down-stroke (wing 50°) → 1 on the up-stroke (-40°). Petal
+    streamers ripple long/loose on the up-beat and drift the pollen-motes wider,
+    so the baked bloom still feels alive across the 4 frames."""
     return 1.0 - (angle_deg + 40) / 90.0
 
 
-def _backlight_alpha(x, y):
-    """One consistent diagonal luminosity for the whole window: bright at the
-    top-left of the body, deep at the bottom-right. 0..1, so every pane shares
-    the SAME light direction — the single cue that sells 'lit from one side'
-    instead of a scatter of unrelated glints."""
-    t = ((x - 16) + (y - 44)) / 60.0
-    return max(0.0, min(1.0, 1.0 - t))
+def _smooth_curve(p0, p1, p2, steps=10):
+    """Quadratic-Bezier sample list so petal streamers render as smooth curves,
+    not the 3-point polylines that read as straight rods at 40px."""
+    pts = []
+    for i in range(steps + 1):
+        t = i / steps
+        u = 1 - t
+        x = u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0]
+        y = u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1]
+        pts.append((x, y))
+    return pts
 
 
-# ── back layer: amber glow ring (demoted halo) + 3 solid tail lancets ─────────
+def _petal_poly(tip, root, width, curve=0.0):
+    """A rounded teardrop petal: a smooth outline from the root, bulging out to
+    `width` near the tip end, rounding over the tip, and back. `curve` bows the
+    whole petal sideways (its spine) so a fanned crest doesn't read as a rigid
+    star. Returns (outline_pts, spine_pts)."""
+    dx, dy = tip[0] - root[0], tip[1] - root[1]
+    length = math.hypot(dx, dy) or 1.0
+    ux, uy = dx / length, dy / length
+    px, py = -uy, ux                                   # perpendicular
+    # Bow the spine sideways by `curve` at the midpoint.
+    mid = (root[0] + dx * 0.5 + px * curve, root[1] + dy * 0.5 + py * curve)
+    spine = _smooth_curve(root, mid, tip, steps=7)
+    # Build a rounded outline that swells widest ~65% out toward the tip.
+    left, right = [], []
+    for i, (sx, sy) in enumerate(spine):
+        t = i / (len(spine) - 1)
+        w = width * math.sin(min(1.0, t * 1.15) * math.pi) ** 0.7
+        left.append((sx + px * w, sy + py * w))
+        right.append((sx - px * w, sy - py * w))
+    return left + right[::-1], spine
 
-def _lancet_geo(angle_deg):
-    """The 3 tail lancets for this flap angle — point lists + tips, shared by
-    the additive and opaque passes so they register exactly."""
-    fan = 1.0 + _flap_phase(angle_deg) * 0.10
-    troot = (16, HY + 8)
+
+# ── back layer: moon-disc halo + petal-streamer tail + pollen-motes ───────────
+
+def _streamer_geo(angle_deg):
+    """The 3 petal streamers replacing the tail fan for this flap angle — a
+    spine + outline + width per streamer, shared by the additive and opaque
+    passes so the glow and the petal register exactly. They sweep DOWN-and-BACK
+    off the tail root into open sky, longest in the centre."""
+    phase = _flap_phase(angle_deg)
+    droop = (1.0 - phase) * 3                           # dip on the down-beat
+    reach = 1.0 + phase * 0.12                          # stream longer up-beat
+    troot = (17, HY + 8)
     spec = (
-        (-38, 31, _SAPPH,   _SAPPH_LIT),
-        (-20, 36, _EMERALD, _EMERALD_LIT),
-        (-2,  31, _AMBER,   _AMBER_LIT),
+        (-40, 27, -5),      # upper streamer, bows up
+        (-26, 32, 1),       # centre, longest
+        (-13, 26, 6),       # lower streamer, bows down
     )
     out = []
-    for ang_deg, length, jw, lit in spec:
-        a = math.radians(150 + ang_deg * fan)            # ≈ down-and-back
-        ca, sa = math.cos(a), math.sin(a)
-        pa = a + math.pi / 2
-        px, py = math.cos(pa) * 4, math.sin(pa) * 4
-        tip = (troot[0] + ca * length, troot[1] + sa * length)
-        bi = (troot[0] - px, troot[1] - py)
-        bo = (troot[0] + px, troot[1] + py)
-        mi = (troot[0] + ca * length * 0.62 - px * 0.55,
-              troot[1] + sa * length * 0.62 - py * 0.55)
-        mo = (troot[0] + ca * length * 0.62 + px * 0.55,
-              troot[1] + sa * length * 0.62 + py * 0.55)
-        out.append(([bi, mi, tip, mo, bo], tip, troot, jw, lit))
+    for ang_deg, length, bow in spec:
+        a = math.radians(150 + ang_deg)
+        tip = (troot[0] + math.cos(a) * length * reach,
+               troot[1] + math.sin(a) * length * reach + droop)
+        poly, spine = _petal_poly(tip, troot, 4.2, curve=bow)
+        out.append((poly, spine, tip))
     return out
 
 
-def _glass_back(surf, angle_deg):
-    """Behind the outlined bird, so the house outline never boxes the back-light
-    bloom. Two passes:
+def _pollen_motes(angle_deg):
+    """3–4 drifting pollen-glow motes shed into open sky off the petal-streamer
+    tips. They drift wider + further on the up-beat so the tail feels alive. A
+    fixed (non-random) scatter so the 4 baked frames stay stable."""
+    phase = _flap_phase(angle_deg)
+    drift = phase * 4
+    base = (
+        (-6, HY + 26, 2),
+        (-12, HY + 20, 2),
+        (-16, HY + 33, 1),
+        (-3, HY + 36, 1),
+    )
+    return [(x - drift, y + drift * 0.4, r) for x, y, r in base]
 
-      1. ADDITIVE light-spill — the amber halo ring's back-glow + a jewel bloom
-         under the tail lancets (sells 'lit from behind' on night sky).
-      2. OPAQUE detail — the thin amber ring + the 3 solid tail lancets bound by
-         black came (carry the read on day sky where additive washes out).
 
-    The halo is now a SINGLE thin amber ring BEHIND and LARGER than the crest so
-    the two crown elements read concentric, not colliding — the crest wins, the
-    ring just frames it."""
-    lancets = _lancet_geo(angle_deg)
-    hcx, hcy = HX - 1, HY - 4
-    halo_r = 21
+def _moonbloom_back(surf, angle_deg):
+    """Behind the outlined bird, so the house outline never boxes the moon-glow
+    bloom into a dark-rimmed island. Two passes:
 
-    # ── pass 1: additive light-spill (night) ─────────────────────────────────
+      1. ADDITIVE under-glow — the full-moon disc's soft halo + petal-streamer
+         haze + pollen-mote glow (sells 'lit by moonlight' on night sky).
+      2. OPAQUE pale detail — an opaque pale-gold moon RIM, the 3 solid petal
+         streamers (white→lilac, deep-lilac edged), and bright pollen cores
+         (carry the read on a bright DAY sky where the additive washes out —
+         the make-or-break for this pearl bird).
+
+    The moon disc sits BEHIND + LARGER than the skull so the pale rim clears the
+    silhouette on the flanks — the legendary halo tell."""
+    streamers = _streamer_geo(angle_deg)
+    motes = _pollen_motes(angle_deg)
+    hcx, hcy = HX - 1, HY - 2
+    moon_r = 20
+
+    # ── pass 1: additive under-glow (night) ──────────────────────────────────
     glow = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+    # Soft full-moon disc: a broad central bloom + a ring of smaller blooms so
+    # the whole disc fills with light, not just its rim.
+    blit_glow(glow, hcx, hcy, 18, _MOONGOLD, alpha=70)
+    blit_glow(glow, hcx, hcy, 12, (255, 248, 220), alpha=60)
     for i in range(12):
         a = math.radians(i * 30)
-        blit_glow(glow, int(hcx + math.cos(a) * halo_r),
-                  int(hcy + math.sin(a) * halo_r), 6, _AMBER, alpha=85)
-    for poly, tip, _root, jw, lit in lancets:
-        blit_glow(glow, int(tip[0]), int(tip[1]), 6, lit, alpha=115)
-        blit_glow(glow, int(poly[1][0]), int(poly[1][1]), 5, jw, alpha=90)
+        blit_glow(glow, int(hcx + math.cos(a) * moon_r),
+                  int(hcy + math.sin(a) * moon_r), 6, _MOONGOLD, alpha=70)
+    # Petal-streamer haze along each spine so the tail glows luna-pale.
+    for poly, spine, tip in streamers:
+        for sp in (spine[len(spine) // 2], spine[-1]):
+            blit_glow(glow, int(sp[0]), int(sp[1]), 6, (236, 226, 248), alpha=85)
+        blit_glow(glow, int(tip[0]), int(tip[1]), 5, _MINT, alpha=80)
+    # Pollen-mote glow drifting into open sky.
+    for mx, my, r in motes:
+        blit_glow(glow, int(mx), int(my), 4 + r, _MOONGOLD, alpha=110)
     surf.blit(glow, (0, 0), special_flags=pygame.BLEND_ADD)
 
-    # ── pass 2: opaque detail (day + night) ──────────────────────────────────
+    # ── pass 2: opaque pale detail (day + night) ─────────────────────────────
     det = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
 
-    # Tail lancets first (lowest), so the body overlaps their roots → they read
-    # as tail plumage, not a fan pinned behind. Each: thick lead came, a solid
-    # jewel field shrunk inside the came as a rim, a lit spine, a white pinnacle.
-    for poly, tip, root, jw, lit in lancets:
-        pygame.draw.polygon(det, _LEAD, poly)
+    # Petal streamers first (lowest), so the body overlaps their roots → they
+    # read as tail plumage, not a fan pinned behind. Each: a deep-lilac edge, a
+    # white→lilac petal field, a pale spine highlight, a soft mint tip glint.
+    for poly, spine, tip in streamers:
+        pygame.draw.polygon(det, _DEEPLILAC, poly)
+        field = []
         cx = sum(p[0] for p in poly) / len(poly)
         cy = sum(p[1] for p in poly) / len(poly)
-        field = [(cx + (x - cx) * 0.74, cy + (y - cy) * 0.80) for x, y in poly]
-        pygame.draw.polygon(det, jw, field)
-        pygame.draw.line(det, lit, root, (int(tip[0]), int(tip[1])), 2)
-        pygame.draw.circle(det, _GLINT, (int(tip[0]), int(tip[1])), 2)
+        for x, y in poly:
+            field.append((cx + (x - cx) * 0.74, cy + (y - cy) * 0.80))
+        pygame.draw.polygon(det, _PETAL_LO, field)
+        pygame.draw.lines(det, _PETAL_HI, False, spine, 2)
+        pygame.draw.circle(det, _MINT, (int(tip[0]), int(tip[1])), 2)
+        pygame.draw.circle(det, _GLINT, (int(tip[0]), int(tip[1])), 1)
 
-    # Demoted halo — a single thin AMBER band behind+larger than the crest: a
-    # dark came under-stroke, the amber ring over it, two lit beads on the flanks
-    # where it clears the silhouette (the legendary back-lit tell, kept quiet).
-    pygame.draw.circle(det, _LEAD, (hcx, hcy), halo_r, 4)
-    pygame.draw.circle(det, _AMBER, (hcx, hcy), halo_r, 2)
-    for fa in (math.radians(205), math.radians(335)):
-        bx = int(hcx + math.cos(fa) * halo_r)
-        by = int(hcy + math.sin(fa) * halo_r)
-        pygame.draw.circle(det, _AMBER_LIT, (bx, by), 2)
+    # Full-moon DISC behind the head: an opaque pale-gold rim (so the halo
+    # survives a bright day sky), a faint inner moon-face fill lifted just above
+    # the sky, and two brighter beads on the flanks where the disc clears the
+    # silhouette — the legendary back-lit tell, kept soft.
+    pygame.draw.circle(det, (250, 240, 200, 70), (hcx, hcy), moon_r - 2)
+    pygame.draw.circle(det, (255, 246, 210), (hcx, hcy), moon_r, 3)
+    pygame.draw.circle(det, _MOONGOLD, (hcx, hcy), moon_r, 1)
+    for fa in (math.radians(200), math.radians(340)):
+        bx = int(hcx + math.cos(fa) * moon_r)
+        by = int(hcy + math.sin(fa) * moon_r)
+        pygame.draw.circle(det, (255, 250, 224), (bx, by), 2)
         pygame.draw.circle(det, _GLINT, (bx, by), 1)
+
+    # Pollen-mote cores: a warm gold dot + a white pinpoint, the drifting
+    # spores that sell the night-flora theme against either sky.
+    for mx, my, r in motes:
+        pygame.draw.circle(det, _MOONGOLD, (int(mx), int(my)), r + 1)
+        pygame.draw.circle(det, _POLLEN_HI, (int(mx), int(my)), r)
+        pygame.draw.circle(det, _GLINT, (int(mx), int(my)), 1)
 
     surf.blit(det, (0, 0))
 
 
-# ── glass surface: lead grid + back-light, CLIPPED to the bird's alpha ────────
+# ── front overlay: opened moonflower crest + veins + moon rim ─────────────────
 
-def _clip_to_mask(surf, mask):
-    """Zero every pixel of `surf` outside the bird's alpha mask, so a glass coat
-    can never paint past the silhouette."""
-    keep = mask.to_surface(setcolor=(255, 255, 255, 255), unsetcolor=(0, 0, 0, 0))
-    surf.blit(keep, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+def _moonbloom_front(surf, angle_deg):
+    """Crisp OPAQUE detail painted OVER the body and INSIDE the masked layer, so
+    only hard pixels that survive the 40px downscale live here (the soft moon
+    glow lives in _moonbloom_back to dodge the outline):
 
-
-def _pane(surf, pts, jewel, lit, *, field=True):
-    """One leaded facet bound by a crisp lead came. field=True fills a jewel
-    field + a single lit dot toward the top-left (the shared back-light side);
-    field=False draws ONLY the came outline (to grid the dominant ruby field
-    without recolouring it)."""
-    if field:
-        pygame.draw.polygon(surf, jewel, pts)
-        tlx = min(p[0] for p in pts)
-        tly = min(p[1] for p in pts)
-        pygame.draw.circle(surf, lit, (int(tlx + 3), int(tly + 3)), 1)
-    pygame.draw.polygon(surf, _LEAD, pts, 1)
-
-
-def _apply_glass_surface(bird, angle_deg, *, detail=False):
-    """The stained-glass treatment as a SURFACE over the already-drawn ruby
-    body, clipped to the body's own alpha mask so nothing escapes the
-    silhouette. Two coats, both masked:
-
-      * a single diagonal back-LIGHT gradient (bright top-left → deep
-        bottom-right) so the whole body reads as one window lit from one side;
-      * a COARSE lead-came grid (few big panes) + a SMALL number of jewel accent
-        panes (sapphire wing fan, one amber chest blaze) — the only non-ruby
-        colour, so from across the room it reads 'red bird + jewel accents'.
-
-    `detail=True` adds finer rose-tracery — HERO-ONLY, so the gameplay/40px read
-    never sees the fine mosaic that muds out small."""
-    mask = pygame.mask.from_surface(bird)
-    bb = bird.get_bounding_rect()
-
-    # ── coat 1: one diagonal back-light gradient ─────────────────────────────
-    light = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    for yy in range(bb.top, bb.bottom, 2):
-        for xx in range(bb.left, bb.right, 2):
-            a = _backlight_alpha(xx, yy)
-            if a > 0.04:
-                light.fill((255, 248, 232, int(70 * a)), pygame.Rect(xx, yy, 2, 2))
-    _clip_to_mask(light, mask)
-    bird.blit(light, (0, 0))
-
-    grid = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-
-    # Sapphire WING accent — 2 big sapphire panes + 1 emerald echoing the wing
-    # fan. The dominant non-ruby note; kept cool so it reads as one wing window.
-    _pane(grid, [(25, 46), (34, 42), (37, 49), (28, 52)], _SAPPH, _SAPPH_LIT)
-    _pane(grid, [(34, 42), (45, 42), (46, 49), (37, 49)], _SAPPH, _SAPPH_LIT)
-    _pane(grid, [(28, 52), (37, 49), (43, 53), (33, 56)], _EMERALD, _EMERALD_LIT)
-
-    # ONE amber chest BLAZE — a single bold accent pane on the breast, the warm
-    # focal point that draws the eye to the bird's front.
-    _pane(grid, [(43, 49), (52, 48), (53, 57), (44, 59)], _AMBER, _AMBER_LIT)
-
-    # COARSE ruby came grid over the rest — a few big lead lines dividing the
-    # dominant red field into readable panes WITHOUT recolouring it, so the
-    # silhouette never fragments.
-    for seg in (
-        [(16, 52), (24, 49), (30, 54), (24, 60)],
-        [(24, 60), (30, 54), (40, 58), (34, 64)],
-        [(44, 59), (53, 57), (52, 64), (43, 64)],
-    ):
-        _pane(grid, seg, _RUBY, _RUBY_LIT, field=False)
-
-    if detail:
-        # HERO-ONLY finer tracery: split the big accent panes with extra came so
-        # the close-up shows true rose-window density. NEVER at gameplay/40px.
-        for ax, ay, bx2, by2 in (
-            (34, 42, 34, 49), (37, 49, 43, 53), (48, 48, 49, 57), (28, 52, 33, 56)
-        ):
-            pygame.draw.line(grid, _LEAD, (ax, ay), (bx2, by2), 1)
-        for cx2, cy2, jw in ((31, 47, _SAPPH_LIT), (40, 45, _SAPPH_LIT),
-                             (48, 53, _AMBER_LIT)):
-            pygame.draw.circle(grid, jw, (cx2, cy2), 1)
-
-    _clip_to_mask(grid, mask)
-    bird.blit(grid, (0, 0))
-
-
-# ── front overlay: gothic-arch crest + slim aviators ─────────────────────────
-
-def _glass_front(bird, angle_deg):
-    """Crisp opaque detail painted OVER the glassed body and INSIDE the mask:
-    the hero gothic-arch crest past the crown and the slim re-tinted aviators.
-    (Soft back-light lives in _glass_back to dodge the outline.)"""
-    # Gothic-arch CREST — KEPT: three tall pointed lancets rising past the crown
-    # like a window top, lead-edged, ruby/sapphire/emerald left→right, white
-    # pinnacle tips. Centre tallest. The wave's best legendary tell, untouched.
+      * the hero OPENED MOONFLOWER crest — 5 broad rounded petals fanning past
+        the crown, each white→lilac with a pale-gold inner rim, around a
+        luminous yellow pollen-heart;
+      * a cool moon RIM wrapping the back/crown + a lit belly rim so the lifted
+        pearl body is framed by light, not a flat void on either sky;
+      * a fine petal-VEIN scatter on the lit upper edge;
+      * a re-asserted macaw face glint so Pip survives the downscale.
+    """
     base_y = CROWN_Y + 2
-    pygame.draw.line(bird, _LEAD, (HX - 11, base_y), (HX + 11, base_y - 2), 3)
-    for dx, h, jw, lit in (
-        (-8, 13, _RUBY, _RUBY_LIT),
-        (0, 19, _SAPPH, _SAPPH_LIT),
-        (8, 13, _EMERALD, _EMERALD_LIT),
-    ):
-        bx = HX + dx
-        ty = base_y - h
-        pts = [(bx - 4, base_y), (bx - 4, ty + 5), (bx, ty),
-               (bx + 4, ty + 5), (bx + 4, base_y)]
-        pygame.draw.polygon(bird, jw, pts)
-        pygame.draw.polygon(bird, _LEAD, pts, 1)
-        pygame.draw.line(bird, lit, (bx, ty + 3), (bx, base_y - 2), 1)
-        pygame.draw.circle(bird, _GLINT, (bx, ty + 1), 2)     # white pinnacle tip
+    cbx = HX - 1                                        # crest root x
 
-    # Slim SMOKY aviators — ~40% thinner than the baked lenses, lifted to a slim
-    # band on the eye line only, so at 40px they read as a thin shade line, not a
-    # black bar bisecting the body. Two short smoky lenses + a thin bridge.
-    ex, ey = HX + 3, HY - 3
-    for lx in (ex - 5, ex + 4):
-        pygame.draw.ellipse(bird, (28, 26, 34), (lx - 4, ey - 2, 8, 5))
-        pygame.draw.ellipse(bird, (120, 124, 138), (lx - 3, ey - 1, 6, 2))
-    pygame.draw.line(bird, (40, 38, 48), (ex - 1, ey), (ex, ey), 2)
-    pygame.draw.circle(bird, _GLINT, (ex - 6, ey - 1), 1)     # single bright glint
-    # A sharp came line on the beak so the directional hooked beak stays crisp.
-    pygame.draw.line(bird, _LEAD, (HX + 8, HY + 1), (HX + 13, HY + 4), 1)
+    # OPENED MOONFLOWER — 5 broad rounded petals springing from ONE crown base
+    # and fanning OUTWARD past the crown, the cluster wider than it is tall so it
+    # reads as a flower opening over the skull. Drawn longest-first so the centre
+    # petal tucks behind the leans. Each petal: a deep-lilac edge for separation,
+    # a white→lilac field, a pale-gold inner rim catching the moonlight.
+    petals = (
+        (-13, -13, -7, 0.05),    # far left, low, bows left
+        (-7, -19, -4, 0.28),     # left
+        (-1, -22, 0, 0.50),      # centre, tallest
+        (6, -18, 4, 0.72),       # right
+        (12, -12, 7, 0.95),      # far right, low, bows right
+    )
+    drawn = []
+    for dx, dy, bow, t in petals:
+        tip = (cbx + dx, base_y + dy)
+        root = (cbx + dx * 0.18, base_y + 1)
+        poly, spine = _petal_poly(tip, root, 4.6, curve=bow)
+        drawn.append((poly, spine, tip, t))
+    for poly, spine, tip, t in sorted(drawn, key=lambda p: p[2][1], reverse=True):
+        pygame.draw.polygon(surf, _DEEPLILAC, poly)
+        cx = sum(p[0] for p in poly) / len(poly)
+        cy = sum(p[1] for p in poly) / len(poly)
+        field = [(cx + (x - cx) * 0.76, cy + (y - cy) * 0.82) for x, y in poly]
+        pygame.draw.polygon(surf, _petal_mix(t * 0.5), field)
+        # Pale-gold inner rim hugging the tip end so each petal catches the moon.
+        rim = spine[len(spine) // 2:]
+        pygame.draw.lines(surf, _MOONGOLD, False, rim, 1)
+        pygame.draw.circle(surf, _PETAL_HI, (int(tip[0]), int(tip[1])), 1)
+
+    # Luminous pollen-HEART at the flower centre — a warm gold core with a bright
+    # white pip, the single focal pop the whole crest opens around.
+    px, py = cbx, base_y - 2
+    pygame.draw.circle(surf, _MOONGOLD, (px, py), 4)
+    pygame.draw.circle(surf, _POLLEN_HI, (px, py), 3)
+    pygame.draw.circle(surf, _GLINT, (px - 1, py - 1), 1)
+    for a in range(0, 360, 60):                        # tiny stamen specks
+        r = math.radians(a)
+        pygame.draw.circle(surf, (255, 240, 180),
+                           (int(px + math.cos(r) * 4), int(py + math.sin(r) * 4)), 1)
+
+    # Cool moon RIM wrapping the back+crown, and a lit belly rim — both ≥2px so
+    # the lifted pearl body is framed by light on either sky. The belly rim is a
+    # MONOTONIC descending diagonal (never a U) so it can't close into a smile.
+    pygame.draw.lines(surf, _MINT, False,
+                      [(HX - 12, CROWN_Y + 4), (HX - 5, CROWN_Y),
+                       (HX + 4, CROWN_Y + 1), (HX + 12, HY - 3)], 2)
+    pygame.draw.lines(surf, _MINT, False, [(16, 46), (15, 52), (18, 40)], 2)
+    pygame.draw.lines(surf, _LILAC, False, [(46, 56), (43, 60), (39, 63)], 2)
+    pygame.draw.lines(surf, _LILAC, False, [(34, 65), (28, 67), (22, 67)], 1)
+
+    # Petal-VEIN scatter — a few fine deep-lilac vein lines fanning along the lit
+    # upper body/wing so the pearl plumage reads as petal-soft, never blank. A
+    # fixed scatter (NOT random) so the 4 baked frames stay stable; kept off the
+    # face/shadow so the eyes stay clean.
+    veins = (
+        ((23, 41), (28, 38)),
+        ((27, 44), (33, 41)),
+        ((31, 47), (38, 44)),
+        ((20, 44), (24, 42)),
+        ((35, 45), (41, 43)),
+    )
+    for a, b in veins:
+        pygame.draw.line(surf, (*_DEEPLILAC, 150), a, b, 1)
+    # A couple of mint sheen ticks catching the moonlight on the back.
+    for sx, sy in ((26, 40), (32, 43), (38, 42)):
+        pygame.draw.circle(surf, _MINT, (sx, sy), 1)
+
+    # Re-assert Pip's face at 40px: a bright specular glint on the near lens and
+    # a sharpened beak top-edge so the macaw identity survives the downscale.
+    pygame.draw.circle(surf, _GLINT, (HX + 6, HY - 3), 2)
+    pygame.draw.line(surf, _PETAL_HI, (HX + 8, HY + 1), (HX + 13, HY + 4), 2)
 
 
 # ── custom compose + getter (halo/tail need a back layer) ─────────────────────
 
-def _make_getter(detail):
-    """back layer (amber ring + 3 lancets) → ruby body → glass surface (clipped)
-    → front (crest, slim aviators) → house outline → per-(frame, 3°) rotation
-    cache. `detail` gates the hero-only fine tracery."""
+def _moonbloom_getter():
+    """back aura (moon halo + petal streamers + pollen) → pearl body → front
+    flower-crest/veins/rim → house outline, then the per-(frame, 3°-bucket)
+    rotation cache shared by every store skin. The faint additive moon-glow must
+    NOT be part of the masked layer (else the dark outline would wrap the glow
+    and kill it), so the OPAQUE bird (body + front overlay) is outlined alone
+    and the soft back-aura is laid UNDER it, padded to match the outline's grow
+    so the bird stays centred for the rotation maths."""
     state = {"frames": None, "rot": {}}
 
     def _flat(wing_angle):
-        # Outline the OPAQUE bird alone (so the faint additive back-light isn't
-        # boxed by the dark rim), then lay the back layer UNDER it. The outline
-        # pads by 2px; the back surface is padded to match so the bird stays
-        # centred for the rotation maths.
         bird = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-        bird.blit(_glass_base(wing_angle), (0, PARROT_DY))
-        _apply_glass_surface(bird, wing_angle, detail=detail)
-        _glass_front(bird, wing_angle)
+        bird.blit(_moonbloom_base(wing_angle), (0, PARROT_DY))
+        _moonbloom_front(bird, wing_angle)
         bird = _add_outline(bird)
 
-        full = pygame.Surface(bird.get_size(), pygame.SRCALPHA)
+        aura = pygame.Surface(bird.get_size(), pygame.SRCALPHA)
         pad = (bird.get_width() - COMPOSITE_W) // 2
         back = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-        _glass_back(back, wing_angle)
-        full.blit(back, (pad, pad))
-        full.blit(bird, (0, 0))
-        return full
+        _moonbloom_back(back, wing_angle)
+        aura.blit(back, (pad, pad))
+        aura.blit(bird, (0, 0))
+        return aura
 
     def getter(frame_idx, tilt_deg):
         if state["frames"] is None:
@@ -364,7 +397,4 @@ def _make_getter(detail):
     return getter
 
 
-# Gameplay/40px build: coarse panes only. `build_hero` adds the fine tracery
-# that would mud out at small sizes, so the close-up can show true density.
-build = _make_getter(detail=False)
-build_hero = _make_getter(detail=True)
+build = _moonbloom_getter()
