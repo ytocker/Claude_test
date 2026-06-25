@@ -1,31 +1,39 @@
-"""design_4 · MOONBLOOM MACAW — LEGENDARY parrot-wave2 exploration.
+"""design_4 · TEMPEST CONDOR MACAW — LEGENDARY parrot-wave2 exploration.
 
-A night-blooming moonflower given wings: a luminous pearl-white / lilac macaw
-wearing a full OPENED moonflower as a crest, haloed by a soft pale-gold
-full-moon disc behind the head, and trailing a petal-and-pollen tail. This is
-night-FLORA in moonlight — soft pearls + warm moon-gold + drifting pollen — and
-is deliberately steered clear of deep-sea biolumen (no abyssal navy, no
-lure-stalk, no teal photophores) and of ice (organic petals, warm lilac/gold
-cast, never crystal spikes).
+A storm-grey raptor-scaled Pip caught in a monochrome squall: a brushed
+storm-grey body with deep-slate underwing and a cool steel sheen, lit by a
+SINGLE saturated cyan that is the only colour in the whole kit. That one cyan
+is reserved for the silhouette-breakers so they read as ONE clean shape, not
+noise — a swept twin storm-quill crest raked past the crown, a long forked
+vapour-streamer tail trailing past the tail, and the legendary tell: a
+contained "eye of the storm" halo (a dark slate-blue storm-disc behind the
+head, rimmed in hard pale-cyan). Deliberately steered clear of STORM's gold
+lightning bolts, of AURORA's multi-hue soft ribbon, and of SOLAR's warm radial
+— this storm is monochrome WIND, a cool desaturated value structure no
+legendary owns.
 
-Structure mirrors store_skins._aurora_getter exactly, because the halo + petal
-tail must paint BEHIND the body and their soft glow must live OUTSIDE the house
-outline (else the dark rim would box the bloom into a dark-edged island):
+Structure mirrors store_skins._aurora_getter / _moonbloom_getter exactly,
+because the halo + streamer tail must paint BEHIND the body and their additive
+night-glow must live OUTSIDE the house outline (else the dark rim would box the
+squall-glow into a dark-edged island):
 
-  _moonbloom_back  → moon-disc halo + petal-streamer tail + pollen-motes, in
-                     TWO passes (an additive under-glow for night, then opaque
-                     pale-rim detail that survives a bright day sky).
-  _moonbloom_base  → pearl/lilac re-plumaged body (_build_parrot_with_palette).
-  _moonbloom_front → the opened 5-petal moonflower crest past the crown, the
-                     petal-vein scatter, and the cool moon rim — all OPAQUE.
-  _add_outline     → the house silhouette over the OPAQUE bird only.
-  rotation cache   → per-(frame, 3°-bucket), with the aura laid UNDER the
-                     outlined bird, padded to the outline grow.
+  _tempest_back  → storm-disc halo + forked vapour-streamer tail + wind-ticks,
+                   in TWO passes (an additive cyan under-glow for the night
+                   read, then a HARD opaque pale-cyan ring + streamer rims that
+                   survive a bright day sky).
+  _tempest_base  → storm-grey re-plumaged body (_build_parrot_with_palette).
+  _tempest_front → twin swept storm-quill crest past the crown + brow-spark, a
+                   steel back/belly rim — all OPAQUE.
+  _add_outline   → the house silhouette over the OPAQUE bird only.
+  rotation cache → per-(frame, 3°-bucket), aura laid UNDER the outlined bird,
+                   padded to the outline grow.
 
-North star is "lives or dies at 40px in motion": the make-or-break is the
-DAY-sky read of a bright pearl bird, so the opaque pale-gold moon rim, the
-lilac petal cores, and the deep-lilac line work all carry hard value contrast
-against bright blue — the additive glow is a night-only bonus on top.
+North star is "lives or dies at 40px in motion": the make-or-break is keeping
+the grey deep enough that the lone cyan ALWAYS pops, and keeping cyan to the
+crest leading-edges / halo ring / streamer rims so the whole signature reads as
+one clean cyan shape. The opaque pale-cyan halo ring + crest edges carry the
+DAY read against bright blue; the additive cyan radial beneath them is a
+night-only bonus that blooms only on navy.
 
 Exploration only — NEVER registered in store_skins.BUILDERS.
 """
@@ -36,398 +44,357 @@ import pygame
 from game.parrot import _WING_ANGLES, _add_outline
 from game.draw import blit_glow, lerp_color
 from game.store_skins import (
-    COMPOSITE_W, COMPOSITE_H, PARROT_DY, HX, HY, CROWN_Y,
+    COMPOSITE_W, COMPOSITE_H, PARROT_DY, HX, HY, CROWN_Y, _poly,
 )
 from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
 
 
 # ── palette (brief) ───────────────────────────────────────────────────────────
-_PEARL     = (243, 238, 248)       # #F3EEF8 pearl body
-_PEARL_HL  = (252, 250, 254)       # top-lit pearl highlight (crown / upper back)
-_LILAC     = (185, 168, 214)       # #B9A8D6 lilac shadow
-_LILAC_DK  = (122, 104, 166)       # deepened core-shadow — the day-side dark anchor
-_MINT      = (224, 240, 232)       # mint sheen, warmed off greenish toward pearl
-_MOONGOLD  = (246, 230, 168)       # #F6E6A8 moon-gold halo / pollen
-_DEEPLILAC = (130, 112, 174)       # deep lilac line (a touch darker than #8E7CB8)
-_VIOLET    = (198, 184, 224)       # aviator moon-violet tint
-_GLINT     = (255, 255, 255)       # white petal / lens glint
-# Warm dark-LILAC house outline — holds the pearl body off bright blue without
-# the graphic-black of the default rim, so the silhouette stays organic-moonlit.
-_OUTLINE   = (56, 42, 80, 235)
-
-# Petal & pollen ramps. Petals run a luminous white at the tip → lilac toward
-# the root so each one reads as a curved moonlit petal, never a flat lozenge.
-_PETAL_HI  = (250, 247, 252)       # near-white petal tip
-_PETAL_LO  = (188, 170, 214)       # lilac petal root
-_POLLEN_HI = (255, 247, 200)       # luminous pollen-heart / mote core
+_GREY      = (60, 70, 84)          # #3C4654 storm-grey base
+_GREY_HI   = (90, 102, 118)        # top-lit storm-grey highlight
+_SLATE     = (30, 39, 51)          # #1E2733 deep slate underwing / core shadow
+_CYAN      = (127, 227, 240)       # #7FE3F0 bright cyan — the ONLY saturated pop
+_CYAN_DK   = (74, 158, 178)        # shaded cyan, for the inner crest body
+_STEEL     = (200, 214, 222)       # #C8D6DE pale steel sheen / highlight
+_DISC      = (14, 58, 74)          # #0E3A4A storm-disc dark fill
+_DISC_DK   = (10, 40, 52)          # deeper disc core so the eye-of-storm reads
+_AVIATOR   = (95, 184, 200)        # #5FB8C8 cool steel-cyan aviator tint
+_GLINT     = (224, 248, 252)       # cool near-white glint
+# Cool steel-slate house outline — holds the grey body off bright blue without
+# the graphic-black of the default rim, so the silhouette stays storm-cool.
+_OUTLINE   = (18, 26, 36, 235)
 
 
-def _petal_mix(t):
-    """White petal-tip → lilac petal-root, the moonbloom's signature ramp."""
-    return lerp_color(_PETAL_HI, _PETAL_LO, t)
-
-
-# Body re-plumage: a luminous pearl macaw built with REAL light-to-dark
-# structure (not an even pearl wash, which is what dissolved the day silhouette).
-# The crown / chest / upper back stay top-lit near-white pearl; the belly,
-# back-underside, lower wing and tail-root drop to a deep lilac core-shadow
-# (_LILAC_DK) so the bird carries a dark anchor against bright blue while still
-# reading moonlit. The aviators are KEPT (Pip's signature) and tinted
-# moon-violet with a soft white glint; the beak is warmed toward moon-gold so
-# the macaw face still reads.
-P_MOONBLOOM = _pal(
-    tail=[(176, 158, 204), (196, 180, 220), (218, 206, 234), (240, 234, 248)],
-    tail_line=_DEEPLILAC,
-    body_shadow=_LILAC_DK,
-    body_main=_PEARL,
-    body_chest=(252, 250, 254),
-    body_belly=(200, 184, 222),
-    sheen=(228, 240, 234, 110),
-    wing_main=(214, 202, 230),
-    wing_dark=_LILAC_DK,
-    wing_tip=(248, 244, 252),
+# Body re-plumage: a brushed storm-grey raptor with REAL light-to-dark structure
+# (not a flat grey wash, which would dissolve the day silhouette AND give the
+# cyan nothing to pop against). The crown / chest / upper back stay top-lit
+# steel-grey; the belly, underwing and tail-root drop to deep slate (_SLATE) so
+# the bird carries a dark anchor against bright blue while staying desaturated.
+# Every channel is held STRICTLY grey/slate — NO blue saturation in the body —
+# so the lone cyan of crest/tail/halo is the only saturated colour in frame.
+# Aviators are KEPT (Pip's signature) and tinted cool steel-cyan with a glint.
+P_TEMPEST = _pal(
+    tail=[(40, 50, 62), (52, 62, 76), (66, 78, 92), (84, 96, 112)],
+    tail_line=_SLATE,
+    body_shadow=_SLATE,
+    body_main=_GREY,
+    body_chest=(82, 94, 110),
+    body_belly=(42, 52, 64),
+    sheen=(200, 214, 222, 90),
+    wing_main=(70, 82, 98),
+    wing_dark=_SLATE,
+    wing_tip=(96, 110, 126),
     wing_secondary=None,
-    wing_highlight=_PEARL_HL,
-    head_shadow=_LILAC,
-    head_main=_PEARL,
-    head_cheek=(250, 246, 252),
-    head_crown=_PEARL_HL,
-    lens_frame=(140, 124, 180),
-    lens_body=(70, 58, 100),
-    lens_tint=(198, 184, 224, 150),
-    lens_glint=(250, 248, 254),
-    beak_main=(238, 220, 168),
-    beak_dark=(170, 144, 92),
-    beak_gloss=(252, 242, 206),
-    foot=(170, 152, 196),
+    wing_highlight=_GREY_HI,
+    head_shadow=(44, 54, 66),
+    head_main=_GREY,
+    head_cheek=(86, 98, 114),
+    head_crown=_GREY_HI,
+    lens_frame=(46, 58, 72),
+    lens_body=(22, 30, 40),
+    lens_tint=(95, 184, 200, 150),
+    lens_glint=(214, 240, 246),
+    beak_main=(58, 68, 82),
+    beak_dark=(32, 40, 52),
+    beak_gloss=(96, 110, 126),
+    foot=(54, 64, 78),
 )
 
 
-def _moonbloom_base(angle_deg):
-    return _build_parrot_with_palette(angle_deg, P_MOONBLOOM)
+def _tempest_base(angle_deg):
+    return _build_parrot_with_palette(angle_deg, P_TEMPEST)
 
 
 # ── shared helpers ────────────────────────────────────────────────────────────
 
 def _flap_phase(angle_deg):
-    """0 on the down-stroke (wing 50°) → 1 on the up-stroke (-40°). Petal
-    streamers ripple long/loose on the up-beat and drift the pollen-motes wider,
-    so the baked bloom still feels alive across the 4 frames."""
+    """0 on the down-stroke (wing 50°) → 1 on the up-stroke (-40°). The vapour
+    streamer whips longer + the crest rakes a touch further back on the up-beat,
+    and the wind-ticks drift wider, so the baked squall stays alive across the
+    4 frames (the halo/streamer should feel like wind is moving through it)."""
     return 1.0 - (angle_deg + 40) / 90.0
 
 
-def _smooth_curve(p0, p1, p2, steps=10):
-    """Quadratic-Bezier sample list so petal streamers render as smooth curves,
-    not the 3-point polylines that read as straight rods at 40px."""
-    pts = []
-    for i in range(steps + 1):
-        t = i / steps
-        u = 1 - t
-        x = u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0]
-        y = u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1]
-        pts.append((x, y))
-    return pts
-
-
-def _petal_poly(tip, root, width, curve=0.0, blunt=0.0):
-    """A petal outline as a smooth bowed lobe from `root` out to `tip`.
-
-    `blunt` (0..1) controls the tip: 0 tapers to a point (teardrop, used for the
-    flowing tail streamers); toward 1 the lobe stays WIDE right up to a rounded
-    BLUNT tip — a fat flower-petal whose tip survives the 40px downscale ≥3px
-    wide. `curve` bows the spine sideways so a fanned cluster reads as petals
-    fanning, not a rigid star. Returns (outline_pts, spine_pts)."""
+def _ribbon_poly(root, tip, w_root, w_tip, bow):
+    """A flat tapered ribbon-tongue from `root` to `tip`, bowed sideways by
+    `bow` so the forked streamer reads as wind-curled vapour, not a straight rod
+    at 40px. Returns (outline_pts, spine_pts) sharing the spine so the additive
+    glow and the opaque rim register exactly."""
     dx, dy = tip[0] - root[0], tip[1] - root[1]
     length = math.hypot(dx, dy) or 1.0
     ux, uy = dx / length, dy / length
     px, py = -uy, ux                                   # perpendicular
-    mid = (root[0] + dx * 0.5 + px * curve, root[1] + dy * 0.5 + py * curve)
-    spine = _smooth_curve(root, mid, tip, steps=8)
-    # Width profile along the spine: narrow at the root (where it springs from
-    # the crown), swelling to full `width`, then — for a blunt flower petal —
-    # holding near-full width up to the tip instead of pinching to a point.
+    mid = (root[0] + dx * 0.5 + px * bow, root[1] + dy * 0.5 + py * bow)
+    # Quadratic-Bezier spine so the ribbon curves cleanly.
+    spine, steps = [], 8
+    for i in range(steps + 1):
+        t = i / steps
+        u = 1 - t
+        spine.append((u * u * root[0] + 2 * u * t * mid[0] + t * t * tip[0],
+                      u * u * root[1] + 2 * u * t * mid[1] + t * t * tip[1]))
     left, right = [], []
     n = len(spine) - 1
     for i, (sx, sy) in enumerate(spine):
         t = i / n
-        if t < 0.30:                                   # root taper
-            w = width * (t / 0.30) ** 0.7
-        else:
-            tt = (t - 0.30) / 0.70
-            # Point tip (blunt=0): sin falloff. Blunt tip (blunt=1): stays wide.
-            point = math.sin((1 - tt) * math.pi / 2)
-            blunt_w = 1.0 - tt * tt * 0.35             # only a gentle round-off
-            w = width * (point * (1 - blunt) + blunt_w * blunt)
+        w = w_root + (w_tip - w_root) * t              # linear taper to the tip
         left.append((sx + px * w, sy + py * w))
         right.append((sx - px * w, sy - py * w))
-    # Cap a blunt tip with a small rounded arc so it reads as a soft lobe, not a
-    # flat-cut edge, at the top of the bloom.
-    if blunt > 0.4:
-        cap = []
-        tipw = width * (1.0 - 0.35) * blunt
-        for k in range(5):
-            a = math.pi * (k / 4)                       # sweep across the tip
-            cap.append((tip[0] + px * math.cos(a) * tipw - ux * math.sin(a) * tipw,
-                        tip[1] + py * math.cos(a) * tipw - uy * math.sin(a) * tipw))
-        return left + cap + right[::-1], spine
     return left + right[::-1], spine
 
 
-# ── back layer: moon-disc halo + petal-streamer tail + pollen-motes ───────────
+# ── back layer: storm-disc halo + forked vapour-streamer tail + wind-ticks ────
 
 def _streamer_geo(angle_deg):
-    """The 3 petal streamers replacing the tail fan for this flap angle — a
-    spine + outline + width per streamer, shared by the additive and opaque
-    passes so the glow and the petal register exactly. They sweep DOWN-and-BACK
-    off the tail root into open sky, longest in the centre."""
+    """The forked vapour streamer trailing off the tail root for this flap
+    angle — two ribbon-tongues (an upper short fork + a lower long fork) plus a
+    handful of hard wind-streak ticks. Shared by the additive and opaque passes.
+    Sweeps DOWN-and-BACK off the tail root into open sky; whips longer + lower
+    on the up-beat so the tail feels like vapour caught in a gust."""
     phase = _flap_phase(angle_deg)
     droop = (1.0 - phase) * 3                           # dip on the down-beat
-    reach = 1.0 + phase * 0.12                          # stream longer up-beat
-    troot = (17, HY + 8)
+    reach = 1.0 + phase * 0.14                          # stream longer up-beat
+    troot = (17, HY + 7)
+    # (angle-off-back°, length, root-w, tip-w, bow). The lower fork is the long
+    # hero tongue; the upper fork is shorter so the fork reads as a clean V.
     spec = (
-        (-40, 27, -5),      # upper streamer, bows up
-        (-26, 32, 1),       # centre, longest
-        (-13, 26, 6),       # lower streamer, bows down
+        (-30, 24, 4.0, 1.6, -6),    # upper fork, bows up
+        (-12, 34, 4.6, 1.4,  7),    # lower fork, longest, bows down
     )
     out = []
-    for ang_deg, length, bow in spec:
+    for ang_deg, length, wr, wt, bow in spec:
         a = math.radians(150 + ang_deg)
         tip = (troot[0] + math.cos(a) * length * reach,
                troot[1] + math.sin(a) * length * reach + droop)
-        poly, spine = _petal_poly(tip, troot, 4.2, curve=bow)
+        poly, spine = _ribbon_poly(troot, tip, wr, wt, bow)
         out.append((poly, spine, tip))
     return out
 
 
-def _pollen_motes(angle_deg):
-    """3–4 drifting pollen-glow motes shed into open sky off the petal-streamer
-    tips. They drift wider + further on the up-beat so the tail feels alive. A
-    fixed (non-random) scatter so the 4 baked frames stay stable."""
+def _wind_ticks(angle_deg):
+    """A few short hard wind-streak ticks trailing the streamer into open sky —
+    hard cyan dashes (NOT soft mist) so the wind read survives the 40px
+    downscale. Fixed (non-random) scatter so the 4 baked frames stay stable;
+    drift wider on the up-beat."""
     phase = _flap_phase(angle_deg)
     drift = phase * 4
     base = (
-        (-6, HY + 26, 2),
-        (-12, HY + 20, 2),
-        (-16, HY + 33, 1),
-        (-3, HY + 36, 1),
+        (-4, HY + 18, 6),
+        (-9, HY + 28, 7),
+        (-14, HY + 24, 5),
+        (-2, HY + 33, 5),
     )
-    return [(x - drift, y + drift * 0.4, r) for x, y, r in base]
+    # (x, y, dash-length); dashes rake along the streamer's down-back axis.
+    return [(x - drift, y + drift * 0.4, ln) for x, y, ln in base]
 
 
-def _moonbloom_back(surf, angle_deg):
-    """Behind the outlined bird, so the house outline never boxes the moon-glow
-    bloom into a dark-rimmed island. Two passes:
+def _tempest_back(surf, angle_deg):
+    """Behind the outlined bird, so the house outline never boxes the squall
+    glow into a dark-rimmed island. Two passes:
 
-      1. ADDITIVE under-glow — the full-moon disc's soft halo + petal-streamer
-         haze + pollen-mote glow (sells 'lit by moonlight' on night sky).
-      2. OPAQUE pale detail — an opaque pale-gold moon RIM, the 3 solid petal
-         streamers (white→lilac, deep-lilac edged), and bright pollen cores
-         (carry the read on a bright DAY sky where the additive washes out —
-         the make-or-break for this pearl bird).
+      1. ADDITIVE cyan under-glow — the storm-disc's contained radial + the
+         streamer haze + wind-tick glow (sells the 'eye of the storm' lit by
+         cyan on a NAVY night sky; does nothing on bright blue, by design).
+      2. OPAQUE detail — the dark slate storm-disc fill, a HARD pale-cyan opaque
+         RING around it, the two solid vapour-streamer tongues (steel field,
+         bright-cyan rim) and the hard cyan wind-ticks (carry the read on a
+         bright DAY sky where the additive washes out — the make-or-break).
 
-    The moon disc sits BEHIND + LARGER than the skull so the pale rim clears the
-    silhouette on the flanks — the legendary halo tell."""
+    The disc sits BEHIND + LARGER than the skull so the cyan ring clears the
+    silhouette on the flanks — the legendary halo tell, contained as a circle
+    (the 'eye of the storm'), never a sprawling aura."""
     streamers = _streamer_geo(angle_deg)
-    motes = _pollen_motes(angle_deg)
+    ticks = _wind_ticks(angle_deg)
     hcx, hcy = HX - 1, HY - 2
-    moon_r = 20
+    disc_r = 20
 
-    # ── pass 1: additive under-glow (night) ──────────────────────────────────
+    # ── pass 1: additive cyan under-glow (night) ──────────────────────────────
     glow = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    # Soft full-moon disc: a broad central bloom + a ring of smaller blooms so
-    # the whole disc fills with light, not just its rim.
-    blit_glow(glow, hcx, hcy, 18, _MOONGOLD, alpha=70)
-    blit_glow(glow, hcx, hcy, 12, (255, 248, 220), alpha=60)
+    # Contained eye-of-storm: a tight central core kept DIM (so the disc still
+    # reads as a dark eye, not a flare) ringed by a brighter cyan rim-halo — the
+    # light lives on the RING, the way a squall's eye is dark-cored.
+    blit_glow(glow, hcx, hcy, 11, (90, 150, 170), alpha=40)
     for i in range(12):
         a = math.radians(i * 30)
-        blit_glow(glow, int(hcx + math.cos(a) * moon_r),
-                  int(hcy + math.sin(a) * moon_r), 6, _MOONGOLD, alpha=70)
-    # Petal-streamer haze along each spine so the tail glows luna-pale.
+        blit_glow(glow, int(hcx + math.cos(a) * disc_r),
+                  int(hcy + math.sin(a) * disc_r), 6, _CYAN, alpha=85)
+    # Vapour-streamer haze along each tongue so the tail glows cyan on navy.
     for poly, spine, tip in streamers:
         for sp in (spine[len(spine) // 2], spine[-1]):
-            blit_glow(glow, int(sp[0]), int(sp[1]), 6, (236, 226, 248), alpha=85)
-        blit_glow(glow, int(tip[0]), int(tip[1]), 5, _MINT, alpha=80)
-    # Pollen-mote glow drifting into open sky.
-    for mx, my, r in motes:
-        blit_glow(glow, int(mx), int(my), 4 + r, _MOONGOLD, alpha=110)
+            blit_glow(glow, int(sp[0]), int(sp[1]), 6, _CYAN, alpha=80)
+    for tx, ty, _ln in ticks:
+        blit_glow(glow, int(tx), int(ty), 4, _CYAN, alpha=95)
     surf.blit(glow, (0, 0), special_flags=pygame.BLEND_ADD)
 
-    # ── pass 2: opaque pale detail (day + night) ─────────────────────────────
+    # ── pass 2: opaque detail (day + night) ───────────────────────────────────
     det = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
 
-    # Petal streamers first (lowest), so the body overlaps their roots → they
-    # read as tail plumage, not a fan pinned behind. Each: a deep-lilac edge, a
-    # white→lilac petal field, a pale spine highlight, a soft mint tip glint.
+    # Vapour-streamer tongues first (lowest), so the body overlaps their roots →
+    # they read as tail plumage, not a fan pinned behind. Each: a slate edge for
+    # separation, a steel field, a bright-cyan leading rim + tip, and a couple of
+    # hard wind-ticks that come from the opaque pass too.
     for poly, spine, tip in streamers:
-        pygame.draw.polygon(det, _DEEPLILAC, poly)
-        field = []
+        pygame.draw.polygon(det, _SLATE, poly)
         cx = sum(p[0] for p in poly) / len(poly)
         cy = sum(p[1] for p in poly) / len(poly)
-        for x, y in poly:
-            field.append((cx + (x - cx) * 0.74, cy + (y - cy) * 0.80))
-        pygame.draw.polygon(det, _PETAL_LO, field)
-        pygame.draw.lines(det, _PETAL_HI, False, spine, 2)
-        pygame.draw.circle(det, _MINT, (int(tip[0]), int(tip[1])), 2)
+        field = [(cx + (x - cx) * 0.70, cy + (y - cy) * 0.74) for x, y in poly]
+        pygame.draw.polygon(det, (78, 92, 108), field)
+        # Bright-cyan leading rim down the spine + a hard cyan tip pip — the one
+        # saturated edge that reads the streamer as ONE cyan shape at 40px.
+        pygame.draw.lines(det, _CYAN, False, spine, 2)
+        pygame.draw.circle(det, _CYAN, (int(tip[0]), int(tip[1])), 2)
         pygame.draw.circle(det, _GLINT, (int(tip[0]), int(tip[1])), 1)
 
-    # Full-moon DISC behind the head — the legendary halo TELL, which MUST be
-    # visible in the 40px DAY read (additive bloom does nothing on bright blue,
-    # so the read is carried by HARD opaque rings here): a soft inner moon-face
-    # fill, then a bold 2px opaque pale-gold ring (#F6E6A8) over a faint
-    # pale-gold under-ring so the halo reads as a hard disc-arc on the flanks
-    # behind the head; the additive fill from pass 1 sits on top for night.
-    pygame.draw.circle(det, (250, 240, 200, 90), (hcx, hcy), moon_r - 2)
-    pygame.draw.circle(det, (255, 248, 214, 200), (hcx, hcy), moon_r + 1, 3)
-    pygame.draw.circle(det, _MOONGOLD, (hcx, hcy), moon_r, 2)
-    # Brighter beads on the flanks where the disc clears the silhouette — the
-    # part of the halo that actually reads as a ring separating head from sky.
-    for fa in (math.radians(196), math.radians(212), math.radians(328),
-               math.radians(344)):
-        bx = int(hcx + math.cos(fa) * moon_r)
-        by = int(hcy + math.sin(fa) * moon_r)
-        pygame.draw.circle(det, (255, 250, 224), (bx, by), 2)
-        pygame.draw.circle(det, _GLINT, (bx, by), 1)
+    # Hard wind-ticks — short opaque cyan dashes raked along the streamer axis
+    # (down-and-back), so the tail trails real wind-streaks, not soft mist.
+    for tx, ty, ln in ticks:
+        a = math.radians(150 - 12)
+        ex = tx + math.cos(a) * ln
+        ey = ty + math.sin(a) * ln
+        pygame.draw.line(det, _CYAN_DK, (int(tx), int(ty)), (int(ex), int(ey)), 2)
+        pygame.draw.line(det, _CYAN, (int(tx), int(ty)),
+                         (int(tx + (ex - tx) * 0.6), int(ty + (ey - ty) * 0.6)), 1)
 
-    # Pollen-mote cores — warmed toward moon-gold (not white): a gold halo + a
-    # warm pollen core, tying them to the halo + pollen-heart. Gold reads on both
-    # skies where a white mote vanishes on day and reads as generic sparkle on
-    # night; only a tiny warm pip lifts the core, no pure-white dot.
-    for mx, my, r in motes:
-        pygame.draw.circle(det, _MOONGOLD, (int(mx), int(my)), r + 1)
-        pygame.draw.circle(det, _POLLEN_HI, (int(mx), int(my)), r)
+    # STORM-DISC behind the head — the legendary halo TELL. It MUST read in the
+    # 40px DAY read (the additive bloom does nothing on bright blue), so the read
+    # is carried by HARD opaque shapes: a dark slate disc FILL (the dark eye),
+    # then a bold opaque pale-cyan RING over a thinner deep-cyan under-ring so
+    # the halo reads as a hard contained circle-arc on the flanks behind the
+    # head; the additive cyan rim from pass 1 sits on top for the night bloom.
+    pygame.draw.circle(det, _DISC_DK, (hcx, hcy), disc_r - 2)
+    pygame.draw.circle(det, _DISC, (hcx, hcy), disc_r - 5)
+    pygame.draw.circle(det, _CYAN_DK, (hcx, hcy), disc_r + 1, 1)
+    pygame.draw.circle(det, _CYAN, (hcx, hcy), disc_r, 3)
+    # Brighter beads on the flanks where the disc clears the silhouette — the
+    # part of the ring that actually reads as separating head from sky.
+    for fa in (math.radians(198), math.radians(214), math.radians(326),
+               math.radians(342)):
+        bx = int(hcx + math.cos(fa) * disc_r)
+        by = int(hcy + math.sin(fa) * disc_r)
+        pygame.draw.circle(det, _GLINT, (bx, by), 2)
+        pygame.draw.circle(det, (255, 255, 255), (bx, by), 1)
 
     surf.blit(det, (0, 0))
 
 
-# ── front overlay: opened moonflower crest + veins + moon rim ─────────────────
+# ── front overlay: twin swept storm-quill crest + brow-spark + steel rim ──────
 
-def _moonbloom_front(surf, angle_deg):
+def _tempest_front(surf, angle_deg):
     """Crisp OPAQUE detail painted OVER the body and INSIDE the masked layer, so
-    only hard pixels that survive the 40px downscale live here (the soft moon
-    glow lives in _moonbloom_back to dodge the outline):
+    only hard pixels that survive the 40px downscale live here (the soft squall
+    glow lives in _tempest_back to dodge the outline):
 
-      * the hero OPENED MOONFLOWER crest — 5 broad rounded petals fanning past
-        the crown, each white→lilac with a pale-gold inner rim, around a
-        luminous yellow pollen-heart;
-      * a cool moon RIM wrapping the back/crown + a lit belly rim so the lifted
-        pearl body is framed by light, not a flat void on either sky;
-      * a fine petal-VEIN scatter on the lit upper edge;
-      * a re-asserted macaw face glint so Pip survives the downscale.
+      * the hero TWIN STORM-QUILL crest — two long flat tapered blades raked
+        back past the crown, each ≥3px wide with a hard BRIGHT-CYAN leading edge
+        (the single saturated pop the whole crest opens around);
+      * a single bright-cyan BROW-SPARK above the aviators;
+      * a cool steel back/crown rim + a lit belly rim so the desaturated grey
+        body is framed by light, not a flat void on either sky;
+      * a re-asserted macaw face glint + steel-cyan lens so Pip survives 40px.
     """
-    base_y = CROWN_Y + 2
-    cbx = HX - 1                                        # crest root x
+    phase = _flap_phase(angle_deg)
+    rake = phase * 2                                    # quills sweep further up-beat
+    base_y = CROWN_Y + 1
+    cbx = HX - 2                                        # crest root x
 
-    # OPENED MOONFLOWER — 5 FAT, BLUNT-tipped rounded petals springing from ONE
-    # crown base. The cluster is now TALLER than it is wide (a vertical bloom, a
-    # stronger silhouette-break above the crown) and every petal is a wide lobe
-    # with a rounded tip ≥3px after downscale, so it reads as flower MASS, not a
-    # spiky crown/star. Drawn longest-first so the centre petal tucks behind the
-    # side leans. Each petal: a deep-lilac edge for separation, a white→lilac
-    # field, a pale-gold inner rim catching the moonlight.
-    #
-    # (dx, dy, bow, ramp). dy is the tall reach; the side petals stay near the
-    # centre in x (narrow fan) but rise high, so the bloom is upright.
-    petals = (
-        (-9, -19, -5, 0.10),     # outer left, high, bows left
-        (-4, -25, -2, 0.32),     # inner left, taller
-        (0, -29, 0, 0.50),       # centre, tallest
-        (4, -25, 2, 0.68),       # inner right, taller
-        (9, -19, 5, 0.90),       # outer right, high, bows right
+    # TWIN STORM-QUILLS — two long swept blades springing from the crown, raked
+    # back-and-up past the crown so they break the egg at the top-rear corner.
+    # The rear quill is longer (the hero), the front quill shorter + steeper, so
+    # they read as a swept pair, not symmetric horns. Each blade: a slate body
+    # for value separation, a steel inner fill, and a HARD bright-cyan leading
+    # edge that carries the whole crest as one cyan shape at 40px.
+    # (root-dx, tip-dx, tip-dy, root-w, bow).
+    quills = (
+        (-3, -22, -22 - rake, 4.6, -7),   # rear quill, longest hero blade
+        (1,  -14, -25 - rake, 4.0, -4),   # front quill, shorter + steeper
     )
-    drawn = []
-    for dx, dy, bow, t in petals:
-        tip = (cbx + dx, base_y + dy)
-        root = (cbx + dx * 0.22, base_y + 1)
-        poly, spine = _petal_poly(tip, root, 5.2, curve=bow, blunt=0.85)
-        drawn.append((poly, spine, tip, t))
-    for poly, spine, tip, t in sorted(drawn, key=lambda p: p[2][1], reverse=True):
-        pygame.draw.polygon(surf, _DEEPLILAC, poly)
+    for rdx, tdx, tdy, wr, bow in quills:
+        root = (cbx + rdx, base_y)
+        tip = (cbx + tdx, base_y + tdy)
+        poly, spine = _ribbon_poly(root, tip, wr, 1.4, bow)
+        pygame.draw.polygon(surf, _SLATE, poly)
         cx = sum(p[0] for p in poly) / len(poly)
         cy = sum(p[1] for p in poly) / len(poly)
-        field = [(cx + (x - cx) * 0.80, cy + (y - cy) * 0.84) for x, y in poly]
-        pygame.draw.polygon(surf, _petal_mix(t * 0.5), field)
-        # Pale-gold inner rim up the petal's lit side so each lobe catches the
-        # moon and the blunt tip gets a warm cap that survives 40px.
-        rim = spine[len(spine) // 2:]
-        pygame.draw.lines(surf, _MOONGOLD, False, rim, 2)
-        pygame.draw.circle(surf, _MOONGOLD, (int(tip[0]), int(tip[1])), 2)
-        pygame.draw.circle(surf, _PETAL_HI, (int(tip[0]), int(tip[1])), 1)
+        field = [(cx + (x - cx) * 0.66, cy + (y - cy) * 0.72) for x, y in poly]
+        pygame.draw.polygon(surf, (78, 92, 108), field)
+        # The leading (upper-rear) edge of each blade gets the bright-cyan rim,
+        # so the cyan reads as ONE clean swept line, never scattered noise.
+        pygame.draw.lines(surf, _CYAN, False, spine, 2)
+        pygame.draw.circle(surf, _CYAN, (int(tip[0]), int(tip[1])), 2)
+        pygame.draw.circle(surf, _GLINT, (int(tip[0]), int(tip[1])), 1)
 
-    # Luminous pollen-HEART at the flower centre — a warm gold core with a bright
-    # white pip, the single focal pop the whole crest opens around.
-    px, py = cbx, base_y - 2
-    pygame.draw.circle(surf, _MOONGOLD, (px, py), 4)
-    pygame.draw.circle(surf, _POLLEN_HI, (px, py), 3)
-    pygame.draw.circle(surf, _GLINT, (px - 1, py - 1), 1)
-    for a in range(0, 360, 60):                        # tiny stamen specks
-        r = math.radians(a)
-        pygame.draw.circle(surf, (255, 240, 180),
-                           (int(px + math.cos(r) * 4), int(py + math.sin(r) * 4)), 1)
+    # A short slate crest-root nub at the crown so the two quills read as
+    # springing from ONE swept tuft, not two pins.
+    _poly(surf, _SLATE, [(cbx - 5, base_y + 3), (cbx + 4, base_y + 3),
+                         (cbx + 1, base_y - 3), (cbx - 3, base_y - 3)])
 
-    # Cool moon RIM wrapping the back+crown, and a lit belly rim — both ≥2px so
-    # the lifted pearl body is framed by light on either sky. The belly rim is a
-    # MONOTONIC descending diagonal (never a U) so it can't close into a smile.
-    pygame.draw.lines(surf, _MINT, False,
+    # Cool steel RIM wrapping the back+crown, and a lit belly rim — both ≥2px so
+    # the desaturated grey body is framed by light on either sky. The belly rim
+    # is a MONOTONIC descending diagonal (never a U) so it can't close into a
+    # smile. Steel (not cyan) keeps the body's accents desaturated, reserving the
+    # lone cyan for the signature silhouette-breakers.
+    pygame.draw.lines(surf, _STEEL, False,
                       [(HX - 12, CROWN_Y + 4), (HX - 5, CROWN_Y),
                        (HX + 4, CROWN_Y + 1), (HX + 12, HY - 3)], 2)
-    pygame.draw.lines(surf, _MINT, False, [(16, 46), (15, 52), (18, 40)], 2)
-    pygame.draw.lines(surf, _LILAC, False, [(46, 56), (43, 60), (39, 63)], 2)
-    pygame.draw.lines(surf, _LILAC, False, [(34, 65), (28, 67), (22, 67)], 1)
+    pygame.draw.lines(surf, _STEEL, False, [(16, 46), (15, 52), (18, 40)], 2)
+    pygame.draw.lines(surf, (66, 78, 92), False, [(46, 56), (43, 60), (39, 63)], 2)
+    pygame.draw.lines(surf, (66, 78, 92), False, [(34, 65), (28, 67), (22, 67)], 1)
 
-    # Petal-VEIN scatter — a few fine deep-lilac vein lines fanning along the lit
-    # upper body/wing so the pearl plumage reads as petal-soft, never blank. A
-    # fixed scatter (NOT random) so the 4 baked frames stay stable; kept off the
-    # face/shadow so the eyes stay clean.
-    veins = (
-        ((23, 41), (28, 38)),
-        ((27, 44), (33, 41)),
-        ((31, 47), (38, 44)),
-        ((20, 44), (24, 42)),
-        ((35, 45), (41, 43)),
+    # Raptor-scale ticks — a few fine steel scale-edges fanning along the lit
+    # upper back/wing so the grey plumage reads as brushed raptor scale, never
+    # blank. A fixed scatter (NOT random) so the 4 baked frames stay stable;
+    # kept off the face/shadow so the eyes stay clean and strictly desaturated.
+    scales = (
+        ((23, 41), (28, 39)),
+        ((27, 44), (33, 42)),
+        ((31, 47), (38, 45)),
+        ((20, 44), (24, 43)),
+        ((35, 46), (41, 44)),
     )
-    for a, b in veins:
-        pygame.draw.line(surf, (*_DEEPLILAC, 150), a, b, 1)
-    # A couple of pearl-lilac sheen ticks catching the moonlight on the back —
-    # warmed off the old greenish mint so the body stays flora-in-moonlight,
-    # never sea-glass.
+    for a, b in scales:
+        pygame.draw.line(surf, (*_STEEL, 130), a, b, 1)
     for sx, sy in ((26, 40), (32, 43), (38, 42)):
-        pygame.draw.circle(surf, (236, 230, 246), (sx, sy), 1)
+        pygame.draw.circle(surf, (150, 164, 178), (sx, sy), 1)
 
-    # Relight the EYE/AVIATOR so the lens zone stops reading as a dark hole that
-    # steals focus from the bloom: a pale moon-violet top rim over the near
-    # frame, a soft pearl lens glint, and a faint violet underglow so the eye
-    # reads as a glinting lens, not a void. Beak top-edge re-asserted so the
-    # macaw identity survives the downscale.
+    # Single bright-cyan BROW-SPARK above the aviators — the one front cyan tell
+    # that ties the face into the crest's cyan without crowding it.
+    bx, by = HX + 1, HY - 7
+    pygame.draw.line(surf, _CYAN, (bx - 5, by + 1), (bx + 4, by - 2), 2)
+    pygame.draw.circle(surf, _GLINT, (bx + 4, by - 2), 1)
+
+    # Relight the EYE/AVIATOR so the lens zone stops reading as a dead hole: a
+    # cool steel-cyan top rim over the near frame, a soft glint, and a faint
+    # steel-cyan underglow so the eye reads as a glinting lens. Beak top-edge
+    # re-asserted so the macaw identity survives the downscale.
     ex, ey = HX + 6, HY - 2
-    pygame.draw.line(surf, _VIOLET, (ex - 6, ey - 4), (ex + 5, ey - 5), 2)  # top rim
-    pygame.draw.line(surf, (120, 104, 158), (ex - 5, ey + 4), (ex + 4, ey + 4), 1)
-    pygame.draw.circle(surf, _GLINT, (ex, ey - 1), 2)                       # lens glint
-    pygame.draw.circle(surf, _VIOLET, (ex - 3, ey + 1), 1)
-    pygame.draw.line(surf, _PETAL_HI, (HX + 8, HY + 1), (HX + 13, HY + 4), 2)
+    pygame.draw.line(surf, _AVIATOR, (ex - 6, ey - 4), (ex + 5, ey - 5), 2)
+    pygame.draw.line(surf, (40, 52, 66), (ex - 5, ey + 4), (ex + 4, ey + 4), 1)
+    pygame.draw.circle(surf, _GLINT, (ex, ey - 1), 2)
+    pygame.draw.circle(surf, _AVIATOR, (ex - 3, ey + 1), 1)
+    pygame.draw.line(surf, _STEEL, (HX + 8, HY + 1), (HX + 13, HY + 4), 2)
 
 
-# ── custom compose + getter (halo/tail need a back layer) ─────────────────────
+# ── custom compose + getter (halo/streamer need a back layer) ─────────────────
 
-def _moonbloom_getter():
-    """back aura (moon halo + petal streamers + pollen) → pearl body → front
-    flower-crest/veins/rim → house outline, then the per-(frame, 3°-bucket)
-    rotation cache shared by every store skin. The faint additive moon-glow must
-    NOT be part of the masked layer (else the dark outline would wrap the glow
-    and kill it), so the OPAQUE bird (body + front overlay) is outlined alone
-    and the soft back-aura is laid UNDER it, padded to match the outline's grow
-    so the bird stays centred for the rotation maths."""
+def _tempest_getter():
+    """back aura (storm-disc halo + vapour streamer + wind-ticks) → storm-grey
+    body → front twin-quill crest/brow-spark/rim → house outline, then the
+    per-(frame, 3°-bucket) rotation cache shared by every store skin. The faint
+    additive cyan under-glow must NOT be part of the masked layer (else the dark
+    outline would wrap the glow and kill it), so the OPAQUE bird (body + front
+    overlay) is outlined alone and the soft back-aura is laid UNDER it, padded to
+    match the outline's grow so the bird stays centred for the rotation maths."""
     state = {"frames": None, "rot": {}}
 
     def _flat(wing_angle):
         bird = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-        bird.blit(_moonbloom_base(wing_angle), (0, PARROT_DY))
-        _moonbloom_front(bird, wing_angle)
+        bird.blit(_tempest_base(wing_angle), (0, PARROT_DY))
+        _tempest_front(bird, wing_angle)
         bird = _add_outline(bird, outline_color=_OUTLINE)
 
         aura = pygame.Surface(bird.get_size(), pygame.SRCALPHA)
         pad = (bird.get_width() - COMPOSITE_W) // 2
         back = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-        _moonbloom_back(back, wing_angle)
+        _tempest_back(back, wing_angle)
         aura.blit(back, (pad, pad))
         aura.blit(bird, (0, 0))
         return aura
@@ -447,4 +414,4 @@ def _moonbloom_getter():
     return getter
 
 
-build = _moonbloom_getter()
+build = _tempest_getter()
