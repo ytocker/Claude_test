@@ -27,8 +27,8 @@ PANELS = [
     (None, "ORIGINAL PIP", "base"),
 ]
 for n, (name, tier) in enumerate(
-        [("GLACIER MACAW", "EPIC"), ("KOI MACAW", "EPIC"),
-         ("BIOLUMEN MACAW", "LEGENDARY"), ("STAINED-GLASS MACAW", "LEGENDARY"),
+        [("THORNCREST MACAW", "EPIC"), ("JADE-CARVING MACAW", "EPIC"),
+         ("CONSTELLATION MACAW", "LEGENDARY"), ("MOONBLOOM MACAW", "LEGENDARY"),
          ("CHROME MACAW", "SECRET")], start=1):
     mod = importlib.import_module(f"tools.parrot_wave2_candidates.design_{n}")
     PANELS.append((mod.build, name, tier))
