@@ -8,13 +8,18 @@ moulded PET base flutes). The body is clear-blue tinted with blue water, so the
 vessel reads as drink even before the label.
 
 22px read tradeoffs (WHY): at true size the label band is the single loudest
-disposable-bottle cue, so it is a bold full-width MASS — white core with a blue
-stripe — placed across the body's middle where the eye lands, not a thin line.
-The cap is kept SMALL and narrow (a screw cap, not a sport lid) to read "cheap
-single-use" and to contrast the squeeze bottle's chunky cap. PET ribbing is
-reduced to just TWO dark flutes low on the body — more lines would alias into
-mud at the downscale; two reads as "ribbed" without noise. Drawn on a 44px work
-surface then smoothscaled to 22 so the label edges and ribs antialias cleanly. A
+disposable-bottle cue, so it is a FAT full-width white MASS spanning ~0.30–0.66
+of the body — fenced top AND bottom with the dark OUTLINE colour so it stays one
+hard, discrete white block after the smoothscale instead of bleeding into the
+clear PET or water. The band is kept PURE white (no blue stripe — that stripe was
+the same blue as the water and split the thin white into slivers); the white mass
+IS the brand read, so it is protected. The cap is kept SMALL and narrow (a screw
+cap, not a sport lid) to read "cheap single-use" and contrast the squeeze
+bottle's chunky cap, but its blue is DEEPENED and it is taller with a hard
+cap/neck groove so it survives as a distinct top beat on the night/grayscale
+rows. PET ribbing is a SINGLE dark OUTLINE-value flute low in the rounded base —
+two faint lines read as mud, one committed flute reads as "ribbed". Drawn on a
+44px work surface then smoothscaled to 22 so the label edges antialias cleanly. A
 baked dark OUTLINE (inflated, drawn first) carries the shape on bright DAY sky; a
 cool KEYLINE rim inside is the NIGHT lifeline; the bottle is held off the surface
 edges so the gameplay rotozoom never clips the cap or base.
@@ -27,10 +32,10 @@ import pygame
 BODY = (191, 227, 242)         # clear blue-tinted PET (upper body / shoulder)
 WATER = ( 62, 154, 214)        # blue water in the body
 WATER_HI = (150, 205, 240)     # meniscus / glint highlight
-CAP = ( 46, 111, 200)          # small blue screw cap
-CAP_HI = (140, 180, 235)       # cap top edge highlight
-LABEL = (242, 244, 248)        # white paper label band (the brand mass)
-LABEL_BLUE = ( 62, 154, 214)   # blue stripe printed across the label
+CAP = ( 33,  86, 168)          # small blue screw cap — deepened so it stays a beat
+CAP_HI = (130, 172, 230)       # cap top edge highlight
+LABEL = (245, 247, 250)        # white paper label band (the brand mass)
+LABEL_ACCENT = (150, 178, 205) # faint 1px blue-grey print accent (kept subtle)
 OUTLINE = ( 30,  53,  80)      # dark, high-value: reads on bright day sky
 KEYLINE = (210, 232, 246)      # cool rim — the NIGHT lifeline
 RIB = ( 70, 130, 175)          # dark PET base flutes (ribbing)
@@ -54,9 +59,10 @@ def build(mode="normal") -> pygame.Surface:
     NW = 6
     neck_rect = pygame.Rect(cx - NW // 2, 10, NW, 6)
 
-    # Cap: a SMALL narrow blue screw cap — the cheap single-use read.
-    CW, CH = 9, 7
-    cap_rect = pygame.Rect(cx - CW // 2, 4, CW, CH)
+    # Cap: a SMALL narrow blue screw cap — the cheap single-use read. Taller so
+    # the screw cap stays a distinct top beat on the night/grayscale rows.
+    CW, CH = 9, 8
+    cap_rect = pygame.Rect(cx - CW // 2, 3, CW, CH)
 
     # --- Baked dark outline (drawn first, slightly inflated) for the DAY read.
     pygame.draw.rect(surf, OUTLINE, cap_rect.inflate(4, 4), border_radius=2)
@@ -93,10 +99,11 @@ def build(mode="normal") -> pygame.Surface:
     bw, bh = body_rect.w, body_rect.h
     body = pygame.Surface((bw, bh), pygame.SRCALPHA)
 
-    # Label band geometry: a bold full-width mass across the MIDDLE of the body.
-    # Widened so the white band survives the downscale + rotation as the loudest cue.
-    label_top = int(bh * 0.32)
-    label_bot = int(bh * 0.62)
+    # Label band geometry: a FAT full-width white mass across the MIDDLE of the
+    # body. Spanning ~0.30–0.66 of body height so the white core survives the
+    # downscale + rotation as a fat band, not a 1px line — the loudest cue.
+    label_top = int(bh * 0.30)
+    label_bot = int(bh * 0.66)
 
     # Clear-blue tinted PET above the label (the see-through upper body).
     body.fill(BODY + (245,), pygame.Rect(0, 0, bw, label_top))
@@ -110,19 +117,21 @@ def build(mode="normal") -> pygame.Surface:
         )
         body.fill(c + (255,), pygame.Rect(0, y, bw, 1))
 
-    # White LABEL band — the loudest disposable cue: a white core wrapping the
-    # body with a printed blue stripe through it (the brand read). Hard dark
-    # edges top + bottom so the band stays a crisp mass after the smoothscale.
+    # White LABEL band — the loudest disposable cue: a PURE white mass wrapping
+    # the body. FENCED top + bottom with the dark OUTLINE colour (not the soft
+    # blue rib) so it stays one hard, discrete white block after the smoothscale.
+    # No blue stripe — it was the water's blue and split the white into slivers;
+    # the white mass IS the brand read, so it is protected. At most a single 1px
+    # blue-grey print accent low in the band.
     body.fill(LABEL + (255,), pygame.Rect(0, label_top, bw, label_bot - label_top))
-    stripe_y = label_top + (label_bot - label_top) // 2
-    pygame.draw.line(body, LABEL_BLUE, (0, stripe_y), (bw, stripe_y), 2)
-    pygame.draw.line(body, RIB, (0, label_top), (bw, label_top), 1)
-    pygame.draw.line(body, RIB, (0, label_bot - 1), (bw, label_bot - 1), 1)
+    pygame.draw.line(body, OUTLINE, (0, label_top), (bw, label_top), 1)
+    pygame.draw.line(body, OUTLINE, (0, label_bot - 1), (bw, label_bot - 1), 1)
+    accent_y = label_bot - 4
+    pygame.draw.line(body, LABEL_ACCENT, (2, accent_y), (bw - 3, accent_y), 1)
 
-    # PET base ribbing: just TWO dark flutes low on the body so it reads "ribbed"
-    # without aliasing into mud at the downscale.
-    for ry in (bh - 8, bh - 5):
-        pygame.draw.line(body, RIB, (2, ry), (bw - 3, ry), 1)
+    # PET base ribbing: ONE committed dark flute (OUTLINE value) low in the
+    # rounded base so it reads "ribbed" without two faint lines aliasing to mud.
+    pygame.draw.line(body, OUTLINE, (3, bh - 5), (bw - 4, bh - 5), 1)
 
     # Mask to a STRAIGHT-WALLED shape: only the bottom corners round.
     mask = pygame.Surface((bw, bh), pygame.SRCALPHA)

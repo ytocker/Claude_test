@@ -28,10 +28,10 @@ import pygame
 # sport cap (the grayscale-safe anchor against the cool blue), a dark outline for
 # day and a cool keyline for night. Handle frame is a darker blue so the loop
 # separates from the body mass.
-JUG = (126, 200, 232)          # translucent jug-blue (upper body / air)
+JUG = ( 96, 168, 210)          # translucent jug-blue (upper body / air)
 WATER = ( 62, 154, 214)        # deeper water blue (lower body)
 WATER_HI = (170, 222, 248)     # meniscus / glint
-HANDLE = ( 46, 111, 200)       # darker-blue handle frame (separates from body)
+HANDLE = ( 34,  86, 160)       # darker-blue handle frame (separates from body)
 CAP = (242, 197,  58)          # yellow sport flip cap — the eye-magnet
 CAP_HI = (255, 230, 150)       # cap top highlight
 TICK = (234, 242, 248)         # measurement tick marks
@@ -105,8 +105,10 @@ def build(mode="normal") -> pygame.Surface:
     # --- Punch the HOLE through the handle: knock the centre back to transparent
     # AFTER the body is down, so the loop reads as open even on bright sky.
     pygame.draw.circle(surf, (0, 0, 0, 0), (h_cx, h_cy), h_inner)
-    # Restore the dark inner rim of the hole so the loop edge stays crisp.
-    pygame.draw.circle(surf, OUTLINE, (h_cx, h_cy), h_inner, 1)
+    # Cool-light KEYLINE on the hole's inner edge (NOT a dark rim): on a dark
+    # NIGHT sky a light rim makes the opening pop as an OPENING, not a dimple,
+    # and it stays subtle on bright day.
+    pygame.draw.circle(surf, KEYLINE, (h_cx, h_cy), h_inner, 1)
 
     # --- WATER LINE: a bright meniscus across the body — the "water" cue at true
     # size. Inset so it sits on the body, not the outline.
@@ -114,9 +116,12 @@ def build(mode="normal") -> pygame.Surface:
     pygame.draw.line(surf, WATER_HI,
                      (body_rect.x + 3, my), (body_rect.right - 4, my), 2)
 
-    # --- Vertical glint streak on the water (translucent-plastic cue).
+    # --- Vertical glint streak on the water (translucent-plastic cue). Kept SHORT
+    # and starting below the lower tick so it doesn't merge with the ticks into one
+    # vertical smudge on the left edge — the ticks own that column up top.
+    glint_top = max(my + 2, body_rect.y + 13)
     pygame.draw.line(surf, WATER_HI,
-                     (body_rect.x + 4, my + 2),
+                     (body_rect.x + 4, glint_top),
                      (body_rect.x + 4, body_rect.bottom - 5), 2)
 
     # --- Measurement TICK marks up the LEFT side — only two, drawn 2px tall and
