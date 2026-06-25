@@ -32,16 +32,17 @@ def draw_hat(surf, cx, base_y, head_w, facing=1):
     r = head_w * 0.5
     f = 1 if facing >= 0 else -1
 
-    # The crown wraps a round head, so its band is WIDER than the skull and its
-    # lower rim dips at the edges to cup the curve. Points are short — the tallest
-    # rises only ~0.7*head_w so the thing stays a low, spiky tiara, not a cone.
-    band_hw = r * 1.12
+    # The crown CAPS a round head, so its band is a touch wider than the skull
+    # and rides along the top curve of the dome. A shallow rim dip lets the band
+    # follow the crown without cupping down over the eye/face.
+    band_hw = r * 1.08
     left_x = cx - band_hw
     right_x = cx + band_hw
 
-    # Lower rim of the band: a shallow upward arc (cups the round crown).
-    rim_dip = r * 0.30
-    band_h = r * 0.34            # vertical thickness of the solid gold band
+    # Lower rim of the band: a shallow arc that hugs the dome's top curve. Kept
+    # small so the band caps the skull rather than collaring down around it.
+    rim_dip = r * 0.16
+    band_h = r * 0.30            # vertical thickness of the solid gold band
     band_top_y = base_y - band_h
 
     def rim_y(t):
@@ -56,8 +57,11 @@ def draw_hat(surf, cx, base_y, head_w, facing=1):
     n_pts = 5
     lean = r * 0.10 * f
     # Tip heights vary a touch so the zig-zag silhouette isn't mechanically even.
-    tip_scale = (0.78, 0.92, 1.0, 0.92, 0.78)
-    point_h = r * 0.92
+    # Once the band caps the dome (not collaring the neck) there is sky above the
+    # head, so the points run taller and the valleys deeper for a crisp saw-tooth
+    # that survives 3-4 distinct peaks at 40px.
+    tip_scale = (0.80, 0.96, 1.08, 0.96, 0.80)
+    point_h = r * 1.06
 
     # Compute the saw-tooth top outline: alternating valley (band top) / peak.
     valleys = []  # x at each point base centre
@@ -79,7 +83,10 @@ def draw_hat(surf, cx, base_y, head_w, facing=1):
         t = s / steps
         x = left_x + (right_x - left_x) * t
         poly.append((x, rim_y(t)))
-    # Top edge, right to left: weave valley(top) -> peak -> valley(top) ...
+    # Top edge, right to left: weave valley -> peak -> valley ... The interior
+    # valleys notch slightly ABOVE the band top (a shallow V between points) so
+    # the saw-tooth keeps crisp, well-separated peaks even when downscaled.
+    valley_lift = band_h * 0.45
     top_pts = []
     # right edge top
     top_pts.append((right_x, rim_top_y(1.0)))
@@ -87,9 +94,9 @@ def draw_hat(surf, cx, base_y, head_w, facing=1):
         # valley to the right of this peak, then the peak
         t_right = (i + 1) / n_pts
         vx_r = left_x + (i + 1) * seg
-        top_pts.append((vx_r, rim_top_y(t_right)))
+        vy = rim_top_y(t_right) - (valley_lift if 0 < (i + 1) < n_pts else 0)
+        top_pts.append((vx_r, vy))
         top_pts.append(peaks[i])
-    t_left = 0.0
     top_pts.append((left_x, rim_top_y(0.0)))
     poly.extend(top_pts)
 
@@ -136,7 +143,7 @@ def draw_hat(surf, cx, base_y, head_w, facing=1):
 
     # Gems on each tip. Faceted look = solid diamond + dark lower shade + a white
     # spark; gated below ~20px to a plain dot so tips don't smear at tiny scale.
-    gem_r = max(2, int(r * 0.18))
+    gem_r = max(3, int(r * 0.22))
     for i in range(n_pts):
         px, py = peaks[i]
         col = _GEMS[i]
@@ -150,7 +157,10 @@ def _shade(col, k):
 def _draw_gem(surf, cx, cy, r, col, head_w):
     cx, cy = int(round(cx)), int(round(cy))
     if head_w < 20:
+        # Tiny scale: a plain dot, but ALWAYS capped with a white spark so the
+        # tips (the sapphire especially) stay legible against night sky.
         pygame.draw.circle(surf, col, (cx, cy), max(1, r - 1))
+        pygame.draw.circle(surf, _GEM_HI, (cx - 1, cy - 1), 1)
         return
     # Diamond facet: a kite (top point, sides, bottom point).
     diamond = [
@@ -163,15 +173,18 @@ def _draw_gem(surf, cx, cy, r, col, head_w):
     # Lower-right facet darker for depth.
     pygame.draw.polygon(surf, _shade(col, 0.62),
                         [(cx, cy + r), (cx + r * 0.8, cy), (cx, cy)])
-    # Bright spark top-left.
+    # Bright spark top-left — unconditional so every gem throws one high-value
+    # glint at downscale, the only thing that keeps the sapphire off night navy.
     pygame.draw.circle(surf, _GEM_HI,
                        (int(cx - r * 0.3), int(cy - r * 0.35)),
-                       max(1, int(r * 0.28)))
+                       max(1, int(r * 0.30)))
 
 
-# Seat: a birthday crown is SHORT, so it hugs the skull low and wide. Crown
-# anchor sits at CROWN_Y(31); a wide band (hw 32) with the lower rim dropped well
-# down (dy 16) cups the round head, and the ~0.7*hw points clear the 64x100
-# canvas top comfortably. No forward shove — a tiara sits centred on the dome.
-build = make_build(draw_hat, seat={"hw": 32, "dx": -1, "dy": 10})
+# Seat: a birthday crown CAPS the dome. Anchoring base_y just below CROWN_Y(31)
+# via dy=0 lands the band's lower rim at ~y34 — riding the top curve of the skull
+# a few px ABOVE the eye line (eye ~y40), so the band caps the dome and all five
+# points fan UP into clear sky instead of spearing the face. dx=+2 nudges the
+# band forward toward the beak (the base macaw faces +x) so the point spread
+# straddles the dome symmetrically; the ~1.06*r points still clear the 64x100 top.
+build = make_build(draw_hat, seat={"hw": 32, "dx": 2, "dy": 0})
 icon = make_icon(draw_hat)
