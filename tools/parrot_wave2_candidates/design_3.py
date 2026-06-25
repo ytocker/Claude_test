@@ -129,21 +129,31 @@ def _lure_path(phase):
     return _bezier(root, ctrl, tip), tip
 
 
-def _jelly_paths(phase):
-    """Three translucent jelly-frill membranes sweeping down-back where the
-    feather fan was. Each is a tapering S that billows wider/longer on the
-    up-beat (the creature 'pulsing'), pulling out into open sky behind the
-    body — the lower silhouette break that sells the legendary tier."""
-    bell = 1.0 + phase * 0.18                       # membrane billow
+def _jelly_paths(phase, frame_idx=0):
+    """Three translucent jelly-frill LOBES sweeping down-back where the feather
+    fan was — the SECOND silhouette-breaker, opposite the lure. Each lobe is a
+    tapering S pushed clearly PAST the body's back edge (body back ≈ x13), rooted
+    a touch higher and reaching ≈19-28px so the three read as DISTINCT frills,
+    not one sliver. They billow on the up-beat (the creature pulsing) and each
+    lobe drifts laterally out of phase with its neighbours + with the orb bob, so
+    the frill visibly undulates across the 4 frames (1-2px reads as life at
+    40px)."""
+    bell = 1.0 + phase * 0.22                        # membrane billow
     paths = []
+    # Three lobes fanned at increasing DOWN-BACK angles so they splay open like a
+    # jelly's trailing frill instead of stacking into one hook: lobe 0 sweeps
+    # nearly straight back, lobe 2 drops steeply down. All roots sit on the body
+    # back/under edge and every lobe tip clears the silhouette into open sky.
     for k in range(3):
-        bx, by = 13, HY + 6 + k * 4
+        drift = math.sin((frame_idx + k * 1.3) * 1.57) * 2.0
+        bx, by = 15, HY + 4 + k * 4
         reach = (20 + k * 2) * bell
-        c1 = (bx - reach * 0.40, by + 3 + k)        # bow out
-        c2 = (bx - reach * 0.80, by + 11 + k * 4)   # then down → S
-        tip = (bx - reach, by + 17 + k * 6)
+        droop = 6 + k * 8                                    # lobe 2 drops most
+        c1 = (bx - reach * 0.45, by + droop * 0.3 + drift)   # bow back+down
+        c2 = (bx - reach * 0.85, by + droop * 0.7 + drift)
+        tip = (bx - reach, by + droop + drift)
         paths.append(_bezier((bx, by), c1, c2, steps=7)
-                     + _bezier(c2, ((c2[0] + tip[0]) / 2, tip[1] - 1), tip, 6))
+                     + _bezier(c2, ((c2[0] + tip[0]) / 2, tip[1] + 1), tip, 6))
     return paths
 
 
@@ -156,7 +166,7 @@ def _halo_spine():
 
 # ── back layer: halo + vein glow + jelly tail + drifting motes ────────────────
 
-def _biolumen_back(surf, angle_deg):
+def _biolumen_back(surf, angle_deg, frame_idx=0):
     """Every glowing element lives here, BEHIND the outlined bird, so the house
     outline (grown from the bird's alpha mask) never boxes a bloom into a dark
     island. Two passes, both un-outlined:
@@ -170,7 +180,7 @@ def _biolumen_back(surf, angle_deg):
          day sky where additive washes to nothing. A legendary reads on both."""
     phase = _flap_phase(angle_deg)
     lure_pts, lure_tip = _lure_path(phase)
-    jelly = _jelly_paths(phase)
+    jelly = _jelly_paths(phase, frame_idx)
     halo = _halo_spine()
 
     # Drifting plankton motes: a fixed scatter (stable across frames) riding the
@@ -189,11 +199,12 @@ def _biolumen_back(surf, angle_deg):
         if i % 2:
             blit_glow(glow, int(gx), int(gy), 7, _TEAL, alpha=90)
     # Jelly-frill bloom — teal→deep-blue stamps walking each membrane so the
-    # tail reads as a glowing translucent fan, not a sliver.
+    # tail reads as a glowing translucent fan, not a sliver. Brighter + denser
+    # stamps than R1 so the frill blooms as a real second light-source aft.
     for k, path in enumerate(jelly):
-        col = lerp_color(_TEAL, _DEEP, k / 2.0)
-        for p in (path[2], path[len(path) // 2], path[-1]):
-            blit_glow(glow, int(p[0]), int(p[1]), 6, col, alpha=95)
+        col = lerp_color(_TEAL, _DEEP, k / 3.0)      # stay teal-biased, not navy
+        for p in (path[1], path[len(path) // 3], path[2 * len(path) // 3], path[-1]):
+            blit_glow(glow, int(p[0]), int(p[1]), 6, col, alpha=120)
     # Vein-network bloom over the body + wing edge so the dark plumage looks lit
     # from within (the body glow stays soft so the orb still wins the read).
     for vx, vy in ((26, 50), (33, 47), (40, 49), (30, 55), (37, 56), (22, 52)):
@@ -213,16 +224,25 @@ def _biolumen_back(surf, angle_deg):
     det = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
     _INK = (8, 16, 30)                              # thin deep backing for day
 
-    # Jelly-frill membranes — a soft translucent teal→deep-blue band filling
-    # between the spine and an offset edge, an ink backing, then a bright teal
-    # spine, ending in a glint. The width + S-curve make it read as a living
-    # jelly fan on a bright sky, the lower silhouette break.
+    # Jelly-frill LOBES — the aft silhouette-breaker, built to survive the day
+    # 40px read: a translucent teal→deep-blue membrane band, an ink backing for
+    # contrast on bright sky, then a BRIGHT EMISSIVE-TEAL rim (every lobe gets
+    # the same hot teal edge regardless of its cooler fill, so even the back
+    # lobes punch out of blue rather than fading to navy), each tipped with a
+    # white glint. Three distinct lobes reading "glowing frill aft" at 40px.
     for k, path in enumerate(jelly):
-        col = lerp_color(_TEAL, _DEEP, k / 2.0)
-        edge = [(x, y + 4 + k) for x, y in path]
-        pygame.draw.polygon(det, (*col, 95), path + edge[::-1])
+        fill = lerp_color(_TEAL, _DEEP, k / 3.0)
+        # Wider membrane band (a real lobe, not a sliver) with a brighter
+        # translucent fill, an ink backing, a 2px hot-teal rim on the leading
+        # edge AND on the trailing edge so the whole lobe is light-edged, and a
+        # faint inner rib so the three lobes read as distinct frills at 40px.
+        edge = [(x, y + 7 + k * 2) for x, y in path]
+        pygame.draw.polygon(det, (*fill, 130), path + edge[::-1])
         pygame.draw.lines(det, _INK, False, path, 5)
-        pygame.draw.lines(det, col, False, path, 2)
+        pygame.draw.lines(det, _TEAL, False, path, 2)       # leading rim
+        pygame.draw.lines(det, _TEAL, False, edge, 1)       # trailing rim
+        rib = [((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) for a, b in zip(path, edge)]
+        pygame.draw.lines(det, (*_TEAL, 150), False, rib[::3], 1)
         tipd = path[-1]
         pygame.draw.circle(det, _WHITE, (int(tipd[0]), int(tipd[1])), 2)
 
@@ -261,12 +281,39 @@ def _biolumen_back(surf, angle_deg):
 def _biolumen_front(surf, angle_deg):
     """Painted OVER the body and INSIDE the masked layer, so only crisp opaque
     emission belongs here (soft bloom lives in _biolumen_back to dodge the
-    outline): the glowing vein NETWORK tracing the body + wing edge, a row of
-    belly PHOTOPHORE dots, a teal rim hugging the lit back edge, and a re-
-    asserted aviator/beak so Pip survives the 40px downscale."""
-    # Vein network — branching teal→lime lines crawling up the body and out the
-    # wing edge, each a 2px core over the dark plumage so it reads as light under
-    # the skin. Fixed (not random) so the 4 frames stay stable.
+    outline). The job here is the DAY read: re-establish parrot ANATOMY on the
+    dark body so the squint test finds a head, a beak point and a wing edge —
+    not a lozenge. Order: a cool emissive RIM carving the whole top/back edge
+    AND the head-from-body break, a bright beak point, the brighter vein network
+    + near-white nodes, the lit photophore row, and SPLIT teal aviators."""
+    # 1. COOL TEAL RIM-LIGHT wrapping the lit top/back edge of the BODY, so the
+    #    abyssal mass carves off bright blue as emitted light (not pigment). A
+    #    2px hot core over a thin near-black channel keeps it crisp at 40px. Runs
+    #    the back/crown edge then down the rear flank into the tail root.
+    back_rim = [(36, 39), (28, 40), (21, 43), (16, 48), (14, 54)]
+    pygame.draw.lines(surf, _SHADOW, False, back_rim, 4)
+    pygame.draw.lines(surf, _TEAL, False, back_rim, 2)
+
+    # 2. HEAD-FROM-BODY BREAK: a bright teal rim tracing the head's lower-rear
+    #    curve where it meets the back, so the head reads as a distinct dome on
+    #    top of the body lozenge rather than fusing into it. This is the single
+    #    shape that restores the macaw silhouette at 40px.
+    head_rim = [(36, 39), (37, 45), (41, 50), (47, 52)]
+    pygame.draw.lines(surf, _SHADOW, False, head_rim, 4)
+    pygame.draw.lines(surf, _LIME, False, head_rim, 2)     # hottest, the key break
+    pygame.draw.line(surf, _TEAL, (36, 40), (36, 47), 2)   # the notch line itself
+
+    # 3. BEAK POINT: a hard bright edge along the upper beak + a lit tip dot so
+    #    the wedge reads as a beak, the front anchor of the face at 40px.
+    pygame.draw.line(surf, _SHADOW, (53, 45), (61, 44), 3)
+    pygame.draw.line(surf, _TEAL, (54, 44), (60, 44), 2)
+    pygame.draw.circle(surf, _WHITE, (61, 44), 1)
+
+    # 4. Vein network — branching lines crawling up the body and out the wing
+    #    edge, each a 2px core over a dark channel so it reads as light under the
+    #    skin. Cores run TEAL→near-white toward the brightest nodes so they punch
+    #    out of the dark body on bright sky (the day variant was too dim). Fixed
+    #    scatter (not random) so the 4 frames stay stable.
     veins = (
         [(22, 52), (27, 49), (33, 47), (40, 48)],          # spine sweep
         [(27, 49), (29, 55), (32, 60)],                     # belly branch
@@ -275,27 +322,31 @@ def _biolumen_front(surf, angle_deg):
     )
     for vn in veins:
         pygame.draw.lines(surf, _SHADOW, False, vn, 3)      # dark channel
-        pygame.draw.lines(surf, _TEAL, False, vn, 2)
-    # Hot lime nodes where the veins branch — small glowing junctions.
+        pygame.draw.lines(surf, _LIME, False, vn, 2)        # brighter lime core
+    # Near-WHITE hot nodes where the veins branch — the brightest non-orb points
+    # on the body, so the plumage reads as actively lit from within at 40px.
     for nx, ny in ((27, 49), (33, 47), (40, 48)):
-        pygame.draw.circle(surf, _LIME, (nx, ny), 1)
+        pygame.draw.circle(surf, _LIME, (nx, ny), 2)
+        pygame.draw.circle(surf, _WHITE, (nx, ny), 1)
 
-    # Belly photophore row — spotted glowing organs along the underside, a deep
-    # ring around a hot core so each dot reads as a tiny lantern, not a fleck.
-    for px in (24, 29, 34, 39):
-        pygame.draw.circle(surf, _SHADOW, (px, 60), 2)
-        pygame.draw.circle(surf, _LIME, (px, 60), 1)
+    # 5. Belly photophore row — 2-3 lantern dots let be the BRIGHTEST non-orb
+    #    points so the belly reads as "lit", not "speckled": a deep ring, a lime
+    #    body, a white-hot core, with the two centre dots largest.
+    for i, px in enumerate((24, 29, 34, 39)):
+        r = 2 if i in (1, 2) else 1
+        pygame.draw.circle(surf, _SHADOW, (px, 60), r + 1)
+        pygame.draw.circle(surf, _LIME, (px, 60), r)
         pygame.draw.circle(surf, _WHITE, (px, 59), 1)
 
-    # Teal rim-light on the lit upper-back edge so the abyssal body is framed by
-    # its own emission rather than reading as a flat void on either sky.
-    pygame.draw.lines(surf, _TEAL, False,
-                      [(16, 47), (15, 53), (18, 41)], 2)
-
-    # Re-assert Pip at 40px: a bright glint on the teal-tinted near lens and a
-    # sharpened beak edge so the macaw face survives the downscale.
-    pygame.draw.circle(surf, _WHITE, (HX + 6, HY - 3), 2)
-    pygame.draw.line(surf, _TEAL, (HX + 8, HY + 1), (HX + 13, HY + 4), 1)
+    # 6. SPLIT aviators: the R1 detail merged the two lenses into one windshield
+    #    band, so re-assert TWO teal lenses with a dark nosebridge gap between
+    #    them and a tiny cyan catch-light per lens — Pip's signature shades, the
+    #    "still Pip" anchor, kept legible at 40px.
+    for lx, ly in ((HX - 2, HY - 2), (HX + 7, HY - 3)):
+        pygame.draw.circle(surf, (10, 18, 30), (lx, ly), 4)    # dark lens body
+        pygame.draw.circle(surf, _TEAL, (lx, ly), 4, 1)        # teal rim
+        pygame.draw.circle(surf, _WHITE, (lx - 1, ly - 1), 1)  # cyan catch-light
+    pygame.draw.line(surf, (8, 14, 26), (HX + 2, HY - 3), (HX + 3, HY - 2), 2)  # nosebridge gap
 
 
 # ── custom compose + getter (halo/veins/tail need a back layer) ───────────────
@@ -312,7 +363,7 @@ def _biolumen_getter():
     the bird stays centred for the rotation maths."""
     state = {"frames": None, "rot": {}}
 
-    def _flat(wing_angle):
+    def _flat(wing_angle, frame_idx):
         bird = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
         bird.blit(_biolumen_base(wing_angle), (0, PARROT_DY))
         _biolumen_front(bird, wing_angle)
@@ -321,14 +372,14 @@ def _biolumen_getter():
         aura = pygame.Surface(bird.get_size(), pygame.SRCALPHA)
         pad = (bird.get_width() - COMPOSITE_W) // 2
         back = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-        _biolumen_back(back, wing_angle)
+        _biolumen_back(back, wing_angle, frame_idx)
         aura.blit(back, (pad, pad))
         aura.blit(bird, (0, 0))
         return aura
 
     def getter(frame_idx, tilt_deg):
         if state["frames"] is None:
-            state["frames"] = [_flat(a) for a in _WING_ANGLES]
+            state["frames"] = [_flat(a, i) for i, a in enumerate(_WING_ANGLES)]
         frames = state["frames"]
         frame_idx %= len(frames)
         key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)

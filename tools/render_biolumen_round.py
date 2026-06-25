@@ -119,8 +119,10 @@ sheet_h = bottom_y + bottom_h + 30 + PAD
 sheet = pygame.Surface((sheet_w, sheet_h))
 sheet.fill((16, 18, 30))
 
+import sys as _sys
+_rn = _sys.argv[1] if len(_sys.argv) > 1 else "1"
 title = big_font.render(
-    "BIOLUMEN MACAW  ·  LEGENDARY (~2900)  ·  wave 2 · round 1", True, _GOLD_PALE)
+    f"BIOLUMEN MACAW  ·  LEGENDARY (~2900)  ·  wave 2 · round {_rn}", True, _GOLD_PALE)
 sheet.blit(title, title.get_rect(midtop=(sheet_w // 2, 22)))
 
 
@@ -163,8 +165,10 @@ sheet.blit(fs, (fs_x, by))
 _label(fs_x, by + FS_BOX + 4, "4-FRAME FILMSTRIP — glow + jelly tail animate alive",
        _GOLD_PALE, cap_font)
 
+import sys
+round_n = sys.argv[1] if len(sys.argv) > 1 else "1"
 out_dir = os.path.join("docs", "store_redesign", "parrot", "wave2", "design_3")
 os.makedirs(out_dir, exist_ok=True)
-out = os.path.join(out_dir, "round_1.png")
+out = os.path.join(out_dir, f"round_{round_n}.png")
 pygame.image.save(sheet, out)
 print("SAVED", out, sheet.get_size())
