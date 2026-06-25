@@ -1,27 +1,37 @@
 """design_4 · STAINED-GLASS MACAW — LEGENDARY parrot-wave2 exploration.
 
-A cathedral window given wings: every feather is a leaded jewel pane lit as if
-back-lit, crowned by a rose-window halo and trailing a fan of cathedral-tall
-glass tail-panes. The legendary tell is the back-lit ROSE-WINDOW HALO plus the
-silhouette-breaking GLASS TAIL — a clear tier above the single-zone epics. The
-art-object language (hard black lead lines binding flat opaque jewel facets) is
-the opposite of feathers, and the opposite of PRISM's clear refracting shards.
+A cathedral window given wings — but SILHOUETTE FIRST: the bird is the clean
+4-frame macaw the epics use (teardrop body, one bold wing, hooked beak, defined
+tail), and the stained glass is a SURFACE applied to that silhouette, never a
+replacement for it. The reader sees "red bird + jewel crown" in the outline
+before a single pane resolves.
 
-Draw order matters: the halo and the glass tail must paint BEHIND the body and
-glow OUTSIDE the house outline, so this can't use store_skins._make_skin's
-body-first _compose. Mirroring the aurora/viking back-layer pattern, this is a
-custom getter — back layer (halo + tail: additive light-spill glow buffer then
-an opaque leaded-glass detail buffer) → jewel-recoloured body → front overlay
-(gothic-arch crest, leaded pane plumage, wing light-shaft, smoky aviators) →
-house outline → per-(frame, 3°-bucket) rotation cache.
+Round-2 from-the-studs rebuild of everything below the crest, designed at 40px
+first:
 
-Two-buffer back layer is deliberate: additive glow sells "lit from behind" on a
-dark NIGHT sky where additive shines, while the opaque leaded panes carry the
-read on a bright DAY sky where additive washes out. A legendary must read on
-both. Lead lines are kept crisp and FEW (bigger panes, not finer subdivision)
-so they survive the 40px downscale instead of mudding into a grey smear.
+  * ONE calm dominant field: the body stays a deep RUBY macaw (a large, readable
+    red mass); sapphire/emerald/amber are reserved for a SMALL number of accent
+    panes (wing fan + one chest blaze). No equal-saturation confetti.
+  * Lead grid + back-light are CLIPPED to the bird's own alpha, so panes and the
+    luminosity gradient can never escape the silhouette into a rainbow blob.
+  * Coarse panes only at gameplay scale (≥4-5px); the finer rose-window tracery
+    is HERO-GATED (detail=True) so it never renders at 40px.
+  * Tail = 3 SOLID lancet panes echoing the crest inverted — long pointed
+    cathedral panes, one bold colour each, hard lead outline + white pinnacle.
+  * Crest WINS the crown: the rose window is demoted to a thin single-colour
+    AMBER glow ring sitting BEHIND and LARGER than the crest (concentric, not
+    colliding).
+  * Aviators thinned to a slim smoky band on the eye line (not a black bar
+    bisecting the body).
+  * A SINGLE diagonal back-light gradient (bright top-left → deep bottom-right)
+    across every pane sells one window lit from one side.
 
-Exploration only — NEVER registered in store_skins.BUILDERS.
+The gothic-arch crest (3 lancets + white pinnacle tips), the jewel palette, and
+the black-came-line concept are KEPT — the wave's best legendary tell.
+
+The halo/tail paint BEHIND the body and glow OUTSIDE the house outline, so this
+uses a custom getter (aurora/viking pattern), not store_skins._make_skin's
+body-first compose. Exploration only — NEVER registered in store_skins.BUILDERS.
 """
 import math
 
@@ -36,50 +46,47 @@ from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
 
 
 # ── palette (brief) ───────────────────────────────────────────────────────────
-_RUBY    = (215, 38, 61)           # #D7263D
+_RUBY    = (200, 32, 54)           # the dominant body field
 _SAPPH   = (31, 95, 196)           # #1F5FC4
 _EMERALD = (31, 168, 115)          # #1FA873
 _AMBER   = (242, 178, 62)          # #F2B23E
-_LEAD    = (21, 19, 26)            # #15131A lead line / dark
-_LEAD_HI = (54, 50, 64)            # a lifted lead so the came catches a glint
-_GLINT   = (255, 250, 235)         # the back-light shaft hotspot
+_LEAD    = (21, 19, 26)            # #15131A lead line / dark came
+_GLINT   = (255, 250, 235)         # back-light hotspot / pinnacle white
 
-# Lighter pane cores (the centre of each facet reads brighter, as if a light
-# source sits behind the glass — flat panes, but the middle glows).
+# Lit jewel cores (the brighter top-left of each pane under the back-light).
 _RUBY_LIT    = (255, 96, 116)
-_SAPPH_LIT   = (96, 158, 248)
-_EMERALD_LIT = (96, 232, 176)
-_AMBER_LIT   = (255, 224, 150)
+_SAPPH_LIT   = (110, 170, 252)
+_EMERALD_LIT = (110, 232, 182)
+_AMBER_LIT   = (255, 226, 158)
 
-# Body re-plumage: a deep jewel mosaic. Every slot is a saturated jewel tone and
-# the LEAD owns ALL the line work (tail_line / wing_dark / shadows), so the base
-# bird already reads as panes bound by black came before the front overlay adds
-# the crisp lead grid. Cores are lifted toward the *_LIT hues so the body glows
-# from within rather than reading as flat paint; the crown is amber so the
-# gothic crest springs from a warm window-top. Lenses are kept (Pip's aviators)
-# but the front overlay re-tints them smoky cathedral grey.
+# Body re-plumage: a CALM, readable deep-ruby macaw. Unlike round 1 this is NOT
+# a per-slot jewel scramble — the whole body is ruby with lead-dark line work,
+# so the base bird already reads as "red parrot" before any glass is applied.
+# Crown is amber so the gothic crest springs from a warm window-top; the wing is
+# a deeper ruby so the sapphire accent panes sit ON it without fighting. Lead
+# owns every shadow/line. Lenses dropped here — the slim aviators paint later.
 P_GLASS = _pal(
-    tail=[_RUBY, _AMBER, _EMERALD, _SAPPH],   # alternating jewel tail-panes
+    tail=[_RUBY, (180, 30, 50), (160, 28, 46), (140, 26, 42)],
     tail_line=_LEAD,
     body_shadow=_LEAD,
-    body_main=(150, 30, 52),                  # ruby field, lead-deep
-    body_chest=_RUBY,
-    body_belly=(120, 24, 44),
-    sheen=(255, 220, 200, 70),
-    wing_main=(26, 78, 162),                  # sapphire wing field
+    body_main=_RUBY,
+    body_chest=(228, 60, 78),
+    body_belly=(168, 30, 48),
+    sheen=(255, 220, 210, 70),
+    wing_main=(150, 28, 44),
     wing_dark=_LEAD,
-    wing_tip=_SAPPH_LIT,
+    wing_tip=(210, 60, 76),
     wing_secondary=None,
-    wing_highlight=(150, 200, 255),
+    wing_highlight=(255, 130, 140),
     head_shadow=_LEAD,
-    head_main=(150, 30, 52),
-    head_cheek=_RUBY_LIT,
-    head_crown=(196, 138, 40),                # amber crown → window-top
+    head_main=_RUBY,
+    head_cheek=(255, 110, 124),
+    head_crown=(196, 138, 40),       # amber crown → window-top
     lens_frame=(70, 66, 80),
-    lens_body=(20, 19, 26),
-    lens_tint=(120, 124, 138, 150),           # smoky cathedral grey
+    lens_body=(22, 20, 28),
+    lens_tint=(120, 124, 138, 130),
     lens_glint=(228, 230, 238),
-    beak_main=(214, 176, 96),                 # warm leaded came
+    beak_main=(214, 176, 96),
     beak_dark=_LEAD,
     beak_gloss=(248, 226, 168),
     foot=(70, 66, 80),
@@ -87,240 +94,250 @@ P_GLASS = _pal(
 
 
 def _glass_base(angle_deg):
-    return _build_parrot_with_palette(angle_deg, P_GLASS)
+    return _build_parrot_with_palette(angle_deg, P_GLASS, draw_lenses=False)
 
 
 # ── shared helpers ────────────────────────────────────────────────────────────
 
 def _flap_phase(angle_deg):
-    """0 on the down-stroke (wing 50°) → 1 on the up-stroke (-40°). The glass
-    tail-panes fan a touch wider on the up-beat so the baked window still feels
-    alive across the 4 frames."""
+    """0 on the down-stroke (wing 50°) → 1 on the up-stroke (-40°). The tail
+    lancets fan a touch wider on the up-beat so the baked window feels alive."""
     return 1.0 - (angle_deg + 40) / 90.0
 
 
-def _jewel(i):
-    """Cycle the four jewel hues so panes/wedges alternate around the window."""
-    return (_RUBY, _SAPPH, _EMERALD, _AMBER)[i % 4]
+def _backlight_alpha(x, y):
+    """One consistent diagonal luminosity for the whole window: bright at the
+    top-left of the body, deep at the bottom-right. 0..1, so every pane shares
+    the SAME light direction — the single cue that sells 'lit from one side'
+    instead of a scatter of unrelated glints."""
+    t = ((x - 16) + (y - 44)) / 60.0
+    return max(0.0, min(1.0, 1.0 - t))
 
 
-def _jewel_lit(i):
-    return (_RUBY_LIT, _SAPPH_LIT, _EMERALD_LIT, _AMBER_LIT)[i % 4]
+# ── back layer: amber glow ring (demoted halo) + 3 solid tail lancets ─────────
 
+def _lancet_geo(angle_deg):
+    """The 3 tail lancets for this flap angle — point lists + tips, shared by
+    the additive and opaque passes so they register exactly."""
+    fan = 1.0 + _flap_phase(angle_deg) * 0.10
+    troot = (16, HY + 8)
+    spec = (
+        (-38, 31, _SAPPH,   _SAPPH_LIT),
+        (-20, 36, _EMERALD, _EMERALD_LIT),
+        (-2,  31, _AMBER,   _AMBER_LIT),
+    )
+    out = []
+    for ang_deg, length, jw, lit in spec:
+        a = math.radians(150 + ang_deg * fan)            # ≈ down-and-back
+        ca, sa = math.cos(a), math.sin(a)
+        pa = a + math.pi / 2
+        px, py = math.cos(pa) * 4, math.sin(pa) * 4
+        tip = (troot[0] + ca * length, troot[1] + sa * length)
+        bi = (troot[0] - px, troot[1] - py)
+        bo = (troot[0] + px, troot[1] + py)
+        mi = (troot[0] + ca * length * 0.62 - px * 0.55,
+              troot[1] + sa * length * 0.62 - py * 0.55)
+        mo = (troot[0] + ca * length * 0.62 + px * 0.55,
+              troot[1] + sa * length * 0.62 + py * 0.55)
+        out.append(([bi, mi, tip, mo, bo], tip, troot, jw, lit))
+    return out
 
-# ── back layer: rose-window halo + cathedral glass tail-panes ─────────────────
 
 def _glass_back(surf, angle_deg):
-    """Every back-lit element lives here, BEHIND the outlined bird, so the house
-    outline (grown from the bird's alpha mask) never boxes the back-light bloom
-    into its own dark-rimmed island. Two passes, both un-outlined:
+    """Behind the outlined bird, so the house outline never boxes the back-light
+    bloom. Two passes:
 
-      1. an ADDITIVE light-spill buffer — the warm/jewel glow seeping out from
-         behind the halo and from under the tail-panes, selling "lit from
-         behind" on a dark night sky where additive shines.
-      2. an OPAQUE leaded-glass buffer alpha-blitted ON TOP — the rose-window's
-         concentric jewel wedges + lead spokes and the elongated tail-panes as
-         solid colour bound by black came, so the window ALSO reads on a bright
-         day sky where the additive spill washes out.
+      1. ADDITIVE light-spill — the amber halo ring's back-glow + a jewel bloom
+         under the tail lancets (sells 'lit from behind' on night sky).
+      2. OPAQUE detail — the thin amber ring + the 3 solid tail lancets bound by
+         black came (carry the read on day sky where additive washes out).
 
-    Contents: the rose-window HALO behind the head and the cathedral TAIL-PANES
-    fanning down-back well past the body."""
-    phase = _flap_phase(angle_deg)
-
-    hcx, hcy = HX - 2, HY - 2                      # rose-window centre, behind head
-    R_OUT = 19                                     # outer rim of the rose window
-    fan = 1.0 + phase * 0.12                       # tail spreads on the up-beat
-
-    # Cathedral TAIL-PANES — five elongated pointed glass lancets springing from
-    # the tail root and fanning DOWN-BACK into open sky, each lead-edged with a
-    # lit jewel core. Built long (well past the body) so they break the egg
-    # silhouette the way a legendary must. Each: (spread angle from straight-down
-    # in degrees, length, jewel index).
-    troot = (15, HY + 9)
-    panes = (
-        (-46, 30, 0),     # ruby, swept far back
-        (-28, 35, 1),     # sapphire
-        (-12, 38, 2),     # emerald, longest centre lancet
-        (4,   34, 3),     # amber
-        (20,  29, 0),     # ruby, swept down-forward
-    )
-
-    def pane_poly(ang_deg, length, width):
-        a = math.radians(150 + ang_deg * fan)      # 150° base ≈ down-and-back
-        ca, sa = math.cos(a), math.sin(a)
-        tip = (troot[0] + ca * length, troot[1] + sa * length)
-        # perpendicular for the lancet width, tapering to a point at the tip
-        pa = a + math.pi / 2
-        px, py = math.cos(pa) * width, math.sin(pa) * width
-        base_in = (troot[0] - px, troot[1] - py)
-        base_out = (troot[0] + px, troot[1] + py)
-        mid = (troot[0] + ca * length * 0.5, troot[1] + sa * length * 0.5)
-        mid_in = (mid[0] - px * 0.7, mid[1] - py * 0.7)
-        mid_out = (mid[0] + px * 0.7, mid[1] + py * 0.7)
-        return [base_in, mid_in, tip, mid_out, base_out], tip
+    The halo is now a SINGLE thin amber ring BEHIND and LARGER than the crest so
+    the two crown elements read concentric, not colliding — the crest wins, the
+    ring just frames it."""
+    lancets = _lancet_geo(angle_deg)
+    hcx, hcy = HX - 1, HY - 4
+    halo_r = 21
 
     # ── pass 1: additive light-spill (night) ─────────────────────────────────
     glow = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    # Rose-window halo bloom — a ring of jewel glow stamps so the whole disc
-    # back-lights, brightest where it clears the silhouette on the flanks.
-    for i in range(10):
-        a = math.radians(i * 36)
-        gx = hcx + math.cos(a) * (R_OUT - 3)
-        gy = hcy + math.sin(a) * (R_OUT - 3)
-        blit_glow(glow, int(gx), int(gy), 7, _jewel_lit(i), alpha=120)
-    blit_glow(glow, hcx, hcy, 11, _GLINT, alpha=70)      # warm centre lamp
-    # Tail-pane spill — a jewel bloom beneath each lancet so the glass looks lit.
-    for ang, length, ji in panes:
-        poly, tip = pane_poly(ang, length, 4)
-        blit_glow(glow, int(tip[0]), int(tip[1]), 6, _jewel_lit(ji), alpha=115)
-        mid = poly[1]
-        blit_glow(glow, int(mid[0]), int(mid[1]), 5, _jewel(ji), alpha=95)
+    for i in range(12):
+        a = math.radians(i * 30)
+        blit_glow(glow, int(hcx + math.cos(a) * halo_r),
+                  int(hcy + math.sin(a) * halo_r), 6, _AMBER, alpha=85)
+    for poly, tip, _root, jw, lit in lancets:
+        blit_glow(glow, int(tip[0]), int(tip[1]), 6, lit, alpha=115)
+        blit_glow(glow, int(poly[1][0]), int(poly[1][1]), 5, jw, alpha=90)
     surf.blit(glow, (0, 0), special_flags=pygame.BLEND_ADD)
 
-    # ── pass 2: opaque leaded glass (day + night) ────────────────────────────
+    # ── pass 2: opaque detail (day + night) ──────────────────────────────────
     det = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
 
-    # Cathedral TAIL-PANES — drawn first (lowest layer of the bright detail) so
-    # the body later overlaps their roots and they read as plumage, not a fan
-    # pinned behind. Each lancet: a thick lead came border, a flat jewel field,
-    # a brighter lit core stripe up the spine, and a glint at the tip.
-    for ang, length, ji in panes:
-        poly, tip = pane_poly(ang, length, 4)
+    # Tail lancets first (lowest), so the body overlaps their roots → they read
+    # as tail plumage, not a fan pinned behind. Each: thick lead came, a solid
+    # jewel field shrunk inside the came as a rim, a lit spine, a white pinnacle.
+    for poly, tip, root, jw, lit in lancets:
         pygame.draw.polygon(det, _LEAD, poly)
-        inner = [(poly[0][0], poly[0][1]), poly[1], tip, poly[3],
-                 (poly[4][0], poly[4][1])]
-        # shrink the field slightly toward the centre so the lead shows as a rim
-        cx = sum(p[0] for p in inner) / len(inner)
-        cy = sum(p[1] for p in inner) / len(inner)
-        field = [(cx + (x - cx) * 0.72, cy + (y - cy) * 0.78) for x, y in inner]
-        pygame.draw.polygon(det, _jewel(ji), field)
-        pygame.draw.line(det, _jewel_lit(ji), (troot[0], troot[1]),
-                         (int(tip[0]), int(tip[1])), 2)
+        cx = sum(p[0] for p in poly) / len(poly)
+        cy = sum(p[1] for p in poly) / len(poly)
+        field = [(cx + (x - cx) * 0.74, cy + (y - cy) * 0.80) for x, y in poly]
+        pygame.draw.polygon(det, jw, field)
+        pygame.draw.line(det, lit, root, (int(tip[0]), int(tip[1])), 2)
         pygame.draw.circle(det, _GLINT, (int(tip[0]), int(tip[1])), 2)
 
-    # Rose-window HALO — a concentric leaded disc behind the head: a dark came
-    # ground, a ring of alternating jewel wedges split by lead spokes, an inner
-    # ring of smaller jewel lights, and a lit centre boss. Sized larger than the
-    # skull so the jewelled ring clears OUTSIDE the silhouette on the flanks —
-    # the part that actually reads as a halo separating bird from sky.
-    pygame.draw.circle(det, _LEAD, (hcx, hcy), R_OUT)
-    seg = 10
-    for i in range(seg):
-        a0 = math.radians(i * (360 / seg) + 4)
-        a1 = math.radians((i + 1) * (360 / seg) - 4)
-        wedge = [(hcx, hcy)]
-        for a in (a0, (a0 + a1) / 2, a1):
-            wedge.append((hcx + math.cos(a) * (R_OUT - 2),
-                          hcy + math.sin(a) * (R_OUT - 2)))
-        pygame.draw.polygon(det, _jewel(i), wedge)
-        # a lit chip near the rim so each wedge glows from behind
-        ma = (a0 + a1) / 2
-        pygame.draw.circle(det, _jewel_lit(i),
-                           (int(hcx + math.cos(ma) * (R_OUT - 6)),
-                            int(hcy + math.sin(ma) * (R_OUT - 6))), 2)
-    # Inner lead ring + a quatrefoil of small jewel lights round the centre.
-    pygame.draw.circle(det, _LEAD, (hcx, hcy), 8)
-    for i in range(4):
-        a = math.radians(i * 90 + 45)
-        pygame.draw.circle(det, _jewel_lit(i + 1),
-                           (int(hcx + math.cos(a) * 5), int(hcy + math.sin(a) * 5)), 2)
-    pygame.draw.circle(det, _GLINT, (hcx, hcy), 3)        # centre lamp
-    pygame.draw.circle(det, _AMBER, (hcx, hcy), 2)
+    # Demoted halo — a single thin AMBER band behind+larger than the crest: a
+    # dark came under-stroke, the amber ring over it, two lit beads on the flanks
+    # where it clears the silhouette (the legendary back-lit tell, kept quiet).
+    pygame.draw.circle(det, _LEAD, (hcx, hcy), halo_r, 4)
+    pygame.draw.circle(det, _AMBER, (hcx, hcy), halo_r, 2)
+    for fa in (math.radians(205), math.radians(335)):
+        bx = int(hcx + math.cos(fa) * halo_r)
+        by = int(hcy + math.sin(fa) * halo_r)
+        pygame.draw.circle(det, _AMBER_LIT, (bx, by), 2)
+        pygame.draw.circle(det, _GLINT, (bx, by), 1)
 
     surf.blit(det, (0, 0))
 
 
-# ── front overlay: gothic-arch crest, leaded pane plumage, wing shaft ─────────
+# ── glass surface: lead grid + back-light, CLIPPED to the bird's alpha ────────
 
-def _front_pane(surf, pts, jewel, lit):
-    """One leaded glass facet: a flat jewel field, a brighter lit centre dot,
-    bound by a crisp ≥1px lead came border. The came IS the signature, so it's
-    always drawn — kept thin so the panes stay big and read at 40px."""
-    pygame.draw.polygon(surf, jewel, pts)
+def _clip_to_mask(surf, mask):
+    """Zero every pixel of `surf` outside the bird's alpha mask, so a glass coat
+    can never paint past the silhouette."""
+    keep = mask.to_surface(setcolor=(255, 255, 255, 255), unsetcolor=(0, 0, 0, 0))
+    surf.blit(keep, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+
+def _pane(surf, pts, jewel, lit, *, field=True):
+    """One leaded facet bound by a crisp lead came. field=True fills a jewel
+    field + a single lit dot toward the top-left (the shared back-light side);
+    field=False draws ONLY the came outline (to grid the dominant ruby field
+    without recolouring it)."""
+    if field:
+        pygame.draw.polygon(surf, jewel, pts)
+        tlx = min(p[0] for p in pts)
+        tly = min(p[1] for p in pts)
+        pygame.draw.circle(surf, lit, (int(tlx + 3), int(tly + 3)), 1)
     pygame.draw.polygon(surf, _LEAD, pts, 1)
-    cx = int(sum(p[0] for p in pts) / len(pts))
-    cy = int(sum(p[1] for p in pts) / len(pts))
-    pygame.draw.circle(surf, lit, (cx, cy), 1)
 
 
-def _glass_front(surf, angle_deg):
-    """Painted OVER the jewel body and INSIDE the masked layer, so only crisp
-    opaque detail belongs here (the soft back-light lives in _glass_back to
-    dodge the outline): the gothic-arch crest past the crown, a few BIG leaded
-    panes redrawing the wing/chest as a window, the wing light-shaft glint, and
-    the smoky-grey aviators re-asserted so Pip's identity survives the
-    downscale."""
-    # Gothic-arch CREST — three tall pointed glass lancets rising past the crown
-    # like a window top, lead-edged, ruby/sapphire/emerald left→right, each a
-    # pointed-arch silhouette (the legendary's crown-breaking shape). The centre
-    # lancet is tallest. Drawn over a thin lead plinth so they share a base.
+def _apply_glass_surface(bird, angle_deg, *, detail=False):
+    """The stained-glass treatment as a SURFACE over the already-drawn ruby
+    body, clipped to the body's own alpha mask so nothing escapes the
+    silhouette. Two coats, both masked:
+
+      * a single diagonal back-LIGHT gradient (bright top-left → deep
+        bottom-right) so the whole body reads as one window lit from one side;
+      * a COARSE lead-came grid (few big panes) + a SMALL number of jewel accent
+        panes (sapphire wing fan, one amber chest blaze) — the only non-ruby
+        colour, so from across the room it reads 'red bird + jewel accents'.
+
+    `detail=True` adds finer rose-tracery — HERO-ONLY, so the gameplay/40px read
+    never sees the fine mosaic that muds out small."""
+    mask = pygame.mask.from_surface(bird)
+    bb = bird.get_bounding_rect()
+
+    # ── coat 1: one diagonal back-light gradient ─────────────────────────────
+    light = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+    for yy in range(bb.top, bb.bottom, 2):
+        for xx in range(bb.left, bb.right, 2):
+            a = _backlight_alpha(xx, yy)
+            if a > 0.04:
+                light.fill((255, 248, 232, int(70 * a)), pygame.Rect(xx, yy, 2, 2))
+    _clip_to_mask(light, mask)
+    bird.blit(light, (0, 0))
+
+    grid = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+
+    # Sapphire WING accent — 2 big sapphire panes + 1 emerald echoing the wing
+    # fan. The dominant non-ruby note; kept cool so it reads as one wing window.
+    _pane(grid, [(25, 46), (34, 42), (37, 49), (28, 52)], _SAPPH, _SAPPH_LIT)
+    _pane(grid, [(34, 42), (45, 42), (46, 49), (37, 49)], _SAPPH, _SAPPH_LIT)
+    _pane(grid, [(28, 52), (37, 49), (43, 53), (33, 56)], _EMERALD, _EMERALD_LIT)
+
+    # ONE amber chest BLAZE — a single bold accent pane on the breast, the warm
+    # focal point that draws the eye to the bird's front.
+    _pane(grid, [(43, 49), (52, 48), (53, 57), (44, 59)], _AMBER, _AMBER_LIT)
+
+    # COARSE ruby came grid over the rest — a few big lead lines dividing the
+    # dominant red field into readable panes WITHOUT recolouring it, so the
+    # silhouette never fragments.
+    for seg in (
+        [(16, 52), (24, 49), (30, 54), (24, 60)],
+        [(24, 60), (30, 54), (40, 58), (34, 64)],
+        [(44, 59), (53, 57), (52, 64), (43, 64)],
+    ):
+        _pane(grid, seg, _RUBY, _RUBY_LIT, field=False)
+
+    if detail:
+        # HERO-ONLY finer tracery: split the big accent panes with extra came so
+        # the close-up shows true rose-window density. NEVER at gameplay/40px.
+        for ax, ay, bx2, by2 in (
+            (34, 42, 34, 49), (37, 49, 43, 53), (48, 48, 49, 57), (28, 52, 33, 56)
+        ):
+            pygame.draw.line(grid, _LEAD, (ax, ay), (bx2, by2), 1)
+        for cx2, cy2, jw in ((31, 47, _SAPPH_LIT), (40, 45, _SAPPH_LIT),
+                             (48, 53, _AMBER_LIT)):
+            pygame.draw.circle(grid, jw, (cx2, cy2), 1)
+
+    _clip_to_mask(grid, mask)
+    bird.blit(grid, (0, 0))
+
+
+# ── front overlay: gothic-arch crest + slim aviators ─────────────────────────
+
+def _glass_front(bird, angle_deg):
+    """Crisp opaque detail painted OVER the glassed body and INSIDE the mask:
+    the hero gothic-arch crest past the crown and the slim re-tinted aviators.
+    (Soft back-light lives in _glass_back to dodge the outline.)"""
+    # Gothic-arch CREST — KEPT: three tall pointed lancets rising past the crown
+    # like a window top, lead-edged, ruby/sapphire/emerald left→right, white
+    # pinnacle tips. Centre tallest. The wave's best legendary tell, untouched.
     base_y = CROWN_Y + 2
-    pygame.draw.line(surf, _LEAD, (HX - 11, base_y), (HX + 11, base_y - 2), 3)
-    lancets = (
+    pygame.draw.line(bird, _LEAD, (HX - 11, base_y), (HX + 11, base_y - 2), 3)
+    for dx, h, jw, lit in (
         (-8, 13, _RUBY, _RUBY_LIT),
         (0, 19, _SAPPH, _SAPPH_LIT),
         (8, 13, _EMERALD, _EMERALD_LIT),
-    )
-    for dx, h, jw, lit in lancets:
+    ):
         bx = HX + dx
         ty = base_y - h
-        # pointed-arch lancet: two straight jambs rising to a point
         pts = [(bx - 4, base_y), (bx - 4, ty + 5), (bx, ty),
                (bx + 4, ty + 5), (bx + 4, base_y)]
-        pygame.draw.polygon(surf, jw, pts)
-        pygame.draw.polygon(surf, _LEAD, pts, 1)
-        pygame.draw.line(surf, lit, (bx, ty + 3), (bx, base_y - 2), 1)
-        pygame.draw.circle(surf, _GLINT, (bx, ty + 1), 1)   # leaded apex bead
+        pygame.draw.polygon(bird, jw, pts)
+        pygame.draw.polygon(bird, _LEAD, pts, 1)
+        pygame.draw.line(bird, lit, (bx, ty + 3), (bx, base_y - 2), 1)
+        pygame.draw.circle(bird, _GLINT, (bx, ty + 1), 2)     # white pinnacle tip
 
-    # Leaded WING panes — a few BIG facets over the sapphire wing, each a flat
-    # jewel bound by came, so the wing reads as a window pane fan rather than
-    # feathers. Kept to four large panes (not fine subdivision) so the lead grid
-    # survives 40px. Wing field spans roughly x∈[24,48], y∈[40,52].
-    _front_pane(surf, [(25, 45), (33, 41), (35, 47), (27, 50)], _SAPPH, _SAPPH_LIT)
-    _front_pane(surf, [(35, 41), (44, 41), (45, 47), (36, 47)], _EMERALD, _EMERALD_LIT)
-    _front_pane(surf, [(27, 50), (35, 47), (40, 51), (31, 54)], _AMBER, _AMBER_LIT)
-    _front_pane(surf, [(36, 47), (45, 47), (47, 52), (40, 51)], _RUBY, _RUBY_LIT)
-
-    # A bright diagonal LIGHT-SHAFT glint across the wing — the back-light
-    # catching the glass, the moment that sells "lit from behind" up close.
-    shaft = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    pygame.draw.line(shaft, (*_GLINT, 150), (27, 52), (44, 41), 3)
-    pygame.draw.line(shaft, (*_GLINT, 90), (31, 54), (48, 43), 2)
-    surf.blit(shaft, (0, 0))
-
-    # Leaded CHEST panes — two big ruby/amber facets over the breast so the
-    # body front also reads as a window, not a painted blob.
-    _front_pane(surf, [(40, 47), (50, 46), (51, 54), (42, 56)], _RUBY, _RUBY_LIT)
-    _front_pane(surf, [(42, 56), (51, 54), (49, 61), (41, 61)], _AMBER, _AMBER_LIT)
-
-    # Re-assert the smoky-grey aviators + a sharp came line on the beak so Pip's
-    # macaw identity survives the downscale and the lenses don't drown in jewels.
-    pygame.draw.circle(surf, (228, 230, 238), (HX + 6, HY - 3), 2)   # near-lens glint
-    pygame.draw.line(surf, _LEAD_HI, (HX + 8, HY + 1), (HX + 13, HY + 4), 1)
-    # A single horizontal came strip across the brow ties the crest plinth into
-    # the head so the window-top springs from the skull, not floats above it.
-    pygame.draw.line(surf, _LEAD, (HX - 11, base_y + 2), (HX + 12, base_y), 2)
-    pygame.draw.line(surf, _AMBER, (HX - 9, base_y + 1), (HX + 9, base_y - 1), 1)
+    # Slim SMOKY aviators — ~40% thinner than the baked lenses, lifted to a slim
+    # band on the eye line only, so at 40px they read as a thin shade line, not a
+    # black bar bisecting the body. Two short smoky lenses + a thin bridge.
+    ex, ey = HX + 3, HY - 3
+    for lx in (ex - 5, ex + 4):
+        pygame.draw.ellipse(bird, (28, 26, 34), (lx - 4, ey - 2, 8, 5))
+        pygame.draw.ellipse(bird, (120, 124, 138), (lx - 3, ey - 1, 6, 2))
+    pygame.draw.line(bird, (40, 38, 48), (ex - 1, ey), (ex, ey), 2)
+    pygame.draw.circle(bird, _GLINT, (ex - 6, ey - 1), 1)     # single bright glint
+    # A sharp came line on the beak so the directional hooked beak stays crisp.
+    pygame.draw.line(bird, _LEAD, (HX + 8, HY + 1), (HX + 13, HY + 4), 1)
 
 
 # ── custom compose + getter (halo/tail need a back layer) ─────────────────────
 
-def _glass_getter():
-    """back layer (halo + glass tail) → jewel body → front (crest, panes,
-    shaft, aviators) → house outline, then the per-(frame, 3°-bucket) rotation
-    cache shared by every store skin."""
+def _make_getter(detail):
+    """back layer (amber ring + 3 lancets) → ruby body → glass surface (clipped)
+    → front (crest, slim aviators) → house outline → per-(frame, 3°) rotation
+    cache. `detail` gates the hero-only fine tracery."""
     state = {"frames": None, "rot": {}}
 
     def _flat(wing_angle):
-        # The house outline is grown from the alpha mask, so the faint additive
-        # back-light must NOT be part of the masked layer — else the dark rim
-        # would wrap the glow and kill the "lit from behind". So outline the
-        # OPAQUE bird (jewel body + front overlay) alone, then lay the soft
-        # back layer UNDER it. The outline pads by 2px; the back surface is
-        # padded to match before the under-blit so the bird stays centred for
-        # the rotation maths.
+        # Outline the OPAQUE bird alone (so the faint additive back-light isn't
+        # boxed by the dark rim), then lay the back layer UNDER it. The outline
+        # pads by 2px; the back surface is padded to match so the bird stays
+        # centred for the rotation maths.
         bird = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
         bird.blit(_glass_base(wing_angle), (0, PARROT_DY))
+        _apply_glass_surface(bird, wing_angle, detail=detail)
         _glass_front(bird, wing_angle)
         bird = _add_outline(bird)
 
@@ -347,4 +364,7 @@ def _glass_getter():
     return getter
 
 
-build = _glass_getter()
+# Gameplay/40px build: coarse panes only. `build_hero` adds the fine tracery
+# that would mud out at small sizes, so the close-up can show true density.
+build = _make_getter(detail=False)
+build_hero = _make_getter(detail=True)

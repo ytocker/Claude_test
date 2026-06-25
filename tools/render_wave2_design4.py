@@ -1,10 +1,10 @@
-"""Round-1 exploration sheet for design_4 · STAINED-GLASS MACAW (legendary).
+"""Exploration sheet for design_4 · STAINED-GLASS MACAW (legendary).
 
-In-gameplay reads, day AND night, so the back-lit panes + lead lines are judged
-on both palettes the way the wave2 brief demands: a day gameplay panel, a night
-gameplay panel, a clean hero close-up, a 40px NEAREST truth-read (does the
-window survive the downscale), and a 4-frame filmstrip (legendary tell — the
-glass tail/halo must read across the flap). Pure capture; nothing registered.
+Round 2 leads with the 40px TRUTH-READ (the art-director's north star: if it
+doesn't read as a parrot at 40px on day sky, nothing else matters), then the
+in-gameplay day/night panels, the hero close-up (uses build_hero — the only
+place the fine rose-tracery renders), and a 4-frame filmstrip so the baked
+halo/tail are judged across the whole flap. Pure capture; nothing registered.
 
 Run headless from repo root:
 ``SDL_VIDEODRIVER=dummy python tools/render_wave2_design4.py``.
@@ -25,7 +25,7 @@ from game.entities import Pipe
 from game.config import W as GW, H as GH, GROUND_Y
 from game.hud import _font, _GOLD_PALE
 import tools.ninja_render as nr
-from tools.parrot_wave2_candidates.design_4 import build as BUILD
+from tools.parrot_wave2_candidates.design_4 import build as BUILD, build_hero as BUILD_HERO
 
 
 def _scene_panel(phase, w, h, *, frame_idx=2, tilt=10.0):
@@ -53,26 +53,29 @@ def _scene_panel(phase, w, h, *, frame_idx=2, tilt=10.0):
     return pygame.transform.smoothscale(scene.subsurface(crop).copy(), (w, h))
 
 
-def _truth40(bg):
-    """The bird rendered then hard-downscaled to ~40px with NEAREST (no smooth),
-    then blown back up NEAREST onto a tile — the 'lives or dies at 40px' check."""
+def _truth40(bg, target=40):
+    """The bird hard-downscaled to ~`target`px with smoothscale (the real
+    in-game downsample path), then blown back up NEAREST so the actual gameplay
+    pixels are visible — the 'lives or dies at 40px' check."""
     frame = BUILD(2, 8.0)
     bb = frame.get_bounding_rect()
     frame = frame.subsurface(bb).copy()
     sw, sh = frame.get_size()
-    scale = 40.0 / max(sw, sh)
-    small = pygame.transform.scale(
+    scale = target / max(sw, sh)
+    small = pygame.transform.smoothscale(
         frame, (max(1, int(sw * scale)), max(1, int(sh * scale))))
-    tile = pygame.Surface((140, 140))
+    tile = pygame.Surface((150, 150))
     tile.fill(bg)
     big = pygame.transform.scale(small, (small.get_width() * 3, small.get_height() * 3))
-    tile.blit(big, big.get_rect(center=(70, 70)))
+    tile.blit(big, big.get_rect(center=(75, 75)))
+    # an actual-size swatch, top-right, so the true pixel count is visible too
+    tile.blit(small, (tile.get_width() - small.get_width() - 6, 6))
     return tile
 
 
 def _filmstrip(bg):
-    """All four wing frames in a row, on a flat tile, so the baked halo/tail are
-    judged across the whole flap cycle (the legendary motion tell)."""
+    """All four wing frames in a row so the baked halo/tail are judged across the
+    whole flap cycle (the legendary motion tell)."""
     cell = 120
     strip = pygame.Surface((cell * 4, cell), pygame.SRCALPHA)
     strip.fill(bg)
@@ -91,47 +94,59 @@ def _filmstrip(bg):
 # ── compose the sheet ─────────────────────────────────────────────────────────
 PAD = 24
 TITLE_H = 70
-GP_W, GP_H = 300, 420          # gameplay panels (day, night)
-HERO = 300
+GP_W, GP_H = 290, 410
+HERO = 290
 DARK = (18, 16, 28)
-NIGHTBG = (12, 14, 30)
 
-day_panel = _scene_panel(0.0, GP_W, GP_H)
-night_panel = _scene_panel(0.64375, GP_W, GP_H)
-hero = nr.hero_panel(BUILD, HERO, tilt=0.0, bg=(26, 22, 36))
+# truth-read FIRST (top row), then gameplay + hero, then filmstrips.
 t40_day = _truth40((176, 214, 240))
 t40_night = _truth40((20, 24, 48))
+day_panel = _scene_panel(0.0, GP_W, GP_H)
+night_panel = _scene_panel(0.64375, GP_W, GP_H)
+hero = nr.hero_panel(BUILD_HERO, HERO, tilt=0.0, bg=(26, 22, 36))
 film_day = _filmstrip((26, 22, 36))
-film_night = _filmstrip(NIGHTBG)
+film_night = _filmstrip((12, 14, 30))
 
+t40_h = t40_day.get_height()
 top_h = max(GP_H, HERO)
 strip_h = film_day.get_height()
-sheet_w = PAD * 4 + GP_W + GP_H + HERO  # not used directly; recompute below
-# Layout: row 1 = [day gameplay | night gameplay | hero], row 2 = truth40 pair,
-# row 3 = day filmstrip, row 4 = night filmstrip.
-row1_w = GP_W + GP_W + HERO + PAD * 2
-sheet_w = PAD * 2 + row1_w
-strip_w = film_day.get_width()
-sheet_w = max(sheet_w, PAD * 2 + strip_w)
 
-t40_block_h = max(t40_day.get_height(), 140)
-sheet_h = (TITLE_H + top_h + PAD + t40_block_h + PAD
-           + strip_h + 28 + strip_h + PAD * 2)
+row_mid_w = GP_W * 2 + HERO + PAD * 2
+sheet_w = PAD * 2 + max(row_mid_w, film_day.get_width())
+sheet_h = (TITLE_H + (t40_h + 24) + (top_h + PAD + 16)
+           + (strip_h + 28) * 2 + PAD * 2)
 
 sheet = pygame.Surface((sheet_w, sheet_h))
 sheet.fill(DARK)
 
 title = _font(28, True).render(
-    "STAINED-GLASS MACAW · LEGENDARY (~3400) · wave2 design_4 · round 1",
+    "STAINED-GLASS MACAW · LEGENDARY · wave2 design_4 · round 2 (RE-ROLL response)",
     True, _GOLD_PALE)
-sheet.blit(title, title.get_rect(midtop=(sheet_w // 2, 20)))
+sheet.blit(title, title.get_rect(midtop=(sheet_w // 2, 18)))
 sub = _font(14, False).render(
-    "rose-window halo + cathedral glass tail (back-lit) · leaded jewel panes · gothic-arch crest",
+    "silhouette-first ruby macaw · glass as a clipped surface · 3 solid tail lancets · crest wins · slim aviators",
     True, (180, 172, 200))
-sheet.blit(sub, sub.get_rect(midtop=(sheet_w // 2, 48)))
+sheet.blit(sub, sub.get_rect(midtop=(sheet_w // 2, 46)))
 
 lab = _font(14, True)
+small = _font(12, False)
+
+# Row 1 — TRUTH-READ FIRST.
 y = TITLE_H
+x = PAD
+sheet.blit(lab.render("40px TRUTH-READ FIRST — does it read as a parrot? (day | night)",
+                      True, _GOLD_PALE), (x, y - 2))
+y += 18
+sheet.blit(t40_day, (x, y))
+x += t40_day.get_width() + PAD
+sheet.blit(t40_night, (x, y))
+x += t40_night.get_width() + PAD
+sheet.blit(small.render("3x upscaled NEAREST of the actual", True, (180, 172, 200)), (x, y + 40))
+sheet.blit(small.render("in-game ~40px smoothscale; the tiny", True, (180, 172, 200)), (x, y + 56))
+sheet.blit(small.render("swatch top-right is the true pixel count.", True, (180, 172, 200)), (x, y + 72))
+
+# Row 2 — gameplay day/night + hero.
+y += t40_h + 24
 x = PAD
 sheet.blit(day_panel, (x, y))
 sheet.blit(lab.render("GAMEPLAY · DAY", True, _GOLD_PALE), (x + 4, y + GP_H + 4))
@@ -141,22 +156,13 @@ sheet.blit(lab.render("GAMEPLAY · NIGHT", True, _GOLD_PALE), (x + 4, y + GP_H +
 x += GP_W + PAD
 pygame.draw.rect(sheet, (26, 22, 36), pygame.Rect(x, y, HERO, HERO), border_radius=14)
 sheet.blit(hero, (x, y))
-sheet.blit(lab.render("HERO CLOSE-UP", True, _GOLD_PALE), (x + 4, y + HERO + 4))
+sheet.blit(lab.render("HERO CLOSE-UP (fine tracery — hero only)", True, _GOLD_PALE),
+           (x + 4, y + HERO + 4))
 
+# Row 3/4 — filmstrips.
 y += top_h + PAD + 16
-x = PAD
-sheet.blit(t40_day, (x, y))
-sheet.blit(lab.render("40px · DAY", True, _GOLD_PALE), (x + 4, y + t40_day.get_height() + 2))
-x += t40_day.get_width() + PAD
-sheet.blit(t40_night, (x, y))
-sheet.blit(lab.render("40px · NIGHT", True, _GOLD_PALE), (x + 4, y + t40_night.get_height() + 2))
-x += t40_night.get_width() + PAD
-note = _font(13, False).render("40px NEAREST truth-read — does the window survive?",
-                               True, (180, 172, 200))
-sheet.blit(note, (x, y + 50))
-
-y += t40_block_h + PAD + 16
-sheet.blit(lab.render("4-FRAME FILMSTRIP · DAY (legendary motion tell)", True, _GOLD_PALE), (PAD, y - 14))
+sheet.blit(lab.render("4-FRAME FILMSTRIP · DAY (legendary motion tell)", True, _GOLD_PALE),
+           (PAD, y - 14))
 sheet.blit(film_day, (PAD, y))
 y += strip_h + 28
 sheet.blit(lab.render("4-FRAME FILMSTRIP · NIGHT", True, _GOLD_PALE), (PAD, y - 14))
@@ -164,6 +170,6 @@ sheet.blit(film_night, (PAD, y))
 
 out_dir = os.path.join("docs", "store_redesign", "parrot", "wave2", "design_4")
 os.makedirs(out_dir, exist_ok=True)
-out = os.path.join(out_dir, "round_1.png")
+out = os.path.join(out_dir, "round_2.png")
 pygame.image.save(sheet, out)
 print("SAVED", out, sheet.get_size())
