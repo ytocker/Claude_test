@@ -168,51 +168,196 @@ get_pirate_parrot = _make_skin(_paint_pirate)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2 · NINJA — the CRIMSON HEADBAND is the hero: a solid bright band wrapping
-#     the full crown, sitting ABOVE a slim dark cowl so it pops. One thick
-#     tail only; eye-glints warmed to amber so they don't fight the scarlet.
-#
-# R1 fail: only the blue eye-slit read, like a random blue blob.
+# 2 · NINJA — a black-shadow shinobi. The whole macaw is re-plumaged near-black
+#     through the palette system (like the crimson/disco skins) so the costume
+#     accents read as crimson lines ON black instead of red-on-red, and the
+#     silhouette reads as one dark moving shadow. At 40px the read is, in order
+#     of value: a near-black bird, a bright metal eye-slit looking forward, a
+#     steel-tipped ninjato slung corner-to-corner (BOTH tips glinting past the
+#     silhouette so it breaks the egg shape no other costume has), then the
+#     crimson headband + trailing tails and the obi as the only colour. Every
+#     object is mass + ONE accent per object so the stack survives downscale.
 # ─────────────────────────────────────────────────────────────────────────────
-_NIN_CLOTH   = (40, 44, 58)
-_NIN_CLOTH_D = (24, 27, 38)
-_NIN_CLOTH_H = (78, 84, 104)
-_NIN_BAND    = (224, 48, 46)
-_NIN_BAND_D  = (150, 26, 30)
-_NIN_BAND_H  = (255, 120, 96)
-_NIN_EYE     = (255, 232, 180)     # warm amber, not cold blue
-_NIN_EYE_D   = (210, 150, 70)
+_NIN_BLACK     = (17, 19, 26)      # shadow body
+_NIN_CLOTH_H   = (31, 36, 48)      # cloth highlight — separates stacked black
+_NIN_SHADOW    = (42, 47, 60)      # wrap shadow / soft edge
+_NIN_CRIMSON   = (200, 16, 46)     # crimson accent (one line per object)
+_NIN_CRIMSON_D = (138, 12, 34)
+_NIN_CRIMSON_H = (236, 70, 92)
+_NIN_METAL     = (232, 234, 240)   # eye-slit + steel glint
+_NIN_METAL_D   = (150, 156, 170)
+
+# Near-black re-plumage of the whole macaw. Every slot is shadow-black with a
+# slightly lifted cloth-highlight on chest/crown so the dark mass doesn't read
+# as a flat void on night sky; tail/wing line work uses the deepest tone. Beak
+# and foot are blacked so nothing warm survives; lenses are dropped by the base
+# call so the eye-slit owns the face.
+P_NINJA = _pal(
+    tail=[(13, 15, 21), (15, 17, 23), (19, 21, 28), (24, 27, 35)],
+    tail_line=(8, 9, 13),
+    body_shadow=(11, 12, 17),
+    body_main=_NIN_BLACK,
+    body_chest=(24, 27, 35),
+    body_belly=(19, 21, 28),
+    sheen=(120, 130, 150, 40),
+    wing_main=(14, 16, 22),
+    wing_dark=(8, 9, 13),
+    wing_tip=(28, 31, 40),
+    wing_secondary=None,
+    wing_highlight=_NIN_CLOTH_H,
+    head_shadow=(11, 12, 17),
+    head_main=_NIN_BLACK,
+    head_cheek=(20, 22, 30),
+    head_crown=(24, 27, 35),
+    lens_frame=(20, 22, 30),
+    lens_body=(8, 9, 13),
+    lens_tint=None,
+    lens_glint=None,
+    beak_main=(20, 22, 30),
+    beak_dark=(8, 9, 13),
+    beak_gloss=(48, 52, 64),
+    foot=(18, 20, 26),
+)
 
 
-def _paint_ninja(surf, _a):
-    # Slim dark cowl hugging the head (kept below the band so the band reads).
-    pygame.draw.ellipse(surf, _NIN_CLOTH_D, (HX - 12, CROWN_Y - 1, 25, 24))
-    pygame.draw.ellipse(surf, _NIN_CLOTH, (HX - 11, CROWN_Y, 23, 22))
-    pygame.draw.ellipse(surf, _NIN_CLOTH_H, (HX - 5, CROWN_Y + 1, 8, 3))
-    # Wrap fold across the lower face.
-    pygame.draw.polygon(surf, _NIN_CLOTH_D,
-                        [(HX - 10, HY + 4), (HX + 12, HY + 2),
-                         (HX + 11, HY + 9), (HX - 9, HY + 10)])
-
-    # Eye-slit with two warm amber glints (no blue).
-    pygame.draw.rect(surf, (12, 13, 18), (HX - 5, HY - 2, 18, 6), border_radius=3)
-    pygame.draw.circle(surf, _NIN_EYE, (HX, HY + 1), 2)
-    pygame.draw.circle(surf, _NIN_EYE, (HX + 8, HY), 2)
-    pygame.draw.circle(surf, _NIN_EYE_D, (HX, HY + 1), 1)
-    pygame.draw.circle(surf, _NIN_EYE_D, (HX + 8, HY), 1)
-
-    # HERO: solid crimson headband ABOVE the cowl, breaking the crown outline.
-    by = CROWN_Y - 1
-    pygame.draw.line(surf, _NIN_BAND_D, (HX - 13, by + 1), (HX + 13, by - 1), 5)
-    pygame.draw.line(surf, _NIN_BAND, (HX - 13, by), (HX + 13, by - 2), 4)
-    pygame.draw.line(surf, _NIN_BAND_H, (HX - 11, by - 1), (HX + 6, by - 2), 1)
-    # One thick streaming tail flicking back off the far side.
-    pygame.draw.line(surf, _NIN_BAND_D, (HX - 12, by), (HX - 23, by + 4), 4)
-    pygame.draw.line(surf, _NIN_BAND, (HX - 12, by), (HX - 22, by + 3), 3)
-    pygame.draw.circle(surf, _NIN_BAND_D, (HX - 12, by), 2)   # knot
+def _ninja_base(angle_deg):
+    # Black bird with no aviators — the face wrap + eye-slit own the head.
+    return _build_parrot_with_palette(angle_deg, P_NINJA, draw_lenses=False)
 
 
-get_ninja_parrot = _make_skin(_paint_ninja)
+def _paint_ninja(surf, wing_angle_deg):
+    # Headband tails flick with the wing beat so the shadow feels alive; the
+    # base wing angles run negative-on-downbeat, so a small share reads as the
+    # ribbons trailing the dive.
+    flick = int(round(wing_angle_deg * 0.12))
+
+    # Ninjato slung corner-to-corner (drawn FIRST, behind the body/head so only
+    # the ends poke out — the hero silhouette-breaker). On a black body the HARD
+    # STEEL at BOTH tips is the single highest-value note at 40px, so each end
+    # overshoots the silhouette and gets a metal glint.
+    lo = (HX - 31, HY + 28)        # scabbard butt, out past the tail
+    hi = (HX + 19, CROWN_Y - 18)   # handle tip, up past the crown
+    pygame.draw.line(surf, _NIN_SHADOW, lo, hi, 7)
+    pygame.draw.line(surf, _NIN_BLACK, lo, hi, 5)
+    pygame.draw.line(surf, _NIN_CLOTH_H,
+                     (lo[0] + 2, lo[1] - 2), (hi[0] - 2, hi[1] + 2), 1)
+    # The crimson sageo cord runs the whole length between two dark edges so it
+    # reads as a line, not a wash.
+    pygame.draw.line(surf, _NIN_CRIMSON,
+                     (lo[0] + 1, lo[1] - 3), (hi[0] - 1, hi[1] + 3), 1)
+
+    dx, dy = hi[0] - lo[0], hi[1] - lo[1]
+    blen = math.hypot(dx, dy)
+    ux, uy = dx / blen, dy / blen
+    px, py = -uy, ux                 # perpendicular, for the square guard
+
+    # Square guard (tsuba) where the handle meets the blade, near the crown.
+    gx = hi[0] - ux * 13
+    gy = hi[1] - uy * 13
+    guard = [
+        (gx + px * 5, gy + py * 5), (gx - px * 5, gy - py * 5),
+        (gx - px * 5 + ux * 3, gy - py * 5 + uy * 3),
+        (gx + px * 5 + ux * 3, gy + py * 5 + uy * 3),
+    ]
+    _poly(surf, _NIN_BLACK, guard)
+    pygame.draw.line(surf, _NIN_METAL_D, (gx + px * 4, gy + py * 4),
+                     (gx - px * 4, gy - py * 4), 1)
+
+    # Wrapped handle (tsuka) above the guard, poking past the crown — cord-wrap
+    # ticks, then a HARD steel pommel cap glinting at the tip so the top end
+    # clearly breaks the crown outline.
+    for t in (4, 9):
+        hxp = hi[0] - ux * t
+        hyp = hi[1] - uy * t
+        pygame.draw.line(surf, _NIN_CLOTH_H, (hxp + px * 2, hyp + py * 2),
+                         (hxp - px * 2, hyp - py * 2), 1)
+    pygame.draw.circle(surf, _NIN_METAL_D, (int(hi[0]), int(hi[1])), 3)
+    pygame.draw.circle(surf, _NIN_METAL, (int(hi[0]), int(hi[1])), 2)
+    pygame.draw.circle(surf, (255, 255, 255), (int(hi[0] - 1), int(hi[1] - 1)), 1)
+
+    # Steel scabbard-butt cap (kojiri) glinting at the LOW tip past the tail —
+    # the second hard metal note, sized to throw an EQUAL-weight steel break at
+    # 40px on night, where the low tip is otherwise the softer of the two reads.
+    pygame.draw.circle(surf, _NIN_METAL_D, (int(lo[0]), int(lo[1])), 4)
+    pygame.draw.circle(surf, _NIN_METAL, (int(lo[0]), int(lo[1])), 3)
+    pygame.draw.circle(surf, (255, 255, 255), (int(lo[0] + 1), int(lo[1] - 1)), 1)
+    pygame.draw.circle(surf, (255, 255, 255), (int(lo[0]), int(lo[1] - 1)), 1)
+
+    # Headband tails streaming off the BACK of the skull (drawn before the head
+    # wrap so the wrap roots them). Two crimson ribbons aimed to trail OFF the
+    # silhouette into open sky (up-left, away from the body) so they read as
+    # motion, not body lines.
+    bx, by = HX - 11, CROWN_Y + 2   # back-of-skull anchor
+    for k, spread in ((0, 0), (1, 4)):
+        t0 = (bx, by + k * 2)
+        t1 = (bx - 13, by - 1 + flick + spread)
+        t2 = (bx - 25, by + 2 + flick * 2 + spread)
+        pygame.draw.lines(surf, _NIN_CRIMSON_D, False, [t0, t1, t2], 3)
+        pygame.draw.lines(surf, _NIN_CRIMSON, False, [t0, t1, t2], 2)
+    pygame.draw.line(surf, _NIN_CRIMSON_H, (bx, by), (bx - 11, by - 1 + flick), 1)
+
+    # Full face wrap (fukumen): black cloth over the whole head from the
+    # beak-base up past the crown, leaving a horizontal eye-slit.
+    pygame.draw.ellipse(surf, _NIN_SHADOW, (HX - 13, CROWN_Y - 1, 26, 25))
+    pygame.draw.ellipse(surf, _NIN_BLACK, (HX - 12, CROWN_Y, 24, 23))
+    # Crown highlight so the black skull-cap doesn't vanish on night sky.
+    pygame.draw.ellipse(surf, _NIN_CLOTH_H, (HX - 6, CROWN_Y + 1, 10, 4))
+    # Lower-face wrap fold across the beak base, with a single cloth crease.
+    fold = [(HX - 11, HY + 3), (HX + 12, HY + 1),
+            (HX + 12, HY + 9), (HX - 10, HY + 11)]
+    _poly(surf, _NIN_BLACK, fold)
+    pygame.draw.line(surf, _NIN_CLOTH_H, (HX - 9, HY + 6), (HX + 10, HY + 4), 1)
+
+    # Eye-slit: a bright metal band so Pip still reads as looking forward —
+    # framed dark so it reads as a slit, not a bar.
+    pygame.draw.rect(surf, (8, 9, 13), (HX - 6, HY - 3, 19, 7), border_radius=3)
+    pygame.draw.rect(surf, _NIN_METAL, (HX - 4, HY - 1, 15, 3), border_radius=1)
+    # Two darker pupils sitting in the slit so it reads as eyes, not a bar.
+    pygame.draw.circle(surf, (20, 22, 30), (HX, HY), 1)
+    pygame.draw.circle(surf, (20, 22, 30), (HX + 8, HY), 1)
+
+    # Hachimaki band over the wrap (crimson) — the brow accent that ties the
+    # trailing tails to the head. Dark cloth on both sides keeps it a line.
+    by2 = CROWN_Y + 5
+    pygame.draw.line(surf, _NIN_CRIMSON_D, (HX - 12, by2 + 1), (HX + 12, by2 - 1), 4)
+    pygame.draw.line(surf, _NIN_CRIMSON, (HX - 12, by2), (HX + 12, by2 - 2), 3)
+    pygame.draw.line(surf, _NIN_CRIMSON_H, (HX - 10, by2 - 1), (HX + 6, by2 - 2), 1)
+    pygame.draw.circle(surf, _NIN_CRIMSON_D, (bx, by), 2)   # side knot
+
+    # Obi sash wrapped around the belly, knotted at the side with a hanging end.
+    bcx, bcy = 31, 53
+    sash = [(bcx - 17, bcy - 3), (bcx + 14, bcy - 6),
+            (bcx + 15, bcy + 1), (bcx - 16, bcy + 4)]
+    _poly(surf, _NIN_SHADOW, sash)
+    sash2 = [(bcx - 17, bcy - 2), (bcx + 14, bcy - 5),
+             (bcx + 14, bcy - 1), (bcx - 16, bcy + 2)]
+    _poly(surf, _NIN_BLACK, sash2)
+    pygame.draw.line(surf, _NIN_CLOTH_H, (bcx - 15, bcy - 2), (bcx + 12, bcy - 5), 1)
+    # Side knot + short hanging end (crimson accent on the body object).
+    kx, ky = bcx - 15, bcy
+    pygame.draw.circle(surf, _NIN_CRIMSON_D, (kx, ky), 3)
+    pygame.draw.circle(surf, _NIN_CRIMSON, (kx, ky), 2)
+    _poly(surf, _NIN_CRIMSON_D, [(kx - 1, ky + 2), (kx + 3, ky + 2),
+                                 (kx + 1, ky + 9), (kx - 3, ky + 8)])
+    _poly(surf, _NIN_CRIMSON, [(kx, ky + 3), (kx + 2, ky + 3),
+                               (kx + 1, ky + 8), (kx - 1, ky + 8)])
+
+    # Lower wing/tail back-edge rim: a single 1px cloth-highlight stroke tracing
+    # the underside silhouette that faces open sky, so the dark mass keeps a
+    # crisp lower edge against dark night backgrounds. Pure edge rim — held one
+    # tone above shadow so the bright-sky day read is untouched.
+    pygame.draw.lines(surf, _NIN_CLOTH_H, False,
+                      [(15, 40), (22, 44), (28, 47), (38, 47), (45, 43)], 1)
+
+    # Forearm wrap: ONE thicker black band near the wing root with a single
+    # crimson tie so the wing reads as a bound shinobi arm, not bare plumage.
+    wrx, wry = 40, 47
+    pygame.draw.line(surf, _NIN_SHADOW, (wrx - 6, wry + 1), (wrx + 7, wry - 2), 5)
+    pygame.draw.line(surf, _NIN_BLACK, (wrx - 6, wry + 1), (wrx + 7, wry - 2), 3)
+    pygame.draw.line(surf, _NIN_CRIMSON, (wrx - 5, wry - 1), (wrx + 6, wry - 3), 1)
+
+
+get_ninja_parrot = _make_skin(_paint_ninja, base_fn=_ninja_base)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -269,57 +414,129 @@ get_wizard_parrot = _make_skin(_paint_wizard)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4 · ASTRONAUT — read it as a HARD sphere: opaque crisp bright rim (2px) +
-#     one strong specular hot-spot. Visor cooled to blue-steel + a hard dark
-#     edge so it never reads as the macaw's gold beak. Antenna committed to a
-#     2px bright tip on a 2px stalk.
+# 4 · ASTRONAUT — a sleek modern flight-suit with an oval white helmet shell and
+#     a hard hexagonal black faceplate (visor DOWN).
 #
-# R1 fail: translucent dome read "out of focus"; gold visor doubled the beak.
+# The whole macaw is re-plumaged near-WHITE through
+# the palette system, so the bird is a bright blob the dark sky never swallows,
+# and the HELMET wins the read — the hard black faceplate is the single largest
+# dark mass, carried at 40px by one dominant white diagonal glint. The flight-
+# pack is GRAY (not black) and sits LOW behind the shoulder, overlapped by the
+# body and tied in by a white strap, so it reads "pack on back", not a second
+# head. One black shoulder yoke is the only body panel; the lone colour is a
+# single cyan status line on the chest, kept off the face.
 # ─────────────────────────────────────────────────────────────────────────────
-_AST_RING   = (236, 240, 246)
-_AST_RING_D = (170, 178, 190)
-_AST_GLASS  = (108, 150, 186)      # opaque cool glass tone
-_AST_GLASS_D = (70, 104, 140)
-_AST_RIM    = (220, 244, 255)
-_AST_VISOR  = (70, 120, 170)       # cool blue-steel, NOT gold
-_AST_VISOR_D = (28, 54, 86)
-_AST_VISOR_H = (150, 200, 240)
+_AST_W     = (244, 246, 250)       # glossy suit white
+_AST_SH    = (200, 205, 214)       # suit shadow
+_AST_BLACK = (21, 23, 28)          # visor / accent panels
+_AST_GRAY  = (90, 97, 112)         # flight-pack / mid shadow
+_AST_CYAN  = (43, 198, 224)        # cyan status accent
+_AST_HI    = (255, 255, 255)
+
+# Full near-white suit re-plumage. Every slot becomes glossy white with a cool
+# shadow doing the line work so the dark sky never eats the silhouette; lenses
+# dropped so the angular faceplate owns the face; beak goes dark so no warm gold
+# survives the two-tone.
+P_ASTRONAUT = _pal(
+    tail=[(214, 219, 228), (224, 228, 236), (234, 237, 243), (244, 246, 250)],
+    tail_line=_AST_SH,
+    body_shadow=(196, 201, 211),
+    body_main=_AST_W,
+    body_chest=(255, 255, 255),
+    body_belly=(232, 236, 242),
+    sheen=(255, 255, 255, 150),
+    wing_main=(228, 232, 239),
+    wing_dark=_AST_SH,
+    wing_tip=(248, 250, 253),
+    wing_secondary=None,
+    wing_highlight=_AST_HI,
+    head_shadow=(200, 205, 214),
+    head_main=_AST_W,
+    head_cheek=(248, 250, 253),
+    head_crown=(255, 255, 255),
+    lens_frame=(200, 205, 214),
+    lens_body=_AST_BLACK,
+    lens_tint=None,
+    lens_glint=None,
+    beak_main=(70, 76, 90),
+    beak_dark=_AST_BLACK,
+    beak_gloss=(150, 156, 170),
+    foot=_AST_BLACK,
+)
 
 
-def _paint_astronaut(surf, _a):
-    cx, cy = HX + 1, HY - 2
-    r = 15
-    # White EVA collar ring behind the dome.
-    pygame.draw.ellipse(surf, _AST_RING_D, (cx - 12, cy + 8, 26, 10))
-    pygame.draw.ellipse(surf, _AST_RING, (cx - 11, cy + 8, 24, 7))
-
-    # OPAQUE glass dome — a hard sphere, not a translucent veil.
-    pygame.draw.circle(surf, _AST_GLASS_D, (cx, cy), r)
-    pygame.draw.circle(surf, _AST_GLASS, (cx, cy - 1), r - 1)
-
-    # Cool blue-steel visor band across the lower-front, with a hard dark edge.
-    visor = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
-    pygame.draw.ellipse(visor, _AST_VISOR, (4, r - 1, r * 2 - 4, r))
-    clip = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
-    pygame.draw.circle(clip, (255, 255, 255, 255), (r + 2, r + 2), r - 2)
-    visor.blit(clip, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    surf.blit(visor, (cx - r - 2, cy - r - 2))
-    pygame.draw.line(surf, _AST_VISOR_D, (cx - 11, cy + 2), (cx + 9, cy), 2)
-    pygame.draw.line(surf, _AST_VISOR_H, (cx - 8, cy + 4), (cx + 5, cy + 3), 1)
-
-    # Crisp opaque bright rim (2px) — reads the sphere at 40px.
-    pygame.draw.circle(surf, _AST_RIM, (cx, cy), r, 2)
-    # One strong specular hot-spot top-left.
-    pygame.draw.circle(surf, (255, 255, 255), (cx - 6, cy - 7), 3)
-    pygame.draw.circle(surf, (255, 255, 255), (cx - 4, cy - 9), 1)
-
-    # Antenna: committed 2px stalk + 2px bright tip.
-    pygame.draw.line(surf, _AST_RING, (cx + 11, cy - 10), (cx + 16, cy - 17), 2)
-    pygame.draw.circle(surf, (255, 90, 80), (cx + 16, cy - 17), 2)
-    pygame.draw.circle(surf, (255, 200, 190), (cx + 15, cy - 18), 1)
+def _astronaut_base(angle_deg):
+    # Glossy-white suited bird, no aviators — the angular faceplate owns the head.
+    return _build_parrot_with_palette(angle_deg, P_ASTRONAUT, draw_lenses=False)
 
 
-get_astronaut_parrot = _make_skin(_paint_astronaut)
+def _paint_astronaut(surf, wing_angle_deg):
+    # Body centre in composite space (parrot body centre (32,32) + PARROT_DY).
+    BCX, BCY = 32, 52
+
+    # Low-profile GRAY flight-pack hugging the shoulder. Drawn first so the body
+    # overlaps its inner edge → reads worn ON the back, attached, not a second
+    # mass. Gray + low (top below the crown) so the dark faceplate stays the
+    # single largest dark shape; the top is canted (never a vertical bar
+    # mirroring the helmet) and a white strap ties it to the suit.
+    pkx, pky = BCX - 13, BCY + 1
+    pack = [(pkx - 5, pky - 6), (pkx + 4, pky - 9), (pkx + 7, pky + 1),
+            (pkx + 6, pky + 12), (pkx - 4, pky + 13), (pkx - 6, pky + 3)]
+    _poly(surf, _AST_GRAY, pack)
+    pygame.draw.line(surf, _AST_SH, (pkx - 4, pky - 5), (pkx + 5, pky + 11), 1)
+    _poly(surf, _AST_BLACK, [(pkx - 4, pky + 8), (pkx + 6, pky + 8),
+                             (pkx + 5, pky + 12), (pkx - 4, pky + 12)])
+    pygame.draw.line(surf, _AST_HI, (pkx + 3, pky - 8), (BCX + 1, BCY - 9), 2)
+    pygame.draw.line(surf, _AST_SH, (pkx + 3, pky - 7), (BCX + 1, BCY - 8), 1)
+
+    # ONE bold black shoulder YOKE across the upper chest — the single body panel
+    # that survives at 40px; the white body stays clean below it.
+    yoke = [(BCX - 14, BCY - 7), (BCX - 4, BCY - 12), (BCX + 9, BCY - 11),
+            (BCX + 15, BCY - 5), (BCX + 9, BCY - 5), (BCX - 2, BCY - 7),
+            (BCX - 11, BCY - 3)]
+    _poly(surf, _AST_BLACK, yoke)
+    pygame.draw.line(surf, _AST_GRAY, (BCX - 11, BCY - 6), (BCX + 11, BCY - 8), 1)
+
+    # Minimalist black chest module with one thin CYAN status line + dot — the
+    # single colour accent on the whole skin.
+    mx, my = BCX + 1, BCY + 1
+    pygame.draw.rect(surf, _AST_BLACK, (mx - 6, my - 3, 13, 9), border_radius=2)
+    pygame.draw.rect(surf, _AST_GRAY, (mx - 6, my - 3, 13, 9), 1, border_radius=2)
+    pygame.draw.line(surf, _AST_CYAN, (mx - 4, my + 1), (mx + 3, my + 1), 1)
+    pygame.draw.circle(surf, _AST_CYAN, (mx + 5, my - 1), 1)
+    pygame.draw.circle(surf, _AST_HI, (mx - 4, my + 3), 1)
+
+    # Black glove at the near wingtip, black boots, and a thin seam up the wing
+    # root → the two-tone reaches every extremity.
+    pygame.draw.line(surf, _AST_BLACK, (BCX + 4, BCY - 6), (BCX + 14, BCY - 9), 2)
+    pygame.draw.circle(surf, _AST_BLACK, (BCX + 16, BCY - 4), 3)
+    pygame.draw.circle(surf, _AST_SH, (BCX + 15, BCY - 5), 1)
+    for fx in (BCX - 6, BCX):
+        pygame.draw.line(surf, _AST_BLACK, (fx, BCY + 13), (fx - 1, BCY + 17), 3)
+        pygame.draw.circle(surf, _AST_BLACK, (fx - 1, BCY + 17), 2)
+
+    # Oval white helmet shell with a crisp gray rim (the outline pass only edges
+    # the outer silhouette, so this internal rim separates shell from white body),
+    # then a hard hexagonal BLACK faceplate (visor DOWN) with one dominant white
+    # diagonal glint and a chin/comms wedge. The flatter oval is the modern read.
+    hcx, hcy = HX + 1, HY - 1
+    pygame.draw.ellipse(surf, _AST_GRAY, (hcx - 14, hcy - 14, 29, 27))
+    pygame.draw.ellipse(surf, _AST_W, (hcx - 13, hcy - 13, 27, 25))
+    pygame.draw.ellipse(surf, _AST_GRAY, (hcx - 13, hcy - 13, 27, 25), 1)
+    pygame.draw.ellipse(surf, _AST_HI, (hcx - 9, hcy - 12, 11, 4))
+    fx, fy = hcx + 1, hcy + 1
+    face = [(fx - 11, fy - 4), (fx - 6, fy - 8), (fx + 9, fy - 7),
+            (fx + 12, fy - 1), (fx + 8, fy + 7), (fx - 7, fy + 7),
+            (fx - 11, fy + 2)]
+    _poly(surf, (8, 9, 12), [(x, y + 1) for x, y in face])
+    _poly(surf, _AST_BLACK, face)
+    pygame.draw.line(surf, _AST_GRAY, (fx - 6, fy - 7), (fx + 8, fy - 6), 1)
+    pygame.draw.line(surf, _AST_HI, (fx - 8, fy + 5), (fx + 6, fy - 6), 3)
+    _poly(surf, _AST_BLACK, [(fx - 4, fy + 7), (fx + 6, fy + 7),
+                             (fx + 3, fy + 12), (fx - 2, fy + 12)])
+
+
+get_astronaut_parrot = _make_skin(_paint_astronaut, base_fn=_astronaut_base)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -376,66 +593,241 @@ get_pharaoh_parrot = _make_skin(_paint_pharaoh)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 6 · VIKING (ship-candidate) — widen horn TIPS 1px so they read at 40px;
-#     cool/darken the braided beard so it separates from the scarlet body
-#     (let the bright helmet carry the read). Horns anchored to the brow band.
+# 6 · VIKING — a rust-raider macaw: the whole bird is re-plumaged warm auburn
+#     through the palette system, then it reads as a NORMAL parrot wearing
+#     Viking gear — the bare macaw eye + hooked beak stay in the open under a
+#     RAISED horned spangenhelm, a long braided moustache drops to two metal
+#     beads over a chin beard, and a twin-bit axe is STOWED diagonally on the
+#     back behind the round shield (carried, not wielded). The body must hold a
+#     crisp edge on a bright sky, so the silhouette is wrapped in a near-black
+#     outline instead of the default 1px line. Axe is drawn BEHIND the body, so
+#     this skin uses its own compose rather than _make_skin's body-first order.
 # ─────────────────────────────────────────────────────────────────────────────
-_VK_IRON   = (126, 134, 148)
-_VK_IRON_D = (74, 80, 92)
-_VK_IRON_H = (198, 206, 218)
-_VK_HORN   = (240, 230, 206)
-_VK_HORN_D = (184, 172, 142)
-_VK_BEARD  = (150, 120, 70)        # cooler/darker tan — off the scarlet
-_VK_BEARD_D = (104, 80, 44)
-_VK_BEAD   = (210, 180, 90)
+_VK_RUST       = (154, 51, 34)
+_VK_RUST_DK    = (94, 28, 18)
+_VK_IRON       = (90, 94, 104)
+_VK_IRON_DK    = (52, 56, 63)
+_VK_IRON_HI    = (166, 174, 184)
+_VK_RING       = (176, 182, 192)
+_VK_FUR        = (74, 53, 38)
+_VK_FUR_HI     = (122, 90, 64)
+_VK_BEARD      = (36, 26, 20)
+_VK_BEARD_HI   = (62, 44, 32)
+_VK_SHIELD_RED = (110, 20, 16)
+_VK_BRASS      = (199, 154, 58)
+_VK_BONE       = (214, 198, 168)
+_VK_HAFT       = (94, 56, 32)
+_VK_HAFT_HI    = (150, 96, 56)
+_VK_KEY        = (26, 20, 16)            # opaque face/axe keyline
+_VK_OUTLINE    = (26, 20, 16, 235)       # near-black silhouette outline
+
+# Full rusty-auburn re-plumage of the macaw; the deepest RUST_DK owns the line
+# work, and lenses are dropped (the helm brow + facial hair own the face — the
+# bare eye is painted back on in _viking_face).
+_VK_PAL = _pal(
+    tail=[(118, 38, 26), (138, 46, 30), (158, 58, 40), (180, 80, 56)],
+    tail_line=_VK_RUST_DK, body_shadow=(112, 34, 22), body_main=_VK_RUST,
+    body_chest=(182, 84, 58), body_belly=(122, 40, 24), sheen=(255, 220, 200, 90),
+    wing_main=(140, 46, 30), wing_dark=(86, 26, 16), wing_tip=(196, 100, 72),
+    wing_secondary=None, wing_highlight=(214, 130, 100), head_shadow=(112, 34, 22),
+    head_main=_VK_RUST, head_cheek=(182, 84, 58), head_crown=(168, 64, 44),
+    lens_frame=(120, 40, 26), lens_body=(40, 22, 16), lens_tint=None,
+    lens_glint=None, beak_main=(196, 150, 96), beak_dark=(120, 84, 44),
+    beak_gloss=(228, 200, 150), foot=(120, 78, 44),
+)
 
 
-def _paint_viking(surf, _a):
+def _viking_base(angle_deg):
+    return _build_parrot_with_palette(angle_deg, _VK_PAL, draw_lenses=False)
+
+
+def _viking_back(surf):
+    # Round shield on the back: a proud iron rim, deep-red field, plank seams, a
+    # single brass stud and a bright boss; then a scalloped fur ruff bridging the
+    # neck. The shield is drawn AFTER the axe so it covers the haft's middle.
+    sx, sy, sr = HX - 26, HY + 11, 13
+    pygame.draw.circle(surf, _VK_IRON_DK, (sx, sy), sr + 2)
+    pygame.draw.circle(surf, _VK_SHIELD_RED, (sx, sy), sr - 2)
+    for dx in (-6, 0, 6):
+        pygame.draw.line(surf, _VK_RUST_DK, (sx + dx, sy - sr + 4), (sx + dx, sy + sr - 4), 1)
+    pygame.draw.circle(surf, _VK_BRASS, (sx, sy - sr + 2), 2)
+    pygame.draw.circle(surf, (240, 210, 130), (sx, sy - sr + 2), 1)
+    pygame.draw.circle(surf, _VK_IRON_DK, (sx, sy), 6)
+    pygame.draw.circle(surf, _VK_IRON_HI, (sx, sy), 5)
+    pygame.draw.circle(surf, _VK_IRON_DK, (sx, sy), 5, 1)
+    pygame.draw.circle(surf, (255, 255, 255), (sx - 1, sy - 1), 1)
+    ruff_y = HY + 9
+    for i in range(-3, 4):
+        fx = HX - 1 + i * 5
+        r = 5 if i % 2 == 0 else 4
+        pygame.draw.circle(surf, _VK_BEARD, (fx, ruff_y + 1), r)
+        pygame.draw.circle(surf, _VK_FUR, (fx, ruff_y), r - 1)
+    for i in range(-1, 2):
+        pygame.draw.circle(surf, _VK_FUR_HI, (HX - 1 + i * 5, ruff_y - 1), 1)
+
+
+def _viking_helm(surf):
+    # Horned spangenhelm with the dome + brow lifted 4px and a short 2px nasal,
+    # so the bare macaw eye (≈(50,40)) and hooked beak sit in the open below the
+    # brow. Boot cuffs on the feet.
     cy = CROWN_Y
-    # Darker braided beard, kept compact so the helmet dominates.
-    pygame.draw.ellipse(surf, _VK_BEARD_D, (HX - 3, HY + 5, 16, 12))
-    pygame.draw.ellipse(surf, _VK_BEARD, (HX - 2, HY + 4, 14, 10))
-    for bx in (HX + 1, HX + 7):
-        for j in range(3):
-            yy = HY + 11 + j * 3
-            pygame.draw.circle(surf, _VK_BEARD, (bx, yy), 2)
-            pygame.draw.circle(surf, _VK_BEARD_D, (bx, yy), 2, 1)
-    pygame.draw.circle(surf, _VK_BEAD, (HX + 1, HY + 19), 2)
-    pygame.draw.circle(surf, _VK_BEAD, (HX + 7, HY + 19), 2)
-
-    # Two curved horns sweeping up & outward, with WIDER tips, rooted in the
-    # brow band so the rotated composite keeps them on the head mass.
     for sgn, hx0 in ((-1, HX - 9), (1, HX + 9)):
         tipx = hx0 + sgn * 6
-        tip = (tipx, cy - 16)
         mid = (hx0 + sgn * 5, cy - 6)
-        pygame.draw.polygon(surf, _VK_HORN_D,
-                            [(hx0 - 4, cy + 2), (hx0 + 4, cy + 2), mid,
-                             (tipx + sgn * 2, cy - 16)])
-        pygame.draw.polygon(surf, _VK_HORN,
-                            [(hx0 - 3, cy + 1), (hx0 + 3, cy + 1),
-                             (mid[0], mid[1] + 1),
-                             (tipx + sgn * 2, cy - 15)])
-        # Bright wide tip cap so the point survives downscale.
-        pygame.draw.circle(surf, _VK_HORN, (tipx + sgn, cy - 15), 2)
-        pygame.draw.line(surf, _VK_HORN_D, (hx0 - 1, cy - 3),
-                         (hx0 + 2, cy - 3), 1)
-
-    # Iron dome cap (bright — carries the read).
-    pygame.draw.ellipse(surf, _VK_IRON_D, (HX - 12, cy - 6, 25, 18))
-    pygame.draw.ellipse(surf, _VK_IRON, (HX - 11, cy - 6, 23, 15))
-    pygame.draw.ellipse(surf, _VK_IRON_H, (HX - 6, cy - 5, 9, 4))
-    # Riveted brow band.
-    pygame.draw.line(surf, _VK_IRON_D, (HX - 11, cy + 5), (HX + 12, cy + 4), 4)
-    pygame.draw.line(surf, _VK_IRON_H, (HX - 11, cy + 4), (HX + 12, cy + 3), 1)
+        _poly(surf, _VK_BEARD, [(hx0 - 4, cy + 2), (hx0 + 4, cy + 2), mid, (tipx + sgn * 2, cy - 16)])
+        _poly(surf, _VK_FUR_HI, [(hx0 + sgn * 3, cy + 1), (hx0 + sgn * 4, cy + 1),
+                                 (mid[0] + sgn, mid[1] + 1), (tipx + sgn * 2, cy - 15)])
+        pygame.draw.circle(surf, _VK_FUR_HI, (tipx + sgn, cy - 15), 3)
+        pygame.draw.circle(surf, _VK_BONE, (tipx + sgn, cy - 15), 2)
+        pygame.draw.circle(surf, (244, 234, 210), (tipx + sgn - 1, cy - 16), 1)
+    dy = -4
+    pygame.draw.ellipse(surf, _VK_IRON_DK, (HX - 12, cy - 6 + dy, 25, 18))
+    pygame.draw.ellipse(surf, _VK_IRON, (HX - 11, cy - 6 + dy, 23, 8))
+    pygame.draw.ellipse(surf, _VK_IRON_HI, (HX - 6, cy - 5 + dy, 9, 4))
+    pygame.draw.line(surf, _VK_IRON_DK, (HX - 11, cy + 5 + dy), (HX + 12, cy + 4 + dy), 4)
+    pygame.draw.line(surf, _VK_IRON_HI, (HX - 11, cy + 4 + dy), (HX + 12, cy + 3 + dy), 1)
     for rx in (HX - 8, HX - 1, HX + 6):
-        pygame.draw.circle(surf, _VK_IRON_H, (rx, cy + 5), 1)
-    # Nose-guard.
-    pygame.draw.rect(surf, _VK_IRON_D, (HX + 1, cy + 4, 3, 11))
-    pygame.draw.rect(surf, _VK_IRON, (HX + 1, cy + 4, 2, 10))
+        pygame.draw.circle(surf, _VK_IRON_HI, (rx, cy + 5 + dy), 1)
+    nx = HX + 1
+    pygame.draw.rect(surf, _VK_IRON_DK, (nx, cy + 4 + dy, 2, 5))
+    pygame.draw.line(surf, _VK_IRON, (nx, cy + 4 + dy), (nx, cy + 8 + dy), 1)
+    for fx, fy in ((27, 65), (35, 65)):
+        pygame.draw.circle(surf, _VK_BEARD, (fx, fy + 1), 3)
+        pygame.draw.circle(surf, _VK_FUR_HI, (fx, fy), 2)
 
 
-get_viking_parrot = _make_skin(_paint_viking)
+def _viking_face(surf):
+    # The bare macaw eye, then a dark chin beard, a lighter walrus moustache band
+    # dropping two braids to metal beads, the redrawn hooked beak on top, and the
+    # beads. A 1px keyline edges every facial-hair mass so it separates from the
+    # body. The light-on-dark stack (light moustache over dark chin) is what
+    # keeps the 'stache + beads legible at 40px.
+    ex, ey = 50, 40
+    _aaellipse(surf, (250, 243, 236), (ex, ey), 6, 5)
+    pygame.draw.line(surf, (236, 210, 205), (ex - 5, ey - 2), (ex + 5, ey - 2), 1)
+    pygame.draw.line(surf, (236, 210, 205), (ex - 5, ey + 2), (ex + 5, ey + 2), 1)
+    pygame.draw.circle(surf, (40, 26, 30), (ex + 1, ey), 3)
+    pygame.draw.circle(surf, (15, 10, 12), (ex + 1, ey), 3, 1)
+    pygame.draw.circle(surf, (255, 255, 255), (ex, ey - 1), 1)
+
+    # Chin beard — a narrow rounded tuft hanging from the chin between the two
+    # braids; a doubled keyline strengthens its edge against the body.
+    cx0, cy0 = 47, 53
+    chin = [(cx0 - 4, cy0), (cx0 - 5, cy0 + 6), (cx0 - 2, cy0 + 11),
+            (cx0 + 3, cy0 + 11), (cx0 + 5, cy0 + 6), (cx0 + 4, cy0), (cx0, cy0 - 1)]
+    _poly(surf, _VK_KEY, [(x, y + 2) for x, y in chin])
+    _poly(surf, _VK_KEY, [(x, y + 1) for x, y in chin])
+    _poly(surf, _VK_BEARD, chin)
+    _poly(surf, _VK_BEARD_HI, [(cx0 - 4, cy0 + 1), (cx0 - 1, cy0 + 1),
+                              (cx0 - 2, cy0 + 8), (cx0 - 5, cy0 + 6)])
+
+    # Walrus moustache — a compact lighter band under the beak over a keyline.
+    mx, my = 50, 45
+    band = [(mx - 8, my - 1), (mx - 9, my + 3), (mx - 5, my + 4), (mx - 1, my + 2),
+            (mx + 4, my + 2), (mx + 8, my + 4), (mx + 9, my + 1), (mx + 7, my - 1), (mx, my - 2)]
+    _poly(surf, _VK_KEY, [(x, y + 1) for x, y in band])
+    _poly(surf, _VK_BEARD_HI, band)
+    pygame.draw.lines(surf, _VK_BONE, False,
+                      [(mx - 7, my - 1), (mx - 1, my - 2), (mx + 4, my - 2), (mx + 7, my)], 1)
+
+    # Two braids dropping from the band corners to the beads.
+    for sgn, bx0 in ((-1, mx - 8), (1, mx + 8)):
+        braid = [(bx0, my + 2), (bx0 + sgn, my + 5), (bx0 + sgn, my + 12),
+                 (bx0 - sgn * 2, my + 12), (bx0 - sgn * 2, my + 4)]
+        _poly(surf, _VK_KEY, [(x, y + 1) for x, y in braid])
+        _poly(surf, _VK_BEARD_HI, braid)
+        pygame.draw.line(surf, _VK_BEARD, (bx0, my + 5), (bx0, my + 11), 1)
+
+    # Redraw the hooked beak on top so it always pokes through between the braids.
+    beak_pts = [(55, 41), (61, 44), (58, 48), (52, 46)]
+    pygame.draw.polygon(surf, (196, 150, 96), beak_pts)
+    pygame.draw.polygon(surf, (120, 84, 44), beak_pts, 1)
+    pygame.draw.line(surf, (228, 200, 150), (55, 42), (59, 44), 1)
+    pygame.draw.line(surf, (120, 84, 44), (52, 44), (58, 45), 1)
+
+    # Metal beads capping each braid tip.
+    for bdx, bdy in ((mx - 9, my + 14), (mx + 9, my + 14)):
+        pygame.draw.circle(surf, _VK_KEY, (bdx, bdy), 3)
+        pygame.draw.circle(surf, _VK_RING, (bdx, bdy), 2)
+        pygame.draw.circle(surf, (255, 255, 255), (bdx - 1, bdy - 1), 1)
+
+
+def _viking_axe(surf):
+    # Twin-bit axe slung diagonally across the back (butt low past the tail, head
+    # high past the back shoulder into open sky). Each bit is a crescent held off
+    # the haft by a slim socket, so a wedge of open sky bites between bit and
+    # socket — that negative-space notch, not a painted line, splits the head
+    # into a clean "><" twin-crescent. Drawn BEHIND the body.
+    blade, blade_dk, blade_hi = _VK_IRON, _VK_IRON_DK, _VK_IRON_HI
+    lo = (HX - 30, HY + 30)
+    hi = (HX - 3, CROWN_Y - 23)
+    dx, dy = hi[0] - lo[0], hi[1] - lo[1]
+    blen = math.hypot(dx, dy)
+    ux, uy = dx / blen, dy / blen
+    px, py = -uy, ux
+
+    hx0, hy0 = lo
+    hx1, hy1 = hi[0] - ux * 8, hi[1] - uy * 8
+    pygame.draw.line(surf, _VK_KEY, (hx0, hy0), (hx1, hy1), 6)
+    pygame.draw.line(surf, _VK_HAFT, (hx0, hy0), (hx1, hy1), 4)
+    pygame.draw.line(surf, _VK_HAFT_HI, (hx0 + px, hy0 + py), (hx1 + px, hy1 + py), 1)
+    for t in (0.30, 0.55, 0.80):
+        wx, wy = hx0 + (hx1 - hx0) * t, hy0 + (hy1 - hy0) * t
+        pygame.draw.line(surf, blade_dk, (wx - px * 2, wy - py * 2), (wx + px * 2, wy + py * 2), 1)
+    pygame.draw.circle(surf, blade_dk, (int(lo[0]), int(lo[1])), 3)
+    pygame.draw.circle(surf, blade_hi, (int(lo[0]), int(lo[1])), 2)
+
+    tx, ty = hi
+
+    def L(a, b):
+        return (tx + ux * a + px * b, ty + uy * a + py * b)
+
+    for side in (-1, 1):
+        bit = [L(8, side * 4), L(8, side * 8), L(4, side * 12), L(0, side * 13),
+               L(-4, side * 12), L(-8, side * 8), L(-8, side * 4), L(-5, side * 7),
+               L(0, side * 8), L(5, side * 7)]
+        _poly(surf, blade_dk, bit)
+        facet = [L(6, side * 6), L(6, side * 9), L(0, side * 11),
+                 L(-6, side * 9), L(-6, side * 6), L(0, side * 9)]
+        _poly(surf, blade, facet)
+        pygame.draw.lines(surf, blade_hi, False, [L(8, side * 8), L(0, side * 13), L(-8, side * 8)], 2)
+        pygame.draw.line(surf, (255, 255, 255), L(0, side * 13), L(0, side * 12), 1)
+    pygame.draw.line(surf, _VK_KEY, L(8, 0), L(-8, 0), 5)
+    pygame.draw.line(surf, blade_dk, L(8, 0), L(-8, 0), 3)
+    pygame.draw.line(surf, blade, L(7, 0), L(-7, 0), 1)
+    pygame.draw.circle(surf, _VK_RING, (int(tx), int(ty)), 1)
+
+
+def _viking_getter():
+    # The axe must sit BEHIND the body, so the body-first order in _make_skin
+    # can't be used: axe -> body -> shield+fur -> raised helm -> face -> outline.
+    state = {"frames": None, "rot": {}}
+
+    def _flat(wing_angle):
+        comp = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+        _viking_axe(comp)
+        comp.blit(_viking_base(wing_angle), (0, PARROT_DY))
+        _viking_back(comp)
+        _viking_helm(comp)
+        _viking_face(comp)
+        return _add_outline(comp, outline_color=_VK_OUTLINE)
+
+    def getter(frame_idx, tilt_deg):
+        if state["frames"] is None:
+            state["frames"] = [_flat(a) for a in _WING_ANGLES]
+        frames = state["frames"]
+        frame_idx %= len(frames)
+        key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
+        s = state["rot"].get(key)
+        if s is None:
+            s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
+            state["rot"][key] = s
+        return s
+
+    return getter
+
+
+get_viking_parrot = _viking_getter()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -643,73 +1035,6 @@ def _paint_tophat(surf, _a):
 get_tophat_redraw = _make_skin(_paint_tophat)
 
 
-# ── SKELETON redraw — warm bone-ivory on deep-navy body, hollow sockets +
-# a pinpoint glint. Day-of-the-Dead charm, NOT the X-Ray electrocution sprite.
-# Bones are the brightest element and 2px min so they survive downscale.
-_SK_BODY   = (38, 40, 64)          # deep-navy "flesh"
-_SK_BODY_D = (24, 26, 46)
-_SK_BONE   = (245, 240, 220)       # warm ivory — brightest element
-_SK_BONE_D = (196, 188, 160)
-_SK_SOCK   = (20, 22, 38)
-
-
-def _skel_wing(angle_deg):
-    """Recoloured wing: navy silhouette + bold ivory bone tracing (2px)."""
-    w = pygame.Surface((50, 50), pygame.SRCALPHA)
-    pts = [(24, 26), (46, 14), (50, 30), (34, 44), (18, 40)]
-    pygame.draw.polygon(w, _SK_BODY, pts)
-    pygame.draw.polygon(w, _SK_BODY_D, pts, 1)
-    pygame.draw.line(w, _SK_BONE, (25, 27), (39, 22), 2)
-    pygame.draw.line(w, _SK_BONE, (39, 22), (47, 30), 2)
-    pygame.draw.line(w, _SK_BONE_D, (47, 30), (42, 40), 2)
-    pygame.draw.circle(w, _SK_BONE, (25, 27), 2)
-    pygame.draw.circle(w, _SK_BONE, (39, 22), 2)
-    return pygame.transform.rotate(w, angle_deg)
-
-
-def _build_skeleton_redraw(wing_angle_deg):
-    surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
-    # Tail — navy fan.
-    pygame.draw.polygon(surf, _SK_BODY, [(2, 26), (17, 24), (23, 36), (12, 42)])
-    pygame.draw.polygon(surf, _SK_BODY_D,
-                        [(2, 26), (17, 24), (23, 36), (12, 42)], 1)
-    # Body.
-    _aaellipse(surf, _SK_BODY_D, (33, 33), 19, 14)
-    _aaellipse(surf, _SK_BODY, (32, 32), 18, 13)
-    # Wing.
-    wing = _skel_wing(wing_angle_deg)
-    surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
-    # Head.
-    _aaellipse(surf, _SK_BODY_D, (48, 22), 12, 11)
-    _aaellipse(surf, _SK_BODY, (47, 21), 11, 10)
-
-    # Ribcage — bold ivory arcs across the chest (2px).
-    pygame.draw.line(surf, _SK_BONE, (38, 26), (22, 36), 2)   # spine
-    for off_x in (-5, 0, 5):
-        pygame.draw.arc(surf, _SK_BONE, (24 + off_x, 24, 13, 16),
-                        math.radians(200), math.radians(340), 2)
-    # Skull — bright ivory dome with hollow sockets + a pinpoint glint.
-    _aaellipse(surf, _SK_BONE, (47, 21), 9, 8)
-    _aaellipse(surf, _SK_BONE_D, (47, 25), 6, 3)   # jaw shadow
-    pygame.draw.circle(surf, _SK_SOCK, (50, 19), 3)
-    pygame.draw.circle(surf, _SK_SOCK, (44, 20), 3)
-    pygame.draw.circle(surf, (255, 255, 255), (51, 18), 1)   # pinpoint glint
-    # Tiny nose triangle + grin stitches.
-    pygame.draw.polygon(surf, _SK_SOCK, [(47, 23), (49, 23), (48, 25)])
-    for gx in (44, 47, 50):
-        pygame.draw.line(surf, _SK_BONE_D, (gx, 27), (gx, 29), 1)
-
-    # Beak — ivory bone outline over a navy beak.
-    beak_pts = [(55, 21), (61, 24), (58, 28), (52, 26)]
-    pygame.draw.polygon(surf, _SK_BODY, beak_pts)
-    pygame.draw.polygon(surf, _SK_BONE, beak_pts, 2)
-
-    # Leg bones.
-    pygame.draw.line(surf, _SK_BONE, (28, 45), (27, 49), 2)
-    pygame.draw.line(surf, _SK_BONE, (34, 45), (35, 49), 2)
-    return surf
-
-
 def _make_prebuilt_skin(build_fn):
     """Getter for a skin whose flat frames come from a full build_fn(angle)
     (used by the current-skin redraws that recolour the whole body)."""
@@ -728,9 +1053,6 @@ def _make_prebuilt_skin(build_fn):
         return s
 
     return getter
-
-
-get_skeleton_redraw = _make_prebuilt_skin(_build_skeleton_redraw)
 
 
 # ── ZOMBIE redraw — "undead but happy": healthy-green body, stitched grin,
@@ -969,7 +1291,6 @@ BUILDERS = {
     "skin_crown":     get_crown_parrot,
     # Dedicated cosmetic redraws (override the recycled power-up sprites).
     "skin_tophat":    get_tophat_redraw,
-    "skin_skeleton":  get_skeleton_redraw,
     "skin_zombie":    get_zombie_redraw,
     # Parrot species (full-body recolours + cockatoo crest).
     "skin_bluegold":  get_bluegold_parrot,
