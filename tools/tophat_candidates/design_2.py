@@ -87,47 +87,50 @@ def _paint(surf, _a):
                             (BCX - 7, BCY + 19), (BCX - 13, BCY + 16)])
     _poly(surf, _RM_RED_D, [(BCX + 4, BCY + 11), (BCX + 11, BCY + 9),
                             (BCX + 13, BCY + 16), (BCX + 7, BCY + 19)])
-    # Black cutaway lapels framing a central red placket.
-    _poly(surf, _RM_BLACK, [(BCX - 15, BCY - 9), (BCX - 6, BCY - 9),
-                            (BCX - 9, BCY + 6), (BCX - 16, BCY + 4)])
-    _poly(surf, _RM_BLACK, [(BCX + 14, BCY - 9), (BCX + 5, BCY - 9),
-                            (BCX + 8, BCY + 6), (BCX + 15, BCY + 4)])
-    pygame.draw.line(surf, _RM_BLACK_H, (BCX - 14, BCY - 7), (BCX - 8, BCY + 4), 1)
-    pygame.draw.line(surf, _RM_BLACK_H, (BCX + 13, BCY - 7), (BCX + 7, BCY + 4), 1)
+    # Black cutaway lapels framing a central red placket. Inner edges pulled OUT
+    # ~2px each side (vs R1) so the gold ladder gets a clean crimson margin left
+    # and right and never bleeds into the black.
+    _poly(surf, _RM_BLACK, [(BCX - 15, BCY - 9), (BCX - 8, BCY - 9),
+                            (BCX - 11, BCY + 6), (BCX - 16, BCY + 4)])
+    _poly(surf, _RM_BLACK, [(BCX + 14, BCY - 9), (BCX + 7, BCY - 9),
+                            (BCX + 10, BCY + 6), (BCX + 15, BCY + 4)])
+    pygame.draw.line(surf, _RM_BLACK_H, (BCX - 14, BCY - 7), (BCX - 10, BCY + 4), 1)
+    pygame.draw.line(surf, _RM_BLACK_H, (BCX + 13, BCY - 7), (BCX + 9, BCY + 4), 1)
 
     # ── GOLD EPAULETTE dots at the shoulders (top of the ladder).
-    for ex in (BCX - 10, BCX + 9):
+    for ex in (BCX - 10, BCX + 7):
         pygame.draw.circle(surf, _RM_GOLD_D, (ex, BCY - 8), 2)
         pygame.draw.circle(surf, _RM_GOLD, (ex, BCY - 8), 1)
 
-    # ── THREE PAIRS of horizontal GOLD FROG-BRAID bars stacked vertically down
-    #    the chest — the red-torso-ladder SIGNATURE. Each bar is drawn
-    #    fill→shadow→highlight with a full empty crimson row between bars so the
-    #    THREE stay distinct (never merging into one gold blob) at 40px; a dot
-    #    button sits centred on each bar.
+    # ── THREE horizontal GOLD FROG-BRAID bars stacked down the chest — the
+    #    red-torso-ladder SIGNATURE, and the whole point of the concept. Pitch is
+    #    WIDE (centres 7px apart) so a clean ~6px row of PURE crimson survives
+    #    between bars at 40px; each bar is a CRISP 2px gold body over a single 1px
+    #    dark shadow — no fat under-shadow that would flood the crimson gap, and
+    #    NO central button filling the row that has to read empty. The empty
+    #    crimson gap is the read, so it is protected harder than the gold itself.
     bar_w = 7
-    for i, by in enumerate((BCY - 4, BCY + 1, BCY + 6)):
+    for by in (BCY - 5, BCY + 2, BCY + 9):
         x0, x1 = BCX - bar_w, BCX + bar_w
-        pygame.draw.line(surf, _RM_GOLD_D, (x0, by + 1), (x1, by + 1), 3)  # under-shadow
-        pygame.draw.line(surf, _RM_GOLD, (x0, by), (x1, by), 2)            # braid body
-        pygame.draw.line(surf, _RM_GOLD_H, (x0 + 1, by - 1), (x1 - 1, by - 1), 1)  # top glint
+        pygame.draw.line(surf, _RM_GOLD_D, (x0, by + 1), (x1, by + 1), 1)  # tight shadow
+        pygame.draw.line(surf, _RM_GOLD, (x0, by - 1), (x1, by - 1), 2)    # braid body
+        pygame.draw.line(surf, _RM_GOLD_H, (x0 + 1, by - 2), (x1 - 1, by - 2), 1)  # glint
         # Curled frog-knot ends so the bar reads as braid, not a plain stripe.
         for sx in (x0, x1):
             pygame.draw.circle(surf, _RM_GOLD_D, (sx, by), 2)
-            pygame.draw.circle(surf, _RM_GOLD, (sx, by), 1)
-        # Central dot button.
-        pygame.draw.circle(surf, _RM_GOLD_H, (BCX, by - 1), 1)
+            pygame.draw.circle(surf, _RM_GOLD, (sx, by - 1), 1)
 
-    # ── TALL BLACK STAND COLLAR with a small gold-knot cravat at the throat,
-    #    bridging the coat to the head.
-    _poly(surf, _RM_BLACK, [(HX - 7, HY + 6), (HX + 9, HY + 5),
-                            (HX + 8, HY + 12), (HX - 6, HY + 13)])
-    pygame.draw.line(surf, _RM_BLACK_H, (HX - 6, HY + 7), (HX + 8, HY + 6), 1)
-    pygame.draw.circle(surf, _RM_GOLD_D, (HX + 1, HY + 10), 3)   # gold cravat knot
-    pygame.draw.circle(surf, _RM_GOLD, (HX + 1, HY + 10), 2)
-    pygame.draw.circle(surf, _RM_GOLD_H, (HX, HY + 9), 1)
-    _poly(surf, _RM_GOLD_D, [(HX - 1, HY + 12), (HX + 3, HY + 12),
-                            (HX + 1, HY + 16)])                  # cravat tail
+    # ── TALL BLACK STAND COLLAR — raised UP and widened ACROSS the throat so it
+    #    covers the gap where the parrot's eye/beak and the blue/green body used
+    #    to punch through (the R1 confetti collision). The throat now reads as one
+    #    clean dark mass; a SINGLE gold cravat knot dot sits on the black (no tail
+    #    clutter) for one bright fleck against the dark.
+    _poly(surf, _RM_BLACK, [(HX - 9, HY + 2), (HX + 13, HY + 1),
+                            (HX + 12, HY + 13), (HX - 8, HY + 14)])
+    pygame.draw.line(surf, _RM_BLACK_H, (HX - 8, HY + 3), (HX + 11, HY + 2), 1)
+    pygame.draw.circle(surf, _RM_GOLD_D, (HX + 1, HY + 9), 2)    # single gold knot
+    pygame.draw.circle(surf, _RM_GOLD, (HX + 1, HY + 9), 1)
+    pygame.draw.circle(surf, _RM_GOLD_H, (HX, HY + 8), 1)
 
     # ── TOP HAT — the IDENTITY ANCHOR. A tall near-black topper rising above the
     #    crown with a CRIMSON satin band and a thin gold pinstripe on the brim
@@ -153,20 +156,17 @@ def _paint(surf, _a):
     pygame.draw.lines(surf, _RM_GOLD_H, False,
                       [(HX - 11, cy + 4), (HX, cy + 5), (HX + 11, cy + 4)], 1)
 
-    # ── SHARP UPWARD-CURLED HANDLEBAR MOUSTACHE — the showman tell. Black, the
-    #    curls sweeping up off the cheeks so they pop against the red collar; no
-    #    monocle, so the face stays clean for the curls to be the read.
-    mx, my = HX + 1, HY + 3
-    pygame.draw.line(surf, _RM_BLACK, (mx - 1, my), (mx + 9, my + 1), 3)  # bar
-    # Left curl sweeping up.
+    # ── HANDLEBAR MOUSTACHE — the showman tell, now a SOLID 2-3px black bar
+    #    across the cheek line with ONE clear upward hook at each end so it reads
+    #    as a moustache (not noise) even at 40px. Sits just above the raised
+    #    collar so it pops as its own dark shape against the face.
+    my = HY - 1
+    pygame.draw.line(surf, _RM_BLACK, (HX - 6, my), (HX + 8, my), 3)        # solid bar
     pygame.draw.lines(surf, _RM_BLACK, False,
-                      [(mx - 1, my), (mx - 7, my - 1), (mx - 9, my - 5),
-                       (mx - 6, my - 7)], 3)
-    # Right curl sweeping up.
+                      [(HX - 6, my), (HX - 9, my - 1), (HX - 10, my - 6)], 3)  # left hook up
     pygame.draw.lines(surf, _RM_BLACK, False,
-                      [(mx + 9, my + 1), (mx + 14, my), (mx + 16, my - 4),
-                       (mx + 13, my - 6)], 3)
-    pygame.draw.line(surf, _RM_BLACK_H, (mx - 1, my - 1), (mx + 8, my), 1)  # sheen
+                      [(HX + 8, my), (HX + 11, my - 1), (HX + 12, my - 6)], 3)  # right hook up
+    pygame.draw.line(surf, _RM_BLACK_H, (HX - 5, my - 1), (HX + 7, my - 1), 1)  # sheen
 
 
 build = store_skins._make_skin(_paint)

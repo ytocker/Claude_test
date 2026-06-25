@@ -13,7 +13,7 @@ from tools import ninja_render
 from tools.tophat_candidates.design_2 import build
 
 OUT = "docs/store_redesign/costume/tophat/design_2/round_1.png"
-TITLE = "DESIGN 2 — THE RINGMASTER  round 1"
+TITLE = "DESIGN 2 — THE RINGMASTER  round 2"
 
 
 def _label(surf, text, x, y, size=18, color=(236, 238, 246)):
