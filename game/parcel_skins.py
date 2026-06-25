@@ -24,6 +24,7 @@ from game.parcel_designs import (
     steamer, balloon, bottle,
     chest, lantern, flask,
     ufo, comet, snowglobe,
+    airmail, love_letter, post_office,
 )
 
 
@@ -71,6 +72,9 @@ _DESIGNS = {
     "parcel_takeout":   takeout,
     "parcel_jar":       jar,
     "parcel_envelope":  envelope,
+    "parcel_airmail":   airmail,
+    "parcel_love":      love_letter,
+    "parcel_postmark":  post_office,
     "parcel_picnic":    picnic,
     "parcel_steamer":   steamer,
     "parcel_balloon":   balloon,
