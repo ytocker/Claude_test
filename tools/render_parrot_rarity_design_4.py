@@ -20,7 +20,7 @@ from game.config import W as GW, H as GH, GROUND_Y
 from tools.ninja_render import gameplay_panel, hero_panel
 from tools.parrot_rarity_candidates.design_4 import build
 
-OUT = "/home/user/skybit/docs/store_redesign/parrot/design_4/round_1.png"
+OUT = "/home/user/skybit/docs/store_redesign/parrot/design_4/round_2.png"
 NIGHT_PHASE = 0.64375
 
 
