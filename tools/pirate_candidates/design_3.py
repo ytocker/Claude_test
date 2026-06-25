@@ -34,6 +34,8 @@ _BRASS    = (217, 164, 65)         # #D9A441 guard / buckle
 _BRASS_D  = (150, 110, 40)
 _BRASS_H  = (255, 233, 168)        # #FFE9A8 buckle highlight
 _WOOD     = (90, 58, 34)           # #5A3A22 grip wood
+_PEG      = (110, 74, 44)          # #6E4A2C peg body — one value step up so the
+                                   # stump separates from the dark _LEATHER browns above it
 _LEATHER  = (62, 42, 26)           # #3E2A1A belt leather
 _LEATHER_H = (96, 68, 44)          # raised baldric body — reads on dark-blue lower body
 _LEATHER_HH = (132, 100, 66)       # baldric top-edge glint so the strap reads as a line
@@ -124,11 +126,15 @@ def _paint(surf, _a):
     # ── CLASSIC WOODEN PEG LEG over the NEAR foot. The base foot is only ~2px so
     #    the peg is drawn chunkier (3-4px) to survive downscale, and pokes below the
     #    body to break the lower silhouette. Far foot is left as a normal foot.
-    px, ptop, pbot = 26, 65, 78
-    pygame.draw.line(surf, _LEATHER, (px - 1, ptop), (px - 1, pbot), 1)   # shadow side
-    pygame.draw.line(surf, _WOOD, (px, ptop), (px, pbot - 1), 4)          # peg body
-    pygame.draw.line(surf, _WOOD, (px, pbot - 1), (px, pbot), 2)          # whittled tip
-    pygame.draw.line(surf, _LEATHER_H, (px + 1, ptop + 1), (px + 1, pbot - 2), 1)  # glint
+    px, ptop, pbot = 26, 65, 79
+    pwide = ptop + int((pbot - ptop) * 2 / 3)   # upper two-thirds is the chunky 5px body
+    pygame.draw.line(surf, _LEATHER, (px - 2, ptop), (px - 2, pbot - 2), 1)   # shadow side
+    pygame.draw.line(surf, _PEG, (px, ptop), (px, pwide), 5)             # chunky lighter body
+    pygame.draw.line(surf, _PEG, (px, pwide), (px, pbot - 3), 3)         # taper down to the tip
+    # Whittled carved point — dropped 1px and centred so the bottom reads as a
+    # tapered stump, not a flat-cut dowel.
+    _poly(surf, _PEG, [(px - 1, pbot - 3), (px + 1, pbot - 3), (px, pbot)])
+    pygame.draw.line(surf, _LEATHER_H, (px + 2, ptop + 1), (px + 2, pwide), 1)  # glint
     pygame.draw.line(surf, _LEATHER, (px - 2, ptop), (px + 2, ptop), 2)   # ferrule at body
 
     # ── PIRATE IDENTITY (the anchor read) — earring, eyepatch, tricorn, gold
