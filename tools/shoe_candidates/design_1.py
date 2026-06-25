@@ -24,7 +24,8 @@ _TEAL_D = ( 28, 122, 118)   # teal shade
 _ORANGE = (240, 121,  46)   # orange mudguard pop
 _ORANGE_D = (196,  92,  30) # orange shade
 _DARK   = ( 43,  46,  51)   # dark seams / outsole / pull-loop
-_DARK_HI = (96, 102, 110)   # reflective lace-cage / metallic sheen
+_DARK_HI = (96, 102, 110)   # metallic sheen on the heel loop
+_REFLECT = (244, 246, 240)  # near off-white reflective lace-cage straps
 
 
 def draw_shoe(surf, x, y, w, h, facing=1):
@@ -61,26 +62,25 @@ def draw_shoe(surf, x, y, w, h, facing=1):
         (0.14, stack_top), (0.86, stack_top), (0.95, 0.68),
         (0.99, 0.80), (0.95, 0.92),
     ])
-    # Lower-tier shade so the bottom of the stack reads as a separate slab.
-    poly(_OFFW_D, [
-        (0.045, 0.86), (0.95, 0.86), (0.965, 0.90),
-        (0.92, 0.93), (0.085, 0.93), (0.035, 0.88),
-    ])
 
-    # Carved grooves between the three foam tiers — gentle scallops, not straight
-    # lines, so the foam reads as stacked pillows. Clamped so they survive 16px.
-    groove_w = max(1, int(round(h * 0.045)))
+    # Carved grooves split the wall into THREE countable pillows. Each groove is
+    # cut with the darkest seam colour (not a near-value shade — that vanished in
+    # round 1) and is ~0.06h wide, then capped with a 1px off-white highlight lip
+    # on its UPPER edge so the tier above catches light and pops forward.
+    groove_w = max(2, int(round(h * 0.06)))
+    lip_w = max(1, int(round(h * 0.012)))
     for gy in (0.71, 0.82):
-        pygame.draw.lines(
-            surf, _OFFW_D, False,
-            [(px(t), py(gy + 0.012 * (1 if i % 2 else -1)))
-             for i, t in enumerate((0.07, 0.28, 0.50, 0.72, 0.93))],
-            groove_w,
-        )
+        pts = [(px(t), py(gy + 0.012 * (1 if i % 2 else -1)))
+               for i, t in enumerate((0.07, 0.28, 0.50, 0.72, 0.93))]
+        pygame.draw.lines(surf, _GREY_D, False, pts, groove_w)
+        # Bright lip riding the top of each carved groove = the lit tier edge.
+        lip = [(px(t), py(gy - 0.030 + 0.012 * (1 if i % 2 else -1)))
+               for i, t in enumerate((0.07, 0.28, 0.50, 0.72, 0.93))]
+        pygame.draw.lines(surf, _OFFW, False, lip, lip_w)
 
     # ── upper: cool-grey colour-blocked body (squat, round-shouldered) ──────────
-    # Sits low and stubby on the foam. The collar opening notch at the top sells
-    # a worn shoe rather than a slab.
+    # Sits low and stubby on the foam. A dark collar notch carves a real ankle
+    # opening into the top rather than leaving a featureless grey dome.
     poly(_GREY, [
         (0.12, stack_top), (0.13, 0.34), (0.22, 0.22),
         (0.40, 0.18), (0.58, 0.20), (0.66, 0.30),
@@ -91,57 +91,70 @@ def draw_shoe(surf, x, y, w, h, facing=1):
         (0.12, stack_top), (0.125, 0.40), (0.20, 0.26),
         (0.27, 0.30), (0.22, 0.44), (0.215, stack_top),
     ])
+    # Dark ankle-opening notch scooped out of the collar so the upper reads as a
+    # shoe you step into, not a solid grey blob.
+    poly(_DARK, [
+        (0.26, 0.215), (0.42, 0.185), (0.55, 0.205),
+        (0.49, 0.275), (0.36, 0.285), (0.28, 0.26),
+    ])
 
-    # ── teal toe overlay (front colour pop) ─────────────────────────────────────
+    # ── orange mudguard — dominant wrapping BLOCK, not a stripe ──────────────────
+    # A tall orange mass (~0.15h) wrapping the foot/foam join along the whole
+    # length and sweeping UP over the toe. This solid block is the 16px hero cue,
+    # so it must read as a colour MASS rather than a thin band. Drawn before the
+    # teal so the teal toe-cap still caps the very front on top of it.
+    poly(_ORANGE, [
+        (0.10, stack_top), (0.92, stack_top), (0.91, 0.44),
+        (0.74, 0.41), (0.58, 0.47), (0.34, 0.49),
+        (0.16, 0.51), (0.10, 0.54),
+    ])
+    # Lower shade keeps the block reading as 3D where it meets the foam.
+    poly(_ORANGE_D, [
+        (0.10, stack_top), (0.92, stack_top),
+        (0.92, stack_top - 0.045), (0.10, stack_top - 0.025),
+    ])
+
+    # ── teal rounded toe-CAP at the very front (front colour pop) ───────────────
+    # Pulled forward into a fat rounded block capping the toe so it reads as the
+    # toe of the shoe, not a side panel set back on the flank. Sits on top of the
+    # orange so the front of the shoe is unmistakably a capped toe.
     poly(_TEAL, [
-        (0.74, 0.42), (0.88, 0.50), (0.88, stack_top),
-        (0.66, stack_top), (0.66, 0.46),
+        (0.76, 0.40), (0.87, 0.46), (0.905, 0.53),
+        (0.895, 0.625), (0.72, 0.625), (0.70, 0.47),
     ])
     poly(_TEAL_D, [
-        (0.84, 0.52), (0.88, 0.50), (0.88, stack_top),
-        (0.84, stack_top),
+        (0.86, 0.47), (0.905, 0.53), (0.895, 0.625),
+        (0.84, 0.625),
     ])
 
-    # ── orange mudguard wrapping the foot/foam join (mid colour pop) ────────────
-    # A thick band riding along the top of the foam stack — the loudest stripe.
-    poly(_ORANGE, [
-        (0.10, stack_top), (0.88, stack_top), (0.88, 0.625),
-        (0.66, 0.65), (0.30, 0.64), (0.12, 0.655),
+    # ── lace cage: two FAT high-contrast reflective straps ──────────────────────
+    # Round 1's three same-value bars read as muddy noise at 1x. Cut to two fat
+    # straps in near off-white (_REFLECT) with a hard _DARK shadow under each, so
+    # the cage pops as reflective webbing and survives the worn-foot shrink.
+    cage_w = max(2, int(round(h * 0.10)))
+    # Dark throat gap first so the straps read as crossing a hole, not floating.
+    poly(_DARK, [
+        (0.34, 0.27), (0.56, 0.23), (0.60, 0.32),
+        (0.40, 0.40),
     ])
-    poly(_ORANGE_D, [
-        (0.10, stack_top + 0.02), (0.88, stack_top + 0.02),
-        (0.88, 0.625), (0.10, 0.635),
-    ])
-
-    # ── reflective lace cage across the throat ──────────────────────────────────
-    # External webbing straps (the dad-shoe "cage") rather than thin laces: short
-    # bright bars stepping up the instep with a dark seam under each so the cage
-    # reads metallic/reflective even when it collapses to a few pixels.
-    cage_w = max(1, int(round(h * 0.085)))
     for tx0, ty0, tx1, ty1 in (
-        (0.36, 0.30, 0.50, 0.28),
-        (0.34, 0.40, 0.52, 0.37),
-        (0.33, 0.50, 0.54, 0.46),
+        (0.34, 0.36, 0.55, 0.32),
+        (0.33, 0.49, 0.56, 0.44),
     ):
-        line(_DARK, (tx0, ty0 + 0.02), (tx1, ty1 + 0.02), cage_w)
-        line(_DARK_HI, (tx0, ty0), (tx1, ty1), cage_w)
+        line(_DARK, (tx0, ty0 + 0.035), (tx1, ty1 + 0.035), cage_w)
+        line(_REFLECT, (tx0, ty0), (tx1, ty1), cage_w)
 
-    # Dark throat/tongue gap behind the cage so the laces read as crossing a hole.
-    poly(_DARK, [
-        (0.34, 0.28), (0.56, 0.24), (0.60, 0.30),
-        (0.40, 0.36),
-    ])
-
-    # ── fat heel pull-loop at the back (signature dad-shoe tab) ─────────────────
-    # A chunky rounded loop standing proud of the heel — its own little arch with
-    # a dark core so it reads as a graspable loop, not a flat flap.
+    # ── fat heel pull-loop standing PROUD of the back silhouette ────────────────
+    # Pushed back past the heel edge (~0.04 vs the upper's 0.12 back wall) and up
+    # over the collar so it clearly juts out as a graspable tab, not a flat flap
+    # flush with the heel. A dark core inside the metallic arch reads as the hole.
     poly(_DARK_HI, [
-        (0.10, 0.30), (0.07, 0.16), (0.13, 0.10),
-        (0.24, 0.10), (0.29, 0.18), (0.26, 0.30),
-        (0.21, 0.24), (0.16, 0.22), (0.13, 0.26),
+        (0.07, 0.31), (0.02, 0.15), (0.08, 0.06),
+        (0.22, 0.06), (0.29, 0.16), (0.25, 0.31),
+        (0.20, 0.23), (0.14, 0.20), (0.10, 0.25),
     ])
     poly(_DARK, [
-        (0.135, 0.245), (0.13, 0.165), (0.165, 0.135),
-        (0.225, 0.135), (0.255, 0.18), (0.235, 0.235),
-        (0.205, 0.205), (0.16, 0.20),
+        (0.105, 0.255), (0.075, 0.155), (0.115, 0.105),
+        (0.205, 0.105), (0.245, 0.165), (0.215, 0.245),
+        (0.175, 0.195), (0.135, 0.195),
     ])

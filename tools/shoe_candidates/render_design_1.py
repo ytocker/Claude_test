@@ -94,7 +94,7 @@ def _label(sheet, text, x, y, font=FONT, color=(245, 245, 245)):
 def main():
     sheet = pygame.Surface((1240, 720))
     sheet.fill((34, 36, 42))
-    _label(sheet, "SHOES design_1 — MEGA DAD  (rare ~780)", 18, 12,
+    _label(sheet, "SHOES design_1 — MEGA DAD  (rare ~780)  ·  round 2", 18, 12,
            font=pygame.font.SysFont("dejavusans", 18, bold=True))
 
     # ── product-shot icon (the exact store/hero shot) ──────────────────────────
@@ -138,7 +138,7 @@ def main():
 
     out_dir = os.path.join(_ROOT, "docs", "store_redesign", "shoes", "design_1")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path, os.path.getsize(out_path), "bytes")
 
