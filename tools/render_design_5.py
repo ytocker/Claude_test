@@ -179,7 +179,7 @@ def main():
         sheet.blit(tile, (x, row3 + 22))
         _label(sheet, name, x + 4, row3 + 22 + cmp_cell + 4, size=12, color=_SUB)
 
-    out = ("/home/user/skybit/docs/store_redesign/parrot/design_5/round_2.png")
+    out = ("/home/user/skybit/docs/store_redesign/parrot/design_5/round_3.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print("saved", out)

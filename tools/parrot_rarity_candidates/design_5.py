@@ -84,56 +84,76 @@ P_SOLAR = _pal(
 )
 
 
-# Disc geometry — radius ~head-height, centred just behind/above the head so the
-# face sits ON it. Spokes are pushed OUTSIDE the rim for a clean sunburst ring.
-_DCX, _DCY = HX - 2, HY - 4
-_DISC_R = 17
+# Disc geometry — the centre is biased BEHIND/ABOVE the skull toward the REAR
+# (the bird faces right, so rear = left + up). Pulling the centre off the face
+# means a clean rim-arc of the disc shows on the rear/upper side, so the head
+# reads as a FIGURE-ON-HALO rather than one merged gold blob. Radius is grown so
+# the rim clears the skull on the rear arc.
+_DCX, _DCY = HX - 7, HY - 8
+_DISC_R = 19
 
 
 def _sun_disc_back(surf):
-    # The missing legendary tell, now a real BACK-LAYER sun-disc. A near-solid
-    # warm-gold disc (radius ~head-height) with soft additive falloff, painted
-    # BEFORE the body so the head sits ON it like a sun-god. Held to PURE gold
-    # (no orange-red) so it can't be mistaken for the Phoenix's fire; its read
-    # against the gold body comes from the bright core + ringed spokes, not hue.
+    # The legendary tell: a real BACK-LAYER sun-disc that must read as a
+    # disc-with-rays BEHIND a clean bird at 40px. The blockers from R2 were all
+    # here — a low-contrast amber smear, rays colliding with the crest, no rim
+    # arc — so this rebuild pushes hard contrast and a radially-symmetric ring.
+    #
+    # Held to PURE gold (no orange-red) so it can't be mistaken for the Phoenix.
+    # The read against the gold BODY now comes from a value SANDWICH: a dark
+    # amber rim ring (out-values the sky downward) wrapping a sun-WHITE core
+    # (out-values the body upward), so the disc out-values the bird on both
+    # sides and becomes the focal radiant ring rather than blending into it.
     #
     # Two passes mirror Aurora's back-aura: an additive bloom (shines on night
-    # sky) plus an opaque-ish disc body with a dark-gold rim so the disc ALSO
+    # sky) plus an opaque disc body with a crisp dark-gold rim so the disc ALSO
     # holds as a solid sun on a bright day sky where additive washes out.
     cx, cy = _DCX, _DCY
 
     # ── additive corona bloom (night) ───────────────────────────────────────
     glow = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    blit_glow(glow, cx, cy, _DISC_R + 12, (255, 168, 56), alpha=110)
-    blit_glow(glow, cx, cy, _DISC_R + 3, (255, 214, 110), alpha=130)
-    blit_glow(glow, cx, cy, _DISC_R - 6, (255, 244, 190), alpha=150)
+    blit_glow(glow, cx, cy, _DISC_R + 13, (255, 162, 48), alpha=120)
+    blit_glow(glow, cx, cy, _DISC_R + 2, (255, 210, 104), alpha=140)
+    blit_glow(glow, cx, cy, _DISC_R - 7, (255, 246, 198), alpha=170)
     surf.blit(glow, (0, 0), special_flags=pygame.BLEND_ADD)
 
-    # ── opaque disc body (day) ──────────────────────────────────────────────
-    # A solid-ish gold disc so the head reads as sitting ON a sun, with a soft
-    # 3-step value falloff (rim → gold → bright core) and a thin amber rim line
-    # so it never dissolves into a bright sky.
+    # ── rays FIRST, behind the disc (day) ────────────────────────────────────
+    # The rays are drawn UNDER the opaque disc and pushed fully OUTSIDE the rim,
+    # spaced evenly around the FULL ring (rear + lower-back included, not just
+    # fanning off the crown), with clear sky between each spoke. Rooting them
+    # under the disc means each spoke emerges cleanly from the rim with no
+    # collision into the crown-crest — disc+rays and crest are two systems.
     det = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    pygame.draw.circle(det, (*_AMBER, 235), (cx, cy), _DISC_R + 1)
-    pygame.draw.circle(det, (*_DISC_RIM, 225), (cx, cy), _DISC_R)
-    pygame.draw.circle(det, (*_GOLD, 230), (cx, cy), _DISC_R - 4)
-    pygame.draw.circle(det, (*_DISC_CORE, 235), (cx, cy), _DISC_R - 9)
-
-    # 6 LONG evenly-spaced spokes pushed OUTSIDE the rim — a radially symmetric
-    # sunburst ring behind the head, NOT short dense spikes on top. Each spoke:
-    # amber base → gold core → a white tip spark, tapering as it reaches out.
-    n = 6
+    n = 8
     for i in range(n):
-        a = (i / n) * math.tau + 0.26          # offset so no spoke hits the crest
+        a = (i / n) * math.tau + 0.20          # offset so no spoke hits the crest
         ca, sa = math.cos(a), math.sin(a)
-        r0 = _DISC_R + 1
-        r1 = _DISC_R + 12
+        r0 = _DISC_R - 2                        # rooted just inside (hidden by disc)
+        r1 = _DISC_R + 13                       # reaches well past the rim
         x0, y0 = cx + ca * r0, cy + sa * r0
         x1, y1 = cx + ca * r1, cy + sa * r1
-        xm, ym = cx + ca * (r0 + 4), cy + sa * (r0 + 4)
-        pygame.draw.line(det, _AMBER, (x0, y0), (x1, y1), 4)
+        xm, ym = cx + ca * (_DISC_R + 4), cy + sa * (_DISC_R + 4)
+        # Dark amber under-stroke so each ray keeps a crisp edge on a bright sky,
+        # then a gold core tapering to a white tip spark.
+        pygame.draw.line(det, (150, 86, 22), (x0, y0), (x1, y1), 5)
+        pygame.draw.line(det, _AMBER, (x0, y0), (x1, y1), 3)
         pygame.draw.line(det, _GOLD, (x0, y0), (xm, ym), 2)
-        pygame.draw.circle(det, _SUN_WHITE, (int(x1), int(y1)), 1)
+        pygame.draw.circle(det, _SUN_WHITE, (int(x1), int(y1)), 2)
+        pygame.draw.circle(det, _CORE, (int(x1), int(y1)), 1)
+
+    # ── opaque disc body ON TOP of the ray roots (day) ───────────────────────
+    # A solid gold disc so the head reads as sitting ON a sun, built as a value
+    # SANDWICH with a CRISP edge: a dark-amber rim ring (the 2-3px value drop
+    # that makes the rim arc read against both body and sky), a bright-gold
+    # annulus, then a sun-WHITE core that out-values the body so the halo wins.
+    pygame.draw.circle(det, (138, 78, 18, 255), (cx, cy), _DISC_R)            # dark rim ring
+    pygame.draw.circle(det, (*_AMBER, 255), (cx, cy), _DISC_R - 2)
+    pygame.draw.circle(det, (*_DISC_RIM, 255), (cx, cy), _DISC_R - 4)
+    pygame.draw.circle(det, (*_GOLD, 255), (cx, cy), _DISC_R - 7)
+    pygame.draw.circle(det, (*_DISC_CORE, 255), (cx, cy), _DISC_R - 11)
+    pygame.draw.circle(det, (*_SUN_WHITE, 255), (cx, cy), _DISC_R - 15)       # sun-white core
+    # A thin bright inner rim highlight so the disc edge sparkles as a clean arc.
+    pygame.draw.circle(det, (*_SUN_WHITE, 200), (cx, cy), _DISC_R - 3, 1)
 
     surf.blit(det, (0, 0))
 
@@ -199,13 +219,14 @@ def _paint_front(surf, wing_angle_deg):
     pygame.draw.lines(surf, _SUN_WHITE, False,
                       [(15, 40), (22, 44), (30, 47), (40, 46), (47, 41)], 1)
 
-    # Feathered gold crown-crest — a SEPARATE, smaller crown element kept clear
-    # of the disc rim so disc and crest don't merge. Three plumes leaning
-    # outward, centre tallest, each: amber keyline root → gold body → emerald
-    # fleck tip → white spark, so it reads as a feathered crown at 40px, not the
-    # disc's spokes. Smaller reach than R1 so it stays a crown, not a second fan.
+    # Feathered gold crown-crest — a SEPARATE, smaller crown element that sits
+    # IN FRONT of the disc on the head, deliberately SHORT so it stays a compact
+    # crown and never reaches up into the ray ring: disc+rays and crest are two
+    # separate systems. Three tight plumes leaning outward, centre tallest, each:
+    # amber keyline root → gold body → emerald fleck tip → white spark, so it
+    # reads as a feathered crown at 40px, distinct from the disc's spokes.
     base_y = CROWN_Y + 3
-    for dx, h, lean in ((-4, 12, -4), (-1, 17, 1), (4, 13, 6)):
+    for dx, h, lean in ((-3, 8, -3), (0, 11, 1), (4, 9, 5)):
         x = HX + dx
         root = (x, base_y + 2)
         mid = (x + lean // 2, base_y - h // 2)
