@@ -31,6 +31,7 @@ from game.powerup_help import _seeded_stars
 from game import parrot
 from game import store_catalog
 from game import store_data
+from game import store_cards
 from game.surprise_box_variants import _draw_qmark
 
 # Card grid metrics (2 columns). Thumbnails are pre-rendered once so the
@@ -630,64 +631,14 @@ class StoreScene:
             self.tab_scroll = float(x + w - self._tab_vp.width)
 
     def _draw_card(self, surf, sid: str, rect: pygame.Rect) -> None:
-        """Locked B+ card: obsidian top-lit body (never rarity-tinted) + a 2px
-        gold inner bezel + a rarity SHELF-LIGHT BAR at the base (primary cue) + an
-        inset GEM badge top-right (secondary) + the thumbnail on a dark inset
-        disc, with a full gold rim + edge halo when equipped."""
+        """Constellation jewel card (indigo body + gold bevel, glass cabochon
+        thumb, faceted tier gem, notched rarity ribbon, cream name, price/EQUIPPED
+        chip). The card is static per (sid, equipped, masked) state, so it is
+        supersampled + cached once in game/store_cards.py and blitted here."""
         owned = store_data.is_owned(sid)
         equipped = (store_data.equipped(_slot_of(sid)) == sid)
-        # A secret stays masked (??? + a "?" glyph) until bought; the price chip
-        # still shows, so the lure is a mystery card with a steep cost.
-        secret = store_catalog.is_secret(sid) and not owned
-        tier = store_catalog.rarity(sid)
-
-        _drop_shadow(surf, rect, 13, blur=6, alpha=140)
-        surf.blit(_vgrad_panel(rect.w, rect.h, 13, _OBS_TOP, _OBS_BOT, 252),
+        surf.blit(store_cards.render_card(sid, equipped=equipped, owned=owned),
                   rect.topleft)
-        pygame.draw.rect(surf, (*_GOLD_DEEP, 210), rect.inflate(-7, -7),
-                         width=2, border_radius=8)
-        sheen = pygame.Surface((rect.w - 10, 16), pygame.SRCALPHA)
-        for y in range(16):
-            pygame.draw.line(sheen, (255, 255, 255, int(30 * (1 - y / 16))),
-                             (0, y), (rect.w - 10, y))
-        surf.blit(sheen, (rect.x + 5, rect.y + 4))
-
-        _shelf_bar(surf, rect, tier, mystery=secret)
-
-        disc_cy = rect.y + 34
-        _inset_disc(surf, rect.centerx, disc_cy, 27)
-        if secret:
-            _draw_qmark(surf, rect.centerx, disc_cy, 36, UI_CREAM, NEAR_BLACK, thick=2)
-            name = "???"
-        else:
-            thumb = self._thumbs[sid]
-            surf.blit(thumb, thumb.get_rect(center=(rect.centerx, disc_cy)))
-            name = self._disp_name(sid)
-
-        if tier == "legendary" and not secret:
-            _gold_leaf(surf, rect.x + 13, rect.y + 12, 1)
-        _gem(surf, rect.right - 15, rect.y + 15, 6, tier, self.t, mystery=secret)
-
-        nimg = _font(13, True).render(name, True, _GOLD_PALE)
-        nsh = _font(13, True).render(name, True, NEAR_BLACK)
-        nsh.set_alpha(150)
-        nr = nimg.get_rect(center=(rect.centerx, rect.y + 62))
-        surf.blit(nsh, (nr.x + 1, nr.y + 1))
-        surf.blit(nimg, nr)
-
-        self._state_chip(surf, sid, rect.centerx, rect.y + 82, owned, equipped, secret)
-
-        if equipped:
-            halo = pygame.Surface((rect.w + 16, rect.h + 16), pygame.SRCALPHA)
-            for k in range(4, 0, -1):
-                pygame.draw.rect(halo, (*_GOLD_BRIGHT, int(20 * k / 4)),
-                                 (8 - k, 8 - k, rect.w + 2 * k, rect.h + 2 * k),
-                                 width=2, border_radius=13 + k)
-            surf.blit(halo, (rect.x - 8, rect.y - 8), special_flags=pygame.BLEND_ADD)
-            pygame.draw.rect(surf, lerp_color(_GOLD_BRIGHT, NEAR_BLACK, 0.4), rect,
-                             width=2, border_radius=13)
-            pygame.draw.rect(surf, _GOLD_BRIGHT, rect.inflate(-2, -2), width=1,
-                             border_radius=12)
 
     def _state_chip(self, surf, sid, cx, cy, owned, equipped, secret, h=24) -> None:
         """The actionable state line: EQUIPPED / EQUIP / price / can't-afford,
@@ -893,6 +844,7 @@ class StoreScene:
             got = store_data.claim_daily()
             if got > 0:
                 self._flash("DAILY BONUS  +" + str(got))
+                store_cards.clear_cache()  # balance changed -> affordability tints
             return None
         if self.prev_rect and self.prev_rect.collidepoint(pos):
             self.page = max(0, self.page - 1)
@@ -929,6 +881,7 @@ class StoreScene:
             # Equipping a look already owned is free + reversible, so it stays a
             # one-tap action; only a coin-spending purchase needs confirming.
             store_data.equip(sid)
+            store_cards.clear_cache()  # EQUIPPED state moved between two cards
             self._flash(self._disp_name(sid) + " EQUIPPED")
             return
         # Unowned: a tap raises the buy-confirmation; nothing is spent yet.
@@ -964,6 +917,9 @@ class StoreScene:
                 # the card shows the actual jet, not a stale lazy default.
                 from game import animal_jet_fighter
                 animal_jet_fighter.sync_from_store()
+            # Ownership + balance + EQUIPPED all changed: rebuild the cards (this
+            # one reveals if it was a masked secret, and now reads EQUIPPED).
+            store_cards.clear_cache()
             self._flash("UNLOCKED!  " + self._disp_name(sid))
         elif reason == "insufficient":
             self._flash("NEED MORE COINS")
