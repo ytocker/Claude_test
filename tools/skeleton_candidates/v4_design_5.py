@@ -42,6 +42,20 @@ INK_DEEP   = (14, 15, 26)           # near-black crevice / socket ink
 INK_UNDER  = (8, 9, 16)             # near-black understroke under spine/keel/beak
 BEAK_INK   = (252, 253, 255)        # beak contour pure bone — the hero
 
+# ── the cloak's OWN tonal register (the round_4 fix) ─────────────────────────
+# The memento-mori grammar is white bone over a hatched DARK cloak. The two
+# hatch systems must separate by VALUE, not direction: the bone hatch stays
+# bright + fine (INK_HATCH at ~40% white), the cloak fold hatch drops to a
+# mid-grey ~60% of bone white AND coarsens its pitch — fewer, fatter diagonal
+# strokes — so the engraved cloth is unmistakably a darker, heavier tone than
+# the crisp white engraving on the bone. CLOTH lifts the drape off the navy
+# background (+1 step over the darkest night bg) so the hatched cape has a
+# surface to sit on and survives night; CLOAK_INNER drops the chest/hood lining
+# to the same mid-grey so the white ribcage is the topmost layer in the open V.
+CLOAK_CLOTH = (46, 51, 70)          # dark cool-grey cloth — a real surface at night
+CLOAK_HATCH = (132, 138, 158)       # mid-grey fold hatch (~57% of bone white)
+CLOAK_INNER = (74, 80, 100)         # lining/recess mid-grey, BELOW the white ribs
+
 # Bold 2px bone contours so the skeleton survives with hatch OFF; the painter's
 # `sh` understroke keeps those white lines from vanishing against pale day
 # clouds. The hatch (added in _engrave_pass) is struck thin on top as tone only.
@@ -176,18 +190,66 @@ def _paint(surf, angle):
     _beak_hero(surf)
 
 
-# The dark "back" mass is now a hooded open-front CLOAK (shared cloak base) in
-# the woodcut idiom: the drape carries etched diagonal fold hatching (hatch=True)
-# and the hood rim + tattered hem get a crisp lighter line-art KEYLINE in the
-# same engraved white the bones use — so the cloak reads as a hatched woodcut
-# cape. The skull, ribcage/spine and the hero beak still land through the cowl's
-# face opening and the open chest V, so the x-ray hero is untouched.
-CLOAK_EDGE = INK_BONE          # same engraved keyline white as the bone contours
+# The dark "back" mass is a hooded open-front CLOAK (shared cloak base) in the
+# woodcut idiom. round_4 fixes the hatch collision the art-director flagged:
+# instead of the shared `hatch=True` (which strikes fine fold-hatch in the same
+# near-black/dim register as the bone hatch — the two melt into mush), the cloak
+# is given its OWN tonal register. We feed the hardened base a lifted CLOAK_CLOTH
+# (so the drape is a real dark-cool-grey surface, not navy that night swallows)
+# and a mid-grey CLOAK_INNER lining (so the white ribcage is unambiguously the
+# top layer in the open V), turn the base hatch OFF, then strike our OWN coarse,
+# mid-grey diagonal fold hatch — fewer, fatter strokes at a DARKER value than the
+# bright fine bone hatch — clipped to the back-drape so the two engraving systems
+# read as two tones (white bone vs darker cloth), never one mush.
+CLOAK_EDGE = INK_BONE          # engraved keyline white traces the toothed hem/hood
+
+
+def _drape_mask():
+    """A 1-bit mask of the back-drape polygon so the coarse cloak hatch is
+    clipped to the cloth and never crosses the open chest / bone field."""
+    m = pygame.Surface((XB.SPRITE_W, XB.SPRITE_H), pygame.SRCALPHA)
+    pygame.draw.polygon(m, (255, 255, 255, 255), XB._CLOAK_DRAPE)
+    # Carve the open chest back out so hatch never bleeds onto the rib field.
+    pygame.draw.polygon(m, (0, 0, 0, 0), XB._CLOAK_CHEST)
+    return m
+
+
+_DRAPE_MASK = None
+
+
+def _coarse_cloak_hatch(surf):
+    """Strike the cloak's fold hatch in its OWN register: a COARSE diagonal pitch
+    (fatter, wider-spaced than the fine bone hatch) at a mid-grey value ~60% of
+    bone white. Clipped to the drape mask so the cloth tone stays on the cloak."""
+    global _DRAPE_MASK
+    h = pygame.Surface((XB.SPRITE_W, XB.SPRITE_H), pygame.SRCALPHA)
+    # Coarse pitch (step 6 vs the bone hatch's ~2.2) and 2px strokes — a heavier,
+    # darker engraving than the crisp fine white on the bone. The slant follows
+    # the drape's diagonal fall so it reads as fold-shading on the cloth, and the
+    # value (mid-grey) sits well below the bone white so the two registers never
+    # collide into mush.
+    for off in range(-12, 42, 6):
+        pygame.draw.line(h, (*CLOAK_HATCH, 240),
+                         (14 + off, 22), (off - 6, 51), 2)
+    if _DRAPE_MASK is None:
+        _DRAPE_MASK = _drape_mask()
+    h.blit(_DRAPE_MASK, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(h, (0, 0))
+
+
+def _cloak_base_r4(angle):
+    """The hardened cloak base on lifted cloth tones (base hatch OFF), then our
+    own coarse mid-grey fold hatch — the two-register woodcut cloak."""
+    surf = XB.cloak_base(angle, XB.P_FLESH,
+                         cloth=CLOAK_CLOTH, inner=CLOAK_INNER,
+                         edge=CLOAK_EDGE, hatch=False)
+    _coarse_cloak_hatch(surf)
+    return surf
 
 
 def _make():
-    return XB._frames_from_cloak(
-        _paint, XB.P_FLESH, hatch=True, edge=CLOAK_EDGE)
+    from game import store_skins
+    return store_skins._make_skin(_paint, base_fn=_cloak_base_r4)
 
 
 build = _make()
