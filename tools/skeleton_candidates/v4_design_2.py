@@ -68,15 +68,30 @@ _FLESH = XB._pal(
 # hood + tattered hem read as a single bold clean shape against the near-black
 # cloth — same graphic register as the thick high-contrast bones (no fussy
 # folds, just a hard rim that survives the 40px downscale on day AND night).
-_CLOAK_EDGE = (176, 184, 214)
+_CLOAK_EDGE = (192, 200, 226)
+
+# THE night fix: the cloak cloth itself must out-value navy, not just its rim.
+# A desaturated cool grey-violet (luma ~63) lifts the cowl + drape into a
+# distinct mid-dark MASS against the night sky while staying clearly darker
+# than the white bones and the steel rim — so the silhouette reads as a hooded
+# cloak even before the keyline, and the day read is unharmed (still a flat
+# cool grey shape, not a bright distraction from the white-bone hero).
+_CLOAK_CLOTH = (66, 62, 90)
+
+# Interior of the open-front V + hood face: pushed darker than the lifted cloth
+# so the ribcage/spine/skull win their opening — the cage out-values the cloth
+# beside it and reads as "skeleton seen THROUGH an open cloak", not a panel.
+_CLOAK_INNER = (16, 17, 30)
 
 
 def _flesh_base(angle_deg):
-    # Shared cloak shape on YOUR near-black cloth, then re-strike the hood-rim
-    # and tattered-hem keylines one step thicker so the cloak reads as a single
-    # bold graphic shape — matching the chunky high-contrast bones, not the
-    # base's hairline default rim.
-    surf = XB.cloak_base(angle_deg, _FLESH, edge=_CLOAK_EDGE)
+    # Shared cloak shape on the LIFTED grey-violet cloth (so the mass survives
+    # navy at night), a darker recessed interior so the open-front ribcage wins,
+    # then re-strike the hood-rim and tattered-hem keylines one step thicker so
+    # the cloak reads as a single bold graphic shape — matching the chunky
+    # high-contrast bones, not the base's hairline default rim.
+    surf = XB.cloak_base(angle_deg, _FLESH, cloth=_CLOAK_CLOTH,
+                         inner=_CLOAK_INNER, edge=_CLOAK_EDGE)
     pygame.draw.lines(surf, _CLOAK_EDGE, False, XB._HOOD_RIM, 2)
     pygame.draw.lines(surf, _CLOAK_EDGE, False, XB._HEM_EDGE, 2)
     return surf
