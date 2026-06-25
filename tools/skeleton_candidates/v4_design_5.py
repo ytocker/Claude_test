@@ -176,8 +176,18 @@ def _paint(surf, angle):
     _beak_hero(surf)
 
 
+# The dark "back" mass is now a hooded open-front CLOAK (shared cloak base) in
+# the woodcut idiom: the drape carries etched diagonal fold hatching (hatch=True)
+# and the hood rim + tattered hem get a crisp lighter line-art KEYLINE in the
+# same engraved white the bones use — so the cloak reads as a hatched woodcut
+# cape. The skull, ribcage/spine and the hero beak still land through the cowl's
+# face opening and the open chest V, so the x-ray hero is untouched.
+CLOAK_EDGE = INK_BONE          # same engraved keyline white as the bone contours
+
+
 def _make():
-    return XB._frames_from_paint(_paint)
+    return XB._frames_from_cloak(
+        _paint, XB.P_FLESH, hatch=True, edge=CLOAK_EDGE)
 
 
 build = _make()
