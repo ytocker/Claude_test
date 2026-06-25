@@ -24,7 +24,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from game import parrot, store_skins  # noqa: E402
+from game import parrot, store_skins, glasses_skins  # noqa: E402
 from game import (  # noqa: E402
     shades_nerd, shades_round, shades_heart, shades_star, shades_black,
     shades_white, shades_3d, shades_pixel, shades_ski, shades_monocle,
@@ -50,12 +50,12 @@ def _old_fn(name):
     return mod.draw_shades
 
 
-def head_crop(fn, zoom=7):
+def head_crop(fn, zoom=7, cx=glasses_skins._EYE_CX):
     comp = pygame.Surface((store_skins.COMPOSITE_W, store_skins.COMPOSITE_H),
                           pygame.SRCALPHA)
     comp.blit(parrot._build_frame_bare(-8), (0, store_skins.PARROT_DY))
     if fn:
-        fn(comp, 51, 40, 22, 1)
+        fn(comp, cx, 40, 22, 1)
     pip = parrot._add_outline(comp)
     crop = pip.subsurface(pygame.Rect(28, 20, 36, 42)).copy()
     return pygame.transform.scale(crop, (36 * zoom, 42 * zoom))
@@ -119,7 +119,7 @@ def main():
                        (cell.left + 16, cell.top + ch + 28))
             continue
 
-        old = head_crop(_old_fn(name), ZOOM)
+        old = head_crop(_old_fn(name), ZOOM, cx=51)
         new = head_crop(mod.draw_shades, ZOOM)
         icon = product_shot(mod.draw_shades)
 

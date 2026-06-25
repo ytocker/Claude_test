@@ -68,8 +68,10 @@ def _build_icon(draw_shades) -> pygame.Surface:
 # ── in-game look: Pip wearing the shades ─────────────────────────────────────
 # The bare-eyed build draws the plain eye at sprite (50, 20); _compose blits the
 # body at PARROT_DY=20, so the eye anchors at composite (50, 40). eye_w≈24
-# matches the span of the default aviators it replaces.
-_EYE_CX, _EYE_CY = 51, 40
+# matches the span of the default aviators it replaces. The anchor rides a couple
+# px forward of the eye centre so every style laps the beak base — worn eyewear
+# grips the face toward the front rather than floating back over the ear.
+_EYE_CX, _EYE_CY = 53, 40
 _EYE_W = 22
 
 
