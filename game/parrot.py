@@ -1298,8 +1298,8 @@ def _store_skin_builders() -> dict:
         # Costume + parrot-species skins, the from-scratch animals, the shoes,
         # then the hats (each module is added by a later roster expansion;
         # tolerate any being absent).
-        for modname in ("store_skins", "animal_skins", "shoe_skins", "hat_skins",
-                        "glasses_skins"):
+        for modname in ("store_skins", "skeleton_skin", "animal_skins",
+                        "shoe_skins", "hat_skins", "glasses_skins"):
             try:
                 mod = __import__("game." + modname, fromlist=["BUILDERS"])
                 merged.update(mod.BUILDERS)

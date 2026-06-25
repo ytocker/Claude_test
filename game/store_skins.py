@@ -1035,73 +1035,6 @@ def _paint_tophat(surf, _a):
 get_tophat_redraw = _make_skin(_paint_tophat)
 
 
-# ── SKELETON redraw — warm bone-ivory on deep-navy body, hollow sockets +
-# a pinpoint glint. Day-of-the-Dead charm, NOT the X-Ray electrocution sprite.
-# Bones are the brightest element and 2px min so they survive downscale.
-_SK_BODY   = (38, 40, 64)          # deep-navy "flesh"
-_SK_BODY_D = (24, 26, 46)
-_SK_BONE   = (245, 240, 220)       # warm ivory — brightest element
-_SK_BONE_D = (196, 188, 160)
-_SK_SOCK   = (20, 22, 38)
-
-
-def _skel_wing(angle_deg):
-    """Recoloured wing: navy silhouette + bold ivory bone tracing (2px)."""
-    w = pygame.Surface((50, 50), pygame.SRCALPHA)
-    pts = [(24, 26), (46, 14), (50, 30), (34, 44), (18, 40)]
-    pygame.draw.polygon(w, _SK_BODY, pts)
-    pygame.draw.polygon(w, _SK_BODY_D, pts, 1)
-    pygame.draw.line(w, _SK_BONE, (25, 27), (39, 22), 2)
-    pygame.draw.line(w, _SK_BONE, (39, 22), (47, 30), 2)
-    pygame.draw.line(w, _SK_BONE_D, (47, 30), (42, 40), 2)
-    pygame.draw.circle(w, _SK_BONE, (25, 27), 2)
-    pygame.draw.circle(w, _SK_BONE, (39, 22), 2)
-    return pygame.transform.rotate(w, angle_deg)
-
-
-def _build_skeleton_redraw(wing_angle_deg):
-    surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
-    # Tail — navy fan.
-    pygame.draw.polygon(surf, _SK_BODY, [(2, 26), (17, 24), (23, 36), (12, 42)])
-    pygame.draw.polygon(surf, _SK_BODY_D,
-                        [(2, 26), (17, 24), (23, 36), (12, 42)], 1)
-    # Body.
-    _aaellipse(surf, _SK_BODY_D, (33, 33), 19, 14)
-    _aaellipse(surf, _SK_BODY, (32, 32), 18, 13)
-    # Wing.
-    wing = _skel_wing(wing_angle_deg)
-    surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
-    # Head.
-    _aaellipse(surf, _SK_BODY_D, (48, 22), 12, 11)
-    _aaellipse(surf, _SK_BODY, (47, 21), 11, 10)
-
-    # Ribcage — bold ivory arcs across the chest (2px).
-    pygame.draw.line(surf, _SK_BONE, (38, 26), (22, 36), 2)   # spine
-    for off_x in (-5, 0, 5):
-        pygame.draw.arc(surf, _SK_BONE, (24 + off_x, 24, 13, 16),
-                        math.radians(200), math.radians(340), 2)
-    # Skull — bright ivory dome with hollow sockets + a pinpoint glint.
-    _aaellipse(surf, _SK_BONE, (47, 21), 9, 8)
-    _aaellipse(surf, _SK_BONE_D, (47, 25), 6, 3)   # jaw shadow
-    pygame.draw.circle(surf, _SK_SOCK, (50, 19), 3)
-    pygame.draw.circle(surf, _SK_SOCK, (44, 20), 3)
-    pygame.draw.circle(surf, (255, 255, 255), (51, 18), 1)   # pinpoint glint
-    # Tiny nose triangle + grin stitches.
-    pygame.draw.polygon(surf, _SK_SOCK, [(47, 23), (49, 23), (48, 25)])
-    for gx in (44, 47, 50):
-        pygame.draw.line(surf, _SK_BONE_D, (gx, 27), (gx, 29), 1)
-
-    # Beak — ivory bone outline over a navy beak.
-    beak_pts = [(55, 21), (61, 24), (58, 28), (52, 26)]
-    pygame.draw.polygon(surf, _SK_BODY, beak_pts)
-    pygame.draw.polygon(surf, _SK_BONE, beak_pts, 2)
-
-    # Leg bones.
-    pygame.draw.line(surf, _SK_BONE, (28, 45), (27, 49), 2)
-    pygame.draw.line(surf, _SK_BONE, (34, 45), (35, 49), 2)
-    return surf
-
-
 def _make_prebuilt_skin(build_fn):
     """Getter for a skin whose flat frames come from a full build_fn(angle)
     (used by the current-skin redraws that recolour the whole body)."""
@@ -1120,9 +1053,6 @@ def _make_prebuilt_skin(build_fn):
         return s
 
     return getter
-
-
-get_skeleton_redraw = _make_prebuilt_skin(_build_skeleton_redraw)
 
 
 # ── ZOMBIE redraw — "undead but happy": healthy-green body, stitched grin,
@@ -1361,7 +1291,6 @@ BUILDERS = {
     "skin_crown":     get_crown_parrot,
     # Dedicated cosmetic redraws (override the recycled power-up sprites).
     "skin_tophat":    get_tophat_redraw,
-    "skin_skeleton":  get_skeleton_redraw,
     "skin_zombie":    get_zombie_redraw,
     # Parrot species (full-body recolours + cockatoo crest).
     "skin_bluegold":  get_bluegold_parrot,
