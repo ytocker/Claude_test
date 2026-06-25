@@ -48,55 +48,85 @@ def draw_shoe(surf, x, y, w, h, facing=1):
 
     sole_top = 0.78
 
-    # ── FLAME PLUME (drawn first, behind the boot, on a soft glow layer) ─────────
-    # Layered concentric tongues streaming back from the heel nozzle (~t=0.06)
-    # toward and past the box's rear edge (t<0). Painted onto an SRCALPHA temp at
-    # an upscaled resolution so the hot edges bloom softly when blitted back —
-    # the difference between "a boot" and "a ROCKET boot" at small scale.
-    # The glow temp spans a fixed box-t window [T_MIN,T_MAX] (T_MIN<0 behind the
-    # heel, T_MAX overlapping the nozzle) and is blitted back over exactly that
-    # window — so the plume connects to the nozzle with no hard clip at t=0, and
-    # the soft bloom survives downscale. Vertically it spans 2× box height,
-    # centred on the heel mid-line, with the same overshoot above/below.
-    T_MIN, T_MAX = -0.80, 0.18
-    ss = 3  # supersample so concentric flame edges read smooth after bloom
+    # ── FLAME PLUME (drawn first, behind the boot) ───────────────────────────────
+    # The hero read. A single TEARDROP plume: tall rounded root flush against the
+    # nozzle bell, tapering to a narrow point at the tail, biased DOWN-and-back so
+    # it reads as a thrust vector, not a dead-horizontal diamond. Built as three
+    # nested chunky values — red rim / orange body / white core — so it survives
+    # the 17px foot box with hard readable edges (no supersample-dependent
+    # subtlety). A soft outer glow underlay is blitted UNDER the chunky flame so
+    # the icon blooms and the red rim separates from a dark night sky, but the
+    # readable shape never depends on that bloom.
+    #
+    # Plume box-t window: root overlaps PAST the nozzle lip (T_MAX>0) so fire and
+    # machine touch; tail runs to T_MIN well behind the heel for a long exhaust.
+    T_MIN, T_MAX = -0.92, 0.20
+
+    # Teardrop tongue: a tall rounded root flush at the nozzle that tapers to a
+    # single narrow point at the tail. Built from a centreline that DROOPS
+    # down-and-back (thrust vector) with a half-width that shrinks from fat at the
+    # root to zero at the tip. Sampling along the centreline and offsetting by the
+    # half-width gives a smooth tongue whose top edge sinks toward the tail and
+    # whose bottom edge sinks faster — never a flat-topped lozenge.
+    def _tongue(root_t, half, tip_t, sink):
+        # root_t: nozzle-side anchor; half: root half-height; tip_t: tail point;
+        # sink: how far the centreline drops from root to tip (down-and-back bias).
+        n = 7
+        top, bot = [], []
+        for i in range(n + 1):
+            f = i / n                          # 0 at root → 1 at tail point
+            t = root_t + (tip_t - root_t) * f
+            cy = sink * (f ** 1.3)             # centreline droops toward tail
+            # Half-width: fat near root, eased to a sharp zero at the tip.
+            hw = half * (1.0 - f) ** 1.45
+            top.append((t, cy - hw))
+            bot.append((t, cy + hw))
+        # Rounded root crown/base (pull the nozzle-side edge slightly outward) →
+        # a bulged root, not a clipped flat end.
+        crown = (root_t + 0.03, -half * 0.55)
+        base = (root_t + 0.03, half * 0.55)
+        return [crown] + top[1:] + list(reversed(bot[1:])) + [base]
+
+    # Three nested tongues, each shorter + thinner so inner values sit inside the
+    # outer rim. The white core is a slim short lance biased toward the nozzle
+    # (short reach, low droop) — a hot blade at the throat, not a centred blob.
+    red_t  = _tongue(0.18, 0.40, T_MIN, sink=0.52)
+    org_t  = _tongue(0.17, 0.30, -0.60, sink=0.46)
+    core_t = _tongue(0.15, 0.16, -0.22, sink=0.34)
+
+    # Soft outer glow underlay — a fat blurred red-orange teardrop so the plume
+    # has atmosphere and the rim pops on night sky. Built supersampled then
+    # smooth-downscaled; purely additive mood under the chunky shape.
+    ss = 2
     span = T_MAX - T_MIN
     gw = max(2, int(round(w * span * ss)))
-    gh = max(2, int(round(h * 2 * ss)))
+    gh = max(2, int(round(h * 2.4 * ss)))
     glow = pygame.Surface((gw, gh), pygame.SRCALPHA)
-    gy0 = h * ss * 1.0  # plume mid-line inside the 2×-tall temp
+    gy0 = h * ss * 1.2
 
     def gpt(t, b):
-        gx = (t - T_MIN) * w * ss
-        return (gx, gy0 + b * h * ss)
+        return ((t - T_MIN) * w * ss, gy0 + b * h * ss)
 
-    # Each flame layer is a tapering tongue: wide root at the nozzle, pinched
-    # tail trailing back. Stacked red→orange→yellow→white so the core stays
-    # hottest. The tail runs to t≈-0.78 (well past the box) for a long thrust.
-    flame_layers = (
-        (_FLAME_RED, (-0.78, 0.16), (-0.36, -0.22), (0.16, -0.06),
-                     (0.16, 0.42), (-0.36, 0.54)),
-        (_FLAME_ORG, (-0.58, 0.17), (-0.26, -0.09), (0.14, 0.02),
-                     (0.14, 0.35), (-0.26, 0.45)),
-        (_FLAME_YEL, (-0.38, 0.18), (-0.16, 0.03), (0.12, 0.09),
-                     (0.12, 0.29), (-0.16, 0.36)),
-        (_FLAME_WHT, (-0.22, 0.19), (-0.07, 0.11), (0.10, 0.14),
-                     (0.10, 0.25), (-0.07, 0.31)),
-    )
-    for col, *pts in flame_layers:
-        a = 250 if col is _FLAME_WHT else 220
-        pygame.draw.polygon(glow, (*col, a), [gpt(t, b) for t, b in pts])
+    for col, alpha, scl in ((_FLAME_RED, 95, 1.25), (_FLAME_ORG, 120, 0.95)):
+        glow_pts = [gpt(t, b * scl + 0.06) for t, b in red_t]
+        pygame.draw.polygon(glow, (*col, alpha), glow_pts)
+    soft = pygame.transform.smoothscale(
+        glow, (max(1, int(w * span)), max(1, int(h * 2.4))))
+    gx0 = px(T_MIN if facing == 1 else T_MAX) - (0 if facing == 1 else int(w * span))
+    surf.blit(soft, (gx0, py(0.0) - h * 1.2))
 
-    # Ember sparks flung off the tail — tiny bright motes that say "exhaust".
-    for et, eb, er in ((-0.64, 0.04, 0.06), (-0.50, 0.40, 0.05),
-                       (-0.78, 0.24, 0.045), (-0.44, -0.10, 0.045)):
-        cx, cy = gpt(et, eb)
-        pygame.draw.circle(glow, (*_FLAME_YEL, 235), (int(cx), int(cy)),
-                           max(1, int(er * h * ss)))
+    # Chunky 3-value flame, hard edges, drawn directly in box space so it stays
+    # crisp at 17px. Red rim first (widest), then orange body, then white core.
+    poly(_FLAME_RED, red_t)
+    poly(_FLAME_ORG, org_t)
+    poly(_FLAME_WHT, core_t)
 
-    soft = pygame.transform.smoothscale(glow, (max(1, int(w * span)), int(h * 2)))
-    surf.blit(soft, (px(T_MIN if facing == 1 else T_MAX) -
-                     (0 if facing == 1 else int(w * span)), py(0.0) - h))
+    # Warm yellow-white embers flung off the tail along the drooping centreline —
+    # on-palette, colorblind-safe (no teal/cyan).
+    for et, eb, er in ((-0.70, 0.40, 0.07), (-0.55, 0.30, 0.05),
+                       (-0.85, 0.52, 0.05), (-0.45, 0.18, 0.05)):
+        pygame.draw.circle(surf, _FLAME_YEL, (int(px(et)), int(py(eb))),
+                           max(1, int(round(er * h))))
 
     # ── dark exhaust nozzle bell at the heel ─────────────────────────────────────
     # A flared bell mouth the plume erupts from; the dark mouth + steel ring make
@@ -112,6 +142,13 @@ def draw_shoe(surf, x, y, w, h, facing=1):
     poly(_STEEL_D, [
         (0.10, 0.62), (0.16, 0.58), (0.16, 0.70), (0.10, 0.74),
     ])
+    # Hot ignition flare at the throat — a white-blue blob right where the plume
+    # erupts from the bell, so the eye traces fire → nozzle → boot as one machine
+    # with no gap. Drawn AFTER the bell so it sits on the lip, over the plume root.
+    flare_c = (px(0.10), py(0.50))
+    fr = max(1, int(round(h * 0.13)))
+    pygame.draw.circle(surf, (210, 232, 255), flare_c, fr)
+    pygame.draw.circle(surf, _FLAME_WHT, flare_c, max(1, int(fr * 0.6)))
 
     # ── chrome sole / thruster underframe ────────────────────────────────────────
     poly(_PLATE_D, [
