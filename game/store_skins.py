@@ -32,6 +32,7 @@ from game import parrot
 from game.parrot import (
     SPRITE_W, SPRITE_H, _WING_ANGLES, _build_frame, _add_outline, _aaellipse,
 )
+from game.draw import blit_glow, lerp_color
 from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
 
 
@@ -1274,6 +1275,464 @@ get_cockatoo_parrot = _make_skin(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# PRISM (epic) — the faceted/crystalline parrot: hard cut-crystal geometry
+# against the whole tab's soft feathers. Every signature is a flat fill split by
+# a hard white edge so it stays sharp and reads as polished geometry, not
+# feathers, once downscaled to the 40px store thumbnail — a 3-shard crystal crest
+# breaking the crown, two large facet planes carrying the crystalline language
+# below the crown, two hard chest/wing facet glints, and a pair of refraction
+# diamonds scattering into open sky.
+# ─────────────────────────────────────────────────────────────────────────────
+# Crystal palette: cool teal mass, amethyst undertone, rose refraction, and a
+# pure white facet glint that owns every sharp edge. The deep teal is the
+# keyline that holds shards apart from sky and from the body mass.
+_PRISM_TEAL   = (94, 215, 208)     # #5ED7D0 crystal teal
+_PRISM_AMETH  = (185, 140, 240)    # #B98CF0 amethyst
+_PRISM_ROSE   = (255, 154, 208)    # #FF9AD0 rose refraction
+_PRISM_GLINT  = (255, 255, 255)    # facet glint
+_PRISM_DEEP   = (46, 110, 120)     # #2E6E78 deep teal keyline
+
+
+# Full crystal-teal re-plumage with an amethyst undertone: the tail/wing line
+# work runs the deepest teal so facets read against the body, the chest carries
+# the amethyst shift, and aviators are RETAINED (tinted crystal-teal — Pip's
+# signature) rather than dropped, since the shard crest owns the silhouette.
+P_PRISM = _pal(
+    tail=[(36, 92, 102), (52, 132, 134), (78, 178, 176), (118, 210, 204)],
+    tail_line=_PRISM_DEEP,
+    body_shadow=(40, 100, 110),
+    body_main=_PRISM_TEAL,
+    body_chest=(150, 196, 224),       # cooled amethyst-leaning chest
+    body_belly=(132, 224, 216),
+    sheen=(230, 248, 255, 110),
+    wing_main=(70, 176, 178),
+    wing_dark=_PRISM_DEEP,
+    wing_tip=(150, 232, 224),
+    wing_secondary=(150, 122, 210),   # amethyst secondary so the wing refracts
+    wing_highlight=(214, 250, 246),
+    head_shadow=(40, 100, 110),
+    head_main=_PRISM_TEAL,
+    head_cheek=(132, 224, 216),
+    head_crown=(120, 206, 224),
+    lens_frame=(150, 122, 210),       # amethyst rims keep the aviators on-theme
+    lens_body=(24, 40, 56),
+    lens_tint=(120, 220, 220, 130),
+    lens_glint=(255, 255, 255),
+    beak_main=(120, 210, 210),
+    beak_dark=_PRISM_DEEP,
+    beak_gloss=(220, 250, 248),
+    foot=(70, 140, 150),
+)
+
+
+def _facet(surf, pts, fill, *, edge=_PRISM_GLINT, edge_w=2):
+    """A flat crystal facet: a hard single-colour fill with a bright edge so
+    it reads as polished geometry, not a feather. The white edge is what keeps
+    the shard sharp once the sprite is downscaled to the store thumbnail; ≥2px
+    by default so the edge survives the 40px downscale."""
+    pygame.draw.polygon(surf, fill, pts)
+    pygame.draw.polygon(surf, edge, pts, edge_w)
+
+
+def _shard(surf, root, tip, half, *, light, dark, sky_edge=False):
+    """One angular crystal shard from `root` up to `tip`, split down the spine
+    into a lit face and a shadowed face so it reads as a 3-D faceted prism. A
+    full-white spine highlight runs root→tip as the hero edge that survives
+    40px. When `sky_edge`, a deep-teal keyline traces the outer edges so the
+    shard tip holds against bright day sky instead of dropping out."""
+    rx, ry = root
+    tx, ty = tip
+    # Two faces meeting at the spine; the base is `half` wide each side of root.
+    left = [(rx - half, ry), (rx, ry - 1), (tx, ty)]
+    right = [(rx, ry - 1), (rx + half, ry), (tx, ty)]
+    _facet(surf, left, dark, edge_w=1)
+    _facet(surf, right, light, edge_w=1)
+    if sky_edge:
+        # Deep-teal outline on the sky-facing edges so the point doesn't vanish.
+        pygame.draw.line(surf, _PRISM_DEEP, (rx - half, ry), (tx, ty), 1)
+        pygame.draw.line(surf, _PRISM_DEEP, (rx + half, ry), (tx, ty), 1)
+    # Full-white spine — the brightest, sharpest edge, drawn last so it owns the
+    # centre of the shard at any size.
+    pygame.draw.line(surf, _PRISM_GLINT, (rx, ry - 1), (tx, ty), 2)
+
+
+def _diamond(surf, cx, cy, r, fill):
+    """A floating refraction diamond (rotated square) with a white core glint —
+    the aura sparkle that scatters off the back. The white core is ≥2px so it
+    holds the 'crystal sparkle' read at thumbnail size."""
+    _facet(surf, [(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)], fill,
+           edge_w=1)
+    pygame.draw.circle(surf, _PRISM_GLINT, (cx, cy), 2)
+
+
+def _paint_prism(surf, _a):
+    base_y = CROWN_Y + 4   # roots just above the crystal crown
+
+    # Two LARGE flat planes split the back/wing into a lit teal face and an
+    # amethyst shadow face, divided by a single hard white spine — the same
+    # faceted grammar as the crest, so the whole bird reads as cut crystal, not a
+    # soft body wearing a hat.
+    spine = [(20, 39), (31, 45), (43, 47)]   # back ridge, up-right toward wing
+    lit = [(20, 39), (31, 45), (43, 47), (40, 53), (28, 52), (18, 46)]
+    shadow = [(20, 39), (18, 46), (14, 50), (16, 41)]
+    _facet(surf, lit, (110, 224, 216), edge_w=1)         # lit teal plane
+    _facet(surf, shadow, (108, 92, 168), edge_w=1)       # amethyst shadow plane
+    pygame.draw.lines(surf, _PRISM_GLINT, False, spine, 2)  # the white spine
+
+    # TWO LARGE hard facets — one rose, one amethyst — each a flat triangle with
+    # a ≥2px white edge, pointed like the crest shards. Two notes, two hues: the
+    # spectrum tell without scattering into mud at 40px.
+    _facet(surf, [(28, 49), (35, 54), (27, 58)], _PRISM_ROSE)      # chest rose
+    _facet(surf, [(40, 43), (47, 46), (40, 51)], _PRISM_AMETH)     # wing amethyst
+
+    # HERO: 3 angular crystal shards fanning up PAST the crown. The centre shard
+    # is tallest and the outer two splay out so the cluster reads as a gem cluster
+    # breaking the silhouette. The right-most shard gets the deep-teal sky-edge so
+    # its tip holds on day sky. Painted after the body so it sits on top.
+    shards = (
+        (HX - 7, base_y + 1, HX - 13, base_y - 14, 4, _PRISM_AMETH, _PRISM_DEEP, False),
+        (HX - 1, base_y,     HX - 2,  base_y - 24, 5, _PRISM_TEAL,  _PRISM_DEEP, True),
+        (HX + 6, base_y + 1, HX + 12, base_y - 16, 4, _PRISM_ROSE,  _PRISM_DEEP, True),
+    )
+    for rx, ry, tx, ty, half, light, dark, sky_edge in shards:
+        _shard(surf, (rx, ry), (tx, ty), half, light=light, dark=dark,
+               sky_edge=sky_edge)
+    # A small teal facet seats the cluster onto the crown so it reads anchored,
+    # leaving a sliver of body between the crown facet and the aviator top rim.
+    _facet(surf, [(HX - 9, base_y + 2), (HX + 8, base_y + 2),
+                  (HX + 5, base_y - 3), (HX - 6, base_y - 3)], _PRISM_TEAL,
+           edge_w=1)
+
+    # A 1px bright top rim across both lenses so Pip's signature glasses catch
+    # the light again under the crest — the hard top edge that separates lens
+    # from face at a glance.
+    pygame.draw.line(surf, (214, 250, 246), (40, 44), (46, 44), 2)
+    pygame.draw.line(surf, (214, 250, 246), (49, 44), (54, 44), 2)
+
+    # Two 4-point diamond sparkles drifting off the back into OPEN sky (kept off
+    # the near-black card edge), white cores ≥2px so they read as scattered
+    # crystal light. Held to two so the bird stays epic, not legendary.
+    _diamond(surf, HX - 19, CROWN_Y + 5, 3, _PRISM_ROSE)
+    _diamond(surf, HX - 24, CROWN_Y + 15, 2, _PRISM_TEAL)
+
+
+get_prism_lorikeet = _make_skin(
+    _paint_prism,
+    base_fn=lambda a: _build_parrot_with_palette(a, P_PRISM))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AURORA (legendary) — night sky given wings: a midnight-galaxy Pip haloed by a
+# bright additive teal/blue crescent, crowned with a connected green→magenta
+# nebula crest, trailing wide flowing aurora ribbons where the tail-fan was. The
+# legendary tell is the luminous halo PLUS the silhouette-breaking ribbon tail —
+# a clear tier above the single-zone epics.
+#
+# Draw order matters: the halo and ribbon tail must paint BEHIND the body, so
+# this can't use _make_skin's body-first _compose. Mirroring the viking-axe
+# pattern, this is a custom getter — back-aura (halo + ribbons) → recoloured
+# galaxy body → front overlay (nebula crest, star flecks, rim light) → house
+# outline → per-(frame, 3°-bucket) rotation cache. The aurora is baked into each
+# of the 4 frames and sweeps with the wing beat so the flap still reads alive.
+# ─────────────────────────────────────────────────────────────────────────────
+_AUR_INDIGO   = (28, 27, 58)          # #1C1B3A midnight indigo
+_AUR_GREEN    = (63, 224, 166)        # #3FE0A6 aurora green
+_AUR_MAGENTA  = (196, 92, 232)        # #C45CE8 aurora magenta
+_AUR_STARBLU  = (111, 168, 255)       # #6FA8FF star blue
+_AUR_GLINT    = (255, 255, 255)       # #FFFFFF star glint
+
+# Body re-plumage: a deep midnight-indigo galaxy. The core values are lifted so
+# the body reads as cosmic, not a flat void; the crown/back cool toward aurora
+# teal, the belly toward magenta. Lenses keep Pip's aviators but tint to aurora
+# teal so the signature shades read on the night palette; the beak is brightened
+# so the macaw face survives.
+_AURORA_PAL = _pal(
+    tail=[(30, 28, 60), (40, 38, 80), (54, 56, 110), (74, 90, 150)],
+    tail_line=(20, 19, 42),
+    body_shadow=(26, 24, 54),
+    body_main=(40, 38, 82),
+    body_chest=(58, 58, 116),
+    body_belly=(54, 46, 96),
+    sheen=(150, 180, 255, 95),
+    wing_main=(44, 44, 92),
+    wing_dark=(22, 21, 46),
+    wing_tip=(92, 124, 196),
+    wing_secondary=None,
+    wing_highlight=(128, 184, 250),
+    head_shadow=(26, 24, 54),
+    head_main=(42, 40, 86),
+    head_cheek=(62, 64, 122),
+    head_crown=(54, 74, 130),
+    lens_frame=(96, 110, 168),
+    lens_body=(12, 16, 36),
+    lens_tint=(70, 210, 180, 150),
+    lens_glint=(235, 255, 250),
+    beak_main=(150, 160, 210),
+    beak_dark=(52, 56, 100),
+    beak_gloss=(225, 238, 255),
+    foot=(76, 80, 130),
+)
+
+
+def _aurora_base(angle_deg):
+    return _build_parrot_with_palette(angle_deg, _AURORA_PAL)
+
+
+def _aurora_mix(t):
+    """Green→star-blue→magenta light band, the aurora's signature ramp."""
+    if t < 0.5:
+        return lerp_color(_AUR_GREEN, _AUR_STARBLU, t / 0.5)
+    return lerp_color(_AUR_STARBLU, _AUR_MAGENTA, (t - 0.5) / 0.5)
+
+
+def _flap_phase(angle_deg):
+    """0 on the down-stroke (wing 50°) → 1 on the up-stroke (-40°). The ribbons
+    stream long/loose on the up-beat and bunch tight on the down-beat so the
+    baked aurora still feels alive across the 4 frames."""
+    return 1.0 - (angle_deg + 40) / 90.0
+
+
+def _smooth_curve(p0, p1, p2, steps=10):
+    """Quadratic-Bezier sample list so wisps/ribbons render as smooth curves
+    rather than the 3-point polylines that read as straight rods at 40px."""
+    pts = []
+    for i in range(steps + 1):
+        t = i / steps
+        u = 1 - t
+        x = u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0]
+        y = u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1]
+        pts.append((x, y))
+    return pts
+
+
+def _crescent_arc(cx, cy, r, a0, a1, steps=14):
+    """Point list along a circular arc (radians a0→a1) — the spine of the
+    legendary halo crescent, sampled fine enough to draw as a thick smooth band
+    that survives the 40px downscale."""
+    pts = []
+    for i in range(steps + 1):
+        a = a0 + (a1 - a0) * (i / steps)
+        pts.append((cx + math.cos(a) * r, cy + math.sin(a) * r))
+    return pts
+
+
+def _aurora_back(surf, angle_deg):
+    """Every glowing element lives here, BEHIND the outlined bird, so the house
+    outline (grown from the bird's alpha mask) never boxes a bloom into its own
+    dark-rimmed island. Two passes, both un-outlined: an additive under-glow
+    buffer that shines on dark night skies, then an opaque bright-detail buffer
+    (halo crescent, crest cores, ribbon spines as solid bright pixels with a thin
+    indigo backing) so they also survive a bright day/dusk sky where additive
+    washes out. Contents: the halo crescent arcing behind+above the head, the
+    nebula crest wisp-mass past the crown, and the aurora ribbon tail."""
+    phase = _flap_phase(angle_deg)
+    cbx, cby = HX - 1, CROWN_Y + 1                  # crest root, set into the crown
+    sway = (phase - 0.5) * 3
+
+    # Five overlapping tapered wisps that all spring from ONE shared crown base
+    # and curve OUTWARD, the cluster WIDER than it is tall so it reads as a cosmic
+    # crest fanning over the skull. Each entry: tip offset + outward control bow +
+    # green→magenta ramp position (matching the tail's sweep) + relative height.
+    crest = (
+        (-13, -15, -10, 0.05),   # far left, low, bows hard left
+        (-7,  -20, -6,  0.28),   # left, mid
+        (-1,  -23, -1,  0.50),   # centre, tallest — still WIDER cluster overall
+        (6,   -19, 6,   0.72),   # right, mid
+        (12,  -14, 10,  0.95),   # far right, low, bows hard right
+    )
+
+    def wisp_path(dx, dy, bow):
+        tip = (cbx + dx + sway, cby + dy)
+        ctrl = (cbx + dx * 0.55 + bow + sway * 0.5, cby + dy * 0.5)
+        root = (cbx + dx * 0.10, cby + 1)           # all roots converge on the crown
+        return _smooth_curve(root, ctrl, tip)
+
+    # Three overlapping S-curve ribbon curtains sweeping down-back into open sky,
+    # built wide (a tapering band, not a sliver) with a green→magenta gradient.
+    def ribbon_path(k):
+        reach = 22 + int(phase * 7)
+        droop = (1.0 - phase) * 4                    # tail dips on the down-beat
+        bx, by = 14, HY + 7 + k * 4
+        c1 = (bx - reach * 0.42, by + 1 + k * 2 - 3)        # bow up first
+        c2 = (bx - reach * 0.82, by + 9 + k * 5 + droop)    # then down → S
+        tip = (bx - reach, by + 16 + k * 7 + droop)
+        return _smooth_curve((bx, by), c1, c2, steps=6) + \
+            _smooth_curve(c2, ((c2[0] + tip[0]) / 2, tip[1] - 1), tip, steps=5)
+
+    # Halo crescent: a WIDE arc wrapping the head from the left flank, over the
+    # top, down the right flank, sized larger than the skull (r=22) so the bright
+    # band clears OUTSIDE the silhouette on the sides — the part that actually
+    # reads as a halo separating bird from sky, since the crest occupies the top.
+    hcx2, hcy2 = HX - 2, HY - 1
+    halo_r = 22
+    halo_spine = _crescent_arc(hcx2, hcy2, halo_r, math.radians(195), math.radians(345))
+
+    # ── pass 1: additive under-glow (night) ──────────────────────────────────
+    glow = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+    for i, (gx, gy) in enumerate(halo_spine):
+        col = _AUR_STARBLU if i % 2 else _AUR_GREEN
+        blit_glow(glow, int(gx), int(gy), 8, col, alpha=130)
+    # Connected crest haze — a single soft bloom over the WHOLE wisp mass so the
+    # gaps fill with light and the cluster reads as ONE crest, not separate stalks.
+    for dx, dy, bow, t in crest:
+        path = wisp_path(dx, dy, bow)
+        for p in (path[1], path[len(path) // 2], path[-1]):
+            blit_glow(glow, int(p[0]), int(p[1]), 6, _aurora_mix(t), alpha=95)
+    blit_glow(glow, cbx, cby - 3, 13, _AUR_GREEN, alpha=70)
+    blit_glow(glow, cbx, cby - 5, 10, _AUR_MAGENTA, alpha=55)
+    for k in range(3):
+        path = ribbon_path(k)
+        blit_glow(glow, int(path[len(path) // 2][0]), int(path[len(path) // 2][1]),
+                  5, _aurora_mix(k / 2.0), alpha=110)
+        blit_glow(glow, int(path[-1][0]), int(path[-1][1]), 4, _aurora_mix(k / 2.0), alpha=100)
+    surf.blit(glow, (0, 0), special_flags=pygame.BLEND_ADD)
+
+    # ── pass 2: opaque bright detail (day + night) ───────────────────────────
+    det = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+    _INK = (18, 16, 36)                             # thin dark backing for bright sky
+
+    # Halo CRESCENT — the legendary tell: a 5px teal→star-blue band over a 7px
+    # dark backing, a green inner edge, a magenta accent on the lower flanks, and
+    # white glints near both flank ends so it survives 40px on BOTH skies.
+    pygame.draw.lines(det, _INK, False, halo_spine, 7)
+    pygame.draw.lines(det, _AUR_STARBLU, False, halo_spine, 5)
+    inner = _crescent_arc(hcx2, hcy2, halo_r - 2, math.radians(200), math.radians(340))
+    pygame.draw.lines(det, _AUR_GREEN, False, inner, 2)
+    lflank = _crescent_arc(hcx2, hcy2, halo_r + 1, math.radians(196), math.radians(240))
+    rflank = _crescent_arc(hcx2, hcy2, halo_r + 1, math.radians(300), math.radians(344))
+    pygame.draw.lines(det, _AUR_MAGENTA, False, lflank, 2)
+    pygame.draw.lines(det, _AUR_MAGENTA, False, rflank, 2)
+    for fp in (halo_spine[1], halo_spine[-2]):       # bright caps at each flank
+        pygame.draw.circle(det, _AUR_GLINT, (int(fp[0]), int(fp[1])), 2)
+
+    # Nebula CREST — a connecting indigo-haze plinth under the wisp roots, then
+    # the wisps as smooth tapering curves over it (longest-first so the centre
+    # tucks behind the leans). Each: a 4px dark backing, a 3px green→magenta core,
+    # thinning to a 1px tip. Their roots overlap so the mass reads as ONE crest.
+    base_pts = [(cbx - 13, cby + 1), (cbx, cby - 3), (cbx + 12, cby + 1)]
+    pygame.draw.polygon(det, (40, 36, 86, 200),
+                        base_pts + [(cbx + 12, cby + 4), (cbx - 13, cby + 4)])
+    for dx, dy, bow, t in sorted(crest, key=lambda p: p[1]):
+        path = wisp_path(dx, dy, bow)
+        col = _aurora_mix(t)
+        base = _aurora_mix(max(0.0, t - 0.18))      # warmer/greener at the hot base
+        pygame.draw.lines(det, _INK, False, path, 4)
+        pygame.draw.lines(det, base, False, path[:len(path) // 2], 3)
+        pygame.draw.lines(det, col, False, path[len(path) // 2 - 1:], 2)
+        pygame.draw.circle(det, base, (int(path[0][0]), int(path[0][1])), 2)
+
+    # Aurora RIBBON tail — wide green→magenta curtains: a soft translucent band
+    # filling between the spine and an offset edge, a 4px ink backing and a 3px
+    # bright spine, ending in a glint. The S-curve + width make it read as flowing
+    # aurora, the lower silhouette break that sells the legendary.
+    for k in range(3):
+        path = ribbon_path(k)
+        col = _aurora_mix(k / 2.0)
+        edge = [(x, y + 4 + k) for x, y in path]    # widen into a band
+        pygame.draw.polygon(det, (*col, 120), path + edge[::-1])
+        pygame.draw.lines(det, _INK, False, path, 5)
+        pygame.draw.lines(det, col, False, path, 3)
+        pygame.draw.circle(det, _AUR_GLINT, (int(path[-1][0]), int(path[-1][1])), 2)
+
+    surf.blit(det, (0, 0))
+
+
+def _aurora_front(surf, angle_deg):
+    """Painted OVER the body and INSIDE the masked layer, so only crisp opaque
+    detail belongs here (soft glow lives in _aurora_back to dodge the outline):
+    a ≥2px aurora rim-light wrapping the full back+belly edge, the crown-band
+    blended into the crest's hot base, a re-asserted face, and star flecks
+    crowded onto the LIT edge. These survive the downscale as hard pixels."""
+    # Aurora rim-light wrapping the WHOLE silhouette — a ≥2px teal/blue band over
+    # the back+crown and a green band under the belly, so the lifted indigo body
+    # is framed by light rather than reading as a flat void on either sky.
+    pygame.draw.lines(surf, _AUR_STARBLU, False,
+                      [(HX - 12, CROWN_Y + 3), (HX - 5, CROWN_Y - 1),
+                       (HX + 4, CROWN_Y), (HX + 12, HY - 3)], 2)
+    pygame.draw.lines(surf, _AUR_STARBLU, False,
+                      [(16, 46), (15, 52), (18, 40)], 2)            # back-of-body edge
+    # Lit belly rim — a MONOTONIC descending diagonal, never a U, so it can't
+    # close into a mouth. Broken into a bright fore-segment + a faint aft-segment
+    # so the eye reads two rim glints, not a smile line, at 40px.
+    pygame.draw.lines(surf, _AUR_GREEN, False,
+                      [(46, 56), (43, 60), (39, 63)], 2)            # bright fore rim, descending
+    pygame.draw.lines(surf, _AUR_GREEN, False,
+                      [(34, 65), (28, 67), (22, 67)], 1)            # faint aft rim, still dropping
+
+    # Crown-band ↔ crest blend: a short green→magenta wash where the crown meets
+    # the plume root, so the headband stripe dissolves into the crest's cosmic
+    # base instead of reading as a separate stripe.
+    for i in range(5):
+        t = i / 4.0
+        cx = HX - 6 + i * 3
+        pygame.draw.circle(surf, _aurora_mix(0.15 + t * 0.6), (cx, CROWN_Y + 3), 2)
+
+    # Re-assert Pip's face at 40px: a bright specular glint on the near lens and
+    # a sharpened beak edge so the macaw identity survives the downscale.
+    pygame.draw.circle(surf, _AUR_GLINT, (HX + 6, HY - 3), 2)
+    pygame.draw.line(surf, _AUR_GLINT, (HX + 8, HY + 1), (HX + 13, HY + 4), 2)  # beak top edge
+
+    # Star flecks CROWDED on the lit back/upper edge (where they catch the rim
+    # light) — a fixed scatter (NOT random, so frames are stable) of small
+    # white/blue twinkles. Off the face/shadow so the eyes stay clean.
+    stars = (
+        (24, 42, 1, _AUR_GLINT),
+        (20, 40, 1, _AUR_STARBLU),
+        (28, 38, 1, _AUR_GLINT),
+        (34, 40, 1, _AUR_STARBLU),
+        (18, 45, 1, _AUR_GLINT),
+        (30, 44, 1, _AUR_STARBLU),
+        (39, 43, 1, _AUR_GLINT),
+    )
+    for sx, sy, r, col in stars:
+        pygame.draw.circle(surf, col, (sx, sy), r)
+        if col is _AUR_GLINT:              # only the brightest get a twinkle cross
+            pygame.draw.line(surf, (*col, 160), (sx - 2, sy), (sx + 2, sy), 1)
+            pygame.draw.line(surf, (*col, 160), (sx, sy - 2), (sx, sy + 2), 1)
+
+
+def _aurora_getter():
+    """back aura (halo + ribbons) → galaxy body → front nebula/stars/rim →
+    house outline, then the per-(frame, 3°-bucket) rotation cache shared by every
+    store skin. The faint additive halo + ribbons must NOT be part of the masked
+    layer (else the dark outline would wrap the glow and kill it), so the OPAQUE
+    bird (body + front overlay) is outlined alone and the soft back-aura is laid
+    UNDER it, padded to match the outline's 2px grow so the bird stays centred."""
+    state = {"frames": None, "rot": {}}
+
+    def _flat(wing_angle):
+        bird = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+        bird.blit(_aurora_base(wing_angle), (0, PARROT_DY))
+        _aurora_front(bird, wing_angle)
+        bird = _add_outline(bird)
+
+        aura = pygame.Surface(bird.get_size(), pygame.SRCALPHA)
+        pad = (bird.get_width() - COMPOSITE_W) // 2
+        back = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+        _aurora_back(back, wing_angle)
+        aura.blit(back, (pad, pad))
+        aura.blit(bird, (0, 0))
+        return aura
+
+    def getter(frame_idx, tilt_deg):
+        if state["frames"] is None:
+            state["frames"] = [_flat(a) for a in _WING_ANGLES]
+        frames = state["frames"]
+        frame_idx %= len(frames)
+        key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
+        s = state["rot"].get(key)
+        if s is None:
+            s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
+            state["rot"][key] = s
+        return s
+
+    return getter
+
+
+get_aurora_macaw = _aurora_getter()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Production registry: catalog id -> getter. Consulted by
 # parrot.get_skin_frame (which checks this first, so the three redraws here
 # override the power-up-sprite mappings the base parrot keeps for buff use).
@@ -1299,4 +1758,7 @@ BUILDERS = {
     "skin_hyacinth":  get_hyacinth_parrot,
     "skin_cockatoo":  get_cockatoo_parrot,
     "skin_lorikeet":  get_lorikeet_parrot,
+    # Rarity-tier parrots (epic crystal, legendary aurora).
+    "skin_prism":     get_prism_lorikeet,
+    "skin_aurora":    get_aurora_macaw,
 }

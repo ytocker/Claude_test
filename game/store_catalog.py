@@ -58,6 +58,8 @@ CATALOG: dict[str, dict] = {
     "skin_hyacinth":  {"name": "HYACINTH",    "cost": 450, "kind": "skin", "group": "parrot"},
     "skin_cockatoo":  {"name": "COCKATOO",    "cost": 520, "kind": "skin", "group": "parrot"},
     "skin_lorikeet":  {"name": "LORIKEET",    "cost": 600, "kind": "skin", "group": "parrot"},
+    "skin_prism":     {"name": "PRISM",        "cost": 1400, "kind": "skin", "group": "parrot"},
+    "skin_aurora":    {"name": "AURORA MACAW", "cost": 2800, "kind": "skin", "group": "parrot"},
 
     # ── ANIMALS (from-scratch creatures) ──────────────────────────────────────
     "skin_bee":      {"name": "BEE",       "cost": 400,  "kind": "skin", "group": "animal"},
