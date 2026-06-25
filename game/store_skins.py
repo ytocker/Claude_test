@@ -1733,6 +1733,583 @@ get_aurora_macaw = _aurora_getter()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# THORNCREST MACAW (epic) — botanical parrot: rose-red body, briar-vine crest
+# with ivory thorns and a bloomed heraldic rose past the crown. Matte pigment,
+# no glow — warmth from saturated local colour only, never emission.
+# ─────────────────────────────────────────────────────────────────────────────
+_TC_ROSE    = (181, 41, 74)
+_TC_ROSE_HI = (205, 52, 88)
+_TC_WINE    = (122, 23, 48)
+_TC_BLUSH   = (242, 182, 196)
+_TC_GREEN   = (47, 107, 58)
+_TC_GREEN_D = (30, 72, 40)
+_TC_GREEN_H = (104, 168, 96)
+_TC_IVORY   = (239, 231, 210)
+_TC_CRIMSON = (200, 38, 66)
+
+P_THORNCREST = _pal(
+    tail=[(96, 20, 42), (140, 30, 58), (176, 46, 76), (206, 96, 118)],
+    tail_line=_TC_WINE,
+    body_shadow=(132, 30, 56),
+    body_main=_TC_ROSE_HI,
+    body_chest=(222, 122, 144),
+    body_belly=_TC_BLUSH,
+    sheen=(255, 224, 230, 130),
+    wing_main=(188, 46, 82),
+    wing_dark=(110, 24, 46),
+    wing_tip=(228, 156, 174),
+    wing_secondary=None,
+    wing_highlight=(238, 188, 200),
+    head_shadow=(132, 30, 56),
+    head_main=_TC_ROSE_HI,
+    head_cheek=(220, 130, 150),
+    head_crown=(206, 80, 108),
+    lens_frame=(214, 132, 110),
+    lens_body=(58, 24, 30),
+    lens_tint=(232, 150, 120, 130),
+    lens_glint=(255, 244, 230),
+    beak_main=(228, 160, 150),
+    beak_dark=(150, 70, 60),
+    beak_gloss=(255, 244, 232),
+    foot=(150, 70, 64),
+)
+
+
+def _tc_thorn(surf, bx, by, dx, dy):
+    if abs(dx) >= abs(dy):
+        b0, b1 = (bx, by - 3), (bx, by + 3)
+    else:
+        b0, b1 = (bx - 3, by), (bx + 3, by)
+    tip = (bx + dx, by + dy)
+    sx = 1 if dx >= 0 else -1
+    sy = 1 if dy >= 0 else -1
+    pygame.draw.polygon(surf, _TC_GREEN_D,
+                        [(b0[0] + sx, b0[1] + sy), (b1[0] + sx, b1[1] + sy),
+                         (tip[0] + sx, tip[1] + sy)])
+    pygame.draw.polygon(surf, _TC_IVORY, [b0, b1, tip])
+    pygame.draw.line(surf, _TC_WINE, b0, tip, 1)
+
+
+def _tc_leaf(surf, cx, cy, dx, dy):
+    tip = (cx + dx, cy + dy)
+    base = (cx - dx // 2, cy - dy // 2)
+    side = (cx + dy // 2, cy - dx // 2)
+    side2 = (cx - dy // 2, cy + dx // 2)
+    pygame.draw.polygon(surf, _TC_GREEN, [base, side, tip, side2])
+    pygame.draw.line(surf, _TC_GREEN_H, base, side, 1)
+    pygame.draw.line(surf, _TC_GREEN_D, base, tip, 1)
+
+
+def _tc_bloom(surf, cx, cy):
+    petals = (
+        (cx, cy - 6, 4), (cx + 6, cy - 2, 4), (cx + 4, cy + 5, 4),
+        (cx - 4, cy + 5, 4), (cx - 6, cy - 2, 4),
+    )
+    for px, py, r in petals:
+        pygame.draw.circle(surf, _TC_CRIMSON, (px, py), r)
+        pygame.draw.circle(surf, _TC_WINE, (px, py), r, 1)
+    pygame.draw.circle(surf, _TC_BLUSH, (cx - 4, cy - 4), 3)
+    pygame.draw.circle(surf, _TC_WINE, (cx - 4, cy - 4), 3, 1)
+    pygame.draw.circle(surf, _TC_WINE, (cx, cy), 3)
+    pygame.draw.circle(surf, _TC_CRIMSON, (cx, cy), 2)
+    pygame.draw.circle(surf, _TC_IVORY, (cx - 1, cy - 1), 1)
+
+
+def _paint_thorncrest(surf, _a):
+    wrap = [(38, 43), (33, 46)]
+    pygame.draw.lines(surf, _TC_WINE, False, wrap, 5)
+    pygame.draw.lines(surf, _TC_GREEN_D, False, wrap, 4)
+    pygame.draw.lines(surf, _TC_GREEN, False, wrap, 2)
+    _tc_leaf(surf, 36, 44, 3, -4)
+    _tc_leaf(surf, 35, 47, -2, 4)
+    edge = [(44, 40), (40, 37), (35, 35)]
+    pygame.draw.lines(surf, _TC_WINE, False, edge, 3)
+    pygame.draw.lines(surf, _TC_GREEN, False, edge, 2)
+    for tx, ty in edge:
+        pygame.draw.line(surf, _TC_IVORY, (tx, ty), (tx - 2, ty - 2), 1)
+    _tc_leaf(surf, 52, 39, 2, -3)
+    # briar-cane crest: root emerges from back of skull, arches up-back, rose caps
+    cane = [
+        (HX - 6, CROWN_Y + 4), (HX - 9, CROWN_Y - 1),
+        (HX - 12, CROWN_Y - 6), (HX - 14, CROWN_Y - 9),
+    ]
+    bloom_c = (HX - 16, CROWN_Y - 13)
+    pygame.draw.lines(surf, _TC_WINE, False, cane, 6)
+    pygame.draw.lines(surf, _TC_GREEN_D, False, cane, 5)
+    pygame.draw.lines(surf, _TC_GREEN, False, cane, 3)
+    pygame.draw.lines(surf, _TC_GREEN_H, False, cane[:2], 1)
+    _tc_thorn(surf, HX - 10, CROWN_Y - 2, -5, -3)
+    _tc_thorn(surf, HX - 13, CROWN_Y - 7, -5, -1)
+    _tc_bloom(surf, *bloom_c)
+
+
+get_thorncrest_macaw = _make_skin(
+    _paint_thorncrest,
+    base_fn=lambda a: _build_parrot_with_palette(a, P_THORNCREST))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MOONBLOOM MACAW (legendary) — night-flora: pearl-white/lilac body, opened
+# moonflower crest, pale-gold moon-disc halo behind the head, petal-streamer
+# tail with pollen-motes. AURORA pattern: back halo/tail → body → front crest
+# → outline → rotation cache. Hard opaque detail carries the day read; additive
+# glow carries night.
+# ─────────────────────────────────────────────────────────────────────────────
+_MB_PEARL     = (243, 238, 248)
+_MB_PEARL_HL  = (252, 250, 254)
+_MB_LILAC     = (185, 168, 214)
+_MB_LILAC_DK  = (122, 104, 166)
+_MB_MINT      = (224, 240, 232)
+_MB_MOONGOLD  = (246, 230, 168)
+_MB_DEEPLILAC = (130, 112, 174)
+_MB_VIOLET    = (198, 184, 224)
+_MB_GLINT     = (255, 255, 255)
+_MB_OUTLINE   = (56, 42, 80, 235)
+_MB_PETAL_HI  = (250, 247, 252)
+_MB_PETAL_LO  = (188, 170, 214)
+_MB_POLLEN_HI = (255, 247, 200)
+
+P_MOONBLOOM = _pal(
+    tail=[(176, 158, 204), (196, 180, 220), (218, 206, 234), (240, 234, 248)],
+    tail_line=_MB_DEEPLILAC,
+    body_shadow=_MB_LILAC_DK,
+    body_main=_MB_PEARL,
+    body_chest=(252, 250, 254),
+    body_belly=(200, 184, 222),
+    sheen=(228, 240, 234, 110),
+    wing_main=(214, 202, 230),
+    wing_dark=_MB_LILAC_DK,
+    wing_tip=(248, 244, 252),
+    wing_secondary=None,
+    wing_highlight=_MB_PEARL_HL,
+    head_shadow=_MB_LILAC,
+    head_main=_MB_PEARL,
+    head_cheek=(250, 246, 252),
+    head_crown=_MB_PEARL_HL,
+    lens_frame=(140, 124, 180),
+    lens_body=(70, 58, 100),
+    lens_tint=(198, 184, 224, 150),
+    lens_glint=(250, 248, 254),
+    beak_main=(238, 220, 168),
+    beak_dark=(170, 144, 92),
+    beak_gloss=(252, 242, 206),
+    foot=(170, 152, 196),
+)
+
+
+def _mb_flap_phase(angle_deg):
+    return 1.0 - (angle_deg + 40) / 90.0
+
+
+def _mb_smooth_curve(p0, p1, p2, steps=10):
+    pts = []
+    for i in range(steps + 1):
+        t = i / steps
+        u = 1 - t
+        x = u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0]
+        y = u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1]
+        pts.append((x, y))
+    return pts
+
+
+def _mb_petal_poly(tip, root, width, curve=0.0, blunt=0.0):
+    import math as _math
+    dx, dy = tip[0] - root[0], tip[1] - root[1]
+    length = _math.hypot(dx, dy) or 1.0
+    ux, uy = dx / length, dy / length
+    px, py = -uy, ux
+    mid = (root[0] + dx * 0.5 + px * curve, root[1] + dy * 0.5 + py * curve)
+    spine = _mb_smooth_curve(root, mid, tip, steps=8)
+    left, right = [], []
+    n = len(spine) - 1
+    for i, (sx, sy) in enumerate(spine):
+        t = i / n
+        if t < 0.30:
+            w = width * (t / 0.30) ** 0.7
+        else:
+            tt = (t - 0.30) / 0.70
+            point = _math.sin((1 - tt) * _math.pi / 2)
+            blunt_w = 1.0 - tt * tt * 0.35
+            w = width * (point * (1 - blunt) + blunt_w * blunt)
+        left.append((sx + px * w, sy + py * w))
+        right.append((sx - px * w, sy - py * w))
+    if blunt > 0.4:
+        cap = []
+        tipw = width * (1.0 - 0.35) * blunt
+        for k in range(5):
+            a = _math.pi * (k / 4)
+            cap.append((tip[0] + px * _math.cos(a) * tipw - ux * _math.sin(a) * tipw,
+                        tip[1] + py * _math.cos(a) * tipw - uy * _math.sin(a) * tipw))
+        return left + cap + right[::-1], spine
+    return left + right[::-1], spine
+
+
+def _mb_streamer_geo(angle_deg):
+    phase = _mb_flap_phase(angle_deg)
+    droop = (1.0 - phase) * 3
+    reach = 1.0 + phase * 0.12
+    troot = (17, HY + 8)
+    spec = ((-40, 27, -5), (-26, 32, 1), (-13, 26, 6))
+    out = []
+    import math as _math
+    for ang_deg, length, bow in spec:
+        a = _math.radians(150 + ang_deg)
+        tip = (troot[0] + _math.cos(a) * length * reach,
+               troot[1] + _math.sin(a) * length * reach + droop)
+        poly, spine = _mb_petal_poly(tip, troot, 4.2, curve=bow)
+        out.append((poly, spine, tip))
+    return out
+
+
+def _mb_pollen_motes(angle_deg):
+    phase = _mb_flap_phase(angle_deg)
+    drift = phase * 4
+    base = ((-6, HY + 26, 2), (-12, HY + 20, 2), (-16, HY + 33, 1), (-3, HY + 36, 1))
+    return [(x - drift, y + drift * 0.4, r) for x, y, r in base]
+
+
+def _mb_petal_mix(t):
+    return lerp_color(_MB_PETAL_HI, _MB_PETAL_LO, t)
+
+
+def _moonbloom_back(surf, angle_deg):
+    import math as _math
+    streamers = _mb_streamer_geo(angle_deg)
+    motes = _mb_pollen_motes(angle_deg)
+    hcx, hcy = HX - 1, HY - 2
+    moon_r = 20
+    glow = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+    blit_glow(glow, hcx, hcy, 18, _MB_MOONGOLD, alpha=70)
+    blit_glow(glow, hcx, hcy, 12, (255, 248, 220), alpha=60)
+    for i in range(12):
+        a = _math.radians(i * 30)
+        blit_glow(glow, int(hcx + _math.cos(a) * moon_r),
+                  int(hcy + _math.sin(a) * moon_r), 6, _MB_MOONGOLD, alpha=70)
+    for poly, spine, tip in streamers:
+        for sp in (spine[len(spine) // 2], spine[-1]):
+            blit_glow(glow, int(sp[0]), int(sp[1]), 6, (236, 226, 248), alpha=85)
+        blit_glow(glow, int(tip[0]), int(tip[1]), 5, _MB_MINT, alpha=80)
+    for mx, my, r in motes:
+        blit_glow(glow, int(mx), int(my), 4 + r, _MB_MOONGOLD, alpha=110)
+    surf.blit(glow, (0, 0), special_flags=pygame.BLEND_ADD)
+    det = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+    for poly, spine, tip in streamers:
+        pygame.draw.polygon(det, _MB_DEEPLILAC, poly)
+        cx = sum(p[0] for p in poly) / len(poly)
+        cy = sum(p[1] for p in poly) / len(poly)
+        field = [(cx + (x - cx) * 0.74, cy + (y - cy) * 0.80) for x, y in poly]
+        pygame.draw.polygon(det, _MB_PETAL_LO, field)
+        pygame.draw.lines(det, _MB_PETAL_HI, False, spine, 2)
+        pygame.draw.circle(det, _MB_MINT, (int(tip[0]), int(tip[1])), 2)
+        pygame.draw.circle(det, _MB_GLINT, (int(tip[0]), int(tip[1])), 1)
+    pygame.draw.circle(det, (250, 240, 200, 90), (hcx, hcy), moon_r - 2)
+    pygame.draw.circle(det, (255, 248, 214, 200), (hcx, hcy), moon_r + 1, 3)
+    pygame.draw.circle(det, _MB_MOONGOLD, (hcx, hcy), moon_r, 2)
+    for fa in (_math.radians(196), _math.radians(212),
+               _math.radians(328), _math.radians(344)):
+        bx = int(hcx + _math.cos(fa) * moon_r)
+        by = int(hcy + _math.sin(fa) * moon_r)
+        pygame.draw.circle(det, (255, 250, 224), (bx, by), 2)
+        pygame.draw.circle(det, _MB_GLINT, (bx, by), 1)
+    for mx, my, r in motes:
+        pygame.draw.circle(det, _MB_MOONGOLD, (int(mx), int(my)), r + 1)
+        pygame.draw.circle(det, _MB_POLLEN_HI, (int(mx), int(my)), r)
+    surf.blit(det, (0, 0))
+
+
+def _moonbloom_front(surf, angle_deg):
+    import math as _math
+    base_y = CROWN_Y + 2
+    cbx = HX - 1
+    petals = (
+        (-9, -19, -5, 0.10), (-4, -25, -2, 0.32), (0, -29, 0, 0.50),
+        (4, -25, 2, 0.68), (9, -19, 5, 0.90),
+    )
+    drawn = []
+    for dx, dy, bow, t in petals:
+        tip = (cbx + dx, base_y + dy)
+        root = (cbx + dx * 0.22, base_y + 1)
+        poly, spine = _mb_petal_poly(tip, root, 5.2, curve=bow, blunt=0.85)
+        drawn.append((poly, spine, tip, t))
+    for poly, spine, tip, t in sorted(drawn, key=lambda p: p[2][1], reverse=True):
+        pygame.draw.polygon(surf, _MB_DEEPLILAC, poly)
+        cx = sum(p[0] for p in poly) / len(poly)
+        cy = sum(p[1] for p in poly) / len(poly)
+        field = [(cx + (x - cx) * 0.80, cy + (y - cy) * 0.84) for x, y in poly]
+        pygame.draw.polygon(surf, _mb_petal_mix(t * 0.5), field)
+        rim = spine[len(spine) // 2:]
+        pygame.draw.lines(surf, _MB_MOONGOLD, False, rim, 2)
+        pygame.draw.circle(surf, _MB_MOONGOLD, (int(tip[0]), int(tip[1])), 2)
+        pygame.draw.circle(surf, _MB_PETAL_HI, (int(tip[0]), int(tip[1])), 1)
+    px, py = cbx, base_y - 2
+    pygame.draw.circle(surf, _MB_MOONGOLD, (px, py), 4)
+    pygame.draw.circle(surf, _MB_POLLEN_HI, (px, py), 3)
+    pygame.draw.circle(surf, _MB_GLINT, (px - 1, py - 1), 1)
+    for a in range(0, 360, 60):
+        r = _math.radians(a)
+        pygame.draw.circle(surf, (255, 240, 180),
+                           (int(px + _math.cos(r) * 4), int(py + _math.sin(r) * 4)), 1)
+    pygame.draw.lines(surf, _MB_MINT, False,
+                      [(HX - 12, CROWN_Y + 4), (HX - 5, CROWN_Y),
+                       (HX + 4, CROWN_Y + 1), (HX + 12, HY - 3)], 2)
+    pygame.draw.lines(surf, _MB_MINT, False, [(16, 46), (15, 52), (18, 40)], 2)
+    pygame.draw.lines(surf, _MB_LILAC, False, [(46, 56), (43, 60), (39, 63)], 2)
+    pygame.draw.lines(surf, _MB_LILAC, False, [(34, 65), (28, 67), (22, 67)], 1)
+    veins = (
+        ((23, 41), (28, 38)), ((27, 44), (33, 41)), ((31, 47), (38, 44)),
+        ((20, 44), (24, 42)), ((35, 45), (41, 43)),
+    )
+    for a, b in veins:
+        pygame.draw.line(surf, (*_MB_DEEPLILAC, 150), a, b, 1)
+    for sx, sy in ((26, 40), (32, 43), (38, 42)):
+        pygame.draw.circle(surf, (236, 230, 246), (sx, sy), 1)
+    ex, ey = HX + 6, HY - 2
+    pygame.draw.line(surf, _MB_VIOLET, (ex - 6, ey - 4), (ex + 5, ey - 5), 2)
+    pygame.draw.line(surf, (120, 104, 158), (ex - 5, ey + 4), (ex + 4, ey + 4), 1)
+    pygame.draw.circle(surf, _MB_GLINT, (ex, ey - 1), 2)
+    pygame.draw.circle(surf, _MB_VIOLET, (ex - 3, ey + 1), 1)
+    pygame.draw.line(surf, _MB_PETAL_HI, (HX + 8, HY + 1), (HX + 13, HY + 4), 2)
+
+
+def _moonbloom_getter():
+    state = {"frames": None, "rot": {}}
+
+    def _flat(wing_angle):
+        bird = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+        bird.blit(_build_parrot_with_palette(wing_angle, P_MOONBLOOM), (0, PARROT_DY))
+        _moonbloom_front(bird, wing_angle)
+        bird = _add_outline(bird, outline_color=_MB_OUTLINE)
+        aura = pygame.Surface(bird.get_size(), pygame.SRCALPHA)
+        pad = (bird.get_width() - COMPOSITE_W) // 2
+        back = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+        _moonbloom_back(back, wing_angle)
+        aura.blit(back, (pad, pad))
+        aura.blit(bird, (0, 0))
+        return aura
+
+    def getter(frame_idx, tilt_deg):
+        if state["frames"] is None:
+            state["frames"] = [_flat(a) for a in _WING_ANGLES]
+        frames = state["frames"]
+        frame_idx %= len(frames)
+        key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
+        s = state["rot"].get(key)
+        if s is None:
+            s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
+            state["rot"][key] = s
+        return s
+
+    return getter
+
+
+get_moonbloom_macaw = _moonbloom_getter()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CHROME MACAW (secret) — mirror-polished Pip: no local hue, every "colour"
+# is a hard specular reflection ramp (dark steel → mid chrome → white hotspot).
+# Oil-slick holo ring behind the head, swept chrome fin-crest, bladed tail-
+# vanes, travelling wing hotspot, mirror-chrome aviators. AURORA pattern:
+# back holo/vanes → chrome body → front spec/panels/crest/lenses → outline
+# → rotation cache.
+# ─────────────────────────────────────────────────────────────────────────────
+_CR_STEEL  = (58, 66, 80)
+_CR_MID    = (143, 166, 190)
+_CR_HOT    = (232, 242, 250)
+_CR_SPEC   = (255, 255, 255)
+_CR_IRID_C = (124, 240, 224)
+_CR_IRID_M = (255, 138, 216)
+_CR_INK    = (26, 30, 40)
+_CR_RIM    = (214, 230, 245)
+
+P_CHROME = _pal(
+    tail=[(72, 82, 98), (96, 110, 130), (136, 158, 182), (188, 208, 226)],
+    tail_line=(50, 56, 70),
+    body_shadow=(76, 86, 102),
+    body_main=(106, 122, 144),
+    body_chest=(178, 200, 222),
+    body_belly=(96, 110, 130),
+    sheen=(150, 200, 245, 180),
+    wing_main=(98, 112, 134),
+    wing_dark=(70, 80, 96),
+    wing_tip=(206, 224, 240),
+    wing_secondary=None,
+    wing_highlight=(244, 250, 255),
+    head_shadow=(74, 84, 100),
+    head_main=(114, 132, 156),
+    head_cheek=(172, 194, 216),
+    head_crown=(212, 230, 244),
+    lens_frame=(150, 168, 190),
+    lens_body=(30, 36, 48),
+    lens_tint=None,
+    lens_glint=None,
+    beak_main=(154, 174, 196),
+    beak_dark=(72, 82, 98),
+    beak_gloss=(244, 250, 255),
+    foot=(130, 148, 170),
+)
+
+
+def _cr_oil_mix(t):
+    s = 1.0 - abs(2.0 * t - 1.0)
+    return lerp_color(_CR_IRID_M, _CR_IRID_C, s)
+
+
+def _cr_flap_phase(angle_deg):
+    return 1.0 - (angle_deg + 40) / 90.0
+
+
+def _cr_arc(cx, cy, r, a0, a1, steps=20):
+    import math as _math
+    return [(cx + _math.cos(a0 + (a1 - a0) * i / steps) * r,
+             cy + _math.sin(a0 + (a1 - a0) * i / steps) * r)
+            for i in range(steps + 1)]
+
+
+def _chrome_back(surf, angle_deg):
+    import math as _math
+    phase = _cr_flap_phase(angle_deg)
+    sway = (phase - 0.5) * 3
+    hcx, hcy = HX - 2, HY - 4
+    ring_rx, ring_ry = 21, 13
+    ring = [(hcx + _math.cos(a) * ring_rx, hcy + _math.sin(a) * ring_ry)
+            for a in [_math.radians(d) for d in range(0, 361, 12)]]
+    vroot = (15, HY + 9)
+    vanes = (
+        (-22, 23, 4, 0.10, True), (-27, 14, 5, 0.32, True),
+        (-28, 5,  5, 0.55, False), (-24, -3, 4, 0.78, False),
+        (-17, -9, 3, 1.00, False),
+    )
+
+    def vane_poly(dx, dy, hw):
+        tip = (vroot[0] + dx, vroot[1] + dy + sway)
+        return [
+            (vroot[0] + 2, vroot[1] - hw), (tip[0], tip[1] - 1),
+            (tip[0] - 1, tip[1] + 1), (vroot[0], vroot[1] + hw),
+        ], tip
+
+    glow = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+    for i, (gx, gy) in enumerate(ring):
+        blit_glow(glow, int(gx), int(gy), 5, _cr_oil_mix((i % 12) / 12.0), alpha=90)
+    for dx, dy, hw, t, hard in vanes:
+        _, tip = vane_poly(dx, dy, hw)
+        blit_glow(glow, int(tip[0]), int(tip[1]), 5, _cr_oil_mix(t), alpha=85)
+    surf.blit(glow, (0, 0), special_flags=pygame.BLEND_ADD)
+    det = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+    for dx, dy, hw, t, hard in sorted(vanes, key=lambda v: -abs(v[1])):
+        poly, tip = vane_poly(dx, dy, hw)
+        _poly(det, _CR_INK, [(x - 1, y + 1) for x, y in poly])
+        if hard:
+            _poly(det, _CR_STEEL, poly)
+            _poly(det, _CR_MID, [poly[0], poly[1], tip])
+        else:
+            _poly(det, _CR_MID, poly)
+        pygame.draw.line(det, _CR_SPEC, (vroot[0] + 2, vroot[1] - hw + 1),
+                         (tip[0], tip[1] - 1), 2)
+        pygame.draw.circle(det, _cr_oil_mix(t), (int(tip[0]), int(tip[1])), 1)
+    pygame.draw.lines(det, _CR_INK, True, ring, 4)
+    for i in range(len(ring) - 1):
+        seg = _cr_oil_mix((i % 12) / 12.0)
+        pygame.draw.line(det, seg, ring[i], ring[i + 1], 2)
+    pygame.draw.circle(det, _CR_SPEC, (int(ring[8][0]), int(ring[8][1])), 2)
+    pygame.draw.circle(det, _CR_SPEC, (int(ring[24][0]), int(ring[24][1])), 1)
+    surf.blit(det, (0, 0))
+
+
+def _chrome_front(surf, angle_deg):
+    import math as _math
+    phase = _cr_flap_phase(angle_deg)
+    sway = int(round((phase - 0.5) * 3))
+    blades = (
+        (HX + 4, CROWN_Y + 1, HX - 9 + sway, CROWN_Y - 21),
+        (HX + 7, CROWN_Y + 2, HX - 3 + sway, CROWN_Y - 16),
+        (HX + 9, CROWN_Y + 4, HX + 3 + sway, CROWN_Y - 10),
+    )
+    for rx, ry, tx, ty in blades:
+        body = [(rx - 3, ry), (rx + 3, ry), (tx + 1, ty + 1), (tx, ty)]
+        _poly(surf, _CR_INK, [(x - 1, y) for x, y in body])
+        _poly(surf, _CR_STEEL, body)
+        _poly(surf, _CR_MID, [(rx - 2, ry), (rx + 1, ry), (tx, ty)])
+        pygame.draw.line(surf, _CR_SPEC, (rx - 2, ry - 1), (tx - 1, ty + 1), 2)
+        pygame.draw.circle(surf, _CR_SPEC, (int(tx), int(ty)), 1)
+    pygame.draw.line(surf, _CR_SPEC, (HX - 6, HY - 9), (HX + 6, HY - 11), 2)
+    pygame.draw.line(surf, _CR_STEEL, (HX - 6, HY - 6), (HX + 7, HY - 8), 2)
+    pygame.draw.line(surf, _CR_SPEC, (24, 46), (38, 43), 3)
+    pygame.draw.line(surf, _CR_STEEL, (24, 51), (40, 49), 2)
+    hx0 = 28 + int(round(phase * 10))
+    pygame.draw.line(surf, _CR_SPEC, (hx0, 38), (hx0 + 12, 35), 2)
+    pygame.draw.line(surf, _CR_HOT, (hx0 - 1, 41), (hx0 + 11, 38), 1)
+    pygame.draw.line(surf, _CR_STEEL, (hx0 - 1, 43), (hx0 + 11, 40), 1)
+    seams = (
+        [(40, 44), (33, 48), (24, 50)],
+        [(20, 44), (18, 50), (22, 56)],
+        [(34, 56), (28, 58), (22, 57)],
+    )
+    for s in seams:
+        pygame.draw.lines(surf, _CR_INK, False, s, 2)
+        pygame.draw.lines(surf, (188, 206, 226), False, s, 1)
+    for rx, ry in ((39, 45), (35, 47), (22, 47)):
+        pygame.draw.circle(surf, _CR_STEEL, (rx, ry), 2)
+        pygame.draw.circle(surf, _CR_SPEC, (rx - 1, ry - 1), 1)
+    if phase > 0.66:
+        pygame.draw.circle(surf, _CR_SPEC, (38, 44), 2)
+        pygame.draw.circle(surf, _CR_IRID_C, (38, 44), 1)
+    pygame.draw.lines(surf, _CR_RIM, False,
+                      [(16, 53), (21, 58), (29, 61), (38, 61), (45, 57)], 2)
+    cx, cy = 50, HY - 1
+    L = (cx - 4, cy)
+    R = (cx + 6, cy - 1)
+    r = 6
+    for c in (L, R):
+        pygame.draw.circle(surf, _CR_MID, c, r + 1)
+        pygame.draw.circle(surf, _CR_STEEL, c, r)
+        pygame.draw.arc(surf, (110, 170, 220), (c[0] - r, c[1] - r, 2 * r, 2 * r),
+                        _math.radians(20), _math.radians(160), 3)
+        pygame.draw.circle(surf, _CR_SPEC, (c[0] - 2, c[1] - 2), 2)
+        pygame.draw.line(surf, _CR_IRID_C, (c[0] - 3, c[1] + 2), (c[0] + 1, c[1] + 3), 1)
+        pygame.draw.line(surf, _CR_IRID_M, (c[0] + 1, c[1] + 3), (c[0] + 3, c[1] + 2), 1)
+    pygame.draw.line(surf, _CR_MID, (L[0] + r, L[1]), (R[0] - r, R[1]), 2)
+    pygame.draw.line(surf, _CR_HOT,
+                     (L[0] - r + 1, L[1] - r + 2), (R[0] + r - 1, R[1] - r + 2), 1)
+    pygame.draw.line(surf, _CR_SPEC, (55, 41), (59, 43), 1)
+
+
+def _chrome_getter():
+    state = {"frames": None, "rot": {}}
+
+    def _flat(wing_angle):
+        bird = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+        bird.blit(_build_parrot_with_palette(wing_angle, P_CHROME, draw_lenses=False),
+                  (0, PARROT_DY))
+        _chrome_front(bird, wing_angle)
+        bird = _add_outline(bird)
+        out = pygame.Surface(bird.get_size(), pygame.SRCALPHA)
+        pad = (bird.get_width() - COMPOSITE_W) // 2
+        back = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+        _chrome_back(back, wing_angle)
+        out.blit(back, (pad, pad))
+        out.blit(bird, (0, 0))
+        return out
+
+    def getter(frame_idx, tilt_deg):
+        if state["frames"] is None:
+            state["frames"] = [_flat(a) for a in _WING_ANGLES]
+        frames = state["frames"]
+        frame_idx %= len(frames)
+        key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
+        s = state["rot"].get(key)
+        if s is None:
+            s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
+            state["rot"][key] = s
+        return s
+
+    return getter
+
+
+get_chrome_macaw = _chrome_getter()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Production registry: catalog id -> getter. Consulted by
 # parrot.get_skin_frame (which checks this first, so the three redraws here
 # override the power-up-sprite mappings the base parrot keeps for buff use).
@@ -1761,4 +2338,8 @@ BUILDERS = {
     # Rarity-tier parrots (epic crystal, legendary aurora).
     "skin_prism":     get_prism_lorikeet,
     "skin_aurora":    get_aurora_macaw,
+    # Wave 2 rarity parrots (epic botanical, legendary night-flora, secret chrome).
+    "skin_thorncrest": get_thorncrest_macaw,
+    "skin_moonbloom":  get_moonbloom_macaw,
+    "skin_chrome":     get_chrome_macaw,
 }
