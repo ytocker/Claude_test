@@ -38,10 +38,12 @@ def draw_hat(surf, cx, base_y, head_w, facing=1):
     r = head_w * 0.5
     f = 1 if facing >= 0 else -1
 
-    # Cone leans a hair forward so it reads as worn. Height is held to ~1.3x
-    # head_w so the tall cone clears the 64x100 composite top from the crown.
+    # Cone leans a hair forward so it reads as worn. Height held compact (~0.92x
+    # head_w) so the full cone+streamers fit the ~31px of headroom above the
+    # crown in the 64x100 composite — a taller cone forces the collar off the
+    # crown and down onto the cheek to keep the streamers on-canvas.
     tip_x = cx + f * r * 0.20
-    tip_y = base_y - head_w * 1.30
+    tip_y = base_y - head_w * 0.92
     base_hw = r * 0.94
     base_cy = base_y - r * 0.20
 
@@ -210,8 +212,8 @@ def _draw_streamers(surf, tip_x, tip_y, r, f, head_w):
     # Two wider, lower-frequency ribbons so the curls read as ribbon, not as
     # aliased static at the tip.
     configs = (
-        (_RIBBON[0], -0.55 * f, 1.20, 0.55, 3.2),
-        (_RIBBON[1],  0.35 * f, 1.35, 0.42, 3.8),
+        (_RIBBON[0], -0.55 * f, 0.65, 0.55, 3.2),
+        (_RIBBON[1],  0.35 * f, 0.75, 0.42, 3.8),
     )
     for col, fan, reach, amp, freq in configs:
         pts = []
@@ -230,5 +232,5 @@ def _draw_streamers(surf, tip_x, tip_y, r, f, head_w):
                 pygame.draw.lines(surf, hi, False, pts[: n // 2], 1)
 
 
-build = make_build(draw_hat, seat={"hw": 26, "dx": -2, "dy": 17})
+build = make_build(draw_hat, seat={"hw": 24, "dx": -1, "dy": -1})
 icon = make_icon(draw_hat)

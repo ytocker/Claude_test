@@ -65,12 +65,17 @@ def draw_hat(surf, cx, base_y, head_w, facing=1):
     r = head_w * 0.5
     f = 1 if facing >= 0 else -1
     detail = head_w >= 22
+    # Curling strings + ornate ribbon knot are the product-shot flourish. At the
+    # in-game head size they pile white string/nib/loop pixels into a tangle over
+    # Pip's face, so they're gated to icon scale; on-bird the bouquet reads as a
+    # clean cluster of balloons with just a tiny anchor knot at the crown.
+    full = head_w >= 44
 
     # Gather knot sits right on the crown so the whole cluster lifts above the
     # head instead of hugging it; the lowest balloon's bottom edge then lands
     # at/just above base_y rather than crossing down into the face.
     gather_x = cx + f * r * 0.06
-    gather_y = base_y + r * 0.05
+    gather_y = base_y
 
     # Balloon radius dropped so a taller four-stack clears the 64x100 icon top
     # and so sky opens between adjacent lobes (four countable balloons, not one
@@ -91,13 +96,15 @@ def draw_hat(surf, cx, base_y, head_w, facing=1):
     ]
 
     # Curling strings first so balloons overlap their tops cleanly. Each string
-    # runs from the gather knot up to a balloon's nib with a gentle S-curl.
-    string_w = max(1, int(r * 0.07))
-    for dx, dy, scale, _ in layout:
-        bx = gather_x + dx * br
-        by = gather_y + dy * br
-        _curl_string(surf, gather_x, gather_y, bx, by + br * scale,
-                     br, string_w, detail)
+    # runs from the gather knot up to a balloon's nib with a gentle S-curl. Only
+    # at icon scale — on-bird they crowd the face.
+    if full:
+        string_w = max(1, int(r * 0.07))
+        for dx, dy, scale, _ in layout:
+            bx = gather_x + dx * br
+            by = gather_y + dy * br
+            _curl_string(surf, gather_x, gather_y, bx, by + br * scale,
+                         br, string_w, detail)
 
     # Balloons painted back-to-front: lower pair first so the upper crown
     # overlaps them, reinforcing the rounded bouquet stack.
@@ -111,7 +118,8 @@ def draw_hat(surf, cx, base_y, head_w, facing=1):
 
     # The gather knot: a small ribbon bow / tie where all strings meet, drawn
     # right at base_y (the crown line) so it anchors the bouquet to the head.
-    _knot(surf, gather_x, base_y, r, detail)
+    # Ornate ribbon loops only at icon scale.
+    _knot(surf, gather_x, base_y, r, full)
 
 
 def _curl_string(surf, x0, y0, x1, y1, br, w, detail):
@@ -148,5 +156,5 @@ def _knot(surf, cx, cy, r, detail):
                                  loop, int(loop * 0.7)))
 
 
-build = make_build(draw_hat, seat={"hw": 40, "dx": 2, "dy": 3})
+build = make_build(draw_hat, seat={"hw": 32, "dx": 4, "dy": -1})
 icon = make_icon(draw_hat)
