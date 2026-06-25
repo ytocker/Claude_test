@@ -21,7 +21,8 @@ NOT registered in store_skins.BUILDERS. Production is untouched.
 import math
 import pygame
 
-from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
+from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette, _build_wing
+from game.parrot import SPRITE_W, SPRITE_H
 from game.store_skins import COMPOSITE_W, COMPOSITE_H, PARROT_DY
 
 
@@ -58,6 +59,120 @@ P_FLESH = _pal(
 def bone_parrot(angle_deg):
     """The exact original macaw silhouette recoloured to dark flesh."""
     return _build_parrot_with_palette(angle_deg, P_FLESH, draw_lenses=False)
+
+
+# ── the cloak: the dark "back" mass redrawn as a draped hooded cloak ──────────
+# User ask: the black back of the parrot should read as a CLOAK. Instead of the
+# plain body+tail ellipses, the body mass becomes a hooded, open-front cloak in
+# NATIVE 64×60 space (same space as `_build_parrot_with_palette`, so the existing
+# composite `paint_skeleton` skull/ribs/beak still land exactly): a cowl wraps the
+# crown/back of the skull, the drape flares down the back into a tattered hem where
+# the tail was, and an open V at the chest keeps the ribcage + spine + beak visible
+# (the round_2 x-ray hero is NOT lost behind cloth). Cloth tones derive from the
+# design's flesh palette so each design recolours the SAME cloak silhouette; opts
+# hooks (edge / inner / hatch / glow) let a design add its own material treatment.
+
+
+def _shade(c, f):
+    """Multiply an RGB(A) toward black (f<1) or white (f>1), clamped."""
+    return tuple(max(0, min(255, int(round(v * f)))) for v in c[:3])
+
+
+# Cloak silhouette polygons, in native 64×60 coords (skull centre ~(47,21),
+# body centre ~(32,32), tail mass to the left, feet ~(28..36, 45..49)).
+_CLOAK_DRAPE = [                                   # back + bottom drape, left-tattered hem
+    (42, 27), (40, 23), (33, 22), (24, 24), (16, 27),
+    (10, 30), (6, 36), (11, 40), (7, 45), (13, 46),
+    (11, 50), (18, 47), (24, 49), (31, 48), (38, 46),
+    (44, 41), (46, 33),
+]
+_CLOAK_CHEST = [                                   # open-front V: dark interior the ribs show through
+    (40, 25), (45, 31), (43, 40), (36, 46),
+    (28, 46), (22, 40), (20, 30), (26, 25),
+]
+_HOOD_OUTER = [                                    # cowl cloth over crown/back/sides of skull
+    (36, 30), (37, 16), (42, 8), (47, 5), (53, 8),
+    (58, 15), (58, 23), (54, 29), (44, 31),
+]
+_HOOD_RIM = [(44, 31), (54, 29), (58, 23), (58, 15), (53, 8), (47, 5)]
+_HEM_EDGE = [(7, 45), (13, 46), (18, 47), (24, 49), (31, 48), (38, 46), (44, 41)]
+_FOLDS = [                                         # fabric fold shadows on the back drape (off the opening)
+    [(24, 26), (20, 46)],
+    [(16, 28), (12, 42)],
+    [(10, 34), (16, 44)],
+]
+
+
+def cloak_base(angle_deg, palette, **opts):
+    """Native 64×60 cloaked-Pip body: a hooded, open-front cloak replacing the
+    plain body/tail ellipses, in the given flesh `palette`'s dark cloth tones.
+
+    opts:
+      edge   — override hood-rim/hem highlight colour (default lifted belly tone)
+      inner  — override chest-opening / hood-interior colour (default deep shadow)
+      hatch  — if truthy, add etched fold hatching across the drape (woodcut)
+      glow   — (r,g,b): faint emissive halo on hood rim + hem (neon / radiograph)
+    """
+    surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
+
+    cloth = palette['body_main']
+    shadow = palette['tail_line']
+    # Default rim clearly lifts off the cloth so the hood/hem read as fabric
+    # edges even before a design adds its own material treatment.
+    edge = opts.get('edge') or _shade(palette['body_main'], 2.4)
+    inner = opts.get('inner') or _shade(palette['body_shadow'], 0.55)
+    glow = opts.get('glow')
+
+    # back + bottom drape (the cloak mass), then a couple of fold shadows on it
+    pygame.draw.polygon(surf, cloth, _CLOAK_DRAPE)
+    for a, b in _FOLDS:
+        pygame.draw.line(surf, shadow, a, b, 2)
+    if opts.get('hatch'):
+        for off in range(-6, 30, 5):                # diagonal etched hatching
+            pygame.draw.line(surf, shadow, (10 + off, 24), (off, 46), 1)
+
+    # open-front chest: dark recessed interior the ribcage/spine read against
+    pygame.draw.polygon(surf, inner, _CLOAK_CHEST)
+    pygame.draw.polygon(surf, shadow, _CLOAK_CHEST, 1)
+
+    # wing flaps over the drape (dark backing for the wing-bone layer, and it
+    # reads as the cloak swaying with the flap)
+    wing = _build_wing(angle_deg, palette)
+    surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
+
+    # hood cowl over the skull, with a dark interior so the skull sits recessed
+    pygame.draw.polygon(surf, cloth, _HOOD_OUTER)
+    pygame.draw.ellipse(surf, inner, pygame.Rect(38, 9, 20, 24))   # face opening
+
+    # faint emissive edge first (sits under the crisp highlight)
+    if glow is not None:
+        g = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
+        pygame.draw.lines(g, (*glow, 90), False, _HOOD_RIM, 3)
+        pygame.draw.lines(g, (*glow, 90), False, _HEM_EDGE, 3)
+        surf.blit(g, (0, 0))
+
+    # crisp lighter rim on the hood + tattered hem so it reads as fabric
+    pygame.draw.lines(surf, edge, False, _HOOD_RIM, 1)
+    pygame.draw.lines(surf, edge, False, _HEM_EDGE, 1)
+
+    # feet poking out below the hem
+    pygame.draw.line(surf, palette['foot'], (28, 47), (26, 51), 2)
+    pygame.draw.line(surf, palette['foot'], (34, 47), (36, 51), 2)
+
+    return surf
+
+
+def cloak_parrot(angle_deg):
+    """Default cloaked base on the shared P_FLESH tones (smoke-test / fallback)."""
+    return cloak_base(angle_deg, P_FLESH)
+
+
+def _frames_from_cloak(paint_fn, palette, **opts):
+    """Like `_frames_from_paint` but on the cloak base: 4 outlined frames with the
+    skeleton painted over a palette-driven hooded cloak."""
+    from game import store_skins
+    return store_skins._make_skin(
+        paint_fn, base_fn=lambda a: cloak_base(a, palette, **opts))
 
 
 # ── anatomy, in COMPOSITE space (base coords + PARROT_DY on y) ────────────────
