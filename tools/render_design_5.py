@@ -22,6 +22,7 @@ from game.entities import Pipe
 from game.config import W as GW, H as GH, GROUND_Y
 from tools.ninja_render import gameplay_panel, hero_panel, _frame
 from tools.parrot_rarity_candidates.design_5 import build
+from tools.parrot_rarity_candidates.design_4 import build as build_aurora
 
 
 _BG = (18, 16, 26)
@@ -83,8 +84,29 @@ def _truth_read(source, cell, bg):
     return tile, small.get_size()
 
 
+def _truth_bird(source, cell, bg):
+    """A single 40px NEAREST truth-read tile for one build on `bg` — the same
+    does-it-survive read as _truth_read, shared by the legendary-pair tile so
+    design_5 and design_4 are downscaled identically side by side."""
+    tile = pygame.Surface((cell, cell), pygame.SRCALPHA)
+    pygame.draw.rect(tile, bg, tile.get_rect(), border_radius=10)
+    frame = _frame(source, 2, 10.0)
+    bb = frame.get_bounding_rect()
+    if bb.width and bb.height:
+        frame = frame.subsurface(bb).copy()
+    sw, sh = frame.get_size()
+    scale = 40 / max(sw, sh)
+    small = pygame.transform.scale(
+        frame, (max(1, int(sw * scale)), max(1, int(sh * scale))))
+    show = max(2, (cell - 24) // max(small.get_width(), small.get_height()))
+    big = pygame.transform.scale(
+        small, (small.get_width() * show, small.get_height() * show))
+    tile.blit(big, big.get_rect(center=(cell // 2, cell // 2)))
+    return tile
+
+
 def main():
-    W, H = 1180, 760
+    W, H = 1180, 950
     sheet = pygame.Surface((W, H))
     sheet.fill(_BG)
 
@@ -142,7 +164,22 @@ def main():
         _label(sheet, f"frame {i}", fs_x + i * (cell + 10) + 6, row2 + 178,
                size=12, color=_SUB)
 
-    out = ("/home/user/skybit/docs/store_redesign/parrot/design_5/round_1.png")
+    # Row 3: the legendary-pair read — design_5 SOLAR next to design_4 AURORA on
+    # the SAME navy store card at 40px, to prove the legendary pair reads
+    # obviously-different-but-same-tier at thumbnail.
+    row3 = row2 + 22 + 150 + 40
+    _label(sheet, "LEGENDARY PAIR @ 40px ON NAVY STORE CARD "
+                  "(different look · same tier)", 28, row3, size=14, bold=True)
+    navy = (22, 24, 40)
+    cmp_cell = 150
+    pair = (("design_5 · SOLAR", build), ("design_4 · AURORA", build_aurora))
+    for i, (name, src) in enumerate(pair):
+        tile = _truth_bird(src, cmp_cell, navy)
+        x = 28 + i * (cmp_cell + 14)
+        sheet.blit(tile, (x, row3 + 22))
+        _label(sheet, name, x + 4, row3 + 22 + cmp_cell + 4, size=12, color=_SUB)
+
+    out = ("/home/user/skybit/docs/store_redesign/parrot/design_5/round_2.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print("saved", out)
