@@ -106,57 +106,44 @@ def _ruyi_scroll(surf, ox, oy, sway):
     through the tip, so the hook reads against BOTH skies. No cinnabar here — the
     shoulder seal is the sole warm note. `sway` flexes the tip a touch with the
     wing beat (kept subtle — baked stone)."""
-    # The comma spine as a single cubic Bézier: it leaves the tail root sweeping
-    # DOWN-and-back into open sky, then curves UP-and-out PAST the tail line, the
-    # final control point holding the tip out in clear sky (a confident open hook,
-    # not a tight inward curl that mushes shut at downscale). One open curve, so
-    # the ribbon never wraps behind the body or self-intersects.
-    p0 = (ox + 2,  oy + 2)          # tail root, on the body mass
-    p1 = (ox - 19, oy + 13)         # pull down-back: the fat belly of the comma
-    p2 = (ox - 38, oy - 4 + sway)   # pull hard out into open sky past the tail
-    p3 = (ox - 22, oy - 25 + sway)  # tip hooks UP high, held out in clear sky
-    n = 28
-    spine = []
+    # The hook is built as a true CRESCENT — the region between an OUTER arc and an
+    # INNER arc that share a centre. A crescent is mathematically guaranteed to be
+    # an open C with an island of OPEN SKY in its mouth, so the negative-space notch
+    # that makes a 40px viewer read "hook" (not "tapered lump") can never fill in.
+    # The two arcs MEET at the tip (crescent tapers to a point there) and are held
+    # APART at the root (the comma is fat where it joins the body), and the whole
+    # curl is seated just off the lower tail so the C clears the body silhouette.
+    cx, cy = ox - 3, oy + 8 + sway      # curl centre, off the lower-left tail
+    a0 = math.radians(-58)             # mouth opens up-left into open sky
+    a1 = math.radians(-58 + 250)       # ~250° of crescent — a bold open C
+    R_out, R_in = 11.5, 5.0            # gap = fat belly; both arcs meet at the tip
+    n = 30
+    outer, inner = [], []
     for i in range(n + 1):
         t = i / n
-        u = 1 - t
-        x = (u**3 * p0[0] + 3 * u*u*t * p1[0] + 3 * u*t*t * p2[0] + t**3 * p3[0])
-        y = (u**3 * p0[1] + 3 * u*u*t * p1[1] + 3 * u*t*t * p2[1] + t**3 * p3[1])
-        spine.append((x, y))
-
-    # Ribbon body — perpendicular offset tapering from a fat root to a rounded tip,
-    # so the scroll reads as a solid carved volume, not a stroke. The outer edge
-    # (px,py points away from the curve's centre, i.e. sky-facing) gets the rim.
-    outer, inner = [], []
-    for i, (x, y) in enumerate(spine):
-        t = i / n
-        if i == 0:
-            dx, dy = spine[1][0] - x, spine[1][1] - y
-        elif i == n:
-            dx, dy = x - spine[-2][0], y - spine[-2][1]
-        else:
-            dx, dy = spine[i + 1][0] - spine[i - 1][0], spine[i + 1][1] - spine[i - 1][1]
-        L = math.hypot(dx, dy) or 1.0
-        px, py = -dy / L, dx / L
-        hw = 6.5 * (1.0 - t) ** 0.6 + 2.2                 # fat root → rounded tip
-        outer.append((x + px * hw, y + py * hw))
-        inner.append((x - px * hw, y - py * hw))
+        a = a0 + (a1 - a0) * t
+        # the inner radius climbs to MEET the outer one near the tip (t→1) so the
+        # crescent tapers to a carved point instead of a blunt ring end.
+        ri = R_in + (R_out - R_in) * (t ** 1.5)
+        ro = R_out + 1.0 * math.sin(math.pi * t)          # slight belly bulge
+        outer.append((cx + math.cos(a) * ro, cy + math.sin(a) * ro))
+        inner.append((cx + math.cos(a) * ri, cy + math.sin(a) * ri))
     body_poly = outer + inner[::-1]
 
-    # deep core (the recessed underside of the carving — closes the silhouette
-    # against bright sky too)
+    # deep core (offset down 1px — the recessed underside; also closes the
+    # silhouette against bright sky)
     pygame.draw.polygon(surf, _JADE_DK, [(x, y + 1) for x, y in body_poly])
     # jade body fill
     pygame.draw.polygon(surf, _JADE, body_poly)
-    # FAT pale-mint rim down the OUTER sky-facing edge, full length including the
-    # tip — the hook's read on both biomes. 3px so it survives the 40px downscale.
+    # FAT pale-mint rim down the OUTER sky-facing arc, full length through the tip
+    # — the hook's read on BOTH biomes. 3px so it survives the 40px downscale.
     pygame.draw.lines(surf, _MINT, False, outer, 3)
-    # a rounded mint cap on the very tip so the hook terminates cleanly, not in a
-    # ragged point, when small.
-    pygame.draw.circle(surf, _MINT, (int(spine[-1][0]), int(spine[-1][1])), 2)
-    # a single deep-jade groove down the INNER edge so the comma reads as a thick
-    # carved volume (the dark concave throat of the hook) — one clean line, not
-    # noise.
+    # a rounded mint cap where the crescent tapers to its point, so the hook
+    # terminates cleanly (not a ragged pixel) when small.
+    pygame.draw.circle(surf, _MINT, (int(outer[-1][0]), int(outer[-1][1])), 2)
+    # a single deep-jade groove down the INNER arc (the dark concave throat facing
+    # the sky-gap) so the carved hollow of the C reads as a real recess — one clean
+    # line, not noise.
     pygame.draw.lines(surf, _GROOVE_DK, False, inner, 2)
 
 
