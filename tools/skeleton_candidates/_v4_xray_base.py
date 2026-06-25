@@ -80,26 +80,31 @@ def _shade(c, f):
 
 # Cloak silhouette polygons, in native 64×60 coords (skull centre ~(47,21),
 # body centre ~(32,32), tail mass to the left, feet ~(28..36, 45..49)).
-_CLOAK_DRAPE = [                                   # back + bottom drape, left-tattered hem
-    (42, 27), (40, 23), (33, 22), (24, 24), (16, 27),
-    (10, 30), (6, 36), (11, 40), (7, 45), (13, 46),
-    (11, 50), (18, 47), (24, 49), (31, 48), (38, 46),
-    (44, 41), (46, 33),
+# The C2 critics were unanimous: at 40px a cloak only reads by SILHOUETTE, so the
+# hem is cut as hard triangular teeth on the OUTER edge (interior notches dissolve)
+# and the bottom edge zig-zags top→tip→top so `_add_outline` traces a ragged hem.
+_CLOAK_DRAPE = [                                   # back drape with a hard-toothed tattered hem
+    (13, 28), (20, 24), (28, 22), (36, 22), (42, 24), (46, 28),   # shoulders → top
+    (45, 34), (42, 40),                                          # front-right fall
+    (37, 48), (33, 42), (28, 50), (24, 41), (19, 49), (15, 40),  # hem teeth (R→L)
+    (10, 48), (8, 38),                                           # last tooth → back edge
 ]
-_CLOAK_CHEST = [                                   # open-front V: dark interior the ribs show through
-    (40, 25), (45, 31), (43, 40), (36, 46),
-    (28, 46), (22, 40), (20, 30), (26, 25),
+_CLOAK_CHEST = [                                   # open-front V (widened): dark interior the ribs show through
+    (41, 24), (46, 31), (44, 41), (36, 47),
+    (27, 47), (21, 40), (19, 29), (27, 24),
 ]
-_HOOD_OUTER = [                                    # cowl cloth over crown/back/sides of skull
-    (36, 30), (37, 16), (42, 8), (47, 5), (53, 8),
-    (58, 15), (58, 23), (54, 29), (44, 31),
+_HOOD_OUTER = [                                    # cowl cloth over crown/back/sides of skull, sharp peak
+    (36, 31), (37, 16), (41, 8), (47, 4), (53, 8),
+    (58, 15), (58, 24), (54, 30), (44, 32),
 ]
-_HOOD_RIM = [(44, 31), (54, 29), (58, 23), (58, 15), (53, 8), (47, 5)]
-_HEM_EDGE = [(7, 45), (13, 46), (18, 47), (24, 49), (31, 48), (38, 46), (44, 41)]
-_FOLDS = [                                         # fabric fold shadows on the back drape (off the opening)
-    [(24, 26), (20, 46)],
-    [(16, 28), (12, 42)],
-    [(10, 34), (16, 44)],
+_HOOD_RIM = [(44, 32), (54, 30), (58, 24), (58, 15), (53, 8), (47, 4)]
+# Hem highlight traces the toothed bottom edge so the rim catches the ragged hem.
+_HEM_EDGE = [(8, 38), (10, 48), (15, 40), (19, 49), (24, 41), (28, 50),
+             (33, 42), (37, 48), (42, 40)]
+_FOLDS = [                                         # one long vertical fall + two shorter, all on the back drape
+    [(29, 25), (26, 47)],
+    [(21, 26), (17, 45)],
+    [(14, 30), (12, 44)],
 ]
 
 
@@ -108,6 +113,8 @@ def cloak_base(angle_deg, palette, **opts):
     plain body/tail ellipses, in the given flesh `palette`'s dark cloth tones.
 
     opts:
+      cloth  — override the main cloak cloth colour (default palette body_main).
+               Lever to LIFT the cloak value off near-navy so it reads on night.
       edge   — override hood-rim/hem highlight colour (default lifted belly tone)
       inner  — override chest-opening / hood-interior colour (default deep shadow)
       hatch  — if truthy, add etched fold hatching across the drape (woodcut)
@@ -115,15 +122,15 @@ def cloak_base(angle_deg, palette, **opts):
     """
     surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
 
-    cloth = palette['body_main']
+    cloth = opts.get('cloth') or palette['body_main']
     shadow = palette['tail_line']
     # Default rim clearly lifts off the cloth so the hood/hem read as fabric
     # edges even before a design adds its own material treatment.
-    edge = opts.get('edge') or _shade(palette['body_main'], 2.4)
+    edge = opts.get('edge') or _shade(cloth, 2.4)
     inner = opts.get('inner') or _shade(palette['body_shadow'], 0.55)
     glow = opts.get('glow')
 
-    # back + bottom drape (the cloak mass), then a couple of fold shadows on it
+    # back + bottom drape (the cloak mass), then fold shadows so it reads as cloth
     pygame.draw.polygon(surf, cloth, _CLOAK_DRAPE)
     for a, b in _FOLDS:
         pygame.draw.line(surf, shadow, a, b, 2)
@@ -131,18 +138,22 @@ def cloak_base(angle_deg, palette, **opts):
         for off in range(-6, 30, 5):                # diagonal etched hatching
             pygame.draw.line(surf, shadow, (10 + off, 24), (off, 46), 1)
 
-    # open-front chest: dark recessed interior the ribcage/spine read against
+    # open-front chest: dark recessed interior the ribcage/spine read against,
+    # framed by a 2px shadow gap so the bright bones win the opening at 40px
     pygame.draw.polygon(surf, inner, _CLOAK_CHEST)
-    pygame.draw.polygon(surf, shadow, _CLOAK_CHEST, 1)
+    pygame.draw.polygon(surf, shadow, _CLOAK_CHEST, 2)
 
     # wing flaps over the drape (dark backing for the wing-bone layer, and it
     # reads as the cloak swaying with the flap)
     wing = _build_wing(angle_deg, palette)
     surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
 
-    # hood cowl over the skull, with a dark interior so the skull sits recessed
+    # hood cowl over the skull, with a dark interior so the skull sits recessed,
+    # plus a hard shadow crescent rim so the skull "peers out of a hole"
     pygame.draw.polygon(surf, cloth, _HOOD_OUTER)
-    pygame.draw.ellipse(surf, inner, pygame.Rect(38, 9, 20, 24))   # face opening
+    face = pygame.Rect(38, 9, 20, 24)
+    pygame.draw.ellipse(surf, inner, face)                         # face opening
+    pygame.draw.ellipse(surf, shadow, face, 2)                     # recess crescent
 
     # faint emissive edge first (sits under the crisp highlight)
     if glow is not None:
