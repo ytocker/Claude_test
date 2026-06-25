@@ -144,6 +144,9 @@ CATALOG: dict[str, dict] = {
     # ── PARCELS (the gift Pip carries below him; PARCEL_BASE is the free default) ─
     # A tiered ladder from cheap everyday containers up to out-of-the-box
     # spectacle pieces; the two priciest premiums are masked ??? until bought.
+    # NO PARCEL is the cheapest — the empty-handed look (mirrors NO SHADES); it
+    # only hides the sprite, Pip's parcel hitbox is unchanged so difficulty holds.
+    "parcel_none":      {"name": "NO PARCEL",      "cost": 120,  "kind": "parcel", "group": "parcels"},
     "parcel_envelope":  {"name": "ENVELOPE",       "cost": 180,  "kind": "parcel", "group": "parcels"},
     "parcel_sack":      {"name": "BURLAP SACK",    "cost": 220,  "kind": "parcel", "group": "parcels"},
     "parcel_takeout":   {"name": "TAKEOUT PAIL",   "cost": 280,  "kind": "parcel", "group": "parcels"},

@@ -41,6 +41,28 @@ def _build_base(mode: str = "normal") -> pygame.Surface:
     return parrot.get_parcel(mode)
 
 
+# NO PARCEL — the empty-handed look. The in-game sprite is fully transparent so
+# nothing is drawn below Pip. His parcel collision-hitbox (PARCEL_R) is left
+# untouched in world.py, so equipping this changes only the look, never the
+# difficulty — the same cosmetic-parity rule every other parcel obeys.
+def _build_none(mode: str = "normal") -> pygame.Surface:
+    return pygame.Surface((parrot.PARCEL_SIZE, parrot.PARCEL_SIZE),
+                          pygame.SRCALPHA)
+
+
+def _none_icon(box: int = 46) -> pygame.Surface:
+    """Store-card glyph for NO PARCEL: a faint grey ghost of the kraft box, so
+    the card reads as 'the parcel slot, empty'. Parcels are shown by an icon
+    (the test contract), so unlike NO SHADES it can't fall back to a blank."""
+    ghost = parrot.get_parcel("normal").copy()
+    ghost.fill((148, 154, 168, 255), special_flags=pygame.BLEND_RGB_MULT)
+    ghost.fill((255, 255, 255, 105), special_flags=pygame.BLEND_RGBA_MULT)
+    out = pygame.Surface((box, box), pygame.SRCALPHA)
+    s = pygame.transform.smoothscale(ghost, (box - 8, box - 8))
+    out.blit(s, s.get_rect(center=(box // 2, box // 2)))
+    return out
+
+
 # id -> design module. Each module's ``build`` is mode-agnostic (the cosmetic
 # shows its own look across every power-up); tilt/grow/ghost/snow still apply
 # in entities.Bird.draw on top of whatever surface comes back.
@@ -63,10 +85,12 @@ _DESIGNS = {
 
 BUILDERS: "dict[str, object]" = {
     PARCEL_BASE: _build_base,
+    "parcel_none": _build_none,
     **{pid: mod.build for pid, mod in _DESIGNS.items()},
 }
 
 ICONS: "dict[str, pygame.Surface]" = {
     PARCEL_BASE: _product_shot(parrot.get_parcel("normal")),
+    "parcel_none": _none_icon(),
     **{pid: _product_shot(mod.build("normal")) for pid, mod in _DESIGNS.items()},
 }
