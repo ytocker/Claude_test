@@ -75,16 +75,22 @@ _FLESH = XB._pal(
 
 # Cloak material: the dark "back" mass now reads as an aged hooded cloak, not a
 # plain body. Pushed toward warm dark-BROWN aged fabric so the ivory bones read
-# as old bone draped in old cloth. `edge` is a soft warm tan rim on hood/hem (a
-# half-step under the bone tan so the cloth edge stays calm next to the bright
-# bones); `inner` is a deep warm brown for the chest opening + hood interior the
-# ribcage/spine/skull recess into.
-CLOAK_EDGE  = (132, 110, 78)        # warm tan fold/hem rim — softer than the bone tan
-CLOAK_INNER = (24, 18, 13)          # deep warm-brown recess (chest V + hood interior)
+# as old bone draped in old cloth.
+#   • `cloth` LIFTS the brown a touch off the near-navy default so the drape
+#     reads as warm fabric on the NIGHT sky (R4 #3), not a dark blob.
+#   • `edge` is a warm tan rim on the cowl + hem teeth so the now-base-provided
+#     hood arc and tattered teeth catch light and read at 40px (R4 #3).
+#   • `inner` is a DEEPER near-black warm brown (R4 #2) so the widened open-front
+#     gap backs the ivory ribs with a dark cloak-interior they pop against — 3
+#     bold ribs winning the opening beats 6 that mush.
+CLOAK_CLOTH = (62, 49, 37)          # lifted warm aged-brown wool — reads on night
+CLOAK_EDGE  = (150, 124, 86)        # warm tan cowl/hem-teeth rim — catches light
+CLOAK_INNER = (16, 12, 9)           # near-black warm-brown recess (ribs pop on it)
 
 
 def _flesh_base(angle_deg):
-    return XB.cloak_base(angle_deg, _FLESH, edge=CLOAK_EDGE, inner=CLOAK_INNER)
+    return XB.cloak_base(angle_deg, _FLESH,
+                         cloth=CLOAK_CLOTH, edge=CLOAK_EDGE, inner=CLOAK_INNER)
 
 
 # ── naturalist roundness: warm shadow + cream highlight along the long bones ──
@@ -125,10 +131,13 @@ def _naturalist_pass(surf):
     # (R2 #3). Re-struck in tan over the base ivory keel.
     XB.polybone(surf, BONE_TAN, XB._KEEL, 2)
 
-    # Ribs: drop to 3 (more air between them) and round each with a single fine
-    # cross-tick, so "countable" survives the downscale (R2 #3).
+    # Ribs: drop to 3 (more air between them) and re-strike each BOLD in bright
+    # ivory over the dark cloak interior so three thick countable ribs clearly
+    # win the widened open front at 40px — three that survive beats six that mush
+    # (R4 #2) — then round each and add a single fine cross-tick.
     for r0 in (XB._RIB_ROOTS[0], XB._RIB_ROOTS[1], XB._RIB_ROOTS[3]):
         pts = XB._rib_curve(r0)
+        XB.polybone(surf, BONE_IVORY, pts, 3)
         _round_polybone(surf, pts)
         mid = pts[len(pts) // 2]
         pygame.draw.line(surf, BONE_CREAM,
@@ -183,22 +192,28 @@ def _beak_hero(surf):
 
 
 def _throat_clasp(surf):
-    """A small ivory bone clasp where the hood meets the open chest — a short
-    cord slung across the collar with a little carved bone toggle/bead, in the
-    ivory bone tone, so the cloak reads as a deliberate naturalist fastening
-    rather than loose cloth. Sits at the native hood/chest seam (~46,31) lifted
-    to composite (+PARROT_DY), just below/forward of the skull. Kept ≥2px and
-    drawn over the dark hood interior so it survives the 40px read."""
+    """The ivory bone-cord clasp — the deliberate fastening that sells the cloak.
+
+    R4 #1: moved DOWN out of the bright skull/rib cluster into the dark open
+    chest gap (native ~(41,36) → composite +PARROT_DY), so it sits against the
+    near-black cloak interior instead of competing with the bright bones. It is
+    a short cord drop ending in a carved bone toggle. The toggle is rimmed by a
+    1px dark ring and lifted by a 1px cream highlight so a clean ~2px ivory bead
+    on dark cloth survives the 40px downscale (where a bone-on-bone clasp washed
+    out before)."""
     DY = XB.DY
-    # cord slung across the collar (two tan-shadowed strands so it has depth)
-    a, b = (42, 30 + DY), (51, 31 + DY)
-    pygame.draw.line(surf, BONE_DEEP, (a[0], a[1] + 1), (b[0], b[1] + 1), 2)  # cord shadow
-    pygame.draw.line(surf, BONE_TAN, a, b, 2)                                  # cord
-    # carved bone toggle/bead at the centre of the cord
-    bead = (46, 31 + DY)
-    pygame.draw.circle(surf, BONE_DEEP, (bead[0], bead[1] + 1), 2)            # drop shadow
-    pygame.draw.circle(surf, BONE_IVORY, bead, 2)                            # ivory toggle
-    pygame.draw.circle(surf, BONE_CREAM, (bead[0] - 1, bead[1] - 1), 1)      # lit highlight
+    # short cord drop from the collar seam into the open-front gap (tan, shadowed
+    # so it reads as cord, not bone), landing in the dark interior just under the
+    # hood face opening and to the RIGHT of the rib cluster — clear of bright bone
+    top, bot = (40, 28 + DY), (39, 31 + DY)
+    pygame.draw.line(surf, BONE_DEEP, (top[0] + 1, top[1] + 1),
+                     (bot[0] + 1, bot[1] + 1), 2)                  # cord shadow
+    pygame.draw.line(surf, BONE_TAN, top, bot, 2)                 # cord
+    # carved bone toggle: dark ring (lifts it off cloth) → ivory body → cream tick
+    bead = (39, 33 + DY)
+    pygame.draw.circle(surf, BONE_DEEP, bead, 3)                  # 1px dark ring under
+    pygame.draw.circle(surf, BONE_IVORY, bead, 2)                # ivory toggle (~2px@40)
+    pygame.draw.circle(surf, BONE_CREAM, (bead[0] - 1, bead[1] - 1), 1)  # lit highlight
 
 
 def _paint(surf, angle):
