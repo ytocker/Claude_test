@@ -36,8 +36,11 @@ _CHARCOAL   = (50, 42, 46)        # #322A2E body
 _DEEP       = (26, 21, 24)        # #1A1518 deep shadow
 _MAGMA      = (255, 106, 30)      # #FF6A1E magma orange
 _EMBER      = (255, 197, 58)      # #FFC53A ember yellow
-_SMOKE      = (138, 138, 138)     # #8A8A8A smoke grey
-_SMOKE_D    = (92, 92, 96)
+# Crest wisps are dark WARM charcoal (brown-black, body family) — cool grey next
+# to the magma cracks bled the warm/epic identity, so only the ember TIPS carry
+# hue now; the quill bodies recede into the silhouette as scorched plumage.
+_WISP       = (46, 36, 38)        # warm charcoal quill body
+_WISP_HI    = (78, 60, 58)        # faintly warm edge so the plume isn't a void
 _WHITE      = (255, 248, 230)
 
 # Charcoal re-plumage lifted ONE value step off true black (#3A3034 main over
@@ -99,24 +102,36 @@ def _crack(surf, pts, behind):
     pygame.draw.lines(surf, _EMBER, False, pts, 1)
 
 
-def _smoke_plume(surf, root, lean, h, ember_r, behind):
-    """A short charcoal smoke-wisp FEATHER (not a stalk): a tapering quill that
-    starts wide+dark at the crown and narrows to a single small ember tip. The
-    body is smoke-charcoal that recedes into the silhouette so it reads as
-    plumage breaking the outline, while the lone ember tip is one of the two
-    hottest hues — the wisp carries the bird's heat up without becoming the
-    whole shape."""
+def _smoke_plume(surf, root, dx, dy, ember_r, behind):
+    """One swept-back ember-tipped FEATHER of the unified crest. (dx, dy) is the
+    tip OFFSET from the shared root — every wisp leans the SAME way (back-and-up,
+    dx<0) so the three together read as one continuous swept plume, never a
+    two-lobed split.
+
+    The quill is dark warm charcoal that recedes into the silhouette; a curved
+    mid control gives it a feather sweep rather than a stiff stalk. Only the tip
+    carries heat: a hot 1px CONNECTIVE runs the last stretch of the quill into
+    the ember so it reads as 'ember-tipped feather', not a sparking orb floating
+    off the head (which is what killed the read on night)."""
     rx, ry = root
-    mid = (rx + lean // 2, ry - h * 3 // 5)
-    tip = (rx + lean, ry - h)
-    # Wide-to-narrow quill: a thick dark base stroke tapering to a thin neck.
-    pygame.draw.lines(surf, _SMOKE_D, False, [root, mid], 5)
-    pygame.draw.lines(surf, _SMOKE_D, False, [mid, tip], 3)
-    pygame.draw.lines(surf, _SMOKE, False, [(rx, ry - 1), mid, tip], 1)
-    # One small ember at the very tip — held to the two hottest hues only.
-    _glow_dot(behind, tip[0], tip[1], ember_r + 2, _MAGMA)
-    pygame.draw.circle(surf, _MAGMA, tip, ember_r)
-    pygame.draw.circle(surf, _EMBER, tip, max(1, ember_r - 1))
+    tipx, tipy = rx + dx, ry + dy
+    # Curved sweep: the mid bows slightly outboard of the straight root→tip line
+    # so the plume arcs back like a feather instead of standing as a stalk.
+    midx = rx + dx * 0.55 - 1
+    midy = ry + dy * 0.62
+    quill = [(rx, ry), (midx, midy), (tipx, tipy)]
+    # Wide-to-narrow warm quill: thick dark base tapering to a thin warm-edged
+    # neck. No cool grey — the body stays in the charcoal family.
+    pygame.draw.lines(surf, _WISP, False, quill, 4)
+    pygame.draw.lines(surf, _WISP_HI, False, quill, 1)
+    # 1px hot connective: the magma spills DOWN the quill from the tip so the
+    # ember is welded to its feather, not orbiting it.
+    conn = [(midx, midy), (tipx, tipy)]
+    pygame.draw.lines(surf, _MAGMA, False, conn, 1)
+    # The ember at the very tip — held to the two hottest hues only.
+    _glow_dot(behind, tipx, tipy, ember_r + 2, _MAGMA)
+    pygame.draw.circle(surf, _MAGMA, (int(tipx), int(tipy)), ember_r)
+    pygame.draw.circle(surf, _EMBER, (int(tipx), int(tipy)), max(1, ember_r - 1))
 
 
 def _paint_magma(surf, wing_angle_deg, behind):
@@ -124,14 +139,18 @@ def _paint_magma(surf, wing_angle_deg, behind):
     # wing pivot — the cracks trace the actual plumage masses.
     bcx, bcy = 32, 32 + PARROT_DY
 
-    # ── Smoke-wisp crest, re-cut ~40% shorter and reshaped as FEATHERS. Three
-    # short tapering charcoal plumes sit BEHIND/ABOVE the back of the crown
-    # (pulled left of the face), each tipped with ONE small ember. They break
-    # the crown silhouette without becoming the silhouette — the head and
-    # aviators stay forward and unmistakable.
-    base = CROWN_Y + 2
-    for sx, lean, h, er in ((-5, -4, 12, 2), (-1, -2, 14, 2), (2, 3, 11, 2)):
-        _smoke_plume(surf, (HX + sx, base), lean, h, er, behind)
+    # ── Unified swept ember crest. ALL three wisps fan from a SINGLE root at the
+    # back of the crown and sweep the SAME way — back-and-up (toward lower x) —
+    # so the outline is ONE continuous ember-tipped plume breaking the silhouette
+    # as a unit, not a left berry-cluster + a right stalk-stack. A short anchor
+    # stub at the root binds the three quills into one base so they don't read as
+    # separate growths. The crest stays subordinate to the forward face.
+    root = (HX - 1, CROWN_Y + 2)
+    pygame.draw.circle(surf, _WISP, root, 3)          # shared base mass
+    # (dx, dy) tip offsets — all dx<0 (swept back), fanned in height so the
+    # plume reads as one feather group raked in a single direction.
+    for dx, dy, er in ((-3, -10, 2), (-7, -12, 2), (-11, -9, 2)):
+        _smoke_plume(surf, root, dx, dy, er, behind)
 
     # ── Forward face read: re-establish the head. A warm rim hugs the crown's
     # FRONT and the beak wedge so the face catches the molten light and wins
@@ -142,9 +161,13 @@ def _paint_magma(surf, wing_angle_deg, behind):
                      (bx1, 24 + PARROT_DY), 2)
     pygame.draw.line(surf, _EMBER, (bx0, 22 + PARROT_DY),
                      (bx1 - 1, 24 + PARROT_DY), 1)
-    # Aviator-winning glints: bloom + hot specular on each amber lens so the
-    # eye lands on the face, not the crown.
+    # Aviator-winning glints: a MATCHED pair so the goggles read as one set. The
+    # left lens picked up the body's darker shadow under the base build, muddying
+    # its catch — so each lens now gets the same amber underfill (clears the
+    # muddy left) plus an identical bloom + ember + white specular, drawn in the
+    # exact same relative spot on both. Even = reads as a goggle pair.
     for lx, ly in ((50, 20 + PARROT_DY), (56, 20 + PARROT_DY)):
+        pygame.draw.circle(surf, _MAGMA, (lx, ly), 2)          # warm lens fill
         _glow_dot(behind, lx, ly, 4, _MAGMA)
         pygame.draw.circle(surf, _EMBER, (lx - 1, ly - 1), 1)
         pygame.draw.circle(surf, _WHITE, (lx - 1, ly - 2), 1)

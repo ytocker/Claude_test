@@ -2,7 +2,7 @@
 
 gameplay_panel (day + night biome) + hero_panel + a 40px NEAREST truth read,
 so the critique judges the in-motion downscale this skin lives or dies on.
-Saves docs/store_redesign/parrot/design_3/round_1.png. Run headless:
+Saves docs/store_redesign/parrot/design_3/round_3.png. Run headless:
     SDL_VIDEODRIVER=dummy python tools/parrot_rarity_candidates/_render_design_3.py
 """
 import os
@@ -19,7 +19,7 @@ from game.config import W as GW, H as GH, GROUND_Y
 from tools.ninja_render import gameplay_panel, hero_panel, _frame, FRAME_IDX, TILT
 from tools.parrot_rarity_candidates.design_3 import build
 
-OUT = "docs/store_redesign/parrot/design_3/round_2.png"
+OUT = "docs/store_redesign/parrot/design_3/round_3.png"
 FONT = pygame.font.SysFont("Arial", 16, bold=True)
 SMALL = pygame.font.SysFont("Arial", 13)
 
