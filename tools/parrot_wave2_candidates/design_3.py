@@ -34,7 +34,12 @@ from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
 # black mauve so the comb-teeth read against the sky, and a single warm ember note
 # rides the wing leading edge. Warmth is bought with local colour, never emission.
 _EM_BASE   = (43, 34, 48)          # #2B2230 charcoal-mauve base
-_EM_BASE_D = (30, 23, 34)          # deeper mauve shadow slot
+_EM_BASE_D = (30, 23, 34)          # deeper mauve shadow slot (UPPER body / head)
+# The LOWER-body shadow (tail + underbelly crescent) is lifted ~16% so the
+# silhouette's bottom does not void out against navy night sky — kept separate
+# from the upper-body shadow so the day-sky dark read is untouched up top.
+_EM_FLOOR  = (46, 36, 52)          # lifted tail/underwing shadow floor
+_EM_RIM    = (96, 58, 74)          # dark-mauve→rose rim along the bottom tail edge
 _EM_ROSE   = (110, 74, 85)         # #6E4A55 dusty-rose breast
 _EM_ROSE_H = (150, 104, 116)       # lit dusty-rose so the breast reads warm
 _EM_CREAM  = (232, 197, 138)       # #E8C58A cream eyespot pupil + plume tips
@@ -52,9 +57,9 @@ _EM_AMBER  = (168, 106, 60)        # #A86A3C smoked-amber aviator tint
 # overlaid eyespot + plume tips so those tells own the one bright value. Aviators
 # retinted smoked amber (warm, in-key with the ember wing accent).
 P_EMBERMOTH = _pal(
-    tail=[(28, 22, 32), (38, 30, 44), (52, 40, 58), (78, 56, 70)],
+    tail=[(46, 36, 52), (56, 44, 64), (70, 52, 74), (94, 66, 82)],
     tail_line=_EM_PLUME_D,
-    body_shadow=_EM_BASE_D,
+    body_shadow=_EM_FLOOR,             # lifted lower-body floor (not the void)
     body_main=_EM_BASE,
     body_chest=_EM_ROSE,
     body_belly=_EM_ROSE_H,
@@ -71,7 +76,8 @@ P_EMBERMOTH = _pal(
     lens_frame=(176, 120, 86),         # warm smoked-amber rims
     lens_body=(34, 26, 32),
     lens_tint=(168, 106, 60, 120),     # smoked-amber lens tint
-    lens_glint=(248, 224, 196),
+    lens_glint=None,                   # drawn in the overlay, shrunk to 1px so the
+                                       # eyespot stays the brightest head-zone value
     beak_main=(186, 132, 110),
     beak_dark=(120, 74, 62),
     beak_gloss=(248, 226, 206),
@@ -116,25 +122,28 @@ def _frond(surf, base, tip, ctrl, teeth):
         pygame.draw.polygon(surf, _EM_PLUME, [b0, b1, ttip])
         pygame.draw.line(surf, _EM_PLUME_D, b0, ttip, 1)
         # Cream caps the outer third of the tooth so the comb sparkles like dusted
-        # moth-scales without losing the dark seat.
-        midx = ax + dx * 0.55
-        midy = ay + dy * 0.55
-        pygame.draw.line(surf, _EM_CREAM, (midx, midy), ttip, 2)
+        # moth-scales without losing the dark seat. A 3px tip-line so the ragged-
+        # feeler read survives the navy downscale, where a 2px cream wash dissolved.
+        midx = ax + dx * 0.50
+        midy = ay + dy * 0.50
+        pygame.draw.line(surf, _EM_CREAM, (midx, midy), ttip, 3)
 
 
 def _eyespot(surf, cx, cy):
-    """The hero eyespot disc at the plume root — a dark ring + warm-cream pupil, the
-    one tell guaranteed to survive the 40px read. Sized so both ring (≥2px) and
-    pupil (≥2px) clear the downscale: a dusty-rose halo, a hard near-black ring, a
-    cream pupil, and a single bright pinprick so the eye reads as a wet moth-
-    ocellus rather than a flat dot. This is the high-contrast anchor that carries
-    the skin when the comb-fronds dissolve."""
-    pygame.draw.circle(surf, _EM_ROSE, (cx, cy), 7)        # warm halo seat
-    pygame.draw.circle(surf, _EM_PLUME_D, (cx, cy), 6)     # dark ring (outer)
-    pygame.draw.circle(surf, (16, 12, 18), (cx, cy), 5)    # near-black ring core
-    pygame.draw.circle(surf, _EM_CREAM, (cx, cy), 3)       # warm-cream pupil
-    pygame.draw.circle(surf, _EM_EMBER, (cx, cy), 3, 1)    # ember inner rim
-    pygame.draw.circle(surf, (255, 246, 226), (cx - 1, cy - 1), 1)   # wet glint
+    """The hero eyespot disc on the crest — a hard near-black ring + warm-cream
+    pupil, the one tell guaranteed to survive the 40px read. It is grown and
+    hardened so that at 40px it resolves as an unmistakable ~5px bright core inside
+    a hard dark ring — bigger than either aviator glint, so it out-values
+    everything in the head zone. A moth ocellus, not a wet eye: matte cream pupil,
+    no emissive bloom, so it stays pigment-finish in key with the truth tiles."""
+    pygame.draw.circle(surf, _EM_ROSE, (cx, cy), 9)        # warm halo seat
+    pygame.draw.circle(surf, _EM_PLUME_D, (cx, cy), 8)     # dark ring (outer)
+    pygame.draw.circle(surf, (14, 10, 16), (cx, cy), 7)    # near-black ring core
+    pygame.draw.circle(surf, _EM_CREAM, (cx, cy), 4)       # warm-cream pupil
+    pygame.draw.circle(surf, _EM_EMBER, (cx, cy), 4, 1)    # ember inner rim
+    # A single off-centre cream lift (no white pinprick) keeps the pupil round
+    # without reading as a glossy/emissive glint at hero size.
+    pygame.draw.circle(surf, (244, 218, 168), (cx - 1, cy - 1), 1)
 
 
 def _paint_crest(surf):
@@ -147,25 +156,38 @@ def _paint_crest(surf):
     caps the root as the carry-the-read anchor."""
     root = (HX - 6, CROWN_Y + 5)       # buried 3px into the back of the skull
 
-    # Longer outer frond — sweeps up-and-back furthest, the egg-breaker. Teeth comb
-    # its OUTER (sky-facing, screen-left/up) edge so the ragged fan faces open sky.
+    # Longer outer frond — sweeps up-and-back furthest, the egg-breaker. More comb
+    # teeth (5) on its OUTER (sky-facing, screen-left/up) edge so the ragged-feeler
+    # read survives navy — the comb is what separates this from THORNCREST's smooth
+    # briar crest.
     _frond(
         surf, root, (HX - 22, CROWN_Y - 14), (HX - 16, CROWN_Y - 2),
-        teeth=[(0.30, -5, -2), (0.50, -6, -2), (0.70, -5, -3), (0.88, -4, -4)],
+        teeth=[(0.22, -5, -1), (0.38, -6, -2), (0.54, -6, -2),
+               (0.70, -5, -3), (0.86, -4, -4)],
     )
     # Shorter inner frond — fans up-and-slightly-back, narrower, so the two fronds
-    # read as ONE forked feeler rather than twin horns.
+    # read as ONE forked feeler rather than twin horns. Extra tooth so it stays
+    # ragged at 40px too.
     _frond(
         surf, root, (HX - 11, CROWN_Y - 17), (HX - 9, CROWN_Y - 5),
-        teeth=[(0.40, -4, -3), (0.62, -4, -4), (0.82, -3, -4)],
+        teeth=[(0.34, -4, -2), (0.50, -4, -3), (0.66, -4, -4), (0.82, -3, -4)],
     )
 
-    # The eyespot disc anchors the fork at the root — drawn LAST so it sits clean
-    # over the two spines where they meet the crown.
-    _eyespot(surf, HX - 6, CROWN_Y + 2)
+    # The eyespot ocellus sits UP on the crest, in the fork of the two fronds —
+    # a moth eyespot lives on the plume, not beside the real eye. Pulled up-and-
+    # back off the brow so it clears the aviator eye by ≥8px and reads as crest
+    # ornament. Drawn LAST so it sits clean over the spines where they fork.
+    _eyespot(surf, HX - 8, CROWN_Y - 3)
 
 
 def _paint_embermoth(surf, _a, *, crest=True):
+    # AVIATOR GLINTS — kept but shrunk to 1px specs (the base palette glint is
+    # suppressed) so the crest eyespot, not the shades, is the unambiguous
+    # brightest point in the head zone at 40px. One spec per lens, the rear lens
+    # dimmer so a single bright head-zone value belongs to the ocellus.
+    pygame.draw.circle(surf, (224, 200, 174), (44, 18), 1)
+    pygame.draw.circle(surf, (196, 174, 152), (54, 16), 1)
+
     # BODY ACCENT — ONE per zone so nothing competes with the crest at 40px.
 
     # 1 · WING LEADING-EDGE EMBER LINE: a single warm ember rim along the wing's
@@ -175,6 +197,14 @@ def _paint_embermoth(surf, _a, *, crest=True):
     edge = [(46, 41), (40, 38), (34, 36)]
     pygame.draw.lines(surf, _EM_PLUME_D, False, edge, 3)
     pygame.draw.lines(surf, _EM_EMBER, False, edge, 2)
+
+    # 1b· BOTTOM TAIL RIM: a thin dark-mauve→rose rim ticking the lower tail edge
+    #     so the silhouette keeps a hard bottom edge on navy night sky — the lifted
+    #     floor stops the void but the rim is what gives the tail tip a crisp seam
+    #     the eye can still find against navy.
+    rim = [(6, 38), (12, 40), (20, 39), (24, 36)]
+    pygame.draw.lines(surf, _EM_PLUME_D, False, rim, 2)
+    pygame.draw.lines(surf, _EM_RIM, False, rim, 1)
 
     # 2 · BREAST SCALE-DUST: two faint cream stipples on the dusty-rose breast so
     #     the body reads as powdery moth-scale velvet at hero size without adding a

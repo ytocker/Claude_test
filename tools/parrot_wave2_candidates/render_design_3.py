@@ -19,8 +19,8 @@ from game.draw import (get_sky_surface_biome, draw_mountains, draw_ground,
                        draw_cloud)
 from game.entities import Pipe
 from game.config import W as GW, H as GH, GROUND_Y
-from tools.ninja_render import hero_panel, FRAME_IDX, TILT
-from tools.parrot_wave2_candidates import design_3
+from tools.ninja_render import FRAME_IDX, TILT
+from tools.parrot_wave2_candidates import design_3, design_1
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                    "..", "..", "docs", "store_redesign", "parrot", "wave2",
@@ -69,6 +69,26 @@ def truth_read(source, sky_rgb, *, box=160):
     return panel
 
 
+def hero_panel_crisp(source, box, *, frame_idx=FRAME_IDX, tilt=0.0, bg=(26, 20, 28)):
+    """A CRISP, MATTE product-shot: the bird scaled up by an INTEGER NEAREST factor
+    so the storefront thumbnail keeps the same pigment finish as the truth tiles —
+    no smoothscale blur, no soft focus that would mis-sell the matte tier as
+    legendary-glowy."""
+    panel = pygame.Surface((box, box), pygame.SRCALPHA)
+    pygame.draw.rect(panel, bg, panel.get_rect(), border_radius=14)
+    frame = source(frame_idx, tilt)
+    bb = frame.get_bounding_rect()
+    if bb.width and bb.height:
+        frame = frame.subsurface(bb).copy()
+    sw, sh = frame.get_size()
+    # Largest integer factor that still fits within ~82% of the box — NEAREST so
+    # every pixel stays hard-edged.
+    factor = max(1, int((box * 0.82) / max(sw, sh)))
+    big = pygame.transform.scale(frame, (sw * factor, sh * factor))
+    panel.blit(big, big.get_rect(center=(box // 2, box // 2)))
+    return panel
+
+
 # Sky swatches: a bright day cyan + a deep night navy from the biome palettes.
 DAY_SKY = biome.palette_for_phase(0.0)['sky_top']
 NIGHT_SKY = biome.palette_for_phase(0.64375)['sky_top']
@@ -88,7 +108,11 @@ f_lbl = pygame.font.SysFont("DejaVuSans", 14, bold=True)
 # reads (day full, night full, day crest-masked, night crest-masked).
 top_h = PH + LABEL_H
 tr_h = TR + LABEL_H
-fig_w = PAD + PW + PAD + PW + PAD + HERO + PAD
+# Bottom row now carries 5 truth tiles (the 4 EMBERMOTH reads + a THORNCREST
+# night tile for the distinctness comparison), so the figure widens to fit them.
+N_TR = 5
+fig_w = max(PAD + PW + PAD + PW + PAD + HERO + PAD,
+            PAD + N_TR * (TR + PAD))
 fig_h = TITLE_H + top_h + PAD + tr_h + PAD
 
 fig = pygame.Surface((fig_w, fig_h))
@@ -119,23 +143,27 @@ x += PW + PAD
 night = gameplay_panel_phase(design_3.build, PW, PH, 0.64375)
 fig.blit(night, (x, y)); label(x, y + PH, PW, "GAMEPLAY · NIGHT")
 x += PW + PAD
-hero = hero_panel(design_3.build, HERO, tilt=0.0, bg=(26, 20, 28))
+hero = hero_panel_crisp(design_3.build, HERO, tilt=0.0, bg=(26, 20, 28))
 fig.blit(hero, (x, y))
-label(x, y + PH, HERO, "HERO PRODUCT-SHOT")
+label(x, y + PH, HERO, "HERO PRODUCT-SHOT · CRISP+MATTE")
 
 # ── bottom row: four 40px truth reads ──────────────────────────────────────────
 y2 = TITLE_H + top_h + PAD
+# The THORNCREST night tile sits beside the EMBERMOTH night read so the critic
+# can prove the moth fork + ocellus cannot be mistaken for a rose-red briar crest
+# on navy — the two EPIC crests must be unmistakably distinct at 40px.
 cells = [
-    (design_3.build, DAY_SKY, "40px TRUTH · DAY"),
-    (design_3.build, NIGHT_SKY, "40px TRUTH · NIGHT"),
-    (design_3.build_no_crest, DAY_SKY, "40px BODY-ONLY · DAY"),
-    (design_3.build_no_crest, NIGHT_SKY, "40px BODY-ONLY · NIGHT"),
+    (design_3.build, DAY_SKY, "40px TRUTH · DAY", (225, 225, 232)),
+    (design_3.build, NIGHT_SKY, "40px TRUTH · NIGHT", (225, 225, 232)),
+    (design_3.build_no_crest, DAY_SKY, "40px BODY-ONLY · DAY", (225, 225, 232)),
+    (design_3.build_no_crest, NIGHT_SKY, "40px BODY-ONLY · NIGHT", (225, 225, 232)),
+    (design_1.build, NIGHT_SKY, "THORNCREST · NIGHT (compare)", (236, 168, 180)),
 ]
 x = PAD
-for src, sky, lbl in cells:
+for src, sky, lbl, col in cells:
     panel = truth_read(src, sky, box=TR)
     fig.blit(panel, (x, y2))
-    label(x, y2 + TR, TR, lbl)
+    label(x, y2 + TR, TR, lbl, col=col)
     x += TR + PAD
 
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
