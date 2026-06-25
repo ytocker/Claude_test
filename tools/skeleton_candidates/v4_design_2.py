@@ -99,21 +99,31 @@ def _flesh_base(angle_deg):
 
 def _rib_gaps(surf):
     """Carve pure-dark flesh BETWEEN the white rib arcs so each rib of the
-    basket reads SEPARATELY at 40px — ribs are the #1 'this is a skeleton'
-    cue, and white-on-white floods them into one blob. Instead of hardcoded
-    slots, this traces the negative space BETWEEN consecutive rib curves so
-    the gaps bend with the cage, plus a hard dark moat under the keel so the
-    cage doesn't bleed into the pelvis/leg white mass below it."""
+    basket reads SEPARATELY top-to-bottom — ribs are the #1 'this is a
+    skeleton' cue, and white-on-white floods them into one slab. Each gap
+    traces the negative space between two consecutive rib curves and is
+    carried UP to within ~1px of the spine (leaving only a hairline white
+    attachment point per rib) so the top third of the cage stops fusing into
+    one block. The dark moat under the keel (cage/pelvis separation) is
+    frozen by the art-director and kept."""
     ribs = [XB._rib_curve(i) for i in range(len(XB._RIB_ROOTS))]
-    # Inter-rib flesh: for each adjacent pair, draw a dark curve down the gap
-    # between them (averaged path, nudged so it sits clear of both ribs).
+    spine_y = lambda x: XB.DY + 23 + (43 - x) * (11.0 / 29.0)  # spine line at x
     for a, b in zip(ribs, ribs[1:]):
+        # Midline between the two ribs, the full length of the curve, with the
+        # TOP point pulled up to just below the spine so the gap reaches the
+        # attachment and the rib is individuated all the way to its root.
         gap = [((pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2 + 0.5)
                for pa, pb in zip(a, b)]
+        gx = gap[0][0]
+        # Start the gap just BELOW the spine stroke's lower edge (the 5px-wide
+        # spine half-spans ~2.5px), leaving a ~1px white attachment so the rib
+        # still hangs off the spine but is individuated from its neighbour from
+        # the attachment down — no fused top slab.
+        gap[0] = (gx, spine_y(gx) + 3.0)
         pygame.draw.lines(surf, _VOID, False,
-                          [(round(x), round(y)) for x, y in gap[1:]], 2)
-    # Bottom boundary: a dark moat just UNDER the keel that walls the cage off
-    # from the pelvis + leg bones, giving the basket a clear bottom edge.
+                          [(round(x), round(y)) for x, y in gap], 2)
+    # Bottom boundary (FROZEN): a hard dark moat just UNDER the keel that walls
+    # the cage off from the pelvis + leg bones, giving the basket a clean edge.
     keel = XB._KEEL
     moat = [(x, y + 3) for x, y in keel]
     pygame.draw.lines(surf, _VOID, False,

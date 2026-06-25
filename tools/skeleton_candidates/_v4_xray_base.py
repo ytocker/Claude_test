@@ -210,13 +210,15 @@ _SPINE = [(43, 23 + DY), (39, 25 + DY), (34, 27 + DY), (29, 29 + DY),
 # cage's top/back boundary.
 _RIB_ROOTS = [(37, 25 + DY), (34, 26 + DY), (31, 28 + DY),
               (27, 29 + DY), (24, 31 + DY), (20, 32 + DY)]
-# Sternum/keel: the breastbone the ribs sweep FORWARD onto. It is a short deep
-# plate at the FRONT-BOTTOM of the chest (x 30→39, the avian "boat keel"), so
-# every rib arcs from its spread-out spine root forward-and-down to land here —
-# the convergence is what makes the chest read as a rounded basket, not a fence
-# of parallel bars. The keel is the cage's hard bottom-front boundary.
-_KEEL = [(39, 41 + DY), (38, 44 + DY), (36, 46 + DY),
-         (33, 47 + DY), (31, 46 + DY), (30, 44 + DY)]
+# Sternum/keel: the ribs all sweep forward-and-down to CONVERGE on a single deep
+# sternum tip (the hull/keel point), not a flat shelf. The front two ribs land
+# right at the tip; the back ribs land progressively behind it along a keel line
+# that arcs UP toward the back — so the cage bottom reads as a boat hull rising
+# to a clear keel point at the front, the avian breastbone. This convergence is
+# what turns a fence of bars into a rounded basket.
+_STERNUM = (37, 44 + DY)                       # the single deep keel/hull tip
+_KEEL = [(37, 44 + DY), (37, 44 + DY), (35, 45 + DY),
+         (33, 46 + DY), (31, 45 + DY), (29, 43 + DY)]
 
 # Wing arm-bones + phalanges in the 50×50 WING-LOCAL space (so they rotate
 # with the wing exactly like the feather polygon does).
@@ -248,14 +250,17 @@ def _rib_curve(i):
     """
     if not isinstance(i, int):
         i = _RIB_ROOTS.index(i)
+    n = len(_RIB_ROOTS)
     root = _RIB_ROOTS[i]
     keel = _KEEL[i]
     # Belly control point pushed DOWN and BACK (lower x) of the root→keel chord
-    # so the rib bulges OUT into a rounded basket wall before sweeping forward to
-    # the keel. Back ribs (high i, roots far behind the keel) get a deeper, more
-    # lateral bulge so the cage rounds off at the back instead of going straight.
-    bulge = 5.0 + i * 0.8                       # deeper toward the back
-    back = 2.5 + i * 1.2                        # push the belly behind the chord
+    # so each rib reads as a C-curve, not a vertical bar: the top end angles back
+    # toward the spine and the bottom sweeps forward to the keel. The bulge is
+    # biased STRONGER on the front (beak-side, low i) ribs so the cage's bottom
+    # edge arcs up to a clear sternum point instead of sitting as a flat shelf.
+    front_bias = (n - 1 - i) / (n - 1)          # 1 at the front rib, 0 at the back
+    bulge = 5.0 + i * 0.7                        # deeper basket wall toward the back
+    back = 2.0 + i * 0.9 + front_bias * 3.0      # forward sweep, stronger up front
     cx = (root[0] + keel[0]) / 2 - back
     cy = max(root[1], keel[1]) + bulge
     ctrl = (cx, cy)
