@@ -131,43 +131,80 @@ def _tint(layer, color, alpha):
 
 
 CLOAK_DARK = (10, 12, 22)          # re-punched cloth: kills the bloom over the cowl/back
+COWL_RIM = (110, 240, 215)         # hard ~75% cyan rim on the FRONT edge of the hood opening
+HEM_UNDER = (50, 200, 165)         # faint cyan under-rim catching light along the tattered hem
 
 
-def _cloak_rim(surf):
-    """Restore the cloak silhouette ON TOP of the bone bloom. The skeleton's own
-    glow floods the dark cloth, erasing the hood + drape; so we (1) re-punch the
-    cowl cloth over the crown/back and the upper back-drape to near-black,
-    killing the bloom there, then (2) re-strike the cloak's defining fabric edges
-    in the bone hue so the dark cloth reads as a hood + tattered drape lit from
-    within — not a glowing blob. Kept thin so the skeleton stays the hero."""
-    # (1) re-punch only the cowl cloth ABOVE the skull crown (a band of true dark
-    # cloth arcing over the head) — kept clear of the skull face so the lit skull
-    # still peers out of the hood. The bone bloom otherwise floods this band.
+def _reserve_dark_margin(surf, base_outline):
+    """Reserve a dark cloth band the bone bloom CANNOT cross, so a dark cloak
+    silhouette frames the glowing skeleton instead of a bloom-flooded blob.
+
+    The skeleton's own bloom bleeds clear to the silhouette edge, erasing every
+    band of dark cloth — worst at night, where the flooded edge merges into the
+    navy sky. After the bloom we (1) re-punch the cowl cloth arcing over the
+    crown to true dark, and (2) re-stroke the captured cloak OUTLINE as a fat
+    near-black margin hugging the whole back/tail/hood/hem silhouette. Because
+    the bones live in the interior, that edge band carries no bone shafts, so the
+    dark frame survives while the glowing skeleton stays untouched in the middle."""
+    # (1) cowl cloth ABOVE the skull crown — a true-dark band arcing over the head,
+    # kept clear of the skull face so the lit skull still peers out of the hood.
     cowl = [(x, y + XB.DY) for (x, y) in
             [(38, 14), (42, 7), (47, 4), (53, 7), (58, 13), (57, 17),
              (52, 12), (47, 10), (42, 12), (39, 17)]]
     pygame.draw.polygon(surf, CLOAK_DARK, cowl)
 
-    # (2) re-strike fabric edges last so they survive on the re-darkened cloth.
+    # (1b) back-drape shoulder band — a true-dark cloth strip along the TOP of the
+    # back drape (the shoulder-to-tail upper edge) so the bloom can't merge the
+    # back of the cloak into the sky. Kept above the spine so no bone is buried.
+    drape = [(x, y + XB.DY) for (x, y) in
+             [(13, 28), (20, 24), (28, 22), (36, 22), (40, 25),
+              (33, 26), (27, 27), (20, 28), (14, 31)]]
+    pygame.draw.polygon(surf, CLOAK_DARK, drape)
+
+    # (2) fat dark margin band tracing the cloak silhouette outline. Width 4 walls
+    # the bloom OUT of a cloth rim around the entire back/tail/hood/hem mass.
+    if len(base_outline) > 1:
+        pygame.draw.lines(surf, CLOAK_DARK, True, base_outline, 4)
+
+
+def _cloak_rim(surf, base_outline):
+    """Re-strike the cloak's defining fabric EDGES on top of the reserved dark
+    margin, in the bone hue, so the dark cloth reads as a hood + tattered drape
+    lit from within — not a glowing blob. Kept to hard thin edges (not bloom) so
+    the skeleton stays the hero."""
     hood = [(x, y + XB.DY) for (x, y) in XB._HOOD_RIM]
     hem = [(x, y + XB.DY) for (x, y) in XB._HEM_EDGE]
-    pygame.draw.lines(surf, HALO_TINT, False, hood, 1)
-    pygame.draw.lines(surf, HALO_TINT, False, hem, 1)
-    pygame.draw.lines(surf, NEON_CORE, False, hood, 1)   # bright thread on the cowl arc
-    # Tattered hem points get a tiny neon tick so the ragged cloak bottom reads.
+
+    # Thin neon outline holds the whole cloak shape against night navy.
+    if len(base_outline) > 1:
+        pygame.draw.lines(surf, BODY_EDGE, True, base_outline, 1)
+
+    # Hard ~75% cyan cowl-front rim: a single bright line along the FRONT edge of
+    # the hood opening (the arc over+behind the skull) so the hood separates from
+    # the darker crown band rather than dissolving into it.
+    pygame.draw.lines(surf, COWL_RIM, False, hood, 1)
+
+    # Tattered hem with a cyan under-rim: trace the hard hem teeth so the drape
+    # edge catches light on the navy, then tick the tooth tips so the ragged
+    # bottom reads as cloth, not bone.
+    pygame.draw.lines(surf, HEM_UNDER, False, hem, 1)
     for hx, hy in ((7, 45), (13, 46), (18, 47), (24, 49)):
-        pygame.draw.line(surf, NEON_CORE, (hx, hy + XB.DY), (hx, hy + XB.DY + 2), 1)
+        pygame.draw.line(surf, COWL_RIM, (hx, hy + XB.DY), (hx, hy + XB.DY + 2), 1)
 
 
 def _paint(surf, angle):
     """Paint the neon skeleton: a thin cool keyline holds the body; the bones
     get a TIGHT hugging aura + a near-opaque crisp core; the eye socket is
     punched back in last so the structure reads at 40px."""
+    # Capture the cloak silhouette outline BEFORE any bloom expands the alpha —
+    # this is the dark-cloth edge we both keyline now and wall the bloom out of
+    # later (the additive halo would otherwise erase the whole cloak rim).
+    base_outline = pygame.mask.from_surface(surf).outline()
+
     # Thin cool keyline around the whole opaque silhouette so the dark body keeps
     # a shape on the bright day sky / green foliage. Bones stay the light source.
-    outline = pygame.mask.from_surface(surf).outline()
-    if len(outline) > 1:
-        pygame.draw.lines(surf, BODY_EDGE, True, outline, 1)
+    if len(base_outline) > 1:
+        pygame.draw.lines(surf, BODY_EDGE, True, base_outline, 1)
 
     # Isolated bone layer (full anatomy + hot-core + reopened socket + beak).
     layer = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
@@ -176,24 +213,28 @@ def _paint(surf, angle):
     _reopen_negative_space(layer)
     _beak_hero(layer)
 
-    # TIGHT aura: widest pass pulled WAY back so the dark cloak cloth shows
-    # between bones (a body-filling bloom erases the hood/drape); mid trimmed;
-    # tight glow near-full — a thin emissive halo hugging each bone.
-    aura = _tint(_blur(layer, 6), HALO_TINT, 34)
-    halo_mid = _tint(_blur(layer, 4), HALO_TINT, 72)
-    glow_tight = _blur(layer, 2)
-    glow_tight.set_alpha(180)
+    # TIGHT aura, pulled IN ~1px globally vs round_3 so it can never reach the
+    # reserved cloth margin: widest pass pulled WAY back so the dark cloak cloth
+    # shows between bones; mid trimmed; tight glow trimmed off near-full.
+    aura = _tint(_blur(layer, 7), HALO_TINT, 30)
+    halo_mid = _tint(_blur(layer, 5), HALO_TINT, 64)
+    glow_tight = _blur(layer, 3)
+    glow_tight.set_alpha(150)
 
     surf.blit(aura, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
     surf.blit(halo_mid, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
     surf.blit(glow_tight, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    # Reserve a near-black cloth band the bloom CANNOT cross, so a dark cloak
+    # silhouette frames the glow rather than a flooded blob.
+    _reserve_dark_margin(surf, base_outline)
     # Near-opaque crisp emissive core on top — solid countable shafts the glow
     # only wraps; then re-punch the socket so the bloom can't refill it.
     surf.blit(layer, (0, 0))
     _reopen_negative_space(surf)
-    # Re-strike the cloak's fabric edges last so the hood + tattered hem survive
-    # the bone bloom and the dark cloth reads as a cloak lit from within.
-    _cloak_rim(surf)
+    # Re-strike the cloak's fabric edges last (cowl-front rim + tattered hem
+    # under-rim + thin outline) so the dark cloth reads as a cloak lit from
+    # within and the shape holds against night navy.
+    _cloak_rim(surf, base_outline)
 
 
 def _make():
