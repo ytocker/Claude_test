@@ -2310,6 +2310,399 @@ get_chrome_macaw = _chrome_getter()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# EMBERMOTH MACAW (epic) — entomology parrot: charcoal-mauve velvet night-moth,
+# forked luna-moth antenna-plume crest + a bold eyespot ocellus as the 40px
+# tell. Matte pigment, no glow — warmth from local colour only.
+# ─────────────────────────────────────────────────────────────────────────────
+_EM_BASE    = (43, 34, 48)
+_EM_BASE_D  = (30, 23, 34)
+_EM_FLOOR   = (46, 36, 52)
+_EM_RIM     = (96, 58, 74)
+_EM_ROSE    = (110, 74, 85)
+_EM_ROSE_H  = (150, 104, 116)
+_EM_CREAM   = (232, 197, 138)
+_EM_PLUME   = (58, 44, 64)
+_EM_PLUME_D = (34, 26, 38)
+_EM_PLUME_H = (96, 78, 104)
+_EM_EMBER   = (199, 122, 90)
+
+P_EMBERMOTH = _pal(
+    tail=[(46, 36, 52), (56, 44, 64), (70, 52, 74), (94, 66, 82)],
+    tail_line=_EM_PLUME_D,
+    body_shadow=_EM_FLOOR,
+    body_main=_EM_BASE,
+    body_chest=_EM_ROSE,
+    body_belly=_EM_ROSE_H,
+    sheen=(180, 150, 165, 70),
+    wing_main=(50, 39, 56),
+    wing_dark=(30, 23, 34),
+    wing_tip=(132, 92, 104),
+    wing_secondary=None,
+    wing_highlight=(118, 92, 110),
+    head_shadow=_EM_BASE_D,
+    head_main=_EM_BASE,
+    head_cheek=(96, 70, 84),
+    head_crown=(64, 50, 70),
+    lens_frame=(176, 120, 86),
+    lens_body=(34, 26, 32),
+    lens_tint=(168, 106, 60, 120),
+    lens_glint=None,
+    beak_main=(186, 132, 110),
+    beak_dark=(120, 74, 62),
+    beak_gloss=(248, 226, 206),
+    foot=(120, 80, 76),
+)
+
+
+def _em_frond(surf, base, tip, ctrl, teeth):
+    # One feathered frond of the antenna-plume — a tapered dark spine bowed
+    # through ctrl, combed on its outer edge with hard cream-tipped teeth so it
+    # survives downscale as a ragged comb (the luna-moth feeler read).
+    bx, by = base
+    tx, ty = tip
+    cx, cy = ctrl
+
+    def _spine(t):
+        u = 1 - t
+        return (u * u * bx + 2 * u * t * cx + t * t * tx,
+                u * u * by + 2 * u * t * cy + t * t * ty)
+
+    spine = [_spine(i / 12) for i in range(13)]
+    pygame.draw.lines(surf, _EM_PLUME_D, False, spine, 5)
+    pygame.draw.lines(surf, _EM_PLUME, False, spine, 3)
+    pygame.draw.lines(surf, _EM_PLUME_H, False, spine, 1)
+    for at, dx, dy in teeth:
+        ax, ay = _spine(at)
+        if abs(dx) >= abs(dy):
+            b0, b1 = (ax, ay - 2), (ax, ay + 2)
+        else:
+            b0, b1 = (ax - 2, ay), (ax + 2, ay)
+        ttip = (ax + dx, ay + dy)
+        pygame.draw.polygon(surf, _EM_PLUME, [b0, b1, ttip])
+        pygame.draw.line(surf, _EM_PLUME_D, b0, ttip, 1)
+        midx = ax + dx * 0.50
+        midy = ay + dy * 0.50
+        pygame.draw.line(surf, _EM_CREAM, (midx, midy), ttip, 3)
+
+
+def _em_eyespot(surf, cx, cy):
+    # The hero ocellus — a hard near-black ring + warm-cream pupil, grown so at
+    # 40px it out-values either aviator glint. A moth eyespot, not a wet eye:
+    # matte cream pupil, no emissive bloom.
+    pygame.draw.circle(surf, _EM_ROSE, (cx, cy), 9)
+    pygame.draw.circle(surf, _EM_PLUME_D, (cx, cy), 8)
+    pygame.draw.circle(surf, (14, 10, 16), (cx, cy), 7)
+    pygame.draw.circle(surf, _EM_CREAM, (cx, cy), 4)
+    pygame.draw.circle(surf, _EM_EMBER, (cx, cy), 4, 1)
+    pygame.draw.circle(surf, (244, 218, 168), (cx - 1, cy - 1), 1)
+
+
+def _em_paint_crest(surf):
+    # The forked antenna-plume roots into the back of the crown and forks into
+    # two unequal fronds fanning past the silhouette like a feeler (not symmetric
+    # horns). The eyespot caps the root in the fork as the carry-the-read anchor.
+    root = (HX - 6, CROWN_Y + 5)
+    _em_frond(
+        surf, root, (HX - 22, CROWN_Y - 14), (HX - 16, CROWN_Y - 2),
+        teeth=[(0.22, -5, -1), (0.38, -6, -2), (0.54, -6, -2),
+               (0.70, -5, -3), (0.86, -4, -4)],
+    )
+    _em_frond(
+        surf, root, (HX - 11, CROWN_Y - 17), (HX - 9, CROWN_Y - 5),
+        teeth=[(0.34, -4, -2), (0.50, -4, -3), (0.66, -4, -4), (0.82, -3, -4)],
+    )
+    _em_eyespot(surf, HX - 8, CROWN_Y - 3)
+
+
+def _paint_embermoth(surf, _a):
+    # Aviator glints shrunk to 1px specs (base palette glint suppressed) so the
+    # crest eyespot, not the shades, is the brightest head-zone value at 40px.
+    pygame.draw.circle(surf, (224, 200, 174), (44, 18), 1)
+    pygame.draw.circle(surf, (196, 174, 152), (54, 16), 1)
+    # Wing leading-edge ember rim — the one body accent, dark-seated so it never
+    # shimmers against the mauve.
+    edge = [(46, 41), (40, 38), (34, 36)]
+    pygame.draw.lines(surf, _EM_PLUME_D, False, edge, 3)
+    pygame.draw.lines(surf, _EM_EMBER, False, edge, 2)
+    # Bottom tail rim so the silhouette keeps a hard bottom edge on navy.
+    rim = [(6, 38), (12, 40), (20, 39), (24, 36)]
+    pygame.draw.lines(surf, _EM_PLUME_D, False, rim, 2)
+    pygame.draw.lines(surf, _EM_RIM, False, rim, 1)
+    # Breast scale-dust — powdery moth-scale velvet at hero size (vanishes at 40px
+    # by design; the eyespot is the only bright tell that must survive).
+    for sx, sy in ((33, 50), (38, 53)):
+        pygame.draw.circle(surf, (210, 180, 158), (sx, sy), 1)
+    _em_paint_crest(surf)
+
+
+get_embermoth_macaw = _make_skin(
+    _paint_embermoth,
+    base_fn=lambda a: _build_parrot_with_palette(a, P_EMBERMOTH))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TEMPEST CONDOR MACAW (legendary) — monochrome squall: brushed storm-grey
+# raptor body lit by a SINGLE saturated cyan reserved for the silhouette-
+# breakers — a twin storm-quill crest, a forked vapour-streamer tail, and the
+# legendary "eye of the storm" halo (dark slate disc + hard pale-cyan ring).
+# AURORA pattern: back halo/streamer (two-pass) → body → front crest → outline
+# → rotation cache.
+# ─────────────────────────────────────────────────────────────────────────────
+_TP_GREY     = (60, 70, 84)
+_TP_GREY_HI  = (102, 116, 132)
+_TP_SLATE    = (30, 39, 51)
+_TP_CYAN     = (127, 227, 240)
+_TP_CYAN_DK  = (74, 158, 178)
+_TP_STEEL    = (200, 214, 222)
+_TP_DISC     = (14, 58, 74)
+_TP_DISC_DK  = (10, 40, 52)
+_TP_AVIATOR  = (95, 184, 200)
+_TP_GLINT    = (224, 248, 252)
+_TP_OUTLINE  = (18, 26, 36, 235)
+
+P_TEMPEST = _pal(
+    tail=[(40, 50, 62), (52, 62, 76), (66, 78, 92), (84, 96, 112)],
+    tail_line=_TP_SLATE,
+    body_shadow=_TP_SLATE,
+    body_main=_TP_GREY,
+    body_chest=(82, 94, 110),
+    body_belly=(42, 52, 64),
+    sheen=(200, 214, 222, 90),
+    wing_main=(70, 82, 98),
+    wing_dark=_TP_SLATE,
+    wing_tip=(96, 110, 126),
+    wing_secondary=None,
+    wing_highlight=_TP_GREY_HI,
+    head_shadow=(44, 54, 66),
+    head_main=_TP_GREY,
+    head_cheek=(86, 98, 114),
+    head_crown=_TP_GREY_HI,
+    lens_frame=(46, 58, 72),
+    lens_body=(22, 30, 40),
+    lens_tint=(95, 184, 200, 150),
+    lens_glint=(214, 240, 246),
+    beak_main=(58, 68, 82),
+    beak_dark=(32, 40, 52),
+    beak_gloss=(96, 110, 126),
+    foot=(54, 64, 78),
+)
+
+
+def _tp_hard_arc(surf, cx, cy, r, a0, a1, color, width):
+    # A continuous hard arc stroke — pygame.draw.arc is hollow + ragged at small
+    # radii and dissolves at 40px, so the halo ring is hand-built from connected
+    # thick segments + round caps to stay one clean opaque curved line (the day
+    # read leans on THIS, not the additive bloom).
+    steps = 26
+    pts = [(cx + math.cos(a0 + (a1 - a0) * (i / steps)) * r,
+            cy + math.sin(a0 + (a1 - a0) * (i / steps)) * r)
+           for i in range(steps + 1)]
+    ipts = [(int(round(x)), int(round(y))) for x, y in pts]
+    pygame.draw.lines(surf, color, False, ipts, width)
+    rad = max(1, width // 2)
+    for p in ipts:
+        pygame.draw.circle(surf, color, p, rad)
+
+
+def _tp_flap_phase(angle_deg):
+    # 0 on the down-stroke → 1 on the up-stroke; the streamer whips longer + the
+    # crest rakes further back on the up-beat so the squall stays alive.
+    return 1.0 - (angle_deg + 40) / 90.0
+
+
+def _tp_ribbon_poly(root, tip, w_root, w_tip, bow):
+    # A flat tapered ribbon-tongue bowed sideways so the forked streamer reads as
+    # wind-curled vapour, not a straight rod. Returns (outline, spine) sharing the
+    # spine so the additive glow and the opaque rim register exactly.
+    dx, dy = tip[0] - root[0], tip[1] - root[1]
+    length = math.hypot(dx, dy) or 1.0
+    ux, uy = dx / length, dy / length
+    px, py = -uy, ux
+    mid = (root[0] + dx * 0.5 + px * bow, root[1] + dy * 0.5 + py * bow)
+    spine, steps = [], 8
+    for i in range(steps + 1):
+        t = i / steps
+        u = 1 - t
+        spine.append((u * u * root[0] + 2 * u * t * mid[0] + t * t * tip[0],
+                      u * u * root[1] + 2 * u * t * mid[1] + t * t * tip[1]))
+    left, right = [], []
+    n = len(spine) - 1
+    for i, (sx, sy) in enumerate(spine):
+        t = i / n
+        w = w_root + (w_tip - w_root) * t
+        left.append((sx + px * w, sy + py * w))
+        right.append((sx - px * w, sy - py * w))
+    return left + right[::-1], spine
+
+
+def _tp_streamer_geo(angle_deg):
+    # The forked vapour streamer trailing off the tail root — two ribbon-tongues
+    # swept down-and-back into open sky, whipping longer/lower on the up-beat.
+    phase = _tp_flap_phase(angle_deg)
+    droop = (1.0 - phase) * 3
+    reach = 1.0 + phase * 0.14
+    troot = (17, HY + 7)
+    spec = (
+        (-22, 30, 4.2, 2.0, -7),
+        (-6,  46, 5.0, 2.4,  9),
+    )
+    out = []
+    for ang_deg, length, wr, wt, bow in spec:
+        a = math.radians(150 + ang_deg)
+        tip = (troot[0] + math.cos(a) * length * reach,
+               troot[1] + math.sin(a) * length * reach + droop)
+        poly, spine = _tp_ribbon_poly(troot, tip, wr, wt, bow)
+        out.append((poly, spine, tip))
+    return out
+
+
+def _tp_wind_ticks(angle_deg):
+    # One bold wind-streak dash trailing the long fork — a hard cyan tick (not
+    # soft mist), raked along the down-back axis; drifts wider on the up-beat.
+    phase = _tp_flap_phase(angle_deg)
+    drift = phase * 4
+    base = ((-7, HY + 30, 8),)
+    return [(x - drift, y + drift * 0.4, ln) for x, y, ln in base]
+
+
+def _tempest_back(surf, angle_deg):
+    # Behind the outlined bird so the outline never boxes the squall glow. Two
+    # passes: an additive cyan under-glow (the night read on navy), then opaque
+    # detail — the dark slate storm-disc, a hard pale-cyan ring, the vapour
+    # streamer tongues + wind-tick (the day read on bright blue).
+    streamers = _tp_streamer_geo(angle_deg)
+    ticks = _tp_wind_ticks(angle_deg)
+    hcx, hcy = HX - 2, HY - 6
+    disc_r = 28
+    arc_a0, arc_a1 = math.radians(195), math.radians(360)
+
+    glow = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+    blit_glow(glow, hcx, hcy, 12, (90, 150, 170), alpha=36)
+    for i in range(13):
+        a = arc_a0 + (arc_a1 - arc_a0) * (i / 12)
+        blit_glow(glow, int(hcx + math.cos(a) * disc_r),
+                  int(hcy + math.sin(a) * disc_r), 6, _TP_CYAN, alpha=80)
+    for poly, spine, tip in streamers:
+        for sp in (spine[len(spine) // 2], spine[-1]):
+            blit_glow(glow, int(sp[0]), int(sp[1]), 6, _TP_CYAN, alpha=80)
+    for tx, ty, _ln in ticks:
+        blit_glow(glow, int(tx), int(ty), 4, _TP_CYAN, alpha=95)
+    surf.blit(glow, (0, 0), special_flags=pygame.BLEND_ADD)
+
+    det = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+    for poly, spine, tip in streamers:
+        pygame.draw.polygon(det, _TP_SLATE, poly)
+        cx = sum(p[0] for p in poly) / len(poly)
+        cy = sum(p[1] for p in poly) / len(poly)
+        field = [(cx + (x - cx) * 0.70, cy + (y - cy) * 0.74) for x, y in poly]
+        pygame.draw.polygon(det, (78, 92, 108), field)
+        pygame.draw.lines(det, _TP_CYAN, False, spine, 2)
+        pygame.draw.circle(det, _TP_CYAN, (int(tip[0]), int(tip[1])), 2)
+        pygame.draw.circle(det, _TP_GLINT, (int(tip[0]), int(tip[1])), 1)
+    for tx, ty, ln in ticks:
+        a = math.radians(150 - 6)
+        ex = tx + math.cos(a) * ln
+        ey = ty + math.sin(a) * ln
+        pygame.draw.line(det, _TP_CYAN_DK, (int(tx), int(ty)), (int(ex), int(ey)), 2)
+        pygame.draw.line(det, _TP_CYAN, (int(tx), int(ty)),
+                         (int(tx + (ex - tx) * 0.6), int(ty + (ey - ty) * 0.6)), 2)
+    pygame.draw.circle(det, _TP_DISC_DK, (hcx, hcy), disc_r - 12)
+    pygame.draw.circle(det, _TP_DISC, (hcx, hcy), disc_r - 15)
+    _tp_hard_arc(det, hcx, hcy, disc_r, arc_a0, arc_a1, _TP_CYAN_DK, 6)
+    _tp_hard_arc(det, hcx, hcy, disc_r, arc_a0, arc_a1, _TP_CYAN, 4)
+    for fa in (math.radians(255), math.radians(320)):
+        bx = int(hcx + math.cos(fa) * disc_r)
+        by = int(hcy + math.sin(fa) * disc_r)
+        pygame.draw.circle(det, _TP_GLINT, (bx, by), 2)
+    surf.blit(det, (0, 0))
+
+
+def _tempest_front(surf, angle_deg):
+    # Opaque detail over the body, inside the masked layer: the twin storm-quill
+    # crest (two swept blades, each with a hard bright-cyan leading edge), a
+    # brow-spark, a steel back/belly rim, raptor-scale ticks, and a relit lens.
+    phase = _tp_flap_phase(angle_deg)
+    rake = phase * 2
+    base_y = CROWN_Y + 1
+    cbx = HX - 2
+    quills = (
+        (-5, -23, -22 - rake, 4.6, -7),
+        (3,  -13, -25 - rake, 4.0, -4),
+    )
+    for rdx, tdx, tdy, wr, bow in quills:
+        root = (cbx + rdx, base_y)
+        tip = (cbx + tdx, base_y + tdy)
+        poly, spine = _tp_ribbon_poly(root, tip, wr, 1.4, bow)
+        pygame.draw.polygon(surf, _TP_SLATE, poly)
+        cx = sum(p[0] for p in poly) / len(poly)
+        cy = sum(p[1] for p in poly) / len(poly)
+        field = [(cx + (x - cx) * 0.66, cy + (y - cy) * 0.72) for x, y in poly]
+        pygame.draw.polygon(surf, (78, 92, 108), field)
+        pygame.draw.lines(surf, _TP_CYAN, False, spine, 2)
+        pygame.draw.circle(surf, _TP_CYAN, (int(tip[0]), int(tip[1])), 2)
+        pygame.draw.circle(surf, _TP_GLINT, (int(tip[0]), int(tip[1])), 1)
+    _poly(surf, _TP_SLATE, [(cbx - 6, base_y + 3), (cbx + 5, base_y + 3),
+                           (cbx + 1, base_y - 3), (cbx - 4, base_y - 3)])
+    pygame.draw.lines(surf, _TP_STEEL, False,
+                      [(HX - 12, CROWN_Y + 4), (HX - 5, CROWN_Y),
+                       (HX + 4, CROWN_Y + 1), (HX + 12, HY - 3)], 2)
+    pygame.draw.lines(surf, _TP_STEEL, False, [(16, 46), (15, 52), (18, 40)], 2)
+    pygame.draw.lines(surf, (66, 78, 92), False, [(46, 56), (43, 60), (39, 63)], 2)
+    pygame.draw.lines(surf, (66, 78, 92), False, [(34, 65), (28, 67), (22, 67)], 1)
+    scales = (
+        ((23, 41), (28, 39)), ((27, 44), (33, 42)), ((31, 47), (38, 45)),
+        ((20, 44), (24, 43)), ((35, 46), (41, 44)),
+    )
+    for a, b in scales:
+        pygame.draw.line(surf, (*_TP_STEEL, 130), a, b, 1)
+    for sx, sy in ((26, 40), (32, 43), (38, 42)):
+        pygame.draw.circle(surf, (150, 164, 178), (sx, sy), 1)
+    bx, by = HX + 7, HY - 3
+    pygame.draw.line(surf, _TP_CYAN, (bx - 4, by + 2), (bx + 5, by - 1), 2)
+    pygame.draw.circle(surf, _TP_GLINT, (bx + 5, by - 1), 1)
+    ex, ey = HX + 6, HY - 2
+    pygame.draw.line(surf, _TP_AVIATOR, (ex - 6, ey - 4), (ex + 5, ey - 5), 2)
+    pygame.draw.line(surf, (40, 52, 66), (ex - 5, ey + 4), (ex + 4, ey + 4), 1)
+    pygame.draw.circle(surf, _TP_GLINT, (ex, ey - 1), 2)
+    pygame.draw.circle(surf, _TP_AVIATOR, (ex - 3, ey + 1), 1)
+    pygame.draw.line(surf, _TP_STEEL, (HX + 8, HY + 1), (HX + 13, HY + 4), 2)
+
+
+def _tempest_getter():
+    state = {"frames": None, "rot": {}}
+
+    def _flat(wing_angle):
+        bird = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+        bird.blit(_build_parrot_with_palette(wing_angle, P_TEMPEST), (0, PARROT_DY))
+        _tempest_front(bird, wing_angle)
+        bird = _add_outline(bird, outline_color=_TP_OUTLINE)
+        aura = pygame.Surface(bird.get_size(), pygame.SRCALPHA)
+        pad = (bird.get_width() - COMPOSITE_W) // 2
+        back = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+        _tempest_back(back, wing_angle)
+        aura.blit(back, (pad, pad))
+        aura.blit(bird, (0, 0))
+        return aura
+
+    def getter(frame_idx, tilt_deg):
+        if state["frames"] is None:
+            state["frames"] = [_flat(a) for a in _WING_ANGLES]
+        frames = state["frames"]
+        frame_idx %= len(frames)
+        key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
+        s = state["rot"].get(key)
+        if s is None:
+            s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
+            state["rot"][key] = s
+        return s
+
+    return getter
+
+
+get_tempest_condor = _tempest_getter()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Production registry: catalog id -> getter. Consulted by
 # parrot.get_skin_frame (which checks this first, so the three redraws here
 # override the power-up-sprite mappings the base parrot keeps for buff use).
@@ -2342,4 +2735,7 @@ BUILDERS = {
     "skin_thorncrest": get_thorncrest_macaw,
     "skin_moonbloom":  get_moonbloom_macaw,
     "skin_chrome":     get_chrome_macaw,
+    # Wave 2 replacements (epic moth, legendary monochrome squall).
+    "skin_embermoth": get_embermoth_macaw,
+    "skin_tempest":   get_tempest_condor,
 }

@@ -60,8 +60,10 @@ CATALOG: dict[str, dict] = {
     "skin_lorikeet":  {"name": "LORIKEET",    "cost": 600, "kind": "skin", "group": "parrot"},
     "skin_prism":     {"name": "PRISM",        "cost": 1400, "kind": "skin", "group": "parrot"},
     "skin_thorncrest": {"name": "THORNCREST",   "cost": 1700, "kind": "skin", "group": "parrot"},
+    "skin_embermoth": {"name": "EMBERMOTH",    "cost": 1900, "kind": "skin", "group": "parrot"},
     "skin_aurora":    {"name": "AURORA MACAW", "cost": 2800, "kind": "skin", "group": "parrot"},
     "skin_moonbloom": {"name": "MOONBLOOM",    "cost": 3200, "kind": "skin", "group": "parrot"},
+    "skin_tempest":   {"name": "TEMPEST CONDOR", "cost": 3600, "kind": "skin", "group": "parrot"},
     # SECRET tier — masked as ??? in the store until bought (price still shown).
     "skin_chrome":    {"name": "CHROME MACAW", "cost": 9500, "kind": "skin", "group": "parrot", "secret": True},
 
