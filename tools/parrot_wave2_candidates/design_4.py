@@ -51,7 +51,9 @@ from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
 
 # ── palette (brief) ───────────────────────────────────────────────────────────
 _GREY      = (60, 70, 84)          # #3C4654 storm-grey base
-_GREY_HI   = (90, 102, 118)        # top-lit storm-grey highlight
+# Lit crown/back highlight, raised ~9% in value so the bird does not sink into
+# the navy night sky on the up-flap frames (where this zone faces the camera).
+_GREY_HI   = (102, 116, 132)       # top-lit storm-grey highlight
 _SLATE     = (30, 39, 51)          # #1E2733 deep slate underwing / core shadow
 _CYAN      = (127, 227, 240)       # #7FE3F0 bright cyan — the ONLY saturated pop
 _CYAN_DK   = (74, 158, 178)        # shaded cyan, for the inner crest body
@@ -107,6 +109,24 @@ def _tempest_base(angle_deg):
 
 # ── shared helpers ────────────────────────────────────────────────────────────
 
+def _hard_arc(surf, cx, cy, r, a0, a1, color, width):
+    """A CONTINUOUS hard arc stroke from a0→a1 (radians) of radius r, drawn as a
+    dense run of connected thick segments capped with dots. pygame.draw.arc's
+    width is hollow + ragged at small radii and would dissolve at 40px, so the
+    legendary halo ring is built by hand to stay one clean, opaque curved line —
+    the day read leans on THIS, not on the additive bloom."""
+    steps = 26
+    pts = [(cx + math.cos(a0 + (a1 - a0) * (i / steps)) * r,
+            cy + math.sin(a0 + (a1 - a0) * (i / steps)) * r)
+           for i in range(steps + 1)]
+    ipts = [(int(round(x)), int(round(y))) for x, y in pts]
+    pygame.draw.lines(surf, color, False, ipts, width)
+    # Round caps + seam-fill so the thick stroke never shows facet gaps.
+    rad = max(1, width // 2)
+    for p in ipts:
+        pygame.draw.circle(surf, color, p, rad)
+
+
 def _flap_phase(angle_deg):
     """0 on the down-stroke (wing 50°) → 1 on the up-stroke (-40°). The vapour
     streamer whips longer + the crest rakes a touch further back on the up-beat,
@@ -154,11 +174,14 @@ def _streamer_geo(angle_deg):
     droop = (1.0 - phase) * 3                           # dip on the down-beat
     reach = 1.0 + phase * 0.14                          # stream longer up-beat
     troot = (17, HY + 7)
-    # (angle-off-back°, length, root-w, tip-w, bow). The lower fork is the long
-    # hero tongue; the upper fork is shorter so the fork reads as a clean V.
+    # (angle-off-back°, length, root-w, tip-w, bow). Both forks are raked further
+    # DOWN-and-BACK (smaller off-back angle) and the long lower fork is pushed to
+    # ~46px with a fatter 2.4px tip so the streamer clears the belly and trails
+    # into open sky below-behind the tail root, reading as a forked cyan streamer
+    # at 40px instead of a frayed stub tangled in the body.
     spec = (
-        (-30, 24, 4.0, 1.6, -6),    # upper fork, bows up
-        (-12, 34, 4.6, 1.4,  7),    # lower fork, longest, bows down
+        (-22, 30, 4.2, 2.0, -7),    # upper fork, bows up
+        (-6,  46, 5.0, 2.4,  9),    # lower fork, the long hero tongue, bows down
     )
     out = []
     for ang_deg, length, wr, wt, bow in spec:
@@ -171,20 +194,24 @@ def _streamer_geo(angle_deg):
 
 
 def _wind_ticks(angle_deg):
-    """A few short hard wind-streak ticks trailing the streamer into open sky —
-    hard cyan dashes (NOT soft mist) so the wind read survives the 40px
-    downscale. Fixed (non-random) scatter so the 4 baked frames stay stable;
-    drift wider on the up-beat."""
+    """ONE bold wind-streak tick trailing the long fork into open sky — a single
+    hard cyan dash (NOT soft mist), raked along the streamer's down-back axis.
+    The R1 four-tick scatter vanished into noise at 40px and split the lone-cyan
+    budget; one bold dash reinforces the wind read without stealing pixels from
+    the streamer rim. Fixed (non-random) so the 4 baked frames stay stable;
+    drifts a touch wider on the up-beat."""
     phase = _flap_phase(angle_deg)
     drift = phase * 4
-    base = (
-        (-4, HY + 18, 6),
-        (-9, HY + 28, 7),
-        (-14, HY + 24, 5),
-        (-2, HY + 33, 5),
-    )
-    # (x, y, dash-length); dashes rake along the streamer's down-back axis.
+    base = ((-7, HY + 30, 8),)
+    # (x, y, dash-length); the dash rakes along the streamer's down-back axis.
     return [(x - drift, y + drift * 0.4, ln) for x, y, ln in base]
+
+
+# Exploration-only switch the round sheet flips to PROVE the day read: when
+# True the additive bloom pass is skipped, so the 40px crop shows ONLY the hard
+# opaque shapes that must carry the legendary tell on bright blue. Never read on
+# the live path (it stays True/normal); it exists purely for the proof crop.
+_ADDITIVE = True
 
 
 def _tempest_back(surf, angle_deg):
@@ -204,26 +231,39 @@ def _tempest_back(surf, angle_deg):
     (the 'eye of the storm'), never a sprawling aura."""
     streamers = _streamer_geo(angle_deg)
     ticks = _wind_ticks(angle_deg)
-    hcx, hcy = HX - 1, HY - 2
-    disc_r = 20
+    # Disc pushed UP-and-BACK off the skull and enlarged so a continuous cyan arc
+    # clears the crown + upper-back silhouette on the top-rear flank instead of
+    # hiding behind the skull. R1's r=20 centred on the skull left ~80% of the
+    # ring occluded — a halo 80% hidden cannot read as a halo at 40px.
+    hcx, hcy = HX - 2, HY - 6
+    disc_r = 28
+    # The exposed top-rear arc — the sky-side span where the ring actually clears
+    # the skull and separates head from sky. Pygame's y grows DOWN, so the disc
+    # top is 270° and the right (rear, the bird faces right) is 0°/360°. The sweep
+    # runs from the upper-back over the CROWN and down the rear flank — a single
+    # ~165° span (crown-left → top → right-rear), drawn as ONE bright stroke so it
+    # crowns the head instead of dropping a bar down the left wing.
+    arc_a0, arc_a1 = math.radians(195), math.radians(360)
 
     # ── pass 1: additive cyan under-glow (night) ──────────────────────────────
     glow = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
     # Contained eye-of-storm: a tight central core kept DIM (so the disc still
     # reads as a dark eye, not a flare) ringed by a brighter cyan rim-halo — the
-    # light lives on the RING, the way a squall's eye is dark-cored.
-    blit_glow(glow, hcx, hcy, 11, (90, 150, 170), alpha=40)
-    for i in range(12):
-        a = math.radians(i * 30)
+    # light lives on the RING, the way a squall's eye is dark-cored. The bloom is
+    # biased onto the exposed arc so the night glow sits where the day ring does.
+    blit_glow(glow, hcx, hcy, 12, (90, 150, 170), alpha=36)
+    for i in range(13):
+        a = arc_a0 + (arc_a1 - arc_a0) * (i / 12)
         blit_glow(glow, int(hcx + math.cos(a) * disc_r),
-                  int(hcy + math.sin(a) * disc_r), 6, _CYAN, alpha=85)
+                  int(hcy + math.sin(a) * disc_r), 6, _CYAN, alpha=80)
     # Vapour-streamer haze along each tongue so the tail glows cyan on navy.
     for poly, spine, tip in streamers:
         for sp in (spine[len(spine) // 2], spine[-1]):
             blit_glow(glow, int(sp[0]), int(sp[1]), 6, _CYAN, alpha=80)
     for tx, ty, _ln in ticks:
         blit_glow(glow, int(tx), int(ty), 4, _CYAN, alpha=95)
-    surf.blit(glow, (0, 0), special_flags=pygame.BLEND_ADD)
+    if _ADDITIVE:
+        surf.blit(glow, (0, 0), special_flags=pygame.BLEND_ADD)
 
     # ── pass 2: opaque detail (day + night) ───────────────────────────────────
     det = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
@@ -244,34 +284,33 @@ def _tempest_back(surf, angle_deg):
         pygame.draw.circle(det, _CYAN, (int(tip[0]), int(tip[1])), 2)
         pygame.draw.circle(det, _GLINT, (int(tip[0]), int(tip[1])), 1)
 
-    # Hard wind-ticks — short opaque cyan dashes raked along the streamer axis
-    # (down-and-back), so the tail trails real wind-streaks, not soft mist.
+    # Hard wind-tick — one short opaque cyan dash raked along the streamer axis
+    # (down-and-back), so the tail trails a real wind-streak, not soft mist.
     for tx, ty, ln in ticks:
-        a = math.radians(150 - 12)
+        a = math.radians(150 - 6)
         ex = tx + math.cos(a) * ln
         ey = ty + math.sin(a) * ln
         pygame.draw.line(det, _CYAN_DK, (int(tx), int(ty)), (int(ex), int(ey)), 2)
         pygame.draw.line(det, _CYAN, (int(tx), int(ty)),
-                         (int(tx + (ex - tx) * 0.6), int(ty + (ey - ty) * 0.6)), 1)
+                         (int(tx + (ex - tx) * 0.6), int(ty + (ey - ty) * 0.6)), 2)
 
     # STORM-DISC behind the head — the legendary halo TELL. It MUST read in the
-    # 40px DAY read (the additive bloom does nothing on bright blue), so the read
-    # is carried by HARD opaque shapes: a dark slate disc FILL (the dark eye),
-    # then a bold opaque pale-cyan RING over a thinner deep-cyan under-ring so
-    # the halo reads as a hard contained circle-arc on the flanks behind the
-    # head; the additive cyan rim from pass 1 sits on top for the night bloom.
-    pygame.draw.circle(det, _DISC_DK, (hcx, hcy), disc_r - 2)
-    pygame.draw.circle(det, _DISC, (hcx, hcy), disc_r - 5)
-    pygame.draw.circle(det, _CYAN_DK, (hcx, hcy), disc_r + 1, 1)
-    pygame.draw.circle(det, _CYAN, (hcx, hcy), disc_r, 3)
-    # Brighter beads on the flanks where the disc clears the silhouette — the
-    # part of the ring that actually reads as separating head from sky.
-    for fa in (math.radians(198), math.radians(214), math.radians(326),
-               math.radians(342)):
+    # 40px DAY read with the additive bloom DISABLED (the bloom does nothing on
+    # bright blue), so the read is carried entirely by HARD opaque shapes: a dark
+    # slate disc FILL (the contained dark eye, kept small so it never blooms),
+    # then the legendary tell — a CONTINUOUS bright-cyan arc swept across the
+    # exposed top-rear ~150° as one curved line, ≥4px thick, so it reads as a
+    # single hard cyan ring clearing the crown, not a string of dots.
+    pygame.draw.circle(det, _DISC_DK, (hcx, hcy), disc_r - 12)
+    pygame.draw.circle(det, _DISC, (hcx, hcy), disc_r - 15)
+    _hard_arc(det, hcx, hcy, disc_r, arc_a0, arc_a1, _CYAN_DK, 6)
+    _hard_arc(det, hcx, hcy, disc_r, arc_a0, arc_a1, _CYAN, 4)
+    # A couple of bright glints where the arc crests the crown + tops the rear,
+    # to give the continuous ring a hard sparkle without breaking it into beads.
+    for fa in (math.radians(255), math.radians(320)):
         bx = int(hcx + math.cos(fa) * disc_r)
         by = int(hcy + math.sin(fa) * disc_r)
         pygame.draw.circle(det, _GLINT, (bx, by), 2)
-        pygame.draw.circle(det, (255, 255, 255), (bx, by), 1)
 
     surf.blit(det, (0, 0))
 
@@ -302,10 +341,12 @@ def _tempest_front(surf, angle_deg):
     # they read as a swept pair, not symmetric horns. Each blade: a slate body
     # for value separation, a steel inner fill, and a HARD bright-cyan leading
     # edge that carries the whole crest as one cyan shape at 40px.
-    # (root-dx, tip-dx, tip-dy, root-w, bow).
+    # (root-dx, tip-dx, tip-dy, root-w, bow). The two roots are spread a touch
+    # wider in x so the blades read as a clean swept V at the base instead of
+    # merging into one wedge on the day f2 read.
     quills = (
-        (-3, -22, -22 - rake, 4.6, -7),   # rear quill, longest hero blade
-        (1,  -14, -25 - rake, 4.0, -4),   # front quill, shorter + steeper
+        (-5, -23, -22 - rake, 4.6, -7),   # rear quill, longest hero blade
+        (3,  -13, -25 - rake, 4.0, -4),   # front quill, shorter + steeper
     )
     for rdx, tdx, tdy, wr, bow in quills:
         root = (cbx + rdx, base_y)
@@ -324,8 +365,8 @@ def _tempest_front(surf, angle_deg):
 
     # A short slate crest-root nub at the crown so the two quills read as
     # springing from ONE swept tuft, not two pins.
-    _poly(surf, _SLATE, [(cbx - 5, base_y + 3), (cbx + 4, base_y + 3),
-                         (cbx + 1, base_y - 3), (cbx - 3, base_y - 3)])
+    _poly(surf, _SLATE, [(cbx - 6, base_y + 3), (cbx + 5, base_y + 3),
+                         (cbx + 1, base_y - 3), (cbx - 4, base_y - 3)])
 
     # Cool steel RIM wrapping the back+crown, and a lit belly rim — both ≥2px so
     # the desaturated grey body is framed by light on either sky. The belly rim
@@ -355,11 +396,14 @@ def _tempest_front(surf, angle_deg):
     for sx, sy in ((26, 40), (32, 43), (38, 42)):
         pygame.draw.circle(surf, (150, 164, 178), (sx, sy), 1)
 
-    # Single bright-cyan BROW-SPARK above the aviators — the one front cyan tell
-    # that ties the face into the crest's cyan without crowding it.
-    bx, by = HX + 1, HY - 7
-    pygame.draw.line(surf, _CYAN, (bx - 5, by + 1), (bx + 4, by - 2), 2)
-    pygame.draw.circle(surf, _GLINT, (bx + 4, by - 2), 1)
+    # Single bright-cyan BROW-SPARK — moved LOWER + more FORWARD (down onto the
+    # brow over the front of the aviators) so it pulls clear of the crest/halo-arc
+    # cluster at the top-rear of the head. At 40px the crest, the halo arc, this
+    # brow-spark and the tail streamer then read as 3–4 DISTINCT cyan shapes
+    # instead of one merged cyan smudge top-right of the skull.
+    bx, by = HX + 7, HY - 3
+    pygame.draw.line(surf, _CYAN, (bx - 4, by + 2), (bx + 5, by - 1), 2)
+    pygame.draw.circle(surf, _GLINT, (bx + 5, by - 1), 1)
 
     # Relight the EYE/AVIATOR so the lens zone stops reading as a dead hole: a
     # cool steel-cyan top rim over the near frame, a soft glint, and a faint
