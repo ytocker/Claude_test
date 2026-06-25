@@ -1,350 +1,206 @@
-"""design_3 · CONSTELLATION MACAW — LEGENDARY wave-2 parrot exploration.
+"""design_3 · EMBERMOTH MACAW — EPIC parrot-wave2 exploration (scratch only).
 
-A celestial-globe Pip: a deep lapis-midnight body engraved with a GOLD
-star-chart — hard metallic star-LINES joining hand-placed star-NODES across
-back/wing/chest, ringed by a thin GOLD ORBITAL HALO behind the head (the
-legendary tell), crowned by a hard GILDED CRESCENT-MOON crest rising past the
-crown, and trailing a COMET TRAIL of gold star-nodes (big→small) where the
-feather fan used to be. Every accent value is hard metallic gold — the
-deliberate split from AURORA, whose cosmic read is soft teal/green RIBBONS.
+The tab's only ENTOMOLOGY parrot: Pip "ascended" into a night-moth. The read is
+one hero shape — a single forked moth-antenna plume sweeping up-and-back past the
+crown like a luna-moth feeler, anchored by a bold eyespot disc where the plume
+roots into the skull. It says "the bird that turned into a moth" before any
+detail resolves.
 
-Draw order matters: the orbital halo and the comet-node trail must paint BEHIND
-the outlined body, so this can't use store_skins._make_skin's body-first
-_compose. Mirroring AURORA's getter, this is a custom back-aura pass — an
-ADDITIVE bloom buffer that twinkles the gold NODES on dark night skies, plus an
-OPAQUE bright-detail buffer (halo band, comet nodes, node cores as solid gold
-over a thin ink backing) so the chart ALSO survives a bright day sky where the
-additive bloom washes out — then the lapis body, then the front overlay
-(crescent crest, join-the-dots line-chart, wing rim, aviators), then the house
-outline, then the per-(frame, 3°-bucket) rotation cache.
+North star is "lives or dies at 40px". The body is a velvety charcoal-mauve so it
+reads DARK on bright day sky and the warm dusty-rose breast keeps it from going to
+a void on navy night sky. The plume is a flat feathered comb-edge with hard ≥3px
+teeth so it survives the downscale as a ragged fan that breaks the egg at the
+top-rear corner. The one guaranteed-survives tell is the eyespot disc — a dark
+ring + a cream pupil at the plume root, the single highest-contrast spot that
+carries the read when everything else dissolves.
 
-The two-pass trick mirrors AURORA exactly: gold NODES get an additive bloom so
-the chart twinkles on night sky; the gold LINES stay OPAQUE so they survive day
-sky. The whole chart is BAKED into each of the 4 wing frames (no runtime
-particle hook): the halo glints and comet tail drift a touch with the wing beat
-so the engraving still reads alive across the filmstrip. Exploration only —
-NEVER registered in store_skins.BUILDERS.
+Matte pigment throughout, NO glow: the warmth is pure local colour (ember accent
+on the wing edge, cream plume tips) so it never reads as wave-1's emissive
+MAGMA/SOLAR. PRISM model — plume + eyespot are polygons + lines over a
+charcoal-mauve recolour; no back-layer is needed. Exploration only — NEVER
+registered in store_skins.BUILDERS.
 """
-import math
-
 import pygame
 
-from game.parrot import _WING_ANGLES, _add_outline
-from game.draw import blit_glow, lerp_color
-from game.store_skins import (
-    COMPOSITE_W, COMPOSITE_H, PARROT_DY, HX, HY, CROWN_Y,
-)
+from game import store_skins
+from game.store_skins import HX, CROWN_Y
 from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
 
 
-# ── palette (brief) ───────────────────────────────────────────────────────────
-_LAPIS   = (21, 34, 74)           # #15224A lapis midnight body
-_INDIGO  = (12, 20, 48)           # #0C1430 indigo shadow
-_GOLD    = (232, 194, 90)         # #E8C25A star gold (the chart line/node value)
-_GLINT   = (255, 243, 200)        # #FFF3C8 gold glint / white star
-_SAPPH   = (58, 90, 168)          # #3A5AA8 sapphire mid
-_INK     = (10, 16, 38)           # thin dark backing so gold survives bright sky
+# Embermoth palette — a charcoal-mauve velvet body whose shadow slots stay deep so
+# the whole bird reads as a dark moth-silhouette on bright sky, lifted only on the
+# breast into a warm dusty-rose so it does not collapse to a void on navy. Cream
+# is the one bright accent (eyespot pupil + plume tips), the plume body is a near-
+# black mauve so the comb-teeth read against the sky, and a single warm ember note
+# rides the wing leading edge. Warmth is bought with local colour, never emission.
+_EM_BASE   = (43, 34, 48)          # #2B2230 charcoal-mauve base
+_EM_BASE_D = (30, 23, 34)          # deeper mauve shadow slot
+_EM_ROSE   = (110, 74, 85)         # #6E4A55 dusty-rose breast
+_EM_ROSE_H = (150, 104, 116)       # lit dusty-rose so the breast reads warm
+_EM_CREAM  = (232, 197, 138)       # #E8C58A cream eyespot pupil + plume tips
+_EM_PLUME  = (58, 44, 64)          # #3A2C40 plume body / eyespot dark ring
+_EM_PLUME_D = (34, 26, 38)         # plume keyline / ring shadow
+_EM_PLUME_H = (96, 78, 104)        # lit plume edge so the fronds read round
+_EM_EMBER  = (199, 122, 90)        # #C77A5A warm ember accent on the wing edge
+_EM_AMBER  = (168, 106, 60)        # #A86A3C smoked-amber aviator tint
 
-# Lapis re-plumage: a deep midnight-blue body kept dark enough that the gold
-# engraving is the ONLY bright value, but lifted off pure black (sapphire mid in
-# the chest/crown) so the body never reads as a flat void on a dark night sky.
-# Lenses keep Pip's aviators but tint DEEP SAPPHIRE so the face stays in-key; the
-# beak is cooled to a pale sapphire-grey so the macaw wedge still reads.
-_CONSTELLATION_PAL = _pal(
-    tail=[(12, 20, 46), (15, 25, 56), (20, 33, 72), (28, 44, 92)],
-    tail_line=(9, 15, 36),
-    body_shadow=(11, 18, 44),
-    body_main=_LAPIS,
-    body_chest=(34, 54, 110),
-    body_belly=(17, 28, 64),
-    sheen=(120, 150, 230, 70),
-    wing_main=(19, 31, 70),
-    wing_dark=(10, 17, 42),
-    wing_tip=(46, 72, 138),
-    wing_secondary=None,
-    wing_highlight=(96, 128, 206),
-    head_shadow=(11, 18, 44),
-    head_main=(20, 33, 74),
-    head_cheek=(40, 60, 116),
-    head_crown=(34, 54, 108),
-    lens_frame=(78, 104, 168),
-    lens_body=(9, 14, 34),
-    lens_tint=(46, 74, 150, 150),
-    lens_glint=(220, 232, 255),
-    beak_main=(150, 166, 206),
-    beak_dark=(40, 56, 98),
-    beak_gloss=(228, 238, 255),
-    foot=(70, 92, 150),
+
+# Full charcoal-mauve re-plumage. Shadow slots run deep so the body carries a
+# dark→light range and the dark moth-silhouette reads on bright day sky; the
+# chest/belly lift into dusty-rose so the bird stays warm and present on navy
+# night sky. Cream is kept OUT of the base plumage — it belongs only to the
+# overlaid eyespot + plume tips so those tells own the one bright value. Aviators
+# retinted smoked amber (warm, in-key with the ember wing accent).
+P_EMBERMOTH = _pal(
+    tail=[(28, 22, 32), (38, 30, 44), (52, 40, 58), (78, 56, 70)],
+    tail_line=_EM_PLUME_D,
+    body_shadow=_EM_BASE_D,
+    body_main=_EM_BASE,
+    body_chest=_EM_ROSE,
+    body_belly=_EM_ROSE_H,
+    sheen=(180, 150, 165, 70),
+    wing_main=(50, 39, 56),
+    wing_dark=(30, 23, 34),
+    wing_tip=(132, 92, 104),
+    wing_secondary=None,               # single-hue velvet — no contrast feather
+    wing_highlight=(118, 92, 110),
+    head_shadow=_EM_BASE_D,
+    head_main=_EM_BASE,
+    head_cheek=(96, 70, 84),
+    head_crown=(64, 50, 70),
+    lens_frame=(176, 120, 86),         # warm smoked-amber rims
+    lens_body=(34, 26, 32),
+    lens_tint=(168, 106, 60, 120),     # smoked-amber lens tint
+    lens_glint=(248, 224, 196),
+    beak_main=(186, 132, 110),
+    beak_dark=(120, 74, 62),
+    beak_gloss=(248, 226, 206),
+    foot=(120, 80, 76),
 )
 
 
-def _constellation_base(angle_deg):
-    return _build_parrot_with_palette(angle_deg, _CONSTELLATION_PAL)
+def _frond(surf, base, tip, ctrl, teeth):
+    """One feathered frond of the antenna-plume — a tapered dark spine from `base`
+    toward `tip` (bowed through `ctrl`), combed on its OUTER edge with hard cream-
+    tipped teeth. Each tooth is a fat ≥3px wedge so the frond survives the
+    downscale as a ragged comb, not a smooth blade — the luna-moth feeler read.
+    `teeth` is a list of (anchor_t, dx, dy): a point along the spine (0→1) and the
+    outward direction of that tooth."""
+    bx, by = base
+    tx, ty = tip
+    cx, cy = ctrl
+
+    def _spine(t):
+        # Quadratic bezier so the frond bows back like a real feeler.
+        u = 1 - t
+        return (u * u * bx + 2 * u * t * cx + t * t * tx,
+                u * u * by + 2 * u * t * cy + t * t * ty)
+
+    spine = [_spine(i / 12) for i in range(13)]
+    # A dark under-stroke + plume-body spine + a lit edge so the frond reads as a
+    # round feathered shaft and seats hard against the sky on both biomes.
+    pygame.draw.lines(surf, _EM_PLUME_D, False, spine, 5)
+    pygame.draw.lines(surf, _EM_PLUME, False, spine, 3)
+    pygame.draw.lines(surf, _EM_PLUME_H, False, spine, 1)
+
+    # Hard comb teeth along the outer edge — dark wedge backing + a cream tip so
+    # each tooth carries the bright/dark value jump that survives 40px.
+    for at, dx, dy in teeth:
+        ax, ay = _spine(at)
+        # A perpendicular base so the wedge is fat (≥3px), not a hairline.
+        if abs(dx) >= abs(dy):
+            b0, b1 = (ax, ay - 2), (ax, ay + 2)
+        else:
+            b0, b1 = (ax - 2, ay), (ax + 2, ay)
+        ttip = (ax + dx, ay + dy)
+        pygame.draw.polygon(surf, _EM_PLUME, [b0, b1, ttip])
+        pygame.draw.line(surf, _EM_PLUME_D, b0, ttip, 1)
+        # Cream caps the outer third of the tooth so the comb sparkles like dusted
+        # moth-scales without losing the dark seat.
+        midx = ax + dx * 0.55
+        midy = ay + dy * 0.55
+        pygame.draw.line(surf, _EM_CREAM, (midx, midy), ttip, 2)
 
 
-# ── shared helpers ────────────────────────────────────────────────────────────
-
-def _flap_phase(angle_deg):
-    """0 on the down-stroke (wing 50°) → 1 on the up-stroke (-40°). The halo
-    glints and the comet tail drift a touch on the up-beat so the baked
-    engraving still reads alive across the 4 frames."""
-    return 1.0 - (angle_deg + 40) / 90.0
-
-
-def _arc(cx, cy, r, a0, a1, steps=18):
-    """Point list along a circular arc (radians a0→a1) — the spine of the gold
-    orbital halo, sampled fine enough to draw as a thick smooth band that
-    survives the 40px downscale."""
-    return [(cx + math.cos(a0 + (a1 - a0) * i / steps) * r,
-             cy + math.sin(a0 + (a1 - a0) * i / steps) * r)
-            for i in range(steps + 1)]
+def _eyespot(surf, cx, cy):
+    """The hero eyespot disc at the plume root — a dark ring + warm-cream pupil, the
+    one tell guaranteed to survive the 40px read. Sized so both ring (≥2px) and
+    pupil (≥2px) clear the downscale: a dusty-rose halo, a hard near-black ring, a
+    cream pupil, and a single bright pinprick so the eye reads as a wet moth-
+    ocellus rather than a flat dot. This is the high-contrast anchor that carries
+    the skin when the comb-fronds dissolve."""
+    pygame.draw.circle(surf, _EM_ROSE, (cx, cy), 7)        # warm halo seat
+    pygame.draw.circle(surf, _EM_PLUME_D, (cx, cy), 6)     # dark ring (outer)
+    pygame.draw.circle(surf, (16, 12, 18), (cx, cy), 5)    # near-black ring core
+    pygame.draw.circle(surf, _EM_CREAM, (cx, cy), 3)       # warm-cream pupil
+    pygame.draw.circle(surf, _EM_EMBER, (cx, cy), 3, 1)    # ember inner rim
+    pygame.draw.circle(surf, (255, 246, 226), (cx - 1, cy - 1), 1)   # wet glint
 
 
-# Orbital halo geometry: a WIDE arc wrapping the head from the left flank, over
-# the top-rear, down the right flank, sized larger than the skull (r=20) so the
-# clean gold band clears OUTSIDE the silhouette on the sides — the part that
-# reads as a halo separating bird from sky. The crescent crest sits up off the
-# top, so the halo leans to wrap the rear/flanks rather than the very top.
-_HALO_CX, _HALO_CY, _HALO_R = HX - 2, HY - 1, 20
+def _paint_crest(surf):
+    """The hero forked antenna-plume. It roots into the BACK of the crown (screen-
+    left of the face, up-and-back toward the tail) and FORKS into two unequal
+    fronds that fan past the silhouette like a luna-moth feeler — deliberately not
+    symmetric horns, so it reads moth, not antlers. The longer rear frond sweeps
+    furthest back to break the egg at the top-rear corner; the shorter inner frond
+    fans up so the pair reads as a feather, not a single quill. The eyespot disc
+    caps the root as the carry-the-read anchor."""
+    root = (HX - 6, CROWN_Y + 5)       # buried 3px into the back of the skull
 
-
-def _halo_spine():
-    return _arc(_HALO_CX, _HALO_CY, _HALO_R, math.radians(190), math.radians(350))
-
-
-# Halo star-glints pinned ON the ring (fixed positions, stable across frames) —
-# a few bright nodes that read as stars caught on the orbit.
-def _halo_glints():
-    spine = _halo_spine()
-    return [spine[2], spine[8], spine[len(spine) - 3]]
-
-
-def _comet_nodes(phase):
-    """Comet trail replacing the feather fan, rebuilt BOLD + SPARSE so it survives
-    40px (the many-tiny-nodes version collapsed to a dark wedge). Only FOUR nodes:
-    a clearly-largest root (≥3px at native so it holds ≥3px after the downscale),
-    stepping down in size, streaming DOWN-BACK well past the tail silhouette (body
-    back ≈ x13) into open sky so it breaks the egg. A fixed hand-placed line (NOT
-    random) so the 4 frames stay stable; the tail end drifts ~1px with the flap so
-    the comet feels like it's streaming. Each entry: (x, y, radius)."""
-    drift = (phase - 0.5) * 1.5
-    # Root sits at the upper tail join and is BIG; the line steps down-and-back so
-    # the nodes clearly clear the silhouette into open sky. Big root → small tip.
-    return [
-        (13,           HY + 9,             4),   # brightest, largest root node
-        (8,            HY + 16,            3),
-        (3,            HY + 23 + drift,    2),
-        (-2,           HY + 30 + drift,    1),   # small tail tip
-    ]
-
-
-# ── back layer: orbital halo + comet-node trail (two-pass) ────────────────────
-
-def _constellation_back(surf, angle_deg):
-    """Every behind-body element lives here, BEHIND the outlined bird, so the
-    house outline (grown from the bird's alpha mask) never boxes a gold node into
-    a dark-rimmed island. Two passes, both un-outlined, the AURORA trick exactly:
-
-      1. an ADDITIVE bloom buffer — soft gold stamps under every halo glint and
-         comet node, so the chart TWINKLES on dark night skies where additive
-         emission shines.
-      2. an OPAQUE bright-detail buffer alpha-blitted ON TOP — the orbital halo
-         band (clean 2px gold over a faint ink backing) + the comet-node line as
-         solid gold over a thin ink backing, so the halo and comet ALSO survive a
-         bright day sky where additive washes to nothing. A legendary reads on
-         both skies."""
-    phase = _flap_phase(angle_deg)
-    halo = _halo_spine()
-    glints = _halo_glints()
-    nodes = _comet_nodes(phase)
-
-    # pass 1: restrained additive bloom (night twinkle, POINTS only) — half the
-    # R1 radius/intensity and kept OFF the lines and OFF the halo arc, so the
-    # discrete gold points twinkle while dark lapis sky survives BETWEEN them and
-    # the chart reads as engraved dots, never a continuous gold haze.
-    glow = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    for gx, gy in glints:
-        blit_glow(glow, int(gx), int(gy), 3, _GLINT, alpha=90)
-    for nx, ny, r in nodes:
-        blit_glow(glow, int(nx), int(ny), r + 1, _GOLD, alpha=80)
-    surf.blit(glow, (0, 0), special_flags=pygame.BLEND_ADD)
-
-    # pass 2: opaque bright detail (day + night)
-    det = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-
-    # ORBITAL HALO — the legendary tell, rebuilt as a DISCRETE gold RING (not a
-    # glow): a 3px solid gold band over a 1px dark ink backing, sitting clearly
-    # OUTSIDE the skull on the rear/flanks so a player reads a struck gold orbit
-    # on both biomes. The crescent owns the very top, so the arc wraps the rear.
-    pygame.draw.lines(det, _INK, False, halo, 5)
-    pygame.draw.lines(det, _GOLD, False, halo, 3)
-    # A pale struck sheen along the top-rear of the arc so the metal catches light.
-    sheen = _arc(_HALO_CX, _HALO_CY, _HALO_R, math.radians(206), math.radians(300))
-    pygame.draw.lines(det, _GLINT, False, sheen, 1)
-    for gx, gy in glints:
-        pygame.draw.circle(det, _INK, (int(gx), int(gy)), 3)
-        pygame.draw.circle(det, _GLINT, (int(gx), int(gy)), 2)
-        pygame.draw.circle(det, (255, 255, 255), (int(gx), int(gy)), 1)
-
-    # COMET TRAIL — the aft silhouette-breaker, BOLD + SPARSE. One thick OPAQUE
-    # gold connecting line over an ink backing threads four struck gold discs
-    # (ink ring → gold → white core), big root → small tip, streaming down-back
-    # into open sky. The thick line survives day sky even with the bloom dialed
-    # back; the big root + clear taper read as a comet, not a feather fan.
-    line = [(x, y) for x, y, _ in nodes]
-    pygame.draw.lines(det, _INK, False, line, 4)
-    pygame.draw.lines(det, _GOLD, False, line, 2)
-    for nx, ny, r in nodes:
-        pygame.draw.circle(det, _INK, (int(nx), int(ny)), r + 1)
-        pygame.draw.circle(det, _GOLD, (int(nx), int(ny)), r)
-        pygame.draw.circle(det, _GLINT, (int(nx), int(ny)), max(1, r - 1))
-
-    surf.blit(det, (0, 0))
-
-
-# ── front overlay: crescent crest + star-line chart + rim + aviators ──────────
-
-def _constellation_front(surf, angle_deg):
-    """Painted OVER the body and INSIDE the masked layer, so only crisp opaque
-    gold belongs here (soft bloom lives in _constellation_back to dodge the
-    outline). The job: the crescent-moon crest (silhouette-break #1), the
-    join-the-dots star-chart over the plumage, the gold wing rim, a re-asserted
-    macaw face, and the deep-sapphire aviators with a gold top-rim glint.
-
-    All chart LINES are opaque gold so the engraving survives the 40px day read;
-    the NODES get their twinkle from the additive back-pass plus an opaque gold
-    core here so they read on both skies."""
-
-    # 1. GILDED CRESCENT-MOON CREST (silhouette-break #1) — a hard gold sliver
-    #    rising past CROWN_Y: a fuller outer gold disc with a lapis disc bitten
-    #    out of it, leaving a thick crescent. A pale inner rim catches light, and
-    #    one white star sits tucked in the crescent's hollow. The crescent tilts
-    #    so its horns point up-and-back, clearly a moon over the brow.
-    mcx, mcy = HX - 1, CROWN_Y - 7        # moon centre, well past the crown
-    mr = 9
-    pygame.draw.circle(surf, _INK, (mcx, mcy), mr + 1)        # backing
-    pygame.draw.circle(surf, _GOLD, (mcx, mcy), mr)           # full gold disc
-    pygame.draw.circle(surf, _GLINT, (mcx, mcy), mr, 1)       # pale struck rim
-    # Bite a lapis disc out, offset down-right, to leave a crescent with horns up.
-    bcx, bcy = mcx + 4, mcy + 2
-    pygame.draw.circle(surf, _INDIGO, (bcx, bcy), mr - 1)
-    # Re-strike a thin gold inner edge along the bitten curve so the crescent's
-    # inner lip reads as metal, not a hole.
-    inner = _arc(bcx, bcy, mr - 1, math.radians(150), math.radians(300), steps=10)
-    pygame.draw.lines(surf, _GOLD, False, inner, 1)
-    # White star in the crescent hollow.
-    sx, sy = bcx - 1, bcy
-    pygame.draw.circle(surf, (255, 255, 255), (sx, sy), 1)
-    pygame.draw.line(surf, (*_GLINT, 200), (sx - 2, sy), (sx + 2, sy), 1)
-    pygame.draw.line(surf, (*_GLINT, 200), (sx, sy - 2), (sx, sy + 2), 1)
-
-    # 2. JOIN-THE-DOTS STAR-CHART over the plumage — a FIXED hand-placed pattern
-    #    (NOT random) of gold star-NODES on back/wing/chest connected by thin
-    #    gold LINES, so the whole bird reads as an engraved celestial chart. The
-    #    nodes are chosen to suggest a wing-spread bird-constellation across the
-    #    body. Lines are opaque gold over a faint ink channel so they survive the
-    #    40px day read; nodes get a gold disc + white core.
-    # The lower cluster is pulled UP + IN vs R1 so a band of dark lapis sky sits
-    # between the lowest chart node and the comet root (~x13,y50) — chest-chart
-    # and tail then read as TWO distinct gold events, not one smeared mass.
-    nodes = (
-        (24, 47, 2),   # back-shoulder (brightest, near the chart's "head")
-        (30, 44, 2),   # upper back
-        (37, 46, 2),   # chest-top, toward the wing
-        (44, 49, 2),   # wing leading shoulder
-        (33, 52, 1),   # chest centre
-        (29, 54, 1),   # lower belly (pulled up+in off the comet)
-        (39, 54, 1),   # lower chest, toward tail-side
-        (25, 50, 1),   # rear-flank node, pulled IN so it clears the comet root
+    # Longer outer frond — sweeps up-and-back furthest, the egg-breaker. Teeth comb
+    # its OUTER (sky-facing, screen-left/up) edge so the ragged fan faces open sky.
+    _frond(
+        surf, root, (HX - 22, CROWN_Y - 14), (HX - 16, CROWN_Y - 2),
+        teeth=[(0.30, -5, -2), (0.50, -6, -2), (0.70, -5, -3), (0.88, -4, -4)],
     )
-    # Edge list joining the nodes into one connected constellation figure.
-    edges = (
-        (0, 1), (1, 2), (2, 3),       # the spread "wing-bar" across the top
-        (1, 4), (4, 5),               # spine down into the belly
-        (4, 6), (2, 6),               # a triangle toward the tail
-        (0, 7), (7, 5),               # rear flank link toward the comet
+    # Shorter inner frond — fans up-and-slightly-back, narrower, so the two fronds
+    # read as ONE forked feeler rather than twin horns.
+    _frond(
+        surf, root, (HX - 11, CROWN_Y - 17), (HX - 9, CROWN_Y - 5),
+        teeth=[(0.40, -4, -3), (0.62, -4, -4), (0.82, -3, -4)],
     )
-    for a, b in edges:
-        ax, ay, _ = nodes[a]
-        bx, by, _ = nodes[b]
-        pygame.draw.line(surf, _INK, (ax, ay), (bx, by), 2)
-        pygame.draw.line(surf, _GOLD, (ax, ay), (bx, by), 1)
-    for nx, ny, r in nodes:
-        pygame.draw.circle(surf, _INK, (nx, ny), r + 1)
-        pygame.draw.circle(surf, _GOLD, (nx, ny), r)
-        pygame.draw.circle(surf, _GLINT, (nx, ny), max(1, r - 1))
-    # The two brightest nodes get a twinkle cross so the chart sparkles at 40px.
-    for nx, ny, r in (nodes[0], nodes[3]):
-        pygame.draw.line(surf, (*_GLINT, 200), (nx - 3, ny), (nx + 3, ny), 1)
-        pygame.draw.line(surf, (*_GLINT, 200), (nx, ny - 3), (nx, ny + 3), 1)
 
-    # 3. WING LEADING-EDGE GOLD RIM — one bright gold rim along the wing's top
-    #    edge so the wing carves off the dark body as a struck-gold plane and the
-    #    flap stays legible. Ink channel under a 2px gold core for the 40px read.
-    wing_rim = [(36, 41), (42, 44), (47, 48)]
-    pygame.draw.lines(surf, _INK, False, wing_rim, 3)
-    pygame.draw.lines(surf, _GOLD, False, wing_rim, 2)
-
-    # 4. BACK/CROWN GOLD RIM — a thin gold edge along the head crown + upper back
-    #    so the lapis head reads as a distinct lit dome on top of the body, the
-    #    single break that restores the macaw silhouette at 40px.
-    crown_rim = [(HX - 12, CROWN_Y + 4), (HX - 5, CROWN_Y), (HX + 4, CROWN_Y + 1),
-                 (HX + 11, HY - 4)]
-    pygame.draw.lines(surf, _INK, False, crown_rim, 3)
-    pygame.draw.lines(surf, _GOLD, False, crown_rim, 2)
-
-    # 5. AVIATORS — kept deep sapphire (subordinate to the chart, the "ascended
-    #    aviators" identity), but each lens now gets a 2px bright GOLD top-rim arc
-    #    (#FFF3C8) so the shades read as glasses at 40px without recoloring the
-    #    lens fully gold. Lens centres mirror _draw_lenses' (cx=50, cy=20)+DY anchors.
-    for lx, ly in ((HX - 3, HY - 1), (HX + 6, HY - 2)):
-        rim = _arc(lx, ly, 6, math.radians(205), math.radians(335), steps=7)
-        pygame.draw.lines(surf, _GLINT, False, rim, 2)          # gold top-rim glint
-    # Sharpened beak top edge so the macaw wedge survives the downscale.
-    pygame.draw.line(surf, _GLINT, (HX + 8, HY + 1), (HX + 13, HY + 4), 2)
+    # The eyespot disc anchors the fork at the root — drawn LAST so it sits clean
+    # over the two spines where they meet the crown.
+    _eyespot(surf, HX - 6, CROWN_Y + 2)
 
 
-# ── custom compose + getter (halo + comet need a back layer) ──────────────────
+def _paint_embermoth(surf, _a, *, crest=True):
+    # BODY ACCENT — ONE per zone so nothing competes with the crest at 40px.
 
-def _constellation_getter():
-    """back aura (orbital halo + comet-node trail, two-pass) → lapis body → front
-    crescent/star-chart/rim/aviators overlay → house outline, then the
-    per-(frame, 3°-bucket) rotation cache shared by every store skin.
+    # 1 · WING LEADING-EDGE EMBER LINE: a single warm ember rim along the wing's
+    #     top edge — the brief's one body accent — so the velvet wing carves off
+    #     the dark body as a warm-lit plane and the flap stays legible. A dark
+    #     under-stroke seats the ember so it never shimmers against the mauve.
+    edge = [(46, 41), (40, 38), (34, 36)]
+    pygame.draw.lines(surf, _EM_PLUME_D, False, edge, 3)
+    pygame.draw.lines(surf, _EM_EMBER, False, edge, 2)
 
-    The outline is grown from the bird's alpha mask, so the faint additive halo +
-    comet bloom must NOT join the masked layer (a dark rim would wrap the glow and
-    kill it). So outline the OPAQUE bird (body + front overlay) alone, then lay
-    the soft back-aura UNDER it, padded to match the outline's grow so the bird
-    stays centred for the rotation maths."""
-    state = {"frames": None, "rot": {}}
+    # 2 · BREAST SCALE-DUST: two faint cream stipples on the dusty-rose breast so
+    #     the body reads as powdery moth-scale velvet at hero size without adding a
+    #     busy second zone (they vanish to nothing at 40px, by design — the eyespot
+    #     is the only bright tell that must survive).
+    for sx, sy in ((33, 50), (38, 53)):
+        pygame.draw.circle(surf, (210, 180, 158), (sx, sy), 1)
 
-    def _flat(wing_angle):
-        bird = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-        bird.blit(_constellation_base(wing_angle), (0, PARROT_DY))
-        _constellation_front(bird, wing_angle)
-        bird = _add_outline(bird)
-
-        aura = pygame.Surface(bird.get_size(), pygame.SRCALPHA)
-        pad = (bird.get_width() - COMPOSITE_W) // 2
-        back = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-        _constellation_back(back, wing_angle)
-        aura.blit(back, (pad, pad))
-        aura.blit(bird, (0, 0))
-        return aura
-
-    def getter(frame_idx, tilt_deg):
-        if state["frames"] is None:
-            state["frames"] = [_flat(a) for a in _WING_ANGLES]
-        frames = state["frames"]
-        frame_idx %= len(frames)
-        key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
-        s = state["rot"].get(key)
-        if s is None:
-            s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
-            state["rot"][key] = s
-        return s
-
-    return getter
+    # 3 · HERO CREST — the forked antenna-plume + eyespot. Split into its own
+    #     helper so the round sheet can render a crest-masked proof that the
+    #     charcoal-mauve body alone holds its silhouette on both skies.
+    if crest:
+        _paint_crest(surf)
 
 
-build = _constellation_getter()
+# Body recolour through the palette system + the moth overlay, wrapped by the
+# house _make_skin contract (lazy flat build + per-(frame, 3°) rotation cache).
+build = store_skins._make_skin(
+    _paint_embermoth,
+    base_fn=lambda a: _build_parrot_with_palette(a, P_EMBERMOTH),
+)
+
+# Crest-masked variant — the SAME skin with the antenna-plume + eyespot
+# suppressed, so the round sheet can prove the charcoal-mauve body alone holds its
+# silhouette on both skies. Exploration harness only; never a shippable skin.
+build_no_crest = store_skins._make_skin(
+    lambda s, a: _paint_embermoth(s, a, crest=False),
+    base_fn=lambda a: _build_parrot_with_palette(a, P_EMBERMOTH),
+)
