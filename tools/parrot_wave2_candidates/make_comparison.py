@@ -1,9 +1,11 @@
 """Assemble the wave-2 final comparison figure: original Pip + the 5 shipped
 finals, each mid-flight in the same real gameplay scene, side by side.
 
-Exploration deliverable only — loads the scratch builders under
-tools/parrot_wave2_candidates/ and renders via the shared ninja_render harness
-so the figure matches every in-loop preview. Touches no production art.
+Exploration deliverable only. The three keepers (THORNCREST, MOONBLOOM, CHROME)
+are now live store skins, so they render through their production skin ids; the
+two replacements (EMBERMOTH, TEMPEST CONDOR) render through their scratch
+candidate builders. Either source resolves through the shared ninja_render
+harness so the figure matches every in-loop preview. Touches no production art.
 """
 from __future__ import annotations
 import os
@@ -21,17 +23,23 @@ OUT = os.path.join(
     HERE, "..", "..", "docs", "store_redesign", "parrot", "wave2",
     "final_comparison.png")
 
-# (source, name, tier) — original Pip is the base fallback (sid None), the five
-# finals are each candidate module's `build` callable.
+
+def _builder(module):
+    return importlib.import_module(
+        f"tools.parrot_wave2_candidates.{module}").build
+
+
+# (source, name, tier) — original Pip is the base fallback (sid None); the three
+# keepers render via their live store skin ids; the two replacements via their
+# scratch candidate builders.
 PANELS = [
     (None, "ORIGINAL PIP", "base"),
+    ("skin_thorncrest", "THORNCREST MACAW", "EPIC"),
+    (_builder("design_3"), "EMBERMOTH MACAW", "EPIC"),
+    ("skin_moonbloom", "MOONBLOOM MACAW", "LEGENDARY"),
+    (_builder("design_4"), "TEMPEST CONDOR", "LEGENDARY"),
+    ("skin_chrome", "CHROME MACAW", "SECRET"),
 ]
-for n, (name, tier) in enumerate(
-        [("THORNCREST MACAW", "EPIC"), ("JADE-CARVING MACAW", "EPIC"),
-         ("CONSTELLATION MACAW", "LEGENDARY"), ("MOONBLOOM MACAW", "LEGENDARY"),
-         ("CHROME MACAW", "SECRET")], start=1):
-    mod = importlib.import_module(f"tools.parrot_wave2_candidates.design_{n}")
-    PANELS.append((mod.build, name, tier))
 
 PW, PH = 210, 300          # gameplay panel size (portrait — matches canvas crop)
 LABEL_H = 46               # label strip under each panel
