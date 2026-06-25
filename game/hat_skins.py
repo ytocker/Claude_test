@@ -71,23 +71,47 @@ _HEAD_CX = HX
 _HEAD_BASE_Y = CROWN_Y + 3
 _HEAD_HW = 30
 
-# The tall cones rise ~1.4× their head width above the crown; trimmed a touch
-# so their tips/poms clear the top of the composite instead of grazing it.
-_HEAD_HW_OVERRIDE = {
-    "skin_hat_partyhat": 26,
-    "skin_hat_chef":     27,
+# Per-hat seating trim for the IN-GAME look only (the product-shot ICONS keep
+# the canonical anchor). Each ``draw_hat`` module measures its geometry from a
+# different reference — some treat ``base_y`` as a band that wraps well below
+# the crown (so they perch high), others as the brim line (so they slip over
+# the brow) — so the right seat is per-hat, not one global anchor:
+#   dx  +right/forward (toward the beak)   dy  +down (toward the head)
+#   hw  head width the hat is sized to     facing  +1 bill points forward
+# Tuned against an on-Pip render with the crown anchor + head circle overlaid.
+_SEAT = {
+    "skin_hat_partyhat":  {"hw": 26, "dx": -2, "dy": 13},
+    "skin_hat_visor":     {"dx": -4, "dy": 4},
+    "skin_hat_strawhat":  {"dy": 1},
+    "skin_hat_beanie":    {"hw": 28, "dy": 6},
+    "skin_hat_beret":     {"dx": -7, "dy": 13},
+    "skin_hat_buckethat": {"dx": 0, "dy": 5},
+    "skin_hat_flatcap":   {"dx": 3, "dy": 4},
+    "skin_hat_propeller": {"dy": 9},
+    "skin_hat_trucker":   {"dy": 8},
+    "skin_hat_snapback":  {"dx": 0, "dy": 8},
+    "skin_hat_gradcap":   {"dx": -5, "dy": 11},
+    "skin_hat_chef":      {"hw": 27, "dy": 26},
+    "skin_hat_bowler":    {"dy": 1},
+    "skin_hat_fedora":    {},
+    "skin_hat_sombrero":  {"dy": 6},
+    "skin_hat_santa":     {"dy": -2},
+    "skin_hat_nycap":     {"dx": -6, "dy": 11},
 }
 
 
-def _head_paint(draw_hat, head_w):
+def _head_paint(draw_hat, sid):
+    s = _SEAT.get(sid, {})
+    cx = _HEAD_CX + s.get("dx", 0)
+    base_y = _HEAD_BASE_Y + s.get("dy", 0)
+    head_w = s.get("hw", _HEAD_HW)
+    facing = s.get("facing", 1)
+
     def paint(comp, _wing_angle_deg):  # head is stationary across wing frames
-        draw_hat(comp, _HEAD_CX, _HEAD_BASE_Y, head_w, 1)
+        draw_hat(comp, cx, base_y, head_w, facing)
     return paint
 
 
 # ── registries consumed by parrot.py ─────────────────────────────────────────
 ICONS = {sid: _build_icon(fn) for sid, fn in _DRAW.items()}
-BUILDERS = {
-    sid: _make_skin(_head_paint(fn, _HEAD_HW_OVERRIDE.get(sid, _HEAD_HW)))
-    for sid, fn in _DRAW.items()
-}
+BUILDERS = {sid: _make_skin(_head_paint(fn, sid)) for sid, fn in _DRAW.items()}
