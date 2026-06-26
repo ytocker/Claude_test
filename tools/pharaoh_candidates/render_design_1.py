@@ -13,7 +13,7 @@ from tools import ninja_render
 from tools.pharaoh_candidates.design_1 import build
 
 OUT = "docs/store_redesign/costume/pharaoh/design_1/round_1.png"
-TITLE = "DESIGN 1 — GOLDEN PHARAOH  round 1"
+TITLE = "DESIGN 1 — GOLDEN PHARAOH  round 2 (nemes keyline + 3-tier + collar)"
 
 
 def _label(surf, text, x, y, size=18, color=(236, 238, 246)):
