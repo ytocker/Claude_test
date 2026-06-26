@@ -2,10 +2,11 @@
 
 Scratch exploration only — NOT registered in store_skins.BUILDERS, so production
 art stays untouched. Pip the scarlet macaw kitted for the European clay season:
-a white VISOR with a terracotta brow band, a warm-white POLO with a terracotta
-side panel + orange placket piping, an ochre wristband on the near wing, and the
-hero read — ONE bold clay-orange OVAL racket held up so the head still breaks the
-back/top silhouette.
+a visor with a terracotta brow band, a CREAM-OCHRE POLO with a WIDE terracotta
+side panel + a darker cream hem band + orange placket piping, and the hero read —
+ONE bold clay-orange OVAL racket held up so the head still breaks the back/top
+silhouette. The warmth lives in the CLOTH (cream-ochre field + clay stripe), not
+only the prop, so the kit reads as the clay-season strip even at 40px.
 
 This is the warm-tone kit of the tennis set: the whole figure leans dusty orange
 and ochre against cream so it reads as sun-baked clay, never the cool tournament
@@ -29,15 +30,17 @@ from game import store_skins
 from game.store_skins import HX, HY, CROWN_Y, _poly
 
 
-# Warm clay-court palette — terracotta + ochre on a cream white, with a dark
-# clay shadow for contour and a near-black grip. The polo carries a cool-leaning
-# shade value so the cream cloth still reads ROUND against a bright day sky
-# without going muddy; the racket frame is one bold clay-orange ring (three
-# values) so the OVAL HEAD survives downscale even when the thin strings vanish.
-_CL_WHITE    = (244, 241, 234)        # #F4F1EA warm white polo/visor field
-_CL_WHITE_D  = (210, 204, 192)        # cool lower shade (rounds the cream cloth)
-_CL_WHITE_DD = (176, 168, 154)        # deep fold / contour so cream stays crisp
-_CL_WHITE_H  = (253, 251, 244)        # cream highlight
+# Warm clay-court palette — terracotta + ochre on a cream-ochre white, with a
+# dark clay shadow for contour and a near-black grip. The polo field is pushed
+# warm toward cream-ochre (NOT neutral white) and knocked ~8-10% darker so the
+# WHOLE KIT reads as the warm clay-season strip at 40px while the orange racket
+# stays the single most-saturated mass (the focal). The cloth carries an ochre-
+# leaning lower shade so it still rounds against a bright day sky without muddying.
+_CL_WHITE    = (240, 228, 206)        # #F0E4CE cream-ochre polo/visor field (lit)
+_CL_WHITE_D  = (206, 188, 160)        # warm clay-leaning shade (rounds the cloth)
+_CL_WHITE_DD = (170, 150, 124)        # deep fold / contour so cream stays crisp
+_CL_WHITE_HEM = (192, 172, 142)       # darker cream hem band — the torso value break
+_CL_WHITE_H  = (250, 242, 224)        # cream highlight (kept below pure white)
 _CL_TERRA    = (201, 98, 46)          # #C9622E terracotta racket frame + panel
 _CL_TERRA_D  = (138, 62, 28)          # #8A3E1C clay shadow / deep frame
 _CL_TERRA_H  = (228, 138, 84)         # terracotta highlight (frame top sheen)
@@ -93,10 +96,12 @@ def _racket(surf, hx, hy, hr):
     # signature racket Y, with a CREAM throat bridge tucked between them. Carried
     # bold so the V survives even when the cross strings vanish at 40px.
     ty = hy + rh
-    pygame.draw.line(surf, _CL_TERRA_D, (hx - 1, ty + 5), (hx - rw + 2, ty - 2), 5)
-    pygame.draw.line(surf, _CL_TERRA_D, (hx + 1, ty + 5), (hx + rw - 2, ty - 2), 5)
-    pygame.draw.line(surf, _CL_TERRA, (hx - 1, ty + 4), (hx - rw + 3, ty - 1), 3)
-    pygame.draw.line(surf, _CL_TERRA, (hx + 1, ty + 4), (hx + rw - 3, ty - 1), 3)
+    pygame.draw.line(surf, _CL_TERRA_D, (hx - 1, ty + 5), (hx - rw + 2, ty - 2), 6)
+    pygame.draw.line(surf, _CL_TERRA_D, (hx + 1, ty + 5), (hx + rw - 2, ty - 2), 6)
+    # Thicker (4px) terracotta struts so the signature throat Y stays legible
+    # against the dark night pillars at 40px.
+    pygame.draw.line(surf, _CL_TERRA, (hx - 1, ty + 4), (hx - rw + 3, ty - 1), 4)
+    pygame.draw.line(surf, _CL_TERRA, (hx + 1, ty + 4), (hx + rw - 3, ty - 1), 4)
     # Cream throat bridge — the small filled wedge between the struts.
     _poly(surf, _CL_CREAM, [(hx - 1, ty + 3), (hx + 1, ty + 3),
                             (hx + 2, ty - 1), (hx - 2, ty - 1)])
@@ -130,15 +135,22 @@ def _paint(surf, _a):
                             (HX + 10, HY + 18), (HX + 10, HY + 9),
                             (HX + 4, HY + 10), (HX - 5, HY + 10)])
     pygame.draw.line(surf, _CL_WHITE_H, (HX - 11, HY + 10), (HX + 8, HY + 10), 1)
+    # Darker cream HEM BAND along the bottom — a value break so the cloth reads as
+    # a SHAPED torso (not a flat sticker) once the collar V / placket vanish at
+    # 40px. This survives the downscale where the fine piping does not.
+    _poly(surf, _CL_WHITE_HEM, [(HX - 12, HY + 21), (HX + 6, HY + 21),
+                                (HX + 9, HY + 23), (HX - 11, HY + 23)])
 
-    # Terracotta SIDE PANEL down the off-side (far-wing) edge — the warm-tone
-    # block that gives the kit its clay-season colour without a green in sight.
-    _poly(surf, _CL_TERRA, [(HX + 6, HY + 9), (HX + 11, HY + 9),
+    # Terracotta SIDE PANEL down the off-side (far-wing) edge — WIDENED to ~5-6px
+    # so a clay stripe actually survives the 40px downscale on the body and the
+    # kit reads warm-tone, not just the prop. The single block of clay on the
+    # torso that gives the strip its Roland-Garros colour without a green in sight.
+    _poly(surf, _CL_TERRA, [(HX + 4, HY + 9), (HX + 11, HY + 9),
                             (HX + 12, HY + 16), (HX + 9, HY + 23),
-                            (HX + 6, HY + 22)])
-    _poly(surf, _CL_TERRA_H, [(HX + 6, HY + 10), (HX + 8, HY + 10),
-                              (HX + 8, HY + 14), (HX + 6, HY + 15)])  # panel sheen
-    pygame.draw.line(surf, _CL_TERRA_D, (HX + 6, HY + 9), (HX + 6, HY + 22), 1)
+                            (HX + 4, HY + 22)])
+    _poly(surf, _CL_TERRA_H, [(HX + 4, HY + 10), (HX + 7, HY + 10),
+                              (HX + 7, HY + 15), (HX + 4, HY + 16)])  # panel sheen
+    pygame.draw.line(surf, _CL_TERRA_D, (HX + 4, HY + 9), (HX + 4, HY + 22), 1)
 
     # Small collar V at the polo's own top — sits ON the chest, never in the head.
     _poly(surf, _CL_WHITE_DD, [(HX - 5, HY + 9), (HX + 4, HY + 9),
@@ -150,13 +162,9 @@ def _paint(surf, _a):
     # Crisp dark clay contour so the cream polo separates from sky / pillars.
     pygame.draw.polygon(surf, _CL_WHITE_DD, polo, 1)
 
-    # --- Ochre WRISTBAND at the near wing root -----------------------------------
-    # A terry band on the near wing — a sport tell that stays inside the
-    # silhouette, in warm ochre to match the placket and visor accents.
-    wx, wy = HX - 13, HY + 19
-    pygame.draw.line(surf, _CL_TERRA_D, (wx - 3, wy - 3), (wx + 3, wy + 3), 6)
-    pygame.draw.line(surf, _CL_OCHRE, (wx - 3, wy - 3), (wx + 3, wy + 3), 3)
-    pygame.draw.line(surf, _CL_OCHRE_H, (wx - 2, wy - 2), (wx + 2, wy + 2), 1)
+    # NO floating wristband — it read as a stray dot at 40px and cluttered the
+    # silhouette. The hand-on-racket read is carried by the grip dropping into the
+    # near wing instead, keeping the outline clean.
 
     # --- Brow VISOR (keeps the macaw head reading) -------------------------------
     # A white sun visor: a curved brim sweeping over the beak + a terracotta band

@@ -1,10 +1,14 @@
-"""Round-1 review sheet for DESIGN 2 — CLAY COURT (tennis).
+"""Round-2 review sheet for DESIGN 2 — CLAY COURT (tennis).
 
 In-gameplay reads of the candidate clay-court tennis kit: a DAY gameplay panel +
 a NIGHT gameplay panel + a clean hero product-shot, each next to a 40px NEAREST
 "truth read" so the costume can be judged at the size it actually ships. Pure
 capture — touches no production art (the candidate lives under
 tools/tennis_candidates/).
+
+The hero panel uses NEAREST integer upscale (no smoothscale) so the comparison
+is crisp — bilinear smoothing was blurring the round-1 hero shot and hiding the
+pixel-level read the costume actually ships at.
 
 Run headless from repo root:
 ``SDL_VIDEODRIVER=dummy python tools/render_tennis_design_2.py``.
@@ -52,6 +56,24 @@ def gameplay_panel_phase(source, w, h, phase, *, frame_idx=nr.FRAME_IDX, tilt=nr
     return pygame.transform.smoothscale(scene.subsurface(crop).copy(), (w, h))
 
 
+def hero_panel_nearest(source, box, *, frame_idx=nr.FRAME_IDX, tilt=0.0, bg=(22, 20, 32)):
+    """A clean product-shot using NEAREST integer upscale — no smoothscale — so
+    the hero read is crisp and matches the actual pixels the costume ships, not a
+    bilinear-blurred approximation."""
+    panel = pygame.Surface((box, box), pygame.SRCALPHA)
+    pygame.draw.rect(panel, bg, panel.get_rect(), border_radius=14)
+    frame = nr._frame(source, frame_idx, tilt)
+    bb = frame.get_bounding_rect()
+    if bb.width and bb.height:
+        frame = frame.subsurface(bb).copy()
+    sw, sh = frame.get_size()
+    # Integer scale factor keeps every source pixel a clean square block.
+    factor = max(1, int((box * 0.82) / max(sw, sh)))
+    frame = pygame.transform.scale(frame, (sw * factor, sh * factor))
+    panel.blit(frame, frame.get_rect(center=(box // 2, box // 2)))
+    return panel
+
+
 def truth_read(source, px, bg):
     """The 40px NEAREST downscale — the real shipped icon size — on a flat panel
     so the legibility read is honest (no smoothscale flattering the detail)."""
@@ -71,14 +93,13 @@ def truth_read(source, px, bg):
 
 
 PANEL_W, PANEL_H = 220, 392
-HERO = 300
 PAD, GUTTER = 28, 20
 TITLE_H = 84
 
 cols = []
 cols.append(("DAY — GAMEPLAY", gameplay_panel_phase(build, PANEL_W, PANEL_H, 0.0)))
 cols.append(("NIGHT — GAMEPLAY", gameplay_panel_phase(build, PANEL_W, PANEL_H, 0.5)))
-cols.append(("HERO PRODUCT-SHOT", nr.hero_panel(build, PANEL_H)))
+cols.append(("HERO PRODUCT-SHOT (NEAREST)", hero_panel_nearest(build, PANEL_H)))
 
 sheet_w = PAD * 2 + 2 * PANEL_W + GUTTER + PANEL_H + GUTTER
 sheet_h = TITLE_H + PANEL_H + 56 + 40 + (40 + 24) + PAD
@@ -86,7 +107,7 @@ sheet = pygame.Surface((sheet_w, sheet_h))
 sheet.fill((18, 16, 28))
 
 title = _font(30, True).render(
-    "TENNIS — DESIGN 2: CLAY COURT (Roland-Garros terracotta)  ·  round 1",
+    "TENNIS — DESIGN 2: CLAY COURT (Roland-Garros terracotta)  ·  round 2",
     True, _GOLD_PALE)
 sheet.blit(title, title.get_rect(midtop=(sheet_w // 2, 24)))
 
@@ -113,7 +134,7 @@ for lab, bg in (("DAY", (150, 196, 232)), ("NIGHT", (28, 30, 58))):
     sheet.blit(tag_font.render(lab, True, (170, 162, 190)), (tx, ty + 16 + tr.get_height() + 2))
     tx += tr.get_width() + 18
 
-out = os.path.join("docs", "store_redesign", "costume", "tennis", "design_2", "round_1.png")
+out = os.path.join("docs", "store_redesign", "costume", "tennis", "design_2", "round_2.png")
 os.makedirs(os.path.dirname(out), exist_ok=True)
 pygame.image.save(sheet, out)
 print("SAVED", out, sheet.get_size())
