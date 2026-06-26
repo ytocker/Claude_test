@@ -65,6 +65,7 @@ CATALOG: dict[str, dict] = {
     "skin_moonbloom": {"name": "MOONBLOOM",    "cost": 3200, "kind": "skin", "group": "parrot"},
     "skin_tempest":   {"name": "TEMPEST CONDOR", "cost": 3600, "kind": "skin", "group": "parrot"},
     # SECRET tier — masked as ??? in the store until bought (price still shown).
+    "skin_binky":     {"name": "BINKY",       "cost": 6000, "kind": "skin", "group": "parrot", "secret": True},
     "skin_chrome":    {"name": "CHROME MACAW", "cost": 9500, "kind": "skin", "group": "parrot", "secret": True},
 
     # ── ANIMALS (from-scratch creatures) ──────────────────────────────────────
