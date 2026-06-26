@@ -92,7 +92,8 @@ def build_cinder_guardian(wing_angle_deg):
     # Russet plume tube — overlapping circles, width tapering 9 -> 5.
     for i, (x, y) in enumerate(pts):
         t = i / (n - 1)
-        w = 9 - int(round(t * 4))
+        # Fatter at the rump (10) so the torch base reads as part of the body.
+        w = 10 - int(round(t * 5))
         # Dark seam underlay on the lower/right edge for volume.
         pygame.draw.circle(surf, SHADOW, (int(x + 1), int(y + 1)), max(2, w - 1))
         pygame.draw.circle(surf, FUR, (int(x), int(y)), w)
@@ -101,24 +102,20 @@ def build_cinder_guardian(wing_angle_deg):
     # torch (red-panda + fire), not a russet tube with dots. Spacer SHADOW
     # rings between the bright bands give the alternating banded silhouette.
     # rr overhangs the plume by 1-2px on purpose. Bottom cream -> hot top.
+    # A real value climb up the bands: russet base anchors the torch to the
+    # rump, then amber -> hot yellow -> white-hot tip. Without the climb every
+    # band collapsed to near-white and the stripes vanished.
     ring_ramp = [
-        (4,  CREAM,           7),   # full-width cream band, lower tail
-        (6,  (255, 214, 130), 7),   # warm yellow band
-        (8,  (255, 196,  80), 6),   # hot orange-yellow band
-        (10, HOTTIP,          6),   # white-hot band near terminal
+        (3,  FUR,               6),   # russet band (base of torch)
+        (6,  (230, 150, 60),    6),   # warm amber
+        (9,  (255, 200, 80),    5),   # hot yellow-orange
+        (11, HOTTIP,            4),   # white-hot tip only
     ]
     for idx, col, rr in ring_ramp:
         x, y = pts[idx]
-        # Dark spacer halo so each bright band separates from its neighbour.
-        pygame.draw.circle(surf, SHADOW, (int(x), int(y)), rr + 1)
+        # Wider dark spacer halo so each band separates from its neighbour.
+        pygame.draw.circle(surf, SHADOW, (int(x), int(y)), rr + 2)
         pygame.draw.circle(surf, col, (int(x), int(y)), rr)
-
-    # Baked bright rind on the top 3 bands — an opaque hot rim on the inner
-    # (tip-facing) side so the torch reads even on a bright daytime sky where
-    # additive glow washes out.
-    for idx, col, rr in ring_ramp[-3:]:
-        x, y = pts[idx]
-        pygame.draw.circle(surf, HOTTIP, (int(x), int(y - 1)), rr - 1)
 
     # Small additive ember kiss only at the very tip — keeps a live spark
     # without a broad multi-ring halo that blows out on dark sky.
@@ -142,6 +139,8 @@ def build_cinder_guardian(wing_angle_deg):
     bcx, bcy = BCX + 2, BCY + 2
     _aaellipse(surf, SHADOW, (bcx + 1, bcy + 2), 13, 14)
     _aaellipse(surf, FUR,    (bcx, bcy),         12, 13)
+    # Dark back-half so the dark-back / cream-front split reads at 40px.
+    _aaellipse(surf, SHADOW, (bcx - 4, bcy - 3), 8, 10)
     # Two-tone split: a large cream front panel is the whole forward-facing
     # surface, so the dark-back / cream-front read survives at 40px. The mid
     # russet belly core sits between them as a transition undertone.
@@ -178,10 +177,14 @@ def build_cinder_guardian(wing_angle_deg):
 
     _eye(surf, hcx - 4, hcy, 3)
     _eye(surf, hcx + 6, hcy, 3)
+    # Re-assert clean cream on the cheeks over the warm GLOW-ring bleed from
+    # _eye, so the orange rim stays a tight eye accent, not a cheek wash.
+    _aaellipse(surf, CREAM, (hcx - 5, hcy + 2), 5, 6)
+    _aaellipse(surf, CREAM, (hcx + 6, hcy + 2), 5, 6)
 
     # Prominent nose + muzzle line — enlarged so it anchors the dark mask.
-    pygame.draw.circle(surf, EYEDK, (hcx + 1, hcy + 6), 4)
-    pygame.draw.circle(surf, (90, 50, 40), (hcx, hcy + 5), 1)
+    pygame.draw.circle(surf, EYEDK, (hcx + 1, hcy + 5), 3)
+    pygame.draw.circle(surf, (90, 50, 40), (hcx, hcy + 4), 1)
     pygame.draw.line(surf, EYEDK, (hcx + 1, hcy + 8), (hcx + 1, hcy + 10), 1)
 
     return surf
