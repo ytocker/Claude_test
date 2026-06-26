@@ -178,13 +178,4 @@ def build(mode="normal") -> pygame.Surface:
                          _P((body_cx + fx, body_cy + body_ry - 0.6)),
                          _P((body_cx + fx, body_cy + body_ry + 2.2)), _w(1.4))
 
-    # ── Warm cream keyline traced inside the outline on head + body — the NIGHT
-    # lifeline that lifts the silhouette off dark sky without shouting on day. ──
-    pygame.draw.ellipse(surf, KEYLINE,
-                        pygame.Rect(_S(head_cx - head_rx), _S(head_cy - head_ry),
-                                    _S(head_rx * 2), _S(head_ry * 2)), _w(0.7))
-    pygame.draw.ellipse(surf, KEYLINE,
-                        pygame.Rect(_S(body_cx - body_rx), _S(body_cy - body_ry),
-                                    _S(body_rx * 2), _S(body_ry * 2)), _w(0.7))
-
     return pygame.transform.smoothscale(surf, (OUT, OUT))
