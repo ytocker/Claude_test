@@ -12,8 +12,8 @@ pygame.init()
 from tools import ninja_render
 from tools.sports_candidates.design_3 import build
 
-OUT = "docs/store_redesign/costume/sports/design_3/round_2.png"
-TITLE = "DESIGN 3 — THE GRIDIRON (Am. Football)  round 2"
+OUT = "docs/store_redesign/costume/sports/design_3/round_3.png"
+TITLE = "DESIGN 3 — THE GRIDIRON (Am. Football)  round 3 (no ball)"
 
 
 def _label(surf, text, x, y, size=18, color=(236, 238, 246)):
