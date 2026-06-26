@@ -21,12 +21,17 @@ def face(surf, hcx, hcy, rcy, s, glow):
     pygame.draw.line(surf, _EYE_HUE, (x0 + 1, cy), (x1 - 1, cy), 3)
     # Equatorial midband of ommatidia (the signature white scan-line).
     pygame.draw.line(surf, (250, 252, 250), (x0 + 1, cy), (x1 - 1, cy), 1)
+    # Dark center NOTCH so the band reads as TWO compound eyes joined by the
+    # midband (a face), not one cyclops strip.
+    pygame.draw.line(surf, _STALK_RIM, (hcx, cy - 2), (hcx, cy + 2), 2)
     # Two hot speculars so the visor snaps to attention at 40px.
     pygame.draw.circle(surf, (255, 255, 255), (hcx - 4, cy - 1), 1)
     pygame.draw.circle(surf, (255, 255, 255), (hcx + 4, cy - 1), 1)
-    # Short antennae flicking up off the brow.
-    pygame.draw.line(surf, _STALK_RIM, (hcx - 4, cy - 3), (hcx - 7, hcy - 11), 1)
-    pygame.draw.line(surf, _STALK_RIM, (hcx + 4, cy - 3), (hcx + 7, hcy - 11), 1)
+    # A small dark mouth below so it unambiguously reads as a face.
+    pygame.draw.line(surf, _STALK_RIM, (hcx - 2, hcy + 5), (hcx + 4, hcy + 5), 2)
+    # Short 2px antennae flicking up off the brow.
+    pygame.draw.line(surf, _STALK_RIM, (hcx - 4, cy - 3), (hcx - 7, hcy - 10), 2)
+    pygame.draw.line(surf, _STALK_RIM, (hcx + 4, cy - 3), (hcx + 7, hcy - 10), 2)
 
 
 build = make(face)

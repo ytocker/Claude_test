@@ -11,19 +11,17 @@ from tools.mantis_shrimp_candidates._shared import (
 
 def face(surf, hcx, hcy, rcy, s, glow):
     head_base(surf, hcx, hcy)
-    # Pointed rostrum snout at the front-top of the head (the species tell).
+    # Pointed rostrum snout on the front-LOW of the head (clear of the lead club,
+    # which sits up-right) — the species tell.
     pygame.draw.polygon(surf, _CARA_D,
-                        [(hcx + 6, hcy - 5), (hcx + 12, hcy - 9), (hcx + 8, hcy - 1)])
+                        [(hcx - 8, hcy + 1), (hcx - 13, hcy + 4), (hcx - 6, hcy + 5)])
     pygame.draw.polygon(surf, _CARA,
-                        [(hcx + 6, hcy - 4), (hcx + 11, hcy - 8), (hcx + 8, hcy - 2)])
-    # Short antennae flicking up off the brow.
-    pygame.draw.line(surf, _STALK_RIM, (hcx - 1, hcy - 5), (hcx - 5, hcy - 11), 1)
-    pygame.draw.line(surf, _STALK_RIM, (hcx + 2, hcy - 5), (hcx + 5, hcy - 11), 1)
-    # Outward-angled eye-stalks in a clear V — moderate length, jewels splayed.
-    for sgn, bx in ((-1, hcx - 2), (1, hcx + 3)):
-        tip = (hcx + sgn * 9, hcy - 8 + rcy)
-        pygame.draw.line(surf, _STALK_RIM, (bx, hcy - 3), tip, 5)
-        pygame.draw.line(surf, _STALK, (bx, hcy - 3), tip, 3)
+                        [(hcx - 8, hcy + 2), (hcx - 12, hcy + 4), (hcx - 6, hcy + 4)])
+    # Eye-stalks in a GENTLE V, tips pulled inboard so the jewels don't float wide.
+    for sgn in (-1, 1):
+        tip = (hcx + sgn * 6, hcy - 8 + rcy)
+        pygame.draw.line(surf, _STALK_RIM, (hcx + sgn * 2, hcy - 3), tip, 5)
+        pygame.draw.line(surf, _STALK, (hcx + sgn * 2, hcy - 3), tip, 3)
         _jewel_eye(surf, tip[0], tip[1], 5, glow=glow)
 
 
