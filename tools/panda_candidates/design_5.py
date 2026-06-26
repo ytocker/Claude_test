@@ -157,27 +157,33 @@ def build(wing_angle_deg) -> pygame.Surface:
     # it — at 40px the halo must read as a separate floating element, never a
     # lump fused to the head. Rendered as a soft cyan-white bloom + a bright
     # thin 2px arc core, brightest at the apex. Sits its own ~6px above CROWN_Y.
-    HALO_CY = CROWN_Y - 9               # arc baseline, clear of the ears
-    halo_glow = _radial_glow(15, CYAN, 70, falloff=2.2)
-    surf.blit(halo_glow, halo_glow.get_rect(center=(HCX, HALO_CY - 1)))
-    # Bright thin arc core: two passes (soft wide + crisp 1px white) so it reads
-    # as a glowing ring line, apex brightest.
+    HALO_CY = CROWN_Y - 11              # arc baseline, a clear ~5px gap to ears
+    # Wide cyan bloom anchored at the apex so the halo survives the downscale to
+    # 40px as a bright floating glow rather than collapsing into the dark crown.
+    halo_glow = _radial_glow(18, CYAN, 95, falloff=2.0)
+    surf.blit(halo_glow, halo_glow.get_rect(center=(HCX, HALO_CY)))
     arc_pts = []
-    for i in range(21):
-        t = i / 20.0
-        a = math.pi * (0.10 + 0.80 * t)        # upper arc only
-        hx = HCX + math.cos(a) * 17
-        hy = HALO_CY - math.sin(a) * 8
+    for i in range(25):
+        t = i / 24.0
+        a = math.pi * (0.08 + 0.84 * t)        # upper arc only
+        hx = HCX + math.cos(a) * 18
+        hy = HALO_CY - math.sin(a) * 9
         arc_pts.append((hx, hy, t))
+    # Three passes thicken the apex into a chunky bright bar that reads at 40px:
+    # soft cyan halo, a 2px white-cyan core, then a crisp white centre line.
     for hx, hy, t in arc_pts:
-        # Apex (t≈0.5) is brightest; ends fade so the ring feels lit from above.
-        apex = 1.0 - abs(t - 0.5) * 1.4
-        glow_a = int(120 * max(0.0, apex))
-        pygame.draw.circle(surf, (*CYAN, glow_a), (int(hx), int(hy)), 2)
+        apex = 1.0 - abs(t - 0.5) * 1.3
+        if apex <= 0:
+            continue
+        pygame.draw.circle(surf, (*CYAN, int(150 * apex)), (int(hx), int(hy)), 3)
     for hx, hy, t in arc_pts:
         apex = 1.0 - abs(t - 0.5) * 1.2
-        core_a = int(255 * max(0.25, apex))
-        surf.set_at((int(hx), int(hy)), (255, 255, 255, core_a))
+        if apex <= 0.05:
+            continue
+        pygame.draw.circle(surf, (235, 250, 255, int(255 * apex)),
+                           (int(hx), int(hy)), 2)
+    for hx, hy, t in arc_pts:
+        surf.set_at((int(hx), int(hy)), (255, 255, 255, 255))
 
     # ── round galaxy ears past the crown ──
     # No body speckle here — at 40px it just turns to noise. Each ear carries a

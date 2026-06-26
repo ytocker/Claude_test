@@ -47,24 +47,25 @@ def label(text, x, y, col=(235, 235, 240)):
 
 
 def _night_gameplay_panel(w, h):
-    """A true-dark night-biome variant of ninja_render.gameplay_panel."""
+    """A true-dark night-biome variant of ninja_render.gameplay_panel. The crop
+    is lifted to sit the bird against the dark UPPER sky (~RGB 10,18,53) and
+    exclude the lit horizon band at the bottom — the cosmic palette is meant to
+    be judged on a genuinely dark background, not the dusk-blue glow."""
     scene = pygame.Surface((GW, GH))
     palette = biome.palette_for_phase(NIGHT_PHASE)
     scene.blit(get_sky_surface_biome(GW, GH, GROUND_Y, palette, 0), (0, 0))
-    for bx, by, sc, variant in ((40, 90, 0.9, 0), (200, 130, 1.1, 2), (300, 70, 0.7, 1)):
-        draw_cloud(scene, bx, by, sc, variant=variant)
     draw_mountains(scene, 40.0, GROUND_Y, GW, palette['mtn_far'], palette['mtn_near'])
-    Pipe(x=12, gap_y=250, gap_h=185).draw(scene, palette)
-    Pipe(x=200, gap_y=300, gap_h=170).draw(scene, palette)
+    Pipe(x=12, gap_y=210, gap_h=185).draw(scene, palette)
+    Pipe(x=210, gap_y=260, gap_h=170).draw(scene, palette)
     draw_ground(scene, GROUND_Y, GW, GH, 40.0,
                 palette['ground_top'], palette['ground_mid'], (60, 40, 25))
-    pip_cx, pip_cy = 96, 270
+    pip_cx, pip_cy = 96, 210
     frame = _frame(source, 2, -5.0)
     scene.blit(frame, frame.get_rect(center=(pip_cx, pip_cy)))
-    crop_h = int(GH * 0.78)
+    crop_h = int(GH * 0.62)
     crop_w = int(crop_h * w / h)
     crop = pygame.Rect(0, 0, crop_w, crop_h)
-    crop.center = (pip_cx + 34, pip_cy - 20)
+    crop.center = (pip_cx + 34, pip_cy - 24)
     crop.clamp_ip(pygame.Rect(0, 0, GW, GH))
     return pygame.transform.smoothscale(scene.subsurface(crop).copy(), (w, h))
 
