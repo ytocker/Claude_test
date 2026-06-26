@@ -80,16 +80,21 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _BLACK, (BCX - 12, BCY + 16), (BCX - 1, BCY + 16), 1)
     pygame.draw.line(surf, _BLACK, (BCX + 2, BCY + 16), (BCX + 13, BCY + 16), 1)
 
-    # ── BARE SHOULDERS. Before the tank, paint a curved sliver of Pip's SCARLET
+    # ── BARE SHOULDERS. Before the tank, paint a BROAD wedge of Pip's SCARLET
     #    body at each shoulder root so that — once the NARROW tank panel lands
-    #    on top — scarlet is GUARANTEED to show OUTSIDE the straps at both
-    #    shoulders. This is the sleeveless tell and the #1 basketball read.
-    _poly(surf, _SCARLET, [(BCX - 14, BCY - 5), (BCX - 8, BCY - 8),
-                           (BCX - 6, BCY - 2), (BCX - 12, BCY + 1)])   # off shoulder
-    _poly(surf, _SCARLET, [(BCX + 13, BCY - 5), (BCX + 7, BCY - 8),
-                           (BCX + 5, BCY - 2), (BCX + 11, BCY + 1)])   # near shoulder
-    _poly(surf, _SCARLET_D, [(BCX - 14, BCY - 3), (BCX - 11, BCY - 4),
-                             (BCX - 10, BCY), (BCX - 13, BCY + 1)])
+    #    on top — scarlet is GUARANTEED to fill the armhole gap OUTSIDE the
+    #    straps at both shoulders. This is the sleeveless tell and the #1
+    #    basketball read, so the patches are drawn deliberately wide + bright.
+    _poly(surf, _SCARLET, [(BCX - 15, BCY - 6), (BCX - 6, BCY - 9),
+                           (BCX - 3, BCY - 1), (BCX - 13, BCY + 2)])   # off shoulder
+    _poly(surf, _SCARLET, [(BCX + 14, BCY - 6), (BCX + 5, BCY - 9),
+                           (BCX + 2, BCY - 1), (BCX + 12, BCY + 2)])   # near shoulder
+    # A brighter rounded cap on each so the bare shoulder reads as a curved
+    # deltoid, not a flat patch.
+    pygame.draw.circle(surf, _SCARLET, (BCX + 9, BCY - 4), 3)
+    pygame.draw.circle(surf, _SCARLET, (BCX - 10, BCY - 4), 3)
+    _poly(surf, _SCARLET_D, [(BCX - 15, BCY - 3), (BCX - 12, BCY - 4),
+                             (BCX - 11, BCY + 1), (BCX - 14, BCY + 2)])
 
     # ── SLEEVELESS TANK over the torso. The body panel is deliberately NARROW
     #    (~BCX-8 .. BCX+6) so it sits INSIDE the shoulders, leaving the scarlet
@@ -112,14 +117,14 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _ORANGE, (BCX + 5, BCY - 5), (BCX + 7, BCY - 8), 3)   # near strap
     pygame.draw.line(surf, _ORANGE_H, (BCX + 5, BCY - 5), (BCX + 6, BCY - 7), 1)
 
-    # ── ARMHOLE SCOOPS — a curved arc scored into each side between the strap
-    #    and the body panel, so the bare-shoulder cut is EXPLICIT. The dark
-    #    orange arc + the scarlet behind it read as the open armhole even at
-    #    40px.
+    # ── ARMHOLE SCOOPS — carve an EXPLICIT scarlet sliver in the gap between
+    #    each strap and the tank's side panel, so the bare-shoulder cut is
+    #    unmistakable: bright scarlet inside, then a curved orange arc edging
+    #    the cut so it reads as a scooped armhole, not just exposed skin.
+    pygame.draw.line(surf, _SCARLET, (BCX + 8, BCY - 5), (BCX + 9, BCY + 1), 2)   # near gap
+    pygame.draw.line(surf, _SCARLET, (BCX - 9, BCY - 5), (BCX - 10, BCY + 1), 2)  # off gap
     pygame.draw.arc(surf, _ORANGE_D, (BCX + 4, BCY - 8, 9, 13), -1.2, 1.4, 2)   # near armhole
     pygame.draw.arc(surf, _ORANGE_D, (BCX - 13, BCY - 8, 9, 13), 1.7, 4.3, 2)   # off armhole
-    pygame.draw.arc(surf, _SCARLET_D, (BCX + 5, BCY - 7, 8, 12), -1.0, 1.2, 1)
-    pygame.draw.arc(surf, _SCARLET_D, (BCX - 12, BCY - 7, 8, 12), 1.9, 4.1, 1)
 
     # Black trim piping along the scoop neckline + the tank hem so the kit reads
     # sharp and the hem separates from the shorts waistband below.
@@ -141,22 +146,25 @@ def _paint(surf, _a):
     _draw_block_2(surf, BCX - 7, BCY - 4)
     _draw_block_3(surf, BCX, BCY - 4)
 
-    # ── CHUNKY HIGH-TOPS on the feet line. A cream leather boot with an ankle
-    #    COLLAR BUMP rising above a grey rubber SOLE slab + one accent stripe —
-    #    a basketball sneaker, never a cleat. Sits ON the feet line (~HY+21..27).
-    for fx in (26, 34):
+    # ── CHUNKY HIGH-TOPS on the feet line. Each is a cream leather boot with an
+    #    ankle COLLAR BUMP rising above a grey rubber SOLE slab + one accent
+    #    stripe — a basketball sneaker, never a cleat. A 1px dark contour around
+    #    every boot keeps the two feet from merging into one white blob, and the
+    #    collar bump rising above the sole is what reads "high-top". Sits ON the
+    #    feet line (~HY+18..27), never below it.
+    for fx in (25, 35):
+        # Dark contour box first so the boot reads as its own distinct shape.
+        pygame.draw.rect(surf, _BLACK, (fx - 4, HY + 17, 9, 11), border_radius=2)
         # Grey rubber sole slab — a thick flat base, the sneaker tell.
-        pygame.draw.rect(surf, _SOLE, (fx - 5, HY + 25, 11, 3), border_radius=1)
-        pygame.draw.line(surf, _WHITE_D, (fx - 5, HY + 25), (fx + 5, HY + 25), 1)
+        pygame.draw.rect(surf, _SOLE, (fx - 4, HY + 24, 9, 3))
         # Cream boot upper.
-        pygame.draw.rect(surf, _CREAM, (fx - 4, HY + 21, 9, 5), border_radius=2)
-        # Ankle COLLAR BUMP rising above the upper — the high-top tell.
-        pygame.draw.rect(surf, _CREAM, (fx - 4, HY + 18, 5, 5), border_radius=2)
-        pygame.draw.line(surf, _WHITE, (fx - 4, HY + 19), (fx, HY + 19), 1)
+        pygame.draw.rect(surf, _CREAM, (fx - 3, HY + 21, 7, 4), border_radius=1)
+        # Ankle COLLAR BUMP rising above the upper toward the leg — high-top tell.
+        pygame.draw.rect(surf, _CREAM, (fx - 3, HY + 18, 4, 4), border_radius=2)
+        pygame.draw.line(surf, _WHITE, (fx - 3, HY + 19), (fx, HY + 19), 1)  # collar glint
         # One accent stripe swooping across the upper + a black lace flash.
-        pygame.draw.line(surf, _ACCENT, (fx - 3, HY + 24), (fx + 4, HY + 22), 2)
-        pygame.draw.line(surf, _BLACK, (fx - 1, HY + 20), (fx + 2, HY + 20), 1)
-        pygame.draw.line(surf, _WHITE, (fx - 3, HY + 21), (fx, HY + 21), 1)  # toe glint
+        pygame.draw.line(surf, _ACCENT, (fx - 3, HY + 23), (fx + 3, HY + 21), 2)
+        pygame.draw.line(surf, _WHITE, (fx - 2, HY + 24), (fx + 3, HY + 24), 1)  # toe cap
 
     # ── WRISTBAND on the near wing — a bold white sweatband with a thin accent
     #    midline, clearly on the forearm.
@@ -165,13 +173,13 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _WHITE, (wrx - 3, wry + 4), (wrx + 5, wry - 2), 4)
     pygame.draw.line(surf, _ACCENT, (wrx - 2, wry + 3), (wrx + 4, wry - 2), 1)
 
-    # ── THIN BROW HEADBAND across the brow — the iconic non-ball hoops cue. A
-    #    slim white band hugging the crown with a colored midline, leaving
-    #    Pip's eye + beak in the open below it.
-    by = CROWN_Y + 5
-    pygame.draw.line(surf, _WHITE_D, (HX - 12, by + 1), (HX + 13, by), 5)   # shadow
-    pygame.draw.line(surf, _WHITE, (HX - 12, by), (HX + 13, by - 1), 4)
-    pygame.draw.line(surf, _ACCENT, (HX - 11, by), (HX + 12, by - 1), 1)    # colored midline
+    # ── THIN BROW HEADBAND hugging the CROWN — the iconic non-ball hoops cue.
+    #    Kept HIGH (CROWN_Y+3) and slim (3px) so it sits ON the brow ABOVE the
+    #    eye, never sliding down over the eye where it would read as shades.
+    by = CROWN_Y + 3
+    pygame.draw.line(surf, _WHITE_D, (HX - 12, by + 1), (HX + 12, by + 1), 4)  # shadow
+    pygame.draw.line(surf, _WHITE, (HX - 12, by), (HX + 12, by), 3)
+    pygame.draw.line(surf, _ACCENT, (HX - 11, by), (HX + 11, by), 1)          # colored midline
 
 
 def _block_digit(surf, segs, x, y):
