@@ -44,68 +44,69 @@ _CL_REDTRIM = (176, 52, 48)     # the macaw red kept only as dress trim
 def _paint(surf, _a):
     cy = CROWN_Y
 
-    # ── golden LOTUS scepter, slung diagonally INSIDE the wing ────────────────
-    # Painted first so the body covers the shaft mid-section; only the gold
-    # lotus head and the base knob peek inside the silhouette. The whole staff
-    # is tucked above the feet line so nothing dangles past the true footprint.
-    lo_top = (HX - 17, HY + 2)    # lotus bloom up near the back shoulder
-    lo_bot = (HX - 8, HY + 19)    # base inside the lower body
-    pygame.draw.line(surf, _CL_GOLD_D, lo_top, lo_bot, 4)
-    pygame.draw.line(surf, _CL_GOLD, lo_top, lo_bot, 2)
-    pygame.draw.line(surf, _CL_GLINT, (lo_top[0] + 1, lo_top[1] + 2),
-                     (lo_bot[0] + 1, lo_bot[1] - 2), 1)
-    # Lotus bloom — a small gold cup of three upright petals so it reads as a
-    # flower, not a spearhead. A teal seed-bead at the heart ties it to the
-    # collar palette.
-    lx, ly = lo_top
-    _poly(surf, _CL_GOLD_D, [(lx - 4, ly), (lx + 4, ly), (lx, ly - 7)])      # centre petal
-    _poly(surf, _CL_GOLD, [(lx - 3, ly), (lx, ly - 6), (lx - 5, ly - 3)])    # left petal
-    _poly(surf, _CL_GOLD, [(lx + 3, ly), (lx, ly - 6), (lx + 5, ly - 3)])    # right petal
-    _poly(surf, _CL_GLINT, [(lx - 1, ly - 1), (lx + 1, ly - 1), (lx, ly - 5)])
-    pygame.draw.circle(surf, _CL_TEAL, (lx, ly), 1)                          # seed bead
-    pygame.draw.circle(surf, _CL_GOLD, (lo_bot[0], lo_bot[1] + 1), 2)        # base knob
-
-    # ── linen SHEATH DRESS painted OVER the scarlet body ──────────────────────
-    # A fitted column gown hugging the body, hem held INSIDE the base footprint
-    # (~HY+23) so the figure reads at the bird's true size. The macaw red is
-    # left only as a thin hem + side trim so the costume still nods to the
-    # scarlet skin beneath. Linen is the brightest mass low on the body, which
-    # anchors the day read; the bronze fold keeps the value on night.
-    sheath = [(HX - 13, HY + 7), (HX - 14, HY + 17), (HX - 10, HY + 23),
+    # ── TEAL-TRIMMED CLOAK + linen SHEATH painted OVER the scarlet body ───────
+    # The R1 sheath started at HX-13 and left the macaw's hot-orange wing + the
+    # blue primary fully exposed on the bird's left/front — at 40px that warm
+    # wedge was the loudest thing on the sprite and fought the cool read. So the
+    # garment now extends a TEAL MANTLE leftward/up to ~HX-18, painting clean
+    # OVER the orange wing + blue primary: no raw macaw warm/blue survives the
+    # downscale. Teal mantle (back) → linen sheath (front) gives the cool-queen
+    # silhouette colour up top; the bronze fold keeps value on a night sky.
+    # The mantle is cut to swallow the ENTIRE macaw wing/tail sweep, which on
+    # this frame fans out to ~HX-40 in the relY 6..23 band. The teal cloak
+    # reaches all the way to that swept tip so NO raw hot-orange wedge survives
+    # behind the figure at 40px — teal becomes the back silhouette colour.
+    mantle = [(HX + 13, HY + 4), (HX + 6, HY - 1), (HX - 16, HY - 3),
+              (HX - 33, HY + 2), (HX - 44, HY + 7), (HX - 43, HY + 16),
+              (HX - 30, HY + 24), (HX - 14, HY + 26), (HX + 6, HY + 24),
+              (HX + 12, HY + 11)]
+    _poly(surf, _CL_TEAL, mantle)
+    # Bronze-teal underside fold gives the long cloak form and night value.
+    _poly(surf, _CL_TEAL_D, [(HX - 16, HY - 3), (HX - 31, HY + 4),
+                             (HX - 43, HY + 11), (HX - 35, HY + 21),
+                             (HX - 24, HY + 14), (HX - 13, HY + 2)])
+    # Linen sheath as the bright low front mass over the teal mantle.
+    sheath = [(HX - 6, HY + 7), (HX - 7, HY + 17), (HX - 3, HY + 23),
               (HX + 7, HY + 23), (HX + 11, HY + 17), (HX + 9, HY + 7)]
     _poly(surf, _CL_LINEN, sheath)
-    # Soft central fold + back-edge shadow give the flat gown a little form.
-    _poly(surf, _CL_LINEN_D, [(HX - 13, HY + 7), (HX - 14, HY + 17),
-                              (HX - 10, HY + 23), (HX - 8, HY + 22),
-                              (HX - 11, HY + 16), (HX - 10, HY + 8)])
-    pygame.draw.line(surf, _CL_LINEN_D, (HX - 2, HY + 9), (HX - 1, HY + 22), 1)
+    pygame.draw.line(surf, _CL_LINEN_D, (HX + 2, HY + 9), (HX + 3, HY + 22), 1)
     # Thin gold shoulder straps framing the linen front into a clear V band.
-    pygame.draw.line(surf, _CL_GOLD, (HX - 6, HY + 7), (HX - 3, HY + 22), 2)
+    pygame.draw.line(surf, _CL_GOLD, (HX - 2, HY + 7), (HX, HY + 22), 2)
     pygame.draw.line(surf, _CL_GOLD, (HX + 6, HY + 7), (HX + 2, HY + 22), 2)
-    pygame.draw.line(surf, _CL_GLINT, (HX - 6, HY + 8), (HX - 4, HY + 14), 1)
-    # Red macaw kept only as a thin carnelian hem + a side seam — the trim.
-    pygame.draw.line(surf, _CL_REDTRIM, (HX - 10, HY + 23), (HX + 7, HY + 23), 2)
-    pygame.draw.line(surf, _CL_REDTRIM, (HX + 9, HY + 8), (HX + 11, HY + 17), 1)
+    pygame.draw.line(surf, _CL_GLINT, (HX - 2, HY + 8), (HX, HY + 14), 1)
+    # Teal HEM brackets the figure cool at the bottom too (collar cool up top,
+    # hem cool down low) — "she's cool-palette" unmistakable at a glance. The
+    # macaw red survives ONLY as a thin carnelian side seam, a line not a mass.
+    pygame.draw.line(surf, _CL_GOLD, (HX - 31, HY + 22), (HX + 7, HY + 23), 2)
+    pygame.draw.line(surf, _CL_GLINT, (HX - 30, HY + 21), (HX - 8, HY + 22), 1)
+    pygame.draw.line(surf, _CL_CARN, (HX + 10, HY + 9), (HX + 11, HY + 16), 1)
 
-    # ── wide BEADED CLEOPATRA COLLAR — teal / carnelian / gold rows ───────────
-    # Sits INSIDE the body footprint over the top of the sheath (top ~HY+4,
-    # bottom ~HY+13). Concentric arcs of cool teal + carnelian + gold read as a
-    # rich usekh gorget at 40px; the cool teal carries the read on a night sky
-    # where the gold king's collar would wash to a smear.
+    # A small gold LOTUS finial pinned at the mantle shoulder — a flower, not a
+    # spearhead — reading as a gold accent over the teal back without burying a
+    # shaft that would fight the cool mass. Teal seed-bead ties it to the collar.
+    lx, ly = HX - 17, HY + 2
+    _poly(surf, _CL_GOLD_D, [(lx - 3, ly), (lx + 3, ly), (lx, ly - 6)])      # centre petal
+    _poly(surf, _CL_GOLD, [(lx - 3, ly), (lx, ly - 5), (lx - 5, ly - 2)])    # left petal
+    _poly(surf, _CL_GOLD, [(lx + 3, ly), (lx, ly - 5), (lx + 5, ly - 2)])    # right petal
+    pygame.draw.circle(surf, _CL_TEAL, (lx, ly), 1)                          # seed bead
+
+    # ── BEADED CLEOPATRA COLLAR — TWO-value, teal-dominant ────────────────────
+    # R1's five concentric arcs read as confetti at 40px. Now a TWO-value
+    # collar: one solid TEAL arc band carries the whole silhouette (so the
+    # "cool queen" read survives downscale) + a single row of radius-2 gold
+    # beads punctuating it (radius-1 beads vanished at gameplay scale).
+    # Carnelian is banished to ONLY the central drop pendant.
     col_cx, col_cy = HX - 2, HY + 4
-    for r, col in ((11, _CL_GOLD_D), (10, _CL_GOLD), (8, _CL_CARN),
-                   (6, _CL_TEAL), (4, _CL_GOLD)):
-        pygame.draw.arc(surf, col, (col_cx - r, col_cy - r + 2, r * 2, r * 2),
-                        3.45, 6.1, 2)
-    # Bead dots punctuating the outermost row — alternating teal/carnelian so
-    # the cool jewelled read survives the downscale.
-    for k in range(6):
-        a = 3.6 + k * 0.42
-        bx = col_cx + 10 * math.cos(a)
-        by = col_cy + 10 * math.sin(a) + 2
-        bead = _CL_TEAL if k % 2 == 0 else _CL_CARN
-        pygame.draw.circle(surf, bead, (int(bx), int(by)), 1)
-    # A single carnelian drop pendant at the collar's heart.
+    pygame.draw.arc(surf, _CL_TEAL_D, (col_cx - 11, col_cy - 9, 22, 22),
+                    3.45, 6.1, 5)
+    pygame.draw.arc(surf, _CL_TEAL, (col_cx - 10, col_cy - 8, 20, 20),
+                    3.45, 6.1, 4)
+    for k in range(5):
+        a = 3.7 + k * 0.5
+        bx = col_cx + 9 * math.cos(a)
+        by = col_cy + 9 * math.sin(a) + 2
+        pygame.draw.circle(surf, _CL_GOLD, (int(bx), int(by)), 2)
+    # The single carnelian note: a gold-ringed drop pendant at the collar heart.
     pygame.draw.circle(surf, _CL_CARN, (col_cx, col_cy + 12), 2)
     pygame.draw.circle(surf, _CL_GOLD, (col_cx, col_cy + 12), 2, 1)
 
