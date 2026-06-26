@@ -1,14 +1,13 @@
 """Panda — DESIGN 2: BAMBOO MUNCHER.
 
 The "panda doing panda things" build: the can't-miss black-and-white panda
-mask, but loaded with bamboo gear so the silhouette breaks outward with green
-from several directions at once. A thick segmented bamboo stalk is clutched
-diagonally corner-to-corner across the body, two leaf sprigs poke up past the
-crown beside the ears, a chewed leaf hangs from the mouth, and a small woven
-bundle rides on the back. Green is this concept's whole identity — it is the
-only panda in the set carrying a second strong colour and a held prop, so the
-stalk and leaf tufts are pushed bright and large enough to survive the 40px
-in-motion read.
+mask holding one bamboo cane. Green is this concept's whole identity, so the
+green is concentrated into exactly TWO readable shapes — (a) ONE unbroken
+diagonal bamboo stalk running crown-to-hip, held at two black paw grips, and
+(b) a crown leaf sprig — rather than scattered across many small blobs. At
+40px in motion a fragmented green reads as a render bug; a single continuous
+cane reads as "panda with bamboo". One mid-green for the whole cane, darker
+node rings only, so the stalk never breaks value mid-length.
 
 Self-contained full figure (body + head + arms + props) layered the way the
 KFC / ghost variants in ``game/parrot.py`` are, rather than reusing the bare
@@ -103,30 +102,19 @@ def build(wing_angle_deg):
     f = _flap(wing_angle_deg)
     lift = (1.0 - f) * 6.0   # down-pose drops the arms; up-pose lifts them
 
-    # ---- Woven bamboo bundle on the back (drawn first, behind everything) ----
-    # Sits off the upper-left back so it breaks the back outline past the body.
-    bpx, bpy = BCX - 16, BCY - 10
-    pygame.draw.ellipse(surf, GREEN_SH, (bpx - 7, bpy - 9, 14, 20))
-    pygame.draw.ellipse(surf, GREEN, (bpx - 6, bpy - 9, 11, 18))
-    # Woven cross-lashing on the bundle.
-    for k in range(-1, 3):
-        yy = bpy - 6 + k * 5
-        pygame.draw.line(surf, GREEN_SH, (bpx - 5, yy), (bpx + 4, yy - 2), 1)
-    pygame.draw.line(surf, (40, 30, 22), (bpx + 4, bpy - 11),
-                     (BCX - 4, BCY - 2), 2)   # shoulder strap to the body
-
-    # ---- Leaf sprigs poking up past the crown, beside the ears ----
-    # Behind the head so they read as tucked in. Sway opposite the arm lift.
+    # ---- Crown leaf sprig (green element #2) poking up between the ears ----
+    # Drawn first so it sits behind the head and reads as tucked into the cane.
+    # ONE small fan only — the ONLY green near the crown, so it never competes
+    # with an inner-ear colour. Sways opposite the arm lift so it animates.
     sway = (f - 0.5) * 3.0
-    for side, lx in ((-1, HCX - 9), (1, HCX + 8)):
-        rootx, rooty = lx, CROWN_Y + 2
-        for j in range(3):
-            ang = math.radians(-90 + side * (18 + j * 16) + sway * side)
-            ln = 11 - j * 2
-            tipx = rootx + math.cos(ang) * ln
-            tipy = rooty + math.sin(ang) * ln
-            _leaf(surf, (rootx, rooty), (tipx, tipy), 2.6,
-                  GREEN if j % 2 == 0 else GREEN_SH, hi=LEAF_HI)
+    sprig_root = (HCX - 1, CROWN_Y + 1)
+    for j in range(3):
+        ang = math.radians(-90 + (j - 1) * 24 + sway)
+        ln = 12 - abs(j - 1) * 2
+        tipx = sprig_root[0] + math.cos(ang) * ln
+        tipy = sprig_root[1] + math.sin(ang) * ln
+        _leaf(surf, sprig_root, (tipx, tipy), 2.8,
+              GREEN if j == 1 else GREEN_SH, hi=LEAF_HI)
 
     # ---- Body: white belly block + black shoulder yoke ----
     # Soft drop shadow first for a touch of grounding.
@@ -145,64 +133,50 @@ def build(wing_angle_deg):
         _aaellipse(surf, BLACK, (legx, BCY + 13), 5, 5)
         _aaellipse(surf, BLACK_HI, (legx - 1, BCY + 11), 2, 2)
 
-    # ---- Black arm masses (the flap) wrapping the stalk ----
-    # Drawn before the stalk's near end so the near hand can sit over it.
-    arm_top = BCY - 2 - lift
-    # Upper (off-shoulder) arm reaching up-right past the shoulder.
-    _aaellipse(surf, BLACK, (BCX + 11, arm_top - 2), 7, 6)
-    _aaellipse(surf, BLACK_HI, (BCX + 11, arm_top - 4), 3, 2)
-    # Lower (near) arm reaching down-left across the belly.
-    _aaellipse(surf, BLACK, (BCX - 11, BCY + 7 + lift * 0.4), 7, 6)
-    _aaellipse(surf, BLACK_HI, (BCX - 12, BCY + 5 + lift * 0.4), 3, 2)
-
-    # ---- Thick bamboo stalk held diagonally corner-to-corner ----
-    # Up-right past the shoulder down to lower-left past the hip. The arm lift
-    # rocks the stalk slightly so it animates with the flap.
+    # ---- ONE unbroken diagonal bamboo cane (green element #1) ----
+    # Single continuous stalk drawn ON TOP of the whole body block, from the
+    # upper-RIGHT (chewing end, by the mouth) down to the lower-LEFT hip. It is
+    # one thick capped line so there is NO break or value-shift along its
+    # length, and because it is the LAST body layer it crosses the white belly
+    # unbroken instead of disappearing behind it. ONE mid-green end to end; the
+    # only darker green is the node rings. The arm lift rocks the cane so it
+    # animates with the flap. Half-width 4 -> reads as ~2px at 40px.
     rock = (f - 0.5) * 4.0
-    top = (BCX + 16, BCY - 14 - lift + rock)
-    bot = (BCX - 16, BCY + 16 + lift * 0.3 + rock)
+    top = (BCX + 18, BCY - 16 - lift + rock)     # chewing end, up by the mouth
+    bot = (BCX - 17, BCY + 18 + lift * 0.3 + rock)  # butt end, past the hip
     ang = math.atan2(bot[1] - top[1], bot[0] - top[0])
     half = 4
     nx, ny = math.cos(ang + math.pi / 2), math.sin(ang + math.pi / 2)
-    # Stalk body as a filled quad with a darker shadow edge along one side.
-    quad = [
-        (top[0] + nx * half, top[1] + ny * half),
-        (top[0] - nx * half, top[1] - ny * half),
-        (bot[0] - nx * half, bot[1] - ny * half),
-        (bot[0] + nx * half, bot[1] + ny * half),
-    ]
-    pygame.draw.polygon(surf, GREEN_SH, quad)
-    # Lit core inset toward the highlight edge.
-    quad_hi = [
-        (top[0] + nx * (half - 2), top[1] + ny * (half - 2)),
-        (top[0] - nx * (half - 1), top[1] - ny * (half - 1)),
-        (bot[0] - nx * (half - 1), bot[1] - ny * (half - 1)),
-        (bot[0] + nx * (half - 2), bot[1] + ny * (half - 2)),
-    ]
-    pygame.draw.polygon(surf, GREEN, quad_hi)
+    # Dark base line gives the cane a one-sided shadow edge without breaking it.
+    pygame.draw.line(surf, GREEN_SH, top, bot, half * 2)
+    # Single mid-green core inset over the shadow — one colour end to end.
+    core_top = (top[0] - nx * 1.0, top[1] - ny * 1.0)
+    core_bot = (bot[0] - nx * 1.0, bot[1] - ny * 1.0)
+    pygame.draw.line(surf, GREEN, core_top, core_bot, half * 2 - 2)
+    # Specular sheen line on the lit edge, continuous along the whole cane.
     pygame.draw.line(surf, LEAF_HI,
                      (top[0] + nx * (half - 1), top[1] + ny * (half - 1)),
                      (bot[0] + nx * (half - 1), bot[1] + ny * (half - 1)), 1)
-    # Segment node rings along the stalk.
-    for t in (0.22, 0.5, 0.78):
+    # Darker node rings only — the segment joins that make it read as bamboo
+    # without ever interrupting the continuous green line.
+    for t in (0.2, 0.42, 0.64, 0.86):
         ncx = top[0] + (bot[0] - top[0]) * t
         ncy = top[1] + (bot[1] - top[1]) * t
         _bamboo_node(surf, ncx, ncy, half, ang)
-    # A small leaf sprig bursting off the stalk's upper node.
-    sprig_base = (top[0] + (bot[0] - top[0]) * 0.22,
-                  top[1] + (bot[1] - top[1]) * 0.22)
-    _leaf(surf, sprig_base, (sprig_base[0] + 9, sprig_base[1] - 6), 3, GREEN,
-          hi=LEAF_HI)
-    _leaf(surf, sprig_base, (sprig_base[0] + 11, sprig_base[1] + 2), 3,
-          GREEN_SH, hi=LEAF_HI)
 
-    # ---- Darker "mitt" hands gripping the stalk ----
-    grip_t_hi, grip_t_lo = 0.30, 0.74
-    for gt, gx_off, gy_off in ((grip_t_hi, 0, -lift), (grip_t_lo, 0, lift * 0.3)):
+    # ---- Two black paw grips anchoring the cane to the panda's hands ----
+    # Compact paw masses that OVERLAP the cane edge rather than straddling it,
+    # so the continuous green line stays visible between them — one near the
+    # chewing/mouth end, one near the hip end. At 40px the paw bridging onto the
+    # green sells "held" without ever severing the stalk into two blobs.
+    for gt in (0.34, 0.78):
         gcx = top[0] + (bot[0] - top[0]) * gt
-        gcy = top[1] + (bot[1] - top[1]) * gt + gy_off
-        _aaellipse(surf, BLACK, (gcx, gcy), 5, 5)
-        _aaellipse(surf, BLACK_HI, (gcx - 1, gcy - 2), 2, 1)
+        gcy = top[1] + (bot[1] - top[1]) * gt
+        # Offset the paw to the lower-left side of the cane so its inner edge
+        # just laps onto the green, leaving the cane's lit side fully exposed.
+        pcx, pcy = gcx - nx * 3.0, gcy - ny * 3.0
+        _aaellipse(surf, BLACK, (pcx, pcy), 5, 5)
+        _aaellipse(surf, BLACK_HI, (pcx - 1, pcy - 2), 2, 1)
 
     # ================= HEAD =================
     # Round black ears push up past the crown (the silhouette-breakers).
@@ -239,12 +213,9 @@ def build(wing_angle_deg):
     pygame.draw.arc(surf, NOSE, (nx0, ny0 + 3, 5, 5),
                     math.radians(190), math.radians(340), 1)
 
-    # ---- A single chewed bamboo leaf sticking out of the mouth ----
-    mouth = (nx0 + 2, ny0 + 5)
-    _leaf(surf, mouth, (mouth[0] + 11, mouth[1] + 3), 3.2, GREEN, hi=LEAF_HI)
-    # A ragged chewed bite-notch at the leaf root, drawn as a white gap.
-    pygame.draw.line(surf, WHITE, (mouth[0] + 3, mouth[1]),
-                     (mouth[0] + 4, mouth[1] + 3), 1)
+    # The cane's upper end already terminates at the chewing/mouth grip, so the
+    # "muncher" read comes from that held end — no separate mouth leaf, which
+    # would add a third stray green shape the eye reads as a render artifact.
 
     return surf
 
