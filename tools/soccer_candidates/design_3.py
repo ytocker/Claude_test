@@ -64,50 +64,53 @@ def _paint(surf, _a):
         (HX + 9,   HY + 8),
     ]
 
-    # ── 1 · NAVY SOCK PILLARS (knee-high) — drawn first so the jersey hem and
-    #    shorts overlap their tops. White hoop near the knee is the classic cue.
-    for fx in (HX - 9, HX + 1):
-        pygame.draw.line(surf, _SOCK_NAVY, (fx, HY + 13), (fx, HY + 25), 5)
-        pygame.draw.line(surf, _SOCK_W, (fx - 1, HY + 15), (fx + 2, HY + 15), 2)
-
-    # ── 2 · BOOTS — dark studded shoes at the feet line with a bright sole edge.
-    for fx in (HX - 9, HX + 1):
-        pygame.draw.ellipse(surf, _BOOT_D, (fx - 4, HY + 23, 9, 5))
-        pygame.draw.line(surf, _BOOT_SOLE, (fx - 3, HY + 25), (fx + 3, HY + 25), 1)
-
-    # ── 3 · GREY SHORTS — a band between the jersey hem and the socks so there's
-    #    a kit break between shirt and legs.
+    # ── 1 · GREY SHORTS — a band between the jersey hem and the socks so there's
+    #    a kit break between shirt and legs. Drawn before the legs so the hem and
+    #    shorts overlap the sock tops.
     pygame.draw.line(surf, _SHORTS_GREY, (BCX - 8, HY + 24), (HX + 8, HY + 24), 4)
 
-    # ── 4 · FULL JERSEY (two zones) — dark back, lighter chest, a seam fold down
+    # ── 2 · FULL JERSEY (two zones) — dark back, lighter chest, a seam fold down
     #    the centre, and a dark contour so the navy holds its edge on night sky.
     _poly(surf, _CAP_BACK, jersey)
     _poly(surf, _CAP_CHEST, chest_zone)
     pygame.draw.line(surf, _CAP_FOLD, (BCX, HY + 7), (BCX, HY + 23), 1)
     pygame.draw.polygon(surf, _CAP_OUTLINE, jersey, 1)
 
-    # ── 5 · GOLD CAPTAIN'S ARMBAND — the hero note on the NEAR (right) shoulder,
-    #    isolated with thin dark gaps above and below so the gold reads as a band
-    #    wrapping the arm, not a stripe melting into the jersey.
-    pygame.draw.line(surf, _CAP_OUTLINE, (HX + 1, HY + 11), (HX + 9, HY + 11), 1)
-    pygame.draw.line(surf, _ARMBAND, (HX + 1, HY + 12), (HX + 9, HY + 12), 4)
-    pygame.draw.line(surf, _ARMBAND_H, (HX + 2, HY + 11), (HX + 8, HY + 11), 1)
-    pygame.draw.line(surf, _CAP_OUTLINE, (HX + 1, HY + 14), (HX + 9, HY + 14), 1)
+    # ── 3 · GOLD CAPTAIN'S ARMBAND — dropped onto the navy shoulder cloth (well
+    #    below the head/eye junction) so the gold can't smear into the sunglasses
+    #    and cheek. Thin dark gaps top and bottom isolate it on the navy.
+    pygame.draw.line(surf, _CAP_OUTLINE, (HX + 2, HY + 8),  (HX + 10, HY + 8),  1)
+    pygame.draw.line(surf, _ARMBAND,     (HX + 2, HY + 9),  (HX + 10, HY + 9),  5)
+    pygame.draw.line(surf, _ARMBAND_H,   (HX + 3, HY + 8),  (HX + 9,  HY + 8),  1)
+    pygame.draw.line(surf, _CAP_OUTLINE, (HX + 2, HY + 13), (HX + 10, HY + 13), 1)
 
-    # ── 6 · CREST PATCH — a small red shield with a gold bar on the chest, the
-    #    club-identity mark above the squad number.
-    _poly(surf, _CREST_R, [(HX - 5, HY + 9), (HX - 1, HY + 9), (HX - 1, HY + 14),
-                           (HX - 3, HY + 15), (HX - 5, HY + 14)])
-    pygame.draw.line(surf, _CREST_G, (HX - 5, HY + 11), (HX - 1, HY + 11), 1)
-    pygame.draw.polygon(surf, _CAP_OUTLINE,
-                        [(HX - 5, HY + 9), (HX - 1, HY + 9), (HX - 1, HY + 14),
-                         (HX - 3, HY + 15), (HX - 5, HY + 14)], 1)
+    # ── 4 · CREST PATCH — a small red shield dropped 2px lower and capped at 4px
+    #    tall so crest, armband and number form a spaced triangle, not a pile.
+    crest = [(HX - 5, HY + 11), (HX - 1, HY + 11), (HX - 1, HY + 14),
+             (HX - 3, HY + 15), (HX - 5, HY + 14)]
+    _poly(surf, _CREST_R, crest)
+    pygame.draw.line(surf, _CREST_G, (HX - 5, HY + 12), (HX - 1, HY + 12), 1)
+    pygame.draw.polygon(surf, _CAP_OUTLINE, crest, 1)
 
-    # ── 7 · SQUAD NUMBER "10" — white, on the chest below the crest. A small bold
-    #    SysFont blit so the captain reads as a numbered shirt at the hero scale.
+    # ── 5 · SQUAD NUMBER "10" — chest-centre so it anchors the third point of the
+    #    triangle. A dark drop-shadow 1px down/right gives it contrast against the
+    #    dark navy at night, where plain white was washing out.
     font = pygame.font.SysFont("arial", 7, bold=True)
     num = font.render("10", True, _NUM_W)
-    surf.blit(num, (HX - 2, HY + 15))
+    shadow = font.render("10", True, _CAP_OUTLINE)
+    surf.blit(shadow, (BCX + 3, HY + 16))
+    surf.blit(num, (BCX + 2, HY + 15))
+
+    # ── 6 · NAVY SOCK PILLARS (knee-high) — white hoop near the knee is the
+    #    classic cue. Drawn over the hem so they read as legs below the shirt.
+    for fx in (HX - 9, HX + 1):
+        pygame.draw.line(surf, _SOCK_NAVY, (fx, HY + 13), (fx, HY + 25), 5)
+        pygame.draw.line(surf, _SOCK_W, (fx - 1, HY + 15), (fx + 2, HY + 15), 2)
+
+    # ── 7 · BOOTS — dark studded shoes at the feet line with a bright sole edge.
+    for fx in (HX - 9, HX + 1):
+        pygame.draw.ellipse(surf, _BOOT_D, (fx - 4, HY + 23, 9, 5))
+        pygame.draw.line(surf, _BOOT_SOLE, (fx - 3, HY + 25), (fx + 3, HY + 25), 1)
 
 
 build = store_skins._make_skin(_paint)
