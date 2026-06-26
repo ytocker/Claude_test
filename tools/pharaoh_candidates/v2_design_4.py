@@ -42,6 +42,9 @@ _WP_GOLD_D  = (168, 122, 36)       # gold shadow so the blade has a dark edge
 _WP_KEY     = (28, 18, 10)         # blade keyline / cobra eye
 _WP_SANDAL  = (58, 40, 26)         # dark leather sandal at the feet line
 _WP_SANDAL_H = (96, 70, 46)
+# Body scarlet to knock back the macaw's blue cheek/wing accent that peeks under
+# the collar — blue must live ONLY in the war-dome (the "blue = crown" focal rule).
+_WP_SCAR    = (196, 46, 46)
 
 
 def _khopesh_blade(surf, p0, ctrl, p1, color, width):
@@ -67,8 +70,10 @@ def _paint(surf, _a):
     #    outline against the sky — a weapon you can't see isn't a weapon. The
     #    curvature is exaggerated so even ~5-6px downscaled still reads as a hook.
     hilt = (HX - 2, HY + 24)          # grip, low at the waist / near wing
-    ktip = (HX - 27, CROWN_Y + 2)     # hook tip, POKING PAST the back outline
-    kctrl = (HX - 26, HY + 16)        # control pulls the sickle belly far out
+    ktip = (HX - 29, CROWN_Y + 6)     # hook tip dropped lower/further back so the
+                                      # sickle hook clears the dome onto OPEN SKY —
+                                      # against the blue it reads as a scepter, not a sword
+    kctrl = (HX - 27, HY + 16)        # control pulls the sickle belly far out
     # Dark keyline on BOTH edges (widest) so the gold curve reads against the
     # warm body along its whole length, not just where sky is behind it.
     _khopesh_blade(surf, hilt, kctrl, ktip, _WP_KEY, 7)
@@ -77,16 +82,20 @@ def _paint(surf, _a):
     # Bright back-edge glint — the single highest-value line that makes the gold
     # curve read as a blade at 40px. Offset along the spine of the curve.
     _khopesh_blade(surf, (hilt[0] - 1, hilt[1] - 2),
-                   (kctrl[0] - 2, kctrl[1] - 2), (ktip[0] + 1, ktip[1] - 1),
+                   (kctrl[0] - 2, kctrl[1] - 2), (ktip[0] + 2, ktip[1] - 1),
                    _WP_GOLD_H, 2)
-    # Hooked sickle point — a clear forward-curling barb so the tip reads as the
-    # khopesh's signature hook against the sky, keylined dark so it survives.
-    hook = [(ktip[0] - 3, ktip[1] - 4), (ktip[0] + 5, ktip[1] - 1),
-            (ktip[0] + 1, ktip[1] + 3), (ktip[0] - 2, ktip[1] + 1)]
-    _poly(surf, _WP_KEY, [(x - 1, y) for x, y in hook])
+    # Hooked sickle point — a clear forward-curling barb (enlarged 1px) so the tip
+    # reads as the khopesh's signature hook against the sky. The dark keyline is
+    # carried all the way around the OUTSIDE of the curl so the hook holds its
+    # silhouette against the blue dome and the open sky behind it at 40px.
+    hook = [(ktip[0] - 4, ktip[1] - 5), (ktip[0] + 6, ktip[1] - 1),
+            (ktip[0] + 1, ktip[1] + 4), (ktip[0] - 3, ktip[1] + 1)]
+    outer = [(ktip[0] - 5, ktip[1] - 6), (ktip[0] + 7, ktip[1] - 1),
+             (ktip[0] + 1, ktip[1] + 5), (ktip[0] - 4, ktip[1] + 1)]
+    _poly(surf, _WP_KEY, outer)                                 # keyline wraps the whole curl
     _poly(surf, _WP_GOLD, hook)
-    pygame.draw.line(surf, _WP_GOLD_H, (ktip[0] - 2, ktip[1] - 3),
-                     (ktip[0] + 3, ktip[1] - 1), 1)
+    pygame.draw.line(surf, _WP_GOLD_H, (ktip[0] - 2, ktip[1] - 4),
+                     (ktip[0] + 4, ktip[1] - 1), 1)
     # Short dark grip stub + a gold pommel bead so the low end reads as the handle.
     pygame.draw.line(surf, _WP_KEY, (hilt[0] + 1, hilt[1]),
                      (hilt[0] + 6, hilt[1] + 6), 4)
@@ -97,6 +106,9 @@ def _paint(surf, _a):
     #    dark underline reads as regalia at 40px; the old scale-fleck field read
     #    as a gold cloud. Drawn as a shallow arc following the chest curve, kept
     #    well inside the footprint so it never bulks the body.
+    # Knock the macaw's blue cheek/wing patch under the collar back to scarlet so
+    # blue lives ONLY in the dome — a small body-toned ellipse seated under the band.
+    pygame.draw.ellipse(surf, _WP_SCAR, (HX - 13, HY + 9, 22, 13))
     collar = pygame.Rect(HX - 16, HY + 6, 24, 16)
     pygame.draw.arc(surf, _WP_KEY, collar, 3.6, 5.8, 3)      # dark underline
     pygame.draw.arc(surf, _WP_GOLD, collar, 3.6, 5.8, 2)
@@ -113,7 +125,10 @@ def _paint(surf, _a):
     #    so the dome's lower edge overlaps it cleanly), a hard horizontal gold
     #    line that anchors the face under the crown at 40px. The lone non-cobra
     #    gold on the crown — it seats the soft dome on the head.
-    pygame.draw.line(surf, _WP_GOLD, (HX - 12, CROWN_Y + 9), (HX + 12, CROWN_Y + 9), 3)
+    # Back side shortened (HX+12 → HX+8) so the brow-band gold doesn't fuse with
+    # the khopesh blade tip behind the dome — at 40px the eye must see ONE back
+    # blade hook, never a continuous gold ring wrapping the dome's right edge.
+    pygame.draw.line(surf, _WP_GOLD, (HX - 12, CROWN_Y + 9), (HX + 8, CROWN_Y + 9), 3)
     pygame.draw.line(surf, _WP_GOLD_H, (HX - 9, CROWN_Y + 8), (HX + 4, CROWN_Y + 8), 1)
 
     # ── KHEPRESH WAR-DOME (above CROWN_Y) — the hero. A single smooth deep-blue
@@ -136,7 +151,9 @@ def _paint(surf, _a):
     #    A bright gold head-blob proud of the dome's front edge with a tiny dark
     #    eye; a short reared S-neck connects it to the brow-band. Painted last so
     #    it sits proud of the dome and carries the night read.
-    ux, uy = HX + 3, CROWN_Y + 6      # cobra root at the brow-band centre-front
+    ux, uy = HX + 4, CROWN_Y + 7      # cobra root pushed forward/down so the front
+                                      # cobra glint reads clearly separate from the
+                                      # back blade tip — two distinct golds, not a smear
     neck = [(ux, uy), (ux + 1, uy - 4), (ux + 3, uy - 7)]
     pygame.draw.lines(surf, _WP_KEY, False,
                       [(x + 1, y + 1) for x, y in neck], 4)   # cobra shadow
