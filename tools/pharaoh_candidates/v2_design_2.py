@@ -162,6 +162,17 @@ def _reface(surf):
     pygame.draw.ellipse(surf, _KH_SEAM, (ecx + 2, ecy - 2, 5, 4))
     pygame.draw.circle(surf, (255, 240, 210), (ecx + 3, ecy - 1), 1)  # life glint
 
+    # Pip's base art carries a small BLUE secondary-feather patch that pokes out
+    # to the right of the dome base; as a lone cool speck below the shell it
+    # reads as noise, so overpaint it scarlet (masked to body alpha) so the body
+    # is uniformly red there and the shell dome is the only cool-dark mass.
+    feather = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    pygame.draw.ellipse(feather, _KH_FACE, (ecx - 7, ecy + 14, 18, 14))
+    feather.blit(head_mask.to_surface(setcolor=(255, 255, 255, 255),
+                                      unsetcolor=(0, 0, 0, 0)),
+                 (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(feather, (0, 0))
+
 
 def _scarab_notch(surf, cx, cy):
     """ONE bold dark notch directly under the sun-disk — the segmented scarab
