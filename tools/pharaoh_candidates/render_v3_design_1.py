@@ -12,8 +12,8 @@ pygame.init()
 from tools import ninja_render
 from tools.pharaoh_candidates.v3_design_1 import build
 
-OUT = "docs/store_redesign/costume/pharaoh/v3_design_1/round_1.png"
-TITLE = "v3 DESIGN 1 — THE GOLD KING  round 1"
+OUT = "docs/store_redesign/costume/pharaoh/v3_design_1/round_2.png"
+TITLE = "v3 DESIGN 1 — THE GOLD KING  round 2"
 
 
 def _label(surf, text, x, y, size=18, color=(236, 238, 246)):
