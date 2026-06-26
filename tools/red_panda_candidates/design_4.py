@@ -72,7 +72,7 @@ def _chibi_eye(surf, cx, cy, r):
     # Dark iris filling the surround, then an oversized top-left catch-light.
     pygame.draw.circle(surf, EYEDK, (cx + 1, cy), r)
     pygame.draw.circle(surf, (255, 255, 255), (cx - r // 2, cy - r // 2),
-                       max(2, r))
+                       max(2, r - 1))
     # Tiny lower secondary glint sells the glass-bead toy eye.
     pygame.draw.circle(surf, (255, 255, 255), (cx + 1, cy + 1), 1)
 
@@ -107,7 +107,7 @@ def _tail(surf, f):
     ang = math.radians(150)
     dx, dy = math.cos(ang), math.sin(ang)
     root = (BCX - 5, BCY - 1)
-    seg  = 6.0
+    seg  = 5.0
     hoops = 3
     centres = []
     for i in range(hoops):
@@ -122,10 +122,13 @@ def _tail(surf, f):
     for cx, cy in centres:
         pygame.draw.circle(surf, BODY, (cx, cy), 7)
 
-    # Bold cream rings on alternate hoops break the russet stub clearly.
+    # Cream rings on alternate hoops, each fenced by a slightly larger SHADOW
+    # separator so the band gets a dark divider against the russet — a clearly
+    # 2-toned banded stub rather than a smear.
     for i, (cx, cy) in enumerate(centres):
         if i % 2 == 1:
-            pygame.draw.circle(surf, CREAM, (cx, cy), 6)
+            pygame.draw.circle(surf, SHADOW, (cx, cy), 8)
+            pygame.draw.circle(surf, CREAM,  (cx, cy), 6)
 
     # Bright cream tip caps the stub and breaks the silhouette.
     tx, ty = centres[-1]
@@ -163,25 +166,25 @@ def _head(surf, f):
     _ear(surf, hcx + 9, hcy - HEAD_R + 2, +1)
 
     # Bold cream cheek patches flanking the muzzle.
-    _aaellipse(surf, CREAM_AO, (hcx - 9, hcy + 7), 5, 4)
-    _aaellipse(surf, CREAM,    (hcx - 9, hcy + 6), 5, 4)
-    _aaellipse(surf, CREAM_AO, (hcx + 11, hcy + 7), 5, 4)
-    _aaellipse(surf, CREAM,    (hcx + 11, hcy + 6), 5, 4)
+    _aaellipse(surf, CREAM_AO, (hcx - 10, hcy + 7), 5, 4)
+    _aaellipse(surf, CREAM,    (hcx - 10, hcy + 6), 5, 4)
+    _aaellipse(surf, CREAM_AO, (hcx + 10, hcy + 7), 5, 4)
+    _aaellipse(surf, CREAM,    (hcx + 10, hcy + 6), 5, 4)
 
     # Hero chibi eyes — big, symmetric pair, baby-schema low + close.
-    _chibi_eye(surf, hcx - 7, hcy + 1, 4)
-    _chibi_eye(surf, hcx + 7, hcy + 1, 4)
+    _chibi_eye(surf, hcx - 6, hcy + 1, 4)
+    _chibi_eye(surf, hcx + 6, hcy + 1, 4)
 
     # Small nose + single arc smile between the eyes.
-    pygame.draw.circle(surf, ACCENT, (hcx + 1, hcy + 9), 2)
-    pygame.draw.line(surf, ACCENT, (hcx + 1, hcy + 11), (hcx + 1, hcy + 13), 1)
+    pygame.draw.circle(surf, ACCENT, (hcx + 1, hcy + 10), 2)
+    pygame.draw.line(surf, ACCENT, (hcx + 1, hcy + 12), (hcx + 1, hcy + 13), 1)
     pygame.draw.arc(surf, ACCENT, pygame.Rect(hcx - 2, hcy + 11, 6, 4),
                     math.radians(200), math.radians(340), 1)
 
     # Warm amber dome sheen, clipped to the upper forehead well above the eyes.
     sheen = pygame.Surface((16, 8), pygame.SRCALPHA)
     pygame.draw.ellipse(sheen, (255, 210, 150, 70), sheen.get_rect())
-    surf.blit(sheen, (hcx - 10, hcy - HEAD_R + 2))
+    surf.blit(sheen, (hcx - 8, hcy - HEAD_R + 2))
 
 
 def build_maple_sprite(wing_angle_deg):
