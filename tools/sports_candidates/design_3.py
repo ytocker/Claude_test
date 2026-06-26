@@ -32,16 +32,13 @@ from game.store_skins import HX, HY, CROWN_Y, _poly
 _GR_NAVY    = (27, 42, 107)        # #1B2A6B team navy — helmet shell / jersey
 _GR_NAVY_D  = (16, 26, 72)         # shadow / shell underside
 _GR_NAVY_H  = (58, 80, 168)        # lit top of the shell + raised shoulder
-_GR_MASK    = (184, 190, 200)      # #B8BEC8 grey facemask cage
-_GR_MASK_D  = (120, 126, 138)      # facemask shadow bar (depth on the cage)
-_GR_MASK_H  = (224, 228, 236)      # facemask glint
+_GR_MASK    = (236, 240, 248)      # bright facemask bars — highest-value face note
+_GR_FRAME   = (10, 12, 22)         # near-black cage frame so the bars sit in dark gaps
 _GR_WHITE   = (242, 242, 242)      # #F2F2F2 jersey number / laces / stripe
-_GR_WHITE_D = (196, 198, 204)      # number shadow so it isn't a flat decal
-_GR_BALL    = (110, 67, 38)        # #6E4326 football brown
-_GR_BALL_D  = (74, 44, 24)         # football shadow / seam
-_GR_BALL_H  = (150, 96, 58)        # football top highlight
-_GR_BLACK   = (24, 24, 28)         # eye-black smudge / strap shadow
-_GR_STRAP   = (208, 198, 176)      # tan chin-strap
+_GR_BALL    = (118, 72, 40)        # #76482 football brown
+_GR_BALL_D  = (60, 36, 18)         # football outline / seam (near-black brown)
+_GR_BALL_H  = (156, 100, 60)       # football top highlight
+_GR_BLACK   = (24, 24, 28)         # eye-black smudge
 
 
 def _paint(surf, _a):
@@ -54,18 +51,17 @@ def _paint(surf, _a):
     #    line. The pointed ends + laces are what make it read "football" and not a
     #    generic ball at 40px.
     fcx, fcy = BCX + 13, BCY + 5
-    ball = [(fcx - 9, fcy), (fcx - 4, fcy - 6), (fcx + 4, fcy - 6),
-            (fcx + 9, fcy), (fcx + 4, fcy + 6), (fcx - 4, fcy + 6)]
-    _poly(surf, _GR_BALL_D, [(x, y + 1) for x, y in ball])
+    # A thin dark outline (drawn as a slightly inflated backing) makes the pointed
+    # oval separate cleanly from the navy jersey at 40px.
+    ball_o = [(fcx - 13, fcy), (fcx - 4, fcy - 7), (fcx + 4, fcy - 7),
+              (fcx + 13, fcy), (fcx + 4, fcy + 7), (fcx - 4, fcy + 7)]
+    ball = [(fcx - 11, fcy), (fcx - 4, fcy - 6), (fcx + 4, fcy - 6),
+            (fcx + 11, fcy), (fcx + 4, fcy + 6), (fcx - 4, fcy + 6)]
+    _poly(surf, _GR_BALL_D, ball_o)
     _poly(surf, _GR_BALL, ball)
-    # Pointed tip caps so the oval reads as a prolate spheroid, not a circle.
-    _poly(surf, _GR_BALL, [(fcx - 9, fcy), (fcx - 12, fcy - 2), (fcx - 12, fcy + 2)])
-    _poly(surf, _GR_BALL, [(fcx + 9, fcy), (fcx + 12, fcy - 2), (fcx + 12, fcy + 2)])
     pygame.draw.line(surf, _GR_BALL_H, (fcx - 6, fcy - 4), (fcx + 5, fcy - 4), 1)
-    # White lace band — a short center stripe + cross-ticks, the football tell.
+    # ONE bold white lace dash down the seam — the single football tell, no clutter.
     pygame.draw.line(surf, _GR_WHITE, (fcx - 3, fcy), (fcx + 4, fcy), 2)
-    for lx in (fcx - 2, fcx, fcx + 2, fcx + 4):
-        pygame.draw.line(surf, _GR_WHITE, (lx, fcy - 2), (lx, fcy + 2), 1)
 
     # ── PADDED JERSEY over the torso. The SHOULDER PADS are SUGGESTED by a raised,
     #    lit navy shoulder yoke painted over the existing body — it adds value/shape,
@@ -87,18 +83,13 @@ def _paint(surf, _a):
               (BCX - 11, BCY + 12)]
     _poly(surf, _GR_NAVY, jersey)
     pygame.draw.line(surf, _GR_NAVY_D, (BCX - 11, BCY + 11), (BCX + 12, BCY + 11), 1)
-    # A single white shoulder stripe on the near pad — the classic jersey trim that
-    # adds a high-value note up top without crowding the number.
-    pygame.draw.line(surf, _GR_WHITE, (BCX + 6, BCY - 8), (BCX + 13, BCY - 3), 2)
-    pygame.draw.line(surf, _GR_NAVY_D, (BCX + 6, BCY - 6), (BCX + 12, BCY - 1), 1)
+    # No white shoulder stripe: at 40px a bright bar on the shoulder reads as part of
+    # the facemask. Keep the cage the ONLY high-value note up top so it wins the read.
 
-    # ── BIG WHITE NUMBER on the chest (a bold "8" reads cleanly at 40px as two
-    #    stacked loops). Drawn as two ring outlines with a shadow offset so it reads
-    #    as a stitched-on numeral catching light, not a flat sticker. Kept centred
-    #    and large but inside the lower jersey panel.
+    # ── BIG WHITE NUMBER on the chest. One CRISP "8" as two stacked loops drawn in
+    #    bold 2px stroke with NO shadow ring, so at 40px it stays a single clean shape
+    #    instead of a fuzzy doubled blob. Centred inside the lower jersey panel.
     nx, ny = BCX + 1, BCY + 6
-    pygame.draw.circle(surf, _GR_WHITE_D, (nx + 1, ny - 2), 3, 2)   # upper loop shadow
-    pygame.draw.circle(surf, _GR_WHITE_D, (nx + 1, ny + 4), 4, 2)   # lower loop shadow
     pygame.draw.circle(surf, _GR_WHITE, (nx, ny - 2), 3, 2)         # upper loop
     pygame.draw.circle(surf, _GR_WHITE, (nx, ny + 4), 4, 2)         # lower loop
 
@@ -118,37 +109,38 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _GR_NAVY_H, (hcx + 4, hcy - 11), (hcx + 12, hcy - 6), 2)
     # White center stripe over the dome — the helmet's hero trim, crown to brow.
     pygame.draw.line(surf, _GR_WHITE, (hcx - 1, hcy - 14), (hcx, hcy - 2), 2)
-    # Ear-hole + a navy jaw shadow so the shell reads as a 3D helmet, not a cap.
+    # Ear-hole — a navy/black dot where a real shell vents, so it reads as a helmet.
+    # No tan chin strap: at 40px a tan diagonal under the beak merges with the cage
+    # into a single noisy smudge. The cage stays the ONLY structure over the beak.
     pygame.draw.circle(surf, _GR_NAVY_D, (hcx - 6, hcy + 3), 3)
     pygame.draw.circle(surf, _GR_BLACK, (hcx - 6, hcy + 3), 1)
 
-    # Chin strap looping from the jaw under the beak — tan so it reads against navy.
-    pygame.draw.line(surf, _GR_STRAP, (hcx - 9, hcy + 8), (hcx + 4, hcy + 13), 2)
-    pygame.draw.line(surf, _GR_NAVY_D, (hcx - 9, hcy + 10), (hcx + 4, hcy + 14), 1)
+    # ── FACEMASK — a BOLD DARK-FRAMED CAGE over the beak: the hero tell. The cage's
+    #    defining feature is the DARK GAPS between bright bars, so a near-black frame
+    #    is laid down FIRST as a solid backing; the bright grey bars then sit inside
+    #    it and pop off the navy. EXACTLY two horizontal bars + one vertical post,
+    #    each 2px, with clear dark gaps between — three clean light dashes in a dark
+    #    frame = "facemask" at 40px. Seated forward over the beak, below the eye.
+    mx0, mx1 = hcx + 3, hcx + 14        # cage spans forward over the beak
+    top_y, bot_y = hcy + 1, hcy + 8
+    post_x = hcx + 12                   # vertical post near the front of the cage
+    # Solid near-black frame backing hugging the bars: the dark field they read
+    # against (the cage's defining feature is these dark gaps).
+    pygame.draw.polygon(surf, _GR_FRAME,
+                        [(mx0 - 1, top_y - 2), (mx1 + 1, top_y - 2),
+                         (mx1 + 1, bot_y + 2), (mx0 - 1, bot_y + 2)])
+    # TWO bright horizontal bars with a clear dark gap between them (the cage read).
+    pygame.draw.line(surf, _GR_MASK, (mx0, top_y), (mx1, top_y), 2)
+    pygame.draw.line(surf, _GR_MASK, (mx0, bot_y), (mx1, bot_y), 2)
+    # ONE bright vertical post tying the bars; the dark frame shows through as gaps.
+    pygame.draw.line(surf, _GR_MASK, (post_x, top_y), (post_x, bot_y), 2)
 
-    # ── FACEMASK — a grey horizontal cage over the beak: a vertical center post +
-    #    TWO horizontal bars, with a dark shadow bar behind for cage depth. This is
-    #    the instant "American football" read, so the bars are bold (2px) and bright.
-    #    A hint of Pip's eye is kept visible ABOVE the top bar, behind the cage.
-    mfx = hcx + 8                       # cage sits forward, over the beak
-    top_y, bot_y = hcy - 1, hcy + 7
-    # Shadow cage first (offset down/right) so the bright bars read as a raised cage.
-    pygame.draw.line(surf, _GR_MASK_D, (mfx - 1, top_y + 1), (mfx + 9, top_y + 2), 3)
-    pygame.draw.line(surf, _GR_MASK_D, (mfx - 1, bot_y + 1), (mfx + 8, bot_y + 1), 3)
-    # The two bright horizontal bars + vertical post tying them — the cage read.
-    pygame.draw.line(surf, _GR_MASK, (mfx - 1, top_y), (mfx + 9, top_y + 1), 2)
-    pygame.draw.line(surf, _GR_MASK, (mfx - 1, bot_y), (mfx + 8, bot_y), 2)
-    pygame.draw.line(surf, _GR_MASK, (mfx + 8, top_y), (mfx + 7, bot_y), 2)
-    pygame.draw.line(surf, _GR_MASK, (mfx, top_y), (mfx - 1, bot_y), 1)
-    pygame.draw.line(surf, _GR_MASK_H, (mfx, top_y - 1), (mfx + 8, top_y), 1)
-
-    # ── A hint of Pip behind the mask: the near eye showing above the top cage bar
-    #    + an EYE-BLACK smudge under it, so the parrot stays legible and the player
-    #    reads "athlete," not "robot." Eye sits between the shell brow and top bar.
+    # ── A hint of Pip behind the mask: the near eye showing ABOVE the top cage bar
+    #    + an EYE-BLACK smudge, so the parrot stays legible and the player reads
+    #    "athlete," not "robot." Eye sits between the shell brow and the cage frame.
     ex, ey = hcx + 6, hcy - 4
     pygame.draw.circle(surf, _GR_WHITE, (ex, ey), 2)
     pygame.draw.circle(surf, (30, 26, 34), (ex + 1, ey), 1)
-    # Eye-black: two short smudge ticks under the eye (the gridiron face-paint tell).
     pygame.draw.line(surf, _GR_BLACK, (ex - 1, ey + 3), (ex + 3, ey + 3), 2)
 
 
