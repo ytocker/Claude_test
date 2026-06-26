@@ -57,11 +57,15 @@ def _glove(surf, cx, cy, flip):
     f = flip
     # Padded mitt body — a tall rounded shape, slightly wider at the palm and
     # tapering to the fingertips. Drawn as a filled polygon so it can break the
-    # body outline cleanly without ballooning the torso.
-    mitt = [(cx - 8, cy - 1), (cx - 7, cy - 8), (cx - 2, cy - 11),
-            (cx + 4, cy - 11), (cx + 8, cy - 7), (cx + 9, cy + 2),
+    # body outline cleanly without ballooning the torso. The body-facing inner
+    # edge is pulled in 1px (toward the torso centre) to reveal more neon chest
+    # at 40px: near glove (f>0) bodies on its LEFT edge, far glove on its RIGHT.
+    il = 1 if f > 0 else 0              # near glove: tuck the left edge in
+    ir = 1 if f < 0 else 0             # far glove: tuck the right edge in
+    mitt = [(cx - 8 + il, cy - 1), (cx - 7, cy - 8), (cx - 2, cy - 11),
+            (cx + 4, cy - 11), (cx + 8, cy - 7), (cx + 9 - ir, cy + 2),
             (cx + 7, cy + 8), (cx + 1, cy + 10), (cx - 5, cy + 9),
-            (cx - 8, cy + 4)]
+            (cx - 8 + il, cy + 4)]
     pygame.draw.polygon(surf, _GK_GLOVE, mitt)
     # Core shadow on the cuff side rounds the padding (3-value read).
     pygame.draw.ellipse(surf, _GK_GLOVE_D,
@@ -70,12 +74,12 @@ def _glove(surf, cx, cy, flip):
     pygame.draw.ellipse(surf, _GK_GLOVE_D,
                         (cx + (2 * f) - 4, cy + 1, 8, 8))  # palm-heel shadow
 
-    # Finger ridges — bold dark grooves fanning up the back of the mitt so it
-    # reads as a padded glove, not a paddle. Wide spacing + a shaded fingertip
-    # cap on each so the ridges survive the 40px downscale.
-    for i in range(3):
-        gx = cx - 4 + i * 4
-        pygame.draw.line(surf, _GK_GLOVE_D, (gx, cy - 10), (gx, cy + 2), 2)
+    # Finger ridges — TWO bold near-black grooves up the back of the mitt at
+    # wide ~5px spacing so the "padded glove" read holds at 40px. Fewer/deeper
+    # grooves survive the downscale where three thin mid-grey lines turn to mud.
+    for i in range(2):
+        gx = cx - 2 + i * 5
+        pygame.draw.line(surf, _GK_YOKE, (gx, cy - 10), (gx, cy + 2), 2)
         pygame.draw.circle(surf, _GK_GLOVE_H, (gx + 1, cy - 9), 1)
     # Thumb pad bulging off the palm side.
     pygame.draw.circle(surf, _GK_GLOVE, (cx - 7 * f, cy + 2), 4)
@@ -126,9 +130,11 @@ def _paint(surf, _a):
     # A near-black yoke across both shoulders and the collar — the high-contrast
     # band that, with the neon below it, reads unmistakably as a keeper shirt and
     # not a plain green tank.
+    # Lower edge dropped 1px (deeper dark band) so the dark-over-neon keeper
+    # stack still reads after the 40px downscale.
     yoke = [(BCX - 14, BCY - 8), (BCX - 6, BCY - 12), (BCX + 4, BCY - 12),
-            (BCX + 13, BCY - 8), (BCX + 9, BCY - 5), (BCX + 2, BCY - 7),
-            (BCX - 4, BCY - 7), (BCX - 11, BCY - 5)]
+            (BCX + 13, BCY - 8), (BCX + 9, BCY - 4), (BCX + 2, BCY - 6),
+            (BCX - 4, BCY - 6), (BCX - 11, BCY - 4)]
     _poly(surf, _GK_YOKE, yoke)
     pygame.draw.line(surf, _GK_YOKE_H, (BCX - 12, BCY - 7),
                      (BCX - 5, BCY - 10), 1)
@@ -152,12 +158,10 @@ def _paint(surf, _a):
         # knee-highs, so the lower silhouette stays distinct from the Striker).
         pygame.draw.line(surf, _GK_SOCK, (fx, HY + 18), (fx, HY + 22), 5)
         pygame.draw.line(surf, _GK_SOCK_H, (fx - 1, HY + 19), (fx - 1, HY + 21), 1)
-        # Cleat boot hugging the feet line — dark upper + white sole + stud ticks.
-        pygame.draw.ellipse(surf, _GK_CLEAT_H, (fx - 4, HY + 22, 9, 5))
-        pygame.draw.ellipse(surf, _GK_CLEAT, (fx - 4, HY + 23, 9, 4))
-        pygame.draw.line(surf, _GK_GLOVE, (fx - 3, HY + 24), (fx + 2, HY + 24), 1)
-        for tx in (fx - 2, fx + 1):
-            pygame.draw.line(surf, _GK_CLEAT, (tx, HY + 26), (tx, HY + 27), 2)
+        # Cleat boot — a single fat dark chunk + one highlight stripe. The tiny
+        # stud ticks were sub-pixel noise at 40px, so they're dropped.
+        pygame.draw.line(surf, _GK_CLEAT, (fx - 3, HY + 24), (fx + 2, HY + 24), 5)
+        pygame.draw.line(surf, _GK_CLEAT_H, (fx - 2, HY + 22), (fx + 1, HY + 22), 1)
 
     # --- Soft short-brim CAP at the crown (keeps the macaw reading) -------------
     # A low soft cap with a short brim — a goalkeeper tell that adds little bulk,
@@ -170,17 +174,22 @@ def _paint(surf, _a):
     pygame.draw.polygon(surf, _GK_CAP_D, cap, 1)
     # Crown highlight + a short forward brim catching the light.
     pygame.draw.line(surf, _GK_CAP_H, (HX - 5, cy - 2), (HX + 4, cy - 4), 2)
+    # Brim filled in the darker shadow value (not the crown navy) so it breaks
+    # hard from the dome and reads as a separate brim, not one navy blob.
     brim = [(HX - 12, cy + 4), (HX - 18, cy + 7), (HX - 16, cy + 9),
             (HX - 8, cy + 6)]
-    _poly(surf, _GK_CAP, brim)
+    _poly(surf, _GK_CAP_D, brim)
     pygame.draw.polygon(surf, _GK_CAP_D, brim, 1)
-    pygame.draw.line(surf, _GK_CAP_H, (HX - 16, cy + 6), (HX - 10, cy + 5), 1)
+    # 1px lighter underedge separates the brim silhouette from the sky/body.
+    pygame.draw.line(surf, _GK_CAP_H, (HX - 17, cy + 8), (HX - 9, cy + 6), 1)
 
     # --- Oversized keeper GLOVES on BOTH wing-hands (THE hero, drawn LAST) -------
     # The signature shapes: big padded mitts sitting proud in front of the body,
     # breaking the silhouette so the read screams GOALKEEPER from across the
     # pitch. Far hand first, near hand last, so the near glove reads frontmost.
-    _glove(surf, BCX - 16, BCY - 2, flip=-1)   # far (left) hand
+    # Far hand pushed out + down so its rounded crown clears the scarlet tail
+    # wedge and both mitts read as a matched PAIR against the body.
+    _glove(surf, BCX - 18, BCY - 1, flip=-1)   # far (left) hand
     _glove(surf, BCX + 18, BCY - 2, flip=1)    # near (right) hand
 
 

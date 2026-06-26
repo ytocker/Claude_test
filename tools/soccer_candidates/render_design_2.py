@@ -12,8 +12,8 @@ pygame.init()
 from tools import ninja_render
 from tools.soccer_candidates.design_2 import build
 
-OUT = "docs/store_redesign/costume/soccer/design_2/round_1.png"
-TITLE = "DESIGN 2 — THE GOALKEEPER (Soccer)  round 1 (gloves)"
+OUT = "docs/store_redesign/costume/soccer/design_2/round_2.png"
+TITLE = "DESIGN 2 — THE GOALKEEPER (Soccer)  round 2 (matched glove pair)"
 
 
 def _label(surf, text, x, y, size=18, color=(236, 238, 246)):
