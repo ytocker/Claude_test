@@ -6,10 +6,14 @@ HUMAN infant, not a baby bird. After the first pass proved too prop-dense at
 baby face, restored eye-domes, and a quiet cream bib. Everything that competed
 for the eye is gone.
 
-North star is "lives or dies at 40px on BOTH skies". The whole sprite is now
-read as three beats only: a clear pink RING-WITH-HOLE plugged at the beak, a
-LIGHT powder-blue baby face with two white eye-domes above it, and a cream bib
-crescent below. Nothing else fights.
+North star is "lives or dies at 40px on BOTH skies". The whole sprite reads as a
+short stack of beats: a clear pink RING-WITH-HOLE plugged at the beak (the lone
+hero), a LIGHT powder-blue baby face with two white eye-domes above it, a small
+cream bib crescent on the upper chest, and — the ship request — a chunky cream
+DIAPER wrapped round the lower belly/rear. The cream cloths share a family but
+own different masses (small upper bib vs. fat lower nappy) with a clear blue gap
+between them, and the diaper stays cloth-cream so the pacifier keeps the ONE
+pink budget. Nothing else fights.
 
 Discipline notes that drove the redraw:
   * Head value is the priority — the face is lifted to the body powder-blue so it
@@ -54,6 +58,16 @@ _BB_PINK_LT = (255, 222, 232)      # pink shine spec / cheek blush
 _BB_PINK_D  = (196, 110, 134)      # rose shadow so the button reads round
 _BB_CREAM   = (251, 244, 218)      # #FBF4DA bib cream
 _BB_CREAM_D = (224, 214, 178)      # bib under-shadow so the crescent seats
+# Diaper cloth — the SAME baby-cloth cream family as the bib (both are nappy
+# fabric) but it owns the chunky lower mass. A pure-white lit top edge + a soft
+# powder shadow underside give it its own value range so it never melts into the
+# bib above or the powder-blue body around it. NO pink in the cloth itself — the
+# pink budget stays spent on the pacifier; only a sub-pixel safety-pin head is
+# allowed to read as "fastened".
+_BB_DIAP    = (251, 244, 218)      # #FBF4DA cream nappy body
+_BB_DIAP_HI = (255, 255, 255)      # #FFFFFF lit top fold edge
+_BB_DIAP_SH = (201, 217, 222)      # #C9D9DE powder shadow underside / padded base
+_BB_DIAP_LN = (171, 162, 130)      # cream-dark seam/outline so the wrap separates
 _BB_TAN     = (201, 168, 106)      # #C9A86A curl-tan cowlick
 _BB_TAN_D   = (160, 130, 76)       # cowlick shadow root
 _BB_WHITE   = (250, 252, 253)      # big-baby catch-light dome
@@ -125,8 +139,10 @@ def _bib(surf):
     """A quiet CREAM bib — one 2-scallop crescent low on the chest. Cream (not
     pink) so it stops competing for the pink-focal slot; no heart, no trim line
     (sub-pixel noise at 40px). A cream-dark under-shadow seats the crescent on the
-    powder-blue chest so it still reads as one soft band."""
-    cy = 52
+    powder-blue chest so it still reads as one soft band. Nudged a touch up so a
+    clear powder-blue gap of body stays visible between bib and diaper — the two
+    cream cloths must never merge into one blob."""
+    cy = 49
     # Two soft scallop bumps = the classic bib edge, nothing more.
     scallops = [(28, cy + 2), (35, cy + 2)]
     for sx, sy in scallops:
@@ -136,6 +152,57 @@ def _bib(surf):
     # A short collar band ties the two scallops into one crescent.
     pygame.draw.line(surf, _BB_CREAM, (27, cy - 2), (36, cy - 2), 3)
     pygame.draw.line(surf, _BB_CREAM_D, (27, cy + 1), (36, cy + 1), 1)
+
+
+def _diaper(surf):
+    """The chunky cloth nappy wrapped around Pip's lower belly + rear. It is the
+    bigger lower cream mass (the bib is just a small upper-chest scallop), so it
+    has to read as a fastened diaper at a glance, not a white patch:
+
+      * a fat soft band across the lower belly that curves UP at the hips (the
+        classic nappy waistline), painted as one rounded cream wrap;
+      * a puffy padded bottom that pushes a hair BELOW the natural body line so
+        the "wearing a nappy" read is unmistakable in silhouette;
+      * a visible fold/seam line + a tab with a tiny safety-pin so it reads as
+        FASTENED cloth, not a blob.
+
+    Cream-only (bib family) cloth so the pacifier keeps the entire pink budget;
+    the only pink permitted here is the sub-pixel pin head. A cream-dark outline
+    + powder shadow underside separate it from both the bib above and the
+    powder-blue body around it, with a clear blue gap left between the two."""
+    # Composite anchor: lower belly/rear, below the bib. The band hugs the bottom
+    # of the silhouette (body content runs to ~y72 here) and bulges 1px past it.
+    cy = 64                                    # waistband centre line
+    # 1 · PADDED BOTTOM — a soft cream lobe seated low, drawn first so the
+    #     waistband + lit edge overlap it. The shadow disc under it gives the
+    #     pad its rounded, puffed-out volume and breaks the lower outline.
+    pygame.draw.ellipse(surf, _BB_DIAP_LN, (16, cy + 1, 30, 13))   # hard keyline
+    pygame.draw.ellipse(surf, _BB_DIAP_SH, (17, cy + 2, 28, 12))   # powder under-pad
+    pygame.draw.ellipse(surf, _BB_DIAP, (17, cy + 1, 28, 10))      # cream pad face
+    # 2 · WAISTBAND — the fat band across the lower belly that curves up at the
+    #     hips. A thick rounded bar gives the chunky cloth bulk.
+    pygame.draw.line(surf, _BB_DIAP_LN, (16, cy), (45, cy), 7)     # band keyline
+    pygame.draw.line(surf, _BB_DIAP, (16, cy), (45, cy), 5)        # cream band
+    # Hip curve-ups: short upward hooks at each side = the nappy waistline rising
+    # over the hips, what sells "diaper" over "belt".
+    pygame.draw.line(surf, _BB_DIAP_LN, (16, cy), (15, cy - 4), 4)
+    pygame.draw.line(surf, _BB_DIAP, (16, cy), (15, cy - 4), 3)
+    pygame.draw.line(surf, _BB_DIAP_LN, (45, cy), (46, cy - 4), 4)
+    pygame.draw.line(surf, _BB_DIAP, (45, cy), (46, cy - 4), 3)
+    # 3 · LIT TOP FOLD EDGE — a pure-white run just along the waistband top (drawn
+    #     AFTER the band so it stays crisp) so the diaper separates hard from the
+    #     powder-blue belly above it.
+    pygame.draw.line(surf, _BB_DIAP_HI, (18, cy - 3), (43, cy - 3), 1)
+    # 4 · FOLD/SEAM — a single seam line dropping through the pad centre = the
+    #     leg-fold of the cloth, the detail that says "nappy" not "band".
+    pygame.draw.line(surf, _BB_DIAP_LN, (31, cy + 1), (31, cy + 8), 1)
+    pygame.draw.line(surf, _BB_DIAP_SH, (30, cy + 2), (30, cy + 7), 1)
+    # 5 · TAB + SAFETY-PIN — a little fastening tab on the front hip with a tiny
+    #     pin head. The pin head is the ONLY pink allowed on the cloth and is
+    #     kept to a single bright pixel so it never competes with the pacifier.
+    pygame.draw.rect(surf, _BB_DIAP_LN, (21, cy - 2, 5, 5))        # tab keyline
+    pygame.draw.rect(surf, _BB_DIAP_HI, (22, cy - 1, 3, 3))        # lit cloth tab
+    pygame.draw.circle(surf, _BB_PINK, (23, cy + 1), 1)            # 1px pin head (sole pink)
 
 
 def _pacifier(surf):
@@ -185,17 +252,23 @@ def _paint_binky(surf, _a):
     #     sit cleanly above it).
     _bib(surf)
 
-    # 3 · COWLICK — the single thinned crown curl.
+    # 3 · DIAPER — the chunky cream nappy on the lower body. Drawn over the body
+    #     but kept a clear blue gap below the (raised) bib so the two cream
+    #     cloths read as separate, and below the face props so it never crowds
+    #     the pacifier/eyes.
+    _diaper(surf)
+
+    # 4 · COWLICK — the single thinned crown curl.
     _cowlick(surf)
 
-    # 4 · EYE-DOMES — the restored big-baby eyes on the now-light face.
+    # 5 · EYE-DOMES — the restored big-baby eyes on the now-light face.
     _eye_domes(surf)
 
-    # 5 · CHEEK BLUSH — the single permitted 1px pink dot (the only pink besides
+    # 6 · CHEEK BLUSH — the single permitted 1px pink dot (the only pink besides
     #     the pacifier), low on the cheek for warmth.
     pygame.draw.circle(surf, _BB_PINK_LT, (HX + 9, HY + 7), 1)
 
-    # 6 · HERO PACIFIER — painted LAST so it sits over everything as the
+    # 7 · HERO PACIFIER — painted LAST so it sits over everything as the
     #     unmistakable front tell, the one bright pink ring-with-hole.
     _pacifier(surf)
 
