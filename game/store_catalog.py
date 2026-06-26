@@ -151,7 +151,7 @@ CATALOG: dict[str, dict] = {
     "parcel_love":      {"name": "LOVE LETTER",    "cost": 240,  "kind": "parcel", "group": "parcels"},
     "parcel_postmark":  {"name": "POSTMARK",       "cost": 260,  "kind": "parcel", "group": "parcels"},
     "parcel_takeout":   {"name": "TAKEOUT PAIL",   "cost": 280,  "kind": "parcel", "group": "parcels"},
-    "parcel_plastic":   {"name": "PLASTIC BOTTLE", "cost": 280, "kind": "parcel", "group": "parcels"},
+    "parcel_plastic":   {"name": "WATER BOTTLE",  "cost": 280,  "kind": "parcel", "group": "parcels"},
     "parcel_tumbler":   {"name": "TUMBLER",       "cost": 340,  "kind": "parcel", "group": "parcels"},
     "parcel_coconut":   {"name": "COCONUT",       "cost": 360,  "kind": "parcel", "group": "parcels"},
     "parcel_picnic":    {"name": "PICNIC BASKET",  "cost": 380,  "kind": "parcel", "group": "parcels"},
