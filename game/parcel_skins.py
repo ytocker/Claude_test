@@ -24,7 +24,7 @@ from game.parcel_designs import (
     chest,
     snowglobe,
     airmail, love_letter, post_office,
-    plastic_bottle, tumbler, coconut, mini_pip,
+    plastic_bottle, tumbler, coconut, mini_pip, diamond,
 )
 
 
@@ -76,6 +76,7 @@ _DESIGNS = {
     "parcel_tumbler":   tumbler,
     "parcel_coconut":   coconut,
     "parcel_minipip":   mini_pip,
+    "parcel_diamond":   diamond,
     "parcel_picnic":    picnic,
     "parcel_chest":     chest,
     "parcel_snowglobe": snowglobe,
