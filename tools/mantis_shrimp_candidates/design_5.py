@@ -1,37 +1,80 @@
-"""Mantis shrimp face — DESIGN 5: VISOR MIDBAND. The mantis shrimp's famous
-hyperspectral compound-eye midband rendered as ONE bold horizontal iridescent
-visor band across the head — a strong sci-fi graphic read — plus short antennae.
-Body/tail/clubs unchanged."""
+"""MANTIS SHRIMP full redesign — DESIGN 5: EMBER FORGE. A charcoal cracked-rock
+torpedo seamed with glowing lava veins, smouldering ember eyes, and white-hot
+anvil-head clubs that flash + spark on the punch. The warm showpiece. Scratch
+only."""
+import math
 import pygame
 
-from tools.mantis_shrimp_candidates._shared import (
-    make, head_base, _STALK_RIM, _EYE_HUE, _EYE_HUE2, _glow_dot, _GLOW,
+from tools.mantis_shrimp_candidates._chassis import (
+    make_skin, new, aaellipse, strike, recoil, club_targets, arm, hammer_club,
+    orb_eye, stalk, tail_fan, glow_dot, shade, BCX, BCY, HCX, HCY, CROWN_Y,
 )
 
-
-def face(surf, hcx, hcy, rcy, s, glow):
-    head_base(surf, hcx, hcy)
-    x0, x1, cy = hcx - 8, hcx + 9, hcy - 2
-    if glow:
-        _glow_dot(surf, hcx, cy, 4, _GLOW)
-    # Dark seat capsule so the visor pops off any sky.
-    pygame.draw.line(surf, _STALK_RIM, (x0, cy), (x1, cy), 7)
-    # Iridescent visor: blue-shifted body + teal core.
-    pygame.draw.line(surf, _EYE_HUE2, (x0, cy), (x1, cy), 5)
-    pygame.draw.line(surf, _EYE_HUE, (x0 + 1, cy), (x1 - 1, cy), 3)
-    # Equatorial midband of ommatidia (the signature white scan-line).
-    pygame.draw.line(surf, (250, 252, 250), (x0 + 1, cy), (x1 - 1, cy), 1)
-    # Dark center NOTCH so the band reads as TWO compound eyes joined by the
-    # midband (a face), not one cyclops strip.
-    pygame.draw.line(surf, _STALK_RIM, (hcx, cy - 2), (hcx, cy + 2), 2)
-    # Two hot speculars so the visor snaps to attention at 40px.
-    pygame.draw.circle(surf, (255, 255, 255), (hcx - 4, cy - 1), 1)
-    pygame.draw.circle(surf, (255, 255, 255), (hcx + 4, cy - 1), 1)
-    # A small dark mouth below so it unambiguously reads as a face.
-    pygame.draw.line(surf, _STALK_RIM, (hcx - 2, hcy + 5), (hcx + 4, hcy + 5), 2)
-    # Short 2px antennae flicking up off the brow.
-    pygame.draw.line(surf, _STALK_RIM, (hcx - 4, cy - 3), (hcx - 7, hcy - 10), 2)
-    pygame.draw.line(surf, _STALK_RIM, (hcx + 4, cy - 3), (hcx + 7, hcy - 10), 2)
+ROCK  = (42, 35, 32)            # charcoal
+ROCK_D = (18, 13, 11)           # deep crack-shadow / anchor
+ROCK_H = (78, 66, 60)
+LAVA  = (255, 90, 30)           # lava orange
+LAVA_Y = (255, 194, 51)         # lava yellow
+HOT   = (255, 240, 192)         # white-hot core
+RUST  = (122, 42, 18)
+RIM   = (18, 13, 11)
 
 
-build = make(face)
+def _vein(surf, pts, pulse):
+    pygame.draw.lines(surf, shade(LAVA, pulse), False, pts, 2)
+    pygame.draw.lines(surf, shade(LAVA_Y, pulse), False, pts, 1)
+
+
+def build(wing_angle_deg):
+    surf = new()
+    s = strike(wing_angle_deg)
+    pulse = 0.8 + 0.4 * s
+    rcx, rcy = recoil(s)
+    bcx, bcy = BCX + rcx, BCY + rcy
+    hcx, hcy = HCX + rcx, HCY + rcy
+    sh, rs, re, rf, ne, nf = club_targets(bcx, bcy, hcx, hcy, s)
+
+    # Rear anvil club (behind), dark with a hot face.
+    arm(surf, rs, re, RIM, ROCK_D, w=4); arm(surf, re, rf, RIM, ROCK_D, w=4)
+    hammer_club(surf, rf, rs, 6, rim=RIM, col=ROCK, hi=ROCK_H, face=LAVA_Y)
+
+    # Dark tail-fan with glowing orange rib edges.
+    tail_fan(surf, bcx - 7, bcy + 1, body=ROCK, body_d=ROCK_D, edge=ROCK_H, rib=LAVA)
+
+    # Charcoal carapace.
+    aaellipse(surf, ROCK_D, (bcx + 1, bcy + 1), 17, 14)
+    aaellipse(surf, ROCK, (bcx, bcy), 16, 13)
+    aaellipse(surf, ROCK_H, (bcx - 3, bcy - 4), 7, 3)
+    # Branching lava-crack veins along the back + seams (pulse with the strike).
+    _vein(surf, [(bcx - 13, bcy - 2), (bcx - 6, bcy - 6), (bcx + 2, bcy - 4),
+                 (bcx + 9, bcy - 8)], pulse)
+    _vein(surf, [(bcx - 4, bcy - 4), (bcx - 2, bcy + 3), (bcx + 4, bcy + 8)], pulse)
+    _vein(surf, [(bcx + 2, bcy - 4), (bcx + 7, bcy + 2)], pulse)
+    pygame.draw.ellipse(surf, ROCK_D, (bcx - 16, bcy - 13, 32, 26), 1)
+
+    # Head.
+    aaellipse(surf, ROCK_D, (hcx, hcy + 1), 11, 10)
+    aaellipse(surf, ROCK, (hcx - 1, hcy), 10, 9)
+
+    # Smouldering ember eyes on basalt stalks.
+    for sgn, tx in ((-1, hcx - 4), (1, hcx + 5)):
+        base = (hcx + sgn * 2, hcy - 3)
+        tip = (tx, hcy - 9 + rcy)
+        stalk(surf, base, tip, rim=RIM, col=ROCK_D)
+        glow_dot(surf, tip[0], tip[1], 3, LAVA)
+        orb_eye(surf, tip[0], tip[1], 5, core=LAVA, rim=RIM, hi=False)
+        pygame.draw.circle(surf, LAVA_Y, (tip[0], tip[1]), 2)
+        pygame.draw.circle(surf, HOT, (tip[0], tip[1]), 1)
+
+    # Lead anvil — white-hot face on the punch + rising ember sparks.
+    arm(surf, sh, ne, RIM, ROCK_D, w=4); arm(surf, ne, nf, RIM, ROCK_D, w=4)
+    glow_dot(surf, nf[0], nf[1], int(3 + s * 3), LAVA)
+    face = HOT if s > 0.6 else LAVA_Y
+    hammer_club(surf, nf, sh, 8, rim=RIM, col=ROCK, hi=ROCK_H, face=face)
+    if s > 0.6:
+        for dx, dy in ((3, -7), (6, -4), (1, -10)):
+            pygame.draw.circle(surf, LAVA_Y, (nf[0] + dx, nf[1] + dy), 1)
+    return surf
+
+
+build = make_skin(build)

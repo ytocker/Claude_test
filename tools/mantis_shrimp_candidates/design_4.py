@@ -1,28 +1,72 @@
-"""Mantis shrimp face — DESIGN 4: WIDE STALKS + ROSTRUM. The anatomical take:
-outward-angled stalk eyes in a clear V-splay, a pointed rostrum snout at the
-front of the head, and short antennae — reads as a real mantis-shrimp face.
-Body/tail/clubs unchanged."""
+"""MANTIS SHRIMP full redesign — DESIGN 4: CHIBI POW. An adorable big-round-head
+pocket shrimp: oversized sparkle goggle-eyes, a tiny tapering body + heart
+tail-fan, and little cream mitten-clubs doing an eager pat-pat. Head-heavy
+cuteness. Scratch only."""
 import pygame
 
-from tools.mantis_shrimp_candidates._shared import (
-    make, head_base, _jewel_eye, _STALK, _STALK_RIM, _CARA, _CARA_D,
+from tools.mantis_shrimp_candidates._chassis import (
+    make_skin, new, aaellipse, strike, recoil, club_targets, arm, round_club,
+    orb_eye, stalk, tail_fan, BCX, BCY, HCX, HCY, CROWN_Y,
 )
 
-
-def face(surf, hcx, hcy, rcy, s, glow):
-    head_base(surf, hcx, hcy)
-    # Pointed rostrum snout on the front-LOW of the head (clear of the lead club,
-    # which sits up-right) — the species tell.
-    pygame.draw.polygon(surf, _CARA_D,
-                        [(hcx - 8, hcy + 1), (hcx - 13, hcy + 4), (hcx - 6, hcy + 5)])
-    pygame.draw.polygon(surf, _CARA,
-                        [(hcx - 8, hcy + 2), (hcx - 12, hcy + 4), (hcx - 6, hcy + 4)])
-    # Eye-stalks in a GENTLE V, tips pulled inboard so the jewels don't float wide.
-    for sgn in (-1, 1):
-        tip = (hcx + sgn * 6, hcy - 8 + rcy)
-        pygame.draw.line(surf, _STALK_RIM, (hcx + sgn * 2, hcy - 3), tip, 5)
-        pygame.draw.line(surf, _STALK, (hcx + sgn * 2, hcy - 3), tip, 3)
-        _jewel_eye(surf, tip[0], tip[1], 5, glow=glow)
+CORAL = (255, 158, 181)
+CORAL_D = (224, 106, 138)        # saturated rim anchor
+CORAL_H = (255, 206, 220)
+CREAM = (255, 217, 194)          # mitten cream
+TEAL  = (63, 208, 216)           # eye teal
+DARK  = (122, 47, 70)            # spot + blush line
+RIM   = (180, 70, 100)
 
 
-build = make(face)
+def build(wing_angle_deg):
+    surf = new()
+    s = strike(wing_angle_deg)
+    rcx, rcy = recoil(s)
+    # Chibi: head dominates, body is a small nub behind-left.
+    bcx, bcy = BCX - 4 + rcx, BCY + 4 + rcy
+    hcx, hcy = HCX - 2 + rcx, HCY + 2 + rcy
+
+    # Tiny tapering body + heart tail-fan behind.
+    aaellipse(surf, CORAL_D, (bcx - 6, bcy + 1), 9, 8)
+    aaellipse(surf, CORAL, (bcx - 6, bcy), 8, 7)
+    # Heart-ish tail (two small lobes + point).
+    for dx in (-2, 2):
+        pygame.draw.circle(surf, CORAL_D, (bcx - 16 + dx, bcy - 1), 3)
+        pygame.draw.circle(surf, CORAL, (bcx - 16 + dx, bcy - 2), 2)
+    pygame.draw.polygon(surf, CORAL_D, [(bcx - 19, bcy), (bcx - 14, bcy + 5), (bcx - 11, bcy)])
+
+    # Rear mini mitten (pat-pat, bounces with the flap).
+    pat = int(s * 2)
+    arm(surf, (bcx + 4, bcy + 3), (bcx + 9, bcy + 5 - pat), RIM, CORAL_D)
+    round_club(surf, (bcx + 11, bcy + 4 - pat), 4, rim=RIM, col=CREAM, hi=(255, 240, 224))
+
+    # ── HERO: oversized round head.
+    aaellipse(surf, CORAL_D, (hcx + 1, hcy + 1), 14, 13)
+    aaellipse(surf, CORAL, (hcx, hcy), 13, 12)
+    aaellipse(surf, CORAL_H, (hcx - 4, hcy - 5), 6, 4)
+    # Tiny leopard spot + blush.
+    pygame.draw.circle(surf, DARK, (hcx + 7, hcy - 4), 2)
+    pygame.draw.circle(surf, (255, 150, 170), (hcx - 6, hcy + 5), 2)
+    pygame.draw.circle(surf, (255, 150, 170), (hcx + 8, hcy + 5), 2)
+    # Tiny happy mouth.
+    pygame.draw.arc(surf, DARK, (hcx - 2, hcy + 4, 8, 6), 3.6, 5.8, 2)
+
+    # Oversized sparkle goggle-eyes on short stubby stalks.
+    for sgn, tx in ((-1, hcx - 5), (1, hcx + 6)):
+        base = (hcx + sgn * 3, hcy - 4)
+        tip = (tx, hcy - 9 + rcy)
+        stalk(surf, base, tip, rim=RIM, col=CORAL_D, w=3)
+        orb_eye(surf, tip[0], tip[1], 6, core=TEAL, rim=RIM, hi=False)
+        # Big anime sparkle + small lower catch-light.
+        pygame.draw.circle(surf, (255, 255, 255), (tip[0] - 2, tip[1] - 2), 2)
+        pygame.draw.circle(surf, (255, 255, 255), (tip[0] + 2, tip[1] + 2), 1)
+
+    # Near mini mitten (the eager pat).
+    arm(surf, (hcx + 6, hcy + 6), (hcx + 11, hcy + 2 - pat), RIM, CORAL_D)
+    round_club(surf, (hcx + 13, hcy - 1 - pat), 5, rim=RIM, col=CREAM, hi=(255, 240, 224))
+    if s > 0.6:
+        pygame.draw.circle(surf, (255, 200, 220), (hcx + 18, hcy - 4), 2, 1)
+    return surf
+
+
+build = make_skin(build)

@@ -1,28 +1,71 @@
-"""Mantis shrimp face — DESIGN 1: TWIN PERISCOPES (refined). Keeps the iconic
-stalked jewel eyes but fixes the read: SHORTER, less-spread stalks so the jewels
-sit just above a clear head (not floating far up), bigger jewels, and a small
-dark mandible mouth so there's an actual face. Body/tail/clubs unchanged."""
+"""MANTIS SHRIMP full redesign — DESIGN 1: PEACOCK PRISM. The technicolor reef
+jewel: emerald leopard-spotted carapace, orange-red somite edges, a metallic-blue
+tail-fan, split green/magenta stalk eyes, and green→orange raptorial clubs that
+punch with the flap. Scratch only."""
 import pygame
 
-from tools.mantis_shrimp_candidates._shared import (
-    make, head_base, _jewel_eye, _STALK, _STALK_RIM, _CARA_H,
+from tools.mantis_shrimp_candidates._chassis import (
+    make_skin, new, aaellipse, strike, recoil, club_targets, arm, round_club,
+    orb_eye, stalk, tail_fan, BCX, BCY, HCX, HCY, CROWN_Y,
 )
 
+BODY  = (31, 168, 106)          # emerald
+BODY_D = (12, 92, 62)           # dark green rim/anchor
+BODY_H = (120, 224, 170)
+RIM   = (12, 92, 62)
+SOM   = (255, 106, 43)          # orange-red somite edge
+BLUE  = (43, 199, 232)          # tail-fan blue
+RED   = (224, 60, 70)           # setae rib
+MAG   = (232, 51, 140)          # eye magenta
+HI    = (255, 244, 214)
+CLUB  = (255, 120, 60)
+CLUB_H = (255, 206, 150)
 
-def face(surf, hcx, hcy, rcy, s, glow):
-    head_base(surf, hcx, hcy)
-    # Short periscope stalks from a SHARED root (hcx±2) so they read as one head,
-    # not two antennae; tips low enough that the jewels' lower edge meets the
-    # head crown (no floating gap).
-    for sgn, tx in ((-1, hcx - 5), (1, hcx + 6)):
+
+def build(wing_angle_deg):
+    surf = new()
+    s = strike(wing_angle_deg)
+    rcx, rcy = recoil(s)
+    bcx, bcy = BCX + rcx, BCY + rcy
+    hcx, hcy = HCX + rcx, HCY + rcy
+    sh, rs, re, rf, ne, nf = club_targets(bcx, bcy, hcx, hcy, s)
+
+    # Rear club (behind body).
+    arm(surf, rs, re, RIM, BODY_D); arm(surf, re, rf, RIM, BODY_D)
+    round_club(surf, rf, 6, rim=RIM, col=(214, 86, 40), hi=CLUB)
+
+    # Blue tail-fan + segmented abdomen behind.
+    tail_fan(surf, bcx - 7, bcy + 1, body=BODY, body_d=BODY_D, edge=BLUE, rib=RED)
+
+    # Emerald carapace dome.
+    aaellipse(surf, BODY_D, (bcx + 1, bcy + 1), 17, 14)
+    aaellipse(surf, BODY, (bcx, bcy), 16, 13)
+    aaellipse(surf, BODY_H, (bcx - 3, bcy - 4), 8, 4)
+    # Orange-red somite trailing edges (3 bands).
+    for off in (-7, 0, 7):
+        pygame.draw.line(surf, SOM, (bcx + off, bcy - 11), (bcx + off, bcy + 11), 2)
+    # Leopard spots: dark blob + white ring (≥3px).
+    for sx, sy in ((bcx - 6, bcy - 5), (bcx + 4, bcy + 3), (bcx + 9, bcy - 4)):
+        pygame.draw.circle(surf, HI, (sx, sy), 3, 1)
+        pygame.draw.circle(surf, BODY_D, (sx, sy), 2)
+    pygame.draw.ellipse(surf, BODY_D, (bcx - 16, bcy - 13, 32, 26), 1)
+
+    # Head.
+    aaellipse(surf, BODY_D, (hcx, hcy + 1), 11, 10)
+    aaellipse(surf, BODY, (hcx - 1, hcy), 10, 9)
+
+    # Candy-striped stalk eyes with split green/magenta orbs.
+    for sgn, tx in ((-1, hcx - 4), (1, hcx + 5)):
         base = (hcx + sgn * 2, hcy - 3)
         tip = (tx, hcy - 9 + rcy)
-        pygame.draw.line(surf, _STALK_RIM, base, tip, 5)
-        pygame.draw.line(surf, _STALK, base, tip, 3)
-        _jewel_eye(surf, tip[0], tip[1], 5, glow=glow)
-    # Mandible mouth — wider, with a pale lip below so it survives 40px.
-    pygame.draw.line(surf, _STALK_RIM, (hcx - 2, hcy + 5), (hcx + 5, hcy + 5), 3)
-    pygame.draw.line(surf, _CARA_H, (hcx - 1, hcy + 7), (hcx + 4, hcy + 7), 1)
+        stalk(surf, base, tip, rim=RIM, col=SOM)
+        orb_eye(surf, tip[0], tip[1], 5, core=BODY, rim=RIM, mid=MAG, band=True)
+
+    # Lead club — the haymaker, in front.
+    arm(surf, sh, ne, RIM, BODY_D); arm(surf, ne, nf, RIM, BODY_D)
+    round_club(surf, nf, 8, rim=RIM, col=CLUB, hi=CLUB_H,
+               spark=(190, 255, 240) if s > 0.6 else None)
+    return surf
 
 
-build = make(face)
+build = make_skin(build)
