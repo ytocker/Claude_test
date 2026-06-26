@@ -40,6 +40,8 @@ _TEN_GREEN   = (42, 157, 74)          # #2A9D4A racket frame + accent stripe
 _TEN_GREEN_D = (26, 107, 54)          # #1B6B36 green shadow / visor trim
 _TEN_GREEN_H = (96, 206, 124)         # green highlight
 _TEN_STRING  = (242, 242, 242)        # #F2F2F2 cross strings
+_TEN_VOID    = (28, 36, 30)           # near-black open-face void (no inner disc)
+_TEN_STR_DIM = (74, 92, 78)           # low-contrast strings on the void
 _TEN_BALL    = (203, 232, 74)         # #CBE84A neon tennis-ball green
 _TEN_BALL_D  = (162, 192, 52)         # ball shade so the sphere reads round
 _TEN_BALL_H  = (230, 250, 150)        # ball curve highlight
@@ -60,35 +62,30 @@ def _racket(surf, hx, hy, hr):
     entirely on the bold green RING + its dark halo + the throat Y-struts, so the
     oval is drawn a touch larger and the frame thicker in three values, and the
     handle anchors it into the near wing below."""
-    # Oval strung head — a tall ellipse. A dark void fill first so the green ring
-    # reads as a rim around an open face, then the bold frame ring on top.
-    rw, rh = int(hr * 1.7), int(hr * 2.1)        # tall tennis-racket oval (bumped)
+    # Oval strung head — a tall ellipse read as ONE clean frame ring around an
+    # OPEN strung face. The earlier stack (solid inner disc + outer halo + double
+    # ring) read as a circle-inside-a-circle; now there is a single bold green
+    # frame and the interior is left a dark VOID so it never forms a second disc.
+    rw, rh = int(hr * 1.7), int(hr * 2.1)        # tall tennis-racket oval
     face = pygame.Rect(hx - rw, hy - rh, rw * 2, rh * 2)
 
-    # Cross strings INSIDE the face — thin pale lines on a faint dark mesh so the
-    # near-detail reads as a strung face; clipped to the oval so they don't spill.
+    # Dark void interior + LOW-contrast strings so the inside reads as an open
+    # strung face, NOT a filled bright disc. Strings are dim and the mesh sits on
+    # near-black, so at 40px the centre stays empty and only the frame survives.
     clip_prev = surf.get_clip()
     surf.set_clip(face)
-    # Faint backing so the white strings have something to sit on at the head.
-    pygame.draw.ellipse(surf, (70, 86, 70), face)
-    for gx in range(face.left + 2, face.right - 1, 4):
-        pygame.draw.line(surf, _TEN_STRING, (gx, face.top + 1), (gx, face.bottom - 1), 1)
-    for gy in range(face.top + 2, face.bottom - 1, 4):
-        pygame.draw.line(surf, _TEN_STRING, (face.left + 1, gy), (face.right - 1, gy), 1)
+    pygame.draw.ellipse(surf, _TEN_VOID, face)
+    for gx in range(face.left + 3, face.right - 2, 4):
+        pygame.draw.line(surf, _TEN_STR_DIM, (gx, face.top + 1), (gx, face.bottom - 1), 1)
+    for gy in range(face.top + 3, face.bottom - 2, 4):
+        pygame.draw.line(surf, _TEN_STR_DIM, (face.left + 1, gy), (face.right - 1, gy), 1)
     surf.set_clip(clip_prev)
 
-    # Dark OUTER halo a couple px proud of the frame so the green ring always
-    # separates from the day sky AND from the OTHER greens nearby (visor band +
-    # green wing). With the ball gone this halo is what keeps the oval a clean
-    # silhouette break at 40px, so it is drawn 2px and on both targets' skies.
-    pygame.draw.ellipse(surf, _TEN_GREEN_D, face.inflate(4, 4), 2)
-
-    # Bold green frame RING — the whole 40px read now. Drawn dark-then-bright in
-    # three values and thicker than before so the oval keeps a lit, unmistakable
-    # rim after the downscale.
-    pygame.draw.ellipse(surf, _TEN_GREEN_D, face, 5)
-    pygame.draw.ellipse(surf, _TEN_GREEN, face.inflate(-3, -3), 3)
-    pygame.draw.ellipse(surf, _TEN_GREEN_H, face.inflate(-3, -3), 1)
+    # ONE bold green frame ring — a single clean oval outline, with just a 1px
+    # darker keyline on its OUTER edge for contrast against the sky. No second
+    # full ring, no inflate(4) halo: the head reads as a SINGLE racket oval.
+    pygame.draw.ellipse(surf, _TEN_GREEN_D, face.inflate(2, 2), 1)   # outer keyline
+    pygame.draw.ellipse(surf, _TEN_GREEN, face, 3)                   # the frame
 
     # Throat — two green struts splaying from the handle into the head, the
     # signature racket Y. With the ball gone this is the second tell, so it is
@@ -133,35 +130,39 @@ def _tennis_ball(surf, cx, cy, r):
 
 
 def _paint(surf, _a):
-    # --- White collared POLO on the FRONT CHEST ---------------------------------
-    # Re-anchored to HX/HY (the same on-body position as the baseball jersey) so
-    # the cloth sits up on the chest/front, not low toward the tail. White-filled
-    # with a cool lower shade so it reads round, plus a dark contour so it stays
-    # crisp on a bright day sky. Top at the shoulders (~HY+5), hem ~HY+23 — held
-    # inside the footprint so it never balloons the bird.
-    polo = [(HX - 14, HY + 5), (HX - 15, HY + 14), (HX - 11, HY + 23),
-            (HX + 9, HY + 23), (HX + 12, HY + 14), (HX + 10, HY + 5),
-            (HX + 4, HY + 2), (HX - 5, HY + 2)]
+    # --- White collared POLO on the FRONT CHEST (BELOW the head) -----------------
+    # Matched to the baseball jersey's vertical position (top ~HY+8, hem ~HY+23,
+    # NO collar rising into the head) so the cloth sits on the chest below the
+    # head and NOTHING covers Pip's beak/eye/face. White-filled with a cool lower
+    # shade so it reads round, plus a dark contour so it stays crisp on a bright
+    # day sky. Same horizontal extent (~HX-13..HX+11) so it's on the chest/front,
+    # held inside the footprint so it never balloons the bird.
+    polo = [(HX - 13, HY + 8), (HX - 14, HY + 16), (HX - 11, HY + 23),
+            (HX + 9, HY + 23), (HX + 12, HY + 16), (HX + 11, HY + 8),
+            (HX + 4, HY + 9), (HX - 5, HY + 9)]
     _poly(surf, _TEN_POLO_D, polo)
     # Lit upper body of the cloth so the white isn't flat.
-    _poly(surf, _TEN_POLO, [(HX - 13, HY + 5), (HX - 13, HY + 16),
-                            (HX + 10, HY + 16), (HX + 10, HY + 5),
-                            (HX + 4, HY + 2), (HX - 5, HY + 2)])
-    pygame.draw.line(surf, _TEN_POLO_H, (HX - 11, HY + 6), (HX + 8, HY + 6), 1)
+    _poly(surf, _TEN_POLO, [(HX - 12, HY + 9), (HX - 12, HY + 18),
+                            (HX + 10, HY + 18), (HX + 10, HY + 9),
+                            (HX + 4, HY + 10), (HX - 5, HY + 10)])
+    pygame.draw.line(surf, _TEN_POLO_H, (HX - 11, HY + 10), (HX + 8, HY + 10), 1)
+    # Small collar V at the polo's own top — sits ON the chest, never in the head.
+    _poly(surf, _TEN_POLO_DD, [(HX - 5, HY + 9), (HX + 4, HY + 9),
+                               (HX, HY + 13)])
     # Crisp dark contour so the white polo separates from the day sky / pillars.
     pygame.draw.polygon(surf, _TEN_POLO_DD, polo, 1)
 
     # ONE bold diagonal SASH across the white chest — the single green tell that
     # survives the downscale. Dark-edged then bright so the sash keeps a lit core
-    # after the shrink.
-    pygame.draw.line(surf, _TEN_GREEN_D, (HX - 12, HY + 7), (HX + 9, HY + 21), 4)
-    pygame.draw.line(surf, _TEN_GREEN, (HX - 12, HY + 7), (HX + 9, HY + 21), 3)
-    pygame.draw.line(surf, _TEN_GREEN_H, (HX - 11, HY + 8), (HX + 7, HY + 19), 1)
+    # after the shrink. Dropped with the polo so it stays on the chest.
+    pygame.draw.line(surf, _TEN_GREEN_D, (HX - 12, HY + 11), (HX + 9, HY + 22), 4)
+    pygame.draw.line(surf, _TEN_GREEN, (HX - 12, HY + 11), (HX + 9, HY + 22), 3)
+    pygame.draw.line(surf, _TEN_GREEN_H, (HX - 11, HY + 12), (HX + 7, HY + 20), 1)
 
     # --- Green-and-white WRISTBANDS at the wing roots ---------------------------
     # A terry band on the near wing (and a hint on the far) — a sport tell that
-    # stays inside the silhouette.
-    for wx, wy in ((HX + 11, HY + 18), (HX - 13, HY + 17)):
+    # stays inside the silhouette. Dropped with the polo so they sit at the cuffs.
+    for wx, wy in ((HX + 11, HY + 20), (HX - 13, HY + 19)):
         pygame.draw.line(surf, _TEN_GREEN_D, (wx - 3, wy - 3), (wx + 3, wy + 3), 6)
         pygame.draw.line(surf, _TEN_POLO, (wx - 3, wy - 3), (wx + 3, wy + 3), 3)
         pygame.draw.line(surf, _TEN_GREEN, (wx - 2, wy - 2), (wx + 2, wy + 2), 1)
