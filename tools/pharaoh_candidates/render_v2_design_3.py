@@ -18,8 +18,8 @@ from game.draw import get_sky_surface_biome, draw_mountains, draw_ground, draw_c
 from game.entities import Pipe
 from game.config import W as GW, H as GH, GROUND_Y
 
-OUT = "docs/store_redesign/costume/pharaoh/v2_design_3/round_2.png"
-TITLE = "v2 DESIGN 3 — OSIRIS  round 2"
+OUT = "docs/store_redesign/costume/pharaoh/v2_design_3/round_3.png"
+TITLE = "v2 DESIGN 3 — OSIRIS  round 3"
 
 
 def _gameplay_overlap(w, h):

@@ -95,45 +95,36 @@ def _os_base(angle_deg):
 def _crook_flail(surf):
     """Two BOLD gold bars crossed in an X over the chest — the signature Osiris
     gesture, rebuilt to read at 40px. At that size a shepherd's-hook curl and a
-    3-strand flail are sub-pixel mud, so each staff is one fat ~4px bar with a
-    bright core, a bead locks the crossing, and ONE clean tell per arm names it:
-    a single hook notch top-left (crook), a single short tassel top-right
-    (flail). Everything stays inside the body silhouette and above the feet."""
+    3-strand flail are sub-pixel mud, so each staff is one fat bar with a bright
+    gold core over a dark base. The crossing carries NO centre bead — at 40px the
+    bead + both bars fused into a lozenge that read as a diamond, so the bars now
+    cross bare and the X stays an X. The butt roots are pushed outward so the
+    angle opens up instead of reading vertical, and each upper tip gets a single
+    1px gold-highlight cap so the arms taper to a clean point."""
     BCX, BCY = 32, 52
 
-    # Both staffs as fat 4px bars with a dark base and a bright gold core so the
-    # X out-values the now-darker teal body and pops as the chest hero.
+    # Both staffs as fat bars with a dark base and a bright gold core so the X
+    # out-values the now-darker teal body and pops as the chest hero.
     def _bar(x0, y0, x1, y1):
         pygame.draw.line(surf, _OS_GREEN_D, (x0, y0 + 1), (x1, y1 + 1), 5)
         pygame.draw.line(surf, _OS_GOLD_D, (x0, y0), (x1, y1), 4)
         pygame.draw.line(surf, _OS_GOLD, (x0, y0), (x1, y1), 3)
         pygame.draw.line(surf, _OS_GOLD_H, (x0, y0 - 1), (x1, y1 - 1), 1)
 
-    # Crook (heka): lower-left butt up to upper-right head.
-    cx0, cy0 = BCX - 9, BCY + 9
-    cx1, cy1 = BCX + 7, BCY - 8
+    # Roots pushed ~2px wider at each butt so the X opens instead of reading
+    # vertical. Crook (heka): lower-left butt up to upper-right head.
+    cx0, cy0 = BCX - 11, BCY + 9
+    cx1, cy1 = BCX + 8, BCY - 8
     # Flail (nekhakha): lower-right butt up to upper-left head.
-    fx0, fy0 = BCX + 9, BCY + 9
-    fx1, fy1 = BCX - 7, BCY - 8
+    fx0, fy0 = BCX + 11, BCY + 9
+    fx1, fy1 = BCX - 8, BCY - 8
     _bar(cx0, cy0, cx1, cy1)
     _bar(fx0, fy0, fx1, fy1)
 
-    # ONE tell per arm, drawn big enough to survive the shrink.
-    # Crook tell: a single hook notch curling off the top-right head.
-    _poly(surf, _OS_GOLD_D, [(cx1, cy1 + 1), (cx1 + 6, cy1 - 2),
-                             (cx1 + 5, cy1 + 3), (cx1, cy1 + 3)])
-    _poly(surf, _OS_GOLD, [(cx1, cy1), (cx1 + 5, cy1 - 2),
-                           (cx1 + 4, cy1 + 2), (cx1, cy1 + 2)])
-    pygame.draw.circle(surf, _OS_GOLD_H, (cx1 + 4, cy1 - 1), 1)
-    # Flail tell: a single short tassel hanging off the top-left head.
-    pygame.draw.line(surf, _OS_GREEN_D, (fx1, fy1), (fx1 - 1, fy1 + 6), 3)
-    pygame.draw.line(surf, _OS_GOLD, (fx1, fy1), (fx1 - 1, fy1 + 5), 2)
-    pygame.draw.circle(surf, _OS_GOLD_H, (fx1 - 1, fy1 + 5), 1)
-
-    # Bright bead locks the crossing so the X reads as one shape at 40px.
-    pygame.draw.circle(surf, _OS_GOLD_D, (BCX, BCY + 1), 3)
-    pygame.draw.circle(surf, _OS_GOLD, (BCX, BCY), 2)
-    pygame.draw.circle(surf, _OS_WHITE_H, (BCX - 1, BCY - 1), 1)
+    # One brighter 1px gold cap on each bar's upper tip so the arms taper to a
+    # clean point — replaces the old hook-notch + tassel (sub-pixel fringe-mud).
+    pygame.draw.circle(surf, _OS_GOLD_H, (cx1, cy1), 1)
+    pygame.draw.circle(surf, _OS_GOLD_H, (fx1, fy1), 1)
 
 
 def _paint(surf, _a):
