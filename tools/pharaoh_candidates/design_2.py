@@ -94,7 +94,8 @@ def _was_scepter(surf):
     crook at the top. Kept inside the body footprint — neither end overshoots
     far past the back, and nothing crosses the feet line."""
     top = (HX - 17, CROWN_Y + 3)       # crook head, high in the wing
-    bot = (HX - 7, HY + 21)            # forked base, above the feet line
+    bot = (HX - 4, HY + 21)            # forked base, pulled toward centre so the
+                                       # hip ankh keeps its own black pocket
     pygame.draw.line(surf, _AN_GOLD_D, top, bot, 4)
     pygame.draw.line(surf, _AN_GOLD, top, bot, 2)
     pygame.draw.line(surf, _AN_GOLD_H, (top[0] + 1, top[1] + 1),
@@ -129,15 +130,18 @@ def _paint(surf, _a):
     _was_scepter(surf)
 
     # Two TALL erect pointed jackal ears spiking straight up above the head —
-    # the unmistakable ~40px hero silhouette. Slightly splayed, both rising well
-    # past CROWN_Y; ONLY headgear allowed above the crown.
-    _ear(surf, HX - 4, HX - 7, cy + 1, cy - 22, 4)
-    _ear(surf, HX + 6, HX + 10, cy + 1, cy - 21, 4)
-    # A small black skull-cap bridging the ear bases so they read as growing
-    # from one head, not floating.
-    pygame.draw.ellipse(surf, _AN_BLACK, (HX - 9, cy - 3, 22, 9))
-    pygame.draw.ellipse(surf, _AN_SHEEN, (HX - 6, cy - 3, 11, 4))
-    pygame.draw.line(surf, _AN_GOLD, (HX - 8, cy + 2), (HX + 11, cy + 1), 1)
+    # the unmistakable ~40px hero silhouette. Bases splayed WIDE apart (left
+    # ~HX-7, right ~HX+9) so the black OUTER silhouette reads as two separate
+    # spikes with DAY SKY surviving in the V between them after downscale, not a
+    # single notched wedge. ONLY headgear allowed above the crown.
+    _ear(surf, HX - 7, HX - 9, cy + 1, cy - 22, 4)
+    _ear(surf, HX + 9, HX + 12, cy + 1, cy - 21, 4)
+    # A LOW, narrow black skull-cap bridging only the inner ear bases so they
+    # read as growing from one head — kept slim and dropped ~2px so the V-notch
+    # between the ears stays open to sky and the pair never fuses into a lump.
+    pygame.draw.ellipse(surf, _AN_BLACK, (HX - 5, cy - 1, 14, 8))
+    pygame.draw.ellipse(surf, _AN_SHEEN, (HX - 3, cy, 7, 3))
+    pygame.draw.line(surf, _AN_GOLD, (HX - 5, cy + 3), (HX + 8, cy + 2), 1)
 
     # Dark snout shadow along the beak — implies the long jackal muzzle without
     # changing the bird's footprint.
@@ -153,30 +157,21 @@ def _paint(surf, _a):
     _poly(surf, _AN_KOHL, [(ex - 2, ey), (ex, ey - 1), (ex + 3, ey),
                            (ex, ey + 1)])
     pygame.draw.circle(surf, _AN_IVORY, (ex, ey), 1)
-    # Long upturned kohl flick.
+    # Short kohl flick — kept brief so it doesn't compete with the diagonal
+    # scepter for the gold-line lead near the eye.
+    pygame.draw.line(surf, _AN_GOLD, (ex + 5, ey), (ex + 9, ey - 2), 2)
+    pygame.draw.line(surf, _AN_GOLD_H, (ex + 6, ey - 1), (ex + 8, ey - 2), 1)
+
+    # ONE thin gold collar arc across the upper breast — the alternating usekh
+    # bars vanished to speckle at 40px and read as gold mud against the scepter,
+    # so the collar recedes to a single legible line under the scepter.
     pygame.draw.lines(surf, _AN_GOLD, False,
-                      [(ex + 5, ey), (ex + 10, ey - 1), (ex + 13, ey - 4)], 2)
-    pygame.draw.line(surf, _AN_GOLD_H, (ex + 6, ey - 1), (ex + 11, ey - 2), 1)
+                      [(HX - 10, HY + 9), (HX, HY + 12), (HX + 10, HY + 8)], 2)
+    pygame.draw.line(surf, _AN_GOLD_H, (HX - 8, HY + 9), (HX - 1, HY + 11), 1)
 
-    # Narrow gold-and-black striped collar band across the upper breast, held
-    # inside the body footprint — alternating gold/dark bars so it reads as a
-    # banded usekh, not a solid plate.
-    collar = [(HX - 11, HY + 8), (HX + 11, HY + 6),
-              (HX + 9, HY + 13), (HX - 9, HY + 15)]
-    _poly(surf, _AN_KOHL, collar)
-    _poly(surf, _AN_GOLD, [(HX - 10, HY + 8), (HX + 10, HY + 6),
-                           (HX + 9, HY + 11), (HX - 9, HY + 13)])
-    for i in range(6):
-        x0 = HX - 9 + i * 3
-        col = _AN_KOHL if i % 2 == 0 else _AN_GOLD_D
-        pygame.draw.line(surf, col, (x0, HY + 8), (x0 - 1, HY + 13), 2)
-    pygame.draw.line(surf, _AN_GOLD_H, (HX - 9, HY + 8), (HX + 9, HY + 6), 1)
-    # A single gold drop bead centring the collar.
-    pygame.draw.circle(surf, _AN_GOLD, (HX, HY + 14), 2)
-    pygame.draw.circle(surf, _AN_GOLD_H, (HX - 1, HY + 13), 1)
-
-    # Small ivory ankh glyph at the hip (near side), inside the footprint.
-    _ankh(surf, HX - 13, HY + 14)
+    # Small ivory ankh glyph at the hip (near side), nudged out from the scepter
+    # base so the ivory sits in its own pocket of black and pops on both skies.
+    _ankh(surf, HX - 14, HY + 15)
 
     # Gold anklets at the feet line — a bright ring on each foot, not below it.
     for fx, fy in ((28, HY + 24), (34, HY + 24)):
