@@ -1,6 +1,17 @@
-# SOCCER costume — fresh exploration (5 distinct directions)
+# Soccer Costume — Redesign Concepts (v2)
 
-**Why this round:** the current scratch soccer build
+## Why v2?
+Previous designs were rejected: jersey anchored at BCX,BCY (too far left / too
+high, covering the face) and every design had a forbidden forehead sweatband.
+All v2 designs fix these at the root: jersey anchored at HX,HY with top at
+HY+8 and hem at HY+23 (same polygon as baseball design_4.py + tennis design_5.py).
+No forehead bands of any kind.
+
+---
+
+**Previous content below (v1, archived):**
+
+**Why v1:** the current scratch soccer build
 (`tools/sports_candidates/design_1.py` — royal-blue/white striped jersey +
 squad number + brow sweatband + knee socks/cleats) reads almost identically to
 the current basketball build (jersey block + big white number + brow band +
