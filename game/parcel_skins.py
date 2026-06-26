@@ -20,12 +20,11 @@ import pygame
 from game import parrot
 from game.store_catalog import PARCEL_BASE
 from game.parcel_designs import (
-    sack, takeout, picnic,
-    bottle,
-    chest, lantern, flask,
+    takeout, picnic,
+    chest,
     snowglobe,
     airmail, love_letter, post_office,
-    water_bottle, plastic_bottle, tumbler, coconut,
+    plastic_bottle, tumbler, coconut,
 )
 
 
@@ -69,20 +68,15 @@ def _none_icon(box: int = 46) -> pygame.Surface:
 # shows its own look across every power-up); tilt/grow/ghost/snow still apply
 # in entities.Bird.draw on top of whatever surface comes back.
 _DESIGNS = {
-    "parcel_sack":      sack,
     "parcel_takeout":   takeout,
     "parcel_airmail":   airmail,
     "parcel_love":      love_letter,
     "parcel_postmark":  post_office,
-    "parcel_water":     water_bottle,
     "parcel_plastic":   plastic_bottle,
     "parcel_tumbler":   tumbler,
     "parcel_coconut":   coconut,
     "parcel_picnic":    picnic,
-    "parcel_bottle":    bottle,
     "parcel_chest":     chest,
-    "parcel_lantern":   lantern,
-    "parcel_flask":     flask,
     "parcel_snowglobe": snowglobe,
 }
 
