@@ -1089,46 +1089,177 @@ get_crown_parrot = _make_skin(_paint_crown)
 # sprites the shipped skins recycle).
 # ─────────────────────────────────────────────────────────────────────────────
 
-# ── TOP HAT redraw — dapper black-felt topper + bright satin band + monocle.
-# R1 fail: shipped skin reuses the Triple-buff gold-$ cylinder (reads as a
-# buff prop). R2: black felt with a crisp light top rim so it survives 40px
-# on navy, a deep-red satin band as the bright accent, and a near-eye monocle.
-_TH_FELT   = (34, 32, 44)
-_TH_FELT_D = (18, 16, 26)
-_TH_FELT_H = (96, 96, 118)         # crisp light rim so the black survives navy
-_TH_BAND   = (200, 44, 56)         # bright satin-red accent
-_TH_BAND_H = (255, 110, 110)
-_TH_GOLD   = (255, 206, 80)
+# ── TOP HAT — "The Undertaker": a gothic-gentleman full costume. The body is
+# recoloured to a charcoal mourning macaw (its own base palette, not the scarlet
+# bird) so red doesn't bleed through the coat; over it sit a short matte topper,
+# a body-hugging frock coat, a pale wing-collar, a smoked monocle, a silver
+# skull-cane and a wilted rose. The outfit is near-black, so the read is held
+# three ways: a continuous cool rim-light down the back of hat + coat separates
+# the silhouette from a night sky, and the pale collar + silver skull-knob are
+# the two bright masses that carry the 40px read. The coat/feet are kept inside
+# the base bird footprint so the figure isn't visually larger than its hitbox —
+# only the hat rises above the head.
+_TH_BODY = _pal(
+    tail=[(14, 14, 18), (20, 20, 26), (28, 28, 36), (40, 40, 50)],
+    tail_line=(6, 6, 10),
+    body_shadow=(8, 8, 12),
+    body_main=(22, 22, 28),
+    body_chest=(34, 34, 42),
+    body_belly=(28, 28, 36),
+    sheen=(120, 124, 138, 70),
+    wing_main=(18, 18, 24),
+    wing_dark=(8, 8, 12),
+    wing_tip=(46, 48, 58),
+    wing_secondary=None,
+    wing_highlight=(106, 110, 120),
+    head_shadow=(8, 8, 12),
+    head_main=(26, 26, 33),
+    head_cheek=(44, 44, 54),
+    head_crown=(40, 40, 50),
+    lens_frame=(60, 60, 72),
+    lens_body=(6, 6, 10),
+    lens_tint=None,
+    lens_glint=None,
+    beak_main=(150, 150, 162),
+    beak_dark=(70, 70, 82),
+    beak_gloss=(210, 210, 222),
+    foot=(20, 20, 26),
+)
+
+
+def _tophat_base(angle_deg):
+    return _build_parrot_with_palette(angle_deg, _TH_BODY, draw_lenses=False)
+
+
+# Three black values (coat / charcoal lapel / matte band) so a mourning suit
+# still separates from itself on a dark sky; pale ash carries the collar + every
+# silver glint; the wilted rose is the lone warm accent.
+_TH_COAT    = (12, 12, 16)
+_TH_LAPEL   = (60, 60, 72)         # charcoal lapels (value lift off black)
+_TH_PALE    = (201, 199, 206)      # collar / skull / silver soft glow
+_TH_RIM     = (106, 110, 120)      # cool back-edge rim-light
+_TH_ROSE    = (74, 14, 24)
+_TH_ROSE_H  = (120, 30, 44)
+_TH_PALE_D  = (150, 150, 162)      # collar shade so it reads as cloth, not paper
+_TH_PALE_H  = (236, 236, 244)      # brightest silver glint
+_TH_SKIN    = (176, 174, 182)      # gaunt pale face accent
 
 
 def _paint_tophat(surf, _a):
+    # Black cane slung diagonally behind the body, the silver skull knob breaking
+    # the back outline. Painted first so the body covers the shaft mid-section and
+    # only the knob + tip overshoot the silhouette; the knob is the hero glint,
+    # held clear of the body so it stays a pale bead at 40px on night.
+    knob = (HX - 23, CROWN_Y + 1)
+    foot = (HX - 6, HY + 24)
+    pygame.draw.line(surf, _TH_COAT, knob, foot, 3)
+    pygame.draw.line(surf, (20, 20, 26), (foot[0], foot[1]),
+                     (foot[0] + 1, foot[1] + 2), 3)
+    kx, ky = knob
+    pygame.draw.circle(surf, _TH_RIM, (kx, ky), 4)            # cool halo
+    pygame.draw.circle(surf, _TH_PALE, (kx, ky), 3)
+    pygame.draw.circle(surf, _TH_PALE_H, (kx, ky), 3, 1)      # bright rim
+    pygame.draw.circle(surf, _TH_PALE_H, (kx - 1, ky - 1), 1)  # glow core
+    pygame.draw.circle(surf, _TH_COAT, (kx - 1, ky + 1), 1)   # eye sockets
+    pygame.draw.circle(surf, _TH_COAT, (kx + 1, ky + 1), 1)
+
+    # Frock coat hugging the charcoal body, its hem held INSIDE the base bird
+    # footprint (bottom ~HY+23) so the figure reads at the bird's true size. A
+    # continuous 2px cool rim runs the BACK edge so the coat separates from a
+    # night sky; widened charcoal lapels split the front into a clear V band.
+    coat = [(HX - 14, HY + 8), (HX - 15, HY + 18), (HX - 11, HY + 23),
+            (HX + 8, HY + 23), (HX + 12, HY + 18), (HX + 10, HY + 8)]
+    _poly(surf, _TH_COAT, coat)
+    pygame.draw.lines(surf, _TH_RIM, False,
+                      [(HX - 14, HY + 8), (HX - 15, HY + 18),
+                       (HX - 11, HY + 23)], 2)
+    _poly(surf, _TH_LAPEL, [(HX - 5, HY + 9), (HX - 8, HY + 21),
+                            (HX - 3, HY + 18), (HX - 1, HY + 9)])
+    _poly(surf, _TH_LAPEL, [(HX + 7, HY + 9), (HX + 9, HY + 20),
+                            (HX + 3, HY + 18), (HX + 2, HY + 9)])
+    # The dark chest V between the lapels reads as the shirt-front gap.
+    _poly(surf, _TH_COAT, [(HX - 1, HY + 11), (HX + 2, HY + 11),
+                           (HX + 1, HY + 20), (HX, HY + 20)])
+    # Jet button + thin silver watch-chain swag across the lower chest.
+    pygame.draw.circle(surf, (4, 4, 8), (HX, HY + 19), 2)
+    pygame.draw.circle(surf, _TH_LAPEL, (HX - 1, HY + 18), 1)
+    pygame.draw.lines(surf, _TH_PALE_D, False,
+                      [(HX - 5, HY + 16), (HX - 1, HY + 20), (HX + 5, HY + 16)], 1)
+    pygame.draw.line(surf, _TH_PALE_H, (HX + 5, HY + 16), (HX + 6, HY + 14), 1)
+
+    # Black buttoned ankle boots tucked at the coat hem so they sit on the base
+    # bird's feet line (~HY+24..27) rather than hanging below it; a rim glint
+    # keeps them off a dark floor without extending the silhouette downward.
+    for fx in (HX - 7, HX + 1):
+        pygame.draw.rect(surf, _TH_COAT, (fx, HY + 22, 7, 5), border_radius=2)
+        pygame.draw.line(surf, _TH_RIM, (fx, HY + 23), (fx, HY + 26), 1)
+        pygame.draw.line(surf, _TH_COAT, (fx, HY + 27), (fx + 8, HY + 27), 2)  # sole
+        pygame.draw.circle(surf, _TH_PALE_D, (fx + 5, HY + 24), 1)  # spat button
+
+    # Pale ash wing-collar + black silk cravat — the brightest mass on the whole
+    # figure, a crisp pale wedge under the beak that anchors the night read.
+    _poly(surf, _TH_PALE, [(HX - 7, HY + 4), (HX + 8, HY + 4),
+                           (HX + 6, HY + 12), (HX - 1, HY + 16),
+                           (HX - 5, HY + 12)])
+    pygame.draw.line(surf, _TH_PALE_H, (HX - 6, HY + 5), (HX + 7, HY + 5), 1)
+    _poly(surf, _TH_PALE_D, [(HX - 1, HY + 16), (HX - 5, HY + 12),
+                             (HX - 3, HY + 13)])      # collar fold shade
+    _poly(surf, _TH_PALE, [(HX - 4, HY + 11), (HX, HY + 14), (HX - 3, HY + 16)])
+    _poly(surf, _TH_PALE, [(HX + 5, HY + 11), (HX, HY + 14), (HX + 4, HY + 16)])
+    pygame.draw.circle(surf, _TH_COAT, (HX, HY + 14), 3)     # cravat knot
+    _poly(surf, _TH_COAT, [(HX - 2, HY + 15), (HX + 2, HY + 15),
+                           (HX + 1, HY + 22), (HX - 1, HY + 22)])
+    pygame.draw.circle(surf, _TH_LAPEL, (HX - 1, HY + 13), 1)  # silk sheen
+
+    # Gaunt pale-grey face accent on the near cheek — a sunken pallor under the
+    # brim.
+    pygame.draw.circle(surf, _TH_SKIN, (HX + 6, HY + 2), 4)
+    pygame.draw.circle(surf, _TH_SKIN, (HX + 8, HY - 2), 3)
+
+    # Thin drooping black moustache under the beak.
+    pygame.draw.lines(surf, _TH_COAT, False,
+                      [(HX + 2, HY + 4), (HX + 6, HY + 6), (HX + 7, HY + 10)], 2)
+    pygame.draw.lines(surf, _TH_COAT, False,
+                      [(HX + 11, HY + 4), (HX + 9, HY + 6), (HX + 9, HY + 10)], 2)
+
+    # Smoked monocle on the NEAR eye — dark lens, silver rim, a thin chain.
+    mx, my = HX + 8, HY - 1
+    pygame.draw.circle(surf, (6, 6, 10), (mx, my), 4)       # smoked dark lens
+    pygame.draw.circle(surf, _TH_PALE, (mx, my), 4, 1)      # silver rim
+    pygame.draw.circle(surf, _TH_PALE_H, (mx - 1, my - 1), 1)  # rim glint
+    pygame.draw.line(surf, _TH_PALE_D, (mx + 1, my + 4), (HX + 6, HY + 8), 1)
+
+    # Short matte-black topper: brim, then a stubby crown just above CROWN_Y with
+    # a continuous 2px cool rim down its back edge so the black hat survives a
+    # night sky. A crepe mourning band + wilted rose finish it.
     cy = CROWN_Y
-    # Brim — wide ellipse with a bright top edge so the silhouette reads.
-    pygame.draw.ellipse(surf, _TH_FELT_D, (HX - 17, cy + 1, 34, 8))
-    pygame.draw.ellipse(surf, _TH_FELT, (HX - 16, cy, 32, 5))
-    pygame.draw.line(surf, _TH_FELT_H, (HX - 13, cy + 1), (HX + 13, cy + 1), 1)
+    pygame.draw.ellipse(surf, _TH_COAT, (HX - 17, cy + 1, 34, 8))   # brim
+    pygame.draw.ellipse(surf, _TH_LAPEL, (HX - 15, cy + 1, 30, 4))
+    pygame.draw.line(surf, _TH_RIM, (HX - 13, cy + 1), (HX + 12, cy + 1), 1)
 
-    # Tall cylindrical crown rising well above the head.
-    top_y = cy - 17
-    pygame.draw.rect(surf, _TH_FELT_D, (HX - 9, top_y, 19, 19))
-    pygame.draw.rect(surf, _TH_FELT, (HX - 8, top_y, 16, 18))
-    pygame.draw.line(surf, _TH_FELT_H, (HX - 6, top_y + 1), (HX - 6, cy - 2), 2)
-    # Crisp light top rim — the hero edge that keeps black off the navy floor.
-    pygame.draw.ellipse(surf, _TH_FELT_H, (HX - 9, top_y - 2, 19, 6))
-    pygame.draw.ellipse(surf, _TH_FELT, (HX - 8, top_y - 1, 17, 4))
+    top_y = cy - 11                       # short crown
+    pygame.draw.rect(surf, _TH_COAT, (HX - 9, top_y, 18, 12))
+    pygame.draw.line(surf, _TH_RIM, (HX - 9, top_y + 2), (HX - 9, cy + 1), 2)
+    pygame.draw.line(surf, _TH_LAPEL, (HX + 7, top_y + 2), (HX + 7, cy - 2), 1)  # front sheen
+    pygame.draw.ellipse(surf, _TH_RIM, (HX - 9, top_y - 2, 18, 6))  # cool top rim
+    pygame.draw.ellipse(surf, _TH_COAT, (HX - 8, top_y - 1, 16, 4))
+    pygame.draw.line(surf, _TH_PALE_D, (HX - 6, top_y - 1), (HX + 4, top_y - 1), 1)
 
-    # Bright satin band wrapping the base of the crown.
-    pygame.draw.rect(surf, _TH_BAND, (HX - 9, cy - 3, 19, 4))
-    pygame.draw.line(surf, _TH_BAND_H, (HX - 8, cy - 3), (HX + 8, cy - 3), 1)
+    # Black crepe mourning band wrapping the crown base, edged with a thin cool
+    # line so it still reads as a band.
+    pygame.draw.rect(surf, (7, 7, 11), (HX - 9, cy - 4, 18, 5))
+    pygame.draw.line(surf, _TH_RIM, (HX - 9, cy - 4), (HX + 8, cy - 4), 1)
 
-    # Monocle on the NEAR eye — gold ring + glint + a thin chain.
-    mx, my = HX + 6, HY
-    pygame.draw.circle(surf, _TH_GOLD, (mx, my), 5, 2)
-    pygame.draw.circle(surf, (255, 255, 255), (mx - 2, my - 2), 1)
-    pygame.draw.line(surf, _TH_GOLD, (mx + 4, my + 3), (mx + 6, HY + 9), 1)
+    # Small wilted dark rose tucked in the band on the near side — the lone warm
+    # accent: a tight cluster + one drooping petal so it reads as a flower.
+    rx, ry = HX + 6, cy - 2
+    pygame.draw.circle(surf, _TH_ROSE, (rx, ry), 3)
+    pygame.draw.circle(surf, _TH_ROSE_H, (rx - 1, ry - 1), 1)
+    _poly(surf, _TH_ROSE, [(rx + 1, ry + 1), (rx + 4, ry + 3), (rx + 1, ry + 4)])
+    pygame.draw.line(surf, (40, 50, 38), (rx - 2, ry + 2), (rx - 4, ry + 5), 1)  # wilted stem
 
 
-get_tophat_redraw = _make_skin(_paint_tophat)
+get_tophat_redraw = _make_skin(_paint_tophat, base_fn=_tophat_base)
 
 
 def _make_prebuilt_skin(build_fn):
