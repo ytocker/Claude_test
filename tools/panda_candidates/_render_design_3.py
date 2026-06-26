@@ -122,7 +122,7 @@ def main():
     sheet.blit(small.render("One-ball silhouette, oversized ears + eye patches",
                             True, (180, 180, 190)), (tx, fy + 44))
 
-    out = "/home/user/skybit/docs/store_redesign/animal/panda/design_3/round_1.png"
+    out = "/home/user/skybit/docs/store_redesign/animal/panda/design_3/round_2.png"
     pygame.image.save(sheet, out)
     print("saved", out)
 

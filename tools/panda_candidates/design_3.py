@@ -33,12 +33,17 @@ HCX, HCY = 44, 22 + DY           # head centre, set forward+up  (44, 34)
 # Palette (brief). Bright white so the ball pops on day sky; soft highlight
 # greys keep the black ears/limbs from going to flat holes; baby-pink cheeks
 # are pushed brighter than Classic for the "aww".
-BLACK   = (26, 26, 26)           # #1A1A1A
+BLACK   = (26, 26, 26)           # #1A1A1A ears / arms / nose — true panda black
 BLACK_H = (74, 74, 82)           # #4A4A52 soft ear/arm highlight
+# Eye patches use a WARM dark-brown, not near-black: at 40px a pure-black patch
+# with a hole in the middle reads as an empty skull socket. Brown keeps the eye
+# feeling soft + alive ("aww", not creepy).
+PATCH   = (42, 26, 10)           # #2A1A0A warm dark-brown eye patch
+PATCH_H = (66, 44, 22)           # soft brown rim so the patch isn't a flat hole
 WHITE   = (248, 248, 248)        # #F8F8F8 extra-bright white
 WHITE_S = (234, 234, 236)        # #EAEAEC white shadow / lower-belly value step
-PINK    = (255, 157, 176)        # #FF9DB0 bright baby cheeks
-PINK_D  = (236, 126, 150)        # cheek core so the blush has a soft centre
+PINK    = (255, 143, 160)        # #FF8FA0 boosted rosy baby cheeks
+PINK_D  = (240, 110, 134)        # cheek core so the blush has a soft centre
 NOSE    = (30, 28, 30)
 GLINT   = (255, 255, 255)
 
@@ -77,18 +82,25 @@ def _build_frame(wing_angle_deg):
         _aaellipse(surf, BLACK, (fx, BCY + belly_r - 4), 4, 3)
         _aaellipse(surf, BLACK_H, (fx, BCY + belly_r - 5), 2, 1)
 
-    # ── Tiny stub arms (drawn BEFORE the head/belly fronts so only their rounded
-    # tips peek out past the ball edge — short excited paddles, never wings).
+    # ── Tiny stub arms. Drawn BEFORE the belly front so their roots tuck under
+    # the white ball, but pushed OUT far enough that the rounded tips clearly
+    # break the white silhouette edge low on each side — otherwise they vanish
+    # inside the ball at 40px. Short excited paddles, never wings. One nub per
+    # frame sits a touch differently (lift) so the flap has life/juice.
     for side in (-1, 1):
-        ax = BCX + side * (belly_r - 2)
-        ay = BCY + 2 - int(lift * 4) * (1 if side else 1)
-        # Each arm is a tiny rounded black blob just outside the white ball.
-        _aaellipse(surf, BLACK, (ax, ay), 5, 6)
-        _aaellipse(surf, BLACK_H, (ax - side, ay - 2), 2, 3)
+        # Asymmetric lift so the two nubs animate out of sync (more alive).
+        nlift = int(lift * 3) if side < 0 else int(lift * 2)
+        ax = BCX + side * (belly_r + 1)     # centre sits just OUTSIDE the edge
+        ay = BCY + 4 - nlift
+        # Rounded black nub breaking the white edge, with a soft highlight so it
+        # isn't a flat hole.
+        _aaellipse(surf, BLACK, (ax, ay), 4, 5)
+        _aaellipse(surf, BLACK_H, (ax - side, ay - 2), 2, 2)
 
     # Re-stamp the belly front over the arm roots so the arms read as stubs
-    # attached to the ball, not free-floating mitts.
-    _ball(surf, WHITE, BCX, BCY - 1, belly_r - 2)
+    # attached to the ball, not free-floating mitts. Kept slightly smaller than
+    # the full belly so the nub tips stay proud of the white edge.
+    _ball(surf, WHITE, BCX, BCY - 1, belly_r - 3)
     bot2 = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
     _aaellipse(bot2, WHITE_S, (BCX, BCY + 7), belly_r - 5, belly_r - 8)
     surf.blit(bot2, (0, 0))
@@ -111,37 +123,47 @@ def _build_frame(wing_angle_deg):
     # and body fuse into one ball.
     _ball(surf, WHITE_S, HCX, HCY + 1, head_r)
     _ball(surf, WHITE, HCX, HCY - 1, head_r - 1)
-    # Tiny crown tuft / cowlick between the ears (one charm object).
-    tuft = [(HCX - 2, HCY - head_r + 3), (HCX, HCY - head_r - 4),
-            (HCX + 2, HCY - head_r + 3)]
-    pygame.draw.polygon(surf, BLACK, tuft)
-    pygame.draw.line(surf, BLACK_H, (HCX, HCY - head_r - 3),
-                     (HCX, HCY - head_r + 2), 1)
+    # Crown tuft between the ears. Drawn as a small rounded blob (a fat teardrop)
+    # rather than a 1px spike — at 40px a thin spike reads as a stray antenna; a
+    # 2px rounded tuft reads as soft baby fur instead.
+    tuft_y = HCY - head_r + 2
+    _aaellipse(surf, BLACK, (HCX, tuft_y - 2), 2, 3)
+    _aaellipse(surf, BLACK, (HCX, tuft_y), 3, 2)
+    _aaellipse(surf, BLACK_H, (HCX, tuft_y - 2), 1, 1)
 
-    # ── Huge round black eye patches — more circular than teardrop, set LOW and
-    # WIDE (baby spacing). They take up most of the face. Each holds a big white
-    # sparkle glint so the eyes read awake + sweet, not sleepy.
+    # ── Huge round eye patches — more circular than teardrop, set LOW and WIDE
+    # (baby spacing). Warm dark-BROWN, not near-black, so they don't read as
+    # hollow skull sockets. Pushed out to side*9 with radius 7 so a clean white
+    # nose-bridge gap of >=2px survives between them in every frame (no single
+    # horizontal dark band). A soft brown rim rings each patch so it has form,
+    # not a flat hole.
     for side in (-1, 1):
-        px = HCX + side * 8
+        px = HCX + side * 9
         py = HCY + 3
-        # Patch: a fat near-circle, slightly taller than wide.
-        _aaellipse(surf, BLACK, (px, py), 7, 8)
+        _aaellipse(surf, PATCH_H, (px, py), 7, 8)      # warm rim
+        _aaellipse(surf, PATCH, (px, py), 6, 7)        # patch body
         # Eye white inside the patch, low and inward.
         eye_x = px - side * 1
         eye_y = py + 1
         _ball(surf, WHITE, eye_x, eye_y, 3)
-        # Dark pupil + a big bright sparkle for the baby-eye catchlight.
-        _ball(surf, BLACK, eye_x, eye_y + 1, 2)
-        _ball(surf, GLINT, eye_x - 1, eye_y - 1, 1)
-        _aaellipse(surf, GLINT, (eye_x + 1, eye_y + 2), 1, 1)
+        # Dark pupil — kept warm-brown so the eye matches the soft patch.
+        _ball(surf, PATCH, eye_x, eye_y + 1, 2)
+        # Big, BRIGHT catchlight placed consistently upper-inner on BOTH eyes
+        # (toward the nose) so each one catches the light the same way. A solid
+        # 2px-at-canvas glint is the single most important rescue of the eyes —
+        # it survives the 40px NEAREST downscale and turns sockets into life.
+        gx = eye_x - side    # upper-inner = toward the nose bridge
+        gy = eye_y - 1
+        _ball(surf, GLINT, gx, gy, 2)
 
-    # ── Rosy round cheek blushes — larger + brighter than Classic, set low under
-    # the eye patches and out wide.
+    # ── Rosy round cheek blushes — boosted ~15% larger + more saturated than
+    # before (the "aww" lean-in). Kept LOW and WIDE on the white face, well
+    # clear of the patches so they stay legible against the bright day sky.
     for side in (-1, 1):
-        cx = HCX + side * 13
+        cx = HCX + side * 14
         cy = HCY + 10
-        _aaellipse(surf, PINK, (cx, cy), 4, 3)
-        _aaellipse(surf, PINK_D, (cx, cy), 2, 1)
+        _aaellipse(surf, PINK, (cx, cy), 5, 4)
+        _aaellipse(surf, PINK_D, (cx, cy), 3, 2)
 
     # ── Tiny black nose + tiny mouth, set LOW for exaggerated baby spacing.
     nose_x, nose_y = HCX, HCY + 9
