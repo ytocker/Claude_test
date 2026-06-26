@@ -28,8 +28,6 @@ HIGH     = (242, 148, 78)   # forehead + belly gloss highlight
 CREAM    = (246, 230, 204)  # eye-surround, inner ear, belly, tail rings
 CREAM_D  = (214, 196, 166)  # cream in shade (AO)
 ACCENT   = (58, 36, 24)     # nose, eye-line accent, dark detail
-LEG_DARK = (40, 24, 16)     # tucked legs / paws
-RUST_TR  = (150, 60, 30)    # rust tear-track
 RING_SH  = (104, 42, 22)    # crescent ring shade edge
 
 
@@ -61,35 +59,52 @@ def _flap(angle_deg):
     return (40 - angle_deg) / 90.0
 
 
+def _cheek_mask(surf, cx, cy, sgn):
+    """Asymmetric cream brow/cheek patch — the red-panda facial mask. Sweeps
+    up-and-out toward the ear (NOT a ring centred on the pupil), so the two
+    sides don't merge into spectacles. sgn = -1 left, +1 right."""
+    # Sweep of small cream discs climbing from the cheek up toward the ear.
+    pts = [
+        (cx,             cy + 2, 3),    # cheek under the eye
+        (cx + sgn * 3,   cy - 1, 3),    # outer eye flank
+        (cx + sgn * 5,   cy - 5, 2),    # rising toward the brow
+        (cx + sgn * 6,   cy - 9, 2),    # up toward the ear root
+    ]
+    for px, py, pr in pts:
+        _aaellipse(surf, CREAM_D, (px, py + 1), pr, pr)
+        _aaellipse(surf, CREAM,   (px, py),     pr, pr)
+
+
 def _eye(surf, cx, cy, r):
-    """Large forward eye on a cream surround with a rust tear-track below."""
-    # Cream eye-surround patch behind the eye.
-    _aaellipse(surf, CREAM_D, (cx, cy + 1), r + 3, r + 3)
-    _aaellipse(surf, CREAM,   (cx, cy),     r + 3, r + 3)
-    # Rust tear-track dropping from the inner corner.
-    pygame.draw.line(surf, RUST_TR, (cx, cy + r), (cx + 1, cy + r + 4), 2)
+    """Small dark forward eye with a single catch-light; the cream mask is
+    drawn separately so the two surrounds never fuse into goggles."""
+    # Tear-track: a clean 1px dark notch at the inner eye corner (toward muzzle).
+    pygame.draw.line(surf, ACCENT, (cx, cy + r), (cx, cy + r + 2), 1)
     # Eyeball.
     pygame.draw.circle(surf, ACCENT, (cx, cy), r)
-    pygame.draw.circle(surf, (16, 10, 8), (cx + 1, cy), max(2, r - 1))
+    pygame.draw.circle(surf, (16, 10, 8), (cx, cy), max(1, r - 1))
     # Catch-light.
-    pygame.draw.circle(surf, (255, 252, 246), (cx - 1, cy - 1), max(1, r // 3))
+    pygame.draw.circle(surf, (255, 252, 246), (cx - 1, cy - 1), 1)
 
 
 def _ear(surf, cx, cy, sgn):
-    """Triangular pointed ear with a cream inner; sgn = -1 left, +1 right."""
+    """Triangular pointed ear with a high-contrast cream inner; sgn = -1 left,
+    +1 right. Inner edge is pulled toward the flank so a clear russet valley
+    sits between the two ear bases instead of one dark crown band."""
+    # Inner edge shifted outward so the two ears leave a gap at the crown.
     tip   = (cx + sgn * 4, cy - 9)
-    inner = (cx + sgn * 9, cy + 2)
-    outer = (cx - sgn * 5, cy + 2)
+    inner = (cx + sgn * 8, cy + 2)
+    outer = (cx + sgn * 2, cy + 2)
     pygame.draw.polygon(surf, SHADOW, [tip, inner, outer])
     pygame.draw.polygon(surf, BODY,
                         [(tip[0], tip[1] + 1),
                          (inner[0] - sgn, inner[1]),
                          (outer[0] + sgn, outer[1])])
-    # Cream inner triangle.
-    pygame.draw.polygon(surf, CREAM,
-                        [(cx + sgn * 3, cy - 5),
+    # Bright high-contrast cream inner triangle.
+    pygame.draw.polygon(surf, (252, 242, 222),
+                        [(cx + sgn * 4, cy - 5),
                          (cx + sgn * 6, cy + 1),
-                         (cx + sgn * 1, cy + 1)])
+                         (cx + sgn * 2, cy + 1)])
 
 
 def _tail_curve():
@@ -167,12 +182,14 @@ def _tail(surf, f):
 
 
 def _legs(surf, f):
-    """Dark tucked legs with small paw dots; tuck deeper on the up-pose."""
-    drop = int(7 - f * 4)
-    for fx in (27, 37):
-        pygame.draw.line(surf, LEG_DARK, (fx, BCY + 9), (fx, BCY + 9 + drop), 4)
-        pygame.draw.circle(surf, LEG_DARK, (fx, BCY + 9 + drop), 3)
-        pygame.draw.circle(surf, (60, 38, 26), (fx - 1, BCY + 8 + drop), 1)
+    """Warm rust legs tucked tight under the body with small paw dots; tuck
+    deeper on the up-pose. Rust (not near-black) so they read as fur, not
+    detached blobs."""
+    drop = int(5 - f * 3)
+    for fx in (29, 35):
+        pygame.draw.line(surf, SHADOW, (fx, BCY + 9), (fx, BCY + 9 + drop), 4)
+        pygame.draw.circle(surf, SHADOW, (fx, BCY + 9 + drop), 3)
+        pygame.draw.circle(surf, ACCENT, (fx - 1, BCY + 9 + drop), 1)
 
 
 def _body(surf):
@@ -197,19 +214,32 @@ def _head(surf, f):
     _aaellipse(surf, BODY,   (hcx,     hcy),     13, 12)
     _aaellipse(surf, HIGH,   (hcx - 3, hcy - 6),  6, 4)   # forehead gloss
 
-    # Ears flanking the crown.
+    # Ears flanking the crown with a clear russet gap between their bases.
     _ear(surf, hcx - 8, CROWN_Y + 4, -1)
     _ear(surf, hcx + 9, CROWN_Y + 4, +1)
 
-    # Large forward-facing eyes (~60% body width apart), slight upward tilt.
-    _eye(surf, hcx - 4, hcy - 1, 3)
-    _eye(surf, hcx + 7, hcy - 1, 3)
+    # Cream brow/cheek mask first, then the small eyes on top — tighter and
+    # closer (7px spread: hcx-1 and hcx+6) for red-panda charm.
+    elx, erx, ey = hcx - 1, hcx + 6, hcy - 1
+    _cheek_mask(surf, elx, ey, -1)
+    _cheek_mask(surf, erx, ey, +1)
 
-    # Small dark nose + hint of a mouth.
-    pygame.draw.circle(surf, ACCENT, (hcx + 1, hcy + 6), 2)
-    pygame.draw.line(surf, ACCENT, (hcx + 1, hcy + 8), (hcx + 1, hcy + 10), 1)
-    pygame.draw.line(surf, ACCENT, (hcx - 2, hcy + 10), (hcx + 1, hcy + 10), 1)
-    pygame.draw.line(surf, ACCENT, (hcx + 1, hcy + 10), (hcx + 4, hcy + 10), 1)
+    # Short cream muzzle wedge bridging the lower face, anchoring the T.
+    mcx = (elx + erx) // 2
+    _aaellipse(surf, CREAM_D, (mcx, hcy + 7), 4, 3)
+    _aaellipse(surf, CREAM,   (mcx, hcy + 6), 4, 3)
+
+    _eye(surf, elx, ey, 2)
+    _eye(surf, erx, ey, 2)
+
+    # Bolder dark nose — a small 3px-wide downward triangle anchor.
+    nx, ny = mcx, hcy + 4
+    pygame.draw.polygon(surf, ACCENT,
+                        [(nx - 2, ny), (nx + 2, ny), (nx, ny + 3)])
+    # Hint of a mouth dropping from the nose.
+    pygame.draw.line(surf, ACCENT, (nx, ny + 3), (nx, ny + 5), 1)
+    pygame.draw.line(surf, ACCENT, (nx - 2, ny + 5), (nx, ny + 5), 1)
+    pygame.draw.line(surf, ACCENT, (nx, ny + 5), (nx + 2, ny + 5), 1)
 
 
 def build_ember_scout(wing_angle_deg):
