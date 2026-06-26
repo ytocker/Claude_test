@@ -22,9 +22,13 @@ from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
 
 
 # ── palette ──────────────────────────────────────────────────────────────────
-_OS_GREEN    = (46, 125, 79)       # Osiris Nile-green (#2E7D4F) — skin of rebirth
-_OS_GREEN_D  = (27, 77, 50)        # green shadow (#1B4D32)
-_OS_GREEN_H  = (96, 178, 124)      # green highlight (chest/crown sheen)
+# Skybit's pillars, bushes and ground are all WARM yellow-greens. To keep Osiris
+# from camouflaging into the foliage, the body is pushed toward a COOLER, DEEPER
+# teal-green and dropped in value so it reads darker than every canopy, with a
+# near-black outline carved around the whole silhouette as a hard separating edge.
+_OS_GREEN    = (28, 102, 88)       # Osiris cool teal-green (#1C6658) — sits below the canopies
+_OS_GREEN_D  = (10, 44, 40)        # near-black green outline/shadow (#0A2C28)
+_OS_GREEN_H  = (78, 168, 150)      # cool green highlight (chest/crown sheen)
 _OS_WHITE    = (242, 239, 230)     # Atef / Hedjet white (#F2EFE6)
 _OS_WHITE_D  = (206, 202, 188)     # plume/cone shadow
 _OS_WHITE_H  = (255, 255, 250)     # crisp white glint
@@ -42,84 +46,107 @@ _OS_WRAP_H   = (244, 240, 228)     # wrap highlight
 # recolour reads as one creature; lenses are dropped so the divine face owns
 # the head, and the beak goes pale-gold to echo the regalia.
 _OS_BODY = _pal(
-    tail=[(30, 86, 56), (38, 104, 67), (46, 125, 79), (74, 156, 104)],
+    tail=[(14, 56, 50), (20, 76, 66), (28, 102, 88), (44, 132, 116)],
     tail_line=_OS_GREEN_D,
-    body_shadow=(28, 80, 52),
+    body_shadow=(16, 60, 52),
     body_main=_OS_GREEN,
-    body_chest=(72, 150, 100),
-    body_belly=(54, 134, 86),
-    sheen=(150, 210, 170, 70),
-    wing_main=(40, 112, 72),
+    body_chest=(40, 128, 112),
+    body_belly=(28, 108, 94),
+    sheen=(120, 200, 180, 64),
+    wing_main=(22, 88, 76),
     wing_dark=_OS_GREEN_D,
-    wing_tip=(86, 166, 114),
+    wing_tip=(54, 146, 128),
     wing_secondary=None,
     wing_highlight=_OS_GREEN_H,
-    head_shadow=(28, 80, 52),
+    head_shadow=(16, 60, 52),
     head_main=_OS_GREEN,
-    head_cheek=(80, 158, 108),
-    head_crown=(72, 150, 100),
-    lens_frame=(60, 130, 90),
-    lens_body=(18, 54, 36),
+    head_cheek=(46, 138, 120),
+    head_crown=(40, 128, 112),
+    lens_frame=(34, 100, 88),
+    lens_body=(10, 44, 40),
     lens_tint=None,
     lens_glint=None,
     beak_main=(214, 188, 120),
     beak_dark=(150, 124, 64),
     beak_gloss=(244, 228, 170),
-    foot=(30, 86, 56),
+    foot=(16, 60, 52),
 )
 
 
 def _os_base(angle_deg):
-    return _build_parrot_with_palette(angle_deg, _OS_BODY, draw_lenses=False)
+    """Recoloured teal-green macaw with a near-black rim carved around its whole
+    silhouette. Skybit's pipes/bushes/ground are warm yellow-greens; without a
+    hard dark edge a green body butts colour-to-colour against foliage and
+    dissolves. The rim is hue-matched (deep teal-black) so it reads as Osiris's
+    own shadow, not a sticker outline, and it stacks under the lighter 1px
+    outline _make_skin adds so the separating edge never breaks."""
+    body = _build_parrot_with_palette(angle_deg, _OS_BODY, draw_lenses=False)
+    mask = pygame.mask.from_surface(body, threshold=8)
+    rim = mask.to_surface(setcolor=_OS_GREEN_D + (255,),
+                          unsetcolor=(0, 0, 0, 0))
+    out = pygame.Surface(body.get_size(), pygame.SRCALPHA)
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1),
+                   (-1, -1), (1, -1), (-1, 1), (1, 1)):
+        out.blit(rim, (dx, dy))
+    out.blit(body, (0, 0))
+    return out
 
 
 def _crook_flail(surf):
-    """Two short gold staffs crossed in an X over the chest — the signature
-    Osiris gesture. Both are tucked entirely inside the body silhouette: the
-    crook hooks at its top, the flail trails three short bead-strands, and
-    neither tip leaves the footprint or crosses the feet line."""
+    """Two BOLD gold bars crossed in an X over the chest — the signature Osiris
+    gesture, rebuilt to read at 40px. At that size a shepherd's-hook curl and a
+    3-strand flail are sub-pixel mud, so each staff is one fat ~4px bar with a
+    bright core, a bead locks the crossing, and ONE clean tell per arm names it:
+    a single hook notch top-left (crook), a single short tassel top-right
+    (flail). Everything stays inside the body silhouette and above the feet."""
     BCX, BCY = 32, 52
 
-    # Crook (heka) — leans one way, with a shepherd's hook at its head.
-    cx0, cy0 = BCX - 8, BCY + 9          # lower butt, inside the belly
-    cx1, cy1 = BCX + 4, BCY - 8          # upper head, below the collar
-    pygame.draw.line(surf, _OS_GOLD_D, (cx0, cy0 + 1), (cx1, cy1 + 1), 4)
-    pygame.draw.line(surf, _OS_GOLD, (cx0, cy0), (cx1, cy1), 3)
-    pygame.draw.line(surf, _OS_GOLD_H, (cx0 + 1, cy0 - 1), (cx1, cy1 - 1), 1)
-    # Hook curl at the crook head.
-    _poly(surf, _OS_GOLD_D, [(cx1, cy1 + 1), (cx1 + 5, cy1 - 1),
-                             (cx1 + 4, cy1 + 4), (cx1, cy1 + 4)])
-    _poly(surf, _OS_GOLD, [(cx1, cy1), (cx1 + 4, cy1 - 1),
-                           (cx1 + 3, cy1 + 3), (cx1, cy1 + 3)])
-    pygame.draw.circle(surf, _OS_GOLD_H, (cx1 + 3, cy1), 1)
+    # Both staffs as fat 4px bars with a dark base and a bright gold core so the
+    # X out-values the now-darker teal body and pops as the chest hero.
+    def _bar(x0, y0, x1, y1):
+        pygame.draw.line(surf, _OS_GREEN_D, (x0, y0 + 1), (x1, y1 + 1), 5)
+        pygame.draw.line(surf, _OS_GOLD_D, (x0, y0), (x1, y1), 4)
+        pygame.draw.line(surf, _OS_GOLD, (x0, y0), (x1, y1), 3)
+        pygame.draw.line(surf, _OS_GOLD_H, (x0, y0 - 1), (x1, y1 - 1), 1)
 
-    # Flail (nekhakha) — crosses the crook the other way; three short strands.
-    fx0, fy0 = BCX + 8, BCY + 9           # lower butt
-    fx1, fy1 = BCX - 4, BCY - 8           # upper head
-    pygame.draw.line(surf, _OS_GOLD_D, (fx0, fy0 + 1), (fx1, fy1 + 1), 4)
-    pygame.draw.line(surf, _OS_GOLD, (fx0, fy0), (fx1, fy1), 3)
-    pygame.draw.line(surf, _OS_GOLD_H, (fx0 - 1, fy0 - 1), (fx1, fy1 - 1), 1)
-    for dx in (-2, 0, 2):
-        pygame.draw.line(surf, _OS_GOLD_D, (fx1, fy1), (fx1 + dx, fy1 - 5), 2)
-        pygame.draw.line(surf, _OS_GOLD, (fx1, fy1), (fx1 + dx, fy1 - 4), 1)
-        pygame.draw.circle(surf, _OS_GOLD_H, (fx1 + dx, fy1 - 4), 1)
+    # Crook (heka): lower-left butt up to upper-right head.
+    cx0, cy0 = BCX - 9, BCY + 9
+    cx1, cy1 = BCX + 7, BCY - 8
+    # Flail (nekhakha): lower-right butt up to upper-left head.
+    fx0, fy0 = BCX + 9, BCY + 9
+    fx1, fy1 = BCX - 7, BCY - 8
+    _bar(cx0, cy0, cx1, cy1)
+    _bar(fx0, fy0, fx1, fy1)
 
-    # Bright bead at the crossing so the X locks visually at 40px.
-    pygame.draw.circle(surf, _OS_GOLD_H, (BCX, BCY + 1), 2)
-    pygame.draw.circle(surf, _OS_WHITE_H, (BCX - 1, BCY), 1)
+    # ONE tell per arm, drawn big enough to survive the shrink.
+    # Crook tell: a single hook notch curling off the top-right head.
+    _poly(surf, _OS_GOLD_D, [(cx1, cy1 + 1), (cx1 + 6, cy1 - 2),
+                             (cx1 + 5, cy1 + 3), (cx1, cy1 + 3)])
+    _poly(surf, _OS_GOLD, [(cx1, cy1), (cx1 + 5, cy1 - 2),
+                           (cx1 + 4, cy1 + 2), (cx1, cy1 + 2)])
+    pygame.draw.circle(surf, _OS_GOLD_H, (cx1 + 4, cy1 - 1), 1)
+    # Flail tell: a single short tassel hanging off the top-left head.
+    pygame.draw.line(surf, _OS_GREEN_D, (fx1, fy1), (fx1 - 1, fy1 + 6), 3)
+    pygame.draw.line(surf, _OS_GOLD, (fx1, fy1), (fx1 - 1, fy1 + 5), 2)
+    pygame.draw.circle(surf, _OS_GOLD_H, (fx1 - 1, fy1 + 5), 1)
+
+    # Bright bead locks the crossing so the X reads as one shape at 40px.
+    pygame.draw.circle(surf, _OS_GOLD_D, (BCX, BCY + 1), 3)
+    pygame.draw.circle(surf, _OS_GOLD, (BCX, BCY), 2)
+    pygame.draw.circle(surf, _OS_WHITE_H, (BCX - 1, BCY - 1), 1)
 
 
 def _paint(surf, _a):
     BCX, BCY = 32, 52                     # body centre in composite space
 
     # ── pale mummy-wrap bands across the lower body ───────────────────────────
-    # Thin horizontal strips on the belly so the green reads mummiform-regal
-    # without adding mass. Kept inside the footprint and above the feet line.
-    for wy, x0, x1 in ((BCY + 4, BCX - 14, BCX + 13),
-                       (BCY + 8, BCX - 13, BCX + 12),
-                       (BCY + 12, BCX - 11, BCX + 10)):
-        pygame.draw.line(surf, _OS_GREEN_D, (x0, wy + 1), (x1, wy + 1), 3)
-        pygame.draw.line(surf, _OS_WRAP, (x0, wy), (x1, wy), 2)
+    # TWO crisp, bold linen bands (was three faint ones — they read as noise at
+    # 40px). Each is a pale band over its own dark shadow line so it stays legible
+    # after the shrink. Inside the footprint, above the feet line.
+    for wy, x0, x1 in ((BCY + 6, BCX - 14, BCX + 13),
+                       (BCY + 11, BCX - 12, BCX + 11)):
+        pygame.draw.line(surf, _OS_GREEN_D, (x0, wy + 2), (x1, wy + 2), 2)
+        pygame.draw.line(surf, _OS_WRAP, (x0, wy), (x1, wy), 3)
         pygame.draw.line(surf, _OS_WRAP_H, (x0 + 1, wy - 1), (x1 - 3, wy - 1), 1)
 
     # ── slim gold-and-lapis collar arc (neck/chest, inside footprint) ─────────
@@ -131,6 +158,14 @@ def _paint(surf, _a):
         pygame.draw.circle(surf, _OS_LAPIS_H, (bx, cy), 1)
     pygame.draw.line(surf, _OS_GOLD_H, (BCX - 10, cy - 3), (BCX + 4, cy - 3), 1)
 
+    # ── continuous gold trim where green meets the collar/wrap zone ───────────
+    # A hard, bright separating line just under the collar so the teal body never
+    # bleeds edge-to-edge into foliage at the chest break — a second internal
+    # "outline" of regalia, framing the top of the crook-and-flail X.
+    ty = BCY - 6
+    pygame.draw.line(surf, _OS_GOLD_D, (BCX - 15, ty + 1), (BCX + 14, ty), 2)
+    pygame.draw.line(surf, _OS_GOLD, (BCX - 15, ty), (BCX + 14, ty - 1), 1)
+
     # ── crook & flail crossed over the chest (the signature) ──────────────────
     _crook_flail(surf)
 
@@ -140,18 +175,21 @@ def _paint(surf, _a):
         pygame.draw.ellipse(surf, _OS_WRAP, (fx - 3, HY + 21, 7, 4))
         pygame.draw.line(surf, _OS_WRAP_H, (fx - 2, HY + 21), (fx + 2, HY + 21), 1)
 
-    # ── divine false-beard bar straight down under the chin ───────────────────
-    # A crisp vertical tell, kept short so it stays inside the silhouette.
+    # ── divine false-beard: bold gold-capped dark bar with a pale plait ───────
+    # A vertical chin tell that must survive the shrink, so it's a SOLID dark
+    # bar (not a faint sliver) capped by a bright gold band and split by one
+    # clear pale plait stripe — three values stacked so it reads at 40px.
     bx = HX + 4
-    _poly(surf, _OS_GREEN_D, [(bx - 3, HY + 5), (bx + 4, HY + 5),
-                             (bx + 3, HY + 17), (bx - 2, HY + 17)])
-    _poly(surf, _OS_WRAP, [(bx - 2, HY + 5), (bx + 3, HY + 5),
-                          (bx + 2, HY + 16), (bx - 1, HY + 16)])
-    # Plaited ridges + a gold cap where the beard meets the chin.
-    for ry in (HY + 8, HY + 11, HY + 14):
-        pygame.draw.line(surf, _OS_WHITE_D, (bx - 2, ry), (bx + 2, ry), 1)
-    pygame.draw.line(surf, _OS_GOLD, (bx - 3, HY + 5), (bx + 4, HY + 5), 2)
-    pygame.draw.line(surf, _OS_GOLD_H, (bx - 2, HY + 5), (bx + 2, HY + 5), 1)
+    _poly(surf, _OS_GREEN_D, [(bx - 4, HY + 5), (bx + 4, HY + 5),
+                             (bx + 3, HY + 18), (bx - 3, HY + 18)])
+    _poly(surf, _OS_GOLD_D, [(bx - 3, HY + 7), (bx + 3, HY + 7),
+                            (bx + 2, HY + 17), (bx - 2, HY + 17)])
+    # Pale plait running down the centre of the dark bar.
+    pygame.draw.line(surf, _OS_WRAP, (bx, HY + 7), (bx, HY + 16), 2)
+    pygame.draw.line(surf, _OS_WHITE_H, (bx, HY + 8), (bx, HY + 14), 1)
+    # Bright gold cap where the beard meets the chin.
+    pygame.draw.line(surf, _OS_GOLD, (bx - 4, HY + 6), (bx + 4, HY + 6), 3)
+    pygame.draw.line(surf, _OS_GOLD_H, (bx - 3, HY + 5), (bx + 3, HY + 5), 1)
 
     # ── ATEF crown (the only thing allowed above CROWN_Y) ─────────────────────
     _atef(surf)

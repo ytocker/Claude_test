@@ -13,8 +13,40 @@ pygame.init()
 from tools import ninja_render
 from tools.pharaoh_candidates.v2_design_3 import build
 
-OUT = "docs/store_redesign/costume/pharaoh/v2_design_3/round_1.png"
-TITLE = "v2 DESIGN 3 — OSIRIS  round 1"
+from game import biome
+from game.draw import get_sky_surface_biome, draw_mountains, draw_ground, draw_cloud
+from game.entities import Pipe
+from game.config import W as GW, H as GH, GROUND_Y
+
+OUT = "docs/store_redesign/costume/pharaoh/v2_design_3/round_2.png"
+TITLE = "v2 DESIGN 3 — OSIRIS  round 2"
+
+
+def _gameplay_overlap(w, h):
+    """The make-or-break read: Pip composited so his green body physically
+    OVERLAPS a green pillar (and a leafy bush), to prove the teal recolor +
+    dark rim separate from Skybit's foliage rather than camouflaging into it."""
+    scene = pygame.Surface((GW, GH))
+    palette = biome.palette_for_phase(0.0)
+    scene.blit(get_sky_surface_biome(GW, GH, GROUND_Y, palette, 0), (0, 0))
+    for bx, by, sc, variant in ((40, 90, 0.9, 0), (240, 60, 0.7, 1)):
+        draw_cloud(scene, bx, by, sc, variant=variant)
+    draw_mountains(scene, 40.0, GROUND_Y, GW, palette['mtn_far'], palette['mtn_near'])
+    # A pillar planted right where the bird flies so its body laps the green edge.
+    Pipe(x=70, gap_y=250, gap_h=185).draw(scene, palette)
+    Pipe(x=230, gap_y=300, gap_h=170).draw(scene, palette)
+    draw_ground(scene, GROUND_Y, GW, GH, 40.0,
+                palette['ground_top'], palette['ground_mid'], (60, 40, 25))
+    # Bird centred over the left pillar's stone so its silhouette overlaps green.
+    pip_cx, pip_cy = 96, 255
+    frame = build(ninja_render.FRAME_IDX, ninja_render.TILT)
+    scene.blit(frame, frame.get_rect(center=(pip_cx, pip_cy)))
+    crop_h = int(GH * 0.78)
+    crop_w = int(crop_h * w / h)
+    crop = pygame.Rect(0, 0, crop_w, crop_h)
+    crop.center = (pip_cx + 30, pip_cy - 16)
+    crop.clamp_ip(pygame.Rect(0, 0, GW, GH))
+    return pygame.transform.smoothscale(scene.subsurface(crop).copy(), (w, h))
 
 
 def _label(surf, text, x, y, size=18, color=(236, 238, 246)):
@@ -51,7 +83,7 @@ def main():
     box = 360
     gw = int(box * 9 / 16)
     hero = ninja_render.hero_panel(build, box)
-    gameplay = ninja_render.gameplay_panel(build, gw, box)
+    gameplay = _gameplay_overlap(gw, box)
     truth = _truth_read(box)
 
     pad = 18
@@ -72,7 +104,8 @@ def main():
     y = head
     for x, panel in zip(xs, (hero, gameplay, truth)):
         sheet.blit(panel, (x, y))
-    for x, name in zip(xs, ("HERO PRODUCT SHOT", "IN-GAMEPLAY (day biome)",
+    for x, name in zip(xs, ("HERO PRODUCT SHOT",
+                            "IN-GAMEPLAY (body OVERLAPS green pillar)",
                             "40px TRUTH READ  (day | night, 3x)")):
         _label(sheet, name, x, y + box + 6, size=15, color=(190, 194, 210))
 
