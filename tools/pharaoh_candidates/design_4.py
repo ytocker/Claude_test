@@ -71,9 +71,32 @@ _MU_BODY = _pal(
 )
 
 
+_MU_RIM = (120, 106, 72)           # darker-linen rim on the OUTER body contour
+
+
 def _mu_base(angle_deg):
     # Linen-cream bird, no aviators — the sunken hollow sockets own the head.
-    return _build_parrot_with_palette(angle_deg, _MU_BODY, draw_lenses=False)
+    body = _build_parrot_with_palette(angle_deg, _MU_BODY, draw_lenses=False)
+    # The cream body sits at near-identical VALUE to the bright day sky, so the
+    # left wing / tail / head-dome edge dissolves at 40px. A darker-linen rim
+    # hugging the OUTER silhouette (drawn UNDER the body so it shows only as a
+    # 1px edge, never over the interior bands) gives the day read an edge to
+    # hold without touching the night structure.
+    return _rim_outer(body, _MU_RIM)
+
+
+def _rim_outer(src, color):
+    """Stamp a 1px `color` rim hugging the source silhouette's OUTER edge by
+    growing the alpha mask one pixel and laying the original sprite back on
+    top — only the contour ring survives, never the interior."""
+    w, h = src.get_size()
+    out = pygame.Surface((w, h), pygame.SRCALPHA)
+    mask = pygame.mask.from_surface(src, threshold=8)
+    ring = mask.to_surface(setcolor=color, unsetcolor=(0, 0, 0, 0))
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+        out.blit(ring, (dx, dy))
+    out.blit(src, (0, 0))
+    return out
 
 
 def _band(surf, y, x0, x1, dip=0):
@@ -165,9 +188,12 @@ def _paint(surf, _a):
         pygame.draw.line(surf, _MU_SEAM, (HX - 11, wy), (HX + 12, wy - 1), 1)
     pygame.draw.ellipse(surf, _MU_LINEN_H, (HX - 7, CROWN_Y - 2, 11, 4))
 
-    # Slim GOLD brow-band across the wrap — the one metallic note up top.
-    pygame.draw.line(surf, _MU_GOLD, (HX - 12, CROWN_Y + 6), (HX + 13, CROWN_Y + 5), 3)
-    pygame.draw.line(surf, _MU_GOLD_H, (HX - 10, CROWN_Y + 5), (HX + 6, CROWN_Y + 5), 1)
+    # Slim GOLD brow-band across the wrap — the one metallic note up top. Dropped
+    # 1px so it sits in the wrap shadow (not the bright highlight crest) and the
+    # solid 3px _MU_GOLD stays a hard horizontal gold line at 40px on day; the
+    # glint is a thin secondary so gold, not the pale glint, dominates.
+    pygame.draw.line(surf, _MU_GOLD, (HX - 12, CROWN_Y + 7), (HX + 13, CROWN_Y + 6), 3)
+    pygame.draw.line(surf, _MU_GOLD_H, (HX - 9, CROWN_Y + 6), (HX + 3, CROWN_Y + 6), 1)
 
     # One bandage tail flicking UP off the back of the wrap, into open sky above
     # CROWN_Y — the only element (with the wrap) allowed to break upward.
@@ -181,14 +207,18 @@ def _paint(surf, _a):
     # A dark wrap-gap band crosses the face; inside it sit two hollow sockets —
     # dark voids each with a faint amber pinpoint glow so the mummy reads as
     # alive-but-dead on both day and night (the pinpoint is the night tell).
-    pygame.draw.rect(surf, _MU_GRIME, (HX - 7, HY - 4, 22, 8), border_radius=3)
-    for ex in (HX, HX + 9):
-        pygame.draw.circle(surf, _MU_VOID, (ex, HY), 4)
-        pygame.draw.circle(surf, (8, 7, 9), (ex, HY + 1), 3)
+    pygame.draw.rect(surf, _MU_GRIME, (HX - 8, HY - 4, 24, 8), border_radius=3)
+    # Two sockets, spaced ~1px wider apart, with a NEAR-BLACK dominant fill so
+    # at 40px they survive as TWO distinct dark dots instead of merging with the
+    # grime wrap-gap band into one smear.
+    for ex in (HX - 1, HX + 10):
+        pygame.draw.circle(surf, (8, 7, 9), (ex, HY), 4)
+        pygame.draw.circle(surf, (8, 7, 9), (ex, HY + 1), 4)
+        pygame.draw.circle(surf, _MU_VOID, (ex, HY - 2), 2)   # faint upper rim of the hollow
         pygame.draw.circle(surf, _MU_PIN, (ex, HY), 1)        # inner pinpoint glow
     # A torn upper-wrap edge over the eyes so the gap reads as unravelled cloth.
-    pygame.draw.line(surf, _MU_LINEN, (HX - 7, HY - 4), (HX + 14, HY - 5), 2)
-    pygame.draw.line(surf, _MU_SEAM, (HX - 6, HY + 4), (HX + 13, HY + 4), 1)
+    pygame.draw.line(surf, _MU_LINEN, (HX - 8, HY - 4), (HX + 15, HY - 5), 2)
+    pygame.draw.line(surf, _MU_SEAM, (HX - 7, HY + 4), (HX + 14, HY + 4), 1)
 
 
 build = store_skins._make_skin(_paint, base_fn=_mu_base)
