@@ -155,6 +155,7 @@ CATALOG: dict[str, dict] = {
     "parcel_tumbler":   {"name": "TUMBLER",       "cost": 340,  "kind": "parcel", "group": "parcels"},
     "parcel_coconut":   {"name": "COCONUT",       "cost": 360,  "kind": "parcel", "group": "parcels"},
     "parcel_picnic":    {"name": "PICNIC BASKET",  "cost": 380,  "kind": "parcel", "group": "parcels"},
+    "parcel_minipip":   {"name": "MINI PIP",       "cost": 600,  "kind": "parcel", "group": "parcels"},
     "parcel_chest":     {"name": "TREASURE CHEST", "cost": 2800, "kind": "parcel", "group": "parcels"},
     "parcel_snowglobe": {"name": "SNOWGLOBE",      "cost": 9500, "kind": "parcel", "group": "parcels", "secret": True},
     # FINEST WHISKEY is a single mystery parcel: buying it rolls one of four
