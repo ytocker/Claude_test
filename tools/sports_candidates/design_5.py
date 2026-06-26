@@ -1,21 +1,21 @@
 """DESIGN 5 — THE ACE (Tennis).
 
 Scratch exploration only — NOT registered in store_skins.BUILDERS. Pip the
-scarlet macaw kitted as a tennis pro: a crisp white collared POLO with a green
-accent stripe painted over the torso, green-and-white wristbands, a brow VISOR,
-the hero read — a green OVAL strung RACKET held up in the near wing (the head
-breaks the silhouette like the pirate cutlass tip), and a bright neon-yellow
-TENNIS BALL at the wing.
+scarlet macaw kitted as a tennis pro: a crisp white collared POLO with a single
+bold green diagonal sash painted over the torso, green-and-white wristbands, a
+brow VISOR, and the hero read — a green OVAL strung RACKET held up in the near
+wing (the head breaks the silhouette like the pirate cutlass tip).
+
+The tennis BALL is deliberately gone: it ships as a separate matching PARCEL
+item, so the costume must read as tennis from the RACKET + kit alone. That puts
+the whole burden on the racket, so the OVAL ring is drawn large + bold with a
+dark outer halo and the throat Y-struts carried strong — the strung head is the
+unmistakable tell now.
 
 The polo is painted OVER the scarlet body (the head stays the macaw so Pip still
-reads as a parrot). All cloth + ball + wristbands are held INSIDE the base bird
+reads as a parrot). All cloth + wristbands are held INSIDE the base bird
 footprint; only the visor sits at the brow and only the racket head breaks the
 outline as a held prop — nothing below the feet line, nothing balloons the body.
-
-The 40px challenge is the strings: they are too thin to carry the read, so the
-RACKET HEAD is a bold green RING (frame) over a neon-ball-matched void, and the
-neon ball + green ring together carry "tennis" at the downscale — the cross
-strings are only a near-detail bonus.
 
 Headless render: tools/sports_candidates/render_design_5.py.
 """
@@ -54,14 +54,15 @@ BCX, BCY = 32, 52
 
 
 def _racket(surf, hx, hy, hr):
-    """The hero prop: an OVAL strung racket head + a wrapped handle, held up so
-    the head breaks the back/top silhouette. The read at 40px is carried by the
-    bold green RING (the strings are a near-detail bonus, not the read), so the
-    frame is drawn thick in two values and the throat/handle anchor it into the
-    near wing below."""
+    """The hero prop AND now the SOLE tennis tell (the ball ships separately).
+    An OVAL strung racket head + a wrapped handle, held up so the head breaks the
+    back/top silhouette. With nothing else to lean on, the read at 40px rides
+    entirely on the bold green RING + its dark halo + the throat Y-struts, so the
+    oval is drawn a touch larger and the frame thicker in three values, and the
+    handle anchors it into the near wing below."""
     # Oval strung head — a tall ellipse. A dark void fill first so the green ring
     # reads as a rim around an open face, then the bold frame ring on top.
-    rw, rh = int(hr * 1.5), int(hr * 1.9)        # tall tennis-racket oval
+    rw, rh = int(hr * 1.7), int(hr * 2.1)        # tall tennis-racket oval (bumped)
     face = pygame.Rect(hx - rw, hy - rh, rw * 2, rh * 2)
 
     # Cross strings INSIDE the face — thin pale lines on a faint dark mesh so the
@@ -76,24 +77,27 @@ def _racket(surf, hx, hy, hr):
         pygame.draw.line(surf, _TEN_STRING, (face.left + 1, gy), (face.right - 1, gy), 1)
     surf.set_clip(clip_prev)
 
-    # Thin dark OUTER halo a px proud of the frame so the green ring always
-    # separates from the OTHER greens nearby (the visor band + green wing) — the
-    # same trick that lets the ball pop off the wing.
-    pygame.draw.ellipse(surf, _TEN_GREEN_D, face.inflate(2, 2), 1)
+    # Dark OUTER halo a couple px proud of the frame so the green ring always
+    # separates from the day sky AND from the OTHER greens nearby (visor band +
+    # green wing). With the ball gone this halo is what keeps the oval a clean
+    # silhouette break at 40px, so it is drawn 2px and on both targets' skies.
+    pygame.draw.ellipse(surf, _TEN_GREEN_D, face.inflate(4, 4), 2)
 
-    # Bold green frame RING — the actual 40px read. Drawn dark-then-bright so the
-    # oval keeps a lit edge after the downscale.
-    pygame.draw.ellipse(surf, _TEN_GREEN_D, face, 4)
-    pygame.draw.ellipse(surf, _TEN_GREEN, face.inflate(-2, -2), 3)
-    pygame.draw.ellipse(surf, _TEN_GREEN_H, face.inflate(-2, -2), 1)
+    # Bold green frame RING — the whole 40px read now. Drawn dark-then-bright in
+    # three values and thicker than before so the oval keeps a lit, unmistakable
+    # rim after the downscale.
+    pygame.draw.ellipse(surf, _TEN_GREEN_D, face, 5)
+    pygame.draw.ellipse(surf, _TEN_GREEN, face.inflate(-3, -3), 3)
+    pygame.draw.ellipse(surf, _TEN_GREEN_H, face.inflate(-3, -3), 1)
 
-    # Throat — two short green struts splaying from the handle into the head, the
-    # signature racket Y that reads even when strings vanish.
+    # Throat — two green struts splaying from the handle into the head, the
+    # signature racket Y. With the ball gone this is the second tell, so it is
+    # carried bolder so the V survives even when the cross strings vanish.
     ty = hy + rh
-    pygame.draw.line(surf, _TEN_GREEN_D, (hx - 1, ty + 5), (hx - rw + 2, ty - 1), 4)
-    pygame.draw.line(surf, _TEN_GREEN_D, (hx + 1, ty + 5), (hx + rw - 2, ty - 1), 4)
-    pygame.draw.line(surf, _TEN_GREEN, (hx - 1, ty + 4), (hx - rw + 3, ty), 2)
-    pygame.draw.line(surf, _TEN_GREEN, (hx + 1, ty + 4), (hx + rw - 3, ty), 2)
+    pygame.draw.line(surf, _TEN_GREEN_D, (hx - 1, ty + 5), (hx - rw + 2, ty - 2), 5)
+    pygame.draw.line(surf, _TEN_GREEN_D, (hx + 1, ty + 5), (hx + rw - 2, ty - 2), 5)
+    pygame.draw.line(surf, _TEN_GREEN, (hx - 1, ty + 4), (hx - rw + 3, ty - 1), 3)
+    pygame.draw.line(surf, _TEN_GREEN, (hx + 1, ty + 4), (hx + rw - 3, ty - 1), 3)
 
     # Wrapped handle dropping into the near wing (kept inside the silhouette).
     hbx, hby = hx, ty + 5
@@ -169,13 +173,9 @@ def _paint(surf, _a):
         pygame.draw.line(surf, _TEN_POLO, (wx - 3, wy - 3), (wx + 3, wy + 3), 3)
         pygame.draw.line(surf, _TEN_GREEN, (wx - 2, wy - 2), (wx + 2, wy + 2), 1)
 
-    # --- HERO 2: neon TENNIS BALL ------------------------------------------------
-    # Drawn LAST so it sits clearly in front — the brightest, most saturated mass
-    # on the figure. Tucked against the WHITE-POLO lower-near edge (a clean
-    # contrasting backdrop) instead of buried in the lime/scarlet feathers, so the
-    # dark-rimmed neon sphere survives as its own round bright spot at 40px. Held
-    # inside the footprint, resting on the feet line, never below it.
-    _tennis_ball(surf, BCX + 14, HY + 17, 7)
+    # NOTE: the tennis BALL is intentionally NOT drawn — it ships as a separate
+    # matching PARCEL item, so the racket + kit carry the tennis read alone. The
+    # _tennis_ball helper is kept below unused in case the parcel reuses it.
 
     # --- Brow VISOR (keeps the macaw head reading) ------------------------------
     # A white sun visor: a green-trimmed band across the brow + a curved brim over
