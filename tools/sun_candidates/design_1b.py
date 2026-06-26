@@ -35,7 +35,7 @@ def build_sun(wing_angle_deg):
     # Cheerful sun-face — calm small eyes pulled in, recentred up, and design 4's
     # gentle 'tiny' smile (the wider grin read as a creepy open mouth).
     _sun_face(surf, cx, cy - 1, eye_dx=5, eye_r=3, iris=(70, 40, 16),
-              mouth="tiny", blush=(255, 150, 120))
+              mouth="grin", blush=(255, 150, 120))
     return surf
 
 
