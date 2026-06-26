@@ -11,17 +11,20 @@ from tools.flamingo_candidates._shared import (
 
 
 def tail(surf):
-    # Solid connecting base lobe under the body rump.
-    _aaellipse(surf, _FLA_BODY_D, (20, BCY + 4), 8, 6)
-    _aaellipse(surf, _FLA_BODY,   (19, BCY + 3), 7, 5)
-    # Three upswept wisps rooted IN the lobe, curling up + back.
+    # Fuller solid connecting base lobe under the body rump so the wisps grow
+    # from a clear tail mass (not whiskers off the body).
+    _aaellipse(surf, _FLA_BODY_D, (19, BCY + 4), 9, 7)
+    _aaellipse(surf, _FLA_BODY,   (18, BCY + 3), 8, 6)
+    _aaellipse(surf, _FLA_BODY_H, (16, BCY + 1), 3, 2)
+    # Three THICK upswept plumes rooted IN the lobe, curling up + back together
+    # (a tighter sweep so they read as a perked tail, not stray whiskers).
     for (rx, ry, mx, my, tx, ty) in (
-        (18, BCY,     11, BCY - 4, 4, BCY - 5),
-        (19, BCY + 1, 12, BCY - 2, 5, BCY - 1),
-        (19, BCY + 3, 12, BCY + 2, 4, BCY + 4),
+        (16, BCY - 1, 10, BCY - 4, 5, BCY - 4),
+        (17, BCY + 1, 10, BCY - 1, 4, BCY),
+        (18, BCY + 3, 11, BCY + 2, 5, BCY + 3),
     ):
         pygame.draw.lines(surf, _FLA_BODY_D, False,
-                          [(rx, ry), (mx, my), (tx, ty)], 2)
+                          [(rx, ry), (mx, my), (tx, ty)], 3)
         pygame.draw.line(surf, _FLA_BODY_H, (rx, ry), (mx, my), 1)
 
 

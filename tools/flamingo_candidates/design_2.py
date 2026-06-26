@@ -19,13 +19,14 @@ def _feather(surf, root, tip, w, col, hi):
 
 def tail(surf):
     # A solid connecting base under the body rump first, so no feather floats.
-    _aaellipse(surf, _FLA_BODY_D, (20, BCY + 5), 8, 6)
-    # Three feathers fanning back, rooted at x~21 (under the body edge).
-    _feather(surf, (21, BCY + 2), (4, BCY - 3), 3, _FLA_BODY_D, _FLA_BODY_H)
-    _feather(surf, (21, BCY + 5), (2, BCY + 5), 3, _FLA_BODY, _FLA_BODY_H)
-    _feather(surf, (21, BCY + 8), (5, BCY + 12), 3, _FLA_BODY_D, _FLA_BODY_H)
+    _aaellipse(surf, _FLA_BODY_D, (20, BCY + 5), 9, 7)
+    # Three FAT feathers in a TIGHT back-swept fan (not a wide spiky splay) so
+    # they read as overlapping plumage, rooted at x~21 under the body edge.
+    _feather(surf, (21, BCY + 2), (5, BCY - 1), 4, _FLA_BODY_D, _FLA_BODY_H)
+    _feather(surf, (21, BCY + 5), (3, BCY + 5), 4, _FLA_BODY, _FLA_BODY_H)
+    _feather(surf, (21, BCY + 8), (6, BCY + 10), 4, _FLA_BODY_D, _FLA_BODY_H)
     # Mid lobe over the roots to merge them into the body.
-    _aaellipse(surf, _FLA_BODY, (19, BCY + 4), 6, 4)
+    _aaellipse(surf, _FLA_BODY, (19, BCY + 4), 7, 5)
 
 
 build = make(tail)
