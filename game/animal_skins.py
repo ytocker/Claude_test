@@ -947,6 +947,8 @@ for _modname in (
     "animal_paper_plane", "animal_jet_fighter", "animal_ufo", "animal_toaster",
     # Secret piñata flyers (papier-mâché objects — same masked ??? tier).
     "animal_pinata_burro", "animal_pinata_cactus", "animal_pinata_parrot",
+    # Mystery SUN (rolls a random one of two sun designs at unlock).
+    "animal_sun",
 ):
     _mod = __import__("game." + _modname, fromlist=["BUILDERS"])
     BUILDERS.update({k: v for k, v in _mod.BUILDERS.items()

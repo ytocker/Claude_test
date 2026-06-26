@@ -917,6 +917,10 @@ class StoreScene:
                 # the card shows the actual jet, not a stale lazy default.
                 from game import animal_jet_fighter
                 animal_jet_fighter.sync_from_store()
+            elif sid == "skin_sun":
+                # Bind the preview to the sun design just rolled at this unlock.
+                from game import animal_sun
+                animal_sun.sync_from_store()
             # Ownership + balance + EQUIPPED all changed: rebuild the cards (this
             # one reveals if it was a masked secret, and now reads EQUIPPED).
             store_cards.clear_cache()
