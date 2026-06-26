@@ -43,6 +43,7 @@ _HC_SHELL_H = (255, 252, 244)      # shell lit highlight (catch on the dome)
 _HC_AMBER   = (232, 184, 106)      # #E8B86A warm-amber aviator glint
 _HC_DOWN    = (250, 236, 192)      # damp natal-down wisp (warm off-cream)
 _HC_DOWN_D  = (214, 182, 110)      # down-wisp shadow so wisps read on cream sky
+_HC_DOWN_DD = (186, 152, 86)       # one step deeper, for chest wisps off pale belly
 
 
 # Full cream-yellow re-plumage. Shadow slots run a punchy ochre so the body
@@ -79,37 +80,39 @@ P_HATCHLING = _pal(
 )
 
 
-def _zigzag_rim(left, right, teeth, depth, baseline_dy):
-    """Build the hard broken lower rim of the shell as a list of points running
-    left→right, alternating up at the baseline and down into a tooth. A crisp
-    zig-zag (not a smooth curve) is what reads as a CRACKED egg at 40px, so the
-    teeth are kept few + deep enough to survive downscale."""
+def _broken_rim(left, right, teeth, depth, baseline_dy):
+    """The hard broken lower edge of the shell as a left→right point list: the
+    baseline rides flat, then dips into a few BIG triangular teeth. Few + deep
+    is the whole point — a child draws a cracked egg as 3 fat jagged teeth, not
+    a fine comb, and only fat teeth survive the shrink to 40px. Each tooth is a
+    down-vert flanked by two baseline verts, so the V-notches between teeth read
+    as hard cracks once their edges are stroked dark."""
     pts = []
     span = right[0] - left[0]
-    for i in range(teeth + 1):
-        t = i / teeth
+    steps = teeth * 2
+    for i in range(steps + 1):
+        t = i / steps
         x = left[0] + span * t
         y = left[1] + (right[1] - left[1]) * t
-        # Even verts ride the rim baseline; odd verts dip down into a crack tooth.
+        # Odd verts are the deep tooth tips; even verts ride the baseline.
         pts.append((x, y + (depth if i % 2 else baseline_dy)))
     return pts
 
 
 def _shard(surf, pts):
-    """A single eggshell shard — a flat off-white polygon with a crack-shadow
-    keyline + one lit edge so it reads as a hard chip of shell (a value break),
-    not a smudge, when small."""
-    pygame.draw.polygon(surf, _HC_SHELL_D, [(x + 1, y + 1) for x, y in pts])
+    """A single eggshell shard — a flat off-white polygon with a hard crack-shadow
+    keyline stroked around its WHOLE perimeter so it reads as a crisp chip of
+    shell (a value break), not a soft smudge, when small."""
     pygame.draw.polygon(surf, _HC_SHELL, pts)
-    pygame.draw.line(surf, _HC_SHELL_H, pts[0], pts[1], 1)   # lit edge
-    pygame.draw.line(surf, _HC_SHELL_D, pts[1], pts[2], 1)   # crack-shadow edge
+    pygame.draw.polygon(surf, _HC_SHELL_D, pts, 1)            # hard keyline
+    pygame.draw.line(surf, _HC_SHELL_H, pts[0], pts[1], 1)    # one lit edge
 
 
 def _wisp(surf, x, y, dx, dy):
     """One short damp down-wisp — a 2px tapered fluff poking PAST the silhouette
-    so the sleek macaw outline reads broken/fuzzy (the No.1 baby tell). A dark
-    backing 1px behind gives the wisp its own value contrast so it survives on
-    the cream body and on bright sky alike."""
+    so the sleek macaw outline reads broken/fuzzy (the No.1 baby tell). A darker
+    backing one step deeper than the cream gives the wisp its own value contrast
+    so it survives on the cream body and on bright sky alike."""
     tip = (x + dx, y + dy)
     side = (x + (-dy) * 0.4, y + dx * 0.4)
     pygame.draw.polygon(surf, _HC_DOWN_D,
@@ -118,87 +121,89 @@ def _wisp(surf, x, y, dx, dy):
     pygame.draw.polygon(surf, _HC_DOWN, [(x, y), side, tip])
 
 
+def _chest_wisp(surf, x, y, dx, dy):
+    """A chest down-wisp with a deeper backing than the body wisps so it reads
+    against the pale peach belly, and a longer reach so its tip clears the belly
+    silhouette by a clear ~3px (it has to BREAK the outline to register)."""
+    tip = (x + dx, y + dy)
+    side = (x + (-dy) * 0.4, y + dx * 0.4)
+    pygame.draw.polygon(surf, _HC_DOWN_DD,
+                        [(x + 1, y + 1), (side[0] + 1, side[1] + 1),
+                         (tip[0] + 1, tip[1] + 1)])
+    pygame.draw.polygon(surf, _HC_DOWN, [(x, y), side, tip])
+
+
 def _paint_eggcap(surf):
-    """The hero half-eggshell cap. A domed off-white ellipse tilted ~15° off the
-    crown so it breaks the silhouette to one side, capped by a hard zig-zag
-    broken lower rim with a crack-shadow band beneath it so the teeth read as
-    SHELL, not as a soft hat. One tiny shard perches on top. Built solid + ≥3px
-    so the whole cap holds as one bright shape at thumbnail size on both skies."""
-    # Cap sits up off the crown and tilts screen-left (toward the face shard) so
-    # the egg looks freshly knocked askew. Anchored above CROWN_Y.
-    cx, cy = HX - 3, CROWN_Y - 4
-    rx, ry = 13, 10
+    """The hero half-eggshell cap — the read this skin lives or dies on. A LOW +
+    WIDE shell cap (not a sphere) perched on the crown, with a hard crack-shadow
+    keyline stroked around its whole perimeter so it never floats as soft cotton
+    on navy, a broken lower edge of THREE big jagged teeth whose V-notches are
+    stroked dark to read as hard cracks, and one slightly-jagged crack line
+    across the dome face so it reads as a curved shell surface — not a glossy
+    pom-pom. No soft catch-lights, by design: the keyline + crack do all the
+    work and survive the shrink to 40px on both skies."""
+    # Anchored a touch higher than the crown so the egg always perches CLEAR of
+    # the head/back across all four frames instead of merging into the silhouette.
+    cx, cy = HX - 2, CROWN_Y - 6
+    rx, ry = 14, 7                       # flat + wide = "shell cap", never "ball"
 
-    # Dome — drawn on its own SRCALPHA layer, rotated ~15°, so the tilt breaks the
-    # crown outline cleanly. The dome is the solid bright mass; the rim teeth are
-    # carved by overpainting the body colour back in below the baseline.
-    cap = pygame.Surface((rx * 2 + 6, ry * 2 + 6), pygame.SRCALPHA)
-    ccx, ccy = rx + 3, ry + 3
-    # Crack-shadow seat first (a 1px darker dome behind) so the shell has an
-    # under-rim value break that survives downscale.
-    pygame.draw.ellipse(cap, _HC_SHELL_D,
-                        (ccx - rx, ccy - ry + 1, rx * 2, ry * 2))
-    pygame.draw.ellipse(cap, _HC_SHELL,
-                        (ccx - rx, ccy - ry, rx * 2, ry * 2))
-    # Lit catch on the upper-left of the dome so it reads round + glossy-damp.
-    pygame.draw.ellipse(cap, _HC_SHELL_H,
-                        (ccx - rx + 2, ccy - ry + 1, rx, ry - 2), 0)
-    pygame.draw.ellipse(cap, _HC_SHELL,
-                        (ccx - rx + 4, ccy - ry + 3, rx, ry - 2), 0)
+    cap = pygame.Surface((rx * 2 + 8, ry * 2 + 14), pygame.SRCALPHA)
+    ccx, ccy = rx + 4, ry + 4
 
-    # Hard zig-zag broken rim: cut the lower half away with the transparent
-    # colour-key so the bottom edge is a row of crack teeth, not a clean dome.
-    rim = _zigzag_rim((ccx - rx + 1, ccy + 1), (ccx + rx - 1, ccy + 1),
-                      teeth=6, depth=ry + 3, baseline_dy=2)
-    rim = rim + [(ccx + rx + 4, ccy + ry + 5), (ccx - rx - 4, ccy + ry + 5)]
-    pygame.draw.polygon(cap, (0, 0, 0, 0), rim)
-    # Re-stroke the surviving teeth tips with a crack-shadow line so each tooth
-    # has a hard dark base — the read that says "broken shell".
-    teeth_line = _zigzag_rim((ccx - rx + 1, ccy + 1), (ccx + rx - 1, ccy + 1),
-                             teeth=6, depth=ry + 1, baseline_dy=2)
-    pygame.draw.lines(cap, _HC_SHELL_D, False, teeth_line, 1)
+    # Solid dome fill, then carve the lower edge away with the colour-key so the
+    # bottom becomes a row of 3 fat crack teeth instead of a clean arc.
+    pygame.draw.ellipse(cap, _HC_SHELL, (ccx - rx, ccy - ry, rx * 2, ry * 2))
+    rim = _broken_rim((ccx - rx, ccy + 1), (ccx + rx, ccy + 1),
+                      teeth=3, depth=ry + 9, baseline_dy=-1)
+    cut = rim + [(ccx + rx + 6, ccy + ry + 10), (ccx - rx - 6, ccy + ry + 10)]
+    pygame.draw.polygon(cap, (0, 0, 0, 0), cut)
 
-    cap = pygame.transform.rotate(cap, 15)
+    # Hard keyline around the whole shell: stroke the dome arc (upper half of the
+    # ellipse) AND every tooth edge in shell-shadow so the perimeter is crisp.
+    pygame.draw.arc(cap, _HC_SHELL_D,
+                    (ccx - rx, ccy - ry, rx * 2, ry * 2),
+                    0.18, math.pi - 0.18, 2)
+    pygame.draw.lines(cap, _HC_SHELL_D, False, rim, 2)
+
+    # ONE horizontal shell-crack across the dome face — a slightly-jagged dark
+    # line so the cap reads as a curved cracked shell, not a smooth bright blob.
+    crk_y = ccy - 1
+    pygame.draw.lines(cap, _HC_SHELL_D, False,
+                      [(ccx - rx + 3, crk_y), (ccx - 3, crk_y - 2),
+                       (ccx + 2, crk_y + 1), (ccx + rx - 3, crk_y - 1)], 1)
+
+    cap = pygame.transform.rotate(cap, 13)   # knocked-askew tilt toward the face
     surf.blit(cap, cap.get_rect(center=(cx, cy)))
-
-    # One tiny shell shard perched on top of the dome (debris balanced on the egg).
-    _shard(surf, [(cx + 3, cy - 9), (cx + 8, cy - 11), (cx + 6, cy - 6)])
 
 
 def _paint_hatchling(surf, _a):
     # OVERLAY ZONES — each "baby" tell is a hard shape with its own value break
     # so the read holds at 40px; nothing competes with the egg-cap hero.
 
-    # 1 · FACE SHARD — a loose shell chip hangs over the upper-LEFT (far) aviator
-    #     lens so the egg literally hatched onto Pip's shades. The far lens body
-    #     sits at ~(HX-4, HY); the shard overlaps its upper rim. A 2px wet
-    #     down-curl flicks off the cheek just below.
-    _shard(surf, [(HX - 11, HY - 6), (HX - 2, HY - 8), (HX - 5, HY)])
-    _shard(surf, [(HX - 9, HY - 4), (HX - 3, HY - 5), (HX - 6, HY - 1)])
-    _wisp(surf, HX - 9, HY + 4, -4, 3)        # wet cheek down-curl
+    # 1 · FACE SHARD — ONE bold shell chip sitting ON TOP of the upper-left lens
+    #     rim so it visibly breaks the lens circle's outline (the money gag: the
+    #     egg hatched right onto Pip's shades). One fat triangle (~6px wide) with
+    #     the same hard keyline as the cap, big enough to survive 40px. A 2px wet
+    #     down-curl flicks off the cheek just below it.
+    _shard(surf, [(HX - 12, HY - 5), (HX - 4, HY - 8), (HX - 5, HY + 1)])
+    _wisp(surf, HX - 10, HY + 4, -4, 3)       # wet cheek down-curl
 
-    # 2 · CHEST DOWN — two short damp natal-down wisps poke past the belly
-    #     silhouette (newly hatched = stuck-down fluff, not fully fluffy yet),
-    #     breaking the lower-front outline so it reads babyish.
-    _wisp(surf, 24, 58, -4, 4)
-    _wisp(surf, 27, 62, -2, 5)
+    # 2 · CHEST DOWN — two damp natal-down wisps whose tips poke a clear ~3px past
+    #     the belly silhouette (newly hatched = stuck-down fluff), breaking the
+    #     lower-front outline so the bird reads babyish. Deeper backing than the
+    #     cap so they hold against the pale peach belly.
+    _chest_wisp(surf, 25, 57, -5, 5)
+    _chest_wisp(surf, 28, 62, -3, 6)
 
-    # 3 · BACK / TAIL DEBRIS — a couple of speckled shell-fleck dots + one stray
-    #     shard by the tail root, the leftover crumbs of the break. Flecks are
-    #     2px off-white with a 1px crack-shadow seat so they hold as specks.
-    for fx, fy in ((18, 48), (15, 54), (21, 44)):
-        pygame.draw.circle(surf, _HC_SHELL_D, (fx + 1, fy + 1), 2)
-        pygame.draw.circle(surf, _HC_SHELL, (fx, fy), 1)
-    _shard(surf, [(12, 64), (18, 62), (15, 68)])
-
-    # 4 · WING STUBBY ILLUSION — a rounded bright mid-highlight blob fakes a
+    # 3 · WING STUBBY ILLUSION — a rounded bright mid-highlight blob fakes a
     #     pudgy half-grown wing (no geometry change), with a damp-fluff tuck at
-    #     the wing tip so even the wing reads downy.
+    #     the wing tip so even the wing reads downy. Back/tail shell debris was
+    #     dropped — at 1× it only read as noise that muddied the silhouette.
     pygame.draw.circle(surf, (255, 246, 206), (30, 50), 4)
     pygame.draw.circle(surf, _HC_CREAM, (31, 51), 2)
     _wisp(surf, 20, 42, -4, -2)               # damp fluff at the wingtip
 
-    # 5 · HERO EGG-CAP — drawn last so it sits clean over the crown.
+    # 4 · HERO EGG-CAP — drawn last so it sits clean over the crown.
     _paint_eggcap(surf)
 
 
