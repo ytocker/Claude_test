@@ -63,11 +63,14 @@ def _paint(surf, _a):
     pygame.draw.ellipse(surf, _REF_BLACK, (HX - 11, cy - 1, 22, 9))     # dome
     pygame.draw.ellipse(surf, _REF_GREY, (HX - 6, cy, 9, 4))           # top sheen
     pygame.draw.line(surf, _REF_RIM, (HX - 5, cy), (HX + 4, cy), 1)    # rim light
-    _poly(surf, _REF_BLACK, [(HX + 3, cy + 5), (HX + 17, cy + 4),
-                             (HX + 18, cy + 7), (HX + 4, cy + 8)])      # brim (forward)
-    _poly(surf, _REF_GREY, [(HX + 4, cy + 7), (HX + 18, cy + 7),
-                            (HX + 17, cy + 8), (HX + 4, cy + 8)])       # brim underside
-    pygame.draw.line(surf, _REF_WHITE, (HX + 5, cy + 4), (HX + 17, cy + 4), 1)  # leading edge
+    # A 1px mid-grey gap under the dome stops the dome+brim collapsing into one
+    # black blob at 40px — it carves the two shapes apart.
+    pygame.draw.line(surf, (70, 72, 76), (HX + 3, cy + 5), (HX + 10, cy + 5), 1)
+    _poly(surf, _REF_BLACK, [(HX + 3, cy + 6), (HX + 19, cy + 5),
+                             (HX + 20, cy + 8), (HX + 4, cy + 9)])      # brim (forward, +2px reach)
+    _poly(surf, _REF_GREY, [(HX + 4, cy + 8), (HX + 20, cy + 8),
+                            (HX + 19, cy + 9), (HX + 4, cy + 9)])       # brim underside
+    pygame.draw.line(surf, _REF_WHITE, (HX + 5, cy + 5), (HX + 19, cy + 5), 2)  # leading edge (2px)
 
     # --- BLACK SOCK PILLARS (knee-high) with a white hoop near the top. A grey
     #     under-pillar gives the black sock an edge against the night sky.
@@ -91,31 +94,38 @@ def _paint(surf, _a):
     #     a neutral rim on the far contour so it survives the night sky.
     _poly(surf, _REF_BLACK, jersey)
     pygame.draw.line(surf, _REF_GREY, (HX - 12, HY + 9), (HX - 13, HY + 18), 2)   # lit sliver
-    pygame.draw.line(surf, _REF_RIM, (HX + 9, HY + 8), (HX + 11, HY + 18), 1)     # far rim
+    # Dual rim-lights are the ONLY thing that separates a true-black kit from the
+    # night sky AND from Pip's own scarlet body — 2px and cool, both contours.
+    pygame.draw.line(surf, (120, 124, 130), (HX + 9, HY + 8), (HX + 11, HY + 18), 2)   # far-right rim
+    pygame.draw.line(surf, (120, 124, 130), (HX + 11, HY + 18), (HX + 8, HY + 23), 2)  # far-right hem
+    pygame.draw.lines(surf, (100, 102, 108), False,
+                      [(BCX - 10, HY + 7), (BCX - 12, HY + 17), (BCX - 8, HY + 23)], 2)  # left-back rim
     pygame.draw.polygon(surf, _REF_BLACK, jersey, 1)                              # outline
 
     # --- WHITE COLLAR PIPING at the jersey top — a clean V + centre placket so
     #     the official's shirt reads at hero scale without a big white plane.
-    pygame.draw.line(surf, _REF_WHITE, (HX - 6, HY + 8), (HX - 1, HY + 13), 2)
-    pygame.draw.line(surf, _REF_WHITE, (HX + 5, HY + 8), (HX, HY + 13), 2)
+    pygame.draw.line(surf, _REF_WHITE, (HX - 6, HY + 8), (HX - 1, HY + 13), 3)
+    pygame.draw.line(surf, _REF_WHITE, (HX + 5, HY + 8), (HX, HY + 13), 3)
     pygame.draw.line(surf, _REF_WHITE, (HX - 1, HY + 12), (HX - 1, HY + 22), 1)
 
     # --- HERO PROPS (drawn LAST, in front of everything) ------------------------
-    # WHISTLE on a lanyard at chest centre — the single brightest steel note, the
+    # WHISTLE on a lanyard, slid DOWN to lower-centre chest so it owns its own
+    # quadrant clear of the booking cards — the single brightest steel note, the
     # tell that says "referee" at 40px.
-    pygame.draw.line(surf, _REF_CORD, (HX - 5, HY + 8), (HX, HY + 15), 2)   # lanyard V
-    pygame.draw.line(surf, _REF_CORD, (HX + 5, HY + 8), (HX, HY + 15), 2)
-    pygame.draw.ellipse(surf, _REF_STEEL_D, (HX - 6, HY + 12, 12, 10))      # disc shadow
-    pygame.draw.ellipse(surf, _REF_STEEL, (HX - 5, HY + 13, 11, 9))         # disc body
-    _poly(surf, _REF_STEEL, [(HX + 5, HY + 16), (HX + 8, HY + 17), (HX + 5, HY + 19)])  # mouthpiece
-    pygame.draw.rect(surf, _REF_STEEL_H, (HX - 3, HY + 14, 2, 2))           # glint
-    pygame.draw.ellipse(surf, _REF_STEEL_D, (HX - 6, HY + 12, 12, 10), 1)   # rim
+    wy = HY + 17
+    pygame.draw.line(surf, _REF_CORD, (HX - 5, HY + 8), (HX, wy - 2), 2)    # lanyard V
+    pygame.draw.line(surf, _REF_CORD, (HX + 5, HY + 8), (HX, wy - 2), 2)
+    pygame.draw.ellipse(surf, _REF_STEEL_D, (HX - 6, wy, 12, 10))          # disc shadow
+    pygame.draw.ellipse(surf, _REF_STEEL, (HX - 5, wy + 1, 11, 9))         # disc body
+    _poly(surf, _REF_STEEL, [(HX + 5, wy + 4), (HX + 8, wy + 5), (HX + 5, wy + 7)])  # mouthpiece
+    pygame.draw.rect(surf, _REF_STEEL_H, (HX - 3, wy + 2, 2, 2))           # glint
+    pygame.draw.ellipse(surf, _REF_STEEL_D, (HX - 6, wy, 12, 10), 1)       # rim
 
-    # YELLOW CARD on the LEFT breast with a red sliver showing behind it — the
-    # second hero note, reading as the official's booking cards.
-    _poly(surf, _REF_RED, [(HX - 10, HY + 9), (HX - 5, HY + 8),
-                           (HX - 4, HY + 15), (HX - 9, HY + 16)])           # red sliver behind
-    yl, yr, yt, yb = HX - 8, HX - 2, HY + 8, HY + 18
+    # YELLOW CARD on the UPPER-LEFT breast (its own quadrant, HY+9..16) with a red
+    # sliver behind it — widened to an unmistakable bright rectangle at 40px.
+    _poly(surf, _REF_RED, [(HX - 11, HY + 9), (HX - 6, HY + 8),
+                           (HX - 5, HY + 15), (HX - 10, HY + 16)])         # red sliver behind
+    yl, yr, yt, yb = HX - 9, HX - 1, HY + 9, HY + 16
     pygame.draw.rect(surf, _REF_BLACK, (yl - 1, yt - 1, yr - yl + 2, yb - yt + 2))  # dark backing
     _poly(surf, _REF_YELLOW, [(yl, yt), (yr, yt), (yr, yb), (yl, yb)])      # yellow card
     pygame.draw.line(surf, _REF_YEL_H, (yl + 1, yt + 1), (yl + 1, yb - 1), 1)  # glint
