@@ -8,10 +8,12 @@ racket (electric-blue frame, lime throat/bumper, volt strings on a near-black
 void) held up in the near wing so the head still breaks the top/back silhouette.
 
 This is the COLD high-saturation kit of the tennis set: the deliberate
-night-read champion. The strings glow volt-green on a near-black bed and the
-frame is electric blue, so on a dark sky the racket is the brightest, coolest
-mass on the figure and the SPORT reads before the bird does. By day the same
-saturation holds up because every cloth/frame value carries a dark contour.
+night-read champion. The frame is electric blue and the strung bed is a DIM
+cool mesh on a near-black void (the lime is reserved for the throat alone), so
+on a dark sky the racket is the coolest mass on the figure and the SPORT reads
+before the bird does — without the head collapsing into a green coin. By day
+the same saturation holds up because a 2px deep-cobalt contour wraps the frame
+and every cloth value carries a dark edge.
 
 The polo is painted OVER the scarlet body (the head stays the macaw so Pip is
 still a parrot). All cloth + wristband sit INSIDE the base bird footprint; only
@@ -28,24 +30,29 @@ from game import store_skins
 from game.store_skins import HX, HY, CROWN_Y, _poly
 
 
-# Electric-blue + volt/lime modern sportswear. The frame is electric blue with
-# a lime throat/bumper so the racket is two-tone (frame vs. throat) and reads as
-# a tech graphite stick, not a flat ring; the strings are VOLT on a near-black
-# void so the bed glows at night without forming a second bright disc. Every
-# cloth value carries a deep-cobalt contour so the saturated kit stays crisp on
-# a bright DAY sky too.
+# Electric-blue + volt/lime modern sportswear. ONE element carries lime — the
+# THROAT (the tennis tell that must survive downscale). The strung bed is a
+# DIMMER, COOLER volt so it never competes with the throat for the eye, and the
+# near-black void wins most of the centre so the face reads as dark mesh, not a
+# glowing green coin. There is NO lime bumper: the single blue frame edge is the
+# only ring, so the head never closes into a second disc. Every cloth value
+# carries a deep-cobalt contour so the saturated kit stays crisp on a DAY sky.
 _NB_BLUE     = (20, 80, 200)          # #1450C8 electric-blue frame + polo field
 _NB_BLUE_D   = (12, 46, 120)          # #0C2E78 deep cobalt shade / contour
 _NB_BLUE_H   = (74, 140, 240)         # frame top sheen so the oval reads round
-_NB_VOLT     = (182, 242, 58)         # #B6F23A volt/lime accent + strings
+_NB_VOLT     = (182, 242, 58)         # #B6F23A volt/lime — reserved for the throat
 _NB_VOLT_D   = (120, 168, 30)         # volt shade (rounds the throat / band)
 _NB_VOLT_H   = (218, 255, 132)        # volt highlight glint
+_NB_STRING   = (110, 150, 96)         # desaturated cool volt — DIM mesh mains
+_NB_STRING_X = (54, 84, 74)           # dimmer still — crosses recede into void
 _NB_WHITE    = (242, 244, 240)        # #F2F4F0 white trim / placket
 _NB_WHITE_D  = (188, 194, 196)        # trim shade
-_NB_VOID     = (16, 18, 24)           # near-black strung-face void (no disc)
+_NB_VOID     = (12, 14, 20)           # near-black strung-face void (wins centre)
 _NB_GRIP     = (21, 23, 28)           # #15171C matte grip wrap
 _NB_GRIP_H   = (70, 76, 88)           # grip wrap highlight tick
-_NB_MESH     = (10, 38, 96)           # dark cobalt mesh side panel (body shade)
+_NB_MESH     = (10, 34, 86)           # dark cobalt mesh side panel (body shade)
+_NB_POLO     = (16, 58, 150)          # #103A96 cooler/darker polo field (vs frame)
+_NB_POLO_D   = (9, 34, 92)            # polo lower shade
 
 
 def _racket(surf, hx, hy, hr):
@@ -59,25 +66,28 @@ def _racket(surf, hx, hy, hr):
     rw, rh = int(hr * 1.7), int(hr * 2.1)
     face = pygame.Rect(hx - rw, hy - rh, rw * 2, rh * 2)
 
-    # Near-black void + VOLT strings: the bed glows green on its own dark bed so
-    # at night the strung face is luminous, yet stays a mesh (not a filled disc)
-    # because the void between the lines keeps the centre dark at downscale.
+    # Near-black void + DIM cool strings: the void wins the centre so the face
+    # reads as dark mesh, and the few WIDELY-spaced mains (4px) are a desaturated
+    # cool volt — not lime — so the bed never glows into a green coin at 40px.
+    # Crosses are spaced 5px and dimmer still, so they recede and the strings
+    # read as a sparse strung grid rather than aliasing into a flat fill.
     clip_prev = surf.get_clip()
     surf.set_clip(face)
     pygame.draw.ellipse(surf, _NB_VOID, face)
-    for gx in range(face.left + 3, face.right - 2, 3):          # mains
-        pygame.draw.line(surf, _NB_VOLT, (gx, face.top + 1), (gx, face.bottom - 1), 1)
-    for gy in range(face.top + 3, face.bottom - 2, 3):          # crosses
-        pygame.draw.line(surf, _NB_VOLT_D, (face.left + 1, gy), (face.right - 1, gy), 1)
+    for gx in range(face.left + 4, face.right - 2, 4):          # mains (sparse)
+        pygame.draw.line(surf, _NB_STRING, (gx, face.top + 1), (gx, face.bottom - 1), 1)
+    for gy in range(face.top + 4, face.bottom - 2, 5):          # crosses (sparser/dimmer)
+        pygame.draw.line(surf, _NB_STRING_X, (face.left + 1, gy), (face.right - 1, gy), 1)
     surf.set_clip(clip_prev)
 
-    # ONE bold electric-blue frame ring with a 1px cobalt keyline on the OUTER
-    # edge for crispness on a bright sky, plus a top sheen so the oval reads
-    # ROUND, and a thin lime BUMPER on the head's crown (the tech-frame tell).
-    pygame.draw.ellipse(surf, _NB_BLUE_D, face.inflate(2, 2), 1)    # outer keyline
+    # ONE electric-blue frame ring — the SOLE ring of the head. A 2px deep-cobalt
+    # outer contour gives the frame a hard edge that holds on a bright DAY sky
+    # where the blue would otherwise camouflage; a top sheen keeps the oval
+    # round. NO lime bumper: the lime lives only in the throat below, so the head
+    # never closes into a second disc.
+    pygame.draw.ellipse(surf, _NB_BLUE_D, face.inflate(3, 3), 2)    # 2px hard contour
     pygame.draw.ellipse(surf, _NB_BLUE, face, 3)                    # the frame
     pygame.draw.arc(surf, _NB_BLUE_H, face.inflate(-1, -1), 0.5, 2.6, 1)  # top sheen
-    pygame.draw.arc(surf, _NB_VOLT, face.inflate(-2, -2), 3.6, 5.8, 2)    # lime bumper
 
     # Throat — two LIME struts splaying from the grip into the head, the racket
     # Y. Lime here (vs. the blue frame) so the throat separates from the frame
@@ -109,35 +119,38 @@ def _paint(surf, _a):
     # NOTHING covers Pip's beak/eye/face. Electric-blue field with a deep-cobalt
     # lower shade so it reads round, and a dark contour so it stays crisp on a
     # bright day sky. Held inside the footprint so it never balloons the bird.
+    # Polo field is one step COOLER/DARKER than the racket frame so the bright
+    # electric-blue racket pops OFF the garment instead of melting into it.
     polo = [(HX - 13, HY + 8), (HX - 14, HY + 16), (HX - 11, HY + 23),
             (HX + 9, HY + 23), (HX + 12, HY + 16), (HX + 11, HY + 8),
             (HX + 4, HY + 9), (HX - 5, HY + 9)]
-    _poly(surf, _NB_BLUE_D, polo)
+    _poly(surf, _NB_POLO_D, polo)
     # Lit upper body of the cloth so the blue isn't flat.
-    _poly(surf, _NB_BLUE, [(HX - 12, HY + 9), (HX - 12, HY + 17),
+    _poly(surf, _NB_POLO, [(HX - 12, HY + 9), (HX - 12, HY + 17),
                            (HX + 10, HY + 17), (HX + 10, HY + 9),
                            (HX + 4, HY + 10), (HX - 5, HY + 10)])
-    pygame.draw.line(surf, _NB_BLUE_H, (HX - 11, HY + 10), (HX + 8, HY + 10), 1)
+    pygame.draw.line(surf, _NB_BLUE, (HX - 11, HY + 10), (HX + 8, HY + 10), 1)
 
     # Dark mesh SIDE PANEL on the off-side — a cool cobalt wedge that tucks the
     # waist so the polo reads as an athletic cut, not a flat box.
     _poly(surf, _NB_MESH, [(HX + 7, HY + 11), (HX + 12, HY + 16),
                            (HX + 9, HY + 23), (HX + 7, HY + 22)])
 
-    # White-trimmed collar V + placket at the polo's own top — sits ON the chest,
-    # never in the head. The white trim is the crispest light edge on the kit.
-    _poly(surf, _NB_WHITE, [(HX - 5, HY + 9), (HX + 4, HY + 9), (HX, HY + 13)])
-    _poly(surf, _NB_WHITE_D, [(HX - 3, HY + 10), (HX + 2, HY + 10), (HX, HY + 12)])
-    pygame.draw.line(surf, _NB_WHITE, (HX, HY + 13), (HX, HY + 20), 1)     # placket
-    pygame.draw.line(surf, _NB_WHITE_D, (HX + 1, HY + 13), (HX + 1, HY + 20), 1)
+    # White-trimmed collar V + placket at the polo's own top — sits ON the chest
+    # (V at HY+9, off the face), never in the head. Thickened to 2px so the white
+    # trim gives the garment its own crisp silhouette against the cooler field.
+    _poly(surf, _NB_WHITE, [(HX - 6, HY + 9), (HX + 5, HY + 9), (HX, HY + 14)])
+    _poly(surf, _NB_POLO, [(HX - 3, HY + 10), (HX + 2, HY + 10), (HX, HY + 12)])
+    pygame.draw.line(surf, _NB_WHITE, (HX - 1, HY + 13), (HX - 1, HY + 21), 2)    # placket 2px
+    pygame.draw.line(surf, _NB_WHITE_D, (HX + 1, HY + 13), (HX + 1, HY + 21), 1)
 
-    # ONE bold diagonal VOLT slash across the chest — the single lime tell that
-    # survives downscale. Cobalt-edged then volt then a bright core so the slash
-    # keeps a lit centre after the shrink. Dropped with the polo so it stays on
-    # the chest, NOT crossing the collar.
-    pygame.draw.line(surf, _NB_BLUE_D, (HX - 12, HY + 13), (HX + 6, HY + 22), 4)
-    pygame.draw.line(surf, _NB_VOLT, (HX - 12, HY + 13), (HX + 6, HY + 22), 3)
-    pygame.draw.line(surf, _NB_VOLT_H, (HX - 11, HY + 14), (HX + 4, HY + 20), 1)
+    # ONE bold diagonal VOLT slash across the chest — LENGTHENED so the garment
+    # carries a strong lime tell of its own. Cobalt-edged then volt then a bright
+    # core so the slash keeps a lit centre after the shrink. Dropped with the
+    # polo so it stays on the chest, NOT crossing the collar.
+    pygame.draw.line(surf, _NB_BLUE_D, (HX - 13, HY + 12), (HX + 9, HY + 23), 4)
+    pygame.draw.line(surf, _NB_VOLT, (HX - 13, HY + 12), (HX + 9, HY + 23), 3)
+    pygame.draw.line(surf, _NB_VOLT_H, (HX - 12, HY + 13), (HX + 7, HY + 21), 1)
 
     # --- VOLT WRISTBAND at the near wing root ----------------------------------
     # A terry band at the cuff — a sport tell that stays inside the silhouette.
@@ -163,10 +176,12 @@ def _paint(surf, _a):
 
     # --- RACKET drawn LAST so it OVERLAYS the polo/clothing ---------------------
     # Like the baseball BAT, painted last so the whole prop — head, throat and
-    # grip — rests fully IN FRONT of the body. The grip drops into the near wing
-    # over the chest; the oval head still breaks the top/back silhouette against
-    # open sky, where its cold blue frame + glowing volt bed win the night read.
-    _racket(surf, HX - 21, CROWN_Y + 2, 7)
+    # grip — rests fully IN FRONT of the body. The head is DROPPED ~4px and pushed
+    # FORWARD of the crown so the throat/grip lands over the chest and the oval
+    # sits clearly in front of open sky — racket head and macaw head no longer
+    # read as two adjacent ovals at 40px. The cold blue frame + dark mesh bed
+    # still own the night read, now distinct from the warm bird beside it.
+    _racket(surf, HX - 25, CROWN_Y + 6, 7)
 
 
 build = store_skins._make_skin(_paint)
