@@ -1,132 +1,152 @@
-"""DESIGN 5 — THE ULTRA FAN (Soccer / Football — supporter, v2).
+"""DESIGN 5 — THE ULTRA FAN (Soccer / Football) — supporter.
 
 Scratch exploration only — NOT registered in store_skins.BUILDERS. Pip the
-scarlet macaw kitted as a match-day terrace fan rather than a player: the SET's
-only NON-player. The read is carried by KNITWEAR + a club SCARF, not an athletic
-kit. The hero is a gold club SCARF looped once at the neck with two staggered
-fringed tails draped down the chest (drawn LAST, in front of everything), under
-a full bobble HAT on the crown.
+scarlet macaw kitted not as a player but as a die-hard supporter in the
+terraces — the set's only NON-player. The read is carried by a FULL-BODY
+horizontally-striped team jersey (red/white/red), knitted bobble HAT, and a
+two-tone team SCARF.
 
-v2 fix: the jersey is anchored on the HEAD anchors (HX,HY) using the proven
-baseball jersey polygon (tools/sports_candidates/design_4.py) so the torso sits
-where the bird's body actually is — jersey top y=HY+8 (=49), hem y=HY+23 (=64).
-Nothing from the jersey rises above y=49. The crown wears a full rounded bobble
-HAT dome (NOT a flat headband) with a pompom standing proud on top.
+The key departure from the player kits (designs 1-4): the jersey is no longer a
+narrow right-chest bib (old x=33-58). The polygon spans the FULL visible body
+(x=20-58, ~36px wide) and is filled with three horizontal stripes clipped to
+the jersey silhouette, so the supporter's club colours read as bold club bands
+at 40px on day and night.
 
-The supporter speaks two stripe languages on purpose: the replica TOP is white
-HOOPS on red, while the chunky SCARF is solid GOLD. Red shirt vs gold scarf is
-what splits the chest into two clean reads at 40px.
+A bobble HAT domes over the crown (NOT a band across the brow), and a
+gold/purple SCARF loops the neck then V-splits into two fringed tails across the
+chest — the hero prop, drawn LAST so it sits proud over the stripes. Knee-high
+dark socks + boots ground the kit; grey shorts peek at the hem.
+
+Headless render: tools/soccer_candidates/render_design_5.py.
 """
 import pygame
 
 from game import store_skins
 from game.store_skins import HX, HY, CROWN_Y, _poly
 
+# Body centre in composite space (parrot body centre (32,32) + PARROT_DY).
+BCX, BCY = 32, 52
 
-# Club red + gold. Three values per material keep the knit reading round, not
-# flat, after the 40px downscale.
-_RED      = (204, 34, 34)        # #CC2222 club red — jersey field, hat, socks
-_RED_D    = (132, 20, 20)        # deep red shadow / linework
-_RED_H    = (236, 92, 78)        # red highlight (hat sheen)
-_WHITE    = (244, 244, 248)      # #F4F4F8 jersey hoops / hat rim / pompom
-_WHITE_D  = (176, 178, 192)      # cool white shade
-_GOLD     = (232, 178, 58)       # #E8B23A scarf face (the hero gold)
-_GOLD_H   = (255, 218, 120)      # gold glint
-_GOLD_D   = (150, 108, 24)       # gold shadow so the scarf reads as draped fabric
-_NAVY     = (28, 34, 68)         # #1C2244 shorts / sock pillars / boots
-_NAVY_H   = (74, 84, 132)        # navy rim glint
-_DARK     = (26, 26, 34)         # near-black boot body
+# Striped club kit. Red/white/red bands are the supporter's colours — the white
+# stripe is the bright separator that keeps the bands reading on a scarlet body
+# at 40px. The dark-red outline pulls the full-body wrap contour off the body.
+_STRIPE_RED  = (204, 34, 34)        # #CC2222 club red band
+_STRIPE_WHT  = (240, 240, 240)      # #F0F0F0 white band
+_JERSEY_OUT  = (140, 20, 20)        # dark red jersey outline
+_HAT_RED     = (160, 20, 20)        # dark red bobble hat dome
+_HAT_RIM     = (100, 12, 12)        # hat/head separation ring
+_HAT_POM     = (240, 240, 245)      # white pompom
+_HAT_POM_H   = (255, 255, 255)
+_SCARF_GOLD  = (240, 190, 30)       # gold scarf
+_SCARF_PUR   = (100, 40, 160)       # purple scarf
+_SCARF_FRNG  = (220, 170, 20)       # fringe
+_SOCK_D      = (40, 44, 52)         # dark socks
+_BOOT_D      = (26, 24, 32)
+_BOOT_SOLE   = (200, 200, 210)
+_SHORTS_GREY = (130, 134, 150)
+
+
+# Full-body jersey polygon — wraps most of the visible torso (x=20-58, ~36px
+# wide), NOT the old narrow right-chest bib. The stripes below are clipped to
+# this shape via _jersey_x_at_y so each band stops exactly at the cloth contour.
+_JERSEY = [
+    (BCX - 10, HY + 7),   # left shoulder  (22, 48)
+    (BCX - 12, HY + 17),  # left hip       (20, 58)
+    (BCX - 8,  HY + 23),  # left hem       (24, 64)
+    (HX + 8,   HY + 23),  # right hem      (55, 64)
+    (HX + 11,  HY + 18),  # right hip      (58, 59)
+    (HX + 9,   HY + 8),   # right shoulder (56, 49)
+]
+
+
+def _jersey_x_at_y(y):
+    """Left and right x of the jersey polygon at a given y — interpolated along
+    the two side edges so a horizontal stripe band fills the full body width but
+    stops exactly at the angled jersey contour (no rectangular overhang)."""
+    # Left edge: (22,48) -> (20,58) -> (24,64).
+    if y <= HY + 17:                       # y <= 58
+        t = (y - (HY + 7)) / 10.0
+        lx = int(22 + (20 - 22) * t)
+    else:
+        t = (y - (HY + 17)) / 6.0
+        lx = int(20 + (24 - 20) * t)
+    # Right edge: (56,49) -> (58,59) -> (55,64).
+    if y <= HY + 18:                       # y <= 59
+        t = (y - (HY + 8)) / 10.0
+        rx = int(56 + (58 - 56) * t)
+    else:
+        t = (y - (HY + 18)) / 5.0
+        rx = int(58 + (55 - 58) * t)
+    return lx, rx
 
 
 def _paint(surf, _a):
-    # --- WHITE-hooped club JERSEY over the torso (HX,HY anchors) -----------------
-    # Proven baseball jersey footprint, recoloured: red field + horizontal white
-    # hoops. Jersey top sits at HY+8 (y=49), hem at HY+23 (y=64) — nothing rises
-    # above y=49, so it never balloons up into the macaw's chin/cheek.
-    jersey = [(HX - 13, HY + 8), (HX - 14, HY + 18), (HX - 10, HY + 23),
-              (HX + 8, HY + 23), (HX + 11, HY + 18), (HX + 9, HY + 8)]
-    _poly(surf, _RED, jersey)
-    # Three bold WHITE hoops, each 3px tall, evenly spaced from HY+10..HY+21.
-    # Clipped to the jersey footprint so the bars never leak past the cloth edge.
-    clip_prev = surf.get_clip()
-    surf.set_clip(pygame.Rect(HX - 14, HY + 8, 26, 16))
-    for sy in (HY + 10, HY + 15, HY + 20):
-        pygame.draw.rect(surf, _WHITE, (HX - 14, sy, 26, 3))
-        pygame.draw.line(surf, _WHITE_D, (HX - 14, sy + 3), (HX + 12, sy + 3), 1)
-    surf.set_clip(clip_prev)
-    # Off-side shade so the jersey reads as a rounded torso, not a flat card.
-    _poly(surf, _RED_D, [(HX + 5, HY + 9), (HX + 11, HY + 18),
-                         (HX + 8, HY + 23), (HX + 6, HY + 22)])
-    pygame.draw.polygon(surf, _RED_D, jersey, 1)
+    # --- 1 · DARK SOCK PILLARS (knee-high) --------------------------------------
+    # Drawn first so the shorts + jersey overlap their tops; a white sock-top hoop
+    # is the club kit tell.
+    for fx in (HX - 9, HX + 1):
+        pygame.draw.line(surf, _SOCK_D, (fx, HY + 13), (fx, HY + 25), 5)
+        pygame.draw.line(surf, (200, 205, 220), (fx - 1, HY + 13), (fx + 2, HY + 13), 2)
 
-    # --- Dark SHORTS band under the jersey hem (HY+23..26) -----------------------
-    pygame.draw.rect(surf, _NAVY, (HX - 11, HY + 23, 20, 4), border_radius=1)
-    pygame.draw.line(surf, _NAVY_H, (HX - 10, HY + 23), (HX + 7, HY + 23), 1)
+    # --- 2 · BOOTS --------------------------------------------------------------
+    for fx in (HX - 9, HX + 1):
+        pygame.draw.ellipse(surf, _BOOT_D, (fx - 4, HY + 23, 9, 5))
+        pygame.draw.line(surf, _BOOT_SOLE, (fx - 3, HY + 25), (fx + 3, HY + 25), 1)
 
-    # --- SOCKS — two navy pillars (HY+13..HY+24) with a single white hoop -------
-    for sx in (HX - 9, HX + 3):
-        pygame.draw.rect(surf, _NAVY, (sx, HY + 13, 5, 11), border_radius=1)
-        pygame.draw.line(surf, _NAVY_H, (sx, HY + 14), (sx, HY + 23), 1)
-        pygame.draw.line(surf, _WHITE, (sx, HY + 15), (sx + 4, HY + 15), 2)
+    # --- 3 · GREY SHORTS --------------------------------------------------------
+    pygame.draw.line(surf, _SHORTS_GREY, (BCX - 8, HY + 24), (HX + 8, HY + 24), 4)
 
-    # --- BOOTS at the feet line (HY+24..27) with a sole tick --------------------
-    for fx in (HX - 11, HX + 1):
-        pygame.draw.rect(surf, _DARK, (fx, HY + 24, 9, 3), border_radius=2)
-        # Bright top-edge highlight so the dark boots still read as feet against
-        # the night sky, where a near-black boot otherwise vanishes.
-        pygame.draw.line(surf, _WHITE_D, (fx + 1, HY + 24), (fx + 7, HY + 24), 1)
-        # Sole tick under the boot — the football-boot read.
-        pygame.draw.line(surf, _DARK, (fx, HY + 27), (fx + 8, HY + 27), 1)
+    # --- 4 · HORIZONTAL-STRIPED FULL-BODY JERSEY --------------------------------
+    # Three red/white/red bands, each a trapezoid clipped to the jersey contour at
+    # its top/bottom y so the bands fill the full torso width but never overhang.
+    stripe_defs = [
+        (_STRIPE_RED, HY + 7,  HY + 13),
+        (_STRIPE_WHT, HY + 13, HY + 18),
+        (_STRIPE_RED, HY + 18, HY + 23),
+    ]
+    for color, y0, y1 in stripe_defs:
+        lx0, rx0 = _jersey_x_at_y(y0)
+        lx1, rx1 = _jersey_x_at_y(y1)
+        band = [(lx0, y0), (rx0, y0), (rx1, y1), (lx1, y1)]
+        _poly(surf, color, band)
+    # 1px dark-red outline pulls the full-body wrap off the scarlet body.
+    pygame.draw.polygon(surf, _JERSEY_OUT, _JERSEY, 1)
 
-    # --- BOBBLE HAT on the crown (FULL rounded dome — NOT a band) ----------------
-    # A full rounded cap covering the crown with a white rim line, and a pompom
-    # standing proud on its very top. This is a hat shape, not a horizontal band.
-    pygame.draw.ellipse(surf, _RED_D, (HX - 13, CROWN_Y - 9, 26, 19))   # rim halo
-    pygame.draw.ellipse(surf, _RED, (HX - 12, CROWN_Y - 8, 24, 18))
-    pygame.draw.ellipse(surf, _RED_H, (HX - 8, CROWN_Y - 6, 11, 6))      # dome sheen
-    # Dark-red separation ring along the cap's lower edge: both hat and crown are
-    # club red, so without this seam the dome merges into the macaw's head. The
-    # bright white rim arc then sits just inside it, so the hat reads as a
-    # distinct object resting ON the head, not painted onto it.
-    pygame.draw.arc(surf, _RED_D, (HX - 13, CROWN_Y - 7, 26, 18),
-                    3.30, 6.12, 2)
-    pygame.draw.arc(surf, _WHITE, (HX - 12, CROWN_Y - 8, 24, 18),
-                    3.34, 6.08, 2)
-    # Pompom standing on the very top — white ball with a dark ring.
-    pygame.draw.circle(surf, _RED_D, (HX, CROWN_Y - 8), 5)
-    pygame.draw.circle(surf, _WHITE, (HX, CROWN_Y - 8), 4)
-    pygame.draw.circle(surf, _WHITE_D, (HX + 1, CROWN_Y - 6), 1)
+    # --- 5 · BOBBLE HAT on the crown --------------------------------------------
+    # A knitted supporter's hat — a low dome with a white pompom, NOT a band across
+    # the brow. The dark-red separation ring lifts it off the scarlet macaw head.
+    pygame.draw.ellipse(surf, _HAT_RIM, (HX - 10, CROWN_Y - 2, 20, 8), 2)
+    pygame.draw.ellipse(surf, _HAT_RED, (HX - 9, CROWN_Y - 5, 18, 9))
+    pygame.draw.line(surf, (200, 60, 60), (HX - 5, CROWN_Y - 4), (HX + 2, CROWN_Y - 4), 2)
+    pygame.draw.circle(surf, _HAT_POM, (HX - 2, CROWN_Y - 9), 4)
+    pygame.draw.circle(surf, _HAT_POM_H, (HX - 3, CROWN_Y - 10), 2)
 
-    # --- SCARF (THE HERO — drawn LAST so it drapes in FRONT of everything) -------
-    # A gold club scarf looped once at the neck, then SPLIT into a clear V at the
-    # throat: one tail draped out along the LEFT wing edge, one down the RIGHT,
-    # with a strip of bare red jersey (and its white hoops) showing between them.
-    # Narrowed 2px each side vs v1 so at least two jersey hoops stay visible.
-    loop = [(HX - 11, HY + 5), (HX + 10, HY + 5), (HX + 10, HY + 11),
-            (HX + 3, HY + 11), (HX, HY + 9), (HX - 3, HY + 11), (HX - 10, HY + 11)]
-    _poly(surf, _GOLD_D, loop)
-    loop_in = [(HX - 9, HY + 6), (HX + 8, HY + 6), (HX + 8, HY + 10),
-               (HX + 3, HY + 10), (HX, HY + 8), (HX - 3, HY + 10), (HX - 8, HY + 10)]
-    _poly(surf, _GOLD, loop_in)
-    pygame.draw.line(surf, _GOLD_H, (HX - 8, HY + 6), (HX + 7, HY + 6), 1)
-    pygame.draw.polygon(surf, _GOLD_D, loop, 1)
+    # --- 6 · TEAM SCARF — hero prop, drawn LAST ---------------------------------
+    # A gold/purple two-tone scarf loops the neck, then V-splits into two fringed
+    # tails falling across the chest — the supporter's defining accessory, sitting
+    # proud over the striped jersey.
+    pygame.draw.line(surf, _SCARF_GOLD, (HX - 6, HY + 8), (HX + 6, HY + 8), 4)   # gold loop
+    pygame.draw.line(surf, _SCARF_PUR, (HX - 5, HY + 10), (HX + 5, HY + 10), 3)  # purple under-loop
 
-    def _tail(x0, y0, x1, y1):
-        # A gold knit strap draped down the chest: a dark gold underlay (4px) for
-        # thickness, a bright 3px gold face, a 1px glint, and a notched fringe at
-        # the hanging end. Kept narrow so the two tails stay distinct streamers.
-        pygame.draw.line(surf, _GOLD_D, (x0, y0), (x1, y1), 4)
-        pygame.draw.line(surf, _GOLD, (x0, y0), (x1, y1), 3)
-        pygame.draw.line(surf, _GOLD_H, (x0 - 1, y0), (x1 - 1, y1), 1)
-        # Fringe-tick ends — short gold teeth past the hem so it frays.
-        for fx in (x1 - 1, x1, x1 + 1):
-            pygame.draw.line(surf, _GOLD_D, (fx, y1), (fx, y1 + 2), 1)
-        pygame.draw.line(surf, _GOLD, (x1 - 1, y1 + 1), (x1 + 1, y1 + 1), 1)
+    # LEFT TAIL — angling down-left, with alternating purple band ticks + fringe.
+    pygame.draw.line(surf, _SCARF_GOLD, (HX - 4, HY + 10), (HX - 10, HY + 22), 3)
+    for t in (3, 7, 11):
+        tt = t / 12.0
+        tx = int((HX - 4) + ((HX - 10) - (HX - 4)) * tt)
+        ty = (HY + 10) + t
+        pygame.draw.line(surf, _SCARF_PUR, (tx - 1, ty), (tx + 1, ty), 2)
+    for j in (0, 2, 4):
+        pygame.draw.line(surf, _SCARF_FRNG, (HX - 9 - j, HY + 22), (HX - 9 - j, HY + 24), 1)
 
-    # V-SPLIT at the neck: tails angle OUTWARD, not parallel. The 4-5px gap of
-    # bare red jersey between their tops keeps two white hoops reading through.
-    _tail(HX - 8, HY + 11, HX - 14, HY + 23)   # LEFT tail, out along the wing
-    _tail(HX + 4, HY + 11, HX + 6, HY + 24)    # RIGHT tail, down the side
+    # RIGHT TAIL — angling down-right, same alternating ticks + fringe.
+    pygame.draw.line(surf, _SCARF_GOLD, (HX + 1, HY + 10), (HX + 7, HY + 22), 3)
+    for t in (3, 7, 11):
+        tt = t / 12.0
+        tx = int((HX + 1) + ((HX + 7) - (HX + 1)) * tt)
+        ty = (HY + 10) + t
+        pygame.draw.line(surf, _SCARF_PUR, (tx - 1, ty), (tx + 1, ty), 2)
+    for j in (0, 2, 4):
+        pygame.draw.line(surf, _SCARF_FRNG, (HX + 6 + j, HY + 22), (HX + 6 + j, HY + 24), 1)
 
 
 build = store_skins._make_skin(_paint)
