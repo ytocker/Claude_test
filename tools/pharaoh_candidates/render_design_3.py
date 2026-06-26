@@ -14,7 +14,7 @@ from tools import ninja_render
 from tools.pharaoh_candidates.design_3 import build
 
 OUT = "docs/store_redesign/costume/pharaoh/design_3/round_1.png"
-TITLE = "DESIGN 3 — RA  round 1"
+TITLE = "DESIGN 3 — RA  round 2"
 
 
 def _label(surf, text, x, y, size=18, color=(236, 238, 246)):

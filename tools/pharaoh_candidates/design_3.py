@@ -27,7 +27,8 @@ import math
 import pygame
 
 from game import store_skins
-from game.store_skins import HX, HY, CROWN_Y, _poly
+from game.store_skins import HX, HY, CROWN_Y, _poly, _compose, PARROT_DY
+from game.parrot import _add_outline, _WING_ANGLES
 from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
 
 
@@ -41,9 +42,18 @@ _SOLAR_AMB_D = (190, 96, 18)
 _FALCON_RED = (192, 51, 31)        # #C0331F falcon red
 _SKY_BLUE   = (46, 111, 176)       # #2E6FB0 sky blue
 _SKY_BLUE_D = (28, 72, 122)
-_RA_GLOW    = (255, 246, 200)      # #FFF6C8 solar bloom / hero glint
+_RA_GLOW    = (255, 246, 200)      # #FFF6C8 solar bloom inner cream / hero glint
 _RA_BLACK   = (28, 22, 16)         # Eye-of-Ra liner / dark separators
 _DISK_HOT   = (255, 232, 150)      # disk inner-hot core
+
+# Tiered bloom hue ramp — a warm halo reads as SUNLIGHT; a neutral cream one
+# desaturates over bright day sky into "grey smoke". Outer rings are warm amber,
+# mid rings sun-gold, the innermost cream, so the falloff is a colour-temperature
+# gradient (warm→hot) as well as a value gradient.
+_BLOOM_AMBER = (255, 180, 74)      # #FFB44A outer warm-amber corona
+_BLOOM_GOLD  = (255, 210, 74)      # #FFD24A mid sun-gold
+_BLOOM_CREAM = (255, 246, 200)     # #FFF6C8 inner cream
+_RIM_AMBER   = (255, 138, 30)      # #FF8A1E opaque day rim ("sun's edge")
 
 
 # Warm-to-amber GOLD re-plumage of the macaw: head/chest run sun-gold, belly +
@@ -84,46 +94,57 @@ def _ra_base(angle_deg):
 
 
 def _disk_bloom(surf, cx, cy, r):
-    """Soft solar aura: stacked translucent cream rings (largest, faintest first)
-    so the disk reads as a luminous blob at 40px on night sky rather than a hard
-    edge that downscale would alias away. Drawn onto its own SRCALPHA layer and
-    blitted with additive blend so it brightens whatever sky sits behind it."""
-    pad = r + 16
+    """Soft solar CORONA, applied AFTER the outline pass so nothing traces a dark
+    ring around it (the outline mask reading the soft fringe was what made the
+    halo look like grey smoke). A warm colour-temperature falloff — amber corona
+    → sun-gold → cream — over a smooth 11-ring alpha ramp reads as sunlight, not
+    neutral fog. Sized generously so on night sky the disk is unambiguously the
+    brightest sprite; additive blend brightens whatever sky sits behind it."""
+    rad_out = int(r * 2.6) + 6      # ~30% bigger corona, sized for the night read
+    pad = rad_out + 2
     glow = pygame.Surface((pad * 2, pad * 2), pygame.SRCALPHA)
     gc = (pad, pad)
-    # Opaque-building rings (additive) so the bloom is a SOLID luminous disk that
-    # the outline pass traces as a soft cream edge, not a faint fringe that
-    # _add_outline would darken into a hard black ring.
-    for rad, a in ((r + 15, 60), (r + 12, 90), (r + 9, 130),
-                   (r + 6, 180), (r + 3, 230)):
-        pygame.draw.circle(glow, (*_RA_GLOW, a), gc, rad)
+    # 11 rings, large+faint+amber first → small+bright+cream last. Hue warms and
+    # value climbs together so the gradient is one continuous warm glow.
+    n = 11
+    for i in range(n):
+        t = i / (n - 1)                         # 0 outer → 1 inner
+        rad = int(rad_out - t * (rad_out - r + 1))
+        if t < 0.45:
+            col = _BLOOM_AMBER
+        elif t < 0.78:
+            col = _BLOOM_GOLD
+        else:
+            col = _BLOOM_CREAM
+        # Gentle quadratic ramp: very soft at the corona edge, near-solid at core.
+        a = int(34 + (255 - 34) * (t * t))
+        pygame.draw.circle(glow, (*col, a), gc, rad)
     surf.blit(glow, (cx - pad, cy - pad), special_flags=pygame.BLEND_RGBA_ADD)
 
 
 def _paint(surf, _a):
-    # ── WINGED SUN COLLAR (drawn first, under the disk/face) — a usekh collar
-    #    whose outer rows fan into stylised falcon-wing feathers. Three banded
-    #    rows (gold → sky-blue → falcon-red) arc across the upper breast and
-    #    sweep into short wing-feather points at each shoulder. Held strictly
-    #    inside the body width (x ≈ HX-22 .. HX+2) so the silhouette never grows.
+    # ── WINGED SUN COLLAR (drawn first, under the disk/face). Reduced to TWO
+    #    clean bands — a gold outer band and one cool sky-blue inner band — split
+    #    by a crisp 1px dark separator, so it survives the 40px downscale as a
+    #    legible collar rather than collapsing into a band of mud. The blue is the
+    #    SOLE cool accent that holds against all the gold. Held strictly inside the
+    #    body width (x ≈ HX-22 .. HX+2) so the silhouette never grows.
     ccx, ccy = HX - 9, HY + 12          # collar centre, on the upper chest
-    # Three concentric banded arcs as filled lens-shaped rows.
-    for rw, rh, col in ((19, 12, _SUN_GOLD), (16, 10, _SKY_BLUE),
-                        (13, 8, _FALCON_RED)):
-        pygame.draw.ellipse(surf, col, (ccx - rw, ccy - rh, rw * 2, rh + 6))
-    # Re-open the centre so the rows read as stacked bands, not a solid bib.
-    pygame.draw.ellipse(surf, _SUN_GOLD, (ccx - 9, ccy - 5, 18, 8))
-    pygame.draw.ellipse(surf, _SUN_GOLD_D, (ccx - 9, ccy - 5, 18, 8), 1)
-    # Falcon-wing feather points fanning off each shoulder — short stylised
-    # primaries in alternating gold/blue, tucked inside the body silhouette.
-    for sgn, ax in ((-1, ccx - 16), (1, ccx + 14)):
-        for k, col in enumerate((_SUN_GOLD, _SKY_BLUE, _SUN_GOLD)):
-            fx = ax + sgn * k * 3
-            fy = ccy - 1 + k * 3
-            _poly(surf, col, [(fx, fy - 3), (fx + sgn * 5, fy + 1),
-                              (fx, fy + 4)])
-        pygame.draw.line(surf, _FALCON_RED, (ax, ccy - 2),
-                         (ax + sgn * 9, ccy + 7), 2)
+    # Gold outer band, then a 1px dark separator, then the sky-blue inner band.
+    pygame.draw.ellipse(surf, _SUN_GOLD, (ccx - 19, ccy - 12, 38, 18))
+    pygame.draw.ellipse(surf, _RA_BLACK, (ccx - 15, ccy - 9, 30, 15))
+    pygame.draw.ellipse(surf, _SKY_BLUE, (ccx - 14, ccy - 8, 28, 14))
+    # Re-open the centre so the two rows read as bands, not a solid bib, and the
+    # dark chin-line re-establishes value contrast so the collar reads as a collar.
+    pygame.draw.ellipse(surf, _RA_BLACK, (ccx - 9, ccy - 5, 18, 9))
+    pygame.draw.ellipse(surf, _SUN_GOLD, (ccx - 8, ccy - 4, 16, 8))
+    # One short clean gold wing-sweep off each shoulder (replaces the muddy
+    # per-feather poly fan) — a single stylised falcon-wing flick per side.
+    for sgn, ax in ((-1, ccx - 17), (1, ccx + 15)):
+        _poly(surf, _SUN_GOLD,
+              [(ax, ccy - 4), (ax + sgn * 8, ccy + 2), (ax + sgn * 2, ccy + 5)])
+        pygame.draw.line(surf, _SUN_GOLD_D, (ax, ccy - 4),
+                         (ax + sgn * 8, ccy + 2), 1)
 
     # ── WAS-SCEPTER + ANKH slung diagonally in the near wing (over the body,
     #    inside the silhouette). A gold forked-base staff with a stylised animal
@@ -179,14 +200,14 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _RA_BLACK, (ex - 2, ey + 4), (ex - 1, ey + 8), 2)
     pygame.draw.line(surf, _RA_BLACK, (ex - 1, ey + 8), (ex + 2, ey + 8), 1)
 
-    # ── SOLAR DISK (the hero) crowning the head, above CROWN_Y. Soft cream bloom
-    #    first (so the disk sits in a halo), then a coiled gold uraeus cobra
-    #    ringing the lower disk, then the disk itself with a hot inner core and a
-    #    bright top glint so it reads as a tiny sun — the brightest sprite on
-    #    screen at 40px, on day AND night.
+    # ── SOLAR DISK (the hero) crowning the head, above CROWN_Y. The soft additive
+    #    corona is applied LATER (post-outline, in the getter) so no dark ring bites
+    #    it; here we draw the solid disk + a coiled gold uraeus cobra + an OPAQUE
+    #    warm-amber RIM ring just outside the disk. That rim gives the sun a defined
+    #    warm edge against bright blue day sky even before the soft corona, so the
+    #    read is "sun with corona", not "disk with dirty fog".
     dcx, dcy = HX, CROWN_Y - 8         # disk centre, lifted clear of the crown
     dr = 11
-    _disk_bloom(surf, dcx, dcy, dr)
 
     # Coiled gold uraeus cobra wrapping the base of the disk — a low arc of coil
     # with a reared hood + head at the front, so it reads as a cobra ringing the
@@ -205,7 +226,7 @@ def _paint(surf, _a):
     pygame.draw.circle(surf, _FALCON_RED, (hx0 + 4, hy0), 1)
 
     # The disk: amber rim → gold body → hot core → cream top glint, so it has the
-    # solar value ramp that makes it glow rather than read flat.
+    # solar value ramp that makes it glow rather than read flat. (KEEP — the win.)
     pygame.draw.circle(surf, _SOLAR_AMB, (dcx, dcy), dr)
     pygame.draw.circle(surf, _SUN_GOLD, (dcx, dcy), dr - 1)
     pygame.draw.circle(surf, _DISK_HOT, (dcx, dcy), dr - 4)
@@ -213,6 +234,48 @@ def _paint(surf, _a):
     pygame.draw.circle(surf, (255, 255, 255), (dcx - 3, dcy - 4), 1)
     # A faint amber rim-line keeps the disk edge crisp against a bright day sky.
     pygame.draw.circle(surf, _SOLAR_AMB_D, (dcx, dcy), dr, 1)
+    # OPAQUE warm-amber rim ring just OUTSIDE the disk — the sun's defined warm
+    # edge against bright blue, so day stays legible before the soft corona lands.
+    rim = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    pygame.draw.circle(rim, (*_RIM_AMBER, 180), (dcx, dcy), dr + 2, 2)
+    surf.blit(rim, (0, 0))
 
 
-build = store_skins._make_skin(_paint, base_fn=_ra_base)
+# Disk anchor in COMPOSITE space (matches _paint), so the getter can lay the soft
+# corona down AFTER the outline pass without re-deriving geometry.
+_DISK_CX = HX
+_DISK_CY = (CROWN_Y - 8)
+_DISK_R  = 11
+
+
+def build_frame(wing_angle_deg):
+    """Compose body + costume, run the house outline, THEN add the soft solar
+    corona on top. Keeping the bloom out of the outline mask is what stops the
+    dark ring that made the halo read as grey smoke."""
+    comp = _add_outline(_compose(wing_angle_deg, _paint, base_fn=_ra_base))
+    # _add_outline pads by 2px, so the disk anchor shifts by that pad.
+    _disk_bloom(comp, _DISK_CX + 2, _DISK_CY + 2, _DISK_R)
+    return comp
+
+
+def _ra_getter():
+    # RA needs the corona applied post-outline, so it can't use the generic
+    # body→paint→outline order in _make_skin; this mirrors the viking getter.
+    state = {"frames": None, "rot": {}}
+
+    def getter(frame_idx, tilt_deg):
+        if state["frames"] is None:
+            state["frames"] = [build_frame(a) for a in _WING_ANGLES]
+        frames = state["frames"]
+        frame_idx %= len(frames)
+        key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
+        s = state["rot"].get(key)
+        if s is None:
+            s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
+            state["rot"][key] = s
+        return s
+
+    return getter
+
+
+build = _ra_getter()
