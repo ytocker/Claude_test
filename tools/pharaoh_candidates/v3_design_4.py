@@ -20,7 +20,7 @@ footprint; only the nemes + winged-sun rise above CROWN_Y.
 import pygame
 
 from game import store_skins
-from game.store_skins import HX, HY, CROWN_Y, _poly
+from game.store_skins import HX, HY, CROWN_Y
 from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
 
 
@@ -37,20 +37,25 @@ _SG_LAPIS_D  = (16, 36, 92)        # lapis shadow / line work
 _SG_LAPIS_H  = (74, 110, 198)      # lapis sheen
 _SG_TURQ     = (47, 184, 166)      # #2FB8A6 turquoise
 _SG_TURQ_H   = (140, 230, 216)     # turquoise glint
+_SG_RIM      = (40, 26, 10)        # warm-dark amber-black OUTER contour rim
 
 # Whole-bird gold re-plumage. Every plumage slot is a gold value; the amber
 # shadow does the line + underside work so the silhouette keeps internal form
 # against a bright sky; beak is gilded; lenses dropped (regalia owns the face).
 _SG_BODY = _pal(
-    tail=[(176, 122, 34), (200, 150, 44), (224, 174, 52), (244, 196, 60)],
+    # Lower body runs a notch darker than the head — a deep amber tail ramp with a
+    # thicker dark tail_line and a lower-value belly — so the bottom third carries
+    # its own value anchor (like the collar anchors the chest) instead of going
+    # uniform warm gold and blobbing out on a bright day sky. Stays GOLD throughout.
+    tail=[(150, 100, 26), (172, 120, 32), (196, 146, 42), (224, 174, 52)],
     tail_line=(120, 82, 22),
-    body_shadow=(150, 104, 28),
+    body_shadow=(140, 96, 24),
     body_main=_SG_GOLD,
     body_chest=(255, 220, 120),
-    body_belly=(228, 176, 60),
+    body_belly=(206, 152, 44),
     sheen=(255, 244, 200, 90),
     wing_main=(232, 182, 52),
-    wing_dark=_SG_GOLD_D,
+    wing_dark=(126, 86, 22),
     wing_tip=(255, 226, 130),
     wing_secondary=None,
     wing_highlight=_SG_GOLD_H,
@@ -69,9 +74,29 @@ _SG_BODY = _pal(
 )
 
 
+def _sg_rim_outer(src, color):
+    """Stamp a 1px warm-dark amber rim hugging the source silhouette's OUTER edge
+    (same grow-the-mask trick the mummy uses) so the gilded body keeps an unbroken
+    dark contour — especially around the tail + lower wing — against a bright day
+    sky where warm gold otherwise washes out and the bottom third goes blobby. It
+    only touches the outer ring, so the night read and interior regalia are
+    untouched."""
+    w, h = src.get_size()
+    out = pygame.Surface((w, h), pygame.SRCALPHA)
+    mask = pygame.mask.from_surface(src, threshold=8)
+    ring = mask.to_surface(setcolor=color, unsetcolor=(0, 0, 0, 0))
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+        out.blit(ring, (dx, dy))
+    out.blit(src, (0, 0))
+    return out
+
+
 def _sg_base(angle_deg):
-    # The gilded god-flesh bird, no aviators — the regalia owns the face.
-    return _build_parrot_with_palette(angle_deg, _SG_BODY, draw_lenses=False)
+    # The gilded god-flesh bird, no aviators — the regalia owns the face. The
+    # outer amber rim is baked here (like the mummy) so the silhouette holds on
+    # the bright day sky before any regalia is painted over the interior.
+    body = _build_parrot_with_palette(angle_deg, _SG_BODY, draw_lenses=False)
+    return _sg_rim_outer(body, _SG_RIM)
 
 
 def _paint(surf, _a):
@@ -140,22 +165,18 @@ def _paint(surf, _a):
     # vanish). Seated just above the headband, below the uraeus' rear, inside the
     # nemes width so it never balloons the headgear.
     sx, sy = HX, cy + 1
-    # Out-swept wings — short, low, symmetric feather fans flanking the disk.
+    # Wings reduced to two short dark-lapis TICKS flanking the disk — "a dot with
+    # two flanks", not a fanned feather smear that fattens the brow and turns to a
+    # blue blob at 40px. One straight stroke per side reads as a flank without
+    # competing with the disk.
     for sgn in (-1, 1):
-        wing = [(sx + sgn * 3, sy - 1), (sx + sgn * 9, sy - 3),
-                (sx + sgn * 13, sy - 1), (sx + sgn * 9, sy + 1),
-                (sx + sgn * 5, sy + 1)]
-        _poly(surf, _SG_LAPIS_D, [(x, y + 1) for x, y in wing])
-        _poly(surf, _SG_GOLD, wing)
-        # Two feather divider ticks per wing for a wing read at size.
-        pygame.draw.line(surf, _SG_GOLD_D, (sx + sgn * 5, sy - 1),
-                         (sx + sgn * 11, sy - 2), 1)
-        pygame.draw.line(surf, _SG_GOLD_H, (sx + sgn * 5, sy),
-                         (sx + sgn * 10, sy - 1), 1)
-    # The sun disk — lapis ring so it pops on the gold cap, bright gold core.
-    pygame.draw.circle(surf, _SG_LAPIS, (sx, sy - 1), 4)
-    pygame.draw.circle(surf, _SG_GOLD, (sx, sy - 1), 3)
-    pygame.draw.circle(surf, _SG_GOLD_H, (sx - 1, sy - 2), 1)
+        pygame.draw.line(surf, _SG_LAPIS_D, (sx + sgn * 5, sy - 1),
+                         (sx + sgn * 11, sy - 2), 2)
+    # The sun disk — bumped a notch (core +1px, lapis ring +1px) so it stays a
+    # distinct DOT above the headband and separates from the gold cap behind it.
+    pygame.draw.circle(surf, _SG_LAPIS, (sx, sy - 1), 5)
+    pygame.draw.circle(surf, _SG_GOLD, (sx, sy - 1), 4)
+    pygame.draw.circle(surf, _SG_GOLD_H, (sx - 1, sy - 2), 2)
 
     # ── URAEUS COBRA (identity core, rebuilt verbatim from _paint_pharaoh) — the
     # rearing gold cobra at the brow, the classic pharaoh tell. Sits forward of
