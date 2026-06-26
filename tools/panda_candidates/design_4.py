@@ -1,11 +1,13 @@
 """Panda animal-skin candidate — DESIGN 4: KUNG-FU PANDA.
 
 The action/hero panda. The shared giant-panda kit (white face disc, round
-black ears, black eye patches, nose) armoured with martial-arts gear: a red
-headband whose two tails stream back off the skull, black panda arms thrown
-into an open fighting pose so the flap reads as throwing punches, cloth
-wrist wraps, a wide black obi sash knotted across the white belly, and a gold
-chest medallion breaking the belly.
+black ears, black eye patches, nose) armoured for a fight by the single tell
+that reads at 40px: a RED HEADBAND clamped across the brow, with one bold red
+ribbon tail flicking back off the skull. The belt across the white belly is a
+thin DARK band with gold edges (a belt, not a second red focal point) carrying
+one gold medallion dot. The black panda arms throw a punch — the lead fist is
+pushed clear of the silhouette into the sky, and the arms swap which side
+extends across the 4-frame cycle so the flap visibly throws.
 
 Scratch builder only — mirrors game/animal_skins.py geometry + the
 `_make_prebuilt_skin` factory so it lifts straight into production later. Not
@@ -32,8 +34,9 @@ WHITE     = (245, 245, 245)     # #F5F5F5 panda white
 WHITE_SH  = (216, 216, 220)     # white value step
 RED       = (200, 16, 46)       # #C8102E kung-fu red
 RED_SH    = (122, 12, 30)       # #7A0C1E red shadow
-GOLD      = (227, 178, 60)      # #E3B23C gold emblem + wrap trim
+GOLD      = (227, 178, 60)      # #E3B23C gold emblem + belt trim
 GOLD_SH   = (176, 132, 36)
+DARK_BELT = (40, 40, 46)        # belt band — dark, NOT red, so red stays unique
 PINK      = (231, 169, 169)     # warm cheek/nose-tip accent
 
 
@@ -65,51 +68,50 @@ def _flap(angle_deg):
     return (angle_deg + 40) / 90.0
 
 
-# ── black panda arm ending in a fist, with a red/gold wrist wrap ─────────────
-def _panda_arm(angle_deg):
-    """A stubby black panda forearm + rounded fist, banded by a cloth wrist
-    wrap. Drawn level then rotated with the flap so the 4 poses read as
-    punches thrown at different heights."""
-    w = pygame.Surface((46, 46), pygame.SRCALPHA)
-    # Forearm mass — wedge from shoulder root out to the fist.
-    forearm = [(20, 18), (38, 16), (40, 28), (22, 30)]
-    pygame.draw.polygon(w, BLACK, forearm)
-    # Soft top highlight so the black limb keeps form against dark night sky.
-    pygame.draw.line(w, BLACK_HI, (22, 19), (37, 18), 2)
-    # Rounded fist / paw at the end (suggested knuckles).
-    pygame.draw.circle(w, BLACK, (40, 23), 8)
-    pygame.draw.circle(w, BLACK_HI, (38, 20), 3)
-    for kx, ky in ((44, 20), (45, 24), (43, 27)):
-        pygame.draw.circle(w, (16, 16, 16), (kx, ky), 1)
-    # Cloth wrist wrap banding the forearm — two red turns + a gold trim line.
-    pygame.draw.line(w, RED, (27, 17), (30, 30), 5)
-    pygame.draw.line(w, RED_SH, (27, 17), (30, 30), 5)  # darker undertone
-    pygame.draw.line(w, RED, (30, 16), (33, 29), 4)
-    pygame.draw.line(w, GOLD, (31, 16), (34, 29), 1)
-    return pygame.transform.rotate(w, angle_deg)
+# ── black panda arm ending in a fist ─────────────────────────────────────────
+def _panda_fist(extended):
+    """A stubby black panda forearm + a clearly rounded fist knob. No cloth
+    wraps — at 40px wrist wraps are invisible noise, so the arm is pure black
+    mass whose value the night-sky outline carries. `extended` lengthens the
+    reach so a punching arm pushes its fist farther out than a tucked one."""
+    w = pygame.Surface((52, 40), pygame.SRCALPHA)
+    cy = 20
+    reach = 14 if extended else 4
+    fist_x = 24 + reach
+    # Forearm wedge from the shoulder root out to the fist.
+    pygame.draw.polygon(w, BLACK, [
+        (10, cy - 6), (fist_x, cy - 7), (fist_x, cy + 7), (10, cy + 7),
+    ])
+    # Top highlight so the black limb keeps form against dark night sky.
+    pygame.draw.line(w, BLACK_HI, (12, cy - 5), (fist_x - 2, cy - 6), 2)
+    # Rounded fist knob — the punching read. Drawn big + clean so it stays a
+    # distinct knob when it clears the white-belly silhouette.
+    pygame.draw.circle(w, BLACK, (fist_x, cy), 9)
+    pygame.draw.circle(w, BLACK_HI, (fist_x - 3, cy - 3), 3)
+    # Suggested knuckle ridge along the leading face of the fist.
+    for ky in (cy - 4, cy, cy + 4):
+        pygame.draw.circle(w, (14, 14, 16), (fist_x + 5, ky), 1)
+    return w
 
 
-def _headband_tail(length, droop, flick):
-    """One streaming headband ribbon — a tapering red cloth tail with a gold
-    edge, that flicks with the flap so it reads dynamic. `flick` shifts the
-    tip vertically; `droop` curves the midpoint."""
-    w = pygame.Surface((length + 6, 28), pygame.SRCALPHA)
-    base_y = 14
+def _ribbon_tail(flick):
+    """ONE bold red ribbon tail — the hero accent's motion read. A fat tapering
+    triangle with a gold lower edge; `flick` swings the tip vertically with
+    the flap so the cloth streams. Drawn to read as clearly ATTACHED to the
+    band (wide root) then flicking back to a point."""
+    w = pygame.Surface((26, 26), pygame.SRCALPHA)
+    base_y = 12
     tip_y = base_y + flick
-    mid_y = base_y + droop
     pts = [
-        (2, base_y - 4),
-        (length // 2, mid_y - 5),
-        (length + 3, tip_y - 1),
-        (length + 3, tip_y + 3),
-        (length // 2, mid_y + 4),
-        (2, base_y + 4),
+        (2, base_y - 5),                 # wide root at the band
+        (2, base_y + 5),
+        (23, tip_y + 2),                 # flicked point
+        (23, tip_y - 1),
     ]
     pygame.draw.polygon(w, RED, pts)
     pygame.draw.polygon(w, RED_SH, pts, 1)
-    # Gold trim along the lower edge.
-    pygame.draw.line(w, GOLD, (3, base_y + 3), (length // 2, mid_y + 3), 1)
-    pygame.draw.line(w, GOLD, (length // 2, mid_y + 3), (length + 2, tip_y + 2), 1)
+    # Gold edge along the lower run so it ties to the headband's gold line.
+    pygame.draw.line(w, GOLD, (3, base_y + 4), (22, tip_y + 1), 1)
     return w
 
 
@@ -118,26 +120,27 @@ def build(wing_angle_deg) -> pygame.Surface:
     surf = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
     f = _flap(wing_angle_deg)            # 0 (wing down) .. 1 (wing up)
 
-    # ── trailing headband tails (drawn first so they stream BEHIND the head) ──
-    # Two red ribbons flicking back-left off the skull, pushing past the
-    # head silhouette for the dynamic flapping feel. Flick tracks the wing.
-    flick = int(round((f - 0.5) * 10))   # -5..+5 px tail-tip swing
-    tail_lo = _headband_tail(20, 3, 6 + flick)
-    tail_hi = _headband_tail(17, -2, -2 + flick)
-    # Anchor at the back-left of the head; ribbons run off-canvas-ward.
-    _rot_blit(surf, pygame.transform.flip(tail_hi, True, False),
-              (HCX - 16, HCY - 5))
-    _rot_blit(surf, pygame.transform.flip(tail_lo, True, False),
-              (HCX - 15, HCY + 2))
+    # ── trailing red ribbon tail (drawn first so it streams BEHIND the head) ──
+    # One bold tail flicking back off the right of the skull, attached to the
+    # headband knot. Flick tracks the wing for life.
+    flick = int(round((f - 0.5) * 9))    # ~-5..+5 px tail-tip swing
+    tail = _ribbon_tail(flick)
+    # Anchor off the right-back of the head so it pushes past the silhouette.
+    _rot_blit(surf, tail, (HCX + 17, HCY - 4))
 
-    # ── far arm (behind the body) thrown back, low-contrast ──
-    far_ang = wing_angle_deg * 0.5 - 28
-    _rot_blit(surf, _panda_arm(far_ang), (BCX + 9, BCY - 1))
+    # ── far arm (behind the body) — opposite phase to the near arm ──
+    # When the near fist is tucked, this one is thrown; gives the swap so the
+    # 4-frame cycle reads as a punch being thrown and recovered.
+    far_extended = f < 0.5
+    far_ang = -22 - (1.0 - f) * 10
+    _rot_blit(surf, pygame.transform.rotate(_panda_fist(far_extended), far_ang),
+              (BCX + 11, BCY - 3))
 
     # ── body: chunky white torso framed by a black shoulder yoke ──
-    # Black shoulder yoke under the sash (the real panda's dark shoulder band).
+    # Black shoulder yoke (the real panda's dark shoulder band).
     _aaellipse(surf, BLACK, (BCX, BCY - 6), 19, 11)
-    # White belly/torso disc over the collision centre.
+    # White belly/torso disc over the collision centre — kept large + clean so
+    # the black-on-white panda contrast survives the night sky.
     _aaellipse(surf, WHITE_SH, (BCX, BCY + 2), 18, 16)
     _aaellipse(surf, WHITE, (BCX - 1, BCY + 1), 17, 15)
     # Soft belly value step low-left for roundness.
@@ -149,29 +152,21 @@ def build(wing_angle_deg) -> pygame.Surface:
         pygame.draw.line(surf, BLACK, (lx, ly), (lx + sgn * 2, ly + 7), 5)
         pygame.draw.circle(surf, BLACK, (lx + sgn * 2, ly + 7), 3)
 
-    # ── wide black obi sash across the belly, knotted at the front ──
-    sash_y = BCY + 5
-    pygame.draw.polygon(surf, BLACK, [
-        (BCX - 17, sash_y - 3), (BCX + 17, sash_y - 4),
-        (BCX + 17, sash_y + 4), (BCX - 17, sash_y + 5),
-    ])
-    pygame.draw.line(surf, BLACK_HI, (BCX - 16, sash_y - 2),
-                     (BCX + 16, sash_y - 3), 1)
-    # Knot at the front-centre with a short hanging end.
-    pygame.draw.circle(surf, BLACK, (BCX + 1, sash_y + 1), 4)
-    pygame.draw.circle(surf, BLACK_HI, (BCX, sash_y - 1), 2)
-    pygame.draw.polygon(surf, BLACK, [
-        (BCX - 1, sash_y + 3), (BCX + 3, sash_y + 3),
-        (BCX + 1, sash_y + 12),
-    ])
-
-    # ── gold chest medallion breaking the white belly above the sash ──
-    mcx, mcy = BCX - 1, sash_y - 8
-    pygame.draw.circle(surf, GOLD_SH, (mcx, mcy + 1), 5)
-    pygame.draw.circle(surf, GOLD, (mcx, mcy), 5)
-    pygame.draw.circle(surf, RED_SH, (mcx, mcy), 3)
-    # Tiny yin-yang style dot.
-    pygame.draw.circle(surf, WHITE, (mcx - 1, mcy - 1), 1)
+    # ── thin DARK belt across the belly with a gold edge each side ──
+    # Demoted from a red obi: a single dark band reads as a belt at 40px
+    # without competing with the headband for the "red" attention slot, and
+    # it occupies a thin strip so the white belly stays mostly unbroken.
+    belt_y = BCY + 6
+    pygame.draw.line(surf, DARK_BELT, (BCX - 16, belt_y),
+                     (BCX + 16, belt_y - 1), 4)
+    pygame.draw.line(surf, BLACK, (BCX - 16, belt_y + 2),
+                     (BCX + 16, belt_y + 1), 1)
+    # Gold edge cap at each end of the belt — two deliberate warm ticks.
+    pygame.draw.circle(surf, GOLD, (BCX - 16, belt_y), 1)
+    pygame.draw.circle(surf, GOLD, (BCX + 16, belt_y - 1), 1)
+    # ONE gold medallion dot centred on the belt — the single warm accent.
+    pygame.draw.circle(surf, GOLD_SH, (BCX, belt_y + 1), 2)
+    pygame.draw.circle(surf, GOLD, (BCX, belt_y), 2)
 
     # ── ears: two round black ears up past the crown ──
     for dx in (-8, 9):
@@ -185,44 +180,54 @@ def build(wing_angle_deg) -> pygame.Surface:
     # ── two black teardrop eye patches angled down-inward ──
     for sgn, ex in ((-1, HCX - 6), (1, HCX + 6)):
         patch = [
-            (ex, HCY - 5), (ex + sgn * 5, HCY - 3),
-            (ex + sgn * 4, HCY + 4), (ex - sgn * 1, HCY + 3),
+            (ex, HCY - 4), (ex + sgn * 5, HCY - 2),
+            (ex + sgn * 4, HCY + 5), (ex - sgn * 1, HCY + 4),
         ]
         pygame.draw.polygon(surf, BLACK, patch)
         # White eye glint dot keeps the look fierce-but-friendly.
-        pygame.draw.circle(surf, (250, 250, 245), (ex + sgn * 2, HCY), 2)
-        pygame.draw.circle(surf, (18, 18, 22), (ex + sgn * 2, HCY), 1)
+        pygame.draw.circle(surf, (250, 250, 245), (ex + sgn * 2, HCY + 1), 2)
+        pygame.draw.circle(surf, (18, 18, 22), (ex + sgn * 2, HCY + 1), 1)
 
     # Cheek blush low on the face for charm.
-    _aaellipse(surf, PINK, (HCX - 7, HCY + 5), 3, 2)
-    _aaellipse(surf, PINK, (HCX + 7, HCY + 5), 3, 2)
+    _aaellipse(surf, PINK, (HCX - 7, HCY + 6), 3, 2)
+    _aaellipse(surf, PINK, (HCX + 7, HCY + 6), 3, 2)
 
     # Nose triangle + soft mouth line.
     pygame.draw.polygon(surf, BLACK, [
-        (HCX - 2, HCY + 4), (HCX + 2, HCY + 4), (HCX, HCY + 7)])
-    pygame.draw.line(surf, BLACK, (HCX, HCY + 7), (HCX, HCY + 9), 1)
-    pygame.draw.line(surf, BLACK, (HCX - 3, HCY + 9), (HCX, HCY + 9), 1)
-    pygame.draw.line(surf, BLACK, (HCX, HCY + 9), (HCX + 3, HCY + 9), 1)
+        (HCX - 2, HCY + 5), (HCX + 2, HCY + 5), (HCX, HCY + 8)])
+    pygame.draw.line(surf, BLACK, (HCX, HCY + 8), (HCX, HCY + 10), 1)
+    pygame.draw.line(surf, BLACK, (HCX - 3, HCY + 10), (HCX, HCY + 10), 1)
+    pygame.draw.line(surf, BLACK, (HCX, HCY + 10), (HCX + 3, HCY + 10), 1)
 
-    # ── red headband across the brow with a knot at the side ──
-    band_y = HCY - 5
+    # ── RED HEADBAND across the brow — the hero tell, locked above the eyes ──
+    # A clean 2px horizontal red stripe directly above the eye patches, the
+    # largest + most eye-catching red on the whole sprite.
+    band_y = HCY - 6
     pygame.draw.polygon(surf, RED, [
         (HCX - 12, band_y - 2), (HCX + 12, band_y - 3),
-        (HCX + 12, band_y + 3), (HCX - 12, band_y + 2),
+        (HCX + 12, band_y + 2), (HCX - 12, band_y + 1),
     ])
-    pygame.draw.line(surf, RED_SH, (HCX - 12, band_y + 2),
-                     (HCX + 12, band_y + 3), 1)
+    pygame.draw.line(surf, RED_SH, (HCX - 12, band_y + 1),
+                     (HCX + 12, band_y + 2), 1)
+    # Hairline gold edge along the top so the band catches a warm glint.
     pygame.draw.line(surf, GOLD, (HCX - 11, band_y - 1),
                      (HCX + 11, band_y - 2), 1)
-    # Side knot where the trailing tails leave the head.
-    pygame.draw.circle(surf, RED, (HCX - 12, band_y + 1), 3)
-    pygame.draw.circle(surf, RED_SH, (HCX - 12, band_y + 1), 3, 1)
+    # Side knot on the RIGHT where the trailing tail leaves the head — ties the
+    # band to the streaming ribbon so it reads as one continuous headband.
+    pygame.draw.circle(surf, RED, (HCX + 12, band_y), 3)
+    pygame.draw.circle(surf, RED_SH, (HCX + 12, band_y), 3, 1)
 
-    # ── near arm (over the body) — the hero punch, reach tracks the flap ──
-    near_ang = wing_angle_deg
-    reach_x = int(round(-2 + f * 4))
-    reach_y = int(round(2 - f * 6))
-    _rot_blit(surf, _panda_arm(near_ang), (BCX - 6 + reach_x, BCY + reach_y))
+    # ── near arm (over the body) — the HERO PUNCH, fist clears the belly ──
+    # Pushed out past the white belly into the sky so a distinct black knob
+    # sits clear of the silhouette. Extends in opposite phase to the far arm.
+    near_extended = f >= 0.5
+    near_ang = 24 + f * 16
+    # Anchor up-left of the belly so the extended fist punches OUT into the sky
+    # well clear of the leg stubs — a distinct black knob off the silhouette.
+    reach_x = -9 - (5 if near_extended else 0)
+    reach_y = -2 - (7 if near_extended else 0)
+    _rot_blit(surf, pygame.transform.rotate(_panda_fist(near_extended), near_ang),
+              (BCX + reach_x, BCY + reach_y))
 
     return surf
 
