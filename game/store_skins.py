@@ -965,27 +965,32 @@ _TEN_GREEN   = (42, 157, 74)       # racket frame + accent
 _TEN_GREEN_D = (26, 107, 54)       # green shadow / visor trim
 _TEN_GREEN_H = (96, 206, 124)      # green highlight
 _TEN_STRING  = (242, 242, 242)     # cross strings
+_TEN_VOID    = (28, 36, 30)        # near-black open-face void (no inner disc)
+_TEN_STR_DIM = (74, 92, 78)        # low-contrast strings on the void
 _TEN_GRIP    = (40, 44, 52)        # dark racket grip wrap
 _TEN_GRIP_H  = (96, 100, 110)      # grip wrap highlight
 
 
 def _tennis_racket(surf, hx, hy, hr):
-    """A held OVAL strung racket — the sole tennis tell, so the read rides on the
-    bold green RING + dark halo + throat Y-struts (strings are a near-detail bonus)."""
+    """A held OVAL strung racket — the sole tennis tell. The head reads as ONE
+    clean green frame ring around an OPEN (dark-void, dim-strung) face, so it
+    never stacks into a circle-inside-a-circle. The throat Y-struts + handle make
+    it unmistakably a racket."""
     rw, rh = int(hr * 1.7), int(hr * 2.1)
     face = pygame.Rect(hx - rw, hy - rh, rw * 2, rh * 2)
+    # Dark void interior + low-contrast strings so the centre stays an open face,
+    # not a filled bright disc — at 40px only the frame survives.
     clip_prev = surf.get_clip()
     surf.set_clip(face)
-    pygame.draw.ellipse(surf, (70, 86, 70), face)
-    for gx in range(face.left + 2, face.right - 1, 4):
-        pygame.draw.line(surf, _TEN_STRING, (gx, face.top + 1), (gx, face.bottom - 1), 1)
-    for gy in range(face.top + 2, face.bottom - 1, 4):
-        pygame.draw.line(surf, _TEN_STRING, (face.left + 1, gy), (face.right - 1, gy), 1)
+    pygame.draw.ellipse(surf, _TEN_VOID, face)
+    for gx in range(face.left + 3, face.right - 2, 4):
+        pygame.draw.line(surf, _TEN_STR_DIM, (gx, face.top + 1), (gx, face.bottom - 1), 1)
+    for gy in range(face.top + 3, face.bottom - 2, 4):
+        pygame.draw.line(surf, _TEN_STR_DIM, (face.left + 1, gy), (face.right - 1, gy), 1)
     surf.set_clip(clip_prev)
-    pygame.draw.ellipse(surf, _TEN_GREEN_D, face.inflate(4, 4), 2)   # dark outer halo
-    pygame.draw.ellipse(surf, _TEN_GREEN_D, face, 5)
-    pygame.draw.ellipse(surf, _TEN_GREEN, face.inflate(-3, -3), 3)
-    pygame.draw.ellipse(surf, _TEN_GREEN_H, face.inflate(-3, -3), 1)
+    # ONE bold green frame ring + a 1px outer keyline (no halo, no inner rings).
+    pygame.draw.ellipse(surf, _TEN_GREEN_D, face.inflate(2, 2), 1)
+    pygame.draw.ellipse(surf, _TEN_GREEN, face, 3)
     ty = hy + rh                                                     # throat Y-struts
     pygame.draw.line(surf, _TEN_GREEN_D, (hx - 1, ty + 5), (hx - rw + 2, ty - 2), 5)
     pygame.draw.line(surf, _TEN_GREEN_D, (hx + 1, ty + 5), (hx + rw - 2, ty - 2), 5)
@@ -1003,25 +1008,27 @@ def _tennis_racket(surf, hx, hy, hr):
 
 
 def _paint_tennis(surf, _a):
-    # White collared polo on the FRONT CHEST — anchored to HX/HY (the same on-body
-    # position as the baseball jersey) so the cloth sits up on the chest, not low
-    # toward the tail. Cool lower shade rounds the white; a dark contour keeps it
-    # crisp on a bright day sky. Inside the footprint (hem ~HY+23).
-    polo = [(HX - 14, HY + 5), (HX - 15, HY + 14), (HX - 11, HY + 23),
-            (HX + 9, HY + 23), (HX + 12, HY + 14), (HX + 10, HY + 5),
-            (HX + 4, HY + 2), (HX - 5, HY + 2)]
+    # White collared polo on the FRONT CHEST, BELOW the head — matched to the
+    # baseball jersey's vertical position (top ~HY+8, hem ~HY+23, no collar rising
+    # into the head) so NOTHING covers Pip's beak/eye/face. Cool lower shade rounds
+    # the white; a dark contour keeps it crisp on a bright day sky. Inside footprint.
+    polo = [(HX - 13, HY + 8), (HX - 14, HY + 16), (HX - 11, HY + 23),
+            (HX + 9, HY + 23), (HX + 12, HY + 16), (HX + 11, HY + 8),
+            (HX + 4, HY + 9), (HX - 5, HY + 9)]
     _poly(surf, _TEN_POLO_D, polo)
-    _poly(surf, _TEN_POLO, [(HX - 13, HY + 5), (HX - 13, HY + 16),
-                            (HX + 10, HY + 16), (HX + 10, HY + 5),
-                            (HX + 4, HY + 2), (HX - 5, HY + 2)])
-    pygame.draw.line(surf, _TEN_POLO_H, (HX - 11, HY + 6), (HX + 8, HY + 6), 1)
+    _poly(surf, _TEN_POLO, [(HX - 12, HY + 9), (HX - 12, HY + 18),
+                            (HX + 10, HY + 18), (HX + 10, HY + 9),
+                            (HX + 4, HY + 10), (HX - 5, HY + 10)])
+    pygame.draw.line(surf, _TEN_POLO_H, (HX - 11, HY + 10), (HX + 8, HY + 10), 1)
+    # Small collar V at the polo's own top — sits ON the chest, never in the head.
+    _poly(surf, _TEN_POLO_DD, [(HX - 5, HY + 9), (HX + 4, HY + 9), (HX, HY + 13)])
     pygame.draw.polygon(surf, _TEN_POLO_DD, polo, 1)
     # One bold diagonal green sash — the single team-accent tell that survives 40px.
-    pygame.draw.line(surf, _TEN_GREEN_D, (HX - 12, HY + 7), (HX + 9, HY + 21), 4)
-    pygame.draw.line(surf, _TEN_GREEN, (HX - 12, HY + 7), (HX + 9, HY + 21), 3)
-    pygame.draw.line(surf, _TEN_GREEN_H, (HX - 11, HY + 8), (HX + 7, HY + 19), 1)
-    # Green-and-white wristbands at the wing roots.
-    for wx, wy in ((HX + 11, HY + 18), (HX - 13, HY + 17)):
+    pygame.draw.line(surf, _TEN_GREEN_D, (HX - 12, HY + 11), (HX + 9, HY + 22), 4)
+    pygame.draw.line(surf, _TEN_GREEN, (HX - 12, HY + 11), (HX + 9, HY + 22), 3)
+    pygame.draw.line(surf, _TEN_GREEN_H, (HX - 11, HY + 12), (HX + 7, HY + 20), 1)
+    # Green-and-white wristbands at the wing roots (cuffs).
+    for wx, wy in ((HX + 11, HY + 20), (HX - 13, HY + 19)):
         pygame.draw.line(surf, _TEN_GREEN_D, (wx - 3, wy - 3), (wx + 3, wy + 3), 6)
         pygame.draw.line(surf, _TEN_POLO, (wx - 3, wy - 3), (wx + 3, wy + 3), 3)
         pygame.draw.line(surf, _TEN_GREEN, (wx - 2, wy - 2), (wx + 2, wy + 2), 1)
