@@ -73,126 +73,164 @@ P_DOWNBALL = _pal(
 )
 
 
-def _wisp(surf, bx, by, dx, dy, length):
-    """One hard fluff wisp poking OUTWARD from the silhouette edge at (bx,by)
-    along the unit-ish direction (dx,dy). Drawn as a fat ≥2px tapered triangle
-    — a tan-shadow root, a buttermilk body, then a bright fluff-tip cap — so the
-    wisp carries its OWN dark→light value jump and survives downscale as a spike,
-    not a soft blur. A thin shadow keyline seats it against the sky."""
+def _wisp(surf, bx, by, dx, dy, length, *, root_w=2.0):
+    """One soft down wisp poking OUTWARD from the silhouette edge at (bx,by) along
+    the direction (dx,dy). Drawn as a short fat tapered triangle — a tan-shadow
+    root, a buttermilk body — capped with a ROUND 2px tip circle so the end reads
+    as a soft nub of down, not a needle point. The tan shadow backing gives the
+    wisp its own dark→light value jump so it survives downscale; the rounded cap
+    is what keeps the halo reading downy instead of urchin-spiky."""
     n = math.hypot(dx, dy) or 1.0
     ux, uy = dx / n, dy / n
-    # Perpendicular base so the triangle is fat at the root (2px each side → wide
-    # enough to read), tapering to a single-pixel point.
     px, py = -uy, ux
-    root_w = 2.4
     b0 = (bx + px * root_w, by + py * root_w)
     b1 = (bx - px * root_w, by - py * root_w)
     tip = (bx + ux * length, by + uy * length)
-    mid = (bx + ux * length * 0.5, by + uy * length * 0.5)
-    # Shadow backing 1px toward the body = a hard rim that keeps the wisp from
-    # vanishing on the bright buttermilk body itself.
+    # A blunt soft head: the wisp tapers to a small ROUND nub set just short of
+    # the geometric tip so down ends in a clump, never a spike.
+    nub = (bx + ux * (length - 1.2), by + uy * (length - 1.2))
     pygame.draw.polygon(surf, _DB_SHADOW_D,
                         [(b0[0] - ux, b0[1] - uy), (b1[0] - ux, b1[1] - uy), tip])
-    pygame.draw.polygon(surf, _DB_BODY, [b0, b1, tip])
-    # Bright tip cap — the spec that survives 40px.
-    pygame.draw.line(surf, _DB_TIP, mid, tip, 2)
-    pygame.draw.circle(surf, _DB_TIP, (int(tip[0]), int(tip[1])), 1)
+    pygame.draw.polygon(surf, _DB_BODY, [b0, b1, nub])
+    # Round buttermilk nub + a bright fluff-tip spec on top = a soft lit clump
+    # end that holds at 40px without sharpening into a needle.
+    pygame.draw.circle(surf, _DB_BODY, (int(nub[0]), int(nub[1])), 2)
+    pygame.draw.circle(surf, _DB_TIP, (int(nub[0]), int(nub[1])), 1)
 
 
-def _fluff_ring(surf, cx, cy, rx, ry, wisps, *, a0=0.0, a1=2 * math.pi,
-                length=4.5, jitter=0.0):
-    """Lay a ring of outward wisps around an ellipse (cx,cy,rx,ry), spanning the
-    arc [a0,a1]. Each wisp roots on the ellipse edge and points radially out so
-    the whole outline frays into down. Deterministic per-angle length jitter
-    breaks the mechanical look without any RNG state."""
-    n = len(range(wisps)) if isinstance(wisps, range) else wisps
+def _down_clump(surf, cx, cy, rx, ry, t, *, base_len=3.4, jitter=2.0,
+                spread=0.16, count=3):
+    """A single TUFT of 2–4 wisps sharing a near-common root on the ellipse edge
+    at angle t, fanning over a small angular spread. Clumping wisps into tufts
+    (with gaps between tufts handled by the caller) is what reads as DOWN; an
+    even ring of equal wisps reads as a comb. Lengths are jittered hard per wisp
+    so no two neighbours match — irregularity is the whole tell."""
+    for k in range(count):
+        # Fan the tuft around its root angle; the centre wisp is longest.
+        off = (k - (count - 1) / 2.0) * spread
+        a = t + off
+        ex, ey = cx + rx * math.cos(a), cy + ry * math.sin(a)
+        dx, dy = math.cos(a), math.sin(a)
+        # Deterministic per-(angle) length scatter, ±jitter, with the flanking
+        # wisps of a tuft pulled shorter so each clump peaks in the middle.
+        ln = base_len + jitter * math.sin(a * 9.1 + cx) - abs(off) * 6.0
+        ln = max(2.0, ln)
+        _wisp(surf, ex, ey, dx, dy, ln, root_w=1.9)
+
+
+def _fluff_clusters(surf, cx, cy, rx, ry, tufts, *, a0=0.0, a1=2 * math.pi,
+                    base_len=3.4, jitter=2.0):
+    """Lay `tufts` down-clumps around an ellipse arc [a0,a1] with visible GAPS
+    between them (tufts are spaced wider than they fan), so the outline frays
+    into irregular clump-and-gap down rather than a uniform spiky ring."""
+    n = tufts
+    closed = abs((a1 - a0) - 2 * math.pi) < 1e-3
     for i in range(n):
-        t = a0 + (a1 - a0) * (i / max(1, n - 1)) if a1 - a0 < 2 * math.pi \
-            else a0 + (a1 - a0) * (i / n)
-        ex, ey = cx + rx * math.cos(t), cy + ry * math.sin(t)
-        # Radial outward direction from the ellipse centre.
-        dx, dy = math.cos(t), math.sin(t)
-        ln = length + jitter * math.sin(t * 3.7)
-        _wisp(surf, ex, ey, dx, dy, ln)
+        t = a0 + (a1 - a0) * (i / n if closed else i / max(1, n - 1))
+        # Vary tuft size 2–4 by position so the gaps and clump density wander.
+        count = 2 + (i + int(cx)) % 3
+        _down_clump(surf, cx, cy, rx, ry, t,
+                    base_len=base_len, jitter=jitter, count=count)
 
 
 def _paint_downball(surf, _a):
-    # ── 1 · PUFFBALL HALO — the hero silhouette-breaker ──────────────────────
-    # A dense ring of fluff wisps fraying the WHOLE lower body + chest + back so
-    # the sleek macaw egg reads as a round ball of down. Body main ellipse is at
-    # composite (32,52) r(19,14); the ring is pushed just past that edge so the
-    # wisps poke OUT past the outline. The bottom arc is the densest (the belly
-    # puff the eye reads first); the back/upper arc is sparser so the head + wing
-    # stay legible.
+    # ── 0 · BELLY VALUE STRUCTURE — make the puff read ROUND ─────────────────
+    # A soft honey-shadow crease tucked under the chest/wing so the body reads as
+    # a rounded ball catching light at the top, not a flat buttermilk mass. Drawn
+    # FIRST so the fluff clumps overlay it cleanly.
+    pygame.draw.arc(surf, _DB_SHADOW_D, pygame.Rect(24, 50, 24, 16),
+                    math.radians(200), math.radians(345), 2)
+    pygame.draw.arc(surf, _DB_BELLY, pygame.Rect(23, 49, 24, 16),
+                    math.radians(205), math.radians(340), 1)
+
+    # ── 1 · PUFFBALL HALO — irregular down clumps, not a spike ring ──────────
+    # The hero silhouette-breaker. Wisps are bunched into 2–4-strand TUFTS with
+    # visible GAPS between them and hard per-strand length jitter, so the outline
+    # frays into clump-and-gap DOWN (reads soft) instead of an evenly-spaced
+    # urchin ring. Body main ellipse composite (32,52) r(19,14). The bottom arc
+    # is the read-first puff; the back/bottom halo is THINNED ~25% (fewer tufts,
+    # shorter) so the clean round buttermilk form shows under the fluff.
     bcx, bcy = 32, 52
-    # Lower belly puff — the densest fray (front of the puffball).
-    _fluff_ring(surf, bcx, bcy + 1, 19, 15, 14,
-                a0=0.18 * math.pi, a1=0.95 * math.pi, length=5.0, jitter=1.4)
-    # Chest fray on the screen-right (forward) lower edge.
-    _fluff_ring(surf, bcx, bcy, 19, 14, 6,
-                a0=-0.05 * math.pi, a1=0.2 * math.pi, length=4.2, jitter=1.0)
-    # Back fray — sparser so the tail/wing read stays clean.
-    _fluff_ring(surf, bcx, bcy, 19, 14, 6,
-                a0=0.95 * math.pi, a1=1.3 * math.pi, length=4.5, jitter=1.2)
+    # Lower belly puff — densest fray (front of the ball), shorter avg than R1.
+    _fluff_clusters(surf, bcx, bcy + 1, 19, 15, 6,
+                    a0=0.20 * math.pi, a1=0.92 * math.pi, base_len=3.5, jitter=2.0)
+    # Forward chest fray — a couple of light tufts.
+    _fluff_clusters(surf, bcx, bcy, 19, 14, 2,
+                    a0=-0.02 * math.pi, a1=0.18 * math.pi, base_len=3.2, jitter=1.6)
+    # Back fray — thinned (2 tufts, shorter) so the round form & tail stay clean.
+    _fluff_clusters(surf, bcx, bcy, 19, 14, 2,
+                    a0=1.00 * math.pi, a1=1.28 * math.pi, base_len=3.0, jitter=1.6)
 
     # ── 2 · TAIL TUFTS — even the tail reads downy ───────────────────────────
-    # Soften the three tail-wedge tips (composite y ~44-56, x ~2-20) with a short
-    # outward fluff each so the sleek wedge doesn't undercut the puff read.
-    for tx, ty in ((4, 47), (6, 53), (10, 57)):
-        _wisp(surf, tx, ty, -0.9, 0.3, 4.2)
+    # Two soft clumps on the tail wedge (thinned from three) so the sleek wedge
+    # doesn't undercut the puff read without re-crowding it.
+    for tx, ty in ((5, 49), (9, 56)):
+        _wisp(surf, tx, ty, -0.9, 0.3, 3.3, root_w=1.9)
 
-    # ── 3 · WING FLUFF FRINGE + STUBBY HIGHLIGHT ─────────────────────────────
-    # A rounded bright highlight blob mid-wing fakes a pudgy half-grown wing,
-    # and a short fluff fringe along the trailing (lower) edge keeps the wing
-    # downy rather than sleek-feathered. Wing sits centred ~ (34,48) composite.
-    pygame.draw.circle(surf, _DB_TIP, (35, 46), 4)
-    pygame.draw.circle(surf, _DB_BODY, (35, 46), 4, 1)
-    for fx, fy, fdx, fdy in ((26, 53, -0.4, 0.9), (31, 55, 0.0, 1.0),
-                             (37, 54, 0.4, 0.9)):
-        _wisp(surf, fx, fy, fdx, fdy, 3.8)
+    # ── 3 · WING — one clear bright blob + tan underline ─────────────────────
+    # A single 5px bright highlight blob with a 1px tan underline reads as a
+    # pudgy half-grown wing at 40px; a short fluff fringe on the trailing edge
+    # keeps it downy. No fiddly mid-tones that mush at thumbnail size.
+    pygame.draw.circle(surf, _DB_TIP, (35, 45), 5)
+    pygame.draw.arc(surf, _DB_SHADOW_D, pygame.Rect(30, 42, 11, 9),
+                    math.radians(20), math.radians(160), 1)
+    for fx, fy, fdx, fdy in ((28, 53, -0.3, 0.95), (35, 55, 0.1, 1.0)):
+        _wisp(surf, fx, fy, fdx, fdy, 3.2, root_w=1.9)
 
-    # ── 4 · HEAD HALO — the round head frayed too ────────────────────────────
-    # Head main ellipse composite (47,41) r(12,11). Fray the upper + back arc so
-    # the crown/cheek read fuzzy, leaving the face (where the aviators + beak
-    # sit) clean. The crown wisps lead the eye into the cowlick.
+    # ── 4 · HEAD HALO — frayed, but the crown kept CLEAN for the cowlick ─────
+    # Head main ellipse composite (47,41) r(12,11). Fray only the BACK and lower
+    # arcs into clumps; the top-crown arc (~1.3π–1.7π) is deliberately LEFT BARE
+    # so the cowlick rises from clean buttermilk, not a spiky ring. That gap is
+    # what lets the cowlick win as a distinct shape.
     hcx, hcy = 47, 41
-    _fluff_ring(surf, hcx, hcy, 12, 11, 7,
-                a0=1.05 * math.pi, a1=1.85 * math.pi, length=4.0, jitter=1.0)
-    # A couple of cheek wisps on the near (lower-front) cheek for an extra-fuzzy
-    # baby face without crowding the beak.
-    _wisp(surf, 40, 50, -0.5, 0.85, 3.6)
-    _wisp(surf, 44, 51, 0.0, 1.0, 3.4)
+    _fluff_clusters(surf, hcx, hcy, 12, 11, 2,
+                    a0=1.00 * math.pi, a1=1.28 * math.pi, base_len=3.3, jitter=1.6)
+    _fluff_clusters(surf, hcx, hcy, 12, 11, 2,
+                    a0=1.72 * math.pi, a1=1.95 * math.pi, base_len=3.3, jitter=1.6)
+    # One soft cheek tuft on the near lower cheek for a fuzzy baby face.
+    _wisp(surf, 41, 51, -0.4, 0.9, 3.2, root_w=1.9)
 
-    # ── 5 · TRIPLE COWLICK — the hero crown tell ─────────────────────────────
-    # Three short soft down-sprouts off the top of the head, splaying out so the
-    # crown outline breaks into an unmistakable baby cowlick. Each is a fat
-    # tapered tuft (root → bright tip) so it reads as a soft sprout, not a sharp
-    # feather, and survives 40px as the "it's a baby" crown signature. Centred on
-    # the crown top (HX, CROWN_Y) and reaching well past the silhouette.
-    cwx, cwy = HX - 1, CROWN_Y + 1
-    for ang, ln in ((-0.62, 8.5), (-0.10, 9.5), (0.42, 8.0)):
-        dx, dy = math.sin(ang), -math.cos(ang)   # mostly-up, splayed
-        _wisp(surf, cwx + math.sin(ang) * 2, cwy, dx, dy, ln)
-    # A soft tan root mound under the cowlick seats the three sprouts on the
-    # crown so they don't look pasted on.
-    pygame.draw.circle(surf, _DB_SHADOW, (cwx, cwy + 1), 3)
-    pygame.draw.circle(surf, _DB_BODY, (cwx, cwy), 2)
+    # ── 5 · TRIPLE COWLICK — the hero crown tell, distinct from the halo ─────
+    # Three soft horns of fluff off the clean crown — deliberately a DIFFERENT
+    # shape AND scale from the halo: ~2.7× longer (9–11px vs 3.5px) and fatter
+    # (root_w 3.5), each leaning sideways at the tip for a floppy baby curl. Rising
+    # from the bare crown arc, this is unmistakably the "it's a baby" signature.
+    cwx, cwy = HX - 1, CROWN_Y + 2
+    for ang, ln, curl in ((-0.55, 9.5, -2.0), (-0.05, 11.0, 0.5), (0.50, 9.0, 2.0)):
+        dx, dy = math.sin(ang), -math.cos(ang)            # mostly-up, splayed
+        rx = cwx + math.sin(ang) * 2
+        # Build the sprout as a fat tapered tuft with a tip biased sideways so it
+        # floppily curls — a soft horn, not a straight spike.
+        tipx = rx + dx * ln + curl
+        tipy = cwy + dy * ln - 1.0
+        n = math.hypot(dx, dy)
+        px, py = -dy / n, dx / n
+        b0 = (rx + px * 3.5, cwy + py * 3.5)
+        b1 = (rx - px * 3.5, cwy - py * 3.5)
+        pygame.draw.polygon(surf, _DB_SHADOW_D, [b0, b1, (tipx, tipy + 1)])
+        pygame.draw.polygon(surf, _DB_BODY,
+                            [(b0[0], b0[1] - 0.5), (b1[0], b1[1] - 0.5), (tipx, tipy)])
+        pygame.draw.circle(surf, _DB_TIP, (int(tipx), int(tipy)), 2)
+    # A soft tan root mound seats the three sprouts on the crown.
+    pygame.draw.circle(surf, _DB_SHADOW, (cwx, cwy + 1), 4)
+    pygame.draw.circle(surf, _DB_BODY, (cwx, cwy), 3)
 
-    # ── 6 · BIG-BABY EYES — neoteny under the aviators ───────────────────────
-    # Oversized white catch-light domes sitting just UNDER each aviator lens so
-    # the round eyes read huge below the frames (the lenses stay; the cuteness is
-    # sold around them). Lens centres are base (46,20)/(56,19) → composite
-    # (46,40)/(56,39). The domes peek out the lower rim of each lens.
-    for lx, ly in ((46, 40), (56, 39)):
-        pygame.draw.circle(surf, _DB_TIP, (lx, ly + 5), 3)
-        pygame.draw.circle(surf, (252, 246, 224), (lx + 1, ly + 6), 2)
-        pygame.draw.circle(surf, (90, 70, 48), (lx, ly + 6), 1)   # tiny pupil dot
+    # ── 6 · BIG-BABY EYES — built to read at 40px ────────────────────────────
+    # A 4px white catch-light dome peeks under each aviator lower rim, a 1px DARK
+    # pupil biased to the SAME side on both eyes (so they read as a paired gaze),
+    # and a 1px pure-white sparkle on the opposite upper edge. The larger dome +
+    # off-centre pupil + sparkle survive downscale where a centred 3px dome greyed
+    # to mud. Lens centres composite (46,40)/(56,39); domes drop under the rim.
+    for lx, ly in ((46, 41), (56, 40)):
+        pygame.draw.circle(surf, _DB_TIP, (lx, ly + 4), 4)            # big dome
+        pygame.draw.circle(surf, (255, 255, 252), (lx + 2, ly + 2), 1)  # sparkle
+        pygame.draw.circle(surf, (58, 44, 30), (lx - 1, ly + 5), 1)   # pupil, biased left
 
     # ── 7 · CHEEK BLUSH — the rosy baby spot ─────────────────────────────────
     # A 2px rosy blush under the near (screen-left, lower) lens — the one warm
     # off-palette accent that says "baby" and survives downscale as a pink dot.
-    pygame.draw.circle(surf, _DB_BLUSH, (42, 47), 2)
-    pygame.draw.circle(surf, (248, 196, 190), (42, 46), 1)
+    pygame.draw.circle(surf, _DB_BLUSH, (42, 48), 2)
+    pygame.draw.circle(surf, (248, 196, 190), (42, 47), 1)
 
 
 # Body recolour through the palette system + the downy overlay, wrapped by the
