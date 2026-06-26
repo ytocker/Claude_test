@@ -25,16 +25,17 @@ import pygame
 # label with a gold band (the brand read + grayscale anchor), gold neck foil, a
 # dark outline for day and a cool keyline for night.
 GLASS = (159, 194, 194)         # cool-green glass shoulder rim / glints
-SHOULDER = (176, 118, 48)       # amber-through-glass at the shoulder (whiskey read)
-AMBER = (184, 106, 24)          # whiskey body
-AMBER_DK = (124, 66, 12)        # deeper amber low in the body (volume)
-AMBER_HI = (228, 156, 74)       # bright meniscus / upper liquid
-LABEL = (242, 230, 200)         # cream label mass (the brand read)
-LABEL_SH = (214, 198, 158)      # faint lower-label shade so it reads as paper
-GOLD = (227, 178, 60)           # gold label band + neck foil (premium tell)
-GOLD_HI = (248, 224, 138)       # gold highlight edge
-CAP = (58, 46, 30)              # dark cork-cap top beat
-OUTLINE = (36, 28, 18)          # dark, high-value: reads on bright day sky
+SHOULDER = (190, 122, 44)       # amber-through-glass at the shoulder (whiskey read)
+AMBER = (196, 118, 26)          # whiskey body — warm glowing amber (#C4761A)
+AMBER_DK = (154, 86, 14)        # deeper amber low in the body (#9A560E, volume)
+AMBER_HI = (236, 168, 86)       # bright meniscus / upper liquid
+AMBER_GLINT = (244, 190, 116)   # lit band low in the body (glowing spirit beat)
+LABEL = (242, 232, 204)         # cream label mass (the brand read, #F2E8CC-ish)
+GOLD = (231, 184, 66)           # gold label pinstripe + foil collar (premium tell)
+GOLD_HI = (250, 228, 146)       # gold highlight edge
+FOIL = (214, 168, 52)           # gold-foil neck collar (its own deeper-gold beat)
+CAP = (46, 35, 22)              # dark cork-cap top beat (own darker value)
+OUTLINE = (32, 24, 15)          # dark, high-value: reads on bright day sky
 KEYLINE = (208, 224, 220)       # cool rim — the NIGHT lifeline
 
 
@@ -53,13 +54,17 @@ def build(mode="normal") -> pygame.Surface:
     body_rad = 4                  # base rounds in
 
     # Round shoulder: a wedge that tucks the body wall up into the neck.
-    shoulder_top = 12
-    NW = 7
-    neck_rect = pygame.Rect(cx - NW // 2, 8, NW, shoulder_top - 8 + 2)
+    # The gold FOIL collar is a deliberately TALL/WIDE distinct gold beat so it
+    # never fuses with the dark cap above it at small bank angles.
+    shoulder_top = 13
+    NW = 9
+    foil_top = 7
+    neck_rect = pygame.Rect(cx - NW // 2, foil_top, NW, shoulder_top - foil_top + 2)
 
-    # Cap: a short dark cork beat on top of the foil neck.
-    CW, CH = 8, 5
-    cap_rect = pygame.Rect(cx - CW // 2, 4, CW, CH)
+    # Cap: a short dark cork beat ABOVE the foil, its own darker value, with a
+    # 1px groove between cap and foil so the top reads dark / gold top-to-bottom.
+    CW, CH = 7, 4
+    cap_rect = pygame.Rect(cx - CW // 2, 2, CW, CH)
 
     # --- Baked dark outline (drawn first, slightly inflated) for the DAY read.
     pygame.draw.rect(surf, OUTLINE, cap_rect.inflate(4, 4), border_radius=2)
@@ -83,32 +88,39 @@ def build(mode="normal") -> pygame.Surface:
     bw, bh = body_rect.w, body_rect.h
     body = pygame.Surface((bw, bh), pygame.SRCALPHA)
 
-    # Amber whiskey gradient: brighter near the top (meniscus), deeper at base —
+    # Amber whiskey gradient: a warm glowing spirit — lit amber near the top
+    # (meniscus), warming through the body amber, deepening to a rich base —
     # one warm mass, not micro-glints, because masses beat detail at 22px.
     for y in range(bh):
         t = y / max(1, bh - 1)
-        c = (
-            int(AMBER_HI[0] + (AMBER_DK[0] - AMBER_HI[0]) * t),
-            int(AMBER_HI[1] + (AMBER_DK[1] - AMBER_HI[1]) * t),
-            int(AMBER_HI[2] + (AMBER_DK[2] - AMBER_HI[2]) * t),
-        )
+        if t < 0.5:                 # upper liquid: highlight -> body amber
+            u = t / 0.5
+            a, b = AMBER_HI, AMBER
+        else:                       # lower liquid: body amber -> deep base
+            u = (t - 0.5) / 0.5
+            a, b = AMBER, AMBER_DK
+        c = (int(a[0] + (b[0] - a[0]) * u),
+             int(a[1] + (b[1] - a[1]) * u),
+             int(a[2] + (b[2] - a[2]) * u))
         body.fill(c + (255,), pygame.Rect(0, y, bw, 1))
 
     # Label band geometry: a FAT cream mass across the body waist. Spanning
-    # ~0.34–0.70 of body height so the bright core survives the downscale +
+    # ~0.30–0.62 of body height so the bright core survives the downscale +
     # rotation as a band, not a sliver — the loudest premium cue.
     label_top = int(bh * 0.30)
     label_bot = int(bh * 0.62)
-    gold_h = 2                    # gold band along the label's lower edge
 
+    # ONE clear amber highlight beat LOW in the body (below the label) so the
+    # lower glass reads as lit liquid, not flat brown — a soft glowing band.
+    glint_y = label_bot + int((bh - label_bot) * 0.42)
+    pygame.draw.line(body, AMBER_GLINT, (2, glint_y), (bw - 3, glint_y), 2)
+    pygame.draw.line(body, AMBER_HI, (2, glint_y + 2), (bw - 3, glint_y + 2), 1)
+
+    # Cream label: the single brightest, cleanest mass — no interior shade.
     body.fill(LABEL + (255,), pygame.Rect(0, label_top, bw, label_bot - label_top))
-    # Faint lower-label shade so the cream reads as paper, not a flat block.
-    body.fill(LABEL_SH + (255,),
-              pygame.Rect(0, label_bot - gold_h - 2, bw, 2))
-    # Gold band (premium tell) along the label's lower edge.
-    body.fill(GOLD + (255,), pygame.Rect(0, label_bot - gold_h, bw, gold_h))
-    pygame.draw.line(body, GOLD_HI, (0, label_bot - gold_h),
-                     (bw, label_bot - gold_h), 1)
+    # ONE crisp gold pinstripe at the label TOP (the only interior detail).
+    body.fill(GOLD + (255,), pygame.Rect(0, label_top + 1, bw, 1))
+    pygame.draw.line(body, GOLD_HI, (0, label_top + 2), (bw, label_top + 2), 1)
     # FENCE top + bottom with the dark OUTLINE colour so the label stays one
     # hard, discrete bright block after the smoothscale instead of bleeding.
     pygame.draw.line(body, OUTLINE, (0, label_top), (bw, label_top), 1)
@@ -132,19 +144,28 @@ def build(mode="normal") -> pygame.Surface:
                      (body_rect.x + 3, body_rect.y + 3),
                      (body_rect.x + 3, body_rect.y + label_top - 1), 2)
 
-    # --- NECK: gold FOIL sleeve separating the cap beat from the round shoulder.
-    pygame.draw.rect(surf, GOLD, neck_rect)
+    # --- FOIL COLLAR: a tall/wide deeper-gold sleeve, its own distinct beat that
+    # separates the dark cap from the round amber shoulder. Bright gold highlight
+    # up one side, lit gold top edge so it never reads as the same value as the cap.
+    pygame.draw.rect(surf, FOIL, neck_rect)
     pygame.draw.line(surf, GOLD_HI,
-                     (neck_rect.x + 1, neck_rect.y),
+                     (neck_rect.x + 1, neck_rect.y + 1),
                      (neck_rect.x + 1, neck_rect.bottom - 1), 1)
-    # Hard foil/shoulder groove so the neck stays a distinct beat at the downscale.
+    pygame.draw.line(surf, GOLD,
+                     (neck_rect.x + 1, neck_rect.y),
+                     (neck_rect.right - 2, neck_rect.y), 1)
+    # Hard foil/shoulder groove so the collar stays a distinct beat at the downscale.
     pygame.draw.line(surf, OUTLINE,
                      (neck_rect.x, neck_rect.bottom - 1),
                      (neck_rect.right - 1, neck_rect.bottom - 1), 1)
 
-    # --- CAP: short dark cork top with a faint highlight lip.
+    # --- CAP: short dark cork top, its OWN darker value. A 1px OUTLINE groove
+    # between cap and foil keeps the two from fusing at small bank angles.
+    pygame.draw.rect(surf, OUTLINE,
+                     pygame.Rect(cap_rect.x - 1, cap_rect.bottom,
+                                 cap_rect.w + 2, 1))
     pygame.draw.rect(surf, CAP, cap_rect, border_radius=2)
-    pygame.draw.line(surf, GOLD_HI,
+    pygame.draw.line(surf, GLASS,
                      (cap_rect.x + 1, cap_rect.y + 1),
                      (cap_rect.right - 2, cap_rect.y + 1), 1)
 

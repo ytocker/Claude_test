@@ -1,39 +1,45 @@
 """GOLD RESERVE — the finest-tier wax-sealed reserve whiskey parcel cosmetic.
 
 The IDENTITY is "richest bottle in the set": a glass body CASED in metal GOLD
-with amber whiskey, a gold foil neck, and the flex tell — a crimson WAX SEAL
-blob capping the cork, with a tiny ribbon medallion hung off the neck. Gold is
-the brand read, so it carries strong value contrast (bright gold-hi banding
-against gold-shade) to register as METAL rather than a flat yellow at size.
+with an amber whiskey window, a gold foil neck collar, and the flex tell — a
+crimson WAX SEAL blob capping the cork. Gold is the brand read, so every gold
+zone carries a hard dark->bright->mid value sequence to register as polished
+METAL rather than flat yellow, even desaturated.
 
 22px read tradeoffs (WHY): at true size only a few masses survive, so the build
 commits to three loud beats stacked top-to-bottom — RED wax seal, GOLD neck
-foil, GOLD-banded amber body. The gold is split into a hi band over a shade
-band so a hard light/dark seam survives the smoothscale and reads as polished
-metal on the grayscale row; a single flat yellow would mush to one value. The
-wax seal is a fat round crimson MASS (no fine drip detail — it aliases to mud)
-so the "finest" cue holds across Pip's tilt arc. The ribbon medallion is one
-small gold disc on a short red tab — enough to read as hung bling without
-splitting into noise. Drawn on a 44px work surface then smoothscaled to 22 so
-the gold seams antialias cleanly. A baked dark OUTLINE (inflated, drawn first)
-carries the silhouette on bright DAY sky; a warm gold KEYLINE rim inside is the
-NIGHT lifeline; the bottle is held off the surface edges so the gameplay
-rotozoom never clips the seal or base.
+foil, GOLD-cased amber body. The gold is split into a deep shade, a struck
+HIGHLIGHT band, and a mid so a hard light/dark seam survives the smoothscale and
+reads as polished metal on the grayscale row; a single flat yellow would mush to
+one value. The amber window is pushed darker/redder than the gold so the glass
+never shares a value with the casing, and is widened to a real whiskey band
+between the gold neck and gold base. The bottle is slimmed + lengthened so it
+reads as elegant fine-spirits glass, not a squat jar. The wax seal is a fat
+round crimson MASS (no fine drip detail — it aliases to mud) with a dark rim so
+the "finest" cue holds as a saturated focal beat across Pip's tilt arc. The old
+ribbon medallion was sub-pixel noise — cut for a cleaner gold foil collar with a
+groove dividing neck from shoulder. Drawn on a 44px work surface then
+smoothscaled to 22 so the gold seams antialias cleanly. A baked dark OUTLINE
+(inflated, drawn first) carries the silhouette on bright DAY sky; a warm gold
+KEYLINE rim inside is the NIGHT lifeline; the bottle is held off the surface
+edges so the gameplay rotozoom never clips the seal or base.
 """
 import pygame
 
-# Tight palette from the concept: gilded casing (hi/shade for metal contrast),
-# amber whiskey in the glass, crimson wax seal, a dark day-outline + a warm
-# gold night-keyline.
-GOLD = (227, 178, 60)          # base gilding
-GOLD_HI = (248, 224, 138)      # bright struck-metal highlight band
-GOLD_SHADE = (158, 116, 30)    # deep gold shadow — the metal value contrast
-AMBER = (184, 106, 24)         # whiskey in the glass
-AMBER_HI = (224, 156, 70)      # amber glint / meniscus
-WAX = (168, 36, 58)            # crimson wax seal
-WAX_HI = (212, 78, 96)         # wax sheen
-WAX_SHADE = (110, 22, 40)      # wax underside
-OUTLINE = (42, 30, 14)         # dark, warm: reads on bright day sky
+# Tight palette: gilded casing carries a wide value spread (deep shade -> mid ->
+# struck highlight) so it reads as polished metal even in grayscale. Amber is
+# pushed dark + red so the whiskey window never matches the gold value. Crimson
+# wax seal is the saturated focal beat; dark day-outline + warm gold night-key.
+GOLD = (223, 170, 52)          # base gilding mid-tone
+GOLD_HI = (251, 233, 168)      # bright struck-metal highlight band
+GOLD_SHADE = (122, 86, 15)     # deep gold shadow — anchors the metal contrast
+AMBER = (120, 56, 12)          # deep whiskey — clearly darker/redder than gold
+AMBER_MID = (154, 78, 14)      # whiskey mid
+AMBER_HI = (196, 120, 44)      # amber glint / meniscus
+WAX = (172, 36, 56)            # crimson wax seal
+WAX_HI = (216, 82, 100)        # wax sheen
+WAX_SHADE = (108, 20, 38)      # wax underside
+OUTLINE = (40, 28, 12)         # dark, warm: reads on bright day sky
 KEYLINE = (250, 226, 150)      # warm gold rim — the NIGHT lifeline
 
 
@@ -43,23 +49,24 @@ def build(mode="normal") -> pygame.Surface:
     surf = pygame.Surface((S, S), pygame.SRCALPHA)
     cx = S // 2
 
-    # Geometry: a stout reserve bottle — wide gold-banded body, a foil neck, and
-    # a wax-sealed cork on top. Held off the surface edges so the rotozoom never
-    # clips the seal or base.
-    BW = 20
-    body_top = 19
-    body_bot = 40
+    # Geometry: a slim, tall reserve bottle — narrow gold-cased body, a foil
+    # neck collar, and a wax-sealed cork on top. Held off the surface edges so
+    # the rotozoom never clips the seal or base. Body slimmed and lengthened
+    # (top pushed up) over the squat round-1 so it reads as fine-spirits glass.
+    BW = 18
+    body_top = 15
+    body_bot = 41
     body_rect = pygame.Rect(cx - BW // 2, body_top, BW, body_bot - body_top)
-    body_rad = 5
+    body_rad = 4
 
-    # Neck: a short gold-foil step bridging the shoulder to the cork.
-    NW = 9
-    neck_rect = pygame.Rect(cx - NW // 2, 12, NW, 8)
+    # Neck: a short gold-foil collar bridging the shoulder to the cork.
+    NW = 8
+    neck_rect = pygame.Rect(cx - NW // 2, 8, NW, 8)
 
     # Cork + wax seal sit above the neck as a fat round crimson mass. Kept
     # generous so the "finest" flex tell survives the downscale + tilt.
-    seal_cy = 8
-    seal_r = 7
+    seal_cy = 5
+    seal_r = 6
 
     # --- Baked dark outline (drawn first, slightly inflated) for the DAY read.
     pygame.draw.circle(surf, OUTLINE, (cx, seal_cy), seal_r + 2)
@@ -84,39 +91,53 @@ def build(mode="normal") -> pygame.Surface:
 
     # --- BODY built on its own alpha surface: an AMBER glass window in the
     # middle flanked by GOLD casing top and bottom, masked to the bottle shape
-    # and composited in one piece. The gold bands are split hi-over-shade so a
-    # hard metal seam survives the downscale.
+    # and composited in one piece. Each gold zone is laid down as a hard
+    # dark->bright->mid sequence so a polished-metal seam survives the downscale.
     bw, bh = body_rect.w, body_rect.h
     body = pygame.Surface((bw, bh), pygame.SRCALPHA)
 
-    # Vertical zones: gold cap-band at the shoulder, amber whiskey window, gold
-    # base-band at the foot. The amber window is the glass; the gold bands are
-    # the casing that makes this the "reserve".
-    amber_top = int(bh * 0.28)
-    amber_bot = int(bh * 0.70)
+    # Vertical zones: a wide amber whiskey window between a gold shoulder band
+    # and a gold base band. Window widened (~0.30..0.74) so the glass reads as a
+    # real liquid volume, not a thin stripe.
+    amber_top = int(bh * 0.30)
+    amber_bot = int(bh * 0.74)
 
-    # Top gold band (shoulder casing): shade base then a struck hi line.
-    body.fill(GOLD_SHADE + (255,), pygame.Rect(0, 0, bw, amber_top))
-    body.fill(GOLD + (255,), pygame.Rect(0, 1, bw, amber_top - 2))
-    body.fill(GOLD_HI + (255,), pygame.Rect(1, 2, bw - 2, 2))
+    def gold_band(y0, y1):
+        # Polished-metal sequence: deep shade fill, mid over it, then a bright
+        # struck highlight band near the top so a hard light seam survives even
+        # in grayscale.
+        h = y1 - y0
+        body.fill(GOLD_SHADE + (255,), pygame.Rect(0, y0, bw, h))
+        body.fill(GOLD + (255,), pygame.Rect(0, y0 + 1, bw, h - 1))
+        hi_h = 3 if h >= 6 else 2
+        body.fill(GOLD_HI + (255,), pygame.Rect(1, y0 + 1, bw - 2, hi_h))
+        # Re-seat the mid below the highlight so the band ends dark->bright->mid.
+        body.fill(GOLD + (255,), pygame.Rect(1, y0 + 1 + hi_h, bw - 2, max(0, h - 2 - hi_h)))
+        # A deep shade lip at the very bottom of the zone for roundness.
+        body.fill(GOLD_SHADE + (255,), pygame.Rect(0, y1 - 1, bw, 1))
 
-    # Amber whiskey window: a vertical deepening so it reads as liquid volume.
+    # Top gold band (shoulder casing).
+    gold_band(0, amber_top)
+
+    # Amber whiskey window: a vertical deepening so it reads as liquid volume,
+    # pushed dark/red so it never shares a value with the gold casing.
     for y in range(amber_top, amber_bot):
         t = (y - amber_top) / max(1, amber_bot - 1 - amber_top)
-        c = (
-            int(AMBER_HI[0] + (AMBER[0] - AMBER_HI[0]) * t),
-            int(AMBER_HI[1] + (AMBER[1] - AMBER_HI[1]) * t),
-            int(AMBER_HI[2] + (AMBER[2] - AMBER_HI[2]) * t),
-        )
+        # Bright meniscus at the top, deepening through a mid into the darkest
+        # whiskey at the base of the window.
+        if t < 0.18:
+            a, b, tt = AMBER_HI, AMBER_MID, t / 0.18
+        else:
+            a, b, tt = AMBER_MID, AMBER, (t - 0.18) / 0.82
+        c = (int(a[0] + (b[0] - a[0]) * tt),
+             int(a[1] + (b[1] - a[1]) * tt),
+             int(a[2] + (b[2] - a[2]) * tt))
         body.fill(c + (255,), pygame.Rect(0, y, bw, 1))
-    # Amber glint streak (glass translucency cue).
-    pygame.draw.line(body, AMBER_HI, (3, amber_top + 2), (3, amber_bot - 2), 2)
+    # Amber glint streak (glass translucency cue) down the left wall.
+    pygame.draw.line(body, AMBER_HI, (3, amber_top + 2), (3, amber_bot - 3), 2)
 
-    # Bottom gold band (base casing): shade base then a struck hi line, fenced
-    # from the amber with the dark outline so the seam stays a hard metal edge.
-    body.fill(GOLD_SHADE + (255,), pygame.Rect(0, amber_bot, bw, bh - amber_bot))
-    body.fill(GOLD + (255,), pygame.Rect(0, amber_bot + 1, bw, bh - amber_bot - 1))
-    body.fill(GOLD_HI + (255,), pygame.Rect(1, amber_bot + 1, bw - 2, 2))
+    # Bottom gold band (base casing).
+    gold_band(amber_bot, bh)
 
     # Hard outline fences top + bottom of the amber window so the gold/amber
     # seams survive the smoothscale as discrete bands instead of bleeding.
@@ -131,25 +152,25 @@ def build(mode="normal") -> pygame.Surface:
     body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(body, body_rect.topleft)
 
-    # --- NECK: gold foil, shade base with a struck hi edge for the metal read.
+    # --- NECK FOIL COLLAR: gold foil with the same dark->bright->mid metal
+    # sequence, plus a 1px OUTLINE groove at the base dividing neck from
+    # shoulder so the collar reads as a separate cased step.
     pygame.draw.rect(surf, GOLD_SHADE, neck_rect, border_radius=2)
     pygame.draw.rect(surf, GOLD, neck_rect.inflate(-2, -2), border_radius=2)
-    pygame.draw.line(surf, GOLD_HI, (neck_rect.x + 1, neck_rect.y + 1),
-                     (neck_rect.x + 1, neck_rect.bottom - 2), 1)
+    pygame.draw.line(surf, GOLD_HI, (neck_rect.x + 2, neck_rect.y + 2),
+                     (neck_rect.right - 3, neck_rect.y + 2), 1)
+    pygame.draw.line(surf, GOLD_HI, (neck_rect.x + 1, neck_rect.y + 2),
+                     (neck_rect.x + 1, neck_rect.bottom - 3), 1)
+    # Groove: a dark seam fencing the foil collar off from the shoulder casing.
+    pygame.draw.line(surf, OUTLINE, (neck_rect.x - 1, neck_rect.bottom - 1),
+                     (neck_rect.right, neck_rect.bottom - 1), 1)
 
-    # --- RIBBON MEDALLION: a short crimson tab off the neck with a tiny gold
-    # disc — hung bling that reads without splitting into noise.
-    tab_x = neck_rect.right
-    pygame.draw.rect(surf, OUTLINE, (tab_x, neck_rect.y + 1, 4, 7))
-    pygame.draw.rect(surf, WAX, (tab_x, neck_rect.y + 1, 3, 6))
-    pygame.draw.circle(surf, OUTLINE, (tab_x + 2, neck_rect.y + 9), 3)
-    pygame.draw.circle(surf, GOLD, (tab_x + 2, neck_rect.y + 9), 2)
-    pygame.draw.circle(surf, GOLD_HI, (tab_x + 1, neck_rect.y + 8), 1)
-
-    # --- WAX SEAL: a fat round crimson mass over the cork — the flex tell.
-    # Shade underside + bright sheen so it reads as a 3D blob, not a flat dot.
-    pygame.draw.circle(surf, WAX_SHADE, (cx, seal_cy + 1), seal_r)
-    pygame.draw.circle(surf, WAX, (cx, seal_cy), seal_r)
+    # --- WAX SEAL: a fat round crimson mass over the cork — the focal flex
+    # tell. Dark underside + bright sheen so it reads as a 3D blob, ringed by a
+    # 1px dark rim so it stays a clean red against the brighter gold collar.
+    pygame.draw.circle(surf, OUTLINE, (cx, seal_cy), seal_r)
+    pygame.draw.circle(surf, WAX_SHADE, (cx, seal_cy + 1), seal_r - 1)
+    pygame.draw.circle(surf, WAX, (cx, seal_cy), seal_r - 1)
     pygame.draw.circle(surf, WAX_HI, (cx - 2, seal_cy - 2), 2)
     # A small gold press-stamp ring on the wax for the "sealed reserve" read.
     pygame.draw.circle(surf, GOLD_HI, (cx, seal_cy), 2, 1)

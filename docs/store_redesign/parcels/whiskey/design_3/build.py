@@ -7,16 +7,21 @@ a short BLACK screw CAP. Amber whiskey peeks above and below the label so the
 vessel reads as a drink before the label even registers.
 
 22px read tradeoffs (WHY): the black label is the loudest premium cue, so it is a
-FAT crisp rectangular MASS (~0.34–0.70 of the body) fenced top + bottom with the
-dark OUTLINE value, kept near full body width so it survives the smoothscale +
-rotation as one hard black block instead of dissolving into the amber. The gold
-trim is the SECOND cue — a single bright gold border ring + one gold band drawn
-INSIDE the black so gold and black stay distinct masses at true size (micro gold
-text would alias to mud). The body walls are kept dead STRAIGHT with only the
+FAT crisp rectangular MASS (~0.30–0.74 of the body) filled solid near-black with
+its centre rows kept PURE BLACK and crossed by NO gold at all — at the 22px
+downscale, any gold drawn INSIDE the black averages the whole band into muddy
+gold-brown, so ALL gold is pushed OUT of the label interior onto the amber. The
+gold trim is the SECOND cue and lives ONLY as two thin gold FENCE lines — one on
+the amber just above the label's top edge, one on the amber just below the bottom
+edge (gold-on-amber survives the downscale where gold-on-black dissolved). The
+read top-to-bottom is amber / gold edge / SOLID BLACK BAR / gold edge / amber.
+The body walls are kept dead STRAIGHT with only the
 base corners tucked so the silhouette stays boxy and squared off — the square
 shape is what separates it from a round whiskey bottle across the tilt arc. Amber
-is split into a thin band above and a deeper band below the label so a hint of
-liquid reads on both sides without competing with the black mass. Drawn on a 44px
+is split into a BRIGHT band above (so it never fuses with the cap/shoulder) and a
+deeper pool below the label so a hint of liquid reads on both sides without
+competing with the black mass. A single 2px gold-hi glint sits at the label's
+top-LEFT corner — never inside the black core. Drawn on a 44px
 work surface then smoothscaled to 22 so the label/gold edges antialias cleanly. A
 baked dark OUTLINE (inflated, drawn first) carries the silhouette on bright DAY
 sky; a warm gold-tinted KEYLINE rim inside is the NIGHT lifeline; the bottle is
@@ -30,8 +35,8 @@ import pygame
 GLASS = (168, 182, 160)        # pale green Tennessee glass (shoulders / edges)
 AMBER = (168,  94,  22)        # bourbon liquid
 AMBER_HI = (214, 138,  56)     # lit amber / meniscus glint
-LABEL = ( 30,  30,  34)        # black centre label (the loudest premium mass)
-LABEL_HI = ( 58,  58,  64)     # faint top edge so the black reads as a panel
+LABEL = ( 30,  30,  34)        # near-black label body (the loudest premium mass)
+LABEL_CORE = (  6,   6,  10)   # PURE-black centre rows — kept clear of all gold
 GOLD = (227, 178,  60)         # gold trim ring + band (the second cue)
 GOLD_HI = (248, 224, 138)      # gold highlight glint
 CAP = ( 26,  26,  30)          # short black screw cap
@@ -100,38 +105,48 @@ def build(mode="normal") -> pygame.Surface:
     body = pygame.Surface((bw, bh), pygame.SRCALPHA)
 
     # Amber whiskey fills the whole body first; the black label sits on top of it
-    # so amber peeks above AND below as a hint of liquid.
+    # so amber peeks above AND below as a hint of liquid. The TOP half is pushed
+    # toward AMBER_HI so the upper band stays bright and never fuses with the
+    # cap/shoulder; the lower half settles into a deeper amber pool.
     for y in range(bh):
         t = y / max(1, bh - 1)
+        # Bias the gradient so the top band reads brighter than a linear ramp.
+        tt = t * t
         c = (
-            int(AMBER_HI[0] + (AMBER[0] - AMBER_HI[0]) * t),
-            int(AMBER_HI[1] + (AMBER[1] - AMBER_HI[1]) * t),
-            int(AMBER_HI[2] + (AMBER[2] - AMBER_HI[2]) * t),
+            int(AMBER_HI[0] + (AMBER[0] - AMBER_HI[0]) * tt),
+            int(AMBER_HI[1] + (AMBER[1] - AMBER_HI[1]) * tt),
+            int(AMBER_HI[2] + (AMBER[2] - AMBER_HI[2]) * tt),
         )
         body.fill(c + (255,), pygame.Rect(0, y, bw, 1))
 
     # Label band geometry: a FAT crisp black mass across the MIDDLE, near full
-    # body width, leaving a thin amber band above and a deeper one below.
-    label_top = int(bh * 0.34)
-    label_bot = int(bh * 0.70)
+    # body width, widened to ~0.30–0.74 so the black survives as the dominant
+    # mass with a bright amber band above and a deeper amber pool below.
+    label_top = int(bh * 0.30)
+    label_bot = int(bh * 0.74)
 
-    # BLACK centre label — the loudest premium mass. FENCED top + bottom with the
-    # dark OUTLINE value so it stays one hard black block after the smoothscale.
+    # BLACK centre label — the loudest premium mass, and the WHOLE design. Filled
+    # solid near-black; its centre source rows are forced PURE BLACK with NO gold
+    # crossing them so the band reads as a hard black BAR at 22px (gold drawn
+    # inside would average the whole label into muddy gold-brown at the downscale).
     body.fill(LABEL + (255,), pygame.Rect(0, label_top, bw, label_bot - label_top))
+    core_top = label_top + 2
+    core_bot = label_bot - 2
+    body.fill(LABEL_CORE + (255,), pygame.Rect(0, core_top, bw, core_bot - core_top))
+    # FENCE the label top + bottom with the dark OUTLINE value so the edges stay
+    # crisp against the amber after the smoothscale.
     pygame.draw.line(body, OUTLINE, (0, label_top), (bw, label_top), 1)
     pygame.draw.line(body, OUTLINE, (0, label_bot - 1), (bw, label_bot - 1), 1)
-    # Faint top edge so the black reads as a flat panel, not a void.
-    pygame.draw.line(body, LABEL_HI, (1, label_top + 1), (bw - 2, label_top + 1), 1)
 
-    # GOLD trim — the second cue, drawn INSIDE the black so gold + black stay
-    # distinct masses: a bright border ring around the label plus one gold band.
-    gold_rect = pygame.Rect(1, label_top + 1, bw - 2, (label_bot - 1) - (label_top + 1))
-    pygame.draw.rect(body, GOLD, gold_rect, width=1)
-    band_y = label_top + (label_bot - label_top) // 2
-    pygame.draw.line(body, GOLD, (2, band_y - 1), (bw - 3, band_y - 1), 1)
-    pygame.draw.line(body, GOLD, (2, band_y), (bw - 3, band_y), 1)
-    pygame.draw.line(body, GOLD_HI, (2, band_y - 1), (bw // 2, band_y - 1), 1)
-    pygame.draw.line(body, GOLD_HI, (2, label_top + 2), (4, label_top + 2), 1)
+    # GOLD trim — the second cue — lives ONLY on the amber OUTSIDE the black: one
+    # fence line just above the label and one just below. Gold-on-amber survives
+    # the downscale where gold-on-black dissolved into mud. Nothing gold ever
+    # crosses the black core.
+    pygame.draw.line(body, GOLD, (1, label_top - 1), (bw - 2, label_top - 1), 1)
+    pygame.draw.line(body, GOLD, (1, label_bot), (bw - 2, label_bot), 1)
+    # ONE restrained gold-hi glint at the label's top-LEFT corner — on the amber
+    # fence, never inside the black core.
+    pygame.draw.line(body, GOLD_HI, (1, label_top - 1), (4, label_top - 1), 1)
 
     # Mask to a STRAIGHT-WALLED square shape: only the bottom corners tuck.
     mask = pygame.Surface((bw, bh), pygame.SRCALPHA)

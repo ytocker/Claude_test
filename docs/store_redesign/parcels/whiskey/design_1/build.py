@@ -7,15 +7,18 @@ KNOB stopper on a short pinched neck. The amber liquid + the squat faceted glass
 mass + the knob stopper are the three beats that make it read as fine whiskey,
 not a water bottle.
 
-22px read tradeoffs (WHY): facets are suggested with 1-2 COMMITTED diagonal
-sheen lines plus a single angled shoulder cut, not a fussy cut-crystal grid that
-would alias to mud at the downscale — the heavy silhouette and the bold amber
-mass do the work, the sheen just says "glass, not plastic". The body is filled
-almost entirely with amber (the whiskey is the loudest cue) with only a thin
-clear-glass band above the bright meniscus, so the warm mass survives rotation
-and grayscale. The knob stopper is kept FAT and round on a short pinched neck so
-it stays a distinct top beat — a slim cap would fuse into the wide shoulder when
-banked. Drawn on a 44px work surface then smoothscaled to 22 so the facet sheen
+22px read tradeoffs (WHY): "cut crystal" is sold with ONE committed hard
+vertical glass sheen down the left edge plus the bright meniscus — a fussy facet
+grid only aliases to mud at the downscale, the heavy silhouette + the bold amber
+mass do the work and the single vertical glint says "polished heavy glass". The
+body is filled almost entirely with rich amber (the whiskey is the loudest cue)
+with only a thin clear-glass band above the bright meniscus, so the warm slug
+survives rotation and grayscale. The premium read is a WARM/COOL split: a true
+GOLD knob (warm metal value ramp + a hot specular dot, no cool glass tint) and a
+1px gold collar at the shoulder against the COOL crystal body — that gold trim is
+what separates a fine-spirits decanter from a generic glass potion. The knob is
+kept FAT and round on a short pinched neck so it stays a distinct top beat — a
+slim cap would fuse into the wide shoulder when banked. Drawn on a 44px work surface then smoothscaled to 22 so the facet sheen
 and stopper curve antialias cleanly. A baked dark OUTLINE (inflated, drawn first)
 carries the shape on bright DAY sky; a cool KEYLINE rim inside is the NIGHT
 lifeline; the decanter is held well off the surface edges so the gameplay
@@ -23,17 +26,24 @@ rotozoom never clips the knob stopper or the wide base.
 """
 import pygame
 
-# Tight palette from the concept: cool crystal glass, a warm amber fill with a
-# bright highlight, a gold knob accent, plus the day-outline / night-keyline.
-GLASS = (207, 224, 230)       # cool cut-crystal glass (clear band + facet sheen)
-GLASS_HI = (240, 248, 250)    # sharp glass glint / sheen line
-AMBER = (200, 121, 30)        # amber whiskey body fill
-AMBER_LO = (150, 86, 18)      # deeper amber low in the body (volume)
-AMBER_HI = (240, 180, 90)     # bright amber highlight under the meniscus
-GOLD = (227, 178, 60)         # gold tell on the knob stopper
-MENISCUS = (250, 232, 190)    # bright liquid-surface line
+# Tight palette: a COOL cut-crystal glass body vs. a WARM-GOLD knob stopper +
+# a rich AMBER whiskey slug — the warm/cool split is what separates a fine-
+# spirits decanter from a generic glass potion. The gold knob and the amber slug
+# must stay distinct mid/upper-mid values against the cool glass in grayscale.
+GLASS = (207, 224, 230)       # cool cut-crystal glass (clear band)
+GLASS_HI = (244, 250, 252)    # the single committed vertical glass sheen
+AMBER = (200, 121, 30)        # amber whiskey body fill — deeper/richer
+AMBER_LO = (154, 86, 14)      # deep amber at the base (volume)
+AMBER_HI = (236, 168, 78)     # warm amber under the meniscus (still rich, not pale)
+MENISCUS = (252, 230, 178)    # bright liquid-surface line — loudest interior beat
+# Gold stopper value ramp: a true warm metal gradient, never a cool glass tint.
+GOLD_HI = (248, 224, 138)     # bright gold top-left
+GOLD = (216, 168, 62)         # gold mid
+GOLD_LO = (150, 110, 30)      # deep gold-shadow lower-right (#966E1E-ish)
+GOLD_SPEC = (255, 250, 224)   # hot 1px specular dot
+COLLAR = (224, 178, 74)       # gold collar band at the shoulder — "fine spirits"
 OUTLINE = (42, 36, 24)        # dark, warm: reads on bright day sky
-KEYLINE = (214, 230, 236)     # cool rim — the NIGHT lifeline
+KEYLINE = (214, 230, 236)     # cool rim — the NIGHT lifeline on the BODY
 
 
 def build(mode="normal") -> pygame.Surface:
@@ -126,41 +136,45 @@ def build(mode="normal") -> pygame.Surface:
     body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(body, body_rect.topleft)
 
-    # --- FACET sheen: 1-2 committed diagonal glass glints across the body so it
-    # reads as cut crystal, not a smooth plastic bottle. A bright primary glint
-    # high-left and a fainter secondary lower-right suggest the diamond cut.
+    # --- CRYSTAL sheen: ONE committed hard VERTICAL glass highlight streak down
+    # the left edge of the body. A single bright cool glint reads as polished
+    # heavy glass; a fussy facet grid only aliases to mud at the downscale. The
+    # vertical glint + the bright meniscus are the whole "cut crystal" read.
     pygame.draw.line(surf, GLASS_HI,
-                     (body_rect.x + 4, body_rect.y + 3),
-                     (body_rect.x + 9, body_rect.bottom - 5), 2)
-    pygame.draw.line(surf, GLASS_HI,
-                     (body_rect.right - 6, body_rect.y + 5),
-                     (body_rect.right - 4, body_rect.bottom - 6), 1)
-    # A single angled shoulder facet cut so the crystal read carries up top.
-    pygame.draw.line(surf, GLASS_HI,
-                     (cx - 5, sh_top + 1), (body_rect.x + 3, body_top + 1), 1)
+                     (body_rect.x + 3, body_rect.y + 2),
+                     (body_rect.x + 3, body_rect.bottom - 4), 2)
 
     # --- NECK fill (between the shoulder and the knob).
     pygame.draw.rect(surf, GLASS, neck_rect)
 
-    # --- KNOB stopper: a fat round faceted knob. Gold-tinted with a glass glint
-    # and a hard groove at the knob/neck join so it reads as a seated stopper.
-    pygame.draw.circle(surf, GOLD, (cx, knob_cy), knob_r)
-    # Faceted knob: a brighter top-left arc highlight + a darker lower amber tuck.
-    pygame.draw.circle(surf, GLASS_HI, (cx - 2, knob_cy - 2), 2)
-    pygame.draw.line(surf, OUTLINE,
-                     (cx - knob_r + 1, knob_cy + knob_r - 1),
-                     (cx + knob_r - 1, knob_cy + knob_r - 1), 1)
+    # --- GOLD collar: a 1px gold band on the FRONT edge where the pinched neck
+    # meets the shoulder. The gold trim is the "fine spirits" tell that pushes the
+    # decanter past a plain glass potion bottle.
+    pygame.draw.line(surf, COLLAR,
+                     (sh_lx, sh_top + 1), (sh_rx, sh_top + 1), 1)
+
+    # --- KNOB stopper: a fat round GOLD knob. The premium tell is a warm metal
+    # value ramp (bright gold top-left → gold mid → deep gold-shadow lower-right)
+    # against the cool glass body — NO cool keyline/glass highlight here, or it
+    # reads as another glass blob. Built by stacking offset gold discs from dark
+    # base to bright top-left, capped by one hot specular dot.
+    pygame.draw.circle(surf, GOLD_LO, (cx, knob_cy), knob_r)
+    pygame.draw.circle(surf, GOLD, (cx - 1, knob_cy - 1), knob_r - 1)
+    pygame.draw.circle(surf, GOLD_HI, (cx - 2, knob_cy - 2), knob_r - 3)
+    # One hot specular dot — the metal glint.
+    pygame.draw.circle(surf, GOLD_SPEC, (cx - 2, knob_cy - 2), 1)
     # Hard groove where the knob seats on the neck.
     pygame.draw.line(surf, OUTLINE,
                      (neck_rect.x, neck_rect.y),
                      (neck_rect.right - 1, neck_rect.y), 2)
 
-    # --- Cool keyline rim INSIDE the outline — the NIGHT lifeline. Traces the
-    # body wall, the shoulder, and the knob so each beat glows on dark sky.
+    # --- Cool keyline rim INSIDE the outline on the BODY only — the NIGHT
+    # lifeline. The knob is deliberately LEFT OUT: a cool rim there would fight
+    # the warm-gold read; the gold value ramp + dark outline carry the knob on
+    # dark sky. Traces the body wall + the shoulder so the glass mass glows.
     pygame.draw.rect(surf, KEYLINE, body_rect, width=1, border_radius=body_rad,
                      border_top_left_radius=1, border_top_right_radius=1)
     pygame.draw.line(surf, KEYLINE, (sh_lx, sh_top), (body_rect.x + 1, body_top + 1), 1)
     pygame.draw.line(surf, KEYLINE, (sh_rx, sh_top), (body_rect.right - 1, body_top + 1), 1)
-    pygame.draw.circle(surf, KEYLINE, (cx, knob_cy), knob_r, width=1)
 
     return pygame.transform.smoothscale(surf, (22, 22))
