@@ -59,20 +59,17 @@ def _flap(angle_deg):
     return (40 - angle_deg) / 90.0
 
 
-def _cheek_mask(surf, cx, cy, sgn):
-    """Asymmetric cream brow/cheek patch — the red-panda facial mask. Sweeps
-    up-and-out toward the ear (NOT a ring centred on the pupil), so the two
-    sides don't merge into spectacles. sgn = -1 left, +1 right."""
-    # Sweep of small cream discs climbing from the cheek up toward the ear.
-    pts = [
-        (cx,             cy + 2, 3),    # cheek under the eye
-        (cx + sgn * 3,   cy - 1, 3),    # outer eye flank
-        (cx + sgn * 5,   cy - 5, 2),    # rising toward the brow
-        (cx + sgn * 6,   cy - 9, 2),    # up toward the ear root
-    ]
-    for px, py, pr in pts:
-        _aaellipse(surf, CREAM_D, (px, py + 1), pr, pr)
-        _aaellipse(surf, CREAM,   (px, py),     pr, pr)
+def _cheek_mask(surf, hcx, hcy, sgn):
+    """Bold cream brow/cheek patch — the red-panda facial mask. A single
+    teardrop wedge per side (two overlapping r4 discs) sweeping up-and-toward
+    the ear, so it reads as the dominant white patch at 40px and the two sides
+    don't merge into spectacles. sgn = -1 left, +1 right."""
+    if sgn < 0:
+        discs = [(hcx - 7, hcy + 1), (hcx - 9, hcy - 3)]
+    else:
+        discs = [(hcx + 9, hcy + 1), (hcx + 11, hcy - 3)]
+    for px, py in discs:
+        _aaellipse(surf, (252, 242, 222), (px, py), 4, 4)
 
 
 def _eye(surf, cx, cy, r):
@@ -80,9 +77,9 @@ def _eye(surf, cx, cy, r):
     drawn separately so the two surrounds never fuse into goggles."""
     # Tear-track: a clean 1px dark notch at the inner eye corner (toward muzzle).
     pygame.draw.line(surf, ACCENT, (cx, cy + r), (cx, cy + r + 2), 1)
-    # Eyeball.
+    # Eyeball — warm brown core (not near-black) reads as panda, not angry.
     pygame.draw.circle(surf, ACCENT, (cx, cy), r)
-    pygame.draw.circle(surf, (16, 10, 8), (cx, cy), max(1, r - 1))
+    pygame.draw.circle(surf, (42, 28, 20), (cx, cy), max(1, r - 1))
     # Catch-light.
     pygame.draw.circle(surf, (255, 252, 246), (cx - 1, cy - 1), 1)
 
@@ -168,12 +165,13 @@ def _tail(surf, f):
         for off in (-0.55, -0.2, 0.15, 0.5):
             cx = int(x + ux * off * rad)
             cy = int(y + uy * off * rad)
-            pygame.draw.circle(surf, RING_SH, (cx, cy), max(2, int(rad * 0.6)))
-        # Cream crescent body, pushed slightly to the outer flank.
+            pygame.draw.circle(surf, RING_SH, (cx, cy), max(2, int(rad * 0.52)))
+        # Cream crescent body, pushed slightly to the outer flank. Cream is
+        # wider than the russet gaps so the tail reads as "cream-banded".
         for off in (-0.4, -0.05, 0.3):
             cx = int(x + ux * off * rad)
             cy = int(y + uy * off * rad)
-            pygame.draw.circle(surf, CREAM, (cx, cy), max(2, int(rad * 0.5)))
+            pygame.draw.circle(surf, CREAM, (cx, cy), max(2, int(rad * 0.55)))
 
     # Cream-white terminal tip.
     tx, ty = pts[-1]
@@ -212,34 +210,29 @@ def _head(surf, f):
     # Head ball — shadow, base, forehead gloss.
     _aaellipse(surf, SHADOW, (hcx + 1, hcy + 1), 14, 13)
     _aaellipse(surf, BODY,   (hcx,     hcy),     13, 12)
-    _aaellipse(surf, HIGH,   (hcx - 3, hcy - 6),  6, 4)   # forehead gloss
+    _aaellipse(surf, HIGH,   (hcx - 3, hcy - 6),  7, 5)   # forehead gloss
 
     # Ears flanking the crown with a clear russet gap between their bases.
     _ear(surf, hcx - 8, CROWN_Y + 4, -1)
     _ear(surf, hcx + 9, CROWN_Y + 4, +1)
 
-    # Cream brow/cheek mask first, then the small eyes on top — tighter and
-    # closer (7px spread: hcx-1 and hcx+6) for red-panda charm.
-    elx, erx, ey = hcx - 1, hcx + 6, hcy - 1
-    _cheek_mask(surf, elx, ey, -1)
-    _cheek_mask(surf, erx, ey, +1)
+    # Bold cream brow/cheek mask first, anchored on the head centre so the two
+    # teardrop wedges dominate as white patches without fusing into goggles.
+    _cheek_mask(surf, hcx, hcy, -1)
+    _cheek_mask(surf, hcx, hcy, +1)
 
     # Short cream muzzle wedge bridging the lower face, anchoring the T.
+    elx, erx, ey = hcx - 1, hcx + 6, hcy - 2
     mcx = (elx + erx) // 2
     _aaellipse(surf, CREAM_D, (mcx, hcy + 7), 4, 3)
     _aaellipse(surf, CREAM,   (mcx, hcy + 6), 4, 3)
 
+    # Eyes lifted to hcy-2 so a cream band separates them from the nose; nose
+    # is a small 2px spot sitting inside the muzzle with cream above & below.
+    # Together the two eyes + nose spot read as a clean T, no mouth competing.
     _eye(surf, elx, ey, 2)
     _eye(surf, erx, ey, 2)
-
-    # Bolder dark nose — a small 3px-wide downward triangle anchor.
-    nx, ny = mcx, hcy + 4
-    pygame.draw.polygon(surf, ACCENT,
-                        [(nx - 2, ny), (nx + 2, ny), (nx, ny + 3)])
-    # Hint of a mouth dropping from the nose.
-    pygame.draw.line(surf, ACCENT, (nx, ny + 3), (nx, ny + 5), 1)
-    pygame.draw.line(surf, ACCENT, (nx - 2, ny + 5), (nx, ny + 5), 1)
-    pygame.draw.line(surf, ACCENT, (nx, ny + 5), (nx + 2, ny + 5), 1)
+    pygame.draw.circle(surf, ACCENT, (hcx + 1, hcy + 6), 2)
 
 
 def build_ember_scout(wing_angle_deg):
