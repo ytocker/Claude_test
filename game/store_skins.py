@@ -952,59 +952,92 @@ def _paint_baseball(surf, _a):
 get_baseball_parrot = _make_skin(_paint_baseball)
 
 
-# ── TENNIS ("The Ace") — Pip kitted as a tennis pro. The hero read is a green
-#     OVAL strung RACKET held up (its head breaks the silhouette like the pirate
-#     cutlass tip); a white collared polo with a single bold green diagonal sash,
-#     green wristbands and a brow visor fill the kit. (The ball ships separately
-#     as a matching parcel, so the racket carries the read alone.)
-_TEN_POLO    = (244, 244, 240)     # polo white
-_TEN_POLO_D  = (206, 208, 204)     # polo cool shade (rounds the cloth)
-_TEN_POLO_DD = (170, 174, 172)     # deep fold / contour so white stays crisp
-_TEN_POLO_H  = (255, 255, 252)     # polo highlight
-_TEN_GREEN   = (42, 157, 74)       # racket frame + accent
-_TEN_GREEN_D = (26, 107, 54)       # green shadow / visor trim
-_TEN_GREEN_H = (96, 206, 124)      # green highlight
-_TEN_STRING  = (242, 242, 242)     # cross strings
-_TEN_VOID    = (28, 36, 30)        # near-black open-face void (no inner disc)
-_TEN_STR_DIM = (74, 92, 78)        # low-contrast strings on the void
-_TEN_GRIP    = (40, 44, 52)        # dark racket grip wrap
-_TEN_GRIP_H  = (96, 100, 110)      # grip wrap highlight
+# ── TENNIS ("Wimbledon Whites") — Pip kitted in the all-white grass-court
+#     heritage look. The hero read is a classic WOOD-FRAME oval racket held up
+#     (its cream head breaks the silhouette like the pirate cutlass tip); a white
+#     collared polo with a royal-green collar V + green/aubergine placket and chest
+#     crest, green wristbands and a brow terry headband fill the kit. The wood
+#     frame (warm amber, NOT green) is the differentiator from the other athlete
+#     kits, and the green + Wimbledon-aubergine trim is the heritage cue. (The ball
+#     ships separately as a matching parcel, so the racket carries the read alone.)
+_TEN_WHITE   = (246, 246, 242)     # polo white
+_TEN_WHITE_D = (210, 212, 206)     # cool lower shade (rounds the cloth)
+_TEN_WHITE_DD= (172, 176, 170)     # deep fold / contour so white stays crisp
+_TEN_WHITE_H = (255, 255, 252)     # lit highlight
+_TEN_GREEN   = (30, 122, 60)       # royal green trim
+_TEN_GREEN_D = (18, 84, 40)        # green shadow
+_TEN_GREEN_H = (84, 184, 112)      # green highlight
+_TEN_PURPLE  = (75, 46, 102)       # aubergine (Wimbledon purple)
+_TEN_PURPLE_H= (118, 84, 150)      # aubergine highlight
+# Wood pushed toward a clearer AMBER (more saturation, not lighter) so the ring
+# stays visibly warm/cream and never desaturates to dingy grey beside the cool
+# polo white when the night palette cools everything.
+_TEN_WOOD    = (224, 188, 120)     # amber wood frame body
+_TEN_WOOD_D  = (158, 126, 70)      # wood shaded side so the oval reads round
+_TEN_WOOD_H  = (252, 232, 168)     # bright top-left glint (stays warm at night)
+_TEN_GRIP    = (122, 90, 51)       # tan leather grip
+_TEN_GRIP_D  = (70, 48, 26)        # grip shadow / butt cap / keyline
+_TEN_GRIP_H  = (168, 134, 88)      # grip wrap tick glint
+_TEN_STRING  = (238, 238, 232)     # pale strings (lit, on the void)
+_TEN_STR_DIM = (110, 116, 120)     # low-contrast strings deeper on the void
+_TEN_VOID    = (32, 36, 42)        # flatter near-black window (less green cast)
 
 
 def _tennis_racket(surf, hx, hy, hr):
-    """A held OVAL strung racket — the sole tennis tell. The head reads as ONE
-    clean green frame ring around an OPEN (dark-void, dim-strung) face, so it
-    never stacks into a circle-inside-a-circle. The throat Y-struts + handle make
-    it unmistakably a racket."""
+    """A held classic WOOD-FRAME oval strung racket — the sole tennis tell. The
+    head reads as ONE clean wood frame ring (three values so it reads round at
+    40px) around an OPEN strung face, so it never stacks into a
+    circle-inside-a-circle. The throat Y + wrapped leather grip make it
+    unmistakably a racket; the cream frame separates from both the sky and the
+    scarlet wing the way a green frame could not."""
     rw, rh = int(hr * 1.7), int(hr * 2.1)
     face = pygame.Rect(hx - rw, hy - rh, rw * 2, rh * 2)
-    # Dark void interior + low-contrast strings so the centre stays an open face,
-    # not a filled bright disc — at 40px only the frame survives.
+    # Dark void + a clean string MESH: pale mains/crosses lit on near-black so the
+    # strings read as a tight bed up close, yet the centre stays empty at 40px (the
+    # dim value lets the mesh fall away, leaving the wood ring).
     clip_prev = surf.get_clip()
     surf.set_clip(face)
     pygame.draw.ellipse(surf, _TEN_VOID, face)
-    for gx in range(face.left + 3, face.right - 2, 4):
-        pygame.draw.line(surf, _TEN_STR_DIM, (gx, face.top + 1), (gx, face.bottom - 1), 1)
-    for gy in range(face.top + 3, face.bottom - 2, 4):
-        pygame.draw.line(surf, _TEN_STR_DIM, (face.left + 1, gy), (face.right - 1, gy), 1)
+    for gx in range(face.left + 3, face.right - 2, 3):
+        col = _TEN_STRING if (gx - face.left) % 6 < 3 else _TEN_STR_DIM
+        pygame.draw.line(surf, col, (gx, face.top + 1), (gx, face.bottom - 1), 1)
+    for gy in range(face.top + 3, face.bottom - 2, 3):
+        col = _TEN_STRING if (gy - face.top) % 6 < 3 else _TEN_STR_DIM
+        pygame.draw.line(surf, col, (face.left + 1, gy), (face.right - 1, gy), 1)
     surf.set_clip(clip_prev)
-    # ONE bold green frame ring + a 1px outer keyline (no halo, no inner rings).
-    pygame.draw.ellipse(surf, _TEN_GREEN_D, face.inflate(2, 2), 1)
-    pygame.draw.ellipse(surf, _TEN_GREEN, face, 3)
-    ty = hy + rh                                                     # throat Y-struts
-    pygame.draw.line(surf, _TEN_GREEN_D, (hx - 1, ty + 5), (hx - rw + 2, ty - 2), 5)
-    pygame.draw.line(surf, _TEN_GREEN_D, (hx + 1, ty + 5), (hx + rw - 2, ty - 2), 5)
-    pygame.draw.line(surf, _TEN_GREEN, (hx - 1, ty + 4), (hx - rw + 3, ty - 1), 3)
-    pygame.draw.line(surf, _TEN_GREEN, (hx + 1, ty + 4), (hx + rw - 3, ty - 1), 3)
-    hbx, hby = hx, ty + 5                                            # wrapped handle
+    # ONE wood frame ring in three values — a dark keyline for crisp separation,
+    # the amber body, and a top-left glint so the oval reads as a rounded WOOD
+    # frame, not a flat hoop. No second full ring (avoids circle-inside-a-circle).
+    pygame.draw.ellipse(surf, _TEN_GRIP_D, face.inflate(3, 3), 1)    # outer keyline
+    pygame.draw.ellipse(surf, _TEN_WOOD_D, face, 3)                  # frame base (shaded)
+    pygame.draw.ellipse(surf, _TEN_WOOD, face.inflate(-1, -1), 2)    # amber body
+    # Head-side keyline (lower-right, nearest the headband) so the warm ring never
+    # shares an edge with the band — survives even when both desaturate at night.
+    pygame.draw.arc(surf, _TEN_GRIP_D, face.inflate(2, 2), -1.6, 0.6, 1)
+    pygame.draw.arc(surf, _TEN_WOOD_H, face.inflate(-1, -1), 0.5, 2.6, 1)
+    # Throat — a green-strut Y splaying from the grip into the head (the heritage
+    # colour cue + the second tell once the strings vanish at downscale).
+    ty = hy + rh
+    pygame.draw.line(surf, _TEN_GREEN_D, (hx - 1, ty + 5), (hx - rw + 2, ty - 2), 4)
+    pygame.draw.line(surf, _TEN_GREEN_D, (hx + 1, ty + 5), (hx + rw - 2, ty - 2), 4)
+    pygame.draw.line(surf, _TEN_WOOD,    (hx - 1, ty + 4), (hx - rw + 3, ty - 1), 3)
+    pygame.draw.line(surf, _TEN_WOOD,    (hx + 1, ty + 4), (hx + rw - 3, ty - 1), 3)
+    pygame.draw.line(surf, _TEN_GREEN,   (hx - 1, ty + 4), (hx - rw + 3, ty - 1), 1)
+    pygame.draw.line(surf, _TEN_GREEN,   (hx + 1, ty + 4), (hx + rw - 3, ty - 1), 1)
+    # Wrapped tan-leather GRIP into the near wing — dark base + lit wrap + ticks so
+    # the leather reads as a handle, capped by a tan butt disc.
+    hbx, hby = hx, ty + 5
     htx, hty = hx + 4, hby + 12
-    pygame.draw.line(surf, _TEN_GRIP, (hbx, hby), (htx, hty), 6)
+    pygame.draw.line(surf, _TEN_GRIP_D, (hbx, hby), (htx, hty), 6)
+    pygame.draw.line(surf, _TEN_GRIP,   (hbx, hby), (htx, hty), 5)
     pygame.draw.line(surf, _TEN_GRIP_H, (hbx - 1, hby), (htx - 1, hty), 1)
-    for t in (0.35, 0.7):
+    for t in (0.3, 0.55, 0.8):
         wx = hbx + (htx - hbx) * t
         wy = hby + (hty - hby) * t
+        pygame.draw.line(surf, _TEN_GRIP_D, (wx - 3, wy + 2), (wx + 3, wy - 2), 1)
         pygame.draw.line(surf, _TEN_GRIP_H, (wx - 2, wy + 1), (wx + 2, wy - 1), 1)
-    pygame.draw.circle(surf, _TEN_GREEN, (int(htx), int(hty)), 2)
+    pygame.draw.circle(surf, _TEN_GRIP_D, (int(htx), int(hty)), 3)
+    pygame.draw.circle(surf, _TEN_GRIP, (int(htx), int(hty) - 1), 2)
 
 
 def _paint_tennis(surf, _a):
@@ -1015,42 +1048,66 @@ def _paint_tennis(surf, _a):
     polo = [(HX - 13, HY + 8), (HX - 14, HY + 16), (HX - 11, HY + 23),
             (HX + 9, HY + 23), (HX + 12, HY + 16), (HX + 11, HY + 8),
             (HX + 4, HY + 9), (HX - 5, HY + 9)]
-    _poly(surf, _TEN_POLO_D, polo)
-    _poly(surf, _TEN_POLO, [(HX - 12, HY + 9), (HX - 12, HY + 18),
-                            (HX + 10, HY + 18), (HX + 10, HY + 9),
-                            (HX + 4, HY + 10), (HX - 5, HY + 10)])
-    pygame.draw.line(surf, _TEN_POLO_H, (HX - 11, HY + 10), (HX + 8, HY + 10), 1)
-    # Small collar V at the polo's own top — sits ON the chest, never in the head.
-    _poly(surf, _TEN_POLO_DD, [(HX - 5, HY + 9), (HX + 4, HY + 9), (HX, HY + 13)])
-    pygame.draw.polygon(surf, _TEN_POLO_DD, polo, 1)
-    # One bold diagonal green sash — the single team-accent tell that survives 40px.
-    pygame.draw.line(surf, _TEN_GREEN_D, (HX - 12, HY + 11), (HX + 9, HY + 22), 4)
-    pygame.draw.line(surf, _TEN_GREEN, (HX - 12, HY + 11), (HX + 9, HY + 22), 3)
-    pygame.draw.line(surf, _TEN_GREEN_H, (HX - 11, HY + 12), (HX + 7, HY + 20), 1)
-    # Green-and-white wristbands at the wing roots (cuffs).
-    for wx, wy in ((HX + 11, HY + 20), (HX - 13, HY + 19)):
-        pygame.draw.line(surf, _TEN_GREEN_D, (wx - 3, wy - 3), (wx + 3, wy + 3), 6)
-        pygame.draw.line(surf, _TEN_POLO, (wx - 3, wy - 3), (wx + 3, wy + 3), 3)
-        pygame.draw.line(surf, _TEN_GREEN, (wx - 2, wy - 2), (wx + 2, wy + 2), 1)
+    _poly(surf, _TEN_WHITE_D, polo)
+    _poly(surf, _TEN_WHITE, [(HX - 12, HY + 9), (HX - 12, HY + 17),
+                             (HX + 10, HY + 17), (HX + 10, HY + 9),
+                             (HX + 4, HY + 10), (HX - 5, HY + 10)])
+    pygame.draw.line(surf, _TEN_WHITE_H, (HX - 11, HY + 10), (HX + 8, HY + 10), 1)
+    # Cool-white rim highlight tracing the upper-left shoulder so the cloth reads
+    # rounder where it catches the sky light.
+    pygame.draw.line(surf, _TEN_WHITE_H, (HX - 13, HY + 9), (HX - 13, HY + 15), 1)
+    pygame.draw.polygon(surf, _TEN_WHITE_DD, polo, 1)
+    # Royal-green collar V — thickened to a 3px block so the green reads as a 2px+
+    # cluster at 40px instead of vanishing as a hairline.
+    pygame.draw.line(surf, _TEN_GREEN_D, (HX - 6, HY + 8), (HX, HY + 13), 3)
+    pygame.draw.line(surf, _TEN_GREEN_D, (HX + 5, HY + 8), (HX, HY + 13), 3)
+    pygame.draw.line(surf, _TEN_GREEN,  (HX - 6, HY + 8), (HX, HY + 12), 2)
+    pygame.draw.line(surf, _TEN_GREEN,  (HX + 5, HY + 8), (HX, HY + 12), 2)
+    pygame.draw.line(surf, _TEN_GREEN_H,(HX - 5, HY + 8), (HX - 1, HY + 11), 1)
+    # Green + aubergine placket — a 2px green block flanked by a 2px aubergine
+    # accent so the heritage pair survives the downscale.
+    pygame.draw.line(surf, _TEN_GREEN,  (HX - 1, HY + 12), (HX - 1, HY + 22), 2)
+    pygame.draw.line(surf, _TEN_PURPLE, (HX + 1, HY + 13), (HX + 1, HY + 21), 2)
+    pygame.draw.line(surf, _TEN_GREEN_H,(HX - 1, HY + 12), (HX - 1, HY + 15), 1)
+    # Small chest CREST — a tiny green shield with an aubergine pip (the club badge
+    # that lifts the plain white field at hero scale).
+    cxr = pygame.Rect(HX + 4, HY + 13, 5, 6)
+    pygame.draw.ellipse(surf, _TEN_GREEN, cxr)
+    pygame.draw.ellipse(surf, _TEN_GREEN_D, cxr, 1)
+    pygame.draw.circle(surf, _TEN_PURPLE_H, (HX + 6, HY + 16), 1)
 
-    # Brow visor — a white sun visor with a green band + a curved brim over the
-    # beak; the crown stays open so Pip still reads as the macaw.
+    # Green-and-white terry wristbands at the cuffs. The FAR (right) cuff carries
+    # the full band; the NEAR (lower-left) cuff is shrunk and tucked toward the wing
+    # so it doesn't pile into the grip/throat and the tan grip reads as one diagonal.
+    pygame.draw.line(surf, _TEN_GREEN_D, (HX + 8, HY + 17), (HX + 14, HY + 23), 6)
+    pygame.draw.line(surf, _TEN_WHITE,   (HX + 8, HY + 17), (HX + 14, HY + 23), 3)
+    pygame.draw.line(surf, _TEN_GREEN,   (HX + 9, HY + 18), (HX + 13, HY + 22), 1)
+    wx, wy = HX - 14, HY + 20
+    pygame.draw.line(surf, _TEN_GREEN_D, (wx - 2, wy - 2), (wx + 2, wy + 2), 5)
+    pygame.draw.line(surf, _TEN_WHITE,   (wx - 2, wy - 2), (wx + 2, wy + 2), 2)
+
+    # Terry HEADBAND at the brow — the only headgear that touches the head; a thin
+    # white band with one bold green stripe + a single aubergine accent dot (the
+    # heritage tell up top). The crown stays OPEN above it so Pip still reads as the
+    # macaw.
     by = CROWN_Y + 5
-    brim = [(HX - 9, by), (HX + 14, by - 2), (HX + 18, by + 3),
-            (HX + 14, by + 4), (HX - 9, by + 4)]
-    _poly(surf, _TEN_POLO_D, brim)
-    _poly(surf, _TEN_POLO, [(HX - 9, by), (HX + 14, by - 2), (HX + 16, by + 2),
-                            (HX - 9, by + 2)])
-    pygame.draw.line(surf, _TEN_GREEN_D, (HX + 14, by - 2), (HX + 18, by + 3), 2)
-    pygame.draw.line(surf, _TEN_POLO_H, (HX - 8, by), (HX + 12, by - 2), 1)
-    pygame.draw.line(surf, _TEN_GREEN, (HX - 10, by - 1), (HX + 13, by - 3), 4)
-    pygame.draw.line(surf, _TEN_GREEN_H, (HX - 9, by - 2), (HX + 11, by - 4), 1)
-    pygame.draw.line(surf, _TEN_GREEN_D, (HX - 10, by + 1), (HX + 13, by - 1), 1)
+    band = [(HX - 10, by - 2), (HX + 13, by - 4), (HX + 14, by + 1),
+            (HX - 10, by + 3)]
+    _poly(surf, _TEN_WHITE_D, band)
+    _poly(surf, _TEN_WHITE, [(HX - 10, by - 2), (HX + 13, by - 4),
+                             (HX + 13, by - 1), (HX - 10, by)])
+    pygame.draw.line(surf, _TEN_WHITE_H, (HX - 9, by - 2), (HX + 11, by - 4), 1)
+    pygame.draw.line(surf, _TEN_GREEN,  (HX - 10, by), (HX + 13, by - 2), 2)
+    pygame.draw.line(surf, _TEN_GREEN_H,(HX - 10, by - 1), (HX + 4, by - 2), 1)
+    pygame.draw.circle(surf, _TEN_PURPLE, (HX + 11, by - 2), 2)
+    pygame.draw.circle(surf, _TEN_PURPLE_H, (HX + 11, by - 2), 1)
+    pygame.draw.line(surf, _TEN_WHITE_DD, (HX - 10, by + 2), (HX + 13, by), 1)
 
     # Racket drawn LAST so it OVERLAYS the polo/clothing — like the baseball bat,
-    # the whole prop (head, throat, handle) rests fully IN FRONT of the body; the
-    # oval head still breaks the top/back silhouette against open sky.
-    _tennis_racket(surf, HX - 21, CROWN_Y + 2, 7)
+    # the whole prop (head, throat, grip) rests fully IN FRONT of the body; the
+    # amber oval head breaks the top/back silhouette against open sky. Held
+    # up-and-left so the oval clears the white headband, never sharing an edge.
+    _tennis_racket(surf, HX - 24, CROWN_Y - 2, 7)
 
 
 get_tennis_parrot = _make_skin(_paint_tennis)
