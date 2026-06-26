@@ -45,16 +45,18 @@ def _rot_blit(surf, wing, anchor):
 
 
 def _panda_arm(angle_deg):
-    """A black furry arm mass that wraps a wing root. Flapping reads as the
-    panda raising its arms — the silhouette-breaker on the body's flanks. A
-    soft top highlight keeps the black mass from going flat."""
-    w = pygame.Surface((44, 44), pygame.SRCALPHA)
-    pts = [(22, 22), (40, 17), (41, 30), (24, 38), (13, 31)]
-    pygame.draw.polygon(w, PANDA_BLACK, pts)
-    # Rounded paw cap so the limb ends in a soft mitt, not a sharp point.
-    pygame.draw.circle(w, PANDA_BLACK, (38, 24), 6)
-    pygame.draw.circle(w, BLACK_HI, (24, 23), 4)      # plush top sheen
-    pygame.draw.line(w, BLACK_HI, (23, 24), (37, 20), 1)
+    """A compact black furry arm mass that sits on ONE flank of the body and
+    flaps from its shoulder root. Kept short and rounded so it frames the white
+    belly from the side instead of sweeping a diagonal sash across it; the pivot
+    is at the surface centre (the shoulder) so rotation swings the paw, not the
+    whole mass over the belly. A soft top sheen keeps the black from going flat."""
+    w = pygame.Surface((32, 32), pygame.SRCALPHA)
+    # A short stubby limb: shoulder root at centre, paw reaching straight down.
+    # Kept narrow (±6 of the pivot) so when it is anchored on a flank it frames
+    # the white belly from the side and never reaches across the midline.
+    _aaellipse(w, PANDA_BLACK, (16, 20), 6, 9)
+    pygame.draw.circle(w, PANDA_BLACK, (16, 26), 5)   # rounded paw mitt
+    pygame.draw.circle(w, BLACK_HI, (15, 15), 3)      # plush top sheen
     return pygame.transform.rotate(w, angle_deg)
 
 
@@ -64,30 +66,37 @@ def build(wing_angle_deg) -> pygame.Surface:
     surf = _new()
 
     # ── two black leg stubs hanging under the body ──
-    for lx in (BCX - 8, BCX + 8):
-        _aaellipse(surf, PANDA_BLACK, (lx, BCY + 15), 5, 7)
-        pygame.draw.circle(surf, PANDA_BLACK, (lx, BCY + 19), 4)   # rounded foot
-        pygame.draw.circle(surf, BLACK_HI, (lx - 1, BCY + 12), 2)
+    for lx in (BCX - 7, BCX + 7):
+        _aaellipse(surf, PANDA_BLACK, (lx, BCY + 16), 5, 7)
+        pygame.draw.circle(surf, PANDA_BLACK, (lx, BCY + 20), 4)   # rounded foot
+        pygame.draw.circle(surf, BLACK_HI, (lx - 1, BCY + 13), 2)
 
-    # ── white torso / belly disc over the collision centre ──
-    # Raised and widened so the white belly owns the central third of the body;
-    # the black is then confined to a thin shoulder yoke + the side arm masses.
-    _aaellipse(surf, WHITE_SHADE, (BCX + 1, BCY + 1), 20, 19)
-    _aaellipse(surf, PANDA_WHITE, (BCX, BCY - 1), 19, 18)
-    # Soft belly shading low-centre so the white disc has volume.
-    _aaellipse(surf, WHITE_SHADE, (BCX, BCY + 8), 12, 8)
+    # ── rounded black torso backing — a firm symmetrical bean ──
+    # Drawn first as the body's silhouette so the white belly can be punched on
+    # top; the black survives ONLY as a thin rim left/right/top of that belly,
+    # which gives the side arm masses and shoulder yoke a base to read against.
+    _aaellipse(surf, PANDA_BLACK, (BCX, BCY + 1), 22, 21)
 
-    # ── thin black shoulder yoke wrapping across the upper back ──
+    # ── large WHITE belly bean owning the central + lower torso ──
+    # This is the dominant body value: a round, symmetrical white oval centred on
+    # the collision point and pushed slightly low so it owns the lower third. A
+    # bottom shade-rim under it reads as plush volume, never a diagonal sash.
+    _aaellipse(surf, WHITE_SHADE, (BCX, BCY + 3), 18, 18)
+    _aaellipse(surf, PANDA_WHITE, (BCX, BCY + 1), 17, 17)
+    # Soft belly shading low-centre so the white bean has roundness.
+    _aaellipse(surf, WHITE_SHADE, (BCX, BCY + 9), 10, 6)
+
+    # ── thin black shoulder yoke capping the very top of the body ──
     # The real panda's dark band joins both arms over the shoulders; kept as a
     # shallow cap so it crowns the white belly without eating into it.
-    yoke = pygame.Surface((50, 20), pygame.SRCALPHA)
-    pygame.draw.ellipse(yoke, PANDA_BLACK, pygame.Rect(0, 0, 50, 20))
+    yoke = pygame.Surface((44, 16), pygame.SRCALPHA)
+    pygame.draw.ellipse(yoke, PANDA_BLACK, pygame.Rect(0, 0, 44, 16))
     # Carve the lower edge away so the band hugs the shoulders, not the belly.
-    pygame.draw.ellipse(yoke, (0, 0, 0, 0), pygame.Rect(2, 9, 46, 22))
-    surf.blit(yoke, (BCX - 25, BCY - 18))
+    pygame.draw.ellipse(yoke, (0, 0, 0, 0), pygame.Rect(2, 8, 40, 18))
+    surf.blit(yoke, (BCX - 22, BCY - 18))
 
-    # ── far arm tucked behind the body ──
-    _rot_blit(surf, _panda_arm(wing_angle_deg * 0.5 - 18), (BCX + 9, BCY - 3))
+    # ── far arm tucked on the body's right flank, behind everything ──
+    _rot_blit(surf, _panda_arm(wing_angle_deg * 0.5 - 14), (BCX + 18, BCY + 1))
 
     # ── round white face disc centred over the head ──
     # Two round black ears FIRST, so the white disc overlaps their base and
@@ -99,44 +108,49 @@ def build(wing_angle_deg) -> pygame.Surface:
     # The white disc must DOMINATE — it is the panda read. Two small black eye
     # patches sit ON this white, never the inverse, with a clear white bridge
     # straight down the centre so they always read as two distinct shapes.
-    _aaellipse(surf, WHITE_SHADE, (HCX + 1, HCY + 1), 13, 13)
-    _aaellipse(surf, PANDA_WHITE, (HCX, HCY), 12, 12)
+    _aaellipse(surf, WHITE_SHADE, (HCX + 1, HCY + 1), 14, 13)
+    _aaellipse(surf, PANDA_WHITE, (HCX, HCY), 13, 12)
 
     # ── two SMALL black teardrop eye patches, splayed off the white bridge ──
-    # Each patch is a short tilted ellipse capped ~9px tall on this 64px canvas;
-    # placed far enough off-centre (±7) that a ~7px white bridge survives down
-    # the muzzle. Wide-low, tapering up-and-out so the pair points at the nose.
+    # Each patch is a short tilted ellipse; its INNER edge is pushed outward to
+    # ±9 from centre so a ≥2px clean white bridge survives down the muzzle in
+    # every wing frame, and the nose below sits on white — eyes never fuse with
+    # the nose. Wide-low, tapering up-and-out so the pair points at the nose.
     for sgn in (-1, 1):
         patch = pygame.Surface((16, 16), pygame.SRCALPHA)
         _aaellipse(patch, PANDA_BLACK, (8, 8), 4, 5)
         patch = pygame.transform.rotate(patch, sgn * 28)
-        pcx = HCX + sgn * 7
+        pcx = HCX + sgn * 9
         _rot_blit(surf, patch, (pcx, HCY - 2))
 
     # White eye-glint inside each patch — a bright eye keeps the mask friendly.
     for sgn in (-1, 1):
-        ecx = HCX + sgn * 7
+        ecx = HCX + sgn * 9
         pygame.draw.circle(surf, PANDA_BLACK, (ecx, HCY - 1), 1)  # pupil anchor
         pygame.draw.circle(surf, GLINT, (ecx - sgn * 1, HCY - 2), 2)
 
-    # ── soft pink cheek blushes — small dots sitting OUT on the white face ──
-    # Pushed wide (±10) and shrunk ~40% so they land on clean white, well clear
-    # of the eye patches; on white they read as charm, on black they'd read dirt.
+    # ── soft pink cheek blushes — small dots low and wide on mid-cheek white ──
+    # Dropped ~4px below the eye line and pushed out to ±11 so they land on clean
+    # mid-cheek white, clear of the patches; saturation bumped so they still
+    # register at 40px without smudging into the eyes.
     for sgn in (-1, 1):
         blush = pygame.Surface((8, 6), pygame.SRCALPHA)
-        _aaellipse(blush, (*PINK, 130), (4, 3), 3, 2)
-        surf.blit(blush, (HCX + sgn * 10 - 4, HCY + 4 - 3))
+        _aaellipse(blush, (*PINK, 175), (4, 3), 3, 2)
+        surf.blit(blush, (HCX + sgn * 11 - 4, HCY + 8 - 3))
 
     # ── nose + mouth re-asserted on the WHITE bridge below the patches ──
-    # A tiny solid-black nose with a short down-mouth, clearly on white so the
-    # face has a focal point instead of vanishing into the patches.
+    # A tiny solid-black nose with a short down-mouth, clearly on white (visible
+    # white above it and to each side) so the face has a focal point instead of
+    # vanishing into the patches.
     nose = [(HCX - 2, HCY + 5), (HCX + 2, HCY + 5), (HCX, HCY + 8)]
     pygame.draw.polygon(surf, PANDA_BLACK, nose)
     pygame.draw.line(surf, PANDA_BLACK, (HCX, HCY + 8), (HCX - 3, HCY + 11), 1)
     pygame.draw.line(surf, PANDA_BLACK, (HCX, HCY + 8), (HCX + 3, HCY + 11), 1)
 
-    # ── near arm over the body (the flapping panda arm) ──
-    _rot_blit(surf, _panda_arm(wing_angle_deg), (BCX - 5, BCY - 1))
+    # ── near arm on the body's LEFT flank (the flapping panda arm) ──
+    # Pivoted on the left shoulder so flapping swings the paw up/down beside the
+    # belly; it frames the white bean from the side and never crosses it.
+    _rot_blit(surf, _panda_arm(wing_angle_deg), (BCX - 18, BCY + 1))
 
     return surf
 
