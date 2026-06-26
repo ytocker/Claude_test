@@ -105,18 +105,20 @@ def build(wing_angle_deg) -> pygame.Surface:
     parrot._add_outline."""
     surf = _new()
 
-    # ── on-silhouette aurora tail off the lower body ──
-    # NOT a detached comet block (that read as a coin): a short teal→violet
-    # streak that hugs the lower body contour and fades to transparent so it
-    # extends the silhouette downstream rather than fragmenting it. Drawn first
-    # so the body overlaps its root and it appears to grow out of the mass.
-    for i in range(7):
-        t = i / 6.0
-        tx = int(BCX - 6 - t * 18)
-        ty = int(BCY + 13 + t * 4)
-        rad = max(1, int(5 * (1 - t)))
-        col = CYAN if t < 0.5 else VIOLET
-        pygame.draw.circle(surf, (*col, int(150 * (1 - t))), (tx, ty), rad)
+    # ── aurora tail FUSED to the lower body contour ──
+    # A hairline teal→transparent gradient that traces the lower-rear edge of the
+    # body with NO gap to the mass (its root sits right on the belly edge), so it
+    # extends the silhouette downstream instead of floating as a detached blob.
+    # Drawn first → the body/legs overlap its root and it reads as growing out of
+    # the fur. Radii shrink fast so it tapers to a thread, never a wing-mass.
+    for i in range(8):
+        t = i / 7.0
+        # Hug the lower contour: start on the belly edge, sweep down-and-back.
+        tx = int(BCX - 14 - t * 13)
+        ty = int(BCY + 9 + t * 9)
+        rad = max(1, int(4 * (1 - t) ** 1.3))
+        col = CYAN if t < 0.4 else VIOLET
+        pygame.draw.circle(surf, (*col, int(125 * (1 - t) ** 1.2)), (tx, ty), rad)
 
     # ── two galaxy leg stubs hanging under the body ──
     for lx in (BCX - 8, BCX + 8):
@@ -125,9 +127,15 @@ def build(wing_angle_deg) -> pygame.Surface:
         pygame.draw.circle(surf, (*CYAN_DEEP, 210), (lx - 1, BCY + 21), 1)  # toe-glint
 
     # ── glowing white belly that EMITS light (a lantern, not a patch) ──
+    # Light only reads as emission against a DARK surround, so the body mass is
+    # darkened in a ring just OUTSIDE the glow first: a deep-void indigo collar
+    # framing the belly. The bright cyan bloom then has something to push off of,
+    # instead of fading into the mid-indigo body and reading as a flat patch.
+    _aaellipse(surf, GALAXY_SHADE, (BCX, BCY + 1), 24, 23)
+    _aaellipse(surf, GALAXY_NAVY, (BCX, BCY), 22, 21)
     # An outer cyan bloom bleeds a few px PAST the white disc edge so the belly
     # reads as a light source. The bloom is wider than the disc on purpose.
-    belly_bloom = _radial_glow(26, CYAN, 120, falloff=2.0)
+    belly_bloom = _radial_glow(26, CYAN, 135, falloff=2.0)
     surf.blit(belly_bloom, belly_bloom.get_rect(center=(BCX, BCY)))
     _aaellipse(surf, WHITE_SOFT, (BCX + 1, BCY + 1), 19, 18)
     _aaellipse(surf, GLOW_WHITE, (BCX, BCY), 18, 17)
@@ -152,38 +160,41 @@ def build(wing_angle_deg) -> pygame.Surface:
     # ── far arm tucked behind the body ──
     _rot_blit(surf, _panda_arm(wing_angle_deg * 0.5 - 18), (BCX + 9, BCY - 3))
 
-    # ── FLOATING halo arc above the crown (the legendary flex) ──
-    # Lifted well clear of the ears so background sky shows in the gap beneath
-    # it — at 40px the halo must read as a separate floating element, never a
-    # lump fused to the head. Rendered as a soft cyan-white bloom + a bright
-    # thin 2px arc core, brightest at the apex. Sits its own ~6px above CROWN_Y.
-    HALO_CY = CROWN_Y - 11              # arc baseline, a clear ~5px gap to ears
-    # Wide cyan bloom anchored at the apex so the halo survives the downscale to
-    # 40px as a bright floating glow rather than collapsing into the dark crown.
-    halo_glow = _radial_glow(18, CYAN, 95, falloff=2.0)
-    surf.blit(halo_glow, halo_glow.get_rect(center=(HCX, HALO_CY)))
-    arc_pts = []
-    for i in range(25):
-        t = i / 24.0
-        a = math.pi * (0.08 + 0.84 * t)        # upper arc only
-        hx = HCX + math.cos(a) * 18
-        hy = HALO_CY - math.sin(a) * 9
-        arc_pts.append((hx, hy, t))
-    # Three passes thicken the apex into a chunky bright bar that reads at 40px:
-    # soft cyan halo, a 2px white-cyan core, then a crisp white centre line.
-    for hx, hy, t in arc_pts:
-        apex = 1.0 - abs(t - 0.5) * 1.3
+    # ── FLOATING OPEN halo RING above the crown (the legendary flex) ──
+    # C2 dealbreaker fix: the old apex-bloom + chunky bar, sitting over the dark
+    # head, read as a solid Victorian top-hat cap. The halo is now drawn as a
+    # genuinely OPEN ring — only the arc stroke and a bloom that hugs the stroke,
+    # so the interior stays fully transparent and the sky shows clean through the
+    # centre. A bright crescent (upper arc only) is used because a full 40px ring
+    # goes too faint; the float gap to the ears stays clear.
+    HALO_CY = CROWN_Y - 13             # arc centre, a clear ~4px sky-gap to ears
+    HALO_RX, HALO_RY = 17, 8           # halo radii (wide oval, seen near-on)
+    crest_pts = []                     # the visible upper crescent, apex-bright
+    for i in range(41):
+        t = i / 40.0
+        a = math.pi * (0.06 + 0.88 * t)             # upper arc only (open ring)
+        hx = HCX + math.cos(a) * HALO_RX
+        hy = HALO_CY - math.sin(a) * HALO_RY
+        apex = 1.0 - abs(t - 0.5) * 1.05            # brightest at the apex
+        crest_pts.append((hx, hy, max(0.0, apex)))
+    # Bloom pass: soft cyan glow traced ALONG the stroke only (never a filled
+    # disc), so the ring glows but its inside stays open sky.
+    for hx, hy, apex in crest_pts:
         if apex <= 0:
             continue
-        pygame.draw.circle(surf, (*CYAN, int(150 * apex)), (int(hx), int(hy)), 3)
-    for hx, hy, t in arc_pts:
-        apex = 1.0 - abs(t - 0.5) * 1.2
-        if apex <= 0.05:
+        pygame.draw.circle(surf, (*CYAN, int(70 * apex)), (int(hx), int(hy)), 3)
+    for hx, hy, apex in crest_pts:
+        if apex <= 0.04:
             continue
-        pygame.draw.circle(surf, (235, 250, 255, int(255 * apex)),
-                           (int(hx), int(hy)), 2)
-    for hx, hy, t in arc_pts:
-        surf.set_at((int(hx), int(hy)), (255, 255, 255, 255))
+        pygame.draw.circle(surf, (*CYAN, int(150 * apex)), (int(hx), int(hy)), 2)
+    # Crisp 1–2px bright cyan-white arc core — the actual ring stroke.
+    for hx, hy, apex in crest_pts:
+        if apex <= 0.04:
+            continue
+        col = (235, 250, 255, int(235 * apex + 20))
+        surf.set_at((int(hx), int(hy)), col)
+        if apex > 0.45:                              # thicken just the apex to 2px
+            surf.set_at((int(hx), int(hy) + 1), (200, 240, 255, int(180 * apex)))
 
     # ── round galaxy ears past the crown ──
     # No body speckle here — at 40px it just turns to noise. Each ear carries a
@@ -214,12 +225,17 @@ def build(wing_angle_deg) -> pygame.Surface:
         pcx = HCX + sgn * 5
         _rot_blit(surf, patch, (pcx, HCY - 1))
 
-    # ── eyes that read as bright stars / glowing points ──
+    # ── self-lit eyes: glowing cyan points that survive the dark down-flaps ──
+    # C2: the face must never vanish in f2/f3, so each eye carries a constant
+    # cyan self-glow (a soft halo + a saturated 1px cyan core) on TOP of the
+    # white star, anchoring the charming face even when the body sinks dark.
     for sgn in (-1, 1):
         ecx = HCX + sgn * 5
-        pygame.draw.circle(surf, (*CYAN, 130), (ecx, HCY), 3)     # halo around eye
-        pygame.draw.circle(surf, STAR_WHITE, (ecx, HCY - 1), 2)   # bright star core
-        surf.set_at((ecx, HCY - 1), STAR_CORE)                    # warm twinkle
+        pygame.draw.circle(surf, (*CYAN, 150), (ecx, HCY), 4)        # outer eye glow
+        pygame.draw.circle(surf, (*CYAN_DEEP, 220), (ecx, HCY), 2)   # bright cyan core
+        pygame.draw.circle(surf, STAR_WHITE, (ecx, HCY - 1), 2)      # white star core
+        surf.set_at((ecx, HCY - 1), STAR_CORE)                       # warm twinkle
+        surf.set_at((ecx + sgn, HCY), (*CYAN_DEEP, 255))             # self-lit glint
 
     # ── little galaxy nose triangle + soft mouth line ──
     nose = [(HCX - 3, HCY + 6), (HCX + 3, HCY + 6), (HCX, HCY + 10)]
