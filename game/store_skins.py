@@ -1003,28 +1003,25 @@ def _tennis_racket(surf, hx, hy, hr):
 
 
 def _paint_tennis(surf, _a):
-    bcx, bcy = 32, 52                  # body centre in composite space
-    # Racket held up in the near wing (painted first so the body covers the handle
-    # root and only the head breaks the silhouette, like the pirate cutlass tip).
-    _tennis_racket(surf, HX - 23, CROWN_Y, 7)
-
-    # White collared polo over the torso (inside the footprint), with a cool shade
-    # so the white reads round + a dark contour so it stays crisp on a bright sky.
-    polo = [(bcx - 14, bcy - 8), (bcx - 15, bcy - 1), (bcx - 13, bcy + 11),
-            (bcx + 13, bcy + 11), (bcx + 15, bcy - 1), (bcx + 13, bcy - 8),
-            (bcx + 4, bcy - 11), (bcx - 5, bcy - 11)]
+    # White collared polo on the FRONT CHEST — anchored to HX/HY (the same on-body
+    # position as the baseball jersey) so the cloth sits up on the chest, not low
+    # toward the tail. Cool lower shade rounds the white; a dark contour keeps it
+    # crisp on a bright day sky. Inside the footprint (hem ~HY+23).
+    polo = [(HX - 14, HY + 5), (HX - 15, HY + 14), (HX - 11, HY + 23),
+            (HX + 9, HY + 23), (HX + 12, HY + 14), (HX + 10, HY + 5),
+            (HX + 4, HY + 2), (HX - 5, HY + 2)]
     _poly(surf, _TEN_POLO_D, polo)
-    _poly(surf, _TEN_POLO, [(bcx - 13, bcy - 8), (bcx - 13, bcy + 3),
-                            (bcx + 13, bcy + 3), (bcx + 13, bcy - 8),
-                            (bcx + 4, bcy - 11), (bcx - 5, bcy - 11)])
-    pygame.draw.line(surf, _TEN_POLO_H, (bcx - 11, bcy - 7), (bcx + 9, bcy - 7), 1)
+    _poly(surf, _TEN_POLO, [(HX - 13, HY + 5), (HX - 13, HY + 16),
+                            (HX + 10, HY + 16), (HX + 10, HY + 5),
+                            (HX + 4, HY + 2), (HX - 5, HY + 2)])
+    pygame.draw.line(surf, _TEN_POLO_H, (HX - 11, HY + 6), (HX + 8, HY + 6), 1)
     pygame.draw.polygon(surf, _TEN_POLO_DD, polo, 1)
     # One bold diagonal green sash — the single team-accent tell that survives 40px.
-    pygame.draw.line(surf, _TEN_GREEN_D, (bcx - 12, bcy - 6), (bcx + 11, bcy + 9), 4)
-    pygame.draw.line(surf, _TEN_GREEN, (bcx - 12, bcy - 6), (bcx + 11, bcy + 9), 3)
-    pygame.draw.line(surf, _TEN_GREEN_H, (bcx - 11, bcy - 5), (bcx + 9, bcy + 7), 1)
+    pygame.draw.line(surf, _TEN_GREEN_D, (HX - 12, HY + 7), (HX + 9, HY + 21), 4)
+    pygame.draw.line(surf, _TEN_GREEN, (HX - 12, HY + 7), (HX + 9, HY + 21), 3)
+    pygame.draw.line(surf, _TEN_GREEN_H, (HX - 11, HY + 8), (HX + 7, HY + 19), 1)
     # Green-and-white wristbands at the wing roots.
-    for wx, wy in ((bcx + 13, bcy + 5), (bcx - 13, bcy + 4)):
+    for wx, wy in ((HX + 11, HY + 18), (HX - 13, HY + 17)):
         pygame.draw.line(surf, _TEN_GREEN_D, (wx - 3, wy - 3), (wx + 3, wy + 3), 6)
         pygame.draw.line(surf, _TEN_POLO, (wx - 3, wy - 3), (wx + 3, wy + 3), 3)
         pygame.draw.line(surf, _TEN_GREEN, (wx - 2, wy - 2), (wx + 2, wy + 2), 1)
@@ -1042,6 +1039,11 @@ def _paint_tennis(surf, _a):
     pygame.draw.line(surf, _TEN_GREEN, (HX - 10, by - 1), (HX + 13, by - 3), 4)
     pygame.draw.line(surf, _TEN_GREEN_H, (HX - 9, by - 2), (HX + 11, by - 4), 1)
     pygame.draw.line(surf, _TEN_GREEN_D, (HX - 10, by + 1), (HX + 13, by - 1), 1)
+
+    # Racket drawn LAST so it OVERLAYS the polo/clothing — like the baseball bat,
+    # the whole prop (head, throat, handle) rests fully IN FRONT of the body; the
+    # oval head still breaks the top/back silhouette against open sky.
+    _tennis_racket(surf, HX - 21, CROWN_Y + 2, 7)
 
 
 get_tennis_parrot = _make_skin(_paint_tennis)
