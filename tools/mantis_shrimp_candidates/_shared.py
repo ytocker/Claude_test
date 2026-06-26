@@ -93,11 +93,12 @@ def _jewel_eye(surf, cx, cy, r, *, glow):
 
 def _club_arm(surf, shoulder, elbow, fist, *, club_col, club_hi, arm_col,
               club_r, lead, glow, glow_r=None):
-    pygame.draw.line(surf, _RIM, shoulder, elbow, 5)
-    pygame.draw.line(surf, arm_col, shoulder, elbow, 3)
-    pygame.draw.line(surf, _RIM, elbow, fist, 5)
-    pygame.draw.line(surf, arm_col, elbow, fist, 3)
-    pygame.draw.circle(surf, arm_col, elbow, 2)
+    # Slimmer arm so the (shrunk) clubs read tidy and the face keeps focus.
+    pygame.draw.line(surf, _RIM, shoulder, elbow, 4)
+    pygame.draw.line(surf, arm_col, shoulder, elbow, 2)
+    pygame.draw.line(surf, _RIM, elbow, fist, 4)
+    pygame.draw.line(surf, arm_col, elbow, fist, 2)
+    pygame.draw.circle(surf, arm_col, elbow, 1)
     pygame.draw.circle(surf, _STALK_RIM, fist, club_r + 1)
     pygame.draw.circle(surf, club_col, fist, club_r)
     pygame.draw.circle(surf, club_hi, (fist[0] - 1, fist[1] - 1), max(1, club_r - 2))
@@ -150,7 +151,7 @@ def _build(wing_angle_deg, *, glow, face_fn):
     far_fist  = _lerp_pt((bcx + 4, bcy + 20), (bcx + 21, bcy + 10), s)
     _club_arm(surf, far_shoulder, far_elbow, far_fist,
               club_col=_CLUB_D, club_hi=_CLUB, arm_col=_CARA_D,
-              club_r=6, lead=False, glow=glow)
+              club_r=4, lead=False, glow=glow)
 
     _segmented_tail(surf, bcx - 7, bcy + 1, count=3, span=18)
 
@@ -173,13 +174,14 @@ def _build(wing_angle_deg, *, glow, face_fn):
     # ── FACE (head + eyes) — the only varying element ──
     face_fn(surf, hcx, hcy, rcy, s, glow)
 
-    # ── HERO: oversized lead club, drawn IN FRONT of the face (unchanged).
-    near_elbow = _lerp_pt((bcx + 13, bcy + 6), (hcx + 5, hcy + 0), s)
-    near_fist  = _lerp_pt((bcx + 19, bcy + 11), (hcx + 15, hcy - 10), s)
-    lead_glow_r = int(round(3 + s * 2))
+    # ── Lead club, drawn IN FRONT of the face. Shrunk + the punch pulled in so
+    #    it still throws forward but no longer covers/competes with the face.
+    near_elbow = _lerp_pt((bcx + 13, bcy + 6), (hcx + 4, hcy + 1), s)
+    near_fist  = _lerp_pt((bcx + 18, bcy + 11), (hcx + 12, hcy - 5), s)
+    lead_glow_r = int(round(2 + s * 2))
     _club_arm(surf, sh, near_elbow, near_fist,
               club_col=_CLUB, club_hi=_CLUB_H, arm_col=_CARA_D,
-              club_r=8, lead=True, glow=glow, glow_r=lead_glow_r)
+              club_r=6, lead=True, glow=glow, glow_r=lead_glow_r)
     return surf
 
 
