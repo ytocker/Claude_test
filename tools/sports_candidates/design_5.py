@@ -44,6 +44,7 @@ _TEN_BALL    = (203, 232, 74)         # #CBE84A neon tennis-ball green
 _TEN_BALL_D  = (162, 192, 52)         # ball shade so the sphere reads round
 _TEN_BALL_H  = (230, 250, 150)        # ball curve highlight
 _TEN_BALL_S  = (250, 252, 235)        # ball seam (the pale tennis swoosh)
+_TEN_BALL_C  = (20, 40, 18)           # near-black ball contour — pops it off the wing
 _TEN_GRIP    = (40, 44, 52)           # dark racket grip wrap
 _TEN_GRIP_H  = (96, 100, 110)         # grip wrap highlight
 
@@ -75,6 +76,11 @@ def _racket(surf, hx, hy, hr):
         pygame.draw.line(surf, _TEN_STRING, (face.left + 1, gy), (face.right - 1, gy), 1)
     surf.set_clip(clip_prev)
 
+    # Thin dark OUTER halo a px proud of the frame so the green ring always
+    # separates from the OTHER greens nearby (the visor band + green wing) — the
+    # same trick that lets the ball pop off the wing.
+    pygame.draw.ellipse(surf, _TEN_GREEN_D, face.inflate(2, 2), 1)
+
     # Bold green frame RING — the actual 40px read. Drawn dark-then-bright so the
     # oval keeps a lit edge after the downscale.
     pygame.draw.ellipse(surf, _TEN_GREEN_D, face, 4)
@@ -104,11 +110,17 @@ def _racket(surf, hx, hy, hr):
 
 def _tennis_ball(surf, cx, cy, r):
     """A bright neon tennis ball with the pale curved seam. The most saturated
-    mass on the figure — the second half of the instant tennis read."""
+    mass on the figure — the second half of the instant tennis read.
+
+    A near-black contour RING circles the whole ball first so the neon sphere
+    pops off the busy rainbow wing the way the racket frame pops off the sky;
+    without it the lime ball melts into the lime/scarlet feathers at 40px."""
+    # Dark contour disc one px proud all round — the ring that survives downscale.
+    pygame.draw.circle(surf, _TEN_BALL_C, (cx, cy), r + 1)
     pygame.draw.circle(surf, _TEN_BALL_D, (cx, cy + 1), r)
     pygame.draw.circle(surf, _TEN_BALL, (cx, cy), r)
     pygame.draw.circle(surf, _TEN_BALL_H, (cx - r // 2, cy - r // 2), max(1, r // 2))
-    pygame.draw.circle(surf, _TEN_BALL_D, (cx, cy), r, 1)      # holds a round edge
+    pygame.draw.circle(surf, _TEN_BALL_C, (cx, cy), r, 1)      # crisp dark rim
     # The two pale curved seams (the tennis-ball swoosh) — short arcs left/right.
     pygame.draw.arc(surf, _TEN_BALL_S, (cx - r - 2, cy - r, r + 1, r * 2),
                     -1.1, 1.1, 2)
@@ -119,8 +131,9 @@ def _tennis_ball(surf, cx, cy, r):
 def _paint(surf, _a):
     # --- Racket held UP in the near wing (painted FIRST so the body covers the
     # handle root and only the head + upper frame break the silhouette, like the
-    # pirate cutlass tip). Head sits high-back so it clears against open sky. ----
-    _racket(surf, HX - 20, CROWN_Y + 1, 7)
+    # pirate cutlass tip). Head sits high-BACK and a touch left so a pixel of clear
+    # sky always sits between the racket head and the visor brim. ----------------
+    _racket(surf, HX - 23, CROWN_Y, 7)
 
     # --- White collared POLO over the torso -------------------------------------
     # A clean cloth block clipped to the chest, white-filled with a cool lower
@@ -139,23 +152,14 @@ def _paint(surf, _a):
     # Crisp dark contour so the white polo separates from the day sky / pillars.
     pygame.draw.polygon(surf, _TEN_POLO_DD, polo, 1)
 
-    # Green accent stripe down the near side + along the hem — the team colour.
-    pygame.draw.line(surf, _TEN_GREEN, (BCX + 11, BCY - 7), (BCX + 10, BCY + 9), 3)
-    pygame.draw.line(surf, _TEN_GREEN_H, (BCX + 11, BCY - 6), (BCX + 11, BCY + 2), 1)
-    pygame.draw.line(surf, _TEN_GREEN, (BCX - 12, BCY + 10), (BCX + 12, BCY + 10), 2)
-
-    # Polo placket — a short vertical button strip + a green collar V so it reads
-    # as a tennis polo, not a plain tee.
-    pygame.draw.line(surf, _TEN_POLO_DD, (BCX, BCY - 9), (BCX, BCY + 2), 1)
-    pygame.draw.circle(surf, _TEN_GREEN_D, (BCX, BCY - 5), 1)
-    pygame.draw.circle(surf, _TEN_GREEN_D, (BCX, BCY - 1), 1)
-    # Collar — two green-edged white flaps at the neck.
-    _poly(surf, _TEN_POLO, [(BCX - 6, BCY - 11), (BCX, BCY - 6),
-                            (BCX - 3, BCY - 11)])
-    _poly(surf, _TEN_POLO, [(BCX + 5, BCY - 11), (BCX, BCY - 6),
-                            (BCX + 2, BCY - 11)])
-    pygame.draw.line(surf, _TEN_GREEN, (BCX - 6, BCY - 11), (BCX, BCY - 6), 1)
-    pygame.draw.line(surf, _TEN_GREEN, (BCX + 5, BCY - 11), (BCX, BCY - 6), 1)
+    # ONE bold diagonal SASH across the white chest — the single green tell that
+    # survives the downscale. The placket / collar-V / side-stripe all died at
+    # 40px, so the team accent is now this 3px diagonal: the white mass reads
+    # "polo with a team accent", not blank white. Dark-edged then bright so the
+    # sash keeps a lit core after the shrink.
+    pygame.draw.line(surf, _TEN_GREEN_D, (BCX - 12, BCY - 6), (BCX + 11, BCY + 9), 4)
+    pygame.draw.line(surf, _TEN_GREEN, (BCX - 12, BCY - 6), (BCX + 11, BCY + 9), 3)
+    pygame.draw.line(surf, _TEN_GREEN_H, (BCX - 11, BCY - 5), (BCX + 9, BCY + 7), 1)
 
     # --- Green-and-white WRISTBANDS at the wing roots ---------------------------
     # A terry band on the near wing (and a hint on the far) — a sport tell that
@@ -165,11 +169,13 @@ def _paint(surf, _a):
         pygame.draw.line(surf, _TEN_POLO, (wx - 3, wy - 3), (wx + 3, wy + 3), 3)
         pygame.draw.line(surf, _TEN_GREEN, (wx - 2, wy - 2), (wx + 2, wy + 2), 1)
 
-    # --- HERO 2: neon TENNIS BALL at the near wing ------------------------------
+    # --- HERO 2: neon TENNIS BALL ------------------------------------------------
     # Drawn LAST so it sits clearly in front — the brightest, most saturated mass
-    # on the figure. Held inside the silhouette at the lower near wing, resting on
-    # the feet line, never below it.
-    _tennis_ball(surf, BCX + 12, HY + 19, 6)
+    # on the figure. Tucked against the WHITE-POLO lower-near edge (a clean
+    # contrasting backdrop) instead of buried in the lime/scarlet feathers, so the
+    # dark-rimmed neon sphere survives as its own round bright spot at 40px. Held
+    # inside the footprint, resting on the feet line, never below it.
+    _tennis_ball(surf, BCX + 14, HY + 17, 7)
 
     # --- Brow VISOR (keeps the macaw head reading) ------------------------------
     # A white sun visor: a green-trimmed band across the brow + a curved brim over
