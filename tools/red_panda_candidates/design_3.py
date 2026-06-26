@@ -62,10 +62,16 @@ def _tail_arc(surf, tcx, tcy, r, a0, a1, steps, width,
         hx = int(tcx + math.cos(a) * (r - width * 0.4))
         hy = int(tcy + math.sin(a) * (r - width * 0.4))
         pygame.draw.circle(surf, HIGH, (hx, hy), max(1, width // 3))
+        # Warm 1px light rim on the OUTER tube edge so the dark tube separates
+        # cleanly from the body sphere instead of merging into one mass.
+        ox, oy = math.cos(a), math.sin(a)
+        pygame.draw.circle(surf, HIGH,
+                           (int(cx + ox * width * 0.6),
+                            int(cy + oy * width * 0.6)), 2)
 
     # Cream scarf-bands wrapped around the tube as short fat arcs.
     half = math.radians(13)
-    bsteps = 7
+    bsteps = 4
     for rt in ring_ts:
         a_cen = a0 + span * rt
         for i in range(bsteps + 1):
@@ -128,11 +134,11 @@ def build_autumn_monk(wing_angle_deg):
     # --- (1) TAIL BEHIND --------------------------------------------------
     # Comes off the lower-right of the sphere, sweeps up the right side and
     # arcs over behind the head. Drawn first so the body sits in front of it.
-    _tail_arc(surf, bx + 1, by + 4, 23,
-              math.radians(78), math.radians(-118),
+    _tail_arc(surf, bx + 2, by + 6, 23,
+              math.radians(78), math.radians(-95),
               steps=30, width=11,
-              core=(140, 55, 28),
-              ring_ts=(0.40, 0.78), ring_r=7,
+              core=(105, 40, 18),
+              ring_ts=(0.62,), ring_r=7,
               fringe=False)
 
     # --- BODY / HEAD SPHERE (4-layer radial shade) -----------------------
@@ -154,19 +160,19 @@ def build_autumn_monk(wing_angle_deg):
     # --- FACE -------------------------------------------------------------
     # One peanut-shaped cream mask: two overlapping ellipses fuse into a
     # single wide cheeks+muzzle field that reads cleanly at thumbnail size.
-    _aaellipse(surf, CREAM, (bx - 4, by + 1), 9, 8)
-    _aaellipse(surf, CREAM, (bx + 4, by + 1), 9, 8)
+    _aaellipse(surf, (252, 242, 218), (bx - 4, by + 1), 9, 8)
+    _aaellipse(surf, (252, 242, 218), (bx + 4, by + 1), 9, 8)
 
     # Sleepy eyes — one drooping dark lid-arc per side with a single gleam.
     for ex in (bx - 6, bx + 6):
         pygame.draw.arc(surf, ACCENT,
-                        pygame.Rect(ex - 4, by - 6, 8, 6),
+                        pygame.Rect(ex - 4, by - 5, 8, 5),
                         math.radians(200), math.radians(340), 3)
         pygame.draw.circle(surf, CREAM_W, (ex + 1, by - 1), 1)
 
     # Small dark nose with a gentle gloss, centred on the muzzle band.
-    _aaellipse(surf, ACCENT, (bx, by + 1), 3, 2)
-    pygame.draw.circle(surf, HIGH, (bx - 1, by), 1)
+    _aaellipse(surf, ACCENT, (bx, by + 3), 3, 2)
+    pygame.draw.circle(surf, HIGH, (bx - 1, by + 2), 1)
     # Gentle little smile.
     pygame.draw.arc(surf, ACCENT,
                     pygame.Rect(bx - 4, by + 1, 8, 7),
@@ -188,17 +194,17 @@ def build_autumn_monk(wing_angle_deg):
     _tail_arc(surf, bx, by + 4 + tip_dy, 21,
               math.radians(8), end_a,
               steps=24, width=10,
-              core=(140, 55, 28),
-              ring_ts=(0.45, 0.85), ring_r=7,
+              core=(105, 40, 18),
+              ring_ts=(0.60,), ring_r=7,
               fringe=False)
 
     # Bright cream-ringed terminal tip resting near the front-bottom centre.
     a = end_a
     tx = int(bx + math.cos(a) * 21)
     ty = int(by + 4 + tip_dy + math.sin(a) * 21)
-    pygame.draw.circle(surf, RUST,    (tx, ty), 9)
-    pygame.draw.circle(surf, CREAM_W, (tx, ty), 8)
-    pygame.draw.circle(surf, CREAM,   (tx + 1, ty + 1), 4)
+    pygame.draw.circle(surf, RUST,  (tx, ty), 7)
+    pygame.draw.circle(surf, CREAM, (tx, ty), 6)
+    pygame.draw.circle(surf, CREAM, (tx + 1, ty + 1), 3)
 
     return surf
 
