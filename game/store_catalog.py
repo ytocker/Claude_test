@@ -142,32 +142,38 @@ CATALOG: dict[str, dict] = {
     "skin_shades_cyber":   {"name": "CYBER VISOR",  "cost": 560, "kind": "skin", "group": "shades"},
 
     # ── PARCELS (the gift Pip carries below him; PARCEL_BASE is the free default) ─
-    # A tiered ladder from cheap everyday containers up to out-of-the-box
-    # spectacle pieces; the two priciest premiums are masked ??? until bought.
-    # NO PARCEL is the cheapest — the empty-handed look (mirrors NO SHADES); it
-    # only hides the sprite, Pip's parcel hitbox is unchanged so difficulty holds.
+    # Priced across the rarity bands so the tab is a proper pyramid, not a wall of
+    # commons: everyday mail/containers are COMMON (<400), the drinks + sports
+    # collectibles are RARE (400-799), the treasures are EPIC (800-2499), and the
+    # showpieces are LEGENDARY (>=2500). NO PARCEL is the cheapest — the empty-
+    # handed look (mirrors NO SHADES); it only hides the sprite, Pip's parcel
+    # hitbox is unchanged so difficulty holds.
+    # COMMON — everyday mail + basic containers
     "parcel_none":      {"name": "NO PARCEL",      "cost": 120,  "kind": "parcel", "group": "parcels"},
     "parcel_airmail":   {"name": "AIRMAIL",        "cost": 200,  "kind": "parcel", "group": "parcels"},
     "parcel_love":      {"name": "LOVE LETTER",    "cost": 240,  "kind": "parcel", "group": "parcels"},
     "parcel_postmark":  {"name": "POSTMARK",       "cost": 260,  "kind": "parcel", "group": "parcels"},
-    "parcel_takeout":   {"name": "TAKEOUT PAIL",   "cost": 280,  "kind": "parcel", "group": "parcels"},
-    "parcel_plastic":   {"name": "WATER BOTTLE",  "cost": 280,  "kind": "parcel", "group": "parcels"},
-    "parcel_tumbler":   {"name": "TUMBLER",       "cost": 340,  "kind": "parcel", "group": "parcels"},
-    "parcel_coconut":   {"name": "COCONUT",       "cost": 360,  "kind": "parcel", "group": "parcels"},
-    "parcel_picnic":    {"name": "PICNIC BASKET",  "cost": 380,  "kind": "parcel", "group": "parcels"},
-    "parcel_coin":      {"name": "GOLD COIN",      "cost": 300,  "kind": "parcel", "group": "parcels"},
-    "parcel_soccer":    {"name": "SOCCER BALL",    "cost": 300,  "kind": "parcel", "group": "parcels"},
-    "parcel_basketball": {"name": "BASKETBALL",    "cost": 320,  "kind": "parcel", "group": "parcels"},
-    "parcel_tennis":    {"name": "TENNIS BALL",    "cost": 340,  "kind": "parcel", "group": "parcels"},
-    "parcel_baseball":  {"name": "BASEBALL",       "cost": 360,  "kind": "parcel", "group": "parcels"},
-    "parcel_football":  {"name": "FOOTBALL",       "cost": 380,  "kind": "parcel", "group": "parcels"},
-    "parcel_minipip":   {"name": "MINI PIP",       "cost": 600,  "kind": "parcel", "group": "parcels"},
+    "parcel_takeout":   {"name": "TAKEOUT PAIL",   "cost": 290,  "kind": "parcel", "group": "parcels"},
+    "parcel_plastic":   {"name": "WATER BOTTLE",   "cost": 320,  "kind": "parcel", "group": "parcels"},
+    "parcel_picnic":    {"name": "PICNIC BASKET",  "cost": 370,  "kind": "parcel", "group": "parcels"},
+    # RARE — drinks + sports collectibles
+    "parcel_tumbler":   {"name": "TUMBLER",        "cost": 440,  "kind": "parcel", "group": "parcels"},
+    "parcel_coconut":   {"name": "COCONUT",        "cost": 500,  "kind": "parcel", "group": "parcels"},
+    "parcel_soccer":    {"name": "SOCCER BALL",    "cost": 560,  "kind": "parcel", "group": "parcels"},
+    "parcel_basketball": {"name": "BASKETBALL",    "cost": 600,  "kind": "parcel", "group": "parcels"},
+    "parcel_tennis":    {"name": "TENNIS BALL",    "cost": 640,  "kind": "parcel", "group": "parcels"},
+    "parcel_baseball":  {"name": "BASEBALL",       "cost": 690,  "kind": "parcel", "group": "parcels"},
+    "parcel_football":  {"name": "FOOTBALL",       "cost": 740,  "kind": "parcel", "group": "parcels"},
+    # EPIC — premium treasures
+    "parcel_coin":      {"name": "GOLD COIN",      "cost": 900,  "kind": "parcel", "group": "parcels"},
     "parcel_diamond":   {"name": "DIAMOND",        "cost": 1500, "kind": "parcel", "group": "parcels"},
+    # LEGENDARY — showpieces (the two secret premiums are masked ??? until bought)
     "parcel_chest":     {"name": "TREASURE CHEST", "cost": 2800, "kind": "parcel", "group": "parcels"},
-    "parcel_snowglobe": {"name": "SNOWGLOBE",      "cost": 9500, "kind": "parcel", "group": "parcels", "secret": True},
+    "parcel_minipip":   {"name": "MINI PIP",       "cost": 3500, "kind": "parcel", "group": "parcels"},
     # FINEST WHISKEY is a single mystery parcel: buying it rolls one of four
     # drams (decanter / scotch / bourbon / cask) at unlock, locked for good.
     "parcel_whiskey":   {"name": "FINEST WHISKEY", "cost": 9000, "kind": "parcel", "group": "parcels", "secret": True},
+    "parcel_snowglobe": {"name": "SNOWGLOBE",      "cost": 9500, "kind": "parcel", "group": "parcels", "secret": True},
 }
 
 
