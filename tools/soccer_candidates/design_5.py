@@ -89,8 +89,11 @@ def _paint(surf, _a):
         pygame.draw.line(surf, (200, 205, 220), (fx - 1, HY + 13), (fx + 2, HY + 13), 2)
 
     # --- 2 · BOOTS --------------------------------------------------------------
+    # A lighter toe highlight just above the boot keeps the boot from fusing into
+    # the dark sock above it at 40px.
     for fx in (HX - 9, HX + 1):
         pygame.draw.ellipse(surf, _BOOT_D, (fx - 4, HY + 23, 9, 5))
+        pygame.draw.line(surf, (120, 124, 140), (fx - 3, HY + 23), (fx + 3, HY + 23), 1)
         pygame.draw.line(surf, _BOOT_SOLE, (fx - 3, HY + 25), (fx + 3, HY + 25), 1)
 
     # --- 3 · GREY SHORTS --------------------------------------------------------
@@ -122,31 +125,36 @@ def _paint(surf, _a):
     pygame.draw.circle(surf, _HAT_POM_H, (HX - 3, CROWN_Y - 10), 2)
 
     # --- 6 · TEAM SCARF — hero prop, drawn LAST ---------------------------------
-    # A gold/purple two-tone scarf loops the neck, then V-splits into two fringed
-    # tails falling across the chest — the supporter's defining accessory, sitting
-    # proud over the striped jersey.
-    pygame.draw.line(surf, _SCARF_GOLD, (HX - 6, HY + 8), (HX + 6, HY + 8), 4)   # gold loop
-    pygame.draw.line(surf, _SCARF_PUR, (HX - 5, HY + 10), (HX + 5, HY + 10), 3)  # purple under-loop
+    # A two-tone scarf loops the neck, then V-splits into two FAT fringed tails
+    # that fan outward PAST the body silhouette — the supporter's defining
+    # accessory. Each tail is a 5px gold fill on a 7px dark outline so it stands
+    # proud of the red striped jersey; a purple neck loop reads against the red
+    # better than gold-on-red did.
+    pygame.draw.line(surf, _SCARF_PUR, (HX - 6, HY + 8), (HX + 6, HY + 8), 5)    # purple neck loop
+    pygame.draw.line(surf, _SCARF_GOLD, (HX - 5, HY + 10), (HX + 5, HY + 10), 3)  # gold under-loop
 
-    # LEFT TAIL — angling down-left, with alternating purple band ticks + fringe.
-    pygame.draw.line(surf, _SCARF_GOLD, (HX - 4, HY + 10), (HX - 10, HY + 22), 3)
-    for t in (3, 7, 11):
-        tt = t / 12.0
-        tx = int((HX - 4) + ((HX - 10) - (HX - 4)) * tt)
-        ty = (HY + 10) + t
-        pygame.draw.line(surf, _SCARF_PUR, (tx - 1, ty), (tx + 1, ty), 2)
-    for j in (0, 2, 4):
-        pygame.draw.line(surf, _SCARF_FRNG, (HX - 9 - j, HY + 22), (HX - 9 - j, HY + 24), 1)
+    _SCARF_DK = (60, 20, 80)  # dark outline that frames each fat tail off the jersey
 
-    # RIGHT TAIL — angling down-right, same alternating ticks + fringe.
-    pygame.draw.line(surf, _SCARF_GOLD, (HX + 1, HY + 10), (HX + 7, HY + 22), 3)
-    for t in (3, 7, 11):
-        tt = t / 12.0
-        tx = int((HX + 1) + ((HX + 7) - (HX + 1)) * tt)
-        ty = (HY + 10) + t
-        pygame.draw.line(surf, _SCARF_PUR, (tx - 1, ty), (tx + 1, ty), 2)
-    for j in (0, 2, 4):
-        pygame.draw.line(surf, _SCARF_FRNG, (HX + 6 + j, HY + 22), (HX + 6 + j, HY + 24), 1)
+    # LEFT TAIL — fans down-left past the body, dark-outlined gold with fat ticks.
+    pygame.draw.line(surf, _SCARF_DK,   (HX - 4, HY + 10), (HX - 14, HY + 22), 7)
+    pygame.draw.line(surf, _SCARF_GOLD, (HX - 4, HY + 10), (HX - 14, HY + 22), 5)
+    # Perpendicular purple band ticks (fat 3px) across the tail.
+    for t in (0.30, 0.65):
+        tx = int((HX - 4) + ((HX - 14) - (HX - 4)) * t)
+        ty = int((HY + 10) + (22 - 10) * t)
+        pygame.draw.line(surf, _SCARF_PUR, (tx - 3, ty - 1), (tx + 3, ty + 1), 3)
+    for j in (0, 3, 6):
+        pygame.draw.line(surf, _SCARF_FRNG, (HX - 11 - j, HY + 22), (HX - 12 - j, HY + 25), 1)
+
+    # RIGHT TAIL — fans down-right past the body, same fat ticks + fringe.
+    pygame.draw.line(surf, _SCARF_DK,   (HX + 1, HY + 10), (HX + 11, HY + 22), 7)
+    pygame.draw.line(surf, _SCARF_GOLD, (HX + 1, HY + 10), (HX + 11, HY + 22), 5)
+    for t in (0.30, 0.65):
+        tx = int((HX + 1) + ((HX + 11) - (HX + 1)) * t)
+        ty = int((HY + 10) + (22 - 10) * t)
+        pygame.draw.line(surf, _SCARF_PUR, (tx - 3, ty + 1), (tx + 3, ty - 1), 3)
+    for j in (0, 3, 6):
+        pygame.draw.line(surf, _SCARF_FRNG, (HX + 8 + j, HY + 22), (HX + 9 + j, HY + 25), 1)
 
 
 build = store_skins._make_skin(_paint)
