@@ -2,11 +2,12 @@
 
 Sly low-slung night-prowler. The read is built around the most distinct
 SILHOUETTE of the five: a long horizontal stretched-loaf body with the tail
-held straight out behind like a banded rudder, so the shape alone says
-"cat-burglar" even at gameplay scale. The tail is the hero — four hard,
-crisp cream / dark-russet blocks with dark separator seams, raccoon-style.
-Few wide bands at high value contrast so the banding stays legible at
-gameplay scale where more, softer cross-bands would mush together.
+held out behind with a slight upward hook, so the shape alone says
+"cat-burglar" even at gameplay scale. The tail is the hero — three bold,
+crisp cream / dark-russet blocks with dark separator seams, raccoon-style,
+pulled clear of the body so it reads as a separate banded plume. Few wide
+bands at high value contrast so the banding stays legible at gameplay scale
+where more, softer cross-bands would mush together.
 
 Palette runs slightly cooler/desaturated than the warm-day pandas and the
 top-back carries a moonlit blue-grey rim so the figure reads as lit by night
@@ -21,7 +22,7 @@ COMPOSITE_W = SPRITE_W   # 64
 COMPOSITE_H = 84
 DY          = 12
 BCX, BCY = 32, 32 + DY   # body centre (32, 44)
-HCX, HCY = 44, 22 + DY   # head centre (44, 34)
+HCX, HCY = 44, 20 + DY   # head centre (44, 32) — lifted 2px off the body
 CROWN_Y  = 12 + DY        # 24
 
 # Cooler / slightly desaturated dusk palette. Body shifted toward ash-brown
@@ -33,7 +34,7 @@ CREAM  = (234, 216, 188)  # #EAD8BC
 CREAM_D = (196, 178, 152)  # AO'd cream for under-side band shading
 # Tail russet alternate is pushed near-SHADOW dark so the two tail colours
 # carry high value contrast and survive banding at 40px.
-RUSSET_D = (122, 42, 22)  # #7A2A16  — dark russet for tail bands / split
+RUSSET_D = (100, 34, 18)  # #642212  — dark russet for tail bands / split
 # Mask lifted off near-black to a desaturated plum-charcoal so the bandit
 # band stays distinct from the (still-dark) ears + limbs instead of merging.
 ACCENT = (36, 26, 34)     # #241A22  — ears / limbs
@@ -70,19 +71,19 @@ def _flap(angle_deg):
 
 
 def _banded_tail(surf, f):
-    """Horizontal rudder behind the rump: 4 hard alternating cream/dark-russet
-    blocks with thin dark seams. Only 4 wide bands so the banding survives at
+    """Banded plume behind the rump: 3 hard alternating cream/dark-russet
+    blocks with thin dark seams. Only 3 wide bands so the banding survives at
     gameplay scale; the russet alternate is pushed near-SHADOW dark so the two
     band colours carry high value contrast. Sways ±2px at the tip with flap."""
-    # Root sits at the rump (left) and runs right behind the body. The tip
-    # tilts a touch with the flap (sway) and droops slightly at the very end.
+    # Root sits left of the rump, pulled clear of the body, and runs right. The
+    # tip tilts with the flap (sway) and hooks slightly UP at the very end.
     sway = int(round((f - 0.5) * 4))   # ±2px tip tilt across the flap arc
-    x0, x1 = 11, 53
+    x0, x1 = 8, 53                      # root pulled left, clear of the body
     y_root = BCY + 2
-    y_tip  = y_root + 3 + sway          # slight droop + flap sway at the tip
-    half_w = 5                          # ~9-10px tail thickness
+    y_tip  = y_root - 2 + sway          # gentle upturn (red-panda hook) + sway
+    half_w = 6                          # chunkier ~11-12px tail thickness
 
-    n = 4                               # few wide bands so they survive at 40px
+    n = 3                               # 3 bold bands so they survive at 40px
     seg = (x1 - x0) / n
 
     def band_y(x):
@@ -136,7 +137,7 @@ def _creep_legs(surf, f):
     """Low-creep pose: dark limbs extend slightly DOWN from the belly rather
     than tucking, so the bandit looks like it is prowling."""
     drop = int(7 - f * 3)              # legs reach further on the down-beat
-    for fx in (24, 40):
+    for fx in (26, 38):
         pygame.draw.line(surf, ACCENT, (fx, BCY + 9), (fx, BCY + 9 + drop), 4)
         pygame.draw.circle(surf, ACCENT, (fx, BCY + 9 + drop), 3)
         # Cream toe highlight above the dark tip so the bottom of each leg
@@ -182,14 +183,20 @@ def build_dusk_bandit(wing_angle_deg):
     hcx, hcy = HCX + 1, HCY + 1
     _aaellipse(surf, SHADOW, (hcx + 1, hcy + 2), 10, 9)
     _aaellipse(surf, BODY,   (hcx, hcy), 10, 9)
+    # Neck-chin shadow notch so the head doesn't fuse with the body at 40px.
+    pygame.draw.circle(surf, SHADOW, (hcx + 1, hcy + 8), 3)
     # Forward muzzle wedge — pushes the face down-and-forward (sneaky tilt).
     _aaellipse(surf, BODY,   (hcx + 6, hcy + 3), 5, 4)
     _aaellipse(surf, HILITE, (hcx - 2, hcy - 4), 4, 2)
 
     # Rounded dark ears (more round than pointed), low on the crown.
     for ex, sgn in ((hcx - 7, -1), (hcx + 6, +1)):
-        pygame.draw.circle(surf, ACCENT, (ex, CROWN_Y + 4), 5)
+        # Thin russet outer ring, then a darker inner ear, so ACCENT is reserved
+        # for the small darkest inner pupil rather than swallowing the whole ear.
+        pygame.draw.circle(surf, BODY, (ex, CROWN_Y + 4), 5)
         pygame.draw.circle(surf, SHADOW, (ex + sgn, CROWN_Y + 5), 2)
+        # Pale inner fleck, offset toward head centre, for an inner-ear catchlight.
+        pygame.draw.circle(surf, CREAM_D, (ex + sgn * 2, CROWN_Y + 6), 2)
 
     # --- True bandit mask: ONE charcoal-plum band across both eyes FIRST,
     # lifted off near-black so it stays distinct from the (darker) ears + limbs
