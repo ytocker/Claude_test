@@ -1,4 +1,4 @@
-"""Round-1 review sheet for TENNIS DESIGN 4 — RETRO '70s (vintage cream).
+"""Review sheet for TENNIS DESIGN 4 — RETRO '70s (vintage cream).
 
 In-gameplay product shot for the retro-tennis candidate: Pip mid-flight over a
 real biome scene (DAY + NIGHT), a clean hero panel, and the 40px NEAREST truth
@@ -6,7 +6,9 @@ read (the size the costume actually has to survive in motion), both phases.
 Pure capture — touches no production art (the candidate is a scratch builder
 under tools/tennis_candidates/).
 
-Run headless from repo root:
+Hero + 40px panels scale with NEAREST (no smoothscale) so the review judges the
+exact pixels the costume ships as, not a re-smoothed image. Run headless from
+repo root:
 ``SDL_VIDEODRIVER=dummy python tools/render_tennis_design_4.py``.
 """
 from __future__ import annotations
@@ -50,18 +52,34 @@ def gameplay_panel_phase(source, w, h, phase, *, frame_idx=nr.FRAME_IDX, tilt=nr
     return pygame.transform.smoothscale(scene.subsurface(crop).copy(), (w, h))
 
 
+def hero_panel_nearest(source, box, *, frame_idx=nr.FRAME_IDX, tilt=0.0, bg=(22, 20, 32)):
+    """Hero product shot, but the bird is integer-NEAREST-scaled so the panel
+    shows the exact procedural pixels (no smoothscale blur masking the read)."""
+    panel = pygame.Surface((box, box), pygame.SRCALPHA)
+    pygame.draw.rect(panel, bg, panel.get_rect(), border_radius=14)
+    frame = nr._frame(source, frame_idx, tilt)
+    bb = frame.get_bounding_rect()
+    if bb.width and bb.height:
+        frame = frame.subsurface(bb).copy()
+    sw, sh = frame.get_size()
+    factor = max(1, int((box * 0.82) / max(sw, sh)))
+    frame = pygame.transform.scale(frame, (sw * factor, sh * factor))
+    panel.blit(frame, frame.get_rect(center=(box // 2, box // 2)))
+    return panel
+
+
 def truth_read(source, bg, *, frame_idx=nr.FRAME_IDX, tilt=nr.TILT):
-    """The 40px NEAREST-downscale read — what the costume actually looks like in
-    motion in the store grid / in flight, on a flat phase-tinted card."""
+    """The 40px NEAREST truth read — what the costume actually looks like in
+    motion in the store grid / in flight, on a flat phase-tinted card. NEAREST
+    on both the downscale and the blow-up so we judge the honest 40px pixels."""
     frame = nr._frame(source, frame_idx, tilt)
     bb = frame.get_bounding_rect()
     if bb.width and bb.height:
         frame = frame.subsurface(bb).copy()
     sw, sh = frame.get_size()
     scale = 40 / max(sw, sh)
-    small = pygame.transform.smoothscale(
+    small = pygame.transform.scale(
         frame, (max(1, int(sw * scale)), max(1, int(sh * scale))))
-    # NEAREST blow-up so we judge the exact 40px pixels, not a re-smoothed image.
     big = pygame.transform.scale(small, (small.get_width() * 4, small.get_height() * 4))
     card = pygame.Surface((176, 176), pygame.SRCALPHA)
     pygame.draw.rect(card, bg, card.get_rect(), border_radius=12)
@@ -108,7 +126,7 @@ for ri, (name, phase, hero_bg) in enumerate(ROWS):
     sheet.blit(gp, (x, yp))
     x += PANEL_W + GUTTER
 
-    hp = nr.hero_panel(SRC, HERO, tilt=0.0, bg=hero_bg)
+    hp = hero_panel_nearest(SRC, HERO, tilt=0.0, bg=hero_bg)
     sheet.blit(hp, (x, yp))
     x += HERO + GUTTER
 
@@ -117,7 +135,7 @@ for ri, (name, phase, hero_bg) in enumerate(ROWS):
     sheet.blit(_font(13, True).render("40px truth", True, (150, 150, 170)),
                (x, yp + TRUTH + 4))
 
-out = os.path.join("docs", "store_redesign", "costume", "tennis", "design_4", "round_1.png")
+out = os.path.join("docs", "store_redesign", "costume", "tennis", "design_4", "round_2.png")
 os.makedirs(os.path.dirname(out), exist_ok=True)
 pygame.image.save(sheet, out)
 print("SAVED", out, sheet.get_size())
