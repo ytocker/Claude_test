@@ -27,6 +27,6 @@ sheet.blit(day_bg,    (PAD+260+PAD+200+PAD, PAD+100))
 sheet.blit(night_bg,  (PAD+260+PAD+200+PAD, PAD+208))
 
 os.makedirs("docs/store_redesign/costume/soccer/design_2", exist_ok=True)
-out = "docs/store_redesign/costume/soccer/design_2/round_1.png"
+out = "docs/store_redesign/costume/soccer/design_2/round_2.png"
 pygame.image.save(sheet, out)
 print("SAVED", out, sheet.get_size())

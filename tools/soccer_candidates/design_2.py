@@ -81,26 +81,30 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _GK_FOLD, (BCX, HY + 7), (BCX, HY + 23), 1)
     pygame.draw.polygon(surf, _GK_OUTLINE, jersey, 1)
 
-    # ── 5. GOALKEEPER GLOVES — the hero prop, drawn LAST so the catch pose sits in
-    #    front of the jersey. Two small (8x10) bright gloves, one per wing.
+    # ── 5. GOALKEEPER GLOVES — the hero prop, drawn LAST and OFF the body so each
+    #    mitt breaks the green silhouette. The asymmetry is the read: the far hand
+    #    is RAISED in a catch pose (upper-left, clearing the body to break the
+    #    outline), the near hand is DROPPED LOW at hem level (lower-right). ~15px of
+    #    vertical separation between the two centres sells the keeper stance.
 
-    # FAR (LEFT) glove — raised catch pose.
-    gx, gy = HX - 10, HY + 14
-    pygame.draw.rect(surf, _GLOVE_D, (gx - 5, gy - 6, 9, 11))          # shadow
-    pygame.draw.rect(surf, _GLOVE_Y, (gx - 4, gy - 6, 8, 10))          # main
-    for fy in (gy - 4, gy - 2, gy):                                    # finger lines
-        pygame.draw.line(surf, _GLOVE_D, (gx - 3, fy), (gx + 3, fy), 1)
-    pygame.draw.line(surf, _GLOVE_W, (gx - 3, gy - 6), (gx + 3, gy - 6), 2)  # knuckle
-    pygame.draw.line(surf, _GLOVE_H, (gx - 3, gy - 5), (gx + 2, gy - 5), 1)  # highlight
+    def _mitt(ex, ey, ew, eh):
+        # A rounded catch mitt: filled ellipse body, three horizontal finger ridges
+        # so it reads as fingers not a flat patch, and a white knuckle bar on top.
+        pygame.draw.ellipse(surf, _GLOVE_D, (ex - 1, ey + 1, ew + 2, eh + 1))  # shadow
+        pygame.draw.ellipse(surf, _GLOVE_Y, (ex, ey, ew, eh))                  # body
+        cx = ex + ew // 2
+        for fy in (ey + eh // 4, ey + eh // 2, ey + (3 * eh) // 4):            # ridges
+            pygame.draw.line(surf, _GLOVE_D, (ex + 2, fy), (ex + ew - 2, fy), 1)
+        pygame.draw.line(surf, _GLOVE_W, (ex + 1, ey + 1), (ex + ew - 1, ey + 1), 2)  # knuckle
+        pygame.draw.line(surf, _GLOVE_H, (ex + 2, ey + 3), (cx + 1, ey + 3), 1)       # highlight
 
-    # NEAR (RIGHT) glove — relaxed lower pose.
-    gx, gy = HX + 5, HY + 17
-    pygame.draw.rect(surf, _GLOVE_D, (gx - 5, gy - 6, 9, 11))          # shadow
-    pygame.draw.rect(surf, _GLOVE_Y, (gx - 4, gy - 6, 8, 10))          # main
-    for fy in (gy - 4, gy - 2, gy):                                    # finger lines
-        pygame.draw.line(surf, _GLOVE_D, (gx - 3, fy), (gx + 3, fy), 1)
-    pygame.draw.line(surf, _GLOVE_W, (gx - 3, gy - 6), (gx + 3, gy - 6), 2)  # knuckle
-    pygame.draw.line(surf, _GLOVE_H, (gx - 3, gy - 5), (gx + 2, gy - 5), 1)  # highlight
+    # FAR (LEFT) glove — RAISED catch pose, centre ~(HX-12, HY+7); upper band
+    # y≈HY+3..14, left and below the sunglasses so it never collides with the eye.
+    _mitt(HX - 16, HY + 3, 10, 12)
+
+    # NEAR (RIGHT) glove — DROP-LOW pose, centre ~(HX+7, HY+22); lower band
+    # y≈HY+18..29 near the hem, giving genuine vertical separation from the far hand.
+    _mitt(HX + 3, HY + 18, 10, 12)
 
 
 build = store_skins._make_skin(_paint)
