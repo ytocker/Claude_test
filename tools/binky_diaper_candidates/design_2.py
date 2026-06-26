@@ -1,14 +1,16 @@
-"""DESIGN 2 — PUFFY DISPOSABLE: the bulky modern nappy.
+"""DESIGN 2 — PUFFY DISPOSABLE: the bulky modern nappy, worn not stuck on.
 
-Reads as a worn padded disposable on the rump + lower belly: a raised ribbed
-waistband, a fat cream lobe bulging past the belly contour, and scalloped
-leg-cuff gathers around each leg opening. The leg openings stay above the leg
-roots (y65) so the legs poke out below — never a tub Pip sits in.
+The make-or-break read is two legs sticking out BELOW a banded cream nappy, so
+the cloth is built as an underside BAND that curves from the back rump around
+the belly's UNDERSIDE to the front hip — its lowest/widest bulk pooling at the
+underside (not centred on the belly face). The bottom edge stops at ~y63 so the
+locked base's feet (y65-69) poke out clean beneath it.
 
-The leg-cuff ruffle is the diaper tell, so it is kept hard (>=2px) and shaded
-in powder so it survives the 40px shrink. The cream lobe always carries a
-powder underside arc + seam so it holds value against the navy night sky;
-the lit white waistband carries the day read.
+Two real diaper tells replace the old gift-box "+" seam: a chunky lit waistband
+ribbing the TOP, and powder leg-cuff gathers notching each leg root. Bulk is
+sold by puffing the silhouette proud of the belly contour with a pooled powder
+shadow under the heaviest point — shape, not lines — so "padded disposable"
+survives the 40px shrink. Cream-only; the pacifier keeps the whole pink budget.
 """
 from __future__ import annotations
 import pygame
@@ -18,46 +20,43 @@ from tools.binky_diaper_candidates._shared import (
 
 
 def _diaper(surf):
-    # Padded body first, then the band/cuffs on top, so the cuff ruffles and
-    # the lit waistband read crisp over the fill.
+    # Painted bulk first, tells (waistband + cuffs) on top so they stay crisp.
 
-    # Deep underside shadow sells the bulk; sits low (y60-63) and slightly wide
-    # so the silhouette puffs past the belly contour without reaching the legs.
-    pygame.draw.ellipse(surf, _BB_DIAP_LN, (15, 54, 28, 10))
-    pygame.draw.ellipse(surf, _BB_DIAP_SH, (16, 56, 26, 8))
+    # Pooled powder shadow under the heaviest underside point (~x28,y62): a low,
+    # wide arc that reads as the padded mass bulging ~2px proud of the belly
+    # contour, and holds the garment's value against the navy night sky. Kept
+    # above y63 so it never tints the legs the base draws beneath.
+    pygame.draw.ellipse(surf, _BB_DIAP_SH, (16, 55, 26, 8))
 
-    # Fat rounded cream lobe — the bulging padded body, x16-42 / y54-63.
-    pygame.draw.ellipse(surf, _BB_DIAP, (16, 54, 26, 8))
-    pygame.draw.ellipse(surf, _BB_DIAP, (18, 56, 22, 7))
+    # The cream band itself — a wrapped underside crescent, NOT a belly patch.
+    # Top edge flat at the waistband (y53), bottom bulging low and wide at the
+    # underside (y62), so the lowest/heaviest bulk pools beneath the belly
+    # rather than sitting centred on the belly face.
+    pygame.draw.ellipse(surf, _BB_DIAP, (17, 52, 25, 11))   # back-to-front wrap
+    pygame.draw.ellipse(surf, _BB_DIAP, (21, 55, 18, 8))    # over-stuffed lobe
+    # Flat-top the fill to the band so the waistband — not the ellipse crown —
+    # is the cloth's top edge, keeping the powder-blue bib gap open above.
+    pygame.draw.rect(surf, _BB_DIAP, (18, 53, 23, 3))
 
-    # Chunky raised ribbed waistband (x17-41, y51-54): line stack reads as a
-    # 3px band even after the shrink. Powder base, cream core, lit white top.
-    pygame.draw.line(surf, _BB_DIAP_LN, (17, 53), (41, 53), 4)
-    pygame.draw.line(surf, _BB_DIAP, (17, 52), (41, 52), 3)
-    pygame.draw.line(surf, _BB_DIAP_HI, (18, 51), (40, 51), 1)
-    # Stretchy-tape ribbing ticks.
-    for tx in (23, 29, 35):
-        pygame.draw.line(surf, _BB_DIAP_LN, (tx, 51), (tx, 53), 1)
+    # (a) WAISTBAND across the top (x18-40, y51-54): chunky 3px with a lit white
+    # top edge + one rib line, the brightest cloth edge — it orients the whole
+    # garment on day sky and tops the diaper like a real elastic band. Drawn
+    # last over the fill so the lit run survives.
+    pygame.draw.line(surf, _BB_DIAP,    (18, 54), (40, 54), 1)   # band core
+    pygame.draw.line(surf, _BB_DIAP_LN, (18, 53), (40, 53), 1)   # rib line
+    pygame.draw.line(surf, _BB_DIAP,    (18, 52), (40, 52), 1)   # band core
+    pygame.draw.line(surf, _BB_DIAP_HI, (19, 51), (39, 51), 1)   # lit top edge
 
-    # Front resealable tape tab at the hip (x38-41, y55-57), one darker edge.
-    pygame.draw.rect(surf, _BB_DIAP_HI, (38, 55, 3, 3))
-    pygame.draw.line(surf, _BB_DIAP_LN, (41, 55), (41, 57), 1)
-
-    # Leg-cuff gathers — the signature tell. Scalloped powder arcs around each
-    # leg opening, kept hard at 2px so they survive 40px. Openings sit at y63-65,
-    # above the leg roots, so legs emerge below.
-    for ox in (24, 33):
-        # back-to-front pair of 2px scallop bumps per opening
-        pygame.draw.arc(surf, _BB_DIAP_SH,
-                        (ox, 61, 4, 5), 3.5, 6.0, 2)
-        pygame.draw.arc(surf, _BB_DIAP_SH,
-                        (ox + 2, 61, 4, 5), 3.5, 6.0, 2)
-        # powder shade tucked under each opening so the leg reads as poking out
-        pygame.draw.line(surf, _BB_DIAP_SH, (ox + 1, 64), (ox + 4, 64), 1)
-
-    # Centre crotch seam keeps the lobe from voiding to a flat blob on navy.
-    pygame.draw.line(surf, _BB_DIAP_LN, (29, 56), (29, 62), 1)
-    pygame.draw.line(surf, _BB_DIAP_SH, (28, 57), (28, 61), 1)
+    # (b) LEG-CUFF gathers at the bottom corners — the other half of the
+    # "diaper not gift-box" signal. Powder scalloped arcs hug each leg root so
+    # the hem reads gathered, not a flat box edge; a 1px notch backs each so
+    # the tell survives even when the 2px scallop blurs at 40px.
+    for lx in (24, 33):
+        pygame.draw.arc(surf, _BB_DIAP_SH, (lx, 60, 5, 5), 3.4, 6.1, 2)
+        pygame.draw.line(surf, _BB_DIAP_SH, (lx + 1, 62), (lx + 3, 62), 1)
+    # Front-hip tape tab anchors the band to the right edge of the wrap.
+    pygame.draw.rect(surf, _BB_DIAP_HI, (38, 53, 3, 3))
+    pygame.draw.line(surf, _BB_DIAP_LN, (40, 53), (40, 55), 1)
 
 
 build = make_binky_build(_diaper)
