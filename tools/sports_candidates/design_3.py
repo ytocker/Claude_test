@@ -75,14 +75,15 @@ def _paint(surf, _a):
 
     # ── HELMET — the HERO. A rounded navy SHELL domes over the head (rising above
     #    CROWN_Y, the only element allowed to), three-valued so the curve reads as a
-    #    hard shell. The shell brow drops to a JAW that sweeps forward past the cheek
-    #    to meet the cage, so the facemask reads as bolted to the shell, not floating.
+    #    hard shell. Crucially the shell BROW stops ABOVE the beak and the jaw sweeps
+    #    BACK to the throat — leaving a FACE OPENING where the beak pokes out, exactly
+    #    where a real helmet frames the face. The cage then clamps over that open beak.
     hcx, hcy = HX + 1, HY - 2
-    # Shell mass: domed top + a jaw that sweeps DOWN-AND-FORWARD to the cheek so the
-    # cage bolts onto solid shell (never hanging in open air). Shadow underlay first.
+    # Shell mass: domed top, a brow that ends above the beak (hcx+13, hcy+2), then the
+    # jaw curves DOWN-AND-BACK to the throat so the beak/lower-face stays uncovered.
     shell = [(hcx - 12, hcy + 8), (hcx - 13, hcy - 3), (hcx - 8, hcy - 12),
-             (hcx + 4, hcy - 14), (hcx + 13, hcy - 9), (hcx + 16, hcy - 2),
-             (hcx + 15, hcy + 4), (hcx + 9, hcy + 9), (hcx + 1, hcy + 9),
+             (hcx + 4, hcy - 14), (hcx + 13, hcy - 9), (hcx + 14, hcy - 4),
+             (hcx + 13, hcy + 2), (hcx + 7, hcy + 6), (hcx, hcy + 10),
              (hcx - 4, hcy + 12)]
     _poly(surf, _GR_NAVY_D, [(x, y + 1) for x, y in shell])
     _poly(surf, _GR_NAVY, shell)
@@ -95,42 +96,40 @@ def _paint(surf, _a):
     pygame.draw.circle(surf, _GR_NAVY_D, (hcx - 6, hcy + 3), 3)
     pygame.draw.circle(surf, _GR_BLACK, (hcx - 6, hcy + 3), 1)
 
-    # ── A hint of Pip behind the mask: the near eye showing UNDER the shell brow and
-    #    ABOVE the cage, so the parrot stays legible and the player reads "athlete."
-    #    Drawn BEFORE the cage so the lower bars read as passing in front of the face.
-    ex, ey = hcx + 7, hcy + 1
+    # ── FACE in the helmet opening: redraw the BEAK so it clearly pokes out of the
+    #    shell brow (the base beak may be partly painted over), plus the eye just under
+    #    the brow. The beak is what the cage clamps over, so it must read first.
+    # Beak (composite of base beak_pts shifted +PARROT_DY): a small hooked horn poking
+    # right out of the face opening.
+    beak = [(hcx + 7, hcy + 1), (hcx + 13, hcy + 4), (hcx + 10, hcy + 8),
+            (hcx + 4, hcy + 6)]
+    _poly(surf, (236, 168, 58), beak)                 # warm beak so it reads as face
+    pygame.draw.polygon(surf, (150, 96, 24), beak, 1)
+    # Eye just under the brow, above the beak — the hint of Pip.
+    ex, ey = hcx + 5, hcy - 1
     pygame.draw.circle(surf, _GR_WHITE, (ex, ey), 2)
     pygame.draw.circle(surf, (30, 26, 34), (ex + 1, ey), 1)
-
-    # ── FACEMASK — a DARK-FRAMED CAGE wrapping the FRONT of the face OVER THE BEAK:
-    #    the hero gridiron tell. It hangs from the shell jaw and reaches forward across
-    #    the beak, so it reads as "a cage on the face," not a box beside the head.
-    #    Read recipe at 40px: a solid near-black frame field (the cage shadow + the
-    #    dark gaps that DEFINE a facemask) with TWO clearly-horizontal bright bars +
-    #    ONE vertical post laid across it. Kept boldly horizontal so the bars never
-    #    tangle into a hook at the downscale.
-    # Cage field: a near-black trapezoid SEATED on the forward shell face, hung under
-    # the brow and reaching forward across the beak. It stays INSIDE the shell jaw so
-    # it never floats in open air. The beak pokes into the open lower gap → "cage on
-    # the face." Slightly taller at the back (cheek) so it follows the face line.
-    cheek_x, beak_x = hcx + 3, hcx + 15     # cage rides the shell face, over the beak
-    top_y, bot_y = hcy + 2, hcy + 9
-    field = [(cheek_x - 1, top_y - 1), (beak_x, top_y),
-             (beak_x, bot_y - 1), (cheek_x - 1, bot_y)]
-    pygame.draw.polygon(surf, _GR_FRAME, field)
-    # TWO bright, clearly-horizontal bars spanning the full cage width with a dark gap
-    # between — the unmistakable facemask read. Upper bar sits just under the eye; the
-    # lower bar crosses the front of the beak.
-    pygame.draw.line(surf, _GR_MASK, (cheek_x, top_y + 1), (beak_x - 1, top_y + 1), 2)
-    pygame.draw.line(surf, _GR_MASK, (cheek_x, bot_y - 2), (beak_x - 1, bot_y - 2), 2)
-    # ONE vertical post near the beak tip tying the bars; the dark field shows through
-    # as the cage gaps either side of it.
-    pygame.draw.line(surf, _GR_MASK, (beak_x - 2, top_y + 1), (beak_x - 2, bot_y - 1), 2)
-    # A short back post at the cheek where the cage bolts to the shell — sells "attached
-    # to the helmet," not floating.
-    pygame.draw.line(surf, _GR_MASK, (cheek_x, top_y + 1), (cheek_x, bot_y - 1), 1)
-    # EYE-BLACK smudge just under the showing eye — the athlete tell, kept off the cage.
+    # EYE-BLACK smudge just under the eye — the athlete tell.
     pygame.draw.line(surf, _GR_BLACK, (ex - 1, ey + 2), (ex + 2, ey + 2), 1)
+
+    # ── FACEMASK — a SMALL CAGE clamped over the BEAK, the hero gridiron tell. It is
+    #    sized to the beak so the beak reads THROUGH the bars (cage on the face), never
+    #    a box beside the head. Mostly DARK FRAME: a thin near-black ring with SHORT
+    #    thin grey bars; the bright fill is killed so the dark gaps read as the cage.
+    #    Bars angle down-and-forward to follow the front of the face over the beak.
+    bx0, bx1 = hcx + 5, hcx + 13        # tight to the beak, x≈53..61
+    by0, by1 = hcy + 1, hcy + 8         # over the beak body, y≈40..47
+    # Thin near-black perimeter ring tight to the beak (NOT a filled block) so the beak
+    # reads through the open interior.
+    pygame.draw.lines(surf, _GR_FRAME, True,
+                      [(bx0, by0), (bx1, by0 + 1), (bx1 - 1, by1),
+                       (bx0 - 1, by1 - 1)], 1)
+    # TWO short grey bars across the beak, angled down-and-forward, with a clear dark
+    # gap between — the cage read. Thin (1px) light accents in a dark frame.
+    pygame.draw.line(surf, _GR_MASK, (bx0, by0 + 2), (bx1 - 1, by0 + 3), 1)
+    pygame.draw.line(surf, _GR_MASK, (bx0, by1 - 2), (bx1 - 1, by1 - 1), 1)
+    # ONE short vertical post near the beak tip tying the bars; dark gaps either side.
+    pygame.draw.line(surf, _GR_MASK, (bx1 - 2, by0 + 2), (bx1 - 2, by1 - 1), 1)
 
 
 build = store_skins._make_skin(_paint)
