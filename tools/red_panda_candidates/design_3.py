@@ -3,7 +3,8 @@
 A serene plush dumpling: head and body merged into one near-perfect sphere
 with a giant ringed tail wrapping from behind, around the right, and forward
 across the lower body to frame the face. The cozy zen read comes from the
-half-lidded eyes, puffed cream cheeks, and the velvety 4-layer sphere shading.
+sleepy lid-arcs, a single peanut-shaped cream face-mask, and the layered
+sphere shading.
 
 Self-contained scratch builder (not registered in store_skins.BUILDERS).
 Exposes ``build`` for tools/ninja_render.py, same contract as the other
@@ -41,8 +42,8 @@ def _tail_arc(surf, tcx, tcy, r, a0, a1, steps, width,
     """Lay a thick plush tube along a circular arc and stamp concentric
     cream scarf-bands at the given arc fractions. ``ring_ts`` are 0..1
     positions along the arc where a cream disc is centred; ``ring_r`` sets
-    band thickness. ``fringe`` adds short fur strokes on the outer edge for
-    the velvet feel the brief asks for."""
+    band thickness. The tube core is kept darker than the body so the wrap
+    reads as one continuous mass against the sphere."""
     span = a1 - a0
 
     # Seam undercoat so the tube has a soft dark core where bands sit.
@@ -129,9 +130,10 @@ def build_autumn_monk(wing_angle_deg):
     # arcs over behind the head. Drawn first so the body sits in front of it.
     _tail_arc(surf, bx + 1, by + 4, 23,
               math.radians(78), math.radians(-118),
-              steps=30, width=8,
-              ring_ts=(0.20, 0.46, 0.74),
-              fringe=True, fringe_dir=1)
+              steps=30, width=11,
+              core=(140, 55, 28),
+              ring_ts=(0.40, 0.78), ring_r=7,
+              fringe=False)
 
     # --- BODY / HEAD SPHERE (4-layer radial shade) -----------------------
     # Shadow base, offset down-right for the light-from-upper-left read.
@@ -140,34 +142,27 @@ def build_autumn_monk(wing_angle_deg):
     _aaellipse(surf, AO,     (bx + 2, by + 9), R - 2, R - 6)
     # Main plush body.
     _aaellipse(surf, BODY,   (bx, by, ), R, R)
-    # Mid-highlight breast, up-left.
-    _aaellipse(surf, HIGH,   (bx - 6, by - 5), R - 8, R - 9)
-    # Small bright forehead gloss.
-    _aaellipse(surf, CREAM_W, (bx - 7, by - 11), 4, 3)
+    # Mid-highlight breast, tightened to top-centre of the sphere.
+    _aaellipse(surf, HIGH,   (bx - 2, by - 6), 8, 5)
+    # Subtle forehead gloss — a single small bright dot, not a stray patch.
+    pygame.draw.circle(surf, CREAM_W, (bx - 3, by - 10), 3)
 
     # Ears — low and rounded, sitting on the upper sphere.
     _ear(surf, bx - 9, CROWN_Y + 2, flip=-1)
     _ear(surf, bx + 9, CROWN_Y + 2, flip=1)
 
     # --- FACE -------------------------------------------------------------
-    # Wide puffed cream cheek patches framing the lower face.
-    _aaellipse(surf, CREAM, (bx - 9, by + 2), 8, 7)
-    _aaellipse(surf, CREAM, (bx + 9, by + 2), 8, 7)
-    # A cream muzzle band bridging the cheeks under the nose.
-    _aaellipse(surf, CREAM, (bx, by + 5), 7, 5)
+    # One peanut-shaped cream mask: two overlapping ellipses fuse into a
+    # single wide cheeks+muzzle field that reads cleanly at thumbnail size.
+    _aaellipse(surf, CREAM, (bx - 4, by + 1), 9, 8)
+    _aaellipse(surf, CREAM, (bx + 4, by + 1), 9, 8)
 
-    # Warm rust tear-tracks dropping from each eye into the cheeks.
-    pygame.draw.line(surf, RUST, (bx - 6, by - 4), (bx - 7, by + 3), 2)
-    pygame.draw.line(surf, RUST, (bx + 6, by - 4), (bx + 7, by + 3), 2)
-
-    # Half-lidded sleepy eyes — narrow slits, not wide ovals.
+    # Sleepy eyes — one drooping dark lid-arc per side with a single gleam.
     for ex in (bx - 6, bx + 6):
-        # Soft lid shadow above the slit.
-        _aaellipse(surf, SHADOW, (ex, by - 5), 3, 3)
-        _aaellipse(surf, BODY,   (ex, by - 6), 3, 2)
-        # The slit itself: a flat dark dash with a tiny lower gleam.
-        pygame.draw.line(surf, ACCENT, (ex - 3, by - 4), (ex + 3, by - 4), 2)
-        pygame.draw.circle(surf, CREAM_W, (ex + 1, by - 4), 1)
+        pygame.draw.arc(surf, ACCENT,
+                        pygame.Rect(ex - 4, by - 6, 8, 6),
+                        math.radians(200), math.radians(340), 3)
+        pygame.draw.circle(surf, CREAM_W, (ex + 1, by - 1), 1)
 
     # Small dark nose with a gentle gloss, centred on the muzzle band.
     _aaellipse(surf, ACCENT, (bx, by + 1), 3, 2)
@@ -192,17 +187,18 @@ def build_autumn_monk(wing_angle_deg):
     end_a = math.radians(212 + (-perk * 6))
     _tail_arc(surf, bx, by + 4 + tip_dy, 21,
               math.radians(8), end_a,
-              steps=24, width=8,
-              ring_ts=(0.30, 0.62, 0.90),
-              fringe=True, fringe_dir=1)
+              steps=24, width=10,
+              core=(140, 55, 28),
+              ring_ts=(0.45, 0.85), ring_r=7,
+              fringe=False)
 
     # Bright cream-ringed terminal tip resting near the front-bottom centre.
     a = end_a
     tx = int(bx + math.cos(a) * 21)
     ty = int(by + 4 + tip_dy + math.sin(a) * 21)
-    pygame.draw.circle(surf, RUST,    (tx, ty), 7)
-    pygame.draw.circle(surf, CREAM_W, (tx, ty), 6)
-    pygame.draw.circle(surf, CREAM,   (tx + 1, ty + 1), 3)
+    pygame.draw.circle(surf, RUST,    (tx, ty), 9)
+    pygame.draw.circle(surf, CREAM_W, (tx, ty), 8)
+    pygame.draw.circle(surf, CREAM,   (tx + 1, ty + 1), 4)
 
     return surf
 
