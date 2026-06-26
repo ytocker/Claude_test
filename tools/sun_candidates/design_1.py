@@ -32,9 +32,9 @@ def build_sun(wing_angle_deg):
     _radial_body(surf, cx, cy, r, core, mid, edge)
     _aaellipse(surf, _shade(CORE, bf * 1.06), (cx - 1, cy - 1), r - 7, r - 7)
 
-    # Cheerful sun-face.
-    _sun_face(surf, cx, cy, eye_dx=6, eye_r=4, iris=(90, 50, 18),
-              mouth="smile", blush=(255, 170, 120))
+    # Cheerful sun-face — calm small eyes pulled in, recentred up, clear grin.
+    _sun_face(surf, cx, cy - 1, eye_dx=5, eye_r=3, iris=(70, 40, 16),
+              mouth="grin", blush=(255, 150, 120))
     return surf
 
 

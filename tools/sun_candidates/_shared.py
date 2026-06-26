@@ -41,6 +41,37 @@ def _new():
     return pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
 
 
+def _make_glow_skin(build_fn, glow_fn):
+    """Like `_make_prebuilt_skin`, but composites a translucent bloom UNDERNEATH
+    the outlined sun so `_add_outline` (threshold=8) never stamps a dark halo
+    ring around the soft glow. `build_fn(angle)` draws the OPAQUE sun (no glow);
+    `glow_fn(angle)` returns a 64×84 bloom layer drawn behind it."""
+    state = {"frames": None, "rot": {}}
+
+    def getter(frame_idx, tilt_deg):
+        if state["frames"] is None:
+            frames = []
+            for a in _WING_ANGLES:
+                outlined = _add_outline(build_fn(a))
+                ow, oh = outlined.get_size()
+                res = pygame.Surface((ow, oh), pygame.SRCALPHA)
+                glow = glow_fn(a)
+                res.blit(glow, glow.get_rect(center=(ow // 2, oh // 2)))
+                res.blit(outlined, (0, 0))
+                frames.append(res)
+            state["frames"] = frames
+        frames = state["frames"]
+        frame_idx %= len(frames)
+        key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
+        s = state["rot"].get(key)
+        if s is None:
+            s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
+            state["rot"][key] = s
+        return s
+
+    return getter
+
+
 def _flap(angle_deg):
     return (angle_deg + 40) / 90.0
 
@@ -148,13 +179,15 @@ def _sun_face(surf, cx, cy, *, eye_dx=6, eye_r=4, iris=(80, 44, 16),
         pygame.draw.circle(surf, blush, (cx + eye_dx + 2, cy + 4), 2)
     _eye(surf, cx - eye_dx, cy, eye_r, iris=iris)
     _eye(surf, cx + eye_dx, cy, eye_r, iris=iris)
-    my = cy + 7
+    my = cy + 6
+    # Upward-opening grins (the arc spans the BOTTOM half of its box so it curves
+    # up at the corners — an unambiguous happy mouth at 40px).
     if mouth == "smile":
-        pygame.draw.arc(surf, (120, 60, 30), (cx - 5, my - 4, 10, 8), 3.5, 6.0, 2)
+        pygame.draw.arc(surf, (110, 64, 34), (cx - 6, my - 5, 12, 9), 3.45, 6.0, 2)
     elif mouth == "grin":
-        pygame.draw.arc(surf, (120, 60, 30), (cx - 6, my - 6, 12, 10), 3.4, 6.1, 3)
+        pygame.draw.arc(surf, (110, 60, 30), (cx - 7, my - 5, 14, 11), 3.35, 6.07, 3)
     elif mouth == "o":
-        pygame.draw.circle(surf, (150, 72, 50), (cx, my), 3)
-        pygame.draw.circle(surf, (96, 48, 44), (cx, my), 2)
+        pygame.draw.circle(surf, (150, 72, 50), (cx, my + 1), 3)
+        pygame.draw.circle(surf, (96, 48, 44), (cx, my + 1), 2)
     elif mouth == "tiny":
-        pygame.draw.arc(surf, (120, 60, 30), (cx - 3, my - 3, 6, 6), 3.6, 5.8, 2)
+        pygame.draw.arc(surf, (110, 64, 34), (cx - 4, my - 2, 8, 7), 3.5, 5.95, 2)
