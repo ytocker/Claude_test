@@ -1,26 +1,33 @@
 """design_5 · BINKY — EPIC baby-parrot exploration (scratch only).
 
-The "pacifier-and-bib cartoon baby" — the only baby concept that reads as a
-literal swaddled HUMAN infant, not a baby bird. The hero is a big round
-PACIFIER plugged at the beak: a hard pastel-pink ring + button that breaks the
-lower-face silhouette and reads as the front tell before any other detail. A
-scalloped bib bands the upper chest, a single curl-cowlick sprouts off the
-crown, and big-baby white catch-light domes sit under the aviators (which stay,
-retinted cool sky-aqua — Pip's tell).
+The "pacifier baby" — the only baby concept that reads as a literal swaddled
+HUMAN infant, not a baby bird. After the first pass proved too prop-dense at
+40px, this build is a disciplined SUBTRACTION: ONE hero (the pacifier), a LIGHT
+baby face, restored eye-domes, and a quiet cream bib. Everything that competed
+for the eye is gone.
 
-North star is "lives or dies at 40px on BOTH skies". This is the most
-prop-stacked baby concept, so it is disciplined to ONE clear hero: the pacifier
-ring is a chunky ≥3px pastel-pink loop with a teal keyline that survives
-downscale and never dissolves into the beak. Everything else is held to one
-beat per zone — one scalloped bib band, one cowlick, one milk-spot + two fluff
-wisps — so nothing competes with the binky. Powder-blue body is lifted just
-enough to hold value against bright DAY sky without going chalky, and the teal
-shadow keeps it from going muddy on navy NIGHT sky. Matte pastel pigment, NO
-glow. PRISM model — pacifier, bib, cowlick, eye-domes are polygons/lines/circles
-over a powder-blue recolour; no back layer. NEVER registered in BUILDERS.
+North star is "lives or dies at 40px on BOTH skies". The whole sprite is now
+read as three beats only: a clear pink RING-WITH-HOLE plugged at the beak, a
+LIGHT powder-blue baby face with two white eye-domes above it, and a cream bib
+crescent below. Nothing else fights.
+
+Discipline notes that drove the redraw:
+  * Head value is the priority — the face is lifted to the body powder-blue so it
+    is no longer the darkest, least-cute zone; head shadow is held no darker than
+    the palette teal so the white eye-domes pop instead of voiding into navy.
+  * The pacifier is the ONLY bright pink on the sprite and the ONLY front hero: a
+    hollow ring with a hard dark hole punched through its centre so it reads as a
+    RING, not a pink dot, plus a 2-value button dome.
+  * The bib is demoted to a single CREAM 2-scallop crescent so it stops competing
+    for the pink-focal slot; the heart/trim sub-pixel noise is cut.
+  * One pink budget: pacifier + a 1px cheek-blush dot, nothing more. Belly fluff
+    wisps and milk-spot pink are gone.
+  * One tucked foot, one thinned 2px cowlick sprout.
+
+Matte pastel pigment, NO glow. PRISM model — pacifier, bib, cowlick, eye-domes
+are polygons/lines/circles over a powder-blue recolour; no back layer. NEVER
+registered in BUILDERS.
 """
-import math
-
 import pygame
 
 from game import store_skins
@@ -28,36 +35,36 @@ from game.store_skins import HX, HY, CROWN_Y
 from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
 
 
-# Binky palette — soft powder-blue body with a teal shadow that owns the line
-# work (so the pale body still carries a dark→light ramp on navy night sky), a
-# pale belly bright for the milk-spot to echo, and pastel-pink reserved for the
-# pacifier + bib so the props read as a separate cute "object" layer, not
-# plumage. Cream is the bib trim; curl-tan the cowlick. Aviators retinted cool
-# sky-aqua so the lenses stay glassy-baby without going white.
-# Body slots are lifted ~6% in value off the #BFE0EA spec so the powder-blue
-# never voids into bright day sky at 40px; the teal shadow stays deep so the
-# ramp survives downscale.
+# Binky palette. The body is the brand powder-blue, lifted just enough to hold
+# against bright day sky; the head now shares that SAME light value so the baby's
+# face is no longer a muddy dark zone. The teal is the deepest the head shadow is
+# allowed to go (it owns line-work + seating shadows so props still seat), and a
+# darker teal is reserved for hard keylines / the punched ring hole. Pink is held
+# ENTIRELY for the pacifier so it stays the single focal; cream carries the bib;
+# curl-tan the cowlick. Aviators retinted cool sky-aqua (Pip's tell).
 _BB_BLUE    = (191, 224, 234)      # #BFE0EA powder-blue body (brand reference)
 _BB_BLUE_HI = (202, 230, 239)      # lifted working blue — holds on bright day sky
-_BB_TEAL    = (127, 180, 194)      # #7FB4C2 teal shadow / keyline
-_BB_TEAL_D  = (96, 150, 165)       # deeper teal so props seat with a hard rim
-_BB_BELLY   = (228, 243, 247)      # #E4F3F7 pale belly + milk-spot
-_BB_PINK    = (246, 184, 200)      # #F6B8C8 pacifier + bib pastel-pink
-_BB_PINK_D  = (214, 138, 160)      # rose shadow under the pink so it reads round
-_BB_PINK_H  = (255, 222, 232)      # pink lit edge / pacifier shine
-_BB_CREAM   = (251, 244, 218)      # #FBF4DA bib-trim cream
+_BB_TEAL    = (127, 180, 194)      # #7FB4C2 teal — the FLOOR for head shadow value
+_BB_TEAL_D  = (96, 150, 165)       # deeper teal for prop seating rims only
+_BB_HOLE    = (42, 53, 64)         # #2A3540 hard dark hole punched through the ring
+_BB_BELLY   = (228, 243, 247)      # #E4F3F7 pale belly highlight
+_BB_PINK    = (229, 138, 160)      # #E58AA0 pacifier base rose
+_BB_PINK_HI = (246, 184, 200)      # #F6B8C8 brighter pink button dome (2-value pop)
+_BB_PINK_LT = (255, 222, 232)      # pink shine spec / cheek blush
+_BB_PINK_D  = (196, 110, 134)      # rose shadow so the button reads round
+_BB_CREAM   = (251, 244, 218)      # #FBF4DA bib cream
+_BB_CREAM_D = (224, 214, 178)      # bib under-shadow so the crescent seats
 _BB_TAN     = (201, 168, 106)      # #C9A86A curl-tan cowlick
 _BB_TAN_D   = (160, 130, 76)       # cowlick shadow root
-_BB_AQUA    = (168, 214, 230)      # #A8D6E6 sky-aqua aviator tint
 _BB_WHITE   = (250, 252, 253)      # big-baby catch-light dome
+_BB_INK     = (40, 56, 70)         # eye pupil
 
 
-# Full powder-blue re-plumage. The shadow slots run teal so the pale body keeps
-# a dark→light range (critical on bright day sky where a flat pale bird voids);
-# the belly + chest stay near-white so the milk-spot highlight reads as part of
-# the body. Pink is kept ENTIRELY out of the plumage — it belongs only to the
-# overlaid pacifier + bib so those props read as a stuck-on baby object layer.
-# Aviators retinted sky-aqua (cool, glassy-baby) so the lenses stay Pip's tell.
+# Full powder-blue re-plumage with a LIGHT head. The head slots are lifted to the
+# body value (and the head shadow held to the palette teal, not darker) so the
+# face is the cute light zone the eye-domes can pop against — the single biggest
+# fix from the first pass. Pink stays out of the plumage entirely so the pacifier
+# owns the only pink on the bird. Aviators retinted sky-aqua (Pip's tell).
 P_BINKY = _pal(
     tail=[(118, 168, 182), (150, 196, 208), (178, 214, 226), (206, 232, 240)],
     tail_line=_BB_TEAL_D,
@@ -70,11 +77,13 @@ P_BINKY = _pal(
     wing_dark=(120, 172, 188),
     wing_tip=(220, 238, 244),
     wing_secondary=None,               # single-hue powder-blue — no contrast feather
-    wing_highlight=(236, 247, 250),
-    head_shadow=(150, 196, 208),
+    wing_highlight=(236, 247, 250),    # cream-pale wing highlight (kept)
+    # Head lifted to body value; the shadow is the palette teal — the floor — so
+    # the face never crushes to slate-navy and the eye-domes read against it.
+    head_shadow=_BB_TEAL,
     head_main=_BB_BLUE_HI,
-    head_cheek=(214, 236, 243),
-    head_crown=(184, 218, 229),
+    head_cheek=(216, 237, 244),
+    head_crown=(196, 226, 235),        # crown only a hair below the face, stays light
     lens_frame=(92, 124, 140),         # cool slate rims — read against pale head
     lens_body=(44, 66, 80),
     lens_tint=(168, 214, 230, 130),    # sky-aqua lens tint
@@ -86,130 +95,108 @@ P_BINKY = _pal(
 )
 
 
-def _fluff(surf, x, y, dx, dy):
-    """One short downy wisp poking just past the body silhouette — a 2–3px
-    tapered sliver so the costume still reads fuzzy-baby, not only propped. A
-    teal-dark backing gives it a value edge that survives downscale."""
-    tip = (x + dx, y + dy)
-    base0 = (x - dy // 3, y + dx // 3)
-    base1 = (x + dy // 3, y - dx // 3)
-    pygame.draw.polygon(surf, _BB_TEAL, [base0, base1, (tip[0] + 1, tip[1] + 1)])
-    pygame.draw.polygon(surf, _BB_BELLY, [base0, base1, tip])
-
-
 def _cowlick(surf):
-    """A single bold curl sprout off the crown — the classic cartoon-baby
-    hair-curl. Drawn as a thick tan stroke that loops up-and-over into a little
-    hook, with a dark root + a lit inner edge so it reads round and breaks the
-    crown silhouette as one clear shape (not a stray hair) at 40px."""
-    # Curl path: rises off the crown then hooks back on itself = the classic
-    # baby spit-curl. Kept short so it lands just past the crown, not aloft.
+    """A single thin tan sprout off the crown — the cartoon-baby spit-curl, kept
+    to a 2px stroke so it stays a distinct little hook and never blobs into the
+    light head. A dark root + lit edge keep it round at 40px."""
     curl = [
         (HX - 1, CROWN_Y + 1),     # root, buried 1px into the crown
-        (HX - 1, CROWN_Y - 4),
-        (HX + 2, CROWN_Y - 7),     # apex of the loop
-        (HX + 5, CROWN_Y - 5),
-        (HX + 4, CROWN_Y - 2),     # hook curling back down = the spit-curl
+        (HX, CROWN_Y - 4),
+        (HX + 3, CROWN_Y - 6),     # apex of the loop
+        (HX + 5, CROWN_Y - 4),
+        (HX + 4, CROWN_Y - 1),     # hook curling back = the spit-curl
     ]
-    pygame.draw.lines(surf, _BB_TAN_D, False, curl, 4)   # dark root/under-stroke
-    pygame.draw.lines(surf, _BB_TAN, False, curl, 3)     # tan body
-    pygame.draw.lines(surf, _BB_PINK_H, False, curl[1:3], 1)  # lit inner edge
+    pygame.draw.lines(surf, _BB_TAN_D, False, curl, 3)   # dark under-stroke (root)
+    pygame.draw.lines(surf, _BB_TAN, False, curl, 2)     # thin tan body
+    pygame.draw.line(surf, _BB_PINK_LT, curl[1], curl[2], 1)  # lit inner edge
 
 
-def _pacifier(surf):
-    """The HERO — an oversized pacifier plugged at the beak base. A hard
-    pastel-pink RING (chunky ≥3px loop) + a round button held at the front of
-    the lower face so it breaks the silhouette and reads instantly as a binky.
-    A teal keyline seats the pink off the beak so it never dissolves into it;
-    one bright shine spec sells the glossy plastic."""
-    # The pacifier sits at the front of the lower face, just under/ahead of the
-    # beak base. Composite-space anchor to the lower-right of the head centre,
-    # dropped clear of the aviators so the binky owns the lower-face silhouette
-    # without burying Pip's tell.
-    bx, by = HX + 12, HY + 8
-    # The teat/shield button against the face — a fat pink disc with a rim.
-    pygame.draw.circle(surf, _BB_TEAL_D, (bx - 1, by), 6)        # seating shadow
-    pygame.draw.circle(surf, _BB_PINK_D, (bx, by), 5)
-    pygame.draw.circle(surf, _BB_PINK, (bx, by), 4)
-    pygame.draw.circle(surf, _BB_PINK_H, (bx - 1, by - 1), 2)    # glossy shine spec
-    # The hero RING jutting out front — a chunky pink loop with a teal keyline so
-    # the open-circle binky read survives downscale. Drawn as two concentric
-    # circles (outline-only) so the ring stays hollow.
-    rx, ry = bx + 6, by + 1
-    pygame.draw.circle(surf, _BB_TEAL_D, (rx, ry), 6, 1)         # outer keyline
-    pygame.draw.circle(surf, _BB_PINK, (rx, ry), 6, 3)           # chunky pink ring
-    pygame.draw.circle(surf, _BB_PINK_H, (rx + 1, ry - 2), 1)    # ring highlight
-    # A short pink stem links the button to the ring so they read as ONE object.
-    pygame.draw.line(surf, _BB_PINK, (bx + 3, by), (rx - 4, ry), 3)
-    pygame.draw.line(surf, _BB_TEAL_D, (bx + 3, by + 1), (rx - 4, ry + 1), 1)
+def _eye_domes(surf):
+    """Two oversized white catch-light domes tucked just under the aviator lenses
+    + a 1px ink pupil each — restored now the head is light enough for them to
+    pop (neoteny). A teal seat keeps them from melting into the cheek."""
+    for ex, ey in ((HX - 4, HY + 6), (HX + 6, HY + 5)):
+        pygame.draw.circle(surf, _BB_TEAL, (ex - 1, ey), 3)      # seat rim
+        pygame.draw.circle(surf, _BB_WHITE, (ex - 1, ey), 2)     # big white dome
+        pygame.draw.circle(surf, _BB_INK, (ex, ey), 1)           # tiny pupil
 
 
 def _bib(surf):
-    """A scalloped pastel-pink bib banding the upper chest — the body object.
-    Kept simple: ONE scalloped band (a row of soft bumps) with a 2px cream trim
-    line + a single tiny heart motif, so it reads as a bib without over-detailing
-    and competing with the pacifier at 40px. A teal under-line separates the pink
-    band from the powder-blue chest so the complementary pastels don't shimmer."""
-    # Bib spans the upper chest below the head, curving with the body. Anchored
-    # in composite body space (~x32, the body centre, dropping to ~x24 chest).
-    cy = 50
-    # Scalloped lower rim — a row of soft bumps (the classic bib edge). Built as
-    # overlapping circles along an arc so the band reads as one scalloped shape.
-    scallops = [(24, cy + 5), (29, cy + 7), (34, cy + 7), (39, cy + 5)]
-    # Solid bib band first (a filled wedge from the collar down to the scallops).
-    band = [(22, cy - 2), (40, cy - 4), (41, cy + 4), (21, cy + 2)]
-    pygame.draw.polygon(surf, _BB_TEAL, band)                    # seating under-shadow
-    pygame.draw.polygon(surf, _BB_PINK, [(22, cy - 3), (40, cy - 5),
-                                         (41, cy + 3), (21, cy + 1)])
+    """A quiet CREAM bib — one 2-scallop crescent low on the chest. Cream (not
+    pink) so it stops competing for the pink-focal slot; no heart, no trim line
+    (sub-pixel noise at 40px). A cream-dark under-shadow seats the crescent on the
+    powder-blue chest so it still reads as one soft band."""
+    cy = 52
+    # Two soft scallop bumps = the classic bib edge, nothing more.
+    scallops = [(28, cy + 2), (35, cy + 2)]
     for sx, sy in scallops:
-        pygame.draw.circle(surf, _BB_PINK, (sx, sy), 4)
-        pygame.draw.circle(surf, _BB_PINK_D, (sx, sy), 4, 1)     # bump separation
-    # The 2px cream trim line tracing the bib's upper collar edge — the read.
-    pygame.draw.line(surf, _BB_CREAM, (22, cy - 2), (40, cy - 4), 2)
-    pygame.draw.line(surf, _BB_TEAL_D, (22, cy + 1), (40, cy - 1), 1)  # no-shimmer sep
-    # One tiny cream heart motif dead-centre on the bib (the bib's single charm).
-    hx, hy = 31, cy + 1
-    pygame.draw.circle(surf, _BB_CREAM, (hx - 1, hy - 1), 2)
-    pygame.draw.circle(surf, _BB_CREAM, (hx + 1, hy - 1), 2)
-    pygame.draw.polygon(surf, _BB_CREAM, [(hx - 3, hy), (hx + 3, hy), (hx, hy + 3)])
+        pygame.draw.circle(surf, _BB_CREAM_D, (sx, sy + 1), 4)   # seating shadow
+    for sx, sy in scallops:
+        pygame.draw.circle(surf, _BB_CREAM, (sx, sy), 4)
+    # A short collar band ties the two scallops into one crescent.
+    pygame.draw.line(surf, _BB_CREAM, (27, cy - 2), (36, cy - 2), 3)
+    pygame.draw.line(surf, _BB_CREAM_D, (27, cy + 1), (36, cy + 1), 1)
+
+
+def _pacifier(surf):
+    """The ONE hero — an oversized pacifier plugged at the beak base, front-centre.
+    A hollow pink RING with a hard dark HOLE punched through its centre (so it
+    reads as a ring, not a dot) sits ahead of a 2-value pink button dome. This is
+    the only bright pink on the sprite; a teal keyline seats it off the beak."""
+    # Composite anchor: beak-base front-centre, just under/ahead of the beak so the
+    # binky owns the lower-face silhouette without burying the aviators.
+    bx, by = HX - 7, HY + 5         # composite ~(40, 46)
+    # Button shield against the face — a fat dome with a 2-value pop (bright dome
+    # over a rose base) so it reads round and plush.
+    pygame.draw.circle(surf, _BB_TEAL_D, (bx, by + 1), 6)        # seating shadow
+    pygame.draw.circle(surf, _BB_PINK_D, (bx, by), 5)
+    pygame.draw.circle(surf, _BB_PINK, (bx, by), 4)
+    pygame.draw.circle(surf, _BB_PINK_HI, (bx - 1, by - 1), 3)   # brighter dome top
+    pygame.draw.circle(surf, _BB_PINK_LT, (bx - 1, by - 2), 1)   # glossy shine spec
+    # The hero RING jutting out front. Outer Ø ≥7px (r=4 → Ø8) with a ≥3px rim, and
+    # a hard dark hole punched dead-centre so the open-ring read survives downscale.
+    rx, ry = bx - 7, by
+    pygame.draw.circle(surf, _BB_TEAL_D, (rx, ry), 5)            # outer keyline disc
+    pygame.draw.circle(surf, _BB_PINK, (rx, ry), 4)             # solid pink disc
+    pygame.draw.circle(surf, _BB_PINK_HI, (rx - 1, ry - 1), 1)   # ring rim highlight
+    pygame.draw.circle(surf, _BB_HOLE, (rx, ry), 2)             # PUNCHED dark hole
+    # A short pink stem ties button + ring into ONE object.
+    pygame.draw.line(surf, _BB_PINK, (bx - 4, by), (rx + 3, ry), 3)
+    pygame.draw.line(surf, _BB_TEAL_D, (bx - 4, by + 1), (rx + 3, ry + 1), 1)
+
+
+def _rimlight(surf):
+    """A 1px darker-teal rim-light tracing the lower-left silhouette. Cheap
+    insurance so the pale powder-blue body never voids into navy night sky — it
+    gives the bottom edge a hard separation line on dark backgrounds without
+    touching the day read (the rim sits just inside the outline)."""
+    pts = [(20, 62), (26, 68), (34, 70), (42, 68)]
+    pygame.draw.lines(surf, _BB_TEAL_D, False, pts, 1)
 
 
 def _paint_binky(surf, _a):
-    # BODY ACCENTS — ONE beat per zone so nothing competes with the pacifier.
+    # SUBTRACTION pass — three beats only: eyes, bib, pacifier (+ cowlick + 1px
+    # blush + rim-light insurance). Nothing else competes at 40px.
 
-    # 1 · BIG-BABY EYE DOMES — oversized white catch-light domes sitting under
-    #     each aviator lens so the eyes read huge below the frames (neoteny). A
-    #     teal rim seats them so they don't void into the pale head on day sky.
-    L = (HX - 4, HY)
-    R = (HX + 6, HY - 1)
-    for ex, ey in (L, R):
-        pygame.draw.circle(surf, _BB_TEAL_D, (ex - 1, ey + 6), 3)
-        pygame.draw.circle(surf, _BB_WHITE, (ex - 1, ey + 6), 2)
-        pygame.draw.circle(surf, (40, 56, 70), (ex, ey + 6), 1)   # tiny pupil
+    # 1 · LOWER-SILHOUETTE RIM-LIGHT — navy-sky separation insurance.
+    _rimlight(surf)
 
-    # 2 · BELLY MILK-SPOT + FLUFF — a small pale milk-spot highlight low on the
-    #     belly + two soft fluff wisps poking past the lower silhouette, so the
-    #     costume still reads downy-baby, not only propped.
-    pygame.draw.circle(surf, _BB_BELLY, (30, 60), 3)
-    pygame.draw.circle(surf, _BB_WHITE, (29, 59), 1)
-    _fluff(surf, 22, 58, -3, 2)
-    _fluff(surf, 38, 60, 3, 3)
-
-    # 3 · WING STUBBY HIGHLIGHT — a rounded bright blob at the wing mid faking a
-    #     pudgy half-grown wing (the stubby-wing illusion) without touching
-    #     geometry; one soft teal tuck at the tip.
-    pygame.draw.circle(surf, _BB_BELLY, (33, 47), 3)
-    pygame.draw.circle(surf, _BB_WHITE, (32, 46), 1)
-    pygame.draw.circle(surf, _BB_TEAL, (40, 44), 2)
-
-    # 4 · BIB — the scalloped chest band (one body object, kept simple).
+    # 2 · BIB — the quiet cream crescent (drawn before the face so the head/eyes
+    #     sit cleanly above it).
     _bib(surf)
 
-    # 5 · COWLICK — the single crown curl, breaking the crown outline.
+    # 3 · COWLICK — the single thinned crown curl.
     _cowlick(surf)
 
-    # 6 · HERO PACIFIER — the binky ring + button at the beak, painted LAST so it
-    #     sits over everything as the unmistakable front tell.
+    # 4 · EYE-DOMES — the restored big-baby eyes on the now-light face.
+    _eye_domes(surf)
+
+    # 5 · CHEEK BLUSH — the single permitted 1px pink dot (the only pink besides
+    #     the pacifier), low on the cheek for warmth.
+    pygame.draw.circle(surf, _BB_PINK_LT, (HX + 9, HY + 7), 1)
+
+    # 6 · HERO PACIFIER — painted LAST so it sits over everything as the
+    #     unmistakable front tell, the one bright pink ring-with-hole.
     _pacifier(surf)
 
 
