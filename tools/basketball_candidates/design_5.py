@@ -147,9 +147,11 @@ def _paint(surf, _a):
     #    and a tiny play diagram (two X's, an O, and an arrow) so the read is
     #    unmistakably "coach". Anchored LOW (~BCX+15, BCY+3) so the board clears
     #    the head/eye/beak and the X/O diagram lands legibly on the body, not the
-    #    face: a held document, never a mask. Held as a prop, so it may cross the
-    #    near outline, but nothing balloons the body.
-    bx, by = BCX + 15, BCY + 3
+    #    face: a held document, never a mask. Nudged a touch outboard so the
+    #    near lapel + the red tie stay exposed to its left and the V still reads.
+    #    Held as a prop, so it may cross the near outline, but nothing balloons
+    #    the body.
+    bx, by = BCX + 17, BCY + 4
     board = [(bx - 4, by - 8), (bx + 8, by - 6),
              (bx + 6, by + 8), (bx - 6, by + 6)]
     _poly(surf, _C_BOARD_D, [(p[0] + 1, p[1] + 1) for p in board])               # board edge

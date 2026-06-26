@@ -122,7 +122,7 @@ def _paint(surf, _a):
     # A simplified shield (woven, not printed): red field, a 1px gold rim, and a
     # SINGLE bold white chevron inside — one mark, not a crowd. Bumped 1px larger
     # and tucked high on the near (right) chest so it doesn't crowd the collar.
-    crx, cry = BCX + 9, BCY - 2
+    crx, cry = BCX + 10, BCY - 3
     shield = [(crx - 4, cry - 5), (crx + 4, cry - 5), (crx + 5, cry),
               (crx, cry + 6), (crx - 5, cry)]
     _poly(surf, _RET_RED_D, [(p[0], p[1] + 1) for p in shield])   # drop shadow
@@ -138,15 +138,16 @@ def _paint(surf, _a):
     # a clear ~3px gap so the digits never collide after the downscale: a simple
     # blocky "1" (no serif noise) on the LEFT + an open "0" with a 1px sky-blue
     # hole on the RIGHT. Sits LOW on the shirt, below the collar and crest.
-    ndy = BCY + 6                     # number baseline-ish centre
+    ndy = BCY + 5                     # number baseline-ish centre
     # "1" — a single bold vertical block, crisp dark keyline + white face, no serif.
-    onex = BCX - 6
-    pygame.draw.line(surf, _RET_SKY_D, (onex, ndy - 8), (onex, ndy + 7), 6)
-    pygame.draw.line(surf, _RET_WHITE, (onex, ndy - 8), (onex, ndy + 7), 4)
+    # Pushed left so a clear ~3px gap opens to the "0".
+    onex = BCX - 8
+    pygame.draw.line(surf, _RET_SKY_D, (onex, ndy - 8), (onex, ndy + 7), 5)
+    pygame.draw.line(surf, _RET_WHITE, (onex, ndy - 8), (onex, ndy + 7), 3)
     pygame.draw.line(surf, _RET_WHITE_D, (onex + 1, ndy - 3), (onex + 1, ndy + 7), 1)
-    # "0" — a bold open ring ~3px right of the "1": dark keyline, white body, a 1px
-    # sky-blue knocked-out hole so it reads OPEN, not a solid dot.
-    ox, oy, ow, oh = onex + 4, ndy - 9, 12, 18
+    # "0" — a bold open ring with a clear ~3px gap from the "1": dark keyline, white
+    # body, a sky-blue knocked-out hole so it reads OPEN, not a solid dot.
+    ox, oy, ow, oh = onex + 5, ndy - 9, 12, 18
     pygame.draw.ellipse(surf, _RET_SKY_D, (ox, oy, ow, oh))
     pygame.draw.ellipse(surf, _RET_WHITE, (ox + 1, oy + 1, ow - 2, oh - 2))
     pygame.draw.ellipse(surf, _RET_SKY_HOLE, (ox + 4, oy + 5, 4, 8))
