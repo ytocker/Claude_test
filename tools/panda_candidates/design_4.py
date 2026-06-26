@@ -32,8 +32,9 @@ BLACK     = (26, 26, 26)        # #1A1A1A panda black
 BLACK_HI  = (54, 54, 60)        # soft black highlight on arm/ear mass
 WHITE     = (245, 245, 245)     # #F5F5F5 panda white
 WHITE_SH  = (216, 216, 220)     # white value step
-RED       = (200, 16, 46)       # #C8102E kung-fu red
-RED_SH    = (122, 12, 30)       # #7A0C1E red shadow
+RED       = (222, 36, 58)       # brightened kung-fu red so the brow stripe +
+                                # ribbon stay high-value against the night body
+RED_SH    = (150, 18, 38)       # red shadow — kept dark enough to model the band
 GOLD      = (227, 178, 60)      # #E3B23C gold emblem + belt trim
 GOLD_SH   = (176, 132, 36)
 DARK_BELT = (40, 40, 46)        # belt band — dark, NOT red, so red stays unique
@@ -84,6 +85,10 @@ def _panda_fist(extended):
     ])
     # Top highlight so the black limb keeps form against dark night sky.
     pygame.draw.line(w, BLACK_HI, (12, cy - 5), (fist_x - 2, cy - 6), 2)
+    # Lighter value rim around the whole fist knob so the punch separates from
+    # the black arm/torso mass instead of merging into it at 40px — the rim is
+    # the action beat's legibility, drawn UNDER the black fill as a halo.
+    pygame.draw.circle(w, BLACK_HI, (fist_x, cy), 10)
     # Rounded fist knob — the punching read. Drawn big + clean so it stays a
     # distinct knob when it clears the white-belly silhouette.
     pygame.draw.circle(w, BLACK, (fist_x, cy), 9)
@@ -95,23 +100,38 @@ def _panda_fist(extended):
 
 
 def _ribbon_tail(flick):
-    """ONE bold red ribbon tail — the hero accent's motion read. A fat tapering
-    triangle with a gold lower edge; `flick` swings the tip vertically with
-    the flap so the cloth streams. Drawn to read as clearly ATTACHED to the
-    band (wide root) then flicking back to a point."""
-    w = pygame.Surface((26, 26), pygame.SRCALPHA)
-    base_y = 12
+    """ONE bold red ribbon tail — the warrior tell's constant motion read. A
+    fat tapering streamer with a gold lower edge. `flick` swings only the TIP
+    vertically with the flap so the cloth streams; the run length is FIXED so
+    the tail always projects well past the head silhouette in every frame and
+    never folds back into hiding. The tip is the only thing that moves — the
+    ribbon itself is a constant read across the whole 4-frame strip."""
+    w = pygame.Surface((40, 34), pygame.SRCALPHA)
+    base_y = 16
+    # A long fixed run (root x=2 → tip x=34) guarantees the streamer clears the
+    # head disc regardless of flick; only the tip's y changes per frame.
     tip_y = base_y + flick
+    mid_y = base_y + flick // 2
     pts = [
-        (2, base_y - 5),                 # wide root at the band
-        (2, base_y + 5),
-        (23, tip_y + 2),                 # flicked point
-        (23, tip_y - 1),
+        (2, base_y - 6),                 # wide root at the band knot
+        (2, base_y + 6),
+        (20, mid_y + 4),                 # gentle mid bend so the cloth curves
+        (36, tip_y + 3),                 # flicked far point
+        (36, tip_y - 2),
+        (20, mid_y - 3),
     ]
     pygame.draw.polygon(w, RED, pts)
     pygame.draw.polygon(w, RED_SH, pts, 1)
     # Gold edge along the lower run so it ties to the headband's gold line.
-    pygame.draw.line(w, GOLD, (3, base_y + 4), (22, tip_y + 1), 1)
+    pygame.draw.line(w, GOLD, (3, base_y + 5), (20, mid_y + 3), 1)
+    pygame.draw.line(w, GOLD, (20, mid_y + 3), (35, tip_y + 2), 1)
+    # A second forked tongue of the streamer, slightly above, so the tail reads
+    # as a flag with body rather than a thin sliver that can vanish.
+    fork = [
+        (4, base_y - 5), (22, mid_y - 6),
+        (33, tip_y - 7), (30, tip_y - 3), (20, mid_y - 2),
+    ]
+    pygame.draw.polygon(w, RED_SH, fork)
     return w
 
 
@@ -122,11 +142,14 @@ def build(wing_angle_deg) -> pygame.Surface:
 
     # ── trailing red ribbon tail (drawn first so it streams BEHIND the head) ──
     # One bold tail flicking back off the right of the skull, attached to the
-    # headband knot. Flick tracks the wing for life.
-    flick = int(round((f - 0.5) * 9))    # ~-5..+5 px tail-tip swing
+    # headband knot. Only the TIP flicks with the wing — the streamer's length
+    # is fixed so the warrior tell never blinks out across the 4-frame cycle.
+    flick = int(round((f - 0.5) * 7))    # ~-3.5..+3.5 px tip-only swing
     tail = _ribbon_tail(flick)
-    # Anchor off the right-back of the head so it pushes past the silhouette.
-    _rot_blit(surf, tail, (HCX + 17, HCY - 4))
+    # Anchor the root at the band knot and let the long run project right/back
+    # past the silhouette; the surface centre sits out past the head so the
+    # streamer is always visible regardless of flick.
+    _rot_blit(surf, tail, (HCX + 26, HCY - 5))
 
     # ── far arm (behind the body) — opposite phase to the near arm ──
     # When the near fist is tucked, this one is thrown; gives the swap so the
@@ -164,9 +187,13 @@ def build(wing_angle_deg) -> pygame.Surface:
     # Gold edge cap at each end of the belt — two deliberate warm ticks.
     pygame.draw.circle(surf, GOLD, (BCX - 16, belt_y), 1)
     pygame.draw.circle(surf, GOLD, (BCX + 16, belt_y - 1), 1)
-    # ONE gold medallion dot centred on the belt — the single warm accent.
-    pygame.draw.circle(surf, GOLD_SH, (BCX, belt_y + 1), 2)
-    pygame.draw.circle(surf, GOLD, (BCX, belt_y), 2)
+    # ONE deliberate gold buckle centred on the belt — drawn as a hard-edged
+    # square plate with a dark seat + bright core so it reads as an intentional
+    # buckle at 40px rather than a half-lit speck of noise.
+    pygame.draw.rect(surf, BLACK, (BCX - 3, belt_y - 2, 6, 5))
+    pygame.draw.rect(surf, GOLD_SH, (BCX - 2, belt_y - 2, 4, 4))
+    pygame.draw.rect(surf, GOLD, (BCX - 2, belt_y - 1, 3, 2))
+    surf.set_at((BCX - 1, belt_y - 1), (255, 232, 150))
 
     # ── ears: two round black ears up past the crown ──
     for dx in (-8, 9):
