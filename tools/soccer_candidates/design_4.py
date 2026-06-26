@@ -30,7 +30,7 @@ from game.store_skins import HX, HY, CROWN_Y, _poly
 # the contrast work the black cloth can't.
 _REF_BLACK   = (26, 28, 34)         # #1A1C22 referee black (core)
 _REF_GREY    = (52, 56, 66)         # cool dark grey lit plane (mid value)
-_REF_RIM     = (92, 98, 112)        # cool rim light at the cloth edge
+_REF_RIM     = (108, 116, 132)      # cool rim light at the cloth edge (~15% brighter)
 _REF_WHITE   = (244, 244, 248)      # #F4F4F8 collar / sock piping
 _REF_YELLOW  = (255, 210, 59)       # #FFD23B yellow card
 _REF_YEL_H   = (255, 232, 138)      # yellow-card glint
@@ -39,8 +39,7 @@ _REF_RED_D   = (150, 30, 24)        # red-card edge
 _REF_STEEL   = (200, 204, 212)      # #C8CCD4 whistle steel
 _REF_STEEL_H = (244, 246, 250)      # whistle hot glint
 _REF_STEEL_D = (96, 102, 116)       # whistle steel shadow
-_REF_CORD    = (214, 216, 222)      # pale lanyard cord (so it reads on black)
-_REF_CORD_D  = (120, 124, 134)      # cord shadow strand
+_REF_CORD    = (220, 222, 228)      # pale lanyard cord (so it reads on black)
 
 
 # Body centre in composite space (parrot body centre (32,32) + PARROT_DY=20).
@@ -63,9 +62,10 @@ def _paint(surf, _a):
     _poly(surf, _REF_GREY, [(BCX - 14, BCY - 7), (BCX - 6, BCY - 8),
                             (BCX - 8, BCY + 9), (BCX - 14, BCY + 8)])
     # Rim light along the far (right) shoulder/side edge — the cool highlight
-    # that pulls the contour off the scarlet body at small sizes.
-    pygame.draw.line(surf, _REF_RIM, (BCX + 13, BCY - 9), (BCX + 14, BCY + 9), 1)
-    pygame.draw.line(surf, _REF_RIM, (BCX + 4, BCY - 12), (BCX + 13, BCY - 9), 1)
+    # that pulls the black cloth contour off the scarlet body at small sizes.
+    # Thickened to 2px + brightened so the round reads on the NIGHT swatch.
+    pygame.draw.line(surf, _REF_RIM, (BCX + 13, BCY - 9), (BCX + 14, BCY + 9), 2)
+    pygame.draw.line(surf, _REF_RIM, (BCX + 4, BCY - 12), (BCX + 13, BCY - 9), 2)
 
     # Shoulder-seam shadow so the sleeves read as set-in, plus the cloth edge.
     pygame.draw.line(surf, _REF_BLACK, (BCX - 13, BCY - 8), (BCX + 11, BCY - 8), 1)
@@ -108,47 +108,57 @@ def _paint(surf, _a):
     _poly(surf, _REF_GREY, [(HX - 7, CROWN_Y - 1), (HX + 3, CROWN_Y - 1),
                             (HX + 2, CROWN_Y + 2), (HX - 6, CROWN_Y + 2)])
     pygame.draw.line(surf, _REF_RIM, (HX - 7, CROWN_Y - 1), (HX + 9, CROWN_Y - 1), 1)
-    # Short brim peeking forward (toward the beak) so it reads as a peaked cap.
-    _poly(surf, _REF_BLACK, [(HX + 9, CROWN_Y + 3), (HX + 14, CROWN_Y + 4),
+    # Short brim peeking forward (toward the beak) — kept SHORT so it doesn't
+    # crowd the beak; the cards + whistle carry the referee role, not the cap.
+    _poly(surf, _REF_BLACK, [(HX + 9, CROWN_Y + 3), (HX + 12, CROWN_Y + 4),
                              (HX + 9, CROWN_Y + 5)])
 
     # --- HERO PROPS, drawn LAST so they sit IN FRONT of the cloth ----------------
-    # Lanyard CORD looping the neck — a pale cord so it reads against the black
-    # shirt, with a darker companion strand for round. Two strands V down to the
-    # whistle resting at the chest centre.
+    # Lanyard CORD looping the neck — ONE clean pale V from the neck to the
+    # whistle. A single strand reads as one clear gesture (neck → cord →
+    # whistle) instead of a tangle at 40px; no darker companion strand.
     nlx, nly = BCX, BCY - 7                          # neck base of the lanyard
-    wx, wy = BCX, BCY + 2                            # whistle resting point
-    pygame.draw.line(surf, _REF_CORD_D, (nlx - 6, nly - 1), (wx - 1, wy - 2), 2)
-    pygame.draw.line(surf, _REF_CORD_D, (nlx + 6, nly - 1), (wx + 1, wy - 2), 2)
-    pygame.draw.line(surf, _REF_CORD, (nlx - 6, nly - 2), (wx - 1, wy - 3), 1)
-    pygame.draw.line(surf, _REF_CORD, (nlx + 6, nly - 2), (wx + 1, wy - 3), 1)
+    wx, wy = BCX, BCY + 3                            # whistle resting point (lower)
+    pygame.draw.line(surf, _REF_CORD, (nlx - 6, nly - 2), (wx, wy - 3), 2)
+    pygame.draw.line(surf, _REF_CORD, (nlx + 6, nly - 2), (wx, wy - 3), 2)
 
-    # Steel WHISTLE on the chest — a rounded body + a small mouthpiece, with a
-    # hot glint so the metal reads bright on both day and night swatches.
-    pygame.draw.ellipse(surf, _REF_STEEL_D, (wx - 4, wy - 2, 9, 7))
-    pygame.draw.ellipse(surf, _REF_STEEL, (wx - 4, wy - 2, 8, 6))
-    # Mouthpiece nub on the near side.
-    _poly(surf, _REF_STEEL, [(wx + 3, wy), (wx + 6, wy + 1), (wx + 3, wy + 3)])
-    pygame.draw.line(surf, _REF_STEEL_D, (wx + 3, wy + 3), (wx + 6, wy + 1), 1)
-    # Hot glint — the single brightest pixel cluster, sells the metal.
-    pygame.draw.line(surf, _REF_STEEL_H, (wx - 2, wy - 1), (wx, wy - 1), 2)
-    pygame.draw.ellipse(surf, _REF_STEEL_D, (wx - 4, wy - 2, 9, 7), 1)
+    # Steel WHISTLE on the chest — THE referee prop, so enlarged ~30% over R1.
+    # A full dark contour rings the whole steel disc so it separates from BOTH
+    # the black cloth and the scarlet body, surviving the NIGHT swatch as a
+    # clear bright dot. Body ~11x9 (was 8x6).
+    pygame.draw.ellipse(surf, _REF_STEEL_D, (wx - 6, wy - 3, 12, 10))   # dark contour ring
+    pygame.draw.ellipse(surf, _REF_STEEL, (wx - 5, wy - 2, 11, 9))      # steel body
+    # Mouthpiece nub on the near side (scaled up to match the bigger body).
+    _poly(surf, _REF_STEEL, [(wx + 5, wy + 1), (wx + 8, wy + 2), (wx + 5, wy + 4)])
+    pygame.draw.line(surf, _REF_STEEL_D, (wx + 5, wy + 4), (wx + 8, wy + 2), 1)
+    # Hot glint — a 2x2 bright cluster, the single brightest pixels, sells metal.
+    pygame.draw.rect(surf, _REF_STEEL_H, (wx - 3, wy - 1, 2, 2))
+    # Full dark contour ALL the way around so the disc reads round on night.
+    pygame.draw.ellipse(surf, _REF_STEEL_D, (wx - 6, wy - 3, 12, 10), 1)
 
     # Yellow + red CARDS peeking from the near breast pocket — stacked, the red
     # a sliver behind the yellow, both bright so they punch through the black at
-    # 40px and instantly say "referee" alongside the whistle.
-    cx, cy = BCX + 7, BCY - 4
-    # Red card sliver behind (offset up-right).
-    _poly(surf, _REF_RED_D, [(cx + 2, cy - 6), (cx + 6, cy - 5),
-                             (cx + 5, cy + 1), (cx + 1, cy)])
-    _poly(surf, _REF_RED, [(cx + 2, cy - 6), (cx + 5, cy - 5),
-                           (cx + 4, cy), (cx + 1, cy - 1)])
-    # Yellow card in front.
-    _poly(surf, _REF_BLACK, [(cx - 3, cy - 5), (cx + 2, cy - 4),
-                             (cx + 1, cy + 3), (cx - 4, cy + 2)])   # dark edge
-    _poly(surf, _REF_YELLOW, [(cx - 3, cy - 5), (cx + 1, cy - 4),
-                              (cx, cy + 2), (cx - 4, cy + 1)])
-    pygame.draw.line(surf, _REF_YEL_H, (cx - 3, cy - 5), (cx - 4, cy + 1), 1)
+    # 40px and instantly say "referee" alongside the whistle. The yellow is the
+    # loudest accent, so it is a FAT, near-upright rounded rect peeking HIGH
+    # above the pocket line — maximum yellow footprint, minimal skew.
+    cx, cy = BCX + 7, BCY - 5
+    # Red card sliver behind — a 1px-wider tell so the red survives night.
+    _poly(surf, _REF_RED_D, [(cx + 3, cy - 6), (cx + 8, cy - 5),
+                             (cx + 7, cy + 2), (cx + 2, cy + 1)])
+    _poly(surf, _REF_RED, [(cx + 3, cy - 6), (cx + 7, cy - 5),
+                           (cx + 6, cy + 1), (cx + 2, cy)])
+    # Yellow card in front — fat near-upright rounded rect, peeking high. Dark
+    # edge first so the yellow contour separates from both red and black.
+    yl, yr, yt, yb = cx - 4, cx + 2, cy - 7, cy + 3
+    _poly(surf, _REF_BLACK, [(yl, yt), (yr, yt - 1), (yr + 1, yb - 1),
+                             (yl, yb)])                      # dark edge halo
+    _poly(surf, _REF_YELLOW, [(yl + 1, yt), (yr, yt), (yr, yb - 1),
+                              (yl + 1, yb - 1)])             # fat yellow face
+    # Round the corners by knocking single pixels at top/bottom, plus a glint
+    # down the lit (near) edge so the card reads as a bright upright slab.
+    pygame.draw.line(surf, _REF_YEL_H, (yl + 1, yt + 1), (yl + 1, yb - 2), 1)
+    surf.set_at((yl + 1, yt), _REF_BLACK)
+    surf.set_at((yr, yb - 1), _REF_BLACK)
 
 
 build = store_skins._make_skin(_paint)
