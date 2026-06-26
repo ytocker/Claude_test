@@ -70,19 +70,21 @@ def build(wing_angle_deg) -> pygame.Surface:
         pygame.draw.circle(surf, BLACK_HI, (lx - 1, BCY + 12), 2)
 
     # ── white torso / belly disc over the collision centre ──
-    _aaellipse(surf, WHITE_SHADE, (BCX + 1, BCY + 1), 19, 18)
-    _aaellipse(surf, PANDA_WHITE, (BCX, BCY), 18, 17)
+    # Raised and widened so the white belly owns the central third of the body;
+    # the black is then confined to a thin shoulder yoke + the side arm masses.
+    _aaellipse(surf, WHITE_SHADE, (BCX + 1, BCY + 1), 20, 19)
+    _aaellipse(surf, PANDA_WHITE, (BCX, BCY - 1), 19, 18)
     # Soft belly shading low-centre so the white disc has volume.
-    _aaellipse(surf, WHITE_SHADE, (BCX, BCY + 7), 12, 8)
+    _aaellipse(surf, WHITE_SHADE, (BCX, BCY + 8), 12, 8)
 
-    # ── black shoulder yoke wrapping across the upper back ──
-    # The real panda's dark band joins both arms over the shoulders; drawn as
-    # a wide flattened cap that the white belly sits below.
-    yoke = pygame.Surface((52, 26), pygame.SRCALPHA)
-    pygame.draw.ellipse(yoke, PANDA_BLACK, pygame.Rect(0, 0, 52, 26))
+    # ── thin black shoulder yoke wrapping across the upper back ──
+    # The real panda's dark band joins both arms over the shoulders; kept as a
+    # shallow cap so it crowns the white belly without eating into it.
+    yoke = pygame.Surface((50, 20), pygame.SRCALPHA)
+    pygame.draw.ellipse(yoke, PANDA_BLACK, pygame.Rect(0, 0, 50, 20))
     # Carve the lower edge away so the band hugs the shoulders, not the belly.
-    pygame.draw.ellipse(yoke, (0, 0, 0, 0), pygame.Rect(2, 12, 48, 26))
-    surf.blit(yoke, (BCX - 26, BCY - 17))
+    pygame.draw.ellipse(yoke, (0, 0, 0, 0), pygame.Rect(2, 9, 46, 22))
+    surf.blit(yoke, (BCX - 25, BCY - 18))
 
     # ── far arm tucked behind the body ──
     _rot_blit(surf, _panda_arm(wing_angle_deg * 0.5 - 18), (BCX + 9, BCY - 3))
@@ -94,40 +96,44 @@ def build(wing_angle_deg) -> pygame.Surface:
         _aaellipse(surf, PANDA_BLACK, (ex, CROWN_Y + 1), 6, 6)
         pygame.draw.circle(surf, BLACK_HI, (ex - 1, CROWN_Y - 1), 2)
 
+    # The white disc must DOMINATE — it is the panda read. Two small black eye
+    # patches sit ON this white, never the inverse, with a clear white bridge
+    # straight down the centre so they always read as two distinct shapes.
     _aaellipse(surf, WHITE_SHADE, (HCX + 1, HCY + 1), 13, 13)
     _aaellipse(surf, PANDA_WHITE, (HCX, HCY), 12, 12)
 
-    # ── two black teardrop eye patches, angled down-inward ──
-    # Each is a tilted ellipse: wide near the nose, tapering up-and-out, so the
-    # pair points toward the muzzle like the real panda mask. Built on its own
-    # surface so the rotation can splay them symmetrically.
+    # ── two SMALL black teardrop eye patches, splayed off the white bridge ──
+    # Each patch is a short tilted ellipse capped ~9px tall on this 64px canvas;
+    # placed far enough off-centre (±7) that a ~7px white bridge survives down
+    # the muzzle. Wide-low, tapering up-and-out so the pair points at the nose.
     for sgn in (-1, 1):
-        patch = pygame.Surface((20, 24), pygame.SRCALPHA)
-        _aaellipse(patch, PANDA_BLACK, (10, 12), 6, 9)
-        patch = pygame.transform.rotate(patch, sgn * 32)
-        pcx = HCX + sgn * 5
-        _rot_blit(surf, patch, (pcx, HCY - 1))
+        patch = pygame.Surface((16, 16), pygame.SRCALPHA)
+        _aaellipse(patch, PANDA_BLACK, (8, 8), 4, 5)
+        patch = pygame.transform.rotate(patch, sgn * 28)
+        pcx = HCX + sgn * 7
+        _rot_blit(surf, patch, (pcx, HCY - 2))
 
-    # White eye-glint dot inside each patch — keeps the mask friendly, not
-    # menacing. Sits high-inner where a real eye catches light.
+    # White eye-glint inside each patch — a bright eye keeps the mask friendly.
     for sgn in (-1, 1):
-        ecx = HCX + sgn * 5
-        pygame.draw.circle(surf, PANDA_BLACK, (ecx, HCY), 1)  # pupil anchor
-        pygame.draw.circle(surf, GLINT, (ecx - sgn * 1, HCY - 1), 2)
+        ecx = HCX + sgn * 7
+        pygame.draw.circle(surf, PANDA_BLACK, (ecx, HCY - 1), 1)  # pupil anchor
+        pygame.draw.circle(surf, GLINT, (ecx - sgn * 1, HCY - 2), 2)
 
-    # ── little black nose triangle + soft mouth line ──
-    nose = [(HCX - 3, HCY + 6), (HCX + 3, HCY + 6), (HCX, HCY + 10)]
+    # ── soft pink cheek blushes — small dots sitting OUT on the white face ──
+    # Pushed wide (±10) and shrunk ~40% so they land on clean white, well clear
+    # of the eye patches; on white they read as charm, on black they'd read dirt.
+    for sgn in (-1, 1):
+        blush = pygame.Surface((8, 6), pygame.SRCALPHA)
+        _aaellipse(blush, (*PINK, 130), (4, 3), 3, 2)
+        surf.blit(blush, (HCX + sgn * 10 - 4, HCY + 4 - 3))
+
+    # ── nose + mouth re-asserted on the WHITE bridge below the patches ──
+    # A tiny solid-black nose with a short down-mouth, clearly on white so the
+    # face has a focal point instead of vanishing into the patches.
+    nose = [(HCX - 2, HCY + 5), (HCX + 2, HCY + 5), (HCX, HCY + 8)]
     pygame.draw.polygon(surf, PANDA_BLACK, nose)
-    pygame.draw.circle(surf, NOSE_PINK, (HCX, HCY + 7), 1)     # warm nose tip
-    # Soft mouth: a shallow down-curve under the nose (two short strokes).
-    pygame.draw.line(surf, PANDA_BLACK, (HCX, HCY + 10), (HCX - 3, HCY + 12), 1)
-    pygame.draw.line(surf, PANDA_BLACK, (HCX, HCY + 10), (HCX + 3, HCY + 12), 1)
-
-    # ── two soft pink-grey cheek blushes low on the white face ──
-    for sgn in (-1, 1):
-        blush = pygame.Surface((10, 8), pygame.SRCALPHA)
-        _aaellipse(blush, (*PINK, 150), (5, 4), 5, 4)
-        surf.blit(blush, (HCX + sgn * 9 - 5, HCY + 5 - 4))
+    pygame.draw.line(surf, PANDA_BLACK, (HCX, HCY + 8), (HCX - 3, HCY + 11), 1)
+    pygame.draw.line(surf, PANDA_BLACK, (HCX, HCY + 8), (HCX + 3, HCY + 11), 1)
 
     # ── near arm over the body (the flapping panda arm) ──
     _rot_blit(surf, _panda_arm(wing_angle_deg), (BCX - 5, BCY - 1))

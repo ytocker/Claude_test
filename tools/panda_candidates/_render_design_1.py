@@ -1,4 +1,4 @@
-"""Render the round_1 review sheet for CLASSIC PANDA design_1."""
+"""Render the round_2 review sheet for CLASSIC PANDA design_1."""
 import os
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
@@ -63,7 +63,7 @@ def _night_gameplay_panel(w, h):
 
 
 # Row 1: three columns.
-label("CLASSIC PANDA  ·  design_1  ·  round_1", PAD, 8)
+label("CLASSIC PANDA  ·  design_1  ·  round_2", PAD, 8)
 
 cols = [
     ("day gameplay", gameplay_panel(source, PANEL_W, PANEL_H)),
@@ -103,6 +103,6 @@ for fi in range(4):
 
 out_dir = "/home/user/skybit/docs/store_redesign/animal/panda/design_1"
 os.makedirs(out_dir, exist_ok=True)
-out_path = os.path.join(out_dir, "round_1.png")
+out_path = os.path.join(out_dir, "round_2.png")
 pygame.image.save(sheet, out_path)
 print("wrote", out_path)
