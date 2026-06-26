@@ -38,7 +38,9 @@ _SK_LAPIS_D = (20, 38, 102)         # lapis shadow keeps a stripe a stripe at 40
 _SK_TURQ    = (31, 163, 154)        # #1FA39A turquoise inlay
 _SK_URAEUS  = (200, 50, 50)         # uraeus / vulture red accent
 _SK_VOID    = (16, 16, 24)          # almond eye + brow void (the dark anchor)
-_SK_RIM     = (140, 102, 30)        # darker-gold rim on the mask's outer cheek edge
+# The face-shield rim is the cheek/jaw seal — darker than _GOLD_D so the gold
+# plane reads as a closed mask even when the house outline drops out at 40px.
+_SK_RIM     = (112, 80, 22)         # deep-gold cheek/jaw rim
 
 
 def _paint(surf, _a):
@@ -66,7 +68,12 @@ def _paint(surf, _a):
     face = [(HX - 11, cy + 4), (HX - 12, HY + 2), (HX - 8, HY + 12),
             (HX, HY + 16), (HX + 9, HY + 13), (HX + 14, HY + 3),
             (HX + 13, cy + 3), (HX, cy + 1)]
-    _poly(surf, _SK_RIM, [(x + 1, y) for x, y in face])
+    # Rim offset down+out, then a 2px restate on the lower cheeks/jaw only, so
+    # the face-shield seals as its own closed shape under the house outline.
+    _poly(surf, _SK_RIM, [(x + 1, y + 1) for x, y in face])
+    pygame.draw.lines(surf, _SK_RIM, False,
+                      [(HX - 12, HY + 2), (HX - 8, HY + 12), (HX, HY + 16),
+                       (HX + 9, HY + 13), (HX + 14, HY + 3)], 2)
     _poly(surf, _SK_GOLD_D, face)
     inner = [(HX - 9, cy + 5), (HX - 10, HY + 2), (HX - 6, HY + 10),
              (HX, HY + 13), (HX + 7, HY + 11), (HX + 11, HY + 3),
@@ -76,35 +83,42 @@ def _paint(surf, _a):
     _poly(surf, _SK_GOLD_H, [(HX - 7, cy + 6), (HX + 6, cy + 5),
                              (HX + 4, cy + 9), (HX - 6, cy + 10)])
 
-    # ── EYES — big calm lapis-rimmed almonds, drawn LARGE and simple so they are
-    #    the second read after the gold shield. Almond outline (lapis) + dark
-    #    pupil; a single cosmetic flick line off each outer corner (Egyptian kohl)
-    #    kept to one bold stroke, not filigree.
-    for sgn, ex in ((-1, HX - 4), (1, HX + 8)):
+    # ── EYES — the #2 read after the gold shield, and where "death-mask" lives.
+    #    Enlarged ~40% and spaced wider, each almond is a continuous DARK VOID
+    #    interior — dark-on-gold is the contrast that carries (lapis-on-gold
+    #    would just echo the nemes stripes above and vanish). A thin gold-
+    #    highlight inner line separates the void from the surrounding gold so it
+    #    pops off the plane rather than melting into the nemes blue.
+    for sgn, ex in ((-1, HX - 6), (1, HX + 10)):
         ey = HY + 1
-        almond = [(ex - 4, ey), (ex, ey - 3), (ex + 4, ey),
-                  (ex, ey + 3)]
-        _poly(surf, _SK_LAPIS, almond)
-        pygame.draw.circle(surf, _SK_VOID, (ex, ey), 2)
-        pygame.draw.circle(surf, _SK_GOLD_H, (ex - 1, ey - 1), 1)   # life glint
-        # kohl flick to the outer corner — one stroke.
-        pygame.draw.line(surf, _SK_LAPIS, (ex + sgn * 4, ey),
-                         (ex + sgn * 7, ey - 1), 2)
-    # Straight gold nose ridge between the eyes — a single flat highlight bar.
-    pygame.draw.line(surf, _SK_GOLD_H, (HX + 2, HY + 2), (HX + 2, HY + 8), 2)
-    pygame.draw.line(surf, _SK_GOLD_D, (HX + 4, HY + 3), (HX + 4, HY + 8), 1)
+        almond = [(ex - 6, ey), (ex - 1, ey - 5), (ex + 5, ey - 4),
+                  (ex + 5, ey + 1), (ex, ey + 4)]
+        almond = [(x, y) for x, y in
+                  ([(ex - 6, ey), (ex - 1, ey - 4), (ex + 6, ey),
+                    (ex - 1, ey + 4)] if sgn < 0 else
+                   [(ex + 6, ey), (ex + 1, ey - 4), (ex - 6, ey),
+                    (ex + 1, ey + 4)])]
+        # Void fill is the dominant value; a deep-gold rim seats the almond.
+        _poly(surf, _SK_RIM, [(x, y + 1) for x, y in almond])
+        _poly(surf, _SK_VOID, almond)
+        pygame.draw.polygon(surf, _SK_GOLD_H, almond, 1)   # gold-highlight inner line
+        pygame.draw.circle(surf, _SK_GOLD_H, (ex - sgn, ey - 1), 1)  # life glint
 
     # ── DIVINE BEARD BAR — a single long straight gold bar under the chin, lapis
     #    banded so it reads as the plaited royal beard, kept INSIDE the silhouette
     #    (never below the feet line). The vertical tell that says "death-mask".
     bx = HX + 1
-    _poly(surf, _SK_GOLD_D, [(bx - 4, HY + 13), (bx + 4, HY + 13),
-                             (bx + 3, HY + 23), (bx - 3, HY + 23)])
-    _poly(surf, _SK_GOLD, [(bx - 3, HY + 13), (bx + 3, HY + 13),
-                           (bx + 2, HY + 22), (bx - 2, HY + 22)])
+    # A dark void halo first, so the beard reads as a distinct vertical against
+    # the body instead of merging with the collar/coffin gold beside it.
+    _poly(surf, _SK_VOID, [(bx - 6, HY + 13), (bx + 6, HY + 13),
+                           (bx + 5, HY + 24), (bx - 5, HY + 24)])
+    _poly(surf, _SK_GOLD_D, [(bx - 5, HY + 13), (bx + 5, HY + 13),
+                             (bx + 4, HY + 23), (bx - 4, HY + 23)])
+    _poly(surf, _SK_GOLD, [(bx - 4, HY + 13), (bx + 4, HY + 13),
+                           (bx + 3, HY + 22), (bx - 3, HY + 22)])
     for byb in (HY + 16, HY + 19):
-        pygame.draw.line(surf, _SK_LAPIS, (bx - 3, byb), (bx + 3, byb), 1)
-    pygame.draw.line(surf, _SK_GOLD_H, (bx - 2, HY + 14), (bx - 2, HY + 21), 1)
+        pygame.draw.line(surf, _SK_LAPIS, (bx - 4, byb), (bx + 4, byb), 2)
+    pygame.draw.line(surf, _SK_GOLD_H, (bx - 3, HY + 14), (bx - 3, HY + 21), 1)
 
     # ── NEMES CREST over the crown — the headcloth cap rising to a low peak, with
     #    bold WIDE alternating gold + lapis stripes radiating over it. The ONLY
@@ -123,56 +137,43 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _SK_LAPIS, (HX - 13, cy + 4), (HX + 14, cy + 3), 2)
     pygame.draw.line(surf, _SK_GOLD_H, (HX - 6, cy + 1), (HX + 4, cy), 1)
 
-    # ── URAEUS + VULTURE BROW BAND — kept to TWO clean bumps (cobra + vulture),
-    #    NOT fussy. Gold bumps with a single red accent each, riding the low peak.
-    for sgn, ux in ((-1, HX - 4), (1, HX + 4)):
-        pygame.draw.circle(surf, _SK_GOLD_D, (ux, cy - 6), 3)
-        pygame.draw.circle(surf, _SK_GOLD, (ux, cy - 6), 2)
-        pygame.draw.circle(surf, _SK_URAEUS, (ux, cy - 6), 1)
-    pygame.draw.circle(surf, _SK_GOLD_H, (HX, cy - 9), 1)
+    # ── URAEUS — ONE central cobra head at the brow peak. Two symmetric red dots
+    #    read as misplaced eyes at 40px, so commit to a single bigger cobra bump
+    #    (hood + flared base) with one red glint — the rearing-cobra silhouette.
+    _poly(surf, _SK_GOLD_D, [(HX - 3, cy - 4), (HX + 3, cy - 4),
+                             (HX + 2, cy - 9), (HX - 2, cy - 9)])
+    pygame.draw.circle(surf, _SK_GOLD_D, (HX, cy - 10), 3)
+    pygame.draw.circle(surf, _SK_GOLD, (HX, cy - 10), 2)
+    pygame.draw.circle(surf, _SK_URAEUS, (HX, cy - 10), 1)
 
-    # ── BROAD COLLAR — a wide inlaid pectoral of concentric band arcs under the
-    #    chin. Kept to 3 THIN arcs (lapis / gold / turquoise) so it stays a flat
-    #    inlay inside the body footprint and never reads as added body mass.
-    ccx, ccy = HX - 2, HY + 13
-    for r, col in ((13, _SK_LAPIS), (11, _SK_GOLD), (9, _SK_TURQ)):
+    # ── BROAD COLLAR — pulled DOWN + OUT so it clears a dark gap around the beard
+    #    and the beard reads as its own vertical. Two THIN arcs only (lapis / gold)
+    #    so it stays a flat inlay inside the body footprint, never added mass.
+    ccx, ccy = HX - 2, HY + 16
+    for r, col in ((14, _SK_LAPIS), (12, _SK_GOLD)):
         pygame.draw.arc(surf, col, (ccx - r, ccy - r + 6, r * 2, r * 2),
-                        3.5, 6.0, 2)
+                        3.7, 5.8, 2)
 
-    # ── COFFIN-LID BODY PANEL — the lower body painted over as a sarcophagus
-    #    inlay: a vertical GOLD centre band flanked by thin LAPIS stripes. Kept
-    #    strictly inside the base bird footprint (no balloon, nothing below feet).
+    # ── CROSSED CROOK + FLAIL X — the ONE lower-body tell. The coffin-lid stripes
+    #    are dropped: a clean bold gold X (echoing the death-mask crossed-arms
+    #    pose) reads at 40px where a striped-panel-plus-decorated-X became blue/
+    #    gold noise. No crook curl, no flail filigree — just two thick gold bars
+    #    crossing, each capped with a single lapis bead, over a void seat so the X
+    #    pops off the body rather than blending into the gold.
     BCX, BCY = 32, 52
-    _poly(surf, _SK_GOLD_D, [(BCX - 5, BCY - 6), (BCX + 5, BCY - 6),
-                             (BCX + 4, BCY + 13), (BCX - 4, BCY + 13)])
-    _poly(surf, _SK_GOLD, [(BCX - 4, BCY - 6), (BCX + 4, BCY - 6),
-                           (BCX + 3, BCY + 12), (BCX - 3, BCY + 12)])
-    pygame.draw.line(surf, _SK_GOLD_H, (BCX - 1, BCY - 5), (BCX - 1, BCY + 11), 1)
-    # Thin lapis inlay stripes flanking the gold band — the sarcophagus tell.
-    for sgn in (-1, 1):
-        sx = BCX + sgn * 7
-        pygame.draw.line(surf, _SK_LAPIS_D, (sx, BCY - 5), (sx - sgn, BCY + 11), 3)
-        pygame.draw.line(surf, _SK_LAPIS, (sx, BCY - 5), (sx - sgn, BCY + 11), 1)
-
-    # ── CROSSED ARMS holding mini CROOK + FLAIL — painted FLAT across the upper
-    #    chest as the death-mask's signature pose (gold mask art, not 3D staffs).
-    #    Two short gold bars cross in an X over the coffin panel, with a tiny
-    #    crook curl and flail tip, all inside the silhouette.
-    # Crook arm (\) with a hooked top.
-    pygame.draw.line(surf, _SK_GOLD_D, (BCX - 9, BCY - 4), (BCX + 7, BCY + 9), 4)
-    pygame.draw.line(surf, _SK_GOLD, (BCX - 9, BCY - 4), (BCX + 7, BCY + 9), 2)
-    pygame.draw.arc(surf, _SK_GOLD, (BCX - 12, BCY - 7, 7, 7), 0.4, 3.0, 2)
-    # Flail arm (/) with a tiny three-tail tip.
-    pygame.draw.line(surf, _SK_GOLD_D, (BCX + 9, BCY - 4), (BCX - 7, BCY + 9), 4)
-    pygame.draw.line(surf, _SK_GOLD, (BCX + 9, BCY - 4), (BCX - 7, BCY + 9), 2)
-    for tx in (-2, 0, 2):
-        pygame.draw.line(surf, _SK_GOLD, (BCX + 9, BCY - 4),
-                         (BCX + 9 + tx, BCY - 8), 1)
-    pygame.draw.circle(surf, _SK_LAPIS, (BCX + 9, BCY - 4), 1)   # flail bead
-    pygame.draw.circle(surf, _SK_LAPIS, (BCX - 9, BCY - 4), 1)   # crook bead
-    # Bright crossing knot where the two arms meet — the flat-art focal dot.
-    pygame.draw.circle(surf, _SK_GOLD_H, (BCX, BCY + 3), 2)
-    pygame.draw.circle(surf, _SK_LAPIS, (BCX, BCY + 3), 1)
+    a, b = (BCX - 10, BCY - 7), (BCX + 8, BCY + 10)     # crook arm (\)
+    c, d = (BCX + 10, BCY - 7), (BCX - 8, BCY + 10)     # flail arm (/)
+    for p, q in ((a, b), (c, d)):
+        pygame.draw.line(surf, _SK_VOID, p, q, 6)        # dark seat = figure/ground
+    for p, q in ((a, b), (c, d)):
+        pygame.draw.line(surf, _SK_GOLD_D, p, q, 5)
+        pygame.draw.line(surf, _SK_GOLD, p, q, 3)
+        pygame.draw.line(surf, _SK_GOLD_H, p, q, 1)
+    for bead in (a, c):                                  # two lapis beads, no more
+        pygame.draw.circle(surf, _SK_LAPIS_D, bead, 3)
+        pygame.draw.circle(surf, _SK_LAPIS, bead, 2)
+    # Bright crossing knot where the arms meet — the flat-art focal dot.
+    pygame.draw.circle(surf, _SK_GOLD_H, (BCX, BCY + 2), 2)
 
     # ── FEET — gold-banded recolor at the feet line, ON it (~y65), never below.
     for fx in (28, 34):
