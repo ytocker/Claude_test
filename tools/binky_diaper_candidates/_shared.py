@@ -34,17 +34,35 @@ from game.store_skins import (
 from game.dollar_parrot_ghost import _build_parrot_with_palette
 
 
+# Two chubby powder-blue baby legs, drawn AFTER the diaper so they always
+# visibly emerge BELOW the nappy (the base parrot's hairline feet get swallowed
+# by any cloth — the legs-poking-out read is the whole point of the redo, so the
+# scaffold owns it uniformly for every candidate). Candidates just keep their
+# cloth bottom at ~y62 so the legs read clean. Composite space; bird faces right.
+_LEG     = (176, 212, 224)         # powder-blue leg (body mid tone)
+_LEG_SH  = (120, 172, 188)         # teal leg shade (rounds the stub)
+_LEG_FT  = (214, 200, 168)         # muted cream foot (matches the beak family)
+
+
+def _bb_legs(surf):
+    for lx in (28, 35):                                  # left + right leg
+        pygame.draw.line(surf, _LEG_SH, (lx + 1, 62), (lx + 1, 68), 3)
+        pygame.draw.line(surf, _LEG, (lx, 62), (lx, 68), 2)
+        pygame.draw.line(surf, _LEG_FT, (lx - 1, 68), (lx + 2, 68), 2)   # foot
+
+
 def make_binky_build(diaper_fn):
     """Wrap a candidate `diaper_fn(surf)` into a full BINKY build callable.
 
-    Paint order mirrors the production `_paint_binky` exactly, with the
-    candidate diaper swapped in where the shipped `_bb_diaper` sat: under the
-    face props (so it never crowds the pacifier/eyes) and below the bib (so a
-    clear powder-blue body gap stays between the two cream cloths)."""
+    Paint order mirrors the production `_paint_binky`, with the candidate diaper
+    swapped in where the shipped `_bb_diaper` sat (under the face props, below
+    the bib) — then two chubby legs are drawn OVER the diaper so they always
+    poke out below it. The face props paint last so nothing crowds the pacifier."""
     def _paint(surf, _a):
         _bb_rimlight(surf)
         _bb_bib(surf)
         diaper_fn(surf)
+        _bb_legs(surf)
         _bb_cowlick(surf)
         _bb_eye_domes(surf)
         pygame.draw.circle(surf, _BB_PINK_LT, (HX + 9, HY + 7), 1)   # cheek blush
