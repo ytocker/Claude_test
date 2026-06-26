@@ -57,28 +57,28 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _AS_LAPIS, (HX - 12, cy + 4), (HX + 13, cy + 3), 2)
     pygame.draw.ellipse(surf, _AS_GOLD_H, (HX - 5, cy - 4, 8, 3))
 
-    # ── SHEBYU COLLAR — 2 rows of FAT gold discs across the chest. Bolder and
-    #    rounder than a bead collar; the lower body hero. Drawn before the brow
-    #    emblems so the head/uraeus overlap cleanly. Arc follows the breast.
-    row_y = (HY + 13, HY + 19)
-    row_xs = (range(-3, 4), range(-3, 4))
+    # ── SHEBYU COLLAR — 2 rows of separated gold rings on the UPPER chest only.
+    #    Smaller (r3 shadow / r2 fill) and WIDELY spaced so scarlet shows as
+    #    value between the rings — discrete rings ON the body, not a gold bib.
+    #    Confined to the upper chest so a clear band of scarlet breathes below
+    #    it (mid-chest) before the sash. 5 rings/row, not 7.
+    row_y = (HY + 11, HY + 15)
+    row_xs = (range(-2, 3), range(-2, 3))
     for ry, xr in zip(row_y, row_xs):
         for i in xr:
-            dx = HX + i * 5
-            # Arc the row down at the edges so the collar hugs the breast.
-            dy = ry + abs(i) * abs(i) // 3
-            pygame.draw.circle(surf, _AS_GOLD_D, (dx, dy + 1), 4)
-            pygame.draw.circle(surf, _AS_GOLD, (dx, dy), 3)
+            dx = HX + i * 6
+            # Gentle arc so the short collar still hugs the breast.
+            dy = ry + abs(i) * abs(i) // 4
+            pygame.draw.circle(surf, _AS_GOLD_D, (dx, dy + 1), 3)
+            pygame.draw.circle(surf, _AS_GOLD, (dx, dy), 2)
             pygame.draw.circle(surf, _AS_GOLD_H, (dx - 1, dy - 1), 1)
-    # Thin lapis spacer line between the two disc rows for depth.
-    pygame.draw.line(surf, _AS_LAPIS, (HX - 14, HY + 16), (HX + 13, HY + 16), 1)
 
-    # ── SASH down the body bearing a CARTOUCHE name-ring. A narrow gold band
-    #    drops from the collar toward (but not past) the feet line; a clean
-    #    oval cartouche with 2-3 dark glyph ticks rides on it.
+    # ── SASH bearing a CARTOUCHE name-ring. THIN, secondary gold: it starts
+    #    LOW (below the mid-chest scarlet band) so it doesn't bridge the collar
+    #    into one continuous gold column. The cartouche stays restrained.
     sx = HX - 4
-    pygame.draw.line(surf, _AS_GOLD_D, (sx, HY + 21), (sx - 1, HY + 23), 5)
-    pygame.draw.line(surf, _AS_GOLD, (sx, HY + 21), (sx - 1, HY + 23), 3)
+    pygame.draw.line(surf, _AS_GOLD_D, (sx, HY + 20), (sx - 1, HY + 23), 3)
+    pygame.draw.line(surf, _AS_GOLD, (sx, HY + 20), (sx - 1, HY + 23), 1)
     # Cartouche — a small clean oval ring (gold) with a flat tie-bar at the base.
     ccx, ccy = sx - 1, HY + 22
     pygame.draw.ellipse(surf, _AS_GOLD_D, (ccx - 5, ccy - 4, 11, 9))
@@ -89,42 +89,46 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _AS_GLYPH, (ccx - 1, ccy - 2), (ccx - 1, ccy + 1), 1)
     pygame.draw.circle(surf, _AS_GLYPH, (ccx + 1, ccy + 1), 1)
 
-    # ── GOLD ANKLETS at the feet line — short bright bands, inside footprint.
+    # ── ANKLETS at the feet line — DEMOTED to dark gold so the secondary gold
+    #    doesn't compete with the head. Thin, no glint: a quiet detail.
     for fx in (27, 34):
-        pygame.draw.line(surf, _AS_GOLD_D, (fx - 2, HY + 23), (fx + 2, HY + 23), 3)
-        pygame.draw.line(surf, _AS_GOLD, (fx - 2, HY + 22), (fx + 2, HY + 22), 2)
-        pygame.draw.circle(surf, _AS_GOLD_H, (fx, HY + 22), 1)
+        pygame.draw.line(surf, _AS_GOLD_D, (fx - 2, HY + 23), (fx + 2, HY + 23), 2)
 
     # ── TWIN BROW EMBLEMS — the HERO read. The uraeus cobra (rebuilt unchanged)
     #    paired with a vulture head: the "Two Ladies" (nebty) of Upper + Lower
-    #    Egypt. Both rear above the brow so they own the silhouette at 40px.
+    #    Egypt. They must read as TWO: a clear sky gap between the necks, and
+    #    two contrasting silhouettes leaning APART — a tall narrow gold cobra
+    #    spike vs. a rounder white vulture head leaning the other way.
 
-    # Uraeus cobra — pulled slightly left so the vulture sits beside it.
-    bx = HX - 3
-    pygame.draw.line(surf, _AS_GOLD_D, (bx, cy + 1), (bx - 1, cy - 9), 4)
-    pygame.draw.line(surf, _AS_GOLD, (bx, cy + 1), (bx - 1, cy - 9), 2)
+    # Uraeus cobra — a tall narrow gold spike, leaning LEFT (its own outward
+    #    tilt) so it pulls away from the vulture.
+    bx = HX - 4
+    pygame.draw.line(surf, _AS_GOLD_D, (bx + 1, cy + 1), (bx - 2, cy - 10), 3)
+    pygame.draw.line(surf, _AS_GOLD, (bx + 1, cy + 1), (bx - 2, cy - 10), 2)
     pygame.draw.polygon(surf, _AS_GOLD,
-                        [(bx - 4, cy - 8), (bx + 4, cy - 8), (bx, cy - 13)])
+                        [(bx - 5, cy - 9), (bx + 1, cy - 9), (bx - 2, cy - 14)])
     pygame.draw.polygon(surf, _AS_GOLD_H,
-                        [(bx - 2, cy - 9), (bx + 2, cy - 9), (bx, cy - 12)])
-    pygame.draw.circle(surf, _AS_GOLD_H, (bx, cy - 12), 2)
-    pygame.draw.circle(surf, _AS_EYE, (bx, cy - 12), 1)
+                        [(bx - 3, cy - 10), (bx, cy - 10), (bx - 2, cy - 13)])
+    pygame.draw.circle(surf, _AS_GOLD_H, (bx - 2, cy - 12), 1)
+    pygame.draw.circle(surf, _AS_EYE, (bx - 2, cy - 12), 1)
 
-    # Vulture head beside the cobra — gold neck rising to a white head with a
-    # hooked gold beak. Bold gold + white so the twin emblem reads at 40px.
-    vx = HX + 4
-    pygame.draw.line(surf, _AS_GOLD_D, (vx, cy + 1), (vx + 1, cy - 7), 4)
-    pygame.draw.line(surf, _AS_GOLD, (vx, cy + 1), (vx + 1, cy - 7), 2)
-    # White head.
-    pygame.draw.circle(surf, _AS_WHITE_D, (vx + 2, cy - 9), 4)
-    pygame.draw.circle(surf, _AS_WHITE, (vx + 1, cy - 10), 3)
-    # Hooked gold beak curving forward/down.
+    # Vulture head — pushed further RIGHT (a ~4-5px sky gap from the cobra neck)
+    #    and tilted OUTWARD. A distinctly ROUNDER WHITE head with its own
+    #    outward gold beak: a different silhouette so the brain counts to two.
+    vx = HX + 6
+    pygame.draw.line(surf, _AS_GOLD_D, (vx - 1, cy + 1), (vx + 2, cy - 6), 3)
+    pygame.draw.line(surf, _AS_GOLD, (vx - 1, cy + 1), (vx + 2, cy - 6), 2)
+    # Rounder white head, leaning out to the right.
+    pygame.draw.circle(surf, _AS_WHITE_D, (vx + 3, cy - 8), 4)
+    pygame.draw.circle(surf, _AS_WHITE, (vx + 2, cy - 9), 3)
+    pygame.draw.circle(surf, _AS_WHITE, (vx + 3, cy - 9), 1)
+    # Hooked gold beak curving outward/down (away from the cobra).
     pygame.draw.polygon(surf, _AS_GOLD_D,
-                        [(vx + 4, cy - 10), (vx + 8, cy - 8), (vx + 4, cy - 7)])
+                        [(vx + 5, cy - 9), (vx + 9, cy - 7), (vx + 5, cy - 6)])
     pygame.draw.polygon(surf, _AS_GOLD,
-                        [(vx + 4, cy - 10), (vx + 7, cy - 9), (vx + 4, cy - 8)])
+                        [(vx + 5, cy - 9), (vx + 8, cy - 8), (vx + 5, cy - 7)])
     # Dark eye dot.
-    pygame.draw.circle(surf, _AS_EYE, (vx + 1, cy - 10), 1)
+    pygame.draw.circle(surf, _AS_EYE, (vx + 2, cy - 9), 1)
 
 
 build = store_skins._make_skin(_paint)
