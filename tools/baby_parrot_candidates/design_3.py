@@ -30,9 +30,16 @@ from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
 # with a sage shadow that carries the line work so the body still ramps dark→
 # light. The aviators retint glassy-aqua so the lens reads as GLASS, not a black
 # disc — the giant eyes are then painted ON TOP in the overlay.
-_BE_MINT    = (221, 239, 214)      # #DDEFD6 mint-cream body
-_BE_SAGE    = (159, 199, 154)      # #9FC79A sage shadow / keyline
-_BE_BELLY   = (239, 248, 234)      # #EFF8EA pale belly bright
+_BE_MINT    = (207, 230, 198)      # #CFE6C6 mint-cream body — one value step down
+                                   # from #DDEFD6 so it still seats as a baby
+                                   # pastel but throws a cleaner silhouette
+                                   # against a bright day sky.
+_BE_SAGE    = (159, 199, 154)      # #9FC79A sage shadow / keyline (cowlick+wisps)
+_BE_EDGE    = (127, 168, 120)      # #7FA878 deeper sage — the hard silhouette
+                                   # keyline (body_shadow crescent) so the day
+                                   # edge stops reading mushy.
+_BE_BELLY   = (239, 248, 234)      # #EFF8EA pale belly bright — kept bright so
+                                   # face+belly stay the focal bright zone.
 _BE_LENS_SKY = (191, 227, 242)     # #BFE3F2 glassy baby-blue lens fill
 _BE_PUPIL   = (42, 53, 64)         # #2A3540 pupil ink
 _BE_BLUSH   = (240, 168, 160)      # #F0A8A0 cheek blush
@@ -42,8 +49,12 @@ _BE_AVIAQUA = (159, 212, 232)      # #9FD4E8 glassy-aqua aviator tint
 # sky fill so the white catch-light dome has a hard value floor to pop against on
 # a bright day sky (the make-or-break for this skin); the upper lens stays a
 # lighter glass so the eye reads round and wet, not flat.
-_BE_LENS_DEEP = (96, 150, 178)     # deep glassy teal — the dark floor of the eye
-_BE_LENS_GLASS = (208, 236, 248)   # lit upper-glass so the eye reads rounded
+_BE_LENS_DEEP = (60, 108, 138)     # deep glassy teal — the dark floor of the eye,
+                                   # dropped ~25% darker so the white dome has a
+                                   # real value drop to pop against on day.
+_BE_LENS_GLASS = (208, 236, 248)   # lit upper-glass — kept bright so the top arc
+                                   # still reads wet: a STEEP floor→dome ramp, not
+                                   # a flat dark disc.
 _BE_WHITE   = (250, 253, 255)      # catch-light dome — the surviving spec
 _BE_FRAME   = (118, 168, 190)      # aqua aviator rim, a touch deeper than tint
 _BE_FRAME_D = (74, 118, 140)       # rim shadow so the frame stays a hard ring
@@ -57,9 +68,12 @@ _BE_FRAME_D = (74, 118, 140)       # rim shadow so the frame stays a hard ring
 P_BIGEYES = _pal(
     tail=[(150, 188, 146), (172, 208, 166), (196, 226, 190), (220, 240, 214)],
     tail_line=_BE_SAGE,
-    body_shadow=(166, 204, 160),
+    # body_shadow seats the outer crescent under body_main — run it the deeper
+    # sage edge tone so the lower-right silhouette reads as a HARD keyline on day
+    # without darkening the lit fill.
+    body_shadow=_BE_EDGE,
     body_main=_BE_MINT,
-    body_chest=(232, 245, 226),
+    body_chest=(226, 242, 218),
     body_belly=_BE_BELLY,
     sheen=(255, 255, 255, 120),
     wing_main=(186, 220, 180),
@@ -67,10 +81,10 @@ P_BIGEYES = _pal(
     wing_tip=(226, 242, 220),
     wing_secondary=None,               # single-hue mint — keep the wing quiet
     wing_highlight=(240, 250, 236),
-    head_shadow=(166, 204, 160),
+    head_shadow=_BE_EDGE,
     head_main=_BE_MINT,
-    head_cheek=(206, 232, 200),
-    head_crown=(204, 230, 198),
+    head_cheek=(198, 224, 190),
+    head_crown=(195, 222, 188),
     lens_frame=_BE_FRAME,
     lens_body=_BE_LENS_SKY,            # glassy base; overpainted by the overlay
     lens_tint=(159, 212, 232, 120),    # glassy-aqua wash
@@ -117,6 +131,11 @@ def _big_eye(surf, cx, cy, *, near):
     #     baby read) and never touch the rim.
     dome_r = 4 if near else 3
     dx = -1 if near else 1                 # near dome shifts in toward the bridge
+    # A 1px dark keyline ring under the dome — without it the near-white dome
+    # blurs straight into the lit upper-glass on a day sky and the dome edge goes
+    # soft. Drawing the deep tone one px larger gives the dome a crisp boundary
+    # that survives the 40px downscale.
+    pygame.draw.circle(surf, _BE_LENS_DEEP, (cx + dx, cy - 2), dome_r + 1)
     pygame.draw.circle(surf, _BE_WHITE, (cx + dx, cy - 2), dome_r)
 
     # 3 · The pupil — a tiny dark ink dot sitting LOW in the lens (baby eyes look
