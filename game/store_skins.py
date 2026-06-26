@@ -648,7 +648,9 @@ _PH_BLUE_D = (26, 64, 128)
 
 
 def _paint_pharaoh(surf, _a):
-    cy = CROWN_Y
+    # Headdress sits a few px higher off the crown so the nemes reads taller/more
+    # regal; the lappets still fall to the cheeks (their lower y stays head-bound).
+    cy = CROWN_Y - 3
     # Side lappet — striped cloth falling beside the head, fewer 2px stripes.
     lappet = [(HX - 13, cy + 2), (HX - 5, cy + 2), (HX - 4, HY + 16),
               (HX - 12, HY + 16)]
