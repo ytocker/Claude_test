@@ -1,14 +1,16 @@
-"""FOLD-OVER FRONT — the structured nappy with a turned-down waistband (design_5).
+"""FOLD-OVER FRONT — a structured nappy BAND with a turned-down waistband (design_5).
 
-The shipped diaper sat at cy~64, down among the leg roots, so it read as a tub
-BINKY sits in. This take wraps a structured nappy round the rump + lower belly
-(y52-63) and folds the front waistband down into a panel, so a crisp horizontal
-seam cuts across the belly — the architectural tell that survives the 40px
-downscale on both day and navy night.
+The earlier take sat the cloth as a flat front slab that swallowed the legs.
+This wraps a NAPPY BAND round the rump + lower belly (y52-61): an enlarged rear
+lobe carries the cloth around behind the body, the underside connects back-lobe
+to front-panel as one continuous band, and a hard horizontal seam under the
+turned-down front waistband stays the architectural tell at 40px. The cloth ENDS
+at a hard bottom edge ~y61 so the scaffold's chubby legs read as poking out
+below — nothing cream descends past y61.
 
-Cream cloth only — the pacifier keeps the entire pink budget. The hard `#ABA282`
-seam under the turned-down panel plus the `#C9D9DE` powder-shadow underside hold
-the shape's value against navy; the lit `#FFFFFF` panel top carries the day read.
+Cream cloth only — the pacifier keeps the entire pink budget. The `#ABA282`
+seam plus `#C9D9DE` powder-shadow underside hold value against navy; the lit
+`#FFFFFF` panel top carries the bright-day read.
 """
 from __future__ import annotations
 import pygame
@@ -18,49 +20,40 @@ from tools.binky_diaper_candidates._shared import (
 
 
 def _diaper(surf):
-    # Everything sits above the legs (y65+) so they read as poking out below,
-    # never as the bird sitting inside a tub.
+    # The whole nappy is a BAND capped at y61 so the scaffold legs (y62+) clear.
 
-    # Rear wrap — a plain smooth cream lobe round the rump back-left; the panel
-    # detail is all up front, so the back stays quiet and uncluttered.
-    pygame.draw.ellipse(surf, _BB_DIAP_LN, (15, 52, 12, 10))
-    pygame.draw.ellipse(surf, _BB_DIAP,    (16, 53, 10, 8))
+    # Rear wrap — an enlarged rump lobe back-left so the cloth visibly turns the
+    # corner behind the body rather than reading as a front-only panel.
+    pygame.draw.ellipse(surf, _BB_DIAP_LN, (13, 52, 13, 9))
+    pygame.draw.ellipse(surf, _BB_DIAP,    (14, 53, 11, 7))
+    # A powder shadow seam along the rump's lower-back edge sells the wrap — the
+    # eye reads cloth continuing around behind the body, not a flat slab.
+    pygame.draw.line(surf, _BB_DIAP_SH, (15, 59), (24, 59), 2)
 
-    # Lower body — the cream that shows BELOW the turned-down panel, wrapping
-    # the underside between the leg roots; capped at y63 so the legs clear.
-    pygame.draw.ellipse(surf, _BB_DIAP_LN, (25, 56, 14, 8))
-    pygame.draw.ellipse(surf, _BB_DIAP,    (26, 57, 12, 6))
+    # Underside band — the cream that connects the rear lobe to the front panel
+    # across the belly's underside, so back + front read as ONE continuous band.
+    pygame.draw.ellipse(surf, _BB_DIAP_LN, (22, 55, 18, 6))
+    pygame.draw.ellipse(surf, _BB_DIAP,    (23, 56, 16, 4))
 
-    # Fold-over front panel — the signature. A flap turned down across the front
-    # belly with a flat top and a hard bottom edge; drawn as a filled rect so the
-    # seam stays a crisp horizontal line rather than a soft elliptical curve.
-    pygame.draw.rect(surf, _BB_DIAP, (24, 52, 18, 6))
-
-    # Panel top — lit white waistband edge that carries the bright-day top read.
-    pygame.draw.line(surf, _BB_DIAP_HI, (25, 53), (41, 53), 2)
-
+    # Fold-over front panel — the signature flap turned down across the front
+    # belly, narrowed ~2px from before so a powder-blue belly gap stays visible
+    # above it. Drawn as a filled rect so the seam is a crisp horizontal line.
+    pygame.draw.rect(surf, _BB_DIAP, (25, 53, 15, 4))
+    # Panel top — lit white waistband edge carrying the bright-day top read.
+    pygame.draw.line(surf, _BB_DIAP_HI, (26, 53), (39, 53), 1)
     # Panel bottom — the crisp turned-down seam, the architectural 40px tell.
-    # Kept a hard 2px so it doesn't dissolve when the sprite shrinks to game size.
-    pygame.draw.line(surf, _BB_DIAP_LN, (24, 58), (42, 58), 2)
-    # A thread of powder-shadow just under the seam reads as the panel's free
-    # edge casting onto the cloth below, and anchors value on navy night.
-    pygame.draw.line(surf, _BB_DIAP_SH, (25, 59), (41, 59), 1)
+    pygame.draw.line(surf, _BB_DIAP_LN, (25, 57), (40, 57), 2)
 
-    # Tape strip — a short vertical closure stripe centred on the panel, the
-    # detail that says "fastened nappy" rather than "folded towel".
-    pygame.draw.line(surf, _BB_DIAP_LN, (32, 54), (32, 57), 2)
+    # Tape strip — a short vertical closure tick above the seam (not a crosshair),
+    # the detail that says "fastened nappy" rather than "folded towel".
+    pygame.draw.line(surf, _BB_DIAP_LN, (32, 53), (32, 56), 2)
 
-    # Crotch seam — a centred fold down the lower body, separating the legs.
-    pygame.draw.line(surf, _BB_DIAP_LN, (32, 59), (32, 63), 1)
-
-    # Underside powder-shadow arc — the cloth curving under the belly; the main
-    # value anchor that keeps the lower lobe from voiding flat into navy.
-    pygame.draw.arc(surf, _BB_DIAP_SH, (25, 59, 14, 6), 3.45, 5.97, 2)
-
-    # Leg-cuff shades — short powder arcs hugging each leg root so the legs read
-    # as emerging *through* the nappy rather than from beneath a slab.
-    pygame.draw.arc(surf, _BB_DIAP_SH, (24, 61, 6, 6), 3.3, 6.1, 2)
-    pygame.draw.arc(surf, _BB_DIAP_SH, (33, 61, 6, 6), 3.3, 6.1, 2)
+    # Hard bottom edge — the cloth visibly ENDS here, above the legs, so the band
+    # reads as a nappy hem rather than dissolving into the body.
+    pygame.draw.line(surf, _BB_DIAP_LN, (24, 61), (39, 61), 2)
+    # Powder-shadow underside just inside the hem — the navy value-hold anchor,
+    # the cloth curving under the belly. Stays above y62 so legs read clean.
+    pygame.draw.line(surf, _BB_DIAP_SH, (25, 60), (38, 60), 1)
 
 
 build = make_binky_build(_diaper)
