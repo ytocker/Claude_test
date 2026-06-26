@@ -220,6 +220,8 @@ def _roll_skin_variant(st: dict, item_id: str) -> None:
     pools = {
         "skin_jet_fighter": lambda: __import__(
             "game.animal_jet_fighter", fromlist=["POOL_SIZE"]).POOL_SIZE,
+        "parcel_whiskey": lambda: __import__(
+            "game.parcel_whiskey", fromlist=["POOL_SIZE"]).POOL_SIZE,
     }
     get_n = pools.get(item_id)
     if get_n is None:
