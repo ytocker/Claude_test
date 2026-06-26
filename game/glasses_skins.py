@@ -71,7 +71,7 @@ def _build_icon(draw_shades) -> pygame.Surface:
 # matches the span of the default aviators it replaces. The anchor rides a couple
 # px forward of the eye centre so every style laps the beak base — worn eyewear
 # grips the face toward the front rather than floating back over the ear.
-_EYE_CX, _EYE_CY = 53, 40
+_EYE_CX, _EYE_CY = 55, 40
 _EYE_W = 22
 
 
