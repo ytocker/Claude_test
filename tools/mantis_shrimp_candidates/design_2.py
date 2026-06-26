@@ -9,14 +9,15 @@ from tools.mantis_shrimp_candidates._chassis import (
     orb_eye, stalk, tail_fan, glow_dot, shade, BCX, BCY, HCX, HCY, CROWN_Y,
 )
 
-BODY  = (10, 20, 36)            # blue-black
-BODY_D = (5, 11, 22)
+BODY  = (28, 58, 94)            # deep blue (a real value anchor for day sky)
+BODY_D = (10, 22, 40)
+BODY_R = (70, 120, 168)         # lit top-edge rim
 SEG   = (19, 49, 78)            # segment shade
 CYAN  = (35, 224, 255)          # bioluminescent glow
 CYAN_C = (155, 246, 255)        # glow core
 HOT   = (255, 138, 30)          # hot club-tip
 HOT_C = (255, 231, 176)
-RIM   = (5, 11, 22)
+RIM   = (8, 16, 30)
 
 
 def build(wing_angle_deg):
@@ -35,9 +36,11 @@ def build(wing_angle_deg):
     # Dark tail-fan with cyan rib-glow.
     tail_fan(surf, bcx - 7, bcy + 1, body=BODY, body_d=BODY_D, edge=SEG, rib=CYAN)
 
-    # Blue-black carapace.
+    # Deep-blue carapace with a lit top-edge rim so the silhouette reads on
+    # bright day sky (not only by glow).
     aaellipse(surf, BODY_D, (bcx + 1, bcy + 1), 17, 14)
     aaellipse(surf, BODY, (bcx, bcy), 16, 13)
+    pygame.draw.arc(surf, BODY_R, (bcx - 16, bcy - 14, 32, 24), 0.5, 2.7, 2)
     # Electric-cyan seam lines tracing the segment joints (glow pulses with strike).
     seam = shade(CYAN, 0.7 + 0.3 * s)
     for off in (-9, -3, 3, 9):
@@ -56,14 +59,15 @@ def build(wing_angle_deg):
         base = (hcx + sgn * 2, hcy - 3)
         tip = (tx, hcy - 9 + rcy)
         stalk(surf, base, tip, rim=RIM, col=SEG)
-        orb_eye(surf, tip[0], tip[1], 5, core=CYAN, rim=RIM, glow=CYAN)
+        orb_eye(surf, tip[0], tip[1], 6, core=CYAN, rim=RIM, glow=CYAN)
         pygame.draw.circle(surf, CYAN_C, (tip[0], tip[1]), 2)
 
-    # Lead club — dark hammer whose tip flares orange→white-hot on the punch.
+    # Lead club — a SOLID painted hot core (reads at 1× without glow) that flares
+    # white-hot on the punch, plus the night glow.
+    nf = (nf[0] + 2, nf[1])
     arm(surf, sh, ne, RIM, SEG); arm(surf, ne, nf, RIM, SEG)
-    tipcol = HOT_C if s > 0.6 else HOT
     glow_dot(surf, nf[0], nf[1], int(3 + s * 3), HOT)
-    round_club(surf, nf, 8, rim=RIM, col=(54, 32, 20), hi=tipcol,
+    round_club(surf, nf, 8, rim=RIM, col=HOT, hi=HOT_C if s > 0.6 else (255, 170, 70),
                spark=HOT_C)
     return surf
 

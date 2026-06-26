@@ -29,16 +29,18 @@ def build(wing_angle_deg):
     # Tiny tapering body + heart tail-fan behind.
     aaellipse(surf, CORAL_D, (bcx - 6, bcy + 1), 9, 8)
     aaellipse(surf, CORAL, (bcx - 6, bcy), 8, 7)
-    # Heart-ish tail (two small lobes + point).
+    # Little teal heart tail-fan so it reads as a shrimp, not an octopus.
     for dx in (-2, 2):
         pygame.draw.circle(surf, CORAL_D, (bcx - 16 + dx, bcy - 1), 3)
         pygame.draw.circle(surf, CORAL, (bcx - 16 + dx, bcy - 2), 2)
-    pygame.draw.polygon(surf, CORAL_D, [(bcx - 19, bcy), (bcx - 14, bcy + 5), (bcx - 11, bcy)])
+    for dy in (-4, 0, 4):
+        pygame.draw.polygon(surf, TEAL,
+                            [(bcx - 14, bcy), (bcx - 20, bcy + dy), (bcx - 18, bcy + dy)])
 
-    # Rear mini mitten (pat-pat, bounces with the flap).
+    # Rear mitten (bigger + rim-outlined so the club reads at 40px).
     pat = int(s * 2)
     arm(surf, (bcx + 4, bcy + 3), (bcx + 9, bcy + 5 - pat), RIM, CORAL_D)
-    round_club(surf, (bcx + 11, bcy + 4 - pat), 4, rim=RIM, col=CREAM, hi=(255, 240, 224))
+    round_club(surf, (bcx + 11, bcy + 4 - pat), 6, rim=RIM, col=CREAM, hi=(255, 240, 224))
 
     # ── HERO: oversized round head.
     aaellipse(surf, CORAL_D, (hcx + 1, hcy + 1), 14, 13)
@@ -61,9 +63,9 @@ def build(wing_angle_deg):
         pygame.draw.circle(surf, (255, 255, 255), (tip[0] - 2, tip[1] - 2), 2)
         pygame.draw.circle(surf, (255, 255, 255), (tip[0] + 2, tip[1] + 2), 1)
 
-    # Near mini mitten (the eager pat).
-    arm(surf, (hcx + 6, hcy + 6), (hcx + 11, hcy + 2 - pat), RIM, CORAL_D)
-    round_club(surf, (hcx + 13, hcy - 1 - pat), 5, rim=RIM, col=CREAM, hi=(255, 240, 224))
+    # Near mitten — bigger so the "two clubs up front" silhouette survives 40px.
+    arm(surf, (hcx + 6, hcy + 6), (hcx + 12, hcy + 1 - pat), RIM, CORAL_D, w=4)
+    round_club(surf, (hcx + 15, hcy - 2 - pat), 7, rim=RIM, col=CREAM, hi=(255, 240, 224))
     if s > 0.6:
         pygame.draw.circle(surf, (255, 200, 220), (hcx + 18, hcy - 4), 2, 1)
     return surf

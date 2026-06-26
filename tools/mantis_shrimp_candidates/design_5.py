@@ -41,15 +41,17 @@ def build(wing_angle_deg):
     # Dark tail-fan with glowing orange rib edges.
     tail_fan(surf, bcx - 7, bcy + 1, body=ROCK, body_d=ROCK_D, edge=ROCK_H, rib=LAVA)
 
-    # Charcoal carapace.
+    # Charcoal carapace with a warm lit top-rim so the silhouette reads on bright
+    # day sky without depending on the glow.
     aaellipse(surf, ROCK_D, (bcx + 1, bcy + 1), 17, 14)
     aaellipse(surf, ROCK, (bcx, bcy), 16, 13)
     aaellipse(surf, ROCK_H, (bcx - 3, bcy - 4), 7, 3)
-    # Branching lava-crack veins along the back + seams (pulse with the strike).
-    _vein(surf, [(bcx - 13, bcy - 2), (bcx - 6, bcy - 6), (bcx + 2, bcy - 4),
-                 (bcx + 9, bcy - 8)], pulse)
-    _vein(surf, [(bcx - 4, bcy - 4), (bcx - 2, bcy + 3), (bcx + 4, bcy + 8)], pulse)
-    _vein(surf, [(bcx + 2, bcy - 4), (bcx + 7, bcy + 2)], pulse)
+    pygame.draw.arc(surf, (122, 74, 48), (bcx - 16, bcy - 14, 32, 24), 0.5, 2.7, 2)
+    # ONE bold horizontal lava crack per segment (branching veins read as noise
+    # at 40px); they pulse brighter with the strike.
+    _vein(surf, [(bcx - 12, bcy - 5), (bcx - 4, bcy - 4)], pulse)
+    _vein(surf, [(bcx - 6, bcy + 4), (bcx + 3, bcy + 5)], pulse)
+    _vein(surf, [(bcx + 2, bcy - 3), (bcx + 10, bcy - 2)], pulse)
     pygame.draw.ellipse(surf, ROCK_D, (bcx - 16, bcy - 13, 32, 26), 1)
 
     # Head.
@@ -66,7 +68,9 @@ def build(wing_angle_deg):
         pygame.draw.circle(surf, LAVA_Y, (tip[0], tip[1]), 2)
         pygame.draw.circle(surf, HOT, (tip[0], tip[1]), 1)
 
-    # Lead anvil — white-hot face on the punch + rising ember sparks.
+    # Lead anvil — pushed forward to break the body outline; white-hot face on
+    # the punch + rising ember sparks.
+    nf = (nf[0] + 2, nf[1])
     arm(surf, sh, ne, RIM, ROCK_D, w=4); arm(surf, ne, nf, RIM, ROCK_D, w=4)
     glow_dot(surf, nf[0], nf[1], int(3 + s * 3), LAVA)
     face = HOT if s > 0.6 else LAVA_Y

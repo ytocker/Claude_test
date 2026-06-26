@@ -14,12 +14,12 @@ BODY_D = (12, 92, 62)           # dark green rim/anchor
 BODY_H = (120, 224, 170)
 RIM   = (12, 92, 62)
 SOM   = (255, 106, 43)          # orange-red somite edge
-BLUE  = (43, 199, 232)          # tail-fan blue
+BLUE  = (30, 159, 190)          # tail-fan blue (desaturated so the eye stays focal)
 RED   = (224, 60, 70)           # setae rib
 MAG   = (232, 51, 140)          # eye magenta
 HI    = (255, 244, 214)
 CLUB  = (255, 120, 60)
-CLUB_H = (255, 206, 150)
+CLUB_H = (255, 179, 90)         # warm-light knuckle so the punch separates
 
 
 def build(wing_angle_deg):
@@ -44,8 +44,9 @@ def build(wing_angle_deg):
     # Orange-red somite trailing edges (3 bands).
     for off in (-7, 0, 7):
         pygame.draw.line(surf, SOM, (bcx + off, bcy - 11), (bcx + off, bcy + 11), 2)
-    # Leopard spots: dark blob + white ring (≥3px).
-    for sx, sy in ((bcx - 6, bcy - 5), (bcx + 4, bcy + 3), (bcx + 9, bcy - 4)):
+    # Leopard spots — just TWO, each big enough (dark core + white ring) to
+    # survive 40px instead of turning to mud.
+    for sx, sy in ((bcx - 6, bcy - 4), (bcx + 6, bcy + 2)):
         pygame.draw.circle(surf, HI, (sx, sy), 3, 1)
         pygame.draw.circle(surf, BODY_D, (sx, sy), 2)
     pygame.draw.ellipse(surf, BODY_D, (bcx - 16, bcy - 13, 32, 26), 1)
@@ -61,7 +62,8 @@ def build(wing_angle_deg):
         stalk(surf, base, tip, rim=RIM, col=SOM)
         orb_eye(surf, tip[0], tip[1], 5, core=BODY, rim=RIM, mid=MAG, band=True)
 
-    # Lead club — the haymaker, in front.
+    # Lead club — the haymaker, nudged forward so it breaks the body outline.
+    nf = (nf[0] + 2, nf[1])
     arm(surf, sh, ne, RIM, BODY_D); arm(surf, ne, nf, RIM, BODY_D)
     round_club(surf, nf, 8, rim=RIM, col=CLUB, hi=CLUB_H,
                spark=(190, 255, 240) if s > 0.6 else None)

@@ -51,11 +51,9 @@ def build(wing_angle_deg):
     aaellipse(surf, STEEL_D, (bcx + 1, bcy + 1), 15, 12)
     aaellipse(surf, STEEL, (bcx, bcy), 14, 11)
     aaellipse(surf, STEEL_H, (bcx - 3, bcy - 4), 7, 3)
-    # Three armour plate seams + rivet dots.
+    # Three clear armour-plate seams (rivets dropped — pure noise at 40px).
     for off in (-7, 0, 7):
         pygame.draw.line(surf, STEEL_D, (bcx + off, bcy - 10), (bcx + off, bcy + 10), 2)
-        pygame.draw.circle(surf, STEEL_H, (bcx + off, bcy - 8), 1)
-        pygame.draw.circle(surf, STEEL_H, (bcx + off, bcy + 8), 1)
     # Gold collar plate at the neck.
     pygame.draw.line(surf, GOLD, (bcx + 10, bcy - 8), (bcx + 12, bcy + 6), 3)
     pygame.draw.ellipse(surf, STEEL_D, (bcx - 14, bcy - 11, 28, 22), 1)
@@ -63,8 +61,9 @@ def build(wing_angle_deg):
     # Head + armoured visor eyes.
     aaellipse(surf, STEEL_D, (hcx, hcy + 1), 10, 9)
     aaellipse(surf, STEEL, (hcx - 1, hcy), 9, 8)
+    # Raised periscope stalks so the paired-eye mantis read is unmistakable.
     for sgn, tx in ((-1, hcx - 4), (1, hcx + 5)):
-        tip = (tx, hcy - 8 + rcy)
+        tip = (tx, hcy - 12 + rcy)
         arm(surf, (hcx + sgn * 2, hcy - 3), tip, RIM, STEEL_D, w=3)
         orb_eye(surf, tip[0], tip[1], 4, core=AMBER, rim=RIM)
 

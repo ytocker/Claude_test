@@ -18,12 +18,12 @@ pygame.init()
 import tools.ninja_render as nr
 
 COLUMNS = [
-    ("ORIGINAL", "unclear stalk eyes", "skin_mantis_shrimp"),
-    ("DESIGN 1", "TWIN PERISCOPES", "design_1"),
-    ("DESIGN 2", "FRONT GOGGLES", "design_2"),
-    ("DESIGN 3", "FIERCE BRUISER", "design_3"),
-    ("DESIGN 4", "WIDE+ROSTRUM", "design_4"),
-    ("DESIGN 5", "VISOR MIDBAND", "design_5"),
+    ("ORIGINAL", "duotone bruiser", "skin_mantis_shrimp"),
+    ("DESIGN 1", "PEACOCK PRISM", "design_1"),
+    ("DESIGN 2", "ABYSS GLOWER", "design_2"),
+    ("DESIGN 3", "KO GLADIATOR", "design_3"),
+    ("DESIGN 4", "CHIBI POW", "design_4"),
+    ("DESIGN 5", "EMBER FORGE", "design_5"),
 ]
 
 PANEL_W, PANEL_H = 220, 392
@@ -52,7 +52,7 @@ def main():
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((18, 16, 26))
 
-    _label(sheet, "MANTIS SHRIMP  ·  face redesign  ·  fixing the unclear stalk-eye face",
+    _label(sheet, "MANTIS SHRIMP  ·  full redesign  ·  5 complete concepts",
            pad, 14, 24, (242, 238, 252))
 
     for i, (tag, name, spec) in enumerate(COLUMNS):
