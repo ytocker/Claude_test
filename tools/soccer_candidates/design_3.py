@@ -1,106 +1,113 @@
-"""DESIGN 3 — THE CAPTAIN (Soccer / Football, v2).
+"""DESIGN 3 — THE CAPTAIN (Soccer / Football), v3.
 
-Scratch exploration only — NOT registered in store_skins.BUILDERS, so
-production is untouched. Pip the scarlet macaw kitted as the side's captain:
-a classic deep-NAVY jersey, a white squad NUMBER on the chest, a small gold
-team CREST left of it, and — the hero tell — a bright GOLD CAPTAIN'S ARMBAND
-high on the near (forward) shoulder. Mid-grey shorts with a white hem, tall
-navy socks with a white hoop, and low dark boots finish the kit. No ball, no
-headgear — the crown stays the open macaw so Pip still reads as a parrot, and
-NOTHING covers the beak/eye/face.
+Scratch exploration only — NOT registered in store_skins.BUILDERS, so production
+art stays untouched.
 
-The jersey reuses the EXACT baseball-jersey polygon anchored on HX,HY (top at
-HY+8, hem at HY+23) so the kit sits centred on the torso, never riding up onto
-the face or off to the side. The armband is the one cue that must survive the
-40px downscale: a 4px GOLD band isolated by dark-navy gap pixels high on the
-shoulder, the single brightest, loudest mark in the costume, so "captain"
-reads at hero scale. Pure white is reserved for the number + shorts hem so the
-gold band always wins the eye; a bright navy rim-light keeps the kit from
-dissolving into the night sky.
+The critical advance over the earlier soccer kits: a FULL-BODY navy jersey that
+wraps most of the visible torso (left edge pulled out to x=20 rather than the old
+narrow x=33), so the kit reads as a worn shirt, not a chest patch. The jersey is
+two-zoned — a dark navy back and a lighter navy chest — so the rounded torso reads
+at 40px. The hero captaincy cues sit on top: a gold captain's ARMBAND isolated on
+the near shoulder, a small red/gold CREST patch on the chest, and a white squad
+NUMBER "10" below it. Knee-high navy socks with a white hoop, grey shorts, and dark
+boots finish the kit. NO headgear of any kind — the crown stays the open macaw head.
 """
 import pygame
 
 from game import store_skins
-from game.store_skins import HX, HY, _poly
+from game.store_skins import HX, HY, CROWN_Y, _poly
 
+# Body centre in composite space (parrot body centre (32,32) + PARROT_DY).
+BCX, BCY = 32, 52
 
-# Classic deep-navy kit. Three cloth values so the collar, number and crest
-# still separate from the jersey field after the 40px downscale.
-_CAP_NAVY    = (10, 32, 96)         # #0A2060 jersey deep navy (cloth mid)
-_CAP_NAVY_D  = (6, 20, 62)          # cloth shadow / seams / off-side / band-gap
-_CAP_NAVY_H  = (40, 70, 150)        # shoulder / sleeve sheen
-_CAP_NAVY_RIM= (70, 110, 200)       # bright rim-light so the kit survives night
-_CAP_WHITE   = (244, 247, 255)      # #F4F7FF number / shorts hem (reserved white)
-_CAP_WHITE_D = (200, 210, 232)      # cool white shade so trim reads rounded
-_CAP_GREY    = (160, 164, 180)      # #A0A4B4 mid-grey shorts main fill
-_CAP_GOLD    = (232, 178, 58)       # #E8B23A captain's armband band colour
-_CAP_GOLD_H  = (255, 232, 158)      # gold glint / armband sheen
-_CAP_BOOT    = (32, 34, 44)         # #20222C low dark boot
-_CAP_BOOT_H  = (84, 90, 108)        # boot upper highlight
+# Two-zone navy jersey — a dark back so the lighter chest reads as a lit front.
+_CAP_BACK    = (7, 24, 72)         # #071848 dark navy back zone
+_CAP_CHEST   = (13, 40, 120)       # #0D2878 lighter navy chest zone
+_CAP_FOLD    = (10, 32, 96)        # seam fold line between the zones
+_CAP_OUTLINE = (4, 14, 48)         # very dark navy contour outline
+
+# Gold captain's armband — the hero captaincy note, isolated on the near shoulder.
+_ARMBAND     = (232, 178, 58)      # #E8B23A gold band
+_ARMBAND_H   = (255, 215, 100)     # armband highlight
+
+# Squad number + crest — the on-shirt identity marks.
+_NUM_W       = (244, 244, 248)     # white squad number
+_CREST_R     = (195, 50, 40)       # crest red field
+_CREST_G     = (240, 200, 50)      # crest gold bar
+
+# Kit darks — navy socks with a white hoop, grey shorts, near-black boots.
+_SOCK_NAVY   = (15, 26, 100)       # knee-high navy sock
+_SOCK_W      = (240, 240, 248)     # white sock hoop
+_SHORTS_GREY = (130, 134, 150)     # grey shorts band
+_BOOT_D      = (26, 24, 32)        # near-black boot
+_BOOT_SOLE   = (200, 200, 210)     # boot sole glint
 
 
 def _paint(surf, _a):
-    # --- NAVY JERSEY over the torso (the team read) -----------------------------
-    # Exact baseball-jersey polygon on the HX,HY anchor: top y=HY+8, hem y=HY+23.
-    # Nothing rises above y=HY+8 so the kit can never climb onto the face.
-    jersey = [(HX - 13, HY + 8), (HX - 14, HY + 18), (HX - 10, HY + 23),
-              (HX + 8, HY + 23), (HX + 11, HY + 18), (HX + 9, HY + 8)]
-    _poly(surf, _CAP_NAVY, jersey)
-    # Off-side shade so the jersey reads as a rounded torso, not a flat panel.
-    _poly(surf, _CAP_NAVY_D, [(HX + 4, HY + 9), (HX + 11, HY + 18),
-                              (HX + 8, HY + 23), (HX + 5, HY + 22)])
-    # Shoulder sheen on the near side so the cloth catches light.
-    _poly(surf, _CAP_NAVY_H, [(HX - 12, HY + 9), (HX - 6, HY + 9),
-                              (HX - 8, HY + 13), (HX - 13, HY + 13)])
-    # Bright rim-light down the near/forward jersey edge so the navy torso never
-    # dissolves into a dark night sky — a 1px lit seam reads the silhouette.
-    pygame.draw.line(surf, _CAP_NAVY_RIM, (HX + 9, HY + 8), (HX + 11, HY + 18), 1)
-    pygame.draw.line(surf, _CAP_NAVY_RIM, (HX + 11, HY + 18), (HX + 8, HY + 23), 1)
+    # Full-body jersey polygon — left edge pulled out to (BCX-10, HY+7)=(22,48)
+    # so the navy wraps the whole visible torso (~36px wide), not a chest patch.
+    jersey = [
+        (BCX - 10, HY + 7),    # left shoulder  (22, 48)
+        (BCX - 12, HY + 17),   # left hip       (20, 58)
+        (BCX - 8,  HY + 23),   # left hem       (24, 64)
+        (HX + 8,   HY + 23),   # right hem      (55, 64)
+        (HX + 11,  HY + 18),   # right hip      (58, 59)
+        (HX + 9,   HY + 8),    # right shoulder (56, 49)
+    ]
+    # Lighter chest zone over the near (right) half so the torso reads as a lit
+    # front against the dark back.
+    chest_zone = [
+        (BCX,      HY + 7),
+        (BCX,      HY + 23),
+        (HX + 8,   HY + 23),
+        (HX + 11,  HY + 18),
+        (HX + 9,   HY + 8),
+    ]
 
-    # --- WHITE SQUAD NUMBER on the chest — a bold "10" reads as a captain's
-    #     number at hero scale. Nudged RIGHT so a clear navy gap (>=2px) sits
-    #     between it and the crest; pure white is reserved for it + the hem.
-    pygame.draw.line(surf, _CAP_WHITE, (HX + 2, HY + 12), (HX + 2, HY + 18), 2)  # "1"
-    pygame.draw.ellipse(surf, _CAP_WHITE, (HX + 4, HY + 12, 5, 7))               # "0"
-    pygame.draw.ellipse(surf, _CAP_NAVY, (HX + 5, HY + 13, 3, 5))                # "0" hole
+    # ── 1 · NAVY SOCK PILLARS (knee-high) — drawn first so the jersey hem and
+    #    shorts overlap their tops. White hoop near the knee is the classic cue.
+    for fx in (HX - 9, HX + 1):
+        pygame.draw.line(surf, _SOCK_NAVY, (fx, HY + 13), (fx, HY + 25), 5)
+        pygame.draw.line(surf, _SOCK_W, (fx - 1, HY + 15), (fx + 2, HY + 15), 2)
 
-    # --- GOLD TEAM CREST left of the number — ONE small shield blob (~7x7) with a
-    #     navy field so the gold rim pops, nudged LEFT to clear the number. No
-    #     V-collar: the chest carries exactly one crest + one number, nothing else.
-    cx, cy = HX - 8, HY + 12
-    shield = [(cx - 3, cy - 3), (cx + 3, cy - 3), (cx + 3, cy + 1),
-              (cx, cy + 4), (cx - 3, cy + 1)]
-    _poly(surf, _CAP_NAVY_D, shield)                  # crest field (dark, so gold pops)
-    pygame.draw.polygon(surf, _CAP_GOLD, shield, 1)   # gold shield outline
-    pygame.draw.line(surf, _CAP_GOLD_H, (cx - 3, cy - 3), (cx + 3, cy - 3), 1)  # rim glint
+    # ── 2 · BOOTS — dark studded shoes at the feet line with a bright sole edge.
+    for fx in (HX - 9, HX + 1):
+        pygame.draw.ellipse(surf, _BOOT_D, (fx - 4, HY + 23, 9, 5))
+        pygame.draw.line(surf, _BOOT_SOLE, (fx - 3, HY + 25), (fx + 3, HY + 25), 1)
 
-    # --- MID-GREY SHORTS hem just below the jersey hem — grey main fill so the
-    #     shorts recede and never pull focus from the armband; one 1px white hem
-    #     highlight is the only white down here.
-    _poly(surf, _CAP_GREY, [(HX - 11, HY + 22), (HX + 9, HY + 22),
-                            (HX + 8, HY + 26), (HX - 10, HY + 26)])
-    pygame.draw.line(surf, _CAP_WHITE, (HX - 10, HY + 26), (HX + 8, HY + 26), 1)  # white hem
-    pygame.draw.line(surf, _CAP_NAVY_D, (HX - 1, HY + 22), (HX - 1, HY + 26), 1)  # leg split
+    # ── 3 · GREY SHORTS — a band between the jersey hem and the socks so there's
+    #    a kit break between shirt and legs.
+    pygame.draw.line(surf, _SHORTS_GREY, (BCX - 8, HY + 24), (HX + 8, HY + 24), 4)
 
-    # --- TALL NAVY SOCKS with a white hoop near the top + low dark BOOTS. Two
-    #     sock pillars on the feet line; a bright rim down the near sock edge keeps
-    #     the legs visible at night, one white band over each.
-    for fx in (HX - 10, HX):
-        pygame.draw.rect(surf, _CAP_NAVY, (fx, HY + 26, 7, 9))
-        pygame.draw.line(surf, _CAP_NAVY_RIM, (fx + 6, HY + 26), (fx + 6, HY + 34), 1)  # rim
-        pygame.draw.line(surf, _CAP_WHITE, (fx, HY + 27), (fx + 6, HY + 27), 2)  # white hoop
-        pygame.draw.rect(surf, _CAP_BOOT, (fx - 1, HY + 33, 9, 4), border_radius=2)
-        pygame.draw.line(surf, _CAP_BOOT_H, (fx - 1, HY + 34), (fx + 7, HY + 34), 1)
+    # ── 4 · FULL JERSEY (two zones) — dark back, lighter chest, a seam fold down
+    #    the centre, and a dark contour so the navy holds its edge on night sky.
+    _poly(surf, _CAP_BACK, jersey)
+    _poly(surf, _CAP_CHEST, chest_zone)
+    pygame.draw.line(surf, _CAP_FOLD, (BCX, HY + 7), (BCX, HY + 23), 1)
+    pygame.draw.polygon(surf, _CAP_OUTLINE, jersey, 1)
 
-    # --- CAPTAIN'S ARMBAND (THE hero tell) — drawn LAST, high on the near/forward
-    #     SHOULDER at HY+13..15 so it sits alone, well above the number/shorts
-    #     cluster. A 4px GOLD band is the brightest, most isolated mark; dark-navy
-    #     gap pixels above and below cut it off the jersey so it never smears into
-    #     the kit, and a white sheen pixel gives it shine.
-    pygame.draw.line(surf, _CAP_NAVY_D, (HX + 7, HY + 12), (HX + 14, HY + 13), 1)  # top gap
-    pygame.draw.line(surf, _CAP_GOLD,   (HX + 7, HY + 14), (HX + 14, HY + 15), 4)  # gold band
-    pygame.draw.line(surf, _CAP_GOLD_H, (HX + 7, HY + 13), (HX + 13, HY + 14), 1)  # sheen
-    pygame.draw.line(surf, _CAP_NAVY_D, (HX + 7, HY + 17), (HX + 14, HY + 18), 1)  # bottom gap
+    # ── 5 · GOLD CAPTAIN'S ARMBAND — the hero note on the NEAR (right) shoulder,
+    #    isolated with thin dark gaps above and below so the gold reads as a band
+    #    wrapping the arm, not a stripe melting into the jersey.
+    pygame.draw.line(surf, _CAP_OUTLINE, (HX + 1, HY + 11), (HX + 9, HY + 11), 1)
+    pygame.draw.line(surf, _ARMBAND, (HX + 1, HY + 12), (HX + 9, HY + 12), 4)
+    pygame.draw.line(surf, _ARMBAND_H, (HX + 2, HY + 11), (HX + 8, HY + 11), 1)
+    pygame.draw.line(surf, _CAP_OUTLINE, (HX + 1, HY + 14), (HX + 9, HY + 14), 1)
+
+    # ── 6 · CREST PATCH — a small red shield with a gold bar on the chest, the
+    #    club-identity mark above the squad number.
+    _poly(surf, _CREST_R, [(HX - 5, HY + 9), (HX - 1, HY + 9), (HX - 1, HY + 14),
+                           (HX - 3, HY + 15), (HX - 5, HY + 14)])
+    pygame.draw.line(surf, _CREST_G, (HX - 5, HY + 11), (HX - 1, HY + 11), 1)
+    pygame.draw.polygon(surf, _CAP_OUTLINE,
+                        [(HX - 5, HY + 9), (HX - 1, HY + 9), (HX - 1, HY + 14),
+                         (HX - 3, HY + 15), (HX - 5, HY + 14)], 1)
+
+    # ── 7 · SQUAD NUMBER "10" — white, on the chest below the crest. A small bold
+    #    SysFont blit so the captain reads as a numbered shirt at the hero scale.
+    font = pygame.font.SysFont("arial", 7, bold=True)
+    num = font.render("10", True, _NUM_W)
+    surf.blit(num, (HX - 2, HY + 15))
 
 
 build = store_skins._make_skin(_paint)
