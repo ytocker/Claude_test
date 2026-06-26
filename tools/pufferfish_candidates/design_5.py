@@ -10,10 +10,10 @@ from tools.pufferfish_candidates._shared import (
     _tail_fin, _side_fin, _spots, _stub_spikes, BCX, BCY,
 )
 
-CORE = (255, 224, 130)
-MID  = (230, 178, 78)
-EDGE = (194, 135, 30)
-BELLY = (246, 230, 180)
+CORE = (248, 210, 128)          # warm sandy-amber (de-sunned off pure gold)
+MID  = (224, 162, 80)
+EDGE = (190, 124, 44)
+BELLY = (248, 228, 184)
 SPIKE_D = (176, 116, 26)
 SPIKE_T = (248, 206, 110)
 SPOT  = (150, 100, 26)
@@ -36,12 +36,13 @@ def build_derpy(wing_angle_deg):
     core, mid, edge = _shade(CORE, bf), _shade(MID, bf), _shade(EDGE, bf)
     fin_d, fin_l = _shade(FIN_D, bf), _shade(FIN_L, bf)
 
-    # Swishy tail (back), sways a little with the flap.
-    _tail_fin(surf, cx - r + 1, cy + 2 + int(f * 2), 8, fin_d, fin_l)
+    # Bigger swishy tail (back) — pushes the fish-axis harder; sways with flap.
+    _tail_fin(surf, cx - r + 1, cy + 2 + int(f * 2), 10, fin_d, fin_l)
     _side_fin(surf, cx - 5, cy - 2, 4, fin_d, fin_l, flip=True)
 
-    # Soft sparse spikes.
-    spk = 4 + int(inf * 3)
+    # Soft sparse spikes — inflate bonus capped at +2 so the puffed frame never
+    # closes into a full radial halo.
+    spk = 4 + int(inf * 2)
     _stub_spikes(surf, cx, cy, r, r, spk, _shade(SPIKE_D, bf),
                  _shade(SPIKE_T, bf), _SPK)
 
@@ -53,17 +54,26 @@ def build_derpy(wing_angle_deg):
     # Near pectoral fin.
     _side_fin(surf, cx + r - 4, cy + 6, 5, fin_d, fin_l)
 
-    # ── HERO: oversized eyes + a two-tooth beak ──
+    # ── HERO: oversized convergent googly eyes + a bold two-tooth beak ──
     fx, fy = cx + 1, cy - 3
     pygame.draw.circle(surf, BLUSH, (fx - 9, fy + 6), 2)
+    pygame.draw.circle(surf, (220, 130, 90), (fx - 9, fy + 6), 2, 1)   # night insurance
     pygame.draw.circle(surf, BLUSH, (fx + 9, fy + 6), 2)
-    _eye(surf, fx - 6, fy, 5, iris=DARK)        # bigger r5 googly eyes
-    _eye(surf, fx + 6, fy, 5, iris=DARK)
-    # Beak: a warm-dark lip line with two pale buck-teeth below it.
-    pygame.draw.line(surf, (110, 70, 40), (fx - 4, fy + 7), (fx + 4, fy + 7), 2)
-    pygame.draw.rect(surf, TEETH, (fx - 3, fy + 7, 2, 3))
-    pygame.draw.rect(surf, TEETH, (fx + 1, fy + 7, 2, 3))
-    pygame.draw.rect(surf, (200, 170, 120), (fx - 3, fy + 9, 6, 1))
+    pygame.draw.circle(surf, (220, 130, 90), (fx + 9, fy + 6), 2, 1)
+    # Big r5 eyes brought CLOSER and irises converged inward for a derp, not a
+    # pair of dead black discs (the _eye fix keeps a 2px white margin + fat glint).
+    _eye(surf, fx - 5, fy, 5, iris=DARK)
+    _eye(surf, fx + 5, fy, 5, iris=DARK)
+    pygame.draw.circle(surf, DARK, (fx - 5 + 1, fy + 1), 2)  # pupil nudged in/down
+    pygame.draw.circle(surf, DARK, (fx + 5 - 1, fy + 1), 2)
+    pygame.draw.circle(surf, (255, 255, 255), (fx - 6, fy - 1), 1)
+    pygame.draw.circle(surf, (255, 255, 255), (fx + 4, fy - 1), 1)
+    # Beak: ONE bold dark lip line + two wide pale teeth, outlined so they punch
+    # against the belly at 40px.
+    pygame.draw.line(surf, (96, 60, 34), (fx - 5, fy + 7), (fx + 5, fy + 7), 2)
+    for tx in (fx - 4, fx + 1):
+        pygame.draw.rect(surf, TEETH, (tx, fy + 8, 3, 3))
+        pygame.draw.rect(surf, (120, 78, 44), (tx, fy + 8, 3, 3), 1)
     return surf
 
 

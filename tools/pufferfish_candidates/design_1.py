@@ -21,9 +21,9 @@ FIN_L = (111, 183, 201)
 DARK  = (52, 36, 14)
 BLUSH = (255, 168, 120)
 
-# Stub spikes confined to the upper arc (top of the ball), scattered/uneven.
-_SPK = [(-2.85, 0.7), (-2.4, 1.0), (-1.95, 0.8), (-1.5, 1.1),
-        (-1.05, 0.85), (-0.6, 1.0)]
+# A SMALL cluster of blunt stubs on the upper-back shoulder only (not a crown
+# spanning the whole top) — uneven lengths so they read as bumps, not rays.
+_SPK = [(-2.2, 0.6), (-1.8, 1.0), (-1.45, 0.55), (-1.1, 0.85)]
 
 
 def build_finned(wing_angle_deg):
@@ -35,24 +35,25 @@ def build_finned(wing_angle_deg):
     core, mid, edge = _shade(CORE, bf), _shade(MID, bf), _shade(EDGE, bf)
     fin_d, fin_l = _shade(FIN_D, bf), _shade(FIN_L, bf)
 
-    # Tail fin at the BACK-left (drawn first so the body overlaps its root).
-    _tail_fin(surf, cx - r + 1, cy + 1, 9, fin_d, fin_l)
-    # Far pectoral fin (upper-back).
-    _side_fin(surf, cx - 5, cy - 2, 4, fin_d, fin_l, flip=True)
+    # BIG forked tail fin at the BACK-left — the loudest anti-sun signal, so it
+    # must win the silhouette (drawn first so the body overlaps its root).
+    _tail_fin(surf, cx - r + 2, cy + 1, 12, fin_d, fin_l)
 
-    # Short scattered stub spikes on the upper body — the anti-sun spike.
-    spk = 5 + int(inf * 3)
+    # Small blunt stub bumps on the upper-back shoulder (anti-sun spike).
+    spk = 3 + int(inf * 2)
     _stub_spikes(surf, cx, cy, r, r, spk, _shade(SPIKE_D, bf),
                  _shade(SPIKE_T, bf), _SPK)
 
-    # Golden ball with sphere value structure + pale belly.
-    _radial_body(surf, cx, cy, r, r, core, mid, edge)
-    _aaellipse(surf, _shade(BELLY, bf), (cx - 1, cy + 4), r - 6, r - 7)
+    # Gold body as a gentle horizontal OVAL (rx>ry) — reads as an inflated fish
+    # belly, not a celestial disc.
+    _radial_body(surf, cx, cy, r, r - 2, core, mid, edge)
+    _aaellipse(surf, _shade(BELLY, bf), (cx - 1, cy + 3), r - 6, r - 7)
     _spots(surf, cx, cy, r, r, _shade(SPOT, bf),
-           [(-6, 6, 1), (0, 8, 1), (6, 5, 1), (-3, 9, 1)])
+           [(-6, 5, 1), (0, 7, 1), (6, 4, 1)])
 
-    # Near pectoral fin (front-lower) flicks open with the puff.
-    _side_fin(surf, cx + r - 4, cy + 5 + int(inf), 5, fin_d, fin_l)
+    # ONE clear near pectoral fin (front-lower) with a rib, flicks with the puff.
+    _side_fin(surf, cx + r - 3, cy + 5 + int(inf), 6, fin_d, fin_l)
+    pygame.draw.line(surf, fin_d, (cx + r - 3, cy + 5), (cx + r + 2, cy + 6), 1)
 
     # Forward face: two eyes + blush + pouty O.
     fx, fy = cx + 1, cy - 3

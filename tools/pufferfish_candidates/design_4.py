@@ -21,8 +21,10 @@ FIN_L = (96, 200, 212)
 DARK  = (24, 54, 60)
 BUBBLE = (234, 251, 255)
 
-# Soft, rounded short spines — gentle and cute, scattered on the upper body.
-_SPK = [(-2.7, 0.7), (-2.2, 0.9), (-1.7, 0.75), (-1.2, 0.95), (-0.7, 0.8)]
+# Soft rounded short spines — upper body PLUS a couple lower on the back flank
+# so the bumps wrap the ball (the "spines all over a round body" puffer cue).
+_SPK = [(-2.7, 0.7), (-2.2, 0.9), (-1.7, 0.75), (-1.2, 0.95), (-0.7, 0.8),
+        (2.7, 0.6), (2.3, 0.7)]
 
 
 def build_aqua(wing_angle_deg):
@@ -35,9 +37,10 @@ def build_aqua(wing_angle_deg):
     core, mid, edge = _shade(CORE, bf), _shade(MID, bf), _shade(EDGE, bf)
     fin_d, fin_l = _shade(FIN_D, bf), _shade(FIN_L, bf)
 
-    # Bubbles drifting up off the back (rise with the flap) — the aquatic tell.
+    # Two bubbles drifting up off the back, kept clear of the body silhouette so
+    # at least one survives the 40px read — the aquatic tell.
     drift = int(f * 3)
-    for dx, dy, br in ((-r - 2, -6, 2), (-r + 1, -12, 2), (-r - 4, -16, 1)):
+    for dx, dy, br in ((-r - 5, -8, 3), (-r - 8, -16, 2)):
         bx, by = cx + dx, cy + dy - drift
         pygame.draw.circle(surf, BUBBLE, (bx, by), br)
         pygame.draw.circle(surf, (200, 240, 248), (bx, by), br, 1)
@@ -57,8 +60,10 @@ def build_aqua(wing_angle_deg):
     _spots(surf, cx, cy, r, r, _shade(SPOT, bf),
            [(-6, -2, 1), (2, -5, 1), (6, 2, 1)])
 
-    # Near pectoral fin (front-lower).
-    _side_fin(surf, cx + r - 4, cy + 5 + int(inf), 5, fin_d, fin_l)
+    # Near pectoral fin (front-lower), nudged down with a dark edge so it breaks
+    # the silhouette instead of sinking into the coral belly.
+    _side_fin(surf, cx + r - 3, cy + 6 + int(inf), 5, fin_d, fin_l)
+    pygame.draw.line(surf, fin_d, (cx + r - 3, cy + 6), (cx + r + 2, cy + 7), 1)
 
     # Big sparkly face.
     fx, fy = cx + 1, cy - 3

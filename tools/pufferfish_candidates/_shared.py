@@ -60,11 +60,13 @@ def _shade(col, f):
 
 
 def _eye(surf, cx, cy, r, *, iris=(52, 36, 14), white=(255, 250, 240)):
-    """Friendly round eye: white, dark iris pushed outward, top-left glint."""
+    """Friendly round eye: a real white margin (iris r-2 so the sclera shows all
+    around, never a black socket) + a fat top-left catchlight that sells 'alive'
+    at 40px."""
     pygame.draw.circle(surf, white, (cx, cy), r)
-    pygame.draw.circle(surf, iris, (cx + max(1, r // 4), cy), max(2, r - 1))
+    pygame.draw.circle(surf, iris, (cx + max(1, r // 4), cy), max(2, r - 2))
     pygame.draw.circle(surf, (255, 255, 255),
-                       (cx - r // 3, cy - r // 3), max(1, r // 3))
+                       (cx - r // 3, cy - r // 3), max(1, r // 2))
 
 
 def _radial_body(surf, cx, cy, rx, ry, core, mid, edge):
@@ -77,20 +79,23 @@ def _radial_body(surf, cx, cy, rx, ry, core, mid, edge):
 
 
 def _tail_fin(surf, x, y, size, col_dark, col_light, *, flip=False, ribs=True):
-    """A fan tail fin rooted at (x,y) sweeping back. `flip` mirrors it to the
-    other side. This + the oriented face is the core anti-sun fix (a front→back
-    axis a radial sun never has)."""
+    """A FORKED fan tail fin rooted at (x,y) sweeping back, with a V-notch cut
+    into the trailing edge — the classic fishtail shape. `flip` mirrors it. This
+    + the oriented face is the core anti-sun fix (a front→back axis + a forked
+    tail are shapes a radial sun never has)."""
     s = -1 if flip else 1
-    base = [(x, y - size // 2), (x, y + size // 2),
-            (x - s * size, y + size), (x - s * size, y - size)]
-    pygame.draw.polygon(surf, col_dark, base)
-    pygame.draw.polygon(surf, col_light,
-                        [(x, y - size // 3), (x, y + size // 3),
-                         (x - s * (size - 2), y + size - 2),
-                         (x - s * (size - 2), y - size + 2)])
+    bx = x - s * size                      # trailing (back) edge
+    notch = x - s * int(size * 0.5)        # fork bites inward toward the root
+    pygame.draw.polygon(surf, col_dark, [
+        (x, y - size // 2), (bx, y - size), (notch, y),
+        (bx, y + size), (x, y + size // 2)])
+    pygame.draw.polygon(surf, col_light, [
+        (x, y - size // 3), (x - s * (size - 2), y - size + 2),
+        (notch + s, y), (x - s * (size - 2), y + size - 2),
+        (x, y + size // 3)])
     if ribs:
         for ry in (-size + 3, 0, size - 3):
-            pygame.draw.line(surf, col_dark, (x, y + ry // 2),
+            pygame.draw.line(surf, col_dark, (x, y + ry // 3),
                              (x - s * (size - 1), y + ry), 1)
 
 
