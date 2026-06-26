@@ -101,7 +101,9 @@ CATALOG: dict[str, dict] = {
     "skin_jet_fighter":  {"name": "JET FIGHTER",   "cost": 12000, "kind": "skin", "group": "animal", "secret": True},
 
     # ── SHOES (stylized procedural sneaker/sandal homages Pip wears) ───────────
-    # Priced on desirability: sandals/slides cheap, classics mid, hype premium.
+    # Priced on desirability: sandals/slides cheap, classics mid, hype premium —
+    # then a fantastical epic→legendary tier (gel, light-up, winged, rocket) that
+    # gets wilder the higher it climbs, so the tab spans the whole rarity ladder.
     "skin_shoe_flipflops":  {"name": "FLIP-FLOPS",  "cost": 240, "kind": "skin", "group": "shoes"},
     "skin_shoe_poolslides": {"name": "POOL SLIDES", "cost": 300, "kind": "skin", "group": "shoes"},
     "skin_shoe_courtgreen": {"name": "COURT GREEN", "cost": 420, "kind": "skin", "group": "shoes"},
@@ -111,7 +113,12 @@ CATALOG: dict[str, dict] = {
     "skin_shoe_airflyer":   {"name": "AIR FLYER",   "cost": 620, "kind": "skin", "group": "shoes"},
     "skin_shoe_airbubble":  {"name": "AIR BUBBLE",  "cost": 680, "kind": "skin", "group": "shoes"},
     "skin_shoe_boostknit":  {"name": "BOOST KNIT",  "cost": 760, "kind": "skin", "group": "shoes"},
+    "skin_shoe_megadad":    {"name": "MEGA DAD",    "cost": 780, "kind": "skin", "group": "shoes"},
     "skin_shoe_retro1":     {"name": "RETRO 1",     "cost": 850, "kind": "skin", "group": "shoes"},
+    "skin_shoe_jellycore":  {"name": "JELLYCORE",   "cost": 1200, "kind": "skin", "group": "shoes"},
+    "skin_shoe_neoncircuit": {"name": "NEON CIRCUIT", "cost": 1800, "kind": "skin", "group": "shoes"},
+    "skin_shoe_wingboots":  {"name": "WING BOOTS",  "cost": 3200, "kind": "skin", "group": "shoes"},
+    "skin_shoe_afterburner": {"name": "AFTERBURNER", "cost": 4800, "kind": "skin", "group": "shoes"},
 
     # ── HATS (stylized procedural headwear Pip wears, NY cap as the hero) ──────
     # Priced on desirability: novelty/casual cheap, classics mid-high, the
