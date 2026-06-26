@@ -688,6 +688,185 @@ def _paint_pharaoh(surf, _a):
 get_pharaoh_parrot = _make_skin(_paint_pharaoh)
 
 
+# ── MUMMY — the bandaged risen king. Value-inverted from the gold/black Egyptian
+#     costumes: the whole macaw is re-plumaged to aged cream so the costume can
+#     paint over it as overlapping horizontal BANDAGE BANDS (cream over grime
+#     seams), reading as wrapped rather than just recoloured. The only colour
+#     notes are a deep-blue scarab amulet, a slim gold brow-band, and faint amber
+#     pinpoints in the hollow eye-sockets. Every body element stays inside the
+#     base bird footprint (nothing below the feet line ~HY+24); only the head-wrap
+#     + one flicking bandage tail rise above the crown.
+_MU_LINEN    = (237, 228, 207)     # aged linen band body
+_MU_LINEN_H  = (250, 244, 228)     # brightest linen highlight (top of a band)
+_MU_SEAM     = (200, 182, 144)     # shadow seam between bands
+_MU_GRIME    = (138, 122, 85)      # grime in the deepest folds
+_MU_BLUE     = (30, 95, 176)       # scarab glazed blue
+_MU_BLUE_D   = (18, 60, 120)       # scarab shadow / carapace seams
+_MU_BLUE_H   = (96, 168, 240)      # scarab glaze highlight (night glow core)
+_MU_GOLD     = (232, 181, 58)      # gold brow-band
+_MU_GOLD_H   = (255, 232, 150)     # gold glint
+_MU_VOID     = (24, 22, 24)        # sunken eye-socket void
+_MU_PIN      = (255, 196, 120)     # warm amber eye-pinpoint (the alive note)
+_MU_RIM      = (120, 106, 72)      # darker-linen rim on the OUTER body contour
+
+# Aged-cream re-plumage so the costume paints bandage bands over it. Every slot
+# is a linen value, the seam tone does the line work, the beak is bleached bone,
+# and lenses are dropped so the hollow sockets own the face.
+_MU_BODY = _pal(
+    tail=[(200, 188, 162), (214, 202, 176), (226, 215, 190), (237, 228, 207)],
+    tail_line=_MU_GRIME,
+    body_shadow=(198, 184, 154),
+    body_main=_MU_LINEN,
+    body_chest=(244, 236, 216),
+    body_belly=(228, 218, 196),
+    sheen=(255, 252, 244, 70),
+    wing_main=(224, 214, 188),
+    wing_dark=_MU_SEAM,
+    wing_tip=(244, 236, 216),
+    wing_secondary=None,
+    wing_highlight=_MU_LINEN_H,
+    head_shadow=(198, 184, 154),
+    head_main=_MU_LINEN,
+    head_cheek=(240, 232, 212),
+    head_crown=(232, 222, 200),
+    lens_frame=(210, 198, 170),
+    lens_body=_MU_VOID,
+    lens_tint=None,
+    lens_glint=None,
+    beak_main=(214, 204, 178),
+    beak_dark=(168, 152, 116),
+    beak_gloss=(240, 232, 212),
+    foot=(196, 182, 150),
+)
+
+
+def _mummy_rim_outer(src, color):
+    """Stamp a 1px `color` rim hugging the source silhouette's OUTER edge by
+    growing the alpha mask one pixel and laying the original sprite back on top —
+    only the contour ring survives. The cream body sits near the value of a bright
+    day sky, so this gives the silhouette an edge to hold without touching the
+    interior bands or the night read."""
+    w, h = src.get_size()
+    out = pygame.Surface((w, h), pygame.SRCALPHA)
+    mask = pygame.mask.from_surface(src, threshold=8)
+    ring = mask.to_surface(setcolor=color, unsetcolor=(0, 0, 0, 0))
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+        out.blit(ring, (dx, dy))
+    out.blit(src, (0, 0))
+    return out
+
+
+def _mummy_base(angle_deg):
+    body = _build_parrot_with_palette(angle_deg, _MU_BODY, draw_lenses=False)
+    return _mummy_rim_outer(body, _MU_RIM)
+
+
+def _mummy_band(surf, y, x0, x1, dip=0):
+    """One horizontal bandage band wrapping the body: a grime seam under a cream
+    strip with a top highlight, ends pinched so the wrap reads as cloth crossing
+    the body. `dip` slants the band to follow the chest curve."""
+    pygame.draw.line(surf, _MU_GRIME, (x0, y + 2), (x1, y + 2 + dip), 4)
+    pygame.draw.line(surf, _MU_SEAM, (x0, y + 1), (x1, y + 1 + dip), 4)
+    pygame.draw.line(surf, _MU_LINEN, (x0, y), (x1, y + dip), 3)
+    pygame.draw.line(surf, _MU_LINEN_H, (x0 + 1, y - 1), (x1 - 2, y - 1 + dip), 1)
+
+
+def _paint_mummy(surf, _a):
+    # Body centre in composite space (parrot body centre (32,32) + PARROT_DY).
+    BCX, BCY = 32, 52
+
+    # Loose bandage end slung in the wing — drawn FIRST so the body/bands cover
+    # its root and only the trailing strip reads as a flapping end. Pulled up
+    # clear of the feet line so it never enlarges the body or dangles past feet.
+    le = [(BCX + 9, BCY - 2), (BCX + 17, BCY + 2), (BCX + 19, BCY + 8),
+          (BCX + 15, BCY + 9), (BCX + 14, BCY + 4), (BCX + 7, BCY + 2)]
+    _poly(surf, _MU_GRIME, [(x, y + 1) for x, y in le])
+    _poly(surf, _MU_SEAM, le)
+    _poly(surf, _MU_LINEN, [(BCX + 10, BCY - 1), (BCX + 16, BCY + 2),
+                            (BCX + 17, BCY + 7), (BCX + 13, BCY + 7),
+                            (BCX + 12, BCY + 3), (BCX + 8, BCY + 1)])
+    pygame.draw.line(surf, _MU_LINEN_H, (BCX + 11, BCY), (BCX + 16, BCY + 3), 1)
+    for fx, fy in ((BCX + 18, BCY + 8), (BCX + 16, BCY + 9), (BCX + 14, BCY + 9)):
+        pygame.draw.line(surf, _MU_SEAM, (fx, fy), (fx + 1, fy + 2), 1)
+
+    # Body wrap: a clean stack of wide bandage bands crossing the torso, slightly
+    # slanted to follow the chest, kept few + wide so they survive the 40px
+    # downscale instead of turning to 1px mud, held inside the body footprint.
+    _mummy_band(surf, BCY - 9, BCX - 15, BCX + 13, dip=1)
+    _mummy_band(surf, BCY - 4, BCX - 17, BCX + 15, dip=1)
+    _mummy_band(surf, BCY + 1, BCX - 17, BCX + 16, dip=1)
+    _mummy_band(surf, BCY + 6, BCX - 16, BCX + 15, dip=1)
+    _mummy_band(surf, BCY + 11, BCX - 14, BCX + 13, dip=0)
+    # Two short diagonal cross-wraps hint the arms-crossed mummy pose.
+    pygame.draw.line(surf, _MU_GRIME, (BCX - 11, BCY - 5), (BCX + 9, BCY + 9), 4)
+    pygame.draw.line(surf, _MU_LINEN, (BCX - 11, BCY - 6), (BCX + 9, BCY + 8), 2)
+    pygame.draw.line(surf, _MU_GRIME, (BCX + 9, BCY - 5), (BCX - 11, BCY + 9), 4)
+    pygame.draw.line(surf, _MU_LINEN, (BCX + 9, BCY - 6), (BCX - 11, BCY + 8), 2)
+
+    # Scarab amulet — the lone colour splash: a deep-blue glazed beetle ringed in
+    # gold dead-centre on the crossed wraps. Blue pops on cream by day; the glaze
+    # highlight + gold ring keep it glowing at night.
+    sx, sy = BCX - 1, BCY + 2
+    pygame.draw.ellipse(surf, _MU_GOLD, (sx - 6, sy - 7, 13, 15))
+    pygame.draw.ellipse(surf, _MU_BLUE_D, (sx - 5, sy - 6, 11, 13))
+    pygame.draw.ellipse(surf, _MU_BLUE, (sx - 4, sy - 5, 9, 11))
+    pygame.draw.line(surf, _MU_BLUE_D, (sx, sy - 5), (sx, sy + 6), 1)
+    pygame.draw.line(surf, _MU_BLUE_D, (sx - 4, sy - 1), (sx + 4, sy - 1), 1)
+    pygame.draw.ellipse(surf, _MU_BLUE, (sx - 3, sy - 8, 7, 5))
+    pygame.draw.ellipse(surf, _MU_BLUE_D, (sx - 3, sy - 8, 7, 5), 1)
+    for lx in (sx - 6, sx + 5):
+        pygame.draw.line(surf, _MU_BLUE_D, (lx, sy - 2), (lx, sy + 4), 1)
+    pygame.draw.circle(surf, _MU_BLUE_H, (sx - 2, sy - 3), 2)
+    pygame.draw.circle(surf, (220, 240, 255), (sx - 2, sy - 3), 1)
+    pygame.draw.line(surf, _MU_GOLD_H, (sx - 5, sy - 6), (sx - 2, sy - 7), 1)
+
+    # Wrapped feet — small linen knots capped by torn ticks sitting ON the feet
+    # line (~HY+24), never below it, so the bird stays its true size.
+    for fx in (28, 35):
+        pygame.draw.ellipse(surf, _MU_SEAM, (fx - 3, HY + 22, 7, 5))
+        pygame.draw.ellipse(surf, _MU_LINEN, (fx - 3, HY + 21, 7, 4))
+        pygame.draw.line(surf, _MU_LINEN_H, (fx - 2, HY + 21), (fx + 2, HY + 21), 1)
+        for tx in (fx - 2, fx, fx + 2):
+            pygame.draw.line(surf, _MU_SEAM, (tx, HY + 25), (tx, HY + 27), 1)
+
+    # Head wrapped in linen — a skull-wrap domes over the crown leaving a gap
+    # where the hollow eyes show (the horror/comedy tell).
+    pygame.draw.ellipse(surf, _MU_SEAM, (HX - 13, CROWN_Y - 4, 27, 24))
+    pygame.draw.ellipse(surf, _MU_LINEN, (HX - 12, CROWN_Y - 3, 25, 22))
+    for wy in (CROWN_Y, CROWN_Y + 4, CROWN_Y + 8):
+        pygame.draw.line(surf, _MU_SEAM, (HX - 11, wy), (HX + 12, wy - 1), 1)
+    pygame.draw.ellipse(surf, _MU_LINEN_H, (HX - 7, CROWN_Y - 2, 11, 4))
+
+    # Slim gold brow-band — the one metallic note up top, dropped 1px so it sits
+    # in the wrap shadow and stays a hard horizontal gold line at 40px.
+    pygame.draw.line(surf, _MU_GOLD, (HX - 12, CROWN_Y + 7), (HX + 13, CROWN_Y + 6), 3)
+    pygame.draw.line(surf, _MU_GOLD_H, (HX - 9, CROWN_Y + 6), (HX + 3, CROWN_Y + 6), 1)
+
+    # One bandage tail flicking UP off the back of the wrap into open sky — the
+    # only element (with the wrap) allowed to break above the crown.
+    tail = [(HX - 9, CROWN_Y - 1), (HX - 14, CROWN_Y - 8),
+            (HX - 11, CROWN_Y - 9), (HX - 6, CROWN_Y - 2)]
+    _poly(surf, _MU_SEAM, tail)
+    pygame.draw.line(surf, _MU_LINEN, (HX - 9, CROWN_Y - 2), (HX - 12, CROWN_Y - 8), 2)
+    pygame.draw.line(surf, _MU_LINEN_H, (HX - 9, CROWN_Y - 2), (HX - 11, CROWN_Y - 6), 1)
+
+    # Face: a dark wrap-gap band with two sunken hollow eyes — dark voids each
+    # with a faint amber pinpoint so the mummy reads as alive-but-dead on day and
+    # night (the pinpoint is the night tell). Near-black sockets, spaced wide, so
+    # at 40px they survive as TWO distinct dots, not one smear.
+    pygame.draw.rect(surf, _MU_GRIME, (HX - 8, HY - 4, 24, 8), border_radius=3)
+    for ex in (HX - 1, HX + 10):
+        pygame.draw.circle(surf, (8, 7, 9), (ex, HY), 4)
+        pygame.draw.circle(surf, (8, 7, 9), (ex, HY + 1), 4)
+        pygame.draw.circle(surf, _MU_VOID, (ex, HY - 2), 2)
+        pygame.draw.circle(surf, _MU_PIN, (ex, HY), 1)
+    pygame.draw.line(surf, _MU_LINEN, (HX - 8, HY - 4), (HX + 15, HY - 5), 2)
+    pygame.draw.line(surf, _MU_SEAM, (HX - 7, HY + 4), (HX + 14, HY + 4), 1)
+
+
+get_mummy_parrot = _make_skin(_paint_mummy, base_fn=_mummy_base)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 6 · VIKING — a rust-raider macaw: the whole bird is re-plumaged warm auburn
 #     through the palette system, then it reads as a NORMAL parrot wearing
@@ -1512,6 +1691,7 @@ BUILDERS = {
     "skin_wizard":    get_wizard_parrot,
     "skin_astronaut": get_astronaut_parrot,
     "skin_pharaoh":   get_pharaoh_parrot,
+    "skin_mummy":     get_mummy_parrot,
     "skin_viking":    get_viking_parrot,
     "skin_cowboy":    get_cowboy_parrot,
     "skin_disco":     get_disco_parrot,
