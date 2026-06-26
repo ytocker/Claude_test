@@ -167,8 +167,8 @@ CATALOG: dict[str, dict] = {
     # EPIC — premium treasures
     "parcel_coin":      {"name": "GOLD COIN",      "cost": 900,  "kind": "parcel", "group": "parcels"},
     "parcel_diamond":   {"name": "DIAMOND",        "cost": 1500, "kind": "parcel", "group": "parcels"},
+    "parcel_chest":     {"name": "TREASURE CHEST", "cost": 2200, "kind": "parcel", "group": "parcels"},
     # LEGENDARY — showpieces (the two secret premiums are masked ??? until bought)
-    "parcel_chest":     {"name": "TREASURE CHEST", "cost": 2800, "kind": "parcel", "group": "parcels"},
     "parcel_minipip":   {"name": "MINI PIP",       "cost": 3500, "kind": "parcel", "group": "parcels"},
     # FINEST WHISKEY is a single mystery parcel: buying it rolls one of four
     # drams (decanter / scotch / bourbon / cask) at unlock, locked for good.
