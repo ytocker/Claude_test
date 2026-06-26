@@ -25,6 +25,7 @@ from game.parcel_designs import (
     snowglobe,
     airmail, love_letter, post_office,
     plastic_bottle, tumbler, coconut, mini_pip, diamond, coin,
+    ball_soccer, ball_basketball, ball_tennis, ball_baseball, ball_football,
 )
 
 
@@ -78,6 +79,11 @@ _DESIGNS = {
     "parcel_minipip":   mini_pip,
     "parcel_diamond":   diamond,
     "parcel_coin":      coin,
+    "parcel_soccer":     ball_soccer,
+    "parcel_basketball": ball_basketball,
+    "parcel_tennis":     ball_tennis,
+    "parcel_baseball":   ball_baseball,
+    "parcel_football":   ball_football,
     "parcel_picnic":    picnic,
     "parcel_chest":     chest,
     "parcel_snowglobe": snowglobe,
