@@ -31,10 +31,16 @@ _KH_VIOLET   = (74, 52, 110)       # violet-zone of the sheen
 _KH_HILITE   = (127, 227, 176)     # #7FE3B0 iridescent specular highlight
 _KH_GOLD     = (233, 183, 46)      # #E9B72E sun gold
 _KH_GOLD_D   = (170, 124, 26)      # sun gold shadow (gradient base)
+_KH_GOLD_RIM = (96, 64, 14)        # deep-amber/seam contour ring for the orb
 _KH_AMBER    = (245, 158, 40)      # warm amber midtone for the disk gradient
 _KH_CORE     = (255, 241, 184)     # #FFF1B8 sun core (brightest value)
 _KH_SEAM     = (12, 22, 36)        # darkest seam between the two wing-cases
+_KH_RIM      = (8, 16, 28)         # harder near-black carapace rim (dome edge)
 _KH_DARK     = (16, 18, 26)        # near-black foot recolor
+# Muted scarlet to paint over the wing edge that borders the shell zone, so
+# the eye travels shell→sun, not red→green. Darkened + desaturated from Pip's
+# scarlet so the red retreats and the dome's dark rim owns the contrast.
+_KH_RED_MUTE = (118, 38, 34)
 
 
 def _sun_disk(surf, cx, cy):
@@ -57,8 +63,9 @@ def _sun_disk(surf, cx, cy):
     pygame.draw.circle(surf, _KH_GOLD, (cx, cy - 1), 5)
     pygame.draw.circle(surf, _KH_CORE, (cx - 1, cy - 2), 3)
     pygame.draw.circle(surf, (255, 255, 230), (cx - 2, cy - 3), 1)  # spec hit
-    # Crisp gold rim so the orb keeps a hard edge against its own bloom at 40px.
-    pygame.draw.circle(surf, _KH_GOLD, (cx, cy), 7, 1)
+    # A thin DARK amber contour ring so the orb keeps a hard edge on a bright
+    # day sky too — the glow alone carries it on night, the contour on day.
+    pygame.draw.circle(surf, _KH_GOLD_RIM, (cx, cy), 7, 1)
 
 
 def _elytra_shell(surf, bcx, bcy):
@@ -73,58 +80,53 @@ def _elytra_shell(surf, bcx, bcy):
              (bcx, bcy + 14), (bcx + 9, bcy + 12), (bcx + 12, bcy + 5),
              (bcx + 11, bcy - 3), (bcx + 6, bcy - 9), (bcx, bcy - 11),
              (bcx - 6, bcy - 9)]
-    _poly(surf, _KH_SEAM, shell)                      # dark carapace edge
-    inner = [(x - (1 if x < bcx else -1), y) for x, y in shell]
+    # A HARD near-black dome rim is the whole point — it gives the carapace a
+    # crisp outline that is NOT the bird's outline, so a clean DOME pops off the
+    # scarlet body instead of reading as a green belly. Drawn as a thick filled
+    # ring: solid rim plate, then the iridescent fill inset 2px inside it.
+    _poly(surf, _KH_RIM, shell)
+    inner = [(bcx + (x - bcx) * 0.80, bcy + (y - bcy) * 0.80) for x, y in shell]
     _poly(surf, _KH_SHADOW, inner)
 
     # Iridescent zones across the dome: a cool blue crown fading down through
     # scarab teal into a violet hem, each laid as a band so the sheen reads as a
-    # gradient, not a flat fill, after the downscale.
-    _poly(surf, _KH_VIOLET, [(bcx - 11, bcy + 4), (bcx - 8, bcy + 11),
-                             (bcx, bcy + 13), (bcx + 8, bcy + 11),
-                             (bcx + 11, bcy + 4), (bcx, bcy + 7)])
-    _poly(surf, _KH_TEAL, [(bcx - 11, bcy - 1), (bcx - 11, bcy + 5),
-                           (bcx, bcy + 9), (bcx + 11, bcy + 5),
-                           (bcx + 11, bcy - 1), (bcx, bcy + 2)])
-    _poly(surf, _KH_BLUE, [(bcx - 9, bcy - 8), (bcx - 10, bcy - 1),
-                           (bcx, bcy + 3), (bcx + 10, bcy - 1),
-                           (bcx + 9, bcy - 8), (bcx, bcy - 9)])
-
-    # Centre seam splitting the two wing-cases — the beetle tell.
-    pygame.draw.line(surf, _KH_SEAM, (bcx, bcy - 10), (bcx, bcy + 13), 2)
-    pygame.draw.line(surf, _KH_TEAL, (bcx + 1, bcy - 8), (bcx + 1, bcy + 11), 1)
+    # gradient, not a flat fill, after the downscale. Held inside the dark rim.
+    _poly(surf, _KH_VIOLET, [(bcx - 9, bcy + 4), (bcx - 6, bcy + 9),
+                             (bcx, bcy + 11), (bcx + 6, bcy + 9),
+                             (bcx + 9, bcy + 4), (bcx, bcy + 6)])
+    _poly(surf, _KH_TEAL, [(bcx - 9, bcy - 1), (bcx - 9, bcy + 4),
+                           (bcx, bcy + 7), (bcx + 9, bcy + 4),
+                           (bcx + 9, bcy - 1), (bcx, bcy + 1)])
+    _poly(surf, _KH_BLUE, [(bcx - 8, bcy - 7), (bcx - 8, bcy - 1),
+                           (bcx, bcy + 2), (bcx + 8, bcy - 1),
+                           (bcx + 8, bcy - 7), (bcx, bcy - 8)])
 
     # Bright specular highlight streak down the LEFT wing-case — the single
     # highest value on the shell that makes the surface read as glossy chitin
     # rather than a matte plate, the iridescent signature at 40px.
     pygame.draw.lines(surf, _KH_HILITE, False,
-                      [(bcx - 7, bcy - 7), (bcx - 9, bcy - 1),
-                       (bcx - 8, bcy + 6)], 2)
-    pygame.draw.line(surf, _KH_CORE, (bcx - 7, bcy - 6), (bcx - 8, bcy - 1), 1)
+                      [(bcx - 6, bcy - 6), (bcx - 7, bcy - 1),
+                       (bcx - 6, bcy + 5)], 2)
+    pygame.draw.line(surf, _KH_CORE, (bcx - 6, bcy - 5), (bcx - 7, bcy - 1), 1)
     # A smaller answering glint on the right wing-case so the dome reads curved.
-    pygame.draw.line(surf, _KH_HILITE, (bcx + 6, bcy - 5), (bcx + 7, bcy + 2), 1)
+    pygame.draw.line(surf, _KH_HILITE, (bcx + 5, bcy - 4), (bcx + 6, bcy + 2), 1)
 
-    # Two short punctin rows of teal speckle dots down each case — beetle texture
-    # kept sparse so it never muddies the sheen at the downscale.
-    for dy in (bcy - 3, bcy + 3, bcy + 8):
-        pygame.draw.circle(surf, _KH_SHADOW, (bcx - 5, dy), 1)
-        pygame.draw.circle(surf, _KH_SHADOW, (bcx + 5, dy), 1)
+    # Centre seam LAST and BOLD: a continuous 2px near-black line splitting the
+    # dome top to base into two confident wing-cases, flanked by a single 1px
+    # teal highlight on the right so the seam survives the 40px downscale as one
+    # clean vertical line instead of dissolving into the sheen.
+    pygame.draw.line(surf, _KH_SEAM, (bcx, bcy - 9), (bcx, bcy + 12), 2)
+    pygame.draw.line(surf, _KH_HILITE, (bcx + 2, bcy - 6), (bcx + 2, bcy + 9), 1)
 
 
-def _scarab_crest(surf, cx, cy):
-    """A small dark scarab-head plate at the hairline so the beetle theme reaches
-    the head — a segmented notch (clypeus) with a teal sheen edge. Sits just
-    below CROWN_Y, inside the head, so it never balloons the silhouette."""
-    plate = [(cx - 6, cy + 1), (cx + 6, cy + 1), (cx + 4, cy + 5),
-             (cx, cy + 6), (cx - 4, cy + 5)]
-    _poly(surf, _KH_SEAM, plate)
-    _poly(surf, _KH_SHADOW, [(cx - 5, cy + 1), (cx + 5, cy + 1),
-                             (cx + 3, cy + 4), (cx - 3, cy + 4)])
-    # Three clypeus notches along the front rim — the segmented scarab tell.
-    for nx in (cx - 3, cx, cx + 3):
-        pygame.draw.line(surf, _KH_SEAM, (nx, cy + 1), (nx, cy + 4), 1)
-    pygame.draw.line(surf, _KH_TEAL, (cx - 5, cy + 1), (cx + 5, cy + 1), 1)
-    pygame.draw.line(surf, _KH_HILITE, (cx - 4, cy + 1), (cx, cy + 1), 1)
+def _scarab_notch(surf, cx, cy):
+    """ONE bold dark notch directly under the sun-disk — the segmented scarab
+    clypeus reduced to a single confident mark. The old fussy multi-tooth plate
+    became noise at 40px; a lone triangular notch reads as the beetle's brow
+    and frames the disk above it instead of competing with it."""
+    notch = [(cx - 4, cy), (cx + 4, cy), (cx, cy + 4)]
+    _poly(surf, _KH_SEAM, notch)
+    pygame.draw.line(surf, _KH_TEAL, (cx - 4, cy), (cx + 4, cy), 1)
 
 
 def _paint(surf, _a):
@@ -133,8 +135,28 @@ def _paint(surf, _a):
 
     # 1 · Sun-disk first-ish? No — it sits ABOVE everything visually but is
     # painted after the shell so its bloom layer composites over the carapace
-    # top cleanly. Draw the shell, collar, crest, feet, then the sun-disk last
+    # top cleanly. Draw the shell, collar, notch, feet, then the sun-disk last
     # so the brightest sprite owns the top of the figure.
+
+    # Quiet the scarlet wing/breast where it borders the shell zone BEFORE the
+    # shell lands, so the eye reads shell→sun, not red→green. The mute is laid
+    # by MULTIPLY-darkening only the pixels already opaque under the dome's
+    # border ring — drawn on a scratch layer keyed to the body's alpha so it
+    # darkens existing red without painting red onto empty sky (no footprint
+    # growth). The dome then lands inside this quieted ring.
+    body_mask = pygame.mask.from_surface(surf)
+    ring = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    _poly(ring, (*_KH_RED_MUTE, 180),
+          [(bcx - 15, bcy - 3), (bcx - 16, bcy + 9), (bcx - 11, bcy + 16),
+           (bcx, bcy + 17), (bcx + 11, bcy + 16), (bcx + 16, bcy + 9),
+           (bcx + 15, bcy - 4), (bcx + 8, bcy - 11), (bcx, bcy - 13),
+           (bcx - 8, bcy - 11)])
+    # Keep the mute only where the body already is, so transparent sky is never
+    # tinted and the silhouette cannot grow.
+    ring.blit(body_mask.to_surface(setcolor=(255, 255, 255, 255),
+                                   unsetcolor=(0, 0, 0, 0)),
+              (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(ring, (0, 0))
 
     # Iridescent scarab carapace domed over the back — the hero shape.
     _elytra_shell(surf, bcx, bcy)
@@ -147,30 +169,21 @@ def _paint(surf, _a):
                       [(HX - 11, HY + 7), (HX, HY + 10), (HX + 11, HY + 6)], 2)
     pygame.draw.line(surf, _KH_CORE, (HX - 9, HY + 7), (HX - 1, HY + 9), 1)
 
-    # Optional tiny beetle-leg ticks at the body edge — three short dark legs
-    # each side, INSIDE the silhouette, so the bird reads as the beetle's body.
-    for ly in (bcy - 2, bcy + 3, bcy + 8):
-        pygame.draw.line(surf, _KH_SEAM, (bcx - 12, ly), (bcx - 15, ly + 2), 2)
-        pygame.draw.line(surf, _KH_SEAM, (bcx + 12, ly), (bcx + 15, ly + 2), 2)
-        pygame.draw.line(surf, _KH_TEAL, (bcx - 12, ly), (bcx - 14, ly + 1), 1)
-        pygame.draw.line(surf, _KH_TEAL, (bcx + 12, ly), (bcx + 14, ly + 1), 1)
-
-    # Dark beetle recolor at the feet line — sits ON the feet (~HY+24), never
-    # below it, so the silhouette never grows downward.
+    # Feet: a plain dark recolor only — the old beetle-leg ticks and foot
+    # speckles read as noise at 40px and muddied the silhouette, so the feet are
+    # now a quiet near-black mass that sits ON the feet line, never below it.
     for fx in (28, 34):
         pygame.draw.ellipse(surf, _KH_DARK, (fx - 3, HY + 22, 7, 5))
-        pygame.draw.line(surf, _KH_TEAL, (fx - 2, HY + 22), (fx + 2, HY + 22), 1)
-        for tx in (fx - 2, fx, fx + 2):
-            pygame.draw.line(surf, _KH_SEAM, (tx, HY + 25), (tx, HY + 27), 1)
 
-    # Small dark scarab-head plate crest at the hairline — beetle theme on the
-    # head, kept inside the head below the crown.
-    _scarab_crest(surf, HX, CROWN_Y + 2)
+    # ONE bold dark notch directly under the sun-disk — the beetle brow, kept
+    # inside the head below the crown. Replaces the fussy segmented crest.
+    _scarab_notch(surf, HX, CROWN_Y + 1)
 
-    # Sun-disk last — the rolled sun lifted just above the brow. Its centre is
-    # raised above CROWN_Y (the only element allowed up there) and its bloom is
-    # drawn OUTSIDE the silhouette so it stays the brightest sprite on night.
-    _sun_disk(surf, HX, CROWN_Y - 6)
+    # Sun-disk last — the rolled sun lifted CLEAR above the brow. Raised so a
+    # visible band of sky sits between the orb and the head: the two stacked
+    # circles must read as a beetle rolling a SEPARATE ball, not one blob. Its
+    # bloom is drawn OUTSIDE the silhouette so it stays the brightest sprite.
+    _sun_disk(surf, HX, CROWN_Y - 9)
 
 
 build = store_skins._make_skin(_paint)
