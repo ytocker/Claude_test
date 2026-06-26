@@ -12,8 +12,8 @@ pygame.init()
 from tools import ninja_render
 from tools.sports_candidates.design_4 import build
 
-OUT = "docs/store_redesign/costume/sports/design_4/round_2.png"
-TITLE = "DESIGN 4 — THE SLUGGER (Baseball)  round 2"
+OUT = "docs/store_redesign/costume/sports/design_4/round_3.png"
+TITLE = "DESIGN 4 — THE SLUGGER (Baseball)  round 3"
 
 
 def _label(surf, text, x, y, size=18, color=(236, 238, 246)):

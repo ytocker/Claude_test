@@ -28,11 +28,13 @@ from game import store_skins
 from game.store_skins import HX, HY, CROWN_Y, _poly
 
 # Wood bat — three values so the tapered cylinder keeps form at 40px (a flat
-# single-value bar reads as a stick, not a bat).
-_BSB_BAT     = (201, 162, 75)      # #C9A24B tan barrel body
-_BSB_BAT_D   = (138, 106, 46)      # #8A6A2E shaded underside
-_BSB_BAT_H   = (232, 204, 130)     # bright top glint so the barrel reads round
-_BSB_KNOB    = (138, 106, 46)      # darker knob/handle end
+# single-value bar reads as a stick, not a bat). Barrel body lifted to a warm
+# mid-tan so the cylinder stays bright and separates against the dark NIGHT sky
+# instead of sinking to a brown smear at downscale.
+_BSB_BAT     = (214, 176, 92)      # #D6B05C tan barrel body (lifted for night)
+_BSB_BAT_D   = (150, 116, 52)      # #967434 shaded underside (kept thin)
+_BSB_BAT_H   = (240, 214, 146)     # bright top glint so the barrel reads round
+_BSB_KNOB    = (150, 116, 52)      # darker knob/handle end
 
 # Cap + pinstripe navy (the team colour).
 _BSB_NAVY    = (27, 42, 107)       # #1B2A6B cap shell + pinstripes
@@ -61,20 +63,26 @@ def _paint(surf, _a):
     # is fat — a constant-width line reads as a pipe, not a bat. The barrel is
     # fattened a touch (7px core) so the tan cylinder survives the downscale.
     mid = ((handle[0] + barrel[0]) // 2, (handle[1] + barrel[1]) // 2)
-    pygame.draw.line(surf, _BSB_BAT_D, handle, mid, 4)    # thin handle, shadow
-    pygame.draw.line(surf, _BSB_BAT, handle, mid, 3)
-    pygame.draw.line(surf, _BSB_BAT_D, mid, barrel, 9)    # fat barrel, shadow
-    pygame.draw.line(surf, _BSB_BAT, mid, barrel, 7)
-    # Wide bright top glint along the barrel (2-3px) so the round tan cylinder
-    # survives at 40px and separates against the dark NIGHT sky.
+    # Underside shadow drawn FIRST and only as a thin sliver under the body, so
+    # the bright barrel keeps most of the cylinder's width (a fat shadow under a
+    # thin body is what turned the bat into a dark smear at night).
+    pygame.draw.line(surf, _BSB_BAT_D, (handle[0], handle[1] + 1),
+                     (mid[0], mid[1] + 1), 4)
+    pygame.draw.line(surf, _BSB_BAT_D, (mid[0], mid[1] + 2),
+                     (barrel[0], barrel[1] + 2), 9)
+    # Bright barrel body on top of the shadow — taper handle (3px) → barrel (7px).
+    pygame.draw.line(surf, _BSB_BAT, handle, mid, 3)            # thin handle
+    pygame.draw.line(surf, _BSB_BAT, mid, barrel, 7)           # fat barrel
+    # Wide bright top glint running the full barrel (3px) so the round tan
+    # cylinder survives at 40px and separates against the dark NIGHT sky.
     pygame.draw.line(surf, _BSB_BAT_H, (mid[0] - 1, mid[1] - 2),
                      (barrel[0] + 1, barrel[1] - 2), 3)
     pygame.draw.line(surf, _BSB_BAT_H, (handle[0] - 1, handle[1] - 1),
                      (mid[0], mid[1] - 1), 2)
     # Rounded barrel cap so the fat end reads as the bat's tip, not a cut bar.
     pygame.draw.circle(surf, _BSB_BAT, barrel, 5)
-    pygame.draw.circle(surf, _BSB_BAT_H, (barrel[0], barrel[1] - 1), 2)
-    pygame.draw.circle(surf, _BSB_BAT_D, (barrel[0] + 1, barrel[1] + 2), 1)
+    pygame.draw.circle(surf, _BSB_BAT_H, (barrel[0] - 1, barrel[1] - 2), 2)
+    pygame.draw.circle(surf, _BSB_BAT_D, (barrel[0] + 1, barrel[1] + 3), 1)
     # Knob at the handle end — the little flare that says "this is the grip".
     pygame.draw.circle(surf, _BSB_KNOB, handle, 3)
     pygame.draw.circle(surf, _BSB_BAT, (handle[0], handle[1] - 1), 1)
