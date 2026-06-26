@@ -51,42 +51,6 @@ _BSB_CLEAT_H = (96, 100, 114)      # cleat rim glint
 
 
 def _paint(surf, _a):
-    # ── WOODEN BAT slung diagonally BEHIND the body (painted FIRST so the torso
-    #    covers the mid-shaft; the fat BARREL overshoots PAST the back/tail
-    #    outline into OPEN SKY — same slung-prop trick as the pirate cutlass, and
-    #    the lower-left tail zone is now clear (no mitt) so the barrel reads as
-    #    one clean tan diagonal, not a brown blob). Handle/knob cross the body at
-    #    the near wing; the barrel is pushed well outside the silhouette.
-    handle = (HX + 1, HY + 21)        # thin grip end, crossing the near wing
-    barrel = (HX - 29, HY - 5)        # fat barrel end, OUT past the back outline
-    # Taper: draw the shaft in two segments so the handle is thin and the barrel
-    # is fat — a constant-width line reads as a pipe, not a bat. The barrel is
-    # fattened a touch (7px core) so the tan cylinder survives the downscale.
-    mid = ((handle[0] + barrel[0]) // 2, (handle[1] + barrel[1]) // 2)
-    # Underside shadow drawn FIRST and only as a thin sliver under the body, so
-    # the bright barrel keeps most of the cylinder's width (a fat shadow under a
-    # thin body is what turned the bat into a dark smear at night).
-    pygame.draw.line(surf, _BSB_BAT_D, (handle[0], handle[1] + 1),
-                     (mid[0], mid[1] + 1), 4)
-    pygame.draw.line(surf, _BSB_BAT_D, (mid[0], mid[1] + 2),
-                     (barrel[0], barrel[1] + 2), 9)
-    # Bright barrel body on top of the shadow — taper handle (3px) → barrel (7px).
-    pygame.draw.line(surf, _BSB_BAT, handle, mid, 3)            # thin handle
-    pygame.draw.line(surf, _BSB_BAT, mid, barrel, 7)           # fat barrel
-    # Wide bright top glint running the full barrel (3px) so the round tan
-    # cylinder survives at 40px and separates against the dark NIGHT sky.
-    pygame.draw.line(surf, _BSB_BAT_H, (mid[0] - 1, mid[1] - 2),
-                     (barrel[0] + 1, barrel[1] - 2), 3)
-    pygame.draw.line(surf, _BSB_BAT_H, (handle[0] - 1, handle[1] - 1),
-                     (mid[0], mid[1] - 1), 2)
-    # Rounded barrel cap so the fat end reads as the bat's tip, not a cut bar.
-    pygame.draw.circle(surf, _BSB_BAT, barrel, 5)
-    pygame.draw.circle(surf, _BSB_BAT_H, (barrel[0] - 1, barrel[1] - 2), 2)
-    pygame.draw.circle(surf, _BSB_BAT_D, (barrel[0] + 1, barrel[1] + 3), 1)
-    # Knob at the handle end — the little flare that says "this is the grip".
-    pygame.draw.circle(surf, _BSB_KNOB, handle, 3)
-    pygame.draw.circle(surf, _BSB_BAT, (handle[0], handle[1] - 1), 1)
-
     # ── PINSTRIPE JERSEY over the torso (white field hugging the body, held
     #    INSIDE the base bird footprint — bottom ~HY+23 — so nothing balloons the
     #    silhouette). White is the brightest mass so the kit reads at hero scale;
@@ -143,6 +107,35 @@ def _paint(surf, _a):
     # A small white "team mark" on the cap front so it's not a blank navy dome.
     pygame.draw.circle(surf, _BSB_WHITE, (HX + 4, cy + 2), 2)
     pygame.draw.circle(surf, _BSB_NAVY, (HX + 4, cy + 2), 1)
+
+    # ── WOODEN BAT — drawn LAST so it OVERLAYS the jersey/clothing: the bat rests
+    #    diagonally ACROSS the uniform, fully visible in front, rather than slung
+    #    behind the torso. Handle/knob at the near wing over the jersey; the fat
+    #    barrel runs up past the back/tail outline into open sky as one clean tan
+    #    diagonal. Three values keep the tapered cylinder reading as a bat at 40px.
+    handle = (HX + 1, HY + 21)        # grip end over the near wing / jersey
+    barrel = (HX - 29, HY - 5)        # fat barrel end, out past the back outline
+    mid = ((handle[0] + barrel[0]) // 2, (handle[1] + barrel[1]) // 2)
+    # Underside shadow kept a thin sliver so the bright barrel holds the cylinder.
+    pygame.draw.line(surf, _BSB_BAT_D, (handle[0], handle[1] + 1),
+                     (mid[0], mid[1] + 1), 4)
+    pygame.draw.line(surf, _BSB_BAT_D, (mid[0], mid[1] + 2),
+                     (barrel[0], barrel[1] + 2), 9)
+    # Bright barrel body — taper handle (3px) → barrel (7px).
+    pygame.draw.line(surf, _BSB_BAT, handle, mid, 3)
+    pygame.draw.line(surf, _BSB_BAT, mid, barrel, 7)
+    # Wide bright top glint so the round tan cylinder survives at 40px day + night.
+    pygame.draw.line(surf, _BSB_BAT_H, (mid[0] - 1, mid[1] - 2),
+                     (barrel[0] + 1, barrel[1] - 2), 3)
+    pygame.draw.line(surf, _BSB_BAT_H, (handle[0] - 1, handle[1] - 1),
+                     (mid[0], mid[1] - 1), 2)
+    # Rounded barrel cap so the fat end reads as the bat's tip.
+    pygame.draw.circle(surf, _BSB_BAT, barrel, 5)
+    pygame.draw.circle(surf, _BSB_BAT_H, (barrel[0] - 1, barrel[1] - 2), 2)
+    pygame.draw.circle(surf, _BSB_BAT_D, (barrel[0] + 1, barrel[1] + 3), 1)
+    # Knob at the handle end — the grip flare.
+    pygame.draw.circle(surf, _BSB_KNOB, handle, 3)
+    pygame.draw.circle(surf, _BSB_BAT, (handle[0], handle[1] - 1), 1)
 
 
 build = store_skins._make_skin(_paint)
