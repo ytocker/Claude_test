@@ -79,7 +79,7 @@ _HEAD_HW = 30
 #   hw  head width the hat is sized to     facing  +1 bill points forward
 # Tuned against an on-Pip render with the crown anchor + head circle overlaid.
 _SEAT = {
-    "skin_hat_partyhat":  {"hw": 26, "dx": -2, "dy": 13},
+    "skin_hat_partyhat":  {"hw": 24, "dx": 2, "dy": -3},
     "skin_hat_strawhat":  {"dy": 1},
     "skin_hat_beanie":    {"hw": 28, "dy": 6},
     "skin_hat_beret":     {"dx": -7, "dy": 13},
