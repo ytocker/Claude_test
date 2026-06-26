@@ -917,6 +917,10 @@ class StoreScene:
                 # the card shows the actual jet, not a stale lazy default.
                 from game import animal_jet_fighter
                 animal_jet_fighter.sync_from_store()
+            if sid == "parcel_whiskey":
+                # Same: bind the mystery whiskey to the dram just rolled.
+                from game import parcel_whiskey
+                parcel_whiskey.sync_from_store()
             # Ownership + balance + EQUIPPED all changed: rebuild the cards (this
             # one reveals if it was a masked secret, and now reads EQUIPPED).
             store_cards.clear_cache()

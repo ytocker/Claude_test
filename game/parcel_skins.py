@@ -80,14 +80,20 @@ _DESIGNS = {
     "parcel_snowglobe": snowglobe,
 }
 
+# FINEST WHISKEY is a single mystery parcel whose look is one of four drams,
+# rolled at unlock (the build reads the persisted variant from store_data).
+from game import parcel_whiskey
+
 BUILDERS: "dict[str, object]" = {
     PARCEL_BASE: _build_base,
     "parcel_none": _build_none,
+    "parcel_whiskey": parcel_whiskey.build,
     **{pid: mod.build for pid, mod in _DESIGNS.items()},
 }
 
 ICONS: "dict[str, pygame.Surface]" = {
     PARCEL_BASE: _product_shot(parrot.get_parcel("normal")),
     "parcel_none": _none_icon(),
+    "parcel_whiskey": _product_shot(parcel_whiskey.build("normal")),
     **{pid: _product_shot(mod.build("normal")) for pid, mod in _DESIGNS.items()},
 }
