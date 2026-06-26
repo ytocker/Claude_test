@@ -26,7 +26,6 @@ SHADOW  = (92, 36, 16)     # #5C2410 shadow
 HILITE  = (255, 179, 71)   # #FFB347 highlight / rim
 CREAM   = (255, 233, 194)  # #FFE9C2 mask / standard ring
 GLOW    = (255, 106, 26)   # #FF6A1A glow-orange
-LEG     = (42, 24, 16)     # #2A1810 dark legs
 HOTTIP  = (255, 255, 200)  # #FFFFC8 white-hot tip
 EYEDK   = (40, 22, 12)
 BELLY   = (140, 56, 28)    # mid russet undertone beneath the bright chest
@@ -64,6 +63,10 @@ def _eye(surf, cx, cy, r):
     pygame.draw.circle(surf, EYEDK, (cx + max(1, r // 4), cy), max(2, r - 1))
     pygame.draw.circle(surf, (255, 255, 255), (cx - r // 3, cy - r // 3),
                        max(1, r // 3))
+    # Dark brow-mask arc above the eye — thickens the eye-stripe region so the
+    # red-panda face pattern reads as a distinct dark mask at 40px.
+    pygame.draw.arc(surf, SHADOW, pygame.Rect(cx - 4, cy - 4, 8, 6),
+                    math.radians(20), math.radians(160), 2)
 
 
 def build_cinder_guardian(wing_angle_deg):
@@ -94,38 +97,43 @@ def build_cinder_guardian(wing_angle_deg):
         pygame.draw.circle(surf, SHADOW, (int(x + 1), int(y + 1)), max(2, w - 1))
         pygame.draw.circle(surf, FUR, (int(x), int(y)), w)
 
-    # Rings climbing the tail: bottom standard cream, getting hotter upward.
-    # Warm ramp from cream through warm-yellow to near-white at the top rings.
+    # Rings as the hero: WIDE full-width bands so the tail reads as a striped
+    # torch (red-panda + fire), not a russet tube with dots. Spacer SHADOW
+    # rings between the bright bands give the alternating banded silhouette.
+    # rr overhangs the plume by 1-2px on purpose. Bottom cream -> hot top.
     ring_ramp = [
-        (3,  CREAM,         5),
-        (5,  CREAM,         5),
-        (7,  (255, 214, 130), 4),   # warm yellow
-        (9,  (255, 196,  80), 4),   # hot orange-yellow
-        (10, (255, 226, 150), 3),   # brighter
-        (11, HOTTIP,          3),   # white-hot near terminal
+        (4,  CREAM,           7),   # full-width cream band, lower tail
+        (6,  (255, 214, 130), 7),   # warm yellow band
+        (8,  (255, 196,  80), 6),   # hot orange-yellow band
+        (10, HOTTIP,          6),   # white-hot band near terminal
     ]
     for idx, col, rr in ring_ramp:
         x, y = pts[idx]
-        # Seam halo so each ring reads against the plume.
+        # Dark spacer halo so each bright band separates from its neighbour.
         pygame.draw.circle(surf, SHADOW, (int(x), int(y)), rr + 1)
         pygame.draw.circle(surf, col, (int(x), int(y)), rr)
 
-    # Additive ember halo around the top ~3 rings — intensifies on down-pose.
-    glow_boost = int(round(down * 4))
-    glow = pygame.Surface((48, 48), pygame.SRCALPHA)
-    gcx = gcy = 24
-    for hx, hy in (pts[11], pts[10], pts[9]):
-        ox = int(hx - pts[11][0])
-        oy = int(hy - pts[11][1])
-        for rr, a in ((16 + glow_boost, 38), (11, 70), (6, 110)):
-            pygame.draw.circle(glow, (255, 120, 20, a),
-                               (gcx + ox, gcy + oy), rr)
+    # Baked bright rind on the top 3 bands — an opaque hot rim on the inner
+    # (tip-facing) side so the torch reads even on a bright daytime sky where
+    # additive glow washes out.
+    for idx, col, rr in ring_ramp[-3:]:
+        x, y = pts[idx]
+        pygame.draw.circle(surf, HOTTIP, (int(x), int(y - 1)), rr - 1)
+
+    # Small additive ember kiss only at the very tip — keeps a live spark
+    # without a broad multi-ring halo that blows out on dark sky.
+    glow_boost = int(round(down * 3))
+    glow = pygame.Surface((32, 32), pygame.SRCALPHA)
+    gcx = gcy = 16
+    for rr, a in ((9 + glow_boost, 55), (5, 110)):
+        pygame.draw.circle(glow, (255, 120, 20, a), (gcx, gcy), rr)
     surf.blit(glow, (int(pts[11][0]) - gcx, int(pts[11][1]) - gcy),
               special_flags=pygame.BLEND_RGBA_ADD)
 
-    # White-hot terminal tip + ember sparks lifting off it.
+    # White-hot terminal tip + ember sparks lifting off it. Capped at 3px so
+    # it does not bloom out against a night-biome sky.
     tx, ty = int(pts[11][0]), int(pts[11][1])
-    pygame.draw.circle(surf, HOTTIP, (tx, ty), 4)
+    pygame.draw.circle(surf, HOTTIP, (tx, ty), 3)
     pygame.draw.circle(surf, (255, 255, 255), (tx, ty - 1), 2)
     for dx, dy in ((-4, -3), (3, -5), (-2, -6)):
         pygame.draw.circle(surf, (255, 160, 40), (tx + dx, ty + dy), 1)
@@ -134,15 +142,11 @@ def build_cinder_guardian(wing_angle_deg):
     bcx, bcy = BCX + 2, BCY + 2
     _aaellipse(surf, SHADOW, (bcx + 1, bcy + 2), 13, 14)
     _aaellipse(surf, FUR,    (bcx, bcy),         12, 13)
-    _aaellipse(surf, BELLY, (bcx + 2, bcy + 5), 8, 9)  # belly core
-    # Bright chest panel where the ember bounces off the front.
-    _aaellipse(surf, CREAM, (bcx + 2, bcy + 5), 6, 7)
-
-    # Dark legs planted below the body.
-    for lx in (28, 38):
-        drop = int(8 - f * 5)
-        pygame.draw.line(surf, LEG, (lx, bcy + 11), (lx, bcy + 11 + drop), 4)
-        pygame.draw.circle(surf, LEG, (lx, bcy + 11 + drop), 3)
+    # Two-tone split: a large cream front panel is the whole forward-facing
+    # surface, so the dark-back / cream-front read survives at 40px. The mid
+    # russet belly core sits between them as a transition undertone.
+    _aaellipse(surf, BELLY, (bcx, bcy + 4), 10, 11)   # widened belly core
+    _aaellipse(surf, CREAM, (bcx - 1, bcy + 3), 10, 11)  # forward chest blaze
 
     # Back/top rim-light — thin warm line, lit by the torch above.
     pygame.draw.arc(surf, HILITE, (bcx - 13, bcy - 14, 22, 22),
@@ -175,8 +179,8 @@ def build_cinder_guardian(wing_angle_deg):
     _eye(surf, hcx - 4, hcy, 3)
     _eye(surf, hcx + 6, hcy, 3)
 
-    # Prominent nose + muzzle line.
-    pygame.draw.circle(surf, EYEDK, (hcx + 1, hcy + 6), 3)
+    # Prominent nose + muzzle line — enlarged so it anchors the dark mask.
+    pygame.draw.circle(surf, EYEDK, (hcx + 1, hcy + 6), 4)
     pygame.draw.circle(surf, (90, 50, 40), (hcx, hcy + 5), 1)
     pygame.draw.line(surf, EYEDK, (hcx + 1, hcy + 8), (hcx + 1, hcy + 10), 1)
 
