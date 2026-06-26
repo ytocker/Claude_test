@@ -12,13 +12,22 @@ with a glint. There is NO ball — it ships separately as a PARCEL item, so the 
 alone must scream HOOPS-ALL-STAR at the 40px read.
 
 The "metallic" look is carried by a 3-value gold ramp on every gold surface
-(deep gold shadow → gold → near-white chrome glint), so the cloth reads as
-reflective rather than flat. Midnight navy is the contrast trim/piping so the
-gold pops on both a bright day sky and a dark night sky. At 40px, in order of
-value: (1) the gold tank + big white STAR, (2) the long chrome arm sleeve down
-the near wing, (3) the gold star headband, then the gold high-tops. Every kit
-piece stays INSIDE the base bird footprint — the sleeve hugs the wing, the
-headband hugs the crown, nothing drops below the feet line.
+(deep gold shadow → gold → near-white chrome glint), plus ONE broad confident
+specular swipe across the upper-near quadrant of the tank — a single streak
+sells "shiny" far better than four thin glints that mush to flat gold at 40px.
+Midnight navy is the contrast trim/piping so the gold pops on both a bright day
+sky and a dark night sky.
+
+The chest is deliberately spare: a big white STAR breathing on a clean gold
+field with the bold "1" in front — two elements, nothing else competing. The
+HERO is the full-length shooter ARM SLEEVE down the near wing: a wide reflective
+tube whose CONTINUOUS bright chrome seam runs the full length, raised to a
+lighter steel mid-value so it separates hard from the navy trim and reads as the
+second-loudest element after the gold tank. At 40px, in order of value: (1) the
+gold tank + big white STAR, (2) the long chrome arm sleeve, (3) the gold star
+headband, then the gold high-tops. Every kit piece stays INSIDE the base bird
+footprint — the sleeve hugs the wing, the headband hugs the crown, nothing drops
+below the feet line.
 """
 import math
 
@@ -38,10 +47,12 @@ _NAVY   = (26, 33, 80)               # #1A2150 midnight navy
 _NAVY_H = (54, 66, 130)              # navy sheen
 _WHITE  = (244, 244, 248)            # #F4F4F8 white star / number
 _WHITE_D = (200, 202, 212)           # white shadow so it survives a light sky
-# Sleeve greys/navy so the chrome highlight reads as a smooth reflective tube.
-_SLV_D  = (22, 27, 58)               # sleeve deep navy
-_SLV    = (40, 50, 96)               # sleeve mid
-_SLV_H  = (132, 196, 232)            # sleeve chrome seam
+# Sleeve = the HERO. A cool STEEL ramp (not navy) so its mid-value lifts well
+# clear of the navy trim/piping and the continuous chrome seam screams glossy
+# metal — this is meant to be the second-loudest element after the gold tank.
+_SLV_D  = (44, 58, 104)              # sleeve shadow (lifted off true navy)
+_SLV    = (96, 122, 176)             # sleeve mid — bright steel, separates from navy
+_SLV_H  = (196, 230, 250)            # sleeve chrome seam — near-white, very loud
 
 
 def _star(surf, color, cx, cy, r, *, rot=-math.pi / 2, inner=0.42):
@@ -83,9 +94,12 @@ def _paint(surf, _a):
     _poly(surf, _GOLD_D, [(BCX - 13, BCY + 1), (BCX - 9, BCY - 1),
                           (BCX - 8, BCY + 9), (BCX - 11, BCY + 10)])
     pygame.draw.line(surf, _GOLD_D, (BCX - 10, BCY + 9), (BCX + 11, BCY + 9), 2)
-    # Bright chrome glint band catching the light down the near side = reflective.
-    pygame.draw.line(surf, _GOLD_H, (BCX + 7, BCY - 4), (BCX + 9, BCY + 7), 2)
-    pygame.draw.line(surf, _CHROME, (BCX + 8, BCY - 3), (BCX + 9, BCY + 4), 1)
+    # ONE confident broad specular SWIPE across the upper-near quadrant — a single
+    # 3px diagonal streak reads as a reflective highlight at 40px where four thin
+    # glints just average back to flat gold. Cool chrome core inside it = the
+    # metallic tell that survives the shrink.
+    pygame.draw.line(surf, _GOLD_H, (BCX + 2, BCY - 5), (BCX + 11, BCY + 3), 3)
+    pygame.draw.line(surf, _CHROME, (BCX + 4, BCY - 4), (BCX + 10, BCY + 1), 1)
 
     # Thin shoulder STRAPS at the wing roots — bare scarlet shoulder reads outside
     # each (the sleeveless tell), trimmed in navy so the gold edges stay crisp.
@@ -93,9 +107,8 @@ def _paint(surf, _a):
                         (BCX - 4, BCY - 5), (BCX - 8, BCY - 2)])      # off strap
     _poly(surf, _GOLD, [(BCX + 10, BCY - 6), (BCX + 5, BCY - 9),
                         (BCX + 3, BCY - 5), (BCX + 7, BCY - 2)])      # near strap
-    # Metallic NAVY trim piping along the neckline + hem — the dressed-up frame.
-    pygame.draw.lines(surf, _NAVY, False,
-                      [(BCX - 5, BCY - 3), (BCX, BCY - 1), (BCX + 5, BCY - 3)], 2)
+    # A single thin NAVY hem line frames the gold; the neckline piping is dropped
+    # so the big white star has a clean uncluttered gold field to breathe on.
     pygame.draw.line(surf, _NAVY, (BCX - 11, BCY + 10), (BCX + 12, BCY + 10), 2)
     # Deep armhole scoops so the bare-shoulder, sleeveless cut is explicit at 40px.
     pygame.draw.arc(surf, _GOLD_D, (BCX + 3, BCY - 7, 11, 14), -1.0, 1.4, 2)
@@ -106,21 +119,22 @@ def _paint(surf, _a):
     #    bold white number "1" sitting in front (the showman's #1).
     sx, sy = BCX, BCY + 1
     _star(surf, _WHITE_D, sx, sy + 1, 8)                  # star shadow
-    _star(surf, _WHITE, sx, sy, 8)                        # white star
-    _star(surf, _GOLD, sx, sy, 3.4)                       # gold star eye
+    _star(surf, _WHITE, sx, sy, 8)                        # white star — kept solid
+    # No gold star-eye: the centre stays clean white so the bold navy "1" is the
+    # only thing reading on the star, and the star itself stays a crisp silhouette.
     # Bold "1" overlaid on the star centre — navy so it reads on the white star.
     pygame.draw.line(surf, _NAVY, (sx, sy - 5), (sx, sy + 5), 2)
     pygame.draw.line(surf, _NAVY, (sx - 2, sy - 3), (sx, sy - 5), 2)
 
-    # ── GOLD-AND-WHITE HIGH-TOPS on the feet line. Chunky metallic boots with a
-    #    navy accent stripe, a white midsole, and a chrome toe glint — sitting ON
-    #    the feet line (~HY+21..27), never below it, so the bird stays true size.
+    # ── GOLD-AND-WHITE HIGH-TOPS on the feet line. Chunky metallic boots reduced
+    #    to the two reads that survive 40px: a gold boot with a navy lace stripe
+    #    and ONE clean white sole line. The per-shoe toe glint is dropped — it was
+    #    just noise at size. Sits ON the feet line (~HY+21..27), never below it.
     for fx in (26, 34):
         pygame.draw.rect(surf, _GOLD_D, (fx - 4, HY + 22, 9, 6), border_radius=2)
         pygame.draw.rect(surf, _GOLD, (fx - 4, HY + 21, 9, 4), border_radius=2)
         pygame.draw.line(surf, _NAVY, (fx - 3, HY + 23), (fx + 4, HY + 23), 1)
-        pygame.draw.line(surf, _WHITE, (fx - 4, HY + 27), (fx + 5, HY + 27), 2)  # midsole
-        pygame.draw.line(surf, _CHROME, (fx - 3, HY + 21), (fx, HY + 21), 1)     # toe glint
+        pygame.draw.line(surf, _WHITE, (fx - 4, HY + 27), (fx + 5, HY + 27), 2)  # sole
 
     # ── GOLD STAR HEADBAND across the brow — bold metallic band hugging the crown
     #    with a 3-value gold sheen + a tiny white STAR badge at centre. Leaves
@@ -129,28 +143,32 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _GOLD_D, (HX - 12, by + 1), (HX + 13, by), 7)    # band shadow
     pygame.draw.line(surf, _GOLD, (HX - 12, by), (HX + 13, by - 1), 5)
     pygame.draw.line(surf, _GOLD_H, (HX - 10, by - 2), (HX + 6, by - 2), 1)  # chrome glint
-    _star(surf, _WHITE, HX + 1, by, 3)                                       # star badge
-    # Tiny navy knot + tail tied at the off-temple — the "worn band" tell.
-    pygame.draw.circle(surf, _NAVY, (HX - 12, by), 3)
-    pygame.draw.line(surf, _NAVY_H, (HX - 13, by + 2), (HX - 16, by + 5), 2)
+    # Enlarged white STAR badge (r=4) reads as the head's hero detail; the navy
+    # knot + tail are dropped — they merged with the face and added clutter, so
+    # the gold band + star badge are now the head's only two elements.
+    _star(surf, _WHITE_D, HX + 1, by + 1, 4)                                # badge shadow
+    _star(surf, _WHITE, HX + 1, by, 4)                                      # star badge
 
     # ── FULL-LENGTH SHOOTER ARM SLEEVE down the near wing — THE HERO, drawn LAST
     #    so it sits in front of everything. A smooth tapered TUBE with a long
     #    bright chrome highlight seam running its length so it reads glossy/metal.
-    #    Spans BCX+12, BCY-4..+13, hugging the wing inside the footprint.
-    sleeve = [(BCX + 9, BCY - 4), (BCX + 16, BCY - 3),
-              (BCX + 17, BCY + 13), (BCX + 12, BCY + 14)]
+    #    Widened ~2px so the tube has real mass; spans BCX+8..18, BCY-4..+14,
+    #    hugging the wing inside the footprint.
+    sleeve = [(BCX + 8, BCY - 4), (BCX + 18, BCY - 3),
+              (BCX + 19, BCY + 13), (BCX + 12, BCY + 14)]
     _poly(surf, _SLV, sleeve)
-    # Deep-navy shadow down the outer edge gives the tube its round cross-section.
-    _poly(surf, _SLV_D, [(BCX + 15, BCY - 3), (BCX + 17, BCY + 1),
-                         (BCX + 17, BCY + 13), (BCX + 14, BCY + 13)])
-    # Long bright chrome highlight seam down the inner face = the glossy read.
-    pygame.draw.line(surf, _SLV_H, (BCX + 11, BCY - 2), (BCX + 13, BCY + 12), 2)
-    pygame.draw.line(surf, _WHITE, (BCX + 11, BCY - 1), (BCX + 12, BCY + 5), 1)
+    # Steel shadow down the outer edge gives the wider tube its round cross-section.
+    _poly(surf, _SLV_D, [(BCX + 16, BCY - 3), (BCX + 19, BCY + 1),
+                         (BCX + 19, BCY + 13), (BCX + 15, BCY + 13)])
+    # CONTINUOUS bright chrome seam running the FULL length of the inner face —
+    # one unbroken 3px near-white stripe is the glossy hero read, with a 1px white
+    # core to push the specular brightness past everything but the gold tank.
+    pygame.draw.line(surf, _SLV_H, (BCX + 11, BCY - 3), (BCX + 13, BCY + 13), 3)
+    pygame.draw.line(surf, _WHITE, (BCX + 11, BCY - 3), (BCX + 13, BCY + 13), 1)
     # Gold cuff bands top + bottom tie the sleeve back into the gold kit.
-    pygame.draw.line(surf, _GOLD, (BCX + 9, BCY - 3), (BCX + 16, BCY - 2), 2)
-    pygame.draw.line(surf, _GOLD, (BCX + 12, BCY + 13), (BCX + 17, BCY + 12), 2)
-    pygame.draw.line(surf, _GOLD_H, (BCX + 10, BCY - 3), (BCX + 13, BCY - 3), 1)
+    pygame.draw.line(surf, _GOLD, (BCX + 8, BCY - 3), (BCX + 18, BCY - 2), 2)
+    pygame.draw.line(surf, _GOLD, (BCX + 12, BCY + 13), (BCX + 19, BCY + 12), 2)
+    pygame.draw.line(surf, _GOLD_H, (BCX + 9, BCY - 3), (BCX + 13, BCY - 3), 1)
 
 
 build = store_skins._make_skin(_paint)
