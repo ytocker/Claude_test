@@ -12,8 +12,8 @@ pygame.init()
 from tools import ninja_render
 from tools.basketball_candidates.design_2 import build
 
-OUT = "docs/store_redesign/costume/basketball/design_2/round_1.png"
-TITLE = "DESIGN 2 — THE STREETBALLER (Basketball)  round 1"
+OUT = "docs/store_redesign/costume/basketball/design_2/round_2.png"
+TITLE = "DESIGN 2 — THE STREETBALLER (Basketball)  round 2"
 
 
 def _label(surf, text, x, y, size=18, color=(236, 238, 246)):

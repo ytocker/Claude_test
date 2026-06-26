@@ -29,16 +29,20 @@ from game.store_skins import HX, HY, CROWN_Y, _poly
 # warm gold chain pop hardest as the hero. The red tank is a mid value so the
 # white neckline trim + the gold both separate from the scarlet head above.
 _BLK     = (22, 24, 30)              # #16181E blacktop black (cap, laces)
-_BLK_H   = (52, 56, 66)             # black highlight / brim underside
+_BLK_H   = (52, 56, 66)             # black highlight / brim top edge
+_BLK_RIM = (96, 102, 118)           # cool 1px rim so dark gear holds the
+                                     # silhouette against a night sky
 _RED     = (216, 54, 47)            # #D8362F red tank
 _RED_D   = (160, 36, 32)            # tank shadow / armhole
 _RED_H   = (240, 96, 88)            # tank highlight
 _GOLD    = (232, 178, 58)           # #E8B23A gold chain link
-_GOLD_D  = (158, 116, 30)           # gold-shadow link (the every-other tick)
+_GOLD_D  = (158, 116, 30)           # gold-shadow link (the every-other bead)
 _GOLD_H  = (255, 224, 138)          # gold glint
-_SLV     = (90, 94, 107)            # #5A5E6B sleeve grey
-_SLV_D   = (60, 64, 76)             # sleeve shadow
-_SLV_H   = (140, 144, 158)          # sleeve seam highlight
+# Sleeve recolored from flat grey to a near-black tube so the one bright GOLD
+# cuff band carries the read instead of a low-contrast full-length grey.
+_SLV     = (38, 40, 50)             # dark compression sleeve
+_SLV_D   = (24, 26, 34)             # sleeve shadow
+_SLV_H   = (78, 82, 96)             # sleeve seam highlight
 _WHT     = (244, 244, 248)          # #F4F4F8 white trim / laces glint
 _WHT_D   = (196, 198, 208)          # white shadow / sole
 
@@ -60,13 +64,24 @@ def _paint(surf, _a):
     # Dome highlight band so the cap reads round, not a flat blob.
     _poly(surf, _BLK_H, [(HX - 11, cy - 1), (HX - 4, cy - 4),
                          (HX + 4, cy - 3), (HX + 2, cy - 1), (HX - 6, cy - 1)])
-    # Flat brim jutting BACKWARD off the crown (off-x side) — the backwards tell.
-    _poly(surf, _BLK, [(HX - 14, cy + 2), (HX - 22, cy + 4),
-                       (HX - 22, cy + 7), (HX - 13, cy + 7)])
-    pygame.draw.line(surf, _BLK_H, (HX - 21, cy + 4), (HX - 15, cy + 4), 1)  # brim top edge
-    # Snapback adjuster strap + button left exposed at the FRONT (worn-back tell).
+    # Flat brim jutting BACKWARD off the crown, extended a few px further off the
+    # back so the bill silhouette separates hard from the dome — the key tell.
+    _poly(surf, _BLK, [(HX - 14, cy + 2), (HX - 25, cy + 4),
+                       (HX - 25, cy + 7), (HX - 13, cy + 7)])
+    # Continuous bright top edge along the WHOLE bill so the flat brim reads as a
+    # distinct plane against the round dome even at 40px.
+    pygame.draw.line(surf, _BLK_H, (HX - 24, cy + 4), (HX - 14, cy + 3), 1)
+    # 1px cool rim along the cap's top-left outline — holds the dark dome's
+    # silhouette against a dark night sky without lightening the fill.
+    pygame.draw.lines(surf, _BLK_RIM, False,
+                      [(HX - 13, cy + 5), (HX - 11, cy - 3),
+                       (HX - 4, cy - 7), (HX + 5, cy - 6)], 1)
+    # Bright white snapback BUTTON at the crown peak — the exposed adjuster
+    # button of a backwards-worn cap, a crisp focal dot.
+    pygame.draw.circle(surf, _WHT, (HX + 1, cy - 5), 1)
+    # Snapback adjuster strap left exposed at the FRONT (worn-back tell).
     pygame.draw.line(surf, _WHT_D, (HX + 6, cy + 1), (HX + 9, cy + 5), 2)
-    pygame.draw.circle(surf, _BLK_H, (HX + 7, cy + 2), 1)
+    pygame.draw.circle(surf, _WHT, (HX + 7, cy + 2), 1)
 
     # ── BAGGY TANK over the torso, drawn before the chain/sleeve. Looser cut +
     #    a low loose neckline (a wide shallow scoop) and a slightly flared baggy
@@ -100,21 +115,28 @@ def _paint(surf, _a):
         pygame.draw.rect(surf, _WHT, (fx - 4, HY + 21, 9, 4), border_radius=2)
         # Black ankle collar so the HIGH-top cut reads.
         pygame.draw.rect(surf, _BLK, (fx - 4, HY + 20, 4, 4), border_radius=1)
+        # 1px cool rim along the dark ankle-collar top so the high-top crown
+        # holds its edge against a night sky.
+        pygame.draw.line(surf, _BLK_RIM, (fx - 4, HY + 20), (fx, HY + 20), 1)
         # Bold cross laces.
         pygame.draw.line(surf, _BLK, (fx - 2, HY + 21), (fx + 2, HY + 24), 1)
         pygame.draw.line(surf, _BLK, (fx + 2, HY + 21), (fx - 2, HY + 24), 1)
         pygame.draw.line(surf, _WHT_D, (fx - 4, HY + 27), (fx + 5, HY + 27), 2)  # sole
         pygame.draw.line(surf, _GOLD, (fx + 1, HY + 21), (fx + 4, HY + 21), 1)   # gold toe glint
 
-    # ── COMPRESSION ARM SLEEVE down the near wing, drawn over the tank. A clean
-    #    grey tube hugging the forearm with a bright seam highlight so it reads
-    #    as a fitted sleeve (the streetball forearm tell), not a wristband.
+    # ── COMPRESSION ARM SLEEVE down the near wing, drawn over the tank. A dark
+    #    tube (not flat grey, which vanished on the scarlet plumage) finished
+    #    with one bright GOLD CUFF BAND at the wrist — a single warm band does
+    #    the reading work a low-contrast full grey sleeve could not.
     sx, sy = BCX + 13, BCY + 1
     pygame.draw.line(surf, _SLV_D, (sx - 1, sy - 2), (sx + 4, sy + 13), 8)  # sleeve shadow
     pygame.draw.line(surf, _SLV, (sx - 1, sy - 2), (sx + 3, sy + 12), 6)    # sleeve tube
-    pygame.draw.line(surf, _SLV_H, (sx - 2, sy - 1), (sx + 2, sy + 11), 2)  # seam highlight
-    pygame.draw.line(surf, _BLK, (sx - 2, sy + 12), (sx + 4, sy + 14), 3)   # ribbed cuff
-    pygame.draw.line(surf, _SLV_H, (sx - 1, sy + 12), (sx + 3, sy + 13), 1)
+    pygame.draw.line(surf, _SLV_H, (sx - 2, sy - 1), (sx + 2, sy + 9), 2)   # seam rim light
+    # Bright gold cuff band, 3px, at the wrist end — the pop that anchors the
+    # sleeve in the silhouette on either sky.
+    pygame.draw.line(surf, _GOLD_D, (sx - 2, sy + 13), (sx + 5, sy + 15), 3)
+    pygame.draw.line(surf, _GOLD, (sx - 2, sy + 12), (sx + 4, sy + 14), 3)
+    pygame.draw.line(surf, _GOLD_H, (sx - 1, sy + 12), (sx + 2, sy + 13), 1)
 
     # ── GOLD ROPE CHAIN — the HERO, drawn LAST over everything. It loops the
     #    neck just under the cap and dips onto the chest to (BCX, BCY+1). Built
@@ -127,17 +149,22 @@ def _paint(surf, _a):
            (BCX + 11, BCY - 6)]
     pygame.draw.lines(surf, _GOLD_D, False, pts, 5)   # chain underside / depth
     pygame.draw.lines(surf, _GOLD, False, pts, 4)     # chain body
-    # Alternating link ticks: walk the polyline and drop gold / dark-gold beads
-    # so the chain reads as discrete segments.
+    # FEWER, LARGER beads: walk the polyline at a fixed arc-length spacing and
+    # drop big 2px beads in a clear bright-gold / dark-gold alternation so the
+    # eye can count the links rather than reading a continuous blob.
     seg = []
+    acc, SPACING = 0.0, 4.0
     for a, b in zip(pts, pts[1:]):
-        steps = 3
-        for i in range(steps):
-            t = i / steps
-            seg.append((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t))
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        dist = (dx * dx + dy * dy) ** 0.5 or 1.0
+        while acc < dist:
+            t = acc / dist
+            seg.append((a[0] + dx * t, a[1] + dy * t))
+            acc += SPACING
+        acc -= dist
     for i, (lx, ly) in enumerate(seg):
         c = _GOLD_H if i % 2 == 0 else _GOLD_D
-        pygame.draw.circle(surf, c, (int(round(lx)), int(round(ly))), 1)
+        pygame.draw.circle(surf, c, (int(round(lx)), int(round(ly))), 2)
     # Chunky pendant link where the chain dips lowest on the chest.
     pygame.draw.circle(surf, _GOLD_D, (BCX + 1, BCY + 3), 3)
     pygame.draw.circle(surf, _GOLD, (BCX + 1, BCY + 2), 2)
