@@ -25,17 +25,20 @@ BCX, BCY = 32, 52
 # plumage in both hue and value, so the wrapped shirt reads as cloth, not bird.
 # Two blue values (back shadow + lit chest) round the fabric; gold sash + white
 # numeral carry the team read; navy socks + grey shorts + dark cleats finish it.
-_JKT_BACK  = (21, 30, 130)    # back / shadow zone (darker)
+# Back zone is raised to a true medium blue so the left/back of the kit stays
+# visible against the night sky (16,18,30) — the old (21,30,130) sank into it.
+_JKT_BACK  = (40, 70, 180)    # back / shadow zone (medium blue, night-safe)
 _JKT_CHEST = (34, 85, 216)    # chest / lit zone (lighter)
 _JKT_FOLD  = (27, 79, 200)    # seam fold between the two zones
 _JKT_SASH  = (255, 205, 60)   # gold diagonal sash
 _JKT_NUM   = (244, 244, 248)  # white squad number
-_JKT_SH    = (16, 22, 96)     # dark navy jersey outline
+_JKT_RIM   = (150, 170, 235)  # light rim on the left/top silhouette edge
+_JKT_SH    = (16, 22, 96)     # dark navy jersey outline (right edge, vs sky)
 _SOCK_NAVY = (15, 26, 120)    # navy sock pillar
 _SOCK_HOOP = (244, 244, 248)  # white sock hoop band
 _BOOT_D    = (26, 24, 32)     # dark cleat
 _BOOT_SOLE = (200, 200, 210)  # sole highlight
-_SHORTS    = (140, 145, 160)  # grey shorts
+_SHORTS    = (170, 175, 190)  # grey shorts (lighter — reads vs socks/boots)
 
 
 def _paint(surf, _a):
@@ -43,23 +46,27 @@ def _paint(surf, _a):
     #    foot, with a bare-body gap between them so the legs never bridge into a
     #    single bar. Each sock carries a bright white hoop band near the top so the
     #    classic kit stripe survives the 40px downscale on night sky.
+    #    Socks widened to 6px and the white hoop pulled to 3px at HY+16 so the two
+    #    legs + boots don't fuse into one navy blob at the 40px downscale.
     for fx in (HX - 9, HX + 1):
-        pygame.draw.line(surf, _SOCK_NAVY, (fx, HY + 13), (fx, HY + 25), 5)
-        pygame.draw.line(surf, _SOCK_HOOP, (fx - 1, HY + 15), (fx + 2, HY + 15), 3)
+        pygame.draw.line(surf, _SOCK_NAVY, (fx, HY + 13), (fx, HY + 25), 6)
+        pygame.draw.line(surf, _SOCK_HOOP, (fx - 1, HY + 16), (fx + 2, HY + 16), 3)
 
     # ── 2 · BOOTS (cleats) at the sock hem — a compact dark ellipse with a bright
-    #    sole stripe + two stud ticks beneath so the foot reads as a studded boot.
+    #    full-width sole stripe + two stud ticks beneath so the foot reads as a
+    #    studded boot distinct from the navy sock above it.
     for fx in (HX - 9, HX + 1):
         pygame.draw.ellipse(surf, _BOOT_D, (fx - 4, HY + 23, 9, 5))
-        pygame.draw.line(surf, _BOOT_SOLE, (fx - 3, HY + 25), (fx + 3, HY + 25), 1)
+        pygame.draw.line(surf, _BOOT_SOLE, (fx - 4, HY + 26), (fx + 4, HY + 26), 1)
         for tx in (fx - 2, fx + 2):
             pygame.draw.line(surf, _BOOT_D, (tx, HY + 27), (tx, HY + 28), 2)
 
-    # ── 3 · GREY SHORTS strip just below the jersey hem so a shorts band shows
+    # ── 3 · GREY SHORTS band just below the jersey hem so a clear shorts zone shows
     #    between shirt and socks (the kit reads as shirt + shorts + socks, not one
-    #    long tunic). A darker lower line gives the hem a shadow edge.
-    pygame.draw.line(surf, _SHORTS, (BCX - 8, HY + 24), (HX + 8, HY + 24), 4)
-    pygame.draw.line(surf, (100, 104, 116), (BCX - 8, HY + 26), (HX + 8, HY + 26), 2)
+    #    long tunic). A 5px lighter-grey band fills HY+22..27 so it doesn't murk into
+    #    the boots; a darker lower line gives the hem a shadow edge.
+    pygame.draw.rect(surf, _SHORTS, (BCX - 8, HY + 22, (HX + 8) - (BCX - 8), 5))
+    pygame.draw.line(surf, (100, 104, 116), (BCX - 8, HY + 27), (HX + 8, HY + 27), 1)
 
     # ── 4 · FULL-BODY JERSEY — the headline. The polygon wraps the WHOLE visible
     #    torso (left edge at BCX-10=22, right edge at HX+11=58, ~36px wide), so the
@@ -86,6 +93,10 @@ def _paint(surf, _a):
     _poly(surf, _JKT_CHEST, chest_zone)     # right chest, lit zone
     pygame.draw.line(surf, _JKT_FOLD, (BCX, HY + 7), (BCX, HY + 23), 1)  # seam fold
     pygame.draw.polygon(surf, _JKT_SH, jersey, 1)                         # outline
+    # The left/top silhouette sits against the bird's dark body, not sky, so a dark
+    # outline there is invisible — a LIGHT rim line lifts that edge off Pip on night.
+    pygame.draw.lines(surf, _JKT_RIM, False,
+                      [(BCX - 10, HY + 7), (BCX - 12, HY + 17), (BCX - 8, HY + 23)], 2)
 
     # ── 5 · GOLD DIAGONAL SASH across the right chest — the team mark. A 3px gold
     #    band over the lit zone with a 1px lighter highlight along its upper edge so
@@ -96,7 +107,7 @@ def _paint(surf, _a):
     # ── 6 · SQUAD NUMBER "9" — a white block numeral on the chest, big enough to
     #    stay legible after the downscale. Rendered once via the system font and
     #    blitted centred on the lit zone.
-    font = pygame.font.SysFont("arial", 8, bold=True)
+    font = pygame.font.SysFont("arial", 10, bold=True)
     glyph = font.render("9", True, _JKT_NUM)
     surf.blit(glyph, glyph.get_rect(center=(HX + 1, HY + 16)))
 
