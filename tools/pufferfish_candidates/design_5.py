@@ -7,7 +7,7 @@ import pygame
 from game.parrot import _aaellipse
 from tools.pufferfish_candidates._shared import (
     _new, _make_prebuilt_skin, _inflate, _flap, _shade, _eye, _radial_body,
-    _tail_fin, _side_fin, _spots, _stub_spikes, BCX, BCY,
+    _tail_fin, _side_fin, _spots, _stub_spikes, _spike_field, BCX, BCY,
 )
 
 CORE = (248, 210, 128)          # warm sandy-amber (de-sunned off pure gold)
@@ -23,7 +23,8 @@ DARK  = (58, 42, 18)
 TEETH = (255, 243, 214)
 BLUSH = (255, 168, 120)
 
-_SPK = [(-2.7, 0.6), (-2.2, 0.8), (-1.6, 0.65), (-1.0, 0.8), (-0.5, 0.6)]
+# Soft short spikes wrapping the body, face kept clear for the big beaky mug.
+_SPK = _spike_field(13, base=0.55, var=0.4, gap=(-0.8, 0.6), seed=5)
 
 
 def build_derpy(wing_angle_deg):

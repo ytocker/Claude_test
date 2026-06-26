@@ -6,7 +6,8 @@ import pygame
 from game.parrot import _aaellipse
 from tools.pufferfish_candidates._shared import (
     _new, _make_prebuilt_skin, _inflate, _shade, _eye, _radial_body,
-    _tail_fin, _side_fin, _spots, _stub_spikes, _pouty_o, BCX, BCY,
+    _tail_fin, _side_fin, _spots, _stub_spikes, _spike_field, _pouty_o,
+    BCX, BCY,
 )
 
 CORE = (255, 226, 132)
@@ -21,9 +22,9 @@ FIN_L = (111, 183, 201)
 DARK  = (52, 36, 14)
 BLUSH = (255, 168, 120)
 
-# A SMALL cluster of blunt stubs on the upper-back shoulder only (not a crown
-# spanning the whole top) — uneven lengths so they read as bumps, not rays.
-_SPK = [(-2.2, 0.6), (-1.8, 1.0), (-1.45, 0.55), (-1.1, 0.85)]
+# Stubs wrapping most of the body (top + sides + lower-back) with a clear gap
+# over the front face — short + uneven so they read as bumpy puffer skin.
+_SPK = _spike_field(14, base=0.55, var=0.45, gap=(-0.7, 0.5), seed=1)
 
 
 def build_finned(wing_angle_deg):
@@ -39,9 +40,9 @@ def build_finned(wing_angle_deg):
     # must win the silhouette (drawn first so the body overlaps its root).
     _tail_fin(surf, cx - r + 2, cy + 1, 12, fin_d, fin_l)
 
-    # Small blunt stub bumps on the upper-back shoulder (anti-sun spike).
-    spk = 3 + int(inf * 2)
-    _stub_spikes(surf, cx, cy, r, r, spk, _shade(SPIKE_D, bf),
+    # Short blunt stubs wrapping the body (anti-sun: short + irregular + face gap).
+    spk = 5 + int(inf * 2)
+    _stub_spikes(surf, cx, cy, r, r - 2, spk, _shade(SPIKE_D, bf),
                  _shade(SPIKE_T, bf), _SPK)
 
     # Gold body as a gentle horizontal OVAL (rx>ry) — reads as an inflated fish

@@ -9,7 +9,8 @@ import pygame
 from game.parrot import _aaellipse
 from tools.pufferfish_candidates._shared import (
     _new, _make_prebuilt_skin, _inflate, _shade, _eye, _radial_body,
-    _tail_fin, _side_fin, _spots, _stub_spikes, _pouty_o, BCX, BCY,
+    _tail_fin, _side_fin, _spots, _stub_spikes, _spike_field, _pouty_o,
+    BCX, BCY,
 )
 
 # De-golded tan puffer skin so colour stops reading "sun".
@@ -25,10 +26,10 @@ FIN_L = (168, 150, 102)
 DARK  = (46, 38, 22)
 BLUSH = (228, 150, 120)
 
-# Studs on the TOP + BACK arc ONLY (belly & front-face kept bald) — an
-# asymmetric distribution can never read as a radial sun.
-_SPK = [(-2.95, 0.7), (-2.55, 1.0), (-2.15, 0.8), (-1.75, 1.0),
-        (-1.35, 0.85), (2.85, 0.75), (2.55, 0.9), (2.25, 0.7)]
+# The SPIKY puffer: studs wrap nearly the whole body (top + sides + belly +
+# back), with only the front face kept clear. Short + irregular + a dominant
+# tail keep it bumpy-blowfish, not a radial sun.
+_SPK = _spike_field(18, base=0.6, var=0.5, gap=(-0.7, 0.4), seed=2)
 
 
 def build_balloon(wing_angle_deg):

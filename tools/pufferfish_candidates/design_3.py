@@ -8,7 +8,8 @@ import pygame
 from game.parrot import _aaellipse
 from tools.pufferfish_candidates._shared import (
     _new, _make_prebuilt_skin, _inflate, _shade, _eye, _radial_body,
-    _tail_fin, _side_fin, _spots, _stub_spikes, _pouty_o, BCX, BCY,
+    _tail_fin, _side_fin, _spots, _stub_spikes, _spike_field, _pouty_o,
+    BCX, BCY,
 )
 
 CORE = (201, 210, 154)          # pale olive flank
@@ -22,8 +23,9 @@ FIN_D = (150, 120, 54)          # warm olive-tan fins
 FIN_L = (224, 196, 120)
 DARK  = (40, 46, 28)            # dark olive iris (still lets the white win)
 
-# Sparse, tiny spines on the upper back only.
-_SPK = [(-2.6, 0.5), (-2.1, 0.6), (-1.6, 0.55), (-1.1, 0.5)]
+# Fine prickles wrapping the back + flanks (fugu has small dense spines), face
+# kept clear. Kept SHORT so the realistic read stays calm, not a sunburst.
+_SPK = _spike_field(14, base=0.4, var=0.35, gap=(-0.8, 0.5), seed=3)
 
 
 def build_fugu(wing_angle_deg):

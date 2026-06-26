@@ -117,6 +117,24 @@ def _spots(surf, cx, cy, rx, ry, col, seed_pts):
         pygame.draw.circle(surf, col, (cx + dx, cy + dy), rr)
 
 
+def _spike_field(n, *, base=0.7, var=0.5, gap=(-0.6, 0.6), seed=0):
+    """Generate `n` stub-spike placements wrapped around the body with a small
+    DETERMINISTIC length jitter (irregular bumpy skin, never even rays) and a
+    clear angular `gap` over the face/front so the studs never close into a full
+    radial halo. Angles in radians: 0 = front (+x), -pi/2 = top. Returns a list
+    of (angle, len_scale) for `_stub_spikes`. No RNG → the 4 cached frames are
+    stable. Pass gap=None to wrap the whole body."""
+    out = []
+    glo, ghi = gap if gap else (1.0, -1.0)
+    for i in range(n):
+        a = -math.pi + (2 * math.pi) * (i + 0.5) / n
+        if gap and glo <= a <= ghi:
+            continue
+        ls = base + var * (((i * 5 + seed * 3) % 7) / 6.0)
+        out.append((a, ls))
+    return out
+
+
 def _stub_spikes(surf, cx, cy, rx, ry, length, col_base, col_tip, placements):
     """Short, BLUNT cone spines at fixed (angle, scale) placements — scattered,
     not a clean radial fan. This is the anti-sun spike: stubby + staggered so it

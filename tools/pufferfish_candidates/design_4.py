@@ -6,7 +6,8 @@ import pygame
 from game.parrot import _aaellipse
 from tools.pufferfish_candidates._shared import (
     _new, _make_prebuilt_skin, _inflate, _flap, _shade, _eye, _radial_body,
-    _tail_fin, _side_fin, _spots, _stub_spikes, _pouty_o, BCX, BCY,
+    _tail_fin, _side_fin, _spots, _stub_spikes, _spike_field, _pouty_o,
+    BCX, BCY,
 )
 
 CORE = (127, 224, 232)          # light aqua core
@@ -21,10 +22,9 @@ FIN_L = (96, 200, 212)
 DARK  = (24, 54, 60)
 BUBBLE = (234, 251, 255)
 
-# Soft rounded short spines — upper body PLUS a couple lower on the back flank
-# so the bumps wrap the ball (the "spines all over a round body" puffer cue).
-_SPK = [(-2.7, 0.7), (-2.2, 0.9), (-1.7, 0.75), (-1.2, 0.95), (-0.7, 0.8),
-        (2.7, 0.6), (2.3, 0.7)]
+# Soft rounded short spines wrapping the whole ball (top + sides + belly + back),
+# face kept clear — the "spines all over a round body" puffer cue, in cute aqua.
+_SPK = _spike_field(15, base=0.6, var=0.45, gap=(-0.7, 0.5), seed=4)
 
 
 def build_aqua(wing_angle_deg):
