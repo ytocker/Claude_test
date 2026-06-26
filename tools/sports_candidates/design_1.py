@@ -4,12 +4,12 @@ Scratch exploration only — NOT registered in store_skins.BUILDERS. Pip the
 scarlet macaw kitted as a soccer striker: a royal-blue + white vertical-striped
 team jersey with a big number painted over the torso, a captain's gold armband
 on the near wing, shin-guards + cleats at the feet line, and the hero read — a
-black-&-white hexagon-patched soccer ball tucked at the near foot / lower wing.
+bold pure-white soccer ball floated on the jersey, central and high-contrast.
 
 The jersey is painted OVER the scarlet body (the head stays the macaw so Pip
 still reads as a parrot). All kit is held INSIDE the base bird footprint: the
-ball + shin-guards + cleats sit on the feet line (~HY+24..27), nothing balloons
-the torso, only an optional thin sweatband touches the head.
+ball rides the chest while shin-guards + cleats sit on the feet line
+(~HY+22..27), nothing balloons the torso, only a thin sweatband touches the head.
 
 Headless render: tools/sports_candidates/render_design_1.py.
 """
@@ -36,7 +36,8 @@ _SOC_GOLD    = (232, 194, 74)       # #E8C24A captain's armband
 _SOC_GOLD_H  = (255, 232, 150)      # armband glint
 _SOC_GUARD   = (226, 228, 234)      # plastic shin-guard
 _SOC_GUARD_D = (168, 172, 182)      # shin-guard shadow
-_SOC_CLEAT   = (24, 26, 32)         # black cleat
+_SOC_CLEAT   = (54, 58, 70)         # cleat — lifted off black so it isn't the
+_SOC_CLEAT_H = (92, 98, 116)        #   ball's dark twin; lighter outline tells it apart
 _SOC_SOCK    = (28, 62, 150)        # team sock (jersey-blue-dark)
 
 
@@ -45,37 +46,33 @@ BCX, BCY = 32, 52
 
 
 def _soccer_ball(surf, cx, cy, r):
-    """The hero: a black-&-white hexagon-patched soccer ball. A central black
-    pentagon flanked by three partial patches over a white sphere reads as
-    'soccer ball' at 40px far better than a full geodesic net would — keep the
-    patches few + bold so they survive the downscale as distinct dark marks."""
-    # White sphere with a cool lower-right shade so it reads round, not a disc.
+    """The HERO mass: a pure-white sphere carrying ONE bold central black
+    pentagon and two short seam stubs. At 40px the geodesic net is just noise —
+    a single high-contrast pentagon on a true-white ball is the cleanest,
+    fastest 'SOCCER' read, so this is drawn as the brightest, most central mark
+    on the whole figure (a 1px lower-right shade is the only shading)."""
+    # Pure-white body so it out-contrasts every blue/white jersey stripe; a
+    # single 1px lower-right crescent gives roundness without greying the ball.
     pygame.draw.circle(surf, _SOC_WHITE_D, (cx, cy + 1), r)
-    pygame.draw.circle(surf, _SOC_WHITE, (cx, cy), r)
-    pygame.draw.circle(surf, _SOC_WHITE_D, (cx, cy), r, 1)   # rim so it holds an edge
+    pygame.draw.circle(surf, (255, 255, 255), (cx, cy), r)
 
-    # Central black pentagon — the unmistakable soccer-ball signature.
-    s = r * 0.46
+    # Central black pentagon — the unmistakable soccer signature, sized big so
+    # it survives the downscale as one decisive dark shape.
+    s = r * 0.52
     pent = []
     for i in range(5):
         a = -math.pi / 2 + i * 2 * math.pi / 5
         pent.append((cx + s * math.cos(a), cy + s * math.sin(a)))
     _poly(surf, _SOC_PATCH, pent)
 
-    # Three smaller partial patches around it (the white seams between them are
-    # the gaps), placed up / lower-left / lower-right so the curvature reads.
-    for ang in (-math.pi / 2 + math.pi / 5,  # tuck near the top edge
-                math.pi * 0.62, math.pi * 0.38):
-        px = cx + (r * 0.74) * math.cos(ang)
-        py = cy + (r * 0.74) * math.sin(ang)
-        pp = []
-        for i in range(5):
-            a = ang + i * 2 * math.pi / 5
-            pp.append((px + (r * 0.30) * math.cos(a), py + (r * 0.30) * math.sin(a)))
-        _poly(surf, _SOC_PATCH, pp)
-
-    # One bright highlight bead so the white sphere catches light at night.
-    pygame.draw.circle(surf, (255, 255, 255), (cx - r // 2, cy - r // 2), 1)
+    # Two short black seam stubs poking in from the rim — just enough to say
+    # 'panelled ball' without the partial-patch clutter that muddied round 1.
+    for ang in (math.radians(150), math.radians(30)):
+        ex = cx + r * math.cos(ang)
+        ey = cy + r * math.sin(ang)
+        ix = cx + (r * 0.48) * math.cos(ang)
+        iy = cy + (r * 0.48) * math.sin(ang)
+        pygame.draw.line(surf, _SOC_PATCH, (ix, iy), (ex, ey), 2)
 
 
 def _paint(surf, _a):
@@ -110,27 +107,26 @@ def _paint(surf, _a):
                               (BCX + 2, BCY - 9), (BCX - 3, BCY - 9)])
     pygame.draw.line(surf, _SOC_WHITE, (BCX - 4, BCY - 11), (BCX + 3, BCY - 11), 1)
 
-    # Big squad NUMBER "9" centred on the chest — the striker's number, painted
-    # white over the stripes so it reads as a number, edged dark so it doesn't
-    # dissolve into the white stripes. Drawn from clean strokes so it survives
-    # downscale better than a font glyph.
-    nx, ny = BCX, BCY - 1
-    # Outline pass (dark) then the white fill, so the digit pops on both stripes.
-    for col, w in ((_SOC_BLUE_D, 6), (_SOC_WHITE, 4)):
-        # Loop of the 9 (the bowl).
-        pygame.draw.ellipse(surf, col, (nx - 5, ny - 8, 10, 9),
-                            0 if col is _SOC_WHITE else 0)
+    # Squad NUMBER "9" — DEMOTED so the ball wins: ~20% smaller and slid left so
+    # its centre sits over a BLUE stripe gap, where a white digit reads cleanly
+    # instead of washing into a white stripe. Dark edge kept so it holds shape.
+    nx, ny = BCX - 4, BCY - 1
+    # Outline pass (dark) then the white fill, so the digit pops on the blue.
+    pygame.draw.ellipse(surf, _SOC_BLUE_D, (nx - 4, ny - 7, 8, 8))
+    pygame.draw.ellipse(surf, _SOC_WHITE, (nx - 3, ny - 6, 6, 6))
     # Knock a hole back into the bowl so it reads as a "9" loop, not a blob.
-    pygame.draw.ellipse(surf, _SOC_BLUE, (nx - 2, ny - 5, 4, 3))
+    pygame.draw.ellipse(surf, _SOC_BLUE, (nx - 1, ny - 4, 3, 3))
     # Tail of the 9 dropping from the bowl's lower-right.
-    pygame.draw.line(surf, _SOC_BLUE_D, (nx + 5, ny - 3), (nx + 2, ny + 8), 6)
-    pygame.draw.line(surf, _SOC_WHITE, (nx + 5, ny - 3), (nx + 2, ny + 8), 3)
+    pygame.draw.line(surf, _SOC_BLUE_D, (nx + 4, ny - 3), (nx + 1, ny + 6), 5)
+    pygame.draw.line(surf, _SOC_WHITE, (nx + 4, ny - 3), (nx + 1, ny + 6), 2)
 
     # --- Captain's gold ARMBAND on the near (right) wing ------------------------
     # A bright gold band wrapping the upper near wing with a glint — the only
     # warm note, so it reads as the captain's armband against the blue kit.
     ax, ay = BCX + 13, BCY - 4
-    pygame.draw.line(surf, (150, 120, 40), (ax - 3, ay - 4), (ax + 3, ay + 4), 6)
+    # One crisp dark edge under the gold so the band doesn't read as one of
+    # Pip's yellow wing patches.
+    pygame.draw.line(surf, (78, 60, 18), (ax - 4, ay - 5), (ax + 4, ay + 5), 6)
     pygame.draw.line(surf, _SOC_GOLD, (ax - 3, ay - 4), (ax + 3, ay + 4), 4)
     pygame.draw.line(surf, _SOC_GOLD_H, (ax - 2, ay - 4), (ax + 1, ay), 1)
 
@@ -146,18 +142,21 @@ def _paint(surf, _a):
         pygame.draw.ellipse(surf, _SOC_GUARD_D, (fx - 3, HY + 16, 6, 8))
         pygame.draw.ellipse(surf, _SOC_GUARD, (fx - 3, HY + 16, 5, 7))
         pygame.draw.line(surf, (255, 255, 255), (fx - 1, HY + 17), (fx - 1, HY + 20), 1)
-        # Black cleat hugging the feet line.
-        pygame.draw.ellipse(surf, _SOC_CLEAT, (fx - 4, HY + 22, 9, 5))
-        pygame.draw.line(surf, _SOC_WHITE, (fx - 3, HY + 23), (fx + 2, HY + 23), 1)  # stripe
+        # Cleat hugging the feet line — slate-grey (not black) with a lighter
+        # outline and a bright WHITE sole stripe so the feet read as feet and
+        # never collide with the now-elsewhere dark of the ball.
+        pygame.draw.ellipse(surf, _SOC_CLEAT_H, (fx - 4, HY + 22, 9, 5))
+        pygame.draw.ellipse(surf, _SOC_CLEAT, (fx - 4, HY + 23, 9, 4))
+        pygame.draw.line(surf, _SOC_WHITE, (fx - 3, HY + 24), (fx + 2, HY + 24), 1)  # sole stripe
         # Two stud ticks on the sole (kept ON the feet line, not below).
         for tx in (fx - 2, fx + 1):
             pygame.draw.line(surf, _SOC_CLEAT, (tx, HY + 26), (tx, HY + 27), 2)
 
-    # --- HERO: black-&-white soccer ball tucked at the near foot / lower wing ---
-    # Drawn LAST so it sits clearly in front, large and high-contrast — the
-    # instant soccer read. Held inside the silhouette (centre near the lower near
-    # wing) with its lowest edge resting on the feet line, never below it.
-    _soccer_ball(surf, BCX + 12, HY + 20, 7)
+    # --- HERO: pure-white soccer ball floated on the JERSEY ---------------------
+    # Lifted OFF the feet line and onto the chest so it sits clear of the cleats
+    # with a jersey-colour gap between them, drawn LAST + large so it is the
+    # highest-contrast, most central mass on the figure — the instant soccer read.
+    _soccer_ball(surf, BCX + 11, BCY + 6, 9)
 
     # --- Optional thin sweatband on the head (keeps the macaw reading) ----------
     # A slim royal-blue band across the brow with one white edge — a sport tell
