@@ -476,11 +476,20 @@ def _fla_wing(angle_deg):
 
 def build_flamingo(wing_angle_deg):
     surf = _new()
-    # Wispy tail plumes.
-    pygame.draw.polygon(surf, _FLA_BODY_D,
-                        [(11, BCY - 2), (2, BCY + 6), (15, BCY + 8)])
-    pygame.draw.polygon(surf, _FLA_BODY_H,
-                        [(12, BCY), (5, BCY + 5), (15, BCY + 6)])
+    # Upswept tail plumes growing from a solid rump lobe rooted UNDER the body
+    # (x~16-19) so the tail reads as attached, not a detached shard. Drawn first
+    # so the body overlaps its base.
+    _aaellipse(surf, _FLA_BODY_D, (19, BCY + 4), 9, 7)
+    _aaellipse(surf, _FLA_BODY,   (18, BCY + 3), 8, 6)
+    _aaellipse(surf, _FLA_BODY_H, (16, BCY + 1), 3, 2)
+    for (rx, ry, mx, my, tx, ty) in (
+        (16, BCY - 1, 10, BCY - 4, 5, BCY - 4),
+        (17, BCY + 1, 10, BCY - 1, 4, BCY),
+        (18, BCY + 3, 11, BCY + 2, 5, BCY + 3),
+    ):
+        pygame.draw.lines(surf, _FLA_BODY_D, False,
+                          [(rx, ry), (mx, my), (tx, ty)], 3)
+        pygame.draw.line(surf, _FLA_BODY_H, (rx, ry), (mx, my), 1)
     # Rounded body, sitting a touch lower so the neck has room.
     _aaellipse(surf, _FLA_BODY_D, (BCX + 1, BCY + 3), 16, 13)
     _aaellipse(surf, _FLA_BODY, (BCX, BCY + 2), 15, 12)
