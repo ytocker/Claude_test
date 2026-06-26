@@ -232,5 +232,5 @@ def _draw_streamers(surf, tip_x, tip_y, r, f, head_w):
                 pygame.draw.lines(surf, hi, False, pts[: n // 2], 1)
 
 
-build = make_build(draw_hat, seat={"hw": 24, "dx": -1, "dy": -1})
+build = make_build(draw_hat, seat={"hw": 24, "dx": 2, "dy": -3})
 icon = make_icon(draw_hat)
