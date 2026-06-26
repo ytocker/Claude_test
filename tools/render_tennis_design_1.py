@@ -53,6 +53,23 @@ def gameplay_panel_phase(source, w, h, phase, *, frame_idx=2, tilt=10.0):
     return pygame.transform.smoothscale(scene.subsurface(crop).copy(), (w, h))
 
 
+def hero_panel_nearest(source, box, *, frame_idx=2, tilt=8.0, bg=(22, 20, 32)):
+    """Large product-shot using NEAREST scaling (no bilinear smoothing) so the
+    hero crop is crisp and matches the chunky pixels the player sees at scale."""
+    panel = pygame.Surface((box, box), pygame.SRCALPHA)
+    pygame.draw.rect(panel, bg, panel.get_rect(), border_radius=14)
+    frame = source(frame_idx, tilt)
+    bb = frame.get_bounding_rect()
+    if bb.width and bb.height:
+        frame = frame.subsurface(bb).copy()
+    sw, sh = frame.get_size()
+    scale = (box * 0.82) / max(sw, sh)
+    frame = pygame.transform.scale(
+        frame, (max(1, int(sw * scale)), max(1, int(sh * scale))))
+    panel.blit(frame, frame.get_rect(center=(box // 2, box // 2)))
+    return panel
+
+
 def truth_read(source, phase, box=160, *, frame_idx=2, tilt=10.0):
     """The 40px NEAREST 'truth read': render the frame, hard-downscale to 40px
     with NEAREST (what the player actually sees at hero/store scale), then blow
@@ -64,7 +81,7 @@ def truth_read(source, phase, box=160, *, frame_idx=2, tilt=10.0):
     bb = frame.get_bounding_rect()
     if bb.width and bb.height:
         frame = frame.subsurface(bb).copy()
-    small = pygame.transform.smoothscale(frame, (40, 40))
+    small = pygame.transform.scale(frame, (40, 40))            # NEAREST downscale
     big = pygame.transform.scale(small, (box - 24, box - 24))  # NEAREST upscale
     panel.blit(big, big.get_rect(center=(box // 2, box // 2)))
     return panel
@@ -108,7 +125,7 @@ for r, (label, phase) in enumerate(ROWS):
     # hero
     x2 = x + GP_W + GUT
     hy = y + (GP_H - HERO) // 2
-    hero = nr.hero_panel(build, HERO, tilt=8.0)
+    hero = hero_panel_nearest(build, HERO, tilt=8.0)
     sheet.blit(hero, (x2, hy))
     sheet.blit(cap_font.render(f"{label} — HERO", True, _GOLD_PALE),
                (x2 + 2, y + GP_H + 6))
@@ -121,7 +138,7 @@ for r, (label, phase) in enumerate(ROWS):
                (x3 + 2, y + GP_H + 6))
 
 out = os.path.join("docs", "store_redesign", "costume", "tennis", "design_1",
-                   "round_1.png")
+                   "round_2.png")
 os.makedirs(os.path.dirname(out), exist_ok=True)
 pygame.image.save(sheet, out)
 print("SAVED", out, sheet.get_size())
