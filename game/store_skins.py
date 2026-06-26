@@ -869,6 +869,184 @@ def _paint_mummy(surf, _a):
 get_mummy_parrot = _make_skin(_paint_mummy, base_fn=_mummy_base)
 
 
+# ── BASEBALL ("The Slugger") — Pip kitted as a ballplayer. Two bold shapes carry
+#     the read at 40px: a big navy ball cap winning the crown over a forward
+#     curved brim, and a tapered wooden BAT resting diagonally ACROSS the uniform
+#     (drawn last so it overlays the jersey, fully visible). A white pinstripe
+#     jersey + number + cleats fill the kit. Pip's head stays the macaw.
+_BSB_BAT     = (214, 176, 92)      # tan barrel body (lifted so it holds at night)
+_BSB_BAT_D   = (150, 116, 52)      # shaded underside (kept a thin sliver)
+_BSB_BAT_H   = (240, 214, 146)     # bright top glint so the barrel reads round
+_BSB_KNOB    = (150, 116, 52)      # knob/handle end
+_BSB_NAVY    = (27, 42, 107)       # cap shell + pinstripes (team navy)
+_BSB_NAVY_D  = (18, 28, 74)        # brim / under-shadow
+_BSB_NAVY_H  = (60, 84, 168)       # cap top sheen
+_BSB_WHITE   = (242, 242, 242)     # jersey field
+_BSB_WHITE_D = (198, 200, 210)     # jersey shade
+_BSB_CLEAT   = (32, 34, 44)        # near-black cleats
+_BSB_CLEAT_H = (96, 100, 114)      # cleat rim glint
+
+
+def _paint_baseball(surf, _a):
+    # Pinstripe jersey over the torso (white field hugging the body, inside the
+    # base footprint — hem ~HY+23 — so nothing balloons the silhouette).
+    jersey = [(HX - 13, HY + 8), (HX - 14, HY + 18), (HX - 10, HY + 23),
+              (HX + 8, HY + 23), (HX + 11, HY + 18), (HX + 9, HY + 8)]
+    _poly(surf, _BSB_WHITE, jersey)
+    _poly(surf, _BSB_WHITE_D, [(HX + 4, HY + 9), (HX + 11, HY + 18),
+                               (HX + 8, HY + 23), (HX + 5, HY + 22)])
+    for sx in (HX - 8, HX - 1, HX + 6):                       # three pinstripes
+        pygame.draw.line(surf, _BSB_NAVY, (sx, HY + 9), (sx, HY + 22), 1)
+    pygame.draw.line(surf, _BSB_NAVY, (HX - 2, HY + 8), (HX - 2, HY + 22), 1)
+    _poly(surf, _BSB_NAVY, [(HX - 6, HY + 7), (HX + 4, HY + 7),
+                            (HX + 2, HY + 10), (HX - 4, HY + 10)])  # collar band
+    pygame.draw.line(surf, _BSB_NAVY, (HX - 5, HY + 13), (HX + 1, HY + 13), 2)  # "7"
+    pygame.draw.line(surf, _BSB_NAVY, (HX + 1, HY + 13), (HX - 3, HY + 21), 2)
+
+    # Cleats at the feet line — dark spiked shoes tucked at the jersey hem.
+    for fx in (HX - 11, HX - 1):
+        pygame.draw.rect(surf, _BSB_CLEAT, (fx, HY + 23, 8, 5), border_radius=2)
+        pygame.draw.line(surf, _BSB_CLEAT_H, (fx, HY + 24), (fx + 7, HY + 24), 1)
+        for tx in (fx + 1, fx + 4, fx + 7):
+            pygame.draw.line(surf, _BSB_CLEAT, (tx, HY + 28), (tx, HY + 29), 1)
+
+    # Ball cap on the crown — a big navy shell raised to own the top of the head
+    # over a bold forward curved brim, so the headgear reads as a ball cap.
+    cy = CROWN_Y - 3
+    pygame.draw.ellipse(surf, _BSB_NAVY, (HX - 13, cy - 5, 26, 15))
+    pygame.draw.ellipse(surf, _BSB_NAVY_D, (HX - 13, cy - 5, 26, 15), 1)
+    pygame.draw.ellipse(surf, _BSB_NAVY_H, (HX - 7, cy - 4, 11, 6))
+    pygame.draw.circle(surf, _BSB_NAVY_H, (HX, cy - 4), 1)
+    brim = [(HX + 3, cy + 6), (HX + 18, cy + 4), (HX + 19, cy + 8),
+            (HX + 4, cy + 10)]
+    _poly(surf, _BSB_NAVY, brim)
+    _poly(surf, _BSB_NAVY_D, [(HX + 4, cy + 9), (HX + 19, cy + 8),
+                              (HX + 18, cy + 10), (HX + 4, cy + 11)])
+    pygame.draw.line(surf, _BSB_NAVY_H, (HX + 4, cy + 6), (HX + 17, cy + 4), 1)
+    pygame.draw.circle(surf, _BSB_WHITE, (HX + 4, cy + 2), 2)
+    pygame.draw.circle(surf, _BSB_NAVY, (HX + 4, cy + 2), 1)
+
+    # Wooden bat — drawn LAST so it OVERLAYS the jersey: the bat rests diagonally
+    # across the uniform, fully visible, the fat barrel running up past the back
+    # outline into open sky. Three values keep the tapered cylinder reading at 40px.
+    handle = (HX + 1, HY + 21)
+    barrel = (HX - 29, HY - 5)
+    mid = ((handle[0] + barrel[0]) // 2, (handle[1] + barrel[1]) // 2)
+    pygame.draw.line(surf, _BSB_BAT_D, (handle[0], handle[1] + 1),
+                     (mid[0], mid[1] + 1), 4)
+    pygame.draw.line(surf, _BSB_BAT_D, (mid[0], mid[1] + 2),
+                     (barrel[0], barrel[1] + 2), 9)
+    pygame.draw.line(surf, _BSB_BAT, handle, mid, 3)
+    pygame.draw.line(surf, _BSB_BAT, mid, barrel, 7)
+    pygame.draw.line(surf, _BSB_BAT_H, (mid[0] - 1, mid[1] - 2),
+                     (barrel[0] + 1, barrel[1] - 2), 3)
+    pygame.draw.line(surf, _BSB_BAT_H, (handle[0] - 1, handle[1] - 1),
+                     (mid[0], mid[1] - 1), 2)
+    pygame.draw.circle(surf, _BSB_BAT, barrel, 5)
+    pygame.draw.circle(surf, _BSB_BAT_H, (barrel[0] - 1, barrel[1] - 2), 2)
+    pygame.draw.circle(surf, _BSB_BAT_D, (barrel[0] + 1, barrel[1] + 3), 1)
+    pygame.draw.circle(surf, _BSB_KNOB, handle, 3)
+    pygame.draw.circle(surf, _BSB_BAT, (handle[0], handle[1] - 1), 1)
+
+
+get_baseball_parrot = _make_skin(_paint_baseball)
+
+
+# ── TENNIS ("The Ace") — Pip kitted as a tennis pro. The hero read is a green
+#     OVAL strung RACKET held up (its head breaks the silhouette like the pirate
+#     cutlass tip); a white collared polo with a single bold green diagonal sash,
+#     green wristbands and a brow visor fill the kit. (The ball ships separately
+#     as a matching parcel, so the racket carries the read alone.)
+_TEN_POLO    = (244, 244, 240)     # polo white
+_TEN_POLO_D  = (206, 208, 204)     # polo cool shade (rounds the cloth)
+_TEN_POLO_DD = (170, 174, 172)     # deep fold / contour so white stays crisp
+_TEN_POLO_H  = (255, 255, 252)     # polo highlight
+_TEN_GREEN   = (42, 157, 74)       # racket frame + accent
+_TEN_GREEN_D = (26, 107, 54)       # green shadow / visor trim
+_TEN_GREEN_H = (96, 206, 124)      # green highlight
+_TEN_STRING  = (242, 242, 242)     # cross strings
+_TEN_GRIP    = (40, 44, 52)        # dark racket grip wrap
+_TEN_GRIP_H  = (96, 100, 110)      # grip wrap highlight
+
+
+def _tennis_racket(surf, hx, hy, hr):
+    """A held OVAL strung racket — the sole tennis tell, so the read rides on the
+    bold green RING + dark halo + throat Y-struts (strings are a near-detail bonus)."""
+    rw, rh = int(hr * 1.7), int(hr * 2.1)
+    face = pygame.Rect(hx - rw, hy - rh, rw * 2, rh * 2)
+    clip_prev = surf.get_clip()
+    surf.set_clip(face)
+    pygame.draw.ellipse(surf, (70, 86, 70), face)
+    for gx in range(face.left + 2, face.right - 1, 4):
+        pygame.draw.line(surf, _TEN_STRING, (gx, face.top + 1), (gx, face.bottom - 1), 1)
+    for gy in range(face.top + 2, face.bottom - 1, 4):
+        pygame.draw.line(surf, _TEN_STRING, (face.left + 1, gy), (face.right - 1, gy), 1)
+    surf.set_clip(clip_prev)
+    pygame.draw.ellipse(surf, _TEN_GREEN_D, face.inflate(4, 4), 2)   # dark outer halo
+    pygame.draw.ellipse(surf, _TEN_GREEN_D, face, 5)
+    pygame.draw.ellipse(surf, _TEN_GREEN, face.inflate(-3, -3), 3)
+    pygame.draw.ellipse(surf, _TEN_GREEN_H, face.inflate(-3, -3), 1)
+    ty = hy + rh                                                     # throat Y-struts
+    pygame.draw.line(surf, _TEN_GREEN_D, (hx - 1, ty + 5), (hx - rw + 2, ty - 2), 5)
+    pygame.draw.line(surf, _TEN_GREEN_D, (hx + 1, ty + 5), (hx + rw - 2, ty - 2), 5)
+    pygame.draw.line(surf, _TEN_GREEN, (hx - 1, ty + 4), (hx - rw + 3, ty - 1), 3)
+    pygame.draw.line(surf, _TEN_GREEN, (hx + 1, ty + 4), (hx + rw - 3, ty - 1), 3)
+    hbx, hby = hx, ty + 5                                            # wrapped handle
+    htx, hty = hx + 4, hby + 12
+    pygame.draw.line(surf, _TEN_GRIP, (hbx, hby), (htx, hty), 6)
+    pygame.draw.line(surf, _TEN_GRIP_H, (hbx - 1, hby), (htx - 1, hty), 1)
+    for t in (0.35, 0.7):
+        wx = hbx + (htx - hbx) * t
+        wy = hby + (hty - hby) * t
+        pygame.draw.line(surf, _TEN_GRIP_H, (wx - 2, wy + 1), (wx + 2, wy - 1), 1)
+    pygame.draw.circle(surf, _TEN_GREEN, (int(htx), int(hty)), 2)
+
+
+def _paint_tennis(surf, _a):
+    bcx, bcy = 32, 52                  # body centre in composite space
+    # Racket held up in the near wing (painted first so the body covers the handle
+    # root and only the head breaks the silhouette, like the pirate cutlass tip).
+    _tennis_racket(surf, HX - 23, CROWN_Y, 7)
+
+    # White collared polo over the torso (inside the footprint), with a cool shade
+    # so the white reads round + a dark contour so it stays crisp on a bright sky.
+    polo = [(bcx - 14, bcy - 8), (bcx - 15, bcy - 1), (bcx - 13, bcy + 11),
+            (bcx + 13, bcy + 11), (bcx + 15, bcy - 1), (bcx + 13, bcy - 8),
+            (bcx + 4, bcy - 11), (bcx - 5, bcy - 11)]
+    _poly(surf, _TEN_POLO_D, polo)
+    _poly(surf, _TEN_POLO, [(bcx - 13, bcy - 8), (bcx - 13, bcy + 3),
+                            (bcx + 13, bcy + 3), (bcx + 13, bcy - 8),
+                            (bcx + 4, bcy - 11), (bcx - 5, bcy - 11)])
+    pygame.draw.line(surf, _TEN_POLO_H, (bcx - 11, bcy - 7), (bcx + 9, bcy - 7), 1)
+    pygame.draw.polygon(surf, _TEN_POLO_DD, polo, 1)
+    # One bold diagonal green sash — the single team-accent tell that survives 40px.
+    pygame.draw.line(surf, _TEN_GREEN_D, (bcx - 12, bcy - 6), (bcx + 11, bcy + 9), 4)
+    pygame.draw.line(surf, _TEN_GREEN, (bcx - 12, bcy - 6), (bcx + 11, bcy + 9), 3)
+    pygame.draw.line(surf, _TEN_GREEN_H, (bcx - 11, bcy - 5), (bcx + 9, bcy + 7), 1)
+    # Green-and-white wristbands at the wing roots.
+    for wx, wy in ((bcx + 13, bcy + 5), (bcx - 13, bcy + 4)):
+        pygame.draw.line(surf, _TEN_GREEN_D, (wx - 3, wy - 3), (wx + 3, wy + 3), 6)
+        pygame.draw.line(surf, _TEN_POLO, (wx - 3, wy - 3), (wx + 3, wy + 3), 3)
+        pygame.draw.line(surf, _TEN_GREEN, (wx - 2, wy - 2), (wx + 2, wy + 2), 1)
+
+    # Brow visor — a white sun visor with a green band + a curved brim over the
+    # beak; the crown stays open so Pip still reads as the macaw.
+    by = CROWN_Y + 5
+    brim = [(HX - 9, by), (HX + 14, by - 2), (HX + 18, by + 3),
+            (HX + 14, by + 4), (HX - 9, by + 4)]
+    _poly(surf, _TEN_POLO_D, brim)
+    _poly(surf, _TEN_POLO, [(HX - 9, by), (HX + 14, by - 2), (HX + 16, by + 2),
+                            (HX - 9, by + 2)])
+    pygame.draw.line(surf, _TEN_GREEN_D, (HX + 14, by - 2), (HX + 18, by + 3), 2)
+    pygame.draw.line(surf, _TEN_POLO_H, (HX - 8, by), (HX + 12, by - 2), 1)
+    pygame.draw.line(surf, _TEN_GREEN, (HX - 10, by - 1), (HX + 13, by - 3), 4)
+    pygame.draw.line(surf, _TEN_GREEN_H, (HX - 9, by - 2), (HX + 11, by - 4), 1)
+    pygame.draw.line(surf, _TEN_GREEN_D, (HX - 10, by + 1), (HX + 13, by - 1), 1)
+
+
+get_tennis_parrot = _make_skin(_paint_tennis)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 6 · VIKING — a rust-raider macaw: the whole bird is re-plumaged warm auburn
 #     through the palette system, then it reads as a NORMAL parrot wearing
@@ -1694,6 +1872,8 @@ BUILDERS = {
     "skin_astronaut": get_astronaut_parrot,
     "skin_pharaoh":   get_pharaoh_parrot,
     "skin_mummy":     get_mummy_parrot,
+    "skin_baseball":  get_baseball_parrot,
+    "skin_tennis":    get_tennis_parrot,
     "skin_viking":    get_viking_parrot,
     "skin_cowboy":    get_cowboy_parrot,
     "skin_disco":     get_disco_parrot,
