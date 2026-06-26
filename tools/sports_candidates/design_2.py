@@ -12,11 +12,13 @@ wristband banks the near wing, and chunky high-top SNEAKERS sit on the feet
 line. Pip's scarlet macaw head/beak/eye stay in the open so it still reads as a
 parrot wearing a kit.
 
-At 40px the read, in order of value: (1) the orange ball (the instant
-"basketball"), (2) the sleeveless tank with the white number, (3) the white
-brow headband, then (4) the wristband + high-tops. Every kit piece stays INSIDE
-the base bird footprint — the ball is tucked at the chest, the headband only
-touches the crown, nothing dangles below the feet.
+At 40px the read, in order of value: (1) the orange seamed ball held low on the
+near side over the purple jersey (the instant "basketball" — the largest single
+shape, kept OFF the orange beak/wing so it never dissolves), (2) the sleeveless
+purple tank, (3) the white brow headband, then the number + wristband +
+high-tops. Every kit piece stays INSIDE the base bird footprint — the ball only
+breaks the lower-near silhouette slightly, the headband hugs the crown, nothing
+dangles below the feet.
 """
 import pygame
 
@@ -35,7 +37,9 @@ _BB_TRIM_D   = (196, 196, 204)       # number shadow so it reads on light sky
 _BB_BALL     = (232, 118, 30)        # #E8761E ball orange
 _BB_BALL_D   = (190, 92, 22)         # ball shaded lower half
 _BB_BALL_H   = (255, 168, 86)        # ball top highlight (the round read)
-_BB_SEAM     = (122, 58, 18)         # #7A3A12 dark seam lines
+_BB_SEAM     = (92, 40, 12)          # deep red-brown seam — darker than the old
+                                     # #7A3A12 so it holds against orange at 40px,
+                                     # but not so black it merges with the shaded base
 _BB_SHOE     = (242, 242, 242)       # white high-top
 _BB_SHOE_D   = (188, 190, 198)       # shoe shadow / sole
 _BB_SHOE_AC  = (106, 45, 168)        # purple shoe accent stripe
@@ -70,16 +74,18 @@ def _paint(surf, _a):
                       [(BCX - 6, BCY - 3), (BCX - 1, BCY - 1), (BCX + 5, BCY - 3)], 1)
     pygame.draw.line(surf, _BB_TRIM, (BCX - 11, BCY + 13), (BCX + 12, BCY + 13), 1)
 
-    # ── BIG WHITE NUMBER across the chest — the "jersey" tell. A bold blocky "8"
-    #    drawn as two stacked rounded boxes, shadowed 1px down-left so it survives
-    #    on a light day sky, kept off the near side where the ball sits.
-    nx, ny = BCX - 4, BCY + 3
-    pygame.draw.ellipse(surf, _BB_TRIM_D, (nx - 5, ny - 9, 10, 9))      # top loop shadow
-    pygame.draw.ellipse(surf, _BB_TRIM_D, (nx - 5, ny - 2, 10, 11))     # bottom loop shadow
-    pygame.draw.ellipse(surf, _BB_TRIM, (nx - 4, ny - 9, 9, 8))
-    pygame.draw.ellipse(surf, _BB_TRIM, (nx - 4, ny - 2, 9, 10))
-    pygame.draw.ellipse(surf, _BB_JERSEY, (nx - 2, ny - 7, 5, 4))       # punch the top hole
-    pygame.draw.ellipse(surf, _BB_JERSEY, (nx - 2, ny, 5, 6))           # punch the bottom hole
+    # ── WHITE NUMBER across the chest — the "jersey" tell, dialled back so the
+    #    relocated ball owns the focal near-side. ~18% smaller and shifted off-near
+    #    (toward the off shoulder); two stacked rounded boxes, shadowed 1px
+    #    down-left so it survives on a light day sky. Read order is now ball → tank
+    #    → headband → number.
+    nx, ny = BCX - 7, BCY + 2
+    pygame.draw.ellipse(surf, _BB_TRIM_D, (nx - 4, ny - 8, 8, 7))       # top loop shadow
+    pygame.draw.ellipse(surf, _BB_TRIM_D, (nx - 4, ny - 2, 8, 9))       # bottom loop shadow
+    pygame.draw.ellipse(surf, _BB_TRIM, (nx - 4, ny - 8, 7, 7))
+    pygame.draw.ellipse(surf, _BB_TRIM, (nx - 4, ny - 2, 7, 8))
+    pygame.draw.ellipse(surf, _BB_JERSEY, (nx - 2, ny - 6, 4, 3))       # punch the top hole
+    pygame.draw.ellipse(surf, _BB_JERSEY, (nx - 2, ny, 4, 5))           # punch the bottom hole
 
     # ── HIGH-TOP SNEAKERS on the feet line. Chunky white boots with a purple
     #    accent stripe + a grey sole, sitting ON the feet line (~HY+24..27), never
@@ -98,35 +104,38 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _BB_TRIM, (wrx - 3, wry + 3), (wrx + 4, wry - 1), 3)
     pygame.draw.line(surf, _BB_JERSEY, (wrx - 2, wry + 2), (wrx + 3, wry - 1), 1)
 
-    # ── BASKETBALL held high at the near wing/chest — the HERO. A clean round
-    #    orange disc: a shaded lower half + a bright top highlight give it volume
-    #    so it reads as a sphere (not a flat dot), and four dark seam lines (the
-    #    vertical, the horizontal, plus the two curved side seams) make it
-    #    unmistakably a basketball at 40px. Tucked at the chest so it stays inside
-    #    the silhouette and overlaps the body rather than ballooning it.
-    cx, cy, r = BCX + 16, BCY - 1, 9
-    pygame.draw.circle(surf, _BB_BALL_D, (cx, cy + 1), r)              # shaded sphere base
-    pygame.draw.circle(surf, _BB_BALL, (cx, cy), r)                    # body
-    # Top-left highlight crescent — the single brightest note that rounds the ball.
-    pygame.draw.circle(surf, _BB_BALL_H, (cx - 2, cy - 3), r - 4)
-    pygame.draw.circle(surf, _BB_BALL, (cx, cy - 1), r - 3)            # blend the highlight in
-    # Seam lines: vertical + horizontal through the centre, then the two curved
-    # side seams that read as basketball-specific (not a beach ball).
+    # ── BASKETBALL held at the chest/hip on the LOW NEAR side — the HERO, and the
+    #    LARGEST single shape in the kit. Pulled OFF the orange beak/wing (where it
+    #    used to dissolve, orange-on-orange) down onto the mid-dark PURPLE jersey,
+    #    where saturated orange pops hardest. It breaks the lower-near silhouette
+    #    slightly so the prop reads as held in front of the body. r=11 makes it
+    #    bigger than the white "8".
+    cx, cy, r = BCX + 8, BCY + 6, 11
+    pygame.draw.circle(surf, _BB_BALL_D, (cx, cy + 2), r)              # thin shaded crescent base
+    pygame.draw.circle(surf, _BB_BALL, (cx, cy), r)                    # orange body owns the disc
+    # Small top-left highlight so the ball reads round WITHOUT eating seam area.
+    pygame.draw.circle(surf, _BB_BALL_H, (cx - 3, cy - 4), 3)
+    pygame.draw.circle(surf, _BB_BALL, (cx - 2, cy - 3), 2)            # soften the highlight edge
+    # THREE iconic seams: one vertical spine + two opposing curved side-arcs (no
+    # centred horizontal), 2px in a deep red-brown — bold enough to survive on the
+    # orange at 40px, thin enough that the orange body still dominates so the prop
+    # reads as a basketball (not a beach ball, not a dark blob).
     pygame.draw.line(surf, _BB_SEAM, (cx, cy - r + 1), (cx, cy + r - 1), 2)
-    pygame.draw.line(surf, _BB_SEAM, (cx - r + 1, cy), (cx + r - 1, cy), 2)
-    pygame.draw.arc(surf, _BB_SEAM, (cx - r - 3, cy - r, r + 3, 2 * r), -1.2, 1.2, 2)
-    pygame.draw.arc(surf, _BB_SEAM, (cx, cy - r, r + 3, 2 * r), 2.0, 4.3, 2)
-    pygame.draw.circle(surf, _BB_BALL_H, (cx - 3, cy - 4), 1)         # speck glint
+    pygame.draw.arc(surf, _BB_SEAM, (cx - r - 4, cy - r, r + 4, 2 * r), -1.15, 1.15, 2)
+    pygame.draw.arc(surf, _BB_SEAM, (cx, cy - r, r + 4, 2 * r), 2.0, 4.3, 2)
 
-    # ── HEADBAND across the brow — a white band over the scarlet head, dropped to
-    #    sit just under the crown (may touch CROWN_Y) with a thin purple midline so
-    #    it reads as a sweatband, not a bare line. The hero brow accent that ties
-    #    the kit to the head while leaving Pip's eye + beak in the open below it.
-    by = CROWN_Y + 4
+    # ── HEADBAND across the brow — anchored ~1px DOWN onto the brow so it reads as
+    #    "worn" hugging the crown (rather than a band floating above the head), with
+    #    a thin purple midline + a tiny purple KNOT at the off-temple. Leaves Pip's
+    #    eye + beak in the open below it.
+    by = CROWN_Y + 5
     pygame.draw.line(surf, _BB_SHOE_D, (HX - 12, by + 1), (HX + 13, by), 6)   # band shadow
     pygame.draw.line(surf, _BB_TRIM, (HX - 12, by), (HX + 13, by - 1), 4)
     pygame.draw.line(surf, _BB_JERSEY, (HX - 11, by), (HX + 12, by - 1), 1)   # purple midline
     pygame.draw.line(surf, _BB_TRIM, (HX - 10, by - 2), (HX + 4, by - 2), 1)  # top glint
+    # Tiny purple knot tied at the off-temple — the "worn band" tell.
+    pygame.draw.circle(surf, _BB_JERSEY, (HX - 12, by), 2)
+    pygame.draw.line(surf, _BB_JERSEY_D, (HX - 13, by + 2), (HX - 15, by + 4), 2)  # short tail
 
 
 build = store_skins._make_skin(_paint)
