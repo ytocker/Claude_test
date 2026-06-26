@@ -26,11 +26,14 @@ _GK_JERSEY   = (68, 204, 68)       # #44CC44 hi-vis lime field
 _GK_JERSEY_D = (40, 150, 44)       # shaded off-side
 _GK_JERSEY_H = (138, 232, 120)     # collar / top sheen
 
-# Goalkeeper gloves — bright safety orange, the HERO read.
+# Goalkeeper gloves — bright safety orange, the HERO read. A white knuckle band
+# + cross-strap carry a value break that survives the 40px downscale and keeps
+# the mitts legible even at night when orange sits on scarlet.
 _GK_GLOVE    = (255, 140, 0)       # #FF8C00 padded mitt body
 _GK_GLOVE_H  = (255, 192, 98)      # padding highlight
 _GK_GLOVE_D  = (188, 90, 0)        # finger-gap / crease shade
 _GK_HALO     = (26, 18, 10)        # dark contour halo so the orange pops
+_GK_STRAP    = (244, 246, 250)     # white knuckle band + cross-strap accent
 
 # Shorts + boots — near-black kit darks.
 _GK_DARK     = (30, 32, 40)        # shorts band + boots
@@ -79,37 +82,49 @@ def _paint(surf, _a):
             pygame.draw.line(surf, _GK_DARK, (tx, HY + 35), (tx, HY + 36), 1)
 
     # ── GOALKEEPER GLOVES — the HERO, drawn LAST so they sit in front of the
-    #    jersey. One oversized orange padded mitt riding each wing-hand, big and
-    #    bold so they're the dominant lower-silhouette mass at 40px. A dark halo
-    #    rings each so the orange separates cleanly from the lime jersey and the
-    #    night sky alike.
-    for gx in (HX - 14, HX + 10):
-        cx, cy = gx, HY + 17           # centred on each wing root (HY+14..22)
+    #    jersey. Two SMALLER mitts (≈10×12 logical, down ~35% from v1) pulled
+    #    INWARD so they ride ON the green jersey, never on the macaw's own orange
+    #    tail/wing where they'd vanish. They're ASYMMETRIC — the far mitt is
+    #    raised into a catching pose and the near mitt sits lower — so the
+    #    silhouette reads as two distinct hands rather than one pair of wings.
+    #    A white knuckle band + cross-strap on each gives a value break that the
+    #    downscale keeps even when orange would otherwise disappear on scarlet.
+    #
+    #    (cx, cy, thumb-on-inner-left?): far glove high, near glove low.
+    for cx, cy, thumb_left in ((HX - 7, HY + 12, False), (HX + 4, HY + 18, True)):
         # Dark contour halo — a slightly larger mitt behind so the orange always
         # carries a black edge against any background.
-        pygame.draw.ellipse(surf, _GK_HALO, (cx - 7, cy - 8, 15, 18))
-        # Fat padded palm — the main orange mass.
-        pygame.draw.ellipse(surf, _GK_GLOVE, (cx - 6, cy - 7, 13, 16))
-        # Four blunt finger pads riding the top so it reads as a mitt, not a
-        # ball; dark gaps between them carve the fingers.
-        for i, fxo in enumerate((-5, -2, 1, 4)):
-            pygame.draw.rect(surf, _GK_GLOVE, (cx + fxo, cy - 9, 3, 6),
+        pygame.draw.ellipse(surf, _GK_HALO, (cx - 6, cy - 6, 11, 14))
+        # Fat padded palm — the main orange mass, now compact.
+        pygame.draw.ellipse(surf, _GK_GLOVE, (cx - 5, cy - 5, 9, 12))
+        # Four blunt finger pads riding the top with a 2px dark channel between
+        # each so the fingers stay carved and readable at gameplay scale.
+        for i, fxo in enumerate((-4, -1, 2, 5)):
+            pygame.draw.rect(surf, _GK_GLOVE, (cx + fxo, cy - 8, 2, 5),
                              border_radius=1)
             if i:
-                pygame.draw.line(surf, _GK_GLOVE_D, (cx + fxo - 1, cy - 9),
-                                 (cx + fxo - 1, cy - 4), 1)
-        # Stubby thumb on the inner side.
-        pygame.draw.ellipse(surf, _GK_GLOVE, (cx - 8, cy - 2, 5, 7))
-        pygame.draw.ellipse(surf, _GK_HALO, (cx - 8, cy - 2, 5, 7), 1)
-        # Padding highlight + a dark crease so the mitt reads as round, padded
-        # leather rather than a flat orange disc.
-        pygame.draw.ellipse(surf, _GK_GLOVE_H, (cx - 4, cy - 5, 6, 6))
-        pygame.draw.arc(surf, _GK_GLOVE_D, (cx - 6, cy - 4, 13, 13),
-                        3.6, 5.9, 2)
+                pygame.draw.line(surf, _GK_GLOVE_D, (cx + fxo - 1, cy - 8),
+                                 (cx + fxo - 1, cy - 3), 2)
+        # Exaggerated thumb — a clear side nub on the inner edge so the mitt
+        # silhouette reads as 4-fingers + thumb, not a plain disc.
+        if thumb_left:
+            pygame.draw.ellipse(surf, _GK_GLOVE, (cx - 8, cy - 1, 5, 6))
+            pygame.draw.ellipse(surf, _GK_HALO, (cx - 8, cy - 1, 5, 6), 1)
+        else:
+            pygame.draw.ellipse(surf, _GK_GLOVE, (cx + 3, cy - 1, 5, 6))
+            pygame.draw.ellipse(surf, _GK_HALO, (cx + 3, cy - 1, 5, 6), 1)
+        # Padding highlight so the mitt reads as round, padded leather.
+        pygame.draw.ellipse(surf, _GK_GLOVE_H, (cx - 3, cy - 3, 4, 4))
+        # White knuckle-guard band across the top of the palm — the bright value
+        # break that the 40px downscale keeps on day and night alike.
+        pygame.draw.line(surf, _GK_STRAP, (cx - 4, cy - 2), (cx + 4, cy - 2), 2)
+        # White cross-strap diagonally over the palm — second value break, makes
+        # the orange mass read unmistakably as a glove.
+        pygame.draw.line(surf, _GK_STRAP, (cx - 4, cy + 4), (cx + 4, cy - 1), 1)
         # Wrist cuff strap so the glove anchors to the wing.
-        pygame.draw.rect(surf, _GK_GLOVE_D, (cx - 6, cy + 7, 12, 3),
+        pygame.draw.rect(surf, _GK_GLOVE_D, (cx - 4, cy + 6, 8, 3),
                          border_radius=1)
-        pygame.draw.line(surf, _GK_GLOVE_H, (cx - 5, cy + 7), (cx + 5, cy + 7), 1)
+        pygame.draw.line(surf, _GK_STRAP, (cx - 3, cy + 6), (cx + 3, cy + 6), 1)
 
 
 build = store_skins._make_skin(_paint)
