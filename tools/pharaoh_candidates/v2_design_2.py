@@ -41,6 +41,11 @@ _KH_DARK     = (16, 18, 26)        # near-black foot recolor
 # the eye travels shell→sun, not red→green. Darkened + desaturated from Pip's
 # scarlet so the red retreats and the dome's dark rim owns the contrast.
 _KH_RED_MUTE = (118, 38, 34)
+# Scarlet to reclaim the face from the wide base aviators, and a warm dark
+# bronze for a SMALL scarab eye so the only true cool-dark mass is the shell.
+_KH_FACE     = (240, 55, 55)        # Pip scarlet (BIRD_RED), to overpaint aviators
+_KH_FACE_D   = (216, 48, 48)        # a hair darker for the lower cheek
+_KH_EYE_DARK = (46, 30, 22)         # warm dark-brown/bronze eye (not near-black)
 
 
 def _sun_disk(surf, cx, cy):
@@ -91,9 +96,11 @@ def _elytra_shell(surf, bcx, bcy):
     # Iridescent zones across the dome: a cool blue crown fading down through
     # scarab teal into a violet hem, each laid as a band so the sheen reads as a
     # gradient, not a flat fill, after the downscale. Held inside the dark rim.
+    # Violet hem pulled IN from the right rim so no bright cool speck protrudes
+    # past the dome edge at the base (the lone fleck that read as noise).
     _poly(surf, _KH_VIOLET, [(bcx - 9, bcy + 4), (bcx - 6, bcy + 9),
-                             (bcx, bcy + 11), (bcx + 6, bcy + 9),
-                             (bcx + 9, bcy + 4), (bcx, bcy + 6)])
+                             (bcx, bcy + 10), (bcx + 5, bcy + 8),
+                             (bcx + 7, bcy + 4), (bcx, bcy + 6)])
     _poly(surf, _KH_TEAL, [(bcx - 9, bcy - 1), (bcx - 9, bcy + 4),
                            (bcx, bcy + 7), (bcx + 9, bcy + 4),
                            (bcx + 9, bcy - 1), (bcx, bcy + 1)])
@@ -117,6 +124,43 @@ def _elytra_shell(surf, bcx, bcy):
     # clean vertical line instead of dissolving into the sheen.
     pygame.draw.line(surf, _KH_SEAM, (bcx, bcy - 9), (bcx, bcy + 12), 2)
     pygame.draw.line(surf, _KH_HILITE, (bcx + 2, bcy - 6), (bcx + 2, bcy + 9), 1)
+
+    # Re-stroke the LOWER dome rim last so the dark base overdraws any cool
+    # blue/violet speck that crept past the inset — the base must read as one
+    # clean dark dome edge, not noise. A 2px near-black arc along the shell hem.
+    pygame.draw.lines(surf, _KH_RIM, False,
+                      [(bcx - 13, bcy + 5), (bcx - 9, bcy + 12),
+                       (bcx, bcy + 14), (bcx + 9, bcy + 12),
+                       (bcx + 12, bcy + 5)], 3)
+
+
+def _reface(surf):
+    """Reclaim the head from the base aviators and stamp ONE small warm scarab
+    eye. The base bird wears wide black aviators; at 40px that dark horizontal
+    band reads as a duck's dark crown and steals the head from Pip's scarlet.
+    We overpaint the aviator footprint with scarlet so the SCARLET face owns the
+    head, then place a single narrow warm dark-BRONZE eye — ~30% narrower than
+    the band and pulled off near-black — so the only true cool-dark mass left in
+    the whole sprite is the shell dome below."""
+    ecx, ecy = 50, 40  # base aviator centre in composite space
+
+    # Overpaint the aviator band with scarlet, keyed to the body's own alpha so
+    # the silhouette never grows (no scarlet bleeds onto open sky). A filled
+    # scratch patch covering the lens span, masked to the existing head.
+    head_mask = pygame.mask.from_surface(surf)
+    patch = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    pygame.draw.ellipse(patch, _KH_FACE, (ecx - 9, ecy - 8, 22, 16))
+    pygame.draw.ellipse(patch, _KH_FACE_D, (ecx - 9, ecy + 1, 22, 8))
+    patch.blit(head_mask.to_surface(setcolor=(255, 255, 255, 255),
+                                    unsetcolor=(0, 0, 0, 0)),
+               (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(patch, (0, 0))
+
+    # ONE narrow warm-bronze eye where the near lens was — ~30% of the band's
+    # width, warm dark-brown so it never reads as a cool dark crown mass.
+    pygame.draw.ellipse(surf, _KH_EYE_DARK, (ecx + 1, ecy - 3, 7, 6))
+    pygame.draw.ellipse(surf, _KH_SEAM, (ecx + 2, ecy - 2, 5, 4))
+    pygame.draw.circle(surf, (255, 240, 210), (ecx + 3, ecy - 1), 1)  # life glint
 
 
 def _scarab_notch(surf, cx, cy):
@@ -146,8 +190,11 @@ def _paint(surf, _a):
     # growth). The dome then lands inside this quieted ring.
     body_mask = pygame.mask.from_surface(surf)
     ring = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    _poly(ring, (*_KH_RED_MUTE, 180),
-          [(bcx - 15, bcy - 3), (bcx - 16, bcy + 9), (bcx - 11, bcy + 16),
+    # Lower-left vertices pushed further out + alpha dropped to ~210 so the loud
+    # scarlet sweep under the dome's left flank is darkened; the sun-disk must be
+    # the unambiguous brightest WARM element, not this corner of red.
+    _poly(ring, (*_KH_RED_MUTE, 210),
+          [(bcx - 15, bcy - 3), (bcx - 18, bcy + 11), (bcx - 13, bcy + 18),
            (bcx, bcy + 17), (bcx + 11, bcy + 16), (bcx + 16, bcy + 9),
            (bcx + 15, bcy - 4), (bcx + 8, bcy - 11), (bcx, bcy - 13),
            (bcx - 8, bcy - 11)])
@@ -157,6 +204,11 @@ def _paint(surf, _a):
                                    unsetcolor=(0, 0, 0, 0)),
               (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
     surf.blit(ring, (0, 0))
+
+    # Reclaim the head from the base aviators: scarlet face + ONE small warm
+    # bronze eye, so the SCARLET head owns the read and the shell dome is the
+    # only true cool-dark mass in the sprite.
+    _reface(surf)
 
     # Iridescent scarab carapace domed over the back — the hero shape.
     _elytra_shell(surf, bcx, bcy)
