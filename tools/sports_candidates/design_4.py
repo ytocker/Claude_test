@@ -4,20 +4,23 @@ Scratch exploration only; NOT registered in store_skins.BUILDERS, so production
 is untouched.
 
 Concept: the baseball read is carried by TWO bold shapes that survive the 40px
-downscale — a classic curved-brim CAP low on the head, and a tapered wooden BAT
-slung diagonally BEHIND the body (the proven pirate-cutlass technique: painted
-first so the torso covers the mid-shaft and only the fat barrel + knob overshoot
-the silhouette against open sky). The torso is a pinstripe jersey (white field +
-thin navy verticals + a big number) so the kit reads at hero scale, with a
-catcher's mitt on the near wing and cleats at the feet line. Pip's macaw
-head/beak/eye stay clear so it stays "parrot dressed as a ballplayer."
+downscale — a big NAVY ball cap that owns the top of the silhouette (its shell
+is the largest dark mass above a forward curved brim, so it beats the bird's own
+green crown), and a tapered wooden BAT slung diagonally BEHIND the body (the
+proven pirate-cutlass technique: painted first so the torso covers the mid-shaft
+and the fat barrel overshoots PAST the back/tail outline into open sky, leaving
+one clean tan diagonal). The torso is a pinstripe jersey (white field + thin
+navy verticals + a big number) so the kit reads at hero scale; cleats sit at the
+feet line. Pip's macaw head/beak/eye stay clear so it stays "parrot dressed as a
+ballplayer."
 
-At 40px, in order of value: (1) a tapered wooden bat breaking the back outline,
-(2) the curved-brim navy cap on the crown, (3) the white pinstripe jersey mass,
-(4) the brown mitt + cleats. The bat carries a bright tan highlight edge and a
-dark shadow side so the cylinder still reads as a bat after downscale; the cap's
-brim is one continuous bold wedge so the headgear reads as a ball cap, not a
-generic hat.
+At 40px, in order of value: (1) the navy cap shell winning the crown, (2) a fat
+tan bat barrel breaking the back/tail outline against open sky, (3) the white
+pinstripe jersey mass, (4) the cleats. The bat carries a wide bright tan glint
+and a dark shadow side so the cylinder still reads as a bat after downscale; the
+cap's brim is one continuous bold wedge so the headgear reads as a ball cap, not
+a generic hat. No catcher's mitt — it was the lowest-value cue and merged with
+the bat barrel into a brown blob, so the bat now slings into clear sky.
 """
 import pygame
 
@@ -40,37 +43,36 @@ _BSB_NAVY_H  = (60, 84, 168)       # cap top sheen
 _BSB_WHITE   = (242, 242, 242)     # #F2F2F2 jersey field
 _BSB_WHITE_D = (198, 200, 210)     # jersey shade
 
-# Catcher's mitt brown + cleats.
-_BSB_MITT    = (110, 67, 38)       # #6E4326 mitt leather
-_BSB_MITT_H  = (150, 96, 56)       # mitt highlight / pocket lacing
+# Cleats.
 _BSB_CLEAT   = (32, 34, 44)        # near-black cleats
 _BSB_CLEAT_H = (96, 100, 114)      # cleat rim glint
 
 
 def _paint(surf, _a):
     # ── WOODEN BAT slung diagonally BEHIND the body (painted FIRST so the torso
-    #    covers the mid-shaft; only the fat barrel + knob overshoot the back/
-    #    shoulder outline against the sky — same slung-prop trick as the pirate
-    #    cutlass). The handle starts low at the near wing/waist; the bat sweeps
-    #    up-and-back so the BARREL (the fat end) is what clears the silhouette.
-    #    Tip stays well above the feet line — a slung prop, never dangling.
-    handle = (HX - 1, HY + 22)        # thin grip end, low at the near wing
-    barrel = (HX - 25, CROWN_Y + 1)   # fat barrel end, breaking the back outline
+    #    covers the mid-shaft; the fat BARREL overshoots PAST the back/tail
+    #    outline into OPEN SKY — same slung-prop trick as the pirate cutlass, and
+    #    the lower-left tail zone is now clear (no mitt) so the barrel reads as
+    #    one clean tan diagonal, not a brown blob). Handle/knob cross the body at
+    #    the near wing; the barrel is pushed well outside the silhouette.
+    handle = (HX + 1, HY + 21)        # thin grip end, crossing the near wing
+    barrel = (HX - 29, HY - 5)        # fat barrel end, OUT past the back outline
     # Taper: draw the shaft in two segments so the handle is thin and the barrel
-    # is fat — a constant-width line reads as a pipe, not a bat.
+    # is fat — a constant-width line reads as a pipe, not a bat. The barrel is
+    # fattened a touch (7px core) so the tan cylinder survives the downscale.
     mid = ((handle[0] + barrel[0]) // 2, (handle[1] + barrel[1]) // 2)
     pygame.draw.line(surf, _BSB_BAT_D, handle, mid, 4)    # thin handle, shadow
     pygame.draw.line(surf, _BSB_BAT, handle, mid, 3)
-    pygame.draw.line(surf, _BSB_BAT_D, mid, barrel, 8)    # fat barrel, shadow
-    pygame.draw.line(surf, _BSB_BAT, mid, barrel, 6)
-    # Bright top glint along the barrel so the cylinder reads as round wood at
-    # 40px (offset to the upper edge of the slung diagonal).
-    pygame.draw.line(surf, _BSB_BAT_H, (mid[0], mid[1] - 2),
-                     (barrel[0] + 1, barrel[1] - 2), 2)
+    pygame.draw.line(surf, _BSB_BAT_D, mid, barrel, 9)    # fat barrel, shadow
+    pygame.draw.line(surf, _BSB_BAT, mid, barrel, 7)
+    # Wide bright top glint along the barrel (2-3px) so the round tan cylinder
+    # survives at 40px and separates against the dark NIGHT sky.
+    pygame.draw.line(surf, _BSB_BAT_H, (mid[0] - 1, mid[1] - 2),
+                     (barrel[0] + 1, barrel[1] - 2), 3)
     pygame.draw.line(surf, _BSB_BAT_H, (handle[0] - 1, handle[1] - 1),
-                     (mid[0], mid[1] - 1), 1)
+                     (mid[0], mid[1] - 1), 2)
     # Rounded barrel cap so the fat end reads as the bat's tip, not a cut bar.
-    pygame.draw.circle(surf, _BSB_BAT, barrel, 4)
+    pygame.draw.circle(surf, _BSB_BAT, barrel, 5)
     pygame.draw.circle(surf, _BSB_BAT_H, (barrel[0], barrel[1] - 1), 2)
     pygame.draw.circle(surf, _BSB_BAT_D, (barrel[0] + 1, barrel[1] + 2), 1)
     # Knob at the handle end — the little flare that says "this is the grip".
@@ -99,16 +101,6 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _BSB_NAVY, (HX - 5, HY + 13), (HX + 1, HY + 13), 2)
     pygame.draw.line(surf, _BSB_NAVY, (HX + 1, HY + 13), (HX - 3, HY + 21), 2)
 
-    # ── CATCHER'S MITT on the near wing — a rounded brown leather mass with a
-    #    pale lacing arc so it reads as a mitt's pocket, tucked inside the body.
-    mx, my = HX - 13, HY + 15
-    pygame.draw.circle(surf, _BSB_MITT, (mx, my), 6)
-    pygame.draw.circle(surf, _BSB_MITT_H, (mx - 1, my - 2), 2)   # pocket sheen
-    # Lacing arc across the pocket + a webbing notch at the top (the mitt read).
-    pygame.draw.arc(surf, _BSB_MITT_H, (mx - 5, my - 5, 10, 10), 0.4, 2.7, 1)
-    _poly(surf, _BSB_MITT, [(mx - 3, my - 6), (mx, my - 9), (mx + 3, my - 6)])  # web
-    pygame.draw.line(surf, _BSB_MITT_H, (mx, my - 8), (mx, my - 5), 1)
-
     # ── CLEATS at the feet line (~HY+24..27) — dark spiked shoes tucked at the
     #    jersey hem so they sit on the base bird's feet, not below them.
     for fx in (HX - 11, HX - 1):
@@ -118,29 +110,31 @@ def _paint(surf, _a):
         for tx in (fx + 1, fx + 4, fx + 7):
             pygame.draw.line(surf, _BSB_CLEAT, (tx, HY + 28), (tx, HY + 29), 1)
 
-    # ── CLASSIC BALL CAP on the crown — a rounded navy shell sitting LOW on the
-    #    head (so the macaw face still shows) + a bold curved brim projecting
-    #    forward over the beak. The brim is one continuous wedge so the headgear
-    #    reads unmistakably as a ball cap, not a generic dome.
-    cy = CROWN_Y + 2
-    # Rounded crown shell — an ellipse hugging the top of the head.
-    pygame.draw.ellipse(surf, _BSB_NAVY, (HX - 11, cy - 6, 22, 13))
-    pygame.draw.ellipse(surf, _BSB_NAVY_D, (HX - 11, cy - 6, 22, 13), 1)
+    # ── CLASSIC BALL CAP on the crown — a BIG navy shell raised to sit ON TOP of
+    #    the head so the navy is the largest dark mass at the crown and beats the
+    #    bird's own green crown at 40px (the sport must read off the cap alone).
+    #    A bold forward curved brim projects over the beak so the headgear reads
+    #    unmistakably as a ball cap, not a generic dome.
+    cy = CROWN_Y - 3
+    # Rounded crown shell — a wide ellipse OWNING the top of the head (~26px),
+    # raised so its navy mass dominates the green nape beneath it.
+    pygame.draw.ellipse(surf, _BSB_NAVY, (HX - 13, cy - 5, 26, 15))
+    pygame.draw.ellipse(surf, _BSB_NAVY_D, (HX - 13, cy - 5, 26, 15), 1)
     # Top sheen so the dome reads as round, not flat.
-    pygame.draw.ellipse(surf, _BSB_NAVY_H, (HX - 6, cy - 5, 9, 5))
+    pygame.draw.ellipse(surf, _BSB_NAVY_H, (HX - 7, cy - 4, 11, 6))
     # Button on the crown's top centre (the classic cap stud).
-    pygame.draw.circle(surf, _BSB_NAVY_H, (HX, cy - 5), 1)
+    pygame.draw.circle(surf, _BSB_NAVY_H, (HX, cy - 4), 1)
     # Curved BRIM projecting forward over the beak — a bold wedge with an
     # under-shadow so it reads as a separate visor, the key "ball cap" cue.
-    brim = [(HX + 2, cy + 4), (HX + 16, cy + 2), (HX + 17, cy + 6),
-            (HX + 3, cy + 8)]
+    brim = [(HX + 3, cy + 6), (HX + 18, cy + 4), (HX + 19, cy + 8),
+            (HX + 4, cy + 10)]
     _poly(surf, _BSB_NAVY, brim)
-    _poly(surf, _BSB_NAVY_D, [(HX + 3, cy + 7), (HX + 17, cy + 6),
-                              (HX + 16, cy + 8), (HX + 3, cy + 9)])  # brim shade
-    pygame.draw.line(surf, _BSB_NAVY_H, (HX + 3, cy + 4), (HX + 15, cy + 2), 1)  # brim glint
+    _poly(surf, _BSB_NAVY_D, [(HX + 4, cy + 9), (HX + 19, cy + 8),
+                              (HX + 18, cy + 10), (HX + 4, cy + 11)])  # brim shade
+    pygame.draw.line(surf, _BSB_NAVY_H, (HX + 4, cy + 6), (HX + 17, cy + 4), 1)  # brim glint
     # A small white "team mark" on the cap front so it's not a blank navy dome.
-    pygame.draw.circle(surf, _BSB_WHITE, (HX + 3, cy), 2)
-    pygame.draw.circle(surf, _BSB_NAVY, (HX + 3, cy), 1)
+    pygame.draw.circle(surf, _BSB_WHITE, (HX + 4, cy + 2), 2)
+    pygame.draw.circle(surf, _BSB_NAVY, (HX + 4, cy + 2), 1)
 
 
 build = store_skins._make_skin(_paint)
