@@ -1,4 +1,4 @@
-"""Final comparison figure: ORIGINAL production red panda + 5 back redesigns.
+"""Final comparison figure: ORIGINAL production red panda + 5 full redesigns.
 
 Each column: pip mid-flight in a real gameplay scene (day), labeled.
 Saves to docs/store_redesign/animal/red_panda/final_comparison.png.
@@ -17,12 +17,12 @@ from game.animal_red_panda import get_red_panda
 from tools.red_panda_candidates import design_1, design_2, design_3, design_4, design_5
 
 SOURCES = [
-    ("ORIGINAL",      get_red_panda),
-    ("1 TAPERED\nPLUME",   design_1.build),
-    ("2 TAPERED\nBANDED",  design_2.build),
-    ("3 BANDED\nRINGS",    design_3.build),
-    ("4 DROOP\nTAIL",      design_4.build),
-    ("5 FLUFFY\nRUMP",     design_5.build),
+    ("ORIGINAL",         get_red_panda),
+    ("1 EMBER\nSCOUT",   design_1.build),
+    ("2 DUSK\nBANDIT",   design_2.build),
+    ("3 AUTUMN\nMONK",   design_3.build),
+    ("4 MAPLE\nSPRITE",  design_4.build),
+    ("5 CINDER\nGUARDIAN", design_5.build),
 ]
 
 PW, PH   = 180, 260
@@ -35,7 +35,6 @@ TOTAL_W = PAD + len(SOURCES) * (PW + PAD)
 TOTAL_H = PAD + HERO_BOX + PAD + PH + PAD + LABEL_H
 
 font_lg = pygame.font.SysFont("dejavusans", 13, bold=True)
-font_sm = pygame.font.SysFont("dejavusans", 11)
 
 
 def _label(surf, text, rect_x, rect_w, y, color=(240, 230, 210)):
@@ -53,7 +52,6 @@ def _label(surf, text, rect_x, rect_w, y, color=(240, 230, 210)):
 canvas = pygame.Surface((TOTAL_W, TOTAL_H))
 canvas.fill(BG)
 
-# Thin separator line under the header area.
 pygame.draw.line(canvas, (40, 36, 56), (0, PAD + HERO_BOX + PAD + PH + PAD - 2),
                  (TOTAL_W, PAD + HERO_BOX + PAD + PH + PAD - 2), 1)
 
