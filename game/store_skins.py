@@ -2706,9 +2706,9 @@ get_tempest_condor = _tempest_getter()
 # BINKY (secret) — the pacifier baby: a powder-blue cartoon-infant Pip. One
 # bright-pink hero (a punched-hole pacifier ring at the beak), a light baby
 # face with big-baby eye-domes under the aviators, a quiet cream bib, and a
-# chunky cream diaper wrapped round the lower body. Same sprite size — baby
-# read is overlay + pastel palette, never a shrink. Matte pigment, no glow.
-# The pink budget is spent entirely on the pacifier so it stays the sole focal.
+# tan spit-curl. Same sprite size — baby read is overlay + pastel palette,
+# never a shrink. Matte pigment, no glow. The pink budget is spent entirely
+# on the pacifier so it stays the sole focal.
 # ─────────────────────────────────────────────────────────────────────────────
 _BB_BLUE_HI = (202, 230, 239)
 _BB_TEAL    = (127, 180, 194)
@@ -2721,10 +2721,6 @@ _BB_PINK_LT = (255, 222, 232)
 _BB_PINK_D  = (196, 110, 134)
 _BB_CREAM   = (251, 244, 218)
 _BB_CREAM_D = (224, 214, 178)
-_BB_DIAP    = (251, 244, 218)
-_BB_DIAP_HI = (255, 255, 255)
-_BB_DIAP_SH = (201, 217, 222)
-_BB_DIAP_LN = (171, 162, 130)
 _BB_TAN     = (201, 168, 106)
 _BB_TAN_D   = (160, 130, 76)
 _BB_WHITE   = (250, 252, 253)
@@ -2792,30 +2788,6 @@ def _bb_bib(surf):
     pygame.draw.line(surf, _BB_CREAM_D, (27, cy + 1), (36, cy + 1), 1)
 
 
-def _bb_diaper(surf):
-    # The chunky cream nappy wrapped round the lower belly + rear — the bigger
-    # lower cream mass. A padded bottom that bulges past the body line sells the
-    # silhouette; a waistband with hip curve-ups, a lit white fold edge, a seam,
-    # and a tab+pin sell "fastened cloth". Cream-only so the pacifier keeps the
-    # whole pink budget; the sole pink is a sub-pixel pin head.
-    cy = 64
-    pygame.draw.ellipse(surf, _BB_DIAP_LN, (16, cy + 1, 30, 13))
-    pygame.draw.ellipse(surf, _BB_DIAP_SH, (17, cy + 2, 28, 12))
-    pygame.draw.ellipse(surf, _BB_DIAP, (17, cy + 1, 28, 10))
-    pygame.draw.line(surf, _BB_DIAP_LN, (16, cy), (45, cy), 7)
-    pygame.draw.line(surf, _BB_DIAP, (16, cy), (45, cy), 5)
-    pygame.draw.line(surf, _BB_DIAP_LN, (16, cy), (15, cy - 4), 4)
-    pygame.draw.line(surf, _BB_DIAP, (16, cy), (15, cy - 4), 3)
-    pygame.draw.line(surf, _BB_DIAP_LN, (45, cy), (46, cy - 4), 4)
-    pygame.draw.line(surf, _BB_DIAP, (45, cy), (46, cy - 4), 3)
-    pygame.draw.line(surf, _BB_DIAP_HI, (18, cy - 3), (43, cy - 3), 1)
-    pygame.draw.line(surf, _BB_DIAP_LN, (31, cy + 1), (31, cy + 8), 1)
-    pygame.draw.line(surf, _BB_DIAP_SH, (30, cy + 2), (30, cy + 7), 1)
-    pygame.draw.rect(surf, _BB_DIAP_LN, (21, cy - 2, 5, 5))
-    pygame.draw.rect(surf, _BB_DIAP_HI, (22, cy - 1, 3, 3))
-    pygame.draw.circle(surf, _BB_PINK, (23, cy + 1), 1)
-
-
 def _bb_pacifier(surf):
     # The ONE hero — a pacifier at the beak base: a hollow pink ring with a hard
     # dark hole punched through (so it reads as a ring, not a dot) ahead of a
@@ -2845,7 +2817,6 @@ def _bb_rimlight(surf):
 def _paint_binky(surf, _a):
     _bb_rimlight(surf)
     _bb_bib(surf)
-    _bb_diaper(surf)
     _bb_cowlick(surf)
     _bb_eye_domes(surf)
     pygame.draw.circle(surf, _BB_PINK_LT, (HX + 9, HY + 7), 1)   # 1px cheek blush
