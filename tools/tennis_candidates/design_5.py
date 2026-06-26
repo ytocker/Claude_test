@@ -2,19 +2,24 @@
 
 Scratch exploration only — NOT registered in store_skins.BUILDERS. Pip the
 scarlet macaw kitted for a US/Australian-Open hard court under lights: a white
-tennis CAP with a navy panel + cyan button, a white POLO with a navy shoulder
-yoke + cyan chest sash + navy collar, a cyan wristband, and the hero read — a
-GRAPHITE racket (navy frame, cyan inner bumper, white strings on a dark void)
-held up in the near wing so the head breaks the top/back silhouette.
+tennis CAP with one navy front accent + one cyan piping line, a white POLO with
+a navy shoulder yoke and a single steep cyan chest sash, a cyan wristband, and
+the hero read — a GRAPHITE racket held up in the near wing so the head breaks
+the top/back silhouette.
 
-The whole palette is built to POP on the NIGHT sky: navy + cyan + white are the
-three values, with white as the brightest mass and cyan as the single saturated
-accent so the kit separates from the dark sky the way a floodlit court does. No
-ball — it ships as a separate matching parcel, so the racket carries the read.
+The whole palette is built to POP on the NIGHT sky: white is the brightest
+mass, cyan is the single saturated accent, and a COOL-LIGHT outer frame keyline
+keeps the navy oval from vanishing against the dark night sky the way a
+floodlit court rim catches the lights. Higher resolution here buys FEWER,
+cleaner tells — two polo bands (navy yoke + one cyan sash), one navy cap
+accent, one bright racket contour — not more competing layers. No ball — it
+ships as a separate matching parcel, so the racket carries the read.
 
 The cap silhouette (covered crown + forward curved brim) is deliberately
 DIFFERENT from the visor/headband tennis variants so the night-match version is
-distinct at a glance; Pip's beak/eye/face stay clear below the brim.
+distinct at a glance; the brim is lifted and shortened so a clear band of
+scarlet face + the dark eye + the yellow beak stay visible UNDER it — Pip reads
+as a parrot first, athlete second.
 """
 import pygame
 
@@ -34,6 +39,8 @@ _TN_WHITE_H = (255, 255, 255)        # white highlight
 _TN_NAVY    = (22, 48, 107)          # #16306B yoke / cap panel / frame
 _TN_NAVY_D  = (12, 30, 74)           # #0C1E4A deep navy contour / frame shadow
 _TN_NAVY_H  = (54, 86, 158)          # navy sheen so dark masses read round
+_TN_FRAME_L = (168, 176, 188)        # #A8B0BC cool-light outer frame edge so the
+                                     # navy oval keeps a bright contour on night
 _TN_CYAN    = (43, 184, 224)         # #2BB8E0 sash / bumper / button / wristband
 _TN_CYAN_D  = (24, 124, 158)         # cyan shade
 _TN_CYAN_H  = (146, 224, 246)        # cyan highlight
@@ -45,12 +52,13 @@ _TN_GRIP_H  = (84, 90, 102)          # grip wrap highlight
 
 
 def _racket(surf, hx, hy, hr):
-    """The hero prop and SOLE tennis tell. A GRAPHITE oval: a single navy frame
-    ring with a cyan inner bumper line around an OPEN strung face (dark void +
-    legible mains/crosses), a clean throat Y, a wrapped dark grip and a cyan
-    butt cap. Three frame values keep the oval reading ROUND at 40px; the cyan
-    bumper is the saturated accent that survives the downscale on the night sky.
-    Held up so the head breaks the back/top silhouette."""
+    """The hero prop and SOLE tennis tell. A GRAPHITE oval: a navy frame ring
+    wrapped in a COOL-LIGHT outer keyline (so the oval keeps a bright contour
+    against the navy night sky), with a cyan inner bumper line around an OPEN
+    strung face (dark void + legible mains/crosses), a clean throat Y, a wrapped
+    dark grip and a cyan butt cap. The bright rim + navy frame + cyan bumper
+    keep the oval reading ROUND at 40px and separate it from the dark sky. Held
+    up so the head breaks the back/top silhouette."""
     rw, rh = int(hr * 1.7), int(hr * 2.1)            # tall tennis-racket oval
     face = pygame.Rect(hx - rw, hy - rh, rw * 2, rh * 2)
 
@@ -67,11 +75,12 @@ def _racket(surf, hx, hy, hr):
         pygame.draw.line(surf, _TN_STR_DIM, (face.left + 1, gy), (face.right - 1, gy), 1)
     surf.set_clip(clip_prev)
 
-    # Frame in THREE values so the oval reads round: deep-navy outer keyline,
-    # the navy graphite frame, then a cyan inner bumper line hugging the strings
-    # (the saturated accent that makes the head pop on the night sky). One clean
-    # ring each — no second disc, no halo.
-    pygame.draw.ellipse(surf, _TN_NAVY_D, face.inflate(2, 2), 1)   # outer keyline
+    # Frame in THREE values so the oval reads round, but the OUTER keyline is a
+    # COOL LIGHT (not navy): the navy frame disappears against the navy night
+    # sky, so this bright contour is what separates the oval from the dark — the
+    # floodlit-rim tell. Then the navy graphite frame, then a cyan inner bumper
+    # line hugging the strings (the saturated accent). One clean ring each.
+    pygame.draw.ellipse(surf, _TN_FRAME_L, face.inflate(2, 2), 1)  # bright outer rim
     pygame.draw.ellipse(surf, _TN_NAVY, face, 3)                   # graphite frame
     pygame.draw.ellipse(surf, _TN_NAVY_H, face.inflate(-1, -1), 1)  # top-edge sheen
     pygame.draw.ellipse(surf, _TN_CYAN, face.inflate(-4, -4), 1)   # cyan bumper line
@@ -118,23 +127,23 @@ def _paint(surf, _a):
                             (HX + 4, HY + 10), (HX - 5, HY + 10)])
     pygame.draw.line(surf, _TN_WHITE_H, (HX - 11, HY + 10), (HX + 8, HY + 10), 1)
 
-    # NAVY YOKE across the shoulders — a dark band over the top of the polo that
-    # anchors the white mass so it doesn't wash out, and gives the kit its hard-
-    # court navy. Sits ON the chest, never rising into the head.
+    # NAVY YOKE across the shoulders — the SINGLE navy structure band on the
+    # polo (the collar-V is cut so the chest carries only TWO tells: this dark
+    # yoke + the cyan sash). It anchors the white mass so it doesn't wash out and
+    # gives the kit its hard-court navy. Sits ON the chest, never rising into the
+    # head.
     yoke = [(HX - 12, HY + 9), (HX + 10, HY + 9), (HX + 9, HY + 13),
             (HX + 2, HY + 12), (HX - 4, HY + 12), (HX - 11, HY + 13)]
     _poly(surf, _TN_NAVY, yoke)
     pygame.draw.line(surf, _TN_NAVY_H, (HX - 11, HY + 10), (HX + 9, HY + 10), 1)
 
-    # NAVY collar V at the polo's own top — sits on the chest below the head.
-    _poly(surf, _TN_NAVY_D, [(HX - 5, HY + 9), (HX + 4, HY + 9), (HX, HY + 13)])
-
-    # ONE bold CYAN sash across the white chest — the saturated tell that
-    # survives the downscale. Dark-edged then bright so it keeps a lit core after
-    # the shrink. Sits below the yoke on the chest.
-    pygame.draw.line(surf, _TN_CYAN_D, (HX - 12, HY + 14), (HX + 9, HY + 22), 4)
-    pygame.draw.line(surf, _TN_CYAN, (HX - 12, HY + 14), (HX + 9, HY + 22), 3)
-    pygame.draw.line(surf, _TN_CYAN_H, (HX - 11, HY + 15), (HX + 7, HY + 20), 1)
+    # ONE thin, STEEP CYAN sash — the single saturated diagonal accent. Taken to
+    # a 3px core and raised to cross nearer corner-to-corner (more diagonal reads
+    # more obviously as a sash), with 1-2px of clear white kept between the
+    # yoke-bottom and the sash-top so the two bands never merge into one bar.
+    pygame.draw.line(surf, _TN_CYAN_D, (HX - 12, HY + 21), (HX + 10, HY + 14), 4)
+    pygame.draw.line(surf, _TN_CYAN, (HX - 12, HY + 21), (HX + 10, HY + 14), 3)
+    pygame.draw.line(surf, _TN_CYAN_H, (HX - 11, HY + 20), (HX + 8, HY + 15), 1)
 
     # Deep-navy contour so the white polo separates from sky / pillars day + night.
     pygame.draw.polygon(surf, _TN_NAVY_D, polo, 1)
@@ -157,28 +166,32 @@ def _paint(surf, _a):
     pygame.draw.ellipse(surf, _TN_WHITE, (HX - 13, cy - 5, 26, 15))
     pygame.draw.ellipse(surf, _TN_WHITE_DD, (HX - 13, cy - 5, 26, 15), 1)
     pygame.draw.ellipse(surf, _TN_WHITE_H, (HX - 7, cy - 4, 11, 6))  # top sheen
-    # Navy front panel so the white cap isn't a blank dome (the team colour).
+    # ONE navy front panel + ONE cyan piping line — the cap's only two accents,
+    # so it stays a LIGHT-touch silhouette and doesn't steal read from the polo
+    # sash (the cyan button is dropped). The navy panel is the team colour; the
+    # cyan piping along its base is the single bright tie to the kit.
     _poly(surf, _TN_NAVY, [(HX - 6, cy + 1), (HX + 9, cy - 1), (HX + 10, cy + 5),
                            (HX - 5, cy + 6)])
     pygame.draw.line(surf, _TN_NAVY_H, (HX - 5, cy + 1), (HX + 8, cy - 1), 1)
-    # Cyan button on the crown's top centre (the cap stud).
-    pygame.draw.circle(surf, _TN_CYAN, (HX, cy - 4), 1)
-    # Forward curved BRIM over the beak — white wedge with a navy under-shadow so
-    # it reads as a separate brim; sits high so the beak/eye stay clear.
-    brim = [(HX + 3, cy + 5), (HX + 18, cy + 3), (HX + 19, cy + 7),
-            (HX + 4, cy + 9)]
+    pygame.draw.line(surf, _TN_CYAN, (HX - 5, cy + 6), (HX + 10, cy + 5), 1)
+    # Forward curved BRIM — LIFTED 1px and SHORTENED ~2px on the right so it
+    # stops well short of the eye: a clear band of scarlet face + the dark eye +
+    # the yellow beak stay visible UNDER it at 40px, so Pip reads as a parrot
+    # first. White wedge with a navy under-shadow so it reads as a separate brim.
+    brim = [(HX + 3, cy + 4), (HX + 16, cy + 2), (HX + 17, cy + 6),
+            (HX + 4, cy + 8)]
     _poly(surf, _TN_WHITE, brim)
-    _poly(surf, _TN_NAVY_D, [(HX + 4, cy + 8), (HX + 19, cy + 7),
-                             (HX + 18, cy + 9), (HX + 4, cy + 9)])  # brim shade
-    pygame.draw.line(surf, _TN_WHITE_H, (HX + 4, cy + 5), (HX + 17, cy + 3), 1)
-    # Cyan brim-edge piping — the one bright line that ties the brim to the kit.
-    pygame.draw.line(surf, _TN_CYAN, (HX + 4, cy + 6), (HX + 17, cy + 4), 1)
+    _poly(surf, _TN_NAVY_D, [(HX + 4, cy + 7), (HX + 17, cy + 6),
+                             (HX + 16, cy + 8), (HX + 4, cy + 8)])  # brim shade
+    pygame.draw.line(surf, _TN_WHITE_H, (HX + 4, cy + 4), (HX + 15, cy + 2), 1)
 
     # --- RACKET drawn LAST so it OVERLAYS the polo/clothing ----------------------
     # Painted last so the whole prop — head, throat, grip — rests fully IN FRONT
     # of the body. The grip drops into the near wing over the chest; the oval head
-    # still breaks the top/back silhouette against open sky.
-    _racket(surf, HX - 21, CROWN_Y + 2, 7)
+    # still breaks the top/back silhouette against open sky. Nudged ~2px LEFT so
+    # the oval clears the white cap crown — two white-edged masses fuse at 40px
+    # unless they keep a gap to breathe.
+    _racket(surf, HX - 23, CROWN_Y + 2, 7)
 
 
 build = store_skins._make_skin(_paint)
