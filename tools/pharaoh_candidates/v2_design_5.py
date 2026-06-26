@@ -32,7 +32,8 @@ from game.store_skins import HX, HY, CROWN_Y, _poly
 # turquoise is the one cool inlay accent in the broad collar.
 _SK_GOLD    = (232, 178, 58)        # #E8B23A mask gold
 _SK_GOLD_D  = (200, 144, 42)        # #C8902A gold shadow
-_SK_GOLD_H  = (244, 214, 122)       # #F4D67A gold highlight
+_SK_GOLD_H  = (248, 214, 104)       # #F8D668 gold highlight, warmed one notch so
+                                    # the mask glows gold (not olive) on night sky
 _SK_LAPIS   = (31, 58, 147)         # #1F3A93 lapis blue
 _SK_LAPIS_D = (20, 38, 102)         # lapis shadow keeps a stripe a stripe at 40px
 _SK_TURQ    = (31, 163, 154)        # #1FA39A turquoise inlay
@@ -128,6 +129,9 @@ def _paint(surf, _a):
     # Low peak in the centre so the crest breaks the crown outline as a soft point.
     _poly(surf, _SK_GOLD_D, [(HX - 5, cy - 4), (HX + 5, cy - 4), (HX, cy - 11)])
     _poly(surf, _SK_GOLD, [(HX - 4, cy - 4), (HX + 4, cy - 4), (HX, cy - 10)])
+    # One warm highlight pixel on the crest peak so the gold catches light and
+    # glows on the night sky instead of going olive.
+    pygame.draw.circle(surf, _SK_GOLD_H, (HX, cy - 8), 1)
     for i in range(-3, 4):
         x = HX + i * 4
         col = _SK_LAPIS if i % 2 == 0 else _SK_GOLD_D
@@ -146,13 +150,14 @@ def _paint(surf, _a):
     pygame.draw.circle(surf, _SK_GOLD, (HX, cy - 10), 2)
     pygame.draw.circle(surf, _SK_URAEUS, (HX, cy - 10), 1)
 
-    # ── BROAD COLLAR — pulled DOWN + OUT so it clears a dark gap around the beard
-    #    and the beard reads as its own vertical. Two THIN arcs only (lapis / gold)
-    #    so it stays a flat inlay inside the body footprint, never added mass.
-    ccx, ccy = HX - 2, HY + 16
-    for r, col in ((14, _SK_LAPIS), (12, _SK_GOLD)):
-        pygame.draw.arc(surf, col, (ccx - r, ccy - r + 6, r * 2, r * 2),
-                        3.7, 5.8, 2)
+    # ── COLLAR BASE — ONE short gold arc seated tight UNDER the beard so it reads
+    #    as a seated jewel/collar lip, not a free-floating blue hoop. At 40px a
+    #    wider two-arc ring read as a disconnected "smile"; the X already carries
+    #    the body tell, so less is more: a single tight gold arc only.
+    ccx, ccy = HX - 1, HY + 18
+    r = 9
+    pygame.draw.arc(surf, _SK_GOLD, (ccx - r, ccy - r + 6, r * 2, r * 2),
+                    4.1, 5.4, 2)
 
     # ── CROSSED CROOK + FLAIL X — the ONE lower-body tell. The coffin-lid stripes
     #    are dropped: a clean bold gold X (echoing the death-mask crossed-arms
@@ -160,7 +165,7 @@ def _paint(surf, _a):
     #    gold noise. No crook curl, no flail filigree — just two thick gold bars
     #    crossing, each capped with a single lapis bead, over a void seat so the X
     #    pops off the body rather than blending into the gold.
-    BCX, BCY = 32, 52
+    BCX, BCY = 32, 54     # centre nudged down ~2px for a clear gap under the eye-row
     a, b = (BCX - 10, BCY - 7), (BCX + 8, BCY + 10)     # crook arm (\)
     c, d = (BCX + 10, BCY - 7), (BCX - 8, BCY + 10)     # flail arm (/)
     for p, q in ((a, b), (c, d)):
