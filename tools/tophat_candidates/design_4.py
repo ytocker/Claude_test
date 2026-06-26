@@ -163,7 +163,7 @@ def _paint(surf, _a):
     pygame.draw.circle(surf, _UND_PALE_H, (mx - 1, my - 1), 1)  # rim glint
     pygame.draw.line(surf, _UND_PALE_D, (mx + 1, my + 4), (HX + 6, HY + 8), 1)
 
-    # ── HAT: extra-tall matte-black topper. Brim, then a tall crown rising well
+    # ── HAT: short matte-black topper. Brim, then a stubby flat-ish crown just
     # above CROWN_Y, with a continuous 2px PALE COOL rim down its back edge so
     # the black hat survives a night sky. A crepe mourning band + wilted rose
     # finish it.
@@ -172,8 +172,8 @@ def _paint(surf, _a):
     pygame.draw.ellipse(surf, _UND_LAPEL, (HX - 15, cy + 1, 30, 4))
     pygame.draw.line(surf, _UND_RIM, (HX - 13, cy + 1), (HX + 12, cy + 1), 1)
 
-    top_y = cy - 22                       # extra-tall crown
-    pygame.draw.rect(surf, _UND_COAT, (HX - 9, top_y, 18, 24))
+    top_y = cy - 11                       # short crown
+    pygame.draw.rect(surf, _UND_COAT, (HX - 9, top_y, 18, 12))
     # Continuous 2px cool rim down the BACK (left) edge of the crown — joins the
     # coat back-rim into one clean lit contour so the whole figure separates
     # from a night sky as a single silhouette.
