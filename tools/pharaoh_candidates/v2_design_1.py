@@ -40,6 +40,8 @@ _HR_RED_H    = (220, 92, 74)
 _HR_GOLD     = (232, 178, 58)      # #E8B23A gold regalia
 _HR_GOLD_D   = (168, 122, 34)
 _HR_GOLD_H   = (255, 226, 142)
+_HR_COLLAR_D = (28, 37, 48)        # collar/upper-body knocked one step darker so
+                                   # the lit slate head separates as its own shape
 _HR_BEAK     = (22, 24, 28)        # near-black hooked beak (the silhouette)
 _HR_BEAK_H   = (96, 106, 120)      # beak ridge glint so the wedge keeps a top edge
 _HR_CERE     = (228, 182, 64)      # gold cere band at the beak base
@@ -112,8 +114,11 @@ def _paint(surf, _a):
                           [(BCX - w, cy - 3), (BCX + 1, cy + 1), (BCX + w + 2, cy - 3)], 1)
 
     # ── Broad collar (wesekh) — a slim gold-banded arc hugging the neck under the
-    # head. Concentric thin gold arcs so it reads as a collar, never body bulk.
+    # head. A dark slate fill is laid under the arcs FIRST, one value step below
+    # the body, so a clear shadow gap opens between the lit falcon head and the
+    # collar and the face stops reading as one fused slate blob.
     col = pygame.Rect(BCX - 11, BCY - 17, 28, 18)
+    pygame.draw.arc(surf, _HR_COLLAR_D, col.inflate(2, 2), 3.50, 6.05, 4)
     pygame.draw.arc(surf, _HR_GOLD,   col, 3.55, 6.00, 3)
     pygame.draw.arc(surf, _HR_GOLD_H, col.inflate(-5, -5), 3.60, 5.95, 2)
     pygame.draw.arc(surf, _HR_GOLD,   col.inflate(-9, -9), 3.65, 5.90, 2)
@@ -144,28 +149,34 @@ def _paint(surf, _a):
     _poly(surf, (118, 138, 160), [(HX + 5, HY + 1), (HX + 11, HY + 2),
                                   (HX + 8, HY + 8), (HX - 1, HY + 9),
                                   (HX - 1, HY + 4)])
+    # Thin dark line under the chin/jaw — the value cut that frees the lit head
+    # from the collar so they stop fusing into one slate mass at 40px.
+    pygame.draw.lines(surf, _HR_HEAD_D, False,
+                      [(HX - 11, HY + 6), (HX - 4, HY + 11),
+                       (HX + 5, HY + 10), (HX + 10, HY + 5)], 2)
 
-    # ── HOOKED BEAK — THE HERO SILHOUETTE. A LONG near-black beak springing
-    # FORWARD off the heavy brow, overshooting the head's right edge, then hooking
-    # hard DOWN well below the chin line so a clear talon-notch reads against the
-    # sky at 40px. Near-black against the mid-slate head so the two never fuse.
-    # The bird faces right. Drawn as one continuous wedge → curl so the hook is a
-    # single bold mass, not interior detail.
-    beak = [(HX + 7, HY - 6), (HX + 22, HY - 4), (HX + 30, HY),
-            (HX + 32, HY + 4), (HX + 30, HY + 6), (HX + 20, HY + 4),
-            (HX + 11, HY + 3), (HX + 8, HY)]
+    # ── HOOKED BEAK — THE HERO SILHOUETTE. Raised ~3px and lengthened so the
+    # whole wedge rides ABOVE the cheek/collar mass and the down-hook clears the
+    # head's right edge into open sky — the notch between tip and chin sits against
+    # BACKGROUND, not body, so "falcon" reads at 40px. Near-black against the
+    # mid-slate head so the two never fuse. The bird faces right.
+    beak = [(HX + 6, HY - 8), (HX + 22, HY - 7), (HX + 31, HY - 3),
+            (HX + 34, HY + 1), (HX + 32, HY + 3), (HX + 21, HY + 1),
+            (HX + 11, HY), (HX + 8, HY - 3)]
     _poly(surf, _HR_BEAK, beak)
-    # The down-curl: the predator hook dropping a long way BELOW the chin line off
-    # the tip — the deepest, most separated part of the silhouette.
-    _poly(surf, _HR_BEAK, [(HX + 28, HY + 1), (HX + 33, HY + 3),
-                           (HX + 31, HY + 15), (HX + 24, HY + 9),
-                           (HX + 25, HY + 4)])
+    # The down-curl: the predator hook dropping off the tip into open sky PAST the
+    # head's right edge — the deepest, most separated part of the silhouette, with
+    # the notch between it and the chin reading against background. Dropped lower +
+    # pushed further right so the talon-notch sits firmly on the sky at 40px.
+    _poly(surf, _HR_BEAK, [(HX + 31, HY - 2), (HX + 36, HY),
+                           (HX + 35, HY + 14), (HX + 30, HY + 13),
+                           (HX + 28, HY + 5), (HX + 30, HY + 1)])
     # Ridge glint along the top of the wedge so it keeps a hard upper edge.
-    pygame.draw.line(surf, _HR_BEAK_H, (HX + 8, HY - 5), (HX + 28, HY - 2), 1)
+    pygame.draw.line(surf, _HR_BEAK_H, (HX + 8, HY - 7), (HX + 30, HY - 3), 1)
     # Gold cere band at the beak base (the falcon's fleshy nostril band).
-    _poly(surf, _HR_CERE, [(HX + 6, HY - 6), (HX + 10, HY - 6),
-                           (HX + 10, HY), (HX + 6, HY)])
-    pygame.draw.circle(surf, (40, 30, 14), (HX + 8, HY - 3), 1)   # nostril dot
+    _poly(surf, _HR_CERE, [(HX + 5, HY - 8), (HX + 9, HY - 8),
+                           (HX + 9, HY - 2), (HX + 5, HY - 2)])
+    pygame.draw.circle(surf, (40, 30, 14), (HX + 7, HY - 5), 1)   # nostril dot
 
     # ── EYE-OF-HORUS (wedjat) — the single bold face mark: a large gold almond
     # with a dark pupil, a straight gold brow bar, and the signature teardrop tail
@@ -186,54 +197,60 @@ def _paint(surf, _a):
                       [(ex - 6, ey + 3), (ex - 9, ey + 7), (ex - 4, ey + 9)], 2)
     pygame.draw.line(surf, _HR_GOLD_H, (ex - 6, ey + 3), (ex - 8, ey + 6), 1)
 
-    # ── PSCHENT (the double crown) — the ONLY element above CROWN_Y, re-shaped so
-    # it can NEVER read as a Santa hat: an ASYMMETRIC pharaoh double-crown profile
-    # (taller red Deshret with a back-spike/flared bulb) wrapping a clean straight-
-    # sided WHITE Hedjet bowling-pin, with a forward gold uraeus front-spike.
+    # ── PSCHENT (the double crown) — the ONLY element above CROWN_Y, rebuilt as a
+    # TALL VERTICAL STACK so it can NEVER read as a floppy red cap: a NARROW, TALL
+    # red Deshret CUP (~18px wide, ~18px tall) with a tall WHITE Hedjet onion
+    # rising WELL ABOVE it — "a tall white onion sitting inside a tall red cup."
+    # The asymmetry is a slim back-spike SEPARATED from the cup by a sky notch, not
+    # a wide brim. The whole thing is taller than it is wide.
     cx = HX + 1
     base_y = CROWN_Y + 2          # crown seats just above the falcon skull
 
-    # Deshret (red) — a flared cup that LEANS BACK: low + open at the front brow,
-    # rising hard at the rear into the tall back-spike bulb. The lopsided profile
-    # is the tell that kills the symmetric-cone (Santa) read.
-    desh = [(cx - 14, base_y), (cx + 13, base_y), (cx + 11, base_y - 11),
-            (cx + 6, base_y - 12), (cx - 10, base_y - 13)]
-    _poly(surf, _HR_RED_D, [(x, y + 1) for x, y in desh])
-    _poly(surf, _HR_RED, desh)
-    # The Deshret BACK-SPIKE bulb — a tall flared horn rising off the REAR of the
-    # basket, well above the Hedjet's shoulder, so the whole crown is clearly
-    # asymmetric/directional. This is the make-or-break anti-Santa silhouette.
-    spike = [(cx - 14, base_y), (cx - 10, base_y - 13),
-             (cx - 15, base_y - 23), (cx - 21, base_y - 19),
-             (cx - 19, base_y - 6)]
+    # The slim REAR back-spike (red) — drawn FIRST and set behind/left of the cup
+    # with a clear notch of sky between it and the bowl, so it reads as a separate
+    # directional horn rather than melting into a brim. This is the anti-cap tell.
+    spike = [(cx - 13, base_y - 2), (cx - 10, base_y - 4),
+             (cx - 13, base_y - 17), (cx - 17, base_y - 14),
+             (cx - 16, base_y - 4)]
     _poly(surf, _HR_RED_D, [(x + 1, y) for x, y in spike])
     _poly(surf, _HR_RED, spike)
-    pygame.draw.circle(surf, _HR_RED, (cx - 16, base_y - 20), 3)     # flared bulb tip
-    pygame.draw.circle(surf, _HR_RED_H, (cx - 17, base_y - 21), 1)   # bulb glint
-    pygame.draw.line(surf, _HR_RED_H, (cx + 11, base_y - 2),
-                     (cx + 8, base_y - 11), 2)                       # front rim sheen
+    pygame.draw.circle(surf, _HR_RED,   (cx - 14, base_y - 15), 2)   # flared tip
+    pygame.draw.circle(surf, _HR_RED_H, (cx - 15, base_y - 16), 1)   # tip glint
 
-    # Hedjet (white) — a clean STRAIGHT-SIDED bowling-pin/onion rising from the
-    # cup, narrowing to a slim rounded point (NO bulbous Santa knob at the tip).
-    hed = [(cx - 7, base_y - 9), (cx + 8, base_y - 9),
-           (cx + 7, base_y - 18), (cx + 4, base_y - 25),
-           (cx + 2, base_y - 27), (cx, base_y - 25),
-           (cx - 2, base_y - 18)]
+    # Deshret (red) — a NARROW, TALL cup: ~18px wide at the rim, rising ~18px to
+    # nearly straight vertical sides that cradle the Hedjet. Tall + slim is the
+    # whole point; the cup must read as a deep red vase, not a wide red band.
+    desh = [(cx - 7, base_y + 1), (cx + 8, base_y + 1),
+            (cx + 9, base_y - 8), (cx + 7, base_y - 16),
+            (cx + 2, base_y - 18), (cx - 4, base_y - 16),
+            (cx - 6, base_y - 8)]
+    _poly(surf, _HR_RED_D, [(x + 1, y) for x, y in desh])
+    _poly(surf, _HR_RED, desh)
+    pygame.draw.line(surf, _HR_RED_H, (cx + 7, base_y - 2),
+                     (cx + 6, base_y - 14), 2)                       # front rim sheen
+
+    # Hedjet (white) — a TALL onion bulb rising well ABOVE the red cup, narrowing
+    # to a slim rounded point. Seated INSIDE the cup so the stack reads as one
+    # vertical white-in-red column climbing high over the head.
+    hed = [(cx - 5, base_y - 11), (cx + 6, base_y - 11),
+           (cx + 6, base_y - 20), (cx + 3, base_y - 28),
+           (cx + 1, base_y - 31), (cx - 1, base_y - 28),
+           (cx - 4, base_y - 20)]
     _poly(surf, _HR_WHITE_D, [(x + 1, y) for x, y in hed])
     _poly(surf, _HR_WHITE, hed)
     # Slim rounded tip — a small cap, NOT a knob (radius 2, sat right on the point).
-    pygame.draw.circle(surf, _HR_WHITE, (cx + 2, base_y - 26), 2)
-    pygame.draw.circle(surf, _HR_WHITE_H, (cx + 1, base_y - 26), 1)
+    pygame.draw.circle(surf, _HR_WHITE, (cx + 1, base_y - 30), 2)
+    pygame.draw.circle(surf, _HR_WHITE_H, (cx, base_y - 30), 1)
     # Hedjet sheen — a tall pale highlight straight up the front face.
-    pygame.draw.line(surf, _HR_WHITE_H, (cx - 1, base_y - 11),
-                     (cx + 1, base_y - 24), 2)
-    pygame.draw.line(surf, _HR_WHITE_D, (cx + 6, base_y - 11),
-                     (cx + 5, base_y - 19), 1)
+    pygame.draw.line(surf, _HR_WHITE_H, (cx - 1, base_y - 13),
+                     (cx, base_y - 27), 2)
+    pygame.draw.line(surf, _HR_WHITE_D, (cx + 4, base_y - 13),
+                     (cx + 4, base_y - 21), 1)
 
     # Gold uraeus (rearing cobra) at the BROW, thrust FORWARD as a clear front-
     # spike so the crown reads directional/pharaonic (front ≠ back — the falcon
     # faces right, so the cobra strikes forward-right off the brow).
-    ux, uy = cx + 6, base_y
+    ux, uy = cx + 6, base_y + 1
     _poly(surf, _HR_GOLD, [(ux - 2, uy + 2), (ux + 4, uy + 2),
                            (ux + 5, uy - 1), (ux - 1, uy - 1)])      # cobra hood
     pygame.draw.line(surf, _HR_GOLD, (ux + 3, uy - 1), (ux + 7, uy - 5), 3)  # rearing neck
