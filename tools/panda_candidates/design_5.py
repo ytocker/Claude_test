@@ -1,13 +1,20 @@
 """CELESTIAL PANDA — design_5 (scratch candidate builder, LEGENDARY).
 
 The spectacle / flex build. The panda mask reads exactly the same at 40px —
-round ears, two angled eye patches, a nose — but the black fur is reskinned as
-a deep galaxy speckled with stars, the white belly glows with an aurora wash,
-and a luminous halo arcs above the crown. The signature that sells "legendary"
-at a glance is the pairing the eye can't miss: starfield-black mask + glowing
-halo. Everything else (aurora rim-light on the arms, comet wisp off the tail,
-free-floating sparkles) is supporting glow that reads as an aura, not as props
-competing with the mask.
+round ears, two angled eye patches, a nose — but the fur is reskinned as a deep
+galaxy and the white belly glows from within like a lantern. The signature that
+sells "legendary" at a glance is a pairing the eye can't miss even at gameplay
+scale: a floating cyan-white halo arc hovering ABOVE the crown (a clear sky-gap
+under it) over a deep galaxy-indigo body rimmed in violet/cyan aurora light.
+
+Readability was the failure mode of the first pass: a pure-black body collapses
+to a muddy blob at 40px against both the day and the night sky, and a halo that
+hugs the ears just merges into one lump. So the cosmic hue now lives in the mass
+itself (deep indigo-violet, not near-black), the silhouette carries a 1px aurora
+rim so it pops off the blue, the belly bleeds a cyan bloom past its own edge, and
+the halo floats as a separate bright arc with daylight visible beneath it. Only
+3–4 deliberate sparkles sit in the negative space — no body speckle noise that
+just turns to mud when shrunk.
 
 Geometry follows design_1 / game/animal_skins.py so the fixed collision circle
 still lines up: the body mass stays on the base bird's BODY centre, the ears
@@ -16,12 +23,10 @@ candidate is rendered in-gameplay by tools/ninja_render.py; nothing here
 touches production art.
 """
 import math
-import random
 
 import pygame
 
-from game import parrot
-from game.parrot import SPRITE_W, _WING_ANGLES, _add_outline, _aaellipse
+from game.parrot import _WING_ANGLES, _add_outline, _aaellipse
 
 # ── composite + anchors (mirror game/animal_skins.py) ────────────────────────
 COMPOSITE_W = 64
@@ -32,13 +37,17 @@ HCX, HCY = 44, 22 + DY          # head centre → (44, 34)
 CROWN_Y  = 12 + DY              # top of head → 24
 
 # ── palette ──────────────────────────────────────────────────────────────────
-GALAXY_BLACK  = (13, 13, 26)        # #0D0D1A deep indigo-black "fur"
-GALAXY_SHADE  = (8, 8, 18)          # slightly deeper void for shadow pooling
-GALAXY_HI     = (34, 30, 60)        # faint nebular lift on top of the black
-GLOW_WHITE    = (245, 245, 245)     # #F5F5F5 glowing belly white
+# Body is deep galaxy-INDIGO, not black: at 40px a near-black mass reads as a
+# hole against both skies, so the cosmic hue has to live in the fur itself.
+GALAXY_INDIGO = (36, 22, 64)        # #241640 deep galaxy-indigo "fur"
+GALAXY_NAVY   = (26, 22, 51)        # #1A1633 cooler navy for back/yoke
+GALAXY_SHADE  = (18, 14, 38)        # deeper void for shadow pooling
+GALAXY_HI     = (74, 56, 120)       # nebular lift catching the top of a mass
+GLOW_WHITE    = (245, 245, 245)     # #F5F5F5 glowing belly/face white
 WHITE_SOFT    = (224, 230, 240)     # cool white shade
-VIOLET        = (123, 63, 228)      # #7B3FE4 violet aurora
-CYAN          = (25, 224, 255)      # #19E0FF cyan aurora highlight
+VIOLET        = (138, 96, 240)      # #8A60F0 violet aurora
+CYAN          = (110, 232, 255)     # #6EE8FF cyan aurora highlight (rim/bloom)
+CYAN_DEEP     = (25, 224, 255)      # saturated cyan for the brightest glints
 STAR_CORE     = (255, 243, 196)     # #FFF3C4 warm star / halo core glint
 STAR_WHITE    = (255, 255, 255)
 
@@ -51,70 +60,43 @@ def _rot_blit(surf, wing, anchor):
     surf.blit(wing, wing.get_rect(center=anchor).topleft)
 
 
-def _starfield(surf, center, rx, ry, seed, n=7):
-    """Sprinkle tiny stars inside an elliptical mask of black fur. A fixed seed
-    keeps the constellation stable across the 4 wing frames so the speckle does
-    not shimmer distractingly while flapping."""
-    cx, cy = center
-    rng = random.Random(seed)
-    for _ in range(n):
-        # Rejection-sample to the ellipse interior so stars hug the fur shape.
-        ang = rng.uniform(0, math.tau)
-        rad = math.sqrt(rng.random())
-        sx = int(cx + math.cos(ang) * rad * (rx - 1))
-        sy = int(cy + math.sin(ang) * rad * (ry - 1))
-        warm = rng.random() < 0.35
-        col = STAR_CORE if warm else STAR_WHITE
-        if rng.random() < 0.45:
-            surf.set_at((sx, sy), col)
-        else:
-            pygame.draw.circle(surf, col, (sx, sy), 1)
-
-
-def _aurora_rim(surf, center, rx, ry, top=True):
-    """Trace a violet→cyan rim-light along the upper edge of a galaxy mass so
-    the black reads as a glowing celestial body, not a flat hole. Drawn as a
-    thin double-stroke arc instead of a full outline to keep the lit edge."""
-    cx, cy = center
-    steps = 22
-    start, end = (math.pi, math.tau) if top else (0.0, math.pi)
-    for i in range(steps):
-        t = i / (steps - 1)
-        a = start + (end - start) * t
-        px = cx + math.cos(a) * rx
-        py = cy + math.sin(a) * ry
-        col = VIOLET if t < 0.5 else CYAN
-        pygame.draw.circle(surf, (*col, 150), (int(px), int(py)), 1)
-
-
-def _panda_arm(angle_deg):
-    """A galaxy-black arm mass wrapping a wing root. Flapping reads as the
-    spirit panda raising its arms. Star-flecked fur + a violet/cyan aurora
-    rim-light along the leading edge sells the cosmic skin on the flanks."""
-    w = pygame.Surface((44, 44), pygame.SRCALPHA)
-    pts = [(22, 22), (40, 17), (41, 30), (24, 38), (13, 31)]
-    pygame.draw.polygon(w, GALAXY_BLACK, pts)
-    pygame.draw.circle(w, GALAXY_BLACK, (38, 24), 6)        # rounded paw mitt
-    pygame.draw.circle(w, GALAXY_HI, (24, 23), 4)           # faint nebular sheen
-    # Aurora rim-light along the top arc of the arm mass.
-    pygame.draw.line(w, (*VIOLET, 170), (15, 30), (24, 21), 1)
-    pygame.draw.line(w, (*CYAN, 170), (24, 21), (39, 19), 1)
-    _starfield(w, (28, 26), 13, 9, seed=int(angle_deg) * 17 + 3, n=5)
-    # Glowing toe-glints on the paw cap.
-    pygame.draw.circle(w, (*CYAN, 220), (39, 23), 1)
-    return pygame.transform.rotate(w, angle_deg)
-
-
-def _radial_glow(radius, color, max_alpha):
+def _radial_glow(radius, color, max_alpha, falloff=1.6):
     """A soft circular glow sprite (alpha falling off toward the edge) used for
-    the belly aurora and halo bloom. Cached implicitly per call site is cheap
-    enough since frames are prebuilt once."""
+    the belly bloom and halo bloom. Frames are prebuilt once so the per-call
+    cost is paid only at skin-build time."""
     d = radius * 2
     g = pygame.Surface((d, d), pygame.SRCALPHA)
     for r in range(radius, 0, -1):
-        a = int(max_alpha * (1 - r / radius) ** 1.6)
+        a = int(max_alpha * (1 - r / radius) ** falloff)
         pygame.draw.circle(g, (*color, a), (radius, radius), r)
     return g
+
+
+def _aurora_rim(surf, pts, top_violet=VIOLET, bot_cyan=CYAN, alpha=200):
+    """Trace a 1px violet→cyan aurora rim-light along an ordered edge path so a
+    galaxy mass pops off the blue sky as a lit silhouette instead of a flat
+    hole. The colour walks violet (upper) → cyan (lower) across the run."""
+    n = len(pts)
+    for i in range(n - 1):
+        t = i / max(1, n - 2)
+        col = top_violet if t < 0.5 else bot_cyan
+        pygame.draw.line(surf, (*col, alpha), pts[i], pts[i + 1], 1)
+
+
+def _panda_arm(angle_deg):
+    """A galaxy-indigo arm mass wrapping a wing root. Flapping reads as the
+    spirit panda raising its arms. A violet→cyan aurora rim along the leading
+    edge sells the cosmic skin on the flanks and keeps the limb off the sky."""
+    w = pygame.Surface((44, 44), pygame.SRCALPHA)
+    pts = [(22, 22), (40, 17), (41, 30), (24, 38), (13, 31)]
+    pygame.draw.polygon(w, GALAXY_INDIGO, pts)
+    pygame.draw.circle(w, GALAXY_INDIGO, (38, 24), 6)      # rounded paw mitt
+    pygame.draw.circle(w, GALAXY_HI, (24, 23), 4)          # faint nebular sheen
+    # Aurora rim-light along the lit leading arc of the arm mass.
+    _aurora_rim(w, [(15, 31), (18, 24), (24, 20), (32, 18), (40, 18), (42, 24)])
+    # Glowing toe-glint on the paw cap.
+    pygame.draw.circle(w, (*CYAN_DEEP, 230), (39, 23), 1)
+    return pygame.transform.rotate(w, angle_deg)
 
 
 def build(wing_angle_deg) -> pygame.Surface:
@@ -123,81 +105,90 @@ def build(wing_angle_deg) -> pygame.Surface:
     parrot._add_outline."""
     surf = _new()
 
-    # ── trailing comet / aurora wisp off the lower body ──
-    # A cyan→violet streak fading downstream so the panda looks like it is
-    # gliding through the cosmos. Drawn first so the body overlaps its root.
-    wisp = pygame.Surface((40, 22), pygame.SRCALPHA)
-    for i in range(8):
-        t = i / 7.0
-        wx = int(4 + t * 30)
-        wy = int(6 + t * 10)
-        rad = max(1, int(7 * (1 - t)))
-        a = int(150 * (1 - t))
+    # ── on-silhouette aurora tail off the lower body ──
+    # NOT a detached comet block (that read as a coin): a short teal→violet
+    # streak that hugs the lower body contour and fades to transparent so it
+    # extends the silhouette downstream rather than fragmenting it. Drawn first
+    # so the body overlaps its root and it appears to grow out of the mass.
+    for i in range(7):
+        t = i / 6.0
+        tx = int(BCX - 6 - t * 18)
+        ty = int(BCY + 13 + t * 4)
+        rad = max(1, int(5 * (1 - t)))
         col = CYAN if t < 0.5 else VIOLET
-        pygame.draw.circle(wisp, (*col, a), (wx, wy), rad)
-    surf.blit(wisp, (BCX - 30, BCY + 6))
+        pygame.draw.circle(surf, (*col, int(150 * (1 - t))), (tx, ty), rad)
 
     # ── two galaxy leg stubs hanging under the body ──
     for lx in (BCX - 8, BCX + 8):
-        _aaellipse(surf, GALAXY_BLACK, (lx, BCY + 15), 5, 7)
-        pygame.draw.circle(surf, GALAXY_BLACK, (lx, BCY + 19), 4)   # rounded foot
-        pygame.draw.circle(surf, (*CYAN, 200), (lx - 1, BCY + 21), 1)  # toe-glint
+        _aaellipse(surf, GALAXY_INDIGO, (lx, BCY + 15), 5, 7)
+        pygame.draw.circle(surf, GALAXY_INDIGO, (lx, BCY + 19), 4)   # rounded foot
+        pygame.draw.circle(surf, (*CYAN_DEEP, 210), (lx - 1, BCY + 21), 1)  # toe-glint
 
-    # ── glowing white belly with an aurora wash ──
-    # A radial teal→violet bloom under the white disc makes the belly read as
-    # lit-from-within rather than flat paint.
-    bloom = _radial_glow(20, CYAN, 110)
-    surf.blit(bloom, bloom.get_rect(center=(BCX, BCY)))
+    # ── glowing white belly that EMITS light (a lantern, not a patch) ──
+    # An outer cyan bloom bleeds a few px PAST the white disc edge so the belly
+    # reads as a light source. The bloom is wider than the disc on purpose.
+    belly_bloom = _radial_glow(26, CYAN, 120, falloff=2.0)
+    surf.blit(belly_bloom, belly_bloom.get_rect(center=(BCX, BCY)))
     _aaellipse(surf, WHITE_SOFT, (BCX + 1, BCY + 1), 19, 18)
     _aaellipse(surf, GLOW_WHITE, (BCX, BCY), 18, 17)
-    # Aurora gradient washing across the belly: concentric tinted ellipses,
-    # teal low-left rising to violet, kept translucent so the white still glows.
+    # Aurora wash inside the disc: teal low-left rising to violet, translucent so
+    # the white still glows. A bright core keeps the centre reading as emitting.
     aur = pygame.Surface((40, 38), pygame.SRCALPHA)
     _aaellipse(aur, (*CYAN, 70), (16, 26), 13, 9)
     _aaellipse(aur, (*VIOLET, 55), (24, 14), 12, 9)
-    _aaellipse(aur, (*GLOW_WHITE, 90), (20, 19), 8, 7)
+    _aaellipse(aur, (*GLOW_WHITE, 110), (20, 19), 8, 7)
     surf.blit(aur, (BCX - 20, BCY - 19))
 
     # ── galaxy shoulder yoke wrapping the upper back ──
     yoke = pygame.Surface((52, 26), pygame.SRCALPHA)
-    pygame.draw.ellipse(yoke, GALAXY_BLACK, pygame.Rect(0, 0, 52, 26))
+    pygame.draw.ellipse(yoke, GALAXY_NAVY, pygame.Rect(0, 0, 52, 26))
     pygame.draw.ellipse(yoke, (0, 0, 0, 0), pygame.Rect(2, 12, 48, 26))
-    _starfield(yoke, (26, 9), 23, 8, seed=91, n=8)
     surf.blit(yoke, (BCX - 26, BCY - 17))
+    # Aurora rim catching the crest of the yoke so the back edge pops off sky.
+    _aurora_rim(surf, [(BCX - 22, BCY - 6), (BCX - 12, BCY - 13),
+                       (BCX, BCY - 16), (BCX + 12, BCY - 13),
+                       (BCX + 22, BCY - 6)], alpha=170)
 
     # ── far arm tucked behind the body ──
     _rot_blit(surf, _panda_arm(wing_angle_deg * 0.5 - 18), (BCX + 9, BCY - 3))
 
-    # ── glowing halo arc above the crown (the legendary flex) ──
-    # A bloom + a violet→cyan ring of orbiting star particles arcing over the
-    # ears. Drawn before the ears/face so the ears sit in front of it and the
-    # halo reads as floating behind-and-above the head.
-    halo_glow = _radial_glow(16, STAR_CORE, 90)
-    surf.blit(halo_glow, halo_glow.get_rect(center=(HCX, CROWN_Y - 8)))
-    for i in range(14):
-        t = i / 13.0
-        a = math.pi * (0.12 + 0.76 * t)          # upper arc only
-        hx = HCX + math.cos(a) * 16
-        hy = (CROWN_Y - 6) - math.sin(a) * 7
-        col = VIOLET if t < 0.5 else CYAN
-        pygame.draw.circle(surf, (*col, 220), (int(hx), int(hy)), 1)
-    # A few brighter orbiting star particles riding the halo ring.
-    for frac, col in ((0.18, CYAN), (0.5, STAR_CORE), (0.82, VIOLET)):
-        a = math.pi * (0.12 + 0.76 * frac)
-        hx = HCX + math.cos(a) * 16
-        hy = (CROWN_Y - 6) - math.sin(a) * 7
-        pygame.draw.circle(surf, (*col, 120), (int(hx), int(hy)), 2)
-        surf.set_at((int(hx), int(hy)), STAR_WHITE)
+    # ── FLOATING halo arc above the crown (the legendary flex) ──
+    # Lifted well clear of the ears so background sky shows in the gap beneath
+    # it — at 40px the halo must read as a separate floating element, never a
+    # lump fused to the head. Rendered as a soft cyan-white bloom + a bright
+    # thin 2px arc core, brightest at the apex. Sits its own ~6px above CROWN_Y.
+    HALO_CY = CROWN_Y - 9               # arc baseline, clear of the ears
+    halo_glow = _radial_glow(15, CYAN, 70, falloff=2.2)
+    surf.blit(halo_glow, halo_glow.get_rect(center=(HCX, HALO_CY - 1)))
+    # Bright thin arc core: two passes (soft wide + crisp 1px white) so it reads
+    # as a glowing ring line, apex brightest.
+    arc_pts = []
+    for i in range(21):
+        t = i / 20.0
+        a = math.pi * (0.10 + 0.80 * t)        # upper arc only
+        hx = HCX + math.cos(a) * 17
+        hy = HALO_CY - math.sin(a) * 8
+        arc_pts.append((hx, hy, t))
+    for hx, hy, t in arc_pts:
+        # Apex (t≈0.5) is brightest; ends fade so the ring feels lit from above.
+        apex = 1.0 - abs(t - 0.5) * 1.4
+        glow_a = int(120 * max(0.0, apex))
+        pygame.draw.circle(surf, (*CYAN, glow_a), (int(hx), int(hy)), 2)
+    for hx, hy, t in arc_pts:
+        apex = 1.0 - abs(t - 0.5) * 1.2
+        core_a = int(255 * max(0.25, apex))
+        surf.set_at((int(hx), int(hy)), (255, 255, 255, core_a))
 
-    # ── round galaxy ears past the crown, star-flecked ──
+    # ── round galaxy ears past the crown ──
+    # No body speckle here — at 40px it just turns to noise. Each ear carries a
+    # nebular highlight + an aurora rim so the shape stays legible.
     for ex in (HCX - 9, HCX + 9):
-        _aaellipse(surf, GALAXY_BLACK, (ex, CROWN_Y + 1), 6, 6)
+        _aaellipse(surf, GALAXY_INDIGO, (ex, CROWN_Y + 1), 6, 6)
         pygame.draw.circle(surf, GALAXY_HI, (ex - 1, CROWN_Y - 1), 2)
-        _starfield(surf, (ex, CROWN_Y + 1), 5, 5, seed=ex * 7, n=4)
-        # Aurora rim-light catching the top of each ear.
-        pygame.draw.arc(surf, (*CYAN, 200),
-                        pygame.Rect(ex - 6, CROWN_Y - 5, 12, 12),
-                        0.4, 2.2, 1)
+        pygame.draw.arc(surf, (*CYAN, 210),
+                        pygame.Rect(ex - 6, CROWN_Y - 5, 12, 12), 0.4, 2.4, 1)
+        pygame.draw.arc(surf, (*VIOLET, 150),
+                        pygame.Rect(ex - 6, CROWN_Y - 5, 12, 12), 2.4, 3.4, 1)
 
     # ── glowing white face disc centred over the head ──
     face_glow = _radial_glow(15, WHITE_SOFT, 70)
@@ -206,14 +197,12 @@ def build(wing_angle_deg) -> pygame.Surface:
     _aaellipse(surf, GLOW_WHITE, (HCX, HCY), 12, 12)
 
     # ── two galaxy teardrop eye patches, angled down-inward ──
-    # Same mask geometry as the classic panda, but each patch gets an aurora
-    # rim-glow so the legendary read survives the reskin.
+    # Same mask geometry as the classic panda; each patch gets an aurora rim so
+    # the legendary read survives the reskin without speckle noise.
     for sgn in (-1, 1):
         patch = pygame.Surface((20, 24), pygame.SRCALPHA)
-        _aaellipse(patch, GALAXY_BLACK, (10, 12), 6, 9)
-        _starfield(patch, (10, 12), 5, 8, seed=200 + sgn, n=4)
-        # Violet/cyan rim along the outer edge of the patch.
-        pygame.draw.arc(patch, (*VIOLET, 200),
+        _aaellipse(patch, GALAXY_INDIGO, (10, 12), 6, 9)
+        pygame.draw.arc(patch, (*VIOLET, 210),
                         pygame.Rect(3, 2, 14, 20), 1.4, 3.6, 1)
         patch = pygame.transform.rotate(patch, sgn * 32)
         pcx = HCX + sgn * 5
@@ -222,16 +211,16 @@ def build(wing_angle_deg) -> pygame.Surface:
     # ── eyes that read as bright stars / glowing points ──
     for sgn in (-1, 1):
         ecx = HCX + sgn * 5
-        pygame.draw.circle(surf, (*CYAN, 120), (ecx, HCY), 3)   # halo around eye
-        pygame.draw.circle(surf, STAR_WHITE, (ecx, HCY - 1), 2) # bright star core
-        surf.set_at((ecx, HCY - 1), STAR_CORE)                  # warm twinkle
+        pygame.draw.circle(surf, (*CYAN, 130), (ecx, HCY), 3)     # halo around eye
+        pygame.draw.circle(surf, STAR_WHITE, (ecx, HCY - 1), 2)   # bright star core
+        surf.set_at((ecx, HCY - 1), STAR_CORE)                    # warm twinkle
 
     # ── little galaxy nose triangle + soft mouth line ──
     nose = [(HCX - 3, HCY + 6), (HCX + 3, HCY + 6), (HCX, HCY + 10)]
-    pygame.draw.polygon(surf, GALAXY_BLACK, nose)
-    pygame.draw.circle(surf, (*CYAN, 220), (HCX, HCY + 7), 1)   # cool nose glint
-    pygame.draw.line(surf, GALAXY_BLACK, (HCX, HCY + 10), (HCX - 3, HCY + 12), 1)
-    pygame.draw.line(surf, GALAXY_BLACK, (HCX, HCY + 10), (HCX + 3, HCY + 12), 1)
+    pygame.draw.polygon(surf, GALAXY_INDIGO, nose)
+    pygame.draw.circle(surf, (*CYAN_DEEP, 230), (HCX, HCY + 7), 1)  # cool nose glint
+    pygame.draw.line(surf, GALAXY_INDIGO, (HCX, HCY + 10), (HCX - 3, HCY + 12), 1)
+    pygame.draw.line(surf, GALAXY_INDIGO, (HCX, HCY + 10), (HCX + 3, HCY + 12), 1)
 
     # ── two soft aurora cheek glows low on the white face ──
     for sgn in (-1, 1):
@@ -242,18 +231,20 @@ def build(wing_angle_deg) -> pygame.Surface:
     # ── near arm over the body (the flapping panda arm) ──
     _rot_blit(surf, _panda_arm(wing_angle_deg), (BCX - 5, BCY - 1))
 
-    # ── free-floating sparkle particles around the body (the aura) ──
-    for px, py, col, rad in (
-        (BCX - 18, BCY - 14, CYAN, 1),
-        (BCX + 20, BCY + 4, VIOLET, 1),
-        (BCX + 14, BCY - 18, STAR_CORE, 1),
-        (BCX - 22, BCY + 10, STAR_WHITE, 1),
+    # ── 3 deliberate sparkles in the negative space around crown/halo ──
+    # Two value tiers only: these are the brightest marks on the sprite, sat in
+    # empty sky around the halo (never on the body, where they'd vanish). Each
+    # is a 3×3 cross with a soft bloom so it reads as an intentional twinkle.
+    for px, py, col in (
+        (HCX - 20, CROWN_Y - 8, CYAN),       # upper-left of halo
+        (HCX + 20, CROWN_Y - 4, STAR_CORE),  # upper-right of halo
+        (HCX + 13, CROWN_Y + 9, VIOLET),     # lower-right negative space
     ):
-        pygame.draw.circle(surf, (*col, 90), (px, py), rad + 2)   # soft bloom
-        # 4-point sparkle so it reads as a twinkling star, not a dot.
+        pygame.draw.circle(surf, (*col, 90), (px, py), 3)        # soft bloom
         surf.set_at((px, py), STAR_WHITE)
-        for dx, dy in ((-2, 0), (2, 0), (0, -2), (0, 2)):
-            surf.set_at((px + dx, py + dy), col)
+        for dx, dy in ((-2, 0), (-1, 0), (1, 0), (2, 0),
+                       (0, -2), (0, -1), (0, 1), (0, 2)):
+            surf.set_at((px + dx, py + dy), (*col, 255))
 
     return surf
 
