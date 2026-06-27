@@ -1,17 +1,29 @@
 """SOCCER redesign — design_3 EL CAPITÁN (exploration only).
 
-The Argentina-style captain: Pip in a vertical sky-blue / white striped
-match shirt with a navy V-collar and squad number, a white headband, and
-the hero tell — a bright GOLD captain's armband high on one wing. Navy
-cleats with a white stud row and white socks with a sky-blue turnover
-finish the kit. The body is re-plumaged to a striped strip through the
-palette system: body_main sky-blue + body_chest white, wing_main
-sky-blue + wing_tip white — so the macaw already reads two-tone before
-the painted columns even land, and the GOLD armband owns the 40px read
-against the cool blue/white field.
+The Argentina-style captain: Pip in a vertical azure / white striped match
+shirt with a navy V-collar and a navy squad "5", a white crown headband, and
+the hero tell — a bright GOLD captain's armband ringing the near wing. Navy
+cleats with a white stud row and white socks finish the kit. The body is
+re-plumaged to a darker true-azure through the palette system so the bird
+reads clearly against the pale day sky, with white feather tips carrying the
+stripe two-tone before the painted columns even land.
 
-Scratch builder — NOT registered in store_skins.BUILDERS. Production art
-is untouched until a winner is picked.
+R2 fix-list (each tied to the 40px read):
+  * Azure body deepened to a true medium azure (~#3F8FD6) so the bird stops
+    camouflaging blue-on-blue against the ~#87CEEB day sky; a 1px navy keyline
+    rings the whole silhouette so it holds on day AND night.
+  * Stripes cut to MAX 3 white + 2 blue fat columns (≥3px), clipped to the
+    body mask, so the kit reads as bold blocks instead of shimmering static.
+  * The gold armband is repositioned as a proper band ringing the near wing
+    high on the body — the single warm hero accent, navy-outlined to pop off
+    both blue and white.
+  * The headband is a flat white rectangle across the crown with a navy edge,
+    sized to survive 40px.
+  * The lower-back tan/gold patch and stray marks are dropped; the only marks
+    are the navy "5" + the gold armband.
+
+Scratch builder — NOT registered in store_skins.BUILDERS. Production art is
+untouched until a winner is picked.
 """
 import pygame
 
@@ -21,42 +33,41 @@ from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
 
 
 # ── palette ──────────────────────────────────────────────────────────────────
-_SKY      = (127, 182, 230)        # #7FB6E6 Albiceleste sky-blue
-_SKY_D    = (86, 138, 190)         # cooler shadow so the blue holds shape
-_SKY_H    = (176, 214, 245)
+_AZURE    = (63, 143, 214)         # #3F8FD6 true medium azure — darker than sky
+_AZURE_D  = (40, 102, 162)         # cooler shadow so the blue holds shape
+_AZURE_H  = (118, 178, 232)
 _WHITE    = (255, 255, 255)
-_WHITE_D  = (214, 224, 236)        # off-white shadow for the white stripes
-_NAVY     = (19, 41, 75)           # #13294B collar / number / boots
+_WHITE_D  = (208, 220, 234)        # off-white shadow for the white stripes
+_NAVY     = (19, 41, 75)           # #13294B collar / number / boots / keyline
 _NAVY_H   = (54, 84, 130)
-_GOLD     = (232, 184, 75)         # #E8B84B captain armband
-_GOLD_D   = (176, 132, 40)
-_GOLD_H   = (255, 224, 150)
-_OUT      = (10, 26, 51)           # #0A1A33 outline value
+_GOLD     = (236, 188, 78)         # #ECBC4E captain armband — the one warm note
+_GOLD_D   = (172, 128, 38)
+_GOLD_H   = (255, 226, 152)
+_OUT      = (12, 28, 54)           # #0C1C36 navy keyline value
 _BLACK    = (24, 24, 30)           # hair tuft
 
-# Striped re-plumage: the body alternates sky-blue (main/belly) and white
-# (chest), and the wing reads sky-blue main with white feather tips, so the
-# bird is already a two-tone match strip before the painted stripe columns
-# land. Beak stays warm-neutral; lenses dropped so the headband + bare eye
-# own the face. Foot is navy to anchor the cleats.
+# Darker-azure re-plumage: every blue slot is the true medium azure so the
+# bird reads clearly darker than the day sky; white feather tips seed the
+# stripe two-tone before the painted columns land. Beak stays warm-neutral;
+# lenses dropped so the headband + bare eye own the face. Foot is navy.
 _CAP_PAL = _pal(
-    tail=[(86, 138, 190), (127, 182, 230), (214, 224, 236), (255, 255, 255)],
-    tail_line=_SKY_D,
-    body_shadow=_SKY_D,
-    body_main=_SKY,
+    tail=[(40, 102, 162), (63, 143, 214), (208, 220, 234), (255, 255, 255)],
+    tail_line=_AZURE_D,
+    body_shadow=_AZURE_D,
+    body_main=_AZURE,
     body_chest=_WHITE,
-    body_belly=(190, 214, 238),
-    sheen=(255, 255, 255, 110),
-    wing_main=_SKY,
-    wing_dark=_SKY_D,
+    body_belly=(150, 190, 230),
+    sheen=(255, 255, 255, 90),
+    wing_main=_AZURE,
+    wing_dark=_AZURE_D,
     wing_tip=_WHITE,
     wing_secondary=None,
     wing_highlight=_WHITE,
-    head_shadow=_SKY_D,
-    head_main=_SKY,
-    head_cheek=_SKY_H,
-    head_crown=(190, 214, 238),
-    lens_frame=(190, 214, 238),
+    head_shadow=_AZURE_D,
+    head_main=_AZURE,
+    head_cheek=_AZURE_H,
+    head_crown=(150, 190, 230),
+    lens_frame=(150, 190, 230),
     lens_body=(40, 60, 90),
     lens_tint=None,
     lens_glint=None,
@@ -68,25 +79,30 @@ _CAP_PAL = _pal(
 
 
 def _striped_base(angle_deg):
-    # Two-tone (sky/white) bird, no aviators — the headband owns the head.
+    # Two-tone (azure/white) bird, no aviators — the headband owns the head.
     return _build_parrot_with_palette(angle_deg, _CAP_PAL, draw_lenses=False)
 
 
 def _stripe_columns(surf):
-    """Wide vertical white columns over the sky-blue body, clipped to the
-    body silhouette so the shirt reads as alternating sky/white stripes.
+    """Bold vertical stripe columns over the azure body, clipped to the body
+    silhouette so the shirt reads as alternating azure/white blocks.
 
-    Stripes are kept WIDE (4px) — thin 1px stripes shimmer and dissolve at
-    40px in motion, so a few bold columns read far better than many fine
-    ones. The columns are stamped on a scratch surface and intersected with
-    a body mask so paint never leaks past the silhouette into open sky.
+    R2: capped to MAX 3 white + 2 azure FAT columns (4px each). Thin many
+    stripes shimmer into static at 40px in motion; a few wide blocks read as
+    a real kit. The columns are stamped on a scratch surface and intersected
+    with a body mask so paint never leaks past the silhouette into open sky.
     """
     BCX, BCY = 32, 52                # body centre in composite space
     cols = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    # White stripe columns sitting between the blue ones; the chest already
-    # carries a white field, so these extend the stripe rhythm out to the
-    # flanks where the body is sky-blue.
-    for x in (BCX - 13, BCX - 4, BCX + 5, BCX + 14):
+    # Three fat WHITE columns alternating with two fat AZURE columns: the
+    # rhythm is W-A-W-A-W across the chest/flanks so the kit reads as five
+    # bold vertical blocks instead of fine pinstripes.
+    white_xs = (BCX - 12, BCX, BCX + 12)
+    azure_xs = (BCX - 6, BCX + 6)
+    for x in azure_xs:
+        pygame.draw.rect(cols, _AZURE, (x, BCY - 11, 4, 26))
+        pygame.draw.line(cols, _AZURE_D, (x, BCY - 11), (x, BCY + 14), 1)
+    for x in white_xs:
         pygame.draw.rect(cols, _WHITE, (x, BCY - 11, 4, 26))
         pygame.draw.line(cols, _WHITE_D, (x, BCY - 11), (x, BCY + 14), 1)
     # Intersect with the painted-body mask so columns stay on the shirt.
@@ -102,8 +118,8 @@ def _paint(surf, wing_angle_deg):
     # ── vertical stripe columns on the shirt (drawn first, under accents) ─────
     _stripe_columns(surf)
 
-    # ── back squad "5": a navy block hinted between the stripes, high on the
-    #     back so it peeks past the wing root the way a shirt number does ──────
+    # ── back squad "5": a navy block high on the back so it peeks past the
+    #     wing root the way a shirt number does — the one cool readable mark ───
     pygame.draw.rect(surf, _NAVY, (BCX - 12, BCY - 9, 7, 11), border_radius=1)
     pygame.draw.line(surf, _NAVY_H, (BCX - 11, BCY - 8), (BCX - 6, BCY - 8), 1)
 
@@ -113,19 +129,12 @@ def _paint(surf, wing_angle_deg):
     pygame.draw.line(surf, _NAVY, (vcx + 7, BCY - 11), (vcx, BCY - 4), 3)
     pygame.draw.line(surf, _NAVY_H, (vcx - 6, BCY - 11), (vcx, BCY - 5), 1)
 
-    # ── striped sleeve cuff at the near wingtip — a short sky/white band so the
-    #     kit's stripe motif reaches the wing extremity ────────────────────────
-    cfx, cfy = BCX + 14, BCY - 7
-    pygame.draw.line(surf, _SKY_D, (cfx - 4, cfy + 3), (cfx + 4, cfy - 3), 5)
-    pygame.draw.line(surf, _WHITE, (cfx - 3, cfy + 3), (cfx, cfy), 2)
-    pygame.draw.line(surf, _SKY, (cfx, cfy), (cfx + 3, cfy - 3), 2)
-
-    # ── navy cleats with a white stud row + white socks with a sky turnover ───
+    # ── navy cleats with a white stud row + white socks ───────────────────────
     for fx in (BCX - 6, BCX):
-        # White sock with a sky-blue turnover band just above the boot.
+        # White sock just above the boot (azure turnover dropped — at 40px it
+        # only muddied; clean white reads better against the navy cleat).
         pygame.draw.line(surf, _WHITE, (fx, BCY + 9), (fx - 1, BCY + 14), 4)
-        pygame.draw.line(surf, _SKY, (fx, BCY + 10), (fx - 1, BCY + 12), 4)
-        pygame.draw.line(surf, _WHITE, (fx, BCY + 12), (fx - 1, BCY + 14), 3)
+        pygame.draw.line(surf, _WHITE_D, (fx, BCY + 12), (fx - 1, BCY + 14), 3)
         # Navy cleat: a forward-pointing boot mass with a white stud row.
         boot = [(fx - 3, BCY + 14), (fx + 5, BCY + 14),
                 (fx + 6, BCY + 18), (fx - 4, BCY + 18)]
@@ -134,27 +143,32 @@ def _paint(surf, wing_angle_deg):
         for sx in (fx - 2, fx + 1, fx + 4):
             pygame.draw.circle(surf, _WHITE, (sx, BCY + 18), 1)
 
-    # ── HEAD: white headband across the forehead, black hair tuft above ───────
+    # ── HEAD: a real white headband across the crown, black hair tuft above ───
+    #     A flat white rectangle at CROWN_Y+2, 4px tall, navy-edged so it
+    #     survives 40px as a clear band rather than a smudge.
     hb_y = CROWN_Y + 2
-    pygame.draw.rect(surf, _WHITE, (HX - 12, hb_y, 22, 4), border_radius=2)
-    pygame.draw.line(surf, _WHITE_D, (HX - 11, hb_y + 3), (HX + 9, hb_y + 3), 1)
-    pygame.draw.line(surf, _SKY, (HX - 11, hb_y + 1), (HX + 9, hb_y + 1), 1)
+    hb_x, hb_w = HX - 13, 24
+    pygame.draw.rect(surf, _NAVY, (hb_x - 1, hb_y - 1, hb_w + 2, 6), border_radius=2)
+    pygame.draw.rect(surf, _WHITE, (hb_x, hb_y, hb_w, 4), border_radius=1)
+    pygame.draw.line(surf, _AZURE, (hb_x + 1, hb_y + 1), (hb_x + hb_w - 2, hb_y + 1), 1)
     # Small black hair tuft peeking up over the band.
-    for i, (tx, th) in enumerate(((HX - 4, 5), (HX, 6), (HX + 4, 4))):
+    for tx, th in ((HX - 5, 5), (HX - 1, 6), (HX + 3, 4)):
         pygame.draw.line(surf, _BLACK, (tx, hb_y), (tx - 1, hb_y - th), 2)
 
-    # ── CAPTAIN'S ARMBAND — the hero tell: a bright GOLD band high on the upper
-    #     wing, with a navy "C" stamped on it so it reads as a captain band ────
-    ax, ay, aw, ah = 8, 35, 11, 5
-    pygame.draw.rect(surf, _GOLD_D, (ax - 1, ay - 1, aw + 2, ah + 2), border_radius=3)
-    pygame.draw.rect(surf, _GOLD, (ax, ay, aw, ah), border_radius=2)
-    pygame.draw.line(surf, _GOLD_H, (ax + 1, ay + 1), (ax + aw - 2, ay + 1), 1)
+    # ── CAPTAIN'S ARMBAND — the hero tell: a bright GOLD band wrapping the near
+    #     wing high on the body, navy-outlined so it pops off blue AND white.
+    #     Drawn as a rounded band with a navy "C" stamped on it. This is the
+    #     ONLY warm note on the bird. ───────────────────────────────────────────
+    ax, ay, aw, ah = BCX - 2, BCY - 13, 14, 6
+    pygame.draw.rect(surf, _NAVY, (ax - 1, ay - 1, aw + 2, ah + 2), border_radius=3)
+    pygame.draw.rect(surf, _GOLD_D, (ax, ay, aw, ah), border_radius=3)
+    pygame.draw.rect(surf, _GOLD, (ax + 1, ay + 1, aw - 2, ah - 2), border_radius=2)
+    pygame.draw.line(surf, _GOLD_H, (ax + 2, ay + 1), (ax + aw - 3, ay + 1), 1)
     # Navy "C" mark — a small open arc on the gold band.
     cmx, cmy = ax + aw // 2, ay + ah // 2
-    pygame.draw.arc(surf, _NAVY, (cmx - 3, cmy - 3, 6, 6),
-                    0.6, 5.0, 2)
+    pygame.draw.arc(surf, _NAVY, (cmx - 3, cmy - 3, 6, 6), 0.6, 5.0, 2)
 
-    # ── continuous outline so the cool white/sky kit holds on a pale day sky ──
+    # ── continuous 1px NAVY keyline so the kit holds on a pale day sky ────────
     mask = pygame.mask.from_surface(surf, threshold=10)
     line = mask.to_surface(setcolor=_OUT, unsetcolor=(0, 0, 0, 0))
     key = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
