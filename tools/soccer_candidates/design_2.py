@@ -1,110 +1,93 @@
-"""DESIGN 2 — THE GOALKEEPER (Soccer / Football), v3.
-
-Scratch exploration only — NOT registered in store_skins.BUILDERS, so production
-is untouched. Pip the scarlet macaw kitted as a modern goalkeeper.
-
-The defining beat that sets this apart from the outfield STRIKER (design 1) is a
-FULL-BODY high-vis green keeper jersey — it wraps the whole visible body from the
-left shoulder (BCX-10) across to the right shoulder (HX+9), ~36px wide, instead of
-hanging off only the right chest. The keeper's hero props are the bright
-yellow-orange GLOVES, drawn last so the catch pose reads clearly. No headgear: a
-keeper wears no forehead band, so the crown stays open.
-"""
+# Soccer v4 — DESIGN 2: THE GOALKEEPER.
+# WHY this exists: earlier soccer takes read as "a parrot tinted in team
+# colours" rather than a parrot *wearing* a shirt. This GK build forces the
+# jersey to register as actual clothing via four explicit garment cues — a
+# dark crew-neck collar, sleeve cuffs, a white garment outline, and a chest
+# seam — all in high contrast against the bright HV-green kit. The yellow
+# keeper gloves are the hero prop and paint last so they sit above everything.
 import pygame
+from game.store_skins import HX, HY, CROWN_Y, _poly, _make_skin
 
-from game import store_skins
-from game.store_skins import HX, HY, CROWN_Y, _poly
-
-# Body centre in composite space — the full-body jersey hangs from here, not from
-# the head anchor alone, so the shirt cloth covers the macaw's torso left-to-right.
+# WHY a fixed body centre: the jersey/limb anchors are tuned off the macaw's
+# torso, independent of the head anchors, so they stay put across wing frames.
 BCX, BCY = 32, 52
 
-# High-vis green keeper kit. Two jersey values (dark back / light chest) round the
-# cloth; bright yellow-orange gloves are the hero prop against the green + sky.
-_GK_BACK    = (19, 160, 101)        # #13A065 dark HV green — back zone
-_GK_CHEST   = (34, 212, 136)        # #22D488 light HV green — chest zone
-_GK_FOLD    = (25, 195, 125)        # seam fold line between zones
-_GK_OUTLINE = (10, 90, 55)          # dark green silhouette contour
-_GLOVE_Y    = (255, 184, 0)         # #FFB800 bright yellow-orange glove body
-_GLOVE_H    = (255, 220, 80)        # glove highlight
-_GLOVE_D    = (180, 120, 0)         # glove shadow / finger lines
-_GLOVE_W    = (240, 240, 245)       # white knuckle bar
-_SOCK_W     = (240, 240, 248)       # white knee-high sock
-_SOCK_D     = (160, 165, 180)       # sock shadow
-_BOOT_D     = (26, 24, 32)          # near-black boot
-_BOOT_SOLE  = (200, 200, 210)       # sole stripe
-_SHORTS_D   = (20, 24, 30)          # dark shorts band
+_GK_BACK   = (19, 160, 101)   # HV green back zone
+_GK_CHEST  = (34, 212, 136)   # lighter HV green chest zone
+_GK_OUT    = (240, 245, 240)  # white garment outline
+_GK_HI     = (50, 230, 160)   # highlight seam
+_SLEEVE    = (8, 52, 32)      # dark green collar + sleeve cuffs
+_GLOVE_Y   = (255, 184, 0)    # yellow glove
+_GLOVE_H   = (255, 220, 80)   # glove highlight
+_GLOVE_D   = (180, 120, 0)    # glove shadow
+_GLOVE_W   = (240, 240, 245)  # knuckle bar
+_SOCK_W    = (240, 240, 248)  # white socks
+_BOOT_D    = (26, 24, 32)
+_BOOT_SOLE = (200, 200, 210)
+_SHORTS_D  = (20, 24, 30)
+
+# WHY a single source-of-truth polygon: the body fill, white outline and chest
+# zone all key off this so the garment edges line up exactly.
+_JERSEY = [
+    (BCX - 10, HY + 7),
+    (BCX - 12, HY + 17),
+    (BCX - 8,  HY + 23),
+    (HX + 8,   HY + 23),
+    (HX + 11,  HY + 18),
+    (HX + 9,   HY + 8),
+]
+
+
+def _glove(surf, gx, gy):
+    """Keeper glove block — knuckle bar + finger lines sell it as a glove,
+    not a mitten. Drawn after the body so it reads as a held-up hand."""
+    pygame.draw.rect(surf, _GLOVE_D, (gx - 5, gy - 6, 9, 11))   # shadow
+    pygame.draw.rect(surf, _GLOVE_Y, (gx - 4, gy - 6, 8, 10))   # main
+    for fy in (gy - 4, gy - 2, gy):
+        pygame.draw.line(surf, _GLOVE_D, (gx - 3, fy), (gx + 3, fy), 1)
+    pygame.draw.line(surf, _GLOVE_W, (gx - 3, gy - 6), (gx + 3, gy - 6), 2)
+    pygame.draw.line(surf, _GLOVE_H, (gx - 3, gy - 5), (gx + 2, gy - 5), 1)
 
 
 def _paint(surf, _a):
-    # Full-body jersey polygon — left shoulder/hip at BCX-10/-12 so the cloth wraps
-    # the whole torso, not just the right chest. ~36px wide.
-    jersey = [
-        (BCX - 10, HY + 7),          # left shoulder  (22, 48)
-        (BCX - 12, HY + 17),         # left hip       (20, 58)
-        (BCX - 8,  HY + 23),         # left hem       (24, 64)
-        (HX + 8,   HY + 23),         # right hem      (55, 64)
-        (HX + 11,  HY + 18),         # right hip      (58, 59)
-        (HX + 9,   HY + 8),          # right shoulder (56, 49)
-    ]
-    # Right-chest zone painted in the lighter HV value so the shirt reads as lit
-    # from the near side; the seam between zones is the fold line.
-    chest_zone = [
-        (BCX,      HY + 7),
-        (BCX,      HY + 23),
-        (HX + 8,   HY + 23),
-        (HX + 11,  HY + 18),
-        (HX + 9,   HY + 8),
-    ]
-
-    # ── 1. WHITE KNEE-HIGH SOCK PILLARS (two feet) — drawn first so the boots and
-    #    shorts band lap over them. Spans HY+13..HY+25.
+    # 1 — SOCKS (knee-high white with a dark hoop).
     for fx in (HX - 9, HX + 1):
-        pygame.draw.line(surf, _SOCK_D, (fx + 1, HY + 13), (fx + 1, HY + 25), 6)
-        pygame.draw.line(surf, _SOCK_W, (fx, HY + 13), (fx, HY + 25), 5)
-        # Dark hoop band near the sock top — the classic kit stripe.
-        pygame.draw.line(surf, _SHORTS_D, (fx - 1, HY + 15), (fx + 2, HY + 15), 2)
+        pygame.draw.line(surf, (160, 165, 180), (fx + 1, HY + 13), (fx + 1, HY + 25), 6)
+        pygame.draw.line(surf, _SOCK_W,         (fx,     HY + 13), (fx,     HY + 25), 5)
+        pygame.draw.line(surf, _SHORTS_D,       (fx - 1, HY + 15), (fx + 2, HY + 15), 2)
 
-    # ── 2. BOOTS — a compact dark cleat under each sock with one bright sole tick.
+    # 2 — BOOTS.
     for fx in (HX - 9, HX + 1):
         pygame.draw.ellipse(surf, _BOOT_D, (fx - 4, HY + 23, 9, 5))
         pygame.draw.line(surf, _BOOT_SOLE, (fx - 3, HY + 25), (fx + 3, HY + 25), 1)
 
-    # ── 3. DARK SHORTS strip — a thin band at the hem so shorts show between shirt
-    #    and socks.
+    # 3 — DARK SHORTS hem.
     pygame.draw.line(surf, _SHORTS_D, (BCX - 8, HY + 24), (HX + 8, HY + 24), 4)
 
-    # ── 4. HV GREEN JERSEY (two zones) — back fill, lighter chest zone, fold seam,
-    #    then a dark-green contour so the full silhouette crisps at the downscale.
-    _poly(surf, _GK_BACK, jersey)
-    _poly(surf, _GK_CHEST, chest_zone)
-    pygame.draw.line(surf, _GK_FOLD, (BCX, HY + 7), (BCX, HY + 23), 1)
-    pygame.draw.polygon(surf, _GK_OUTLINE, jersey, 1)
+    # 4 — JERSEY BODY (two-zone: darker back, lighter chest).
+    _poly(surf, _GK_BACK, _JERSEY)
+    chest = [(BCX, HY + 7), (BCX, HY + 23), (HX + 8, HY + 23),
+             (HX + 11, HY + 18), (HX + 9, HY + 8)]
+    _poly(surf, _GK_CHEST, chest)
 
-    # ── 5. GOALKEEPER GLOVES — the hero prop, drawn LAST and OFF the body so each
-    #    mitt breaks the green silhouette. The asymmetry is the read: the far hand
-    #    is RAISED in a catch pose (upper-left, clearing the body to break the
-    #    outline), the near hand is DROPPED LOW at hem level (lower-right). ~15px of
-    #    vertical separation between the two centres sells the keeper stance.
+    # 5 — ELEMENT 3: white garment outline.
+    pygame.draw.polygon(surf, _GK_OUT, _JERSEY, 1)
 
-    def _mitt(ex, ey, ew, eh):
-        # A rounded catch mitt: filled ellipse body, three horizontal finger ridges
-        # so it reads as fingers not a flat patch, and a white knuckle bar on top.
-        pygame.draw.ellipse(surf, _GLOVE_D, (ex - 1, ey + 1, ew + 2, eh + 1))  # shadow
-        pygame.draw.ellipse(surf, _GLOVE_Y, (ex, ey, ew, eh))                  # body
-        cx = ex + ew // 2
-        for fy in (ey + eh // 4, ey + eh // 2, ey + (3 * eh) // 4):            # ridges
-            pygame.draw.line(surf, _GLOVE_D, (ex + 2, fy), (ex + ew - 2, fy), 1)
-        pygame.draw.line(surf, _GLOVE_W, (ex + 1, ey + 1), (ex + ew - 1, ey + 1), 2)  # knuckle
-        pygame.draw.line(surf, _GLOVE_H, (ex + 2, ey + 3), (cx + 1, ey + 3), 1)       # highlight
+    # 6 — ELEMENT 4: chest seam line.
+    pygame.draw.line(surf, _GK_HI, (HX - 1, HY + 11), (HX, HY + 21), 1)
 
-    # FAR (LEFT) glove — RAISED catch pose, centre ~(HX-12, HY+7); upper band
-    # y≈HY+3..14, left and below the sunglasses so it never collides with the eye.
-    _mitt(HX - 16, HY + 3, 10, 12)
+    # 7 — ELEMENT 2: sleeve cuffs.
+    pygame.draw.line(surf, _SLEEVE, (BCX - 10, HY + 12), (BCX - 3, HY + 12), 2)
+    pygame.draw.line(surf, _SLEEVE, (HX + 4,   HY + 12), (HX + 10, HY + 12), 2)
 
-    # NEAR (RIGHT) glove — DROP-LOW pose, centre ~(HX+7, HY+22); lower band
-    # y≈HY+18..29 near the hem, giving genuine vertical separation from the far hand.
-    _mitt(HX + 3, HY + 18, 10, 12)
+    # 8 — ELEMENT 1: dark crew-neck collar ring.
+    collar_rect = pygame.Rect(HX - 7, HY + 4, 15, 9)
+    pygame.draw.ellipse(surf, _SLEEVE,     collar_rect, 3)
+    pygame.draw.ellipse(surf, (4, 30, 18), collar_rect, 1)
+
+    # 9 — HERO PROP: keeper gloves last, above the whole kit.
+    _glove(surf, HX - 10, HY + 12)   # far glove, raised catch pose
+    _glove(surf, HX + 5,  HY + 17)   # near glove, lower / relaxed
 
 
-build = store_skins._make_skin(_paint)
+build = _make_skin(_paint)
