@@ -1,19 +1,26 @@
 """SOCCER redesign — design_1 THE STRIKER (exploration only).
 
 A Brazil-style canary-yellow striker kit on Pip the macaw. The whole bird is
-re-plumaged through the palette system to a canary-yellow jersey so the body
-reads as a kit, not bare scarlet; the dark-green collar/cuffs/socks/waistband
-carry the team trim, and an oversized white "10" owns the chest as the single
-hero read at 40px. The number is built from chunky white rectangles so the
-bold digit survives downscale where a thin outlined glyph would smear.
+re-plumaged through the palette system to a single solid canary-yellow jersey
+so the body reads as one bright kit, not bare scarlet and not a green-splattered
+mess. Green is the team trim and lives ONLY in four deliberate bands — neck
+collar, wingtip cuff, tail-base waistband, socks — so it frames the kit instead
+of scattering across it. An oversized white "10" owns the chest as the single
+hero read at 40px, built from chunky white blocks so the bold digits survive
+downscale where a thin outlined glyph would smear.
 
-Re-skin priorities, in order of value at 40px:
-  * a yellow-jersey blob bird (palette re-plumage),
-  * a thick dark-green crew collar ring at the neck — the one shape that says
-    "team kit" instantly,
-  * a fat white "10" on the chest (the hero),
-  * green socks + white cleats anchoring the feet with a black sole + 3 studs,
-  * a black hair tuft above the crown and green cuff bands at the wingtips.
+R2 fix-list (each tied to an art-director note at 40px):
+  * Green confined to FOUR bands only — collar ring, wing cuff, waistband, socks.
+    The tail is no longer green (it was the main splatter source); the whole
+    body/back/belly/flanks are now solid canary yellow.
+  * Hair tuft rebuilt as ONE cohesive forward-swept mass leaning toward the
+    beak, instead of two symmetric horn-like spikes.
+  * Cleats simplified to a white toe-box with a single black sole line and NO
+    stud row — studs were sub-pixel noise at 40px.
+  * The "10" recentred on the chest mass with ≥1px breathing room from any
+    green on every side and a dark keyline all around.
+  * The collar drawn as a crisp closed dark-green ring at the neck, framing the
+    number from above.
 
 Scratch builder — NOT registered in store_skins.BUILDERS. Production art is
 untouched until a winner is picked.
@@ -34,18 +41,20 @@ _GREEN_H    = (40, 168, 95)
 _GREEN_D    = (8, 88, 44)
 _WHITE      = (255, 255, 255)      # boots / number
 _WHITE_SH   = (214, 220, 226)
-_BLACK      = (26, 26, 26)         # #1A1A1A hair / studs / sole
-_OUTLINE    = (11, 58, 30)         # #0B3A1E green outline
+_BLACK      = (26, 26, 26)         # #1A1A1A hair / sole
+_OUTLINE    = (11, 58, 30)         # #0B3A1E green outline under the number
 
-# Full canary-yellow kit re-plumage. Body/chest/belly + wings + head all go
-# jersey-yellow so the bird is one bright kit; the deepest CANARY_D owns the
-# line work, tail is green (the shorts colour) and feet read white as the boot
-# base. Lenses kept off — the chest number, not the face, owns the read. Beak
-# stays a warm macaw orange so Pip still reads as a parrot under the kit.
+# Full canary-yellow kit re-plumage. EVERY plumage slot — body, chest, belly,
+# wings AND tail — is a canary value so the bird is one solid bright kit; the
+# deepest CANARY_D owns the line work. Green is deliberately kept OUT of the
+# palette so the only green on the bird is the four painted trim bands. Lenses
+# off — the chest number, not the face, owns the read. Beak stays a warm macaw
+# orange so Pip still reads as a parrot under the kit. Feet read white as the
+# boot base.
 _STRIKER_PAL = _pal(
-    tail=[(8, 100, 50), (10, 122, 60), (200, 170, 10), (245, 208, 0)],
-    tail_line=_GREEN_D,
-    body_shadow=(196, 162, 0),
+    tail=[(196, 162, 0), (232, 196, 0), (245, 208, 0), (255, 224, 70)],
+    tail_line=_CANARY_D,
+    body_shadow=_CANARY_D,
     body_main=_CANARY,
     body_chest=(255, 220, 40),
     body_belly=(235, 198, 10),
@@ -102,67 +111,67 @@ def _digit_zero(surf, x, y, w, h):
 def _paint(surf, wing_angle_deg):
     BCX, BCY = 32, 52       # body centre in composite space (32,32)+PARROT_DY
 
-    # ── green cuff bands at the wingtips: the trim reaches the wings ──────────
+    # ── BAND (b): single green cuff at the wing tip — one clean ring, no spray ─
     pygame.draw.line(surf, _GREEN_D, (45, 44), (52, 41), 5)
     pygame.draw.line(surf, _GREEN, (45, 43), (52, 40), 3)
     pygame.draw.line(surf, _GREEN_H, (46, 42), (51, 40), 1)
 
-    # ── white cleats + green socks at the feet (drawn first, anchor the base) ─
-    # Two boots side by side below the body; each is a white toe-box with a hard
-    # black sole line and a 3-stud row, with a green sock cuff above. The sock's
-    # white horizontal pad band hints at a shin guard.
+    # ── BAND (d): green socks above the cleats + white cleats at the feet ─────
+    # Drawn first so the body sits in front. Each foot is a green sock band, a
+    # white toe-box, and ONE hard black sole line — no stud row (studs are
+    # sub-pixel noise at 40px). The white toe-box against the body's lower
+    # outline gives a clean two-foot read.
     for fx in (BCX - 7, BCX + 4):
-        # green sock with white pad band
-        pygame.draw.rect(surf, _GREEN_D, (fx - 1, BCY + 8, 8, 8), border_radius=2)
-        pygame.draw.rect(surf, _GREEN, (fx, BCY + 8, 6, 7), border_radius=2)
-        pygame.draw.rect(surf, _WHITE, (fx, BCY + 10, 6, 2))
+        # green sock band above the cleat
+        pygame.draw.rect(surf, _GREEN_D, (fx - 1, BCY + 9, 8, 7), border_radius=2)
+        pygame.draw.rect(surf, _GREEN, (fx, BCY + 9, 6, 6), border_radius=2)
+        pygame.draw.line(surf, _GREEN_H, (fx + 1, BCY + 10), (fx + 5, BCY + 10), 1)
         # white cleat (toe-box angled forward)
         boot = [(fx - 2, BCY + 15), (fx + 6, BCY + 15),
-                (fx + 9, BCY + 19), (fx - 2, BCY + 19)]
+                (fx + 9, BCY + 18), (fx - 2, BCY + 18)]
         pygame.draw.polygon(surf, _WHITE_SH, [(px, py + 1) for px, py in boot])
         pygame.draw.polygon(surf, _WHITE, boot)
-        # hard black sole as the literal bottom of the boot
-        pygame.draw.line(surf, _BLACK, (fx - 2, BCY + 19), (fx + 9, BCY + 19), 2)
-        # 3-stud row poking below the sole
-        for sx in (fx, fx + 3, fx + 6):
-            pygame.draw.circle(surf, _BLACK, (sx, BCY + 20), 1)
+        # ONE hard black sole as the literal bottom of the boot
+        pygame.draw.line(surf, _BLACK, (fx - 2, BCY + 18), (fx + 9, BCY + 18), 2)
 
-    # ── green shorts waistband band at the tail/hip junction ─────────────────
+    # ── BAND (c): green waistband at the tail/hip junction — one closed band ──
     pygame.draw.line(surf, _GREEN_D, (15, BCY + 6), (26, BCY + 10), 5)
     pygame.draw.line(surf, _GREEN, (15, BCY + 5), (26, BCY + 9), 3)
     pygame.draw.line(surf, _GREEN_H, (16, BCY + 4), (25, BCY + 8), 1)
 
-    # ── thick dark-green crew collar ring at the neck ────────────────────────
-    # A bold crew ring at the head/chest junction — the one shape that instantly
-    # says "team jersey". Kept high and slim so it frames the neck rather than
-    # sprawling over the chest where the number lives. Drawn before the number.
+    # ── BAND (a): crisp closed dark-green crew collar RING at the neck ────────
+    # A proper closed ring at the head/chest junction — the one shape that
+    # instantly says "team jersey" and frames the "10" from above. The yellow
+    # neck hole is punched back so it reads as a ring, never a smear or bib.
+    # Drawn before the number; kept high and slim so it never crowds the digits.
     cnx, cny = HX - 3, HY + 10
-    pygame.draw.ellipse(surf, _GREEN_D, (cnx - 10, cny - 3, 22, 10))
-    pygame.draw.ellipse(surf, _GREEN, (cnx - 9, cny - 3, 20, 8))
-    # punch the neck hole back to yellow so it reads as a ring, not a bib
-    pygame.draw.ellipse(surf, _CANARY, (cnx - 5, cny - 1, 12, 5))
-    pygame.draw.line(surf, _GREEN_H, (cnx - 7, cny - 1), (cnx + 8, cny - 2), 1)
+    pygame.draw.ellipse(surf, _GREEN_D, (cnx - 11, cny - 4, 24, 11))
+    pygame.draw.ellipse(surf, _GREEN, (cnx - 10, cny - 3, 22, 9))
+    # punch the neck hole back to yellow so the band reads as a closed ring
+    pygame.draw.ellipse(surf, _CANARY, (cnx - 6, cny - 1, 14, 5))
+    pygame.draw.line(surf, _GREEN_H, (cnx - 8, cny - 2), (cnx + 9, cny - 3), 1)
 
-    # ── the hero: oversized white "10" centred on the chest ──────────────────
-    # Sized so the pair owns the chest at 40px. Built from chunky white blocks
-    # over a green keyline so the bold digits hold on the yellow jersey.
-    num_h = 18
+    # ── the hero: oversized white "10" centred on the chest mass ──────────────
+    # Sized so the pair owns the chest at 40px and recentred under the collar
+    # with ≥1px clearance from the collar above and the waistband below. Built
+    # from chunky white blocks over a green keyline so the digits hold on yellow.
+    num_h = 17
     digit_w = 5
-    nx, ny = BCX - 11, BCY - 8
+    nx, ny = BCX - 10, BCY - 6
     _digit_one(surf, nx, ny, digit_w, num_h)
-    _digit_zero(surf, nx + digit_w + 4, ny, 11, num_h)
+    _digit_zero(surf, nx + digit_w + 4, ny, 10, num_h)
 
-    # ── black hair tuft over the crown ───────────────────────────────────────
-    # A short spiky black fringe above the crown so the head reads as a player,
-    # breaking the yellow crown outline.
+    # ── ONE cohesive forward-swept black hair tuft over the crown ─────────────
+    # A single mass leaning toward the beak with the flight tilt — not two
+    # symmetric spikes. A rounded base anchors it to the crown and a single
+    # swept triangular peak gives the forward flick.
     tx, ty = HX, CROWN_Y
-    pygame.draw.ellipse(surf, _BLACK, (tx - 9, ty - 2, 18, 7))
-    for i, dx in enumerate((-7, -3, 1, 5)):
-        h = 5 if i % 2 == 0 else 7
-        pygame.draw.polygon(surf, _BLACK, [(tx + dx, ty + 1),
-                                           (tx + dx + 4, ty + 1),
-                                           (tx + dx + 2, ty - h)])
-    pygame.draw.line(surf, (70, 70, 70), (tx - 6, ty - 1), (tx + 4, ty - 1), 1)
+    pygame.draw.ellipse(surf, _BLACK, (tx - 7, ty - 1, 15, 6))
+    tuft = [(tx - 6, ty + 2), (tx + 8, ty + 1),
+            (tx + 7, ty - 4), (tx + 2, ty - 3)]
+    pygame.draw.polygon(surf, _BLACK, tuft)
+    # subtle sheen line along the swept top edge so the single mass reads
+    pygame.draw.line(surf, (70, 70, 70), (tx - 3, ty - 1), (tx + 6, ty - 2), 1)
 
 
 build = store_skins._make_skin(_paint, base_fn=_striker_base)
