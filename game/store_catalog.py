@@ -69,7 +69,7 @@ CATALOG: dict[str, dict] = {
     "skin_eagle":    {"name": "EAGLE",     "cost": 700,  "kind": "skin", "group": "animal"},
     "skin_pufferfish":   {"name": "PUFFERFISH",   "cost": 620,  "kind": "skin", "group": "animal"},
     "skin_chameleon":    {"name": "CHAMELEON",    "cost": 680,  "kind": "skin", "group": "animal"},
-    "skin_red_panda":    {"name": "RED PANDA",    "cost": 740,  "kind": "skin", "group": "animal"},
+    "skin_red_panda":    {"name": "PANDA",        "cost": 740,  "kind": "skin", "group": "animal"},
     "skin_sugar_glider": {"name": "SUGAR GLIDER", "cost": 820,  "kind": "skin", "group": "animal"},
     "skin_axolotl":      {"name": "AXOLOTL",      "cost": 900,  "kind": "skin", "group": "animal"},
     "skin_mantis_shrimp": {"name": "MANTIS SHRIMP", "cost": 980, "kind": "skin", "group": "animal"},
