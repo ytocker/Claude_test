@@ -196,8 +196,9 @@ def build(wing_angle_deg):
         pr = patch.get_rect(center=(ex, HCY - 1))
         surf.blit(patch, pr.topleft)
         # White eye-glint dot keeps it friendly, not sleepy.
-        pygame.draw.circle(surf, (40, 26, 30), (ex, HCY - 1), 2)
-        pygame.draw.circle(surf, EYE_GLINT, (ex - 1, HCY - 2), 1)
+        pygame.draw.circle(surf, (20, 16, 24), (ex, HCY - 1), 2)
+        pygame.draw.circle(surf, EYE_GLINT, (ex - 1, HCY - 2), 2)   # larger main catch-light
+        pygame.draw.circle(surf, EYE_GLINT, (ex + 1, HCY), 1)        # second sparkle
 
     # Soft pink-grey cheek blushes low on the face for charm.
     _aaellipse(surf, CHEEK, (HCX - 7, HCY + 6), 3, 2)
@@ -208,10 +209,9 @@ def build(wing_angle_deg):
     pygame.draw.polygon(surf, NOSE, [(nx0 - 2, ny0), (nx0 + 2, ny0),
                                      (nx0, ny0 + 3)])
     pygame.draw.line(surf, NOSE, (nx0, ny0 + 3), (nx0, ny0 + 5), 1)
-    pygame.draw.arc(surf, NOSE, (nx0 - 5, ny0 + 3, 5, 5),
-                    math.radians(200), math.radians(350), 1)
-    pygame.draw.arc(surf, NOSE, (nx0, ny0 + 3, 5, 5),
-                    math.radians(190), math.radians(340), 1)
+    pygame.draw.arc(surf, NOSE,
+                    pygame.Rect(nx0 - 5, ny0 + 2, 10, 8),
+                    math.radians(210), math.radians(330), 2)
 
     # The cane's upper end already terminates at the chewing/mouth grip, so the
     # "muncher" read comes from that held end — no separate mouth leaf, which
