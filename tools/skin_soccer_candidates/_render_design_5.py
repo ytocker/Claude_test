@@ -18,8 +18,18 @@ os.makedirs(out_dir, exist_ok=True)
 W, H = 130, 180
 gp = gameplay_panel(build, W, H)
 hp = hero_panel(build, 180)
-sheet = pygame.Surface((W + 200, max(H, 180)), pygame.SRCALPHA)
+
+# Thumbnail strip: the candidate down-sampled to 40px (and 24px) — the read at
+# these sizes is what the critique is judged on, so render it beside the heroes.
+frame = build(2, 10.0)
+th40 = pygame.transform.smoothscale(frame, (40, 40 * frame.get_height() // frame.get_width()))
+th24 = pygame.transform.smoothscale(frame, (24, 24 * frame.get_height() // frame.get_width()))
+
+sheet = pygame.Surface((W + 280, max(H, 180)), pygame.SRCALPHA)
+sheet.fill((18, 20, 30, 255))
 sheet.blit(gp, (0, 0))
 sheet.blit(hp, (W + 10, (max(H, 180) - 180) // 2))
-pygame.image.save(sheet, f"{out_dir}/round_1.png")
-print("Saved round_1.png")
+sheet.blit(th40, th40.get_rect(center=(W + 220, 60)))
+sheet.blit(th24, th24.get_rect(center=(W + 220, 130)))
+pygame.image.save(sheet, f"{out_dir}/round_2.png")
+print("Saved round_2.png")
