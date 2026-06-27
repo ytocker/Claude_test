@@ -1,10 +1,10 @@
-"""Compose the THE REFEREE review sheet.
+"""Soccer v4 D4 THE REFEREE — round 1 review sheet.
 
-Round 2 judges the dual rim-lights, thicker cap brim, and the separated
-whistle/card props. The black kit's NIGHT read is the risk, so the truth-read
-panel shows a 40px bird on day + night swatches, NEAREST-magnified so the
-reviewer judges the actual drawn pixels (rim contour, card edge, whistle glint)
-without smoothscale blur.
+This v4 makes the jersey read as CLOTHING via four shirt-construction
+elements (V-neck collar, white sleeve edges, dual rim-lights, centre placket).
+The black kit's NIGHT read is the risk, so the sheet pairs a clean hero shot
+and an in-gameplay day-biome crop with a 40px truth read split across a day and
+a night swatch — the rim-lights and props are judged against the dark sky.
 
 Headless: SDL_VIDEODRIVER=dummy python -m tools.soccer_candidates.render_design_4
 """
@@ -18,8 +18,8 @@ pygame.init()
 from tools import ninja_render
 from tools.soccer_candidates.design_4 import build
 
-OUT = "docs/store_redesign/costume/soccer/design_4/round_2.png"
-TITLE = "DESIGN 4 — THE REFEREE (Soccer)  round 2"
+OUT = "docs/store_redesign/costume/soccer/design_4/round_1.png"
+TITLE = "DESIGN 4 — THE REFEREE (Soccer)  round 1"
 
 
 def _label(surf, text, x, y, size=18, color=(236, 238, 246)):
@@ -28,9 +28,9 @@ def _label(surf, text, x, y, size=18, color=(236, 238, 246)):
 
 
 def _hero_nearest(box):
-    """Crisp NEAREST magnify of the bird on a flat panel — pixel-exact, so the
-    reviewer judges the actual drawn prop pixels (whistle glint, card edge,
-    cap brim gap) without the smoothscale blur."""
+    """Crisp NEAREST magnify of the bird on a flat panel so the reviewer judges
+    the actual drawn shirt-construction pixels (V-neck stitch, sleeve cuff,
+    placket seam, whistle glint, card edge) without smoothscale blur."""
     panel = pygame.Surface((box, box), pygame.SRCALPHA)
     pygame.draw.rect(panel, (22, 20, 32), panel.get_rect(), border_radius=14)
     frame = build(ninja_render.FRAME_IDX, 0.0)
@@ -44,9 +44,9 @@ def _hero_nearest(box):
 
 
 def _truth_read(box):
-    """The 40px-in-motion test: render the bird, NEAREST-shrink to a ~40px bird
-    then NEAREST-magnify 3x. The black kit's NIGHT read is the risk, so the
-    rim-lights + props are judged against a dark night swatch beside the day."""
+    """The 40px-in-motion test: NEAREST-shrink to a ~40px bird then magnify 3x,
+    on a day and a night swatch. The black kit's night read is the risk, so the
+    dual rim-lights + props are judged against the dark sky beside the day."""
     frame = build(ninja_render.FRAME_IDX, ninja_render.TILT)
     bb = frame.get_bounding_rect()
     frame = frame.subsurface(bb).copy()
@@ -69,7 +69,6 @@ def _truth_read(box):
 
 def main():
     box = 360
-    gw = int(box * 9 / 16)
     hero = _hero_nearest(box)
     gameplay = ninja_render.gameplay_panel(build, 260, 420)
     truth = _truth_read(box)
@@ -77,7 +76,6 @@ def main():
     pad = 18
     head = 56
     cap = 30
-    # gameplay_panel is 260x420; align panel heights for the row blit.
     widths = [box, 260, box]
     W = pad * (len(widths) + 1) + sum(widths)
     H = head + max(box, 420) + cap + pad

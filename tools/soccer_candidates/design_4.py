@@ -1,134 +1,129 @@
-"""DESIGN 4 — THE REFEREE (Soccer / Football, v3).
+"""DESIGN 4 — THE REFEREE (Soccer / Football, v4).
 
 Scratch exploration only — NOT registered in store_skins.BUILDERS, so
-production is untouched. Pip the scarlet macaw kitted as the match official:
-a near-BLACK referee kit that — unlike the player jerseys before it — wraps
-the FULL visible body (x=20..58), not just the right chest patch. A peaked
-officials cap sits forward on the crown, knee-high black socks + boots fill
-the legs, and the hero props are drawn last and large: a steel WHISTLE on a
-lanyard at chest centre and a YELLOW CARD (with a red sliver behind it) held
-on the left breast.
+production stays untouched. Pip the scarlet macaw kitted as the match
+official. Earlier passes read as "a parrot painted in team colours"; v4
+forces the jersey to read as actual CLOTHING through four shirt-construction
+elements: a referee V-neck collar, white sleeve cuffs, a garment outline with
+dual rim-lights, and a centre placket seam.
 
-The jersey must read BLACK at the 40px downscale, not charcoal-blue: the lit
-zone is a single 2px sliver on the near edge, never a big grey chest plane.
-White is reserved for the collar piping, sock hoop, sole stripe and card
-field so the steel whistle + yellow card always win the eye; a neutral grey
-rim keeps the black kit from dissolving into the night sky.
+The kit is true near-black so the read is BLACK at the 40px downscale, not a
+charcoal-blue plane: the lit plane is a single 2px sliver on the near edge.
+White is rationed to the collar V, sleeve edges, sock hoop and sole stripe so
+the steel whistle and yellow card own the eye. The dual rim-lights (cool grey
+on the far back contour, neutral on the near front) are the only thing that
+keeps a true-black garment from dissolving into the night sky.
 
 Headless render: tools/soccer_candidates/render_design_4.py.
 """
 import pygame
 
-from game import store_skins
-from game.store_skins import HX, HY, CROWN_Y, _poly
+from game.store_skins import HX, HY, CROWN_Y, _poly, _make_skin
 
 # Body centre in composite space (parrot body centre (32,32) + PARROT_DY).
 BCX, BCY = 32, 52
 
-# Near-black referee kit. The chest lit zone is kept dark on purpose so the
-# read is BLACK, not a charcoal-blue plane; white + steel + yellow are the
-# only high-value notes, reserved for collar/socks and the hero props.
-_REF_BLACK   = (26, 28, 34)    # #1A1C22 referee black (full jersey body)
-_REF_GREY    = (38, 40, 46)    # lit sliver (kept narrow so it never reads grey)
-_REF_RIM     = (90, 92, 96)    # neutral rim so the kit holds against night sky
-_REF_WHITE   = (244, 244, 248) # collar / sock piping / card field
-_REF_YELLOW  = (255, 221, 70)  # yellow card
-_REF_YEL_H   = (255, 240, 150) # card glint
-_REF_RED     = (224, 56, 44)   # red card sliver behind the yellow
-_REF_RED_D   = (150, 30, 24)
-_REF_STEEL   = (200, 204, 212) # whistle steel
-_REF_STEEL_H = (244, 246, 250)
-_REF_STEEL_D = (96, 102, 116)
-_REF_CORD    = (220, 222, 228) # lanyard cord
-_CAP_BLACK   = (20, 22, 28)
+# Near-black referee kit. The lit plane is kept dark on purpose so the read is
+# BLACK, not a charcoal-blue plane; white + steel + yellow are the only
+# high-value notes, reserved for the shirt-construction edges and hero props.
+_REF_BLACK = (26, 28, 34)     # true near-black jersey body
+_REF_LIT   = (36, 38, 46)     # lit plane (barely visible, 2px sliver only)
+_REF_RIM   = (40, 42, 50)     # garment outline
+_REF_BACK  = (120, 124, 130)  # far-side rim-light (carries the night separation)
+_REF_WHITE = (230, 235, 245)  # collar V, sleeve edges
+_REF_YCRD  = (255, 221, 70)   # yellow card
+_REF_RCRD  = (220, 50, 40)    # red card sliver
+_REF_WSTL  = (180, 185, 195)  # whistle steel
+_BOOT_D    = (26, 24, 32)
+_BOOT_S    = (200, 205, 215)
+_SHORTS_D  = (20, 24, 30)
+_SOCK_D    = (26, 28, 34)
 
 
 def _paint(surf, _a):
-    # Full-body referee jersey polygon — the v3 change. Left edge anchored on
-    # BCX so the kit wraps the WHOLE visible body (x=20..58), not just the
-    # right chest patch the earlier player jerseys covered.
+    # Full-body referee jersey polygon — left edge anchored on BCX so the kit
+    # wraps the WHOLE visible body (x=20..58), reading as a worn garment rather
+    # than a chest patch.
     jersey = [
-        (BCX - 10, HY + 7),   # left shoulder  (22, 48)
-        (BCX - 12, HY + 17),  # left hip       (20, 58)
-        (BCX - 8,  HY + 23),  # left hem       (24, 64)
-        (HX + 8,   HY + 23),  # right hem      (55, 64)
-        (HX + 11,  HY + 18),  # right hip      (58, 59)
-        (HX + 9,   HY + 8),   # right shoulder (56, 49)
+        (BCX - 10, HY + 7),   # left shoulder
+        (BCX - 12, HY + 17),  # left hip
+        (BCX - 8,  HY + 23),  # left hem
+        (HX + 8,   HY + 23),  # right hem
+        (HX + 11,  HY + 18),  # right hip
+        (HX + 9,   HY + 8),   # right shoulder
     ]
 
-    # --- PEAKED OFFICIALS CAP (drawn before the jersey so the jersey overlaps
-    #     the cap base). A forward-brimmed dome on the crown — NOT a headband —
-    #     so it never crosses the brow and the face stays the open macaw.
-    cy = CROWN_Y - 3
-    pygame.draw.ellipse(surf, _REF_BLACK, (HX - 11, cy - 1, 22, 9))     # dome
-    pygame.draw.ellipse(surf, _REF_GREY, (HX - 6, cy, 9, 4))           # top sheen
-    pygame.draw.line(surf, _REF_RIM, (HX - 5, cy), (HX + 4, cy), 1)    # rim light
-    # A 1px mid-grey gap under the dome stops the dome+brim collapsing into one
-    # black blob at 40px — it carves the two shapes apart.
-    pygame.draw.line(surf, (70, 72, 76), (HX + 3, cy + 5), (HX + 10, cy + 5), 1)
-    _poly(surf, _REF_BLACK, [(HX + 3, cy + 6), (HX + 19, cy + 5),
-                             (HX + 20, cy + 8), (HX + 4, cy + 9)])      # brim (forward, +2px reach)
-    _poly(surf, _REF_GREY, [(HX + 4, cy + 8), (HX + 20, cy + 8),
-                            (HX + 19, cy + 9), (HX + 4, cy + 9)])       # brim underside
-    pygame.draw.line(surf, _REF_WHITE, (HX + 5, cy + 5), (HX + 19, cy + 5), 2)  # leading edge (2px)
+    # 1 — PEAKED OFFICIALS CAP. Drawn first so the body/jersey overlaps its
+    #     base; a forward-brimmed dome on the crown, never a brow headband, so
+    #     the open macaw face is preserved. The bright leading edge + a mid-grey
+    #     gap line carve the dome and brim apart at 40px.
+    pygame.draw.ellipse(surf, _REF_BLACK, (HX - 8, CROWN_Y + 2, 17, 9))
+    pygame.draw.ellipse(surf, (36, 38, 46), (HX - 7, CROWN_Y + 2, 15, 7))   # subtle highlight
+    pygame.draw.line(surf, _REF_BLACK, (HX - 4, CROWN_Y + 10), (HX + 12, CROWN_Y + 9), 3)  # brim
+    pygame.draw.line(surf, (220, 225, 235), (HX + 2, CROWN_Y + 8), (HX + 12, CROWN_Y + 8), 2)  # bright leading edge
+    pygame.draw.line(surf, (70, 72, 76), (HX + 2, CROWN_Y + 10), (HX + 10, CROWN_Y + 10), 1)  # gap line
 
-    # --- BLACK SOCK PILLARS (knee-high) with a white hoop near the top. A grey
-    #     under-pillar gives the black sock an edge against the night sky.
+    # 2 — BLACK SOCKS (knee-high) with a white hoop. The shadow stripe gives the
+    #     black sock an edge against the night sky.
     for fx in (HX - 9, HX + 1):
-        pygame.draw.line(surf, _REF_GREY, (fx + 1, HY + 13), (fx + 1, HY + 25), 6)
-        pygame.draw.line(surf, _REF_BLACK, (fx, HY + 13), (fx, HY + 25), 5)
-        pygame.draw.line(surf, _REF_WHITE, (fx - 1, HY + 15), (fx + 2, HY + 15), 2)  # hoop
+        pygame.draw.line(surf, (18, 20, 26), (fx + 1, HY + 13), (fx + 1, HY + 25), 6)  # shadow
+        pygame.draw.line(surf, _SOCK_D, (fx, HY + 13), (fx, HY + 25), 5)
+        pygame.draw.line(surf, (200, 205, 215), (fx - 1, HY + 15), (fx + 2, HY + 15), 2)  # white hoop
 
-    # --- BOOTS at the feet line — dark shoes with a white sole stripe.
+    # 3 — BOOTS with a white sole stripe.
     for fx in (HX - 9, HX + 1):
-        pygame.draw.ellipse(surf, _REF_GREY, (fx - 4, HY + 23, 9, 5))
-        pygame.draw.ellipse(surf, _REF_BLACK, (fx - 4, HY + 24, 9, 4))
-        pygame.draw.line(surf, _REF_WHITE, (fx - 3, HY + 25), (fx + 2, HY + 25), 1)  # sole
+        pygame.draw.ellipse(surf, _BOOT_D, (fx - 4, HY + 23, 9, 5))
+        pygame.draw.line(surf, _BOOT_S, (fx - 3, HY + 25), (fx + 3, HY + 25), 1)
 
-    # --- BLACK SHORTS just under the jersey hem.
-    pygame.draw.line(surf, _REF_GREY, (BCX - 8, HY + 24), (HX + 8, HY + 24), 4)
-    pygame.draw.line(surf, _REF_BLACK, (BCX - 8, HY + 26), (HX + 8, HY + 26), 2)
+    # 4 — BLACK SHORTS just under the jersey hem.
+    pygame.draw.line(surf, _SHORTS_D, (BCX - 8, HY + 24), (HX + 8, HY + 24), 4)
 
-    # --- FULL JERSEY (true black). The lit zone is a single 2px sliver on the
-    #     near edge — NOT a big grey chest plane — so the kit reads BLACK, with
-    #     a neutral rim on the far contour so it survives the night sky.
+    # 5 — JERSEY BODY (true black). The lit plane is a single 2px sliver on the
+    #     near edge so the read stays BLACK rather than a grey chest plane.
     _poly(surf, _REF_BLACK, jersey)
-    pygame.draw.line(surf, _REF_GREY, (HX - 12, HY + 9), (HX - 13, HY + 18), 2)   # lit sliver
-    # Dual rim-lights are the ONLY thing that separates a true-black kit from the
-    # night sky AND from Pip's own scarlet body — 2px and cool, both contours.
-    pygame.draw.line(surf, (120, 124, 130), (HX + 9, HY + 8), (HX + 11, HY + 18), 2)   # far-right rim
-    pygame.draw.line(surf, (120, 124, 130), (HX + 11, HY + 18), (HX + 8, HY + 23), 2)  # far-right hem
+    pygame.draw.line(surf, _REF_LIT, (HX + 9, HY + 9), (HX + 10, HY + 17), 2)  # lit sliver
+
+    # 6 — SHIRT ELEMENT 3: GARMENT OUTLINE with DUAL RIM-LIGHTS. The cool-grey
+    #     back rim + neutral front outline + full polygon edge are the only
+    #     thing that separates a true-black garment from the night sky and from
+    #     Pip's own scarlet body.
+    pygame.draw.lines(surf, (120, 124, 130), False,
+                      [(BCX - 10, HY + 7), (BCX - 12, HY + 17), (BCX - 8, HY + 23)], 2)  # back rim (left)
     pygame.draw.lines(surf, (100, 102, 108), False,
-                      [(BCX - 10, HY + 7), (BCX - 12, HY + 17), (BCX - 8, HY + 23)], 2)  # left-back rim
-    pygame.draw.polygon(surf, _REF_BLACK, jersey, 1)                              # outline
+                      [(HX + 9, HY + 8), (HX + 11, HY + 18), (HX + 8, HY + 23)], 1)      # front outline (right)
+    pygame.draw.polygon(surf, _REF_RIM, jersey, 1)
 
-    # --- WHITE COLLAR PIPING at the jersey top — a clean V + centre placket so
-    #     the official's shirt reads at hero scale without a big white plane.
-    pygame.draw.line(surf, _REF_WHITE, (HX - 6, HY + 8), (HX - 1, HY + 13), 3)
-    pygame.draw.line(surf, _REF_WHITE, (HX + 5, HY + 8), (HX, HY + 13), 3)
-    pygame.draw.line(surf, _REF_WHITE, (HX - 1, HY + 12), (HX - 1, HY + 22), 1)
+    # 7 — SHIRT ELEMENT 4: CENTRE PLACKET seam down the shirt front.
+    pygame.draw.line(surf, (38, 40, 46), (HX, HY + 9), (HX, HY + 21), 1)
 
-    # --- HERO PROPS (drawn LAST, in front of everything) ------------------------
-    # WHISTLE on a lanyard, slid DOWN to lower-centre chest so it owns its own
-    # quadrant clear of the booking cards — the single brightest steel note, the
-    # tell that says "referee" at 40px.
-    wy = HY + 17
-    pygame.draw.line(surf, _REF_CORD, (HX - 5, HY + 8), (HX, wy - 2), 2)    # lanyard V
-    pygame.draw.line(surf, _REF_CORD, (HX + 5, HY + 8), (HX, wy - 2), 2)
-    pygame.draw.ellipse(surf, _REF_STEEL_D, (HX - 6, wy, 12, 10))          # disc shadow
-    pygame.draw.ellipse(surf, _REF_STEEL, (HX - 5, wy + 1, 11, 9))         # disc body
-    _poly(surf, _REF_STEEL, [(HX + 5, wy + 4), (HX + 8, wy + 5), (HX + 5, wy + 7)])  # mouthpiece
-    pygame.draw.rect(surf, _REF_STEEL_H, (HX - 3, wy + 2, 2, 2))           # glint
-    pygame.draw.ellipse(surf, _REF_STEEL_D, (HX - 6, wy, 12, 10), 1)       # rim
+    # 8 — SHIRT ELEMENT 2: WHITE SLEEVE EDGES (cuffs on each shoulder).
+    pygame.draw.line(surf, _REF_WHITE, (BCX - 10, HY + 12), (BCX - 3, HY + 12), 2)
+    pygame.draw.line(surf, _REF_WHITE, (HX + 4, HY + 12), (HX + 10, HY + 12), 2)
 
-    # YELLOW CARD on the UPPER-LEFT breast (its own quadrant, HY+9..16) with a red
-    # sliver behind it — widened to an unmistakable bright rectangle at 40px.
-    _poly(surf, _REF_RED, [(HX - 11, HY + 9), (HX - 6, HY + 8),
-                           (HX - 5, HY + 15), (HX - 10, HY + 16)])         # red sliver behind
-    yl, yr, yt, yb = HX - 9, HX - 1, HY + 9, HY + 16
-    pygame.draw.rect(surf, _REF_BLACK, (yl - 1, yt - 1, yr - yl + 2, yb - yt + 2))  # dark backing
-    _poly(surf, _REF_YELLOW, [(yl, yt), (yr, yt), (yr, yb), (yl, yb)])      # yellow card
-    pygame.draw.line(surf, _REF_YEL_H, (yl + 1, yt + 1), (yl + 1, yb - 1), 1)  # glint
+    # 9 — SHIRT ELEMENT 1: V-NECK COLLAR (referee style). Two white lines meet
+    #     at the centre-front, each backed by a cool keyline shadow so the V
+    #     reads as a stitched neckline rather than a paint stroke.
+    pygame.draw.line(surf, _REF_WHITE, (HX, HY + 9), (HX - 5, HY + 6), 3)
+    pygame.draw.line(surf, _REF_WHITE, (HX, HY + 9), (HX + 6, HY + 6), 3)
+    pygame.draw.line(surf, (100, 105, 115), (HX - 1, HY + 9), (HX - 5, HY + 7), 1)
+    pygame.draw.line(surf, (100, 105, 115), (HX + 1, HY + 9), (HX + 6, HY + 7), 1)
+
+    # 10 — LANYARD + WHISTLE, drawn last as the hero prop: a steel disc at the
+    #      bottom of a lanyard V, the single brightest note that says "referee".
+    pygame.draw.line(surf, (80, 84, 92), (HX - 2, HY + 8), (HX - 2, HY + 17), 1)  # lanyard V
+    pygame.draw.line(surf, (80, 84, 92), (HX + 2, HY + 8), (HX + 2, HY + 17), 1)
+    wx, wy = HX, HY + 17
+    pygame.draw.circle(surf, (100, 104, 112), (wx, wy), 4)   # disc shadow
+    pygame.draw.circle(surf, _REF_WSTL, (wx, wy), 3)         # steel body
+    pygame.draw.circle(surf, (220, 225, 235), (wx - 1, wy - 1), 1)  # glint
+
+    # 11 — YELLOW + RED CARDS, drawn last on the opposite breast from the
+    #      whistle: a bright booking card with a red sliver behind it.
+    yl, yt = HX - 9, HY + 9
+    pygame.draw.rect(surf, (180, 140, 0), (yl - 1, yt - 1, 8, 8))   # halo
+    pygame.draw.rect(surf, _REF_YCRD, (yl, yt, 7, 7))
+    pygame.draw.line(surf, (255, 240, 120), (yl + 1, yt + 1), (yl + 5, yt + 1), 1)  # glint
+    pygame.draw.rect(surf, _REF_RCRD, (yl + 2, yt + 4, 6, 5))       # red card sliver behind
 
 
-build = store_skins._make_skin(_paint)
+build = _make_skin(_paint)
