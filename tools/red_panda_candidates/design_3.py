@@ -163,20 +163,25 @@ def build_autumn_monk(wing_angle_deg):
     _aaellipse(surf, (252, 242, 218), (bx - 4, by + 1), 9, 8)
     _aaellipse(surf, (252, 242, 218), (bx + 4, by + 1), 9, 8)
 
-    # Sleepy eyes — one drooping dark lid-arc per side with a single gleam.
+    # Round cheerful eye with big cream surround — bright and awake, not sleepy.
     for ex in (bx - 6, bx + 6):
-        pygame.draw.arc(surf, ACCENT,
-                        pygame.Rect(ex - 4, by - 5, 8, 5),
-                        math.radians(200), math.radians(340), 3)
-        pygame.draw.circle(surf, CREAM_W, (ex + 1, by - 1), 1)
+        pygame.draw.circle(surf, (110, 45, 22), (ex, by - 5), 5)   # shadow ring
+        pygame.draw.circle(surf, (252, 244, 226), (ex, by - 5), 4)  # cream surround
+        pygame.draw.circle(surf, ACCENT, (ex, by - 5), 3)           # dark iris
+        pygame.draw.circle(surf, (255, 255, 255), (ex - 1, by - 7), 2)  # big top-left catch-light
+        pygame.draw.circle(surf, (255, 255, 255), (ex + 1, by - 4), 1)  # tiny lower glint
+
+    # Warm blush dots sit under the nose so the muzzle reads on top of them.
+    pygame.draw.circle(surf, (220, 120, 90), (bx - 8, by + 1), 3)   # left blush
+    pygame.draw.circle(surf, (220, 120, 90), (bx + 8, by + 1), 3)   # right blush
 
     # Small dark nose with a gentle gloss, centred on the muzzle band.
     _aaellipse(surf, ACCENT, (bx, by + 3), 3, 2)
     pygame.draw.circle(surf, HIGH, (bx - 1, by + 2), 1)
-    # Gentle little smile.
+    # Clear upward grin — wide and lifted so it reads at thumbnail size.
     pygame.draw.arc(surf, ACCENT,
-                    pygame.Rect(bx - 4, by + 1, 8, 7),
-                    math.radians(200), math.radians(340), 2)
+                    pygame.Rect(bx - 5, by + 3, 10, 8),
+                    math.radians(210), math.radians(330), 2)
 
     # --- PAWS -------------------------------------------------------------
     # Two small dark paw-dots peeking below the body sphere.
