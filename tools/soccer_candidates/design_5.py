@@ -1,74 +1,53 @@
-"""THE ULTRA FAN — Pip kitted as a supporter (DESIGN 5 of the SOCCER set).
+"""Soccer v9 Design 5 — GERMANY "DIE MANNSCHAFT" (body-recolor approach).
 
-Scratch exploration only; NOT registered in store_skins.BUILDERS, so production
-is untouched.
+The jersey IS the body: the macaw's torso oval is re-plumaged clean white
+through the palette system (like the ninja skin recolors the whole bird),
+while the head stays macaw-red and the wings stay macaw-blue. Over that white
+torso the _paint pass lays the German tricolour diagonal sash (black/red/gold)
+that make the kit instantly read as Germany — plus a black V-collar, the black
+eagle crest shield, black shorts, black-hooped white socks, and near-black
+cleats.
 
-Architecture: the whole jersey is the BODY itself — the macaw body oval is
-re-plumaged bold club-red through the palette system (like the ninja/mummy
-skins), and the paint pass clips two bold white HOOPS directly OVER that body
-oval. That fixes the earlier flat-polygon jersey, which anchored to the head
-centre and missed the belly entirely. Head stays macaw-red and wings stay
-macaw-blue, so the recoloured red body reads as the shirt over the bird's frame.
-
-The read at 40px, in order of value: (1) the gold club SCARF looping the throat
-with ONE bold tail streaming UP-BACK into open sky above the shoulder — a scarf
-only reads as a scarf when its tail lives in clear sky, so the negative space is
-doing the work; (2) the red body with two wide white hoops; (3) the red bobble
-hat + gold pompom owning the crown; (4) near-black shorts / socks / cleats
-anchoring the feet line. Zones are kept apart on purpose: body hoops own the
-upper belly, dark shorts own a clean band at the bottom, scarf owns the throat +
-sky — so nothing collides in the mid-belly.
+At 40px the read is a white bird with a black-red-gold flash slashed across
+the chest — Die Mannschaft — while the head/wings/beak keep the macaw identity.
 """
 import pygame
 
-from game.store_skins import HX, HY, CROWN_Y, _make_skin
+from game.store_skins import HX, HY, CROWN_Y, _poly, _make_skin
 from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
 from game.draw import (
     BIRD_RED, BIRD_BEAK, BIRD_BEAK_D, BIRD_WING, BIRD_WING_D, BIRD_TIP,
 )
 
-# Body centre in COMPOSITE space (parrot body centre (32,32) + PARROT_DY=20).
-BCX, BCY = 32, 52
+# ── kit trim colours (drawn in _paint, over the white body) ──────────────────
+_BLACK    = ( 10,  10,  12)   # tricolour black band + collar + eagle crest + shorts
+_RED      = (200,  16,  46)   # #C8102E tricolour red band
+_GOLD     = (255, 204,   0)   # #FFCC00 tricolour gold band
+_SHORT_R  = ( 28,  28,  36)   # #1C1C24 shorts rim, reused for near-black cleats
+_JRS_W    = (242, 242, 242)   # jersey white, reused for the sock shank + eagle fill
+_CLEAT    = ( 28,  28,  36)   # #1C1C24 near-black cleat
 
-# Club terrace palette — bold red jersey body, gold scarf/pompom accent, white
-# hoops/socks. The body slots go red so the recolour reads as the shirt; head
-# stays scarlet macaw, wings stay the macaw blue, so the bird underneath the kit
-# is still Pip.
-_RED       = (192, 57, 43)         # #C0392B club red (jersey body)
-_WHITE     = (245, 245, 250)       # hoop / sock white
-_BODY_EDGE = (140, 35, 22)         # 1px red outline holding the body oval edge
-_SHORTS    = (58, 10, 4)           # near-black maroon shorts (anchors the bottom)
-_SHORTS_DK = (80, 15, 6)           # shorts edge (a value above the near-black shorts)
-_SOCK_COL  = (245, 245, 245)       # #F5F5F5 white sock body
-_HOOP_COL  = (192, 57, 43)         # red sock hoop
-_CLEAT_COL = (28, 28, 36)          # #1C1C24 near-black cleats
-_GOLD      = (244, 200, 32)        # scarf gold
-_GOLD_DK   = (100, 70, 0)          # dark gold scarf backing
-_SCARF_R   = (192, 57, 43)         # red centre stripe on the scarf tail
-_POM_GOLD  = (244, 208, 63)        # #F4D03F pompom gold
-_POM_HI    = (255, 230, 100)       # pompom highlight
-
-# Red jersey re-plumage: body slots go club-red, everything else stays macaw so
-# the head reads scarlet, the wings macaw-blue, the beak gold. Lenses kept (the
-# fan still wears the aviators) via the default draw_lenses=True.
+# The body oval is re-plumaged WHITE so the jersey IS the body colour. Head
+# stays macaw-red, wings stay macaw-blue — so only the torso reads as the kit
+# and the bird keeps its identity.
 _PAL = _pal(
     tail=[(200, 30, 40), (240, 95, 40), (255, 160, 55), (255, 220, 80)],
     tail_line=(170, 25, 25),
-    body_shadow=(120, 28, 18),
-    body_main=(192, 57, 43),
-    body_chest=(210, 72, 55),
-    body_belly=(165, 45, 35),
-    sheen=None,
-    wing_main=BIRD_WING,
+    body_shadow=(185, 185, 195),      # jersey back-half shade (rounds torso)
+    body_main=(242, 242, 242),        # jersey white field
+    body_chest=(250, 250, 250),       # lit chest
+    body_belly=(215, 215, 220),       # slightly cooler belly
+    sheen=(255, 255, 255, 100),
+    wing_main=BIRD_WING,              # keep macaw-blue wings
     wing_dark=BIRD_WING_D,
     wing_tip=BIRD_TIP,
     wing_secondary=(255, 200, 60),
     wing_highlight=(170, 210, 255),
-    head_shadow=(150, 15, 20),
+    head_shadow=(150, 15, 20),        # keep macaw-red head
     head_main=BIRD_RED,
     head_cheek=(255, 130, 130),
     head_crown=(255, 170, 170),
-    lens_frame=(255, 200, 50),
+    lens_frame=(255, 200, 50),        # keep aviator shades
     lens_body=(20, 20, 30),
     lens_tint=(35, 55, 90, 130),
     lens_glint=(255, 255, 255),
@@ -78,80 +57,69 @@ _PAL = _pal(
     foot=BIRD_BEAK_D,
 )
 
+# Body centre in COMPOSITE space (sprite body centre (32,32) + PARROT_DY=20).
+BCX, BCY = 32, 52
+
 
 def _base(angle_deg):
     return _build_parrot_with_palette(angle_deg, _PAL)
 
 
 def _paint(surf, _a):
-    # ── JERSEY HOOPS — TWO wide white bands (5px) clipped to the body-oval
-    #    bounding rect so they read as a hooped supporter shirt over the red body.
-    #    Three thin hoops merged into a blur at the 40px downscale; two wider,
-    #    evenly-spaced hoops hold their gaps and own the upper belly cleanly.
+    # All geometry here is in COMPOSITE space (the 64×100 canvas). The body is
+    # already white from _base; the trim below turns the recolor into the kit.
+
+    # German tricolour diagonal sash — the signature Die Mannschaft flash. Three
+    # black/red/gold bands slashed from upper-right to lower-left across the mid
+    # torso, clipped to the body oval so the flag stops at the torso edge instead
+    # of bleeding onto the wings/tail.
     clip_prev = surf.get_clip()
     surf.set_clip(pygame.Rect(BCX - 19, BCY - 14, 38, 28))
-    for sy in (BCY - 7, BCY + 3):
-        pygame.draw.rect(surf, _WHITE, (BCX - 19, sy, 38, 5))
+    pygame.draw.line(surf, _BLACK, (BCX + 2, BCY - 14), (BCX - 10, BCY + 14), 4)
+    pygame.draw.line(surf, _RED,   (BCX + 7, BCY - 14), (BCX - 5, BCY + 14), 4)
+    pygame.draw.line(surf, _GOLD,  (BCX + 12, BCY - 14), (BCX + 0, BCY + 14), 4)
     surf.set_clip(clip_prev)
-    # 1px red outline holds the body-oval edge so the clipped hoops don't fray
-    # the silhouette.
-    pygame.draw.ellipse(surf, _BODY_EDGE, (BCX - 19, BCY - 14, 38, 28), 1)
 
-    # ── SHORTS — near-black maroon owning a clean band at the very bottom of the
-    #    body, well below the hoops, so the kit layers (jersey → shorts → white
-    #    socks → black cleats) stay legible and the shorts anchor the feet line
-    #    instead of melting into the red body.
-    pygame.draw.ellipse(surf, _SHORTS, (BCX - 9, BCY + 7, 20, 9))
-    pygame.draw.ellipse(surf, _SHORTS_DK, (BCX - 9, BCY + 7, 20, 9), 1)
+    # Black V-neck collar — two lines meeting just below the head, so the sashed
+    # jersey reads as a collared shirt right under the red head.
+    pygame.draw.line(surf, _BLACK, (BCX - 6, BCY - 12), (BCX + 2, BCY - 8), 2)
+    pygame.draw.line(surf, _BLACK, (BCX + 8, BCY - 12), (BCX + 2, BCY - 8), 2)
 
-    # ── SOCKS — white body with a red club hoop at the top, at the two feet x's.
+    # Eagle crest — a black shield pentagon on the chest with a 1px-inset white
+    # fill so the dark mark reads as the DFB eagle badge, not a black blot. This
+    # pins the kit to Germany specifically.
+    shield = [(BCX - 12, BCY - 9), (BCX - 4, BCY - 9), (BCX - 4, BCY - 3),
+              (BCX - 8, BCY - 1), (BCX - 12, BCY - 3)]
+    inner = [(BCX - 11, BCY - 8), (BCX - 5, BCY - 8), (BCX - 5, BCY - 3),
+             (BCX - 8, BCY - 2), (BCX - 11, BCY - 3)]
+    pygame.draw.polygon(surf, _BLACK, shield)
+    pygame.draw.polygon(surf, _JRS_W, inner)
+
+    # Body oval dark outline — a 1px cool ring so the white torso stays legible
+    # against a bright sky instead of dissolving into the background.
+    pygame.draw.ellipse(surf, (185, 185, 195), (BCX - 19, BCY - 14, 38, 28), 1)
+
+    # Jersey hem — a 1px light ellipse so the shirt bottom separates from the
+    # black shorts below instead of fusing into one dark kit blob.
+    pygame.draw.ellipse(surf, (220, 220, 226), (BCX - 9, BCY + 5, 20, 2), 1)
+
+    # Black shorts, with a lighter rim so the leg-line stays crisp against the
+    # white torso.
+    pygame.draw.ellipse(surf, _BLACK, (BCX - 9, BCY + 7, 20, 9))
+    pygame.draw.ellipse(surf, _SHORT_R, (BCX - 9, BCY + 7, 20, 9), 1)
+    # Crotch notch so the two leg tubes read as separate legs, not a skirt.
+    _poly(surf, _JRS_W,
+          [(BCX - 1, BCY + 12), (BCX + 3, BCY + 12), (BCX + 1, BCY + 15)])
+
+    # Socks — white shanks with a black turn-over hoop, one per leg. Shortened to
+    # leave a clean gap above the cleats so the kit stack stays legible.
     for sx in (27, 35):
-        pygame.draw.line(surf, _SOCK_COL, (sx, BCY + 11), (sx, BCY + 17), 4)
-        pygame.draw.line(surf, _HOOP_COL, (sx, BCY + 12), (sx, BCY + 14), 4)
+        pygame.draw.line(surf, _JRS_W, (sx, BCY + 11), (sx, BCY + 16), 4)
+        pygame.draw.line(surf, _BLACK, (sx, BCY + 12), (sx, BCY + 14), 3)
 
-    # ── CLEATS — near-black boots at the feet line.
-    for fx in (23, 31):
-        pygame.draw.rect(surf, _CLEAT_COL, (fx, BCY + 14, 9, 5), border_radius=1)
-
-    # ── BOBBLE HAT — a small red dome on the crown capped by a gold pompom that
-    #    breaks the crown outline (the fan tell up top). Crown centre in composite
-    #    is (HX, CROWN_Y); the dome sits just above it.
-    hat_cx, hat_cy = HX - 2, CROWN_Y - 3
-    pygame.draw.ellipse(surf, _RED, (hat_cx - 8, hat_cy - 5, 16, 10))
-    pygame.draw.ellipse(surf, _BODY_EDGE, (hat_cx - 8, hat_cy - 5, 16, 10), 1)
-    pygame.draw.circle(surf, _POM_GOLD, (hat_cx, hat_cy - 5), 4)
-    pygame.draw.circle(surf, _POM_HI, (hat_cx - 1, hat_cy - 6), 2)
-
-    # ── SCARF (HERO PROP, drawn LAST so it overlays every kit layer) — a gold
-    #    club scarf looped at the throat with ONE bold tail streaming UP and BACK
-    #    into the open sky above/behind the shoulder. A scarf only reads as a
-    #    scarf when its tail lives in clear sky, so the tail exits the body upward
-    #    into negative space rather than lying over the striped belly (where the
-    #    old twin tails collided with the hoops and vanished).
-    # Throat loop — wraps the neck/head-body junction, dark gold backing under a
-    #    bright gold band.
-    tx, ty = HX - 6, HY + 3
-    pygame.draw.line(surf, _GOLD_DK, (tx - 4, ty), (tx + 6, ty - 2), 5)
-    pygame.draw.line(surf, _GOLD, (tx - 4, ty - 1), (tx + 6, ty - 3), 3)
-
-    # ONE bold tail — arcs up-left off the throat, past the top of the body, and
-    #    well into clear sky above the bird; red centre stripe over gold face over
-    #    a dark-gold backing so the cloth reads as a hooped club scarf.
-    tail_pts = [
-        (tx - 3, ty),
-        (BCX - 14, BCY - 18),
-        (BCX - 22, BCY - 28),
-        (BCX - 20, BCY - 38),
-    ]
-    for i in range(len(tail_pts) - 1):
-        pygame.draw.line(surf, _GOLD_DK, tail_pts[i], tail_pts[i + 1], 5)
-        pygame.draw.line(surf, _GOLD, tail_pts[i], tail_pts[i + 1], 3)
-        pygame.draw.line(surf, _SCARF_R, tail_pts[i], tail_pts[i + 1], 1)
-
-    # Bold tassel cap at the tail end — the visual period out in open sky.
-    pygame.draw.circle(surf, _GOLD_DK, tail_pts[-1], 5)
-    pygame.draw.circle(surf, _GOLD, tail_pts[-1], 4)
-    pygame.draw.circle(surf, _POM_HI, (tail_pts[-1][0] - 1, tail_pts[-1][1] - 1), 2)
+    # Cleats — near-black boots below the socks with a visible gap.
+    for cx in (23, 31):
+        pygame.draw.rect(surf, _CLEAT, (cx, BCY + 14, 9, 5), border_radius=1)
 
 
 build = _make_skin(_paint, base_fn=_base)
