@@ -7,25 +7,32 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _shared import (
     draw_rope, draw_legs, draw_body, draw_head,
     _make_prebuilt_skin, _phase, _TROT,
-    BCX, BCY, PINK, ORANGE, TURQ, CREAM,
+    BCX, BCY, PINK, ORANGE, TURQ, ORANGE_D, TURQ_D, CREAM,
 )
 import pygame
 
 
 def _draw_tail(surf, cx, cy, bob, sway):
-    sw = sway * 2.0               # full swing with trot
-    # Three ribbon segments, alternating festival colours.
-    # Points are offset by sw so the whole ribbon sways.
-    p0 = (cx - 16,          cy + 4)
-    p1 = (cx - 22 + sw,     cy + 10)
-    p2 = (cx - 27 + sw * 0.7, cy + 5)
-    p3 = (cx - 25 + sw * 0.5, cy + 13)
+    # Anchor at rump, trail BACK then curl — reads as a tail, not a 5th leg.
+    # Leading PINK carries the highest contrast on any sky phase; the tip
+    # alone sways so the anchor stays visually planted to the rump.
+    # Segment 1: horizontal rearward trail (PINK, 3px wide)
+    p0 = (cx - 15, cy + 1)
+    p1 = (cx - 25, cy + 0)   # trail back ~10px first
+    pygame.draw.line(surf, PINK, p0, p1, 3)
+    pygame.draw.line(surf, (184, 28, 88), p0, p1, 1)  # dark keyline
 
-    for (a, b, col) in [(p0, p1, PINK), (p1, p2, ORANGE), (p2, p3, TURQ)]:
-        pygame.draw.line(surf, col, (int(a[0]), int(a[1])),
-                         (int(b[0]), int(b[1])), 3)
-    # Bright tip end to read at 40px
-    pygame.draw.circle(surf, PINK, (int(p3[0]), int(p3[1])), 2)
+    # Segment 2: ORANGE, gently curves down
+    p2 = (cx - 32, cy + 4)
+    pygame.draw.line(surf, ORANGE, p1, p2, 3)
+    pygame.draw.line(surf, ORANGE_D, p1, p2, 1)
+
+    # Segment 3: TURQ tip, animated — only this segment sways
+    tip_x = int(cx - 37 + sway * 3)
+    tip_y = int(cy + 2 - abs(sway) * 2)   # rises on the out-frames
+    p3 = (tip_x, tip_y)
+    pygame.draw.line(surf, TURQ, p2, p3, 3)
+    pygame.draw.line(surf, TURQ_D, p2, p3, 1)
 
 
 def build_fn(wing_angle_deg):
