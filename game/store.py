@@ -25,7 +25,7 @@ import pygame
 
 from game.config import W, H
 from game.hud import _font, _draw_overlay_stars, \
-    _GOLD_BRIGHT, _GOLD_PALE, _GOLD_DEEP, _RED_OUTLINE
+    _GOLD_BRIGHT, _GOLD_PALE, _GOLD_DEEP, _RED_OUTLINE, _outlined_text
 from game.draw import UI_CREAM, NEAR_BLACK, WHITE, rounded_rect, lerp_color
 from game.powerup_help import _seeded_stars
 from game import parrot
@@ -834,9 +834,6 @@ class StoreScene:
         self.confirm_no_rect = cancel
 
     def _draw_colour_picker(self, surf) -> None:
-        """Colour-variant picker modal for parcel_ufo — uses the store's Obsidian & Gold
-        visual language: vgrad panel, double gold rim, cabochon wells, shelf-bar accent
-        glow, faceted gem badge, and the same CANCEL/CONFIRM button pair."""
         self._cp_panel = None
         self._cp_swatches = []
         self._cp_yes_rect = self._cp_no_rect = None
@@ -845,8 +842,8 @@ class StoreScene:
         scrim.fill((4, 4, 10, 180))
         surf.blit(scrim, (0, 0))
 
-        PW, PH = 326, 300
-        panel = pygame.Rect((W - PW) // 2, (H - PH) // 2 - 10, PW, PH)
+        PW, PH = 322, 472
+        panel = pygame.Rect((W - PW) // 2, (H - PH) // 2, PW, PH)
         self._cp_panel = panel
         px0, py0 = panel.x, panel.y
         pcx = panel.centerx
@@ -859,138 +856,90 @@ class StoreScene:
         pygame.draw.rect(surf, (*_GOLD_BRIGHT, 230), panel.inflate(-2, -2),
                          width=1, border_radius=16)
 
-        # Title + subtitle
-        head = _font(17, True).render("MINI UFO", True, _GOLD_BRIGHT)
-        surf.blit(head, head.get_rect(center=(pcx, py0 + 20)))
-        sub = _font(11).render("Choose your colour  —  one-time pick", True,
+        # Title — Skybit outlined gold/red font; subtitle simpler
+        _outlined_text(surf, "MINI UFO", (pcx, py0 + 22), 17,
+                       fill=_GOLD_BRIGHT, outline=_RED_OUTLINE, px=3,
+                       shadow_offset=(2, 4))
+        sub = _font(10).render("Choose your colour  —  one-time pick", True,
                                (140, 132, 160))
-        surf.blit(sub, sub.get_rect(center=(pcx, py0 + 40)))
-        _gold_rule(surf, px0 + 24, panel.right - 24, py0 + 56)
+        surf.blit(sub, sub.get_rect(center=(pcx, py0 + 44)))
+        _gold_rule(surf, px0 + 24, panel.right - 24, py0 + 58)
 
-        # Build swatch surfaces once and cache them
+        # Swatch surfaces lazily built at 44px
         if self._ufo_swatch_surfs is None:
             from game.parcel_designs.ufo import _build, _PALETTES
             self._ufo_swatch_surfs = [
-                pygame.transform.smoothscale(_build(_PALETTES[v["key"]]), (40, 40))
+                pygame.transform.smoothscale(_build(_PALETTES[v["key"]]), (44, 44))
                 for v in _UFO_VARIANTS
             ]
 
-        SWATCH_W, SWATCH_H = 56, 82
-        SWATCH_GAP = 7
-        WELL_W, WELL_H = 44, 44
-        n = len(_UFO_VARIANTS)
-        row_w = n * SWATCH_W + (n - 1) * SWATCH_GAP
-        sw_x0 = pcx - row_w // 2
-        sy0 = py0 + 68
+        TAB_H, TAB_GAP = 64, 5
+        TAB_W = PW - 24
+        tab_x0 = px0 + 12
+        tab_y0 = py0 + 65
 
         for i, v in enumerate(_UFO_VARIANTS):
-            sx = sw_x0 + i * (SWATCH_W + SWATCH_GAP)
-            sr = pygame.Rect(sx, sy0, SWATCH_W, SWATCH_H)
+            ty = tab_y0 + i * (TAB_H + TAB_GAP)
+            tr = pygame.Rect(tab_x0, ty, TAB_W, TAB_H)
             selected = (v["key"] == self._selected_variant)
+            acc = v["accent"]
 
-            # Card body — subtle warm tint when selected
-            bg = (50, 44, 20) if selected else (18, 16, 26)
-            surf.blit(_vgrad_panel(SWATCH_W, SWATCH_H, 8,
-                                   lerp_color(bg, WHITE, 0.07), bg),
-                      sr.topleft)
+            # Tablet base
+            bg = (28, 26, 48) if selected else (18, 18, 42)
+            surf.blit(_vgrad_panel(TAB_W, TAB_H, 8,
+                                   lerp_color(bg, WHITE, 0.06), bg),
+                      tr.topleft)
 
-            # Selection glow aura + border
+            # Selected: accent tint overlay + gold border; unselected: dim border
             if selected:
-                for off, alpha in [(3, 28), (2, 55), (1, 130)]:
-                    ga = pygame.Surface((SWATCH_W + off * 2, SWATCH_H + off * 2),
-                                        pygame.SRCALPHA)
-                    pygame.draw.rect(ga, (*_GOLD_BRIGHT, alpha), ga.get_rect(),
-                                     border_radius=10)
-                    surf.blit(ga, (sx - off, sy0 - off))
-                pygame.draw.rect(surf, _GOLD_BRIGHT, sr, 2, border_radius=8)
+                tint = pygame.Surface((TAB_W, TAB_H), pygame.SRCALPHA)
+                tint.fill((*acc, 30))
+                surf.blit(tint, tr.topleft)
+                pygame.draw.rect(surf, _GOLD_BRIGHT, tr, 1, border_radius=8)
             else:
-                pygame.draw.rect(surf, (40, 36, 56), sr, 1, border_radius=8)
+                pygame.draw.rect(surf, (40, 38, 62), tr, 1, border_radius=8)
 
-            # Cabochon item well
-            well = pygame.Rect(sx + (SWATCH_W - WELL_W) // 2, sy0 + 6,
-                               WELL_W, WELL_H)
-            pygame.draw.rect(surf, (10, 10, 24), well, border_radius=6)
+            # Left accent bar (brightened when selected)
+            bar_col = lerp_color(acc, WHITE, 0.3) if selected else acc
+            pygame.draw.rect(surf, bar_col,
+                             pygame.Rect(tab_x0, ty, 6, TAB_H),
+                             border_radius=4)
+
+            # Parcel well (52×52), inset 14px from left (after bar + gap)
+            well_x = tab_x0 + 14
+            well_y = ty + (TAB_H - 52) // 2
+            well = pygame.Rect(well_x, well_y, 52, 52)
+            pygame.draw.rect(surf, (10, 10, 28), well, border_radius=6)
             pygame.draw.rect(surf, _GOLD_DEEP, well, 1, border_radius=6)
-
-            # Parcel at 40px inside the well
             surf.blit(self._ufo_swatch_surfs[i],
                       self._ufo_swatch_surfs[i].get_rect(center=well.center))
 
-            # Shelf-bar accent glow at bottom of well
-            accent = v["accent"]
-            shelf_w = WELL_W - 4
-            shelf = pygame.Surface((shelf_w, 8), pygame.SRCALPHA)
-            for ly in range(8):
-                f = 1.0 - ly / 8.0
-                a = int(55 * f ** 2.0)
-                if a > 0:
-                    pygame.draw.line(shelf, (*accent, a),
-                                     (0, 7 - ly), (shelf_w - 1, 7 - ly))
-            surf.blit(shelf, (well.x + 2, well.bottom - 9),
-                      special_flags=pygame.BLEND_ADD)
-            core_w = WELL_W - 8
-            core = pygame.Surface((core_w, 2), pygame.SRCALPHA)
-            mid_x = core_w / 2
-            for lx in range(core_w):
-                hx = abs(lx - mid_x) / mid_x if mid_x else 1.0
-                c  = lerp_color(lerp_color(accent, WHITE, 0.35), v["dim"], hx ** 1.5)
-                la = int(220 * (1.0 - 0.45 * hx ** 2))
-                core.set_at((lx, 0), (*c, la))
-                core.set_at((lx, 1), (*accent, la // 2))
-            surf.blit(core, (well.x + 4, well.bottom - 3))
+            # Variant name (Skybit outlined font) + desc, right of well
+            text_left = tab_x0 + 14 + 52 + 8   # 74px from tab left
+            dot_cx_x  = tab_x0 + TAB_W - 18
+            text_cx   = (text_left + dot_cx_x - 14) // 2
+            name_fill = _GOLD_BRIGHT if selected else (190, 180, 210)
+            _outlined_text(surf, v["name"], (text_cx, ty + TAB_H // 2 - 10), 13,
+                           fill=name_fill, outline=_RED_OUTLINE, px=2,
+                           shadow_offset=(1, 2))
+            desc_col  = UI_CREAM if selected else (140, 132, 160)
+            ds = _font(11).render(v["desc"], True, desc_col)
+            surf.blit(ds, ds.get_rect(center=(text_cx, ty + TAB_H // 2 + 9)))
 
-            # Faceted gem badge (top-right corner of card)
-            gem_cx = sr.right - 1
-            gem_cy = sr.y + 1
-            gem_r  = 5
-            seat   = pygame.Surface((gem_r * 2 + 8, gem_r * 2 + 8), pygame.SRCALPHA)
-            pygame.draw.circle(seat, (0, 0, 0, 140), (gem_r + 4, gem_r + 4), gem_r + 3)
-            pygame.draw.circle(seat, (*_GOLD_DEEP, 70), (gem_r + 4, gem_r + 4),
-                               gem_r + 3, 1)
-            surf.blit(seat, (gem_cx - gem_r - 4, gem_cy - gem_r - 4))
-            _soft_glow(surf, gem_cx, gem_cy, gem_r + 3, accent, 55, layers=3)
-            hi = lerp_color(accent, WHITE, 0.5)
-            sh = lerp_color(accent, v["dim"], 0.5)
-            dk = lerp_color(v["dim"], NEAR_BLACK, 0.3)
-            top_p = (gem_cx, gem_cy - gem_r)
-            bot_p = (gem_cx, gem_cy + gem_r)
-            lft_p = (gem_cx - gem_r, gem_cy)
-            rgt_p = (gem_cx + gem_r, gem_cy)
-            ctr_p = (gem_cx, gem_cy)
-            pygame.draw.polygon(surf, hi,     [top_p, lft_p, ctr_p])
-            pygame.draw.polygon(surf, accent, [top_p, rgt_p, ctr_p])
-            pygame.draw.polygon(surf, sh,     [lft_p, bot_p, ctr_p])
-            pygame.draw.polygon(surf, dk,     [rgt_p, bot_p, ctr_p])
-            pygame.draw.polygon(surf, lerp_color(v["dim"], NEAR_BLACK, 0.45),
-                                [top_p, rgt_p, bot_p, lft_p], width=1)
-            pr  = max(1, gem_r // 4)
-            pip = pygame.Surface((pr * 2 + 2, pr * 2 + 2), pygame.SRCALPHA)
-            pygame.draw.circle(pip, (255, 255, 255, 245), (pr + 1, pr + 1), pr)
-            surf.blit(pip, (gem_cx - pr - gem_r // 3, gem_cy - pr - gem_r // 3),
-                      special_flags=pygame.BLEND_ADD)
+            # Selection dot (right edge)
+            dot_cy = ty + TAB_H // 2
+            pygame.draw.circle(surf, acc, (dot_cx_x, dot_cy), 9)
+            if selected:
+                pygame.draw.circle(surf, _GOLD_BRIGHT, (dot_cx_x, dot_cy), 10, 2)
 
-            # Swatch name label
-            lbl_col = _GOLD_BRIGHT if selected else (150, 142, 172)
-            lbl = _font(9, True).render(v["name"], True, lbl_col)
-            surf.blit(lbl, lbl.get_rect(center=(sx + SWATCH_W // 2, sr.bottom - 10)))
+            self._cp_swatches.append(tr)
 
-            self._cp_swatches.append(sr)
-
-        # Selected variant detail
-        sel = next(v for v in _UFO_VARIANTS if v["key"] == self._selected_variant)
-        detail_y = sy0 + SWATCH_H + 12
-        sn = _font(15, True).render(sel["name"], True, _GOLD_BRIGHT)
-        surf.blit(sn, sn.get_rect(center=(pcx, detail_y)))
-        sd = _font(11).render(sel["desc"], True, UI_CREAM)
-        surf.blit(sd, sd.get_rect(center=(pcx, detail_y + 18)))
-
-        div_y = detail_y + 36
+        # Divider + CANCEL/CONFIRM buttons
+        div_y = tab_y0 + 5 * TAB_H + 4 * TAB_GAP + 12
         _gold_rule(surf, px0 + 24, panel.right - 24, div_y)
-
-        # CANCEL + CONFIRM buttons — pixel-identical to _draw_confirm button pair
         bw, bh, gutter = 120, 40, 14
-        by = div_y + 12
-        nx = pcx - (bw * 2 + gutter) // 2
+        by  = div_y + 12
+        nx  = pcx - (bw * 2 + gutter) // 2
         cancel  = pygame.Rect(nx, by, bw, bh)
         confirm = pygame.Rect(nx + bw + gutter, by, bw, bh)
 
