@@ -7,25 +7,28 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _shared import (
     draw_rope, draw_legs, draw_body, draw_head,
     _make_prebuilt_skin, _phase, _TROT,
-    BCX, BCY, CREAM, CREAM_D, ORANGE_D,
+    BCX, BCY, CREAM, CREAM_D,
 )
 import pygame
 from game.parrot import _aaellipse
 
 
 def _draw_tail(surf, cx, cy, bob, sway):
-    rx, ry = cx - 16, cy + 2          # root at upper rump
-    # Stub tip sways slightly with trot
-    tx = int(cx - 24 + sway * 1.5)
-    ty = cy - 6
-    # Stiff stub: outer shadow then bright cream
-    pygame.draw.line(surf, CREAM_D, (rx, ry), (tx, ty), 5)
-    pygame.draw.line(surf, CREAM,   (rx, ry), (tx, ty), 3)
-    # Fluffy tuft: overlapping dark-warm circles
-    _aaellipse(surf, ORANGE_D, (tx,     ty),     4, 4)
-    _aaellipse(surf, ORANGE_D, (tx - 2, ty + 1), 3, 3)
-    _aaellipse(surf, ORANGE_D, (tx + 1, ty + 2), 3, 3)
-    _aaellipse(surf, CREAM_D,  (tx - 1, ty),     2, 2)  # light tip on tuft
+    # Anchored high on the hot-pink top band's rear corner so the stub
+    # clears the front tassel-leg cluster below it — a low root fuses with
+    # the legs at 40px and stops reading as a tail.
+    rx, ry = cx - 15, cy - 5
+    # Sway swings the TUFT TIP, not the whole stub; the root stays pinned so
+    # the switch trails the bob instead of sliding as a rigid stick.
+    tip_x = int(cx - 22 + sway * 2)
+    tip_y = cy - 11
+    # Pale stiff stub — cream against the body edge gives the value contrast
+    # a real donkey switch reads by (light rump edge → dark tuft).
+    pygame.draw.line(surf, CREAM, (rx, ry), (tip_x, tip_y), 2)
+    # Dark charcoal-brown teardrop tuft: taller than wide, not a round pom.
+    _aaellipse(surf, (58, 42, 34), (tip_x, tip_y), 4, 6)
+    # Cream rim catch-light on the upper-left edge to lift it off the body.
+    pygame.draw.circle(surf, (242, 233, 220), (tip_x - 2, tip_y - 3), 1)
 
 
 def build_fn(wing_angle_deg):
