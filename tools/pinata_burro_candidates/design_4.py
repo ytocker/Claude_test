@@ -13,37 +13,37 @@ from _shared import (
 import pygame
 
 
-# 5 strips: (angle_from_pos_x in degrees, color, length)
-_PLUME = [
-    (-150, PINK,   13),
-    (-125, ORANGE, 14),
-    (-100, CREAM,  12),
-    (-75,  TURQ,   14),
-    (-50,  PINK_D, 12),
-]
-
-
-def _strip(surf, rx, ry, angle_deg, length, color):
-    """Slim pointed strip from root (rx,ry) at angle, tapering to a point."""
-    a = math.radians(angle_deg)
-    tx = rx + math.cos(a) * length
-    ty = ry + math.sin(a) * length
-    # Perpendicular for base width
-    px = -math.sin(a) * 2.0
-    py =  math.cos(a) * 2.0
-    pts = [
-        (int(rx + px), int(ry + py)),
-        (int(rx - px), int(ry - py)),
-        (int(tx), int(ty)),
-    ]
-    pygame.draw.polygon(surf, color, pts)
-
-
 def _draw_tail(surf, cx, cy, bob, sway):
-    rx, ry = cx - 16, cy + 2
-    sway_deg = sway * 3.0    # whole fan pivots slightly with trot
-    for angle_deg, color, length in _PLUME:
-        _strip(surf, rx, ry, angle_deg + sway_deg, length, color)
+    # Pivot at rump: rear edge of turquoise band
+    pivot_x = cx - 17
+    pivot_y = cy + 2
+
+    # 5 crepe strips as pointed polygons fanning upper-left to lower-left
+    # (angle_deg, color) — spread over ~70° arc from ~10 o'clock to ~8 o'clock
+    # sway animates the whole fan rotation by ±5° so it reads as an open/close
+    # motion rather than a static wedge.
+    fan_rot = sway * 5.0   # degrees: +1 sway → fan rotates +5°
+    strips = [
+        (-155 + fan_rot, PINK,   14),
+        (-130 + fan_rot, ORANGE, 13),
+        (-105 + fan_rot, CREAM,  12),
+        (-80  + fan_rot, TURQ,   13),
+        (-55  + fan_rot, PINK_D, 11),
+    ]
+    for ang_deg, color, length in strips:
+        ang = math.radians(ang_deg)
+        tip_x = pivot_x + math.cos(ang) * length
+        tip_y = pivot_y + math.sin(ang) * length
+        # Strip base width = 3px perpendicular to the strip direction
+        perp = math.radians(ang_deg + 90)
+        bw = 3   # half-base-width
+        base_l = (pivot_x + math.cos(perp)*bw, pivot_y + math.sin(perp)*bw)
+        base_r = (pivot_x - math.cos(perp)*bw, pivot_y - math.sin(perp)*bw)
+        pts = [base_l, (tip_x, tip_y), base_r]
+        pygame.draw.polygon(surf, color, [(int(x), int(y)) for x, y in pts])
+        # CREAM keyline along the strip edges
+        pygame.draw.line(surf, CREAM, (int(base_l[0]), int(base_l[1])),
+                         (int(tip_x), int(tip_y)), 1)
 
 
 def build_fn(wing_angle_deg):
