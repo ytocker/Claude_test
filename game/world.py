@@ -29,7 +29,7 @@ from game.config import (
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
     SECRET_POWERUP_WEIGHTS, DEBUG_GENIE_PILLAR,
     CLOWN_START_PILLAR, CLOWN_SLOT_PILLARS, CLOWN_WARREN_SPACING,
-    CLOWN_LEADIN_PILLARS, CLOWN_OUTRO_PILLARS,
+    CLOWN_PRECLEAR_PILLARS, CLOWN_LEADIN_PILLARS, CLOWN_OUTRO_PILLARS,
     GENIE_OFFER_COUNT, GENIE_OFFER_Y_SLOTS,
     GENIE_CHAMBER_GAP_BOOST, GENIE_CHAMBER_SPACING,
     GENIE_CHAMBER_REVEAL_DIST,
@@ -84,6 +84,9 @@ from game.ambient import AmbientScenes
 # at the same time-of-day (the run-length per day is constant after the biome
 # day was lengthened to absorb the event).
 CLOWN_EVENT_PHASE = _phase_for_pillar(CLOWN_START_PILLAR)
+# The clear-sky pre-clear begins this many pillars-of-time earlier, so the field
+# is already empty when the clown appears (it still enters at ~CLOWN_START_PILLAR).
+CLOWN_PRECLEAR_PHASE = _phase_for_pillar(CLOWN_START_PILLAR - CLOWN_PRECLEAR_PILLARS)
 
 
 def _lerp(a, b, t):
@@ -287,9 +290,12 @@ class World:
         self._clown_slot_remaining = 0
         self._clown_route = []
         self._clown_fired_this_cycle = False
-        # Relief empties bracketing the gauntlet (spawned as phantom pillars):
-        # lead-in armed when the clown enters, outro armed on the last warren
-        # tower. Both take precedence over the slot in _spawn_pipe.
+        # Relief empties around the gauntlet (spawned as phantom pillars): the
+        # pre-clear runs BEFORE the clown is created (so it enters a clean sky),
+        # lead-in is armed on the die reveal (before the first tower), outro on
+        # the last warren tower. All take precedence over the slot in _spawn_pipe.
+        self._clown_preclear_remaining = 0
+        self._clown_entrance_pending = False
         self._clown_leadin_remaining = 0
         self._clown_outro_remaining = 0
         # The cinematic controller (clown walk-in + die roll); set when the clown
@@ -744,13 +750,30 @@ class World:
         self.pipes_spawned += 1
         is_rush = (self.pipes_spawned % COIN_RUSH_INTERVAL == 0)
         # ── Clown relief empties ────────────────────────────────────────────
-        # Two short clear-sky stretches bracket the gauntlet: a lead-in armed
-        # when the clown enters (the field is clear as it appears, drawing the
-        # eye) and an outro armed on the last warren tower (a breather). They
-        # spawn as phantom pillars — invisible / non-colliding / non-scoring —
-        # each taking a normal spawn slot, so they HIDE pillars without shifting
-        # the timeline. Checked before the slot so they always bracket the warren
-        # run even if the die rolled quickly.
+        # Clear-sky stretches around the gauntlet, all spawned as phantom pillars
+        # (invisible / non-colliding / non-scoring) that take a normal spawn slot
+        # so they HIDE pillars without shifting the timeline. Checked before the
+        # slot so they always bracket the warren run even if the die rolled fast.
+        #
+        # Pre-clear runs FIRST, before the clown exists: it empties the field so
+        # the jester enters a clean sky. The clown controller is created the
+        # instant the last pre-clear phantom is laid; the beat then stays clear
+        # (below) through the die roll until the reveal arms the lead-in.
+        if self._clown_preclear_remaining > 0:
+            self._clown_preclear_remaining -= 1
+            self._spawn_phantom_relief(x)
+            if self._clown_preclear_remaining == 0 and self._clown_entrance_pending:
+                self._clown_entrance_pending = False
+                self.clown_event = ClownEvent()
+            return
+        # Keep the sky clear for the whole clown beat — entrance through the die
+        # roll — so the jester is never among real pillars. Ends the instant the
+        # reveal fires (phase flips off "enter"/"rolling") and the lead-in +
+        # warren slot take over.
+        if (self.clown_event is not None
+                and self.clown_event.phase in ("enter", "rolling")):
+            self._spawn_phantom_relief(x)
+            return
         if self._clown_leadin_remaining > 0:
             self._clown_leadin_remaining -= 1
             self._spawn_phantom_relief(x)
@@ -1508,11 +1531,13 @@ class World:
         # length on pickup and reserves the held slot (see ClownEvent._reveal),
         # which _spawn_pipe then lays as warren towers + regular fill.
         if (not self._clown_fired_this_cycle
-                and self._last_biome_phase < CLOWN_EVENT_PHASE <= _new_phase):
+                and self._last_biome_phase < CLOWN_PRECLEAR_PHASE <= _new_phase):
             self._clown_fired_this_cycle = True
-            self.clown_event = ClownEvent()
-            # Clear the field as the clown enters (lead-in relief empties).
-            self._clown_leadin_remaining = CLOWN_LEADIN_PILLARS
+            # Start clearing the field a few pillars BEFORE the clown appears; the
+            # controller is created only once these phantoms are laid, so the
+            # jester enters an already-empty sky (see _spawn_pipe).
+            self._clown_preclear_remaining = CLOWN_PRECLEAR_PILLARS
+            self._clown_entrance_pending = True
         if self.clown_event is not None:
             self.clown_event.update(self, sdt)
             if self.clown_event.done:

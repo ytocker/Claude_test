@@ -237,8 +237,9 @@ def draw_map(ax_sky, ax, pillars, phases, day_end, phase_labels=None,
         f"CLOWN enters ~{c0}\ndie roll → warren gauntlet\n"
         f"N={config.CLOWN_ROLL_MIN}-{config.CLOWN_ROLL_MAX} of held "
         f"{config.CLOWN_SLOT_PILLARS} (+ghost)\n"
-        f"bracketed by {config.CLOWN_LEADIN_PILLARS}+{config.CLOWN_OUTRO_PILLARS} "
-        f"clear-sky empties",
+        f"clear sky {config.CLOWN_PRECLEAR_PILLARS} before / "
+        f"{config.CLOWN_LEADIN_PILLARS} pre-tunnel / "
+        f"{config.CLOWN_OUTRO_PILLARS} after",
         (c0, 0.5), textcoords="offset points", xytext=(6, 0),
         rotation=90, fontsize=7.5, fontweight="bold", color="#8a0d17",
         va="center", ha="left", zorder=7)
@@ -247,19 +248,21 @@ def draw_map(ax_sky, ax, pillars, phases, day_end, phase_labels=None,
                 textcoords="offset points", xytext=(0, 0), rotation=90,
                 fontsize=6.5, color="#8a0d17", va="bottom", ha="center", zorder=6)
 
-    # ── clear-sky RELIEF empties bracketing the gauntlet: a short calm as the
-    # clown enters + a breather right after the warren. They're phantom →
-    # UNSCORED, so they don't advance this pagodas-passed axis (they hide
-    # existing pillars, don't add any, and don't shift rain) — drawn as edge
-    # notches at the slot bounds rather than axis-width bands. ────────────────
+    # ── clear-sky RELIEF empties around the gauntlet: a pre-clear runway so the
+    # clown enters an empty sky, a short pre-tunnel gap after the die settles,
+    # and a breather right after the warren. They're phantom → UNSCORED, so they
+    # don't advance this pagodas-passed axis (they hide existing pillars, don't
+    # add any, and don't shift rain) — drawn as edge notches. ─────────────────
     RELIEF_COLOR = "#3a8fd6"
-    for x, n, tag in ((c0, config.CLOWN_LEADIN_PILLARS, "lead-in"),
+    for x, n, tag in ((c0 - config.CLOWN_PRECLEAR_PILLARS,
+                       config.CLOWN_PRECLEAR_PILLARS, "pre-clear\n(before clown)"),
+                      (c0, config.CLOWN_LEADIN_PILLARS, "lead-in\n(before tunnel)"),
                       (c1, config.CLOWN_OUTRO_PILLARS, "outro")):
         ax.plot([x], [1.0], marker="v", color=RELIEF_COLOR, markersize=9,
                 markeredgecolor="white", markeredgewidth=0.8, zorder=8,
                 clip_on=False,
                 label=("Clown relief — clear-sky empties (unscored)"
-                       if tag == "lead-in" else None))
+                       if tag.startswith("pre-clear") else None))
         ax.annotate(f"+{n} clear sky\n({tag})", (x, 1.0),
                     textcoords="offset points", xytext=(0, 12), ha="center",
                     fontsize=6.5, color=RELIEF_COLOR, fontweight="bold",
@@ -304,7 +307,8 @@ def print_summary(pillars, phases, day_end):
     print(f"  Clown event: held slot {config.CLOWN_START_PILLAR}"
           f"–{config.CLOWN_START_PILLAR + config.CLOWN_SLOT_PILLARS}, "
           f"then {config.CLOWN_TO_RAIN_BUFFER} regular → rain")
-    print(f"  Clown relief: +{config.CLOWN_LEADIN_PILLARS} lead-in / "
+    print(f"  Clown relief: +{config.CLOWN_PRECLEAR_PILLARS} pre-clear (before "
+          f"clown) / +{config.CLOWN_LEADIN_PILLARS} lead-in (before tunnel) / "
           f"+{config.CLOWN_OUTRO_PILLARS} outro clear-sky empties (unscored)")
     _jolt = [pillars[i] for i in range(len(pillars))
              if weather.rain_intensity(phases[i]) >= config.STORM_JOLT_RAIN_MIN]

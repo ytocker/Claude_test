@@ -19,7 +19,7 @@ import pygame
 
 from game.config import (
     W, GROUND_Y, BIRD_X, BIRD_R, PIPE_W,
-    CLOWN_SLOT_PILLARS, CLOWN_WARREN_SPACING,
+    CLOWN_SLOT_PILLARS, CLOWN_WARREN_SPACING, CLOWN_LEADIN_PILLARS,
 )
 from game.clown_routes import build_clown_route
 
@@ -119,6 +119,10 @@ class ClownEvent:
         self.die_pop_t = CELE_LIFE
         world._clown_route = build_clown_route(self.roll, random)
         world._clown_slot_remaining = CLOWN_SLOT_PILLARS
+        # A short "here it comes" clear-sky gap after the die settles, before the
+        # first warren tower (the beat-clear above ended when the phase left
+        # "rolling"). Checked ahead of the slot in _spawn_pipe.
+        world._clown_leadin_remaining = CLOWN_LEADIN_PILLARS
         if self.ghost_run:
             # Phase Pip through the whole warren: size the ghost window to the N
             # warren pillars scrolling past Pip, with a tail for drift. Drives the

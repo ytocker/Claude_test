@@ -21,11 +21,11 @@ import pygame  # noqa: E402
 pygame.init()
 pygame.display.set_mode((360, 640))
 
-from game.world import World, CLOWN_EVENT_PHASE  # noqa: E402
+from game.world import World, CLOWN_EVENT_PHASE, CLOWN_PRECLEAR_PHASE  # noqa: E402
 from game.clown_routes import build_clown_route  # noqa: E402
 from game.config import (  # noqa: E402
     CLOWN_SLOT_PILLARS, CLOWN_WARREN_SPACING, CLOWN_ROLL_MIN, CLOWN_ROLL_MAX,
-    CLOWN_LEADIN_PILLARS, CLOWN_OUTRO_PILLARS)
+    CLOWN_PRECLEAR_PILLARS, CLOWN_LEADIN_PILLARS, CLOWN_OUTRO_PILLARS)
 from game.biome import CYCLE_SECONDS  # noqa: E402
 
 
@@ -201,6 +201,48 @@ class SlotReservation(unittest.TestCase):
                          "outro empties immediately follow the gauntlet")
 
 
+class PreClear(unittest.TestCase):
+    """The clown enters a CLEAN sky: CLOWN_PRECLEAR_PILLARS phantom empties are
+    laid BEFORE the ClownEvent controller exists, and the beat then stays clear
+    (phantom) through the die roll until the reveal."""
+
+    def test_preclear_precedes_the_clown_creation(self):
+        from game.clown_event import ClownEvent
+        w = World()
+        w.pillars_passed = 40  # past the ramp → full scroll
+        w._clown_preclear_remaining = CLOWN_PRECLEAR_PILLARS
+        w._clown_entrance_pending = True
+        x = 500.0
+        for _ in range(CLOWN_PRECLEAR_PILLARS):
+            # The clown must not exist until the last pre-clear empty is laid, so
+            # it never shares the sky with the real pillars still in flight.
+            self.assertIsNone(w.clown_event,
+                              "clown appears only after the pre-clear empties")
+            sp = w._next_spacing()
+            w._spawn_pipe(x)
+            x += sp
+            p = w.pipes[-1]
+            self.assertTrue(p.is_phantom, "pre-clear pillars are phantom empties")
+            self.assertFalse(getattr(p, "is_staff", False))
+        self.assertEqual(w._clown_preclear_remaining, 0)
+        self.assertIsInstance(w.clown_event, ClownEvent,
+                              "clown enters right after the last pre-clear empty")
+
+    def test_beat_stays_clear_until_reveal(self):
+        from game.clown_event import ClownEvent
+        w = World()
+        w.pillars_passed = 40
+        ev = ClownEvent()
+        w.clown_event = ev
+        x = 500.0
+        for phase in ("enter", "rolling"):
+            ev.phase = phase
+            w._spawn_pipe(x)
+            x += w._next_spacing()
+            self.assertTrue(w.pipes[-1].is_phantom,
+                            f"sky stays clear during the '{phase}' phase")
+
+
 class Trigger(unittest.TestCase):
     def _arm_just_before_anchor(self, w):
         w.ready_t = 0.0
@@ -208,34 +250,44 @@ class Trigger(unittest.TestCase):
         w.game_over = False
         w._clown_fired_this_cycle = False
         w._clown_slot_remaining = 0
-        # Park phase a hair before the anchor; push biome_time a hair past it so
-        # the crossing fires inside this update tick.
-        w._last_biome_phase = CLOWN_EVENT_PHASE - 0.005
-        w.biome_time = (CLOWN_EVENT_PHASE + 0.002) * CYCLE_SECONDS
+        # Park phase a hair before the PRE-CLEAR anchor (the clear-sky begins a
+        # few pillars ahead of the clown); push biome_time a hair past it so the
+        # crossing fires inside this update tick.
+        w._last_biome_phase = CLOWN_PRECLEAR_PHASE - 0.005
+        w.biome_time = (CLOWN_PRECLEAR_PHASE + 0.002) * CYCLE_SECONDS
 
     def test_fires_once_at_anchor(self):
         w = World()
         self._arm_just_before_anchor(w)
         w.update(1 / 60.0)
-        # Crossing the anchor now sends in the cinematic controller; the slot is
-        # NOT reserved until the die is rolled (see Pickup tests).
-        self.assertIsNotNone(w.clown_event, "crossing the anchor spawns the clown")
+        # Crossing the pre-clear anchor arms the clear-sky runway + flags the
+        # pending entrance. The clown controller is created later, once the
+        # pre-clear empties are laid (see PreClear); the slot is reserved later
+        # still, on the die roll (see Pickup tests).
         self.assertTrue(w._clown_fired_this_cycle)
-        self.assertEqual(w._clown_slot_remaining, 0,
-                         "slot is reserved on the die roll, not at the trigger")
+        self.assertEqual(w._clown_preclear_remaining, CLOWN_PRECLEAR_PILLARS,
+                         "crossing the anchor arms the pre-clear empties")
+        self.assertTrue(w._clown_entrance_pending)
+        self.assertIsNone(w.clown_event,
+                          "clown is created after the pre-clear, not at the trigger")
+        self.assertEqual(w._clown_slot_remaining, 0)
 
     def test_does_not_refire_same_day(self):
         w = World()
         self._arm_just_before_anchor(w)
         w.update(1 / 60.0)
-        first = w.clown_event
-        # Clear it and keep advancing within the same day: must not re-arm until a
-        # cycle wrap re-sets the flag.
+        self.assertTrue(w._clown_fired_this_cycle)
+        # Disarm the pending entrance and keep advancing within the same day: must
+        # not re-arm until a cycle wrap re-sets the flag.
+        w._clown_preclear_remaining = 0
+        w._clown_entrance_pending = False
         w.clown_event = None
-        w._last_biome_phase = CLOWN_EVENT_PHASE - 0.005
-        w.biome_time = (CLOWN_EVENT_PHASE + 0.002) * CYCLE_SECONDS
+        w._last_biome_phase = CLOWN_PRECLEAR_PHASE - 0.005
+        w.biome_time = (CLOWN_PRECLEAR_PHASE + 0.002) * CYCLE_SECONDS
         w.update(1 / 60.0)
-        self.assertIsNotNone(first)
+        self.assertEqual(w._clown_preclear_remaining, 0,
+                         "pre-clear must not re-arm twice in one day")
+        self.assertFalse(w._clown_entrance_pending)
         self.assertIsNone(w.clown_event, "clown must not re-fire twice in one day")
 
 
