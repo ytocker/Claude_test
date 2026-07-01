@@ -1,16 +1,14 @@
-"""Soccer v7 Design 1 — THE STRIKER (body-recolor approach).
+"""Soccer v9 Design 1 — ARGENTINA "LA ALBICELESTE" (body-recolor approach).
 
-The previous take anchored a flat jersey polygon to the head, so it only
-covered the head-side of the body and missed the belly entirely. This
-version makes the JERSEY the body itself: the macaw's body oval is
-re-plumaged white through the palette system (exactly like the ninja skin
-recolors the whole bird), while the head stays macaw-red and the wings stay
-macaw-blue. On top of that white torso the _paint pass adds the kit trim
-that reads as football — a navy V-collar, a diagonal royal-blue sash, the
-squad number "9", royal-blue shorts, hooped socks, and cleats.
+The jersey IS the body: the macaw's torso oval is re-plumaged white through
+the palette system (like the ninja skin recolors the whole bird), while the
+head stays macaw-red and the wings stay macaw-blue. Over that white torso the
+_paint pass lays the four sky-blue vertical stripes that make the kit instantly
+read as Argentina — plus a sky-blue V-collar, the golden Sol de Mayo crest, deep
+navy shorts, sky-hooped socks, and near-black cleats.
 
-At 40px the read is a white-bodied bird with blue shorts and a red-hooped
-sock line — a striker, not a recolor. Head/wings keep the macaw identity.
+At 40px the read is a white-and-sky-striped bird with navy shorts — the
+Albiceleste — while the head/wings/beak keep the macaw identity.
 """
 import pygame
 
@@ -21,28 +19,27 @@ from game.draw import (
 )
 
 # ── kit trim colours (drawn in _paint, over the white body) ──────────────────
-_ROYAL    = ( 26,  62, 160)   # #1A3EA0 royal-blue shorts + sash + collar
-_ROYAL_D  = ( 16,  40, 112)   # darker royal for the shorts outline / seams
-_SASH_H   = ( 85, 136, 255)   # #5588FF bright-blue sash highlight
-_NAVY     = ( 20,  40, 110)   # navy V-collar + squad-number "9"
-_SASH     = ( 26,  62, 160)   # #1A3EA0 navy-royal sash — separated from red
+_SKY      = (117, 170, 219)   # #75AADB Argentina sky-blue stripes + collar + hoop
+_SKY_D    = ( 92, 142, 190)   # slightly deeper sky for the collar underline
+_NAVY     = ( 11,  27,  77)   # #0B1B4D deep-navy shorts
+_NAVY_D   = (  6,  15,  45)   # darker navy rim for the shorts leg-line
+_GOLD     = (255, 185,   0)   # Sol de Mayo gold disc + rays
+_GOLD_D   = (176, 120,   0)   # dark ring so the sun reads as a disc, not a dot
 _JRS_W    = (240, 240, 245)   # jersey white, reused to notch the shorts crotch
-_SCK      = (240, 240, 245)   # #F0F0F5 white sock
-_SCK_RED  = (192,  57,  43)   # #C0392B red sock hoop
+_SCK      = (245, 245, 250)   # white sock shank
 _CLEAT    = ( 28,  28,  36)   # #1C1C24 near-black cleat
-_CLEAT_SL = (232, 120,  32)   # #E87820 bright-orange sole stripe
 
 # The body oval is re-plumaged WHITE so the jersey IS the body colour. Head
-# stays macaw-red, wings stay macaw-blue, aviator shades stay gold-framed —
-# so only the torso reads as the kit and the bird keeps its identity.
+# stays macaw-red, wings stay macaw-blue — so only the torso reads as the kit
+# and the bird keeps its identity.
 _PAL = _pal(
     tail=[(200, 30, 40), (240, 95, 40), (255, 160, 55), (255, 220, 80)],
     tail_line=(170, 25, 25),
-    body_shadow=(180, 185, 205),      # jersey back-half shade (rounds torso)
+    body_shadow=(185, 188, 205),      # jersey back-half shade (rounds torso)
     body_main=(240, 240, 245),        # jersey white field
-    body_chest=(248, 248, 252),       # lit chest
+    body_chest=(250, 250, 252),       # lit chest
     body_belly=(215, 218, 230),       # slightly cooler belly
-    sheen=(255, 255, 255, 120),
+    sheen=(255, 255, 255, 100),
     wing_main=BIRD_WING,              # keep macaw-blue wings
     wing_dark=BIRD_WING_D,
     wing_tip=BIRD_TIP,
@@ -72,59 +69,58 @@ def _base(angle_deg):
 
 def _paint(surf, _a):
     # All geometry here is in COMPOSITE space (the 64×100 canvas). The body is
-    # already white from _base, so the trim below is what turns the recolor
-    # into a striker's kit.
+    # already white from _base; the trim below turns the recolor into the kit.
 
-    # Shoulder/sleeve seams — a light arc from the neck base over each wing
-    # root. Without this the white body reads as a belly patch; the seam makes
-    # the wing look like it emerges from a fabric sleeve, so the whole torso
-    # reads as a worn jersey wrapping the form.
-    pygame.draw.line(surf, (170, 175, 200), (BCX + 8, BCY - 11), (BCX + 17, BCY - 5), 2)
-    pygame.draw.line(surf, (170, 175, 200), (BCX - 6, BCY - 11), (BCX - 14, BCY - 5), 2)
+    # Sky-blue vertical stripes — the signature Albiceleste graphic. Clipped to
+    # the body oval bounding rect so the stripes stop at the torso edge instead
+    # of bleeding onto the wings/tail; four evenly-spaced 5px bars across 38px.
+    body_rect = pygame.Rect(BCX - 19, BCY - 14, 38, 28)
+    old_clip = surf.get_clip()
+    surf.set_clip(body_rect)
+    for x in (BCX - 17, BCX - 9, BCX - 1, BCX + 7):
+        pygame.draw.rect(surf, _SKY, (x, BCY - 14, 5, 28))
+    surf.set_clip(old_clip)
 
-    # V-collar — a small navy triangle notched at the head/body junction, so
-    # the white jersey reads as a collared shirt right under the red head.
-    _poly(surf, _NAVY, [(HX - 3, HY + 6), (HX + 2, HY + 6), (HX, HY + 10)])
+    # V-neck collar in sky-blue — two lines meeting just below the head, so the
+    # striped jersey reads as a collared shirt right under the red head.
+    pygame.draw.line(surf, _SKY, (BCX - 6, BCY - 12), (BCX + 2, BCY - 8), 2)
+    pygame.draw.line(surf, _SKY, (BCX + 8, BCY - 12), (BCX + 2, BCY - 8), 2)
+    pygame.draw.line(surf, _SKY_D, (BCX - 6, BCY - 11), (BCX + 2, BCY - 7), 1)
 
-    # Diagonal NAVY sash across the BODY (not the head) — navy, not royal, so it
-    # never collides with the macaw-red head; the single bold graphic stripe
-    # that carries the "team kit" read at 40px.
-    pygame.draw.line(surf, _SASH, (BCX - 8, BCY - 8), (BCX + 6, BCY + 2), 2)
-    pygame.draw.line(surf, _SASH_H, (BCX - 8, BCY - 9), (BCX + 6, BCY + 1), 1)
+    # Sol de Mayo crest — a gold disc with a dark ring so it reads as a sun, and
+    # a handful of 1px rays radiating outward. The national sun on the chest is
+    # what pins the kit to Argentina specifically.
+    cxs, cys = BCX + 5, BCY - 5
+    for dx, dy in ((0, -6), (0, 6), (-6, 0), (6, 0),
+                   (-4, -4), (4, -4), (-4, 4), (4, 4)):
+        ex = cxs + (dx * 3) // 6
+        ey = cys + (dy * 3) // 6
+        pygame.draw.line(surf, _GOLD, (cxs, cys),
+                         (cxs + dx // 3, cys + dy // 3), 1)
+    pygame.draw.circle(surf, _GOLD_D, (cxs, cys), 4)
+    pygame.draw.circle(surf, _GOLD, (cxs, cys), 3)
 
-    # Squad number "9" on the open white chest — a BOLD navy ring with a longer
-    # tail so it fills real jersey height and reads as a numeral, not a dot.
-    pygame.draw.circle(surf, _NAVY, (BCX + 2, BCY - 5), 4, 2)
-    pygame.draw.line(surf, _NAVY, (BCX + 5, BCY - 3), (BCX + 2, BCY + 2), 2)
-
-    # Jersey hem — a 1px light ellipse so the white shirt bottom separates from
-    # the royal shorts below instead of fusing into one dark kit blob.
+    # Jersey hem — a 1px light ellipse so the striped shirt bottom separates from
+    # the navy shorts below instead of fusing into one dark kit blob.
     pygame.draw.ellipse(surf, (220, 222, 232), (BCX - 9, BCY + 5, 20, 2), 1)
 
-    # Royal-blue shorts, lifted a touch so the hem line reads above them; a
-    # darker rim keeps the leg-line crisp against the white torso.
-    pygame.draw.ellipse(surf, _ROYAL, (BCX - 9, BCY + 6, 20, 9))
-    pygame.draw.ellipse(surf, _ROYAL_D, (BCX - 9, BCY + 6, 20, 9), 1)
+    # Deep-navy shorts, with a darker rim so the leg-line stays crisp against
+    # the white-and-sky torso.
+    pygame.draw.ellipse(surf, _NAVY, (BCX - 9, BCY + 7, 20, 9))
+    pygame.draw.ellipse(surf, _NAVY_D, (BCX - 9, BCY + 7, 20, 9), 1)
     # Crotch notch so the two leg tubes read as separate legs, not a skirt.
     _poly(surf, _JRS_W,
           [(BCX - 1, BCY + 12), (BCX + 3, BCY + 12), (BCX + 1, BCY + 15)])
 
-    # Socks — white shanks with a red turn-over hoop, one per leg. Shortened to
-    # leave a clean gap above the cleats so the kit stack stays legible.
+    # Socks — white shanks with a sky-blue turn-over hoop, one per leg. Shortened
+    # to leave a clean gap above the cleats so the kit stack stays legible.
     for sx in (27, 35):
         pygame.draw.line(surf, _SCK, (sx, BCY + 11), (sx, BCY + 16), 4)
-        pygame.draw.line(surf, _SCK_RED, (sx, BCY + 12), (sx, BCY + 14), 3)
+        pygame.draw.line(surf, _SKY, (sx, BCY + 12), (sx, BCY + 14), 3)
 
-    # Light rim between the blue wing edge and the dark cleats — keeps the
-    # wing + shorts + cleats from fusing into one bottom blob.
-    pygame.draw.line(surf, (210, 215, 225), (BCX - 16, BCY + 3), (BCX - 12, BCY + 9), 1)
-
-    # Cleats — near-black boots below the socks with a visible gap, plus a
-    # bright-orange sole stripe so the studs read against dark ground at 40px.
+    # Cleats — near-black boots below the socks with a visible gap.
     for cx in (23, 31):
         pygame.draw.rect(surf, _CLEAT, (cx, BCY + 14, 9, 5), border_radius=1)
-        pygame.draw.line(surf, _CLEAT_SL,
-                         (cx, BCY + 18), (cx + 8, BCY + 18), 2)
 
 
 build = _make_skin(_paint, base_fn=_base)
