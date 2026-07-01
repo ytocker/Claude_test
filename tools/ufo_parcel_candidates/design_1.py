@@ -5,16 +5,17 @@ from game.parrot import _aaellipse
 SIZE = 22
 SS = 44
 
-# Palette — a candy pulp saucer, not chrome. Warm cherry + cream + soft glass.
-HULL     = (230, 58, 70)
-HULL_D   = (170, 35, 45)
+# Palette — a candy pulp saucer, not chrome. Warm cherry + cream + hot amber glass.
+HULL     = (220, 48, 62)
+HULL_D   = (130, 18, 28)
+HULL_HI  = (255, 95, 108)   # rim-light on the hull crown
 BAND     = (246, 231, 200)
 BAND_D   = (210, 195, 158)
-PORT     = (58, 166, 196)
-PORT_D   = (32, 110, 135)
+PORT     = (255, 193, 55)    # warm amber
+PORT_D   = (200, 125, 15)    # dark amber
 GLOW     = (255, 210, 90)
 OUTLINE  = (42, 20, 24)
-DOME     = (200, 190, 175)
+DOME     = (240, 232, 215)
 
 
 def build(mode="normal"):
@@ -30,6 +31,8 @@ def build(mode="normal"):
     _aaellipse(s, DOME,    (cx, dome_cy), 6,     4)
     # A soft cream sheen on the dome's upper-left curve.
     _aaellipse(s, BAND, (cx - 2, dome_cy - 1), 2, 1)
+    # Sharp glass specular so the cream dome reads as a curved canopy.
+    _aaellipse(s, (255, 255, 255), (cx - 2, dome_cy - 2), 1, 1)
 
     # --- Dark outline halo baked around the whole disc for day-sky contrast ---
     _aaellipse(s, OUTLINE, (cx, cy), disc_rx + 3, disc_ry + 3)
@@ -41,11 +44,20 @@ def build(mode="normal"):
     span = disc_ry * 2
     for iy in range(-disc_ry, disc_ry + 1):
         t = (iy + disc_ry) / span if span else 0.0
-        col = (
-            int(HULL[0] + (HULL_D[0] - HULL[0]) * t),
-            int(HULL[1] + (HULL_D[1] - HULL[1]) * t),
-            int(HULL[2] + (HULL_D[2] - HULL[2]) * t),
-        )
+        if t < 0.15:
+            # Bright rim-light on the crown fades into the base cherry.
+            k = t / 0.15
+            col = (
+                int(HULL_HI[0] + (HULL[0] - HULL_HI[0]) * k),
+                int(HULL_HI[1] + (HULL[1] - HULL_HI[1]) * k),
+                int(HULL_HI[2] + (HULL[2] - HULL_HI[2]) * k),
+            )
+        else:
+            col = (
+                int(HULL[0] + (HULL_D[0] - HULL[0]) * t),
+                int(HULL[1] + (HULL_D[1] - HULL[1]) * t),
+                int(HULL[2] + (HULL_D[2] - HULL[2]) * t),
+            )
         # Ellipse half-width at this scanline keeps the fill inside the disc.
         frac = 1.0 - (iy / disc_ry) ** 2
         if frac < 0:
@@ -63,18 +75,22 @@ def build(mode="normal"):
     pygame.draw.line(s, OUTLINE, (cx - disc_rx + 2, cy - 2),
                      (cx + disc_rx - 2, cy - 2), 1)
 
-    # --- Row of chunky glowing portholes along the cream band (the tell) ---
+    # --- Dark dividers segment the cream band into cabin panels ---
+    for divx in (cx - 4, cx + 4):
+        pygame.draw.line(s, OUTLINE, (divx, cy - 2), (divx, cy + 4), 1)
+
+    # --- Three chunky amber portholes: warm cabin light spills out (the tell) ---
     port_y = cy + 1
-    port_xs = [cx - 9, cx - 3, cx + 3, cx + 9]
+    port_xs = [cx - 8, cx, cx + 8]
     for px in port_xs:
-        # Soft warm halo behind each window signals an "occupied" ship.
+        # Hot amber halo behind each window signals an "occupied" ship.
         glow = pygame.Surface((SS, SS), pygame.SRCALPHA)
-        _aaellipse(glow, (*GLOW, 120), (px, port_y), 4, 4)
+        _aaellipse(glow, (*GLOW, 190), (px, port_y), 5, 5)
         s.blit(glow, (0, 0))
-        _aaellipse(s, PORT_D, (px, port_y), 3, 3)
-        _aaellipse(s, PORT,   (px, port_y), 2, 2)
-        # Tiny cream catch-light in each porthole's upper-left.
-        _aaellipse(s, BAND, (px - 1, port_y - 1), 1, 1)
+        # Warm amber porthole — hot center ramp reads as light from inside.
+        _aaellipse(s, (255, 220, 140), (px, port_y), 3, 3)      # warm fill
+        _aaellipse(s, (255, 245, 200), (px, port_y), 2, 2)      # bright core
+        _aaellipse(s, (255, 255, 255), (px - 1, port_y - 1), 1, 1)  # white spark
 
     # --- Cream highlight arc riding the disc's top crown ---
     hi = pygame.Surface((SS, SS), pygame.SRCALPHA)
