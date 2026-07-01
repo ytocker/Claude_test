@@ -22,7 +22,7 @@ COLUMNS = [
     ("ORIGINAL", "OLD SOCCER", "orig"),
     ("DESIGN 1", "THE STRIKER", "design_1"),
     ("DESIGN 2", "THE GOALKEEPER", "design_2"),
-    ("DESIGN 3", "THE CAPTAIN", "design_3"),
+    ("DESIGN 3", "JUVENTUS", "design_3"),
     ("DESIGN 4", "THE REFEREE", "design_4"),
     ("DESIGN 5", "THE ULTRA FAN", "design_5"),
 ]
