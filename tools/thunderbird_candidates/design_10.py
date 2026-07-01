@@ -112,7 +112,7 @@ def _cable_wing(surf, angle_deg, side):
     pygame.draw.lines(surf, inner, False, pts, 2)
     # A bright bead where the cable is most bent — the current pooling in the loop.
     bx, by = int(pts[4][0]), int(pts[4][1])
-    _bloom(surf, (bx, by), 5, HV_YELLOW, peak=int(70 + 60 * s))
+    _bloom(surf, (bx, by), 4, HV_YELLOW, peak=int(40 + 40 * s))
     pygame.draw.circle(surf, ARC_WHITE, (bx, by), 1)
 
 
@@ -121,7 +121,8 @@ def _frayed_head(surf, s):
     centre, a spark-eye, and a hard arc-flash wedge for the 'mouth'. No round
     head, no traditional beak — this is where the wire snapped."""
     # A soft halo so the frayed end reads as a hot break even when filaments thin.
-    _bloom(surf, (HCX, HCY), 12, LIVE_GOLD, peak=int(46 + 30 * s))
+    # Kept below the chest bloom so the chest stays the single brightest point.
+    _bloom(surf, (HCX, HCY), 10, LIVE_GOLD, peak=int(24 + 16 * s))
 
     # 6 short radiating filaments, each a dark-cored strand with a lit outer glow
     # so it holds a thick enough line at 40px.
@@ -192,11 +193,13 @@ def _build_frame(wing_angle_deg):
     # NEAR wing last (in front of the body).
     _cable_wing(surf, wing_angle_deg, -1)
 
-    # CHEST ARC-FLASH — the "break". The single brightest point, a hard white-cored
-    # bloom that pulses widest on the down-stroke overload. Additive over the body.
+    # CHEST ARC-FLASH — the "break". The single brightest point: a tight yellow
+    # bloom ringing a hard white core. Peaks are kept low so the additive light
+    # stays a concentrated hotspot and never washes out the dark cable body — the
+    # elongated insulation silhouette has to survive the bloom, not drown in it.
     chest = (BCX + 2, BCY - 8)
-    _bloom(surf, chest, 16, ARC_WHITE, peak=int(70 + 55 * s))
-    _bloom(surf, chest, 14, HV_YELLOW, peak=int(60 + 40 * s))
+    _bloom(surf, chest, 13, HV_YELLOW, peak=int(28 + 22 * s))
+    _bloom(surf, chest, 7, ARC_WHITE, peak=int(40 + 30 * s))
     pygame.draw.circle(surf, ARC_WHITE, chest, 2)
 
     # MOLTEN SPARK DRIPS — 4 falling drops below the bird, positions drifting per
