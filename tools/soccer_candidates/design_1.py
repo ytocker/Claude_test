@@ -19,8 +19,9 @@ from game.draw import (
 )
 
 # ── kit trim colours (drawn in _paint, over the white body) ──────────────────
-_SKY      = (117, 170, 219)   # #75AADB Argentina sky-blue stripes + collar + hoop
-_SKY_D    = ( 92, 142, 190)   # slightly deeper sky for the collar underline
+_SKY      = ( 80, 155, 210)   # vivid Argentina sky-blue — punchy at 40px, still
+                              # clearly lighter/cyaner than macaw-wing (40,100,255)
+_SKY_D    = ( 55, 120, 175)   # deeper sky for the collar underline
 _NAVY     = ( 11,  27,  77)   # #0B1B4D deep-navy shorts
 _NAVY_D   = (  6,  15,  45)   # darker navy rim for the shorts leg-line
 _GOLD     = (255, 185,   0)   # Sol de Mayo gold disc + rays
@@ -73,36 +74,34 @@ def _paint(surf, _a):
 
     # Sky-blue vertical stripes — the signature Albiceleste graphic. Clipped to
     # the body oval bounding rect so the stripes stop at the torso edge instead
-    # of bleeding onto the wings/tail; four evenly-spaced 5px bars across 38px.
+    # of bleeding onto the wings/tail; four 6px bars so every stripe still reads
+    # once the sprite is scaled down to ~40px in-game.
     body_rect = pygame.Rect(BCX - 19, BCY - 14, 38, 28)
     old_clip = surf.get_clip()
     surf.set_clip(body_rect)
     for x in (BCX - 17, BCX - 9, BCX - 1, BCX + 7):
-        pygame.draw.rect(surf, _SKY, (x, BCY - 14, 5, 28))
+        pygame.draw.rect(surf, _SKY, (x, BCY - 14, 6, 28))
     surf.set_clip(old_clip)
 
     # V-neck collar in sky-blue — two lines meeting just below the head, so the
     # striped jersey reads as a collared shirt right under the red head.
     pygame.draw.line(surf, _SKY, (BCX - 6, BCY - 12), (BCX + 2, BCY - 8), 2)
     pygame.draw.line(surf, _SKY, (BCX + 8, BCY - 12), (BCX + 2, BCY - 8), 2)
-    pygame.draw.line(surf, _SKY_D, (BCX - 6, BCY - 11), (BCX + 2, BCY - 7), 1)
+    pygame.draw.line(surf, _SKY_D, (BCX - 6, BCY - 11), (BCX + 2, BCY - 7), 2)
 
-    # Sol de Mayo crest — a gold disc with a dark ring so it reads as a sun, and
-    # a handful of 1px rays radiating outward. The national sun on the chest is
-    # what pins the kit to Argentina specifically.
+    # Sol de Mayo crest — a gold disc with eight short rays radiating in the
+    # cardinal + diagonal directions so it reads as the national sun, not a plain
+    # dot. The Sol de Mayo is what pins the kit to Argentina specifically.
     cxs, cys = BCX + 5, BCY - 5
-    for dx, dy in ((0, -6), (0, 6), (-6, 0), (6, 0),
-                   (-4, -4), (4, -4), (-4, 4), (4, 4)):
-        ex = cxs + (dx * 3) // 6
-        ey = cys + (dy * 3) // 6
-        pygame.draw.line(surf, _GOLD, (cxs, cys),
-                         (cxs + dx // 3, cys + dy // 3), 1)
+    for dx, dy in ((0, -3), (0, 3), (-3, 0), (3, 0),
+                   (-2, -2), (2, -2), (-2, 2), (2, 2)):
+        pygame.draw.line(surf, _GOLD, (cxs, cys), (cxs + dx, cys + dy), 1)
     pygame.draw.circle(surf, _GOLD_D, (cxs, cys), 4)
     pygame.draw.circle(surf, _GOLD, (cxs, cys), 3)
 
-    # Jersey hem — a 1px light ellipse so the striped shirt bottom separates from
-    # the navy shorts below instead of fusing into one dark kit blob.
-    pygame.draw.ellipse(surf, (220, 222, 232), (BCX - 9, BCY + 5, 20, 2), 1)
+    # Jersey hem — a light ellipse value-break so the striped shirt bottom
+    # separates from the navy shorts below instead of fusing into one kit blob.
+    pygame.draw.ellipse(surf, (190, 200, 225), (BCX - 9, BCY + 5, 20, 2), 2)
 
     # Deep-navy shorts, with a darker rim so the leg-line stays crisp against
     # the white-and-sky torso.

@@ -4,9 +4,10 @@ Same STRIKER anatomy as design_1, but the jersey IS the body: the macaw's
 torso oval is re-plumaged brilliant Dutch orange through the palette system,
 while the head stays macaw-red and the wings/beak stay macaw. On top of that
 orange field the _paint pass lays the Oranje kit — a black neck collar band
-that separates the orange body from the red head, a crew collar, a thin black
-chest band, a white KNVB-lion crest dot, black shorts, orange hooped socks,
-and near-black cleats.
+that separates the orange body from the red head, a crew collar, a large white
+KNVB badge disc, black shorts, orange hooped socks, and near-black cleats. No
+chest stripe: the orange field is strong enough alone, and a wide black band
+plus the collar was tipping the lower body too dark at 40px.
 
 The single most important detail is the 4px black neck band at BCY-13: it
 divides the scarlet macaw head from the orange jersey so the two warm tones
@@ -25,6 +26,7 @@ _BLACK    = ( 10,  10,  12)   # #0A0A0C KNVB black trim — collar, band, shorts
 _SHORT_R  = ( 28,  28,  36)   # #1C1C24 shorts rim / cleat body
 _ORANGE   = (243, 108,  33)   # #F36C21 brilliant Dutch orange — sock field
 _WHITE    = (245, 245, 250)   # crest white
+_AMBER    = (180,  60,   8)   # #B43C08 deep amber — oval border (no black noise)
 
 # The body oval is re-plumaged ORANGE so the jersey IS the body colour. Head
 # stays macaw-red, wings/beak stay macaw — so only the torso reads as the
@@ -69,9 +71,10 @@ def _paint(surf, _a):
     # already brilliant orange from _base, so the trim below is what turns the
     # recolor into the Oranje kit.
 
-    # Dark oval border — anchors the orange field so the bright jersey holds its
-    # silhouette against the sky instead of bleeding at the edge.
-    pygame.draw.ellipse(surf, _BLACK, (BCX - 19, BCY - 14, 38, 28), 1)
+    # Deep-amber oval border — anchors the orange field so the bright jersey
+    # holds its silhouette against the sky. A darker orange (not black) keeps
+    # the edge crisp without dropping black noise onto the warm identity.
+    pygame.draw.ellipse(surf, _AMBER, (BCX - 19, BCY - 14, 38, 28), 1)
 
     # NECK COLLAR SEPARATION — the load-bearing detail. A fat 4px black band at
     # the neck splits the scarlet macaw head from the orange jersey so the two
@@ -82,23 +85,22 @@ def _paint(surf, _a):
     # jersey reads as a collared shirt rather than a bare orange belly.
     pygame.draw.line(surf, _BLACK, (BCX - 7, BCY - 12), (BCX + 9, BCY - 12), 3)
 
-    # Thin black chest band — the single Oranje accent stripe across the field.
-    pygame.draw.line(surf, _BLACK, (BCX - 18, BCY - 4), (BCX + 18, BCY - 4), 2)
-
-    # KNVB lion crest — white circle with a dark core, reads as the badge dot.
-    pygame.draw.circle(surf, _BLACK, (BCX + 5, BCY - 5), 4)
-    pygame.draw.circle(surf, _WHITE, (BCX + 5, BCY - 5), 3)
-    pygame.draw.circle(surf, _BLACK, (BCX + 5, BCY - 5), 1)
+    # KNVB badge — a single large white disc with one dark core, sized to survive
+    # the 40px downscale. The fine white+black+white layering read as a random
+    # pixel before; a fat 6px disc reads unambiguously as a chest badge dot.
+    pygame.draw.circle(surf, _WHITE, (BCX + 6, BCY - 6), 6)
+    pygame.draw.circle(surf, _BLACK, (BCX + 6, BCY - 6), 2)
 
     # Black shorts with a lighter rim so the leg-line stays crisp under the
     # orange torso.
     pygame.draw.ellipse(surf, _BLACK, (BCX - 9, BCY + 7, 20, 9))
     pygame.draw.ellipse(surf, _SHORT_R, (BCX - 9, BCY + 7, 20, 9), 1)
 
-    # Socks — orange shanks with a black turn-over hoop, one per leg.
+    # Socks — a clean 4px orange shank per leg with one 2px black turn-over
+    # hoop. Kept deliberately flat: extra layers only read as noise at 40px.
     for sx in (27, 35):
         pygame.draw.line(surf, _ORANGE, (sx, BCY + 11), (sx, BCY + 16), 4)
-        pygame.draw.line(surf, _BLACK, (sx, BCY + 12), (sx, BCY + 14), 3)
+        pygame.draw.line(surf, _BLACK, (sx, BCY + 12), (sx, BCY + 13), 2)
 
     # Cleats — near-black boots below the socks with a visible gap.
     for cx in (23, 31):
