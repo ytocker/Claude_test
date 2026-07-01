@@ -7,9 +7,9 @@ Architecture: the jersey IS the body. Rather than pasting a flat jersey polygon
 over the scarlet macaw (which anchored to the head centre and skipped the belly),
 this recolours the body oval WHITE through the palette system — `_pal` +
 `_build_parrot_with_palette`. `_paint` then clips to the body oval and lays down
-three black vertical bands, so the whole torso reads as Juve's black-and-white
-stripes. Head stays macaw-red and wings stay macaw-blue so it still reads as
-"a parrot in the bianconeri kit."
+three equal-weight black bands, so the whole torso reads as Juve's black-and-
+white stripes. Head stays macaw-red and wings stay macaw-blue so it still reads
+as "a parrot in the bianconeri kit."
 """
 import pygame
 
@@ -59,24 +59,29 @@ def _base(angle_deg):
 
 
 def _paint(surf, _a):
-    # BIANCONERI STRIPES — the whole "Juve" tell. Clip to the body oval so the
-    # black bands wrap the torso silhouette instead of spilling into the sky,
-    # then re-outline the oval so the striped field reads as one rounded jersey.
+    # BIANCONERI STRIPES — the whole "Juve" tell. Three 4px black bands spaced so
+    # the white channels between them are the same width, so the torso reads as
+    # true equal-weight black-and-white at 40px, not black-on-white. Clipped to
+    # the body oval so the bands wrap the silhouette instead of spilling onto the
+    # blue wings/sky; then a light-grey outline redefines the jersey edge the
+    # wing-blue was eating into.
     clip_prev = surf.get_clip()
     surf.set_clip(pygame.Rect(BCX - 19, BCY - 14, 38, 28))
-    for x in (BCX - 15, BCX - 4, BCX + 7):
-        pygame.draw.rect(surf, (10, 10, 12), (x, BCY - 14, 5, 28))
+    for x in (BCX - 15, BCX - 7, BCX + 1):
+        pygame.draw.rect(surf, (10, 10, 12), (x, BCY - 14, 4, 28))
     surf.set_clip(clip_prev)
-    pygame.draw.ellipse(surf, (10, 10, 12), (BCX - 19, BCY - 14, 38, 28), 1)
+    pygame.draw.ellipse(surf, (200, 200, 205), (BCX - 19, BCY - 14, 38, 28), 1)
 
     # COLLAR — a black crew-neck band right under the red head, so the striped
     # jersey reads as a collared shirt rather than a raw recolour edge.
-    pygame.draw.line(surf, (10, 10, 12), (BCX - 7, BCY - 12), (BCX + 9, BCY - 12), 3)
+    pygame.draw.line(surf, (10, 10, 12), (BCX - 8, BCY - 13), (BCX + 10, BCY - 13), 2)
 
-    # CREST — a pale oval shield with a black rim, sat in the left white stripe
-    # so it survives the downscale as a crisp club badge, not a soft smudge.
-    pygame.draw.circle(surf, (10, 10, 12), (BCX - 7, BCY - 5), 4)
-    pygame.draw.circle(surf, (245, 245, 250), (BCX - 7, BCY - 5), 3)
+    # BADGE — a single solid black dot with a white ring, sat in a white channel
+    # so it survives the downscale as one crisp club mark instead of the pale
+    # shield-smudge the R1 crest became at 40px.
+    pygame.draw.circle(surf, (245, 245, 250), (BCX + 6, BCY - 6), 5)
+    pygame.draw.circle(surf, (10, 10, 12), (BCX + 6, BCY - 6), 5, 1)
+    pygame.draw.circle(surf, (10, 10, 12), (BCX + 6, BCY - 6), 4)
 
     # SHORTS — black to match Juve's away/short colour, with a lighter rim so
     # the leg-line stays crisp against the striped torso above.
@@ -87,7 +92,7 @@ def _paint(surf, _a):
     # keeps one bright value break above the near-black cleats.
     for sx in (27, 35):
         pygame.draw.line(surf, (10, 10, 12), (sx, BCY + 11), (sx, BCY + 16), 4)
-        pygame.draw.line(surf, (242, 242, 245), (sx, BCY + 12), (sx, BCY + 14), 4)
+        pygame.draw.line(surf, (242, 242, 245), (sx, BCY + 12), (sx, BCY + 13), 4)
 
     # CLEATS — near-black boots below the socks with a visible gap, so the kit
     # stack (shorts, socks, boots) stays legible at 40px.
