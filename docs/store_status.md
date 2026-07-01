@@ -4,6 +4,50 @@ Branch: `v5_store_parrots` | Date: 2026-06-26
 
 ---
 
+## Storefront — Lagoon hub landing (launch gating)
+
+`v5_store` · 2026-07-01
+
+The coin store opens onto the **lagoon stilt-market hub** (`game/store_hub.py`): a
+tropical over-water village where each category is a thatched stall. Tapping an
+open stall drills into that category's grid (constellation "crest, no-burst"
+cards, `game/store_cards.py`); BACK returns to the hub, BACK again exits.
+
+**Launch subset — 3 stalls open, 4 shut.** For launch only three categories are
+open and clickable:
+
+| Stall | State | On tap |
+|---|---|---|
+| COSTUMES | Open | opens the category grid |
+| PARROTS | Open | opens the category grid |
+| PARCELS | Open | opens the category grid |
+| ANIMALS | Closed | silent no-op |
+| SHOES | Closed | silent no-op |
+| HATS | Closed | silent no-op |
+| SHADES | Closed | silent no-op |
+
+Closed stalls render as an **anonymous rolled bamboo blind** — no label, no preview
+dome, no "closed" text — with a cool dormant veil so they read "asleep" while the
+open three stay warm (`game/store_hub_closed.py`; art-director-approved design,
+`docs/store_bazaar/closed_stalls/round_2@2x.png`). Tapping a closed stall does
+nothing (silent no-op in `StoreScene._handle_hub_tap`).
+
+**Re-opening a category is a one-line change.** The shut set is a single config:
+
+```python
+# game/store_hub.py
+CLOSED_GROUPS = frozenset({"animal", "shoes", "hats", "shades"})
+```
+
+Remove a group to open its stall (it renders normally and becomes clickable);
+empty the set to restore the full all-open 7-stall hub. Both the closed baking
+(`_render_static_device`) and the tap-gate read this one set, and the full open
+hub art is untouched — kept intact for the future.
+
+Live reference: `docs/store_bazaar/lagoon_stilt/hub_ingame.png`.
+
+---
+
 ## COSTUMES (12 items)
 
 | Name | ID | Cost |
