@@ -18,17 +18,17 @@ def _draw_tail(surf, cx, cy, bob, sway):
     pivot_x = cx - 17
     pivot_y = cy + 2
 
-    # 5 crepe strips as pointed polygons fanning upper-left to lower-left
-    # (angle_deg, color) — spread over ~70° arc from ~10 o'clock to ~8 o'clock
-    # sway animates the whole fan rotation by ±5° so it reads as an open/close
-    # motion rather than a static wedge.
+    # 5 crepe strips as pointed polygons fanning upper-left to lower-left over a
+    # ~90° arc (-155°..-65°). The wider spread + high-contrast alternating colours
+    # keep the strips reading as distinct plumes at 40px instead of merging into a
+    # single pink wedge. sway rotates the whole fan so it opens/closes in motion.
     fan_rot = sway * 5.0   # degrees: +1 sway → fan rotates +5°
     strips = [
         (-155 + fan_rot, PINK,   14),
-        (-130 + fan_rot, ORANGE, 13),
-        (-105 + fan_rot, CREAM,  12),
-        (-80  + fan_rot, TURQ,   13),
-        (-55  + fan_rot, PINK_D, 11),
+        (-132 + fan_rot, CREAM,  13),
+        (-110 + fan_rot, ORANGE, 13),
+        (-87  + fan_rot, TURQ,   14),
+        (-65  + fan_rot, PINK_D, 11),
     ]
     for ang_deg, color, length in strips:
         ang = math.radians(ang_deg)
