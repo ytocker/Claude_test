@@ -122,32 +122,36 @@ def _paint(surf, _a):
     pygame.draw.circle(surf, _POM_GOLD, (hat_cx, hat_cy - 5), 4)
     pygame.draw.circle(surf, _POM_HI, (hat_cx - 1, hat_cy - 6), 2)
 
-    # ── SCARF (HERO PROP, drawn LAST so it overlays every kit layer) — a gold/red
-    #    club scarf looped once at the throat with two staggered tails waving down
-    #    and outward from the body. The two bright gold tails are the single
-    #    highest-value diagonals at 40px, so the supporter reads instantly.
-    # Throat loop: a dark gold backing under a bright gold band so the loop
-    #    separates cleanly from the beak.
-    pygame.draw.line(surf, _GOLD_DK, (HX - 8, HY + 5), (HX + 4, HY + 3), 5)
-    pygame.draw.line(surf, _GOLD, (HX - 8, HY + 4), (HX + 4, HY + 2), 3)
+    # ── SCARF (HERO PROP, drawn LAST so it overlays every kit layer) — a gold
+    #    club scarf looped at the throat with ONE bold tail streaming UP and BACK
+    #    into the open sky above/behind the shoulder. A scarf only reads as a
+    #    scarf when its tail lives in clear sky, so the tail exits the body upward
+    #    into negative space rather than lying over the striped belly (where the
+    #    old twin tails collided with the hoops and vanished).
+    # Throat loop — wraps the neck/head-body junction, dark gold backing under a
+    #    bright gold band.
+    tx, ty = HX - 6, HY + 3
+    pygame.draw.line(surf, _GOLD_DK, (tx - 4, ty), (tx + 6, ty - 2), 5)
+    pygame.draw.line(surf, _GOLD, (tx - 4, ty - 1), (tx + 6, ty - 3), 3)
 
-    # Left tail (longer) — S-curve from the throat sweeping down-left past the
-    #    body; red cloth body with a gold centre stripe.
-    pts_L = [(HX - 6, HY + 6), (HX - 10, HY + 14), (HX - 7, HY + 22), (HX - 11, HY + 32)]
-    for i in range(len(pts_L) - 1):
-        pygame.draw.line(surf, _RED, pts_L[i], pts_L[i + 1], 4)
-        pygame.draw.line(surf, _GOLD, pts_L[i], pts_L[i + 1], 2)
+    # ONE bold tail — arcs up-left off the throat, past the top of the body, and
+    #    well into clear sky above the bird; red centre stripe over gold face over
+    #    a dark-gold backing so the cloth reads as a hooped club scarf.
+    tail_pts = [
+        (tx - 3, ty),
+        (BCX - 14, BCY - 18),
+        (BCX - 22, BCY - 28),
+        (BCX - 20, BCY - 38),
+    ]
+    for i in range(len(tail_pts) - 1):
+        pygame.draw.line(surf, _GOLD_DK, tail_pts[i], tail_pts[i + 1], 5)
+        pygame.draw.line(surf, _GOLD, tail_pts[i], tail_pts[i + 1], 3)
+        pygame.draw.line(surf, _SCARF_R, tail_pts[i], tail_pts[i + 1], 1)
 
-    # Right tail (shorter) — S-curve from the throat sweeping down-right, opposite
-    #    phase, for the asymmetric waving read.
-    pts_R = [(HX + 2, HY + 5), (HX + 6, HY + 14), (HX + 3, HY + 25)]
-    for i in range(len(pts_R) - 1):
-        pygame.draw.line(surf, _RED, pts_R[i], pts_R[i + 1], 4)
-        pygame.draw.line(surf, _GOLD, pts_R[i], pts_R[i + 1], 2)
-
-    # Gold tassel caps at each tail end so the scarf reads as tasseled cloth.
-    pygame.draw.circle(surf, _GOLD, pts_L[-1], 4)
-    pygame.draw.circle(surf, _GOLD, pts_R[-1], 4)
+    # Bold tassel cap at the tail end — the visual period out in open sky.
+    pygame.draw.circle(surf, _GOLD_DK, tail_pts[-1], 5)
+    pygame.draw.circle(surf, _GOLD, tail_pts[-1], 4)
+    pygame.draw.circle(surf, _POM_HI, (tail_pts[-1][0] - 1, tail_pts[-1][1] - 1), 2)
 
 
 build = _make_skin(_paint, base_fn=_base)
