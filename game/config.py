@@ -240,9 +240,9 @@ CLOWN_WARREN_GAP      = 172         # per-pillar gap height inside the gauntlet
 #   lead-in  → a short "here it comes" gap after the die settles, before the
 #              first warren tower;
 #   outro    → a breather right after the gauntlet.
-CLOWN_PRECLEAR_PILLARS = 3          # empties BEFORE the clown+die appear
-CLOWN_LEADIN_PILLARS  = 2           # empties after the reveal, before the gauntlet
-CLOWN_OUTRO_PILLARS   = 2           # empties right after the gauntlet
+CLOWN_PRECLEAR_PILLARS = 2          # empties BEFORE the clown+die appear
+CLOWN_LEADIN_PILLARS  = 1           # empties after the reveal, before the gauntlet
+CLOWN_OUTRO_PILLARS   = 1           # empties right after the gauntlet
 
 # Inserting the slot + buffer pushes the rain block (and everything after it)
 # this many pillars later than the pre-clown anchor. The biome DAY phase is
