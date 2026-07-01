@@ -28,11 +28,11 @@ from game.draw import (
 _PAL = _pal(
     tail=[(200, 30, 40), (240, 95, 40), (255, 160, 55), (255, 220, 80)],
     tail_line=(170, 25, 25),
-    body_shadow=(6, 14, 40),
-    body_main=(13, 32, 72),
-    body_chest=(18, 44, 92),
-    body_belly=(10, 26, 62),
-    sheen=(50, 80, 150, 80),
+    body_shadow=(4, 10, 30),
+    body_main=(10, 26, 62),
+    body_chest=(14, 36, 78),
+    body_belly=(8, 20, 52),
+    sheen=(40, 65, 120, 70),
     wing_main=BIRD_WING,
     wing_dark=BIRD_WING_D,
     wing_tip=BIRD_TIP,
@@ -62,45 +62,57 @@ def _base(angle_deg):
 
 
 def _paint(surf, _a):
-    # Lighter-navy piping across the top of the recoloured jersey — the sole
-    # collar cue, a single line so it never fights the crest for white pixels.
-    pygame.draw.line(surf, (26, 56, 128), (BCX - 13, BCY - 8), (BCX + 13, BCY - 8), 1)
+    # WING-BODY SEAM PIPING — the critical VALUE BREAK. With the jersey and the
+    # macaw-blue wing both dark, a bright white line down the wing root is what
+    # keeps the two masses from fusing into one silhouette at 40px.
+    pygame.draw.line(surf, (200, 200, 200), (BCX + 9, BCY - 12), (BCX + 16, BCY - 4), 2)
+    pygame.draw.line(surf, (200, 200, 200), (BCX - 9, BCY - 12), (BCX - 16, BCY - 4), 1)
 
-    # Club CREST on the left chest — a chunky white shield with one navy bar so
-    # it survives the 40px downscale as a solid white read on the navy torso.
-    shield = [(BCX - 10, BCY - 8), (BCX - 4, BCY - 8), (BCX - 4, BCY - 2),
-              (BCX - 7, BCY + 1), (BCX - 10, BCY - 2)]
-    _poly(surf, (255, 255, 255), shield)
-    pygame.draw.line(surf, (13, 32, 72), (BCX - 7, BCY - 7), (BCX - 7, BCY - 2), 1)
-    pygame.draw.polygon(surf, (13, 32, 72), shield, 1)
+    # Club CREST — a hard-edged white shield with a navy keyline and a vertical
+    # bar device. Geometric so it survives the downscale as a crisp emblem, not
+    # a soft smudge, on the deep-navy torso.
+    crest_x, crest_y = BCX - 8, BCY - 8
+    shield = [(crest_x - 4, crest_y - 4), (crest_x + 4, crest_y - 4),
+              (crest_x + 4, crest_y + 2), (crest_x, crest_y + 5),
+              (crest_x - 4, crest_y + 2)]
+    _poly(surf, (240, 240, 240), shield)
+    pygame.draw.polygon(surf, (10, 26, 62), shield, 1)
+    pygame.draw.line(surf, (10, 26, 62),
+                     (crest_x, crest_y - 4), (crest_x, crest_y + 5), 1)
 
-    # SHORTS — same deep navy as the body, a lighter-navy outline so they
-    # separate from the recoloured torso above them.
-    shorts = pygame.Rect(BCX - 10, BCY + 7, 22, 11)
-    pygame.draw.ellipse(surf, (13, 32, 72), shorts)
-    pygame.draw.ellipse(surf, (26, 56, 128), shorts, 1)
+    # SHORTS — a fraction lighter than the body so there is a 1px value tick
+    # between torso and kit; the socks below carry the real light break.
+    _SHT = (18, 42, 90)
+    pygame.draw.ellipse(surf, _SHT, (BCX - 9, BCY + 7, 20, 9))
+    pygame.draw.ellipse(surf, (28, 58, 120), (BCX - 9, BCY + 7, 20, 9), 1)
 
-    # SOCKS — white body with a compressed navy DOUBLE-HOOP so clear white gaps
-    # survive above and between the hoops before the near-black cleat, otherwise
-    # the whole foot merges into one dark block at 40px.
+    # SOCKS — the only light value in the lower zone, so they must be BOLD: a
+    # thick white hoop split by a navy double-hoop keeps clear white gaps above
+    # the near-black cleats instead of a single dark clump.
     for sx in (27, 35):
-        pygame.draw.line(surf, (255, 255, 255), (sx, BCY + 11), (sx, BCY + 17), 4)
-        pygame.draw.line(surf, (13, 32, 72), (sx, BCY + 12), (sx, BCY + 13), 4)
-        pygame.draw.line(surf, (13, 32, 72), (sx, BCY + 14), (sx, BCY + 15), 4)
+        pygame.draw.line(surf, (240, 240, 245), (sx, BCY + 11), (sx, BCY + 16), 4)
+        pygame.draw.line(surf, (10, 26, 62), (sx, BCY + 12), (sx, BCY + 13), 4)
+        pygame.draw.line(surf, (10, 26, 62), (sx, BCY + 14), (sx, BCY + 15), 4)
 
     # CLEATS — near-black boots with a silver sole stripe along the bottom edge.
     for fx in (23, 31):
-        pygame.draw.rect(surf, (28, 28, 36), (fx, BCY + 13, 9, 5), border_radius=1)
-        pygame.draw.line(surf, (168, 168, 176),
-                         (fx, BCY + 17), (fx + 8, BCY + 17), 1)
+        pygame.draw.rect(surf, (28, 28, 36), (fx, BCY + 14, 9, 5), border_radius=1)
+        pygame.draw.line(surf, (160, 162, 170),
+                         (fx + 1, BCY + 18), (fx + 8, BCY + 18), 1)
 
-    # HERO PROP · CAPTAIN'S ARMBAND (drawn LAST) — a bold, wide white band
-    # wrapping the near wing arm with a single gold spine. Brighter and wider
-    # than any garment stripe, so it owns the "captain" read at 40px.
-    ax, ay = BCX + 15, BCY - 3
-    pygame.draw.line(surf, (207, 181, 59), (ax - 2, ay - 6), (ax + 4, ay + 6), 8)
-    pygame.draw.line(surf, (255, 255, 255), (ax - 2, ay - 6), (ax + 4, ay + 6), 6)
-    pygame.draw.line(surf, (180, 150, 40), (ax - 1, ay - 5), (ax + 3, ay + 5), 1)
+    # HERO PROP · CAPTAIN'S ARMBAND (drawn LAST) — the whole "captain" tell. Sat
+    # further out on the near wing against open sky, wide with a hard dark border
+    # so the bright white band + gold spine own the read even at 40px.
+    _ARM_W = (248, 248, 248)
+    _ARM_G = (200, 165, 40)
+    _ARM_D = (30, 25, 10)
+    ax, ay = BCX + 17, BCY - 12
+    _poly(surf, _ARM_D, [(ax - 5, ay - 8), (ax + 7, ay - 8),
+                         (ax + 7, ay + 8), (ax - 5, ay + 8)])
+    _poly(surf, _ARM_W, [(ax - 4, ay - 7), (ax + 6, ay - 7),
+                         (ax + 6, ay + 6), (ax - 4, ay + 6)])
+    pygame.draw.line(surf, _ARM_G, (ax - 4, ay - 1), (ax + 6, ay - 1), 2)
+    pygame.draw.rect(surf, _ARM_D, (ax - 5, ay - 8, 13, 17), 1)
 
 
 build = _make_skin(_paint, base_fn=_base)
