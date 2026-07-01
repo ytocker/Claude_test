@@ -1,97 +1,78 @@
-"""Soccer v4 DESIGN 3 — THE CAPTAIN.
+"""Soccer v4 DESIGN 3 — THE STREET BALLER.
 
-The jersey reads as actual CLOTHING rather than a recolored bird: a
-crew-neck white collar, white sleeve cuffs, a dark garment outline and a
-chest seam give the shirt fabric-edge silhouette cues a flat fill can't.
-The gold captain's armband sits isolated on the near shoulder so it is
-unmistakably an armband, not part of the body shading."""
+Pip as a Brazilian-style pelada footballer: no jersey, the scarlet macaw
+body stays bare and the kit is pure street signal. A side-knotted
+green/yellow headband, scattered Brazil-colour paint-splatter dabs across
+the torso (drawn OVER the body so the red still reads), a single green
+ankle band, and a taped black/white ball swinging on a cord from the near
+wing. Everything is asymmetric on purpose — scrappy, not uniformed — so it
+reads as a distinct look from THE CAPTAIN even at the 40px truth scale.
+"""
 import pygame
 from game.store_skins import HX, HY, CROWN_Y, _poly, _make_skin
 
-# Body centre anchors — kit geometry is keyed off these so limbs, crest and
-# collar stay aligned with the macaw base regardless of frame.
+# Body centre anchors — the paint dabs and cord root off these so the
+# splatter stays over the torso regardless of frame.
 BCX, BCY = 32, 52
 
-_CAP_BACK = (7, 20, 72)       # darkest navy — back/shadow zone of the shirt
-_CAP_CHEST = (13, 40, 120)    # lighter chest zone for a lit front face
-_CAP_OUT = (5, 14, 45)        # near-black navy garment outline
-_CAP_HI = (20, 50, 130)       # highlight seam down the chest
-_ARM_GOLD = (232, 178, 40)    # captain armband gold
-_ARM_SH = (160, 120, 20)      # armband shadow
-_CREST_R = (180, 30, 30)      # crest red
-_CREST_G = (232, 178, 40)     # crest gold
-_NUM_W = (240, 244, 255)      # squad-number white
-_SOCK_N = (7, 20, 72)         # navy socks matching the jersey
-_BOOT_D = (26, 24, 32)
-_BOOT_S = (200, 205, 215)
-_SHORTS_G = (130, 136, 155)   # grey shorts
+_GREEN = (0, 168, 89)         # Brazil green — headband / ankle / dabs
+_GREEN_D = (0, 120, 62)       # green shadow for a little roundness
+_YELLOW = (244, 208, 63)      # Brazil yellow — knot / dabs
+_BALL_W = (245, 245, 245)     # ball leather white
+_BALL_D = (20, 20, 20)        # ball pentagon patches + outline
+_CORD = (80, 60, 40)          # tan cord the ball swings on
 
 
 def _paint(surf, _a):
-    jersey = [
-        (BCX - 10, HY + 7),
-        (BCX - 12, HY + 17),
-        (BCX - 8, HY + 23),
-        (HX + 8, HY + 23),
-        (HX + 11, HY + 18),
-        (HX + 9, HY + 8),
+    # Single bright green ankle band on ONE ankle — the first asymmetry tell.
+    pygame.draw.line(surf, _GREEN_D, (HX - 14, HY + 22), (HX - 8, HY + 22), 3)
+    pygame.draw.line(surf, _GREEN, (HX - 14, HY + 21), (HX - 8, HY + 21), 3)
+
+    # Paint-splatter dabs scattered over the bare scarlet torso — hand-placed,
+    # not a lattice, ~4 green + 4 yellow, each 2-3px so they survive downscale
+    # while leaving plenty of red showing between them.
+    _dabs = [
+        (BCX - 5, BCY - 8, 2, _GREEN),
+        (BCX + 3, BCY - 5, 2, _YELLOW),
+        (BCX - 2, BCY + 3, 3, _GREEN),
+        (BCX + 6, BCY + 1, 2, _YELLOW),
+        (BCX - 8, BCY - 1, 2, _YELLOW),
+        (BCX + 1, BCY + 8, 2, _GREEN),
+        (BCX - 6, BCY + 7, 2, _YELLOW),
+        (BCX + 5, BCY - 9, 2, _GREEN),
     ]
+    for dx, dy, r, col in _dabs:
+        pygame.draw.circle(surf, col, (dx, dy), r)
+    # A couple of tiny fleck taps so the splatter feels flung, not dotted.
+    pygame.draw.circle(surf, _YELLOW, (BCX - 3, BCY - 3), 1)
+    pygame.draw.circle(surf, _GREEN, (BCX + 3, BCY + 5), 1)
 
-    # Socks first so the jersey hem and shorts overlap the tops cleanly.
-    for fx in (HX - 9, HX + 1):
-        pygame.draw.line(surf, (4, 12, 50), (fx + 1, HY + 13), (fx + 1, HY + 25), 6)
-        pygame.draw.line(surf, _SOCK_N, (fx, HY + 13), (fx, HY + 25), 5)
-        pygame.draw.line(surf, (220, 225, 235), (fx - 1, HY + 15), (fx + 2, HY + 15), 2)
+    # Side-knotted headband: a bright green band angled across the brow, just
+    # above the beak on the near side, with the knot pushed to the RIGHT so it
+    # reads off-centre (not a symmetric sweatband).
+    pygame.draw.line(surf, _GREEN_D, (HX - 8, HY - 2), (HX + 6, HY - 3), 4)
+    pygame.draw.line(surf, _GREEN, (HX - 8, HY - 3), (HX + 6, HY - 4), 4)
+    # Yellow knot bump + two short trailing tails flicking off the side.
+    pygame.draw.circle(surf, _YELLOW, (HX + 6, HY - 4), 3)
+    pygame.draw.line(surf, _YELLOW, (HX + 7, HY - 4), (HX + 12, HY - 7), 2)
+    pygame.draw.line(surf, _GREEN, (HX + 7, HY - 3), (HX + 12, HY - 1), 2)
 
-    for fx in (HX - 9, HX + 1):
-        pygame.draw.ellipse(surf, _BOOT_D, (fx - 4, HY + 23, 9, 5))
-        # 2px white sole so the boot reads against the navy sock at 40px.
-        pygame.draw.line(surf, _BOOT_S, (fx - 3, HY + 26), (fx + 3, HY + 26), 2)
-
-    pygame.draw.line(surf, _SHORTS_G, (BCX - 8, HY + 24), (HX + 8, HY + 24), 4)
-
-    # Two-zone jersey body — darker back, lit chest panel.
-    _poly(surf, _CAP_BACK, jersey)
-    chest = [(BCX, HY + 7), (BCX, HY + 23), (HX + 8, HY + 23),
-             (HX + 11, HY + 18), (HX + 9, HY + 8)]
-    _poly(surf, _CAP_CHEST, chest)
-
-    # ELEMENT 3 — dark navy garment outline.
-    pygame.draw.polygon(surf, _CAP_OUT, jersey, 2)
-
-    # ELEMENT 4 — chest seam line.
-    pygame.draw.line(surf, _CAP_HI, (HX - 1, HY + 11), (HX, HY + 21), 1)
-
-    # Squad number "10" — tall enough (7px) to survive the 40px truth read
-    # instead of collapsing into a two-pixel smudge. Sole chest element so it
-    # never competes with the crest for the same few pixels.
-    pygame.draw.rect(surf, _NUM_W, (HX - 5, HY + 14, 2, 7))       # the "1"
-    pygame.draw.rect(surf, _NUM_W, (HX - 2, HY + 14, 5, 7), 1)    # the "0"
-
-    # Crest — a tiny gold pip shifted fully off the "10" (down-right) so the
-    # number stays legible and the badge no longer smears into the digits.
-    pygame.draw.circle(surf, _CAP_OUT, (HX + 6, HY + 17), 3)
-    pygame.draw.circle(surf, _CREST_G, (HX + 6, HY + 17), 2)
-
-    # Vertically SPREAD trim so collar / cuff / armband never merge into one
-    # gold-white smear at the 40px truth scale.
-
-    # ELEMENT 2 — white sleeve cuff edges at HY+12, between collar and armband.
-    pygame.draw.line(surf, (220, 225, 235), (BCX - 10, HY + 12), (BCX - 3, HY + 12), 2)
-    pygame.draw.line(surf, (220, 225, 235), (HX + 4, HY + 12), (HX + 10, HY + 12), 2)
-
-    # Gold captain armband — pushed DOWN to the lower near arm (HY+19..21) so
-    # it clears the cuff and reads as its own worn band, not collar spill.
-    pygame.draw.line(surf, _ARM_SH, (HX + 4, HY + 20), (HX + 11, HY + 22), 4)
-    pygame.draw.line(surf, _ARM_GOLD, (HX + 4, HY + 19), (HX + 11, HY + 21), 4)
-    pygame.draw.line(surf, (255, 220, 80), (HX + 5, HY + 19), (HX + 9, HY + 20), 1)
-
-    # ELEMENT 1 — crew-neck collar. Raised to STRADDLE the jersey top (centre at
-    # y≈HY+5, above the HY+8 shirt edge) so its interior shows the parrot's
-    # scarlet neck, not navy chest. Fill scarlet first, then ring it in white.
-    collar_rect = pygame.Rect(HX - 9, HY + 1, 15, 8)
-    pygame.draw.ellipse(surf, (200, 40, 40), collar_rect.inflate(-4, -3))
-    pygame.draw.ellipse(surf, (230, 235, 245), collar_rect, 2)
+    # Taped soccer ball swinging on a cord from the NEAR wing — drawn LAST so
+    # it sits fully in front of the body. Cord roots at the wing exit and drops
+    # to the ball centre; the ball is a black leather rim over a white shell
+    # with a few dark pentagon patches so it reads as a real football.
+    bx, by = HX + 14, HY + 10
+    pygame.draw.line(surf, _CORD, (HX + 10, BCY - 4), (bx, by), 1)
+    pygame.draw.circle(surf, _BALL_D, (bx, by), 7)      # leather outline
+    pygame.draw.circle(surf, _BALL_W, (bx, by), 6)      # white shell
+    pygame.draw.circle(surf, _BALL_D, (bx, by), 2)      # centre pentagon
+    pygame.draw.circle(surf, _BALL_D, (bx + 3, by - 3), 1)   # upper-right patch
+    pygame.draw.circle(surf, _BALL_D, (bx - 3, by - 3), 1)   # upper-left patch
+    pygame.draw.circle(surf, _BALL_D, (bx + 4, by + 2), 1)   # lower-right patch
+    pygame.draw.circle(surf, _BALL_D, (bx - 4, by + 2), 1)   # lower-left patch
+    # Thin seam ticks linking the patches so it doesn't read as loose dots.
+    pygame.draw.line(surf, _BALL_D, (bx, by - 2), (bx + 3, by - 3), 1)
+    pygame.draw.line(surf, _BALL_D, (bx, by - 2), (bx - 3, by - 3), 1)
 
 
 build = _make_skin(_paint)
