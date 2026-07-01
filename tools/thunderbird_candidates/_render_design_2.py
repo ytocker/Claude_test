@@ -73,7 +73,7 @@ for i, f in enumerate(frames):
                    fy + 4 + (fh - f.get_height()) // 2))
     fx += fw + 12
 
-out = "/home/user/skybit/docs/store_redesign/animal/thunderbird/design_2/round_1.png"
+out = "/home/user/skybit/docs/store_redesign/animal/thunderbird/design_2/round_2.png"
 os.makedirs(os.path.dirname(out), exist_ok=True)
 pygame.image.save(sheet, out)
 print("saved", out)
