@@ -1,4 +1,4 @@
-"""Round-1 review sheet for burro piñata DESIGN 1 (TASSEL TAIL).
+"""Round-2 review sheet for burro piñata DESIGN 1 (TASSEL TAIL).
 
 Three in-context columns (day gameplay | night gameplay | hero product shot)
 plus a strip of the four raw wing frames at 40px NEAREST scale so the at-size
@@ -61,7 +61,7 @@ def main():
     sheet.fill((30, 28, 38))
 
     title = FONT.render(
-        "BURRO PIÑATA — DESIGN 1: TASSEL TAIL  (round 1)", True, (235, 235, 240))
+        "BURRO PIÑATA — DESIGN 1: TASSEL TAIL  (round 2)", True, (235, 235, 240))
     sheet.blit(title, (16, 10))
 
     PW, PH = 210, 300
@@ -100,7 +100,7 @@ def main():
         cell.blit(scaled, scaled.get_rect(center=(24, 24)))
         sheet.blit(cell, (fx0 + i * 56, strip_y - 6))
 
-    out = "/home/user/skybit/docs/store_redesign/animal/pinata_burro/design_1/round_1.png"
+    out = "/home/user/skybit/docs/store_redesign/animal/pinata_burro/design_1/round_2.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print("saved", out)

@@ -1,33 +1,37 @@
 """Burro piñata — TASSEL TAIL variant (design 1).
 Adds a pendant festival tassel at the rump matching the leg-tassel vocabulary:
-cream stub + fat ORANGE knot + fanned strands. Sways with the trot animation.
+cream stub + fat PINK knot + fanned strands. Only the strand TIPS sway so the
+tail reads as a pendulum, not a shape that pops in and out of frame.
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _shared import (
     draw_rope, draw_legs, draw_body, draw_head,
     _make_prebuilt_skin, _phase, _TROT,
-    BCX, BCY, CREAM, CREAM_D, ORANGE, HOOF,
+    BCX, BCY, CREAM, CREAM_D, PINK, PINK_D, HOOF,
 )
 import pygame
 from game.parrot import _aaellipse
 
 
 def _draw_tail(surf, cx, cy, bob, sway):
-    # Root at rear-left body edge, mid-height
-    rx = int(cx - 16 + sway * 2)   # sways with trot
-    ry = cy + 3
-    # Cream stub
-    kx, ky = rx - 3, ry + 6        # knot position (slightly left+down from root)
-    pygame.draw.line(surf, CREAM_D, (rx, ry), (kx, ky), 4)
-    pygame.draw.line(surf, CREAM,   (rx, ry), (kx, ky), 2)
-    # Fat tassel knot
-    _aaellipse(surf, ORANGE, (kx, ky + 2), 5, 5)
-    pygame.draw.circle(surf, CREAM, (kx, ky + 2), 1)   # keyline
-    # Fanned strands below knot
-    for dx in (-3, -1, 0, 1, 3):
-        pygame.draw.line(surf, ORANGE, (kx, ky + 2),
-                         (kx + dx, ky + 9), 1)
+    # Anchored stub + knot stay put in every frame; only the fanned strand tips
+    # swing, so the tassel sways like a pendulum instead of popping in and out.
+    ax, ay = cx - 16, cy + 2                 # rump anchor (fixed)
+    kx, ky = cx - 24, cy + 5                 # knot centre at stub end (fixed)
+    # Cream stub, rearward-and-down from the rump
+    pygame.draw.line(surf, CREAM_D, (ax, ay), (kx, ky), 3)
+    pygame.draw.line(surf, CREAM,   (ax, ay), (kx, ky), 1)
+    # Fat pink tassel knot with a darker core + top-left highlight
+    _aaellipse(surf, PINK, (kx, ky), 4, 4)
+    pygame.draw.circle(surf, PINK_D, (kx, ky), 1)         # core
+    pygame.draw.circle(surf, CREAM, (kx - 1, ky - 1), 1)  # highlight
+    # Fanned strands: five spread ~40° below-and-back; only the tips sway.
+    tip_dx = sway * 2
+    for base_dx in (-3, -2, -1, 0, 1):
+        tx = int(kx + base_dx + tip_dx)
+        ty = ky + 7
+        pygame.draw.line(surf, PINK, (kx, ky + 2), (tx, ty), 1)
 
 
 def build_fn(wing_angle_deg):
