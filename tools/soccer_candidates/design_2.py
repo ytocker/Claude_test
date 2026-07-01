@@ -10,13 +10,16 @@ the ninja/cockatoo skins use — HV neon keeper green from chest to belly, with 
 darker green shade for roundness and a bright sheen. The head stays macaw-red and
 the wings stay macaw-blue so Pip is still recognisably himself, just kitted out.
 
-Over that recoloured torso the _paint pass lays the keeper kit — crew collar,
-white badge pip, charcoal shorts, hooped neon socks, yellow cleats — and, drawn
-LAST so nothing dulls them, the hero prop: two OVERSIZED padded ORANGE keeper
-gloves, one on each wing. At 40px the order of value is (1) the two big bright
-mitts breaking both wing outlines (the unmistakable keeper tell), (2) the neon
-green torso/socks mass, (3) the yellow boots. The orange gloves and yellow boots
-are warm notes that pop off the cool green on both day and night skies.
+Over that recoloured torso the _paint pass lays a deliberately minimal keeper
+kit — a faint green collar, a clean charcoal shorts ellipse, two yellow cleat
+dots — and, drawn LAST so nothing dulls them, the hero prop: a PAIR of hard,
+outlined SAFETY-ORANGE keeper mitts with white wrist straps, staggered so both
+read in side profile. Safety orange (#FF6A00) is chosen to stay distinct from
+the macaw's natural tail orange, so the gloves read as gear, not feathers. At
+40px the order of value is (1) the two bright outlined mitts (the unmistakable
+keeper tell), (2) the neon green torso mass, (3) the yellow boots. The orange
+gloves and yellow boots are warm notes that pop off the cool green on both day
+and night skies.
 """
 import pygame
 
@@ -57,13 +60,17 @@ _PAL = _pal(
 # Body centre in COMPOSITE space (base body centre (32,32) + PARROT_DY 20 on y).
 BCX, BCY = 32, 52
 
-_COLLAR   = (26, 112, 49)      # #1A7031 dark-green collar / sock hoop
-_BADGE    = (240, 240, 240)    # white keeper badge pip
-_SHORTS   = (42, 42, 42)       # #2A2A2A charcoal shorts
-_SHORTS_D = (20, 20, 20)       # shorts outline
-_SOCK     = (57, 211, 83)      # #39D353 neon socks (match jersey)
-_CLEAT    = (232, 192, 32)     # #E8C020 yellow cleats
-_CLEAT_D  = (150, 120, 12)     # cleat outline
+_COLLAR   = (25, 140, 50)      # subtle dark-green shirt neckline
+_SHT      = (42, 42, 42)       # #2A2A2A charcoal shorts
+_SHT_D    = (28, 28, 28)       # shorts outline
+_CLT      = (232, 192, 32)     # #E8C020 yellow cleats
+_CLT_D    = (140, 115, 15)     # cleat outline
+
+# Hero-prop glove palette. Safety orange keeps the mitts distinct from the
+# macaw's natural tail orange so the pair reads as gear, not feathers.
+_GLV_ORANGE = (255, 106, 0)    # safety orange — HOT, off the macaw tail orange
+_GLV_DARK   = (140, 48, 0)     # dark glove outline / shadow
+_GLV_STRAP  = (240, 240, 240)  # white wrist strap
 
 
 def _base(angle_deg):
@@ -71,44 +78,36 @@ def _base(angle_deg):
 
 
 def _paint(surf, _a):
-    # ── CREW COLLAR — a 1px dark-green arc just below the head/body junction so
-    #    the recoloured torso reads as a shirt neckline, not bare feathers.
-    pygame.draw.lines(surf, _COLLAR, False,
-                      [(BCX - 5, BCY - 11), (BCX + 2, BCY - 9),
-                       (BCX + 10, BCY - 11)], 1)
-    # White keeper badge pip on the chest.
-    pygame.draw.circle(surf, _BADGE, (BCX + 2, BCY - 3), 3)
-    pygame.draw.circle(surf, _COLLAR, (BCX + 2, BCY - 3), 3, 1)
+    # ── GREEN COLLAR — a single subtle line so the recoloured torso reads as a
+    #    shirt neckline rather than bare feathers. Kept faint on purpose.
+    pygame.draw.line(surf, _COLLAR, (BCX - 5, BCY - 11), (BCX + 11, BCY - 11), 1)
 
-    # ── SHORTS — dark charcoal ellipse tucked under the jersey hem, 1px darker
-    #    outline so it holds its edge against the green torso.
-    shorts = pygame.Rect(BCX - 10, BCY + 7, 22, 11)
-    pygame.draw.ellipse(surf, _SHORTS, shorts)
-    pygame.draw.ellipse(surf, _SHORTS_D, shorts, 1)
+    # ── SHORTS — one clean charcoal ellipse. The lower kit is deliberately
+    #    minimal (no sock hoop) so it doesn't collapse to mud at 40px.
+    pygame.draw.ellipse(surf, _SHT, (BCX - 9, BCY + 7, 20, 9))
+    pygame.draw.ellipse(surf, _SHT_D, (BCX - 9, BCY + 7, 20, 9), 1)
 
-    # ── SOCKS — neon-green matching the jersey, with a dark hoop at the top.
-    for sx in (27, 35):
-        pygame.draw.line(surf, _SOCK, (sx, BCY + 11), (sx, BCY + 17), 4)
-        pygame.draw.line(surf, _COLLAR, (sx, BCY + 12), (sx, BCY + 14), 4)
-
-    # ── CLEATS — bright yellow at the feet, 1px dark-yellow outline. The colour
-    #    IS the accent, so no side stripe competes with the gloves.
+    # ── CLEATS — two small bright dots are the only lower-body value pop.
     for fx in (23, 31):
-        pygame.draw.rect(surf, _CLEAT, (fx, BCY + 13, 9, 5), border_radius=2)
-        pygame.draw.rect(surf, _CLEAT_D, (fx, BCY + 13, 9, 5), 1, border_radius=2)
+        pygame.draw.rect(surf, _CLT, (fx, BCY + 14, 9, 4), border_radius=1)
+        pygame.draw.rect(surf, _CLT_D, (fx, BCY + 14, 9, 4), border_radius=1, width=1)
 
-    # ── GOALKEEPER GLOVES (HERO PROP, drawn LAST so they sit in FRONT of the
-    #    whole kit) — two oversized padded orange mitts, one on each wing tip.
-    #    Bright orange with a dark knuckle strap + thumb tab: the biggest,
-    #    brightest shapes on the sprite, the unmistakable keeper tell at 40px.
-    for gx in (BCX - 23, BCX + 10):
-        pygame.draw.rect(surf, (245, 110, 10), (gx, BCY - 10, 14, 12),
-                         border_radius=3)
-        pygame.draw.rect(surf, (120, 50, 0), (gx, BCY - 10, 14, 12),
-                         border_radius=3, width=1)
-        pygame.draw.line(surf, (120, 50, 0), (gx, BCY - 7), (gx + 14, BCY - 7), 3)
-        pygame.draw.rect(surf, (255, 140, 40), (gx + 2, BCY - 11, 8, 5),
-                         border_radius=2)
+    # ── GOALKEEPER GLOVES (HERO PROP, drawn LAST so nothing dulls them) — hard
+    #    rectangular safety-orange mitts with a dark outline and a white wrist
+    #    strap, staggered so BOTH read as a pair in side profile. The near mitt
+    #    is larger and forward; the far mitt sits smaller and behind for depth.
+    gx1, gy1 = BCX + 11, BCY - 8
+    pygame.draw.rect(surf, _GLV_DARK,   (gx1 - 1, gy1 - 1, 16, 14), border_radius=3)
+    pygame.draw.rect(surf, _GLV_ORANGE, (gx1,     gy1,     14, 12), border_radius=3)
+    pygame.draw.rect(surf, _GLV_DARK,   (gx1,     gy1,     14, 12), border_radius=3, width=1)
+    pygame.draw.line(surf, _GLV_STRAP,  (gx1 + 1, gy1 + 9), (gx1 + 13, gy1 + 9), 2)
+    pygame.draw.line(surf, _GLV_ORANGE, (gx1 + 2, gy1 + 1), (gx1 + 12, gy1 + 1), 2)
+
+    gx2, gy2 = BCX - 24, BCY - 6
+    pygame.draw.rect(surf, _GLV_DARK,   (gx2 - 1, gy2 - 1, 14, 12), border_radius=3)
+    pygame.draw.rect(surf, _GLV_ORANGE, (gx2,     gy2,     12, 10), border_radius=3)
+    pygame.draw.rect(surf, _GLV_DARK,   (gx2,     gy2,     12, 10), border_radius=3, width=1)
+    pygame.draw.line(surf, _GLV_STRAP,  (gx2 + 1, gy2 + 7), (gx2 + 11, gy2 + 7), 2)
 
 
 build = _make_skin(_paint, base_fn=_base)
