@@ -197,10 +197,11 @@ def _draw_wings(surf, f, *, front):
     root = (35, 36)
     if front:
         # Forewing + hindwing on the near side, sweeping up-and-back (up-left).
-        specs = ((30, 9, 150 + buzz, 180), (25, 8, 133 + buzz, 150))
+        # Kept semi-transparent so the hyaline wing reads as glass, not a slab.
+        specs = ((30, 9, 150 + buzz, 150), (25, 8, 133 + buzz, 120))
     else:
         # Far wing, dimmer, peeking up-right from behind the thorax.
-        specs = ((27, 8, 34 + buzz, 95),)
+        specs = ((27, 8, 34 + buzz, 85),)
     for length, width, ang, alpha in specs:
         ws = _wing(length, width, ang, alpha)
         rad = math.radians(ang)
