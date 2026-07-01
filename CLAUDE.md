@@ -183,11 +183,11 @@ or restyles a visual (e.g. a new power-up icon, a parrot/pillar/sky look):
 3. On ITERATE / RE-ROLL, feed the critique back to `graphics-designer` as the
    next-round brief → new combined image → back to step 2.
 4. Stop when a critique returns SHIP-READY, or once the turn budget is spent —
-   the `art-director` critiques up to 2 times and the `graphics-designer` gets
-   up to 3 turns, so it always gets a final pass to implement the 2nd critique
-   (sequence: designer → critic → designer → critic → **designer**, at most 3
-   designer + 2 critic turns, ending on a designer revision) — whichever comes
-   first. Always run at least 1 critique.
+   the `art-director` critiques once and the `graphics-designer` gets up to 2
+   turns, so it always gets a final pass to implement the critique
+   (sequence: designer → critic → **designer**, at most 2 designer + 1 critic
+   turns, ending on a designer revision) — whichever comes first. Always run at
+   least 1 critique.
 5. Surface only the final image (git path) + a short evolution summary, then
    integrate the winning version once chosen. If the budget is spent without an
    earlier SHIP-READY, the final designer sheet already folds in the last
@@ -212,9 +212,9 @@ re-stating it. When asked to redesign costume `<item>`:
    placement / 3–5 hex palette / distinctness line. Write to
    `docs/store_redesign/costume/<item>/concepts.md`; numbers map to design_1…5.
 2. Run **five independent design loops IN PARALLEL** (the Design loop above, per
-   concept), batched by phase: R1 designers → C1 critics → R2 designers → C2
-   critics → R3 designers; same ≤3-designer/≤2-critic cap, early-exit on
-   SHIP-READY. Candidates are scratch builders wrapped by
+   concept), batched by phase: R1 designers → C1 critics → R2 designers; same
+   ≤2-designer/≤1-critic cap, early-exit on SHIP-READY. Candidates are scratch
+   builders wrapped by
    `store_skins._make_skin` (body recolors via a `base_fn` from
    `dollar_parrot_ghost._build_parrot_with_palette`), **never** registered in
    `store_skins.BUILDERS`. Save each to `tools/<item>_candidates/design_<N>.py`
@@ -242,9 +242,9 @@ a KPI or chart, or extends the dashboard:
    line is `VERDICT: SHIP-READY | ITERATE | RE-ROLL`.
 3. On ITERATE / RE-ROLL, feed the critique back to `data-analyst` as the
    next-round brief → new round notes → back to step 2.
-4. Same cap as the Design loop: `analytics-director` critiques up to 2 times
-   and `data-analyst` gets up to 3 turns (ending on an analyst revision).
-   Always run at least 1 critique. Early-exit on `VERDICT: SHIP-READY`.
+4. Cap: `analytics-director` critiques up to 2 times and `data-analyst` gets up
+   to 3 turns (ending on an analyst revision). Always run at least 1 critique.
+   Early-exit on `VERDICT: SHIP-READY`.
 5. Surface only the final round notes (git path) + a short evolution summary,
    then wire the change to the live dashboard once chosen. If the budget is
    spent without SHIP-READY, the final analyst notes already fold in the last
