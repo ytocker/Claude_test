@@ -95,7 +95,7 @@ def build(mode="normal"):
 
     # RING — hollow turquoise circle.
     _glow(lambda g: _aaellipse(g, (*GLYPH, 80), (cx + 3, glyph_y), 5, 5))
-    _aaellipse(s, GLYPH, (cx + 3, glyph_y), 4, 4, width=2)
+    _ring(s, GLYPH, (cx + 3, glyph_y), 4, 4, 2)
 
     # BAR — short vertical stroke.
     _glow(lambda g: pygame.draw.line(g, (*GLYPH, 80),
