@@ -1,107 +1,103 @@
-# Soccer Costume — Redesign Concepts (v2)
+# Soccer Costume Concepts — Pip the Scarlet Macaw (v3 — NO JERSEY)
 
-## Why v2?
-Previous designs were rejected: jersey anchored at BCX,BCY (too far left / too
-high, covering the face) and every design had a forbidden forehead sweatband.
-All v2 designs fix these at the root: jersey anchored at HX,HY with top at
-HY+8 and hem at HY+23 (same polygon as baseball design_4.py + tennis design_5.py).
-No forehead bands of any kind.
+Every prior round was rejected as "a parrot in team colors" / "a parrot in a
+jersey." v3 throws the jersey out entirely. The HARD CONSTRAINT: no concept's
+primary visual is a shirt on the torso. Each hero read is a bold PROP or POSE.
+All lean INTO Pip's scarlet (`#C0392B`) instead of hiding it.
 
----
-
-**Previous content below (v1, archived):**
-
-**Why v1:** the current scratch soccer build
-(`tools/sports_candidates/design_1.py` — royal-blue/white striped jersey +
-squad number + brow sweatband + knee socks/cleats) reads almost identically to
-the current basketball build (jersey block + big white number + brow band +
-footwear). The two SPORTS must read as obviously different things. So this set
-diversifies soccer hard by **role + era + silhouette** — not five recolored
-jerseys. Each must still scream FOOTBALL at the 40px truth read (day + night),
-obey the footprint law (kit painted over the scarlet body; head stays the
-macaw; nothing balloons the torso or drops below the feet line), and the
-soccer BALL ships separately as a parcel — the kit alone carries the read.
-
-Anchors (composite space): `HX=47, HY=41, CROWN_Y=31`; body centre
-`BCX=32, BCY=52`; feet `(28,65)/(34,65)` i.e. ~`HY+24`; feet-line kit lives
-~`HY+15..27`. Build with the layered pirate/tennis technique: background
-elements first, then fill→shade→outline→highlight per element so each survives
-the downscale. Props that should sit IN FRONT (gloves, scarf ends, whistle)
-are drawn LAST.
-
-The five read as five different football people, so the SET can't be mistaken
-for "one jersey, five colours."
+Canvas 64×100; must read at ~25px tall in gameplay. Numbers map to design_1…5.
 
 ---
 
-## DESIGN 1 — THE STRIKER (modern outfield, refined)
-- **Hero read:** the clean modern outfield kit — a bold solid-colour jersey
-  with a diagonal team SASH + crisp squad number, tucked into shorts, **tall
-  knee-high socks + cleats** at the feet. The "legs" silhouette (socks + boots)
-  is what makes it instantly soccer and NOT basketball.
-- **Object list + placement:** crew-collar jersey over torso (`BCY-12..BCY+11`)
-  with a single diagonal sash; bold white squad number "9" on a cleared plate;
-  short shorts hem at `BCY+11..+14`; **knee-high socks** each leg with a white
-  hoop band (`HY+15..+22`); dark cleats with a white sole + stud ticks at the
-  feet line; thin brow sweatband (crown stays open).
-- **Palette:** `#E23B45` scarlet-red kit · `#F4F4F8` white · `#1B2A6B` navy
-  trim · `#FFCE54` captain gold · `#23252E` cleat.
-- **Distinctness:** the only full LEG-KIT design (socks+boots dominate the lower
-  silhouette) — the textbook outfield striker.
+## 1. THE GOLDEN BOOT
 
-## DESIGN 2 — THE GOALKEEPER (the glove design)
-- **Hero read:** a totally different silhouette — **oversized padded keeper
-  GLOVES** on both wing-hands (the hero shapes, drawn LAST so they sit proud of
-  the body), a lurid high-vis keeper jersey (the one kit that's deliberately a
-  different colour from the team), and a soft cap with a short brim.
-- **Object list + placement:** big rounded gloves at both wing roots
-  (`BCX±14, BCY±2`) with finger ridges + a wrist-strap; long-sleeve high-vis
-  jersey over torso with a dark shoulder yoke; shorts hem `BCY+11`; short socks
-  + cleats at the feet; soft-brim cap at the crown (`CROWN_Y`).
-- **Palette:** `#19C37D` high-vis green · `#0E1A14` dark yoke/gloves trim ·
-  `#F4F4F8` white glove · `#1B2A6B` cap navy · `#23252E` cleat.
-- **Distinctness:** the GLOVES own the silhouette — unmistakable goalkeeper, the
-  furthest possible read from a basketball tank.
+- **Hero silhouette:** A scarlet bird standing in two ENORMOUS gleaming gold
+  cleats — the boots are the biggest, brightest shape on the sprite, bottom-
+  weighting the read. A slim gold trophy pokes up behind the shoulders.
+- **Layered objects:** Head — knotted gold lace-band across the crown (not the
+  brow). Back — thin gold trophy tucked between the shoulders (silhouette
+  breaker). Feet — oversized gilded boots with a burned-in "9" and stud ticks.
+  Wingtips — small gold stud accents echoing the cleats.
+- **Palette:** `#E8B923` gold · `#FFF3B0` gold highlight · `#8A5A00` bronze
+  shadow · `#C0392B` scarlet body · `#2C2C2C` boot sole.
+- **Distinctness:** The only BOTTOM-weighted, metallic-gleam read — the tell is
+  at the feet, and it's the only trophy/premium theme.
 
-## DESIGN 3 — THE NÚMERO 10 (retro legend, laced collar)
-- **Hero read:** vintage international glory kit — a classic **laced V-collar**
-  long-sleeve cotton jersey, an old-school embroidered crest, the iconic "10",
-  pulled-up retro socks. Warm nostalgia; reads as a different *era* of football.
-- **Object list + placement:** long-sleeve jersey over torso with a **laced
-  collar** at the neck (`BCY-12..-8`); woven crest patch on the near chest
-  (`BCX+6, BCY-3`); big retro "10" low on the shirt; classic high socks with a
-  fold-over top band; low retro boots; no headgear (hair/crown open) so the era
-  reads clean.
-- **Palette:** `#1C6FE0` sky-blue · `#F4F4F8` white · `#C2392B` retro red crest ·
-  `#E7C24A` gold lace/crest · `#23252E` boot.
-- **Distinctness:** the LACED COLLAR + crest + long sleeves = retro icon, an era
-  apart from the modern Striker.
+---
 
-## DESIGN 4 — THE REFEREE (the authority kit)
-- **Hero read:** the man in the middle — an all-**BLACK officials kit** with a
-  **whistle on a lanyard** (hero, drawn LAST over the chest) and a **yellow +
-  red CARD** peeking from the breast pocket. A completely different role and
-  colour-story from any player.
-- **Object list + placement:** black collared ref shirt over torso with white
-  collar piping; whistle + lanyard cord looping the neck and resting at
-  `BCX, BCY+2` (metal whistle catches a glint); a yellow card + a sliver of red
-  card stacked at the near breast (`BCX+7, BCY-4`); black shorts + socks + boots;
-  optional thin black cap.
-- **Palette:** `#1A1C22` referee black · `#F4F4F8` white piping · `#FFD23B`
-  yellow card · `#E0382C` red card · `#C8CCD4` whistle steel.
-- **Distinctness:** the only BLACK kit + the whistle/cards prop set — pure
-  officials silhouette, can't be confused with a player or a hooper.
+## 2. THE FREE-KICK WALL
 
-## DESIGN 5 — THE ULTRA (supporter / fan)
-- **Hero read:** the terrace fan — a long **team SCARF wrapped at the neck with
-  both ends streaming down** (hero, drawn LAST, the ends break the lower
-  silhouette), a striped jersey, and a **bobble beanie** on the crown. Festive,
-  loud, instantly "match-day fan" rather than player.
-- **Object list + placement:** horizontal-striped jersey over torso; thick
-  knit **scarf** looped at the neck (`BCY-10`) with two fringed tails dropping
-  to ~`BCY+10` over the chest; **bobble hat** on the crown (`CROWN_Y-2`) with a
-  pompom; mittened wing optionally raised; cheeks dab of face paint.
-- **Palette:** `#7A1FA2` club purple · `#F4C20D` club gold · `#F4F4F8` white ·
-  `#2A1340` deep purple knit · `#E8A0B4` cheek paint.
-- **Distinctness:** the SCARF + bobble hat (knitwear silhouette) — the only
-  non-player, the loudest break from the clean athletic kits.
+- **Hero silhouette:** Pip frozen in the defensive-wall brace — both wings
+  crossed tight into a hard X over the chest, body coiled, knees pressed
+  together. The crossed-wing X is the instant tell; a pose, not a prop.
+- **Layered objects:** Head — low protective headguard band over the brow ridge.
+  Wings — locked in the crossed-X guard (the flap becomes a tense brace-and-
+  snap rather than an open flap). Wristbands — bright team-color sweatbands at
+  each wingtip. Legs — knees together, shins wrapped in white tape.
+- **Palette:** `#C0392B` scarlet body · `#1B3A6B` navy bands · `#F5F5F5` tape
+  white · `#0E1B33` deep navy shadow · `#E8A020` warm accent.
+- **Distinctness:** The only POSE-driven concept — defined by body language and
+  negative space, no worn garment at all.
+
+---
+
+## 3. THE STREET BALLER
+
+- **Hero silhouette:** A loose favela baller — vivid side-knotted headband,
+  cyan/yellow paint-splatter freckling the red body, and a taped street ball
+  dangling from ONE wing on a cord. Barefoot, scrappy, asymmetric.
+- **Layered objects:** Head — green-yellow headband knotted at the side. Body —
+  scattered paint-splatter dabs over the scarlet (not a full pattern block).
+  Wing — taped black/white ball hung from one wingtip (asymmetry breaks the
+  silhouette; the flap swings it). Legs — bare, sockless, one ankle band.
+- **Palette:** `#C0392B` scarlet · `#00A859` Brazil green · `#F4D03F` yellow ·
+  `#FFFFFF` ball white · `#111111` ball pentagons.
+- **Distinctness:** The only ASYMMETRIC, hand-painted, sockless "raw street"
+  look — splatter + hanging ball carry it where others use metal or pose.
+
+---
+
+## 4. THE ULTRAS CAPTAIN
+
+- **Hero silhouette:** Not a player — a SUPERFAN. Pip stretches a giant team
+  scarf overhead with BOTH wings pulled wide, the banner arcing above the head
+  as a huge silhouette-breaking crescent. War-painted face below.
+- **Layered objects:** Wings — both raised, gripping a full-width two-tone scarf
+  that spans the canvas (the flap waves it like a tifo). Face — two diagonal
+  war-paint stripes across the cheeks. Head — small knit beanie. Neck — a short
+  second scarf looped at the throat.
+- **Palette:** `#C0392B` scarlet · `#F4D03F` gold · `#111111` scarf black ·
+  `#FFFFFF` stripe white · `#7A0F0F` deep-red shadow.
+- **Distinctness:** The only wings-UP, top-heavy, banner-wide silhouette — pure
+  terrace passion, zero player gear. The loudest shape of the five.
+
+---
+
+## 5. THE GOLDEN WHISTLE
+
+- **Hero silhouette:** A referee reimagined as a character — a bright yellow
+  CARD brandished high on one wing, a fat gold armband, and a silver whistle
+  swinging at the neck. Slim black/white accent stripes band the flanks (NOT a
+  full torso shirt).
+- **Layered objects:** Wing — oversized yellow card raised as a prop (the flap
+  brandishes it). Other wing — dominant gold armband high on the arm. Neck —
+  silver whistle on a cord worn as a necklace, catching a glint. Flanks — a
+  couple of bold black/white vertical accent stripes down the sides only.
+- **Palette:** `#F4D719` card yellow · `#C0392B` scarlet body · `#1A1A1A`
+  stripe black · `#F5F5F5` stripe white · `#BFC4C9` whistle silver.
+- **Distinctness:** The only authority/ref theme and the only bright-yellow hero
+  read; the raised card-in-wing prop is unique to this concept.
+
+---
+
+### Ranking (strongest first)
+
+1. **THE ULTRAS CAPTAIN** — most original, biggest silhouette break, no gear.
+2. **THE GOLDEN BOOT** — instant premium read; bottom-weighted gleam is novel.
+3. **THE STREET BALLER** — charming, asymmetric, most casual-arcade fun.
+4. **THE FREE-KICK WALL** — bold pose idea; risk is pose legibility at ~25px.
+5. **THE GOLDEN WHISTLE** — strong prop; watch the flank stripes don't creep
+   into "shirt" territory.
+
+**Best showpiece:** THE ULTRAS CAPTAIN — the overhead scarf transforms Pip's
+whole silhouette and reads unmistakably in motion, day or night.
