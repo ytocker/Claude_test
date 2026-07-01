@@ -17,8 +17,8 @@ from game.draw import get_sky_surface_biome, draw_mountains, draw_ground, draw_c
 from game.entities import Pipe
 from game.config import W as GW, H as GH, GROUND_Y
 
-OUT = "docs/store_redesign/animal/bee/design_1/round_1.png"
-TITLE = "DESIGN 1 — AZUREWING (Blue Morpho Butterfly)"
+OUT = "docs/store_redesign/animal/bee/design_1/round_2.png"
+TITLE = "DESIGN 1 — AZUREWING (Blue Morpho Butterfly)  R2"
 
 
 def _gameplay_phase(phase):

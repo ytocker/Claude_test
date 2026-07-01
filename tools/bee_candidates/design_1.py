@@ -16,8 +16,8 @@ from game.parrot import _WING_ANGLES, _add_outline, _aaellipse
 
 COMPOSITE_W, COMPOSITE_H = 64, 84
 BCX, BCY = 32, 44          # thorax centre
-HCX, HCY = 44, 34          # head
-CROWN_Y = 24
+HCX, HCY = 32, 30          # head — on the body axis so the read stays symmetric
+CROWN_Y = 20
 
 # ── palette ──────────────────────────────────────────────────────────────────
 ROYAL   = (27, 58, 143)    # deep royal — wing base, shaded lobes
@@ -41,19 +41,22 @@ def _rot_blit(surf, s, anchor):
     surf.blit(s, s.get_rect(center=anchor).topleft)
 
 
-# Right-wing outer contour at full open pose (down-stroke). Forewing lobe rises
-# toward the crown; hindwing lobe drops to a rounded tail. Mirrored about the
-# body axis (x=BCX) for the left wing so the span reads symmetric.
+# Right-wing outer contour at full open pose (down-stroke). A big triangular
+# forewing throws its apex UP and OUT to fill nearly the full 64px width; a
+# rounder hindwing lobe hangs below a deep notch. Inner edges sit ~2px off the
+# body axis (x=BCX) so the mirrored left wing nearly touches it — one
+# continuous butterfly outline instead of two islands.
 _WING_R = [
-    (31, 33),   # inner top, tucked against the thorax
-    (40, 16),   # forewing rise
-    (51, 13),   # forewing apex tip
-    (60, 23),   # forewing outer shoulder
-    (59, 35),   # outer notch between fore/hind wing
-    (55, 46),   # hindwing outer
-    (47, 58),   # hindwing rounded tail
-    (37, 55),   # hindwing inner-bottom
-    (32, 46),   # inner bottom, back to the thorax
+    (34, 30),   # inner top, ~2px off the body axis
+    (46, 14),   # forewing leading rise
+    (56, 10),   # forewing apex vertex — up and out
+    (62, 20),   # forewing outer shoulder — fills the width
+    (60, 30),   # forewing trailing outer
+    (59, 35),   # deep notch between fore/hind wing
+    (57, 44),   # hindwing outer
+    (50, 57),   # hindwing rounded tail lobe
+    (40, 58),   # hindwing bottom
+    (34, 47),   # inner bottom, ~2px off the body axis
 ]
 
 
@@ -88,55 +91,63 @@ def _wing_mask(pts):
 
 def _draw_wing(surf, side, spread, nx, fi):
     margin = _transform(_WING_R, side, spread, nx)
-    fill = _inset(margin, 0.22)                     # ~5-6px ink border
+    fill = _inset(margin, 0.12)                     # thin ~3-4px scalloped border
 
     # Ink margin first (the separator that holds the read on pale sky), then
-    # the royal underlayer and the bright structural-blue field on top.
+    # the royal underlayer and a broad bright structural-blue field that fills
+    # most of the wing face — that field is where the colour drama lives.
     pygame.draw.polygon(surf, INK, margin)
     pygame.draw.polygon(surf, ROYAL, fill)
-    inner = _inset(fill, 0.16)
+    inner = _inset(fill, 0.08)
     pygame.draw.polygon(surf, BLUE, inner)
 
-    # Per-frame cyan shimmer, clipped to the wing fill so no stray glow escapes.
-    # Offsetting the highlight ellipse by frame index fakes the morpho's
-    # angle-dependent iridescence as the wings beat.
+    # Per-frame cyan shimmer clipped to the wing fill. Three ellipses stacked
+    # down the upper-inner half read as a coherent iridescent sweep, and a
+    # brighter core at the wing root gives a real bright→dark value gradient.
+    # The shift is the SAME screen direction on both wings so the shimmer
+    # sweeps as one gesture rather than mirroring per side.
     fcx, fcy = _centroid(fill)
+    rx, ry = margin[0]                               # wing root (inner-top)
+    root = (rx + (fcx - rx) * 0.35, ry + (fcy - ry) * 0.35)
     shift = (fi - 1.5) * 4
+    alpha = 120 if fi in (1, 2) else 90
     sh = _new()
-    _aaellipse(sh, (*CYAN, 85), (fcx + shift * side, fcy - 9), 9, 8)
+    for k in range(3):
+        _aaellipse(sh, (*CYAN, alpha),
+                   (fcx + shift, fcy - 12 + k * 9), 8, 5)
+    _aaellipse(sh, (215, 245, 255, min(255, alpha + 60)),
+               (root[0] + shift * 0.5, root[1]), 6, 5)
     sh.blit(_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(sh, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
-    # White eye-flecks marching down the forewing margin (morpho apex spots) and
-    # a couple of ink scallop-notches on the outer edge for the border texture.
-    fore = [margin[1], margin[2], margin[3], margin[4]]
-    for i, (mx, my) in enumerate(fore):
-        cx, cy = fcx, fcy
-        px = mx + (cx - mx) * 0.14
-        py = my + (cy - my) * 0.14
+    # White eye-flecks marching along the forewing margin (morpho apex spots).
+    # Kept at 2px — the non-hue accessibility anchor at 40px / night sky.
+    for (mx, my) in (margin[2], margin[3], margin[4]):
+        px = mx + (fcx - mx) * 0.16
+        py = my + (fcy - my) * 0.16
         pygame.draw.circle(surf, WHITE, (int(px), int(py)), 2)
-    pygame.draw.circle(surf, INK, (int(margin[5][0]), int(margin[5][1])), 2)
 
 
 def _draw_body(surf):
-    # Slim abdomen tapering down-left, drawn under the thorax bead.
+    # Slim abdomen hanging straight down the body axis, under the thorax bead.
     pygame.draw.polygon(surf, THORAX, [
         (BCX - 3, BCY), (BCX + 3, BCY),
-        (BCX - 8, BCY + 14), (BCX - 11, BCY + 14),
+        (BCX + 2, BCY + 14), (BCX - 2, BCY + 14),
     ])
-    # Hair-thin legs tucked under the thorax — deliberately subtle.
-    for i in range(3):
-        ly = BCY + 3 + i * 3
-        pygame.draw.line(surf, (*INK, 170), (BCX - 1, ly), (BCX - 6, ly + 4), 1)
-        pygame.draw.line(surf, (*INK, 170), (BCX + 1, ly), (BCX + 5, ly + 4), 1)
+    # A single suggested pair of hair-thin legs — the wings are the whole story
+    # at 40px, so the body stays quiet.
+    ly = BCY + 5
+    pygame.draw.line(surf, (*INK, 160), (BCX - 1, ly), (BCX - 6, ly + 4), 1)
+    pygame.draw.line(surf, (*INK, 160), (BCX + 1, ly), (BCX + 5, ly + 4), 1)
     # Thorax.
     _aaellipse(surf, THORAX, (BCX, BCY), 5, 7)
     _aaellipse(surf, (40, 30, 60), (BCX - 1, BCY - 2), 2, 4)   # faint sheen
 
 
 def _draw_head(surf):
-    # Clubbed antennae sweeping up to the crown, each ending in an ink ball.
-    for (tx, ty) in ((HCX - 4, CROWN_Y - 2), (HCX + 3, CROWN_Y - 4)):
+    # A symmetric pair of clubbed antennae sweeping up and out to the crown,
+    # each ending in an ink ball.
+    for (tx, ty) in ((HCX - 5, CROWN_Y), (HCX + 5, CROWN_Y)):
         sx, sy = HCX + (1 if tx > HCX else -1), HCY - 3
         mx, my = (sx + tx) / 2 + (2 if tx > HCX else -2), (sy + ty) / 2
         pts = [(sx, sy), (mx, my), (tx, ty)]
@@ -153,7 +164,7 @@ def _draw_glow(surf):
     for r, a in ((30, 8), (22, 9), (14, 9)):
         g = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
         pygame.draw.circle(g, (*BLUE, a), (r, r), r)
-        glow.blit(g, (BCX - 2 - r, BCY - 8 - r))
+        glow.blit(g, (BCX - r, BCY - 8 - r))
     surf.blit(glow, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
 
@@ -165,7 +176,9 @@ def _build_frame(wing_angle_deg):
     except ValueError:
         fi = 0
     spread = int(f * 18)           # lift the wings as the stroke rises
-    nx = 1.0 - 0.55 * f            # narrow toward edge-on on the up-stroke
+    # Cap the horizontal narrowing so even the edge-on up-stroke stays legibly
+    # winged — the lifted `spread` angle carries the "wings raised" read.
+    nx = 1.0 - 0.30 * f
 
     _draw_glow(surf)
     # Far (left) wing behind the body, near (right) wing in front of the roots.
