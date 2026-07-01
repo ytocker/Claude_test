@@ -99,7 +99,7 @@ for i, f in enumerate(frames):
     label(sheet, flabels[i], fx, fy + fh + 12, small, (200, 200, 200))
     fx += fw + 12
 
-out = "/home/user/skybit/docs/store_redesign/animal/bee/design_3/round_1.png"
+out = "/home/user/skybit/docs/store_redesign/animal/bee/design_3/round_2.png"
 os.makedirs(os.path.dirname(out), exist_ok=True)
 pygame.image.save(sheet, out)
 print("saved", out)
