@@ -139,20 +139,22 @@ _SD_GLY = (172, 168, 158)
 _SD_GLY_SH = (16, 14, 16)
 
 
-def _seal_cord(surf, cx, cy, R, sgn, hi, lo, drop=0.30, frayed=False):
+def _seal_cord(surf, cx, cy, R, sgn, hi, lo, drop=0.22, frayed=False):
     """A twisted gilt suspension cord hanging off the seal's lower flank down to a
     tassel — the cue that this medal is a hung charter seal. ``frayed`` snaps it
     short with loose threads instead of a tassel."""
-    aa = math.radians(118 if sgn < 0 else 62)
-    x0 = cx + math.cos(aa) * R * 1.02
-    y0 = cy + math.sin(aa) * R * 1.02
+    # anchored on the lower flank and kept SHORT so the tassel stays fully inside
+    # the badge square (core geometry: total reach must clear ~1.28*R)
+    aa = math.radians(126 if sgn < 0 else 54)
+    x0 = cx + math.cos(aa) * R * 1.0
+    y0 = cy + math.sin(aa) * R * 1.0
     length = R * (drop if not frayed else drop * 0.55)
     steps = 12
     prev = (x0, y0)
     for k in range(1, steps + 1):
         f = k / steps
         yy = y0 + length * f
-        xx = x0 + sgn * math.sin(f * math.pi * 2.2) * R * 0.05 + sgn * f * R * 0.12
+        xx = x0 + sgn * math.sin(f * math.pi * 2.2) * R * 0.045 + sgn * f * R * 0.10
         c = hi if (int(f * 10) % 2 == 0) else lo   # twisted two-tone strand
         pygame.draw.line(surf, c, (int(prev[0]), int(prev[1])),
                          (int(xx), int(yy)), max(3, R // 16))
@@ -160,70 +162,74 @@ def _seal_cord(surf, cx, cy, R, sgn, hi, lo, drop=0.30, frayed=False):
     ex, ey = prev
     if frayed:
         for k in range(4):
-            fx = ex + sgn * R * (0.02 + 0.05 * k)
+            fx = ex + sgn * R * (0.02 + 0.04 * k)
             pygame.draw.line(surf, lo, (int(ex), int(ey)),
-                             (int(fx), int(ey + R * (0.08 + 0.04 * k))),
+                             (int(fx), int(ey + R * (0.06 + 0.03 * k))),
                              max(2, R // 26))
     else:
-        # a tidy tassel: a rounded cap + a fan of gold fringe
-        pygame.draw.circle(surf, hi, (int(ex), int(ey)), max(4, R // 11))
-        pygame.draw.circle(surf, lo, (int(ex), int(ey)), max(4, R // 11), max(1, R // 40))
+        # a tidy tassel: a rounded cap + a short fan of gold fringe
+        pygame.draw.circle(surf, hi, (int(ex), int(ey)), max(4, R // 12))
+        pygame.draw.circle(surf, lo, (int(ex), int(ey)), max(4, R // 12), max(1, R // 44))
         for k in range(5):
-            fx = ex + (k - 2) * R * 0.045
-            pygame.draw.line(surf, lo, (int(ex), int(ey + R * 0.06)),
-                             (int(fx), int(ey + R * 0.22)), max(2, R // 26))
+            fx = ex + (k - 2) * R * 0.04
+            pygame.draw.line(surf, lo, (int(ex), int(ey + R * 0.05)),
+                             (int(fx), int(ey + R * 0.15)), max(2, R // 28))
 
 
-def _wax_border(surf, cx, cy, R, hi, mid, lo, sheen=None, base_r=1.04,
-                lobe_r=0.13, n=16, melt=False, broken_gap=None):
-    """The scalloped wax rosette ring pressed around the medal. ``melt`` sags the
-    lower lobes into hanging drips; ``broken_gap`` is an (a0, a1) arc where the
-    wax has cracked clean away (a raw notch in the outline)."""
+def _wax_border(surf, cx, cy, R, hi, mid, lo, sheen=None, base_r=1.02,
+                lobe_r=0.15, n=15, melt=False, broken_gap=None, seed=7):
+    """A hand-pressed WAX rosette pooled around the medal: irregular convex
+    droplets (varied size + press radius, each with a glossy specular highlight)
+    on a continuous wax annulus — molten wax squeezed under a seal, NOT uniform
+    beads. ``melt`` sags the lower droplets into hanging drips; ``broken_gap`` is
+    an (a0, a1) arc where the wax has cracked clean away."""
     br = R * base_r
-    lr = int(R * lobe_r)
-    # the continuous wax annulus the lobes sit on
-    pygame.draw.circle(surf, mid, (cx, cy), int(br))
+    # the continuous wax pool the droplets sit on (slightly inboard so the lobes
+    # bulge past its edge, giving the irregular hand-pressed rim)
+    pygame.draw.circle(surf, mid, (cx, cy), int(br * 0.94))
+    s = seed
     for i in range(n):
         a = i / n * math.tau - math.pi / 2
         if broken_gap and broken_gap[0] <= (a % math.tau) <= broken_gap[1]:
             continue
-        lx = cx + math.cos(a) * br
-        ly = cy + math.sin(a) * br
+        s = (s * 1103515245 + 12345) & 0x7fffffff
+        jr = 0.78 + 0.55 * (s / 0x7fffffff)        # irregular droplet size
+        s = (s * 1103515245 + 12345) & 0x7fffffff
+        jb = 0.95 + 0.12 * (s / 0x7fffffff)        # irregular press radius
+        lr = max(2, int(R * lobe_r * jr))
+        lx = cx + math.cos(a) * br * jb
+        ly = cy + math.sin(a) * br * jb
         d = (math.cos(a - _LIGHT) + 1) * 0.5
-        col = lerp_color(lo, hi, d ** 1.2)
-        if melt and math.sin(a) > 0.20:            # lower half sags into a drip
-            sag = R * (0.10 + 0.34 * (math.sin(a)))
-            pygame.draw.circle(surf, col, (int(lx), int(ly + sag * 0.4)), lr)
+        col = lerp_color(lo, hi, d ** 1.05)
+        if melt and math.sin(a) > 0.15:            # lower half sags into a drip
+            # kept short so the longest drip still clears the badge square (~1.28R)
+            sag = R * (0.08 + 0.17 * math.sin(a))
             pygame.draw.line(surf, mid, (int(lx), int(ly)),
                              (int(lx), int(ly + sag)), max(3, lr))
+            pygame.draw.circle(surf, col, (int(lx), int(ly + sag * 0.35)), lr)
             pygame.draw.circle(surf, lerp_color(lo, mid, 0.5),
-                               (int(lx), int(ly + sag)), int(lr * 0.8))
+                               (int(lx), int(ly + sag)), int(lr * 0.82))
         else:
-            pygame.draw.circle(surf, col, (int(lx), int(ly)), lr)
-    # carve the middle back out so only the scalloped border shows
-    pygame.draw.circle(surf, (0, 0, 0, 0), (cx, cy), int(R * 0.90))
-    # (the transparent punch above is a no-op on SRCALPHA fills, so re-cover with
-    # the metal band next; the border ring remains from br outward)
+            pygame.draw.circle(surf, lo, (int(lx), int(ly)), lr)         # shade base
+            pygame.draw.circle(surf, col, (int(lx - lr * 0.08), int(ly - lr * 0.08)),
+                               int(lr * 0.92))
+            if sheen is not None:                                        # glossy dab
+                pygame.draw.circle(surf, sheen,
+                                   (int(lx - lr * 0.34), int(ly - lr * 0.34)),
+                                   max(1, int(lr * 0.34)))
 
 
 def fame_seal(surf, cx, cy, R, glyph_key):
     for sgn in (-1, 1):
         _seal_cord(surf, cx, cy, R, sgn, _SE_CORD_HI, _SE_CORD_LO)
-    # scalloped wax rosette, then punch its centre with the gold rim band
-    _wax_border(surf, cx, cy, R, _SE_WAX_HI, _SE_WAX_MID, _SE_WAX_LO, n=16)
-    # embossed bead ring pressed into the wax
-    for i in range(16):
-        a = i / 16 * math.tau
-        bx = cx + int(math.cos(a) * R * 0.98)
-        by = cy + int(math.sin(a) * R * 0.98)
-        pygame.draw.circle(surf, _SE_WAX_LO, (bx, by), max(2, R // 26))
-        pygame.draw.circle(surf, _SE_WAX_SHEEN,
-                           (bx - max(1, R // 60), by - max(1, R // 60)), max(1, R // 44))
-    # waxy upper-left gloss arc across the border
+    # hand-pressed glossy wax pool, then punch its centre with the gold rim band
+    _wax_border(surf, cx, cy, R, _SE_WAX_HI, _SE_WAX_MID, _SE_WAX_LO,
+                sheen=_SE_WAX_SHEEN, n=15)
+    # a broad waxy upper-left gloss sweep so the whole pool reads wet/convex
     pygame.draw.arc(surf, _SE_WAX_SHEEN,
-                    (cx - int(R * 1.02), cy - int(R * 1.02),
-                     int(R * 2.04), int(R * 2.04)),
-                    _LIGHT - 0.7, _LIGHT + 0.7, max(2, R // 12))
+                    (cx - int(R * 1.0), cy - int(R * 1.0),
+                     int(R * 2.0), int(R * 2.0)),
+                    _LIGHT - 0.6, _LIGHT + 0.6, max(2, R // 14))
     _metal_band(surf, cx, cy, R, int(R * 0.74), _SE_RIM_HI, _SE_RIM_LO,
                 spec=_SE_SPEC, edge=_SE_EDGE)
     pygame.draw.circle(surf, _SE_RIM_MID, (cx, cy), R, max(2, R // 24))
@@ -238,7 +244,7 @@ def shame_seal(surf, cx, cy, R, glyph_key):
     _seal_cord(surf, cx, cy, R, -1, _SD_CORD_HI, _SD_CORD_LO, frayed=True)
     _seal_cord(surf, cx, cy, R, 1, _SD_CORD_HI, _SD_CORD_LO, drop=0.34)
     # melted, broken wax: a big cracked-away gap on the upper-right border
-    _wax_border(surf, cx, cy, R, _SD_WAX_HI, _SD_WAX_MID, _SD_WAX_LO, n=16,
+    _wax_border(surf, cx, cy, R, _SD_WAX_HI, _SD_WAX_MID, _SD_WAX_LO, n=15,
                 melt=True, broken_gap=(math.radians(300), math.radians(352)))
     # crazing cracks webbing the surviving wax
     for a0, a1 in ((math.radians(200), math.radians(250)),
@@ -289,7 +295,7 @@ _GD_PRONG = (120, 118, 122)
 _GD_TABLE = (156, 158, 164)       # clouded milky stone
 _GD_MID = (112, 114, 122)
 _GD_DK = (72, 74, 82)
-_GD_SOCKET = (20, 20, 26)         # empty setting
+_GD_SOCKET = (18, 18, 24)         # empty setting rim
 _GD_FACE_TOP = (48, 46, 52)
 _GD_FACE_BOT = (24, 22, 28)
 _GD_RECESS = (14, 12, 18)
@@ -352,9 +358,27 @@ def _gem_ring(surf, cx, cy, R, palette, n=10, wrecked=False):
         gx = cx + math.cos(a) * ring_r
         gy = cy + math.sin(a) * ring_r
         if i in missing:
-            pygame.draw.circle(surf, _GD_SOCKET, (int(gx), int(gy)), gr)
-            pygame.draw.circle(surf, edge, (int(gx), int(gy)), gr, max(1, R // 40))
-            _prongs(surf, int(gx), int(gy), gr, prong, edge, bent=True)
+            # a DEEP empty claw setting: a dark cupped socket (darker toward the
+            # centre) with a lit lower lip, ringed by a few bent prong-claws left
+            # standing — so the loss reads as "the gem fell out", not a grey bump
+            pygame.draw.circle(surf, _GD_SOCKET, (int(gx), int(gy)), int(gr * 0.98))
+            pygame.draw.circle(surf, (8, 8, 12), (int(gx), int(gy)), int(gr * 0.60))
+            pygame.draw.arc(surf, prong,
+                            (int(gx - gr * 0.8), int(gy - gr * 0.8),
+                             int(gr * 1.6), int(gr * 1.6)),
+                            math.radians(200), math.radians(340), max(1, R // 46))
+            for k in range(4):                      # empty claws still gripping air
+                ca = k * math.pi / 2 - math.pi / 4
+                cx2 = gx + math.cos(ca) * gr * 1.02
+                cy2 = gy + math.sin(ca) * gr * 1.02
+                nrm = (-math.sin(ca), math.cos(ca))
+                hclaw = gr * 0.34
+                pygame.draw.polygon(surf, prong, [
+                    (int(cx2 + math.cos(ca) * gr * 0.28), int(cy2 + math.sin(ca) * gr * 0.28)),
+                    (int(gx + math.cos(ca) * gr * 0.5 + nrm[0] * hclaw),
+                     int(gy + math.sin(ca) * gr * 0.5 + nrm[1] * hclaw)),
+                    (int(gx + math.cos(ca) * gr * 0.5 - nrm[0] * hclaw),
+                     int(gy + math.sin(ca) * gr * 0.5 - nrm[1] * hclaw))])
             continue
         _prongs(surf, int(gx), int(gy), gr, prong, edge, bent=wrecked)
         _brilliant(surf, int(gx), int(gy), gr, table, mid, dk,
@@ -487,9 +511,10 @@ def shame_flame(surf, cx, cy, R, glyph_key):
         if i % 2 != 0:
             continue
         a = i / n * math.tau - math.pi / 2
-        _smoke_curl(surf, cx, cy, a, R * 1.02, R * 0.34, _FD_SMOKE)
+        _smoke_curl(surf, cx, cy, a, R * 1.02, R * 0.40, _FD_SMOKE)
     # charred wick stubs all round the rim — each is a burnt-out flame: the same
     # tongue silhouette, cropped short and sooted black with a faint grey lip
+    ember_tips = {6, 1}
     for i in range(n):
         a = i / n * math.tau - math.pi / 2
         L = R * (0.18 if i % 2 == 0 else 0.13)
@@ -499,16 +524,22 @@ def shame_flame(surf, cx, cy, R, glyph_key):
         pygame.draw.lines(surf, _FD_RIM_LO, False,
                           [(int(x), int(y)) for x, y in pts[:len(pts) // 2]],
                           max(1, R // 40))
-        if i == 6:                                 # one last dying ember
-            tip = (cx + math.cos(a) * R * (0.97 + L / R * 0.6),
-                   cy + math.sin(a) * R * (0.97 + L / R * 0.6))
-            pygame.draw.circle(surf, _FD_EMBER, (int(tip[0]), int(tip[1])),
-                               max(3, R // 16))
     _metal_band(surf, cx, cy, R, int(R * 0.74), _FD_RIM_HI, _FD_RIM_LO,
                 spec=None, edge=_FD_EDGE)
     _oxide_mottle(surf, cx, cy, int(R * 0.80), int(R * 0.98),
                   (_FD_SOOT, _FD_RIM_LO), seed=41)
     pygame.draw.circle(surf, _FD_RIM_MID, (cx, cy), R, max(2, R // 24))
+    # a couple of wick tips still glow as dying coals — the cue that this WAS
+    # fire, painted last so the warm ember reads over the cold soot at 44px
+    for i in ember_tips:
+        a = i / n * math.tau - math.pi / 2
+        L = R * (0.18 if i % 2 == 0 else 0.13)
+        tx = cx + math.cos(a) * (R * 0.97 + L * 0.55)
+        ty = cy + math.sin(a) * (R * 0.97 + L * 0.55)
+        blit_glow(surf, int(tx), int(ty), int(R * 0.22), (232, 118, 38), 110)
+        pygame.draw.circle(surf, _FD_EMBER, (int(tx), int(ty)), max(3, R // 15))
+        pygame.draw.circle(surf, (255, 176, 82),
+                           (int(tx - R * 0.02), int(ty - R * 0.02)), max(2, R // 24))
     fr = int(R * 0.70)
     ai._draw_step(surf, cx, cy, fr + max(2, R // 16), _FD_RIM_HI, _FD_RIM_LO)
     ai._draw_face(surf, cx, cy, fr, _FD_FACE_TOP, _FD_FACE_BOT, _FD_RECESS)
@@ -605,15 +636,48 @@ def fame_coin(surf, cx, cy, R, glyph_key):
     _center(surf, glyph_key, cx, cy, R, _CN_GLY, _CN_GLY_SH, ai._GLYPH_SHEEN)
 
 
+def _verdigris_creep(surf, cx, cy, R):
+    """Corrosion that CREEPS rather than measles: thin crusty patina following the
+    reeded milling grooves at the rim, plus a couple of larger bloom patches, so
+    it reads as oxide eating into the coin."""
+    # crusty streaks tracking the milling grooves (radial, uneven length)
+    s = 0x5321
+    for i in range(46):
+        s = (s * 1103515245 + 12345) & 0x7fffffff
+        a = (i / 46) * math.tau
+        s = (s * 1103515245 + 12345) & 0x7fffffff
+        if (s / 0x7fffffff) < 0.42:                 # patchy, not every groove
+            continue
+        s = (s * 1103515245 + 12345) & 0x7fffffff
+        r0 = R * (0.90 + 0.02 * (s / 0x7fffffff))
+        r1 = R * (0.99 + 0.06 * (s / 0x7fffffff))
+        col = _CD_VERD if i % 2 else _CD_VERD_DK
+        pygame.draw.line(surf, col,
+                         (int(cx + math.cos(a) * r0), int(cy + math.sin(a) * r0)),
+                         (int(cx + math.cos(a) * r1), int(cy + math.sin(a) * r1)),
+                         max(1, R // 34))
+    # a couple of larger corrosion blooms creeping across the field
+    for ba, br, bs in ((math.radians(205), 0.82, 0.30),
+                       (math.radians(300), 0.70, 0.24),
+                       (math.radians(150), 0.92, 0.20)):
+        bx = cx + math.cos(ba) * R * br
+        by = cy + math.sin(ba) * R * br
+        for dx, dy, sc in ((0, 0, 1.0), (0.5, 0.2, 0.7), (-0.4, 0.4, 0.6),
+                           (0.2, -0.5, 0.55)):
+            pygame.draw.circle(surf, _CD_VERD_DK,
+                               (int(bx + dx * R * bs), int(by + dy * R * bs)),
+                               max(2, int(R * bs * sc * 0.5)))
+        pygame.draw.circle(surf, _CD_VERD, (int(bx), int(by)),
+                           max(2, int(R * bs * 0.42)))
+
+
 def shame_coin(surf, cx, cy, R, glyph_key):
     _reeding(surf, cx, cy, R, _CD_RIM_HI, _CD_RIM_LO,
              worn=(math.radians(20), math.radians(140)))
     _metal_band(surf, cx, cy, R, int(R * 0.70), _CD_RIM_HI, _CD_RIM_LO,
                 spec=None, edge=_CD_EDGE)
     _guilloche(surf, cx, cy, R, _CD_RIM_LO, _CD_RIM_MID, eroded=True)
-    # verdigris eating the metal
-    _oxide_mottle(surf, cx, cy, int(R * 0.66), int(R * 1.00),
-                  (_CD_VERD, _CD_VERD_DK), seed=53, n=46)
+    _verdigris_creep(surf, cx, cy, R)
     pygame.draw.circle(surf, _CD_RIM_MID, (cx, cy), R, max(2, R // 26))
     # a flat CLIP shaved off the lower-right edge: the rounded rim replaced by a
     # straight filed chord. The raw circular segment stays entirely INSIDE R (no
@@ -649,8 +713,15 @@ _EN_EDGE = (70, 44, 8)
 _EN_SPEC = (255, 250, 222)
 _EN_WIRE = (255, 232, 160)
 _EN_WIRE_LO = (150, 104, 30)
-_EN_CELLS = [(48, 104, 206), (206, 52, 74), (34, 168, 116), (240, 186, 56)]
-_EN_GLAZE = (236, 244, 255)
+# Jewel enamel as (deep, bright) pairs so each cell can be domed dark->bright
+# for a glassy vitreous read rather than a flat primary.
+_EN_CELLS = [
+    ((24, 58, 150), (74, 132, 236)),    # sapphire
+    ((150, 26, 54), (224, 62, 94)),     # ruby
+    ((16, 112, 76), (54, 192, 132)),    # emerald
+    ((176, 118, 22), (250, 202, 84)),   # amber
+]
+_EN_GLAZE = (244, 250, 255)
 _EN_FACE_TOP = (40, 32, 90)
 _EN_FACE_BOT = (16, 10, 44)
 _EN_RECESS = (10, 6, 28)
@@ -679,32 +750,25 @@ def _ash(col, t=0.66):
 def _enamel_ring(surf, cx, cy, R, wire, wire_lo, cells, n=12, wrecked=False):
     rin, rout = R * 0.80, R * 1.02
     chipped = {1, 5, 8, 10} if wrecked else set()
+    band = rout - rin
     for i in range(n):
         a0 = i / n * math.tau
         a1 = (i + 1) / n * math.tau
-        col = cells[i % len(cells)]
-        if wrecked:
-            col = _ash(col)
+        deep, bright = cells[i % len(cells)]
         if i in chipped:
             # enamel chipped away to raw pitted metal, with a lit broken lip
             _wedge(surf, cx, cy, a0 + 0.02, a1 - 0.02, rin, rout, _ED_METAL)
             _oxide_mottle(surf, cx, cy, int(rin), int(rout),
                           (_ED_METAL, (24, 22, 26)), seed=90 + i, n=6)
             mid_a = (a0 + a1) / 2
-            lip = (cx + math.cos(mid_a) * (rin + (rout - rin) * 0.5),
-                   cy + math.sin(mid_a) * (rin + (rout - rin) * 0.5))
+            lip = (cx + math.cos(mid_a) * (rin + band * 0.5),
+                   cy + math.sin(mid_a) * (rin + band * 0.5))
             pygame.draw.circle(surf, _ED_METAL_HI, (int(lip[0]), int(lip[1])),
                                max(2, R // 26))
             continue
-        _wedge(surf, cx, cy, a0 + 0.015, a1 - 0.015, rin, rout, col)
-        # glossy top-left glaze on each cell
-        d = (math.cos((a0 + a1) / 2 - _LIGHT) + 1) * 0.5
-        if d > 0.35 and not wrecked:
-            _wedge(surf, cx, cy, a0 + 0.05, (a0 + a1) / 2, rin + (rout - rin) * 0.45,
-                   rout - (rout - rin) * 0.12, lerp_color(col, _EN_GLAZE, 0.5))
         if wrecked:
+            _wedge(surf, cx, cy, a0 + 0.015, a1 - 0.015, rin, rout, _ash(bright))
             # crazing: a web of fine dark cracks across the burnt cell
-            mid_a = (a0 + a1) / 2
             for j in range(3):
                 aa = a0 + (a1 - a0) * (0.25 + 0.25 * j)
                 p0 = (cx + math.cos(aa) * rin, cy + math.sin(aa) * rin)
@@ -715,16 +779,29 @@ def _enamel_ring(surf, cx, cy, R, wire, wire_lo, cells, n=12, wrecked=False):
                             (cx - int(rout * 0.94), cy - int(rout * 0.94),
                              int(rout * 1.88), int(rout * 1.88)),
                             a0, a1, max(1, R // 60))
-    # gold cloison wires: radial dividers + inner/outer rings
+        else:
+            # domed vitreous cell: deep at the walls -> bright core -> a glassy
+            # near-white specular streak on the upper edge (premium enamel gloss)
+            _wedge(surf, cx, cy, a0 + 0.015, a1 - 0.015, rin, rout, deep)
+            _wedge(surf, cx, cy, a0 + 0.055, a1 - 0.055,
+                   rin + band * 0.16, rout - band * 0.12, bright)
+            _wedge(surf, cx, cy, a0 + 0.075, (a0 + a1) / 2,
+                   rin + band * 0.44, rout - band * 0.18,
+                   lerp_color(bright, _EN_GLAZE, 0.7))
+    # gold cloison wires: a dark keyline base + a bright raised crest so the cell
+    # walls read as crisp raised wire between the colours
     for i in range(n):
         a = i / n * math.tau
-        p0 = (cx + math.cos(a) * rin, cy + math.sin(a) * rin)
+        p0 = (cx + math.cos(a) * (rin - band * 0.04), cy + math.sin(a) * (rin - band * 0.04))
         p1 = (cx + math.cos(a) * rout, cy + math.sin(a) * rout)
-        wc = wire_lo if (wrecked and i % 2 == 0) else wire
-        pygame.draw.line(surf, wc, (int(p0[0]), int(p0[1])),
-                         (int(p1[0]), int(p1[1])), max(2, R // 34))
-    pygame.draw.circle(surf, wire, (cx, cy), int(rout), max(2, R // 40))
-    pygame.draw.circle(surf, wire_lo, (cx, cy), int(rin), max(2, R // 44))
+        pygame.draw.line(surf, wire_lo, (int(p0[0]), int(p0[1])),
+                         (int(p1[0]), int(p1[1])), max(3, R // 26))
+        if not (wrecked and i % 2 == 0):
+            pygame.draw.line(surf, wire, (int(p0[0]), int(p0[1])),
+                             (int(p1[0]), int(p1[1])), max(2, R // 42))
+    for rr, wc in ((rout, wire), (rin, wire_lo)):
+        pygame.draw.circle(surf, wire_lo, (cx, cy), int(rr), max(3, R // 30))
+        pygame.draw.circle(surf, wc, (cx, cy), int(rr), max(2, R // 48))
 
 
 def fame_enamel(surf, cx, cy, R, glyph_key):
