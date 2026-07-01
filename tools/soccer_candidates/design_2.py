@@ -1,69 +1,100 @@
-# Soccer v4 — DESIGN 2: THE FREE-KICK WALL.
-# WHY this exists: the other soccer takes lean on a garment to say "footballer".
-# This one is POSE-driven instead — Pip frozen in a defensive wall stance with
-# both wings crossed tight into a hard NAVY X over the chest, so the read is a
-# body language, not a jersey tint. Keeping the scarlet macaw fully visible under
-# a bold crossed-arms silhouette is the differentiator from the kitted designs;
-# navy wristbands, white shin tape, a low brow head guard and dark boots are the
-# only accessories, each a single bold mark that survives the 40px downscale.
+"""SOCCER — THE GOALKEEPER (DESIGN 2 of the SOCCER set).
+
+Scratch exploration only; NOT registered in store_skins.BUILDERS, so production
+is untouched.
+
+Concept: where the other soccer looks are outfield strikers, this one reads as
+the KEEPER — the position with its own visual language. Two oversized padded
+ORANGE GLOVE mitts (one on each wing, drawn LAST in front of everything) are the
+hero prop: the biggest, brightest shapes on the sprite, the unmistakable
+goalkeeper tell. Beneath them a HV neon-green keeper jersey (the classic
+"look at me / distinct from both teams" keeper colour) with a dark back-half for
+roundness and a small orange chest diamond, dark charcoal crotch-notch shorts,
+neon-green hooped socks, and bright-yellow cleats whose colour IS the accent
+(no side stripe competing with the gloves).
+
+At 40px, in order of value: (1) the two big bright-orange mitts breaking both
+wing outlines — the keeper read; (2) the neon-green jersey/socks mass; (3) the
+yellow cleats; (4) the orange chest diamond. The mitts sit forward of the whole
+kit so nothing dulls them; the yellow boots and orange gloves are warm notes
+that pop off the cool green on both day and night sky.
+"""
 import pygame
-from game.store_skins import HX, HY, CROWN_Y, _poly, _make_skin
 
-# WHY a fixed body centre: the crossed-wing X and wristbands key off the macaw's
-# torso, independent of the head anchors, so they hold across wing frames.
-BCX, BCY = 32, 52
+from game import store_skins
+from game.store_skins import HX, HY, _poly
 
-_NAVY    = (15, 45, 100)    # deep navy for the crossed arms (the hero X)
-_NAVY_LT = (27, 58, 107)    # lighter navy wristbands
-_TAPE    = (240, 240, 240)  # shin tape white
-_ACCENT  = (232, 160, 32)   # warm gold accent stripe on each wristband
-_BOOT_D  = (20, 20, 30)     # dark boot
+# Keeper kit palette.
+_GK_GREEN    = (57, 211, 83)       # #39D353 neon keeper green (jersey/socks)
+_GK_GREEN_D  = (30, 122, 46)       # #1E7A2E back-half shade for roundness
+_GK_GREEN_DD = (15, 74, 26)        # #0F4A1A garment outline / sock hoop / collar
+_GK_CHARCOAL = (42, 42, 42)        # #2A2A2A shorts
+_GK_BLACK    = (10, 10, 10)        # shorts / cleat outline
+_GK_YELLOW   = (232, 192, 32)      # #E8C020 hero-yellow cleats
+_GK_ORANGE   = (245, 124, 0)       # #F57C00 gloves + chest diamond
+_GK_STRAP    = (62, 31, 0)         # #3E1F00 dark-brown knuckle strap
+_GK_HI       = (255, 183, 77)      # #FFB74D bright glove highlight
 
-
-def _wristband(surf, cx, cy):
-    """A small navy cuff at a wingtip: a lighter-navy block ringed dark, with a
-    white highlight stripe and a warm gold accent tick so it reads as a padded
-    band, not a stray dark dot, at 40px."""
-    pygame.draw.rect(surf, _NAVY, (cx - 3, cy - 4, 8, 9), border_radius=2)      # dark ring
-    pygame.draw.rect(surf, _NAVY_LT, (cx - 2, cy - 3, 6, 7), border_radius=2)   # band body
-    pygame.draw.line(surf, _TAPE, (cx - 2, cy - 2), (cx + 3, cy - 2), 1)        # white stripe
-    pygame.draw.line(surf, _ACCENT, (cx - 2, cy + 1), (cx + 3, cy + 1), 1)      # gold accent
+# Named per the brief so the socks/cleats read like the shared soccer kit code.
+SOCK_COL   = _GK_GREEN
+HOOP_COL   = _GK_GREEN_DD
+CLEAT_COL  = _GK_YELLOW
+STRIPE_COL = _GK_BLACK
 
 
 def _paint(surf, _a):
-    # 1 — SHIN TAPE: white wraps on each leg, a thin navy stripe across the
-    # centre so the tape reads as wrapped athletic strapping, not a plain block.
-    for lx in (HX - 14, HX - 2):
-        pygame.draw.rect(surf, _TAPE, (lx, HY + 18, 6, 4))
-        pygame.draw.line(surf, _NAVY, (lx, HY + 20), (lx + 5, HY + 20), 1)
+    # ── JERSEY — neon-green keeper shirt hugging the torso, held inside the base
+    #    bird footprint (hem ~HY+23) so nothing balloons the silhouette.
+    jersey = [(HX - 13, HY + 8), (HX - 14, HY + 18), (HX - 10, HY + 23),
+              (HX + 8, HY + 23), (HX + 11, HY + 18), (HX + 9, HY + 8)]
+    _poly(surf, _GK_GREEN, jersey)
+    # Dark back-half down the off-side so the shirt reads as a rounded torso.
+    _poly(surf, _GK_GREEN_D, [(HX + 3, HY + 9), (HX + 9, HY + 8), (HX + 11, HY + 18),
+                              (HX + 8, HY + 23), (HX + 4, HY + 22)])
+    # Narrow dark-green collar V at the jersey top so the neck reads as a shirt.
+    _poly(surf, _GK_GREEN_DD, [(HX - 5, HY + 8), (HX + 4, HY + 8),
+                               (HX, HY + 12), (HX - 2, HY + 12)])
+    # 1px dark-green garment outline so the shirt holds its edge at 40px.
+    pygame.draw.polygon(surf, _GK_GREEN_DD, jersey, 1)
+    # Small keeper logo — an orange diamond on the left chest.
+    dx, dy = HX - 5, HY + 12
+    _poly(surf, _GK_ORANGE, [(dx, dy - 2), (dx + 2, dy), (dx, dy + 2), (dx - 2, dy)])
 
-    # 2 — DARK BOOTS: small near-black ellipses at the feet so the legs terminate
-    # in booted studs under the shin tape.
-    for lx in (HX - 11, HX + 1):
-        pygame.draw.ellipse(surf, _BOOT_D, (lx - 2, HY + 23, 9, 5))
+    # ── SHORTS — dark charcoal with a crotch notch (two leg tubes), tucked under
+    #    the jersey hem, 1px black outline.
+    shorts = [(HX - 10, HY + 23), (HX - 11, HY + 29), (HX - 3, HY + 29),
+              (HX - 2, HY + 26), (HX, HY + 26), (HX + 1, HY + 29),
+              (HX + 7, HY + 29), (HX + 8, HY + 23)]
+    _poly(surf, _GK_CHARCOAL, shorts)
+    pygame.draw.polygon(surf, _GK_BLACK, shorts, 1)
 
-    # 3 — CROSSED-WING X (the hero read): two thick navy diagonals forming a bold
-    # X across the chest, crossing at centre — the wings pulled tight over the
-    # body in the wall pose. Drawn OVER the scarlet body so the red still shows;
-    # a shadow underlay + a lighter top edge keep each arm reading round at 40px.
-    lp0, lp1 = (BCX - 12, BCY - 8), (HX + 4, BCY + 4)   # left arm: upper-left → lower-right
-    rp0, rp1 = (HX + 4, BCY - 8), (BCX - 12, BCY + 4)   # right arm: upper-right → lower-left
-    pygame.draw.line(surf, (9, 28, 66), (lp0[0], lp0[1] + 1), (lp1[0], lp1[1] + 1), 6)
-    pygame.draw.line(surf, (9, 28, 66), (rp0[0], rp0[1] + 1), (rp1[0], rp1[1] + 1), 6)
-    pygame.draw.line(surf, _NAVY, lp0, lp1, 5)
-    pygame.draw.line(surf, _NAVY, rp0, rp1, 5)
-    pygame.draw.line(surf, _NAVY_LT, (lp0[0], lp0[1] - 1), (lp1[0], lp1[1] - 1), 1)
-    pygame.draw.line(surf, _NAVY_LT, (rp0[0], rp0[1] - 1), (rp1[0], rp1[1] - 1), 1)
+    # ── SOCKS — neon-green body with a dark-green hoop at the top, 4px wide,
+    #    centred over the feet.
+    for sx in (HX - 7, HX + 3):
+        pygame.draw.line(surf, SOCK_COL, (sx, HY + 29), (sx, HY + 37), 4)
+        pygame.draw.line(surf, HOOP_COL, (sx, HY + 29), (sx, HY + 32), 4)
 
-    # 4 — WRISTBANDS at the four ends of the crossed arms (where the wingtips
-    # sit), so the X terminates in padded cuffs instead of blunt line ends.
-    for tip in (lp0, lp1, rp0, rp1):
-        _wristband(surf, tip[0], tip[1])
+    # ── CLEATS — bright yellow at the feet; the yellow colour IS the accent, so no
+    #    side stripe competing with the gloves. 1px black outline.
+    for fx in (HX - 11, HX - 1):
+        pygame.draw.rect(surf, CLEAT_COL, (fx, HY + 33, 10, 5), border_radius=2)
+        pygame.draw.rect(surf, STRIPE_COL, (fx, HY + 33, 10, 5), 1, border_radius=2)
 
-    # 5 — LOW HEADGUARD: a thin dark-navy protective band across the brow ridge —
-    # narrow so it reads as a head guard, not a sweatband.
-    pygame.draw.line(surf, _NAVY, (HX - 10, HY - 4), (HX + 10, HY - 4), 2)
-    pygame.draw.line(surf, _NAVY_LT, (HX - 8, HY - 5), (HX + 6, HY - 5), 1)
+    # ── GOALKEEPER GLOVES (HERO PROP, drawn LAST so they sit in FRONT of the whole
+    #    kit) — two big oversized padded orange mitts, one on each wing, each with a
+    #    dark-brown knuckle strap across the top and a bright top highlight. These
+    #    are the largest, brightest shapes on the sprite: the unmistakable keeper
+    #    tell that must survive the 40px downscale.
+    # LEFT mitt (far wing) centred around (HX-16, HY+14).
+    pygame.draw.rect(surf, _GK_ORANGE, (HX - 22, HY + 8, 12, 10), border_radius=3)
+    pygame.draw.rect(surf, _GK_STRAP, (HX - 22, HY + 8, 12, 3), border_radius=2)
+    pygame.draw.line(surf, _GK_HI, (HX - 21, HY + 8), (HX - 11, HY + 8), 1)
+    pygame.draw.line(surf, _GK_HI, (HX - 20, HY + 13), (HX - 12, HY + 13), 1)
+    # RIGHT mitt (near wing) centred around (HX+16, HY+14).
+    pygame.draw.rect(surf, _GK_ORANGE, (HX + 10, HY + 8, 12, 10), border_radius=3)
+    pygame.draw.rect(surf, _GK_STRAP, (HX + 10, HY + 8, 12, 3), border_radius=2)
+    pygame.draw.line(surf, _GK_HI, (HX + 11, HY + 8), (HX + 21, HY + 8), 1)
+    pygame.draw.line(surf, _GK_HI, (HX + 12, HY + 13), (HX + 20, HY + 13), 1)
 
 
-build = _make_skin(_paint)
+build = store_skins._make_skin(_paint)
