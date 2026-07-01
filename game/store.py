@@ -867,6 +867,10 @@ class StoreScene:
             return None
         for group, r in self.hub.stall_rects.items():
             if r.collidepoint(pos):
+                # Shut stalls (bamboo blind) are inert: a tap is a silent no-op,
+                # never routing into the category or flashing a message.
+                if group in self.hub.CLOSED_GROUPS:
+                    return None
                 self.tab = _GROUP_TAB[group]
                 self.page = 0  # each category opens on its first page
                 self._scroll_tab_into_view(self.tab)
