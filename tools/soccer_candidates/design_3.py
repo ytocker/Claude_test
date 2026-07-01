@@ -1,78 +1,98 @@
-"""Soccer v4 DESIGN 3 — THE STREET BALLER.
+"""THE CAPTAIN — Pip as a soccer team captain (DESIGN 3 of the SOCCER set).
 
-Pip as a Brazilian-style pelada footballer: no jersey, the scarlet macaw
-body stays bare and the kit is pure street signal. A side-knotted
-green/yellow headband, scattered Brazil-colour paint-splatter dabs across
-the torso (drawn OVER the body so the red still reads), a single green
-ankle band, and a taped black/white ball swinging on a cord from the near
-wing. Everything is asymmetric on purpose — scrappy, not uniformed — so it
-reads as a distinct look from THE CAPTAIN even at the 40px truth scale.
+Scratch exploration only; NOT registered in store_skins.BUILDERS, so production
+is untouched.
+
+Concept: a full soccer kit built on a deep-navy body block (jersey + shorts read
+as one dark torso mass) with three bright reads that survive the 40px downscale:
+(1) a white-piped navy jersey with a small white club CREST on the left chest,
+(2) white socks with a navy DOUBLE-HOOP at the top over near-black cleats, and
+(3) the HERO PROP — a bold white CAPTAIN'S ARMBAND looped around the near wing
+arm, brighter and wider than any garment stripe so it owns the read as "captain".
+
+At 40px, in order of value: the white armband breaking off the near arm, the
+white crest + collar on the navy chest, the white socks with their double hoop,
+then the near-black cleats. The navy body block is lifted off dark sky by a 1px
+lighter-navy garment outline. Pip's macaw head/beak/eye stay clear so it stays
+"parrot dressed as a captain."
 """
 import pygame
-from game.store_skins import HX, HY, CROWN_Y, _poly, _make_skin
 
-# Body centre anchors — the paint dabs and cord root off these so the
-# splatter stays over the torso regardless of frame.
-BCX, BCY = 32, 52
+from game import store_skins
+from game.store_skins import HX, HY, _poly
 
-_GREEN = (0, 168, 89)         # Brazil green — headband / ankle / dabs
-_GREEN_D = (0, 120, 62)       # green shadow for a little roundness
-_YELLOW = (244, 208, 63)      # Brazil yellow — knot / dabs
-_BALL_W = (245, 245, 245)     # ball leather white
-_BALL_D = (20, 20, 20)        # ball pentagon patches + outline
-_CORD = (80, 60, 40)          # tan cord the ball swings on
+# Team navy — jersey + shorts share this so the torso reads as one dark block.
+NAVY      = (13, 32, 72)        # #0D2048 kit navy
+NAVY_D    = (8, 20, 40)         # #081428 shaded right half (roundness)
+NAVY_LINE = (26, 58, 112)       # #1A3A70 lighter-navy garment outline (lifts off dark sky)
+PIPING    = (230, 230, 255)     # cool white piping at the jersey top
+WHITE     = (240, 245, 255)     # #F0F5FF sock body / crest field
+GOLD      = (207, 181, 59)      # #CFB53B crest star / armband gold edge
+SOCK_COL  = WHITE
+HOOP_COL  = NAVY                # navy double-hoop at the sock top
+HOOP2_COL = NAVY_D
+CLEAT_COL = (28, 28, 36)        # #1C1C24 near-black cleats
+STRIPE_COL= (160, 168, 176)     # #A0A8B0 silver sole stripe
+ARMBAND   = (250, 251, 255)     # bright white captain's armband (brighter than piping)
 
 
 def _paint(surf, _a):
-    # Single bright green ankle band on ONE ankle — the first asymmetry tell.
-    pygame.draw.line(surf, _GREEN_D, (HX - 14, HY + 22), (HX - 8, HY + 22), 3)
-    pygame.draw.line(surf, _GREEN, (HX - 14, HY + 21), (HX - 8, HY + 21), 3)
+    # ── JERSEY — deep navy torso, held inside the base bird footprint (hem ~HY+23).
+    jersey = [(HX - 13, HY + 8), (HX - 14, HY + 18), (HX - 10, HY + 23),
+              (HX + 8, HY + 23), (HX + 11, HY + 18), (HX + 9, HY + 8)]
+    _poly(surf, NAVY, jersey)
+    # Darker navy down the off-side so the jersey reads as a rounded torso.
+    _poly(surf, NAVY_D, [(HX, HY + 8), (HX + 9, HY + 8), (HX + 11, HY + 18),
+                         (HX + 8, HY + 23), (HX, HY + 23)])
+    # 1px lighter-navy garment outline so the navy block separates from dark sky.
+    pygame.draw.polygon(surf, NAVY_LINE, jersey, 1)
 
-    # Paint-splatter dabs scattered over the bare scarlet torso — hand-placed,
-    # not a lattice, ~4 green + 4 yellow, each 2-3px so they survive downscale
-    # while leaving plenty of red showing between them.
-    _dabs = [
-        (BCX - 5, BCY - 8, 2, _GREEN),
-        (BCX + 3, BCY - 5, 2, _YELLOW),
-        (BCX - 2, BCY + 3, 3, _GREEN),
-        (BCX + 6, BCY + 1, 2, _YELLOW),
-        (BCX - 8, BCY - 1, 2, _YELLOW),
-        (BCX + 1, BCY + 8, 2, _GREEN),
-        (BCX - 6, BCY + 7, 2, _YELLOW),
-        (BCX + 5, BCY - 9, 2, _GREEN),
-    ]
-    for dx, dy, r, col in _dabs:
-        pygame.draw.circle(surf, col, (dx, dy), r)
-    # A couple of tiny fleck taps so the splatter feels flung, not dotted.
-    pygame.draw.circle(surf, _YELLOW, (BCX - 3, BCY - 3), 1)
-    pygame.draw.circle(surf, _GREEN, (BCX + 3, BCY + 5), 1)
+    # White piping across the jersey top so the collar line reads at hero scale.
+    pygame.draw.line(surf, PIPING, (HX - 12, HY + 9), (HX + 10, HY + 9), 1)
+    # Thin white V-collar dipping from the piping — the open-neck cue.
+    pygame.draw.line(surf, PIPING, (HX - 3, HY + 9), (HX, HY + 13), 1)
+    pygame.draw.line(surf, PIPING, (HX + 3, HY + 9), (HX, HY + 13), 1)
 
-    # Side-knotted headband: a bright green band angled across the brow, just
-    # above the beak on the near side, with the knot pushed to the RIGHT so it
-    # reads off-centre (not a symmetric sweatband).
-    pygame.draw.line(surf, _GREEN_D, (HX - 8, HY - 2), (HX + 6, HY - 3), 4)
-    pygame.draw.line(surf, _GREEN, (HX - 8, HY - 3), (HX + 6, HY - 4), 4)
-    # Yellow knot bump + two short trailing tails flicking off the side.
-    pygame.draw.circle(surf, _YELLOW, (HX + 6, HY - 4), 3)
-    pygame.draw.line(surf, _YELLOW, (HX + 7, HY - 4), (HX + 12, HY - 7), 2)
-    pygame.draw.line(surf, _GREEN, (HX + 7, HY - 3), (HX + 12, HY - 1), 2)
+    # Club CREST on the left chest — a small white shield with a tiny gold star.
+    shield = [(HX - 8, HY + 11), (HX - 2, HY + 11), (HX - 2, HY + 17),
+              (HX - 5, HY + 19), (HX - 8, HY + 17)]
+    _poly(surf, WHITE, shield)
+    pygame.draw.polygon(surf, NAVY_LINE, shield, 1)
+    store_skins._star5(surf, HX - 5, HY + 14, 2, GOLD)
 
-    # Taped soccer ball swinging on a cord from the NEAR wing — drawn LAST so
-    # it sits fully in front of the body. Cord roots at the wing exit and drops
-    # to the ball centre; the ball is a black leather rim over a white shell
-    # with a few dark pentagon patches so it reads as a real football.
-    bx, by = HX + 14, HY + 10
-    pygame.draw.line(surf, _CORD, (HX + 10, BCY - 4), (bx, by), 1)
-    pygame.draw.circle(surf, _BALL_D, (bx, by), 7)      # leather outline
-    pygame.draw.circle(surf, _BALL_W, (bx, by), 6)      # white shell
-    pygame.draw.circle(surf, _BALL_D, (bx, by), 2)      # centre pentagon
-    pygame.draw.circle(surf, _BALL_D, (bx + 3, by - 3), 1)   # upper-right patch
-    pygame.draw.circle(surf, _BALL_D, (bx - 3, by - 3), 1)   # upper-left patch
-    pygame.draw.circle(surf, _BALL_D, (bx + 4, by + 2), 1)   # lower-right patch
-    pygame.draw.circle(surf, _BALL_D, (bx - 4, by + 2), 1)   # lower-left patch
-    # Thin seam ticks linking the patches so it doesn't read as loose dots.
-    pygame.draw.line(surf, _BALL_D, (bx, by - 2), (bx + 3, by - 3), 1)
-    pygame.draw.line(surf, _BALL_D, (bx, by - 2), (bx - 3, by - 3), 1)
+    # ── SHORTS — same navy as the jersey, crotch notch shows two leg tubes.
+    shorts = [(HX - 10, HY + 23), (HX - 11, HY + 29), (HX - 3, HY + 29),
+              (HX - 2, HY + 26), (HX, HY + 26), (HX + 1, HY + 29),
+              (HX + 7, HY + 29), (HX + 8, HY + 23)]
+    _poly(surf, NAVY, shorts)
+    # Shade the off-side leg tube for roundness.
+    _poly(surf, NAVY_D, [(HX + 1, HY + 29), (HX + 7, HY + 29), (HX + 8, HY + 23),
+                         (HX + 3, HY + 23)])
+    pygame.draw.polygon(surf, NAVY_LINE, shorts, 1)
+
+    # ── SOCKS — white body with a navy DOUBLE-HOOP at the top.
+    for sx in (HX - 7, HX + 3):
+        pygame.draw.line(surf, SOCK_COL, (sx, HY + 29), (sx, HY + 37), 4)
+        pygame.draw.line(surf, HOOP_COL, (sx, HY + 29), (sx, HY + 32), 4)
+        pygame.draw.line(surf, HOOP2_COL, (sx, HY + 33), (sx, HY + 35), 4)
+
+    # ── CLEATS — near-black boots with a silver sole stripe.
+    for fx in (HX - 11, HX - 1):
+        pygame.draw.rect(surf, CLEAT_COL, (fx, HY + 33, 10, 5), border_radius=2)
+        pygame.draw.line(surf, STRIPE_COL, (fx + 1, HY + 37), (fx + 9, HY + 37), 1)
+
+    # ── HERO PROP · CAPTAIN'S ARMBAND (drawn LAST) — a bold wide white band looped
+    #    around the near (right) wing arm, brighter + wider than any garment stripe
+    #    so it owns the read as "captain". Gold edge lines above/below + a small
+    #    dark "C" so it reads unmistakably as the skipper's armband.
+    a0 = (HX + 8, HY + 17)
+    a1 = (HX + 14, HY + 21)
+    pygame.draw.line(surf, ARMBAND, a0, a1, 5)
+    # Thin gold edge line 1px above and below the band.
+    pygame.draw.line(surf, GOLD, (a0[0], a0[1] - 3), (a1[0], a1[1] - 3), 1)
+    pygame.draw.line(surf, GOLD, (a0[0], a0[1] + 3), (a1[0], a1[1] + 3), 1)
+    # Small dark "C" for Captain — a short forward-facing arc reading as the letter.
+    pygame.draw.arc(surf, NAVY_D, (HX + 9, HY + 16, 5, 6), 0.5, 2.6, 2)
 
 
-build = _make_skin(_paint)
+build = store_skins._make_skin(_paint)
