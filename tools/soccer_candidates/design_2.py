@@ -54,8 +54,8 @@ _PAL = _pal(
 # Body centre in COMPOSITE space (base body centre (32,32) + PARROT_DY 20 on y).
 BCX, BCY = 32, 52
 
-_GREEN    = (0, 156, 59)        # #009C3B Brazil green — border, collar, crest, hoop
-_GREEN_D  = (0, 96, 36)         # crest/diamond dark outline
+_GREEN    = (0, 120, 44)        # bottle-green — deeper than #009C3B so it frames
+                                # the canary field instead of competing with it
 _SHT      = (30, 58, 138)       # #1E3A8A royal-blue shorts
 _SHT_D    = (18, 38, 100)       # shorts darker rim
 _SCK      = (245, 245, 250)     # white sock
@@ -67,39 +67,38 @@ def _base(angle_deg):
 
 
 def _paint(surf, _a):
-    # ── GREEN OVAL BORDER — traces the recoloured torso so the plain canary
-    #    field reads as a framed jersey rather than yellow feathers. This is the
-    #    single strongest Canarinho tell at 40px.
+    # ── GREEN OVAL BORDER — a 2px bottle-green trace anchors the plain canary
+    #    torso at scale so the field reads as a framed jersey, not yellow
+    #    feathers. This is the single strongest Canarinho tell at 40px.
     pygame.draw.ellipse(surf, _GREEN, (BCX - 19, BCY - 14, 38, 28), 2)
 
     # ── V-COLLAR + SHOULDER TRIM — two green strokes meeting at a point under the
     #    neck, capped by a horizontal shoulder line, so the yellow torso reads as
-    #    a collared Seleção shirt right below the red head.
+    #    a collared Seleção shirt right below the red head. Kept as thin trim so
+    #    the unbroken canary field still dominates the read.
     pygame.draw.line(surf, _GREEN, (BCX - 6, BCY - 12), (BCX + 2, BCY - 8), 2)
     pygame.draw.line(surf, _GREEN, (BCX + 8, BCY - 12), (BCX + 2, BCY - 8), 2)
     pygame.draw.line(surf, _GREEN, (BCX - 6, BCY - 12), (BCX + 8, BCY - 12), 3)
 
-    # ── CREST BADGE — a small green lozenge/diamond on the chest with a dark
-    #    outline; reads as the CBF-style team crest, not a stray dot.
-    dcx, dcy = BCX + 5, BCY - 4
-    diamond = [(dcx, dcy - 3), (dcx + 4, dcy), (dcx, dcy + 3), (dcx - 4, dcy)]
-    _poly(surf, _GREEN, diamond)
-    pygame.draw.polygon(surf, _GREEN_D, diamond, 1)
+    # ── CREST BADGE DOT — one solid bottle-green circle reads as a team badge at
+    #    40px; a detailed crest just turns to noise at this size.
+    pygame.draw.circle(surf, _GREEN, (BCX + 5, BCY - 5), 5)
 
-    # ── SLEEVE SEAM ARCS — a green stroke at each wing root anchors the jersey
-    #    read so the wings look like they emerge from fabric sleeves.
-    pygame.draw.line(surf, _GREEN, (BCX + 8, BCY - 10), (BCX + 16, BCY - 4), 1)
-    pygame.draw.line(surf, _GREEN, (BCX - 6, BCY - 10), (BCX - 14, BCY - 4), 1)
+    # ── WAISTBAND SEAM — a 2px bottle-green line splits the yellow jersey bottom
+    #    from the royal-blue shorts. This is the key structural separation of the
+    #    kit stack, keeping torso and shorts from fusing into one block.
+    pygame.draw.line(surf, _GREEN, (BCX - 9, BCY + 6), (BCX + 11, BCY + 6), 2)
 
     # ── SHORTS — royal-blue ellipse with a darker rim, the cool block that
     #    grounds the warm yellow torso.
     pygame.draw.ellipse(surf, _SHT, (BCX - 9, BCY + 7, 20, 9))
     pygame.draw.ellipse(surf, _SHT_D, (BCX - 9, BCY + 7, 20, 9), 1)
 
-    # ── SOCKS — white shanks with a single green turn-over hoop, one per leg.
+    # ── SOCKS — a clean white shank per leg with a single bottle-green turn-over
+    #    hoop; no extra detail lines, which just read as noise at 40px.
     for sx in (27, 35):
         pygame.draw.line(surf, _SCK, (sx, BCY + 11), (sx, BCY + 16), 4)
-        pygame.draw.line(surf, _GREEN, (sx, BCY + 12), (sx, BCY + 14), 4)
+        pygame.draw.line(surf, _GREEN, (sx, BCY + 12), (sx, BCY + 13), 2)
 
     # ── CLEATS — near-black boots below the socks with a visible gap so the kit
     #    stack (yellow / blue / white / black) stays legible at 40px.
