@@ -166,6 +166,26 @@ def _ear(surf, base_x, base_y, lean, color):
     pygame.draw.polygon(surf, CREAM_D, pts, 1)
 
 
+def _draw_tail(surf, cx, cy, sway):
+    # Ribbon trails rearward from the rump in PINK→ORANGE→PINK, the body slab
+    # drawn after this naturally overlaps the root so the tail looks attached.
+    # 5px segments + 1px dark keyline survive the 40px scale-down.
+    # Only the tip sways; the root stays planted on the body edge.
+    p0 = (cx - 15, cy + 1)
+    p1 = (cx - 25, cy + 0)
+    pygame.draw.line(surf, PINK,          p0, p1, 5)
+    pygame.draw.line(surf, (184, 28, 88), p0, p1, 1)
+
+    p2 = (cx - 33, cy + 4)
+    pygame.draw.line(surf, ORANGE,   p1, p2, 5)
+    pygame.draw.line(surf, ORANGE_D, p1, p2, 1)
+
+    tip_x = int(cx - 38 + sway * 6)
+    tip_y = int(cy + 4 - abs(sway) * 4)
+    pygame.draw.line(surf, PINK,          p2, (tip_x, tip_y), 5)
+    pygame.draw.line(surf, (184, 28, 88), p2, (tip_x, tip_y), 1)
+
+
 def build_pinata_burro(wing_angle_deg):
     """One trot frame. Body mass + head sit at/above (32,44); the four legs
     dangle below in a clearly split front-pair / back-pair to frame Pip's
@@ -194,6 +214,9 @@ def build_pinata_burro(wing_angle_deg):
     # front pair (toward +x). front-near is the OUTER (frontmost) swinging leg.
     _leg(surf, cx + 6,  hip_y,  3, sway, TASSELS[1])                          # front-far
     _leg(surf, cx + 10, hip_y,  7, sway, TASSELS[0], outer=True)             # front-near (frontmost)
+
+    # ── TAIL — drawn before body so the body slab overlaps the root ─────────────
+    _draw_tail(surf, cx, cy, sway)
 
     # ── BODY — three tiered crepe-fringe bands stacked into a barrel mass ─────
     # Barrel (wide, fairly flat) so it reads as a creature's body, not a ball.
