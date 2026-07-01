@@ -1,85 +1,102 @@
-"""DESIGN 4 — THE REFEREE (Soccer / Football, v6).
+"""DESIGN 4 — THE REFEREE (Soccer / Football, v7).
 
 Scratch exploration only — NOT registered in store_skins.BUILDERS, so
 production stays untouched. Pip the scarlet macaw kitted as a soccer
-REFEREE: an all-black authority kit whose single identity tell is a bright
-YELLOW CARD held high in the near wing.
+REFEREE — but built the RIGHT way: the jersey IS the body colour. Instead
+of anchoring a flat jersey polygon to the head centre (which missed the
+belly and floated over the torso), the whole body oval is recoloured
+near-black through the ghost-parrot palette system, so the kit fills the
+real silhouette. Head stays macaw-red, wings stay macaw-blue, so Pip is
+still unmistakably Pip in an authority strip.
 
-The read is deliberately value-inverted from the player kits: the whole
-uniform is near-black (#101010) — jersey, shorts, cleats — so the ONE bright
-yellow card owns the eye and cannot be missed at the 40px downscale. White
-piping (collar, sleeve edges), a breast-pocket card peeking out, a whistle on
-a cord, and a white sock hoop are the only other notes, kept thin so nothing
-competes with the raised card. Draw order runs kit-first, hero card LAST so
-the yellow always sits in front of the black mass and reads as brandished.
+Value is deliberately inverted from the player kits: the uniform is
+near-black so the ONE bright YELLOW CARD — brandished high in clear sky
+above the head, isolated from the yellow beak — owns the eye and survives
+the 40px downscale. White piping, a bold sock hoop, and a white cleat sole
+are the only relief on the black. Kit-first, hero card LAST.
 """
 import pygame
 
-from game import store_skins
-from game.store_skins import HX, HY, CROWN_Y, _poly
+from game.store_skins import HX, HY, CROWN_Y, _poly, _make_skin
+from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
+from game.draw import (
+    BIRD_RED, BIRD_BEAK, BIRD_BEAK_D, BIRD_WING, BIRD_WING_D, BIRD_TIP,
+)
 
-# All-black authority kit, but with internal value steps so the four-layer
-# stack (jersey → shorts → socks → cleats) never collapses into one black column.
-REF_BLACK  = (16, 16, 16)          # #101010 jersey / cleats
-SHORT_COL  = (28, 28, 28)          # #1C1C1C shorts — a hair lifted off the jersey
-SOCK_COL   = (24, 24, 24)          # #181818 sock body (a hair lifted off the kit)
-HOOP_COL   = (224, 224, 224)       # #E0E0E0 white sock hoop
-STRIPE_COL = (224, 224, 224)       # #E0E0E0 white cleat sole stripe
-CLEAT_COL  = (16, 16, 16)          # #101010 cleats
+# The referee strip lives in the palette: the body oval is repainted near-black
+# with internal value steps (shadow < belly < main < chest) so the black torso
+# still reads as a rounded form and never a flat void at 40px. Head/wings keep
+# the macaw palette so Pip stays recognisable inside the authority kit.
+_PAL = _pal(
+    tail=[(200, 30, 40), (240, 95, 40), (255, 160, 55), (255, 220, 80)],
+    tail_line=(170, 25, 25),
+    body_shadow=(6, 6, 8),
+    body_main=(16, 16, 20),
+    body_chest=(24, 24, 28),
+    body_belly=(12, 12, 16),
+    sheen=(50, 50, 65, 80),
+    wing_main=BIRD_WING,
+    wing_dark=BIRD_WING_D,
+    wing_tip=BIRD_TIP,
+    wing_secondary=(255, 200, 60),
+    wing_highlight=(170, 210, 255),
+    head_shadow=(150, 15, 20),
+    head_main=BIRD_RED,
+    head_cheek=(255, 130, 130),
+    head_crown=(255, 170, 170),
+    lens_frame=(255, 200, 50),
+    lens_body=(20, 20, 30),
+    lens_tint=(35, 55, 90, 130),
+    lens_glint=(255, 255, 255),
+    beak_main=BIRD_BEAK,
+    beak_dark=BIRD_BEAK_D,
+    beak_gloss=(255, 230, 150),
+    foot=BIRD_BEAK_D,
+)
 
-# Yellow card — the hero prop, the single brightest + largest element.
-CARD_YEL   = (244, 215, 20)        # #F4D719 bright card face
-CARD_YEL_H = (255, 240, 100)       # left-edge glint so the flat card reads lit
-CARD_DARK  = (160, 140, 0)         # dark card border / pocket-card outline
+# Body centre in COMPOSITE space (base body centre 32,32 + PARROT_DY 20 on y).
+BCX, BCY = 32, 52
+
+
+def _base(angle_deg):
+    return _build_parrot_with_palette(angle_deg, _PAL)
 
 
 def _paint(surf, _a):
-    # ── JERSEY — near-black field over the torso, held inside the base bird
-    #    footprint (hem ~HY+23) so nothing balloons the silhouette. White piping
-    #    is the only relief on the black so the shirt still reads as a kit, never
-    #    a void, without stealing value from the card.
-    jersey = [(HX - 13, HY + 8), (HX - 14, HY + 18), (HX - 10, HY + 23),
-              (HX + 8, HY + 23), (HX + 11, HY + 18), (HX + 9, HY + 8)]
-    _poly(surf, REF_BLACK, jersey)
-    # ONE white collar line — a single seam of relief on the black. A second line
-    # only reads as sub-pixel noise at the 40px downscale, so it is dropped.
-    pygame.draw.line(surf, (240, 240, 240), (HX - 12, HY + 9), (HX + 10, HY + 9), 1)
-    # White sleeve-edge piping down each side so the black shirt has a seam.
-    pygame.draw.line(surf, (200, 200, 200), (HX - 13, HY + 9), (HX - 10, HY + 22), 1)
-    pygame.draw.line(surf, (200, 200, 200), (HX + 11, HY + 9), (HX + 8, HY + 22), 1)
+    # ── JERSEY TRIM — thin white piping is the only relief on the black torso.
+    #    Two collar lines at the head/body junction read as a referee's shirt
+    #    yoke; a single sleeve-edge line on the trailing back gives the black
+    #    body a seam so it never collapses into a void.
+    pygame.draw.line(surf, (240, 240, 240), (BCX - 11, BCY - 9), (BCX + 11, BCY - 9), 1)
+    pygame.draw.line(surf, (200, 200, 200), (BCX - 10, BCY - 7), (BCX + 10, BCY - 7), 1)
+    pygame.draw.line(surf, (200, 200, 200), (BCX - 14, BCY - 6), (BCX - 12, BCY + 6), 1)
 
-    # Plain black breast pocket — no competing yellow on the torso; the ONE
-    # yellow in the piece is the raised card, kept unrivalled for the hero read.
-    pygame.draw.rect(surf, (8, 8, 8), (HX - 6, HY + 13, 5, 5))
+    # ── SHORTS — very dark ellipse over the lower body, a hair darker than the
+    #    jersey with a faint outline so the leg break separates from the torso.
+    pygame.draw.ellipse(surf, (12, 12, 14), (BCX - 10, BCY + 7, 22, 11))
+    pygame.draw.ellipse(surf, (28, 28, 32), (BCX - 10, BCY + 7, 22, 11), 1)
 
-    # ── SHORTS — all-black with the crotch notch so the legs read as two, not a
-    #    skirt; kept inside the footprint on the feet line.
-    shorts = [(HX - 10, HY + 23), (HX - 11, HY + 29), (HX - 3, HY + 29),
-              (HX - 2, HY + 26), (HX, HY + 26), (HX + 1, HY + 29),
-              (HX + 7, HY + 29), (HX + 8, HY + 23)]
-    _poly(surf, SHORT_COL, shorts)
+    # ── SOCKS — black legs with a bold white hoop thick enough to survive the
+    #    40px downscale, at both shins.
+    for sx in (27, 35):
+        pygame.draw.line(surf, (20, 20, 20), (sx, BCY + 11), (sx, BCY + 17), 4)
+        pygame.draw.line(surf, (224, 224, 224), (sx, BCY + 12), (sx, BCY + 15), 4)
 
-    # ── SOCKS — black body with a bold white hoop over the full HY+29→HY+33 band
-    #    so the sock layer separates cleanly from shorts and cleats at 40px.
-    for sx in (HX - 7, HX + 3):
-        pygame.draw.line(surf, SOCK_COL, (sx, HY + 29), (sx, HY + 37), 4)
-        pygame.draw.line(surf, HOOP_COL, (sx, HY + 29), (sx, HY + 33), 4)
+    # ── CLEATS — black boots with a bold white sole stripe at each foot.
+    for fx in (23, 31):
+        pygame.draw.rect(surf, (16, 16, 16), (fx, BCY + 13, 9, 5))
+        pygame.draw.line(surf, (224, 224, 224), (fx, BCY + 17), (fx + 8, BCY + 17), 2)
 
-    # ── CLEATS — black boots with a bold white sole stripe (2px) at the two feet.
-    for fx in (HX - 11, HX - 1):
-        pygame.draw.rect(surf, CLEAT_COL, (fx, HY + 33, 10, 5), border_radius=2)
-        pygame.draw.line(surf, STRIPE_COL, (fx + 1, HY + 37), (fx + 9, HY + 37), 2)
-
-    # ── HERO PROP · YELLOW CARD — drawn LAST so it sits in front of everything.
-    #    Pushed OUTBOARD into clear sky to the right of the head (HX+12) so it no
-    #    longer fuses with Pip's yellow beak; isolation against sky is what makes
-    #    the card the unmistakable hero read at the 40px downscale.
-    pygame.draw.rect(surf, CARD_YEL, (HX + 12, HY - 6, 11, 15), border_radius=1)
-    pygame.draw.rect(surf, (140, 120, 0), (HX + 12, HY - 6, 11, 15), 1, border_radius=1)
-    # Left-edge glint so the flat yellow face reads as a lit, held card.
-    pygame.draw.line(surf, CARD_YEL_H, (HX + 13, HY - 5), (HX + 13, HY + 8), 1)
-    # Dark grip block at the card's base — reads as the wing/hand holding it aloft.
-    pygame.draw.rect(surf, (20, 20, 20), (HX + 11, HY + 7, 5, 3), border_radius=1)
+    # ── HERO PROP · YELLOW CARD — drawn LAST, brandished HIGH in clear sky to
+    #    the upper-right of the head so it never fuses with the yellow beak.
+    #    Isolation against open sky is what makes the card the unmistakable
+    #    hero read at the 40px downscale.
+    cx, cy = HX + 10, CROWN_Y - 14
+    pygame.draw.rect(surf, (244, 215, 25), (cx, cy, 11, 15))               # card face
+    pygame.draw.rect(surf, (80, 68, 0),    (cx, cy, 11, 15), 1)            # dark border
+    pygame.draw.line(surf, (255, 240, 80), (cx + 1, cy + 1), (cx + 2, cy + 1), 1)  # glint
+    # Dark grip/hand block at the card base — reads as the parrot holding it aloft.
+    pygame.draw.rect(surf, (30, 30, 30), (cx + 1, cy + 12, 8, 4))
 
 
-build = store_skins._make_skin(_paint)
+build = _make_skin(_paint, base_fn=_base)
