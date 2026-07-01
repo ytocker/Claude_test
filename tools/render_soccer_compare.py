@@ -20,11 +20,11 @@ from game.hud import _font, _GOLD_PALE, _GOLD_DEEP
 
 COLUMNS = [
     ("ORIGINAL", "OLD SOCCER", "orig"),
-    ("DESIGN 1", "THE STRIKER", "design_1"),
-    ("DESIGN 2", "THE GOALKEEPER", "design_2"),
+    ("DESIGN 1", "ARGENTINA", "design_1"),
+    ("DESIGN 2", "BRAZIL", "design_2"),
     ("DESIGN 3", "JUVENTUS", "design_3"),
-    ("DESIGN 4", "THE REFEREE", "design_4"),
-    ("DESIGN 5", "DIE MANNSCHAFT", "design_5"),
+    ("DESIGN 4", "NETHERLANDS", "design_4"),
+    ("DESIGN 5", "GERMANY", "design_5"),
 ]
 
 
