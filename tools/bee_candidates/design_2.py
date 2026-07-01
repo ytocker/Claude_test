@@ -7,9 +7,10 @@ dark beetle silhouette carrying a soft glowing lantern — so it never
 collapses into a formless glow blob at 40px. The dark charcoal body earns
 its own value contrast against the sky; the glow is the tell.
 
-Day sky: the amber lantern against the near-black body is the identifier.
-Night sky: the bio-green halo makes it unmistakable and lets it own the dark.
-Glow alpha is kept moderate so the beetle outline always survives.
+Day sky: the amber lantern against the dark body is the identifier.
+Night sky: the bio-green halo makes it unmistakable and lets it own the dark,
+while a 1px ember rim on the body keeps the hard silhouette from vanishing
+into black — the two-part read only works if the dark body stays visible.
 
 Scratch exploration only — never registered in ``store_skins.BUILDERS``.
 """
@@ -22,8 +23,10 @@ BCX, BCY = 32, 44          # thorax centre
 HCX, HCY = 44, 34          # head
 CROWN_Y = 24
 
-# EMBERGLOW palette — near-black beetle, ember accents, a hot lantern.
-CHARCOAL = (20, 16, 18)
+# EMBERGLOW palette. Charcoal is lifted off pure-black so the beetle reads as
+# a solid dark body (not a hole) on a night sky; ember rim-light rescues that
+# silhouette against black, amber+warm+hot build the lantern's glow gradient.
+CHARCOAL = (34, 28, 30)
 EMBER = (122, 46, 18)
 AMBER = (255, 176, 32)
 CORE_WARM = (255, 246, 200)
@@ -31,9 +34,10 @@ CORE_HOT = (255, 255, 255)
 BIO_GREEN = (200, 255, 106)
 SMOKE = (100, 80, 60, 120)  # translucent buzz-wing brown
 
-# The lantern lives down-and-left of the thorax so the glow reads as a
-# trailing abdomen, not a second body core competing with the thorax.
-LANT_CX, LANT_CY = BCX - 7, BCY + 13
+# The lantern sits close under the thorax so a short amber neck fuses the two
+# into one abdomen — far enough down-left to read as a trailing tail, close
+# enough that it never looks like a coin falling away from the beetle.
+LANT_CX, LANT_CY = BCX - 7, BCY + 9
 
 
 def _flap(a):
@@ -87,33 +91,58 @@ def _build_frame(wing_angle_deg):
         wr = wing.get_rect(center=(BCX + side * spread, BCY + 6))
         surf.blit(wing, wr)
 
-    # --- Outer bio-green halo: the pulsing heart of the piece. Painted before
-    # the amber/core fills so those stay crisp on top and the lantern never
-    # dissolves into pure glow. peak swings 20→60 with the strike.
-    _glow_blit(surf, (LANT_CX, LANT_CY), 18, BIO_GREEN,
-               peak=int(20 + 40 * s))
+    # --- Glow gradient, painted outermost-in so each layer sits crisp on the
+    # last: bio-green halo (the night tell) → amber bloom → then the opaque
+    # bulb fills on top. The green only truly reads as green over a dark sky —
+    # additive over bright day just warms/brightens, which is the correct
+    # behaviour, so it never muddies the amber-on-blue day contrast.
+    _glow_blit(surf, (LANT_CX, LANT_CY), 22, BIO_GREEN,
+               peak=int(70 + 70 * s))
+    _glow_blit(surf, (LANT_CX, LANT_CY), 13, AMBER,
+               peak=int(90 + 90 * s))
 
-    # --- Lantern abdomen body: a fat amber teardrop trailing down-left from
-    # the thorax. The polygon gives it a defined edge inside the soft halo.
-    lantern = [
-        (BCX + 1, BCY + 4),
-        (LANT_CX + 8, LANT_CY - 5),
-        (LANT_CX + 6, LANT_CY + 8),
-        (LANT_CX - 4, LANT_CY + 9),
-        (LANT_CX - 8, LANT_CY + 2),
-        (LANT_CX - 5, LANT_CY - 6),
+    # --- Amber neck: a short tapered link fusing the thorax underside to the
+    # bulb top, so the lantern reads as an abdomen, not a dropped coin. Drawn
+    # under both bulb and thorax so those overlap and swallow its raw ends.
+    neck = [
+        (BCX - 4, BCY + 6),
+        (BCX + 2, BCY + 7),
+        (LANT_CX + 2, LANT_CY - 6),
+        (LANT_CX - 2, LANT_CY - 6),
     ]
-    pygame.draw.polygon(surf, AMBER, lantern)
-    _aaellipse(surf, AMBER, (LANT_CX, LANT_CY), 9, 7)
+    pygame.draw.polygon(surf, AMBER, neck)
 
-    # White-hot core — concentric fills that scale with the pulse so the down
-    # stroke shows a blazing white centre and the up-stroke keeps amber only.
-    if s > 0.15:
-        _aaellipse(surf, CORE_WARM, (LANT_CX - 1, LANT_CY - 1),
-                   4 + int(2 * s), 3 + int(2 * s))
+    # --- Lantern bulb: stacked concentric ellipses sharing a centre, amber →
+    # warm → white-hot, so it stays a soft round bulb rather than a faceted
+    # gem. The warm and hot cores swing wide with the pulse: near-amber on the
+    # up-stroke, blazing white on the down-stroke.
+    _aaellipse(surf, AMBER, (LANT_CX, LANT_CY), 9, 8)
+    _aaellipse(surf, CORE_WARM, (LANT_CX, LANT_CY - 1),
+               3 + int(3 * s), 2 + int(3 * s))
     if s > 0.5:
-        pygame.draw.circle(surf, CORE_HOT, (LANT_CX - 1, LANT_CY - 1),
-                           max(2, int(3 * s)))
+        pygame.draw.circle(surf, CORE_HOT, (LANT_CX, LANT_CY - 1),
+                           2 + int(2 * s))
+
+    # Peak flare — an extra bloom that only fires past mid-stroke, so the
+    # down-stroke frame visibly flashes brighter than the up-stroke one. This
+    # is the heartbeat that has to survive even at 40px.
+    flare = int(120 * max(0.0, s - 0.5) * 2)
+    if flare > 0:
+        _glow_blit(surf, (LANT_CX, LANT_CY), 10, CORE_WARM, peak=flare)
+
+    # --- Spark trail: 2-3 amber embers drifting down-left off the bulb, most
+    # and brightest on the peak frame, none on the up-stroke — a sparse,
+    # premium ember drip, not a firework.
+    for i, (sx, sy) in enumerate(((-5, 10), (-9, 16), (-12, 21))):
+        if s <= 0.25 * i:
+            continue
+        a = int(150 * (1.0 - 0.32 * i) * min(1.0, s * 1.3))
+        if a <= 0:
+            continue
+        dot = pygame.Surface((5, 5), pygame.SRCALPHA)
+        pygame.draw.circle(dot, (AMBER[0], AMBER[1], AMBER[2], a), (2, 2), 2)
+        surf.blit(dot, (LANT_CX + sx - 2, LANT_CY + sy - 2),
+                  special_flags=pygame.BLEND_RGBA_ADD)
 
     # --- Elytra: short ember-brown wing-covers flanking the thorax. They
     # crack open a touch on the down-stroke (the beetle bracing its buzz).
@@ -140,7 +169,11 @@ def _build_frame(wing_angle_deg):
     pygame.draw.polygon(surf, EMBER, shield)
 
     # --- Thorax: the charcoal body mass, drawn over shield roots and elytra
-    # inner edges so it anchors the whole silhouette as one dark block.
+    # inner edges so it anchors the whole silhouette as one dark block. An
+    # ember ellipse offset up-right sits beneath it, leaving a 1px warm rim on
+    # the upper-right edge — the only thing that keeps the dark body from
+    # vanishing into a black night sky.
+    _aaellipse(surf, EMBER, (BCX + 1, BCY - 1), 9, 8)
     _aaellipse(surf, CHARCOAL, (BCX, BCY), 9, 8)
 
     # --- Head: small dark ellipse up-forward, with two filiform antennae
@@ -152,9 +185,11 @@ def _build_frame(wing_angle_deg):
         tip = (HCX + side * 9, HCY - 15)
         pygame.draw.lines(surf, CHARCOAL, False, [base, mid, tip], 1)
         pygame.draw.circle(surf, CHARCOAL, tip, 1)
+    # Same ember-rim trick as the thorax so the head survives on night sky.
+    _aaellipse(surf, EMBER, (HCX + 1, HCY - 1), 7, 6)
     _aaellipse(surf, CHARCOAL, (HCX, HCY), 7, 6)
-    # A faint amber glint on the head so the warm lantern colour echoes up top.
-    pygame.draw.circle(surf, AMBER, (HCX + 3, HCY - 1), 1)
+    # An amber glint on the head so the warm lantern colour echoes up top.
+    pygame.draw.circle(surf, AMBER, (HCX + 3, HCY - 1), 2)
 
     return surf
 
