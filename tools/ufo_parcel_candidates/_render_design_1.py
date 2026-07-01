@@ -10,5 +10,5 @@ spec = importlib.util.spec_from_file_location("design_1",
 mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
 from _render_shared import render_sheet
 render_sheet(mod.build,
-    "UFO PARCEL — DESIGN 1: RETRO ROCKET-POP  (round 2)",
-    "/home/user/skybit/docs/store_redesign/parcels/ufo/design_1/round_2.png")
+    "UFO PARCEL — DESIGN 1: RETRO ROCKET-POP  (round 3)",
+    "/home/user/skybit/docs/store_redesign/parcels/ufo/design_1/round_3.png")

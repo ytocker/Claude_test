@@ -35,7 +35,8 @@ def build(mode="normal"):
     _aaellipse(s, (255, 255, 255), (cx - 2, dome_cy - 2), 1, 1)
 
     # --- Dark outline halo baked around the whole disc for day-sky contrast ---
-    _aaellipse(s, OUTLINE, (cx, cy), disc_rx + 3, disc_ry + 3)
+    # Near-black cherry so the silhouette reads against day-blue and night-purple.
+    _aaellipse(s, (38, 14, 18), (cx, cy), disc_rx + 3, disc_ry + 3)
 
     # --- Cherry hull with a vertical gradient (lighter crown, darker belly) ---
     # Build in a masked scratch surface, then blit so only disc pixels survive.
@@ -68,19 +69,22 @@ def build(mode="normal"):
     s.blit(hull, (0, 0))
 
     # --- Cream equator band (the diner stripe) ---
-    _aaellipse(s, BAND_D, (cx, cy + 1), disc_rx - 1, 3)
-    _aaellipse(s, BAND,   (cx, cy),     disc_rx - 1, 3)
+    # Pushed deeper into the guaranteed-visible lower zone so carry occlusion
+    # can't eat the diner stripe.
+    _aaellipse(s, BAND_D, (cx, cy + 4), disc_rx - 1, 3)
+    _aaellipse(s, BAND,   (cx, cy + 3), disc_rx - 1, 3)
 
     # --- Dark hull seam along the equator, top edge of the cream band ---
-    pygame.draw.line(s, OUTLINE, (cx - disc_rx + 2, cy - 2),
-                     (cx + disc_rx - 2, cy - 2), 1)
+    pygame.draw.line(s, OUTLINE, (cx - disc_rx + 2, cy + 1),
+                     (cx + disc_rx - 2, cy + 1), 1)
 
     # --- Dark dividers segment the cream band into cabin panels ---
-    for divx in (cx - 4, cx + 4):
-        pygame.draw.line(s, OUTLINE, (divx, cy - 2), (divx, cy + 4), 1)
+    # Hull-shadow red (not outline) at 2px so they survive the 2× downscale.
+    for divx in (cx - 5, cx + 5):
+        pygame.draw.line(s, HULL_D, (divx, cy - 2), (divx, cy + 4), 2)
 
     # --- Three chunky amber portholes: warm cabin light spills out (the tell) ---
-    port_y = cy + 1
+    port_y = cy + 4
     port_xs = [cx - 8, cx, cx + 8]
     for px in port_xs:
         # Hot amber halo behind each window signals an "occupied" ship.
