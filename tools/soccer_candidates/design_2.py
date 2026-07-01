@@ -56,9 +56,10 @@ def _paint(surf, _a):
                                (HX, HY + 12), (HX - 2, HY + 12)])
     # 1px dark-green garment outline so the shirt holds its edge at 40px.
     pygame.draw.polygon(surf, _GK_GREEN_DD, jersey, 1)
-    # Small keeper logo — an orange diamond on the left chest.
-    dx, dy = HX - 5, HY + 12
-    _poly(surf, _GK_ORANGE, [(dx, dy - 2), (dx + 2, dy), (dx, dy + 2), (dx - 2, dy)])
+    # Keeper crest — a small dark-green diamond so it reads as a club badge, not a
+    # second orange blob competing with the hero gloves.
+    pygame.draw.rect(surf, (10, 74, 26), (HX - 7, HY + 10, 5, 5))
+    pygame.draw.rect(surf, (0, 30, 0), (HX - 7, HY + 10, 5, 5), 1)
 
     # ── SHORTS — dark charcoal with a crotch notch (two leg tubes), tucked under
     #    the jersey hem, 1px black outline.
@@ -81,20 +82,23 @@ def _paint(surf, _a):
         pygame.draw.rect(surf, STRIPE_COL, (fx, HY + 33, 10, 5), 1, border_radius=2)
 
     # ── GOALKEEPER GLOVES (HERO PROP, drawn LAST so they sit in FRONT of the whole
-    #    kit) — two big oversized padded orange mitts, one on each wing, each with a
-    #    dark-brown knuckle strap across the top and a bright top highlight. These
-    #    are the largest, brightest shapes on the sprite: the unmistakable keeper
-    #    tell that must survive the 40px downscale.
-    # LEFT mitt (far wing) centred around (HX-16, HY+14).
-    pygame.draw.rect(surf, _GK_ORANGE, (HX - 22, HY + 8, 12, 10), border_radius=3)
-    pygame.draw.rect(surf, _GK_STRAP, (HX - 22, HY + 8, 12, 3), border_radius=2)
-    pygame.draw.line(surf, _GK_HI, (HX - 21, HY + 8), (HX - 11, HY + 8), 1)
-    pygame.draw.line(surf, _GK_HI, (HX - 20, HY + 13), (HX - 12, HY + 13), 1)
-    # RIGHT mitt (near wing) centred around (HX+16, HY+14).
-    pygame.draw.rect(surf, _GK_ORANGE, (HX + 10, HY + 8, 12, 10), border_radius=3)
-    pygame.draw.rect(surf, _GK_STRAP, (HX + 10, HY + 8, 12, 3), border_radius=2)
-    pygame.draw.line(surf, _GK_HI, (HX + 11, HY + 8), (HX + 21, HY + 8), 1)
-    pygame.draw.line(surf, _GK_HI, (HX + 12, HY + 13), (HX + 20, HY + 13), 1)
+    #    kit) — two big oversized padded orange mitts dropped to WING height and
+    #    outboard, so they break both wing silhouettes instead of drowning in head
+    #    plumage. Each has a dark-brown knuckle strap, a 1px dark outline separating
+    #    orange from the scarlet wing, a top highlight, and an upward thumb notch.
+    #    These are the largest, brightest shapes on the sprite: the keeper tell.
+    # LEFT mitt (far wing) at wing height.
+    pygame.draw.rect(surf, _GK_ORANGE, (HX - 14, HY + 15, 6, 6), border_radius=3)  # thumb
+    pygame.draw.rect(surf, _GK_ORANGE, (HX - 24, HY + 16, 14, 13), border_radius=4)
+    pygame.draw.rect(surf, _GK_STRAP, (HX - 24, HY + 16, 14, 3))
+    pygame.draw.rect(surf, _GK_STRAP, (HX - 24, HY + 16, 14, 13), 1, border_radius=4)
+    pygame.draw.line(surf, _GK_HI, (HX - 23, HY + 17), (HX - 12, HY + 17), 1)
+    # RIGHT mitt (near wing) at wing height.
+    pygame.draw.rect(surf, _GK_ORANGE, (HX + 8, HY + 15, 6, 6), border_radius=3)  # thumb
+    pygame.draw.rect(surf, _GK_ORANGE, (HX + 10, HY + 16, 14, 13), border_radius=4)
+    pygame.draw.rect(surf, _GK_STRAP, (HX + 10, HY + 16, 14, 3))
+    pygame.draw.rect(surf, _GK_STRAP, (HX + 10, HY + 16, 14, 13), 1, border_radius=4)
+    pygame.draw.line(surf, _GK_HI, (HX + 11, HY + 17), (HX + 22, HY + 17), 1)
 
 
 build = store_skins._make_skin(_paint)
