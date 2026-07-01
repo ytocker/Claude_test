@@ -1,65 +1,45 @@
-"""SOCCER — BRAZIL "CANARINHO" (DESIGN 2 of the SOCCER set).
+"""Soccer v11 Design 2 — THE GOALKEEPER.
 
-Scratch exploration only; NOT registered in store_skins.BUILDERS, so production
-is untouched.
-
-Concept: the jersey IS the body. The whole body oval is recoloured through the
-palette system (the ninja/cockatoo route) to Brazil's canary yellow #FFCB05, so
-Pip reads as the Seleção kit from chest to belly. The head stays macaw-red and
-the wings stay macaw-blue so he's still recognisably himself, just kitted out.
-
-The Canarinho read is carried entirely by TRIM, not stripes — a plain canary
-field is what makes this jersey iconic, so the green oval border, green V-collar
-+ shoulder line, and the little green crest diamond do all the talking. The
-shorts are Brazil royal blue and the socks are white with a single green hoop.
-At 40px the value order is (1) yellow torso mass, (2) the green outline + collar
-framing it, (3) the blue shorts and green sock hoop below.
+Bright lime-green jersey — no other sport uses this colour, so it's an
+instant goalkeeper tell even at 10px. Oversized keeper gloves on the wing
+tips are the hero prop. No ball needed: the gloves ARE the identity.
 """
 import pygame
 
 from game.store_skins import HX, HY, CROWN_Y, _poly, _make_skin
 from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
-from game.draw import BIRD_RED, BIRD_BEAK, BIRD_BEAK_D, BIRD_WING, BIRD_WING_D, BIRD_TIP
-
-
-# Canarinho kit — the body oval is recoloured to canary yellow; the head is kept
-# macaw-red so Pip stays recognisable under the jersey.
-_PAL = _pal(
-    tail=[(200, 30, 40), (240, 95, 40), (255, 160, 55), (255, 220, 80)],
-    tail_line=(170, 25, 25),
-    body_shadow=(205, 162, 0),      # jersey drop-shade for roundness
-    body_main=(255, 203, 5),        # #FFCB05 canary yellow field
-    body_chest=(255, 215, 20),      # lit upper chest
-    body_belly=(230, 180, 0),       # shaded lower belly
-    sheen=(255, 240, 80, 70),       # soft jersey sheen band
-    wing_main=BIRD_WING,            # keep macaw-blue wings
-    wing_dark=BIRD_WING_D,
-    wing_tip=BIRD_TIP,
-    wing_secondary=(255, 200, 60),
-    wing_highlight=(170, 210, 255),
-    head_shadow=(150, 15, 20),      # keep macaw-red head
-    head_main=BIRD_RED,
-    head_cheek=(255, 130, 130),
-    head_crown=(255, 170, 170),
-    lens_frame=(255, 200, 50),
-    lens_body=(20, 20, 30),
-    lens_tint=(35, 55, 90, 130),
-    lens_glint=(255, 255, 255),
-    beak_main=BIRD_BEAK,
-    beak_dark=BIRD_BEAK_D,
-    beak_gloss=(255, 230, 150),
-    foot=BIRD_BEAK_D,
+from game.draw import (
+    BIRD_RED, BIRD_BEAK, BIRD_BEAK_D, BIRD_WING, BIRD_WING_D, BIRD_TIP,
 )
 
-# Body centre in COMPOSITE space (base body centre (32,32) + PARROT_DY 20 on y).
-BCX, BCY = 32, 52
+_LIME    = ( 50, 200,  80)
+_LIME_D  = ( 20, 140,  50)
+_GLOVE   = (180, 230,  50)
+_GLOVE_D = (120, 170,  20)
+_GLOVE_W = (240, 255, 200)
+_BLACK   = ( 20,  20,  28)
+_WHITE   = (240, 240, 245)
+_NUM     = (  0, 100,  30)
 
-_GREEN    = (0, 120, 44)        # bottle-green — deeper than #009C3B so it frames
-                                # the canary field instead of competing with it
-_SHT      = (30, 58, 138)       # #1E3A8A royal-blue shorts
-_SHT_D    = (18, 38, 100)       # shorts darker rim
-_SCK      = (245, 245, 250)     # white sock
-_CLT      = (28, 28, 36)        # #1C1C24 near-black cleats
+_PAL = _pal(
+    tail=[(200,30,40),(240,95,40),(255,160,55),(255,220,80)],
+    tail_line=(170,25,25),
+    body_shadow=( 20,140, 50),
+    body_main  =( 50,200, 80),
+    body_chest =( 70,220, 95),
+    body_belly =( 35,165, 60),
+    sheen=(150,255,150,60),
+    wing_main=BIRD_WING, wing_dark=BIRD_WING_D, wing_tip=BIRD_TIP,
+    wing_secondary=(255,200,60), wing_highlight=(170,210,255),
+    head_shadow=(150,15,20), head_main=BIRD_RED,
+    head_cheek=(255,130,130), head_crown=(255,170,170),
+    lens_frame=(255,200,50), lens_body=(20,20,30),
+    lens_tint=(35,55,90,130), lens_glint=(255,255,255),
+    beak_main=BIRD_BEAK, beak_dark=BIRD_BEAK_D,
+    beak_gloss=(255,230,150), foot=BIRD_BEAK_D,
+)
+
+BCX, BCY = 32, 52
 
 
 def _base(angle_deg):
@@ -67,43 +47,44 @@ def _base(angle_deg):
 
 
 def _paint(surf, _a):
-    # ── GREEN OVAL BORDER — a 2px bottle-green trace anchors the plain canary
-    #    torso at scale so the field reads as a framed jersey, not yellow
-    #    feathers. This is the single strongest Canarinho tell at 40px.
-    pygame.draw.ellipse(surf, _GREEN, (BCX - 19, BCY - 14, 38, 28), 2)
+    # Dark-green oval outline anchors the bright lime field.
+    pygame.draw.ellipse(surf, _LIME_D, (BCX-19,BCY-14,38,28), 1)
 
-    # ── V-COLLAR + SHOULDER TRIM — two green strokes meeting at a point under the
-    #    neck, capped by a horizontal shoulder line, so the yellow torso reads as
-    #    a collared Seleção shirt right below the red head. Kept as thin trim so
-    #    the unbroken canary field still dominates the read.
-    pygame.draw.line(surf, _GREEN, (BCX - 6, BCY - 12), (BCX + 2, BCY - 8), 2)
-    pygame.draw.line(surf, _GREEN, (BCX + 8, BCY - 12), (BCX + 2, BCY - 8), 2)
-    pygame.draw.line(surf, _GREEN, (BCX - 6, BCY - 12), (BCX + 8, BCY - 12), 3)
+    # Black crew collar — separates lime jersey from red macaw head.
+    pygame.draw.line(surf, _BLACK, (BCX-8, BCY-13), (BCX+10, BCY-13), 3)
+    pygame.draw.line(surf, _BLACK, (BCX-7, BCY-12), (BCX+9,  BCY-12), 2)
 
-    # ── CREST BADGE DOT — one solid bottle-green circle reads as a team badge at
-    #    40px; a detailed crest just turns to noise at this size.
-    pygame.draw.circle(surf, _GREEN, (BCX + 5, BCY - 5), 5)
+    # Jersey number "1" — bold vertical bar in dark green, left chest.
+    pygame.draw.line(surf, _NUM, (BCX-6, BCY-8), (BCX-6, BCY+2), 3)
+    pygame.draw.line(surf, _NUM, (BCX-8, BCY-8), (BCX-6, BCY-8), 2)
 
-    # ── WAISTBAND SEAM — a 2px bottle-green line splits the yellow jersey bottom
-    #    from the royal-blue shorts. This is the key structural separation of the
-    #    kit stack, keeping torso and shorts from fusing into one block.
-    pygame.draw.line(surf, _GREEN, (BCX - 9, BCY + 6), (BCX + 11, BCY + 6), 2)
+    # Hem seam.
+    pygame.draw.ellipse(surf, _LIME_D, (BCX-9,BCY+5,20,2), 1)
 
-    # ── SHORTS — royal-blue ellipse with a darker rim, the cool block that
-    #    grounds the warm yellow torso.
-    pygame.draw.ellipse(surf, _SHT, (BCX - 9, BCY + 7, 20, 9))
-    pygame.draw.ellipse(surf, _SHT_D, (BCX - 9, BCY + 7, 20, 9), 1)
+    # Black shorts.
+    pygame.draw.ellipse(surf, _BLACK, (BCX-9,BCY+6,20,9))
+    pygame.draw.ellipse(surf, (40,40,50), (BCX-9,BCY+6,20,9), 1)
+    _poly(surf, _WHITE, [(BCX-1,BCY+12),(BCX+3,BCY+12),(BCX+1,BCY+15)])
 
-    # ── SOCKS — a clean white shank per leg with a single bottle-green turn-over
-    #    hoop; no extra detail lines, which just read as noise at 40px.
+    # Lime socks with white hoop.
     for sx in (27, 35):
-        pygame.draw.line(surf, _SCK, (sx, BCY + 11), (sx, BCY + 16), 4)
-        pygame.draw.line(surf, _GREEN, (sx, BCY + 12), (sx, BCY + 13), 2)
+        pygame.draw.line(surf, _LIME,  (sx, BCY+10), (sx, BCY+17), 4)
+        pygame.draw.line(surf, _WHITE, (sx, BCY+11), (sx, BCY+13), 3)
 
-    # ── CLEATS — near-black boots below the socks with a visible gap so the kit
-    #    stack (yellow / blue / white / black) stays legible at 40px.
+    # Cleats.
     for cx in (23, 31):
-        pygame.draw.rect(surf, _CLT, (cx, BCY + 14, 9, 5), border_radius=1)
+        pygame.draw.rect(surf, (28,28,36), (cx, BCY+14, 9, 5), border_radius=2)
+
+    # KEEPER GLOVES — hero prop, drawn LAST so they overlay the wing tips.
+    # Near (right) glove — large and very visible.
+    pygame.draw.rect(surf, _GLOVE_D, (BCX+14, BCY-10, 12, 16), border_radius=3)
+    pygame.draw.rect(surf, _GLOVE,   (BCX+15, BCY- 9, 10, 14), border_radius=2)
+    pygame.draw.rect(surf, _GLOVE_W, (BCX+16, BCY- 6,  7,  8), border_radius=1)
+    for fy in (BCY-4, BCY-1, BCY+2):
+        pygame.draw.line(surf, _GLOVE_D, (BCX+16, fy), (BCX+22, fy), 1)
+    # Far (left) glove — smaller, partially behind the body.
+    pygame.draw.rect(surf, _GLOVE_D, (BCX-25, BCY-8, 10, 13), border_radius=3)
+    pygame.draw.rect(surf, _GLOVE,   (BCX-24, BCY-7,  8, 11), border_radius=2)
 
 
 build = _make_skin(_paint, base_fn=_base)
