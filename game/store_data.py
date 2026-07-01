@@ -50,6 +50,9 @@ def _default_state() -> dict:
         # skin_id -> design index, for skins whose look is a random 1-of-N
         # pick locked at unlock (e.g. the secret jet fighter).
         "skin_variants": {},
+        # parcel_id -> colour-variant key string, locked at purchase
+        # (e.g. "parcel_ufo" -> "sapphire").
+        "parcel_variants": {},
     }
 
 
@@ -94,6 +97,12 @@ def _coerce(raw: "dict | None") -> dict:
                     state["skin_variants"][k] = int(v)
                 except (TypeError, ValueError):
                     pass
+        pvariants = raw.get("parcel_variants")
+        if isinstance(pvariants, dict):
+            for k, v in pvariants.items():
+                k = str(k)
+                if store_catalog.exists(k):
+                    state["parcel_variants"][k] = str(v)
     return state
 
 
@@ -210,6 +219,19 @@ def skin_variant(item_id: str) -> "int | None":
     look (the same fighter every run)."""
     v = _ensure().get("skin_variants", {}).get(item_id)
     return None if v is None else int(v)
+
+
+def parcel_variant(item_id: str) -> "str | None":
+    """The colour-variant key chosen for a parcel at purchase, or None."""
+    v = _ensure().get("parcel_variants", {}).get(item_id)
+    return str(v) if v is not None else None
+
+
+def save_parcel_variant(item_id: str, variant: str) -> None:
+    """Persist the colour variant chosen at purchase. One-time lock."""
+    st = _ensure()
+    st.setdefault("parcel_variants", {})[item_id] = str(variant)
+    save()
 
 
 def _roll_skin_variant(st: dict, item_id: str) -> None:
