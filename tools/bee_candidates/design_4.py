@@ -61,27 +61,41 @@ def _blit_rot(dest, image, pivot_img, anchor, angle):
 
 
 def _wing(length, is_fore):
-    """A single long narrow glassy membrane extending to +x from a left-edge
-    pivot, with a green rim, a few veins and a magenta pterostigma near the
-    tip. Kept at moderate alpha so it still casts shape at 40px."""
+    """A single long narrow GLASSY membrane extending to +x from a left-edge
+    pivot. The read is built from EDGES, not fill: a near-white leading rail
+    and an emerald trailing rail with actual sky showing between them, so the
+    pane reads as glass rather than a solid teal blade. A faint oil-slick tint
+    (magenta base → cyan mid → jewel tip) fakes iridescence at this scale."""
     width = 6
     pivot = (5, 12)
     surf = pygame.Surface((int(length + 12), 24), pygame.SRCALPHA)
     cx = pivot[0] + length / 2
     cy = pivot[1]
     ry = width / 2
-    # Hindwings flare a touch wider at the base — the real dragonfly proportion.
-    base_ry = ry + (1.4 if not is_fore else 0.0)
-    _aaellipse(surf, (*JEWEL, 60), (pivot[0] + 6, cy), 4, base_ry)
-    _aaellipse(surf, (*GLASS, 140), (cx, cy), length / 2, ry)
-    # Green rim so the transparent membrane keeps a defined edge.
-    rect = pygame.Rect(int(pivot[0]), int(cy - ry), int(length), int(ry * 2))
-    pygame.draw.ellipse(surf, EMERALD, rect, 1)
-    # Fine veins running the length of the wing.
     tip_x = pivot[0] + length
-    for vy in (cy - 1.4, cy, cy + 1.4):
-        pygame.draw.line(surf, (*VEIN_LINE, 80),
-                         (pivot[0] + 3, cy), (tip_x - 2, vy), 1)
+    # Very low-alpha membrane so day/night sky pours through the pane; NO solid
+    # jewel interior base — the fill must not turn this into a dark spoke.
+    _aaellipse(surf, (*GLASS, 74), (cx, cy), length / 2, ry)
+    # Oil-slick iridescence: three short offset alpha bands shift hue base→tip.
+    third = length / 3.0
+    tint_bands = ((MAGENTA, 52, pivot[0] + 2), (GLASS, 46, pivot[0] + third),
+                  (JEWEL, 40, pivot[0] + 2 * third))
+    for col, a, bx in tint_bands:
+        pygame.draw.line(surf, (*col, a),
+                         (int(bx), int(cy)), (int(bx + third - 1), int(cy)), 3)
+    # Two crisp rails define the glass: bright leading edge (holds against
+    # bright day sky), emerald trailing edge.
+    lead = (240, 255, 250)       # near-white GLASS — defining stroke on blue
+    pygame.draw.line(surf, lead, (pivot[0] + 2, cy - ry + 1),
+                     (tip_x - 1, cy - 1), 1)
+    pygame.draw.line(surf, EMERALD, (pivot[0] + 2, cy + ry - 1),
+                     (tip_x - 1, cy + 1), 1)
+    # Rounded glassy tip cap closes the two rails.
+    pygame.draw.circle(surf, lead, (int(tip_x - 1), int(cy)), 1)
+    # A single central vein — only on forewings; hindwings stay clean.
+    if is_fore:
+        pygame.draw.line(surf, (*VEIN_LINE, 70),
+                         (pivot[0] + 3, cy), (tip_x - 2, cy), 1)
     # Pterostigma — magenta cell near the leading tip.
     pygame.draw.circle(surf, MAGENTA, (int(tip_x - 4), int(cy - 1)), 2)
     return surf, pivot
@@ -90,8 +104,8 @@ def _wing(length, is_fore):
 def _build_frame(wing_angle_deg):
     surf = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
     f = _flap(wing_angle_deg)
-    spread = (f - 0.5) * 16.0
-    lift = spread * 0.7          # forewings and hindwings beat in opposition
+    spread = (f - 0.5) * 28.0
+    lift = spread * 0.9          # forewings and hindwings beat in opposition
 
     fore_len, hind_len = 26, 20
     fore_r, fore_pivot = _wing(fore_len, is_fore=True)
@@ -104,31 +118,35 @@ def _build_frame(wing_angle_deg):
     _blit_rot(surf, hind_r, hind_pivot, (BCX, BCY + 2), -22 - lift)   # hind right
     _blit_rot(surf, hind_r, hind_pivot, (BCX, BCY + 2), 202 + lift)   # hind left
 
-    # --- Abdomen: banded needle marching lower-left from the thorax ---
-    n = 6
+    # --- Abdomen: the DOMINANT long needle marching lower-left from the thorax.
+    # It runs ~(30,47)→(6,73) — a 34px+ projected tail, longer than any wing —
+    # so the silhouette reads dragonfly, not a 4-pointed jack. It thins hard and
+    # the last third goes solid jewel to a fine dark point; only two dark bands
+    # near the base, so the segments don't devolve into a noisy bead chain. ---
+    n = 9
     for i in range(n):
         t = i / (n - 1)
-        cx = 30 - 16 * t
-        cy = 47 + 16 * t
-        along = 4.0 - 1.2 * t
-        across = 3.0 - 1.3 * t
-        color = JEWEL if i % 2 == 0 else VEIN_DARK
+        cx = 30 - 24 * t
+        cy = 47 + 26 * t
+        along = 3.2 - 1.4 * t
+        across = 2.4 - 1.6 * t
+        # Only the two dark bands near the base alternate; the tail is solid.
+        color = VEIN_DARK if i in (1, 3) else JEWEL
         _seg(surf, cx, cy, color, along, across)
-    # A thin jewel spine tying the segments into one needle.
-    pygame.draw.line(surf, JEWEL, (30, 47), (15, 62), 1)
-    # Dark tail point.
+    # A thin jewel spine tying the segments into one continuous needle.
+    pygame.draw.line(surf, JEWEL, (30, 47), (7, 72), 1)
+    # Dark tail point at the very tip.
     pygame.draw.polygon(surf, VEIN_DARK,
-                        [(15, 61), (11, 66), (16, 63)])
+                        [(7, 71), (4, 76), (9, 73)])
 
-    # --- Thorax: the chunky solid anchor that survives the 40px shrink ---
-    _aaellipse(surf, EMERALD, (BCX, BCY), 7, 6)
-    _aaellipse(surf, JEWEL, (BCX - 1, BCY - 2), 4, 3)   # top sheen
-    _aaellipse(surf, EMERALD, (BCX, BCY + 1), 5, 4)
+    # --- Thorax: solid opaque hub, shrunk a hair so the tail wins the read ---
+    _aaellipse(surf, EMERALD, (BCX, BCY), 6, 5)
+    _aaellipse(surf, JEWEL, (BCX - 1, BCY - 2), 3, 2)   # top sheen
+    _aaellipse(surf, EMERALD, (BCX, BCY + 1), 4, 3)
 
-    # --- Legs: short bristled cluster bunched under the thorax toward the head ---
-    for lx, ly in ((BCX + 2, BCY + 4), (BCX + 5, BCY + 4), (BCX + 7, BCY + 3)):
-        pygame.draw.line(surf, VEIN_DARK, (lx, ly), (lx + 1, ly + 5), 1)
-        pygame.draw.line(surf, VEIN_DARK, (lx + 1, ly + 5), (lx + 3, ly + 6), 1)
+    # --- Legs: one short 2px cluster under the thorax; more turns to fuzz ---
+    for lx, ly in ((BCX + 3, BCY + 4), (BCX + 5, BCY + 4)):
+        pygame.draw.line(surf, VEIN_DARK, (lx, ly), (lx + 2, ly + 4), 1)
 
     # --- Head + huge compound eyes (the hero tell) ---
     _aaellipse(surf, EMERALD, (HCX, HCY), 7, 6)          # slim head base

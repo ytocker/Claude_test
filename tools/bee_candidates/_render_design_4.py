@@ -16,7 +16,7 @@ pygame.init()
 from tools import ninja_render
 from tools.bee_candidates.design_4 import build
 
-OUT = "docs/store_redesign/animal/bee/design_4/round_1.png"
+OUT = "docs/store_redesign/animal/bee/design_4/round_2.png"
 TITLE = "DESIGN 4 — GLINTWING  (dragonfly: needle body + huge compound eyes + 4 glassy X-wings)"
 
 
