@@ -1,96 +1,99 @@
-"""NEON NIGHT-DINER — a cyberpunk saucer built like a glowing neon sign.
+"""NEON NIGHT-DINER — cyberpunk saucer as a glowing neon sign. R2.
 
-The hull is near-black, so it vanishes against the sky: the SILHOUETTE tell is
-the neon tube-light itself. Every stroke is drawn twice — a wide low-alpha glow
-under a narrow hot core — so the electric edges survive the downscale to 22px
-and pop hardest against the night phase. A dotted chase-light ring on the lower
-rim is the signature, and a short violet spotlight cone plants the ship low in
-the read zone where Pip's belly won't eat it.
+Near-black hull reads as a canvas for neon light. Every edge is drawn as
+a glow pass + hot core (wide soft alpha under narrow bright). The key R2
+fix: a 1-2px dark outline baked around the full disc so the silhouette
+survives day-blue sky where the hull would otherwise dissolve, and all
+neon strokes are thicker so they survive 2× downscale.
 """
-import pygame
+import pygame, math
 
 SIZE = 22
-SS = 44
+SS   = 44
 
-HULL    = (20, 16, 32)     # near-black neon-sign backing
-CYAN    = (0, 229, 255)    # neon cyan tube
-MAGENTA = (255, 61, 203)   # neon magenta tube
-VIOLET  = (122, 0, 255)    # inner-glow / beam fill
-OUTLINE = (10, 6, 16)
-
-
-def _neon_line(s, color, p1, p2):
-    """Glow pass (wide, soft) under a hot core (narrow, opaque)."""
-    pygame.draw.line(s, (*color, 90), p1, p2, 5)
-    pygame.draw.line(s, (*color, 255), p1, p2, 2)
+HULL    = (24, 18, 40)     # near-black hull (navy-purple, not pure black)
+CYAN    = (0, 229, 255)
+MAGENTA = (255, 61, 203)
+VIOLET  = (130, 20, 255)
+OUTLINE = (8, 6, 14)       # 1px darker outline around whole disc
 
 
-def _neon_ellipse(s, color, rect, glow_w=4, core_w=2):
-    """Ellipse outline as a soft glow ring beneath a hot core ring."""
-    glow = rect.inflate(2, 2)
-    pygame.draw.ellipse(s, (*color, 90), glow, glow_w)
-    pygame.draw.ellipse(s, (*color, 255), rect, core_w)
+def _glow_line(s, color, p1, p2, core_w=3, glow_w=6):
+    """Glow pass + hot core. core_w=3 survives 2× downscale."""
+    g = pygame.Surface((SS, SS), pygame.SRCALPHA)
+    pygame.draw.line(g, (*color, 70), p1, p2, glow_w)
+    s.blit(g, (0, 0))
+    pygame.draw.line(s, color, p1, p2, core_w)
+
+
+def _glow_ellipse(s, color, rect, core_w=3, glow_w=6):
+    """Ellipse outline as glow ring + hot core."""
+    g = pygame.Surface((SS, SS), pygame.SRCALPHA)
+    gr = rect.inflate(2, 2)
+    pygame.draw.ellipse(g, (*color, 70), gr, glow_w)
+    s.blit(g, (0, 0))
+    pygame.draw.ellipse(s, color, rect, core_w)
 
 
 def build(mode="normal"):
     s = pygame.Surface((SS, SS), pygame.SRCALPHA)
 
-    cx = SS // 2
-    disc_cy = 28              # low so the neon disc lands in the read zone
+    cx      = SS // 2
+    disc_cy = 28
     disc_rx, disc_ry = 17, 5
-    dome_cx, dome_cy = cx, disc_cy - 5
-    dome_rx, dome_ry = 7, 6
+    dome_cx, dome_cy = cx, disc_cy - 6
+    dome_rx, dome_ry = 7, 5
 
-    disc_rect = pygame.Rect(0, 0, disc_rx * 2, disc_ry * 2)
-    disc_rect.center = (cx, disc_cy)
-    dome_rect = pygame.Rect(0, 0, dome_rx * 2, dome_ry * 2)
-    dome_rect.center = (dome_cx, dome_cy)
+    disc_rect = pygame.Rect(cx - disc_rx, disc_cy - disc_ry, disc_rx*2, disc_ry*2)
+    dome_rect = pygame.Rect(dome_cx - dome_rx, dome_cy - dome_ry, dome_rx*2, dome_ry*2)
 
-    # --- Short violet spotlight cone FIRST so neon edges sit on top of it ---
+    # ---- Violet beam spotlight first (drawn under everything) ----
     beam_top = disc_cy + disc_ry
-    beam_bot = beam_top + 12
+    beam_bot = beam_top + 14
     beam = pygame.Surface((SS, SS), pygame.SRCALPHA)
-    trapezoid = [
-        (cx - 6, beam_top), (cx + 6, beam_top),
-        (cx + 10, beam_bot), (cx - 10, beam_bot),
-    ]
-    pygame.draw.polygon(beam, (*VIOLET, 80), trapezoid)
+    pygame.draw.polygon(beam, (*VIOLET, 100),
+        [(cx-7, beam_top), (cx+7, beam_top), (cx+12, beam_bot), (cx-12, beam_bot)])
     s.blit(beam, (0, 0))
-    _neon_line(s, CYAN, (cx - 6, beam_top), (cx - 10, beam_bot))
-    _neon_line(s, CYAN, (cx + 6, beam_top), (cx + 10, beam_bot))
+    # Bright neon-cyan edges on the beam
+    _glow_line(s, CYAN, (cx-7, beam_top), (cx-12, beam_bot), core_w=2, glow_w=4)
+    _glow_line(s, CYAN, (cx+7, beam_top), (cx+12, beam_bot), core_w=2, glow_w=4)
 
-    # --- Near-black hull fill (dome first, then disc over its base) ---
+    # ---- Dark outline around whole disc for day-sky contrast ----
+    pygame.draw.ellipse(s, OUTLINE,
+        pygame.Rect(cx - disc_rx - 2, disc_cy - disc_ry - 2,
+                    (disc_rx+2)*2, (disc_ry+2)*2))
+
+    # ---- Near-black hull fill ----
     pygame.draw.ellipse(s, HULL, dome_rect)
     pygame.draw.ellipse(s, HULL, disc_rect)
-    # Faint violet inner glow bleeding up through the dark hull.
-    inner = pygame.Surface((SS, SS), pygame.SRCALPHA)
-    ig = disc_rect.inflate(-14, -3)
-    pygame.draw.ellipse(inner, (*VIOLET, 55), ig)
-    s.blit(inner, (0, 0))
 
-    # --- Magenta dome outline over its near-black fill ---
-    _neon_ellipse(s, MAGENTA, dome_rect, glow_w=4, core_w=2)
+    # ---- Inner violet glow bleeding through hull ----
+    ig = pygame.Surface((SS, SS), pygame.SRCALPHA)
+    pygame.draw.ellipse(ig, (*VIOLET, 60),
+        disc_rect.inflate(-12, -2))
+    s.blit(ig, (0, 0))
 
-    # --- Cyan neon rim around the disc ---
-    _neon_ellipse(s, CYAN, disc_rect, glow_w=5, core_w=2)
+    # ---- Magenta dome outline ----
+    _glow_ellipse(s, MAGENTA, dome_rect, core_w=2, glow_w=5)
 
-    # --- Magenta equator seam across the disc's waist ---
-    seam_y = disc_cy
-    _neon_line(s, MAGENTA, (cx - disc_rx + 2, seam_y), (cx + disc_rx - 2, seam_y))
+    # ---- Cyan neon rim around disc (3px core = 1.5px at 22px, reads crisp) ----
+    _glow_ellipse(s, CYAN, disc_rect, core_w=3, glow_w=6)
 
-    # --- Chase-light dots along the lower rim (the signature) ---
-    import math
-    n = 6
+    # ---- Magenta equator seam across the disc waist ----
+    _glow_line(s, MAGENTA,
+        (cx - disc_rx + 3, disc_cy), (cx + disc_rx - 3, disc_cy),
+        core_w=2, glow_w=5)
+
+    # ---- Chase-light dots on the lower rim — the signature (8 dots) ----
+    n = 8
     for i in range(n):
-        # Sweep the lower arc of the ellipse (angles 200..340 deg).
-        t = 200 + (140 * i / (n - 1))
-        rad = math.radians(t)
-        dx = cx + (disc_rx - 1) * math.cos(rad)
-        dy = disc_cy + (disc_ry - 1) * math.sin(rad)
+        angle = math.radians(200 + 140 * i / (n - 1))
+        dx = cx + (disc_rx - 2) * math.cos(angle)
+        dy = disc_cy + (disc_ry - 1) * math.sin(angle)
         col = CYAN if i % 2 == 0 else MAGENTA
         dot = pygame.Surface((SS, SS), pygame.SRCALPHA)
-        pygame.draw.circle(dot, (*col, 110), (dx, dy), 3)   # halo
-        pygame.draw.circle(dot, (*col, 255), (dx, dy), 2)   # hot dot
+        pygame.draw.circle(dot, (*col, 100), (int(dx), int(dy)), 4)
         s.blit(dot, (0, 0))
+        pygame.draw.circle(s, col, (int(dx), int(dy)), 2)
 
     return pygame.transform.smoothscale(s, (SIZE, SIZE))
