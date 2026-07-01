@@ -60,7 +60,7 @@ def main():
     sheet.fill((30, 28, 38))
 
     title = FONT.render(
-        "BURRO PIÑATA — DESIGN 3: RIBBON STREAMER  (round 2)", True, (235, 235, 240))
+        "BURRO PIÑATA — DESIGN 3: RIBBON STREAMER  (round 3)", True, (235, 235, 240))
     sheet.blit(title, (16, 10))
 
     PW, PH = 210, 300
@@ -99,7 +99,7 @@ def main():
         cell.blit(scaled, scaled.get_rect(center=(24, 24)))
         sheet.blit(cell, (fx0 + i * 56, strip_y - 6))
 
-    out = "/home/user/skybit/docs/store_redesign/animal/pinata_burro/design_3/round_2.png"
+    out = "/home/user/skybit/docs/store_redesign/animal/pinata_burro/design_3/round_3.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print("saved", out)
