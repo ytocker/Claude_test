@@ -13,7 +13,8 @@ from _shared import (
 import pygame
 
 
-_STAR_COLORS = (PINK, ORANGE, TURQ, PINK)   # cycles per trot phase → shimmer
+# Warm hues only — turquoise collided with day-blue sky, so it's dropped.
+_STAR_COLORS = (PINK, ORANGE, PINK, ORANGE)
 
 
 def _star(surf, cx, cy, r_out, r_in, color):
@@ -26,14 +27,22 @@ def _star(surf, cx, cy, r_out, r_in, color):
 
 
 def _draw_tail(surf, cx, cy, bob, sway, ph):
+    # Root at rump; stem angled down-left ~20° so the star trails behind/below.
     rx, ry = cx - 16, cy + 2
-    tx = int(cx - 23 + sway * 1.5)
-    ty = cy - 4
-    # Cream spike stub
-    pygame.draw.line(surf, CREAM_D, (rx, ry), (tx, ty), 4)
-    pygame.draw.line(surf, CREAM,   (rx, ry), (tx, ty), 2)
-    # Festival star at tip — colour cycles per phase for a shimmer
-    _star(surf, tx, ty, 5, 2, _STAR_COLORS[ph % 4])
+    stem_len = 9
+    ang = math.radians(-160)
+    tx = int(rx + math.cos(ang) * stem_len + sway * 1.5)
+    ty = int(ry + math.sin(ang) * stem_len + 2)
+
+    # Dark outline first so the whole tail holds against any sky.
+    pygame.draw.line(surf, (42, 26, 16), (rx, ry), (tx, ty), 4)
+    pygame.draw.line(surf, CREAM,        (rx, ry), (tx, ty), 2)
+
+    # Festival star at tip — colour cycles per phase for a shimmer.
+    color = _STAR_COLORS[ph % 4]
+    _star(surf, tx, ty, 8, 4, (42, 26, 16))
+    _star(surf, tx, ty, 7, 3, color)
+    pygame.draw.circle(surf, CREAM, (tx, ty - 6), 1)
 
 
 def build_fn(wing_angle_deg):
