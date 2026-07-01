@@ -1,10 +1,12 @@
-"""NEON NIGHT-DINER — cyberpunk saucer as a glowing neon sign. R2.
+"""NEON NIGHT-DINER — cyberpunk saucer as a glowing neon sign. R3.
 
 Near-black hull reads as a canvas for neon light. Every edge is drawn as
-a glow pass + hot core (wide soft alpha under narrow bright). The key R2
-fix: a 1-2px dark outline baked around the full disc so the silhouette
-survives day-blue sky where the hull would otherwise dissolve, and all
-neon strokes are thicker so they survive 2× downscale.
+a glow pass + hot core (wide soft alpha under narrow bright). R2 kept the
+navy-purple hull + cyan/magenta neon and a dark outline so the silhouette
+survives day-blue sky. R3 is a pure-geometry fix for the carry read: the
+disc sits lower (cy=35) so the wide violet beam with its hot cyan
+centerline and 4 bold chase dots all land in the strip that shows below
+the bird's body, instead of being covered by it.
 """
 import pygame, math
 
