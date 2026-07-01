@@ -25,10 +25,12 @@ def _draw_tail(surf, cx, cy, bob, sway):
     # Pale stiff stub — cream against the body edge gives the value contrast
     # a real donkey switch reads by (light rump edge → dark tuft).
     pygame.draw.line(surf, CREAM, (rx, ry), (tip_x, tip_y), 2)
-    # Dark charcoal-brown teardrop tuft: taller than wide, not a round pom.
-    _aaellipse(surf, (58, 42, 34), (tip_x, tip_y), 4, 6)
-    # Cream rim catch-light on the upper-left edge to lift it off the body.
-    pygame.draw.circle(surf, (242, 233, 220), (tip_x - 2, tip_y - 3), 1)
+    # Dark charcoal-brown teardrop tuft: narrower + taller so the tip points
+    # like a real donkey switch instead of reading as a bulbous paddle.
+    _aaellipse(surf, (58, 42, 34), (tip_x, tip_y), 3, 7)
+    # Cream rim catch-light on the upper-left edge; radius 2 keeps the light
+    # edge visible even when the tuft crosses a dark pillar.
+    pygame.draw.circle(surf, (242, 233, 220), (tip_x - 2, tip_y - 3), 2)
 
 
 def build_fn(wing_angle_deg):
