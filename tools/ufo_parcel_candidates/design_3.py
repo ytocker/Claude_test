@@ -9,6 +9,7 @@ SS = 44
 GOLD     = (244, 197, 68)    # bright gold crown
 BRONZE   = (176, 122, 30)    # deep bronze underside
 GLYPH    = (72, 240, 205)    # alien turquoise
+GLYPH_DIM = (36, 120, 103)   # dim turquoise for the echo dots
 OUTLINE  = (42, 27, 8)       # dark relic outline
 CROWN    = (255, 240, 176)   # gold crown catch highlight
 
@@ -24,11 +25,11 @@ def build(mode="normal"):
     s = pygame.Surface((SS, SS), pygame.SRCALPHA)
 
     cx = SS // 2 + 2      # slight right nudge so full disc clears Pip's tail
-    cy = 28               # low on canvas — glyph face stays below Pip's belly
+    cy = 34               # low on canvas — glyph face stays below Pip's belly
     disc_rx, disc_ry = 17, 6
 
     # --- Low ceremonial dome first so the disc base overlaps it cleanly ---
-    dome_cy = cy - disc_ry - 4
+    dome_cy = cy - disc_ry - 3
     _aaellipse(s, OUTLINE, (cx, dome_cy), 8 + 1, 5 + 1)
     _aaellipse(s, GOLD,    (cx, dome_cy), 8,     5)
     # Bright crown catch on the dome's upper-left curve — the "polished relic" cue.
@@ -56,6 +57,12 @@ def build(mode="normal"):
         pygame.draw.line(disc, col, (cx - hw, yy), (cx + hw, yy))
     s.blit(disc, (0, 0))
 
+    # --- Pronounced saucer brim: a dark overhang line below the disc edge so the
+    # flying-saucer silhouette reads even when Pip's tail occludes the dome. ---
+    BRIM = pygame.Surface((SS, SS), pygame.SRCALPHA)
+    _aaellipse(BRIM, (*BRONZE, 180), (cx, cy + disc_ry - 1), disc_rx + 2, 3)
+    s.blit(BRIM, (0, 0))
+
     # --- Darker ridged rim ring just inside the disc edge ---
     _ring(s, BRONZE, (cx, cy), disc_rx - 1, disc_ry - 1, 1)
 
@@ -71,10 +78,9 @@ def build(mode="normal"):
     energy.fill((0, 0, 0, 0), pygame.Rect(0, 0, SS, cy + 3))
     s.blit(energy, (0, 0))
 
-    # --- Glowing alien glyphs along the disc face (the legendary tell) ---
-    # Only 3 glyphs, widely spaced (cx-9, cx+1, cx+10) so each reads as distinct
-    # "writing" at 22px instead of smearing into one turquoise smudge.
-    glyph_y = cy + 4
+    # --- Glyph hierarchy: one dominant central diamond + two dim echo dots, so a
+    # single hero mark reads at 22px instead of three equal marks smearing. ---
+    glyph_y = cy + 5   # lower into read zone
 
     def _glow(draw_big):
         """Soft turquoise halo behind a glyph, drawn once at low alpha."""
@@ -82,25 +88,16 @@ def build(mode="normal"):
         draw_big(g)
         s.blit(g, (0, 0))
 
-    # DOT — solid mark with a bright core.
-    _glow(lambda g: _aaellipse(g, (*GLYPH, 80), (cx - 9, glyph_y), 4, 4))
-    _aaellipse(s, GLYPH, (cx - 9, glyph_y), 3, 3)
-    _aaellipse(s, (200, 255, 245), (cx - 9, glyph_y - 1), 1, 1)
+    # Central DIAMOND — the dominant hero mark (~6px, can count as "1")
+    _glow(lambda g: pygame.draw.polygon(g, (*GLYPH, 80),
+        [(cx, glyph_y - 5), (cx + 4, glyph_y), (cx, glyph_y + 5), (cx - 4, glyph_y)]))
+    pygame.draw.polygon(s, GLYPH,
+        [(cx, glyph_y - 4), (cx + 3, glyph_y), (cx, glyph_y + 4), (cx - 3, glyph_y)])
+    _aaellipse(s, (220, 255, 245), (cx, glyph_y), 1, 1)  # bright core
 
-    # CHEVRON — a chunky ">" of two short diagonals.
-    _glow(lambda g: (
-        pygame.draw.line(g, (*GLYPH, 80), (cx, glyph_y - 4), (cx + 4, glyph_y), 4),
-        pygame.draw.line(g, (*GLYPH, 80), (cx + 4, glyph_y), (cx, glyph_y + 4), 4),
-    ))
-    pygame.draw.line(s, GLYPH, (cx, glyph_y - 3), (cx + 3, glyph_y), 3)
-    pygame.draw.line(s, GLYPH, (cx + 3, glyph_y), (cx, glyph_y + 3), 3)
-
-    # RING — hollow turquoise circle.
-    _glow(lambda g: _aaellipse(g, (*GLYPH, 80), (cx + 10, glyph_y), 5, 5))
-    _ring(s, GLYPH, (cx + 10, glyph_y), 4, 4, 2)
-
-    # Dark seat under glyphs — makes energy-etch separation visible at 22px
-    pygame.draw.line(s, BRONZE, (cx - disc_rx + 5, glyph_y + 6),
-                                  (cx + disc_rx - 5, glyph_y + 6), 1)
+    # Left echo dot (smaller, ~30% value)
+    _aaellipse(s, GLYPH_DIM, (cx - 9, glyph_y), 2, 2)
+    # Right echo dot (smaller)
+    _aaellipse(s, GLYPH_DIM, (cx + 9, glyph_y), 2, 2)
 
     return pygame.transform.smoothscale(s, (SIZE, SIZE))

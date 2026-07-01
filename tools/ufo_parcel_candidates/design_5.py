@@ -5,6 +5,8 @@ dots and 3 bright light-ray spikes from the underside. No complex facet grid —
 that resolution budget goes to the sparkle dots instead, which are the whole
 identity of this design.
 """
+import math
+
 import pygame
 
 SIZE = 22
@@ -24,7 +26,9 @@ def build(mode="normal"):
     s = pygame.Surface((SS, SS), pygame.SRCALPHA)
 
     cx = SS // 2 + 1
-    cy = 28
+    # Disc sits lower so its mass falls into the visible carry band rather than
+    # the tail-occluded zone.
+    cy = 33
     disc_rx, disc_ry = 17, 6
     dome_cy = cy - disc_ry - 3
 

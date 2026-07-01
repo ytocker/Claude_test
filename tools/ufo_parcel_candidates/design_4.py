@@ -39,8 +39,8 @@ def build(mode="normal"):
     s = pygame.Surface((SS, SS), pygame.SRCALPHA)
 
     cx      = SS // 2
-    disc_cy = 28
-    disc_rx, disc_ry = 17, 5
+    disc_cy = 35
+    disc_rx, disc_ry = 18, 5
     dome_cx, dome_cy = cx, disc_cy - 6
     dome_rx, dome_ry = 7, 5
 
@@ -51,12 +51,14 @@ def build(mode="normal"):
     beam_top = disc_cy + disc_ry
     beam_bot = beam_top + 14
     beam = pygame.Surface((SS, SS), pygame.SRCALPHA)
-    pygame.draw.polygon(beam, (*VIOLET, 100),
-        [(cx-7, beam_top), (cx+7, beam_top), (cx+12, beam_bot), (cx-12, beam_bot)])
+    pygame.draw.polygon(beam, (*VIOLET, 140),
+        [(cx-8, beam_top), (cx+8, beam_top), (cx+13, beam_bot), (cx-13, beam_bot)])
     s.blit(beam, (0, 0))
     # Bright neon-cyan edges on the beam
-    _glow_line(s, CYAN, (cx-7, beam_top), (cx-12, beam_bot), core_w=2, glow_w=4)
-    _glow_line(s, CYAN, (cx+7, beam_top), (cx+12, beam_bot), core_w=2, glow_w=4)
+    _glow_line(s, CYAN, (cx-8, beam_top), (cx-13, beam_bot), core_w=2, glow_w=4)
+    _glow_line(s, CYAN, (cx+8, beam_top), (cx+13, beam_bot), core_w=2, glow_w=4)
+    # Hot cyan centerline reads instantly as a tractor beam
+    pygame.draw.line(s, (*CYAN, 180), (cx, beam_top), (cx, beam_bot), 2)
 
     # ---- Dark outline around whole disc for day-sky contrast ----
     pygame.draw.ellipse(s, OUTLINE,
@@ -84,16 +86,17 @@ def build(mode="normal"):
         (cx - disc_rx + 3, disc_cy), (cx + disc_rx - 3, disc_cy),
         core_w=2, glow_w=5)
 
-    # ---- Chase-light dots on the lower rim — the signature (8 dots) ----
-    n = 8
+    # ---- Chase-light dots on the lower rim — the signature ----
+    # 4 bold dots: at 22px, 8 spaced along a tiny arc blur into one mass.
+    n = 4
     for i in range(n):
-        angle = math.radians(200 + 140 * i / (n - 1))
+        angle = math.radians(210 + 120 * i / (n - 1))   # narrower arc on lower rim
         dx = cx + (disc_rx - 2) * math.cos(angle)
         dy = disc_cy + (disc_ry - 1) * math.sin(angle)
         col = CYAN if i % 2 == 0 else MAGENTA
         dot = pygame.Surface((SS, SS), pygame.SRCALPHA)
-        pygame.draw.circle(dot, (*col, 100), (int(dx), int(dy)), 4)
+        pygame.draw.circle(dot, (*col, 120), (int(dx), int(dy)), 5)   # glow
         s.blit(dot, (0, 0))
-        pygame.draw.circle(s, col, (int(dx), int(dy)), 2)
+        pygame.draw.circle(s, col, (int(dx), int(dy)), 3)   # hot dot
 
     return pygame.transform.smoothscale(s, (SIZE, SIZE))
