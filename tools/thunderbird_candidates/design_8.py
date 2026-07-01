@@ -15,9 +15,6 @@ solid wing panels carry the shape when the thin traces sink below a pixel; the
 white-cored solder pads (eye + node dots) stay the brightest points and survive
 the downscale, so the bird still reads as a hard-edged geometric raptor.
 """
-import math
-import random
-
 import pygame
 
 from game.parrot import _WING_ANGLES, _add_outline
@@ -163,16 +160,19 @@ def _wing_panel(surf, angle_deg, side, pad_lit):
 def _build_frame(wing_angle_deg):
     surf = _new()
     s = _strike(wing_angle_deg)
-    # Node brightness pulses with the down-stroke — current peaks as the wing
-    # drives down, dims as it recovers on the up-stroke.
-    node_c = TRACE_YEL if s > 0.5 else TRACE_DIM
-    random.seed(wing_angle_deg)             # deterministic-per-frame sparks
+    # Node-pulse sequence: current visibly travels root→tip across the 4 frames.
+    # pad_lit(idx) turns on progressively later stages as the strike factor climbs
+    # so a lit wavefront sweeps outward instead of a global on/off flip.
+    step = int(s * 4)
+    pad_lit = lambda idx: (step % 4) >= idx
+    # Body/spine current tracks the same strike surge as a whole-net glow.
+    node_c = TRACE_YEL if s > 0.5 else TRACE_OFF
 
     # Powered halo — brighter on the down-stroke surge.
     _glow(surf, (BCX, BCY), 30, TRACE_YEL, peak=int(30 + 14 * s))
 
     # FAR wing first (drawn behind the body).
-    _wing_panel(surf, wing_angle_deg, +1, node_c)
+    _wing_panel(surf, wing_angle_deg, +1, pad_lit)
 
     # TAIL — a bus of three parallel traces running down-left off the lower body,
     # terminated in pads so the "signal" clearly exits the board.
@@ -180,8 +180,9 @@ def _build_frame(wing_angle_deg):
     for k in range(3):
         ox = (k - 1) * 3
         end = (tbx - 12 + k * 2, tby + 16)
-        _trace(surf, [(tbx + ox, tby), (tbx + ox - 4, tby + 8), end], node_c, w=2)
-        _pad(surf, end[0], end[1], 1, node_c)
+        tail_c = TRACE_YEL if pad_lit(k) else TRACE_OFF
+        _trace(surf, [(tbx + ox, tby), (tbx + ox - 4, tby + 8), end], tail_c, w=2)
+        _pad(surf, end[0], end[1], 2, tail_c)
 
     # BODY — dark board substrate ellipse. Hard value block that carries the
     # silhouette at 40px once the traces thin out.
@@ -203,11 +204,8 @@ def _build_frame(wing_angle_deg):
         _trace(surf, [(BCX, jy), (BCX - reach, jy), (BCX - reach - 3, jy - 3)],
                node_c, w=2)
         _pad(surf, BCX, jy, 2, node_c)
-        _pad(surf, BCX + reach + 3, jy + 3, 1, node_c)
-        _pad(surf, BCX - reach - 3, jy - 3, 1, node_c)
-    # One SIGNAL-GREEN accent trace only — a diagonal via across the board.
-    _trace(surf, [(BCX - 8, BCY + 6), (BCX - 2, BCY), (BCX + 6, BCY - 6)],
-           SIGNAL_GREEN, w=1)
+        _pad(surf, BCX + reach + 3, jy + 3, 2, node_c)
+        _pad(surf, BCX - reach - 3, jy - 3, 2, node_c)
     _pad(surf, top[0], top[1], 2, node_c)
     _pad(surf, bot[0], bot[1], 2, node_c)
 
@@ -229,32 +227,28 @@ def _build_frame(wing_angle_deg):
     ]
     pygame.draw.polygon(surf, BOARD_DARK, head)
     # A short trace linking head net to body net so the board reads continuous.
-    _trace(surf, [(HCX - 4, HCY + 4), (BCX + 6, BCY - 6)], node_c, w=1)
+    _trace(surf, [(HCX - 4, HCY + 4), (BCX + 6, BCY - 6)], node_c, w=2)
 
-    # BEAK — a hard amber triangular wedge off the head's forward facet.
-    pygame.draw.polygon(surf, BEAK_AMBER,
-                        [(HCX + 8, HCY - 1), (HCX + 15, HCY + 2), (HCX + 8, HCY + 4)])
+    # BEAK — a hard amber wedge, longer (10-11px) and edged in board-dark so it
+    # silhouettes off the day sky and doesn't melt into the trace-yellow net.
+    beak = [(HCX + 8, HCY - 1), (HCX + 18, HCY + 2), (HCX + 8, HCY + 4)]
+    pygame.draw.polygon(surf, BEAK_AMBER, beak)
+    pygame.draw.polygon(surf, BOARD_DARK, beak, 1)
 
-    # EYE — one bright round solder pad. The single strongest white point.
-    _pad(surf, HCX + 2, HCY - 1, 4, node_c)
+    # EYE — the single brightest white point on the whole skin.
+    _eye_pad(surf, HCX + 2, HCY - 1, node_c)
 
-    # CREST — two straight antenna-traces rising off the crown to bright nodes.
+    # CREST — two straight antenna-traces rising off the crown to gold nodes (no
+    # white core — the eye owns the only white).
     for cx0, dx in ((HCX - 3, -3), (HCX + 2, 2)):
         tip = (cx0 + dx, CROWN_Y - 4)
         _trace(surf, [(cx0, CROWN_Y + 6), tip], node_c, w=2)
         pygame.draw.circle(surf, SOLDER_GOLD, tip, 3)
         pygame.draw.circle(surf, node_c, tip, 2)
-        pygame.draw.circle(surf, NODE_WHITE, tip, 1)
+        pygame.draw.circle(surf, SOLDER_GOLD, tip, 1)
 
     # NEAR wing last (in front of the body).
-    _wing_panel(surf, wing_angle_deg, -1, node_c)
-
-    # STRAY SPARKS — two deterministic-per-frame drifting current dots for life.
-    for _ in range(2):
-        sx = BCX + random.randint(-20, 20)
-        sy = BCY + random.randint(-16, 16)
-        _glow(surf, (sx, sy), 4, TRACE_YEL, peak=90)
-        pygame.draw.circle(surf, NODE_WHITE, (sx, sy), 1)
+    _wing_panel(surf, wing_angle_deg, -1, pad_lit)
 
     return surf
 

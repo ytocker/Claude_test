@@ -5,10 +5,12 @@ The silhouette is dominated by a glowing ORB, not spread wings. A layered
 concentric-circle body reads as a heavy fireball; the "bird" is only implied
 by a smaller satellite head-orb fused top-right, a flame crest, and short
 throbbing bolt-stubs where wings would be. Surface arcs skitter across the
-sphere (reseeded per flap pose so they crawl frame to frame). The read at 40px
-leans on VALUE, not line: the amber-dark outer ring separates the orb from a
-bright day sky, and the white-hot nucleus is the tell on night. A thin dark
-rim circle is stamped last so the ball never dissolves into a pale sky.
+sphere while a pair of breaching arcs shoot past the rim so electricity lands
+in the SILHOUETTE (the true ball-lightning read at 40px). The read leans on
+VALUE, not line: a dark amber shell separates the orb from a bright day sky,
+the head carries its own dark rim so it reads as a separate satellite object,
+and the body stays predominantly Fireball Yellow with white as the single
+hottest point.
 """
 import math
 import random
@@ -211,17 +213,19 @@ def _build_frame(wing_angle_deg) -> pygame.Surface:
     pygame.draw.lines(surf, FIREBALL, False, crest, 2)
     pygame.draw.lines(surf, CORONA, False, crest, 1)
 
-    # --- Talons: 2 spark dots below the orb.
-    for tx_off in (-5, 5):
-        tx, ty = BCX + tx_off, BCY + 18
-        _add_glow(surf, tx, ty, 3, SCORCH, 190)
-        pygame.draw.circle(surf, FIREBALL, (tx, ty), 2)
-        pygame.draw.circle(surf, NUCLEUS, (tx, ty), 1)
+    # (No talons — the underside is left to the comet tail alone so the orb
+    # doesn't sprout a "matchstick handle" of stacked elements beneath it.)
 
-    # --- Thin dark rim circle around the outer orb, stamped last. Guarantees
-    # the ball never dissolves into a pale/bright sky (value separation the
-    # additive glow alone can't promise).
-    pygame.draw.circle(surf, (60, 30, 0, 220), (BCX, BCY), 20 + bump, 1)
+    # --- Dark rim circle around the outer orb. Darker + more opaque than R1 so
+    # the ball holds its value against a pale-blue day sky and never dissolves.
+    pygame.draw.circle(surf, (40, 15, 0, 240), (BCX, BCY), 21 + bump, 2)
+
+    # --- Breaching arcs, drawn LAST so their spikes poke THROUGH the rim into
+    # the silhouette — the core ball-lightning read at 40px. Two per pose,
+    # reseeded so they jitter frame to frame.
+    for i in range(2):
+        _surface_arc(surf, BCX, BCY, seed=int(wing_angle_deg) * 7 + i * 31,
+                     orb_r=20 + bump, breach=True)
 
     return surf
 

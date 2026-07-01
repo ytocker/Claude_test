@@ -35,7 +35,6 @@ ARC_WHITE   = (255, 255, 255)   # arc-flash core / brightest point
 HV_YELLOW   = (255, 221, 0)     # high-voltage yellow — dominant colour
 LIVE_GOLD   = (245, 163, 0)     # live-gold mid glow
 INSUL_DARK  = (43, 38, 32)      # insulation — structure + banding
-INSUL_BAND  = (28, 24, 20)      # slightly darker insulation banding ring
 MOLTEN      = (255, 85, 0)      # molten spark drips
 
 
@@ -92,7 +91,9 @@ def _cable_wing(surf, angle_deg, side):
     wide; on the up-stroke it compresses toward the body."""
     s = _strike(angle_deg)                  # 1 = whip wide (down-stroke)
     root = (BCX + side * 7, BCY - 4)
-    reach = 12 + int(round(10 * s))         # loop reach grows with the overload
+    # Reach floor keeps the dark cable core a visible loop even on the up-stroke —
+    # a whip that goes static in 2 of 4 frames reads as a dead line, not a live one.
+    reach = max(14, 10 + int(round(12 * s)))
     drop  = 10 - int(round(8 * s))          # loop rides high on the down-stroke
 
     # Sample a curved cable path: shoulder → wide bow → curl back to lower body.
@@ -117,34 +118,46 @@ def _cable_wing(surf, angle_deg, side):
 
 
 def _frayed_head(surf, s):
-    """The broken cable end: radiating bright filaments bursting from the head
-    centre, a spark-eye, and a hard arc-flash wedge for the 'mouth'. No round
-    head, no traditional beak — this is where the wire snapped."""
-    # A soft halo so the frayed end reads as a hot break even when filaments thin.
-    # Kept below the chest bloom so the chest stays the single brightest point.
-    _bloom(surf, (HCX, HCY), 10, LIVE_GOLD, peak=int(24 + 16 * s))
+    """The broken cable end: a tight burst of frayed copper filaments whipping
+    forward-and-up off the snapped tip. No round head, no eye, no disc of glow —
+    an eye or a bloom halo would re-read this as a bird head instead of a broken
+    wire. The filaments are bright strands against dark, splayed into a narrow
+    forward cone the way a cable end actually whips when it snaps."""
+    # Only a tiny hot break at the tip — small enough that it never competes with
+    # the chest arc-flash for the eye's single brightest point.
+    _bloom(surf, (HCX, HCY), 5, LIVE_GOLD, peak=int(9 + 3 * s))
 
-    # 6 short radiating filaments, each a dark-cored strand with a lit outer glow
-    # so it holds a thick enough line at 40px.
-    n = 6
-    for i in range(n):
-        ang = (-40 + i * (200 / (n - 1))) * math.pi / 180.0   # fan up-and-out
-        length = 9 + (i % 2) * 3
-        ex = HCX + math.cos(ang) * length
-        ey = HCY - math.sin(ang) * length
-        pygame.draw.line(surf, INSUL_DARK, (HCX, HCY), (ex, ey), 3)
-        pygame.draw.line(surf, HV_YELLOW, (HCX, HCY), (ex, ey), 2)
+    # 6 frayed copper strands biased into a narrow ~70° forward-and-up cone (the
+    # direction a snapped cable whips), with aggressive length variation and a
+    # kink on some so they read as splayed copper, not a symmetric starburst.
+    #  angle (deg CCW from +x, screen up), length, kinked?
+    strands = [
+        (-8,  16, True),
+        (12,   7, False),
+        (30,  13, True),
+        (48,   6, False),
+        (62,  15, True),
+        (20,  10, False),
+    ]
+    for ang_deg, length, kinked in strands:
+        ang = ang_deg * math.pi / 180.0
+        if kinked:
+            # First segment goes straight out, then the tip bends off the cone
+            # axis — a frayed strand kinks where the copper stress-fractured.
+            mx = HCX + math.cos(ang) * (length * 0.55)
+            my = HCY - math.sin(ang) * (length * 0.55)
+            ka = ang + (14 * math.pi / 180.0)
+            ex = mx + math.cos(ka) * (length * 0.45)
+            ey = my - math.sin(ka) * (length * 0.45)
+            pts = [(HCX, HCY), (mx, my), (ex, ey)]
+            pygame.draw.lines(surf, INSUL_DARK, False, pts, 3)
+            pygame.draw.lines(surf, HV_YELLOW, False, pts, 2)
+        else:
+            ex = HCX + math.cos(ang) * length
+            ey = HCY - math.sin(ang) * length
+            pygame.draw.line(surf, INSUL_DARK, (HCX, HCY), (ex, ey), 3)
+            pygame.draw.line(surf, HV_YELLOW, (HCX, HCY), (ex, ey), 2)
         pygame.draw.circle(surf, ARC_WHITE, (int(ex), int(ey)), 1)
-
-    # The 'mouth': a hard arc-flash wedge stabbing forward off the break.
-    pygame.draw.polygon(surf, HV_YELLOW,
-                        [(HCX + 8, HCY + 1), (HCX + 15, HCY + 4), (HCX + 8, HCY + 6)])
-    pygame.draw.polygon(surf, ARC_WHITE,
-                        [(HCX + 8, HCY + 2), (HCX + 12, HCY + 4), (HCX + 8, HCY + 5)])
-
-    # Spark-eye — bright yellow bead with a white-hot core; the head's anchor point.
-    pygame.draw.circle(surf, HV_YELLOW, (HCX - 1, HCY - 2), 3)
-    pygame.draw.circle(surf, ARC_WHITE, (HCX - 1, HCY - 2), 1)
 
 
 def _build_frame(wing_angle_deg):
@@ -166,17 +179,26 @@ def _build_frame(wing_angle_deg):
                          (ttip[0] + 2, ttip[1] + 3)])
     pygame.draw.circle(surf, ARC_WHITE, ttip, 1)
 
-    # BODY — a tall, narrow insulation ellipse. This elongated form is the whole
-    # tell: clearly taller and thinner than a round bird, so the "thick cable"
-    # read survives the 40px downscale.
+    # BODY — a tall, narrow insulation ellipse tapering into the frayed end. This
+    # elongated cable silhouette is the #1 brand mark: clearly taller and thinner
+    # than a round bird, so the "thick wire run" read survives the 40px downscale.
     body = _new()
-    _aaellipse(body, INSUL_DARK, (BCX, BCY), 10, 20)
-    # Banding rings — segmented insulation. Thin darker lines at ~6px intervals.
-    for by in range(BCY - 12, BCY + 15, 6):
-        half = int(math.sqrt(max(0.0, 1 - ((by - BCY) / 20.0) ** 2)) * 10)
-        if half > 2:
-            pygame.draw.line(body, INSUL_BAND, (BCX - half, by), (BCX + half, by), 2)
+    rx, ry = 8, 22
+    _aaellipse(body, INSUL_DARK, (BCX, BCY), rx, ry)
+    # Fake a taper toward the frayed top: a second narrower ellipse over the upper
+    # body pulls the silhouette to a point where the cable snapped.
+    _aaellipse(body, INSUL_DARK, (BCX, BCY - ry + 8), rx - 3, 10)
     surf.blit(body, (0, 0))
+    # Banding rings — faint-gold additive lines so the body reads as a LIT
+    # segmented cable, not a flat blob. Near-value-matched dark bands vanished at
+    # 40px; additive gold survives the downscale and sells the "live" segments.
+    for by in range(BCY - 12, BCY + 13, 8):
+        half = int(math.sqrt(max(0.0, 1 - ((by - BCY) / float(ry)) ** 2)) * rx)
+        if half > 2:
+            band = pygame.Surface((half * 2 + 2, 3), pygame.SRCALPHA)
+            pygame.draw.line(band, (255, 220, 0, 35), (1, 1), (half * 2, 1), 2)
+            surf.blit(band, (BCX - half - 1, by - 1),
+                      special_flags=pygame.BLEND_RGBA_ADD)
 
     # TALONS — two hook-clamp L-brackets hanging off the lower body, dark with
     # yellow glow tips (the line-worker's clamps still gripping the dead wire).
@@ -193,13 +215,13 @@ def _build_frame(wing_angle_deg):
     # NEAR wing last (in front of the body).
     _cable_wing(surf, wing_angle_deg, -1)
 
-    # CHEST ARC-FLASH — the "break". The single brightest point: a tight yellow
-    # bloom ringing a hard white core. Peaks are kept low so the additive light
-    # stays a concentrated hotspot and never washes out the dark cable body — the
-    # elongated insulation silhouette has to survive the bloom, not drown in it.
-    chest = (BCX + 2, BCY - 8)
-    _bloom(surf, chest, 13, HV_YELLOW, peak=int(28 + 22 * s))
-    _bloom(surf, chest, 7, ARC_WHITE, peak=int(40 + 30 * s))
+    # CHEST ARC-FLASH — the "break". The single brightest point on the skin, and
+    # it must out-punch the frayed head at 40px. A tight concentrated hotspot: a
+    # yellow ring around a hard white core speck, sat at true body centre so it
+    # anchors the cable's midpoint rather than floating up into the head.
+    chest = (BCX, BCY - 4)
+    _bloom(surf, chest, 8, HV_YELLOW, peak=int(48 + 22 * s))
+    _bloom(surf, chest, 4, ARC_WHITE, peak=int(70))
     pygame.draw.circle(surf, ARC_WHITE, chest, 2)
 
     # MOLTEN SPARK DRIPS — 4 falling drops below the bird, positions drifting per

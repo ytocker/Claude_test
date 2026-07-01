@@ -33,6 +33,8 @@ COIL_YELLOW = (255, 232, 26)    # #FFE81A — dominant arc colour
 CORONA_WHITE = (255, 255, 255)  # white-hot core
 TERMINAL_GOLD = (255, 192, 26)  # #FFC01A — terminal knob body
 OZONE_BLUE  = (127, 216, 255)   # #7FD8FF — single cool trace in the hottest arc
+STERNUM_OCHRE = (120, 90, 15)   # dim dark ochre — sternum texture, not a beacon
+DARK_NAVY   = (8, 10, 14)       # razor-sharp body edge for pale-blue day sky
 
 
 def _flap(a):
@@ -77,12 +79,14 @@ def _corona_arc(surf, start, peak, land, bloom, hot=False):
     """One lightning arc drawn with the load-bearing 3-pass glow: a wide
     additive halo, a mid yellow body, then a white-hot core. ``bloom`` scales
     width/brightness so the down-stroke frame snaps harder. ``hot`` threads a
-    single ozone-blue trace inside the very brightest arc."""
+    single ozone-blue trace inside the very brightest arc. The halo is kept
+    deliberately thin and faint so four separated arcs read as distinct crown
+    spikes instead of merging into one orange bloom."""
     pts = _bezier(start, peak, land, steps=12)
 
-    # Pass 1 — wide additive halo (soft yellow bloom around the strike).
-    halo_w = max(4, int(5 * bloom))
-    _polyline(surf, (255, 220, 0, int(40 * bloom)), pts, halo_w, additive=True)
+    # Pass 1 — narrow, faint additive halo. Low alpha + width keeps neighbouring
+    # arcs from bleeding into each other, so the diadem reads as spikes.
+    _polyline(surf, (255, 220, 0, 18), pts, 2, additive=True)
 
     # Pass 2 — mid yellow body. Widen to 3 when blooming so it survives 40px.
     mid_w = 3 if bloom >= 1.0 else 2
@@ -96,15 +100,15 @@ def _corona_arc(surf, start, peak, land, bloom, hot=False):
     _polyline(surf, CORONA_WHITE, pts, 1)
 
 
-def _spark(surf, origin, direction, length, bloom):
-    """Short wingtip / tail spark that flicks upward toward the main halo."""
-    ang = direction + math.sin(origin[0] * 1.7) * 0.3
-    mx = origin[0] + math.cos(ang) * length * 0.5 + 2
-    my = origin[1] + math.sin(ang) * length * 0.5
-    tip = (origin[0] + math.cos(ang) * length,
-           origin[1] + math.sin(ang) * length - 2)
-    pts = [origin, (mx, my), tip]
-    _polyline(surf, (255, 220, 0, int(48 * bloom)), pts, 3, additive=True)
+def _wingtip_arc(surf, tip, land):
+    """One legible arc per wingtip curving up toward the crown landing zone, so
+    the electric circuit reads complete from tip to diadem. A single 3-point
+    polyline (not a scatter of invisible sparks) is what actually survives the
+    gameplay downscale."""
+    midx = (tip[0] + land[0]) / 2
+    midy = min(tip[1], land[1]) - 6
+    pts = [tip, (midx, midy), land]
+    _polyline(surf, (255, 220, 0, 18), pts, 3, additive=True)
     _polyline(surf, COIL_YELLOW, pts, 2)
     _polyline(surf, CORONA_WHITE, pts, 1)
 
@@ -139,6 +143,9 @@ def _build_frame(wing_angle_deg):
     surf = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
     strike = _strike(wing_angle_deg)         # 1 down-stroke … 0 up-stroke
     bloom = 0.85 + strike * 0.4              # arcs snap taller/brighter down
+    # Widened crown-height breathing: short on the up-stroke, tall on the
+    # power stroke, so the Tesla-snap grow/shrink is unmistakable across frames.
+    peak_scale = 0.55 + strike * 0.90        # 0.55 up-stroke … 1.45 down-stroke
 
     # --- Dark wing panels behind the body (drawn first so body overlaps root).
     for side in (-1, 1):
@@ -166,23 +173,18 @@ def _build_frame(wing_angle_deg):
     rim = pygame.Rect(BCX - 15, BCY - 15, 30, 26)
     pygame.draw.arc(surf, COOL_RIM, rim, math.radians(35), math.radians(150), 2)
 
-    # --- Chest conduction line: one bright yellow sternum stripe head->belly.
-    pygame.draw.line(surf, COIL_YELLOW, (BCX + 3, HCY + 6), (BCX + 1, BCY + 12), 2)
+    # --- Chest conduction line: a dim dark-ochre sternum stripe. Kept as quiet
+    # texture, NOT a beacon, so the terminal knob stays the only bright point.
+    pygame.draw.line(surf, STERNUM_OCHRE, (BCX + 3, HCY + 6), (BCX + 1, BCY + 12), 2)
 
-    # --- Tail-tip sparks.
-    _spark(surf, (BCX - 22, BCY + 20), math.radians(-70), 8, bloom)
-    _spark(surf, (BCX - 19, BCY + 23), math.radians(-55), 7, bloom)
-
-    # --- Talons: charged charcoal claws with a yellow glow dot at each tip.
+    # --- Talons: charged charcoal claws. No glow dots — the crown owns the
+    # brightness budget, so the talons stay dark structure only.
     for side in (-1, 1):
         tx = BCX + side * 6
         ty = BCY + 13
         for k in (-1, 1):
-            cx = tx + k * 3
-            ctip = (cx, ty + 6)
+            ctip = (tx + k * 3, ty + 6)
             pygame.draw.line(surf, BODY_MAIN, (tx, ty), ctip, 2)
-            _glow_blit(surf, ctip[0], ctip[1], 3, COIL_YELLOW, 150)
-            pygame.draw.circle(surf, COIL_YELLOW, ctip, 1)
 
     # --- Head: smooth charcoal skull (shadow + main).
     _aaellipse(surf, BODY_SHADOW, (HCX + 1, HCY + 1), 10, 10)
@@ -199,43 +201,52 @@ def _build_frame(wing_angle_deg):
     # --- Atmosphere: tight corona glow ABOVE the head (crowns, not washes).
     _glow_blit(surf, HCX, CROWN_Y - 8, 20, (255, 245, 160), 50)
 
-    # --- THE HERO: corona-arc halo. Arcs leap from the terminal knob, peak
-    # 12-16px over the head, and land back on the shoulders as a spark diadem.
-    term = (HCX, CROWN_Y - 4)   # terminal knob top = arc launch point
-    # Landing anchors spread across both shoulders/back.
-    lands = [
-        (HCX - 20, CROWN_Y + 6),
-        (HCX - 12, CROWN_Y + 2),
-        (HCX - 4, CROWN_Y),
-        (HCX + 6, CROWN_Y + 1),
-        (HCX + 13, CROWN_Y + 5),
-        (HCX + 18, CROWN_Y + 10),
-    ]
-    for i, land in enumerate(lands):
-        # Peak between launch and landing, lifted high above the crown; the
-        # amount varies per arc and blooms on the power stroke.
-        midx = (term[0] + land[0]) / 2 + math.sin(i * 1.3) * 4
-        peak_lift = (13 + (i % 3) * 3) * bloom
-        peak = (midx, CROWN_Y - 4 - peak_lift)
-        _corona_arc(surf, term, peak, land, bloom, hot=(i == 2))
-
-    # --- Wingtip arcs: each tip sheds a short spark reconnecting up toward the
-    # halo, tying the diadem to the wings.
+    # --- Body/wing hard edge: a 1px very-dark-navy border on top of the outline
+    # so the charcoal stage keeps a razor-sharp silhouette against pale-blue day.
     for side in (-1, 1):
         base_x = BCX + side * 5
-        wpts = _wing_pts(base_x, side, strike)
-        tip = wpts[2]
-        _spark(surf, tip, math.radians(-120 if side == 1 else -60), 8, bloom)
+        pygame.draw.polygon(surf, DARK_NAVY, _wing_pts(base_x, side, strike), 1)
+    _aaellipse_outline(surf, DARK_NAVY, (BCX, BCY), 16, 14)
+
+    # --- THE HERO: corona-arc halo. Four widely-spread arcs leap from the coil
+    # terminal, peak high over the head, and land on the shoulders. Four (not
+    # six) with forced gaps read as a spiked CROWN, not an orange blob.
+    term = (HCX, CROWN_Y - 4)   # terminal knob top = arc launch point
+    lands = [
+        (HCX - 20, CROWN_Y + 8),
+        (HCX - 8, CROWN_Y + 1),
+        (HCX + 8, CROWN_Y + 2),
+        (HCX + 19, CROWN_Y + 9),
+    ]
+    for i, land in enumerate(lands):
+        # Widen the breathing delta so the crown visibly grows tall on the
+        # power stroke and shrinks on the up-stroke — the Tesla-snap tell.
+        midx = (term[0] + land[0]) / 2 + math.sin(i * 1.3) * 3
+        peak_lift = (13 + (i % 2) * 4) * peak_scale
+        peak = (midx, CROWN_Y - 4 - peak_lift)
+        _corona_arc(surf, term, peak, land, bloom, hot=(i == 1))
+
+    # --- Wingtip arcs: one legible arc per tip curving up to the crown landing
+    # zone, so the diadem visibly wires into the wings.
+    tip_land = [(HCX - 12, CROWN_Y + 3), (HCX + 12, CROWN_Y + 3)]
+    for side, land in zip((-1, 1), tip_land):
+        base_x = BCX + side * 5
+        tip = _wing_pts(base_x, side, strike)[2]
+        _wingtip_arc(surf, tip, land)
+
+    # --- Coil post: a short bright stem from the skull up to the terminal knob.
+    # The "post + ball + corona" motif is the Tesla-coil read — not just a bird
+    # with a lightning halo.
+    pygame.draw.line(surf, COIL_YELLOW, (HCX, CROWN_Y + 2), (HCX, CROWN_Y - 4), 2)
 
     # --- Terminal knob: the arcs' origin and the single brightest point.
     pygame.draw.circle(surf, TERMINAL_GOLD, (HCX, CROWN_Y), 4)
     _glow_blit(surf, HCX, CROWN_Y, 6, CORONA_WHITE, 180)
     pygame.draw.circle(surf, CORONA_WHITE, (HCX, CROWN_Y), 2)
 
-    # --- Eye: yellow glow dot with white core.
+    # --- Eye: a small cool-white pinpoint, no yellow glow, so it never competes
+    # with the terminal knob for the single brightest point.
     ex, ey = HCX + 1, HCY - 1
-    _glow_blit(surf, ex, ey, 5, COIL_YELLOW, 150)
-    pygame.draw.circle(surf, COIL_YELLOW, (ex, ey), 3)
     pygame.draw.circle(surf, CORONA_WHITE, (ex, ey), 2)
 
     return surf
