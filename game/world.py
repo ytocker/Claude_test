@@ -792,7 +792,8 @@ class World:
             idx = CLOWN_SLOT_PILLARS - self._clown_slot_remaining
             self._clown_slot_remaining -= 1
             is_rush = False
-            if idx < len(self._clown_route):
+            is_route_tower = idx < len(self._clown_route)
+            if is_route_tower:
                 route_cy, route_gap = self._clown_route[idx]
                 p = Pipe(x, float(route_cy), int(route_gap))
                 p.is_rush = False
@@ -802,6 +803,11 @@ class World:
                 # Last warren tower → arm the post-gauntlet relief breather.
                 if idx == len(self._clown_route) - 1:
                     self._clown_outro_remaining = CLOWN_OUTRO_PILLARS
+            # Free the rolled route once the whole slot has been laid (after this
+            # pillar has read it), so it doesn't linger for the rest of the run.
+            if self._clown_slot_remaining == 0:
+                self._clown_route = []
+            if is_route_tower:
                 return
             # else: regular-fill pillar — fall through to normal spawning.
         # Cycle-finale: while a finale is queued (5 pillars after the
@@ -1666,6 +1672,15 @@ class World:
                 or (getattr(p, "rail_active", False)
                     and (self.bird.cart_locked or p.x + PIPE_W > -300))
             ]
+            # Drop near-miss flags for culled pipes. Flags are keyed by id(p),
+            # which CPython recycles once a pipe is freed — so an unpruned flag
+            # could both grow unbounded and suppress a legitimate near-miss on a
+            # future pipe that happens to reuse the id.
+            if self._near_miss_flags:
+                _live = {id(p) for p in self.pipes}
+                self._near_miss_flags = {
+                    k: v for k, v in self._near_miss_flags.items() if k in _live
+                }
             # Refresh rail_pipes every frame so the renderer still sees
             # the on-screen tail of tagged pipes after expiry.
             self.rail_pipes = [

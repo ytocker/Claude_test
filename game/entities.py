@@ -1586,7 +1586,7 @@ class Pipe:
         """Render the Carousel-Barker staff pillar pair onto a per-instance
         SRCALPHA surface once; later frames blit the bitmap at the scrolling x.
         Margin covers the cap tips / ruff bells that overhang the PIPE_W column."""
-        from game.pillar_staff import draw_pillar_pair_staff
+        from game.pillar_staff import draw_pillar_pair_staff, staff_collision_mask
         margin = 64
         cache_w = PIPE_W + margin * 2
         cache_h = GROUND_Y
@@ -1599,11 +1599,13 @@ class Pipe:
         draw_pillar_pair_staff(cache, local_top, local_bot, palette, self.seed)
         self._staff_cache = cache
         self._staff_cache_dx = -margin
-        # Build the matching collision mask straight from the rendered cache (it
-        # already holds the staff silhouette in its alpha) — re-rendering the staff
-        # a second time here cost ~8ms/pillar and stuttered the route.
+        # Build the matching collision mask by stamping the shared per-bucket
+        # obstacle masks at the same offsets — avoids a full-surface
+        # mask.from_surface scan per tower, which is a big cost in the warren
+        # burst (esp. under WASM). Offsets line up with draw_pillar_pair_staff.
         if self._collision_mask is None:
-            self._collision_mask = pygame.mask.from_surface(cache, 50)
+            self._collision_mask = staff_collision_mask(
+                (cache_w, cache_h), local_top, local_bot)
             self._collision_mask_dx = -margin
 
     def _build_skull_cache(self, palette):

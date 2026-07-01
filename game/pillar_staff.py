@@ -11,10 +11,72 @@ import math
 import pygame
 
 from game.draw import _shade_c, lerp_color  # noqa: F401  (lerp_color kept for parity)
-from game.config import PIPE_W
+from game.config import PIPE_W, GROUND_Y
 
 # Guards may spill this far past the 58-px column on each side.
 OVERHANG = 12
+
+# Supersample factor for the baked obstacle art. ss=3 is plenty for the ~58px
+# scrolling route tile (ss=5 cost ~9ms/pillar and stuttered the route).
+_SS = 3
+
+# A clown warren spawns up to ~25 fused staff towers in a few seconds. Rendering
+# each tower's jester art from scratch (supersample + smoothscale + a full-height
+# mask scan) is fine on desktop but ~10-20x costlier under pygbag/WASM, where the
+# burst stutters the tunnel AND grows linear memory that never shrinks (lingering
+# lag). The obstacle art only depends on its HEIGHT and orientation, and a route's
+# heights collapse to a handful of buckets — so bake each (height-bucket, flip)
+# ONCE and share it across every tower. Heights are quantized UP to _HEIGHT_Q and
+# the marotte head is anchored at the gap edge, so the <=_HEIGHT_Q surplus spills
+# into the clipped ground / off-screen ceiling (invisible) while the gap edge —
+# the only part collisions and the eye care about — stays exact.
+_HEIGHT_Q = 24
+_OBSTACLE_SURF_CACHE: "dict[tuple[int, bool], pygame.Surface]" = {}
+_OBSTACLE_MASK_CACHE: "dict[tuple[int, bool], pygame.Mask]" = {}
+_CACHE_CAP = 128  # far above the ~50 reachable buckets; a runaway guard only
+
+
+def _bucket_h(H):
+    """Round an obstacle height UP to the shared-cache grid, clamped to the
+    playfield height (the per-tower cache clips anything past the ground)."""
+    q = ((int(H) + _HEIGHT_Q - 1) // _HEIGHT_Q) * _HEIGHT_Q
+    return max(_HEIGHT_Q, min(q, GROUND_Y))
+
+
+def _obstacle_surf(hb, flip):
+    key = (hb, flip)
+    surf = _OBSTACLE_SURF_CACHE.get(key)
+    if surf is None:
+        if len(_OBSTACLE_SURF_CACHE) > _CACHE_CAP:
+            _OBSTACLE_SURF_CACHE.clear()
+        surf = _staff_obstacle(hb, _SS, flip=flip)
+        _OBSTACLE_SURF_CACHE[key] = surf
+    return surf
+
+
+def _obstacle_mask(hb, flip):
+    key = (hb, flip)
+    m = _OBSTACLE_MASK_CACHE.get(key)
+    if m is None:
+        if len(_OBSTACLE_MASK_CACHE) > _CACHE_CAP:
+            _OBSTACLE_MASK_CACHE.clear()
+        m = pygame.mask.from_surface(_obstacle_surf(hb, flip), 50)
+        _OBSTACLE_MASK_CACHE[key] = m
+    return m
+
+
+def _staff_pieces(top_rect, bot_rect):
+    """(flip, bucket_height, x, y) for each obstacle, head anchored at the gap
+    edge. Surface blit and mask draw MUST share these offsets so the baked art
+    and the collision silhouette line up."""
+    pieces = []
+    if top_rect.height > 0:                       # head points DOWN to the gap
+        hb = _bucket_h(top_rect.height)
+        pieces.append((True, hb, top_rect.x - OVERHANG, top_rect.bottom - hb))
+    if bot_rect.height > 0:                        # head points UP to the gap
+        hb = _bucket_h(bot_rect.height)
+        pieces.append((False, hb, bot_rect.x - OVERHANG, bot_rect.y))
+    return pieces
 
 # Macaw-glove palette for the hero clown's gripping/pointing hands (the hands are
 # the only non-staff art this module draws — for the warren demo's settled hero).
@@ -443,17 +505,21 @@ def draw_pillar_pair_staff(surf, top_rect, bot_rect, palette, seed):
     """Draw a TOP + BOTTOM staff obstacle pair (the marotte bauble/head faces the
     gap on each). Matches the pagoda candidate signature so Pipe can cache it.
     `palette`/`seed` are accepted for signature parity; the staff uses its own
-    fixed jester colours."""
-    # ss=3 is plenty for the ~58px scrolling route tile (ss=5 cost ~9ms/pillar and
-    # stuttered the route; ss=3 renders in ~2.5ms with no visible loss at this size).
-    ss = 3
-    out_w = PIPE_W + 2 * OVERHANG
-    if top_rect.height > 0:
-        top = _staff_obstacle(top_rect.height, ss, flip=True)   # head points DOWN to gap
-        surf.blit(top, (top_rect.x - OVERHANG, top_rect.y))
-    if bot_rect.height > 0:
-        bot = _staff_obstacle(bot_rect.height, ss, flip=False)  # head points UP to gap
-        surf.blit(bot, (bot_rect.x - OVERHANG, bot_rect.y))
+    fixed jester colours. Blits shared, height-bucketed obstacle surfaces so a
+    warren of towers bakes only a handful of distinct surfaces (see cache note)."""
+    for flip, hb, x, y in _staff_pieces(top_rect, bot_rect):
+        surf.blit(_obstacle_surf(hb, flip), (x, y))
+
+
+def staff_collision_mask(size, top_rect, bot_rect):
+    """Build a tower's collision mask by stamping the shared per-bucket obstacle
+    masks at the SAME offsets draw_pillar_pair_staff blits them — a couple of fast
+    bitwise mask.draw ops, instead of scanning the whole composited surface with
+    mask.from_surface for every tower. `size` is (w, h) of the pillar cache."""
+    m = pygame.mask.Mask(size)
+    for flip, hb, x, y in _staff_pieces(top_rect, bot_rect):
+        m.draw(_obstacle_mask(hb, flip), (int(x), int(y)))
+    return m
 
 
 # ── Hero clown hands (warren demo's settled-hero composition) ─────────────────
