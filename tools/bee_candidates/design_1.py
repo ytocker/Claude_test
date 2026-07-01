@@ -103,7 +103,7 @@ def _draw_wing(surf, side, spread, nx, fi):
     fcx, fcy = _centroid(fill)
     shift = (fi - 1.5) * 4
     sh = _new()
-    _aaellipse(sh, (*CYAN, 120), (fcx + shift * side, fcy - 6), 15, 12)
+    _aaellipse(sh, (*CYAN, 85), (fcx + shift * side, fcy - 9), 9, 8)
     sh.blit(_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(sh, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
