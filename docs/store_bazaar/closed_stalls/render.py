@@ -57,11 +57,37 @@ CLOSED_GROUPS = {"animal", "shoes", "hats", "shades"}
 DORMANT_TINT = (70, 84, 118)
 
 
-def _dormant_veil(surf, rect, amount=0.16):
-    """A soft cool veil over a closed front so it reads dormant, not just dark."""
+def _dormant_veil(surf, rect, amount=0.15):
+    """A soft cool veil over a closed FRONT so it sits back asleep while the three
+    open stalls pop warm. Kept in the 12-18% band — enough to cool the plane, not
+    so much it goes muddy blue-grey. A gentle top-down deepening so the covered
+    plane also reads a touch darker than the warm thatch roof above it (a closed
+    front must be a DISTINCT covered plane, not merge into the roof's brown mass)."""
     v = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
-    v.fill((*DORMANT_TINT, int(255 * amount)))
+    a = int(255 * amount)
+    for y in range(rect.h):
+        t = y / max(1, rect.h - 1)
+        # stronger just under the eave so the front separates from the roof value,
+        # easing to the base veil lower down where the deck light lifts it
+        aa = int(a * (1.0 + 0.35 * (1.0 - t)))
+        v.fill((*DORMANT_TINT, min(255, aa)), (0, y, rect.w, 1))
     surf.blit(v, rect.topleft)
+
+
+def _contact_shadow(surf, rect, scale, strength=150):
+    """A soft dark contact line where a drawn-DOWN cover meets the deck/opening
+    lip, so the blind/shutter/curtain reads as hung over the opening with a lip
+    (not painted flat on the wall). A short upward-fading band riding the bottom
+    edge + a crisp hairline at the lip."""
+    h = max(m(3), int(m(6) * scale))
+    band = pygame.Surface((rect.w, h), pygame.SRCALPHA)
+    for y in range(h):
+        t = y / max(1, h - 1)
+        a = int(strength * t ** 1.4)
+        band.fill((6, 6, 12, a), (0, y, rect.w, 1))
+    surf.blit(band, (rect.left, rect.bottom - h))
+    pygame.draw.line(surf, (0, 0, 0, 175), (rect.left, rect.bottom - max(1, m(1))),
+                     (rect.right, rect.bottom - max(1, m(1))), max(1, m(1)))
 
 
 # =============================================================================
@@ -91,12 +117,14 @@ def front_bamboo(surf, cx, body_top, half_w, body_h, deck_y, scale):
     # the blind hangs from just under the eave to a little above the deck lip
     bl = pygame.Rect(cx - half_w + m(4), body_top + m(3),
                      half_w * 2 - m(8), body_h - m(8))
-    CANE_HI = (206, 168, 108)
-    CANE = (168, 128, 74)
-    CANE_LO = (120, 86, 46)
-    CANE_EDGE = (78, 54, 28)
+    # cane values pulled a touch DEEPER + more saturated than the thatch roof so
+    # the pulled-down reed plane separates from the straw above it at hub size.
+    CANE_HI = (200, 158, 96)
+    CANE = (156, 116, 64)
+    CANE_LO = (104, 72, 36)
+    CANE_EDGE = (64, 42, 20)
     # a faint back panel so slat gaps read against wood, not pure black
-    surf.blit(vgrad(bl.w, bl.h, 0, (58, 44, 30), (34, 26, 18)), bl.topleft)
+    surf.blit(vgrad(bl.w, bl.h, 0, (52, 38, 24), (28, 20, 12)), bl.topleft)
     slat_h = max(m(4), int(m(6) * scale))
     y = bl.top
     row = 0
@@ -106,10 +134,15 @@ def front_bamboo(surf, cx, body_top, half_w, body_h, deck_y, scale):
         j = 0.06 * math.sin(row * 1.7)
         top = lerp_color(CANE_HI, CANE, min(1.0, 0.15 + abs(j)))
         surf.blit(vgrad(r.w, r.h, 0, top, CANE_LO), r.topleft)
-        pygame.draw.line(surf, lerp_color(CANE_HI, WHITE, 0.35),
+        pygame.draw.line(surf, lerp_color(CANE_HI, WHITE, 0.30),
                          (r.left, r.top), (r.right, r.top), max(1, m(0.8)))
+        # DEEPER groove shadow between reeds (+~14%): a dark hairline plus a thin
+        # cast band below it so each reed reads as a rounded rod, not a flat stripe
         pygame.draw.line(surf, CANE_EDGE, (r.left, r.bottom),
-                         (r.right, r.bottom), max(1, m(0.8)))
+                         (r.right, r.bottom), max(1, m(1.1)))
+        groove = pygame.Surface((r.w, max(1, m(1.6))), pygame.SRCALPHA)
+        groove.fill((10, 7, 4, 105))
+        surf.blit(groove, (r.left, r.bottom))
         y += slat_h
         row += 1
     # vertical binding cords woven through the reeds (three tracks)
@@ -119,11 +152,18 @@ def front_bamboo(surf, cx, body_top, half_w, body_h, deck_y, scale):
                          max(1, m(1.2)))
         pygame.draw.line(surf, lerp_color(CANE_HI, WHITE, 0.2),
                          (vx - m(1), bl.top), (vx - m(1), bl.bottom), max(1, m(0.6)))
-    # heavier bottom weight bar (a rounded darker dowel)
-    wb = pygame.Rect(bl.left - m(1), bl.bottom - slat_h, bl.w + m(2), slat_h + m(1))
+    # heavier bottom weight bar (a rounded darker dowel), sitting proud of the
+    # reeds — the "pulled all the way down" tell
+    wb = pygame.Rect(bl.left - m(1), bl.bottom - int(slat_h * 1.4),
+                     bl.w + m(2), int(slat_h * 1.4) + m(1))
+    # a soft cast shadow of the weight bar onto the reeds just above it
+    wbsh = pygame.Surface((wb.w, m(4)), pygame.SRCALPHA)
+    for yy in range(m(4)):
+        wbsh.fill((8, 6, 4, int(90 * (1 - yy / m(4)))), (0, yy, wb.w, 1))
+    surf.blit(wbsh, (wb.left, wb.top - m(4)))
     surf.blit(vgrad(wb.w, wb.h, m(2), CANE, CANE_EDGE), wb.topleft)
-    pygame.draw.line(surf, lerp_color(CANE, WHITE, 0.3),
-                     (wb.left, wb.top + m(1)), (wb.right, wb.top + m(1)), max(1, m(1)))
+    pygame.draw.line(surf, lerp_color(CANE, WHITE, 0.35),
+                     (wb.left, wb.top + m(1)), (wb.right, wb.top + m(1)), max(1, m(1.2)))
     pygame.draw.rect(surf, CANE_EDGE, wb, width=max(1, m(1)), border_radius=m(2))
     # side pull-cords looping down from the eave to a little cleat on the right
     for side, sx in ((-1, bl.left + m(3)), (1, bl.right - m(3))):
@@ -132,64 +172,66 @@ def front_bamboo(surf, cx, body_top, half_w, body_h, deck_y, scale):
     # a small toggle knot at the base of each cord
     for sx in (bl.left + m(3), bl.right - m(3)):
         pygame.draw.circle(surf, CANE_LO, (sx, bl.bottom + m(4)), max(1, m(2)))
-    _dormant_veil(surf, bl, 0.12)
+    _dormant_veil(surf, bl, 0.15)
     # eave shadow across the top of the blind so it hangs UNDER the roof
-    pygame.draw.line(surf, (0, 0, 0, 140), (bl.left, bl.top),
+    pygame.draw.line(surf, (0, 0, 0, 150), (bl.left, bl.top),
                      (bl.right, bl.top), max(1, m(1.4)))
+    # bottom contact/edge shadow so the blind reads as drawn DOWN over the opening
+    _contact_shadow(surf, bl, scale)
 
 
 def front_boarded(surf, cx, body_top, half_w, body_h, deck_y, scale):
-    """2 BOARDED UP — weathered timber planks nailed DIAGONALLY across the opening
-    with an X cross-brace, hammered nail heads, and a dark unlit interior showing
-    through the gaps between boards. Tasteful (premium-shut), not a derelict ruin."""
+    """2 BOARDED UP — neat weathered timber shop-boards nailed HORIZONTALLY across
+    the opening (no diagonal X — that reads condemned/broken; horizontal reads
+    'boarded up for the season'), with clean hammered nail heads at each end, thin
+    dark gaps showing the unlit interior between boards, contained inside the
+    opening frame so the shared silhouette never changes. Premium-shut, not ruined."""
     op = _shut_interior(surf, cx, body_top, half_w, body_h)
-    PLK_HI = (176, 138, 92)
-    PLK = (138, 104, 64)
-    PLK_LO = (96, 70, 40)
-    PLK_EDGE = (58, 40, 20)
+    PLK_HI = (172, 134, 88)
+    PLK = (132, 98, 58)
+    PLK_LO = (90, 64, 36)
+    PLK_EDGE = (56, 38, 18)
 
-    def plank(x0, y0, x1, y1, wdt):
-        dx, dy = x1 - x0, y1 - y0
-        Ln = math.hypot(dx, dy) or 1
-        nx, ny = -dy / Ln, dx / Ln
-        quad = [(x0 + nx * wdt / 2, y0 + ny * wdt / 2),
-                (x1 + nx * wdt / 2, y1 + ny * wdt / 2),
-                (x1 - nx * wdt / 2, y1 - ny * wdt / 2),
-                (x0 - nx * wdt / 2, y0 - ny * wdt / 2)]
-        # cast shadow into the dark opening so the board reads as standing off it
-        sh = [(px + m(3), py + m(4)) for px, py in quad]
-        ss = pygame.Surface((DW, DH), pygame.SRCALPHA)
-        pygame.draw.polygon(ss, (0, 0, 0, 120), sh)
-        surf.blit(ss, (0, 0))
-        pygame.draw.polygon(surf, PLK, quad)
-        # lengthwise grain gradient (lit top edge)
-        pygame.draw.polygon(surf, PLK_EDGE, quad, width=max(1, m(1.4)))
-        pygame.draw.line(surf, lerp_color(PLK_HI, WHITE, 0.2), quad[0], quad[1],
-                         max(1, m(1.4)))
-        pygame.draw.line(surf, PLK_LO, quad[3], quad[2], max(1, m(1)))
-        # a couple of grain streaks + a knot for weathered character
-        mx0 = ((quad[0][0] + quad[3][0]) / 2, (quad[0][1] + quad[3][1]) / 2)
-        mx1 = ((quad[1][0] + quad[2][0]) / 2, (quad[1][1] + quad[2][1]) / 2)
-        pygame.draw.line(surf, PLK_LO, mx0, mx1, max(1, m(0.8)))
-        # hammered nail heads near each end
-        for (nxp, nyp) in (
-            (x0 + dx * 0.10, y0 + dy * 0.10),
-            (x1 - dx * 0.10, y1 - dy * 0.10),
-        ):
-            pygame.draw.circle(surf, (40, 34, 30), (int(nxp), int(nyp)), max(1, m(2)))
-            pygame.draw.circle(surf, (150, 150, 158),
+    # the boarding sits fully inside the opening frame (never overshoots)
+    L_ = op.left + m(3)
+    R_ = op.right - m(3)
+    field_t = op.top + m(4)
+    field_b = op.bottom - m(4)
+    field_h = field_b - field_t
+    n_boards = 5
+    gap = max(m(1.5), int(m(2) * scale))          # thin dark gap between boards
+    pw = (field_h - gap * (n_boards - 1)) / n_boards
+    for b in range(n_boards):
+        by = field_t + b * (pw + gap)
+        r = pygame.Rect(int(L_), int(by), int(R_ - L_), int(pw))
+        # a slight per-board value jitter so five boards read as reclaimed timber,
+        # not a single flat panel; each board a lit-top -> shaded-base gradient
+        jt = 0.10 * math.sin(b * 1.9)
+        surf.blit(vgrad(r.w, r.h, 0, lerp_color(PLK, PLK_HI, 0.5 + jt), PLK_LO),
+                  r.topleft)
+        # lit top edge + dark seated base so each board has round
+        pygame.draw.line(surf, lerp_color(PLK_HI, WHITE, 0.22),
+                         (r.left, r.top + max(1, m(0.6))),
+                         (r.right, r.top + max(1, m(0.6))), max(1, m(1)))
+        pygame.draw.line(surf, PLK_EDGE, (r.left, r.bottom - max(1, m(0.6))),
+                         (r.right, r.bottom - max(1, m(0.6))), max(1, m(1)))
+        # a faint lengthwise grain streak
+        gy = r.top + int(r.h * 0.6)
+        pygame.draw.line(surf, PLK_LO, (r.left + m(4), gy), (r.right - m(4), gy),
+                         max(1, m(0.7)))
+        # clean hammered nail heads near each end (steel dot + tiny highlight)
+        for nxp in (r.left + m(6), r.right - m(6)):
+            nyp = r.centery
+            pygame.draw.circle(surf, (34, 30, 28), (int(nxp), int(nyp)), max(1, m(2)))
+            pygame.draw.circle(surf, (170, 172, 180),
                                (int(nxp - m(0.6)), int(nyp - m(0.6))), max(1, m(1)))
-
-    L_, R_ = cx - half_w + m(8), cx + half_w - m(8)
-    T_, B_ = body_top + m(8), body_top + body_h - m(10)
-    pw = int(m(15) * scale)
-    # X cross-brace: two long diagonals corner-to-corner
-    plank(L_, T_, R_, B_, pw)
-    plank(L_, B_, R_, T_, pw)
-    # one near-horizontal board across the middle so it reads as "sealed", not
-    # just an X — three boards is the tasteful boarded-up read.
-    plank(L_, body_top + body_h * 0.42, R_, body_top + body_h * 0.50, pw)
-    _dormant_veil(surf, pygame.Rect(cx - half_w, body_top, half_w * 2, body_h), 0.10)
+    # a light frame lip around the boarded field so the boards sit INSET in the
+    # opening, reinforcing "sealed shut" over "planks slapped on the wall"
+    pygame.draw.rect(surf, (44, 30, 16), op, width=max(1, m(2)))
+    pygame.draw.line(surf, lerp_color(WOOD_HI, WHITE, 0.15),
+                     (op.left + m(1), op.top + m(1)),
+                     (op.right - m(1), op.top + m(1)), max(1, m(1)))
+    _dormant_veil(surf, op, 0.14)
 
 
 def front_dormant(surf, cx, body_top, half_w, body_h, deck_y, scale):
@@ -197,66 +239,82 @@ def front_dormant(surf, cx, body_top, half_w, body_h, deck_y, scale):
     ROLLED UP and tied in a tight bundle at the eave, the dome is gone, and the
     stall interior is a deep unlit empty shadow box. A few tie-cords + the furled
     roll are the only front features; the emptiness does the talking."""
-    # a deeper, emptier box than the others — this read leans on darkness
+    # a deeper, emptier box than the others — this read leans on darkness. The
+    # fill is cooled toward the dormant slate (not neutral black) so the whole
+    # opening reads "sealed behind, asleep" rather than an open unlit shelf.
     op = _shut_interior(surf, cx, body_top, half_w, body_h, deep=True)
-    # inner ambient occlusion: darken the top + sides of the empty box so it
-    # reads as a deep recess with light only barely reaching the near lip
+    coolfill = pygame.Surface((op.w, op.h), pygame.SRCALPHA)
+    coolfill.fill((*DORMANT_TINT, 60))
+    surf.blit(coolfill, op.topleft)
+    # inner ambient occlusion: darken the top + sides of the box so it reads as a
+    # deep recess with light only barely reaching the near lip
     ao = pygame.Surface((op.w, op.h), pygame.SRCALPHA)
     for y in range(op.h):
         t = y / op.h
-        a = int(120 * (1 - t) ** 1.3)
-        pygame.draw.line(ao, (0, 0, 0, a), (0, y), (op.w, y))
+        a = int(130 * (1 - t) ** 1.3)
+        pygame.draw.line(ao, (4, 5, 12, a), (0, y), (op.w, y))
     surf.blit(ao, op.topleft)
     for x in range(op.w):
         d = abs(x - op.w / 2) / (op.w / 2)
-        a = int(110 * d ** 2.0)
-        pygame.draw.line(surf, (0, 0, 0, a), (op.left + x, op.top),
+        a = int(115 * d ** 2.0)
+        pygame.draw.line(surf, (4, 5, 12, a), (op.left + x, op.top),
                          (op.left + x, op.bottom))
-    # a bare back shelf-line inside the empty box (a hint of a vacated counter)
-    shy = op.top + int(op.h * 0.66)
-    pygame.draw.line(surf, (40, 34, 44), (op.left + m(4), shy),
-                     (op.right - m(4), shy), max(1, m(1.2)))
-    pygame.draw.line(surf, (16, 14, 20), (op.left + m(4), shy + m(2)),
-                     (op.right - m(4), shy + m(2)), max(1, m(1)))
-    # the FURLED awning: a tight rolled bundle of the red/cream stripe tied under
-    # the eave. A horizontal rounded roll with stripe banding + two tie-cords.
-    roll_h = int(m(12) * scale)
+    # a pulled-across MEMBRANE sealing the lower opening: a taut dark canvas panel
+    # with a slack sag seam, so the box reads "sealed behind" — not an open shelf.
+    memb_t = op.top + int(op.h * 0.44)
+    for y in range(memb_t, op.bottom):
+        t = (y - memb_t) / max(1, op.bottom - memb_t)
+        col = lerp_color((26, 26, 38), (12, 13, 22), t)
+        pygame.draw.line(surf, col, (op.left, y), (op.right, y))
+    # the slack sag seam of the membrane (a shallow catenary dip) with a faint
+    # lit crest above it so the taut cloth reads as a physical pulled panel
+    seam_pts = []
+    for k in range(0, op.w + 1, max(1, m(3))):
+        xx = op.left + k
+        dip = math.sin(math.pi * k / op.w) * m(4)
+        seam_pts.append((xx, memb_t + int(dip)))
+    if len(seam_pts) > 1:
+        pygame.draw.lines(surf, (8, 8, 16), False, seam_pts, max(1, m(1.4)))
+        crest = [(px, py - m(1)) for px, py in seam_pts]
+        pygame.draw.lines(surf, (48, 50, 66), False, crest, max(1, m(0.8)))
+    # the FURLED, OFF-DUTY awning: a tight rolled bundle tied under the eave, but
+    # DIMMED + desaturated toward the dormant slate so it reads as a tied-off,
+    # not-in-use awning — never an active red/cream valance.
+    roll_h = int(m(11) * scale)
     roll = pygame.Rect(cx - half_w + m(2), body_top - m(1), half_w * 2 - m(4), roll_h)
-    # rolled cylinder: a vgrad barrel with vertical stripe hints wrapped around it
+    # muted stripe hues: red -> dusty maroon-slate, cream -> greyed sand
+    RED_OFF = lerp_color(lerp_color(AWN_RED_D, DORMANT_TINT, 0.42), NEAR_BLACK, 0.18)
+    CREAM_OFF = lerp_color(lerp_color(AWN_CREAM_D, DORMANT_TINT, 0.38), NEAR_BLACK, 0.10)
     surf.blit(vgrad(roll.w, roll.h, roll_h // 2,
-                    lerp_color(AWN_CREAM, WHITE, 0.15), AWN_RED_D), roll.topleft)
-    # stripe wraps around the furled roll (short vertical bands top->bottom)
+                    lerp_color(CREAM_OFF, NEAR_BLACK, 0.15), RED_OFF), roll.topleft)
     stripe_w = max(m(7), int(roll.w / 11))
     s = 0
     x = roll.left
     while x < roll.right:
-        c = AWN_RED if s % 2 == 0 else AWN_CREAM
+        c = RED_OFF if s % 2 == 0 else CREAM_OFF
         band = pygame.Rect(x, roll.top + m(1), stripe_w - max(1, m(1)), roll.h - m(2))
         bs = pygame.Surface((band.w, band.h), pygame.SRCALPHA)
-        # curved shading so each stripe reads as wrapped on the cylinder
         for by in range(band.h):
             t = by / max(1, band.h - 1)
-            # a soft cylindrical shade — kept high so the furled stripe stays a
-            # recognisable red/cream roll, not a muddy dark bar
-            shade = 0.72 - 0.28 * abs(t - 0.35)
-            col = lerp_color(NEAR_BLACK, c, min(1.0, shade + 0.28))
+            shade = 0.64 - 0.30 * abs(t - 0.35)
+            col = lerp_color(NEAR_BLACK, c, min(1.0, shade + 0.30))
             bs.fill((*col, 220), (0, by, band.w, 1))
         surf.blit(bs, band.topleft)
         x += stripe_w
         s += 1
-    # lit top of the roll + dark seated underside so the cylinder has volume
-    pygame.draw.line(surf, lerp_color(AWN_CREAM, WHITE, 0.4),
+    # a restrained (dimmer) lit top of the roll + dark seated underside
+    pygame.draw.line(surf, lerp_color(CREAM_OFF, WHITE, 0.22),
                      (roll.left + m(2), roll.top + m(1)),
-                     (roll.right - m(2), roll.top + m(1)), max(1, m(1.2)))
-    pygame.draw.rect(surf, (0, 0, 0, 150), roll, width=max(1, m(1.2)),
+                     (roll.right - m(2), roll.top + m(1)), max(1, m(1.0)))
+    pygame.draw.rect(surf, (0, 0, 0, 165), roll, width=max(1, m(1.2)),
                      border_radius=roll_h // 2)
     # two tie-cords cinching the furled roll to the eave
     for fx in (0.30, 0.70):
         tx = roll.left + int(roll.w * fx)
-        pygame.draw.line(surf, (54, 40, 24), (tx, roll.top - m(2)),
+        pygame.draw.line(surf, (48, 38, 24), (tx, roll.top - m(2)),
                          (tx, roll.bottom + m(2)), max(1, m(1.4)))
-        pygame.draw.circle(surf, (72, 54, 32), (tx, roll.bottom + m(2)), max(1, m(2)))
-    _dormant_veil(surf, op, 0.14)
+        pygame.draw.circle(surf, (62, 50, 32), (tx, roll.bottom + m(2)), max(1, m(2)))
+    _dormant_veil(surf, op, 0.15)
 
 
 def front_shutter(surf, cx, body_top, half_w, body_h, deck_y, scale):
@@ -264,12 +322,14 @@ def front_shutter(surf, cx, body_top, half_w, body_h, deck_y, scale):
     front: angled slats each catching a thin top light, a center vertical seam
     splitting a two-leaf shutter, and a frame around the opening. Crisp + premium."""
     op = _shut_interior(surf, cx, body_top, half_w, body_h)
-    FR_HI = (150, 112, 70)
-    FR = (112, 82, 48)
-    FR_LO = (74, 52, 28)
-    SLAT_HI = (162, 128, 82)
-    SLAT = (120, 92, 56)
-    SLAT_LO = (72, 52, 30)
+    # louver values pulled COOLER + DARKER than the warm thatch so the drawn-down
+    # shutter reads as a distinct shaded plane, not another brown roof mass.
+    FR_HI = (128, 104, 74)
+    FR = (92, 72, 50)
+    FR_LO = (58, 44, 28)
+    SLAT_HI = (140, 118, 86)
+    SLAT = (98, 82, 60)
+    SLAT_LO = (54, 44, 32)
     # frame around the shutter opening
     fr = pygame.Rect(cx - half_w + m(4), body_top + m(3),
                      half_w * 2 - m(8), body_h - m(8))
@@ -309,7 +369,9 @@ def front_shutter(surf, cx, body_top, half_w, body_h, deck_y, scale):
     pygame.draw.line(surf, lerp_color(FR_HI, WHITE, 0.3),
                      (fr.left + m(1), fr.top + m(1)),
                      (fr.right - m(1), fr.top + m(1)), max(1, m(1.4)))
-    _dormant_veil(surf, fr, 0.12)
+    _dormant_veil(surf, fr, 0.16)
+    # bottom contact/edge shadow so the shutter reads as drawn DOWN with a lip
+    _contact_shadow(surf, fr, scale)
 
 
 def front_curtain(surf, cx, body_top, half_w, body_h, deck_y, scale):
@@ -319,26 +381,43 @@ def front_curtain(surf, cx, body_top, half_w, body_h, deck_y, scale):
     op = _shut_interior(surf, cx, body_top, half_w, body_h)
     cv = pygame.Rect(cx - half_w + m(4), body_top + m(2),
                      half_w * 2 - m(8), body_h - m(6))
-    CANVAS_HI = (216, 196, 158)
-    CANVAS = (182, 158, 120)
-    CANVAS_LO = (128, 106, 76)
-    # a slightly sagging hem: build the curtain column by column so folds + the
-    # bottom scallop both come from the same vertical-fold field.
+    # WARM sun-bleached sand/ochre canvas (the cold grey read like corrugated
+    # metal) — a low-saturation warm sand that catches the golden hour.
+    CANVAS_HI = (224, 198, 148)      # sunlit sand crest
+    CANVAS = (196, 166, 116)         # body ochre
+    CANVAS_LO = (150, 120, 80)       # fold trough
+    # broad, soft folds (fewer, wider than before) so the cloth reads as hanging
+    # fabric, not tight ribs. A raised-cosine fold profile gives rounded crests.
     n = cv.w
-    fold_f = 2.0 * math.pi * 7 / n          # ~7 soft folds across the front
+    n_folds = 4
+    fold_f = 2.0 * math.pi * n_folds / n
     for xi in range(n):
         x = cv.left + xi
+        # rounded fold value: soft crest, softer trough (avoids the metal-rib look)
         fold = math.sin(xi * fold_f)
-        # shading across a fold: crests lit, troughs shaded
-        shade = 0.5 + 0.5 * fold
-        top = lerp_color(CANVAS_LO, CANVAS_HI, shade)
-        bot = lerp_color(CANVAS_LO, CANVAS, shade * 0.6)
-        # sag: the hem dips lower in the middle of the span + wobbles per fold
+        crest = (0.5 + 0.5 * fold) ** 1.4
+        top = lerp_color(CANVAS_LO, CANVAS_HI, crest)
+        bot = lerp_color(CANVAS_LO, CANVAS, crest * 0.7)
+        # sag: the hem dips lower toward the middle of the span + a per-fold wobble
         mid = (xi / n - 0.5)
-        sag = int((1.0 - 4 * mid * mid) * m(6)) + int((0.5 + 0.5 * fold) * m(2))
+        sag = int((1.0 - 4 * mid * mid) * m(7)) + int((0.5 + 0.5 * fold) * m(2))
         col_h = cv.h - m(2) + sag
         strip = vgrad(1, col_h, 0, top, bot)
         surf.blit(strip, (x, cv.top))
+    # 3 soft vertical fold HIGHLIGHTS catching the low sun on the crest ridges so
+    # the sheet reads as draped cloth. Placed on the fold crests, feathered.
+    for hk in range(n_folds):
+        # crest of fold hk sits three-quarters of a period in
+        hxp = cv.left + int((hk * n / n_folds) + (n / n_folds) * 0.75)
+        if hxp >= cv.right:
+            continue
+        hw = max(m(2), int(m(4) * scale))
+        hl = pygame.Surface((hw * 2, cv.h), pygame.SRCALPHA)
+        for gx in range(hw * 2):
+            fall = 1.0 - abs(gx - hw) / hw
+            a = int(90 * fall ** 1.6)
+            hl.fill((*lerp_color(CANVAS_HI, WHITE, 0.35), a), (gx, 0, 1, cv.h))
+        surf.blit(hl, (hxp - hw, cv.top))
     # heavy header band at the eave with grommets + short ties
     hdr = pygame.Rect(cv.left - m(1), cv.top - m(1), cv.w + m(2), int(m(9) * scale))
     surf.blit(vgrad(hdr.w, hdr.h, 0, lerp_color(CANVAS, WOOD_LO, 0.35),
@@ -359,13 +438,24 @@ def front_curtain(surf, cx, body_top, half_w, body_h, deck_y, scale):
         # a short lashing cord looping up over the eave rail
         pygame.draw.line(surf, (66, 50, 30), (gx, hdr.top),
                          (gx + m(1), hdr.top - m(3)), max(1, m(1)))
-    # soft fold seams painted over the field for extra cloth read
-    for k in range(1, 7):
-        fx = cv.left + int(cv.w * k / 7)
-        seam = pygame.Surface((max(1, m(1.2)), cv.h + m(6)), pygame.SRCALPHA)
-        seam.fill((60, 48, 34, 70))
+    # soft warm fold-trough seams painted over the field for extra cloth read
+    for k in range(1, n_folds):
+        fx = cv.left + int(cv.w * k / n_folds)
+        seam = pygame.Surface((max(1, m(1.4)), cv.h + m(8)), pygame.SRCALPHA)
+        seam.fill((72, 54, 34, 60))
         surf.blit(seam, (fx, cv.top))
-    _dormant_veil(surf, cv, 0.14)
+    _dormant_veil(surf, cv, 0.15)
+    # a soft sagging hem shadow along the bottom so the hanging cloth reads as a
+    # weighted drape meeting the deck, not a flat sheet. A prebuilt fading column
+    # shifted down by the mid-span sag so the shadow follows the hem's dip.
+    hh = m(7)
+    hemcol = pygame.Surface((1, hh), pygame.SRCALPHA)
+    for yy in range(hh):
+        hemcol.fill((8, 7, 12, int(140 * (yy / hh) ** 1.5)), (0, yy, 1, 1))
+    for xi in range(cv.w):
+        mid = (xi / cv.w - 0.5)
+        dip = int((1.0 - 4 * mid * mid) * m(3))
+        surf.blit(hemcol, (cv.left + xi, cv.bottom - hh + dip))
 
 
 CLOSED_FRONTS = {
@@ -553,13 +643,16 @@ def main():
     gap = 24
     margin = 34
     title_h = 64
-    # zoom strip
+    # zoom strip + a grayscale (colorblind) check strip below it
     zoom_h = 300
     zoom_gap = 20
+    gray_h = 200
+    gray_gap = 16
 
     row_w = n * tw + (n - 1) * gap
     sheet_w = margin * 2 + row_w
-    sheet_h = margin + title_h + th + zoom_gap + zoom_h + margin
+    sheet_h = (margin + title_h + th + zoom_gap + zoom_h
+               + gray_gap + gray_h + margin)
 
     # Build the sheet at 1x logical then supersample text via the SS font at m().
     # Simpler: build the sheet at device scale for crisp chrome, then this is the
@@ -608,6 +701,12 @@ def main():
                        (half_wp + 14) * 2, body_hp + 60)
     crop.clamp_ip(pygame.Rect(0, 0, tw, th))
 
+    def grayscale(src):
+        """Luminance-desaturate a surface so the AD can confirm each closed stall
+        still reads as CLOSED with colour stripped (pattern/value, not hue). Uses
+        pygame's built-in transform so the harness stays numpy-free."""
+        return pygame.transform.grayscale(src)
+
     x = margin
     y = margin + title_h
     for style in CLOSED_ORDER:
@@ -631,14 +730,25 @@ def main():
         zfr = pygame.Rect(zx - 3, zy - 3, zw + 6, zh + 6)
         pygame.draw.rect(sheet, (*GOLD_PALE, 90), zfr, width=2, border_radius=8)
         sheet.blit(zimg, (zx, zy))
+        # grayscale (colorblind) check of the same crop below the zoom
+        gsub = grayscale(sub)
+        gscale = min(tw / crop.w, gray_h / crop.h)
+        gw = int(crop.w * gscale)
+        gh = int(crop.h * gscale)
+        gimg = pygame.transform.smoothscale(gsub, (gw, gh))
+        gxp = x + (tw - gw) // 2
+        gyp = zy + zoom_h + gray_gap
+        gfr = pygame.Rect(gxp - 2, gyp - 2, gw + 4, gh + 4)
+        pygame.draw.rect(sheet, (150, 150, 158, 120), gfr, width=1, border_radius=6)
+        sheet.blit(gimg, (gxp, gyp))
         x += tw + gap
 
-    pygame.image.save(sheet, os.path.join(_HERE, "round_1@2x.png"))
+    pygame.image.save(sheet, os.path.join(_HERE, "round_2@2x.png"))
     half = pygame.transform.smoothscale(
         sheet, (sheet.get_width() // 2, sheet.get_height() // 2))
-    pygame.image.save(half, os.path.join(_HERE, "round_1.png"))
+    pygame.image.save(half, os.path.join(_HERE, "round_2.png"))
     print("SS =", SS, "tile =", tw, "x", th, "sheet =", sheet_w, "x", sheet_h)
-    print("saved round_1.png +  round_1@2x.png")
+    print("saved round_2.png +  round_2@2x.png")
 
 
 if __name__ == "__main__":
