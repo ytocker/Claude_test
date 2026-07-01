@@ -22,12 +22,15 @@ def _draw_tail(surf, cx, cy, bob, sway):
     # Cream stub, rearward-and-down from the rump
     pygame.draw.line(surf, CREAM_D, (ax, ay), (kx, ky), 3)
     pygame.draw.line(surf, CREAM,   (ax, ay), (kx, ky), 1)
+    # Dark outline ring keeps the knot from merging into the body's pink
+    # top-fringe band at 40px; drawn a touch larger so a 1px border survives.
+    _aaellipse(surf, PINK_D, (kx, ky), 5, 5)
     # Fat pink tassel knot with a darker core + top-left highlight
     _aaellipse(surf, PINK, (kx, ky), 4, 4)
-    pygame.draw.circle(surf, PINK_D, (kx, ky), 1)         # core
-    pygame.draw.circle(surf, CREAM, (kx - 1, ky - 1), 1)  # highlight
+    pygame.draw.circle(surf, PINK_D, (kx, ky), 1)             # core
+    pygame.draw.circle(surf, CREAM, (kx - 2, ky - 2), 2)      # highlight
     # Fanned strands: five spread ~40° below-and-back; only the tips sway.
-    tip_dx = sway * 2
+    tip_dx = sway * 3
     for base_dx in (-3, -2, -1, 0, 1):
         tx = int(kx + base_dx + tip_dx)
         ty = ky + 7
