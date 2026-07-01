@@ -1,14 +1,15 @@
 """TESLA CROWN — a Tesla-coil thunderbird whose head is the coil terminal.
 
 Inverts the usual bright-bird idea: the raptor body is a dark charcoal STAGE
-so the true hero — a corona-arc halo of lightning leaping off the crown — reads
-as the single brightest thing on screen. Arcs launch from a white-hot terminal
-knob on the skull, curl 12-16px above the head, and land back on the shoulders,
-forming a spark diadem. A 3-pass glow (wide add-halo, mid yellow, white core)
-keeps every arc luminous down to 40px, where the crown of sparks + the terminal
-knob are the whole identity. Wings and body stay near-black on purpose: contrast
-is what makes the electric crown pop, so nothing below competes with it. On the
-down-stroke frame the arcs bloom taller and brighter for a Tesla-snap pulse.
+so the true hero — a corona-arc crown of lightning — reads as the single
+brightest thing on screen. A short coil POST rises off the skull to a white-hot
+terminal knob (the one brightest point); four widely-spread arcs leap from it,
+curl high above the head, and land on the shoulders as a spiked diadem, while
+one legible arc per wingtip wires the circuit down into the wings. A 3-pass
+glow (thin add-halo, mid yellow, white core) keeps arcs luminous and SEPARATE
+down to 40px. Wings and body stay near-black with a razor dark edge so nothing
+below competes with the crown. The crown breathes tall on the power stroke and
+short on the up-stroke for an unmistakable Tesla-snap pulse across frames.
 """
 import math
 import pygame
@@ -35,6 +36,13 @@ TERMINAL_GOLD = (255, 192, 26)  # #FFC01A — terminal knob body
 OZONE_BLUE  = (127, 216, 255)   # #7FD8FF — single cool trace in the hottest arc
 STERNUM_OCHRE = (120, 90, 15)   # dim dark ochre — sternum texture, not a beacon
 DARK_NAVY   = (8, 10, 14)       # razor-sharp body edge for pale-blue day sky
+
+
+def _aaellipse_outline(surf, color, center, rx, ry, w=1):
+    """1px ellipse outline — used to lay a razor-sharp dark edge on the body."""
+    cx, cy = center
+    rect = pygame.Rect(int(cx - rx), int(cy - ry), int(rx * 2), int(ry * 2))
+    pygame.draw.ellipse(surf, color, rect, w)
 
 
 def _flap(a):
