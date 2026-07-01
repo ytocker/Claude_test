@@ -3,96 +3,104 @@
 Scratch exploration only; NOT registered in store_skins.BUILDERS, so production
 is untouched.
 
-Concept: a full soccer kit built on a deep-navy body block (jersey + shorts read
-as one dark torso mass) with three bright reads that survive the 40px downscale:
-(1) a chunky white club CREST with a single navy bar under one piping line,
-(2) white socks with a compressed navy DOUBLE-HOOP that keeps clear white gaps
-above the near-black cleats, and (3) the HERO PROP — a wide white CAPTAIN'S
-ARMBAND anchored on the navy shoulder with a single gold spine, brighter and
-wider than any garment stripe so it owns the read as "captain".
+Architecture: the jersey IS the body. Rather than pasting a flat jersey polygon
+over the scarlet macaw (which anchored to the head centre and skipped the belly),
+this recolours the body oval through the palette system — `_pal` + the
+`_build_parrot_with_palette` builder used for the ghost variants. The whole torso
+mass reads as a deep-navy kit, while the head stays macaw-red and the wings stay
+macaw-blue so it still reads as "a parrot dressed as a captain."
 
-At 40px, in order of value: the wide white armband + gold spine on the navy
-shoulder, the solid white crest on the navy chest, the white socks with their
-hoop gaps, then the near-black cleats. The navy body block is lifted off dark
-sky by a 1px lighter-navy garment outline. Pip's macaw head/beak/eye stay clear
-so it stays "parrot dressed as a captain."
+`_paint` then overlays only the garment detail that can't be a body recolour —
+white club crest, shorts, hooped socks, near-black cleats, and the HERO PROP: a
+wide white captain's armband with a gold spine on the near wing, the brightest,
+widest mark on the sprite so it owns the "captain" read at 40px.
 """
 import pygame
 
-from game import store_skins
-from game.store_skins import HX, HY, _poly
+from game.store_skins import HX, HY, CROWN_Y, _poly, _make_skin
+from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
+from game.draw import (
+    BIRD_RED, BIRD_BEAK, BIRD_BEAK_D, BIRD_WING, BIRD_WING_D, BIRD_TIP,
+)
 
-# Team navy — jersey + shorts share this so the torso reads as one dark block.
-NAVY      = (13, 32, 72)        # #0D2048 kit navy
-NAVY_D    = (8, 20, 40)         # #081428 shaded right half (roundness)
-NAVY_LINE = (26, 58, 112)       # #1A3A70 lighter-navy garment outline (lifts off dark sky)
-PIPING    = (230, 230, 255)     # cool white piping at the jersey top
-WHITE     = (240, 245, 255)     # #F0F5FF sock body / crest field
-GOLD      = (207, 181, 59)      # #CFB53B crest star / armband gold edge
-SOCK_COL  = WHITE
-HOOP_COL  = NAVY                # navy double-hoop at the sock top
-HOOP2_COL = NAVY_D
-CLEAT_COL = (28, 28, 36)        # #1C1C24 near-black cleats
-STRIPE_COL= (160, 168, 176)     # #A0A8B0 silver sole stripe
-ARMBAND   = (250, 251, 255)     # bright white captain's armband (brighter than piping)
+# Kit navy is the body palette — jersey, chest and belly are all one dark mass,
+# shaded so the recoloured torso still reads as a rounded body under the wing.
+_PAL = _pal(
+    tail=[(200, 30, 40), (240, 95, 40), (255, 160, 55), (255, 220, 80)],
+    tail_line=(170, 25, 25),
+    body_shadow=(6, 14, 40),
+    body_main=(13, 32, 72),
+    body_chest=(18, 44, 92),
+    body_belly=(10, 26, 62),
+    sheen=(50, 80, 150, 80),
+    wing_main=BIRD_WING,
+    wing_dark=BIRD_WING_D,
+    wing_tip=BIRD_TIP,
+    wing_secondary=(255, 200, 60),
+    wing_highlight=(170, 210, 255),
+    head_shadow=(150, 15, 20),
+    head_main=BIRD_RED,
+    head_cheek=(255, 130, 130),
+    head_crown=(255, 170, 170),
+    lens_frame=(255, 200, 50),
+    lens_body=(20, 20, 30),
+    lens_tint=(35, 55, 90, 130),
+    lens_glint=(255, 255, 255),
+    beak_main=BIRD_BEAK,
+    beak_dark=BIRD_BEAK_D,
+    beak_gloss=(255, 230, 150),
+    foot=BIRD_BEAK_D,
+)
+
+# Body centre in COMPOSITE space — the palette builder draws the body oval at
+# native (32, 32); +PARROT_DY (20) on y lands it at the composite anchor.
+BCX, BCY = 32, 52
+
+
+def _base(angle_deg):
+    return _build_parrot_with_palette(angle_deg, _PAL)
 
 
 def _paint(surf, _a):
-    # ── JERSEY — deep navy torso, held inside the base bird footprint (hem ~HY+23).
-    jersey = [(HX - 13, HY + 8), (HX - 14, HY + 18), (HX - 10, HY + 23),
-              (HX + 8, HY + 23), (HX + 11, HY + 18), (HX + 9, HY + 8)]
-    _poly(surf, NAVY, jersey)
-    # Darker navy down the off-side so the jersey reads as a rounded torso.
-    _poly(surf, NAVY_D, [(HX, HY + 8), (HX + 9, HY + 8), (HX + 11, HY + 18),
-                         (HX + 8, HY + 23), (HX, HY + 23)])
-    # 1px lighter-navy garment outline so the navy block separates from dark sky.
-    pygame.draw.polygon(surf, NAVY_LINE, jersey, 1)
+    # Lighter-navy piping across the top of the recoloured jersey — the sole
+    # collar cue, a single line so it never fights the crest for white pixels.
+    pygame.draw.line(surf, (26, 56, 128), (BCX - 13, BCY - 8), (BCX + 13, BCY - 8), 1)
 
-    # ONE horizontal piping line across the jersey top — the sole collar cue, so
-    # it never fights the crest for the same white pixels at 40px.
-    pygame.draw.line(surf, (200, 210, 240), (HX - 12, HY + 9), (HX + 10, HY + 9), 1)
+    # Club CREST on the left chest — a chunky white shield with one navy bar so
+    # it survives the 40px downscale as a solid white read on the navy torso.
+    shield = [(BCX - 10, BCY - 8), (BCX - 4, BCY - 8), (BCX - 4, BCY - 2),
+              (BCX - 7, BCY + 1), (BCX - 10, BCY - 2)]
+    _poly(surf, (255, 255, 255), shield)
+    pygame.draw.line(surf, (13, 32, 72), (BCX - 7, BCY - 7), (BCX - 7, BCY - 2), 1)
+    pygame.draw.polygon(surf, (13, 32, 72), shield, 1)
 
-    # Club CREST — a chunky white shield block that survives downscale, with ONE
-    # navy vertical bar as its only interior mark (a gold star at r=2 is gone at
-    # 40px, so drop it and let the crest read as a solid white shape).
-    shield = [(HX - 9, HY + 11), (HX - 1, HY + 11), (HX - 1, HY + 18),
-              (HX - 4, HY + 20), (HX - 9, HY + 18)]
-    _poly(surf, (240, 240, 255), shield)
-    pygame.draw.line(surf, NAVY, (HX - 5, HY + 12), (HX - 5, HY + 18), 1)
-    pygame.draw.polygon(surf, NAVY, shield, 1)
+    # SHORTS — same deep navy as the body, a lighter-navy outline so they
+    # separate from the recoloured torso above them.
+    shorts = pygame.Rect(BCX - 10, BCY + 7, 22, 11)
+    pygame.draw.ellipse(surf, (13, 32, 72), shorts)
+    pygame.draw.ellipse(surf, (26, 56, 128), shorts, 1)
 
-    # ── SHORTS — same navy as the jersey, crotch notch shows two leg tubes.
-    shorts = [(HX - 10, HY + 23), (HX - 11, HY + 29), (HX - 3, HY + 29),
-              (HX - 2, HY + 26), (HX, HY + 26), (HX + 1, HY + 29),
-              (HX + 7, HY + 29), (HX + 8, HY + 23)]
-    _poly(surf, NAVY, shorts)
-    # Shade the off-side leg tube for roundness.
-    _poly(surf, NAVY_D, [(HX + 1, HY + 29), (HX + 7, HY + 29), (HX + 8, HY + 23),
-                         (HX + 3, HY + 23)])
-    pygame.draw.polygon(surf, NAVY_LINE, shorts, 1)
+    # SOCKS — white body with a compressed navy DOUBLE-HOOP so clear white gaps
+    # survive above and between the hoops before the near-black cleat, otherwise
+    # the whole foot merges into one dark block at 40px.
+    for sx in (27, 35):
+        pygame.draw.line(surf, (255, 255, 255), (sx, BCY + 11), (sx, BCY + 17), 4)
+        pygame.draw.line(surf, (13, 32, 72), (sx, BCY + 12), (sx, BCY + 13), 4)
+        pygame.draw.line(surf, (13, 32, 72), (sx, BCY + 14), (sx, BCY + 15), 4)
 
-    # ── SOCKS — white body with a navy DOUBLE-HOOP compressed UP so a clear white
-    #    gap survives between the hoops and again below the second hoop before the
-    #    cleat, otherwise the whole foot merges into one dark block at 40px. The
-    #    white sock body is laid first so the two 2px navy hoops leave white in the
-    #    gaps (HY+31..33) and below (HY+35..37).
-    for sx in (HX - 7, HX + 3):
-        pygame.draw.line(surf, SOCK_COL, (sx, HY + 29), (sx, HY + 37), 4)
-        pygame.draw.line(surf, HOOP_COL, (sx, HY + 29), (sx, HY + 31), 4)   # hoop 1
-        pygame.draw.line(surf, HOOP2_COL, (sx, HY + 33), (sx, HY + 35), 4)  # hoop 2
+    # CLEATS — near-black boots with a silver sole stripe along the bottom edge.
+    for fx in (23, 31):
+        pygame.draw.rect(surf, (28, 28, 36), (fx, BCY + 13, 9, 5), border_radius=1)
+        pygame.draw.line(surf, (168, 168, 176),
+                         (fx, BCY + 17), (fx + 8, BCY + 17), 1)
 
-    # ── CLEATS — near-black boots with a silver sole stripe.
-    for fx in (HX - 11, HX - 1):
-        pygame.draw.rect(surf, CLEAT_COL, (fx, HY + 33, 10, 5), border_radius=2)
-        pygame.draw.line(surf, STRIPE_COL, (fx + 1, HY + 37), (fx + 9, HY + 37), 1)
-
-    # ── HERO PROP · CAPTAIN'S ARMBAND (drawn LAST) — a bold, WIDE white band
-    #    anchored inboard onto the navy shoulder (not the scarlet wing, where it
-    #    vanished), with a single gold spine down its length for the classic
-    #    captain's-armband read. No arc "C" and no hairline edge lines — both are
-    #    sub-pixel noise at 40px; the fat white band + one gold line own the read.
-    pygame.draw.line(surf, ARMBAND, (HX + 6, HY + 14), (HX + 15, HY + 20), 6)
-    pygame.draw.line(surf, GOLD, (HX + 7, HY + 15), (HX + 14, HY + 19), 1)
+    # HERO PROP · CAPTAIN'S ARMBAND (drawn LAST) — a bold, wide white band
+    # wrapping the near wing arm with a single gold spine. Brighter and wider
+    # than any garment stripe, so it owns the "captain" read at 40px.
+    ax, ay = BCX + 15, BCY - 3
+    pygame.draw.line(surf, (207, 181, 59), (ax - 2, ay - 6), (ax + 4, ay + 6), 8)
+    pygame.draw.line(surf, (255, 255, 255), (ax - 2, ay - 6), (ax + 4, ay + 6), 6)
+    pygame.draw.line(surf, (180, 150, 40), (ax - 1, ay - 5), (ax + 3, ay + 5), 1)
 
 
-build = store_skins._make_skin(_paint)
+build = _make_skin(_paint, base_fn=_base)
