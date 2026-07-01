@@ -1,145 +1,66 @@
-"""Soccer v4 D5 — THE ULTRA FAN.
+"""Soccer D5 — THE GOLDEN WHISTLE.
 
-The kit must read as fabric worn ON the bird, with a supporter scarf as the
-hero prop. The jersey is a horizontally-striped garment polygon clipped to the
-body taper (RED/WHITE/RED) with dark keylines separating the panels so it reads
-as sewn cloth, a bold gold crew collar sitting on a dark shadow ring, gold
-sleeve trims, keeper socks + dark boots below the hem, and a bobble hat on the
-crown. The purple/gold supporter scarf is knotted at the neck and drops two
-long fringed tails past the jersey hem — drawn LAST so it sits in front of the
-kit and owns the silhouette even at 40px.
+Pip the referee reimagined as a CHARACTER rather than a shirt. The scarlet
+macaw body stays visible in the centre; the costume is a stack of props that
+break the outline and read at 40px: an oversized YELLOW CARD brandished high
+on the far wing (the hero prop, drawn last so it sits in front), a fat GOLD
+ARMBAND wrapping the near wing arm, a silver WHISTLE on a dark cord at the
+throat, and 2-3 bold black/white referee accent STRIPES down each FLANK ONLY
+so the scarlet chest is never covered. Boots stay minimal so nothing competes
+with the card. The yellow card is the brightest, biggest element — it owns the
+read even downscaled.
 """
 import pygame
 from game.store_skins import HX, HY, CROWN_Y, _poly, _make_skin
 
-# Body centre in composite space — the limbs/garment hang off this, not the head.
+# Body centre in composite space — the flank stripes / props hang off this.
 BCX, BCY = 32, 52
 
-# Fabric reads as cloth only when every edge is a deliberate hue: stripe field,
-# dark-red garment outline, gold trims, and the supporter purple of the scarf.
-_STRIPE_RED = (200, 30, 30)
-_STRIPE_WHT = (238, 238, 242)
-_JERSEY_OUT = (120, 16, 16)
-_KEYLINE    = (100, 10, 10)          # dark panel seam between stripe bands
-_COLLAR_G   = (240, 190, 30)
-_COLLAR_SH  = (80, 10, 10)           # dark ring separating gold collar from red
-_HAT_RED    = (160, 20, 20)
-_HAT_RIM    = (90, 10, 10)
-_HAT_POM    = (240, 242, 248)
-_SCARF_GOLD = (240, 190, 30)
-_SCARF_PUR  = (95, 38, 158)
-_SCARF_FRNG = (220, 170, 20)
-_SOCK_D     = (40, 44, 52)
-_BOOT_D     = (26, 24, 32)
-_BOOT_S     = (200, 205, 215)
-_SHORTS_G   = (120, 124, 140)
-
-# Garment silhouette — torso that starts at the body edge (BCX-10) and flares to
-# a hem, used both to clip the stripe bands and to stroke the dark seam outline.
-jersey = [
-    (BCX - 10, HY + 7), (BCX - 12, HY + 17), (BCX - 8, HY + 23),
-    (HX + 8, HY + 23),  (HX + 11, HY + 18),  (HX + 9, HY + 8),
-]
-
-
-def _jersey_x_at_y(y):
-    """Left/right x of the garment polygon at a scanline y, so horizontal stripe
-    bands clip to the body taper instead of overflowing it. Left edge runs
-    (22,48)->(20,58)->(24,64); right edge (56,49)->(58,59)->(55,64)."""
-    # Left edge.
-    if y <= HY + 17:
-        t = max(0.0, min(1.0, (y - (HY + 7)) / 10.0))
-        lx = int(round(22 + (20 - 22) * t))
-    else:
-        t = max(0.0, min(1.0, (y - (HY + 17)) / 6.0))
-        lx = int(round(20 + (24 - 20) * t))
-    # Right edge.
-    if y <= HY + 18:
-        t = max(0.0, min(1.0, (y - (HY + 8)) / 10.0))
-        rx = int(round(56 + (58 - 56) * t))
-    else:
-        t = max(0.0, min(1.0, (y - (HY + 18)) / 5.0))
-        rx = int(round(58 + (55 - 58) * t))
-    return lx, rx
+# The card is the single brightest note; every other colour is held below it so
+# nothing steals the hero read. Stripes are pure ref black/white on the flanks.
+_CARD_Y  = (244, 213, 20)            # brandished yellow card (brightest note)
+_CARD_BD = (160, 140, 0)             # card border / dark keyline
+_SILVER  = (190, 196, 202)           # whistle body
+_GOLD    = (240, 190, 30)            # captain armband gold
+_GOLD_H  = (255, 220, 80)            # armband highlight
+_STR_B   = (20, 20, 20)              # ref black flank stripe
+_STR_W   = (240, 240, 240)           # ref white flank stripe
+_BOOT_D  = (26, 24, 32)              # minimal dark boots
 
 
 def _paint(surf, _a):
-    # 1 — knee-high keeper socks (shadow, sock body, contrast hoop) drawn first
-    #     so the garment hem sits over their tops. Socks extend below the hem
-    #     (HY+23) so they read as legs, not part of the jersey.
-    for fx in (HX - 9, HX + 1):
-        pygame.draw.line(surf, (30, 34, 42), (fx + 1, HY + 22), (fx + 1, HY + 27), 6)
-        pygame.draw.line(surf, _SOCK_D, (fx, HY + 22), (fx, HY + 27), 5)
-        pygame.draw.line(surf, (200, 205, 215), (fx - 1, HY + 24), (fx + 2, HY + 24), 2)
+    # 1 — FLANK STRIPES (drawn first, under the props): 2 bold black/white
+    #     vertical stripes down each flank ONLY. The scarlet centre between the
+    #     two flank pairs stays untouched so the body reads as Pip, not a shirt.
+    # Left flank.
+    pygame.draw.line(surf, _STR_B, (BCX - 10, HY + 5), (BCX - 9, HY + 20), 3)
+    pygame.draw.line(surf, _STR_W, (BCX - 6, HY + 5), (BCX - 5, HY + 20), 2)
+    # Right flank.
+    pygame.draw.line(surf, _STR_B, (HX + 5, HY + 5), (HX + 6, HY + 20), 3)
+    pygame.draw.line(surf, _STR_W, (HX + 9, HY + 5), (HX + 10, HY + 20), 2)
 
-    # 2 — boots at the foot of each sock: dark ellipse with a light sole stripe.
-    for fx in (HX - 9, HX + 1):
-        pygame.draw.ellipse(surf, _BOOT_D, (fx - 4, HY + 25, 9, 5))
-        pygame.draw.line(surf, _BOOT_S, (fx - 3, HY + 28), (fx + 3, HY + 28), 1)
+    # 2 — minimal dark boots at the feet so nothing balloons the silhouette and
+    #     the card keeps the read.
+    for fx in (HX - 7, HX + 3):
+        pygame.draw.ellipse(surf, _BOOT_D, (fx - 4, HY + 24, 9, 5))
 
-    # 3 — grey match shorts band across the hip, tucked under the jersey hem.
-    pygame.draw.line(surf, _SHORTS_G, (BCX - 8, HY + 23), (HX + 8, HY + 23), 4)
+    # 3 — WHISTLE NECKLACE: a dark cord arc under the chin, then a small
+    #     horizontal silver whistle with its hole — the referee's tell at the
+    #     throat, kept off the scarlet chest centre by riding low on the neck.
+    pygame.draw.arc(surf, (60, 50, 40), pygame.Rect(HX - 8, HY - 2, 16, 12), 3.7, 5.8, 1)
+    pygame.draw.rect(surf, _SILVER, (HX - 3, HY + 6, 7, 4), border_radius=2)
+    pygame.draw.circle(surf, (100, 100, 110), (HX, HY + 8), 2)
 
-    # 4 — horizontally-striped jersey, each band clipped to the garment taper so
-    #     the stripes fill the FULL polygon width at every scanline.
-    stripe_defs = [
-        (_STRIPE_RED, HY + 7,  HY + 13),
-        (_STRIPE_WHT, HY + 13, HY + 18),
-        (_STRIPE_RED, HY + 18, HY + 23),
-    ]
-    for color, y0, y1 in stripe_defs:
-        lx0, rx0 = _jersey_x_at_y(y0)
-        lx1, rx1 = _jersey_x_at_y(y1)
-        band = [(lx0, y0), (rx0, y0), (rx1, y1), (lx1, y1)]
-        _poly(surf, color, band)
+    # 4 — GOLD ARMBAND on the near (right) wing arm: a thick captain's band with
+    #     a bright highlight so it reads as metal, not a flat stripe, at 40px.
+    pygame.draw.line(surf, _GOLD, (HX + 4, BCY - 6), (HX + 12, BCY - 4), 5)
+    pygame.draw.line(surf, _GOLD_H, (HX + 5, BCY - 7), (HX + 11, BCY - 5), 2)
 
-    # 5 — dark keylines between the bands so the kit reads as sewn fabric panels,
-    #     not a flat printed flag.
-    for ky in (HY + 13, HY + 18):
-        lx, rx = _jersey_x_at_y(ky)
-        pygame.draw.line(surf, _KEYLINE, (lx, ky), (rx, ky), 1)
-
-    # 6 — dark-red garment outline that makes the cloth a sewn object.
-    pygame.draw.polygon(surf, _JERSEY_OUT, jersey, 2)
-
-    # 7 — white stitched seam, legible where it crosses the red stripes.
-    pygame.draw.line(surf, (240, 242, 248), (HX - 1, HY + 11), (HX, HY + 21), 1)
-
-    # 8 — gold sleeve trims at the shoulder line.
-    pygame.draw.line(surf, _COLLAR_G, (BCX - 10, HY + 12), (BCX - 3, HY + 12), 2)
-    pygame.draw.line(surf, _COLLAR_G, (HX + 4, HY + 12), (HX + 10, HY + 12), 2)
-
-    # 9 — bobble hat on the crown (a dome, not a headband) — stays above HY+8.
-    pygame.draw.ellipse(surf, _HAT_RIM, (HX - 10, CROWN_Y - 2, 20, 8), 2)
-    pygame.draw.ellipse(surf, _HAT_RED, (HX - 9, CROWN_Y - 5, 18, 9))
-    pygame.draw.line(surf, (200, 60, 60), (HX - 5, CROWN_Y - 4), (HX + 2, CROWN_Y - 4), 2)
-    pygame.draw.circle(surf, _HAT_POM, (HX - 2, CROWN_Y - 9), 4)
-    pygame.draw.circle(surf, (255, 255, 255), (HX - 3, CROWN_Y - 10), 2)
-
-    # 10 — bold gold crew-neck collar ring sitting on a dark shadow ring so the
-    #      gold separates crisply from the red jersey below it.
-    collar_rect = pygame.Rect(HX - 7, HY + 4, 15, 9)
-    pygame.draw.ellipse(surf, _COLLAR_SH, collar_rect.inflate(2, 2), 1)
-    pygame.draw.ellipse(surf, _COLLAR_G, collar_rect, 3)
-
-    # 11 — supporter scarf, drawn LAST so it reads as the hero prop in FRONT of
-    #      the kit: a WIDE knotted neck band, then two long fringed tails that
-    #      hang past the jersey hem so the scarf dominates the silhouette.
-    # Wide neck loop.
-    pygame.draw.line(surf, _SCARF_GOLD, (HX - 8, HY + 6), (HX + 6, HY + 6), 6)
-    pygame.draw.line(surf, _SCARF_PUR, (HX - 7, HY + 8), (HX + 5, HY + 8), 5)
-
-    # Left tail — thick gold with a purple stripe, extending past the hem.
-    pygame.draw.line(surf, _SCARF_GOLD, (HX - 5, HY + 9), (HX - 15, HY + 24), 5)
-    pygame.draw.line(surf, _SCARF_PUR, (HX - 6, HY + 11), (HX - 14, HY + 24), 3)
-    for j in (0, 2, 4):
-        pygame.draw.line(surf, _SCARF_FRNG, (HX - 15 + j, HY + 24), (HX - 15 + j, HY + 27), 1)
-
-    # Right tail — thick gold with a purple stripe, extending past the hem.
-    pygame.draw.line(surf, _SCARF_GOLD, (HX + 2, HY + 9), (HX + 12, HY + 24), 5)
-    pygame.draw.line(surf, _SCARF_PUR, (HX + 3, HY + 11), (HX + 11, HY + 24), 3)
-    for j in (0, 2, 4):
-        pygame.draw.line(surf, _SCARF_FRNG, (HX + 8 + j, HY + 24), (HX + 8 + j, HY + 27), 1)
+    # 5 — YELLOW CARD brandished high on the far (left) wing — drawn LAST so it
+    #     sits in FRONT of everything. The single biggest/brightest shape: it
+    #     must read immediately at 40px as a ref holding a card aloft.
+    pygame.draw.rect(surf, _CARD_Y, (BCX - 18, BCY - 14, 10, 14), border_radius=1)
+    pygame.draw.rect(surf, _CARD_BD, (BCX - 18, BCY - 14, 10, 14), 1)
 
 
 build = _make_skin(_paint)
