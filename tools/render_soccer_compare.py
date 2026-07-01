@@ -20,11 +20,7 @@ from game.hud import _font, _GOLD_PALE, _GOLD_DEEP
 
 COLUMNS = [
     ("ORIGINAL", "OLD SOCCER", "orig"),
-    ("DESIGN 1", "ARGENTINA", "design_1"),
-    ("DESIGN 2", "BRAZIL", "design_2"),
-    ("DESIGN 3", "JUVENTUS", "design_3"),
-    ("DESIGN 4", "NETHERLANDS", "design_4"),
-    ("DESIGN 5", "GERMANY", "design_5"),
+    ("POLISHED", "THE STRIKER", "design_1"),
 ]
 
 
@@ -45,7 +41,7 @@ sheet = pygame.Surface((sheet_w, sheet_h))
 sheet.fill((18, 16, 28))
 
 title = _font(28, True).render(
-    "SOCCER REDESIGN — ORIGINAL vs. 5 NEW DESIGNS (in gameplay)", True, _GOLD_PALE)
+    "SOCCER REDESIGN — ORIGINAL vs. POLISHED STRIKER (in gameplay)", True, _GOLD_PALE)
 sheet.blit(title, title.get_rect(midtop=(sheet_w // 2, 24)))
 
 name_font = _font(14, True)
