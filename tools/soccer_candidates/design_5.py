@@ -1,10 +1,11 @@
-"""Soccer v8 Design 5 — JUVENTUS (Bianconeri).
+"""Soccer v8 Design 5 — JUVENTUS (Bianconeri) — R2 revision.
 
-Inspired by Juventus's iconic bianconeri kit: the body oval is split vertically
-into a white left half and a black right half — the most recognisable vertical
-half-and-half in football. Palette base is white; the _paint pass clips to the
-right half and fills it black. A black slash-collar and tiny circular crest pip
-on the white side complete the kit. Black shorts and white+black-hoop socks.
+The R1 half-split (white left / black right) read as damage or glitch at 40px
+rather than a football kit. This revision uses alternating black-white vertical
+stripes across the full body oval (3 black + 2 white gaps = 5-band pattern),
+which is immediately recognisable as the Juventus bianconeri kit and reads as
+fabric, not a broken sprite. Palette base stays white; the _paint pass clips to
+the oval and paints 3 black bands. Black shorts and black-hooped socks.
 """
 import pygame
 
@@ -51,23 +52,22 @@ def _base(angle_deg):
 
 
 def _paint(surf, _a):
-    # Bianconeri split: clip to body oval, paint the right half pure black.
-    # The left half stays white from the palette, giving the clean 50/50 halves.
+    # Bianconeri stripe pattern: white palette base + 3 black vertical bands
+    # clipped to the body oval. White|Black|White|Black|White|Black|White =
+    # alternating ~5 px bands across the 38 px oval width.
     clip_prev = surf.get_clip()
-    surf.set_clip(pygame.Rect(BCX, BCY - 14, 19, 28))
-    pygame.draw.rect(surf, _BLACK, (BCX, BCY - 14, 19, 28))
+    surf.set_clip(pygame.Rect(BCX - 19, BCY - 14, 38, 28))
+    for x in (BCX - 14, BCX - 3, BCX + 8):
+        pygame.draw.rect(surf, _BLACK, (x, BCY - 14, 5, 28))
     surf.set_clip(clip_prev)
     pygame.draw.ellipse(surf, _BLACK, (BCX - 19, BCY - 14, 38, 28), 1)
 
-    # Black vertical seam at the split centre — marks the dividing line clearly.
-    pygame.draw.line(surf, _BLACK, (BCX, BCY - 14), (BCX, BCY + 14), 1)
-
-    # Black crew collar — a thin band at the head-body junction in black.
+    # Black crew collar band.
     pygame.draw.line(surf, _BLACK, (BCX - 7, BCY - 12), (BCX + 9, BCY - 12), 2)
 
-    # Gold crest badge on the white left side.
-    pygame.draw.circle(surf, _BLACK, (BCX - 5, BCY - 5), 4)
-    pygame.draw.circle(surf, _GOLD, (BCX - 5, BCY - 5), 3)
+    # Gold crest badge on the first white stripe (left chest).
+    pygame.draw.circle(surf, _BLACK_M, (BCX - 8, BCY - 5), 5)
+    pygame.draw.circle(surf, _GOLD, (BCX - 8, BCY - 5), 4)
 
     # Sleeve seam arcs at wing roots.
     pygame.draw.line(surf, _BLACK, (BCX + 8, BCY - 11), (BCX + 17, BCY - 5), 1)

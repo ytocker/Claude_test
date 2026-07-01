@@ -16,8 +16,8 @@ from game.draw import (
 
 _GOLD    = (255, 213,   0)
 _GOLD_D  = (200, 160,   0)
-_GREEN   = (  0, 150,  57)
-_GREEN_D = (  0, 100,  35)
+_GREEN   = (  0, 175,  65)
+_GREEN_D = (  0, 120,  42)
 _BLUE    = (  3,  67, 155)
 _BLUE_D  = (  1,  45, 110)
 _WHITE   = (245, 245, 250)
@@ -62,9 +62,10 @@ def _paint(surf, _a):
     # Green shoulder-trim band across the collar line.
     pygame.draw.line(surf, _GREEN_D, (BCX - 6, BCY - 12), (BCX + 8, BCY - 12), 3)
 
-    # CBF-style circular crest badge on upper chest.
-    pygame.draw.circle(surf, _GREEN, (BCX + 5, BCY - 4), 5)
-    pygame.draw.circle(surf, _GOLD, (BCX + 5, BCY - 4), 3)
+    # CBF-style circular crest badge on upper chest — enlarged to survive 40px.
+    pygame.draw.circle(surf, _GREEN_D, (BCX + 5, BCY - 4), 7)
+    pygame.draw.circle(surf, _GREEN, (BCX + 5, BCY - 4), 6)
+    pygame.draw.circle(surf, _GOLD, (BCX + 5, BCY - 4), 4)
     pygame.draw.circle(surf, _BLUE, (BCX + 5, BCY - 4), 2)
 
     # Sleeve seam arcs at wing roots.

@@ -16,8 +16,8 @@ from game.draw import (
 
 _ORA    = (225,  88,   0)
 _ORA_D  = (170,  60,   0)
-_NAVY   = (  0,  30,  80)
-_NAVY_D = (  0,  18,  50)
+_NAVY   = (  0,  22,  68)   # true navy (KNVB blue)
+_NAVY_D = (  0,  12,  40)
 _GOLD   = (240, 180,  20)
 _SCK    = (225,  88,   0)
 _SCK_H  = (  0,  30,  80)
@@ -52,12 +52,14 @@ def _paint(surf, _a):
     # Navy body-oval border — gives the orange jersey a crisp dark edge.
     pygame.draw.ellipse(surf, _NAVY, (BCX - 19, BCY - 14, 38, 28), 2)
 
-    # Navy V-collar: two lines meeting at a point just below the head.
-    pygame.draw.line(surf, _NAVY, (BCX - 6, BCY - 12), (BCX + 2, BCY - 8), 3)
-    pygame.draw.line(surf, _NAVY, (BCX + 8, BCY - 12), (BCX + 2, BCY - 8), 3)
+    # Navy collar band — a solid 4px band across the neck separates the orange
+    # body from the macaw-red head so the two reds don't muddy each other.
+    pygame.draw.line(surf, _NAVY_D, (BCX - 8, BCY - 13), (BCX + 10, BCY - 13), 4)
+    pygame.draw.line(surf, _NAVY, (BCX - 8, BCY - 12), (BCX + 10, BCY - 12), 4)
 
-    # Navy shoulder/cuff trim at the jersey top (collar band).
-    pygame.draw.line(surf, _NAVY_D, (BCX - 6, BCY - 12), (BCX + 8, BCY - 12), 3)
+    # Navy V-collar: two lines meeting at a point just below the collar band.
+    pygame.draw.line(surf, _NAVY, (BCX - 5, BCY - 10), (BCX + 2, BCY - 7), 2)
+    pygame.draw.line(surf, _NAVY, (BCX + 7, BCY - 10), (BCX + 2, BCY - 7), 2)
 
     # Stylised crest — a small gold shield on the orange upper chest.
     _poly(surf, _NAVY, [(BCX + 3, BCY - 9), (BCX + 7, BCY - 9),
