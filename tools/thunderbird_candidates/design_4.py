@@ -1,10 +1,12 @@
 """NIGHT THUNDER — thunderbird skin candidate (Design 4).
 
-A nocturnal, brooding raptor: deep-indigo body cracked by pale static
-lightning-scar veins, lit by two glowing violet eyes (the 40px tell), with
-storm-grey ragged wingtips. Scars are STATIC (identical every frame) so the
-bird reads as scarred, not animated — except a rare quiet flash on the
-power-flap frame (frame 0, wing_angle=50) where the scars brighten.
+A nocturnal, brooding raptor: a clean dark night-indigo silhouette cracked by
+pale static lightning-scar veins, lit by two glowing violet eyes (the 40px
+tell). Wings collapse to a dark mass with only an electric-violet rim on the
+leading edge, so at 40px the read is "dark raptor with lit eyes + scars", never
+a grey smudge. Scars are STATIC (identical every frame) so the bird reads as
+scarred, not animated — except a rare quiet flash on the power-flap frame
+(frame 0, wing_angle=50) where the scars brighten and halo.
 
 Scratch exploration builder — wrapped by the ninja_render harness, never
 registered in store_skins.BUILDERS.
@@ -16,15 +18,17 @@ from game.parrot import _WING_ANGLES, _add_outline, _aaellipse
 
 COMPOSITE_W, COMPOSITE_H = 64, 84
 BCX, BCY = 32, 44
-HCX, HCY = 44, 34
+# Head/beak pushed forward for a directional raptor lean.
+HCX, HCY = 47, 33
 CROWN_Y = 24
 
-# Night-storm palette.
-NIGHT_INDIGO  = (23, 16, 41)     # #171029 — darkest body base
-VIOLET_SHADOW = (59, 42, 99)     # #3B2A63 — mid violet
-ELECTRIC      = (124, 91, 214)   # #7C5BD6 — glow + scar accent
-STORM_GREY    = (90, 100, 114)   # #5A6472 — ragged wingtips
-SCAR_PALE     = (231, 220, 255)  # #E7DCFF — lightning scars
+# Night-storm palette — grey dropped entirely; the whole bird lives in indigo.
+NIGHT_INDIGO  = (23, 16, 41)     # #171029 — darkest body + wing base
+VIOLET_SHADOW = (59, 42, 99)     # #3B2A63 — mid violet body cap
+ELECTRIC      = (124, 91, 214)   # #7C5BD6 — eyes + wing rim + scar + crest edge
+SCAR_PALE     = (231, 220, 255)  # #E7DCFF — hero lightning scars
+# A cool 1px cold-highlight (the only "storm grey", never a fill).
+COOL_HILITE   = (150, 158, 185)
 
 
 def _flap(a):
@@ -35,61 +39,59 @@ def _strike(a):
     return 1.0 - _flap(a)
 
 
-def _glow_dot(surf, center, radius, color, layers=4):
+def _glow_dot(surf, center, radius, color, layers=4, peak=46):
     """Soft additive violet aura — stacked translucent discs so the storm
     haze reads without a hard edge."""
     cx, cy = center
     for i in range(layers, 0, -1):
         r = radius * i / layers
-        a = int(46 * (1 - (i - 1) / layers))
+        a = int(peak * (1 - (i - 1) / layers))
         g = pygame.Surface((int(r * 2 + 2), int(r * 2 + 2)), pygame.SRCALPHA)
         pygame.draw.circle(g, (*color, a), (int(r + 1), int(r + 1)), int(r))
         surf.blit(g, (cx - r - 1, cy - r - 1), special_flags=pygame.BLEND_RGBA_ADD)
 
 
 def _wing(angle_deg, strike):
-    """Ragged storm wing: violet inner feathers fading to jagged storm-grey
-    outer tips, with a faint electric rim along the leading edge."""
+    """Dark storm wing: a single clean night-indigo silhouette so it collapses
+    to a dark mass at 40px, with only an electric-violet rim on the leading
+    edge (brighter on the strike) and a 1px cool cold-highlight."""
     w = pygame.Surface((52, 52), pygame.SRCALPHA)
 
-    # Inner violet plane (anchored at the shoulder, spread out and back).
-    inner = [(26, 27), (44, 15), (49, 27), (40, 36), (24, 40)]
-    pygame.draw.polygon(w, VIOLET_SHADOW, inner)
+    # One dark indigo plane — no grey, no busy inner planes to muddy the read.
+    plane = [(26, 27), (44, 14), (50, 26), (41, 37), (24, 40)]
+    pygame.draw.polygon(w, NIGHT_INDIGO, plane)
 
-    # Ragged storm-grey outer tips — a jagged saw edge instead of a clean arc.
-    tips = [(44, 15), (49, 27), (40, 36),
-            (46, 33), (43, 27), (48, 22), (44, 19)]
-    pygame.draw.polygon(w, STORM_GREY, [(44, 15), (49, 27), (46, 33),
-                                        (50, 30), (47, 24), (51, 20)])
-    pygame.draw.polygon(w, STORM_GREY, [(40, 36), (49, 27), (44, 34)])
+    # Faint violet-shadow feather hint low on the plane (kept dark, subtle).
+    pygame.draw.polygon(w, VIOLET_SHADOW, [(26, 29), (40, 34), (24, 39)])
 
-    # Dark underside shadow to seat the wing against the body.
-    pygame.draw.polygon(w, NIGHT_INDIGO, [(26, 27), (40, 36), (24, 40)])
-
-    # Feather dividers in mid violet.
-    pygame.draw.line(w, VIOLET_SHADOW, (28, 29), (44, 18), 2)
-    pygame.draw.line(w, VIOLET_SHADOW, (29, 33), (45, 25), 2)
-
-    # Faint electric rim-light along the leading edge — brighter on the strike.
-    rim_a = int(110 + 90 * strike)
+    # Electric rim-light on the LEADING EDGE only — the wing's whole read.
+    rim_a = int(150 + 90 * strike)
     rim = pygame.Surface((52, 52), pygame.SRCALPHA)
-    pygame.draw.line(rim, (*ELECTRIC, rim_a), (27, 27), (44, 15), 2)
+    pygame.draw.line(rim, (*ELECTRIC, rim_a), (27, 27), (44, 14), 2)
+    pygame.draw.line(rim, (*ELECTRIC, rim_a), (44, 14), (50, 26), 2)
+    # A single 1px cool cold-highlight just inside the rim.
+    pygame.draw.line(rim, (*COOL_HILITE, 90), (30, 27), (44, 16), 1)
     w.blit(rim, (0, 0))
 
     return pygame.transform.rotate(w, angle_deg)
 
 
-def _scar(surf, pts, bright):
+def _scar(surf, pts, bright, hero=False):
     """A single hairline lightning-scar polyline. `bright` toggles the quiet
-    power-flap flash (higher alpha + paler colour)."""
-    col = SCAR_PALE if bright else ELECTRIC
-    a = 235 if bright else 150
+    power-flap flash (higher alpha + paler colour + halo). `hero` forces the
+    pale scar colour and a resting alpha high enough to survive at 40px."""
+    if bright:
+        col, a = SCAR_PALE, 240
+    elif hero:
+        col, a = SCAR_PALE, 200
+    else:
+        col, a = ELECTRIC, 200
     scar = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
     pygame.draw.lines(scar, (*col, a), False, pts, 1)
     if bright:
         # A faint halo so the flash feels like light, not a repaint.
         glow = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-        pygame.draw.lines(glow, (*ELECTRIC, 70), False, pts, 3)
+        pygame.draw.lines(glow, (*ELECTRIC, 80), False, pts, 3)
         surf.blit(glow, (0, 0))
     surf.blit(scar, (0, 0))
 
@@ -108,39 +110,49 @@ def _build_frame(wing_angle_deg):
     # --- Dim violet body aura ---
     _glow_dot(surf, (BCX, BCY + 2), 20, ELECTRIC, layers=4)
 
-    # --- Talons: charcoal claws over a cold violet glow circle ---
-    _glow_dot(surf, (BCX - 2, BCY + 20), 7, ELECTRIC, layers=3)
-    for tx in (BCX - 6, BCX - 1, BCX + 4):
-        pygame.draw.line(surf, (44, 44, 54), (tx, BCY + 14), (tx, BCY + 22), 2)
-        pygame.draw.line(surf, (28, 28, 38), (tx, BCY + 22), (tx - 2, BCY + 25), 2)
+    # --- Talons: small electric-violet claws tucked under the body, echoing
+    # the eye colour — a tight glow, no hanging blob ---
+    _glow_dot(surf, (BCX, BCY + 14), 4, ELECTRIC, layers=3, peak=36)
+    for tx in (BCX - 4, BCX, BCX + 4):
+        pygame.draw.line(surf, ELECTRIC, (tx, BCY + 11), (tx, BCY + 15), 2)
+        pygame.draw.line(surf, ELECTRIC, (tx, BCY + 15), (tx - 1, BCY + 17), 2)
+        pygame.draw.line(surf, NIGHT_INDIGO, (tx, BCY + 10), (tx, BCY + 12), 1)
 
-    # --- Body: deep indigo base with a lighter violet cap ---
-    _aaellipse(surf, NIGHT_INDIGO, (BCX, BCY + 2), 16, 17)
+    # --- Body: deep indigo base with a lighter violet cap. Lower ellipse is
+    # narrowed and the whole mass leans toward the beak for a raptor wedge ---
+    _aaellipse(surf, NIGHT_INDIGO, (BCX + 1, BCY + 2), 16, 17)
     # Lighter violet cap (upper body catches the storm light).
     cap = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    _aaellipse(cap, VIOLET_SHADOW, (BCX, BCY - 3), 14, 11)
+    _aaellipse(cap, VIOLET_SHADOW, (BCX + 2, BCY - 3), 14, 11)
     surf.blit(cap, (0, 0))
-    # Chest belly darker to keep the base heavy and brooding.
-    _aaellipse(surf, NIGHT_INDIGO, (BCX - 1, BCY + 8), 11, 9)
+    # Narrower, forward-set belly so the outline is a forward-lean wedge.
+    _aaellipse(surf, NIGHT_INDIGO, (BCX + 1, BCY + 8), 9, 9)
 
-    # --- Static lightning-scar veins branching across the chest ---
-    _scar(surf, [(BCX - 8, BCY - 4), (BCX - 3, BCY + 1),
-                 (BCX - 5, BCY + 5), (BCX + 1, BCY + 10)], flash)
-    _scar(surf, [(BCX - 3, BCY + 1), (BCX + 4, BCY - 2),
-                 (BCX + 3, BCY + 4), (BCX + 8, BCY + 3)], flash)
-    _scar(surf, [(BCX + 4, BCY - 2), (BCX + 9, BCY - 6)], flash)
+    # --- Static lightning-scar veins branching across the chest. At least one
+    # HERO pale scar survives on every frame; the f0 flash brightens them all ---
+    _scar(surf, [(BCX - 7, BCY - 4), (BCX - 2, BCY + 1),
+                 (BCX - 4, BCY + 5), (BCX + 2, BCY + 10)], flash, hero=True)
+    _scar(surf, [(BCX - 2, BCY + 1), (BCX + 5, BCY - 2),
+                 (BCX + 4, BCY + 4), (BCX + 9, BCY + 3)], flash)
+    _scar(surf, [(BCX + 5, BCY - 2), (BCX + 10, BCY - 6)], flash)
 
-    # --- Head: sharp swept-back blade crest ---
-    # Crest shards — thin polygons angled back and up from the crown.
-    crest_col = VIOLET_SHADOW
-    for (bx, by, tx, ty, w0) in ((HCX - 6, CROWN_Y + 4, HCX - 15, CROWN_Y - 6, 3),
-                                 (HCX - 2, CROWN_Y + 2, HCX - 12, CROWN_Y - 10, 3),
-                                 (HCX + 2, CROWN_Y + 2, HCX - 7, CROWN_Y - 12, 2)):
-        pygame.draw.polygon(surf, crest_col, [
-            (bx, by), (bx + w0, by + 1), (tx + 1, ty + 1), (tx, ty)])
-    # Crest tip highlights — electric edges.
-    pygame.draw.line(surf, ELECTRIC, (HCX - 6, CROWN_Y + 4), (HCX - 15, CROWN_Y - 6), 1)
-    pygame.draw.line(surf, ELECTRIC, (HCX - 2, CROWN_Y + 2), (HCX - 12, CROWN_Y - 10), 1)
+    # --- Dark seam where the NEAR wing meets the chest, so the wing reads as
+    # a wing and doesn't merge into the violet body cap at 40px ---
+    pygame.draw.line(surf, NIGHT_INDIGO, (BCX - 4, BCY - 8), (BCX + 3, BCY + 4), 1)
+
+    # --- Head: two bold swept crest blades anchored INTO the skull ---
+    # Blades start ~4px inside the head ellipse and are broad wedges (not thin
+    # spikes) flattened low against the skull, so they never read as antennae.
+    # Each is a filled triangle: wide base on the crown, sweeping back to a tip.
+    pygame.draw.polygon(surf, VIOLET_SHADOW, [
+        (HCX - 2, CROWN_Y + 8), (HCX + 3, CROWN_Y + 3),
+        (HCX - 17, CROWN_Y + 1)])
+    pygame.draw.polygon(surf, VIOLET_SHADOW, [
+        (HCX - 4, CROWN_Y + 9), (HCX + 1, CROWN_Y + 5),
+        (HCX - 13, CROWN_Y - 3)])
+    # Electric lit edge on each blade's leading (upper) face.
+    pygame.draw.line(surf, ELECTRIC, (HCX + 3, CROWN_Y + 3), (HCX - 17, CROWN_Y + 1), 1)
+    pygame.draw.line(surf, ELECTRIC, (HCX + 1, CROWN_Y + 5), (HCX - 13, CROWN_Y - 3), 1)
 
     # Head mass — dark indigo with a violet cap catch.
     _aaellipse(surf, NIGHT_INDIGO, (HCX, HCY), 11, 10)
@@ -148,13 +160,17 @@ def _build_frame(wing_angle_deg):
     _aaellipse(hcap, VIOLET_SHADOW, (HCX + 1, HCY - 3), 9, 6)
     surf.blit(hcap, (0, 0))
 
-    # --- Beak: sharp charcoal hook, predatory ---
+    # --- Beak: sharp charcoal hook, predatory, pushed forward with the head ---
     pygame.draw.polygon(surf, (40, 38, 52), [
-        (HCX + 9, HCY - 1), (HCX + 17, HCY + 1), (HCX + 9, HCY + 5)])
+        (HCX + 9, HCY - 1), (HCX + 18, HCY + 1), (HCX + 9, HCY + 5)])
     pygame.draw.polygon(surf, (26, 24, 36), [
-        (HCX + 14, HCY + 1), (HCX + 17, HCY + 1), (HCX + 12, HCY + 5)])
+        (HCX + 15, HCY + 1), (HCX + 18, HCY + 1), (HCX + 13, HCY + 5)])
 
-    # --- Glowing violet eyes — the PRIMARY 40px tell, kept bright ---
+    # --- Brow-ridge: a dark notch above each eye so it reads "predator" ---
+    pygame.draw.line(surf, NIGHT_INDIGO, (HCX + 1, HCY - 5), (HCX + 6, HCY - 4), 2)
+    pygame.draw.line(surf, NIGHT_INDIGO, (HCX - 7, HCY - 4), (HCX - 2, HCY - 5), 2)
+
+    # --- Glowing violet eyes — the PRIMARY 40px tell, kept bright & exact ---
     for ex, ey in ((HCX + 3, HCY - 1),):
         _glow_dot(surf, (ex, ey), 6, ELECTRIC, layers=3)
         pygame.draw.circle(surf, ELECTRIC, (ex, ey), 4)
