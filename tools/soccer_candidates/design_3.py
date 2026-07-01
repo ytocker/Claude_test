@@ -1,8 +1,8 @@
 """Soccer v11 Design 3 — THE CAPTAIN.
 
-Deep navy jersey with a bold white chest stripe and the #10, a large gold
-captain's armband on the near wing, white shorts, navy-and-gold socks,
-and a soccer ball at the feet.
+Deep navy jersey with a hard white torso outline and a bold white chest
+stripe, a gold captain's armband set on the navy upper arm, white shorts,
+navy-and-gold socks, and a soccer ball at the feet.
 """
 import pygame
 
@@ -28,7 +28,8 @@ _PAL = _pal(
     body_belly =(10, 22, 70),
     sheen=(80,120,255,50),
     wing_main=BIRD_WING, wing_dark=BIRD_WING_D, wing_tip=BIRD_TIP,
-    wing_secondary=(255,200,60), wing_highlight=(170,210,255),
+    # Neutral blue secondary so the jersey's only gold is the captain's mark.
+    wing_secondary=(120,160,200), wing_highlight=(170,210,255),
     head_shadow=(150,15,20), head_main=BIRD_RED,
     head_cheek=(255,130,130), head_crown=(255,170,170),
     lens_frame=(255,200,50), lens_body=(20,20,30),
@@ -45,28 +46,29 @@ def _base(angle_deg):
 
 
 def _paint(surf, _a):
-    # Subtle dark outline so the navy oval doesn't dissolve into the sky.
-    pygame.draw.ellipse(surf, _NAVY_D, (BCX-19,BCY-14,38,28), 1)
+    # Hard white torso outline traces the navy jersey so it separates cleanly
+    # from the blue macaw wing behind it — the kit reads as a worn garment,
+    # not a recolour of the body.
+    torso = (BCX-19, BCY-14, 38, 28)
+    pygame.draw.ellipse(surf, _WHITE, torso, 2)
 
     # White V-collar — crisp against the dark jersey.
     pygame.draw.line(surf, _WHITE, (BCX-6, BCY-12), (BCX+2, BCY-8), 2)
     pygame.draw.line(surf, _WHITE, (BCX+8, BCY-12), (BCX+2, BCY-8), 2)
 
-    # Bold white chest stripe — the graphic signature across the navy field.
+    # Bold white chest stripe — the lone graphic signature across the navy
+    # field (no number, which would smear into the stripe at this scale).
     pygame.draw.line(surf, _WHITE, (BCX-18, BCY-4), (BCX+18, BCY-4), 3)
     pygame.draw.line(surf, (200,205,220), (BCX-18,BCY-5), (BCX+18,BCY-5), 1)
 
-    # Squad "10" in white — left of centre on the stripe.
-    pygame.draw.line(surf, _WHITE, (BCX-10, BCY-9), (BCX-10, BCY+2), 3)
-    pygame.draw.line(surf, _WHITE, (BCX-12, BCY-9), (BCX-10, BCY-9), 2)
-    pygame.draw.ellipse(surf, _WHITE, (BCX-6, BCY-9, 8, 12), 2)
-
-    # CAPTAIN'S ARMBAND — hero prop on the near (right) wing, bold gold.
-    ax, ay = BCX+14, BCY-4
-    pygame.draw.line(surf, _GOLD_D, (ax-5, ay-5), (ax+5, ay+5), 8)
-    pygame.draw.line(surf, _GOLD,   (ax-4, ay-4), (ax+4, ay+4), 6)
-    pygame.draw.line(surf, (255,235,100), (ax-4,ay-5), (ax+3,ay+2), 2)
-    pygame.draw.line(surf, _NAVY,   (ax-1, ay-2), (ax-1, ay+2), 2)  # "C" mark
+    # CAPTAIN'S ARMBAND — a short horizontal gold bar band on the navy upper
+    # arm, framed above and below by navy so it never blends into the wing.
+    ax0, ax1, ay = BCX+8, BCX+16, BCY-6
+    pygame.draw.line(surf, _NAVY_D, (ax0, ay-2), (ax1, ay-2), 1)
+    pygame.draw.line(surf, _GOLD,   (ax0, ay),   (ax1, ay),   3)
+    pygame.draw.line(surf, (255,235,100), (ax0, ay-1), (ax1-2, ay-1), 1)
+    pygame.draw.line(surf, _NAVY_D, (ax0, ay+2), (ax1, ay+2), 1)
+    pygame.draw.line(surf, _NAVY,   (ax0+3, ay-1), (ax0+3, ay+1), 1)  # "C" mark
 
     # Hem seam.
     pygame.draw.ellipse(surf, (40,60,130), (BCX-9,BCY+5,20,2), 1)
@@ -76,17 +78,16 @@ def _paint(surf, _a):
     pygame.draw.ellipse(surf, (200,205,215), (BCX-9,BCY+6,20,9), 1)
     _poly(surf, _NAVY, [(BCX-1,BCY+12),(BCX+3,BCY+12),(BCX+1,BCY+15)])
 
-    # Navy socks with gold hoop.
+    # Navy socks with a single gold hoop — the only other gold on the kit.
     for sx in (27, 35):
         pygame.draw.line(surf, _NAVY, (sx, BCY+10), (sx, BCY+17), 4)
         pygame.draw.line(surf, _GOLD, (sx, BCY+11), (sx, BCY+13), 3)
 
-    # Cleats with gold sole accent.
+    # Cleats — matte, no gold sole so the armband stays the eye's gold anchor.
     for cx in (23, 31):
         pygame.draw.rect(surf, _CLEAT, (cx, BCY+14, 9, 5), border_radius=2)
-        pygame.draw.line(surf, _GOLD_D, (cx, BCY+18), (cx+8, BCY+18), 1)
 
-    # Soccer ball — drawn LAST.
+    # Soccer ball — drawn LAST, the clearest soccer signal.
     bx, by = BCX-8, BCY+24
     pygame.draw.circle(surf, (235,235,235), (bx, by), 6)
     pygame.draw.circle(surf, (20,20,20),    (bx, by), 6, 1)
