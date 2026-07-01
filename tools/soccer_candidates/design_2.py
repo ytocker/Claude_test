@@ -1,25 +1,26 @@
 """Soccer v11 Design 2 — THE GOALKEEPER.
 
-Bright lime-green jersey — no other sport uses this colour, so it's an
-instant goalkeeper tell even at 10px. Oversized keeper gloves on the wing
-tips are the hero prop. No ball needed: the gloves ARE the identity.
+Bright lime-green keeper field — no other sport uses this colour, so it's
+an instant goalkeeper tell even at 10px. The torso AND near wing are lime,
+so they fuse into one continuous jersey. A single oversized keeper glove
+at the leading wingtip is the hero prop: no ball needed, the glove IS the
+identity.
 """
 import pygame
 
 from game.store_skins import HX, HY, CROWN_Y, _poly, _make_skin
 from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
 from game.draw import (
-    BIRD_RED, BIRD_BEAK, BIRD_BEAK_D, BIRD_WING, BIRD_WING_D, BIRD_TIP,
+    BIRD_RED, BIRD_BEAK, BIRD_BEAK_D,
 )
 
 _LIME    = ( 50, 200,  80)
 _LIME_D  = ( 20, 140,  50)
-_GLOVE   = (180, 230,  50)
-_GLOVE_D = (120, 170,  20)
-_GLOVE_W = (240, 255, 200)
+_GLOVE_W = (248, 250, 245)   # near-white palm — max contrast against lime
+_GLOVE_S = (205, 212, 200)   # palm shadow / seam
+_BAND    = ( 26,  26,  34)   # chunky dark wristband
 _BLACK   = ( 20,  20,  28)
-_WHITE   = (240, 240, 245)
-_NUM     = (  0, 100,  30)
+_WHITE   = (245, 246, 250)
 
 _PAL = _pal(
     tail=[(200,30,40),(240,95,40),(255,160,55),(255,220,80)],
@@ -29,8 +30,10 @@ _PAL = _pal(
     body_chest =( 70,220, 95),
     body_belly =( 35,165, 60),
     sheen=(150,255,150,60),
-    wing_main=BIRD_WING, wing_dark=BIRD_WING_D, wing_tip=BIRD_TIP,
-    wing_secondary=(255,200,60), wing_highlight=(170,210,255),
+    # Near wing recoloured lime so torso + wing read as one keeper field.
+    wing_main=_LIME, wing_dark=_LIME_D,
+    wing_secondary=(80,220,100), wing_tip=(30,170,60),
+    wing_highlight=(150,255,170),
     head_shadow=(150,15,20), head_main=BIRD_RED,
     head_cheek=(255,130,130), head_crown=(255,170,170),
     lens_frame=(255,200,50), lens_body=(20,20,30),
@@ -47,44 +50,36 @@ def _base(angle_deg):
 
 
 def _paint(surf, _a):
-    # Dark-green oval outline anchors the bright lime field.
+    # Dark-lime oval outline anchors the bright keeper field.
     pygame.draw.ellipse(surf, _LIME_D, (BCX-19,BCY-14,38,28), 1)
 
     # Black crew collar — separates lime jersey from red macaw head.
     pygame.draw.line(surf, _BLACK, (BCX-8, BCY-13), (BCX+10, BCY-13), 3)
     pygame.draw.line(surf, _BLACK, (BCX-7, BCY-12), (BCX+9,  BCY-12), 2)
 
-    # Jersey number "1" — bold vertical bar in dark green, left chest.
-    pygame.draw.line(surf, _NUM, (BCX-6, BCY-8), (BCX-6, BCY+2), 3)
-    pygame.draw.line(surf, _NUM, (BCX-8, BCY-8), (BCX-6, BCY-8), 2)
+    # Bold white "1" centred on the lime chest — serif feet so a lone
+    # vertical bar still reads as a number at 40px.
+    pygame.draw.line(surf, _WHITE, (BCX, BCY-8), (BCX, BCY+3), 3)
+    pygame.draw.line(surf, _WHITE, (BCX-3, BCY-7), (BCX, BCY-8), 3)  # flag
+    pygame.draw.line(surf, _WHITE, (BCX-3, BCY-8), (BCX+3, BCY-8), 2)  # top serif
+    pygame.draw.line(surf, _WHITE, (BCX-3, BCY+3), (BCX+3, BCY+3), 2)  # foot serif
 
-    # Hem seam.
-    pygame.draw.ellipse(surf, _LIME_D, (BCX-9,BCY+5,20,2), 1)
+    # Black shorts block — single separator under the jersey.
+    pygame.draw.ellipse(surf, _BLACK, (BCX-9,BCY+5,20,10))
+    pygame.draw.ellipse(surf, (44,44,54), (BCX-9,BCY+5,20,10), 1)
 
-    # Black shorts.
-    pygame.draw.ellipse(surf, _BLACK, (BCX-9,BCY+6,20,9))
-    pygame.draw.ellipse(surf, (40,40,50), (BCX-9,BCY+6,20,9), 1)
-    _poly(surf, _WHITE, [(BCX-1,BCY+12),(BCX+3,BCY+12),(BCX+1,BCY+15)])
-
-    # Lime socks with white hoop.
-    for sx in (27, 35):
-        pygame.draw.line(surf, _LIME,  (sx, BCY+10), (sx, BCY+17), 4)
-        pygame.draw.line(surf, _WHITE, (sx, BCY+11), (sx, BCY+13), 3)
-
-    # Cleats.
-    for cx in (23, 31):
-        pygame.draw.rect(surf, (28,28,36), (cx, BCY+14, 9, 5), border_radius=2)
-
-    # KEEPER GLOVES — hero prop, drawn LAST so they overlay the wing tips.
-    # Near (right) glove — large and very visible.
-    pygame.draw.rect(surf, _GLOVE_D, (BCX+14, BCY-10, 12, 16), border_radius=3)
-    pygame.draw.rect(surf, _GLOVE,   (BCX+15, BCY- 9, 10, 14), border_radius=2)
-    pygame.draw.rect(surf, _GLOVE_W, (BCX+16, BCY- 6,  7,  8), border_radius=1)
-    for fy in (BCY-4, BCY-1, BCY+2):
-        pygame.draw.line(surf, _GLOVE_D, (BCX+16, fy), (BCX+22, fy), 1)
-    # Far (left) glove — smaller, partially behind the body.
-    pygame.draw.rect(surf, _GLOVE_D, (BCX-25, BCY-8, 10, 13), border_radius=3)
-    pygame.draw.rect(surf, _GLOVE,   (BCX-24, BCY-7,  8, 11), border_radius=2)
+    # HERO KEEPER GLOVE — single, oversized, leading (right) wingtip in a
+    # raised "save" pose. Drawn LAST so it overlays the lime wing.
+    gx, gy = BCX+13, BCY-13
+    pygame.draw.rect(surf, _BLACK,   (gx-1, gy-1, 16, 22), border_radius=5)
+    pygame.draw.rect(surf, _GLOVE_W, (gx,   gy,   14, 20), border_radius=4)
+    # Palm shadow + finger grooves for a padded goalkeeper look.
+    pygame.draw.rect(surf, _GLOVE_S, (gx+1, gy+9, 12,  6), border_radius=2)
+    for fx in (gx+3, gx+7, gx+11):
+        pygame.draw.line(surf, _GLOVE_S, (fx, gy+1), (fx, gy+8), 1)
+    # Chunky dark wristband cuffs the glove at the wing.
+    pygame.draw.rect(surf, _BAND,  (gx-1, gy+16, 16, 6), border_radius=2)
+    pygame.draw.line(surf, (70,70,84), (gx, gy+18), (gx+13, gy+18), 1)
 
 
 build = _make_skin(_paint, base_fn=_base)
