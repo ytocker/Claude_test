@@ -55,13 +55,13 @@ def _hindwing(surf, side, o):
     reads as emerging from a cracked-open shell — not a belly flipper."""
     if o <= 0:
         return
-    root_a = (BCX + side * 2, 34)
-    root_b = (BCX + side * 4, 37)
-    tip    = (BCX + side * int(17 * o), 33 + int(4 * o))
-    mid    = (BCX + side * int(12 * o), 41 + int(5 * o))
-    pygame.draw.polygon(surf, (*AMBER, 165), [root_a, tip, mid, root_b])
-    pygame.draw.line(surf, (120, 80, 30, 200), root_a, mid, 1)     # vein
-    pygame.draw.line(surf, (*GOLD, 190), root_a, tip, 1)           # lit edge
+    root_a = (BCX + side * 2, 33)
+    root_b = (BCX + side * 5, 38)
+    tip    = (BCX + side * int(22 * o), 35 - int(4 * o))           # up and out
+    mid    = (BCX + side * int(16 * o), 43 + int(4 * o))           # lower trail
+    pygame.draw.polygon(surf, (*AMBER, 190), [root_a, tip, mid, root_b])
+    pygame.draw.line(surf, (120, 80, 30, 210), root_a, mid, 1)     # vein
+    pygame.draw.line(surf, (*GOLD, 210), root_a, tip, 1)           # lit edge
 
 
 def _leg(surf, hip, knee, foot, spur=False):
