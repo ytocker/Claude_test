@@ -81,20 +81,29 @@ def _paint(surf, _a):
     #    club scarf looped once at the throat with two staggered tails waving in
     #    the wind. The two bright gold tails streaming down the body are the
     #    single highest-value diagonals at 40px, so the supporter reads instantly.
-    # Loop at the throat — a thick gold band with a thin red stripe under it.
-    pygame.draw.line(surf, _GOLD, (HX - 8, HY + 6), (HX + 6, HY + 6), 3)
-    pygame.draw.line(surf, _RED, (HX - 8, HY + 7), (HX + 6, HY + 7), 1)
-    # Left tail hanging down the near side.
-    pygame.draw.line(surf, _GOLD, (HX - 6, HY + 7), (HX - 8, HY + 32), 3)
-    pygame.draw.line(surf, _RED, (HX - 5, HY + 7), (HX - 7, HY + 32), 1)
-    # Right tail — longer, for asymmetry so it reads as waving, not symmetrical.
-    pygame.draw.line(surf, _GOLD, (HX + 4, HY + 7), (HX + 6, HY + 38), 3)
-    pygame.draw.line(surf, _RED, (HX + 3, HY + 7), (HX + 5, HY + 38), 1)
-    # Fringe ticks at the tail ends so the scarf reads as tasseled cloth.
-    for ty in (HY + 32, HY + 33, HY + 34):
-        pygame.draw.line(surf, _GOLD, (HX - 10, ty), (HX - 6, ty), 1)
-    for ty in (HY + 38, HY + 39, HY + 40):
-        pygame.draw.line(surf, _GOLD, (HX + 4, ty), (HX + 8, ty), 1)
+    # Loop at the throat — a dark gold edge laid first so the loop separates
+    #    cleanly from the beak, then the bright gold band and a thin red accent.
+    pygame.draw.line(surf, _GOLD_DK, (HX - 9, HY + 6), (HX + 7, HY + 6), 5)  # dark edge
+    pygame.draw.line(surf, _GOLD, (HX - 8, HY + 6), (HX + 6, HY + 6), 3)     # gold top
+    pygame.draw.line(surf, _RED, (HX - 8, HY + 7), (HX + 6, HY + 7), 1)      # red accent
+    # Left tail — kinked S-curve so it reads as cloth waving in the wind, not a
+    #    straight stick. Gold body with a 1px red shadow offset down-right.
+    pts_L = [(HX - 6, HY + 7), (HX - 9, HY + 18), (HX - 6, HY + 27), (HX - 9, HY + 34)]
+    for i in range(len(pts_L) - 1):
+        pygame.draw.line(surf, _GOLD, pts_L[i], pts_L[i + 1], 3)
+        pygame.draw.line(surf, _RED,
+                         (pts_L[i][0] + 1, pts_L[i][1] + 1),
+                         (pts_L[i + 1][0] + 1, pts_L[i + 1][1] + 1), 1)
+    # Right tail — longer, opposite phase, for the asymmetric waving read.
+    pts_R = [(HX + 4, HY + 7), (HX + 7, HY + 20), (HX + 3, HY + 31), (HX + 7, HY + 40)]
+    for i in range(len(pts_R) - 1):
+        pygame.draw.line(surf, _GOLD, pts_R[i], pts_R[i + 1], 3)
+        pygame.draw.line(surf, _RED,
+                         (pts_R[i][0] + 1, pts_R[i][1] + 1),
+                         (pts_R[i + 1][0] + 1, pts_R[i + 1][1] + 1), 1)
+    # Horizontal tassel caps at each tail end so the scarf reads as tasseled cloth.
+    pygame.draw.line(surf, _GOLD, (pts_L[-2][0] - 2, pts_L[-1][1]), (pts_L[-2][0] + 4, pts_L[-1][1]), 4)
+    pygame.draw.line(surf, _GOLD, (pts_R[-2][0] - 2, pts_R[-1][1]), (pts_R[-2][0] + 4, pts_R[-1][1]), 4)
 
 
 build = store_skins._make_skin(_paint)
