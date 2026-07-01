@@ -25,15 +25,16 @@ from game.parrot import _WING_ANGLES, _add_outline, _aaellipse
 # ── canvas constants (mirror the thunderbird tall-canvas layout) ─────────────
 COMPOSITE_W, COMPOSITE_H = 64, 84
 BCX, BCY = 32, 44               # body centre
-HCX, HCY = 44, 34               # head centre
-CROWN_Y  = 24                   # top of head
+HCX, HCY = 44, 32               # head centre — nudged up so it clears the body
+CROWN_Y  = 22                   # top of head (follows the raised head)
 
 
 # ── palette ──────────────────────────────────────────────────────────────────
 CORE_WHITE = (255, 255, 255)    # nucleus
+FLASH      = (255, 252, 214)    # hot-white flash (body nucleus only)
 ELEC_YEL   = (255, 232, 26)     # electric yellow — PRIMARY
-VOLT_GOLD  = (255, 179, 0)      # voltage gold
-ARC_AMBER  = (255, 122, 0)      # arc amber rim
+VOLT_GOLD  = (255, 179, 0)      # voltage gold — thin ring only
+ARC_AMBER  = (255, 122, 0)      # arc amber — thin rim only
 ION_VIOLET = (179, 107, 255)    # ion-violet — branch tips only, sparingly
 
 
@@ -48,14 +49,23 @@ def _new():
 
 def _make_prebuilt_skin(build_fn):
     """Cached `(frame_idx, tilt_deg) -> Surface` getter for build_fn(angle).
-    Lazy 4-frame build + per-(frame, 3°) rotation cache, each frame outlined
-    with the house silhouette outline. Copied (not imported) to keep this
-    scratch file standalone, mirroring animal_thunderbird._make_prebuilt_skin."""
+
+    Outline the BOLTS-ONLY sprite, THEN paint the soft plasma aura on top, so
+    the outline mask never sees the low-alpha halo — otherwise `_add_outline`
+    stamps a dark egg over the whole 28px glow disc. Copied (not imported) to
+    keep this scratch file standalone, mirroring the production prebuilt path."""
     state = {"frames": None, "rot": {}}
 
     def getter(frame_idx, tilt_deg):
         if state["frames"] is None:
-            state["frames"] = [_add_outline(build_fn(a)) for a in _WING_ANGLES]
+            frames = []
+            for idx, a in enumerate(_WING_ANGLES):
+                lit = _add_outline(build_fn(idx, a))
+                # Aura goes on last, over the outlined bolts. _add_outline pads
+                # by 2px, so shift the aura to match the new sprite origin.
+                _paint_aura(lit, idx, a, pad=2)
+                frames.append(lit)
+            state["frames"] = frames
         frames = state["frames"]
         frame_idx %= len(frames)
         key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
@@ -69,8 +79,8 @@ def _make_prebuilt_skin(build_fn):
 
 
 def _radial_glow(surf, center, r, color, peak=60):
-    """Soft additive halo blitted UNDER the body — the plasma-globe aura. Kept
-    additive so it reads as light, not paint, over any sky."""
+    """Soft additive halo — the plasma-globe aura. Additive so it reads as
+    light, not paint, over any sky."""
     cx, cy = center
     g = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
     gc = (r + 2, r + 2)
@@ -80,6 +90,17 @@ def _radial_glow(surf, center, r, color, peak=60):
         a = int(peak * (1 - (i - 1) / layers))
         pygame.draw.circle(g, (*color, a), gc, rr)
     surf.blit(g, (cx - r - 2, cy - r - 2), special_flags=pygame.BLEND_RGBA_ADD)
+
+
+def _paint_aura(surf, frame_idx, wing_angle_deg, pad=0):
+    """The soft plasma aura, painted OVER the outlined bolts so it never trips
+    the silhouette mask. Pulses a touch brighter on the down-stroke where the
+    fan fans widest. `pad` accounts for the 2px _add_outline border shift."""
+    f = _flap(wing_angle_deg)
+    # Yellow aura dominates; the white inner bloom is kept small + dim so the
+    # additive core doesn't blow out to a white ball over the yellow band.
+    _radial_glow(surf, (BCX + pad, BCY + pad), 28, ELEC_YEL, peak=int(66 - 14 * f))
+    _radial_glow(surf, (BCX + pad, BCY + pad), 11, CORE_WHITE, peak=24)
 
 
 def _bolt(surf, pts, color, w=2, *, halo_a=42):
@@ -105,15 +126,16 @@ def _spark(surf, x, y, r, color, bloom=110):
     surf.blit(g, (int(x - b), int(y - b)), special_flags=pygame.BLEND_RGBA_ADD)
 
 
-def _forked_bolt(surf, x0, y0, angle_deg, length, color, tip_color, w0=3):
+def _forked_bolt(surf, x0, y0, angle_deg, length, color, tip_color, w0=3,
+                 *, whip=1.0):
     """Grow one forked plasma tentacle from (x0,y0) heading at angle_deg. The
     trunk zig-zags outward in 3 segments (thick→thin), throwing ONE short branch
-    near the tip. The trunk is drawn crisp electric-yellow so the fan reads as
-    distinct spikes; only the very tip gets a small violet-tinted glow dot so
-    the star ends in bright points without a violet halo swamping the yellow."""
+    near the tip. `whip` signs/scales the perpendicular zig-zag so the SAME bolt
+    reshapes visibly between frames — a wide splay on the down-stroke, a swept
+    inversion on the up-stroke. Only the tip gets a violet dot so the star ends
+    in bright points without a violet halo swamping the yellow."""
     a = math.radians(angle_deg)
     ca, sa = math.cos(a), math.sin(a)
-    # Perpendicular jitter axis for the zig-zag crackle.
     pa = a + math.pi / 2
     cpa, spa = math.cos(pa), math.sin(pa)
 
@@ -121,43 +143,42 @@ def _forked_bolt(surf, x0, y0, angle_deg, length, color, tip_color, w0=3):
         return (x0 + ca * length * t + cpa * off,
                 y0 + sa * length * t + spa * off)
 
-    j = length * 0.14
+    j = length * 0.14 * whip
     p0 = (x0, y0)
     p1 = at(0.36, +j)
     p2 = at(0.68, -j * 0.8)
     p3 = at(1.0, +j * 0.35)              # trunk tip — reaches full length
 
-    # Trunk: crisp yellow core with a hot-white inner near the root for depth.
     _bolt(surf, [p0, p1, p2, p3], color, w=w0)
     pygame.draw.lines(surf, CORE_WHITE, False, [p0, p1], max(1, w0 - 1))
 
-    # One short branch peeling off mid-trunk — thin, no halo, ends near the tip.
+    # One short branch peeling off mid-trunk — its side follows the whip too.
     bt = at(0.92, -j * 1.7)
     _bolt(surf, [p2, bt], VOLT_GOLD, w=max(1, w0 - 2), halo_a=0)
 
-    # Bright terminals — the spiky star points (violet only as a tiny tip dot).
     _spark(surf, p3[0], p3[1], 1, tip_color, bloom=80)
     _spark(surf, bt[0], bt[1], 1, VOLT_GOLD, bloom=70)
     return p3
 
 
-def _build_frame(wing_angle_deg):
+def _build_frame(frame_idx, wing_angle_deg):
+    """Bolts + cores only — NO aura (the aura is painted after outlining).
+
+    `frame_idx` drives both the RNG seed and the bolt-whip sign so the four
+    frames are genuinely different poses, not jitter of one pose."""
     surf = _new()
     f = _flap(wing_angle_deg)             # 0 = down-stroke, 1 = up-stroke
-    random.seed(wing_angle_deg)           # deterministic-per-frame sparks
+    random.seed(frame_idx)                # deterministic-per-frame sparks
 
-    # Plasma aura under everything — pulses a touch brighter on the down-stroke
-    # when the fan fans widest.
-    _radial_glow(surf, (BCX, BCY), 28, ELEC_YEL, peak=int(66 - 14 * f))
-    _radial_glow(surf, (BCX, BCY), 16, CORE_WHITE, peak=40)
+    ox, oy = BCX - 2, BCY - 4             # bolt origin near core
 
-    ox, oy = BCX - 2, BCY - 4              # bolt origin near core
+    # Per-frame whip: alternate the zig-zag sign each frame so bolts visibly
+    # snap side-to-side, and scale the magnitude by stroke phase (widest on the
+    # down-stroke, tightest/swept on the up-stroke).
+    whip = (1.0 if frame_idx % 2 == 0 else -1.0) * (1.0 - 0.45 * f)
 
     # WING BOLTS — the radiating "feathers". On the down-stroke the fan spreads
-    # WIDE and low; on the up-stroke it sweeps back and up. Angles are in screen
-    # space (0°=right, 90°=down). We fan a set on each side of the body.
-    # spread scales the angular width; sweep rotates the whole fan upward as the
-    # wing lifts so the crackle visibly animates frame-to-frame.
+    # WIDE and low; on the up-stroke it sweeps back and up.
     spread = 1.0 - 0.35 * f               # widest when wings down
     sweep  = -34 * f                      # fan rotates up as wings lift
 
@@ -165,46 +186,56 @@ def _build_frame(wing_angle_deg):
     left_dirs  = [(190, 30), (164, 30), (138, 28), (112, 24)]
     for base_ang, ln in right_dirs:
         ang = 32 + (base_ang - 32) * spread + sweep
-        _forked_bolt(surf, ox + 4, oy + 2, ang, ln, ELEC_YEL, ION_VIOLET, w0=3)
+        _forked_bolt(surf, ox + 4, oy + 2, ang, ln, ELEC_YEL, ION_VIOLET,
+                     w0=3, whip=whip)
     for base_ang, ln in left_dirs:
         ang = 148 + (base_ang - 148) * spread - sweep
-        _forked_bolt(surf, ox - 4, oy + 2, ang, ln, ELEC_YEL, ION_VIOLET, w0=3)
+        _forked_bolt(surf, ox - 4, oy + 2, ang, ln, ELEC_YEL, ION_VIOLET,
+                     w0=3, whip=-whip)
 
-    # TAIL — 2–3 trailing bolts diverging down-left from the body.
+    # TAIL — trailing bolts diverging down-left, whipping with the frame.
     for ang, ln in ((214, 20), (232, 24), (250, 18)):
-        _forked_bolt(surf, ox - 2, oy + 8, ang, ln, VOLT_GOLD, ARC_AMBER, w0=2)
+        _forked_bolt(surf, ox - 2, oy + 8, ang, ln, VOLT_GOLD, ARC_AMBER,
+                     w0=2, whip=whip)
 
-    # BODY CORE — stacked circles: amber rim → voltage gold → electric yellow →
-    # white nucleus. NO solid bird body, just the glowing plasma ball.
-    _aaellipse(surf, ARC_AMBER,  (BCX, BCY), 13, 12)
-    _aaellipse(surf, VOLT_GOLD,  (BCX, BCY), 11, 10)
-    _aaellipse(surf, ELEC_YEL,   (BCX, BCY), 8, 8)
-    _aaellipse(surf, CORE_WHITE, (BCX - 1, BCY - 1), 4, 4)
-    pygame.draw.circle(surf, ELEC_YEL, (BCX + 3, BCY + 3), 2)   # faint inner dot
+    # BODY CORE — yellow is PRIMARY: amber + gold are 1px rims only, the big
+    # readable band is electric yellow, capped by a hot-white flash nucleus.
+    pygame.draw.circle(surf, ARC_AMBER, (BCX, BCY), 12, 1)   # 1px amber rim
+    pygame.draw.circle(surf, VOLT_GOLD, (BCX, BCY), 11, 1)   # 1px gold ring
+    _aaellipse(surf, ELEC_YEL, (BCX, BCY), 9, 9)             # yellow midtone
+    _aaellipse(surf, FLASH,    (BCX - 1, BCY - 1), 4, 4)     # white flash core
+    pygame.draw.circle(surf, ELEC_YEL, (BCX + 3, BCY + 3), 2)
 
-    # TALONS — two tiny bright arc-hooks below the core.
-    for tx in (BCX - 6, BCX + 4):
-        _bolt(surf, [(tx, BCY + 10), (tx + 2, BCY + 15), (tx - 2, BCY + 17)],
-              ELEC_YEL, w=2)
+    # TALONS — a clear forked bolt-pair: two mirrored downward strokes, thick
+    # enough to read at 40px as claws, not stray crackle.
+    for sgn in (-1, 1):
+        tx = BCX + sgn * 4
+        _bolt(surf, [(tx, BCY + 9), (tx + sgn * 3, BCY + 17)], ELEC_YEL,
+              w=2, halo_a=0)
+        _spark(surf, tx + sgn * 3, BCY + 17, 1, ELEC_YEL, bloom=55)
 
-    # HEAD — a small white-hot ball with an electric-yellow corona.
-    _aaellipse(surf, VOLT_GOLD,  (HCX, HCY), 7, 7)
-    _aaellipse(surf, ELEC_YEL,   (HCX, HCY), 5, 5)
-    _aaellipse(surf, CORE_WHITE, (HCX, HCY), 3, 3)
-    # Two spark-eyes — bright pinpoints.
-    _spark(surf, HCX + 3, HCY - 1, 1, CORE_WHITE)
-    _spark(surf, HCX - 2, HCY - 1, 1, ELEC_YEL)
+    # HEAD — clearly subordinate: NO pure-white core, just a small yellow ball
+    # with a thin gold rim, sitting above the body so it never reads as a
+    # snowman second-ball.
+    pygame.draw.circle(surf, VOLT_GOLD, (HCX, HCY), 6, 1)   # 1px gold rim
+    _aaellipse(surf, ELEC_YEL, (HCX, HCY), 4, 4)
+    _spark(surf, HCX, HCY - 1, 1, ELEC_YEL, bloom=60)       # glow, not a core
+    # Two spark-eyes — bright pinpoints keep the "face" legible.
+    _spark(surf, HCX + 2, HCY, 1, CORE_WHITE, bloom=45)
+    _spark(surf, HCX - 2, HCY, 1, ELEC_YEL, bloom=45)
 
     # CREST — 3 thin bolt zig-zags rising off the crown, brightest at the tips.
     crest_base = [(HCX - 5, CROWN_Y + 4), (HCX, CROWN_Y + 2), (HCX + 5, CROWN_Y + 4)]
     for i, (cx, cy) in enumerate(crest_base):
-        tip = (cx + (i - 1) * 3, CROWN_Y - 10 - i % 2 * 2)
-        mid = ((cx + tip[0]) // 2 + (2 if i % 2 else -2), (cy + tip[1]) // 2)
+        # Crest tips also lean with the whip so the crown crackles per-frame.
+        lean = (2 if frame_idx % 2 else -2)
+        tip = (cx + (i - 1) * 3 + lean, CROWN_Y - 10 - i % 2 * 2)
+        mid = ((cx + tip[0]) // 2 + lean, (cy + tip[1]) // 2)
         _bolt(surf, [(cx, cy), mid, tip], ELEC_YEL, w=2)
         _spark(surf, tip[0], tip[1], 1, CORE_WHITE)
 
-    # STRAY SPARKS — 3 deterministic-per-frame floaters for crackle life, kept
-    # tight-bloom so they punctuate the gaps rather than fogging the fan.
+    # STRAY SPARKS — deterministic-per-frame floaters for crackle life. The
+    # frame-index seed places them in clearly different spots each frame.
     for _ in range(3):
         sx = BCX + random.randint(-22, 22)
         sy = BCY + random.randint(-20, 18)

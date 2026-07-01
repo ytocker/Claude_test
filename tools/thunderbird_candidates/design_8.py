@@ -26,18 +26,19 @@ from game.parrot import _WING_ANGLES, _add_outline
 # ── canvas constants (mirror the thunderbird tall-canvas layout) ─────────────
 COMPOSITE_W, COMPOSITE_H = 64, 84
 BCX, BCY = 32, 44               # body centre
-HCX, HCY = 44, 34               # head centre
-CROWN_Y  = 24                   # top of head
+# Head pushed forward + up off the body so clear sky opens between the head
+# hexagon and the body ellipse — the beak silhouette needs breathing room.
+HCX, HCY = 48, 31               # head centre
+CROWN_Y  = 21                   # top of head
 
 
 # ── palette ──────────────────────────────────────────────────────────────────
 BOARD_DARK   = (14, 42, 30)     # PCB substrate — dominant structure
 TRACE_YEL    = (255, 232, 26)   # copper trace lit — dominant line colour
-TRACE_DIM    = (200, 180, 10)   # trace at rest (up-stroke)
-NODE_WHITE   = (255, 255, 255)  # solder-pad core / brightest point
-SOLDER_GOLD  = (200, 160, 50)   # pad ring / unlit solder
-SIGNAL_GREEN = (156, 255, 87)   # one accent trace only
-BEAK_AMBER   = (255, 179, 0)    # hard beak wedge
+TRACE_OFF    = (120, 90, 5)     # trace fully unlit — deep gap vs lit yellow
+NODE_WHITE   = (255, 255, 255)  # solder-pad core / brightest point (eye only)
+SOLDER_GOLD  = (200, 160, 50)   # pad ring / unlit solder / lesser node cores
+BEAK_AMBER   = (220, 140, 20)   # hard beak wedge — dimmed off trace-yellow
 
 
 def _strike(angle_deg):
@@ -98,20 +99,32 @@ def _trace(surf, pts, color, w=2):
 
 
 def _pad(surf, x, y, r, node_c):
-    """A solder pad: gold ring, lit-trace fill, white core. The white core is the
-    survival point at 40px — the brightest speck on the whole skin."""
+    """A solder pad: gold ring, lit-trace fill, gold core. Gold (not white) cores
+    everywhere but the eye so nothing competes with the single white eye point —
+    the eye must win the value hierarchy at 40px."""
     x, y = int(x), int(y)
     pygame.draw.circle(surf, SOLDER_GOLD, (x, y), r + 1)
     pygame.draw.circle(surf, node_c, (x, y), r)
-    if r >= 2:
-        pygame.draw.circle(surf, NODE_WHITE, (x, y), max(1, r - 2))
+    pygame.draw.circle(surf, SOLDER_GOLD, (x, y), 1)
 
 
-def _wing_panel(surf, angle_deg, side, node_c):
+def _eye_pad(surf, x, y, node_c):
+    """The one pure-white speck on the skin — the solder-pad eye. r=5 pad with an
+    r=2 NODE_WHITE core; the only r=2 white anywhere, so it reads as the brightest
+    point and anchors the raptor's gaze at 40px."""
+    x, y = int(x), int(y)
+    pygame.draw.circle(surf, SOLDER_GOLD, (x, y), 5)
+    pygame.draw.circle(surf, node_c, (x, y), 4)
+    pygame.draw.circle(surf, NODE_WHITE, (x, y), 2)
+
+
+def _wing_panel(surf, angle_deg, side, pad_lit):
     """A flat angular copper-clad wing panel with parallel traces routed root→tip.
     `side` is +1 (far/right) or -1 (near/left). The panel vertices swing with the
     flap so the four frames animate a clear up/down stroke, and the near wing is
-    drawn larger to sit in front."""
+    drawn larger to sit in front. A 1px yellow polygon edge silhouettes the hard
+    geometric panel boundary against sky — that's what separates a circuit wing
+    from a feathered one. `pad_lit(idx)` sequences current root→tip along traces."""
     f = _flap(angle_deg)
     # Wing lifts (tip rises) as the flap angle climbs toward the up-stroke.
     lift = int(round(18 * (1 - f)))         # tip drops on down-stroke
@@ -132,16 +145,19 @@ def _wing_panel(surf, angle_deg, side, node_c):
         (root_x, root_y + 5),
     ]
     pygame.draw.polygon(surf, BOARD_DARK, poly)
+    pygame.draw.polygon(surf, TRACE_YEL, poly, 1)
     # Three parallel copper traces from the root out toward the tip, each ending
-    # in a small pad so the wing looks like a routed net, not a flat plate.
+    # in a pad indexed 0(root)→2(tip). The pulse lights them in sequence so the
+    # eye reads current travelling outward across the flap cycle.
     for k in range(3):
         oy = (k - 1) * 4
         r0 = (root_x, root_y + oy)
         # 45° dog-leg then straight to a point along the leading edge.
         knee = (root_x + side * (reach // 2), root_y + oy - (1 - k) * 2)
         t = (tipx - side * 2, tipy + 3 + k * 3)
-        _trace(surf, [r0, knee, t], node_c, w=2 if side < 0 else 1)
-        _pad(surf, t[0], t[1], 2 if side < 0 else 1, node_c)
+        trace_c = TRACE_YEL if pad_lit(k) else TRACE_OFF
+        _trace(surf, [r0, knee, t], trace_c, w=2)
+        _pad(surf, t[0], t[1], 2, trace_c)
 
 
 def _build_frame(wing_angle_deg):

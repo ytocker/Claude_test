@@ -19,8 +19,10 @@ from game.parrot import _WING_ANGLES, _add_outline, _aaellipse
 
 COMPOSITE_W, COMPOSITE_H = 64, 84
 BCX, BCY = 32, 44
-HCX, HCY = 44, 34
-CROWN_Y = 24
+# Head pushed further out (top-right) so it reads as a SEPARATE satellite orb
+# from the body at 40px, not a bump on the sphere.
+HCX, HCY = 46, 32
+CROWN_Y = 22
 
 # Palette
 NUCLEUS = (255, 255, 255)     # #FFFFFF white-hot core
@@ -31,12 +33,14 @@ CORONA = (255, 243, 176)      # #FFF3B0 thin corona
 
 # Concentric body layers: (radius, colour). Outer amber-dark ring is the
 # value anchor on bright day; inner near-white/white are the night tell.
+# The near-white layer is shrunk (r=5) and warmed so more Fireball Yellow
+# shows in the mid-tones; white is the single hottest POINT, not the body.
 _BODY_LAYERS = (
-    (20, (40, 20, 0)),
+    (21, (40, 15, 0)),
     (18, (255, 160, 0)),
-    (14, (255, 220, 0)),
-    (10, (255, 240, 100)),
-    (6, (255, 255, 200)),
+    (14, (255, 212, 0)),
+    (10, (255, 235, 90)),
+    (5, (255, 240, 140)),
     (3, (255, 255, 255)),
 )
 
@@ -68,17 +72,29 @@ def _orb_stack(surf, cx, cy, layers, bump=0):
             _add_glow(surf, cx, cy, rr, col, 235)
 
 
-def _surface_arc(surf, cx, cy, seed, orb_r):
+def _surface_arc(surf, cx, cy, seed, orb_r, breach=False):
     """A short electric arc skittering across the sphere surface. Reseeded per
-    flap pose so the arcs crawl frame to frame (deterministic but varied)."""
+    flap pose so the arcs crawl frame to frame (deterministic but varied).
+
+    A breaching arc originates AT the rim and shoots outward past it, so the
+    electricity lands in the SILHOUETTE at 40px — the core ball-lightning read
+    that pure surface skitter can't deliver."""
     random.seed(seed)
-    # Anchor the arc somewhere on the visible upper hemisphere of the orb.
-    ang = random.uniform(-math.pi * 0.95, math.pi * 0.05)
-    rad = random.uniform(orb_r * 0.45, orb_r * 0.85)
+    ang = random.uniform(-math.pi, math.pi)
+    if breach:
+        # Start on the rim; radiate straight outward and overshoot 8-10px so
+        # the spike pokes through the dark rim circle drawn later.
+        rad = orb_r * 0.9
+        heading = ang + random.uniform(-0.35, 0.35)
+        length = orb_r + random.uniform(8, 10)
+    else:
+        # Anchor somewhere on the visible upper hemisphere, run tangentially.
+        ang = random.uniform(-math.pi * 0.95, math.pi * 0.05)
+        rad = random.uniform(orb_r * 0.45, orb_r * 0.85)
+        length = random.uniform(10, 15)
+        heading = ang + math.pi / 2 + random.uniform(-0.6, 0.6)
     ax = cx + math.cos(ang) * rad
     ay = cy + math.sin(ang) * rad
-    length = random.uniform(10, 15)
-    heading = ang + math.pi / 2 + random.uniform(-0.6, 0.6)
     jag = random.uniform(2.5, 5.0)
     pts = []
     steps = 4
@@ -129,41 +145,53 @@ def _build_frame(wing_angle_deg) -> pygame.Surface:
     pygame.draw.circle(bloom, (255, 200, 0, 40), (BCX, BCY), 28)
     surf.blit(bloom, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
-    # --- Tail: fading ember dots trailing below-left (drawn before the body).
+    # --- Tail: fading ember dots streaming out on a shallow down-left diagonal
+    # so they read as a comet trail, not a vertical handle under the orb. The
+    # underside is deliberately kept clear (no talon stack) — one element.
     for i, (dx, dy, r, a) in enumerate((
-            (-9, 14, 4, 210), (-15, 20, 3, 160),
-            (-20, 26, 2, 110), (-24, 31, 1, 70))):
+            (-10, 8, 4, 210), (-18, 14, 3, 160),
+            (-26, 18, 2, 110), (-32, 21, 1, 70))):
         _add_glow(surf, BCX + dx, BCY + dy, r + 1, SCORCH, a)
         pygame.draw.circle(surf, FIREBALL, (BCX + dx, BCY + dy), r)
 
-    # --- Wings: short blunt bolt-stubs that throb. Down-stroke pushes them
-    # out (20-22px); up-stroke pulls them in tight (12-14px).
-    reach = 12 + int(strike * 10)           # 12 … 22
+    # --- Wings: blunt bolt-stubs that THROB at silhouette scale. Down-stroke
+    # shoves them well past the rim (reach ~25, thick); up-stroke sucks them
+    # inside the corona (reach ~9, thin). The delta must pop at 40px, so both
+    # reach AND width swing with the stroke.
+    reach = 9 + int(strike * 16)            # 9 … 25 (past the r=21 rim on down)
+    wing_w = 3 + int(round(strike * 3))     # 3 … 6
     for side in (-1, 1):
-        sx = BCX + side * 14
+        # Origin follows the throb inward so up-stroke stubs hide in the corona.
+        sx = BCX + side * (7 + int(strike * 7))
         sy = BCY
         # Two strokes fanning out per side.
         for k, spread in enumerate((-6, 6)):
             ex = BCX + side * reach
             ey = BCY + spread - int((1 - strike) * 4)
             _bolt_stub(surf, sx, sy, ex, ey,
-                       seed=int(wing_angle_deg) + side * 10 + k, width=4)
+                       seed=int(wing_angle_deg) + side * 10 + k, width=wing_w)
 
     # --- Body: the BIG dominant orb.
     _orb_stack(surf, BCX, BCY, _BODY_LAYERS, bump=bump)
 
-    # --- Surface arcs: 5 short arcs skittering across the orb, reseeded per
-    # pose so they crawl frame to frame.
-    for i in range(5):
+    # --- Surface arcs: 3 skitter across the orb face. Reseeded per pose so
+    # they crawl frame to frame. (The 2 breaching arcs are drawn LAST, after
+    # the rim, so their spikes poke through it into the silhouette.)
+    for i in range(3):
         _surface_arc(surf, BCX, BCY, seed=int(wing_angle_deg) + i, orb_r=18)
 
-    # --- Head: a smaller satellite orb fused top-right of the body.
+    # --- Head: a smaller satellite orb top-right. A dark crescent on its
+    # body-side plus a thin dark rim opens a VALUE gap so the head reads as a
+    # SEPARATE object from the body at 40px, not a bulge on the sphere.
+    pygame.draw.circle(surf, (50, 25, 0, 200), (HCX - 3, HCY + 4), 8, 2)
     _add_glow(surf, HCX, HCY, 10, EMBER, 235)
     _add_glow(surf, HCX, HCY, 7, FIREBALL, 235)
     _add_glow(surf, HCX, HCY, 4, CORONA, 235)
     _add_glow(surf, HCX, HCY, 2, NUCLEUS, 250)
-    pygame.draw.circle(surf, (255, 240, 150), (HCX, HCY), 6)
+    pygame.draw.circle(surf, (255, 220, 90), (HCX, HCY), 6)
     pygame.draw.circle(surf, NUCLEUS, (HCX, HCY), 2)
+    # Thin dark rim locks the head as its own silhouette on bright day.
+    pygame.draw.circle(surf, (40, 15, 0, 230), (HCX, HCY), 8, 1)
 
     # Two spark-eyes with a glow behind.
     for ex_off in (-3, 3):

@@ -1,4 +1,4 @@
-"""Round-1 review sheet for thunderbird PLASMA SURGE (design_6)."""
+"""Round-2 review sheet for thunderbird PLASMA SURGE (design_6)."""
 import os
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
@@ -12,7 +12,7 @@ sys.path.insert(0, "/home/user/skybit")
 from tools import ninja_render
 from tools.thunderbird_candidates.design_6 import build
 
-OUT = "/home/user/skybit/docs/store_redesign/animal/thunderbird/design_6/round_1.png"
+OUT = "/home/user/skybit/docs/store_redesign/animal/thunderbird/design_6/round_2.png"
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 
 pad = 16
@@ -48,7 +48,7 @@ sheet = pygame.Surface((sheet_w, sheet_h))
 sheet.fill((18, 16, 26))
 
 title = pygame.font.SysFont("dejavusans", 18, bold=True).render(
-    "THUNDERBIRD  —  Design 6: PLASMA SURGE  (Round 1)", True, (255, 246, 190))
+    "THUNDERBIRD  —  Design 6: PLASMA SURGE  (Round 2)", True, (255, 246, 190))
 sheet.blit(title, (pad, pad))
 
 y = pad + 40
