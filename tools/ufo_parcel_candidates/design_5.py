@@ -1,4 +1,4 @@
-"""DISCO MIRROR-BALL SAUCER — party saucer scattering coloured light. R2.
+"""DISCO MIRROR-BALL SAUCER — party saucer scattering coloured light. R3.
 
 At 22px, the premium read is a clean silver disc plus 4 hard saturated sparkle
 dots and 3 bright light-ray spikes from the underside. No complex facet grid —
@@ -66,6 +66,15 @@ def build(mode="normal"):
         gy_bot = cy + disc_ry - 1
         pygame.draw.line(s, OUTLINE, (gx, gy_top), (gx, gy_bot), 1)
 
+    # ---- Premium focal glint at the lower rim (nearest point to viewer) ----
+    rim_x = cx + disc_rx - 3
+    rim_y = cy + 2
+    pygame.draw.circle(s, (255, 255, 255), (rim_x, rim_y), 3)
+    pygame.draw.circle(s, GOLD, (rim_x, rim_y), 2)
+    pygame.draw.circle(s, (255, 255, 255), (rim_x, rim_y), 1)
+    pygame.draw.line(s, (255, 240, 180), (rim_x - 5, rim_y), (rim_x + 5, rim_y), 1)
+    pygame.draw.line(s, (255, 240, 180), (rim_x, rim_y - 5), (rim_x, rim_y + 5), 1)
+
     # ---- 4 hard saturated sparkle glints in the lower face ----
     # These are the TELL — bright solid dots with white cores
     glints = [
@@ -85,19 +94,29 @@ def build(mode="normal"):
         pygame.draw.circle(s, (255, 255, 255), (gx, gy), 1)
 
     # ---- 3 bright coloured light-rays from underside (mirror-ball scatter) ----
-    # Each ray: white 3px core + coloured 1px outline for value contrast
+    # Fanned to different angles/lengths so they read as scattered beams, not a
+    # symmetrical tripod. Each ray: white taper core + saturated colour tint.
     ray_base_y = cy + disc_ry - 1
     rays = [
-        (cx - 6, ray_base_y, cx - 10, ray_base_y + 13, PINK),
-        (cx,     ray_base_y, cx,      ray_base_y + 14, CYAN),
-        (cx + 6, ray_base_y, cx + 10, ray_base_y + 13, GOLD),
+        # (start_x, start_y, end_x, end_y, color, core_w)
+        # Left ray: angled left, longer
+        (cx - 5, ray_base_y,
+         cx - 5 + int(14 * math.sin(math.radians(25))),
+         ray_base_y + int(14 * math.cos(math.radians(25))),
+         PINK, 3),
+        # Center ray: straight down, medium
+        (cx, ray_base_y, cx + 2, ray_base_y + 11, CYAN, 2),
+        # Right ray: angled right, shorter
+        (cx + 5, ray_base_y,
+         cx + 5 + int(9 * math.sin(math.radians(-20))),
+         ray_base_y + int(9 * math.cos(math.radians(-20))),
+         GOLD, 2),
     ]
-    for x1, y1, x2, y2, col in rays:
-        # White thick core
-        pygame.draw.line(s, (255, 255, 255), (x1, y1), (x2, y2), 3)
-        # Saturated colour tint
+    for x1, y1, x2, y2, col, cw in rays:
+        # White thick core with taper
+        pygame.draw.line(s, (255, 255, 255), (x1, y1), (x2, y2), cw + 1)
         ray_s = pygame.Surface((SS, SS), pygame.SRCALPHA)
-        pygame.draw.line(ray_s, (*col, 180), (x1, y1), (x2, y2), 3)
+        pygame.draw.line(ray_s, (*col, 200), (x1, y1), (x2, y2), cw)
         s.blit(ray_s, (0, 0))
 
     # ---- Star-cross glints off the rim (2 floating) ----

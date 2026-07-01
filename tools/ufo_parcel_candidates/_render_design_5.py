@@ -10,5 +10,5 @@ spec = importlib.util.spec_from_file_location("design_5",
 mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
 from _render_shared import render_sheet
 render_sheet(mod.build,
-    "UFO PARCEL — DESIGN 5: DISCO MIRROR-BALL  (round 2)",
-    "/home/user/skybit/docs/store_redesign/parcels/ufo/design_5/round_2.png")
+    "UFO PARCEL — DESIGN 5: DISCO MIRROR-BALL  (round 3)",
+    "/home/user/skybit/docs/store_redesign/parcels/ufo/design_5/round_3.png")
