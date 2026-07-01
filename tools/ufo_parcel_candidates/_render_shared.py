@@ -59,6 +59,28 @@ def gameplay_panel(build_fn, w: int, h: int, *, night: bool = False) -> pygame.S
     return pygame.transform.smoothscale(scene.subsurface(crop).copy(), (w, h))
 
 
+def carry_zoom_panel(build_fn, zoom: int = 5) -> pygame.Surface:
+    """4×-zoomed crop of the actual carry position in a daytime gameplay scene.
+
+    Shows exactly what the art-director needs to evaluate: the parcel hanging
+    below Pip's tail against real sky, at a scale where every pixel is legible.
+    The crop is 36×36px centred on the parcel's carry position.
+    """
+    palette = biome.palette_for_phase(0.0)
+    scene = _scene(palette, night=False)
+    pip_cx, pip_cy = 96, 270
+    _composite_on_scene(build_fn, scene, pip_cx, pip_cy)
+    carry_cy = pip_cy + PARCEL_Y_OFFSET
+    crop_r = 18
+    crop = pygame.Rect(pip_cx - crop_r, carry_cy - crop_r, crop_r * 2, crop_r * 2)
+    crop.clamp_ip(pygame.Rect(0, 0, GW, GH))
+    raw = scene.subsurface(crop).copy()
+    box = crop_r * 2 * zoom
+    panel = pygame.Surface((box, box), pygame.SRCALPHA)
+    panel.blit(pygame.transform.scale(raw, (box, box)), (0, 0))
+    return panel
+
+
 def hero_panel(build_fn, box: int) -> pygame.Surface:
     """A clean close-up: parcel at 4× on a dark card with the parrot above it."""
     bg = (22, 20, 32)
@@ -79,8 +101,8 @@ def truth_strip(build_fn, n_frames: int = 1) -> list[pygame.Surface]:
 
 
 def render_sheet(build_fn, title: str, out_path: str):
-    """Render and save a standard 3-panel + truth-strip review sheet."""
-    SHEET_W, SHEET_H = 900, 400
+    """Render and save a 4-panel + truth-strip review sheet."""
+    SHEET_W, SHEET_H = 1100, 400
     sheet = pygame.Surface((SHEET_W, SHEET_H))
     sheet.fill((30, 28, 38))
 
@@ -93,6 +115,7 @@ def render_sheet(build_fn, title: str, out_path: str):
         ("DAY GAMEPLAY",   gameplay_panel(build_fn, PW, PH, night=False)),
         ("NIGHT GAMEPLAY", gameplay_panel(build_fn, PW, PH, night=True)),
         ("HERO (4×)",      hero_panel(build_fn, PH)),
+        ("CARRY ZONE (5×)", carry_zoom_panel(build_fn, zoom=5)),
     ]
     x = 16
     for label, panel in panels:
