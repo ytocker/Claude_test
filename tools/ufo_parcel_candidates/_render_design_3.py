@@ -10,5 +10,5 @@ spec = importlib.util.spec_from_file_location("design_3",
 mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
 from _render_shared import render_sheet
 render_sheet(mod.build,
-    "UFO PARCEL — DESIGN 3: GOLDEN GLYPH DISC  (round 1)",
-    "/home/user/skybit/docs/store_redesign/parcels/ufo/design_3/round_1.png")
+    "UFO PARCEL — DESIGN 3: GOLDEN GLYPH DISC  (round 2)",
+    "/home/user/skybit/docs/store_redesign/parcels/ufo/design_3/round_2.png")

@@ -8,7 +8,7 @@ SS = 44
 # Palette — a hammered gold saucer humming with turquoise glyph energy.
 GOLD     = (244, 197, 68)    # bright gold crown
 BRONZE   = (176, 122, 30)    # deep bronze underside
-GLYPH    = (46, 230, 198)    # alien turquoise
+GLYPH    = (72, 240, 205)    # alien turquoise
 OUTLINE  = (42, 27, 8)       # dark relic outline
 CROWN    = (255, 240, 176)   # gold crown catch highlight
 
@@ -68,11 +68,13 @@ def build(mode="normal"):
     energy = pygame.Surface((SS, SS), pygame.SRCALPHA)
     _ring(energy, (*GLYPH, 130), (cx, cy + 1), disc_rx - 2, disc_ry - 1, 1)
     # Clip the halo to the disc's lower half so only the underside rim glows.
-    energy.fill((0, 0, 0, 0), pygame.Rect(0, 0, SS, cy + 1))
+    energy.fill((0, 0, 0, 0), pygame.Rect(0, 0, SS, cy + 3))
     s.blit(energy, (0, 0))
 
     # --- Glowing alien glyphs along the disc face (the legendary tell) ---
-    glyph_y = cy + 2
+    # Only 3 glyphs, widely spaced (cx-9, cx+1, cx+10) so each reads as distinct
+    # "writing" at 22px instead of smearing into one turquoise smudge.
+    glyph_y = cy + 4
 
     def _glow(draw_big):
         """Soft turquoise halo behind a glyph, drawn once at low alpha."""
@@ -81,25 +83,24 @@ def build(mode="normal"):
         s.blit(g, (0, 0))
 
     # DOT — solid mark with a bright core.
-    _glow(lambda g: _aaellipse(g, (*GLYPH, 80), (cx - 11, glyph_y), 4, 4))
-    _aaellipse(s, GLYPH, (cx - 11, glyph_y), 3, 3)
-    _aaellipse(s, (200, 255, 245), (cx - 11, glyph_y - 1), 1, 1)
+    _glow(lambda g: _aaellipse(g, (*GLYPH, 80), (cx - 9, glyph_y), 4, 4))
+    _aaellipse(s, GLYPH, (cx - 9, glyph_y), 3, 3)
+    _aaellipse(s, (200, 255, 245), (cx - 9, glyph_y - 1), 1, 1)
 
     # CHEVRON — a chunky ">" of two short diagonals.
     _glow(lambda g: (
-        pygame.draw.line(g, (*GLYPH, 80), (cx - 6, glyph_y - 4), (cx - 2, glyph_y), 4),
-        pygame.draw.line(g, (*GLYPH, 80), (cx - 2, glyph_y), (cx - 6, glyph_y + 4), 4),
+        pygame.draw.line(g, (*GLYPH, 80), (cx, glyph_y - 4), (cx + 4, glyph_y), 4),
+        pygame.draw.line(g, (*GLYPH, 80), (cx + 4, glyph_y), (cx, glyph_y + 4), 4),
     ))
-    pygame.draw.line(s, GLYPH, (cx - 6, glyph_y - 3), (cx - 3, glyph_y), 3)
-    pygame.draw.line(s, GLYPH, (cx - 3, glyph_y), (cx - 6, glyph_y + 3), 3)
+    pygame.draw.line(s, GLYPH, (cx, glyph_y - 3), (cx + 3, glyph_y), 3)
+    pygame.draw.line(s, GLYPH, (cx + 3, glyph_y), (cx, glyph_y + 3), 3)
 
     # RING — hollow turquoise circle.
-    _glow(lambda g: _aaellipse(g, (*GLYPH, 80), (cx + 3, glyph_y), 5, 5))
-    _ring(s, GLYPH, (cx + 3, glyph_y), 4, 4, 2)
+    _glow(lambda g: _aaellipse(g, (*GLYPH, 80), (cx + 10, glyph_y), 5, 5))
+    _ring(s, GLYPH, (cx + 10, glyph_y), 4, 4, 2)
 
-    # BAR — short vertical stroke.
-    _glow(lambda g: pygame.draw.line(g, (*GLYPH, 80),
-                                     (cx + 10, glyph_y - 3), (cx + 10, glyph_y + 3), 4))
-    pygame.draw.line(s, GLYPH, (cx + 10, glyph_y - 2), (cx + 10, glyph_y + 2), 3)
+    # Dark seat under glyphs — makes energy-etch separation visible at 22px
+    pygame.draw.line(s, BRONZE, (cx - disc_rx + 5, glyph_y + 6),
+                                  (cx + disc_rx - 5, glyph_y + 6), 1)
 
     return pygame.transform.smoothscale(s, (SIZE, SIZE))
