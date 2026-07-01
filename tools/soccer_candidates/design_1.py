@@ -75,6 +75,11 @@ def _paint(surf, _a):
     # already white from _base, so the trim below is what turns the recolor
     # into a striker's kit.
 
+    # Body oval outline FIRST — a 1px cool-grey ellipse ringing the torso so the
+    # white jersey holds its shape against a bright day sky instead of dissolving
+    # into it; every other detail lands on top.
+    pygame.draw.ellipse(surf, (185, 188, 205), (BCX - 19, BCY - 14, 38, 28), 1)
+
     # Shoulder/sleeve seams — a light arc from the neck base over each wing
     # root. Without this the white body reads as a belly patch; the seam makes
     # the wing look like it emerges from a fabric sleeve, so the whole torso
@@ -82,24 +87,33 @@ def _paint(surf, _a):
     pygame.draw.line(surf, (170, 175, 200), (BCX + 8, BCY - 11), (BCX + 17, BCY - 5), 2)
     pygame.draw.line(surf, (170, 175, 200), (BCX - 6, BCY - 11), (BCX - 14, BCY - 5), 2)
 
-    # V-collar — a small navy triangle notched at the head/body junction, so
-    # the white jersey reads as a collared shirt right under the red head.
-    _poly(surf, _NAVY, [(HX - 3, HY + 6), (HX + 2, HY + 6), (HX, HY + 10)])
+    # V-collar — two royal-blue strokes meeting just below the head so the white
+    # jersey reads as a collared shirt at 40px; the old 1px triangle vanished.
+    pygame.draw.line(surf, _ROYAL, (BCX - 6, BCY - 12), (BCX + 2, BCY - 8), 2)
+    pygame.draw.line(surf, _ROYAL, (BCX + 8, BCY - 12), (BCX + 2, BCY - 8), 2)
+    # Bright inner-edge highlight so the notch catches light and reads crisp.
+    pygame.draw.line(surf, _SASH_H, (BCX - 5, BCY - 11), (BCX + 2, BCY - 8), 1)
 
-    # Diagonal NAVY sash across the BODY (not the head) — navy, not royal, so it
-    # never collides with the macaw-red head; the single bold graphic stripe
-    # that carries the "team kit" read at 40px.
-    pygame.draw.line(surf, _SASH, (BCX - 8, BCY - 8), (BCX + 6, BCY + 2), 2)
-    pygame.draw.line(surf, _SASH_H, (BCX - 8, BCY - 9), (BCX + 6, BCY + 1), 1)
+    # Diagonal royal sash — the kit's graphic signature, built as a trio
+    # (shadow / fill / glint) so the stripe reads with 3D weight at 40px instead
+    # of a thin line lost against the white field.
+    pygame.draw.line(surf, _ROYAL_D, (BCX - 10, BCY - 9), (BCX + 8, BCY + 3), 4)
+    pygame.draw.line(surf, _ROYAL, (BCX - 10, BCY - 9), (BCX + 8, BCY + 3), 3)
+    pygame.draw.line(surf, _SASH_H, (BCX - 11, BCY - 10), (BCX + 7, BCY + 2), 1)
 
-    # Squad number "9" on the open white chest — a BOLD navy ring with a longer
-    # tail so it fills real jersey height and reads as a numeral, not a dot.
-    pygame.draw.circle(surf, _NAVY, (BCX + 2, BCY - 5), 4, 2)
-    pygame.draw.line(surf, _NAVY, (BCX + 5, BCY - 3), (BCX + 2, BCY + 2), 2)
+    # Squad number "9" on the open white chest — a proper annular bowl (dark ring
+    # / royal gap / white centre hole) plus a thick dropping tail, so it reads as
+    # a numeral rather than a dot-and-dash.
+    nx, ny = BCX + 2, BCY - 2
+    pygame.draw.circle(surf, _ROYAL_D, (nx, ny - 3), 5)
+    pygame.draw.circle(surf, _ROYAL,   (nx, ny - 3), 4, 2)
+    pygame.draw.circle(surf, _JRS_W,   (nx, ny - 3), 2)
+    pygame.draw.line(surf, _ROYAL_D, (nx + 4, ny - 1), (nx + 1, ny + 5), 4)
+    pygame.draw.line(surf, _ROYAL,   (nx + 3, ny - 1), (nx + 1, ny + 5), 2)
 
     # Jersey hem — a 1px light ellipse so the white shirt bottom separates from
     # the royal shorts below instead of fusing into one dark kit blob.
-    pygame.draw.ellipse(surf, (220, 222, 232), (BCX - 9, BCY + 5, 20, 2), 1)
+    pygame.draw.ellipse(surf, (200, 205, 220), (BCX - 9, BCY + 5, 20, 2), 1)
 
     # Royal-blue shorts, lifted a touch so the hem line reads above them; a
     # darker rim keeps the leg-line crisp against the white torso.
@@ -109,22 +123,21 @@ def _paint(surf, _a):
     _poly(surf, _JRS_W,
           [(BCX - 1, BCY + 12), (BCX + 3, BCY + 12), (BCX + 1, BCY + 15)])
 
-    # Socks — white shanks with a red turn-over hoop, one per leg. Shortened to
-    # leave a clean gap above the cleats so the kit stack stays legible.
+    # Socks — taller white shanks with a red turn-over hoop pinned at the top of
+    # the shank, one per leg. Taller than v7 so the kit stack reads leg-to-boot.
     for sx in (27, 35):
-        pygame.draw.line(surf, _SCK, (sx, BCY + 11), (sx, BCY + 16), 4)
-        pygame.draw.line(surf, _SCK_RED, (sx, BCY + 12), (sx, BCY + 14), 3)
+        pygame.draw.line(surf, _SCK, (sx, BCY + 10), (sx, BCY + 17), 4)
+        pygame.draw.line(surf, _SCK_RED, (sx, BCY + 11), (sx, BCY + 13), 3)
 
     # Light rim between the blue wing edge and the dark cleats — keeps the
     # wing + shorts + cleats from fusing into one bottom blob.
     pygame.draw.line(surf, (210, 215, 225), (BCX - 16, BCY + 3), (BCX - 12, BCY + 9), 1)
 
-    # Cleats — near-black boots below the socks with a visible gap, plus a
-    # bright-orange sole stripe so the studs read against dark ground at 40px.
+    # Cleats — clean rounded-rect boots below the socks with a bright-orange sole
+    # stripe at the very bottom, so the studs read against dark ground at 40px.
     for cx in (23, 31):
-        pygame.draw.rect(surf, _CLEAT, (cx, BCY + 14, 9, 5), border_radius=1)
-        pygame.draw.line(surf, _CLEAT_SL,
-                         (cx, BCY + 18), (cx + 8, BCY + 18), 2)
+        pygame.draw.rect(surf, _CLEAT, (cx, BCY + 14, 9, 5), border_radius=2)
+        pygame.draw.line(surf, _CLEAT_SL, (cx, BCY + 18), (cx + 8, BCY + 18), 1)
 
 
 build = _make_skin(_paint, base_fn=_base)
