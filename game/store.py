@@ -919,9 +919,8 @@ class StoreScene:
             dot_cx_x  = tab_x0 + TAB_W - 18
             text_cx   = (text_left + dot_cx_x - 14) // 2
             name_fill = _GOLD_BRIGHT if selected else (190, 180, 210)
-            _outlined_text(surf, v["name"], (text_cx, ty + TAB_H // 2 - 10), 13,
-                           fill=name_fill, outline=_RED_OUTLINE, px=2,
-                           shadow_offset=(1, 2))
+            ns = _font(13, True).render(v["name"], True, name_fill)
+            surf.blit(ns, ns.get_rect(center=(text_cx, ty + TAB_H // 2 - 10)))
             desc_col  = UI_CREAM if selected else (140, 132, 160)
             ds = _font(11).render(v["desc"], True, desc_col)
             surf.blit(ds, ds.get_rect(center=(text_cx, ty + TAB_H // 2 + 9)))
