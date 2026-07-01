@@ -5,16 +5,17 @@ is untouched.
 
 Concept: a full soccer kit built on a deep-navy body block (jersey + shorts read
 as one dark torso mass) with three bright reads that survive the 40px downscale:
-(1) a white-piped navy jersey with a small white club CREST on the left chest,
-(2) white socks with a navy DOUBLE-HOOP at the top over near-black cleats, and
-(3) the HERO PROP — a bold white CAPTAIN'S ARMBAND looped around the near wing
-arm, brighter and wider than any garment stripe so it owns the read as "captain".
+(1) a chunky white club CREST with a single navy bar under one piping line,
+(2) white socks with a compressed navy DOUBLE-HOOP that keeps clear white gaps
+above the near-black cleats, and (3) the HERO PROP — a wide white CAPTAIN'S
+ARMBAND anchored on the navy shoulder with a single gold spine, brighter and
+wider than any garment stripe so it owns the read as "captain".
 
-At 40px, in order of value: the white armband breaking off the near arm, the
-white crest + collar on the navy chest, the white socks with their double hoop,
-then the near-black cleats. The navy body block is lifted off dark sky by a 1px
-lighter-navy garment outline. Pip's macaw head/beak/eye stay clear so it stays
-"parrot dressed as a captain."
+At 40px, in order of value: the wide white armband + gold spine on the navy
+shoulder, the solid white crest on the navy chest, the white socks with their
+hoop gaps, then the near-black cleats. The navy body block is lifted off dark
+sky by a 1px lighter-navy garment outline. Pip's macaw head/beak/eye stay clear
+so it stays "parrot dressed as a captain."
 """
 import pygame
 
@@ -47,18 +48,18 @@ def _paint(surf, _a):
     # 1px lighter-navy garment outline so the navy block separates from dark sky.
     pygame.draw.polygon(surf, NAVY_LINE, jersey, 1)
 
-    # White piping across the jersey top so the collar line reads at hero scale.
-    pygame.draw.line(surf, PIPING, (HX - 12, HY + 9), (HX + 10, HY + 9), 1)
-    # Thin white V-collar dipping from the piping — the open-neck cue.
-    pygame.draw.line(surf, PIPING, (HX - 3, HY + 9), (HX, HY + 13), 1)
-    pygame.draw.line(surf, PIPING, (HX + 3, HY + 9), (HX, HY + 13), 1)
+    # ONE horizontal piping line across the jersey top — the sole collar cue, so
+    # it never fights the crest for the same white pixels at 40px.
+    pygame.draw.line(surf, (200, 210, 240), (HX - 12, HY + 9), (HX + 10, HY + 9), 1)
 
-    # Club CREST on the left chest — a small white shield with a tiny gold star.
-    shield = [(HX - 8, HY + 11), (HX - 2, HY + 11), (HX - 2, HY + 17),
-              (HX - 5, HY + 19), (HX - 8, HY + 17)]
-    _poly(surf, WHITE, shield)
-    pygame.draw.polygon(surf, NAVY_LINE, shield, 1)
-    store_skins._star5(surf, HX - 5, HY + 14, 2, GOLD)
+    # Club CREST — a chunky white shield block that survives downscale, with ONE
+    # navy vertical bar as its only interior mark (a gold star at r=2 is gone at
+    # 40px, so drop it and let the crest read as a solid white shape).
+    shield = [(HX - 9, HY + 11), (HX - 1, HY + 11), (HX - 1, HY + 18),
+              (HX - 4, HY + 20), (HX - 9, HY + 18)]
+    _poly(surf, (240, 240, 255), shield)
+    pygame.draw.line(surf, NAVY, (HX - 5, HY + 12), (HX - 5, HY + 18), 1)
+    pygame.draw.polygon(surf, NAVY, shield, 1)
 
     # ── SHORTS — same navy as the jersey, crotch notch shows two leg tubes.
     shorts = [(HX - 10, HY + 23), (HX - 11, HY + 29), (HX - 3, HY + 29),
@@ -70,29 +71,28 @@ def _paint(surf, _a):
                          (HX + 3, HY + 23)])
     pygame.draw.polygon(surf, NAVY_LINE, shorts, 1)
 
-    # ── SOCKS — white body with a navy DOUBLE-HOOP at the top.
+    # ── SOCKS — white body with a navy DOUBLE-HOOP compressed UP so a clear white
+    #    gap survives between the hoops and again below the second hoop before the
+    #    cleat, otherwise the whole foot merges into one dark block at 40px. The
+    #    white sock body is laid first so the two 2px navy hoops leave white in the
+    #    gaps (HY+31..33) and below (HY+35..37).
     for sx in (HX - 7, HX + 3):
         pygame.draw.line(surf, SOCK_COL, (sx, HY + 29), (sx, HY + 37), 4)
-        pygame.draw.line(surf, HOOP_COL, (sx, HY + 29), (sx, HY + 32), 4)
-        pygame.draw.line(surf, HOOP2_COL, (sx, HY + 33), (sx, HY + 35), 4)
+        pygame.draw.line(surf, HOOP_COL, (sx, HY + 29), (sx, HY + 31), 4)   # hoop 1
+        pygame.draw.line(surf, HOOP2_COL, (sx, HY + 33), (sx, HY + 35), 4)  # hoop 2
 
     # ── CLEATS — near-black boots with a silver sole stripe.
     for fx in (HX - 11, HX - 1):
         pygame.draw.rect(surf, CLEAT_COL, (fx, HY + 33, 10, 5), border_radius=2)
         pygame.draw.line(surf, STRIPE_COL, (fx + 1, HY + 37), (fx + 9, HY + 37), 1)
 
-    # ── HERO PROP · CAPTAIN'S ARMBAND (drawn LAST) — a bold wide white band looped
-    #    around the near (right) wing arm, brighter + wider than any garment stripe
-    #    so it owns the read as "captain". Gold edge lines above/below + a small
-    #    dark "C" so it reads unmistakably as the skipper's armband.
-    a0 = (HX + 8, HY + 17)
-    a1 = (HX + 14, HY + 21)
-    pygame.draw.line(surf, ARMBAND, a0, a1, 5)
-    # Thin gold edge line 1px above and below the band.
-    pygame.draw.line(surf, GOLD, (a0[0], a0[1] - 3), (a1[0], a1[1] - 3), 1)
-    pygame.draw.line(surf, GOLD, (a0[0], a0[1] + 3), (a1[0], a1[1] + 3), 1)
-    # Small dark "C" for Captain — a short forward-facing arc reading as the letter.
-    pygame.draw.arc(surf, NAVY_D, (HX + 9, HY + 16, 5, 6), 0.5, 2.6, 2)
+    # ── HERO PROP · CAPTAIN'S ARMBAND (drawn LAST) — a bold, WIDE white band
+    #    anchored inboard onto the navy shoulder (not the scarlet wing, where it
+    #    vanished), with a single gold spine down its length for the classic
+    #    captain's-armband read. No arc "C" and no hairline edge lines — both are
+    #    sub-pixel noise at 40px; the fat white band + one gold line own the read.
+    pygame.draw.line(surf, ARMBAND, (HX + 6, HY + 14), (HX + 15, HY + 20), 6)
+    pygame.draw.line(surf, GOLD, (HX + 7, HY + 15), (HX + 14, HY + 19), 1)
 
 
 build = store_skins._make_skin(_paint)
