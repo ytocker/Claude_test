@@ -35,6 +35,17 @@ _floor_strip = None        # cached pygame.Surface (None until first bake)
 _floor_anchor = 0.0        # world-x mapped to local x=0 of the strip
 _floor_bucket = -1         # biome.phase_bucket the strip was baked for
 
+# The stateful near-lane crowd (game.sidewalk_crowd.SidewalkCrowd), registered by
+# World.__init__. Held here so draw_near_lane can hand it to the lane module
+# without threading it through every scenes.py call site. Re-registered whenever a
+# new World is built (each run), so it always points at the live sim.
+_crowd = None
+
+
+def set_crowd(crowd):
+    global _crowd
+    _crowd = crowd
+
 
 def _bake_floor_strip(scroll, pal, bucket):
     global _floor_strip, _floor_anchor, _floor_bucket
@@ -89,5 +100,5 @@ def draw_near_lane(surf, scroll, pal, phase, t):
     """Draw the NEAR/front activity lane, depth-sorted by feet-Y. Flushed here —
     relocated in scenes._render to run AFTER the gameplay pillars — so near-lane
     plants/people (feet lower on screen) occlude the pillar bases."""
-    _near.draw_near_lane(surf, scroll, pal, phase, t)        # enqueue only
+    _near.draw_near_lane(surf, scroll, pal, phase, t, crowd=_crowd)  # enqueue only
     _zbuf.flush(surf)

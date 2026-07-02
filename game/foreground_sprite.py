@@ -34,13 +34,16 @@ def _evict():
         _SPRITE_CACHE.pop(next(iter(_SPRITE_CACHE)))
 
 
-def baked_sprite(key, render_box, footprint, render, *, dim=None, smooth=False):
+def baked_sprite(key, render_box, footprint, render, *, dim=None, smooth=False,
+                 flip=False):
     """Return the cached sprite for `key`, baking it on a miss.
 
     `render(scratch)` paints the figure onto a fresh `render_box` SRCALPHA surface
     (feet at the bottom edge). The scratch is dimmed (optional) then resampled to
-    `footprint` — smoothscale for supersampled detail, else NEAREST. The returned
-    surface's feet sit on its bottom edge; the caller blits it to the deck."""
+    `footprint` — smoothscale for supersampled detail, else NEAREST. `flip`
+    mirrors the baked sprite horizontally (for facing) once, so the flip is cached
+    under `key` (the caller must fold `flip` into the key). The returned surface's
+    feet sit on its bottom edge; the caller blits it to the deck."""
     sp = _SPRITE_CACHE.get(key)
     if sp is not None:
         return sp
@@ -55,6 +58,8 @@ def baked_sprite(key, render_box, footprint, render, *, dim=None, smooth=False):
         sp = pygame.transform.smoothscale(scratch, (fw, fh))
     else:
         sp = pygame.transform.scale(scratch, (fw, fh))
+    if flip:
+        sp = pygame.transform.flip(sp, True, False)
     _SPRITE_CACHE[key] = sp
     _evict()
     return sp

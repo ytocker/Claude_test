@@ -107,6 +107,19 @@ def _near_xs(scroll, w, period, x0, margin=80):
     yield from sp._world_xs(scroll, w, period, x0, mult=NEAR_MULT, margin=margin)
 
 
+# STATIC near-lane dressing (greenery, benches, banners, braziers, performers)
+# rides world speed exactly (×1.0), same as the floor bricks + pillars, so it
+# reads as PLANTED — not sliding faster than the ground. Depth still reads via the
+# near lane's larger scale + lower feet line; only the parallax rate is dropped.
+NEAR_STATIC_MULT = 1.0
+
+
+def _near_static_xs(scroll, w, period, x0, margin=80):
+    """Screen-x for PLANTED near dressing: world speed (×1.0), tiling seamlessly."""
+    yield from sp._world_xs(scroll, w, period, x0, mult=NEAR_STATIC_MULT,
+                            margin=margin)
+
+
 # ── warm capped glow for the near performers (drum / lantern halos) ───────────
 #
 # Net-new lit accents (festival drum face, performer lanterns) need their own
@@ -214,11 +227,12 @@ _DEFAULT_BOX = (_SCRATCH_W, _SCRATCH_H)
 
 
 def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y,
-                 ss=1, smooth=False, **kw):
+                 ss=1, smooth=False, flip=False, **kw):
     """Bake a cast fn (feet on a scratch deck) to a footprint `scale`× its box and
     blit so the feet land on `feet_y`. Served from the shared sprite cache, keyed
-    by (fn, footprint, mode, palette bucket, gait frame, kwargs) — so a `variant=`
-    kwarg bakes distinctly without flicker. NEAREST by default (crisp pixels); a
+    by (fn, footprint, mode, palette bucket, gait frame, facing, kwargs) — so a
+    `variant=` kwarg or a `flip` bakes distinctly without flicker. `flip` mirrors
+    the figure horizontally (walk facing). NEAREST by default (crisp pixels); a
     drawer authored at higher detail can pass ss>1 + smooth=True to supersample
     then anti-alias down. The cast fns read pr.GROUND_Y; we point that at the
     scratch deck while baking so the figure crops cleanly."""
@@ -230,7 +244,7 @@ def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y,
     # Key on the biome phase BUCKET (set per frame by draw_near_lane), not id(pal):
     # the play palette is a fresh dict every frame, so id(pal) only ever hits within
     # a frame -- bucketing lets the bake survive across frames.
-    key = (cast_fn.__name__, foot_w, foot_h, ss, smooth, pr._CUR_BUCKET, tb,
+    key = (cast_fn.__name__, foot_w, foot_h, ss, smooth, pr._CUR_BUCKET, tb, flip,
            tuple(sorted(kw.items())))
 
     def _render(scratch):
@@ -246,7 +260,7 @@ def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y,
     # brightest fabric down ~6% (applied pre-resample so a smoothscale averages
     # already-dimmed pixels).
     big = _spr.baked_sprite(key, render_box, (foot_w, foot_h), _render,
-                            dim=(240, 240, 240), smooth=smooth)
+                            dim=(240, 240, 240), smooth=smooth, flip=flip)
     sw, _sh = big.get_size()
     surf.blit(big, (sx - sw // 2, feet_y - foot_h))
 
@@ -1101,6 +1115,30 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
     sp._latch_prune(('ped', 3))
 
 
+# The LIVING near crowd is now driven by the stateful game.sidewalk_crowd sim so
+# each figure walks at its own pace (two-way facing, pauses, dogs darting) instead
+# of the uniform world-locked tiling above (kept as `_general_pedestrians`, the
+# fallback when no crowd is wired). Draw scale/drawer per kind; the entity's
+# world_x maps to sx via the SAME `world_x - scroll` the planted statics use, so a
+# standing entity is pixel-locked to the ground.
+_CROWD_DRAW = {
+    "stroller": (pr.draw_strollers, 1.6, {}),
+    "kids":     (pr.draw_kids, 1.55, {"n": 2}),
+    "dog":      (pr.draw_dog, 1.5, {}),
+}
+
+
+def _emit_near_crowd(surf, crowd, scroll, pal):
+    ny = NEAR_GROUND_Y
+    for e in crowd.near:
+        drawer, scale, kw = _CROWD_DRAW[e.kind]
+        sx = int(round(e.world_x - scroll))
+        flip = e.facing > 0
+        _zbuf.enqueue(ny, TB_CAST, lambda s, drawer=drawer, sx=sx, scale=scale,
+                      g=e.gait, flip=flip, kw=kw: _scaled_cast(
+                          s, drawer, sx, pal, scale, t=g, flip=flip, **kw))
+
+
 def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
     """Near-lane greenery accents — a vine tub + the odd pine. The pooled potted
     plants now live in the far-band cluster beds on the sidewalk (see
@@ -1110,11 +1148,11 @@ def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
     and spaced on wide periods; the taller pine is gated to a clear zone."""
     ny = NEAR_GROUND_Y
 
-    for sx, k in _near_xs(scroll, w, 520, x0=200):
+    for sx, k in _near_static_xs(scroll, w, 520, x0=200):
         if sp._slot_latch(('grn', 22), k, lambda k=k: pr._slot_on(k, 22, fd)):
             _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx: _near_vine_lantern(s, sx, pal))
     sp._latch_prune(('grn', 22))
-    for sx, k in _near_xs(scroll, w, 480, x0=12):
+    for sx, k in _near_static_xs(scroll, w, 480, x0=12):
         if sp._slot_latch(('grn', 23), k, lambda k=k: pr._slot_on(k, 23, fd)):
             _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx: _near_pine(s, sx, pal))
     sp._latch_prune(('grn', 23))
@@ -1284,9 +1322,12 @@ def _perf_decide(k, phase, density):
     variant = idxs[_fv.slot_seed(k, 73) % len(idxs)]
     return _pooled_perf(variant)
 
-def draw_near_lane(surf, scroll, pal, phase, t):
+def draw_near_lane(surf, scroll, pal, phase, t, crowd=None):
     """Draw the near/front activity lane + the time-appropriate performance, thinned
-    by the day-arc crowd density and filling in from empty at run-start."""
+    by the day-arc crowd density and filling in from empty at run-start. When a
+    `crowd` (game.sidewalk_crowd.SidewalkCrowd) is wired, the living pedestrians/
+    dogs come from that stateful sim (independent walking); otherwise the legacy
+    world-locked `_general_pedestrians` is used as a fallback."""
     # _scaled_cast borrows pr._stepped, so keep the cache clock current.
     pr._CUR_BUCKET = _biome.phase_bucket(phase)
     pr._CUR_T = t
@@ -1297,21 +1338,24 @@ def draw_near_lane(surf, scroll, pal, phase, t):
     # before this call, so the umbrella gate downstream reads the live weather).
     density = pr._population(phase) * pr._run_fill(t) * pr._weather_crowd_factor(phase)
     _general_greenery(surf, W, scroll, pal, t, pr._furn_density(phase))  # fixtures, sparse
-    _general_pedestrians(surf, W, scroll, pal, t, density)
+    if crowd is not None:
+        _emit_near_crowd(surf, crowd, scroll, pal)
+    else:
+        _general_pedestrians(surf, W, scroll, pal, t, density)
     p = phase % 1.0
     # Festival banners + braziers: discrete world slots, each latching its window
     # membership at entry so the row scrolls in/out instead of the on-screen ones
     # blinking when the festival window opens/closes.
     banner_win = (0.45 <= p < 0.86)
     ny = NEAR_GROUND_Y
-    for sx, k in _near_xs(scroll, W, 340, x0=30):
+    for sx, k in _near_static_xs(scroll, W, 340, x0=30):
         on, bv = sp._slot_latch(('banner',), k, lambda k=k: (
             banner_win, pr._prop_latch('prop_banner', k, 41)))
         if on:
             _zbuf.enqueue(ny, TB_STRUCTURE, lambda s, sx=sx, bv=bv: _scaled_cast(
                 s, pr.draw_prop_banner, sx, pal, 1.5, t=t, variant=bv))
     sp._latch_prune(('banner',))
-    for sx, k in _near_xs(scroll, W, 290, x0=115):
+    for sx, k in _near_static_xs(scroll, W, 290, x0=115):
         on, fvar = sp._slot_latch(('brazier',), k, lambda k=k: (
             banner_win, pr._prop_latch('prop_fire', k, 42)))
         if on:
@@ -1322,7 +1366,7 @@ def draw_near_lane(surf, scroll, pal, phase, t):
     # it is occupied (busy-street gate) and WHICH act it holds, so a busker never
     # morphs (juggler->musician etc.) or blinks (density crossing 0.25, day<->festival)
     # while on screen — it performs its act for the whole pass and scrolls off.
-    for bx, k in _near_xs(scroll, W, _PERF_PERIOD, x0=_PERF_X0, margin=_PERF_MARGIN):
+    for bx, k in _near_static_xs(scroll, W, _PERF_PERIOD, x0=_PERF_X0, margin=_PERF_MARGIN):
         act = sp._slot_latch(('perf',), k,
                              lambda k=k: _perf_decide(k, phase, density))
         if act is not None:

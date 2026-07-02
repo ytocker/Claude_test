@@ -347,6 +347,13 @@ class World:
 
         self.weather = Weather()
         self.ambient = AmbientScenes()
+        # Stateful near-lane sidewalk crowd (independent walking). Registered with
+        # the foreground facade so draw_near_lane picks it up; re-registered here so
+        # each new World (each run) owns a fresh, empty crowd.
+        from game.sidewalk_crowd import SidewalkCrowd
+        from game import foreground as _foreground
+        self.crowd = SidewalkCrowd()
+        _foreground.set_crowd(self.crowd)
 
         # "Get ready" freeze at the start of a round: physics paused until
         # the player flaps or the timer expires. Gives new players a moment
@@ -1598,6 +1605,11 @@ class World:
 
             speed = self._current_scroll() if not self.game_over else 0
             self.bg_scroll += speed * sdt
+            # Advance the sidewalk crowd in lockstep with the ground (sdt carries
+            # slow-mo; speed carries rail/skate/weather), so planted entities stay
+            # pixel-locked and walkers move relative to the ground.
+            self.crowd.update(self.bg_scroll, speed, sdt,
+                              self.biome_phase, self.biome_time)
             for p in self.pipes:
                 p.x -= speed * sdt
             for r in self.ramps:
@@ -1960,6 +1972,9 @@ class World:
         self.biome_time += dt
         self.weather.update(dt, self.biome_phase)
         self.bg_scroll += SCROLL_BASE * 0.5 * dt
+        # Keep the crowd alive on the menu too (no slow-mo here → sdt == dt).
+        self.crowd.update(self.bg_scroll, SCROLL_BASE * 0.5, dt,
+                          self.biome_phase, self.biome_time)
         self.ambient.update(dt, self.biome_phase, self.biome_palette,
                             self.bg_scroll)
         for p in self.pipes:
