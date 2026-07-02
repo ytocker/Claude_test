@@ -81,12 +81,18 @@ for r, (t, lbl) in enumerate(truths):
     label(sheet, lbl, x + cell_w * 2 + 22, yy + t40h // 2 - 6, small,
           (210, 210, 210))
 
-# 3x magnified truth (down-stroke pose) so the tail read is judgeable up close.
-big = pygame.transform.scale(truths[2][0],
-                             (t40w * 3, t40h * 3))
+# 3x magnifier focused on the tail SPLAY — crop the lower ~65% of the f3 truth
+# read (where the two ribbons diverge) and blow it up, since the tails are the
+# whole identity claim and must be judgeable up close at true 40px sampling.
+tail_src = truths[2][0]
+tcrop_y = int(t40h * 0.32)
+tail_crop = tail_src.subsurface(
+    pygame.Rect(0, tcrop_y, t40w, t40h - tcrop_y)).copy()
+big = pygame.transform.scale(
+    tail_crop, (tail_crop.get_width() * 3, tail_crop.get_height() * 3))
 bx = x
 by = gy + row_h * 3 + 18
-label(sheet, "40px @3x  (tail tell, f3)", bx, by, small, (210, 210, 210))
+label(sheet, "tail splay @3x  (f3)", bx, by, small, (210, 210, 210))
 d3 = pygame.Rect(bx, by + 18, big.get_width() + 12, big.get_height() + 12)
 pygame.draw.rect(sheet, (150, 170, 195), d3)
 sheet.blit(big, (bx + 6, by + 24))
@@ -109,7 +115,7 @@ for i, f in enumerate(frames):
     label(sheet, flabels[i], fx, fy + fh + 12, small, (200, 200, 200))
     fx += fw + 12
 
-out = "/home/user/skybit/docs/store_redesign/animal/bee/design_3/round_1.png"
+out = "/home/user/skybit/docs/store_redesign/animal/bee/design_3/round_2.png"
 os.makedirs(os.path.dirname(out), exist_ok=True)
 pygame.image.save(sheet, out)
 print("saved", out)

@@ -27,7 +27,8 @@ LIME    = (184, 233, 134)  # #B8E986 Luna Lime — dominant wing fill
 MOONMINT = (228, 247, 197) # #E4F7C5 Moonmint — upper-wing highlight band
 PLUM    = (122, 46, 59)    # #7A2E3B Plum Edge — forewing stripe + tail edge
 AMBER   = (232, 161, 60)   # #E8A13C Eye Amber — eyespot ring
-CREAM   = (240, 234, 210)  # #F0EAD2 Body Cream — body + head + antennae
+CREAM   = (240, 234, 210)  # #F0EAD2 Body Cream — head + antennae
+MIDCREAM = (206, 198, 172)  # muted cream so the body recedes under the wings
 EDGE    = (150, 199, 104)  # shaded lime rim under the fill
 WINDOW  = (232, 244, 214)  # pale eyespot window
 WHITE   = (246, 250, 236)  # catch-lights
@@ -122,13 +123,18 @@ def _draw_wing(surf, side, spread, nx):
     band.blit(_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(band, (0, 0))
 
-    # Maroon leading-edge stripe capping the forewing top — the luna field mark.
-    lead = [(int(x), int(y)) for x, y in (margin[1], margin[2], margin[3])]
+    # Maroon stripe that runs the full leading-and-outer edge of the forewing,
+    # not just the top arch — a wing-margin band, so it stops reading as an
+    # eyebrow arched over the eyespot.
+    lead = [(int(x), int(y))
+            for x, y in (margin[1], margin[2], margin[3], margin[4])]
     pygame.draw.lines(surf, PLUM, False, lead, 3)
 
-    # One amber eyespot on the forewing, pulled a touch in from the apex.
+    # One amber eyespot on the forewing, pulled a touch in from the apex. The
+    # two wings are mirrored, so nudge the eyespot to a different height per
+    # side — broken symmetry kills the paired-eyes / owl-face read.
     ex = int(fcx + (margin[2][0] - fcx) * 0.14)
-    ey = int(fcy - 4)
+    ey = int(fcy - 4 + (2 if side > 0 else -1))
     _eyespot(surf, ex, ey)
 
 
@@ -147,11 +153,12 @@ def _tail(surf, root, ctrl, tip):
     for i in range(n + 1):
         t = i / n
         c = bez(t)
-        # Half-width profile: 3.2 at root -> 1.4 shaft -> 2.4 paddle flare.
+        # Half-width profile, thickened so the streamer reads as a ribbon and
+        # not a leg: 3.2 at root -> 2.0 shaft -> 3.6 spatulate paddle flare.
         if t < 0.82:
-            hw = 3.2 + (1.4 - 3.2) * (t / 0.82)
+            hw = 3.2 + (2.0 - 3.2) * (t / 0.82)
         else:
-            hw = 1.4 + (2.4 - 1.4) * ((t - 0.82) / 0.18)
+            hw = 2.0 + (3.6 - 2.0) * ((t - 0.82) / 0.18)
         nxt = bez(min(1.0, t + 0.02))
         dx, dy = nxt[0] - c[0], nxt[1] - c[1]
         L = math.hypot(dx, dy) or 1.0
@@ -160,10 +167,10 @@ def _tail(surf, root, ctrl, tip):
         right.append((c[0] - nx_ * hw, c[1] - ny_ * hw))
     poly = left + right[::-1]
     pygame.draw.polygon(surf, LIME, poly)
+    # Plum on the TRAILING (lower) edge only — one shaded rim reads as a lit,
+    # rounded ribbon; outlining both edges made it a hollow stick.
     pygame.draw.lines(surf, PLUM, False,
-                      [(int(x), int(y)) for x, y in left], 1)
-    pygame.draw.lines(surf, PLUM, False,
-                      [(int(x), int(y)) for x, y in right], 1)
+                      [(int(x), int(y)) for x, y in right], 2)
     # Mint sheen down the shaft so the tail doesn't read as a flat stick.
     for i in range(2, n - 2, 2):
         cx, cy = bez(i / n)
@@ -171,16 +178,16 @@ def _tail(surf, root, ctrl, tip):
 
 
 def _draw_tails(surf, spread, nx, sway):
-    # Two distinct ribbons sweeping down-left with the body axis toward the
-    # abdomen. Authored absolute, then lifted (a touch less than the wings, so
-    # they trail) and swayed per frame for life. Both tips clear the hindwing by
-    # >20px — the bold read the whole design rides on.
+    # Two long ribbons splaying into a clear V toward the canvas floor — this
+    # splay is the ONLY luna identity claim, so the tips diverge hard (back to
+    # x~10, front to x~34) and both drop near y~82. Lifted a touch less than the
+    # wings so they trail, and swayed per frame for life.
     lift = int(spread * 0.7)
-    # Back (left) tail.
-    a = _stroke([(24, 54), (18 + sway, 66), (13 + sway, 80)], lift, nx)
+    # Back (outer) tail — sweeps down-and-out to the far-left corner.
+    a = _stroke([(24, 54), (15 + sway, 69), (10 + sway, 82)], lift, nx)
     _tail(surf, a[0], a[1], a[2])
-    # Front (right) tail.
-    b = _stroke([(43, 54), (37 + sway, 66), (30 + sway, 78)], lift, nx)
+    # Front (inner) tail — stays more central so the pair opens into a V.
+    b = _stroke([(43, 54), (39 + sway, 69), (34 + sway, 82)], lift, nx)
     _tail(surf, b[0], b[1], b[2])
 
 
@@ -188,24 +195,25 @@ def _antenna(surf, base, tip):
     # Feathery comb antenna: a shaft with short paired teeth — thicker and
     # bushier than a clubbed butterfly pair, the luna/saturniid signature.
     pygame.draw.line(surf, CREAM, base, tip, 2)
-    steps = 5
+    steps = 7
     for i in range(1, steps):
         t = i / steps
         px = base[0] + (tip[0] - base[0]) * t
         py = base[1] + (tip[1] - base[1]) * t
-        pygame.draw.line(surf, CREAM, (px - 3, py - 1), (px + 3, py + 1), 1)
+        pygame.draw.line(surf, CREAM, (px - 4, py - 1), (px + 4, py + 1), 1)
 
 
 def _draw_body(surf):
-    # Short fuzzy cream body angling down-left off the head, with faint segment
-    # shading so it reads as plush rather than a bald bead.
-    _aaellipse(surf, CREAM, (BCX, BCY), 5, 7)                 # thorax
-    _aaellipse(surf, (226, 219, 194), (BCX - 3, BCY + 6), 4, 6)  # abdomen
-    for k in range(3):
-        pygame.draw.line(surf, (208, 200, 172),
-                         (BCX - 6, BCY + 2 + k * 4),
-                         (BCX + 3, BCY + 2 + k * 4), 1)
-    _aaellipse(surf, MOONMINT, (BCX - 1, BCY - 3), 2, 3)      # thorax sheen
+    # Short fuzzy body angling down-left off the head. Kept muted mid-cream and
+    # small so it recedes — the wings and tails must out-contrast it, and the
+    # slim abdomen no longer smothers the tail roots below.
+    _aaellipse(surf, MIDCREAM, (BCX, BCY), 4, 6)             # thorax
+    _aaellipse(surf, (184, 176, 152), (BCX - 3, BCY + 3), 3, 5)  # abdomen
+    for k in range(2):
+        pygame.draw.line(surf, (168, 160, 138),
+                         (BCX - 5, BCY + 1 + k * 4),
+                         (BCX + 2, BCY + 1 + k * 4), 1)
+    _aaellipse(surf, MOONMINT, (BCX - 1, BCY - 3), 2, 2)     # thorax sheen
 
 
 def _draw_head(surf):
@@ -242,11 +250,15 @@ def _apply_glow(outlined, fi):
     # (fi 3) so the pale sprite still separates from a dark night sky. Built as
     # additive circles on a clear plate, with the finished sprite laid on top —
     # done AFTER _add_outline so the outline mask never swallowed the glow.
-    scale = {3: 1.0, 2: 0.82, 1: 0.72, 0: 0.70}.get(fi, 0.75)
+    # Wide pulse contrast (0.5 up-stroke -> 1.0 down-stroke) so the down-beat
+    # visibly blooms rather than sitting as a flat green vignette.
+    scale = {3: 1.0, 2: 0.75, 1: 0.60, 0: 0.50}.get(fi, 0.6)
     w, h = outlined.get_size()
-    cx, cy = w // 2, h // 2 - 6
+    # Centre the halo lower so the bloom also lifts the trailing tails off a
+    # dark night sky, not just the wing mass.
+    cx, cy = w // 2, h // 2 - 2
     halo = pygame.Surface((w, h), pygame.SRCALPHA)
-    for r, base in ((32, 26), (23, 30), (15, 34)):
+    for r, base in ((32, 40), (23, 48), (15, 58)):
         a = int(base * scale)
         g = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
         pygame.draw.circle(g, (*GLOW, a), (r, r), r)
