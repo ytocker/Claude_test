@@ -77,7 +77,7 @@ CATALOG: dict[str, dict] = {
     "skin_dragon":   {"name": "DRAGON",    "cost": 1200, "kind": "skin", "group": "animal"},
     "skin_phoenix":  {"name": "PHOENIX",   "cost": 1500, "kind": "skin", "group": "animal"},
     # Legendary tier — spectacle showpieces, priced clearly above the rest.
-    "skin_thunderbird":  {"name": "THUNDERBIRD",  "cost": 1800, "kind": "skin", "group": "animal"},
+    "skin_butterfly":    {"name": "BUTTERFLY",    "cost": 1800, "kind": "skin", "group": "animal"},
     "skin_cosmic_jelly": {"name": "COSMIC JELLY", "cost": 2200, "kind": "skin", "group": "animal"},
     "skin_aurora_stag":  {"name": "AURORA STAG",  "cost": 2800, "kind": "skin", "group": "animal"},
     "skin_kitsune":      {"name": "KITSUNE",      "cost": 3500, "kind": "skin", "group": "animal"},

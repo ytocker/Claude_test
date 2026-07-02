@@ -90,6 +90,13 @@ _UFO_VARIANTS = [
      "accent": (205, 155, 255), "dim": ( 95,  45, 185)},
 ]
 
+_BUTTERFLY_VARIANTS = [
+    {"key": "azure_monarch",  "name": "AZURE MONARCH",  "desc": "Blue · Cyan shimmer",     "accent": ( 50, 120, 230)},
+    {"key": "red_admiral",    "name": "RED ADMIRAL",    "desc": "Jet black · Scarlet slash", "accent": (215,  28,  28)},
+    {"key": "painted_lady",   "name": "PAINTED LADY",   "desc": "Tawny · Cream · Apricot",  "accent": (240, 140,  88)},
+    {"key": "purple_emperor", "name": "PURPLE EMPEROR", "desc": "Violet · Indigo shimmer",  "accent": (150,  95, 235)},
+]
+
 # Unified chip family: one pill silhouette + hairline rim for every state; only
 # the fill + content differ. The can't-afford "locked" chip is dark cool slate-
 # blue (never warm gold) so it can't be mistaken for the EQUIP chip.
@@ -442,7 +449,8 @@ class StoreScene:
         self._cp_yes_rect: "pygame.Rect | None" = None
         self._cp_no_rect: "pygame.Rect | None" = None
         self._cp_panel: "pygame.Rect | None" = None
-        self._ufo_swatch_surfs: "list | None" = None  # lazily built
+        self._ufo_swatch_surfs: "list | None" = None        # lazily built
+        self._butterfly_swatch_surfs: "list | None" = None  # lazily built
         store_data.load()
         # Per-tab skin lists, cheapest first. PARROTS/SHADES/PARCELS are fronted
         # by a free DEFAULT card so the player can always revert.
@@ -526,9 +534,12 @@ class StoreScene:
 
         self._draw_toast(surf)
         self._draw_back(surf)
-        # The buy-confirmation (or colour picker for parcel_ufo) overlays everything.
+        # The buy-confirmation (or colour picker) overlays everything.
         if self._colour_picking:
-            self._draw_colour_picker(surf)
+            if self._confirm == "skin_butterfly":
+                self._draw_butterfly_colour_picker(surf)
+            else:
+                self._draw_colour_picker(surf)
         else:
             self._draw_confirm(surf)
 
@@ -999,12 +1010,186 @@ class StoreScene:
             self._colour_picking = False
         return None
 
+    def _draw_butterfly_colour_picker(self, surf) -> None:
+        self._cp_panel = None
+        self._cp_swatches = []
+        self._cp_yes_rect = self._cp_no_rect = None
+
+        scrim = pygame.Surface((W, H), pygame.SRCALPHA)
+        scrim.fill((4, 4, 10, 180))
+        surf.blit(scrim, (0, 0))
+
+        PW, PH = 322, 420
+        panel = pygame.Rect((W - PW) // 2, (H - PH) // 2, PW, PH)
+        self._cp_panel = panel
+        px0, py0 = panel.x, panel.y
+        pcx = panel.centerx
+
+        _drop_shadow(surf, panel, 18, blur=8, alpha=170)
+        surf.blit(_vgrad_panel(PW, PH, 18, (28, 24, 38), (12, 10, 22), 255),
+                  panel.topleft)
+        pygame.draw.rect(surf, lerp_color(_GOLD_BRIGHT, NEAR_BLACK, 0.45), panel,
+                         width=2, border_radius=18)
+        pygame.draw.rect(surf, (*_GOLD_BRIGHT, 230), panel.inflate(-2, -2),
+                         width=1, border_radius=16)
+
+        _outlined_text(surf, "BUTTERFLY", (pcx, py0 + 22), 17,
+                       fill=_GOLD_BRIGHT, outline=_RED_OUTLINE, px=3,
+                       shadow_offset=(2, 4))
+        sub = _font(10).render("Choose your wing pattern  —  one-time pick", True,
+                               (140, 132, 160))
+        surf.blit(sub, sub.get_rect(center=(pcx, py0 + 44)))
+        _gold_rule(surf, px0 + 24, panel.right - 24, py0 + 58)
+
+        # Butterfly swatch surfaces — lazily built at 44×44
+        if self._butterfly_swatch_surfs is None:
+            from game.animal_skins import (
+                _get_bfly_azure, _get_bfly_red, _get_bfly_painted, _get_bfly_purple,
+            )
+            _BFLY_GETTERS_ORDER = [
+                _get_bfly_azure, _get_bfly_red, _get_bfly_painted, _get_bfly_purple,
+            ]
+            self._butterfly_swatch_surfs = []
+            for gfn in _BFLY_GETTERS_ORDER:
+                raw = gfn(1, 0.0)
+                bb = raw.get_bounding_rect()
+                if bb.width > 0 and bb.height > 0:
+                    raw = raw.subsurface(bb).copy()
+                sw, sh = raw.get_size()
+                scale = 44.0 / max(sw, sh)
+                scaled = pygame.transform.smoothscale(
+                    raw, (max(1, int(sw * scale)), max(1, int(sh * scale))))
+                self._butterfly_swatch_surfs.append(scaled)
+
+        TAB_H, TAB_GAP = 64, 5
+        TAB_W = PW - 24
+        tab_x0 = px0 + 12
+        tab_y0 = py0 + 65
+
+        for i, v in enumerate(_BUTTERFLY_VARIANTS):
+            ty = tab_y0 + i * (TAB_H + TAB_GAP)
+            tr = pygame.Rect(tab_x0, ty, TAB_W, TAB_H)
+            selected = (v["key"] == self._selected_variant)
+            acc = v["accent"]
+
+            bg = (28, 26, 48) if selected else (18, 18, 42)
+            surf.blit(_vgrad_panel(TAB_W, TAB_H, 8,
+                                   lerp_color(bg, WHITE, 0.06), bg),
+                      tr.topleft)
+
+            if selected:
+                tint = pygame.Surface((TAB_W, TAB_H), pygame.SRCALPHA)
+                tint.fill((*acc, 30))
+                surf.blit(tint, tr.topleft)
+                pygame.draw.rect(surf, _GOLD_BRIGHT, tr, 1, border_radius=8)
+            else:
+                pygame.draw.rect(surf, (40, 38, 62), tr, 1, border_radius=8)
+
+            bar_col = lerp_color(acc, WHITE, 0.3) if selected else acc
+            pygame.draw.rect(surf, bar_col,
+                             pygame.Rect(tab_x0, ty, 6, TAB_H),
+                             border_radius=4)
+
+            # Butterfly preview well (52×52)
+            well_x = tab_x0 + 14
+            well_y = ty + (TAB_H - 52) // 2
+            well = pygame.Rect(well_x, well_y, 52, 52)
+            pygame.draw.rect(surf, (10, 10, 28), well, border_radius=6)
+            pygame.draw.rect(surf, _GOLD_DEEP, well, 1, border_radius=6)
+            swatch = self._butterfly_swatch_surfs[i]
+            surf.blit(swatch, swatch.get_rect(center=well.center))
+
+            text_left = tab_x0 + 14 + 52 + 8
+            dot_cx_x  = tab_x0 + TAB_W - 18
+            text_cx   = (text_left + dot_cx_x - 14) // 2
+            name_fill = _GOLD_BRIGHT if selected else (190, 180, 210)
+            ns = _font(13, True).render(v["name"], True, name_fill)
+            surf.blit(ns, ns.get_rect(center=(text_cx, ty + TAB_H // 2 - 10)))
+            desc_col = UI_CREAM if selected else (140, 132, 160)
+            ds = _font(11).render(v["desc"], True, desc_col)
+            surf.blit(ds, ds.get_rect(center=(text_cx, ty + TAB_H // 2 + 9)))
+
+            dot_cy = ty + TAB_H // 2
+            pygame.draw.circle(surf, acc, (dot_cx_x, dot_cy), 9)
+            if selected:
+                pygame.draw.circle(surf, _GOLD_BRIGHT, (dot_cx_x, dot_cy), 10, 2)
+
+            self._cp_swatches.append(tr)
+
+        div_y = tab_y0 + 4 * TAB_H + 3 * TAB_GAP + 12
+        _gold_rule(surf, px0 + 24, panel.right - 24, div_y)
+        bw, bh, gutter = 120, 40, 14
+        by  = div_y + 12
+        nx  = pcx - (bw * 2 + gutter) // 2
+        cancel  = pygame.Rect(nx, by, bw, bh)
+        confirm = pygame.Rect(nx + bw + gutter, by, bw, bh)
+
+        surf.blit(_vgrad_panel(bw, bh, bh // 2, (70, 62, 80), (44, 38, 56)),
+                  cancel.topleft)
+        pygame.draw.rect(surf, (126, 116, 138), cancel, width=1,
+                         border_radius=bh // 2)
+        surf.blit(_font(14, True).render("CANCEL", True, UI_CREAM),
+                  _font(14, True).render("CANCEL", True, UI_CREAM)
+                  .get_rect(center=cancel.center))
+
+        bglow = pygame.Surface((bw + 10, bh + 10), pygame.SRCALPHA)
+        for k in range(4, 0, -1):
+            pygame.draw.rect(bglow, (255, 200, 80, int(22 * k / 4)),
+                             (5 - k, 5 - k, bw + 2 * k, bh + 2 * k),
+                             border_radius=bh // 2 + k)
+        surf.blit(bglow, (confirm.x - 5, confirm.y - 5),
+                  special_flags=pygame.BLEND_ADD)
+        surf.blit(_vgrad_panel(bw, bh, bh // 2,
+                               lerp_color(_GOLD_BRIGHT, WHITE, 0.2), _GOLD_DEEP),
+                  confirm.topleft)
+        pygame.draw.rect(surf, _GOLD_PALE, confirm, width=1, border_radius=bh // 2)
+        cft = _font(14, True).render("CONFIRM  ✓", True, (40, 24, 8))
+        surf.blit(cft, cft.get_rect(center=confirm.center))
+
+        self._cp_no_rect  = cancel
+        self._cp_yes_rect = confirm
+
+    def _handle_butterfly_colour_pick_tap(self, pos) -> None:
+        if pos is None:
+            self._confirm = None
+            self._colour_picking = False
+            return None
+        if self._cp_yes_rect and self._cp_yes_rect.collidepoint(pos):
+            sid = self._confirm
+            self._confirm = None
+            self._colour_picking = False
+            if sid is not None:
+                ok, reason = store_data.try_purchase(sid)
+                if ok:
+                    store_data.save_parcel_variant(sid, self._selected_variant)
+                    store_data.equip(sid)
+                    self._butterfly_swatch_surfs = None  # invalidate so next open rebuilds
+                    store_cards.clear_cache()
+                    self._flash("UNLOCKED!  " + self._disp_name(sid))
+                elif reason == "insufficient":
+                    self._flash("NEED MORE COINS")
+            return None
+        if self._cp_no_rect and self._cp_no_rect.collidepoint(pos):
+            self._confirm = None
+            self._colour_picking = False
+            return None
+        for i, sr in enumerate(self._cp_swatches):
+            if sr.collidepoint(pos):
+                self._selected_variant = _BUTTERFLY_VARIANTS[i]["key"]
+                return None
+        if self._cp_panel and not self._cp_panel.collidepoint(pos):
+            self._confirm = None
+            self._colour_picking = False
+        return None
+
     # ── input ────────────────────────────────────────────────────────────────
     def handle_tap(self, pos) -> "str | None":
         # While the buy-confirmation is up it is modal: only its own buttons
         # (and a tap on the scrim, which cancels) are hit-testable.
         if self._confirm is not None:
             if self._colour_picking:
+                if self._confirm == "skin_butterfly":
+                    return self._handle_butterfly_colour_pick_tap(pos)
                 return self._handle_colour_pick_tap(pos)
             return self._handle_confirm_tap(pos)
         # Device back / escape steps OUT one level: category -> hub -> exit store.
@@ -1106,6 +1291,11 @@ class StoreScene:
             # Intercept: show colour picker before deducting coins.
             self._colour_picking = True
             self._selected_variant = "sapphire"
+            return
+        if sid == "skin_butterfly":
+            # Intercept: show wing-pattern picker before deducting coins.
+            self._colour_picking = True
+            self._selected_variant = "azure_monarch"
             return
         self._confirm = None
         ok, reason = store_data.try_purchase(sid)

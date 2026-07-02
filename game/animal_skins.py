@@ -649,6 +649,415 @@ def build_bee(wing_angle_deg):
 get_bee = _make_prebuilt_skin(build_bee)
 
 
+# ── BUTTERFLY (MONARCH base + 4 wing-pattern variants) ────────────────────────
+# Shared playing-card wing geometry + body/head helpers, inlined from
+# tools/bee_candidates/_shared_monarch.py (production cannot import from tools/).
+# BCX, BCY, HCX, HCY, CROWN_Y and _new() match this file's existing values.
+
+_M_INK   = (26, 19, 14)
+_M_FLAKE = (245, 241, 230)
+
+_M_WING_R = [
+    (34, 26), (45, 13), (56, 10), (63, 20), (62, 32),
+    (60, 40), (57, 48), (50, 54), (42, 56), (34, 49),
+]
+
+
+def _m_centroid(pts):
+    n = len(pts)
+    return (sum(p[0] for p in pts) / n, sum(p[1] for p in pts) / n)
+
+
+def _m_inset(pts, frac):
+    cx, cy = _m_centroid(pts)
+    return [(x + (cx - x) * frac, y + (cy - y) * frac) for x, y in pts]
+
+
+def _m_transform(pts, side, spread, nx):
+    out = []
+    for x, y in pts:
+        dx = (x - BCX) * side
+        out.append((BCX + dx * nx, y - spread))
+    return out
+
+
+def _m_wing_mask(pts):
+    m = _new()
+    pygame.draw.polygon(m, (255, 255, 255, 255), pts)
+    return m
+
+
+def _m_draw_body(surf, lift=0, ink=_M_INK, flake=_M_FLAKE):
+    L = lift
+    pygame.draw.polygon(surf, ink, [
+        (BCX - 3, BCY - L), (BCX + 3, BCY - L),
+        (BCX + 1, BCY + 5 - L),
+        (BCX - 3, BCY + 9 - L),
+        (BCX - 5, BCY + 4 - L),
+    ])
+    for fx, fy in ((BCX - 1, BCY + 2), (BCX - 2, BCY + 6)):
+        pygame.draw.circle(surf, flake, (fx, fy - L), 1)
+    _aaellipse(surf, ink, (BCX, BCY - L), 5, 7)
+    pygame.draw.circle(surf, flake, (BCX - 1, BCY - 2 - L), 1)
+
+
+def _m_draw_head(surf, lift=0, ink=_M_INK, flake=_M_FLAKE,
+                 ring_col=(250, 132, 30), club_col=(255, 179, 71)):
+    L = lift
+    for tx, ty in ((HCX - 6, CROWN_Y - L), (HCX + 4, CROWN_Y - L)):
+        sx = HCX + (1 if tx > HCX else -1)
+        sy = HCY - 4 - L
+        mxh = (sx + tx) / 2 + (2 if tx > HCX else -2)
+        myh = (sy + ty) / 2
+        pygame.draw.lines(surf, ink, False, [(sx, sy), (mxh, myh), (tx, ty)], 1)
+        pygame.draw.circle(surf, ink, (tx, ty), 2)
+        pygame.draw.circle(surf, club_col, (tx, ty - 1), 1)
+    _aaellipse(surf, ring_col, (HCX, HCY - L), 6, 6)
+    _aaellipse(surf, ink, (HCX, HCY - L), 5, 5)
+    pygame.draw.circle(surf, flake, (HCX - 2, HCY - 1 - L), 1)
+    pygame.draw.circle(surf, flake, (HCX + 2, HCY - L), 1)
+
+
+def _monarch_make_build(draw_wing_fn, ring_col=(250, 132, 30), club_col=(255, 179, 71)):
+    """Cached (frame_idx, tilt_deg)->Surface getter using the given wing painter."""
+    state = {"frames": None, "rot": {}}
+
+    def _frame(a):
+        surf = _new()
+        f = (a + 40) / 90.0
+        spread, nx = int(f * 9), 1.0 - 0.42 * f
+        draw_wing_fn(surf, -1, spread, nx)
+        _m_draw_body(surf, spread)
+        draw_wing_fn(surf, +1, spread, nx)
+        _m_draw_head(surf, spread, ring_col=ring_col, club_col=club_col)
+        return surf
+
+    def _fn(frame_idx, tilt_deg):
+        if state["frames"] is None:
+            state["frames"] = [_add_outline(_frame(a)) for a in _WING_ANGLES]
+        frame_idx %= 4
+        key = (frame_idx, int(round(tilt_deg / 3)) * 3)
+        if key not in state["rot"]:
+            state["rot"][key] = pygame.transform.rotozoom(
+                state["frames"][frame_idx], key[1], 1.0)
+        return state["rot"][key]
+
+    return _fn
+
+
+# MONARCH — warm orange stained-glass, heavy black veins, white margin dots.
+_M_MONARCH = (250, 132, 30)
+_M_AMBER   = (255, 179, 71)
+_M_BRIGHT  = (255, 176, 80)
+_M_SHADOW  = (208, 92, 26)
+
+
+def _bfly_wing_monarch(surf, side, spread, nx):
+    margin = _m_transform(_M_WING_R, side, spread, nx)
+    fill   = _m_inset(margin, 0.14)
+    pygame.draw.polygon(surf, _M_INK, margin)
+    pygame.draw.polygon(surf, _M_SHADOW, fill)
+    pygame.draw.polygon(surf, _M_MONARCH, _m_inset(fill, 0.06))
+    fcx, fcy = _m_centroid(fill)
+    rx, ry   = margin[0]
+    root = (rx + (fcx - rx) * 0.42, ry + (fcy - ry) * 0.42)
+    core = _new()
+    for r, col, a in ((16, _M_MONARCH, 150), (12, _M_AMBER, 185), (7, _M_AMBER, 225)):
+        _aaellipse(core, (*col, a), root, r, r * 0.82)
+    tip, lead = fill[2], fill[1]
+    mid = ((tip[0] + lead[0]) / 2, (tip[1] + lead[1]) / 2)
+    _aaellipse(core, (*_M_BRIGHT, 200), tip, 7, 6)
+    _aaellipse(core, (*_M_BRIGHT, 225), mid, 4, 4)
+    core.blit(_m_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(core, (0, 0))
+    for idx in (2, 3, 4, 6, 7):
+        pygame.draw.line(surf, _M_INK, root, fill[idx], 2)
+    pygame.draw.line(surf, _M_INK, root, fill[1], 1)
+    pygame.draw.line(surf, _M_INK, root, fill[8], 1)
+    outer = margin[1:9]
+    for i in range(len(outer) - 1):
+        a0, a1 = outer[i], outer[i + 1]
+        pygame.draw.circle(surf, _M_FLAKE,
+                           (int(a0[0] + (fcx - a0[0]) * 0.14),
+                            int(a0[1] + (fcy - a0[1]) * 0.14)), 1)
+        for t in (0.0, 0.5):
+            ex = a0[0] + (a1[0] - a0[0]) * t
+            ey = a0[1] + (a1[1] - a0[1]) * t
+            pygame.draw.circle(surf, _M_FLAKE,
+                               (int(ex + (fcx - ex) * 0.30),
+                                int(ey + (fcy - ey) * 0.30)), 1)
+
+
+# AZURE MONARCH — deep royal blue + per-frame cyan iridescent shimmer.
+_M_ROYAL  = (28, 90, 200)
+_M_AZURE  = (50, 120, 230)
+_M_CYAN   = (95, 175, 255)
+_M_COBALT = (18, 55, 140)
+
+
+def _bfly_wing_azure(surf, side, spread, nx, fi):
+    margin = _m_transform(_M_WING_R, side, spread, nx)
+    fill   = _m_inset(margin, 0.14)
+    pygame.draw.polygon(surf, _M_INK, margin)
+    pygame.draw.polygon(surf, _M_COBALT, _m_inset(fill, 0.06))
+    pygame.draw.polygon(surf, _M_ROYAL, fill)
+    fcx, fcy = _m_centroid(fill)
+    rx, ry   = margin[0]
+    root = (rx + (fcx - rx) * 0.42, ry + (fcy - ry) * 0.42)
+    core = _new()
+    for r, col, a in ((16, _M_ROYAL, 130), (12, _M_AZURE, 160), (7, _M_AZURE, 200)):
+        _aaellipse(core, (*col, a), root, r, r * 0.82)
+    tip, lead = fill[2], fill[1]
+    mid = ((tip[0] + lead[0]) / 2, (tip[1] + lead[1]) / 2)
+    _aaellipse(core, (*_M_AZURE, 130), tip, 7, 6)
+    _aaellipse(core, (*_M_AZURE, 150), mid, 4, 4)
+    core.blit(_m_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(core, (0, 0))
+    for idx in (2, 3, 4, 6, 7):
+        pygame.draw.line(surf, _M_INK, root, fill[idx], 2)
+    pygame.draw.line(surf, _M_INK, root, fill[1], 2)
+    pygame.draw.line(surf, _M_INK, root, fill[8], 2)
+    shim = _new()
+    _aaellipse(shim, (*_M_CYAN, 60), (fcx + (fi - 1.5) * 7, fcy), 11, 9)
+    shim.blit(_m_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(shim, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    outer = margin[1:9]
+    for i in range(len(outer) - 1):
+        a0, a1 = outer[i], outer[i + 1]
+        pygame.draw.circle(surf, _M_FLAKE,
+                           (int(a0[0] + (fcx - a0[0]) * 0.14),
+                            int(a0[1] + (fcy - a0[1]) * 0.14)), 1)
+        for t in (0.0, 0.5):
+            ex = a0[0] + (a1[0] - a0[0]) * t
+            ey = a0[1] + (a1[1] - a0[1]) * t
+            pygame.draw.circle(surf, _M_FLAKE,
+                               (int(ex + (fcx - ex) * 0.30),
+                                int(ey + (fcy - ey) * 0.30)), 1)
+
+
+def _bfly_azure_frame(a):
+    surf = _new()
+    try:
+        fi = list(_WING_ANGLES).index(int(round(a)))
+    except ValueError:
+        fi = 0
+    f = (a + 40) / 90.0
+    spread, nx = int(f * 9), 1.0 - 0.42 * f
+    _bfly_wing_azure(surf, -1, spread, nx, fi)
+    _m_draw_body(surf, spread)
+    _bfly_wing_azure(surf, +1, spread, nx, fi)
+    _m_draw_head(surf, spread, ring_col=_M_AZURE, club_col=_M_CYAN)
+    return surf
+
+
+# RED ADMIRAL — jet-black wings, bold scarlet diagonal slash, rust hindwing hem.
+_M_OBSIDIAN  = (14, 11, 20)
+_M_NIGHT_RIM = (44, 48, 68)
+_M_SCARLET   = (215, 28, 28)
+_M_EMBER     = (190, 70, 18)
+_M_DIM_RED   = (100, 15, 15)
+
+
+def _bfly_wing_red(surf, side, spread, nx):
+    margin = _m_transform(_M_WING_R, side, spread, nx)
+    fill   = _m_inset(margin, 0.14)
+    pygame.draw.polygon(surf, _M_OBSIDIAN, margin)
+    pygame.draw.polygon(surf, _M_NIGHT_RIM, margin, 1)
+    fc = _m_centroid(margin)
+
+    def _lr(a, b, t):
+        return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+
+    e1 = _lr(_lr(fc, margin[0], 0.35), margin[9], 0.12)
+    e2 = _lr(margin[2], fc, 0.40)
+    vx, vy = e2[0] - e1[0], e2[1] - e1[1]
+    seg = math.hypot(vx, vy) or 1.0
+    px, py = -vy / seg, vx / seg
+    hw = 4.2
+    band = [
+        (e1[0] + px * hw, e1[1] + py * hw), (e2[0] + px * hw, e2[1] + py * hw),
+        (e2[0] - px * hw, e2[1] - py * hw), (e1[0] - px * hw, e1[1] - py * hw),
+    ]
+    pygame.draw.polygon(surf, _M_SCARLET, band)
+    for t in (0.35, 0.65):
+        pygame.draw.line(surf, _M_DIM_RED,
+                         _lr(band[3], band[0], t), _lr(band[2], band[1], t), 1)
+    pygame.draw.lines(surf, _M_EMBER, False, [fill[6], fill[7], fill[8], fill[9]], 2)
+    ap2, ap3 = fill[2], fill[3]
+    for sx, sy in (
+        (ap2[0], ap2[1]), (ap2[0] - 2, ap2[1] + 3),
+        ((ap2[0] + ap3[0]) / 2, (ap2[1] + ap3[1]) / 2),
+        (ap3[0] - 1, ap3[1] - 2),
+    ):
+        pygame.draw.circle(surf, _M_FLAKE, (int(sx), int(sy)), 1)
+
+
+# PAINTED LADY — salmon-tawny field, pale cream hindwing zone, black apex patch.
+_M_TAWNY = (240, 140, 88)
+_M_PEACH  = (247, 176, 136)
+_M_CREAM  = (240, 226, 192)
+
+
+def _bfly_wing_painted(surf, side, spread, nx):
+    margin = _m_transform(_M_WING_R, side, spread, nx)
+    fill   = _m_inset(margin, 0.14)
+    pygame.draw.polygon(surf, _M_INK, margin)
+    pygame.draw.polygon(surf, _M_TAWNY, fill)
+    fcx, fcy = _m_centroid(fill)
+    rx, ry   = margin[0]
+    root = (rx + (fcx - rx) * 0.42, ry + (fcy - ry) * 0.42)
+    core = _new()
+    for r, col, a in ((16, _M_TAWNY, 140), (11, _M_PEACH, 170), (6, _M_PEACH, 210)):
+        _aaellipse(core, (*col, a), root, r, r * 0.82)
+    core.blit(_m_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(core, (0, 0))
+
+    def _pull(p, frac):
+        return (p[0] + (fcx - p[0]) * frac, p[1] + (fcy - p[1]) * frac)
+
+    cream_s = _new()
+    pygame.draw.polygon(cream_s, (*_M_CREAM, 255),
+                        [_pull(fill[6], 0.26), _pull(fill[7], 0.24),
+                         _pull(fill[8], 0.26), _pull(fill[9], 0.32),
+                         _pull(fill[7], 0.58)])
+    cream_s.blit(_m_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(cream_s, (0, 0))
+
+    apex = [fill[1], fill[2], fill[3], fill[4]]
+    pygame.draw.polygon(surf, _M_INK, apex)
+    acx = sum(p[0] for p in apex) / 4
+    acy = sum(p[1] for p in apex) / 4
+
+    def _mx(a, b, t):
+        return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+
+    for sp in (_mx(fill[2], fill[3], 0.15), _mx(fill[2], fill[3], 0.55),
+               _mx(fill[1], fill[2], 0.55), _mx(fill[2], fill[3], 0.85),
+               _mx(fill[3], fill[4], 0.35)):
+        pygame.draw.circle(surf, _M_FLAKE,
+                           (int(sp[0] + (acx - sp[0]) * 0.12),
+                            int(sp[1] + (acy - sp[1]) * 0.12)), 1)
+    for idx in (2, 3, 4, 6, 7):
+        pygame.draw.line(surf, _M_INK, root, fill[idx], 2)
+    pygame.draw.line(surf, _M_INK, root, fill[1], 1)
+    pygame.draw.line(surf, _M_INK, root, fill[8], 1)
+    outer = margin[1:6]
+    for i in range(len(outer) - 1):
+        a0, a1 = outer[i], outer[i + 1]
+        pygame.draw.circle(surf, _M_FLAKE,
+                           (int(a0[0] + (fcx - a0[0]) * 0.14),
+                            int(a0[1] + (fcy - a0[1]) * 0.14)), 1)
+        for t in (0.0, 0.5):
+            ex = a0[0] + (a1[0] - a0[0]) * t
+            ey = a0[1] + (a1[1] - a0[1]) * t
+            pygame.draw.circle(surf, _M_FLAKE,
+                               (int(ex + (fcx - ex) * 0.30),
+                                int(ey + (fcy - ey) * 0.30)), 1)
+
+
+# PURPLE EMPEROR — deep royal purple, violet/indigo shimmer, cream slash, eyespot.
+_M_PURPLE     = (90, 38, 168)
+_M_VIOLET     = (130, 60, 210)
+_M_DEEP_PU    = (44, 18, 88)
+_M_SHIMMER    = [(150, 95, 235), (95, 120, 240), (120, 80, 225), (110, 150, 245)]
+_M_WHITE_BAND = (240, 232, 210)
+_M_ORANGE_EYE = (220, 70, 15)
+
+
+def _bfly_wing_purple(surf, side, spread, nx, fi):
+    margin = _m_transform(_M_WING_R, side, spread, nx)
+    fill   = _m_inset(margin, 0.14)
+    pygame.draw.polygon(surf, _M_INK, margin)
+    pygame.draw.polygon(surf, _M_DEEP_PU, fill)
+    pygame.draw.polygon(surf, _M_PURPLE, _m_inset(fill, 0.18))
+    fcx, fcy = _m_centroid(fill)
+    rx, ry   = margin[0]
+    root = (rx + (fcx - rx) * 0.42, ry + (fcy - ry) * 0.42)
+    grad = _new()
+    for r, col, a in ((16, _M_PURPLE, 140), (11, _M_VIOLET, 170), (6, _M_VIOLET, 215)):
+        _aaellipse(grad, (*col, a), root, r, r * 0.82)
+    grad.blit(_m_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(grad, (0, 0))
+    shim = _new()
+    _aaellipse(shim, (*_M_SHIMMER[fi % 4], 40), (fcx + (fi - 1.5) * 5, fcy), 14, 11)
+    shim.blit(_m_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(shim, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    wb = 5
+    a0p = ((fill[4][0] + fill[5][0]) / 2, (fill[4][1] + fill[5][1]) / 2)
+    a1p = ((fill[2][0] + fill[3][0]) / 2, (fill[2][1] + fill[3][1]) / 2)
+    a0p = (a0p[0] + (fcx - a0p[0]) * 0.16, a0p[1] + (fcy - a0p[1]) * 0.16)
+    a1p = (a1p[0] + (fcx - a1p[0]) * 0.16, a1p[1] + (fcy - a1p[1]) * 0.16)
+    dx, dy = a1p[0] - a0p[0], a1p[1] - a0p[1]
+    dlen = max(1.0, (dx * dx + dy * dy) ** 0.5)
+    px, py = -dy / dlen * (wb / 2), dx / dlen * (wb / 2)
+    band_s = _new()
+    pygame.draw.polygon(band_s, _M_WHITE_BAND, [
+        (a0p[0] + px, a0p[1] + py), (a1p[0] + px, a1p[1] + py),
+        (a1p[0] - px, a1p[1] - py), (a0p[0] - px, a0p[1] - py),
+    ])
+    band_s.blit(_m_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(band_s, (0, 0))
+    for idx in (2, 6, 7):
+        pygame.draw.line(surf, _M_INK, root, fill[idx], 2)
+    for idx in (1, 3, 4, 8):
+        pygame.draw.line(surf, _M_INK, root, fill[idx], 1)
+    ex2 = (fill[7][0] + fill[8][0]) / 2
+    ey2 = (fill[7][1] + fill[8][1]) / 2
+    pygame.draw.circle(surf, _M_ORANGE_EYE, (int(ex2), int(ey2)), 4)
+    pygame.draw.circle(surf, _M_PURPLE, (int(ex2), int(ey2)), 2)
+    pygame.draw.circle(surf, _M_FLAKE, (int(ex2), int(ey2)), 1)
+    outer = margin[1:9]
+    for i in range(len(outer) - 1):
+        a0, a1 = outer[i], outer[i + 1]
+        pygame.draw.circle(surf, _M_FLAKE,
+                           (int(a0[0] + (fcx - a0[0]) * 0.14),
+                            int(a0[1] + (fcy - a0[1]) * 0.14)), 1)
+        for t in (0.0, 0.5):
+            ex3 = a0[0] + (a1[0] - a0[0]) * t
+            ey3 = a0[1] + (a1[1] - a0[1]) * t
+            pygame.draw.circle(surf, _M_FLAKE,
+                               (int(ex3 + (fcx - ex3) * 0.30),
+                                int(ey3 + (fcy - ey3) * 0.30)), 1)
+
+
+def _bfly_purple_frame(a):
+    surf = _new()
+    try:
+        fi = list(_WING_ANGLES).index(int(round(a)))
+    except ValueError:
+        fi = 0
+    f = (a + 40) / 90.0
+    spread, nx = int(f * 9), 1.0 - 0.42 * f
+    _bfly_wing_purple(surf, -1, spread, nx, fi)
+    _m_draw_body(surf, spread)
+    _bfly_wing_purple(surf, +1, spread, nx, fi)
+    _m_draw_head(surf, spread, ring_col=_M_VIOLET, club_col=(160, 90, 255))
+    return surf
+
+
+# One prebuilt getter per variant.
+_get_bfly_monarch = _monarch_make_build(_bfly_wing_monarch)
+_get_bfly_azure   = _make_prebuilt_skin(_bfly_azure_frame)
+_get_bfly_red     = _monarch_make_build(
+    _bfly_wing_red, ring_col=_M_INK, club_col=_M_EMBER)
+_get_bfly_painted = _monarch_make_build(
+    _bfly_wing_painted, ring_col=_M_TAWNY, club_col=_M_PEACH)
+_get_bfly_purple  = _make_prebuilt_skin(_bfly_purple_frame)
+
+_BUTTERFLY_GETTERS = {
+    "azure_monarch":  _get_bfly_azure,
+    "red_admiral":    _get_bfly_red,
+    "painted_lady":   _get_bfly_painted,
+    "purple_emperor": _get_bfly_purple,
+}
+
+
+def get_butterfly(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    from game import store_data as _sd
+    key = _sd.parcel_variant("skin_butterfly")
+    return _BUTTERFLY_GETTERS.get(key, _get_bfly_monarch)(frame_idx, tilt_deg)
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 8 · DRAGON (premium gacha showpiece) — a COMPACT, cute bird-scale dragon:
 #     emerald scaled body, a snouted horned head, bat-style membrane wings,
@@ -892,15 +1301,16 @@ get_phoenix = _make_prebuilt_skin(build_phoenix)
 # Keys mirror the planned "skin"-kind ids in game.store_catalog.
 # ─────────────────────────────────────────────────────────────────────────────
 BUILDERS = {
-    "skin_owl":      get_owl,
-    "skin_toucan":   get_toucan,
-    "skin_penguin":  get_penguin,
-    "skin_bat":      get_bat,
-    "skin_flamingo": get_flamingo,
-    "skin_eagle":    get_eagle,
-    "skin_bee":      get_bee,
-    "skin_dragon":   get_dragon,     # premium gacha showpiece
-    "skin_phoenix":  get_phoenix,    # premium gacha showpiece
+    "skin_owl":       get_owl,
+    "skin_toucan":    get_toucan,
+    "skin_penguin":   get_penguin,
+    "skin_bat":       get_bat,
+    "skin_flamingo":  get_flamingo,
+    "skin_eagle":     get_eagle,
+    "skin_bee":       get_bee,
+    "skin_butterfly": get_butterfly,
+    "skin_dragon":    get_dragon,     # premium gacha showpiece
+    "skin_phoenix":   get_phoenix,    # premium gacha showpiece
 }
 
 
@@ -912,7 +1322,7 @@ BUILDERS = {
 for _modname in (
     "animal_axolotl", "animal_pufferfish", "animal_chameleon",
     "animal_red_panda", "animal_sugar_glider", "animal_mantis_shrimp",
-    "animal_griffin", "animal_thunderbird", "animal_cosmic_jelly",
+    "animal_griffin", "animal_cosmic_jelly",
     "animal_aurora_stag", "animal_kitsune",
     # Secret ultra-premium NON-creature flyers (masked as ??? in the store).
     "animal_paper_plane", "animal_jet_fighter", "animal_ufo", "animal_toaster",
