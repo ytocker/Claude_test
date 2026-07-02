@@ -9,8 +9,9 @@ module — it only borrows read-only colour + AA helpers so the exploration read
 like the real game.
 
 Silhouette identity: the ONLY radial/diagonal tower in the set. A fat, ground-
-heavy weatherboarded cone whose four latticed sails fan OUTWARD into the ±64 px
-gutters as a St-Andrew's X, capped by a small boat-cap + fantail at the gap.
+heavy weatherboarded cone whose four bold sails fan OUTWARD into the ±64 px
+gutters as a St-Andrew's X, sprung from the cap by a short centred windshaft
+and capped by a small boat-cap + finial at the gap.
 
 Column-fill contract: the collision column (central PIPE_W band) is filled by
 the BODY, never the sails. The battered cone is full-column-wide from the base
@@ -58,17 +59,40 @@ from game.pillar_variants import draw_grass_bed, draw_flower_bed
 # The sail canvas is the bright stone_light so the X punches against the dark
 # cone. The boat-cap + finial + hub carry the warm stone_accent focal.
 
+
+def _tar(c, amt):
+    # Pull a warm sandstone hue toward its own neutral grey so the body reads
+    # as matte TARRED weatherboard, not milk-chocolate clay. Desaturating
+    # (not just darkening) widens the value gap to the bright sand sails and
+    # keeps the blackout silhouette honest.
+    g = (c[0] + c[1] + c[2]) / 3.0
+    return (int(c[0] + (g - c[0]) * amt),
+            int(c[1] + (g - c[1]) * amt),
+            int(c[2] + (g - c[2]) * amt))
+
+
 def _body_lit(pal):
-    return _cap_lit_for_dark_sky(_mix(pal['stone_dark'], pal['stone_mid'], 0.85),
-                                 pal)
+    # One notch darker + desaturated vs a plain stone_mid lift so the sunlit
+    # tar face still reads dim, not creamy.
+    return _cap_lit_for_dark_sky(
+        _tar(_shade(_mix(pal['stone_dark'], pal['stone_mid'], 0.60), -6), 0.28),
+        pal)
 
 
 def _body_mid(pal):
-    return _shade(pal['stone_dark'], -6)
+    return _tar(_shade(pal['stone_dark'], -14), 0.28)
 
 
 def _body_shadow(pal):
-    return _cap_dark_for_dark_sky(_shade(pal['stone_dark'], -42), pal, floor=52)
+    # Floor raised to 66 (from 52) so the night shadow face keeps ~14 value
+    # over a deep sky and the cone's shaded edge no longer muddies into it.
+    return _cap_dark_for_dark_sky(_shade(pal['stone_dark'], -42), pal, floor=66)
+
+
+def _shadow_rim(pal):
+    # A faint cool-lit rim laid down the shadow-side outline at night so the
+    # silhouette holds its edge against a dark sky (day palettes never hit it).
+    return _mix(pal['stone_mid'], pal['stone_light'], 0.55)
 
 
 def _canvas(pal):
@@ -102,6 +126,8 @@ def _battered_body(surf, cx, top_y, base_y, hw_top, hw_base, palette):
     `_gradient_rect`, adapted to a per-row sloping width). WASM-safe: uses only
     pygame.draw 1-px vertical lines, no set_at / surfarray."""
     lit, mid, shadow = _body_lit(palette), _body_mid(palette), _body_shadow(palette)
+    dark_sky = _is_dark_sky(palette)
+    rim = _shadow_rim(palette)
     h = base_y - top_y
     if h < 2:
         return
@@ -118,6 +144,10 @@ def _battered_body(surf, cx, top_y, base_y, hw_top, hw_base, palette):
                              (cx - hw + j, y), (cx - hw + j, y), 1)
             pygame.draw.line(surf, _mix(mid, shadow, u),
                              (cx + j, y), (cx + j, y), 1)
+        # Night edge-keep: a 1-px cool rim on the shadow-side outline so the
+        # cone doesn't dissolve into the dark sky where its value nears sky_top.
+        if dark_sky:
+            pygame.draw.line(surf, rim, (cx + hw - 1, y), (cx + hw - 1, y), 1)
 
 
 def _hoop(surf, cx, y, hw, palette):
@@ -166,22 +196,18 @@ def _boat_cap(surf, cx, shoulder_y, top_y, hw_cap, palette):
     pygame.draw.line(surf, hl, left[1], left[len(left) // 2], 1)
 
 
-def _fantail(surf, cx, shoulder_y, hw_cap, palette):
-    """A small rear fantail spur off the cap — the automatic wind-vane that
-    identifies a real mill. Sits to one side over the gutter, pointing down-and-
-    out so it never intrudes on the flyable gap."""
-    hub_x = cx + hw_cap + 3
-    hub_y = shoulder_y + 4
-    # Stalk from the cap curb to the little fan hub.
-    pygame.draw.line(surf, _spar(palette), (cx + hw_cap - 1, shoulder_y - 1),
-                     (hub_x, hub_y), 2)
-    blade = _mix(palette['stone_light'], palette['stone_mid'], 0.3)
-    for a in (-0.9, -0.45, 0.0, 0.45, 0.9):
-        ang = 0.5 + a                          # fan opening down-and-out
-        ex = hub_x + math.cos(ang) * 6
-        ey = hub_y + math.sin(ang) * 6
-        pygame.draw.line(surf, blade, (hub_x, hub_y), (int(ex), int(ey)), 1)
-    pygame.draw.circle(surf, _spar(palette), (hub_x, hub_y), 2)
+def _windshaft(surf, cx, shoulder_y, hub_y, palette):
+    """A short, CENTRED windshaft spar dropping from the cap curb down to the
+    sail hub. This is what springs the sail-X off the cap (not mid-body) and
+    reads unmistakably as a mill — and being on the centreline it survives the
+    vertical mirror symmetrically (the round-1 side-fantail did not). Replaces
+    the sub-pixel fantail filigree the round-1 sheet aliased into a smudge."""
+    if hub_y <= shoulder_y:
+        return
+    pygame.draw.line(surf, _spar(palette), (cx, shoulder_y - 1), (cx, hub_y), 3)
+    # A single lit tick down the shaft's sunlit cheek so it reads as round wood.
+    pygame.draw.line(surf, _mix(palette['stone_mid'], palette['stone_light'], 0.4),
+                     (cx - 1, shoulder_y), (cx - 1, hub_y - 1), 1)
 
 
 # ── The sail cross ───────────────────────────────────────────────────────────
@@ -276,20 +302,25 @@ def _draw_one(surf, cx, base_y, top_y, body_w, palette, seed, *, apron=True):
         pygame.draw.line(surf, _mix(palette['stone_mid'], palette['stone_light'], 0.5),
                          (dx, dy), (dx, dy + dh - 1), 1)
 
-    # Cap + fantail crown the shoulder and hold the centreline to the gap rim.
+    # Cap crowns the shoulder and holds the centreline to the gap rim.
     _boat_cap(surf, cx, shoulder_y, top_y, hw_cap, palette)
-    if total_h > 70:
-        _fantail(surf, cx, shoulder_y, hw_cap, palette)
     # Finial ball at the very tip.
     pygame.draw.circle(surf, _accent(palette), (cx, top_y + 1), 2)
 
     # Sail cross — hub mounted just under the cap, arms fanning into the gutters.
+    # TIP_CLEAR is the vertical clearance from the section tip to the upper arm
+    # tips; raised from 3→6 px so that, once the arm spar's anti-aliasing and
+    # the tip quad's perpendicular overshoot are added, the MIRRORED upper tips
+    # still sit clear of the gap rim instead of visually kissing it.
+    TIP_CLEAR = 8
     arm_len = int(min(total_h * 0.44, body_w * 1.28))
     arm_len = max(14, arm_len)
-    hub_y = int(top_y + math.sin(math.radians(34.0)) * arm_len + 3)
+    hub_y = int(top_y + math.sin(math.radians(34.0)) * arm_len + TIP_CLEAR)
     # Keep the hub on the upper body / cap shoulder so the X reads mounted, not
     # floating; clamp so the upper arm tips never cross above the gap rim.
     hub_y = max(hub_y, shoulder_y - 1)
+    # Windshaft springs the X off the cap so it reads as a mill, not a turnstile.
+    _windshaft(surf, cx, shoulder_y, hub_y, palette)
     _sail_cross(surf, cx, hub_y, arm_len, palette)
 
     if apron:
@@ -321,8 +352,17 @@ def candidate_smock_windmill(surf, top_rect, bot_rect, palette, seed):
 
 MARGIN = 64
 CACHE_W = PIPE_W + MARGIN * 2
-PHASE = 0.30
+PHASE_DAY = 0.30
+PHASE_NIGHT = 0.85
 SEED = 13
+
+# The mirrored-pair geometry the round-2 hero must prove: a real flyable gap
+# with a top-hung section AND a bottom-rising section, so the two sail-Xs
+# flanking the channel are auditable in the same frame.
+GAP_Y, GAP_H = 205, 150
+TOP_H = int(GAP_Y - GAP_H / 2)          # top section runs 0..TOP_H
+BOT_TOP = int(GAP_Y + GAP_H / 2)        # bottom section runs BOT_TOP..GROUND_Y
+CROP_TOP, CROP_BOT = 18, 486            # hero window framing both Xs + the gap
 
 
 def _lerp(a, b, t):
@@ -342,85 +382,172 @@ def _sky_ground(w, h, pal, ground_h):
     return cell
 
 
-def _render_hero(pal):
-    # A tall pillar pair over a daytime sky, cropped like the comparison sheet.
-    gap_y, gap_h = 150, 150
-    top_h = int(gap_y - gap_h / 2)
-    bot_top = int(gap_y + gap_h / 2)
-    tip_y = bot_top - 12
-    base_y = GROUND_Y + 8
-    tower_h = base_y - tip_y
-
+def _pair_surf(pal):
+    """The mirrored pair on its own transparent surface (for compositing AND
+    for measuring the true mirrored-tip clearance)."""
     surf = pygame.Surface((CACHE_W, GROUND_Y), pygame.SRCALPHA)
-    top_rect = pygame.Rect(MARGIN, 0, PIPE_W, top_h)
-    bot_rect = pygame.Rect(MARGIN, bot_top, PIPE_W, GROUND_Y - bot_top)
+    top_rect = pygame.Rect(MARGIN, 0, PIPE_W, TOP_H)
+    bot_rect = pygame.Rect(MARGIN, BOT_TOP, PIPE_W, GROUND_Y - BOT_TOP)
     candidate_smock_windmill(surf, top_rect, bot_rect, pal, SEED)
+    return surf
 
-    cell = _sky_ground(CACHE_W, tower_h, pal, base_y - GROUND_Y)
-    cell.blit(surf, (0, 0), pygame.Rect(0, tip_y, CACHE_W, tower_h))
-    return cell
+
+def _render_pair(pal, label_str):
+    surf = _pair_surf(pal)
+    cell = _sky_ground(CACHE_W, GROUND_Y, pal, GROUND_Y - GROUND_Y + 60)
+    cell.blit(surf, (0, 0))
+    # Faint channel guides at the two gap rims so the reviewer can read exactly
+    # how far each mirrored sail-tip clears the flyable lane.
+    guide = (255, 90, 90)
+    for rim in (TOP_H, BOT_TOP):
+        for x in range(0, CACHE_W, 8):
+            pygame.draw.line(cell, guide, (x, rim), (x + 4, rim), 1)
+    win = cell.subsurface(pygame.Rect(0, CROP_TOP, CACHE_W, CROP_BOT - CROP_TOP)).copy()
+    return win
+
+
+def _measure_clearance(pal):
+    """Highest sail pixel of each mirrored section vs its gap rim, measured only
+    in the gutter columns (where the sails live), in px."""
+    surf = _pair_surf(pal)
+    cx = MARGIN + PIPE_W // 2
+    gutter = lambda x: abs(x - cx) > PIPE_W // 2 + 2
+    # Top (hung) section: sails point DOWN toward the gap → lowest gutter pixel.
+    top_low = -1
+    for y in range(0, TOP_H + 8):
+        for x in range(CACHE_W):
+            if gutter(x) and surf.get_at((x, y))[3] > 50:
+                top_low = y
+                break
+    # Bottom (rising) section: sails point UP → highest gutter pixel.
+    bot_high = GROUND_Y
+    for y in range(BOT_TOP - 8, GROUND_Y):
+        hit = False
+        for x in range(CACHE_W):
+            if gutter(x) and surf.get_at((x, y))[3] > 50:
+                hit = True
+                break
+        if hit:
+            bot_high = y
+            break
+    return TOP_H - top_low, bot_high - BOT_TOP
+
+
+def _measure_fill(pal, section_h):
+    """Max vertical run (px) of rows with ZERO fill inside the PIPE_W collision
+    column, for a bottom-only section of the given height."""
+    surf = pygame.Surface((CACHE_W, GROUND_Y), pygame.SRCALPHA)
+    bot_rect = pygame.Rect(MARGIN, GROUND_Y - section_h, PIPE_W, section_h)
+    candidate_smock_windmill(surf, pygame.Rect(MARGIN, 0, PIPE_W, 0),
+                             bot_rect, pal, SEED)
+    cx = MARGIN + PIPE_W // 2
+    x0, x1 = cx - PIPE_W // 2, cx + PIPE_W // 2
+    run = worst = 0
+    for y in range(GROUND_Y - section_h, GROUND_Y):
+        filled = any(surf.get_at((x, y))[3] > 50 for x in range(x0, x1 + 1))
+        run = 0 if filled else run + 1
+        worst = max(worst, run)
+    return worst
 
 
 def _render_feas(pal, section_h):
-    # Bottom-only section at a fixed height, with the PIPE_W collision column
-    # edges overlaid so the fill is auditable.
     head = 16
     cell_h = section_h + head + 10
     surf = pygame.Surface((CACHE_W, GROUND_Y), pygame.SRCALPHA)
     bot_rect = pygame.Rect(MARGIN, GROUND_Y - section_h, PIPE_W, section_h)
-    top_rect = pygame.Rect(MARGIN, 0, PIPE_W, 0)
-    candidate_smock_windmill(surf, top_rect, bot_rect, pal, SEED)
-
+    candidate_smock_windmill(surf, pygame.Rect(MARGIN, 0, PIPE_W, 0),
+                             bot_rect, pal, SEED)
     cell = _sky_ground(CACHE_W, cell_h, pal, 10)
     crop_top = GROUND_Y - section_h - head
-    cell.blit(surf, (0, head - head), pygame.Rect(0, crop_top, CACHE_W, cell_h))
-    # Column edges (the true 58 px hitbox) drawn on top.
+    cell.blit(surf, (0, 0), pygame.Rect(0, crop_top, CACHE_W, cell_h))
     cx = MARGIN + PIPE_W // 2
     for ex in (cx - PIPE_W // 2, cx + PIPE_W // 2):
         pygame.draw.line(cell, (255, 60, 60), (ex, 0), (ex, cell_h), 1)
     return cell, cell_h
 
 
+def _render_blackout(pal, section_h=230):
+    """Pure-silhouette read at the true PIPE_W scale — does the radiating shape
+    still say 'mill' with all interior detail stripped?"""
+    surf = pygame.Surface((CACHE_W, GROUND_Y), pygame.SRCALPHA)
+    bot_rect = pygame.Rect(MARGIN, GROUND_Y - section_h, PIPE_W, section_h)
+    candidate_smock_windmill(surf, pygame.Rect(MARGIN, 0, PIPE_W, 0),
+                             bot_rect, pal, SEED)
+    crop_top = GROUND_Y - section_h - 12
+    crop = surf.subsurface(pygame.Rect(0, crop_top, CACHE_W, section_h + 12)).copy()
+    mask = pygame.mask.from_surface(crop, 60)
+    return mask.to_surface(setcolor=(18, 18, 22, 255),
+                           unsetcolor=(232, 232, 236, 255))
+
+
 def main():
     pygame.init()
     pygame.display.set_mode((1, 1))
-    pal = biome.palette_for_phase(PHASE)
+    day = biome.palette_for_phase(PHASE_DAY)
+    night = biome.palette_for_phase(PHASE_NIGHT)
 
-    hero = _render_hero(pal)
+    pair_day = _render_pair(day, "DAY")
+    pair_night = _render_pair(night, "NIGHT")
+    cl_day = _measure_clearance(day)
+    cl_night = _measure_clearance(night)
+
     heights = [70, 210, 355]
-    feas = [_render_feas(pal, h) for h in heights]
+    feas = [_render_feas(day, h) for h in heights]
+    fills = {h: _measure_fill(day, h) for h in heights}
+    blackout = _render_blackout(day)
 
     pad = 14
-    label_h = 26
-    title_h = 58
-    hero_w, hero_h = hero.get_width(), hero.get_height()
-    feas_w = max(c.get_width() for c, _ in feas)
-    feas_col_h = title_h + sum(h + label_h + pad for _, h in feas)
-
-    left_w = hero_w + pad * 2
-    right_w = feas_w + pad * 2
-    sheet_w = left_w + right_w
-    sheet_h = max(title_h + hero_h + label_h + pad * 2, feas_col_h + pad)
-    sheet = pygame.Surface((sheet_w, sheet_h))
-    sheet.fill((24, 25, 30))
+    label_h = 22
+    title_h = 60
+    pw, ph = pair_day.get_width(), pair_day.get_height()
 
     title = pygame.font.SysFont(None, 30)
     sub = pygame.font.SysFont(None, 18)
-    label = pygame.font.SysFont(None, 20)
+    label = pygame.font.SysFont(None, 19)
 
-    sheet.blit(title.render("smock-windmill — round 1", True, (245, 240, 230)),
+    # Left block: the two mirrored pairs side by side + blackout beneath.
+    left_w = pad + pw + pad + pw + pad
+    feas_w = max(c.get_width() for c, _ in feas)
+    right_w = feas_w + pad * 2
+    sheet_w = left_w + right_w
+
+    bo_w, bo_h = blackout.get_width(), blackout.get_height()
+    left_h = title_h + ph + label_h + pad + bo_h + label_h + pad
+    feas_col_h = title_h + sum(ch + label_h + pad for _, ch in feas) + 24
+    sheet_h = max(left_h, feas_col_h) + pad
+
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((24, 25, 30))
+
+    sheet.blit(title.render("smock-windmill — round 2", True, (245, 240, 230)),
                (pad, 12))
-    sheet.blit(sub.render("battered weatherboard cone + St-Andrew's sail-X  ·  "
-                          "daytime PHASE=0.30", True, (170, 172, 182)), (pad, 38))
+    sheet.blit(sub.render("tarred battered cone + cap-sprung sail-X  ·  mirrored "
+                          "pair with true gap, day + night", True,
+                          (170, 172, 182)), (pad, 40))
 
-    # Hero (left).
-    hx, hy = pad, title_h
-    sheet.blit(hero, (hx, hy))
-    pygame.draw.rect(sheet, (60, 62, 72), (hx, hy, hero_w, hero_h), 1)
-    lab = label.render("HERO — full pillar pair", True, (255, 224, 150))
-    sheet.blit(lab, (hx + (hero_w - lab.get_width()) // 2, hy + hero_h + 4))
+    # Two hero pairs.
+    for i, (pair, name, cl) in enumerate((
+            (pair_day, f"DAY  PHASE={PHASE_DAY}", cl_day),
+            (pair_night, f"NIGHT  PHASE={PHASE_NIGHT}", cl_night))):
+        hx = pad + i * (pw + pad)
+        hy = title_h
+        sheet.blit(pair, (hx, hy))
+        pygame.draw.rect(sheet, (60, 62, 72), (hx, hy, pw, ph), 1)
+        lab = label.render(name, True, (255, 224, 150))
+        sheet.blit(lab, (hx + (pw - lab.get_width()) // 2, hy + ph + 3))
+        cl2 = sub.render(f"tip clear: top {cl[0]}px  bot {cl[1]}px", True,
+                         (200, 202, 212))
+        sheet.blit(cl2, (hx + (pw - cl2.get_width()) // 2, hy + ph + 3 + 18))
 
-    # Feasibility strip (right column).
+    # Blackout silhouette under the pairs.
+    bx = pad
+    by = title_h + ph + label_h + pad + 14
+    sheet.blit(blackout, (bx, by))
+    pygame.draw.rect(sheet, (60, 62, 72), (bx, by, bo_w, bo_h), 1)
+    lab = label.render("BLACKOUT — 58px silhouette read", True, (255, 224, 150))
+    sheet.blit(lab, (bx, by + bo_h + 3))
+
+    # Feasibility column (right).
     fx = left_w + pad
     fy = title_h
     sheet.blit(sub.render("FEASIBILITY — collision-column fill (red = PIPE_W)",
@@ -428,14 +555,18 @@ def main():
     for (cell, ch), h in zip(feas, heights):
         sheet.blit(cell, (fx, fy))
         pygame.draw.rect(sheet, (60, 62, 72), (fx, fy, cell.get_width(), ch), 1)
-        lab = label.render(f"bottom section  {h} px", True, (210, 212, 222))
+        lab = label.render(f"{h}px  ·  max empty run {fills[h]}px", True,
+                           (210, 212, 222))
         sheet.blit(lab, (fx, fy + ch + 3))
         fy += ch + label_h + pad
 
-    out = _REPO / "docs" / "pillar_landmarks" / "smock-windmill" / "round_1.png"
+    out = _REPO / "docs" / "pillar_landmarks" / "smock-windmill" / "round_2.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
+    print(f"clearance day  top={cl_day[0]}px bot={cl_day[1]}px")
+    print(f"clearance night top={cl_night[0]}px bot={cl_night[1]}px")
+    print(f"max empty run: " + "  ".join(f"{h}px->{fills[h]}px" for h in heights))
 
 
 if __name__ == "__main__":
