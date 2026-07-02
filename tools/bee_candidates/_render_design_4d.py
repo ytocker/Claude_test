@@ -17,8 +17,8 @@ from game.entities import Pipe
 from game.config import W as GW, H as GH, GROUND_Y
 from tools.bee_candidates.design_4d import build
 
-OUT = "docs/store_redesign/animal/bee/design_4d/round_1.png"
-TITLE = "DESIGN 4d — PAINTED LADY  R1  (Vanessa cardui: salmon-tawny + cream hindwing + black apex patch)"
+OUT = "docs/store_redesign/animal/bee/design_4d/round_2.png"
+TITLE = "DESIGN 4d — PAINTED LADY  R2  (Vanessa cardui: salmon-tawny + cream hindwing + black apex patch)"
 NIGHT_PHASE = 0.64375
 
 def _label(surf, text, x, y, size=18, color=(236, 238, 246)):

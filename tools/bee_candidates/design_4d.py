@@ -57,8 +57,12 @@ def _draw_wing(surf, side, spread, nx):
     def _pull(p, frac):
         return (p[0] + (fcx - p[0]) * frac, p[1] + (fcy - p[1]) * frac)
     cream = _new()
-    zone = [_pull(fill[6], 0.36), _pull(fill[7], 0.40),
-            _pull(fill[8], 0.36), _pull(fill[9], 0.30)]
+    # A rounded pale lobe: an outer arc sitting inside the margin (orange still
+    # frames it below + outboard) rising to a single inner point near the
+    # centroid — enough area to read as its own zone rather than a sliver.
+    zone = [_pull(fill[6], 0.26), _pull(fill[7], 0.24),
+            _pull(fill[8], 0.26), _pull(fill[9], 0.32),
+            _pull(fill[7], 0.58)]
     pygame.draw.polygon(cream, (*CREAM, 255), zone)
     cream.blit(_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(cream, (0, 0))
