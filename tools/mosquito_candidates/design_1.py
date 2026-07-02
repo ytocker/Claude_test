@@ -30,29 +30,38 @@ from game.animal_skins import (  # noqa: E402
 BODY    = (18, 19, 43)          # #12132B near-black indigo
 BODY_D  = (10, 11, 26)          # deepen for banding shadow / legs
 MID     = (43, 58, 122)         # #2B3A7A mid-indigo steel band
+BLUE    = (60, 110, 215)        # #3C6ED7 cool blue — coolest oil-slick stop
 TEAL    = (94, 200, 229)        # #5EC8E5 iridescent teal sheen
-VIOLET  = (142, 63, 214)        # #8E3FD6 wing shimmer
-EYE_MAG = (192, 70, 111)        # #C0466F compound-eye magenta
-EYE_HI  = (255, 150, 190)       # magenta rim light
+VIOLET  = (142, 63, 214)        # #8E3FD6 wing shimmer (pushed to the root now)
+# Eye kept muted so the cool wing stays the brightest thing in the silhouette.
+EYE_MAG = (146, 53, 84)         # muted compound-eye magenta
+EYE_HI  = (232, 138, 174)       # magenta rim light
 RIMLIGHT = (120, 150, 210)      # cool thorax rim highlight
+LEG_HI  = (78, 100, 165)        # steel near-leg so 1px legs survive the night
 
 
 def _mosq_wing(f, near):
     """A single narrow iridescent blade, root at the RIGHT (thorax) end, tip at
-    the LEFT. Teal (root) → violet (tip) gradient, a specular streak that slides
-    with the flap phase, and a vertical squash so the blade thins toward the top
-    of the up-stroke. Kept narrow so it reads as its own lifted shape, not a
-    shiny back."""
+    the LEFT. Three oil-slick stops run the full visible length — violet tip →
+    cool blue mid → teal root — so the blade never flattens into one magenta
+    streak and its cool/green end reads apart from the warm compound eye. A
+    specular streak slides with the flap phase, and a vertical squash thins the
+    blade toward the top of the up-stroke so it reads as a lifted shape."""
     L, H = 32, 8
     surf = pygame.Surface((L, H + 4), pygame.SRCALPHA)
-    base_a = 158 if near else 84
-    a = max(46, int(base_a - f * 40))
+    base_a = 168 if near else 88
+    a = max(48, int(base_a - f * 40))
     cx, cy = L / 2.0, (H + 4) / 2.0
     rx = L / 2.0 - 1
     ry = max(1.5, (H * (1.0 - 0.45 * f)) / 2.0)
     for x in range(L):
         t = x / (L - 1)                     # 0 tip(violet) → 1 root(teal)
-        col = tuple(int(VIOLET[i] + (TEAL[i] - VIOLET[i]) * t) for i in range(3))
+        if t < 0.5:                         # violet tip → cool blue mid
+            u = t / 0.5
+            col = tuple(int(VIOLET[i] + (BLUE[i] - VIOLET[i]) * u) for i in range(3))
+        else:                               # cool blue mid → teal root
+            u = (t - 0.5) / 0.5
+            col = tuple(int(BLUE[i] + (TEAL[i] - BLUE[i]) * u) for i in range(3))
         norm = (x - cx) / rx
         if norm * norm >= 1.0:
             continue
@@ -63,21 +72,23 @@ def _mosq_wing(f, near):
     norm = (sx - cx) / rx
     if norm * norm < 0.9:
         dy = ry * math.sqrt(1.0 - norm * norm)
-        pygame.draw.line(surf, (230, 248, 255, min(215, a + 80)),
+        pygame.draw.line(surf, (230, 248, 255, min(220, a + 80)),
                          (sx, cy - dy * 0.55), (sx + 5, cy + dy * 0.35), 1)
-    # Faint violet rim so the blade edge survives the outline pass.
-    pygame.draw.ellipse(surf, (*VIOLET, min(185, a + 30)),
+    # Cool-blue rim so the blade edge survives the outline pass without warming
+    # back toward the eye's magenta.
+    pygame.draw.ellipse(surf, (*BLUE, min(195, a + 30)),
                         (1, int(cy - ry), L - 2, int(ry * 2)), 1)
     return surf
 
 
-def _leg(surf, p0, knee, p1, core, rim=None):
-    """Hair-thin jointed leg. When a rim colour is given, a 2px steel underlay
-    keeps the near-black core from vanishing against the dark night biome."""
+def _leg(surf, p0, knee, p1, core, rim=None, w=1):
+    """Hair-thin jointed leg. Near legs stay a single 1px line so the six of
+    them splay wide without fattening into a blob; when a rim colour is given a
+    faint underlay keeps a near-black core alive against the dark night biome."""
     pts = [p0, knee, p1]
     if rim is not None:
-        pygame.draw.lines(surf, rim, False, pts, 2)
-    pygame.draw.lines(surf, core, False, pts, 1)
+        pygame.draw.lines(surf, rim, False, pts, w + 1)
+    pygame.draw.lines(surf, core, False, pts, w)
 
 
 def build_mosquito_midnight(wing_angle_deg):
@@ -88,30 +99,30 @@ def build_mosquito_midnight(wing_angle_deg):
     # ── far legs (behind the body, dimmer + offset so all 6 legs read) ──
     #   front pair forward-down, mid pair straight down, hind pair kicking up.
     for p0, knee, p1 in (
-        ((37, 47), (46, 52), (53, 55)),     # front · forward-down
-        ((34, 48), (37, 54), (39, 61)),     # mid   · straight down
-        ((30, 47), (24, 48), (16, 41)),     # hind  · kicks up-and-back
+        ((37, 47), (47, 53), (55, 57)),     # front · forward-down, splayed out
+        ((34, 48), (37, 56), (39, 64)),     # mid   · straight down
+        ((30, 47), (20, 45), (3, 37)),      # hind  · long up-kick past abdomen
     ):
         _leg(surf, p0, knee, p1, BODY_D)
 
     # ── far wing (a dim, smaller hint of the second wing, tucked behind) ──
     fw = _mosq_wing(f, near=False)
-    fax = 24 + int((1.0 - f) * 5)
-    fay = 20 + int((1.0 - f) * 9)
+    fax = 27 + int((1.0 - f) * 5)
+    fay = 22 + int((1.0 - f) * 8)
     _rot_blit(surf, pygame.transform.rotozoom(fw, -8 + f * 58, 0.78), (fax, fay))
 
     # ── abdomen: a long banded spike trailing down-and-back to a sharp point —
     #   the pointed rear that separates a mosquito from a fly. Kept slim and
     #   given a steel underside rim so it reads as its own shape past the legs ──
     for i, (x, y, ex, ey) in enumerate((
-        (29, 45, 6, 6), (25, 48, 5, 5), (21, 51, 5, 4),
-        (17, 54, 4, 4), (13, 56, 3, 3),
+        (29, 45, 6, 6), (25, 49, 5, 5), (20, 53, 5, 4),
+        (16, 57, 4, 4), (11, 60, 3, 3),
     )):
         _aaellipse(surf, BODY if i % 2 == 0 else MID, (x, y), ex, ey)
-    pygame.draw.polygon(surf, BODY_D, [(13, 54), (13, 59), (6, 60)])  # sharp tip
+    pygame.draw.polygon(surf, BODY_D, [(11, 58), (11, 63), (3, 64)])  # sharp tip
     pygame.draw.lines(surf, MID, False,                               # underside rim
-                      [(28, 48), (20, 53), (13, 57), (7, 59)], 1)
-    for x, y in ((26, 47), (21, 50), (16, 53)):                       # banding seams
+                      [(28, 48), (20, 54), (12, 59), (4, 63)], 1)
+    for x, y in ((26, 47), (20, 51), (15, 55)):                       # banding seams
         pygame.draw.line(surf, BODY_D, (x + 2, y - 3), (x - 2, y + 3), 1)
 
     # ── thorax: compact arched indigo hump with a cool top rim-light, notched
@@ -123,29 +134,32 @@ def build_mosquito_midnight(wing_angle_deg):
 
     # ── near legs (over the body; steel rim keeps them alive at night) ──
     for p0, knee, p1 in (
-        ((36, 48), (44, 54), (50, 58)),     # front · forward-down
-        ((33, 49), (34, 56), (34, 63)),     # mid   · straight down
-        ((30, 48), (24, 46), (17, 42)),     # hind  · kicks up-and-back
+        ((36, 48), (45, 55), (53, 60)),     # front · forward-down, splayed out
+        ((33, 49), (33, 57), (32, 65)),     # mid   · straight down
+        ((30, 48), (18, 45), (4, 38)),      # hind  · long up-kick past abdomen
     ):
-        _leg(surf, p0, knee, p1, BODY, rim=MID)
+        _leg(surf, p0, knee, p1, LEG_HI, w=1)
 
-    # ── near wing: a single narrow blade lifted up-and-back off the thorax with
-    #   a sky gap; its anchor + tilt travel across the flap so the cycle reads.
-    #   High/back on the up-stroke (f→1), low/forward on the down-stroke (f→0) ──
+    # ── near wing: a single narrow blade hinged off the thorax top with just a
+    #   sky gap; its anchor + tilt travel across the flap so the cycle reads.
+    #   High/back on the up-stroke (f→1), low/forward on the down-stroke (f→0).
+    #   A short dark stalk bridges blade root to thorax so the wing reads as
+    #   hinged, not a detached shard floating in the gap ──
     nw = _mosq_wing(f, near=True)
-    nax = 25 + int((1.0 - f) * 6)
-    nay = 19 + int((1.0 - f) * 10)
+    nax = 29 + int((1.0 - f) * 6)
+    nay = 23 + int((1.0 - f) * 9)
+    pygame.draw.line(surf, BODY, (31, 36), (nax, nay + 3), 3)   # hinge stalk
     _rot_blit(surf, pygame.transform.rotate(nw, -16 + f * 66), (nax, nay))
 
-    # ── head + the single magenta compound eye (dialled back ~25%) ──
+    # ── head + the single magenta compound eye, kept muted so it never
+    #   out-shouts the cool wing or the proboscis. One catchlight only ──
     _aaellipse(surf, BODY_D, (HCX - 2, HCY + 2), 5, 5)
     pygame.draw.circle(surf, BODY, (HCX, HCY), 7)
     pygame.draw.circle(surf, EYE_MAG, (HCX, HCY), 6)
-    pygame.draw.circle(surf, (150, 44, 78), (HCX, HCY), 6, 1)
-    for dx, dy in ((-2, -2), (2, -2), (3, 1), (-1, 3), (1, 2)):
-        pygame.draw.circle(surf, EYE_HI, (HCX + dx, HCY + dy), 1)
-    # Catchlight kept in the upper-forward quadrant (toward the needle).
-    pygame.draw.circle(surf, (255, 240, 250), (HCX + 2, HCY - 3), 2)
+    pygame.draw.circle(surf, (128, 40, 70), (HCX, HCY), 6, 1)
+    # A single upper-forward catchlight (toward the needle) — no facet cluster,
+    # so the eye stays one quiet mass instead of a second sparkle field.
+    pygame.draw.circle(surf, (236, 196, 214), (HCX + 2, HCY - 3), 2)
 
     # ── feathery antennae rising up-forward off the crown ──
     for ax in (HCX, HCX + 4):
