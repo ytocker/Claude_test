@@ -16,9 +16,9 @@ pygame.init()
 from tools import ninja_render
 from tools.bee_candidates.design_4 import build
 
-OUT = "docs/store_redesign/animal/bee/design_4/round_1.png"
-TITLE = ("DESIGN 4 — MONARCH  (Danaus plexippus: rounded stained-glass wings, "
-         "black veins, white-dotted margin)")
+OUT = "docs/store_redesign/animal/bee/design_4/round_2.png"
+TITLE = ("DESIGN 4 — MONARCH  R2  (Danaus plexippus: brighter orange cells, "
+         "crisp dotted rim, tucked abdomen, fuller wings)")
 
 
 def _label(surf, text, x, y, size=18, color=(236, 238, 246)):

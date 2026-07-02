@@ -22,11 +22,13 @@ HCX, HCY = 44, 34          # head, up-right along the insect axis
 CROWN_Y = 24
 
 # ── palette ──────────────────────────────────────────────────────────────────
-MONARCH = (242, 122, 26)   # #F27A1A — dominant wing fill
+MONARCH = (250, 132, 30)   # #FA841E — dominant wing fill, one step brighter so
+                           # cells stay vivid orange (not brown) at 40px
 INK     = (26, 19, 14)     # #1A130E — veins, margin, head, body
 FLAKE   = (245, 241, 230)  # #F5F1E6 — margin dots + head/body specks
 AMBER   = (255, 179, 71)   # #FFB347 — warm gradient core near the thorax
-SHADOW  = (196, 83, 26)    # #C4531A — deeper saturated orange at the edges
+BRIGHT  = (255, 176, 80)   # #FFB050 — forewing-tip highlight (tips read bright)
+SHADOW  = (208, 92, 26)    # #D05C1A — thin saturated edge only, not a wide ring
 
 
 def _new():
@@ -44,16 +46,16 @@ def _flap(a):
 # edges sit ~2px off the body axis so the mirrored left wing nearly meets it,
 # leaving a thin central channel for the black body.
 _WING_R = [
-    (34, 28),   # inner top, ~2px off the body axis
-    (44, 16),   # forewing leading rise
-    (54, 13),   # forewing apex — up and out
-    (62, 22),   # forewing outer shoulder — fills the width
-    (61, 33),   # forewing trailing outer
+    (34, 26),   # inner top, ~2px off the body axis
+    (45, 13),   # forewing leading rise
+    (56, 10),   # forewing apex — pushed up-and-out to fill the top corner
+    (63, 20),   # forewing outer shoulder — reaches the canvas edge for width
+    (62, 32),   # forewing trailing outer
     (60, 40),   # shallow notch between fore/hind wing (rounded card)
-    (58, 48),   # hindwing outer
-    (50, 58),   # hindwing rounded tail lobe
-    (40, 60),   # hindwing bottom
-    (34, 48),   # inner bottom, ~2px off the body axis
+    (57, 48),   # hindwing outer
+    (50, 54),   # hindwing rounded lobe
+    (42, 56),   # hindwing bottom — rounded card, no drooping moth-tail point
+    (34, 49),   # inner bottom, ~2px off the body axis
 ]
 
 
@@ -89,20 +91,24 @@ def _draw_wing(surf, side, spread, nx):
     fill = _inset(margin, 0.14)                     # thick ~6px black margin
 
     # Black margin first (the separator that carries the read on any sky), then
-    # the warm three-stop orange field: a deep-orange base that survives at the
-    # extremities, the dominant monarch orange over most of the face, and an
-    # amber core blushed in at the thorax root.
+    # the orange field. SHADOW is now only a thin saturated rim; MONARCH covers
+    # the cells so nothing near the margin reads brown at 40px.
     pygame.draw.polygon(surf, INK, margin)
     pygame.draw.polygon(surf, SHADOW, fill)
-    inner = _inset(fill, 0.10)
+    inner = _inset(fill, 0.06)
     pygame.draw.polygon(surf, MONARCH, inner)
 
     fcx, fcy = _centroid(fill)
     rx, ry = margin[0]                               # wing root (inner-top)
     root = (rx + (fcx - rx) * 0.42, ry + (fcy - ry) * 0.42)
     core = _new()
-    for r, col, a in ((16, MONARCH, 160), (12, AMBER, 190), (7, AMBER, 230)):
+    for r, col, a in ((16, MONARCH, 150), (12, AMBER, 185), (7, AMBER, 225)):
         _aaellipse(core, (*col, a), root, r, r * 0.82)
+    # The forewing tip is where a monarch is brightest — blush it, don't darken.
+    tip, lead = fill[2], fill[1]
+    mid = ((tip[0] + lead[0]) / 2, (tip[1] + lead[1]) / 2)
+    _aaellipse(core, (*BRIGHT, 200), tip, 7, 6)
+    _aaellipse(core, (*BRIGHT, 225), mid, 4, 4)
     core.blit(_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(core, (0, 0))
 
@@ -114,68 +120,76 @@ def _draw_wing(surf, side, spread, nx):
     pygame.draw.line(surf, INK, root, fill[1], 1)
     pygame.draw.line(surf, INK, root, fill[8], 1)
 
-    # Double row of white flecks marching along the black margin — the monarch's
-    # signature border dots. Sampled along each outer edge and offset inward so
-    # they always sit ON the black band, never on the orange (true to species).
+    # White margin flecks — the monarch's signature border dots. Kept crisp and
+    # broken (identity is ORANGE first, dots second): a sparse 1px outer row
+    # (one dot per edge segment) plus a finer 1px inner row as a second line, so
+    # at 40px it reads as a dotted rim, never a frosted lace halo.
     outer = margin[1:9]
     for i in range(len(outer) - 1):
         a0, a1 = outer[i], outer[i + 1]
+        ox = a0[0] + (fcx - a0[0]) * 0.14
+        oy = a0[1] + (fcy - a0[1]) * 0.14
+        pygame.draw.circle(surf, FLAKE, (int(ox), int(oy)), 1)
         for t in (0.0, 0.5):
             ex = a0[0] + (a1[0] - a0[0]) * t
             ey = a0[1] + (a1[1] - a0[1]) * t
-            # Outer row (larger) near the rim, inner row (smaller) toward fill.
-            ox = ex + (fcx - ex) * 0.12
-            oy = ey + (fcy - ey) * 0.12
-            ix = ex + (fcx - ex) * 0.28
-            iy = ey + (fcy - ey) * 0.28
-            pygame.draw.circle(surf, FLAKE, (int(ox), int(oy)), 2)
+            ix = ex + (fcx - ex) * 0.30
+            iy = ey + (fcy - ey) * 0.30
             pygame.draw.circle(surf, FLAKE, (int(ix), int(iy)), 1)
 
 
-def _draw_body(surf):
-    # Slim black abdomen trailing lower-left along the insect axis, flecked with
-    # white — the monarch's spotted body — tucked into the central wing channel.
+def _draw_body(surf, lift=0):
+    # Short black abdomen tapering to a point well above the hindwing lobe, so
+    # it never drips out the bottom on the up-stroke. The whole body assembly
+    # rides `lift` with the wings, keeping the tail tucked in every frame.
+    L = lift
     pygame.draw.polygon(surf, INK, [
-        (BCX - 3, BCY - 1), (BCX + 3, BCY - 1),
-        (BCX - 3, BCY + 15), (BCX - 7, BCY + 17),
+        (BCX - 3, BCY - L), (BCX + 3, BCY - L),
+        (BCX + 1, BCY + 5 - L),
+        (BCX - 3, BCY + 9 - L),                      # tail point, ~BCY+9
+        (BCX - 5, BCY + 4 - L),
     ])
-    for (fx, fy) in ((BCX - 1, BCY + 3), (BCX - 2, BCY + 7),
-                     (BCX - 4, BCY + 11)):
-        pygame.draw.circle(surf, FLAKE, (fx, fy), 1)
+    for (fx, fy) in ((BCX - 1, BCY + 2), (BCX - 2, BCY + 6)):
+        pygame.draw.circle(surf, FLAKE, (fx, fy - L), 1)
     # Furred thorax bead.
-    _aaellipse(surf, INK, (BCX, BCY), 5, 7)
-    pygame.draw.circle(surf, FLAKE, (BCX - 1, BCY - 2), 1)
+    _aaellipse(surf, INK, (BCX, BCY - L), 5, 7)
+    pygame.draw.circle(surf, FLAKE, (BCX - 1, BCY - 2 - L), 1)
 
 
-def _draw_head(surf):
+def _draw_head(surf, lift=0):
     # Two thin CLUBBED antennae (true butterfly) sweeping up-and-out to the
-    # crown, each ending in an ink ball.
-    for (tx, ty) in ((HCX - 6, CROWN_Y), (HCX + 4, CROWN_Y)):
-        sx, sy = HCX + (1 if tx > HCX else -1), HCY - 4
+    # crown, each ending in an ink ball with a lighter tip pixel.
+    L = lift
+    for (tx, ty) in ((HCX - 6, CROWN_Y - L), (HCX + 4, CROWN_Y - L)):
+        sx, sy = HCX + (1 if tx > HCX else -1), HCY - 4 - L
         mx = (sx + tx) / 2 + (2 if tx > HCX else -2)
         my = (sy + ty) / 2
         pygame.draw.lines(surf, INK, False,
                           [(sx, sy), (mx, my), (tx, ty)], 1)
         pygame.draw.circle(surf, INK, (tx, ty), 2)
-    # Black head bead with a pair of white specks.
-    _aaellipse(surf, INK, (HCX, HCY), 5, 5)
-    pygame.draw.circle(surf, FLAKE, (HCX - 2, HCY - 1), 1)
-    pygame.draw.circle(surf, FLAKE, (HCX + 2, HCY), 1)
+        pygame.draw.circle(surf, AMBER, (tx, ty - 1), 1)
+    # A thin warm ring gives the head bead a 1px value break from the dark
+    # veins/thorax so it stays a distinct bead, not part of the wing mass.
+    _aaellipse(surf, MONARCH, (HCX, HCY - L), 6, 6)
+    _aaellipse(surf, INK, (HCX, HCY - L), 5, 5)
+    pygame.draw.circle(surf, FLAKE, (HCX - 2, HCY - 1 - L), 1)
+    pygame.draw.circle(surf, FLAKE, (HCX + 2, HCY - L), 1)
 
 
 def _build_frame(wing_angle_deg):
     surf = _new()
     f = _flap(wing_angle_deg)
-    spread = int(f * 18)           # lift the wings as the stroke rises
-    # Cap the horizontal narrowing so even the edge-on up-stroke stays legibly
-    # winged — the lifted `spread` carries the "wings raised" read.
-    nx = 1.0 - 0.30 * f
+    # Butterfly wings raise by rotating about the body axis, so the flap read
+    # comes mostly from the horizontal narrowing; a gentle shared lift adds life
+    # without the abdomen ever poking below the wings.
+    spread = int(f * 9)
+    nx = 1.0 - 0.42 * f
 
     # Far (left) wing behind the body, near (right) wing in front of the roots.
     _draw_wing(surf, -1, spread, nx)
-    _draw_body(surf)
+    _draw_body(surf, spread)
     _draw_wing(surf, +1, spread, nx)
-    _draw_head(surf)
+    _draw_head(surf, spread)
     return surf
 
 
