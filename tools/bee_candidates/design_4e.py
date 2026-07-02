@@ -29,9 +29,26 @@ EYE_C  = (50, 80, 200)     # #3250C8 — eyespot inner blue pupil
 FLAKE  = (245, 241, 230)   # #F5F1E6 — white margin dots
 
 
+def _taper_bar(surf, col, a, b, wa, wb):
+    """A chevron tiger bar: fat where it meets the leading edge (a), tapering
+    thin toward the notch (b) — the classic swallowtail stripe shape a straight
+    constant-width line can't give."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    d = (dx * dx + dy * dy) ** 0.5 or 1.0
+    px, py = -dy / d, dx / d
+    ha, hb = wa / 2.0, wb / 2.0
+    pygame.draw.polygon(surf, col, [
+        (a[0] + px * ha, a[1] + py * ha),
+        (a[0] - px * ha, a[1] - py * ha),
+        (b[0] - px * hb, b[1] - py * hb),
+        (b[0] + px * hb, b[1] + py * hb),
+    ])
+
+
 def _draw_wing(surf, side, spread, nx):
     margin = _transform(_WING_R, side, spread, nx)
-    fill = _inset(margin, 0.14)                     # thick ~6px black margin
+    fill = _inset(margin, 0.08)                     # thin ~3-4px black margin so
+                                                    # yellow dominates the field
 
     # Black margin first (the separator that carries the read on any sky), then
     # the yellow field right up to the bones so nothing near the margin reads
@@ -51,11 +68,13 @@ def _draw_wing(surf, side, spread, nx):
     core.blit(_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(core, (0, 0))
 
-    # Heavy black veins radiating from the thorax root — the stained-glass carve
-    # kept exactly as the MONARCH so the yellow reads as the SAME bug, recut.
-    for idx in (2, 3, 4, 6, 7):
-        pygame.draw.line(surf, INK, root, fill[idx], 2)
-    pygame.draw.line(surf, INK, root, fill[1], 1)
+    # Two separate black-line systems keep the two wings reading as distinct
+    # zones instead of merging into one black field: the FOREWING carries only
+    # tiger bars (below), the HINDWING only thin radiating veins. Veins stay 1px
+    # so the hindwing reads yellow-forward, not caged.
+    for idx in (6, 7):
+        pygame.draw.line(surf, INK, root, fill[idx], 1)
+    pygame.draw.line(surf, INK, root, fill[1], 1)   # midribs — thin, safe anywhere
     pygame.draw.line(surf, INK, root, fill[8], 1)
 
     # Tiger stripes — three thick black bars across the FOREWING, each running
@@ -66,19 +85,27 @@ def _draw_wing(surf, side, spread, nx):
     tail = fill[5]                                    # fore/hind notch (inner end)
     for t in (0.34, 0.55, 0.76):
         # Anchor on the leading edge, sweep in toward the notch for the chevron.
+        # Bars sit at 0.34/0.55/0.76 so the yellow gaps between them are at least
+        # as wide as the bars themselves — the field still reads yellow-first.
         lx = lead0[0] + (apex[0] - lead0[0]) * t
         ly = lead0[1] + (apex[1] - lead0[1]) * t
         ix = root[0] + (tail[0] - root[0]) * t
         iy = root[1] + (tail[1] - root[1]) * t
-        pygame.draw.line(surf, INK, (lx, ly), (ix, iy), 3)
+        _taper_bar(surf, INK, (lx, ly), (ix, iy), 4.5, 2.0)
 
-    # Blue shimmer on the hindwing lobe — an additive wash centred on fill[7],
-    # the way tiger swallowtail hindwings carry a dusting of blue scales.
+    # Blue shimmer on the hindwing lobe — a tight opaque-ish patch just inboard of
+    # the eyespot, alpha-blended (not additive) so it reads as ACTUAL blue rather
+    # than washing the yellow toward white the way an additive pass does. It
+    # straddles the lobe near the dark margin, where blue scales sit on the real
+    # bug.
     shim = _new()
-    lobe = fill[7]
-    _aaellipse(shim, (*BLUE, 90), lobe, 18, 14)
+    lobe, spot = fill[7], fill[8]
+    bx = (lobe[0] + spot[0]) / 2
+    by = (lobe[1] + spot[1]) / 2
+    blue_c = (bx + (fcx - bx) * 0.18, by + (fcy - by) * 0.18)
+    _aaellipse(shim, (*BLUE, 130), blue_c, 12, 10)
     shim.blit(_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    surf.blit(shim, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    surf.blit(shim, (0, 0))
 
     # Eyespot on the hindwing bottom (fill[8]) — the orange-and-blue signature
     # spot near the tail, with a tiny catch-light.
@@ -90,6 +117,10 @@ def _draw_wing(surf, side, spread, nx):
     # White margin flecks — a crisp double-row dotted rim, as the MONARCH.
     outer = margin[1:9]
     for i in range(len(outer) - 1):
+        # Skip the flecks over the hindwing lobe (outer 5-6) so the crisp white
+        # rim doesn't wash the blue shimmer zone back toward white.
+        if i in (5, 6):
+            continue
         a0, a1 = outer[i], outer[i + 1]
         ox = a0[0] + (fcx - a0[0]) * 0.14
         oy = a0[1] + (fcy - a0[1]) * 0.14

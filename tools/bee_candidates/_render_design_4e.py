@@ -20,9 +20,9 @@ from game.entities import Pipe
 from game.config import W as GW, H as GH, GROUND_Y
 from tools.bee_candidates.design_4e import build
 
-OUT = "docs/store_redesign/animal/bee/design_4e/round_1.png"
-TITLE = ("DESIGN 4e — TIGER SWALLOWTAIL  R1  (Papilio glaucus: sulfur-yellow "
-         "field, black veins + 3 tiger stripes, blue hindwing shimmer, eyespot)")
+OUT = "docs/store_redesign/animal/bee/design_4e/round_2.png"
+TITLE = ("DESIGN 4e — TIGER SWALLOWTAIL  R2  (Papilio glaucus: yellow-dominant "
+         "field, 3 tiger bars on forewing, thin hindwing veins, blue shimmer, eyespot)")
 
 NIGHT_PHASE = 0.64375       # the NIGHT keyframe in game/biome.py
 
