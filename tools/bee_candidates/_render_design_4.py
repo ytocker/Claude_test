@@ -1,6 +1,6 @@
-"""Compose the GLINTWING (design_4) review sheet: a hero product shot, an
-in-gameplay day-biome panel, a 4-frame flap strip showing the opposing wing
-beat, and a 40px NEAREST truth read (day | night, 3 poses).
+"""Compose the MONARCH (design_4) review sheet: a hero product shot, an
+in-gameplay day-biome panel, a 40px NEAREST truth read (day | night, 3 poses),
+and a 4-frame flap strip.
 
 Scratch exploration; nothing here touches production art.
 
@@ -16,8 +16,9 @@ pygame.init()
 from tools import ninja_render
 from tools.bee_candidates.design_4 import build
 
-OUT = "docs/store_redesign/animal/bee/design_4/round_2.png"
-TITLE = "DESIGN 4 — GLINTWING  (dragonfly: needle body + huge compound eyes + 4 glassy X-wings)"
+OUT = "docs/store_redesign/animal/bee/design_4/round_1.png"
+TITLE = ("DESIGN 4 — MONARCH  (Danaus plexippus: rounded stained-glass wings, "
+         "black veins, white-dotted margin)")
 
 
 def _label(surf, text, x, y, size=18, color=(236, 238, 246)):
@@ -26,8 +27,8 @@ def _label(surf, text, x, y, size=18, color=(236, 238, 246)):
 
 
 def _flap_strip(box):
-    """The four flap frames side by side on a soft panel — shows the fore/hind
-    opposing beat that a single hero pose can't."""
+    """The four flap frames side by side on a soft panel — shows the wings
+    lift from wide-open down-stroke toward the edge-on up-stroke."""
     panel = pygame.Surface((box, box // 4 + 10))
     panel.fill((26, 30, 34))
     cell = box // 4
@@ -100,7 +101,7 @@ def main():
         x += panel.get_width() + pad
 
     sy = head + box + 28
-    _label(sheet, "FLAP STRIP  (frames 0-3 — forewings & hindwings beat in opposition)",
+    _label(sheet, "FLAP STRIP  (frames 0-3 — wings lift from open down-stroke to edge-on up-stroke)",
            pad, sy - 2, size=13, color=(190, 194, 210))
     sheet.blit(strip, (pad, sy + 18))
 
