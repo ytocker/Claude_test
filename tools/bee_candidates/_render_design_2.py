@@ -39,8 +39,9 @@ t40h = max(t.get_height() for _, t in truth40)
 truth_block_w = 96
 truth_block_h = t40h + 2 * LABEL_H + 12
 
-# 4-frame filmstrip on a dark strip so the polychrome hue-sweep is visible
-# (frame 0 magenta -> 1 emerald -> 2 orange -> 3 back toward magenta).
+# 4-frame filmstrip on a split day/night field (NOT black) so the obsidian
+# wing base is visible against the background and the polychrome hue-sweep reads
+# (frame 0 magenta -> 1 emerald -> 2 orange -> 3 violet — four distinct beats).
 frames = [build(i, 0.0) for i in range(4)]
 fw = max(f.get_width() for f in frames)
 fh = max(f.get_height() for f in frames)
@@ -80,18 +81,25 @@ for name, t in truth40:
     ty += t40h + 30
 
 sy = PAD * 2 + top_h
-label(sheet, "4-FRAME FILMSTRIP (hue-sweep: magenta -> emerald -> orange)",
+label(sheet,
+      "4-FRAME FILMSTRIP (hue-sweep: magenta -> emerald -> orange -> violet)",
       PAD, sy)
 fx = PAD
 fy = sy + LABEL_H
 for i, f in enumerate(frames):
-    pygame.draw.rect(sheet, (14, 16, 30),
-                     pygame.Rect(fx, fy, fw + 8, fh + 8))
+    cell = pygame.Rect(fx, fy, fw + 8, fh + 8)
+    # Split day/night backing: left half a mid day-sky, right half night — the
+    # obsidian wing base must stay legible against BOTH, not vanish into black.
+    pygame.draw.rect(sheet, (120, 138, 158),
+                     pygame.Rect(cell.x, cell.y, cell.w // 2, cell.h))
+    pygame.draw.rect(sheet, (20, 22, 40),
+                     pygame.Rect(cell.x + cell.w // 2, cell.y,
+                                 cell.w - cell.w // 2, cell.h))
     sheet.blit(f, (fx + 4 + (fw - f.get_width()) // 2,
                    fy + 4 + (fh - f.get_height()) // 2))
     fx += fw + 12
 
-out = "/home/user/skybit/docs/store_redesign/animal/bee/design_2/round_1.png"
+out = "/home/user/skybit/docs/store_redesign/animal/bee/design_2/round_2.png"
 os.makedirs(os.path.dirname(out), exist_ok=True)
 pygame.image.save(sheet, out)
 print("saved", out)
