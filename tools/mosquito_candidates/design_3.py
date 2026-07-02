@@ -33,6 +33,10 @@ CYAN          = (23, 232, 232)
 MAGENTA       = (255, 47, 166)
 MAGENTA_DIM   = (150, 30, 100)    # far-side legs sit back a stop
 LIME          = (182, 255, 60)
+# Wing membrane sits between magenta and violet: dark enough that it never
+# out-shouts the cyan needle, which is the hero the eye must land on first.
+WING_MEMB     = (128, 44, 150)
+WING_HILITE   = (168, 96, 178)
 
 
 def _neon_line(surf, color, start, end, core_w=1, glow=((3, 40),)):
@@ -67,18 +71,20 @@ def _mosq_wing(wing_angle_deg, *, bright=True, rot_bias=0.0):
     At f=0 (wing down) it hangs open, at f=1 (up) it squeezes to a slit; the
     far wing runs dimmer + rotated further back for depth."""
     f = (wing_angle_deg + 40) / 90.0
-    a_fill = 105 if bright else 50
-    a_edge = 170 if bright else 88
-    a_shim = 195 if bright else 100
-    w = pygame.Surface((15, 32), pygame.SRCALPHA)
-    pygame.draw.ellipse(w, (*MAGENTA, a_fill), (3, 2, 9, 28))
-    pygame.draw.ellipse(w, (255, 120, 205, a_fill), (5, 7, 5, 16))
-    pygame.draw.ellipse(w, (*MAGENTA, a_edge), (3, 2, 9, 28), 1)
+    # The wing is a supporting tell, not the hero — held to a violet whisper so
+    # it never competes with the cyan needle for the eye's first landing.
+    a_fill = 70 if bright else 34
+    a_edge = 120 if bright else 60
+    a_shim = 130 if bright else 66
+    w = pygame.Surface((12, 26), pygame.SRCALPHA)
+    pygame.draw.ellipse(w, (*WING_MEMB, a_fill), (2, 2, 8, 22))
+    pygame.draw.ellipse(w, (*WING_HILITE, a_fill), (4, 6, 4, 13))
+    pygame.draw.ellipse(w, (*WING_MEMB, a_edge), (2, 2, 8, 22), 1)
     # Single diagonal scanline shimmer across the blade.
-    pygame.draw.line(w, (*CYAN, a_shim), (5, 25), (10, 6), 1)
+    pygame.draw.line(w, (*CYAN, a_shim), (4, 20), (8, 5), 1)
     # Squeeze horizontally toward the up-pose so the blade reads as a slit.
     sx = 1.0 - 0.5 * f
-    w = pygame.transform.smoothscale(w, (max(1, int(15 * sx)), 32))
+    w = pygame.transform.smoothscale(w, (max(1, int(12 * sx)), 26))
     # High base rotation sweeps the blade up-AND-back over the thorax.
     return pygame.transform.rotate(w, 46 + f * 26 + rot_bias)
 
@@ -125,7 +131,7 @@ def build_mosquito_neon(wing_angle_deg):
     stripes = _new()
     for i, sx in enumerate(range(BCX - 15, BCX + 5, 3)):
         col = CYAN if i % 2 == 0 else MAGENTA
-        pygame.draw.line(stripes, (*col, 200), (sx, BCY - 6), (sx - 3, BCY + 12), 2)
+        pygame.draw.line(stripes, (*col, 170), (sx, BCY - 6), (sx - 3, BCY + 12), 2)
     stripes.blit(_ellipse_mask(ab_rect), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(stripes, (0, 0))
     surf.blit(stripes, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
@@ -147,24 +153,25 @@ def build_mosquito_neon(wing_angle_deg):
     pygame.draw.arc(surf, CHARCOAL_H, (HCX - 8, HCY - 8, 16, 16), 0.4, 2.4, 2)
 
     # ── HERO 1: the proboscis is a RIGID FORWARD NEEDLE — the primary tell.
-    #    A tapered cyan tube (2px base → 1px point) running ~19px forward off
-    #    the head, with a 1px charcoal core so it reads as an edge-lit solid
-    #    needle and not a diffuse flashlight beam. Faint outer glow only.
-    p_base, p_tip = (44, 36), (63, 33)
-    beam = _new()
-    pygame.draw.line(beam, (*CYAN, 34), p_base, p_tip, 3)
-    surf.blit(beam, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-    pygame.draw.polygon(surf, CYAN, [(44, 35), (44, 37), p_tip])
-    pygame.draw.line(surf, CHARCOAL, (45, 36), (61, 33), 1)
+    #    A cyan tube running ~21px forward off the head, layered with a tight
+    #    inner bloom (2px) under two wider dimmer passes so it burns brightest
+    #    at its own edge — the FIRST thing the eye catches on the 40px strip.
+    #    A 1px charcoal core keeps it reading as an edge-lit solid needle and
+    #    not a diffuse flashlight beam.
+    p_base, p_tip = (44, 36), (65, 33)
+    _neon_line(surf, CYAN, p_base, p_tip, core_w=2,
+               glow=((2, 70), (4, 60), (7, 30)))
+    pygame.draw.line(surf, CHARCOAL, (45, 36), (63, 33), 1)
 
     # ── HERO 2: a SMALL lime compound eye, high on the head. Deliberately
     #    tiny (≈3px core + a 2px halo) so the neon linework — not one blown-out
     #    orb — carries the synthwave look. This is a mosquito, not a firefly.
     _neon_dot(surf, LIME, (42, 31), 2, 4, 90)
 
-    # ── Focal apex: the single brightest, tightest highlight sits at the
-    #    head/proboscis junction, pulling the eye forward along the needle.
-    _neon_dot(surf, (225, 255, 255), (50, 35), 1, 3, 150)
+    # ── Needle-root cap: a small dim highlight where the needle meets the head,
+    #    launching the eye FORWARD along the proboscis. Kept quiet (glow_a 110)
+    #    and tucked at the root so it can't be mistaken for a second eye.
+    _neon_dot(surf, (225, 255, 255), (45, 36), 1, 3, 110)
 
     return surf
 
