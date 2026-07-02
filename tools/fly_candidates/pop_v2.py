@@ -214,8 +214,8 @@ def build_pop_v2(wing_angle_deg):
     # Round sponge labellum (mouth pad) below the face — small (r4) and #CCCCCC
     # so it is a clearly dimmer grey pad that NEVER out-brights the white eyes.
     lab = _new()
-    lr = pygame.Rect(0, 0, 8, 7)
-    lr.center = (44, 46)
+    lr = pygame.Rect(0, 0, 9, 8)
+    lr.center = (47, 45)
     pygame.draw.ellipse(lab, LABELLUM, lr)
     surf.blit(_ink_outline(lab, 2), (0, 0))
 
