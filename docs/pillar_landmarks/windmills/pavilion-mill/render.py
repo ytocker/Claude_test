@@ -22,7 +22,7 @@ hold the centreline continuously up to the gap rim — the sail-X itself is pure
 gutter overhang laid over that solid core.
 
 Run:  python docs/pillar_landmarks/windmills/pavilion-mill/render.py
-Out:  docs/pillar_landmarks/windmills/pavilion-mill/round_1.png
+Out:  docs/pillar_landmarks/windmills/pavilion-mill/round_2.png
 """
 from __future__ import annotations
 
@@ -100,19 +100,29 @@ def _spar(pal):
 
 # ── The sail cross ────────────────────────────────────────────────────────────
 
-def _sail_arm(surf, hx, hy, dirx, diry, length, palette, *, sunward):
+def _sail_arm(surf, hx, hy, dirx, diry, length, palette, *, sunward,
+              width_scale=1.0):
     """One OPEN sail arm: a dark stock spar carrying a single narrow matting
     canvas jib along one edge, with a lit/shadow split, a few bamboo battens and
-    an AA outline. Deliberately a clean solid leaf (not a lattice of whiskers) so
-    four arms read as confident sails at PIPE_W=58 instead of aliasing to noise —
-    and narrow enough that clear air stays between the arms so the cross never
-    fills toward a disc."""
+    a genuinely DARK perimeter. Deliberately a clean solid leaf (not a lattice of
+    whiskers) so four arms read as confident sails at PIPE_W=58 instead of
+    aliasing to noise — and narrow enough that clear air stays between the arms so
+    the cross never fills toward a disc.
+
+    A lit matting leaf sits near the plaster-white value of the bright horizon, so
+    a light-toned outline dissolves against it. The perimeter is instead the dark
+    ochre-shadow tone, laid by filling the WHOLE leaf dark and then insetting the
+    lit canvas inside it — a uniform dark leech border on every side that never
+    leaks the light fill at diagonal steps or acute corners, so each sunward arm
+    holds its silhouette against a bright sky in BOTH biomes. `width_scale` trims
+    the downward pair so their canvas doesn't muddy the crown eave; the upward
+    pair stays full so the X still crowns the pavilion."""
     tx, ty = hx + dirx * length, hy + diry * length
     px, py = -diry, dirx                       # unit perpendicular (leaf side)
     # Narrow jib: the canvas trails on ONE side of the stock and widens outboard
     # like a Chinese junk sail, then relaxes at the tip.
-    narrow = max(2, length * 0.10)
-    wide = max(3, length * 0.20)
+    narrow = max(2, length * 0.10 * width_scale)
+    wide = max(3, length * 0.20 * width_scale)
     f0, f1 = 0.16, 0.94
     b0x, b0y = hx + dirx * length * f0, hy + diry * length * f0
     b1x, b1y = hx + dirx * length * f1, hy + diry * length * f1
@@ -124,8 +134,21 @@ def _sail_arm(surf, hx, hy, dirx, diry, length, palette, *, sunward):
     ]
     leaf = [(int(x), int(y)) for (x, y) in leaf]
     canvas = _canvas_lit(palette) if sunward else _canvas_shadow(palette)
-    canvas_edge = _shade(canvas, -18)
-    pygame.draw.polygon(surf, canvas, leaf)
+    edge = _ochre_wood_shadow(palette)
+    # Dark leech border: fill the leaf dark, then lay the lit canvas inset toward
+    # the leaf centroid so a dark rim survives on every edge.
+    pygame.draw.polygon(surf, edge, leaf)
+    _aa_polyline(surf, edge, leaf, closed=True)
+    cxg = sum(p[0] for p in leaf) / 4.0
+    cyg = sum(p[1] for p in leaf) / 4.0
+    inner = []
+    for vx, vy in leaf:
+        dx, dy = cxg - vx, cyg - vy
+        d = math.hypot(dx, dy) or 1.0
+        step = min(1.6, d * 0.9)
+        inner.append((int(round(vx + dx / d * step)),
+                      int(round(vy + dy / d * step))))
+    pygame.draw.polygon(surf, canvas, inner)
     # Value split down the canvas: a lighter run near the spar, darker at the
     # trailing leech, so even one leaf reads as a curved matting sail.
     pygame.draw.aaline(surf, _shade(canvas, 16),
@@ -135,7 +158,6 @@ def _sail_arm(surf, hx, hy, dirx, diry, length, palette, *, sunward):
     # the segment lays the battens. Coarse step = 3-4 ribs, never a busy ladder.
     _tile_hatch(surf, int(b0x), int(b0y), int(b1x), int(b1y),
                 _batten(palette), step=max(4, int(length * 0.24)))
-    _aa_polyline(surf, canvas_edge, leaf, closed=True)
     # Dark stock spar down the arm centreline, hub → tip.
     pygame.draw.line(surf, _spar(palette),
                      (int(hx), int(hy)), (int(tx), int(ty)), 2)
@@ -153,9 +175,14 @@ def _sail_cross(surf, cx, hub_y, arm_len, angle_deg, palette):
     ca, sa = math.cos(a), math.sin(a)
     # Draw the far (shaded) pair first, then the near (sunward) pair over them so
     # the bright arms read as nearer — gives the flat cross a front/back depth.
+    # The two DOWNWARD arms (diry > 0) are trimmed so their canvas doesn't muddy
+    # the crown eave below the hub; the upward pair stays full so the X reads as
+    # crowning the pavilion, not embedded in it.
     for dirx, diry, sun in ((ca, -sa, False), (ca, sa, False),
                             (-ca, -sa, True), (-ca, sa, True)):
-        _sail_arm(surf, cx, hub_y, dirx, diry, arm_len, palette, sunward=sun)
+        ws = 0.82 if diry > 0 else 1.0
+        _sail_arm(surf, cx, hub_y, dirx, diry, arm_len, palette, sunward=sun,
+                  width_scale=ws)
     # Hub boss — patinated bronze canister with a gilt eye + 1-px specular.
     bronze = _bronze(palette)
     pygame.draw.circle(surf, _shade(bronze, -40), (cx, hub_y), 5)
@@ -267,9 +294,11 @@ def _draw_pavilion_one(surf, cx, base_y, top_y, body_w, palette, seed, *,
         if i == 0 and bw >= 12 and th >= 12:
             _draw_entry_door(surf, cx, wall_top + th - 1, palette,
                              w=2, h=4, open_glow=rng.random() < 0.5)
-        # Flared glazed eave over every storey (Chinese curl harder low).
-        overhang = max(11, 15 - i)
-        eave_curl = 0.75 if i < 2 else 0.60
+        # Flared glazed eave over every storey (Chinese curl harder low). The
+        # crown storey keeps its flare but pulls it in so the hub sits on a clean
+        # ridge and the trimmed downward sails don't collide with a wide eave.
+        overhang = 8 if is_top else max(11, 15 - i)
+        eave_curl = 0.50 if is_top else (0.75 if i < 2 else 0.60)
         _eave_tang_curl(surf, cx, wall_top - 1, bw // 2, overhang, 6,
                         tile_red, _gold_bright(palette), tile_col,
                         curl=eave_curl, fringe=True, fringe_col=fringe_col,
@@ -278,6 +307,9 @@ def _draw_pavilion_one(surf, cx, base_y, top_y, body_w, palette, seed, *,
     # ── Crown spire + sail-X ──────────────────────────────────────────────────
     # The hub sits at the top storey's ridge; the spire climbs from there to the
     # gap rim; the upper arm tips stop CLEAR px below the rim.
+    # The hub sits at the crown ridge (no lift): the pulled-in crown eave and the
+    # trimmed downward sails already read the X as crowning the pavilion, and a
+    # lift here would eat the symmetric 10/7 rim clearance.
     top_ridge_y = layout[-1][0] if layout else envelope_top
     hub_y = min(top_ridge_y, top_y + crown_h)
     _crown_spire(surf, cx, hub_y, top_y, palette)
@@ -455,6 +487,42 @@ def _measure_clearance(pal):
     return TOP_H - top_low, bot_high - BOT_TOP
 
 
+def _hsl_l(c):
+    # AD's L scale — HSL lightness (max+min)/2, on which the day horizon reads
+    # ~221 and a lit matting leaf ~238 (the wash-out gap round 1 had to close).
+    return (max(c[0], c[1], c[2]) + min(c[0], c[1], c[2])) / 2
+
+
+def _measure_sail_edge_dl(pal):
+    """Sail-edge-vs-horizon ΔL: the sunward (left) upper arm's silhouette edge
+    must hold against the bright horizon in BOTH biomes. Scans the left gutter in
+    the sky band just below the lower section's gap rim (where the upper arms
+    overhang) for the OUTERMOST opaque arm pixel — the worst / lightest edge pixel
+    is reported so a pass is conservative — and compares its lightness to the
+    horizon sky. Also samples a lit interior pixel to show the depth split kept."""
+    surf = _pair_surf(pal)
+    cx = MARGIN + PIPE_W // 2
+    hor_l = _hsl_l(pal['horizon'])
+    edge_worst = None                          # lightest silhouette edge (worst)
+    canvas_l = None                            # a lit interior pixel, for depth
+    for y in range(BOT_TOP + 1, BOT_TOP + 48):
+        for x in range(0, cx - PIPE_W // 2):
+            px = surf.get_at((x, y))
+            if px[3] > 60:
+                edge_worst = (_hsl_l(px) if edge_worst is None
+                              else max(edge_worst, _hsl_l(px)))
+                ix = min(cx - PIPE_W // 2 - 1, x + 4)
+                ip = surf.get_at((ix, y))
+                if ip[3] > 60:
+                    canvas_l = (_hsl_l(ip) if canvas_l is None
+                                else max(canvas_l, _hsl_l(ip)))
+                break
+    if edge_worst is None:
+        return {'edge': hor_l, 'hor': hor_l, 'dl': 0.0, 'canvas': hor_l}
+    return {'edge': edge_worst, 'hor': hor_l, 'dl': abs(hor_l - edge_worst),
+            'canvas': canvas_l if canvas_l is not None else edge_worst}
+
+
 def _measure_fill(pal, section_h):
     surf = pygame.Surface((CACHE_W, GROUND_Y), pygame.SRCALPHA)
     bot_rect = pygame.Rect(MARGIN, GROUND_Y - section_h, PIPE_W, section_h)
@@ -509,6 +577,8 @@ def main():
     pair_night = _render_pair(night)
     cl_day = _measure_clearance(day)
     cl_night = _measure_clearance(night)
+    dl_day = _measure_sail_edge_dl(day)
+    dl_night = _measure_sail_edge_dl(night)
 
     heights = [70, 210, 355]
     feas = [_render_feas(day, h) for h in heights]
@@ -529,23 +599,26 @@ def main():
     right_w = feas_w + pad * 2
     sheet_w = left_w + right_w
 
+    # Three stacked lines under each pair (name + clearance + edge ΔL), so the
+    # blackout drops below all of them.
+    pair_labels_h = label_h + 20
     bo_w, bo_h = blackout.get_width(), blackout.get_height()
-    left_h = title_h + ph + label_h + pad + bo_h + label_h + pad
+    left_h = title_h + ph + pair_labels_h + pad + bo_h + label_h + pad
     feas_col_h = title_h + sum(ch + label_h + pad for _, ch in feas) + 24
     sheet_h = max(left_h, feas_col_h) + pad
 
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((24, 25, 30))
 
-    sheet.blit(title.render("pavilion-mill — round 1", True, (245, 240, 230)),
+    sheet.blit(title.render("pavilion-mill — round 2", True, (245, 240, 230)),
                (pad, 12))
-    sheet.blit(sub.render("tiered pagoda-pavilion body + thin OPEN radial "
-                          "sail-X  ·  mirrored pair with true gap, day + night",
+    sheet.blit(sub.render("dark ochre-shadow sail edge holds vs bright sky  ·  "
+                          "trimmed downward pair + pulled-in crown eave",
                           True, (170, 172, 182)), (pad, 40))
 
-    for i, (pair, name, cl) in enumerate((
-            (pair_day, f"DAY  PHASE={PHASE_DAY}", cl_day),
-            (pair_night, f"NIGHT  PHASE={PHASE_NIGHT}", cl_night))):
+    for i, (pair, name, cl, dl) in enumerate((
+            (pair_day, f"DAY  PHASE={PHASE_DAY}", cl_day, dl_day),
+            (pair_night, f"NIGHT  PHASE={PHASE_NIGHT}", cl_night, dl_night))):
         hx = pad + i * (pw + pad)
         hy = title_h
         sheet.blit(pair, (hx, hy))
@@ -555,9 +628,13 @@ def main():
         cl2 = sub.render(f"upper sail-tip clear: top {cl[0]}px  bot {cl[1]}px",
                          True, (200, 202, 212))
         sheet.blit(cl2, (hx + (pw - cl2.get_width()) // 2, hy + ph + 21))
+        ok = (0, 220, 120) if dl['dl'] >= 60 else (255, 120, 120)
+        dl3 = sub.render(f"sail-edge vs horizon dL {dl['dl']:.0f}  (edge L"
+                         f"{dl['edge']:.0f} / hor L{dl['hor']:.0f})", True, ok)
+        sheet.blit(dl3, (hx + (pw - dl3.get_width()) // 2, hy + ph + 37))
 
     bx = pad
-    by = title_h + ph + label_h + pad + 14
+    by = title_h + ph + pair_labels_h + pad + 14
     sheet.blit(blackout, (bx, by))
     pygame.draw.rect(sheet, (60, 62, 72), (bx, by, bo_w, bo_h), 1)
     lab = label.render("BLACKOUT — 58px silhouette read", True, (255, 224, 150))
@@ -576,7 +653,7 @@ def main():
         fy += ch + label_h + pad
 
     out = _REPO / "docs" / "pillar_landmarks" / "windmills" / \
-        "pavilion-mill" / "round_1.png"
+        "pavilion-mill" / "round_2.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     pygame.image.save(sheet, out)
 
@@ -588,6 +665,11 @@ def main():
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
     print(f"clearance day  top={cl_day[0]}px bot={cl_day[1]}px")
     print(f"clearance night top={cl_night[0]}px bot={cl_night[1]}px")
+    print(f"sail-edge dL day   edge L{dl_day['edge']:.0f} hor L{dl_day['hor']:.0f}"
+          f" -> dL {dl_day['dl']:.0f}  (canvas L{dl_day['canvas']:.0f})")
+    print(f"sail-edge dL night edge L{dl_night['edge']:.0f} "
+          f"hor L{dl_night['hor']:.0f} -> dL {dl_night['dl']:.0f}  "
+          f"(canvas L{dl_night['canvas']:.0f})")
     print("max empty run: " + "  ".join(f"{h}px->{fills[h]}px" for h in heights))
     print(f"body ochre  day={day_body} night={night_body} "
           f"(differ={day_body != night_body})")
