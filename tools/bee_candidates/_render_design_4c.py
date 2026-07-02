@@ -22,9 +22,9 @@ from game.entities import Pipe
 from game.config import W as GW, H as GH, GROUND_Y
 from tools.bee_candidates.design_4c import build
 
-OUT = "docs/store_redesign/animal/bee/design_4c/round_1.png"
-TITLE = ("DESIGN 4c — RED ADMIRAL  R1  (Vanessa atalanta: jet-black wings, one "
-         "bold scarlet diagonal slash, white apex spots, ember hindwing trim)")
+OUT = "docs/store_redesign/animal/bee/design_4c/round_2.png"
+TITLE = ("DESIGN 4c — RED ADMIRAL  R2  (Vanessa atalanta: jet-black wings, one "
+         "bold scarlet diagonal slash, white apex spots, rust hindwing hem)")
 
 # NIGHT keyframe from game.biome — moonlit cool stone, dark canopy.
 NIGHT_PHASE = 0.64375
