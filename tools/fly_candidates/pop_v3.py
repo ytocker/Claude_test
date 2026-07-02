@@ -47,7 +47,9 @@ BODY_D   = (255, 0, 170)            # #FF00AA magenta Ben-Day shadow dots
 # Warm pale yellow — the complement of the magenta thorax, so the domes POP
 # instead of drifting toward the pink mass. Kept as the hero tell.
 EYEW     = (255, 243, 155)          # #FFF39B warm pale yellow dome
-EYE_D    = (255, 29, 120)           # #FF1D78 pink Ben-Day eye dots
+# Dome halftone lightened toward pink-cream and thinned out: at 40px a dense
+# hot-pink grid muddied the yellow, so the domes must stay the brightest mark.
+EYE_D    = (255, 198, 208)          # pale pink-cream Ben-Day eye dots
 WHITE    = (255, 255, 255)
 WINGMEM  = (224, 200, 255)          # #E0C8FF soft lavender wing membrane
 WINGDOT  = (255, 0, 170)            # #FF00AA magenta wing halftone
@@ -157,8 +159,10 @@ def build_pop_v3(wing_angle_deg):
     back_root = (wing.get_width() - 1 - _WING_ROOT[0], _WING_ROOT[1])
     ang_far  = 40 + f * 18
     ang_near = 14 + f * 18
-    _place_rotated(surf, back, back_root, -ang_far,  (31, 32))
-    _place_rotated(surf, back, back_root, -ang_near, (33, 34))
+    # Anchored a touch further back over the shoulder so the fans clear the
+    # left eye dome — both domes then sit on clean ground and read as a pair.
+    _place_rotated(surf, back, back_root, -ang_far,  (28, 34))
+    _place_rotated(surf, back, back_root, -ang_near, (30, 36))
 
     # ── one round inked barrel: hot-pink thorax fused into purple abdomen ──
     body = _new()
@@ -176,45 +180,48 @@ def build_pop_v3(wing_angle_deg):
     pygame.draw.line(body, INK, (BCX - 8, 45), (BCX + 8, 45), 2)
     surf.blit(_ink_outline(body, 2), (0, 0))
 
-    # Round sponge labellum (mouth pad) hangs as its OWN disc directly under
-    # the eyes — a distinct #CC00AA pad with a full 2px ink ring so it reads
-    # as a mouth below the face, not a lump on the thorax side.
+    # Small round sponge labellum (mouth pad) tucked centrally right under the
+    # eye pair — a compact #CC00AA chin-pad with its own 2px ink ring. Kept
+    # small and slit-free so at 40px it reads as a spongy pad below the face,
+    # never a second detached coin off to the side.
     lab = _new()
-    lr = pygame.Rect(0, 0, 13, 12)
-    lr.center = (44, 47)
+    lr = pygame.Rect(0, 0, 10, 9)
+    lr.center = (43, 47)
     pygame.draw.ellipse(lab, LABELLUM, lr)
-    # A short central ink crease sells the two-lobed sponge pad.
-    pygame.draw.line(lab, INK, (44, 43), (44, 51), 2)
     surf.blit(_ink_outline(lab, 2), (0, 0))
 
     # ── HERO: two big dotted goggle eyes that fill the head ──
     # Fills leave a 4px trench that the two 2px ink loops fill from both sides,
     # then an explicit black bar seals it — the domes NEVER fuse into one blob.
     eyes = _new()
-    ecs = ((34, 30), (54, 30))
+    # A tight, level, symmetric pair centred on the face at x=43: left/right
+    # domes share one clean 2px ink gutter so they read as PAIRED eyes, not a
+    # dome plus a detached coin drifting off the side.
+    ecs = ((34, 30), (52, 30))
     for cx, cy in ecs:
         _aaellipse(eyes, EYEW, (cx, cy), 8, 8)
     emask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     for cx, cy in ecs:
         _aaellipse(emask, (255, 255, 255, 255), (cx, cy), 8, 8)
-    # Sparse pink dots so the warm yellow dome stays dominant and reads yellow.
-    _benday(eyes, emask, EYE_D, spacing=4, radius=1)
+    # Sparse, pale pink-cream dots so the warm yellow dome stays dominant.
+    _benday(eyes, emask, EYE_D, spacing=6, radius=1)
     inked_eyes = _ink_outline(eyes, 2)
-    # Solid closed #111 valley down the seam — belt-and-braces so the two
-    # bulging domes survive the 40px downscale as TWO eyes, never one mass.
-    pygame.draw.line(inked_eyes, INK, (44, 23), (44, 37), 3)
+    # Solid closed #111 valley down the shared seam at x=43 — belt-and-braces
+    # so the two domes survive the 40px downscale as TWO eyes, never one mass.
+    pygame.draw.line(inked_eyes, INK, (43, 23), (43, 37), 2)
     # Solid white comic glint wedge in each dome's upper-left, over the dots.
     for cx, cy in ecs:
         pygame.draw.polygon(inked_eyes, WHITE, [
             (cx - 6, cy - 4), (cx - 1, cy - 6), (cx - 3, cy)])
     surf.blit(inked_eyes, (0, 0))
 
-    # ── bristly thorax hump: chunky black setae angled up-back ──
-    # A couple of setae on the exposed pink crown push the read from "ladybug"
-    # to "fly"; kept between the wings and the head so they stay visible.
+    # ── bristly thorax hump: crisp 1px setae breaking the top silhouette ──
+    # Rooted on the exposed pink crown between the eyes and the back wings, the
+    # spikes stand clear off the outline into the sky so they still register as
+    # bristles at 40px — the tell that pushes the read from "ladybug" to "fly".
     for (x0, y0), (x1, y1) in (
-            ((34, 36), (31, 30)), ((37, 37), (34, 31)), ((31, 37), (28, 32))):
-        pygame.draw.line(surf, INK, (x0, y0), (x1, y1), 2)
+            ((36, 23), (34, 14)), ((43, 23), (43, 13)), ((50, 23), (52, 14))):
+        pygame.draw.line(surf, INK, (x0, y0), (x1, y1), 1)
 
     return surf
 
