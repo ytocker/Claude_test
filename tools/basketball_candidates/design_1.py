@@ -7,7 +7,7 @@ Why the white-body take: an all-orange tank read as a soccer jersey. An NBA
 HOME uniform is WHITE — so this build recolours Pip's whole body to a white
 jersey via _pal, and reserves orange for the accent structures a hoops kit owns
 and soccer never does: sleeveless shoulder straps over a bare-shoulder cut, a
-cleared number plate, baggy side-striped shorts, chunky ankle-collar high-tops,
+single bold jersey number, baggy side-striped shorts, chunky ankle-collar high-tops,
 and — the #1 identity prop — an orange basketball tucked at the feet, drawn
 last so nothing overlaps it. Pip's scarlet macaw head/beak/eye stay in the open
 above the white jersey, so it still reads as a parrot wearing a uniform.
@@ -61,40 +61,37 @@ def _paint(surf, _a):
     # Body centre in composite space (parrot body centre (32,32) + PARROT_DY).
     BCX, BCY = 32, 52
 
-    # ── Thin dark oval outline so the white jersey doesn't dissolve into a
-    #    bright day sky.
-    pygame.draw.ellipse(surf, (185, 188, 205), (BCX - 19, BCY - 14, 38, 28), 1)
+    # ── Dark oval outline (2px) so the white jersey holds against a bright day
+    #    sky instead of dissolving into the clouds.
+    pygame.draw.ellipse(surf, (155, 158, 175), (BCX - 19, BCY - 14, 38, 28), 2)
 
-    # ── SLEEVELESS TANK straps — two orange strips framing the white chest,
-    #    with bare shoulder skin showing at the sides. NO SLEEVES is the
-    #    basketball-vs-soccer tell.
-    pygame.draw.line(surf, _ORANGE, (BCX - 14, BCY - 13), (BCX - 10, BCY + 4), 3)
-    pygame.draw.line(surf, _ORANGE, (BCX + 12, BCY - 13), (BCX + 8, BCY + 4), 3)
+    # ── SLEEVELESS TANK straps — two thick orange strips framing the white
+    #    chest, running collar-to-armpit so the bare-shoulder tank silhouette
+    #    registers. NO SLEEVES is the basketball-vs-soccer tell.
+    pygame.draw.line(surf, _ORANGE, (BCX - 14, BCY - 13), (BCX - 10, BCY + 4), 4)
+    pygame.draw.line(surf, _ORANGE, (BCX + 12, BCY - 13), (BCX + 8, BCY + 4), 4)
     # Dark strap edges for depth.
-    pygame.draw.line(surf, _ORANGE_D, (BCX - 15, BCY - 13), (BCX - 11, BCY + 4), 1)
-    pygame.draw.line(surf, _ORANGE_D, (BCX + 13, BCY - 13), (BCX + 9, BCY + 4), 1)
+    pygame.draw.line(surf, _ORANGE_D, (BCX - 16, BCY - 13), (BCX - 12, BCY + 4), 1)
+    pygame.draw.line(surf, _ORANGE_D, (BCX + 14, BCY - 13), (BCX + 10, BCY + 4), 1)
 
-    # ── JERSEY NUMBER "23" — an orange plate clears the white chest field so
-    #    the digits read, then white bars form the number rimmed by the plate.
-    pygame.draw.rect(surf, _ORANGE, (BCX - 8, BCY - 8, 16, 14), border_radius=2)
-    # "2" — two horizontal bars + diagonal + base.
-    pygame.draw.line(surf, _WHITE, (BCX - 7, BCY - 6), (BCX - 2, BCY - 6), 2)
-    pygame.draw.line(surf, _WHITE, (BCX - 7, BCY - 1), (BCX - 2, BCY - 1), 2)
-    pygame.draw.line(surf, _WHITE, (BCX - 2, BCY - 6), (BCX - 7, BCY - 1), 2)
-    pygame.draw.line(surf, _WHITE, (BCX - 7, BCY - 1), (BCX - 7, BCY + 4), 2)
-    pygame.draw.line(surf, _WHITE, (BCX - 7, BCY + 4), (BCX - 2, BCY + 4), 2)
-    # "3" — three stacked bars closed on the right.
-    pygame.draw.line(surf, _WHITE, (BCX + 1, BCY - 6), (BCX + 6, BCY - 6), 2)
-    pygame.draw.line(surf, _WHITE, (BCX + 1, BCY - 1), (BCX + 6, BCY - 1), 2)
-    pygame.draw.line(surf, _WHITE, (BCX + 1, BCY + 4), (BCX + 6, BCY + 4), 2)
-    pygame.draw.line(surf, _WHITE, (BCX + 6, BCY - 6), (BCX + 6, BCY + 4), 2)
+    # ── JERSEY NUMBER "3" — one bold digit reads at 40px where two collapse.
+    #    Drawn straight on the white jersey (two horizontal bars + a right
+    #    vertical connecting them) with a dark drop-shadow for lift.
+    for dx, dy, col in ((1, 1, _ORANGE_D), (0, 0, _ORANGE)):
+        nx, ny = BCX + 2 + dx, BCY + dy
+        pygame.draw.line(surf, col, (nx - 5, ny - 6), (nx + 4, ny - 6), 4)
+        pygame.draw.line(surf, col, (nx - 5, ny), (nx + 4, ny), 4)
+        pygame.draw.line(surf, col, (nx - 5, ny + 6), (nx + 4, ny + 6), 4)
+        pygame.draw.line(surf, col, (nx + 4, ny - 6), (nx + 4, ny + 6), 4)
 
     # ── Tank HEM seam.
     pygame.draw.line(surf, _ORANGE_D, (BCX - 10, BCY + 5), (BCX + 8, BCY + 5), 1)
 
-    # ── BAGGY SHORTS — longer than a soccer kit's, with orange side stripes.
-    pygame.draw.ellipse(surf, _WHITE, (BCX - 10, BCY + 5, 22, 12))
-    pygame.draw.ellipse(surf, (200, 205, 215), (BCX - 10, BCY + 5, 22, 12), 1)
+    # ── BAGGY SHORTS — a distinct light-grey value from the white jersey so the
+    #    two garments don't blur into one blob; longer than a soccer kit's, with
+    #    orange side stripes.
+    pygame.draw.ellipse(surf, (210, 212, 222), (BCX - 10, BCY + 5, 22, 12))
+    pygame.draw.ellipse(surf, (175, 178, 192), (BCX - 10, BCY + 5, 22, 12), 1)
     pygame.draw.line(surf, _ORANGE, (BCX + 10, BCY + 6), (BCX + 10, BCY + 16), 2)
     pygame.draw.line(surf, _ORANGE, (BCX - 12, BCY + 6), (BCX - 12, BCY + 16), 2)
 
@@ -106,14 +103,17 @@ def _paint(surf, _a):
         pygame.draw.ellipse(surf, _WHITE, (hx + 1, BCY + 9, 8, 5))
         pygame.draw.line(surf, _ORANGE, (hx + 1, BCY + 13), (hx + 8, BCY + 13), 1)
 
-    # ── BASKETBALL — drawn LAST so nothing overlaps the hero prop. Orange
-    #    sphere with the classic vertical seam + two curved side seams.
-    bx, by = BCX - 8, BCY + 24
-    pygame.draw.circle(surf, (230, 115, 30), (bx, by), 7)
-    pygame.draw.circle(surf, (20, 20, 20), (bx, by), 7, 1)
-    pygame.draw.line(surf, (20, 20, 20), (bx, by - 7), (bx, by + 7), 1)
-    pygame.draw.arc(surf, (20, 20, 20), (bx - 9, by - 7, 12, 14), 0.3, math.pi - 0.3, 1)
-    pygame.draw.arc(surf, (20, 20, 20), (bx - 3, by - 7, 12, 14), math.pi + 0.3, 2 * math.pi - 0.3, 1)
+    # ── BASKETBALL — the #1 identity prop, drawn LAST so nothing overlaps it
+    #    and sized/placed to clear the feet fully below the body. Hot-orange
+    #    sphere (reads distinctly from the white jersey) with the classic
+    #    vertical seam + two curved side seams and a white specular dot.
+    bx, by = BCX - 10, BCY + 26
+    pygame.draw.circle(surf, (255, 140, 40), (bx, by), 9)
+    pygame.draw.circle(surf, (20, 20, 20), (bx, by), 9, 1)
+    pygame.draw.line(surf, (20, 20, 20), (bx, by - 9), (bx, by + 9), 1)
+    pygame.draw.arc(surf, (20, 20, 20), (bx - 12, by - 9, 15, 18), 0.3, math.pi - 0.3, 1)
+    pygame.draw.arc(surf, (20, 20, 20), (bx - 3, by - 9, 15, 18), math.pi + 0.3, 2 * math.pi - 0.3, 1)
+    pygame.draw.circle(surf, (255, 255, 255), (bx - 3, by - 3), 2)
 
 
 build = store_skins._make_skin(_paint, base_fn=_base)
