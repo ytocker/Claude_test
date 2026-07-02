@@ -141,46 +141,25 @@ def _tarnish_creep(surf, cx, cy, R, seed, n=16):
 # 1) FILIGREE — a fine wire scrollwork ring.
 #    Fame: delicate gold double-C scrolls repeated round a slim band, hairline
 #    weight, openwork so the navy face breathes between them. Shame: the SAME
-#    scrolls tarnished to pewter, faded thinner, and one scroll BROKEN — its
-#    wire come loose and unravelled into a trailing curl, leaving a gap.
+#    scrolls tarnished to pewter, faded thinner, and one scroll fully BROKEN OFF
+#    — a real gap in the ring, the detached curl floating loose beside it.
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _scroll(surf, cx, cy, a, rc, size, col, dark, w, unravelled=False):
-    """One filigree motif centred at angle ``a`` on the band: a symmetric pair of
-    small C-curls meeting at a stem — the classic scrollwork unit, stroked with a
-    faint dark under-offset so the wire reads engraved. ``unravelled`` breaks it
-    into a loose trailing wisp instead of a tidy pair."""
-    mx = cx + math.cos(a) * rc
-    my = cy + math.sin(a) * rc
-    # tangent / normal frame so the motif lies along the ring
-    tx, ty = -math.sin(a), math.cos(a)
-    nx, ny = math.cos(a), math.sin(a)
-    if unravelled:
-        # a wire come loose: a slack sagging thread curling off the ring
-        pts = []
-        for k in range(9):
-            f = k / 8
-            off_t = (f - 0.5) * size * 2.6
-            off_n = math.sin(f * math.pi * 2.4) * size * 0.5 - f * size * 0.9
-            pts.append((mx + tx * off_t + nx * off_n,
-                        my + ty * off_t + ny * off_n))
-        pygame.draw.lines(surf, dark, False,
-                          [(int(x + 1), int(y + 1)) for x, y in pts], max(1, w))
-        pygame.draw.lines(surf, col, False,
-                          [(int(x), int(y)) for x, y in pts], max(1, w))
-        return
+def _scroll(surf, mx, my, orient, size, col, dark, w):
+    """One filigree motif at (mx, my), oriented along ``orient``: a symmetric pair
+    of small C-curls meeting at a central bud — the classic scrollwork unit,
+    stroked with a faint dark under-offset so the wire reads engraved."""
+    tx, ty = -math.sin(orient), math.cos(orient)
     for sgn in (-1, 1):
-        # a C-curl: a ~270deg arc of a small circle, offset to one side of the stem
         ccx = mx + tx * sgn * size * 0.72
         ccy = my + ty * sgn * size * 0.72
         cr = size * 0.66
-        a0 = a - sgn * math.radians(50)
-        a1 = a + sgn * math.radians(215)
+        a0 = orient - sgn * math.radians(50)
+        a1 = orient + sgn * math.radians(215)
         rect = pygame.Rect(int(ccx - cr), int(ccy - cr), int(cr * 2), int(cr * 2))
         pygame.draw.arc(surf, dark, rect.move(1, 1),
                         min(a0, a1), max(a0, a1), max(1, w))
         pygame.draw.arc(surf, col, rect, min(a0, a1), max(a0, a1), max(1, w))
-    # a small central bud where the two curls meet
     pygame.draw.circle(surf, col, (int(mx), int(my)), max(1, int(size * 0.18)))
 
 
@@ -189,11 +168,33 @@ def _filigree_ring(surf, cx, cy, R, col, dark, tarnished=False):
     rc = R * _ORN_R
     size = R * 0.115
     w = max(1, R // 30)
-    broken = 4 if tarnished else -1        # one scroll comes undone
+    # STRUCTURAL loss: two adjacent scrolls gone leave a clear VOID in the ring,
+    # and one curl has snapped off and drifted outboard into that void — a real
+    # break that survives the shrink to 44px, not a faint tarnish.
+    void = {3, 4} if tarnished else set()
     for i in range(n):
         a = i / n * math.tau - math.pi / 2
-        _scroll(surf, cx, cy, a, rc, size, col, dark, w,
-                unravelled=(i == broken))
+        if i in void:
+            continue
+        mx = cx + math.cos(a) * rc
+        my = cy + math.sin(a) * rc
+        _scroll(surf, mx, my, a, size, col, dark, w)
+    if tarnished:
+        # bolder snapped wire stubs at the two edges of the void
+        for i in (2, 5):
+            a = i / n * math.tau - math.pi / 2
+            ta = a + (math.tau / n) * (0.5 if i == 2 else -0.5)
+            sx = cx + math.cos(ta) * rc
+            sy = cy + math.sin(ta) * rc
+            pygame.draw.line(surf, col, (int(sx), int(sy)),
+                             (int(sx + (cx - sx) * 0.14), int(sy + (cy - sy) * 0.14)),
+                             max(2, w + 1))
+        # the detached curl adrift in the void, tilted and floating outboard
+        va = 3.5 / n * math.tau - math.pi / 2
+        dx = cx + math.cos(va) * (rc + R * 0.16)
+        dy = cy + math.sin(va) * (rc + R * 0.16)
+        _scroll(surf, dx, dy, va + math.radians(55), size * 1.02, col, dark,
+                max(2, w + 1))
 
 
 def fame_filigree(surf, cx, cy, R, glyph_key):
@@ -218,9 +219,10 @@ def shame_filigree(surf, cx, cy, R, glyph_key):
 #    row dulled to chalky grey, glints gone, and one or two pearls MISSING —
 #    empty seats left as small dark cups (a gap in the strand).
 # ═══════════════════════════════════════════════════════════════════════════
-_PEARL_HI  = (255, 252, 246)
-_PEARL_MID = (226, 220, 224)
-_PEARL_LO  = (170, 162, 172)
+# Warm cream/gold-lustre pearl — a premium South-Sea read, not a plain white dot.
+_PEARL_HI  = (255, 248, 214)   # cream/gold specular luster
+_PEARL_MID = (240, 226, 196)   # warm ivory body
+_PEARL_LO  = (190, 168, 128)   # gold-tinted underside shadow
 _PD_MID    = (150, 150, 158)   # dulled chalky pearl
 _PD_LO     = (104, 104, 112)
 
@@ -229,7 +231,9 @@ def _pearl_row(surf, cx, cy, R, seat_hi, seat_lo, pearl=True, dulled=False):
     n = 15
     rc = R * _ORN_R
     pr = int(R * 0.072)
-    missing = {3, 4} if not pearl else set()   # a two-bead gap in the strand
+    # a two-bead gap kept OFF the vertical axis (lower-left of the ring, i=0 top)
+    # so the emptiness never reads as part of the emblem.
+    missing = {6, 7} if not pearl else set()
     for i in range(n):
         a = i / n * math.tau - math.pi / 2
         gx = int(cx + math.cos(a) * rc)
@@ -239,11 +243,14 @@ def _pearl_row(surf, cx, cy, R, seat_hi, seat_lo, pearl=True, dulled=False):
         pygame.draw.circle(surf, seat_hi, (gx, gy), pr + max(1, R // 46),
                            max(1, R // 60))
         if i in missing:
-            # empty seat: a small dark socket with a faint lit lower lip
-            pygame.draw.circle(surf, (14, 14, 20), (gx, gy), pr)
-            pygame.draw.arc(surf, seat_lo,
+            # empty seat: a deep dark socket (near-black, darker than the navy
+            # field) so the missing pearl punches as a real hole at 44px, with a
+            # thin lit lower lip that sells the emptied cup
+            pygame.draw.circle(surf, (6, 5, 12), (gx, gy), pr + max(1, R // 80))
+            pygame.draw.circle(surf, (2, 2, 6), (gx, gy), int(pr * 0.72))
+            pygame.draw.arc(surf, seat_hi,
                             (gx - pr, gy - pr, pr * 2, pr * 2),
-                            math.radians(200), math.radians(340), max(1, R // 50))
+                            math.radians(205), math.radians(335), max(1, R // 44))
             continue
         base = _PD_LO if dulled else _PEARL_LO
         body = _PD_MID if dulled else _PEARL_MID
@@ -254,6 +261,9 @@ def _pearl_row(surf, cx, cy, R, seat_hi, seat_lo, pearl=True, dulled=False):
             pygame.draw.line(surf, _PD_LO, (gx - pr // 2, gy),
                              (gx + pr // 3, gy + pr // 2), max(1, R // 70))
         else:
+            # warm cream luster: a broad soft sheen + a tight hot cream glint
+            pygame.draw.circle(surf, _PEARL_MID,
+                               (gx - pr // 4, gy - pr // 4), int(pr * 0.60))
             pygame.draw.circle(surf, _PEARL_HI,
                                (gx - pr // 3, gy - pr // 3), max(1, pr // 3))
 
@@ -276,62 +286,54 @@ def shame_pearls(surf, cx, cy, R, glyph_key):
 # ═══════════════════════════════════════════════════════════════════════════
 # 3) HAIRLINE — a slim double gold line with a few tiny refined accents.
 #    Fame: two crisp concentric gold hairlines hugging the rim, with a small
-#    quatrefoil fleuron accent at each of the four cardinals between them —
-#    minimal, architectural, all negative space. Shame: the SAME lines faded and
-#    BROKEN into an uneven dashed remnant, one line gone over an arc, and the
-#    accents chipped down to bare nubs (one missing).
+#    quatrefoil fleuron accent at each cardinal — architectural, calm. Shame: the
+#    SAME line with a whole ARC SEGMENT simply GONE (a decisive break, snapped
+#    stub ends), one fleuron lost with it, the survivor tarnished.
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _fleuron(surf, cx, cy, r, col, dark):
-    """A tiny four-lobe quatrefoil accent — a refined jeweller's dot cluster."""
+    """A four-lobe quatrefoil accent — a refined jeweller's dot cluster."""
     for k in range(4):
         a = k * math.pi / 2 - math.pi / 4
         lx = int(cx + math.cos(a) * r)
         ly = int(cy + math.sin(a) * r)
-        pygame.draw.circle(surf, dark, (lx + 1, ly + 1), max(1, int(r * 0.7)))
-        pygame.draw.circle(surf, col, (lx, ly), max(1, int(r * 0.7)))
-    pygame.draw.circle(surf, col, (int(cx), int(cy)), max(1, int(r * 0.5)))
+        pygame.draw.circle(surf, dark, (lx + 1, ly + 1), max(1, int(r * 0.72)))
+        pygame.draw.circle(surf, col, (lx, ly), max(1, int(r * 0.72)))
+    pygame.draw.circle(surf, col, (int(cx), int(cy)), max(1, int(r * 0.55)))
 
 
-def _dashed_arc(surf, cx, cy, rad, col, w, gaps):
-    """A ring drawn as short arc dashes with a few ``gaps`` (a0,a1) skipped — a
-    faded hairline that has worn through in places."""
-    seg = 40
-    for k in range(seg):
-        a0 = k / seg * math.tau
-        a1 = (k + 1) / seg * math.tau
-        amid = (a0 + a1) / 2 % math.tau
-        if any(g0 <= amid <= g1 for g0, g1 in gaps):
-            continue
-        if k % 3 == 2:                       # thin the surviving line to a dash
-            continue
-        rect = pygame.Rect(int(cx - rad), int(cy - rad), int(rad * 2), int(rad * 2))
-        pygame.draw.arc(surf, col, rect, -a1, -a0, max(1, w))
+# The Shame ring loses this lower-right arc entirely — a decisive missing chunk
+# (screen angles, y-down) that also swallows the south fleuron.
+_HAIR_GAP = (math.radians(20), math.radians(112))
 
 
-def _hairlines(surf, cx, cy, R, col, dark, accent, broken=False):
-    r_out = R * 0.865
-    r_in = R * 0.735
-    w = max(1, R // 32)
+def _hairlines(surf, cx, cy, R, col, dark, broken=False):
+    rc = R * 0.82
+    w = max(2, R // 20)                       # one confident hairline
+    rect = pygame.Rect(int(cx - rc), int(cy - rc), int(rc * 2), int(rc * 2))
     if broken:
-        _dashed_arc(surf, cx, cy, r_out, col, w,
-                    gaps=[(math.radians(20), math.radians(70))])
-        _dashed_arc(surf, cx, cy, r_in, col, w,
-                    gaps=[(math.radians(190), math.radians(300))])
+        g0, g1 = _HAIR_GAP
+        # everything EXCEPT the missing segment, drawn as one surviving arc
+        pygame.draw.arc(surf, dark, rect.move(1, 1),
+                        -(g0 + math.tau) + 0.03, -g1 - 0.03, max(1, w))
+        pygame.draw.arc(surf, col, rect, -(g0 + math.tau), -g1, w)
+        # two snapped wire stubs at the break ends
+        for ga in (g0, g1):
+            bx, by = cx + math.cos(ga) * rc, cy + math.sin(ga) * rc
+            pygame.draw.line(surf, dark,
+                             (int(bx - math.sin(ga) * w), int(by + math.cos(ga) * w)),
+                             (int(bx + math.sin(ga) * w), int(by - math.cos(ga) * w)),
+                             max(1, w // 2 + 1))
     else:
-        pygame.draw.circle(surf, dark, (cx, cy), int(r_out) + 1, max(1, R // 44))
-        pygame.draw.circle(surf, col, (cx, cy), int(r_out), w)
-        pygame.draw.circle(surf, dark, (cx, cy), int(r_in) + 1, max(1, R // 44))
-        pygame.draw.circle(surf, col, (cx, cy), int(r_in), w)
-    rc = (r_out + r_in) / 2
-    fr = R * 0.055
+        pygame.draw.circle(surf, dark, (cx, cy), int(rc) + 1, max(2, R // 26))
+        pygame.draw.circle(surf, col, (cx, cy), int(rc), w)
+    fr = R * 0.082                            # larger, so the accents carry weight
     for k in range(4):
         a = k * math.pi / 2 - math.pi / 2
+        if broken and (_HAIR_GAP[0] <= (a % math.tau) <= _HAIR_GAP[1]):
+            continue                          # the fleuron inside the gap is gone
         fx = cx + math.cos(a) * rc
         fy = cy + math.sin(a) * rc
-        if broken and k == 1:                # one accent chipped away to a nub
-            pygame.draw.circle(surf, dark, (int(fx), int(fy)), max(1, R // 44))
-            continue
         _fleuron(surf, fx, fy, fr, col, dark)
 
 
@@ -339,7 +341,7 @@ def fame_hairline(surf, cx, cy, R, glyph_key):
     _slim_band(surf, cx, cy, R, _G_HI, _G_MID, _G_LO, spec=_G_SPEC, edge=_G_EDGE)
     _finish_center(surf, cx, cy, R, _G_HI, _G_LO, _FACE_TOP, _FACE_BOT, _FACE_REC,
                    glyph_key, _GLY, _GLY_SH, ai._GLYPH_SHEEN)
-    _hairlines(surf, cx, cy, R, _G_HI, _G_LO, _G_MID)
+    _hairlines(surf, cx, cy, R, _G_HI, _G_LO)
 
 
 def shame_hairline(surf, cx, cy, R, glyph_key):
@@ -347,20 +349,20 @@ def shame_hairline(surf, cx, cy, R, glyph_key):
     _tarnish_creep(surf, cx, cy, R, seed=47)
     _finish_center(surf, cx, cy, R, _P_HI, _P_LO, _P_FACE_TOP, _P_FACE_BOT,
                    _P_FACE_REC, glyph_key, _P_GLY, _P_GLY_SH)
-    _hairlines(surf, cx, cy, R, _P_MID, _P_LO, _P_MID, broken=True)
+    _hairlines(surf, cx, cy, R, _P_MID, _P_LO, broken=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 4) SOLITAIRE — a slim band set with four small spaced gems.
-#    Fame: four tiny bezel-set ice-blue brilliants at the cardinals on a thin
-#    gold band, each with a bright upper-left glint; the band between is bare and
-#    calm. Shame: the SAME stones clouded to milky grey, glints dead, and one
-#    prised OUT to leave an empty dark bezel socket; band tarnished.
+#    Fame: four tiny bezel-set CHAMPAGNE / white-gold brilliants at the cardinals
+#    (warm, so they never read as the power-up blue), each with a warm glint; the
+#    field between is calm. Shame: the SAME stones clouded to milky grey, glints
+#    dead, and one prised OUT to leave a deep empty socket; band tarnished.
 # ═══════════════════════════════════════════════════════════════════════════
-_SOL_TABLE = (226, 240, 255)
-_SOL_MID   = (150, 196, 244)
-_SOL_DK    = ( 78, 128, 190)
-_SOL_GLINT = (255, 255, 255)
+_SOL_TABLE = (255, 246, 214)   # warm champagne table
+_SOL_MID   = (232, 202, 140)   # champagne body
+_SOL_DK    = (176, 138,  72)   # warm white-gold pavilion shadow
+_SOL_GLINT = (255, 252, 236)   # warm cream glint
 _SD_TABLE  = (158, 160, 168)   # clouded milky stone
 _SD_MID    = (120, 122, 130)
 _SD_DK     = ( 78,  80,  88)
@@ -374,9 +376,12 @@ def _solitaire(surf, cx, cy, gr, bez_hi, bez_lo, table, mid, dk,
     pygame.draw.circle(surf, bez_lo, (cx, cy), int(gr * 1.32))
     pygame.draw.circle(surf, bez_hi, (cx, cy), int(gr * 1.32), max(1, gr // 4))
     if empty:
-        pygame.draw.circle(surf, (12, 12, 18), (cx, cy), int(gr * 1.0))
-        pygame.draw.arc(surf, bez_lo, (cx - gr, cy - gr, gr * 2, gr * 2),
-                        math.radians(200), math.radians(340), max(1, gr // 3))
+        # a deep near-black socket (darker than the navy field) so the prised-out
+        # gem reads as a real hole at 44px, with a thin lit lower lip
+        pygame.draw.circle(surf, (6, 5, 12), (cx, cy), int(gr * 1.08))
+        pygame.draw.circle(surf, (1, 1, 5), (cx, cy), int(gr * 0.74))
+        pygame.draw.arc(surf, bez_hi, (cx - gr, cy - gr, gr * 2, gr * 2),
+                        math.radians(205), math.radians(335), max(1, gr // 3))
         return
     verts = [(cx + math.cos(i / 8 * math.tau - math.pi / 8) * gr,
               cy + math.sin(i / 8 * math.tau - math.pi / 8) * gr) for i in range(8)]
@@ -434,52 +439,56 @@ def shame_solitaire(surf, cx, cy, R, glyph_key):
 #    a delicate halo. Shame: the SAME rim EXTINGUISHED — the glow gone, the line
 #    guttered to a dim, uneven, broken remnant flickering out (segments faded).
 # ═══════════════════════════════════════════════════════════════════════════
-_HL_GLOW = (255, 214, 120)
 _HL_LINE = (255, 248, 214)
 _HL_SOFT = (255, 230, 170)
-_HD_LINE = ( 96, 100, 116)   # a cold, dim guttered remnant
-_HD_FAINT = ( 60,  64,  78)
+_HL_GLOW = (255, 214, 120)
+_HD_LINE = ( 78,  92, 116)   # a cold, dead blue-grey remnant
+_HD_FAINT = ( 40,  46,  62)
 
 
-def _halo_ring(surf, cx, cy, R, line, soft, glow=None, ticks_col=None,
-               broken=False):
-    rc = R * 0.86
-    if glow is not None:
-        blit_glow(surf, cx, cy, int(R * 1.28), glow, 90)
-    if broken:
-        # a dim line guttering out: uneven dashes at low, varying alpha
-        seg = 46
-        for k in range(seg):
-            a0 = k / seg * math.tau
-            a1 = (k + 1) / seg * math.tau
-            amid = (a0 + a1) / 2
-            fade = (math.sin(k * 2.3) + 1) * 0.5    # deterministic flicker
-            if fade < 0.42 or k % 4 == 0:           # whole stretches gone dark
-                continue
-            rect = pygame.Rect(int(cx - rc), int(cy - rc), int(rc * 2), int(rc * 2))
-            col = lerp_color(_HD_FAINT, line, fade)
-            pygame.draw.arc(surf, col, rect, -a1, -a0, max(1, R // 26))
-        return
-    # a soft under-halo line then a crisp bright hairline crest
-    pygame.draw.circle(surf, soft, (cx, cy), int(rc), max(2, R // 16))
-    pygame.draw.circle(surf, line, (cx, cy), int(rc), max(1, R // 34))
-    if ticks_col is not None:
-        for k in range(24):
-            a = k / 24 * math.tau
-            r0 = rc + R * 0.02
-            r1 = rc + R * 0.075
-            pygame.draw.line(surf, ticks_col,
-                             (int(cx + math.cos(a) * r0), int(cy + math.sin(a) * r0)),
-                             (int(cx + math.cos(a) * r1), int(cy + math.sin(a) * r1)),
-                             max(1, R // 60))
+def _halo_glow_rim(surf, cx, cy, rc, R, glow, soft, line, ticks_col):
+    """A CONTROLLED luminous rim: the glow is confined to a tight radial band
+    hugging ``rc`` (concentric alpha ring-outlines on a temp surface) so the light
+    never blooms across the emblem, then a crisp bright hairline crest + fine
+    radiant ticks read the halo at row size."""
+    tmp = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    for k, (dr, w, al) in enumerate((
+            (0.055, R // 8, 46), (0.030, R // 11, 74), (0.012, R // 16, 120))):
+        col = (*lerp_color(glow, soft, k / 2), al)
+        pygame.draw.circle(tmp, col, (cx, cy), int(rc + R * dr), max(2, w))
+        pygame.draw.circle(tmp, col, (cx, cy), int(rc - R * dr * 0.6), max(2, w))
+    surf.blit(tmp, (0, 0))
+    pygame.draw.circle(surf, soft, (cx, cy), int(rc), max(2, R // 22))
+    pygame.draw.circle(surf, line, (cx, cy), int(rc), max(1, R // 40))
+    for k in range(24):
+        a = k / 24 * math.tau
+        r0, r1 = rc + R * 0.02, rc + R * 0.07
+        pygame.draw.line(surf, ticks_col,
+                         (int(cx + math.cos(a) * r0), int(cy + math.sin(a) * r0)),
+                         (int(cx + math.cos(a) * r1), int(cy + math.sin(a) * r1)),
+                         max(1, R // 60))
+
+
+def _halo_dead_rim(surf, cx, cy, rc, R, line, faint):
+    """The extinguished twin: a cold, dead grey ring broken into a few surviving
+    stretches with whole arcs gone dark — a guttered-out halo, no warmth."""
+    seg = 46
+    for k in range(seg):
+        a0 = k / seg * math.tau
+        a1 = (k + 1) / seg * math.tau
+        flick = (math.sin(k * 2.3) + 1) * 0.5       # deterministic flicker
+        if flick < 0.45 or k % 4 == 0:              # whole stretches gone dark
+            continue
+        rect = pygame.Rect(int(cx - rc), int(cy - rc), int(rc * 2), int(rc * 2))
+        col = lerp_color(faint, line, flick)
+        pygame.draw.arc(surf, col, rect, -a1, -a0, max(1, R // 30))
 
 
 def fame_halo(surf, cx, cy, R, glyph_key):
-    blit_glow(surf, cx, cy, int(R * 1.24), _HL_GLOW, 90)   # soft halo, behind all
     _slim_band(surf, cx, cy, R, _G_HI, _G_MID, _G_LO, spec=_G_SPEC, edge=_G_EDGE)
     _finish_center(surf, cx, cy, R, _G_HI, _G_LO, _FACE_TOP, _FACE_BOT, _FACE_REC,
                    glyph_key, _GLY, _GLY_SH, ai._GLYPH_SHEEN)
-    _halo_ring(surf, cx, cy, R, _HL_LINE, _HL_SOFT, glow=None, ticks_col=_HL_SOFT)
+    _halo_glow_rim(surf, cx, cy, R * 0.86, R, _HL_GLOW, _HL_SOFT, _HL_LINE, _HL_SOFT)
 
 
 def shame_halo(surf, cx, cy, R, glyph_key):
@@ -487,7 +496,7 @@ def shame_halo(surf, cx, cy, R, glyph_key):
     _tarnish_creep(surf, cx, cy, R, seed=83)
     _finish_center(surf, cx, cy, R, _P_HI, _P_LO, _P_FACE_TOP, _P_FACE_BOT,
                    _P_FACE_REC, glyph_key, _P_GLY, _P_GLY_SH)
-    _halo_ring(surf, cx, cy, R, _HD_LINE, _HD_FAINT, glow=None, broken=True)
+    _halo_dead_rim(surf, cx, cy, R * 0.86, R, _HD_LINE, _HD_FAINT)
 
 
 # Each concept pairs a Fame composer with its slim degraded Shame twin.
