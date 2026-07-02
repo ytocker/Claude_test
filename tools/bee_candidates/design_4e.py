@@ -81,29 +81,31 @@ def _draw_wing(surf, side, spread, nx):
     # roughly perpendicular to the leading edge and tapering toward the trailing
     # side (the swallowtail chevron read). They overlay the yellow field and
     # veins, spaced from the wing root out toward the apex.
-    lead0, apex = fill[1], fill[2]                    # forewing leading edge span
+    # Leading anchors span the whole leading edge (rise→apex→shoulder) so the
+    # three bars stay spread and parallel instead of converging into one black
+    # blob near the apex; inner anchors sweep from the root toward the notch for
+    # the chevron. The wide top span guarantees the yellow gaps stay at least as
+    # wide as each bar.
+    lead0, shoulder = fill[1], fill[3]
     tail = fill[5]                                    # fore/hind notch (inner end)
-    for t in (0.34, 0.55, 0.76):
-        # Anchor on the leading edge, sweep in toward the notch for the chevron.
-        # Bars sit at 0.34/0.55/0.76 so the yellow gaps between them are at least
-        # as wide as the bars themselves — the field still reads yellow-first.
-        lx = lead0[0] + (apex[0] - lead0[0]) * t
-        ly = lead0[1] + (apex[1] - lead0[1]) * t
+    for t in (0.20, 0.50, 0.80):
+        lx = lead0[0] + (shoulder[0] - lead0[0]) * t
+        ly = lead0[1] + (shoulder[1] - lead0[1]) * t
         ix = root[0] + (tail[0] - root[0]) * t
         iy = root[1] + (tail[1] - root[1]) * t
-        _taper_bar(surf, INK, (lx, ly), (ix, iy), 4.5, 2.0)
+        _taper_bar(surf, INK, (lx, ly), (ix, iy), 3.2, 1.8)
 
-    # Blue shimmer on the hindwing lobe — a tight opaque-ish patch just inboard of
-    # the eyespot, alpha-blended (not additive) so it reads as ACTUAL blue rather
-    # than washing the yellow toward white the way an additive pass does. It
-    # straddles the lobe near the dark margin, where blue scales sit on the real
-    # bug.
+    # Blue lunules on the hindwing margin — a row of small SOLID blue scale-dots
+    # just inboard of the dark margin between the outer hindwing and the tail.
+    # Solid blue reads unmistakably blue; an alpha wash over the sulfur field
+    # only mudded to gray-green (yellow+blue), so the shimmer is inked as opaque
+    # crescents instead, which is also how the real bug carries its blue scales.
     shim = _new()
-    lobe, spot = fill[7], fill[8]
-    bx = (lobe[0] + spot[0]) / 2
-    by = (lobe[1] + spot[1]) / 2
-    blue_c = (bx + (fcx - bx) * 0.18, by + (fcy - by) * 0.18)
-    _aaellipse(shim, (*BLUE, 130), blue_c, 12, 10)
+    for j in (6, 7, 8):
+        mp = fill[j]
+        bx = mp[0] + (fcx - mp[0]) * 0.16
+        by = mp[1] + (fcy - mp[1]) * 0.16
+        _aaellipse(shim, (*BLUE, 255), (bx, by), 2.2, 2.0)
     shim.blit(_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(shim, (0, 0))
 
