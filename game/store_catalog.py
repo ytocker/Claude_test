@@ -90,6 +90,9 @@ CATALOG: dict[str, dict] = {
     "skin_toaster":      {"name": "FLYING TOASTER", "cost": 9000, "kind": "skin", "group": "animal", "secret": True},
     "skin_pinata_parrot": {"name": "PARROT PIÑATA", "cost": 11000, "kind": "skin", "group": "animal", "secret": True},
     "skin_jet_fighter":  {"name": "JET FIGHTER",   "cost": 12000, "kind": "skin", "group": "animal", "secret": True},
+    # Mystery SUN — masked ??? that rolls a random one of two sun designs
+    # (classic / kawaii) at unlock, then locks to it.
+    "skin_sun":          {"name": "SUN",           "cost": 7500,  "kind": "skin", "group": "animal", "secret": True},
 
     # ── SHOES (stylized procedural sneaker/sandal homages Pip wears) ───────────
     # Priced on desirability: sandals/slides cheap, classics mid, hype premium.
