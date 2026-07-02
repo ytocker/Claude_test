@@ -1,10 +1,13 @@
 """MOSQUITO candidate — DESIGN 4 · VAMPING FANG (scratch exploration only).
 
-Gothic-horror "just bit you" mosquito: a swollen crimson blood-belly is the
-hero beat, a glossy near-black fang proboscis and a wide drooping spider stance
-sell the menace. Scratch candidate — never registered in BUILDERS / catalog.
-Wrapped by the local `_make_prebuilt_skin` so `tools/ninja_render.py` can pose
-it in a real gameplay scene exactly like the shipped skins.
+Gothic-horror "just bit you" mosquito. Silhouette does the whole job at 40px:
+a long forward FANG needle and three crooked spider legs dangling wide are the
+two non-negotiable tells, hung on a hunched inverted-V body whose swollen
+crimson blood-belly sags low-back off a near-black thorax. Every near-black
+element carries a cool sky-side rim so the whole shape survives night sky.
+Scratch candidate — never registered in BUILDERS / catalog. Wrapped by the
+local `_make_prebuilt_skin` so `tools/ninja_render.py` can pose it in a real
+gameplay scene exactly like the shipped skins.
 """
 import pygame
 import math
@@ -20,91 +23,109 @@ from game.parrot import _WING_ANGLES, _add_outline, _aaellipse
 from game.animal_skins import (
     _make_prebuilt_skin, COMPOSITE_W, COMPOSITE_H, BCX, BCY, HCX, HCY, _new)
 
-BLACKBERRY   = (26, 10, 14)      # near-black body / legs / fang
-DARK_BLOOD   = (110, 15, 28)     # belly rim + smoky wing
-BRIGHT_BLOOD = (216, 30, 52)     # gorged belly core
-GLINT        = (232, 184, 190)   # cold highlight specks
-RUFF         = (58, 42, 46)      # raised collar scales
+BLACKBERRY   = (26, 10, 14)      # #1A0A0E glossy near-black fang / head / legs
+THORAX_DK    = (58, 42, 46)      # #3A2A2E dark thorax hump — reads darker than belly
+DARK_BLOOD   = (110, 15, 28)     # #6E0F1C banding / wing membrane / sky-side rim
+BRIGHT_BLOOD = (216, 30, 52)     # #D81E34 gorged blood-belly — the HERO focal
+GLINT        = (232, 184, 190)   # #E8B8BE cold highlight — the ONE bright point
+DIM_SHEEN    = (118, 92, 96)     # ~50% value of GLINT — soft belly sheen, no 2nd eye
+SPECULAR     = (96, 62, 68)      # glossy top ridge on the near-black fang
 
 
-def _vamp_wing(angle_deg):
-    """A smoky dark-red translucent blade. The flap is a broad motion (unlike
-    the bee's damped buzz) so the threatening wing arc reads at 40px."""
-    w = pygame.Surface((36, 22), pygame.SRCALPHA)
-    pygame.draw.ellipse(w, (*DARK_BLOOD, 100), (2, 4, 32, 14))
-    pygame.draw.ellipse(w, (*BRIGHT_BLOOD, 90), (5, 6, 22, 10))
-    pygame.draw.ellipse(w, (*DARK_BLOOD, 170), (2, 4, 32, 14), 1)
-    # A single vein line keeps the membrane from reading as a flat blob.
-    pygame.draw.line(w, (*DARK_BLOOD, 150), (8, 11), (30, 9), 1)
+def _vamp_wing(angle_deg, alpha):
+    """A long translucent mid-red blade. It is deliberately longer than the body
+    so, arced up-back, its far end pokes past the outline and NOTCHES the
+    silhouette instead of filling the back hump."""
+    w = pygame.Surface((46, 18), pygame.SRCALPHA)
+    pygame.draw.ellipse(w, (*DARK_BLOOD, alpha), (0, 3, 46, 12))
+    pygame.draw.ellipse(w, (*BRIGHT_BLOOD, alpha // 2), (7, 5, 26, 8))
+    pygame.draw.ellipse(w, (*DARK_BLOOD, min(255, alpha + 70)), (0, 3, 46, 12), 1)
+    pygame.draw.line(w, (*DARK_BLOOD, min(255, alpha + 40)), (7, 9), (40, 8), 1)
     return pygame.transform.rotate(w, angle_deg)
 
 
 def _leg(surf, hip, knee, foot):
-    """One long crooked BLACKBERRY leg with a distinct knee bend, tapering to a
-    hair-thin ankle so the six-leg rig stays spindly, not stumpy."""
+    """One long crooked leg: a thicker thigh, a kinked knee, then a hair-thin
+    shin. The kink is what reads as SPIDER rather than antenna. A 1px sky-side
+    (upper-left) rim in dim blood-red keeps the black leg alive on night sky."""
     pygame.draw.line(surf, BLACKBERRY, hip, knee, 2)
     pygame.draw.line(surf, BLACKBERRY, knee, foot, 1)
+    rim = [(hip[0] - 1, hip[1]), (knee[0] - 1, knee[1]), (foot[0] - 1, foot[1])]
+    pygame.draw.lines(surf, DARK_BLOOD, False, rim, 1)
+
+
+def _rim_arc(surf, center, rx, ry, color, start, stop):
+    """A thin night-sky guard along the upper-left contour of a near-black mass
+    so the full mosquito silhouette survives against dark sky."""
+    cx, cy = center
+    rect = pygame.Rect(int(cx - rx), int(cy - ry), int(rx * 2), int(ry * 2))
+    pygame.draw.arc(surf, color, rect, start, stop, 1)
 
 
 def build_mosquito_vamp(wing_angle_deg):
     surf = _new()
     f = (wing_angle_deg + 40) / 90.0            # 0..1 wing-up factor
-    swing = (f - 0.5) * 6                        # legs sway with the beat
+    swing = int((f - 0.5) * 5)                   # legs sway with the beat
 
-    # ── Far wing tucked behind, damped so the near wing leads the read. ──
-    fw = _vamp_wing(38 + (f - 0.5) * 40)
-    surf.blit(fw, fw.get_rect(center=(BCX + 12, BCY - 12)))
+    # ── Far wing, faint, tucked behind so the near wing leads the read. ──
+    fw = _vamp_wing(44 + (f - 0.5) * 34, 70)
+    surf.blit(fw, fw.get_rect(center=(30, 20)))
 
-    # ── Legs first (behind the body): wide drooping spider stance. The three
-    #    on each side splay forward/mid/back and dangle low, swaying with f. ──
-    s = int(swing)
-    # rear pair
-    _leg(surf, (22, 46), (18, 54), (14, 62 + s))
-    _leg(surf, (24, 47), (21, 57), (16, 66 + s))
-    # mid pair (near-vertical drop)
-    _leg(surf, (32, 48), (33, 56), (33, 64 + s))
-    _leg(surf, (34, 49), (36, 58), (37, 67 + s))
-    # front pair reaching forward-down
-    _leg(surf, (40, 46), (46, 53), (50, 62 - s))
-    _leg(surf, (41, 48), (47, 56), (52, 66 - s))
+    # ── Legs BEHIND the body: three per side in a wide drooping spider spread,
+    #    tips fanning from x18 to x52 and dangling past y66. Each is kinked. ──
+    s = swing
+    _leg(surf, (27, 45), (20, 57), (18, 72 + s))     # rear (leftmost)
+    _leg(surf, (30, 46), (25, 59), (24, 74 + s))
+    _leg(surf, (33, 47), (32, 60), (33, 73 + s))     # mid drop
+    _leg(surf, (37, 46), (41, 58), (43, 71 - s))
+    _leg(surf, (40, 45), (47, 56), (49, 69 - s))
+    _leg(surf, (42, 44), (50, 54), (52, 67 - s))     # front (rightmost)
 
-    # ── Abdomen: the HERO — a swollen, gorged blood-belly slung low-left. ──
-    _aaellipse(surf, DARK_BLOOD, (24, 49), 14, 10)          # full rim
-    _aaellipse(surf, BRIGHT_BLOOD, (24, 48), 9, 7)          # engorged core
-    _aaellipse(surf, GLINT, (20, 44), 3, 2)                 # cold wet gleam
-    # Dark banding cinches the taut belly into segments.
-    for bx in (17, 24, 31):
-        pygame.draw.line(surf, BLACKBERRY, (bx, 41), (bx - 2, 56), 1)
+    # ── Abdomen: the HERO — a swollen gorged blood-bead sagging LOW-BACK off a
+    #    dark waist, so the body forms a hunched inverted-V with the thorax. ──
+    petiole = [(30, 40), (34, 41), (30, 48), (26, 47)]
+    pygame.draw.polygon(surf, BLACKBERRY, petiole)   # dark waist it hangs from
+    _aaellipse(surf, DARK_BLOOD, (21, 51), 13, 11)   # engorged rim
+    _aaellipse(surf, BRIGHT_BLOOD, (21, 50), 10, 8)  # bright-blood core
+    # Curved dark bands cinch the taut belly into full-blood segments.
+    pygame.draw.lines(surf, DARK_BLOOD, False, [(13, 47), (15, 52), (15, 58)], 1)
+    pygame.draw.lines(surf, DARK_BLOOD, False, [(19, 44), (22, 51), (22, 59)], 1)
+    pygame.draw.lines(surf, DARK_BLOOD, False, [(26, 46), (28, 52), (28, 57)], 1)
+    _aaellipse(surf, DIM_SHEEN, (16, 45), 3, 2)      # soft sheen — NOT a 2nd eye
+    _rim_arc(surf, (21, 51), 13, 11, DARK_BLOOD, 1.9, 3.5)
 
-    # ── Thorax: a high arched BLACKBERRY hump — exaggerated hunch. ──
-    _aaellipse(surf, BLACKBERRY, (BCX + 2, BCY - 3), 11, 12)
-    _aaellipse(surf, (46, 22, 28), (BCX, BCY - 6), 6, 5)    # top rim-light
+    # ── Thorax: a high, hunched, near-black hump — the PEAK of the inverted-V,
+    #    pushed dark so the crimson belly reads as a separate bead below it. ──
+    _aaellipse(surf, BLACKBERRY, (34, 38), 10, 11)
+    _aaellipse(surf, THORAX_DK, (33, 35), 6, 5)      # faint top form
+    _rim_arc(surf, (34, 38), 10, 11, GLINT, 2.0, 3.4)
 
-    # ── Ruff/collar: raised scale spikes at the neck for the caped-villain
-    #    silhouette. ──
-    for i, (rx, ry) in enumerate(((38, 40), (40, 42), (42, 40), (40, 38))):
-        tip = (rx + (i - 1) * 2, ry - 5)
-        pygame.draw.polygon(surf, RUFF,
-                            [(rx - 2, ry + 2), (rx + 2, ry + 2), tip])
+    # ── Bristle-crown: a minimal raised nub on the thorax top edge with a cold
+    #    tick, just enough to break the top contour (the old ruff vanished). ──
+    for bx in (30, 33, 36):
+        pygame.draw.line(surf, THORAX_DK, (bx, 27), (bx, 24), 2)
+    pygame.draw.circle(surf, GLINT, (33, 24), 1)
 
-    # ── Head + blood-red compound eye with a cold catchlight. ──
-    _aaellipse(surf, BLACKBERRY, (HCX, HCY), 9, 9)
-    _aaellipse(surf, DARK_BLOOD, (HCX, HCY), 8, 8)
-    _aaellipse(surf, BRIGHT_BLOOD, (HCX - 1, HCY - 1), 5, 5)
-    pygame.draw.circle(surf, GLINT, (HCX - 3, HCY - 3), 2)  # cold catchlight
+    # ── Head, tucked up-forward at the peak, near-black with sky-side rim. ──
+    _aaellipse(surf, BLACKBERRY, (44, 35), 8, 8)
+    _rim_arc(surf, (44, 35), 8, 8, GLINT, 2.1, 3.6)
 
-    # ── Proboscis: the FANG — a thick near-black needle drooping to a tip. A
-    #    short curve (three segments) gives the downward hook a feeding tool
-    #    would have; a white tip glint sharpens the point. ──
-    fang = [(44, 37), (52, 38), (58, 39), (63, 40)]
-    pygame.draw.lines(surf, BLACKBERRY, False, fang, 2)
-    pygame.draw.lines(surf, (58, 30, 36), False,
-                      [(44, 36), (52, 37)], 1)            # glossy top ridge
-    pygame.draw.circle(surf, (255, 255, 255), (63, 40), 1)
+    # ── Blood-red compound eye with the single cold catchlight: THE bright pt. ──
+    _aaellipse(surf, DARK_BLOOD, (45, 33), 6, 6)
+    _aaellipse(surf, BRIGHT_BLOOD, (45, 32), 4, 4)
+    pygame.draw.circle(surf, GLINT, (43, 31), 2)
 
-    # ── Near wing over the thorax leads the flap read. ──
-    nw = _vamp_wing(30 + (f - 0.5) * 60)
-    surf.blit(nw, nw.get_rect(center=(BCX - 2, BCY - 13)))
+    # ── Proboscis: the FANG — a long straight forward needle, ~18px, stabbing
+    #    down-forward off the head. Glossy near-black with a specular top streak
+    #    and a white glint at the very tip. Mosquito is 40% beak — commit. ──
+    tip = (63, 44)
+    pygame.draw.line(surf, BLACKBERRY, (46, 38), tip, 3)
+    pygame.draw.line(surf, SPECULAR, (46, 37), (60, 42), 1)   # glossy top ridge
+    pygame.draw.circle(surf, GLINT, tip, 1)                    # white tip glint
+
+    # ── Near wing over the thorax, arced up-back, its tip notching the top. ──
+    nw = _vamp_wing(52 + (f - 0.5) * 46, 130)
+    surf.blit(nw, nw.get_rect(center=(24, 22)))
 
     return surf
 
