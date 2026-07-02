@@ -21,8 +21,8 @@ from tools.bee_candidates._shared_monarch import (
 
 # ── palette ──────────────────────────────────────────────────────────────────
 ROYAL  = (28, 90, 200)     # #1C5AC8 — deep royal blue, dominant wing field
-AZURE  = (55, 140, 245)    # #378CF5 — mid-blue, lighter inner zone near thorax
-CYAN   = (80, 210, 255)    # #50D2FF — iridescent shimmer (per-frame additive)
+AZURE  = (50, 120, 230)    # #3278E6 — mid-blue, lighter inner zone (B over G)
+CYAN   = (95, 175, 255)    # #5FAFFF — iridescent shimmer (per-frame additive)
 COBALT = (18, 55, 140)     # #12378C — deep cobalt shadow ring (replaces SHADOW)
 INK    = (26, 19, 14)      # #1A130E — heavy black veins + margin (as MONARCH)
 FLAKE  = (245, 241, 230)   # #F5F1E6 — white margin dots (as MONARCH)
@@ -48,8 +48,8 @@ def _draw_wing(surf, side, spread, nx, fi):
     # Morpho wings flash brightest along the forewing — blush the tip azure.
     tip, lead = fill[2], fill[1]
     mid = ((tip[0] + lead[0]) / 2, (tip[1] + lead[1]) / 2)
-    _aaellipse(core, (*AZURE, 190), tip, 7, 6)
-    _aaellipse(core, (*AZURE, 215), mid, 4, 4)
+    _aaellipse(core, (*AZURE, 130), tip, 7, 6)
+    _aaellipse(core, (*AZURE, 150), mid, 4, 4)
     core.blit(_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(core, (0, 0))
 
@@ -57,15 +57,15 @@ def _draw_wing(surf, side, spread, nx, fi):
     # kept exactly as the MONARCH so the blue reads as the SAME bug, recoloured.
     for idx in (2, 3, 4, 6, 7):
         pygame.draw.line(surf, INK, root, fill[idx], 2)
-    pygame.draw.line(surf, INK, root, fill[1], 1)
-    pygame.draw.line(surf, INK, root, fill[8], 1)
+    pygame.draw.line(surf, INK, root, fill[1], 2)
+    pygame.draw.line(surf, INK, root, fill[8], 2)
 
     # Per-frame iridescent shimmer: a cyan additive flash on the wing face that
     # slides across the cells with the flap beat, the way structural morpho blue
     # shifts as the wing angle changes through the stroke.
     shim = _new()
-    sx = fcx + (fi - 1.5) * 4
-    _aaellipse(shim, (*CYAN, 110), (sx, fcy), 18, 14)
+    sx = fcx + (fi - 1.5) * 7
+    _aaellipse(shim, (*CYAN, 60), (sx, fcy), 11, 9)
     shim.blit(_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(shim, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 

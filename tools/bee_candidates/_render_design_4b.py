@@ -20,8 +20,8 @@ from game.entities import Pipe
 from game.config import W as GW, H as GH, GROUND_Y
 from tools.bee_candidates.design_4b import build
 
-OUT = "docs/store_redesign/animal/bee/design_4b/round_1.png"
-TITLE = ("DESIGN 4b — AZURE MONARCH  R1  (Morpho x Monarch: royal-blue "
+OUT = "docs/store_redesign/animal/bee/design_4b/round_2.png"
+TITLE = ("DESIGN 4b — AZURE MONARCH  R2  (Morpho x Monarch: royal-blue "
          "stained-glass cells, heavy black veins, iridescent cyan flash)")
 
 NIGHT_PHASE = 0.64375       # the NIGHT keyframe in game/biome.py
