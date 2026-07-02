@@ -2,11 +2,16 @@
 Procedural achievement badges — the "Courier's Commendation" medallion family.
 
 Every badge is drawn from code (project hard-rule: no PNG sprite sheets). A
-badge is a struck-metal medallion: a faceted gold rim lit from the upper-left
-(specular hot-spot + lower-right shadow arc, so it reads as a real coin rather
-than a flat ring), a beveled inner step, and a recessed enamel field stamped
-with an engraved per-key glyph. A twin-laurel sprig sits at the base so the
-whole family shares one silhouette.
+badge is a struck-metal medallion whose outer RING is an olive-laurel victor's
+wreath — two thin gold sprigs on a hairline branch rising from a base ribbon up
+both flanks to nearly meet, open, at the top — encircling a beveled inner step
+and a recessed enamel field stamped with an engraved per-key glyph. The wreath
+IS the perimeter (no separate metal rim band), so the whole family shares one
+victor's-crown silhouette.
+
+The Fame↔Shame trade-off lives in the wreath: an earned Fame badge wears a
+pristine GOLD wreath; a Wall-of-Shame badge wears the SAME wreath gently WILTED
+(warm-browned, drooping, a shed leaf, a loosened ribbon) — the anti-trophy.
 
 Lighting is one fixed upper-left source for the whole family — a specular
 hot-spot on the gold rim's upper-left crest, a darker recess ring where the
@@ -658,6 +663,146 @@ def _draw_sparkle_ring(surf, cx, cy, fr, R, col):
         pygame.draw.line(surf, col, (sx, sy - sr), (sx, sy + sr), max(1, R // 38))
 
 
+# ── Olive-laurel victor's wreath — the medallion's outer ring IS the laurel ──
+# A real victor's crown is a circlet of leaves, so the badge's whole perimeter is
+# the wreath: two thin olive sprigs on a hairline branch rising from a base ribbon
+# up both flanks to nearly meet, open, at the top, encircling the enamel face.
+# Fame = gold foliage; Shame = the SAME wreath gently wilted (browned, drooping, a
+# shed leaf, loosened ribbon) — no metal rim band, no crack.
+_WR_FACE_F   = 0.80    # enamel face radius / R
+_WR_BRANCH_R = 0.86    # laurel branch centre radius / R (at the perimeter)
+_WR_GLYPH_F  = 0.52    # glyph radius / R
+_WR_TOP_GAP  = math.radians(32)
+_WR_BASE_A   = math.radians(90)
+
+_WR_LEAF_HI  = (250, 216, 112)
+_WR_LEAF_LO  = (156, 108,  28)
+_WR_LEAF_MR  = (120,  82,  18)
+_WR_OLIVE    = (214, 176,  70)
+_WR_OLIVE_HI = (255, 240, 190)
+_WR_WILT_HI  = (198, 158,  92)
+_WR_WILT_LO  = (122,  86,  46)
+_WR_WILT_MR  = ( 78,  54,  28)
+_WR_WILT_DEAD = (156, 130,  86)
+_WR_OLIVE_D  = (120, 102,  66)
+_WR_BRANCH_D = ( 96,  84,  62)
+
+
+def _wr_leaf(surf, bx, by, ang, ln, wd, fill, edge, R, mr=None):
+    """One small lanceolate laurel leaf: a pointed lens swept along ``ang`` with an
+    engraved midrib so it reads as foliage, not a spike."""
+    ca, sa = math.cos(ang), math.sin(ang)
+    nx, ny = -sa, ca
+    pts = []
+    for f, w in ((0.0, 0.0), (0.34, wd), (0.66, wd * 0.78), (1.0, 0.0)):
+        pts.append((bx + ca * ln * f + nx * w, by + sa * ln * f + ny * w))
+    for f, w in ((1.0, 0.0), (0.66, wd * 0.78), (0.34, wd), (0.0, 0.0)):
+        pts.append((bx + ca * ln * f - nx * w, by + sa * ln * f - ny * w))
+    pygame.draw.polygon(surf, fill, [(int(x), int(y)) for x, y in pts])
+    pygame.draw.line(surf, mr if mr is not None else edge, (int(bx), int(by)),
+                     (int(bx + ca * ln), int(by + sa * ln)), max(1, R // 64))
+
+
+def _wr_leaf_col(a, hi, lo):
+    """Tint a leaf by its angle to the one upper-left light, like a real rim."""
+    d = (math.cos(a - _LIGHT) + 1) * 0.5
+    return lerp_color(lo, hi, d ** 1.2)
+
+
+def _wr_branch_arc(surf, cx, cy, R, col, sgn):
+    """The slim branch the leaves ride on — a fine hairline arc up one flank."""
+    rc = int(R * _WR_BRANCH_R)
+    rect = pygame.Rect(cx - rc, cy - rc, rc * 2, rc * 2)
+    if sgn > 0:
+        a0, a1 = -math.pi / 2 + _WR_TOP_GAP, _WR_BASE_A - math.radians(6)
+    else:
+        a0, a1 = _WR_BASE_A + math.radians(6), 3 * math.pi / 2 - _WR_TOP_GAP
+    pygame.draw.arc(surf, col, rect, -a1, -a0, max(1, R // 42))
+
+
+def _wr_ribbon(surf, cx, cy, R, hi, lo, loosened=False):
+    """The small ribbon tie where the two sprigs meet at the base of the crown.
+    ``loosened`` sags the tails apart so the Shame wreath reads as coming undone."""
+    rc = R * _WR_BRANCH_R
+    bx = cx + int(math.cos(_WR_BASE_A) * rc)
+    by = cy + int(math.sin(_WR_BASE_A) * rc)
+    knot = max(2, R // 22)
+    pygame.draw.circle(surf, lerp_color(hi, lo, 0.25), (bx, by), knot)
+    pygame.draw.circle(surf, lo, (bx, by), knot, max(1, R // 60))
+    for sgn in (-1, 1):
+        spread = 0.40 if loosened else 0.24
+        drop = 0.15 if loosened else 0.11
+        tip = (bx + int(sgn * R * spread), by + int(R * drop))
+        mid = (bx + int(sgn * R * (spread * 0.5)),
+               by + int(R * (drop * 0.55 + (0.05 if loosened else 0.0))))
+        pygame.draw.lines(surf, lerp_color(hi, lo, 0.35), False,
+                          [(bx, by), mid, tip], max(2, R // 40))
+
+
+def _wr_sprig_angles(n, sgn):
+    """``n`` branch angles on one flank, base ribbon → just short of the top gap."""
+    if sgn > 0:
+        a_base, a_top = _WR_BASE_A - math.radians(6), -math.pi / 2 + _WR_TOP_GAP
+    else:
+        a_base, a_top = _WR_BASE_A + math.radians(6), 3 * math.pi / 2 - _WR_TOP_GAP
+    for i in range(n):
+        f = i / (n - 1)
+        yield f, a_base + (a_top - a_base) * f
+
+
+def _wr_place_leaf(surf, cx, cy, rc, a, sgn, ln, wd, hi, lo, R, mr,
+                   out_k=0.4, droop=0.0):
+    """Place one leaf on the branch at angle ``a``; it lies back toward the top
+    with a slight radial lift. ``droop`` bends the tip groundward for the wilt."""
+    bx = cx + math.cos(a) * rc
+    by = cy + math.sin(a) * rc
+    tx, ty = sgn * math.sin(a), sgn * (-math.cos(a))
+    ox, oy = math.cos(a), math.sin(a)
+    dx = tx + out_k * ox
+    dy = ty + out_k * oy + droop * 0.9
+    dx -= sgn * droop * 0.25
+    _wr_leaf(surf, bx, by, math.atan2(dy, dx), ln, wd, _wr_leaf_col(a, hi, lo),
+             lo, R, mr)
+
+
+def _wr_i_even(f, span=6):
+    return int(round(f * span)) % 2 == 0
+
+
+def _wr_olive_ring(surf, cx, cy, R, hi, lo, mr, branch, olive_col, olive_hi,
+                   wilt=False):
+    """The kotinos: paired lanceolate leaves + small olive drupes forming the ring."""
+    rc = R * _WR_BRANCH_R
+    for sgn in (-1, 1):
+        _wr_branch_arc(surf, cx, cy, R, branch, sgn)
+        for f, a in _wr_sprig_angles(7, sgn):
+            droop = 0.9 * f if wilt else 0.0
+            if wilt and sgn < 0 and f < 0.28:
+                continue
+            bx = cx + math.cos(a) * rc
+            by = cy + math.sin(a) * rc
+            ln = R * (0.235 - 0.04 * f)
+            wd = R * (0.05 - 0.008 * f)
+            for ok in (0.7, -0.28):
+                _wr_place_leaf(surf, cx, cy, rc, a, sgn, ln, wd, hi, lo, R, mr,
+                               out_k=ok, droop=droop)
+            if 0.12 < f < 0.92 and _wr_i_even(f) and not (wilt and f > 0.4):
+                orad = max(2, int(R * 0.052))
+                ox = bx - math.cos(a) * R * 0.07
+                oy = by - math.sin(a) * R * 0.07
+                pygame.draw.circle(surf, lo, (int(ox), int(oy)), orad + 1)
+                pygame.draw.circle(surf, olive_col, (int(ox), int(oy)), orad)
+                pygame.draw.circle(surf, olive_hi,
+                                   (int(ox - orad * 0.32), int(oy - orad * 0.32)),
+                                   max(1, orad // 2))
+
+
+def _wr_fallen_leaf(surf, cx, cy, R, fx, fy, fl, fa, col, edge):
+    """A single shed leaf resting inside the lower field (stays inside the badge)."""
+    _wr_leaf(surf, cx + R * fx, cy + R * fy, fa, R * fl, R * fl * 0.30, col, edge,
+             R, _WR_WILT_MR)
+
+
 def _build(icon_key: str, size: int, unlocked: bool, hidden: bool,
            tone: str = "gold") -> pygame.Surface:
     S = _SS
@@ -714,26 +859,40 @@ def _build(icon_key: str, size: int, unlocked: bool, hidden: bool,
         step_hi, step_lo = _LOCK_HI, _LOCK_LO
         laurel_l, laurel_d = _LOCK_MID, _LOCK_LO
 
-    # Laurel sits behind the medallion body.
-    _draw_laurel(surf, cx, cy, R, laurel_l, laurel_d)
-    _draw_rim(surf, cx, cy, R, rim_hi, rim_mid, rim_lo, spec)
-    fr = int(R * 0.70)
-    _draw_step(surf, cx, cy, fr + max(2, R // 16), step_hi, step_lo)
+    # The medallion's outer ring IS an olive-laurel victor's wreath (no metal rim
+    # band): the enamel face, then the leaf-ring encircling it, then its base
+    # ribbon. Shame wears the SAME wreath gently WILTED (warm-browned + a shed
+    # leaf + a loosened ribbon) instead of a crack — the anti-trophy trade-off.
+    fr = int(R * _WR_FACE_F)
+    _draw_step(surf, cx, cy, fr + max(1, R // 20), step_hi, step_lo)
     _draw_face(surf, cx, cy, fr, face_top, face_bot, recess)
 
-    # Tarnished badges wear a single bronze fracture + a drip bead over the
-    # frame — the anti-trophy signature, on both earned and masked-locked.
-    if tarnished:
-        _draw_tarnish_crack(surf, cx, cy, R)
-        _draw_tarnish_drip(surf, cx, cy, R)
-
-    # Rarity sparkle-ring for the Mystery tier — both hidden-locked and unlocked
-    # wear it so the secret achievements always feel like a trophy.
+    # Rarity sparkle-ring for the Mystery tier (inside the wreath), unchanged.
     if is_mystery and (unlocked or hidden) and not tarnished:
         _draw_sparkle_ring(surf, cx, cy, fr, R, _AME_SPARK if not unlocked else _GLYPH)
 
+    if tarnished:
+        leaf_hi, leaf_lo, leaf_mr = _WR_WILT_HI, _WR_WILT_LO, _WR_WILT_MR
+        branch_c, olive_c, olive_h = _WR_BRANCH_D, _WR_OLIVE_D, _WR_WILT_DEAD
+    else:
+        leaf_hi, leaf_lo, leaf_mr = laurel_l, laurel_d, laurel_d
+        branch_c = rim_mid
+        olive_c, olive_h = ((_WR_OLIVE, _WR_OLIVE_HI) if unlocked
+                            else (laurel_d, laurel_l))
+    _wr_olive_ring(surf, cx, cy, R, leaf_hi, leaf_lo, leaf_mr, branch_c,
+                   olive_c, olive_h, wilt=tarnished)
+    if tarnished:
+        _wr_fallen_leaf(surf, cx, cy, R, -0.32, 0.62, 0.14, 0.7,
+                        _WR_WILT_DEAD, _WR_WILT_LO)
+        pygame.draw.circle(surf, _WR_OLIVE_D,
+                           (cx + int(R * 0.12), cy + int(R * 0.66)),
+                           max(2, int(R * 0.032)))
+        _wr_ribbon(surf, cx, cy, R, _WR_WILT_HI, _WR_WILT_LO, loosened=True)
+    else:
+        _wr_ribbon(surf, cx, cy, R, rim_hi, rim_lo)
+
     # Glyph (or the Mystery "?").
-    gr = int(R * 0.56)
+    gr = int(R * _WR_GLYPH_F)
     if tarnished and unlocked:
         _stamp_glyph(surf, icon_key, cx, cy, gr, _TARN_GLY, _TARN_GLY_SH)
     elif tarnished:
