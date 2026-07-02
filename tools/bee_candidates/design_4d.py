@@ -21,12 +21,11 @@ from tools.bee_candidates._shared_monarch import (
 )
 
 # ── palette ──────────────────────────────────────────────────────────────────
-TAWNY = (228, 108, 42)     # #E46C2A — warm salmon-tawny, dominant wing field
-PEACH = (245, 150, 80)     # #F59650 — warm forewing inner highlight
-CREAM = (235, 218, 180)    # #EBDAB4 — pale central hindwing zone
+TAWNY = (240, 140, 88)     # #F08C58 — pale salmon field; peachier than MONARCH orange
+PEACH = (247, 176, 136)    # #F7B088 — warm forewing inner highlight
+CREAM = (240, 226, 192)    # #F0E2C0 — pale central hindwing zone
 INK   = (26, 19, 14)       # #1A130E — veins, margin, apex patch, body
 FLAKE = (245, 241, 230)    # #F5F1E6 — white spots inside the black apex patch
-BUFF  = (200, 175, 140)    # #C8AF8C — faint streaks across the hindwing zone
 
 
 def _draw_wing(surf, side, spread, nx):
@@ -50,34 +49,40 @@ def _draw_wing(surf, side, spread, nx):
     core.blit(_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(core, (0, 0))
 
-    # Pale cream hindwing zone — the lower half of the wing washes to buff-cream,
-    # painted onto its own surface and MIN-clipped to the wing so it never bleeds
-    # past the black margin.
+    # Pale cream hindwing zone — a distinct pale patch sitting INSIDE the central
+    # hindwing (not on the rim), framed by salmon below and outboard. Anchored on
+    # the three lower-hindwing points but pulled hard toward the centroid so the
+    # orange field rings it. Painted at full alpha for a clean read, then
+    # MIN-clipped to the wing so it never bleeds past the black margin.
+    def _pull(p, frac):
+        return (p[0] + (fcx - p[0]) * frac, p[1] + (fcy - p[1]) * frac)
     cream = _new()
-    zone = [fill[5], fill[6], fill[7], fill[8], fill[9], (fcx, fcy)]
-    pygame.draw.polygon(cream, (*CREAM, 180), zone)
+    zone = [_pull(fill[6], 0.36), _pull(fill[7], 0.40),
+            _pull(fill[8], 0.36), _pull(fill[9], 0.30)]
+    pygame.draw.polygon(cream, (*CREAM, 255), zone)
     cream.blit(_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(cream, (0, 0))
-
-    # Faint buff streaks fanning across the cream zone — the hindwing texture.
-    inner_root = ((root[0] + fcx) / 2, (root[1] + fcy) / 2)
-    for idx in (6, 7, 8):
-        pygame.draw.line(surf, BUFF, inner_root, fill[idx], 1)
 
     # Black apex patch — the Painted Lady's signature. A dark wedge over the
     # forewing outer corner (leading rise → apex → outer shoulder → trailing).
     apex = [fill[1], fill[2], fill[3], fill[4]]
     pygame.draw.polygon(surf, INK, apex)
 
-    # White spots scattered inside the black apex patch.
+    # White spots scattered inside the black apex patch — a visible cluster spaced
+    # along the apex diagonal (apex tip → outer shoulder), pulled only lightly to
+    # centre so they stay spread across the patch instead of clumping.
     acx = sum(p[0] for p in apex) / 4
     acy = sum(p[1] for p in apex) / 4
-    for sp in (fill[2], fill[3],
-               ((fill[1][0] + fill[2][0]) / 2, (fill[1][1] + fill[2][1]) / 2),
-               ((fill[2][0] + fill[3][0]) / 2, (fill[2][1] + fill[3][1]) / 2),
-               (acx, acy)):
-        px = sp[0] + (acx - sp[0]) * 0.34
-        py = sp[1] + (acy - sp[1]) * 0.34
+
+    def _mix(a, b, t):
+        return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+    for sp in (_mix(fill[2], fill[3], 0.15),
+               _mix(fill[2], fill[3], 0.55),
+               _mix(fill[1], fill[2], 0.55),
+               _mix(fill[2], fill[3], 0.85),
+               _mix(fill[3], fill[4], 0.35)):
+        px = sp[0] + (acx - sp[0]) * 0.12
+        py = sp[1] + (acy - sp[1]) * 0.12
         pygame.draw.circle(surf, FLAKE, (int(px), int(py)), 1)
 
     # Heavy black veins radiating from the thorax root — the same stained-glass
@@ -88,9 +93,9 @@ def _draw_wing(surf, side, spread, nx):
     pygame.draw.line(surf, INK, root, fill[1], 1)
     pygame.draw.line(surf, INK, root, fill[8], 1)
 
-    # White margin flecks — kept off the black apex edge (which carries its own
-    # spots) and run along the non-apex forewing edge + hindwing rim only.
-    outer = margin[4:9]
+    # White margin flecks — confined to the forewing edge only. Kept entirely off
+    # the hindwing rim so nothing specks into the pale cream zone below.
+    outer = margin[1:6]
     for i in range(len(outer) - 1):
         a0, a1 = outer[i], outer[i + 1]
         ox = a0[0] + (fcx - a0[0]) * 0.14
