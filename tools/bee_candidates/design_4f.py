@@ -24,11 +24,12 @@ from tools.bee_candidates._shared_monarch import (
 # ── palette ──────────────────────────────────────────────────────────────────
 PURPLE = (90, 38, 168)       # #5A26A8 — deep royal purple, dominant field
 VIOLET = (130, 60, 210)      # #823CD2 — mid-purple lighter zone near thorax
-SHIMMER_COLS = [             # 4-frame violet/blue structural shimmer wheel
-    (160, 90, 255),          # frame 0: violet
-    (80, 120, 255),          # frame 1: indigo-blue
-    (200, 80, 255),          # frame 2: magenta-purple
-    (100, 160, 255),         # frame 3: periwinkle
+DEEP   = (44, 18, 88)        # #2C1258 — near-black violet shadow at outer cells
+SHIMMER_COLS = [             # violet↔indigo wheel only — no magenta, so the flash
+    (150, 95, 235),          # violet          reads as a highlight sweep on a
+    (95, 120, 240),          # indigo-blue     purple wing, never a pink recolor
+    (120, 80, 225),          # blue-violet
+    (110, 150, 245),         # periwinkle
 ]
 WHITE_BAND = (240, 232, 210)  # #F0E8D2 — cream-white diagonal band (signature)
 ORANGE_EYE = (220, 70, 15)    # #DC460F — hindwing eyespot outer ring
@@ -41,10 +42,12 @@ def _draw_wing(surf, side, spread, nx, fi):
     fill = _inset(margin, 0.14)                     # thick ~6px black margin
 
     # Black margin first (the separator that carries the read on any sky), then
-    # the royal-purple field — purple must own every cell up to the bones so the
-    # emperor never reads grey or brown at 40px.
+    # a deep-shadow value ring under the field: the outer cells go near-black
+    # violet and only the inner field is mid-purple, so the wing reads dark and
+    # rich at the rim — the value depth that makes purple read "royal" not "candy".
     pygame.draw.polygon(surf, INK, margin)
-    pygame.draw.polygon(surf, PURPLE, fill)
+    pygame.draw.polygon(surf, DEEP, fill)
+    pygame.draw.polygon(surf, PURPLE, _inset(fill, 0.18))
 
     fcx, fcy = _centroid(fill)
     rx, ry = margin[0]                               # wing root (inner-top)
@@ -63,20 +66,22 @@ def _draw_wing(surf, side, spread, nx, fi):
     # as the wing angle passes through the stroke.
     shim = _new()
     scx = fcx + (fi - 1.5) * 5
-    _aaellipse(shim, (*SHIMMER_COLS[fi % 4], 70), (scx, fcy), 20, 16)
+    _aaellipse(shim, (*SHIMMER_COLS[fi % 4], 40), (scx, fcy), 14, 11)
     shim.blit(_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(shim, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
-    # Cream-white diagonal band across forewing + hindwing — the single most
-    # recognisable emperor marking. A slanted quad from the shallow fore/hind
-    # notch up across the forewing.
-    WIDTH_BAND = 7
-    p_lo, p_hi = fill[5], fill[2]
-    dx, dy = p_hi[0] - p_lo[0], p_hi[1] - p_lo[1]
+    # Cream-white diagonal slash across the forewing — the emperor's signature
+    # marking, but a narrow STRIPE, not a bisecting divider: both anchors are
+    # pulled inboard of the rim so royal purple sits outboard AND inboard of the
+    # cream and the slash only crosses about a third of the wing.
+    WIDTH_BAND = 5
+    a0 = ((fill[4][0] + fill[5][0]) / 2, (fill[4][1] + fill[5][1]) / 2)
+    a1 = ((fill[2][0] + fill[3][0]) / 2, (fill[2][1] + fill[3][1]) / 2)
+    a0 = (a0[0] + (fcx - a0[0]) * 0.16, a0[1] + (fcy - a0[1]) * 0.16)
+    a1 = (a1[0] + (fcx - a1[0]) * 0.16, a1[1] + (fcy - a1[1]) * 0.16)
+    dx, dy = a1[0] - a0[0], a1[1] - a0[1]
     dlen = max(1.0, (dx * dx + dy * dy) ** 0.5)
     px, py = -dy / dlen * (WIDTH_BAND / 2), dx / dlen * (WIDTH_BAND / 2)
-    a0 = ((fill[5][0] + fill[6][0]) / 2, (fill[5][1] + fill[6][1]) / 2)
-    a1 = ((fill[1][0] + fill[2][0]) / 2, (fill[1][1] + fill[2][1]) / 2)
     band = _new()
     pygame.draw.polygon(band, WHITE_BAND, [
         (a0[0] + px, a0[1] + py), (a1[0] + px, a1[1] + py),
@@ -86,18 +91,20 @@ def _draw_wing(surf, side, spread, nx, fi):
     surf.blit(band, (0, 0))
 
     # Heavy black veins radiating from the thorax root — the stained-glass carve
-    # kept exactly as the MONARCH so the purple reads as the SAME bug, recoloured.
-    for idx in (2, 3, 4, 6, 7):
+    # kept as the MONARCH so the purple reads as the SAME bug, recoloured. The two
+    # veins that pass over the cream slash (to the forewing shoulder/outer, 3 & 4)
+    # are drawn thin so they don't read as scratches across the light stripe.
+    for idx in (2, 6, 7):
         pygame.draw.line(surf, INK, root, fill[idx], 2)
-    pygame.draw.line(surf, INK, root, fill[1], 1)
-    pygame.draw.line(surf, INK, root, fill[8], 1)
+    for idx in (1, 3, 4, 8):
+        pygame.draw.line(surf, INK, root, fill[idx], 1)
 
     # Orange eyespot on the hindwing lobe — a bright ringed dot with a purple
     # pupil and a single flake catch, the emperor's warm accent against the cool
     # field.
     ex = (fill[7][0] + fill[8][0]) / 2
     ey = (fill[7][1] + fill[8][1]) / 2
-    pygame.draw.circle(surf, ORANGE_EYE, (int(ex), int(ey)), 3)
+    pygame.draw.circle(surf, ORANGE_EYE, (int(ex), int(ey)), 4)
     pygame.draw.circle(surf, PURPLE, (int(ex), int(ey)), 2)
     pygame.draw.circle(surf, FLAKE, (int(ex), int(ey)), 1)
 

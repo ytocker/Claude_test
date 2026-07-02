@@ -20,9 +20,9 @@ from game.entities import Pipe
 from game.config import W as GW, H as GH, GROUND_Y
 from tools.bee_candidates.design_4f import build
 
-OUT = "docs/store_redesign/animal/bee/design_4f/round_1.png"
-TITLE = ("DESIGN 4f — PURPLE EMPEROR  R1  (Apatura iris: deep royal-purple "
-         "iridescent field, cream diagonal band, orange eyespot, violet/blue shimmer)")
+OUT = "docs/store_redesign/animal/bee/design_4f/round_2.png"
+TITLE = ("DESIGN 4f — PURPLE EMPEROR  R2  (deep-shadow value ring, violet↔indigo "
+         "shimmer, narrow cream slash w/ purple both sides, r=4 eyespot)")
 
 NIGHT_PHASE = 0.64375       # the NIGHT keyframe in game/biome.py
 
