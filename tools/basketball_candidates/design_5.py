@@ -4,14 +4,13 @@ Scratch exploration only; NOT registered in store_skins.BUILDERS, so the live
 roster is untouched.
 
 Concept: the pickup-game blacktop look. Where the other kits read as team
-uniforms, this one has no affiliation at all — a plain concrete-GREY mesh vest
-(the body is re-plumaged neutral grey through the palette so the mesh fabric
-reads across the whole torso), the longest baggy CHARCOAL shorts in the set,
-and Jordan 1 high-tops in black/white/red as the streetball signature. A tiny
-unaffiliated "1" is the only marking. The #1 identity prop is a BASKETBALL held
-at DRIBBLE HEIGHT off the near side, drawn LAST so it reads as the ball being
-worked mid-motion. The scarlet macaw head still crowns the grey kit so Pip is
-still Pip.
+uniforms, this one has no affiliation at all — a sleeveless jersey with a
+charcoal shoulder yoke and a bold white "1", the longest baggy CHARCOAL shorts
+in the set, and thick white-midsole high-tops as the streetball tell. The wing
+is muted to charcoal/grey so the jersey reads as fabric instead of parrot
+plumage. The #1 identity prop is a BASKETBALL held below the body against clear
+sky — drawn LAST — where its hot orange pops instead of drowning in the warm
+tail. The scarlet macaw head still crowns the kit so Pip is still Pip.
 """
 import math
 
@@ -25,10 +24,10 @@ from game.draw import (
 
 BCX, BCY = 32, 52
 
-# Neutral concrete-grey re-plumage: the torso goes flat grey so the mesh-dot
-# pattern reads as fabric across the whole vest and the black/white/red Jordan
-# 1s + warm basketball are the highest-value notes. The head keeps the scarlet
-# macaw so Pip is still Pip; gold aviators stay on as court shades.
+# Neutral concrete-grey re-plumage: the torso goes flat grey so the jersey
+# reads as fabric across the whole vest. The wing is muted to charcoal/grey too
+# — a rainbow wing reads as parrot, not baller — leaving the scarlet macaw head
+# and the hot basketball as the only saturated notes so Pip is still Pip.
 _PAL = _pal(
     tail=[(200, 30, 40), (240, 95, 40), (255, 160, 55), (255, 220, 80)],
     tail_line=(170, 25, 25),
@@ -37,8 +36,11 @@ _PAL = _pal(
     body_chest=(148, 148, 158),
     body_belly=(115, 115, 125),
     sheen=(200, 200, 215, 50),
-    wing_main=BIRD_WING, wing_dark=BIRD_WING_D, wing_tip=BIRD_TIP,
-    wing_secondary=(255, 200, 60), wing_highlight=(170, 210, 255),
+    wing_main=(80, 80, 90),
+    wing_dark=(55, 55, 65),
+    wing_tip=(100, 100, 112),
+    wing_secondary=(110, 112, 122),
+    wing_highlight=(140, 142, 155),
     head_shadow=(150, 15, 20), head_main=BIRD_RED,
     head_cheek=(255, 130, 130), head_crown=(255, 170, 170),
     lens_frame=(255, 200, 50), lens_body=(20, 20, 30),
@@ -50,13 +52,13 @@ _PAL = _pal(
 _GREY     = (135, 135, 145)
 _CHARCOAL = (48, 48, 58)             # shorts + jersey trim
 _WHITE    = (240, 240, 245)
-_J_BLACK  = (28, 28, 36)             # Jordan 1 black upper
-_J_WHITE  = (240, 238, 230)          # Jordan 1 midsole
-_J_RED    = (200, 30, 40)            # Jordan 1 red accent
+_J_BLACK  = (28, 28, 36)             # high-top black upper
+_J_WHITE  = (240, 238, 230)          # thick white midsole — the shoe tell
+_J_RED    = (200, 30, 40)            # ankle-collar accent
 
 
 def _base(angle_deg):
-    # Concrete-grey body, scarlet macaw head, court shades kept on.
+    # Concrete-grey body + muted grey wing, scarlet macaw head, court shades.
     return _build_parrot_with_palette(angle_deg, _PAL)
 
 
@@ -65,25 +67,21 @@ def _paint(surf, _a):
     # instead of washing into it.
     pygame.draw.ellipse(surf, (100, 100, 110), (BCX - 19, BCY - 14, 38, 28), 1)
 
-    # Mesh-dot pattern over the chest panel — a field of tiny dots simulating the
-    # open weave of a streetball mesh jersey, clipped to the chest so it stays on
-    # the fabric.
-    old_clip = surf.get_clip()
-    surf.set_clip(pygame.Rect(BCX - 16, BCY - 12, 32, 22))
-    for dy in range(BCY - 12, BCY + 10, 3):
-        for dx in range(BCX - 16, BCX + 16, 3):
-            pygame.draw.circle(surf, (115, 115, 125), (dx, dy), 1)
-    surf.set_clip(old_clip)
+    # Charcoal shoulder yoke across the top of the body — a bold dark band that
+    # reads instantly as a jersey collar/yoke at 40px, replacing the sub-pixel
+    # mesh-dot field that just looked like noise.
+    pygame.draw.line(surf, (60, 60, 70), (BCX - 15, BCY - 11), (BCX + 13, BCY - 11), 3)
 
     # Sleeveless armholes — charcoal seams where the arms pass through the vest,
     # the tell that says "tank", not a sleeved sweater.
     pygame.draw.line(surf, _CHARCOAL, (BCX - 17, BCY - 13), (BCX - 12, BCY + 3), 2)
     pygame.draw.line(surf, _CHARCOAL, (BCX + 15, BCY - 13), (BCX + 10, BCY + 3), 2)
 
-    # Unaffiliated "1" — a single dark vertical bar with a short top flag, no team
-    # markings, so the vest reads as a plain pickup jersey.
-    pygame.draw.line(surf, _CHARCOAL, (BCX + 1, BCY - 8), (BCX + 1, BCY + 3), 4)
-    pygame.draw.line(surf, _CHARCOAL, (BCX - 2, BCY - 8), (BCX + 1, BCY - 8), 2)
+    # Bold white "1" at chest centre — a thick vertical stroke with a short top
+    # flag, unaffiliated, so the vest reads as a plain pickup jersey and the
+    # number carries across the whole panel instead of vanishing.
+    pygame.draw.line(surf, _WHITE, (BCX + 1, BCY - 7), (BCX + 1, BCY + 3), 4)
+    pygame.draw.line(surf, _WHITE, (BCX - 3, BCY - 6), (BCX + 1, BCY - 7), 4)
 
     # Hem seam so the vest reads as a garment edge, not paint.
     pygame.draw.line(surf, _CHARCOAL, (BCX - 12, BCY + 5), (BCX + 12, BCY + 5), 1)
@@ -92,27 +90,28 @@ def _paint(surf, _a):
     pygame.draw.ellipse(surf, _CHARCOAL, (BCX - 11, BCY + 5, 24, 14))
     pygame.draw.ellipse(surf, (60, 60, 72), (BCX - 11, BCY + 5, 24, 14), 1)
 
-    # Jordan 1 high-tops — the streetball signature. Built up in layers so the
-    # black/white/red reads as an actual sneaker at 40px, not a dark lump: white
-    # midsole slab, black leather upper, the red ankle collar the shoe is known
-    # for, a white inner, and a suggestion of the swoosh.
+    # High-tops — the streetball signature. The thick white midsole is the tell
+    # at 40px, so it is built tall and capped with a dark top edge that snaps
+    # the black upper away from the sole. The red ankle collar completes the
+    # black/white/red high-top read.
     for hx in (21, 29):
-        pygame.draw.rect(surf, _J_WHITE, (hx, BCY + 15, 11, 4), border_radius=1)
+        pygame.draw.rect(surf, _J_WHITE, (hx, BCY + 15, 11, 5), border_radius=1)
+        pygame.draw.line(surf, _J_BLACK, (hx, BCY + 15), (hx + 10, BCY + 15), 1)
         pygame.draw.rect(surf, _J_BLACK, (hx, BCY + 10, 11, 6), border_radius=2)
         pygame.draw.ellipse(surf, _J_RED, (hx + 1, BCY + 8, 9, 5))
         pygame.draw.ellipse(surf, _J_WHITE, (hx + 2, BCY + 9, 7, 3))
-        pygame.draw.line(surf, _J_WHITE, (hx + 1, BCY + 13), (hx + 7, BCY + 11), 1)
 
-    # BASKETBALL at DRIBBLE HEIGHT — the #1 identity prop, drawn LAST over
-    # everything. Sat at thigh level on the near side so it reads as the ball
-    # being worked mid-dribble; two arcs + the seam line make it unmistakably a
-    # basketball rather than a plain orange dot at 40px.
-    bx, by = BCX - 16, BCY + 12
-    pygame.draw.circle(surf, (230, 115, 30), (bx, by), 7)
-    pygame.draw.circle(surf, (20, 20, 20), (bx, by), 7, 1)
-    pygame.draw.line(surf, (20, 20, 20), (bx, by - 7), (bx, by + 7), 1)
-    pygame.draw.arc(surf, (20, 20, 20), (bx - 9, by - 7, 12, 14), 0.3, math.pi - 0.3, 1)
-    pygame.draw.arc(surf, (20, 20, 20), (bx - 3, by - 7, 12, 14),
+    # BASKETBALL below the body against clear sky — the #1 identity prop, drawn
+    # LAST over everything. Moved fully off the warm tail so its hot orange pops
+    # against the sky instead of drowning orange-on-orange; a specular highlight
+    # + vertical seam + two arc seams make it unmistakably a basketball.
+    bx, by = BCX - 10, BCY + 26
+    pygame.draw.circle(surf, (255, 140, 40), (bx, by), 9)
+    pygame.draw.circle(surf, (20, 20, 20), (bx, by), 9, 1)
+    pygame.draw.circle(surf, (255, 255, 255), (bx - 3, by - 3), 2)
+    pygame.draw.line(surf, (20, 20, 20), (bx, by - 9), (bx, by + 9), 1)
+    pygame.draw.arc(surf, (20, 20, 20), (bx - 11, by - 9, 15, 18), 0.3, math.pi - 0.3, 1)
+    pygame.draw.arc(surf, (20, 20, 20), (bx - 4, by - 9, 15, 18),
                     math.pi + 0.3, 2 * math.pi - 0.3, 1)
 
 
