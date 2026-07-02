@@ -179,11 +179,11 @@ def build_pop_v2(wing_angle_deg):
     # dome leans further out on the wing-up frames so the pair rides from a low
     # spread to a raised broad fan — never a tall narrow "rabbit-ear" V.
     wing = _wing_surface()
-    ang = 24 + f * 14
+    ang = 30 + f * 14
     left = pygame.transform.flip(wing, True, False)
     left_root = (wing.get_width() - 1 - _WING_ROOT[0], _WING_ROOT[1])
-    _place_rotated(surf, wing, _WING_ROOT, -ang, (30, 31))
-    _place_rotated(surf, left, left_root, ang, (26, 31))
+    _place_rotated(surf, wing, _WING_ROOT, -ang, (34, 31))
+    _place_rotated(surf, left, left_root, ang, (22, 31))
 
     # ── one round inked barrel: black thorax fused into charcoal abdomen ──
     body = _new()
@@ -242,7 +242,7 @@ def build_pop_v2(wing_angle_deg):
     # thorax to CLEAR the top of the silhouette — they must read as spikes even
     # at 40px, so the invisible speckle is gone and the flicks are thick white.
     for (x0, y0), (x1, y1) in (
-            ((29, 33), (20, 16)), ((31, 32), (25, 13)), ((27, 34), (17, 21))):
+            ((28, 32), (26, 12)), ((30, 32), (33, 14)), ((27, 33), (20, 15))):
         pygame.draw.line(surf, INK, (x0, y0), (x1, y1), 4)
         pygame.draw.line(surf, WHITE, (x0, y0), (x1, y1), 2)
 
