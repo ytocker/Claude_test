@@ -39,10 +39,13 @@ RIM     = (160, 255, 238)   # #A0FFEE bright rim under the dark outline (night)
 STRIPE  = (255, 224, 138)   # #FFE08A sunny belly band
 PINK    = (255, 157, 192)   # #FF9DC0 cheek blush + straw
 WHITE   = (255, 255, 255)   # sclera + gleams
+IRIS    = (90, 190, 160)    # #5ABFA8 dusty-teal iris ring — gives the eye depth
+LEG_RIM = (130, 220, 190)   # light mint foot rim so dangling legs read on night
 
-# Translucent mint wing — kept pale/bright so it never muddies the body.
-WING    = (168, 240, 216, 120)
-WING_E  = (150, 235, 210, 175)
+# Translucent mint wing — pushed brighter/more saturated so it never renders as
+# a grey-green smudge on the night sky; reads as an intentional pale leaf.
+WING    = (160, 245, 215, 145)
+WING_E  = (185, 250, 228, 190)
 
 # ── body anchors (plump chibi; kept near BCX/BCY so collision stays fair) ─────
 _AB_C  = (26, 46)           # abdomen centre
@@ -84,8 +87,12 @@ def _leg(surf, hip, foot, *, bend=2):
     fx, fy = foot
     mx = (hx + fx) / 2 + bend
     my = (hy + fy) / 2
+    # Light-mint under-rim on the lower segment + foot so the charcoal leg cluster
+    # stays legible where it dangles into open (possibly dark night) sky.
+    pygame.draw.line(surf, LEG_RIM, (mx + 1, my), (fx + 1, fy), 2)
     pygame.draw.lines(surf, OUTLINE, False,
                       [(hx, hy), (mx, my), (fx, fy)], 2)
+    pygame.draw.circle(surf, LEG_RIM, (int(fx) + 1, int(fy)), 2)
     pygame.draw.circle(surf, OUTLINE, (int(fx), int(fy)), 2)
 
 
@@ -129,10 +136,12 @@ def build_mosquito_cutie(wing_angle_deg):
     _aaellipse(surf, MINT_H, (_HD_C[0] - 4, _HD_C[1] - 5), 4, 3)
 
     # 4 · Belly bands — two clean, distinct sunny bands clipped to the abdomen.
-    for by in (42, 49):
+    #     Extra vertical gap + a lighter lower band keep them from merging into a
+    #     single smudge once the sprite is shrunk to 40px.
+    for by, band in ((41, STRIPE), (51, (255, 235, 175))):
         hw = _band_span(acx, acy, _AB_RX - 1, _AB_RY - 1, by)
         if hw > 2:
-            pygame.draw.line(surf, STRIPE, (acx - hw, by), (acx + hw, by), 3)
+            pygame.draw.line(surf, band, (acx - hw, by), (acx + hw, by), 3)
 
     # 5 · Legs — the #2 tell: three short springy legs dangling below the belly
     #     with tiny rounded feet, in charcoal so they survive over the body.
@@ -145,14 +154,17 @@ def build_mosquito_cutie(wing_angle_deg):
     pygame.draw.ellipse(blush, (*PINK, 200), (0, 0, 13, 9))
     surf.blit(blush, blush.get_rect(center=(40, 41)))
 
-    # 7 · THE EYE — one dominant chibi eye: white sclera, big dark pupil, a crisp
-    #     offset gleam. Sized so a mint 'cheek' still rings it (it reads as an
-    #     eye, not a white disc) and it survives the 40px shrink.
-    ex, ey = 46, 33
+    # 7 · THE EYE — a glossy kawaii cartoon eye: white sclera, a dusty-teal iris
+    #     ring for depth, a smaller dark pupil (so it reads as a big cute eye, not
+    #     a punched hole), and ONE dominant upper-left catchlight. Nudged 1px more
+    #     central so it isn't crowded against the wing mass.
+    ex, ey = 45, 33
     pygame.draw.circle(surf, WHITE, (ex, ey), 6)          # sclera
-    pygame.draw.circle(surf, OUTLINE, (ex + 1, ey), 4)    # #3B4A52 pupil
-    pygame.draw.circle(surf, WHITE, (ex - 2, ey - 2), 2)  # main gleam
-    pygame.draw.circle(surf, WHITE, (ex + 2, ey + 2), 1)  # secondary catch
+    pygame.draw.circle(surf, IRIS, (ex + 1, ey), 4)       # #5ABFA8 iris disc
+    pygame.draw.circle(surf, OUTLINE, (ex + 1, ey), 3)    # #3B4A52 pupil (smaller)
+    pygame.draw.circle(surf, IRIS, (ex + 1, ey), 4, 1)    # crisp iris rim over edge
+    pygame.draw.circle(surf, WHITE, (ex - 2, ey - 2), 3)  # single dominant gleam
+    surf.set_at((ex + 3, ey + 2), (210, 236, 232))        # soft 1px counter-glint
 
     # 8 · Proboscis — the #1 tell: a stubby but UNMISTAKABLE hot-pink straw
     #     pointing forward-and-down off the head, sticking well past the muzzle
