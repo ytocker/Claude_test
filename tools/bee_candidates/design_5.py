@@ -54,15 +54,15 @@ def _flap(a):
 # (index 5, a concave undercut), leaving a cobra-head apex. The hindwing below
 # is large but still faceted, not an egg.
 _WING_R = [
-    (32, 19),   # 0  inner top ON the axis, high — mirror closes flat here
-    (43, 15),   # 1  leading edge sweeps out nearly level
-    (53, 13),   # 2  toward the apex
-    (60, 13),   # 3  apex base
-    (63, 17),   # 4  SNAKE-HEAD TIP — hooks sideways to the widest point
-    (59, 21),   # 5  concave undercut back beneath the tip
-    (60, 27),   # 6  forewing trailing
-    (55, 31),   # 7  shallow notch between fore- and hind-wing
-    (59, 38),   # 8  hindwing outer shoulder
+    (32, 15),   # 0  inner top ON the axis — the top edge stays LEVEL across
+    (44, 15),   # 1  leading edge holds level (no upward peak = no ear)
+    (54, 15),   # 2  level toward the apex
+    (61, 16),   # 3  apex base
+    (63, 20),   # 4  SNAKE-HEAD TIP — hooks sideways/DOWN to the widest point
+    (59, 23),   # 5  concave undercut back beneath the tip
+    (60, 28),   # 6  forewing trailing
+    (55, 32),   # 7  shallow notch between fore- and hind-wing
+    (59, 39),   # 8  hindwing outer shoulder
     (56, 47),   # 9  hindwing outer
     (48, 55),   # 10 hindwing lower outer
     (39, 57),   # 11 hindwing bottom lobe
@@ -72,12 +72,12 @@ _WING_R = [
 
 # The snake-head eye rides HERE — a point that sits squarely inside the forewing
 # cream window so the dark pupil has cream contrast, not lost on the dark tip.
-_EYE_R = (55, 19)
+_EYE_R = (55, 21)
 
 # One bold cream window per wing (fewer/bigger survives 40px). The forewing pane
 # reaches up to cradle the eye; the hindwing pane is a single clear triangle.
 _WINDOWS_R = [
-    [(45, 16), (62, 16), (52, 28)],   # forewing pane — the eye rides this cream
+    [(45, 17), (61, 18), (52, 29)],   # forewing pane — the eye rides this cream
     [(42, 37), (55, 42), (44, 52)],   # hindwing pane
 ]
 
