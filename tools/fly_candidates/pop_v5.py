@@ -114,7 +114,7 @@ def _benday(target, region_pts_or_mask, color, spacing=4, radius=1, phase=0):
 # so the downscaled outer arc stays clean — no faceted ink spikes — and only
 # THEN takes its halftone + ink loop. Reads as a translucent fan, not a
 # patterned bowtie.
-_WING_ROOT = (8, 24)
+_WING_ROOT = (8, 16)
 
 
 def _wing_surface():
@@ -122,22 +122,21 @@ def _wing_surface():
     whisper-sparse black halftone, ONE bold red structural vein, then a 2px ink
     loop. The grey membrane stays cooler and darker than the chalk thorax so
     the ink seam between them always reads at 40px."""
-    w = pygame.Surface((52, 48), pygame.SRCALPHA)
-    membrane = pygame.Rect(0, 0, 36, 26)
-    membrane.center = (26, 24)
+    w = pygame.Surface((40, 32), pygame.SRCALPHA)
+    membrane = pygame.Rect(0, 0, 22, 16)
+    membrane.center = (19, 16)
     pygame.draw.ellipse(w, WINGGREY, membrane)
-    emask = pygame.Surface((52, 48), pygame.SRCALPHA)
+    emask = pygame.Surface((40, 32), pygame.SRCALPHA)
     pygame.draw.ellipse(emask, (255, 255, 255, 255), membrane)
     # Wide-pitch halftone: only a couple of dots survive downscale — texture,
     # not the busy field the R1 wings drowned in.
     _benday(w, emask, WINGDOT, spacing=9, radius=1)
     # ONE bold red vein, but drawn on a throwaway layer then AND-masked to the
     # membrane so NO red can bleed past the grey silhouette. It also stops well
-    # short of the inner tip (x<34) — that tip is what overlaps the face once
-    # the fan is swept in, so keeping red in the outer body of the wing means
+    # short of the inner tip so keeping red in the outer body of the wing means
     # nothing red ever crosses the eyes/thorax at truth scale.
-    vein = pygame.Surface((52, 48), pygame.SRCALPHA)
-    pygame.draw.line(vein, RED, (13, 24), (32, 22), 2)
+    vein = pygame.Surface((40, 32), pygame.SRCALPHA)
+    pygame.draw.line(vein, RED, (10, 16), (27, 15), 2)
     vein.blit(emask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     w.blit(vein, (0, 0))
     return _ink_outline(w, 2)
@@ -176,8 +175,8 @@ def build_pop_v5(wing_angle_deg):
     ang = 3 + f * 30
     left = pygame.transform.flip(wing, True, False)
     left_root = (wing.get_width() - 1 - _WING_ROOT[0], _WING_ROOT[1])
-    _place_rotated(surf, wing, _WING_ROOT, ang, (29, 31))
-    _place_rotated(surf, left, left_root, -ang, (27, 31))
+    _place_rotated(surf, wing, _WING_ROOT, ang, (31, 31))
+    _place_rotated(surf, left, left_root, -ang, (29, 31))
 
     # ── one round inked barrel: white thorax fused into deep-red abdomen ──
     body = _new()

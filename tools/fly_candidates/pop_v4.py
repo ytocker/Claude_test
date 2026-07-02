@@ -105,23 +105,23 @@ def _benday(target, region_pts_or_mask, color, spacing=4, radius=1, phase=0):
 # so the downscaled outer arc stays clean — no faceted ink spikes — and only
 # THEN takes its halftone + ink loop. Reads as a translucent fan, not a
 # patterned bowtie.
-_WING_ROOT = (8, 24)
+_WING_ROOT = (8, 16)
 
 
 def _wing_surface():
-    """One fat rounded pop-art lobe: 36×22 sky-blue horizontal ellipse (wider
+    """One fat rounded pop-art lobe: 22×16 sky-blue horizontal ellipse (wider
     than tall), chunky gold halftone, two shallow veins, then a 2px ink loop.
     Surface padded ≥ 8px on every side — the full rounded outer arc is never
     clipped within the surface or at the canvas edge."""
-    w = pygame.Surface((52, 44), pygame.SRCALPHA)
-    membrane = pygame.Rect(0, 0, 36, 22)
-    membrane.center = (26, 22)
+    w = pygame.Surface((40, 32), pygame.SRCALPHA)
+    membrane = pygame.Rect(0, 0, 22, 16)
+    membrane.center = (19, 16)
     pygame.draw.ellipse(w, WINGBLUE, membrane)
-    emask = pygame.Surface((52, 44), pygame.SRCALPHA)
+    emask = pygame.Surface((40, 32), pygame.SRCALPHA)
     pygame.draw.ellipse(emask, (255, 255, 255, 255), membrane)
     _benday(w, emask, WINGDOT, spacing=9, radius=2, phase=3)
-    pygame.draw.line(w, INK, _WING_ROOT, (44, 16), 2)
-    pygame.draw.line(w, INK, _WING_ROOT, (44, 30), 2)
+    pygame.draw.line(w, INK, _WING_ROOT, (28, 10), 2)
+    pygame.draw.line(w, INK, _WING_ROOT, (28, 22), 2)
     return _ink_outline(w, 2)
 
 
@@ -158,8 +158,8 @@ def build_pop_v4(wing_angle_deg):
     ang = 3 + f * 30
     left = pygame.transform.flip(wing, True, False)
     left_root = (wing.get_width() - 1 - _WING_ROOT[0], _WING_ROOT[1])
-    _place_rotated(surf, wing, _WING_ROOT, ang, (30, 30))
-    _place_rotated(surf, left, left_root, -ang, (26, 30))
+    _place_rotated(surf, wing, _WING_ROOT, ang, (31, 31))
+    _place_rotated(surf, left, left_root, -ang, (29, 31))
 
     # ── one FAT inked peanut: navy thorax fused into gold abdomen ──
     # The whole barrel is laid down as a SINGLE continuous gold silhouette

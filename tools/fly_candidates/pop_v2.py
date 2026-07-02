@@ -127,21 +127,21 @@ def _benday(target, region_pts_or_mask, color, spacing=9, radius=2, phase=0):
 # Kept intentionally small so the pair tucks BEHIND the barrel — the body
 # must win the biggest-silhouette fight. Surface padded ≥ 8px all round so
 # the ink loop is never clipped within the surface itself.
-_WING_ROOT = (8, 18)
+_WING_ROOT = (8, 16)
 
 
 def _wing_surface():
-    """Small squat grey fan: root on left, 28×16 horizontal ellipse (wider than
+    """Small squat grey fan: root on left, 22×16 horizontal ellipse (wider than
     tall) so the outer arc stays a clean rounded lobe, never a cut flat edge."""
-    w = pygame.Surface((44, 36), pygame.SRCALPHA)
-    membrane = pygame.Rect(0, 0, 28, 16)
-    membrane.center = (22, 18)
+    w = pygame.Surface((40, 32), pygame.SRCALPHA)
+    membrane = pygame.Rect(0, 0, 22, 16)
+    membrane.center = (19, 16)
     pygame.draw.ellipse(w, WINGGREY, membrane)
-    emask = pygame.Surface((44, 36), pygame.SRCALPHA)
+    emask = pygame.Surface((40, 32), pygame.SRCALPHA)
     pygame.draw.ellipse(emask, (255, 255, 255, 255), membrane)
     _benday(w, emask, WINGDOT, spacing=9, radius=2)
-    pygame.draw.line(w, INK, _WING_ROOT, (34, 12), 2)
-    pygame.draw.line(w, INK, _WING_ROOT, (34, 24), 2)
+    pygame.draw.line(w, INK, _WING_ROOT, (28, 10), 2)
+    pygame.draw.line(w, INK, _WING_ROOT, (28, 22), 2)
     return _ink_outline(w, 2)
 
 
@@ -179,8 +179,8 @@ def build_pop_v2(wing_angle_deg):
     ang = 3 + f * 30
     left = pygame.transform.flip(wing, True, False)
     left_root = (wing.get_width() - 1 - _WING_ROOT[0], _WING_ROOT[1])
-    _place_rotated(surf, wing, _WING_ROOT, ang, (30, 32))
-    _place_rotated(surf, left, left_root, -ang, (26, 32))
+    _place_rotated(surf, wing, _WING_ROOT, ang, (31, 31))
+    _place_rotated(surf, left, left_root, -ang, (29, 31))
 
     # ── HERO SILHOUETTE: one round inked barrel, rimmed for night survival ──
     body = _new()

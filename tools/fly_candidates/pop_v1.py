@@ -109,22 +109,22 @@ def _benday(target, region_pts_or_mask, color, spacing=9, radius=2, phase=0):
 # Root on the LEFT (hinge side, closest to body centre); the outer arc sweeps
 # to the RIGHT — same geometry as the Design 5 reference so the full rounded
 # tip is never clipped at the canvas edge or within the surface padding.
-_WING_ROOT = (8, 20)                 # hinge — left edge, canvas-safe pivot
+_WING_ROOT = (8, 16)                 # hinge — left edge, canvas-safe pivot
 
 
 def _wing_surface():
-    """Short wide cyan paddle: root on left, 38×18 horizontal ellipse (wider
+    """Short wide cyan paddle: root on left, 22×16 horizontal ellipse (wider
     than tall) carries the lime dot grid and two veins, then a 2px ink loop.
     Surface padded ≥ 8px on every side so the ink outline is never clipped."""
-    w = pygame.Surface((52, 40), pygame.SRCALPHA)
-    membrane = pygame.Rect(0, 0, 38, 18)     # decisively wider than tall
-    membrane.center = (26, 20)
+    w = pygame.Surface((40, 32), pygame.SRCALPHA)
+    membrane = pygame.Rect(0, 0, 22, 16)
+    membrane.center = (19, 16)
     pygame.draw.ellipse(w, WINGMEM, membrane)
-    emask = pygame.Surface((52, 40), pygame.SRCALPHA)
+    emask = pygame.Surface((40, 32), pygame.SRCALPHA)
     pygame.draw.ellipse(emask, (255, 255, 255, 255), membrane)
     _benday(w, emask, WINGDOT, spacing=9, radius=2)
-    pygame.draw.line(w, INK, _WING_ROOT, (43, 14), 2)
-    pygame.draw.line(w, INK, _WING_ROOT, (43, 26), 2)
+    pygame.draw.line(w, INK, _WING_ROOT, (28, 10), 2)
+    pygame.draw.line(w, INK, _WING_ROOT, (28, 22), 2)
     return _ink_outline(w, 2)
 
 
@@ -163,8 +163,8 @@ def build_pop_v1(wing_angle_deg):
     ang = 3 + f * 30
     left = pygame.transform.flip(wing, True, False)
     left_root = (wing.get_width() - 1 - _WING_ROOT[0], _WING_ROOT[1])
-    _place_rotated(surf, wing, _WING_ROOT, ang, (30, 31))
-    _place_rotated(surf, left, left_root, -ang, (26, 31))
+    _place_rotated(surf, wing, _WING_ROOT, ang, (31, 31))
+    _place_rotated(surf, left, left_root, -ang, (29, 31))
 
     # ── one continuous inked barrel: blue thorax fused into lime abdomen ──
     # Thorax and abdomen overlap heavily and share close radii so the outline
