@@ -41,14 +41,14 @@ from game.parrot import _aaellipse
 # ── pop-art palette ──────────────────────────────────────────────────────────
 INK      = (17, 17, 17)             # #111111 comic ink — the 40px carrier
 THORAX   = (229, 32, 43)            # #E5202B flat red thorax
-THORAX_D = (204, 26, 34)            # #CC1A22 Ben-Day shadow dots
+THORAX_D = (204, 26, 34)            # #CC1A22 Ben-Day shadow dots (hot red only)
 ABDOMEN  = (255, 194, 30)           # #FFC21E flat yellow abdomen
 ABDOMEN_D = (230, 168, 20)          # abdomen Ben-Day banding
 BLUE     = (46, 91, 255)            # #2E5BFF Ben-Day eye dots
 EYEW     = (234, 246, 255)          # #EAF6FF cyan-white dome
 WHITE    = (255, 255, 255)
 WINGGREY = (221, 230, 240)          # #DDE6F0 cool light-grey wing membrane
-WINGDOT  = (222, 46, 60)            # red Ben-Day wing dots carry value on grey
+WINGDOT  = (170, 187, 200)          # #AABBC8 cool-grey halftone → recedes
 LABELLUM = (255, 143, 176)          # #FF8FB0 sponge mouth pad
 
 
@@ -96,25 +96,29 @@ def _benday(target, region_pts_or_mask, color, spacing=4, radius=1, phase=0):
     target.blit(dots, (0, 0))
 
 
-# ── short, wide, rounded comic wing ──────────────────────────────────────────
-# Drawn on a padded local surface pointing +x (root at left), then rotated and
-# pinned by its root so the fan sweeps up-AND-back off the shoulder. Reads WIDE,
-# not tall: outer span ~35px vs height ~24px, with a rounded outer tip.
-_WING_ROOT = (7, 17)
-_WING_PTS = [
-    (7, 17), (13, 8), (24, 5), (34, 6), (40, 11),
-    (42, 17), (40, 23), (34, 28), (24, 29), (13, 26),
-]
+# ── one smooth membranous fan ─────────────────────────────────────────────────
+# Root pivot sits at the left tip; the membrane is a SINGLE convex rounded oval
+# so the downscaled outer arc stays clean — no faceted ink spikes — and only
+# THEN takes its halftone + ink loop. Reads as a translucent fan, not a
+# patterned bowtie.
+_WING_ROOT = (8, 24)
 
 
 def _wing_surface():
-    """One rounded pop-art fan: light-grey membrane, full red Ben-Day dot
-    field, two bold black veins, then a uniform 2px ink loop."""
-    w = pygame.Surface((50, 34), pygame.SRCALPHA)
-    pygame.draw.polygon(w, WINGGREY, _WING_PTS)
-    _benday(w, _WING_PTS, WINGDOT, spacing=4, radius=1)
-    pygame.draw.line(w, INK, _WING_ROOT, (33, 9), 2)
-    pygame.draw.line(w, INK, _WING_ROOT, (33, 25), 2)
+    """One rounded pop-art fan: a single smooth grey membrane ellipse, a cool
+    sparse halftone that recedes, two bold black veins, then a 2px ink loop."""
+    w = pygame.Surface((52, 48), pygame.SRCALPHA)
+    membrane = pygame.Rect(0, 0, 36, 26)
+    membrane.center = (26, 24)
+    pygame.draw.ellipse(w, WINGGREY, membrane)
+    # Cool-grey, sparser halftone: reads as translucent membrane and stays
+    # behind the eyes instead of muddying into pink fuzz at truth scale.
+    emask = pygame.Surface((52, 48), pygame.SRCALPHA)
+    pygame.draw.ellipse(emask, (255, 255, 255, 255), membrane)
+    _benday(w, emask, WINGDOT, spacing=5, radius=1)
+    # Two bold veins radiate from the root — the only ink inside the fan.
+    pygame.draw.line(w, INK, _WING_ROOT, (40, 16), 2)
+    pygame.draw.line(w, INK, _WING_ROOT, (40, 32), 2)
     return _ink_outline(w, 2)
 
 
@@ -144,26 +148,22 @@ def build_pop_fly(wing_angle_deg):
             pygame.draw.line(surf, INK, (5, y + 2), (12, y), 1)
             pygame.draw.line(surf, INK, (12, y), (19, y - 1), 1)
 
-    # Two short fans sweep up-and-back off a shoulder anchor near (28,30);
-    # the fan angle opens on the wing-up frames so tips ride from low-wide to
-    # a raised spread — never a tall narrow "rabbit-ear" V.
+    # Two smooth fans sweep up-and-back off a shoulder anchor near (28,31);
+    # the fan opens on the wing-up frames so tips ride from low-wide to a
+    # raised spread — never a tall narrow "rabbit-ear" V.
     wing = _wing_surface()
     ang = 3 + f * 30
-    right_root = (7, 17)
     left = pygame.transform.flip(wing, True, False)
-    left_root = (wing.get_width() - 1 - right_root[0], right_root[1])
-    _place_rotated(surf, wing, right_root, ang, (29, 31))
+    left_root = (wing.get_width() - 1 - _WING_ROOT[0], _WING_ROOT[1])
+    _place_rotated(surf, wing, _WING_ROOT, ang, (29, 31))
     _place_rotated(surf, left, left_root, -ang, (27, 31))
-
-    # Thorax bristles: three bold black comic ticks off the shoulder.
-    for ex, ey in ((25, 27), (27, 26), (29, 26)):
-        pygame.draw.line(surf, INK, (29, 34), (ex, ey), 2)
 
     # ── one round inked barrel: red thorax fused into yellow abdomen ──
     body = _new()
     _aaellipse(body, ABDOMEN, (BCX, 49), 13, 11)
     _aaellipse(body, THORAX, (BCX, 41), 13, 9)
-    # Curved Ben-Day shadow field on the underside of the thorax.
+    # Hot red is reserved for the thorax: a curved Ben-Day shadow field on
+    # its underside gives the dome value.
     tmask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     _aaellipse(tmask, (255, 255, 255, 255), (BCX, 43), 12, 7)
     _benday(body, tmask, THORAX_D, spacing=4, radius=1, phase=1)
@@ -183,22 +183,32 @@ def build_pop_fly(wing_angle_deg):
     surf.blit(_ink_outline(lab, 2), (0, 0))
 
     # ── HERO: two big dotted goggle eyes that fill the head ──
+    # Centres sit a true 2px apart so the silhouettes never fuse; the ink
+    # loops meet in the gap to hold a solid vertical gutter → always TWO eyes.
     eyes = _new()
-    ecs = ((38, 30), (50, 30))
+    ecs = ((35, 30), (53, 30))
     for cx, cy in ecs:
-        _aaellipse(eyes, EYEW, (cx, cy), 9, 9)
+        _aaellipse(eyes, EYEW, (cx, cy), 8, 8)
     emask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     for cx, cy in ecs:
-        _aaellipse(emask, (255, 255, 255, 255), (cx, cy), 9, 9)
+        _aaellipse(emask, (255, 255, 255, 255), (cx, cy), 8, 8)
     _benday(eyes, emask, BLUE, spacing=3, radius=1)
     inked_eyes = _ink_outline(eyes, 2)
     # Solid white comic glint wedge in each dome's upper-left, over the dots.
     for cx, cy in ecs:
         pygame.draw.polygon(inked_eyes, WHITE, [
-            (cx - 7, cy - 5), (cx - 1, cy - 7), (cx - 4, cy)])
-    # A 2px ink seam so the touching domes read as two eyes, not one blob.
-    pygame.draw.line(inked_eyes, INK, (44, 21), (44, 39), 2)
+            (cx - 6, cy - 4), (cx - 1, cy - 6), (cx - 3, cy)])
+    # Belt-and-braces 2px ink gutter down the seam so the domes never read as
+    # one goggle even after the downscale.
+    pygame.draw.line(inked_eyes, INK, (44, 22), (44, 38), 2)
     surf.blit(inked_eyes, (0, 0))
+
+    # ── bristly thorax hump: chunky black setae angled up-back ──
+    # Notch-breaks over the red dome's top push the body from "ladybug" to
+    # "fly"; drawn last so they read on top of the shoulder, tips clear-left.
+    for (x0, y0), (x1, y1) in (
+            ((28, 34), (23, 28)), ((25, 35), (20, 30)), ((31, 33), (26, 27))):
+        pygame.draw.line(surf, INK, (x0, y0), (x1, y1), 2)
 
     return surf
 
