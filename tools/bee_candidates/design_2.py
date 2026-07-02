@@ -70,6 +70,12 @@ _WING_R = [
     (36, 46),   # 10 scallop lobe C tip
     (34, 43),   # 11 inner bottom, ~2px off the body axis
 ]
+# The rainbow ribbons arc across the CONVEX upper contour only (inner-top →
+# forewing apex → outer shoulder → hindwing shoulder). Stroking an open arc here
+# keeps each band a clean thin line; stroking the whole polygon would fill the
+# concave scalloped notches solid. The scalloped hindwing bottom stays pure
+# obsidian, so black dominates and the cream fringe reads against it.
+BAND_ARC = (0, 1, 2, 3, 4, 5)
 # Trailing scallop margin the cream fringe traces (hindwing shoulder → inner).
 FRINGE_IDX = range(5, 12)
 
@@ -115,19 +121,21 @@ def _draw_wing(surf, side, spread, nx, fi):
     margin = _transform(_WING_R, side, spread, nx)
 
     # Obsidian OWNS the wing: the whole face is filled black, then only three
-    # SLIM iridescent ribbons are STROKED along inset copies of the wing
-    # contour. A width-2 polygon outline gives a uniformly thin arc that hugs the
-    # wing curve at a fixed inset — so the ribbon never fattens on the compact
-    # hindwing (the filled-ring trap) and never touches the wing edge, leaving a
-    # fat black margin and a fat black core. A small per-frame drift breathes the
-    # ribbons outward and in.
+    # SLIM iridescent ribbons are STROKED as open arcs along inset copies of the
+    # convex upper contour (see BAND_ARC). A width-2 open polyline gives a
+    # uniformly thin arc that hugs the wing curve at a fixed inset — never
+    # fattening on the compact hindwing and never touching the wing edge, so a
+    # fat black margin and the whole scalloped hindwing stay black. A small
+    # per-frame drift breathes the ribbons outward and in.
     drift = (fi - 1.5) * 0.02
     centers = [0.40 + drift, 0.53 + drift, 0.66 + drift]
     bands = _bands_for(fi)
 
     pygame.draw.polygon(surf, OBSIDIAN, margin)
     for c, col in zip(centers, bands):
-        pygame.draw.polygon(surf, col, _inset(margin, c), 2)
+        ring = _inset(margin, c)
+        arc = [(int(ring[i][0]), int(ring[i][1])) for i in BAND_ARC]
+        pygame.draw.lines(surf, col, False, arc, 2)
 
     # Per-frame polychrome shimmer rides the OUTER ribbon, not the wing core, so
     # the centre stays black: two soft ellipses in the frame's brightened lead

@@ -1,12 +1,15 @@
 """BUG/INSECT redesign — design_5 ATLASWING (Atlas moth, Attacus atlas).
 
-The wings are the whole story. Two enormous ANGULAR sails fill the canvas
-wall-to-wall; each forewing apex hooks out into a pointed SNAKE-HEAD tip with a
-dark eye-dot — the Atlas moth's cobra-mimicry tell and the only jagged,
-non-rounded silhouette in the set. Big cream TRIANGULAR WINDOWS are punched
-semi-transparent so the day sky bleeds faintly through them (a technique unique
-to this candidate). A stout rust/ochre banded body and broad feathery comb
-antennae seat the read as a moth, not a butterfly.
+The wings are the whole story. Two WIDE ANGULAR sails spread horizontally,
+their leading edges rising to nearly meet along the top axis so the silhouette
+reads as one flat-topped moth — never two peaked "ears" over a head. Each
+forewing corner hooks out sideways into a pointed SNAKE-HEAD tip with a dark
+eye-dot riding a cream field — the Atlas moth's cobra-mimicry tell and the only
+jagged, non-rounded silhouette in the set. One bold cream TRIANGULAR WINDOW per
+wing is punched semi-transparent so the day sky bleeds through it. A deep-maroon
+outer margin wraps the whole edge for value pop on both bright and dark skies. A
+stout rust/ochre banded body and broad feathery comb antennae — swept clear of
+the wing junction — seat the read as a moth, not a butterfly.
 
 Scratch exploration only — NOT registered in store_skins.BUILDERS. Production
 art stays untouched until a winner is picked.
@@ -17,10 +20,10 @@ from game.parrot import _WING_ANGLES, _add_outline, _aaellipse
 
 COMPOSITE_W, COMPOSITE_H = 64, 84
 BCX, BCY = 32, 44          # thorax centre
-# Head kept ON the body axis: a dorsal-spread moth reads strongest symmetric,
-# and a centred head lets the two hooked forewings mirror cleanly at 40px.
-HCX, HCY = 32, 27
-CROWN_Y = 14
+# Head kept ON the body axis, but seated LOW (below where the two forewings
+# close flat at the top) so it can never read as a face between two ear-peaks.
+HCX, HCY = 32, 29
+CROWN_Y = 13
 
 # ── palette ──────────────────────────────────────────────────────────────────
 RUST   = (155, 74, 42)     # #9B4A2A Atlas Rust — DOMINANT wing field
@@ -30,7 +33,7 @@ CREAM  = (243, 230, 200)   # #F3E6C8 translucent triangular window panes
 DARK   = (36, 21, 18)      # #241512 snake-tip / eye-dot / body outline
 OCHRE_HI = (238, 190, 128) # warm highlight for the body gradient / catch-lights
 
-WINDOW_ALPHA = 100         # low enough that sky bleeds faintly through the panes
+WINDOW_ALPHA = 55          # low enough that sky visibly bleeds through the panes
 
 
 def _new():
@@ -44,36 +47,38 @@ def _flap(a):
 
 # Right-wing outer contour at the full-open down-stroke. Straight polygon
 # segments keep the whole outline ANGULAR — the deliberate non-rounded odd-one-
-# out of the set. The forewing throws its leading edge up and out to x=63 and
-# HOOKS: the apex spikes to a snake-head point (index 5) then cuts back under
-# itself, leaving a cobra-head silhouette that survives the shrink. The
-# hindwing below is large but still faceted, not an egg. Inner edges sit ~1px
-# off the body axis so the mirrored pair nearly touches into one moth.
+# out of the set. The leading edge rises to the TOP AXIS (index 0 sits on x=32,
+# high) so the mirrored pair closes into one flat-topped moth with no central
+# V-notch — that kills the fox/cat-face pareidolia. The forewing corner then
+# hooks SIDEWAYS to the widest point (index 4) and cuts back under itself
+# (index 5, a concave undercut), leaving a cobra-head apex. The hindwing below
+# is large but still faceted, not an egg.
 _WING_R = [
-    (33, 30),   # 0  inner top, ~1px off axis
-    (43, 20),   # 1  forewing leading edge
-    (47, 12),   # 2  leading rise
-    (55,  9),   # 3  toward the apex
-    (60,  8),   # 4  apex base — start of the hook
-    (63,  3),   # 5  SNAKE-HEAD TIP (eye-dot lands here)
-    (61, 11),   # 6  hook cuts back under itself
-    (58, 16),   # 7  forewing outer
-    (57, 23),   # 8  forewing trailing
-    (54, 28),   # 9  notch between fore- and hind-wing
-    (58, 34),   # 10 hindwing outer shoulder
-    (56, 45),   # 11 hindwing outer
-    (48, 55),   # 12 hindwing lower outer
-    (40, 58),   # 13 hindwing bottom lobe
-    (34, 51),   # 14 inner bottom
-    (33, 40),   # 15 inner mid, back to the axis
+    (32, 19),   # 0  inner top ON the axis, high — mirror closes flat here
+    (43, 15),   # 1  leading edge sweeps out nearly level
+    (53, 13),   # 2  toward the apex
+    (60, 13),   # 3  apex base
+    (63, 17),   # 4  SNAKE-HEAD TIP — hooks sideways to the widest point
+    (59, 21),   # 5  concave undercut back beneath the tip
+    (60, 27),   # 6  forewing trailing
+    (55, 31),   # 7  shallow notch between fore- and hind-wing
+    (59, 38),   # 8  hindwing outer shoulder
+    (56, 47),   # 9  hindwing outer
+    (48, 55),   # 10 hindwing lower outer
+    (39, 57),   # 11 hindwing bottom lobe
+    (34, 50),   # 12 inner bottom
+    (32, 33),   # 13 inner mid, back on the axis
 ]
 
-# Cream window triangles in the same right-wing space: one big pane in the
-# forewing, one in the hindwing. Punched semi-transparent so they read as gaps
-# in the wing where the sky shows through.
+# The snake-head eye rides HERE — a point that sits squarely inside the forewing
+# cream window so the dark pupil has cream contrast, not lost on the dark tip.
+_EYE_R = (55, 19)
+
+# One bold cream window per wing (fewer/bigger survives 40px). The forewing pane
+# reaches up to cradle the eye; the hindwing pane is a single clear triangle.
 _WINDOWS_R = [
-    [(44, 21), (55, 15), (50, 27)],   # forewing pane, pointing to the apex
-    [(43, 37), (53, 41), (44, 49)],   # hindwing pane
+    [(45, 16), (62, 16), (52, 28)],   # forewing pane — the eye rides this cream
+    [(42, 37), (55, 42), (44, 52)],   # hindwing pane
 ]
 
 
@@ -115,33 +120,36 @@ def _punch_windows(ws, tris):
     for tri in tris:
         pygame.draw.polygon(reducer, (255, 255, 255, WINDOW_ALPHA), tri)
     ws.blit(reducer, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    # A crisp 1px dark rim re-opaques each pane's border so the translucent panes
+    # stay defined windows instead of bleeding into the rust field at 40px.
+    for tri in tris:
+        pygame.draw.polygon(ws, DARK, tri, 1)
 
 
 def _draw_wing(surf, side, spread, nx):
     margin = _transform(_WING_R, side, spread, nx)
 
-    # Concentric rings = the Atlas moth's banding, but RUST has to dominate: a
-    # deep-maroon margin, then only a THIN ochre submarginal band, then the
-    # broad rust field that owns most of the wing. Windows punch that field.
+    # Concentric rings = the Atlas moth's banding. A WIDE deep-maroon outer
+    # margin now carries the whole edge dark (that's what holds the angular
+    # silhouette against BOTH bright day and dark night sky), then a thin ochre
+    # submarginal band, then the broad rust field. Windows punch that field.
     ws = _new()
     pygame.draw.polygon(ws, MAROON, margin)
-    pygame.draw.polygon(ws, OCHRE, _inset(margin, 0.07))
-    pygame.draw.polygon(ws, RUST, _inset(margin, 0.15))
+    pygame.draw.polygon(ws, OCHRE, _inset(margin, 0.13))
+    pygame.draw.polygon(ws, RUST, _inset(margin, 0.24))
 
     tris = [_transform(t, side, spread, nx) for t in _WINDOWS_R]
     _punch_windows(ws, tris)
     surf.blit(ws, (0, 0))
 
-    # The snake-head eye at the hooked apex sells the cobra mimicry — a cream
-    # sclera ring around a dark pupil with a warm catch, riding the transformed
-    # apex vertex so it tracks the hook through the flap.
-    ex, ey = margin[5]
+    # The snake-head eye sells the cobra mimicry — a dark pupil with a warm
+    # catch, sitting on the forewing CREAM field (transformed with the wing so
+    # it tracks the hook through the flap) for hard contrast at 40px.
+    ex, ey = _transform([_EYE_R], side, spread, nx)[0]
     ex, ey = int(round(ex)), int(round(ey))
-    cy = ey + 3
-    if 1 <= ex < COMPOSITE_W - 1 and 1 <= cy < COMPOSITE_H - 1:
-        pygame.draw.circle(surf, CREAM, (ex, cy), 3)
-        pygame.draw.circle(surf, DARK, (ex, cy), 2)
-        surf.set_at((ex, cy - 1), OCHRE_HI)
+    if 1 <= ex < COMPOSITE_W - 1 and 1 <= ey < COMPOSITE_H - 1:
+        pygame.draw.circle(surf, DARK, (ex, ey), 2)
+        surf.set_at((ex, ey - 1), OCHRE_HI)
 
 
 # Stout fusiform body: (y, half-width) keyframes, swelling at the thorax and
@@ -205,23 +213,24 @@ def _feather(surf, base, tip, teeth):
 
 
 def _draw_head(surf):
-    # Broad feathery antennae first, sweeping up and out to the crown.
-    _feather(surf, (HCX - 2, HCY - 2), (HCX - 10, CROWN_Y), 5)
-    _feather(surf, (HCX + 2, HCY - 2), (HCX + 10, CROWN_Y), 5)
-    # Small dark-rust head bead with two pin eyes and a warm catch.
-    pygame.draw.circle(surf, MAROON, (HCX, HCY), 4)
-    pygame.draw.circle(surf, DARK, (HCX - 2, HCY), 1)
-    pygame.draw.circle(surf, DARK, (HCX + 2, HCY), 1)
-    surf.set_at((HCX - 1, HCY - 2), OCHRE_HI)
+    # Feathery antennae swept OUT over the forewing shoulders — kept well clear
+    # of the wing junction so they can never read as ears above a face.
+    _feather(surf, (HCX - 2, HCY - 1), (HCX - 13, CROWN_Y), 5)
+    _feather(surf, (HCX + 2, HCY - 1), (HCX + 13, CROWN_Y), 5)
+    # A small DARK thorax knob — deliberately recessive (no pin eyes, no
+    # catch-light) so the two hooked apex eye-dots own the focal hierarchy
+    # instead of competing with a bright central "face" bead.
+    pygame.draw.circle(surf, DARK, (HCX, HCY), 3)
 
 
 def _apply_glow(surf):
-    # Faint warm halo so the rust pops on bright day sky. Additive and applied
-    # AFTER the outline so the outline traces only the crisp moth silhouette.
+    # A whisper of a halo — MAROON-tinted and low-alpha so it never cooks the
+    # earthy maroon into neon orange. The deep-maroon outer margin does the real
+    # silhouette-holding work; this only softens the edge against bright sky.
     glow = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    for r, a in ((30, 6), (20, 7), (12, 7)):
+    for r, a in ((30, 3), (20, 3), (12, 4)):
         g = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
-        pygame.draw.circle(g, (*RUST, a), (r, r), r)   # rust, not ochre — keep it warm-red not yellow
+        pygame.draw.circle(g, (*MAROON, a), (r, r), r)
         glow.blit(g, (BCX + 2 - r, BCY - 4 - r))   # +2 for _add_outline pad
     surf.blit(glow, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
@@ -229,7 +238,7 @@ def _apply_glow(surf):
 def _build_frame(wing_angle_deg):
     surf = _new()
     f = _flap(wing_angle_deg)
-    spread = int(f * 16)            # lift the wings as the stroke rises
+    spread = int(f * 11)            # lift the wings as the stroke rises (top-safe)
     nx = 1.0 - 0.28 * f             # narrow them toward edge-on on the up-stroke
 
     _draw_wing(surf, -1, spread, nx)

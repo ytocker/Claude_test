@@ -15,7 +15,13 @@ from game import biome
 from game.draw import get_sky_surface_biome
 from game.config import W as GW, H as GH, GROUND_Y
 
-OUT = "/home/user/skybit/docs/store_redesign/animal/bee/design_5/round_1.png"
+OUT = "/home/user/skybit/docs/store_redesign/animal/bee/design_5/round_2.png"
+
+# Real, DISTINCT skies for the truth read: bright DAY vs genuinely dark NIGHT.
+# (R1 rendered both on the same blue because get_sky_surface_biome caches by the
+# phase-bucket arg and both panels passed bucket 0.)
+DAY_PHASE = 0.0
+NIGHT_PHASE = 0.64375   # the NIGHT keyframe — sky_top (5,8,30), truly dark
 
 # Three poses across the flap cycle so the truth read exposes whether the
 # hooked-wing silhouette survives BOTH the shrink and the wing animation.
@@ -35,7 +41,9 @@ def _truth_swatch(box, phase, frame_idx):
     NEAREST so the shrunk pixels are judgeable — the read the player gets. The
     translucent windows must show a hint of sky through them at this size."""
     pal = biome.palette_for_phase(phase)
-    sky = get_sky_surface_biome(GW, GH, GROUND_Y, pal, 0)
+    # Bucket the sky by phase so day and night get separate cache entries — the
+    # R1 bug was passing bucket 0 for both, which reused the day surface.
+    sky = get_sky_surface_biome(GW, GH, GROUND_Y, pal, biome.phase_bucket(phase))
     swatch = pygame.transform.smoothscale(
         sky.subsurface((0, 10, 120, 120)).copy(), (box, box))
     frame = _frame(build, frame_idx, 10.0)
@@ -78,9 +86,9 @@ def main():
     sheet = pygame.Surface((W, H))
     sheet.fill((24, 22, 32))
 
-    _label(sheet, "skin_bee redesign — DESIGN 5: ATLASWING (Atlas Moth, Attacus atlas) — R1",
+    _label(sheet, "skin_bee redesign — DESIGN 5: ATLASWING (Atlas Moth, Attacus atlas) — R2",
            PAD, 16, sz=22, col=(255, 255, 255))
-    _label(sheet, "Angular snake-head hooked forewings · dark eye-dot tips · semi-transparent cream windows · banded rust body · feathery comb antennae",
+    _label(sheet, "WIDE flat-topped wings (notch closed) · sideways hooked apexes · eye-dot on cream · one bold window/wing · wide maroon margin · recessive body knob",
            PAD, 46, sz=13, col=(170, 175, 190))
 
     top = 80
@@ -95,10 +103,10 @@ def main():
     _label(sheet, "40px TRUTH READ (NEAREST) — 3 poses per sky, lives or dies at size:",
            PAD, trow - 24, sz=15)
     for i, fi in enumerate(TRUTH_POSES):
-        sheet.blit(_truth_swatch(TR, 0.0, fi), (PAD + i * TR, trow))
+        sheet.blit(_truth_swatch(TR, DAY_PHASE, fi), (PAD + i * TR, trow))
     night_x = PAD + 3 * TR + PAD
     for i, fi in enumerate(TRUTH_POSES):
-        sheet.blit(_truth_swatch(TR, 0.5, fi), (night_x + i * TR, trow))
+        sheet.blit(_truth_swatch(TR, NIGHT_PHASE, fi), (night_x + i * TR, trow))
     _label(sheet, "day sky", PAD + 6, trow + TR + 2, sz=13, col=(190, 195, 205))
     _label(sheet, "night sky", night_x + 6, trow + TR + 2, sz=13, col=(190, 195, 205))
 
