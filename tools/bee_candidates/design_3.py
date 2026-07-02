@@ -1,21 +1,16 @@
-"""IRONHORN — Rhinoceros/Hercules beetle candidate for `skin_bee` (scratch).
+"""LUNAWING — Luna moth (Actias luna) candidate for `skin_bee` (scratch).
 
-An armored bruiser built as MASS + one dominant appendage, the opposite read
-of a winged flutter. The tell that survives the 40px downscale is the cephalic
-HORN: a broad-based blade sweeping up-left and forking into a Y-split at the
-tip, poking well above the crown so the silhouette says "rhino beetle" even as
-a solid shadow. Nothing else breaks the top line — antennae are short and
-tucked below it so the horn owns the read.
+Where AZUREWING is a hard structural-blue sail, LUNAWING is soft and lunar:
+pale-lime wings that fill the canvas, and — the whole point — TWO long ribbon
+HINDWING TAILS that sweep down-left toward the abdomen. Those tails are the
+40px identity; nothing else on a casual sprite trails like a luna moth, so they
+are drawn bold and kept clear of the wing mass. An amber eyespot rides each
+forewing and a maroon leading stripe caps the top edge, and a green moonlit
+bloom pulses brightest on the down-stroke so the pale moth still reads on a
+dark night sky.
 
-The body is ONE broad domed elytra oval — the largest dark-bronze mass on the
-sprite — carrying a crisp gold specular streak and a dark lower-right rim so it
-reads as lacquered chitin, not a soft blob, on either sky. The flap is
-characterful, not a flutter: the elytra suture cracks open down the midline and
-two amber hindwings fan out from behind the shell crown (strike factor s=1),
-sealing shut on the up-stroke (s=0) — a heavy beetle labouring into the air.
-
-Exploration only — NOT registered in any live BUILDERS map; production art is
-untouched.
+Exploration only — NOT registered in store_skins.BUILDERS. Production art stays
+untouched until a winner is picked.
 """
 import math
 import pygame
@@ -23,171 +18,255 @@ import pygame
 from game.parrot import _WING_ANGLES, _add_outline, _aaellipse
 
 COMPOSITE_W, COMPOSITE_H = 64, 84
-BCX, BCY = 32, 44          # thorax/elytra centre — the dome owns the middle
-HCX, HCY = 44, 34          # head, set upper-right on the insect body axis
-CROWN_Y = 24               # the top line; only the horn may cross it
+BCX, BCY = 32, 44          # thorax centre
+HCX, HCY = 44, 34          # head — upper-right on the insect axis
+CROWN_Y = 24               # antennae fan to here
 
-# Dynastine chitin palette — three clearly separated values so day sky never
-# flattens it to a brown blob: a near-black chitin frame, a red-bronze body,
-# and a bright clean gold for the specular / horn rim.
-CHITIN = (22, 16, 8)       # #16100 8 dark chitin — horn / head / legs / outline
-SHELL  = (92, 60, 22)      # #5C3C16 red-bronze elytra shell (olive cast killed)
-BRASS  = (168, 122, 52)    # warm bronze mid-band + leg/abdomen rim-light
-GOLD   = (236, 200, 96)    # #ECC860 clean gold specular streak / horn rim
-AMBER  = (208, 140, 58)    # amber membranous hindwing / suture crack
-EYE_G  = (40, 90, 20)      # dark-green compound eye
-WHITE  = (244, 240, 226)   # catchlight / specular hotspot / horn-tip glint
+# ── palette ──────────────────────────────────────────────────────────────────
+LIME    = (184, 233, 134)  # #B8E986 Luna Lime — dominant wing fill
+MOONMINT = (228, 247, 197) # #E4F7C5 Moonmint — upper-wing highlight band
+PLUM    = (122, 46, 59)    # #7A2E3B Plum Edge — forewing stripe + tail edge
+AMBER   = (232, 161, 60)   # #E8A13C Eye Amber — eyespot ring
+CREAM   = (240, 234, 210)  # #F0EAD2 Body Cream — body + head + antennae
+EDGE    = (150, 199, 104)  # shaded lime rim under the fill
+WINDOW  = (232, 244, 214)  # pale eyespot window
+WHITE   = (246, 250, 236)  # catch-lights
+GLOW    = (150, 235, 130)  # moonlit bloom
 
 
-def _new(w, h):
-    return pygame.Surface((w, h), pygame.SRCALPHA)
+def _new():
+    return pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
 
 
 def _flap(a):
-    # 0 at the deepest down-stroke (angle -40), 1 at the top up-stroke (50).
+    # 0 = deepest down-stroke (wings wide, angle -40), 1 = top up-stroke (50).
     return (a + 40) / 90.0
 
 
-def _hindwing(surf, side, o):
-    """One amber hindwing fanning out from behind the elytra crown. `side` is
-    -1 (left/back) or +1 (right); `o` in [0,1] is how far the fan has opened.
-    The roots sit high on the dome and get covered by the shell, so the blade
-    reads as emerging from a cracked-open shell — not a belly flipper."""
-    if o <= 0:
-        return
-    root_a = (BCX + side * 2, 33)
-    root_b = (BCX + side * 5, 38)
-    tip    = (BCX + side * int(22 * o), 35 - int(4 * o))           # up and out
-    mid    = (BCX + side * int(16 * o), 43 + int(4 * o))           # lower trail
-    pygame.draw.polygon(surf, (*AMBER, 190), [root_a, tip, mid, root_b])
-    pygame.draw.line(surf, (120, 80, 30, 210), root_a, mid, 1)     # vein
-    pygame.draw.line(surf, (*GOLD, 210), root_a, tip, 1)           # lit edge
+# Right-wing outer contour at the wide down-stroke. A rounded forewing lobe
+# throws its apex up-and-out to fill the 64px width; a rounded hindwing hangs
+# below a shallow notch and drops to the tail root. Mirrored for the left side.
+_WING_R = [
+    (34, 33),   # 0 inner top, near the body axis
+    (43, 22),   # 1 forewing leading rise
+    (52, 19),   # 2 forewing apex — up and out
+    (61, 25),   # 3 forewing outer shoulder — fills the width
+    (62, 34),   # 4 forewing outer trailing
+    (57, 41),   # 5 shallow notch fore/hind
+    (56, 49),   # 6 hindwing outer
+    (47, 57),   # 7 hindwing lower lobe — tail root
+    (39, 56),   # 8 hindwing bottom inner
+    (34, 47),   # 9 inner bottom, near the body axis
+]
 
 
-def _leg(surf, hip, knee, foot, spur=False):
-    """One chunky spurred beetle leg: a fat 4px femur to the knee, a 3px tibia
-    to the tarsus, a brass rim on the tibia underside so it survives the night
-    sky, and a joint bead. Front legs carry a forward spur."""
-    pygame.draw.line(surf, CHITIN, hip, knee, 4)                   # femur
-    pygame.draw.line(surf, CHITIN, knee, foot, 3)                  # tibia
-    pygame.draw.line(surf, BRASS, (knee[0], knee[1] + 1),
-                     (foot[0], foot[1] + 1), 1)                    # underside rim
-    pygame.draw.circle(surf, BRASS, knee, 2)                       # knee joint
-    pygame.draw.circle(surf, CHITIN, knee, 2, 1)
-    pygame.draw.circle(surf, CHITIN, foot, 2)                      # tarsal bead
-    if spur:
-        mx, my = (knee[0] + foot[0]) // 2, (knee[1] + foot[1]) // 2
-        dx = 3 if foot[0] >= knee[0] else -3
-        pygame.draw.line(surf, CHITIN, (mx, my), (mx + dx, my + 3), 2)
+def _centroid(pts):
+    n = len(pts)
+    return (sum(p[0] for p in pts) / n, sum(p[1] for p in pts) / n)
+
+
+def _inset(pts, frac):
+    cx, cy = _centroid(pts)
+    return [(x + (cx - x) * frac, y + (cy - y) * frac) for x, y in pts]
+
+
+def _transform(pts, side, spread, nx):
+    """Place a wing: mirror for the left side, narrow horizontally toward the
+    body on the up-stroke, and lift it as the stroke rises."""
+    out = []
+    for x, y in pts:
+        dx = (x - BCX) * side
+        out.append((BCX + dx * nx, y - spread))
+    return out
+
+
+def _stroke(pts, spread, nx):
+    # Same lift/narrow as a wing but for absolute (already-placed) points —
+    # used for the tails, which are authored in final position, not mirrored.
+    return [(BCX + (x - BCX) * nx, y - spread) for x, y in pts]
+
+
+def _wing_mask(pts):
+    m = _new()
+    pygame.draw.polygon(m, (255, 255, 255, 255), pts)
+    return m
+
+
+def _eyespot(surf, cx, cy):
+    # Concentric luna eyespot: amber ring, thin maroon rim, a pale translucent
+    # window with a dark upper arc, and a white glint. The one non-lime accent
+    # per wing — a hue anchor that survives the shrink.
+    pygame.draw.circle(surf, AMBER, (cx, cy), 4)
+    pygame.draw.circle(surf, PLUM, (cx, cy), 4, 1)
+    _aaellipse(surf, WINDOW, (cx, cy), 2, 2)
+    pygame.draw.arc(surf, PLUM, pygame.Rect(cx - 2, cy - 2, 5, 5),
+                    math.radians(200), math.radians(345), 1)
+    pygame.draw.circle(surf, WHITE, (cx - 1, cy - 1), 1)
+
+
+def _draw_wing(surf, side, spread, nx):
+    margin = _transform(_WING_R, side, spread, nx)
+    fill = _inset(margin, 0.09)
+
+    # Shaded lime rim, then the broad lime field. The rim + the sprite outline
+    # do the separator job that AZUREWING's ink margin does, but stay pale so
+    # the moth keeps its ghostly moonlit value.
+    pygame.draw.polygon(surf, EDGE, margin)
+    pygame.draw.polygon(surf, LIME, fill)
+
+    # Moonmint highlight band across the upper wing, clipped to the fill so it
+    # reads as light skating off the scales rather than a painted stripe.
+    fcx, fcy = _centroid(fill)
+    band = _new()
+    _aaellipse(band, (*MOONMINT, 205), (fcx, fcy - 9), 13, 5)
+    band.blit(_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(band, (0, 0))
+
+    # Maroon leading-edge stripe capping the forewing top — the luna field mark.
+    lead = [(int(x), int(y)) for x, y in (margin[1], margin[2], margin[3])]
+    pygame.draw.lines(surf, PLUM, False, lead, 3)
+
+    # One amber eyespot on the forewing, pulled a touch in from the apex.
+    ex = int(fcx + (margin[2][0] - fcx) * 0.14)
+    ey = int(fcy - 4)
+    _eyespot(surf, ex, ey)
+
+
+def _tail(surf, root, ctrl, tip):
+    """One elongated, slightly twisted hindwing ribbon along a quadratic bezier.
+    Width tapers from the root, thins through the shaft, then flares into a small
+    spatulate paddle — the twist of a real luna tail — with a maroon edge so the
+    ribbon stays crisp against the wing behind it."""
+    def bez(t):
+        mt = 1 - t
+        return (mt * mt * root[0] + 2 * mt * t * ctrl[0] + t * t * tip[0],
+                mt * mt * root[1] + 2 * mt * t * ctrl[1] + t * t * tip[1])
+
+    n = 12
+    left, right = [], []
+    for i in range(n + 1):
+        t = i / n
+        c = bez(t)
+        # Half-width profile: 3.2 at root -> 1.4 shaft -> 2.4 paddle flare.
+        if t < 0.82:
+            hw = 3.2 + (1.4 - 3.2) * (t / 0.82)
+        else:
+            hw = 1.4 + (2.4 - 1.4) * ((t - 0.82) / 0.18)
+        nxt = bez(min(1.0, t + 0.02))
+        dx, dy = nxt[0] - c[0], nxt[1] - c[1]
+        L = math.hypot(dx, dy) or 1.0
+        nx_, ny_ = -dy / L, dx / L
+        left.append((c[0] + nx_ * hw, c[1] + ny_ * hw))
+        right.append((c[0] - nx_ * hw, c[1] - ny_ * hw))
+    poly = left + right[::-1]
+    pygame.draw.polygon(surf, LIME, poly)
+    pygame.draw.lines(surf, PLUM, False,
+                      [(int(x), int(y)) for x, y in left], 1)
+    pygame.draw.lines(surf, PLUM, False,
+                      [(int(x), int(y)) for x, y in right], 1)
+    # Mint sheen down the shaft so the tail doesn't read as a flat stick.
+    for i in range(2, n - 2, 2):
+        cx, cy = bez(i / n)
+        pygame.draw.circle(surf, MOONMINT, (int(cx), int(cy)), 1)
+
+
+def _draw_tails(surf, spread, nx, sway):
+    # Two distinct ribbons sweeping down-left with the body axis toward the
+    # abdomen. Authored absolute, then lifted (a touch less than the wings, so
+    # they trail) and swayed per frame for life. Both tips clear the hindwing by
+    # >20px — the bold read the whole design rides on.
+    lift = int(spread * 0.7)
+    # Back (left) tail.
+    a = _stroke([(24, 54), (18 + sway, 66), (13 + sway, 80)], lift, nx)
+    _tail(surf, a[0], a[1], a[2])
+    # Front (right) tail.
+    b = _stroke([(43, 54), (37 + sway, 66), (30 + sway, 78)], lift, nx)
+    _tail(surf, b[0], b[1], b[2])
+
+
+def _antenna(surf, base, tip):
+    # Feathery comb antenna: a shaft with short paired teeth — thicker and
+    # bushier than a clubbed butterfly pair, the luna/saturniid signature.
+    pygame.draw.line(surf, CREAM, base, tip, 2)
+    steps = 5
+    for i in range(1, steps):
+        t = i / steps
+        px = base[0] + (tip[0] - base[0]) * t
+        py = base[1] + (tip[1] - base[1]) * t
+        pygame.draw.line(surf, CREAM, (px - 3, py - 1), (px + 3, py + 1), 1)
+
+
+def _draw_body(surf):
+    # Short fuzzy cream body angling down-left off the head, with faint segment
+    # shading so it reads as plush rather than a bald bead.
+    _aaellipse(surf, CREAM, (BCX, BCY), 5, 7)                 # thorax
+    _aaellipse(surf, (226, 219, 194), (BCX - 3, BCY + 6), 4, 6)  # abdomen
+    for k in range(3):
+        pygame.draw.line(surf, (208, 200, 172),
+                         (BCX - 6, BCY + 2 + k * 4),
+                         (BCX + 3, BCY + 2 + k * 4), 1)
+    _aaellipse(surf, MOONMINT, (BCX - 1, BCY - 3), 2, 3)      # thorax sheen
+
+
+def _draw_head(surf):
+    _antenna(surf, (HCX - 1, HCY - 3), (HCX - 6, CROWN_Y))
+    _antenna(surf, (HCX + 1, HCY - 3), (HCX + 5, CROWN_Y + 1))
+    _aaellipse(surf, CREAM, (HCX, HCY), 5, 4)                 # fuzzy head
+    for ex in (HCX - 2, HCX + 3):
+        pygame.draw.circle(surf, (46, 34, 30), (ex, HCY + 1), 1)
 
 
 def _build_frame(wing_angle_deg):
-    surf = _new(COMPOSITE_W, COMPOSITE_H)
+    surf = _new()
     f = _flap(wing_angle_deg)
-    s = 1.0 - f                                    # strike: 1 on down, 0 on up
-    # Wing stays sealed through the hairline-crack stage, then fans — so the four
-    # frames read as a clear progression, not a constant flutter.
-    o = max(0.0, (s - 0.35) / 0.65)
+    spread = int(f * 16)               # lift the wings as the stroke rises
+    nx = 1.0 - 0.28 * f                # narrow horizontally on the up-stroke
+    try:
+        fi = _WING_ANGLES.index(int(round(wing_angle_deg)))
+    except ValueError:
+        fi = 0
+    sway = (fi - 1.5) * 1.6            # tails drift for life across the cycle
 
-    # ── HINDWINGS first, behind the shell: fan out to the sides/back on the
-    # down-stroke, seal shut on the up-stroke.
-    _hindwing(surf, -1, o)
-    _hindwing(surf, +1, o)
-
-    # ── LEGS: two chunky pairs. A spurred front pair reaches forward toward the
-    # head, a hind pair rakes back — a planted, heavy stance, not a leg fringe.
-    _leg(surf, (39, 50), (48, 51), (53, 48), spur=True)   # front upper
-    _leg(surf, (37, 53), (45, 59), (50, 63), spur=True)   # front lower
-    _leg(surf, (27, 50), (17, 52), (12, 49))              # hind upper
-    _leg(surf, (29, 53), (20, 59), (15, 63))              # hind lower
-
-    # ── ABDOMEN: a dark oval trailing lower-left under the dome so the body
-    # doesn't float on its legs; a brass underside arc keeps it off the night.
-    _aaellipse(surf, CHITIN, (BCX - 3, BCY + 12), 11, 6)
-    _aaellipse(surf, SHELL, (BCX - 3, BCY + 11), 8, 4)
-    abd = pygame.Rect(BCX - 3 - 11, BCY + 12 - 6, 22, 12)
-    pygame.draw.arc(surf, BRASS, abd, math.radians(200), math.radians(340), 1)
-
-    # ── ELYTRA DOME: the hero mass — one broad red-bronze oval, the largest
-    # shape, with a warm brass band arcing over the crown for volume.
-    _aaellipse(surf, CHITIN, (BCX + 1, BCY + 1), 16, 13)     # under-shadow
-    _aaellipse(surf, SHELL, (BCX, BCY), 16, 13)              # bronze shell
-    _aaellipse(surf, BRASS, (BCX - 2, BCY - 4), 12, 7)       # crown band
-    _aaellipse(surf, SHELL, (BCX - 2, BCY - 2), 11, 6)       # re-shade below band
-
-    # Dark lower-right rim crescent — the value drop from lit crown to shadowed
-    # underside is what sells a hard curved shell rather than a flat disc.
-    dome = pygame.Rect(BCX - 16, BCY - 13, 32, 26)
-    pygame.draw.arc(surf, CHITIN, dome, math.radians(-70), math.radians(25), 2)
-
-    # Crisp gold specular streak following the dome curve up-left, with a tight
-    # near-white hotspot at its head — a hard lacquer glint, not a soft blob.
-    sheen_dx = int((f - 0.5) * 4)
-    pygame.draw.line(surf, GOLD, (BCX - 9 + sheen_dx, BCY - 7),
-                     (BCX + 1 + sheen_dx, BCY - 2), 2)
-    pygame.draw.circle(surf, WHITE, (BCX - 9 + sheen_dx, BCY - 7), 1)
-
-    # Elytra suture: a single dark seam when sealed; on the strike it splits into
-    # a gold-rimmed amber gap — the visible payoff the hindwings fanned from.
-    crack = int(s * 7)
-    if crack > 0:
-        pygame.draw.polygon(surf, (*AMBER, 235), [
-            (BCX, BCY - 12), (BCX - crack, BCY),
-            (BCX, BCY + 12), (BCX + crack, BCY)])
-        pygame.draw.line(surf, GOLD, (BCX, BCY - 12), (BCX - crack + 1, BCY), 1)
-        pygame.draw.line(surf, GOLD, (BCX, BCY + 12), (BCX - crack + 1, BCY), 1)
-        pygame.draw.line(surf, CHITIN, (BCX - crack, BCY - 2), (BCX - crack, BCY + 2), 1)
-        pygame.draw.line(surf, CHITIN, (BCX + crack, BCY - 2), (BCX + crack, BCY + 2), 1)
-    else:
-        pygame.draw.line(surf, CHITIN, (BCX, BCY - 12), (BCX, BCY + 12), 2)
-
-    # ── PRONOTAL (lower) HORN: a thickened prong projecting up from the thorax
-    # to oppose the cephalic horn — the two tips frame the Hercules pincer gap.
-    pron = [(45, 37), (43, 38), (39, 28), (37, 21),
-            (39, 23), (42, 31), (45, 37)]
-    pygame.draw.polygon(surf, CHITIN, pron)
-    pygame.draw.line(surf, GOLD, (43, 38), (37, 21), 1)     # lit inner edge
-
-    # ── HEAD: small dark oval under the horns.
-    _aaellipse(surf, CHITIN, (HCX, HCY), 6, 5)
-    _aaellipse(surf, SHELL, (HCX - 1, HCY - 1), 4, 3)
-
-    # ── COMPOUND EYES: dark green with a white catchlight so the face reads.
-    for ex, ey in ((HCX - 3, HCY + 1), (HCX + 4, HCY)):
-        pygame.draw.circle(surf, EYE_G, (ex, ey), 3)
-        pygame.draw.circle(surf, CHITIN, (ex, ey), 3, 1)
-        pygame.draw.circle(surf, WHITE, (ex - 1, ey - 1), 1)
-
-    # ── ANTENNAE: short, dark, and tucked forward-down BELOW the crown line so
-    # nothing but the horn breaks the top of the silhouette.
-    pygame.draw.line(surf, CHITIN, (48, 32), (53, 31), 2)
-    pygame.draw.line(surf, CHITIN, (48, 33), (52, 35), 2)
-
-    # ── CEPHALIC HORN (HERO TELL): a broad-based blade sweeping up-left and
-    # forking into a Y-split at the tip, clearing the crown by ~10px. The gold
-    # rim runs the full lit upper edge so it stays legible on the night sky.
-    shaft = [(47, 32), (44, 25), (41, 20), (38, 17),
-             (36, 17), (38, 21), (40, 25), (42, 32)]
-    pygame.draw.polygon(surf, CHITIN, shaft)
-    pygame.draw.circle(surf, CHITIN, (37, 17), 2)           # fork hub
-    pygame.draw.line(surf, CHITIN, (37, 17), (34, 13), 3)   # left prong
-    pygame.draw.line(surf, CHITIN, (37, 17), (40, 13), 3)   # right prong
-    pygame.draw.circle(surf, CHITIN, (34, 13), 1)
-    pygame.draw.circle(surf, CHITIN, (40, 13), 1)
-    pygame.draw.lines(surf, GOLD, False,
-                      [(42, 32), (40, 25), (38, 20), (36, 17), (34, 13)], 2)
-    pygame.draw.circle(surf, WHITE, (34, 13), 1)            # tip glint
-
+    # Far (left) wing, near (right) wing, then the tails over the hindwing hem,
+    # then body + head so the fuzzy thorax caps the tail roots.
+    _draw_wing(surf, -1, spread, nx)
+    _draw_wing(surf, +1, spread, nx)
+    _draw_tails(surf, spread, nx, sway)
+    _draw_body(surf)
+    _draw_head(surf)
     return surf
 
 
-_state = {}
+def _apply_glow(outlined, fi):
+    # Green moonlit bloom BEHIND the outlined moth, brightest on the down-stroke
+    # (fi 3) so the pale sprite still separates from a dark night sky. Built as
+    # additive circles on a clear plate, with the finished sprite laid on top —
+    # done AFTER _add_outline so the outline mask never swallowed the glow.
+    scale = {3: 1.0, 2: 0.82, 1: 0.72, 0: 0.70}.get(fi, 0.75)
+    w, h = outlined.get_size()
+    cx, cy = w // 2, h // 2 - 6
+    halo = pygame.Surface((w, h), pygame.SRCALPHA)
+    for r, base in ((32, 26), (23, 30), (15, 34)):
+        a = int(base * scale)
+        g = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+        pygame.draw.circle(g, (*GLOW, a), (r, r), r)
+        halo.blit(g, (cx - r, cy - r), special_flags=pygame.BLEND_RGBA_ADD)
+    halo.blit(outlined, (0, 0))
+    return halo
+
+
+_state = {"frames": None, "rot": {}}
 
 
 def build(frame_idx: int, tilt_deg: float) -> pygame.Surface:
-    angle = _WING_ANGLES[frame_idx % len(_WING_ANGLES)]
-    key = (frame_idx % len(_WING_ANGLES), round(tilt_deg / 3) * 3)
-    if key not in _state:
-        _state[key] = pygame.transform.rotozoom(
-            _add_outline(_build_frame(angle)), key[1], 1.0)
-    return _state[key]
+    if _state["frames"] is None:
+        _state["frames"] = [
+            _apply_glow(_add_outline(_build_frame(a)), i)
+            for i, a in enumerate(_WING_ANGLES)
+        ]
+    frame_idx %= 4
+    key = (frame_idx, int(round(tilt_deg / 3)) * 3)
+    if key not in _state["rot"]:
+        _state["rot"][key] = pygame.transform.rotozoom(
+            _state["frames"][frame_idx], key[1], 1.0)
+    return _state["rot"][key]
