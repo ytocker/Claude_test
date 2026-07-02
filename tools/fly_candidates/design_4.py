@@ -1,11 +1,16 @@
 """MORTIMER DEATHFLY (Design 4) — scratch fly candidate.
 
-A gothic Halloween showpiece fly: a plush pitch-black barrel body carrying a
+A gothic Halloween showpiece fly: a plush velvet-black barrel body carrying a
 pale death's-head-hawkmoth skull crest, topped by two huge bioluminescent
 yellow-green compound eyes that softly pulse across the flap cycle. Spooky-cute,
 never gross. Lives or dies at 40px, so it leans on one bold shape (the round
 velvet barrel) + two high-contrast signatures that survive the downscale: the
-bone-white skull and the glowing green eyes.
+glowing green eyes (brightest) and the bone skull marking (a body tell, dimmer).
+
+Velvet-on-night can collapse to a hole, so the barrel is rescued three ways: a
+baked dark-green outer halo rings the whole mass against ANY sky, a light-grey
+rim wraps the lit top-left, and an interior rim-light lifts the crown — the
+plump thorax+abdomen must still read as a solid round body at 40px.
 
 Contract mirrors game/animal_skins.py so it lifts straight in later:
 `build(frame_idx, tilt_deg) -> Surface` from `_make_prebuilt_skin`.
@@ -55,18 +60,21 @@ except Exception:  # pragma: no cover - defensive fallback for scratch runs
 
 # ── palette ──────────────────────────────────────────────────────────────────
 _VELVET   = (10, 10, 14)          # body core
-_RIMLIGHT = (30, 30, 38)          # body top rim-light
-_RIMGREY  = (86, 86, 100)         # soft grey top rim-arc so it isn't a blob
-_BONE     = (232, 228, 216)       # skull + wing edge glow
-_BONE_D   = (188, 184, 170)
-_SOCKET   = (8, 8, 12)            # skull eye sockets / setae
+_RIMLIGHT = (40, 40, 50)          # interior crown rim-light (lit side)
+_RIMGREY  = (90, 90, 102)         # #5A5A66 lit-edge rim wrapping the top-left
+_HALO     = (90, 122, 24, 102)    # #5A7A18 @ ~40% — baked dark-green outer glow
+_BONE     = (232, 228, 216)       # eye speculars + wing leading-edge glow
+_SKULL    = (190, 186, 176)       # #BEBAB0 — dimmed so the skull reads as a
+_SKULL_D  = (150, 146, 138)       #   BODY marking, never a second face
+_SOCKET   = (8, 8, 12)            # skull eye sockets / nasal / teeth
 _EYE_CORE = (182, 255, 60)        # biolum hotspot
 _EYE_MID  = (122, 176, 32)
 _EYE_RIM  = (58, 90, 16)
 _EYE_HOT  = (224, 255, 168)
-_WING     = (42, 42, 50)
-_WING_VEIN = (20, 20, 26)
-_LABELLUM = (21, 21, 14)
+_WING     = (62, 62, 74)          # #3E3E4A — lifted so the fans read on night
+_WING_VEIN = (28, 28, 36)
+_LABELLUM = (58, 58, 46)          # #3A3A2E — lighter-than-body mouth pad
+_SETAE    = (74, 74, 86)          # bristles that catch the grey rim
 
 # Eye pulse per flap frame — the getter feeds exact `_WING_ANGLES`, so keying on
 # the rounded angle gives the brief's bright/medium/brightest/medium cadence
@@ -100,12 +108,16 @@ def _compound_eye(surf, cx, cy, strength):
 
 
 def _death_wing(angle_deg, sgn):
-    """Wide, smoky charcoal rounded wing — translucent, bone edge glow, 2 veins.
-    `sgn` mirrors the blade so the pair spreads symmetrically off the thorax."""
+    """Wide smoky charcoal fan — a clear bone leading edge + a full faint hem
+    keep the up-and-back span legible at 40px, where a flat translucent shape
+    used to vanish. `sgn` mirrors the blade so the pair spreads symmetrically."""
     w = pygame.Surface((48, 30), pygame.SRCALPHA)
     blade = [(6, 15), (18, 5), (34, 5), (44, 13), (40, 21), (22, 25), (10, 22)]
-    pygame.draw.polygon(w, (*_WING, 140), blade)          # ~55% alpha
-    pygame.draw.polygon(w, (*_BONE, 90), blade, 1)        # faint bone hem
+    pygame.draw.polygon(w, (*_WING, 178), blade)          # ~70% alpha fill
+    pygame.draw.polygon(w, (*_BONE, 70), blade, 1)        # faint full hem
+    # Bright 1px bone stroke on the leading/top edge — the wing's read at 40px.
+    pygame.draw.lines(w, (*_BONE, 220), False,
+                      [(6, 15), (18, 5), (34, 5), (44, 13)], 1)
     pygame.draw.line(w, _WING_VEIN, (10, 15), (38, 9), 1)
     pygame.draw.line(w, _WING_VEIN, (10, 17), (34, 20), 1)
     out = pygame.transform.rotate(w, angle_deg)
@@ -126,41 +138,54 @@ def build_mortimer_deathfly(wing_angle_deg):
         _eye_bloom(surf, ex, 31, 15, strength)
 
     # Wings spread behind the barrel for a menacing, moth-like span.
-    _rot_blit(surf, _death_wing(20 + spread, -1), (28, 26))
-    _rot_blit(surf, _death_wing(20 + spread, +1), (40, 26))
+    _rot_blit(surf, _death_wing(20 + spread, -1), (28, 27))
+    _rot_blit(surf, _death_wing(20 + spread, +1), (40, 27))
+
+    # ── Baked dark-green outer halo: draw green mass 2px proud of every body
+    #    ellipse, then paint velvet inside — the leftover ring anchors the
+    #    round shape against ANY sky before the house outline even wraps it. ──
+    _aaellipse(surf, _HALO, (44, 33), 12, 10)             # head halo
+    _aaellipse(surf, _HALO, (33, 50), 14, 12)             # abdomen halo
+    _aaellipse(surf, _HALO, (BCX, BCY), 14, 13)           # thorax halo
 
     # Dark head mass so the two compound eyes read as one bulging brow.
-    _aaellipse(surf, _VELVET, (HCX, HCY - 1), 10, 8)
+    _aaellipse(surf, _VELVET, (44, 33), 10, 8)
 
-    # ── Velvet black barrel body — plump, not elongated ──
-    _aaellipse(surf, _VELVET, (BCX, BCY + 1), 13, 12)
-    _aaellipse(surf, _RIMLIGHT, (BCX - 1, BCY - 3), 10, 6)
-    pygame.draw.arc(surf, _RIMGREY, (BCX - 12, BCY - 11, 24, 22),
-                    math.radians(25), math.radians(160), 2)
+    # ── Velvet barrel body — plump thorax + a fatter abdomen bulging down and
+    #    behind so the classic fat-fly proportion reads (~26×24px visible). ──
+    _aaellipse(surf, _VELVET, (33, 50), 12, 11)           # fat abdomen
+    _aaellipse(surf, _VELVET, (BCX, BCY), 12, 11)         # thorax
+    # Interior rim-light lifts the lit crown out of the black core.
+    _aaellipse(surf, _RIMLIGHT, (27, 40), 8, 5)
+    # Light-grey lit-edge rim wrapping the top-left of the mass (the read that
+    # keeps the barrel from collapsing to a black hole on a dark sky).
+    pygame.draw.arc(surf, _RIMGREY, (BCX - 14, BCY - 13, 28, 26),
+                    math.radians(95), math.radians(185), 2)
 
-    # ── Death's-head skull crest on the thorax (bold + simple) ──
-    _aaellipse(surf, _BONE_D, (32, 41), 7, 6)             # cranium shadow
-    _aaellipse(surf, _BONE, (32, 40), 6, 5)               # domed cranium
-    pygame.draw.circle(surf, _SOCKET, (29, 40), 3)        # eye sockets
-    pygame.draw.circle(surf, _SOCKET, (35, 40), 3)
+    # ── Death's-head skull crest — dimmed + slightly smaller than R1 so it
+    #    reads as a thorax marking, not a rival face to the glowing eyes. ──
+    _aaellipse(surf, _SKULL_D, (32, 42), 5, 6)            # cranium shadow
+    _aaellipse(surf, _SKULL, (32, 41), 5, 5)              # domed cranium
+    pygame.draw.circle(surf, _SOCKET, (30, 41), 2)        # eye sockets
+    pygame.draw.circle(surf, _SOCKET, (34, 41), 2)
     pygame.draw.polygon(surf, _SOCKET,                    # nasal cavity
-                        [(31, 43), (33, 43), (32, 46)])
-    pygame.draw.polygon(surf, _BONE, [(28, 45), (36, 45),  # jaw / chin bar
-                                      (35, 48), (29, 48)])
-    for tx in (30, 32, 34):                               # teeth notches
-        pygame.draw.line(surf, _SOCKET, (tx, 45), (tx, 48), 1)
+                        [(31, 43), (33, 43), (32, 45)])
+    pygame.draw.polygon(surf, _SKULL, [(29, 45), (35, 45),  # jaw / chin bar
+                                       (34, 47), (30, 47)])
+    for tx in (31, 32, 33):                               # teeth notches
+        pygame.draw.line(surf, _SOCKET, (tx, 45), (tx, 47), 1)
 
-    # 3 stiff black setae/bristles off the thorax top — spidery, slightly long.
-    for x0, y1 in ((23, 18), (26, 16), (29, 19)):
-        pygame.draw.line(surf, _SOCKET, (26, 31), (x0, y1), 1)
+    # 3 stiff setae off the thorax hump — grey so they flick clear of the sky.
+    for x0, y1 in ((22, 20), (25, 18), (29, 21)):
+        pygame.draw.line(surf, _SETAE, (27, 34), (x0, y1), 1)
 
-    # ── Two huge bioluminescent compound eyes ──
+    # ── Two huge bioluminescent compound eyes — the brightest thing here ──
     for ex in (38, 50):
         _compound_eye(surf, ex, 31, strength)
 
-    # Dark spongy labellum tucked under the head front (a pad, not a needle).
-    _aaellipse(surf, _LABELLUM, (45, 46), 3, 2)
-    pygame.draw.line(surf, _SOCKET, (44, 46), (46, 46), 1)
+    # Spongy labellum pad tucked under the face — a readable lighter nub.
+    _aaellipse(surf, _LABELLUM, (46, 45), 3, 2)
+    pygame.draw.line(surf, _SOCKET, (45, 45), (47, 45), 1)
 
     return surf
 

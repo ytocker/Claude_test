@@ -19,12 +19,13 @@ for fi in range(4):
     hp.blit(fr2, fr2.get_rect(center=(90, 90)))
     panels.append(hp)
 
+# 40px NEAREST truth strip — the real "lives or dies at 40px" read.
 truth_surf = pygame.Surface((4*50+10, 60), pygame.SRCALPHA)
 truth_surf.fill((8, 8, 12))
 for fi in range(4):
     fr = build(fi, 0.0)
     h = int(40 * fr.get_height() / fr.get_width())
-    fr40 = pygame.transform.scale(fr, (40, h))
+    fr40 = pygame.transform.scale(fr, (40, h))   # nearest-neighbour
     truth_surf.blit(fr40, (fi*50+5, (60-h)//2))
 
 sheet = pygame.Surface((4*188+8, 188+68), pygame.SRCALPHA)
@@ -34,5 +35,5 @@ for i, p in enumerate(panels):
 sheet.blit(truth_surf, (8, 196))
 
 os.makedirs("/home/user/skybit/docs/store_redesign/animal/fly/design_4", exist_ok=True)
-pygame.image.save(sheet, "/home/user/skybit/docs/store_redesign/animal/fly/design_4/round_1.png")
-print("Saved")
+pygame.image.save(sheet, "/home/user/skybit/docs/store_redesign/animal/fly/design_4/round_2.png")
+print("Saved round_2.png")
