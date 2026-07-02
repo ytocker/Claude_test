@@ -102,6 +102,7 @@ def main() -> None:
     title = pygame.font.SysFont(None, 34)
     sub = pygame.font.SysFont(None, 19)
     label = pygame.font.SysFont(None, 22)
+    serial = pygame.font.SysFont(None, 24, bold=True)
 
     sheet.blit(title.render("Skybit — current pagoda designs (live roster)",
                             True, (245, 240, 230)), (pad, 10))
@@ -116,7 +117,18 @@ def main() -> None:
         cell.blit(bake_tower(key), (0, 0))
         sheet.blit(cell, (x, y))
         pygame.draw.rect(sheet, (60, 62, 72), pygame.Rect(x, y, cw, ch), 1)
-        lab = label.render(key, True, (255, 224, 150))
+
+        # Serial number badge, top-left of the cell — a stable ID to talk about
+        # each design ("#3") independent of its (long) internal key name.
+        sn = f"#{i + 1}"
+        num = serial.render(sn, True, (24, 25, 30))
+        bw, bh = num.get_width() + 12, num.get_height() + 6
+        badge = pygame.Surface((bw, bh), pygame.SRCALPHA)
+        pygame.draw.rect(badge, (255, 224, 150), badge.get_rect(), border_radius=6)
+        badge.blit(num, (6, 3))
+        sheet.blit(badge, (x + 4, y + 4))
+
+        lab = label.render(f"{i + 1}. {key}", True, (255, 224, 150))
         sheet.blit(lab, (x + (cw - lab.get_width()) // 2, y + ch + 4))
 
     out = _REPO / "docs" / "pillar_redesign" / "pagoda_comparison.png"
