@@ -83,10 +83,12 @@ _EYE_PULSE = {50: 0.82, 20: 0.55, -10: 1.00, -40: 0.62}
 
 
 def _eye_bloom(surf, cx, cy, r, strength):
-    """Soft additive green halo so the eyes glow against the night sky."""
+    """Soft additive green halo so the eyes glow against the night sky. The
+    falloff is kept tight and steep so the house silhouette outline (alpha>8)
+    hugs the lens instead of tracing a stray fringe-ring out past the body."""
     g = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
     for rad in range(r, 0, -1):
-        a = int(strength * 60 * (1.0 - rad / r))
+        a = int(strength * 44 * (1.0 - rad / r) ** 1.6)
         if a > 0:
             pygame.draw.circle(g, (120, 200, 40, a), (r, r), rad)
     surf.blit(g, (cx - r, cy - r), special_flags=pygame.BLEND_RGBA_ADD)
@@ -135,7 +137,7 @@ def build_mortimer_deathfly(wing_angle_deg):
 
     # Eyes: hero glow first so lids/facets sit crisply on top of the bloom.
     for ex in (38, 50):
-        _eye_bloom(surf, ex, 31, 15, strength)
+        _eye_bloom(surf, ex, 31, 11, strength)
 
     # Wings spread behind the barrel for a menacing, moth-like span.
     _rot_blit(surf, _death_wing(20 + spread, -1), (28, 27))
