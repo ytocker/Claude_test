@@ -19,7 +19,7 @@ _draw_plinth_mist + foliage for the base), but it does not wire anything into
 the live game.
 
 Run:  python docs/pillar_landmarks/totems/moai_ancestor/render.py
-Out:  docs/pillar_landmarks/totems/moai_ancestor/round_1.png
+Out:  docs/pillar_landmarks/totems/moai_ancestor/round_2.png
 """
 from __future__ import annotations
 
@@ -89,7 +89,14 @@ def _scoria(palette):
     # pukao. Mixed only <=0.10 toward the horizon so the biome nudges it warm at
     # dawn/dusk but it stays unambiguously RED in every phase (the shipped moai's
     # round-1 bug was a horizon-mixed crown melting into the tan sky by day).
-    return _mix((150, 58, 40), palette['horizon'], 0.10)
+    #
+    # The base is a BRIGHT terracotta-scoria, not a deep oxblood: the pukao is
+    # the crowning focal + the only warm accent, and it has to clear the dark
+    # basalt body by VALUE (a deep red sat nearly isoluminant on the basalt, so
+    # the crown barely separated). G/R 0.45, B/R 0.30 keeps it firmly RED, never
+    # orange/pink, while its luminance rides ~30 above the body mid in every
+    # biome phase so the crown reads by value alone.
+    return _mix((205, 92, 62), palette['horizon'], 0.10)
 
 
 def _lum(c):
@@ -158,18 +165,20 @@ def _draw_head(surf, cx, y0, y1, half, palette, rng, *, crown, base):
     thumbnail = hh < 50
 
     # ── Deep carved relief ───────────────────────────────────────────────
-    brow_y = y0 + int(hh * 0.24)
+    # Brow pushed up + chin dropped + eyes drawn in tighter so the face region
+    # reads ELONGATED (moai gaunt), not a blocky centred cluster.
+    brow_y = y0 + int(hh * 0.20)
     brow_h = max(3, int(hh * 0.10))
     eye_y = brow_y + brow_h - 1
     eye_h = max(4, int(hh * 0.13))
-    eye_dx = int(half * 0.44)
+    eye_dx = int(half * 0.40)
     eye_w = max(4, int(half * 0.34))
     nose_top = brow_y + brow_h
-    nose_bot = y0 + int(hh * 0.70)
+    nose_bot = y0 + int(hh * 0.72)
     nose_hw = max(2, int(half * 0.26))
-    lip_y = y0 + int(hh * 0.76)
+    lip_y = y0 + int(hh * 0.78)
     lip_hw = int(half * 0.34)
-    chin_y = y0 + int(hh * 0.88)
+    chin_y = y0 + int(hh * 0.90)
 
     brow_dark = _shade(mid, -46)
     brow_lit = _shade(lit, 22)
@@ -272,7 +281,10 @@ def _draw_pukao(surf, cx, y_top, y_bot, half, palette):
     red = _scoria(palette)
     red_lit = _shade(red, 34)
     red_sh = _shade(red, -40)
-    pw = int(half * 2 * 1.04)     # a touch wider than the crown -> reads as a cap
+    # ~1.2x the crown so the blackout reads "gaunt post + distinct wide cap-drum"
+    # (the moai tell) instead of a plain menhir bar. The overhang stays inside
+    # the eave/ornament MARGIN gutter, so it never widens the collision band.
+    pw = int(half * 2 * 1.20)
     dh = y_bot - y_top
     x0 = cx - pw // 2
     # Cylindrical body with a left-lit horizontal gradient.
@@ -286,6 +298,16 @@ def _draw_pukao(surf, cx, y_top, y_bot, half, palette):
     pygame.draw.ellipse(surf, red_lit, top_rect.inflate(-2, -2))
     # A darker seam where the drum meets the crown.
     pygame.draw.line(surf, red_sh, (x0 + 1, y_bot), (x0 + pw - 2, y_bot), 1)
+    # A shadowed neck band on the crown head just beneath the drum: the drum is
+    # drawn over the head, so darkening the rows under the seam sinks the neck
+    # and makes the bright scoria cap pop as a crown on a darker post.
+    _, mid_b, sh_b = _body_triad(palette)
+    neck_dark = _shade(sh_b, -16)
+    nb_hw = int(half * 0.92)
+    for k in range(3):
+        t = 1.0 - k / 3.0
+        pygame.draw.line(surf, _mix(mid_b, neck_dark, t),
+                         (cx - nb_hw, y_bot + 1 + k), (cx + nb_hw, y_bot + 1 + k), 1)
     # Pitted scoria texture on the drum face.
     rng = random.Random(cx * 7 + y_top)
     for _ in range(max(3, pw // 4)):
@@ -323,6 +345,12 @@ def _draw_tower(surf, cx, y_top, y_bot, palette, seed):
 
     plinth_h = min(15, max(9, int(section_h * 0.14)))
     pukao_h = min(18, max(10, int(section_h * 0.16)))
+    # A very short section has budget for only ONE head, so the plinth+pukao tax
+    # squats it (W/H drifts blocky). Shave a couple px off both at short sections
+    # to hand that height back to the lone head and keep it gaunt.
+    if section_h < 100:
+        plinth_h = max(7, plinth_h - 2)
+        pukao_h = max(9, pukao_h - 2)
     base_y = y_bot
 
     # Atmospheric backlight wedge behind the plinth.
@@ -406,6 +434,39 @@ def _gap_rim_clearance(surf, x0, x1, gap_y, up=True):
     return 200
 
 
+def _pukao_measure(pal, seed=7):
+    """Pixel-measured pukao value + width, isolated to the pukao BAND at the top
+    of the tower so warm non-pukao pixels (plinth mist by day, amber socket halos
+    by night) can't contaminate the reading. Body mid is the deterministic
+    _body_triad mid (the value the crown must clear), matching how the body is
+    specced. Returns (drum mean lum, body mid lum, dL, drum px width, crown px)."""
+    section_h = 355
+    surf = pygame.Surface((CACHE_W, CACHE_H), pygame.SRCALPHA)
+    br = pygame.Rect(MARGIN, GROUND_Y - section_h, PIPE_W, section_h)
+    tr = pygame.Rect(MARGIN, 0, PIPE_W, 0)
+    candidate_moai_ancestor(surf, tr, br, pal, seed=seed)
+
+    # Same budget as _draw_tower -> the drum occupies [y_top+2 .. y_top+pukao_h].
+    y_top = GROUND_Y - section_h
+    pukao_h = min(18, max(10, int(section_h * 0.16)))
+    band_top, band_bot = y_top, y_top + pukao_h + 2
+
+    drum = []
+    drum_min_x, drum_max_x = 10 ** 9, -1
+    for x in range(CACHE_W):
+        for y in range(band_top, band_bot):
+            r, g, b, a = surf.get_at((x, y))
+            if a == 0 or not (r - g > 28 and r > 120):   # bright scoria red only
+                continue
+            drum.append(_lum((r, g, b)))
+            drum_min_x = min(drum_min_x, x)
+            drum_max_x = max(drum_max_x, x)
+    drum_lum = sum(drum) / max(1, len(drum))
+    body_lum = _lum(_body_triad(pal)[1])
+    drum_w = (drum_max_x - drum_min_x + 1) if drum_max_x >= 0 else 0
+    return drum_lum, body_lum, drum_lum - body_lum, drum_w, PIPE_W
+
+
 def _hero(pal, seed):
     gap_y, gap_h = 168, 150
     top_h = int(gap_y - gap_h / 2)
@@ -444,12 +505,15 @@ def _blackout(pal, section_h, scale):
     br = pygame.Rect(MARGIN, GROUND_Y - section_h, PIPE_W, section_h)
     tr = pygame.Rect(MARGIN, 0, PIPE_W, 0)
     candidate_moai_ancestor(surf, tr, br, pal, seed=7)
-    crop = pygame.Surface((PIPE_W + 8, section_h + 8), pygame.SRCALPHA)
+    # Crop wide enough to capture the pukao overhang (~1.2x PIPE_W) so the wide
+    # cap-drum shows in the blackout, not just the 58px collision post.
+    pad_x = 12
+    crop = pygame.Surface((PIPE_W + pad_x * 2, section_h + 8), pygame.SRCALPHA)
     crop.fill((238, 238, 240))
     for x in range(CACHE_W):
         for y in range(GROUND_Y - section_h, GROUND_Y):
             if surf.get_at((x, y))[3] > 40:
-                cx = x - MARGIN + 4
+                cx = x - MARGIN + pad_x
                 cy = y - (GROUND_Y - section_h) + 4
                 if 0 <= cx < crop.get_width() and 0 <= cy < crop.get_height():
                     crop.set_at((cx, cy), (18, 18, 22))
@@ -471,6 +535,18 @@ def main():
     sc_d, sc_n = _scoria(pal), _scoria(pal_n)
     print(f"  SCORIA day={sc_d} night={sc_n}  (R dominant both: "
           f"{sc_d[0] > sc_d[1] and sc_n[0] > sc_n[1]})")
+
+    # Pukao value-contrast + width proof — the round_2 make-or-break.
+    dd, bd, dl_d, drum_w, crown_w = _pukao_measure(pal)
+    dn, bn, dl_n, _, _ = _pukao_measure(pal_n)
+    print("PUKAO vs BODY value contrast (target dL >= +25)")
+    print(f"  DAY   drum lum={dd:.1f}  body lum={bd:.1f}  dL=+{dl_d:.1f}  "
+          f"[{'OK' if dl_d >= 25 else 'FAIL'}]")
+    print(f"  NIGHT drum lum={dn:.1f}  body lum={bn:.1f}  dL=+{dl_n:.1f}  "
+          f"[{'OK' if dl_n >= 25 else 'FAIL'}]")
+    ratio = drum_w / crown_w
+    print(f"PUKAO/CROWN width: drum={drum_w}px crown={crown_w}px  ratio={ratio:.2f}  "
+          f"[{'OK' if 1.15 <= ratio <= 1.25 else 'FAIL'}]")
 
     hero_day, hd_h = _hero(pal, 7)
     hero_night, hn_h = _hero(pal_n, 7)
@@ -511,7 +587,7 @@ def main():
     # ── compose the sheet ──
     pad = 12
     label_h = 22
-    head_h = 64
+    head_h = 82
     title = pygame.font.SysFont(None, 30)
     sub = pygame.font.SysFont(None, 18)
     lab = pygame.font.SysFont(None, 19)
@@ -530,12 +606,16 @@ def main():
     sheet.fill((24, 25, 30))
 
     sheet.blit(title.render(
-        "moai_ancestor — gaunt dark-basalt ancestor totem  ·  round_1",
+        "moai_ancestor — gaunt dark-basalt ancestor totem  ·  round_2",
         True, (245, 240, 230)), (pad, 12))
     sheet.blit(sub.render(
         "red edges = PIPE_W (58px) collision band  ·  dark _basalt body  ·  "
-        "shelf-brow + deep-socket + nose-ridge relief  ·  fixed scoria pukao  ·  "
+        "shelf-brow + deep-socket + nose-ridge relief  ·  BRIGHT scoria pukao  ·  "
         "symmetric ceiling flip", True, (170, 172, 182)), (pad, 40))
+    sheet.blit(sub.render(
+        f"FIX: pukao dL day +{dl_d:.0f} / night +{dl_n:.0f} (>=+25)  ·  "
+        f"cap-drum {drum_w}px vs {crown_w}px crown = {ratio:.2f}x (1.15-1.25)  ·  "
+        "darker neck band under drum", True, (150, 210, 160)), (pad, 56))
 
     x = pad
     y = head_h
@@ -584,7 +664,7 @@ def main():
     sheet.blit(lab.render("1x @ 58px", True, (200, 200, 210)),
                (x, head_h + bo3.get_height() + 24 + bo1.get_height() + 2))
 
-    out = pathlib.Path(__file__).resolve().parent / "round_1.png"
+    out = pathlib.Path(__file__).resolve().parent / "round_2.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
