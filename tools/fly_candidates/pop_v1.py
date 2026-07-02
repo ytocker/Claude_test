@@ -6,10 +6,12 @@ grammar as Design 5 — flat colour blocks, uniform 2px black ink loop on every
 element, hex-packed Ben-Day dot fills — but tuned to a cold blue/lime charge
 instead of the warm red/yellow original.
 
-R2 rework: eyes split by a solid ink gutter into two unmistakable domes; wings
-rebuilt as short, wide convex paddle-fans that visibly sweep through an arc;
-the deep-blue labellum re-seated as a squat sponge pad clearly below the face;
-one clean thorax/abdomen seam with bold setae breaking the hump silhouette.
+R3 rework (all four C2 tells): wings rebuilt as SHORT, WIDE, horizontal
+paddle-fans that sweep up-and-BACK over the barrel (never the tall vertical
+rabbit-ear V); a distinct deep-blue labellum lobe re-seated directly under the
+eye pair with its own ink ring; thorax and abdomen fused into one continuous
+peanut silhouette (no detached lime droplet); and 2–3 bold 3px setae planted on
+the thorax shoulder in ALL four flap frames.
 
 Exploration only — wrapped by the local `_make_prebuilt_skin` and NOT
 registered in any production BUILDERS map.
@@ -50,7 +52,7 @@ THORAX    = (0, 87, 255)            # #0057FF electric-blue thorax
 ABDOMEN   = (170, 255, 0)           # #AAFF00 neon-lime abdomen
 BODY_DOT  = (255, 229, 0)           # #FFE500 yellow Ben-Day shadow dots
 BLUE      = (0, 87, 255)            # #0057FF Ben-Day eye dots
-EYEW      = (232, 244, 255)         # #E8F4FF cool-white dome
+EYEW      = (200, 240, 255)         # #C8F0FF cool-white dome
 WHITE     = (255, 255, 255)
 WINGMEM   = (200, 240, 255)         # #C8F0FF light-cyan wing membrane
 WINGDOT   = (170, 255, 0)           # #AAFF00 lime halftone on the fan
@@ -75,11 +77,13 @@ def _ink_outline(layer, thickness=2, color=INK):
     return out
 
 
-def _benday(target, region_pts_or_mask, color, spacing=4, radius=1, phase=0):
+def _benday(target, region_pts_or_mask, color, spacing=9, radius=2, phase=0):
     """Overlay a regular Ben-Day halftone dot grid clipped to a region.
 
     Odd rows are half-offset so the grid reads as a hex-packed halftone,
-    not a plain lattice. `region` is polygon points or a white mask surface."""
+    not a plain lattice. Spacing≥9 / radius 2 keeps the dots readable as
+    dots after the shrink instead of dissolving into fuzz. `region` is
+    polygon points or a white mask surface."""
     w, h = target.get_size()
     if isinstance(region_pts_or_mask, pygame.Surface):
         mask = region_pts_or_mask
@@ -101,30 +105,30 @@ def _benday(target, region_pts_or_mask, color, spacing=4, radius=1, phase=0):
     target.blit(dots, (0, 0))
 
 
-# ── one short wide convex paddle-fan ─────────────────────────────────────────
-# A single broad ellipse — clearly WIDER than tall — hinged at its inner end so
-# the whole paddle swings about one pivot. No tapered blade, no faceted tip: the
-# outer arc stays a smooth convex sweep after the downscale. Lime dots are big
-# and sparse so a few survive at truth scale; the two short veins live only near
-# the hinge so they never spike the silhouette.
-_WING_ROOT = (7, 22)                 # inner hinge end of the paddle
+# ── one short WIDE horizontal paddle-fan ──────────────────────────────────────
+# The C2 fail was tall pointed rabbit-ears. The fix is a fan that is decisively
+# WIDER than it is tall and that only ever tilts through a shallow arc, so even
+# swept it reads sideways — a paddle, never a vertical blade. The membrane long
+# axis runs horizontal; the hinge sits at the INNER (thorax) end so the whole
+# broad blade sweeps back over the barrel. Height is capped near the body height
+# (~16px) so it can never tower over the barrel.
+_WING_ROOT = (35, 14)                # inner hinge end (thorax side) of the fan
 
 
 def _wing_surface():
-    """One rounded pop-art paddle-fan: a broad cyan membrane ellipse, a chunky
-    lime halftone, two short hinge veins, then a 2px ink loop."""
-    w = pygame.Surface((54, 44), pygame.SRCALPHA)
-    membrane = pygame.Rect(0, 0, 42, 22)     # wide-and-short → paddle, not blade
-    membrane.center = (28, 22)
+    """One short, wide cyan paddle-fan: a broad horizontal membrane ellipse, a
+    chunky lime halftone, two short hinge veins, then a 2px ink loop."""
+    w = pygame.Surface((46, 28), pygame.SRCALPHA)
+    membrane = pygame.Rect(0, 0, 34, 16)     # 34-wide × 16-tall → decisively wide
+    membrane.center = (18, 14)
     pygame.draw.ellipse(w, WINGMEM, membrane)
-    # Fewer, larger lime dots ride the fan so the pop accent survives shrink
-    # instead of dissolving into cyan fuzz.
-    emask = pygame.Surface((54, 44), pygame.SRCALPHA)
+    # Big sparse lime dots so a few survive the truth-scale shrink as real dots.
+    emask = pygame.Surface((46, 28), pygame.SRCALPHA)
     pygame.draw.ellipse(emask, (255, 255, 255, 255), membrane)
-    _benday(w, emask, WINGDOT, spacing=7, radius=2)
+    _benday(w, emask, WINGDOT, spacing=9, radius=2)
     # Two short veins fan off the hinge only — the outer half stays a clean arc.
-    pygame.draw.line(w, INK, _WING_ROOT, (22, 15), 2)
-    pygame.draw.line(w, INK, _WING_ROOT, (22, 29), 2)
+    pygame.draw.line(w, INK, _WING_ROOT, (22, 9), 2)
+    pygame.draw.line(w, INK, _WING_ROOT, (22, 19), 2)
     return _ink_outline(w, 2)
 
 
@@ -145,54 +149,57 @@ def _place_rotated(dst, layer, pivot_local, angle_deg, pivot_dst):
 # ── the fly ──────────────────────────────────────────────────────────────────
 def build_pop_v1(wing_angle_deg):
     surf = _new()
-    f = (wing_angle_deg + 40) / 90.0        # 1 = wings up-back, 0 = wings up-fwd
+    f = (wing_angle_deg + 40) / 90.0        # 1 = fully swept up-back, 0 = level
 
     # Pure-black speed swooshes streak off the back on the wing-up beats — the
-    # electric-charge motion pop.
+    # electric-charge motion pop. Kept low so the wide wings own the top.
     if f > 0.6:
         for k in range(3):
-            y = 20 + k * 6
-            pygame.draw.line(surf, INK, (5, y + 2), (12, y), 1)
-            pygame.draw.line(surf, INK, (12, y), (19, y - 1), 1)
+            y = 30 + k * 5
+            pygame.draw.line(surf, INK, (4, y + 2), (11, y), 1)
+            pygame.draw.line(surf, INK, (11, y), (18, y - 1), 1)
 
-    # Two broad paddle-fans hinge at one shoulder anchor and SWEEP through a
-    # ~44° arc across the four frames: up-forward on the down-beat, raked
-    # up-and-back on the up-beat. The paddle keeps its area — it rotates, it
-    # never collapses to a line — so the motion always reads.
+    # Two short WIDE paddle-fans hinge at the thorax shoulder and sweep back
+    # over the barrel through a shallow arc. Both blades rake up-and-back (to
+    # the left, the tail direction) so the pair reads as swept fly wings, not a
+    # vertical butterfly V. The lower blade stays near-level for maximum "wide";
+    # the upper blade rides up as the beat peaks — a clear sweep across 4 frames
+    # that never lets either fan stand taller than the body.
     wing = _wing_surface()
-    ang = 18 + f * 44
-    left = pygame.transform.flip(wing, True, False)
-    left_root = (wing.get_width() - 1 - _WING_ROOT[0], _WING_ROOT[1])
-    _place_rotated(surf, wing, _WING_ROOT, ang, (30, 30))
-    _place_rotated(surf, left, left_root, -ang, (28, 30))
+    ang_lower = -(6 + f * 18)               # near-level → decisively sideways
+    ang_upper = -(26 + f * 18)              # raked up-back, ~20° above the lower
+    _place_rotated(surf, wing, _WING_ROOT, ang_lower, (33, 30))
+    _place_rotated(surf, wing, _WING_ROOT, ang_upper, (35, 28))
 
-    # ── one round inked barrel: blue thorax fused into lime abdomen ──
+    # ── one continuous inked barrel: blue thorax fused into lime abdomen ──
+    # Thorax and abdomen overlap heavily and share close radii so the outline
+    # closes as ONE rounded peanut — no lime teardrop dangling below the blue.
     body = _new()
-    _aaellipse(body, ABDOMEN, (BCX, 49), 13, 11)
-    _aaellipse(body, THORAX, (BCX, 41), 13, 9)
-    # Yellow Ben-Day shadow field on the abdomen's lower/shadow side gives the
-    # lime dome its value without going muddy.
+    _aaellipse(body, ABDOMEN, (BCX, 50), 12, 11)
+    _aaellipse(body, THORAX, (BCX, 41), 12, 10)
+    # Yellow Ben-Day shadow field low on the lime dome gives it value without
+    # going muddy; kept sparse so it never fights the silhouette.
     amask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    _aaellipse(amask, (255, 255, 255, 255), (BCX + 1, 52), 11, 7)
-    _benday(body, amask, BODY_DOT, spacing=4, radius=1, phase=2)
-    # One clean 2px ink edge at the waist where blue meets lime — a single
-    # crisp divider, not a stacked-bands ladder, so the barrel silhouette wins.
-    pygame.draw.line(body, INK, (BCX - 9, 46), (BCX + 9, 46), 2)
+    _aaellipse(amask, (255, 255, 255, 255), (BCX + 1, 53), 10, 6)
+    _benday(body, amask, BODY_DOT, spacing=6, radius=1, phase=2)
+    # One short crisp waist tick where blue meets lime — a single divider inside
+    # the barrel, not a stacked ladder that would split the peanut in two.
+    pygame.draw.line(body, INK, (BCX - 7, 46), (BCX + 7, 46), 2)
     surf.blit(_ink_outline(body, 2), (0, 0))
 
-    # Squat round sponge labellum, seated CLEARLY below the face with its own
-    # full 2px ink loop so it reads as a mouth pad, never a chin fused to the
-    # thorax.
+    # Distinct spongy labellum: its own round deep-blue lobe seated directly
+    # UNDER the eye pair at ~(44,47), carrying a full 2px ink ring so it reads
+    # as a separate mouth pad — tell #4 — never a chin fused to the thorax.
     lab = _new()
-    lr = pygame.Rect(0, 0, 14, 10)
-    lr.center = (46, 44)
+    lr = pygame.Rect(0, 0, 13, 10)
+    lr.center = (44, 47)
     pygame.draw.ellipse(lab, LABELLUM, lr)
     surf.blit(_ink_outline(lab, 2), (0, 0))
 
     # ── HERO: two big dotted goggle eyes split by a hard ink gutter ──
-    # Domes shrunk to r7 and pulled apart so a true gap sits between them; a
-    # solid 2px ink line then drives down the centreline. Two crisp separate
-    # domes at 40px, never one fused goggle.
+    # r7 domes pulled apart with a true gap; a solid 2px ink line drives down
+    # the centreline so they always read as TWO separate domes at 40px. The
+    # brightest element on the fly.
     eyes = _new()
     ecs = ((34, 30), (52, 30))
     for cx, cy in ecs:
@@ -200,23 +207,23 @@ def build_pop_v1(wing_angle_deg):
     emask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     for cx, cy in ecs:
         _aaellipse(emask, (255, 255, 255, 255), (cx, cy), 7, 7)
-    _benday(eyes, emask, BLUE, spacing=4, radius=1)
+    _benday(eyes, emask, BLUE, spacing=6, radius=2)
     inked_eyes = _ink_outline(eyes, 2)
     # One crisp white glint wedge in each dome's upper-left, over the dots.
     for cx, cy in ecs:
         pygame.draw.polygon(inked_eyes, WHITE, [
             (cx - 5, cy - 3), (cx - 1, cy - 5), (cx - 2, cy)])
-    # Hard 2px ink gutter down the seam between the domes — the guarantee that
-    # they read as TWO eyes after the downscale.
+    # Hard 2px ink gutter down the seam between the domes.
     pygame.draw.line(inked_eyes, INK, (43, 22), (43, 38), 2)
     surf.blit(inked_eyes, (0, 0))
 
-    # ── bristly thorax hump: chunky black setae breaking the top silhouette ──
-    # Tall enough to notch the top of the blue hump — pushes the read from
-    # "beetle" to "fly"; drawn last so they sit on top of the shoulder.
+    # ── bristly thorax hump: bold black setae on the shoulder, ALL 4 frames ──
+    # Drawn LAST at 3px over the light cyan wing/shoulder so they stay high
+    # contrast and never merge into the wing ink — tell #5 holds through the
+    # whole flap cycle, not just frame 1.
     for (x0, y0), (x1, y1) in (
-            ((26, 34), (22, 25)), ((30, 33), (28, 24)), ((22, 35), (17, 27))):
-        pygame.draw.line(surf, INK, (x0, y0), (x1, y1), 2)
+            ((30, 33), (24, 24)), ((27, 34), (20, 26)), ((33, 32), (28, 22))):
+        pygame.draw.line(surf, INK, (x0, y0), (x1, y1), 3)
 
     return surf
 

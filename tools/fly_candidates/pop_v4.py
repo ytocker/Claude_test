@@ -51,7 +51,9 @@ WHITE     = (255, 255, 255)
 # blue wing identity, so this reads as an unmistakable sky-blue instead.
 WINGBLUE  = (91, 163, 232)          # #5BA3E8 saturated sky-blue membrane
 WINGDOT   = (212, 168, 0)           # #D4A800 gold halftone dots
-LABELLUM  = (155, 122, 0)           # #9B7A00 dark-gold sponge pad
+# Dropped a full step below the #D4A800 belly so the pad reads as its own
+# spongy nub, not gold abdomen spill, once the two merge at 40px.
+LABELLUM  = (138, 107, 0)           # #8A6B00 dark-gold sponge pad
 
 
 def _ink_outline(layer, thickness=2, color=INK):
@@ -107,24 +109,25 @@ _WING_ROOT = (8, 24)
 
 
 def _wing_surface():
-    """One rounded pop-art fan: a single smooth sky-blue membrane ellipse, a
-    chunky gold halftone, two bold black veins, then a clean 2px ink loop.
+    """One fat rounded pop-art lobe: a wide, shallow sky-blue membrane ellipse,
+    a chunky gold halftone, two shallow black veins, then a clean 2px ink loop.
 
-    The membrane is drawn once as a plain convex ellipse and only THEN inked,
-    so the outer arc grows into a smooth crisp loop — no faceted spikes."""
-    w = pygame.Surface((52, 48), pygame.SRCALPHA)
-    membrane = pygame.Rect(0, 0, 40, 28)
-    membrane.center = (26, 24)
+    The membrane is a horizontal ellipse (much wider than tall) so the tip
+    stays a rounded blue lobe after the downscale — never an upright spade."""
+    w = pygame.Surface((56, 46), pygame.SRCALPHA)
+    membrane = pygame.Rect(0, 0, 46, 23)
+    membrane.center = (28, 23)
     pygame.draw.ellipse(w, WINGBLUE, membrane)
     # A few big chunky gold dots read as true Ben-Day at 40px; the old fine
     # grid dissolved into speckle, so this uses wide spacing + fat radius for
     # roughly three-to-four unmistakable dots per wing at truth scale.
-    emask = pygame.Surface((52, 48), pygame.SRCALPHA)
+    emask = pygame.Surface((56, 46), pygame.SRCALPHA)
     pygame.draw.ellipse(emask, (255, 255, 255, 255), membrane)
     _benday(w, emask, WINGDOT, spacing=9, radius=2, phase=3)
-    # Two bold veins radiate from the root — the only ink inside the fan.
-    pygame.draw.line(w, INK, _WING_ROOT, (42, 16), 2)
-    pygame.draw.line(w, INK, _WING_ROOT, (42, 33), 2)
+    # Shallow veins radiate from the root so the outer edge stays a soft round
+    # arc — steep veins used to pull the tip to a point.
+    pygame.draw.line(w, INK, _WING_ROOT, (47, 17), 2)
+    pygame.draw.line(w, INK, _WING_ROOT, (47, 30), 2)
     return _ink_outline(w, 2)
 
 
@@ -154,30 +157,39 @@ def build_pop_v4(wing_angle_deg):
             pygame.draw.line(surf, INK, (5, y + 2), (12, y), 1)
             pygame.draw.line(surf, INK, (12, y), (19, y - 1), 1)
 
-    # Two smooth fans sweep up-and-back off a shoulder anchor near (28,31);
-    # the fan opens on the wing-up frames so tips ride from low-wide to a
-    # raised spread — never a tall narrow "rabbit-ear" V.
+    # Two fat lobes sweep up-and-back over the thorax; the lower base angle
+    # lays them back past the body instead of standing them up like ears, and
+    # they open a touch on the wing-up frames.
     wing = _wing_surface()
-    ang = 3 + f * 30
+    ang = 14 + f * 26
     left = pygame.transform.flip(wing, True, False)
     left_root = (wing.get_width() - 1 - _WING_ROOT[0], _WING_ROOT[1])
-    _place_rotated(surf, wing, _WING_ROOT, ang, (30, 31))
-    _place_rotated(surf, left, left_root, -ang, (26, 31))
+    _place_rotated(surf, wing, _WING_ROOT, ang, (31, 30))
+    _place_rotated(surf, left, left_root, -ang, (25, 30))
 
     # ── one FAT inked peanut: navy thorax fused into gold abdomen ──
-    # Both lobes are ~15% wider/rounder than R1 and overlap deeply so the
-    # silhouette reads as one heavy barrel with real mass against the head —
-    # not two thin stacked bands.
+    # The whole barrel is laid down as a SINGLE continuous gold silhouette
+    # (two same-gold lobes that merge), so the outer edge is one unbroken fat
+    # oval — never two stacked bands. The navy is then painted on top and
+    # clipped to that silhouette so it can only ever be the barrel's shoulder.
     body = _new()
-    _aaellipse(body, ABDOMEN, (BCX, 52), 15, 14)
-    _aaellipse(body, THORAX, (BCX, 40), 15, 12)
+    _aaellipse(body, ABDOMEN, (BCX, 51), 15, 15)
+    _aaellipse(body, ABDOMEN, (BCX, 39), 14, 12)
+    barrel_sil = pygame.mask.from_surface(body, threshold=8).to_surface(
+        setcolor=(255, 255, 255, 255), unsetcolor=(0, 0, 0, 0))
+    # Navy thorax cap with a RAKED seam: the lower boundary is a diagonal so
+    # navy and gold interlock across the barrel rather than banding straight.
+    cap = _new()
+    _aaellipse(cap, THORAX, (BCX, 37), 14, 12)
+    pygame.draw.polygon(cap, THORAX, [
+        (BCX - 14, 42), (BCX + 14, 47), (BCX + 14, 40), (BCX - 14, 38)])
+    cap.blit(barrel_sil, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    body.blit(cap, (0, 0))
     # Amber Ben-Day shadow field on the gold abdomen underside gives it dome
     # value; the navy thorax stays flat so the two-tone contrast reads clean.
     amask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     _aaellipse(amask, (255, 255, 255, 255), (BCX + 1, 55), 12, 8)
     _benday(body, amask, ABDOMEN_D, spacing=4, radius=1, phase=2)
-    # A short waist band, not a full stacked-bands divider — the barrel wins.
-    pygame.draw.line(body, INK, (BCX - 9, 46), (BCX + 9, 46), 2)
     surf.blit(_ink_outline(body, 2), (0, 0))
 
     # ── HERO: two big dotted goggle eyes seated LOW on the navy thorax ──
@@ -202,20 +214,21 @@ def build_pop_v4(wing_angle_deg):
     pygame.draw.line(inked_eyes, INK, (44, 25), (44, 41), 2)
     surf.blit(inked_eyes, (0, 0))
 
-    # Round sponge labellum (mouth pad) directly below the seated eyes — its
-    # own 2px ink loop keeps the dark-gold pad legible against the abdomen.
+    # Round sponge labellum (mouth pad) centred directly below the eyes — a
+    # full step darker than the belly plus its own 2px ink ring so it reads as
+    # a separate spongy nub, never gold abdomen spill.
     lab = _new()
-    lr = pygame.Rect(0, 0, 12, 12)
-    lr.center = (44, 48)
+    lr = pygame.Rect(0, 0, 12, 11)
+    lr.center = (44, 49)
     pygame.draw.ellipse(lab, LABELLUM, lr)
     surf.blit(_ink_outline(lab, 2), (0, 0))
 
-    # ── bristly thorax hump: chunky black setae angled up-back ──
-    # Notch-breaks flicking off the navy shoulder push the body from "ladybug"
-    # to "fly"; drawn last so they read on top of the hump and break the clean
-    # barrel silhouette on the upper-left.
+    # ── bristly thorax hump: bold setae rising ABOVE the silhouette ──
+    # Sub-silhouette bristles vanished at 40px, so these three 2px setae shoot
+    # up out of the navy hump between the wing roots and break the outline
+    # against the open sky — the tell that flips "ladybug" to "fly".
     for (x0, y0), (x1, y1) in (
-            ((27, 35), (21, 28)), ((24, 37), (18, 31)), ((30, 34), (25, 26))):
+            ((29, 28), (25, 14)), ((32, 27), (32, 12)), ((35, 28), (39, 15))):
         pygame.draw.line(surf, INK, (x0, y0), (x1, y1), 2)
 
     return surf
