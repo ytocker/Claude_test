@@ -104,24 +104,28 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _GOLD, (BCX + 10, BCY + 6), (BCX + 10, BCY + 16), 2)
     pygame.draw.line(surf, _GOLD, (BCX - 12, BCY + 6), (BCX - 12, BCY + 16), 2)
 
-    # White + gold high-top sneakers with a purple tongue — chunky ankle collars
-    # so the shoe shape survives the downscale.
-    for hx in (22, 30):
-        pygame.draw.rect(surf, (200, 200, 200), (hx, BCY + 15, 10, 4), border_radius=1)
+    # White + gold high-top sneakers with a purple tongue. The thick white sole
+    # band is the clearest "sneaker" tell, so it gets 5px; the two shoes are held
+    # 2px apart so a sliver of sky keeps them from fusing into one blob.
+    for hx in (20, 32):
+        pygame.draw.rect(surf, (200, 200, 200), (hx, BCY + 15, 10, 5), border_radius=1)
         pygame.draw.rect(surf, _WHITE, (hx, BCY + 11, 10, 5), border_radius=2)
         pygame.draw.ellipse(surf, _WHITE, (hx + 1, BCY + 9, 8, 5))
         pygame.draw.line(surf, _GOLD, (hx + 1, BCY + 13), (hx + 8, BCY + 13), 1)
         pygame.draw.line(surf, _PURPLE, (hx + 4, BCY + 9), (hx + 4, BCY + 12), 2)
 
-    # BASKETBALL raised to DUNK HEIGHT — drawn LAST so nothing overlaps it. The
-    # ball rides up beside the near wing so the pose reads "the dunk", the single
-    # loudest hoops signal, and the seam arcs give it round volume at 40px.
-    bx, by = BCX + 14, BCY - 6
-    pygame.draw.circle(surf, (230, 115, 30), (bx, by), 7)
-    pygame.draw.circle(surf, (20, 20, 20), (bx, by), 7, 1)
-    pygame.draw.line(surf, (20, 20, 20), (bx, by - 7), (bx, by + 7), 1)
-    pygame.draw.arc(surf, (20, 20, 20), (bx - 9, by - 7, 12, 14), 0.3, math.pi - 0.3, 1)
-    pygame.draw.arc(surf, (20, 20, 20), (bx - 3, by - 7, 12, 14), math.pi + 0.3, 2 * math.pi - 0.3, 1)
+    # BASKETBALL raised CLEAR ABOVE the head into open sky — drawn LAST so nothing
+    # overlaps it. Held high and to the right of the scarlet head so it never sits
+    # on the orange beak; that clean separation is what makes the pose read "the
+    # dunk", the single loudest hoops signal. Seam arcs + specular give it round
+    # volume at 40px.
+    bx, by = BCX + 18, BCY - 16
+    pygame.draw.circle(surf, (255, 140, 40), (bx, by), 9)
+    pygame.draw.circle(surf, (20, 20, 20), (bx, by), 9, 1)
+    pygame.draw.line(surf, (20, 20, 20), (bx, by - 9), (bx, by + 9), 1)
+    pygame.draw.arc(surf, (20, 20, 20), (bx - 12, by - 9, 15, 18), 0.3, math.pi - 0.3, 1)
+    pygame.draw.arc(surf, (20, 20, 20), (bx - 3, by - 9, 15, 18), math.pi + 0.3, 2 * math.pi - 0.3, 1)
+    pygame.draw.circle(surf, (255, 255, 255), (bx - 3, by - 3), 2)
 
 
 build = _make_skin(_paint, base_fn=_base)
