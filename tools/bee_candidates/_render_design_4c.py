@@ -13,7 +13,9 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame
 pygame.init()
 
-from tools import ninja_render
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
+import tools.ninja_render as ninja_render
 from game import biome
 from game.draw import get_sky_surface_biome, draw_mountains, draw_ground, draw_cloud
 from game.entities import Pipe
