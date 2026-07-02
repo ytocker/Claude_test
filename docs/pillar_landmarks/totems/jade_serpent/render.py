@@ -32,7 +32,7 @@ Standalone review builder: it IMPORTS the real pagoda / pillar draw helpers so
 the exploration matches shipped fidelity, but it does not modify any game module.
 
 Run:  python docs/pillar_landmarks/totems/jade_serpent/render.py
-Out:  docs/pillar_landmarks/totems/jade_serpent/round_1.png
+Out:  docs/pillar_landmarks/totems/jade_serpent/round_2.png
 """
 from __future__ import annotations
 
@@ -81,8 +81,10 @@ SNOUT_W = 76                      # fang snout overhang (gutter only)
 # ── jade / gold / obsidian material triad (palette-keyed → biome retint) ──────
 def _jade(palette):
     # Glossy jade body — a green mineral anchored in stone_mid so the day→night
-    # biome sweep carries it (warm-green day, cool teal-green night).
-    return _mix(palette['stone_mid'], (60, 150, 110), 0.60)
+    # biome sweep carries it (warm-green day, cool teal-green night). Dropped ~10%
+    # off the raw mineral so the mid/lower body sits BELOW the bright day-horizon
+    # band and separates by value, not by hue alone (`_jade_lit` is left as-is).
+    return _shade(_mix(palette['stone_mid'], (60, 150, 110), 0.60), -13)
 
 
 def _jade_lit(palette):
@@ -280,50 +282,57 @@ def _draw_crown(surf, cx, y_top, crown_h, palette, *, glow):
 
     x0 = cx - BODY_W // 2
     base_y = y_top + crown_h
-    # Fixed shallow valley depth — independent of crown_h so the notched top
-    # never opens an empty band past the fill ceiling.
-    notch = min(9, max(3, crown_h // 4))
-    # Five feather tips: edges + centre pinned to y_top (so they fill the band
-    # edges and never pierce ABOVE y_top, which the ceiling flip would clip);
-    # the two quarter tips dip a few px so the crest reads as a merlon crown
-    # while staying perfectly mirror-symmetric.
-    tip_xs = [x0, x0 + BODY_W // 4, cx, x0 + 3 * BODY_W // 4, x0 + BODY_W - 1]
-    peak_ys = [y_top, y_top + 3, y_top, y_top + 3, y_top]
+    # 3px of air above the gap rim so the two crests never kiss across the flyable
+    # channel — merlon tops are pulled back off the section end (y_top).
+    air = 3
+    merlon_top = y_top + air
+    # Deep, square crenel floor so the roof-comb reads as a deliberate stepped
+    # crest in blackout, while the crenel empty-run (air + depth) stays under the
+    # fill ceiling (3 + 6 = 9px < 12).
+    crenel_bot = y_top + air + 6
 
-    # Solid crested body polygon: full-width base, zig-zag feather-tip top. Peaks
-    # at the edges keep x0 / right edge filled to y_top.
+    # Symmetric squared comb — nine alternating segments with merlons pinned to
+    # both band edges, so the collision-band corners stay fed right to the crest
+    # top and the crenellation is a true square step (vertical walls), never a
+    # one-sided slope.
+    n_seg = 9
+    bounds = [x0 + int(round(k * BODY_W / n_seg)) for k in range(n_seg + 1)]
     top_edge = []
-    for i, tx in enumerate(tip_xs):
-        if i > 0:
-            vx = (tip_xs[i - 1] + tx) // 2
-            top_edge.append((vx, y_top + notch))   # valley between tips
-        top_edge.append((tx, peak_ys[i]))
+    for k in range(n_seg):
+        yk = merlon_top if k % 2 == 0 else crenel_bot
+        top_edge.append((bounds[k], yk))
+        top_edge.append((bounds[k + 1], yk))
     poly = [(x0, base_y)] + top_edge + [(x0 + BODY_W - 1, base_y)]
     pygame.draw.polygon(surf, jade, poly)
-    # 3-stop volume on the solid lower slab (below the notch line).
-    _gradient_rect(surf, pygame.Rect(x0, y_top + notch, BODY_W, crown_h - notch),
+    # 3-stop volume on the solid slab below the crenel floor.
+    _gradient_rect(surf, pygame.Rect(x0, crenel_bot, BODY_W, base_y - crenel_bot),
                    lit, jade, sh, vertical=True)
     pygame.draw.line(surf, obs, (x0, base_y - 1), (x0 + BODY_W - 1, base_y - 1), 1)
-    pygame.draw.line(surf, obs, (x0, y_top + notch), (x0, base_y - 1), 1)
-    pygame.draw.line(surf, obs, (x0 + BODY_W - 1, y_top + notch),
+    pygame.draw.line(surf, obs, (x0, crenel_bot), (x0, base_y - 1), 1)
+    pygame.draw.line(surf, obs, (x0 + BODY_W - 1, crenel_bot),
                      (x0 + BODY_W - 1, base_y - 1), 1)
-    # Obsidian keyline along the crenellated top + a lit feather-tip highlight.
+    # Obsidian keyline traces the squared merlons + crenels — the stepped tell.
     _aa_polyline(surf, obs, top_edge)
-    # Gold quill-spine to each feather tip + a lit edge on the tip's left flank.
-    for (tx, ty) in zip(tip_xs, peak_ys):
-        pygame.draw.line(surf, goldd, (tx, base_y - 2), (tx, ty), 1)
-        pygame.draw.line(surf, _shade(lit, 25), (tx - 1, ty + 1), (tx - 1, ty + 4), 1)
-    # Horizontal fret course across the crest face ties it to the tower language.
-    if crown_h - notch >= 8:
-        _fret_band(surf, cx, base_y - min(10, crown_h - notch - 2),
-                   min(9, crown_h - notch - 2), palette)
-    # Gilt boss + a stud on the centre tip.
-    pygame.draw.circle(surf, gold, (cx, y_top + notch + 2), 2)
-    pygame.draw.circle(surf, goldd, (cx, y_top + notch + 2), 2, 1)
+    # Gold quill-spine rising to each merlon centre + a lit merlon flank so the
+    # square steps carry volume as well as silhouette.
+    for k in range(0, n_seg, 2):
+        mx = (bounds[k] + bounds[k + 1]) // 2
+        pygame.draw.line(surf, goldd, (mx, base_y - 2), (mx, merlon_top + 1), 1)
+        pygame.draw.line(surf, _shade(lit, 25), (bounds[k], merlon_top + 1),
+                         (bounds[k], crenel_bot - 1), 1)
+    # Horizontal fret course across the crest slab ties it to the tower language.
+    slab_h = base_y - crenel_bot
+    if slab_h >= 10:
+        _fret_band(surf, cx, base_y - min(10, slab_h - 2),
+                   min(9, slab_h - 2), palette)
+    # Gilt boss centred on the crest slab.
+    pygame.draw.circle(surf, gold, (cx, crenel_bot + 2), 2)
+    pygame.draw.circle(surf, goldd, (cx, crenel_bot + 2), 2, 1)
     if glow:
-        # Halo seated inside the crest so it survives the ceiling-section flip
-        # (no reliance on pixels above y_top, which the flipped surface clips).
-        draw_spiral_glow(surf, cx, y_top + notch + 4, radius=8)
+        # Halo seated well INSIDE the crest slab so neither the soft disc nor the
+        # spiral bridges the flyable gap after the ceiling-section flip (its reach
+        # stays deeper than the 3px crest clearance).
+        draw_spiral_glow(surf, cx, crenel_bot + 6, radius=7)
 
 
 # ── one serpent-mask unit ─────────────────────────────────────────────────────
@@ -451,6 +460,20 @@ def _draw_tower_upright(surf, cx, y_top, y_bottom, palette, seed):
     # Stepped crest crown caps the gap end; night halo on the plume.
     _draw_crown(surf, cx, y_top, crown_h, palette, glow=_is_dark_sky(palette))
 
+    # Guaranteed continuous obsidian side-keylines down both edges of the
+    # collision band (drawn last, so no per-unit AA can thin them): the silhouette
+    # then reads by VALUE against the bright day horizon even where the darkened
+    # jade body goes near-isoluminant with the sky, i.e. it never leans on hue
+    # alone. Runs from the crest's merlon top to the plinth (which widens past the
+    # band); only the fret/snout gutter overhangs sit outside these lines.
+    obs = _obsidian(palette)
+    xL = cx - BODY_W // 2
+    xR = cx + BODY_W // 2 - 1
+    key_top = y_top + 3
+    key_bot = y_bottom - plinth_h
+    pygame.draw.line(surf, obs, (xL, key_top), (xL, key_bot), 1)
+    pygame.draw.line(surf, obs, (xR, key_top), (xR, key_bot), 1)
+
     # Plinth + foliage root at the world edge.
     _draw_plinth(surf, cx, y_bottom, palette, seed)
 
@@ -566,6 +589,16 @@ def main():
         print(f"        gold_bright={_gold_bright(p)}  gold_deep={_gold_deep(p)}")
         print(f"        stone_mid={sm}  jade G-R={gminusr:+d} (green tell)  "
               f"jade-vs-stone lumDelta={abs(_lum(j)-_lum(sm)):.0f}")
+        # Day body-vs-sky value crossing (AD FIX 2): body midtone must sit under
+        # the bright horizon band, and the obsidian side-keyline must guarantee a
+        # value edge regardless of the hue-only day separation.
+        hz, st, obs = p['horizon'], p['sky_top'], _obsidian(p)
+        print(f"        horizon={hz} lum={_lum(hz):.0f}  sky_top={st} "
+              f"lum={_lum(st):.0f}  obsidian lum={_lum(obs):.0f}")
+        print(f"        body dL vs horizon={_lum(hz)-_lum(j):+.0f}  "
+              f"lit dL vs horizon={_lum(hz)-_lum(jl):+.0f}  "
+              f"keyline dL vs sky_top={abs(_lum(obs)-_lum(st)):.0f} / "
+              f"vs body={abs(_lum(obs)-_lum(j)):.0f} (value edge)")
 
     hero_day, hd_h = _hero(pal, 4)
     hero_night, hn_h = _hero(pal_n, 4)
@@ -618,7 +651,7 @@ def main():
         if row_hit:
             bot_reach = y
             break
-    print("MIRROR / gap-rim clearance (gap 75..225, centre 150)")
+    print("MIRROR / gap-rim clearance (gap 75..225, centre 150 — target >=3px)")
     print(f"  ceiling crest reaches down to y={top_reach} (rim 75) -> "
           f"{75 - top_reach}px clearance below rim")
     print(f"  ground crest reaches up to  y={bot_reach} (rim 225) -> "
@@ -645,7 +678,7 @@ def main():
     sheet.fill((22, 26, 24))
 
     sheet.blit(title.render(
-        "jade_serpent — angular stepped fanged guardian  ·  round_1",
+        "jade_serpent — angular stepped fanged guardian  ·  round_2",
         True, (210, 240, 220)), (pad, 12))
     sheet.blit(sub.render(
         "red edges = PIPE_W (58px) band  ·  glossy jade + gold inlay + obsidian  "
@@ -698,7 +731,7 @@ def main():
     sheet.blit(black, (x + black_zoom.get_width() - black.get_width(),
                        head_h + black_zoom.get_height() + label_h + 4))
 
-    out = pathlib.Path(__file__).resolve().parent / "round_1.png"
+    out = pathlib.Path(__file__).resolve().parent / "round_2.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
