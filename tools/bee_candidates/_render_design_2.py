@@ -19,15 +19,15 @@ def label(surf, text, x, y):
     surf.blit(font.render(text, True, (240, 240, 240)), (x, y))
 
 
-# Day gameplay + a hero product-shot on a night panel so the bio-green pulse
-# reads against the dark sky it is designed to own.
+# Day gameplay + a hero product-shot on a night panel so the molten rainbow
+# bands read against the dark sky the sunset moth is built to own.
 gameplay = ninja_render.gameplay_panel(build, 220, 320)
 hero = ninja_render.hero_panel(build, 220, bg=(10, 12, 26))
 
-# 40px NEAREST truth over BOTH a day-sky plate and a night-sky plate, across
-# three poses (down-stroke / mid / up-stroke) — the two-part read (dark beetle
-# + glowing lantern) plus the pulse have to survive shrunk to game size on
-# both skies. Down-stroke frame 0 = brightest flare; frame 2 = up-stroke dim.
+# 40px NEAREST truth over BOTH a day-sky and a night-sky plate, across three
+# poses (down-stroke / mid / up-stroke): the obsidian-body + rainbow-band read,
+# the scalloped cream fringe, and the hue-sweep all have to survive shrunk to
+# game size on both skies.
 TRUTH_POSES = [(0, "down"), (1, "mid"), (2, "up")]
 truth40 = []
 for fi, name in TRUTH_POSES:
@@ -36,10 +36,11 @@ for fi, name in TRUTH_POSES:
     truth40.append((name,
                     pygame.transform.scale(src, (40, max(1, int(th * 40 / tw))))))
 t40h = max(t.get_height() for _, t in truth40)
-truth_block_w = 96   # a day|night pair (42+2+42) plus header/label breathing room
+truth_block_w = 96
 truth_block_h = t40h + 2 * LABEL_H + 12
 
-# 4-frame filmstrip on a dark strip so the pulse animation is visible.
+# 4-frame filmstrip on a dark strip so the polychrome hue-sweep is visible
+# (frame 0 magenta -> 1 emerald -> 2 orange -> 3 back toward magenta).
 frames = [build(i, 0.0) for i in range(4)]
 fw = max(f.get_width() for f in frames)
 fh = max(f.get_height() for f in frames)
@@ -79,7 +80,8 @@ for name, t in truth40:
     ty += t40h + 30
 
 sy = PAD * 2 + top_h
-label(sheet, "4-FRAME FILMSTRIP (down-stroke pulse -> dim)", PAD, sy)
+label(sheet, "4-FRAME FILMSTRIP (hue-sweep: magenta -> emerald -> orange)",
+      PAD, sy)
 fx = PAD
 fy = sy + LABEL_H
 for i, f in enumerate(frames):
@@ -89,7 +91,7 @@ for i, f in enumerate(frames):
                    fy + 4 + (fh - f.get_height()) // 2))
     fx += fw + 12
 
-out = "/home/user/skybit/docs/store_redesign/animal/bee/design_2/round_2.png"
+out = "/home/user/skybit/docs/store_redesign/animal/bee/design_2/round_1.png"
 os.makedirs(os.path.dirname(out), exist_ok=True)
 pygame.image.save(sheet, out)
 print("saved", out)

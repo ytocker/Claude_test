@@ -1,18 +1,17 @@
-"""EMBERGLOW — a firefly / lightning-bug take on the ``skin_bee`` redesign.
+"""BUG/INSECT redesign — design_2 SUNSET MOTH (Madagascan sunset moth,
+Chrysiridia rhipheus).
 
-A dark beetle whose fat lantern abdomen is the hero: it pulses in sync with
-the flap so it fires brightest on the down-stroke, the way a real firefly
-punches out light on the beat. The read is deliberately two-part — a hard,
-dark beetle silhouette carrying a soft glowing lantern — so it never
-collapses into a formless glow blob at 40px. The dark charcoal body earns
-its own value contrast against the sky; the glow is the tell.
+The showpiece of the Uraniidae: a jet-black day-flying moth whose broad wings
+carry curved bands of molten rainbow iridescence and end in a short row of
+scalloped tails with a pale cream fringe. As with AZUREWING the wings are the
+whole story — a slim ink body hides behind two obsidian sails that fill the
+canvas wall-to-wall; concentric arced bands of magenta → emerald → orange hug
+the wing curve, and a per-frame POLYCHROME hue-sweep rotates which colour
+dominates across the four flap frames so the iridescence appears to flow.
+Black filamentous antennae (no clubs — it is a moth) keep the read honest.
 
-Day sky: the amber lantern against the dark body is the identifier.
-Night sky: the bio-green halo makes it unmistakable and lets it own the dark,
-while a 1px ember rim on the body keeps the hard silhouette from vanishing
-into black — the two-part read only works if the dark body stays visible.
-
-Scratch exploration only — never registered in ``store_skins.BUILDERS``.
+Scratch exploration only — NOT registered in store_skins.BUILDERS. Production
+art stays untouched until a winner is picked.
 """
 import pygame
 
@@ -20,178 +19,197 @@ from game.parrot import _WING_ANGLES, _add_outline, _aaellipse
 
 COMPOSITE_W, COMPOSITE_H = 64, 84
 BCX, BCY = 32, 44          # thorax centre
-HCX, HCY = 44, 34          # head
+HCX, HCY = 44, 34          # head — poked up-right off the body axis (3/4 pose)
 CROWN_Y = 24
 
-# EMBERGLOW palette. Charcoal is lifted off pure-black so the beetle reads as
-# a solid dark body (not a hole) on a night sky; ember rim-light rescues that
-# silhouette against black, amber+warm+hot build the lantern's glow gradient.
-CHARCOAL = (34, 28, 30)
-EMBER = (122, 46, 18)
-AMBER = (255, 176, 32)
-CORE_WARM = (255, 246, 200)
-CORE_HOT = (255, 255, 255)
-BIO_GREEN = (200, 255, 106)
-SMOKE = (100, 80, 60, 120)  # translucent buzz-wing brown
+# ── palette ──────────────────────────────────────────────────────────────────
+OBSIDIAN = (14, 11, 20)     # DOMINANT jet-black wing base / margin / core
+MAGENTA  = (224, 52, 138)   # sunset magenta — rainbow band 1
+EMERALD  = (31, 184, 107)   # prism emerald — rainbow band 2
+ORANGE   = (255, 122, 26)   # ember orange — rainbow band 3
+CREAM    = (242, 228, 176)  # fringe cream — scalloped tail dots
+THORAX   = (16, 12, 22)     # slim body
 
-# The lantern sits close under the thorax so a short amber neck fuses the two
-# into one abdomen — far enough down-left to read as a trailing tail, close
-# enough that it never looks like a coin falling away from the beetle.
-LANT_CX, LANT_CY = BCX - 7, BCY + 9
+# Brightened cousins of the band trio for the additive shimmer sweep — the same
+# rotation the bands use, so the flare colour agrees with the band it lights.
+SHIMMER = [(255, 120, 190), (120, 255, 180), (255, 190, 120), (255, 120, 190)]
+
+
+def _new():
+    return pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
 
 
 def _flap(a):
+    # 0 = fully down-stroke (wings wide open), 1 = fully up-stroke (edge-on).
     return (a + 40) / 90.0
 
 
-def _strike(a):
-    # 1 on the down-stroke (max pulse), 0 at the top of the up-stroke.
-    return 1.0 - _flap(a)
+# Right-wing outer contour at the full-open pose. A broad triangular forewing
+# throws its apex up-and-out to reach the 62px edge; the hindwing hangs below
+# and its bottom margin is cut into three short scalloped lobes (the sunset
+# moth's stubby tails) rather than one long streamer. Inner edge sits ~2px off
+# the body axis so the mirrored left wing nearly meets it as one silhouette.
+_WING_R = [
+    (34, 29),   # 0 inner top, ~2px off the body axis
+    (45, 14),   # 1 forewing leading rise
+    (56, 11),   # 2 forewing apex — up and out
+    (62, 21),   # 3 forewing outer shoulder — fills the width
+    (61, 33),   # 4 forewing trailing outer
+    (59, 41),   # 5 hindwing outer shoulder
+    (56, 49),   # 6 scallop lobe A (outer tail)      ← fringe tip
+    (52, 45),   # 7 notch
+    (49, 53),   # 8 scallop lobe B (main tail)       ← fringe tip
+    (44, 47),   # 9 notch
+    (40, 52),   # 10 scallop lobe C (inner tail)     ← fringe tip
+    (36, 46),   # 11 notch
+    (34, 44),   # 12 inner bottom, ~2px off the body axis
+]
+SCALLOP_TIPS = (6, 8, 10)
 
 
-def _glow_blit(surf, center, r, color, *, peak=80):
-    """Stamp a soft radial glow via additive blending.
+def _centroid(pts):
+    n = len(pts)
+    return (sum(p[0] for p in pts) / n, sum(p[1] for p in pts) / n)
 
-    A single SRCALPHA disc is painted as concentric rings — dim at the rim,
-    up to ``peak`` alpha at the core — then blitted with BLEND_RGBA_ADD so it
-    brightens the sky beneath rather than flatly overpainting it. Additive
-    keeps the halo airy instead of a solid coin of colour."""
-    d = r * 2 + 2
-    g = pygame.Surface((d, d), pygame.SRCALPHA)
-    cx = cy = r + 1
-    for i in range(r, 0, -1):
-        frac = i / r                      # 1 at rim … →0 at core
-        a = int(peak * (1.0 - frac) ** 1.4)
-        pygame.draw.circle(g, (color[0], color[1], color[2], a), (cx, cy), i)
-    surf.blit(g, (int(center[0]) - cx, int(center[1]) - cy),
-              special_flags=pygame.BLEND_RGBA_ADD)
+
+def _inset(pts, frac):
+    """Shrink a polygon toward its centroid so concentric copies read as bands
+    hugging the wing curve. Insetting preserves the scalloped bottom lobes as
+    they close in, which keeps the tail read alive through the shrink."""
+    cx, cy = _centroid(pts)
+    return [(x + (cx - x) * frac, y + (cy - y) * frac) for x, y in pts]
+
+
+def _transform(pts, side, spread, nx):
+    """Place a wing: mirror for the left side, narrow it horizontally toward the
+    body on the up-stroke (edge-on), and lift it as the stroke rises."""
+    out = []
+    for x, y in pts:
+        dx = (x - BCX) * side
+        out.append((BCX + dx * nx, y - spread))
+    return out
+
+
+def _wing_mask(pts):
+    m = _new()
+    pygame.draw.polygon(m, (255, 255, 255, 255), pts)
+    return m
+
+
+def _bands_for(fi):
+    # Rotate the magenta/emerald/orange trio by the frame index so a different
+    # colour owns the outer band each beat — frame 0 magenta, 1 emerald, 2
+    # orange, 3 back toward magenta — the polychrome analogue of the morpho
+    # shimmer.
+    r = fi % 3
+    trio = [MAGENTA, EMERALD, ORANGE]
+    return trio[r:] + trio[:r]
+
+
+def _draw_wing(surf, side, spread, nx, fi):
+    margin = _transform(_WING_R, side, spread, nx)
+
+    # Obsidian margin holds the silhouette; then three concentric arced bands of
+    # the rotated rainbow trio are stamped outer→inner, each smaller inset laid
+    # over the last, with a dark core so the wing centre stays black like the
+    # real moth. A tiny per-frame drift on the ring stops makes the bands appear
+    # to breathe outward and in, so even the two frames that share a colour
+    # rotation read as different beats.
+    drift = (fi - 1.5) * 0.015
+    fracs = [0.14 + drift, 0.33 + drift, 0.52 + drift, 0.71]
+    bands = _bands_for(fi)
+
+    pygame.draw.polygon(surf, OBSIDIAN, margin)
+    for frac, col in zip(fracs[:3], bands):
+        pygame.draw.polygon(surf, col, _inset(margin, frac))
+    pygame.draw.polygon(surf, OBSIDIAN, _inset(margin, fracs[3]))
+
+    # Per-frame polychrome shimmer clipped to the wing face: a bright column of
+    # ellipses in the frame's lead colour sweeps across the wing (same screen
+    # direction on both wings, so it flows as one gesture), faking the molten
+    # angle-dependent flare that gives the sunset moth its name.
+    fill = _inset(margin, 0.11)
+    fcx, fcy = _centroid(fill)
+    shift = (fi - 1.5) * 5
+    scol = SHIMMER[fi]
+    sh = _new()
+    for k in range(3):
+        _aaellipse(sh, (*scol, 58), (fcx + shift, fcy - 11 + k * 9), 7, 4)
+    _aaellipse(sh, (255, 255, 255, 40), (fcx + shift * 0.6, fcy - 4), 4, 3)
+    sh.blit(_wing_mask(fill), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(sh, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+    # Cream fringe: pale scale-dots marching along the scalloped tail tips — the
+    # non-hue accessibility anchor that survives 40px on both skies.
+    for idx in SCALLOP_TIPS:
+        mx, my = margin[idx]
+        pygame.draw.circle(surf, CREAM, (int(mx), int(my)), 2)
+
+
+def _draw_body(surf):
+    # A short dark neck bridges the thorax up-right to the head (3/4 pose); the
+    # near wing overlaps its base so only a sliver shows.
+    pygame.draw.line(surf, THORAX, (BCX, BCY - 4), (HCX - 2, HCY + 2), 5)
+    # Slim abdomen leaning down toward the lower-left, mostly hidden by wings.
+    pygame.draw.polygon(surf, THORAX, [
+        (BCX - 3, BCY), (BCX + 3, BCY),
+        (BCX - 1, BCY + 15), (BCX - 5, BCY + 14),
+    ])
+    _aaellipse(surf, THORAX, (BCX, BCY), 5, 7)
+    _aaellipse(surf, (34, 26, 44), (BCX - 1, BCY - 2), 2, 4)   # faint sheen
+
+
+def _draw_head(surf):
+    # Two thin BLACK filamentous antennae fanning up to the crown. No clubbed
+    # tips — the tell that separates a moth from AZUREWING's butterfly clubs.
+    for tx in (HCX - 4, HCX + 5):
+        sx = HCX + (1 if tx > HCX else -1)
+        sy = HCY - 3
+        mx = (sx + tx) / 2 + (2 if tx > HCX else -2)
+        my = (sy + CROWN_Y) / 2 - 1
+        pygame.draw.lines(surf, OBSIDIAN, False,
+                          [(sx, sy), (mx, my), (tx, CROWN_Y)], 1)
+    # Small dark head with a faint catch-light.
+    pygame.draw.circle(surf, OBSIDIAN, (HCX, HCY), 4)
+    pygame.draw.circle(surf, (70, 58, 82), (HCX - 1, HCY - 1), 1)
 
 
 def _build_frame(wing_angle_deg):
-    surf = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    s = _strike(wing_angle_deg)  # firefly pulse: 1 down-stroke … 0 up-stroke
+    surf = _new()
+    f = _flap(wing_angle_deg)
+    try:
+        fi = _WING_ANGLES.index(int(round(wing_angle_deg)))
+    except ValueError:
+        fi = 0
+    spread = int(f * 18)           # lift the wings as the stroke rises
+    # Cap the horizontal narrowing so the edge-on up-stroke still reads winged;
+    # the lifted spread angle carries the "wings raised" gesture.
+    nx = 1.0 - 0.30 * f
 
-    # --- Legs: three dark pairs splayed under the thorax, drawn first so the
-    # body mass overlaps their roots and they read as under-slung limbs.
-    for i, (lx, ly) in enumerate(((-6, 5), (-7, 11), (-6, 17))):
-        for side in (-1, 1):
-            root = (BCX + side * 5, BCY + ly - 8)
-            knee = (BCX + side * (10 + i), BCY + ly - 6)
-            foot = (BCX + side * (11 + i), BCY + ly)
-            pygame.draw.lines(surf, CHARCOAL, False, [root, knee, foot], 2)
-
-    # --- Hindwings: compact smoky buzz-wings behind the elytra. They spread
-    # outward on the down-stroke and tuck back on the up-stroke, so the wing
-    # motion carries the flap without ballooning into butterfly sails.
-    spread = 5 + int(4 * s)
-    for side in (-1, 1):
-        wing = pygame.Surface((22, 16), pygame.SRCALPHA)
-        _aaellipse(wing, SMOKE, (11, 8), 10, 6)
-        wing = pygame.transform.rotate(wing, side * (18 - 30 * s))
-        wr = wing.get_rect(center=(BCX + side * spread, BCY + 6))
-        surf.blit(wing, wr)
-
-    # --- Glow gradient, painted outermost-in so each layer sits crisp on the
-    # last: bio-green halo (the night tell) → amber bloom → then the opaque
-    # bulb fills on top. The green only truly reads as green over a dark sky —
-    # additive over bright day just warms/brightens, which is the correct
-    # behaviour, so it never muddies the amber-on-blue day contrast.
-    _glow_blit(surf, (LANT_CX, LANT_CY), 22, BIO_GREEN,
-               peak=int(70 + 70 * s))
-    _glow_blit(surf, (LANT_CX, LANT_CY), 13, AMBER,
-               peak=int(90 + 90 * s))
-
-    # --- Amber neck: a short tapered link fusing the thorax underside to the
-    # bulb top, so the lantern reads as an abdomen, not a dropped coin. Drawn
-    # under both bulb and thorax so those overlap and swallow its raw ends.
-    neck = [
-        (BCX - 4, BCY + 6),
-        (BCX + 2, BCY + 7),
-        (LANT_CX + 2, LANT_CY - 6),
-        (LANT_CX - 2, LANT_CY - 6),
-    ]
-    pygame.draw.polygon(surf, AMBER, neck)
-
-    # --- Lantern bulb: stacked concentric ellipses sharing a centre, amber →
-    # warm → white-hot, so it stays a soft round bulb rather than a faceted
-    # gem. The warm and hot cores swing wide with the pulse: near-amber on the
-    # up-stroke, blazing white on the down-stroke.
-    _aaellipse(surf, AMBER, (LANT_CX, LANT_CY), 9, 8)
-    _aaellipse(surf, CORE_WARM, (LANT_CX, LANT_CY - 1),
-               3 + int(3 * s), 2 + int(3 * s))
-    if s > 0.5:
-        pygame.draw.circle(surf, CORE_HOT, (LANT_CX, LANT_CY - 1),
-                           2 + int(2 * s))
-
-    # Peak flare — an extra bloom that only fires past mid-stroke, so the
-    # down-stroke frame visibly flashes brighter than the up-stroke one. This
-    # is the heartbeat that has to survive even at 40px.
-    flare = int(120 * max(0.0, s - 0.5) * 2)
-    if flare > 0:
-        _glow_blit(surf, (LANT_CX, LANT_CY), 10, CORE_WARM, peak=flare)
-
-    # --- Spark trail: 2-3 amber embers drifting down-left off the bulb, most
-    # and brightest on the peak frame, none on the up-stroke — a sparse,
-    # premium ember drip, not a firework.
-    for i, (sx, sy) in enumerate(((-5, 10), (-9, 16), (-12, 21))):
-        if s <= 0.25 * i:
-            continue
-        a = int(150 * (1.0 - 0.32 * i) * min(1.0, s * 1.3))
-        if a <= 0:
-            continue
-        dot = pygame.Surface((5, 5), pygame.SRCALPHA)
-        pygame.draw.circle(dot, (AMBER[0], AMBER[1], AMBER[2], a), (2, 2), 2)
-        surf.blit(dot, (LANT_CX + sx - 2, LANT_CY + sy - 2),
-                  special_flags=pygame.BLEND_RGBA_ADD)
-
-    # --- Elytra: short ember-brown wing-covers flanking the thorax. They
-    # crack open a touch on the down-stroke (the beetle bracing its buzz).
-    open_px = int(3 * s)
-    for side in (-1, 1):
-        ex = BCX + side * (6 + open_px)
-        elytron = [
-            (ex - side * 2, BCY - 7),
-            (ex + side * 6, BCY - 4),
-            (ex + side * 6, BCY + 6),
-            (ex + side * 2, BCY + 9),
-            (ex - side * 3, BCY + 4),
-        ]
-        pygame.draw.polygon(surf, EMBER, elytron)
-
-    # --- Pronotal shield: an ember plate bridging head and thorax, the
-    # firefly's signature warm collar behind the little dark head.
-    shield = [
-        (BCX - 3, BCY - 8),
-        (HCX - 6, HCY + 5),
-        (HCX + 4, HCY + 6),
-        (BCX + 8, BCY - 6),
-    ]
-    pygame.draw.polygon(surf, EMBER, shield)
-
-    # --- Thorax: the charcoal body mass, drawn over shield roots and elytra
-    # inner edges so it anchors the whole silhouette as one dark block. An
-    # ember ellipse offset up-right sits beneath it, leaving a 1px warm rim on
-    # the upper-right edge — the only thing that keeps the dark body from
-    # vanishing into a black night sky.
-    _aaellipse(surf, EMBER, (BCX + 1, BCY - 1), 9, 8)
-    _aaellipse(surf, CHARCOAL, (BCX, BCY), 9, 8)
-
-    # --- Head: small dark ellipse up-forward, with two filiform antennae
-    # sweeping up and out — the insect tell that keeps it from reading as a
-    # bird head. Drawn last so nothing occludes the antennae.
-    for side in (-1, 1):
-        base = (HCX + side * 2, HCY - 5)
-        mid = (HCX + side * 5, HCY - 11)
-        tip = (HCX + side * 9, HCY - 15)
-        pygame.draw.lines(surf, CHARCOAL, False, [base, mid, tip], 1)
-        pygame.draw.circle(surf, CHARCOAL, tip, 1)
-    # Same ember-rim trick as the thorax so the head survives on night sky.
-    _aaellipse(surf, EMBER, (HCX + 1, HCY - 1), 7, 6)
-    _aaellipse(surf, CHARCOAL, (HCX, HCY), 7, 6)
-    # An amber glint on the head so the warm lantern colour echoes up top.
-    pygame.draw.circle(surf, AMBER, (HCX + 3, HCY - 1), 2)
-
+    # Far (left) wing behind the body, near (right) wing over the roots.
+    _draw_wing(surf, -1, spread, nx, fi)
+    _draw_body(surf)
+    _draw_wing(surf, +1, spread, nx, fi)
+    _draw_head(surf)
     return surf
+
+
+def _apply_glow(outlined, fi):
+    # Outer glow goes on top of the ALREADY-outlined sprite: an additive halo
+    # painted before the outline would trip _add_outline's silhouette mask and
+    # sprout a ring around the glow itself. The halo takes the frame's lead band
+    # colour so the bloom agrees with the wing and reads on a dark night sky.
+    out = outlined.copy()
+    w, h = out.get_size()
+    cx, cy = w // 2, h // 2 - 2
+    col = _bands_for(fi)[0]
+    glow = pygame.Surface((w, h), pygame.SRCALPHA)
+    for r, a in ((32, 8), (24, 8), (16, 6)):
+        g = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+        pygame.draw.circle(g, (*col, a), (r, r), r)
+        glow.blit(g, (cx - r, cy - r))
+    out.blit(glow, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    return out
 
 
 _state = {"frames": None, "rot": {}}
@@ -199,12 +217,11 @@ _state = {"frames": None, "rot": {}}
 
 def build(frame_idx: int, tilt_deg: float) -> pygame.Surface:
     if _state["frames"] is None:
-        _state["frames"] = [
-            _add_outline(_build_frame(a)) for a in _WING_ANGLES]
-    idx = frame_idx % len(_WING_ANGLES)
-    key = (idx, round(tilt_deg / 3) * 3)
-    rot = _state["rot"].get(key)
-    if rot is None:
-        rot = pygame.transform.rotozoom(_state["frames"][idx], key[1], 1.0)
-        _state["rot"][key] = rot
-    return rot
+        base = [_add_outline(_build_frame(a)) for a in _WING_ANGLES]
+        _state["frames"] = [_apply_glow(s, fi) for fi, s in enumerate(base)]
+    frame_idx %= 4
+    key = (frame_idx, int(round(tilt_deg / 3)) * 3)
+    if key not in _state["rot"]:
+        _state["rot"][key] = pygame.transform.rotozoom(
+            _state["frames"][frame_idx], key[1], 1.0)
+    return _state["rot"][key]
