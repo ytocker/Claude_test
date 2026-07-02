@@ -30,7 +30,7 @@ same flank and reads as a wheel on both halves; the wheel is drawn radially
 the gap on the hung copy. Wheel side is seed-chosen.
 
 Run:  python docs/pillar_landmarks/windmills/waterwheel-mill/render.py
-Out:  docs/pillar_landmarks/windmills/waterwheel-mill/round_1.png
+Out:  docs/pillar_landmarks/windmills/waterwheel-mill/round_2.png
 """
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ from game.pillar_pagodas import (
     _shade,
     _gradient_rect,
     _aa_polyline,
-    _lit_niche,
+    _lit_niche,                  # noqa: F401 — retained from the borrowed material kit
     _tile_hatch,
     _glazed_tile_checker,        # noqa: F401 — imported per brief material kit
     _draw_plinth_mist,
@@ -198,75 +198,127 @@ def _corbel_cap(surf, cx, shoulder_y, top_y, hw_cap, palette):
 
 # ── The water-wheel ──────────────────────────────────────────────────────────
 
-def _water_wheel(surf, wcx, wcy, r, palette, *, side, sun=-1.0):
-    """A real spoked + paddled WOODEN wheel: a dark backing disc, twin felloe
-    rims, radial paddle-boards between the rims (each an individual lit/shadow
-    cell so the ring reads as dished buckets), cedar spokes, a bronze axle hub,
-    and iron rim straps. Matte timber — no glow. `sun` is the lit-side x-sign
-    (matches the body's left-lit ramp); lower paddles darken toward the shaded
-    pool for rotation depth.
+def _cap235(c):
+    # Hard ceiling on every channel so nothing on this pole ever spikes toward
+    # a hot white/glow — the concept is matte timber + masonry, never emissive.
+    return (min(232, c[0]), min(232, c[1]), min(232, c[2]))
 
-    Returns the (x, y) of the wheel's top point (where the launder feeds) and
-    bottom point (where the splash lands) so the caller can orient water
-    per-section toward the gap."""
+
+def _water_wheel(surf, wcx, wcy, r, palette, *, side, sun=-1.0):
+    """A WOODEN undershot water-wheel read by its PADDLES, not its spokes: a
+    strengthened dark backing disc, twin felloe rims, and a ring of a FEW chunky
+    BUCKETS (boxy tangential cells) seated in the outer felloe band with dark
+    scoop-walls and lit board-faces, gaps between them showing the dark backing
+    so they read as discrete paddles. A sparse set of radial spokes stays
+    strictly inside the inner rim so the eye never counts them as a second
+    radiating ring (the gear trap). Matte timber — capped, never glows.
+
+    The circle is popped in every biome by VALUE (deep backing + twin dark
+    rims, and on a dark sky a capped light edge-rim) rather than by a warm-on-
+    warm hue, so it reads under protan/deutan too. `sun` is the lit-side x-sign;
+    lower buckets dip toward the shaded pool for rotation depth.
+
+    Returns the wheel's top and bottom points so the caller can orient the
+    launder + splash toward the gap on each section."""
     if r < 6:
         return (wcx, wcy - r), (wcx, wcy + r)
     wood = _ochre_wood(palette)
-    wood_lit = _ochre_wood_lit(palette)
+    wood_lit = _cap235(_ochre_wood_lit(palette))
     wood_dark = _ochre_wood_shadow(palette)
-    cedar = _cedar(palette)
     iron = _bronze(palette)
-    r_in = max(3, r - 6)                       # inner felloe (twin-rim gap)
+    dark_sky = _is_dark_sky(palette)
+    r_in = max(4, r - 7)                       # wider felloe band → chunky buckets
 
-    # Dark backing disc so paddle gaps read as shadowed depth, not sky holes,
-    # where the wheel sits over the gutter.
-    pygame.draw.circle(surf, _shade(wood_dark, -14), (wcx, wcy), r)
+    # Deepened backing disc (value pop vs a light day sky; reads as shadowed
+    # depth behind the paddle gaps, never a sky hole over the gutter).
+    backing = _shade(wood_dark, -30)
+    pygame.draw.circle(surf, backing, (wcx, wcy), r)
 
-    # Paddle-boards between the twin rims — clear boxes (not bare spokes) so the
-    # silhouette reads water-wheel, not ship's-wheel/gear. Each is a radial bar
-    # shaded by its facing: sunward brighter, lower paddles dipped toward the
-    # dark pool.
-    n_paddle = 10 if r >= 16 else 8
-    for k in range(n_paddle):
-        a = (k / n_paddle) * math.tau
-        ca, sa = math.cos(a), math.sin(a)
-        ox, oy = wcx + ca * r, wcy + sa * r
-        ix, iy = wcx + ca * r_in, wcy + sa * r_in
-        # Facing brightness: sun on the `sun`-x flank; lower half darkens.
-        face = 0.5 + 0.5 * (ca * sun)
-        low = max(0.0, sa)                     # 0 top → 1 bottom
-        col = _mix(wood_dark, wood_lit, face)
-        col = _mix(col, _shade(_brick_mortar(palette), -20), low * 0.55)
-        pygame.draw.line(surf, col, (int(ix), int(iy)), (int(ox), int(oy)), 3)
+    # Buckets: FEW and BOLD. Each is a boxy cell spanning the felloe band across
+    # an arc, with a dark leading scoop-wall and a lit outer board-face; the
+    # angular gap between cells leaves the dark backing visible so the ring
+    # reads as paddles-on-a-rim, not a toothed gear.
+    n_bucket = 8 if r >= 16 else 6
+    step = math.tau / n_bucket
+    span = step * 0.66                          # <1 → dark gap between buckets
+    for k in range(n_bucket):
+        a0 = k * step
+        a1 = a0 + span
+        am = a0 + span * 0.5
+        # Facing: sun on the `sun`-x flank; lower buckets dip toward the pool.
+        face = 0.5 + 0.5 * (math.cos(am) * sun)
+        low = max(0.0, math.sin(am))
+        fill = _mix(_mix(wood_dark, wood, 0.7), wood_lit, face * 0.6)
+        fill = _mix(fill, backing, low * 0.5)
+        quad = [
+            (wcx + math.cos(a0) * r_in, wcy + math.sin(a0) * r_in),
+            (wcx + math.cos(a0) * r,    wcy + math.sin(a0) * r),
+            (wcx + math.cos(a1) * r,    wcy + math.sin(a1) * r),
+            (wcx + math.cos(a1) * r_in, wcy + math.sin(a1) * r_in),
+        ]
+        pygame.draw.polygon(surf, fill, [(int(x), int(y)) for x, y in quad])
+        # Dark leading scoop-wall (the open mouth of the bucket).
+        pygame.draw.line(surf, _shade(wood_dark, -12),
+                         (int(wcx + math.cos(a0) * r_in), int(wcy + math.sin(a0) * r_in)),
+                         (int(wcx + math.cos(a0) * r), int(wcy + math.sin(a0) * r)), 2)
+        # Lit tangential board-face on the sun side only (capped, matte).
+        if face > 0.5:
+            pygame.draw.line(surf, _mix(wood, wood_lit, (face - 0.5) * 1.2),
+                             (int(wcx + math.cos(a0) * (r - 1)), int(wcy + math.sin(a0) * (r - 1))),
+                             (int(wcx + math.cos(a1) * (r - 1)), int(wcy + math.sin(a1) * (r - 1))), 1)
 
-    # Twin felloe rims (outer + inner), wood with a lit top-left crown.
+    # Twin felloe rims — the two concentric dark rings are the value silhouette.
     pygame.draw.circle(surf, wood_dark, (wcx, wcy), r, 3)
-    pygame.draw.circle(surf, wood, (wcx, wcy), r - 1, 1)
     pygame.draw.circle(surf, wood_dark, (wcx, wcy), r_in, 2)
-    # Iron rim strap — a thin bronze ring, matte (no additive glow).
-    pygame.draw.circle(surf, iron, (wcx, wcy), r - 2, 1)
+    pygame.draw.circle(surf, iron, (wcx, wcy), r - 2, 1)   # matte iron strap
+    if dark_sky:
+        # Capped light edge-rim so the circle holds by VALUE against a dark sky
+        # (never a warm halo — clamped well below any glow threshold).
+        edge = _cap235(_mix(palette['stone_mid'], palette['stone_light'], 0.5))
+        pygame.draw.circle(surf, edge, (wcx, wcy), r, 1)
     # AA the outer rim silhouette for a smooth wheel edge at scale.
     rim_pts = [(wcx + math.cos(a) * r, wcy + math.sin(a) * r)
                for a in [i / 24 * math.tau for i in range(24)]]
     _aa_polyline(surf, _shade(wood_dark, -20), rim_pts, closed=True)
 
-    # Cedar spokes hub→inner-rim; sunward spokes a touch brighter.
-    n_spoke = 8
+    # Sparse radial spokes, strictly hub→inner-rim so they never join the bucket
+    # band into one radiating count (fewer, clearly inner → not a gear).
+    n_spoke = 5
     for k in range(n_spoke):
         a = (k / n_spoke) * math.tau + 0.19
         ca, sa = math.cos(a), math.sin(a)
-        col = _mix(cedar, wood_lit, 0.4 + 0.4 * (ca * sun))
+        col = _cap235(_mix(_cedar(palette), wood_lit, 0.35 + 0.35 * (ca * sun)))
         pygame.draw.line(surf, col, (wcx, wcy),
-                         (int(wcx + ca * r_in), int(wcy + sa * r_in)), 2)
+                         (int(wcx + ca * (r_in - 1)), int(wcy + sa * (r_in - 1))), 2)
 
     # Bronze axle hub + boss glint (matte metal, not emissive).
     pygame.draw.circle(surf, _shade(iron, -30), (wcx, wcy), 5)
     pygame.draw.circle(surf, iron, (wcx, wcy), 4)
-    pygame.draw.circle(surf, _shade(iron, 30), (wcx - 1, wcy - 1), 1)
+    pygame.draw.circle(surf, _cap235(_shade(iron, 30)), (wcx - 1, wcy - 1), 1)
 
     top_pt = (wcx, wcy - r)
     bot_pt = (wcx, wcy + r)
     return top_pt, bot_pt
+
+
+def _matte_niche(surf, cx, cy, w, h, palette):
+    """A recessed shrine doorway drawn MATTE — dark frame + darker inside + a
+    thin warm rim on a plain alpha blit. Keeps the niche relief of the pagoda
+    idiom but deliberately drops its night additive lantern halo: this pole is
+    never a glow source, so the rim is clamped and never accumulates to white."""
+    if w < 3 or h < 4:
+        return
+    frame = _shade(palette['stone_dark'], -25)
+    inside = _shade(palette['stone_dark'], -50)
+    pygame.draw.rect(surf, frame, (cx - w // 2, cy, w, h))
+    pygame.draw.rect(surf, inside, (cx - w // 2 + 1, cy + 1, w - 2, h - 2))
+    # Warm rim as a hint of interior firelight, clamped well below any glow
+    # threshold and alpha-blended (not additive) so it can never stack to white.
+    rim = _cap235(_mix(palette['stone_accent'], (210, 180, 110), 0.7))
+    alpha = 150 if _is_dark_sky(palette) else 90
+    rim_layer = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.rect(rim_layer, (*rim, alpha), (0, 0, w, h), 1)
+    surf.blit(rim_layer, (cx - w // 2, cy))
 
 
 def _launder_and_splash(surf, cx, body_hw_at_top, wheel_top, wheel_bot, palette,
@@ -281,15 +333,16 @@ def _launder_and_splash(surf, cx, body_hw_at_top, wheel_top, wheel_bot, palette,
     # Wooden launder chute from the body flank to just above the wheel top.
     sx = cx + side * (body_hw_at_top - 2)
     pygame.draw.line(surf, _shade(cedar, -20), (sx, wty - 6), (wtx, wty - 2), 3)
-    pygame.draw.line(surf, _ochre_wood_lit(palette),
+    pygame.draw.line(surf, _cap235(_ochre_wood_lit(palette)),
                      (sx, wty - 7), (wtx, wty - 3), 1)
-    # Water spilling off the launder lip onto the wheel top.
+    # Water spilling off the launder lip onto the wheel top (highlights capped
+    # so the cool accent never flares to a hot white on either mirror half).
     pygame.draw.line(surf, aqua, (wtx, wty - 3), (wtx, wty + 1), 2)
-    pygame.draw.line(surf, _mix(aqua, palette['stone_light'], 0.5),
+    pygame.draw.line(surf, _cap235(_mix(aqua, palette['stone_light'], 0.5)),
                      (wtx - 1, wty - 2), (wtx - 1, wty), 1)
     # Splash pool + froth ticks at the wheel foot.
     wbx, wby = wheel_bot
-    froth = _mix(aqua, palette['stone_light'], 0.6)
+    froth = _cap235(_mix(aqua, palette['stone_light'], 0.6))
     pygame.draw.ellipse(surf, aqua, (wbx - 6, wby - 2, 12, 4))
     pygame.draw.ellipse(surf, froth, (wbx - 4, wby - 2, 8, 2))
     for dx in (-5, -1, 3):
@@ -351,7 +404,7 @@ def _draw_one(surf, cx, base_y, top_y, body_w, palette, seed, *, decor=True):
         door_w = min(7, hw_base // 3)
         door_h = min(14, body_h // 3)
         dcx = cx - side * (hw_base // 3)
-        _lit_niche(surf, dcx, body_base_y - door_h, door_w, door_h, palette)
+        _matte_niche(surf, dcx, body_base_y - door_h, door_w, door_h, palette)
 
     # Corbel cap + bronze finial holds the centreline to the gap rim.
     _corbel_cap(surf, cx, shoulder_y, top_y, hw_cap, palette)
@@ -545,10 +598,10 @@ def main():
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((24, 25, 30))
 
-    sheet.blit(title.render("waterwheel-mill — round 1", True, (245, 240, 230)),
+    sheet.blit(title.render("waterwheel-mill — round 2", True, (245, 240, 230)),
                (pad, 12))
-    sheet.blit(sub.render("battered Song-brick cone + off-axis WOODEN water-wheel "
-                          "(matte, never glows)  ·  mirrored pair, true gap",
+    sheet.blit(sub.render("brick cone + off-axis WOODEN wheel: FEW bold BUCKETS on "
+                          "a rim (not a gear)  ·  matte, capped, never glows",
                           True, (170, 172, 182)), (pad, 40))
 
     for i, (pair, name, cl) in enumerate((
@@ -583,12 +636,24 @@ def main():
         sheet.blit(lab, (fx, fy + ch + 3))
         fy += ch + label_h + pad
 
-    out = _REPO / "docs" / "pillar_landmarks" / "windmills" / "waterwheel-mill" / "round_1.png"
+    out = _REPO / "docs" / "pillar_landmarks" / "windmills" / "waterwheel-mill" / "round_2.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
     print(f"mirror centreline->rim gap: day={cl_day}px night={cl_night}px")
     print(f"max empty run: " + "  ".join(f"{h}px->{fills[h]}px" for h in heights))
+
+    # PIL-sanity contract (no display): assert nothing on either pair surface
+    # spikes to hot white and no cool water pixel breaches the 232 cap.
+    for pname, pal in (("day", day), ("night", night)):
+        psurf = _pair_surf(pal)
+        hot = 0
+        for yy in range(psurf.get_height()):
+            for xx in range(psurf.get_width()):
+                c = psurf.get_at((xx, yy))
+                if c[3] > 50 and c[0] >= 250 and c[1] >= 250 and c[2] >= 250:
+                    hot += 1
+        print(f"{pname}: pure-white(>=250) alpha>50 pixels = {hot}")
 
 
 if __name__ == "__main__":
