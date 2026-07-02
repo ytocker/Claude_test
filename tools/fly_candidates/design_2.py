@@ -1,13 +1,15 @@
 """BUZZ THE HOUSEFLY (Design 2) — scratch candidate for the ANIMALS fly skin.
 
 The "fly everyone draws": two ENORMOUS glossy red compound eyes crowning the
-silhouette as one big goggle mass, a plump light-grey barrel body tucked below,
-and stubby CLEAR wings that sit as a soft translucent halo *behind* the eyes —
-never a solid grey hood in front. All the contrast lives in the eyes (warm-red
-domes + white catch-lights); the body/wings stay light so the eyes read as the
-unmistakable hero at 40px. The mouth is a soft round sponge (labellum), never a
-needle. Scratch only — not registered in BUILDERS; wrapped by the shared
-prebuilt getter so tools/ninja_render can drive it exactly like a production
+silhouette, a plump light-grey barrel body tucked below, and a pair of SHORT
+WIDE translucent wing-fans held up-and-back over the thorax so the silhouette
+breaks above and behind the back on both sides. The wings are the "buzz": they
+sweep visibly across the 4 flap poses so motion reads even at 40px. All the
+value contrast lives in the eyes (warm-red domes + white catch-lights); the
+wings stay a cool translucent grey-blue so they're unmistakably present yet
+clearly secondary to the eyes. The mouth is a soft flat labellum pad, never a
+needle or bill. Scratch only — not registered in BUILDERS; wrapped by the
+shared prebuilt getter so tools/ninja_render can drive it like a production
 skin.
 """
 import math
@@ -60,18 +62,20 @@ _BODY_H    = (182, 180, 178)        # top specular of the barrel
 _BODY_MID  = (138, 136, 134)        # gentle lower shading (still light)
 _BAND      = (110, 108, 106)        # #6E6C6A — reserved for one thin band
 _RIM       = (128, 126, 124)        # soft belly rim (kept light)
-_BRISTLE   = (92, 90, 88)           # short dark setae off the thorax hump
+_BRISTLE   = (86, 84, 82)           # short dark setae off the thorax hump
 _EYE       = (178, 74, 58)          # #B24A3A warm red-brown compound dome
 _EYE_D     = (134, 52, 40)          # eye rim / lower shading
 _EYE_FACET = (206, 104, 86)         # lighter facet stipple
 _EYE_PUPIL = (92, 34, 28)           # soft pupil hint
 _CATCH     = (255, 255, 255)        # glossy catch-light — top contrast note
-_SPONGE    = (199, 154, 110)        # #C79A6E labellum pad
-_SPONGE_D  = (168, 124, 84)
+_SPONGE    = (212, 180, 138)        # #D4B48A light-tan labellum pad
+_SPONGE_D  = (176, 146, 104)        # groove / underside of the pad
 _LEG       = (78, 76, 74)
-_WING_FILL = (237, 239, 242)        # #EDEFF2 clear-wing membrane
-_WING_VEIN = (176, 182, 194)
-_WING_A    = 122                    # ~50% alpha so the sky reads through
+# Cool translucent grey-blue membrane. Alpha ~74% (was 48%) so the fans read
+# clearly at 40px instead of dissolving into the sky and leaving owl-ear stubs.
+_WING_FILL = (237, 239, 242)        # #EDEFF2 membrane
+_WING_VEIN = (108, 120, 144)        # thick dark cool grey-blue vein
+_WING_A    = 190                    # ~74% alpha — present, still see-through
 
 
 def _lerp(a, b, t):
@@ -92,28 +96,33 @@ def _vgrad_ellipse(surf, cx, cy, rx, ry, top, bot):
         pygame.draw.line(surf, col, (cx - half, cy + yy), (cx + half, cy + yy))
 
 
-def _fly_wing(f, sgn):
-    """A compact CLEAR wing, kept translucent + small so the pair reads as a
-    soft halo *behind* the eyes rather than a grey hood in front. `f` (0=down,
-    1=up) sweeps it up on the up-stroke; `sgn` splays far vs. near."""
-    w = pygame.Surface((34, 22), pygame.SRCALPHA)
-    # Tucked-in teardrop membrane (far edge pulled in ~20% vs. the R1 hood).
-    pygame.draw.ellipse(w, (*_WING_FILL, _WING_A), (8, 4, 22, 15))
-    pygame.draw.ellipse(w, (255, 255, 255, 60), (13, 6, 12, 8))       # sheen
-    pygame.draw.ellipse(w, (*_WING_VEIN, 120), (8, 4, 22, 15), 1)     # edge
-    pygame.draw.line(w, (*_WING_VEIN, 110), (13, 9), (29, 8), 1)      # vein
-    ang = sgn * (24 + f * 34)                # up-swept on the up-stroke
-    return pygame.transform.rotozoom(w, ang, 1.0)
+def _fly_wing(f, base_deg):
+    """A SHORT, WIDE rounded membrane fan with two thick dark veins. Kept
+    translucent grey-blue so it sits behind the eyes as clear buzzing glass,
+    never a solid hood. `f` (0 wings down/forward, 1 wings high/back) drives a
+    wide 42° sweep so the flap reads as the fly's buzz; `base_deg` splays the
+    far vs. near fan into a V opening up-and-back."""
+    w = pygame.Surface((34, 24), pygame.SRCALPHA)
+    # Fan lies along +x (root at left, wide tip at right); wider than tall.
+    pygame.draw.ellipse(w, (*_WING_FILL, _WING_A), (4, 4, 28, 16))
+    pygame.draw.ellipse(w, (206, 218, 238, 90), (10, 6, 15, 8))       # sheen
+    pygame.draw.ellipse(w, (*_WING_VEIN, 150), (4, 4, 28, 16), 1)     # edge
+    # Two THICK dark veins fanning root→tip — the housefly wing tell.
+    pygame.draw.line(w, (*_WING_VEIN, 215), (6, 12), (30, 8), 2)
+    pygame.draw.line(w, (*_WING_VEIN, 215), (6, 13), (29, 18), 2)
+    # +90° points the fan straight up; larger sweeps it up-and-back (left).
+    return pygame.transform.rotozoom(w, base_deg + f * 42, 1.0)
 
 
 def build_buzz_housefly(wing_angle_deg):
     surf = _new()
-    f = _flap(wing_angle_deg)                # 0 wings down, 1 wings up
+    f = _flap(wing_angle_deg)                # 1 wings high/back, 0 down/forward
 
-    # ── clear wings drawn FIRST so the eyes crown them: a translucent halo
-    #    fanning up-back behind the head, never a mass in front of the face ──
-    _rot_blit(surf, _fly_wing(f, +1), (36, 25))     # far wing (up-back-left)
-    _rot_blit(surf, _fly_wing(f, -1), (50, 25))     # near wing (up-back-right)
+    # ── SHORT WIDE wing-fans FIRST so the eyes/body crown them: a translucent
+    #    grey-blue V fanning up-and-back over the thorax, breaking the
+    #    silhouette above and behind the back on both sides ──
+    _rot_blit(surf, _fly_wing(f, 112), (29, 29))    # far fan (up-back-left)
+    _rot_blit(surf, _fly_wing(f, 88), (36, 29))     # near fan (up, slight back)
 
     # ── plump light-grey barrel body tucked below/behind the eyes ──
     _aaellipse(surf, _RIM, (BCX + 1, BCY + 3), 14, 13)              # soft rim
@@ -131,10 +140,12 @@ def build_buzz_housefly(wing_angle_deg):
                           [(lx, BCY + 11), (lx + bend, BCY + 16),
                            (lx + bend + 3, BCY + 19)], 1)
 
-    # ── thorax top hump + a small bristle flick (hairy-fly tell) ──
-    _aaellipse(surf, _BODY, (30, 32), 9, 7)
-    for bx, by in ((24, 30), (27, 28), (30, 27)):
-        pygame.draw.line(surf, _BRISTLE, (bx, by), (bx - 1, by - 4), 1)
+    # ── clean rounded thorax hump + 3 sparse dark setae (hairy-fly tell) ──
+    # A tight hump sitting low on the back, no grey blur bleeding up off the
+    # head, so the crown reads as thorax bristles — never owl ear-tufts.
+    _aaellipse(surf, _BODY, (30, 34), 8, 6)
+    for bx, by in ((25, 30), (28, 29), (31, 29)):
+        pygame.draw.line(surf, _BRISTLE, (bx, by), (bx - 2, by - 5), 1)
 
     # ── light-grey head behind the eyes (keeps the face one bright mass) ──
     _aaellipse(surf, _BODY_MID, (HCX, HCY + 3), 12, 9)
@@ -155,10 +166,12 @@ def build_buzz_housefly(wing_angle_deg):
         pygame.draw.circle(surf, _CATCH, (ex + 3, 34), 1)
         pygame.draw.circle(surf, _EYE_D, (ex, 31), 8, 1)           # crisp rim
 
-    # ── spongy labellum: a clear soft round pad directly below the eye pair ──
-    _aaellipse(surf, _SPONGE_D, (46, 45), 4, 3)
-    _aaellipse(surf, _SPONGE, (46, 44), 3, 3)
-    pygame.draw.line(surf, _SPONGE_D, (44, 44), (48, 44), 1)       # centre seam
+    # ── spongy labellum: a wide FLAT soft round pad below the eye pair, light
+    #    tan with a faint central groove so it reads as a mouth sponge, never a
+    #    pointed bill/diamond ──
+    _aaellipse(surf, _SPONGE_D, (46, 48), 6, 4)
+    _aaellipse(surf, _SPONGE, (46, 47), 5, 3)
+    pygame.draw.line(surf, _SPONGE_D, (42, 47), (50, 47), 1)       # centre groove
 
     return surf
 
