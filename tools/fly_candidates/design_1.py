@@ -1,37 +1,76 @@
-"""BLOWFLY BARON (LEGENDARY) — scratch fly-skin candidate, design_1.
+"""BLOWFLY BARON (LEGENDARY) — scratch fly-skin candidate, design_1 (R2).
 
-An iridescent metallic bottle-fly: a fat gleaming barrel abdomen under a
-vertical green→cyan metallic ramp, crowned by two enormous garnet compound
-eyes, wide translucent fan wings, a spongy labellum (mouth, NOT a needle),
-and an animated diagonal oil-slick sheen band that shifts across the body
-per frame. The two huge ruby eyes are the #1 fly tell and are sized to
-dominate the head at 40px in motion.
+A jewel-metal bottle-fly whose whole identity is the two enormous GARNET
+compound eyes crowning the head — they are the biggest, loudest thing on
+the sprite and the first read at 40px. Under them sits a fat iridescent
+barrel: a vertical chrome ramp (dark-teal belly → bottle-green midriff →
+cyan rim-light on the top edge) with a violet oil-slick sheen on the tail,
+two teal segment chevrons, and a spongy labellum mouth-pad (NOT a needle).
+The broad fan wings are pushed to ~55% alpha and tucked behind the mass so
+they frame the body instead of eating the silhouette.
 
 Scratch exploration only — wrapped by animal_skins._make_prebuilt_skin and
 exposed as ``build``; NEVER registered in animal_skins.BUILDERS.
 """
 import pygame
 
-from game.animal_skins import (
-    BCX, BCY, HCX, HCY, CROWN_Y, _new, _make_prebuilt_skin, _flap, _rot_blit,
-)
-from game.parrot import _aaellipse
+# WHY inline fallbacks: this scratch builder must render even if run outside
+# the package import path (headless tooling), while preferring the real
+# shared factory + canvas constants when the game package is importable.
+try:
+    from game.animal_skins import (
+        BCX, BCY, HCX, HCY, _new, _make_prebuilt_skin, _flap, _rot_blit,
+    )
+    from game.parrot import _aaellipse
+except Exception:  # pragma: no cover - direct-run fallback
+    from game.parrot import _WING_ANGLES, _add_outline, _aaellipse
+    BCX, BCY, HCX, HCY = 32, 44, 44, 34
+
+    def _new():
+        return pygame.Surface((64, 84), pygame.SRCALPHA)
+
+    def _flap(angle_deg):
+        return (angle_deg + 40) / 90.0
+
+    def _rot_blit(surf, wing, anchor):
+        surf.blit(wing, wing.get_rect(center=anchor).topleft)
+
+    def _make_prebuilt_skin(build_fn):
+        state = {"frames": None, "rot": {}}
+
+        def getter(frame_idx, tilt_deg):
+            if state["frames"] is None:
+                state["frames"] = [_add_outline(build_fn(a)) for a in _WING_ANGLES]
+            frames = state["frames"]
+            frame_idx %= len(frames)
+            key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
+            s = state["rot"].get(key)
+            if s is None:
+                s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
+                state["rot"][key] = s
+            return s
+
+        return getter
 
 
 # ── palette ──────────────────────────────────────────────────────────────────
-_BASE   = (18, 59, 52)          # #123B34 dark teal underbelly
+_BASE   = (18, 59, 52)          # #123B34 dark-teal belly / segment seams
 _GREEN  = (47, 168, 114)        # #2FA872 bottle-green midtone
-_CYAN   = (124, 246, 200)       # #7CF6C8 cyan rim-light / sheen head
-_SEAM   = (10, 40, 34)          # darker segment seam
-_EYE_C  = (139, 14, 35)         # #8B0E23 garnet eye centre
-_EYE_E  = (90, 8, 24)           # #5A0818 garnet eye edge
-_SHEEN  = ((124, 246, 200), (90, 209, 255), (185, 140, 255))  # cyan→azure→violet
-_LAB    = (42, 81, 72)          # #2A5148 spongy labellum
-_LAB_D  = (26, 54, 47)
-_WING   = (207, 239, 232)       # #CFEFE8 pearly membrane
-_VEIN   = (58, 112, 100)
+_CYAN   = (124, 246, 200)       # #7CF6C8 cyan rim-light + wing edge
+_VIOLET = (185, 140, 255)       # #B98CFF violet tail sheen
 
-_BODY_RX, _BODY_RY = 13, 12     # barrel abdomen half-extents
+# Garnet eye radial ramp (dark jewel core → saturated red rim).
+_EYE_CORE = (107, 10, 27)       # #6B0A1B
+_EYE_MID  = (139, 14, 35)       # #8B0E23
+_EYE_RIM  = (194, 29, 58)       # #C21D3A
+_EYE_SEAT = (58, 6, 16)         # contour that seats the cabochon
+
+# Spongy labellum: lighter teal pad against the darker barrel.
+_LAB   = (120, 196, 168)
+_LAB_H = (176, 232, 214)
+_LAB_D = (47, 168, 114)
+
+_BODY_RX, _BODY_RY = 15, 14     # plump barrel half-extents (~15% rounder)
 
 
 def _ramp(stops, t):
@@ -47,15 +86,25 @@ def _ramp(stops, t):
 
 
 def _barrel_gradient():
-    """Vertical metallic ramp masked to the abdomen ellipse: cyan rim-light
-    on top, bottle-green midriff, dark-teal belly — the chrome-fly read."""
+    """Vertical metallic ramp masked to the barrel ellipse: cyan rim-light on
+    the top edge, bottle-green body, dark-teal belly — plus a violet oil-slick
+    bloom on the lower-right tail. The jewel-saturated LEGENDARY read."""
     w, h = _BODY_RX * 2, _BODY_RY * 2
-    stops = [(0.0, _CYAN), (0.42, _GREEN), (1.0, _BASE)]
+    # Cyan is a thin rim-light, so it collapses to green fast off the top edge.
+    stops = [(0.0, _CYAN), (0.12, _GREEN), (0.6, _GREEN), (1.0, _BASE)]
     g = pygame.Surface((w, h), pygame.SRCALPHA)
     for yy in range(h):
         pygame.draw.line(g, _ramp(stops, yy / (h - 1)), (0, yy), (w, yy))
+
     mask = pygame.Surface((w, h), pygame.SRCALPHA)
     pygame.draw.ellipse(mask, (255, 255, 255, 255), (0, 0, w, h))
+
+    # Violet tail sheen, masked to the barrel so it never leaks past the rim.
+    vio = pygame.Surface((w, h), pygame.SRCALPHA)
+    _aaellipse(vio, (*_VIOLET, 120), (int(w * 0.70), int(h * 0.74)), 9, 7)
+    vio.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    g.blit(vio, (0, 0))
+
     g.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     return g
 
@@ -63,49 +112,34 @@ def _barrel_gradient():
 _BARREL = _barrel_gradient()
 
 
-def _sheen_band(off):
-    """Translucent diagonal oil-slick stripe, masked to the abdomen and
-    additively blitted. `off` slides the green→cyan→violet ramp across the
-    body so the sheen crawls per wing-frame — the animated signature."""
-    w, h = _BODY_RX * 2, _BODY_RY * 2
-    band = pygame.Surface((w, h), pygame.SRCALPHA)
-    # Three parallel diagonal ribs, one per iridescent hue, offset in x.
-    for i, col in enumerate(_SHEEN):
-        x0 = int(off) + i * 5 - 4
-        pygame.draw.line(band, (*col, 120), (x0, -6), (x0 - h - 8, h + 6), 5)
-    mask = pygame.Surface((w, h), pygame.SRCALPHA)
-    pygame.draw.ellipse(mask, (255, 255, 255, 255), (0, 0, w, h))
-    band.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    return band
-
-
 def build_fly_wing(wing_angle_deg):
-    """Wide rounded fan wing (fly wings are broad teardrops, not blades):
-    translucent pearl membrane, pearlescent green rim, three dark veins.
-    Returned pre-rotated by `wing_angle_deg`."""
-    w = pygame.Surface((48, 40), pygame.SRCALPHA)
-    memb = (207, 239, 232, 140)     # ~55% alpha
-    # Broad ovate blade + a taper toward the thorax root (lower-left).
-    _aaellipse(w, memb, (29, 17), 16, 12)
-    pygame.draw.polygon(w, memb, [(8, 28), (22, 10), (26, 26)])
-    # Pearlescent green leading edge.
-    pygame.draw.ellipse(w, (124, 246, 200, 205), (13, 4, 32, 26), 1)
-    # Three splayed veins fanning from the wing base.
-    for tx, ty in ((40, 10), (43, 18), (36, 27)):
-        pygame.draw.line(w, (*_VEIN, 170), (11, 27), (tx, ty), 1)
+    """Broad translucent fan wing, receded behind the mass: ~55% alpha pearl
+    membrane, pearlescent CYAN leading edge, exactly three clean thick veins
+    (no cross-hatch), far edge tucked inward. Returned pre-rotated."""
+    w = pygame.Surface((40, 32), pygame.SRCALPHA)
+    memb = (176, 232, 214, 140)                 # ~55% alpha, sky reads through
+    _aaellipse(w, memb, (22, 15), 14, 9)        # broad ovate blade
+    pygame.draw.polygon(w, memb, [(6, 24), (18, 12), (23, 22)])  # thorax taper
+    # Pearlescent cyan leading edge (tucked inward vs. the membrane).
+    pygame.draw.ellipse(w, (*_CYAN, 165), (9, 6, 27, 18), 1)
+    # Exactly three splayed veins from the wing root.
+    for tx, ty in ((32, 10), (34, 16), (29, 23)):
+        pygame.draw.line(w, (*_CYAN, 120), (9, 20), (tx, ty), 2)
     return pygame.transform.rotate(w, wing_angle_deg)
 
 
 def _eye_dome(surf, cx, cy, r):
-    """Deep garnet compound eye: radial jewel-red gradient + hot white
-    upper-left specular dot. The single loudest fly cue."""
+    """HERO garnet compound eye: radial jewel ramp (dark core → saturated
+    #C21D3A rim) + a dark seating contour + a hot-white upper-left specular.
+    The single loudest cue — sized to dominate the head at 40px."""
     for rr in range(r, 0, -1):
-        surf and pygame.draw.circle(
-            surf, _ramp([(0.0, _EYE_C), (1.0, _EYE_E)], rr / r), (cx, cy), rr)
-    pygame.draw.circle(surf, (66, 6, 18), (cx, cy), r, 1)
-    gx, gy = cx - r // 3, cy - r // 3
-    pygame.draw.circle(surf, (255, 255, 255), (gx, gy), max(1, r // 3))
-    pygame.draw.circle(surf, (255, 206, 214), (gx + 1, gy + 1), 1)
+        pygame.draw.circle(
+            surf, _ramp([(0.0, _EYE_CORE), (0.5, _EYE_MID), (1.0, _EYE_RIM)],
+                        rr / r), (cx, cy), rr)
+    pygame.draw.circle(surf, _EYE_SEAT, (cx, cy), r, 1)
+    gx, gy = cx - int(r * 0.42), cy - int(r * 0.42)
+    pygame.draw.circle(surf, (255, 255, 255), (gx, gy), 3)
+    pygame.draw.circle(surf, (255, 224, 232), (gx + 2, gy + 2), 1)
 
 
 def build_fly_baron(wing_angle_deg):
@@ -113,50 +147,48 @@ def build_fly_baron(wing_angle_deg):
     f = _flap(wing_angle_deg)                 # 1 = wings up, 0 = wings down
     up = 18 + f * 34                          # wings sweep higher on the up-beat
 
-    # Far wing (behind the body) for depth — mirrored of the near wing.
+    # ── Wings FRAME behind the mass (drawn first): far wing mirrored, near
+    #    wing splayed the other way; both subordinate to body + eyes. ──
     far = pygame.transform.flip(build_fly_wing(up), True, False)
-    _rot_blit(surf, far, (BCX - 8, BCY - 9))
+    _rot_blit(surf, far, (BCX - 7, BCY - 6))
+    _rot_blit(surf, build_fly_wing(up), (BCX + 8, BCY - 6))
 
-    # Green rim-glow bloom behind the body for night-sky visibility.
+    # Faint cyan bloom for night-sky legibility (kept thin so it never
+    # thickens the silhouette).
     glow = _new()
-    for pad, a in ((3, 42), (2, 74), (1, 118)):
+    for pad, a in ((3, 30), (1, 66)):
         pygame.draw.ellipse(
-            glow, (124, 246, 200, a),
+            glow, (*_CYAN, a),
             (BCX - _BODY_RX - pad, BCY - _BODY_RY - pad,
              _BODY_RX * 2 + pad * 2, _BODY_RY * 2 + pad * 2), 1)
     surf.blit(glow, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
-    # Chrome barrel abdomen (vertical metallic ramp).
+    # Chrome barrel abdomen (vertical metallic ramp + violet tail sheen).
     surf.blit(_BARREL, (BCX - _BODY_RX, BCY - _BODY_RY))
-    # Two faint chevron segment seams across the lower abdomen.
-    for yy in (BCY + 3, BCY + 8):
-        pygame.draw.lines(surf, _SEAM, False,
-                          [(BCX - 9, yy - 2), (BCX, yy + 2), (BCX + 9, yy - 2)], 1)
+    # Cyan rim-light stroke hugging the top edge to sell the metal.
+    pygame.draw.arc(surf, _CYAN,
+                    (BCX - _BODY_RX + 2, BCY - _BODY_RY, _BODY_RX * 2 - 4, 14),
+                    0.5, 2.64, 2)
 
-    # Animated oil-slick sheen crawling across the body.
-    surf.blit(_sheen_band((1.0 - f) * 12), (BCX - _BODY_RX, BCY - _BODY_RY),
-              special_flags=pygame.BLEND_RGBA_ADD)
+    # Two clean darker-teal segment chevrons across the lower barrel.
+    for yy in (BCY + 3, BCY + 9):
+        pygame.draw.lines(surf, _BASE, False,
+                          [(BCX - 10, yy - 2), (BCX, yy + 2),
+                           (BCX + 10, yy - 2)], 2)
 
-    # Bristly thorax setae poking off the top (drawn before the head mass).
-    for bx in (26, 30, 34):
-        pygame.draw.line(surf, _SEAM, (bx, HCY - 2), (bx - 1, HCY - 6), 1)
+    # Small green thorax bridge tucked behind the eyes (joins eyes to barrel).
+    _aaellipse(surf, _GREEN, (HCX, HCY + 2), 10, 7)
 
-    # Head mass under the eyes.
-    _aaellipse(surf, _BASE, (HCX, HCY + 1), 11, 8)
-    _aaellipse(surf, _GREEN, (HCX, HCY - 1), 9, 6)
+    # ── HERO: two enormous garnet eyes crowning the head, meeting at centre. ──
+    _eye_dome(surf, 37, 31, 13)
+    _eye_dome(surf, 51, 31, 13)
 
-    # HERO: two enormous garnet compound eyes nearly touching.
-    _eye_dome(surf, 38, 32, 7)
-    _eye_dome(surf, 50, 32, 7)
-
-    # Spongy labellum (mouth pad) below the head — rounded, grooved, NO needle.
-    _aaellipse(surf, _LAB, (46, 45), 4, 3)
-    _aaellipse(surf, _LAB_D, (46, 46), 4, 2)
-    for gx in (44, 47):
-        pygame.draw.line(surf, _LAB_D, (gx, 43), (gx, 47), 1)
-
-    # Near wing over the body — the hero fan on the near side.
-    _rot_blit(surf, build_fly_wing(up), (BCX + 8, BCY - 9))
+    # Spongy labellum mouth-pad below the eyes — rounded sponge, grooved, in
+    # front of the face so it reads as a pad, never a needle.
+    _aaellipse(surf, _LAB, (44, 46), 5, 4)
+    _aaellipse(surf, _LAB_H, (44, 45), 4, 3)
+    for gx in (42, 44, 46):
+        pygame.draw.line(surf, _LAB_D, (gx, 44), (gx, 48), 1)
     return surf
 
 
