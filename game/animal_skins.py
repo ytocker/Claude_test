@@ -725,7 +725,7 @@ def _monarch_make_build(draw_wing_fn, ring_col=(250, 132, 30), club_col=(255, 17
     def _frame(a):
         surf = _new()
         f = (a + 40) / 90.0
-        spread, nx = int(f * 9), 1.0 - 0.42 * f
+        spread, nx = int(f * 9), 0.12 + 0.88 * (1.0 - f) ** 0.5
         draw_wing_fn(surf, -1, spread, nx)
         _m_draw_body(surf, spread)
         draw_wing_fn(surf, +1, spread, nx)
@@ -842,7 +842,7 @@ def _bfly_azure_frame(a):
     except ValueError:
         fi = 0
     f = (a + 40) / 90.0
-    spread, nx = int(f * 9), 1.0 - 0.42 * f
+    spread, nx = int(f * 9), 0.12 + 0.88 * (1.0 - f) ** 0.5
     _bfly_wing_azure(surf, -1, spread, nx, fi)
     _m_draw_body(surf, spread)
     _bfly_wing_azure(surf, +1, spread, nx, fi)
@@ -1027,7 +1027,7 @@ def _bfly_purple_frame(a):
     except ValueError:
         fi = 0
     f = (a + 40) / 90.0
-    spread, nx = int(f * 9), 1.0 - 0.42 * f
+    spread, nx = int(f * 9), 0.12 + 0.88 * (1.0 - f) ** 0.5
     _bfly_wing_purple(surf, -1, spread, nx, fi)
     _m_draw_body(surf, spread)
     _bfly_wing_purple(surf, +1, spread, nx, fi)
