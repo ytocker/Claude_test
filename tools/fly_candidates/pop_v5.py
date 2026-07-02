@@ -1,12 +1,15 @@
 """POP FLY (Variant 5: CHERRY BOMB) — inverted pop-art housefly, SCRATCH candidate.
 
 Design 5's red+yellow primaries flipped and pushed hotter: a chalk-white
-thorax stacked over a deep-red abdomen, black Ben-Day dots burning into the
-cream goggle eyes for an intense stare, and pure-red speed lines cracking off
-the wings on the up-beats. Same Lichtenstein construction as Design 5 — flat
-colour blocks, a uniform 2px comic ink loop on every element, hex-packed
-halftone fills — but the value structure is deliberately reversed so the pair
-read as a matched light/dark set.
+thorax stacked over a deep-red abdomen. The value structure is deliberately
+reversed from Design 5 so the pair read as a matched light/dark set — same
+Lichtenstein construction (flat colour blocks, a uniform 2px comic ink loop on
+every element, whisper-sparse halftone) but cherry-hot instead of sunny.
+
+Warmth is pulled UP to the face: smooth warm-pink eye domes and red thorax
+setae give the head the energy, so the eye reads the face first and the red
+abdomen second — not the other way round. Wing membrane is a cool mid-grey so
+it separates cleanly from the chalk-white thorax across the ink seam.
 
 Exploration only — wrapped by the local `_make_prebuilt_skin` and NOT
 registered in any production BUILDERS map.
@@ -47,11 +50,12 @@ THORAX    = (245, 245, 245)         # #F5F5F5 chalk-white thorax (was red)
 THORAX_D  = (204, 17, 17)           # #CC1111 red polka-shadow on the white dome
 ABDOMEN   = (204, 17, 17)           # #CC1111 deep-red abdomen (was yellow)
 ABDOMEN_D = (17, 17, 17)            # #111111 black halftone banding on the red
-RED       = (204, 17, 17)           # #CC1111 veins + speed-line energy hit
-EYEDOT    = (17, 17, 17)            # #111111 black Ben-Day eye dots (was blue)
-EYEW      = (255, 232, 232)         # #FFE8E8 red-tinted cream dome
+RED       = (204, 17, 17)           # #CC1111 veins + setae + speed-line energy
+EYEW      = (255, 202, 204)         # #FFCACC warm-pink eye dome (smooth, no dots)
+PUPIL     = (17, 17, 17)            # #111111 black pupil for a focused stare
 WHITE     = (255, 255, 255)
-WINGGREY  = (240, 240, 240)         # #F0F0F0 off-white wing membrane
+WINGGREY  = (214, 219, 224)         # #D6DBE0 cool mid-grey wing — cooler + darker
+                                    # than the chalk thorax so they never fuse
 WINGDOT   = (34, 34, 34)            # #222222 black halftone in the fan
 LABELLUM  = (204, 17, 17)           # #CC1111 deep-red sponge mouth pad
 
@@ -78,7 +82,9 @@ def _benday(target, region_pts_or_mask, color, spacing=4, radius=1, phase=0):
     """Overlay a regular Ben-Day halftone dot grid clipped to a region.
 
     Odd rows are half-offset so the grid reads as a hex-packed halftone,
-    not a plain lattice. `region` is polygon points or a white mask surface."""
+    not a plain lattice. `region` is polygon points or a white mask surface.
+    On pale blocks the pitch is kept wide so only 2–3 dots survive the 40px
+    downscale — a whisper of texture, never noise."""
     w, h = target.get_size()
     if isinstance(region_pts_or_mask, pygame.Surface):
         mask = region_pts_or_mask
@@ -109,21 +115,21 @@ _WING_ROOT = (8, 24)
 
 
 def _wing_surface():
-    """One rounded pop-art fan: a single smooth off-white membrane ellipse, a
-    black halftone, two bold RED veins, then a 2px ink loop. Red veins push the
-    cherry theme even in the wings, which stay lighter than the red body."""
+    """One rounded pop-art fan: a single smooth cool-grey membrane ellipse, a
+    whisper-sparse black halftone, ONE bold red structural vein, then a 2px ink
+    loop. The grey membrane stays cooler and darker than the chalk thorax so
+    the ink seam between them always reads at 40px."""
     w = pygame.Surface((52, 48), pygame.SRCALPHA)
     membrane = pygame.Rect(0, 0, 36, 26)
     membrane.center = (26, 24)
     pygame.draw.ellipse(w, WINGGREY, membrane)
-    # Sparse black halftone reads as translucent membrane over the sky and stays
-    # behind the eyes instead of muddying at truth scale.
+    # Wide-pitch halftone: only a couple of dots survive downscale — texture,
+    # not the busy field the R1 wings drowned in.
     emask = pygame.Surface((52, 48), pygame.SRCALPHA)
     pygame.draw.ellipse(emask, (255, 255, 255, 255), membrane)
-    _benday(w, emask, WINGDOT, spacing=5, radius=1)
-    # Two bold RED veins radiate from the root — cherry-red inside the fan.
-    pygame.draw.line(w, RED, _WING_ROOT, (40, 16), 2)
-    pygame.draw.line(w, RED, _WING_ROOT, (40, 32), 2)
+    _benday(w, emask, WINGDOT, spacing=9, radius=1)
+    # ONE bold red vein down the fan's spine — red is structure here, not clutter.
+    pygame.draw.line(w, RED, _WING_ROOT, (40, 22), 2)
     return _ink_outline(w, 2)
 
 
@@ -146,13 +152,12 @@ def build_pop_v5(wing_angle_deg):
     surf = _new()
     f = (wing_angle_deg + 40) / 90.0        # 1 = wings up, 0 = wings down
 
-    # Pure-RED speed lines crack off the back on the wing-up beats — a bold
-    # energy hit that reads even at 40px against the sky.
+    # Two short red speed strokes crack off the far back-left on the wing-up
+    # beats — kept clearly OUTSIDE the wing silhouette so red stays structure,
+    # a bold energy hit that reads at 40px without slashing across the fans.
     if f > 0.6:
-        for k in range(3):
-            y = 20 + k * 6
-            pygame.draw.line(surf, RED, (5, y + 2), (12, y), 2)
-            pygame.draw.line(surf, RED, (12, y), (19, y - 1), 2)
+        pygame.draw.line(surf, RED, (2, 13), (9, 10), 2)
+        pygame.draw.line(surf, RED, (1, 20), (8, 17), 2)
 
     # Two smooth fans sweep up-and-back off a shoulder anchor near (28,31);
     # the fan opens on the wing-up frames so tips ride from low-wide to a
@@ -168,10 +173,11 @@ def build_pop_v5(wing_angle_deg):
     body = _new()
     _aaellipse(body, ABDOMEN, (BCX, 49), 13, 11)
     _aaellipse(body, THORAX, (BCX, 41), 13, 9)
-    # Red polka-shadow field curves under the WHITE thorax dome for its value.
+    # Wide-pitch red polka under the WHITE thorax dome — a whisper of value,
+    # only a couple of dots at 40px.
     tmask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     _aaellipse(tmask, (255, 255, 255, 255), (BCX, 43), 12, 7)
-    _benday(body, tmask, THORAX_D, spacing=4, radius=1, phase=1)
+    _benday(body, tmask, THORAX_D, spacing=9, radius=1, phase=1)
     # Black Ben-Day banding rows read as rounded shading on the RED abdomen.
     amask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     _aaellipse(amask, (255, 255, 255, 255), (BCX + 1, 52), 11, 7)
@@ -187,34 +193,32 @@ def build_pop_v5(wing_angle_deg):
     pygame.draw.ellipse(lab, LABELLUM, lr)
     surf.blit(_ink_outline(lab, 2), (0, 0))
 
-    # ── HERO: two big dotted goggle eyes that fill the head ──
-    # Centres sit a true 2px apart so the silhouettes never fuse; the ink
-    # loops meet in the gap to hold a solid vertical gutter → always TWO eyes.
-    # Cream base + BLACK halftone gives the intense inverted stare.
+    # ── HERO: two big warm-pink goggle eyes that fill the head ──
+    # SMOOTH fill (no halftone greying them out) so the warm pink pulls the
+    # focal point up to the face. Each dome gets one hard white glint + a black
+    # pupil for a focused stare. Centres sit a true 2px apart and a solid ink
+    # gutter runs the seam so the pair always read as TWO eyes.
     eyes = _new()
     ecs = ((35, 30), (53, 30))
     for cx, cy in ecs:
         _aaellipse(eyes, EYEW, (cx, cy), 8, 8)
-    emask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    for cx, cy in ecs:
-        _aaellipse(emask, (255, 255, 255, 255), (cx, cy), 8, 8)
-    _benday(eyes, emask, EYEDOT, spacing=3, radius=1)
     inked_eyes = _ink_outline(eyes, 2)
-    # Solid white comic glint wedge in each dome's upper-left, over the dots.
     for cx, cy in ecs:
-        pygame.draw.polygon(inked_eyes, WHITE, [
-            (cx - 6, cy - 4), (cx - 1, cy - 6), (cx - 3, cy)])
+        pygame.draw.circle(inked_eyes, PUPIL, (cx, cy + 1), 3)
+        # Single hard specular glint in the upper-left, over the pupil.
+        pygame.draw.circle(inked_eyes, WHITE, (cx - 3, cy - 3), 2)
     # Belt-and-braces 2px ink gutter down the seam so the domes never read as
     # one goggle even after the downscale.
     pygame.draw.line(inked_eyes, INK, (44, 22), (44, 38), 2)
     surf.blit(inked_eyes, (0, 0))
 
-    # ── bristly thorax hump: chunky black setae angled up-back ──
-    # Notch-breaks over the white dome's top push the body from "ladybug" to
-    # "fly"; drawn last so they read on top of the shoulder, tips clear-left.
+    # ── bristly thorax hump: chunky RED setae angled up-back ──
+    # Red (not black) so warmth reads at the FACE, matching the pink eyes and
+    # balancing the red abdomen — the notch-breaks over the white dome's top
+    # still push the body from "ladybug" to "fly".
     for (x0, y0), (x1, y1) in (
             ((28, 34), (23, 28)), ((25, 35), (20, 30)), ((31, 33), (26, 27))):
-        pygame.draw.line(surf, INK, (x0, y0), (x1, y1), 2)
+        pygame.draw.line(surf, RED, (x0, y0), (x1, y1), 2)
 
     return surf
 
