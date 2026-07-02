@@ -36,7 +36,7 @@ any game module. (draw_side_shrub lives in game.draw, not pillar_variants, so it
 is sourced from its true home; everything else is imported as briefed.)
 
 Run:  python docs/pillar_landmarks/totems/kota_reliquary/render.py
-Out:  docs/pillar_landmarks/totems/kota_reliquary/round_1.png
+Out:  docs/pillar_landmarks/totems/kota_reliquary/round_2.png
 """
 from __future__ import annotations
 
@@ -79,6 +79,11 @@ _HALF = PIPE_W // 2                # 29 — half the collision band
 _FACE_HALF = 25                    # oval face half-width — inside the 58 band
 _CHEEK_HALF = 40                   # cheek-wing crescent tip — gutter overhang
 _LOZ_HALF = 39                     # lozenge horizontal point — gutter overhang
+# The bright crescent finial reads as bridging the flyway if it sits flush on
+# the rim, so the ornament (and the metal it caps) starts a few px below it. The
+# tiny empty run this leaves at the very rim stays well inside the ≤12px fill
+# tolerance — no killzone — while giving the gap edge visible air.
+RIM_AIR = 3
 
 
 # ── metal material palette (all palette-anchored → biome retint sweeps through)
@@ -92,7 +97,7 @@ def _materials(palette):
     brass_lit = _cap_lit_for_dark_sky(_gold_bright(palette), palette, cap=232)
     # The hammered GLINT — a near-white specular so sheet brass reads reflective.
     brass_hi = _cap_lit_for_dark_sky(
-        _mix(_gold_bright(palette), (255, 250, 232), 0.42), palette, cap=246)
+        _mix(_gold_bright(palette), (255, 250, 232), 0.42), palette, cap=244)
     brass_deep = _gold_deep(palette)
     brass_shadow = _cap_dark_for_dark_sky(_shade(_bronze(palette), -34), palette)
     copper = _mix(palette['stone_accent'], (176, 104, 66), 0.66)
@@ -109,6 +114,31 @@ def _materials(palette):
                 brass_deep=brass_deep, brass_shadow=brass_shadow,
                 copper=copper, copper_lit=copper_lit, bronze=bronze,
                 back_mid=back_mid, back_dark=back_dark, wood_core=wood_core)
+
+
+def _warm_clamp_night(surf, x0, x1, y0, y1, *, cap=244):
+    """Composited-highlight guard for the NIGHT keyframe. The additive amber
+    breath-glows (mouth niches, plinth mist, finial spiral) stack over already
+    bright brass and blow OUT to neutral (255,255,255) — a cool sparkle-field in
+    motion, not warm metal. So every painted pixel in the tower band gets each
+    channel pulled to <= cap, and any near-neutral hot pixel is re-biased to
+    GOLD (blue then green pulled below red) so the sheen stays warm brass and no
+    pixel is ever pure white. Runs once per cached tower, so the per-pixel loop
+    is pygbag-safe (no per-frame cost)."""
+    x0 = max(0, x0); y0 = max(0, y0)
+    x1 = min(surf.get_width(), x1); y1 = min(surf.get_height(), y1)
+    for x in range(x0, x1):
+        for y in range(y0, y1):
+            r, g, b, a = surf.get_at((x, y))
+            if a == 0:
+                continue
+            if max(r, g, b) <= cap and not (min(r, g, b) >= 205):
+                continue
+            r = min(r, cap); g = min(g, cap); b = min(b, cap)
+            if min(r, g, b) >= 205:                # near-neutral hot → force gold
+                b = min(b, int(r * 0.62))
+                g = min(g, int(r * 0.88))
+            surf.set_at((x, y), (r, g, b, a))
 
 
 def _arc_pts(cx, cy, rw, rh, a0, a1, n=20):
@@ -256,16 +286,17 @@ def _draw_mask(surf, cx, u_top, u_bot, m, palette, *, with_lozenge, crown):
     cheek_rh = max(6, int(rh * 0.85))
     for sgn in (-1, 1):
         _crescent(surf, cx + sgn * (rw + cheek_rw - 6), face_cy,
-                  cheek_rw, cheek_rh, m, bite=0.7, rivets=2)
+                  cheek_rw, cheek_rh, m, bite=0.7, rivets=1)
 
-    # Coiffure crescent brow arcing over the face (or the wide crown lunette).
+    # The wide crown lunette caps the top mask. Non-crown masks DROP the small
+    # coiffure crescent so the four brass features (coiffure + 2 cheeks + dish +
+    # lunette) never merge into one amorphous blob in a ~58px cell — the cheek
+    # wings + dished oval carry the stacked masks, and the crescent read is
+    # spent where it counts: the crown and the finial.
     if crown:
         _crescent(surf, cx, u_top + max(6, unit_h // 8),
                   int(_CHEEK_HALF * 1.08), max(9, int(unit_h * 0.13)),
                   m, bite=0.86, rivets=5)
-    else:
-        _crescent(surf, cx, face_cy - int(rh * 0.9),
-                  int(rw * 1.05), max(6, int(rh * 0.55)), m, bite=0.82, rivets=3)
 
     # The dished brass face — the hero surface.
     _dished_oval(surf, cx, face_cy, rw, rh, m)
@@ -288,11 +319,14 @@ def _draw_mask(surf, cx, u_top, u_bot, m, palette, *, with_lozenge, crown):
     if rh >= 11:
         _lit_niche(surf, cx, face_cy + int(rh * 0.6),
                    max(5, rw // 2), max(4, rh // 4), palette)
-    # A few sparse hammer ticks — specular sparkle on the crown, not a field.
-    for tk in (-0.3, 0.15, 0.5):
-        tx = int(cx + rw * tk)
-        ty = int(face_cy - rh * 0.55)
-        pygame.draw.line(surf, m['brass_hi'], (tx, ty), (tx + 1, ty - 1), 1)
+    # Two hammer ticks, CROWN mask only — occasional catch-lights, never a field
+    # of stitching that aliases at 1×. The dish rim-light carries "hammered" on
+    # the rest of the stack.
+    if crown:
+        for tk in (-0.28, 0.22):
+            tx = int(cx + rw * tk)
+            ty = int(face_cy - rh * 0.55)
+            pygame.draw.line(surf, m['brass_hi'], (tx, ty), (tx + 1, ty - 1), 1)
 
     if with_lozenge:
         _lozenge_cell(surf, cx, u_top + face_h, u_bot - 1, m, palette)
@@ -309,17 +343,20 @@ def _draw_tower_upright(surf, cx, y_top, y_bottom, palette, seed):
 
     plinth_h = max(4, min(11, int(sect_h * 0.06)))
     finial_h = max(10, min(26, int(sect_h * 0.10)))
-    body_top = y_top + finial_h
+    rim = y_top + RIM_AIR                          # ornament starts below the rim
+    body_top = rim + finial_h
     body_bottom = y_bottom - plinth_h
     body_h = body_bottom - body_top
     if body_h < 10:
-        body_top, body_h = y_top, body_bottom - y_top
+        body_top, body_h = rim, body_bottom - rim
 
     # ── FILL GUARANTEE: a full-height recessed back-plate spans the WHOLE band
-    # from the gap rim to the plinth BEFORE any metal — so the open-frame lozenge
-    # can never leave a killzone. Gradient lit-edges → dark-centre reads as a
-    # shrine interior / the wood core the brass is tacked onto, not a flat slab.
-    bp = pygame.Rect(cx - _HALF, y_top, PIPE_W, body_bottom - y_top)
+    # from just below the gap rim to the plinth BEFORE any metal — so the
+    # open-frame lozenge can never leave a killzone. Gradient lit-edges →
+    # dark-centre reads as a shrine interior / the wood core the brass is tacked
+    # onto, not a flat slab. The RIM_AIR inset keeps a thin rim of air (well
+    # within the fill tolerance) so nothing reads as bridging the flyway.
+    bp = pygame.Rect(cx - _HALF, rim, PIPE_W, body_bottom - rim)
     _gradient_rect(surf, bp, _mix(m['wood_core'], m['back_mid'], 0.5),
                    m['back_mid'], m['back_dark'])
     _aa_polyline(surf, m['back_dark'],
@@ -348,11 +385,15 @@ def _draw_tower_upright(surf, cx, y_top, y_bottom, palette, seed):
                              (cx - _HALF + 3, u_top), (cx + _HALF - 3, u_top), 1)
 
     # Crescent finial crown at the gap end + a night glint (draw_spiral_glow).
-    fin_cy = y_top + finial_h // 2
+    # Sized + seated so its top arc sits at/below the back-plate rim (RIM_AIR)
+    # regardless of section height — the bright ornament tip always keeps air
+    # over the flyway instead of reading as bridging it on short stubs.
+    fin_rh = max(5, (finial_h - 3) // 2)
+    fin_cy = rim + fin_rh + 2
     if _is_dark_sky(palette):
-        draw_spiral_glow(surf, cx, y_top + 3, radius=8)
+        draw_spiral_glow(surf, cx, fin_cy, radius=6)   # seated on the finial, below the rim
     _crescent(surf, cx, fin_cy, int(_CHEEK_HALF * 0.62),
-              max(7, finial_h // 2), m, bite=0.8, rivets=4)
+              fin_rh, m, bite=0.8, rivets=4)
     # A small bright jewel boss at the finial apex.
     pygame.draw.circle(surf, m['brass_hi'], (cx, fin_cy - 1), 2)
     pygame.draw.circle(surf, m['copper'], (cx, fin_cy - 1), 2, 1)
@@ -376,6 +417,13 @@ def _draw_tower_upright(surf, cx, y_top, y_bottom, palette, seed):
     draw_grass_bed(surf, cx, body_bottom + plinth_h + 1, pl_w, 22, palette, seed)
     draw_side_shrub(surf, cx - pl_w // 2 - 2, body_bottom + plinth_h + 2, palette, 0.9)
     draw_side_shrub(surf, cx + pl_w // 2 + 2, body_bottom + plinth_h + 2, palette, 0.9)
+
+    # NIGHT: tame the composited additive glows to a warm capped sheen so the
+    # tower never carries a pure-white sparkle-field. Covers the band + gutter
+    # overhangs + plinth mist.
+    if _is_dark_sky(palette):
+        _warm_clamp_night(surf, cx - _LOZ_HALF - 6, cx + _LOZ_HALF + 6,
+                          y_top - 3, body_bottom + plinth_h + 8)
 
 
 def candidate_kota_reliquary(surf, top_rect, bot_rect, palette, seed):
@@ -548,7 +596,7 @@ def main():
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((24, 25, 30))
 
-    sheet.blit(title.render("kota_reliquary — hammered brass guardian totem  ·  round_1",
+    sheet.blit(title.render("kota_reliquary — hammered brass guardian totem  ·  round_2",
                             True, (245, 240, 230)), (pad, 12))
     sheet.blit(sub.render("metal totem: dished oval faces + crescent coiffure over an OPEN "
                           "lozenge frame  ·  full-height recessed back-plate keeps the "
@@ -593,7 +641,25 @@ def main():
     sheet.blit(lab.render("58px BLACKOUT", True, (255, 224, 150)),
                (x, by + black.get_height() + 3))
 
-    out = pathlib.Path(__file__).resolve().parent / "round_1.png"
+    # ── NIGHT no-pure-white audit (never opens the PNG) ──
+    na = pygame.Surface((CACHE_W, CACHE_H), pygame.SRCALPHA)
+    br_n = pygame.Rect(MARGIN, 0, PIPE_W, 0)
+    bot_n = pygame.Rect(MARGIN, 120, PIPE_W, GROUND_Y - 120)
+    candidate_kota_reliquary(na, br_n, bot_n, pal_n, seed=5)
+    pure_white = 0
+    night_max = 0
+    for xx in range(CACHE_W):
+        for yy in range(CACHE_H):
+            c = na.get_at((xx, yy))
+            if c[3] == 0:
+                continue
+            night_max = max(night_max, c[0], c[1], c[2])
+            if c[:3] == (255, 255, 255):
+                pure_white += 1
+    print(f"NIGHT AUDIT  pure-white(255,255,255)={pure_white}  "
+          f"max channel={night_max}  [{'OK' if pure_white == 0 else 'FAIL'}]")
+
+    out = pathlib.Path(__file__).resolve().parent / "round_2.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
