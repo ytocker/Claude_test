@@ -23,7 +23,7 @@ opens at any section height 70–355 px. The belly bulge, the frame posts and th
 cross-vane are pure gutter overhang laid over that solid core.
 
 Run:  python docs/pillar_landmarks/windmills/mani-drum-tower/render.py
-Out:  docs/pillar_landmarks/windmills/mani-drum-tower/round_1.png
+Out:  docs/pillar_landmarks/windmills/mani-drum-tower/round_2.png
 """
 from __future__ import annotations
 
@@ -184,7 +184,9 @@ def _drum(surf, cx, y_top, y_bot, hw_belly, hw_end, palette, seed_phase):
     band_cy = y_top + dh // 2
     engrave = _lacquer_deep(palette)
     glint = _gold_bright(palette)
-    rows = (band_cy - 4, band_cy + 3) if dh > 30 else (band_cy,)
+    # A single mantra band (even on tall drums) — two rows read as noise at 1x,
+    # so one belly band with the sunward glint restrike carries the engraving.
+    rows = (band_cy,)
     for k, by in enumerate(rows):
         hw = int(hw_at(by - y_top))
         x0 = cx - hw + 3 + (seed_phase + k * 2) % 4
@@ -250,23 +252,27 @@ def _crown_vane(surf, cx, tip_y, hub_y, palette):
     pygame.draw.line(surf, _post(palette), (cx, hub_y), (cx, hub_y + 6), 3)
     pygame.draw.line(surf, _post_lit(palette), (cx - 1, hub_y), (cx - 1, hub_y + 5), 1)
 
-    arm = 22
+    arm = 18
     ang = math.radians(32)
     ca, sa = math.cos(ang), math.sin(ang)
-    # Draw shaded (right) arms first, then the sunward (left) arms brighter.
+    # Shaded (right) arms first, then the sunward (left) arms carry the restrike.
     for dirx, diry, sun in ((ca, -sa, False), (ca, sa, False),
                             (-ca, -sa, True), (-ca, sa, True)):
         tx, ty = cx + dirx * arm, hub_y + diry * arm
-        spoke = glint if sun else deep
-        pygame.draw.line(surf, _shade(bronze, -22),
-                         (cx, hub_y), (int(tx), int(ty)), 2)
-        pygame.draw.line(surf, spoke, (cx, hub_y), (int(tx), int(ty)), 1)
-        # Cupped paddle at the tip — a small filled scoop, the anemometer tell.
+        # One clean bronze arm: a 3px dark edge, a 2px bronze face, and — only on
+        # the lit pair — a single 1px restrike, so it stays legible at 58 px
+        # without piling three same-weight strokes on top of each other.
+        pygame.draw.line(surf, _shade(bronze, -24), (cx, hub_y), (int(tx), int(ty)), 3)
+        pygame.draw.line(surf, bronze, (cx, hub_y), (int(tx), int(ty)), 2)
+        if sun:
+            pygame.draw.line(surf, glint, (cx, hub_y), (int(tx), int(ty)), 1)
+        # Cupped paddle at the tip — an enlarged concave scoop (NOT a flat radial
+        # X) so it reads as wind-driven and won't be mistaken for a sail-mill.
         px, py = -diry, dirx
         cup = [(tx, ty),
-               (tx + px * 4 - dirx * 2, ty + py * 4 - diry * 2),
-               (tx + px * 5 + dirx * 3, ty + py * 5 + diry * 3),
-               (tx + dirx * 4, ty + diry * 4)]
+               (tx + px * 5.5 - dirx * 2.5, ty + py * 5.5 - diry * 2.5),
+               (tx + px * 7.0 + dirx * 4.0, ty + py * 7.0 + diry * 4.0),
+               (tx + dirx * 5.5, ty + diry * 5.5)]
         cup = [(int(x), int(y)) for x, y in cup]
         pygame.draw.polygon(surf, bronze if not sun else _mix(bronze, glint, 0.5), cup)
         _aa_polyline(surf, _shade(bronze, -26), cup, closed=True)
@@ -310,12 +316,17 @@ def _draw_one(surf, cx, base_y, top_y, body_w, palette, seed, *, apron=True):
     if total_h < 18:
         return
 
-    hw_belly = int(body_w * 0.60)          # belly spills ~5 px into each gutter
+    # The barrel rhythm has to live in the OUTLINE, not just the shading: the
+    # belly bulges well past the caps, and BOTH the lacquer rings and the frame
+    # posts are pulled in to the cap width so the silhouette pinches at every
+    # drum seam instead of being boxed off by outboard hardware. That pinch is
+    # what makes the blackout read as stacked barrels rather than one pipe.
+    hw_belly = int(body_w * 0.64)          # belly spills ~8 px past the seams
     hw_end = max(8, int(body_w * 0.50) + 1)  # cap == PIPE_W/2 (+1 px cover margin)
-    hw_ring = hw_belly + 1
-    hw_post = hw_belly + 2
+    hw_ring = hw_end                        # rings ride the cap so seams pinch
+    hw_post = hw_end                        # posts inboard — never widen the outline
 
-    vane_h = max(12, min(int(total_h * 0.14), 22))
+    vane_h = max(12, min(int(total_h * 0.14), 24))
     plinth_h = 6 if total_h > 60 else 3
 
     stack_top = top_y + vane_h
@@ -329,7 +340,8 @@ def _draw_one(surf, cx, base_y, top_y, body_w, palette, seed, *, apron=True):
     n = max(1, round(stack_h / 62))
     drum_h = stack_h / n
 
-    # Frame posts behind the drums so they peek at the pinched cap lines.
+    # Frame posts run behind the drums at the cap width, so they only surface at
+    # the pinched seams and never push the outline out past the barrel bellies.
     _frame_posts(surf, cx, stack_top, stack_bot, hw_post, palette)
 
     # Barrels + junction rings from bottom up.
@@ -338,8 +350,8 @@ def _draw_one(surf, cx, base_y, top_y, body_w, palette, seed, *, apron=True):
         y1 = int(round(stack_top + (k + 1) * drum_h))
         _drum(surf, cx, y0, y1, hw_belly, hw_end, palette, (seed + k * 3) % 4)
 
-    # Lacquer rings on every seam (top, between, base) — bridge the drum joins
-    # so no empty band opens, and tie the barrels to the frame posts.
+    # Lacquer rings on every seam (top, between, base) — sized to the cap so they
+    # sit at the pinch and bridge the drum joins without opening an empty band.
     for k in range(n + 1):
         y = int(round(stack_top + k * drum_h))
         boss = 0 < k < n or n == 1
@@ -353,7 +365,10 @@ def _draw_one(surf, cx, base_y, top_y, body_w, palette, seed, *, apron=True):
     pygame.draw.arc(surf, _gold_bright(palette),
                     (cx - hw_end + 3, stack_top - 5, (hw_end - 3) * 2, 6),
                     math.radians(120), math.radians(210), 1)
-    _crown_vane(surf, cx, top_y + 2, stack_top - 4, palette)
+    # Finial tip seated at the section edge so the gilt jewel carries the centre
+    # column right to the rim — otherwise the taller crown opens a 2 px gap above
+    # the jewel and the collision column would no longer read solid top-to-bottom.
+    _crown_vane(surf, cx, top_y, stack_top - 4, palette)
 
     _plinth(surf, cx, base_y, hw_belly, palette)
 
@@ -470,6 +485,31 @@ def _measure_fill(pal, section_h):
     return worst
 
 
+def _measure_scallop(pal, section_h=210):
+    """Belly (max) and seam (min) silhouette half-width across the drum stack, in
+    px from centre — the numeric proof the outline PINCHES at every seam instead
+    of running as a flat pipe. Scans only the barrel band (vane + plinth rows
+    excluded, since the plinth flares wider than the barrels)."""
+    surf = pygame.Surface((CACHE_W, GROUND_Y), pygame.SRCALPHA)
+    cx = MARGIN + PIPE_W // 2
+    _draw_one(surf, cx, GROUND_Y, GROUND_Y - section_h, PIPE_W, pal, SEED, apron=False)
+    vane_h = max(12, min(int(section_h * 0.14), 24))
+    plinth_h = 6 if section_h > 60 else 3
+    stack_top = (GROUND_Y - section_h) + vane_h + 2
+    stack_bot = GROUND_Y - plinth_h - 2
+    belly = seam = -1
+    for y in range(stack_top, stack_bot):
+        row_max = -1
+        for x in range(CACHE_W):
+            if surf.get_at((x, y))[3] > 50:
+                row_max = max(row_max, abs(x - cx))
+        if row_max < 0:
+            continue
+        belly = max(belly, row_max)
+        seam = row_max if seam < 0 else min(seam, row_max)
+    return belly, seam
+
+
 def _render_feas(pal, section_h):
     head = 16
     cell_h = section_h + head + 10
@@ -513,6 +553,8 @@ def main():
     feas = [_render_feas(day, h) for h in heights]
     fills = {h: _measure_fill(day, h) for h in heights}
     blackout = _render_blackout(day)
+    scal_day = _measure_scallop(day)
+    scal_night = _measure_scallop(night)
 
     pad = 14
     label_h = 22
@@ -529,14 +571,14 @@ def main():
     sheet_w = left_w + right_w
 
     bo_w, bo_h = blackout.get_width(), blackout.get_height()
-    left_h = title_h + ph + label_h + pad + bo_h + label_h + pad
+    left_h = title_h + ph + label_h + pad + bo_h + label_h + 20 + pad
     feas_col_h = title_h + sum(ch + label_h + pad for _, ch in feas) + 24
     sheet_h = max(left_h, feas_col_h) + pad
 
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((24, 25, 30))
 
-    sheet.blit(title.render("mani-drum-tower — round 1", True, (245, 240, 230)),
+    sheet.blit(title.render("mani-drum-tower — round 2", True, (245, 240, 230)),
                (pad, 12))
     sheet.blit(sub.render("stacked rotating copper prayer-drums (body IS the "
                           "mechanism) + wind cross-vane  ·  mirrored pair, day + night",
@@ -561,6 +603,9 @@ def main():
     pygame.draw.rect(sheet, (60, 62, 72), (bx, by, bo_w, bo_h), 1)
     lab = label.render("BLACKOUT — 58px silhouette read", True, (255, 224, 150))
     sheet.blit(lab, (bx, by + bo_h + 3))
+    scl = sub.render(f"scallop: belly {scal_day[0]}px / seam {scal_day[1]}px  "
+                     f"(delta {scal_day[0] - scal_day[1]}px)", True, (200, 202, 212))
+    sheet.blit(scl, (bx, by + bo_h + 3 + 18))
 
     fx = left_w + pad
     fy = title_h
@@ -574,13 +619,17 @@ def main():
         sheet.blit(lab, (fx, fy + ch + 3))
         fy += ch + label_h + pad
 
-    out = _REPO / "docs" / "pillar_landmarks" / "windmills" / "mani-drum-tower" / "round_1.png"
+    out = _REPO / "docs" / "pillar_landmarks" / "windmills" / "mani-drum-tower" / "round_2.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
     print(f"vane clearance day  top={cl_day[0]}px bot={cl_day[1]}px")
     print(f"vane clearance night top={cl_night[0]}px bot={cl_night[1]}px")
     print("max empty run: " + "  ".join(f"{h}px->{fills[h]}px" for h in heights))
+    print(f"scallop day   belly={scal_day[0]}px seam={scal_day[1]}px "
+          f"delta={scal_day[0] - scal_day[1]}px")
+    print(f"scallop night belly={scal_night[0]}px seam={scal_night[1]}px "
+          f"delta={scal_night[0] - scal_night[1]}px")
 
 
 if __name__ == "__main__":
