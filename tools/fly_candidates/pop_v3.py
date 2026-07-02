@@ -151,18 +151,15 @@ def build_pop_v3(wing_angle_deg):
             pygame.draw.line(surf, INK, (5, y + 2), (12, y), 1)
             pygame.draw.line(surf, INK, (12, y), (19, y - 1), 1)
 
-    # Both fans sweep UP-and-BACK over the shoulders (never forward over the
-    # face) so the right-side eye domes stay clean on every pose. A layered
-    # pair — one upright, one lower — fans open on the wing-up beats.
+    # One mirrored pair of fans sweep up-and-back off the shoulder — root on the
+    # body side, rounded outer arc on the away side. Design-5 geometry (root at
+    # left in the surface) so neither outer tip clips the canvas or each other.
     wing = _wing_surface()
-    back = pygame.transform.flip(wing, True, False)   # points left from a right-edge root
-    back_root = (wing.get_width() - 1 - _WING_ROOT[0], _WING_ROOT[1])
-    ang_far  = 40 + f * 18
-    ang_near = 14 + f * 18
-    # Anchored a touch further back over the shoulder so the fans clear the
-    # left eye dome — both domes then sit on clean ground and read as a pair.
-    _place_rotated(surf, back, back_root, -ang_far,  (28, 34))
-    _place_rotated(surf, back, back_root, -ang_near, (30, 36))
+    ang = 5 + f * 28
+    left = pygame.transform.flip(wing, True, False)
+    left_root = (wing.get_width() - 1 - _WING_ROOT[0], _WING_ROOT[1])
+    _place_rotated(surf, wing, _WING_ROOT, ang, (29, 31))
+    _place_rotated(surf, left, left_root, -ang, (27, 31))
 
     # ── one round inked barrel: hot-pink thorax fused into purple abdomen ──
     body = _new()

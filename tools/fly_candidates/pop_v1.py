@@ -106,29 +106,25 @@ def _benday(target, region_pts_or_mask, color, spacing=9, radius=2, phase=0):
 
 
 # ── one short WIDE horizontal paddle-fan ──────────────────────────────────────
-# The C2 fail was tall pointed rabbit-ears. The fix is a fan that is decisively
-# WIDER than it is tall and that only ever tilts through a shallow arc, so even
-# swept it reads sideways — a paddle, never a vertical blade. The membrane long
-# axis runs horizontal; the hinge sits at the INNER (thorax) end so the whole
-# broad blade sweeps back over the barrel. Height is capped near the body height
-# (~16px) so it can never tower over the barrel.
-_WING_ROOT = (35, 14)                # inner hinge end (thorax side) of the fan
+# Root on the LEFT (hinge side, closest to body centre); the outer arc sweeps
+# to the RIGHT — same geometry as the Design 5 reference so the full rounded
+# tip is never clipped at the canvas edge or within the surface padding.
+_WING_ROOT = (8, 20)                 # hinge — left edge, canvas-safe pivot
 
 
 def _wing_surface():
-    """One short, wide cyan paddle-fan: a broad horizontal membrane ellipse, a
-    chunky lime halftone, two short hinge veins, then a 2px ink loop."""
-    w = pygame.Surface((46, 28), pygame.SRCALPHA)
-    membrane = pygame.Rect(0, 0, 34, 16)     # 34-wide × 16-tall → decisively wide
-    membrane.center = (18, 14)
+    """Short wide cyan paddle: root on left, 38×18 horizontal ellipse (wider
+    than tall) carries the lime dot grid and two veins, then a 2px ink loop.
+    Surface padded ≥ 8px on every side so the ink outline is never clipped."""
+    w = pygame.Surface((52, 40), pygame.SRCALPHA)
+    membrane = pygame.Rect(0, 0, 38, 18)     # decisively wider than tall
+    membrane.center = (26, 20)
     pygame.draw.ellipse(w, WINGMEM, membrane)
-    # Big sparse lime dots so a few survive the truth-scale shrink as real dots.
-    emask = pygame.Surface((46, 28), pygame.SRCALPHA)
+    emask = pygame.Surface((52, 40), pygame.SRCALPHA)
     pygame.draw.ellipse(emask, (255, 255, 255, 255), membrane)
     _benday(w, emask, WINGDOT, spacing=9, radius=2)
-    # Two short veins fan off the hinge only — the outer half stays a clean arc.
-    pygame.draw.line(w, INK, _WING_ROOT, (22, 9), 2)
-    pygame.draw.line(w, INK, _WING_ROOT, (22, 19), 2)
+    pygame.draw.line(w, INK, _WING_ROOT, (43, 14), 2)
+    pygame.draw.line(w, INK, _WING_ROOT, (43, 26), 2)
     return _ink_outline(w, 2)
 
 
@@ -159,17 +155,16 @@ def build_pop_v1(wing_angle_deg):
             pygame.draw.line(surf, INK, (4, y + 2), (11, y), 1)
             pygame.draw.line(surf, INK, (11, y), (18, y - 1), 1)
 
-    # Two short WIDE paddle-fans hinge at the thorax shoulder and sweep back
-    # over the barrel through a shallow arc. Both blades rake up-and-back (to
-    # the left, the tail direction) so the pair reads as swept fly wings, not a
-    # vertical butterfly V. The lower blade stays near-level for maximum "wide";
-    # the upper blade rides up as the beat peaks — a clear sweep across 4 frames
-    # that never lets either fan stand taller than the body.
+    # Two broad fans sweep up-and-back off the shoulder — root on the body side,
+    # outer rounded arc extending away from centre. Mirrored pair (one per side)
+    # using the same root-on-left geometry as the Design 5 reference so neither
+    # outer arc clips the canvas edge or the body centre.
     wing = _wing_surface()
-    ang_lower = -(6 + f * 18)               # near-level → decisively sideways
-    ang_upper = -(26 + f * 18)              # raked up-back, ~20° above the lower
-    _place_rotated(surf, wing, _WING_ROOT, ang_lower, (33, 30))
-    _place_rotated(surf, wing, _WING_ROOT, ang_upper, (35, 28))
+    ang = 3 + f * 30
+    left = pygame.transform.flip(wing, True, False)
+    left_root = (wing.get_width() - 1 - _WING_ROOT[0], _WING_ROOT[1])
+    _place_rotated(surf, wing, _WING_ROOT, ang, (30, 31))
+    _place_rotated(surf, left, left_root, -ang, (26, 31))
 
     # ── one continuous inked barrel: blue thorax fused into lime abdomen ──
     # Thorax and abdomen overlap heavily and share close radii so the outline

@@ -123,27 +123,25 @@ def _benday(target, region_pts_or_mask, color, spacing=9, radius=2, phase=0):
 
 
 # ── one short, wide fan swept behind/below the body ───────────────────────────
-# The R2 grey dot mass out-massed the black hero. Here the wing is a small squat
-# ellipse (wider than tall) rooted at its base so the PAIR tucks behind and below
-# the barrel, peeking out rather than hooding over it. The round body must stay
-# the biggest silhouette on screen.
-_WING_ROOT = (17, 21)
+# Root on the LEFT (hinge, body side); the outer rounded arc sweeps RIGHT.
+# Kept intentionally small so the pair tucks BEHIND the barrel — the body
+# must win the biggest-silhouette fight. Surface padded ≥ 8px all round so
+# the ink loop is never clipped within the surface itself.
+_WING_ROOT = (8, 18)
 
 
 def _wing_surface():
-    """One short, wide pop-art fan: a squat #CCCCCC membrane ellipse (wider than
-    tall), a sparse white Ben-Day sparkle, two small ink veins, then a 2px ink
-    loop. Deliberately kept small so the pair reads as swept-back wings BEHIND
-    the barrel, never a grey hood over the black hero."""
-    w = pygame.Surface((34, 24), pygame.SRCALPHA)
-    membrane = pygame.Rect(0, 0, 24, 13)        # squat: wider than tall
-    membrane.center = (17, 11)
+    """Small squat grey fan: root on left, 28×16 horizontal ellipse (wider than
+    tall) so the outer arc stays a clean rounded lobe, never a cut flat edge."""
+    w = pygame.Surface((44, 36), pygame.SRCALPHA)
+    membrane = pygame.Rect(0, 0, 28, 16)
+    membrane.center = (22, 18)
     pygame.draw.ellipse(w, WINGGREY, membrane)
-    emask = pygame.Surface((34, 24), pygame.SRCALPHA)
+    emask = pygame.Surface((44, 36), pygame.SRCALPHA)
     pygame.draw.ellipse(emask, (255, 255, 255, 255), membrane)
     _benday(w, emask, WINGDOT, spacing=9, radius=2)
-    pygame.draw.line(w, INK, _WING_ROOT, (7, 7), 2)
-    pygame.draw.line(w, INK, _WING_ROOT, (24, 7), 2)
+    pygame.draw.line(w, INK, _WING_ROOT, (34, 12), 2)
+    pygame.draw.line(w, INK, _WING_ROOT, (34, 24), 2)
     return _ink_outline(w, 2)
 
 
@@ -174,15 +172,15 @@ def build_pop_v2(wing_angle_deg):
             pygame.draw.line(surf, SPEEDLN, (4, y + 2), (11, y), 1)
             pygame.draw.line(surf, SPEEDLN, (11, y), (18, y - 1), 1)
 
-    # Two short squat fans tuck behind and below the barrel off a low shoulder
-    # anchor; they lift a little on the wing-up frames but never rise into a hood
-    # over the body — the black barrel stays the largest shape.
+    # Two small fans sweep up-and-back off the shoulder — mirrored pair with
+    # root on the body side and rounded arc on the outside. Kept small so the
+    # black barrel remains the dominant silhouette, not the grey wings.
     wing = _wing_surface()
-    ang = 16 + f * 22
+    ang = 3 + f * 30
     left = pygame.transform.flip(wing, True, False)
     left_root = (wing.get_width() - 1 - _WING_ROOT[0], _WING_ROOT[1])
-    _place_rotated(surf, wing, _WING_ROOT, -ang, (33, 37))
-    _place_rotated(surf, left, left_root, ang, (23, 37))
+    _place_rotated(surf, wing, _WING_ROOT, ang, (30, 32))
+    _place_rotated(surf, left, left_root, -ang, (26, 32))
 
     # ── HERO SILHOUETTE: one round inked barrel, rimmed for night survival ──
     body = _new()

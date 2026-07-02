@@ -109,25 +109,19 @@ _WING_ROOT = (8, 24)
 
 
 def _wing_surface():
-    """One fat rounded pop-art lobe: a wide, shallow sky-blue membrane ellipse,
-    a chunky gold halftone, two shallow black veins, then a clean 2px ink loop.
-
-    The membrane is a horizontal ellipse (much wider than tall) so the tip
-    stays a rounded blue lobe after the downscale — never an upright spade."""
-    w = pygame.Surface((56, 46), pygame.SRCALPHA)
-    membrane = pygame.Rect(0, 0, 46, 23)
-    membrane.center = (28, 23)
+    """One fat rounded pop-art lobe: 36×22 sky-blue horizontal ellipse (wider
+    than tall), chunky gold halftone, two shallow veins, then a 2px ink loop.
+    Surface padded ≥ 8px on every side — the full rounded outer arc is never
+    clipped within the surface or at the canvas edge."""
+    w = pygame.Surface((52, 44), pygame.SRCALPHA)
+    membrane = pygame.Rect(0, 0, 36, 22)
+    membrane.center = (26, 22)
     pygame.draw.ellipse(w, WINGBLUE, membrane)
-    # A few big chunky gold dots read as true Ben-Day at 40px; the old fine
-    # grid dissolved into speckle, so this uses wide spacing + fat radius for
-    # roughly three-to-four unmistakable dots per wing at truth scale.
-    emask = pygame.Surface((56, 46), pygame.SRCALPHA)
+    emask = pygame.Surface((52, 44), pygame.SRCALPHA)
     pygame.draw.ellipse(emask, (255, 255, 255, 255), membrane)
     _benday(w, emask, WINGDOT, spacing=9, radius=2, phase=3)
-    # Shallow veins radiate from the root so the outer edge stays a soft round
-    # arc — steep veins used to pull the tip to a point.
-    pygame.draw.line(w, INK, _WING_ROOT, (47, 17), 2)
-    pygame.draw.line(w, INK, _WING_ROOT, (47, 30), 2)
+    pygame.draw.line(w, INK, _WING_ROOT, (44, 16), 2)
+    pygame.draw.line(w, INK, _WING_ROOT, (44, 30), 2)
     return _ink_outline(w, 2)
 
 
@@ -157,15 +151,15 @@ def build_pop_v4(wing_angle_deg):
             pygame.draw.line(surf, INK, (5, y + 2), (12, y), 1)
             pygame.draw.line(surf, INK, (12, y), (19, y - 1), 1)
 
-    # Two fat lobes sweep up-and-back over the thorax; the lower base angle
-    # lays them back past the body instead of standing them up like ears, and
-    # they open a touch on the wing-up frames.
+    # Mirrored pair of fat lobes — root on body side, rounded arc on outside.
+    # Design-5 geometry (root at left in surface) keeps the outer tip within
+    # the 64px canvas at all four flap angles.
     wing = _wing_surface()
-    ang = 14 + f * 26
+    ang = 3 + f * 30
     left = pygame.transform.flip(wing, True, False)
     left_root = (wing.get_width() - 1 - _WING_ROOT[0], _WING_ROOT[1])
-    _place_rotated(surf, wing, _WING_ROOT, ang, (31, 30))
-    _place_rotated(surf, left, left_root, -ang, (25, 30))
+    _place_rotated(surf, wing, _WING_ROOT, ang, (30, 30))
+    _place_rotated(surf, left, left_root, -ang, (26, 30))
 
     # ── one FAT inked peanut: navy thorax fused into gold abdomen ──
     # The whole barrel is laid down as a SINGLE continuous gold silhouette
