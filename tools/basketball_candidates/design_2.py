@@ -1,174 +1,112 @@
-"""THE STREETBALLER — the basketball candidate (DESIGN 2 of 5).
+"""THE ROAD WARRIOR — the basketball candidate (DESIGN 2 of 5).
 
 Scratch exploration only; NOT registered in store_skins.BUILDERS, so the live
 roster is untouched.
 
-Concept: dress Pip as a playground legend, an attitude apart from the clean
-league pro. There is NO ball — it ships separately as a matching PARCEL item,
-so the costume must read as STREETBALL from the KIT alone. The swagger tells
-are carried by the gear: a backwards SNAPBACK cap (brim pointing off the back
-of the crown — a distinct headgear silhouette no league uniform has), a baggy
-red reversible TANK with a loose low neckline, a grey compression arm SLEEVE
-running down the near wing, chunky high-tops with bold laces, and — the HERO,
-drawn LAST in front of everything — a thick GOLD ROPE CHAIN looping the neck
-and dipping onto the chest, rendered as alternating gold + gold-shadow links
-so it reads as a chunky chain rather than a smooth ring even at 40px.
-
-At 40px the read, in value order: (1) the gold chain dipping on the chest +
-the backwards-cap silhouette breaking the crown's outline backward, (2) the
-loud red baggy tank, (3) the grey arm sleeve down the near wing, then the
-high-tops. Every kit piece stays INSIDE the base bird footprint — the chain
-sits on the chest, the cap hugs the crown, nothing dangles below the feet.
+Concept: the dark AWAY-jersey look. Where the other kits lean bright/home,
+this one re-plumages Pip's BODY near-black through the palette system so the
+uniform reads as a deep away sweater — the scarlet macaw head still crowns it,
+but the torso is jersey black. The #1 identity prop is a BASKETBALL held at
+DRIBBLE HEIGHT (thigh level, off the near side), drawn LAST so it reads as the
+ball being worked mid-motion, not a static logo. White carries every uniform
+tell (armhole piping, blocky squad "7", side stripes) so the kit pops off the
+black body, and chrome soles + ankle bumps make the high-tops read at 40px.
 """
+import math
+
 import pygame
 
-from game import store_skins
-from game.store_skins import HX, HY, CROWN_Y, _poly
+from game.store_skins import HX, HY, CROWN_Y, _poly, _make_skin
+from game.dollar_parrot_ghost import _pal, _build_parrot_with_palette
+from game.draw import (
+    BIRD_RED, BIRD_BEAK, BIRD_BEAK_D, BIRD_WING, BIRD_WING_D, BIRD_TIP,
+)
 
-# Loud blacktop palette: dark cap/laces ground the loud red tank and let the
-# warm gold chain pop hardest as the hero. The red tank is a mid value so the
-# white neckline trim + the gold both separate from the scarlet head above.
-_BLK     = (22, 24, 30)              # #16181E blacktop black (cap, laces)
-_BLK_H   = (52, 56, 66)             # black highlight / brim top edge
-_BLK_RIM = (96, 102, 118)           # cool 1px rim so dark gear holds the
-                                     # silhouette against a night sky
-_RED     = (216, 54, 47)            # #D8362F red tank
-_RED_D   = (160, 36, 32)            # tank shadow / armhole
-_RED_H   = (240, 96, 88)            # tank highlight
-_GOLD    = (232, 178, 58)           # #E8B23A gold chain link
-_GOLD_D  = (158, 116, 30)           # gold-shadow link (the every-other bead)
-_GOLD_H  = (255, 224, 138)          # gold glint
-# Sleeve recolored from flat grey to a near-black tube so the one bright GOLD
-# cuff band carries the read instead of a low-contrast full-length grey.
-_SLV     = (38, 40, 50)             # dark compression sleeve
-_SLV_D   = (24, 26, 34)             # sleeve shadow
-_SLV_H   = (78, 82, 96)             # sleeve seam highlight
-_WHT     = (244, 244, 248)          # #F4F4F8 white trim / laces glint
-_WHT_D   = (196, 198, 208)          # white shadow / sole
+BCX, BCY = 32, 52
+
+# Near-black away-jersey re-plumage: the torso goes deep black so the white
+# uniform marks (piping / number / stripes) and the warm basketball are the
+# highest-value notes. The head keeps the scarlet macaw so Pip is still Pip;
+# gold aviators become the road-warrior's tinted shades.
+_PAL = _pal(
+    tail=[(200, 30, 40), (240, 95, 40), (255, 160, 55), (255, 220, 80)],
+    tail_line=(170, 25, 25),
+    body_shadow=(10, 10, 16),
+    body_main=(22, 22, 30),          # deep black jersey
+    body_chest=(32, 32, 42),
+    body_belly=(14, 14, 20),
+    sheen=(80, 80, 120, 40),
+    wing_main=BIRD_WING, wing_dark=BIRD_WING_D, wing_tip=BIRD_TIP,
+    wing_secondary=(255, 200, 60), wing_highlight=(170, 210, 255),
+    head_shadow=(150, 15, 20), head_main=BIRD_RED,
+    head_cheek=(255, 130, 130), head_crown=(255, 170, 170),
+    lens_frame=(255, 200, 50), lens_body=(20, 20, 30),
+    lens_tint=(35, 55, 90, 130), lens_glint=(255, 255, 255),
+    beak_main=BIRD_BEAK, beak_dark=BIRD_BEAK_D,
+    beak_gloss=(255, 230, 150), foot=BIRD_BEAK_D,
+)
+
+# White carries every uniform tell against the black jersey; chrome silvers the
+# high-top soles/ankle bumps so the shoes read as more than a dark lump.
+_WHITE   = (240, 240, 245)
+_BLACK_J = (22, 22, 30)              # jersey black
+_CHROME  = (180, 185, 200)          # sneaker chrome / silver
+_DARK    = (10, 10, 16)
+
+
+def _base(angle_deg):
+    # Black-jerseyed body, scarlet macaw head, tinted road shades kept on.
+    return _build_parrot_with_palette(angle_deg, _PAL)
 
 
 def _paint(surf, _a):
-    # Body centre in composite space (parrot body centre (32,32) + PARROT_DY).
-    BCX, BCY = 32, 52
+    # Thin cool outline around the torso so the dark away jersey separates from a
+    # dark night sky instead of dissolving into it.
+    pygame.draw.ellipse(surf, (80, 80, 100), (BCX - 19, BCY - 14, 38, 28), 1)
 
-    # ── BACKWARDS SNAPBACK first, behind the chain. The brim points off the
-    #    BACK of the crown (toward the tail side, off-x) so the silhouette is a
-    #    flat-billed cap worn backwards — a headgear shape no clean league
-    #    uniform carries. The dome hugs the crown; an exposed adjuster strap +
-    #    button sit where the brim would normally be at the front.
-    cy = CROWN_Y + 3
-    # Crown dome over the back of the head.
-    _poly(surf, _BLK, [(HX - 14, cy + 6), (HX - 12, cy - 2),
-                       (HX - 4, cy - 6), (HX + 6, cy - 5),
-                       (HX + 9, cy + 2), (HX + 8, cy + 7)])
-    # Dome highlight band so the cap reads round, not a flat blob.
-    _poly(surf, _BLK_H, [(HX - 11, cy - 1), (HX - 4, cy - 4),
-                         (HX + 4, cy - 3), (HX + 2, cy - 1), (HX - 6, cy - 1)])
-    # Flat brim jutting BACKWARD off the crown, extended a few px further off the
-    # back so the bill silhouette separates hard from the dome — the key tell.
-    _poly(surf, _BLK, [(HX - 14, cy + 2), (HX - 25, cy + 4),
-                       (HX - 25, cy + 7), (HX - 13, cy + 7)])
-    # Continuous bright top edge along the WHOLE bill so the flat brim reads as a
-    # distinct plane against the round dome even at 40px.
-    pygame.draw.line(surf, _BLK_H, (HX - 24, cy + 4), (HX - 14, cy + 3), 1)
-    # 1px cool rim along the cap's top-left outline — holds the dark dome's
-    # silhouette against a dark night sky without lightening the fill.
-    pygame.draw.lines(surf, _BLK_RIM, False,
-                      [(HX - 13, cy + 5), (HX - 11, cy - 3),
-                       (HX - 4, cy - 7), (HX + 5, cy - 6)], 1)
-    # Bright white snapback BUTTON at the crown peak — the exposed adjuster
-    # button of a backwards-worn cap, a crisp focal dot.
-    pygame.draw.circle(surf, _WHT, (HX + 1, cy - 5), 1)
-    # Snapback adjuster strap left exposed at the FRONT (worn-back tell).
-    pygame.draw.line(surf, _WHT_D, (HX + 6, cy + 1), (HX + 9, cy + 5), 2)
-    pygame.draw.circle(surf, _WHT, (HX + 7, cy + 2), 1)
+    # Sleeveless tank armholes — white piping tracing where the arms pass through
+    # the vest, plus the shoulder-width seam across the top. The basketball-kit
+    # tell that says "singlet", not a long-sleeve sweater.
+    pygame.draw.line(surf, _WHITE, (BCX - 18, BCY - 13), (BCX - 12, BCY + 3), 2)
+    pygame.draw.line(surf, _WHITE, (BCX + 16, BCY - 13), (BCX + 10, BCY + 3), 2)
+    pygame.draw.line(surf, _WHITE, (BCX - 10, BCY - 13), (BCX + 8, BCY - 13), 2)
 
-    # ── BAGGY TANK over the torso, drawn before the chain/sleeve. Looser cut +
-    #    a low loose neckline (a wide shallow scoop) and a slightly flared baggy
-    #    hem so it reads streetwear, not a tailored singlet. Held inside the
-    #    footprint (hem ~BCY+14).
-    tank = [(BCX - 12, BCY - 5), (BCX + 11, BCY - 5),
-            (BCX + 14, BCY + 3), (BCX + 13, BCY + 14),
-            (BCX - 12, BCY + 14), (BCX - 15, BCY + 3)]
-    _poly(surf, _RED, tank)
-    # Off-side shadow panel gives the baggy tank dressed-up form.
-    _poly(surf, _RED_D, [(BCX - 15, BCY + 2), (BCX - 11, BCY),
-                         (BCX - 10, BCY + 13), (BCX - 13, BCY + 14)])
-    # Near-side sheen down the loose drape.
-    pygame.draw.line(surf, _RED_H, (BCX + 9, BCY - 2), (BCX + 11, BCY + 11), 2)
-    # LOW LOOSE neckline — a wide, shallow scoop with white trim so the baggy
-    # low cut is explicit (vs the pro's tight crew).
-    pygame.draw.lines(surf, _RED_D, False,
-                      [(BCX - 8, BCY - 4), (BCX, BCY + 1), (BCX + 8, BCY - 4)], 3)
-    pygame.draw.lines(surf, _WHT, False,
-                      [(BCX - 8, BCY - 5), (BCX, BCY), (BCX + 8, BCY - 5)], 1)
-    # Deep armhole on the near side so the sleeveless baggy cut reads.
-    pygame.draw.arc(surf, _RED_D, (BCX + 4, BCY - 6, 12, 16), -1.1, 1.3, 2)
-    # Flared baggy hem with a white trim band.
-    pygame.draw.line(surf, _WHT, (BCX - 12, BCY + 13), (BCX + 12, BCY + 13), 1)
+    # Squad "7" — large white blocky digit centred on the dark chest, with a
+    # near-black drop shadow so it stays crisp against the jersey at 40px.
+    nx, ny = BCX + 1, BCY - 4
+    pygame.draw.line(surf, _DARK, (nx - 6, ny - 8 + 1), (nx + 6, ny - 8 + 1), 4)
+    pygame.draw.line(surf, _DARK, (nx + 6, ny - 8 + 1), (nx - 2, ny + 6 + 1), 4)
+    pygame.draw.line(surf, _WHITE, (nx - 6, ny - 8), (nx + 6, ny - 8), 4)
+    pygame.draw.line(surf, _WHITE, (nx + 6, ny - 8), (nx - 2, ny + 6), 4)
 
-    # ── HIGH-TOPS on the feet line. Chunky black-and-white boots with BOLD
-    #    cross laces + a grey sole, sitting ON the feet line (~HY+21..27), never
-    #    below it, so the bird keeps its true size.
-    for fx in (26, 34):
-        pygame.draw.rect(surf, _WHT_D, (fx - 4, HY + 22, 9, 6), border_radius=2)
-        pygame.draw.rect(surf, _WHT, (fx - 4, HY + 21, 9, 4), border_radius=2)
-        # Black ankle collar so the HIGH-top cut reads.
-        pygame.draw.rect(surf, _BLK, (fx - 4, HY + 20, 4, 4), border_radius=1)
-        # 1px cool rim along the dark ankle-collar top so the high-top crown
-        # holds its edge against a night sky.
-        pygame.draw.line(surf, _BLK_RIM, (fx - 4, HY + 20), (fx, HY + 20), 1)
-        # Bold cross laces.
-        pygame.draw.line(surf, _BLK, (fx - 2, HY + 21), (fx + 2, HY + 24), 1)
-        pygame.draw.line(surf, _BLK, (fx + 2, HY + 21), (fx - 2, HY + 24), 1)
-        pygame.draw.line(surf, _WHT_D, (fx - 4, HY + 27), (fx + 5, HY + 27), 2)  # sole
-        pygame.draw.line(surf, _GOLD, (fx + 1, HY + 21), (fx + 4, HY + 21), 1)   # gold toe glint
+    # Hem seam under the number so the jersey reads as a garment edge, not paint.
+    pygame.draw.line(surf, (50, 50, 65), (BCX - 12, BCY + 5), (BCX + 12, BCY + 5), 1)
 
-    # ── COMPRESSION ARM SLEEVE down the near wing, drawn over the tank. A dark
-    #    tube (not flat grey, which vanished on the scarlet plumage) finished
-    #    with one bright GOLD CUFF BAND at the wrist — a single warm band does
-    #    the reading work a low-contrast full grey sleeve could not.
-    sx, sy = BCX + 13, BCY + 1
-    pygame.draw.line(surf, _SLV_D, (sx - 1, sy - 2), (sx + 4, sy + 13), 8)  # sleeve shadow
-    pygame.draw.line(surf, _SLV, (sx - 1, sy - 2), (sx + 3, sy + 12), 6)    # sleeve tube
-    pygame.draw.line(surf, _SLV_H, (sx - 2, sy - 1), (sx + 2, sy + 9), 2)   # seam rim light
-    # Bright gold cuff band, 3px, at the wrist end — the pop that anchors the
-    # sleeve in the silhouette on either sky.
-    pygame.draw.line(surf, _GOLD_D, (sx - 2, sy + 13), (sx + 5, sy + 15), 3)
-    pygame.draw.line(surf, _GOLD, (sx - 2, sy + 12), (sx + 4, sy + 14), 3)
-    pygame.draw.line(surf, _GOLD_H, (sx - 1, sy + 12), (sx + 2, sy + 13), 1)
+    # Baggy black shorts with white side stripes — the second half of the kit.
+    pygame.draw.ellipse(surf, _BLACK_J, (BCX - 10, BCY + 5, 22, 12))
+    pygame.draw.ellipse(surf, (50, 50, 65), (BCX - 10, BCY + 5, 22, 12), 1)
+    pygame.draw.line(surf, _WHITE, (BCX + 10, BCY + 6), (BCX + 10, BCY + 16), 2)
+    pygame.draw.line(surf, _WHITE, (BCX - 12, BCY + 6), (BCX - 12, BCY + 16), 2)
 
-    # ── GOLD ROPE CHAIN — the HERO, drawn LAST over everything. It loops the
-    #    neck just under the cap and dips onto the chest to (BCX, BCY+1). Built
-    #    as a string of LINKS: a gold base stroke, then alternating gold + dark
-    #    gold ticks stepped along it so the eye reads chunky linked beads, not a
-    #    smooth wire ring — the texture survives the 40px shrink.
-    pts = [(BCX - 9, BCY - 6), (BCX - 7, BCY - 2),
-           (BCX - 3, BCY + 1), (BCX + 1, BCY + 2),
-           (BCX + 5, BCY + 1), (BCX + 9, BCY - 2),
-           (BCX + 11, BCY - 6)]
-    pygame.draw.lines(surf, _GOLD_D, False, pts, 5)   # chain underside / depth
-    pygame.draw.lines(surf, _GOLD, False, pts, 4)     # chain body
-    # FEWER, LARGER beads: walk the polyline at a fixed arc-length spacing and
-    # drop big 2px beads in a clear bright-gold / dark-gold alternation so the
-    # eye can count the links rather than reading a continuous blob.
-    seg = []
-    acc, SPACING = 0.0, 4.0
-    for a, b in zip(pts, pts[1:]):
-        dx, dy = b[0] - a[0], b[1] - a[1]
-        dist = (dx * dx + dy * dy) ** 0.5 or 1.0
-        while acc < dist:
-            t = acc / dist
-            seg.append((a[0] + dx * t, a[1] + dy * t))
-            acc += SPACING
-        acc -= dist
-    for i, (lx, ly) in enumerate(seg):
-        c = _GOLD_H if i % 2 == 0 else _GOLD_D
-        pygame.draw.circle(surf, c, (int(round(lx)), int(round(ly))), 2)
-    # Chunky pendant link where the chain dips lowest on the chest.
-    pygame.draw.circle(surf, _GOLD_D, (BCX + 1, BCY + 3), 3)
-    pygame.draw.circle(surf, _GOLD, (BCX + 1, BCY + 2), 2)
-    pygame.draw.circle(surf, _GOLD_H, (BCX, BCY + 1), 1)
+    # Black high-tops with a chrome sole slab + ankle bump so the shoes read as
+    # sneakers, not black blobs; a chrome lace-line ties each one together.
+    for hx in (22, 30):
+        pygame.draw.rect(surf, _CHROME, (hx, BCY + 15, 10, 4), border_radius=1)
+        pygame.draw.rect(surf, _BLACK_J, (hx, BCY + 11, 10, 5), border_radius=2)
+        pygame.draw.ellipse(surf, _BLACK_J, (hx + 1, BCY + 9, 8, 5))
+        pygame.draw.line(surf, _CHROME, (hx + 1, BCY + 13), (hx + 8, BCY + 13), 1)
+
+    # BASKETBALL at DRIBBLE HEIGHT — the #1 identity prop, drawn LAST over
+    # everything. Sat at thigh level on the near side so it reads as the ball
+    # being worked mid-dribble; two arcs + the seam line make it unmistakably a
+    # basketball rather than a plain orange dot at 40px.
+    bx, by = BCX - 16, BCY + 12
+    pygame.draw.circle(surf, (230, 115, 30), (bx, by), 7)
+    pygame.draw.circle(surf, (20, 20, 20), (bx, by), 7, 1)
+    pygame.draw.line(surf, (20, 20, 20), (bx, by - 7), (bx, by + 7), 1)
+    pygame.draw.arc(surf, (20, 20, 20), (bx - 9, by - 7, 12, 14), 0.3, math.pi - 0.3, 1)
+    pygame.draw.arc(surf, (20, 20, 20), (bx - 3, by - 7, 12, 14),
+                    math.pi + 0.3, 2 * math.pi - 0.3, 1)
 
 
-build = store_skins._make_skin(_paint)
+build = _make_skin(_paint, base_fn=_base)
