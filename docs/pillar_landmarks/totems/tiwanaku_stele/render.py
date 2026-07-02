@@ -33,7 +33,7 @@ Standalone: imports the real pagoda-family draw helpers so the material +
 foliage language matches the shipped pillars; it does NOT modify any game module.
 
 Run:  python docs/pillar_landmarks/totems/tiwanaku_stele/render.py
-Out:  docs/pillar_landmarks/totems/tiwanaku_stele/round_1.png
+Out:  docs/pillar_landmarks/totems/tiwanaku_stele/round_2.png
 """
 from __future__ import annotations
 
@@ -155,10 +155,12 @@ def _draw_ray_halo(surf, cx, cy, r_in, palette, *, seed=0):
         r_out = (r_in + (22 if long_ray else 12)) + rng.randint(-1, 1)
         x0, y0 = cx + ca * r_in, cy + sa * r_in
         x1, y1 = cx + ca * r_out, cy + sa * r_out
-        # Wedge ray: two chiselled edges from a 4-px base to the tip, filled with
+        # Wedge ray: two chiselled edges from a wide base to the tip, filled with
         # a lit andesite so the ray has its own tiny volume before the AA edges.
+        # Bases are bumped past ~2px half-width so no shaft sub-pixel-blends into
+        # a matching (overcast/dusk) andesite-grey sky and drifts back to plank.
         px, py = -sa, ca                            # unit perpendicular
-        base = 2.4 if long_ray else 1.8
+        base = 3.1 if long_ray else 2.2
         poly = [(x0 + px * base, y0 + py * base),
                 (x1, y1),
                 (x0 - px * base, y0 - py * base)]
@@ -166,16 +168,24 @@ def _draw_ray_halo(surf, cx, cy, r_in, palette, *, seed=0):
         _aa_polyline(surf, lit, [(x0 + px * base, y0 + py * base), (x1, y1)])
         _aa_polyline(surf, _andesite_shadow(palette),
                      [(x0 - px * base, y0 - py * base), (x1, y1)])
-        # Long-ray terminals: alternating gilt disc / stepped square head — the
-        # sparse gilt glint that keeps the halo from going monochrome-dead.
+        # EVERY spoke ends in an anchored terminal so the halo can't half-vanish
+        # against a matching sky: the tip always carries a value contrast even
+        # when the shaft blends. Long rays keep the sparse gilt (disc/square),
+        # each ringed in shadow; short rays a smaller lit-andesite bead in a
+        # shadow ring — anchoring without spending more gilt.
+        tx, ty = int(x1), int(y1)
         if long_ray:
             if i % 4 == 0:
-                pygame.draw.circle(surf, gold, (int(x1), int(y1)), 2)
-                pygame.draw.circle(surf, _shade(gold, 40), (int(x1), int(y1)), 1)
+                pygame.draw.circle(surf, _andesite_shadow(palette), (tx, ty), 3)
+                pygame.draw.circle(surf, gold, (tx, ty), 2)
+                pygame.draw.circle(surf, _shade(gold, 40), (tx, ty), 1)
             else:
-                pygame.draw.rect(surf, gold, (int(x1) - 1, int(y1) - 1, 3, 3))
                 pygame.draw.rect(surf, _andesite_shadow(palette),
-                                 (int(x1) - 1, int(y1) - 1, 3, 3), 1)
+                                 (tx - 2, ty - 2, 5, 5))
+                pygame.draw.rect(surf, gold, (tx - 1, ty - 1, 3, 3))
+        else:
+            pygame.draw.circle(surf, _andesite_shadow(palette), (tx, ty), 2)
+            pygame.draw.circle(surf, lit, (tx, ty), 1)
 
 
 # ── the square weeping staff-god eye (rectilinear _buddha_eye variant) ────────
@@ -258,9 +268,11 @@ def _draw_face(surf, cx, cy, fw, fh, palette, *, thumbnail=False):
     _staff_god_eye(surf, cx + ex, ey, ew, eh, palette, thumbnail=thumbnail)
     if thumbnail:
         return
-    # Keeled nose bar — a lit vertical ridge between the eyes with a shadow flank.
+    # Keeled nose bar — a 2px lit ridge + a 1px shadow flank so the face has a
+    # clear vertical spine at 1x (a single 1px line washed out against the body).
     ny0, ny1 = ey - 1, ey + int(fh * 0.22)
     pygame.draw.line(surf, _andesite_lit(palette), (cx - 1, ny0), (cx - 1, ny1), 1)
+    pygame.draw.line(surf, _andesite_lit(palette), (cx, ny0), (cx, ny1), 1)
     pygame.draw.line(surf, _andesite_shadow(palette), (cx + 1, ny0), (cx + 1, ny1), 1)
     pygame.draw.line(surf, _cinnabar(palette), (cx, ny1), (cx, ny1 + 1), 1)
     # Stepped-fret mouth.
@@ -389,11 +401,22 @@ def _draw_stele_upright(surf, cx, y_top, y_bottom, palette, seed):
         _draw_fret_band(surf, cx, y, bw, band_h, palette, seed=seed + bi)
         y += band_h + gap
         bi += 1
-    # If a stub of bare slab remains under the last band, drop one cinnabar
-    # dedication line so no flat panel reads as empty.
-    if slab_bot - 3 - y > 4:
-        _incise(surf, palette,
-                [(cx - 18, (y + slab_bot) // 2), (cx + 18, (y + slab_bot) // 2)])
+    # If a stub of bare slab remains under the last band, incise a lower
+    # dedication cartouche — two tiny glyphs (a carved maker's mark, cinnabar in
+    # the recess) so no flat panel reads as empty.
+    if slab_bot - 3 - y > 6:
+        gy = (y + slab_bot) // 2
+        for gx, vertical in ((cx - 9, True), (cx + 9, False)):
+            pygame.draw.rect(surf, _andesite_shadow(palette), (gx - 3, gy - 3, 6, 6))
+            pygame.draw.rect(surf, _cinnabar(palette), (gx - 2, gy - 2, 4, 4))
+            if vertical:
+                pygame.draw.line(surf, _andesite_shadow(palette),
+                                 (gx, gy - 2), (gx, gy + 1), 1)
+            else:
+                pygame.draw.line(surf, _andesite_shadow(palette),
+                                 (gx - 2, gy), (gx + 1, gy), 1)
+            pygame.draw.line(surf, _groove_lip(palette),
+                             (gx - 3, gy + 3), (gx + 2, gy + 3), 1)
 
     _draw_plinth(surf, cx, y_bottom, palette)
 
@@ -414,8 +437,17 @@ def candidate_tiwanaku_stele(surf, top_rect, bot_rect, palette, seed):
                             palette, seed)
     if top_rect.height > 0:
         tmp = pygame.Surface((surf.get_width(), top_rect.height), pygame.SRCALPHA)
+        # Hold the hung copy's face+halo (and slab tip) ~4px off the gap so the
+        # two facing idols don't kiss across the flyway. Clip only the top rows
+        # of tmp — the plinth/foliage at the far end stay untouched — and apply
+        # it to the hung copy alone so the ground-rising section still fills the
+        # collision band solid to the gap.
+        gap_inset = 4
+        tmp.set_clip(pygame.Rect(0, gap_inset, tmp.get_width(),
+                                 top_rect.height - gap_inset))
         _draw_stele_upright(tmp, top_rect.centerx, 0, top_rect.height,
                             palette, seed + 1)
+        tmp.set_clip(None)
         surf.blit(pygame.transform.flip(tmp, False, True), (0, top_rect.y))
 
 
@@ -504,6 +536,37 @@ def _lum(c):
     return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
 
 
+def _measure_min_ray_width(pal, seed):
+    """Render the halo alone and measure each spoke's opaque width perpendicular
+    to its axis at mid-length — the honest 'no spoke below ~2px' check. Reports
+    per-spoke widths + the worst; terminals guarantee a ≥2px anchor at the tip."""
+    W = H = 180
+    s = pygame.Surface((W, H), pygame.SRCALPHA)
+    cx = cy = W // 2
+    r_in = int(42 * 0.60)
+    _draw_ray_halo(s, cx, cy, r_in, pal, seed=seed)
+    n = 14
+    a0, a1 = math.radians(-24), math.radians(204)
+    widths = []
+    for i in range(n):
+        t = i / (n - 1)
+        ang = a0 + (a1 - a0) * t
+        ca, sa = math.cos(ang), -math.sin(ang)
+        long_ray = (i % 2 == 0)
+        r_out = r_in + (22 if long_ray else 12)
+        rr = r_in + (r_out - r_in) * 0.5      # sample the shaft, not hub/terminal
+        sx, sy = cx + ca * rr, cy + sa * rr
+        px, py = -sa, ca
+        w = 0
+        for d in range(-7, 8):
+            x = int(round(sx + px * d)); y = int(round(sy + py * d))
+            if 0 <= x < W and 0 <= y < H and s.get_at((x, y))[3] > 0:
+                w += 1
+        widths.append((("L" if long_ray else "s"), w))
+    worst = min(w for _, w in widths)
+    return worst, widths
+
+
 def main():
     pal_d = biome.palette_for_phase(PHASE_DAY)
     pal_n = biome.palette_for_phase(PHASE_NIGHT)
@@ -517,6 +580,12 @@ def main():
         dv = abs(_lum(b) - _lum(pit)) / max(1, _lum(b)) * 100
         print(f"  {name:5s} body_lum={_lum(b):5.1f} pit_lum={_lum(pit):5.1f} "
               f"delta={dv:4.1f}%  cinnabar={cin} R-G={cin[0]-cin[1]}")
+
+    # ── ray-width proof: no spoke should sub-pixel-blend into a matching sky ──
+    worst, widths = _measure_min_ray_width(pal_d, seed)
+    print("RAY SHAFT widths (perp opaque px at mid-length; terminals anchor tips)")
+    print("  " + " ".join(f"{k}{w}" for k, w in widths))
+    print(f"  min shaft width = {worst}px  [{'OK' if worst >= 2 else 'THIN'}]")
 
     hero_d, hd_h = _hero(pal_d, seed)
     hero_n, hn_h = _hero(pal_n, seed)
@@ -572,7 +641,7 @@ def main():
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((24, 25, 30))
 
-    sheet.blit(title.render("tiwanaku_stele — flat incised andesite SLAB  ·  round_1",
+    sheet.blit(title.render("tiwanaku_stele — flat incised andesite SLAB  ·  round_2",
                             True, (245, 240, 230)), (pad, 12))
     sheet.blit(sub.render("red edges = PIPE_W (58px) collision band  ·  big staff-god "
                           "face + slab-breaking ray halo  ·  cinnabar in recess  ·  "
@@ -621,7 +690,7 @@ def main():
     sheet.blit(lab.render("58px BLACKOUT — rayed tablet, not a plank", True,
                           (255, 224, 150)), (x, by + black.get_height() + 4))
 
-    out = pathlib.Path(__file__).resolve().parent / "round_1.png"
+    out = pathlib.Path(__file__).resolve().parent / "round_2.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
