@@ -1,6 +1,6 @@
-"""Final comparison figure for the bug/insect bee-slot redesign.
+"""Final comparison figure for the butterfly bee-slot redesign.
 
-Six columns: ORIGINAL live skin_bee + five new insect designs, each Pip
+Six columns: ORIGINAL live skin_bee + five butterfly designs, each Pip
 mid-flight over the same real gameplay biome scene.
 
 Run headless from repo root:
@@ -22,10 +22,10 @@ from game.hud import _font, _GOLD_PALE, _GOLD_DEEP
 COLUMNS = [
     ("ORIGINAL",  "CURRENT BEE",    "skin_bee"),
     ("DESIGN 1",  "AZUREWING",      "design_1"),
-    ("DESIGN 2",  "EMBERGLOW",      "design_2"),
-    ("DESIGN 3",  "IRONHORN",       "design_3"),
-    ("DESIGN 4",  "GLINTWING",      "design_4"),
-    ("DESIGN 5",  "STINGREEL",      "design_5"),
+    ("DESIGN 2",  "SUNSET MOTH",    "design_2"),
+    ("DESIGN 3",  "LUNAWING",       "design_3"),
+    ("DESIGN 4",  "MONARCH",        "design_4"),
+    ("DESIGN 5",  "ATLASWING",      "design_5"),
 ]
 
 
@@ -47,12 +47,12 @@ sheet = pygame.Surface((sheet_w, sheet_h))
 sheet.fill((18, 16, 28))
 
 title = _font(24, True).render(
-    "BUG/INSECT REDESIGN  ·  ORIGINAL vs. 5 NEW DESIGNS",
+    "BUTTERFLY REDESIGN  ·  ORIGINAL vs. 5 NEW DESIGNS",
     True, _GOLD_PALE)
 sheet.blit(title, title.get_rect(midtop=(sheet_w // 2, 16)))
 
 subtitle = _font(13).render(
-    "Azurewing · Emberglow · Ironhorn · Glintwing · Stingreel  ·  R2 finals",
+    "Azurewing · Sunset Moth · Lunawing · Monarch · Atlaswing  ·  R2 finals",
     True, (200, 195, 230))
 sheet.blit(subtitle, subtitle.get_rect(midtop=(sheet_w // 2, 50)))
 
