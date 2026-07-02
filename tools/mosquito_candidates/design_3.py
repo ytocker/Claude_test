@@ -61,23 +61,26 @@ def _ellipse_mask(rect):
 
 
 def _mosq_wing(wing_angle_deg, *, bright=True, rot_bias=0.0):
-    """A narrow hot-magenta membrane blade with a diagonal cyan shimmer. It is
-    the flap element: at f=0 (wing down) it hangs tall and open, at f=1 (up) it
-    squeezes to a slit. The far wing runs dimmer + rotated back for depth."""
+    """A narrow hot-magenta membrane blade with a diagonal cyan shimmer. Kept
+    small and swept hard back over the thorax so the BODY stays the largest
+    mass — a near-vertical blade reads as a prawn tail, not a mosquito wing.
+    At f=0 (wing down) it hangs open, at f=1 (up) it squeezes to a slit; the
+    far wing runs dimmer + rotated further back for depth."""
     f = (wing_angle_deg + 40) / 90.0
-    a_fill = 120 if bright else 58
-    a_edge = 185 if bright else 95
-    a_shim = 210 if bright else 110
-    w = pygame.Surface((22, 46), pygame.SRCALPHA)
-    pygame.draw.ellipse(w, (*MAGENTA, a_fill), (4, 2, 13, 42))
-    pygame.draw.ellipse(w, (255, 120, 205, a_fill), (7, 8, 7, 26))
-    pygame.draw.ellipse(w, (*MAGENTA, a_edge), (4, 2, 13, 42), 1)
-    # Diagonal scanline shimmer across the blade.
-    pygame.draw.line(w, (*CYAN, a_shim), (7, 38), (14, 8), 1)
+    a_fill = 105 if bright else 50
+    a_edge = 170 if bright else 88
+    a_shim = 195 if bright else 100
+    w = pygame.Surface((15, 32), pygame.SRCALPHA)
+    pygame.draw.ellipse(w, (*MAGENTA, a_fill), (3, 2, 9, 28))
+    pygame.draw.ellipse(w, (255, 120, 205, a_fill), (5, 7, 5, 16))
+    pygame.draw.ellipse(w, (*MAGENTA, a_edge), (3, 2, 9, 28), 1)
+    # Single diagonal scanline shimmer across the blade.
+    pygame.draw.line(w, (*CYAN, a_shim), (5, 25), (10, 6), 1)
     # Squeeze horizontally toward the up-pose so the blade reads as a slit.
     sx = 1.0 - 0.5 * f
-    w = pygame.transform.smoothscale(w, (max(1, int(22 * sx)), 46))
-    return pygame.transform.rotate(w, 30 + f * 34 + rot_bias)
+    w = pygame.transform.smoothscale(w, (max(1, int(15 * sx)), 32))
+    # High base rotation sweeps the blade up-AND-back over the thorax.
+    return pygame.transform.rotate(w, 46 + f * 26 + rot_bias)
 
 
 def build_mosquito_neon(wing_angle_deg):
@@ -86,27 +89,30 @@ def build_mosquito_neon(wing_angle_deg):
 
     # ── Far wing (behind everything, dim, swept further back) ───────────────
     fw = _mosq_wing(wing_angle_deg, bright=False, rot_bias=16)
-    surf.blit(fw, fw.get_rect(center=(BCX + 6, BCY - 12)).topleft)
+    surf.blit(fw, fw.get_rect(center=(BCX + 4, BCY - 14)).topleft)
 
-    # ── SIX legs, all glowing magenta neon (drawn before the body so their
-    #    roots tuck under the thorax and only the dangling span lights up).
-    #    Far triad first (dimmer + a stop back), then the bright near triad.
+    # ── SIX dangling legs — the second non-negotiable mosquito tell. Three per
+    #    side, splayed into a fan and hung well BELOW the body, each with a
+    #    visible knee (down, then kicked back) so it reads jointed. Roots tuck
+    #    under the body (drawn first); the dangling span is what lights up.
+    #    Glow is kept TIGHT (2px) so neighbouring legs stay separated rather
+    #    than merging into a blob at the 40px downscale.
     far = [
-        [(40, 45), (46, 51), (49, 57)],   # front
-        [(34, 47), (33, 60)],             # mid
-        [(27, 45), (24, 52), (20, 58)],   # rear
+        [(38, 47), (42, 54), (40, 61)],   # front
+        [(30, 48), (30, 57), (26, 63)],   # mid
+        [(23, 47), (19, 54), (14, 60)],   # rear
     ]
     near = [
-        [(38, 46), (43, 52), (46, 59)],   # front (knee at 43,52)
-        [(32, 48), (30, 62)],             # mid
-        [(25, 46), (21, 53), (17, 60)],   # rear (knee at 21,53)
+        [(40, 48), (45, 55), (42, 63)],   # front — knee kicks forward-back
+        [(32, 49), (33, 58), (28, 65)],   # mid
+        [(24, 48), (20, 56), (15, 63)],   # rear
     ]
     for leg in far:
         for a, b in zip(leg, leg[1:]):
-            _neon_line(surf, MAGENTA_DIM, a, b, core_w=1, glow=((3, 26),))
+            _neon_line(surf, MAGENTA_DIM, a, b, core_w=1, glow=((2, 20),))
     for leg in near:
         for a, b in zip(leg, leg[1:]):
-            _neon_line(surf, MAGENTA, a, b, core_w=1, glow=((3, 44),))
+            _neon_line(surf, MAGENTA, a, b, core_w=1, glow=((2, 34),))
 
     # ── Charcoal abdomen: a tapered barrel sweeping back-left to a point ─────
     ab_rect = (BCX - 19, BCY - 3, 26, 15)
@@ -132,23 +138,33 @@ def build_mosquito_neon(wing_angle_deg):
     pygame.draw.arc(surf, CHARCOAL_H, (BCX - 5, BCY - 12, 20, 18),
                     0.5, 2.6, 2)
 
-    # ── Near wing (bright, over the thorax) ─────────────────────────────────
+    # ── Near wing (bright, swept back over the thorax) ──────────────────────
     nw = _mosq_wing(wing_angle_deg, bright=True)
-    surf.blit(nw, nw.get_rect(center=(BCX + 1, BCY - 14)).topleft)
+    surf.blit(nw, nw.get_rect(center=(BCX - 1, BCY - 16)).topleft)
 
     # ── Head ────────────────────────────────────────────────────────────────
     pygame.draw.ellipse(surf, CHARCOAL, (HCX - 8, HCY - 8, 16, 16))
     pygame.draw.arc(surf, CHARCOAL_H, (HCX - 8, HCY - 8, 16, 16), 0.4, 2.4, 2)
 
-    # ── HERO 1: single lime compound-eye dot with bloom + a hot glint ───────
-    _neon_dot(surf, LIME, (HCX, HCY), 5, 9, 70)
-    pygame.draw.circle(surf, (245, 255, 210), (HCX - 2, HCY - 2), 1)
+    # ── HERO 1: the proboscis is a RIGID FORWARD NEEDLE — the primary tell.
+    #    A tapered cyan tube (2px base → 1px point) running ~19px forward off
+    #    the head, with a 1px charcoal core so it reads as an edge-lit solid
+    #    needle and not a diffuse flashlight beam. Faint outer glow only.
+    p_base, p_tip = (44, 36), (63, 33)
+    beam = _new()
+    pygame.draw.line(beam, (*CYAN, 34), p_base, p_tip, 3)
+    surf.blit(beam, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    pygame.draw.polygon(surf, CYAN, [(44, 35), (44, 37), p_tip])
+    pygame.draw.line(surf, CHARCOAL, (45, 36), (61, 33), 1)
 
-    # ── HERO 2: cyan glowing proboscis needle + two palp stubs ──────────────
-    _neon_line(surf, CYAN, (44, 36), (63, 34), core_w=2,
-               glow=((4, 60), (7, 30)))
-    _neon_line(surf, CYAN, (45, 38), (54, 39), core_w=1, glow=((3, 34),))
-    _neon_line(surf, CYAN, (45, 33), (53, 30), core_w=1, glow=((3, 34),))
+    # ── HERO 2: a SMALL lime compound eye, high on the head. Deliberately
+    #    tiny (≈3px core + a 2px halo) so the neon linework — not one blown-out
+    #    orb — carries the synthwave look. This is a mosquito, not a firefly.
+    _neon_dot(surf, LIME, (42, 31), 2, 4, 90)
+
+    # ── Focal apex: the single brightest, tightest highlight sits at the
+    #    head/proboscis junction, pulling the eye forward along the needle.
+    _neon_dot(surf, (225, 255, 255), (50, 35), 1, 3, 150)
 
     return surf
 
