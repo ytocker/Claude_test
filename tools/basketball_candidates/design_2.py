@@ -48,9 +48,9 @@ def _paint(surf, _a):
         jersey_d=_RED_D,
         strap=_WHITE, strap_d=_WHITE_D,
         num_col=_WHITE, num_d=_RED_D,
-        number="23",
+        number="3",
         shorts=_BLACK, shorts_d=_BLACK_D,
-        waist=_RED,
+        waist=_WHITE,
         band=_WHITE, band_d=_WHITE_D,
         knot=_RED,
     )

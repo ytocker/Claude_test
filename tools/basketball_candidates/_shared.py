@@ -27,11 +27,11 @@ def draw_basketball_kit(
     pygame.draw.ellipse(surf, jersey_d, (BCX-19, BCY-14, 38, 28), 1)
 
     # --- Sleeveless TANK shoulder straps ---------------------------------
-    # Two thick bars frame the chest panel; gaps either side = bare shoulder.
-    pygame.draw.line(surf, strap_d, (BCX-16, BCY-13), (BCX-11, BCY+4), 4)
-    pygame.draw.line(surf, strap,   (BCX-15, BCY-13), (BCX-10, BCY+4), 3)
-    pygame.draw.line(surf, strap_d, (BCX+14, BCY-13), (BCX+9,  BCY+4), 4)
-    pygame.draw.line(surf, strap,   (BCX+13, BCY-13), (BCX+8,  BCY+4), 3)
+    # Two thin diagonals over the shoulders; bare jersey visible between them.
+    pygame.draw.line(surf, strap_d, (BCX-16, BCY-13), (BCX-11, BCY+4), 3)
+    pygame.draw.line(surf, strap,   (BCX-15, BCY-13), (BCX-10, BCY+4), 2)
+    pygame.draw.line(surf, strap_d, (BCX+14, BCY-13), (BCX+9,  BCY+4), 3)
+    pygame.draw.line(surf, strap,   (BCX+13, BCY-13), (BCX+8,  BCY+4), 2)
     # Collar neckline
     pygame.draw.line(surf, strap, (BCX-7, BCY-13), (BCX+5, BCY-13), 2)
 
@@ -39,13 +39,13 @@ def draw_basketball_kit(
     _draw_number(surf, BCX, BCY, number, num_col, num_d)
 
     # --- Hem seam --------------------------------------------------------
-    pygame.draw.ellipse(surf, jersey_d, (BCX-9, BCY+5, 20, 2), 1)
+    pygame.draw.ellipse(surf, jersey_d, (BCX-10, BCY+5, 22, 2), 1)
 
     # --- Baggy shorts (longer + wider than soccer) -----------------------
-    pygame.draw.ellipse(surf, shorts,   (BCX-11, BCY+5, 24, 14))
-    pygame.draw.ellipse(surf, shorts_d, (BCX-11, BCY+5, 24, 14), 1)
-    # Waistband accent line
-    pygame.draw.line(surf, waist, (BCX-10, BCY+6), (BCX+12, BCY+6), 2)
+    pygame.draw.ellipse(surf, shorts,   (BCX-12, BCY+5, 26, 16))
+    pygame.draw.ellipse(surf, shorts_d, (BCX-12, BCY+5, 26, 16), 1)
+    # Waistband accent — 3px so it reads at 40px as the jersey/shorts divider
+    pygame.draw.line(surf, waist, (BCX-11, BCY+6), (BCX+12, BCY+6), 3)
     # Inseam shadow triangle
     poly_fn(surf, shorts_d, [
         (BCX-1, BCY+16), (BCX+3, BCY+16), (BCX+1, BCY+19)

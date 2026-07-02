@@ -1,7 +1,7 @@
 """Basketball v3 Design 5 — THE HEAT.
 
-Near-black + red. Miami Heat style. Red number "6",
-red headband with black knot, black shorts.
+Near-black + red. Miami Heat style. White number "6",
+red headband with white lower trim + black knot, black shorts with white waistband.
 """
 import pygame
 
@@ -46,13 +46,16 @@ def _paint(surf, _a):
         surf, BCX, BCY, HX, CROWN_Y, _poly,
         jersey_d=_BLACK_D,
         strap=_RED, strap_d=_RED_D,
-        num_col=_RED, num_d=_BLACK_D,
+        num_col=_WHITE, num_d=_BLACK_D,
         number="6",
         shorts=_BLACK, shorts_d=_BLACK_D,
-        waist=_RED,
+        waist=_WHITE,
         band=_RED, band_d=_RED_D,
         knot=_BLACK,
     )
+    # White lower trim on headband so the red band reads against the macaw's
+    # natural red/orange face — separates kit element from plumage.
+    pygame.draw.line(surf, _WHITE, (HX-11, CROWN_Y+9), (HX+9, CROWN_Y+8), 1)
 
 
 build = _make_skin(_paint, base_fn=_base)
