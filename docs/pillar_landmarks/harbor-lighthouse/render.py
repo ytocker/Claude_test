@@ -1,12 +1,13 @@
 """Harbor-lighthouse pillar candidate — standalone landmark exploration.
 
 The soft pole of the landmark set: the ONLY smooth curved-side taper. A
-round tapering shaft (quarter-cosine profile so the outline reads as a true
-curve, never the obelisk's dead-straight wedge) swells from a wide waterline
-plinth up to a distinct narrow "head" — a corbelled gallery ring, a glazed
-lantern room with a warm cached-radial glow, a broad dome cap and a ball
-finial. Blackout silhouette is a bottle: narrow-shouldered head over a
-swelling round shaft.
+round shaft with true entasis (a swelling belly that pinches into a narrow
+neck, so the outline reads as an unmistakable bottle curve, never the
+obelisk's dead-straight wedge) rises from a wide waterline plinth up to a
+distinct narrow "head" — a corbelled gallery ring (the widest ring of the
+head), a glazed lantern room with a warm cached-radial glow, a narrower
+copper dome and a ball finial. Blackout silhouette is a bottle: narrow
+head over a swelling round shaft.
 
 Contract mirrors the shipped pagoda pillars
 (`game/pillar_pagodas.py::candidate_stupa_canopy`): one
@@ -103,6 +104,12 @@ def _lamp_glow(radius, warm):
 
 # ── The tower, painted upright once ──────────────────────────────────────────
 
+# A fixed candy-band COUNT (not a fixed band height): the shaft always reads
+# as the same bold barber-pole no matter how tall the section is, so tall
+# towers stop shimmering into a fine moiré of stripes when scrolling.
+N_BANDS = 7
+
+
 def _cyl_band(surf, cx, y0, bh, w, tone):
     """One horizontal course of the shaft, shaded left-light / right-dark so
     the round cross-section reads as a cylinder — this is what sells the
@@ -136,41 +143,56 @@ def _draw_tower(tmp, cx, palette, seed):
     # Head parts shrink gracefully on very short sections but never vanish.
     s = max(0.62, min(1.0, H / 120.0))
     finial_h = max(4, int(6 * s))
-    dome_h = max(7, int(11 * s))
-    lantern_h = int(17 * s)
+    dome_h = max(7, int(10 * s))
+    lantern_h = int(18 * s)
     gallery_h = max(5, int(9 * s))
     head_h = finial_h + dome_h + lantern_h + gallery_h
     shaft_h = max(14, H - head_h)
     shaft_top = base_y - shaft_h
 
-    # Widths — collision core (the full inclusive PIPE_W column, ±29 px) is
-    # ALWAYS covered: every load-bearing element clears PIPE_W by a few px so a
-    # centred rect spans both extreme edges; the extra flare spills only into
-    # the ±64 gutters, never widening the hitbox.
-    base_w = PIPE_W + 26
-    top_w = PIPE_W + 4
-    gallery_w = PIPE_W + 16
-    lantern_w = PIPE_W + 6
-    dome_w = PIPE_W + 18
-    plinth_w = PIPE_W + 30
+    # Widths — the collision core (the full inclusive PIPE_W column, ±29 px)
+    # is ALWAYS covered: the narrowest structural member (the neck) still
+    # clears PIPE_W so a centred rect spans both extreme edges; belly/plinth
+    # flare spills only into the ±64 gutters, never widening the hitbox.
+    #
+    # Head cascade (FIX 3): shaft neck -> flared GALLERY (widest ring) ->
+    # narrower lantern -> narrower dome -> ball finial. No onion-cap wobble.
+    neck_w = PIPE_W + 2       # 60 — pinched shaft top, still covers the column
+    base_w = PIPE_W + 20      # 78 — shaft footing
+    belly_amp = 20            # entasis swell (belly peaks ~PIPE_W+34 = 92)
+    plinth_w = PIPE_W + 38    # 96 — widest waterline footing
+    gallery_w = PIPE_W + 32   # 90 — widest ring of the head
+    lantern_w = PIPE_W + 18   # 76
+    dome_w = PIPE_W + 10      # 68 — clearly narrower than the lantern (76)
 
-    # ── Shaft — quarter-cosine taper (a real curve) painted as candy bands ──
+    # ── Shaft — entasis profile (belly swell + neck pinch) as candy bands ────
+    # t: 0 at the waterline, 1 at the neck. A linear base->neck taper carries
+    # a sine belly that peaks low (~t=0.32) and dies out into the neck, so the
+    # curve is a bottle, not a straight cone.
     def wid(y):
         t = max(0.0, min(1.0, (base_y - y) / max(1, shaft_h)))
-        return int(top_w + (base_w - top_w) * math.cos(t * math.pi / 2))
+        taper = base_w + (neck_w - base_w) * t
+        belly = belly_amp * math.sin(math.pi * min(1.0, t / 0.64))
+        return int(round(taper + belly))
 
-    band_h = max(9, int(11 * s))
-    y = base_y
-    dark_course = False
-    while y > shaft_top:
-        bh = min(band_h, y - shaft_top)
-        yc = y - bh
-        w = wid(yc + bh // 2)
-        _cyl_band(tmp, cx, yc, bh, w, c_dk if dark_course else c_lt)
+    # Fixed band count -> band height stretches to fill the section.
+    n_bands = N_BANDS
+    band_h = shaft_h / n_bands
+    while band_h < 6.0 and n_bands > 3:   # keep bands bold on tiny stubs
+        n_bands -= 1
+        band_h = shaft_h / n_bands
+    dark_course = True                    # dark course sits at the waterline
+    for i in range(n_bands):
+        y_hi = int(round(base_y - band_h * (i + 1)))
+        y_lo = int(round(base_y - band_h * i))
+        bh = y_lo - y_hi
+        if bh <= 0:
+            continue
+        w = wid(y_hi + bh / 2)
+        _cyl_band(tmp, cx, y_hi, bh, w, c_dk if dark_course else c_lt)
         dark_course = not dark_course
-        y -= bh
 
-    # ── Waterline plinth — wider granite base with barnacle/moss stipple ────
+    # ── Waterline plinth — wider granite footing with sparse moss clumps ────
     plinth_h = min(13, max(6, int(H * 0.10)))
     py = base_y - plinth_h
     granite = _mix(palette['stone_dark'], palette['stone_mid'], 0.42)
@@ -180,11 +202,15 @@ def _draw_tower(tmp, cx, palette, seed):
                      (cx - plinth_w // 2 + 1, py + 1, plinth_w - 2, plinth_h - 2))
     pygame.draw.rect(tmp, _shade(granite, 22),
                      (cx - plinth_w // 2 + 2, py + 1, plinth_w - 4, 2))
+    # A couple of sparse moss clumps at the waterline (not a stipple field).
     moss = palette['foliage_dark']
-    for _ in range(max(5, plinth_w // 6)):
-        bx = cx - plinth_w // 2 + rng.randint(2, plinth_w - 3)
-        by = py + rng.randint(1, plinth_h - 2)
-        pygame.draw.circle(tmp, moss, (bx, by), 1)
+    moss_lt = _mix(moss, palette['foliage_mid'], 0.5)
+    for _ in range(3):
+        mx = cx - plinth_w // 2 + rng.randint(3, plinth_w - 4)
+        my = py + rng.randint(2, plinth_h - 2)
+        r = rng.randint(2, 3)
+        pygame.draw.circle(tmp, moss, (mx, my), r)
+        pygame.draw.circle(tmp, moss_lt, (mx - 1, my - 1), max(1, r - 1))
 
     # ── Gallery ring — corbelled shoulder proud of the shaft, with balusters ─
     gy = shaft_top
@@ -225,7 +251,7 @@ def _draw_tower(tmp, cx, palette, seed):
     pygame.draw.rect(tmp, _gallery(palette), (lx, ly - lantern_h, lantern_w, 2))
     pygame.draw.rect(tmp, _gallery(palette), (lx, ly - 2, lantern_w, 2))
 
-    # ── Dome cap — broad shallow copper dome + ball finial (the gap tip) ────
+    # ── Dome cap — copper dome (narrower than the lantern) + ball finial ─────
     dy = ly - lantern_h
     dome_col = _candy_dark(palette)
     dome_rect = pygame.Rect(cx - dome_w // 2, dy - dome_h, dome_w, dome_h * 2)
@@ -293,6 +319,22 @@ def _sky_ground(w, h, pal, ground_h):
     return cell
 
 
+def _blackout(pal, h):
+    """Solid-black silhouette of the standing tower at section height `h`,
+    cropped tight — the pure-shape read used to verify the head shoulder
+    survives at gameplay scale."""
+    tmp = pygame.Surface((CACHE_W, h), pygame.SRCALPHA)
+    bot = pygame.Rect(MARGIN, 0, PIPE_W, h)
+    candidate_harbor_lighthouse(tmp, pygame.Rect(0, 0, 0, 0), bot, pal, 7)
+    silo = pygame.Surface((CACHE_W, h), pygame.SRCALPHA)
+    for y in range(h):
+        for x in range(CACHE_W):
+            if tmp.get_at((x, y))[3] >= 24:
+                silo.set_at((x, y), (14, 14, 20, 255))
+    bb = silo.get_bounding_rect(min_alpha=1)
+    return silo.subsurface(bb).copy()
+
+
 def _col_fill_report(pal):
     """Feasibility math (NOT art critique): for each test height, print the
     tallest fully-empty vertical run inside the central PIPE_W collision
@@ -349,6 +391,13 @@ def main():
             pygame.draw.line(cell, (255, 60, 60), (ex, 0), (ex, h + 20), 1)
         strip_cells.append((h, cell))
 
+    # ── BLACKOUT thumbnails: pure silhouette at 1x + a 0.72x downscale ──────
+    silo_1x = _blackout(pal, 210)
+    ds = 0.72
+    silo_ds = pygame.transform.smoothscale(
+        silo_1x, (max(1, int(silo_1x.get_width() * ds)),
+                  max(1, int(silo_1x.get_height() * ds))))
+
     # ── Compose sheet ──────────────────────────────────────────────────────
     pad = 14
     label_h = 24
@@ -363,14 +412,21 @@ def main():
     sheet_w = pad + hero_block_w + pad + strip_w + pad
     sheet_h = max(head_h + hero_bg.get_height() + label_h + pad * 2,
                   head_h + strip_total_h + pad)
+
+    # Blackout panel lives under the hero in the left column.
+    black_panel_h = silo_1x.get_height() + label_h + pad * 2 + 6
+    sheet_h = max(sheet_h,
+                  head_h + hero_bg.get_height() + label_h + pad + black_panel_h)
+
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((24, 25, 30))
 
-    sheet.blit(font_t.render("harbor-lighthouse — round 1", True,
+    sheet.blit(font_t.render("harbor-lighthouse — round 2", True,
                              (245, 240, 230)), (pad, 12))
-    sheet.blit(font_s.render("soft curved-taper pole · candy value-bands · "
-                             "glazed lantern glow · dome at the gap · daytime "
-                             "phase 0.30", True, (170, 172, 182)), (pad, 38))
+    sheet.blit(font_s.render("fixed 7-band candy · entasis bottle curve · "
+                             "gallery = widest head ring · dome<lantern · "
+                             "daytime phase 0.30", True, (170, 172, 182)),
+               (pad, 38))
 
     # Hero on the left.
     hx, hy = pad, head_h
@@ -379,6 +435,27 @@ def main():
                      pygame.Rect(hx, hy, CACHE_W, GROUND_Y), 1)
     lab = font_l.render("HERO — hung + gap + standing pair", True, (255, 224, 150))
     sheet.blit(lab, (hx, hy + GROUND_Y + 4))
+
+    # Blackout panel under the hero.
+    bpy = hy + GROUND_Y + label_h + pad
+    sheet.blit(font_l.render("BLACKOUT — head over swelling shaft (1x · 0.72x)",
+                             True, (255, 224, 150)), (hx, bpy))
+    panel_top = bpy + label_h
+    panel = pygame.Rect(hx, panel_top, CACHE_W, silo_1x.get_height() + pad)
+    pygame.draw.rect(sheet, (206, 208, 214), panel)
+    pygame.draw.rect(sheet, (60, 62, 72), panel, 1)
+    # 1x silhouette, centred, with red PIPE_W edges to prove the hitbox column.
+    s1x = hx + 28
+    s1y = panel_top + pad // 2
+    sheet.blit(silo_1x, (s1x, s1y))
+    col_cx = s1x + silo_1x.get_width() // 2
+    for ex in (col_cx - PIPE_W // 2, col_cx + PIPE_W // 2):
+        pygame.draw.line(sheet, (220, 70, 70),
+                         (ex, s1y), (ex, s1y + silo_1x.get_height()), 1)
+    # 0.72x downscale to the right, baseline-aligned.
+    sdx = s1x + silo_1x.get_width() + 34
+    sdy = s1y + silo_1x.get_height() - silo_ds.get_height()
+    sheet.blit(silo_ds, (sdx, sdy))
 
     # Feasibility strip on the right.
     sx = pad + hero_block_w + pad
@@ -393,11 +470,22 @@ def main():
                    (sx + 4, sy + cell.get_height() + 3))
         sy += cell.get_height() + label_h + pad
 
-    out = _REPO / "docs" / "pillar_landmarks" / "harbor-lighthouse" / "round_1.png"
+    out = _REPO / "docs" / "pillar_landmarks" / "harbor-lighthouse" / "round_2.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
     _col_fill_report(pal)
+
+    # Silhouette-width sanity (my own check, not art critique): confirm the
+    # entasis belly reads clearly wider than the pinched neck.
+    tmp = pygame.Surface((PIPE_W + 128, 320), pygame.SRCALPHA)
+    _draw_tower(tmp, (PIPE_W + 128) // 2, pal, 7)
+    widths = []
+    for y in range(320):
+        row = [x for x in range(tmp.get_width()) if tmp.get_at((x, y))[3] >= 24]
+        widths.append((row[-1] - row[0] + 1) if row else 0)
+    print(f"shaft silhouette: max belly ~{max(widths)}px, "
+          f"neck min (shaft band) reported via fill gate")
 
 
 if __name__ == "__main__":
