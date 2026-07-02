@@ -1,7 +1,7 @@
-"""Render the STINGREEL (design_5) hornet candidate to a labeled review sheet:
-a hero product-shot, an in-gameplay day crop, a 40px NEAREST-neighbour truth
-read (the "lives or dies at 40px" check) across 3 poses on BOTH day and night
-sky, and the 4-frame flap strip so the wing-buzz arc is judgeable. Headless."""
+"""Render the ATLASWING (design_5) Atlas-moth candidate to a labeled review
+sheet: a hero product-shot, an in-gameplay day crop, a 40px NEAREST-neighbour
+truth read (the "lives or dies at 40px" check) across 3 poses on BOTH day and
+night sky, and the 4-frame flap strip so the wing arc is judgeable. Headless."""
 import os
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
@@ -15,10 +15,10 @@ from game import biome
 from game.draw import get_sky_surface_biome
 from game.config import W as GW, H as GH, GROUND_Y
 
-OUT = "/home/user/skybit/docs/store_redesign/animal/bee/design_5/round_2.png"
+OUT = "/home/user/skybit/docs/store_redesign/animal/bee/design_5/round_1.png"
 
-# Three distinct poses across the buzz cycle, so the truth read exposes whether
-# the silhouette survives BOTH the shrink and the wing animation.
+# Three poses across the flap cycle so the truth read exposes whether the
+# hooked-wing silhouette survives BOTH the shrink and the wing animation.
 TRUTH_POSES = (0, 2, 3)
 
 
@@ -32,7 +32,8 @@ def _label(surf, text, x, y, sz=18, col=(240, 240, 245)):
 
 def _truth_swatch(box, phase, frame_idx):
     """A 40px NEAREST downscale of one pose on a real sky swatch, blown back up
-    NEAREST so the shrunk pixels are judgeable — the read the player gets."""
+    NEAREST so the shrunk pixels are judgeable — the read the player gets. The
+    translucent windows must show a hint of sky through them at this size."""
     pal = biome.palette_for_phase(phase)
     sky = get_sky_surface_biome(GW, GH, GROUND_Y, pal, 0)
     swatch = pygame.transform.smoothscale(
@@ -49,7 +50,7 @@ def _truth_swatch(box, phase, frame_idx):
 
 
 def _frames_strip(box):
-    """The four flap frames side by side so the wing-buzz arc is legible."""
+    """The four flap frames side by side so the wing arc is legible."""
     strip = pygame.Surface((box * 4, box), pygame.SRCALPHA)
     for i in range(4):
         panel = hero_panel(build, box, frame_idx=i, tilt=0.0, bg=(30, 27, 20))
@@ -77,10 +78,10 @@ def main():
     sheet = pygame.Surface((W, H))
     sheet.fill((24, 22, 32))
 
-    _label(sheet, "skin_bee redesign — DESIGN 5: STINGREEL (Giant Hornet, Vespa) — R2",
+    _label(sheet, "skin_bee redesign — DESIGN 5: ATLASWING (Atlas Moth, Attacus atlas) — R1",
            PAD, 16, sz=22, col=(255, 255, 255))
-    _label(sheet, "Wasp-waist w/ sky in the pinch · dark angry eyes · pointed banded dart · long stinger · frantic wing-buzz",
-           PAD, 46, sz=14, col=(170, 175, 190))
+    _label(sheet, "Angular snake-head hooked forewings · dark eye-dot tips · semi-transparent cream windows · banded rust body · feathery comb antennae",
+           PAD, 46, sz=13, col=(170, 175, 190))
 
     top = 80
     sheet.blit(hero_panel(build, HERO, frame_idx=2, tilt=0.0), (PAD, top))
@@ -102,7 +103,7 @@ def main():
     _label(sheet, "night sky", night_x + 6, trow + TR + 2, sz=13, col=(190, 195, 205))
 
     frow = trow + TR + 22 + PAD + 24
-    _label(sheet, "FLAP CYCLE (4 frames — wing-buzz arc + echo):", PAD, frow - 24, sz=15)
+    _label(sheet, "FLAP CYCLE (4 frames — wing arc):", PAD, frow - 24, sz=15)
     sheet.blit(_frames_strip(FS), (PAD, frow))
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
