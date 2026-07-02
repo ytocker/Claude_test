@@ -34,7 +34,7 @@ _PAL = _pal(
     body_belly=(70, 14, 110),
     sheen=(180, 100, 255, 50),
     wing_main=BIRD_WING, wing_dark=BIRD_WING_D, wing_tip=BIRD_TIP,
-    wing_secondary=(255, 200, 60), wing_highlight=(170, 210, 255),
+    wing_secondary=(200, 160, 30), wing_highlight=(220, 190, 120),
     head_shadow=(150, 15, 20), head_main=BIRD_RED,
     head_cheek=(255, 130, 130), head_crown=(255, 170, 170),
     lens_frame=(255, 200, 50), lens_body=(20, 20, 30),
@@ -75,19 +75,25 @@ def _paint(surf, _a):
     pygame.draw.line(surf, _GOLD,   (BCX + 12, BCY - 13), (BCX + 8, BCY + 4), 2)
     pygame.draw.line(surf, _GOLD,   (BCX - 6, BCY - 13), (BCX + 4, BCY - 13), 2)
 
-    # "24" in gold on the purple chest — the retired-jersey read. Bold strokes so
-    # the numerals survive the downscale instead of collapsing to noise.
+    # "24" in gold on the purple chest — the retired-jersey read. Each stroke is
+    # painted twice: a dark-purple drop shadow at (+1,+1) first, then the 3px gold
+    # on top, so the block numerals stay legible and don't shear at the downscale.
     nx, ny = BCX - 5, BCY - 3
-    pygame.draw.line(surf, _GOLD_D, (nx - 4, ny - 7), (nx + 3, ny - 7), 4)   # shadow
-    pygame.draw.line(surf, _GOLD, (nx - 4, ny - 8), (nx + 3, ny - 8), 3)     # top bar
-    pygame.draw.line(surf, _GOLD, (nx + 3, ny - 8), (nx - 3, ny), 3)         # diagonal
-    pygame.draw.line(surf, _GOLD, (nx - 4, ny), (nx + 3, ny), 3)             # mid bar
-    pygame.draw.line(surf, _GOLD, (nx - 4, ny), (nx - 4, ny + 6), 3)         # left drop
-    pygame.draw.line(surf, _GOLD, (nx - 4, ny + 6), (nx + 3, ny + 6), 3)     # bottom
     nx2 = nx + 10
-    pygame.draw.line(surf, _GOLD, (nx2 - 3, ny - 8), (nx2 - 3, ny), 3)       # left stem
-    pygame.draw.line(surf, _GOLD, (nx2 - 3, ny), (nx2 + 3, ny), 3)           # cross bar
-    pygame.draw.line(surf, _GOLD, (nx2 + 3, ny - 8), (nx2 + 3, ny + 6), 3)   # right stem
+    strokes = [
+        ((nx - 4, ny - 8), (nx + 3, ny - 8)),   # 2 top bar
+        ((nx + 3, ny - 8), (nx - 3, ny)),        # 2 diagonal
+        ((nx - 4, ny), (nx + 3, ny)),            # 2 mid bar
+        ((nx - 4, ny), (nx - 4, ny + 6)),        # 2 left drop
+        ((nx - 4, ny + 6), (nx + 3, ny + 6)),    # 2 bottom
+        ((nx2 - 3, ny - 8), (nx2 - 3, ny)),      # 4 left stem
+        ((nx2 - 3, ny), (nx2 + 3, ny)),          # 4 cross bar
+        ((nx2 + 3, ny - 8), (nx2 + 3, ny + 6)),  # 4 right stem
+    ]
+    for p0, p1 in strokes:
+        pygame.draw.line(surf, _PURPLE_D, (p0[0] + 1, p0[1] + 1), (p1[0] + 1, p1[1] + 1), 3)
+    for p0, p1 in strokes:
+        pygame.draw.line(surf, _GOLD, p0, p1, 3)
 
     # Hem seam separating tank from shorts.
     pygame.draw.line(surf, _GOLD_D, (BCX - 12, BCY + 5), (BCX + 11, BCY + 5), 1)

@@ -36,8 +36,11 @@ _PAL = _pal(
     body_chest=(32, 32, 42),
     body_belly=(14, 14, 20),
     sheen=(80, 80, 120, 40),
-    wing_main=BIRD_WING, wing_dark=BIRD_WING_D, wing_tip=BIRD_TIP,
-    wing_secondary=(255, 200, 60), wing_highlight=(170, 210, 255),
+    wing_main=(40, 40, 50),          # dark, near-black — reads as the jersey
+    wing_dark=(25, 25, 32),
+    wing_tip=(55, 55, 68),
+    wing_secondary=(70, 70, 88),     # desaturated dark, no gold
+    wing_highlight=(90, 92, 110),    # cool-grey, no blue
     head_shadow=(150, 15, 20), head_main=BIRD_RED,
     head_cheek=(255, 130, 130), head_crown=(255, 170, 170),
     lens_frame=(255, 200, 50), lens_body=(20, 20, 30),
@@ -64,12 +67,11 @@ def _paint(surf, _a):
     # dark night sky instead of dissolving into it.
     pygame.draw.ellipse(surf, (80, 80, 100), (BCX - 19, BCY - 14, 38, 28), 1)
 
-    # Sleeveless tank armholes — white piping tracing where the arms pass through
-    # the vest, plus the shoulder-width seam across the top. The basketball-kit
-    # tell that says "singlet", not a long-sleeve sweater.
+    # Sleeveless tank armholes — one clean white piping line per armhole tracing
+    # where the arms pass through the vest, now that the darkened wing lets a
+    # single solid line read. The basketball-kit tell that says "singlet".
     pygame.draw.line(surf, _WHITE, (BCX - 18, BCY - 13), (BCX - 12, BCY + 3), 2)
     pygame.draw.line(surf, _WHITE, (BCX + 16, BCY - 13), (BCX + 10, BCY + 3), 2)
-    pygame.draw.line(surf, _WHITE, (BCX - 10, BCY - 13), (BCX + 8, BCY - 13), 2)
 
     # Squad "7" — large white blocky digit centred on the dark chest, with a
     # near-black drop shadow so it stays crisp against the jersey at 40px.
@@ -91,22 +93,25 @@ def _paint(surf, _a):
     # Black high-tops with a chrome sole slab + ankle bump so the shoes read as
     # sneakers, not black blobs; a chrome lace-line ties each one together.
     for hx in (22, 30):
-        pygame.draw.rect(surf, _CHROME, (hx, BCY + 15, 10, 4), border_radius=1)
+        pygame.draw.rect(surf, _CHROME, (hx, BCY + 15, 10, 5), border_radius=1)
         pygame.draw.rect(surf, _BLACK_J, (hx, BCY + 11, 10, 5), border_radius=2)
         pygame.draw.ellipse(surf, _BLACK_J, (hx + 1, BCY + 9, 8, 5))
         pygame.draw.line(surf, _CHROME, (hx + 1, BCY + 13), (hx + 8, BCY + 13), 1)
+        pygame.draw.line(surf, (220, 222, 235), (hx + 1, BCY + 10), (hx + 8, BCY + 10), 2)
 
     # BASKETBALL at DRIBBLE HEIGHT — the #1 identity prop, drawn LAST over
-    # everything. Sat at thigh level on the near side so it reads as the ball
-    # being worked mid-dribble; two arcs + the seam line make it unmistakably a
-    # basketball rather than a plain orange dot at 40px.
-    bx, by = BCX - 16, BCY + 12
-    pygame.draw.circle(surf, (230, 115, 30), (bx, by), 7)
-    pygame.draw.circle(surf, (20, 20, 20), (bx, by), 7, 1)
-    pygame.draw.line(surf, (20, 20, 20), (bx, by - 7), (bx, by + 7), 1)
-    pygame.draw.arc(surf, (20, 20, 20), (bx - 9, by - 7, 12, 14), 0.3, math.pi - 0.3, 1)
-    pygame.draw.arc(surf, (20, 20, 20), (bx - 3, by - 7, 12, 14),
+    # everything. Sat on the DARK side (against jersey/shorts, not the warm tail)
+    # so its bright orange lands on high contrast; bigger + brighter than the
+    # buried orange-on-orange it replaced. Bold vertical seam + two side arcs +
+    # a specular highlight make it unmistakably a ball at 40px.
+    bx, by = BCX + 16, BCY + 12
+    pygame.draw.circle(surf, (255, 140, 40), (bx, by), 9)
+    pygame.draw.circle(surf, (20, 20, 20), (bx, by), 9, 1)
+    pygame.draw.line(surf, (20, 20, 20), (bx, by - 9), (bx, by + 9), 1)
+    pygame.draw.arc(surf, (20, 20, 20), (bx - 11, by - 9, 14, 18), 0.3, math.pi - 0.3, 1)
+    pygame.draw.arc(surf, (20, 20, 20), (bx - 3, by - 9, 14, 18),
                     math.pi + 0.3, 2 * math.pi - 0.3, 1)
+    pygame.draw.circle(surf, (255, 255, 255), (bx - 3, by - 3), 2)
 
 
 build = _make_skin(_paint, base_fn=_base)
