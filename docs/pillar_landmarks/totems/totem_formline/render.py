@@ -20,12 +20,18 @@ top of it and the thunderbird wings / raven beak are gutter OVERHANG only (they
 exceed 58 px sideways but never substitute for the centre column). The
 thunderbird head caps the gap-end rim solid.
 
-Mirror: the top (ceiling) section is a true vertical flip of the upright
-builder into a temp SRCALPHA surface — a symmetric two-ended totem, thunderbird
-crowns pointing into the gap from both ends.
+Mirror decision (deliberate): the top (ceiling) section is a TRUE vertical flip
+of the upright builder — a stylized symmetric TWO-ENDED totem. A hanging totem's
+finial must point into the gap (downward), so forcing the faces upright while the
+finial hangs down would be internally contradictory; a genuine mirror is the
+coherent read. The thunderbird crown correctly points into the gap from BOTH
+ends, and formline bear/raven faces are abstract symmetric ovoid + split-U
+compositions (not human faces), so the flipped half reads as decorative Northwest-
+coast symmetry rather than an unsettling upside-down face — verified at gameplay
+scale by the CEILING close-up + 58 px blackout panels.
 
 Run:  python docs/pillar_landmarks/totems/totem_formline/render.py
-Out:  docs/pillar_landmarks/totems/totem_formline/round_1.png
+Out:  docs/pillar_landmarks/totems/totem_formline/round_2.png
 """
 from __future__ import annotations
 
@@ -99,10 +105,16 @@ def _formline_black(palette):
 
 
 def _formline_teal(palette):
-    # Secondary blue-green. Borrows a touch of horizon so dawn/dusk warm it,
-    # then rides stone_light so the whole hue sweeps with the biome.
-    base = _mix((58, 150, 148), palette['horizon'], 0.12)
-    return _mix(palette['stone_light'], base, 0.60)
+    # Secondary blue-green — the bold THIRD hue. A green-dominant target carries
+    # the teal, only lightly warmed by horizon and only lightly diluted by
+    # stone_light, so the hue survives the pink/blue night palette instead of
+    # collapsing to blue-grey. The green-floor / red-cap guarantees the sample
+    # stays g-dominant with real chroma at every biome phase (night included).
+    base = _mix((46, 156, 132), palette['horizon'], 0.10)
+    c = list(_mix(palette['stone_light'], base, 0.72))
+    c[1] = min(255, max(c[1], c[2] + 14))   # green must lead blue → reads teal, not blue-grey
+    c[0] = min(c[0], c[1] - 22)             # keep red under green so chroma holds after dark
+    return (int(c[0]), int(c[1]), int(c[2]))
 
 
 def _formline_white(palette):
@@ -163,12 +175,14 @@ def _formline_eye(surf, ecx, ecy, ew, eh, palette, *, iris_key='teal'):
     pygame.draw.arc(surf, _shade(white, -46), pad.inflate(-1, -1),
                     math.pi * 1.55, math.pi * 1.95, 1)
 
-    # Coloured iris.
-    ir = pad.inflate(-max(2, pad.w // 3), -max(1, pad.h // 4))
+    # Coloured iris — grown wider (smaller inset) so the hue ring carries the
+    # teal, with a pupil shrunk hard so 2–3 px of colour rings it at 1x.
+    ir = pad.inflate(-max(2, pad.w // 4), -max(1, pad.h // 5))
     pygame.draw.ellipse(surf, iris, ir)
     # Dark pupil + keyline.
     pygame.draw.ellipse(surf, dark,
-                        ir.inflate(-max(1, ir.w // 2), -max(1, ir.h // 3)))
+                        ir.inflate(-max(3, int(ir.w * 0.62)),
+                                   -max(2, int(ir.h * 0.5))))
     _aa_polyline(surf, dark, _ellipse_pts(pad, 16), closed=True)
 
 
@@ -313,23 +327,34 @@ def _draw_ears(surf, cx, top_y, palette):
         _u_form(surf, ex, top_y, 12, 12, palette, col_key='teal')
 
 
-def _draw_crest_face(surf, cx, cy, w, h, palette, kind):
+def _draw_crest_face(surf, cx, cy, w, h, palette, kind, idx=0, n=1):
     """One carved + painted crest-being face centred at (cx, cy) inside a band
     w×h. Cedar is the carved wood; formline red/black/teal/white/gilt are the
     paint. Every plane is lit upper-left / shadowed lower-right so the face
-    reads as relief. Faces degrade to a 2-dot eye-pair at small pitch."""
+    reads as relief. Faces degrade to a 2-dot eye-pair at small pitch. `idx`/`n`
+    place the face in the stack so appendage sides alternate and the coloured
+    brow band only lands on the terminal crests (no barber-stripe repeat)."""
     black = _formline_black(palette)
     red = _formline_red(palette)
     teal = _formline_teal(palette)
 
     small = h < 40
-    # Painted formline face-field: a soft red brow band across the top third so
-    # the crest carries colour even before the fine detail lands.
+    # Painted formline brow band. On a tall stack a full-width red band on EVERY
+    # crest reads as barber-stripes, so the coloured band is reserved for the
+    # terminal crests (thunderbird crown + the lowest face); interior crests get
+    # a darker recessed brow line instead so colour still steps but doesn't repeat.
     band = pygame.Rect(cx - _COL_HALF + 3, cy - h // 2 + 2,
                        (_COL_HALF - 3) * 2, max(3, h // 6))
-    pygame.draw.rect(surf, red, band)
-    pygame.draw.line(surf, _formline_red_lit(palette),
-                     (band.x + 1, band.y), (band.right - 2, band.y), 1)
+    terminal = (kind == 'thunderbird') or (idx == 0) or (n <= 3)
+    if terminal:
+        pygame.draw.rect(surf, red, band)
+        pygame.draw.line(surf, _formline_red_lit(palette),
+                         (band.x + 1, band.y), (band.right - 2, band.y), 1)
+    else:
+        pygame.draw.rect(surf, _shade(_cedar(palette), -44),
+                         (band.x, band.y + band.h - 2, band.w, 2))
+        pygame.draw.line(surf, red, (band.x + 3, band.y + 1),
+                         (band.right - 4, band.y + 1), 1)
 
     ew = max(9, min(20, int(w * 0.34)))
     eh = max(8, int(ew * 0.82))
@@ -365,10 +390,12 @@ def _draw_crest_face(surf, cx, cy, w, h, palette, kind):
             _draw_mouth(surf, cx, cy + h // 3, int(w * 0.62), palette, teeth=True)
     else:  # raven
         # Long forward beak = gutter overhang; face carries the centre column.
+        # Beak side alternates per stack index and reaches well past the column
+        # so mid sections cut a stronger stepped silhouette in the blackout.
         if not small:
-            side = -1 if (cx // 7) % 2 == 0 else 1
-            _draw_beak(surf, cx + side * (_COL_HALF - 4), eye_y + 2,
-                       max(10, w // 3), palette, down=True)
+            side = -1 if idx % 2 == 0 else 1
+            _draw_beak(surf, cx + side * (_COL_HALF - 6), eye_y + 2,
+                       max(14, int(w * 0.5)), palette, down=True)
             # Folded wing U-forms flanking the face.
             _u_form(surf, cx - eye_dx, cy + h // 4, 10, 8, palette, col_key='teal')
             _u_form(surf, cx + eye_dx, cy + h // 4, 10, 8, palette, col_key='teal')
@@ -426,14 +453,17 @@ def _draw_tower_upright(surf, cx, y_top, y_bottom, palette, seed):
                              (cx - _COL_HALF + 1, sy + 2),
                              (cx + _COL_HALF - 1, sy + 2), 1)
         kind = 'thunderbird' if i == n - 1 else kinds_cycle[i % len(kinds_cycle)]
-        _draw_crest_face(surf, cx, fcy, PIPE_W, int(pitch), palette, kind)
+        _draw_crest_face(surf, cx, fcy, PIPE_W, int(pitch), palette, kind,
+                         idx=i, n=n)
 
     # 3) Thunderbird finial crown at the gap-end rim — a solid gilt-tipped
     #    head-plate so the collision column stays filled to the tip, with a
     #    night rim so the crown carries the silhouette after dark.
     crown_h = max(4, min(9, int(sect_h * 0.03)))
-    crown = pygame.Rect(cx - _COL_HALF + 2, body_top - crown_h,
-                        PIPE_W - 4, crown_h + 2)
+    # Full-PIPE_W cap so the gap-end rim is flush corner-to-corner (no
+    # transparent gutter notches); the inner red keeps its own black border.
+    crown = pygame.Rect(cx - _COL_HALF, body_top - crown_h,
+                        PIPE_W, crown_h + 2)
     pygame.draw.rect(surf, black, crown)
     pygame.draw.rect(surf, _formline_red(palette),
                      (crown.x + 2, crown.y + 1, crown.w - 4, crown.h - 2))
@@ -541,6 +571,25 @@ def _closeup(pal, seed, scale=3):
         crop, (crop.get_width() * scale, crop.get_height() * scale))
 
 
+def _ceiling_closeup(pal, seed, scale=3):
+    """Zoom on the flipped CEILING section so the symmetric two-ended totem's
+    upside-down crest is judgeable at scale (FIX 3 non-creepy verification)."""
+    surf = pygame.Surface((CACHE_W, CACHE_H), pygame.SRCALPHA)
+    # A tall ceiling pillar hanging from the top; leave the bottom empty.
+    top_rect = pygame.Rect(MARGIN, 0, PIPE_W, 220)
+    bot_rect = pygame.Rect(MARGIN, GROUND_Y, PIPE_W, 0)
+    candidate_totem_formline(surf, top_rect, bot_rect, pal, seed=seed)
+    # Crop the two crests nearest the ceiling anchor (the most flipped detail).
+    crop_h = 150
+    crop = pygame.Surface((CACHE_W, crop_h))
+    crop.blit(_bg(CACHE_W, crop_h, pal, 0), (0, 0))
+    crop.blit(surf, (0, -8))
+    for ex in (MARGIN, MARGIN + PIPE_W):
+        pygame.draw.line(crop, (230, 60, 60), (ex, 0), (ex, crop_h), 1)
+    return pygame.transform.scale(
+        crop, (crop.get_width() * scale, crop.get_height() * scale))
+
+
 def _blackout(pal, seed):
     """58 px BLACKOUT thumbnail — solid silhouette at true game scale so the
     winged zig-zag reads apart from every straight-pole concept."""
@@ -564,14 +613,20 @@ def main():
 
     # ── FIX 1 proof: red vs black VALUE separation (>=25%) on both palettes,
     #    plus day != night body colour (proves the palette retint sweeps). ──
+    def _chroma(c):
+        return max(c[:3]) - min(c[:3])
+
     def report(name, p):
         red = _formline_red(p)
         blk = _formline_black(p)
         teal = _formline_teal(p)
         cedar = _cedar_body(p)
         dv = abs(_lum(red) - _lum(blk)) / max(1.0, _lum(red)) * 100
+        gdom = teal[1] == max(teal[:3])
         print(f"  {name}: red={red} L={_lum(red):.0f}  black={blk} L={_lum(blk):.0f}"
-              f"  red-vs-black valDelta={dv:.0f}%  teal={teal}  cedar={cedar}")
+              f"  red-vs-black valDelta={dv:.0f}%  cedar={cedar}")
+        print(f"         teal={teal}  chroma={_chroma(teal)}  g-dominant={gdom} "
+              f"[{'OK' if (gdom and _chroma(teal) > 25) else 'FAIL'}]")
         return cedar
     print("MATERIAL VALUE / RETINT PROOF")
     cedar_day = report("DAY  ", pal)
@@ -579,9 +634,32 @@ def main():
     print(f"  day cedar {cedar_day} != night cedar {cedar_night}: "
           f"{cedar_day != cedar_night}")
 
+    # ── EYE PROBE: sample the RENDERED iris ring so the teal is proven on the
+    #    painted face (not just in the material fn) for DAY and NIGHT. ──
+    print("EYE PROBE — dominant teal actually painted in the iris ring")
+    for name, p in (("DAY  ", pal), ("NIGHT", pal_n)):
+        probe = pygame.Surface((120, 120), pygame.SRCALPHA)
+        _formline_eye(probe, 60, 60, 40, 34, p, iris_key='teal')
+        # Sample a ring band around the pupil (between pupil and pad edge).
+        samples = []
+        for ang in range(0, 360, 10):
+            rx = int(60 + 12 * math.cos(math.radians(ang)))
+            ry = int(60 + 10 * math.sin(math.radians(ang)))
+            px = probe.get_at((rx, ry))
+            if px[3] > 0:
+                samples.append(px)
+        # Most-saturated teal-ish sample (green-dominant, chroma high).
+        teals = [s for s in samples if s[1] == max(s[:3])]
+        best = max(teals or samples, key=lambda s: _chroma(s))
+        gdom = best[1] == max(best[:3])
+        print(f"  {name}: iris-ring teal={tuple(best[:3])}  chroma={_chroma(best)}"
+              f"  g-dominant={gdom} "
+              f"[{'OK' if (gdom and _chroma(best) > 25) else 'FAIL'}]")
+
     hero_day, hd_h = _hero(pal, 7)
     hero_night, hn_h = _hero(pal_n, 7)
     close = _closeup(pal, 7)
+    ceil = _ceiling_closeup(pal, 7)
     black_thumb = _blackout(pal, 7)
 
     # ── FEASIBILITY strip at 70 / 210 / 355 ──
@@ -619,7 +697,7 @@ def main():
     col_w = CACHE_W
     strips_total_h = sum(c.get_height() + label_h + pad for _, c, _ in strips)
     col_h = max(hd_h + label_h, hn_h + label_h, strips_total_h,
-                close.get_height() + label_h,
+                close.get_height() + ceil.get_height() + label_h * 2 + pad,
                 black_thumb.get_height() + label_h)
     sheet_w = pad + col_w * 3 + close.get_width() + black_thumb.get_width() + pad * 5
     sheet_h = head_h + col_h + pad * 2
@@ -627,7 +705,7 @@ def main():
     sheet.fill((24, 25, 30))
 
     sheet.blit(title.render(
-        "totem_formline — painted Pacific-NW cedar totem  ·  round_1",
+        "totem_formline — painted Pacific-NW cedar totem  ·  round_2",
         True, (245, 240, 230)), (pad, 12))
     sheet.blit(sub.render(
         "red edges = PIPE_W (58px) collision band  ·  thunderbird crown + "
@@ -663,8 +741,15 @@ def main():
     sheet.blit(close, (x, head_h))
     pygame.draw.rect(sheet, (60, 62, 72),
                      (x, head_h, close.get_width(), close.get_height()), 1)
-    sheet.blit(lab.render("CLOSE-UP 3x — carved painted faces", True,
+    sheet.blit(lab.render("CLOSE-UP 3x — carved painted faces (upright)", True,
                           (255, 224, 150)), (x, head_h + close.get_height() + 4))
+    # Ceiling close-up stacked below → FIX 3 non-creepy verification.
+    cy2 = head_h + close.get_height() + label_h + pad
+    sheet.blit(ceil, (x, cy2))
+    pygame.draw.rect(sheet, (60, 62, 72),
+                     (x, cy2, ceil.get_width(), ceil.get_height()), 1)
+    sheet.blit(lab.render("CEILING 3x — flipped two-ended crest (FIX 3)", True,
+                          (255, 224, 150)), (x, cy2 + ceil.get_height() + 4))
 
     x += close.get_width() + pad
     sheet.blit(black_thumb, (x, head_h))
@@ -674,7 +759,7 @@ def main():
     sheet.blit(lab.render("58px BLACKOUT (winged tell)", True, (255, 224, 150)),
                (x, head_h + black_thumb.get_height() + 4))
 
-    out = pathlib.Path(__file__).resolve().parent / "round_1.png"
+    out = pathlib.Path(__file__).resolve().parent / "round_2.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 

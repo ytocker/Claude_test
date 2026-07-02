@@ -185,69 +185,100 @@ def _paper_backlight(disc_r, palette):
     return g
 
 
-def _rosette(surf, cx, cy, disc_r, palette, seed):
-    """The centred, filled, glowing paper wind-disc. Radial fan of N washi
-    leaves between cedar mullion ribs on a bronze hub; a cached additive halo
-    blooms behind it at dusk/night. Leaf rotation is seeded so different pillars
-    differ, while the disc stays symmetric under the vertical flip."""
-    if disc_r < 6:
-        pygame.draw.circle(surf, _paper_mid(palette), (cx, cy), max(2, disc_r))
+def _rosette(surf, cx, cy, core_r, petal_r, palette, seed):
+    """The centred, filled, glowing paper wind-ROSETTE. A ring of N swept washi
+    petals bulging past the slab sides on a bronze hub; a cached additive halo
+    blooms behind it at dusk/night.
+
+    Silhouette identity is carried by the SCALLOPED outer edge (petal tips bulge
+    to `petal_r`, dip to `core_r` at the seams) so the pole never reads as a
+    coin/lantern-on-a-wall, and by a consistent pinwheel SWEEP on every petal
+    spine so it reads as angled paper sails catching wind. The petal phase is
+    PINNED (not seeded) so a tip lands on the horizontal axis on both sides —
+    the overhang into the two gutters is then symmetric and stays on the tower
+    axis, and survives the vertical flip of the ceiling half."""
+    if petal_r < 6:
+        pygame.draw.circle(surf, _paper_mid(palette), (cx, cy), max(2, petal_r))
         return
     n = 12
     step = 2 * math.pi / n
-    rot = (seed % n) * step / 2.0 + 0.10          # per-seed leaf phase
+    p = 0.62                                        # petal-fatness exponent
+    peak_f = 0.5 ** (1.0 / p)                       # where the bulge peaks in a petal
+    rot = -peak_f * step                            # pin a tip to the horizontal axis
+    steps_arc = 6
+    amp = petal_r - core_r
     paper_lit = _paper_lit(palette)
     paper_mid = _paper_mid(palette)
     paper_shadow = _paper_shadow(palette)
     rib = _rib(palette)
-    rib_lit = _rib_lit(palette)
+    # Recessed dark cedar so the disc separates from the plaster by a hard value
+    # break at every sky brightness (the day value-moat), not just by hue.
+    socket = _shade(_cedar(palette), -40)
+
+    def _petal_rad(f, extra=0.0):
+        # Scallop profile: valley (core_r) at the seams, bulge (petal_r) at the
+        # tip; the peak sits toward the leading edge so the lobe reads as swept.
+        return core_r + amp * math.sin(math.pi * (f ** p)) + extra
 
     # 1 — wide additive halo BEHIND the paper (blooms at dusk/night, quiet by day).
-    glow, gr = _disc_glow(disc_r, palette)
+    glow, gr = _disc_glow(petal_r, palette)
     surf.blit(glow, (cx - gr, cy - gr), special_flags=pygame.BLEND_RGBA_ADD)
 
-    # 2 — solid base coin so no sky peeks between wedge seams, then per-leaf
-    # panels: each a soft 3-band radial (rim → mid → hub-bright) times a
-    # directional lit/shadow split so the sunward (upper-left) semicircle sits a
-    # half-stop brighter and the fan reads as folded panels, not a flat disc.
-    pygame.draw.circle(surf, paper_mid, (cx, cy), disc_r)
-    lx, ly = -0.7071, -0.7071                      # light from the upper-left
+    # 2 — recessed dark SCALLOPED socket (petal profile + 2 px): a thin dark moat
+    # ringing the whole flower and pooling in the seam valleys, so the rosette
+    # separates from the wall by value AND the scallop reads even by day.
+    socket_pts = []
     for i in range(n):
         a0 = rot + i * step
-        a1 = a0 + step
-        amid = a0 + step * 0.5
-        # Directional brightness of this leaf's face.
-        d = math.cos(amid) * lx + math.sin(amid) * ly
-        b = 0.5 + 0.5 * d                          # 0 shadow-side → 1 sun-side
-        base = _mix(paper_shadow, paper_lit, 0.30 + 0.55 * b)
-        for ring, r_frac, lift in ((0, 1.00, 0.0), (1, 0.66, 0.16), (2, 0.36, 0.30)):
-            col = _mix(base, paper_lit, lift)
-            pts = [(cx, cy)] + _arc_pts(cx, cy, disc_r * r_frac, a0, a1)
-            pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in pts])
+        for k in range(steps_arc + 1):
+            f = k / steps_arc
+            ang = a0 + step * f
+            rad = _petal_rad(f, 2.0)
+            socket_pts.append((cx + math.cos(ang) * rad, cy + math.sin(ang) * rad))
+    pygame.draw.polygon(surf, socket, [(int(x), int(y)) for x, y in socket_pts])
 
-    # 3 — back-lit wash INSIDE the paper at dusk/night (firefly glow through washi).
-    bl = _paper_backlight(disc_r, palette)
+    # 3 — solid paper base coin so no socket/sky peeks through the hub area.
+    pygame.draw.circle(surf, paper_mid, (cx, cy), core_r)
+
+    # 4 — the swept washi petals: each a soft 3-band radial (rim → mid →
+    # hub-bright) times a directional lit/shadow split so the sunward (upper-left)
+    # side sits a half-stop brighter and the fan reads as folded, swept panels.
+    lx, ly = -0.7071, -0.7071                       # light from the upper-left
+    for i in range(n):
+        a0 = rot + i * step
+        amid = a0 + step * peak_f
+        d = math.cos(amid) * lx + math.sin(amid) * ly
+        b = 0.5 + 0.5 * d                           # 0 shadow-side → 1 sun-side
+        base = _mix(paper_shadow, paper_lit, 0.30 + 0.55 * b)
+        for r_scale, lift in ((1.0, 0.0), (0.62, 0.18), (0.32, 0.32)):
+            col = _mix(base, paper_lit, lift)
+            poly = [(cx, cy)]
+            for k in range(steps_arc + 1):
+                f = k / steps_arc
+                ang = a0 + step * f
+                rad = _petal_rad(f) * r_scale
+                poly.append((cx + math.cos(ang) * rad, cy + math.sin(ang) * rad))
+            pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in poly])
+
+    # 5 — back-lit wash INSIDE the paper at dusk/night (firefly glow through washi).
+    bl = _paper_backlight(core_r, palette)
     if bl is not None:
         r = bl.get_width() // 2
         surf.blit(bl, (cx - r, cy - r), special_flags=pygame.BLEND_RGBA_ADD)
 
-    # 4 — dark cedar mullion ribs ON TOP so the panel structure holds against the
-    # glow at night AND carries the read by day (strong value contrast).
+    # 6 — bowed cedar rib along each petal spine, all bowing the SAME way: the
+    # pinwheel leading-edge cue. Replaces the old concentric batten ring so the
+    # fan no longer reads as a dartboard.
+    bow = 0.20
     for i in range(n):
-        a = rot + i * step
-        tx, ty = cx + math.cos(a) * disc_r, cy + math.sin(a) * disc_r
-        pygame.draw.line(surf, rib, (cx, cy), (int(tx), int(ty)), 1)
-        _aa_polyline(surf, rib, [(cx, cy), (tx, ty)])
-    # A single concentric batten ring so the fan reads as ribbed washi, not spokes.
-    ring_pts = _arc_pts(cx, cy, disc_r * 0.60, 0, 2 * math.pi, steps=28)
-    _aa_polyline(surf, rib, ring_pts, closed=True)
+        tang = rot + i * step + step * peak_f       # petal-tip direction
+        tx, ty = cx + math.cos(tang) * petal_r * 0.86, cy + math.sin(tang) * petal_r * 0.86
+        mang = tang + bow
+        mx, my = cx + math.cos(mang) * petal_r * 0.46, cy + math.sin(mang) * petal_r * 0.46
+        _aa_polyline(surf, rib, [(cx, cy), (mx, my), (tx, ty)])
 
-    # 5 — outer cedar rim (2 px) with a lit upper-left arc so the wheel reads round.
-    pygame.draw.circle(surf, rib, (cx, cy), disc_r, 2)
-    _aa_polyline(surf, rib_lit, _arc_pts(cx, cy, disc_r - 1, math.pi, 1.5 * math.pi), )
-
-    # 6 — bronze hub + gold finial: the on-axis termination that says "wind-disc".
-    hub_r = max(3, disc_r // 6)
+    # 7 — bronze hub + gold finial: the on-axis termination that says "wind-disc".
+    hub_r = max(3, petal_r // 6)
     pygame.draw.circle(surf, _shade(_bronze(palette), -30), (cx, cy), hub_r + 1)
     pygame.draw.circle(surf, _bronze(palette), (cx, cy), hub_r)
     pygame.draw.circle(surf, _gold_bright(palette), (cx, cy), max(1, hub_r - 2))
@@ -304,25 +335,30 @@ def _draw_one(surf, cx, base_y, top_y, body_w, palette, seed, *, apron=True):
                 _shade(cedar, -34), step=4)
 
     # 4 — the luminous rosette, CENTRED on the axis and pinned near the gap end.
+    # Petal TIPS overhang the slab sides (petal_r > hw) so the silhouette breaks
+    # the plain rectangle and reads as a paper flower, not an inset coin; only
+    # the tips poke into the gutters — the seam valleys stay inside the column.
     # disc_cy places the whole bloom clear of the gap rim (top_y) so a mirrored
     # pair never bridges the flyable channel.
-    disc_r = int(min(hw * 0.90, total_h * 0.34))
-    disc_r = max(6, disc_r)
-    glow_ext = int(disc_r * 0.52)                  # matches the night bloom reach
-    disc_cy = top_y + cap_h + rail_h + disc_r + glow_ext + 4
+    petal_r = int(min(hw + 8, total_h * 0.40))     # ~37 at PIPE_W → 8 px overhang
+    petal_r = max(6, petal_r)
+    core_r = max(4, int(petal_r * 0.72))           # valley radius stays < hw
+    glow_ext = int(petal_r * 0.52)                 # matches the night bloom reach
+    disc_cy = top_y + cap_h + rail_h + petal_r + glow_ext + 4
     # Keep the disc + bloom inside the body; if the section is too short to seat
     # it near the gap, shrink and centre it on the slab instead.
-    lowest = body_base_y - disc_r - 4
+    lowest = body_base_y - petal_r - 4
     if disc_cy > lowest:
-        disc_cy = max(top_y + disc_r + 4, (top_y + rail_h + body_base_y) // 2)
-        disc_r = min(disc_r, disc_cy - (top_y + rail_h + 2),
-                     body_base_y - disc_cy - 2)
-        disc_r = max(5, disc_r)
-    _rosette(surf, cx, disc_cy, disc_r, palette, seed)
+        disc_cy = max(top_y + petal_r + 4, (top_y + rail_h + body_base_y) // 2)
+        petal_r = min(petal_r, disc_cy - (top_y + rail_h + 2),
+                      body_base_y - disc_cy - 2)
+        petal_r = max(5, petal_r)
+        core_r = max(3, int(petal_r * 0.72))
+    _rosette(surf, cx, disc_cy, core_r, petal_r, palette, seed)
 
     # 5 — a pair of lit shrine niches low on the slab (warm point-sources at
     # night, quiet shadow by day) so the body isn't dead below the disc.
-    niche_top = disc_cy + disc_r + 8
+    niche_top = disc_cy + petal_r + 8
     if body_base_y - niche_top > 12 and hw > 10:
         nw, nh = max(4, hw // 4), min(11, (body_base_y - niche_top) // 2)
         for nx in (cx - hw // 2, cx + hw // 2):
@@ -429,6 +465,27 @@ def _measure_glow_bridge(pal):
     return worst
 
 
+def _measure_overhang(pal):
+    """Max px the painted rosette pokes past the slab side edges (cx ± hw) into
+    each gutter, over the whole height — proves the silhouette breaks the plain
+    rectangle. Returns (left, right); both should be > 0 and near-equal (on-axis
+    symmetric overhang)."""
+    surf = _pair_surf(pal)
+    cx = MARGIN + PIPE_W // 2
+    hw = PIPE_W // 2
+    left = right = 0
+    for y in range(GROUND_Y):
+        for x in range(cx - hw - 40, cx - hw):
+            if surf.get_at((x, y))[3] > 40:
+                left = max(left, (cx - hw) - x)
+                break
+        for x in range(min(CACHE_W - 1, cx + hw + 40), cx + hw, -1):
+            if surf.get_at((x, y))[3] > 40:
+                right = max(right, x - (cx + hw))
+                break
+    return left, right
+
+
 def _measure_fill(pal, section_h):
     """Max vertical run (px) of rows with ZERO fill inside the PIPE_W collision
     column, for a bottom-only section of the given height."""
@@ -484,6 +541,8 @@ def main():
     pair_night = _render_pair(night)
     br_day = _measure_glow_bridge(day)
     br_night = _measure_glow_bridge(night)
+    ov_day = _measure_overhang(day)
+    ov_night = _measure_overhang(night)
 
     heights = [70, 210, 355]
     feas = [_render_feas(day, h) for h in heights]
@@ -512,29 +571,31 @@ def main():
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((24, 25, 30))
 
-    sheet.blit(title.render("shoji-rose-mill — round 1", True, (245, 240, 230)),
+    sheet.blit(title.render("shoji-rose-mill — round 2", True, (245, 240, 230)),
                (pad, 12))
-    sheet.blit(sub.render("plaster+timber slab · CENTRED filled GLOWING paper "
-                          "rosette · mirrored pair, day + night", True,
-                          (170, 172, 182)), (pad, 40))
+    sheet.blit(sub.render("swept SCALLOPED paper rosette · tips OVERHANG slab "
+                          "sides · dark value-moat · mirrored pair, day + night",
+                          True, (170, 172, 182)), (pad, 40))
 
-    for i, (pair, name, br) in enumerate((
-            (pair_day, f"DAY  PHASE={PHASE_DAY}", br_day),
-            (pair_night, f"NIGHT  PHASE={PHASE_NIGHT}", br_night))):
+    for i, (pair, name, br, ov) in enumerate((
+            (pair_day, f"DAY  PHASE={PHASE_DAY}", br_day, ov_day),
+            (pair_night, f"NIGHT  PHASE={PHASE_NIGHT}", br_night, ov_night))):
         hx = pad + i * (pw + pad)
         hy = title_h
         sheet.blit(pair, (hx, hy))
         pygame.draw.rect(sheet, (60, 62, 72), (hx, hy, pw, ph), 1)
         lab = label.render(name, True, (255, 224, 150))
         sheet.blit(lab, (hx + (pw - lab.get_width()) // 2, hy + ph + 3))
-        cl2 = sub.render(f"gap-channel bloom intrusion: {br}px", True, (200, 202, 212))
+        cl2 = sub.render(f"gap bloom intrusion: {br}px  ·  side overhang "
+                         f"L{ov[0]}/R{ov[1]}px", True, (200, 202, 212))
         sheet.blit(cl2, (hx + (pw - cl2.get_width()) // 2, hy + ph + 3 + 18))
 
     bx = pad
     by = title_h + ph + label_h + pad + 14
     sheet.blit(blackout, (bx, by))
     pygame.draw.rect(sheet, (60, 62, 72), (bx, by, bo_w, bo_h), 1)
-    lab = label.render("BLACKOUT — 58px silhouette read", True, (255, 224, 150))
+    lab = label.render("BLACKOUT — 58px silhouette (scallop breaks slab sides)",
+                       True, (255, 224, 150))
     sheet.blit(lab, (bx, by + bo_h + 3))
 
     fx = left_w + pad
@@ -549,11 +610,13 @@ def main():
         sheet.blit(lab, (fx, fy + ch + 3))
         fy += ch + label_h + pad
 
-    out = _REPO / "docs" / "pillar_landmarks" / "windmills" / "shoji-rose-mill" / "round_1.png"
+    out = _REPO / "docs" / "pillar_landmarks" / "windmills" / "shoji-rose-mill" / "round_2.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
     print(f"gap-channel bloom intrusion: day={br_day}px  night={br_night}px")
+    print(f"side overhang (px past slab edge): day=L{ov_day[0]}/R{ov_day[1]}  "
+          f"night=L{ov_night[0]}/R{ov_night[1]}")
     print(f"max empty run: " + "  ".join(f"{h}px->{fills[h]}px" for h in heights))
 
 
