@@ -146,10 +146,13 @@ def _draw_wing(surf, side, spread, nx, fi):
     ax = cx + (ox - cx) * 0.5
     ay = cy + (oy - cy) * 0.5
     shift = (fi - 1.5) * 3
-    scol = SHIMMER[fi % 4]
+    # BLEND_RGBA_ADD adds the source RGB in full and ignores its alpha, so the
+    # flare colour is HALVED up front — that premultiply is what keeps the glint
+    # a warm bronze highlight on the band instead of a blown-out orange flame.
+    dim = tuple(c // 2 for c in SHIMMER[fi % 4])
     sh = _new()
     for k in range(2):
-        _aaellipse(sh, (*scol, 30), (ax + shift, ay - 4 + k * 8), 6, 4)
+        _aaellipse(sh, (*dim, 255), (ax + shift, ay - 4 + k * 8), 6, 4)
     sh.blit(_wing_mask(_inset(margin, 0.11)), (0, 0),
             special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(sh, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
@@ -211,19 +214,29 @@ def _build_frame(wing_angle_deg):
 def _apply_glow(outlined, fi):
     # Outer glow goes on top of the ALREADY-outlined sprite: an additive halo
     # painted before the outline would trip _add_outline's silhouette mask and
-    # sprout a ring around the glow itself. The halo is a whisper — low alpha and
-    # a tight radius — so the obsidian body never blooms into a flame on a night
-    # sky; it just lets the wing's lead colour breathe at the silhouette edge.
+    # sprout a ring around the glow itself. The halo is then CLIPPED to the
+    # transparent margin outside the silhouette — an additive bloom over the
+    # obsidian body would ignore its own alpha and flame the whole bird orange,
+    # so the black body is masked out and only the surrounding sky catches the
+    # wing's lead colour as a soft ring.
     out = outlined.copy()
     w, h = out.get_size()
-    cx, cy = w // 2, h // 2 - 2
+    # Centre the halo up on the WING mass, not the sprite centre — the lower
+    # centre is an empty gap below the wings, and a halo pooling there reads as a
+    # glowing belly (an owl face at hero scale). Keep it a whisper.
+    cx, cy = w // 2, h // 2 - 8
     col = _bands_for(fi)[0]
     glow = pygame.Surface((w, h), pygame.SRCALPHA)
-    for r, a in ((24, 4), (18, 3), (12, 2)):
+    for r, a in ((22, 16), (16, 12), (11, 9)):
         g = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
         pygame.draw.circle(g, (*col, a), (r, r), r)
         glow.blit(g, (cx - r, cy - r))
-    out.blit(glow, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    # hole: opaque OUTSIDE the bird, zero where the bird is — clip the halo to it.
+    hole = pygame.Surface((w, h), pygame.SRCALPHA)
+    hole.fill((255, 255, 255, 255))
+    hole.blit(out, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+    glow.blit(hole, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    out.blit(glow, (0, 0))
     return out
 
 
