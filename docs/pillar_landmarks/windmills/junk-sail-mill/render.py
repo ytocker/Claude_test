@@ -26,7 +26,7 @@ solid cedar shaft holds the centreline continuously to the finial. Max empty
 vertical run in the central band is 0 px at every tested height (see harness).
 
 Run:  python docs/pillar_landmarks/windmills/junk-sail-mill/render.py
-Out:  docs/pillar_landmarks/windmills/junk-sail-mill/round_1.png
+Out:  docs/pillar_landmarks/windmills/junk-sail-mill/round_2.png
 """
 from __future__ import annotations
 
@@ -72,12 +72,12 @@ from game.draw import draw_side_shrub
 # ── Colour roles (all biome-derived so day→night retints sweep through) ───────
 #
 # Bamboo culms ride _ochre_wood's warm larch triad; the recessed back-screen is
-# the SAME bamboo pushed dark + value-floored so it reads as the shadowed far
-# wall of the cage, never as a solid plaster block. Lashings are the warm
-# stone_accent rope; the milling floor is bright stone_light plaster; the junk
-# sails are a warm reed-matting canvas (stone_light) battened with dark ochre
-# ribs and bound with a vermilion leech; shaft is cedar; cap ring + finial are
-# patinated bronze.
+# the SAME bamboo pushed dark + cooled + value-floored so it reads as the
+# shadowed far wall of the cage, never as a solid plaster block. Lashings are
+# the warm stone_accent rope with a bright lit spine; the milling floor is
+# bright stone_light plaster; the junk sails are a warm reed-matting canvas
+# (stone_light) battened with dark ochre ribs and bound with a vermilion leech;
+# shaft is cedar; cap ring + finial are patinated bronze.
 
 
 def _pole_lit(pal):
@@ -92,22 +92,37 @@ def _pole_shadow(pal):
     return _cap_dark_for_dark_sky(_ochre_wood_shadow(pal), pal, floor=62)
 
 
+def _screen_cool(pal, c):
+    # Desaturate + cool the recessed wall so it sheds the warm ochre chroma the
+    # FRONT timber keeps — chroma contrast (not just value) is what makes the
+    # front lattice advance and the interior read as a hollow behind it.
+    return _mix(c, _mix(pal['stone_mid'], (56, 60, 74), 0.6), 0.24)
+
+
 def _screen_lit(pal):
-    # Dim front of the recessed back-wall — a half-stop under the cage poles so
-    # the lattice in front of it always reads as the brighter, nearer structure.
-    return _cap_dark_for_dark_sky(_shade(_ochre_wood(pal), -34), pal, floor=58)
+    # Deep-shadow front of the recessed back-wall — pushed a full stop under the
+    # cage poles (and cooled) so the lattice in front always reads as the
+    # brighter, warmer, nearer structure, never a co-planar plank.
+    return _cap_dark_for_dark_sky(_screen_cool(pal, _shade(_ochre_wood(pal), -52)), pal, floor=54)
 
 
 def _screen_mid(pal):
-    return _cap_dark_for_dark_sky(_shade(_ochre_wood(pal), -58), pal, floor=52)
+    return _cap_dark_for_dark_sky(_screen_cool(pal, _shade(_ochre_wood(pal), -78)), pal, floor=48)
 
 
 def _screen_shadow(pal):
-    return _cap_dark_for_dark_sky(_shade(_ochre_wood_shadow(pal), -18), pal, floor=48)
+    return _cap_dark_for_dark_sky(_screen_cool(pal, _shade(_ochre_wood_shadow(pal), -34)), pal, floor=44)
 
 
 def _lashing(pal):
     return _mix(pal['stone_accent'], (208, 168, 108), 0.58)
+
+
+def _lashing_core(pal):
+    # A bright lit spine down each lath so the 2-px X-weave survives at 58 px
+    # over the (now much darker) recessed screen — this is the cue that reads
+    # "diagonal trellis," not "speckle on a plank." Capped off pure white.
+    return _cap_lit_for_dark_sky(_mix(_lashing(pal), pal['stone_light'], 0.55), pal)
 
 
 def _edge_rim(pal):
@@ -169,6 +184,11 @@ def _culm(surf, x, top_y, base_y, palette, *, w=4, lit_side=True):
     else:
         lit, mid, sh = _pole_mid(palette), _shade(_pole_mid(palette), -18), _pole_shadow(palette)
     _gradient_rect(surf, pygame.Rect(x - w // 2, top_y, w, h), lit, mid, sh)
+    # A bright 1-px sun-side keyline on the front corner poles so they pop off
+    # the darkened recessed screen and the cage's near verticals stay legible.
+    if lit_side:
+        pygame.draw.line(surf, _cap_lit_for_dark_sky(_shade(lit, 16), palette),
+                         (x - w // 2, top_y), (x - w // 2, base_y - 1), 1)
     # Bamboo node joints — a dark tick with a lit swelling just below, every
     # ~15 px, so the pole reads as segmented culm rather than a plain dowel.
     node = _shade(sh, -14)
@@ -189,14 +209,18 @@ def _lash_bay(surf, xl, xr, y0, y1, palette):
     if xr - xl < 6 or y1 - y0 < 6:
         return
     lash = _lashing(palette)
+    core = _lashing_core(palette)
     dark = _shade(lash, -46)
     for a, b in (((xl, y0), (xr, y1)), ((xr, y0), (xl, y1))):
-        # Drop a 1-px shadow diagonal first so each lath reads with round relief.
+        # Each lath is a 2-px lath: a shadow diagonal underneath for round
+        # relief, the body lash, then a BRIGHT lit spine one pixel over so the
+        # weave survives against the darkened screen at 58 px.
         _aa_polyline(surf, dark, [(a[0], a[1] + 1), (b[0], b[1] + 1)])
         _aa_polyline(surf, lash, [a, b])
+        _aa_polyline(surf, core, [(a[0] + 1, a[1]), (b[0] + 1, b[1])])
     mx, my = (xl + xr) // 2, (y0 + y1) // 2
     pygame.draw.circle(surf, dark, (mx, my), 2)
-    pygame.draw.circle(surf, lash, (mx, my), 1)
+    pygame.draw.circle(surf, core, (mx, my), 1)
 
 
 # ── The milling-floor band (solid plaster, reinforces the fill) ──────────────
@@ -207,11 +231,17 @@ def _floor_band(surf, cx, y, hw, palette, *, seed=0):
     niche so the floor glows warm at night. Also a value anchor that stops the
     airy cage from turning to grey noise against a busy sky."""
     bh = 10 if hw > 18 else 7
+    # A bright plaster girdle — lifted well above the cage body value so it
+    # reads as a clear light band that breaks the dark block by day, not a dim
+    # ledge. Night still capped so the niche/finial carry the silhouette.
+    top = _cap_lit_for_dark_sky(_mix(_plaster(palette), palette['stone_light'], 0.5), palette)
     _gradient_rect(surf, pygame.Rect(cx - hw, y - bh, hw * 2, bh),
+                   top,
                    _cap_lit_for_dark_sky(_plaster(palette), palette),
-                   _mix(_plaster(palette), palette['stone_mid'], 0.4),
                    _cap_dark_for_dark_sky(_shade(palette['stone_mid'], -18), palette, floor=70),
                    vertical=True)
+    # Crisp lit top rim so the girdle catches a clean edge highlight by day.
+    pygame.draw.line(surf, top, (cx - hw, y - bh + 1), (cx + hw - 1, y - bh + 1), 1)
     # Bronze guard rail along the top lip of the floor + a plank seam beneath.
     pygame.draw.line(surf, _bronze(palette), (cx - hw, y - bh), (cx + hw - 1, y - bh), 1)
     pygame.draw.line(surf, _shade(palette['stone_mid'], -30),
@@ -219,25 +249,57 @@ def _floor_band(surf, cx, y, hw, palette, *, seed=0):
     _tile_hatch(surf, cx - hw + 2, y - bh + 3, cx + hw - 2, y - bh + 3,
                 _shade(palette['stone_mid'], -22), step=5)
     if hw > 14:
-        _lit_niche(surf, cx, y - bh + 2, max(4, hw // 4), bh - 3, palette)
+        _floor_niche(surf, cx, y - bh + 2, max(4, hw // 4), bh - 3, palette)
+
+
+def _floor_niche(surf, cx, cy, w, h, palette):
+    """A warm milling-doorway on the floor band: a dark recess with a thin lit
+    rim and a night glow CONTAINED to the recess. The shipped `_lit_niche` fires
+    a wide amber halo that clamps to pure white against this brightened plaster,
+    so here the warm light is clipped to the dark opening — night floor life,
+    no blown highlight leaking onto the plaster."""
+    r = pygame.Rect(cx - w, cy, w * 2, h)
+    # Dark recess first so the interior sits well below the plaster girdle.
+    pygame.draw.rect(surf, _shade(palette['stone_dark'], -8), r)
+    if _is_dark_sky(palette) or _is_warming_sky(palette):
+        # Warm interior lantern light, clipped to the recess so the additive
+        # ramp only ever lands on the DARK opening (never white on plaster).
+        prev = surf.get_clip()
+        surf.set_clip(r)
+        rad = max(2, min(w, h))
+        glow = pygame.Surface((rad * 2 + 2, rad * 2 + 2), pygame.SRCALPHA)
+        halo = _mix(palette['stone_accent'], (222, 178, 108), 0.66)
+        for rr, a in ((rad, 40), (rad * 2 // 3, 70), (rad // 3, 96)):
+            pygame.draw.circle(glow, (*halo, a), (rad + 1, rad + 1), max(1, rr))
+        surf.blit(glow, (cx - rad - 1, cy + h // 2 - rad - 1),
+                  special_flags=pygame.BLEND_RGBA_ADD)
+        surf.set_clip(prev)
+    # Thin warm rim so the doorway reads at noon and dusk too.
+    rim = _mix(palette['stone_accent'], (236, 196, 128), 0.7) if _is_dark_sky(palette) \
+        else _mix(palette['stone_mid'], palette['stone_light'], 0.4)
+    pygame.draw.rect(surf, rim, r, 1)
 
 
 # ── One upright battened junk sail ────────────────────────────────────────────
 
-def _junk_sail(surf, x, top_y, bot_y, w, palette, *, near):
+def _junk_sail(surf, x, top_y, bot_y, w, palette, *, near, depth=0.0):
     """A single vertical junk sail: a lit/shadow canvas panel ribbed with full
     horizontal battens (the junk-sail signature), a vermilion leech binding down
     the trailing edge, and reef-stitch texture between battens. `near` sails sit
-    a half-stop brighter so the ring of sails reads as a rotating cylinder, not
-    a flat picket fence."""
+    brighter; `depth` (0 centre → 1 rim) drags a blade progressively toward the
+    canvas shadow so the comb reads as a CURVED bank of blades — the near-front
+    centre stays ~204 while the rim blades sink into the ~150s."""
     h = bot_y - top_y
     if h < 6 or w < 3:
         return
     if near:
         lit, mid, sh = _canvas_lit(palette), _canvas_mid(palette), _canvas_shadow(palette)
     else:
-        lit = _mix(_canvas_mid(palette), _canvas_shadow(palette), 0.35)
-        mid = _mix(_canvas_mid(palette), _canvas_shadow(palette), 0.62)
+        # Far blades are already recessed; `depth` sinks the rim ones further so
+        # the value spread near→rim is a full bank, not the ~18 of round 1.
+        t = 0.42 + 0.40 * depth
+        lit = _mix(_canvas_mid(palette), _canvas_shadow(palette), t)
+        mid = _mix(_canvas_mid(palette), _canvas_shadow(palette), min(1.0, t + 0.24))
         sh = _canvas_shadow(palette)
     _gradient_rect(surf, pygame.Rect(x - w // 2, top_y, w, h), lit, mid, sh)
     bat = _batten(palette)
@@ -251,9 +313,12 @@ def _junk_sail(surf, x, top_y, bot_y, w, palette, *, near):
         # Reef-stitch tabling texture just under each batten.
         _tile_hatch(surf, x - w // 2 + 1, by + 1, x + w // 2 - 1, by + 1, bat, step=3)
         by += step
-    # Vermilion leech binding down the trailing edge + AA luff/leech keylines.
-    pygame.draw.line(surf, _vermilion(palette),
-                     (x + w // 2 - 1, top_y), (x + w // 2 - 1, bot_y - 1), 1)
+    # Vermilion leech only on the NEAR front blades — a committed hue spark on
+    # the crown edge tied to the shipped vermilion; recessed blades drop it so
+    # the accent doesn't smear across the whole comb.
+    if near:
+        pygame.draw.line(surf, _vermilion(palette),
+                         (x + w // 2 - 1, top_y), (x + w // 2 - 1, bot_y - 1), 1)
     _aa_polyline(surf, bat, [(x - w // 2, top_y), (x - w // 2, bot_y - 1)])
 
 
@@ -266,15 +331,6 @@ def _sail_cylinder(surf, cx, top_y, bot_y, hw, palette, n):
     clean. Drawn rim → centre so the near central sails overlap the far ones."""
     half = n // 2
     span_h = bot_y - top_y
-    # Bronze deck ring the sail cylinder mounts on (the milling head at the
-    # cage top) + the top ring the sails hang from at the gap end.
-    pygame.draw.line(surf, _bronze(palette), (cx - hw, bot_y), (cx + hw, bot_y), 2)
-    pygame.draw.line(surf, _shade(_bronze(palette), 22), (cx - hw, bot_y - 1), (cx + hw, bot_y - 1), 1)
-    # Centred cedar shaft holds the centreline to the finial (the fill spine of
-    # the crown) — drawn first so sails layer over it.
-    _gradient_rect(surf, pygame.Rect(cx - 3, top_y, 6, span_h),
-                   _mix(_cedar(palette), palette['stone_mid'], 0.35),
-                   _cedar(palette), _shade(_cedar(palette), -22))
     slots = []
     for i in range(-half, half + 1):
         f = i / max(1, half)
@@ -284,9 +340,23 @@ def _sail_cylinder(surf, cx, top_y, bot_y, hw, palette, n):
         w = max(3, int((hw * 0.34) * fore))
         sh_top = top_y + int((1 - fore) * span_h * 0.16)   # rim sails sit shorter
         sh_bot = bot_y - int((1 - fore) * span_h * 0.10)
-        slots.append((abs(i), x, sh_top, sh_bot, w, abs(i) <= 1))
-    for _, x, st, sb, w, near in sorted(slots, key=lambda s: -s[0]):
-        _junk_sail(surf, x, st, sb, w, palette, near=near)
+        slots.append((abs(i), x, sh_top, sh_bot, w, abs(i) <= 1, abs(f)))
+    for _, x, st, sb, w, near, depth in sorted(slots, key=lambda s: -s[0]):
+        _junk_sail(surf, x, st, sb, w, palette, near=near, depth=depth)
+    # Centred cedar shaft holds the centreline to the finial (the fill spine of
+    # the crown) — over the sails so the narrower tower reads IN FRONT of the
+    # bladed head, selling the wider-head-on-narrower-tower pivot.
+    _gradient_rect(surf, pygame.Rect(cx - 3, top_y, 6, span_h),
+                   _mix(_cedar(palette), palette['stone_mid'], 0.35),
+                   _cedar(palette), _shade(_cedar(palette), -22))
+    # Bronze deck ring the wider sail head rotates on (3-px girdle) + a raised
+    # hub boss at cx so the pivot reads as a turning mechanism, not a stack.
+    pygame.draw.line(surf, _shade(_bronze(palette), -16), (cx - hw, bot_y + 1), (cx + hw, bot_y + 1), 1)
+    pygame.draw.line(surf, _bronze(palette), (cx - hw, bot_y), (cx + hw, bot_y), 1)
+    pygame.draw.line(surf, _shade(_bronze(palette), 22), (cx - hw, bot_y - 1), (cx + hw, bot_y - 1), 1)
+    pygame.draw.circle(surf, _shade(_bronze(palette), -16), (cx, bot_y - 1), 4)
+    pygame.draw.circle(surf, _bronze(palette), (cx, bot_y - 2), 3)
+    pygame.draw.circle(surf, _accent(palette), (cx, bot_y - 3), 1)
 
 
 # ── The candidate ────────────────────────────────────────────────────────────
@@ -361,18 +431,25 @@ def _draw_one(surf, cx, base_y, top_y, body_w, palette, seed, *, apron=True):
     sail_top = top_y + TIP_CLEAR + 4
     _sail_cylinder(surf, cx, sail_top, shoulder_y, crown_hw, palette, n_sails)
 
-    # 6) Bronze cap ring + finial with a night halo at the gap tip.
+    # 6) Bronze cap ring + finial with a night halo at the gap tip. The halo is
+    # laid FIRST (additive onto the dark sky), then the opaque finial sits over
+    # it — so the centre is controlled bronze, not a bronze+halo stack that blew
+    # to pure white in round 1. The glow reads as a warm lantern (<~235).
     tip_y = top_y + TIP_CLEAR
-    pygame.draw.circle(surf, _shade(_bronze(palette), -18), (cx, tip_y + 2), 3)
-    pygame.draw.circle(surf, _bronze(palette), (cx, tip_y + 1), 2)
-    pygame.draw.circle(surf, _accent(palette), (cx, tip_y), 1)
     if _is_dark_sky(palette) or _is_warming_sky(palette):
         r = 12 if _is_dark_sky(palette) else 5
         glow = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
-        halo = _mix(palette['stone_accent'], (255, 214, 120), 0.8)
-        for rr, a in ((r, 55), (r * 2 // 3, 110), (r // 3, 170)):
+        halo = _mix(palette['stone_accent'], (232, 202, 140), 0.72)
+        # Normal (non-additive) alpha blend: the result can never exceed the
+        # halo colour, so the warm point-source stays a capped lantern and can
+        # NOT blow to pure white over the bright bronze hub the way an additive
+        # ramp did — the restrained halo FIX 5 asked for.
+        for rr, a in ((r, 60), (r * 2 // 3, 120), (r // 3, 190)):
             pygame.draw.circle(glow, (*halo, a), (r + 1, r + 1), max(1, rr))
-        surf.blit(glow, (cx - r - 1, tip_y - r - 1), special_flags=pygame.BLEND_RGBA_ADD)
+        surf.blit(glow, (cx - r - 1, tip_y - r - 1))
+    pygame.draw.circle(surf, _shade(_bronze(palette), -18), (cx, tip_y + 2), 3)
+    pygame.draw.circle(surf, _bronze(palette), (cx, tip_y + 1), 2)
+    pygame.draw.circle(surf, _accent(palette), (cx, tip_y), 1)
 
     if apron:
         draw_grass_bed(surf, cx, base_y - 1, plinth_widest * 2, 14, palette, seed=seed)
@@ -526,6 +603,21 @@ def _render_blackout(pal, section_h=230):
                            unsetcolor=(232, 232, 236, 255))
 
 
+def _lum(c):
+    return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
+
+
+def _screen_vs_timber_gap(pal):
+    """DAY value gap between the recessed back-screen and the lit front timber —
+    the number that proves the cage reads as a hollow behind the lattice rather
+    than a co-planar plank. Compares the screen mid stop to the lit corner culm
+    and the bright lash core (the two brightest front cues)."""
+    screen = _lum(_screen_mid(pal))
+    pole = _lum(_pole_lit(pal))
+    core = _lum(_lashing_core(pal))
+    return screen, pole, core
+
+
 def main():
     pygame.init()
     pygame.display.set_mode((1, 1))
@@ -566,7 +658,7 @@ def main():
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((24, 25, 30))
 
-    sheet.blit(title.render("junk-sail-mill — round 1", True, (245, 240, 230)), (pad, 12))
+    sheet.blit(title.render("junk-sail-mill — round 2", True, (245, 240, 230)), (pad, 12))
     sheet.blit(sub.render("open bamboo LATTICE cage + upright battened junk-sail "
                           "cylinder  ·  mirrored pair, true gap, day + night", True,
                           (170, 172, 182)), (pad, 40))
@@ -602,13 +694,16 @@ def main():
         sheet.blit(lab, (fx, fy + ch + 3))
         fy += ch + label_h + pad
 
-    out = _REPO / "docs" / "pillar_landmarks" / "windmills" / "junk-sail-mill" / "round_1.png"
+    out = _REPO / "docs" / "pillar_landmarks" / "windmills" / "junk-sail-mill" / "round_2.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     pygame.image.save(sheet, out)
+    scr, pole, core = _screen_vs_timber_gap(day)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
     print(f"clearance day  top={cl_day[0]}px bot={cl_day[1]}px  centre-cover={cover_day*100:.1f}%")
     print(f"clearance night top={cl_night[0]}px bot={cl_night[1]}px  centre-cover={cover_night*100:.1f}%")
     print(f"max empty run: " + "  ".join(f"{h}px->{fills[h]}px" for h in heights))
+    print(f"DAY value gap: back-screen lum={scr:.0f}  front-culm lum={pole:.0f} "
+          f"(+{pole-scr:.0f})  lash-core lum={core:.0f} (+{core-scr:.0f})")
 
 
 if __name__ == "__main__":
