@@ -3,10 +3,10 @@
 A stark black-ink take on the pop-art housefly: the body is drawn in the same
 jet-black as the ink, so the whole barrel reads as one inked silhouette and its
 form is carried purely by the outline loop and a white polka-dot halftone on the
-shadow side. Against a bright game sky the black blob + heavy ink loop IS the
-character; every bright element (white domes, white labellum, grey fans, white
+shadow side. Every bright element (white domes, white labellum, grey fans, white
 setae) pops off the dark. Where Design 5 leans on flat primary colour, this
-leans on maximum white-on-black contrast.
+leans on maximum white-on-black contrast — and a faint cool rim so the noir
+silhouette still survives on the night biome, not only a lit day sky.
 
 Exploration only — wrapped by the local `_make_prebuilt_skin` and NOT registered
 in any production BUILDERS map.
@@ -46,13 +46,14 @@ INK      = (17, 17, 17)             # #111111 comic ink — the 40px carrier
 THORAX   = (17, 17, 17)             # #111111 jet-black thorax = ink (shape by loop+dots)
 ABDOMEN  = (42, 42, 42)             # #2A2A2A dark-charcoal abdomen — a value step off black
 BODY_DOT = (255, 255, 255)          # #FFFFFF white Ben-Day polka on the shadow side
-EYEW     = (255, 255, 255)          # #FFFFFF white dome
-EYEDOT   = (136, 136, 136)          # #888888 grey Ben-Day eye dots
+EYEW     = (255, 255, 255)          # #FFFFFF white dome — the brightest note
+EYEDOT   = (150, 150, 150)          # #969696 grey Ben-Day eye dots (sparse, so white wins)
 WHITE    = (255, 255, 255)
 WINGGREY = (204, 204, 204)          # #CCCCCC mid-grey wing membrane
 WINGDOT  = (255, 255, 255)          # #FFFFFF white halftone → sparkles on the grey fan
-LABELLUM = (255, 255, 255)          # #FFFFFF sponge mouth pad
+LABELLUM = (245, 245, 245)          # near-white sponge pad — a shade under the eye domes
 SPEEDLN  = (255, 255, 255)          # #FFFFFF speed lines → pop on the dark body
+NIGHTRIM = (168, 178, 196, 120)     # faint cool rim so the black blob reads on night skies
 
 
 def _ink_outline(layer, thickness=2, color=INK):
@@ -71,6 +72,24 @@ def _ink_outline(layer, thickness=2, color=INK):
         for dy in range(-r, r + 1):
             if dx * dx + dy * dy <= r * r + 1:
                 out.blit(sil, (dx, dy))
+    out.blit(layer, (0, 0))
+    return out
+
+
+def _light_rim(layer, color=NIGHTRIM):
+    """Wrap a finished layer in a faint 1px cool rim beneath its silhouette.
+
+    Jet-black ink on a jet-black body evaporates against the night biome, so
+    the outermost contour gets one dilation step of a low-alpha cool grey UNDER
+    the artwork — invisible enough on a lit day sky, just enough separation on
+    a dark one for the silhouette to survive."""
+    w, h = layer.get_size()
+    mask = pygame.mask.from_surface(layer, threshold=8)
+    sil = mask.to_surface(setcolor=color, unsetcolor=(0, 0, 0, 0))
+    out = pygame.Surface((w, h), pygame.SRCALPHA)
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1),
+                   (-1, -1), (1, -1), (-1, 1), (1, 1)):
+        out.blit(sil, (dx, dy))
     out.blit(layer, (0, 0))
     return out
 
@@ -101,29 +120,31 @@ def _benday(target, region_pts_or_mask, color, spacing=4, radius=1, phase=0):
     target.blit(dots, (0, 0))
 
 
-# ── one smooth membranous fan ─────────────────────────────────────────────────
-# Root pivot sits at the left tip; the membrane is a SINGLE convex rounded oval
-# so the downscaled outer arc stays clean — no faceted ink spikes — and only
-# THEN takes its halftone + ink loop. Reads as a translucent fan, not a
-# patterned bowtie.
-_WING_ROOT = (8, 24)
+# ── one squat membranous fan ──────────────────────────────────────────────────
+# A single WIDE-than-tall convex ellipse (a squat dome), not a tall pointed
+# blade — the R1 "rabbit-ear" read came from a steep egg. Root sits at the
+# bottom centre so the dome swings out and up about its shoulder; the pair
+# opens into a broad rounded fan, never a narrow V.
+_WING_ROOT = (26, 32)
 
 
 def _wing_surface():
-    """One rounded pop-art fan: a single smooth grey membrane ellipse, a white
-    sparse halftone that sparkles, two bold black veins, then a 2px ink loop."""
-    w = pygame.Surface((52, 48), pygame.SRCALPHA)
-    membrane = pygame.Rect(0, 0, 36, 26)
-    membrane.center = (26, 24)
+    """One rounded pop-art fan: a squat grey membrane ellipse (wider than tall),
+    a white sparse halftone that sparkles, two bold black fan veins, then a 2px
+    ink loop. Kept small enough that the PAIR splays into two readable fans
+    around a central notch — not one big grey hood over the black hero."""
+    w = pygame.Surface((52, 36), pygame.SRCALPHA)
+    membrane = pygame.Rect(0, 0, 38, 20)        # squat: wider than tall
+    membrane.center = (26, 14)
     pygame.draw.ellipse(w, WINGGREY, membrane)
     # White, sparse halftone on the mid-grey fan: reads as glinting membrane and
     # keeps the wing bright enough to separate from the near-black body.
-    emask = pygame.Surface((52, 48), pygame.SRCALPHA)
+    emask = pygame.Surface((52, 36), pygame.SRCALPHA)
     pygame.draw.ellipse(emask, (255, 255, 255, 255), membrane)
-    _benday(w, emask, WINGDOT, spacing=5, radius=1)
-    # Two bold veins radiate from the root — the only ink inside the fan.
-    pygame.draw.line(w, INK, _WING_ROOT, (40, 16), 2)
-    pygame.draw.line(w, INK, _WING_ROOT, (40, 32), 2)
+    _benday(w, emask, WINGDOT, spacing=6, radius=1)
+    # Two bold veins fan out from the root — the only ink inside the membrane.
+    pygame.draw.line(w, INK, _WING_ROOT, (13, 10), 2)
+    pygame.draw.line(w, INK, _WING_ROOT, (40, 10), 2)
     return _ink_outline(w, 2)
 
 
@@ -154,76 +175,78 @@ def build_pop_v2(wing_angle_deg):
             pygame.draw.line(surf, SPEEDLN, (5, y + 2), (12, y), 1)
             pygame.draw.line(surf, SPEEDLN, (12, y), (19, y - 1), 1)
 
-    # Two smooth fans sweep up-and-back off a shoulder anchor near (28,31);
-    # the fan opens on the wing-up frames so tips ride from low-wide to a
-    # raised spread — never a tall narrow "rabbit-ear" V.
+    # Two squat fans splay up-and-out off a shoulder anchor near (28,31); the
+    # dome leans further out on the wing-up frames so the pair rides from a low
+    # spread to a raised broad fan — never a tall narrow "rabbit-ear" V.
     wing = _wing_surface()
-    ang = 3 + f * 30
+    ang = 24 + f * 14
     left = pygame.transform.flip(wing, True, False)
     left_root = (wing.get_width() - 1 - _WING_ROOT[0], _WING_ROOT[1])
-    _place_rotated(surf, wing, _WING_ROOT, ang, (29, 31))
-    _place_rotated(surf, left, left_root, -ang, (27, 31))
+    _place_rotated(surf, wing, _WING_ROOT, -ang, (30, 31))
+    _place_rotated(surf, left, left_root, ang, (26, 31))
 
     # ── one round inked barrel: black thorax fused into charcoal abdomen ──
     body = _new()
     _aaellipse(body, ABDOMEN, (BCX, 49), 13, 11)
     _aaellipse(body, THORAX, (BCX, 41), 13, 9)
-    # White Ben-Day polka on the shadow side (lower-left) is the ONLY thing that
-    # models the black barrel — the halftone reads as the lit dome edge on noir.
+    # Coarse white Ben-Day polka on the shadow side (lower-left) is the ONLY
+    # thing that models the black barrel — fewer, larger, evenly-gridded dots
+    # read as an intentional halftone at 40px, not as grain.
     smask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     _aaellipse(smask, (255, 255, 255, 255), (BCX - 4, 48), 9, 8)
-    _benday(body, smask, BODY_DOT, spacing=4, radius=1, phase=1)
-    # A few sparse white belly dots read as rounded abdomen banding on the dark.
+    _benday(body, smask, BODY_DOT, spacing=6, radius=2, phase=1)
+    # A couple of sparse white belly dots read as rounded abdomen banding.
     amask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     _aaellipse(amask, (255, 255, 255, 255), (BCX + 1, 53), 10, 6)
-    _benday(body, amask, BODY_DOT, spacing=6, radius=1, phase=3)
+    _benday(body, amask, BODY_DOT, spacing=7, radius=2, phase=3)
     # Short waist band: ink lands on the charcoal side as a value dip, splitting
     # the two-tone barrel without a full stacked-bands divider.
     pygame.draw.line(body, INK, (BCX - 8, 45), (BCX + 8, 45), 2)
     surf.blit(_ink_outline(body, 2), (0, 0))
 
-    # Round sponge labellum (mouth pad) below the face — a bright white pad with
-    # its own 2px ink loop, a hard white note under the dark barrel.
+    # Round sponge labellum (mouth pad) below the face — a bright pad kept a
+    # touch smaller and a shade under white so it never out-whites the eyes.
     lab = _new()
-    lr = pygame.Rect(0, 0, 13, 11)
-    lr.center = (44, 47)
+    lr = pygame.Rect(0, 0, 11, 9)
+    lr.center = (44, 48)
     pygame.draw.ellipse(lab, LABELLUM, lr)
     surf.blit(_ink_outline(lab, 2), (0, 0))
 
-    # ── HERO: two big dotted goggle eyes that fill the head ──
-    # Centres sit a true 2px apart so the silhouettes never fuse; the ink
-    # loops meet in the gap to hold a solid vertical gutter → always TWO eyes.
+    # ── HERO: two big pure-white goggle eyes that fill the head ──
+    # Centres sit 4px apart so a solid ink gutter can live between them; the
+    # domes stay PURE white — the sparse grey halftone only whispers form, so
+    # the eyes win the brightness fight against every other bright note.
     eyes = _new()
-    ecs = ((35, 30), (53, 30))
+    ecs = ((34, 29), (54, 29))
     for cx, cy in ecs:
         _aaellipse(eyes, EYEW, (cx, cy), 8, 8)
     emask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     for cx, cy in ecs:
         _aaellipse(emask, (255, 255, 255, 255), (cx, cy), 8, 8)
-    _benday(eyes, emask, EYEDOT, spacing=3, radius=1)
+    # Sparse, light halftone — the dome stays overwhelmingly white.
+    _benday(eyes, emask, EYEDOT, spacing=5, radius=1)
     inked_eyes = _ink_outline(eyes, 2)
-    # Thin black pupil slit gives the noir stare, then a solid WHITE glint wedge
-    # over it — the white patch is the brightest note in the dotted grey field,
-    # so the shine still reads as classic pop-art glint on a light dome.
+    # A small, thin ink pupil plus a bold white glint wedge: the pupil is kept
+    # tiny so it never greys the dome, the white wedge is the top highlight.
     for cx, cy in ecs:
-        pygame.draw.line(inked_eyes, INK, (cx + 1, cy - 3), (cx + 1, cy + 4), 2)
+        pygame.draw.circle(inked_eyes, INK, (cx + 1, cy + 1), 2)
         pygame.draw.polygon(inked_eyes, WHITE, [
-            (cx - 6, cy - 4), (cx - 1, cy - 6), (cx - 3, cy)])
-    # Belt-and-braces 2px ink gutter down the seam so the domes never read as
-    # one goggle even after the downscale.
-    pygame.draw.line(inked_eyes, INK, (44, 22), (44, 38), 2)
+            (cx - 6, cy - 4), (cx - 1, cy - 6), (cx - 3, cy - 1)])
+    # Hard 2-3px ink gutter down the seam so the two domes never fuse into one
+    # goggle lump after the downscale.
+    pygame.draw.line(inked_eyes, INK, (44, 22), (44, 37), 3)
     surf.blit(inked_eyes, (0, 0))
 
     # ── bristly thorax hump: chunky WHITE setae angled up-back ──
-    # On the jet-black thorax an ink bristle would vanish, so the setae are
-    # drawn as thick white flicks over a slightly fatter black core — the black
-    # underlay keeps them from smearing into the eyes, the white makes them read.
+    # 2-3 bold white flicks over a fatter black core, rising off the black
+    # thorax to CLEAR the top of the silhouette — they must read as spikes even
+    # at 40px, so the invisible speckle is gone and the flicks are thick white.
     for (x0, y0), (x1, y1) in (
-            ((28, 34), (23, 28)), ((25, 35), (20, 30)), ((31, 33), (26, 27))):
-        pygame.draw.line(surf, INK, (x0, y0), (x1, y1), 3)
-        pygame.draw.line(surf, WHITE, (x0, y0), (x1, y1), 1)
+            ((29, 33), (20, 16)), ((31, 32), (25, 13)), ((27, 34), (17, 21))):
+        pygame.draw.line(surf, INK, (x0, y0), (x1, y1), 4)
+        pygame.draw.line(surf, WHITE, (x0, y0), (x1, y1), 2)
 
-    return surf
+    return _light_rim(surf)
 
 
 build = _make_prebuilt_skin(build_pop_v2)
