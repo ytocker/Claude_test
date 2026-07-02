@@ -49,7 +49,10 @@ INK       = (17, 17, 17)            # #111111 comic ink — the 40px carrier
 THORAX    = (245, 245, 245)         # #F5F5F5 chalk-white thorax (was red)
 THORAX_D  = (204, 17, 17)           # #CC1111 red polka-shadow on the white dome
 ABDOMEN   = (204, 17, 17)           # #CC1111 deep-red abdomen (was yellow)
-ABDOMEN_D = (17, 17, 17)            # #111111 black halftone banding on the red
+ABDOMEN_D = (139, 15, 15)           # dark-red halftone banding — deliberately
+                                    # NOT pure black so the red barrel stays a
+                                    # calm tonal block and the pink eyes win the
+                                    # 40px first read instead of the abdomen dots
 RED       = (204, 17, 17)           # #CC1111 veins + setae + speed-line energy
 EYEW      = (255, 202, 204)         # #FFCACC warm-pink eye dome (smooth, no dots)
 PUPIL     = (17, 17, 17)            # #111111 black pupil for a focused stare
@@ -123,13 +126,20 @@ def _wing_surface():
     membrane = pygame.Rect(0, 0, 36, 26)
     membrane.center = (26, 24)
     pygame.draw.ellipse(w, WINGGREY, membrane)
-    # Wide-pitch halftone: only a couple of dots survive downscale — texture,
-    # not the busy field the R1 wings drowned in.
     emask = pygame.Surface((52, 48), pygame.SRCALPHA)
     pygame.draw.ellipse(emask, (255, 255, 255, 255), membrane)
+    # Wide-pitch halftone: only a couple of dots survive downscale — texture,
+    # not the busy field the R1 wings drowned in.
     _benday(w, emask, WINGDOT, spacing=9, radius=1)
-    # ONE bold red vein down the fan's spine — red is structure here, not clutter.
-    pygame.draw.line(w, RED, _WING_ROOT, (40, 22), 2)
+    # ONE bold red vein, but drawn on a throwaway layer then AND-masked to the
+    # membrane so NO red can bleed past the grey silhouette. It also stops well
+    # short of the inner tip (x<34) — that tip is what overlaps the face once
+    # the fan is swept in, so keeping red in the outer body of the wing means
+    # nothing red ever crosses the eyes/thorax at truth scale.
+    vein = pygame.Surface((52, 48), pygame.SRCALPHA)
+    pygame.draw.line(vein, RED, (13, 24), (32, 22), 2)
+    vein.blit(emask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    w.blit(vein, (0, 0))
     return _ink_outline(w, 2)
 
 
@@ -181,7 +191,7 @@ def build_pop_v5(wing_angle_deg):
     # Black Ben-Day banding rows read as rounded shading on the RED abdomen.
     amask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     _aaellipse(amask, (255, 255, 255, 255), (BCX + 1, 52), 11, 7)
-    _benday(body, amask, ABDOMEN_D, spacing=5, radius=1, phase=2)
+    _benday(body, amask, ABDOMEN_D, spacing=6, radius=1, phase=2)
     # A short waist band, not a full stacked-bands divider — the barrel wins.
     pygame.draw.line(body, INK, (BCX - 8, 45), (BCX + 8, 45), 2)
     surf.blit(_ink_outline(body, 2), (0, 0))
@@ -193,32 +203,39 @@ def build_pop_v5(wing_angle_deg):
     pygame.draw.ellipse(lab, LABELLUM, lr)
     surf.blit(_ink_outline(lab, 2), (0, 0))
 
+    # ── red-tipped setae crown (fly tell #5) — drawn UNDER the eyes ──
+    # Solid #111 ink stems rise off the thorax crown and break the top
+    # silhouette between/above the domes; the eyes are stamped on top next so
+    # only the bristle tips clear the head. Bases + tips are FRAME-INVARIANT so
+    # the crown is present on all four flap frames. Red caps land after the eyes.
+    setae = (((37, 32), (34, 18)), ((44, 33), (44, 16)), ((51, 32), (54, 18)))
+    for base, tip in setae:
+        pygame.draw.line(surf, INK, base, tip, 3)
+
     # ── HERO: two big warm-pink goggle eyes that fill the head ──
     # SMOOTH fill (no halftone greying them out) so the warm pink pulls the
-    # focal point up to the face. Each dome gets one hard white glint + a black
-    # pupil for a focused stare. Centres sit a true 2px apart and a solid ink
-    # gutter runs the seam so the pair always read as TWO eyes.
+    # focal point up to the face. Each dome gets one hard white glint + a fat
+    # black pupil for a focused stare. Centres sit a true 2px apart and a solid
+    # ink gutter runs the seam so the pair always read as TWO eyes.
     eyes = _new()
     ecs = ((35, 30), (53, 30))
     for cx, cy in ecs:
         _aaellipse(eyes, EYEW, (cx, cy), 8, 8)
     inked_eyes = _ink_outline(eyes, 2)
     for cx, cy in ecs:
-        pygame.draw.circle(inked_eyes, PUPIL, (cx, cy + 1), 3)
-        # Single hard specular glint in the upper-left, over the pupil.
-        pygame.draw.circle(inked_eyes, WHITE, (cx - 3, cy - 3), 2)
-    # Belt-and-braces 2px ink gutter down the seam so the domes never read as
-    # one goggle even after the downscale.
-    pygame.draw.line(inked_eyes, INK, (44, 22), (44, 38), 2)
+        pygame.draw.circle(inked_eyes, PUPIL, (cx, cy + 1), 4)
+        # Single hard 2px specular glint at the pupil's upper-left — the design_5
+        # trick that makes the face out-punch the red at 40px.
+        inked_eyes.fill(WHITE, (cx - 3, cy - 3, 2, 2))
+    # Belt-and-braces 2px ink gutter straight down the seam so the domes never
+    # merge into one goggle even after the downscale.
+    pygame.draw.line(inked_eyes, INK, (44, 21), (44, 39), 2)
     surf.blit(inked_eyes, (0, 0))
 
-    # ── bristly thorax hump: chunky RED setae angled up-back ──
-    # Red (not black) so warmth reads at the FACE, matching the pink eyes and
-    # balancing the red abdomen — the notch-breaks over the white dome's top
-    # still push the body from "ladybug" to "fly".
-    for (x0, y0), (x1, y1) in (
-            ((28, 34), (23, 28)), ((25, 35), (20, 30)), ((31, 33), (26, 27))):
-        pygame.draw.line(surf, RED, (x0, y0), (x1, y1), 2)
+    # Warm-red bristle caps on top so the setae read as red-tipped at truth
+    # scale — the last splash of warmth pinning the crown to the pink eyes.
+    for _base, tip in setae:
+        pygame.draw.circle(surf, RED, tip, 2)
 
     return surf
 
