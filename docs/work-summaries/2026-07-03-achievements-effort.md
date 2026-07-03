@@ -17,8 +17,9 @@ categories / schema v1"); treat *this* file as the up-to-date view.
 across 4 categories — every one with a bespoke procedural center emblem, ringed
 by an olive-laurel victor's wreath that wilts for Shame.**
 
-📸 **See it:** [Hall of Fame/Shame feature gallery](https://github.com/ytocker/skybit/blob/v5_achievements/docs/achievements/screenshots/hall_feature_gallery.png)
-— a six-panel capture of the live screen across both halls.
+📸 **See it** — a six-panel capture of the live screen across both halls (click to open full size):
+
+[![Hall of Fame/Shame feature gallery](../achievements/screenshots/hall_feature_gallery.png)](https://github.com/ytocker/skybit/blob/v5_achievements/docs/achievements/screenshots/hall_feature_gallery.png)
 
 ## What shipped
 
