@@ -55,8 +55,8 @@ def _hex_aura(surf, cx, cy, radius):
     alpha edge — the legendary-rarity tell, rendered behind the whole bird."""
     d = radius * 2
     g = pygame.Surface((d, d), pygame.SRCALPHA)
-    for f, s in ((1.0, 0.10), (0.78, 0.14), (0.58, 0.20),
-                 (0.40, 0.26), (0.24, 0.34)):
+    for f, s in ((1.0, 0.16), (0.80, 0.22), (0.60, 0.30),
+                 (0.42, 0.40), (0.26, 0.52)):
         c = (int(HEX[0] * s), int(HEX[1] * s), int(HEX[2] * s))
         pygame.draw.circle(g, c, (radius, radius), int(radius * f))
     surf.blit(g, (cx - radius, cy - radius), special_flags=pygame.BLEND_RGB_ADD)
