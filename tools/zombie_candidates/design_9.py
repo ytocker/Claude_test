@@ -21,9 +21,10 @@ BODY     = (107, 115, 80)     # pallid army-green (field drab)
 BODY_D   = (58, 62, 42)       # rot shadow
 BODY_H   = (138, 146, 108)
 BELLY    = (150, 156, 118)
-HELM     = (90, 96, 102)      # steel
-HELM_D   = (50, 54, 58)       # helmet underside shadow
-HELM_H   = (128, 134, 140)    # top glint / rivet
+HELM     = (75, 81, 87)       # steel — darkened so it separates from the drab body against a bright sky
+HELM_D   = (40, 44, 48)       # helmet underside shadow
+HELM_H   = (128, 134, 140)    # rivet / mid glint
+HELM_G   = (220, 225, 230)    # near-white metallic sheen on the crown
 RIVET    = (130, 136, 140)
 WOUND    = (20, 18, 14)       # punched void
 WOUND_R  = (50, 46, 40)       # scorched dark ring
@@ -68,13 +69,13 @@ def _build_war(wing_angle_deg):
     wing = _war_wing(wing_angle_deg)
     surf.blit(wing, wing.get_rect(center=(34, 30)).topleft)
 
-    # Dog tags — a thin chain looping across the upper chest with two small
-    # metal plates hanging low. The metallic accent sells the soldier theme.
-    pygame.draw.line(surf, CHAIN, (26, 26), (33, 25), 1)
-    pygame.draw.line(surf, CHAIN, (33, 25), (33, 39), 1)
-    for tx, ty in ((31, 39), (35, 41)):
-        pygame.draw.rect(surf, TAG, (tx, ty, 3, 5), border_radius=1)
-        pygame.draw.line(surf, NEARBLK, (tx + 1, ty + 2), (tx + 2, ty + 2), 1)
+    # Dog tag — ONE larger, brighter plate on a short glint chain across the
+    # neck. A single bold tag survives at 40px where two small plates dissolve
+    # into speckle noise.
+    pygame.draw.line(surf, (192, 188, 174), (28, 28), (37, 31), 1)
+    pygame.draw.rect(surf, (198, 192, 176), (31, 33, 6, 4), border_radius=1)
+    pygame.draw.line(surf, (120, 116, 104), (32, 35), (35, 35), 1)
+    pygame.draw.line(surf, (232, 228, 214), (32, 33), (34, 33), 1)
 
     # Bullet wound — one clean punched void mid-chest: a near-black hole inside
     # a slightly larger scorched ring. High contrast against the pale flank.
@@ -88,18 +89,22 @@ def _build_war(wing_angle_deg):
     _aaellipse(surf, BODY, (47, 21), 12, 11)
     _aaellipse(surf, BODY_H, (46, 17), 7, 3)
 
-    # Rotting lower jaw — an exposed bone polygon dropped slack below the beak,
-    # as if the mandible has come unhinged.
-    jaw = [(52, 27), (60, 28), (58, 33), (53, 33), (50, 30)]
-    pygame.draw.polygon(surf, BONE, jaw)
-    pygame.draw.polygon(surf, (150, 142, 118), jaw, 1)
-    for jx in (54, 56, 58):
-        pygame.draw.line(surf, (120, 114, 92), (jx, 28), (jx, 32), 1)
+    # Slack jaw — the mandible has come unhinged and hangs open, leaving a
+    # dark wedge of open mouth between the upper beak and the dropped lower
+    # jaw. Drawn first so both beak and jaw seat over the shadow.
+    pygame.draw.polygon(surf, (14, 12, 10), [(52, 25), (61, 26), (59, 31), (52, 29)])
 
     # Upper beak — normal shape, desaturated to a dead horn.
-    beak_pts = [(55, 21), (61, 24), (58, 27), (52, 25)]
+    beak_pts = [(55, 21), (61, 24), (60, 26), (52, 24)]
     pygame.draw.polygon(surf, BEAK, beak_pts)
     pygame.draw.polygon(surf, NEARBLK, beak_pts, 1)
+
+    # Dropped lower mandible — one clean exposed-bone shape hung well below the
+    # beak, a single crack line instead of a hatch cluster.
+    jaw = [(52, 30), (60, 31), (58, 36), (53, 36), (50, 33)]
+    pygame.draw.polygon(surf, BONE, jaw)
+    pygame.draw.polygon(surf, (150, 142, 118), jaw, 1)
+    pygame.draw.line(surf, (120, 114, 92), (55, 31), (55, 35), 1)
 
     # Milky undead eye — the near eye is a blank cataract with a dim off-center
     # pupil. The far eye sits deep in the brim shadow.
@@ -109,25 +114,39 @@ def _build_war(wing_angle_deg):
     pygame.draw.circle(surf, (150, 148, 138), (50, 19), 4, 1)
     pygame.draw.circle(surf, (70, 68, 62), (51, 20), 2)
 
-    # ── Steel helmet — the hero tell. Drawn OVER the head, deliberately LARGER
-    # than the skull so the dome + brim reshape the silhouette. Brim first so
-    # the dome overlaps its back edge.
-    brim = pygame.Rect(0, 0, 34, 6)
-    brim.center = (48, 13)
+    # ── Steel helmet — the hero tell (no other zombie wears a hat). A shallow
+    # Brodie-style shell CLAMPED onto the skull: a wide flat brim whose dark
+    # underside overlaps the crown, capped by a short dome. The read at 40px is
+    # brim-plus-shallow-dome widening the head — never a floating mushroom.
+    #
+    # Brim underside (dark) first — wide + flat, dipping over the skull crown so
+    # a dark band shows beneath the front lip and the helmet reads as SEATED.
+    brim = pygame.Rect(0, 0, 32, 6)
+    brim.center = (48, 15)
     pygame.draw.ellipse(surf, HELM_D, brim)
-    pygame.draw.ellipse(surf, HELM, brim.inflate(0, -2))
-    # Dome — a wide filled ellipse capping the crown, taller than the head.
-    dome = pygame.Rect(0, 0, 30, 20)
-    dome.center = (48, 9)
+    # Brim top face — lifted 2px so the dark underside band stays visible below.
+    brim_top = pygame.Rect(0, 0, 32, 5)
+    brim_top.center = (48, 13)
+    pygame.draw.ellipse(surf, HELM, brim_top)
+    # Dome — a SHORT shell (wider than tall) seated low on the crown so it tucks
+    # into the brim with no air gap.
+    dome = pygame.Rect(0, 0, 28, 14)
+    dome.center = (48, 11)
     pygame.draw.ellipse(surf, HELM, dome)
-    # Underside shadow band where the dome meets the head, and a top glint.
-    pygame.draw.arc(surf, HELM_D, dome.inflate(-2, -2), 3.34, 6.09, 2)
-    pygame.draw.arc(surf, HELM_H, dome.inflate(-6, -6), 0.5, 2.2, 2)
+    # Dark seam where the dome tucks under the brim at the back and sides.
+    pygame.draw.arc(surf, HELM_D, dome.inflate(-2, 0), 3.34, 6.09, 2)
+    # Metallic sheen — a near-white glint keeps the shell reading as a separate
+    # hard object above the drab army-green body.
+    pygame.draw.arc(surf, HELM_G, dome.inflate(-8, -3), 0.7, 2.1, 2)
+    pygame.draw.line(surf, HELM_G, (43, 8), (52, 7), 1)
     # Battle dent — a dark notch driven into the crown.
-    pygame.draw.polygon(surf, HELM_D, [(52, 3), (56, 5), (52, 7), (50, 5)])
+    pygame.draw.polygon(surf, HELM_D, [(53, 6), (57, 8), (53, 10), (51, 8)])
     # Rivet on the brim.
-    pygame.draw.circle(surf, RIVET, (37, 13), 2)
-    pygame.draw.circle(surf, HELM_D, (37, 13), 2, 1)
+    pygame.draw.circle(surf, RIVET, (36, 14), 2)
+    pygame.draw.circle(surf, HELM_D, (36, 14), 2, 1)
+    # Chinstrap — a single dark strap from the brim edge down past the jaw
+    # hinge. Cheapest, clearest cue that locks "military helmet" at a glance.
+    pygame.draw.line(surf, NEARBLK, (51, 16), (53, 28), 2)
 
     # Feet — slack.
     pygame.draw.line(surf, BODY_D, (28, 45), (26, 49), 2)
