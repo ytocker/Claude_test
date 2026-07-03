@@ -96,10 +96,10 @@ def _draw_number(surf, BCX, BCY, number, col, shadow):
     """Render a 1- or 2-digit block number centred on (BCX, BCY)."""
     digits = number.strip()
     if len(digits) == 1:
-        _draw_digit(surf, BCX, BCY, digits[0], col, shadow, scale=1.2)
+        _draw_digit(surf, BCX, BCY, digits[0], col, shadow, scale=1.0)
     elif len(digits) == 2:
-        _draw_digit(surf, BCX-5, BCY, digits[0], col, shadow, scale=1.0)
-        _draw_digit(surf, BCX+5, BCY, digits[1], col, shadow, scale=1.0)
+        _draw_digit(surf, BCX-5, BCY, digits[0], col, shadow, scale=0.85)
+        _draw_digit(surf, BCX+5, BCY, digits[1], col, shadow, scale=0.85)
 
 
 def _draw_digit(surf, cx, cy, d, col, shad, scale=1.0):
