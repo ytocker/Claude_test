@@ -23,14 +23,15 @@ BODY_D   = (96, 122, 105)           # shaded green
 BODY_H   = (156, 182, 162)          # lit green
 BELLY    = (172, 194, 174)          # pale underside
 SEAM     = (30, 39, 35)             # near-black outline / seam ink
-BRAIN    = (229, 138, 160)          # exposed brain pink
-BRAIN_D  = (206, 112, 136)          # brain-fold shadow
-FISSURE  = (155, 78, 99)            # central fissure
+BRAIN    = (235, 120, 150)          # exposed brain pink — saturated hero tell
+BRAIN_D  = (198, 96, 124)           # brain shadow
+FISSURE  = (150, 66, 90)            # central fissure cleft
 OOZE     = (198, 245, 58)           # toxic yellow-green fluid
 OOZE_D   = (150, 196, 40)           # ooze shadow
-BOLT     = (174, 184, 190)          # galvanized bolt / staples / dome
+BOLT     = (174, 184, 190)          # galvanized bolt / stitch crimp
 BOLT_D   = (120, 130, 138)          # bolt shadow
-DOME     = (150, 235, 255)          # glass dome tint
+BOLT_H   = (210, 218, 220)          # bone-white bolt highlight
+DOME_RIM = (170, 245, 255)          # cyan glass-dome crescent
 SPARK    = (79, 227, 255)           # electric arc
 BEAK     = (150, 150, 138)          # dead horn
 TAG      = (222, 224, 210)          # specimen-tag band
@@ -69,11 +70,12 @@ def _build_lab_specimen(wing_angle_deg):
     _aaellipse(surf, BODY_H, (30, 29), 13, 8)
     _aaellipse(surf, BELLY, (28, 38), 12, 6)
 
-    # ── Sutured chest seam — clinical vertical incision, stapled shut.
-    pygame.draw.line(surf, SEAM, (30, 29), (30, 43), 1)
-    for sy in range(30, 44, 3):
-        pygame.draw.line(surf, SEAM, (27, sy), (33, sy), 1)      # staple bed
-        pygame.draw.line(surf, BOLT, (28, sy), (32, sy), 1)      # metal crimp
+    # ── Sutured chest seam — a clinical incision closed with three bold
+    # cross-stitches, spaced so each stays a discrete stitch at 40px.
+    pygame.draw.line(surf, SEAM, (30, 29), (30, 44), 1)         # incision line
+    for sy in (32, 37, 42):
+        pygame.draw.line(surf, SEAM, (26, sy - 2), (34, sy + 2), 2)  # cross-stitch
+        pygame.draw.line(surf, BOLT, (29, sy), (31, sy), 1)          # thread crimp
 
     # ── Toxic seep — radioactive ooze weeping out the bottom of the seam.
     glow = pygame.Surface((26, 30), pygame.SRCALPHA)
@@ -108,36 +110,33 @@ def _build_lab_specimen(wing_angle_deg):
     _aaellipse(surf, BODY, (47, 21), 12, 11)
     _aaellipse(surf, BODY_H, (46, 16), 7, 3)
 
-    # ── Cracked-open skull — the exposed brain, kept inside the head outline.
-    # A dark opening rim first so the pink lobes read as sitting IN the skull.
-    pygame.draw.arc(surf, SEAM, (39, 6, 16, 16), 0.2, 2.9, 2)
-    _aaellipse(surf, BRAIN, (44, 14), 4, 3)                      # left lobe
-    _aaellipse(surf, BRAIN, (50, 14), 4, 3)                      # right lobe
-    _aaellipse(surf, BRAIN_D, (44, 15), 4, 2)                    # lobe shade
-    _aaellipse(surf, BRAIN_D, (50, 15), 4, 2)
-    _aaellipse(surf, BRAIN, (44, 13), 3, 2)                      # lobe crown
-    _aaellipse(surf, BRAIN, (50, 13), 3, 2)
-    for fy in (12, 14, 16):                                      # fold texture
-        pygame.draw.line(surf, BRAIN_D, (42, fy), (45, fy - 1), 1)
-        pygame.draw.line(surf, BRAIN_D, (49, fy), (52, fy - 1), 1)
-    pygame.draw.line(surf, FISSURE, (47, 11), (47, 18), 1)      # central fissure
-    # Cyan glass dome arcing over the specimen brain.
-    pygame.draw.arc(surf, DOME, (39, 5, 16, 15), 0.15, 3.0, 1)
-    pygame.draw.line(surf, DOME, (52, 11), (53, 14), 1)
+    # ── Cracked-open skull — the exposed brain is THE hero tell: two big pink
+    # lobes sitting proud of the skull line, joined into one two-bump shape and
+    # split by a single central fissure so it reads as "brain" at 40px.
+    pygame.draw.arc(surf, SEAM, (38, 6, 18, 16), 0.15, 3.0, 2)   # dark skull opening
+    _aaellipse(surf, BRAIN_D, (44, 14), 5, 4)                    # left lobe shade
+    _aaellipse(surf, BRAIN_D, (49, 14), 5, 4)                    # right lobe shade
+    _aaellipse(surf, BRAIN, (44, 13), 5, 4)                      # left lobe
+    _aaellipse(surf, BRAIN, (49, 13), 5, 4)                      # right lobe
+    pygame.draw.line(surf, FISSURE, (46, 9), (46, 17), 1)        # central fissure cleft
+    # One bold cyan crescent hugging the bumps = the glass specimen dome.
+    pygame.draw.arc(surf, DOME_RIM, (38, 5, 18, 15), 0.15, 3.0, 2)
 
-    # ── Neck bolt — galvanized electrode jutting from the neck side.
-    pygame.draw.rect(surf, BOLT_D, (37, 29, 7, 5))
-    pygame.draw.rect(surf, BOLT, (37, 29, 6, 4))
-    pygame.draw.circle(surf, BOLT, (37, 31), 3)
-    pygame.draw.circle(surf, BOLT_D, (37, 31), 3, 1)
-    pygame.draw.line(surf, BOLT_D, (40, 30), (43, 32), 1)
+    # ── Neck bolt — a crisp horizontal electrode cylinder breaking the neck
+    # silhouette: a flat-gray shaft with two end-caps, jutting out past the body.
+    pygame.draw.rect(surf, BOLT_D, (32, 28, 12, 5))             # cylinder body
+    pygame.draw.rect(surf, BOLT,   (33, 28, 10, 4))
+    pygame.draw.rect(surf, BOLT_D, (31, 27, 3, 6))             # outer end-cap
+    pygame.draw.rect(surf, BOLT,   (41, 27, 3, 6))             # inner end-cap
+    pygame.draw.line(surf, BOLT_H, (33, 28), (43, 28), 1)     # bone-white top glint
+    pygame.draw.rect(surf, SEAM,   (31, 27, 13, 6), 1)        # full dark outline
 
-    # ── Spark — jagged electric arc from bolt cap to skull, on the surge flap.
+    # ── Spark — jagged electric arc anchored on the bolt cap, on the surge flap.
     if surge:
-        arc = [(37, 28), (40, 22), (37, 17), (42, 12)]
+        arc = [(38, 28), (41, 22), (39, 16)]
         pygame.draw.lines(surf, (200, 250, 255), False, arc, 3)
         pygame.draw.lines(surf, SPARK, False, arc, 1)
-        pygame.draw.circle(surf, (220, 250, 255), (42, 12), 1)
+        pygame.draw.circle(surf, (220, 250, 255), (39, 16), 1)
 
     # Sunken undead eyes — one milky wide, one small.
     pygame.draw.circle(surf, (208, 214, 202), (50, 19), 4)
