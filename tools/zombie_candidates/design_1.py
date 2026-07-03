@@ -2,10 +2,11 @@
 
 A *recently* mangled bird: the healthy silhouette is still legible, which is
 what sells the fresh-kill horror — it hasn't rotted, it was just torn open.
-The read is carried by a wet chest gash with exposed ribs, one hot glowing
-eye against a milky dead ring, a torn bruise-toned wing hung low, and a
-couple of blood drips. Scratch explorer only — NOT registered in
-``store_skins.BUILDERS``; exposes ``build(frame_idx, tilt_deg) -> Surface``.
+The read is carried by ONE high-contrast chest wound — white bone bars over a
+black cavity with a wet-red pool — one hot glowing eye against a milky dead
+ring, a chewed wing edge, and blood bleeding past the belly line. Scratch
+explorer only — NOT registered in ``store_skins.BUILDERS``; exposes
+``build(frame_idx, tilt_deg) -> Surface``.
 """
 from __future__ import annotations
 
@@ -14,20 +15,19 @@ import pygame
 from game.parrot import SPRITE_W, SPRITE_H, _aaellipse
 from game.store_skins import _make_prebuilt_skin
 
-# Fresh-turned palette — a sick green-gray body (alive enough to still be a
-# parrot) so the saturated wound reds and bone whites do all the shouting.
-BODY    = (110, 138, 94)
-BODY_D  = (36, 48, 33)
-BODY_H  = (140, 166, 118)
-BELLY   = (156, 176, 132)
+# Fresh-turned palette — pushed to a necrotic green-gray so the saturated
+# wound reds and bone whites carry all the contrast (was a livelier green).
+BODY    = (88, 102, 76)
+BODY_D  = (26, 34, 24)
+BODY_H  = (118, 134, 102)
+BELLY   = (128, 144, 110)
 GASH_D  = (122, 20, 20)      # clotted rim
 GASH_H  = (199, 48, 43)      # wet, fresh center
+CAVITY  = (20, 14, 12)       # near-black open interior
 BONE    = (233, 228, 208)
 EYE_GLOW = (255, 58, 46)
-BRUISE   = (96, 62, 84)      # torn-flesh purple on the ragged wing
-BRUISE_D = (60, 38, 54)
-WING     = (92, 116, 78)
-WING_D   = (54, 72, 46)
+WING     = (74, 88, 62)
+WING_D   = (42, 52, 36)
 BEAK     = (176, 150, 96)    # desaturated, no longer glossy-live
 NEARBLK  = (18, 10, 12)
 
@@ -45,24 +45,26 @@ def _glow_blit(surf, center, color, radius):
 
 
 def _roadkill_wing(angle_deg):
-    """Trailing edge is a 3-notch saw-tooth in a bruise tone — the flesh got
-    ripped, not moulted. Kept as its own surface so it rotates with the flap."""
+    """Clean leaf wing with ONE bold triangular bite chewed out of the trailing
+    edge in near-black — silhouette-level damage survives the downscale where
+    fine saw-tooth texture would vanish. Kept on its own surface so it rotates
+    with the flap."""
     w = pygame.Surface((52, 52), pygame.SRCALPHA)
-    # Leading body of the wing, then a downward saw of three ragged teeth.
-    pts = [
-        (24, 23), (46, 15), (49, 26),
-        (45, 33), (42, 27), (38, 34), (34, 28), (30, 35), (26, 29),
-        (20, 33), (17, 27),
-    ]
+    pts = [(24, 22), (46, 15), (49, 26), (44, 32), (20, 33), (17, 27)]
     pygame.draw.polygon(w, WING, pts)
-    # Underside shadow keeps the torn edge from reading flat.
-    pygame.draw.polygon(w, WING_D, [(24, 23), (17, 27), (20, 33), (30, 35)])
-    # Bruise smear staining the ripped teeth.
-    pygame.draw.polygon(w, BRUISE, [(45, 33), (42, 27), (38, 34),
-                                    (34, 28), (30, 35), (26, 29), (24, 31)])
-    pygame.draw.polygon(w, BRUISE_D, [(38, 34), (34, 28), (30, 35), (32, 33)])
+    pygame.draw.polygon(w, WING_D, [(24, 22), (17, 27), (20, 33), (32, 32)])
+    # The single chewed notch: a dark V driven in from the trailing edge.
+    pygame.draw.polygon(w, NEARBLK, [(42, 31), (34, 24), (33, 33)])
     pygame.draw.line(w, WING_D, (26, 24), (44, 18), 1)
     return pygame.transform.rotate(w, angle_deg)
+
+
+def _drip(surf, x, y0, length):
+    """A thin teardrop hanging past the belly line — a bulb tip on a narrow
+    neck so it reads as fresh blood breaking the silhouette even at 40px."""
+    tip = y0 + length
+    pygame.draw.polygon(surf, GASH_H,
+                        [(x, y0), (x + 2, tip - 2), (x, tip), (x - 2, tip - 2)])
 
 
 def _build_roadkill(wing_angle_deg):
@@ -80,39 +82,32 @@ def _build_roadkill(wing_angle_deg):
     _aaellipse(surf, BODY_H, (30, 28), 13, 8)
     _aaellipse(surf, BELLY, (28, 38), 12, 6)
 
-    # Split-open back seam — a dark jagged tear down the far side, hinting the
-    # whole flank is peeled. Sits behind the wing so it reads as depth.
-    seam = [(20, 24), (17, 29), (19, 34), (16, 39), (18, 43)]
-    pygame.draw.lines(surf, BODY_D, False, seam, 2)
-    pygame.draw.lines(surf, GASH_D, False,
-                      [(19, 27), (18, 31), (17, 37)], 1)
+    # Split-open back crease — a single dark tear down the far flank, hinting
+    # the whole side is peeled. Kept red-free so only the chest wound bleeds.
+    pygame.draw.lines(surf, BODY_D, False,
+                      [(20, 24), (17, 29), (19, 34), (16, 39), (18, 43)], 2)
 
-    # Chest gash — almond/lens wound low on the belly, wet center inset in the
-    # clotted rim, hard near-black outline so it punches at gameplay scale.
-    gash = [(22, 39), (28, 35), (35, 38), (31, 43), (25, 43)]
-    inner = [(25, 39), (29, 37), (32, 39), (29, 42), (26, 42)]
-    pygame.draw.polygon(surf, GASH_D, gash)
-    pygame.draw.polygon(surf, GASH_H, inner)
-    pygame.draw.polygon(surf, NEARBLK, gash, 2)
-
-    # Exposed ribs — three bone segments fanning out of the top of the gash,
-    # arced to ride the belly curve.
-    ribs = [
-        [(24, 37), (23, 34), (25, 32)],
-        [(28, 35), (28, 32), (30, 30)],
-        [(32, 37), (34, 34), (35, 32)],
-    ]
-    for r in ribs:
-        pygame.draw.lines(surf, BONE, False, r, 2)
-
-    # Blood drips — fresh ooze hanging off the lower lip of the wound.
-    _aaellipse(surf, GASH_D, (27, 45), 2, 3)
-    _aaellipse(surf, GASH_H, (27, 44), 1, 1)
-    _aaellipse(surf, GASH_D, (31, 46), 1, 2)
-
-    # Wing — hung low (dropped y) so one side droops, mangled.
+    # Near wing — hung low and mangled. Drawn before the wound so nothing
+    # occludes the read.
     wing = _roadkill_wing(wing_angle_deg)
     surf.blit(wing, wing.get_rect(center=(34, 31)).topleft)
+
+    # Chest wound — ONE high-contrast unit riding mid-chest: a clotted rim
+    # around a near-black cavity, a wet-red inner pool, crossed by three short
+    # thick bone bars. White bone over a black hole is the whole read.
+    wx, wy = 30, 34
+    gash = [(21, 34), (25, 29), (31, 28), (38, 32), (34, 39), (27, 40), (22, 38)]
+    pygame.draw.polygon(surf, GASH_D, gash)
+    _aaellipse(surf, CAVITY, (wx, wy), 9, 5)
+    _aaellipse(surf, GASH_H, (wx, wy + 1), 5, 2)
+    for by, half in ((29, 4), (33, 5), (37, 4)):
+        pygame.draw.rect(surf, BONE, (wx - half, by, half * 2, 3))
+    pygame.draw.polygon(surf, NEARBLK, gash, 2)
+
+    # Blood drips — bled past the belly outline so the wound reads fresh even
+    # at gameplay scale.
+    _drip(surf, 27, 42, 6)
+    _drip(surf, 32, 43, 5)
 
     # Head.
     _aaellipse(surf, BODY_D, (48, 23), 12, 11)
