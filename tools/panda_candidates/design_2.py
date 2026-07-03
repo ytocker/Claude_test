@@ -1,0 +1,223 @@
+"""Panda — DESIGN 2: BAMBOO MUNCHER.
+
+The "panda doing panda things" build: the can't-miss black-and-white panda
+mask holding one bamboo cane. Green is this concept's whole identity, so the
+green is concentrated into exactly TWO readable shapes — (a) ONE unbroken
+diagonal bamboo stalk running crown-to-hip, held at two black paw grips, and
+(b) a crown leaf sprig — rather than scattered across many small blobs. At
+40px in motion a fragmented green reads as a render bug; a single continuous
+cane reads as "panda with bamboo". One mid-green for the whole cane, darker
+node rings only, so the stalk never breaks value mid-length.
+
+Self-contained full figure (body + head + arms + props) layered the way the
+KFC / ghost variants in ``game/parrot.py`` are, rather than reusing the bare
+macaw underneath — the black-and-white block has to own the whole silhouette
+for the panda read to land.
+"""
+import math
+import pygame
+
+from game.parrot import SPRITE_W, _WING_ANGLES, _add_outline, _aaellipse
+
+COMPOSITE_W = SPRITE_W   # 64
+COMPOSITE_H = 84
+DY          = 12
+BCX, BCY = 32, 32 + DY   # body centre (32, 44)
+HCX, HCY = 44, 22 + DY   # head centre (44, 34)
+CROWN_Y  = 12 + DY        # 24 — ears push up to here
+
+# Panda palette — high-contrast black/white block + the bamboo green signature.
+BLACK   = (26, 26, 26)     # #1A1A1A panda black
+BLACK_HI = (58, 58, 64)    # soft highlight on ears / arm tops for roundness
+WHITE   = (245, 245, 245)  # #F5F5F5 panda white
+WHITE_SH = (224, 224, 228) # white value-step shadow
+GREEN   = (95, 166, 58)    # #5FA63A bamboo green
+GREEN_SH = (60, 122, 34)   # #3C7A22 bamboo shadow / node rings
+LEAF_HI = (201, 226, 154)  # #C9E29A leaf highlight
+CHEEK   = (231, 169, 169)  # warm cheek/nose-tip charm
+NOSE    = (24, 24, 24)
+EYE_GLINT = (255, 255, 255)
+
+
+def _make_prebuilt_skin(build_fn):
+    state = {"frames": None, "rot": {}}
+    def getter(frame_idx, tilt_deg):
+        if state["frames"] is None:
+            state["frames"] = [_add_outline(build_fn(a)) for a in _WING_ANGLES]
+        frames = state["frames"]
+        frame_idx %= len(frames)
+        key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
+        s = state["rot"].get(key)
+        if s is None:
+            s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
+            state["rot"][key] = s
+        return s
+    return getter
+
+
+def _new():
+    return pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+
+
+def _flap(angle_deg):
+    """0 -> down-pose (arms low), 1 -> up-pose (arms raised). Drives both the
+    arm lift and the leaf-sprig sway so the whole rig animates as one."""
+    return (angle_deg + 40) / 90.0
+
+
+def _leaf(surf, base, tip, width, col, hi=None):
+    """A single bamboo leaf as a slim pointed lens between base and tip, with
+    an optional bright centre vein-highlight."""
+    bx, by = base
+    tx, ty = tip
+    dx, dy = tx - bx, ty - by
+    length = math.hypot(dx, dy) or 1.0
+    # Perpendicular unit vector swells the leaf belly at its midpoint.
+    px, py = -dy / length, dx / length
+    mx, my = bx + dx * 0.45, by + dy * 0.45
+    pts = [
+        (bx, by),
+        (mx + px * width, my + py * width),
+        (tx, ty),
+        (mx - px * width, my - py * width),
+    ]
+    pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in pts])
+    if hi is not None:
+        pygame.draw.line(surf, hi, (int(bx), int(by)), (int(tx), int(ty)), 1)
+
+
+def _bamboo_node(surf, cx, cy, half_w, ang):
+    """A darker ring band crossing the stalk at (cx, cy), perpendicular to the
+    stalk axis `ang` (radians) — the segment join that makes it read as bamboo,
+    not a plain green bar."""
+    nx, ny = math.cos(ang + math.pi / 2), math.sin(ang + math.pi / 2)
+    a = (cx + nx * half_w, cy + ny * half_w)
+    b = (cx - nx * half_w, cy - ny * half_w)
+    pygame.draw.line(surf, GREEN_SH, a, b, 3)
+
+
+def build(wing_angle_deg):
+    """Draw one 64x84 frame of the Bamboo Muncher panda."""
+    surf = _new()
+    f = _flap(wing_angle_deg)
+    lift = (1.0 - f) * 6.0   # down-pose drops the arms; up-pose lifts them
+
+    # ---- Crown leaf sprig (green element #2) poking up between the ears ----
+    # Drawn first so it sits behind the head and reads as tucked into the cane.
+    # ONE small fan only — the ONLY green near the crown, so it never competes
+    # with an inner-ear colour. Sways opposite the arm lift so it animates.
+    sway = (f - 0.5) * 3.0
+    sprig_root = (HCX - 1, CROWN_Y + 1)
+    for j in range(3):
+        ang = math.radians(-90 + (j - 1) * 24 + sway)
+        ln = 12 - abs(j - 1) * 2
+        tipx = sprig_root[0] + math.cos(ang) * ln
+        tipy = sprig_root[1] + math.sin(ang) * ln
+        _leaf(surf, sprig_root, (tipx, tipy), 2.8,
+              GREEN if j == 1 else GREEN_SH, hi=LEAF_HI)
+
+    # ---- Body: white belly block + black shoulder yoke ----
+    # Soft drop shadow first for a touch of grounding.
+    _aaellipse(surf, (0, 0, 0, 50), (BCX + 1, BCY + 2), 18, 15)
+    # Black shoulder yoke (the real panda's dark band across the upper back),
+    # ties the two arm masses together so the block reads black-over-white.
+    _aaellipse(surf, BLACK, (BCX, BCY - 6), 18, 9)
+    _aaellipse(surf, BLACK_HI, (BCX, BCY - 8), 13, 4)
+    # White torso/belly disc over the collision centre.
+    _aaellipse(surf, WHITE_SH, (BCX, BCY + 3), 16, 13)
+    _aaellipse(surf, WHITE, (BCX - 1, BCY + 1), 15, 12)
+    _aaellipse(surf, (255, 255, 255), (BCX - 4, BCY - 2), 7, 5)  # belly sheen
+
+    # ---- Black leg stubs under the body ----
+    for legx in (BCX - 8, BCX + 7):
+        _aaellipse(surf, BLACK, (legx, BCY + 13), 5, 5)
+        _aaellipse(surf, BLACK_HI, (legx - 1, BCY + 11), 2, 2)
+
+    # ---- ONE unbroken diagonal bamboo cane (green element #1) ----
+    # Single continuous stalk drawn ON TOP of the whole body block, from the
+    # upper-RIGHT (chewing end, by the mouth) down to the lower-LEFT hip. It is
+    # one thick capped line so there is NO break or value-shift along its
+    # length, and because it is the LAST body layer it crosses the white belly
+    # unbroken instead of disappearing behind it. ONE mid-green end to end; the
+    # only darker green is the node rings. The arm lift rocks the cane so it
+    # animates with the flap. Half-width 4 -> reads as ~2px at 40px.
+    rock = (f - 0.5) * 4.0
+    top = (BCX + 18, BCY - 16 - lift + rock)     # chewing end, up by the mouth
+    bot = (BCX - 17, BCY + 18 + lift * 0.3 + rock)  # butt end, past the hip
+    ang = math.atan2(bot[1] - top[1], bot[0] - top[0])
+    half = 4
+    nx, ny = math.cos(ang + math.pi / 2), math.sin(ang + math.pi / 2)
+    # Dark base line gives the cane a one-sided shadow edge without breaking it.
+    pygame.draw.line(surf, GREEN_SH, top, bot, half * 2)
+    # Single mid-green core inset over the shadow — one colour end to end.
+    core_top = (top[0] - nx * 1.0, top[1] - ny * 1.0)
+    core_bot = (bot[0] - nx * 1.0, bot[1] - ny * 1.0)
+    pygame.draw.line(surf, GREEN, core_top, core_bot, half * 2 - 2)
+    # Specular sheen line on the lit edge, continuous along the whole cane.
+    pygame.draw.line(surf, LEAF_HI,
+                     (top[0] + nx * (half - 1), top[1] + ny * (half - 1)),
+                     (bot[0] + nx * (half - 1), bot[1] + ny * (half - 1)), 1)
+    # Darker node rings only — the segment joins that make it read as bamboo
+    # without ever interrupting the continuous green line.
+    for t in (0.2, 0.42, 0.64, 0.86):
+        ncx = top[0] + (bot[0] - top[0]) * t
+        ncy = top[1] + (bot[1] - top[1]) * t
+        _bamboo_node(surf, ncx, ncy, half, ang)
+
+    # ---- Two black paw grips anchoring the cane to the panda's hands ----
+    # Compact paw masses that OVERLAP the cane edge rather than straddling it,
+    # so the continuous green line stays visible between them — one near the
+    # chewing/mouth end, one near the hip end. At 40px the paw bridging onto the
+    # green sells "held" without ever severing the stalk into two blobs.
+    for gt in (0.34, 0.78):
+        gcx = top[0] + (bot[0] - top[0]) * gt
+        gcy = top[1] + (bot[1] - top[1]) * gt
+        # Offset the paw to the lower-left side of the cane so its inner edge
+        # just laps onto the green, leaving the cane's lit side fully exposed.
+        pcx, pcy = gcx - nx * 3.0, gcy - ny * 3.0
+        _aaellipse(surf, BLACK, (pcx, pcy), 5, 5)
+        _aaellipse(surf, BLACK_HI, (pcx - 1, pcy - 2), 2, 1)
+
+    # ================= HEAD =================
+    # Round black ears push up past the crown (the silhouette-breakers).
+    for ex in (HCX - 9, HCX + 9):
+        _aaellipse(surf, BLACK, (ex, CROWN_Y + 3), 6, 6)
+        _aaellipse(surf, BLACK_HI, (ex - 1, CROWN_Y + 1), 2, 2)
+
+    # Round white face disc.
+    _aaellipse(surf, WHITE_SH, (HCX, HCY + 1), 13, 12)
+    _aaellipse(surf, WHITE, (HCX - 1, HCY), 12, 11)
+
+    # Two black teardrop eye patches, angled down-inward.
+    for side, ex in ((-1, HCX - 5), (1, HCX + 6)):
+        patch = pygame.Surface((14, 16), pygame.SRCALPHA)
+        _aaellipse(patch, BLACK, (7, 8), 4, 6)
+        patch = pygame.transform.rotate(patch, side * 24)
+        pr = patch.get_rect(center=(ex, HCY - 1))
+        surf.blit(patch, pr.topleft)
+        # White eye-glint dot keeps it friendly, not sleepy.
+        pygame.draw.circle(surf, (20, 16, 24), (ex, HCY - 1), 2)
+        pygame.draw.circle(surf, EYE_GLINT, (ex - 1, HCY - 2), 2)   # larger main catch-light
+        pygame.draw.circle(surf, EYE_GLINT, (ex + 1, HCY), 1)        # second sparkle
+
+    # Soft pink-grey cheek blushes low on the face for charm.
+    _aaellipse(surf, CHEEK, (HCX - 7, HCY + 6), 3, 2)
+    _aaellipse(surf, CHEEK, (HCX + 7, HCY + 6), 3, 2)
+
+    # Little black nose triangle + soft mouth line.
+    nx0, ny0 = HCX, HCY + 4
+    pygame.draw.polygon(surf, NOSE, [(nx0 - 2, ny0), (nx0 + 2, ny0),
+                                     (nx0, ny0 + 3)])
+    pygame.draw.line(surf, NOSE, (nx0, ny0 + 3), (nx0, ny0 + 5), 1)
+    pygame.draw.arc(surf, NOSE,
+                    pygame.Rect(nx0 - 5, ny0 + 2, 10, 8),
+                    math.radians(210), math.radians(330), 2)
+
+    # The cane's upper end already terminates at the chewing/mouth grip, so the
+    # "muncher" read comes from that held end — no separate mouth leaf, which
+    # would add a third stray green shape the eye reads as a render artifact.
+
+    return surf
+
+
+get_skin = _make_prebuilt_skin(build)
