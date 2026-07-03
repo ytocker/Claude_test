@@ -144,95 +144,118 @@ def _glyph_after_hours(surf, cx, cy, r, col):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _glyph_early_bird(surf, cx, cy, r, col):
-    horizon_y = cy + int(r * 0.58)
-    # sun sits left-of-centre so its rays keep clear of the bird up-right
-    sun_cx = cx - int(r * 0.22)
-    sun_r = int(r * 0.44)
-    # half-sun dome sitting on the horizon (upper semicircle fan)
-    fan = [(sun_cx + sun_r, horizon_y)]
-    for k in range(13):
-        a = math.pi * k / 12
-        fan.append((sun_cx + math.cos(a) * sun_r, horizon_y - math.sin(a) * sun_r))
-    pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in fan])
-    # dawn rays fanning over the upper half — biased left/up so the top-right
-    # corner is reserved for the bird and the two never clot at 44px
-    for k in range(4):
-        a = math.pi * (k + 0.5) / 6 + math.radians(18)
+    # A BOLD perched songbird is the focal point, sitting on a twig in front of a
+    # rising-sun DISC (a full circle, not a dome, so it never reads as a hill).
+    # The bird is what makes the badge say "early BIRD", not "sunny landscape".
+    horizon_y = cy + int(r * 0.70)
+    sun_cx, sun_cy = cx + int(r * 0.04), cy - int(r * 0.06)
+    sun_r = int(r * 0.42)
+    pygame.draw.circle(surf, col, (sun_cx, sun_cy), sun_r)
+    # thin radial dawn rays — kept slim + clearly separated so they read as light,
+    # never as mountain peaks
+    for k in range(10):
+        a = k * math.tau / 10 - math.radians(90)
         x1 = sun_cx + math.cos(a) * sun_r * 1.24
-        y1 = horizon_y - math.sin(a) * sun_r * 1.24
+        y1 = sun_cy + math.sin(a) * sun_r * 1.24
         x2 = sun_cx + math.cos(a) * sun_r * 1.60
-        y2 = horizon_y - math.sin(a) * sun_r * 1.60
+        y2 = sun_cy + math.sin(a) * sun_r * 1.60
         pygame.draw.line(surf, col, (int(x1), int(y1)), (int(x2), int(y2)),
-                         max(2, int(r * 0.10)))
-    # horizon line
-    pygame.draw.line(surf, col, (cx - int(r * 0.94), horizon_y),
-                     (cx + int(r * 0.94), horizon_y), max(2, int(r * 0.11)))
-    # a bold gull-silhouette bird flying the clear upper-right, well off the sun
-    bx, by = cx + int(r * 0.46), cy - int(r * 0.56)
-    w = r * 0.52
-    bird = [
-        (bx - w, by + w * 0.10),
-        (bx - w * 0.36, by - w * 0.52),
-        (bx, by - w * 0.06),
-        (bx + w * 0.36, by - w * 0.52),
-        (bx + w, by + w * 0.10),
-        (bx + w * 0.34, by + w * 0.22),
-        (bx, by + w * 0.02),
-        (bx - w * 0.34, by + w * 0.22),
-    ]
-    pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in bird])
+                         max(2, int(r * 0.08)))
+    # horizon / perch twig
+    pygame.draw.line(surf, col, (cx - int(r * 0.86), horizon_y),
+                     (cx + int(r * 0.86), horizon_y), max(3, int(r * 0.11)))
+
+    # The bird: a plump robin perched facing right, big enough to own the well.
+    # Every part is drawn first in the inset tone at a slight outset (a dark
+    # halo) so the gold bird separates cleanly from the gold sun behind it.
+    bcx, bcy = cx - int(r * 0.06), cy + int(r * 0.20)
+    hx, hy = bcx + int(r * 0.40), bcy - int(r * 0.36)
+    body = pygame.Rect(int(bcx - r * 0.46), int(bcy - r * 0.40),
+                       int(r * 0.92), int(r * 0.80))
+    tail = [(bcx - int(r * 0.30), bcy - int(r * 0.06)),
+            (bcx - int(r * 0.86), bcy - int(r * 0.46)),
+            (bcx - int(r * 0.70), bcy - int(r * 0.02)),
+            (bcx - int(r * 0.34), bcy + int(r * 0.22))]
+    beak = [(hx + int(r * 0.16), hy - int(r * 0.06)),
+            (hx + int(r * 0.52), hy + int(r * 0.02)),
+            (hx + int(r * 0.16), hy + int(r * 0.12))]
+
+    def _bird(fill, grow):
+        pygame.draw.ellipse(surf, fill, body.inflate(grow, grow))
+        pygame.draw.circle(surf, fill, (hx, hy), int(r * 0.28) + grow // 2)
+        pygame.draw.polygon(surf, fill, [(int(x), int(y)) for x, y in tail])
+        pygame.draw.polygon(surf, fill, [(int(x), int(y)) for x, y in beak])
+
+    _bird(_GLYPH_SH, int(r * 0.14))     # separating halo against the sun disc
+    _bird(col, 0)
+    # eye + a folded-wing groove so the perched bird reads at chip size
+    pygame.draw.circle(surf, _GLYPH_SH, (hx + int(r * 0.06), hy - int(r * 0.04)),
+                       max(2, int(r * 0.06)))
+    pygame.draw.lines(surf, _GLYPH_SH, False, [
+        (bcx + int(r * 0.02), bcy - int(r * 0.18)),
+        (bcx - int(r * 0.10), bcy + int(r * 0.04)),
+        (bcx + int(r * 0.14), bcy + int(r * 0.10)),
+    ], max(2, int(r * 0.08)))
+    # two legs down to the perch
+    for sgn in (-1, 1):
+        lx = bcx + sgn * int(r * 0.12)
+        pygame.draw.line(surf, col, (lx, bcy + int(r * 0.36)), (lx, horizon_y),
+                         max(2, int(r * 0.07)))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 3. leap_of_faith — a frog caught mid-leap up-right: bulging eyes on the head,
-#    powerful bent hind legs kicked back, front legs reaching forward, over a
-#    little arc of trajectory. The leap-year pun.
+# 3. leap_of_faith — a frog coiled to launch, viewed head-on on a baseline:
+#    eyes up, two big bent haunches symmetric about the body, feet planted. The
+#    coiled-spring crouch is the read that holds at chip size (the leap-year pun).
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _glyph_leap_of_faith(surf, cx, cy, r, col):
-    lw_leg = max(3, int(r * 0.15))
-    # leap trajectory — a faint arc the frog rides
-    tr = pygame.Rect(int(cx - r * 0.78), int(cy - r * 0.10),
-                     int(r * 1.5), int(r * 1.2))
-    pygame.draw.arc(surf, col, tr, math.radians(28), math.radians(140),
-                    max(2, int(r * 0.07)))
+    base_y = cy + int(r * 0.74)
+    # the ground the frog pushes off — anchors the pose so no leg floats free
+    pygame.draw.line(surf, col, (cx - int(r * 0.80), base_y),
+                     (cx + int(r * 0.80), base_y), max(3, int(r * 0.10)))
 
-    # body — an oval angled up-right
-    bcx, bcy = cx - int(r * 0.04), cy + int(r * 0.06)
-    body = pygame.Rect(int(bcx - r * 0.44), int(bcy - r * 0.30),
-                       int(r * 0.88), int(r * 0.60))
+    bcx, bcy = cx, cy + int(r * 0.16)
+    # TWO bent hind legs, symmetric — raised knees flared out to each side, shins
+    # driving down to planted feet on the baseline. The M of the coiled haunches
+    # is drawn before the body so the body caps the hips cleanly.
+    lw_leg = max(5, int(r * 0.20))
+    for sgn in (-1, 1):
+        hip = (bcx + sgn * int(r * 0.26), bcy + int(r * 0.02))
+        knee = (bcx + sgn * int(r * 0.66), bcy - int(r * 0.30))   # raised knee
+        foot = (bcx + sgn * int(r * 0.52), base_y)
+        pygame.draw.lines(surf, col, False, [hip, knee, foot], lw_leg)
+        # webbed foot fan planted on the baseline
+        for da in (-0.45, 0.0, 0.45):
+            tx = foot[0] + int(math.sin(da) * r * 0.20) + sgn * int(r * 0.06)
+            pygame.draw.line(surf, col, foot, (tx, base_y - int(r * 0.16)),
+                             max(2, int(r * 0.08)))
+
+    # body — a broad rounded crouch
+    body = pygame.Rect(int(bcx - r * 0.46), int(bcy - r * 0.34),
+                       int(r * 0.92), int(r * 0.66))
     pygame.draw.ellipse(surf, col, body)
+    # two front feet planted under the chin
+    for sgn in (-1, 1):
+        fx = bcx + sgn * int(r * 0.14)
+        pygame.draw.line(surf, col, (fx, bcy + int(r * 0.26)), (fx, base_y),
+                         max(3, int(r * 0.09)))
 
-    # head — front-upper-right with two bulging eyes on top
-    hx, hy = cx + int(r * 0.34), cy - int(r * 0.22)
-    pygame.draw.circle(surf, col, (hx, hy), int(r * 0.30))
-    for dx, dy in ((-0.10, -0.28), (0.16, -0.24)):
-        ex, ey = hx + int(r * dx), hy + int(r * dy)
-        pygame.draw.circle(surf, col, (ex, ey), int(r * 0.16))
-        pygame.draw.circle(surf, _GLYPH_SH, (ex, ey), int(r * 0.07))
-
-    # front legs reaching up-right toward the leap
-    for fy in (-0.02, 0.14):
-        pygame.draw.lines(surf, col, False, [
-            (hx + int(r * 0.06), hy + int(r * (0.30 + fy))),
-            (hx + int(r * 0.34), cy + int(r * (0.14 + fy))),
-            (hx + int(r * 0.58), cy + int(r * (0.02 + fy))),
-        ], lw_leg)
-
-    # powerful hind legs kicked back — a bold Z of thigh + shin ending in a
-    # webbed foot fan, the frog-jump signature
-    for oy in (0.0, 0.16):
-        hip = (bcx - int(r * 0.30), bcy + int(r * (0.10 + oy)))
-        knee = (bcx - int(r * 0.62), bcy + int(r * (0.42 + oy)))
-        ankle = (bcx - int(r * 0.30), bcy + int(r * (0.56 + oy)))
-        foot = (bcx - int(r * 0.02), bcy + int(r * (0.78 + oy)))
-        pygame.draw.lines(surf, col, False, [hip, knee, ankle, foot],
-                          max(4, int(r * 0.17)))
-        # webbed toe fan at the foot
-        for da in (-0.5, 0.0, 0.5):
-            tx = foot[0] + int(math.cos(math.radians(60) + da) * r * 0.22)
-            ty = foot[1] + int(math.sin(math.radians(60) + da) * r * 0.22)
-            pygame.draw.line(surf, col, foot, (tx, ty), max(2, int(r * 0.09)))
+    # two big bulging eyes riding the top of the head — the unmistakable frog cue
+    for sgn in (-1, 1):
+        ex, ey = bcx + sgn * int(r * 0.24), bcy - int(r * 0.40)
+        pygame.draw.circle(surf, col, (ex, ey), int(r * 0.20))
+        pygame.draw.circle(surf, _GLYPH_SH, (ex, ey), int(r * 0.09))
+    # wide smile line so the crouch reads as a face-on frog
+    pygame.draw.arc(surf, _GLYPH_SH,
+                    (int(bcx - r * 0.34), int(bcy - r * 0.18),
+                     int(r * 0.68), int(r * 0.44)),
+                    math.radians(200), math.radians(340), max(2, int(r * 0.08)))
+    # a pair of upward push-off ticks — the launch impulse
+    for sgn in (-1, 1):
+        ax = bcx + sgn * int(r * 0.60)
+        pygame.draw.line(surf, col, (ax, bcy - int(r * 0.52)),
+                         (ax, bcy - int(r * 0.74)), max(2, int(r * 0.08)))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
