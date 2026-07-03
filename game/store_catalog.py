@@ -53,6 +53,7 @@ CATALOG: dict[str, dict] = {
     "skin_tennis":      {"name": "TENNIS",     "cost": 480, "kind": "skin", "group": "costume"},
     "skin_basketball":  {"name": "BASKETBALL", "cost": 520, "kind": "skin", "group": "costume"},
     "skin_crown":    {"name": "CROWN",     "cost": 750, "kind": "skin", "group": "costume"},
+    "skin_pilot":    {"name": "CAPTAIN",   "cost": 650, "kind": "skin", "group": "costume"},
     "skin_disco":    {"name": "DISCO",     "cost": 800, "kind": "skin", "group": "costume"},
 
     # ── PARROTS (full-body species recolours) ─────────────────────────────────

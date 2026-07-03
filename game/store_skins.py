@@ -2008,6 +2008,69 @@ get_cockatoo_parrot = _make_skin(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# CAPTAIN (skin_pilot) — scarlet macaw in a golden-age airline commander
+# uniform. Navy body recolor keeps the red head / blue wings / yellow beak
+# visible; peaked cap + round aviator shades + gold shoulder epaulette on top.
+# ─────────────────────────────────────────────────────────────────────────────
+_CAP_NAVY = (27, 42, 74)
+_CAP_RIM  = (42, 59, 95)
+_CAP_BRIM = (11, 15, 28)
+_CAP_GOLD = (245, 197, 66)
+_CAP_GOLD_H = (255, 232, 150)
+
+P_PILOT = _pal(
+    tail=[(200, 30, 40), (240, 95, 40), (255, 160, 55), (255, 220, 80)],
+    tail_line=(170, 25, 25),
+    body_shadow=(14, 21, 55),
+    body_main=(20, 33, 74),
+    body_chest=(27, 42, 90),
+    body_belly=(18, 28, 68),
+    sheen=None,
+    wing_main=(40, 100, 255),
+    wing_dark=(20, 55, 180),
+    wing_tip=(50, 220, 100),
+    wing_secondary=None,
+    wing_highlight=(80, 160, 255),
+    head_shadow=(150, 15, 20),
+    head_main=(240, 55, 55),
+    head_cheek=(255, 130, 130),
+    head_crown=(255, 170, 170),
+    lens_frame=(180, 150, 40),
+    lens_body=(30, 25, 20),
+    lens_tint=None,
+    lens_glint=(255, 255, 255),
+    beak_main=(255, 185, 0),
+    beak_dark=(200, 130, 0),
+    beak_gloss=(255, 215, 100),
+    foot=(200, 130, 0),
+)
+
+
+def _pilot_base(angle_deg):
+    return _build_parrot_with_palette(angle_deg, P_PILOT, draw_lenses=True)
+
+
+def _paint_pilot(surf, wing_angle_deg):
+    # Gold captain epaulette on the shoulder — navy board + 3 rank stripes.
+    sx, sy, sw, sh = 21, 39, 13, 7
+    pygame.draw.rect(surf, _CAP_NAVY, (sx, sy, sw, sh))
+    for ey in (40, 42, 44):
+        pygame.draw.line(surf, _CAP_GOLD, (sx + 1, ey), (sx + sw - 2, ey), 1)
+    pygame.draw.rect(surf, _CAP_GOLD, (sx, sy, sw, sh), 1)
+
+    # Peaked officer's cap over the crown.
+    _poly(surf, _CAP_NAVY, [(38, 32), (38, 24), (40, 22), (56, 22), (58, 24), (58, 32)])
+    _poly(surf, _CAP_BRIM, [(37, 32), (59, 33), (59, 35), (37, 34)])
+    pygame.draw.rect(surf, _CAP_GOLD, (44, 29, 5, 2))
+    pygame.draw.line(surf, _CAP_GOLD_H, (44, 29), (48, 29), 1)
+    pygame.draw.line(surf, _CAP_RIM, (40, 22), (56, 22), 1)
+    pygame.draw.line(surf, _CAP_RIM, (38, 24), (38, 31), 1)
+
+
+get_pilot_parrot = _make_skin(_paint_pilot, base_fn=_pilot_base)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Production registry: catalog id -> getter. Consulted by
 # parrot.get_skin_frame (which checks this first, so the three redraws here
 # override the power-up-sprite mappings the base parrot keeps for buff use).
@@ -2026,6 +2089,7 @@ BUILDERS = {
     "skin_cowboy":    get_cowboy_parrot,
     "skin_disco":     get_disco_parrot,
     "skin_crown":     get_crown_parrot,
+    "skin_pilot":     get_pilot_parrot,
     # Dedicated cosmetic redraws (override the recycled power-up sprites).
     "skin_tophat":    get_tophat_redraw,
     "skin_zombie":    get_zombie_redraw,
