@@ -70,11 +70,12 @@ def _glyph_overloaded(surf, cx, cy, r, col):
         _sparkle(surf, sx, sy, sr, col, reach=0.98, waist=0.24)
 
 
-# ── 2. bullet_time — stopwatch with slowed, trailing motion-arc hands ────────
+# ── 2. bullet_time — stopwatch with a frozen sweep-wedge ─────────────────────
 def _glyph_bullet_time(surf, cx, cy, r, col):
-    # A stopwatch (Slow-Mo's in-game clock) whose single hand drags a fan of
-    # ghost-echo hands + a curved motion arc — the "time crawling" read that a
-    # plain two-hand clock lacks.
+    # A stopwatch (Slow-Mo's in-game clock) with ONE bold FILLED pie-wedge swept
+    # from 12 o'clock to ~4 o'clock — the second-hand caught mid-sweep, "time
+    # freezing". The solid wedge survives 44px where thin echo-hands vanish, and
+    # it's what separates this from the plain two-hand clock emblem.
     rr = int(r * 0.64)
     ring_w = max(3, int(r * 0.13))
     # crown nub + two shoulder buttons so it reads stopwatch, not wall clock.
@@ -88,33 +89,26 @@ def _glyph_bullet_time(surf, cx, cy, r, col):
                          (int(bx + math.cos(a) * r * 0.16),
                           int(by + math.sin(a) * r * 0.16)), max(2, int(r * 0.10)))
     pygame.draw.circle(surf, col, (cx, cy), rr, ring_w)
-    # Ghost-echo hands fanning back (counter-clockwise) from the live hand, each
-    # thinner — the motion-blur trail of a hand barely creeping forward.
-    hub = (cx, cy)
-    for k, deg in enumerate((-58, -74, -90)):
-        a = math.radians(deg)
-        hw = max(1, int(r * (0.09 - k * 0.02)))
-        pygame.draw.line(surf, col, hub,
-                         (int(cx + math.cos(a) * rr * 0.74),
-                          int(cy + math.sin(a) * rr * 0.74)), hw)
-    # Live hand — bold, pointing up-right (1 o'clock).
-    a = math.radians(-52)
-    pygame.draw.line(surf, col, hub,
-                     (int(cx + math.cos(a) * rr * 0.78),
-                      int(cy + math.sin(a) * rr * 0.78)), max(3, int(r * 0.13)))
-    pygame.draw.circle(surf, col, hub, max(2, int(r * 0.10)))
-    # A stubby motion arc with an arrowhead ahead of the live hand — the slow
-    # sweep direction.
-    arc_r = int(rr * 0.92)
-    pygame.draw.arc(surf, col, (cx - arc_r, cy - arc_r, arc_r * 2, arc_r * 2),
-                    math.radians(28), math.radians(70), max(2, int(r * 0.09)))
-    ah = math.radians(28)
-    hx, hy = cx + math.cos(ah) * arc_r, cy - math.sin(ah) * arc_r
-    pygame.draw.polygon(surf, col, [
-        (int(hx + r * 0.14), int(hy - r * 0.02)),
-        (int(hx - r * 0.04), int(hy - r * 0.18)),
-        (int(hx - r * 0.10), int(hy + r * 0.06)),
-    ])
+    # The frozen sweep — a solid pie slice from 12 o'clock (top) clockwise to
+    # ~4 o'clock, filled bold so the "part of the dial already swept" reads at
+    # row size.
+    wr = int(rr * 0.82)
+    a0, a1 = math.radians(90), math.radians(-30)     # 12 o'clock → 4 o'clock
+    wedge = [(cx, cy)]
+    N = 16
+    for i in range(N + 1):
+        a = a0 + (a1 - a0) * i / N
+        wedge.append((cx + math.cos(a) * wr, cy - math.sin(a) * wr))
+    pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in wedge])
+    # The sweep's START edge (straight up) cut in as a recessed groove so the
+    # wedge reads as a slice, not a filled half-disc.
+    pygame.draw.line(surf, ai._GLYPH_SH, (cx, cy),
+                     (cx, int(cy - wr)), max(2, int(r * 0.09)))
+    # The live second-hand riding the wedge's leading edge, bold for definition.
+    pygame.draw.line(surf, col, (cx, cy),
+                     (int(cx + math.cos(a1) * wr), int(cy - math.sin(a1) * wr)),
+                     max(3, int(r * 0.13)))
+    pygame.draw.circle(surf, col, (cx, cy), max(2, int(r * 0.11)))
 
 
 # ── 3. ghost_rider — sheet-ghost phasing through a pillar edge ───────────────
@@ -288,48 +282,47 @@ def _glyph_morbid_curiosity(surf, cx, cy, r, col):
                          max(2, int(r * 0.07)))
 
 
-# ── 7. are_you_still_there — perched bird snoozing under rising Zzz ──────────
+# ── 7. are_you_still_there — head-tucked sleeper under a Zzz stack ───────────
 def _glyph_are_you_still_there(surf, cx, cy, r, col):
-    # A bird asleep on a perch (closed eye) with three ascending Z's drifting up —
-    # the idle-menu snooze. The Z-ladder is the sleep read; the perched macaw is
-    # the who.
-    perch_y = cy + int(r * 0.72)
-    pygame.draw.line(surf, col, (int(cx - r * 0.86), perch_y),
-                     (int(cx + r * 0.30), perch_y), max(3, int(r * 0.12)))
-    # Body — a plump ellipse sitting on the perch, head up-left, stubby tail
-    # down-right.
-    bcx, bcy = cx - int(r * 0.30), cy + int(r * 0.24)
-    pygame.draw.ellipse(surf, col, (int(bcx - r * 0.42), int(bcy - r * 0.34),
-                                    int(r * 0.84), int(r * 0.72)))
-    hx, hy = bcx - int(r * 0.30), bcy - int(r * 0.42)
-    pygame.draw.circle(surf, col, (hx, hy), int(r * 0.28))
-    # beak (small down-left triangle) + a closed-eye line (asleep).
-    pygame.draw.polygon(surf, col, [
-        (hx - int(r * 0.26), hy),
-        (hx - int(r * 0.50), hy + int(r * 0.06)),
-        (hx - int(r * 0.24), hy + int(r * 0.16)),
-    ])
-    pygame.draw.line(surf, ai._GLYPH_SH, (hx - int(r * 0.16), hy - int(r * 0.02)),
-                     (hx + int(r * 0.06), hy - int(r * 0.02)), max(2, int(r * 0.07)))
-    # tail down-right.
-    pygame.draw.polygon(surf, col, [
-        (int(bcx + r * 0.30), int(bcy + r * 0.02)),
-        (int(bcx + r * 0.74), int(bcy + r * 0.40)),
-        (int(bcx + r * 0.30), int(bcy + r * 0.30)),
-    ])
-    # Three ascending Z's drifting up-right — each bigger, drawn as a bold
-    # three-stroke zigzag.
-    zs = [(cx + r * 0.30, cy - r * 0.10, r * 0.22),
-          (cx + r * 0.56, cy - r * 0.52, r * 0.30),
-          (cx + r * 0.86, cy - r * 1.00, r * 0.40)]
-    for zx, zy, zsz in zs:
-        zw = max(2, int(zsz * 0.42))
-        pygame.draw.lines(surf, col, False, [
-            (int(zx - zsz), int(zy - zsz)),
-            (int(zx + zsz), int(zy - zsz)),
-            (int(zx - zsz), int(zy + zsz)),
-            (int(zx + zsz), int(zy + zsz)),
-        ], zw)
+    # A bird fast asleep — a round, head-tucked silhouette (no perch, no beak
+    # jutting out) — under a clean stack of THREE separate Z's shrinking as they
+    # rise. Each Z is a distinct three-stroke letter with rounded joints so the
+    # trio reads as "Zzz" (sleep), never one jagged lightning bolt.
+    # Round body, low-left, with a folded-wing groove.
+    bcx, bcy = cx - int(r * 0.36), cy + int(r * 0.40)
+    br = int(r * 0.52)
+    pygame.draw.circle(surf, col, (bcx, bcy), br)
+    # Head tucked into the shoulder — a smaller bump merged onto the upper-left,
+    # so the silhouette reads as a sleeping bird with its head nestled down.
+    hcx, hcy = bcx - int(br * 0.46), bcy - int(br * 0.60)
+    hr = int(r * 0.34)
+    pygame.draw.circle(surf, col, (hcx, hcy), hr)
+    # Closed, curved sleeping eye on the tucked head (recessed).
+    pygame.draw.arc(surf, ai._GLYPH_SH,
+                    (hcx - int(hr * 0.7), hcy - int(hr * 0.2),
+                     int(hr * 1.4), int(hr * 1.0)),
+                    math.radians(200), math.radians(340), max(2, int(r * 0.07)))
+    # Folded wing — one shallow groove arcing across the body.
+    pygame.draw.arc(surf, ai._GLYPH_SH,
+                    (bcx - int(br * 0.5), bcy - int(br * 0.55),
+                     int(br * 1.4), int(br * 1.2)),
+                    math.radians(-40), math.radians(70), max(2, int(r * 0.09)))
+    # Three separate Z's rising up-right, large → small. Each is drawn WIDER than
+    # tall so its horizontal top/bottom bars dominate (reads as a letter Z), and
+    # they're spaced with clear vertical gaps so the trio never fuses into one
+    # diagonal lightning streak. The big anchor Z alone already says "sleep".
+    zs = [(cx + r * 0.20, cy - r * 0.06, r * 0.40, r * 0.28),
+          (cx + r * 0.46, cy - r * 0.58, r * 0.30, r * 0.21),
+          (cx + r * 0.66, cy - r * 1.02, r * 0.22, r * 0.16)]
+    for zx, zy, zhw, zvh in zs:
+        zw = max(3, int(zvh * 0.72))
+        tl = (int(zx - zhw), int(zy - zvh))
+        tr = (int(zx + zhw), int(zy - zvh))
+        bl = (int(zx - zhw), int(zy + zvh))
+        br = (int(zx + zhw), int(zy + zvh))
+        pygame.draw.lines(surf, col, False, [tl, tr, bl, br], zw)
+        for pt in (tl, tr, bl, br):     # round the joints so it reads soft/sleepy
+            pygame.draw.circle(surf, col, pt, max(1, zw // 2))
 
 
 # ── 8. lucky_sevens — horseshoe over a triple of matched luck-pips ──────────
