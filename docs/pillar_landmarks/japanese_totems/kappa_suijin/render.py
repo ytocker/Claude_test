@@ -90,6 +90,18 @@ def _kappa_green_shadow(palette):
     return _mix(palette['stone_dark'], (38, 78, 50), 0.80)
 
 
+def _greenify_night(c, palette):
+    # The night biome retint desaturates the jade toward olive-GREY — its G-B
+    # collapses to ~11, so at night the body reads neutral and stops earning its
+    # cool-green slot beside the red totems. Lift green + sink blue/red to hold a
+    # true amphibian moss (G-B >= ~22) without going neon. Gated on _is_dark_sky
+    # so the textbook DAY triad passes through completely untouched.
+    if not _is_dark_sky(palette):
+        return c
+    r, g, b = c
+    return (max(0, r - 7), min(255, g + 9), max(0, b - 11))
+
+
 def _body_triad(palette):
     lit = _kappa_green_lit(palette)
     mid = _kappa_green(palette)
@@ -98,13 +110,17 @@ def _body_triad(palette):
     # shadow so the jade body doesn't sink into the sky as one black mass.
     lit = _cap_lit_for_dark_sky(lit, palette, cap=176)
     sh = _cap_dark_for_dark_sky(sh, palette, floor=44)
+    # Re-saturate the whole triad at night only — the retint alone leaves it grey.
+    lit = _greenify_night(lit, palette)
+    mid = _greenify_night(mid, palette)
+    sh = _greenify_night(sh, palette)
     return lit, mid, sh
 
 
 def _shell_green(palette):
     # A darker olive-jade for the turtle-shell scutes on the jaw — one stop below
     # the shadow so the hatch reads as carapace plating, not just noise.
-    return _shade(_kappa_green_shadow(palette), -14)
+    return _greenify_night(_shade(_kappa_green_shadow(palette), -14), palette)
 
 
 def _lum(c):
@@ -325,6 +341,16 @@ def _draw_head(surf, cx, y0, y1, half, palette, rng, *, crown, base):
     # a dark sky (a quiet cool edge by day).
     rim = _shade(lit, 46) if dark_sky else _shade(lit, 16)
     step = 1 if dark_sky else 2
+    # By DAY the lit LEFT rim is near-isoluminant with the mid/upper blue sky
+    # (dL ~ -4), so it washes out. Lay a thin dark keyline one pixel OUTSIDE the
+    # lit rim (into the eave gutter, clear of the 58 px collision band) so the
+    # green→sky boundary always holds — the shadow/right edge already carries its
+    # own dark AA keyline.
+    if not dark_sky:
+        key = _shade(sh, -26)
+        for x, y in left_pts:
+            if x - 1 >= 0:
+                surf.set_at((x - 1, y), key)
     for i in range(0, len(left_pts), step):
         x, y = left_pts[i]
         surf.set_at((x, y), rim)
@@ -355,8 +381,13 @@ def _draw_sara_crown(surf, cx, y_top, y_bot, half, palette):
     # so it never widens the 58 px collision band.
     pw = int(half * 2 * 1.20)
     x0 = cx - pw // 2
-    dip = 6                            # shallow center dip (< 12 px fill gate)
-    rim_top = y_top + 2                # raised side-lip height
+    # The center trough is the ONLY inward-dome silhouette tell, so push it as deep
+    # as the fill gate allows: rim_top+dip is the topmost solid pixel of the center
+    # column, so (rim_top - y_top) + dip must stay <= 12. Raise the lips (rim_top =
+    # y_top+1) and deepen the center to ~10 px, but clamp to the crown height so a
+    # short crown at h=70 never troughs BELOW its own base and opens a hole.
+    rim_top = y_top + 1                # raised side-lip height
+    dip = min(10, max(5, (y_bot - y_top) - 3))
     hpw = pw / 2.0
 
     # 1. Solid domed drum: fill every column from its concave top edge down to
@@ -536,6 +567,28 @@ def _gap_rim_clearance(surf, x0, x1, gap_y, up=True):
     return 200
 
 
+def _dish_dip_depth(pal, section_h=118, seed=7):
+    """Measure the inward-dome tell in the silhouette: the vertical drop from the
+    highest dish-lip pixel to the lowest center-trough pixel of the crown's top
+    edge. This is what makes the topper read INWARD, not a flat saucer."""
+    surf = pygame.Surface((CACHE_W, CACHE_H), pygame.SRCALPHA)
+    br = pygame.Rect(MARGIN, GROUND_Y - section_h, PIPE_W, section_h)
+    tr = pygame.Rect(MARGIN, 0, PIPE_W, 0)
+    candidate_kappa_suijin(surf, tr, br, pal, seed=seed)
+    y_top = GROUND_Y - section_h
+    tops = {}
+    for x in range(MARGIN - 12, MARGIN + PIPE_W + 12):
+        for y in range(y_top, y_top + 40):
+            if surf.get_at((x, y))[3] > 40:
+                tops[x] = y
+                break
+    if not tops:
+        return 0
+    lip = min(tops.values())          # highest solid pixel (the raised lips)
+    trough = max(v for v in tops.values() if v < y_top + 30)  # lowest crown top
+    return trough - lip
+
+
 def _dish_rim_run(pal, section_h=355, seed=7):
     """Prove the concave dish presents a SOLID rim: the max empty vertical run
     across the top-of-dish rows must stay under the 12 px fill-gate ceiling."""
@@ -626,6 +679,11 @@ def main():
     print(f"  DAY   run={rr_d}px  [{'OK' if rr_d <= 12 else 'FAIL'}]")
     print(f"  NIGHT run={rr_n}px  [{'OK' if rr_n <= 12 else 'FAIL'}]")
 
+    # Inward-dome tell — the concave trough depth in the 58px blackout silhouette.
+    dip_d = _dish_dip_depth(pal)
+    print(f"DISH CONCAVITY (silhouette lip->trough drop at 58px, target ~9-10)")
+    print(f"  DAY   dip={dip_d}px")
+
     hero_day, hd_h = _hero(pal, 7)
     hero_night, hn_h = _hero(pal_n, 7)
     close_day = _closeup(pal, 7)
@@ -688,16 +746,17 @@ def main():
     sheet.fill((22, 27, 24))
 
     sheet.blit(title.render(
-        "kappa_suijin — moss-jade water-imp totem (beak + sara dish)  ·  round_1",
+        "kappa_suijin — moss-jade water-imp totem (beak + sara dish)  ·  round_2",
         True, (232, 244, 232)), (pad, 12))
     sheet.blit(sub.render(
-        "red edges = PIPE_W (58px) collision band  ·  moss-JADE body  ·  "
-        "round wet eyes + keratin BEAK + turtle scutes  ·  concave sara water DISH  ·  "
+        "red edges = PIPE_W (58px) collision band  ·  moss-JADE body (night re-saturated)  ·  "
+        "round wet eyes + keratin BEAK + turtle scutes  ·  DEEPENED concave sara DISH  ·  "
         "symmetric ceiling flip", True, (168, 182, 172)), (pad, 40))
     sheet.blit(sub.render(
-        f"MAKE-OR-BREAK: dish rim SOLID — max empty run under dish "
-        f"day {rr_d}px / night {rr_n}px (<=12)  ·  water is a shallow inset on a "
-        f"SOLID skull dome, never a hole", True, (150, 210, 160)), (pad, 56))
+        f"FIXES: night G-B {mid_n[1]-mid_n[2]} (>=22)  ·  dish trough {dip_d}px (was ~5, inward now)  "
+        f"·  dark day keyline outside lit rim  ·  dish rim run day {rr_d}/night {rr_n}px (<=12), "
+        f"water is a shallow inset on a SOLID dome — never a hole",
+        True, (150, 210, 160)), (pad, 56))
 
     x = pad
     y = head_h
@@ -752,7 +811,7 @@ def main():
     sheet.blit(lab.render("1x @ 58px", True, (200, 200, 210)),
                (x, head_h + bo3.get_height() + 24 + bo1.get_height() + 2))
 
-    out = pathlib.Path(__file__).resolve().parent / "round_1.png"
+    out = pathlib.Path(__file__).resolve().parent / "round_2.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
