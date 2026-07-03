@@ -71,20 +71,13 @@ CATALOG: dict[str, dict] = {
     "skin_chameleon":    {"name": "CHAMELEON",    "cost": 680,  "kind": "skin", "group": "animal"},
     "skin_red_panda":    {"name": "RED PANDA",    "cost": 740,  "kind": "skin", "group": "animal"},
     "skin_sugar_glider": {"name": "SUGAR GLIDER", "cost": 820,  "kind": "skin", "group": "animal"},
-    "skin_axolotl":      {"name": "AXOLOTL",      "cost": 900,  "kind": "skin", "group": "animal"},
     "skin_mantis_shrimp": {"name": "MANTIS SHRIMP", "cost": 980, "kind": "skin", "group": "animal"},
-    "skin_griffin":      {"name": "GRIFFIN",      "cost": 1100, "kind": "skin", "group": "animal"},
     "skin_dragon":   {"name": "DRAGON",    "cost": 1200, "kind": "skin", "group": "animal"},
-    "skin_phoenix":  {"name": "PHOENIX",   "cost": 1500, "kind": "skin", "group": "animal"},
     # Legendary tier — spectacle showpieces, priced clearly above the rest.
-    "skin_thunderbird":  {"name": "THUNDERBIRD",  "cost": 1800, "kind": "skin", "group": "animal"},
-    "skin_cosmic_jelly": {"name": "COSMIC JELLY", "cost": 2200, "kind": "skin", "group": "animal"},
-    "skin_aurora_stag":  {"name": "AURORA STAG",  "cost": 2800, "kind": "skin", "group": "animal"},
     "skin_kitsune":      {"name": "KITSUNE",      "cost": 3500, "kind": "skin", "group": "animal"},
     # SECRET tier — masked as ??? in the store until bought (price still shown).
     # Ridiculously expensive, completely out-of-the-box NON-creature flyers.
     "skin_paper_plane":  {"name": "PAPER PLANE",   "cost": 5000,  "kind": "skin", "group": "animal", "secret": True},
-    "skin_ufo":          {"name": "UFO",           "cost": 7000,  "kind": "skin", "group": "animal", "secret": True},
     "skin_pinata_burro":  {"name": "BURRO PIÑATA",  "cost": 8000,  "kind": "skin", "group": "animal", "secret": True},
     "skin_pinata_cactus": {"name": "CACTUS PIÑATA", "cost": 8500,  "kind": "skin", "group": "animal", "secret": True},
     "skin_toaster":      {"name": "FLYING TOASTER", "cost": 9000, "kind": "skin", "group": "animal", "secret": True},
