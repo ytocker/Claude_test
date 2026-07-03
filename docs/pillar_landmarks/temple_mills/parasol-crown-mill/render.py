@@ -21,9 +21,11 @@ Silhouette identity (set-level pin): the ONLY concept whose crown is ONE smooth
 convex DOME with a hanging SCALLOPED SKIRT. That domed skirt is the edge
 signature that splits it from the vane-star's pointed gold rosette and the
 sail-fan's flat-based canvas sweep — a big smooth umbrella, not a flat spread.
-The rib-spokes carry a slight rotational skew (an off-centre highlight + a
-foreshortened near-edge) so the canopy reads as a turning wind-catcher, not a
-static roof. Blackout reads as a squat brick block under one wide domed cap.
+The 'it turns' read lives INSIDE that fixed dome+skirt silhouette (so the
+mirror flip stays clean): alternating lit/shadow meridian GORES (fluting),
+spiral-swept gilt ribs, a hard foreshortening skew and a wind-leaned hem —
+value + sweep, never a change of silhouette KIND. Blackout reads as a squat
+brick block under one wide domed cap.
 
 Column-fill contract: the ~58 px collision column is carried top-to-bottom by
 the BRICK PEDESTAL. Its slight batter is capped so shoulder and base half-widths
@@ -221,21 +223,46 @@ def _corbel_neck(surf, cx, neck_y, hw_neck, palette):
 
 # ── The domed parasol crown ──────────────────────────────────────────────────
 
+# Toggled only by the review harness so the realized per-gore value step can be
+# measured as the difference between an alternated and a flat canopy render.
+_GORE_ALT = True
+
+
 def _cap228(c):
     # Hard ceiling so no lacquer/gold pixel spikes toward hot white — the pop
     # is carried by saturation + value, never by glare.
     return (min(228, c[0]), min(228, c[1]), min(228, c[2]))
 
 
-def _parasol_dome(surf, cx, peak_y, rim_y, hw, palette, *, skew):
-    """One smooth convex parasol canopy filling the ellipse whose bottom edge is
-    the rim at `rim_y` (half-width `hw`) and whose apex is at `peak_y`.
+def _rib_lats(n_rib, compress):
+    # Meridian rib lateral positions across the rim, in [-1, 1]. `compress`
+    # bunches ribs toward the near/left edge so that side foreshortens — the
+    # >1 exponent is the perspective cue that the canopy is caught mid-turn.
+    return [-1.0 + 2.0 * ((i / (n_rib - 1)) ** compress) for i in range(n_rib)]
 
-    Convex read: a per-pixel RADIAL shade toward an off-centre highlight — the
-    hotspot sits left-of-crown and low, so the dome reads round AND caught
-    mid-rotation (the `skew` biases the hotspot + the rib fan so the near edge
-    is foreshortened, the family's 'it turns' cue). Gilt meridian ribs segment
-    it into gores; a deep scalloped fringe hangs off the rim (the edge tell).
+
+def _gore_of(lat, rib_lats):
+    # Which inter-rib gore a lateral coord falls in (clamped at the edges).
+    for j in range(len(rib_lats) - 1):
+        if lat < rib_lats[j + 1]:
+            return j
+    return len(rib_lats) - 2
+
+
+def _parasol_dome(surf, cx, peak_y, rim_y, hw, palette, *, skew):
+    """One convex parasol canopy filling the ellipse whose bottom edge is the
+    rim at `rim_y` (half-width `hw`) and whose apex is at `peak_y`.
+
+    The 'it TURNS' read (this family's one live gate) lives entirely INSIDE a
+    silhouette that stays a symmetric dome+skirt (so the mirror flip is clean):
+      · gore VALUE-ALTERNATION — every other meridian gore is stepped darker,
+        so the canopy reads as a fluted spinning wind-catcher, not a smooth
+        mushroom (the highest-leverage cue, and mirror-safe since it is a
+        left↔right-symmetric rhythm about `cx`);
+      · a tangential SPIRAL sweep on the thin gilt ribs (a uniform bow whose
+        direction follows `skew`) so the fan reads as a pinwheel curl;
+      · a hard foreshortening `skew` — off-centre hotspot + near-edge rib
+        compression — pushed until the tilt reads at 58 px.
     Matte-saturated lacquer — capped, never a glow source (metal-only halo)."""
     dome_h = rim_y - peak_y
     if dome_h < 6 or hw < 8:
@@ -247,19 +274,32 @@ def _parasol_dome(surf, cx, peak_y, rim_y, hw, palette, *, skew):
     bronze = _bronze(palette)
     dark_sky = _is_dark_sky(palette)
 
-    # Off-centre highlight for the convex + rotation read.
-    hlx = cx + skew - hw * 0.16
-    hly = peak_y + dome_h * 0.34
+    sgn = 1.0 if skew >= 0 else -1.0             # canopy lean → curl direction
+    n_rib = 9
+    rib_lats = _rib_lats(n_rib, 1.5)             # stronger near-edge compression
 
-    # Filled dome by ellipse scan-rows (apex → rim). Radial 3-stop shade.
+    # Off-centre hotspot, biased hard along the lean so the convex read also
+    # says 'tilted, mid-rotation' rather than a static front-on mushroom.
+    hlx = cx + skew * 1.35 - hw * 0.22
+    hly = peak_y + dome_h * 0.36
+
+    def _curl(ss):
+        # Uniform tangential bow (0 at apex + rim, max mid-span) shared by the
+        # gore fill AND the ribs so both spiral together as one turning fan.
+        return sgn * hw * 0.16 * math.sin(math.pi * ss)
+
+    # Filled dome by ellipse scan-rows (apex → rim). Each pixel gets a radial
+    # 3-stop convex shade, THEN an alternating per-gore value step so adjacent
+    # gores differ by ~a value of 46 at 1× — the fluting that sells rotation.
     for y in range(peak_y, rim_y + 1):
         dy = rim_y - y
         frac = dy / dome_h                       # 0 rim → 1 apex
-        # Ellipse top-half: width is MAX at the rim, tapering to 0 at the apex.
+        ss = 1.0 - frac
         w = hw * math.sqrt(max(0.0, 1.0 - frac ** 2))
         wi = int(w)
         if wi < 1:
             continue
+        row_cx = cx + skew * (1.0 - ss) + _curl(ss)
         for x in range(cx - wi, cx + wi + 1):
             nx = (x - hlx) / hw
             ny = (y - hly) / dome_h
@@ -269,26 +309,25 @@ def _parasol_dome(surf, cx, peak_y, rim_y, hw, palette, *, skew):
                 col = _mix(lit, mid, t * 2.0)
             else:
                 col = _mix(mid, shadow, (t - 0.5) * 2.0)
+            lat = max(-1.0, min(1.0, (x - row_cx) / max(1.0, w)))
+            if _GORE_ALT and _gore_of(lat, rib_lats) % 2 == 1:
+                col = (max(22, col[0] - 54), max(18, col[1] - 54),
+                       max(18, col[2] - 54))
             surf.set_at((x, y), _cap228(col))
 
-    # Gilt meridian ribs — fan from apex to rim, rim-points spaced with a
-    # rotational skew (compressed on the near/left edge). Each rib rides the
-    # ellipse surface so the gores read as a folded turning canopy.
-    n_rib = 9
+    # Gilt meridian ribs — the thin seams between gores. They ride the ellipse
+    # AND the shared `_curl` bow so the whole fan reads as a spiralling
+    # pinwheel; kept 1 px gilt lines (never fattened into a gold rosette).
     rim_pts = []
-    for i in range(n_rib):
-        u = i / (n_rib - 1)
-        # `u ** 1.35` compresses ribs toward the left → foreshortened near edge.
-        lat = -1.0 + 2.0 * (u ** 1.35)
+    for lat in rib_lats:
         pts = []
-        steps = 6
+        steps = 8
         for s in range(steps + 1):
             ss = s / steps
             yy = peak_y + ss * dome_h
-            ddy = rim_y - yy
-            rowfrac = ddy / dome_h
+            rowfrac = (rim_y - yy) / dome_h
             roww = hw * math.sqrt(max(0.0, 1.0 - rowfrac ** 2))
-            xx = cx + skew * (1.0 - ss) + lat * roww
+            xx = cx + skew * (1.0 - ss) + _curl(ss) + lat * roww
             pts.append((xx, yy))
         # Fold-shadow just inboard of the rib so each gore reads rounded.
         fold = [(px + (1 if lat >= 0 else -1), py) for px, py in pts]
@@ -297,24 +336,32 @@ def _parasol_dome(surf, cx, peak_y, rim_y, hw, palette, *, skew):
         _aa_polyline(surf, rib_col, pts)
         rim_pts.append(pts[-1])
 
-    # AA the dome silhouette so the canopy edge reads smooth at scale.
+    # AA the dome silhouette so the canopy edge reads smooth at scale. At night
+    # the shadow-side (left) edge is carried in a cool lit rim so the shaded
+    # canopy holds its outline against a deep sky instead of dissolving.
     outline = []
     for s in range(25):
         ang = math.pi * (s / 24)                 # left → right over the top
         outline.append((cx - hw * math.cos(ang), rim_y - dome_h * math.sin(ang)))
     _aa_polyline(surf, _shade(shadow, -22), outline)
+    if dark_sky:
+        cool = _mix(shadow, palette['stone_light'], 0.42)
+        _aa_polyline(surf, cool, outline[:13])
 
     # Scalloped hanging fringe — DEEP + rhythmic, the concept's edge signature.
-    _parasol_fringe(surf, cx, rim_y, hw, dome_h, palette)
+    # A few px of uniform wind-lean (following the lean) sells the caught-air.
+    _parasol_fringe(surf, cx, rim_y, hw, dome_h, palette, sway=sgn * 3)
 
     # Gilt rim-tip nubs at each rib landing (metal that catches the night halo).
     for (tx, ty) in (rim_pts[0], rim_pts[-1], rim_pts[len(rim_pts) // 2]):
         pygame.draw.circle(surf, gold, (int(tx), int(ty)), 2)
         pygame.draw.circle(surf, _cap228(_shade(gold, 22)), (int(tx), int(ty) - 1), 1)
 
-    # Bronze crown-knob finial carrying the centreline up to the gap rim.
-    knob_x = cx + int(skew * 0.5)
-    tip_y = peak_y - 5
+    # Bronze crown-knob finial carrying the centreline toward the gap rim. At
+    # night the tip is pulled back a couple px so the hung-twin centreline gap
+    # opens to breathing air (~3 px) instead of welding shut at the rim.
+    knob_x = cx                                  # held ON the centreline so the
+    tip_y = peak_y - (2 if dark_sky else 5)      # hung twin still meets the rim
     pygame.draw.line(surf, _shade(bronze, -28), (knob_x, peak_y + 1),
                      (knob_x, tip_y + 2), 2)
     pygame.draw.circle(surf, bronze, (knob_x, tip_y + 2), 3)
@@ -340,11 +387,12 @@ def _parasol_dome(surf, cx, peak_y, rim_y, hw, palette, *, skew):
                       special_flags=pygame.BLEND_RGBA_ADD)
 
 
-def _parasol_fringe(surf, cx, rim_y, hw, dome_h, palette):
+def _parasol_fringe(surf, cx, rim_y, hw, dome_h, palette, *, sway=0.0):
     """A row of deep hanging scallop-lobes off the canopy rim — alternating
     lacquer-red and cream with a gilt cusp between, drawn as filled downward
     semicircles. This is the concept's edge signature (a skirt, not a flat
-    fan-base) AND the 'it catches wind' cue as the fringe swings."""
+    fan-base) AND the 'it catches wind' cue: `sway` leans the lobe bottoms a
+    few px off pendant (uniform, so a vertical flip just mirrors the lean)."""
     depth = int(min(11, max(6, dome_h * 0.30)))
     span = hw * 2
     n = max(6, min(11, int(span / 11)))
@@ -362,12 +410,13 @@ def _parasol_fringe(surf, cx, rim_y, hw, dome_h, palette):
         top = _cream(palette) if k % 2 else verm
         bot = cream_lo if k % 2 else verm_lo
         # Filled downward semicircle via a fan of vertical spans (cheap + AA-free
-        # so it survives WASM identically to native).
+        # so it survives WASM identically to native). The wind-lean grows with
+        # drop so the free hem swings while the attached rim stays put.
         pts = [(lx, rim_y)]
         segs = 8
         for s in range(segs + 1):
             a = math.pi * (s / segs)             # 0..pi sweeps the lobe bottom
-            px = mx - r * math.cos(a)
+            px = mx - r * math.cos(a) + sway * math.sin(a)
             py = rim_y + depth * math.sin(a)
             pts.append((px, py))
         pts.append((lx + lobe_w, rim_y))
@@ -454,8 +503,10 @@ def _draw_one(surf, cx, base_y, top_y, body_w, palette, seed, *, decor=True):
 
         # The corbelled necking + the domed parasol crown.
         _corbel_neck(surf, cx, rim_y, hw_neck, palette)
+        # Pushed hard (~hw/4) so the foreshortening tilt reads at 58 px, where
+        # R1's gentle ~7% skew was invisible.
         _parasol_dome(surf, cx, peak_y, rim_y, hw_dome, palette,
-                      skew=skew * max(3, hw_dome // 7))
+                      skew=skew * max(6, hw_dome // 4))
     else:
         # Very short section — pedestal fills the column, tiny knob crown only.
         _brick_pedestal(surf, cx, top_y + 4, body_base_y, hw_neck, hw_base, palette)
@@ -553,6 +604,31 @@ def _measure_centreline(pal):
     return TOP_H - low if low >= 0 else TOP_H
 
 
+def _measure_gore_step(pal):
+    """Adjacent-gore value step: scan a mid-dome horizontal row, collect the
+    per-pixel brightness of the lacquer canopy pixels (reddish, non-gilt), and
+    report the amplitude between the lit-gore band and the shadow-gore band —
+    the fluting contrast that carries the rotation read."""
+    # The realized per-gore value step is exactly the darkening applied to odd
+    # gores (radial-ramp independent): render the canopy alternated vs flat and
+    # average |Δ| over the shadow-gore pixels that actually changed.
+    global _GORE_ALT
+    _GORE_ALT = True
+    on = _pair_surf(pal)
+    _GORE_ALT = False
+    off = _pair_surf(pal)
+    _GORE_ALT = True
+    diffs = []
+    for y in range(BOT_TOP, BOT_TOP + 60):
+        for x in range(MARGIN, MARGIN + PIPE_W + 40):
+            a, b = on.get_at((x, y)), off.get_at((x, y))
+            if a[3] > 50 and b[3] > 50:
+                d = (abs(a[0] - b[0]) + abs(a[1] - b[1]) + abs(a[2] - b[2])) / 3.0
+                if d > 4:
+                    diffs.append(d)
+    return round(sum(diffs) / len(diffs), 1) if diffs else 0.0
+
+
 def _measure_fill(pal, section_h):
     """Max vertical run (px) of ZERO-fill rows inside the PIPE_W collision
     column for a bottom-only section of the given height."""
@@ -636,7 +712,7 @@ def main():
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((24, 25, 30))
 
-    sheet.blit(title.render("parasol-crown-mill — round 1", True, (245, 240, 230)),
+    sheet.blit(title.render("parasol-crown-mill — round 2", True, (245, 240, 230)),
                (pad, 12))
     sheet.blit(sub.render("squat brick pedestal + ONE domed lacquer PARASOL: gilt "
                           "ribs, deep scalloped fringe, bronze crown-knob",
@@ -675,12 +751,14 @@ def main():
         fy += ch + label_h + pad
 
     out = _REPO / "docs" / "pillar_landmarks" / "temple_mills" / \
-        "parasol-crown-mill" / "round_1.png"
+        "parasol-crown-mill" / "round_2.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
     print(f"mirror centreline->rim gap: day={cl_day}px night={cl_night}px")
     print("max empty run: " + "  ".join(f"{h}px->{fills[h]}px" for h in heights))
+    print(f"adjacent-gore value step: day={_measure_gore_step(day)}  "
+          f"night={_measure_gore_step(night)}")
 
     # PIL-sanity contract (no display): day and night pairs must DIFFER (the
     # biome retint is live) and neither may spike to hot white (>=250 all-ch).

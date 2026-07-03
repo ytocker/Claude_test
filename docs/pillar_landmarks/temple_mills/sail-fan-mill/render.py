@@ -219,38 +219,51 @@ def _sail_fan(surf, cx, hub_y, top_y, rx, ry, n_blades, palette):
     verm = _vermilion(palette)
     dark_sky = _is_dark_sky(palette)
     r_in = max(3, int(min(rx, ry) * 0.22))
-
-    # Shaded backing half-disc so the thin gaps between leaves never flash sky
-    # over the gutter — the fan reads as a solid sweep with slotted ribs.
-    backing = _shade(c_shadow, -14)
-    back_pts = [(cx + rx * math.cos(a), hub_y - ry * math.sin(a))
-                for a in [math.pi * k / 22 for k in range(23)]]
-    back_pts.append((cx + rx, hub_y))
-    back_pts.append((cx - rx, hub_y))
-    pygame.draw.polygon(surf, backing, [(int(x), int(y)) for x, y in back_pts])
+    # Bilateral fan → LIGHTING is the sole rotation cue, so the leech profile
+    # must itself scallop (not a smooth dome): each leaf bulges out at S_MID and
+    # is notched in at the shared boundary S_NOTCH, so the OUTLINE registers a
+    # ripple in blackout, distinct from the parasol's smooth skirt.
+    S_MID, S_NOTCH = 1.14, 0.88
 
     amin, amax = 0.0, math.pi
     edges = [amin + (amax - amin) * k / n_blades for k in range(n_blades + 1)]
 
+    # Shaded backing that follows the SCALLOPED profile (bulge at mid-blade, dip
+    # at each boundary) so the gaps between leaves never flash sky AND the fan's
+    # silhouette carries the ripple — not a smooth convex arc.
+    backing = _shade(c_shadow, -14)
+    back_pts = []
+    for k in range(n_blades):
+        a0, a1 = edges[k], edges[k + 1]
+        back_pts.append(_ell(cx, hub_y, rx, ry, a0, S_NOTCH))
+        back_pts.append(_ell(cx, hub_y, rx, ry, 0.5 * (a0 + a1), S_MID))
+    back_pts.append(_ell(cx, hub_y, rx, ry, amax, S_NOTCH))
+    back_pts.append((cx + rx, hub_y))
+    back_pts.append((cx - rx, hub_y))
+    pygame.draw.polygon(surf, backing, [(int(x), int(y)) for x, y in back_pts])
+
     for k in range(n_blades):
         a0, a1 = edges[k], edges[k + 1]
         am = 0.5 * (a0 + a1)
-        # Across-sweep facing: low sun on the LEFT rim → left leaves lit, right
-        # leaves shadowed, so the fan reads as caught mid-rotation.
+        # Across-sweep facing: low sun on the LEFT rim → left flank leading-lit,
+        # right flank trailing-shadowed. Widened to a hard L→R directional ramp
+        # (near-c_lit left ↔ below-shadow right) so the array reads mid-rotation;
+        # the per-leaf fold is kept SUBORDINATE to this so it can't flatten into
+        # a symmetric sunburst.
         face = 0.5 - 0.5 * math.cos(am)
-        base_col = _mix(_mix(c_shadow, c_mid, 0.58), c_lit, 0.12 + face * 0.72)
+        base_col = _mix(_shade(c_shadow, -22), c_lit, face)
 
-        o0 = _ell(cx, hub_y, rx, ry, a0)
-        om = _ell(cx, hub_y, rx, ry, am, 1.06)       # convex scallop bump
-        o1 = _ell(cx, hub_y, rx, ry, a1)
+        o0 = _ell(cx, hub_y, rx, ry, a0, S_NOTCH)    # boundary notch (in)
+        om = _ell(cx, hub_y, rx, ry, am, S_MID)      # convex scallop bump (out)
+        o1 = _ell(cx, hub_y, rx, ry, a1, S_NOTCH)
         i0 = (cx + r_in * math.cos(a0), hub_y - r_in * math.sin(a0))
         i1 = (cx + r_in * math.cos(a1), hub_y - r_in * math.sin(a1))
         leaf = [i0, o0, om, o1, i1]
         pygame.draw.polygon(surf, base_col, [(int(x), int(y)) for x, y in leaf])
 
-        # A trailing-half shadow triangle so each leaf has an internal fold —
-        # canvas volume, not a flat wedge.
-        fold = _mix(base_col, c_shadow, 0.5)
+        # A trailing-half fold, kept shallow so the directional ramp dominates
+        # the per-blade alternation — canvas volume without a symmetric read.
+        fold = _mix(base_col, c_shadow, 0.28)
         pygame.draw.polygon(surf, fold, [(int(cx), int(hub_y)),
                                          (int(om[0]), int(om[1])),
                                          (int(o1[0]), int(o1[1]))])
@@ -280,15 +293,18 @@ def _sail_fan(surf, cx, hub_y, top_y, rx, ry, n_blades, palette):
                      (int(cx - rx), int(hub_y - 1)), 1)
 
     # Night halo behind the bronze hub (gated on dark sky — day never triggers).
-    # Kept warm/amber-biased with low additive alphas so the core reads as a
-    # gilt glow, never clipping to a hot white blowout over the lit canvas.
+    # BLEND_RGBA_ADD adds the source RGB in full (the alpha does NOT scale the
+    # colour under additive), so the per-ring COLOUR — not alpha — is the
+    # brightness knob: each ring's amber increment is kept small enough that the
+    # brightest lit canvas + glow stays clear of 255. The hot core sits under the
+    # opaque bronze hub (drawn after), so only the dim outer rings touch canvas.
     if dark_sky:
-        glow_r = 13
+        glow_r = 12
         sz = glow_r * 2 + 2
         glow = pygame.Surface((sz, sz), pygame.SRCALPHA)
-        gcol = _mix(_bronze(palette), (232, 176, 92), 0.7)
-        for ring, alpha in ((1.0, 34), (0.62, 60), (0.34, 92)):
-            pygame.draw.circle(glow, (*gcol, alpha), (sz // 2, sz // 2),
+        for ring, col in ((1.0, (12, 8, 4)), (0.60, (20, 14, 7)),
+                          (0.32, (46, 34, 16))):
+            pygame.draw.circle(glow, (*col, 255), (sz // 2, sz // 2),
                                max(1, int(glow_r * ring)))
         surf.blit(glow, (cx - sz // 2, hub_y - sz // 2),
                   special_flags=pygame.BLEND_RGBA_ADD)
@@ -363,7 +379,10 @@ def _draw_one(surf, cx, base_y, top_y, body_w, palette, seed, *, decor=True):
         _lit_niche(surf, dcx, body_base_y - door_h, door_w, door_h, palette)
 
     # ── The 180° scalloped canvas fan (crown/gutter overhang, centred on cx) ──
-    rx = min(int(hw_base + 32), cx - 4, surf.get_width() - cx - 4)
+    # The leech bulges to ~1.14×rx; budget for it so the scallop tips never clip
+    # the surface edge (which would read as a hard-cut dome, not canvas).
+    rx = min(int(hw_base + 30), int((cx - 3) / 1.14),
+             int((surf.get_width() - cx - 3) / 1.14))
     ry = crown_h - 7
     n_blades = max(5, min(9, int(rx / 10)))
     _sail_fan(surf, cx, shoulder_y, top_y, rx, ry, n_blades, palette)
@@ -475,6 +494,104 @@ def _measure_fan_tip(pal):
     return TOP_H - low if low >= 0 else TOP_H
 
 
+def _lum(c):
+    return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
+
+
+def _measure_sweep(pal):
+    """Rotation cue: mean canvas luminance of the LEFT (leading-lit) leaf vs the
+    RIGHT (trailing-shadow) leaf on the bottom fan. A wide L>R sweep is the sole
+    'reads-as-turning' signal for a bilateral fan. Returns (left, right, sweep)."""
+    surf = _pair_surf(pal)
+    cx = MARGIN + PIPE_W // 2
+    base_y, top_y = GROUND_Y, BOT_TOP
+    total_h = base_y - top_y
+    crown_h = max(12, min(int(total_h * 0.22), 42))
+    hub_y = top_y + crown_h
+    hw_base = max(PIPE_W // 2 + 4, int(PIPE_W * 0.82))
+    rx = min(int(hw_base + 30), int((cx - 3) / 1.14),
+             int((surf.get_width() - cx - 3) / 1.14))
+    ry = crown_h - 7
+    n_blades = max(5, min(9, int(rx / 10)))
+    edges = [math.pi * k / n_blades for k in range(n_blades + 1)]
+
+    def sample(a0, a1):
+        # Sample the leading (a0-side) half of the leaf, off the rib spine and
+        # the trailing fold, so the reading reflects the directional face-value,
+        # not the per-leaf shading detail.
+        am = a0 + 0.32 * (a1 - a0)
+        vals = []
+        for s in (0.50, 0.66, 0.82):
+            x = int(cx + rx * s * math.cos(am))
+            y = int(hub_y - ry * s * math.sin(am))
+            for dx in (-1, 0, 1):
+                c = surf.get_at((x + dx, y))
+                if c[3] > 50:
+                    vals.append(_lum(c))
+        return sum(vals) / max(1, len(vals))
+
+    left = sample(edges[-2], edges[-1])              # near pi  → lit flank
+    right = sample(edges[0], edges[1])                # near 0   → shadow flank
+    return round(left), round(right), round(left - right)
+
+
+def _measure_scallop(pal):
+    """Silhouette ripple: on the bottom fan, trace the topmost opaque pixel per
+    column (the leech outline) and count local peaks (bumps). A smooth dome gives
+    ~1 peak; a scalloped canvas gives several. Excludes the central finial mast.
+    Returns (bump_count, peak_to_valley_px)."""
+    surf = _pair_surf(pal)
+    cx = MARGIN + PIPE_W // 2
+    base_y, top_y = GROUND_Y, BOT_TOP
+    crown_h = max(12, min(int((base_y - top_y) * 0.22), 42))
+    hub_y = top_y + crown_h
+    hw_base = max(PIPE_W // 2 + 4, int(PIPE_W * 0.82))
+    rx = min(int(hw_base + 30), int((cx - 3) / 1.14),
+             int((surf.get_width() - cx - 3) / 1.14))
+    prof = {}
+    for x in range(cx - rx, cx + rx + 1):
+        if abs(x - cx) < 6:                  # skip the central finial mast
+            continue
+        for y in range(max(0, hub_y - crown_h - 8), hub_y + 1):
+            if surf.get_at((x, y))[3] > 50:
+                prof[x] = y
+                break
+    xs = sorted(prof)
+    if len(xs) < 5:
+        return 0, 0
+    ys = [prof[x] for x in xs]
+
+    def _count_bumps(seq):
+        # Plateau-tolerant peak count: a bump is a run that is a strict local
+        # minimum in y (highest outline) vs the last differing value on each
+        # side, with >=2px amplitude — so scallop crests register, noise doesn't.
+        peaks, i, n = 0, 0, len(seq)
+        while i < n:
+            j = i
+            while j + 1 < n and seq[j + 1] == seq[i]:
+                j += 1                                   # plateau [i..j]
+            left = seq[i - 1] if i > 0 else 10 ** 9
+            right = seq[j + 1] if j + 1 < n else 10 ** 9
+            if seq[i] + 2 <= left and seq[i] + 2 <= right:
+                peaks += 1
+            i = j + 1
+        return peaks
+
+    top_bumps = _count_bumps(ys)
+
+    # Side ripple: leftmost opaque x per row down the left flank of the crown —
+    # the scalloped leech pushes the silhouette in/out even where it is near
+    # horizontal, so the SIDE outline ripples too (not a smooth skirt).
+    side = []
+    for y in range(max(0, hub_y - crown_h + 2), hub_y - 1):
+        for x in range(cx - rx, cx):
+            if surf.get_at((x, y))[3] > 50:
+                side.append(-x)                          # negate: outward = peak
+                break
+    side_bumps = _count_bumps(side) if len(side) >= 5 else 0
+    return top_bumps + side_bumps, max(ys) - min(ys)
+
+
 def _measure_fill(pal, section_h):
     """Max vertical run (px) of ZERO-fill rows inside the PIPE_W collision
     column for a bottom-only section of the given height."""
@@ -560,7 +677,7 @@ def main():
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((24, 25, 30))
 
-    sheet.blit(title.render("sail-fan-mill — round 1", True, (245, 240, 230)),
+    sheet.blit(title.render("sail-fan-mill — round 2", True, (245, 240, 230)),
                (pad, 12))
     sheet.blit(sub.render("brick cone + 180 scalloped CANVAS FAN sweep: flat "
                           "base rail, ribbed sail-leaves, vermilion leech band",
@@ -598,13 +715,20 @@ def main():
         sheet.blit(lab, (fx, fy + ch + 3))
         fy += ch + label_h + pad
 
-    out = _REPO / "docs" / "pillar_landmarks" / "temple_mills" / "sail-fan-mill" / "round_1.png"
+    out = _REPO / "docs" / "pillar_landmarks" / "temple_mills" / "sail-fan-mill" / "round_2.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
     print(f"mirror centreline->rim gap: day={cl_day}px night={cl_night}px")
     print(f"mirror fan-tip clearance: day={ft_day}px night={ft_night}px")
     print("max empty run: " + "  ".join(f"{h}px->{fills[h]}px" for h in heights))
+    sw_day = _measure_sweep(day)
+    sw_night = _measure_sweep(night)
+    print(f"L->R rotation sweep: day left={sw_day[0]} right={sw_day[1]} "
+          f"sweep={sw_day[2]}  |  night left={sw_night[0]} right={sw_night[1]} "
+          f"sweep={sw_night[2]}")
+    sc_day = _measure_scallop(day)
+    print(f"scallop-in-silhouette: bumps={sc_day[0]} peak-to-valley={sc_day[1]}px")
 
     # PIL-sanity (no display): assert day != night on the pair surface, and no
     # pixel spikes to hot white on either palette.
