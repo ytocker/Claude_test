@@ -53,27 +53,29 @@ def _loop_arrow(surf, cx, cy, rad, col, w):
     dx, dy = ex - px, ey - py
     dl = math.hypot(dx, dy) or 1.0
     dx, dy = dx / dl, dy / dl
-    hl = rad * 0.55
-    # two barbs swept back from the tip
+    # Fat barbs — the arrowhead is the ONLY "repeat" cue, so it must survive 44px.
+    hl = rad * 0.72
+    bw = w + max(1, w // 2)
     for sgn in (-1, 1):
-        bx = ex - dx * hl + sgn * (-dy) * hl * 0.7
-        by = ey - dy * hl + sgn * dx * hl * 0.7
-        pygame.draw.line(surf, col, (int(ex), int(ey)), (int(bx), int(by)), w)
+        bx = ex - dx * hl + sgn * (-dy) * hl * 0.72
+        by = ey - dy * hl + sgn * dx * hl * 0.72
+        pygame.draw.line(surf, col, (int(ex), int(ey)), (int(bx), int(by)), bw)
 
 
 def _pillar(surf, cx, cy, r, col, scale=1.0):
-    # A single sandstone pillar (flared capital + shaft + base) — the temple-gate
-    # read, scaled to sit inside the groundhog loop.
-    shaft_w = max(4, int(r * 0.30 * scale))
+    # A single sandstone pillar — a CHUNKY rectilinear block (fat shaft + bold
+    # flared capital + base slabs). Kept as square-cornered and rectangular as
+    # possible so it can never read as the round clock inside same_time's loop —
+    # pillar-vs-clock is the only thing separating those two glyphs.
+    shaft_w = max(6, int(r * 0.42 * scale))
     cap_w = int(shaft_w * 1.7)
-    h = int(r * 1.12 * scale)
+    h = int(r * 1.10 * scale)
     top = cy - h // 2
-    cap_h = max(3, int(r * 0.15 * scale))
+    cap_h = max(4, int(r * 0.20 * scale))
     pygame.draw.rect(surf, col, (cx - shaft_w // 2, top + cap_h,
                                  shaft_w, h - cap_h * 2))
     for yy in (top, cy + h // 2 - cap_h):            # capital + base slabs
-        pygame.draw.rect(surf, col, (cx - cap_w // 2, yy, cap_w, cap_h),
-                         border_radius=max(1, int(r * 0.05)))
+        pygame.draw.rect(surf, col, (cx - cap_w // 2, yy, cap_w, cap_h))
 
 
 def _clock_face(surf, cx, cy, rr, col, w):
@@ -91,28 +93,31 @@ def _clock_face(surf, cx, cy, rr, col, w):
 
 
 def _glyph_ninety_nine(surf, cx, cy, r, col):
-    # A circular fill-gauge run almost the whole way round, with ONE final segment
-    # bitten out of the very top and a bold down-arrow plunging into that gap —
-    # "one notch short, and it went the wrong way." No numerals; the missing top
-    # wedge IS the 99.
+    # A circular fill-gauge nearly complete, with one ~50° CHUNK missing at the
+    # upper-right (1–2 o'clock) and a compact down-chevron tucked in that gap at
+    # the rim — "almost full, one chunk left, and dropping." The wedge sits off
+    # the vertical axis and nothing pierces the hub, so it cannot read as a
+    # power-button. No numerals; the missing chunk IS the 99.
     rad = int(r * 0.66)
-    w = max(4, int(r * 0.26))
+    w = max(5, int(r * 0.28))
     rect = pygame.Rect(cx - rad, cy - rad, rad * 2, rad * 2)
-    # Fill arc from just right of top, clockwise all the way to just left of top,
-    # leaving a clean wedge missing at 12 o'clock. In math/CCW+flipped-y terms
-    # that is a sweep from ~100° up and around to ~80°.
-    pygame.draw.arc(surf, col, rect, math.radians(100), math.radians(80 + 360), w)
-    # Bold down-arrow dropped into the top gap — the final notch that fell short.
-    ax = cx
-    a_top = cy - int(r * 0.46)
-    a_tip = cy + int(r * 0.10)
-    pygame.draw.line(surf, col, (ax, a_top), (ax, a_tip), max(4, int(r * 0.18)))
-    head = int(r * 0.24)
-    pygame.draw.polygon(surf, col, [
-        (ax, a_tip + int(r * 0.14)),
-        (ax - head, a_tip - head + int(r * 0.14)),
-        (ax + head, a_tip - head + int(r * 0.14)),
-    ])
+    # Fill arc sweeping from just past the gap (math ~35°) CCW nearly all the way
+    # round to just before it (math ~85°), leaving a wide ~50° wedge open at the
+    # 1–2 o'clock rim.
+    pygame.draw.arc(surf, col, rect, math.radians(35), math.radians(85 + 360), w)
+    # Compact down-chevron seated INSIDE the gap on the rim — the notch that fell
+    # short. Centred on the gap's bearing (~60° up-right); it never crosses the
+    # vertical axis or reaches the hub, so no power-button read.
+    ga = math.radians(60)
+    gx = cx + int(math.cos(ga) * rad)
+    gy = cy - int(math.sin(ga) * rad)
+    cw = max(4, int(r * 0.16))
+    ch = int(r * 0.24)
+    pygame.draw.lines(surf, col, False, [
+        (gx - ch, gy - int(ch * 0.45)),
+        (gx, gy + int(ch * 0.75)),
+        (gx + ch, gy - int(ch * 0.45)),
+    ], cw)
 
 
 def _glyph_groundhog_day(surf, cx, cy, r, col):
@@ -124,34 +129,36 @@ def _glyph_groundhog_day(surf, cx, cy, r, col):
 
 
 def _glyph_stat_impossible(surf, cx, cy, r, col):
-    # A bell-curve silhouette on a baseline with a lone outlier spike stranded far
-    # out on the right tail — the one-in-a-million all-prime run. The isolated
-    # dot-topped spike, detached from the hump, is the whole read.
-    base_y = cy + int(r * 0.62)
-    left = cx - int(r * 0.92)
-    right = cx + int(r * 0.30)
-    # baseline axis
-    pygame.draw.line(surf, col, (left, base_y),
-                     (cx + int(r * 0.98), base_y), max(3, int(r * 0.11)))
-    # Gaussian hump as a filled polygon rising off the baseline.
-    peak = cx - int(r * 0.31)
+    # A SYMMETRIC bell curve sitting on a bold baseline, with a lone outlier spike
+    # stranded off to the right — clearly TALLER than the hump peak and detached,
+    # capped by a bold dot ("off the chart"). The one-in-a-million all-prime run;
+    # the isolated over-tall spike is the whole read.
+    base_y = cy + int(r * 0.66)
+    peak = cx - int(r * 0.24)                 # bell centred left-of-middle
+    half = int(r * 0.60)                      # symmetric half-width
+    left = peak - half
+    right = peak + half
+    # baseline axis, run out under the outlier so the spike reads as "on the chart"
+    pygame.draw.line(surf, col, (left - int(r * 0.06), base_y),
+                     (cx + int(r * 0.98), base_y), max(3, int(r * 0.12)))
+    # Gaussian hump as a filled polygon, symmetric about `peak`.
+    hump_h = r * 0.78
     pts = [(left, base_y)]
     span = right - left
-    for i in range(1, 15):
-        t = i / 15
+    for i in range(1, 21):
+        t = i / 21
         x = left + int(t * span)
-        # bell centred on `peak`, normalised width
-        u = (x - peak) / (r * 0.42)
-        y = base_y - int(math.exp(-u * u) * r * 0.92)
+        u = (x - peak) / (r * 0.34)
+        y = base_y - int(math.exp(-u * u) * hump_h)
         pts.append((x, y))
     pts.append((right, base_y))
     pygame.draw.polygon(surf, col, pts)
-    # Lone outlier: a thin spike far out on the tail, capped with a bold dot,
-    # clearly separated from the hump — the improbable event.
+    # Lone outlier: a spike far to the right, taller than the hump and clearly
+    # detached, capped with a bold dot — the improbable event off the chart.
     ox = cx + int(r * 0.74)
-    pygame.draw.line(surf, col, (ox, base_y),
-                     (ox, base_y - int(r * 0.56)), max(3, int(r * 0.12)))
-    pygame.draw.circle(surf, col, (ox, base_y - int(r * 0.62)), max(4, int(r * 0.16)))
+    spike_top = base_y - int(hump_h + r * 0.36)
+    pygame.draw.line(surf, col, (ox, base_y), (ox, spike_top), max(4, int(r * 0.13)))
+    pygame.draw.circle(surf, col, (ox, spike_top - int(r * 0.06)), max(5, int(r * 0.17)))
 
 
 def _glyph_three_am(surf, cx, cy, r, col):
@@ -184,7 +191,9 @@ def _glyph_same_time_tomorrow(surf, cx, cy, r, col):
     # A repeat/loop arrow wound around a round CLOCK — déjà-vu of the exact same
     # clock-minute on two days. Same loop as groundhog, but here it rings a clock
     # dial (not a pillar), and there is no moon (unlike three_am).
-    rr = int(r * 0.46)
+    # Shrunk dial pushed well inside a wide-radius loop so the two rings never
+    # fuse into a double-ring blob (the biggest confusion risk vs groundhog).
+    rr = int(r * 0.36)
     w = max(3, int(r * 0.10))
     _clock_face(surf, cx, cy, rr, col, w)
     hw = max(3, int(r * 0.10))
@@ -193,101 +202,101 @@ def _glyph_same_time_tomorrow(surf, cx, cy, r, col):
                      (cx - int(rr * 0.56), cy - int(rr * 0.44)), hw)
     pygame.draw.line(surf, col, (cx, cy),
                      (cx + int(rr * 0.30), cy - int(rr * 0.68)), hw)
-    _loop_arrow(surf, cx, cy, int(r * 0.82), col, max(4, int(r * 0.15)))
+    _loop_arrow(surf, cx, cy, int(r * 0.90), col, max(4, int(r * 0.15)))
 
 
 def _glyph_snake_bit(surf, cx, cy, r, col):
-    # A coiled snake reared up on an S-body with a flicking forked tongue — the
-    # genie's viper that keeps sinking its fangs in. Built as a chain of discs
-    # along an S-curve for a smooth round-capped tube, so it reads unmistakably as
-    # a SNAKE (never a bottle or skull).
-    tube = max(4, int(r * 0.11))
-    n = 22
-    top_y = cy - int(r * 0.58)
-    bot_y = cy + int(r * 0.82)
-    amp = r * 0.52
+    # A reared COBRA about to strike: a chunky coil mass at the bottom, a short
+    # thick S-neck rising out of it, and a clearly enlarged triangular WEDGE head
+    # at the top with a forked V-flick tongue. The reared, wedge-headed silhouette
+    # reads unmistakably as a snake (never a squiggle, bottle or skull).
+    # Chunky coil at the base — a fat body ring the snake is coiled into.
+    coil_cx = cx + int(r * 0.06)
+    coil_cy = cy + int(r * 0.50)
+    coil_r = int(r * 0.40)
+    pygame.draw.circle(surf, col, (coil_cx, coil_cy), coil_r, max(6, int(r * 0.22)))
+    # Short S-neck (~1.25 waves) rising from the coil to the head, kept thick so
+    # it reads reared-to-strike rather than a thin thread.
+    n = 16
+    start = (coil_cx + int(r * 0.02), coil_cy - coil_r)
+    head_base = (cx - int(r * 0.06), cy - int(r * 0.44))
     path = []
     for i in range(n + 1):
         t = i / n
-        y = top_y + int(t * (bot_y - top_y))
-        x = cx + int(math.sin(t * 2 * math.pi) * amp)
+        x = int(start[0] + t * (head_base[0] - start[0])
+                + math.sin(t * math.pi * 1.25) * r * 0.26)
+        y = int(start[1] + t * (head_base[1] - start[1]))
         path.append((x, y))
-    # taper: fat neck near the head, thin at the tail tip.
     for i, (x, y) in enumerate(path):
-        t = i / n
-        rad = int(tube * (1.9 - 1.2 * t))
-        pygame.draw.circle(surf, col, (x, y), max(2, rad))
-    # Head: a rounded wedge at the top of the S, canted so the snout faces up.
-    hx, hy = path[0]
-    head_r = int(r * 0.26)
-    pygame.draw.circle(surf, col, (hx, hy), head_r)
-    # snout jutting up-left toward the tongue
+        rad = int(r * (0.17 - 0.03 * (i / n)))       # taper thick -> head base
+        pygame.draw.circle(surf, col, (x, y), max(4, rad))
+    # Enlarged triangular wedge head at the top, tipped up-left (the strike line).
+    hx, hy = head_base
+    tip = (hx - int(r * 0.30), hy - int(r * 0.24))    # snout apex, up-left
     pygame.draw.polygon(surf, col, [
-        (hx - int(head_r * 0.2), hy - int(head_r * 0.4)),
-        (hx - int(r * 0.20), hy - int(r * 0.34)),
-        (hx + int(head_r * 0.5), hy - int(head_r * 0.1)),
+        tip,
+        (hx + int(r * 0.20), hy - int(r * 0.20)),     # crown, back-right
+        (hx + int(r * 0.14), hy + int(r * 0.16)),     # jaw, joins the neck
     ])
-    # slit eye (recessed) so the head reads as a face, not a knob.
-    pygame.draw.circle(surf, _SH, (hx + int(head_r * 0.28), hy - int(head_r * 0.18)),
-                       max(2, int(r * 0.06)))
-    # Forked tongue flicking out of the snout — the bite.
-    tx, ty = hx - int(r * 0.20), hy - int(r * 0.34)
+    # Recessed eye so the wedge reads as a head, not a plain arrow.
+    pygame.draw.circle(surf, _SH, (hx + int(r * 0.02), hy - int(r * 0.06)),
+                       max(2, int(r * 0.07)))
+    # Forked V-flick tongue darting from the snout apex — the bite.
     tw = max(2, int(r * 0.06))
-    pygame.draw.line(surf, col, (hx - int(head_r * 0.1), hy - int(head_r * 0.2)),
-                     (tx, ty), tw)
-    for sgn in (-1, 1):
-        pygame.draw.line(surf, col, (tx, ty),
-                         (tx - int(r * 0.14), ty - int(r * 0.10) * sgn), tw)
+    mid = (tip[0] - int(r * 0.16), tip[1] - int(r * 0.10))
+    pygame.draw.line(surf, col, tip, mid, tw)
+    for dx, dy in ((-0.12, -0.02), (-0.06, -0.14)):
+        pygame.draw.line(surf, col, mid,
+                         (mid[0] + int(r * dx), mid[1] + int(r * dy)), tw)
 
 
 def _glyph_lightning_magnet(surf, cx, cy, r, col):
-    # A horseshoe magnet with its poles turned UP, catching a barrage of lightning
-    # bolts raining down from a small storm cloud — "you attract strikes." The
-    # poles-up magnet + MANY bolts is the mirror of magnet_life (poles down, one
-    # coin) and beats a lone bolt by showing the magnet doing the pulling.
+    # A poles-UP horseshoe magnet with TWO fat jagged bolts stabbing straight down
+    # into its pole mouths — "you attract the strikes." No cloud (it fused the
+    # poles into a cup blob); the bold U + two thick zig-zags carry the joke alone.
+    # This is the mirror of magnet_life (poles down pulling one coin).
     mcx = cx
-    mcy = cy + int(r * 0.30)
-    rr = int(r * 0.46)
-    leg_w = max(6, int(r * 0.28))
-    bar = max(6, int(r * 0.30))
+    mcy = cy + int(r * 0.42)
+    rr = int(r * 0.50)
+    leg_w = max(8, int(r * 0.32))
+    bar = max(8, int(r * 0.34))
     # Curved yoke at the BOTTOM (opening upward): lower semicircle arc.
     arc_rect = pygame.Rect(mcx - rr, mcy - rr, rr * 2, rr * 2)
-    pygame.draw.arc(surf, col, arc_rect, math.radians(186), math.radians(354), bar)
-    # Two legs rising to the poles.
-    leg_h = int(r * 0.52)
+    pygame.draw.arc(surf, col, arc_rect, math.radians(184), math.radians(356), bar)
+    # Two legs rising to the square pole mouths.
+    leg_h = int(r * 0.58)
     leg_top = mcy - leg_h
     for sgn in (-1, 1):
         lx = mcx + sgn * rr - leg_w // 2
         pygame.draw.rect(surf, col, (lx, leg_top, leg_w, leg_h))
-    # Pole-tip bands (accent on unlock) capping the mouths that face the storm.
-    tip_h = max(4, int(r * 0.18))
+    # Pole-tip bands (accent on unlock) capping the mouths that face the bolts.
+    tip_h = max(5, int(r * 0.20))
     for sgn, tip in ((-1, ai._accent((212, 64, 56))), (1, ai._accent((224, 228, 240)))):
         lx = mcx + sgn * rr - leg_w // 2
         pygame.draw.rect(surf, tip, (lx, leg_top - tip_h, leg_w, tip_h))
-    # Small storm cloud riding across the top.
-    cloud_y = cy - int(r * 0.66)
-    for lx, lr in ((-0.34, 0.30), (0.06, 0.38), (0.42, 0.28)):
-        pygame.draw.circle(surf, col, (cx + int(lx * r), cloud_y), int(lr * r))
-    pygame.draw.rect(surf, col, (cx - int(r * 0.44), cloud_y,
-                                 int(r * 0.90), int(r * 0.24)),
-                     border_radius=max(2, int(r * 0.10)))
-    # THREE bolts stabbing down out of the cloud into the magnet's poles/mouth —
-    # the "many strikes" that make this a magnet, not a single hit.
-    def bolt(bx, by, h, s):
+    # TWO fat jagged bolts, one plunging into each pole mouth — thick, few, and
+    # clearly zig-zagged so they never wash out at 44px.
+    def bolt(bx, top_y, h, w):
+        seg = h / 3.0
         pts = [
-            (bx, by),
-            (bx - int(s * r * 0.10), by + h * 0.42),
-            (bx + int(s * r * 0.02), by + h * 0.42),
-            (bx - int(s * r * 0.06), by + h),
-            (bx + int(s * r * 0.14), by + h * 0.34),
-            (bx + int(s * r * 0.02), by + h * 0.34),
+            (bx - w * 0.4, top_y),
+            (bx + w * 0.9, top_y + seg),
+            (bx + w * 0.2, top_y + seg),
+            (bx + w * 1.4, top_y + seg * 2),
+            (bx + w * 0.5, top_y + seg * 2),
+            (bx + w * 1.3, top_y + h),        # sharp strike tip
+            (bx - w * 0.2, top_y + seg * 1.7),
+            (bx + w * 0.5, top_y + seg * 1.7),
+            (bx - w * 0.6, top_y + seg * 0.8),
+            (bx + w * 0.1, top_y + seg * 0.8),
         ]
         pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in pts])
 
-    top = cloud_y + int(r * 0.16)
-    bolt(cx - int(r * 0.30), top, int(r * 0.44), 1.0)
-    bolt(cx + int(r * 0.02), top, int(r * 0.50), 1.1)
-    bolt(cx + int(r * 0.34), top, int(r * 0.44), 1.0)
+    bolt_top = cy - int(r * 0.74)
+    bolt_h = int(r * 0.64)
+    bw = int(r * 0.18)
+    bolt(mcx - rr, bolt_top, bolt_h, bw)
+    bolt(mcx + rr - int(bw * 0.6), bolt_top, bolt_h, bw)
 
 
 GLYPHS = {
