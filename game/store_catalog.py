@@ -38,7 +38,7 @@ GROUPS = ("costume", "parrot", "animal", "shoes", "hats", "shades", "parcels")
 # the daily reward gives a steady drip toward the higher tiers.
 CATALOG: dict[str, dict] = {
     # ── COSTUMES (accessories/restyles on the macaw) ──────────────────────────
-    "skin_tophat":   {"name": "TOP HAT",   "cost": 260, "kind": "skin", "group": "costume"},
+    "skin_tophat":   {"name": "GENTLEMAN", "cost": 260, "kind": "skin", "group": "costume"},
     "skin_pirate":   {"name": "PIRATE",    "cost": 280, "kind": "skin", "group": "costume"},
     "skin_skeleton": {"name": "SKELETON",  "cost": 300, "kind": "skin", "group": "costume"},
     "skin_cowboy":   {"name": "COWBOY",    "cost": 320, "kind": "skin", "group": "costume"},
