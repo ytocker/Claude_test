@@ -17,6 +17,9 @@ categories / schema v1"); treat *this* file as the up-to-date view.
 across 4 categories — every one with a bespoke procedural center emblem, ringed
 by an olive-laurel victor's wreath that wilts for Shame.**
 
+📸 **See it:** [Hall of Fame/Shame feature gallery](https://github.com/ytocker/skybit/blob/v5_achievements/docs/achievements/screenshots/hall_feature_gallery.png)
+— a six-panel capture of the live screen across both halls.
+
 ## What shipped
 
 - **Two halls, one screen.** The Achievements screen has **Fame** and **Shame**
@@ -176,6 +179,8 @@ Effort span (`v5_skybit_merge_graphics`..`HEAD`): **63 commits, ~187 files,
   [Blooper + Wasted](https://github.com/ytocker/skybit/blob/v5_achievements/docs/hall_of_shame_emblems/blooper_wasted/round_2.png)
   ·
   [Cosmic + Lows](https://github.com/ytocker/skybit/blob/v5_achievements/docs/hall_of_shame_emblems/cosmic_lows/round_2.png).
+- Live-screen figure (both halls, six states):
+  [`docs/achievements/screenshots/hall_feature_gallery.png`](https://github.com/ytocker/skybit/blob/v5_achievements/docs/achievements/screenshots/hall_feature_gallery.png).
 
 ## Follow-ups / open items
 
