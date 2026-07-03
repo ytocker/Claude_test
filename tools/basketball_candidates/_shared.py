@@ -66,9 +66,9 @@ def draw_basketball_kit(
                        (BCX+3, BCY-9),  (BCX+6, BCY-12)], 2)
 
     # --- JERSEY NUMBER (shifted left so the face blit doesn't occlude it) --
-    # Number lives in the LEFT portion of the chest panel (x ≈ 21–37) which is
-    # safely left of the face-restore region (x ≥ 38).
-    _draw_number(surf, BCX - 2, BCY + 6, number, num_col, num_d)
+    # Number lives in the LEFT portion of the chest panel (x ≈ 24–36) which is
+    # safely left of the face-restore region (x ≥ 38). Bold 4-px strokes.
+    _draw_number(surf, BCX - 2, BCY + 7, number, num_col, num_d)
 
     # --- HEM PIPING --------------------------------------------------------
     pygame.draw.line(surf, trim, (BCX-11, BCY+13), (BCX+11, BCY+13), 1)
@@ -107,14 +107,14 @@ def _draw_number(surf, cx, cy, number, col, shadow):
     digits = number.strip()
     # Always render as single digit for maximum legibility at 40px
     d = digits[0] if digits else '0'
-    _draw_digit(surf, cx, cy, d, col, shadow, scale=1.5)
+    _draw_digit(surf, cx, cy, d, col, shadow, scale=1.1)
 
 
 def _draw_digit(surf, cx, cy, d, col, shad, scale=1.0):
     """Draw a bold block digit centred at (cx, cy)."""
     w = int(5 * scale)
     h = int(8 * scale)
-    t = max(2, int(2.5 * scale))  # moderate stroke: 3px at scale 1.5
+    t = max(3, int(4 * scale))   # bold: 4-px strokes at scale 1.0
 
     def seg(x0, y0, x1, y1):
         pygame.draw.line(surf, shad, (cx+x0+1, cy+y0+1), (cx+x1+1, cy+y1+1), t)
