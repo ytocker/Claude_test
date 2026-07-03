@@ -76,17 +76,20 @@ def _blit_ss(surf, ss, box, cx, cy):
 
 # ── 1. Classic sharp 5-point ────────────────────────────────────────────────
 # Clean iconic gold star: dark keyline rim, soft top-lit body gradient, one
-# crisp upper-left specular streak. The plain, unmistakable "star".
+# crisp upper-left specular streak. The plain, unmistakable "star". A few
+# degrees off dead-vertical so it carries a hand-placed award feel rather than
+# a stock app-store "rate us" glyph.
 def draw_classic(surf, cx, cy, R=10):
     box = int(R * 2 + 8)
     B = box * _SS
     c = B / 2
     Rs, rs = R * _SS, R * _SS * 0.42
-    k = (Rs + 2.2 * _SS) / Rs  # rim = uniformly scaled dark star behind gold
+    rot = -87.0  # nudged off vertical so it doesn't read as a stock rating star
+    k = (Rs + 2.6 * _SS) / Rs  # thicker dark rim for more mass on the day sky
     ss = pygame.Surface((B, B), pygame.SRCALPHA)
 
-    pygame.draw.polygon(ss, _RIM, _star_pts(c, c, Rs * k, rs * k))
-    body = _star_pts(c, c, Rs, rs)
+    pygame.draw.polygon(ss, _RIM, _star_pts(c, c, Rs * k, rs * k, rot_deg=rot))
+    body = _star_pts(c, c, Rs, rs, rot_deg=rot)
     pygame.draw.polygon(ss, _GOLD, body)
     ss.blit(_grad_star(B, body, _GOLD_HI, _GOLD_LO), (0, 0),
             special_flags=pygame.BLEND_RGBA_MULT)
@@ -118,6 +121,9 @@ def draw_beveled(surf, cx, cy, R=10):
               c[1] + Rs * math.sin(math.radians(-90 + 72 * i))) for i in range(5)]
     inner = [(c[0] + rs * math.cos(math.radians(-54 + 72 * i)),
               c[1] + rs * math.sin(math.radians(-54 + 72 * i))) for i in range(5)]
+    # Each arm splits into two facets; push the lit/shadow contrast hard and
+    # gamma-bias it toward the extremes so the emboss survives the downscale
+    # and never muddies into the flat #1 star.
     for i in range(5):
         o = outer[i]
         il, ir = inner[(i - 1) % 5], inner[i]
@@ -127,15 +133,17 @@ def draw_beveled(surf, cx, cy, R=10):
             n = math.hypot(mx, my) or 1.0
             d = (mx / n) * light[0] + (my / n) * light[1]
             t = (d + 1) / 2
-            pygame.draw.polygon(ss, _lerp(_GOLD_LO, _GOLD_HI, t), tri)
+            t = t * t * (3 - 2 * t)          # smoothstep → snap to lit/shadow
+            lit_hi = _lerp(_GOLD, _GOLD_HI, 1.0)
+            pygame.draw.polygon(ss, _lerp(_RIM, lit_hi, t), tri)
     # Ridge keylines from centre to each tip sharpen the emboss.
     for o in outer:
-        pygame.draw.line(ss, _RIM_DEEP, c, o, max(1, int(0.6 * _SS)))
-    # Raised centre boss catches the light.
-    pygame.draw.circle(ss, _GOLD_HI, (int(c[0]), int(c[1])), int(rs * 0.5))
-    pygame.draw.circle(ss, _GOLD_HOT,
-                       (int(c[0] - rs * 0.18), int(c[1] - rs * 0.18)),
-                       int(rs * 0.22))
+        pygame.draw.line(ss, _RIM_DEEP, c, o, max(1, int(0.7 * _SS)))
+    # A small, flush lit facet at the very centre — not a raised boss, so it
+    # never punches through as a hole. One subtle sheen dot, upper-left only.
+    pygame.draw.circle(ss, _GOLD_HI,
+                       (int(c[0] - rs * 0.14), int(c[1] - rs * 0.14)),
+                       int(rs * 0.12))
     _blit_ss(surf, ss, box, cx, cy)
 
 
@@ -146,20 +154,21 @@ def draw_rounded(surf, cx, cy, R=10):
     box = int(R * 2 + 8)
     B = box * _SS
     c = B / 2
-    Rs, rs = R * _SS, R * _SS * 0.56  # fatter inner radius → chunky arms
+    Rs, rs = R * _SS, R * _SS * 0.60  # fatter inner radius → chunkier arm mass
     ss = pygame.Surface((B, B), pygame.SRCALPHA)
 
     base = _star_pts(c, c, Rs, rs)
     body = _chaikin(base, 3)
-    rim = _chaikin(_star_pts(c, c, Rs + 2.0 * _SS, rs + 2.0 * _SS), 3)
+    rim = _chaikin(_star_pts(c, c, Rs + 2.4 * _SS, rs + 2.4 * _SS), 3)
     pygame.draw.polygon(ss, _RIM, rim)
     pygame.draw.polygon(ss, _GOLD, body)
     ss.blit(_grad_star(B, body, _GOLD_HI, _GOLD_LO), (0, 0),
             special_flags=pygame.BLEND_RGBA_MULT)
-    # Broad soft sheen: a pale rounded blob on the upper-left lobe.
+    # Soft sheen: a pale rounded blob pulled toward centre so it lifts the body
+    # without flattening the top-left lobe to white at tile size.
     sheen = pygame.Surface((B, B), pygame.SRCALPHA)
-    pygame.draw.ellipse(sheen, (*_GOLD_HOT, 150),
-                        (c - Rs * 0.62, c - Rs * 0.78, Rs * 0.7, Rs * 0.62))
+    pygame.draw.ellipse(sheen, (*_GOLD_HOT, 120),
+                        (c - Rs * 0.42, c - Rs * 0.52, Rs * 0.62, Rs * 0.54))
     mask = pygame.Surface((B, B), pygame.SRCALPHA)
     pygame.draw.polygon(mask, (255, 255, 255, 255), body)
     sheen.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
@@ -168,8 +177,9 @@ def draw_rounded(surf, cx, cy, R=10):
 
 
 # ── 4. Sparkle / four-glint star ────────────────────────────────────────────
-# A shine, not a badge: a slender 4-point sparkle with a bright core and four
-# short diagonal glints radiating out — reads as "twinkle / new".
+# A star, shining. A solid bright 4-point star body carries a dark keyline for
+# weight; the four thin diagonal glints ride ON it as a sparkle accent, not as
+# the whole mark — so it reads as a proper award star that happens to twinkle.
 def draw_sparkle(surf, cx, cy, R=10):
     box = int(R * 2 + 8)
     B = box * _SS
@@ -177,32 +187,35 @@ def draw_sparkle(surf, cx, cy, R=10):
     Rs = R * _SS
     ss = pygame.Surface((B, B), pygame.SRCALPHA)
 
-    # Thin diagonal glints behind the main sparkle.
-    for i in range(4):
-        ang = math.radians(-45 + 90 * i)
-        gl = Rs * 0.66
-        p = (c + gl * math.cos(ang), c + gl * math.sin(ang))
-        pygame.draw.line(ss, (*_GOLD_HI, 210), (c, c), p, max(1, int(0.9 * _SS)))
-
-    # Slender 4-point body: long thin arms via a very small inner radius.
-    body = _star_pts(c, c, Rs, Rs * 0.14, n=4, rot_deg=-90)
-    rim_k = (Rs + 1.6 * _SS) / Rs
+    # Solid 4-point body: a fat inner radius gives real star mass (no asterisk).
+    ir = Rs * 0.40
+    body = _star_pts(c, c, Rs, ir, n=4, rot_deg=-90)
+    rim_k = (Rs + 2.4 * _SS) / Rs  # thick dark keyline for trophy-weight mass
     pygame.draw.polygon(ss, _RIM,
-                        _star_pts(c, c, Rs * rim_k, Rs * 0.14 * rim_k,
+                        _star_pts(c, c, Rs * rim_k, ir * rim_k,
                                   n=4, rot_deg=-90))
     pygame.draw.polygon(ss, _GOLD, body)
     ss.blit(_grad_star(B, body, _GOLD_HI, _GOLD_LO), (0, 0),
             special_flags=pygame.BLEND_RGBA_MULT)
-    # Bright core hotspot sells the sparkle.
-    pygame.draw.circle(ss, _GOLD_HI, (int(c), int(c)), int(Rs * 0.24))
+
+    # Diagonal sparkle glints ride on the body as short accent rays.
+    for i in range(4):
+        ang = math.radians(-45 + 90 * i)
+        gl = Rs * 0.42
+        p = (c + gl * math.cos(ang), c + gl * math.sin(ang))
+        pygame.draw.line(ss, (*_GOLD_HI, 220), (c, c), p, max(1, int(0.8 * _SS)))
+
+    # Bright core hotspot sells the shine, offset upper-left with the light.
+    pygame.draw.circle(ss, _GOLD_HI, (int(c), int(c)), int(Rs * 0.20))
     pygame.draw.circle(ss, _GOLD_HOT,
-                       (int(c - Rs * 0.05), int(c - Rs * 0.05)), int(Rs * 0.12))
+                       (int(c - Rs * 0.06), int(c - Rs * 0.06)), int(Rs * 0.10))
     _blit_ss(surf, ss, box, cx, cy)
 
 
 # ── 5. Star medallion ───────────────────────────────────────────────────────
-# A mounted medal: a gold coin/disc with a beveled 5-point star struck on it —
-# the most "official" of the set, a star you were awarded.
+# A star mounted on a small backing disc: the star is the hero — its own full
+# dark keyline pops it off a deliberately darker, smaller coin so it never
+# collides with the game's literal gold $ coins. The most "official" of the set.
 def draw_medallion(surf, cx, cy, R=10):
     box = int(R * 2 + 8)
     B = box * _SS
@@ -210,40 +223,32 @@ def draw_medallion(surf, cx, cy, R=10):
     Rs = R * _SS
     ss = pygame.Surface((B, B), pygame.SRCALPHA)
 
-    # Disc: dark rim ring, top-lit gold gradient body, upper-left sheen.
-    pygame.draw.circle(ss, _RIM_DEEP, (int(c), int(c)), int(Rs))
+    # Backing disc: smaller than the emblem box and one step darker than a coin
+    # so it reads as a mount, not a collectible. Dark rim ring + top-lit body.
+    dr = Rs * 0.86
+    pygame.draw.circle(ss, _RIM_DEEP, (int(c), int(c)), int(dr + 1.4 * _SS))
     disc = pygame.Surface((B, B), pygame.SRCALPHA)
-    dr = Rs - 1.4 * _SS
     for yy in range(B):
         t = min(1.0, max(0.0, (yy - (c - dr)) / (2 * dr)))
-        pygame.draw.line(disc, (*_lerp(_GOLD_HI, _GOLD_LO, t), 255),
+        pygame.draw.line(disc, (*_lerp(_GOLD, _GOLD_LO, t), 255),
                          (0, yy), (B, yy))
     dmask = pygame.Surface((B, B), pygame.SRCALPHA)
     pygame.draw.circle(dmask, (255, 255, 255, 255), (int(c), int(c)), int(dr))
     disc.blit(dmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     ss.blit(disc, (0, 0))
-    # Beaded inner keyline of the coin.
+    # Beaded inner keyline of the mount.
     pygame.draw.circle(ss, _RIM, (int(c), int(c)), int(dr), max(1, int(0.7 * _SS)))
-    # Upper-left coin sheen.
-    sheen = pygame.Surface((B, B), pygame.SRCALPHA)
-    pygame.draw.ellipse(sheen, (*_GOLD_HOT, 120),
-                        (c - dr * 0.8, c - dr * 0.85, dr * 0.85, dr * 0.7))
-    smask = pygame.Surface((B, B), pygame.SRCALPHA)
-    pygame.draw.circle(smask, (255, 255, 255, 255), (int(c), int(c)), int(dr))
-    sheen.blit(smask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    ss.blit(sheen, (0, 0))
 
-    # Struck star on the coin — beveled two-tone arms, upper-left lit.
-    sR = Rs * 0.62
+    # Struck star — its OWN full dark keyline first, then beveled two-tone arms.
+    sR = Rs * 0.66
     srr = sR * 0.46
     light = (-0.55, -0.83)
+    kk = (sR + 1.8 * _SS) / sR
+    pygame.draw.polygon(ss, _RIM, _star_pts(c, c, sR * kk, srr * kk))
     outer = [(c + sR * math.cos(math.radians(-90 + 72 * i)),
               c + sR * math.sin(math.radians(-90 + 72 * i))) for i in range(5)]
     inner = [(c + srr * math.cos(math.radians(-54 + 72 * i)),
               c + srr * math.sin(math.radians(-54 + 72 * i))) for i in range(5)]
-    # Slight drop-shadow so the star sits raised on the coin.
-    pygame.draw.polygon(ss, (*_RIM_DEEP, 180),
-                        _star_pts(c + 0.6 * _SS, c + 0.9 * _SS, sR, srr))
     cc = (c, c)
     for i in range(5):
         o = outer[i]
@@ -256,6 +261,8 @@ def draw_medallion(surf, cx, cy, R=10):
             pygame.draw.polygon(ss, _lerp(_GOLD_LO, _GOLD_HOT, (d + 1) / 2), tri)
     for o in outer:
         pygame.draw.line(ss, _RIM, cc, o, max(1, int(0.5 * _SS)))
+    pygame.draw.circle(ss, _GOLD_HI,
+                       (int(c - srr * 0.16), int(c - srr * 0.16)), int(srr * 0.14))
     _blit_ss(surf, ss, box, cx, cy)
 
 
