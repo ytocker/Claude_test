@@ -17,16 +17,17 @@ Silhouette identity (set-level pin): the ONLY concept whose crown is a
 recognizable CREATURE — a big gilt spread-winged phoenix perched on a needle
 spire. Blackout reads as a thin brick spike under one broad figural bird.
 
-Mirror pin (make-or-break): the phoenix is a VERTICALLY-NEAR-SYMMETRIC,
-FRONTAL, SPREAD-WINGED MEDALLION — body dead-centred on `cx`, wings fanned out
-to BOTH flanks about the horizontal, a crest plume-fan above and a tail
-plume-fan below of matched visual weight. It is bilaterally symmetric L/R by
-construction (so left/right survive trivially) AND its dominant mass — the
-broad horizontal wing spread — sits centred on the figure's own mid-line, so a
-vertical FLIP (top↔bottom) leaves a still-legible spread-winged phoenix on the
-hung twin (crest and tail merely swap as matched feather fans). This is the
-deliberate resolution of the figural-bird flip risk: NOT a side-profile bird
-(which would hang upside-down and break), and NOT a diving-phoenix gamble.
+Mirror pin (make-or-break): the phoenix is a FRONTAL, SPREAD-WINGED bird —
+head/neck/beak dead-centred on `cx`, wings swept UP-AND-OUT to both flanks as
+the dominant horizontal mass, a dense rounded HEAD-knob poking above the wing
+line, and a single airy TAIL plume streaming below. It is bilaterally symmetric
+L/R by construction (so left/right survive trivially), and its two poles are
+END TERMINATIONS of different character — a compact solid knob at one end, a
+long airy streamer fan at the other — so a vertical FLIP (top↔bottom) still
+hangs a legible knob-end + plume-end phoenix on the twin (wings merely sweep
+the other way). This is the deliberate resolution of the figural-bird flip
+risk: NOT a side-profile bird (which would hang upside-down and break), and NOT
+a diving-phoenix gamble.
 
 Column-fill contract: the ~58 px collision column is carried top-to-bottom by
 the BRICK SPIRE + corbel cap + bronze staff on the centreline — never the bird.
@@ -35,7 +36,7 @@ occupied), and the staff + phoenix crest carry the centreline up to the gap
 rim. The phoenix wing-spread is pure gutter overhang laid over that masonry.
 
 Run:  python docs/pillar_landmarks/temple_mills/phoenix-vane-mill/render.py
-Out:  docs/pillar_landmarks/temple_mills/phoenix-vane-mill/round_1.png
+Out:  docs/pillar_landmarks/temple_mills/phoenix-vane-mill/round_2.png
 """
 from __future__ import annotations
 
@@ -221,16 +222,25 @@ def _feather(surf, base, ang, ln, w0, w1, side, fill, lit, dark):
     return tip
 
 
-def _phoenix(surf, cx, cy, r, palette, *, sun=-1.0):
-    """A frontal, spread-winged gilt PHOENIX medallion centred on (cx, cy).
+# Beak apex sits r*_PHOENIX_TOP_REACH above the body centre `cy`; the crown
+# placement keys off this so the head-lobe clears the gap rim by ~3 px.
+_PHOENIX_TOP_REACH = 1.5
 
-    Built for the vertical-flip mirror: bilaterally symmetric L/R, with the
-    dominant WING mass fanned out about the horizontal through `cy` so the
-    figure's silhouette reads the same after a top↔bottom flip; the crest
-    plume-fan (up) and tail plume-fan (down) are matched in weight so the flip
-    merely swaps them. Reads on OUTLINE alone at 58px; feather relief + eye
-    glint are close-up reward. Gilt sells via a bright specular + dark keyline,
-    with `_vermilion` crest/tail accents."""
+
+def _phoenix(surf, cx, cy, r, palette, *, sun=-1.0):
+    """A frontal, spread-winged gilt PHOENIX weathervane centred on (cx, cy).
+
+    Reads as an UNMISTAKABLE BIRD at 58 px: a dense rounded HEAD-knob on a
+    short neck pokes clearly ABOVE the wing line as its own silhouette lobe,
+    broad wings sweep UP-AND-OUT to both flanks as the dominant HORIZONTAL mass
+    under one clean swept leading edge, and a single airy trailing TAIL plume
+    streams below. Head-end (compact solid knob) and tail-end (long airy
+    streamer fan) are of DIFFERENT character, so one end is plainly a head —
+    yet each end is a plume/knob TERMINATION, so a top↔bottom FLIP still hangs a
+    legible knob-end + plume-end phoenix. Bilaterally symmetric L/R by
+    construction (head/neck/beak dead on cx, wings mirrored). Feather relief +
+    eye glints are close-up reward; gilt sells via a bright specular + dark
+    keyline with `_vermilion` crest/tail accents."""
     gold_l = _gold_bright(palette)
     gold_d = _gold_deep(palette)
     bronze = _bronze(palette)
@@ -238,103 +248,114 @@ def _phoenix(surf, cx, cy, r, palette, *, sun=-1.0):
     verm_lit = _mix(verm, (236, 108, 84), 0.55)
     key = _shade(bronze, -46)                     # dark keyline for gilt edge
     spec = _mix(gold_l, palette['stone_light'], 0.62)   # bright specular gleam
-    light = palette['stone_light']
 
-    n_feather = 5 if r >= 18 else (4 if r >= 12 else 3)
-    body_hw = max(2, r * 0.26)
-    wing_span = r * 1.42
-    spread = 1.15                                 # radians fanned about horizon
+    # Capped feather count + thick tips → the outer keyline is ONE swept curve
+    # at squint, not fraying noise.
+    n_feather = 4 if r >= 14 else 3
+    body_hw = max(2, r * 0.24)
+    wing_span = r * 1.5
 
-    # ── Wings — fanned feather sweeps to BOTH flanks, keyed on the outer
-    # silhouette. Drawn first so the body overlaps their roots. The fan is
-    # centred on the horizontal through cy → the medallion's dominant mass is
-    # vertically balanced, the crux of the flip-safe read.
+    # ── Wings — bold primaries swept UP-AND-OUT to both flanks (no downward
+    # fan), the outermost feather flattest + longest so the wing spread is the
+    # dominant horizontal mass with a clean swept leading edge. Drawn first so
+    # the body + head overlap the roots.
     for s in (1, -1):
-        pivot = (cx + s * body_hw * 0.55, cy - r * 0.04)
+        pivot = (cx + s * body_hw * 0.5, cy - r * 0.12)
         tips = []
         for k in range(n_feather):
-            f = k / (n_feather - 1)               # 0 top-most → 1 bottom-most
-            ang = (f - 0.5) * spread
-            ln = wing_span * (0.66 + 0.34 * math.sin(f * math.pi))
-            # Sun grazes the upper (leading) feathers brighter on the sun flank.
-            face = 0.5 + 0.5 * (math.cos(ang) * (s * -sun)) - 0.25 * f
+            f = k / (n_feather - 1)               # 0 outer/flat → 1 inner/steep
+            ang = -(0.06 + 0.95 * f)              # all sweep upward — never down
+            ln = wing_span * (1.0 - 0.40 * f)     # outermost feather the longest
+            face = 0.5 + 0.5 * (math.cos(ang) * (s * -sun)) - 0.18 * f
             fill = _mix(gold_d, gold_l, max(0.0, min(1.0, face)))
-            lit = _mix(gold_l, spec, 0.35) if s * -sun > 0 else _mix(gold_d, gold_l, 0.4)
+            lit = _mix(gold_l, spec, 0.4) if s * -sun > 0 else _mix(gold_d, gold_l, 0.42)
             tip = _feather(surf, pivot, ang, ln,
-                           w0=max(1.4, r * 0.10), w1=max(0.8, r * 0.05),
+                           w0=max(1.8, r * 0.14), w1=max(1.2, r * 0.075),
                            side=s, fill=fill, lit=lit, dark=key)
             tips.append(tip)
-        # Crisp gilt keyline linking the fanned tips → bold outer silhouette.
-        _aa_polyline(surf, key, [pivot] + tips + [pivot])
-        # A short covert row over the wing roots for close-up depth.
-        for k in range(max(2, n_feather - 2)):
-            f = (k + 0.5) / max(2, n_feather - 2)
-            ang = (f - 0.5) * spread * 0.8
-            _feather(surf, (cx + s * body_hw * 0.3, cy - r * 0.02), ang,
-                     wing_span * 0.34, max(1.2, r * 0.09), max(0.7, r * 0.04),
+        # One bold swept keyline over the fanned tips → clean outer silhouette.
+        _aa_polyline(surf, key, [pivot] + tips)
+        # A short covert row over the wing root for close-up depth (also up-out).
+        for k in range(2):
+            f = (k + 0.5) / 2
+            _feather(surf, (cx + s * body_hw * 0.3, cy - r * 0.06),
+                     -(0.15 + 0.7 * f), wing_span * 0.4,
+                     max(1.4, r * 0.10), max(0.9, r * 0.05),
                      side=s, fill=_mix(gold_l, gold_d, 0.3),
                      lit=spec, dark=_shade(gold_d, -18))
 
-    # ── Tail plume-fan (down) — vermilion + gilt streamers with eye-spots.
-    tail_base = (cx, cy + r * 0.62)
-    n_tail = 5 if r >= 18 else 3
+    # ── Tail — a SINGLE airy trailing plume below (narrow fan, long streamers),
+    # deliberately different in character from the wings so the lower half reads
+    # as body + one trailing tail, not a second set of wings.
+    tail_base = (cx, cy + r * 0.46)
+    n_tail = 3 if r >= 12 else 1
     for k in range(n_tail):
-        f = k / (n_tail - 1)
-        ang = (f - 0.5) * 1.05 + math.pi / 2      # fanned downward
-        ln = r * (0.95 + 0.45 * (1 - abs(f - 0.5) * 2))
-        col = verm if k % 2 == 0 else gold_d
-        litc = verm_lit if k % 2 == 0 else gold_l
-        tip = _feather(surf, tail_base, ang - math.pi / 2, ln,
-                       w0=max(1.3, r * 0.09), w1=max(0.7, r * 0.035),
-                       side=1, fill=col, lit=litc, dark=key)
+        f = (k / (n_tail - 1) - 0.5) if n_tail > 1 else 0.0
+        theta = math.pi / 2 + f * 0.5             # narrow downward fan
+        ln = r * (1.9 - 1.0 * abs(f))             # long centre streamer — body
+        col = verm if k == n_tail // 2 else gold_d
+        litc = verm_lit if k == n_tail // 2 else gold_l
+        _feather(surf, tail_base, theta, ln,
+                 w0=max(1.5, r * 0.11), w1=max(0.7, r * 0.045),
+                 side=1, fill=col, lit=litc, dark=key)
         # Phoenix tail eye-spot near each streamer tip (close-up reward).
         if r >= 16:
-            ex = int(tail_base[0] + math.cos(ang) * ln * 0.72)
-            ey = int(tail_base[1] + math.sin(ang) * ln * 0.72)
+            ex = int(tail_base[0] + math.cos(theta) * ln * 0.78)
+            ey = int(tail_base[1] + math.sin(theta) * ln * 0.78)
             pygame.draw.circle(surf, gold_l, (ex, ey), 2)
             pygame.draw.circle(surf, verm, (ex, ey), 1)
 
-    # ── Body — a central gilt spindle on the centreline, lit-left/shadow-right.
-    b_top = cy - r * 0.72
-    b_bot = cy + r * 0.72
+    # ── Body — a compact central gilt spindle on the centreline, joining the
+    # neck to the tail root; lit-left / shadow-right for gilt relief.
+    b_top = cy - r * 0.5
+    b_bot = cy + r * 0.62
     body = [(cx, b_top),
-            (cx + body_hw, cy - r * 0.14),
-            (cx + body_hw * 0.62, cy + r * 0.42),
+            (cx + body_hw, cy + r * 0.06),
+            (cx + body_hw * 0.5, cy + r * 0.5),
             (cx, b_bot),
-            (cx - body_hw * 0.62, cy + r * 0.42),
-            (cx - body_hw, cy - r * 0.14)]
+            (cx - body_hw * 0.5, cy + r * 0.5),
+            (cx - body_hw, cy + r * 0.06)]
     pygame.draw.polygon(surf, gold_d, _ipts(body))
-    lit_body = [(cx, b_top),
-                (cx, b_bot),
-                (cx - body_hw * 0.62, cy + r * 0.42),
-                (cx - body_hw, cy - r * 0.14)]
+    lit_body = [(cx, b_top), (cx, b_bot),
+                (cx - body_hw * 0.5, cy + r * 0.5),
+                (cx - body_hw, cy + r * 0.06)]
     pygame.draw.polygon(surf, _mix(gold_l, gold_d, 0.25), _ipts(lit_body))
     _aa_polyline(surf, spec, [(cx - 1, b_top + 1), (cx - 1, b_bot - 1)])
     _aa_polyline(surf, key, _ipts(body), closed=True)
 
-    # ── Head + crest — round gilt head, twin eye-glints, a swept vermilion
-    # crest-fan reaching up toward the gap rim (mirrors the tail-fan in weight).
-    hr = max(2, int(r * 0.24))
-    hy = int(b_top - hr * 0.4)
+    # ── Neck + HEAD — a compact, dense rounded gilt knob on a short neck that
+    # pokes clearly ABOVE the wing line as its own silhouette lobe: the single
+    # cue that turns the gilt medallion into an unmistakable bird. Drawn LAST so
+    # it sits proud over the wing roots.
+    hr = max(3, int(r * 0.32))
+    hy = int(cy - r * 0.95)
+    neck_w = max(2, int(r * 0.16))
+    pygame.draw.line(surf, gold_d, (cx, int(b_top)), (cx, hy), neck_w)
+    pygame.draw.line(surf, _mix(gold_l, gold_d, 0.3),
+                     (cx - 1, int(b_top)), (cx - 1, hy), 1)
     pygame.draw.circle(surf, gold_l, (cx, hy), hr)
-    pygame.draw.circle(surf, gold_d, (cx, hy), hr, 1)
-    pygame.draw.circle(surf, spec, (cx - 1, hy - 1), max(1, hr // 3))
-    # Twin eyes (frontal → symmetric) + a tiny gilt beak.
+    pygame.draw.circle(surf, spec, (cx - max(1, hr // 3), hy - max(1, hr // 3)),
+                       max(1, hr // 2))
+    pygame.draw.circle(surf, key, (cx, hy), hr, 1)
+    # Twin frontal eyes (symmetric) + a small upward gilt beak apex — the beak
+    # is the topmost centreline point (keys the ~3 px rim clearance).
     eox = max(1, hr // 2)
     for s in (1, -1):
-        pygame.draw.circle(surf, key, (cx + s * eox, hy), 1)
-    if r >= 14:
-        pygame.draw.polygon(surf, _shade(gold_d, -10),
-                            _ipts([(cx - 1, hy - hr), (cx + 1, hy - hr),
-                                   (cx, hy - hr - 2)]))
-    n_crest = 3 if r >= 12 else 1
-    for k in range(n_crest):
-        f = (k / max(1, n_crest - 1)) - 0.5 if n_crest > 1 else 0.0
-        ang = f * 0.9 - math.pi / 2               # fanned upward
-        ln = r * (0.62 + 0.30 * (1 - abs(f) * 2)) if n_crest > 1 else r * 0.7
-        _feather(surf, (cx, hy - hr * 0.6), ang + math.pi / 2, ln,
-                 w0=max(1.1, r * 0.07), w1=max(0.6, r * 0.03),
-                 side=1, fill=verm, lit=verm_lit, dark=key)
+        pygame.draw.circle(surf, key, (cx + s * eox, hy - max(1, hr // 4)),
+                           max(1, hr // 4))
+        if hr >= 5:
+            pygame.draw.circle(surf, spec, (cx + s * eox, hy - max(1, hr // 4)), 1)
+    pygame.draw.polygon(surf, _shade(gold_d, -6),
+                        _ipts([(cx - hr * 0.4, hy - hr * 0.7),
+                               (cx + hr * 0.4, hy - hr * 0.7),
+                               (cx, cy - r * _PHOENIX_TOP_REACH)]))
+    # A short twin vermilion crest tuft flanking the beak — phoenix accent kept
+    # compact so the solid head-knob still dominates the top lobe.
+    if r >= 12:
+        for cf in (-0.22, 0.22):
+            _feather(surf, (cx, hy - hr * 0.4), -math.pi / 2 + cf, r * 0.36,
+                     max(1.0, r * 0.06), max(0.5, r * 0.03),
+                     side=1, fill=verm, lit=verm_lit, dark=key)
 
 
 def _gilt_halo(surf, cx, cy, r, palette):
@@ -365,11 +386,13 @@ def _draw_one(surf, cx, base_y, top_y, body_w, palette, seed, *, decor=True):
     r = int(max(0, min(total_h * 0.15, body_w * 0.92, 30)))
     have_bird = total_h >= 46 and r >= 6
 
-    # Crown budget above the brick shaft: phoenix span (~2r) + a short staff.
+    # Crown budget above the brick shaft: the head-forward phoenix reaches from
+    # the beak apex (r*1.5 above centre) down past the tail (~r*2 below), so the
+    # crown region spans ~3.6r; a short staff foot anchors it to the neck.
     staff_len = max(6, int(r * 0.5)) if have_bird else max(6, int(total_h * 0.12))
-    crown_h = (int(2 * r + staff_len) if have_bird
+    crown_h = (int(r * 3.6 + staff_len) if have_bird
                else min(int(total_h * 0.2), 26))
-    crown_h = min(crown_h, int(total_h * 0.55))
+    crown_h = min(crown_h, int(total_h * 0.6))
     shoulder_y = top_y + crown_h
 
     # Slim needle: base grounds the 58px column, taper is continuous to a slim
@@ -416,10 +439,11 @@ def _draw_one(surf, cx, base_y, top_y, body_w, palette, seed, *, decor=True):
 
     # ── The gilded phoenix crown (pure gutter overhang; centre on cx) ────────
     if have_bird:
-        # Body centre placed so the crest reaches the gap rim (~top_y) and the
-        # tail meets the staff foot — centreline stays occupied to the rim.
-        py = top_y + r + max(2, int(r * 0.2))
-        staff_base_y = py + int(r * 0.72)
+        # Body centre placed so the BEAK APEX (r*1.5 above centre) clears the
+        # gap rim by ~3 px and the tail meets the staff foot — the head-lobe
+        # carries the centreline to the rim.
+        py = top_y + int(r * _PHOENIX_TOP_REACH) + 3
+        staff_base_y = py + int(r * 0.5)
         staff_top_y = shoulder_y - neck_h
         _vane_staff(surf, cx, min(staff_top_y, staff_base_y), staff_base_y,
                     palette)
@@ -635,10 +659,10 @@ def main():
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((24, 25, 30))
 
-    sheet.blit(title.render("phoenix-vane-mill — round 1", True, (245, 240, 230)),
+    sheet.blit(title.render("phoenix-vane-mill — round 2", True, (245, 240, 230)),
                (pad, 12))
-    sheet.blit(sub.render("slender brick SPIRE + gilt spread-winged PHOENIX vane  ·  "
-                          "frontal symmetric medallion (flip-safe)  ·  night halo",
+    sheet.blit(sub.render("slender brick SPIRE + gilt PHOENIX vane  ·  head-lobe over "
+                          "up-swept wings + single tail plume  ·  flip-safe  ·  night halo",
                           True, (170, 172, 182)), (pad, 40))
 
     for i, (pair, name, cl) in enumerate((
@@ -658,7 +682,7 @@ def main():
     by = title_h + ph + label_h + pad + 14
     sheet.blit(blackout, (bx, by))
     pygame.draw.rect(sheet, (60, 62, 72), (bx, by, bo_w, bo_h), 1)
-    lab = label.render("BLACKOUT — 58px silhouette read (spire + phoenix)",
+    lab = label.render("BLACKOUT — 58px silhouette (bird: head-lobe over wings)",
                        True, (255, 224, 150))
     sheet.blit(lab, (bx, by + bo_h + 3))
     sy = by + bo_h + 3 + 20
@@ -679,7 +703,7 @@ def main():
         sheet.blit(lab, (fx, fy + ch + 3))
         fy += ch + label_h + pad
 
-    out = _REPO / "docs" / "pillar_landmarks" / "temple_mills" / "phoenix-vane-mill" / "round_1.png"
+    out = _REPO / "docs" / "pillar_landmarks" / "temple_mills" / "phoenix-vane-mill" / "round_2.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
