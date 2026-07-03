@@ -153,10 +153,10 @@ def _draw_chevron(surf, cx, apex_y, half_w, thick, col):
 
 def _glyph_quad_digits(surf, cx, cy, r, col):
     n = 4
-    half_w = r * 0.58
-    thick = max(3, int(r * 0.19))
-    step = r * 0.40
-    top_apex = cy - (n - 1) * step / 2 - r * 0.06
+    half_w = r * 0.56
+    thick = max(2, int(r * 0.13))     # ~30% slimmer so it reads as an ascent,
+    step = r * 0.36                   # not a stack of chunky sergeant stripes
+    top_apex = cy - (n - 1) * step / 2 - r * 0.02
     top_ax = None
     for i in range(n):
         ax = cx + (i - (n - 1) / 2) * r * 0.12
@@ -164,18 +164,22 @@ def _glyph_quad_digits(surf, cx, cy, r, col):
         _draw_chevron(surf, ax, ay, half_w, thick, col)
         if i == n - 1:
             top_ax = ax
-    # A compact eight-ray burst blazing off the top chevron's apex — the "past
-    # 999" spark, kept clear of the chevrons so it never reads as a fifth rung.
-    bx, by = top_ax, top_apex - r * 0.44
+    # A BIG score-explosion burst blazing off the top chevron — enlarged so the
+    # motif reads as a number blowing past a milestone, not rank insignia. Long
+    # rays + a fat core, kept clear above the top chevron.
+    bx, by = top_ax, top_apex - r * 0.60
     for i in range(8):
         a = i * math.pi / 4
-        x1 = bx + math.cos(a) * r * 0.16
-        y1 = by + math.sin(a) * r * 0.16
-        x2 = bx + math.cos(a) * r * 0.40
-        y2 = by + math.sin(a) * r * 0.40
+        long_ray = i % 2 == 0
+        r_in = r * 0.14
+        r_out = r * (0.62 if long_ray else 0.42)
+        x1 = bx + math.cos(a) * r_in
+        y1 = by + math.sin(a) * r_in
+        x2 = bx + math.cos(a) * r_out
+        y2 = by + math.sin(a) * r_out
         pygame.draw.line(surf, col, (int(x1), int(y1)), (int(x2), int(y2)),
-                         max(2, int(r * 0.09)))
-    pygame.draw.circle(surf, col, (int(bx), int(by)), max(3, int(r * 0.12)))
+                         max(2, int(r * 0.10)))
+    pygame.draw.circle(surf, col, (int(bx), int(by)), max(4, int(r * 0.19)))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -207,22 +211,22 @@ def _glyph_weeklong_bender(surf, cx, cy, r, col):
     pygame.draw.line(surf, col, (int(cx - r * 1.0), int(horizon_y)),
                      (int(cx + r * 1.0), int(horizon_y)), max(2, int(r * 0.10)))
 
-    # Seven crescent moons riding a broad, HIGH night arc over the sun — clearly
-    # separated discs (each carved to a crescent by a big inset bite) so the read
-    # is a string of MOONS, not a scalloped cloud. The count is the "a week" cue.
-    arc_cx, arc_cy = cx, cy + r * 0.70
-    arc_r = r * 1.18
-    moon_r = r * 0.15
-    for i in range(7):
-        ang = math.radians(158 - i * (136 / 6))     # 158° .. 22°, evenly spaced
+    # FOUR big, unmistakable crescent moons arcing over the sun — a small count
+    # of LARGE phases survives the 44px shrink where seven tiny discs smeared into
+    # a dotted blur. Each is a fat disc carved to a clean crescent by an offset
+    # inset bite; the arc of nights is the "seven day-cycles" read.
+    arc_cx, arc_cy = cx, cy + r * 0.66
+    arc_r = r * 1.10
+    moon_r = r * 0.24
+    for i in range(4):
+        ang = math.radians(150 - i * (120 / 3))     # 150° .. 30°, evenly spaced
         mx = arc_cx + math.cos(ang) * arc_r
         my = arc_cy - math.sin(ang) * arc_r
         pygame.draw.circle(surf, col, (int(mx), int(my)), int(moon_r))
-        # a big offset inset bite turns each disc into a distinct crescent, so
-        # the seven never fuse into one lumpy band the way plain discs did.
+        # a big offset inset bite carves each fat disc into a clear crescent.
         pygame.draw.circle(surf, ai._GLYPH_SH,
-                           (int(mx + moon_r * 0.46), int(my - moon_r * 0.18)),
-                           int(moon_r * 0.82))
+                           (int(mx + moon_r * 0.44), int(my - moon_r * 0.20)),
+                           int(moon_r * 0.80))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -272,16 +276,38 @@ def _glyph_millionaire(surf, cx, cy, r, col):
     neck = pygame.Rect(int(cx - bw * 0.46), int(by - bh * 0.66),
                        int(bw * 0.92), max(4, int(bh * 0.26)))
     pygame.draw.rect(surf, col, neck, border_radius=max(2, int(r * 0.10)))
+    # Short drawstring ears tucked close to the neck so they don't compete with
+    # the crown that sits above.
     for sgn in (-1, 1):
         pygame.draw.line(surf, col,
-                         (int(cx + sgn * bw * 0.20), int(by - bh * 0.56)),
-                         (int(cx + sgn * bw * 0.48), int(by - bh * 0.96)),
+                         (int(cx + sgn * bw * 0.22), int(by - bh * 0.58)),
+                         (int(cx + sgn * bw * 0.40), int(by - bh * 0.80)),
                          max(3, int(r * 0.10)))
     # The bold $ stamped into the bag's belly (inset so it reads struck-in).
     _dollar(surf, cx, by + bh * 0.30, r * 0.94, ai._GLYPH_SH)
-    # The wealth-apex crownlet seated above the neck (drawn a touch larger than
-    # the shared L4 coronet so the "million = summit" topper reads at row size).
-    _crownlet(surf, cx, by - bh * 0.66, r * 1.2, col)
+    # A small engraved CROWN centered ATOP the bag — the wealth-apex marker that
+    # sets Millionaire apart from the Midas/coin family. A solid base band + three
+    # ball-tipped points, lifted clear above the neck with a gap so it reads as a
+    # distinct crown, not lost in the drawstring.
+    cw = r * 0.46                       # crown half-width
+    cby = by - bh * 1.02                # crown base line, clear above the bag
+    ch = r * 0.30
+    crown = [
+        (cx - cw, cby),
+        (cx - cw, cby - ch * 0.40),
+        (cx - cw * 0.5, cby - ch * 0.05),
+        (cx, cby - ch),
+        (cx + cw * 0.5, cby - ch * 0.05),
+        (cx + cw, cby - ch * 0.40),
+        (cx + cw, cby),
+    ]
+    pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in crown])
+    pygame.draw.rect(surf, col, (int(cx - cw), int(cby - ch * 0.02),
+                                 int(cw * 2), max(3, int(r * 0.12))),
+                     border_radius=max(1, int(r * 0.04)))
+    for px, ptip in ((-cw, ch * 0.40), (0.0, ch), (cw, ch * 0.40)):
+        pygame.draw.circle(surf, col, (int(cx + px), int(cby - ptip)),
+                           max(2, int(r * 0.07)))
     # Loose coins spilling at the foot, lower-right (the overflow of a million).
     for dx, dy, sc in ((0.70, 1.02, 0.24), (0.98, 0.84, 0.18)):
         nx, ny = cx + int(r * dx), cy + int(r * dy)
@@ -298,28 +324,31 @@ def _glyph_millionaire(surf, cx, cy, r, col):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _glyph_power_overwhelming(surf, cx, cy, r, col):
-    # Four zig-zag energy bolts fired out on the diagonals FIRST, so the central
-    # sparkle overlaps their roots (the power radiates FROM the star).
-    for k in range(4):
-        a = math.radians(45 + k * 90)
+    # THREE thick, radially-symmetric zig-zag bolts fired out at 120° (points up,
+    # lower-left, lower-right) so the silhouette stays a clean three-pronged power
+    # star instead of collapsing into diagonal noise. Drawn FIRST so the central
+    # sparkle overlaps their roots (power radiates FROM the star).
+    for k in range(3):
+        a = math.radians(-90 + k * 120)
         ux, uy = math.cos(a), math.sin(a)
         px, py = -uy, ux                    # across-bolt normal for the zig-zag
-        r0, r1, r2 = r * 0.42, r * 0.74, r * 1.06
+        r0, r1, r2 = r * 0.40, r * 0.76, r * 1.12
         bolt = [
-            (cx + ux * r0 + px * r * 0.10, cy + uy * r0 + py * r * 0.10),
-            (cx + ux * r1 + px * r * 0.20, cy + uy * r1 + py * r * 0.20),
+            (cx + ux * r0 + px * r * 0.16, cy + uy * r0 + py * r * 0.16),
+            (cx + ux * r1 + px * r * 0.28, cy + uy * r1 + py * r * 0.28),
             (cx + ux * r1 - px * r * 0.02, cy + uy * r1 - py * r * 0.02),
             (cx + ux * r2, cy + uy * r2),
-            (cx + ux * r1 - px * r * 0.22, cy + uy * r1 - py * r * 0.22),
+            (cx + ux * r1 - px * r * 0.30, cy + uy * r1 - py * r * 0.30),
             (cx + ux * r1 + px * r * 0.02, cy + uy * r1 + py * r * 0.02),
-            (cx + ux * r0 - px * r * 0.10, cy + uy * r0 - py * r * 0.10),
+            (cx + ux * r0 - px * r * 0.16, cy + uy * r0 - py * r * 0.16),
         ]
         pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in bolt])
     # The dominant overcharged sparkle at the core.
-    _sparkle(surf, cx, cy, r * 0.78, col, waist=0.30, reach=0.92)
-    # A saturated gold overcharge spark at the very centre (unlock-only).
+    _sparkle(surf, cx, cy, r * 0.72, col, waist=0.32, reach=0.90)
+    # A LARGER saturated gold overcharge core (unlock-only) so the centre anchors
+    # the star and the whole reads as one overcharged emblem.
     core = ai._accent((255, 214, 92))
-    pygame.draw.circle(surf, core, (cx, cy), max(3, int(r * 0.16)))
+    pygame.draw.circle(surf, core, (cx, cy), max(4, int(r * 0.24)))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
