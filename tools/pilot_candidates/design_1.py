@@ -2,9 +2,14 @@
 
 Scratch exploration builder wrapped by the store-skin contract, NOT registered
 in ``store_skins.BUILDERS``. Exposes ``build`` for the generic ninja_render
-harness. The hero read at 40px is a peaked officer's cap flat-topping the round
-head, a dark navy double-breasted jacket replacing the scarlet plumage, and
-gold sleeve stripes that ride the wing beat — the airline-captain silhouette.
+harness.
+
+The R3 rework paints the uniform ON TOP of the UNTOUCHED scarlet macaw — no
+``_build_parrot_with_palette`` recolor — so the bird stays a red-headed,
+blue-winged, gold-beaked parrot that is WEARING a captain's outfit, not a
+navy bird. The read at 40px: a flat-topped navy peaked cap breaking the round
+crown, a white shirt-front V on the chest, and three gold rank rings on a navy
+cuff riding the wing beat.
 """
 import sys
 import os
@@ -12,98 +17,63 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 import pygame
 
-from game.store_skins import (
-    _pal, _build_parrot_with_palette, _make_skin, _poly, HX, HY, CROWN_Y,
-)
+from game.store_skins import _make_skin, _poly, HX, HY, CROWN_Y
 
-# ── palette: re-plumage the macaw in officer navy ────────────────────────────
-# Navy jacket/cap so the costume paints gold trim ON navy instead of red-on-red;
-# a pale-blue belly stands in for the white shirt-front the chest overlay refines,
-# and the beak goes captain-gold so no warm scarlet survives the two-tone.
-_NAVY_DARK  = (20, 33, 74)          # jacket / cap shadow
-_NAVY_MAIN  = (27, 42, 100)         # jacket body
-_CAP_NAVY   = (27, 42, 74)          # #1B2A4A flat-top cap crown (darker than head)
-_CAP_RIM    = (42, 59, 95)          # #2A3B5F 1px rim-light so the cap holds at night
-_SHIRT      = (244, 241, 234)       # shirt-front white
-_TIE        = (20, 33, 61)          # #14213D single tie stripe down the collar-V
-_GOLD       = (245, 197, 66)        # cap badge + sleeve stripes
-_GOLD_D     = (180, 140, 40)
-_BLACK      = (11, 15, 28)          # patent cap brim / tie
-
-P_CAPTAIN = _pal(
-    tail=[(16, 27, 62), (20, 33, 74), (24, 38, 88), (30, 46, 108)],
-    tail_line=(12, 20, 48),
-    body_shadow=_NAVY_DARK,
-    body_main=_NAVY_MAIN,
-    body_chest=(200, 210, 232),
-    body_belly=(180, 190, 220),
-    sheen=(200, 214, 245, 55),
-    wing_main=_NAVY_MAIN,
-    wing_dark=_NAVY_DARK,
-    wing_tip=(36, 54, 122),
-    wing_secondary=None,
-    wing_highlight=(70, 92, 168),
-    head_shadow=_NAVY_DARK,
-    head_main=_NAVY_MAIN,
-    head_cheek=(34, 52, 116),
-    head_crown=(30, 46, 108),
-    lens_frame=(24, 38, 88),
-    lens_body=_BLACK,
-    lens_tint=None,
-    lens_glint=None,
-    beak_main=_GOLD,
-    beak_dark=_GOLD_D,
-    beak_gloss=(255, 232, 150),
-    foot=_BLACK,
-)
-
-
-def _captain_base(angle_deg):
-    # Navy-suited bird, no aviators — the peaked cap owns the head.
-    return _build_parrot_with_palette(angle_deg, P_CAPTAIN, draw_lenses=False)
+# ── costume palette (drawn OVER the natural red/blue/yellow macaw) ────────────
+_CAP_NAVY = (27, 42, 74)            # flat-top peaked-cap crown
+_CAP_RIM  = (42, 59, 95)            # 1px rim-light so the cap holds at night
+_BRIM     = (11, 15, 28)            # patent black cap brim
+_SHIRT    = (244, 241, 234)         # shirt-front white
+_TIE      = (20, 33, 61)            # single tie stripe down the collar-V
+_LAPEL    = (20, 33, 74)            # jacket lapels flanking the shirt
+_GOLD     = (245, 197, 66)          # cap badge + sleeve rank rings
+_GOLD_H   = (255, 232, 150)         # badge glint
 
 
 def _paint_captain(surf, wing_angle_deg):
     # Body centre in composite space (base body centre (32,32) + PARROT_DY=20).
-    BCX, BCY = 32, 52
+    BCX = 32
 
-    # ── clean collar-V shirt-front: a pale wedge, apex at the throat widening to
-    # the chest, split ONLY by a single dark tie stripe. No internal seams — at
-    # 40px any diagonal line inside this white wedge reads as sailboat rigging.
+    # ── navy jacket lapels behind the shirt so the white wedge doesn't float and
+    # the chest reads as jacket-over-shirt, not a bib. Drawn first; the white V
+    # laid on top leaves only the outer lapel edges showing.
+    _poly(surf, _LAPEL, [(BCX - 9, 37), (BCX, 38), (BCX - 7, 47)])
+    _poly(surf, _LAPEL, [(BCX, 38), (BCX + 9, 37), (BCX + 7, 47)])
+
+    # ── clean collar-V shirt-front over the red chest: a pale wedge, apex at the
+    # throat widening to the chest, split ONLY by a single dark tie stripe. No
+    # internal seams — at 40px any diagonal line inside the wedge reads as rigging.
     _poly(surf, _SHIRT, [(BCX, 38), (BCX - 7, 48), (BCX + 7, 48)])
     pygame.draw.line(surf, _TIE, (BCX, 39), (BCX, 47), 1)
 
-    # ── navy double-breasted lapels edging the wedge so the white doesn't float.
-    pygame.draw.line(surf, _NAVY_DARK, (BCX - 1, 38), (BCX - 8, 46), 3)
-    pygame.draw.line(surf, _NAVY_DARK, (BCX + 1, 38), (BCX + 8, 47), 2)
-
-    # ── captain's-rank sleeve stripes: exactly THREE fat gold bands on the cuff
-    # that ride the wing beat. A navy cuff backing keeps the gaps a clean navy so
-    # the three bands never smear into one gold blob at the downscale.
+    # ── captain's-rank sleeve rings: THREE fat gold bands on a navy cuff over the
+    # lower blue wing that ride the wing beat. The navy cuff keeps the gaps a clean
+    # dark so the three bands never smear into one gold blob at the downscale.
     cuff = int(round(wing_angle_deg * 0.10))
-    bx = BCX - 16
+    bx = BCX - 17
     pygame.draw.rect(surf, _CAP_NAVY, (bx - 1, 43 + cuff, 11, 9))
     for sy in (44, 47, 50):
         pygame.draw.rect(surf, _GOLD, (bx, sy + cuff, 9, 2))
 
-    # ── peaked officer's cap — a FLAT-TOPPED navy dome (flat top edge at y26) that
-    # breaks the round crown, with a patent-black brim raked toward the beak. The
-    # dark brim is the separator that lifts the cap off the navy head.
-    crown = [(38, 34), (38, 28), (40, 26), (56, 26), (58, 28), (58, 34)]
+    # ── peaked officer's cap sitting ON the red head: a FLAT-TOPPED navy crown
+    # (hard top edge at y22, no dome) with the red head still peeking out at the
+    # sides below it, and a patent-black brim raked toward the beak. The dark brim
+    # is the separator that lifts the cap off the scarlet crown.
+    crown = [(38, 32), (38, 24), (40, 22), (56, 22), (58, 24), (58, 32)]
     _poly(surf, _CAP_NAVY, crown)
-    # Patent brim: a 2px black band, right end dropped 1px so it rakes to the beak.
-    _poly(surf, _BLACK, [(37, 34), (59, 35), (59, 37), (37, 36)])
+    # Patent brim: a 2px black band, right (forward) end dropped 1px so it rakes
+    # down toward the beak.
+    _poly(surf, _BRIM, [(37, 32), (59, 33), (59, 35), (37, 34)])
 
-    # ── compact cap badge: a small horizontal gold mark on the band, held clear
-    # of the gold beak by a navy gap so the two never merge into one gold smear.
-    pygame.draw.rect(surf, _GOLD, (44, 32, 5, 2))
-    pygame.draw.line(surf, (255, 232, 150), (44, 32), (48, 32), 1)
+    # ── gold wings/cap-badge: a compact horizontal gold mark on the cap band, held
+    # well clear of the gold beak (which sits ~9px lower and to the right).
+    pygame.draw.rect(surf, _GOLD, (44, 29, 5, 2))
+    pygame.draw.line(surf, _GOLD_H, (44, 29), (48, 29), 1)
 
-    # ── 1px rim-light along the top + back of the cap crown and the upper back so
-    # the navy silhouette holds against the dark night sky.
-    pygame.draw.line(surf, _CAP_RIM, (40, 26), (56, 26), 1)
-    pygame.draw.line(surf, _CAP_RIM, (38, 28), (38, 33), 1)
-    pygame.draw.lines(surf, _CAP_RIM, False, [(16, 47), (20, 44), (25, 42)], 1)
+    # ── 1px rim-light along the flat top + back edge of the cap so the navy crown
+    # holds its silhouette against the dark night sky.
+    pygame.draw.line(surf, _CAP_RIM, (40, 22), (56, 22), 1)
+    pygame.draw.line(surf, _CAP_RIM, (38, 24), (38, 31), 1)
 
 
-build = _make_skin(_paint_captain, base_fn=_captain_base)
+build = _make_skin(_paint_captain)
