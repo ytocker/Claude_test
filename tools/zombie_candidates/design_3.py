@@ -1,14 +1,16 @@
 """VOODOO HEX BIRD — zombie parrot candidate (Design 3, scratch).
 
-A cursed, stitched-together conjure-bird: coarse cross-stitches lash the
-head/neck seam, a torn burlap-sack rag hangs off one shoulder, one eye is
-sewn shut while the other blazes an unnatural purple, and a sickly-green
-hex halo rims the whole body so it reads as legendary-cursed at a glance.
+A cursed, stitched-together conjure-bird: two bold cross-stitches lash the
+head/neck seam, a ragged burlap drape hangs off the BACK shoulder and breaks
+the silhouette, one eye is sewn shut while the other blazes an unnatural
+purple, a voodoo pin is driven through the exposed chest, and a persistent
+sickly-green rim halo traces the whole body so it reads as legendary-cursed
+on any sky.
 
-The horror is asymmetry — a live blazing eye beside a dead sewn one — plus
-the "repaired with rope" read of oversized X-stitches, far heavier than the
-timid seam ticks on the friendly zombie. Scratch explorer only — NOT
-registered in ``store_skins.BUILDERS``; exposes
+The horror is asymmetry — a live blazing eye beside a dead sewn one — plus the
+"reassembled corpse" read of oversized X-stitches and a stitched torso seam,
+far heavier than the timid seam ticks on the friendly zombie. Scratch explorer
+only — NOT registered in ``store_skins.BUILDERS``; exposes
 ``build(frame_idx, tilt_deg) -> Surface``.
 """
 from __future__ import annotations
@@ -25,34 +27,35 @@ BODY_D   = (58, 72, 55)
 BODY_H   = (124, 142, 116)
 BELLY    = (150, 164, 134)
 OUTLINE  = (32, 38, 30)
-BURLAP   = (183, 154, 107)
-BURLAP_D = (138, 112, 74)
-BURLAP_H = (206, 182, 140)
+# Dulled, desaturated cursed sacking — dark enough that it stops competing with
+# the blazing eye and reads as a rotted rag rather than a clean beige box.
+BURLAP   = (150, 120, 80)
+BURLAP_D = (110, 88, 58)
+BURLAP_H = (176, 146, 104)
 STITCH   = (17, 17, 17)
-HEX      = (124, 255, 138)      # sickly-green hex aura
-CURSED   = (178, 75, 255)       # blazing sewn-open eye
+SEAM     = (45, 58, 42)          # exposed stitched-torso seam (undead tell)
+HEX      = (124, 255, 138)       # sickly-green hex aura + rim halo
+CURSED   = (178, 75, 255)        # blazing sewn-open eye / pin bead
 CURSED_H = (224, 178, 255)
-BONE     = (224, 214, 188)      # voodoo-pin shaft + needle heads
+BONE     = (224, 214, 188)       # voodoo-pin shaft
 WING     = (78, 96, 74)
 WING_D   = (50, 64, 48)
-BEAK     = (168, 142, 92)       # dull, no longer glossy-live
+BEAK     = (168, 142, 92)        # dull, no longer glossy-live
 
 
 def _big_x(surf, cx, cy, r):
-    """One coarse repair X: two thick dark strokes with a knot bead at each of
-    the four tips, so the 'lashed shut with rope' read survives the shrink that
-    erases 1px seam ticks."""
+    """One coarse repair X: two thick dark strokes, no knot beads — a pair of
+    these read cleanly as 'lashed shut with rope' where cramped triples with
+    r=1 beads collapse into a muddy stain at gameplay size."""
     pygame.draw.line(surf, STITCH, (cx - r, cy - r), (cx + r, cy + r), 2)
     pygame.draw.line(surf, STITCH, (cx - r, cy + r), (cx + r, cy - r), 2)
-    for ex, ey in ((cx - r, cy - r), (cx + r, cy + r),
-                   (cx - r, cy + r), (cx + r, cy - r)):
-        pygame.draw.circle(surf, STITCH, (ex, ey), 1)
 
 
 def _hex_aura(surf, cx, cy, radius):
-    """Soft additive green halo. BLEND_RGB_ADD stacks scaled-RGB fills so the
+    """Soft additive green bloom. BLEND_RGB_ADD stacks scaled-RGB fills so the
     glow blooms brightest at the core and fades cleanly to sky with no hard
-    alpha edge — the legendary-rarity tell, rendered behind the whole bird."""
+    alpha edge. It is a bonus layer only — invisible over bright blue sky — so
+    the persistent rim halo in ``build`` is what actually carries the tell."""
     d = radius * 2
     g = pygame.Surface((d, d), pygame.SRCALPHA)
     for f, s in ((1.0, 0.16), (0.80, 0.22), (0.60, 0.30),
@@ -75,8 +78,9 @@ def _voodoo_wing(angle_deg):
 
 
 def _build_voodoo(wing_angle_deg):
-    """Flat composite for one wing angle (no aura — that is composited behind
-    the outlined sprite by ``build`` so the glow never gets a hard outline)."""
+    """Flat composite for one wing angle (no aura/halo — those are composited
+    behind the outlined sprite by ``build`` so the glow never gets a hard
+    outline)."""
     surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
 
     # Tail — corpse-green wedges.
@@ -91,43 +95,51 @@ def _build_voodoo(wing_angle_deg):
     _aaellipse(surf, BODY_H, (30, 29), 13, 8)
     _aaellipse(surf, BELLY, (28, 38), 12, 6)
 
-    # Voodoo-doll pin driven through the chest — bone shaft angled across the
-    # body with a bright bead head, so the "wounded doll" read lands even small.
-    pygame.draw.line(surf, STITCH, (21, 41), (33, 31), 2)
-    pygame.draw.line(surf, BONE, (21, 41), (33, 31), 1)
-    pygame.draw.circle(surf, STITCH, (34, 30), 3)
-    pygame.draw.circle(surf, CURSED, (34, 30), 2)
-    pygame.draw.circle(surf, CURSED_H, (33, 29), 1)
+    # Ragged burlap drape hung off the BACK/tail shoulder — a narrow torn
+    # triangle whose frayed hem pokes past the body ellipse so it breaks the
+    # round silhouette into something cursed and asymmetric, not a beige box.
+    rag = [(12, 28), (24, 26), (20, 44), (9, 40)]
+    pygame.draw.polygon(surf, BURLAP, rag)
+    # Inner fold sits in shadow so the drape reads as hanging cloth with depth.
+    pygame.draw.polygon(surf, BURLAP_D, [(12, 28), (16, 27), (18, 43), (9, 40)])
+    pygame.draw.line(surf, BURLAP_H, (13, 29), (23, 27), 1)
+    # Irregular torn hem — teeth 2-3px deep, uneven, poking below the body edge.
+    hem = [(9, 40), (11, 46), (13, 41), (15, 47),
+           (17, 42), (18, 45), (20, 44)]
+    pygame.draw.polygon(surf, BURLAP_D, hem)
+    # Two fray threads through the weave.
+    for fx in (14, 18):
+        pygame.draw.line(surf, BURLAP_D, (fx, 29), (fx, 42), 1)
 
     # Wing.
     wing = _voodoo_wing(wing_angle_deg)
     surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
 
-    # Burlap rag hung off the shoulder — a torn tan drape over the lower front,
-    # sitting on top of the wing so it reads as loose cloth, not plumage. A
-    # saw-tooth lower hem + two vertical fray lines sell the ripped sacking.
-    rag = [(17, 30), (31, 27), (33, 40), (16, 43)]
-    pygame.draw.polygon(surf, BURLAP, rag)
-    pygame.draw.polygon(surf, BURLAP_D, [(17, 30), (16, 43), (23, 42), (22, 31)])
-    pygame.draw.line(surf, BURLAP_H, (19, 31), (30, 29), 1)
-    # Saw-tooth ripped hem.
-    hem = [(16, 43), (19, 40), (21, 44), (24, 40),
-           (27, 44), (30, 40), (33, 43), (33, 40), (16, 40)]
-    pygame.draw.polygon(surf, BURLAP_D, hem)
-    # Two vertical fray lines through the weave.
-    for fx in (22, 27):
-        pygame.draw.line(surf, BURLAP_D, (fx, 30), (fx, 41), 1)
+    # Exposed stitched-torso seam — short darker-green ties across the belly
+    # sell a body cut open and sewn back together (the bodily undead tell).
+    for sy in (36, 40, 44):
+        pygame.draw.line(surf, SEAM, (24, sy), (34, sy), 1)
+    for sx in range(25, 34, 3):
+        pygame.draw.line(surf, SEAM, (sx, 34), (sx, 46), 1)
+
+    # Voodoo-doll pin driven through the now-exposed chest — bone shaft angled
+    # across the body with an oversized cursed bead head (r3) so the "wounded
+    # doll" wound reads at gameplay size now the rag no longer hides it.
+    pygame.draw.line(surf, STITCH, (23, 42), (35, 32), 2)
+    pygame.draw.line(surf, BONE, (23, 42), (35, 32), 1)
+    pygame.draw.circle(surf, STITCH, (36, 31), 4)
+    pygame.draw.circle(surf, CURSED, (36, 31), 3)
+    pygame.draw.circle(surf, CURSED_H, (35, 30), 1)
 
     # Head.
     _aaellipse(surf, BODY_D, (48, 23), 12, 11)
     _aaellipse(surf, BODY, (47, 21), 12, 11)
     _aaellipse(surf, BODY_H, (46, 16), 7, 3)
 
-    # Coarse cross-stitches lashing the head/neck seam — the hero repair note,
-    # three heavy X's stepping down from the crown into the neck.
-    _big_x(surf, 42, 14, 3)
-    _big_x(surf, 40, 22, 3)
-    _big_x(surf, 39, 30, 3)
+    # Two bold, well-spaced repair X's — crown and neck — lashing the head back
+    # on. Separation is what makes them read as stitches instead of a stain.
+    _big_x(surf, 44, 12, 3)
+    _big_x(surf, 37, 28, 3)
 
     # Sewn-shut dead eye (the far eye) — a dark horizontal slit crossed by three
     # short vertical stitches; the missing eye is half the asymmetry horror.
@@ -135,11 +147,11 @@ def _build_voodoo(wing_angle_deg):
     for vx in (42, 44, 46):
         pygame.draw.line(surf, STITCH, (vx, 19), (vx, 23), 1)
 
-    # Cursed blazing eye (the near eye) — a hot purple orb with a self-lit
-    # bloom, the other half of the asymmetry and the single brightest note.
-    _hex_aura(surf, 50, 19, 6)
-    pygame.draw.circle(surf, STITCH, (50, 19), 4)
-    pygame.draw.circle(surf, CURSED, (50, 19), 3)
+    # Cursed blazing eye (the near eye) — the best tell, so it truly blazes:
+    # a fat purple orb (r4) with a self-lit bloom and a 1px hotspot.
+    _hex_aura(surf, 50, 19, 7)
+    pygame.draw.circle(surf, STITCH, (50, 19), 5)
+    pygame.draw.circle(surf, CURSED, (50, 19), 4)
     pygame.draw.circle(surf, CURSED_H, (49, 18), 1)
 
     # Beak — dull horn, faintly agape.
@@ -156,9 +168,25 @@ def _build_voodoo(wing_angle_deg):
 
 _getter = _make_prebuilt_skin(_build_voodoo)
 
-# Cache the aura-behind composite per (frame, tilt) so the halo tracks the
-# rotated sprite without re-blitting every draw.
+# Cache the halo+aura-behind composite per (frame, tilt) so the cursed edge
+# tracks the rotated sprite without re-deriving the silhouette every draw.
 _aura_cache: dict = {}
+
+
+def _rim_halo(core, alpha=160):
+    """A persistent 2px green stroke traced around the sprite's silhouette,
+    drawn on a normal-blend layer (NOT additive) so the cursed edge survives
+    over bright blue sky where the additive bloom washes out to nothing. Built
+    by unioning the alpha mask blitted at 2px offsets in all eight directions."""
+    mask = pygame.mask.from_surface(core)
+    sil = mask.to_surface(setcolor=(HEX[0], HEX[1], HEX[2], alpha),
+                          unsetcolor=(0, 0, 0, 0))
+    cw, ch = core.get_size()
+    ring = pygame.Surface((cw + 4, ch + 4), pygame.SRCALPHA)
+    for dx, dy in ((2, 0), (-2, 0), (0, 2), (0, -2),
+                   (2, 2), (-2, 2), (2, -2), (-2, -2)):
+        ring.blit(sil, (2 + dx, 2 + dy))
+    return ring
 
 
 def build(frame_idx, tilt_deg):
@@ -169,9 +197,12 @@ def build(frame_idx, tilt_deg):
         pad = 16
         cw, ch = core.get_size()
         out = pygame.Surface((cw + pad * 2, ch + pad * 2), pygame.SRCALPHA)
-        # Aura first, centred on the body mass, then the outlined bird on top.
+        # Soft additive bloom first (bonus layer), then the persistent rim halo
+        # that carries the tell on any background, then the outlined bird.
         _hex_aura(out, out.get_width() // 2, out.get_height() // 2 + 4,
                   max(cw, ch) // 2 + 6)
+        ring = _rim_halo(core)
+        out.blit(ring, (pad - 2, pad - 2))
         out.blit(core, (pad, pad))
         _aura_cache[key] = out
     return out
