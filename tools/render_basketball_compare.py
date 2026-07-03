@@ -63,6 +63,6 @@ for i, (tag, name, spec) in enumerate(COLUMNS):
     sheet.blit(name_font.render(name, True, _GOLD_PALE), (x + 2, cy + 18))
 
 os.makedirs("docs/store_redesign/costume/basketball", exist_ok=True)
-out = "docs/store_redesign/costume/basketball/final_comparison.png"
+out = "docs/store_redesign/costume/basketball/final_comparison_v4.png"
 pygame.image.save(sheet, out)
 print("SAVED", out, sheet.get_size())
