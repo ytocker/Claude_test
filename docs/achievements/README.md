@@ -279,3 +279,42 @@ The family was produced via the project's orchestrator design-loop
 - **No new runtime assets** — all art is procedural and the toast reuses existing
   OGGs, so the player-facing bundle size is unaffected.
 - Achievement evaluation is skipped for the scripted demo run.
+
+---
+
+## 9. Menu entry — placement exploration
+
+The section is reached today from a **"HALL OF FAME" pill** in the main-menu
+four-pill stack (`START · HOW TO PLAY · POWER-UPS · HALL OF FAME`), with a
+separate **BEST** panel and **TOP 10** leaderboard panel along the bottom
+([main-menu capture](screenshots/main_menu.png)). As the feature grew (99 badges
+across two halls), we explored better ways to surface it.
+
+**Advice gathered (read-only agents):**
+- *Gaming-experience tester:* keep a **labeled** entry (icon-only nav hurts
+  discoverability), don't add a 5th pill (menu real-estate is tight) or a separate
+  two-level hub state, grow the destination screen via its existing tab system,
+  and add a cheap **"new unlocks" indicator** (the one real discoverability gap
+  today).
+- *Novelty designer:* make the door *diegetic/characterful* (tap Pip, who wears
+  his rank; the post-house door; a courier ID card) and lead a profile with a
+  **Fame↔Shame "personality readout"** so it reads as identity, not a stats page.
+
+**Profile-tile concept sheet** (5 options, mockups only — not production):
+[`menu_profile_concepts/options.png`](../menu_profile_concepts/options.png).
+Each drops the 4th pill and folds the achievements entry + best + leaderboard into
+one bottom **Profile** tile:
+
+| # | Concept | Thesis |
+|---|---|---|
+| 1 | Full-width Profile bar | one wide identity pill: crest + rank + best + trophy `N/99` |
+| 2 | Courier ID card | lanyard ID badge: Pip mugshot, member-since, medal strip, count |
+| 3 | Heraldic crest + chips | laurel category-quadrant crest on a ranked ribbon, flanked by BEST + count chips |
+| 4 | Trophy shelf | a row of your top earned badges on a gold shelf + `N/99` tally |
+| 5 | Two compact tiles | conservative split: a PROFILE tile beside the kept slim BEST tile |
+
+**Chosen direction (simpler):** rather than a full profile hub, repurpose the
+bottom-left **BEST** tile into a compact **icon entry** that opens the
+achievements section (leaderboard stays on the right). Icon concepts are being
+explored separately; this profile-hub sheet is kept as a record for when a store /
+cosmetics feature later warrants a full Profile surface.
