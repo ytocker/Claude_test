@@ -249,8 +249,9 @@ class TestCatalogIntegrity(unittest.TestCase):
         self.assertEqual(store_catalog.rarity(store_catalog.PARCEL_BASE), "common")
         # Band boundaries spot-checked on representative items.
         self.assertEqual(store_catalog.rarity("skin_shades_none"), "common")   # 120
-        self.assertEqual(store_catalog.rarity("skin_owl"), "rare")             # 480
-        self.assertEqual(store_catalog.rarity("skin_dragon"), "epic")          # 1200
+        self.assertEqual(store_catalog.rarity("skin_owl"), "common")           # 280
+        self.assertEqual(store_catalog.rarity("skin_penguin"), "rare")         # 420
+        self.assertEqual(store_catalog.rarity("skin_dragon"), "epic")          # 2300
         self.assertEqual(store_catalog.rarity("skin_kitsune"), "legendary")    # 3500
 
     def test_every_skin_resolves_in_renderer(self):

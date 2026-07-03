@@ -60,39 +60,33 @@ CATALOG: dict[str, dict] = {
     "skin_lorikeet":  {"name": "LORIKEET",    "cost": 600, "kind": "skin", "group": "parrot"},
 
     # ── ANIMALS (from-scratch creatures) ──────────────────────────────────────
-    "skin_bee":      {"name": "BEE",       "cost": 400,  "kind": "skin", "group": "animal"},
-    "skin_owl":      {"name": "OWL",       "cost": 480,  "kind": "skin", "group": "animal"},
-    "skin_toucan":   {"name": "TOUCAN",    "cost": 480,  "kind": "skin", "group": "animal"},
-    "skin_penguin":  {"name": "PENGUIN",   "cost": 520,  "kind": "skin", "group": "animal"},
-    "skin_bat":      {"name": "BAT",       "cost": 520,  "kind": "skin", "group": "animal"},
+    # Common — entry-level, accessible within a couple of runs.
+    "skin_bee":      {"name": "BEE",       "cost": 200,  "kind": "skin", "group": "animal"},
+    "skin_owl":      {"name": "OWL",       "cost": 280,  "kind": "skin", "group": "animal"},
+    "skin_toucan":   {"name": "TOUCAN",    "cost": 340,  "kind": "skin", "group": "animal"},
+    # Rare — comfortable multi-session grind, evenly spaced.
+    "skin_penguin":  {"name": "PENGUIN",   "cost": 420,  "kind": "skin", "group": "animal"},
+    "skin_bat":      {"name": "BAT",       "cost": 490,  "kind": "skin", "group": "animal"},
     "skin_flamingo": {"name": "FLAMINGO",  "cost": 560,  "kind": "skin", "group": "animal"},
-    "skin_eagle":    {"name": "EAGLE",     "cost": 700,  "kind": "skin", "group": "animal"},
-    "skin_pufferfish":   {"name": "PUFFERFISH",   "cost": 620,  "kind": "skin", "group": "animal"},
-    "skin_chameleon":    {"name": "CHAMELEON",    "cost": 680,  "kind": "skin", "group": "animal"},
-    "skin_red_panda":    {"name": "RED PANDA",    "cost": 740,  "kind": "skin", "group": "animal"},
-    "skin_sugar_glider": {"name": "SUGAR GLIDER", "cost": 820,  "kind": "skin", "group": "animal"},
-    "skin_axolotl":      {"name": "AXOLOTL",      "cost": 900,  "kind": "skin", "group": "animal"},
-    "skin_mantis_shrimp": {"name": "MANTIS SHRIMP", "cost": 980, "kind": "skin", "group": "animal"},
-    "skin_griffin":      {"name": "GRIFFIN",      "cost": 1100, "kind": "skin", "group": "animal"},
-    "skin_dragon":   {"name": "DRAGON",    "cost": 1200, "kind": "skin", "group": "animal"},
-    "skin_phoenix":  {"name": "PHOENIX",   "cost": 1500, "kind": "skin", "group": "animal"},
-    # Legendary tier — spectacle showpieces, priced clearly above the rest.
-    "skin_thunderbird":  {"name": "THUNDERBIRD",  "cost": 1800, "kind": "skin", "group": "animal"},
-    "skin_cosmic_jelly": {"name": "COSMIC JELLY", "cost": 2200, "kind": "skin", "group": "animal"},
-    "skin_aurora_stag":  {"name": "AURORA STAG",  "cost": 2800, "kind": "skin", "group": "animal"},
+    "skin_pufferfish":   {"name": "PUFFERFISH",   "cost": 640,  "kind": "skin", "group": "animal"},
+    "skin_chameleon":    {"name": "CHAMELEON",    "cost": 720,  "kind": "skin", "group": "animal"},
+    # Epic — aspirational ladder; each unlock feels like an event.
+    "skin_eagle":    {"name": "EAGLE",     "cost": 900,  "kind": "skin", "group": "animal"},
+    "skin_red_panda":    {"name": "RED PANDA",    "cost": 1100, "kind": "skin", "group": "animal"},
+    "skin_sugar_glider": {"name": "SUGAR GLIDER", "cost": 1400, "kind": "skin", "group": "animal"},
+    "skin_mantis_shrimp": {"name": "MANTIS SHRIMP", "cost": 1800, "kind": "skin", "group": "animal"},
+    "skin_dragon":   {"name": "DRAGON",    "cost": 2300, "kind": "skin", "group": "animal"},
+    # Legendary — prestige tier; kitsune anchors the visible legendary goal.
     "skin_kitsune":      {"name": "KITSUNE",      "cost": 3500, "kind": "skin", "group": "animal"},
-    # SECRET tier — masked as ??? in the store until bought (price still shown).
-    # Ridiculously expensive, completely out-of-the-box NON-creature flyers.
+    # Secret legendary — masked ??? until purchased, price still shown.
     "skin_paper_plane":  {"name": "PAPER PLANE",   "cost": 5000,  "kind": "skin", "group": "animal", "secret": True},
-    "skin_ufo":          {"name": "UFO",           "cost": 7000,  "kind": "skin", "group": "animal", "secret": True},
-    "skin_pinata_burro":  {"name": "BURRO PIÑATA",  "cost": 8000,  "kind": "skin", "group": "animal", "secret": True},
-    "skin_pinata_cactus": {"name": "CACTUS PIÑATA", "cost": 8500,  "kind": "skin", "group": "animal", "secret": True},
-    "skin_toaster":      {"name": "FLYING TOASTER", "cost": 9000, "kind": "skin", "group": "animal", "secret": True},
-    "skin_pinata_parrot": {"name": "PARROT PIÑATA", "cost": 11000, "kind": "skin", "group": "animal", "secret": True},
+    # Mystery SUN — rolls a random one of two sun designs at unlock, then locks to it.
+    "skin_sun":          {"name": "SUN",           "cost": 6000,  "kind": "skin", "group": "animal", "secret": True},
+    "skin_pinata_burro":  {"name": "BURRO PIÑATA",  "cost": 7000,  "kind": "skin", "group": "animal", "secret": True},
+    "skin_pinata_cactus": {"name": "CACTUS PIÑATA", "cost": 8000,  "kind": "skin", "group": "animal", "secret": True},
+    "skin_toaster":      {"name": "FLYING TOASTER", "cost": 9000,  "kind": "skin", "group": "animal", "secret": True},
+    "skin_pinata_parrot": {"name": "PARROT PIÑATA", "cost": 10500, "kind": "skin", "group": "animal", "secret": True},
     "skin_jet_fighter":  {"name": "JET FIGHTER",   "cost": 12000, "kind": "skin", "group": "animal", "secret": True},
-    # Mystery SUN — masked ??? that rolls a random one of two sun designs
-    # (classic / kawaii) at unlock, then locks to it.
-    "skin_sun":          {"name": "SUN",           "cost": 7500,  "kind": "skin", "group": "animal", "secret": True},
 
     # ── SHOES (stylized procedural sneaker/sandal homages Pip wears) ───────────
     # Priced on desirability: sandals/slides cheap, classics mid, hype premium.
