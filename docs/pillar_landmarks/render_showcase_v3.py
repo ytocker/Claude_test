@@ -48,8 +48,13 @@ TIP_Y = BOT_TOP - 10               # a little sky headroom above the finial
 BASE_Y = GROUND_Y + 8              # a hair of ground below the plinth
 TOWER_H = BASE_Y - TIP_Y
 
-# (slug, render.py subpath, candidate fn name, one-line thesis)
+# (slug, render.py subpath, candidate fn name, one-line thesis, is_seed)
+# Each row leads with the ORIGINAL design (is_seed=True) the family was seeded
+# from — badged "SEED", not numbered — so the 10 finals still read #1..#10.
 TEMPLE_MILLS = [
+    ("waterwheel-mill", "windmills/waterwheel-mill/render.py",
+     "candidate_waterwheel_mill",
+     "original — brick cone + water-wheel", True),
     ("vane-star-mill", "temple_mills/vane-star-mill/render.py",
      "candidate_vane_star_mill",
      "brick ziggurat + gilded pinwheel star"),
@@ -67,6 +72,9 @@ TEMPLE_MILLS = [
      "brick pavilion + prayer-streamer whirl"),
 ]
 JAPANESE_TOTEMS = [
+    ("moai_ancestor", "totems/moai_ancestor/render.py",
+     "candidate_moai_ancestor",
+     "original — gaunt basalt ancestor heads", True),
     ("oni_kanabo", "japanese_totems/oni_kanabo/render.py",
      "candidate_oni_kanabo",
      "stacked Oni demon masks, iron horns"),
@@ -159,7 +167,7 @@ def main() -> None:
     pal = biome.palette_for_phase(PHASE)
 
     cw, ch = CACHE_W, TOWER_H
-    cols = 5
+    cols = 6                            # leading SEED cell + 5 finals per row
     pad = 12
     thesis_font = pygame.font.SysFont(None, 16)
     slug_font = pygame.font.SysFont(None, 20)
@@ -185,19 +193,27 @@ def main() -> None:
         "Skybit — temple-mills + Japanese totems (round 3)",
         True, (245, 240, 230)), (pad, 12))
     sheet.blit(sub.render(
-        "10 matured finals  ·  identical daytime bake (phase 0.30)  ·  upright hero towers",
+        "10 matured finals + the 2 originals (SEED) each family was based on  ·  "
+        "identical daytime bake (phase 0.30)",
         True, (170, 172, 182)), (pad, 38))
 
     rows = [("TEMPLE-MILLS", TEMPLE_MILLS), ("JAPANESE TOTEMS", JAPANESE_TOTEMS)]
     counts = {}
+    final_n = 0                        # running #N for finals only (seeds excluded)
     y_row = head_h + pad
     for row_label, concepts in rows:
         sheet.blit(row_font.render(row_label, True, (255, 224, 150)), (pad, y_row + 4))
         y_cells = y_row + row_header_h
-        for c, (slug, subpath, fn_name, thesis) in enumerate(concepts):
-            idx = len(counts) + 1
+        for c, entry in enumerate(concepts):
+            slug, subpath, fn_name, thesis = entry[:4]
+            is_seed = len(entry) > 4 and entry[4]
             fn = _load_candidate(subpath, fn_name, slug)
-            tower = bake_tower(fn, seed=13 + idx)
+            if is_seed:
+                badge_text, seed = "SEED", 13
+            else:
+                final_n += 1
+                badge_text, seed = f"#{final_n}", 13 + final_n
+            tower = bake_tower(fn, seed=seed)
             counts[slug] = _painted_pixels(tower)
 
             x = pad + c * (cw + pad)
@@ -206,11 +222,13 @@ def main() -> None:
             sheet.blit(cell, (x, y_cells))
             pygame.draw.rect(sheet, (60, 62, 72), (x, y_cells, cw, ch), 1)
 
-            # Gold #N badge, top-left of the cell.
-            num = serial.render(f"#{idx}", True, (24, 25, 30))
+            # Badge, top-left: gold "#N" for finals, muted grey "SEED" for originals.
+            fg = (24, 25, 30) if not is_seed else (232, 234, 240)
+            bg = (255, 224, 150) if not is_seed else (86, 90, 102)
+            num = serial.render(badge_text, True, fg)
             bw, bh = num.get_width() + 12, num.get_height() + 6
             badge = pygame.Surface((bw, bh), pygame.SRCALPHA)
-            pygame.draw.rect(badge, (255, 224, 150), badge.get_rect(), border_radius=6)
+            pygame.draw.rect(badge, bg, badge.get_rect(), border_radius=6)
             badge.blit(num, (6, 3))
             sheet.blit(badge, (x + 4, y_cells + 4))
 
