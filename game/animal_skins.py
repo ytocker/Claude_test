@@ -1317,7 +1317,6 @@ BUILDERS = {
     "skin_flamingo":  get_flamingo,
     "skin_eagle":     get_eagle,
     "skin_bee":       get_bee,
-    "skin_butterfly": get_butterfly,
     "skin_dragon":    get_dragon,     # premium gacha showpiece
     "skin_phoenix":   get_phoenix,    # premium gacha showpiece
 }
@@ -1331,7 +1330,7 @@ BUILDERS = {
 for _modname in (
     "animal_axolotl", "animal_pufferfish", "animal_chameleon",
     "animal_red_panda", "animal_sugar_glider", "animal_mantis_shrimp",
-    "animal_griffin", "animal_cosmic_jelly",
+    "animal_griffin", "animal_thunderbird", "animal_cosmic_jelly",
     "animal_aurora_stag", "animal_kitsune",
     # Secret ultra-premium NON-creature flyers (masked as ??? in the store).
     "animal_paper_plane", "animal_jet_fighter", "animal_ufo", "animal_toaster",
