@@ -1,26 +1,33 @@
 """Shared draw logic for basketball v4 kit — polygon-over-parrot approach.
 
 The natural parrot plumage shows through the armhole areas; no body recolor.
-The jersey is drawn as a polygon panel on top of the base parrot sprite,
-matching real NBA tank anatomy: two narrow straps flanking a deep neckline gap,
-a deep U-shaped armhole scoop, and a full-width chest panel below the underarm.
+The jersey is drawn as a polygon panel on top of the base parrot sprite.
+The parrot's face is saved before any drawing and restored at the very end
+so the head always sits in front of the jersey.
 """
 import pygame
 
 
 def draw_basketball_kit(
     surf, BCX, BCY, HX, HY, CROWN_Y, poly_fn,
-    jersey, jersey_d, jersey_h,  # jersey fill / dark-edge / highlight
-    trim, trim_d,                 # trim accent (white or gold)
-    num_col, num_d, number,       # jersey number colour / shadow / digit
-    shoe, shoe_d, shoe_ac,        # shoe main / sole-shadow / accent stripe
-    band_accent=None,             # headband midline + knot colour; defaults to jersey
+    jersey, jersey_d, jersey_h,
+    trim, trim_d,
+    num_col, num_d, number,
+    shoe, shoe_d, shoe_ac,
+    band_accent=None,
 ):
     """Draw full basketball kit over the natural parrot sprite."""
     bm = band_accent if band_accent is not None else jersey
 
+    # --- Save parrot face BEFORE drawing anything ----------------------------
+    face_x = HX - 9                               # = 38
+    face_y = CROWN_Y - 1                          # = 30
+    face_w = min(surf.get_width() - face_x, 28)
+    face_h = HY + 12 - face_y                     # = 23
+    face_rect = pygame.Rect(face_x, face_y, face_w, face_h)
+    face_backup = surf.subsurface(face_rect).copy()
+
     # --- CHEST PANEL (below the underarm line, full width) -------------------
-    # Runs from BCY-4 to BCY+14, covering the lower two-thirds of the body oval.
     poly_fn(surf, jersey, [
         (BCX-13, BCY-4),  (BCX+13, BCY-4),
         (BCX+12, BCY+14), (BCX-12, BCY+14),
@@ -91,15 +98,18 @@ def draw_basketball_kit(
         pygame.draw.line(surf, shoe_d,  (fx-4, HY+27), (fx+5, HY+27), 2)
         pygame.draw.line(surf, trim,    (fx-3, HY+21), (fx+1, HY+21), 1)
 
+    # --- Restore parrot face on top of all jersey elements -------------------
+    surf.blit(face_backup, face_rect.topleft)
+
 
 def _draw_number(surf, BCX, BCY, number, col, shadow):
     """Render a 1- or 2-digit block number centred on (BCX, BCY)."""
     digits = number.strip()
     if len(digits) == 1:
-        _draw_digit(surf, BCX, BCY, digits[0], col, shadow, scale=1.0)
+        _draw_digit(surf, BCX, BCY, digits[0], col, shadow, scale=0.7)
     elif len(digits) == 2:
-        _draw_digit(surf, BCX-5, BCY, digits[0], col, shadow, scale=0.85)
-        _draw_digit(surf, BCX+5, BCY, digits[1], col, shadow, scale=0.85)
+        _draw_digit(surf, BCX-4, BCY, digits[0], col, shadow, scale=0.65)
+        _draw_digit(surf, BCX+4, BCY, digits[1], col, shadow, scale=0.65)
 
 
 def _draw_digit(surf, cx, cy, d, col, shad, scale=1.0):
