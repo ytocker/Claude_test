@@ -68,7 +68,8 @@ def draw_basketball_kit(
                        (BCX+3, BCY-9),  (BCX+6, BCY-12)], 2)
 
     # --- JERSEY NUMBER -------------------------------------------------------
-    _draw_number(surf, BCX, BCY + 5, number, num_col, num_d)
+    # Visible chest runs x=19..38; centre ≈ 28 = BCX-4.
+    _draw_number(surf, BCX - 4, BCY + 5, number, num_col, num_d)
 
     # --- HEM PIPING ----------------------------------------------------------
     pygame.draw.line(surf, trim, (BCX-11, BCY+13), (BCX+11, BCY+13), 1)
@@ -78,17 +79,6 @@ def draw_basketball_kit(
     pygame.draw.line(surf, trim_d, (wrx-3, wry+4), (wrx+5, wry-2), 6)
     pygame.draw.line(surf, trim,   (wrx-3, wry+4), (wrx+5, wry-2), 4)
     pygame.draw.line(surf, jersey, (wrx-2, wry+3), (wrx+4, wry-2), 1)
-
-    # --- BROW HEADBAND -------------------------------------------------------
-    # Thick trim-coloured band hugging the crown; jersey-coloured midline + knot
-    # is the "tied-on" tell that reads as worn kit.
-    by = CROWN_Y + 5
-    pygame.draw.line(surf, trim_d, (HX-12, by+1), (HX+13, by),   7)
-    pygame.draw.line(surf, trim,   (HX-12, by),   (HX+13, by-1), 5)
-    pygame.draw.line(surf, bm,     (HX-11, by),   (HX+12, by-1), 2)   # midline
-    pygame.draw.line(surf, trim,   (HX-10, by-2), (HX+5,  by-2), 1)   # glint
-    pygame.draw.circle(surf, bm, (HX-12, by), 3)                        # knot
-    pygame.draw.line(surf, jersey_d, (HX-13, by+2), (HX-16, by+5), 2)  # tail
 
     # --- HIGH-TOP SHOES ------------------------------------------------------
     for fx in (26, 34):
@@ -101,15 +91,24 @@ def draw_basketball_kit(
     # --- Restore parrot face on top of all jersey elements -------------------
     surf.blit(face_backup, face_rect.topleft)
 
+    # --- BROW HEADBAND (drawn after face restore so it sits on the forehead) -
+    by = CROWN_Y + 5
+    pygame.draw.line(surf, trim_d, (HX-12, by+1), (HX+13, by),   7)
+    pygame.draw.line(surf, trim,   (HX-12, by),   (HX+13, by-1), 5)
+    pygame.draw.line(surf, bm,     (HX-11, by),   (HX+12, by-1), 2)
+    pygame.draw.line(surf, trim,   (HX-10, by-2), (HX+5,  by-2), 1)
+    pygame.draw.circle(surf, bm, (HX-12, by), 3)
+    pygame.draw.line(surf, jersey_d, (HX-13, by+2), (HX-16, by+5), 2)
+
 
 def _draw_number(surf, BCX, BCY, number, col, shadow):
     """Render a 1- or 2-digit block number centred on (BCX, BCY)."""
     digits = number.strip()
     if len(digits) == 1:
-        _draw_digit(surf, BCX, BCY, digits[0], col, shadow, scale=0.7)
+        _draw_digit(surf, BCX, BCY, digits[0], col, shadow, scale=0.85)
     elif len(digits) == 2:
-        _draw_digit(surf, BCX-4, BCY, digits[0], col, shadow, scale=0.65)
-        _draw_digit(surf, BCX+4, BCY, digits[1], col, shadow, scale=0.65)
+        _draw_digit(surf, BCX-4, BCY, digits[0], col, shadow, scale=0.75)
+        _draw_digit(surf, BCX+4, BCY, digits[1], col, shadow, scale=0.75)
 
 
 def _draw_digit(surf, cx, cy, d, col, shad, scale=1.0):
