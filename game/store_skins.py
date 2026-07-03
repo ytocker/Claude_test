@@ -1709,13 +1709,42 @@ def _make_prebuilt_skin(build_fn):
 
 # ── ZOMBIE redraw — "undead but happy": healthy-green body, stitched grin,
 # one mismatched googly eye, a small wound stitch. NOT the chartreuse KO pose.
-_ZB_BODY   = (118, 168, 78)        # friendly zombie green
-_ZB_BODY_D = (78, 120, 50)
-_ZB_BODY_H = (170, 208, 120)
-_ZB_BELLY  = (196, 218, 150)
-_ZB_STITCH = (60, 84, 40)
-_ZB_WING   = (92, 140, 168)
-_ZB_WING_D = (58, 96, 120)
+# VOODOO HEX BIRD — cursed, stitched-together conjure-bird.
+# Mossy-corpse body so the purple eye and green hex glow own the read.
+_ZB_BODY    = (92, 110, 87)
+_ZB_BODY_D  = (58, 72, 55)
+_ZB_BODY_H  = (124, 142, 116)
+_ZB_BELLY   = (150, 164, 134)
+_ZB_OUTLINE = (32, 38, 30)
+_ZB_BURLAP  = (150, 120, 80)
+_ZB_BURLAP_D = (110, 88, 58)
+_ZB_BURLAP_H = (176, 146, 104)
+_ZB_STITCH  = (17, 17, 17)
+_ZB_SEAM    = (45, 58, 42)
+_ZB_HEX     = (124, 255, 138)    # sickly-green hex aura
+_ZB_CURSED  = (178, 75, 255)     # blazing purple eye / pin bead
+_ZB_CURSED_H = (224, 178, 255)
+_ZB_BONE    = (224, 214, 188)    # voodoo-pin shaft
+_ZB_WING    = (78, 96, 74)
+_ZB_WING_D  = (50, 64, 48)
+_ZB_BEAK    = (168, 142, 92)
+
+
+def _zb_big_x(surf, cx, cy, r):
+    pygame.draw.line(surf, _ZB_STITCH, (cx - r, cy - r), (cx + r, cy + r), 2)
+    pygame.draw.line(surf, _ZB_STITCH, (cx - r, cy + r), (cx + r, cy - r), 2)
+
+
+def _zb_hex_aura(surf, cx, cy, radius):
+    """Soft additive green bloom behind the sprite — bonus layer; the persistent
+    rim halo is what carries the cursed tell on bright skies."""
+    d = radius * 2
+    g = pygame.Surface((d, d), pygame.SRCALPHA)
+    for f, s in ((1.0, 0.16), (0.80, 0.22), (0.60, 0.30),
+                 (0.42, 0.40), (0.26, 0.52)):
+        c = (int(_ZB_HEX[0] * s), int(_ZB_HEX[1] * s), int(_ZB_HEX[2] * s))
+        pygame.draw.circle(g, c, (radius, radius), int(radius * f))
+    surf.blit(g, (cx - radius, cy - radius), special_flags=pygame.BLEND_RGB_ADD)
 
 
 def _zb_wing(angle_deg):
@@ -1724,67 +1753,120 @@ def _zb_wing(angle_deg):
     pygame.draw.polygon(w, _ZB_WING, pts)
     pygame.draw.polygon(w, _ZB_WING_D, [(24, 24), (32, 42), (18, 36)])
     pygame.draw.line(w, _ZB_WING_D, (26, 25), (42, 18), 2)
-    pygame.draw.line(w, (170, 210, 220), (25, 25), (41, 15), 1)
+    pygame.draw.line(w, _ZB_BODY_H, (25, 25), (40, 16), 1)
     return pygame.transform.rotate(w, angle_deg)
 
 
-def _build_zombie_redraw(wing_angle_deg):
+def _build_voodoo_zombie(wing_angle_deg):
     surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
-    # Tail — green wedges.
+
+    # Tail.
     for i, c in enumerate([_ZB_BODY_D, _ZB_BODY, _ZB_BODY_H, _ZB_BELLY]):
         pts = [(2 + i * 3, 26 + i * 2), (14 + i, 24 + i),
                (20 + i, 30 + i * 2), (6 + i * 3, 36 + i * 2)]
         pygame.draw.polygon(surf, c, pts)
+
     # Body.
     _aaellipse(surf, _ZB_BODY_D, (34, 35), 19, 14)
     _aaellipse(surf, _ZB_BODY, (32, 32), 19, 14)
     _aaellipse(surf, _ZB_BODY_H, (30, 29), 13, 8)
     _aaellipse(surf, _ZB_BELLY, (28, 38), 12, 6)
-    # Belly seam stitch — the jaunty undead detail.
-    pygame.draw.line(surf, _ZB_STITCH, (26, 34), (26, 42), 1)
-    for sy in range(34, 42, 2):
-        pygame.draw.line(surf, _ZB_STITCH, (24, sy), (28, sy), 1)
+
+    # Ragged burlap drape off the back shoulder — breaks the round silhouette.
+    rag = [(12, 28), (24, 26), (20, 44), (9, 40)]
+    pygame.draw.polygon(surf, _ZB_BURLAP, rag)
+    pygame.draw.polygon(surf, _ZB_BURLAP_D, [(12, 28), (16, 27), (18, 43), (9, 40)])
+    pygame.draw.line(surf, _ZB_BURLAP_H, (13, 29), (23, 27), 1)
+    hem = [(9, 40), (11, 46), (13, 41), (15, 47),
+           (17, 42), (18, 45), (20, 44)]
+    pygame.draw.polygon(surf, _ZB_BURLAP_D, hem)
+    for fx in (14, 18):
+        pygame.draw.line(surf, _ZB_BURLAP_D, (fx, 29), (fx, 42), 1)
 
     # Wing.
     wing = _zb_wing(wing_angle_deg)
     surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
+
+    # Stitched-torso seam — body cut open and sewn back together.
+    for sy in (36, 40, 44):
+        pygame.draw.line(surf, _ZB_SEAM, (24, sy), (34, sy), 1)
+    for sx in range(25, 34, 3):
+        pygame.draw.line(surf, _ZB_SEAM, (sx, 34), (sx, 46), 1)
+
+    # Voodoo-doll pin through the chest — cursed bead head reads at size.
+    pygame.draw.line(surf, _ZB_STITCH, (23, 42), (35, 32), 2)
+    pygame.draw.line(surf, _ZB_BONE, (23, 42), (35, 32), 1)
+    pygame.draw.circle(surf, _ZB_STITCH, (36, 31), 4)
+    pygame.draw.circle(surf, _ZB_CURSED, (36, 31), 3)
+    pygame.draw.circle(surf, _ZB_CURSED_H, (35, 30), 1)
 
     # Head.
     _aaellipse(surf, _ZB_BODY_D, (48, 23), 12, 11)
     _aaellipse(surf, _ZB_BODY, (47, 21), 12, 11)
     _aaellipse(surf, _ZB_BODY_H, (46, 16), 7, 3)
 
-    # Two mismatched googly eyes (one big, one small) — happy, alive-ish.
-    pygame.draw.circle(surf, (245, 245, 235), (50, 19), 4)
-    pygame.draw.circle(surf, (20, 20, 26), (51, 20), 2)
-    pygame.draw.circle(surf, (245, 245, 235), (44, 21), 3)
-    pygame.draw.circle(surf, (20, 20, 26), (43, 22), 1)
-    pygame.draw.circle(surf, (255, 255, 255), (51, 18), 1)
+    # Two bold repair X's — crown and neck — lashing the head back on.
+    _zb_big_x(surf, 44, 12, 3)
+    _zb_big_x(surf, 37, 28, 3)
 
-    # Beak.
+    # Sewn-shut dead eye — horizontal slit with three stitches; half the horror.
+    pygame.draw.line(surf, _ZB_STITCH, (41, 21), (47, 21), 2)
+    for vx in (42, 44, 46):
+        pygame.draw.line(surf, _ZB_STITCH, (vx, 19), (vx, 23), 1)
+
+    # Blazing cursed eye — fat purple orb with bloom and hotspot.
+    _zb_hex_aura(surf, 50, 19, 7)
+    pygame.draw.circle(surf, _ZB_STITCH, (50, 19), 5)
+    pygame.draw.circle(surf, _ZB_CURSED, (50, 19), 4)
+    pygame.draw.circle(surf, _ZB_CURSED_H, (49, 18), 1)
+
+    # Beak — dull horn, faintly agape.
     beak_pts = [(55, 21), (61, 24), (58, 28), (52, 26)]
-    pygame.draw.polygon(surf, BIRD_BEAK_FALLBACK, beak_pts)
+    pygame.draw.polygon(surf, _ZB_BEAK, beak_pts)
     pygame.draw.polygon(surf, _ZB_STITCH, beak_pts, 1)
-    # Stitched grin under the beak.
-    pygame.draw.line(surf, _ZB_STITCH, (52, 30), (59, 29), 1)
-    for gx in (53, 55, 57):
-        pygame.draw.line(surf, _ZB_STITCH, (gx, 28), (gx, 31), 1)
+    pygame.draw.line(surf, _ZB_STITCH, (53, 25), (59, 25), 1)
 
-    # Cheek-scar stitch.
-    pygame.draw.line(surf, _ZB_STITCH, (44, 24), (47, 25), 1)
-    for sx in (44, 46):
-        pygame.draw.line(surf, _ZB_STITCH, (sx, 23), (sx + 1, 26), 1)
-
-    # Feet.
+    # Feet — slack, sickly.
     pygame.draw.line(surf, _ZB_BODY_D, (28, 45), (26, 49), 2)
     pygame.draw.line(surf, _ZB_BODY_D, (34, 45), (36, 49), 2)
     return surf
 
 
-# Beak colour for the zombie redraw (warm horn, separate from green body).
-BIRD_BEAK_FALLBACK = (232, 176, 70)
+_zb_getter = _make_prebuilt_skin(_build_voodoo_zombie)
+_zb_aura_cache: dict = {}
 
-get_zombie_redraw = _make_prebuilt_skin(_build_zombie_redraw)
+
+def _zb_rim_halo(core, alpha=160):
+    """Persistent 2px green stroke around the silhouette — normal blend so the
+    cursed edge survives over bright blue sky where additive bloom washes out."""
+    mask = pygame.mask.from_surface(core)
+    sil = mask.to_surface(setcolor=(*_ZB_HEX, alpha), unsetcolor=(0, 0, 0, 0))
+    cw, ch = core.get_size()
+    ring = pygame.Surface((cw + 4, ch + 4), pygame.SRCALPHA)
+    for dx, dy in ((2, 0), (-2, 0), (0, 2), (0, -2),
+                   (2, 2), (-2, 2), (2, -2), (-2, -2)):
+        ring.blit(sil, (2 + dx, 2 + dy))
+    return ring
+
+
+def _get_zombie_voodoo(frame_idx, tilt_deg):
+    core = _zb_getter(frame_idx, tilt_deg)
+    key = (frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    out = _zb_aura_cache.get(key)
+    if out is None:
+        pad = 16
+        cw, ch = core.get_size()
+        out = pygame.Surface((cw + pad * 2, ch + pad * 2), pygame.SRCALPHA)
+        _zb_hex_aura(out, out.get_width() // 2, out.get_height() // 2 + 4,
+                     max(cw, ch) // 2 + 6)
+        ring = _zb_rim_halo(core)
+        out.blit(ring, (pad - 2, pad - 2))
+        out.blit(core, (pad, pad))
+        _zb_aura_cache[key] = out
+    return out
+
+
+get_zombie_redraw = _get_zombie_voodoo
 
 
 # ─────────────────────────────────────────────────────────────────────────────
