@@ -17,20 +17,24 @@ from game.store_skins import _pal, _build_parrot_with_palette, _make_skin, _poly
 from game.parrot import SPRITE_W, SPRITE_H, _aaellipse
 
 
-# Leather-and-silk palette. Helmet + jacket share the base body brown so the
-# costume reads as one worn kit; the scarf cream is the single high-value note.
-_LEATHER    = (107, 74, 43)
-_LEATHER_D  = (62, 42, 23)
+# Locked to a three-value read so the bird never collapses to a brown blob at
+# 40px: DARK helmet crown is the head mass, MID body brown is the base plumage,
+# LIGHT cream (scarf + shearling) is the single high-value note the eye lands on.
+_LEATHER    = (107, 74, 43)        # mid — base body brown (unchanged base plumage)
+_LEATHER_D  = (62, 42, 23)         # dark — leather helmet crown (#3E2A17)
 _LEATHER_H  = (150, 110, 72)
-_FUR        = (201, 168, 118)
+_SEAM_H     = (138, 98, 56)        # #8A6238 — lone helmet seam highlight arc
+_FUR        = (201, 168, 118)      # #C9A876 — shearling collar bumps
 _FUR_D      = (162, 132, 88)
-_FUR_H      = (226, 200, 156)
-_SCARF      = (232, 226, 212)
-_SCARF_D    = (198, 190, 172)
+_FUR_H      = (216, 196, 154)      # #D8C49A — fleece highlight fleck
+_SCARF      = (232, 226, 212)      # #E8E2D4 — silk pennant (the lightest value)
+_SCARF_D    = (190, 182, 164)
 _SCARF_H    = (248, 244, 234)
 _BRASS      = (185, 138, 60)
 _BRASS_H    = (232, 198, 120)
 _GOGGLE     = (46, 42, 38)
+_GLASS      = (120, 150, 168)      # cool lens reflection so goggles read as glass
+_EYE        = (26, 14, 6)          # #1A0E06 — dark eye dot below the goggles
 
 
 # Full leather re-plumage so the helmet and jacket sit on a body that already
@@ -70,73 +74,62 @@ def _ace_base(angle_deg):
 
 
 def _paint(surf, wing_angle_deg):
-    BCX, BCY = 32, 52          # body centre in composite space
-
-    # ── 1 · Trailing silk scarf (hero motion tell) ──────────────────────────
-    # Streams off the nape and down-back; the tapered tail is what breaks the
-    # egg silhouette and sells the dive. Drawn first so the collar/jacket layer
-    # roots it at the neck.
-    scarf = [(HX - 10, HY - 4), (HX - 12, HY + 2), (HX - 18, HY + 14),
-             (HX - 22, HY + 18), (HX - 26, HY + 14), (HX - 20, HY + 8),
-             (HX - 14, HY - 2)]
+    # ── 1 · Trailing silk pennant off the nape (hero motion tell) ───────────
+    # Roots at the nape and streams BACK-and-DOWN, its forked tip overshooting
+    # the tail into open sky so the cream crosses the left silhouette — that
+    # break is the whole "diving ace" read. Drawn first so the collar/helmet
+    # root it at the neck. The lightest value on the bird.
+    scarf = [(41, 33), (31, 38), (20, 43), (9, 47), (4, 49),
+             (9, 51), (7, 55), (18, 50), (30, 45), (40, 39)]
     _poly(surf, _SCARF_D, [(x - 1, y + 1) for x, y in scarf])   # under-shadow
     _poly(surf, _SCARF, scarf)
-    # Bright top edge so the ribbon reads as lit silk, tapering to a point.
+    # Lit upper edge so the ribbon reads as wind-caught silk, tapering to a fork.
     pygame.draw.lines(surf, _SCARF_H, False,
-                      [(HX - 10, HY - 4), (HX - 14, HY - 2),
-                       (HX - 20, HY + 8), (HX - 26, HY + 14)], 1)
-    _poly(surf, _SCARF_H, [(HX - 26, HY + 14), (HX - 22, HY + 18),
-                           (HX - 24, HY + 15)])                 # pinched tip glint
+                      [(41, 33), (31, 38), (20, 43), (9, 47), (4, 49)], 1)
+    pygame.draw.line(surf, _SCARF_H, (7, 55), (9, 51), 1)       # fork glint
 
-    # ── 4 · Fur-collar bomber jacket ────────────────────────────────────────
-    # Bumpy fur arc across the upper chest; the dark jacket body is just the base
-    # brown showing below it. Fur bumps + one highlight tick keep it reading as
-    # shearling, not a flat crescent.
-    collar = [(BCX - 10, BCY - 12), (BCX - 14, BCY - 6), (BCX - 12, BCY - 2),
-              (BCX - 6, BCY - 4), (BCX, BCY - 10), (BCX + 4, BCY - 12)]
-    _poly(surf, _FUR_D, [(x, y + 1) for x, y in collar])
-    _poly(surf, _FUR, collar)
-    for bx, by in ((BCX - 12, BCY - 8), (BCX - 9, BCY - 4), (BCX - 4, BCY - 6),
-                   (BCX, BCY - 9)):
-        pygame.draw.circle(surf, _FUR_H, (bx, by), 1)
-    pygame.draw.circle(surf, _FUR_D, (BCX - 7, BCY - 3), 1)
-    # Jacket seam down the chest.
-    pygame.draw.line(surf, _LEATHER_D, (BCX, BCY - 10), (BCX, BCY + 8), 1)
+    # ── 4 · Shearling collar (the body/head value break) ────────────────────
+    # A row of fleece bumps arcing the neckline between the dark helmet and the
+    # mid body — cream over a dark rim so each lump reads round, with a fleck of
+    # the brightest fleece on top. This is what stops the bird reading monochrome.
+    for bx, by in ((28, 48), (32, 46), (37, 45), (42, 45), (46, 47)):
+        pygame.draw.circle(surf, _FUR_D, (bx, by + 1), 5)
+        pygame.draw.circle(surf, _FUR, (bx, by), 4)
+        pygame.draw.circle(surf, _FUR_H, (bx - 1, by - 1), 1)
 
-    # ── 2 · Leather flight helmet ───────────────────────────────────────────
-    # Hugs the whole skull. Same brown as the head, so form comes from the crown
-    # seam + a front highlight edge + the chin-strap nub rather than a colour
-    # break — reads as a fitted leather cap, not a hat sitting on top.
-    helmet = [(HX - 10, CROWN_Y + 2), (HX - 6, CROWN_Y - 3), (HX + 8, CROWN_Y - 2),
-              (HX + 11, CROWN_Y + 6), (HX + 10, HY + 2), (HX - 2, HY + 4),
-              (HX - 10, HY)]
-    _poly(surf, _LEATHER, helmet)
-    # Front-crown highlight so the leather reads round under the light.
-    pygame.draw.line(surf, _LEATHER_H, (HX - 5, CROWN_Y - 2), (HX + 7, CROWN_Y - 1), 1)
-    # Crown seam arcing back-to-front.
-    pygame.draw.line(surf, _LEATHER_D, (HX - 4, CROWN_Y), (HX + 6, CROWN_Y + 3), 1)
-    # Ear-flap shadow so the side of the cap separates from the cheek.
-    pygame.draw.line(surf, _LEATHER_D, (HX - 9, HY - 2), (HX - 7, HY + 3), 2)
-    # Chin-strap nub.
-    pygame.draw.circle(surf, _LEATHER_D, (HX + 9, HY + 3), 2)
-    pygame.draw.circle(surf, _BRASS, (HX + 9, HY + 3), 1)
+    # ── 2 · Leather flight helmet (the darkest mass) ────────────────────────
+    # A solid dark-brown dome over crown + back + upper head so the head is the
+    # deepest value on the bird and the lighter goggles pop off it. The lower
+    # front edge stays above the eye so the mid-brown face + beak read below it.
+    helmet = [(37, 47), (34, 40), (34, 32), (39, 27), (47, 26), (54, 28),
+              (58, 34), (57, 39), (49, 38), (43, 41), (38, 43)]
+    _poly(surf, _LEATHER_D, helmet)
+    # One seam highlight arc crown→nape so the leather reads as a rounded shell.
+    pygame.draw.lines(surf, _SEAM_H, False,
+                      [(50, 30), (45, 28), (40, 30), (37, 35), (36, 41)], 1)
+    # Short chin strap dropping off the ear-flap to a brass stud on the jaw.
+    pygame.draw.line(surf, _LEATHER_D, (39, 43), (44, 48), 2)
+    pygame.draw.circle(surf, _BRASS, (44, 48), 1)
 
-    # ── 3 · Goggles pushed up on the brow ───────────────────────────────────
-    # Two brass-ringed lenses parked on the forehead — the "just landed / ready
-    # to dive" tell. Kept OFF the eyes so it never mimics a visor-down look.
-    for gx in (HX - 4, HX + 4):
-        pygame.draw.circle(surf, _GOGGLE, (gx, CROWN_Y + 5), 4)
-        pygame.draw.circle(surf, _BRASS, (gx, CROWN_Y + 5), 4, 1)
-        pygame.draw.circle(surf, (255, 255, 255), (gx - 2, CROWN_Y + 3), 1)  # glint
-    pygame.draw.line(surf, _BRASS, (HX - 1, CROWN_Y + 5), (HX + 1, CROWN_Y + 5), 2)
-    pygame.draw.circle(surf, _BRASS_H, (HX + 5, CROWN_Y + 3), 1)
+    # ── 3 · Goggles pushed up on the FOREHEAD ───────────────────────────────
+    # Two brass-ringed glass lenses parked high on the crown (y≈HY−9), well above
+    # the eye — the "just pulled up, ready to dive" tell, never a visor-down or
+    # sunglasses read. A side strap wraps back to the helmet shell.
+    gy = HY - 9
+    for gx in (42, 52):
+        pygame.draw.circle(surf, _GOGGLE, (gx, gy), 4)
+        pygame.draw.circle(surf, _BRASS, (gx, gy), 4, 1)
+        pygame.draw.circle(surf, _GLASS, (gx - 1, gy - 1), 2)          # glass sheen
+        pygame.draw.circle(surf, (255, 255, 255), (gx - 1, gy - 2), 1)  # glint
+    pygame.draw.line(surf, _BRASS, (46, gy), (48, gy), 2)              # nose bridge
+    pygame.draw.line(surf, _BRASS, (56, gy), (59, 34), 1)             # strap to shell
+    pygame.draw.circle(surf, _BRASS_H, (41, gy - 1), 1)
 
-    # ── Pilot eye on the exposed face ───────────────────────────────────────
-    # The base sprite's eye lived in the aviators we dropped, so give the face a
-    # single alert eye peeking out below the goggles, ahead of the beak base.
-    pygame.draw.circle(surf, (26, 22, 18), (HX + 6, HY + 1), 3)
-    pygame.draw.circle(surf, (20, 16, 14), (HX + 6, HY + 1), 2)
-    pygame.draw.circle(surf, (255, 255, 255), (HX + 5, HY), 1)
+    # ── Pilot eye on the exposed face, BELOW the goggles ────────────────────
+    # A single dark eye dot on the mid-brown face, stacked under the goggle pair
+    # so the 40px read is: dark eye + two round lenses above = goggles-on-brow.
+    pygame.draw.circle(surf, _EYE, (50, 42), 2)
+    pygame.draw.circle(surf, (255, 255, 255), (49, 41), 1)
 
 
 build = _make_skin(_paint, base_fn=_ace_base)
