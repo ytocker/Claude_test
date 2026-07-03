@@ -42,7 +42,7 @@ sheet = pygame.Surface((sheet_w, sheet_h))
 sheet.fill((18, 16, 28))
 
 title = _font(28, True).render(
-    "PILOT COSTUME R3 — PARROT IN COSTUME (no recolor)",
+    "PILOT COSTUME R4 — CAPTAIN: FULL JACKET + AVIATOR SHADES",
     True, _GOLD_PALE)
 sheet.blit(title, title.get_rect(midtop=(sheet_w // 2, 20)))
 
@@ -73,6 +73,6 @@ for i, (tag, name, spec) in enumerate(COLUMNS):
     sheet.blit(nameimg, (x + 2, cy + 18))
 
 out = os.path.join("docs", "store_redesign", "costume", "pilot",
-                   "comparison_r3.png")
+                   "comparison_r4.png")
 pygame.image.save(sheet, out)
 print("SAVED", out, sheet.get_size())
