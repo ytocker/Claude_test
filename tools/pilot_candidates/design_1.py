@@ -21,9 +21,12 @@ from game.store_skins import (
 # a pale-blue belly stands in for the white shirt-front the chest overlay refines,
 # and the beak goes captain-gold so no warm scarlet survives the two-tone.
 _NAVY_DARK  = (20, 33, 74)          # jacket / cap shadow
-_NAVY_MAIN  = (27, 42, 100)         # cap + jacket body
+_NAVY_MAIN  = (27, 42, 100)         # jacket body
+_CAP_NAVY   = (27, 42, 74)          # #1B2A4A flat-top cap crown (darker than head)
+_CAP_RIM    = (42, 59, 95)          # #2A3B5F 1px rim-light so the cap holds at night
 _SHIRT      = (244, 241, 234)       # shirt-front white
-_GOLD       = (245, 197, 66)        # wings badge + sleeve stripes
+_TIE        = (20, 33, 61)          # #14213D single tie stripe down the collar-V
+_GOLD       = (245, 197, 66)        # cap badge + sleeve stripes
 _GOLD_D     = (180, 140, 40)
 _BLACK      = (11, 15, 28)          # patent cap brim / tie
 
@@ -64,42 +67,43 @@ def _paint_captain(surf, wing_angle_deg):
     # Body centre in composite space (base body centre (32,32) + PARROT_DY=20).
     BCX, BCY = 32, 52
 
-    # ── white shirt-front + navy tie (drawn first so the jacket lapels overlay it)
-    _poly(surf, _SHIRT,
-          [(BCX, BCY - 14), (BCX - 6, BCY + 4), (BCX + 6, BCY + 4)])
-    pygame.draw.line(surf, _BLACK, (BCX, BCY - 13), (BCX, BCY + 3), 2)
+    # ── clean collar-V shirt-front: a pale wedge, apex at the throat widening to
+    # the chest, split ONLY by a single dark tie stripe. No internal seams — at
+    # 40px any diagonal line inside this white wedge reads as sailboat rigging.
+    _poly(surf, _SHIRT, [(BCX, 38), (BCX - 7, 48), (BCX + 7, 48)])
+    pygame.draw.line(surf, _TIE, (BCX, 39), (BCX, 47), 1)
 
-    # ── navy double-breasted jacket lapels framing the shirt V
-    pygame.draw.line(surf, _NAVY_DARK, (BCX - 2, BCY - 14), (BCX - 8, BCY - 6), 3)
-    pygame.draw.line(surf, _NAVY_DARK, (BCX + 2, BCY - 14), (BCX + 8, BCY - 4), 2)
+    # ── navy double-breasted lapels edging the wedge so the white doesn't float.
+    pygame.draw.line(surf, _NAVY_DARK, (BCX - 1, 38), (BCX - 8, 46), 3)
+    pygame.draw.line(surf, _NAVY_DARK, (BCX + 1, 38), (BCX + 8, 47), 2)
 
-    # ── four gold sleeve stripes on the wing cuff — the animated captain's-rank
-    # tell that rides the flap (the cuff sits at the near wing root).
-    for cy in (BCY - 4, BCY - 1, BCY + 2, BCY + 5):
-        pygame.draw.line(surf, _GOLD, (BCX - 14, cy), (BCX - 6, cy), 2)
+    # ── captain's-rank sleeve stripes: exactly THREE fat gold bands on the cuff
+    # that ride the wing beat. A navy cuff backing keeps the gaps a clean navy so
+    # the three bands never smear into one gold blob at the downscale.
+    cuff = int(round(wing_angle_deg * 0.10))
+    bx = BCX - 16
+    pygame.draw.rect(surf, _CAP_NAVY, (bx - 1, 43 + cuff, 11, 9))
+    for sy in (44, 47, 50):
+        pygame.draw.rect(surf, _GOLD, (bx, sy + cuff, 9, 2))
 
-    # ── peaked officer's cap — the dominant read: a flat-topped navy wedge over
-    # the crown with a patent-black brim jutting forward of the beak.
-    crown = [(HX - 11, CROWN_Y + 2), (HX - 6, CROWN_Y - 4),
-             (HX + 6, CROWN_Y - 3), (HX + 9, CROWN_Y + 4),
-             (HX + 7, CROWN_Y + 10), (HX - 9, CROWN_Y + 10)]
-    _poly(surf, _NAVY_MAIN, crown)
-    # Crown sheen so the flat top reads round-ish under light.
-    pygame.draw.line(surf, (70, 92, 168),
-                     (HX - 5, CROWN_Y - 2), (HX + 4, CROWN_Y - 1), 1)
-    # Dark shadow under the front brim, then the patent brim sweeping forward past
-    # the beak, then a thin cap-band separating crown from brim.
-    pygame.draw.rect(surf, _BLACK, (HX - 4, CROWN_Y + 9, 14, 3))
-    pygame.draw.line(surf, _BLACK, (HX - 8, CROWN_Y + 9), (HX + 12, CROWN_Y + 8), 3)
-    pygame.draw.line(surf, _BLACK, (HX - 9, CROWN_Y + 7), (HX + 8, CROWN_Y + 7), 1)
+    # ── peaked officer's cap — a FLAT-TOPPED navy dome (flat top edge at y26) that
+    # breaks the round crown, with a patent-black brim raked toward the beak. The
+    # dark brim is the separator that lifts the cap off the navy head.
+    crown = [(38, 34), (38, 28), (40, 26), (56, 26), (58, 28), (58, 34)]
+    _poly(surf, _CAP_NAVY, crown)
+    # Patent brim: a 2px black band, right end dropped 1px so it rakes to the beak.
+    _poly(surf, _BLACK, [(37, 34), (59, 35), (59, 37), (37, 36)])
 
-    # ── gold wings badge on the cap band — two swept triangles flanking a hub,
-    # the officer's insignia that names the costume at a glance.
-    cx, cy = HX, CROWN_Y + 8
-    _poly(surf, _GOLD, [(cx, cy - 2), (cx - 5, cy), (cx, cy + 1)])
-    _poly(surf, _GOLD, [(cx, cy - 2), (cx + 5, cy), (cx, cy + 1)])
-    pygame.draw.circle(surf, _GOLD, (cx, cy), 2)
-    pygame.draw.circle(surf, (255, 232, 150), (cx, cy - 1), 1)
+    # ── compact cap badge: a small horizontal gold mark on the band, held clear
+    # of the gold beak by a navy gap so the two never merge into one gold smear.
+    pygame.draw.rect(surf, _GOLD, (44, 32, 5, 2))
+    pygame.draw.line(surf, (255, 232, 150), (44, 32), (48, 32), 1)
+
+    # ── 1px rim-light along the top + back of the cap crown and the upper back so
+    # the navy silhouette holds against the dark night sky.
+    pygame.draw.line(surf, _CAP_RIM, (40, 26), (56, 26), 1)
+    pygame.draw.line(surf, _CAP_RIM, (38, 28), (38, 33), 1)
+    pygame.draw.lines(surf, _CAP_RIM, False, [(16, 47), (20, 44), (25, 42)], 1)
 
 
 build = _make_skin(_paint_captain, base_fn=_captain_base)
