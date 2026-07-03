@@ -25,7 +25,7 @@ _CRUST_H = (74, 67, 64)            # #4A4340 dark charcoal crust highlight
 _CHAR_D  = (16, 15, 14)            # deepest carbon shadow / undershadow
 _EMBER   = (255, 106, 30)          # #FF6A1E molten ember crack
 _CORE    = (255, 194, 74)          # #FFC24A hot glowing core
-_ASH     = (198, 192, 184)         # #C6C0B8 cooled ash dusting
+_ASHCRUST = (112, 116, 122)        # #70747A cool-grey ash crust edge (rear only)
 _EYE     = (180, 60, 20)           # #B43C14 dim ember-red dead pupil
 
 
