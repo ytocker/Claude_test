@@ -84,6 +84,10 @@ class AchievementsScene:
         self.tab_fame_rect: "pygame.Rect | None" = None
         self.tab_shame_rect: "pygame.Rect | None" = None
         self.menu_btn_rect: "pygame.Rect | None" = None
+        # Oddities one-shot guards: scrolling the Fame list to its foot and
+        # visiting the Shame wall each unlock a hidden badge, once per session.
+        self._saw_bottom = False
+        self._saw_shame = False
 
     def _roster(self):
         """(category order, by-cat map, total, badge tone) for the active tab."""
@@ -98,10 +102,18 @@ class AchievementsScene:
         self._tab = name
         self.scroll_offset = 0.0
         self._cache_key = None       # force a rebuild for the new roster
+        if name == "shame" and not self._saw_shame:
+            self._saw_shame = True
+            ach.unlock("morbid_curiosity")
 
     # ── input ────────────────────────────────────────────────────────────
     def scroll_by(self, dpx: float) -> None:
         self.scroll_offset = max(0.0, min(self.max_scroll, self.scroll_offset + dpx))
+        # Read the Fine Print: reaching the very bottom of the Fame list.
+        if (self._tab == "fame" and not self._saw_bottom
+                and self.max_scroll > 0 and self.scroll_offset >= self.max_scroll):
+            self._saw_bottom = True
+            ach.unlock("read_fine_print")
 
     def pointer_down(self, y: int) -> None:
         self._drag_active = True

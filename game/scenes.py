@@ -456,6 +456,10 @@ class App:
         # run unlocks one or more achievements, shown before the run summary,
         # torn down on the continue tap. Owns its own scroll/drag state.
         self.achv_earned: object | None = None
+        # Menu idle clock (Oddities "Are You Still There?"): seconds since the
+        # last input while sitting on the menu; unlocks once at 5 minutes idle.
+        self._menu_idle_t = 0.0
+        self._menu_idle_fired = False
         # True when the intro was launched from the menu's HOW TO PLAY
         # button. _finish_intro reads this to land back on MENU instead
         # of the POWERUPS explainer.
@@ -552,6 +556,8 @@ class App:
     # ── input ────────────────────────────────────────────────────────────────
 
     def _flap_input(self, pos=None):
+        # Any tap/key is activity — reset the menu idle clock.
+        self._menu_idle_t = 0.0
         if self.state == STATE_INTRO:
             # Any tap during the cinematic skips it. Gate by `_cooldown_t`
             # so the same physical tap that opened the intro (FINGERDOWN
@@ -1077,6 +1083,12 @@ class App:
         if self.state == STATE_MENU:
             self.world.world_idle_tick(dt)
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
+            # Are You Still There? — five minutes idling on the menu.
+            self._menu_idle_t += dt
+            if not self._menu_idle_fired and self._menu_idle_t >= 300.0:
+                self._menu_idle_fired = True
+                from game import achievements as _ach
+                _ach.unlock("are_you_still_there")
         elif self.state == STATE_PLAY:
             self._resume_grace_t = max(0.0, self._resume_grace_t - dt)
             self.world.update(dt)

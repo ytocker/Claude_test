@@ -279,6 +279,19 @@ class World:
             "skateboard": 0, "knight": 0, "genie": 0,
             "poison": 0, "treasure": 0,
         }
+        # Hall-of-Fame per-run trackers (cheap, event-driven — no per-frame scan).
+        # max_active_powerups: peak count of simultaneously-active timed buffs,
+        # sampled at each activation. max_pillars_in_slowmo / _in_ghost: most
+        # pillars cleared within ONE continuous Slow-Mo / Ghost window (the
+        # per-activation counter resets when that buff (re)starts). surprise_repeat
+        # flags a Surprise Box that re-rolled a kind it already rolled this run.
+        self.max_active_powerups = 0
+        self.max_pillars_in_slowmo = 0
+        self.max_pillars_in_ghost = 0
+        self._slowmo_run_pillars = 0
+        self._ghost_run_pillars = 0
+        self.surprise_repeat = 0
+        self._surprise_rolls: set = set()
         # Cycle-finale "treasure box" state. _last_biome_phase samples the
         # phase every frame so a wrap from ~1.0 back to ~0.0 can be detected
         # one frame after biome_time crosses CYCLE_SECONDS. When that fires
@@ -1618,6 +1631,17 @@ class World:
                     p.scored = True
                     self.score += 1
                     self.pillars_passed += 1
+                    # Per-activation buff-clearing tallies (Bullet Time / Ghost
+                    # Rider). Timers are decremented later this frame, so a
+                    # still-positive value means the buff was active at pass time.
+                    if self.slowmo_timer > 0:
+                        self._slowmo_run_pillars += 1
+                        self.max_pillars_in_slowmo = max(
+                            self.max_pillars_in_slowmo, self._slowmo_run_pillars)
+                    if self.ghost_timer > 0:
+                        self._ghost_run_pillars += 1
+                        self.max_pillars_in_ghost = max(
+                            self.max_pillars_in_ghost, self._ghost_run_pillars)
                     self._check_genie_milestone(p)
                     # UMBRELLA: fixed-pillar spawn (both pillars inside the
                     # rain block, so the "only while raining" rule is
@@ -2273,6 +2297,11 @@ class World:
             if self._genie_milestone_fired or self._debug_genie_milestone_fired:
                 choices.append("genie")
             kind = random.choice(choices)
+            # Regifted: a Surprise Box re-rolling a kind it already produced
+            # this run.
+            if kind in self._surprise_rolls:
+                self.surprise_repeat = 1
+            self._surprise_rolls.add(kind)
             self._spawn_surprise_reveal(m)
         # Treasure isn't a power-up, it's a once-per-day reward. Skip the
         # pickup-counter increment so it doesn't surface in the run-summary
@@ -2315,6 +2344,20 @@ class World:
             self._activate_umbrella(m)
         elif kind == "treasure":
             self._activate_treasure_box(m)
+
+        # Sample the peak stack of simultaneously-active timed buffs (Overloaded)
+        # right after this pickup's activator sets its timer.
+        self.max_active_powerups = max(self.max_active_powerups,
+                                       self._count_active_powerups())
+
+    def _count_active_powerups(self) -> int:
+        """Number of timed power-up buffs currently running (for the Overloaded
+        stack tally). Counts the standard effect timers only."""
+        timers = (self.triple_timer, self.magnet_timer, self.megamagnet_timer,
+                  self.slowmo_timer, self.kfc_timer, self.ghost_timer,
+                  self.grow_timer, self.reverse_timer, self.shrink_timer,
+                  self.skateboard_timer, self.knight_timer, self.umbrella_timer)
+        return sum(1 for t in timers if t > 0)
 
     def _spawn_surprise_reveal(self, m):
         """Brief gold-burst + cloud puff so the player sees the box "open"
@@ -2381,6 +2424,7 @@ class World:
         ))
 
     def _activate_slowmo(self, m):
+        self._slowmo_run_pillars = 0     # fresh window for the Bullet Time tally
         self.slowmo_timer = SLOWMO_DURATION
         self.shake_mag = max(self.shake_mag, 2.5)
         self.shake_t = max(self.shake_t, 0.25)
@@ -2441,6 +2485,7 @@ class World:
     def _activate_ghost(self, m):
         GHOST_BLUE  = (140, 180, 255)
         GHOST_WHITE = (210, 225, 255)
+        self._ghost_run_pillars = 0      # fresh window for the Ghost Rider tally
         self.ghost_timer = GHOST_DURATION
         self.ghost_timer_total = GHOST_DURATION
         self.bird.ghost_active = True

@@ -69,15 +69,18 @@ _JACKPOT_DELTA = next((d for (label, _w, d) in LOTTERY_TIERS
 
 # ── Categories ────────────────────────────────────────────────────────────────
 
-CAT_PROGRESS = "Flight Log"      # pillars / score / day-cycle milestones
-CAT_RICHES   = "Riches"          # coin totals (run + lifetime)
-CAT_POWERUPS = "Power Player"    # power-up usage + collection
-CAT_STORM    = "Stormchaser"     # nerve, endurance, weather biomes
-CAT_SKATER   = "Skater"          # skateboard buff
-CAT_SECRET   = "Mysteries"       # hidden late-game / secret unlocks
+CAT_PROGRESS   = "Flight Log"      # pillars / score / day-cycle milestones
+CAT_RICHES     = "Riches"          # coin totals (run + lifetime)
+CAT_POWERUPS   = "Power Player"    # power-up usage + collection
+CAT_STORM      = "Stormchaser"     # nerve, endurance, weather biomes
+CAT_SKATER     = "Skater"          # skateboard buff
+CAT_ODDITIES   = "Oddities"        # off-beat clock / UI / whimsy unlocks
+CAT_DEDICATION = "Dedication"      # long-haul loyalty + grind milestones
+CAT_SECRET     = "Mysteries"       # hidden late-game / secret unlocks
 
 CATEGORY_ORDER = (
-    CAT_PROGRESS, CAT_RICHES, CAT_POWERUPS, CAT_STORM, CAT_SKATER, CAT_SECRET,
+    CAT_PROGRESS, CAT_RICHES, CAT_POWERUPS, CAT_STORM, CAT_SKATER,
+    CAT_ODDITIES, CAT_DEDICATION, CAT_SECRET,
 )
 
 # Wall of Shame — anti-achievements for blooper-reel play. Disjoint ids + their
@@ -143,6 +146,18 @@ ACHIEVEMENTS: tuple[Achievement, ...] = (
     Achievement("globetrotter", "Globetrotter",
                 "Pass 10,000 pillars all-time.",
                 CAT_PROGRESS, "pillar", "total_pillars", 10000, scope="life"),
+    Achievement("sky_legend", "Sky Legend",
+                "Pass 250 pillars in a single run.",
+                CAT_PROGRESS, "sky_legend", "pillars_passed", 250),
+    Achievement("quad_digits", "Quadruple Digits",
+                "Reach a score of 1,000.",
+                CAT_PROGRESS, "quad_digits", "score", 1000),
+    Achievement("weeklong_bender", "Weeklong Bender",
+                "Survive seven full day cycles in one run.",
+                CAT_PROGRESS, "weeklong_bender", "cycles_completed", 7),
+    Achievement("purist", "Purist",
+                "Reach 100 pillars in one run without touching a power-up.",
+                CAT_PROGRESS, "purist", "purist", 1),
 
     # ── Riches ────────────────────────────────────────────────────────────
     Achievement("coin_25_run", "Pocket Change",
@@ -163,6 +178,9 @@ ACHIEVEMENTS: tuple[Achievement, ...] = (
     Achievement("midas", "Midas Touch",
                 "Collect 100,000 coins all-time.",
                 CAT_RICHES, "coin", "total_coins", 100000, scope="life"),
+    Achievement("millionaire", "Millionaire",
+                "Collect 1,000,000 coins all-time.",
+                CAT_RICHES, "millionaire", "total_coins", 1000000, scope="life"),
 
     # ── Power Player ──────────────────────────────────────────────────────
     Achievement("first_powerup", "Power Up!",
@@ -186,6 +204,27 @@ ACHIEVEMENTS: tuple[Achievement, ...] = (
     Achievement("power_addict", "Power Addict",
                 "Collect 500 power-ups all-time.",
                 CAT_POWERUPS, "powerup", "total_powerups", 500, scope="life"),
+    Achievement("power_overwhelming", "Power Overwhelming",
+                "Collect 2,500 power-ups all-time.",
+                CAT_POWERUPS, "power_overwhelming", "total_powerups", 2500, scope="life"),
+    Achievement("overachiever", "Overachiever",
+                "Collect 20 power-ups in a single run.",
+                CAT_POWERUPS, "overachiever", "run_powerups", 20),
+    Achievement("kitchen_sink", "Kitchen Sink",
+                "Use all six power-ups in a single run.",
+                CAT_POWERUPS, "kitchen_sink", "distinct_powerups", 6),
+    Achievement("overloaded", "Overloaded",
+                "Have three power-ups active at the same time.",
+                CAT_POWERUPS, "overloaded", "max_active_powerups", 3),
+    Achievement("bullet_time", "Bullet Time",
+                "Pass 10 pillars during a single Slow-Mo.",
+                CAT_POWERUPS, "bullet_time", "max_pillars_in_slowmo", 10),
+    Achievement("ghost_rider", "Ghost Rider",
+                "Phase through 8 pillars during a single Ghost.",
+                CAT_POWERUPS, "ghost_rider", "max_pillars_in_ghost", 8),
+    Achievement("regifted", "Regifted",
+                "Have a Surprise Box roll you the same power-up twice in a run.",
+                CAT_POWERUPS, "regifted", "surprise_repeat", 1),
 
     # ── Stormchaser ───────────────────────────────────────────────────────
     Achievement("near_miss_5", "Close Shave",
@@ -215,6 +254,9 @@ ACHIEVEMENTS: tuple[Achievement, ...] = (
     Achievement("iron_wings", "Iron Wings",
                 "Flap 50,000 times all-time.",
                 CAT_STORM, "wing", "total_flaps", 50000, scope="life"),
+    Achievement("endless", "Endless",
+                "Stay airborne for ten minutes straight.",
+                CAT_STORM, "endless", "time_alive", 600),
 
     # ── Skater ────────────────────────────────────────────────────────────
     Achievement("board_meeting", "Board Meeting",
@@ -241,6 +283,54 @@ ACHIEVEMENTS: tuple[Achievement, ...] = (
     Achievement("rail_baron", "Rail Baron",
                 "Ride the rail cart 50 times all-time.",
                 CAT_SKATER, "rail", "puseen:rail", 50, scope="life"),
+
+    # ── Oddities (hidden whimsy) ──────────────────────────────────────────
+    Achievement("read_fine_print", "Read the Fine Print",
+                "Scroll all the way to the bottom of the Hall of Fame.",
+                CAT_ODDITIES, "read_fine_print", "manual", 1, hidden=True),
+    Achievement("morbid_curiosity", "Morbid Curiosity",
+                "Pay a visit to the Hall of Shame.",
+                CAT_ODDITIES, "morbid_curiosity", "manual", 1, hidden=True),
+    Achievement("are_you_still_there", "Are You Still There?",
+                "Leave the bird idling on the menu for five minutes.",
+                CAT_ODDITIES, "are_you_still_there", "manual", 1, hidden=True),
+    Achievement("after_hours", "Night Owl",
+                "Take flight after midnight.",
+                CAT_ODDITIES, "after_hours", "clock_night", 1, hidden=True),
+    Achievement("early_bird", "Early Bird",
+                "Take flight before 6 a.m.",
+                CAT_ODDITIES, "early_bird", "clock_dawn", 1, hidden=True),
+    Achievement("leap_of_faith", "Leap of Faith",
+                "Fly on February 29th.",
+                CAT_ODDITIES, "leap_of_faith", "clock_leapday", 1, hidden=True),
+    Achievement("auld_lang_syne", "Auld Lang Syne",
+                "Fly on New Year's Day.",
+                CAT_ODDITIES, "auld_lang_syne", "clock_newyear", 1, hidden=True),
+    Achievement("lucky_sevens", "Lucky Sevens",
+                "End a run on a score of exactly 777.",
+                CAT_ODDITIES, "lucky_sevens", "lucky_777", 1, hidden=True),
+    Achievement("palindrome", "Palindrome",
+                "End a run on a palindromic score.",
+                CAT_ODDITIES, "palindrome", "palindrome_score", 1, hidden=True),
+
+    # ── Dedication (loyalty + grind) ──────────────────────────────────────
+    Achievement("the_completionist", "The Completionist",
+                "Earn every other Hall of Fame badge.",
+                CAT_DEDICATION, "the_completionist", "manual", 1),
+    Achievement("many_happy_returns", "Many Happy Returns",
+                "Come back and fly a year after your very first flight.",
+                CAT_DEDICATION, "many_happy_returns", "returned_after_year", 1,
+                scope="life"),
+    Achievement("creature_of_habit", "Creature of Habit",
+                "Play on seven different days.",
+                CAT_DEDICATION, "creature_of_habit", "distinct_days", 7,
+                scope="life"),
+    Achievement("the_grind", "The Grind",
+                "Play 100 runs all-time.",
+                CAT_DEDICATION, "the_grind", "total_runs", 100, scope="life"),
+    Achievement("never_say_die", "Never Say Die",
+                "Rack up 1,000 crashes all-time (you never gave up).",
+                CAT_DEDICATION, "never_say_die", "total_runs", 1000, scope="life"),
 
     # ── Mysteries (hidden) ────────────────────────────────────────────────
     Achievement("made_a_wish", "Three Wishes",
@@ -367,6 +457,10 @@ def _blank() -> dict:
             "coins_missed_life": 0,     # coins flown past, all-time
             "last_death_pillar": -1,    # pillar # of the previous death
             "repeat_pillar_streak": 0,  # consecutive deaths on the same pillar
+            # Dedication (loyalty) tallies.
+            "first_launch": 0,          # unix ts of the very first run
+            "distinct_days": 0,         # count of distinct local calendar days played
+            "last_play_date": "",       # most recent YYYY-MM-DD played (distinct-day guard)
         },
         # Spendable balance is DERIVED (see coin_balance), never stored, so a
         # cloud restore can't resurrect spent coins. Only the monotonic spent
@@ -714,6 +808,29 @@ def _run_value(world, ach: Achievement) -> int:
         return 1 if getattr(world, "_lottery_pulled", False) else 0
     if s == "early_phase_death":
         return 1 if getattr(world, "died_early_phase", False) else 0
+    # ── Hall-of-Fame run-scope derivations ────────────────────────────────
+    if s == "run_powerups":
+        return sum(int(v or 0) for v in pp.values())
+    if s == "purist":
+        return 1 if (int(getattr(world, "pillars_passed", 0) or 0) >= 100
+                     and sum(int(v or 0) for v in pp.values()) == 0) else 0
+    if s == "lucky_777":
+        return 1 if int(getattr(world, "score", 0) or 0) == 777 else 0
+    if s == "palindrome_score":
+        sc = str(int(getattr(world, "score", 0) or 0))
+        return 1 if (len(sc) >= 2 and sc == sc[::-1]) else 0
+    if s.startswith("clock_"):
+        lt = time.localtime()
+        if s == "clock_night":
+            return 1 if 0 <= lt.tm_hour < 4 else 0
+        if s == "clock_dawn":
+            return 1 if 4 <= lt.tm_hour < 6 else 0
+        if s == "clock_leapday":
+            return 1 if (lt.tm_mon == 2 and lt.tm_mday == 29) else 0
+        if s == "clock_newyear":
+            return 1 if (lt.tm_mon == 1 and lt.tm_mday == 1) else 0
+    if s == "manual":
+        return 0                      # unlocked only via unlock(); never auto
     # max_flaps_per_sec, near_misses, … fall through to the plain world attr.
     return int(getattr(world, s, 0) or 0)
 
@@ -731,6 +848,11 @@ def _life_value(store: dict, ach: Achievement) -> int:
         return sum(int(v or 0) for v in seen.values())
     if s.startswith("puseen:"):
         return int(seen.get(s[7:], 0) or 0)
+    if s == "returned_after_year":
+        fl = int(life.get("first_launch", 0) or 0)
+        return 1 if (fl and (int(time.time()) - fl) >= 365 * 86400) else 0
+    if s == "distinct_days":
+        return int(life.get("distinct_days", 0) or 0)
     return int(life.get(s, 0) or 0)
 
 
@@ -749,6 +871,13 @@ def _accumulate(store: dict, world) -> None:
     """Fold the just-finished run into the persistent lifetime counters."""
     life = store["life"]
     life["total_runs"] = int(life.get("total_runs", 0)) + 1
+    # Dedication: stamp the first-ever launch + tally distinct calendar days.
+    if not life.get("first_launch"):
+        life["first_launch"] = int(time.time())
+    today = time.strftime("%Y-%m-%d", time.localtime())
+    if life.get("last_play_date") != today:
+        life["distinct_days"] = int(life.get("distinct_days", 0) or 0) + 1
+        life["last_play_date"] = today
     life["total_coins"] = int(life.get("total_coins", 0)) + int(getattr(world, "coin_count", 0) or 0)
     life["total_pillars"] = int(life.get("total_pillars", 0)) + int(getattr(world, "pillars_passed", 0) or 0)
     life["total_flaps"] = int(life.get("total_flaps", 0)) + int(getattr(world, "flap_count", 0) or 0)
@@ -801,8 +930,39 @@ def evaluate_run(world, store: "dict | None" = None) -> list[str]:
             unlocked[ach.id] = now
             newly.append(ach.id)
 
+    # The Completionist unlocks once every OTHER Fame badge is earned. Check
+    # after the loop so a run that completes the set flips it in the same pass.
+    if _check_completionist(store) and "the_completionist" not in newly:
+        newly.append("the_completionist")
+
     save(store)
     return newly
+
+
+def _check_completionist(store: dict) -> bool:
+    """Unlock ``the_completionist`` when every OTHER Hall-of-Fame badge is held.
+    Returns True if it was newly flipped by this call."""
+    unlocked = store.get("unlocked") or {}
+    if "the_completionist" in unlocked:
+        return False
+    fame_ids = [a.id for a in ACHIEVEMENTS if a.id != "the_completionist"]
+    if fame_ids and all(fid in unlocked for fid in fame_ids):
+        unlocked["the_completionist"] = int(time.time())
+        return True
+    return False
+
+
+def unlock(ach_id: str, store: "dict | None" = None) -> bool:
+    """Directly unlock an event/UI achievement (manual-stat ones). Returns True
+    if newly unlocked."""
+    if store is None:
+        store = load()
+    if ach_id in store["unlocked"]:
+        return False
+    store["unlocked"][ach_id] = int(time.time())
+    _check_completionist(store)
+    save(store)
+    return True
 
 
 # ── Read helpers for the screen ───────────────────────────────────────────────
