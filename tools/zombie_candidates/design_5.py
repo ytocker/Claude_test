@@ -7,12 +7,15 @@ via store_skins._make_prebuilt_skin, matching the current-skin redraw idiom
 
 Read strategy at 40px: this is the ONLY concept that changes the body SHAPE.
 The silhouette itself carries the horror — a grotesquely over-round parrot
-whose belly has ballooned ~1.3x, drum-tight and shiny, straining open along
-two pressure seams. The big high-contrast tells (round bloat + maroon gut
-splits + sickly-yellow blister cluster + one eye swallowed by swollen flesh)
-survive the shrink because none of them are fine detail; each is a filled
-block of value that fights the sky. The flap keys a subtle vertical squash so
-the gas-bag jiggles and the ooze drips sag lower on the down-beat.
+whose belly has ballooned ~1.3x, drum-tight and shiny, its round bottom edge
+sagging into ooze drips that break the contour so even the black cut-out reads
+as rot. The tells are concentrated into ONE loud red-maroon gut wound on the
+lower-front belly (clear of the wing that occludes the centre), backed by a
+sickly-yellow blister trio pushed onto the lightest upper back where yellow
+survives, and a flat milky dead eye. Each is a filled block of value that
+fights the sky rather than fine detail, so all survive the shrink. The flap
+keys a subtle vertical squash so the gas-bag jiggles and the drips sag lower
+on the down-beat.
 """
 import math
 import pygame
@@ -28,8 +31,12 @@ _BELLY    = (198, 206, 150)        # over-stretched belly, palest
 _OUTLINE  = (36, 43, 27)           # #242B1B internal linework
 _BLISTER  = (216, 214, 106)        # #D8D66A festering methane boil
 _BLIST_D  = (150, 140, 60)         # blister rim, pressurised edge
-_GUT      = (90, 30, 34)           # #5A1E22 split/gut, deep maroon
-_GUT_D    = (58, 18, 22)           # gut depth
+# One loud red tell beats two hidden dark ones: a single bright gut wound that
+# fights the green instead of two dim splits that read as dirt at 40px.
+_GASH     = (158, 46, 44)          # #9E2E2C bright bloody gut
+_GASH_D   = (70, 22, 26)           # #46161A wet dark core
+_GASH_SPEC= (210, 150, 140)        # wet specular on the top lip
+_SKINLIP  = (200, 210, 150)        # #C8D296 bright skin-lip so maroon pops
 _OOZE     = (110, 122, 53)         # #6E7A35 sluggish greenish-brown drip
 _OOZE_D   = (84, 94, 40)
 _WING     = (120, 138, 84)         # wing sits a touch darker than the belly
@@ -55,33 +62,42 @@ def _gas_wing(angle_deg):
 
 
 def _blister(surf, cx, cy, r):
-    """A raised festering boil: dark pressurised rim, sickly-yellow dome, tiny
-    specular pin — a pressurised methane bubble read as a lit sphere."""
+    """A raised festering boil: dark pressurised rim, sickly-yellow dome, fat
+    specular dome — sized so the wet sphere still reads at 40px on the light
+    upper back, where yellow-on-light survives (yellow-on-mid-green doesn't)."""
     pygame.draw.circle(surf, _BLIST_D, (cx, cy), r)
     pygame.draw.circle(surf, _BLISTER, (cx, cy), max(1, r - 1))
-    pygame.draw.circle(surf, (247, 246, 218), (cx - 1, cy - 1), 1)
+    pygame.draw.circle(surf, (255, 255, 235), (cx - 1, cy - 1), 2)
 
 
-def _split(surf, cx, top, bot, drip):
-    """A vertical pressure seam torn open: a maroon gut lens beneath, framed by
-    two dark straining skin lips, with a heavy ooze drip sagging from the base.
-    ``drip`` (0..1, keyed to the flap) elongates the drip on the down-beat."""
+def _gash(surf, cx, top, bot, half):
+    """The single loud undead tell: one vertical gut wound torn down the
+    lower-front belly, clear of the wing. Bright bloody lens over a wet dark
+    core, a specular on the top lip, framed by a bright skin-lip so the maroon
+    pops off the green rather than muddying into it."""
     mid = (top + bot) // 2
-    half = 3
-    # Deep gut behind — a maroon almond with a darker core so it reads wet.
-    _poly(surf, _GUT, [(cx, top), (cx + half, mid), (cx, bot), (cx - half, mid)])
-    _poly(surf, _GUT_D, [(cx, top + 2), (cx + half - 1, mid),
-                         (cx, bot - 2), (cx - half + 1, mid)])
-    # Two dark skin lips straining apart around the gut.
-    pygame.draw.line(surf, _OUTLINE, (cx - half, mid), (cx, top), 2)
-    pygame.draw.line(surf, _OUTLINE, (cx - half, mid), (cx, bot), 2)
-    pygame.draw.line(surf, _OUTLINE, (cx + half, mid), (cx, top), 2)
-    pygame.draw.line(surf, _OUTLINE, (cx + half, mid), (cx, bot), 2)
-    # Heavy ooze bead sagging out of the base, longer on the down-flap.
-    dy = bot + 2 + int(round(4 * drip))
-    _aaellipse(surf, _OOZE_D, (cx, dy), 2, 3 + int(round(2 * drip)))
-    _aaellipse(surf, _OOZE, (cx, dy - 1), 2, 2 + int(round(2 * drip)))
-    pygame.draw.circle(surf, (150, 162, 92), (cx - 1, dy - 2), 1)
+    # Bright skin-lip frame first, a hair wider than the wound, so the red sits
+    # in a light halo instead of blending straight into the belly green.
+    _poly(surf, _SKINLIP, [(cx, top - 1), (cx + half + 1, mid),
+                           (cx, bot + 1), (cx - half - 1, mid)])
+    # Bright gut lens.
+    _poly(surf, _GASH, [(cx, top), (cx + half, mid), (cx, bot), (cx - half, mid)])
+    # Wet dark core down the centre.
+    _poly(surf, _GASH_D, [(cx, top + 3), (cx + half - 2, mid),
+                          (cx, bot - 3), (cx - half + 2, mid)])
+    # Wet specular near the top lip.
+    pygame.draw.circle(surf, _GASH_SPEC, (cx - 1, top + 3), 1)
+
+
+def _drip(surf, cx, cy, drip):
+    """A heavy ooze bead sagging BELOW the round body contour so the silhouette
+    itself drips and sags — rot that reads even as a black cut-out. ``drip``
+    (0..1, keyed to the flap) elongates the sag on the down-beat."""
+    ln = 3 + int(round(3 * drip))
+    pygame.draw.line(surf, _OOZE_D, (cx, cy - 2), (cx, cy + ln), 2)
+    _aaellipse(surf, _OOZE_D, (cx, cy + ln), 3, 3)
+    _aaellipse(surf, _OOZE, (cx, cy + ln - 1), 2, 2)
+    pygame.draw.circle(surf, (150, 162, 92), (cx - 1, cy + ln - 1), 1)
 
 
 def _build(wing_angle_deg):
@@ -110,15 +126,19 @@ def _build(wing_angle_deg):
     pygame.draw.arc(surf, (222, 228, 190),
                     (14, 18, 34, 26), math.radians(35), math.radians(140), 2)
 
-    # Pressure splits + oozing gut, straining open across the taut belly.
-    _split(surf, 21, 31, 43, drip)
-    _split(surf, 39, 34, 45, drip)
+    # Ooze drips sagging below the round bottom contour so the silhouette rots.
+    _drip(surf, 22, 51, drip)
+    _drip(surf, 34, 52, drip)
+    _drip(surf, 28, 54, drip * 0.6)
 
-    # Blister cluster on the belly — pressurised methane boils, wobbling a touch
-    # with the jiggle so they feel gas-filled.
-    for bx, by, r in ((24, 39, 4), (32, 44, 3), (36, 38, 5),
-                      (27, 33, 3), (33, 41, 4)):
-        _blister(surf, bx, by - (jig if by > 36 else 0), r)
+    # ONE loud gut wound on the lower-front belly, clear of the wing (which
+    # blits over the belly centre) so it is never occluded.
+    _gash(surf, 24, 37, 50, 5)
+
+    # Blister trio moved up onto the lightest upper back / shoulder, where the
+    # sickly yellow fights the pale skin instead of drowning in mid-green.
+    for bx, by, r in ((18, 30, 5), (22, 25, 4), (15, 36, 4)):
+        _blister(surf, bx, by - (jig if by < 32 else 0), r)
 
     # Wing.
     wing = _gas_wing(wing_angle_deg)
@@ -129,16 +149,12 @@ def _build(wing_angle_deg):
     _aaellipse(surf, _BODY, (47, 21), 12, 11)
     _aaellipse(surf, _BODY_H, (45, 16), 6, 3)
 
-    # Asymmetric eyes: one normal-but-dim eye, the other a tiny slit nearly
-    # swallowed by a swollen flesh bulge — puffed shut by the bloat.
-    pygame.draw.circle(surf, (206, 206, 186), (51, 19), 3)   # dim, not glossy
-    pygame.draw.circle(surf, (30, 30, 24), (51, 20), 2)
-    pygame.draw.circle(surf, (120, 120, 108), (50, 18), 1)   # weak, sickly glint
-    # Swollen shut eye: a puffed body-tone bulge with a barely-visible dark slit.
-    _aaellipse(surf, _BODY_H, (44, 22), 5, 4)
-    pygame.draw.arc(surf, _OUTLINE, (39, 18, 10, 8),
-                    math.radians(200), math.radians(340), 2)   # heavy lid fold
-    pygame.draw.circle(surf, (34, 34, 26), (44, 23), 1)        # lost tiny eye
+    # Dead milky open eye: a pale clouded iris ring with a tiny off-centre dark
+    # pupil and NO glint — a flat lifeless stare reads as undead at 40px, where
+    # a swollen-lid slit would just vanish. A dark rim seats it in the flesh.
+    pygame.draw.circle(surf, _OUTLINE, (51, 19), 4)
+    pygame.draw.circle(surf, (198, 200, 180), (51, 19), 3)    # milky clouded iris
+    pygame.draw.circle(surf, (30, 30, 24), (52, 20), 1)       # tiny off-centre pupil
 
     # Beak — sickly desaturated horn.
     beak_pts = [(55, 21), (61, 24), (58, 28), (52, 26)]
