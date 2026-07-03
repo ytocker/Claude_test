@@ -24,7 +24,8 @@ from game.parrot import SPRITE_W, SPRITE_H, _aaellipse
 _ROT_BODY   = (154, 148, 131)      # dry bone-gray plumage
 _ROT_BODY_D = (108, 103, 90)       # dried-out shadow tone (tail / underlay)
 _ROT_SHADOW = (42, 40, 34)         # deep shadow / socket void
-_ROT_CAVITY = (75, 68, 55)         # sunken flesh cavity behind the ribs
+_ROT_CAVITY = (40, 36, 30)         # near-black sunken cavity — the value gap to
+                                   # bone-white rungs is what makes ribs read at 40px
 _ROT_BONE   = (216, 210, 190)      # bone highlight (ribs / spine tops / beak)
 _ROT_MOTTLE = (96, 90, 76)         # patchy decay blotch tone
 _ROT_GLOW   = (95, 191, 106)       # socket ember (the one saturated accent)
@@ -81,35 +82,28 @@ def _build_crypt_rot(wing_angle_deg):
                              (44, 36, 2, 2)):
         _aaellipse(surf, _ROT_MOTTLE, (mx, my), mrx, mry)
 
-    # ── Spine bumps — a knobby vertebral ridge along the top back edge. Four
-    #    overlapping bone-gray beads, each with a dark underside arc so it reads
-    #    as a raised knob catching top light. Drawn before the wing so the wing
-    #    root tucks under the ridge.
-    for sx, sy, sr in ((21, 24, 3), (27, 22, 4), (33, 21, 4), (39, 22, 3)):
+    # ── Spine bumps — a knobby vertebral ridge that BREAKS the back silhouette.
+    #    The beads sit high enough that the top of each knob protrudes above the
+    #    body outline, so the bumpy contour survives downscale (internal beads do
+    #    not read at 40px — a broken outline does). Drawn before the wing so the
+    #    wing root tucks under the ridge.
+    for sx, sy, sr in ((21, 20, 4), (27, 18, 5), (33, 17, 5), (39, 18, 4)):
         pygame.draw.circle(surf, _ROT_SHADOW, (sx, sy + 1), sr)       # under-shadow
         pygame.draw.circle(surf, _ROT_BODY, (sx, sy), sr)
         pygame.draw.circle(surf, _ROT_BONE, (sx - 1, sy - 1), max(1, sr - 2))
 
-    # ── Rib ladder — THE hero tell. A sunken cavity patch, then bone-white ribs
-    #    marching down the flank, shortening toward the tail. Drawn over the
-    #    darkened cavity so the bone pops even when the sprite shrinks to 40px.
+    # ── Rib ladder — THE hero tell. A near-black cavity, then a stack of
+    #    HORIZONTAL bone-white rungs marching down the mid-flank. Horizontal
+    #    rungs read as a ribcage; the earlier vertical/bowed strokes reached the
+    #    lower silhouette edge and mis-read as a grinning row of teeth. Each rung
+    #    gets a hard 1px dark line directly beneath it so the value alternation
+    #    survives downscale to 40px.
     cavity = [(16, 34), (23, 30), (32, 31), (34, 40), (26, 44), (17, 41)]
     pygame.draw.polygon(surf, _ROT_CAVITY, cavity)
     pygame.draw.polygon(surf, _ROT_SHADOW, cavity, 1)
-    # Each rib is a slightly bowed 2px stroke; longest at the chest (right),
-    # shortening as the ladder marches back toward the tail (left).
-    ribs = (
-        ((32, 31), (33, 37), (32, 41)),    # chest rib — longest
-        ((28, 31), (29, 37), (28, 41)),
-        ((24, 32), (25, 37), (24, 41)),
-        ((20, 34), (21, 38), (20, 41)),
-        ((17, 36), (18, 39), (17, 41)),    # tail rib — shortest
-    )
-    for a, b, c in ribs:
-        pygame.draw.lines(surf, _ROT_SHADOW, False,
-                          [(a[0] + 1, a[1] + 1), (b[0] + 1, b[1] + 1),
-                           (c[0] + 1, c[1] + 1)], 2)     # rib drop-shadow
-        pygame.draw.lines(surf, _ROT_BONE, False, [a, b, c], 2)
+    for ry in (31, 34, 37, 40):
+        pygame.draw.rect(surf, _ROT_BONE, (18, ry, 9, 2))            # bone rung
+        pygame.draw.rect(surf, _ROT_SHADOW, (18, ry + 2, 9, 1))      # drop-shadow
 
     # ── Wing (blitted centred like the shipped zombie).
     wing = _rot_wing(wing_angle_deg)
@@ -129,7 +123,9 @@ def _build_crypt_rot(wing_angle_deg):
         pygame.draw.circle(surf, _ROT_SHADOW, (ex, ey), er)
         pygame.draw.circle(surf, (18, 20, 16), (ex, ey), max(1, er - 1))
         _soft_glow(surf, ex, ey, er, _ROT_GLOW, 90)
-        pygame.draw.circle(surf, _ROT_GLOW, (ex, ey), 1)   # ember pinlight
+        # 2px pinlight — the dim green dot in a black socket is the strongest
+        # undead tell; kept as a crisp core, never allowed to bloom to a glow-ball.
+        pygame.draw.circle(surf, _ROT_GLOW, (ex, ey), 2)
 
     # ── Cracked dry beak — desaturated keratin, split along the lower mandible
     #    with one chip notched out of the tip.
@@ -145,6 +141,13 @@ def _build_crypt_rot(wing_angle_deg):
     # ── Feet — gaunt, dark claws (thin, dried).
     pygame.draw.line(surf, _ROT_FOOT, (28, 45), (26, 49), 2)
     pygame.draw.line(surf, _ROT_FOOT, (34, 45), (36, 49), 2)
+
+    # ── Dark rim — trace the outer silhouette in deep shadow so the bone-gray
+    #    husk separates from white clouds and the night biome, not just the sky.
+    #    Done last against the assembled mask so the rim follows the true contour.
+    mask = pygame.mask.from_surface(surf)
+    for px, py in mask.outline():
+        surf.set_at((px, py), _ROT_SHADOW)
 
     return surf
 
