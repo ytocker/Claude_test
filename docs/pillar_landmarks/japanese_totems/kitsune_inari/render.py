@@ -84,8 +84,10 @@ def _fox_white_triad(palette):
     lit = _shade(base, 14)
     mid = base
     # A COOL grey shadow (not warm) so the porcelain reads as cold shrine-white,
-    # and so the shaded plane gives the face volume against a flat pale sky.
-    sh = _shade(_mix(base, (150, 160, 176), 0.34), -26)
+    # and so the shaded plane gives the face volume against a flat pale sky. Held
+    # deep (well under the pale-horizon lum) so the right cheek/jaw is a real dark
+    # MASS, not a hairline edge — the white face can't vanish on the day horizon.
+    sh = _shade(_mix(base, (140, 150, 170), 0.40), -42)
     # Night: keep the lit from blowing out, and FLOOR the shadow high so the
     # white face stays a legible pale mass instead of sinking into the dark sky.
     lit = _cap_lit_for_dark_sky(lit, palette, cap=214)
@@ -105,7 +107,7 @@ def _muzzle_shadow(palette):
     # A darker cool-porcelain patch for the snout + jaw undercut so the lower
     # face reads as a forward muzzle and anchors a firm dark base value.
     _, mid, _ = _fox_white_triad(palette)
-    return _shade(_mix(mid, (150, 160, 176), 0.42), -16)
+    return _shade(_mix(mid, (140, 150, 168), 0.48), -36)
 
 
 def _lum(c):
@@ -207,6 +209,21 @@ def _draw_head(surf, cx, y0, y1, half, palette, rng, *, crown, base):
     jaw_y = y0 + int(hh * 0.93)
 
     if not thumbnail:
+        # 0. One firm dark RIGHT-cheek/jaw plane — a solid shaded half so the
+        #    white face carries real MASS (a distinct dark cheek), not just an
+        #    ink outline, when the pale porcelain rides the bright day horizon.
+        #    The lit LEFT plane stays bright, so the centreline reads as the nose
+        #    ridge splitting a lit and a shadow side (the volume the flat post
+        #    lacked). Features paint over it, gaining contrast.
+        cheek = _shade(_mix(mid, (128, 138, 158), 0.50), -34)
+        right_edge = cx + int(half * 0.9)
+        pygame.draw.polygon(surf, cheek,
+                            [(cx - 1, eye_y - eye_h),
+                             (right_edge, eye_y),
+                             (right_edge, muzzle_y),
+                             (cx + int(half * 0.24), jaw_y + 1),
+                             (cx - 1, muzzle_y)])
+
         # 1. Forehead vermilion FLAME-CREST — the Inari brand mark, a small
         #    upward flame teardrop centred on the brow.
         fw = max(3, int(half * 0.22))
@@ -308,10 +325,11 @@ def _draw_head(surf, cx, y0, y1, half, palette, rng, *, crown, base):
 
 def _draw_crown(surf, cx, y_top, y_bot, half, palette):
     """The fox topper at the gap rim: a broad porcelain forehead-crest filling
-    the collision band to within ~11 px of the rim, crowned by TWO tall thin
-    near-vertical pointed EARS and a central gold hōju flame-jewel that reaches
-    the rim. Ears are pure gutter overhang (taller + thinner than any family
-    horn); the forehead-crest + jewel are the solid gap-rim presenters."""
+    the collision band to within ~10 px of the rim, crowned by TWO tall thin
+    near-vertical pointed EARS and a small central gold hōju flame-jewel that sits
+    LOW on the plateau. The ears stand INSIDE the 58 px band (taller + thinner
+    than any family horn) and own the skyline alone; the forehead-crest is the
+    solid gap-rim presenter and the jewel a low interior ornament, not a peak."""
     lit, mid, sh = _fox_white_triad(palette)
     ink = _fox_ink(palette)
     verm = _vermilion(palette)
@@ -326,17 +344,21 @@ def _draw_crown(surf, cx, y_top, y_bot, half, palette):
     # stand as TALL as the skeleton allows above the solid head.
     notch = min(12, max(8, int(ch * 0.52)))
     crest_top = y_top + notch
-    # Full-width fill so the outer band columns are solid right up to the notch
-    # margin — no >12 px empty run opens at the crown (the fill-gate guarantee).
-    for y in range(crest_top, y_bot + 1):
+    # The whole plateau top sat at the ear-valley line (= notch, ~12 px of open
+    # sky above it), leaving ZERO drift room under the 12 px fill gate. Raise the
+    # porcelain fill 2 px ABOVE that line across the full band so no crown column
+    # opens more than ~10 px — bought without shortening the ears, whose tips
+    # still reach y_top well above this plateau.
+    fill_top = crest_top - 2
+    for y in range(fill_top, y_bot + 1):
         _grad_hspan(surf, y, int(cx - half), int(cx + half), lit, mid, sh)
 
-    # Central hōju flame-jewel — a SMALL gold teardrop sitting low on the
-    # plateau between the ears, deliberately shorter + narrower than the ears
-    # so the two pointed ears own the silhouette (the plateau already keeps the
-    # centre band filled to the gate margin, so the jewel need not reach the rim).
+    # Central hōju flame-jewel — a SMALL gold teardrop sitting LOW on the plateau
+    # between the ears. Its tip is dropped to the plateau line (>=6 px below the
+    # ear tips) so the two pointed ears own the skyline alone and the crown never
+    # reads as a three-bump ear-jewel-ear at gameplay scale.
     jw = max(3, int(half * 0.16))
-    jtip = y_top + int(notch * 0.30)
+    jtip = y_top + max(6, notch - 4)
     mount = [(cx - jw, crest_top + 1), (cx + jw, crest_top + 1),
              (cx + jw - 1, crest_top - 1), (cx - jw + 1, crest_top - 1)]
     pygame.draw.polygon(surf, verm, mount)
@@ -356,9 +378,18 @@ def _draw_crown(surf, cx, y_top, y_bot, half, palette):
     for s in (-1, 1):
         ear_cx = cx + s * int(half * 0.58)
         hb = max(3, int(half * 0.16))               # ~9 px base -> thin
-        tip = (ear_cx + s * int(half * 0.12), y_top)   # slight outward lean
+        # A whisper of outward lean with the very tip toed 1 px back INward, so
+        # the flipped ceiling twin never pinches into an hourglass at the gap.
+        tip = (ear_cx + s * int(half * 0.08) - s, y_top)
         base_l = (ear_cx - hb, ear_base_y)
         base_r = (ear_cx + hb, ear_base_y)
+        # Shallow porcelain fillet rooting the ear into the plateau — the ear
+        # reads grown-from the forehead (not stuck on) and the shoulder columns
+        # beside it fill a touch higher for extra fill-gate margin.
+        pygame.draw.polygon(surf, mid,
+                            [(ear_cx - hb - 2, fill_top + 2),
+                             (ear_cx, fill_top - 1),
+                             (ear_cx + hb + 2, fill_top + 2)])
         ear = [base_l, tip, base_r]
         pygame.draw.polygon(surf, mid, ear)            # porcelain body
         _aa_polyline(surf, lit, [base_l, tip])         # lit outer plane
@@ -533,7 +564,7 @@ def _blackout(pal, section_h, scale):
     br = pygame.Rect(MARGIN, GROUND_Y - section_h, PIPE_W, section_h)
     tr = pygame.Rect(MARGIN, 0, PIPE_W, 0)
     candidate_kitsune_inari(surf, tr, br, pal, seed=7)
-    pad_x = 16                       # wide enough to catch the ear gutter overhang
+    pad_x = 16                       # margin around the in-band ear tips
     crop = pygame.Surface((PIPE_W + pad_x * 2, section_h + 8), pygame.SRCALPHA)
     crop.fill((238, 238, 240))
     for x in range(CACHE_W):
@@ -576,6 +607,15 @@ def main():
     print(f"  vermilion marking lum={_lum(vd):.1f} (mid-value anchor vs pale)  "
           f"gold trim lum={_lum(_gold_bright(pal)):.1f}")
 
+    # Face-MASS proof: the right cheek/jaw shadow plane must sit well BELOW the
+    # pale-horizon lum so the white face carries a dark mass, not just an outline.
+    cheek_d = _shade(_mix(mid_d, (128, 138, 158), 0.50), -34)
+    muzzle_d = _muzzle_shadow(pal)
+    print("DAY FACE-MASS (dark cheek/jaw vs pale sky)")
+    print(f"  cheek plane lum={_lum(cheek_d):.1f}  muzzle lum={_lum(muzzle_d):.1f}  "
+          f"body-shadow lum={_lum(sh_d):.1f}  vs sky {sky_hi:.1f}  "
+          f"[{'OK' if _lum(cheek_d) <= sky_hi - 55 else 'THIN'}]")
+
     hero_day, hd_h = _hero(pal, 7)
     hero_night, hn_h = _hero(pal_n, 7)
     close_day = _closeup(pal, 7)
@@ -594,7 +634,8 @@ def main():
     # Feasibility strip: bottom section at three heights + empty-run gate.
     strip_heights = [70, 210, 355]
     strips = []
-    print("FILL GATE (max empty vertical run inside the 58px PIPE_W band)")
+    print("FILL GATE (max empty vertical run inside the 58px PIPE_W band; "
+          "gate<=12, TARGET<=10)")
     for h in strip_heights:
         s = pygame.Surface((CACHE_W, CACHE_H), pygame.SRCALPHA)
         br = pygame.Rect(MARGIN, GROUND_Y - h, PIPE_W, h)
@@ -607,7 +648,8 @@ def main():
         for ex in (MARGIN, MARGIN + PIPE_W):
             pygame.draw.line(crop, (230, 60, 60), (ex, 0), (ex, h + 8), 1)
         strips.append((h, crop, run))
-        print(f"  h={h:3d}  max empty run = {run}px  [{'OK' if run <= 12 else 'FAIL'}]")
+        mark = 'OK' if run <= 10 else ('gate-ok' if run <= 12 else 'FAIL')
+        print(f"  h={h:3d}  max empty run = {run}px  [{mark}]")
 
     # Blackout: tall-ears tell at native 58px, shown 1x + 3x.
     bo1 = _blackout(pal, 118, 1)
@@ -635,7 +677,7 @@ def main():
     sheet.fill((24, 25, 30))
 
     sheet.blit(title.render(
-        "kitsune_inari — white Inari-fox mask totem  ·  round_1",
+        "kitsune_inari — white Inari-fox mask totem  ·  round_2",
         True, (245, 240, 230)), (pad, 12))
     sheet.blit(sub.render(
         "red edges = PIPE_W (58px) collision band  ·  PORCELAIN-WHITE face  ·  "
@@ -701,7 +743,7 @@ def main():
     sheet.blit(lab.render("1x @ 58px", True, (200, 200, 210)),
                (x, head_h + bo3.get_height() + 24 + bo1.get_height() + 2))
 
-    out = pathlib.Path(__file__).resolve().parent / "round_1.png"
+    out = pathlib.Path(__file__).resolve().parent / "round_2.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
