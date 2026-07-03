@@ -1,52 +1,31 @@
-"""PUFFERFISH Store skin — round-2 convergence.
+"""PUFFERFISH store skin — a spiky, googly-eyed blowfish.
 
-Round 1 explored five takes; the art-director picked **V4 STAR-BURST** (the
-bold sea-urchin needle-halo) as the silhouette winner, but asked to graft
-**V1**'s friendly face (big eyes + pouty O + blush) onto it, give the ball real
-internal value structure, and make the inflate gag read in the BODY, not just
-the spikes. This module now leads with ONE production build that folds in every
-note; two small alts are kept only for side-by-side comparison.
+A round inflated body studded with short blunt spines, a big two-eyed beaky
+face, and a forked tail + pectoral fins. The tail + oriented face give a clear
+front→back axis and the spines are short/irregular with a clear gap over the
+face, so the shape reads as a FISH rather than a radial sun. The inflate gag
+plays on the down-stroke: the body swells, the spines flare a touch, and the
+whole ball brightens, then deflates on the up-stroke.
 
-Contract (mirrors game/animal_skins.py so the winner lifts straight in):
-
-  * `build_pufferfish(wing_angle_deg) -> pygame.Surface`  one flat frame on a
-    64×84 SRCALPHA canvas, BODY mass centred at (BCX,BCY)=(32,44).
-  * `get_pufferfish = _make_prebuilt_skin(build_pufferfish)` — cached
-    `(frame_idx, tilt_deg) -> Surface` getter.
-  * `BUILDERS = {"skin_pufferfish": get_pufferfish, ...}` for the review sheet.
-
-Body mass is pinned at (32,44) on EVERY frame so the fixed 14px collision
-circle stays fair even fully inflated — the gag is read through the spike halo,
-a small radius wobble, and a body-wide brightness pulse, never an oversized
-creature. The face is locked to a FIXED offset from that body anchor across all
-four poses so the eyes never slide between frames (a round-1 dive-frame bug).
-
-North star: "a skin lives or dies at 40px in motion." The urchin needle-star
-owns the silhouette; two distinct eye-dots + the pouty O carry charm; the
-two-tone spikes and radial body gradient give every ray and the ball their own
-value step so the read survives downscale on bright-day AND night skies.
+Contract (mirrors game/animal_skins.py so it slots into the merged registry):
+  * `build_pufferfish(wing_angle_deg) -> pygame.Surface` — one flat frame on a
+    64×84 SRCALPHA canvas, body mass pinned at (BCX,BCY)=(32,44) every frame so
+    the fixed collision circle stays fair even fully inflated.
+  * `get_pufferfish = _make_prebuilt_skin(build_pufferfish)` — cached getter.
+  * `BUILDERS = {"skin_pufferfish": get_pufferfish}`.
 """
 import math
 import pygame
 
 from game.parrot import (
-    SPRITE_W, SPRITE_H, _WING_ANGLES, _add_outline, _aaellipse,
+    SPRITE_W, _WING_ANGLES, _add_outline, _aaellipse,
 )
-
 
 # ── tall-canvas constants (match game/animal_skins.py exactly) ───────────────
 COMPOSITE_W = SPRITE_W          # 64
-COMPOSITE_H = 84                # headroom (pufferfish uses little of it)
+COMPOSITE_H = 84
 DY          = 12
-
-BCX, BCY = 32, 32 + DY          # body centre  → (32, 44); fixed every frame
-
-# Face is locked to a FIXED offset from the body anchor (never per-frame), so
-# the eyes hold position across level/dive frames. Tuned to sit high/right.
-EYE_DX   = 6                    # half-spacing of the two eyes
-EYE_OFF_X = 1                   # face cluster nudged right of body centre
-EYE_OFF_Y = -3                  # and up toward the crown
-MOUTH_DY = 8                    # O-mouth below the eye line
+BCX, BCY = 32, 32 + DY          # body centre → (32, 44); fixed every frame
 
 
 def _make_prebuilt_skin(build_fn):
@@ -78,222 +57,166 @@ def _flap(angle_deg):
 
 
 def _inflate(angle_deg):
-    """Comedic pulse: 1.0 fully INFLATED on the down-pose, ~0.0 deflated on
-    the up-pose. The down-stroke is the puff (body swells, spikes flare,
-    whole ball brightens)."""
+    """1.0 fully INFLATED on the down-pose → ~0.0 deflated on the up-pose."""
     return 1.0 - _flap(angle_deg)
 
 
 def _shade(col, f):
-    """Scale an RGB triple toward black/white. f<1 darkens, f>1 brightens;
-    used for the body-wide inflate brightness pulse so the gag reads in the
-    ball itself, clamped so the up-frame never crushes to mud."""
     return tuple(max(0, min(255, int(c * f))) for c in col)
 
 
-def _eye(surf, cx, cy, r, *, iris=(58, 42, 18), white=(255, 250, 240)):
-    """Friendly round eye: white, dark iris pushed slightly outward, top-left
-    glint. Sized so the two stay as two DISTINCT dots even at 40px."""
+def _eye(surf, cx, cy, r, *, iris=(52, 36, 14), white=(255, 250, 240)):
+    """Friendly round eye: a real white margin (iris r-2 so the sclera shows all
+    around, never a black socket) + a fat top-left catchlight."""
     pygame.draw.circle(surf, white, (cx, cy), r)
-    pygame.draw.circle(surf, iris, (cx + max(1, r // 4), cy), max(2, r - 1))
+    pygame.draw.circle(surf, iris, (cx + max(1, r // 4), cy), max(2, r - 2))
     pygame.draw.circle(surf, (255, 255, 255),
-                       (cx - r // 3, cy - r // 3), max(1, r // 3))
+                       (cx - r // 3, cy - r // 3), max(1, r // 2))
 
 
-def _radial_body(surf, cx, cy, r, core, mid, edge):
-    """Soft radial value structure: a few concentric ellipses light core →
-    mid → edge so the ball reads as a sphere with internal volume, not a flat
-    disc. Cheap (3-4 draws) and downscale-safe — the steps blur into a
-    gradient at 40px instead of vanishing."""
-    _aaellipse(surf, edge, (cx + 1, cy + 1), r, r)            # dark rim/contact
-    _aaellipse(surf, mid,  (cx, cy), r - 1, r - 1)            # mid mass
-    # Light core offset up-left toward the key light (top-left convention).
-    _aaellipse(surf, core, (cx - 2, cy - 2), r - 5, r - 5)
-    # Crisp top-left specular for the wet-balloon sheen.
+def _radial_body(surf, cx, cy, rx, ry, core, mid, edge):
+    """Sphere value structure: dark rim → mid mass → light core (up-left) + a
+    crisp specular, so the ball reads as a volume, not a flat disc."""
+    _aaellipse(surf, edge, (cx + 1, cy + 1), rx, ry)
+    _aaellipse(surf, mid,  (cx, cy), rx - 1, ry - 1)
+    _aaellipse(surf, core, (cx - 2, cy - 2), rx - 5, ry - 5)
     _aaellipse(surf, _shade(core, 1.10), (cx - 5, cy - 6), 4, 3)
 
 
-def _spike_ring(surf, cx, cy, r_in, length, n, col_base, col_tip, start=0.0,
-                taper=0.42):
-    """Radial halo of two-tone needle spikes around (cx,cy).
+def _tail_fin(surf, x, y, size, col_dark, col_light, *, flip=False, ribs=True):
+    """A FORKED fan tail fin sweeping back with a V-notch trailing edge — the
+    front→back axis that keeps the puffer reading as a fish, not a sun."""
+    s = -1 if flip else 1
+    bx = x - s * size
+    notch = x - s * int(size * 0.5)
+    pygame.draw.polygon(surf, col_dark, [
+        (x, y - size // 2), (bx, y - size), (notch, y),
+        (bx, y + size), (x, y + size // 2)])
+    pygame.draw.polygon(surf, col_light, [
+        (x, y - size // 3), (x - s * (size - 2), y - size + 2),
+        (notch + s, y), (x - s * (size - 2), y + size - 2),
+        (x, y + size // 3)])
+    if ribs:
+        for ry in (-size + 3, 0, size - 3):
+            pygame.draw.line(surf, col_dark, (x, y + ry // 3),
+                             (x - s * (size - 1), y + ry), 1)
 
-    Each ray is two stacked triangles: a darker BASE wedge rooted on the body
-    rim and a brighter TIP wedge on its outer half. The value step per ray is
-    what lets the urchin-star survive the 40px downscale — it never collapses
-    to a flat starburst. This ring is THE silhouette tell."""
-    half = math.radians((360.0 / n) * taper) * 0.5
+
+def _side_fin(surf, x, y, size, col_dark, col_light, *, flip=False):
+    """A small pectoral fin flicking out from the body side."""
+    s = -1 if flip else 1
+    pygame.draw.polygon(surf, col_dark, [(x, y - size), (x + s * size, y), (x, y + size)])
+    pygame.draw.polygon(surf, col_light,
+                        [(x, y - size + 1), (x + s * (size - 1), y),
+                         (x, y + size - 1)])
+
+
+def _spots(surf, cx, cy, col, seed_pts):
+    """A few small dark spots (the aquatic tell). Fixed offsets → stable frames."""
+    for dx, dy, rr in seed_pts:
+        pygame.draw.circle(surf, col, (cx + dx, cy + dy), rr)
+
+
+def _spike_field(n, *, base=0.7, var=0.5, gap=(-0.6, 0.6), seed=0):
+    """`n` stub-spike placements wrapped around the body with a deterministic
+    length jitter (irregular bumpy skin, never even rays) and a clear angular
+    `gap` over the face so the studs never close into a radial halo. Angles in
+    radians: 0 = front (+x), -pi/2 = top. No RNG → the 4 cached frames are stable."""
+    out = []
+    glo, ghi = gap if gap else (1.0, -1.0)
     for i in range(n):
-        a = start + (2 * math.pi) * i / n
+        a = -math.pi + (2 * math.pi) * (i + 0.5) / n
+        if gap and glo <= a <= ghi:
+            continue
+        ls = base + var * (((i * 5 + seed * 3) % 7) / 6.0)
+        out.append((a, ls))
+    return out
+
+
+def _stub_spikes(surf, cx, cy, rx, ry, length, col_base, col_tip, placements):
+    """Short, BLUNT cone spines at fixed (angle, scale) placements — stubby and
+    staggered so they read as bumpy puffer skin, never as solar rays."""
+    for a, ls in placements:
         bx, by = math.cos(a), math.sin(a)
-        l_a, r_a = a - half, a + half
-        p_l = (cx + math.cos(l_a) * r_in, cy + math.sin(l_a) * r_in)
-        p_r = (cx + math.cos(r_a) * r_in, cy + math.sin(r_a) * r_in)
-        mid = (cx + bx * (r_in + length * 0.55),
-               cy + by * (r_in + length * 0.55))
-        tip = (cx + bx * (r_in + length), cy + by * (r_in + length))
-        m_l = (cx + math.cos(l_a) * (r_in + length * 0.40),
-               cy + math.sin(l_a) * (r_in + length * 0.40))
-        m_r = (cx + math.cos(r_a) * (r_in + length * 0.40),
-               cy + math.sin(r_a) * (r_in + length * 0.40))
-        # Darker base wedge (full width at the rim, narrowing outward).
-        pygame.draw.polygon(surf, col_base, [p_l, p_r, m_r, m_l])
-        # Brighter tip wedge — the value step that keeps each ray distinct.
-        pygame.draw.polygon(surf, col_tip, [m_l, m_r, tip])
-        _ = mid
+        root = (cx + bx * (rx - 2), cy + by * (ry - 2))
+        ln = length * ls
+        tx, ty = -by, bx
+        w = 2.4
+        p_l = (root[0] + tx * w, root[1] + ty * w)
+        p_r = (root[0] - tx * w, root[1] - ty * w)
+        tip = (cx + bx * (rx + ln), cy + by * (ry + ln))
+        pygame.draw.polygon(surf, col_base, [p_l, p_r, tip])
+        pygame.draw.line(surf, col_tip, root, tip, 1)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# PRODUCTION · STAR-BURST PUFF + FRIENDLY FACE  (the ship candidate)
-#   V4's symmetric urchin needle-star silhouette, two-tone rays, on a yellow
-#   ball with real radial value structure. V1's big friendly eyes + pouty O +
-#   blush carry charm. Inflate gag reads in the BODY: the whole ball brightens
-#   ~10% and swells on the down-puff, dims and shrinks on the up-deflate.
-# ═════════════════════════════════════════════════════════════════════════════
-_BODY_CORE = (255, 226, 132)    # light core
-_BODY_MID  = (246, 196, 78)     # golden mass
-_BODY_EDGE = (206, 148, 40)     # dark rim / contact shadow
-_BELLY     = (255, 244, 206)
-_SPIKE_BASE = (200, 134, 28)    # one shade darker — spike base
-_SPIKE_TIP  = (248, 198, 86)    # bright tip
-_SPIKE_BASE2 = (182, 118, 24)   # inner staggered ring, dimmer for depth
-_SPIKE_TIP2  = (236, 182, 66)
-_DARK   = (52, 36, 14)
-_BLUSH  = (255, 168, 120)
-_LIP    = (140, 72, 64)         # warm dark for the pouty O (not pure black)
+# ── palette ──────────────────────────────────────────────────────────────────
+_CORE = (248, 210, 128)         # warm sandy-amber body core
+_MID  = (224, 162, 80)
+_EDGE = (190, 124, 44)
+_BELLY = (248, 228, 184)
+_SPIKE_D = (176, 116, 26)
+_SPIKE_T = (248, 206, 110)
+_SPOT  = (150, 100, 26)
+_FIN_D = (176, 116, 26)
+_FIN_L = (236, 186, 90)
+_DARK  = (58, 42, 18)
+_TEETH = (255, 243, 214)
+_BLUSH = (255, 168, 120)
+
+# Short spikes wrapping the body with the front face kept clear.
+_SPK = _spike_field(13, base=0.55, var=0.4, gap=(-0.8, 0.6), seed=5)
 
 
 def build_pufferfish(wing_angle_deg):
     surf = _new()
-    inf = _inflate(wing_angle_deg)           # 1.0 puffed (down) → 0.0 deflated
-    r = 14 + int(inf * 2)                     # body swells on the puff
-    spk = 7 + int(inf * 6)                    # spikes flare out (big pulse)
-    cx, cy = BCX, BCY                         # body mass pinned every frame
+    inf = _inflate(wing_angle_deg)
+    f = _flap(wing_angle_deg)
+    r = 14 + int(inf * 2)
+    cx, cy = BCX, BCY
+    bf = 0.92 + 0.16 * inf
+    core, mid, edge = _shade(_CORE, bf), _shade(_MID, bf), _shade(_EDGE, bf)
+    fin_d, fin_l = _shade(_FIN_D, bf), _shade(_FIN_L, bf)
 
-    # Body-wide brightness pulse so the inflate gag reads in the BALL, not just
-    # the spikes: brighten ~10% fully puffed, dim ~10% fully deflated. Restrained
-    # — value step only, no bloom halo.
-    bf = 0.90 + 0.20 * inf
-    core = _shade(_BODY_CORE, bf)
-    mid  = _shade(_BODY_MID, bf)
-    edge = _shade(_BODY_EDGE, bf)
-    sb, st = _shade(_SPIKE_BASE, bf), _shade(_SPIKE_TIP, bf)
-    sb2, st2 = _shade(_SPIKE_BASE2, bf), _shade(_SPIKE_TIP2, bf)
+    # Swishy forked tail (back) sways with the flap + far pectoral fin.
+    _tail_fin(surf, cx - r + 1, cy + 2 + int(f * 2), 10, fin_d, fin_l)
+    _side_fin(surf, cx - 5, cy - 2, 4, fin_d, fin_l, flip=True)
 
-    # Two staggered urchin rings (offset half a step) under the ball so roots
-    # tuck behind the body. Outer ring brighter, inner dimmer → depth.
-    _spike_ring(surf, cx, cy, r - 1, spk, 16, sb, st, start=0.0, taper=0.44)
-    _spike_ring(surf, cx, cy, r - 3, spk - 2, 16, sb2, st2,
-                start=math.pi / 16, taper=0.40)
+    # Spikes wrapping the body — inflate length bonus capped so the puffed frame
+    # never closes into a full radial halo.
+    spk = 4 + int(inf * 2)
+    _stub_spikes(surf, cx, cy, r, r, spk, _shade(_SPIKE_D, bf),
+                 _shade(_SPIKE_T, bf), _SPK)
 
-    # Ball with internal radial value structure (core → mid → edge).
-    _radial_body(surf, cx, cy, r, core, mid, edge)
-    # Pale belly lifts the lower-front, anchoring the sphere read.
-    _aaellipse(surf, _shade(_BELLY, bf), (cx - 1, cy + 4), r - 6, r - 7)
+    # Body + belly + a couple of dark spots.
+    _radial_body(surf, cx, cy, r, r, core, mid, edge)
+    _aaellipse(surf, _shade(_BELLY, bf), (cx - 1, cy + 5), r - 6, r - 7)
+    _spots(surf, cx, cy, _shade(_SPOT, bf), [(-6, 7, 1), (5, 7, 1)])
 
-    # ── FACE · locked to a FIXED offset from the body anchor every frame ──
-    fx = cx + EYE_OFF_X
-    fy = cy + EYE_OFF_Y
-    # Blush first so the eyes/mouth sit over it.
-    pygame.draw.circle(surf, _BLUSH, (fx - EYE_DX - 2, fy + 5), 2)
-    pygame.draw.circle(surf, _BLUSH, (fx + EYE_DX + 2, fy + 5), 2)
-    # Big friendly eyes — two DISTINCT dots that survive 40px.
-    _eye(surf, fx - EYE_DX, fy, 4, iris=_DARK)
-    _eye(surf, fx + EYE_DX, fy, 4, iris=_DARK)
-    # Pouty O-mouth (warm dark ring, not a black hole).
-    pygame.draw.circle(surf, _LIP, (fx, fy + MOUTH_DY), 3)
-    pygame.draw.circle(surf, (96, 48, 44), (fx, fy + MOUTH_DY), 2)
-    pygame.draw.circle(surf, (200, 120, 110), (fx - 1, fy + MOUTH_DY - 1), 1)
+    # Near pectoral fin.
+    _side_fin(surf, cx + r - 4, cy + 6, 5, fin_d, fin_l)
+
+    # ── Face: oversized convergent googly eyes + a bold two-tooth beak ──
+    fx, fy = cx + 1, cy - 3
+    for sx in (-9, 9):                       # blush with a darker rim for night
+        pygame.draw.circle(surf, _BLUSH, (fx + sx, fy + 6), 2)
+        pygame.draw.circle(surf, (220, 130, 90), (fx + sx, fy + 6), 2, 1)
+    _eye(surf, fx - 5, fy, 5, iris=_DARK)
+    _eye(surf, fx + 5, fy, 5, iris=_DARK)
+    pygame.draw.circle(surf, _DARK, (fx - 4, fy + 1), 2)     # pupils converged in
+    pygame.draw.circle(surf, _DARK, (fx + 4, fy + 1), 2)
+    pygame.draw.circle(surf, (255, 255, 255), (fx - 6, fy - 1), 1)
+    pygame.draw.circle(surf, (255, 255, 255), (fx + 4, fy - 1), 1)
+    # Beak: one bold lip line + two outlined teeth that punch at 40px.
+    pygame.draw.line(surf, (96, 60, 34), (fx - 5, fy + 7), (fx + 5, fy + 7), 2)
+    for tx in (fx - 4, fx + 1):
+        pygame.draw.rect(surf, _TEETH, (tx, fy + 8, 3, 3))
+        pygame.draw.rect(surf, (120, 78, 44), (tx, fy + 8, 3, 3), 1)
     return surf
 
 
 get_pufferfish = _make_prebuilt_skin(build_pufferfish)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# ALT-A · TIGHTER NEEDLE STAR — same face, denser/finer 20-ray halo for a more
-#   sea-urchin (vs balloon) read. Kept only for the comparison column.
-# ═════════════════════════════════════════════════════════════════════════════
-def build_pufferfish_alt_dense(wing_angle_deg):
-    surf = _new()
-    inf = _inflate(wing_angle_deg)
-    r = 14 + int(inf * 2)
-    spk = 6 + int(inf * 5)
-    cx, cy = BCX, BCY
-    bf = 0.90 + 0.20 * inf
-    core, mid, edge = (_shade(_BODY_CORE, bf), _shade(_BODY_MID, bf),
-                       _shade(_BODY_EDGE, bf))
-    sb, st = _shade(_SPIKE_BASE, bf), _shade(_SPIKE_TIP, bf)
-
-    _spike_ring(surf, cx, cy, r - 1, spk, 20, sb, st, start=0.0, taper=0.36)
-    _radial_body(surf, cx, cy, r, core, mid, edge)
-    _aaellipse(surf, _shade(_BELLY, bf), (cx - 1, cy + 4), r - 6, r - 7)
-
-    fx, fy = cx + EYE_OFF_X, cy + EYE_OFF_Y
-    pygame.draw.circle(surf, _BLUSH, (fx - EYE_DX - 2, fy + 5), 2)
-    pygame.draw.circle(surf, _BLUSH, (fx + EYE_DX + 2, fy + 5), 2)
-    _eye(surf, fx - EYE_DX, fy, 4, iris=_DARK)
-    _eye(surf, fx + EYE_DX, fy, 4, iris=_DARK)
-    pygame.draw.circle(surf, _LIP, (fx, fy + MOUTH_DY), 3)
-    pygame.draw.circle(surf, (96, 48, 44), (fx, fy + MOUTH_DY), 2)
-    return surf
-
-
-get_pufferfish_alt_dense = _make_prebuilt_skin(build_pufferfish_alt_dense)
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# ALT-B · WARM-CORAL STAR — same geometry, a coral/orange palette instead of
-#   gold so the night-sky read doesn't lean on yellow alone. Comparison only.
-# ═════════════════════════════════════════════════════════════════════════════
-_C_CORE = (255, 188, 120)
-_C_MID  = (240, 138, 70)
-_C_EDGE = (190, 92, 44)
-_C_SB, _C_ST = (188, 96, 44), (250, 168, 100)
-
-
-def build_pufferfish_alt_coral(wing_angle_deg):
-    surf = _new()
-    inf = _inflate(wing_angle_deg)
-    r = 14 + int(inf * 2)
-    spk = 7 + int(inf * 6)
-    cx, cy = BCX, BCY
-    bf = 0.90 + 0.20 * inf
-    core, mid, edge = (_shade(_C_CORE, bf), _shade(_C_MID, bf),
-                       _shade(_C_EDGE, bf))
-    sb, st = _shade(_C_SB, bf), _shade(_C_ST, bf)
-
-    _spike_ring(surf, cx, cy, r - 1, spk, 16, sb, st, start=0.0, taper=0.44)
-    _spike_ring(surf, cx, cy, r - 3, spk - 2, 16,
-                _shade(_C_SB, bf * 0.92), _shade(_C_ST, bf * 0.92),
-                start=math.pi / 16, taper=0.40)
-    _radial_body(surf, cx, cy, r, core, mid, edge)
-    _aaellipse(surf, _shade((255, 236, 214), bf), (cx - 1, cy + 4), r - 6, r - 7)
-
-    fx, fy = cx + EYE_OFF_X, cy + EYE_OFF_Y
-    pygame.draw.circle(surf, (255, 150, 120), (fx - EYE_DX - 2, fy + 5), 2)
-    pygame.draw.circle(surf, (255, 150, 120), (fx + EYE_DX + 2, fy + 5), 2)
-    _eye(surf, fx - EYE_DX, fy, 4, iris=_DARK)
-    _eye(surf, fx + EYE_DX, fy, 4, iris=_DARK)
-    pygame.draw.circle(surf, _LIP, (fx, fy + MOUTH_DY), 3)
-    pygame.draw.circle(surf, (96, 48, 44), (fx, fy + MOUTH_DY), 2)
-    return surf
-
-
-get_pufferfish_alt_coral = _make_prebuilt_skin(build_pufferfish_alt_coral)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Review registry. `skin_pufferfish` is the production lead that lifts into
-# game/animal_skins.py; the two alts are comparison-only.
-# ─────────────────────────────────────────────────────────────────────────────
 BUILDERS = {
     "skin_pufferfish": get_pufferfish,
-    "alt_dense_star":  get_pufferfish_alt_dense,
-    "alt_coral_star":  get_pufferfish_alt_coral,
-}
-
-TELLS = {
-    "skin_pufferfish": "urchin needle-star + friendly eyes & pouty O, golden",
-    "alt_dense_star":  "tighter 20-ray needle star, same face",
-    "alt_coral_star":  "coral palette so night read isn't yellow-only",
 }

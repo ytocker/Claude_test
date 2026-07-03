@@ -264,73 +264,102 @@ get_toucan = _make_prebuilt_skin(build_toucan)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# 3 · PENGUIN — fat black-back / white-belly body, orange feet + tiny beak,
-#     flippers that flap. Signature 40px read: the high-contrast black/white
-#     two-tone split + the orange triangle beak. Rosy cheeks.
+# 3 · PENGUIN (Adélie) — glossy blue-black tuxedo body with the signature white
+#     eye-rings and an orange beak. Signature 40px read: the dark-back/white-
+#     front split + the two white eye-rings + the orange beak/feet pop. The
+#     3-layer body + gloss sheen + AO chin shadow keep it premium at hero scale.
 # ═════════════════════════════════════════════════════════════════════════════
-_PEN_BACK   = (38, 42, 58)
-_PEN_BACK_D = (22, 24, 38)
-_PEN_BACK_H = (78, 86, 112)
-_PEN_BELLY  = (250, 250, 246)
-_PEN_BELLY_D = (210, 214, 222)
-_PEN_BEAK   = (255, 150, 44)
-_PEN_BEAK_D = (200, 100, 20)
-_PEN_CHEEK  = (255, 158, 150)
+_PEN_BACK    = (27, 36, 54)         # glossy blue-black
+_PEN_BACK_D  = (15, 22, 38)         # deep shadow rim
+_PEN_BACK_H  = (70, 85, 122)        # cool blue backlight / flipper edge
+_PEN_SHEEN   = (150, 168, 210)      # soft blue gloss overlay
+_PEN_BELLY   = (246, 247, 251)      # off-white belly
+_PEN_BELLY_D = (208, 214, 226)      # belly undershadow
+_PEN_BELLY_H = (255, 255, 255)      # belly top sheen
+_PEN_RING    = (238, 240, 248)      # white eye-ring
+_PEN_BEAK    = (210, 120, 50)       # warm orange beak (the one warm anchor)
+_PEN_BEAK_D  = (168, 88, 28)        # lower-mandible shadow / outline
+_PEN_BEAK_H  = (240, 168, 88)       # warm beak top highlight
+_PEN_FOOT    = (255, 154, 60)       # foot orange
+_PEN_FOOT_D  = (200, 110, 32)       # foot shadow / outline
 
 
 def _pen_flipper(angle_deg):
-    """Stubby flipper (penguins flap flippers, not feathered wings)."""
-    w = pygame.Surface((34, 40), pygame.SRCALPHA)
-    pts = [(18, 10), (26, 16), (22, 34), (14, 30)]
+    """Blue-black flipper with a cool leading-edge highlight (penguins flap
+    flippers, not feathered wings); same angle*0.7 damping as the body flap."""
+    w = pygame.Surface((34, 42), pygame.SRCALPHA)
+    pts = [(18, 9), (27, 16), (22, 35), (13, 30)]
     pygame.draw.polygon(w, _PEN_BACK_D, pts)
-    pygame.draw.polygon(w, _PEN_BACK, [(18, 11), (24, 17), (20, 30), (15, 27)])
-    pygame.draw.line(w, _PEN_BACK_H, (18, 13), (22, 18), 1)
+    pygame.draw.polygon(w, _PEN_BACK, [(18, 11), (25, 17), (20, 31), (15, 27)])
+    pygame.draw.line(w, _PEN_BACK_H, (18, 12), (24, 18), 1)
     return pygame.transform.rotate(w, angle_deg * 0.7)
 
 
 def build_penguin(wing_angle_deg):
     surf = _new()
-    # Stubby tail.
+
+    # Stubby tail — outer point kept near the body so it stays attached at flap
+    # angles rather than reading as a detached spike.
     pygame.draw.polygon(surf, _PEN_BACK_D,
-                        [(13, BCY + 8), (6, BCY + 14), (18, BCY + 14)])
-    # Egg-shaped body (black back).
-    _aaellipse(surf, _PEN_BACK_D, (BCX + 1, BCY + 1), 17, 18)
-    _aaellipse(surf, _PEN_BACK, (BCX, BCY), 16, 17)
-    # White belly oval (the high-contrast split).
-    _aaellipse(surf, _PEN_BELLY, (BCX + 1, BCY + 3), 11, 14)
-    _aaellipse(surf, _PEN_BELLY_D, (BCX + 1, BCY + 9), 9, 6)
+                        [(14, BCY + 7), (7, BCY + 13), (18, BCY + 13)])
+    pygame.draw.polygon(surf, _PEN_BACK,
+                        [(15, BCY + 8), (10, BCY + 12), (18, BCY + 12)])
+
+    # 3-layer glossy blue-black egg + a cool backlight up onto the back.
+    _aaellipse(surf, _PEN_BACK_D, (BCX + 1, BCY + 1), 18, 18)
+    _aaellipse(surf, _PEN_BACK,   (BCX,     BCY),     17, 17)
+    _aaellipse(surf, _PEN_BACK_H, (BCX - 7, BCY - 8),  5,  4)
+
+    # Gloss-sheen overlay top-left so the back reads wet and rounded.
+    sheen = pygame.Surface((22, 9), pygame.SRCALPHA)
+    pygame.draw.ellipse(sheen, (*_PEN_SHEEN, 110), sheen.get_rect())
+    surf.blit(sheen, (BCX - 15, BCY - 14))
 
     # Far flipper behind.
-    _rot_blit(surf, _pen_flipper(wing_angle_deg * 0.5 - 16), (BCX + 11, BCY))
+    _rot_blit(surf, _pen_flipper(wing_angle_deg * 0.5 - 16), (BCX + 12, BCY))
 
-    # Head merges into body (penguin has little neck).
-    _aaellipse(surf, _PEN_BACK_D, (HCX, HCY + 2), 12, 12)
-    _aaellipse(surf, _PEN_BACK, (HCX - 1, HCY + 1), 11, 11)
-    # White face mask.
-    _aaellipse(surf, _PEN_BELLY, (HCX, HCY + 3), 8, 8)
-    # Rosy cheek.
-    pygame.draw.circle(surf, _PEN_CHEEK, (HCX - 3, HCY + 4), 3)
-    # Eyes — two close dots.
-    _eye(surf, HCX - 2, HCY, 3)
-    _eye(surf, HCX + 5, HCY, 3)
-    # Beak: small orange triangle.
-    pygame.draw.polygon(surf, _PEN_BEAK,
-                        [(HCX + 2, HCY + 4), (HCX + 11, HCY + 6),
-                         (HCX + 2, HCY + 8)])
+    # White belly: oval + upper sheen + lower undershadow for chest volume.
+    _aaellipse(surf, _PEN_BELLY,   (BCX + 1, BCY + 3), 12, 14)
+    _aaellipse(surf, _PEN_BELLY_H, (BCX,     BCY - 2),  8,  6)
+    _aaellipse(surf, _PEN_BELLY_D, (BCX + 1, BCY + 10), 9,  5)
+
+    # Head dome (3-layer), merging into the body with a little neck.
+    _aaellipse(surf, _PEN_BACK_D, (HCX,     HCY + 2), 12, 12)
+    _aaellipse(surf, _PEN_BACK,   (HCX - 1, HCY + 1), 11, 11)
+    _aaellipse(surf, _PEN_BACK_H, (HCX - 4, HCY - 3),  4,  4)
+
+    # AO shadow under the chin where the head meets the white belly.
+    sh = pygame.Surface((20, 7), pygame.SRCALPHA)
+    pygame.draw.ellipse(sh, (12, 16, 28, 90), sh.get_rect())
+    surf.blit(sh, (HCX - 12, HCY + 8))
+
+    # Two separate white eye-rings (a rim, not a white mask) with a dark gap
+    # between — the Adélie tell; big r4 irises read at 40px.
+    for ex in (HCX - 3, HCX + 8):
+        pygame.draw.circle(surf, _PEN_RING, (ex, HCY), 5)
+    _eye(surf, HCX - 3, HCY, 4, iris=(18, 16, 22))
+    _eye(surf, HCX + 8, HCY, 4, iris=(18, 16, 22))
+
+    # Short orange beak (banded + highlight), seated below the eye-line so it
+    # never collides with the rings.
+    beak = [(HCX + 3, HCY + 5), (HCX + 12, HCY + 7), (HCX + 3, HCY + 10)]
+    pygame.draw.polygon(surf, _PEN_BEAK, beak)
     pygame.draw.polygon(surf, _PEN_BEAK_D,
-                        [(HCX + 2, HCY + 4), (HCX + 11, HCY + 6),
-                         (HCX + 2, HCY + 8)], 1)
+                        [(HCX + 3, HCY + 8), (HCX + 12, HCY + 7),
+                         (HCX + 3, HCY + 10)])
+    pygame.draw.polygon(surf, _PEN_BEAK_D, beak, 1)
+    pygame.draw.line(surf, _PEN_BEAK_H, (HCX + 4, HCY + 6), (HCX + 10, HCY + 7), 1)
 
-    # Near flipper.
-    _rot_blit(surf, _pen_flipper(wing_angle_deg), (BCX - 6, BCY + 1))
-    # Orange webbed feet.
-    for fx in (27, 37):
-        pygame.draw.polygon(surf, _PEN_BEAK,
-                            [(fx - 3, BCY + 16), (fx + 3, BCY + 16),
-                             (fx + 4, BCY + 20), (fx - 4, BCY + 20)])
-        pygame.draw.polygon(surf, _PEN_BEAK_D,
-                            [(fx - 3, BCY + 16), (fx + 3, BCY + 16),
-                             (fx + 4, BCY + 20), (fx - 4, BCY + 20)], 1)
+    # Near flipper — lifted so its dark edge doesn't gash the white belly sheen.
+    _rot_blit(surf, _pen_flipper(wing_angle_deg), (BCX - 7, BCY - 2))
+
+    # Orange webbed feet with a toe split + outline.
+    for fx in (27, 38):
+        foot = [(fx - 3, BCY + 16), (fx + 4, BCY + 16),
+                (fx + 5, BCY + 20), (fx - 4, BCY + 20)]
+        pygame.draw.polygon(surf, _PEN_FOOT, foot)
+        pygame.draw.polygon(surf, _PEN_FOOT_D, foot, 1)
+        pygame.draw.line(surf, _PEN_FOOT_D, (fx + 1, BCY + 20), (fx + 1, BCY + 18), 1)
     return surf
 
 
@@ -447,11 +476,20 @@ def _fla_wing(angle_deg):
 
 def build_flamingo(wing_angle_deg):
     surf = _new()
-    # Wispy tail plumes.
-    pygame.draw.polygon(surf, _FLA_BODY_D,
-                        [(11, BCY - 2), (2, BCY + 6), (15, BCY + 8)])
-    pygame.draw.polygon(surf, _FLA_BODY_H,
-                        [(12, BCY), (5, BCY + 5), (15, BCY + 6)])
+    # Upswept tail plumes growing from a solid rump lobe rooted UNDER the body
+    # (x~16-19) so the tail reads as attached, not a detached shard. Drawn first
+    # so the body overlaps its base.
+    _aaellipse(surf, _FLA_BODY_D, (19, BCY + 4), 9, 7)
+    _aaellipse(surf, _FLA_BODY,   (18, BCY + 3), 8, 6)
+    _aaellipse(surf, _FLA_BODY_H, (16, BCY + 1), 3, 2)
+    for (rx, ry, mx, my, tx, ty) in (
+        (16, BCY - 1, 10, BCY - 4, 5, BCY - 4),
+        (17, BCY + 1, 10, BCY - 1, 4, BCY),
+        (18, BCY + 3, 11, BCY + 2, 5, BCY + 3),
+    ):
+        pygame.draw.lines(surf, _FLA_BODY_D, False,
+                          [(rx, ry), (mx, my), (tx, ty)], 3)
+        pygame.draw.line(surf, _FLA_BODY_H, (rx, ry), (mx, my), 1)
     # Rounded body, sitting a touch lower so the neck has room.
     _aaellipse(surf, _FLA_BODY_D, (BCX + 1, BCY + 3), 16, 13)
     _aaellipse(surf, _FLA_BODY, (BCX, BCY + 2), 15, 12)
@@ -918,6 +956,8 @@ for _modname in (
     "animal_paper_plane", "animal_jet_fighter", "animal_ufo", "animal_toaster",
     # Secret piñata flyers (papier-mâché objects — same masked ??? tier).
     "animal_pinata_burro", "animal_pinata_cactus", "animal_pinata_parrot",
+    # Mystery SUN (rolls a random one of two sun designs at unlock).
+    "animal_sun",
 ):
     _mod = __import__("game." + _modname, fromlist=["BUILDERS"])
     BUILDERS.update({k: v for k, v in _mod.BUILDERS.items()

@@ -12,21 +12,19 @@ primary production build so it lifts straight into game/animal_skins.py:
     cache, each house-outlined for the day-sky contour).
   * `BUILDERS = {"skin_mantis_shrimp": get_mantis_shrimp}`.
 
-THE FLAP IS A STRIKE: the raptorial clubs cock BACK on the down-pose
+THE FLAP IS A STRIKE: the small raptorial clubs cock BACK on the down-pose
 (_WING_ANGLES starts at 50) and PUNCH FORWARD on the up-pose (ends at -40).
-`_strike()` maps a wing angle to a 0..1 punch. The lead club crosses PAST the
-snout line on the punch and the body recoils a touch, so the haymaker reads at
-40px in motion.
+`_strike()` maps a wing angle to a 0..1 punch and the body recoils a touch — the
+punch is a tidy secondary detail so the FACE stays the focus.
 
-Colour is STRUCTURE, not noise: a teal duotone shield carries two bold orange
-load-bearing stripes plus one thin banded mid-stripe as a third accent, and
-iridescent eye-jewels — controlled technicolor that never breaks the duotone
-read. The night biome borrows a faint glow on ONLY the eye-jewels and
-club-tips so the bruiser stays bold on dark skies without lighting the body.
+The FACE is a clear cartoon shrimp: a big-eyed googly face + two long trailing
+antennae (the unmistakable "this is a shrimp" tell) over a teal duotone shield
+that carries two bold orange load-bearing stripes plus one thin banded
+mid-stripe as a third accent. The night biome borrows a faint glow on ONLY the
+club-tips so the silhouette stays bold on dark skies without lighting the body.
 
 North star: "a skin lives or dies at 40px in motion." The 40px tell is the
-giant orange double-fist snapping past the snout, the teal/orange striped
-shield, and the twin jewel periscopes.
+friendly googly-eyed face + antennae over the teal/orange striped shield.
 """
 import math
 import pygame
@@ -152,12 +150,12 @@ def _club_arm(surf, shoulder, elbow, fist, *, club_col, club_hi, arm_col,
     The striking face points along the shoulder→fist vector so the club reads
     as a hammer thrown in the punch direction, not a static ball. Each fist
     keeps a dark heel rim so the twin fists never visually merge."""
-    # Segmented limb: dark-rimmed so the arm separates from the shield.
-    pygame.draw.line(surf, _RIM, shoulder, elbow, 5)
-    pygame.draw.line(surf, arm_col, shoulder, elbow, 3)
-    pygame.draw.line(surf, _RIM, elbow, fist, 5)
-    pygame.draw.line(surf, arm_col, elbow, fist, 3)
-    pygame.draw.circle(surf, arm_col, elbow, 2)
+    # Thin segmented limb so the small clubs read as a tidy minor detail and the
+    # face keeps focus.
+    pygame.draw.line(surf, _RIM, shoulder, elbow, 3)
+    pygame.draw.line(surf, arm_col, shoulder, elbow, 1)
+    pygame.draw.line(surf, _RIM, elbow, fist, 3)
+    pygame.draw.line(surf, arm_col, elbow, fist, 1)
 
     # The dactyl club — a chunky rounded fist with a dark heel rim so the two
     # fists keep a 1px dark separation even when they sit close in depth.
@@ -236,7 +234,7 @@ def _build(wing_angle_deg, *, glow):
     far_fist  = _lerp_pt((bcx + 4, bcy + 20), (bcx + 21, bcy + 10), s)
     _club_arm(surf, far_shoulder, far_elbow, far_fist,
               club_col=_CLUB_D, club_hi=_CLUB, arm_col=_CARA_D,
-              club_r=6, lead=False, glow=glow)
+              club_r=3, lead=False, glow=glow)
 
     # Segmented abdomen + orange tail-fan.
     _segmented_tail(surf, bcx - 7, bcy + 1, count=3, span=18)
@@ -267,28 +265,41 @@ def _build(wing_angle_deg, *, glow):
     _aaellipse(surf, _CARA, (hcx - 1, hcy), 10, 9)
     _aaellipse(surf, _CARA_H, (hcx - 2, hcy - 3), 4, 2)
 
-    # ── HERO: long widely-spread eye-stalks, thick (3px core + dark rim) so the
-    #    twin periscopes read on both skies; jewel tip 2× the stalk width.
-    for sgn, ex in ((-1, hcx - 6), (1, hcx + 7)):
-        base = (hcx + sgn * 3, hcy - 3)
-        tip = (ex + sgn * 4, CROWN_Y - 6 + rcy)
-        pygame.draw.line(surf, _STALK_RIM, base, tip, 5)   # dark outline
-        pygame.draw.line(surf, _STALK, base, tip, 3)        # 3px stalk core
-        _jewel_eye(surf, tip[0], tip[1], 6, glow=glow)      # jewel ≈ 2× stalk
+    # ── FACE: a clear cartoon-shrimp read — two long trailing ANTENNAE (the
+    #    "this is a shrimp" tell the periscope-only face lacked) + big expressive
+    #    googly eyes + a friendly smile.
+    for pts in (
+        [(hcx + 5, hcy - 2), (hcx, CROWN_Y + rcy),
+         (hcx - 9, CROWN_Y - 3 + rcy), (hcx - 16, CROWN_Y - 7 + rcy)],
+        [(hcx + 6, hcy), (hcx + 2, CROWN_Y + 5 + rcy),
+         (hcx - 7, CROWN_Y + 3 + rcy), (hcx - 14, CROWN_Y + 1 + rcy)],
+    ):
+        pygame.draw.lines(surf, _STALK_RIM, False, pts, 2)
+        pygame.draw.lines(surf, _BAND, False, pts[:-1], 1)   # warm-tipped feeler
+    for sgn, tx in ((-1, hcx - 4), (1, hcx + 5)):
+        base = (hcx + sgn * 2, hcy - 2)
+        tip = (tx, hcy - 7 + rcy)
+        pygame.draw.line(surf, _STALK_RIM, base, tip, 4)
+        pygame.draw.line(surf, _STALK, base, tip, 2)
+        pygame.draw.circle(surf, _STALK_RIM, tip, 7)
+        pygame.draw.circle(surf, (255, 255, 255), tip, 6)
+        pygame.draw.circle(surf, (32, 26, 44), (tip[0] + 1, tip[1] + 1), 4)
+        pygame.draw.circle(surf, (255, 255, 255), (tip[0] - 1, tip[1] - 1), 2)
+    pygame.draw.arc(surf, _STALK_RIM, (hcx - 3, hcy + 3, 10, 8), 3.5, 6.0, 2)
+    pygame.draw.line(surf, _STALK_RIM, (hcx - 2, hcy + 5), (hcx + 5, hcy + 5), 1)
 
     # ── HERO: OVERSIZED lead club — the haymaker, drawn IN FRONT of head+shield.
     #    Cocked (s=0): pulled low+forward, clear of the face. Punched (s=1): the
     #    fist drives UP + FORWARD to land OVER the snout — the orange mass clearly
     #    overlaps the snout vector (hcx,hcy → eye-jewels), reading as a punch
     #    thrown past the face, never a leg dangling under the gut.
-    near_elbow = _lerp_pt((bcx + 13, bcy + 6), (hcx + 5, hcy + 0), s)
-    near_fist  = _lerp_pt((bcx + 19, bcy + 11), (hcx + 15, hcy - 10), s)
-    # Tight halo when cocked (lead+rear fists sit close, a wide bloom would
-    # merge them); widen toward the punch where the lead fist flies clear.
-    lead_glow_r = int(round(3 + s * 2))
+    near_elbow = _lerp_pt((bcx + 12, bcy + 7), (hcx + 3, hcy + 2), s)
+    near_fist  = _lerp_pt((bcx + 16, bcy + 11), (hcx + 10, hcy - 3), s)
+    # Tight halo when cocked; widen a touch toward the punch.
+    lead_glow_r = int(round(1 + s * 2))
     _club_arm(surf, sh, near_elbow, near_fist,
               club_col=_CLUB, club_hi=_CLUB_H, arm_col=_CARA_D,
-              club_r=8, lead=True, glow=glow, glow_r=lead_glow_r)
+              club_r=4, lead=True, glow=glow, glow_r=lead_glow_r)
     return surf
 
 

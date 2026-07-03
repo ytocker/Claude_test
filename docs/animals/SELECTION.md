@@ -1,45 +1,70 @@
-# Animals expansion — final 11 (curated from brainstorm.md)
+# ANIMALS category — current roster
 
-Grows the ANIMALS store category 9 → 20. Existing 9 kept as-is. Prices chosen so
-the new creatures spread across the cost-sorted store and the 4 legendaries form
-a natural "page 3" legendary tier.
+21 items across 4 tiers. Secret items display as ??? in the store until purchased.
 
-## The 11 new creatures
+## Roster
 
-| # | skin id | name | tier | cost | non-winged? |
-|---|---------|------|------|------|-------------|
-| 1 | `skin_pufferfish`   | PUFFERFISH   | late-game  | 620  | ✓ |
-| 2 | `skin_chameleon`    | CHAMELEON    | late-game  | 680  | ✓ |
-| 3 | `skin_red_panda`    | RED PANDA    | late-game  | 740  | ✓ |
-| 4 | `skin_sugar_glider` | SUGAR GLIDER | late-game  | 820  | ✓ (glide) |
-| 5 | `skin_axolotl`      | AXOLOTL      | late-game  | 900  | ✓ |
-| 6 | `skin_mantis_shrimp`| MANTIS SHRIMP| late-game  | 980  | ✓ |
-| 7 | `skin_griffin`      | GRIFFIN      | late-game  | 1100 |   |
-| 8 | `skin_thunderbird`  | THUNDERBIRD  | legendary  | 1800 |   |
-| 9 | `skin_cosmic_jelly` | COSMIC JELLY | legendary  | 2200 | ✓ |
-| 10| `skin_aurora_stag`  | AURORA STAG  | legendary  | 2800 | ✓ (antlers) |
-| 11| `skin_kitsune`      | KITSUNE      | legendary  | 3500 | ✓ (tail-fan) |
+| # | skin id | Name | Cost | Tier | Secret |
+|---|---------|------|------|------|--------|
+| 1 | `skin_bee` | BEE | 200 | common | |
+| 2 | `skin_owl` | OWL | 280 | common | |
+| 3 | `skin_toucan` | TOUCAN | 340 | common | |
+| 4 | `skin_penguin` | PENGUIN | 420 | rare | |
+| 5 | `skin_bat` | BAT | 490 | rare | |
+| 6 | `skin_flamingo` | FLAMINGO | 560 | rare | |
+| 7 | `skin_pufferfish` | PUFFERFISH | 640 | rare | |
+| 8 | `skin_chameleon` | CHAMELEON | 720 | rare | |
+| 9 | `skin_eagle` | EAGLE | 900 | epic | |
+| 10 | `skin_red_panda` | RED PANDA | 1100 | epic | |
+| 11 | `skin_sugar_glider` | SUGAR GLIDER | 1400 | epic | |
+| 12 | `skin_mantis_shrimp` | MANTIS SHRIMP | 1800 | epic | |
+| 13 | `skin_dragon` | DRAGON | 2300 | epic | |
+| 14 | `skin_kitsune` | KITSUNE | 3500 | legendary | |
+| 15 | `skin_paper_plane` | PAPER PLANE | 5000 | legendary | ??? |
+| 16 | `skin_sun` | SUN | 6000 | legendary | ??? |
+| 17 | `skin_pinata_burro` | BURRO PIÑATA | 7000 | legendary | ??? |
+| 18 | `skin_pinata_cactus` | CACTUS PIÑATA | 8000 | legendary | ??? |
+| 19 | `skin_toaster` | FLYING TOASTER | 9000 | legendary | ??? |
+| 20 | `skin_pinata_parrot` | PARROT PIÑATA | 10500 | legendary | ??? |
+| 21 | `skin_jet_fighter` | JET FIGHTER | 12000 | legendary | ??? |
 
-## Resulting cost-sorted ANIMALS pages (20 total, 8/8/4)
+Rarity bands (from `store_catalog._RARITY_BANDS`): common < 400 · rare 400–799 · epic 800–2499 · legendary ≥ 2500.
 
-- **Page 1:** bee 400, owl 480, toucan 480, penguin 520, bat 520, flamingo 560,
-  **pufferfish 620, chameleon 680**
-- **Page 2:** eagle 700, **red_panda 740, sugar_glider 820, axolotl 900,
-  mantis_shrimp 980, griffin 1100**, dragon 1200, phoenix 1500
-- **Page 3 (legendary tier):** **thunderbird 1800, cosmic_jelly 2200,
-  aurora_stag 2800, kitsune 3500**
+## Tier rationale
 
-## Dropped from the 16
+**Common (200–340):** BEE, OWL, TOUCAN — simple iconic shapes, accessible within 2–3 runs. The entry hook for new players.
 
-Jellyfish (folded into the legendary Cosmic Jelly), Hummingbird (overlaps Bee),
-Quetzal (reads "fancy bird" beside toucan/flamingo), Seahorse (hardest 40px
-read), Flying Fish (a second fish alongside Pufferfish).
+**Rare (420–720):** Five creatures spaced ~70 coins apart. FLAMINGO stays at 560 (natural midpoint). CHAMELEON sits at the rare ceiling (720) — its colour-shifting complexity justifies it.
 
-## Legendary spectacle constraint
+**Epic (900–2300):** Five aspirational items. EAGLE opens the epic tier (first purple card the player sees). DRAGON at 2300 is the epic capstone — a deliberate trophy before legendary opens.
 
-A skin getter only receives `(frame_idx, tilt_deg)` and returns one static
-sprite per frame — there is no live particle system feeding the skin. So all
-"glow / shimmer / lightning / stardust / aurora" spectacle must be **baked into
-the 4 sprite frames** (e.g. a glow halo + energy accents drawn on the sprite),
-and any "pulse" must be expressed by varying that spectacle across the 4 wing
-frames. It must still read cleanly at 40px.
+**Legendary (3500):** KITSUNE is the sole visible legendary, acting as the store's aspiration anchor. Players can see it and aim for it.
+
+**Secret legendary (5000–12000):** Seven items masked as ??? until purchased. Price is always visible. SUN is special — it rolls a random one of two designs (classic / kawaii) at unlock, then locks to that variant. The piñata trio (BURRO, CACTUS, PARROT) forms a thematic collectible set.
+
+## Store pages
+
+- **Page 1:** BEE · OWL · TOUCAN · PENGUIN · BAT · FLAMINGO · PUFFERFISH · CHAMELEON
+- **Page 2:** EAGLE · RED PANDA · SUGAR GLIDER · MANTIS SHRIMP · DRAGON · KITSUNE · PAPER PLANE · SUN
+- **Page 3:** BURRO PIÑATA · CACTUS PIÑATA · FLYING TOASTER · PARROT PIÑATA · JET FIGHTER
+
+Reference figures (branch `claude/nice-bell-g1p9mm`):
+- `docs/store_redesign/animal/animal_store_pages.png` — all 3 pages as players see them
+- `docs/store_redesign/animal/animal_store_pages_revealed.png` — same with secrets shown
+- `docs/store_redesign/animal/animal_overview.png` — all 21 skins mid-flight
+
+## Removed items
+
+The following were cut to tighten the lineup:
+
+| Name | Reason |
+|------|--------|
+| AXOLOTL | Overlapped the epic tier without enough visual distinction |
+| GRIFFIN | Removed — winged fantasy creature slot owned by DRAGON and KITSUNE |
+| PHOENIX | Removed — fire-bird concept too close to DRAGON |
+| THUNDERBIRD | Removed — lightning-bird concept; archived under `docs/store_redesign/animal/thunderbird/` |
+| COSMIC JELLY | Removed — repositioned as potential future item |
+| AURORA STAG | Removed — repositioned as potential future item |
+| UFO | Removed from secret tier — repositioned as potential future item |
+
+Builder code for all removed items is retained in the codebase and can be re-registered without rebuilding art.
