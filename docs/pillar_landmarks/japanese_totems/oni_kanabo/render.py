@@ -79,7 +79,9 @@ PHASE_NIGHT = 0.85               # deep night — checks lit rim + eye glare glo
 def _skin_triad(palette):
     mid = _mix(_vermilion(palette), (222, 62, 40), 0.42)   # hot cinnabar
     lit = _mix(mid, (255, 150, 96), 0.52)                  # raking sunlit cheek
-    sh = _shade(_mix(mid, (120, 22, 16), 0.55), -6)        # socket-recess shadow
+    # Shadow-side skin deepened so the body holds its edge against the closest-
+    # luminance day sky (the tan/blue crossover band) without softening the lit red.
+    sh = _shade(_mix(mid, (108, 18, 14), 0.60), -12)       # socket-recess shadow
     # Night: cap the lit so the cinnabar doesn't blow out, floor the shadow so
     # the mask doesn't sink into the dark sky as one black mass.
     lit = _cap_lit_for_dark_sky(lit, palette, cap=214)
@@ -129,6 +131,7 @@ def _lum(c):
 _TAPER = 5                        # px of neck-waist ramp at each seam
 _WAIST = 5                        # px each side the waist pinches in from the edge
 _HEAD_H_FLOOR = 98                # natural head height -> drives adaptive COUNT
+_RIM_AIR = 3                      # px sky sliver so flipped caps don't kiss the gap
 
 
 def _hw_at(y, y0, y1, half, *, crown, base):
@@ -143,6 +146,15 @@ def _hw_at(y, y0, y1, half, *, crown, base):
         d = y1 - y
         if d < _TAPER:
             hw = min(hw, (half - _WAIST) + (_WAIST) * (d / _TAPER))
+    # Subtle brute flares proud of the band so the blackout body isn't a pure
+    # rectangle: a brow-boss bulge and a heavier jaw shelf (adds mass, never
+    # empties the band — the fill gate is untouched).
+    hh = y1 - y0
+    r = (y - y0) / max(1, hh)
+    if 0.16 < r < 0.30:
+        hw = max(hw, half + 1.5)
+    if 0.80 < r < 0.94:
+        hw = max(hw, half + 2.0)
     return hw
 
 
@@ -167,16 +179,19 @@ def _thick_horn(surf, cx, temple_y, top_y, half, side, palette):
     gold = _eye_gold(palette)
     th = temple_y - top_y
     s = side
-    over = half * 0.98                 # tip overhang out into the eave gutter
+    over = half * 1.02                 # tip overhang out into the eave gutter
 
-    # Hand-crafted boundary so the rake is predictable in the blackout: a wide
-    # blunt base at the temple sweeping OUT and up to a blunt outward tip.
-    base_in = (cx + s * half * 0.50, temple_y)
-    base_out = (cx + s * half * 0.86, temple_y)
-    mid_out = (cx + s * (half * 1.24), temple_y - th * 0.44)
-    tip_out = (cx + s * (half + over), top_y + int(th * 0.10) + 3)
-    tip_in = (cx + s * (half + over * 0.70), top_y + int(th * 0.10))
-    mid_in = (cx + s * half * 0.90, temple_y - th * 0.50)
+    # Hand-crafted boundary so the rake is predictable in the blackout: a WIDE
+    # blunt base rooted in the head, a thick shaft, and a BROAD blunt tip raked
+    # up-and-OUT into the gutter (bull-V), never upright. Base-in sits deep in
+    # the head so horn-and-head read as ONE continuous dark form at 1x; the tip
+    # is broad (~0.5*half) so it can't shrink to a detached speck.
+    base_in = (cx + s * half * 0.34, temple_y)
+    base_out = (cx + s * half * 1.02, temple_y)
+    mid_out = (cx + s * (half * 1.50), temple_y - th * 0.42)
+    tip_out = (cx + s * (half + over), top_y + int(th * 0.05))
+    tip_in = (cx + s * (half + over * 0.50), top_y)
+    mid_in = (cx + s * half * 0.82, temple_y - th * 0.55)
     poly = [base_in, base_out, mid_out, tip_out, tip_in, mid_in]
 
     pygame.draw.polygon(surf, mid, poly)
@@ -371,9 +386,17 @@ def _draw_head(surf, cx, y0, y1, half, palette, rng, *, crown, base):
                          (cx - int(half * 0.5), mouth_y),
                          (cx + int(half * 0.5), mouth_y), 2)
 
-    # 7. AA silhouette keyline.
+    # 7. AA silhouette keyline. By day the body red sits close in luminance to
+    #    the tan/blue crossover sky, so thicken the shadow (right) edge to a 2px
+    #    dark keyline that anchors the outline; night keeps a crisp 1px line so
+    #    the rim-light can carry the left edge instead.
     outline = left_pts + list(reversed(right_pts))
     _aa_polyline(surf, _shade(sh, -20), outline, closed=True)
+    if not dark_sky:
+        key = _shade(sh, -26)
+        for x, y in right_pts:
+            if 0 <= x - 1 < surf.get_width():
+                surf.set_at((x - 1, y), key)
 
     # 8. Night rim-light down the LEFT edge so the hot red holds its silhouette
     #    against a dark sky (a quiet warm edge by day).
@@ -397,11 +420,10 @@ def _draw_topper(surf, cx, y_top, y_bot, half, palette):
     lit, mid, sh = _iron_triad(palette)
     gold = _eye_gold(palette)
     hair = _hair(palette)
-    dh = y_bot - y_top
-
-    # Horns first so the drum overlaps their inner bases cleanly.
-    _thick_horn(surf, cx, y_bot - 1, y_top, half, -1, palette)
-    _thick_horn(surf, cx, y_bot - 1, y_top, half, +1, palette)
+    # Pull the whole cap down a hair so the two flipped drums leave a clean sky
+    # sliver across the flyable gap instead of kissing into one blob.
+    y_cap = y_top + _RIM_AIR
+    dh = y_bot - y_cap
 
     # Wild indigo hair-mass under the drum (frames the kanabō, sits on the crown).
     hair_hw = int(half * 0.95)
@@ -411,17 +433,18 @@ def _draw_topper(surf, cx, y_top, y_bot, half, palette):
                          (cx - hair_hw, y_bot - 1 - k),
                          (cx + hair_hw, y_bot - 1 - k), 1)
 
-    # Studded kanabō drum — solid wide gap-rim presenter (~1.20x the crown).
-    dw = int(half * 2 * 1.20)
+    # Studded kanabō drum — narrowed (~1.08x) so the bold horns overhang it as
+    # clear wings, not nubs swallowed by an oversized club.
+    dw = int(half * 2 * 1.08)
     x0 = cx - dw // 2
-    drum = pygame.Rect(x0, y_top + 3, dw, max(6, dh - 3))
+    drum = pygame.Rect(x0, y_cap + 3, dw, max(6, dh - 3))
     _gradient_rect(surf, drum, lit, mid, sh)
     # Domed, wide solid top edge = the gap-rim presentation.
-    top_rect = pygame.Rect(x0, y_top, dw, 6)
+    top_rect = pygame.Rect(x0, y_cap, dw, 6)
     pygame.draw.ellipse(surf, mid, top_rect)
     pygame.draw.ellipse(surf, lit, top_rect.inflate(-2, -2))
     # Gold band around the club.
-    band_y = y_top + max(4, dh // 2)
+    band_y = y_cap + max(4, dh // 2)
     pygame.draw.rect(surf, gold, (x0 + 1, band_y, dw - 2, 2))
     pygame.draw.line(surf, _shade(gold, -40), (x0 + 1, band_y + 2),
                      (x0 + dw - 2, band_y + 2), 1)
@@ -430,12 +453,18 @@ def _draw_topper(surf, cx, y_top, y_bot, half, palette):
     rng = random.Random(cx * 5 + y_top)
     for _ in range(max(4, dw // 5)):
         px = rng.randint(x0 + 3, x0 + dw - 4)
-        py = rng.randint(y_top + 5, drum.bottom - 2)
+        py = rng.randint(y_cap + 5, drum.bottom - 2)
         pygame.draw.circle(surf, _shade(lit, 20), (px, py), 1)
         surf.set_at((px, py - 1), _shade(sh, -10))
     _aa_polyline(surf, _shade(sh, -18),
-                 [(x0, drum.bottom), (x0, y_top + 4),
-                  (x0 + dw - 1, y_top + 4), (x0 + dw - 1, drum.bottom)])
+                 [(x0, drum.bottom), (x0, y_cap + 4),
+                  (x0 + dw - 1, y_cap + 4), (x0 + dw - 1, drum.bottom)])
+
+    # Horns LAST, rooted BELOW the drum into the crown head, so each horn+head
+    # is one continuous dark wedge and the full bold shaft shows over the club.
+    root = min(int(half * 0.42), max(6, dh))
+    _thick_horn(surf, cx, y_bot + root, y_cap, half, -1, palette)
+    _thick_horn(surf, cx, y_bot + root, y_cap, half, +1, palette)
 
 
 # ── 3-layer plinth + foliage ────────────────────────────────────────────────
@@ -611,6 +640,38 @@ def _head_count(section_h):
     return max(1, round(avail / _HEAD_H_FLOOR))
 
 
+def _horn_metrics(pal, section_h):
+    """Quantify the blackout horn read: how far the horns reach past the 58px
+    band, how much dark 'wing' mass sits in the gutter, and the horn shaft's
+    vertical thickness just outside the drum edge."""
+    surf = pygame.Surface((CACHE_W, CACHE_H), pygame.SRCALPHA)
+    br = pygame.Rect(MARGIN, GROUND_Y - section_h, PIPE_W, section_h)
+    tr = pygame.Rect(MARGIN, 0, PIPE_W, 0)
+    candidate_oni_kanabo(surf, tr, br, pal, seed=7)
+    cx = MARGIN + PIPE_W // 2
+    band = PIPE_W // 2
+    top = GROUND_Y - section_h
+    max_reach = wing_px = 0
+    for y in range(top, top + 34):
+        for x in range(CACHE_W):
+            if surf.get_at((x, y))[3] > 40 and abs(x - cx) > band:
+                wing_px += 1
+                max_reach = max(max_reach, abs(x - cx))
+
+    def col_thick(xc):
+        run = best = 0
+        for y in range(top, top + 44):
+            if 0 <= xc < CACHE_W and surf.get_at((xc, y))[3] > 40:
+                run += 1
+                best = max(best, run)
+            else:
+                run = 0
+        return best
+
+    shaft = max(col_thick(cx + 36), col_thick(cx - 36))
+    return max_reach - band, wing_px, shaft
+
+
 def main():
     pal = biome.palette_for_phase(PHASE_DAY)
     pal_n = biome.palette_for_phase(PHASE_NIGHT)
@@ -632,6 +693,11 @@ def main():
     for h in (70, 210, 355):
         print(f"  h={h:3d}  heads={_head_count(h)}")
 
+    reach, wing, shaft = _horn_metrics(pal, 118)
+    print("HORN BOLDNESS (blackout, hero section)")
+    print(f"  reach past band = {reach}px   wing mass = {wing}px   "
+          f"shaft thickness @±36 = {shaft}px")
+
     hero_day, hd_h = _hero(pal, 7)
     hero_night, hn_h = _hero(pal_n, 7)
     close = _closeup(pal, 7)
@@ -641,10 +707,12 @@ def main():
     gp_bot = pygame.Rect(MARGIN, 243, PIPE_W, GROUND_Y - 243)
     gp_top = pygame.Rect(MARGIN, 0, PIPE_W, 93)
     candidate_oni_kanabo(gap_probe, gp_top, gp_bot, pal, seed=7)
-    clear_bot = _gap_rim_clearance(gap_probe, MARGIN, MARGIN + PIPE_W, 243, up=True)
+    # The bottom cap now sits BELOW its rim line, so probe DOWN into the gap for
+    # the sky sliver; the top (flipped) cap hangs above its rim, so probe UP.
+    clear_bot = _gap_rim_clearance(gap_probe, MARGIN, MARGIN + PIPE_W, 243, up=False)
     clear_top = _gap_rim_clearance(gap_probe, MARGIN, MARGIN + PIPE_W, 93, up=True)
-    print("GAP-RIM CLEARANCE (cap reach into the flyable gap)")
-    print(f"  bottom cap -> gap: {clear_bot}px   top (flipped) cap -> gap: {clear_top}px")
+    print("GAP-RIM CLEARANCE (sky sliver between cap and its gap-rim line)")
+    print(f"  bottom cap air: {clear_bot}px   top (flipped) cap air: {clear_top}px")
 
     # Feasibility strip: bottom section at three heights + empty-run gate.
     strip_heights = [70, 210, 355]
@@ -690,7 +758,7 @@ def main():
     sheet.fill((24, 22, 26))
 
     sheet.blit(title.render(
-        "oni_kanabo — stacked horned ONI demon-mask totem  ·  round_1",
+        "oni_kanabo — stacked horned ONI demon-mask totem  ·  round_2",
         True, (250, 236, 226)), (pad, 12))
     sheet.blit(sub.render(
         "red edges = PIPE_W (58px) collision band  ·  BRIGHT cinnabar-vermilion "
@@ -747,7 +815,7 @@ def main():
     sheet.blit(lab.render("1x @ 58px", True, (200, 200, 210)),
                (x, head_h + bo3.get_height() + 24 + bo1.get_height() + 2))
 
-    out = pathlib.Path(__file__).resolve().parent / "round_1.png"
+    out = pathlib.Path(__file__).resolve().parent / "round_2.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
