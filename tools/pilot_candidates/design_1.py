@@ -2,9 +2,7 @@
 
 Scratch builder, NOT registered in store_skins.BUILDERS.
 
-R6: anatomy-correct navy body recolor. Big round aviator shades restored via
-draw_lenses=True. White collar removed from face — replaced by a gold captain
-epaulette on the shoulder where rank belongs.
+R7: single rank item — shoulder epaulette only (sleeve stripes removed).
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -63,13 +61,6 @@ def _paint_captain(surf, wing_angle_deg):
         pygame.draw.line(surf, _GOLD, (sx+1, ey), (sx+sw-2, ey), 1)
     # Thin gold border
     pygame.draw.rect(surf, _GOLD, (sx, sy, sw, sh), 1)
-
-    # ── 3 fat gold sleeve stripes on lower wing/cuff ───────────────────────────
-    dy = int(round(wing_angle_deg * 0.10))
-    bx = 15
-    pygame.draw.rect(surf, _CAP_NAVY, (bx-1, 43+dy, 11, 10))
-    for ry in (44, 47, 50):
-        pygame.draw.rect(surf, _GOLD, (bx, ry+dy, 9, 2))
 
     # ── Peaked officer's cap ───────────────────────────────────────────────────
     _poly(surf, _CAP_NAVY, [(38,32),(38,24),(40,22),(56,22),(58,24),(58,32)])
