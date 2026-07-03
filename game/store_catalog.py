@@ -50,7 +50,8 @@ CATALOG: dict[str, dict] = {
     "skin_pharaoh":  {"name": "PHARAOH",   "cost": 700, "kind": "skin", "group": "costume"},
     "skin_mummy":    {"name": "MUMMY",     "cost": 700, "kind": "skin", "group": "costume"},
     "skin_baseball": {"name": "BASEBALL",  "cost": 480, "kind": "skin", "group": "costume"},
-    "skin_tennis":   {"name": "TENNIS",    "cost": 480, "kind": "skin", "group": "costume"},
+    "skin_tennis":      {"name": "TENNIS",     "cost": 480, "kind": "skin", "group": "costume"},
+    "skin_basketball":  {"name": "BASKETBALL", "cost": 520, "kind": "skin", "group": "costume"},
     "skin_crown":    {"name": "CROWN",     "cost": 750, "kind": "skin", "group": "costume"},
     "skin_disco":    {"name": "DISCO",     "cost": 800, "kind": "skin", "group": "costume"},
 

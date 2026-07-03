@@ -212,6 +212,13 @@ def skin_variant(item_id: str) -> "int | None":
     return None if v is None else int(v)
 
 
+def set_skin_variant(item_id: str, idx: int) -> None:
+    """Persist a player-chosen variant index for a skin (e.g. basketball team)."""
+    st = _ensure()
+    st.setdefault("skin_variants", {})[item_id] = int(idx)
+    save()
+
+
 def _roll_skin_variant(st: dict, item_id: str) -> None:
     """If a skin's look is a random 1-of-N pick locked at unlock, roll it once
     and persist the index. The pool size is owned by the art module, lazy-
