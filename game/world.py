@@ -268,6 +268,16 @@ class World:
         self.death_ghost = False
         self.death_kfc = False
         self.died_early_phase = False
+        # Hall-of-Shame expansion: more death-moment snapshots, all filled in
+        # _die while the effect state is still live (read post-death by
+        # achievements.evaluate_run on the same frame).
+        self.death_slowmo = False
+        self.death_poison = False
+        self.death_skateboard = False
+        self.death_lightning = False
+        self.death_celebration = False
+        self.death_magnet_zero = False
+        self.death_wish_pending = False
         self._lottery_pulled = False
         self.max_flaps_per_sec = 0
         self._flap_window_t = 0.0
@@ -292,6 +302,16 @@ class World:
         self._ghost_run_pillars = 0
         self.surprise_repeat = 0
         self._surprise_rolls: set = set()
+        # Hall-of-Shame live trackers: coins grabbed inside the current magnet
+        # window (Rich and Reckless), whether a genie-chamber wish was ever
+        # collected (Wish Unspent), the Coin Rush grab tally (Coin Blind), and
+        # the count of storm jolts survived this run (Lightning Magnet).
+        self._coins_in_magnet = 0
+        self._genie_wish_taken = False
+        self.coin_blind = False
+        self._rush_cur_total = 0
+        self._rush_cur_got = 0
+        self._lightning_strikes_run = 0
         # Cycle-finale "treasure box" state. _last_biome_phase samples the
         # phase every frame so a wrap from ~1.0 back to ~0.0 can be detected
         # one frame after biome_time crosses CYCLE_SECONDS. When that fires
@@ -620,6 +640,7 @@ class World:
         lost = min(100, self.score)
         if lost <= 0:
             return
+        self._lightning_strikes_run += 1      # Lightning Magnet lifetime tally
         self.score = max(0, self.score - lost)
         self._proof.record(self.time_alive, -lost, "weather_jolt")
 
@@ -1073,6 +1094,29 @@ class World:
                 self.coins.append(Coin(x, y))
 
         self.coins_spawned += len(self.coins) - prev_count
+        # Open a fresh Coin Blind window: tag this rush's coins and reset the
+        # grab tally (force-close any prior window — rushes are 15 pillars apart,
+        # so the previous one is always fully behind Pip by now).
+        self._finalize_rush(force=True)
+        for c in self.coins[prev_count:]:
+            c.is_rush = True
+        self._rush_cur_total = len(self.coins) - prev_count
+        self._rush_cur_got = 0
+
+    def _finalize_rush(self, force: bool = False):
+        """Close the current Coin Rush window for the Coin Blind roast. Only
+        fires once the rush is fully behind Pip (no uncollected rush coin still
+        ahead), unless force-closed by the next rush spawning."""
+        if self._rush_cur_total <= 0:
+            return
+        if not force and any(
+                getattr(c, "is_rush", False) and not c.collected
+                and c.x > self.bird.x for c in self.coins):
+            return
+        if self._rush_cur_got < 3:
+            self.coin_blind = True
+        self._rush_cur_total = 0
+        self._rush_cur_got = 0
 
     def _spawn_finale_long_rush_coins(self, first_phantom_x: float,
                                       center_y: float, gap_h: int,
@@ -2134,6 +2178,19 @@ class World:
         self.death_kfc = bool(self.bird.kfc_active)
         self.died_early_phase = (self.cycles_completed >= 1
                                  and (self.biome_time % biome.CYCLE_SECONDS) < 5.0)
+        # Poison is only reachable here with no knight save (the revive above
+        # returns and clears it), so poison_active at death means it killed Pip.
+        self.death_slowmo = self.slowmo_timer > 0
+        self.death_poison = bool(self.bird.poison_active)
+        self.death_skateboard = bool(self.bird.skateboard_active)
+        self.death_lightning = self._lightning_scorch_t > 0
+        self.death_celebration = bool(self.treasure_banners
+                                      or self.celebration_garlands)
+        self.death_magnet_zero = ((self.magnet_timer > 0 or self.megamagnet_timer > 0)
+                                  and self._coins_in_magnet == 0)
+        self.death_wish_pending = (self.powerups_picked.get("genie", 0) > 0
+                                   and not self._genie_wish_taken)
+        self._finalize_rush()      # close an in-progress rush for Coin Blind
         self.game_over = True
         self.bird.alive = False
         # Start the dead-Pip cross-fade. Tiny non-zero value gates the
@@ -2216,6 +2273,10 @@ class World:
         self.score += value
         self.coin_count += 1
         self._proof.record(self.time_alive, value, "coin")
+        if self.magnet_timer > 0 or self.megamagnet_timer > 0:
+            self._coins_in_magnet += 1
+        if getattr(coin, "is_rush", False):
+            self._rush_cur_got += 1
 
         # *** GLITCH FIX ***
         # NO screen-wide flash. Only localized sparkle particles.
@@ -2258,6 +2319,7 @@ class World:
         # others (with a poof). Done before activation so the chosen kind's
         # activator still runs normally below.
         if getattr(m, "is_genie_offer", False):
+            self._genie_wish_taken = True
             self._cull_genie_offers_except(m)
         # POISON HEAL: grabbing ANY power-up other than another poison
         # cures Pip mid-dive. Clear the poison state before the kind's
@@ -2401,6 +2463,7 @@ class World:
         ))
 
     def _activate_magnet(self, m):
+        self._coins_in_magnet = 0        # fresh window for the Rich and Reckless tally
         self.magnet_timer = MAGNET_DURATION
         self.shake_mag = max(self.shake_mag, 2.5)
         self.shake_t = max(self.shake_t, 0.25)
@@ -2412,6 +2475,7 @@ class World:
         ))
 
     def _activate_megamagnet(self, m):
+        self._coins_in_magnet = 0        # fresh window for the Rich and Reckless tally
         self.megamagnet_timer = MEGAMAGNET_DURATION
         self.shake_mag = max(self.shake_mag, 3.5)
         self.shake_t = max(self.shake_t, 0.3)

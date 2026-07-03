@@ -87,10 +87,13 @@ CATEGORY_ORDER = (
 # own categories so they live on a separate tab; they share the flat unlocked{}
 # map and the one evaluate_run loop. Every roast punches at the play, not the
 # player, and is out-grindable.
-CAT_SHAME_BLOOPER = "Blooper Reel"     # per-run pratfalls
-CAT_SHAME_LOWS    = "Lifetime Lows"    # cumulative low-lights
+CAT_SHAME_BLOOPER = "Blooper Reel"        # per-run pratfalls
+CAT_SHAME_WASTED  = "Wasted Opportunity"  # squandered a gift
+CAT_SHAME_COSMIC  = "Cosmic Joke"         # eerily specific / uncanny detections
+CAT_SHAME_LOWS    = "Lifetime Lows"       # cumulative low-lights
 
-SHAME_CATEGORY_ORDER = (CAT_SHAME_BLOOPER, CAT_SHAME_LOWS)
+SHAME_CATEGORY_ORDER = (CAT_SHAME_BLOOPER, CAT_SHAME_WASTED,
+                        CAT_SHAME_COSMIC, CAT_SHAME_LOWS)
 
 
 @dataclass(frozen=True)
@@ -387,6 +390,52 @@ SHAME_ACHIEVEMENTS: tuple[Achievement, ...] = (
     Achievement("night_owl", "Night Owl's Revenge",
                 "Die in the first 5 seconds of a new biome phase.",
                 CAT_SHAME_BLOOPER, "day", "early_phase_death", 1),
+    Achievement("bullet_bystander", "Bullet Time Bystander",
+                "Die with Slow-Mo active. The world slowed down and you still "
+                "couldn't dodge.",
+                CAT_SHAME_BLOOPER, "bullet_bystander", "died_slowmo", 1),
+    Achievement("cursed", "Cursed",
+                "Die to the genie's poison wish, with no knight to save you.",
+                CAT_SHAME_BLOOPER, "cursed", "died_poison", 1),
+    Achievement("board_to_death", "Board to Death",
+                "Die mid skateboard grind or trick.",
+                CAT_SHAME_BLOOPER, "board_to_death", "died_skateboard", 1),
+    Achievement("lightning_rod", "The Lightning Rod",
+                "Get struck by lightning, then die before the scorch clears.",
+                CAT_SHAME_BLOOPER, "lightning_rod", "died_lightning", 1),
+    Achievement("party_foul", "Party Foul",
+                "Die during the Day-Complete celebration — mid-party.",
+                CAT_SHAME_BLOOPER, "party_foul", "died_celebration", 1),
+
+    # ── Wasted Opportunity (squandered a gift) ────────────────────────────
+    Achievement("rich_reckless", "Rich and Reckless",
+                "Die with a Magnet active having collected zero coins during it.",
+                CAT_SHAME_WASTED, "rich_reckless", "magnet_zero_coins", 1),
+    Achievement("coin_blind", "Coin Blind",
+                "Fly through a whole Coin Rush and grab fewer than 3 coins.",
+                CAT_SHAME_WASTED, "coin_blind", "coin_blind", 1),
+    Achievement("wish_unspent", "Wish Unspent",
+                "Grab the genie lamp but die before collecting a single wish.",
+                CAT_SHAME_WASTED, "wish_unspent", "wish_unspent", 1),
+
+    # ── Cosmic Joke (eerily specific detections) ──────────────────────────
+    Achievement("ninety_nine", "Ninety-Nine Problems",
+                "Die on a score of exactly 99 — one shy of triple digits.",
+                CAT_SHAME_COSMIC, "ninety_nine", "score_99", 1),
+    Achievement("groundhog_day", "Groundhog Day",
+                "Die on the exact same pillar two runs in a row. The sky remembers.",
+                CAT_SHAME_COSMIC, "groundhog_day", "repeat_pillar_streak", 2,
+                scope="life"),
+    Achievement("stat_impossible", "Statistically Impossible",
+                "End a run where score, pillars, and coins are all prime numbers.",
+                CAT_SHAME_COSMIC, "stat_impossible", "all_prime", 1),
+    Achievement("three_am", "The 3 AM Shift",
+                "Play a run between 3 and 4 a.m. local time. Go to bed.",
+                CAT_SHAME_COSMIC, "three_am", "clock_3am", 1),
+    Achievement("same_time_tomorrow", "Same Time Tomorrow",
+                "Start a run at the same clock-minute on two different days.",
+                CAT_SHAME_COSMIC, "same_time_tomorrow", "same_minute_two_days", 1,
+                scope="life"),
 
     # ── Lifetime Lows (cumulative) ────────────────────────────────────────
     Achievement("the_scrooge", "The Scrooge",
@@ -395,6 +444,13 @@ SHAME_ACHIEVEMENTS: tuple[Achievement, ...] = (
     Achievement("early_checkout", "Early Checkout",
                 "End 25 runs all-time in under 3 seconds.",
                 CAT_SHAME_LOWS, "clock", "sub3_deaths", 25, scope="life"),
+    Achievement("snake_bit", "Snake Bit",
+                "Die to poison 5 times all-time. The genie really doesn't like you.",
+                CAT_SHAME_LOWS, "snake_bit", "poison_deaths", 5, scope="life"),
+    Achievement("lightning_magnet", "Lightning Magnet",
+                "Take 25 lightning strikes all-time.",
+                CAT_SHAME_LOWS, "lightning_magnet", "lightning_hits", 25,
+                scope="life"),
 )
 
 # Both walls share one flat unlocked{} map + one evaluate loop; the two BY_CAT
@@ -457,6 +513,12 @@ def _blank() -> dict:
             "coins_missed_life": 0,     # coins flown past, all-time
             "last_death_pillar": -1,    # pillar # of the previous death
             "repeat_pillar_streak": 0,  # consecutive deaths on the same pillar
+            "poison_deaths": 0,         # runs ended by the genie's poison wish
+            "lightning_hits": 0,        # storm-jolt strikes taken, all-time
+            # Same-minute-two-days roast: HH:MM -> earliest YYYY-MM-DD it was
+            # played, plus a sticky flag once the same minute recurs on a new day.
+            "play_minutes": {},
+            "same_minute_two_days": 0,
             # Dedication (loyalty) tallies.
             "first_launch": 0,          # unix ts of the very first run
             "distinct_days": 0,         # count of distinct local calendar days played
@@ -494,6 +556,9 @@ def _migrate(store: dict) -> dict:
     seen = out["life"].get("powerups_seen")
     if not isinstance(seen, dict):
         out["life"]["powerups_seen"] = {}
+    pm = out["life"].get("play_minutes")
+    if not isinstance(pm, dict):
+        out["life"]["play_minutes"] = {}
     return out
 
 
@@ -663,11 +728,19 @@ def _merge(a: dict, b: dict) -> dict:
     b = _migrate(b)
     a_newer = _as_int(a.get("mtime")) >= _as_int(b.get("mtime"))
 
-    a_life = {k: v for k, v in a["life"].items() if k != "powerups_seen"}
-    b_life = {k: v for k, v in b["life"].items() if k != "powerups_seen"}
+    _skip = ("powerups_seen", "play_minutes")
+    a_life = {k: v for k, v in a["life"].items() if k not in _skip}
+    b_life = {k: v for k, v in b["life"].items() if k not in _skip}
     life = _max_counters(a_life, b_life)
     life["powerups_seen"] = _max_counters(a["life"]["powerups_seen"],
                                           b["life"]["powerups_seen"])
+    # play_minutes is a HH:MM -> earliest-date map, not a counter: union the two
+    # keeping the earliest date string per minute so cross-device history survives.
+    pm: dict = dict(a["life"].get("play_minutes") or {})
+    for hm, date in (b["life"].get("play_minutes") or {}).items():
+        if hm not in pm or str(date) < str(pm[hm]):
+            pm[hm] = date
+    life["play_minutes"] = pm
 
     return {
         "v": _SCHEMA_V,
@@ -766,6 +839,22 @@ def lifetime_stats(store: "dict | None" = None) -> dict:
 
 # ── Stat resolvers ────────────────────────────────────────────────────────────
 
+def _is_prime(n: int) -> bool:
+    """Plain primality test for the Statistically Impossible roast (small n)."""
+    if n < 2:
+        return False
+    if n < 4:
+        return True
+    if n % 2 == 0:
+        return False
+    i = 3
+    while i * i <= n:
+        if n % i == 0:
+            return False
+        i += 2
+    return True
+
+
 def _has_jackpot(world) -> bool:
     """Scan the proof ledger for a lottery event that landed the top tier."""
     proof = getattr(world, "_proof", None)
@@ -808,6 +897,29 @@ def _run_value(world, ach: Achievement) -> int:
         return 1 if getattr(world, "_lottery_pulled", False) else 0
     if s == "early_phase_death":
         return 1 if getattr(world, "died_early_phase", False) else 0
+    if s == "died_slowmo":
+        return 1 if getattr(world, "death_slowmo", False) else 0
+    if s == "died_poison":
+        return 1 if getattr(world, "death_poison", False) else 0
+    if s == "died_skateboard":
+        return 1 if getattr(world, "death_skateboard", False) else 0
+    if s == "died_lightning":
+        return 1 if getattr(world, "death_lightning", False) else 0
+    if s == "died_celebration":
+        return 1 if getattr(world, "death_celebration", False) else 0
+    if s == "magnet_zero_coins":
+        return 1 if getattr(world, "death_magnet_zero", False) else 0
+    if s == "coin_blind":
+        return 1 if getattr(world, "coin_blind", False) else 0
+    if s == "wish_unspent":
+        return 1 if getattr(world, "death_wish_pending", False) else 0
+    if s == "score_99":
+        return 1 if int(getattr(world, "score", 0) or 0) == 99 else 0
+    if s == "all_prime":
+        sc = int(getattr(world, "score", 0) or 0)
+        pl = int(getattr(world, "pillars_passed", 0) or 0)
+        cn = int(getattr(world, "coin_count", 0) or 0)
+        return 1 if (_is_prime(sc) and _is_prime(pl) and _is_prime(cn)) else 0
     # ── Hall-of-Fame run-scope derivations ────────────────────────────────
     if s == "run_powerups":
         return sum(int(v or 0) for v in pp.values())
@@ -825,6 +937,8 @@ def _run_value(world, ach: Achievement) -> int:
             return 1 if 0 <= lt.tm_hour < 4 else 0
         if s == "clock_dawn":
             return 1 if 4 <= lt.tm_hour < 6 else 0
+        if s == "clock_3am":
+            return 1 if lt.tm_hour == 3 else 0
         if s == "clock_leapday":
             return 1 if (lt.tm_mon == 2 and lt.tm_mday == 29) else 0
         if s == "clock_newyear":
@@ -909,6 +1023,22 @@ def _accumulate(store: dict, world) -> None:
     else:
         life["repeat_pillar_streak"] = 1
     life["last_death_pillar"] = pillars
+    if getattr(world, "death_poison", False):
+        life["poison_deaths"] = int(life.get("poison_deaths", 0)) + 1
+    life["lightning_hits"] = int(life.get("lightning_hits", 0)) + int(
+        getattr(world, "_lightning_strikes_run", 0) or 0)
+
+    # Same-minute-two-days: remember the earliest calendar day each HH:MM was
+    # played; the flag sticks once that minute recurs on a different day.
+    hm = time.strftime("%H:%M", time.localtime())
+    pm = life.get("play_minutes")
+    if not isinstance(pm, dict):
+        pm = life["play_minutes"] = {}
+    prev = pm.get(hm)
+    if prev is None:
+        pm[hm] = today
+    elif prev != today:
+        life["same_minute_two_days"] = 1
 
 
 def evaluate_run(world, store: "dict | None" = None) -> list[str]:

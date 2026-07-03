@@ -47,6 +47,16 @@ class _FakeWorld:
         self.max_flaps_per_sec = kw.get("max_flaps_per_sec", 0)
         self._lottery_pulled = kw.get("_lottery_pulled", False)
         self.died_early_phase = kw.get("died_early_phase", False)
+        # Hall-of-Shame expansion signals (death-moment snapshot + tallies).
+        self.death_slowmo = kw.get("death_slowmo", False)
+        self.death_poison = kw.get("death_poison", False)
+        self.death_skateboard = kw.get("death_skateboard", False)
+        self.death_lightning = kw.get("death_lightning", False)
+        self.death_celebration = kw.get("death_celebration", False)
+        self.death_magnet_zero = kw.get("death_magnet_zero", False)
+        self.death_wish_pending = kw.get("death_wish_pending", False)
+        self.coin_blind = kw.get("coin_blind", False)
+        self._lightning_strikes_run = kw.get("_lightning_strikes_run", 0)
 
 
 class TestAchievements(unittest.TestCase):
@@ -78,8 +88,10 @@ class TestAchievements(unittest.TestCase):
         w = _FakeWorld(pillars_passed=30)
         first = ach.evaluate_run(w, store)
         self.assertIn("first_flight", first)
-        # Same run again — already-unlocked ids must not re-fire.
-        second = ach.evaluate_run(_FakeWorld(pillars_passed=30), store)
+        # A second run past the same thresholds must not re-fire already-unlocked
+        # ids. Dies on a DIFFERENT pillar (31) so the repeat-pillar streak stays
+        # at 1 and groundhog_day (a legitimate cross-run unlock) doesn't fire.
+        second = ach.evaluate_run(_FakeWorld(pillars_passed=31), store)
         self.assertEqual(second, [])
 
     def test_lifetime_accumulation_unlocks(self):
@@ -243,6 +255,68 @@ class TestWallOfShame(unittest.TestCase):
                       ach.evaluate_run(_FakeWorld(died_early_phase=True), ach._blank()))
         self.assertIn("lottery_loser",
                       ach.evaluate_run(_FakeWorld(_lottery_pulled=True), ach._blank()))
+
+    def test_shame_death_context_flags(self):
+        # Each death-moment snapshot flag fires its own Blooper Reel roast.
+        cases = {
+            "bullet_bystander": dict(death_slowmo=True),
+            "cursed": dict(death_poison=True),
+            "board_to_death": dict(death_skateboard=True),
+            "lightning_rod": dict(death_lightning=True),
+            "party_foul": dict(death_celebration=True),
+        }
+        for ach_id, kw in cases.items():
+            newly = ach.evaluate_run(_FakeWorld(pillars_passed=20, **kw),
+                                     ach._blank())
+            self.assertIn(ach_id, newly)
+
+    def test_wasted_opportunity(self):
+        self.assertIn("rich_reckless", ach.evaluate_run(
+            _FakeWorld(pillars_passed=15, death_magnet_zero=True), ach._blank()))
+        self.assertIn("coin_blind", ach.evaluate_run(
+            _FakeWorld(pillars_passed=15, coin_blind=True), ach._blank()))
+        self.assertIn("wish_unspent", ach.evaluate_run(
+            _FakeWorld(pillars_passed=55, death_wish_pending=True), ach._blank()))
+
+    def test_cosmic_joke_run_scope(self):
+        # Ninety-Nine Problems: exactly 99, not 98/100.
+        self.assertIn("ninety_nine",
+                      ach.evaluate_run(_FakeWorld(score=99), ach._blank()))
+        self.assertNotIn("ninety_nine",
+                         ach.evaluate_run(_FakeWorld(score=100), ach._blank()))
+        # Statistically Impossible: score/pillars/coins all prime (7, 5, 3).
+        self.assertIn("stat_impossible", ach.evaluate_run(
+            _FakeWorld(score=7, pillars_passed=5, coin_count=3), ach._blank()))
+        # A single composite disqualifies it (4 is not prime).
+        self.assertNotIn("stat_impossible", ach.evaluate_run(
+            _FakeWorld(score=7, pillars_passed=4, coin_count=3), ach._blank()))
+
+    def test_groundhog_day_repeat_pillar(self):
+        store = ach._blank()
+        self.assertNotIn("groundhog_day",
+                         ach.evaluate_run(_FakeWorld(pillars_passed=12), store))
+        # Dying on the same pillar again flips the streak to 2 → unlock.
+        self.assertIn("groundhog_day",
+                      ach.evaluate_run(_FakeWorld(pillars_passed=12), store))
+
+    def test_same_time_tomorrow(self):
+        import time as _t
+        store = ach._blank()
+        hm = _t.strftime("%H:%M", _t.localtime())
+        # Pre-seed this minute as first played on a different calendar day.
+        store["life"]["play_minutes"][hm] = "1999-01-01"
+        self.assertIn("same_time_tomorrow",
+                      ach.evaluate_run(_FakeWorld(pillars_passed=3), store))
+
+    def test_lifetime_snake_bit_and_lightning_magnet(self):
+        store = ach._blank()
+        for _ in range(5):
+            ach.evaluate_run(_FakeWorld(pillars_passed=8, death_poison=True,
+                                        _lightning_strikes_run=5), store)
+        self.assertEqual(store["life"]["poison_deaths"], 5)
+        self.assertEqual(store["life"]["lightning_hits"], 25)
+        self.assertIn("snake_bit", store["unlocked"])
+        self.assertIn("lightning_magnet", store["unlocked"])
 
     def test_lifetime_scrooge_and_early_checkout(self):
         store = ach._blank()
