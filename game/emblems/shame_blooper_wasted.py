@@ -91,10 +91,11 @@ def _glyph_bullet_bystander(surf, cx, cy, r, col):
         (cx + int(r * 0.16), cy + int(r * 0.44)),
     ], max(3, r // 11))
     # impact spikes bursting out of the waist beyond the glass — the "splat".
-    for a in (math.radians(160), math.radians(200), math.radians(-20),
-              math.radians(20)):
-        ex = cx + int(math.cos(a) * r * 0.92)
-        ey = cy + int(math.sin(a) * r * 0.30)
+    # Shorter + splayed steeper (up/down) so they clear the cap plates.
+    for a in (math.radians(140), math.radians(220), math.radians(-40),
+              math.radians(40)):
+        ex = cx + int(math.cos(a) * r * 0.72)
+        ey = cy + int(math.sin(a) * r * 0.44)
         pygame.draw.line(surf, col, (cx, cy), (ex, ey), max(2, r // 13))
 
 
@@ -127,43 +128,56 @@ def _glyph_cursed(surf, cx, cy, r, col):
         (cx + int(r * 0.18), top - int(r * 0.52)),
         (cx - int(r * 0.10), top - int(r * 0.78)),
     ], max(3, r // 11))
-    for px, py, pr in ((-0.16, -0.86, 0.12), (0.06, -0.96, 0.16)):
+    # puffs offset to one side so the wisp curls asymmetrically, not straight up.
+    for px, py, pr in ((-0.14, -0.84, 0.11), (-0.26, -0.98, 0.15)):
         pygame.draw.circle(surf, col, (cx + int(r * px), top + int(r * py)),
                            max(3, int(r * pr)))
 
 
 def _glyph_board_to_death(surf, cx, cy, r, col):
-    # A skateboard flipped WHEELS-UP mid-wipeout, with a tumble impact-star — you
-    # ate it doing a trick. Inverting the live skate glyph (wheels ABOVE the deck,
-    # kick-tails pointing DOWN) is the whole read: a board that landed upside-down.
-    th = max(4, int(r * 0.18))
-    yk = cy + int(r * 0.14)               # deck line, low so wheels ride up-top
-    # concave deck with kick-tails, now dipping DOWN at the ends (flipped).
-    deck = [
-        (cx - r * 0.78, yk + r * 0.30),   # left kick-tail (down)
-        (cx - r * 0.52, yk),
-        (cx + r * 0.52, yk),
-        (cx + r * 0.78, yk + r * 0.30),   # right kick-tail (down)
-        (cx + r * 0.78, yk + r * 0.30 - th),
-        (cx + r * 0.52, yk - th),
-        (cx - r * 0.52, yk - th),
-        (cx - r * 0.78, yk + r * 0.30 - th),
-    ]
-    pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in deck])
-    # two wheels ABOVE the deck — the cue that the board is belly-up.
-    wr = max(5, int(r * 0.22))
-    wy = yk - th - int(wr * 0.7)
-    for dx in (-0.42, 0.42):
-        pygame.draw.circle(surf, _SH, (int(cx + dx * r), wy), wr)
-        pygame.draw.circle(surf, col, (int(cx + dx * r), wy), max(1, wr // 3))
-    # a wipeout tumble-star bursting at the lower-left where the rider hit.
-    sx, sy = cx - int(r * 0.50), cy + int(r * 0.56)
+    # A skateboard flung belly-up mid-wipeout — you ate it doing a trick. A fat
+    # rounded plank TILTED ~20° (launched, not level, so it never reads as a level
+    # frown) with its two wheels clustered close on ONE end pointing up on visible
+    # truck stubs, a grip-tape seam down the deck top, and a tumble-star only after
+    # the board reads. The tilt + one-sided belly-up wheels break the night-owl
+    # face collision the symmetric version had.
+    ang = math.radians(-20)               # whole board rotated (launched off-axis)
+    ca, sa = math.cos(ang), math.sin(ang)
+
+    def rot(px, py):
+        return (cx + int(px * ca - py * sa), cy + int(px * sa + py * ca))
+
+    th = int(r * 0.34)                     # FAT plank, a dominant mass
+    hl = int(r * 0.82)                     # half-length of the deck
+    # fat rounded plank via a thick capsule: a bar plus round end-caps.
+    top = rot(-hl, -th // 2)
+    bl = rot(-hl, th // 2)
+    tr = rot(hl, -th // 2)
+    br = rot(hl, th // 2)
+    pygame.draw.polygon(surf, col, [top, tr, br, bl])
+    for ex, ey in (rot(-hl, 0), rot(hl, 0)):
+        pygame.draw.circle(surf, col, (ex, ey), th // 2)
+    # grip-tape seam along the deck top so the belly-up plank reads as a deck.
+    s0 = rot(-hl * 0.7, -th * 0.24)
+    s1 = rot(hl * 0.7, -th * 0.24)
+    pygame.draw.line(surf, _SH, s0, s1, max(2, r // 14))
+    # two wheels clustered close on the RIGHT end, up on short truck stubs — a
+    # belly-up asymmetry, not two symmetric eyes.
+    wr = max(5, int(r * 0.19))
+    for pxl in (0.34, 0.66):
+        stub = rot(hl * pxl, -th * 0.5)
+        wheel = rot(hl * pxl, -th * 0.5 - r * 0.24)
+        pygame.draw.line(surf, col, stub, wheel, max(3, r // 9))   # truck stub
+        pygame.draw.circle(surf, _SH, wheel, wr)
+        pygame.draw.circle(surf, col, wheel, max(1, wr // 3))
+    # a wipeout tumble-star at the lower-left where the rider hit the ground.
+    sx, sy = cx - int(r * 0.58), cy + int(r * 0.52)
     for a in range(8):
-        ang = a * math.pi / 4
-        ln = r * (0.30 if a % 2 == 0 else 0.16)
+        aa = a * math.pi / 4
+        ln = r * (0.24 if a % 2 == 0 else 0.12)
         pygame.draw.line(surf, col, (sx, sy),
-                         (sx + int(math.cos(ang) * ln), sy + int(math.sin(ang) * ln)),
-                         max(2, r // 13))
+                         (sx + int(math.cos(aa) * ln), sy + int(math.sin(aa) * ln)),
+                         max(2, r // 14))
 
 
 def _glyph_lightning_rod(surf, cx, cy, r, col):
@@ -180,92 +194,124 @@ def _glyph_lightning_rod(surf, cx, cy, r, col):
         (cx + int(r * 0.06), cy - int(r * 0.34)),
         (cx + int(r * 0.34), cy - int(r * 0.92)),
     ]
+    # nudge the bolt's lower tip DOWN so it touches the feather — contact sells
+    # "struck". The point at index 3 is the bolt's low tip.
+    bolt[3] = (cx - int(r * 0.20), cy + int(r * 0.40))
     pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in bolt])
-    # the struck feather lying low, tilted, with an engraved rachis — the perch
-    # you got knocked from.
-    fcx, fcy = cx - int(r * 0.06), cy + int(r * 0.56)
-    fw, fh = int(r * 0.86), int(r * 0.34)
-    fr = pygame.Rect(fcx - fw // 2, fcy - fh // 2, fw, fh)
-    pygame.draw.ellipse(surf, col, fr)
-    pygame.draw.line(surf, _SH, (fcx - int(fw * 0.42), fcy + int(fh * 0.16)),
-                     (fcx + int(fw * 0.42), fcy - int(fh * 0.16)), max(2, r // 13))
+    # the struck feather lying low: a TAPERED lens (pointed left tip, rounded
+    # blunt right) tilted slightly, with an engraved rachis and short barb ticks
+    # so it reads as a feather, not a bean.
+    fcx, fcy = cx + int(r * 0.02), cy + int(r * 0.54)
+    fa = math.radians(-14)
+    ux, uy = math.cos(fa), math.sin(fa)
+    nx, ny = -uy, ux
+    L = r * 0.50
+    prof = ((-1.0, 0.0), (-0.55, 0.20), (0.0, 0.24), (0.6, 0.18), (1.0, 0.09))
+    topln, botln = [], []
+    for t, w in prof:
+        axx = fcx + ux * L * t
+        axy = fcy + uy * L * t
+        topln.append((axx + nx * r * w, axy + ny * r * w))
+        botln.append((axx - nx * r * w, axy - ny * r * w))
+    pygame.draw.polygon(surf, col, [(int(x), int(y))
+                                    for x, y in topln + botln[::-1]])
+    # rachis + barbs in the engraved shadow tone.
+    tip = (fcx - ux * L, fcy - uy * L)
+    end = (fcx + ux * L, fcy + uy * L)
+    pygame.draw.line(surf, _SH, (int(tip[0]), int(tip[1])),
+                     (int(end[0]), int(end[1])), max(2, r // 14))
+    for t in (-0.2, 0.2, 0.55):
+        bxx = fcx + ux * L * t
+        bxy = fcy + uy * L * t
+        for sgn in (-1, 1):
+            pygame.draw.line(surf, _SH, (int(bxx), int(bxy)),
+                             (int(bxx + (ux * 0.4 + nx * sgn) * r * 0.14),
+                              int(bxy + (uy * 0.4 + ny * sgn) * r * 0.14)),
+                             max(1, r // 20))
     # scorch-burst radiating from the strike point where bolt meets feather.
-    ix, iy = cx - int(r * 0.16), cy + int(r * 0.34)
+    ix, iy = cx - int(r * 0.16), cy + int(r * 0.40)
     for a in (math.radians(210), math.radians(250), math.radians(290),
               math.radians(330)):
         pygame.draw.line(surf, col, (ix, iy),
-                         (ix + int(math.cos(a) * r * 0.30),
-                          iy + int(math.sin(a) * r * 0.30)), max(2, r // 13))
+                         (ix + int(math.cos(a) * r * 0.26),
+                          iy + int(math.sin(a) * r * 0.26)), max(2, r // 13))
 
 
 def _glyph_party_foul(surf, cx, cy, r, col):
-    # A party-popper knocked on its side spraying confetti, with a sad down-tick —
-    # the Day-Complete celebration is exactly what killed you. The tipped cone +
-    # confetti fan carries the joke; the little down-arrow mocks the "win".
-    # cone lying tilted, apex lower-left, open mouth up-right.
-    ang = math.radians(-32)
+    # A party-popper tube erupting a WIDE burst of confetti — the Day-Complete
+    # celebration is exactly what killed you. The tube points up-right with a clear
+    # RIM RING at its mouth (so it reads as an open tube, not a solid triangle),
+    # and the confetti scatters as a broad multi-directional spray of chunky
+    # dots + bars across the upper-right — the opposite of kfc_incident's tight
+    # down-left spill, so the two never converge.
+    ang = math.radians(-40)
     ca, sa = math.cos(ang), math.sin(ang)
-    acx, acy = cx - int(r * 0.30), cy + int(r * 0.26)   # apex
+    acx, acy = cx - int(r * 0.44), cy + int(r * 0.40)   # apex, lower-left
 
     def rot(px, py):
         return (acx + int(px * ca - py * sa), acy + int(px * sa + py * ca))
 
-    mouth_l = rot(r * 0.98, -r * 0.40)
-    mouth_r = rot(r * 0.98, r * 0.40)
+    mouth_l = rot(r * 0.72, -r * 0.34)
+    mouth_r = rot(r * 0.72, r * 0.34)
     pygame.draw.polygon(surf, col, [(acx, acy), mouth_l, mouth_r])
-    # mouth rim so the open end reads as where confetti erupts.
-    pygame.draw.line(surf, col, mouth_l, mouth_r, max(3, r // 12))
-    # confetti bits + streamers fanning out of the mouth, up and to the right.
-    mouth_c = rot(r * 0.98, 0)
-    for da, ln, bit in ((-0.55, 0.72, True), (-0.18, 0.94, False),
-                        (0.18, 0.80, True), (0.52, 0.58, False)):
+    # rim RING at the mouth — an ellipse lip so the cone reads as a hollow tube.
+    mouth_c = rot(r * 0.72, 0)
+    rim = pygame.Rect(0, 0, int(r * 0.24), int(r * 0.66))
+    rim.center = mouth_c
+    pygame.draw.ellipse(surf, col, rim, max(3, r // 12))
+    # a WIDE fan of confetti bursting up-and-right — chunky dots mixed with short
+    # bars scattered across the quadrant, the celebration spray.
+    bursts = (
+        (-0.85, 0.62, "dot"), (-0.50, 0.96, "bar"), (-0.20, 0.72, "dot"),
+        (0.12, 1.00, "bar"), (0.42, 0.66, "dot"), (0.70, 0.88, "dot"),
+    )
+    for da, ln, kind in bursts:
         fa = ang + da
         ex = mouth_c[0] + int(math.cos(fa) * r * ln)
         ey = mouth_c[1] + int(math.sin(fa) * r * ln)
-        if bit:
-            pygame.draw.circle(surf, col, (ex, ey), max(3, int(r * 0.10)))
+        if kind == "dot":
+            pygame.draw.circle(surf, col, (ex, ey), max(3, int(r * 0.11)))
         else:
-            mx = mouth_c[0] + int(math.cos(fa) * r * ln * 0.5)
-            my = mouth_c[1] + int(math.sin(fa) * r * ln * 0.5)
-            pygame.draw.line(surf, col, (mx, my), (ex, ey), max(2, r // 13))
-    # sad down-tick under the cone — the party mocking the death.
-    sx = cx - int(r * 0.10)
-    sy = cy + int(r * 0.62)
-    aw = max(3, r // 12)
-    pygame.draw.line(surf, col, (sx, sy), (sx, sy + int(r * 0.28)), aw)
-    pygame.draw.lines(surf, col, False, [
-        (sx - int(r * 0.15), sy + int(r * 0.12)),
-        (sx, sy + int(r * 0.34)),
-        (sx + int(r * 0.15), sy + int(r * 0.12)),
-    ], aw)
+            bx = int(math.cos(fa) * r * 0.18)
+            by = int(math.sin(fa) * r * 0.18)
+            pygame.draw.line(surf, col, (ex - bx, ey - by), (ex + bx, ey + by),
+                             max(3, r // 11))
 
 
 def _glyph_rich_reckless(surf, cx, cy, r, col):
-    # A horseshoe magnet that grabbed NOTHING: a coin escapes past it, struck
-    # through with a bold slash. The chunky U-magnet on the left + the crossed-out
-    # fleeing coin on the right is the "vacuum that caught nothing" read; kept pure
-    # single-colour (bands engraved in the shadow tone) so it stays monochrome.
-    mcx = cx - int(r * 0.34)              # magnet column, shifted left
-    rr = int(r * 0.44)
-    leg_w = max(6, int(r * 0.26))
-    bar = max(6, int(r * 0.28))
-    top = cy - int(r * 0.44)
-    # arched top of the U, opening to the RIGHT toward the escaping coin.
-    arc_rect = pygame.Rect(mcx - rr, top, rr * 2, rr * 2)
-    pygame.draw.arc(surf, col, arc_rect, math.radians(96), math.radians(264), bar)
-    # the two straight legs reaching right (poles), one high one low.
-    for sgn in (-1, 1):
-        ly = cy + sgn * rr - leg_w // 2
-        pygame.draw.rect(surf, col, (mcx, ly, int(r * 0.42), leg_w))
-        # banded pole-tip engraved in the shadow tone — reads as a magnet pole.
-        pygame.draw.rect(surf, _SH, (mcx + int(r * 0.30), ly, max(3, r // 9), leg_w))
-    # the coin escaping to the right, ring + `$`, then slashed out — not grabbed.
-    coin_cx = cx + int(r * 0.48)
-    crr = int(r * 0.38)
-    _ring_dollar(surf, coin_cx, cy, r, col, crr)
-    sl = int(crr * 1.5)
-    pygame.draw.line(surf, col, (coin_cx - sl, cy + sl), (coin_cx + sl, cy - sl),
-                     max(3, r // 10))
+    # A horseshoe magnet that grabbed NOTHING — a fat U dominating the field, its
+    # banded poles gaping open while a tiny `$` darts AWAY off their mouth on a
+    # motion streak. The chunky magnet is the whole silhouette (no bare "C"); the
+    # escaping coin is a small disc, not a slashed ring, so it reads "the vacuum
+    # caught nothing", not "null". Pure single-colour; pole-bands in `_SH`.
+    # A fat horseshoe drawn as a thick near-closed ring with its GAP opening
+    # up-right — the classic magnet silhouette, dominating the field. The two tips
+    # flanking the gap wear thick `_SH` pole-bands.
+    mcx, mcy = cx - int(r * 0.14), cy + int(r * 0.10)
+    rr = int(r * 0.56)
+    bar = max(8, int(r * 0.32))
+    arc_rect = pygame.Rect(mcx - rr, mcy - rr, rr * 2, rr * 2)
+    # pygame arc angles are CCW from east in a y-UP frame; the gap spans 5°..85°
+    # (screen upper-right), so the solid horseshoe runs 85° all the way to 365°.
+    pygame.draw.arc(surf, col, arc_rect, math.radians(85), math.radians(365), bar)
+    # banded pole-tips: short thick `_SH` arcs riding the ring just inside each
+    # tip so both poles read as banded magnet ends.
+    for tip in (5, 85):
+        pygame.draw.arc(surf, _SH, arc_rect, math.radians(tip),
+                        math.radians(tip + 15), bar)
+    # a small `$` coin darting away past the open mouth on a short motion streak —
+    # the loot the magnet never pulled in.
+    coin_cx = cx + int(r * 0.50)
+    coin_cy = cy - int(r * 0.48)
+    crr = int(r * 0.24)
+    pygame.draw.circle(surf, col, (coin_cx, coin_cy), crr)
+    f = _glyph_font(int(crr * 2.0))
+    g = f.render("$", True, _SH)
+    surf.blit(g, g.get_rect(center=(coin_cx, coin_cy)))
+    for off in (0.0, 0.18):
+        s0 = (coin_cx - int(r * (0.30 + off)), coin_cy + int(r * (0.28 + off)))
+        s1 = (coin_cx - int(r * (0.14 + off)), coin_cy + int(r * (0.12 + off)))
+        pygame.draw.line(surf, col, s0, s1, max(2, r // 14))
 
 
 def _glyph_coin_blind(surf, cx, cy, r, col):
@@ -286,13 +332,17 @@ def _glyph_coin_blind(surf, cx, cy, r, col):
                      border_radius=max(1, r // 14))
     # a small dark seam so the band reads as fabric, not a bar.
     pygame.draw.line(surf, _SH, (cx - rr, band_y), (cx + rr, band_y), max(2, r // 16))
-    # knot + two trailing tie-tails off the right edge — clearly a blindfold.
-    kx = cx + rr + int(r * 0.06)
-    pygame.draw.circle(surf, col, (kx, band_y), max(3, int(r * 0.12)))
+    # a fat knot + two long, thick trailing tie-tails streaming off the right edge
+    # — the tails ARE the whole "blindfold-strap" signal, so they stay bold at 44px.
+    kx = cx + rr + int(r * 0.10)
+    pygame.draw.circle(surf, col, (kx, band_y), max(4, int(r * 0.17)))
+    tw = max(4, int(r * 0.16))
     for sgn in (-1, 1):
-        pygame.draw.line(surf, col, (kx, band_y),
-                         (kx + int(r * 0.24), band_y + sgn * int(r * 0.22)),
-                         max(2, r // 13))
+        pygame.draw.lines(surf, col, False, [
+            (kx, band_y),
+            (kx + int(r * 0.28), band_y + sgn * int(r * 0.18)),
+            (kx + int(r * 0.50), band_y + sgn * int(r * 0.40)),
+        ], tw)
 
 
 def _glyph_wish_unspent(surf, cx, cy, r, col):
@@ -318,11 +368,18 @@ def _glyph_wish_unspent(surf, cx, cy, r, col):
     # lid knob on top so the dome reads as a lidded vessel.
     pygame.draw.circle(surf, col, (cx + int(r * 0.04), lcy - int(bh * 0.52)),
                        max(3, int(r * 0.11)))
-    # the ABSENCE: a bold slash across the empty air above the spout where a wisp
-    # would curl — the wish that never came out. A "no-smoke" strike.
-    wx, wy = cx - int(r * 0.42), cy - int(r * 0.56)
-    d = int(r * 0.26)
-    pygame.draw.line(surf, col, (wx - d, wy - d), (wx + d, wy + d), max(3, r // 10))
+    # the ABSENCE: a faint wisp-curl starting to rise off the spout mouth, then one
+    # BOLD slash overstruck across it — the slash visibly cancels the wish before
+    # it forms, so "never rubbed" reads instead of a stray sparkle.
+    spx, spy = cx - int(r * 0.62), lcy - int(r * 0.30)   # spout mouth
+    pygame.draw.lines(surf, _SH, False, [
+        (spx, spy),
+        (spx - int(r * 0.06), spy - int(r * 0.26)),
+        (spx + int(r * 0.14), spy - int(r * 0.44)),
+    ], max(2, r // 13))
+    d = int(r * 0.30)
+    wx, wy = spx + int(r * 0.02), spy - int(r * 0.24)
+    pygame.draw.line(surf, col, (wx - d, wy + d), (wx + d, wy - d), max(3, r // 10))
 
 
 GLYPHS = {
