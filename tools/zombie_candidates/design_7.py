@@ -6,12 +6,13 @@ via store_skins._make_prebuilt_skin, matching the current-skin redraw idiom
 (``_build_zombie_redraw``) — a full flat build per wing angle, outlined once.
 
 Read strategy at 40px: the horror is pure VALUE. A near-black carbonised bird
-cracked open by a few molten-orange lava seams — extreme dark/bright contrast
-that survives on ANY sky, day or night, because near-black always fights the
-sky and hot orange always fights the black. The tells are BIG and few (4–5 fat
-ember cracks, one glowing chest core, a split hanging beak), never fine
-hatching, so nothing muddies when the sprite shrinks. The single additive glow
-core is the concept's beacon — the one point the eye lands on first.
+whose whole shell is cracked open by thin molten seams that RADIATE from one
+chest junction and wrap the entire body — shoulders, back, neck and skull —
+so the tell is "burnt corpse" everywhere, never a single warm belly patch that
+could read as an orange-bellied songbird. One isolated additive ember core at
+the throat is the beacon the eye lands on first; everything around it stays
+untouched near-black so the pinpoint pops. The burn also crosses the skull as
+a fat ember fissure, so the head reads as charred too.
 """
 import math
 import pygame
@@ -30,12 +31,13 @@ _EYE     = (180, 60, 20)           # #B43C14 dim ember-red dead pupil
 
 
 def _crack(surf, p0, p1, jag):
-    """One thick molten seam with a slight bend — a cooling-lava crack, not a
+    """One thin molten seam with a slight bend — a cooling-lava crack, not a
     straight line. ``jag`` offsets the midpoint sideways so each seam kinks.
-    Drawn 3px so it survives the 40px shrink as a clear bright stroke."""
+    Drawn 2px so many of them can wrap the body without pooling into a mass;
+    the head fissure is drawn fatter on its own for the skull tell."""
     mx = (p0[0] + p1[0]) // 2 + jag
     my = (p0[1] + p1[1]) // 2 - jag
-    pygame.draw.lines(surf, _EMBER, False, [p0, (mx, my), p1], 3)
+    pygame.draw.lines(surf, _EMBER, False, [p0, (mx, my), p1], 2)
 
 
 def _rev_wing(angle_deg):
@@ -54,12 +56,13 @@ def _rev_wing(angle_deg):
 
 
 def _glow_core(surf, cx, cy):
-    """The concept's beacon: one hot core dot plus a soft additive halo at the
-    chest crack junction — the single brightest point on the sprite. Additive
-    blend so it blooms over the char instead of sitting as a flat disc."""
-    halo = pygame.Surface((26, 26), pygame.SRCALPHA)
-    pygame.draw.circle(halo, (255, 120, 30, 90), (13, 13), 12)
-    pygame.draw.circle(halo, (255, 160, 50, 110), (13, 13), 7)
+    """The concept's beacon: one hot core dot plus a TIGHT additive halo at the
+    throat crack junction — the single brightest point on the sprite, kept
+    small so the untouched near-black around it makes it read as one isolated
+    pinpoint rather than a warm wash. Additive so it blooms over the char."""
+    halo = pygame.Surface((14, 14), pygame.SRCALPHA)
+    pygame.draw.circle(halo, (255, 120, 30, 95), (7, 7), 7)
+    pygame.draw.circle(halo, (255, 160, 50, 120), (7, 7), 4)
     surf.blit(halo, halo.get_rect(center=(cx, cy)).topleft,
               special_flags=pygame.BLEND_RGB_ADD)
     pygame.draw.circle(surf, _EMBER, (cx, cy), 6)
@@ -87,51 +90,57 @@ def _build(wing_angle_deg):
     _aaellipse(surf, _CHAR_D, (34, 35), 19, 14)
     _aaellipse(surf, _CHAR, (32, 32), 19, 14)
     _aaellipse(surf, _CRUST_H, (29, 27), 11, 5)
-    # Cooled-ash dusting on the lower belly where the fire has died back.
-    _aaellipse(surf, _ASH, (27, 40), 7, 3)
+    # A thin cool-grey ash crust edge on the LOWER BACK only — kept far from the
+    # throat core so it never desaturates the char-vs-ember contrast zone.
+    pygame.draw.line(surf, _ASHCRUST, (17, 38), (22, 41), 1)
 
-    # PRIMARY TELL — a few big molten seams cracking the chest open. Kept few
-    # and fat so they read as lava fissures at 40px, not as noisy hatching.
-    _crack(surf, (23, 26), (35, 38), 3)              # long diagonal chest split
-    _crack(surf, (26, 34), (40, 30), -3)             # cross seam over the belly
-    _crack(surf, (20, 33), (30, 43), 2)              # lower-belly fissure
-    _crack(surf, (33, 24), (41, 34), -2)             # shoulder seam toward wing
+    # PRIMARY TELL — thin molten seams RADIATING from one chest junction across
+    # the whole carbon shell. Two climb onto the shoulder/back, one runs up the
+    # neck toward the skull, and the rest fan down and out — so the burn wraps
+    # the entire body instead of pooling into one warm belly crescent.
+    JX, JY = 33, 30
+    _crack(surf, (JX, JY), (22, 18), 2)              # up-left onto the back
+    _crack(surf, (JX, JY), (29, 16), -2)             # up onto the shoulder/nape
+    _crack(surf, (JX, JY), (41, 22), -2)             # up the neck toward the head
+    _crack(surf, (JX, JY), (24, 41), 3)              # down the flank
+    _crack(surf, (JX, JY), (44, 34), -2)             # out toward the far shoulder
+    _crack(surf, (JX, JY), (30, 44), -2)             # short lower-belly fork
 
-    # The single glowing ember core at the chest crack junction — the beacon.
-    _glow_core(surf, 30, 34)
+    # Wing — drawn before the core so the beacon is never occluded.
+    wing = _rev_wing(wing_angle_deg)
+    surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
+
+    # The single glowing ember core at the throat crack junction — the beacon,
+    # laid over the wing so it always reads as the brightest isolated pinpoint.
+    _glow_core(surf, JX, JY)
     # Breath flicker: a second, smaller additive kiss that pulses with the flap
     # so the core visibly breathes without moving.
     if breath > 0.5:
         kiss = pygame.Surface((12, 12), pygame.SRCALPHA)
         pygame.draw.circle(kiss, (255, 150, 40, 70), (6, 6), 5)
-        surf.blit(kiss, kiss.get_rect(center=(30, 34)).topleft,
+        surf.blit(kiss, kiss.get_rect(center=(JX, JY)).topleft,
                   special_flags=pygame.BLEND_RGB_ADD)
-
-    # Wing.
-    wing = _rev_wing(wing_angle_deg)
-    surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
 
     # Head — charred skull, same carbon build as the body.
     _aaellipse(surf, _CHAR_D, (48, 23), 12, 11)
     _aaellipse(surf, _CHAR, (47, 21), 12, 11)
     _aaellipse(surf, _CRUST_H, (46, 16), 6, 3)
-    # An ember seam crawling up the back of the skull.
-    _crack(surf, (42, 24), (50, 15), 2)
+    # SKULL FISSURE — a fat 3px ember crack splitting the crown from nape to
+    # brow, so the head reads as burnt too and the neck seam below flows into
+    # it: the char wraps continuously from body to skull.
+    pygame.draw.lines(surf, _EMBER, False,
+                      [(42, 25), (47, 17), (52, 14)], 3)
 
     # Dead eye — one dim ember-red pinprick in a black socket, barely alive.
     pygame.draw.circle(surf, _CHAR_D, (50, 19), 4)   # deep black socket
     pygame.draw.circle(surf, _EYE, (50, 19), 2)      # dim ember pupil, no glint
 
-    # Split / peeled beak — two charred halves hanging apart with a molten line
-    # bleeding between them, a crisped open mouth.
-    upper = [(55, 20), (61, 23), (58, 25), (53, 24)]
-    lower = [(53, 26), (58, 27), (60, 29), (54, 29)]
-    _poly(surf, _CHAR, upper)
-    _poly(surf, _CHAR, lower)
-    pygame.draw.polygon(surf, _CHAR_D, upper, 1)
-    pygame.draw.polygon(surf, _CHAR_D, lower, 1)
-    # The ember gap between the peeled halves — the hot mouth.
-    pygame.draw.line(surf, _EMBER, (54, 25), (59, 26), 2)
+    # Beak — a solid charred wedge with a single ember line for the crisped
+    # mouth. Kept simple so it stays legible instead of dissolving at 40px.
+    beak = [(55, 20), (62, 24), (58, 28), (53, 25)]
+    _poly(surf, _CHAR, beak)
+    pygame.draw.polygon(surf, _CHAR_D, beak, 1)
+    pygame.draw.line(surf, _EMBER, (54, 24), (60, 25), 2)
 
     # Feet — brittle charred stubs.
     pygame.draw.line(surf, _CHAR_D, (28, 45), (26, 49), 2)
