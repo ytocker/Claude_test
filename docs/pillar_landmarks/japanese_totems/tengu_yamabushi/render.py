@@ -24,7 +24,7 @@ Standalone review candidate — imports the REAL pagoda helpers so materials +
 lighting match the shipped pillars, but wires nothing into the live game.
 
 Run:  python docs/pillar_landmarks/japanese_totems/tengu_yamabushi/render.py
-Out:  docs/pillar_landmarks/japanese_totems/tengu_yamabushi/round_1.png
+Out:  docs/pillar_landmarks/japanese_totems/tengu_yamabushi/round_2.png
 """
 from __future__ import annotations
 
@@ -84,8 +84,18 @@ def _face_triad(palette):
     mid = _oxblood(palette)
     # Lit face keeps its RED identity (mix toward a lit crimson, not toward the
     # orange vermilion highlight) so the raking highlight never drifts to oni.
-    lit = _mix(palette['stone_light'], (166, 66, 60), 0.78)
+    # Pulled a stop DARKER + WARMER than the first pass: the old lit plane
+    # (lum ~119) twinned the blue day sky (~116) and dissolved into it, leaving
+    # only the keyline to save the silhouette. At ~99 the raking plane now reads
+    # as crimson face, sitting clearly UNDER the sky luminance.
+    lit = _mix(palette['stone_light'], (150, 54, 50), 0.86)
     sh = _mix(palette['stone_dark'], (64, 16, 22), 0.86)
+    if _is_dark_sky(palette):
+        # Night: the UNLIT mid mass sat only ~17 lum off the deep night sky and
+        # merged with it in motion at true 1x. Lift the mid toward a warmer
+        # oxblood so the face MASS clears the sky by ~30 lum — the left rim +
+        # gold no longer have to carry the whole silhouette alone.
+        mid = _mix(mid, (156, 72, 76), 0.34)
     # Night: cap the highlight so the lacquer sheen doesn't blow out and floor
     # the shadow so the dark face doesn't sink into a black mass with the sky.
     lit = _cap_lit_for_dark_sky(lit, palette, cap=168)
@@ -310,6 +320,11 @@ def _draw_head(surf, cx, y0, y1, half, palette, rng, *, crown, base):
             pygame.draw.line(surf, bristle,
                              (hx, stache_y + 1),
                              (hx + 2, stache_y + 4), 1)
+        # One brighter value-break along the moustache crest so the white
+        # tuft doesn't flatten into a single grey mass against the oxblood.
+        _aa_polyline(surf, _shade(bristle, 22),
+                     [(cx - int(half * 0.5), stache_y - 1), (cx, stache_y - 2),
+                      (cx + int(half * 0.5), stache_y - 1)])
 
         # 5. Down-set frown mouth beneath the moustache.
         pygame.draw.line(surf, brow_dark,
@@ -348,6 +363,13 @@ def _draw_head(surf, cx, y0, y1, half, palette, rng, *, crown, base):
         surf.set_at((x, y), rim)
         if dark_sky and x + 1 < cx:
             surf.set_at((x + 1, y), _mix(rim, mid, 0.5))
+    if dark_sky:
+        # Backlight the SHADOW (right) edge too so BOTH silhouette sides hold
+        # against a dark sky, not just the lit-left rim. A quiet cool edge —
+        # pagoda restraint, not a glow — so the mass read stays honest.
+        rrim = _mix(_shade(sh, 42), rim, 0.5)
+        for x, y in right_pts:
+            surf.set_at((x, y), rrim)
 
 
 # ── Tokin cap (small black yamabushi pillbox + gold pom) ────────────────────
@@ -456,13 +478,17 @@ def _draw_tower(surf, cx, y_top, y_bot, palette, seed):
         _draw_head(surf, cx, hy_top, hy_bot, half, palette, rng,
                    crown=(i == count - 1), base=(i == 0))
 
-    # Tokin crowns the top head and reaches the gap rim.
-    _draw_tokin(surf, cx, y_top, stack_top, half, palette)
+    # Tokin crowns the top head. Inset ~3 px below the gap rim so the two
+    # towers' caps don't kiss at gap centre — the flyable channel stays
+    # visually open (the head stack below is untouched by the inset).
+    _draw_tokin(surf, cx, y_top + 4, stack_top, half, palette)
 
     _draw_plinth(surf, cx, base_y, half, palette, seed)
     draw_grass_bed(surf, cx, base_y - 1, PIPE_W + 12, 12, palette, seed=seed)
     draw_side_shrub(surf, cx - half - 6, base_y - 1, palette, scale=0.9)
-    draw_side_shrub(surf, cx + half + 6, base_y - 1, palette, scale=0.8)
+    # Right shrub trimmed so the forward nose spur is the sole mid-column
+    # RIGHT overhang in blackout — no base foliage competing with the tell.
+    draw_side_shrub(surf, cx + half + 5, base_y - 1, palette, scale=0.55)
 
 
 def candidate_tengu_yamabushi(surf, top_rect, bot_rect, palette, seed):
@@ -581,6 +607,7 @@ def main():
     _, mid_d, _ = _face_triad(pal)
     _, mid_n, _ = _face_triad(pal_n)
     verm_d = _vermilion(pal)
+    lit_d, _, _ = _face_triad(pal)
     print("FACE OXBLOOD (mid tone)")
     print(f"  DAY   mid={mid_d} lum={_lum(mid_d):.1f}  R-G={mid_d[0]-mid_d[1]}")
     print(f"  NIGHT mid={mid_n} lum={_lum(mid_n):.1f}  R-G={mid_n[0]-mid_n[1]}")
@@ -588,6 +615,19 @@ def main():
     print(f"  vs bright vermilion (day): oxblood lum={_lum(mid_d):.1f} < "
           f"vermilion lum={_lum(verm_d):.1f}  "
           f"[{'OK darker' if _lum(mid_d) < _lum(verm_d) else 'FAIL'}]")
+
+    # FIX-1 metric: night face MASS must clear the night sky by >= ~28 lum.
+    sky_n = _lum(pal_n["sky_top"])
+    gap_n = _lum(mid_n) - sky_n
+    print("NIGHT FACE-vs-SKY (mid mass vs sky_top)")
+    print(f"  face lum={_lum(mid_n):.1f}  sky lum={sky_n:.1f}  gap={gap_n:.1f}"
+          f"  [{'OK >=28' if gap_n >= 27.5 else 'FAIL'}]")
+    # FIX-3 metric: day lit plane must sit clearly UNDER the day sky luminance.
+    sky_d = _lum(pal["sky_top"])
+    print("DAY LIT-PLANE vs SKY (raking-light plane must not twin sky)")
+    print(f"  lit lum={_lum(lit_d):.1f}  sky lum={sky_d:.1f}  "
+          f"sep={sky_d - _lum(lit_d):.1f}  "
+          f"[{'OK lit darker than sky' if _lum(lit_d) < sky_d - 8 else 'FAIL'}]")
 
     hero_day, hd_h = _hero(pal, 7)
     hero_night, hn_h = _hero(pal_n, 7)
@@ -600,7 +640,9 @@ def main():
     gp_bot = pygame.Rect(MARGIN, 243, PIPE_W, GROUND_Y - 243)
     gp_top = pygame.Rect(MARGIN, 0, PIPE_W, 93)
     candidate_tengu_yamabushi(gap_probe, gp_top, gp_bot, pal, seed=7)
-    clear_bot = _gap_rim_clearance(gap_probe, MARGIN, MARGIN + PIPE_W, 243, up=True)
+    # Bottom tower grows DOWN from the gap edge (243) -> probe down into it to
+    # read the air above its cap; top tower is flipped up from 93 -> probe up.
+    clear_bot = _gap_rim_clearance(gap_probe, MARGIN, MARGIN + PIPE_W, 243, up=False)
     clear_top = _gap_rim_clearance(gap_probe, MARGIN, MARGIN + PIPE_W, 93, up=True)
     print("GAP-RIM CLEARANCE (tokin -> flyable gap edge)")
     print(f"  bottom cap -> gap: {clear_bot}px   top cap -> gap: {clear_top}px")
@@ -649,7 +691,7 @@ def main():
     sheet.fill((24, 25, 30))
 
     sheet.blit(title.render(
-        "tengu_yamabushi — long-nosed goblin totem  ·  round_1",
+        "tengu_yamabushi — long-nosed goblin totem  ·  round_2",
         True, (245, 240, 230)), (pad, 12))
     sheet.blit(sub.render(
         "red edges = PIPE_W (58px) collision band  ·  DARK OXBLOOD face  ·  "
@@ -657,8 +699,9 @@ def main():
         "moustache  ·  gold-rim glare eyes  ·  black tokin cap + gold pom",
         True, (170, 172, 182)), (pad, 40))
     sheet.blit(sub.render(
-        f"face day lum {_lum(mid_d):.0f} (darker than vermilion {_lum(verm_d):.0f}) "
-        "· nose stays ABOVE the neck seam · vertical-flip keeps the nose forward",
+        f"R2 fixes: night face mass lifted (gap vs sky {gap_n:.0f}, was 17) · "
+        f"day lit plane pulled off sky ({sky_d - _lum(lit_d):.0f} under) · "
+        "gap caps backed ~3px off the rim · both-edge night rim · trimmed R shrub",
         True, (150, 210, 160)), (pad, 56))
 
     x = pad
@@ -714,7 +757,7 @@ def main():
     sheet.blit(lab.render("1x @ 58px", True, (200, 200, 210)),
                (x, head_h + bo3.get_height() + 24 + bo1.get_height() + 2))
 
-    out = pathlib.Path(__file__).resolve().parent / "round_1.png"
+    out = pathlib.Path(__file__).resolve().parent / "round_2.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
