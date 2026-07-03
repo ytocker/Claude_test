@@ -738,6 +738,75 @@ def _draw_trophy(surf, cx, cy, size):
     surf.blit(g, (cx - gx, cy - gy))
 
 
+# ── AWARDS-tile star emblem (sibling of _draw_trophy) ──────────────────────────
+# Struck-metal beveled 5-point star for the main-menu AWARDS tile. Each arm
+# splits at a central ridge into a lit + a shadowed facet under the shared
+# upper-left light, so it reads as raised metal beside the trophy. Drawn
+# supersampled then smoothscaled so the rim stays crisp at the ~20 px tile size.
+_AWSTAR_SS   = 4
+_AWSTAR_GOLD = (240, 192,  64)
+_AWSTAR_HI   = (255, 230, 150)
+_AWSTAR_RIM  = (140,  90,   8)
+_AWSTAR_RIMD = (110,  72,   8)
+
+
+def _awstar_lerp(a, b, t):
+    return (int(a[0] + (b[0] - a[0]) * t),
+            int(a[1] + (b[1] - a[1]) * t),
+            int(a[2] + (b[2] - a[2]) * t))
+
+
+def _awstar_pts(cx, cy, R, r, rot_deg=-90, n=5):
+    pts = []
+    for i in range(n * 2):
+        ang = math.radians(rot_deg + i * 180.0 / n)
+        rad = R if i % 2 == 0 else r
+        pts.append((cx + rad * math.cos(ang), cy + rad * math.sin(ang)))
+    return pts
+
+
+def _draw_award_star(surf, cx, cy, R=10):
+    SS = _AWSTAR_SS
+    box = int(R * 2 + 8)
+    B = box * SS
+    c = (B / 2, B / 2)
+    Rs, rs = R * SS, R * SS * 0.46
+    ss = pygame.Surface((B, B), pygame.SRCALPHA)
+
+    # Dark rim first (scaled-up star behind the facets) for a keyline mass.
+    k = (Rs + 2.2 * SS) / Rs
+    pygame.draw.polygon(ss, _AWSTAR_RIM, _awstar_pts(c[0], c[1], Rs * k, rs * k))
+
+    light = (-0.55, -0.83)  # upper-left (screen y down → up is negative)
+    outer = [(c[0] + Rs * math.cos(math.radians(-90 + 72 * i)),
+              c[1] + Rs * math.sin(math.radians(-90 + 72 * i))) for i in range(5)]
+    inner = [(c[0] + rs * math.cos(math.radians(-54 + 72 * i)),
+              c[1] + rs * math.sin(math.radians(-54 + 72 * i))) for i in range(5)]
+    # Each arm splits into two facets; smoothstep the lit/shadow contrast so the
+    # emboss survives the downscale instead of muddying into a flat star.
+    for i in range(5):
+        o = outer[i]
+        il, ir = inner[(i - 1) % 5], inner[i]
+        for tri in ((c, il, o), (c, o, ir)):
+            mx = (tri[1][0] + tri[2][0]) / 2 - c[0]
+            my = (tri[1][1] + tri[2][1]) / 2 - c[1]
+            nn = math.hypot(mx, my) or 1.0
+            d = (mx / nn) * light[0] + (my / nn) * light[1]
+            t = (d + 1) / 2
+            t = t * t * (3 - 2 * t)
+            pygame.draw.polygon(ss, _awstar_lerp(_AWSTAR_RIM, _AWSTAR_HI, t), tri)
+    # Ridge keylines from centre to each tip sharpen the emboss.
+    for o in outer:
+        pygame.draw.line(ss, _AWSTAR_RIMD, c, o, max(1, int(0.7 * SS)))
+    # A small flush sheen dot upper-left of centre (not a raised boss — that
+    # punches through as a hole at tile scale).
+    pygame.draw.circle(ss, _AWSTAR_HI,
+                       (int(c[0] - rs * 0.14), int(c[1] - rs * 0.14)),
+                       int(rs * 0.12))
+    small = pygame.transform.smoothscale(ss, (box, box))
+    surf.blit(small, (int(round(cx - box / 2)), int(round(cy - box / 2))))
+
+
 def _draw_mountain_silhouette(surf, alpha=200):
     """Mountain silhouettes at the bottom — matches the welcome-screen SVG."""
     mtn = pygame.Surface((W, H), pygame.SRCALPHA)
@@ -1602,17 +1671,15 @@ class HUD:
         def _pill_h(text: str, size: int) -> int:
             return _font(size, True).render(text, True, WHITE).get_height() + 22
 
-        # Four-pill stack (ACHIEVEMENTS joined the trio). GAP trimmed to 10
-        # so the taller block still clears the BEST/TOP-10 panels below and
-        # the subtitle divider above. Bottom pill is anchored first; the
-        # rest stack upward off each rendered height for even spacing.
+        # Three-pill stack — achievements moved out of the stack into the AWARDS
+        # tile below. GAP 10 keeps the block clear of the AWARDS/TOP-10 panels
+        # and the subtitle divider. The bottom pill (POWER-UPS) is anchored where
+        # the old 4th pill sat, so the trio fills the same band; the rest stack up.
         GAP = 10
         h_start = _pill_h("START", 22)
         h_howto = _pill_h("HOW TO PLAY", 18)
         h_power = _pill_h("POWER-UPS", 18)
-        h_achv  = _pill_h("ACHIEVEMENTS", 18)
-        y_achv  = (H - 110) - 14 - h_achv // 2
-        y_power = y_achv - h_achv // 2 - GAP - h_power // 2
+        y_power = (H - 110) - 14 - h_power // 2
         y_howto = y_power - h_power // 2 - GAP - h_howto // 2
         y_start = y_howto - h_howto // 2 - GAP - h_start // 2
 
@@ -1629,32 +1696,30 @@ class HUD:
         self.menu_powerups_rect = _pill_btn(
             surf, (W // 2, y_power), "POWER-UPS",
             size=18, alpha=230, min_width=220, dim=True, shadow=False)
-        self.menu_achv_rect = _pill_btn(
-            surf, (W // 2, y_achv), "HALL OF FAME",
-            size=18, alpha=230, min_width=220, dim=True, shadow=False)
 
-        # Twin panels at the bottom: BEST score (left) + TOP 10 trophy
-        # (right). Same pill dimensions side-by-side so they read as a
-        # pair. The trophy panel is the leaderboard hit-zone — scenes.py
-        # routes taps that land inside ``self.menu_top10_rect`` to
-        # STATE_LEADERBOARD.
+        # Twin panels at the bottom: AWARDS (left) + TOP 10 (right). Same pill
+        # dimensions side-by-side so they read as a matched pair. AWARDS is the
+        # achievements hit-zone — scenes.py routes taps inside
+        # ``self.menu_achv_rect`` to STATE_ACHIEVEMENTS; TOP 10 →
+        # STATE_LEADERBOARD via ``self.menu_top10_rect``.
         panel_w = 132
         gap = 8
         total_w = panel_w * 2 + gap
         left_x = (W - total_w) // 2
-        cy = H - 86  # vertical centre (matches the previous BEST y)
+        cy = H - 86
         lf = _font(13, True)
-        vf = _font(24, True)
 
-        # BEST panel (left) — heavier emboss treatment via _volume_panel.
-        best_cx = left_x + panel_w // 2
-        best_rect = pygame.Rect(left_x, cy - 24, panel_w, 48)
-        _volume_panel(surf, best_rect, radius=14)
-        lbl = lf.render("B E S T", True, _GOLD_PALE)
-        lbl.set_alpha(230)
-        surf.blit(lbl, lbl.get_rect(center=(best_cx, cy - 12)))
-        val = vf.render(str(best), True, _GOLD_BRIGHT)
-        surf.blit(val, val.get_rect(center=(best_cx, cy + 9)))
+        # AWARDS panel (left) — a label + struck star, mirroring the TOP 10
+        # tile. No count: the roster total stays hidden so badges are discovered
+        # in play rather than read off a checklist.
+        awards_cx = left_x + panel_w // 2
+        awards_rect = pygame.Rect(left_x, cy - 24, panel_w, 48)
+        _volume_panel(surf, awards_rect, radius=14)
+        a_lbl = lf.render("A W A R D S", True, _GOLD_PALE)
+        a_lbl.set_alpha(230)
+        surf.blit(a_lbl, a_lbl.get_rect(center=(awards_cx, cy - 12)))
+        _draw_award_star(surf, awards_cx, cy + 7, 10)
+        self.menu_achv_rect = awards_rect
 
         # TOP 10 panel (right) — same volume treatment, trophy glyph.
         top_cx = left_x + panel_w + gap + panel_w // 2
