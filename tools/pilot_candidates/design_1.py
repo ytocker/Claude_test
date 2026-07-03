@@ -1,10 +1,10 @@
 """Pilot costume — Design 1: THE CAPTAIN (golden-age airline commander).
 
-Scratch exploration builder, NOT registered in store_skins.BUILDERS.
+Scratch builder, NOT registered in store_skins.BUILDERS.
 
-R5: the body oval IS the jacket via _build_parrot_with_palette navy recolor.
-Natural red head, blue wings, yellow beak remain. Overlays (collar, cap,
-shades, stripes) are placed on the actual body ellipse surface.
+R6: anatomy-correct navy body recolor. Big round aviator shades restored via
+draw_lenses=True. White collar removed from face — replaced by a gold captain
+epaulette on the shoulder where rank belongs.
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -12,6 +12,9 @@ import pygame
 from game.store_skins import _make_skin, _poly, HX, HY, CROWN_Y
 from game.dollar_parrot_ghost import _build_parrot_with_palette, _pal
 
+# Navy body palette — head/wing/beak stay natural.
+# draw_lenses=True: the built-in round aviator shades are drawn in sprite-space
+# at the correct eye position, with the gold-frame/dark-lens palette below.
 _P_CAP = _pal(
     tail=[(200,30,40),(240,95,40),(255,160,55),(255,220,80)],
     tail_line=(170,25,25),
@@ -29,7 +32,8 @@ _P_CAP = _pal(
     head_main=(240,55,55),
     head_cheek=(255,130,130),
     head_crown=(255,170,170),
-    lens_frame=(200,165,50),
+    # Round aviator shades drawn by _draw_lenses — gold frame, dark lens
+    lens_frame=(180,150,40),
     lens_body=(30,25,20),
     lens_tint=None,
     lens_glint=(255,255,255),
@@ -40,43 +44,34 @@ _P_CAP = _pal(
 )
 
 def _cap_base(angle_deg):
-    return _build_parrot_with_palette(angle_deg, _P_CAP, draw_lenses=False)
+    # draw_lenses=True: big round aviators drawn in sprite-space on the red face
+    return _build_parrot_with_palette(angle_deg, _P_CAP, draw_lenses=True)
 
 _CAP_NAVY=(27,42,74); _CAP_RIM=(42,59,95); _BRIM=(11,15,28)
 _GOLD=(245,197,66);   _GOLD_H=(255,232,150)
-_SHIRT=(244,241,234); _SHIRT2=(220,217,210); _TIE=(14,21,61)
-_AV_LENS=(30,25,20);  _AV_FRAME=(180,150,40); _AV_BRDG=(200,165,50)
-_AV_GLINT=(255,255,255)
 
 def _paint_captain(surf, wing_angle_deg):
-    # Body ellipse composite: centre (32,52), rx=19, ry=14.
-    # y_top(x)=52-14*sqrt(1-((x-32)/19)**2)
-    # x=37->y39, x=42->y41, x=45->y43. No overlay floats above body surface.
-    # Head ellipse centre (47,41), rx=12, ry=11 -- overlays stay clear.
+    # ── Gold captain epaulette on the shoulder (not the face) ─────────────────
+    # Shoulder is the upper-left body area where the wing meets the body.
+    # In composite space this sits at x≈20-32, y≈38-46.
+    # A small navy shoulder-board + 3 gold rank stripes = "captain".
+    sx, sy = 21, 39          # epaulette top-left
+    sw, sh = 13, 7           # epaulette width × height
+    pygame.draw.rect(surf, _CAP_NAVY, (sx, sy, sw, sh))
+    # 3 gold rank stripes across the epaulette
+    for i, ey in enumerate((40, 42, 44)):
+        pygame.draw.line(surf, _GOLD, (sx+1, ey), (sx+sw-2, ey), 1)
+    # Thin gold border
+    pygame.draw.rect(surf, _GOLD, (sx, sy, sw, sh), 1)
 
-    # Anatomy-correct collar: two small fabric tabs at the body-head junction,
-    # placed at the actual ellipse top curve (y>=39 at these x values).
-    _poly(surf, _SHIRT,  [(37,42),(42,39),(45,41),(44,46),(38,46)])
-    _poly(surf, _SHIRT2, [(34,43),(39,41),(42,43),(40,47),(35,47)])
-    pygame.draw.line(surf, _TIE, (41,40),(41,45), 1)
-
-    # 3 fat gold sleeve stripes on lower wing/cuff, animated with flap.
+    # ── 3 fat gold sleeve stripes on lower wing/cuff ───────────────────────────
     dy = int(round(wing_angle_deg * 0.10))
     bx = 15
     pygame.draw.rect(surf, _CAP_NAVY, (bx-1, 43+dy, 11, 10))
-    for sy in (44, 47, 50):
-        pygame.draw.rect(surf, _GOLD, (bx, sy+dy, 9, 2))
+    for ry in (44, 47, 50):
+        pygame.draw.rect(surf, _GOLD, (bx, ry+dy, 9, 2))
 
-    # Aviator shades on the scarlet face.
-    near=[(HX-7,HY),(HX-5,HY-3),(HX-1,HY-3),(HX+1,HY-1),(HX-1,HY+2),(HX-4,HY+2)]
-    far =[(HX+2,HY-1),(HX+4,HY-3),(HX+7,HY-3),(HX+8,HY-1),(HX+7,HY+1),(HX+4,HY+1)]
-    _poly(surf, _AV_LENS, near); _poly(surf, _AV_LENS, far)
-    pygame.draw.polygon(surf, _AV_FRAME, near, 1)
-    pygame.draw.polygon(surf, _AV_FRAME, far,  1)
-    pygame.draw.line(surf, _AV_BRDG, (HX+1,HY-2),(HX+2,HY-2), 1)
-    pygame.draw.circle(surf, _AV_GLINT, (HX-2,HY-2), 1)
-
-    # Peaked officer's cap -- flat top breaks the round head silhouette.
+    # ── Peaked officer's cap ───────────────────────────────────────────────────
     _poly(surf, _CAP_NAVY, [(38,32),(38,24),(40,22),(56,22),(58,24),(58,32)])
     _poly(surf, _BRIM,     [(37,32),(59,33),(59,35),(37,34)])
     pygame.draw.rect(surf, _GOLD, (44,29,5,2))
