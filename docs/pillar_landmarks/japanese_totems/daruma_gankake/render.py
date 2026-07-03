@@ -95,6 +95,15 @@ def _cream(palette):
     return _plaster(palette)
 
 
+def _ink(palette):
+    # The gankake wish-eye is painted BLACK ink, not lacquer — crush the warm
+    # stone_dark toward near-black so the filled pupil floors well below lum 40
+    # and can never be confused with the red body (which shares stone_dark's
+    # ~78 lum). A trace of the palette hue survives so the biome retint still
+    # sweeps the pupil from cool-night to warm-day black.
+    return _mix(palette['stone_dark'], (10, 8, 12), 0.85)
+
+
 def _plinth_triad(palette):
     # Dark lacquer-and-bronze stand — grounds the bright red doll instead of
     # blurring into it, and reads as the wooden/lacquer base a Daruma sits on.
@@ -175,29 +184,36 @@ def _draw_eye(surf, cx, cy, r, palette, *, filled, thumb):
     collision scale where a thin ring would vanish."""
     gold = _gold_bright(palette)
     gold_d = _gold_deep(palette)
-    dark = palette['stone_dark']
+    ink = _ink(palette)
     cream = _cream(palette)
     rim = max(2, r // 3)
     # Bold gold rim: a deep-gold seat under a bright-gold face reads as a raised
-    # metal ring rather than a printed circle.
+    # metal ring rather than a printed circle. These two eye-RIMS are the only
+    # BRIGHT gold on the face (brows/moustache/patch-rim are demoted to deep
+    # gold) so the eyes win the focal hierarchy.
     pygame.draw.circle(surf, gold_d, (cx, cy), r + 1)
     pygame.draw.circle(surf, gold, (cx, cy), r)
     inner = max(1, r - rim)
     if filled:
-        # Filled pupil via _lit_niche's dark core so it earns the free night
-        # eye-glow (the doll's one 'living' eye), with a round dark cap over the
-        # niche rect so the pupil reads circular at scale.
+        # Filled pupil = a bold near-black INK disc — the gankake 'wish made'
+        # eye. _lit_niche seats the dark core AND leaves an additive amber halo
+        # that seeps out past the ink at night (the doll's one 'living' eye),
+        # while by day the ink stays a flat black stare that clearly fills the
+        # inner ring — the make-or-break asymmetry against the blank eye.
         _lit_niche(surf, cx, cy - inner, max(3, inner), max(4, inner * 2), palette)
-        pygame.draw.circle(surf, dark, (cx, cy), inner)
+        pygame.draw.circle(surf, ink, (cx, cy), inner)
         if not thumb:
             surf.set_at((cx - max(1, inner // 2), cy - max(1, inner // 2)),
                         _mix(cream, gold, 0.4))
     else:
         pygame.draw.circle(surf, cream, (cx, cy), inner)
-        # Thin dark keyline so the blank disc reads as an outlined empty eye,
-        # not a pale blob lost in the cream face patch.
-        if inner >= 2:
-            pygame.draw.circle(surf, _shade(dark, 22), (cx, cy), inner, 1)
+        # Bold dark keyline (2 px) so the blank disc reads as a DELIBERATELY
+        # empty outlined socket paired with the filled ink eye, not a pale blob
+        # lost in the cream face patch.
+        if inner >= 3:
+            pygame.draw.circle(surf, _shade(ink, 20), (cx, cy), inner, 2)
+        elif inner >= 2:
+            pygame.draw.circle(surf, _shade(ink, 20), (cx, cy), inner, 1)
 
 
 # ── One Daruma doll ─────────────────────────────────────────────────────────
@@ -252,24 +268,28 @@ def _draw_doll(surf, cx, y0, y1, palette, rng, *, fill_left):
               filled=not fill_left, thumb=thumb)
 
     if not thumb:
-        # ── Gold crane-brows — a bushy up-swept arc over each eye.
+        # ── Crane-brows — a bushy up-swept arc over each eye. Painted in DEEP
+        #    gold only (a darker seat under a mid-gold face) so they recede
+        #    below the bright eye-RIMS and don't tangle with them in the cream
+        #    patch — the eyes stay the loudest thing on the face.
+        gold_m = _mix(gold_d, gold, 0.35)
         by = eye_cy - eye_r - 1
         for s in (-1, 1):
             ex = cx + s * eye_dx
             brow = [(ex - eye_r - 1, by + 2), (ex - s, by - eye_r + 1),
                     (ex + eye_r + 1, by)]
-            _aa_polyline(surf, gold_d, brow)
-            _aa_polyline(surf, gold, [(p[0], p[1] - 1) for p in brow])
+            _aa_polyline(surf, _shade(gold_d, -14), brow)
+            _aa_polyline(surf, gold_m, [(p[0], p[1] - 1) for p in brow])
 
-        # ── Gold turtle-moustache — twin curls sweeping down-and-out from
-        #    under the face centre (the second calligraphic flourish).
+        # ── Turtle-moustache — twin curls sweeping down-and-out from under the
+        #    face centre. Also demoted to deep gold for the same hierarchy.
         my = y0 + int(hh * 0.47)
         mw = int(half * 0.5)
         for s in (-1, 1):
             mous = [(cx, my), (cx + s * int(mw * 0.5), my + 2),
                     (cx + s * mw, my - 1)]
-            _aa_polyline(surf, gold_d, mous)
-            _aa_polyline(surf, gold, [(p[0], p[1] - 1) for p in mous])
+            _aa_polyline(surf, _shade(gold_d, -14), mous)
+            _aa_polyline(surf, gold_m, [(p[0], p[1] - 1) for p in mous])
         # Tiny nose knot between the eyes.
         pygame.draw.circle(surf, gold_d, (cx, eye_cy + eye_r + 2), 1)
 
@@ -533,6 +553,36 @@ def main():
     print(f"  day != night: {mid_d != mid_n}  (R dominant both: "
           f"{mid_d[0] > mid_d[1] and mid_n[0] > mid_n[1]})")
 
+    # FIX 1 proof — the filled gankake pupil must floor well below lum 40 and
+    # sit far under the red body so the black stare + one-filled/one-blank gag
+    # both read. Compare against the body mid tone (the round-1 collision).
+    ink_d, ink_n = _ink(pal), _ink(pal_n)
+    print("FILLED PUPIL INK (target lum < 40; << red body ~78)")
+    print(f"  DAY   ink={ink_d} lum={_lum(ink_d):.1f}  "
+          f"[{'OK' if _lum(ink_d) < 40 else 'FAIL'}]  "
+          f"body-lum={_lum(mid_d):.1f}  gap={_lum(mid_d)-_lum(ink_d):.1f}")
+    print(f"  NIGHT ink={ink_n} lum={_lum(ink_n):.1f}  "
+          f"[{'OK' if _lum(ink_n) < 40 else 'FAIL'}]  "
+          f"body-lum={_lum(mid_n):.1f}  gap={_lum(mid_n)-_lum(ink_n):.1f}")
+
+    # FIX 1 asymmetry proof — draw the filled + blank eye side by side at a
+    # real doll eye radius and sample each centre: the filled centre must be
+    # dark ink, the blank centre must stay cream. If both were gold rings with
+    # pale centres (the round-1 bug) these two numbers would collide.
+    for label, ph, pp in (("DAY", PHASE_DAY, pal), ("NIGHT", PHASE_NIGHT, pal_n)):
+        eye_r = max(4, int((355 / 4) * 0.10))     # a mid-stack doll eye radius
+        probe = pygame.Surface((eye_r * 6, eye_r * 4), pygame.SRCALPHA)
+        cf, cb = eye_r * 2, eye_r * 4
+        cy = eye_r * 2
+        _draw_eye(probe, cf, cy, eye_r, pp, filled=True, thumb=False)
+        _draw_eye(probe, cb, cy, eye_r, pp, filled=False, thumb=False)
+        lf = _lum(probe.get_at((cf, cy))[:3])
+        lb = _lum(probe.get_at((cb, cy))[:3])
+        ok = lf < 40 and lb > 120 and (lb - lf) > 80
+        print(f"EYE ASYMMETRY {label}: filled-centre lum={lf:.1f}  "
+              f"blank-centre lum={lb:.1f}  delta={lb-lf:.1f}  "
+              f"[{'READS' if ok else 'FAIL'}]")
+
     belly, waist, band = _round_metric(pal)
     print("ROUND METRIC (belly bulge vs seam waist, PIPE_W=58)")
     print(f"  belly={belly}px  waist={waist}px  band={band}px  "
@@ -595,12 +645,13 @@ def main():
     sheet.fill((24, 25, 30))
 
     sheet.blit(title.render(
-        "daruma_gankake — round lacquer wish-doll totem  ·  round_1",
+        "daruma_gankake — round lacquer wish-doll totem  ·  round_2",
         True, (245, 240, 230)), (pad, 12))
     sheet.blit(sub.render(
         "red edges = PIPE_W (58px) collision band  ·  glossy _lacquer_red body  ·  "
-        "cream face patch + BOLD gold-rim eyes (one filled/gankake)  ·  gold "
-        "crane-brow + turtle-moustache + belly medallion  ·  symmetric flip",
+        "cream patch + BOLD gold-rim eyes: one NEAR-BLACK INK pupil (gankake) / "
+        "one blank outlined socket  ·  brows+moustache demoted to deep gold  ·  "
+        "symmetric flip",
         True, (170, 172, 182)), (pad, 40))
     sheet.blit(sub.render(
         f"ROUND: belly {belly}px vs {band}px band (+{belly - band}px gutter bulge)  ·  "
@@ -652,7 +703,7 @@ def main():
     sheet.blit(lab.render("1x @ 58px", True, (200, 200, 210)),
                (x, head_h + bo3.get_height() + 24 + bo1.get_height() + 2))
 
-    out = pathlib.Path(__file__).resolve().parent / "round_1.png"
+    out = pathlib.Path(__file__).resolve().parent / "round_2.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
