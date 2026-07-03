@@ -31,7 +31,7 @@ finial so no ribbon's upward reach comes within 5 px of the gap rim — the soft
 cloth never bridges the flyable gap; only the rigid finial touches the rim.
 
 Run:  python docs/pillar_landmarks/temple_mills/streamer-whirl-mill/render.py
-Out:  docs/pillar_landmarks/temple_mills/streamer-whirl-mill/round_1.png
+Out:  docs/pillar_landmarks/temple_mills/streamer-whirl-mill/round_2.png
 """
 from __future__ import annotations
 
@@ -64,6 +64,7 @@ from game.pillar_pagodas import (
     _cap_lit_for_dark_sky,
     _cap_dark_for_dark_sky,
     _terracotta,
+    _porcelain_aqua,
     _song_brick,                 # noqa: F401 — imported per brief material kit
     _bronze,
     _gold_bright,
@@ -87,8 +88,8 @@ from game.draw import draw_side_shrub
 # MAST + BOSS + FINIAL → stone_accent (_bronze / _gold_bright): the metal spine
 #   that carries the centreline to the rim and spins the ribbons; the ONLY night
 #   glow source (gated on a dark sky).
-# STREAMERS → three warm/cool cloth hues (_vermilion warm, a horizon-keyed cool,
-#   _gold_bright): matte fluttering cloth, capped so the ribbons never flare hot.
+# STREAMERS → three warm/cool cloth hues (_vermilion warm, a true teal-jade
+#   cool, _gold_bright): matte fluttering cloth, capped so ribbons never flare hot.
 
 def _cap235(c):
     # Cloth + metal on this concept stay matte — a hard channel ceiling keeps any
@@ -119,15 +120,18 @@ def _edge_rim(p):
 
 
 def _streamer_cool(p):
-    # A horizon-keyed cool cloth so the whirl carries a warm/cool colour beat
-    # (vermilion + gold + this) — anchored in horizon so dusk/night retint it.
-    return _mix(p['horizon'], (86, 150, 206), 0.55)
+    # A TRUE teal-jade cloth so the whirl carries a genuine warm/cool beat
+    # (vermilion + gold + this) in BOTH biomes. Keyed off _porcelain_aqua (a
+    # stone_light-derived jade that biome-retints) but pulled hard toward a
+    # saturated cyan target so it never washes to warm-grey under a DAY sky —
+    # the round-1 horizon key collapsed to grey-green because DAY horizon is warm.
+    return _mix(_porcelain_aqua(p), (30, 140, 152), 0.64)
 
 
 # ── Streamer cloth ────────────────────────────────────────────────────────────
 
 def _streamer(surf, hx, hy, up_deg, length, w0, w1, palette,
-              core, lit, shadow, *, curl, ripple, y_min, steps=11):
+              core, lit, shadow, *, curl, ripple, y_min, kink=0.0, steps=13):
     """One tapering prayer-streamer ribbon spun off the hub.
 
     `up_deg` is measured from straight UP (0 = up, positive sweeps toward the
@@ -151,6 +155,10 @@ def _streamer(surf, hx, hy, up_deg, length, w0, w1, palette,
         ang += curl
         if ripple:
             ang += ripple * math.sin(t * math.pi * 2.2)
+        # A single sharp elbow near mid-length — a taut ribbon suddenly kinked
+        # by a gust, so staggered pairs read caught mid-spin, not a clean rosette.
+        if kink and i == int(steps * 0.55):
+            ang += kink
         px += math.cos(ang) * seg
         py += math.sin(ang) * seg
         # Hard apex clamp: the cloth may never climb past `y_min`, so no ribbon
@@ -199,12 +207,10 @@ def _streamer(surf, hx, hy, up_deg, length, w0, w1, palette,
     lit_edge, dark_edge = (left, right) if curl <= 0 else (right, left)
     _aa_polyline(surf, _cap235(lit), lit_edge)
     _aa_polyline(surf, shadow, dark_edge)
-    # Saturated core stripe — the high-contrast ribbon spine.
+    # Saturated core stripe — the high-contrast ribbon spine. The taper runs to
+    # w1 on its own; no stray tip dot, so a thinning tail never leaves a 1-px
+    # speck of noise floating in the gutter sky.
     _aa_polyline(surf, _cap235(_shade(core, 16)), path)
-    # A pale flutter-tick at the very tip so the cloth reads as free-flying.
-    tx, ty = path[-1]
-    pygame.draw.circle(surf, _cap235(_mix(core, palette['stone_light'], 0.6)),
-                       (int(tx), int(ty)), 1)
 
 
 def _whirl(surf, cx, boss_y, whirl_r, n_pairs, palette, *, y_limit):
@@ -214,48 +220,57 @@ def _whirl(surf, cx, boss_y, whirl_r, n_pairs, palette, *, y_limit):
     `y_limit` is the highest screen-y any cloth pixel may occupy (below the gap
     rim by the mirror clearance budget); each ribbon's apex is hard-clamped to
     it so the whirl can never bridge the flyable gap."""
-    # Base headings measured from vertical; magnitudes stay ≥48° off-up so the
-    # top cone (toward the gap) is always clear cloth-free.
-    layouts = {
-        1: [(80.0, False)],
-        2: [(58.0, False), (118.0, True)],
-        3: [(52.0, False), (96.0, True), (140.0, False)],
-    }
-    specs = layouts.get(n_pairs, layouts[3])
-    cores = [(_vermilion(palette), _vermilion_lit(palette), _vermilion_shadow(palette)),
-             (_streamer_cool(palette),
-              _mix(_streamer_cool(palette), palette['stone_light'], 0.5),
+    # Per-pair whorl spec: (heading°-off-up, ripple, curl, len_scale, w0, kink).
+    # Headings stay ≥50° off-up so the top cone (toward the gap) is cloth-free.
+    # The SIDE pair is the long "leader" flung near-horizontal into the gutter;
+    # the UPPER pair is held short so its apex keeps the ~17 px rim clearance;
+    # the DOWN pair sweeps toward the roof. Curl grows down the list and lengths
+    # stagger so the tips land at different radii — real sky-gaps between tails,
+    # not one contiguous clump. Some taut, one kinked mid-length → caught spinning.
+    full = [(95.0, 0.06, 0.040, 1.55, 6.8, 0.42),    # side — longest leader, kinked
+            (52.0, 0.00, 0.110, 0.72, 5.6, 0.00),    # upper-out — taut, rim-safe
+            (140.0, 0.05, 0.150, 1.02, 6.2, 0.00)]   # down-out — deepest curl
+    specs = {1: [full[0]], 2: [full[0], full[1]]}.get(n_pairs, full)
+    cores = [(_streamer_cool(palette),                # leader wears the TRUE cool
+              _mix(_streamer_cool(palette), (214, 240, 236), 0.5),
               _shade(_streamer_cool(palette), -46)),
+             (_vermilion(palette), _vermilion_lit(palette), _vermilion_shadow(palette)),
              (_gold_bright(palette),
               _mix(_gold_bright(palette), (255, 244, 190), 0.45),
               _shade(_gold_bright(palette), -58))]
 
-    for k, (up, ripple_on) in enumerate(specs):
+    for k, (up, ripple, curl, lscale, w0, kink) in enumerate(specs):
         core, lit, shadow = cores[k % len(cores)]
-        w0 = 5.4 if whirl_r >= 24 else 4.0
-        w1 = 1.6
+        base = w0 if whirl_r >= 24 else w0 * 0.72
+        w1 = 1.5
+        length = whirl_r * lscale
         # The apex clamp sits a half-width above `y_limit` so even the cloth's
         # upper edge stays clear of the rim budget.
-        y_min = y_limit + w0 * 0.5 + 1
-        ripple = 0.07 if ripple_on else 0.0
-        curl = 0.085 + 0.02 * k
-        # Right ribbon curls one way, its mirror the other → balanced whorl.
-        _streamer(surf, cx, boss_y, up, whirl_r, w0, w1, palette,
-                  core, lit, shadow, curl=curl, ripple=ripple, y_min=y_min)
-        _streamer(surf, cx, boss_y, -up, whirl_r, w0, w1, palette,
-                  core, lit, shadow, curl=-curl, ripple=ripple, y_min=y_min)
+        y_min = y_limit + base * 0.5 + 1
+        # Right ribbon curls one way, its mirror the other → balanced whorl,
+        # but the kink stays same-signed per side so the pair reads as one gust.
+        _streamer(surf, cx, boss_y, up, length, base, w1, palette,
+                  core, lit, shadow, curl=curl, ripple=ripple, kink=kink, y_min=y_min)
+        # Every angular perturbation (curl, ripple, kink) negates on the mirror so
+        # the pair stays a true L/R reflection — a balanced whorl, not a lopsided one.
+        _streamer(surf, cx, boss_y, -up, length, base, w1, palette,
+                  core, lit, shadow, curl=-curl, ripple=-ripple, kink=-kink, y_min=y_min)
 
-    # Bronze hub boss — the spin centre; the sole gated night-glow source.
+    # Bronze hub boss — the spin centre; the sole gated night-glow source. Built
+    # as a normal-alpha radial bloom (NOT additive): additive overlap summed the
+    # warm rings up to a hot-white core, so the halo is composited with alpha and
+    # every ring pre-capped warm-bronze — a soft glow that never blooms to white.
     bronze = _bronze(palette)
     if _is_dark_sky(palette):
-        r_glow = 11
+        r_glow = 12
         sz = r_glow * 2 + 2
         glow = pygame.Surface((sz, sz), pygame.SRCALPHA)
-        halo = _mix(bronze, (255, 210, 130), 0.6)
-        for rr, a in ((r_glow, 40), (r_glow - 3, 74), (r_glow - 6, 104)):
-            pygame.draw.circle(glow, (*halo, a), (sz // 2, sz // 2), max(1, rr))
-        surf.blit(glow, (cx - sz // 2, boss_y - sz // 2),
-                  special_flags=pygame.BLEND_RGBA_ADD)
+        halo = _cap235(_mix(bronze, (214, 156, 92), 0.62))   # warm bronze, sub-white
+        core_halo = _cap235(_mix(bronze, (228, 176, 110), 0.7))
+        for rr, a in ((r_glow, 34), (r_glow - 3, 52), (r_glow - 6, 70), (r_glow - 9, 86)):
+            col = halo if rr > r_glow - 6 else core_halo
+            pygame.draw.circle(glow, (*col, a), (sz // 2, sz // 2), max(1, rr))
+        surf.blit(glow, (cx - sz // 2, boss_y - sz // 2))
     br = 5 if whirl_r >= 20 else 4
     pygame.draw.circle(surf, _shade(bronze, -34), (cx, boss_y), br)
     pygame.draw.circle(surf, bronze, (cx, boss_y), br - 1)
@@ -429,26 +444,29 @@ def _draw_one(surf, cx, base_y, top_y, body_w, palette, seed, *, decor=True):
     # Bronze mast from the roof ridge up to the finial at the gap rim — the
     # rigid spine that holds the centreline (never the soft cloth).
     bronze = _bronze(palette)
-    pygame.draw.line(surf, _shade(bronze, -30), (cx, ridge_y), (cx, top_y + 2), 3)
-    pygame.draw.line(surf, bronze, (cx, ridge_y), (cx, top_y + 2), 1)
+    # The finial crowns a few px below the rim (not fused to it) so a sliver of
+    # air separates the rigid tip from the gap edge — a cleaner read than round 1.
+    finial_y = top_y + 4
+    pygame.draw.line(surf, _shade(bronze, -30), (cx, ridge_y), (cx, finial_y), 3)
+    pygame.draw.line(surf, bronze, (cx, ridge_y), (cx, finial_y), 1)
     for cy in (int(ridge_y - roof_h * 0.4), boss_y + 6):        # collar rings
-        if top_y + 3 < cy < ridge_y:
+        if finial_y + 1 < cy < ridge_y:
             pygame.draw.line(surf, _cap235(_gold_bright(palette)),
                              (cx - 2, cy), (cx + 2, cy), 1)
-    # Finial: bronze ball + a tiny vermilion pennant at the rim.
-    pygame.draw.circle(surf, bronze, (cx, top_y + 2), 2)
-    pygame.draw.circle(surf, _cap235(_gold_bright(palette)), (cx, top_y + 2), 1)
+    # Finial: bronze ball + a tiny vermilion pennant near the rim.
+    pygame.draw.circle(surf, bronze, (cx, finial_y), 2)
+    pygame.draw.circle(surf, _cap235(_gold_bright(palette)), (cx, finial_y), 1)
     # A tiny vermilion masthead pennant, kept inside the ±4 px centreline band so
     # it reads as a rigid finial flag, not a gap-bridging streamer.
     pygame.draw.polygon(surf, _vermilion(palette),
-                        [(cx + 1, top_y + 3), (cx + 4, top_y + 4), (cx + 1, top_y + 6)])
+                        [(cx + 1, finial_y + 1), (cx + 4, finial_y + 2), (cx + 1, finial_y + 4)])
 
     # The whirl (crown/gutter overhang) — fewer/shorter ribbons when short.
     if crown_h >= 30:
         n_pairs = 3 if total_h >= 150 else 2
     else:
         n_pairs = 1
-    whirl_r = int(min(crown_h * 0.66, hw_base + 18, 34))
+    whirl_r = int(min(crown_h * 0.80, hw_base + 26, 46))
     y_limit = top_y + 6                            # cloth may not climb past here
     if whirl_r >= 6 and boss_y - y_limit >= 4:
         _whirl(surf, cx, boss_y, whirl_r, n_pairs, palette, y_limit=y_limit)
@@ -457,6 +475,21 @@ def _draw_one(surf, cx, base_y, top_y, body_w, palette, seed, *, decor=True):
         draw_grass_bed(surf, cx, base_y - 1, pw0 + 6, 14, palette, seed=seed)
         draw_side_shrub(surf, cx - (hw_base - 1), base_y - 1, palette, scale=0.85)
         draw_side_shrub(surf, cx + (hw_base - 1), base_y - 1, palette, scale=0.7)
+
+    # The shipped lit-niche paints a warm ADDITIVE lantern halo at night that can
+    # push already-warm brick to a clinical pure white where it overlaps. This
+    # family forbids hot-white at night, so clamp any fully-blown pixel down to a
+    # warm parchment — keeps the lantern reading warm without a white-hot spike.
+    if _is_dark_sky(palette):
+        x0 = max(0, cx - hw_base - 24)
+        x1 = min(surf.get_width(), cx + hw_base + 25)
+        y0 = max(0, top_y)
+        y1 = min(surf.get_height(), base_y)
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                c = surf.get_at((x, y))
+                if c[3] > 0 and c[0] >= 250 and c[1] >= 250 and c[2] >= 250:
+                    surf.set_at((x, y), (247, 236, 210, c[3]))
 
 
 def candidate_streamer_whirl_mill(surf, top_rect, bot_rect, palette, seed):
@@ -575,6 +608,33 @@ def _measure_fill(pal, section_h):
     return worst
 
 
+def _measure_crown(pal, section_h=355):
+    """Report the whirl's gutter overhang (max cloth px past the PIPE_W column
+    edge) and the sky-gap tail count (separated cloth blobs once the central
+    mast/column band is masked out) — the "airy spray of tails" gates."""
+    surf = pygame.Surface((CACHE_W, GROUND_Y), pygame.SRCALPHA)
+    top_y = GROUND_Y - section_h
+    bot_rect = pygame.Rect(MARGIN, top_y, PIPE_W, section_h)
+    candidate_streamer_whirl_mill(surf, pygame.Rect(MARGIN, 0, PIPE_W, 0),
+                                  bot_rect, pal, SEED)
+    cx = MARGIN + PIPE_W // 2
+    edge = PIPE_W // 2
+    band = pygame.Rect(0, top_y, CACHE_W, min(120, section_h))
+    overhang = 0
+    for y in range(band.top, band.bottom):
+        for x in range(CACHE_W):
+            if surf.get_at((x, y))[3] > 50:
+                overhang = max(overhang, abs(x - cx) - edge)
+    # Zero the central mast/column band, then count separated tail blobs.
+    crown = surf.subsurface(band).copy()
+    for y in range(crown.get_height()):
+        for x in range(cx - 16, cx + 16):
+            crown.set_at((x, y), (0, 0, 0, 0))
+    mask = pygame.mask.from_surface(crown, 50)
+    blobs = [c for c in mask.connected_components() if c.count() >= 6]
+    return overhang, len(blobs)
+
+
 def _render_feas(pal, section_h):
     head = 16
     cell_h = section_h + head + 10
@@ -643,7 +703,7 @@ def main():
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((24, 25, 30))
 
-    sheet.blit(title.render("streamer-whirl-mill — round 1", True, (245, 240, 230)),
+    sheet.blit(title.render("streamer-whirl-mill — round 2", True, (245, 240, 230)),
                (pad, 12))
     sheet.blit(sub.render("brick mini-pavilion + WHIRL of prayer-streamer ribbons "
                           "spun from a bronze boss  ·  soft/colour/motion pole",
@@ -681,13 +741,21 @@ def main():
         sheet.blit(lab, (fx, fy + ch + 3))
         fy += ch + label_h + pad
 
-    out = _REPO / "docs" / "pillar_landmarks" / "temple_mills" / "streamer-whirl-mill" / "round_1.png"
+    out = _REPO / "docs" / "pillar_landmarks" / "temple_mills" / "streamer-whirl-mill" / "round_2.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
     print(f"finial centreline->rim gap: day={cl_day}px night={cl_night}px")
     print(f"ribbon clearance below rim: day={rc_day}px night={rc_night}px  (need >=5)")
     print("max empty run: " + "  ".join(f"{h}px->{fills[h]}px" for h in heights))
+
+    # Crown gates: gutter overhang + separated sky-gap tail count (DAY).
+    overhang, tails = _measure_crown(day)
+    print(f"crown gutter overhang: {overhang}px past column edge")
+    print(f"sky-gap separated tail blobs: {tails}")
+    # The three DAY ribbon hues — confirm a genuinely COOL middle beat.
+    from game.pillar_pagodas import _vermilion as _vm, _gold_bright as _gb
+    print(f"DAY ribbon hues: warm={_vm(day)}  cool={_streamer_cool(day)}  gold={_gb(day)}")
 
     # PIL-sanity (no display): day must differ from night, ribbons must clear the
     # gap, and no cloth/metal pixel may spike to hot white.
