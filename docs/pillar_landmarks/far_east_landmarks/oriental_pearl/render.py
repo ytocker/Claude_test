@@ -52,8 +52,16 @@ def _pearl_triad(palette):
     `stone_accent` (so the biome's warm-highlight band sweeps it day→night)
     and grounded partly in `_lotus_pink`, held well clear of the steel so the
     two China spikes never trade. Day reads hot magenta-rose, night a lit cool
-    magenta. This hue is the concept's signature."""
-    rose = _mix(palette['stone_accent'], (216, 98, 120), 0.58)
+    magenta. This hue is the concept's signature.
+
+    The day anchor is pushed hotter and more saturated than the night one: the
+    warm daylight band drifts the glass toward sandstone-peach, so day needs a
+    deeper magenta target to stay unmistakably rose glass; night already reads
+    as lit cool magenta and is left on the softer anchor."""
+    if _is_dark_sky(palette):
+        rose = _mix(palette['stone_accent'], (216, 98, 120), 0.58)
+    else:
+        rose = _mix(palette['stone_accent'], (226, 58, 104), 0.70)
     mid = _mix(rose, _lotus_pink(palette), 0.28)
     lit = _shade(mid, 54)
     shadow = _cap_dark_for_dark_sky(_shade(_mix(mid, palette['stone_dark'], 0.40), -14),
@@ -136,41 +144,77 @@ def _draw_tower(surf, cx, base_y, top_y, body_w, palette):
         return
     s_lit, s_mid, s_shadow = _steel_triad(palette)
 
-    # Vertical budget from the base up; every span clamps so extremes stay sane.
+    # Base-anchored substructure (tripod + plinth grow off the bottom).
     plinth_h = int(min(12, max(4, total_h * 0.045)))
     leg_h = int(min(58, max(14, total_h * 0.17)))
-    lower_r = int(min(body_w * 0.48, total_h * 0.145))
-    lower_r = max(8, lower_r)
-    gap_h = int(min(38, max(9, total_h * 0.095)))            # the bead-string tell
-    upper_r = max(6, int(lower_r * 0.70))
-    umast_h = int(min(24, max(4, total_h * 0.045)))
-    capsule_r = max(3, int(upper_r * 0.44))
-    mast_w = int(min(20, max(12, body_w * 0.32)))
-
-    # Anchor y-cursor climbing from the base.
     plinth_top = base_y - plinth_h
-    leg_top = plinth_top - leg_h                              # mast foot
-    lower_cy = leg_top - lower_r + 2
-    lower_top = lower_cy - lower_r
-    gap_top = lower_top - gap_h
-    upper_cy = gap_top - upper_r
-    upper_top = upper_cy - upper_r
-    umast_top = upper_top - umast_h
-    capsule_cy = umast_top - capsule_r
-    capsule_top = capsule_cy - capsule_r
+    leg_top = plinth_top - leg_h                              # mast foot / apex
 
-    # Height-adaptive pearl count: drop the crown pieces before they overrun
-    # the gap edge, so short sections read as one clean pearl-on-a-mast.
-    show_upper = (upper_top - umast_h - 6) > top_y and total_h >= 95
-    show_capsule = show_upper and (capsule_top - 8) > top_y and total_h >= 135
+    # A DELIBERATELY THIN steel mast — emphatically narrower than the pearls, so
+    # the spheres read as discrete beads threaded on a stick rather than bulges
+    # on a fat vase. The bare thinness IS the tell; a thin centred column still
+    # paints a pixel in every row, so the fill gate is unaffected.
+    mast_w = max(8, min(10, int(body_w * 0.16)))
 
-    # Top of the solid mast: below the highest bead we actually draw.
+    # Bead sizes. Radii scale with height for short sections (so two pearls fit)
+    # but cap on width, so at PIPE_W the lower pearl is near a full-width sphere.
+    lower_r = max(9, int(min(body_w * 0.46, total_h * 0.145)))
+    upper_r = max(7, int(lower_r * 0.72))
+    capsule_r = max(4, int(upper_r * 0.5))
+    gap_h = int(min(28, max(10, total_h * 0.09)))            # bare-mast pearl tell
+    umast_h = int(min(18, max(6, total_h * 0.05)))           # air isolating capsule
+
+    # Antenna needle, CAPPED to ~18–20% of the tower so the crown is pearls, not
+    # a broadcast spike. Recessed 3px from the rect edge to buy mirror air.
+    ant_tip = top_y + 3
+    needle_h = int(min(total_h * 0.19, capsule_r * 6))
+    needle_h = min(needle_h, max(4, (leg_top - ant_tip) // 2))
+
+    # Beads cluster near the crown under the short needle; the long thin shaft
+    # below fills the collision column down to the tripod (faithful + fills).
+    # Pick the richest bead config whose lowest pearl still clears the apex.
+    min_stick = 2
+
+    def _stack_h(with_upper, with_capsule):
+        h = needle_h + 2 * lower_r
+        if with_capsule:
+            h += 2 * capsule_r + umast_h
+        if with_upper:
+            h += 2 * upper_r + gap_h
+        return h
+
+    def _fits(with_upper, with_capsule):
+        return ant_tip + _stack_h(with_upper, with_capsule) <= leg_top - min_stick
+
+    show_upper = _fits(True, False)
+    show_capsule = show_upper and _fits(True, True)
+    if not _fits(False, False):
+        # Extremely short section: shrink the sole pearl to sit above the apex.
+        avail = (leg_top - min_stick) - (ant_tip + needle_h)
+        lower_r = max(6, min(lower_r, avail // 2))
+
+    # Lay the crown out top-down from the recessed tip.
+    y = ant_tip + needle_h                                    # top of highest bead
+    capsule_cy = upper_cy = None
+    if show_capsule:
+        capsule_top = y
+        capsule_cy = capsule_top + capsule_r
+        y = capsule_cy + capsule_r + umast_h
+    if show_upper:
+        upper_top = y
+        upper_cy = upper_top + upper_r
+        y = upper_cy + upper_r + gap_h
+    lower_top = y
+    lower_cy = lower_top + lower_r
+
+    # The mast climbs behind the crown up to the highest bead centre; the pearl
+    # above covers the last stretch to the needle, so no row is left open.
     if show_capsule:
         mast_top = capsule_cy
     elif show_upper:
         mast_top = upper_cy
     else:
-        mast_top = lower_cy - lower_r      # short: mast rises just above the pearl
+        mast_top = lower_cy
 
     # 1 — night backlight wedge lifting the silhouette off the mountains.
     _draw_plinth_mist(surf, cx, base_y, int(body_w * 1.5), palette)
@@ -241,21 +285,22 @@ def _draw_tower(surf, cx, base_y, top_y, body_w, palette):
         _pearl_halo(surf, cx, capsule_cy, capsule_r, palette)
         _draw_pearl(surf, cx, capsule_cy, capsule_r, palette)
 
-    # 8 — antenna needle tapering to the gap edge + a night beacon.
+    # 8 — short antenna needle (capped) + a tight night beacon.
     ant_base = capsule_top if show_capsule else (
         upper_top if show_upper else lower_top)
-    ant_tip = top_y + 1
     if ant_base - ant_tip > 4:
         pygame.draw.polygon(surf, s_mid,
                             [(cx - 2, ant_base), (cx + 2, ant_base),
                              (cx + 1, ant_tip), (cx - 1, ant_tip)])
         pygame.draw.line(surf, s_lit, (cx - 1, ant_base), (cx, ant_tip), 1)
         if _is_dark_sky(palette):
+            # A tight beacon: its additive falloff is clamped small so the
+            # mirrored top-pillar tip can't re-close the gap across the recess.
             beac = _mix(palette['stone_accent'], _gold_bright(palette), 0.5)
-            halo = pygame.Surface((16, 16), pygame.SRCALPHA)
-            for ring, a in ((1.0, 40), (0.6, 90), (0.3, 160)):
-                pygame.draw.circle(halo, (*beac, a), (8, 8), int(8 * ring))
-            surf.blit(halo, (cx - 8, ant_tip - 8),
+            halo = pygame.Surface((10, 10), pygame.SRCALPHA)
+            for ring, a in ((1.0, 34), (0.55, 84), (0.28, 150)):
+                pygame.draw.circle(halo, (*beac, a), (5, 5), max(1, int(5 * ring)))
+            surf.blit(halo, (cx - 5, ant_tip - 5),
                       special_flags=pygame.BLEND_RGBA_ADD)
 
 
@@ -341,7 +386,7 @@ def _render_sheet():
         sheet.blit(font.render(text, True, col), (x, y))
 
     sheet.blit(font.render(
-        "oriental_pearl — Oriental Pearl Tower, Shanghai  ·  round_1",
+        "oriental_pearl — Oriental Pearl Tower, Shanghai  ·  round_2",
         True, (255, 210, 150)), (pad, 6))
 
     # Hero pillar pairs (top pillar hangs from ceiling; bottom from floor).
@@ -399,7 +444,7 @@ def _render_sheet():
     sheet.blit(small.render("bead-string tell", True, (60, 60, 60)),
                (bx + 6, sy + strip_h - 20))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     return out, sheet.get_size(), fills, day, night
 
