@@ -40,7 +40,7 @@ CATALOG: dict[str, dict] = {
     # ── COSTUMES (accessories/restyles on the macaw) ──────────────────────────
     "skin_tophat":   {"name": "GENTLEMAN", "cost": 260, "kind": "skin", "group": "costume"},
     "skin_pirate":   {"name": "PIRATE",    "cost": 280, "kind": "skin", "group": "costume"},
-    "skin_skeleton": {"name": "SKELETON",  "cost": 300, "kind": "skin", "group": "costume"},
+    "skin_skeleton": {"name": "SKELETON",  "cost": 300, "kind": "skin", "group": "parrot"},
     "skin_cowboy":   {"name": "COWBOY",    "cost": 320, "kind": "skin", "group": "costume"},
     "skin_ninja":    {"name": "NINJA",     "cost": 340, "kind": "skin", "group": "costume"},
     "skin_viking":   {"name": "VIKING",    "cost": 450, "kind": "skin", "group": "costume"},
