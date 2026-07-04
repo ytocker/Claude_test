@@ -31,6 +31,8 @@ from game.hud import (
 
 _WHITE = (245, 246, 255)
 _DIM   = (150, 150, 172)
+_DIM_SOON = (176, 176, 196)      # a notch brighter than _DIM so 'coming soon'
+                                 # rows still read clearly at 1× against the dim plate
 _NAVY_INK = (10, 6, 30)          # near-black ink for glyphs on gold discs
 
 _HEADER_H = 56
@@ -231,19 +233,30 @@ def _row_panel(surf, y, h=56, dim=False):
 
 def concept_row_list(t):
     surf = _base(t)
-    _section_header(surf, "HELP", 66)
     rows = [("book", "How to Play", "Controls & the basics"),
             ("bolt", "Power-Ups", "What every pickup does")]
-    y = 92
+    # Center the whole group in the open body so two rows don't cling to the top
+    # and strand 60% of the canvas. The dim caption below fills the residual air
+    # and telegraphs that the list keeps growing.
+    row_h, gap = 68, 12
+    hdr_gap, cap_gap = 34, 30
+    group_h = hdr_gap + len(rows) * row_h + (len(rows) - 1) * gap + cap_gap
+    body_top, body_bot = _HEADER_H, H - _FOOTER_H
+    top = body_top + (body_bot - body_top - group_h) // 2
+    _section_header(surf, "HELP", top)
+    y = top + hdr_gap
     for kind, label, sub in rows:
-        rect = _row_panel(surf, y, 58)
+        rect = _row_panel(surf, y, row_h)
         cy = rect.centery
-        _icon_disc(surf, 40, cy, 19)
-        _GLYPHS[kind](surf, 40, cy, 12)
-        surf.blit(_font(17, True).render(label, True, _GOLD_PALE), (74, y + 12))
-        surf.blit(_font(12, True).render(sub, True, _DIM), (74, y + 33))
-        _chevron(surf, W - 26, cy, 7, _GOLD_BRIGHT)
-        y += 58 + 10
+        _icon_disc(surf, 42, cy, 21)
+        _GLYPHS[kind](surf, 42, cy, 13)
+        surf.blit(_font(18, True).render(label, True, _GOLD_PALE), (78, y + 15))
+        surf.blit(_font(12, True).render(sub, True, _DIM), (78, y + 40))
+        _chevron(surf, W - 28, cy, 8, _GOLD_BRIGHT)
+        y += row_h + gap
+    cap = _font(12, True).render("More settings coming soon", True, _DIM)
+    cap.set_alpha(150)
+    surf.blit(cap, (W // 2 - cap.get_width() // 2, y + 12))
     return surf
 
 
@@ -253,18 +266,23 @@ def concept_big_cards(t):
     surf = _base(t)
     cards = [("book", "HOW TO PLAY"), ("bolt", "POWER-UPS")]
     y = 78
-    ch = 218
-    for kind, label in cards:
+    ch = 202          # trimmed so a sliver of a third card peeks at the foot,
+    for kind, label in cards:   # hinting the list grows past what fits.
         rect = pygame.Rect(18, y, W - 36, ch)
         _volume_panel(surf, rect, radius=18)
         cx = rect.centerx
-        _icon_disc(surf, cx, y + 66, 38)
-        _GLYPHS[kind](surf, cx, y + 66, 24)
-        _outlined_text(surf, label, (cx, y + 132), size=21, px=2, shadow_offset=(2, 3))
-        # An OPEN affordance anchored to the card's foot.
-        surf.blit(_font(14, True).render("OPEN", True, _GOLD_BRIGHT), (cx - 30, y + ch - 34))
-        _chevron(surf, cx + 26, y + ch - 26, 6, _GOLD_BRIGHT)
+        # Icon nudged down so icon / title / button sit optically balanced.
+        _icon_disc(surf, cx, y + 78, 38)
+        _GLYPHS[kind](surf, cx, y + 78, 24)
+        _outlined_text(surf, label, (cx, y + 142), size=21, px=2, shadow_offset=(2, 3))
+        # A real outlined pill (not a floating caption) so OPEN reads as a button.
+        _outline_pill_btn(surf, (cx, y + ch - 30), "OPEN  ›", size=13, min_width=160)
         y += ch + 16
+    # Peeking third card — its foot tucks behind the footer so only a top sliver
+    # shows, making clear the stack continues past what fits on screen.
+    peek = pygame.Rect(18, y, W - 36, ch)
+    _volume_panel(surf, peek, radius=18)
+    _draw_footer(surf)
     return surf
 
 
@@ -286,16 +304,18 @@ def concept_grouped(t):
         y += 54 + 9
 
     y += 12
-    _section_header(surf, "AUDIO · MOTION — COMING SOON", y, accent=_GOLD_MUTED, alpha=150)
+    # Short section label; the row labels below carry the specifics, so the
+    # rail fade keeps its breathing room instead of being crowded by text.
+    _section_header(surf, "COMING SOON", y, accent=_GOLD_MUTED, alpha=150)
     y += 26
     for label in ("Sound & Music", "Reduce Motion"):
         rect = _row_panel(surf, y, 54, dim=True)
         cy = rect.centery
-        _g_lock(surf, 38, cy, 12)
-        lab = _font(16, True).render(label, True, _DIM)
+        _g_lock(surf, 38, cy, 12, ink=_DIM_SOON)
+        lab = _font(16, True).render(label, True, _DIM_SOON)
         surf.blit(lab, (68, cy - lab.get_height() // 2))
         tag = _font(11, True).render("SOON", True, _GOLD_MUTED)
-        tag.set_alpha(160)
+        tag.set_alpha(200)
         surf.blit(tag, (W - 22 - tag.get_width(), cy - tag.get_height() // 2))
         y += 54 + 9
     return surf
@@ -309,30 +329,43 @@ def _rivet(surf, cx, cy, r=4):
     pygame.draw.circle(surf, (*_GOLD_PALE, 180), (cx - 1, cy - 1), max(1, r - 2))
 
 
+def _open_placard(surf, cx, cy):
+    """A small navy 'OPEN ›' tab on a switch's right — a launch affordance, so
+    it can never be mistaken for an on/off toggle on a navigation panel."""
+    img = _font(11, True).render("OPEN", True, _GOLD_BRIGHT)
+    pw, ph = img.get_width() + 30, 26
+    tab = pygame.Rect(int(cx - pw // 2), int(cy - ph // 2), pw, ph)
+    pygame.draw.rect(surf, (6, 3, 18), tab, border_radius=ph // 2)
+    pygame.draw.rect(surf, _GOLD_BRIGHT, tab, 2, border_radius=ph // 2)
+    surf.blit(img, (tab.left + 10, tab.centery - img.get_height() // 2))
+    _chevron(surf, tab.right - 11, tab.centery, 5, _GOLD_BRIGHT, w=2)
+
+
 def concept_cockpit(t):
     surf = _base(t)
     # Riveted brass fascia — Pip's cockpit. Decoration only; every control is
     # spelled out in a hard-edged label so it stays colourblind/low-vision safe.
-    panel = pygame.Rect(14, 74, W - 28, 300)
+    # Darkened so the SETTINGS header stays the brightest gold on screen.
+    panel = pygame.Rect(14, 72, W - 28, 502)
     body = pygame.Surface(panel.size, pygame.SRCALPHA)
     for yy in range(panel.h):
         f = yy / max(1, panel.h - 1)
-        body.fill(lerp_color(_GOLD_MUTED, (92, 66, 26), f), (0, yy, panel.w, 1))
+        body.fill(lerp_color((150, 116, 52), (74, 52, 20), f), (0, yy, panel.w, 1))
     mask = pygame.Surface(panel.size, pygame.SRCALPHA)
     pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, panel.w, panel.h), border_radius=16)
     body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     pygame.draw.rect(body, _GOLD_DEEP, (0, 0, panel.w, panel.h), 3, border_radius=16)
-    pygame.draw.line(body, (*_GOLD_PALE, 150), (14, 4), (panel.w - 14, 4), 2)
+    pygame.draw.line(body, (*_GOLD_PALE, 120), (14, 4), (panel.w - 14, 4), 2)
     surf.blit(body, panel.topleft)
     for rx in (panel.left + 12, panel.right - 12):
         for ry in (panel.top + 12, panel.bottom - 12):
             _rivet(surf, rx, ry)
 
-    plate_head = _font(12, True).render("FLIGHT MANUAL", True, (60, 40, 10))
+    plate_head = _font(12, True).render("FLIGHT MANUAL", True, (40, 26, 6))
     surf.blit(plate_head, (panel.centerx - plate_head.get_width() // 2, panel.top + 18))
 
-    # Two placard switches. The LABEL is the source of truth; the toggle knob is
-    # decoration that reinforces 'this opens something'.
+    # Placard launchers. The LABEL is the source of truth; the right-side OPEN
+    # tab says 'go here', never 'toggle'.
     switches = [("book", "HOW TO PLAY"), ("bolt", "POWER-UPS")]
     py = panel.top + 48
     for kind, label in switches:
@@ -345,44 +378,66 @@ def concept_cockpit(t):
         _GLYPHS[kind](surf, plate.left + 34, plate.centery, 13)
         surf.blit(_font(18, True).render(label, True, _GOLD_PALE),
                   (plate.left + 66, plate.centery - 26))
-        surf.blit(_font(11, True).render("PULL TO OPEN", True, _GOLD_DEEP),
+        surf.blit(_font(11, True).render("PULL TO OPEN", True, _GOLD_PALE),
                   (plate.left + 66, plate.centery + 4))
-        # Toggle slot + knob on the right.
-        slot = pygame.Rect(plate.right - 62, plate.centery - 12, 46, 24)
-        pygame.draw.rect(surf, (6, 3, 18), slot, border_radius=12)
-        pygame.draw.rect(surf, _GOLD_DEEP, slot, 2, border_radius=12)
-        _icon_disc(surf, slot.right - 12, slot.centery, 9)
+        _open_placard(surf, plate.right - 46, plate.centery)
         py += 108
+
+    # A dim riveted future slot fills the lower fascia and telegraphs the panel
+    # will hold more instruments than the two shipping launchers.
+    slot = pygame.Rect(panel.left + 18, py, panel.w - 36, 96)
+    ps = pygame.Surface(slot.size, pygame.SRCALPHA)
+    pygame.draw.rect(ps, (14, 10, 34, 210), (0, 0, slot.w, slot.h), border_radius=12)
+    pygame.draw.rect(ps, (110, 90, 46, 150), (0, 0, slot.w, slot.h), 2, border_radius=12)
+    surf.blit(ps, slot.topleft)
+    _g_lock(surf, slot.left + 34, slot.centery, 13, ink=_DIM_SOON)
+    surf.blit(_font(16, True).render("More instruments", True, _DIM_SOON),
+              (slot.left + 62, slot.centery - 22))
+    tag = _font(11, True).render("COMING SOON", True, _GOLD_MUTED)
+    surf.blit(tag, (slot.left + 62, slot.centery + 4))
     return surf
 
 
 # ── Concept 5 — Menu-consistent pill stack ───────────────────────────────────
 
+def _topic_pill(surf, cy, kind, label, alpha=230):
+    """Secondary navy+gold outline pill with a left-inset topic icon, so it
+    reads as a subject to browse — one tier quieter than any scarlet CTA, and
+    clearly distinct from the action-shaped MENU pill."""
+    rect = _outline_pill_btn(surf, (W // 2, cy), "   " + label, size=17,
+                             min_width=250, alpha=alpha)
+    if alpha >= 200:
+        _icon_disc(surf, rect.left + 30, cy, 15)
+        _GLYPHS[kind](surf, rect.left + 30, cy, 10)
+    return rect
+
+
 def concept_pill_stack(t):
     surf = _base(t)
-    cap = _font(13, True).render("Choose a topic", True, _DIM)
-    surf.blit(cap, (W // 2 - cap.get_width() // 2, 96))
-    # Two quiet secondary pills — the menu's dim bordeaux, one clear tier below
-    # the scarlet START pill, so Settings feels like part of the same menu.
-    _pill_btn(surf, (W // 2, 210), "HOW TO PLAY", size=17, dim=True,
-              min_width=240, shadow=False)
-    _pill_btn(surf, (W // 2, 288), "POWER-UPS", size=17, dim=True,
-              min_width=240, shadow=False)
+    cap = _font(17, True).render("Choose a topic", True, _GOLD_PALE)
+    surf.blit(cap, (W // 2 - cap.get_width() // 2, 150))
+    # Quiet secondary outline pills — one clear tier below any scarlet CTA — each
+    # fronted by its topic icon so Settings reads as a browse list, not a row of
+    # primary actions competing with START.
+    _topic_pill(surf, 240, "book", "HOW TO PLAY")
+    _topic_pill(surf, 322, "bolt", "POWER-UPS")
+    # A faint ghost pill hints the topic list keeps growing.
+    _topic_pill(surf, 402, "lock", "MORE SOON", alpha=90)
     return surf
 
 
 # ── showcase board ───────────────────────────────────────────────────────────
 
 _CONCEPTS = [
-    ("1 · ROW LIST", "OS-style rows: icon, label, chevron; a HELP group that scales.",
+    ("1 · ROW LIST", "Centered OS-style rows: icon, label, chevron; a dim caption fills the air.",
      concept_row_list),
-    ("2 · BIG CARDS", "Two bold tap-targets — centered icon, label, OPEN affordance.",
+    ("2 · BIG CARDS", "Bold tap-targets — centered icon, label, an outlined OPEN pill; a third peeks.",
      concept_big_cards),
     ("3 · GROUPED + SOON", "Real HELP rows plus a dimmed, padlocked COMING SOON group.",
      concept_grouped),
-    ("4 · COCKPIT", "Pip's brass fascia; labelled placard switches stay fully legible.",
+    ("4 · COCKPIT", "Pip's darkened brass fascia; labelled placards with OPEN tabs, not toggles.",
      concept_cockpit),
-    ("5 · PILL STACK", "Menu-native: two quiet dim pills over the shared MENU pill.",
+    ("5 · PILL STACK", "Menu-native: quiet navy+gold topic pills with icons, over the MENU pill.",
      concept_pill_stack),
 ]
 
@@ -446,7 +501,7 @@ if __name__ == "__main__":
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     pygame.init()
     pygame.display.set_mode((1, 1))
-    out = os.path.join(os.path.dirname(__file__), "round_1.png")
+    out = os.path.join(os.path.dirname(__file__), "round_2.png")
     board = build_showcase()
     pygame.image.save(board, out)
     print(f"wrote {out}  ({board.get_width()}x{board.get_height()})")
