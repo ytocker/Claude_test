@@ -90,27 +90,28 @@ def _paint_boogie(surf, wing_angle_deg):
     #    sits in the notch. Kept inside x≈20..44 so the blue wing tip and scarlet
     #    flank still show past the coat.
     # Left lapel — a broad cream wedge from the collar down to the open V.
-    left = [(BCX + 1, BCY - 12), (BCX - 13, BCY - 7), (BCX - 11, BCY + 1),
+    left = [(BCX + 1, BCY - 14), (BCX - 15, BCY - 8), (BCX - 13, BCY + 2),
             (BCX - 1, BCY + 9)]
     _poly(surf, _CREAM_D, [(x, y + 1) for x, y in left])
     _poly(surf, _CREAM, left)
-    pygame.draw.line(surf, _CREAM_H, (BCX, BCY - 11), (BCX - 11, BCY - 6), 1)
+    pygame.draw.line(surf, _CREAM_H, (BCX, BCY - 13), (BCX - 12, BCY - 7), 1)
     # Right lapel — mirrored, its point breaking toward the near shoulder.
-    right = [(BCX - 1, BCY - 12), (BCX + 12, BCY - 6), (BCX + 10, BCY + 2),
+    right = [(BCX - 1, BCY - 14), (BCX + 13, BCY - 7), (BCX + 11, BCY + 2),
              (BCX + 1, BCY + 9)]
     _poly(surf, _CREAM_D, [(x, y + 1) for x, y in right])
     _poly(surf, _CREAM, right)
-    pygame.draw.line(surf, _CREAM_H, (BCX, BCY - 11), (BCX + 10, BCY - 5), 1)
+    pygame.draw.line(surf, _CREAM_H, (BCX, BCY - 13), (BCX + 11, BCY - 6), 1)
     # Centre keyline so the two cream planes stay distinct where they meet at the
     # V-notch.
-    pygame.draw.line(surf, _CREAM_D, (BCX, BCY - 11), (BCX, BCY + 8), 1)
+    pygame.draw.line(surf, _CREAM_D, (BCX, BCY - 13), (BCX, BCY + 8), 1)
 
     # ── Gold medallion, the ONE accent, sitting bright on the cream V — the
-    #    fastest "disco" signal at 40px. A solid gold disc with a dark ring and a
-    #    single glint; a short chain climbs to the collar points.
-    mx, my = BCX, BCY + 3
-    pygame.draw.line(surf, _GOLD_D, (BCX - 4, BCY - 9), (mx, my - 4), 1)
-    pygame.draw.line(surf, _GOLD_D, (BCX + 4, BCY - 9), (mx, my - 4), 1)
+    #    fastest "disco" signal at 40px. Raised to the upper chest just below the
+    #    neck so it reads as a necklace, not a belt buckle. A solid gold disc with
+    #    a dark ring and a single glint; a short chain climbs to the collar points.
+    mx, my = HX - 8, HY + 8         # upper chest, just below the neck
+    pygame.draw.line(surf, _GOLD_D, (HX - 10, HY + 3), (mx, my - 3), 1)
+    pygame.draw.line(surf, _GOLD_D, (HX - 4,  HY + 3), (mx, my - 3), 1)
     pygame.draw.circle(surf, _GOLD_D, (mx, my), 5)      # dark ring
     pygame.draw.circle(surf, _GOLD, (mx, my), 4)        # solid gold disc
     pygame.draw.circle(surf, _GOLD_H, (mx - 1, my - 1), 1)   # glint
@@ -121,9 +122,9 @@ def _paint_boogie(surf, wing_angle_deg):
     #    so the head is less top-heavy. Puff centres kept high enough that the near
     #    eye + gold beak still peek out below the hairline. Drawn LAST so it owns
     #    the crown.
-    puffs = ((HX - 4, CROWN_Y - 2, 11), (HX - 12, CROWN_Y + 1, 7),
-             (HX + 4, CROWN_Y, 8), (HX - 2, CROWN_Y - 7, 8),
-             (HX - 9, CROWN_Y - 4, 6), (HX + 2, CROWN_Y - 6, 6))
+    puffs = ((HX + 2, CROWN_Y - 2, 11), (HX - 4, CROWN_Y + 1, 7),
+             (HX + 6, CROWN_Y, 8),  (HX + 2, CROWN_Y - 7, 8),
+             (HX - 3, CROWN_Y - 4, 6), (HX + 4, CROWN_Y - 6, 6))
     # Near-black keyline first (a fraction larger, individually offset) so each
     # lump bumps the silhouette and the brown mass separates from the scarlet
     # head where they overlap.
@@ -133,13 +134,13 @@ def _paint_boogie(surf, wing_angle_deg):
         pygame.draw.circle(surf, _AFRO, (px, py), r)
     # Curl texture — a few shadow dots on the lower-right face so the dome reads
     # as packed hair, not a smooth helmet.
-    for tx, ty in ((HX + 4, CROWN_Y + 3), (HX - 2, CROWN_Y + 5),
-                   (HX - 8, CROWN_Y + 2)):
+    for tx, ty in ((HX + 8, CROWN_Y + 3), (HX + 4, CROWN_Y + 5),
+                   (HX - 2, CROWN_Y + 2)):
         pygame.draw.circle(surf, _AFRO_TEX, (tx, ty), 2)
     # Cool rim highlight catching light on the top-left curls, following the
     # lump centres so the bumps stay legible.
-    for hx, hy, r in ((HX - 9, CROWN_Y - 4, 3), (HX - 2, CROWN_Y - 8, 3),
-                      (HX + 3, CROWN_Y - 5, 2)):
+    for hx, hy, r in ((HX - 3, CROWN_Y - 4, 3), (HX + 4, CROWN_Y - 8, 3),
+                      (HX + 9, CROWN_Y - 5, 2)):
         pygame.draw.circle(surf, _AFRO_RIM, (hx, hy), r)
 
 
