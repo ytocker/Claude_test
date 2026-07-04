@@ -46,8 +46,7 @@ class AboutScene:
         # A little self-aware roast for anyone who wanders in here.
         ("Why did you even click on this?", 14, _WHITE,     30),
         ("Are you that bored?",           14, _DIM,         8),
-        ("Audio · Kenney.nl (CC0)",       11, _DIM,         30),
-        ("Every visual drawn from code",  11, _DIM,         8),
+        ("The game was built using code",  11, _DIM,        30),
     )
 
     def __init__(self):
