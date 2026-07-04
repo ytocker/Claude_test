@@ -21,7 +21,7 @@ biome day->night retint sweeps straight through. Standalone review candidate;
 wires nothing into the live game.
 
 Run:  python docs/pillar_landmarks/far_east_landmarks/marina_bay_boat/render.py
-Out:  docs/pillar_landmarks/far_east_landmarks/marina_bay_boat/round_1.png
+Out:  docs/pillar_landmarks/far_east_landmarks/marina_bay_boat/round_2.png
 """
 from __future__ import annotations
 
@@ -141,97 +141,114 @@ def _layout(h):
     return plinth_h, boat_h, podium_h
 
 
+def _boat_metrics(boat_h):
+    """Crown split, re-weighted toward the DECK. The deck is a thick bright bar;
+    the hull is thinned ~40% off round_1 so the ship reads as a pale deck FLOATING
+    on a shallow keel, not a heavy dark slab. Building + boat share this so the
+    reveal line under the deck agrees between the collision layout and the art."""
+    deck_th = max(3, int(boat_h * 0.46))
+    hull_d = max(4, int(boat_h * 0.40))
+    return deck_th, hull_d
+
+
 # ── Boat SkyPark crown ────────────────────────────────────────────────────
 
+def _hull_hw(half):
+    """Hull half-width — a NARROW shallow keel under the deck's centre only, so
+    the wide deck's cantilever tips AND the band-edge overhang both keep open SKY
+    beneath the deck. This is the fix for round_1's dark slab: the hull no longer
+    spans the full deck width, so the boat visibly detaches and floats."""
+    return max(9, int(half * 0.56))
+
+
 def _draw_boat(surf, cx, boat_top, boat_h, palette, rng):
-    """One long horizontal boat-shaped SkyPark: a pale deck platform over a dark
-    tapering hull that comes to a bow/stern point at each end and cantilevers
-    past the legs into the gutter. Rooftop garden + infinity-pool sheen on the
-    deck; gold deck-edge lights at night. Bilaterally symmetric about cx so the
-    ceiling flip reads as a clean upside-down ship."""
+    """One long horizontal SkyPark deck — a clean, unbroken bright BAR — resting
+    on a short shallow keel. The deck cantilevers well past the hull and the legs
+    into the gutter; open sky shows under both cantilever tips and the outer-third
+    overhang, so the pale ship reads as FLOATING on its supports rather than a
+    solid dark cap. Bilaterally symmetric about cx for a clean ceiling flip."""
     half = PIPE_W // 2
     dark_sky = _is_dark_sky(palette)
-    bw = int(half * 1.62)                  # ~47px -> ~18px cantilever each side
-    deck_th = max(2, int(boat_h * 0.30))
-    hull_d = max(4, boat_h - deck_th)
+    bw = int(half * 1.62)                  # ~47px wide deck -> ~18px cantilever
+    hw = _hull_hw(half)                    # narrow keel -> sky under the wings
+    deck_th, hull_d = _boat_metrics(boat_h)
     deck_bot = boat_top + deck_th
 
     hlit, hmid, hsh = _hull_triad(palette)
     dlit, dmid, dsh = _deck_triad(palette)
     bronze = _bronze(palette)
 
-    # ── Hull — a long tapering lens, deepest at centre, pointed at both ends ──
-    N = 30
+    # ── Hull — a short shallow keel (lens) under the deck's centre third only.
+    # Thinner + narrower than the deck so the ship is a pale deck on a small keel.
+    N = 22
     under = []
     for i in range(N + 1):
         t = i / N
-        x = cx - bw + 2 * bw * t
+        x = cx - hw + 2 * hw * t
         dep = hull_d * (1.0 - (2 * t - 1) ** 2)        # 0 at ends, hull_d centre
         under.append((x, deck_bot + dep))
-    hull_poly = [(cx - bw, deck_bot)] + [(int(x), int(y)) for x, y in under] + \
-                [(cx + bw, deck_bot)]
-    pygame.draw.polygon(surf, hmid, hull_poly)
-    # Vertical shading: the hull darkens toward the keel so it reads as a heavy
-    # volume, lit belly-band up top where it meets the deck.
+    pygame.draw.polygon(surf, hmid, [(cx - hw, deck_bot)] +
+                        [(int(x), int(y)) for x, y in under] + [(cx + hw, deck_bot)])
     for i in range(N):
         (x0, y0), (x1, y1) = under[i], under[i + 1]
         col = _mix(hlit, hsh, min(1.0, (y0 - deck_bot) / max(1, hull_d)))
         pygame.draw.line(surf, col, (int(x0), int(y0)), (int(x1), int(y1)), 1)
     _aa_polyline(surf, _shade(hsh, -18), [(int(x), int(y)) for x, y in under])
-    # Bronze waterline / promenade band where hull meets deck.
-    pygame.draw.line(surf, bronze, (cx - bw + 3, deck_bot),
-                     (cx + bw - 3, deck_bot), 1)
-    pygame.draw.line(surf, _shade(bronze, 22), (cx - bw + 6, deck_bot - 1),
-                     (cx + bw - 6, deck_bot - 1), 1)
 
-    # ── Deck platform ─────────────────────────────────────────────────────
+    # ── Deck — one clean UNBROKEN bright horizontal BAR (the SkyPark). ──────
     deck = pygame.Rect(cx - bw, boat_top, 2 * bw, deck_th)
-    _gradient_rect(surf, deck, dlit, dmid, dsh, vertical=True)
-    pygame.draw.line(surf, _shade(dlit, 20), (cx - bw, boat_top),
+    _gradient_rect(surf, deck, _shade(dlit, 10), dmid, _shade(dmid, -6),
+                   vertical=True)
+    # Bright top rail + a faint specular streak reinforce the long horizontal
+    # axis of the deck against the vertical legs.
+    pygame.draw.line(surf, _shade(dlit, 24), (cx - bw, boat_top),
                      (cx + bw, boat_top), 1)
-    # AA the deck edges + the tapering ends so the ship outline stays crisp.
-    _aa_polyline(surf, _shade(dsh, -14),
+    if deck_th >= 5:
+        pygame.draw.line(surf, _mix(dlit, (250, 250, 246), 0.5),
+                         (cx - bw + 3, boat_top + 2), (cx + bw - 3, boat_top + 2), 1)
+    # Crisp AA rim keeps the ship outline reading at 1x.
+    _aa_polyline(surf, _shade(dsh, -16),
                  [(cx - bw, boat_top), (cx - bw, deck_bot),
                   (cx + bw, deck_bot), (cx + bw, boat_top)])
+    # A crisp 2px dark shadow line at the deck underside (over the keel span) so
+    # the bright deck POPS off the darker hull — the value break that reads "ship".
+    pygame.draw.line(surf, _shade(hsh, -20), (cx - hw, deck_bot - 2),
+                     (cx + hw, deck_bot - 2), 1)
+    pygame.draw.line(surf, _shade(hsh, -30), (cx - hw, deck_bot - 1),
+                     (cx + hw, deck_bot - 1), 1)
+    # Bronze promenade band on the keel top, just under the shadow.
+    pygame.draw.line(surf, bronze, (cx - hw + 2, deck_bot),
+                     (cx + hw - 2, deck_bot), 1)
 
-    # ── Infinity pool — a centred aqua sheen strip catching the light ─────
-    pool_w = int(bw * 1.05)
-    pool_y = boat_top + 1
-    aqua = _pond_aqua(palette)
-    pygame.draw.rect(surf, _shade(aqua, -18),
-                     (cx - pool_w, pool_y, pool_w * 2, max(1, deck_th // 2)))
-    pygame.draw.rect(surf, aqua,
-                     (cx - pool_w + 1, pool_y, pool_w * 2 - 2,
-                      max(1, deck_th // 2 - 1)))
-    # Vanishing-edge specular: a bright horizontal glint across the pool lip.
-    pygame.draw.line(surf, _mix(aqua, (236, 246, 244), 0.6),
-                     (cx - pool_w + 2, pool_y), (cx + pool_w - 2, pool_y), 1)
+    # ── Infinity-pool glint — one short centred aqua sheen line, kept thin so
+    # the deck still reads as a single unbroken bright bar, not a busy platform.
+    if deck_th >= 5:
+        aqua = _pond_aqua(palette)
+        pw = int(bw * 0.5)
+        pygame.draw.line(surf, _mix(aqua, (236, 246, 244), 0.5),
+                         (cx - pw, boat_top + deck_th // 2),
+                         (cx + pw, boat_top + deck_th // 2), 1)
 
-    # ── Rooftop garden — a few symmetric foliage nubs along the deck top ──
-    top = palette['foliage_top']
-    midg = palette['foliage_mid']
-    darkg = palette['foliage_dark']
-    for dx in (int(bw * 0.78), int(bw * 0.50), int(bw * 0.22)):
-        for s in (-1, 1) if dx else (1,):
-            gx = cx + s * dx
-            pygame.draw.circle(surf, darkg, (gx, boat_top - 1), 2)
-            pygame.draw.circle(surf, midg, (gx, boat_top - 1), 1)
-            surf.set_at((gx - 1, boat_top - 2), top)
-    # A single centred palm/planter cluster on the deck crown — tucked to the
-    # deck so the tallest nub never rises above boat_top - 2 (no rim intrusion).
-    pygame.draw.circle(surf, darkg, (cx, boat_top - 1), 2)
-    pygame.draw.circle(surf, midg, (cx, boat_top - 1), 1)
+    # ── Rooftop garden — a SINGLE low centred planter, kept ON the deck bar
+    # (never above boat_top) so the top edge stays a clean horizontal line and
+    # the rim air holds. No symmetric nubs (they read as crenellation at 1x).
+    if deck_th >= 4:
+        gx = cx
+        pygame.draw.circle(surf, palette['foliage_dark'], (gx, boat_top + 2), 2)
+        pygame.draw.circle(surf, palette['foliage_mid'], (gx, boat_top + 2), 1)
+        surf.set_at((gx, boat_top + 1), palette['foliage_top'])
 
-    # ── Night: gold deck-edge lights + a warm SkyPark observation glow ────
+    # ── Night: a continuous warm deck-edge LINE (not dots) sells the SkyPark
+    # promenade at 58px, plus a single restrained observation glow at the keel.
     if dark_sky:
-        glow = pygame.Surface((bw * 2 + 8, 8), pygame.SRCALPHA)
         gold = _mix(palette['stone_accent'], (255, 216, 130), 0.8)
-        for gx in range(2, bw * 2 + 4, 5):
-            pygame.draw.circle(glow, (*gold, 150), (gx, 3), 1)
-            pygame.draw.circle(glow, (*gold, 60), (gx, 3), 2)
-        surf.blit(glow, (cx - bw - 4, boat_top - 3),
+        streak = pygame.Surface((bw * 2, 3), pygame.SRCALPHA)
+        pygame.draw.line(streak, (*gold, 135), (2, 1), (bw * 2 - 3, 1), 1)
+        pygame.draw.line(streak, (*gold, 55), (2, 0), (bw * 2 - 3, 0), 1)
+        surf.blit(streak, (cx - bw, boat_top + 1),
                   special_flags=pygame.BLEND_RGBA_ADD)
-        _lit_niche(surf, cx, deck_bot - 1, min(8, bw), max(3, hull_d - 1), palette)
+        _lit_niche(surf, cx, deck_bot + max(1, hull_d - 3),
+                   min(7, hw), max(2, hull_d - 1), palette)
 
 
 # ── Splayed hotel legs ──────────────────────────────────────────────────────
@@ -361,27 +378,37 @@ def _draw_building(surf, cx, y_top, y_bot, palette, seed):
     _draw_plinth_mist(surf, cx, base_y - plinth_h + 2, int(PIPE_W * 1.7), palette)
 
     boat_top = y_top + _RIM_AIR
-    # The deck platform sits flush across the leg crowns; the hull tapers below
-    # it. The sky reveal is measured from the FLAT deck bottom (not the deepest
-    # hull point) so the notch under the cantilever tips stays <=12px even where
-    # the hull tapers away — this is what holds the fill gate at the band edges.
-    deck_th = max(2, int(boat_h * 0.30))
+    # A real SKY REVEAL is carved directly under the deck: the deck-cap is solid,
+    # then `reveal` px of open sky, then the long legs / backing resume. Held to
+    # ~4-6px (well under the 12px gate) and — crucially — a solid centre CORE
+    # spans the middle so the reveal opens only in the outer-third overhang, never
+    # as an inter-leg killzone. In blackout this turns the round_1 slab into a
+    # cap floating over its supports with sky beneath.
+    deck_th, hull_d = _boat_metrics(boat_h)
     deck_bot = boat_top + deck_th
-    reveal = max(4, min(8, int(h * 0.030)))
+    reveal = max(4, min(6, int(h * 0.030)))
     backing_top = deck_bot + reveal
     podium_top = base_y - plinth_h - podium_h
-    legs_top = deck_bot - 1
+    # Legs top out AT the reveal line (just under the sky slot) so the deck reads
+    # as floating clear above them; they still run long down to the podium.
+    legs_top = deck_bot + reveal
     legs_bot = min(podium_top + 2, base_y - plinth_h - 2)
     if legs_bot <= legs_top + 2:
         legs_bot = legs_top + 2
 
-    # Order: recessed body first, podium over its base, then legs as relief.
+    # Order: recessed body first, then the solid centre CORE that keeps the band's
+    # spine filled up to the deck (the reveal opens only outboard of it), podium
+    # over the base, then legs as relief.
     _draw_backing(surf, cx, backing_top, podium_top, palette)
+    core_hw = _hull_hw(PIPE_W // 2)
+    core = _shade(_atrium(palette), -6)
+    pygame.draw.rect(surf, core,
+                     (cx - core_hw, deck_bot, core_hw * 2, reveal + 1))
     _draw_podium(surf, cx, podium_top, base_y - plinth_h, palette, dark_sky)
 
     # Three legs: centre carries the centreline; left/right splay to the base.
-    # Leg crowns rise through the reveal band into the boat underside, so the
-    # sky notches between them read as "a ship resting on three legs".
+    # Their crowns rise to the reveal line under the boat, so the sky slot reads
+    # as "a ship resting clear of its splayed legs".
     _draw_leg(surf, legs_top, legs_bot, cx, cx, 4, 6, palette, dark_sky)
     _draw_leg(surf, legs_top, legs_bot,
               cx - int(half * 0.38), cx - int(half * 0.70), 4, 6,
@@ -537,6 +564,15 @@ def main():
           f"hull > atrium: {_lum(hull_d) > _lum(atr_d)}")
     print(f"  day != night (leg mid): {leg_d != leg_n}")
 
+    # Crown geometry — the round_2 re-weight: hull thinned, a real reveal carved.
+    print("CROWN GEOMETRY (hull thinned + real sky reveal under the deck)")
+    for hh in (118, 355):
+        _, boat_h, _ = _layout(hh)
+        deck_th, hull_d = _boat_metrics(boat_h)
+        reveal = max(4, min(6, int(hh * 0.030)))
+        print(f"  section h={hh:3d}  deck={deck_th}px  HULL={hull_d}px  "
+              f"REVEAL={reveal}px")
+
     # Fill gate — max empty vertical run inside the 58px band at 3 heights,
     # plus the specific columns the brief calls out (70 / 210 / 355 offsets).
     print("FILL GATE (max empty vertical run inside the 58px PIPE_W band)")
@@ -607,17 +643,17 @@ def main():
     sheet.fill((22, 24, 28))
 
     sheet.blit(title.render(
-        "marina_bay_boat — Marina Bay Sands SkyPark on three splayed legs  ·  round_1",
+        "marina_bay_boat — Marina Bay Sands SkyPark on three splayed legs  ·  round_2",
         True, (232, 240, 250)), (pad, 12))
     sheet.blit(sub.render(
-        "red edges = PIPE_W (58px) collision band  ·  pale curved legs + a long "
-        "horizontal BOAT deck (rooftop garden + infinity-pool sheen)  ·  legs are "
-        "LIT RELIEF over a dim atrium + solid mall podium", True,
+        "red edges = PIPE_W (58px) collision band  ·  a thick bright DECK bar on a "
+        "thin narrow keel + splayed legs  ·  legs are LIT RELIEF over a dim atrium "
+        "+ solid mall podium", True,
         (168, 176, 190)), (pad, 40))
     sheet.blit(sub.render(
-        "fill gate held by full-band backing + podium (legs never open a hole); "
-        "a thin sky reveal under the boat keeps the boat-on-legs tell  ·  "
-        "symmetric deck -> clean ceiling flip", True,
+        "round_2: a real sky REVEAL is carved under the deck (outer-third overhang) "
+        "over a solid centre CORE + full-band backing — the cap floats on its "
+        "supports, fill gate still <=12px  ·  symmetric deck -> clean ceiling flip", True,
         (150, 200, 210)), (pad, 58))
 
     y = head_h
@@ -664,7 +700,7 @@ def main():
     sheet.blit(lab.render("1x @ 58px", True, (200, 200, 210)),
                (x, head_h + bo3.get_height() + 24 + bo1.get_height() + 2))
 
-    out = pathlib.Path(__file__).resolve().parent / "round_1.png"
+    out = pathlib.Path(__file__).resolve().parent / "round_2.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
