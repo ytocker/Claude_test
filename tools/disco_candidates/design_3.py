@@ -11,6 +11,8 @@ Built on the natural `_build_frame` base so the red brow, blue wing, and yellow
 beak read through the terry/stripe accents — the whole gag is a parrot dressed
 for the rink, not a recolour.
 """
+import math
+
 import pygame
 
 from game.store_skins import _make_skin, HX, HY, CROWN_Y
@@ -22,14 +24,18 @@ _TEAL     = (47, 182, 196)
 _ORANGE   = (242, 92, 42)
 _YELLOW   = (244, 208, 63)
 _WHITE    = (245, 245, 245)
-_WHITE_D  = (198, 200, 206)     # terry shade so the towelling rounds
+_WHITE_D  = (198, 200, 206)     # terry / boot shade so the towelling rounds
+_SEAM     = (32, 44, 52)        # dark tonal knit seam — beats a white barcode
 _SHORT    = (214, 51, 90)       # satin hot-pants / wheel red family
-_WHEEL    = (210, 50, 50)       # bright quad wheel
-_WHEEL_H  = (240, 120, 110)     # wheel rim glint (reads round at 40px)
+_WHEEL    = (214, 46, 46)       # bright quad wheel
+_WHEEL_K  = (20, 20, 20)        # dark keyline so the wheel reads round at 40px
+_WHEEL_G  = (255, 255, 255)     # round rim glint
 _SOLE     = (120, 74, 44)       # brown boot sole
 _HUB      = (24, 22, 26)        # black axle hub dot
-_BLUR     = (150, 150, 158)     # 1px motion-blur streak
-_STARGOLD = (255, 220, 0)       # iron-on decal
+_TOESTOP  = (206, 40, 60)       # beefed red toe-stop — quad silhouette tell
+_BLUR     = (150, 150, 158)     # motion-blur streak
+_STARGOLD = (255, 200, 0)       # iron-on decal gold
+_STARK    = (28, 24, 16)        # decal keyline
 
 
 def _terry_band(surf, x0, x1, y, h=3):
@@ -44,63 +50,65 @@ def _terry_band(surf, x0, x1, y, h=3):
 
 
 def _paint_roller(surf, _a):
-    # ── BODY · striped ribbed TANK TOP ───────────────────────────────────────
-    # Alternating 2px teal/orange/yellow ribbed bands across the chest. Drawn
-    # first so the sweatband/wristband/skates layer cleanly over the top and
-    # bottom, and kept inside the body footprint so nothing balloons the
-    # silhouette. Natural red plumage still shows at the armhole/shoulder edges.
-    tank_cols = (_TEAL, _ORANGE, _YELLOW)
-    for i, ty in enumerate(range(42, 58, 2)):
-        pygame.draw.rect(surf, tank_cols[i % 3], (28, ty, 18, 2))
-    # A darker rib seam every other band so the ribbing reads as knit, not paint.
-    for ty in range(43, 58, 4):
-        pygame.draw.line(surf, _WHITE_D, (28, ty), (46, ty), 1)
+    # ── BODY · chunky ribbed TANK TOP ────────────────────────────────────────
+    # Three FAT teal/orange/yellow bands (not eight thin ones) with a dark knit
+    # seam between — a white barcode competed with the yellow beak and mushed at
+    # 40px, so the seam is tonal now. Kept narrow at the top so natural red
+    # plumage still shows through the shoulder/armhole.
+    for ty, col in ((45, _TEAL), (50, _ORANGE), (55, _YELLOW)):
+        pygame.draw.rect(surf, col, (30, ty, 15, 4))
+        pygame.draw.line(surf, _SEAM, (30, ty + 4), (45, ty + 4), 1)
 
     # ── BODY · satin HOT-PANTS ───────────────────────────────────────────────
     # A small bright satin block at the hip below the tank, with a single lit
     # highlight so the "satin" sheen reads. Rounded so it sits like shorts.
-    pygame.draw.rect(surf, _SHORT, (24, 58, 16, 6), border_radius=2)
-    pygame.draw.line(surf, (238, 120, 156), (26, 59), (36, 59), 1)   # satin sheen
+    pygame.draw.rect(surf, _SHORT, (24, 60, 16, 6), border_radius=2)
+    pygame.draw.line(surf, (238, 120, 156), (26, 61), (36, 61), 1)   # satin sheen
 
     # ── WING · terry WRISTBAND + star iron-on decal ──────────────────────────
     # Terry cuff at the wing base — same towelling read as the brow band, so the
-    # kit feels matched. A tiny gold 5-point star iron-on decal sits at the wing
-    # centre as the personalised patch.
-    _terry_band(surf, 30, 38, 50, h=3)
-    _star5_outline(surf, 41, 47, 3, _STARGOLD)
+    # kit feels matched. A solid gold 5-point star iron-on decal sits on the
+    # CLEAN blue wing field (clear of the stripe zone) as the personalised patch.
+    _terry_band(surf, 30, 38, 52, h=3)
+    _star5_solid(surf, 40, 44, 5, _STARGOLD)
 
     # ── HEAD · terry SWEATBAND across the brow ───────────────────────────────
-    # A towelling band over the brow with the teal+orange stripe pair on its
-    # top edge. Sits just under the crown so the red head still crowns above it.
-    _terry_band(surf, 38, 58, HY - 5, h=3)
+    # A towelling band lifted up onto the brow/crown (HY-7) with the teal+orange
+    # stripe pair on its top edge — sits clear of the eye line, red head crowns
+    # above it.
+    _terry_band(surf, 38, 58, HY - 7, h=3)
 
     # ── FEET · QUAD ROLLER SKATES (the signature) ────────────────────────────
-    # The hero read: a white boot, a thin brown sole, and two bright red quad
-    # wheels each with a black axle hub. A 1px grey streak trails the back wheel
-    # so the skate reads as MOVING — the tell no other costume has.
-    boot_x, boot_y = 24, 70
-    pygame.draw.line(surf, _BLUR, (boot_x - 5, 77), (boot_x, 77), 1)  # motion streak
-    pygame.draw.rect(surf, _WHITE_D, (boot_x, boot_y + 1, 12, 5), border_radius=1)
-    pygame.draw.rect(surf, _WHITE, (boot_x, boot_y, 12, 5), border_radius=1)
-    pygame.draw.line(surf, _TEAL, (boot_x + 1, boot_y + 1), (boot_x + 10, boot_y + 1), 1)
-    pygame.draw.rect(surf, _SOLE, (boot_x, boot_y + 5, 12, 2))       # brown sole
-    for wx in (boot_x + 3, boot_x + 9):                               # two quad wheels
-        pygame.draw.circle(surf, _WHEEL, (wx, boot_y + 8), 3)
-        pygame.draw.circle(surf, _WHEEL_H, (wx - 1, boot_y + 7), 1)
-        pygame.draw.circle(surf, _HUB, (wx, boot_y + 8), 1)
-    pygame.draw.circle(surf, _SHORT, (boot_x + 11, boot_y + 4), 1)    # red toe-stop
+    # The hero read, sized up ~35% so the footwear WINS the silhouette: a chunky
+    # white boot, brown sole, two fat red quad wheels each ringed with a dark
+    # keyline + white rim glint so they read circular at 40px, a beefed red
+    # toe-stop, and a fat horizontal motion streak trailing the back wheel — the
+    # moving-skate tell no other costume has.
+    bx, by = 23, 69
+    wy = by + 11
+    pygame.draw.line(surf, _BLUR, (bx - 8, wy), (bx + 2, wy), 2)      # motion streak
+    pygame.draw.rect(surf, _WHITE_D, (bx, by + 1, 16, 7), border_radius=2)
+    pygame.draw.rect(surf, _WHITE, (bx, by, 16, 7), border_radius=2)
+    pygame.draw.line(surf, _TEAL, (bx + 2, by + 1), (bx + 13, by + 1), 1)  # lace stripe
+    pygame.draw.rect(surf, _SOLE, (bx, by + 7, 16, 2))               # brown sole
+    for wx in (bx + 4, bx + 13):                                      # two fat quad wheels
+        pygame.draw.circle(surf, _WHEEL, (wx, wy), 4)
+        pygame.draw.circle(surf, _WHEEL_K, (wx, wy), 4, 1)           # dark round keyline
+        pygame.draw.circle(surf, _WHEEL_G, (wx - 1, wy - 2), 1)      # round rim glint
+        pygame.draw.circle(surf, _HUB, (wx, wy), 1)                  # axle hub
+    pygame.draw.circle(surf, _TOESTOP, (bx + 16, by + 6), 2)         # beefed red toe-stop
 
 
-def _star5_outline(surf, cx, cy, r, color):
-    """5-point star OUTLINE — the iron-on decal on the wing. Outline (not filled)
-    so the blue plumage shows through the star's centre like a real patch."""
-    import math
+def _star5_solid(surf, cx, cy, r, color):
+    """5-point star iron-on decal — solid gold fill with a dark keyline so it
+    reads as a stitched patch on the blue wing, not a wireframe."""
     pts = []
     for i in range(10):
         rad = r if i % 2 == 0 else r * 0.45
         a = -math.pi / 2 + i * math.pi / 5
         pts.append((cx + rad * math.cos(a), cy + rad * math.sin(a)))
-    pygame.draw.polygon(surf, color, pts, 1)
+    pygame.draw.polygon(surf, color, pts)
+    pygame.draw.polygon(surf, _STARK, pts, 1)
 
 
 build = _make_skin(_paint_roller, base_fn=_build_frame)

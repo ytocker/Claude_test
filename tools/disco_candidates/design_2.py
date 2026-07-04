@@ -104,10 +104,11 @@ def _paint_diva(surf, _a):
         pygame.draw.circle(surf, jc, (jx, hb_y), 2)
         pygame.draw.circle(surf, (255, 255, 255), (jx - 1, hb_y - 1), 1)
 
-    # Tall ostrich plume curving up-and-BACK off the crown — the hero shape that
-    # breaks the silhouette dramatically upward and screams "showgirl" at any
-    # size. A dark fuchsia quill threads the fluff so the curve reads as one
-    # feather; the tip cools to cream so the spike still lands on night sky.
+    # Tall ostrich plume off the crown — a vertical spike whose lower two-thirds
+    # stand near-straight and whose tip flicks back, the hero shape that breaks
+    # the silhouette dramatically upward and screams "showgirl" at any size. A
+    # dark fuchsia quill threads the fluff so the spike reads as one feather; the
+    # tip cools to cream so it still lands cleanly on night sky.
     ax, ay = HX, CROWN_Y
     quill = [(ax + dx, ay + dy) for dx, dy, _r, _c in _DV_PLUME]
     pygame.draw.lines(surf, _DV_GRAPE_D, False, [(ax + 1, ay + 2)] + quill, 2)
@@ -115,18 +116,20 @@ def _paint_diva(surf, _a):
         px, py = ax + dx, ay + dy
         pygame.draw.circle(surf, col, (px, py), r)
         pygame.draw.circle(surf, (255, 255, 255), (px - 1, py - 1), 1)
-    # A tiny sparkle off the plume tip so the diva always catches a light.
-    _spark(surf, ax - 9, ay - 23, 2, (255, 255, 255))
+    # A tiny sparkle off the swept plume tip so the diva always catches a light.
+    _spark(surf, ax - 10, ay - 27, 2, (255, 255, 255))
 
-    # Strappy silver platform heels at the base — a bright shoe box + a wedge
-    # sole under each foot, with a thin strap up to the ankle so they read as
-    # heels, not blocks, and break the lower silhouette just past the feet.
-    for fx in (25, 33):
+    # Strappy silver platform heels — a shoe box + a distinct wide platform base
+    # block under each foot so "platform" reads as footwear, not a bright pixel
+    # cluster. Beefed ~1px wider than R1 with a brighter top glint, plus an
+    # ankle strap so they still ID as heels, not clogs, and break the lower
+    # silhouette just past the feet.
+    for fx in (24, 32):
         pygame.draw.line(surf, _DV_SILVER, (fx + 3, 68), (fx + 3, 72), 1)  # ankle strap
-        pygame.draw.rect(surf, _DV_SILVER, (fx, 72, 6, 4))                 # shoe
-        pygame.draw.line(surf, _DV_SILVER_H, (fx, 72), (fx + 5, 72), 1)    # top glint
-        _poly(surf, _DV_SILVER_D, [(fx, 76), (fx + 6, 76),
-                                   (fx + 5, 78), (fx + 1, 78)])            # wedge sole
+        pygame.draw.rect(surf, _DV_SILVER, (fx, 72, 7, 4))                 # shoe upper
+        pygame.draw.line(surf, _DV_SILVER_H, (fx, 72), (fx + 6, 72), 1)    # bright top glint
+        pygame.draw.rect(surf, _DV_SILVER_P, (fx - 1, 76, 9, 3))           # platform base block
+        pygame.draw.line(surf, _DV_SILVER_D, (fx - 1, 78), (fx + 7, 78), 1)  # base shade
 
 
 build = _make_skin(_paint_diva, base_fn=_build_frame)
