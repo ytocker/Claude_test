@@ -22,7 +22,7 @@ from game.scenes import App, STATE_MENU
 from game.hud import (
     _pill_btn, _volume_panel, _draw_trophy, _draw_award_star, _font,
     _GOLD_PALE, _draw_overlay_stars, _draw_mountain_silhouette,
-    _outlined_text, _ORANGE_BORDER,
+    _outlined_text, _ORANGE_BORDER, _GOLD_BRIGHT, _PANEL_LIGHTER, _PANEL_DARK,
 )
 
 # Trio baseline shared by every option so they sit in the same band.
@@ -40,7 +40,14 @@ _NAVY = (12, 8, 38)
 # A struck-metal cog so SETTINGS reads in the same gold-on-navy family as the
 # star and trophy. Supersampled then smoothscaled so the teeth + centre hole
 # stay crisp at the ~18 px tile size.
-def _draw_gear(surf, cx, cy, R, teeth=8):
+def _draw_gear(surf, cx, cy, R, teeth=None):
+    # At tile-icon scale (R ≤ 10) an 8-tooth cog with a wide navy centre hole
+    # reads as a busy ring beside the solid star/trophy; a 6-tooth cog + a
+    # tighter hole gives it the same disc-with-teeth weight, which is the key
+    # cohesion fix. Larger renders keep the finer 8-tooth silhouette.
+    if teeth is None:
+        teeth = 6 if R <= 10 else 8
+    hole = 0.24 if R <= 10 else 0.30
     SS = 4
     box = int(R * 2 + 6)
     B = box * SS
@@ -71,11 +78,41 @@ def _draw_gear(surf, cx, cy, R, teeth=8):
                        Rb * 0.30)
     pygame.draw.circle(g, _GOLD, (c, c), Rb * 0.70)
     # Centre hole in the navy panel family.
-    pygame.draw.circle(g, _NAVY, (c, c), R * SS * 0.30)
-    pygame.draw.circle(g, _RIMD, (c, c), R * SS * 0.30, max(1, int(0.9 * SS)))
+    pygame.draw.circle(g, _NAVY, (c, c), R * SS * hole)
+    pygame.draw.circle(g, _RIMD, (c, c), R * SS * hole, max(1, int(0.9 * SS)))
 
     small = pygame.transform.smoothscale(g, (box, box))
     surf.blit(small, (int(round(cx - box / 2)), int(round(cy - box / 2))))
+
+
+def _soft_panel(surf, rect, radius=16, border_alpha=140):
+    """Segmented-bar panel: same embossed body as ``_volume_panel`` but with a
+    single thin, reduced-alpha gold rim. The full-width bar's continuous gold
+    loop otherwise competes with the scarlet START pill; a quieter rim keeps
+    the whole control clearly secondary to it."""
+    sh = pygame.Surface((rect.width + 8, rect.height + 8), pygame.SRCALPHA)
+    for k in range(4):
+        a = 80 - k * 16
+        pygame.draw.rect(sh, (0, 0, 0, a),
+                         (k, k * 2, rect.width + 8 - k * 2,
+                          rect.height + 8 - k * 2), border_radius=radius)
+    surf.blit(sh, (rect.x - 4, rect.y + 2))
+
+    pnl = pygame.Surface(rect.size, pygame.SRCALPHA)
+    for yy in range(rect.height):
+        t = yy / max(1, rect.height - 1)
+        r = int(_PANEL_LIGHTER[0] * (1 - t) + _PANEL_DARK[0] * t)
+        g = int(_PANEL_LIGHTER[1] * (1 - t) + _PANEL_DARK[1] * t)
+        b = int(_PANEL_LIGHTER[2] * (1 - t) + _PANEL_DARK[2] * t)
+        pygame.draw.line(pnl, (r, g, b, 235), (0, yy), (rect.width - 1, yy))
+    mask = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255),
+                     (0, 0, rect.width, rect.height), border_radius=radius)
+    pnl.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    pygame.draw.rect(pnl, (*_GOLD_BRIGHT, border_alpha),
+                     (0, 0, rect.width, rect.height), width=1, border_radius=radius)
+    pygame.draw.line(pnl, (*_GOLD_PALE, 90), (10, 3), (rect.width - 10, 3), 1)
+    surf.blit(pnl, rect.topleft)
 
 
 def _tracked_label(surf, text, center, size, color=_GOLD_PALE, track=0,
@@ -114,15 +151,15 @@ _TRIO = (("AWARDS", "star"), ("TOP 10", "trophy"), ("SETTINGS", "gear"))
 # Three equal rounded tiles, generous outer margins, compact label over glyph —
 # the matched-trio read of Concept 3 but pulled well clear of the screen edges.
 def trio_inset_equal(surf, cy=TRIO_CY):
-    margin, gap = 32, 10
-    tile_w = (W - margin * 2 - gap * 2) // 3      # ≈ 92
+    margin, gap = 36, 10
+    tile_w = (W - margin * 2 - gap * 2) // 3      # ≈ 89
     rects = []
     x = margin
     for label, kind in _TRIO:
         r = pygame.Rect(x, cy - TILE_H // 2, tile_w, TILE_H)
         _volume_panel(surf, r, radius=13)
-        _tracked_label(surf, label, (r.centerx, cy - 12), 12, track=1)
-        _glyph(surf, kind, r.centerx, cy + 8, 9)
+        _tracked_label(surf, label, (r.centerx, cy - 13), 12, track=1)
+        _glyph(surf, kind, r.centerx, cy + 10, 11)
         rects.append(r)
         x += tile_w + gap
     return rects
@@ -140,8 +177,8 @@ def trio_icon_chips(surf, cy=TRIO_CY):
         r = pygame.Rect(x, cy - h // 2, tile_w, h)
         _volume_panel(surf, r, radius=13)
         _glyph(surf, kind, r.centerx, cy - 5, 12)
-        _tracked_label(surf, label, (r.centerx, cy + 17), 10,
-                       color=_GOLD_HI, track=0, alpha=210)
+        _tracked_label(surf, label, (r.centerx, cy + 15), 10,
+                       color=_GOLD_HI, track=1, alpha=210)
         rects.append(r)
         x += tile_w + gap
     return rects
@@ -151,14 +188,22 @@ def trio_icon_chips(surf, cy=TRIO_CY):
 # No captions — just the three glyphs in small near-circular tiles, the tightest
 # and most inset cluster of the set.
 def trio_icon_only(surf, cy=TRIO_CY):
-    tile, gap = 62, 12
+    tile, gap = 64, 10
     total = tile * 3 + gap * 2
     x = (W - total) // 2
     rects = []
     for _label, kind in _TRIO:
         r = pygame.Rect(x, cy - tile // 2, tile, tile)
         _volume_panel(surf, r, radius=tile // 2)
-        _glyph(surf, kind, r.centerx, r.centery, 13)
+        # With no captions, star (AWARDS) and trophy (TOP 10) both read as
+        # "achievement". A small "10" numeral under the cup pins the trophy
+        # unmistakably to the leaderboard so the two glyphs can't be confused.
+        if kind == "trophy":
+            _draw_trophy(surf, r.centerx, r.centery - 6, int(13 * 0.9))
+            _tracked_label(surf, "10", (r.centerx, r.centery + 15), 13,
+                           color=_GOLD_HI, track=1)
+        else:
+            _glyph(surf, kind, r.centerx, r.centery, 13)
         rects.append(r)
         x += tile + gap
     return rects
@@ -168,23 +213,26 @@ def trio_icon_only(surf, cy=TRIO_CY):
 # One inset rounded panel split into three cells by thin gold dividers, each an
 # icon over a tiny label — reads as a single unified control, clearly narrower.
 def trio_segmented(surf, cy=TRIO_CY):
-    bar_w, h = 300, 56
-    x = (W - bar_w) // 2
+    # The AD asked for 256, but START's pill renders 240 px wide, so 256 would
+    # invert the hierarchy the fix targets. 224 keeps the single-control read
+    # while sitting a clear 8 px inside START's footprint on each side.
+    bar_w, h = 224, 56
+    x = (W - bar_w) // 2                     # → margin 68, inside START's 240
     bar = pygame.Rect(x, cy - h // 2, bar_w, h)
-    _volume_panel(surf, bar, radius=16)
+    _soft_panel(surf, bar, radius=16)
     cell_w = bar_w / 3
     rects = []
     for i, (label, kind) in enumerate(_TRIO):
         ccx = int(x + cell_w * (i + 0.5))
         if i > 0:
             dx = int(x + cell_w * i)
-            pygame.draw.line(surf, (*_GOLD, 90),
+            pygame.draw.line(surf, (*_GOLD, 70),
                              (dx, cy - h // 2 + 10), (dx, cy + h // 2 - 10), 1)
-            pygame.draw.line(surf, (*_NAVY, 160),
+            pygame.draw.line(surf, (*_NAVY, 140),
                              (dx + 1, cy - h // 2 + 10),
                              (dx + 1, cy + h // 2 - 10), 1)
-        _glyph(surf, kind, ccx, cy - 7, 10)
-        _tracked_label(surf, label, (ccx, cy + 16), 9, color=_GOLD_HI, track=0)
+        _glyph(surf, kind, ccx, cy - 7, 11)
+        _tracked_label(surf, label, (ccx, cy + 16), 10, color=_GOLD_HI, track=0)
         rects.append(pygame.Rect(int(x + cell_w * i), bar.y, int(cell_w), h))
     return rects
 
@@ -200,8 +248,8 @@ def trio_stacked(surf, cy=TRIO_CY):
     for label, kind in _TRIO:
         r = pygame.Rect(x, cy - h // 2, tile_w, h)
         _volume_panel(surf, r, radius=14)
-        _tracked_label(surf, label, (r.centerx, r.y + 15), 11, track=1)
-        _glyph(surf, kind, r.centerx, r.y + 46, 13)
+        _tracked_label(surf, label, (r.centerx, r.y + 17), 11, track=1)
+        _glyph(surf, kind, r.centerx, r.y + 48, 13)
         rects.append(r)
         x += tile_w + gap
     return rects
@@ -286,7 +334,7 @@ def compose():
                   True, _GOLD)
     board.blit(t, t.get_rect(center=(board_w // 2, 34)))
     sf = _font(17, True)
-    s = sf.render("Round 1 · same START + Pip above; only the AWARDS / TOP 10 / "
+    s = sf.render("Round 2 · same START + Pip above; only the AWARDS / TOP 10 / "
                   "SETTINGS row varies — all inset from the 360px edges",
                   True, (210, 200, 230))
     board.blit(s, s.get_rect(center=(board_w // 2, 64)))
@@ -322,7 +370,7 @@ def compose():
 if __name__ == "__main__":
     pygame.init()
     pygame.display.set_mode((W, H))
-    out = os.path.join(os.path.dirname(__file__), "round_1.png")
+    out = os.path.join(os.path.dirname(__file__), "round_2.png")
     board = compose()
     pygame.image.save(board, out)
     print("wrote", out, board.get_size())
