@@ -40,13 +40,14 @@ class AboutScene:
     # (text, font size, colour, extra gap above) — laid out top-down, then the
     # whole block is vertically centred in the body.
     LINES = (
-        ("SKYBIT",                      26, _GOLD_BRIGHT, 0),
-        ("Pocket Sky Flyer",            15, _GOLD_PALE,   2),
-        (f"Version {VERSION}",          13, _DIM,         6),
-        ("Every visual drawn from code", 14, _WHITE,      22),
-        ("Audio — Kenney.nl (CC0)",     14, _WHITE,       10),
-        ("Font — Liberation Sans",      14, _WHITE,       10),
-        ("Built with Python + Pygame",  14, _WHITE,       10),
+        ("SKYBIT",                        26, _GOLD_BRIGHT, 0),
+        ("Pocket Sky Flyer",              15, _GOLD_PALE,   2),
+        (f"Version {VERSION}",            14, _GOLD_PALE,   8),
+        # A little self-aware roast for anyone who wanders in here.
+        ("Why did you even click on this?", 14, _WHITE,     30),
+        ("Are you that bored?",           14, _DIM,         8),
+        ("Audio · Kenney.nl (CC0)",       11, _DIM,         30),
+        ("Every visual drawn from code",  11, _DIM,         8),
     )
 
     def __init__(self):
