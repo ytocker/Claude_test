@@ -84,34 +84,33 @@ def _paint_boogie(surf, wing_angle_deg):
     pygame.draw.line(surf, _CREAM_D, (cx - flare + 1, cy + 7),
                      (cx + flare - 1, cy + 7), 1)
 
-    # ── White leisure-suit jacket: two big cream lapels widened into a clean
-    #    bright V-wedge that reads at 40px. No rust shirt strip muddying the
-    #    centre — the V opens onto the base body colour and the gold medallion
-    #    sits in the notch. Kept inside x≈20..44 so the blue wing tip and scarlet
-    #    flank still show past the coat.
-    # Left lapel — a broad cream wedge from the collar down to the open V.
-    left = [(BCX + 1, BCY - 14), (BCX - 15, BCY - 8), (BCX - 13, BCY + 2),
-            (BCX - 1, BCY + 9)]
+    # ── White leisure-suit jacket: two big cream lapels forming a V-wedge on the
+    #    visible forward chest. JX is the jacket V-notch x — shifted right of the
+    #    body centre (BCX=32) to land on the forward-facing breast of the right-
+    #    facing bird. Left lapel folds back toward the dorsal wing, right lapel
+    #    folds forward toward the throat; both meet at the V spine at x=JX.
+    JX = 43
+    # Left lapel — folds from the collar notch back toward the wing root.
+    left = [(JX,      BCY - 14), (JX - 11, BCY - 8),
+            (JX - 9,  BCY + 2),  (JX,      BCY + 9)]
     _poly(surf, _CREAM_D, [(x, y + 1) for x, y in left])
     _poly(surf, _CREAM, left)
-    pygame.draw.line(surf, _CREAM_H, (BCX, BCY - 13), (BCX - 12, BCY - 7), 1)
-    # Right lapel — mirrored, its point breaking toward the near shoulder.
-    right = [(BCX - 1, BCY - 14), (BCX + 13, BCY - 7), (BCX + 11, BCY + 2),
-             (BCX + 1, BCY + 9)]
+    pygame.draw.line(surf, _CREAM_H, (JX, BCY - 13), (JX - 9, BCY - 7), 1)
+    # Right lapel — folds forward toward the throat/collar area.
+    right = [(JX,     BCY - 14), (JX + 9, BCY - 7),
+             (JX + 8, BCY + 2),  (JX,     BCY + 9)]
     _poly(surf, _CREAM_D, [(x, y + 1) for x, y in right])
     _poly(surf, _CREAM, right)
-    pygame.draw.line(surf, _CREAM_H, (BCX, BCY - 13), (BCX + 11, BCY - 6), 1)
-    # Centre keyline so the two cream planes stay distinct where they meet at the
-    # V-notch.
-    pygame.draw.line(surf, _CREAM_D, (BCX, BCY - 13), (BCX, BCY + 8), 1)
+    pygame.draw.line(surf, _CREAM_H, (JX, BCY - 13), (JX + 8, BCY - 6), 1)
+    # Centre keyline so the two cream planes stay distinct at the V-spine.
+    pygame.draw.line(surf, _CREAM_D, (JX, BCY - 13), (JX, BCY + 8), 1)
 
-    # ── Gold medallion, the ONE accent, sitting bright on the cream V — the
-    #    fastest "disco" signal at 40px. Raised to the upper chest just below the
-    #    neck so it reads as a necklace, not a belt buckle. A solid gold disc with
-    #    a dark ring and a single glint; a short chain climbs to the collar points.
-    mx, my = HX - 8, HY + 8         # upper chest, just below the neck
-    pygame.draw.line(surf, _GOLD_D, (HX - 10, HY + 3), (mx, my - 3), 1)
-    pygame.draw.line(surf, _GOLD_D, (HX - 4,  HY + 3), (mx, my - 3), 1)
+    # ── Gold medallion centred on the V-spine — the ONE bright accent at 40px.
+    #    Chain drops from the V-notch apex so it reads as a necklace hanging
+    #    inside the open collar, not a belt buckle.
+    mx, my = JX, BCY - 3            # V-spine, upper chest (43, 49)
+    pygame.draw.line(surf, _GOLD_D, (JX - 2, BCY - 13), (mx, my - 3), 1)
+    pygame.draw.line(surf, _GOLD_D, (JX + 2, BCY - 13), (mx, my - 3), 1)
     pygame.draw.circle(surf, _GOLD_D, (mx, my), 5)      # dark ring
     pygame.draw.circle(surf, _GOLD, (mx, my), 4)        # solid gold disc
     pygame.draw.circle(surf, _GOLD_H, (mx - 1, my - 1), 1)   # glint
