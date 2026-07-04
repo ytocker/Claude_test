@@ -14,7 +14,7 @@ from game.draw import lerp_color
 from game.hud import (
     _font, _outlined_text, _outline_pill_btn,
     _draw_overlay_stars, _draw_mountain_silhouette,
-    _GOLD_BRIGHT, _GOLD_PALE, _NIGHT_DEEP,
+    _GOLD_BRIGHT, _GOLD_PALE, _GOLD_MUTED, _NIGHT_DEEP,
 )
 
 _WHITE = (238, 240, 252)
@@ -43,7 +43,7 @@ class AboutScene:
         ("SKYBIT",                        26, _GOLD_BRIGHT, 0),
         ("Pocket Sky Flyer",              15, _GOLD_PALE,   2),
         (f"Version {VERSION}",            14, _GOLD_PALE,   8),
-        ("The game was built using code",  11, _DIM,        26),
+        ("The game was built using code",  12, _GOLD_MUTED,  6),
     )
 
     def __init__(self):
