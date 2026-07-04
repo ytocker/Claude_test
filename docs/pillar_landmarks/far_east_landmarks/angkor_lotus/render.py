@@ -53,6 +53,8 @@ from game.pillar_pagodas import (
     _prang_corncob, _mosaic_lozenges, _draw_plinth_mist,
     _is_dark_sky, _is_warming_sky, _cap_lit_for_dark_sky, _cap_dark_for_dark_sky,
     _korean_granite, _terracotta, _gold_bright, _bronze,
+    _gold_deep, _vermilion, _porcelain_aqua,
+    _basalt, _basalt_lit, _basalt_shadow,
 )
 from game.pillar_variants import draw_grass_bed
 from game.draw import draw_side_shrub
@@ -73,10 +75,86 @@ PHASE_NIGHT = 0.85               # deep night — checks night rim + finial glea
 # nor the bone-white of Himeji/Potala. All three stops are palette-derived so
 # the biome retint carries; the fixed anchors only fix the archetype hue.
 
-def _sandstone_triad(palette):
+# ── Colorways ────────────────────────────────────────────────────────────────
+#
+# The tower's GEOMETRY (silhouette, redent, bud profile, ledges, fill, mirror) is
+# shared and frozen; a colorway ONLY swaps the anchors/palette-keys the body triad
+# mixes toward. Every triad keeps the `_mix(palette[key], anchor, t)` + lit/mid/
+# shadow discipline so each colorway still retints straight through the 5-min
+# day->night biome sweep — the fixed RGB anchors pin the stone's ARCHETYPE hue,
+# they never freeze it to a raw fill. `_COLORWAY` is set+restored by each wrapper
+# candidate below; None keeps the original grey-gold sandstone.
+
+_COLORWAY = None
+
+
+def _triad_sandstone(palette):
     mid = _mix(_korean_granite(palette), _terracotta(palette), 0.26)   # grey-gold
     lit = _mix(palette['stone_light'], (224, 208, 170), 0.60)          # sunlit face
     sh = _shade(_mix(palette['stone_dark'], (98, 86, 66), 0.80), -4)   # recess
+    return lit, mid, sh
+
+
+def _triad_rose(palette):
+    # Banteay Srei pink-red sandstone — the body is warmed off the grey-gold
+    # granite toward a clay-rose so it reads as the famous rosy Khmer stone.
+    rose = _mix(_terracotta(palette), (200, 118, 110), 0.62)
+    mid = _mix(_korean_granite(palette), rose, 0.44)
+    lit = _mix(palette['stone_light'], (236, 182, 166), 0.60)
+    sh = _shade(_mix(palette['stone_dark'], (124, 66, 60), 0.80), -4)
+    return lit, mid, sh
+
+
+def _triad_basalt(palette):
+    # Weathered volcanic basalt — cool near-black andesite off the shipped
+    # Borobudur triple, a brooding tower that stays legible against any sky.
+    lit = _basalt_lit(palette)
+    mid = _basalt(palette)
+    sh = _shade(_basalt_shadow(palette), -6)
+    return lit, mid, sh
+
+
+def _triad_jade(palette):
+    # Jungle-reclaimed jade-green overgrown stone (Ta Prohm mood) — the body is
+    # pulled to a mossy green, lit with a wet porcelain-aqua sheen.
+    mid = _mix(palette['stone_mid'], (70, 118, 82), 0.55)
+    lit = _mix(_porcelain_aqua(palette), (170, 204, 158), 0.52)
+    sh = _shade(_mix(palette['stone_dark'], (36, 72, 48), 0.82), -4)
+    return lit, mid, sh
+
+
+def _triad_gilt(palette):
+    # Gilded gold-leaf sanctuary — a golden prasat that gleams at night; body is
+    # the shipped Shwedagon gilt graded lit-bright -> deep-gold in the recesses.
+    lit = _gold_bright(palette)
+    mid = _mix(_gold_bright(palette), _gold_deep(palette), 0.50)
+    sh = _shade(_gold_deep(palette), -8)
+    return lit, mid, sh
+
+
+def _triad_sunset(palette):
+    # Warm laterite at golden hour — red-ochre body off terracotta pushed toward
+    # the festival vermilion so the tower glows sunset-warm.
+    mid = _mix(_terracotta(palette), _vermilion(palette), 0.42)
+    lit = _mix(palette['stone_light'], (238, 166, 108), 0.62)
+    sh = _shade(_mix(palette['stone_dark'], (118, 54, 34), 0.82), -4)
+    return lit, mid, sh
+
+
+_TRIADS = {
+    None: _triad_sandstone,
+    'rose': _triad_rose,
+    'basalt': _triad_basalt,
+    'jade': _triad_jade,
+    'gilt': _triad_gilt,
+    'sunset': _triad_sunset,
+}
+
+
+def _sandstone_triad(palette):
+    lit, mid, sh = _TRIADS.get(_COLORWAY, _triad_sandstone)(palette)
+    # Same dark-sky legibility caps for every colorway so night never blows the
+    # lit face out nor sinks the recess to pure black.
     lit = _cap_lit_for_dark_sky(lit, palette, cap=214)
     sh = _cap_dark_for_dark_sky(sh, palette, floor=44)
     return lit, mid, sh
@@ -85,7 +163,16 @@ def _sandstone_triad(palette):
 def _moss(palette):
     # Green-black moss/lichen stain that pools in the carved recesses — pulls
     # `foliage_dark` toward `stone_dark` so the stain reads as weathering, not
-    # a bright leaf.
+    # a bright leaf. Per-colorway the stain re-tints to suit the stone.
+    if _COLORWAY == 'jade':
+        # Jungle-reclaimed: a heavier, greener overgrowth stain.
+        return _mix(palette['foliage_dark'], (56, 104, 64), 0.58)
+    if _COLORWAY == 'gilt':
+        # Bronze relief pooling in the recesses instead of moss.
+        return _bronze(palette)
+    if _COLORWAY == 'basalt':
+        # Cool grey lichen on the near-black stone.
+        return _mix(palette['foliage_dark'], palette['stone_mid'], 0.42)
     return _mix(palette['foliage_dark'], palette['stone_dark'], 0.48)
 
 
@@ -438,6 +525,47 @@ def candidate_angkor_lotus(surf, top_rect, bot_rect, palette, seed):
         surf.blit(pygame.transform.flip(tmp, False, True), (0, top_rect.y))
 
 
+# ── Colorway wrappers ────────────────────────────────────────────────────────
+#
+# Each sets the module colorway, draws the SHARED geometry, then restores the
+# previous colorway (so nested/interleaved draws never leak a colour). Geometry
+# is byte-identical to `candidate_angkor_lotus`; only the material triad changes.
+
+def _draw_colorway(name, surf, top_rect, bot_rect, palette, seed):
+    global _COLORWAY
+    prev = _COLORWAY
+    _COLORWAY = name
+    try:
+        candidate_angkor_lotus(surf, top_rect, bot_rect, palette, seed)
+    finally:
+        _COLORWAY = prev
+
+
+def candidate_angkor_rose(surf, top_rect, bot_rect, palette, seed):
+    """Warm ROSE sandstone — the pink-red Khmer stone of Banteay Srei."""
+    _draw_colorway('rose', surf, top_rect, bot_rect, palette, seed)
+
+
+def candidate_angkor_basalt(surf, top_rect, bot_rect, palette, seed):
+    """Dark volcanic BASALT — a brooding, near-black weathered-stone tower."""
+    _draw_colorway('basalt', surf, top_rect, bot_rect, palette, seed)
+
+
+def candidate_angkor_jade(surf, top_rect, bot_rect, palette, seed):
+    """Mossy JADE-GREEN overgrown stone — the jungle-reclaimed Ta Prohm mood."""
+    _draw_colorway('jade', surf, top_rect, bot_rect, palette, seed)
+
+
+def candidate_angkor_gilt(surf, top_rect, bot_rect, palette, seed):
+    """GILDED gold-leaf sanctuary — a golden prasat that gleams at night."""
+    _draw_colorway('gilt', surf, top_rect, bot_rect, palette, seed)
+
+
+def candidate_angkor_sunset(surf, top_rect, bot_rect, palette, seed):
+    """Warm laterite SUNSET red-ochre — the tower at golden hour."""
+    _draw_colorway('sunset', surf, top_rect, bot_rect, palette, seed)
+
+
 # ── review harness ─────────────────────────────────────────────────────────
 
 def _bg(w, h, pal, ground_line):
@@ -581,6 +709,105 @@ def _blackout(pal, section_h, scale):
                     crop.set_at((bx, by), (18, 18, 22))
     return pygame.transform.scale(
         crop, (crop.get_width() * scale, crop.get_height() * scale))
+
+
+def _hero_fn(pal, seed, cand):
+    """`_hero`, but for an arbitrary colorway candidate fn — a mirrored upright
+    tower against the phase sky, cropped to the finial tips + a ground sliver."""
+    gap_y, gap_h = 168, 150
+    top_h = int(gap_y - gap_h / 2)
+    bot_top = int(gap_y + gap_h / 2)
+    full = pygame.Surface((CACHE_W, CACHE_H), pygame.SRCALPHA)
+    top_rect = pygame.Rect(MARGIN, 0, PIPE_W, top_h)
+    bot_rect = pygame.Rect(MARGIN, bot_top, PIPE_W, GROUND_Y - bot_top)
+    cand(full, top_rect, bot_rect, pal, seed=seed)
+    tip_y = top_h - 6
+    base_y = GROUND_Y + 8
+    hero_h = base_y - tip_y
+    hero = _bg(CACHE_W, hero_h, pal, hero_h - (base_y - GROUND_Y))
+    hero.blit(full, (0, -tip_y))
+    return hero, hero_h
+
+
+def colorways():
+    """Labelled colorway strip: the 5 new colorways + the original sandstone for
+    reference, each an upright hero tower DAY (0.30) with a small NIGHT (0.85)
+    thumbnail beneath to prove every colorway still retints across the biome."""
+    pal_d = biome.palette_for_phase(PHASE_DAY)
+    pal_n = biome.palette_for_phase(PHASE_NIGHT)
+
+    ways = [
+        ("Sandstone", candidate_angkor_lotus),
+        ("Rose",      candidate_angkor_rose),
+        ("Basalt",    candidate_angkor_basalt),
+        ("Jade",      candidate_angkor_jade),
+        ("Gilt",      candidate_angkor_gilt),
+        ("Sunset",    candidate_angkor_sunset),
+    ]
+
+    pad = 12
+    head_h = 74
+    col_w = CACHE_W
+    night_scale = 0.52
+    night_w = int(CACHE_W * night_scale)
+
+    day_cells = []
+    night_cells = []
+    for _, cand in ways:
+        hd, hdh = _hero_fn(pal_d, 7, cand)
+        hn, hnh = _hero_fn(pal_n, 7, cand)
+        hn_s = pygame.transform.smoothscale(
+            hn, (night_w, int(hnh * night_scale)))
+        day_cells.append((hd, hdh))
+        night_cells.append(hn_s)
+
+    day_h = max(h for _, h in day_cells)
+    night_h = max(c.get_height() for c in night_cells)
+    lab_h = 20
+    day_lab_h = 22
+
+    sheet_w = pad + len(ways) * (col_w + pad)
+    sheet_h = head_h + day_h + lab_h + pad + night_h + lab_h + pad * 2
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((24, 22, 26))
+
+    title = pygame.font.SysFont(None, 30)
+    sub = pygame.font.SysFont(None, 18)
+    lab = pygame.font.SysFont(None, 20)
+    labn = pygame.font.SysFont(None, 17)
+
+    sheet.blit(title.render(
+        "angkor_lotus — 5 material COLORWAYS (identical geometry)  ·  colorways",
+        True, (250, 240, 224)), (pad, 12))
+    sheet.blit(sub.render(
+        "one shared redented lotus-bud silhouette; only the palette-derived body "
+        "triad + moss swap  ·  every colorway retints day->night (proof thumbs "
+        "below)  ·  DAY (0.30) hero + NIGHT (0.85) thumb",
+        True, (172, 170, 180)), (pad, 40))
+
+    x = pad
+    for i, (name, _) in enumerate(ways):
+        hd, hdh = day_cells[i]
+        y = head_h + (day_h - hdh)
+        sheet.blit(hd, (x, y))
+        pygame.draw.rect(sheet, (60, 56, 62), (x, y, col_w, hdh), 1)
+        col = (255, 224, 150) if i > 0 else (170, 200, 230)
+        tag = f"{name}" if i > 0 else f"{name} (ref)"
+        sheet.blit(lab.render(tag, True, col), (x + 2, head_h + day_h + 2))
+
+        ny = head_h + day_h + day_lab_h + pad
+        nc = night_cells[i]
+        nx = x + (col_w - nc.get_width()) // 2
+        sheet.blit(nc, (nx, ny))
+        pygame.draw.rect(sheet, (60, 56, 62),
+                         (nx, ny, nc.get_width(), nc.get_height()), 1)
+        sheet.blit(labn.render("night 0.85", True, (150, 150, 170)),
+                   (nx, ny + nc.get_height() + 2))
+        x += col_w + pad
+
+    out = pathlib.Path(__file__).resolve().parent / "colorways.png"
+    pygame.image.save(sheet, out)
+    print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
 
 def main():
@@ -731,3 +958,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    colorways()
