@@ -112,6 +112,28 @@ FAR_EAST_LANDMARKS = [
      "Angkor Wat — lotus-bud sanctuary tower"),
 ]
 
+# Colorway rows: same geometry, palette-swapped. Entry[4] is an explicit badge
+# tag (a string) → drawn as a muted grey chip, NOT numbered. The base cell tags
+# its showcase number (#14 / #16); the recolors tag their colour word.
+_HIM = "far_east_landmarks/himeji_heron/render.py"
+HIMEJI_COLORWAYS = [
+    ("himeji-white", _HIM, "candidate_himeji_heron", "original White Heron", "#14"),
+    ("himeji-crow", _HIM, "candidate_himeji_crow", "black lacquer (Matsumoto)", "black"),
+    ("himeji-vermilion", _HIM, "candidate_himeji_vermilion", "shrine-red lacquer", "red"),
+    ("himeji-gilt", _HIM, "candidate_himeji_gilt", "gold leaf (Kinkaku)", "gold"),
+    ("himeji-azure", _HIM, "candidate_himeji_azure", "blue celadon tile", "blue"),
+    ("himeji-sakura", _HIM, "candidate_himeji_sakura", "cherry-blossom pink", "pink"),
+]
+_ANG = "far_east_landmarks/angkor_lotus/render.py"
+ANGKOR_COLORWAYS = [
+    ("angkor-sandstone", _ANG, "candidate_angkor_lotus", "original grey-gold sandstone", "#16"),
+    ("angkor-rose", _ANG, "candidate_angkor_rose", "rose sandstone (Banteay Srei)", "rose"),
+    ("angkor-basalt", _ANG, "candidate_angkor_basalt", "near-black basalt", "basalt"),
+    ("angkor-jade", _ANG, "candidate_angkor_jade", "jungle jade-green", "jade"),
+    ("angkor-gilt", _ANG, "candidate_angkor_gilt", "gold-leaf prasat", "gilt"),
+    ("angkor-sunset", _ANG, "candidate_angkor_sunset", "laterite sunset red", "sunset"),
+]
+
 
 def _lerp(a, b, t):
     return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
@@ -200,7 +222,9 @@ def main() -> None:
     cell_block_h = ch + caption_h
     rows = [("TEMPLE-MILLS", TEMPLE_MILLS),
             ("JAPANESE TOTEMS", JAPANESE_TOTEMS),
-            ("FAR-EAST LANDMARKS", FAR_EAST_LANDMARKS)]
+            ("FAR-EAST LANDMARKS", FAR_EAST_LANDMARKS),
+            ("#14 HIMEJI — COLORWAYS", HIMEJI_COLORWAYS),
+            ("#16 ANGKOR — COLORWAYS", ANGKOR_COLORWAYS)]
     sheet_w = pad + cols * (cw + pad)
     sheet_h = (head_h + pad
                + (row_header_h + cell_block_h + pad) * len(rows))
@@ -216,8 +240,8 @@ def main() -> None:
         "Skybit — temple-mills + totems + Far-East landmarks",
         True, (245, 240, 230)), (pad, 12))
     sheet.blit(sub.render(
-        "16 matured finals (#1-16) + the 2 originals (SEED) the first two families "
-        "were based on  ·  identical daytime bake (phase 0.30)",
+        "16 finals (#1-16) + 2 seed originals + colorway rows for #14 Himeji & "
+        "#16 Angkor  ·  identical daytime bake (phase 0.30)",
         True, (170, 172, 182)), (pad, 38))
 
     counts = {}
@@ -228,13 +252,15 @@ def main() -> None:
         y_cells = y_row + row_header_h
         for c, entry in enumerate(concepts):
             slug, subpath, fn_name, thesis = entry[:4]
-            is_seed = len(entry) > 4 and entry[4]
+            tag = entry[4] if len(entry) > 4 else None
             fn = _load_candidate(subpath, fn_name, slug)
-            if is_seed:
-                badge_text, seed = "SEED", 13
-            else:
+            if tag is None:                       # a numbered final
                 final_n += 1
-                badge_text, seed = f"#{final_n}", 13 + final_n
+                badge_text, seed, muted = f"#{final_n}", 13 + final_n, False
+            elif tag is True:                     # a SEED original
+                badge_text, seed, muted = "SEED", 13, True
+            else:                                 # explicit chip: #14/#16 ref or colour
+                badge_text, seed, muted = str(tag), 13, True
             tower = bake_tower(fn, seed=seed)
             counts[slug] = _painted_pixels(tower)
 
@@ -245,8 +271,8 @@ def main() -> None:
             pygame.draw.rect(sheet, (60, 62, 72), (x, y_cells, cw, ch), 1)
 
             # Badge, top-left: gold "#N" for finals, muted grey "SEED" for originals.
-            fg = (24, 25, 30) if not is_seed else (232, 234, 240)
-            bg = (255, 224, 150) if not is_seed else (86, 90, 102)
+            fg = (232, 234, 240) if muted else (24, 25, 30)
+            bg = (86, 90, 102) if muted else (255, 224, 150)
             num = serial.render(badge_text, True, fg)
             bw, bh = num.get_width() + 12, num.get_height() + 6
             badge = pygame.Surface((bw, bh), pygame.SRCALPHA)
