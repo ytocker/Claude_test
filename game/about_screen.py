@@ -43,10 +43,7 @@ class AboutScene:
         ("SKYBIT",                        26, _GOLD_BRIGHT, 0),
         ("Pocket Sky Flyer",              15, _GOLD_PALE,   2),
         (f"Version {VERSION}",            14, _GOLD_PALE,   8),
-        # A little self-aware roast for anyone who wanders in here.
-        ("Why did you even click on this?", 14, _WHITE,     30),
-        ("Are you that bored?",           14, _DIM,         8),
-        ("The game was built using code",  11, _DIM,        30),
+        ("The game was built using code",  11, _DIM,        26),
     )
 
     def __init__(self):
