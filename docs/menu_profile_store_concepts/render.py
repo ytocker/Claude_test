@@ -71,32 +71,32 @@ def _draw_cart(surf, cx, cy, size):
 
 
 def _cart_ss(s, B, k):
-    gold, hi, deep, rim = _GLYPH_GOLD, _GLYPH_HI, _GLYPH_DEEP, _GLYPH_RIM
-    lw = max(2, int(1.6 * k))
+    gold, hi, deep = _GLYPH_GOLD, _GLYPH_HI, _GLYPH_DEEP
+    # Basket rim carries trophy-weight stroke so the silhouette survives the
+    # downscale into the larger tiles/pills without the inner detail muddying.
+    rim = max(3, int(2.4 * k))
 
     def P(x, y):
         return (x * B, y * B)
 
-    # Handle bar up to the basket lip.
-    pygame.draw.line(s, gold, P(0.10, 0.20), P(0.26, 0.20), lw)
-    pygame.draw.line(s, gold, P(0.26, 0.20), P(0.34, 0.34), lw)
-    # Basket — trapezoid (wider at top), filled deep with a gold rim.
-    basket = [P(0.30, 0.34), P(0.84, 0.34), P(0.74, 0.62), P(0.40, 0.62)]
+    # Handle bar into the basket lip.
+    pygame.draw.line(s, gold, P(0.12, 0.22), P(0.30, 0.22), rim)
+    pygame.draw.line(s, gold, P(0.30, 0.22), P(0.36, 0.36), rim)
+    # Basket — trapezoid (wider at top), filled deep with a heavy gold rim.
+    # No inner grid ribs: they collapsed to mud at chip scale.
+    basket = [P(0.32, 0.36), P(0.86, 0.36), P(0.76, 0.60), P(0.42, 0.60)]
     pygame.draw.polygon(s, deep, basket)
-    pygame.draw.polygon(s, gold, basket, lw)
-    pygame.draw.line(s, hi, P(0.32, 0.345), P(0.82, 0.345), max(1, k))
-    # Two vertical grid ribs inside the basket.
-    pygame.draw.line(s, gold, P(0.48, 0.35), P(0.52, 0.61), max(1, k))
-    pygame.draw.line(s, gold, P(0.62, 0.35), P(0.63, 0.61), max(1, k))
-    # Wheels.
-    for wx in (0.46, 0.68):
-        pygame.draw.circle(s, gold, P(wx, 0.76), int(0.065 * B))
-        pygame.draw.circle(s, deep, P(wx, 0.76), int(0.065 * B), max(1, k))
+    pygame.draw.polygon(s, gold, basket, rim)
+    pygame.draw.line(s, hi, P(0.35, 0.375), P(0.83, 0.375), max(1, k))
+    # Wheels — vertically balanced so the mass centres on the box axis.
+    for wx in (0.48, 0.70):
+        pygame.draw.circle(s, gold, P(wx, 0.76), int(0.07 * B))
+        pygame.draw.circle(s, deep, P(wx, 0.76), int(0.07 * B), max(1, k))
         pygame.draw.circle(s, hi, (int(wx * B - 0.02 * B), int(0.74 * B)),
                            max(1, int(0.02 * B)))
     # Axle stubs from basket to wheels.
-    pygame.draw.line(s, gold, P(0.40, 0.62), P(0.46, 0.72), lw)
-    pygame.draw.line(s, gold, P(0.74, 0.62), P(0.68, 0.72), lw)
+    pygame.draw.line(s, gold, P(0.42, 0.60), P(0.48, 0.70), rim)
+    pygame.draw.line(s, gold, P(0.76, 0.60), P(0.70, 0.70), rim)
 
 
 def _draw_coinstack(surf, cx, cy, size):
@@ -190,10 +190,15 @@ def _new_pip(surf, cx, cy):
     surf.blit(pill, pill.get_rect(center=(cx, cy)))
 
 
-def _chip(surf, rect, kind, label):
+def _chip(surf, rect, kind, label, cap_track=1, highlight=False):
     """A utility/nav chip: volume panel + centred glyph + tracked caption,
-    matching the shipped AWARDS/TOP 10/SETTINGS trio."""
+    matching the shipped AWARDS/TOP 10/SETTINGS trio. ``highlight`` warms the
+    rim to _GOLD_BRIGHT so a single monetization chip can lead without
+    breaking the row's rhythm; ``cap_track`` drops to 0 for 7-char captions
+    that would otherwise crowd a 64px chip's side padding."""
     _volume_panel(surf, rect, radius=13)
+    if highlight:
+        pygame.draw.rect(surf, _GOLD_BRIGHT, rect, width=2, border_radius=13)
     gy = rect.centery - int(rect.height * 0.14)
     gs = 11 if rect.height < 52 else 12
     if kind == "star":
@@ -207,10 +212,10 @@ def _chip(surf, rect, kind, label):
     elif kind == "coin":
         _draw_coinstack(surf, rect.centerx, gy, gs)
     elif kind == "avatar":
-        _draw_avatar(surf, rect.centerx, gy, gs)
+        _draw_avatar(surf, rect.centerx, gy, gs, ring=True)
     cap_y = rect.bottom - 10
     _tracked_label(surf, label, (rect.centerx, cap_y), 10,
-                   color=_AWSTAR_HI, track=1, alpha=210)
+                   color=_AWSTAR_HI, track=cap_track, alpha=210)
 
 
 # ── The five concepts ────────────────────────────────────────────────────────
@@ -223,12 +228,16 @@ def concept_1(base):
     tw, gap, th = 64, 6, 58
     total = tw * 5 + gap * 4
     tx = (W - total) // 2
+    # Store reads with the coin glyph here — the cart muddied at 64px. STORE
+    # is the only chip with a warmed rim so commerce leads without shouting.
     specs = [("AWARDS", "star"), ("TOP 10", "trophy"), ("PROFILE", "avatar"),
-             ("STORE", "cart"), ("SETTINGS", "gear")]
+             ("STORE", "coin"), ("SETTINGS", "gear")]
     for label, kind in specs:
         r = pygame.Rect(tx, cy - th // 2, tw, th)
-        _chip(f, r, kind, label)
-        if kind == "cart":
+        # 7-char captions crowd the padding — kill their tracking to clear it.
+        cap_track = 0 if label in ("SETTINGS", "PROFILE") else 1
+        _chip(f, r, kind, label, cap_track=cap_track, highlight=(kind == "coin"))
+        if kind == "coin":
             _new_pip(f, r.right - 6, r.top + 2)
         tx += tw + gap
     return f
@@ -242,13 +251,17 @@ def concept_2(base):
     erase_zone(f, band)
 
     # Feature tier — two wide tiles with the glyph on the left, label right.
+    # Nudged down for ~8px of breathing room under the START hero.
     ftw, fgap, fth = 132, 12, 46
-    fy = 496
+    fy = 503
     fx = (W - (ftw * 2 + fgap)) // 2
     for label, kind, is_store in (("PROFILE", "avatar", False),
                                   ("STORE", "cart", True)):
         r = pygame.Rect(fx, fy - fth // 2, ftw, fth)
         _volume_panel(f, r, radius=14)
+        # Commerce leads: STORE rim goes full-bright, PROFILE cools a step.
+        rim_col = _GOLD_BRIGHT if is_store else _GOLD_DEEP
+        pygame.draw.rect(f, rim_col, r, width=2, border_radius=14)
         gx = r.x + 26
         if kind == "avatar":
             _draw_avatar(f, gx, r.centery, 14, ring=True)
@@ -278,27 +291,34 @@ def concept_3(base):
     shipped trio untouched."""
     f = base.copy()
 
-    def corner_badge(cx, cy, kind):
-        r = 26
-        badge = pygame.Surface((r * 2 + 8, r * 2 + 8), pygame.SRCALPHA)
-        c = (r + 4, r + 4)
-        for i in range(5, 0, -1):
-            pygame.draw.circle(badge, (*_GOLD_BRIGHT, 10 * i),
-                               c, r + i)
-        pygame.draw.circle(badge, (*_PANEL_DARK, 235), c, r)
-        pygame.draw.circle(badge, _GOLD_BRIGHT, c, r, 2)
-        f.blit(badge, (cx - c[0], cy - c[1]))
+    # Rounded-rect badges (chip radius + gold rim) so the corners read as the
+    # same system as the shipped bottom trio, not a foreign UI.
+    def corner_badge(cx, cy, size, glow=False):
+        r = pygame.Rect(int(cx - size / 2), int(cy - size / 2),
+                        int(size), int(size))
+        if glow:
+            for i in range(6, 0, -1):
+                gs = pygame.Surface((r.w + 2 * i + 6, r.h + 2 * i + 6),
+                                    pygame.SRCALPHA)
+                pygame.draw.rect(gs, (*_GOLD_BRIGHT, 9 * i), gs.get_rect(),
+                                 border_radius=13 + i)
+                f.blit(gs, gs.get_rect(center=(cx, cy)))
+        _volume_panel(f, r, radius=13)
+        return r
 
-    corner_badge(40, 40, "profile")
-    _draw_crest(f, 40, 39, 15)
-    _tracked_label(f, "PROFILE", (40, 76), 9, color=_AWSTAR_HI, track=1,
-                   alpha=210)
+    # Profile — bust-in-disc (ringed avatar), the clearest read.
+    pr = corner_badge(42, 42, 52)
+    _draw_avatar(f, pr.centerx, pr.centery, 13, ring=True)
+    _tracked_label(f, "PROFILE", (pr.centerx, pr.bottom + 12), 9,
+                   color=_AWSTAR_HI, track=0, alpha=210)
 
-    corner_badge(W - 40, 40, "store")
-    _draw_cart(f, W - 40, 41, 14)
-    _new_pip(f, W - 40 + 20, 40 - 22)
-    _tracked_label(f, "STORE", (W - 40, 76), 9, color=_AWSTAR_HI, track=1,
-                   alpha=210)
+    # Store — enlarged ~15% with a warm glow so it out-discovers Profile;
+    # coin glyph, since the cart muds at this badge size.
+    sr = corner_badge(W - 44, 44, 60, glow=True)
+    _draw_coinstack(f, sr.centerx, sr.centery, 14)
+    _new_pip(f, sr.right - 4, sr.top + 2)
+    _tracked_label(f, "STORE", (sr.centerx, sr.bottom + 12), 9,
+                   color=_AWSTAR_HI, track=0, alpha=210)
     return f
 
 
@@ -316,9 +336,15 @@ def concept_4(base):
                                   ("SETTINGS", "gear", False)):
         r = pygame.Rect(tx, cy - th // 2, tw, th)
         _volume_panel(f, r, radius=14)
+        if is_store:
+            # Warm the commerce tile a step above its neighbours.
+            pygame.draw.rect(f, _GOLD_BRIGHT, r, width=2, border_radius=14)
         gy = r.centery - int(r.height * 0.12)
         if kind == "avatar":
             _draw_avatar(f, r.centerx, gy, 15, ring=True)
+            # Mini trophy pip signals records live inside, so the absorbed
+            # leaderboard stays discoverable from the hub tile.
+            _draw_trophy(f, r.right - 13, r.top + 13, 7)
         elif kind == "cart":
             _draw_cart(f, r.centerx, gy, 15)
         else:
@@ -338,22 +364,33 @@ def concept_5(base):
     band = pygame.Rect(0, 466, W, H - 466)
     erase_zone(f, band)
 
-    # STORE hero — gold outline pill (secondary to START's scarlet) with a
-    # coin stack + NEW badge, so monetization is prominent yet not the CTA.
+    # STORE hero — gold OUTLINE pill (never filled scarlet, so START keeps the
+    # CTA). Shorter than a primary pill (pad_y trimmed ~10%) to widen the value
+    # gap below START; cart glyph reads at this size + NEW badge.
     hero = _outline_pill_btn(f, (W // 2, 500), "STORE", size=17,
-                             min_width=176, pad_x=54)
-    _draw_coinstack(f, hero.x + 26, hero.centery, 13)
+                             min_width=176, pad_x=54, pad_y=8)
+    _draw_cart(f, hero.x + 28, hero.centery, 13)
     _new_pip(f, hero.right - 2, hero.top + 1)
 
     # Bottom row — PROFILE joins a trimmed utility set as four slim chips.
+    # Tight 66px chips: track→0 so captions clear the side padding. A hair of
+    # extra gap after PROFILE separates identity from the records chips.
     cy = H - 66
-    tw, gap, th = 66, 8, 52
-    tx = (W - (tw * 4 + gap * 3)) // 2
-    for label, kind in (("PROFILE", "avatar"), ("AWARDS", "star"),
-                        ("TOP 10", "trophy"), ("SETTINGS", "gear")):
+    tw, gap, th, sep = 66, 6, 52, 12
+    tx = (W - (tw * 4 + gap * 3 + sep)) // 2
+    for i, (label, kind) in enumerate((("PROFILE", "avatar"), ("AWARDS", "star"),
+                                       ("TOP 10", "trophy"),
+                                       ("SETTINGS", "gear"))):
         r = pygame.Rect(tx, cy - th // 2, tw, th)
-        _chip(f, r, kind, label)
-        tx += tw + gap
+        _chip(f, r, kind, label, cap_track=0)
+        if i == 0:
+            # 1px divider in the widened gap between identity and records.
+            dx = r.right + (sep + gap) // 2
+            pygame.draw.line(f, (*_GOLD_DEEP, 160),
+                             (dx, r.top + 8), (dx, r.bottom - 8), 1)
+            tx += tw + gap + sep
+        else:
+            tx += tw + gap
     return f
 
 
@@ -394,7 +431,7 @@ def build_showcase(frames):
                       True, _GOLD_PALE)
     board.blit(title, title.get_rect(center=(board_w // 2, 40)))
     sf = _font(16, True)
-    sub = sf.render("design-only mockup  ·  round 1  ·  START stays the hero",
+    sub = sf.render("design-only mockup  ·  round 2  ·  START stays the hero",
                     True, (170, 170, 200))
     board.blit(sub, sub.get_rect(center=(board_w // 2, 70)))
 
@@ -429,7 +466,7 @@ def main():
               concept_4(base), concept_5(base)]
     board = build_showcase(frames)
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                       "round_1.png")
+                       "round_2.png")
     pygame.image.save(board, out)
     print("wrote", out, board.get_size())
 
