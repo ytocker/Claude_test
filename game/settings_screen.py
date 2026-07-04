@@ -160,11 +160,9 @@ class SettingsScene:
             ("book",  "How to Play",   "Controls & the basics",  "howto",        "nav"),
             ("bolt",  "Power-Ups",     "What every pickup does",  "powerups",     "nav"),
         )),
-        ("SOUND", (
+        ("GENERAL", (
             ("sound", "Sound Effects", "Mute all game audio",     "toggle_sound", "toggle"),
-        )),
-        ("ABOUT", (
-            ("info",  "Credits",       "About Skybit",            "credits",      "nav"),
+            ("info",  "About",         "Credits & version",       "about",        "nav"),
         )),
     )
 

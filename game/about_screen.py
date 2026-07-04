@@ -1,7 +1,7 @@
 """
-Credits / About screen — reached from Settings → Credits. Same night-sky family
-as the Settings and achievements screens (bg + gilded header + grounded MENU
-pill), with a short block of attribution lines. Pure procedural render.
+About screen — reached from Settings → About. Same night-sky family as the
+Settings and achievements screens (bg + gilded header + grounded MENU pill),
+with a short block of credits + version. Pure procedural render.
 """
 from __future__ import annotations
 
@@ -33,8 +33,9 @@ def _star_field():
     return _STARS
 
 
-class CreditsScene:
-    """Static About/Credits page. Publishes menu_btn_rect for the tap router."""
+class AboutScene:
+    """Static About page (credits + version). Publishes menu_btn_rect for the
+    tap router."""
 
     # (text, font size, colour, extra gap above) — laid out top-down, then the
     # whole block is vertically centred in the body.
@@ -68,7 +69,7 @@ class CreditsScene:
         hdr = pygame.Surface((W, _HEADER_H), pygame.SRCALPHA)
         hdr.fill((*_NIGHT_DEEP, 235))
         surf.blit(hdr, (0, 0))
-        _outlined_text(surf, "CREDITS", (W // 2, 16), size=22, px=2,
+        _outlined_text(surf, "ABOUT", (W // 2, 16), size=22, px=2,
                        shadow_offset=(2, 3))
         uw = 152
         ux = W // 2 - uw // 2
