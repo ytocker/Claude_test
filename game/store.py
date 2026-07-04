@@ -419,6 +419,13 @@ class StoreScene:
         self._confirm_panel: "pygame.Rect | None" = None
         self.confirm_yes_rect: "pygame.Rect | None" = None
         self.confirm_no_rect: "pygame.Rect | None" = None
+        # Variant picker (shown before the confirm modal for multi-look skins).
+        self._variant_pick: "str | None" = None
+        self._variant_choice: int = 0
+        self._variant_swatch_rects: "list" = []
+        self._variant_ok_rect: "pygame.Rect | None" = None
+        self._variant_cancel_rect: "pygame.Rect | None" = None
+        self._variant_panel: "pygame.Rect | None" = None
         store_data.load()
         # Per-tab skin lists, cheapest first. PARROTS/SHADES/PARCELS are fronted
         # by a free DEFAULT card so the player can always revert.
@@ -502,7 +509,8 @@ class StoreScene:
 
         self._draw_toast(surf)
         self._draw_back(surf)
-        # The buy-confirmation overlays everything else when active.
+        # Modals overlay everything else when active.
+        self._draw_variant_picker(surf)
         self._draw_confirm(surf)
 
     def _draw_bg(self, surf) -> None:
@@ -708,6 +716,139 @@ class StoreScene:
         surf.blit(panel, bg.topleft)
         surf.blit(timg, timg.get_rect(center=bg.center))
 
+    def _draw_variant_picker(self, surf) -> None:
+        """Team-picker modal shown before the confirm step for multi-look skins."""
+        self._variant_swatch_rects = []
+        self._variant_ok_rect = None
+        self._variant_cancel_rect = None
+        self._variant_panel = None
+        sid = self._variant_pick
+        if sid is None:
+            return
+
+        from game import skin_basketball as _sb
+
+        scrim = pygame.Surface((W, H), pygame.SRCALPHA)
+        scrim.fill((4, 4, 10, 180))
+        surf.blit(scrim, (0, 0))
+
+        pw, ph = 272, 340
+        panel = pygame.Rect((W - pw) // 2, (H - ph) // 2, pw, ph)
+        self._variant_panel = panel
+        _drop_shadow(surf, panel, 18, blur=8, alpha=170)
+        surf.blit(_vgrad_panel(pw, ph, 18, (28, 24, 38), (12, 10, 22), 255),
+                  panel.topleft)
+        pygame.draw.rect(surf, lerp_color(_GOLD_BRIGHT, NEAR_BLACK, 0.45), panel,
+                         width=2, border_radius=18)
+        pygame.draw.rect(surf, (*_GOLD_BRIGHT, 230), panel.inflate(-2, -2),
+                         width=1, border_radius=16)
+
+        cx = panel.centerx
+        head = _font(13, True).render("CHOOSE YOUR TEAM", True, _GOLD_PALE)
+        surf.blit(head, head.get_rect(center=(cx, panel.y + 22)))
+        _gold_rule(surf, panel.x + 28, panel.right - 28, panel.y + 38)
+
+        # 2×2 swatch grid
+        sw, sh = 112, 72
+        gutter = 10
+        gx0 = cx - sw - gutter // 2
+        gx1 = cx + gutter // 2
+        gy0 = panel.y + 52
+        gy1 = gy0 + sh + gutter
+
+        positions = [(gx0, gy0), (gx1, gy0), (gx0, gy1), (gx1, gy1)]
+        for i, (bx, by) in enumerate(positions):
+            rect = pygame.Rect(bx, by, sw, sh)
+            self._variant_swatch_rects.append(rect)
+            col  = _sb.VARIANT_JERSEY[i]
+            trim = _sb.VARIANT_TRIM[i]
+            name = _sb.VARIANT_NAMES[i]
+            num  = _sb.VARIANT_NUMBER[i]
+
+            # Background fill
+            surf.blit(_vgrad_panel(sw, sh, 8,
+                                   lerp_color(col, (255, 255, 255), 0.18),
+                                   lerp_color(col, (0,   0,   0),   0.35)),
+                      rect.topleft)
+
+            # Border — gold + thick if selected, dim otherwise
+            if i == self._variant_choice:
+                pygame.draw.rect(surf, _GOLD_BRIGHT, rect, width=3, border_radius=8)
+                pygame.draw.rect(surf, (*_GOLD_BRIGHT, 120),
+                                 rect.inflate(4, 4), width=2, border_radius=10)
+            else:
+                pygame.draw.rect(surf, lerp_color(col, (200, 200, 220), 0.4),
+                                 rect, width=1, border_radius=8)
+
+            # Jersey number swatch (small coloured rectangle)
+            num_col = trim
+            nf = _font(22, True)
+            nt = nf.render(num, True, num_col)
+            nt.set_alpha(200)
+            surf.blit(nt, nt.get_rect(center=(rect.x + 22, rect.centery)))
+
+            # Team name
+            tf = _font(11, True)
+            tt = tf.render(name, True, trim)
+            surf.blit(tt, tt.get_rect(midleft=(rect.x + 38, rect.centery - 8)))
+
+            # Sub-label: "LAKER" / "BULL" etc. (shorter, dimmer)
+            sub = name.replace("THE ", "")
+            sf = _font(10, False)
+            st2 = sf.render(sub, True, lerp_color(trim, (180, 170, 190), 0.45))
+            surf.blit(st2, st2.get_rect(midleft=(rect.x + 38, rect.centery + 8)))
+
+        # CANCEL / SELECT buttons
+        bw, bh, bgutter = 100, 38, 16
+        bby = panel.bottom - 30
+        nx = cx - (bw * 2 + bgutter) // 2
+        cancel = pygame.Rect(nx, bby - bh // 2, bw, bh)
+        ok     = pygame.Rect(nx + bw + bgutter, bby - bh // 2, bw, bh)
+
+        surf.blit(_vgrad_panel(bw, bh, bh // 2, (70, 62, 80), (44, 38, 56)),
+                  cancel.topleft)
+        pygame.draw.rect(surf, (126, 116, 138), cancel, width=1,
+                         border_radius=bh // 2)
+        ct = _font(14, True).render("CANCEL", True, UI_CREAM)
+        surf.blit(ct, ct.get_rect(center=cancel.center))
+        self._variant_cancel_rect = cancel
+
+        bglow = pygame.Surface((bw + 10, bh + 10), pygame.SRCALPHA)
+        for k in range(4, 0, -1):
+            pygame.draw.rect(bglow, (255, 200, 80, int(22 * k / 4)),
+                             (5 - k, 5 - k, bw + 2 * k, bh + 2 * k),
+                             border_radius=bh // 2 + k)
+        surf.blit(bglow, (ok.x - 5, ok.y - 5), special_flags=pygame.BLEND_ADD)
+        surf.blit(_vgrad_panel(bw, bh, bh // 2,
+                               lerp_color(_GOLD_BRIGHT, WHITE, 0.2), _GOLD_DEEP),
+                  ok.topleft)
+        pygame.draw.rect(surf, _GOLD_PALE, ok, width=1, border_radius=bh // 2)
+        yt = _font(14, True).render("SELECT  ▶", True, (40, 24, 8))
+        surf.blit(yt, yt.get_rect(center=ok.center))
+        self._variant_ok_rect = ok
+
+    def _handle_variant_tap(self, pos) -> None:
+        if pos is None:
+            self._variant_pick = None
+            return None
+        # Tap a swatch → update selection
+        for i, rect in enumerate(self._variant_swatch_rects):
+            if rect.collidepoint(pos):
+                self._variant_choice = i
+                return None
+        if self._variant_ok_rect and self._variant_ok_rect.collidepoint(pos):
+            # Advance to the standard confirm modal with the chosen variant
+            self._confirm = self._variant_pick
+            self._variant_pick = None
+            return None
+        if self._variant_cancel_rect and self._variant_cancel_rect.collidepoint(pos):
+            self._variant_pick = None
+            return None
+        # Tap outside the panel dismisses
+        if self._variant_panel and not self._variant_panel.collidepoint(pos):
+            self._variant_pick = None
+        return None
+
     def _draw_confirm(self, surf) -> None:
         """The buy-confirmation modal: a ~70% scrim + a centred obsidian panel —
         the item on a connected disc+shelf stage, its rarity word, a single price
@@ -810,6 +951,8 @@ class StoreScene:
     def handle_tap(self, pos) -> "str | None":
         # While the buy-confirmation is up it is modal: only its own buttons
         # (and a tap on the scrim, which cancels) are hit-testable.
+        if self._variant_pick is not None:
+            return self._handle_variant_tap(pos)
         if self._confirm is not None:
             return self._handle_confirm_tap(pos)
         # Device back / escape steps OUT one level: category -> hub -> exit store.
@@ -888,7 +1031,11 @@ class StoreScene:
             store_cards.clear_cache()  # EQUIPPED state moved between two cards
             self._flash(self._disp_name(sid) + " EQUIPPED")
             return
-        # Unowned: a tap raises the buy-confirmation; nothing is spent yet.
+        # Unowned: multi-variant skins show a team picker first.
+        if sid == "skin_basketball":
+            self._variant_pick = sid
+            self._variant_choice = 0
+            return
         self._confirm = sid
 
     def _handle_confirm_tap(self, pos) -> None:
@@ -929,6 +1076,10 @@ class StoreScene:
                 # Bind the preview to the sun design just rolled at this unlock.
                 from game import animal_sun
                 animal_sun.sync_from_store()
+            elif sid == "skin_basketball":
+                from game import skin_basketball
+                store_data.set_skin_variant(sid, self._variant_choice)
+                skin_basketball.sync_from_store()
             # Ownership + balance + EQUIPPED all changed: rebuild the cards (this
             # one reveals if it was a masked secret, and now reads EQUIPPED).
             store_cards.clear_cache()

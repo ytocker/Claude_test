@@ -38,18 +38,23 @@ GROUPS = ("costume", "parrot", "animal", "shoes", "hats", "shades", "parcels")
 # the daily reward gives a steady drip toward the higher tiers.
 CATALOG: dict[str, dict] = {
     # ── COSTUMES (accessories/restyles on the macaw) ──────────────────────────
-    "skin_tophat":   {"name": "TOP HAT",   "cost": 260, "kind": "skin", "group": "costume"},
-    "skin_pirate":   {"name": "PIRATE",    "cost": 280, "kind": "skin", "group": "costume"},
-    "skin_skeleton": {"name": "SKELETON",  "cost": 300, "kind": "skin", "group": "costume"},
-    "skin_cowboy":   {"name": "COWBOY",    "cost": 320, "kind": "skin", "group": "costume"},
-    "skin_ninja":    {"name": "NINJA",     "cost": 340, "kind": "skin", "group": "costume"},
-    "skin_viking":   {"name": "VIKING",    "cost": 450, "kind": "skin", "group": "costume"},
-    "skin_zombie":   {"name": "ZOMBIE",    "cost": 480, "kind": "skin", "group": "costume"},
-    "skin_wizard":   {"name": "WIZARD",    "cost": 480, "kind": "skin", "group": "costume"},
-    "skin_astronaut": {"name": "ASTRONAUT", "cost": 650, "kind": "skin", "group": "costume"},
-    "skin_pharaoh":  {"name": "PHARAOH",   "cost": 700, "kind": "skin", "group": "costume"},
-    "skin_crown":    {"name": "CROWN",     "cost": 750, "kind": "skin", "group": "costume"},
-    "skin_disco":    {"name": "DISCO",     "cost": 800, "kind": "skin", "group": "costume"},
+    "skin_pirate":      {"name": "PIRATE",      "cost":  280, "kind": "skin", "group": "costume"},
+    "skin_cowboy":      {"name": "COWBOY",      "cost":  320, "kind": "skin", "group": "costume"},
+    "skin_pharaoh":     {"name": "PHARAOH",     "cost":  380, "kind": "skin", "group": "costume"},
+    "skin_crown":       {"name": "CROWN",       "cost":  450, "kind": "skin", "group": "costume"},
+    "skin_tophat":      {"name": "GENTLEMAN",   "cost":  520, "kind": "skin", "group": "costume"},
+    "skin_ninja":       {"name": "NINJA",       "cost":  560, "kind": "skin", "group": "costume"},
+    "skin_viking":      {"name": "VIKING",      "cost":  600, "kind": "skin", "group": "costume"},
+    "skin_baseball":    {"name": "BASEBALL",    "cost":  950, "kind": "skin", "group": "costume"},
+    "skin_tennis":      {"name": "TENNIS",      "cost": 1000, "kind": "skin", "group": "costume"},
+    "skin_wizard":      {"name": "WIZARD",      "cost":  720, "kind": "skin", "group": "costume"},
+    "skin_basketball":  {"name": "BASKETBALL",  "cost":  950, "kind": "skin", "group": "costume"},
+    "skin_mummy":       {"name": "MUMMY",       "cost": 1100, "kind": "skin", "group": "costume"},
+    "skin_astronaut":   {"name": "ASTRONAUT",   "cost": 2600, "kind": "skin", "group": "costume"},
+    "skin_pilot":       {"name": "CAPTAIN",     "cost": 2200, "kind": "skin", "group": "costume"},
+    "skin_skeleton":    {"name": "SKELETON",    "cost":  300, "kind": "skin", "group": "parrot"},
+    "skin_zombie":      {"name": "ZOMBIE",      "cost":  480, "kind": "skin", "group": "parrot"},
+    "skin_disco":    {"name": "DISCO",     "cost": 800, "kind": "skin", "group": "parrot"},
 
     # ── PARROTS (full-body species recolours) ─────────────────────────────────
     "skin_bluegold":  {"name": "BLUE MACAW",  "cost": 280, "kind": "skin", "group": "parrot"},
@@ -226,7 +231,7 @@ def is_secret(item_id: str) -> bool:
 # every tab spans several tiers and the legendary band is reserved for the
 # genuine showpieces (the dearest animals, parcels, and the secret flyers).
 RARITIES = ("common", "rare", "epic", "legendary")
-_RARITY_BANDS = ((400, "common"), (800, "rare"), (2500, "epic"))
+_RARITY_BANDS = ((500, "common"), (900, "rare"), (2000, "epic"))
 
 
 def rarity(item_id: str) -> str:

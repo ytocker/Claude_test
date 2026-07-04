@@ -13,3 +13,4 @@ analytics/.streamlit/secrets.toml
 .claude/settings.local.json
 docs/snow_full_cover/_*.png
 docs/store_bazaar/**/__pycache__/
+scratchpad_*.png
