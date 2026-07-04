@@ -21,7 +21,7 @@ helpers with a lit/mid/shadow triad, so the 5-min biome day->night retint
 sweeps straight through. Standalone review candidate; wires nothing live.
 
 Run:  python docs/pillar_landmarks/far_east_landmarks/angkor_lotus/render.py
-Out:  docs/pillar_landmarks/far_east_landmarks/angkor_lotus/round_1.png
+Out:  docs/pillar_landmarks/far_east_landmarks/angkor_lotus/round_2.png
 """
 from __future__ import annotations
 
@@ -103,21 +103,33 @@ def _lum(c):
 
 _U_TOP = 0.90                     # bud is drawn to here; finial caps the last 10%
 _CORNICE = max(3.0, PIPE_W * 0.5 * 0.18)   # px the storey ledge juts past the wall
-_TIER_PX = 18                     # px per false-storey -> constant redent cadence
+_TIER_PX = 12                     # px per false-storey -> readable flat-step cadence
+
+# A real prasat bud WAISTS at the base cornice and BULGES to a fat shoulder in
+# its lower third before tucking to a point. `_NECK` seats the bulb on the base;
+# `_SHOULDER` is the widest swell; the shoulder sits in the lower third so the
+# profile reads bulb-bottomed / pinched-top — a bud you could name cold, never
+# a serrated straight cone.
+_NECK = 0.80
+_SHOULDER = 1.04
+_SHOULDER_U = 0.28
 
 
 def _bud_env(u):
-    """Lotus-bud OGIVAL envelope, u=0 at the bud base, u=1 at the finial tip.
-    Swells from the base to a widest 'shoulder' in the lower third, then curves
-    inward to a point — the bullet/beehive profile no pagoda or prang shares."""
+    """Lotus-bud OGIVAL envelope, u=0 at the waisted base neck, u=1 at the
+    finial tip. Pinches at the neck, swells (as a rounded rise, not a straight
+    ramp) to a fat shoulder in the lower third, then tucks in FIRMLY to a point
+    — the bulb/beehive profile no pagoda or prang shares."""
     if u <= 0.0:
-        return 0.86
-    if u < 0.24:
-        # Shoulder swell — the bulge that separates it from a straight taper.
-        return 0.86 + 0.15 * (u / 0.24)
-    v = (u - 0.24) / 0.76
-    # Ogival body: stays full through the shoulder, then accelerates to a point.
-    return max(0.0, (1.0 - v ** 1.85) ** 0.60)
+        return _NECK                       # waist — the bulb seats on the base
+    if u < _SHOULDER_U:
+        # Rounded swell neck -> fat shoulder (sine easing bulges, not flares).
+        s = math.sin((u / _SHOULDER_U) * (math.pi / 2))
+        return _NECK + (_SHOULDER - _NECK) * s
+    v = (u - _SHOULDER_U) / (1.0 - _SHOULDER_U)
+    # Ogival body: holds full through the shoulder, then a firm high-exponent
+    # tuck (steeper than a cone) pinches the outline decisively to the finial.
+    return max(0.0, _SHOULDER * (1.0 - v ** 2.4) ** 0.72)
 
 
 def _redent_hw(u, max_hw, n_tiers):
@@ -130,10 +142,11 @@ def _redent_hw(u, max_hw, n_tiers):
     u_tier = seg - int(seg)
     # Each false-storey steps IN ~16% from its cornice up to its top course.
     w = env * (1.0 - 0.16 * u_tier)
-    # Flat projecting cornice ledge across the bottom third of every storey —
-    # a clean RECTANGULAR step (not a soft rib) so the silhouette reads as a
-    # stack of stepped, redented ledges, the scalloped edge the AD asked for.
-    if u_tier < 0.30:
+    # Flat projecting cornice ledge across the lower ~45% of every storey — a
+    # chunky RECTANGULAR step (not a soft rib) that holds a readable flat ledge
+    # instead of a high-frequency in/out ripple, so the silhouette reads as a
+    # stack of blocky redented ledges, never the prang's fine corncob.
+    if u_tier < 0.45:
         w += _CORNICE
     return w
 
@@ -165,9 +178,10 @@ def _draw_bud(surf, cx, bud_bot, bud_top, max_hw, palette, rng):
     bud_h = bud_bot - bud_top
     if bud_h < 8:
         return
-    # One false-storey per ~18 px so a tall tower gets MORE stepped tiers, not a
-    # longer smooth cone (the corncob cadence principle, blockier here).
-    n_tiers = max(5, bud_h // _TIER_PX)
+    # One false-storey per ~12 px so a tall tower gets MORE stepped tiers, not a
+    # longer smooth cone. Floored so each ledge stays a readable flat step (a
+    # ~58px bud lands ~5-6 clean cornices), never a fuzzy high-frequency edge.
+    n_tiers = max(4, bud_h // _TIER_PX)
 
     left_pts = []
     right_pts = []
@@ -402,7 +416,7 @@ def _draw_tower(surf, cx, y_top, y_bot, palette, seed):
 
     # The finial caps the last stretch; its base half-width matches the bud's
     # chunky top so the join is seamless and the gap-rim edge stays solid.
-    top_hw = _redent_hw(_U_TOP, max_hw, max(5, (bud_bot - bud_top) // _TIER_PX))
+    top_hw = _redent_hw(_U_TOP, max_hw, max(4, (bud_bot - bud_top) // _TIER_PX))
     _draw_finial(surf, cx, bud_top, y_top + 2, top_hw, palette)
 
     draw_grass_bed(surf, cx, base_y - 1, PIPE_W + 12, 12, palette, seed=seed)
@@ -476,6 +490,45 @@ def _gap_rim_clearance(surf, x0, x1, gap_y, up=True):
     return 200
 
 
+def _bud_geom(section_h):
+    """Replicate _draw_tower's height split so a probe knows where the bud body
+    (neck .. shoulder .. finial join) sits in a rendered section."""
+    finial_h = min(20, max(11, int(section_h * 0.11)))
+    base_h = min(int(section_h * 0.42), max(22, int(section_h * 0.30)))
+    plinth_h = min(11, max(6, int(section_h * 0.06)))
+    base_bot = section_h - plinth_h
+    base_top = base_bot - base_h
+    bud_bot = base_top + 2          # y-from-top of the widest bud row
+    bud_top = finial_h              # y-from-top of the bud/finial join
+    n_tiers = max(4, (bud_bot - bud_top) // _TIER_PX)
+    return bud_top, bud_bot, n_tiers
+
+
+def _bud_swell(pal, section_h, seed=7):
+    """Measure the outer silhouette: waisted-neck half-width vs the fat-shoulder
+    peak in the lower third — the make-or-break bulge %."""
+    s = pygame.Surface((CACHE_W, CACHE_H), pygame.SRCALPHA)
+    br = pygame.Rect(MARGIN, GROUND_Y - section_h, PIPE_W, section_h)
+    tr = pygame.Rect(MARGIN, 0, PIPE_W, 0)
+    candidate_angkor_lotus(s, tr, br, pal, seed=seed)
+    cx = MARGIN + PIPE_W // 2
+    bud_top, bud_bot, _ = _bud_geom(section_h)
+    y0 = GROUND_Y - section_h
+    hws = []
+    for y in range(y0 + bud_top, y0 + bud_bot):
+        xs = [x for x in range(CACHE_W) if s.get_at((x, y))[3] > 40]
+        if xs:
+            hws.append((y, max(abs(xs[0] - cx), abs(xs[-1] - cx))))
+    if not hws:
+        return 0, 0, 0.0
+    bud_h = bud_bot - bud_top
+    neck = hws[-1][1]                                    # row nearest the base seam
+    lower = [hw for y, hw in hws if (y0 + bud_bot - y) <= bud_h / 3]
+    shoulder = max(lower) if lower else max(hw for _, hw in hws)
+    swell = 100.0 * (shoulder - neck) / max(1, neck)
+    return neck, shoulder, swell
+
+
 def _hero(pal, seed):
     gap_y, gap_h = 168, 150
     top_h = int(gap_y - gap_h / 2)
@@ -541,6 +594,16 @@ def main():
     print(f"  NIGHT mid={mid_n} lum={_lum(mid_n):.1f}")
     print(f"  day != night: {mid_d != mid_n}")
 
+    # Bud-bulge read: neck waist vs fat-shoulder swell + readable cornice count.
+    print("BUD PROFILE — waisted neck -> fat shoulder (lower third) -> pinched top")
+    print(f"  envelope: neck={_NECK} shoulder={_SHOULDER}  "
+          f"(shoulder/neck = {100.0 * (_SHOULDER - _NECK) / _NECK:.0f}% envelope swell)")
+    for sh_h in (150, 355):
+        neck_px, sh_px, swell = _bud_swell(pal, sh_h)
+        _, _, ledges = _bud_geom(sh_h)
+        print(f"  section {sh_h:3d}px  neck={neck_px}px  shoulder={sh_px}px  "
+              f"swell={swell:.0f}%  cornice-ledges={ledges}")
+
     # Fill gate + core coverage at three section heights.
     print("FILL GATE (worst vertical run of FULLY-empty rows across the 58px band)"
           "  +  centre-core coverage")
@@ -604,7 +667,7 @@ def main():
     sheet.fill((24, 22, 26))
 
     sheet.blit(title.render(
-        "angkor_lotus — Angkor Wat central prasat (redented lotus-bud)  ·  round_1",
+        "angkor_lotus — Angkor Wat central prasat (redented lotus-bud)  ·  round_2",
         True, (250, 240, 224)), (pad, 12))
     sheet.blit(sub.render(
         "red edges = PIPE_W (58px) collision band  ·  grey-gold sandstone  ·  "
@@ -661,7 +724,7 @@ def main():
     sheet.blit(lab.render("1x @ 58px", True, (200, 200, 210)),
                (x, head_h + bo3.get_height() + 24 + bo1.get_height() + 2))
 
-    out = pathlib.Path(__file__).resolve().parent / "round_1.png"
+    out = pathlib.Path(__file__).resolve().parent / "round_2.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
