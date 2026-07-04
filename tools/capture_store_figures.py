@@ -43,11 +43,12 @@ def render_store_pages() -> list[pygame.Surface]:
     app._fetch_pending = False
     app.store = StoreScene()
     app.state = STATE_STORE
-    app.store.tab = 0          # COSTUMES
+    app.store.view = "category"  # item-card grid, not the lagoon hub
+    app.store.tab = 0            # COSTUMES
     pages = []
     for p in range(app.store.n_pages):
         app.store.page = p
-        app.store.update(0.0)
+        app.store.update(1/60)
         app._render()
         pages.append(app.screen.copy())
     return pages
