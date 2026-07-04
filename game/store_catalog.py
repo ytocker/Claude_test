@@ -44,7 +44,7 @@ CATALOG: dict[str, dict] = {
     "skin_cowboy":   {"name": "COWBOY",    "cost": 320, "kind": "skin", "group": "costume"},
     "skin_ninja":    {"name": "NINJA",     "cost": 340, "kind": "skin", "group": "costume"},
     "skin_viking":   {"name": "VIKING",    "cost": 450, "kind": "skin", "group": "costume"},
-    "skin_zombie":   {"name": "ZOMBIE",    "cost": 480, "kind": "skin", "group": "costume"},
+    "skin_zombie":   {"name": "ZOMBIE",    "cost": 480, "kind": "skin", "group": "parrot"},
     "skin_wizard":   {"name": "WIZARD",    "cost": 480, "kind": "skin", "group": "costume"},
     "skin_astronaut": {"name": "ASTRONAUT", "cost": 650, "kind": "skin", "group": "costume"},
     "skin_pharaoh":  {"name": "PHARAOH",   "cost": 700, "kind": "skin", "group": "costume"},
@@ -54,7 +54,7 @@ CATALOG: dict[str, dict] = {
     "skin_basketball":  {"name": "BASKETBALL", "cost": 520, "kind": "skin", "group": "costume"},
     "skin_crown":    {"name": "CROWN",     "cost": 750, "kind": "skin", "group": "costume"},
     "skin_pilot":    {"name": "CAPTAIN",   "cost": 650, "kind": "skin", "group": "costume"},
-    "skin_disco":    {"name": "DISCO",     "cost": 800, "kind": "skin", "group": "costume"},
+    "skin_disco":    {"name": "DISCO",     "cost": 800, "kind": "skin", "group": "parrot"},
 
     # ── PARROTS (full-body species recolours) ─────────────────────────────────
     "skin_bluegold":  {"name": "BLUE MACAW",  "cost": 280, "kind": "skin", "group": "parrot"},
