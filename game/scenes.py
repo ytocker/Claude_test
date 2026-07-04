@@ -598,19 +598,11 @@ class App:
             # feels instant — typical reaction time is well above 0.25 s.
             if self._cooldown_t > 0:
                 return
-            if pos and self.hud.menu_howto_rect \
-                    and self.hud.menu_howto_rect.collidepoint(pos):
-                from game.intro import IntroScene
-                self.intro = IntroScene()
-                self._intro_from_menu = True
-                self.state = STATE_INTRO
-                self._cooldown_t = 0.25
-                return
-            if pos and self.hud.menu_powerups_rect \
-                    and self.hud.menu_powerups_rect.collidepoint(pos):
-                from game.powerup_help import PowerUpHelpScene
-                self.powerup_help = PowerUpHelpScene()
-                self.state = STATE_POWERUPS
+            if pos and self.hud.menu_settings_rect \
+                    and self.hud.menu_settings_rect.collidepoint(pos):
+                # Settings screen is future work — the entry is a no-op stub for
+                # now (swallow the tap so it can't fall through to START; HOW TO
+                # PLAY + POWER-UPS move in here later).
                 self._cooldown_t = 0.25
                 return
             if pos and self.hud.menu_achv_rect \

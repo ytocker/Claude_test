@@ -807,6 +807,66 @@ def _draw_award_star(surf, cx, cy, R=10):
     surf.blit(small, (int(round(cx - box / 2)), int(round(cy - box / 2))))
 
 
+_AWSTAR_NAVY = (12, 8, 38)   # gear centre-hole fill (navy panel family)
+
+
+def _draw_gear(surf, cx, cy, R, teeth=None):
+    """Struck-metal cog — the SETTINGS sibling to the AWARDS star + TOP 10
+    trophy. Supersampled then smoothscaled so teeth + hole stay crisp at the
+    ~18 px tile size. At R<=10 a 6-tooth cog + tight hole keeps the same solid
+    disc-with-teeth weight as the star/trophy; larger renders keep 8 teeth."""
+    if teeth is None:
+        teeth = 6 if R <= 10 else 8
+    hole = 0.24 if R <= 10 else 0.30
+    SS = _AWSTAR_SS
+    box = int(R * 2 + 6)
+    B = box * SS
+    c = B / 2
+    g = pygame.Surface((B, B), pygame.SRCALPHA)
+    Ro = R * SS                 # tooth-tip radius
+    Rb = R * SS * 0.74          # gear-body radius
+    hw = math.radians(360.0 / teeth * 0.34)   # tooth half-angle at the base
+    # Teeth first (trapezoids) so the body disc laps over their inner edge.
+    for i in range(teeth):
+        a = 2 * math.pi * i / teeth
+        pts = [
+            (c + Rb * math.cos(a - hw), c + Rb * math.sin(a - hw)),
+            (c + Ro * math.cos(a - hw * 0.62), c + Ro * math.sin(a - hw * 0.62)),
+            (c + Ro * math.cos(a + hw * 0.62), c + Ro * math.sin(a + hw * 0.62)),
+            (c + Rb * math.cos(a + hw), c + Rb * math.sin(a + hw)),
+        ]
+        pygame.draw.polygon(g, _AWSTAR_RIM, pts)
+        inset = [(px - (px - c) * 0.10, py - (py - c) * 0.10) for px, py in pts]
+        pygame.draw.polygon(g, _AWSTAR_GOLD, inset)
+    # Body disc + dark rim + upper-left sheen so it reads as raised metal.
+    pygame.draw.circle(g, _AWSTAR_GOLD, (c, c), Rb)
+    pygame.draw.circle(g, _AWSTAR_RIM, (c, c), Rb, max(1, int(0.9 * SS)))
+    pygame.draw.circle(g, _AWSTAR_HI, (c - Rb * 0.24, c - Rb * 0.24), Rb * 0.30)
+    pygame.draw.circle(g, _AWSTAR_GOLD, (c, c), Rb * 0.70)
+    pygame.draw.circle(g, _AWSTAR_NAVY, (c, c), R * SS * hole)
+    pygame.draw.circle(g, _AWSTAR_RIMD, (c, c), R * SS * hole, max(1, int(0.9 * SS)))
+    small = pygame.transform.smoothscale(g, (box, box))
+    surf.blit(small, (int(round(cx - box / 2)), int(round(cy - box / 2))))
+
+
+def _tracked_label(surf, text, center, size, color=_GOLD_PALE, track=0, alpha=230):
+    """Render a label with optional per-letter tracking, so a tight menu chip
+    can pull a caption in without the wide 'A W A R D S' letter spacing."""
+    f = _font(size, True)
+    if track == 0:
+        img = f.render(text, True, color)
+        img.set_alpha(alpha)
+        surf.blit(img, img.get_rect(center=center))
+        return
+    glyphs = [f.render(ch, True, color) for ch in text]
+    total = sum(gg.get_width() for gg in glyphs) + track * (len(glyphs) - 1)
+    x = center[0] - total // 2
+    for gg in glyphs:
+        gg.set_alpha(alpha)
+        surf.blit(gg, (x, center[1] - gg.get_height() // 2))
+        x += gg.get_width() + track
+
+
 def _draw_mountain_silhouette(surf, alpha=200):
     """Mountain silhouettes at the bottom — matches the welcome-screen SVG."""
     mtn = pygame.Surface((W, H), pygame.SRCALPHA)
@@ -1605,10 +1665,9 @@ class HUD:
         # by scenes.py click-handling. Pre-init to None so a click that
         # arrives before the first menu render falls through harmlessly.
         self.menu_start_rect: "pygame.Rect | None" = None
-        self.menu_howto_rect: "pygame.Rect | None" = None
-        self.menu_powerups_rect: "pygame.Rect | None" = None
         self.menu_achv_rect: "pygame.Rect | None" = None
         self.menu_top10_rect: "pygame.Rect | None" = None
+        self.menu_settings_rect: "pygame.Rect | None" = None
         # Leaderboard tab hit-rects (CURRENT | LEGACY) — populated each frame
         # by draw_leaderboard in screen space, read by scenes.py to switch
         # boards without dismissing the screen. None until the first draw.
@@ -1663,73 +1722,42 @@ class HUD:
         pygame.draw.line(surf, (*_ORANGE_BORDER, 120),
                          (W // 2 - 70, 208), (W // 2 + 70, 208), 1)
 
-        # Three stacked pill buttons replace the single tap-to-play pill
-        # and the corner `?` button. Centres are computed from each pill's
-        # actual rendered height so the white space between buttons is
-        # even regardless of font metrics; the block is anchored 14 px
-        # above the BEST score panel so the bottom pill always clears it.
-        def _pill_h(text: str, size: int) -> int:
-            return _font(size, True).render(text, True, WHITE).get_height() + 22
-
-        # Three-pill stack — achievements moved out of the stack into the AWARDS
-        # tile below. GAP 10 keeps the block clear of the AWARDS/TOP-10 panels
-        # and the subtitle divider. The bottom pill (POWER-UPS) is anchored where
-        # the old 4th pill sat, so the trio fills the same band; the rest stack up.
-        GAP = 10
-        h_start = _pill_h("START", 22)
-        h_howto = _pill_h("HOW TO PLAY", 18)
-        h_power = _pill_h("POWER-UPS", 18)
-        y_power = (H - 110) - 14 - h_power // 2
-        y_howto = y_power - h_power // 2 - GAP - h_howto // 2
-        y_start = y_howto - h_howto // 2 - GAP - h_start // 2
-
+        # Single primary pill: HOW TO PLAY + POWER-UPS moved into the (future)
+        # Settings screen, so START is recentered + enlarged to own the freed
+        # band instead of sitting cramped atop a now-empty stack.
         btn_alpha = int(225 + math.sin(self.title_t * 3.6) * 30)
-        # dim=True swaps the bright scarlet for the bordeaux variant so
-        # the menu pills sit more quietly in the dark night-sky palette.
+        # dim=True swaps the bright scarlet for the bordeaux variant so the pill
+        # sits more quietly in the dark night-sky palette.
         self.menu_start_rect = _pill_btn(
-            surf, (W // 2, y_start), "START",
-            size=22, alpha=btn_alpha, min_width=220, primary=True, dim=True,
+            surf, (W // 2, 430), "START",
+            size=24, alpha=btn_alpha, min_width=240, primary=True, dim=True,
             shadow=False)
-        self.menu_howto_rect = _pill_btn(
-            surf, (W // 2, y_howto), "HOW TO PLAY",
-            size=18, alpha=230, min_width=220, dim=True, shadow=False)
-        self.menu_powerups_rect = _pill_btn(
-            surf, (W // 2, y_power), "POWER-UPS",
-            size=18, alpha=230, min_width=220, dim=True, shadow=False)
 
-        # Twin panels at the bottom: AWARDS (left) + TOP 10 (right). Same pill
-        # dimensions side-by-side so they read as a matched pair. AWARDS is the
-        # achievements hit-zone — scenes.py routes taps inside
-        # ``self.menu_achv_rect`` to STATE_ACHIEVEMENTS; TOP 10 →
-        # STATE_LEADERBOARD via ``self.menu_top10_rect``.
-        panel_w = 132
-        gap = 8
-        total_w = panel_w * 2 + gap
-        left_x = (W - total_w) // 2
+        # Bottom trio — AWARDS · TOP 10 · SETTINGS as icon-forward chips, inset
+        # and centre-clustered so they clear the screen edges. The glyph carries
+        # each chip with a quiet tracked caption beneath. AWARDS opens the
+        # achievements screen (roster total kept hidden so badges are discovered
+        # in play), TOP 10 the leaderboard, SETTINGS the (stub) settings screen.
+        # Hit-rects are read by scenes.py STATE_MENU routing.
         cy = H - 86
-        lf = _font(13, True)
-
-        # AWARDS panel (left) — a label + struck star, mirroring the TOP 10
-        # tile. No count: the roster total stays hidden so badges are discovered
-        # in play rather than read off a checklist.
-        awards_cx = left_x + panel_w // 2
-        awards_rect = pygame.Rect(left_x, cy - 24, panel_w, 48)
-        _volume_panel(surf, awards_rect, radius=14)
-        a_lbl = lf.render("A W A R D S", True, _GOLD_PALE)
-        a_lbl.set_alpha(230)
-        surf.blit(a_lbl, a_lbl.get_rect(center=(awards_cx, cy - 12)))
-        _draw_award_star(surf, awards_cx, cy + 7, 10)
-        self.menu_achv_rect = awards_rect
-
-        # TOP 10 panel (right) — same volume treatment, trophy glyph.
-        top_cx = left_x + panel_w + gap + panel_w // 2
-        top_rect = pygame.Rect(left_x + panel_w + gap, cy - 24, panel_w, 48)
-        _volume_panel(surf, top_rect, radius=14)
-        top_lbl = lf.render("T O P  10", True, _GOLD_PALE)
-        top_lbl.set_alpha(230)
-        surf.blit(top_lbl, top_lbl.get_rect(center=(top_cx, cy - 12)))
-        _draw_trophy(surf, top_cx, cy + 6, 9)
-        self.menu_top10_rect = top_rect
+        tile_w, tgap, tile_h = 84, 8, 54
+        tx = (W - (tile_w * 3 + tgap * 2)) // 2
+        chips = []
+        for _label, _kind in (("AWARDS", "star"), ("TOP 10", "trophy"),
+                              ("SETTINGS", "gear")):
+            r = pygame.Rect(tx, cy - tile_h // 2, tile_w, tile_h)
+            _volume_panel(surf, r, radius=13)
+            if _kind == "star":
+                _draw_award_star(surf, r.centerx, cy - 5, 12)
+            elif _kind == "trophy":
+                _draw_trophy(surf, r.centerx, cy - 5, 10)
+            else:
+                _draw_gear(surf, r.centerx, cy - 5, 12)
+            _tracked_label(surf, _label, (r.centerx, cy + 15), 10,
+                           color=_AWSTAR_HI, track=1, alpha=210)
+            chips.append(r)
+            tx += tile_w + tgap
+        self.menu_achv_rect, self.menu_top10_rect, self.menu_settings_rect = chips
 
         # The corner `?` help button is intentionally not drawn here —
         # the POWER-UPS pill above replaces it. HelpButton class itself
