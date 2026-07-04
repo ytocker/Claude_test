@@ -10,12 +10,13 @@ _build_frame base for exactly that reason.
 
 At 40px the stack reads, in order of value: (1) an ESPRESSO near-black AFRO
 whose lumpy silhouette separates it from both sandstone pillars (day) and the
-night sky, (2) a clean bright CREAM V-wedge of lapels carrying ONE gold
-medallion dead-centre chest — the fastest disco signal at 40px, (3) a cream
-bell-bottom cuff whose trumpet mouth flares PAST the wing tip into open sky so
-it reads against the background, and (4) chunky cream platform boots on tall
-two-value wood wedges poking below the body. Every object is a bold mass + one
-bright accent so it survives the downscale.
+night sky, (2) a single bright CREAM jacket panel wrapping the forward chest
+with the collar opening as a triangular notch at the throat — a strict side
+profile, not a front-on V — carrying ONE gold medallion on a plunging chain,
+(3) a cream bell-bottom cuff whose trumpet mouth flares PAST the wing tip into
+open sky so it reads against the background, and (4) chunky cream platform boots
+on tall two-value wood wedges poking below the body. Every object is a bold mass
++ one bright accent so it survives the downscale.
 """
 import pygame
 
@@ -84,33 +85,40 @@ def _paint_boogie(surf, wing_angle_deg):
     pygame.draw.line(surf, _CREAM_D, (cx - flare + 1, cy + 7),
                      (cx + flare - 1, cy + 7), 1)
 
-    # ── White leisure-suit jacket: two big cream lapels forming a V-wedge on the
-    #    visible forward chest. JX is the jacket V-notch x — shifted right of the
-    #    body centre (BCX=32) to land on the forward-facing breast of the right-
-    #    facing bird. Left lapel folds back toward the dorsal wing, right lapel
-    #    folds forward toward the throat; both meet at the V spine at x=JX.
-    JX = 43
-    # Left lapel — folds from the collar notch back toward the wing root.
-    left = [(JX,      BCY - 14), (JX - 11, BCY - 8),
-            (JX - 9,  BCY + 2),  (JX,      BCY + 9)]
-    _poly(surf, _CREAM_D, [(x, y + 1) for x, y in left])
-    _poly(surf, _CREAM, left)
-    pygame.draw.line(surf, _CREAM_H, (JX, BCY - 13), (JX - 9, BCY - 7), 1)
-    # Right lapel — folds forward toward the throat/collar area.
-    right = [(JX,     BCY - 14), (JX + 9, BCY - 7),
-             (JX + 8, BCY + 2),  (JX,     BCY + 9)]
-    _poly(surf, _CREAM_D, [(x, y + 1) for x, y in right])
-    _poly(surf, _CREAM, right)
-    pygame.draw.line(surf, _CREAM_H, (JX, BCY - 13), (JX + 8, BCY - 6), 1)
-    # Centre keyline so the two cream planes stay distinct at the V-spine.
-    pygame.draw.line(surf, _CREAM_D, (JX, BCY - 13), (JX, BCY + 8), 1)
+    # ── White leisure-suit jacket, rebuilt in strict SIDE PROFILE. A right-facing
+    #    bird shows only ONE chest panel — the forward-facing breast — not a
+    #    symmetric front-on V. So the coat is a single elongated cream mass hugging
+    #    the body's forward (right) face from the shoulder down to a hem at the
+    #    lower-front. The top edge dips into a triangular COLLAR NOTCH at the
+    #    throat so the scarlet neck shows through the open collar; the wide disco
+    #    LAPEL flares up-and-forward off that notch toward the beak. Everything sits
+    #    at x>=35 so the scarlet body + blue wing still read past the coat on the
+    #    dorsal (left) side.
+    jacket_body = [(35, 44),   # rear shoulder, tucked against the wing root
+                   (42, 41),   # rise to the back lip of the collar
+                   (45, 47),   # notch floor — the throat opening dips in here
+                   (49, 43),   # forward lip of the collar
+                   (51, 50),   # forward chest, at the body's right edge
+                   (49, 59),   # hem, forward
+                   (37, 61)]   # hem, rear
+    _poly(surf, _CREAM_D, [(x, y + 1) for x, y in jacket_body])
+    _poly(surf, _CREAM, jacket_body)
+    # Rear keyline separating the coat from the blue wing behind it.
+    pygame.draw.line(surf, _CREAM_D, (35, 45), (37, 60), 1)
+    # Wide disco lapel — a cream wedge flaring up-and-forward off the collar notch.
+    lapel = [(42, 41), (50, 38), (49, 44), (45, 46)]
+    _poly(surf, _CREAM_D, [(x, y + 1) for x, y in lapel])
+    _poly(surf, _CREAM, lapel)
+    pygame.draw.line(surf, _CREAM_H, (43, 42), (49, 39), 1)   # lapel top-light
+    # Front placket highlight so the single panel reads as buttoned cloth.
+    pygame.draw.line(surf, _CREAM_H, (48, 48), (47, 58), 1)
 
-    # ── Gold medallion centred on the V-spine — the ONE bright accent at 40px.
-    #    Chain drops from the V-notch apex so it reads as a necklace hanging
-    #    inside the open collar, not a belt buckle.
-    mx, my = JX, BCY - 3            # V-spine, upper chest (43, 49)
-    pygame.draw.line(surf, _GOLD_D, (JX - 2, BCY - 13), (mx, my - 3), 1)
-    pygame.draw.line(surf, _GOLD_D, (JX + 2, BCY - 13), (mx, my - 3), 1)
+    # ── Gold medallion on the forward chest, just below the open collar — the ONE
+    #    bright accent at 40px. Two straight chain lines drop from the collar notch
+    #    and converge on the disc so it reads as a necklace inside the open coat.
+    mx, my = HX - 4, HY + 9        # forward chest, below the throat (43, 50)
+    pygame.draw.line(surf, _GOLD_D, (HX - 6, HY + 3), (mx, my - 3), 1)   # (41,44)
+    pygame.draw.line(surf, _GOLD_D, (HX + 0, HY + 3), (mx, my - 3), 1)   # (47,44)
     pygame.draw.circle(surf, _GOLD_D, (mx, my), 5)      # dark ring
     pygame.draw.circle(surf, _GOLD, (mx, my), 4)        # solid gold disc
     pygame.draw.circle(surf, _GOLD_H, (mx - 1, my - 1), 1)   # glint
@@ -121,9 +129,9 @@ def _paint_boogie(surf, wing_angle_deg):
     #    so the head is less top-heavy. Puff centres kept high enough that the near
     #    eye + gold beak still peek out below the hairline. Drawn LAST so it owns
     #    the crown.
-    puffs = ((HX + 2, CROWN_Y - 2, 11), (HX - 4, CROWN_Y + 1, 7),
-             (HX + 6, CROWN_Y, 8),  (HX + 2, CROWN_Y - 7, 8),
-             (HX - 3, CROWN_Y - 4, 6), (HX + 4, CROWN_Y - 6, 6))
+    puffs = ((HX + 4, CROWN_Y - 2, 11), (HX - 2, CROWN_Y + 1, 7),
+             (HX + 8, CROWN_Y, 8),  (HX + 4, CROWN_Y - 7, 8),
+             (HX - 1, CROWN_Y - 4, 6), (HX + 6, CROWN_Y - 6, 6))
     # Near-black keyline first (a fraction larger, individually offset) so each
     # lump bumps the silhouette and the brown mass separates from the scarlet
     # head where they overlap.
@@ -133,13 +141,13 @@ def _paint_boogie(surf, wing_angle_deg):
         pygame.draw.circle(surf, _AFRO, (px, py), r)
     # Curl texture — a few shadow dots on the lower-right face so the dome reads
     # as packed hair, not a smooth helmet.
-    for tx, ty in ((HX + 8, CROWN_Y + 3), (HX + 4, CROWN_Y + 5),
-                   (HX - 2, CROWN_Y + 2)):
+    for tx, ty in ((HX + 10, CROWN_Y + 3), (HX + 6, CROWN_Y + 5),
+                   (HX + 0, CROWN_Y + 2)):
         pygame.draw.circle(surf, _AFRO_TEX, (tx, ty), 2)
     # Cool rim highlight catching light on the top-left curls, following the
     # lump centres so the bumps stay legible.
-    for hx, hy, r in ((HX - 3, CROWN_Y - 4, 3), (HX + 4, CROWN_Y - 8, 3),
-                      (HX + 9, CROWN_Y - 5, 2)):
+    for hx, hy, r in ((HX - 1, CROWN_Y - 4, 3), (HX + 6, CROWN_Y - 8, 3),
+                      (HX + 11, CROWN_Y - 5, 2)):
         pygame.draw.circle(surf, _AFRO_RIM, (hx, hy), r)
 
 
