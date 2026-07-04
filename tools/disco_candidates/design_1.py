@@ -28,7 +28,7 @@ from game.parrot import _build_frame
 # pillars on the day sky AND holds contrast against the night sky — a warm brown
 # fused into both. A slightly lighter face-value + a near-black keyline give the
 # lumps a readable inner form without going milky.
-_AFRO      = (45, 34, 38)           # cool espresso near-black mass
+_AFRO      = (58, 46, 50)           # cool espresso near-black mass, lifted to hold the night sky
 _AFRO_RIM  = (78, 60, 62)           # cool top-left rim so curls catch light
 _AFRO_DK   = (26, 19, 22)           # keyline / lump-fold shadow
 _AFRO_TEX  = (34, 25, 28)           # curl-texture shadow dots
@@ -59,7 +59,7 @@ def _paint_boogie(surf, wing_angle_deg):
     #    their roots and only the chunky soles poke below the silhouette. Taller,
     #    wider wood wedges with a clear two-value step so the disco "lift" reads
     #    below the body even after the downscale; bright cream uppers cap them.
-    for bx in (24, 34):
+    for bx in (23, 35):
         pygame.draw.rect(surf, _CREAM_D, (bx - 5, 69, 11, 7), border_radius=2)
         pygame.draw.rect(surf, _CREAM, (bx - 5, 68, 11, 6), border_radius=2)
         pygame.draw.line(surf, _CREAM_H, (bx - 4, 69), (bx + 4, 69), 1)
@@ -119,8 +119,8 @@ def _paint_boogie(surf, wing_angle_deg):
     mx, my = HX - 4, HY + 9        # forward chest, below the throat (43, 50)
     pygame.draw.line(surf, _GOLD_D, (HX - 6, HY + 3), (mx, my - 3), 1)   # (41,44)
     pygame.draw.line(surf, _GOLD_D, (HX + 0, HY + 3), (mx, my - 3), 1)   # (47,44)
-    pygame.draw.circle(surf, _GOLD_D, (mx, my), 5)      # dark ring
-    pygame.draw.circle(surf, _GOLD, (mx, my), 4)        # solid gold disc
+    pygame.draw.circle(surf, _GOLD_D, (mx, my), 6)      # dark ring
+    pygame.draw.circle(surf, _GOLD, (mx, my), 5)        # solid gold disc
     pygame.draw.circle(surf, _GOLD_H, (mx - 1, my - 1), 1)   # glint
 
     # ── Oversized round AFRO built as a bumpy dome of overlapping puffs so the
@@ -129,9 +129,13 @@ def _paint_boogie(surf, wing_angle_deg):
     #    so the head is less top-heavy. Puff centres kept high enough that the near
     #    eye + gold beak still peek out below the hairline. Drawn LAST so it owns
     #    the crown.
-    puffs = ((HX + 4, CROWN_Y - 2, 11), (HX - 2, CROWN_Y + 1, 7),
-             (HX + 8, CROWN_Y, 8),  (HX + 4, CROWN_Y - 7, 8),
-             (HX - 1, CROWN_Y - 4, 6), (HX + 6, CROWN_Y - 6, 6))
+    puffs = ((HX + 4, CROWN_Y,     11),   # main dome — dropped onto the skull
+             (HX - 2, CROWN_Y + 3, 7),    # rear lower
+             (HX + 8, CROWN_Y + 2, 8),    # front
+             (HX + 4, CROWN_Y - 5, 8),    # top
+             (HX - 1, CROWN_Y - 2, 6),    # back-top
+             (HX + 6, CROWN_Y - 4, 6),    # front-top
+             (HX - 4, CROWN_Y + 3, 5))    # rear anchor overlapping the red crown
     # Near-black keyline first (a fraction larger, individually offset) so each
     # lump bumps the silhouette and the brown mass separates from the scarlet
     # head where they overlap.
@@ -141,13 +145,15 @@ def _paint_boogie(surf, wing_angle_deg):
         pygame.draw.circle(surf, _AFRO, (px, py), r)
     # Curl texture — a few shadow dots on the lower-right face so the dome reads
     # as packed hair, not a smooth helmet.
-    for tx, ty in ((HX + 10, CROWN_Y + 3), (HX + 6, CROWN_Y + 5),
-                   (HX + 0, CROWN_Y + 2)):
+    for tx, ty in ((HX + 10, CROWN_Y + 5), (HX + 6, CROWN_Y + 7),
+                   (HX + 0, CROWN_Y + 4)):
         pygame.draw.circle(surf, _AFRO_TEX, (tx, ty), 2)
-    # Cool rim highlight catching light on the top-left curls, following the
-    # lump centres so the bumps stay legible.
-    for hx, hy, r in ((HX - 1, CROWN_Y - 4, 3), (HX + 6, CROWN_Y - 8, 3),
-                      (HX + 11, CROWN_Y - 5, 2)):
+    # Cool rim highlight running the FULL top arc (left + centre + right) so the
+    # round dome silhouette holds against the night sky, not just one corner.
+    for hx, hy, r in ((HX - 2, CROWN_Y - 3, 3),   # top-left arc
+                      (HX + 4, CROWN_Y - 6, 3),   # top-centre
+                      (HX + 9, CROWN_Y - 3, 2),   # top-right arc
+                      (HX + 12, CROWN_Y + 1, 2)): # forward-top, against beak-sky
         pygame.draw.circle(surf, _AFRO_RIM, (hx, hy), r)
 
 
