@@ -1,14 +1,20 @@
 """DISCO · Design 5 — MIRRORBALL (legendary showpiece candidate).
 
-Pip becomes a walking disco ball: the scarlet macaw shows through, but the
-head is wrapped in a faceted mirror-ball helmet, the chest carries a matching
-mirror-tile vest, spotlight rays fan off the wing, and a sparkle trail drifts
-off the tail onto a little chrome pedestal.
+Pip becomes a walking disco ball: the scarlet macaw shows through, but the head
+is wrapped in a faceted mirror-ball helmet and the chest carries a vest cut from
+the *same* chrome, so head + torso read as one continuous mirror-ball material.
+Bold spotlight wedges throw up-and-forward off the crown and a light-streak
+trails the tail.
+
+Two design bets make the ball survive the 40px downscale: facet tiles are big
+(5px) with near-black grout so their edges keep reading, and two curved
+great-circle seams cross the dome — the universal disco-ball shorthand that
+sells "sphere" at any size, even when the tile grid itself dithers.
 
 The facet glints are re-rolled per wing frame (seeded on the wing angle so the
-result is stable + cacheable) — across the 4-frame flap loop that reads as a
-full-time rotating mirror-ball shimmer, which is the baked-in spectacle the
-legendary tier is meant to earn.
+result is stable + cacheable); across the 4-frame flap loop that reads as a
+full-time rotating mirror-ball shimmer — the baked-in spectacle the legendary
+tier is meant to earn.
 
 Scratch exploration builder — exposes ``build`` for the render harness; NOT
 registered in ``store_skins.BUILDERS``.
@@ -22,49 +28,52 @@ from game.parrot import _build_frame, BIRD_BEAK, BIRD_BEAK_D
 from game.store_skins import _make_skin, _spark, HX, HY, CROWN_Y
 
 
-# Mirror-ball palette (from the concept sheet): a cool silver body lit by three
-# saturated facet glints so every tile can catch a shifting cyan / magenta /
-# hot-white spark without muddying to grey at 40px.
-_SILVER_RIM  = (150, 160, 180)     # dark rim so the dome reads spherical
-_SILVER_BASE = (200, 210, 220)     # helmet/vest base under the tiles
-_TILE_HI     = (232, 236, 245)     # top-lit facet
-_TILE_MID    = (214, 220, 232)     # mid facet
-_TILE_LO     = (176, 187, 205)     # shaded lower facet (rounds the sphere)
+# One neutral silver drives both the helmet and the vest so they read as the
+# same chrome. Kept near-grey (r≈g≈b) on purpose — the R1 palette skewed blue
+# and collapsed the vest into "gingham". Colour lives ONLY in sparse 2px glints.
+_SILVER_RIM  = (140, 146, 156)     # dark rim so the dome reads spherical
+_SILVER_BASE = (198, 203, 209)     # helmet/vest base under the tiles
+_TILE_HI     = (236, 238, 240)     # top-lit facet
+_TILE_MID    = (206, 210, 214)     # mid facet
+_TILE_LO     = (168, 174, 182)     # shaded lower facet (rounds the sphere)
+_GROUT       = (20, 20, 20)        # near-black gap so facet edges survive downscale
+_SEAM        = (66, 70, 80)        # great-circle groove line
 _CYAN        = (63, 224, 255)
 _MAGENTA     = (255, 63, 184)
 _HOTWHITE    = (255, 246, 201)
-_RAY         = (255, 252, 220)     # spotlight-beam yellow-white
-_CHROME_HI   = (226, 232, 242)
-_CHROME_LO   = (120, 132, 152)
+_BEAM        = (255, 252, 220)     # opaque spotlight-wedge core
 
-# Wing beat drives a small ray sweep so the beams feel like light raking a
-# spinning ball rather than a static decal.
-_RAY_SWEEP = 0.05
+# Wing beat nudges the beams so the spotlight rakes as the ball spins rather
+# than reading as a static decal.
+_BEAM_SWEEP = 0.04
 
+# Glints on the ball rotate between the three club colours; the tiles stay
+# silver so cyan/magenta never becomes a field colour.
 _GLINTS = (_CYAN, _MAGENTA, _HOTWHITE)
 
 
-def _tile_grid(surf, cx, cy, clip_fn, rng, *, glint_rate):
-    """Lay a 4×3px mirror-tile grid (1px grout gaps) centred on (cx, cy),
-    keeping only tiles ``clip_fn(tx, ty)`` accepts. Tiles shade top→bottom so
-    the plane reads curved, and a share of them catch a coloured glint so the
-    surface sparkles instead of reading as flat silver."""
-    step_x, step_y = 5, 4          # 4px tile + 1px grout
-    span = 4                       # ~4 tiles each way from centre
+def _tile_grid(surf, cx, cy, clip_fn, rng, *, glint_rate, span, grout_bg):
+    """Lay a big-facet mirror-tile grid centred on (cx, cy), keeping only tiles
+    ``clip_fn`` accepts. Tiles are 5px with a 1px near-black grout gap so the
+    facet edges keep reading after the 64→40px downscale; they shade top→bottom
+    so the plane reads curved, and a share catch a coloured glint. ``grout_bg``
+    stamps a black backing per tile where the surface below isn't already dark
+    (the vest sits on the body, the helmet on its own dark dome)."""
+    tile, step = 5, 6
     for gx in range(-span, span + 1):
         for gy in range(-span, span + 1):
-            tx = cx + gx * step_x - 2
-            ty = cy + gy * step_y - 1
-            if not clip_fn(tx + 2, ty + 1):
+            ccx = cx + gx * step
+            ccy = cy + gy * step
+            if not clip_fn(ccx, ccy):
                 continue
-            # Vertical position picks the facet value; the top catches light,
-            # the belly of the sphere falls into shadow.
+            if grout_bg:
+                pygame.draw.rect(surf, _GROUT, (ccx - 3, ccy - 3, step, step))
             frac = (gy + span) / (2 * span)
             base = _TILE_HI if frac < 0.34 else _TILE_MID if frac < 0.7 else _TILE_LO
-            pygame.draw.rect(surf, base, (tx, ty, 4, 3))
+            pygame.draw.rect(surf, base, (ccx - 2, ccy - 2, tile, tile))
             if rng.random() < glint_rate:
                 gc = _GLINTS[rng.randrange(3)]
-                pygame.draw.rect(surf, gc, (tx + rng.randrange(2), ty + rng.randrange(2), 2, 2))
+                pygame.draw.rect(surf, gc, (ccx - 1, ccy - 1, 2, 2))
 
 
 def _paint_mirrorball(surf, wing_angle_deg):
@@ -72,44 +81,47 @@ def _paint_mirrorball(surf, wing_angle_deg):
     # differ across the 4-frame loop → a rotating-facet shimmer for free.
     rng = random.Random(int(wing_angle_deg) * 131 + 7)
 
-    # ── SPARKLE TRAIL (drawn first so it sits behind the bird) ───────────────
-    # Light dots drifting off the tail into open sky; a couple twinkle per frame
-    # via the seed so the stream feels alive.
-    trail = [(24, 61), (20, 66), (16, 62), (13, 70), (22, 74),
-             (10, 66), (18, 79), (14, 76)]
-    for i, (sx, sy) in enumerate(trail):
-        col = _GLINTS[i % 3]
-        if rng.random() < 0.4:
+    # ── LIGHT-STREAK TRAIL off the tail (drawn first, behind the bird) ────────
+    # A straight horizontal line of shrinking dots trailing the tail tip reads
+    # as motion/light, not scattered damage pips. Cyan + white only.
+    streak = [(14, 55, 2, _CYAN), (10, 55, 1, _HOTWHITE),
+              (6, 55, 1, _CYAN), (3, 55, 1, _HOTWHITE)]
+    for i, (sx, sy, r, col) in enumerate(streak):
+        if i == 0 and rng.random() < 0.5:
             _spark(surf, sx, sy, 2, _HOTWHITE)
         else:
-            pygame.draw.circle(surf, col, (sx, sy), 1 + (i % 2))
+            pygame.draw.circle(surf, col, (sx, sy), r)
 
-    # ── SPOTLIGHT RAYS off the wing (soft alpha beams on a scratch layer) ─────
-    off = int(wing_angle_deg * _RAY_SWEEP)
-    beams = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    wing_hub = (44, HY + 6)        # upper-back wing edge
-    ray_tips = [(64, HY - 12 + off), (62, HY + 2 + off), (58, HY + 16 - off),
-                (40, HY - 18 + off), (26, HY - 12 - off)]
-    for tx, ty in ray_tips:
-        pygame.draw.line(beams, (*_RAY, 150), wing_hub, (tx, ty), 1)
-    # A brighter core spoke so at least one beam survives the downscale.
-    pygame.draw.line(beams, (*_HOTWHITE, 190), wing_hub, ray_tips[0], 1)
-    surf.blit(beams, (0, 0))
+    # ── SPOTLIGHT WEDGES off the crown (opaque so they survive downscale) ─────
+    # 3 thin solid triangles fanning UP-AND-FORWARD off the top of the ball,
+    # like beams thrown upward. Drawn before the dome so their feet tuck under
+    # the silver. A small wing-driven sweep keeps them alive.
+    sweep = wing_angle_deg * _BEAM_SWEEP
+    top = (HX, HY - 12)
+    wedges = [((-3.5, -22), 2.2), ((0.5, -25), 2.6), ((5.0, -20), 2.2)]
+    for (dx, dy), half in wedges:
+        tip = (top[0] + dx + sweep, top[1] + dy)
+        pygame.draw.polygon(surf, _BEAM, [
+            (top[0] - half, top[1]), (top[0] + half, top[1]), tip])
+    # Hot core down the centre beam so at least one stays crisp at 40px.
+    pygame.draw.polygon(surf, _HOTWHITE, [
+        (top[0] - 1, top[1]), (top[0] + 1, top[1]),
+        (top[0] + 0.5 + sweep, top[1] - 25)])
 
-    # ── MIRROR-TILE VEST down the chest ──────────────────────────────────────
-    # Clip to the front of the body ellipse (centre (32,52), rx19 ry14) and to
-    # the chest column so the tiles hug Pip's breast, not the whole belly.
+    # ── MIRROR-TILE VEST down the chest (same chrome as the helmet) ───────────
+    # Clip to the front of the body ellipse and the chest column so the tiles
+    # hug Pip's breast; grout backing makes the facet edges read on the body.
     def _vest_clip(x, y):
         ex = (x - 32) / 19.0
         ey = (y - 52) / 14.0
         return ex * ex + ey * ey <= 0.92 and 29 <= x <= 47 and 42 <= y <= 61
 
-    _tile_grid(surf, 38, 51, _vest_clip, rng, glint_rate=0.28)
+    _tile_grid(surf, 38, 51, _vest_clip, rng, glint_rate=0.18, span=3, grout_bg=True)
 
     # ── MIRROR-BALL HELMET on the head ───────────────────────────────────────
     hcx, hcy = HX, HY - 2
     pygame.draw.circle(surf, _SILVER_RIM, (hcx, hcy), 13)
-    pygame.draw.circle(surf, _SILVER_BASE, (hcx, hcy), 12)
+    pygame.draw.circle(surf, _GROUT, (hcx, hcy), 12)   # grout shows through gaps
 
     # Beak opening: skip any tile whose centre lands over the beak so it pokes
     # through cleanly on the front-right of the dome.
@@ -118,12 +130,19 @@ def _paint_mirrorball(surf, wing_angle_deg):
             return False
         return ((x - 56) / 6.0) ** 2 + ((y - 44) / 4.0) ** 2 > 1.0
 
-    _tile_grid(surf, hcx, hcy, _dome_clip, rng, glint_rate=0.34)
+    _tile_grid(surf, hcx, hcy, _dome_clip, rng, glint_rate=0.30, span=2, grout_bg=False)
 
-    # Spherical read: a bright top-left crescent and a soft lower shade the tile
+    # Two curved great-circle seams — the disco-ball shorthand that instantly
+    # sells "ball" even when the tile grid mushes. One near-horizontal latitude
+    # bulging down the front, one near-vertical longitude bulging forward.
+    pygame.draw.arc(surf, _SEAM, (hcx - 11, hcy - 6, 22, 13), math.pi, 2 * math.pi, 2)
+    pygame.draw.arc(surf, _SEAM, (hcx - 7, hcy - 11, 12, 22), -math.pi / 2, math.pi / 2, 2)
+
+    # Spherical read: an enlarged bright top-left crescent + a hot core the tile
     # grid alone can't guarantee.
-    pygame.draw.circle(surf, _TILE_HI, (hcx - 4, hcy - 6), 3)
-    pygame.draw.circle(surf, _HOTWHITE, (hcx - 5, hcy - 7), 1)
+    pygame.draw.circle(surf, _TILE_HI, (hcx - 4, hcy - 6), 4)
+    pygame.draw.circle(surf, _HOTWHITE, (hcx - 5, hcy - 7), 2)
+    pygame.draw.circle(surf, (255, 255, 255), (hcx - 6, hcy - 8), 1)
 
     # Peek eye so Pip still reads through the helmet — a dark facet with a
     # cyan-lit pupil pip.
@@ -135,13 +154,6 @@ def _paint_mirrorball(surf, wing_angle_deg):
     pygame.draw.polygon(surf, BIRD_BEAK, beak_pts)
     pygame.draw.polygon(surf, BIRD_BEAK_D, beak_pts, 1)
     pygame.draw.line(surf, BIRD_BEAK_D, (52, 44), (58, 45), 1)
-
-    # ── CHROME PEDESTAL under the feet ───────────────────────────────────────
-    # A stubby mount + capsule so the mirror ball reads as if on its stand.
-    pygame.draw.line(surf, _CHROME_LO, (32, 74), (32, 77), 2)
-    pygame.draw.rect(surf, _CHROME_LO, (28, 77, 9, 4), border_radius=2)
-    pygame.draw.rect(surf, _CHROME_HI, (28, 77, 9, 2), border_radius=2)
-    pygame.draw.line(surf, _SILVER_BASE, (29, 79), (35, 79), 1)
 
 
 build = _make_skin(_paint_mirrorball, base_fn=_build_frame)
