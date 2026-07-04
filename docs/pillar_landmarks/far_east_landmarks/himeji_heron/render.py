@@ -56,7 +56,9 @@ from game.pillar_pagodas import (
     _mix, _shade, _gradient_rect, _aa_polyline, _lit_niche, _tile_hatch,
     _eave_tang_curl, _draw_plinth_mist, _is_dark_sky, _is_warming_sky,
     _cap_lit_for_dark_sky, _cap_dark_for_dark_sky,
-    _porcelain_white, _plaster, _bronze, _gold_bright,
+    _porcelain_white, _plaster, _bronze, _gold_bright, _gold_deep,
+    _vermilion, _vermilion_lit, _vermilion_shadow, _lacquer_red,
+    _lapis, _porcelain_aqua, _porcelain_pink, _lotus_pink,
     _korean_granite, _korean_granite_lit, _korean_granite_shadow,
 )
 from game.pillar_variants import draw_grass_bed
@@ -86,7 +88,65 @@ def _clamp(c, lo=0, hi=255):
             max(lo, min(hi, int(c[2]))))
 
 
+# The active colorway. `None` is the canonical White Heron; the colorway
+# wrapper candidates below set + restore this so the SAME geometry re-tints to a
+# different real-world castle material triad. It only swaps the ANCHORS the
+# palette-derived material triads mix toward — silhouette/fill/mirror are
+# untouched — so every colorway still sweeps day->night through the biome.
+_COLORWAY = None
+
+
 def _wall_triad(palette):
+    cw = _COLORWAY
+    if cw == 'crow':
+        # Matsumoto "Crow Castle" black lacquer: near-black walls with only a
+        # faint lacquer sheen. NO dark-sky floor — the walls must stay black; a
+        # LIGHT silver keyline (see _wall_keyline) holds the silhouette against a
+        # dark night sky instead of the usual dark tile edge.
+        base = _mix(palette['stone_dark'], (30, 28, 34), 0.70)
+        lit = _mix(base, (98, 96, 110), 0.5)
+        sh = _mix(base, (10, 10, 16), 0.5)
+        lit = _clamp(lit, hi=118)
+        return lit, base, sh
+    if cw == 'vermilion':
+        # Shrine-red lacquer keep: shu-iro vermilion over cinnabar lacquer.
+        base = _mix(_vermilion(palette), _lacquer_red(palette), 0.5)
+        lit = _mix(base, _vermilion_lit(palette), 0.62)
+        sh = _mix(base, _vermilion_shadow(palette), 0.6)
+        lit = _clamp(lit, hi=232)
+        lit = _cap_lit_for_dark_sky(lit, palette, cap=196)
+        sh = _cap_dark_for_dark_sky(sh, palette, floor=58)
+        return lit, base, sh
+    if cw == 'gilt':
+        # Kinkaku-style gold-leaf donjon: gold-bright over gold-deep. The lit
+        # face is NOT dark-sky-capped so the leaf keeps a night gleam instead of
+        # going matte grey like the plaster keep.
+        base = _mix(_gold_bright(palette), _gold_deep(palette), 0.42)
+        lit = _mix(base, (255, 238, 168), 0.5)
+        sh = _mix(base, _gold_deep(palette), 0.72)
+        lit = _clamp(lit, hi=244)
+        sh = _cap_dark_for_dark_sky(sh, palette, floor=86)
+        return lit, base, sh
+    if cw == 'azure':
+        # Cool porcelain blue-white plaster — same white-holds discipline as the
+        # heron, tinted a half-stop toward pale sky-blue.
+        base = _mix(_plaster(palette), (206, 222, 236), 0.5)
+        lit = _mix(base, (238, 248, 255), 0.5)
+        sh = _mix(base, (138, 156, 178), 0.5)
+        lit = _clamp(lit, hi=234)
+        lit = _cap_lit_for_dark_sky(lit, palette, cap=214)
+        sh = _cap_dark_for_dark_sky(sh, palette, floor=104)
+        return lit, base, sh
+    if cw == 'sakura':
+        # Cherry-blossom castle: soft sakura-pink plaster (lotus + porcelain
+        # pink), same white-holds clamp so a grey tile keyline still bites.
+        base = _mix(_lotus_pink(palette), _porcelain_pink(palette), 0.5)
+        lit = _mix(base, (255, 236, 240), 0.5)
+        sh = _mix(base, (176, 138, 152), 0.5)
+        lit = _clamp(lit, hi=234)
+        lit = _cap_lit_for_dark_sky(lit, palette, cap=214)
+        sh = _cap_dark_for_dark_sky(sh, palette, floor=104)
+        return lit, base, sh
     base = _mix(_plaster(palette), _porcelain_white(palette), 0.42)
     lit = _mix(base, (255, 252, 246), 0.5)
     sh = _mix(base, (150, 152, 164), 0.5)        # cool grey shade -> 3-D volume
@@ -100,9 +160,36 @@ def _wall_triad(palette):
     return lit, base, sh
 
 
+def _wall_keyline(ws, palette):
+    """The 1-px silhouette edge line down each wall. A DARK edge separates a
+    pale wall from the sky, but for the BLACK Crow colorway a dark edge would
+    vanish into a night sky — so the black keep instead gets a LIGHT silver
+    keyline (Matsumoto's white trim). Palette-derived so it retints too."""
+    if _COLORWAY == 'crow':
+        return _mix(palette['stone_light'], (198, 204, 216), 0.6)
+    return ws
+
+
 def _tile_triad(palette):
+    cw = _COLORWAY
+    if cw == 'azure':
+        # Celadon / lapis blue glazed roof tile — dark-and-blue so the gable
+        # peaks still punch the pale walls into stepped silhouette.
+        base = _mix(_lapis(palette), (44, 92, 116), 0.5)
+        lit = _mix(base, _porcelain_aqua(palette), 0.55)
+        sh = _mix(base, (16, 40, 60), 0.6)
+        sh = _cap_dark_for_dark_sky(sh, palette, floor=30)
+        return lit, base, sh
+    if cw == 'sakura':
+        # Neutral grey tile so the pink plaster carries the colour, not the roof.
+        base = _mix(palette['stone_dark'], (92, 92, 102), 0.56)
+        lit = _mix(base, (156, 158, 170), 0.55)
+        sh = _mix(base, (30, 30, 40), 0.62)
+        sh = _cap_dark_for_dark_sky(sh, palette, floor=30)
+        return lit, base, sh
     # Cool blue-grey charcoal roof tile — dark enough to read against any sky so
-    # the gable peaks punch the white keep into stepped silhouette.
+    # the gable peaks punch the white keep into stepped silhouette. Shared by
+    # the heron, crow, vermilion and gilt colorways.
     base = _mix(palette['stone_dark'], (74, 84, 106), 0.56)
     lit = _mix(base, (150, 162, 184), 0.55)
     sh = _mix(base, (26, 30, 44), 0.62)
@@ -111,6 +198,12 @@ def _tile_triad(palette):
 
 
 def _granite_triad(palette):
+    if _COLORWAY == 'gilt':
+        # Bronze plinth under the gilt keep so the gold doesn't sit on grey.
+        base = _bronze(palette)
+        lit = _mix(base, (196, 158, 96), 0.5)
+        sh = _shade(base, -34)
+        return lit, base, sh
     return (_korean_granite_lit(palette),
             _korean_granite(palette),
             _korean_granite_shadow(palette))
@@ -295,8 +388,9 @@ def _draw_tier(surf, cx, wall_top, wall_bot, half, upper_half, palette, gable_ki
     _gradient_rect(surf, pygame.Rect(x_l, wall_top, half * 2, th), wl, wm, ws)
     # Faint corner-quoin shadows so the white block reads as framed masonry,
     # and a grey silhouette keyline so the wall never merges with a pale sky.
-    pygame.draw.line(surf, ws, (x_l, wall_top), (x_l, wall_bot - 1), 1)
-    pygame.draw.line(surf, ws, (x_l + half * 2 - 1, wall_top),
+    key = _wall_keyline(ws, palette)
+    pygame.draw.line(surf, key, (x_l, wall_top), (x_l, wall_bot - 1), 1)
+    pygame.draw.line(surf, key, (x_l + half * 2 - 1, wall_top),
                      (x_l + half * 2 - 1, wall_bot - 1), 1)
     # A single nageshi shadow rail mid-wall.
     if th > 12:
@@ -386,8 +480,9 @@ def _draw_crown(surf, cx, y_top, crown_bot, half, palette):
     wall_top = crown_bot - wall_h
     _gradient_rect(surf, pygame.Rect(cx - half, wall_top, half * 2, wall_h),
                    wl, wm, ws)
-    pygame.draw.line(surf, ws, (cx - half, wall_top), (cx - half, crown_bot), 1)
-    pygame.draw.line(surf, ws, (cx + half - 1, wall_top),
+    key = _wall_keyline(ws, palette)
+    pygame.draw.line(surf, key, (cx - half, wall_top), (cx - half, crown_bot), 1)
+    pygame.draw.line(surf, key, (cx + half - 1, wall_top),
                      (cx + half - 1, crown_bot), 1)
     if wall_h > 6:
         _lit_niche(surf, cx, wall_top + 2, min(6, half), min(6, wall_h - 3),
@@ -574,6 +669,54 @@ def candidate_himeji_heron(surf, top_rect, bot_rect, palette, seed):
         tmp = pygame.Surface((surf.get_width(), top_rect.height), pygame.SRCALPHA)
         _draw_tower(tmp, top_rect.centerx, 0, top_rect.height, palette, seed + 1)
         surf.blit(pygame.transform.flip(tmp, False, True), (0, top_rect.y))
+
+
+# ── Colorways ────────────────────────────────────────────────────────────────
+#
+# Five real-world-plausible Japanese-castle looks over the EXACT heron geometry.
+# Each wrapper sets the module-level `_COLORWAY` (which only re-anchors the
+# palette-derived material triads), draws, then restores it — the pagoda
+# `_swap_globals` discipline. Silhouette, tier count, gables, fill and mirror
+# are byte-for-byte identical to `candidate_himeji_heron`; only the material
+# colours change, and every colorway still retints day->night.
+
+def _draw_colorway(name, surf, top_rect, bot_rect, palette, seed):
+    global _COLORWAY
+    prev = _COLORWAY
+    _COLORWAY = name
+    try:
+        candidate_himeji_heron(surf, top_rect, bot_rect, palette, seed)
+    finally:
+        _COLORWAY = prev
+
+
+def candidate_himeji_crow(surf, top_rect, bot_rect, palette, seed):
+    """Matsumoto "Crow Castle" — black lacquered walls + dark tile, silver/white
+    keyline trim, gold finials."""
+    _draw_colorway('crow', surf, top_rect, bot_rect, palette, seed)
+
+
+def candidate_himeji_vermilion(surf, top_rect, bot_rect, palette, seed):
+    """Shrine-red keep — vermilion/cinnabar lacquer walls + dark tile + gold."""
+    _draw_colorway('vermilion', surf, top_rect, bot_rect, palette, seed)
+
+
+def candidate_himeji_gilt(surf, top_rect, bot_rect, palette, seed):
+    """Kinkaku-style gilt — gold-leaf walls + dark tile + bronze base; the leaf
+    keeps a night gleam."""
+    _draw_colorway('gilt', surf, top_rect, bot_rect, palette, seed)
+
+
+def candidate_himeji_azure(surf, top_rect, bot_rect, palette, seed):
+    """Azure keep — celadon/lapis blue-tile roofs + pale porcelain blue-white
+    walls + gold."""
+    _draw_colorway('azure', surf, top_rect, bot_rect, palette, seed)
+
+
+def candidate_himeji_sakura(surf, top_rect, bot_rect, palette, seed):
+    """Cherry-blossom castle — soft sakura-pink plaster walls + grey tile +
+    gold."""
+    _draw_colorway('sakura', surf, top_rect, bot_rect, palette, seed)
 
 
 # ── review harness ──────────────────────────────────────────────────────────
@@ -935,5 +1078,102 @@ def main():
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
 
+# ── colorway strip ───────────────────────────────────────────────────────────
+
+def _colorway_hero(candidate_fn, pal, seed):
+    """One upright hero keep in the given colorway on its biome sky — the same
+    framing as the round_2 HERO tile."""
+    gap_y, gap_h = 172, 150
+    top_h = int(gap_y - gap_h / 2)
+    bot_top = int(gap_y + gap_h / 2)
+    full = pygame.Surface((CACHE_W, CACHE_H), pygame.SRCALPHA)
+    top_rect = pygame.Rect(MARGIN, 0, PIPE_W, top_h)
+    bot_rect = pygame.Rect(MARGIN, bot_top, PIPE_W, GROUND_Y - bot_top)
+    candidate_fn(full, top_rect, bot_rect, pal, seed)
+    tip_y = top_h - 8
+    base_y = GROUND_Y + 8
+    hero_h = base_y - tip_y
+    hero = _bg(CACHE_W, hero_h, pal, hero_h - (base_y - GROUND_Y))
+    hero.blit(full, (0, -tip_y))
+    return hero, hero_h
+
+
+def colorways_main():
+    """Labelled strip: the 5 colorways + the original White Heron for reference,
+    each an upright DAY (0.30) hero with a small NIGHT (0.85) retint thumbnail
+    to prove every colorway sweeps through the biome."""
+    pal_d = biome.palette_for_phase(PHASE_DAY)
+    pal_n = biome.palette_for_phase(PHASE_NIGHT)
+
+    entries = [
+        ("White Heron", "white  (reference)", candidate_himeji_heron),
+        ("Crow", "black  lacquer", candidate_himeji_crow),
+        ("Vermilion", "red  lacquer", candidate_himeji_vermilion),
+        ("Gilt", "gold  leaf", candidate_himeji_gilt),
+        ("Azure", "blue  celadon", candidate_himeji_azure),
+        ("Sakura", "pink  plaster", candidate_himeji_sakura),
+    ]
+
+    heroes = []                   # (title, sub, day_surf, night_thumb)
+    for title, sub, fn in entries:
+        day, dh = _colorway_hero(fn, pal_d, 7)
+        night, nh = _colorway_hero(fn, pal_n, 7)
+        thumb_w = night.get_width() // 2
+        thumb = pygame.transform.smoothscale(night, (thumb_w, nh // 2))
+        heroes.append((title, sub, day, thumb))
+
+    pad = 14
+    head_h = 78
+    col_w = CACHE_W
+    thumb_h = heroes[0][3].get_height()
+    day_h = heroes[0][2].get_height()
+    label_h = 40
+    body_h = day_h + 6 + thumb_h + label_h
+
+    sheet_w = pad + len(heroes) * (col_w + pad)
+    sheet_h = head_h + body_h + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((24, 25, 30))
+
+    title_f = pygame.font.SysFont(None, 30)
+    sub_f = pygame.font.SysFont(None, 18)
+    lab_f = pygame.font.SysFont(None, 21)
+    tag_f = pygame.font.SysFont(None, 17)
+
+    sheet.blit(title_f.render(
+        "himeji_heron — 5 colorways  ·  identical geometry, material re-tint only",
+        True, (245, 240, 230)), (pad, 12))
+    sheet.blit(sub_f.render(
+        "SAME silhouette / tier count / gables / fill / mirror as round_2 — only the palette-derived "
+        "material triads swap anchors  ·  big tile = DAY (0.30), small = NIGHT (0.85) to prove the biome retint",
+        True, (170, 172, 182)), (pad, 42))
+    sheet.blit(sub_f.render(
+        "Crow keeps a LIGHT silver keyline so the black holds vs a night sky; the others keep the dark tile edge  ·  "
+        "gilt leaf keeps a night gleam  ·  gold shachihoko + night window glow on every colorway",
+        True, (150, 210, 160)), (pad, 60))
+
+    x = pad
+    for title, sub, day, thumb in heroes:
+        y = head_h
+        sheet.blit(day, (x, y))
+        pygame.draw.rect(sheet, (60, 62, 72), (x, y, col_w, day_h), 1)
+        ty = y + day_h + 6
+        sheet.blit(thumb, (x + (col_w - thumb.get_width()) // 2, ty))
+        pygame.draw.rect(sheet, (60, 62, 72),
+                         (x + (col_w - thumb.get_width()) // 2, ty,
+                          thumb.get_width(), thumb.get_height()), 1)
+        ly = ty + thumb.get_height() + 6
+        sheet.blit(lab_f.render(title, True, (255, 224, 150)), (x, ly))
+        sheet.blit(tag_f.render(sub, True, (176, 180, 192)), (x, ly + 18))
+        x += col_w + pad
+
+    out = pathlib.Path(__file__).resolve().parent / "colorways.png"
+    pygame.image.save(sheet, out)
+    print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
+
+
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1 and sys.argv[1] == "colorways":
+        colorways_main()
+    else:
+        main()
