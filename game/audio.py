@@ -30,6 +30,11 @@ import pygame
 
 _IS_BROWSER = sys.platform == "emscripten"
 
+# Global SFX mute (Settings → Sound Effects). Read by both backends' _play()
+# and mirrored to the JS side (window.__skMuted) so the browser's UI button
+# clicks — which call skyPlay directly — fall silent too.
+_muted = False
+
 _SOUND_DIR = os.path.join(os.path.dirname(__file__), "assets", "sounds")
 
 _SOUND_FILES = (
@@ -69,6 +74,8 @@ if _IS_BROWSER:
 
     def _play(name: str, volume: float) -> None:
         global _logged_once
+        if _muted:
+            return
         if _skyPlay is None:
             _resolve()
         if _skyPlay is None:
@@ -166,12 +173,34 @@ else:
     # ── core dispatch ──────────────────────────────────────────────────────
 
     def _play(name: str, volume: float = 1.0) -> None:
-        if not _mixer_ok:
+        if _muted or not _mixer_ok:
             return
         s = _sounds.get(name)
         if s is None:
             return
         _play_sound(name, s, volume)
+
+
+# ── Mute control (identical on both backends) ───────────────────────────────
+
+def set_muted(m: bool) -> None:
+    """Globally silence / unsilence all SFX. On the web build this also sets
+    ``window.__skMuted`` so the JS button-click sounds (which call skyPlay
+    directly, bypassing Python) stay muted too."""
+    global _muted
+    _muted = bool(m)
+    if _IS_BROWSER:
+        try:
+            import platform as _pgb  # type: ignore
+            win = getattr(_pgb, "window", None)
+            if win is not None:
+                win.__skMuted = _muted
+        except Exception:
+            pass
+
+
+def is_muted() -> bool:
+    return _muted
 
 
 # ── Public API (identical on both backends) ─────────────────────────────────

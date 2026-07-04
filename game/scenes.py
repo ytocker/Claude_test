@@ -413,6 +413,7 @@ STATE_POWERUPS = 8
 STATE_ACHIEVEMENTS = 9
 STATE_ACHV_EARNED = 10
 STATE_SETTINGS = 11
+STATE_CREDITS = 12
 
 # Background cloud depth slots: (base_x, base_y, scale). Geometry is fixed so the
 # parallax-depth spread stays good; all slots share one cloud design per run,
@@ -431,6 +432,9 @@ class App:
         self.screen = pygame.display.set_mode((W, H))
         self.clock = pygame.time.Clock()
         audio.init()
+        # Apply the saved SFX-mute preference (device-local) before the first sound.
+        from game import prefs
+        audio.set_muted(prefs.get_muted())
         self.world = World()
         self.hud = HUD()
         self.session_best = 0
@@ -460,6 +464,8 @@ class App:
         # Settings screen — built lazily when opened from the menu SETTINGS chip,
         # torn down on dismiss. Holds the How to Play / Power-Ups launchers.
         self.settings: object | None = None
+        # Credits/About screen — built lazily when opened from Settings.
+        self.credits: object | None = None
         # Sub-screen return targets: How to Play (intro) and Power-Ups (explainer)
         # opened from Settings come back to STATE_SETTINGS instead of the menu.
         self._intro_return_state: "int | None" = None
@@ -616,7 +622,19 @@ class App:
                         self._open_howto_from_settings()
                     elif action == "powerups":
                         self._open_powerups_from_settings()
+                    elif action == "toggle_sound":
+                        self._toggle_sound()
+                    elif action == "credits":
+                        self._open_credits()
                     return
+            return
+        if self.state == STATE_CREDITS:
+            if self._cooldown_t > 0:
+                return
+            sc = self.credits
+            mb = getattr(sc, "menu_btn_rect", None) if sc is not None else None
+            if pos is None or mb is None or mb.collidepoint(pos):
+                self._close_credits()   # MENU pill (or ESC/key) → back to Settings
             return
         if self.state == STATE_MENU:
             # Single shared cooldown gate for every menu action. This is
@@ -737,6 +755,28 @@ class App:
     def _close_settings(self):
         self.settings = None
         self.state = STATE_MENU
+        self._cooldown_t = 0.25
+
+    def _toggle_sound(self):
+        """Sound Effects row → flip the device-local SFX mute + apply it live."""
+        from game import prefs
+        new_muted = not prefs.get_muted()
+        prefs.set_muted(new_muted)
+        audio.set_muted(new_muted)
+        self._cooldown_t = 0.25
+
+    def _open_credits(self):
+        from game.credits_screen import CreditsScene
+        self.credits = CreditsScene()
+        self.state = STATE_CREDITS
+        self._cooldown_t = 0.25
+
+    def _close_credits(self):
+        self.credits = None
+        if self.settings is None:      # defensive: Settings is normally still alive
+            from game.settings_screen import SettingsScene
+            self.settings = SettingsScene()
+        self.state = STATE_SETTINGS
         self._cooldown_t = 0.25
 
     def _open_howto_from_settings(self):
@@ -1132,6 +1172,11 @@ class App:
                 self.settings.update(dt)
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
             return
+        if self.state == STATE_CREDITS:
+            if self.credits is not None:
+                self.credits.update(dt)
+            self._cooldown_t = max(0.0, self._cooldown_t - dt)
+            return
         if self.state == STATE_ACHV_EARNED:
             if self.achv_earned is not None:
                 self.achv_earned.update(dt)
@@ -1521,6 +1566,10 @@ class App:
         # Settings screen paints its own night background + launcher rows.
         if self.state == STATE_SETTINGS and self.settings is not None:
             self.settings.render(self.screen, 1 / 60)
+            return
+        # Credits/About screen paints its own night background.
+        if self.state == STATE_CREDITS and self.credits is not None:
+            self.credits.render(self.screen, 1 / 60)
             return
         sx, sy = self.world.shake_offset() if self.state == STATE_PLAY else (0, 0)
         sx, sy = int(sx), int(sy)

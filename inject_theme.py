@@ -1013,6 +1013,19 @@ _TELEMETRY_JS = """
         catch (e) {}
     }
 
+    /* Device-local settings (mute, …). Same synchronous localStorage pattern
+       as achievements but a separate key and NO cloud mirror — preferences are
+       per-device and must not sync across devices. */
+    var SETTINGS_KEY = 'skybit_settings';
+    function settingsLoad() {
+        try { return window.localStorage.getItem(SETTINGS_KEY) || ''; }
+        catch (e) { return ''; }
+    }
+    function settingsSave(payload) {
+        try { window.localStorage.setItem(SETTINGS_KEY, String(payload || '')); }
+        catch (e) {}
+    }
+
     /* Cloud backup of the profile blob (device copy + Supabase mirror). One
        `profiles` row per device, keyed by the anon device UUID. profile_push
        upserts (fire-and-forget); profile_pull fetches this device's row and
@@ -1100,6 +1113,8 @@ _TELEMETRY_JS = """
             case 'log_done':     return rLog;
             case 'ach_load':     return achLoad();
             case 'ach_save':     achSave(payload); return null;
+            case 'settings_load': return settingsLoad();
+            case 'settings_save': settingsSave(payload); return null;
             case 'profile_push':       doProfilePush(payload); return null;
             case 'profile_push_done':  return rProfilePush;
             case 'profile_pull':       doProfilePull();        return null;
@@ -1155,6 +1170,9 @@ _AUDIO_JS = """
     }
 
     window.skyPlay = function (name, volume) {
+        /* Global SFX mute (Settings → Sound Effects). One guard here silences
+           both the game sounds and the UI button clicks that call skyPlay. */
+        if (window.__skMuted) return;
         loadSnd(name).then(function (buf) {
             var ac = getCtx();
             var src = ac.createBufferSource();

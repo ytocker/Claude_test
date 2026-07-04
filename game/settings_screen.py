@@ -12,6 +12,7 @@ import random
 
 import pygame
 
+from game import prefs
 from game.config import W, H
 from game.draw import lerp_color
 from game.hud import (
@@ -108,17 +109,63 @@ def _g_bolt(surf, cx, cy, s, ink=_NAVY_INK):
     pygame.draw.polygon(surf, _NAVY_INK, pts, 1)
 
 
-_GLYPHS = {"book": _g_book, "bolt": _g_bolt}
+def _g_sound(surf, cx, cy, s, ink=_NAVY_INK):
+    # Speaker box + cone + two sound-wave arcs.
+    box = [(cx - s * 0.75, cy - s * 0.3), (cx - s * 0.3, cy - s * 0.3),
+           (cx + s * 0.1, cy - s * 0.7), (cx + s * 0.1, cy + s * 0.7),
+           (cx - s * 0.3, cy + s * 0.3), (cx - s * 0.75, cy + s * 0.3)]
+    pygame.draw.polygon(surf, ink, box)
+    for k in (0.45, 0.8):
+        pygame.draw.arc(surf, ink,
+                        (int(cx + s * 0.1 - s * k), int(cy - s * k),
+                         int(s * k * 2), int(s * k * 2)),
+                        -0.7, 0.7, 2)
+
+
+def _g_info(surf, cx, cy, s, ink=_NAVY_INK):
+    # A classic "i" mark — a dot over a rounded stem.
+    pygame.draw.circle(surf, ink, (int(cx), int(cy - s * 0.55)), max(2, int(s * 0.2)))
+    bar = pygame.Rect(int(cx - s * 0.18), int(cy - s * 0.15),
+                      max(3, int(s * 0.36)), int(s * 0.9))
+    pygame.draw.rect(surf, ink, bar, border_radius=max(1, int(s * 0.14)))
+
+
+_GLYPHS = {"book": _g_book, "bolt": _g_bolt, "sound": _g_sound, "info": _g_info}
+
+
+def _toggle(surf, cx, cy, on):
+    """A rounded on/off switch. ON = gold track + knob at right (sound plays);
+    OFF = pewter track + knob at left (muted). Returns its rect."""
+    tw, th = 46, 24
+    rect = pygame.Rect(cx - tw // 2, cy - th // 2, tw, th)
+    pygame.draw.rect(surf, _GOLD_BRIGHT if on else (66, 62, 92), rect,
+                     border_radius=th // 2)
+    pygame.draw.rect(surf, (10, 6, 30), rect, 2, border_radius=th // 2)
+    kr = th // 2 - 3
+    kx = rect.right - kr - 4 if on else rect.left + kr + 4
+    pygame.draw.circle(surf, (245, 246, 255) if on else (150, 150, 172), (kx, cy), kr)
+    pygame.draw.circle(surf, (10, 6, 30), (kx, cy), kr, 1)
+    return rect
 
 
 class SettingsScene:
-    """Static two-row launcher list. Taps route through App._flap_input, which
-    hit-tests the row rects + MENU button this scene publishes each frame."""
+    """Grouped settings list. Taps route through App._flap_input, which
+    hit-tests the row rects + MENU button this scene publishes each frame.
+    Row types: 'nav' (opens a scene, drawn with a chevron) and 'toggle' (an
+    on/off switch — the Sound row reflects prefs.get_muted())."""
 
-    # Row order + which App action each opens (resolved by scenes.py).
-    ROWS = (
-        ("book", "How to Play", "Controls & the basics", "howto"),
-        ("bolt", "Power-Ups",   "What every pickup does", "powerups"),
+    # (section title, rows), each row: (icon, label, subtitle, action, type).
+    SECTIONS = (
+        ("HELP", (
+            ("book",  "How to Play",   "Controls & the basics",  "howto",        "nav"),
+            ("bolt",  "Power-Ups",     "What every pickup does",  "powerups",     "nav"),
+        )),
+        ("SOUND", (
+            ("sound", "Sound Effects", "Mute all game audio",     "toggle_sound", "toggle"),
+        )),
+        ("ABOUT", (
+            ("info",  "Credits",       "About Skybit",            "credits",      "nav"),
+        )),
     )
 
     def __init__(self):
@@ -152,27 +199,37 @@ class SettingsScene:
         pygame.draw.line(surf, (*_GOLD_BRIGHT, 90),
                          (0, _HEADER_H - 1), (W, _HEADER_H - 1), 1)
 
-        # HELP group, vertically centred in the open body so two rows don't
-        # cling to the top and strand the canvas.
-        row_h, gap, hdr_gap = 68, 12, 34
-        group_h = hdr_gap + len(self.ROWS) * row_h + (len(self.ROWS) - 1) * gap
+        # Sectioned list, vertically centred in the open body.
+        row_h, row_gap, sec_hdr, sec_gap = 58, 9, 28, 12
+        content_h = 0
+        for i, (_title, rows) in enumerate(self.SECTIONS):
+            if i:
+                content_h += sec_gap
+            content_h += sec_hdr + len(rows) * row_h + (len(rows) - 1) * row_gap
         body_top, body_bot = _HEADER_H, H - _FOOTER_H
-        top = body_top + (body_bot - body_top - group_h) // 2
-        _section_header(surf, "HELP", top)
+        y = body_top + max(14, (body_bot - body_top - content_h) // 2)
 
+        muted = prefs.get_muted()
         self.row_rects = []
-        y = top + hdr_gap
-        for kind, label, sub, action in self.ROWS:
-            rect = pygame.Rect(6, y, W - 12, row_h)
-            _volume_panel(surf, rect, radius=13)
-            cy = rect.centery
-            _icon_disc(surf, 42, cy, 21)
-            _GLYPHS[kind](surf, 42, cy, 13)
-            surf.blit(_font(18, True).render(label, True, _GOLD_PALE), (78, y + 15))
-            surf.blit(_font(12, True).render(sub, True, _DIM), (78, y + 40))
-            _chevron(surf, W - 28, cy, 8, _GOLD_BRIGHT)
-            self.row_rects.append((rect, action))
-            y += row_h + gap
+        for i, (title, rows) in enumerate(self.SECTIONS):
+            if i:
+                y += sec_gap
+            _section_header(surf, title, y)
+            y += sec_hdr
+            for j, (kind, label, sub, action, rtype) in enumerate(rows):
+                rect = pygame.Rect(6, y, W - 12, row_h)
+                _volume_panel(surf, rect, radius=13)
+                cy = rect.centery
+                _icon_disc(surf, 42, cy, 20)
+                _GLYPHS[kind](surf, 42, cy, 12)
+                surf.blit(_font(17, True).render(label, True, _GOLD_PALE), (76, rect.y + 11))
+                surf.blit(_font(11, True).render(sub, True, _DIM), (76, rect.y + 33))
+                if rtype == "toggle":
+                    _toggle(surf, W - 36, cy, not muted)   # ON = sound plays
+                else:
+                    _chevron(surf, W - 28, cy, 8, _GOLD_BRIGHT)
+                self.row_rects.append((rect, action))
+                y += row_h + (row_gap if j < len(rows) - 1 else 0)
 
         # Footer — the grounded MENU pill, the only way back.
         fy = H - _FOOTER_H
