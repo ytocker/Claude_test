@@ -91,6 +91,26 @@ JAPANESE_TOTEMS = [
      "candidate_daruma_gankake",
      "stacked lacquer Daruma dolls"),
 ]
+FAR_EAST_LANDMARKS = [
+    ("oriental_pearl", "far_east_landmarks/oriental_pearl/render.py",
+     "candidate_oriental_pearl",
+     "Oriental Pearl — pearls on a tripod spire"),
+    ("petronas_twins", "far_east_landmarks/petronas_twins/render.py",
+     "candidate_petronas_twins",
+     "Petronas Towers — twin shafts + skybridge"),
+    ("marina_bay_boat", "far_east_landmarks/marina_bay_boat/render.py",
+     "candidate_marina_bay_boat",
+     "Marina Bay Sands — boat deck on legs"),
+    ("himeji_heron", "far_east_landmarks/himeji_heron/render.py",
+     "candidate_himeji_heron",
+     "Himeji — white heron castle keep"),
+    ("potala_fortress", "far_east_landmarks/potala_fortress/render.py",
+     "candidate_potala_fortress",
+     "Potala Palace — red-and-white fortress"),
+    ("angkor_lotus", "far_east_landmarks/angkor_lotus/render.py",
+     "candidate_angkor_lotus",
+     "Angkor Wat — lotus-bud sanctuary tower"),
+]
 
 
 def _lerp(a, b, t):
@@ -178,9 +198,12 @@ def main() -> None:
     head_h = 56
     row_header_h = 30
     cell_block_h = ch + caption_h
+    rows = [("TEMPLE-MILLS", TEMPLE_MILLS),
+            ("JAPANESE TOTEMS", JAPANESE_TOTEMS),
+            ("FAR-EAST LANDMARKS", FAR_EAST_LANDMARKS)]
     sheet_w = pad + cols * (cw + pad)
     sheet_h = (head_h + pad
-               + (row_header_h + cell_block_h + pad) * 2)
+               + (row_header_h + cell_block_h + pad) * len(rows))
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((24, 25, 30))
 
@@ -190,14 +213,13 @@ def main() -> None:
     serial = pygame.font.SysFont(None, 24, bold=True)
 
     sheet.blit(title.render(
-        "Skybit — temple-mills + Japanese totems (round 3)",
+        "Skybit — temple-mills + totems + Far-East landmarks",
         True, (245, 240, 230)), (pad, 12))
     sheet.blit(sub.render(
-        "10 matured finals + the 2 originals (SEED) each family was based on  ·  "
-        "identical daytime bake (phase 0.30)",
+        "16 matured finals (#1-16) + the 2 originals (SEED) the first two families "
+        "were based on  ·  identical daytime bake (phase 0.30)",
         True, (170, 172, 182)), (pad, 38))
 
-    rows = [("TEMPLE-MILLS", TEMPLE_MILLS), ("JAPANESE TOTEMS", JAPANESE_TOTEMS)]
     counts = {}
     final_n = 0                        # running #N for finals only (seeds excluded)
     y_row = head_h + pad
