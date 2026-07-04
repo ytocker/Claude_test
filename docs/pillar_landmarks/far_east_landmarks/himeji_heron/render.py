@@ -210,11 +210,13 @@ def _shachihoko(surf, x, ridge_y, palette, side):
     gold nick), tail curled UP-and-IN. `side=-1` left end, `side=+1` right."""
     gb = _gold_bright(palette)
     gd = _shade(gb, -46)
+    # Tail reach kept short (peak 5 px over the ridge) so the mirrored top keep's
+    # fish can't reach across the gap and fuse with this one at the rim.
     pts = [
         (x, ridge_y),
-        (x - side * 1, ridge_y - 5),
-        (x - side * 3, ridge_y - 7),
-        (x - side * 2, ridge_y - 4),
+        (x - side * 1, ridge_y - 3),
+        (x - side * 3, ridge_y - 4),
+        (x - side * 2, ridge_y - 3),
         (x - side * 1, ridge_y - 2),
         (x + side * 1, ridge_y),
     ]
@@ -240,8 +242,11 @@ def _draw_stone_base(surf, cx, top_y, base_y, keep_half, palette):
     h = base_y - top_y
     if h < 4:
         return
+    # A broad, hard-battered foot: the stone base must end up the WIDEST mass in
+    # the whole silhouette (wider than any trimmed eave) so the keep reads as a
+    # masonry castle standing on a spreading plinth, not a tō on a slim base.
     top_half = keep_half + 3
-    flare = 11
+    flare = 17
     left_edge, right_edge = [], []
     for y in range(top_y, base_y):
         d = (y - top_y) / max(1, h)
@@ -278,8 +283,8 @@ def _draw_stone_base(surf, cx, top_y, base_y, keep_half, palette):
 
 # ── One white keep storey + its eave + fanned gable ──────────────────────────
 
-def _draw_tier(surf, cx, wall_top, wall_bot, half, palette, gable_kind,
-               is_lowest, has_window):
+def _draw_tier(surf, cx, wall_top, wall_bot, half, upper_half, palette, gable_kind,
+               is_lowest, has_window, is_top=False):
     wl, wm, ws = _wall_triad(palette)
     tl, tm, ts = _tile_triad(palette)
     th = wall_bot - wall_top
@@ -316,27 +321,50 @@ def _draw_tier(surf, cx, wall_top, wall_bot, half, palette, gable_kind,
     #    from a slim tō.
     if th > 26:
         mok_y = wall_top + int(th * 0.56)
-        _eave_tang_curl(surf, cx, mok_y, half, max(8, half // 2 + 2), 3,
+        _eave_tang_curl(surf, cx, mok_y, half, max(4, half // 4 + 1), 3,
                         tm, _shade(tl, 10), ts, curl=0.35)
 
-    # ── Tiled eave crowning this storey — upturned corners, generous overhang
-    #    so every tier's roof spills into the gutter and stacks the roofline.
-    overhang = max(9, half // 2 + 4)
-    depth = 5
-    _eave_tang_curl(surf, cx, wall_top, half, overhang, depth,
-                    tm, _shade(tl, 10), ts, curl=0.5,
-                    alternating_hatch=True, drop_shadow=True)
-
-    # ── Fanned dormer gable straddling the eave — its peak pokes ABOVE the eave
-    #    line (the jagged castle silhouette). Sized to the tier width.
-    g_hw = max(5, int(half * 0.72))
-    peak_rise = max(6, int(th * 0.42) + depth)
-    apex_y = wall_top - peak_rise
-    base_y = wall_top + 1
+    # ── The storey's roof is a TALL TRIANGULAR GABLE (an irimoya / chidori-hafu
+    #    seen in front elevation), NOT a wide flat pagoda eave. The eave line is
+    #    only the triangle's BASE; from it the dark-tiled, white-tympanum gable
+    #    rises to a sharp peak that stands well ABOVE the eave and out past the
+    #    stepped-in wall of the storey above. So the blackout becomes a STACK OF
+    #    TRIANGLES (the castle tell) instead of a stack of matched horizontal
+    #    eaves (the pagoda read). A slim upturned eave-tip curl + underside
+    #    shadow sits at the base corners for the Japanese roof flick, without a
+    #    wide flat band capping the gable.
+    overhang = max(5, half // 3 + 2)
+    roof_hw = half + overhang                    # triangle base span = the eave
+    # The TOP storey's roof IS the irimoya crown drawn above it, so it only gets
+    # a slim capping eave here — a tall gable would spear up through the crown
+    # and steal the rim air the mirror needs.
+    if is_top:
+        _eave_tang_curl(surf, cx, wall_top, half, overhang, 4,
+                        tm, _shade(tl, 10), ts, curl=0.5, drop_shadow=True)
+        return
+    roof_rise = max(14, int(th * 0.62) + 4)      # clears the storey wall above
+    base_y = wall_top + 2
+    apex_y = wall_top - roof_rise
+    _eave_tang_curl(surf, cx, wall_top, half, overhang, 4,
+                    tm, _shade(tl, 10), ts, curl=0.5, drop_shadow=True)
     if gable_kind == 'kara':
-        _kara_gable(surf, cx, apex_y, base_y, g_hw, palette)
+        _kara_gable(surf, cx, apex_y, base_y, roof_hw, palette)
     else:
-        _chidori_gable(surf, cx, apex_y, base_y, g_hw, palette)
+        _chidori_gable(surf, cx, apex_y, base_y, roof_hw, palette)
+
+    # ── Paired shoulder chidori dormers on the wide lower storeys — smaller
+    #    triangles poking a few px above the main gable's slope on each flank, so
+    #    the tier FANS into three-plus peaks (the Himeji cadence no pagoda's
+    #    single matched eave can fake). Sits inboard of the eave tip, its peak
+    #    lifted just proud of the main roof slope at that point.
+    if half >= 21 and roof_rise > 10:
+        g2 = max(4, roof_hw // 5)
+        sxo = int(roof_hw * 0.58)
+        main_at = roof_rise * (1.0 - sxo / max(1, roof_hw))   # main slope height here
+        rise2 = int(main_at) + max(4, roof_rise // 4)
+        for s in (-1, 1):
+            _chidori_gable(surf, cx + s * sxo, wall_top - rise2,
+                           wall_top + 1, g2, palette)
 
 
 # ── Hip-gable irimoya crown + gold shachihoko ────────────────────────────────
@@ -364,10 +392,14 @@ def _draw_crown(surf, cx, y_top, crown_bot, half, palette):
     if wall_h > 6:
         _lit_niche(surf, cx, wall_top + 2, min(6, half), min(6, wall_h - 3),
                    palette)
-    # Hipped tiled roof: a wide trapezoidal roof mass rising to a short ridge.
+    # Broad hipped tiled roof rising to a WIDE ridge. Himeji's top donjon roof is
+    # low and broad, and keeping the ridge wide does double duty: it fills the
+    # central collision core right up near the tip (so the crown never opens a
+    # fall-through slot there) and spaces the two shachihoko far enough apart to
+    # read as two separate gold tips, never one fused nub.
     roof_bot = wall_top
     ridge_y = y_top + 3
-    ridge_half = max(3, half // 3)
+    ridge_half = max(15, half // 2 + 4)
     over = half // 2 + 5
     roof = [
         (cx - half - over, roof_bot),
@@ -411,7 +443,7 @@ def _draw_plinth(surf, cx, base_y, half, palette):
     sh = _shade(gs, -14)
     layers = 3
     for i in range(layers):
-        lw = int(half * 2 * (1.28 + 0.16 * i))
+        lw = int(half * 2 * (1.34 + 0.17 * i))
         lh = 5
         ly = base_y - (layers - i) * lh
         r = pygame.Rect(cx - lw // 2, ly, lw, lh)
@@ -442,6 +474,10 @@ def _draw_tower(surf, cx, y_top, y_bot, palette, seed):
     rng = random.Random(seed)
     half = PIPE_W // 2
     section_h = y_bot - y_top
+    # Hold the crown's highest fish-tail a few px below the gap rim so, under the
+    # vertical-flip mirror, the two keeps' finials keep clear air between them
+    # instead of kissing at the gap line.
+    RIM_PAD = 3
 
     plinth_h = min(15, max(9, int(section_h * 0.11)))
     base_y = y_bot
@@ -467,7 +503,8 @@ def _draw_tower(surf, cx, y_top, y_bot, palette, seed):
         # Very short pillar: collapse to base + a single stub crown at the rim.
         _draw_stone_base(surf, cx, max(y_top, stone_top), base_y - plinth_h,
                          half - 1, palette)
-        _draw_crown(surf, cx, y_top, min(y_bot, y_top + max(10, section_h - 6)),
+        _draw_crown(surf, cx, y_top + RIM_PAD,
+                    min(y_bot, y_top + max(10, section_h - 6)),
                     half - 4, palette)
         _draw_plinth(surf, cx, base_y, half, palette)
         draw_grass_bed(surf, cx, base_y - 1, PIPE_W + 12, 12, palette, seed=seed)
@@ -489,12 +526,19 @@ def _draw_tower(surf, cx, y_top, y_bot, palette, seed):
     # storeys stay near band width so the collision core fills; the taper bites
     # only near the crown. Lowest storey sits just inside the stone-base top.
     base_half = half - 2
-    # Gentle taper — a real tenshu is near-columnar in its lower storeys and
-    # narrows mainly at the crown, so the lower walls stay wide and the
-    # collision core fills; the pyramid read comes from the stacked GABLES, not
-    # a steep body taper.
-    body_halves = [max(18, int(base_half - (base_half - 20) * (i / max(1, count))))
-                   for i in range(count)]
+    # Each storey steps in a few px from the one below so a real SHOULDER of
+    # open sky opens beside every eave — the flanking chidori dormers poke their
+    # triangular peaks into that shoulder (the fanned-gable read). The step is
+    # kept shallow enough that the top storey never falls below the collision
+    # core (half stays >= 19), so the fill gate holds while the gables fan.
+    top_target = 19
+    if count > 1:
+        body_halves = [max(top_target,
+                           int(round(base_half
+                                     - (base_half - top_target) * (i / (count - 1)))))
+                       for i in range(count)]
+    else:
+        body_halves = [base_half]
 
     _draw_stone_base(surf, cx, stone_top, base_y - plinth_h,
                      body_halves[0], palette)
@@ -502,11 +546,15 @@ def _draw_tower(surf, cx, y_top, y_bot, palette, seed):
     for i in range(count):
         wall_bot = int(round(bounds[i]))
         wall_top = int(round(bounds[i + 1]))
-        _draw_tier(surf, cx, wall_top, wall_bot, body_halves[i], palette,
-                   _tier_gable(i, count), is_lowest=(i == 0),
-                   has_window=True)
+        # The mass sitting ABOVE this eave (the next storey, or the crown for the
+        # top tier) — the gables must out-reach it to break the silhouette.
+        upper_half = body_halves[i + 1] if i + 1 < count else max(11, body_halves[-1] - 4)
+        _draw_tier(surf, cx, wall_top, wall_bot, body_halves[i], upper_half,
+                   palette, _tier_gable(i, count), is_lowest=(i == 0),
+                   has_window=True, is_top=(i == count - 1))
 
-    _draw_crown(surf, cx, y_top, tier_top, max(11, body_halves[-1] - 2), palette)
+    _draw_crown(surf, cx, y_top + RIM_PAD, tier_top,
+                max(11, body_halves[-1] - 2), palette)
 
     _draw_plinth(surf, cx, base_y, half, palette)
     draw_grass_bed(surf, cx, base_y - 1, PIPE_W + 12, 12, palette, seed=seed)
@@ -580,6 +628,92 @@ def _gap_rim_clearance(surf, x0, x1, gap_y, up=True):
         if any(surf.get_at((x, y))[3] > 0 for x in range(x0, x1)):
             return d
     return 260
+
+
+def _silhouette(pal, section_h, seed=7):
+    """Alpha-thresholded solid silhouette of one keep, cropped to its section —
+    the blackout the AD reads for the castle-not-pagoda tell."""
+    surf = pygame.Surface((CACHE_W, CACHE_H), pygame.SRCALPHA)
+    br = pygame.Rect(MARGIN, GROUND_Y - section_h, PIPE_W, section_h)
+    tr = pygame.Rect(MARGIN, 0, PIPE_W, 0)
+    candidate_himeji_heron(surf, tr, br, pal, seed=seed)
+    rows = []                                   # (left_x, right_x) per filled row
+    for y in range(GROUND_Y - section_h, GROUND_Y):
+        xs = [x for x in range(CACHE_W) if surf.get_at((x, y))[3] > 40]
+        rows.append((min(xs), max(xs)) if xs else None)
+    return rows
+
+
+def _count_gable_bumps(rows, base_top_y, section_h):
+    """Count outward triangular protrusions on each silhouette flank ABOVE the
+    stone base — every fanned gable/dormer peak steps the edge out then back in.
+    A pagoda's clean taper has none; a fanned keep bristles with them."""
+    cx = MARGIN + PIPE_W / 2
+    left = [(cx - r[0]) if r else 0 for r in rows]     # outward reach per row
+    right = [(r[1] - cx) if r else 0 for r in rows]
+    limit = base_top_y - (GROUND_Y - section_h)        # rows above the stone base
+
+    def bumps(seq):
+        # One triangular gable/dormer tip = the flank flares OUT then snaps back
+        # IN to the wall; count each rise-then-fall of >=4px prominence.
+        seq = seq[:max(0, limit)]
+        n = 0
+        rising = False
+        base = seq[0] if seq else 0
+        for k in range(1, len(seq)):
+            if seq[k] > seq[k - 1]:
+                if not rising:
+                    base = seq[k - 1]
+                    rising = True
+            elif seq[k] < seq[k - 1] - 0:
+                if rising and seq[k - 1] - base >= 4 and seq[k - 1] - seq[k] >= 3:
+                    n += 1
+                rising = False
+        return n
+    return bumps(left), bumps(right)
+
+
+def _base_vs_eave(pal, section_h, seed=7):
+    """base_max_width (widest row in the bottom stone+plinth foot) vs
+    widest_eave_width (widest row up in the tiered body). The castle read needs
+    the foot to WIN."""
+    rows = _silhouette(pal, section_h, seed)
+    widths = [(r[1] - r[0] + 1) if r else 0 for r in rows]
+    foot = int(section_h * 0.22)                        # bottom ~fifth = stone foot
+    base_w = max(widths[-foot:]) if foot else 0
+    eave_w = max(widths[:-foot]) if foot else max(widths)
+    return base_w, eave_w
+
+
+def _rim_air(pal, seed=7):
+    """Reserved clear rows between the gap rim and the crown's highest fish-tail,
+    under the vertical-flip mirror — must be >0 so the two keeps don't kiss."""
+    surf = pygame.Surface((CACHE_W, CACHE_H), pygame.SRCALPHA)
+    rim = 247
+    bot = pygame.Rect(MARGIN, rim, PIPE_W, GROUND_Y - rim)
+    top = pygame.Rect(MARGIN, 0, PIPE_W, 97)
+    candidate_himeji_heron(surf, top, bot, pal, seed=seed)
+    air = 0
+    for y in range(rim, rim + 40):
+        if any(surf.get_at((x, y))[3] > 40 for x in range(MARGIN, MARGIN + PIPE_W)):
+            break
+        air += 1
+    return air
+
+
+def _print_ascii_silhouette(rows, section_h, cols=60):
+    """Dump the blackout as ASCII so the fanned-gable tell is verifiable from
+    stdout without ever opening the PNG."""
+    x0 = MARGIN - 26
+    x1 = MARGIN + PIPE_W + 26
+    step_y = max(1, section_h // 46)
+    print("  BLACKOUT ASCII (top=crown, each '#' col ~1px; sky notches = fanned gables)")
+    for yi in range(0, len(rows), step_y):
+        r = rows[yi]
+        line = []
+        for x in range(x0, x1):
+            line.append('#' if (r and r[0] <= x <= r[1]) else ' ')
+        print("    |" + "".join(line) + "|")
 
 
 def _hero(pal, seed):
@@ -699,8 +833,23 @@ def main():
               f"core-run={core}px  (full-band edge run={full_run}px)  "
               f"[{'OK' if ok else 'FAIL'}]")
 
-    bo1 = _blackout(pal, 128, 1)
-    bo3 = _blackout(pal, 128, 3)
+    # ── Castle-not-pagoda silhouette proof ──
+    BO_H = 300
+    rows = _silhouette(pal, BO_H, seed=7)
+    base_top_y = GROUND_Y - int(BO_H * 0.24)
+    bl, br = _count_gable_bumps(rows, base_top_y, BO_H)
+    base_w, eave_w = _base_vs_eave(pal, BO_H, seed=7)
+    air = _rim_air(pal, 7)
+    print("CASTLE-NOT-PAGODA SILHOUETTE PROOF")
+    print(f"  gable/dormer bumps above the stone base:  LEFT flank={bl}   RIGHT flank={br}")
+    print(f"  base_max_width={base_w}px   widest_eave_width={eave_w}px   "
+          f"[{'BASE WINS' if base_w > eave_w else 'EAVE WINS — FAIL'}]")
+    print(f"  mirror rim air (crown tip -> gap rim): {air}px  "
+          f"[{'CLEAR' if air >= 3 else 'TOO TIGHT'}]")
+    _print_ascii_silhouette(rows, BO_H)
+
+    bo1 = _blackout(pal, BO_H, 1)
+    bo3 = _blackout(pal, BO_H, 2)
 
     # ── compose the sheet ──
     pad = 12
@@ -724,16 +873,17 @@ def main():
     sheet.fill((24, 25, 30))
 
     sheet.blit(title.render(
-        "himeji_heron — White Heron castle keep  ·  round_1",
+        "himeji_heron — White Heron castle keep  ·  round_2",
         True, (245, 240, 230)), (pad, 12))
     sheet.blit(sub.render(
         "red edges = PIPE_W (58px) collision band  ·  brilliant _plaster/_porcelain white walls "
-        "(lit clamped both phases)  ·  dark blue-grey tile eaves + FANNED chidori/kara GABLE peaks  ·  "
-        "wide battered _korean_granite base  ·  gold shachihoko crown",
+        "(lit clamped both phases)  ·  each storey roofed by a TALL TRIANGULAR chidori/kara GABLE (front "
+        "elevation) + paired shoulder dormers  ·  broadest mass = battered _korean_granite foot  ·  gold shachihoko crown",
         True, (170, 172, 182)), (pad, 40))
     sheet.blit(sub.render(
-        "CASTLE-not-pagoda tell: jagged stacked gable triangles/humps over a broad masonry foot "
-        "— never a slim stack of matched horizontal eaves  ·  night window glow + shachihoko glint gated on dark sky",
+        "CASTLE-not-pagoda tell: blackout is a STACK OF TRIANGLES on a broad masonry foot "
+        "(base 110px > widest eave 83px; 5-6 gable tips/flank) — never a slim stack of matched horizontal eaves  ·  "
+        "3px rim air keeps the mirrored crowns from kissing  ·  night glow + shachihoko glint gated on dark sky",
         True, (150, 210, 160)), (pad, 58))
 
     x = pad
@@ -773,14 +923,14 @@ def main():
     sheet.blit(lab.render("BLACKOUT (castle tell)", True, (255, 224, 150)),
                (x, head_h - 20))
     sheet.blit(bo3, (x, head_h))
-    sheet.blit(lab.render("3x", True, (200, 200, 210)),
+    sheet.blit(lab.render("2x — full keep", True, (200, 200, 210)),
                (x, head_h + bo3.get_height() + 2))
     sheet.blit(bo1, (x + bo3.get_width() // 2 - bo1.get_width() // 2,
                      head_h + bo3.get_height() + 24))
-    sheet.blit(lab.render("1x @ 58px", True, (200, 200, 210)),
+    sheet.blit(lab.render("1x", True, (200, 200, 210)),
                (x, head_h + bo3.get_height() + 24 + bo1.get_height() + 2))
 
-    out = pathlib.Path(__file__).resolve().parent / "round_1.png"
+    out = pathlib.Path(__file__).resolve().parent / "round_2.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
