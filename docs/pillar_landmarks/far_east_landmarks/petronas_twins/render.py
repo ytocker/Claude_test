@@ -27,7 +27,7 @@ curtain-wall window glow + mast beacon halos gated on `_is_dark_sky`.
 This is a standalone review candidate; it wires nothing into the live game.
 
 Run:  python docs/pillar_landmarks/far_east_landmarks/petronas_twins/render.py
-Out:  docs/pillar_landmarks/far_east_landmarks/petronas_twins/round_1.png
+Out:  docs/pillar_landmarks/far_east_landmarks/petronas_twins/round_2.png
 """
 from __future__ import annotations
 
@@ -132,28 +132,75 @@ def _podium_triad(palette):
     return _shade(base, 22), _shade(base, -8), _shade(base, -40)
 
 
-# ── Recessed backing (killzone fix) ─────────────────────────────────────────
+# ── Recessed backing (killzone fix + twin-crown top) ─────────────────────────
+
+# Twin-crown top profile (px, measured DOWN from the gap-rim y_top). The two
+# shaft centres are the raised HUMPS, the slot centre is a deeper DIP, the outer
+# band edges are dropped SHOULDERS. The humps sit a few px BELOW the mast-tip
+# air line so the paired needles protrude above the crown; the dip carves the
+# sky gap between the two tops. All offsets only remove material at the gap-rim
+# (top) end, so they can only ADD bird clearance — never a killzone. The dip is
+# held to the ≤12px fill budget (it IS the central-slot empty run).
+_BACK_HUMP = 6                     # tower-top humps — below the 3px mast-tip line
+_BACK_DIP = 11                     # central slot dip — sky gap, = central run
+_BACK_SHOULDER = 9                 # outer-edge drop past the humps
+
+
+def _backing_top_offset(dx):
+    """Twin-crown top profile: px to drop the backing's top edge at horizontal
+    offset `dx` from the column centre. Two peaks over the shaft centres
+    (±_TOWER_OFF), a deeper valley between them, and dropped outer shoulders — so
+    the blackout reads as TWO tower tops with sky between, not one flat brick."""
+    knots = [(-_BACK_HALF, float(_BACK_SHOULDER)),
+             (-_TOWER_OFF, float(_BACK_HUMP)),
+             (0.0, float(_BACK_DIP)),
+             (_TOWER_OFF, float(_BACK_HUMP)),
+             (_BACK_HALF, float(_BACK_SHOULDER))]
+    if dx <= knots[0][0]:
+        return knots[0][1]
+    if dx >= knots[-1][0]:
+        return knots[-1][1]
+    for i in range(len(knots) - 1):
+        x0, o0 = knots[i]
+        x1, o1 = knots[i + 1]
+        if x0 <= dx <= x1:
+            t = (dx - x0) / (x1 - x0)
+            tc = (1.0 - math.cos(t * math.pi)) / 2.0   # cosine-smoothed crown
+            return o0 + (o1 - o0) * tc
+    return 0.0
+
 
 def _draw_backing(surf, cx, y_top, y_bot, palette):
     """Dim recessed curtain-wall spanning the full collision column behind the
     two shafts. Drawn FIRST so the bright steel towers overlay it and the slot
     between them reveals this shadowed panel — the column is solid at every row
     so there is no fly-in killzone. A faint vertical mullion grid keeps it
-    reading as a distant glazed wall rather than a flat fill."""
+    reading as a distant glazed wall rather than a flat fill; the TOP edge is
+    carved to a twin-crown (two humps + centre dip) so the silhouette doubles."""
     lit, mid, sh = _backing_triad(palette)
     x0 = int(cx - _BACK_HALF)
     w = int(_BACK_HALF * 2)
-    rect = pygame.Rect(x0, y_top, w, y_bot - y_top)
-    if rect.height < 2:
+    h = y_bot - y_top
+    if h < 2:
         return
+    # Build on a private surface so the twin-crown notch can be carved from the
+    # top edge after all the wall detail is laid down.
+    temp = pygame.Surface((w, h), pygame.SRCALPHA)
+    rect = pygame.Rect(0, 0, w, h)
     # Faint centre-out shading so the recess has depth, darkest at the slot.
-    _gradient_rect(surf, rect, sh, mid, sh)
+    _gradient_rect(temp, rect, sh, mid, sh)
     # Quiet vertical mullion lines — a receding glazed grid.
-    for gx in range(x0 + 4, x0 + w - 2, 5):
-        pygame.draw.line(surf, _shade(mid, -14), (gx, y_top), (gx, y_bot - 1), 1)
+    for gx in range(4, w - 2, 5):
+        pygame.draw.line(temp, _shade(mid, -14), (gx, 0), (gx, h - 1), 1)
     # Sparse horizontal storey lines.
-    for gy in range(y_top + 6, y_bot - 2, 9):
-        pygame.draw.line(surf, _shade(sh, -8), (x0, gy), (x0 + w - 1, gy), 1)
+    for gy in range(6, h - 2, 9):
+        pygame.draw.line(temp, _shade(sh, -8), (0, gy), (w - 1, gy), 1)
+    # Carve the twin-crown top: clear the notch above the profile per column.
+    for lx in range(w):
+        off = int(round(_backing_top_offset((x0 + lx) - cx)))
+        for ly in range(off):
+            temp.set_at((lx, ly), (0, 0, 0, 0))
+    surf.blit(temp, (x0, y_top))
 
 
 # ── One steel shaft ─────────────────────────────────────────────────────────
@@ -255,18 +302,32 @@ def _draw_windows(surf, x0, y0, x1, y1, palette, rng, *, dark_sky):
 
 # ── Pinnacle: pyramid + ring-ball + spire mast ──────────────────────────────
 
-def _draw_pinnacle(surf, tcx, crown_y, crown_hw, palette, *, dark_sky, warming):
+def _draw_pinnacle(surf, tcx, crown_y, crown_hw, palette, *, dark_sky, warming,
+                   y_limit):
     """The Petronas crown: a short steel pyramid steps in from the shaft top to
-    a stacked bronze ring-ball, then a slender spire mast needles up. At
-    night/dusk the mast tip carries an additive beacon halo (the aircraft
-    warning light). Two of these — one per tower — are the paired-needle tell
-    that says twin towers at a glance."""
+    a stacked bronze ring-ball, then a slender spire mast needles up. The whole
+    stack shares ONE continuous mast spine that runs from the pyramid apex up
+    through the ball to the tip, so it never fragments into a detached dot at
+    small scale. `y_limit` is the section's gap-rim; the tip is held ~3px short
+    of it so the vertical-flip mirror doesn't kiss. At night/dusk the tip
+    carries an additive beacon halo (the aircraft warning light). Two of these —
+    one per tower — are the paired-needle tell that says twin towers."""
     lit, mid, sh = _steel_triad(palette)
     bronze = _bronze(palette)
     gold = _gold_bright(palette)
+    # Cool-dark shadow edge so the thin masts survive against a bright day sky.
+    edge = _mix(_column_grey(palette), (36, 46, 66), 0.7)
 
-    # Pyramid — a stepped taper from the shaft crown to a narrow neck.
-    pyr_h = max(6, int(crown_hw * 1.6))
+    # The whole crown must nest inside the headroom above the shaft so nothing
+    # (least of all the ball) overshoots the gap rim on a short section. `avail`
+    # is that headroom; the mast tip always lands exactly on the 3px air line so
+    # the vertical-flip mirror keeps ~3px between paired needles.
+    tip_y = y_limit + 3
+    avail = max(10, crown_y - tip_y)
+
+    # Pyramid — a stepped taper from the shaft crown to a narrow neck. Capped to
+    # <=45% of the headroom so ball + mast always fit above it.
+    pyr_h = min(max(6, int(crown_hw * 1.6)), int(avail * 0.45))
     neck_hw = max(2, crown_hw * 0.34)
     steps = 4
     for s in range(steps):
@@ -286,30 +347,42 @@ def _draw_pinnacle(surf, tcx, crown_y, crown_hw, palette, *, dark_sky, warming):
                      [(tcx + hw0, y0), (tcx + hw1, y1)])
     neck_y = crown_y - pyr_h
 
-    # Ring-ball — a stack of bronze rings graduating small→large→small (the
-    # 14-ring ball, abstracted to a legible stack at game scale).
-    ball_r = max(2, int(crown_hw * 0.6))
-    ball_h = ball_r * 2 + 2
-    ball_cy = neck_y - ball_r
-    rings = max(3, ball_r + 1)
-    for i in range(rings):
-        f = i / max(1, rings - 1)
-        rw = int(ball_r * math.sin(math.pi * (0.15 + 0.7 * f)))
-        ry = neck_y - int(ball_h * f)
-        col = _shade(bronze, 20) if i % 2 == 0 else _shade(bronze, -18)
+    # Ring-ball — kept SMALL (so a lone tower can't be mistaken for a beaded
+    # spire) and capped to half the leftover headroom so the mast still reads.
+    # Its base OVERLAPS the pyramid apex so there is no seam.
+    ball_r = max(2, min(int(crown_hw * 0.55), int((avail - pyr_h) * 0.28)))
+    ball_h = ball_r * 2
+    ball_bot = neck_y + 1              # bite into the pyramid apex — no gap
+    ball_top = ball_bot - ball_h
+
+    # Spire mast — a slender needle running from the ball straight to the tip on
+    # the 3px air line (the mast simply fills the remaining headroom).
+    mast_top = tip_y
+
+    # ONE continuous spine: pyramid-apex → through the ball → tip. Drawn before
+    # the ball rings so the stack is a single unbroken needle at any scale.
+    pygame.draw.line(surf, edge, (tcx + 1, ball_bot), (tcx + 1, mast_top), 1)
+    pygame.draw.line(surf, _shade(bronze, -20), (tcx, ball_bot),
+                     (tcx, mast_top), 1)
+    pygame.draw.line(surf, gold, (tcx, ball_bot), (tcx, mast_top), 1)
+
+    # Ball rings drawn every row (sin profile: 0 at poles, widest at the waist)
+    # so the ball is a solid contiguous bead over the spine, never a dotted gap.
+    for ry in range(ball_top, ball_bot + 1):
+        f = (ry - ball_top) / max(1, ball_h)
+        rw = max(1, int(round(ball_r * math.sin(math.pi * f))))
+        col = _shade(bronze, 18) if (ry - ball_top) % 2 == 0 else _shade(bronze, -16)
         pygame.draw.line(surf, col, (tcx - rw, ry), (tcx + rw, ry), 1)
     # Bright gold glint at the ball's waist.
-    pygame.draw.line(surf, gold, (tcx - ball_r, ball_cy), (tcx + ball_r, ball_cy), 1)
+    pygame.draw.line(surf, gold, (tcx - ball_r, ball_top + ball_r),
+                     (tcx + ball_r, ball_top + ball_r), 1)
 
-    # Spire mast — a slender needle above the ball.
-    mast_h = max(8, int(crown_hw * 3.0))
-    mast_top = neck_y - ball_h - mast_h
-    pygame.draw.line(surf, _shade(bronze, -20), (tcx, neck_y - ball_h),
-                     (tcx, mast_top), 2)
-    pygame.draw.line(surf, gold, (tcx, neck_y - ball_h), (tcx, mast_top), 1)
     # A couple of collar rings up the mast.
-    for cy in (mast_top + mast_h // 3, mast_top + 2 * mast_h // 3):
-        pygame.draw.line(surf, _shade(bronze, 16), (tcx - 1, cy), (tcx + 1, cy), 1)
+    m_lo = mast_top + (ball_top - mast_top) // 3
+    m_hi = mast_top + 2 * (ball_top - mast_top) // 3
+    for cy in (m_lo, m_hi):
+        if mast_top < cy < ball_top:
+            pygame.draw.line(surf, _shade(bronze, 16), (tcx - 1, cy), (tcx + 1, cy), 1)
 
     # Night beacon halo at the mast tip.
     if dark_sky or warming:
@@ -444,11 +517,12 @@ def _draw_twin(surf, cx, y_top, y_bot, palette, seed):
         right_inner = int(rcx - hw_at)
         _draw_skybridge(surf, cx, bridge_y, left_inner, right_inner, palette)
 
-    # Pinnacles — one per tower (the paired needles).
+    # Pinnacles — one per tower (the paired needles). Tips held ~3px shy of the
+    # section's top rim so the vertical-flip mirror doesn't kiss across the gap.
     _draw_pinnacle(surf, lc[0], lc[1], lc[2], palette,
-                   dark_sky=dark_sky, warming=warming)
+                   dark_sky=dark_sky, warming=warming, y_limit=y_top)
     _draw_pinnacle(surf, rc[0], rc[1], rc[2], palette,
-                   dark_sky=dark_sky, warming=warming)
+                   dark_sky=dark_sky, warming=warming, y_limit=y_top)
 
     # Podium + foliage.
     _draw_podium(surf, cx, base_y, palette, seed)
@@ -618,7 +692,9 @@ def main():
     gp_bot = pygame.Rect(MARGIN, 251, PIPE_W, GROUND_Y - 251)
     gp_top = pygame.Rect(MARGIN, 0, PIPE_W, 101)
     candidate_petronas_twins(gap_probe, gp_top, gp_bot, pal, seed=7)
-    clear_bot = _gap_rim_clearance(gap_probe, MARGIN, MARGIN + PIPE_W, 251, up=True)
+    # Bottom pillar rises from the ground: its mast sits just BELOW its top rim
+    # (251), so probe DOWN into the section. Top pillar hangs flipped: probe UP.
+    clear_bot = _gap_rim_clearance(gap_probe, MARGIN, MARGIN + PIPE_W, 251, up=False)
     clear_top = _gap_rim_clearance(gap_probe, MARGIN, MARGIN + PIPE_W, 100, up=True)
     print("MIRROR CLEARANCE (vertical-flip mirror, gap line)")
     print(f"  bottom mast -> gap: {clear_bot}px   top mast -> gap: {clear_top}px")
@@ -648,19 +724,20 @@ def main():
     sheet.fill((24, 25, 30))
 
     sheet.blit(title.render(
-        "petronas_twins — twin steel towers + skybridge  ·  round_1",
+        "petronas_twins — twin steel towers + skybridge  ·  round_2",
         True, (245, 240, 230)), (pad, 12))
     sheet.blit(sub.render(
         "red edges = PIPE_W (58px) collision band  ·  cool steel-glass shafts, "
         "vertical specular ribs + bronze setback ring-bands  ·  DIM recessed "
-        "backing fills the twin slot (no killzone)  ·  double-decker skybridge  ·  "
-        "paired pinnacle masts w/ night beacons  ·  symmetric flip",
+        "backing fills the twin slot (no killzone)  ·  TWIN-CROWN backing top "
+        "(two humps + centre dip)  ·  continuous needle-ball-pyramid spine  ·  "
+        "double-decker skybridge  ·  symmetric flip",
         True, (170, 172, 182)), (pad, 42))
     sheet.blit(sub.render(
-        f"KILLZONE FIX: full-column recessed backing -> central-slot empty run "
-        f"stays <=12px at 70/210/355  ·  mast->gap clear {clear_bot}/{clear_top}px  ·  "
-        "the ONLY doubled silhouette in the set", True, (150, 210, 160)),
-        (pad, 60))
+        f"KILLZONE-SAFE: full-column backing -> central-slot run stays <=12px at "
+        f"70/210/355  ·  twin-crown dip {_BACK_DIP}px carves sky between the tops "
+        f"(top-only, no killzone)  ·  mast->gap clear {clear_bot}/{clear_top}px",
+        True, (150, 210, 160)), (pad, 60))
 
     x = pad
     y = head_h
@@ -697,7 +774,7 @@ def main():
                           (255, 224, 150)), (x, head_h + close.get_height() + 4))
 
     x += col_close + pad
-    sheet.blit(lab.render("BLACKOUT (twin tell)", True, (255, 224, 150)),
+    sheet.blit(lab.render("BLACKOUT — two tops + sky notch", True, (255, 224, 150)),
                (x, head_h - 20))
     sheet.blit(bo3, (x, head_h))
     sheet.blit(lab.render("3x", True, (200, 200, 210)),
@@ -707,7 +784,7 @@ def main():
     sheet.blit(lab.render("1x @ 58px", True, (200, 200, 210)),
                (x, head_h + bo3.get_height() + 24 + bo1.get_height() + 2))
 
-    out = pathlib.Path(__file__).resolve().parent / "round_1.png"
+    out = pathlib.Path(__file__).resolve().parent / "round_2.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
