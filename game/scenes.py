@@ -412,6 +412,7 @@ STATE_INTRO = 7
 STATE_POWERUPS = 8
 STATE_ACHIEVEMENTS = 9
 STATE_ACHV_EARNED = 10
+STATE_SETTINGS = 11
 
 # Background cloud depth slots: (base_x, base_y, scale). Geometry is fixed so the
 # parallax-depth spread stays good; all slots share one cloud design per run,
@@ -456,6 +457,13 @@ class App:
         # run unlocks one or more achievements, shown before the run summary,
         # torn down on the continue tap. Owns its own scroll/drag state.
         self.achv_earned: object | None = None
+        # Settings screen — built lazily when opened from the menu SETTINGS chip,
+        # torn down on dismiss. Holds the How to Play / Power-Ups launchers.
+        self.settings: object | None = None
+        # Sub-screen return targets: How to Play (intro) and Power-Ups (explainer)
+        # opened from Settings come back to STATE_SETTINGS instead of the menu.
+        self._intro_return_state: "int | None" = None
+        self._powerups_return_state = STATE_MENU
         # Menu idle clock (Oddities "Are You Still There?"): seconds since the
         # last input while sitting on the menu; unlocks once at 5 minutes idle.
         self._menu_idle_t = 0.0
@@ -581,12 +589,34 @@ class App:
             return
         if self.state == STATE_POWERUPS:
             # Same shape: gate the dismiss-tap on the entry cooldown so
-            # the explainer doesn't flicker straight back to MENU.
+            # the explainer doesn't flicker straight back out. Returns to the
+            # menu, or to Settings when it was opened from there.
             if self._cooldown_t > 0:
                 return
             self.powerup_help = None
-            self.state = STATE_MENU
+            self.state = self._powerups_return_state
+            self._powerups_return_state = STATE_MENU
             self._cooldown_t = 0.25
+            return
+        if self.state == STATE_SETTINGS:
+            # A tap hits a launcher row (open its scene) or the MENU pill (back).
+            # Gated by the entry cooldown so the opening tap's echo can't bounce.
+            if self._cooldown_t > 0:
+                return
+            sc = self.settings
+            if pos is None or sc is None:
+                return
+            mb = getattr(sc, "menu_btn_rect", None)
+            if mb and mb.collidepoint(pos):
+                self._close_settings()
+                return
+            for rect, action in getattr(sc, "row_rects", ()):
+                if rect.collidepoint(pos):
+                    if action == "howto":
+                        self._open_howto_from_settings()
+                    elif action == "powerups":
+                        self._open_powerups_from_settings()
+                    return
             return
         if self.state == STATE_MENU:
             # Single shared cooldown gate for every menu action. This is
@@ -600,10 +630,7 @@ class App:
                 return
             if pos and self.hud.menu_settings_rect \
                     and self.hud.menu_settings_rect.collidepoint(pos):
-                # Settings screen is future work — the entry is a no-op stub for
-                # now (swallow the tap so it can't fall through to START; HOW TO
-                # PLAY + POWER-UPS move in here later).
-                self._cooldown_t = 0.25
+                self._open_settings()
                 return
             if pos and self.hud.menu_achv_rect \
                     and self.hud.menu_achv_rect.collidepoint(pos):
@@ -698,6 +725,34 @@ class App:
     def _close_achievements(self):
         self.achievements = None
         self.state = STATE_MENU
+        self._cooldown_t = 0.25
+
+    # ── settings screen ───────────────────────────────────────────────────────
+    def _open_settings(self):
+        from game.settings_screen import SettingsScene
+        self.settings = SettingsScene()
+        self.state = STATE_SETTINGS
+        self._cooldown_t = 0.25
+
+    def _close_settings(self):
+        self.settings = None
+        self.state = STATE_MENU
+        self._cooldown_t = 0.25
+
+    def _open_howto_from_settings(self):
+        """How to Play row → the intro cinematic, returning to Settings after."""
+        from game.intro import IntroScene
+        self.intro = IntroScene()
+        self._intro_return_state = STATE_SETTINGS
+        self.state = STATE_INTRO
+        self._cooldown_t = 0.25
+
+    def _open_powerups_from_settings(self):
+        """Power-Ups row → the explainer, returning to Settings after."""
+        from game.powerup_help import PowerUpHelpScene
+        self.powerup_help = PowerUpHelpScene()
+        self._powerups_return_state = STATE_SETTINGS
+        self.state = STATE_POWERUPS
         self._cooldown_t = 0.25
 
     def _handle_achievements_event(self, e):
@@ -856,7 +911,12 @@ class App:
         if self.intro is not None:
             self.intro.skip()
         self.intro = None
-        if self._intro_from_menu:
+        if self._intro_return_state is not None:
+            # Opened from a sub-screen (e.g. Settings' How to Play) — return
+            # there whether the cinematic was skipped or watched through.
+            self.state = self._intro_return_state
+            self._intro_return_state = None
+        elif self._intro_from_menu:
             # HOW TO PLAY replay always returns to MENU regardless of
             # whether the player tapped to skip or watched it through.
             self.state = STATE_MENU
@@ -1065,6 +1125,11 @@ class App:
         if self.state == STATE_ACHIEVEMENTS:
             if self.achievements is not None:
                 self.achievements.update(dt)
+            self._cooldown_t = max(0.0, self._cooldown_t - dt)
+            return
+        if self.state == STATE_SETTINGS:
+            if self.settings is not None:
+                self.settings.update(dt)
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
             return
         if self.state == STATE_ACHV_EARNED:
@@ -1452,6 +1517,10 @@ class App:
         # End-of-run earned screen paints its own full-screen night + card stack.
         if self.state == STATE_ACHV_EARNED and self.achv_earned is not None:
             self.achv_earned.render(self.screen, 1 / 60)
+            return
+        # Settings screen paints its own night background + launcher rows.
+        if self.state == STATE_SETTINGS and self.settings is not None:
+            self.settings.render(self.screen, 1 / 60)
             return
         sx, sy = self.world.shake_offset() if self.state == STATE_PLAY else (0, 0)
         sx, sy = int(sx), int(sy)
