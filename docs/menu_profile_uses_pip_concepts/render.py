@@ -1,30 +1,22 @@
-"""Round 1 — turn the ALREADY-STANDING Pip into the menu's Profile entry.
+"""Round 2 — mature the two leading Profile-entry treatments side by side.
 
-The earlier exploration drew a SEPARATE cropped bust portrait in a top
-corner. The owner wants the opposite: the menu already stages Pip
-standing at the pickup post-house (drawn live via game.entities.Bird),
-so the Profile button should BE that existing diorama — no second parrot.
+Round 1 explored five ways to turn the ALREADY-standing Pip (drawn live
+via game.entities.Bird — never a second parrot) into the menu's Profile
+button. The art-director culled three (spotlight-ring implied character
+swapping, the tap bubble read as a dismissable coach-mark, the dashed
+hotspot read as an empty slot) and asked to mature the two leaders:
 
-Five genuinely distinct ways to make the standing Pip read as
-"tap me → your Profile", each folding the old Awards cue in as a small
-violet "records inside" badge (a tiny trophy, never a gold coin) and
-each carrying a PROFILE label:
+  A · FRAMED-IN-PLACE   — a gilded hollow frame + vignette wraps the live
+                          diorama; the scene itself becomes the card.
+  B · NAMEPLATE STANDEE — Pip's snow diorama sits on an engraved brass
+                          PROFILE plinth; the whole standee is the button.
 
-  1 · FRAMED-IN-PLACE   — a gilded hollow frame + vignette wraps the
-                          live diorama; the scene itself becomes the card.
-  2 · NAMEPLATE STANDEE — Pip stands on an engraved PROFILE plinth; the
-                          whole museum standee is the button.
-  3 · SPOTLIGHT RING    — a character-select ground ring + halo under
-                          Pip and a floating PROFILE tag.
-  4 · TAP BUBBLE        — a rounded "THIS IS YOU / PROFILE" bubble
-                          tethered to Pip with a tail pointing at him.
-  5 · DASHED HOTSPOT    — a beveled, marching-ants tap-zone around the
-                          diorama with a corner-tucked records pip.
-
-Each is composited into a real 360x640 menu mock (SKYBIT hero, the live
-standing Pip at the post-house, scarlet START, and a
-STORE / TOP 10 / SETTINGS chip row — Awards has folded into Profile).
-All five tile on one labeled sheet.
+Both keep PROFILE labels GOLD (scarlet stays reserved for START alone),
+fold the old Awards cue into a violet records badge anchored INSIDE the
+card's interior top-right (clear of the subtitle), and ride the same
+sin(T*3.6) tap-glow the START pill uses. Each finalist is composited into
+a full 360x640 menu mock, and a TRUE 1x proof crop of each card on the
+night sky confirms the badge, PROFILE label and glow at native scale.
 """
 import os
 import math
@@ -40,13 +32,12 @@ from game.config import W, H
 from game import parrot  # noqa: F401  (ensures the macaw sprite cache is warm)
 from game.entities import Bird
 from game import intro as _intro
-from game.draw import WHITE, lerp_color
+from game.draw import lerp_color
 from game.hud import (
     _font, _outlined_text, _pill_btn, _volume_panel, _tracked_label,
     _draw_overlay_stars, _draw_mountain_silhouette,
-    _draw_trophy, _draw_gear, _draw_award_star, _coin_icon,
-    _GOLD_BRIGHT, _GOLD_PALE, _GOLD_DEEP, _RED_OUTLINE, _ORANGE_BORDER,
-    _AWSTAR_HI,
+    _draw_trophy, _draw_gear, _coin_icon,
+    _GOLD_BRIGHT, _GOLD_PALE, _GOLD_DEEP, _ORANGE_BORDER, _AWSTAR_HI,
 )
 
 # Freeze near the crest of the START pill's tappability pulse (draw_menu
@@ -107,25 +98,24 @@ def tap_glow(surf, rect, shape="rrect", radius=16, strength=1.0):
     surf.blit(glow, (rect.x - pad, rect.y - pad))
 
 
-def records_badge(surf, cx, cy, kind="trophy"):
-    """The folded-in Awards cue: a violet chip with a tiny trophy/star +
-    count. Deliberately NOT a gold roundel — a distinct shape AND colour
-    so it reads as 'records inside', never as a coin / currency counter."""
-    w, hh = 30, 17
+def records_badge(surf, cx, cy):
+    """The folded-in Awards cue: a violet chip with a legible gold trophy
+    and a small superscript count. Deliberately NOT a gold roundel — a
+    distinct shape AND colour so it reads as 'records inside', never as a
+    coin. The trophy is bumped to ~7px (was a 5px blob) and the count sits
+    as a raised superscript so the icon, not the number, carries the read."""
+    w, hh = 33, 18
     r = pygame.Rect(int(cx - w / 2), int(cy - hh / 2), w, hh)
     sh = pygame.Surface((w + 4, hh + 4), pygame.SRCALPHA)
-    pygame.draw.rect(sh, (0, 0, 0, 130), sh.get_rect(), border_radius=8)
-    surf.blit(sh, (r.x - 1, r.y + 1))
+    pygame.draw.rect(sh, (0, 0, 0, 135), sh.get_rect(), border_radius=8)
+    surf.blit(sh, (r.x - 1, r.y + 2))
     pygame.draw.rect(surf, _REC_GROUND_D, r, border_radius=8)
     pygame.draw.rect(surf, _REC_GROUND, r.inflate(-2, -2), border_radius=7)
     pygame.draw.rect(surf, _GOLD_BRIGHT, r, width=1, border_radius=8)
-    if kind == "star":
-        _draw_award_star(surf, r.left + 9, r.centery, 6)
-    else:
-        _draw_trophy(surf, r.left + 9, r.centery, 5)
-    f = _font(11, True)
+    _draw_trophy(surf, r.left + 12, r.centery + 1, 7)
+    f = _font(10, True)
     img = f.render("3", True, _GOLD_PALE)
-    surf.blit(img, img.get_rect(center=(r.right - 8, r.centery)))
+    surf.blit(img, img.get_rect(center=(r.right - 8, r.top + 6)))
 
 
 def tri(surf, cx, cy, size, color):
@@ -136,26 +126,11 @@ def tri(surf, cx, cy, size, color):
                                       (cx - size // 2, cy + size)])
 
 
-def profile_tag(surf, cx, cy, w=92, fill=(168, 34, 30), text=(255, 244, 224)):
-    """A scarlet PROFILE ▸ chip — the shared tappable label used by the
-    spotlight + bubble treatments."""
-    r = pygame.Rect(int(cx - w / 2), int(cy - 10), w, 20)
-    sh = pygame.Surface((w + 4, 24), pygame.SRCALPHA)
-    pygame.draw.rect(sh, (0, 0, 0, 120), sh.get_rect(), border_radius=8)
-    surf.blit(sh, (r.x - 2, r.y + 2))
-    pygame.draw.rect(surf, fill, r, border_radius=8)
-    pygame.draw.rect(surf, _GOLD_BRIGHT, r, width=1, border_radius=8)
-    _tracked_label(surf, "PROFILE", (r.centerx - 5, r.centery), 11,
-                   color=text, track=2, alpha=255)
-    tri(surf, r.right - 8, r.centery, 4, _GOLD_PALE)
-    return r
-
-
 # ── Shared menu mock ─────────────────────────────────────────────────────────
 def menu_base(under_fn=None):
     """The live menu: night sky, mountains, SKYBIT hero, the standing Pip
     at the post-house, and START. `under_fn` paints treatment art that
-    must sit BEHIND Pip (ground rings, plinths) before the diorama."""
+    must sit BEHIND Pip (plinths) before the diorama."""
     surf = pygame.Surface((W, H)).convert_alpha()
     for yy in range(H):
         t = yy / (H - 1)
@@ -210,22 +185,24 @@ def dio_region(pad=14):
     return house_r.union(bird_r).inflate(pad * 2, pad * 2)
 
 
-# ── Concept 1 — FRAMED-IN-PLACE ──────────────────────────────────────────────
-# A gilded HOLLOW frame wraps the live diorama and a soft vignette dims
-# everything outside it, so the standing-Pip scene itself becomes the
-# character card. A PROFILE nameplate rides the bottom rail; the frame
-# body pulses the tap-glow; a violet records badge tucks at the top-right.
+# ── Finalist A — FRAMED-IN-PLACE ─────────────────────────────────────────────
+# A gilded HOLLOW frame wraps the live diorama and a vignette dims the band
+# around it, so the standing-Pip scene itself becomes the character card.
+# Round-2 fixes: the records badge moves fully INSIDE the interior top-right
+# corner (was colliding with the subtitle); the outer wall is thinned ~2px
+# and the vignette lifted so the frame reads like a jewel, not a lead box.
 def concept_framed(surf):
     fr = dio_region(pad=12)
     fr.height += 14                       # room for the nameplate rail
 
     # Vignette: dim a band AROUND the card, then punch the frame interior
-    # back to clear so the eye is pulled to the diorama-as-card. Clipped to
-    # the card's vertical band so the SKYBIT wordmark + START stay fully lit.
+    # back to clear so the eye is pulled to the diorama-as-card. Lifted a
+    # touch from round 1 so the interior reads as the lit jewel. Clipped to
+    # the card's vertical band so the wordmark + START stay fully lit.
     band_top = fr.top - 12
     band_h = fr.height + 24
     vig = pygame.Surface((W, band_h), pygame.SRCALPHA)
-    vig.fill((4, 2, 16, 92))
+    vig.fill((4, 2, 16, 108))
     pygame.draw.rect(vig, (0, 0, 0, 0),
                      fr.inflate(-6, -6).move(0, -band_top),
                      border_radius=16)
@@ -238,24 +215,26 @@ def concept_framed(surf):
 
     # Hollow beveled gilding — nested rect BORDERS (interior stays clear so
     # the live Pip shows through): deep base → mid step → bright bevel, with
-    # a pale top rim-light and a dark press-bevel foot.
-    pygame.draw.rect(surf, _GOLD_DEEP, fr, width=11, border_radius=18)
-    pygame.draw.rect(surf, _GOLD_MID, fr.inflate(-6, -6), width=6,
+    # a pale top rim-light and a dark press-bevel foot. Outer wall thinned
+    # from 11 to 9 px so the frame jewels rather than boxes the diorama.
+    pygame.draw.rect(surf, _GOLD_DEEP, fr, width=9, border_radius=18)
+    pygame.draw.rect(surf, _GOLD_MID, fr.inflate(-5, -5), width=5,
                      border_radius=15)
-    pygame.draw.rect(surf, _GOLD_BRIGHT, fr.inflate(-11, -11), width=2,
+    pygame.draw.rect(surf, _GOLD_BRIGHT, fr.inflate(-9, -9), width=2,
                      border_radius=12)
     pygame.draw.line(surf, _GOLD_PALE, (fr.left + 12, fr.top + 3),
                      (fr.right - 12, fr.top + 3), 2)
     pygame.draw.line(surf, _GOLD_DEEP, (fr.left + 12, fr.bottom - 3),
                      (fr.right - 12, fr.bottom - 3), 2)
 
-    for cx, cy in ((fr.left + 10, fr.top + 10), (fr.right - 10, fr.top + 10),
-                   (fr.left + 10, fr.bottom - 10),
-                   (fr.right - 10, fr.bottom - 10)):
+    for cx, cy in ((fr.left + 9, fr.top + 9), (fr.right - 9, fr.top + 9),
+                   (fr.left + 9, fr.bottom - 9),
+                   (fr.right - 9, fr.bottom - 9)):
         pygame.draw.circle(surf, _GOLD_PALE, (cx, cy), 3)
         pygame.draw.circle(surf, _GOLD_DEEP, (cx, cy), 3, 1)
 
-    # Engraved PROFILE nameplate on the bottom rail (label + tap chevron).
+    # Engraved PROFILE nameplate on the bottom rail (gold — scarlet stays
+    # reserved for START — with a tap chevron).
     plate = pygame.Rect(fr.centerx - 52, fr.bottom - 20, 104, 17)
     pygame.draw.rect(surf, (18, 12, 40), plate, border_radius=6)
     pygame.draw.rect(surf, _GOLD_DEEP, plate, width=1, border_radius=6)
@@ -263,24 +242,31 @@ def concept_framed(surf):
                    color=_GOLD_PALE, track=2, alpha=245)
     tri(surf, plate.right - 8, plate.centery, 4, _GOLD_PALE)
 
-    records_badge(surf, fr.right - 2, fr.top - 2)
+    # Records badge tucked INSIDE the interior top-right corner, sitting on
+    # the diorama a clear ~8 px below the subtitle baseline.
+    records_badge(surf, fr.right - 28, fr.top + 17)
 
 
-# ── Concept 2 — NAMEPLATE STANDEE ────────────────────────────────────────────
-# Pip keeps standing exactly where he is, but now on a museum plinth: a
-# 3D brass box slid under his feet with an engraved PROFILE plaque on its
-# front face. The whole standee (diorama + plinth) is the button — a soft
-# tap-glow rings the base and a records plaque tucks at the plinth corner.
+# ── Finalist B — NAMEPLATE STANDEE ───────────────────────────────────────────
+# Pip keeps standing exactly where he is, but the whole snow diorama now sits
+# on a museum plinth: a brass box whose top edge is SEATED under the snow
+# ground (drawn behind the house so the snow laps its lip) — Pip stands ON it
+# rather than hovering above a detached plate. An engraved PROFILE plaque
+# rides the front face; a records plaque tucks into the front bottom-right.
 def _standee_under(surf):
     reg = dio_region(pad=8)
-    # Feet land around the house base; seat the plinth just under them.
-    top = reg.bottom - 6
-    pw, ph = 118, 30
+    # The house snow surface sits at screen y ~ 308-321. Seat the plinth top
+    # up inside that band so the snow (drawn after, over this) laps the lip
+    # and the seam disappears — the merge that turns a detached plate into a
+    # stand Pip stands ON.
+    pw, ph = 130, 38
+    top = 311
     px = reg.centerx - pw // 2
     plinth = pygame.Rect(px, top, pw, ph)
-    tap_glow(surf, plinth.inflate(10, 6), radius=12, strength=0.9)
+    tap_glow(surf, plinth.inflate(8, 4), radius=10, strength=0.9)
 
-    # Top face (parallelogram) reads the plinth as a solid block Pip stands on.
+    # Top face (parallelogram) — mostly hidden under the snow lip, but its
+    # side slivers read the plinth as a solid block, not a plate.
     depth = 9
     top_face = [(plinth.left, plinth.top),
                 (plinth.right, plinth.top),
@@ -288,194 +274,40 @@ def _standee_under(surf):
                 (plinth.left + depth, plinth.top - depth)]
     pygame.draw.polygon(surf, _GOLD_MID, top_face)
     pygame.draw.polygon(surf, _GOLD_DEEP, top_face, 1)
+
     # Front face — the plaque body, gilded with a top sheen + foot shadow.
     pygame.draw.rect(surf, _GOLD_DEEP, plinth, border_radius=4)
     pygame.draw.rect(surf, _GOLD_MID, plinth.inflate(-4, -4), border_radius=3)
-    pygame.draw.line(surf, _GOLD_PALE, (plinth.left + 5, plinth.top + 3),
-                     (plinth.right - 5, plinth.top + 3), 1)
-    pygame.draw.line(surf, (60, 40, 6), (plinth.left + 5, plinth.bottom - 3),
-                     (plinth.right - 5, plinth.bottom - 3), 1)
+    pygame.draw.line(surf, _GOLD_PALE, (plinth.left + 6, plinth.top + 4),
+                     (plinth.right - 6, plinth.top + 4), 1)
+    pygame.draw.line(surf, (60, 40, 6), (plinth.left + 6, plinth.bottom - 3),
+                     (plinth.right - 6, plinth.bottom - 3), 1)
 
-    # Engraved PROFILE — dark inset so it reads as stamped brass.
-    inset = plinth.inflate(-14, -12)
+    # Engraved PROFILE — dark inset on the VISIBLE lower front face (the
+    # upper front is under the snow lip), left of the records plaque.
+    inset = pygame.Rect(plinth.left + 10, plinth.bottom - 20, 78, 16)
     pygame.draw.rect(surf, (52, 34, 8), inset, border_radius=3)
-    _tracked_label(surf, "PROFILE", (inset.centerx - 5, inset.centery), 12,
-                   color=_GOLD_PALE, track=3, alpha=255)
-    tri(surf, inset.right - 7, inset.centery, 4, _GOLD_PALE)
+    _tracked_label(surf, "PROFILE", (inset.centerx - 5, inset.centery), 11,
+                   color=_GOLD_PALE, track=2, alpha=255)
+    tri(surf, inset.right - 6, inset.centery, 4, _GOLD_PALE)
 
-    records_badge(surf, plinth.right - 2, plinth.top - 3)
+    # Records badge tucked onto the plinth's front bottom-right shoulder.
+    records_badge(surf, plinth.right - 22, plinth.bottom - 12)
 
 
 def concept_standee(surf):
-    pass  # all art is behind Pip; drawn by _standee_under
-
-
-# ── Concept 3 — SPOTLIGHT / SELECT RING ──────────────────────────────────────
-# The character-select idiom: a glowing ground selection-ring + soft halo
-# under Pip's feet and left/right select arrows, plus a floating PROFILE ▸
-# tag above him. Reads instantly as "this character is selectable".
-def _spotlight_under(surf):
-    reg = dio_region(pad=6)
-    cx = reg.centerx
-    cy = reg.bottom - 4                     # ground line at Pip's feet
-    rw, rh = 84, 26
-
-    # Soft upward halo cone so Pip looks lit from the stage floor.
-    halo = pygame.Surface((rw * 2, reg.height + 20), pygame.SRCALPHA)
-    for k in range(rw, 0, -3):
-        a = int((30 + 26 * GLOW) * k / rw / 5)
-        pygame.draw.ellipse(halo, (*_GOLD_BRIGHT, a),
-                            (rw - k, halo.get_height() - k // 2 - rh,
-                             k * 2, rh))
-    surf.blit(halo, (cx - rw, cy - halo.get_height() + rh))
-
-    # Selection ring — filled glow disc + a bright ellipse rim that pulses.
-    disc = pygame.Surface((rw + 20, rh + 20), pygame.SRCALPHA)
-    pygame.draw.ellipse(disc, (*_GOLD_MID, 70),
-                        (10, 10, rw, rh))
-    surf.blit(disc, (cx - rw // 2 - 10, cy - rh // 2 - 10))
-    ring = pygame.Rect(cx - rw // 2, cy - rh // 2, rw, rh)
-    pygame.draw.ellipse(surf, (*_GOLD_BRIGHT, int(180 + 60 * GLOW)), ring, 3)
-    pygame.draw.ellipse(surf, (*_GOLD_PALE, 150), ring.inflate(-8, -8), 1)
-
-    # Left / right character-select arrows hugging the ring.
-    for sgn in (-1, 1):
-        ax = cx + sgn * (rw // 2 + 12)
-        pts = [(ax, cy - 6), (ax, cy + 6), (ax + sgn * 8, cy)]
-        pygame.draw.polygon(surf, (*_GOLD_BRIGHT, 220), pts)
-        pygame.draw.polygon(surf, _GOLD_DEEP, pts, 1)
-
-
-def concept_spotlight(surf):
-    reg = dio_region(pad=6)
-    # Float the tag between the subtitle band and Pip's head so it clears
-    # the wordmark above and the diorama below.
-    tag_y = reg.top + 18
-    profile_tag(surf, reg.centerx, tag_y, w=96)
-    records_badge(surf, reg.centerx + 60, tag_y, kind="star")
-
-
-# ── Concept 4 — TAP BUBBLE ───────────────────────────────────────────────────
-# A rounded call-out bubble tethered to Pip with a tail pointing right at
-# him: "THIS IS YOU" over a PROFILE ▸ row. The pointer + second-person
-# copy make the standing bird unmistakably the tappable target.
-def concept_bubble(surf):
-    reg = dio_region(pad=6)
-    bw, bh = 128, 58
-    bx = reg.right - 6
-    # Seat the bubble below the subtitle band so it never covers the wordmark.
-    by = reg.top + 8
-    bub = pygame.Rect(bx, by, bw, bh)
-
-    # Tail toward Pip (down-left) drawn first so the panel rim laps its base.
-    anchor = (reg.centerx + 18, reg.centery)
-    tail = [(bub.left + 10, bub.bottom - 12),
-            (bub.left + 30, bub.bottom - 6), anchor]
-    sh = pygame.Surface((bw + 12, bh + 16), pygame.SRCALPHA)
-    pygame.draw.rect(sh, (0, 0, 0, 120), sh.get_rect(), border_radius=14)
-    surf.blit(sh, (bub.x - 4, bub.y + 5))
-    pygame.draw.polygon(surf, (0, 0, 0, 120),
-                        [(p[0] - 2, p[1] + 3) for p in tail])
-    pygame.draw.polygon(surf, (26, 18, 50), tail)
-
-    tap_glow(surf, bub, radius=14, strength=0.8)
-    _volume_panel(surf, bub, radius=14)
-    pygame.draw.polygon(surf, (26, 18, 50), tail)
-    pygame.draw.line(surf, _GOLD_DEEP, tail[0], tail[2], 1)
-    pygame.draw.line(surf, _GOLD_DEEP, tail[1], tail[2], 1)
-
-    _tracked_label(surf, "THIS IS YOU", (bub.centerx, bub.top + 15), 11,
-                   color=WHITE, track=1, alpha=235)
-    pygame.draw.line(surf, (*_GOLD_DEEP, 160),
-                     (bub.left + 14, bub.top + 26),
-                     (bub.right - 14, bub.top + 26), 1)
-    profile_tag(surf, bub.centerx, bub.bottom - 15, w=104)
-
-    records_badge(surf, bub.right - 2, bub.top - 2)
-
-
-# ── Concept 5 — DASHED HOTSPOT / PRESS-STATE ─────────────────────────────────
-# A beveled interactive tap-zone: a rounded, subtly dashed marching-ants
-# border rings the diorama with a faint pressed-state tint + inner
-# highlight, a PROFILE ▸ tab clipped to the bottom edge, and the records
-# pip corner-tucked. Borrows the OS "this whole region is one button" idiom.
-def _dashed_rrect(surf, rect, color, radius=16, dash=8, gap=6, width=2):
-    """Marching-ants along a rounded rect's four straight edges (corners
-    left open, which reads as dashes turning the bend)."""
-    x0, y0, x1, y1 = (rect.left + radius, rect.top, rect.right - radius,
-                      rect.top)
-    edges = [
-        ((rect.left + radius, rect.top), (rect.right - radius, rect.top)),
-        ((rect.right, rect.top + radius), (rect.right, rect.bottom - radius)),
-        ((rect.right - radius, rect.bottom),
-         (rect.left + radius, rect.bottom)),
-        ((rect.left, rect.bottom - radius), (rect.left, rect.top + radius)),
-    ]
-    for (ax, ay), (bx, by) in edges:
-        dx, dy = bx - ax, by - ay
-        length = math.hypot(dx, dy)
-        if length == 0:
-            continue
-        ux, uy = dx / length, dy / length
-        d = 0.0
-        while d < length:
-            e = min(d + dash, length)
-            pygame.draw.line(surf, color,
-                             (ax + ux * d, ay + uy * d),
-                             (ax + ux * e, ay + uy * e), width)
-            d += dash + gap
-    # Rounded corner ticks so the ring doesn't look broken at the bends.
-    for cx, cy, a0, a1 in (
-        (rect.left + radius, rect.top + radius, 90, 180),
-        (rect.right - radius, rect.top + radius, 0, 90),
-        (rect.right - radius, rect.bottom - radius, 270, 360),
-        (rect.left + radius, rect.bottom - radius, 180, 270),
-    ):
-        pygame.draw.arc(surf, color,
-                        (cx - radius, cy - radius, radius * 2, radius * 2),
-                        math.radians(a0), math.radians(a1), width)
-
-
-def concept_hotspot(surf):
-    reg = dio_region(pad=12)
-
-    tap_glow(surf, reg, radius=18, strength=0.85)
-    # Pressed-state fill + inner bevel: a faint warm tint inside the zone,
-    # a bright top-left highlight and a dark bottom-right shadow so the
-    # whole region reads as one raised, tappable button.
-    fill = pygame.Surface(reg.size, pygame.SRCALPHA)
-    fill.fill((255, 214, 120, 26))
-    surf.blit(fill, reg.topleft)
-    pygame.draw.line(surf, (*_GOLD_PALE, 120),
-                     (reg.left + 16, reg.top + 2),
-                     (reg.right - 16, reg.top + 2), 2)
-    pygame.draw.line(surf, (0, 0, 0, 90),
-                     (reg.left + 16, reg.bottom - 2),
-                     (reg.right - 16, reg.bottom - 2), 2)
-
-    # Solid inner keyline + the dashed marching-ants ring on top.
-    pygame.draw.rect(surf, (*_GOLD_DEEP, 150), reg, width=1, border_radius=18)
-    _dashed_rrect(surf, reg, _GOLD_BRIGHT, radius=18, dash=9, gap=6, width=2)
-
-    # PROFILE ▸ tab clipped to the bottom edge (a hotspot's action label).
-    tab = pygame.Rect(reg.centerx - 48, reg.bottom - 9, 96, 18)
-    pygame.draw.rect(surf, (168, 34, 30), tab, border_radius=6)
-    pygame.draw.rect(surf, _GOLD_BRIGHT, tab, width=1, border_radius=6)
-    _tracked_label(surf, "PROFILE", (tab.centerx - 5, tab.centery), 11,
-                   color=(255, 244, 224), track=2, alpha=255)
-    tri(surf, tab.right - 8, tab.centery, 4, _GOLD_PALE)
-
-    records_badge(surf, reg.right - 4, reg.top - 2)
+    pass  # all standee art sits behind Pip; drawn by _standee_under
 
 
 # ── Assembly ─────────────────────────────────────────────────────────────────
-CONCEPTS = [
-    ("1 · FRAMED-IN-PLACE", None, concept_framed),
-    ("2 · NAMEPLATE STANDEE", _standee_under, concept_standee),
-    ("3 · SPOTLIGHT RING", _spotlight_under, concept_spotlight),
-    ("4 · TAP BUBBLE", None, concept_bubble),
-    ("5 · DASHED HOTSPOT", None, concept_hotspot),
+FINALISTS = [
+    ("A · FRAMED-IN-PLACE", None, concept_framed),
+    ("B · NAMEPLATE STANDEE", _standee_under, concept_standee),
 ]
+
+# Card region cropped for the true-1x proof strips — from just below the
+# subtitle down through the card, so badge/label/glow show at native scale.
+PROOF = pygame.Rect(4, 168, 212, 200)
 
 
 def build_panel(under_fn, over_fn):
@@ -486,40 +318,62 @@ def build_panel(under_fn, over_fn):
 
 
 def main():
-    pad, gap, hdr = 18, 16, 54
-    foot = 34                                  # room for the per-panel labels
-    cols = len(CONCEPTS)
-    sheet_w = pad * 2 + cols * W + (cols - 1) * gap
-    sheet_h = pad + hdr + H + foot
+    pad, gap = 20, 26
+    hdr = 66
+    lab = 30
+    proof_gap = 22
+    proof_lab = 26
+    proof_h = PROOF.height
+
+    sheet_w = pad * 2 + 2 * W + gap
+    sheet_h = (pad + hdr + H + lab + proof_gap
+               + proof_lab + proof_h + pad)
 
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((22, 18, 34))
 
     title_f = _font(26, True)
     sub_f = _font(15, True)
-    t = title_f.render(
-        "SKYBIT · Profile menu-entry — Round 1 · the standing Pip IS the button",
-        True, (240, 224, 180))
-    sheet.blit(t, (pad, 10))
-    s = sub_f.render(
-        "Five distinct treatments of the ALREADY-drawn Pip diorama "
-        "(no second parrot) · violet records badge · PROFILE label · "
+    sheet.blit(title_f.render(
+        "SKYBIT · Profile menu-entry — Round 2 · the two matured finalists",
+        True, (240, 224, 180)), (pad, 12))
+    sheet.blit(sub_f.render(
+        "Standing Pip IS the button (no second parrot) · PROFILE stays GOLD "
+        "(scarlet = START only) · records badge inside the card · "
         "sin(T·3.6) tap-glow",
-        True, (198, 186, 158))
-    sheet.blit(s, (pad, 38))
+        True, (198, 186, 158)), (pad, 40))
 
     lab_f = _font(18, True)
+    proof_f = _font(14, True)
+
+    panels = []
     x = pad
     y = pad + hdr
-    for label, under_fn, over_fn in CONCEPTS:
+    for label, under_fn, over_fn in FINALISTS:
         panel = build_panel(under_fn, over_fn)
+        panels.append((label, panel, x))
         pygame.draw.rect(sheet, (8, 5, 20), (x - 2, y - 2, W + 4, H + 4))
         sheet.blit(panel, (x, y))
         li = lab_f.render(label, True, (250, 236, 190))
         sheet.blit(li, li.get_rect(midtop=(x + W // 2, y + H + 6)))
         x += W + gap
 
-    out = os.path.join(os.path.dirname(__file__), "round_1.png")
+    # ── True-1x proof crops: the finalist card on the night sky at native
+    # scale (subsurface of the already-1x panel — no upscale). ──────────────
+    py = y + H + lab + proof_gap + proof_lab
+    for label, panel, px in panels:
+        crop = panel.subsurface(PROOF).copy()
+        # Centre the crop under its panel column.
+        cx = px + (W - PROOF.width) // 2
+        pygame.draw.rect(sheet, (40, 30, 58),
+                         (cx - 2, py - 2, PROOF.width + 4, proof_h + 4))
+        sheet.blit(crop, (cx, py))
+        pl = proof_f.render("TRUE 1× — " + label.split("·")[0].strip()
+                            + " card on night sky",
+                            True, (232, 214, 168))
+        sheet.blit(pl, pl.get_rect(midbottom=(cx + PROOF.width // 2, py - 6)))
+
+    out = os.path.join(os.path.dirname(__file__), "round_2.png")
     pygame.image.save(sheet, out)
     print("saved", out, sheet.get_size())
 
