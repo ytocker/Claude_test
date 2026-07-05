@@ -174,12 +174,11 @@ From-scratch creatures (full bird replacement).
 
 ---
 
-## HATS (17) — 🔒 closed (future)
+## HATS (16) — 🔒 closed (future)
 
 | Name | ID | Cost | Tier |
 |---|---|---|---|
 | PARTY HAT | skin_hat_partyhat | 220 | common |
-| VISOR | skin_hat_visor | 240 | common |
 | STRAW HAT | skin_hat_strawhat | 260 | common |
 | BEANIE | skin_hat_beanie | 300 | common |
 | BERET | skin_hat_beret | 320 | common |
@@ -258,10 +257,10 @@ The gift Pip carries below him. `NO PARCEL` is a paid option that hides the parc
 | Parrots | 17 (+DEFAULT) | 2 | 🟢 open |
 | Animals | 21 | 7 | 🔒 closed |
 | Shoes | 15 | 0 | 🔒 closed |
-| Hats | 17 | 0 | 🔒 closed |
+| Hats | 16 | 0 | 🔒 closed |
 | Shades | 12 (+DEFAULT) | 0 | 🔒 closed |
 | Parcels | 20 (+DEFAULT) | 2 | 🟢 open |
-| **Total** | **116 paid** | **11** | **3 open / 4 closed** |
+| **Total** | **115 paid** | **11** | **3 open / 4 closed** |
 
 Plus 2 free DEFAULT cards (`skin_base`, `parcel_base`).
 
