@@ -73,6 +73,10 @@ def _outlined_text(surf, txt, center, size, fill=_GOLD_BRIGHT,
                (-px, -px), (px, -px), (-px, px), (px, px)]
     for ox, oy in offsets:
         surf.blit(out, (r.x + ox, r.y + oy))
+    if shadow_offset is not None:
+        sh = f.render(txt, True, NEAR_BLACK)
+        sh.set_alpha(170)
+        surf.blit(sh, (r.x + shadow_offset[0], r.y + shadow_offset[1]))
     surf.blit(img, r.topleft)
     return r
 
@@ -148,6 +152,12 @@ def _pill_btn(surf, center, text, size=20, alpha=255, wide=False,
             a = int(50 * (1 - yy / (ph / 2)))
             pygame.draw.line(frost, (255, 245, 220, a), (0, yy), (pw, yy))
         pill.blit(frost, (0, 0))
+    bsh = pygame.Surface((pw, ph), pygame.SRCALPHA)
+    for yy in range(ph // 2, ph):
+        a = int(55 * (yy - ph // 2) / (ph / 2))
+        pygame.draw.line(bsh, (0, 0, 0, a), (0, yy), (pw, yy))
+    pill.blit(bsh, (0, 0))
+
     # Clip to a rounded-rect mask.
     mask = pygame.Surface((pw, ph), pygame.SRCALPHA)
     pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, pw, ph),
@@ -163,7 +173,12 @@ def _pill_btn(surf, center, text, size=20, alpha=255, wide=False,
     pill.set_alpha(alpha)
     surf.blit(pill, (x, y))
 
+    # Label: scarlet shadow then cream face, so the text feels embossed
+    # rather than floating on top of the gradient.
+    sh_img = f.render(text, True, _SCARLET_SHADOW)
+    sh_img.set_alpha(220)
     tr = img.get_rect(center=(cx, cy))
+    surf.blit(sh_img, (tr.x + 1, tr.y + 1))
     surf.blit(img, tr)
 
     return pygame.Rect(x, y, pw, ph)
@@ -1766,7 +1781,7 @@ class HUD:
         # Subtitle — same gold-on-red outline as SKYBIT, just smaller and
         # with a tighter pixel outline so it reads as a partner line.
         _outlined_text(surf, "POCKET  SKY  FLYER", (W // 2, 184),
-                        size=22, px=2, shadow_offset=None)
+                        size=22, px=2, shadow_offset=(2, 3))
 
         # Divider
         pygame.draw.line(surf, (*_ORANGE_BORDER, 120),
