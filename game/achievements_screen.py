@@ -168,7 +168,9 @@ class AchievementsScene:
             for a in by_cat[cat]:
                 self._draw_row(surf, a, y, store, S, tone)
                 y += _ROW_H + _ROW_GAP
-        self._content = surf
+        # Pre-scale to display resolution once so render can blit the visible
+        # slice directly instead of calling smoothscale every frame.
+        self._content = pygame.transform.smoothscale(surf, (W, h))
 
         top, bot = self._viewport()
         self.max_scroll = max(0.0, self._content_h - (bot - top))
@@ -406,16 +408,12 @@ class AchievementsScene:
 
         top, bot = self._viewport()
         view_h = bot - top
-        S = _S
 
-        # Visible slice of the tall content surface.
-        src_y = int(self.scroll_offset * S)
-        src_h = min(view_h * S, self._content.get_height() - src_y)
+        # Blit the pre-scaled 1x content surface — no per-frame scaling.
+        src_y = int(self.scroll_offset)
+        src_h = min(view_h, self._content.get_height() - src_y)
         if src_h > 0:
-            slice_src = pygame.Rect(0, src_y, W * S, src_h)
-            sub = self._content.subsurface(slice_src)
-            scaled = pygame.transform.smoothscale(sub, (W, src_h // S))
-            surf.blit(scaled, (0, top))
+            surf.blit(self._content, (0, top), (0, src_y, W, src_h))
 
         # Recessed metallic scrollbar — a sunken channel + a brighter rounded
         # thumb with a gold rim, the energy-bar language. Self-documents the
