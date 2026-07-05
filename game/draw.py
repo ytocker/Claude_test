@@ -27,10 +27,10 @@ COIN_GOLD     = (255, 210,  20)
 COIN_LIGHT    = (255, 245, 120)
 COIN_DARK     = (200, 140,   0)
 
-MUSH_CAP      = (220,  30,  30)
-MUSH_CAP2     = (255,  70,  50)
-MUSH_SPOT     = (255, 255, 255)
-MUSH_STEM     = (245, 225, 195)
+MUSH_CAP      = (125,  30,  45)   # velvet wine cone body
+MUSH_CAP2     = (180,  60,  75)   # velvet highlight stripe
+MUSH_SPOT     = (255, 235, 175)   # cream-butter ornament
+MUSH_STEM     = (245, 230, 200)   # ivory stem
 
 BIRD_RED      = (240,  55,  55)
 BIRD_RED_D    = (170,  25,  25)
@@ -292,58 +292,31 @@ _CLOUD_VARIANTS: list[list[tuple[float, float, float, int]]] = [
 
 def draw_cloud(surf, x, y, scale=1.0, variant: int = 0):
     """Draw a stylised cloud. `variant` picks one of the hand-tuned shapes
-    so scenes don't paint the same 5-circle blob repeatedly."""
+    so scenes don't paint the same 5-circle blob repeatedly. Each puff is
+    composited with its OWN alpha (from the variant tuple), giving the
+    cloud soft edges where small puffs overlap larger ones."""
     puffs = _CLOUD_VARIANTS[variant % len(_CLOUD_VARIANTS)]
-    max_ox = max(p[0] for p in puffs)
     for ox, oy, r, a in puffs:
         rr = max(2, int(r * scale))
         s = pygame.Surface((rr * 2 + 2, rr * 2 + 2), pygame.SRCALPHA)
         pygame.draw.circle(s, (255, 255, 255, a), (rr + 1, rr + 1), rr)
         surf.blit(s, (int(x + ox * scale) - rr - 1,
                       int(y + oy * scale) - rr - 1))
-    # Soft shadow underside stretched to the variant's footprint
-    sh_w = max(40, int((max_ox + 24) * scale))
-    shadow = pygame.Surface((sh_w, int(14 * scale)), pygame.SRCALPHA)
-    shadow.fill((130, 170, 220, 55))
-    surf.blit(shadow, (int(x - 4 * scale), int(y + 14 * scale)))
+    # No underside shadow band — that solid-fill rectangle read as a hard
+    # blue bar pinned to the cloud's bottom rather than as soft shading.
 
 
 # ── ground drawing ───────────────────────────────────────────────────────────
 
 def draw_ground(surf, ground_y, w, h, scroll, top_color=None, mid_color=None, bot_color=None):
-    top_color = top_color or GROUND_TOP
-    mid_color = mid_color or GROUND_MID
-    bot_color = bot_color or GROUND_BOT
-
-    # Grass strip
-    grass_h = 22
-    for i in range(grass_h):
-        t = i / (grass_h - 1)
-        c = lerp_color(top_color, mid_color, t)
-        pygame.draw.line(surf, c, (0, ground_y + i), (w - 1, ground_y + i))
-
-    # Dirt below
-    for i in range(h - ground_y - grass_h):
-        t = i / max(1, h - ground_y - grass_h - 1)
-        c = lerp_color(mid_color, bot_color, t)
-        pygame.draw.line(surf, c, (0, ground_y + grass_h + i), (w - 1, ground_y + grass_h + i))
-
-    # Grass blade highlights (brighter tint of top color)
-    blade_col = (
-        min(255, top_color[0] + 40),
-        min(255, top_color[1] + 40),
-        min(255, top_color[2] + 40),
-    )
-    edge_col = (
-        min(255, top_color[0] + 60),
-        min(255, top_color[1] + 60),
-        min(255, top_color[2] + 60),
-    )
-    off = int(scroll * 0.7) % 30
-    for gx in range(-off, w, 30):
-        pygame.draw.line(surf, blade_col, (gx, ground_y), (gx - 4, ground_y - 8), 2)
-        pygame.draw.line(surf, blade_col, (gx + 12, ground_y), (gx + 8, ground_y - 6), 2)
-    pygame.draw.line(surf, edge_col, (0, ground_y), (w - 1, ground_y), 2)
+    # Dispatch to the run's chosen meadow variant. ``RUN_VARIANT_ID`` is
+    # picked once per play in ``World.__init__`` via
+    # ``ground_variants.set_run_seed(None)``.
+    from game.ground_variants import draw_run_ground
+    draw_run_ground(surf, ground_y, w, h, scroll,
+                    top_color or GROUND_TOP,
+                    mid_color or GROUND_MID,
+                    bot_color or GROUND_BOT)
 
 
 # ── Stone pillar drawing ────────────────────────────────────────────────────

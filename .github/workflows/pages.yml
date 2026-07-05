@@ -1,0 +1,206 @@
+name: Deploy main (/) + v5_skybit (/v5/) + v5_skybit_powerups_final (/v5_powerups/) + v5_graphics_additions (/v5_graphics_additions/) to GitHub Pages
+
+# One Pages site per repo means a single artifact replaces the whole
+# deploy each time. To keep main (root URL), v5_skybit (/v5/), and
+# v5_skybit_powerups_final (/v5_powerups/) all reachable, every
+# triggered run rebuilds ALL THREE branches and ships them as one
+# combined artifact. This file is intentionally identical on main,
+# v5_skybit, and v5_skybit_powerups_final so a push to any branch
+# produces the same deploy.
+#
+# Pygbag 0.9.2 has no built-in include / exclude flag — it bundles
+# every file in the directory it runs in. Without staging the
+# bundle would include docs/ (~24 MB of design exploration PNGs),
+# archive/ (old UI redesigns), tools/ (snapshot scripts) and other
+# non-runtime trees, ballooning the player-facing download to
+# ~33 MB even though the runtime only needs ~1 MB. Each branch
+# therefore gets a "Stage" step that copies main.py, inject_theme.py,
+# pyproject.toml, and the game/ tree (which contains all live
+# runtime assets) into a fresh `<branch>_stage` dir; pygbag and
+# inject_theme.py then run from that minimal stage instead of the
+# full checkout.
+
+on:
+  push:
+    branches: [main, v5_skybit, v5_skybit_powerups_final, v5_graphics_additions]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main_src
+
+      - name: Checkout v5_skybit
+        uses: actions/checkout@v4
+        with:
+          ref: v5_skybit
+          path: v5_src
+
+      - name: Checkout v5_skybit_powerups_final
+        uses: actions/checkout@v4
+        with:
+          ref: v5_skybit_powerups_final
+          path: v5f_src
+
+      - name: Checkout v5_graphics_additions
+        uses: actions/checkout@v4
+        with:
+          ref: v5_graphics_additions
+          path: v5g_src
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pygbag
+        run: pip install pygame 'pygbag==0.9.2' pytest
+
+      - name: Run unit tests on every deploy branch
+        # Tests live in each branch's full checkout (not in the
+        # staged minimal tree). If any branch's pytest suite fails,
+        # the deploy is halted — better to leave the previous
+        # deploy live than ship a regression to all three URLs.
+        run: |
+          for src in main_src v5_src v5f_src v5g_src; do
+            if [ -d "$src/tests" ]; then
+              echo "=== $src/tests ==="
+              ( cd "$src" && python -m pytest tests/ -q ) || exit 1
+            else
+              echo "=== $src: no tests/ dir, skipping ==="
+            fi
+          done
+
+      - name: Stage minimal source for each branch
+        run: |
+          # Copy only runtime-needed files into <branch>_stage. game/
+          # holds all live assets (fonts + audio OGGs + KFC logo) per
+          # the project's "ONLY vendored fonts + KFC logo + sound OGGs"
+          # convention, so a directory copy is enough — no per-file
+          # allowlist to maintain. Adding a new powerup or any new
+          # file inside game/ is automatically picked up by the next
+          # build with no workflow change.
+          for src in main_src v5_src v5f_src v5g_src; do
+            stage="${src%_src}_stage"
+            mkdir -p "$stage"
+            cp "$src/main.py"          "$stage/main.py"
+            cp "$src/inject_theme.py"  "$stage/inject_theme.py"
+            cp "$src/pyproject.toml"   "$stage/pyproject.toml"
+            cp -r "$src/game"          "$stage/game"
+            echo "$stage:"; du -sh "$stage"
+          done
+
+      - name: Build main WASM bundle
+        working-directory: main_stage
+        run: python -m pygbag --build main.py
+
+      - name: Inject theme + Supabase into main
+        working-directory: main_stage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: python inject_theme.py
+
+      - name: Build v5_skybit WASM bundle
+        working-directory: v5_stage
+        run: python -m pygbag --build main.py
+
+      - name: Inject theme + Supabase into v5_skybit
+        working-directory: v5_stage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: python inject_theme.py
+
+      - name: Build v5_skybit_powerups_final WASM bundle
+        working-directory: v5f_stage
+        run: python -m pygbag --build main.py
+
+      - name: Inject theme + Supabase into v5_skybit_powerups_final
+        working-directory: v5f_stage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: python inject_theme.py
+
+      - name: Build v5_graphics_additions WASM bundle
+        working-directory: v5g_stage
+        run: python -m pygbag --build main.py
+
+      - name: Inject theme + Supabase into v5_graphics_additions
+        working-directory: v5g_stage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: python inject_theme.py
+
+      - name: Combine main (root) + v5_skybit (/v5/) + v5_skybit_powerups_final (/v5_powerups/) + v5_graphics_additions (/v5_graphics_additions/)
+        run: |
+          mkdir -p combined
+          cp -r main_stage/build/web/. combined/
+          mkdir -p combined/v5
+          cp -r v5_stage/build/web/. combined/v5/
+          mkdir -p combined/v5_powerups
+          cp -r v5f_stage/build/web/. combined/v5_powerups/
+          mkdir -p combined/v5_graphics_additions
+          cp -r v5g_stage/build/web/. combined/v5_graphics_additions/
+          # GitHub Pages routes through Jekyll by default, which skips
+          # paths beginning with `_`. Pygbag emits `_pythons.js`,
+          # `_packages/`, etc. — the marker disables Jekyll for the
+          # whole site (one at root is enough).
+          touch combined/.nojekyll
+
+      - name: Report bundle sizes + size guard
+        # Hard ceiling per .apk. Today's minimal bundle is ~544 KB
+        # (just main.py + game/) so 5 MB leaves ~9x headroom for
+        # legit growth (new sprites, audio, etc.) while still catching
+        # the kind of silent bloat that put 33 MB of design PNGs +
+        # archive + tools into the player-facing download. Raise the
+        # threshold deliberately if a genuine asset push exceeds it.
+        run: |
+          MAX_BYTES=$((5 * 1024 * 1024))
+          fail=0
+          echo "=== built bundle sizes ==="
+          for stage in main_stage v5_stage v5f_stage v5g_stage; do
+            apk=$(ls "$stage"/build/web/*.apk 2>/dev/null | head -1)
+            if [ -f "$apk" ]; then
+              bytes=$(stat -c%s "$apk")
+              printf '  %-12s  %-8s  (%d bytes)\n' "$stage" "$(du -h "$apk" | awk '{print $1}')" "$bytes"
+              if [ "$bytes" -gt "$MAX_BYTES" ]; then
+                echo "::error::$apk exceeds the 5 MB bundle ceiling ($bytes > $MAX_BYTES bytes). Something heavy slipped into the Stage step's copy list — audit the staging block in this workflow."
+                fail=1
+              fi
+            fi
+          done
+          if [ "$fail" = "1" ]; then exit 1; fi
+          echo "=== combined deploy artifact ==="
+          du -sh combined
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: combined
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
