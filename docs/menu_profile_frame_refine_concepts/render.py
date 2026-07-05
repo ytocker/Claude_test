@@ -1,33 +1,34 @@
-"""Round 1 — refine the chosen FRAMED-IN-PLACE Profile entry.
+"""Round 2 — mature the chosen FRAMED-IN-PLACE Profile entry.
 
-The owner picked the framed-in-place finalist (a gilded frame drawn
-AROUND the already-standing Pip so the live menu diorama becomes a
-tappable character card) but flagged two things: the gold perimeter is
-TOO THICK — it should read like a delicate jewel edge, not a lead box —
-and the PROFILE label wants to be a little BIGGER for legibility.
+Round 1 explored five subtler-frame treatments over a single, permanently
+dimmed dusk sky. The art-director returned ITERATE: keep going with the
+double-rule jewel edge (Option 1) as the winner and the inset matte
+(Option 3) as the safe alternate, cull the rest, and — critically — PROVE
+the hairline frame + PROFILE label at the DAY extreme, since the live menu
+rides a 5-minute day/night cycle and round 1 never showed the bright end.
 
-This sheet explores FIVE genuinely distinct treatments of a SUBTLE
-frame, all sharing the fixed guidelines (live Pip is the button — no
-second parrot; PROFILE stays GOLD since scarlet is reserved for START;
-a small violet records badge tucks into a top interior corner; the
-sin(T*3.6) START-pill pulse drives a soft tap-glow):
+This sheet ships THREE matured cards, each a full 360x640 menu mock over
+the real DUSK biome sky, plus a paired row of TRUE 1x proof crops — every
+card rendered once over dusk and once over the brightest MIDDAY biome sky
+(the DAY keyframe in game/biome.py) so we can confirm the gilt survives
+where the sky is loudest:
 
-  1 · HAIRLINE DOUBLE-RULE  two fine engraved gold lines with an air gap,
-                            PROFILE on a slim bottom cartouche.
-  2 · CORNER BRACKETS       only gilded L-brackets at the four corners
-                            (open sides), airy + modern; PROFILE on a
-                            bridging bottom tab.
-  3 · INSET MATTE + RIM     a soft dark inner mat with one bright hairline
-                            rim; PROFILE ENGRAVED into the mat's lower band.
-  4 · ROUNDED THIN BEZEL    a slim rounded bezel (chip-family radius) with
-                            a top rim-light + an integrated bottom rail.
-  5 · NAMEPLATE-FORWARD     the frame drops to a whisper (faint vignette +
-                            a single deep hairline); a prominent beveled
-                            PROFILE nameplate does the card work.
+  A · HYBRID WINNER   Option 1 hardened — double-rule jewel edge (outer
+                      _GOLD_MID + inner _GOLD_BRIGHT, ~6px air gap) with a
+                      THIN dark scrim hint just inside the inner rule as
+                      contrast insurance; PROFILE (13) on a struck cartouche
+                      that carries a pale top rim-light like the STORE chips.
+  B · INSET MATTE     Option 3 unchanged — a soft dark inner mat does the
+                      contrast work under a single bright hairline rim;
+                      PROFILE ENGRAVED (14, +1px for the engraving cost).
+  C · JEWEL + PLATE   Option 1's double-rule jewel edge carrying a small
+                      beveled brass PROFILE nameplate (from Option 5)
+                      instead of a cartouche.
 
-Each is composited into a full 360x640 menu mock, and a TRUE 1x proof
-crop of every card confirms the (now lighter) frame weight and the
-(now larger) PROFILE label read at native scale.
+Shared with round 1: the live standing Pip IS the button (no second
+parrot), PROFILE stays GOLD (scarlet is reserved for START), a violet
+records badge tucks into the top-right interior, and the sin(T*3.6)
+START-pill pulse drives every card's tap-glow.
 """
 import os
 import math
@@ -59,17 +60,24 @@ GLOW = 0.5 + 0.5 * math.sin(T * 3.6)          # 0..1 tap-glow pulse
 STARS = [(int(37 * i * 1.7 % W), int(23 + 71 * i * 1.3 % 210),
           1 + (i % 2), i * 0.9) for i in range(26)]
 
-# Mid-value gold — the inner step that turns a flat edge into a struck
-# bevel (matches the HUD gold family).
+# Mid-value gold — the outer step that turns a flat edge into a struck
+# bevel against the brighter inner rule (matches the HUD gold family).
 _GOLD_MID = (212, 160, 44)
 # Records badge ground: a deep violet so the folded-in Awards cue can
 # never read as gold currency and never clash with the scarlet START.
 _REC_GROUND = (96, 46, 150)
 _REC_GROUND_D = (58, 24, 96)
 
-# The PROFILE label is bumped up from the round-2 size 11 so it stays
-# legible even as the surrounding gilding thins to a jewel edge.
-_LABEL_SIZE = 13
+# ── The two sky extremes the frame must survive ──────────────────────────────
+# Pulled from game/biome.py keyframes: DUSK (0.5125) is the mood the menu
+# usually sits in; DAY (0.0) is the brightest the cycle ever gets — the real
+# stress test for a thin gold hairline, which round 1 never showed.
+DUSK_SKY = dict(top=(25, 20, 70), mid=(70, 45, 130), bot=(170, 95, 140),
+                horizon=(255, 150, 140), mtn_alpha=195, stars=True,
+                dim=(8, 3, 30, 78))
+DAY_SKY = dict(top=(40, 110, 200), mid=(90, 170, 230), bot=(170, 220, 245),
+               horizon=(255, 240, 200), mtn_alpha=150, stars=False,
+               dim=(255, 250, 236, 8))
 
 
 # ── The live diorama (reused Pip, no second parrot) ──────────────────────────
@@ -129,7 +137,7 @@ def subtle_vignette(surf, fr, alpha=70, inset=6, radius=16):
 def records_badge(surf, cx, cy):
     """The folded-in Awards cue: a violet chip with a legible gold trophy
     and a small superscript count — a distinct shape AND colour so it reads
-    as 'records inside', never as a coin."""
+    as 'records inside', never as a coin. Seated so it clears the top rule."""
     w, hh = 33, 18
     r = pygame.Rect(int(cx - w / 2), int(cy - hh / 2), w, hh)
     sh = pygame.Surface((w + 4, hh + 4), pygame.SRCALPHA)
@@ -141,7 +149,8 @@ def records_badge(surf, cx, cy):
     _draw_trophy(surf, r.left + 12, r.centery + 1, 7)
     f = _font(10, True)
     img = f.render("3", True, _GOLD_PALE)
-    surf.blit(img, img.get_rect(center=(r.right - 8, r.top + 6)))
+    # Nudged 1px off the rounded corner so the glyph doesn't kiss the bevel.
+    surf.blit(img, img.get_rect(center=(r.right - 9, r.top + 6)))
 
 
 def tri(surf, cx, cy, size, color):
@@ -152,77 +161,59 @@ def tri(surf, cx, cy, size, color):
                                       (cx - size // 2, cy + size)])
 
 
-def profile_label(surf, plate, dark_engrave=False):
-    """PROFILE (gold, bumped size) + a tap chevron, centred on a rail; when
-    engraved directly onto a dark mat, a 1px dark shadow sinks the letters."""
+def profile_label(surf, plate, dark_engrave=False, size=13):
+    """PROFILE (gold) + a tap chevron, centred on a rail; when engraved
+    directly onto a dark mat/plate, a 1px dark shadow sinks the letters."""
     lx = plate.centerx - 7
     if dark_engrave:
-        _tracked_label(surf, "PROFILE", (lx, plate.centery + 1), _LABEL_SIZE,
+        _tracked_label(surf, "PROFILE", (lx, plate.centery + 1), size,
                        color=(20, 10, 4), track=2, alpha=200)
-    _tracked_label(surf, "PROFILE", (lx, plate.centery), _LABEL_SIZE,
+    _tracked_label(surf, "PROFILE", (lx, plate.centery), size,
                    color=_GOLD_PALE, track=2, alpha=250)
     tri(surf, plate.right - 9, plate.centery, 4, _GOLD_PALE)
 
 
-# ── Option 1 — HAIRLINE DOUBLE-RULE ──────────────────────────────────────────
-# Two fine gold lines with a small air gap read as a delicate engraved
-# border; PROFILE rides a slim rounded cartouche on the bottom rule.
-def opt_hairline(surf):
+# ── Card A — HYBRID WINNER (double-rule jewel edge + scrim hint) ──────────────
+def card_hybrid(surf):
     fr = dio_region(pad=12)
     fr.height += 16
     subtle_vignette(surf, fr, alpha=78, inset=6, radius=14)
     tap_glow(surf, fr, radius=15, strength=0.9)
 
+    # Contrast insurance: a THIN dark band tucked just inside the inner rule
+    # — about a third the width of Card B's full mat, a hint not a box — so
+    # the jewel edge still reads where the midday sky is loudest.
+    scrim = pygame.Surface(fr.size, pygame.SRCALPHA)
+    pygame.draw.rect(scrim, (10, 6, 26, 102),
+                     scrim.get_rect().inflate(-14, -14), border_radius=9)
+    pygame.draw.rect(scrim, (0, 0, 0, 0),
+                     scrim.get_rect().inflate(-30, -30), border_radius=6)
+    surf.blit(scrim, fr.topleft)
+
+    # Double-rule jewel edge: mid-gold outer, bright inner, ~6px air gap.
     pygame.draw.rect(surf, _GOLD_MID, fr, width=1, border_radius=14)
-    pygame.draw.rect(surf, _GOLD_BRIGHT, fr.inflate(-7, -7), width=1,
-                     border_radius=10)
-    # A single pale top rim between the rules sells 'engraved' over 'drawn'.
+    pygame.draw.rect(surf, _GOLD_BRIGHT, fr.inflate(-12, -12), width=1,
+                     border_radius=9)
     pygame.draw.line(surf, (*_GOLD_PALE, 200), (fr.left + 16, fr.top + 2),
                      (fr.right - 16, fr.top + 2), 1)
 
     plate = pygame.Rect(fr.centerx - 58, fr.bottom - 20, 116, 19)
     pygame.draw.rect(surf, (16, 10, 34), plate, border_radius=9)
     pygame.draw.rect(surf, _GOLD_MID, plate, width=1, border_radius=9)
-    profile_label(surf, plate)
-    records_badge(surf, fr.right - 27, fr.top + 16)
+    # Pale top rim-light inside the pill so the cartouche reads as struck
+    # chrome, matching the STORE/TOP 10 chips' top sheen.
+    pygame.draw.line(surf, (*_GOLD_PALE, 160), (plate.left + 12, plate.top + 3),
+                     (plate.right - 12, plate.top + 3), 1)
+    profile_label(surf, plate, size=13)
+    records_badge(surf, fr.right - 30, fr.top + 20)
 
 
-# ── Option 2 — CORNER BRACKETS ───────────────────────────────────────────────
-# Only gilded L-brackets clip the four corners; the sides stay open for an
-# airy, modern viewfinder look. PROFILE rides a tab bridging the open base.
-def opt_brackets(surf):
-    fr = dio_region(pad=13)
-    fr.height += 16
-    subtle_vignette(surf, fr, alpha=66, inset=2, radius=12)
-    tap_glow(surf, fr, radius=13, strength=0.9)
-
-    arm, th = 22, 3
-    corners = ((fr.left, fr.top, 1, 1), (fr.right, fr.top, -1, 1),
-               (fr.left, fr.bottom, 1, -1), (fr.right, fr.bottom, -1, -1))
-    for x, y, sx, sy in corners:
-        # Deep foot first, bright cap over it — a struck two-tone bracket.
-        for col, off in ((_GOLD_DEEP, 1), (_GOLD_BRIGHT, 0)):
-            pygame.draw.line(surf, col, (x, y + off * sy),
-                             (x + arm * sx, y + off * sy), th)
-            pygame.draw.line(surf, col, (x + off * sx, y),
-                             (x + off * sx, y + arm * sy), th)
-        pygame.draw.circle(surf, _GOLD_PALE, (x, y), 2)
-
-    tab = pygame.Rect(fr.centerx - 52, fr.bottom - 10, 104, 20)
-    sh = pygame.Surface((tab.w + 4, tab.h + 4), pygame.SRCALPHA)
-    pygame.draw.rect(sh, (0, 0, 0, 120), sh.get_rect(), border_radius=9)
-    surf.blit(sh, (tab.x - 2, tab.y + 1))
-    pygame.draw.rect(surf, (20, 12, 38), tab, border_radius=9)
-    pygame.draw.rect(surf, _GOLD_BRIGHT, tab, width=1, border_radius=9)
-    profile_label(surf, tab)
-    records_badge(surf, fr.right - 30, fr.top + 18)
-
-
-# ── Option 3 — INSET MATTE + THIN RIM ────────────────────────────────────────
-# A soft translucent dark mat borders the interior with a single bright
-# hairline rim; PROFILE is ENGRAVED straight into the mat's lower band —
-# no separate plate — so the card feels like a matted museum print.
-def opt_matte(surf):
+# ── Card B — INSET MATTE + THIN RIM (safe-contrast alternate) ─────────────────
+# Construction unchanged from round-1 Option 3: a soft translucent dark mat
+# borders the interior with one bright hairline rim; PROFILE is ENGRAVED
+# straight into the mat's lower band. The mat, not the metal, carries the
+# contrast — so it's the safest play at the bright extreme.
+def card_matte(surf):
     fr = dio_region(pad=13)
     fr.height += 18
     subtle_vignette(surf, fr, alpha=58, inset=6, radius=16)
@@ -230,8 +221,6 @@ def opt_matte(surf):
 
     mat = pygame.Surface((fr.w, fr.h), pygame.SRCALPHA)
     pygame.draw.rect(mat, (10, 6, 26, 165), mat.get_rect(), border_radius=15)
-    # Punch the interior so Pip shows through un-dimmed; the remaining band
-    # is the mat. The bottom band is left taller for the engraved label.
     interior = mat.get_rect().inflate(-24, -26)
     interior.height -= 8
     interior.top -= 4
@@ -243,49 +232,28 @@ def opt_matte(surf):
                      (fr.right - 16, fr.top + 1), 1)
 
     band = pygame.Rect(fr.left, fr.bottom - 20, fr.w, 20)
-    profile_label(surf, band, dark_engrave=True)
-    records_badge(surf, fr.right - 28, fr.top + 17)
+    # +1px over Card A: engraving trades a hair of legibility for the sunk look.
+    profile_label(surf, band, dark_engrave=True, size=14)
+    records_badge(surf, fr.right - 30, fr.top + 20)
 
 
-# ── Option 4 — ROUNDED THIN BEZEL ────────────────────────────────────────────
-# A slim rounded bezel (chip-family radius) with a deep base, one bright
-# rim and a top rim-light; an integrated dark bottom rail carries PROFILE.
-def opt_bezel(surf):
+# ── Card C — JEWEL EDGE + BEVELED NAMEPLATE ──────────────────────────────────
+# Option 1's double-rule jewel edge, but a small beveled brass PROFILE
+# nameplate (lifted from round-1 Option 5) carries the label instead of a
+# flat cartouche — jewel edge + plate.
+def card_plate(surf):
     fr = dio_region(pad=12)
     fr.height += 20
-    subtle_vignette(surf, fr, alpha=68, inset=6, radius=17)
-    tap_glow(surf, fr, radius=17, strength=0.95)
+    subtle_vignette(surf, fr, alpha=72, inset=6, radius=14)
+    tap_glow(surf, fr, radius=15, strength=0.9)
 
-    pygame.draw.rect(surf, _GOLD_DEEP, fr, width=3, border_radius=16)
-    pygame.draw.rect(surf, _GOLD_BRIGHT, fr.inflate(-1, -1), width=1,
-                     border_radius=16)
-    pygame.draw.line(surf, _GOLD_PALE, (fr.left + 18, fr.top + 2),
-                     (fr.right - 18, fr.top + 2), 2)
+    pygame.draw.rect(surf, _GOLD_MID, fr, width=1, border_radius=14)
+    pygame.draw.rect(surf, _GOLD_BRIGHT, fr.inflate(-12, -12), width=1,
+                     border_radius=9)
+    pygame.draw.line(surf, (*_GOLD_PALE, 200), (fr.left + 16, fr.top + 2),
+                     (fr.right - 16, fr.top + 2), 1)
 
-    rail = pygame.Rect(fr.left + 3, fr.bottom - 22, fr.w - 6, 19)
-    rl = pygame.Surface((rail.w, rail.h), pygame.SRCALPHA)
-    pygame.draw.rect(rl, (14, 9, 32, 232), rl.get_rect(),
-                     border_bottom_left_radius=13, border_bottom_right_radius=13)
-    surf.blit(rl, rail.topleft)
-    pygame.draw.line(surf, (*_GOLD_MID, 200), (rail.left + 8, rail.top),
-                     (rail.right - 8, rail.top), 1)
-    profile_label(surf, rail)
-    records_badge(surf, fr.right - 27, fr.top + 17)
-
-
-# ── Option 5 — NAMEPLATE-FORWARD ─────────────────────────────────────────────
-# The frame drops to a whisper — a faint vignette plus a single deep
-# hairline — and a prominent beveled brass PROFILE nameplate does the
-# 'this is a card' work on its own.
-def opt_nameplate(surf):
-    fr = dio_region(pad=11)
-    fr.height += 22
-    subtle_vignette(surf, fr, alpha=54, inset=8, radius=14)
-    tap_glow(surf, fr, radius=14, strength=0.8)
-
-    pygame.draw.rect(surf, (*_GOLD_DEEP, 210), fr, width=1, border_radius=13)
-
-    plate = pygame.Rect(fr.centerx - 63, fr.bottom - 25, 126, 23)
+    plate = pygame.Rect(fr.centerx - 60, fr.bottom - 24, 120, 22)
     sh = pygame.Surface((plate.w + 6, plate.h + 6), pygame.SRCALPHA)
     pygame.draw.rect(sh, (0, 0, 0, 140), sh.get_rect(), border_radius=8)
     surf.blit(sh, (plate.x - 3, plate.y + 2))
@@ -297,21 +265,38 @@ def opt_nameplate(surf):
                      (plate.right - 8, plate.bottom - 3), 1)
     inset = plate.inflate(-8, -8)
     pygame.draw.rect(surf, (30, 18, 8), inset, border_radius=4)
-    profile_label(surf, inset, dark_engrave=True)
-    records_badge(surf, fr.right - 26, fr.top + 16)
+    profile_label(surf, inset, dark_engrave=True, size=13)
+    records_badge(surf, fr.right - 30, fr.top + 20)
 
 
-# ── Shared menu mock ─────────────────────────────────────────────────────────
-def menu_base():
-    surf = pygame.Surface((W, H)).convert_alpha()
+# ── Shared menu mock over a chosen biome sky ─────────────────────────────────
+def sky_gradient(surf, sky):
+    """A 3-stop vertical biome sky (top -> mid -> bot) with a warm horizon
+    band at the base — the same shape the live menu's sky takes."""
     for yy in range(H):
         t = yy / (H - 1)
-        surf.fill(lerp_color((90, 150, 205), (196, 168, 150), t), (0, yy, W, 1))
+        if t < 0.55:
+            c = lerp_color(sky["top"], sky["mid"], t / 0.55)
+        else:
+            c = lerp_color(sky["mid"], sky["bot"], (t - 0.55) / 0.45)
+        surf.fill(c, (0, yy, W, 1))
+    # Horizon glow so the base doesn't read as a flat block.
+    hb = 90
+    for yy in range(H - hb, H):
+        t = (yy - (H - hb)) / hb
+        c = lerp_color(sky["bot"], sky["horizon"], t * 0.6)
+        surf.fill(c, (0, yy, W, 1))
+
+
+def menu_base(sky):
+    surf = pygame.Surface((W, H)).convert_alpha()
+    sky_gradient(surf, sky)
     dim = pygame.Surface((W, H), pygame.SRCALPHA)
-    dim.fill((6, 1, 21, 150))
+    dim.fill(sky["dim"])
     surf.blit(dim, (0, 0))
-    _draw_overlay_stars(surf, STARS, T)
-    _draw_mountain_silhouette(surf, alpha=180)
+    if sky["stars"]:
+        _draw_overlay_stars(surf, STARS, T)
+    _draw_mountain_silhouette(surf, alpha=sky["mtn_alpha"])
 
     draw_diorama(surf)
 
@@ -349,34 +334,33 @@ def bottom_chips(surf):
 
 
 # ── Assembly ─────────────────────────────────────────────────────────────────
-OPTIONS = [
-    ("1 · HAIRLINE DOUBLE-RULE", opt_hairline),
-    ("2 · CORNER BRACKETS", opt_brackets),
-    ("3 · INSET MATTE + RIM", opt_matte),
-    ("4 · ROUNDED THIN BEZEL", opt_bezel),
-    ("5 · NAMEPLATE-FORWARD", opt_nameplate),
+CARDS = [
+    ("A · HYBRID WINNER", card_hybrid),
+    ("B · INSET MATTE + RIM", card_matte),
+    ("C · JEWEL + NAMEPLATE", card_plate),
 ]
 
-# Card region cropped for the true-1x proof strips — from just below the
-# subtitle down through the card, so frame weight + label read at native scale.
-PROOF = pygame.Rect(4, 168, 212, 200)
+# True-1x proof crop around the card — captures the full jewel edge, the
+# PROFILE plate and the records badge with a small margin, so frame weight
+# and label legibility read at native scale over each sky.
+PROOF = pygame.Rect(17, 180, 182, 196)
 
 
-def build_panel(over_fn):
-    surf = menu_base()
+def build_panel(over_fn, sky):
+    surf = menu_base(sky)
     over_fn(surf)
     bottom_chips(surf)
     return surf
 
 
 def main():
-    pad, gap = 20, 22
-    hdr = 66
+    pad, gap = 24, 24
+    hdr = 70
     lab = 30
-    proof_gap = 22
-    proof_lab = 26
+    proof_gap = 30
+    proof_lab = 24
     proof_h = PROOF.height
-    n = len(OPTIONS)
+    n = len(CARDS)
 
     sheet_w = pad * 2 + n * W + (n - 1) * gap
     sheet_h = (pad + hdr + H + lab + proof_gap
@@ -388,41 +372,50 @@ def main():
     title_f = _font(26, True)
     sub_f = _font(15, True)
     sheet.blit(title_f.render(
-        "SKYBIT · Profile FRAME REFINE — Round 1 · five subtler-frame treatments",
+        "SKYBIT · Profile FRAME REFINE — Round 2 · three matured cards, "
+        "proven at DUSK + MIDDAY",
         True, (240, 224, 180)), (pad, 12))
     sheet.blit(sub_f.render(
-        "Owner asks: THINNER jewel-edge frame + a BIGGER PROFILE label · live "
-        "Pip IS the button · PROFILE stays GOLD · violet records badge inside "
-        "· sin(T·3.6) tap-glow",
+        "Full mocks over the DUSK biome sky · paired TRUE 1x proofs below "
+        "confirm the hairline frame + PROFILE label survive the bright MIDDAY "
+        "sky · live Pip IS the button · PROFILE stays GOLD",
         True, (198, 186, 158)), (pad, 40))
 
     lab_f = _font(18, True)
-    proof_f = _font(14, True)
+    proof_f = _font(13, True)
 
-    panels = []
+    cols = []
     x = pad
     y = pad + hdr
-    for label, over_fn in OPTIONS:
-        panel = build_panel(over_fn)
-        panels.append((label, panel, x))
+    for label, over_fn in CARDS:
+        dusk = build_panel(over_fn, DUSK_SKY)
+        midday = build_panel(over_fn, DAY_SKY)
+        cols.append((label, dusk, midday, x))
         pygame.draw.rect(sheet, (8, 5, 20), (x - 2, y - 2, W + 4, H + 4))
-        sheet.blit(panel, (x, y))
+        sheet.blit(dusk, (x, y))
         li = lab_f.render(label, True, (250, 236, 190))
         sheet.blit(li, li.get_rect(midtop=(x + W // 2, y + H + 6)))
         x += W + gap
 
+    # Under each card, its dusk + midday proof crops sit side by side so the
+    # bright-extreme survival is judged against the same card at dusk.
     py = y + H + lab + proof_gap + proof_lab
-    for label, panel, px in panels:
-        crop = panel.subsurface(PROOF).copy()
-        cx = px + (W - PROOF.width) // 2
-        pygame.draw.rect(sheet, (40, 30, 58),
-                         (cx - 2, py - 2, PROOF.width + 4, proof_h + 4))
-        sheet.blit(crop, (cx, py))
-        pl = proof_f.render("TRUE 1× — " + label.split("·")[0].strip(),
-                            True, (232, 214, 168))
-        sheet.blit(pl, pl.get_rect(midbottom=(cx + PROOF.width // 2, py - 6)))
+    for label, dusk, midday, px in cols:
+        pair_w = PROOF.width * 2 + 8
+        base_x = px + (W - pair_w) // 2
+        for i, (panel, tag) in enumerate(((dusk, "DUSK"), (midday, "MIDDAY"))):
+            crop = panel.subsurface(PROOF).copy()
+            cx = base_x + i * (PROOF.width + 8)
+            pygame.draw.rect(sheet, (40, 30, 58),
+                             (cx - 2, py - 2, PROOF.width + 4, proof_h + 4))
+            sheet.blit(crop, (cx, py))
+            pl = proof_f.render(
+                "TRUE 1× · " + label.split("·")[0].strip() + " · " + tag,
+                True, (232, 214, 168))
+            sheet.blit(pl, pl.get_rect(
+                midbottom=(cx + PROOF.width // 2, py - 6)))
 
-    out = os.path.join(os.path.dirname(__file__), "round_1.png")
+    out = os.path.join(os.path.dirname(__file__), "round_2.png")
     pygame.image.save(sheet, out)
     print("saved", out, sheet.get_size())
 
