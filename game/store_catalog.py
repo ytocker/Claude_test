@@ -38,18 +38,23 @@ GROUPS = ("costume", "parrot", "animal", "shoes", "hats", "shades", "parcels")
 # the daily reward gives a steady drip toward the higher tiers.
 CATALOG: dict[str, dict] = {
     # ── COSTUMES (accessories/restyles on the macaw) ──────────────────────────
-    "skin_tophat":   {"name": "TOP HAT",   "cost": 260, "kind": "skin", "group": "costume"},
-    "skin_pirate":   {"name": "PIRATE",    "cost": 280, "kind": "skin", "group": "costume"},
-    "skin_skeleton": {"name": "SKELETON",  "cost": 300, "kind": "skin", "group": "costume"},
-    "skin_cowboy":   {"name": "COWBOY",    "cost": 320, "kind": "skin", "group": "costume"},
-    "skin_ninja":    {"name": "NINJA",     "cost": 340, "kind": "skin", "group": "costume"},
-    "skin_viking":   {"name": "VIKING",    "cost": 450, "kind": "skin", "group": "costume"},
-    "skin_zombie":   {"name": "ZOMBIE",    "cost": 480, "kind": "skin", "group": "costume"},
-    "skin_wizard":   {"name": "WIZARD",    "cost": 480, "kind": "skin", "group": "costume"},
-    "skin_astronaut": {"name": "ASTRONAUT", "cost": 650, "kind": "skin", "group": "costume"},
-    "skin_pharaoh":  {"name": "PHARAOH",   "cost": 700, "kind": "skin", "group": "costume"},
-    "skin_crown":    {"name": "CROWN",     "cost": 750, "kind": "skin", "group": "costume"},
-    "skin_disco":    {"name": "DISCO",     "cost": 800, "kind": "skin", "group": "costume"},
+    "skin_pirate":      {"name": "PIRATE",      "cost":  280, "kind": "skin", "group": "costume"},
+    "skin_cowboy":      {"name": "COWBOY",      "cost":  320, "kind": "skin", "group": "costume"},
+    "skin_pharaoh":     {"name": "PHARAOH",     "cost":  380, "kind": "skin", "group": "costume"},
+    "skin_crown":       {"name": "CROWN",       "cost":  450, "kind": "skin", "group": "costume"},
+    "skin_tophat":      {"name": "GENTLEMAN",   "cost":  520, "kind": "skin", "group": "costume"},
+    "skin_ninja":       {"name": "NINJA",       "cost":  560, "kind": "skin", "group": "costume"},
+    "skin_viking":      {"name": "VIKING",      "cost":  600, "kind": "skin", "group": "costume"},
+    "skin_baseball":    {"name": "BASEBALL",    "cost":  950, "kind": "skin", "group": "costume"},
+    "skin_tennis":      {"name": "TENNIS",      "cost": 1000, "kind": "skin", "group": "costume"},
+    "skin_wizard":      {"name": "WIZARD",      "cost":  720, "kind": "skin", "group": "costume"},
+    "skin_basketball":  {"name": "BASKETBALL",  "cost":  950, "kind": "skin", "group": "costume"},
+    "skin_mummy":       {"name": "MUMMY",       "cost": 1100, "kind": "skin", "group": "costume"},
+    "skin_astronaut":   {"name": "ASTRONAUT",   "cost": 2600, "kind": "skin", "group": "costume"},
+    "skin_pilot":       {"name": "CAPTAIN",     "cost": 2200, "kind": "skin", "group": "costume"},
+    "skin_skeleton":    {"name": "SKELETON",    "cost":  300, "kind": "skin", "group": "parrot"},
+    "skin_zombie":      {"name": "ZOMBIE",      "cost":  480, "kind": "skin", "group": "parrot"},
+    "skin_disco":    {"name": "DISCO",     "cost": 800, "kind": "skin", "group": "parrot"},
 
     # ── PARROTS (full-body species recolours) ─────────────────────────────────
     "skin_bluegold":  {"name": "BLUE MACAW",  "cost": 280, "kind": "skin", "group": "parrot"},
@@ -58,41 +63,49 @@ CATALOG: dict[str, dict] = {
     "skin_hyacinth":  {"name": "HYACINTH",    "cost": 450, "kind": "skin", "group": "parrot"},
     "skin_cockatoo":  {"name": "COCKATOO",    "cost": 520, "kind": "skin", "group": "parrot"},
     "skin_lorikeet":  {"name": "LORIKEET",    "cost": 600, "kind": "skin", "group": "parrot"},
+    "skin_prism":     {"name": "PRISM",        "cost": 1400, "kind": "skin", "group": "parrot"},
+    "skin_thorncrest": {"name": "THORNCREST",   "cost": 1700, "kind": "skin", "group": "parrot"},
+    "skin_embermoth": {"name": "EMBERMOTH",    "cost": 1900, "kind": "skin", "group": "parrot"},
+    "skin_aurora":    {"name": "AURORA MACAW", "cost": 2800, "kind": "skin", "group": "parrot"},
+    "skin_moonbloom": {"name": "MOONBLOOM",    "cost": 3200, "kind": "skin", "group": "parrot"},
+    "skin_tempest":   {"name": "TEMPEST CONDOR", "cost": 3600, "kind": "skin", "group": "parrot"},
+    # SECRET tier — masked as ??? in the store until bought (price still shown).
+    "skin_binky":     {"name": "BINKY",       "cost": 6000, "kind": "skin", "group": "parrot", "secret": True},
+    "skin_chrome":    {"name": "CHROME MACAW", "cost": 9500, "kind": "skin", "group": "parrot", "secret": True},
 
     # ── ANIMALS (from-scratch creatures) ──────────────────────────────────────
-    "skin_bee":      {"name": "BEE",       "cost": 400,  "kind": "skin", "group": "animal"},
-    "skin_owl":      {"name": "OWL",       "cost": 480,  "kind": "skin", "group": "animal"},
-    "skin_toucan":   {"name": "TOUCAN",    "cost": 480,  "kind": "skin", "group": "animal"},
-    "skin_penguin":  {"name": "PENGUIN",   "cost": 520,  "kind": "skin", "group": "animal"},
-    "skin_bat":      {"name": "BAT",       "cost": 520,  "kind": "skin", "group": "animal"},
+    # Common — entry-level, accessible within a couple of runs.
+    "skin_bee":      {"name": "BEE",       "cost": 200,  "kind": "skin", "group": "animal"},
+    "skin_owl":      {"name": "OWL",       "cost": 280,  "kind": "skin", "group": "animal"},
+    "skin_toucan":   {"name": "TOUCAN",    "cost": 340,  "kind": "skin", "group": "animal"},
+    # Rare — comfortable multi-session grind, evenly spaced.
+    "skin_penguin":  {"name": "PENGUIN",   "cost": 420,  "kind": "skin", "group": "animal"},
+    "skin_bat":      {"name": "BAT",       "cost": 490,  "kind": "skin", "group": "animal"},
     "skin_flamingo": {"name": "FLAMINGO",  "cost": 560,  "kind": "skin", "group": "animal"},
-    "skin_eagle":    {"name": "EAGLE",     "cost": 700,  "kind": "skin", "group": "animal"},
-    "skin_pufferfish":   {"name": "PUFFERFISH",   "cost": 620,  "kind": "skin", "group": "animal"},
-    "skin_chameleon":    {"name": "CHAMELEON",    "cost": 680,  "kind": "skin", "group": "animal"},
-    "skin_red_panda":    {"name": "RED PANDA",    "cost": 740,  "kind": "skin", "group": "animal"},
-    "skin_sugar_glider": {"name": "SUGAR GLIDER", "cost": 820,  "kind": "skin", "group": "animal"},
-    "skin_axolotl":      {"name": "AXOLOTL",      "cost": 900,  "kind": "skin", "group": "animal"},
-    "skin_mantis_shrimp": {"name": "MANTIS SHRIMP", "cost": 980, "kind": "skin", "group": "animal"},
-    "skin_griffin":      {"name": "GRIFFIN",      "cost": 1100, "kind": "skin", "group": "animal"},
-    "skin_dragon":   {"name": "DRAGON",    "cost": 1200, "kind": "skin", "group": "animal"},
-    "skin_phoenix":  {"name": "PHOENIX",   "cost": 1500, "kind": "skin", "group": "animal"},
-    # Legendary tier — spectacle showpieces, priced clearly above the rest.
-    "skin_thunderbird":  {"name": "THUNDERBIRD",  "cost": 1800, "kind": "skin", "group": "animal"},
-    "skin_cosmic_jelly": {"name": "COSMIC JELLY", "cost": 2200, "kind": "skin", "group": "animal"},
-    "skin_aurora_stag":  {"name": "AURORA STAG",  "cost": 2800, "kind": "skin", "group": "animal"},
+    "skin_pufferfish":   {"name": "PUFFERFISH",   "cost": 640,  "kind": "skin", "group": "animal"},
+    "skin_chameleon":    {"name": "CHAMELEON",    "cost": 720,  "kind": "skin", "group": "animal"},
+    # Epic — aspirational ladder; each unlock feels like an event.
+    "skin_eagle":    {"name": "EAGLE",     "cost": 900,  "kind": "skin", "group": "animal"},
+    "skin_red_panda":    {"name": "RED PANDA",    "cost": 1100, "kind": "skin", "group": "animal"},
+    "skin_sugar_glider": {"name": "SUGAR GLIDER", "cost": 1400, "kind": "skin", "group": "animal"},
+    "skin_mantis_shrimp": {"name": "MANTIS SHRIMP", "cost": 1800, "kind": "skin", "group": "animal"},
+    "skin_dragon":   {"name": "DRAGON",    "cost": 2300, "kind": "skin", "group": "animal"},
+    # Legendary — prestige tier; kitsune anchors the visible legendary goal.
     "skin_kitsune":      {"name": "KITSUNE",      "cost": 3500, "kind": "skin", "group": "animal"},
-    # SECRET tier — masked as ??? in the store until bought (price still shown).
-    # Ridiculously expensive, completely out-of-the-box NON-creature flyers.
+    # Secret legendary — masked ??? until purchased, price still shown.
     "skin_paper_plane":  {"name": "PAPER PLANE",   "cost": 5000,  "kind": "skin", "group": "animal", "secret": True},
-    "skin_ufo":          {"name": "UFO",           "cost": 7000,  "kind": "skin", "group": "animal", "secret": True},
-    "skin_pinata_burro":  {"name": "BURRO PIÑATA",  "cost": 8000,  "kind": "skin", "group": "animal", "secret": True},
-    "skin_pinata_cactus": {"name": "CACTUS PIÑATA", "cost": 8500,  "kind": "skin", "group": "animal", "secret": True},
-    "skin_toaster":      {"name": "FLYING TOASTER", "cost": 9000, "kind": "skin", "group": "animal", "secret": True},
-    "skin_pinata_parrot": {"name": "PARROT PIÑATA", "cost": 11000, "kind": "skin", "group": "animal", "secret": True},
+    # Mystery SUN — rolls a random one of two sun designs at unlock, then locks to it.
+    "skin_sun":          {"name": "SUN",           "cost": 6000,  "kind": "skin", "group": "animal", "secret": True},
+    "skin_pinata_burro":  {"name": "BURRO PIÑATA",  "cost": 7000,  "kind": "skin", "group": "animal", "secret": True},
+    "skin_pinata_cactus": {"name": "CACTUS PIÑATA", "cost": 8000,  "kind": "skin", "group": "animal", "secret": True},
+    "skin_toaster":      {"name": "FLYING TOASTER", "cost": 9000,  "kind": "skin", "group": "animal", "secret": True},
+    "skin_pinata_parrot": {"name": "PARROT PIÑATA", "cost": 10500, "kind": "skin", "group": "animal", "secret": True},
     "skin_jet_fighter":  {"name": "JET FIGHTER",   "cost": 12000, "kind": "skin", "group": "animal", "secret": True},
 
     # ── SHOES (stylized procedural sneaker/sandal homages Pip wears) ───────────
-    # Priced on desirability: sandals/slides cheap, classics mid, hype premium.
+    # Priced on desirability: sandals/slides cheap, classics mid, hype premium —
+    # then a fantastical epic→legendary tier (gel, light-up, winged, rocket) that
+    # gets wilder the higher it climbs, so the tab spans the whole rarity ladder.
     "skin_shoe_flipflops":  {"name": "FLIP-FLOPS",  "cost": 240, "kind": "skin", "group": "shoes"},
     "skin_shoe_poolslides": {"name": "POOL SLIDES", "cost": 300, "kind": "skin", "group": "shoes"},
     "skin_shoe_courtgreen": {"name": "COURT GREEN", "cost": 420, "kind": "skin", "group": "shoes"},
@@ -102,13 +115,17 @@ CATALOG: dict[str, dict] = {
     "skin_shoe_airflyer":   {"name": "AIR FLYER",   "cost": 620, "kind": "skin", "group": "shoes"},
     "skin_shoe_airbubble":  {"name": "AIR BUBBLE",  "cost": 680, "kind": "skin", "group": "shoes"},
     "skin_shoe_boostknit":  {"name": "BOOST KNIT",  "cost": 760, "kind": "skin", "group": "shoes"},
+    "skin_shoe_megadad":    {"name": "MEGA DAD",    "cost": 780, "kind": "skin", "group": "shoes"},
     "skin_shoe_retro1":     {"name": "RETRO 1",     "cost": 850, "kind": "skin", "group": "shoes"},
+    "skin_shoe_jellycore":  {"name": "JELLYCORE",   "cost": 1200, "kind": "skin", "group": "shoes"},
+    "skin_shoe_neoncircuit": {"name": "NEON CIRCUIT", "cost": 1800, "kind": "skin", "group": "shoes"},
+    "skin_shoe_wingboots":  {"name": "WING BOOTS",  "cost": 3200, "kind": "skin", "group": "shoes"},
+    "skin_shoe_afterburner": {"name": "AFTERBURNER", "cost": 4800, "kind": "skin", "group": "shoes"},
 
     # ── HATS (stylized procedural headwear Pip wears, NY cap as the hero) ──────
     # Priced on desirability: novelty/casual cheap, classics mid-high, the
     # seasonal Santa and the signature NY cap premium.
     "skin_hat_partyhat":  {"name": "PARTY HAT",     "cost": 220, "kind": "skin", "group": "hats"},
-    "skin_hat_visor":     {"name": "VISOR",         "cost": 240, "kind": "skin", "group": "hats"},
     "skin_hat_strawhat":  {"name": "STRAW HAT",     "cost": 260, "kind": "skin", "group": "hats"},
     "skin_hat_beanie":    {"name": "BEANIE",        "cost": 300, "kind": "skin", "group": "hats"},
     "skin_hat_beret":     {"name": "BERET",         "cost": 320, "kind": "skin", "group": "hats"},
@@ -142,21 +159,37 @@ CATALOG: dict[str, dict] = {
     "skin_shades_cyber":   {"name": "CYBER VISOR",  "cost": 560, "kind": "skin", "group": "shades"},
 
     # ── PARCELS (the gift Pip carries below him; PARCEL_BASE is the free default) ─
-    # A tiered ladder from cheap everyday containers up to out-of-the-box
-    # spectacle pieces; the two priciest premiums are masked ??? until bought.
-    "parcel_envelope":  {"name": "ENVELOPE",       "cost": 180,  "kind": "parcel", "group": "parcels"},
-    "parcel_sack":      {"name": "BURLAP SACK",    "cost": 220,  "kind": "parcel", "group": "parcels"},
-    "parcel_takeout":   {"name": "TAKEOUT PAIL",   "cost": 280,  "kind": "parcel", "group": "parcels"},
-    "parcel_jar":       {"name": "JAM JAR",        "cost": 320,  "kind": "parcel", "group": "parcels"},
-    "parcel_picnic":    {"name": "PICNIC BASKET",  "cost": 380,  "kind": "parcel", "group": "parcels"},
-    "parcel_steamer":   {"name": "DIM SUM STEAMER", "cost": 700, "kind": "parcel", "group": "parcels"},
-    "parcel_bottle":    {"name": "MESSAGE BOTTLE", "cost": 950,  "kind": "parcel", "group": "parcels"},
-    "parcel_balloon":   {"name": "HOT-AIR BALLOON", "cost": 1300, "kind": "parcel", "group": "parcels"},
-    "parcel_chest":     {"name": "TREASURE CHEST", "cost": 2800, "kind": "parcel", "group": "parcels"},
-    "parcel_lantern":   {"name": "PAPER LANTERN",  "cost": 3400, "kind": "parcel", "group": "parcels"},
-    "parcel_flask":     {"name": "GENIE FLASK",    "cost": 4500, "kind": "parcel", "group": "parcels"},
-    "parcel_ufo":       {"name": "MINI UFO",       "cost": 7000, "kind": "parcel", "group": "parcels"},
-    "parcel_comet":     {"name": "COMET",          "cost": 8500, "kind": "parcel", "group": "parcels", "secret": True},
+    # Priced across the rarity bands so the tab is a proper pyramid, not a wall of
+    # commons: everyday mail/containers are COMMON (<400), the drinks + sports
+    # collectibles are RARE (400-799), the treasures are EPIC (800-2499), and the
+    # showpieces are LEGENDARY (>=2500). NO PARCEL is the cheapest — the empty-
+    # handed look (mirrors NO SHADES); it only hides the sprite, Pip's parcel
+    # hitbox is unchanged so difficulty holds.
+    # COMMON — everyday mail + basic containers
+    "parcel_none":      {"name": "NO PARCEL",      "cost": 120,  "kind": "parcel", "group": "parcels"},
+    "parcel_airmail":   {"name": "AIRMAIL",        "cost": 200,  "kind": "parcel", "group": "parcels"},
+    "parcel_love":      {"name": "LOVE LETTER",    "cost": 240,  "kind": "parcel", "group": "parcels"},
+    "parcel_postmark":  {"name": "POSTMARK",       "cost": 260,  "kind": "parcel", "group": "parcels"},
+    "parcel_takeout":   {"name": "TAKEOUT PAIL",   "cost": 290,  "kind": "parcel", "group": "parcels"},
+    "parcel_plastic":   {"name": "WATER BOTTLE",   "cost": 320,  "kind": "parcel", "group": "parcels"},
+    "parcel_picnic":    {"name": "PICNIC BASKET",  "cost": 370,  "kind": "parcel", "group": "parcels"},
+    # RARE — drinks + sports collectibles
+    "parcel_tumbler":   {"name": "TUMBLER",        "cost": 440,  "kind": "parcel", "group": "parcels"},
+    "parcel_coconut":   {"name": "COCONUT",        "cost": 500,  "kind": "parcel", "group": "parcels"},
+    "parcel_soccer":    {"name": "SOCCER BALL",    "cost": 560,  "kind": "parcel", "group": "parcels"},
+    "parcel_basketball": {"name": "BASKETBALL",    "cost": 600,  "kind": "parcel", "group": "parcels"},
+    "parcel_tennis":    {"name": "TENNIS BALL",    "cost": 640,  "kind": "parcel", "group": "parcels"},
+    "parcel_baseball":  {"name": "BASEBALL",       "cost": 690,  "kind": "parcel", "group": "parcels"},
+    "parcel_football":  {"name": "FOOTBALL",       "cost": 740,  "kind": "parcel", "group": "parcels"},
+    # EPIC — premium treasures
+    "parcel_coin":      {"name": "GOLD COIN",      "cost": 900,  "kind": "parcel", "group": "parcels"},
+    "parcel_diamond":   {"name": "DIAMOND",        "cost": 1500, "kind": "parcel", "group": "parcels"},
+    "parcel_chest":     {"name": "TREASURE CHEST", "cost": 2200, "kind": "parcel", "group": "parcels"},
+    # LEGENDARY — showpieces (the two secret premiums are masked ??? until bought)
+    "parcel_minipip":   {"name": "MINI PIP",       "cost": 3500, "kind": "parcel", "group": "parcels"},
+    # FINEST WHISKEY is a single mystery parcel: buying it rolls one of four
+    # drams (decanter / scotch / bourbon / cask) at unlock, locked for good.
+    "parcel_whiskey":   {"name": "FINEST WHISKEY", "cost": 9000, "kind": "parcel", "group": "parcels", "secret": True},
     "parcel_snowglobe": {"name": "SNOWGLOBE",      "cost": 9500, "kind": "parcel", "group": "parcels", "secret": True},
 }
 
@@ -197,7 +230,7 @@ def is_secret(item_id: str) -> bool:
 # every tab spans several tiers and the legendary band is reserved for the
 # genuine showpieces (the dearest animals, parcels, and the secret flyers).
 RARITIES = ("common", "rare", "epic", "legendary")
-_RARITY_BANDS = ((400, "common"), (800, "rare"), (2500, "epic"))
+_RARITY_BANDS = ((500, "common"), (900, "rare"), (2000, "epic"))
 
 
 def rarity(item_id: str) -> str:

@@ -22,7 +22,8 @@ from game.store_skins import _make_skin, COMPOSITE_W, COMPOSITE_H, PARROT_DY
 from game import (
     shoe_airflyer, shoe_retro1, shoe_airbubble, shoe_shelltoe, shoe_courtgreen,
     shoe_boostknit, shoe_canvashigh, shoe_checkerslip, shoe_poolslides,
-    shoe_flipflops,
+    shoe_flipflops, shoe_megadad, shoe_jellycore, shoe_neoncircuit,
+    shoe_wingboots, shoe_afterburner,
 )
 
 # id -> the single side-profile drawer that defines the shoe.
@@ -37,6 +38,11 @@ _DRAW = {
     "skin_shoe_checkerslip": shoe_checkerslip.draw_shoe,
     "skin_shoe_poolslides": shoe_poolslides.draw_shoe,
     "skin_shoe_flipflops":  shoe_flipflops.draw_shoe,
+    "skin_shoe_megadad":    shoe_megadad.draw_shoe,
+    "skin_shoe_jellycore":  shoe_jellycore.draw_shoe,
+    "skin_shoe_neoncircuit": shoe_neoncircuit.draw_shoe,
+    "skin_shoe_wingboots":  shoe_wingboots.draw_shoe,
+    "skin_shoe_afterburner": shoe_afterburner.draw_shoe,
 }
 
 

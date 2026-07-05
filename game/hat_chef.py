@@ -18,8 +18,10 @@ def draw_hat(surf, cx, base_y, head_w, facing=1):
     band_h = max(2, head_w * 0.20)
     band_top = base_y - band_h
     half = head_w * 0.5
-    # The puffy top mushrooms wider than the head and rises tall above base_y.
-    crown_h = head_w * 1.20
+    # The puffy top mushrooms wider than the head and rises above base_y. Kept a
+    # compact ~0.85× so the toque reads as headwear on the bird instead of a
+    # towering column that dwarfs the head.
+    crown_h = head_w * 0.85
     crown_top = base_y - band_h - crown_h
     puff_half = head_w * 0.62
 

@@ -1159,6 +1159,12 @@ def _draw_header_static(surf):
 # =============================================================================
 # Static base compose — the whole village over the lagoon, built once at SS.
 # =============================================================================
+# Launch gating: these category stalls render SHUT (bamboo blind) and are made
+# non-clickable in StoreScene._handle_hub_tap. Emptying this set restores the
+# all-open 7-stall hub — the full open design is kept intact for the future.
+CLOSED_GROUPS = frozenset({"animal", "shoes", "hats", "shades"})
+
+
 def _render_static_device():
     """The full lagoon scene at device resolution: sky, water, planks, huts (back
     -to-front), Pip, header shell, vignette. Returns the SS surface; the caller
@@ -1191,7 +1197,13 @@ def _render_static_device():
         depth_t = max(0.0, min(1.0, (h["deck_y"] / DH - 0.55) / 0.31))
         ring_scale = 1.0 + 0.45 * depth_t
         draw_stilts(surf, h["cx"], h["deck_y"], half_w, post_len, ring_scale)
-        draw_hut(surf, h["cx"], h["deck_y"], h["scale"], h["group"], h["label"])
+        if h["group"] in CLOSED_GROUPS:
+            # Launch subset: only COSTUMES/PARROTS/PARCELS open. Shut stalls get a
+            # rolled bamboo blind (no awning/dome/label) — anonymous, non-clickable.
+            from game.store_hub_closed import draw_hut_closed
+            draw_hut_closed(surf, h["cx"], h["deck_y"], h["scale"])
+        else:
+            draw_hut(surf, h["cx"], h["deck_y"], h["scale"], h["group"], h["label"])
 
     draw_pip(surf, int(DW * 0.50), int(DH * 0.285))
 
@@ -1258,6 +1270,10 @@ class LagoonHub:
     the module-level cached static base; render() blits that base then draws the
     live coin balance on top. The StoreScene owns chrome/input — this only paints
     the lagoon + baked header + live balance and exposes per-stall tap rects."""
+
+    # Which stalls are shut (baked closed + non-clickable). Exposed here so the
+    # StoreScene tap handler can gate on it without importing the module const.
+    CLOSED_GROUPS = CLOSED_GROUPS
 
     def __init__(self) -> None:
         global _BASE, _STALL_RECTS
