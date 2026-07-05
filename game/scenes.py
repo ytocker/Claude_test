@@ -410,6 +410,10 @@ STATE_STATS = 5
 STATE_LEADERBOARD = 6
 STATE_INTRO = 7
 STATE_POWERUPS = 8
+STATE_ACHIEVEMENTS = 9
+STATE_ACHV_EARNED = 10
+STATE_SETTINGS = 11
+STATE_ABOUT = 12
 
 # Background cloud depth slots: (base_x, base_y, scale). Geometry is fixed so the
 # parallax-depth spread stays good; all slots share one cloud design per run,
@@ -428,6 +432,9 @@ class App:
         self.screen = pygame.display.set_mode((W, H))
         self.clock = pygame.time.Clock()
         audio.init()
+        # Apply the saved SFX-mute preference (device-local) before the first sound.
+        from game import prefs
+        audio.set_muted(prefs.get_muted())
         self.world = World()
         self.hud = HUD()
         self.session_best = 0
@@ -447,6 +454,26 @@ class App:
         # Built lazily when the intro auto-completes (not when the user
         # skips it). Lives until the player taps once on the help screen.
         self.powerup_help: object | None = None
+        # Achievements screen — built lazily when opened from the menu,
+        # torn down on dismiss. Owns its own scroll/drag state.
+        self.achievements: object | None = None
+        # The end-of-run "ACHIEVEMENT EARNED!" screen — built on death when a
+        # run unlocks one or more achievements, shown before the run summary,
+        # torn down on the continue tap. Owns its own scroll/drag state.
+        self.achv_earned: object | None = None
+        # Settings screen — built lazily when opened from the menu SETTINGS chip,
+        # torn down on dismiss. Holds the How to Play / Power-Ups launchers.
+        self.settings: object | None = None
+        # About screen — built lazily when opened from Settings.
+        self.about: object | None = None
+        # Sub-screen return targets: How to Play (intro) and Power-Ups (explainer)
+        # opened from Settings come back to STATE_SETTINGS instead of the menu.
+        self._intro_return_state: "int | None" = None
+        self._powerups_return_state = STATE_MENU
+        # Menu idle clock (Oddities "Are You Still There?"): seconds since the
+        # last input while sitting on the menu; unlocks once at 5 minutes idle.
+        self._menu_idle_t = 0.0
+        self._menu_idle_fired = False
         # True when the intro was launched from the menu's HOW TO PLAY
         # button. _finish_intro reads this to land back on MENU instead
         # of the POWERUPS explainer.
@@ -542,6 +569,8 @@ class App:
     # ── input ────────────────────────────────────────────────────────────────
 
     def _flap_input(self, pos=None):
+        # Any tap/key is activity — reset the menu idle clock.
+        self._menu_idle_t = 0.0
         if self.state == STATE_INTRO:
             # Any tap during the cinematic skips it. Gate by `_cooldown_t`
             # so the same physical tap that opened the intro (FINGERDOWN
@@ -565,12 +594,46 @@ class App:
             return
         if self.state == STATE_POWERUPS:
             # Same shape: gate the dismiss-tap on the entry cooldown so
-            # the explainer doesn't flicker straight back to MENU.
+            # the explainer doesn't flicker straight back out. Returns to the
+            # menu, or to Settings when it was opened from there.
             if self._cooldown_t > 0:
                 return
             self.powerup_help = None
-            self.state = STATE_MENU
+            self.state = self._powerups_return_state
+            self._powerups_return_state = STATE_MENU
             self._cooldown_t = 0.25
+            return
+        if self.state == STATE_SETTINGS:
+            # A tap hits a launcher row (open its scene) or the MENU pill (back).
+            # Gated by the entry cooldown so the opening tap's echo can't bounce.
+            if self._cooldown_t > 0:
+                return
+            sc = self.settings
+            if pos is None or sc is None:
+                return
+            mb = getattr(sc, "menu_btn_rect", None)
+            if mb and mb.collidepoint(pos):
+                self._close_settings()
+                return
+            for rect, action in getattr(sc, "row_rects", ()):
+                if rect.collidepoint(pos):
+                    if action == "howto":
+                        self._open_howto_from_settings()
+                    elif action == "powerups":
+                        self._open_powerups_from_settings()
+                    elif action == "toggle_sound":
+                        self._toggle_sound()
+                    elif action == "about":
+                        self._open_about()
+                    return
+            return
+        if self.state == STATE_ABOUT:
+            if self._cooldown_t > 0:
+                return
+            sc = self.about
+            mb = getattr(sc, "menu_btn_rect", None) if sc is not None else None
+            if pos is None or mb is None or mb.collidepoint(pos):
+                self._close_about()   # MENU pill (or ESC/key) → back to Settings
             return
         if self.state == STATE_MENU:
             # Single shared cooldown gate for every menu action. This is
@@ -582,19 +645,20 @@ class App:
             # feels instant — typical reaction time is well above 0.25 s.
             if self._cooldown_t > 0:
                 return
-            if pos and self.hud.menu_howto_rect \
-                    and self.hud.menu_howto_rect.collidepoint(pos):
-                from game.intro import IntroScene
-                self.intro = IntroScene()
-                self._intro_from_menu = True
-                self.state = STATE_INTRO
-                self._cooldown_t = 0.25
+            if pos and self.hud.menu_settings_rect \
+                    and self.hud.menu_settings_rect.collidepoint(pos):
+                self._open_settings()
                 return
-            if pos and self.hud.menu_powerups_rect \
-                    and self.hud.menu_powerups_rect.collidepoint(pos):
-                from game.powerup_help import PowerUpHelpScene
-                self.powerup_help = PowerUpHelpScene()
-                self.state = STATE_POWERUPS
+            # The framed Pip diorama is the Profile entry; its records
+            # (achievements) open behind it. Checked before START so a tap
+            # inside the frame can't fall through to starting a run.
+            if pos and self.hud.menu_profile_rect \
+                    and self.hud.menu_profile_rect.collidepoint(pos):
+                self._open_achievements()
+                return
+            if pos and self.hud.menu_store_rect \
+                    and self.hud.menu_store_rect.collidepoint(pos):
+                self.hud.trigger_store_toast()   # stub on this branch
                 self._cooldown_t = 0.25
                 return
             if pos and self.hud.menu_top10_rect \
@@ -676,6 +740,155 @@ class App:
         elif self.state == STATE_PAUSE:
             self.state = STATE_PLAY
 
+    # ── achievements screen ───────────────────────────────────────────────────
+    def _open_achievements(self):
+        from game.achievements_screen import AchievementsScene
+        self.achievements = AchievementsScene()
+        self.state = STATE_ACHIEVEMENTS
+        self._cooldown_t = 0.25
+
+    def _close_achievements(self):
+        self.achievements = None
+        self.state = STATE_MENU
+        self._cooldown_t = 0.25
+
+    # ── settings screen ───────────────────────────────────────────────────────
+    def _open_settings(self):
+        from game.settings_screen import SettingsScene
+        self.settings = SettingsScene()
+        self.state = STATE_SETTINGS
+        self._cooldown_t = 0.25
+
+    def _close_settings(self):
+        self.settings = None
+        self.state = STATE_MENU
+        self._cooldown_t = 0.25
+
+    def _toggle_sound(self):
+        """Sound Effects row → flip the device-local SFX mute + apply it live."""
+        from game import prefs
+        new_muted = not prefs.get_muted()
+        prefs.set_muted(new_muted)
+        audio.set_muted(new_muted)
+        self._cooldown_t = 0.25
+
+    def _open_about(self):
+        from game.about_screen import AboutScene
+        self.about = AboutScene()
+        self.state = STATE_ABOUT
+        self._cooldown_t = 0.25
+
+    def _close_about(self):
+        self.about = None
+        if self.settings is None:      # defensive: Settings is normally still alive
+            from game.settings_screen import SettingsScene
+            self.settings = SettingsScene()
+        self.state = STATE_SETTINGS
+        self._cooldown_t = 0.25
+
+    def _open_howto_from_settings(self):
+        """How to Play row → the intro cinematic, returning to Settings after."""
+        from game.intro import IntroScene
+        self.intro = IntroScene()
+        self._intro_return_state = STATE_SETTINGS
+        self.state = STATE_INTRO
+        self._cooldown_t = 0.25
+
+    def _open_powerups_from_settings(self):
+        """Power-Ups row → the explainer, returning to Settings after."""
+        from game.powerup_help import PowerUpHelpScene
+        self.powerup_help = PowerUpHelpScene()
+        self._powerups_return_state = STATE_SETTINGS
+        self.state = STATE_POWERUPS
+        self._cooldown_t = 0.25
+
+    def _handle_achievements_event(self, e):
+        """Pointer/wheel/key routing for the scrollable achievements list. The
+        scene owns scroll + drag state; a near-stationary release is a tap that
+        dismisses back to the menu (gated by the entry cooldown so the opening
+        tap's echo can't bounce straight back out)."""
+        sc = self.achievements
+        if sc is None:
+            self.state = STATE_MENU
+            return
+        if e.type == pygame.KEYDOWN:
+            if e.key == pygame.K_ESCAPE or self._cooldown_t <= 0:
+                self._close_achievements()
+            return
+        if e.type == pygame.MOUSEWHEEL:
+            sc.scroll_by(-e.y * sc.WHEEL_STEP)
+        elif e.type == pygame.MOUSEBUTTONDOWN:
+            sc.pointer_down(e.pos[1])
+        elif e.type == pygame.MOUSEMOTION:
+            if e.buttons[0]:
+                sc.pointer_move(e.pos[1])
+        elif e.type == pygame.MOUSEBUTTONUP:
+            if sc.pointer_up():
+                self._achv_tap_or_close(sc, e.pos)
+        elif e.type == pygame.FINGERDOWN:
+            sc.pointer_down(int(e.y * H))
+        elif e.type == pygame.FINGERMOTION:
+            sc.pointer_move(int(e.y * H))
+        elif e.type == pygame.FINGERUP:
+            if sc.pointer_up():
+                self._achv_tap_or_close(sc, (int(e.x * W), int(e.y * H)))
+
+    def _achv_tap_or_close(self, sc, pos):
+        """A stationary tap on the HALL OF FAME / HALL OF SHAME tabs switches the
+        active wall; the MENU button dismisses. Taps elsewhere (e.g. on a row) do
+        nothing, so the list feels solid — only the button or ESC exits."""
+        tf = getattr(sc, "tab_fame_rect", None)
+        ts = getattr(sc, "tab_shame_rect", None)
+        mb = getattr(sc, "menu_btn_rect", None)
+        if tf and tf.collidepoint(pos):
+            sc.set_tab("fame")
+            return
+        if ts and ts.collidepoint(pos):
+            sc.set_tab("shame")
+            return
+        if mb and mb.collidepoint(pos) and self._cooldown_t <= 0:
+            self._close_achievements()
+
+    # ── achievement-earned screen (end of run) ────────────────────────────────
+    def _continue_from_achv_earned(self):
+        """Tap on the ACHIEVEMENT EARNED! screen → hand off to the run summary,
+        restarting its reveal timer so the summary animates in fresh."""
+        self.achv_earned = None
+        self.state = STATE_STATS
+        self._stats_t = 0.0
+        self._cooldown_t = 0.25
+
+    def _handle_achv_earned_event(self, e):
+        """Pointer/wheel/key routing for the scrollable earned screen. The scene
+        owns scroll + drag; a near-stationary release is a tap that continues to
+        the run summary (gated by the entry cooldown so the death tap's echo
+        can't skip it instantly)."""
+        sc = self.achv_earned
+        if sc is None:
+            self.state = STATE_STATS
+            return
+        if e.type == pygame.KEYDOWN:
+            if e.key == pygame.K_ESCAPE or self._cooldown_t <= 0:
+                self._continue_from_achv_earned()
+            return
+        if e.type == pygame.MOUSEWHEEL:
+            sc.scroll_by(-e.y * sc.WHEEL_STEP)
+        elif e.type == pygame.MOUSEBUTTONDOWN:
+            sc.pointer_down(e.pos[1])
+        elif e.type == pygame.MOUSEMOTION:
+            if e.buttons[0]:
+                sc.pointer_move(e.pos[1])
+        elif e.type == pygame.MOUSEBUTTONUP:
+            if sc.pointer_up() and self._cooldown_t <= 0:
+                self._continue_from_achv_earned()
+        elif e.type == pygame.FINGERDOWN:
+            sc.pointer_down(int(e.y * H))
+        elif e.type == pygame.FINGERMOTION:
+            sc.pointer_move(int(e.y * H))
+        elif e.type == pygame.FINGERUP:
+            if sc.pointer_up() and self._cooldown_t <= 0:
+                self._continue_from_achv_earned()
+
     def _pick_cloud_variant(self):
         """Pick the single cloud design used by every cloud for the whole run,
         chosen at random. Called once per run so each run has one consistent
@@ -745,7 +958,12 @@ class App:
         if self.intro is not None:
             self.intro.skip()
         self.intro = None
-        if self._intro_from_menu:
+        if self._intro_return_state is not None:
+            # Opened from a sub-screen (e.g. Settings' How to Play) — return
+            # there whether the cinematic was skipped or watched through.
+            self.state = self._intro_return_state
+            self._intro_return_state = None
+        elif self._intro_from_menu:
             # HOW TO PLAY replay always returns to MENU regardless of
             # whether the player tapped to skip or watched it through.
             self.state = STATE_MENU
@@ -841,6 +1059,16 @@ class App:
         elif e.type == pygame.MOUSEBUTTONDOWN:
             if now - self._last_finger_t < self._finger_dedup_window:
                 return  # this MOUSEBUTTONDOWN is a touch echo — ignore
+        # The achievements list fully owns pointer + wheel + key input while
+        # open (scroll/drag/dismiss), so route every event there and stop.
+        if self.state == STATE_ACHIEVEMENTS:
+            self._handle_achievements_event(e)
+            return
+        # The end-of-run earned screen likewise owns all pointer/wheel/key input
+        # (scroll/drag/continue) while it's up.
+        if self.state == STATE_ACHV_EARNED:
+            self._handle_achv_earned_event(e)
+            return
         import sys as _sys
         if e.type == pygame.KEYDOWN:
             if e.key == pygame.K_p:
@@ -941,9 +1169,35 @@ class App:
                 self.powerup_help.update(dt)
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
             return
+        if self.state == STATE_ACHIEVEMENTS:
+            if self.achievements is not None:
+                self.achievements.update(dt)
+            self._cooldown_t = max(0.0, self._cooldown_t - dt)
+            return
+        if self.state == STATE_SETTINGS:
+            if self.settings is not None:
+                self.settings.update(dt)
+            self._cooldown_t = max(0.0, self._cooldown_t - dt)
+            return
+        if self.state == STATE_ABOUT:
+            if self.about is not None:
+                self.about.update(dt)
+            self._cooldown_t = max(0.0, self._cooldown_t - dt)
+            return
+        if self.state == STATE_ACHV_EARNED:
+            if self.achv_earned is not None:
+                self.achv_earned.update(dt)
+            self._cooldown_t = max(0.0, self._cooldown_t - dt)
+            return
         if self.state == STATE_MENU:
             self.world.world_idle_tick(dt)
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
+            # Are You Still There? — five minutes idling on the menu.
+            self._menu_idle_t += dt
+            if not self._menu_idle_fired and self._menu_idle_t >= 300.0:
+                self._menu_idle_fired = True
+                from game import achievements as _ach
+                _ach.unlock("are_you_still_there")
         elif self.state == STATE_PLAY:
             self._resume_grace_t = max(0.0, self._resume_grace_t - dt)
             self.world.update(dt)
@@ -978,10 +1232,27 @@ class App:
             except RuntimeError:
                 # No running loop (e.g. headless smoke tests) — skip silently.
                 pass
-        # Game-over screen no longer plays its own jingle — death.ogg
-        # at the moment of impact carries the whole "run ended" cue.
-        self.state = STATE_STATS
+        # Evaluate achievements once against the finished run (never for the
+        # scripted demo). Any newly-unlocked ids get a full-screen
+        # "ACHIEVEMENT EARNED!" card screen (scrollable) before the run summary.
+        newly = []
+        if getattr(self.world, "demo", None) is None:
+            try:
+                from game import achievements
+                newly = achievements.evaluate_run(self.world)
+            except Exception:
+                newly = []
         self._stats_t = 0.0
+        if newly:
+            from game.achievement_earned import AchievementEarnedScene
+            self.achv_earned = AchievementEarnedScene(newly)
+            audio.play_achievement()
+            self.state = STATE_ACHV_EARNED
+            self._cooldown_t = 0.35       # so the death tap's echo can't skip it
+        else:
+            # Game-over screen no longer plays its own jingle — death.ogg
+            # at the moment of impact carries the whole "run ended" cue.
+            self.state = STATE_STATS
         # Reset the run-summary intent so a freshly opened stats
         # screen defaults to "main menu" until the player explicitly
         # taps PLAY AGAIN.
@@ -1289,6 +1560,23 @@ class App:
         # Power-ups explainer also paints its own background — no world.
         if self.state == STATE_POWERUPS and self.powerup_help is not None:
             self.powerup_help.render(self.screen)
+            return
+        # Achievements list paints its own night background + scrolling list.
+        if self.state == STATE_ACHIEVEMENTS and self.achievements is not None:
+            from game import achievements as _ach
+            self.achievements.render(self.screen, 1 / 60, _ach.load())
+            return
+        # End-of-run earned screen paints its own full-screen night + card stack.
+        if self.state == STATE_ACHV_EARNED and self.achv_earned is not None:
+            self.achv_earned.render(self.screen, 1 / 60)
+            return
+        # Settings screen paints its own night background + launcher rows.
+        if self.state == STATE_SETTINGS and self.settings is not None:
+            self.settings.render(self.screen, 1 / 60)
+            return
+        # About screen paints its own night background.
+        if self.state == STATE_ABOUT and self.about is not None:
+            self.about.render(self.screen, 1 / 60)
             return
         sx, sy = self.world.shake_offset() if self.state == STATE_PLAY else (0, 0)
         sx, sy = int(sx), int(sy)

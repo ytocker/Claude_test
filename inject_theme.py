@@ -8,9 +8,12 @@ JS bridge that connects the WASM-side Python game to the browser
 Contracts the game/Python code depends on (do not change without
 updating the corresponding Python callers):
 
-  window.__sk(action, payload)       — see game/leaderboard.py, game/play_log.py
+  window.__sk(action, payload)       — see game/leaderboard.py, game/play_log.py,
+                                       game/achievements.py
       actions: submit / submit_done / fetch / fetch_done / fetch_error /
-               log    / log_done
+               log    / log_done / ach_load / ach_save /
+               profile_push / profile_push_done /
+               profile_pull / profile_pull_done / profile_pull_error
   window.skyPlay(name, volume)       — see game/audio.py
   window.openNameEntry()             — see game/leaderboard.py
   window._pendingName                — string sentinel, polled at 50 ms by
@@ -997,6 +1000,107 @@ _TELEMETRY_JS = """
         } catch (e) { rLog = false; }
     }
 
+    /* Local meta-progression (achievements). A single JSON string lives in
+       localStorage under a fixed key — synchronous, no network. Persists per
+       browser like the device UUID; degrades to "" / no-op in private mode. */
+    var ACH_KEY = 'skybit_ach';
+    function achLoad() {
+        try { return window.localStorage.getItem(ACH_KEY) || ''; }
+        catch (e) { return ''; }
+    }
+    function achSave(payload) {
+        try { window.localStorage.setItem(ACH_KEY, String(payload || '')); }
+        catch (e) {}
+    }
+
+    /* Device-local settings (mute, …). Same synchronous localStorage pattern
+       as achievements but a separate key and NO cloud mirror — preferences are
+       per-device and must not sync across devices. */
+    var SETTINGS_KEY = 'skybit_settings';
+    function settingsLoad() {
+        try { return window.localStorage.getItem(SETTINGS_KEY) || ''; }
+        catch (e) { return ''; }
+    }
+    function settingsSave(payload) {
+        try { window.localStorage.setItem(SETTINGS_KEY, String(payload || '')); }
+        catch (e) {}
+    }
+
+    /* Cloud backup of the profile blob (device copy + Supabase mirror). One
+       `profiles` row per device, keyed by the anon device UUID. profile_push
+       upserts (fire-and-forget); profile_pull fetches this device's row and
+       returns it as a JSON STRING so the Python side json.loads it directly
+       (no JS-proxy walking). Both degrade silently when config/network is
+       missing — the local localStorage copy stays authoritative. */
+    var rProfilePush = null;
+    var rProfilePull = null;        /* null = pending; '' = no row; else JSON */
+    var rProfilePullError = '';
+
+    async function doProfilePush(rawPayload) {
+        rProfilePush = null;
+        try {
+            if (!a || !b) { rProfilePush = false; return; }
+            var obj;
+            try {
+                obj = (typeof rawPayload === 'string')
+                    ? JSON.parse(rawPayload) : rawPayload;
+            } catch (e) { rProfilePush = false; return; }
+            if (!obj || typeof obj !== 'object') { rProfilePush = false; return; }
+            var ac = new AbortController();
+            var tid = setTimeout(function () { ac.abort(); }, 6000);
+            var r;
+            try {
+                /* Upsert: merge-duplicates on the device_id primary key. */
+                r = await fetch(a + '/rest/v1/profiles?on_conflict=device_id', {
+                    method: 'POST',
+                    headers: {
+                        'apikey': b,
+                        'Authorization': 'Bearer ' + b,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'resolution=merge-duplicates,return=minimal'
+                    },
+                    body: JSON.stringify({
+                        device_id:  deviceId(),
+                        payload:    obj,
+                        updated_at: new Date().toISOString()
+                    }),
+                    signal: ac.signal
+                });
+            } finally { clearTimeout(tid); }
+            rProfilePush = !!(r && r.ok);
+        } catch (e) { rProfilePush = false; }
+    }
+
+    async function doProfilePull() {
+        rProfilePull = null;
+        rProfilePullError = '';
+        try {
+            if (!a || !b) { rProfilePullError = 'config'; rProfilePull = ''; return; }
+            var url = a + '/rest/v1/profiles?device_id=eq.' +
+                      encodeURIComponent(deviceId()) + '&select=payload&limit=1';
+            var ac = new AbortController();
+            var tid = setTimeout(function () { ac.abort(); }, 6000);
+            var r;
+            try {
+                r = await fetch(url, {
+                    headers: {'apikey': b, 'Authorization': 'Bearer ' + b},
+                    signal: ac.signal
+                });
+            } finally { clearTimeout(tid); }
+            if (!r || !r.ok) {
+                rProfilePullError = r ? ('http ' + r.status) : 'network';
+                rProfilePull = ''; return;
+            }
+            var rows = await r.json();
+            rProfilePull = (rows && rows.length && rows[0] && rows[0].payload)
+                ? JSON.stringify(rows[0].payload)
+                : '';            /* '' = no row yet for this device */
+        } catch (e) {
+            rProfilePullError = 'exception';
+            rProfilePull = '';
+        }
+    }
+
     function dispatch(action, payload, board) {
         switch (String(action || '')) {
             case 'submit':       doSubmit(payload, board); return null;
@@ -1007,6 +1111,15 @@ _TELEMETRY_JS = """
             case 'fetch_error':  return rFetchError;
             case 'log':          doLog(payload);    return null;
             case 'log_done':     return rLog;
+            case 'ach_load':     return achLoad();
+            case 'ach_save':     achSave(payload); return null;
+            case 'settings_load': return settingsLoad();
+            case 'settings_save': settingsSave(payload); return null;
+            case 'profile_push':       doProfilePush(payload); return null;
+            case 'profile_push_done':  return rProfilePush;
+            case 'profile_pull':       doProfilePull();        return null;
+            case 'profile_pull_done':  return rProfilePull;
+            case 'profile_pull_error': return rProfilePullError;
             default:             return null;
         }
     }
@@ -1057,6 +1170,9 @@ _AUDIO_JS = """
     }
 
     window.skyPlay = function (name, volume) {
+        /* Global SFX mute (Settings → Sound Effects). One guard here silences
+           both the game sounds and the UI button clicks that call skyPlay. */
+        if (window.__skMuted) return;
         loadSnd(name).then(function (buf) {
             var ac = getCtx();
             var src = ac.createBufferSource();

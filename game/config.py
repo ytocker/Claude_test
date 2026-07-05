@@ -1,6 +1,7 @@
 W, H   = 360, 640
 FPS    = 60
 TITLE  = "Skybit"
+VERSION = "1.1.0"          # shown on Settings → Credits; keep in sync with pyproject
 
 GROUND_Y   = 595
 CEILING_Y  = 0

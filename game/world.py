@@ -268,6 +268,35 @@ class World:
         # encountered coins grabbed" figure (coins still on screen don't
         # count as missed yet).
         self.coins_spawned = 0
+        # Ceiling bonks this run (Pip clamped against the top edge). Edge-detected
+        # via _was_ceiling_clamped so a held bonk counts once, not every frame.
+        self.ceiling_hits = 0
+        self._was_ceiling_clamped = False
+        # Skateboard tricks landed this run + the distinct trick types performed
+        # (for a "land all four in one run" goal). Both reset with the fresh World.
+        self.tricks_landed = 0
+        self.tricks_landed_types: set = set()
+        # Wall of Shame: a small death-moment snapshot (filled in _die) + two
+        # live trackers. max_flaps_per_sec is the worst 1-second flap burst this
+        # run (panic-spike roast); _lottery_pulled marks a lottery slot pull.
+        self.death_pillar = 0
+        self.death_ghost = False
+        self.death_kfc = False
+        self.died_early_phase = False
+        # Hall-of-Shame expansion: more death-moment snapshots, all filled in
+        # _die while the effect state is still live (read post-death by
+        # achievements.evaluate_run on the same frame).
+        self.death_slowmo = False
+        self.death_poison = False
+        self.death_skateboard = False
+        self.death_lightning = False
+        self.death_celebration = False
+        self.death_magnet_zero = False
+        self.death_wish_pending = False
+        self._lottery_pulled = False
+        self.max_flaps_per_sec = 0
+        self._flap_window_t = 0.0
+        self._flap_window_n = 0
         self.powerups_picked = {
             "triple": 0, "magnet": 0, "megamagnet": 0, "slowmo": 0, "kfc": 0,
             "ghost": 0, "grow": 0, "reverse": 0, "surprise": 0,
@@ -275,6 +304,29 @@ class World:
             "skateboard": 0, "knight": 0, "genie": 0,
             "poison": 0, "treasure": 0,
         }
+        # Hall-of-Fame per-run trackers (cheap, event-driven — no per-frame scan).
+        # max_active_powerups: peak count of simultaneously-active timed buffs,
+        # sampled at each activation. max_pillars_in_slowmo / _in_ghost: most
+        # pillars cleared within ONE continuous Slow-Mo / Ghost window (the
+        # per-activation counter resets when that buff (re)starts). surprise_repeat
+        # flags a Surprise Box that re-rolled a kind it already rolled this run.
+        self.max_active_powerups = 0
+        self.max_pillars_in_slowmo = 0
+        self.max_pillars_in_ghost = 0
+        self._slowmo_run_pillars = 0
+        self._ghost_run_pillars = 0
+        self.surprise_repeat = 0
+        self._surprise_rolls: set = set()
+        # Hall-of-Shame live trackers: coins grabbed inside the current magnet
+        # window (Rich and Reckless), whether a genie-chamber wish was ever
+        # collected (Wish Unspent), the Coin Rush grab tally (Coin Blind), and
+        # the count of storm jolts survived this run (Lightning Magnet).
+        self._coins_in_magnet = 0
+        self._genie_wish_taken = False
+        self.coin_blind = False
+        self._rush_cur_total = 0
+        self._rush_cur_got = 0
+        self._lightning_strikes_run = 0
         # Cycle-finale "treasure box" state. _last_biome_phase samples the
         # phase every frame so a wrap from ~1.0 back to ~0.0 can be detected
         # one frame after biome_time crosses CYCLE_SECONDS. When that fires
@@ -641,6 +693,7 @@ class World:
         lost = min(100, self.score)
         if lost <= 0:
             return
+        self._lightning_strikes_run += 1      # Lightning Magnet lifetime tally
         self.score = max(0, self.score - lost)
         self._proof.record(self.time_alive, -lost, "weather_jolt")
 
@@ -1166,6 +1219,29 @@ class World:
                 self.coins.append(Coin(x, y))
 
         self.coins_spawned += len(self.coins) - prev_count
+        # Open a fresh Coin Blind window: tag this rush's coins and reset the
+        # grab tally (force-close any prior window — rushes are 15 pillars apart,
+        # so the previous one is always fully behind Pip by now).
+        self._finalize_rush(force=True)
+        for c in self.coins[prev_count:]:
+            c.is_rush = True
+        self._rush_cur_total = len(self.coins) - prev_count
+        self._rush_cur_got = 0
+
+    def _finalize_rush(self, force: bool = False):
+        """Close the current Coin Rush window for the Coin Blind roast. Only
+        fires once the rush is fully behind Pip (no uncollected rush coin still
+        ahead), unless force-closed by the next rush spawning."""
+        if self._rush_cur_total <= 0:
+            return
+        if not force and any(
+                getattr(c, "is_rush", False) and not c.collected
+                and c.x > self.bird.x for c in self.coins):
+            return
+        if self._rush_cur_got < 3:
+            self.coin_blind = True
+        self._rush_cur_total = 0
+        self._rush_cur_got = 0
 
     def _spawn_finale_long_rush_coins(self, first_phantom_x: float,
                                       center_y: float, gap_h: int,
@@ -1353,6 +1429,9 @@ class World:
             sign = -1 if self.reverse_timer > 0 else 1
             self.bird.flap(gravity_sign=sign)
             self.flap_count += 1
+            self._flap_window_n += 1
+            if self._flap_window_n > self.max_flaps_per_sec:
+                self.max_flaps_per_sec = self._flap_window_n
             audio.play_flap()
             # SKATEBOARD tricks. The detector handles 4 tap patterns:
             #   1) 3 FAST taps   (gap ≤ BACKFLIP_TAP_WINDOW)   → backflip
@@ -1393,25 +1472,35 @@ class World:
         self.bird.backflip_t = BACKFLIP_DURATION
         self.bird.backflip_dur = BACKFLIP_DURATION
         audio.play_backflip()
+        self._record_trick("backflip")
         self._spawn_trick_bubble("BACKFLIP!")
 
     def _trigger_kickflip(self):
         self.bird.kickflip_t = KICKFLIP_DURATION
         self.bird.kickflip_dur = KICKFLIP_DURATION
         audio.play_backflip()
+        self._record_trick("kickflip")
         self._spawn_trick_bubble("KICKFLIP!")
 
     def _trigger_heelflip(self):
         self.bird.heelflip_t = HEELFLIP_DURATION
         self.bird.heelflip_dur = HEELFLIP_DURATION
         audio.play_backflip()
+        self._record_trick("heelflip")
         self._spawn_trick_bubble("HEELFLIP!")
 
     def _trigger_popshuvit(self):
         self.bird.popshuvit_t = POPSHUVIT_DURATION
         self.bird.popshuvit_dur = POPSHUVIT_DURATION
         audio.play_backflip()
+        self._record_trick("popshuvit")
         self._spawn_trick_bubble("POP SHUVIT!")
+
+    def _record_trick(self, kind: str):
+        # One landed trick: bump the run total and note the distinct type so a
+        # "land all four types in one run" goal can read len(tricks_landed_types).
+        self.tricks_landed += 1
+        self.tricks_landed_types.add(kind)
 
     # Trick bubble anchor zones — RIGHT of the score (original POW!
     # badge home) or a mirror LEFT anchor below the coins pill. Each
@@ -1763,6 +1852,17 @@ class World:
                     p.scored = True
                     self.score += 1
                     self.pillars_passed += 1
+                    # Per-activation buff-clearing tallies (Bullet Time / Ghost
+                    # Rider). Timers are decremented later this frame, so a
+                    # still-positive value means the buff was active at pass time.
+                    if self.slowmo_timer > 0:
+                        self._slowmo_run_pillars += 1
+                        self.max_pillars_in_slowmo = max(
+                            self.max_pillars_in_slowmo, self._slowmo_run_pillars)
+                    if self.ghost_timer > 0:
+                        self._ghost_run_pillars += 1
+                        self.max_pillars_in_ghost = max(
+                            self.max_pillars_in_ghost, self._ghost_run_pillars)
                     self._check_genie_milestone(p)
                     # UMBRELLA: fixed-pillar spawn (both pillars inside the
                     # rain block, so the "only while raining" rule is
@@ -1805,6 +1905,12 @@ class World:
 
             # Time alive
             self.time_alive += dt
+
+            # Wall of Shame: tumbling 1-second window for the worst flap burst.
+            self._flap_window_t += dt
+            if self._flap_window_t >= 1.0:
+                self._flap_window_t -= 1.0
+                self._flap_window_n = 0
 
             # collisions
             self._check_collisions()
@@ -2034,6 +2140,12 @@ class World:
             if self.bird.vy < 0:
                 self.bird.vy = 0.0
             by = self.bird.y
+            # Count one bonk per contact (rising edge), not every clamped frame.
+            if not self._was_ceiling_clamped:
+                self.ceiling_hits += 1
+            self._was_ceiling_clamped = True
+        else:
+            self._was_ceiling_clamped = False
         # KNIGHT grace: brief window after a revive where Pip is immune to
         # ground + pipe collisions so he can clear the obstacle that hit him.
         if self.knight_invuln > 0:
@@ -2238,6 +2350,27 @@ class World:
             self.bird.poison_t = 0.0
             self._revive_knight()
             return
+        # Wall of Shame: snapshot the death-moment context while effect state is
+        # still live (read post-death by achievements.evaluate_run). Only a real
+        # death reaches here — a knight revive returned above.
+        self.death_pillar = self.pillars_passed
+        self.death_ghost = bool(self.bird.ghost_active)
+        self.death_kfc = bool(self.bird.kfc_active)
+        self.died_early_phase = (self.cycles_completed >= 1
+                                 and (self.biome_time % biome.CYCLE_SECONDS) < 5.0)
+        # Poison is only reachable here with no knight save (the revive above
+        # returns and clears it), so poison_active at death means it killed Pip.
+        self.death_slowmo = self.slowmo_timer > 0
+        self.death_poison = bool(self.bird.poison_active)
+        self.death_skateboard = bool(self.bird.skateboard_active)
+        self.death_lightning = self._lightning_scorch_t > 0
+        self.death_celebration = bool(self.treasure_banners
+                                      or self.celebration_garlands)
+        self.death_magnet_zero = ((self.magnet_timer > 0 or self.megamagnet_timer > 0)
+                                  and self._coins_in_magnet == 0)
+        self.death_wish_pending = (self.powerups_picked.get("genie", 0) > 0
+                                   and not self._genie_wish_taken)
+        self._finalize_rush()      # close an in-progress rush for Coin Blind
         self.game_over = True
         self.bird.alive = False
         # Start the dead-Pip cross-fade. Tiny non-zero value gates the
@@ -2320,6 +2453,10 @@ class World:
         self.score += value
         self.coin_count += 1
         self._proof.record(self.time_alive, value, "coin")
+        if self.magnet_timer > 0 or self.megamagnet_timer > 0:
+            self._coins_in_magnet += 1
+        if getattr(coin, "is_rush", False):
+            self._rush_cur_got += 1
 
         # *** GLITCH FIX ***
         # NO screen-wide flash. Only localized sparkle particles.
@@ -2362,6 +2499,7 @@ class World:
         # others (with a poof). Done before activation so the chosen kind's
         # activator still runs normally below.
         if getattr(m, "is_genie_offer", False):
+            self._genie_wish_taken = True
             self._cull_genie_offers_except(m)
         # POISON HEAL: grabbing ANY power-up other than another poison
         # cures Pip mid-dive. Clear the poison state before the kind's
@@ -2401,6 +2539,11 @@ class World:
             if self._genie_milestone_fired or self._debug_genie_milestone_fired:
                 choices.append("genie")
             kind = random.choice(choices)
+            # Regifted: a Surprise Box re-rolling a kind it already produced
+            # this run.
+            if kind in self._surprise_rolls:
+                self.surprise_repeat = 1
+            self._surprise_rolls.add(kind)
             self._spawn_surprise_reveal(m)
         # Treasure isn't a power-up, it's a once-per-day reward. Skip the
         # pickup-counter increment so it doesn't surface in the run-summary
@@ -2444,6 +2587,20 @@ class World:
         elif kind == "treasure":
             self._activate_treasure_box(m)
 
+        # Sample the peak stack of simultaneously-active timed buffs (Overloaded)
+        # right after this pickup's activator sets its timer.
+        self.max_active_powerups = max(self.max_active_powerups,
+                                       self._count_active_powerups())
+
+    def _count_active_powerups(self) -> int:
+        """Number of timed power-up buffs currently running (for the Overloaded
+        stack tally). Counts the standard effect timers only."""
+        timers = (self.triple_timer, self.magnet_timer, self.megamagnet_timer,
+                  self.slowmo_timer, self.kfc_timer, self.ghost_timer,
+                  self.grow_timer, self.reverse_timer, self.shrink_timer,
+                  self.skateboard_timer, self.knight_timer, self.umbrella_timer)
+        return sum(1 for t in timers if t > 0)
+
     def _spawn_surprise_reveal(self, m):
         """Brief gold-burst + cloud puff so the player sees the box "open"
         before the resolved power-up's own activator fires."""
@@ -2486,6 +2643,7 @@ class World:
         ))
 
     def _activate_magnet(self, m):
+        self._coins_in_magnet = 0        # fresh window for the Rich and Reckless tally
         self.magnet_timer = MAGNET_DURATION
         self.shake_mag = max(self.shake_mag, 2.5)
         self.shake_t = max(self.shake_t, 0.25)
@@ -2497,6 +2655,7 @@ class World:
         ))
 
     def _activate_megamagnet(self, m):
+        self._coins_in_magnet = 0        # fresh window for the Rich and Reckless tally
         self.megamagnet_timer = MEGAMAGNET_DURATION
         self.shake_mag = max(self.shake_mag, 3.5)
         self.shake_t = max(self.shake_t, 0.3)
@@ -2509,6 +2668,7 @@ class World:
         ))
 
     def _activate_slowmo(self, m):
+        self._slowmo_run_pillars = 0     # fresh window for the Bullet Time tally
         self.slowmo_timer = SLOWMO_DURATION
         self.shake_mag = max(self.shake_mag, 2.5)
         self.shake_t = max(self.shake_t, 0.25)
@@ -2569,6 +2729,7 @@ class World:
     def _activate_ghost(self, m):
         GHOST_BLUE  = (140, 180, 255)
         GHOST_WHITE = (210, 225, 255)
+        self._ghost_run_pillars = 0      # fresh window for the Ghost Rider tally
         self.ghost_timer = GHOST_DURATION
         self.ghost_timer_total = GHOST_DURATION
         self.bird.ghost_active = True
@@ -3400,6 +3561,7 @@ class World:
         deltas = {t[0]: t[2] for t in LOTTERY_TIERS}
         tier = random.choices(labels, weights=weights, k=1)[0]
         delta = deltas[tier]
+        self._lottery_pulled = True   # Wall of Shame: "Lottery Loser" trigger
         self.lottery_anim = {
             "t": 0.0,
             "tier": tier,

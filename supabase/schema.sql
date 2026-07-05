@@ -63,3 +63,45 @@ create policy "anon insert plays"
 -- Recommended indexes (apply once the table has volume):
 --   create index plays_played_at_idx on public.plays (played_at desc);
 --   create index plays_device_id_idx on public.plays (device_id);
+
+
+-- ── Player profile backup ────────────────────────────────────────────────────
+-- Powered by inject_theme.py's profile_push / profile_pull JS bridge and
+-- game/achievements.py's _cloud_push / sync_cloud. One row per device holding a
+-- mirror of the local profile blob (achievements + lifetime stats + coin wallet
+-- + owned/equipped store items). The device copy in localStorage is always
+-- authoritative; this is a backup + the foundation for a future login-based
+-- cross-device sync.
+--
+-- device_id is the same anon UUID as plays (localStorage key skybit_device_id).
+-- payload is the whole {v, mtime, unlocked, life, wallet, inventory} blob as
+-- jsonb, so new profile sections need NO schema change here.
+--
+-- SECURITY NOTE: all clients share the anon key, so RLS cannot isolate rows
+-- per device server-side — anon can technically read/overwrite any row. The
+-- device_id is an unguessable random UUID and the blob is non-PII game progress
+-- (same posture as the public leaderboard). True per-account isolation requires
+-- real auth (a later change).
+
+create table if not exists public.profiles (
+    device_id  uuid        primary key,
+    payload    jsonb       not null,
+    updated_at timestamptz not null default now()
+);
+
+alter table public.profiles enable row level security;
+
+-- Insert + update together give anon an upsert (Prefer: resolution=
+-- merge-duplicates on the device_id primary key); select lets a returning
+-- player restore their backup.
+create policy "anon insert profiles"
+    on public.profiles for insert
+    to anon with check (true);
+
+create policy "anon update profiles"
+    on public.profiles for update
+    to anon using (true) with check (true);
+
+create policy "anon read profiles"
+    on public.profiles for select
+    to anon using (true);
