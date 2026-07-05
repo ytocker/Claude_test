@@ -49,6 +49,7 @@ _SCARLET_TOP_DIM = (220,  45,  22)  # #dc2d16  brighter rust (top of grad)
 _SCARLET_BOT_DIM = (110,  22,  10)  # #6e160a  darker rust  (bottom of grad)
 _SCARLET_SHADOW = ( 60,   8,   8)   # #3c0808  pill text shadow
 _GOLD_DEEP      = (180, 130,  20)   # #b48214  inner laurel/ring tone
+_GOLD_MID       = (212, 160,  44)   # #d4a02c  mid step for struck bevels
 _GOLD_PALE      = (255, 232, 168)   # #ffe8a8  bright highlight for engraving
 _PANEL_DARK     = ( 12,   8,  38)   # deep purple panel
 _PANEL_LIGHTER  = ( 26,  18,  62)   # navy gradient stop above PANEL_DARK
@@ -1635,6 +1636,14 @@ def _score_plaque(surf, rect, score: int, best: int, new_best: bool):
     surf.blit(cf, cf.get_rect(center=(rect.centerx, rect.bottom - 20)))
 
 
+def _profile_tri(surf, cx, cy, size, color):
+    """Right-pointing 'tap through' chevron for the PROFILE nameplate — the
+    vendored font has no such glyph, so it is a small filled triangle."""
+    pygame.draw.polygon(surf, color, [(cx - size // 2, cy - size),
+                                      (cx + size // 2, cy),
+                                      (cx - size // 2, cy + size)])
+
+
 class HUD:
     def __init__(self):
         self.pause_btn = PauseButton()
@@ -1665,9 +1674,16 @@ class HUD:
         # by scenes.py click-handling. Pre-init to None so a click that
         # arrives before the first menu render falls through harmlessly.
         self.menu_start_rect: "pygame.Rect | None" = None
-        self.menu_achv_rect: "pygame.Rect | None" = None
+        # The framed standing-Pip diorama IS the Profile entry; its records
+        # (achievements) live behind it. STORE is a bottom chip (stub on this
+        # branch — the real shop ships on another line).
+        self.menu_profile_rect: "pygame.Rect | None" = None
+        self.menu_store_rect: "pygame.Rect | None" = None
         self.menu_top10_rect: "pygame.Rect | None" = None
         self.menu_settings_rect: "pygame.Rect | None" = None
+        # Countdown for the transient STORE "coming soon" toast, ticked by
+        # draw_menu; armed by trigger_store_toast on a STORE tap.
+        self.store_toast_t = 0.0
         # Leaderboard tab hit-rects (CURRENT | LEGACY) — populated each frame
         # by draw_leaderboard in screen space, read by scenes.py to switch
         # boards without dismissing the screen. None until the first draw.
@@ -1690,6 +1706,71 @@ class HUD:
         # Same flat dim-scarlet pill as the main-menu CTAs.
         _pill_btn(surf, (W // 2, cy + 72), "TAP TO GAME",
                   size=18, alpha=230, min_width=220, dim=True, shadow=False)
+
+    def trigger_store_toast(self):
+        """Arm the transient STORE 'coming soon' toast (real shop is on
+        another branch); draw_menu ticks it down and paints it."""
+        self.store_toast_t = 1.6
+
+    def _draw_profile_card(self, surf):
+        """Frame the live standing-Pip diorama (already blitted to `surf` by
+        the menu scene) as a tappable PROFILE card: a thin double-rule jewel
+        edge + a beveled brass nameplate, riding the START-pill pulse so it
+        reads as interactive, not scenery. The player's look shows through
+        the frame; their records (achievements) open behind it. Publishes
+        menu_profile_rect for the tap router."""
+        from game import intro as _intro
+        house = _intro.get_sprite("skyhouse_post")
+        hw, hh = house.get_size()
+        hx = int(W * 0.30) - hw // 2
+        hy = int(H * 0.42) - hh // 2
+        house_r = pygame.Rect(hx, hy, hw, hh)
+        # Pip's standing footprint at his menu rest position (BIRD_X=90).
+        bird_r = pygame.Rect(90 - 34, int(H * 0.42) - 34, 68, 84)
+        fr = house_r.union(bird_r).inflate(24, 24)
+        fr.height += 20
+
+        # Gold tap-glow halo; alpha rides the same sin(t*3.6) pulse as START
+        # so the card breathes as tappable chrome, not a static vignette.
+        glow_amt = 0.5 + 0.5 * math.sin(self.title_t * 3.6)
+        pad = 14
+        glow = pygame.Surface((fr.width + pad * 2, fr.height + pad * 2),
+                              pygame.SRCALPHA)
+        for k in range(pad, 0, -1):
+            a = int(0.9 * (48 + 40 * glow_amt) * k / pad / 3.6)
+            gr = pygame.Rect(pad - k, pad - k, fr.width + k * 2, fr.height + k * 2)
+            pygame.draw.rect(glow, (*_GOLD_BRIGHT, a), gr, border_radius=15 + k)
+        surf.blit(glow, (fr.x - pad, fr.y - pad))
+
+        # Double-rule jewel edge: mid-gold outer, bright inner, ~6px air gap,
+        # with a pale top rim-light so it reads as struck gold catching light.
+        pygame.draw.rect(surf, _GOLD_MID, fr, width=1, border_radius=14)
+        pygame.draw.rect(surf, _GOLD_BRIGHT, fr.inflate(-12, -12), width=1,
+                         border_radius=9)
+        pygame.draw.line(surf, (*_GOLD_PALE, 200), (fr.left + 16, fr.top + 2),
+                         (fr.right - 16, fr.top + 2), 1)
+
+        # Beveled brass PROFILE nameplate on the bottom rail.
+        plate = pygame.Rect(fr.centerx - 60, fr.bottom - 24, 120, 22)
+        sh = pygame.Surface((plate.w + 6, plate.h + 6), pygame.SRCALPHA)
+        pygame.draw.rect(sh, (0, 0, 0, 140), sh.get_rect(), border_radius=8)
+        surf.blit(sh, (plate.x - 3, plate.y + 2))
+        pygame.draw.rect(surf, _GOLD_DEEP, plate, border_radius=7)
+        pygame.draw.rect(surf, _GOLD_MID, plate.inflate(-3, -3), border_radius=6)
+        pygame.draw.line(surf, _GOLD_PALE, (plate.left + 8, plate.top + 3),
+                         (plate.right - 8, plate.top + 3), 1)
+        pygame.draw.line(surf, (60, 40, 6), (plate.left + 8, plate.bottom - 3),
+                         (plate.right - 8, plate.bottom - 3), 1)
+        inset = plate.inflate(-8, -8)
+        pygame.draw.rect(surf, (30, 18, 8), inset, border_radius=4)
+        lx = inset.centerx - 7
+        _tracked_label(surf, "PROFILE", (lx, inset.centery + 1), 13,
+                       color=(20, 10, 4), track=2, alpha=200)
+        _tracked_label(surf, "PROFILE", (lx, inset.centery), 13,
+                       color=_GOLD_PALE, track=2, alpha=250)
+        _profile_tri(surf, inset.right - 9, inset.centery, 4, _GOLD_PALE)
+
+        self.menu_profile_rect = fr
 
     def draw_menu(self, surf, dt, best: int):
         self.title_t += dt
@@ -1733,22 +1814,27 @@ class HUD:
             size=24, alpha=btn_alpha, min_width=240, primary=True, dim=True,
             shadow=False)
 
-        # Bottom trio — AWARDS · TOP 10 · SETTINGS as icon-forward chips, inset
+        # Profile card — the standing Pip diorama, framed as a tappable entry
+        # (records/achievements live behind it). Drawn over the already-blitted
+        # diorama so the frame + nameplate sit on top of Pip.
+        self._draw_profile_card(surf)
+
+        # Bottom trio — STORE · TOP 10 · SETTINGS as icon-forward chips, inset
         # and centre-clustered so they clear the screen edges. The glyph carries
-        # each chip with a quiet tracked caption beneath. AWARDS opens the
-        # achievements screen (roster total kept hidden so badges are discovered
-        # in play), TOP 10 the leaderboard, SETTINGS the (stub) settings screen.
+        # each chip with a quiet tracked caption beneath. STORE is a stub on
+        # this branch (coming-soon toast), TOP 10 opens the leaderboard,
+        # SETTINGS the settings screen; AWARDS has folded into the Profile card.
         # Hit-rects are read by scenes.py STATE_MENU routing.
         cy = H - 86
         tile_w, tgap, tile_h = 84, 8, 54
         tx = (W - (tile_w * 3 + tgap * 2)) // 2
         chips = []
-        for _label, _kind in (("AWARDS", "star"), ("TOP 10", "trophy"),
+        for _label, _kind in (("STORE", "coin"), ("TOP 10", "trophy"),
                               ("SETTINGS", "gear")):
             r = pygame.Rect(tx, cy - tile_h // 2, tile_w, tile_h)
             _volume_panel(surf, r, radius=13)
-            if _kind == "star":
-                _draw_award_star(surf, r.centerx, cy - 5, 12)
+            if _kind == "coin":
+                _coin_icon(surf, r.centerx, cy - 5, 12)
             elif _kind == "trophy":
                 _draw_trophy(surf, r.centerx, cy - 5, 10)
             else:
@@ -1757,7 +1843,21 @@ class HUD:
                            color=_AWSTAR_HI, track=1, alpha=210)
             chips.append(r)
             tx += tile_w + tgap
-        self.menu_achv_rect, self.menu_top10_rect, self.menu_settings_rect = chips
+        self.menu_store_rect, self.menu_top10_rect, self.menu_settings_rect = chips
+
+        # Transient STORE "coming soon" toast — a small gold-rimmed tag above
+        # the STORE chip, fading via the countdown armed on a STORE tap.
+        if self.store_toast_t > 0 and self.menu_store_rect is not None:
+            self.store_toast_t = max(0.0, self.store_toast_t - dt)
+            img = _font(11, True).render("COMING SOON", True, _GOLD_PALE)
+            bg = img.get_rect().inflate(16, 8)
+            bg.center = (self.menu_store_rect.centerx,
+                         self.menu_store_rect.top - 16)
+            tag = pygame.Surface(bg.size, pygame.SRCALPHA)
+            tag.fill((16, 10, 34, 232))
+            surf.blit(tag, bg.topleft)
+            pygame.draw.rect(surf, _GOLD_BRIGHT, bg, width=1, border_radius=6)
+            surf.blit(img, img.get_rect(center=bg.center))
 
         # The corner `?` help button is intentionally not drawn here —
         # the POWER-UPS pill above replaces it. HelpButton class itself

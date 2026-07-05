@@ -650,9 +650,17 @@ class App:
                     and self.hud.menu_settings_rect.collidepoint(pos):
                 self._open_settings()
                 return
-            if pos and self.hud.menu_achv_rect \
-                    and self.hud.menu_achv_rect.collidepoint(pos):
+            # The framed Pip diorama is the Profile entry; its records
+            # (achievements) open behind it. Checked before START so a tap
+            # inside the frame can't fall through to starting a run.
+            if pos and self.hud.menu_profile_rect \
+                    and self.hud.menu_profile_rect.collidepoint(pos):
                 self._open_achievements()
+                return
+            if pos and self.hud.menu_store_rect \
+                    and self.hud.menu_store_rect.collidepoint(pos):
+                self.hud.trigger_store_toast()   # stub on this branch
+                self._cooldown_t = 0.25
                 return
             if pos and self.hud.menu_top10_rect \
                     and self.hud.menu_top10_rect.collidepoint(pos):
