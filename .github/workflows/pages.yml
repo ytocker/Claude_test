@@ -1,4 +1,4 @@
-name: Deploy main (/) + v5_skybit (/v5/) + v5_skybit_powerups_final (/v5_powerups/) + v5_graphics_additions (/v5_graphics_additions/) + v5_skybit_merge_graphics (/v5_test/) + v5_skybit_merge_graphics_sky_changes (/v5_test_sky/) + v5_skybit_enrich (/v5_event_test/) to GitHub Pages
+name: Deploy main (/) + v5_skybit (/v5/) + v5_skybit_powerups_final (/v5_powerups/) + v5_graphics_additions (/v5_graphics_additions/) + v5_skybit_merge_graphics (/v5_test/) + v5_skybit_merge_graphics_sky_changes (/v5_test_sky/) + v5_skybit_enrich (/v5_event_test/) + v5_integration (/v5_integration/) to GitHub Pages
 
 # One Pages site per repo means a single artifact replaces the whole
 # deploy each time. To keep main (root URL), v5_skybit (/v5/), and
@@ -47,7 +47,7 @@ name: Deploy main (/) + v5_skybit (/v5/) + v5_skybit_powerups_final (/v5_powerup
 
 on:
   push:
-    branches: [main, v5_skybit, v5_skybit_powerups_final, v5_graphics_additions, v5_skybit_merge_graphics, v5_skybit_merge_graphics_sky_changes, v5_skybit_enrich]
+    branches: [main, v5_skybit, v5_skybit_powerups_final, v5_graphics_additions, v5_skybit_merge_graphics, v5_skybit_merge_graphics_sky_changes, v5_skybit_enrich, v5_integration]
   workflow_dispatch:
 
 permissions:
@@ -105,6 +105,12 @@ jobs:
           ref: v5_skybit_enrich
           path: v5et_src
 
+      - name: Checkout v5_integration
+        uses: actions/checkout@v4
+        with:
+          ref: v5_integration
+          path: v5i_src
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -118,7 +124,7 @@ jobs:
         # the deploy is halted — better to leave the previous
         # deploy live than ship a regression to all three URLs.
         run: |
-          for src in main_src v5_src v5f_src v5g_src v5t_src v5ts_src v5et_src; do
+          for src in main_src v5_src v5f_src v5g_src v5t_src v5ts_src v5et_src v5i_src; do
             if [ -d "$src/tests" ]; then
               echo "=== $src/tests ==="
               ( cd "$src" && python -m pytest tests/ -q ) || exit 1
@@ -136,7 +142,7 @@ jobs:
           # allowlist to maintain. Adding a new powerup or any new
           # file inside game/ is automatically picked up by the next
           # build with no workflow change.
-          for src in main_src v5_src v5f_src v5g_src v5t_src v5ts_src v5et_src; do
+          for src in main_src v5_src v5f_src v5g_src v5t_src v5ts_src v5et_src v5i_src; do
             stage="${src%_src}_stage"
             mkdir -p "$stage"
             cp "$src/main.py"          "$stage/main.py"
@@ -250,7 +256,18 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: python inject_theme.py
 
-      - name: Combine main (root) + v5_skybit (/v5/) + v5_skybit_powerups_final (/v5_powerups/) + v5_graphics_additions (/v5_graphics_additions/) + v5_skybit_merge_graphics (/v5_test/) + v5_skybit_merge_graphics_sky_changes (/v5_test_sky/) + v5_skybit_enrich (/v5_event_test/)
+      - name: Build v5_integration WASM bundle
+        working-directory: v5i_stage
+        run: python -m pygbag --build main.py
+
+      - name: Inject theme + Supabase into v5_integration
+        working-directory: v5i_stage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: python inject_theme.py
+
+      - name: Combine main (root) + v5_skybit (/v5/) + v5_skybit_powerups_final (/v5_powerups/) + v5_graphics_additions (/v5_graphics_additions/) + v5_skybit_merge_graphics (/v5_test/) + v5_skybit_merge_graphics_sky_changes (/v5_test_sky/) + v5_skybit_enrich (/v5_event_test/) + v5_integration (/v5_integration/)
         run: |
           mkdir -p combined
           cp -r main_stage/build/web/. combined/
@@ -266,6 +283,8 @@ jobs:
           cp -r v5ts_stage/build/web/. combined/v5_test_sky/
           mkdir -p combined/v5_event_test
           cp -r v5et_stage/build/web/. combined/v5_event_test/
+          mkdir -p combined/v5_integration
+          cp -r v5i_stage/build/web/. combined/v5_integration/
           # GitHub Pages routes through Jekyll by default, which skips
           # paths beginning with `_`. Pygbag emits `_pythons.js`,
           # `_packages/`, etc. — the marker disables Jekyll for the
@@ -283,7 +302,7 @@ jobs:
           MAX_BYTES=$((5 * 1024 * 1024))
           fail=0
           echo "=== built bundle sizes ==="
-          for stage in main_stage v5_stage v5f_stage v5g_stage v5t_stage v5ts_stage v5et_stage; do
+          for stage in main_stage v5_stage v5f_stage v5g_stage v5t_stage v5ts_stage v5et_stage v5i_stage; do
             apk=$(ls "$stage"/build/web/*.apk 2>/dev/null | head -1)
             if [ -f "$apk" ]; then
               bytes=$(stat -c%s "$apk")
