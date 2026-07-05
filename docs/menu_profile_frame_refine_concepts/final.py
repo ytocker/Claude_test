@@ -32,7 +32,6 @@ def card_plate_clean(surf):
     """Card C exactly as shipped, but WITHOUT the records_badge() call."""
     fr = _r2.dio_region(pad=12)
     fr.height += 20
-    _r2.subtle_vignette(surf, fr, alpha=72, inset=6, radius=14)
     _r2.tap_glow(surf, fr, radius=15, strength=0.9)
 
     pygame.draw.rect(surf, _r2._GOLD_MID, fr, width=1, border_radius=14)
