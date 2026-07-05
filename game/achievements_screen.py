@@ -49,7 +49,7 @@ _BADGE    = 44
 # reuse this weight + horizontal inset so the whole screen reads as one system.
 _RULE_INSET = 40
 
-_S = 3  # supersample for the tall content surface (matches the leaderboard)
+_S = 2  # supersample — 2× is indistinguishable from 3× at 360 px wide and halves build cost
 
 _DECAY_K  = 5.0     # s⁻¹ exponential friction — tune lower for floatier feel
 _STOP_VEL = 5.0     # px/s  below this the fling is considered stopped
@@ -276,7 +276,7 @@ class AchievementsScene:
         panel = pygame.Surface((rw, rh), pygame.SRCALPHA)
         for yy in range(rh):
             t = yy / max(1, rh - 1)
-            pygame.draw.line(panel, lerp_color(body_top, body_bot, t), (0, yy), (rw, yy))
+            panel.fill(lerp_color(body_top, body_bot, t), (0, yy, rw, 1))
         mask = pygame.Surface((rw, rh), pygame.SRCALPHA)
         pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, rw, rh), border_radius=rad)
         panel.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
