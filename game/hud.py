@@ -73,10 +73,6 @@ def _outlined_text(surf, txt, center, size, fill=_GOLD_BRIGHT,
                (-px, -px), (px, -px), (-px, px), (px, px)]
     for ox, oy in offsets:
         surf.blit(out, (r.x + ox, r.y + oy))
-    if shadow_offset is not None:
-        sh = f.render(txt, True, NEAR_BLACK)
-        sh.set_alpha(170)
-        surf.blit(sh, (r.x + shadow_offset[0], r.y + shadow_offset[1]))
     surf.blit(img, r.topleft)
     return r
 
@@ -152,12 +148,6 @@ def _pill_btn(surf, center, text, size=20, alpha=255, wide=False,
             a = int(50 * (1 - yy / (ph / 2)))
             pygame.draw.line(frost, (255, 245, 220, a), (0, yy), (pw, yy))
         pill.blit(frost, (0, 0))
-    bsh = pygame.Surface((pw, ph), pygame.SRCALPHA)
-    for yy in range(ph // 2, ph):
-        a = int(55 * (yy - ph // 2) / (ph / 2))
-        pygame.draw.line(bsh, (0, 0, 0, a), (0, yy), (pw, yy))
-    pill.blit(bsh, (0, 0))
-
     # Clip to a rounded-rect mask.
     mask = pygame.Surface((pw, ph), pygame.SRCALPHA)
     pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, pw, ph),
@@ -173,12 +163,7 @@ def _pill_btn(surf, center, text, size=20, alpha=255, wide=False,
     pill.set_alpha(alpha)
     surf.blit(pill, (x, y))
 
-    # Label: scarlet shadow then cream face, so the text feels embossed
-    # rather than floating on top of the gradient.
-    sh_img = f.render(text, True, _SCARLET_SHADOW)
-    sh_img.set_alpha(220)
     tr = img.get_rect(center=(cx, cy))
-    surf.blit(sh_img, (tr.x + 1, tr.y + 1))
     surf.blit(img, tr)
 
     return pygame.Rect(x, y, pw, ph)
@@ -224,16 +209,6 @@ def _volume_panel(surf, rect, radius=14, alpha=235):
     + bottom shadow, and a 4-step drop shadow. Used by ``draw_menu`` for
     the BEST + TOP 10 cards so they sit with real volume against the
     scarlet pill buttons above them."""
-    # 4-step drop shadow — softer, more diffuse than _dark_panel's.
-    sh = pygame.Surface((rect.width + 8, rect.height + 8), pygame.SRCALPHA)
-    for k in range(4):
-        a = 80 - k * 16
-        pygame.draw.rect(sh, (0, 0, 0, a),
-                         (k, k * 2, rect.width + 8 - k * 2,
-                          rect.height + 8 - k * 2),
-                         border_radius=radius)
-    surf.blit(sh, (rect.x - 4, rect.y + 2))
-
     # Gradient body — lighter at top, dark at bottom, fixed alpha.
     pnl = pygame.Surface(rect.size, pygame.SRCALPHA)
     for yy in range(rect.height):
@@ -253,9 +228,6 @@ def _volume_panel(surf, rect, radius=14, alpha=235):
                      width=2, border_radius=radius)
     pygame.draw.line(pnl, (*_GOLD_PALE, 140),
                      (10, 3), (rect.width - 10, 3), 1)
-    pygame.draw.line(pnl, (0, 0, 0, 80),
-                     (10, rect.height - 4),
-                     (rect.width - 10, rect.height - 4), 1)
     surf.blit(pnl, rect.topleft)
 
 
@@ -1752,9 +1724,6 @@ class HUD:
 
         # Beveled brass PROFILE nameplate on the bottom rail.
         plate = pygame.Rect(fr.centerx - 60, fr.bottom - 24, 120, 22)
-        sh = pygame.Surface((plate.w + 6, plate.h + 6), pygame.SRCALPHA)
-        pygame.draw.rect(sh, (0, 0, 0, 140), sh.get_rect(), border_radius=8)
-        surf.blit(sh, (plate.x - 3, plate.y + 2))
         pygame.draw.rect(surf, _GOLD_DEEP, plate, border_radius=7)
         pygame.draw.rect(surf, _GOLD_MID, plate.inflate(-3, -3), border_radius=6)
         pygame.draw.line(surf, _GOLD_PALE, (plate.left + 8, plate.top + 3),
@@ -1797,7 +1766,7 @@ class HUD:
         # Subtitle — same gold-on-red outline as SKYBIT, just smaller and
         # with a tighter pixel outline so it reads as a partner line.
         _outlined_text(surf, "POCKET  SKY  FLYER", (W // 2, 184),
-                        size=22, px=2, shadow_offset=(2, 3))
+                        size=22, px=2, shadow_offset=None)
 
         # Divider
         pygame.draw.line(surf, (*_ORANGE_BORDER, 120),
