@@ -51,6 +51,11 @@ _RULE_INSET = 40
 
 _S = 3  # supersample for the tall content surface (matches the leaderboard)
 
+_DECAY_K      = 5.0    # s⁻¹ exponential friction — tune lower for floatier feel
+_FLING_WINDOW = 0.10   # s  sliding window used to sample release velocity
+_STOP_VEL     = 20.0   # px/s  below this the fling is considered stopped
+_MAX_VEL      = 4000.0 # px/s  cap so an accidental huge swipe stays sane
+
 
 # Seeded twinkle field so the wall lives in the same night world as the menu.
 _STARS = []
@@ -75,6 +80,8 @@ class AchievementsScene:
         self._drag_active = False
         self._drag_last = 0
         self._drag_moved = 0
+        self._scroll_vel = 0.0     # px/s — fling velocity after finger lift
+        self._drag_history: list = []  # [(y_px, time_s)] rolling 100 ms window
         self._content: "pygame.Surface | None" = None
         self._content_h = 0          # logical content height
         self._cache_key = None
@@ -101,6 +108,8 @@ class AchievementsScene:
             return
         self._tab = name
         self.scroll_offset = 0.0
+        self._scroll_vel = 0.0
+        self._drag_history = []
         self._cache_key = None       # force a rebuild for the new roster
         if name == "shame" and not self._saw_shame:
             self._saw_shame = True
@@ -116,6 +125,8 @@ class AchievementsScene:
             ach.unlock("read_fine_print")
 
     def pointer_down(self, y: int) -> None:
+        self._scroll_vel = 0.0
+        self._drag_history = [(y, pygame.time.get_ticks() / 1000.0)]
         self._drag_active = True
         self._drag_last = y
         self._drag_moved = 0
@@ -123,6 +134,10 @@ class AchievementsScene:
     def pointer_move(self, y: int) -> None:
         if not self._drag_active:
             return
+        now = pygame.time.get_ticks() / 1000.0
+        self._drag_history.append((y, now))
+        cutoff = now - _FLING_WINDOW
+        self._drag_history = [(py, pt) for py, pt in self._drag_history if pt >= cutoff]
         dy = y - self._drag_last
         self.scroll_by(-dy)
         self._drag_moved += abs(dy)
@@ -133,10 +148,27 @@ class AchievementsScene:
         if not self._drag_active:
             return False
         self._drag_active = False
+        if len(self._drag_history) >= 2:
+            dy = self._drag_history[-1][0] - self._drag_history[0][0]
+            dt = self._drag_history[-1][1] - self._drag_history[0][1]
+            raw = (-dy / dt) if dt > 0 else 0.0
+            self._scroll_vel = max(-_MAX_VEL, min(_MAX_VEL, raw))
+        self._drag_history = []
         return self._drag_moved < self._TAP_SLOP
 
     def update(self, dt: float) -> None:
         self._t += dt
+        if self._drag_active or abs(self._scroll_vel) <= _STOP_VEL:
+            if not self._drag_active:
+                self._scroll_vel = 0.0
+            return
+        # Kill velocity at boundaries so the list doesn't try to scroll past ends.
+        if (self._scroll_vel < 0 and self.scroll_offset <= 0) or \
+                (self._scroll_vel > 0 and self.scroll_offset >= self.max_scroll):
+            self._scroll_vel = 0.0
+            return
+        self.scroll_by(self._scroll_vel * dt)
+        self._scroll_vel *= math.exp(-_DECAY_K * dt)
 
     # ── content build (cached) ───────────────────────────────────────────
     def _viewport(self) -> "tuple[int, int]":
