@@ -533,11 +533,11 @@ LABELS = {g: lbl for g, lbl in STALLS}
 # Two-tier village arrangement so all 7 huts read at 360px without overlap.
 #   group, cx fraction, deck_y fraction, scale, hero
 LAYOUT = [
-    ("costume",  0.155, 0.572, 0.80, False),
+    ("shoes",    0.155, 0.572, 0.80, False),
     ("animal",   0.500, 0.548, 0.80, False),
     ("hats",     0.845, 0.572, 0.80, False),
     ("parrot",   0.142, 0.788, 0.92, False),
-    ("shoes",    0.858, 0.788, 0.92, False),
+    ("costume",  0.858, 0.788, 0.92, False),
     ("shades",   0.500, 0.704, 0.86, False),
     ("parcels",  0.500, 0.862, 0.96, True),
 ]
