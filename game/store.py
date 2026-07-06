@@ -1063,3 +1063,4 @@ class StoreScene:
             self._flash("UNLOCKED!  " + self._disp_name(sid))
         elif reason == "insufficient":
             self._flash("NEED MORE COINS")
+
