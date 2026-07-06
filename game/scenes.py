@@ -414,6 +414,7 @@ STATE_ACHIEVEMENTS = 9
 STATE_ACHV_EARNED = 10
 STATE_SETTINGS = 11
 STATE_ABOUT = 12
+STATE_STORE = 13
 
 # Background cloud depth slots: (base_x, base_y, scale). Geometry is fixed so the
 # parallax-depth spread stays good; all slots share one cloud design per run,
@@ -457,6 +458,10 @@ class App:
         # Achievements screen — built lazily when opened from the menu,
         # torn down on dismiss. Owns its own scroll/drag state.
         self.achievements: object | None = None
+        # Coin store — the lagoon-hub landing + category grids, built lazily on
+        # the menu STORE tap and torn down on BACK. Owns its own hub/category
+        # navigation + buy-confirm state.
+        self.store: object | None = None
         # The end-of-run "ACHIEVEMENT EARNED!" screen — built on death when a
         # run unlocks one or more achievements, shown before the run summary,
         # torn down on the continue tap. Owns its own scroll/drag state.
@@ -635,6 +640,18 @@ class App:
             if pos is None or mb is None or mb.collidepoint(pos):
                 self._close_about()   # MENU pill (or ESC/key) → back to Settings
             return
+        if self.state == STATE_STORE:
+            # The store owns its own hub/category/BACK navigation; delegate the
+            # tap and only act on the "back" token (BACK on the hub → exit to
+            # menu). Gated by the entry cooldown so the opening tap can't bounce.
+            if self._cooldown_t > 0:
+                return
+            if self.store is None:
+                self.state = STATE_MENU
+                return
+            if self.store.handle_tap(pos) == "back":
+                self._close_store()
+            return
         if self.state == STATE_MENU:
             # Single shared cooldown gate for every menu action. This is
             # what stops a follow-up event from the same physical tap
@@ -658,8 +675,7 @@ class App:
                 return
             if pos and self.hud.menu_store_rect \
                     and self.hud.menu_store_rect.collidepoint(pos):
-                self.hud.trigger_store_toast()   # stub on this branch
-                self._cooldown_t = 0.25
+                self._open_store()
                 return
             if pos and self.hud.menu_top10_rect \
                     and self.hud.menu_top10_rect.collidepoint(pos):
@@ -749,6 +765,18 @@ class App:
 
     def _close_achievements(self):
         self.achievements = None
+        self.state = STATE_MENU
+        self._cooldown_t = 0.25
+
+    # ── coin store ────────────────────────────────────────────────────────────
+    def _open_store(self):
+        from game.store import StoreScene
+        self.store = StoreScene()
+        self.state = STATE_STORE
+        self._cooldown_t = 0.25
+
+    def _close_store(self):
+        self.store = None
         self.state = STATE_MENU
         self._cooldown_t = 0.25
 
@@ -896,6 +924,14 @@ class App:
         flicker)."""
         self._cloud_variant = random.randrange(cloud_variants.VARIANT_COUNT)
 
+    def _sync_bird_cosmetics(self):
+        """Apply the coin-store loadout (equipped skin + parcel) to this run's
+        bird so purchases/equips made in the store show up in gameplay."""
+        from game import store_data
+        b = self.world.bird
+        b.equipped_skin = store_data.equipped("skin") or "skin_base"
+        b.equipped_parcel = store_data.equipped("parcel") or "parcel_base"
+
     def _start_play(self):
         # On the event-test branch the demo is the ONLY mode — every run
         # start (menu, restart) replays it, so route through it here.
@@ -908,6 +944,7 @@ class App:
         # opener (post-house drifting off-screen-left) still plays for
         # the first ~2.5 s of bg_scroll.
         self.world = World()
+        self._sync_bird_cosmetics()
         self.world.ready_t = 0.0
         self.world.flap()
         self._pick_cloud_variant()
@@ -984,6 +1021,7 @@ class App:
         # Same contract as `_start_play`: the tap that triggered the
         # restart counts as the first flap, no ready freeze.
         self.world = World()
+        self._sync_bird_cosmetics()
         self.world.ready_t = 0.0
         self.world.flap()
         self._pick_cloud_variant()
@@ -1182,6 +1220,11 @@ class App:
         if self.state == STATE_ABOUT:
             if self.about is not None:
                 self.about.update(dt)
+            self._cooldown_t = max(0.0, self._cooldown_t - dt)
+            return
+        if self.state == STATE_STORE:
+            if self.store is not None:
+                self.store.update(dt)
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
             return
         if self.state == STATE_ACHV_EARNED:
@@ -1577,6 +1620,10 @@ class App:
         # About screen paints its own night background.
         if self.state == STATE_ABOUT and self.about is not None:
             self.about.render(self.screen, 1 / 60)
+            return
+        # Coin store paints its own lagoon hub / category grids.
+        if self.state == STATE_STORE and self.store is not None:
+            self.store.render(self.screen)
             return
         sx, sy = self.world.shake_offset() if self.state == STATE_PLAY else (0, 0)
         sx, sy = int(sx), int(sy)

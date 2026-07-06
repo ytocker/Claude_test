@@ -479,3 +479,9 @@ PIPE_SPACING_NEWBIE  = 370
 
 SAVE_FILE = "skybit_save.json"
 SCORES_FILE = "skybit_scores.json"
+
+# ── Coin store ────────────────────────────────────────────────────────────────
+# Wallet + owned cosmetics persist here (native JSON; localStorage on web). Coins
+# bank at run-end and buy cosmetics; DAILY_REWARD is the once-per-day login grant.
+STORE_FILE = "skybit_store.json"
+DAILY_REWARD = 75

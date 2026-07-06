@@ -103,7 +103,21 @@ def _draw_sunglasses(surf, cx, cy):
                      (right[0] + r_outer - 1, right[1] - r_outer + 2), 1)
 
 
-def _build_frame(wing_angle_deg):
+def _draw_eye(surf, cx, cy):
+    """Plain macaw eye — the bare-faced look that sits under the default
+    aviators. A pale bare-skin facial patch (the scarlet macaw's signature)
+    carrying a dark, glinting eye. It is the base the SHADES cosmetics paint
+    over, and the look the store's NO-SHADES option leaves showing."""
+    _aaellipse(surf, (250, 243, 236), (cx, cy), 6, 5)
+    # Faint feather-lines streak the bare patch the way a real macaw's does.
+    pygame.draw.line(surf, (236, 210, 205), (cx - 5, cy - 2), (cx + 5, cy - 2), 1)
+    pygame.draw.line(surf, (236, 210, 205), (cx - 5, cy + 2), (cx + 5, cy + 2), 1)
+    pygame.draw.circle(surf, (40, 26, 30), (cx + 1, cy), 3)
+    pygame.draw.circle(surf, (15, 10, 12), (cx + 1, cy), 3, 1)
+    pygame.draw.circle(surf, (255, 255, 255), (cx, cy - 1), 1)
+
+
+def _build_frame(wing_angle_deg, *, eyewear=True):
     surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
 
     # Tail: layered feather fan, vivid red→orange→yellow
@@ -152,8 +166,13 @@ def _build_frame(wing_angle_deg):
     # Crown highlight
     _aaellipse(surf, (255, 170, 170), (46, 16), 7, 3)
 
-    # Aviator sunglasses (replaces the plain eye)
-    _draw_sunglasses(surf, 50, 20)
+    # Aviator sunglasses (replaces the plain eye). The SHADES cosmetics start
+    # from the bare-eyed build (eyewear=False) and paint their own lenses over
+    # this anchor; NO SHADES leaves the plain eye showing.
+    if eyewear:
+        _draw_sunglasses(surf, 50, 20)
+    else:
+        _draw_eye(surf, 50, 20)
 
     # Beak — hooked, with a glossy highlight
     beak_pts = [
@@ -661,9 +680,19 @@ def _build_parcel_variant(palette: dict) -> pygame.Surface:
 _PARCELS: "dict[str, pygame.Surface] | None" = None
 
 
-def get_parcel(mode: str = "normal") -> pygame.Surface:
-    """Return the parcel sprite for a visual mode. Falls back to 'normal'
-    on unknown keys so the parcel never disappears."""
+def get_parcel(mode: str = "normal",
+               parcel_id: "str | None" = None) -> pygame.Surface:
+    """Return the parcel sprite. A custom equipped ``parcel_id`` routes to its
+    cosmetic builder (mode-agnostic — it keeps its own look across power-ups);
+    the default / None / ``parcel_base`` path uses the legacy per-mode palette
+    box. Falls back to 'normal' on any miss so the parcel never disappears."""
+    if parcel_id and parcel_id != "parcel_base":
+        fn = _store_parcel_builders().get(parcel_id)
+        if fn is not None:
+            try:
+                return fn(mode)
+            except Exception:
+                pass
     global _PARCELS
     if _PARCELS is None:
         _PARCELS = {name: _build_parcel_variant(pal)
@@ -1206,3 +1235,91 @@ def get_poisoned_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
         s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
         _poisoned_rot_cache[key] = s
     return s
+
+
+# ── Coin-store cosmetic-skin dispatch ─────────────────────────────────────────
+# The store's cosmetic roster (costumes, parrot recolors, animals, shoes, hats,
+# shades, parcels) lives in game/*_skins.py; those modules are imported lazily
+# (after this module is fully loaded) so they can import `parrot` back without a
+# circular-import hazard. Each exposes a BUILDERS dict (skin id -> (frame,tilt)
+# builder) and optionally an ICONS dict (skin id -> product-shot surface).
+_STORE_SKINS: "dict | None" = None
+_SKIN_ICONS: "dict | None" = None
+_STORE_PARCELS: "dict | None" = None
+
+
+def _build_frame_bare(wing_angle_deg):
+    """The base macaw with a plain eye instead of the baked aviators — the
+    `base_fn` every SHADES skin builds on (glasses_skins.py)."""
+    return _build_frame(wing_angle_deg, eyewear=False)
+
+
+def _store_skin_builders() -> dict:
+    global _STORE_SKINS
+    if _STORE_SKINS is None:
+        merged: dict = {}
+        for modname in ("store_skins", "skeleton_skin", "animal_skins",
+                        "shoe_skins", "hat_skins", "glasses_skins",
+                        "skin_basketball"):
+            try:
+                mod = __import__("game." + modname, fromlist=["BUILDERS"])
+                merged.update(mod.BUILDERS)
+            except Exception:
+                pass
+        _STORE_SKINS = merged
+    return _STORE_SKINS
+
+
+def _skin_icons() -> dict:
+    """Prebuilt product-shot surfaces for skins that want a store icon distinct
+    from their in-game look (shoes show the sneaker itself). Lazily merged."""
+    global _SKIN_ICONS
+    if _SKIN_ICONS is None:
+        merged: dict = {}
+        for modname in ("shoe_skins", "hat_skins", "glasses_skins",
+                        "parcel_skins"):
+            try:
+                mod = __import__("game." + modname, fromlist=["ICONS"])
+                merged.update(getattr(mod, "ICONS", {}))
+            except Exception:
+                pass
+        _SKIN_ICONS = merged
+    return _SKIN_ICONS
+
+
+def _store_parcel_builders() -> dict:
+    """Lazily merge ``parcel_skins.BUILDERS`` — the swappable parcel cosmetics
+    sold in the PARCELS store tab. An absent/broken module degrades to the
+    legacy palette box."""
+    global _STORE_PARCELS
+    if _STORE_PARCELS is None:
+        merged: dict = {}
+        try:
+            mod = __import__("game.parcel_skins", fromlist=["BUILDERS"])
+            merged.update(mod.BUILDERS)
+        except Exception:
+            pass
+        _STORE_PARCELS = merged
+    return _STORE_PARCELS
+
+
+def get_skin_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Render the equipped cosmetic's frame. Unknown ids fall back to the base
+    parrot so a stale save (skin removed in a later build) degrades to the
+    default look rather than crashing the draw."""
+    fn = _store_skin_builders().get(skin_id) or get_parrot
+    return fn(frame_idx, tilt_deg)
+
+
+def get_skin_icon(skin_id: str) -> "pygame.Surface | None":
+    """The store product-shot for a skin, or None to fall back to the in-game
+    look (so shoe cards show the sneaker itself, not Pip wearing it)."""
+    return _skin_icons().get(skin_id)
+
+
+def skin_builder_ids() -> set:
+    """All renderable cosmetic skin ids (the store roster). Used by tests to
+    assert every catalog skin resolves to a builder. ``skin_base`` is the
+    implicit default — it renders as the base parrot via the get_parrot
+    fallback, so it counts as drawable."""
+    return {"skin_base"} | set(_store_skin_builders())

@@ -487,6 +487,11 @@ class Bird:
         self.vy = 0.0
         self.alive = True
         self.frame_t = 0.0
+        # Cosmetic loadout from the coin store (synced per run from store_data);
+        # the equipped skin is the base look the power-up cascade draws over,
+        # and equipped_parcel swaps the gift Pip carries.
+        self.equipped_skin = "skin_base"
+        self.equipped_parcel = "parcel_base"
         self.flap_boost = 0.0
         self.kfc_active = False
         self.ghost_active = False
@@ -700,7 +705,10 @@ class Bird:
             # the legacy upscale below — they pre-empt this branch.
             img = parrot.get_grow_parrot(frame_idx, tilt)
         else:
-            img = parrot.get_parrot(frame_idx, tilt)
+            # No power-up skin active: draw the equipped COSMETIC skin (the
+            # store loadout). Unknown ids degrade to the base parrot inside
+            # get_skin_frame, so a stale save never crashes the draw.
+            img = parrot.get_skin_frame(self.equipped_skin, frame_idx, tilt)
         # POISON — generic chartreuse tint over whichever skin the cascade
         # chose (mask-clamped to the silhouette, ramped by poison_t), so the
         # poisoning reads on kfc/ghost/knight/hat rather than swapping to a
@@ -857,7 +865,7 @@ class Bird:
             mode = "triple"
         else:
             mode = "normal"
-        parcel = parrot.get_parcel(mode)
+        parcel = parrot.get_parcel(mode, self.equipped_parcel)
         from game.config import GROW_SCALE, PARCEL_Y_OFFSET
         scale = GROW_SCALE if self.grow_active else 1.0
         if scale != 1.0:
@@ -885,7 +893,10 @@ class Bird:
         surf.blit(parcel_rot, pr.topleft)
         # Snow settles on the parcel too (objects get capped, not the underside)
         # — fades in only at high load, matched to the parcel's transform chain.
-        if self.snow_load > snow_fx.PARCEL_ONSET and not skeleton_visible:
+        # The cap is shaped for the default kraft box, so it's skipped for an
+        # equipped custom parcel rather than draping box-snow over a balloon.
+        base_parcel = self.equipped_parcel in (None, "parcel_base")
+        if base_parcel and self.snow_load > snow_fx.PARCEL_ONSET and not skeleton_visible:
             pov = snow_fx.get_parcel_snow(mode, self.snow_load)
             if pov is not None:
                 if scale != 1.0:
