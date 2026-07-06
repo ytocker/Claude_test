@@ -760,23 +760,6 @@ def draw_card(surf, sid, rect, equipped, secret, variant=PRICE_VARIANT):
     state_chip(surf, sid, cx, rect.y + m(88), equipped, secret, m(20),
                variant=variant)
 
-    if equipped:
-        # restrained outer halo + a THICKENED 2-step gold frame: a deep
-        # under-stroke ON the edge, then a bright lip just inside.
-        halo = pygame.Surface((rect.w + m(16), rect.h + m(16)), pygame.SRCALPHA)
-        for k in range(5, 0, -1):
-            pygame.draw.rect(halo, (*GOLD, int(20 * k / 5)),
-                             (m(8) - k * m(1), m(8) - k * m(1),
-                              rect.w + 2 * k * m(1), rect.h + 2 * k * m(1)),
-                             width=max(1, m(1.4)), border_radius=rad + k * m(1))
-        surf.blit(halo, (rect.x - m(8), rect.y - m(8)), special_flags=pygame.BLEND_ADD)
-        # step 1: deep gold under-frame sitting on the card edge
-        pygame.draw.rect(surf, CARD_RING_DEEP, rect, width=max(1, m(3)),
-                         border_radius=rad)
-        # step 2: bright gold lip just inside it (the lit crown of the bevel)
-        lip = rect.inflate(-m(2), -m(2))
-        pygame.draw.rect(surf, GOLD, lip, width=max(1, m(2)),
-                         border_radius=rad - m(1))
 
 
 # =============================================================================
