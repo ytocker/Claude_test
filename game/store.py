@@ -33,6 +33,7 @@ from game import store_catalog
 from game import store_data
 from game import store_cards
 from game.surprise_box_variants import _draw_qmark
+from game.store_hub import CLOSED_GROUPS as _STORE_CLOSED
 
 # Card grid metrics (2 columns). Thumbnails are pre-rendered once so the
 # per-frame cost is a flat blit rather than eight smoothscales.
@@ -44,11 +45,17 @@ _THUMB_BOX = 48
 _PER_PAGE = 8          # 2 columns x 4 rows; each tab pages independently
 
 _TAB_Y = 92            # tab-bar centre line
-_TABS = (("COSTUMES", "costume"), ("PARROTS", "parrot"),
-         ("ANIMALS", "animal"), ("SHOES", "shoes"), ("HATS", "hats"),
-         ("SHADES", "shades"), ("PARCELS", "parcels"))
+_TABS = tuple(
+    (lbl, g) for lbl, g in (
+        ("COSTUMES", "costume"), ("PARROTS", "parrot"),
+        ("ANIMALS", "animal"), ("SHOES", "shoes"), ("HATS", "hats"),
+        ("SHADES", "shades"), ("PARCELS", "parcels"),
+    )
+    if g not in _STORE_CLOSED
+)
 # Stall group -> tab index, so a tap on a lagoon-hub stall lands on that
-# category's grid. Keyed on the same group ids the hub returns its rects under.
+# category's grid. Only open stalls appear; closed ones are excluded so the
+# tab bar never shows an empty category.
 _GROUP_TAB = {g: i for i, (_label, g) in enumerate(_TABS)}
 
 # Night-sky gradient stops the obsidian cards were tuned against.
@@ -672,18 +679,18 @@ class StoreScene:
         lbl = _font(12, True).render(f"PAGE  {self.page + 1} / {self.n_pages}",
                                      True, _GOLD_PALE)
         surf.blit(lbl, lbl.get_rect(center=(x + w // 2, cy)))
-        self.prev_rect = self._arrow(surf, x + 16, cy, "<", self.page > 0)
-        self.next_rect = self._arrow(surf, x + w - 16, cy, ">",
+        self.prev_rect = self._arrow(surf, x + 24, cy, "<", self.page > 0)
+        self.next_rect = self._arrow(surf, x + w - 24, cy, ">",
                                      self.page < self.n_pages - 1)
 
     def _arrow(self, surf, cx, cy, glyph, enabled) -> "pygame.Rect | None":
-        r = pygame.Rect(0, 0, 30, 22)
+        r = pygame.Rect(0, 0, 46, 30)
         r.center = (cx, cy)
         surf.blit(_vgrad_panel(r.w, r.h, 11, (44, 34, 20) if enabled else (44, 40, 50),
                                (24, 18, 10) if enabled else (28, 24, 32)), r.topleft)
         pygame.draw.rect(surf, (*_GOLD_BRIGHT, 190) if enabled else (88, 80, 90),
                          r, width=1, border_radius=11)
-        g = _font(15, True).render(glyph, True,
+        g = _font(17, True).render(glyph, True,
                                    _GOLD_PALE if enabled else (140, 132, 146))
         surf.blit(g, g.get_rect(center=(cx, cy - 1)))
         return r if enabled else None

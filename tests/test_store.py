@@ -249,7 +249,7 @@ class TestCatalogIntegrity(unittest.TestCase):
         self.assertEqual(store_catalog.rarity(store_catalog.PARCEL_BASE), "common")
         # Band boundaries spot-checked on representative items.
         self.assertEqual(store_catalog.rarity("skin_shades_none"), "common")   # 120
-        self.assertEqual(store_catalog.rarity("skin_owl"), "common")           # 280
+        self.assertEqual(store_catalog.rarity("skin_pirate"), "common")        # 280
         self.assertEqual(store_catalog.rarity("skin_ninja"), "rare")           # 560
         self.assertEqual(store_catalog.rarity("skin_eagle"), "epic")           # 900
         self.assertEqual(store_catalog.rarity("skin_dragon"), "legendary")     # 2300
@@ -393,7 +393,7 @@ class TestBuyConfirmFlow(_StoreTestBase):
         self.scene.view = "category"
         store_data.add_coins(99999)
         # A known unowned, non-secret catalog item.
-        self.item = "skin_owl"
+        self.item = "skin_pirate"
 
     def _render(self):
         self.scene.render(self.surf)
