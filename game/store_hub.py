@@ -543,15 +543,22 @@ LAYOUT = [
 ]
 
 
+# Which specific catalog item each stall dome showcases.
+_STALL_HERO_ITEM = {
+    "parrot":  "skin_lorikeet",
+    "parcels": "parcel_postmark",
+}
+
+
 def _group_thumb(group):
-    """REAL in-game preview for a stall: the icon/first-frame of its first item.
+    """REAL in-game preview for a stall: the icon/first-frame of its hero item.
 
     SHADES' first catalog id is NO SHADES (a bare-eyed parrot, no icon), so for
     SHADES we skip to the first shades id that owns a real eyewear icon.
     Returns (surface, letterbox) — letterbox flags aspect-extreme items so the
     placer contains them in the dome rather than blowing past the glass."""
     ids = store_catalog.ids_of_group(group)
-    sid = ids[0]
+    sid = _STALL_HERO_ITEM.get(group, ids[0])
     src = None
     if group == "shades":
         for cand in ids:
