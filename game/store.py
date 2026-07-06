@@ -417,7 +417,6 @@ class StoreScene:
         self._tab_vp = pygame.Rect(12, _TAB_Y - 13, W - 24, 26)
         self._tab_widths: "list[int]" = []
         self._tab_gap = 6
-        self.daily_rect: "pygame.Rect | None" = None
         self._toast = ("", 0.0)  # (text, seconds remaining)
         # Pending buy-confirmation: the sid awaiting a CONFIRM/CANCEL, plus the
         # modal's hit rects. Coins are never spent until CONFIRM, so a stray tap
@@ -492,8 +491,7 @@ class StoreScene:
     def _render_category(self, surf: pygame.Surface) -> None:
         self._draw_bg(surf)
         self._draw_title(surf)
-        self._draw_balance(surf, cx=W // 2, y=60)
-        self._draw_daily(surf)
+        self._draw_balance(surf, y=26)
         self._draw_tabs(surf)
 
         base_x = (W - (_CARD_W * 2 + _GAP)) // 2
@@ -531,55 +529,32 @@ class StoreScene:
         _draw_overlay_stars(surf, self._stars, self.t + 1.4)
 
     def _draw_title(self, surf) -> None:
-        f = _font(28, True)
-        _gradient_text(surf, "STORE", f, (W // 2, 30),
-                       (255, 240, 180), (236, 170, 60),
+        f = _font(30, True)
+        _gradient_text(surf, "STORE", f, (W // 2, 26),
+                       _GOLD_BRIGHT, _GOLD_BRIGHT,
                        outline=_RED_OUTLINE, shadow=True)
 
-    def _draw_balance(self, surf, cx, y) -> None:
-        """Luxe recessed gold capsule + gradient-gold digits with the coin glyph
-        — the brightest glow on the screen, per the locked glow hierarchy."""
+    def _draw_balance(self, surf, y) -> None:
+        """Gold capsule + gradient-gold digits in the top-right corner.
+        Uses the real gameplay parrot-medallion coin (no $ glyph, rope rim)."""
         val = f"{store_data.balance():,}"
-        vf = _font(22, True)
+        vf = _font(18, True)
         vimg_w = vf.size(val)[0]
-        coin_d, gap_coin, pad = 24, 9, 16
+        coin_d, gap_coin, pad = 20, 7, 10
         w = coin_d + gap_coin + vimg_w + pad * 2
-        cap = pygame.Rect(cx - w // 2, y - 18, w, 36)
-        _drop_shadow(surf, cap, 18, blur=4, alpha=90)
-        surf.blit(_vgrad_panel(cap.w, cap.h, 18, (44, 32, 18), (20, 14, 8), 252),
+        cap = pygame.Rect(0, y - 14, w, 28)
+        cap.right = W - 10
+        _drop_shadow(surf, cap, 14, blur=4, alpha=90)
+        surf.blit(_vgrad_panel(cap.w, cap.h, 14, (44, 32, 18), (20, 14, 8), 252),
                   cap.topleft)
         pygame.draw.rect(surf, (0, 0, 0, 120), cap.inflate(-2, -2), width=1,
-                         border_radius=17)
-        pygame.draw.rect(surf, (*_GOLD_BRIGHT, 190), cap, width=1, border_radius=18)
+                         border_radius=13)
+        pygame.draw.rect(surf, (*_GOLD_BRIGHT, 190), cap, width=1, border_radius=14)
         x = cap.x + pad
-        _coin_glyph(surf, x + coin_d // 2, y, coin_d // 2)
+        store_cards.coin_glyph(surf, x + coin_d // 2, y, coin_d // 2)
         x += coin_d + gap_coin
         _gradient_text(surf, val, vf, (x + vimg_w // 2, y),
                        (255, 246, 196), (236, 170, 60), shadow=True)
-
-    def _draw_daily(self, surf) -> None:
-        """Top-right daily-reward pill: claimable shows the bonus in gold,
-        already-claimed mutes. The steady drip toward the higher tiers."""
-        from game.config import DAILY_REWARD
-        avail = store_data.daily_available()
-        f = _font(12, True)
-        fg = (28, 18, 8) if avail else (150, 140, 155)
-        txt = ("+" + str(DAILY_REWARD)) if avail else "✓"
-        timg = f.render(txt, True, fg)
-        lbl = f.render("DAILY", True, fg)
-        w = lbl.get_width() + 6 + timg.get_width() + 22
-        r = pygame.Rect(W - 12 - w, 14, w, 24)
-        self.daily_rect = r if avail else None
-        if avail:
-            surf.blit(_vgrad_panel(r.w, r.h, 11, (255, 215, 120), _GOLD_DEEP, 255),
-                      r.topleft)
-            pygame.draw.rect(surf, (*_GOLD_BRIGHT, 200), r, width=1, border_radius=11)
-        else:
-            surf.blit(_vgrad_panel(r.w, r.h, 11, (44, 36, 56), (28, 22, 40), 240),
-                      r.topleft)
-            pygame.draw.rect(surf, (80, 70, 100), r, width=1, border_radius=11)
-        surf.blit(lbl, lbl.get_rect(midleft=(r.x + 11, r.centery)))
-        surf.blit(timg, timg.get_rect(midleft=(r.x + 11 + lbl.get_width() + 6, r.centery)))
 
     def _draw_tabs(self, surf) -> None:
         """Horizontally scrollable tab strip. ONE active treatment — a brighter
@@ -989,12 +964,6 @@ class StoreScene:
                     self.page = 0  # each tab starts at its first page
                     self._scroll_tab_into_view(i)
                 return None
-        if self.daily_rect and self.daily_rect.collidepoint(pos):
-            got = store_data.claim_daily()
-            if got > 0:
-                self._flash("DAILY BONUS  +" + str(got))
-                store_cards.clear_cache()  # balance changed -> affordability tints
-            return None
         if self.prev_rect and self.prev_rect.collidepoint(pos):
             self.prev_rect = self.next_rect = None  # consume rects so a same-frame echo can't re-fire
             self.page = max(0, self.page - 1)
