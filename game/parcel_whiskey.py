@@ -51,17 +51,16 @@ def sync_from_store() -> None:
     # look (lazy imports avoid an import cycle with parcel_skins/parrot).
     try:
         from game import parcel_skins, parrot
-        parcel_skins.ICONS["parcel_whiskey"] = parcel_skins._product_shot(
-            _chosen("normal"))
+        parcel_skins.ICONS["parcel_whiskey"] = _chosen("normal", icon_size=88)
         parrot._SKIN_ICONS = None
     except Exception:
         pass
 
 
-def build(mode: str = "normal"):
+def build(mode: str = "normal", icon_size: int = 0):
     if _chosen is None:
         sync_from_store()
-    return _chosen(mode)
+    return _chosen(mode, icon_size)
 
 
 BUILDERS = {"parcel_whiskey": build}

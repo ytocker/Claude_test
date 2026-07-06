@@ -48,7 +48,7 @@ OUTLINE = ( 42,  26,  14)     # dark, high-value: reads on bright day sky
 KEYLINE = (236, 206, 160)     # warm sand rim — the NIGHT lifeline
 
 
-def build(mode="normal") -> pygame.Surface:
+def build(mode="normal", icon_size: int = 0) -> pygame.Surface:
     # Mode-agnostic: one static coconut sprite for every Pip skin.
     S = 44
     surf = pygame.Surface((S, S), pygame.SRCALPHA)
@@ -151,4 +151,6 @@ def build(mode="normal") -> pygame.Surface:
     # on dark sky while staying subtle on day. Traces the coconut sphere.
     pygame.draw.circle(surf, KEYLINE, (ccx, ccy), R, 1)
 
+    if icon_size:
+        return pygame.transform.smoothscale(surf, (icon_size, icon_size))
     return pygame.transform.smoothscale(surf, (22, 22))

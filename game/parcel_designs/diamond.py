@@ -37,7 +37,7 @@ OUTLINE = (16, 34, 54)        # dark, cool: reads as an edge on bright day sky
 KEYLINE = (188, 232, 250)     # icy rim — the NIGHT lifeline
 
 
-def build(mode="normal") -> pygame.Surface:
+def build(mode="normal", icon_size: int = 0) -> pygame.Surface:
     # Mode-agnostic: one static diamond sprite for every Pip skin.
     S = 44
     surf = pygame.Surface((S, S), pygame.SRCALPHA)
@@ -115,4 +115,6 @@ def build(mode="normal") -> pygame.Surface:
     pygame.draw.line(surf, GLINT, (gx - 3, gy), (gx + 3, gy), 1)
     pygame.draw.line(surf, GLINT, (gx, gy - 3), (gx, gy + 3), 1)
 
+    if icon_size:
+        return pygame.transform.smoothscale(surf, (icon_size, icon_size))
     return pygame.transform.smoothscale(surf, (22, 22))

@@ -31,7 +31,7 @@ OUTLINE = (90, 42, 51)         # dark, reads on bright day sky
 KEYLINE = (250, 214, 222)      # warm blush rim — the NIGHT lifeline
 
 
-def build(mode="normal") -> pygame.Surface:
+def build(mode="normal", icon_size: int = 0) -> pygame.Surface:
     # Mode-agnostic: one static slab sprite for every Pip skin.
     S = 44
     surf = pygame.Surface((S, S), pygame.SRCALPHA)
@@ -144,4 +144,6 @@ def build(mode="normal") -> pygame.Surface:
     # Glossy sheen on the upper-left lobe = wax catching light.
     pygame.draw.circle(surf, HEART_HI, (hcx - lobe_dx - 1, hcy - 1), 1)
 
+    if icon_size:
+        return pygame.transform.smoothscale(surf, (icon_size, icon_size))
     return pygame.transform.smoothscale(surf, (22, 22))

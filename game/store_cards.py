@@ -515,7 +515,7 @@ def thumb(sid, box_px):
     key = (sid, box_px)
     out = _thumb_cache.get(key)
     if out is None:
-        src = parrot.get_skin_icon(sid) or parrot.get_skin_frame(sid, 1, 0.0)
+        src = parrot.get_skin_icon(sid) or parrot.get_skin_frame_hi(sid)
         bb = src.get_bounding_rect()
         if bb.width > 0 and bb.height > 0:
             src = src.subsurface(bb).copy()

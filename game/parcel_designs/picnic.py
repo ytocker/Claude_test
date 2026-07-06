@@ -32,7 +32,7 @@ OUTLINE = (52, 32, 16)            # dark high-value keyline for the bright sky
 HANDLE_HI = (210, 166, 104)       # lit cane on the handle's inner edge
 
 
-def build(mode: str = "normal") -> pygame.Surface:
+def build(mode: str = "normal", icon_size: int = 0) -> pygame.Surface:
     # mode is ignored — the basket keeps its cosy look across every power-up.
     SIZE = 44
     surf = pygame.Surface((SIZE, SIZE), pygame.SRCALPHA)
@@ -138,6 +138,8 @@ def build(mode: str = "normal") -> pygame.Surface:
     pygame.draw.line(surf, (255, 252, 246), (cx - 4, rim_y - 6),
                      (cx + 1, rim_y - 6), 1)
 
+    if icon_size:
+        return pygame.transform.smoothscale(surf, (icon_size, icon_size))
     return pygame.transform.smoothscale(surf, (22, 22))
 
 

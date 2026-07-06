@@ -64,7 +64,7 @@ def _halo(s, cx, cy, R):
     s.blit(glow, (cx - R, cy - R), special_flags=pygame.BLEND_RGBA_ADD)
 
 
-def build(mode="normal"):  # mode ignored — parcel is mode-agnostic, one surface
+def build(mode="normal", icon_size: int = 0):  # mode ignored — parcel is mode-agnostic, one surface
     s = pygame.Surface((SS, SS), pygame.SRCALPHA)
     cx = SS // 2
 
@@ -168,4 +168,6 @@ def build(mode="normal"):  # mode ignored — parcel is mode-agnostic, one surfa
     pygame.draw.line(s, GOLD_D, (cx - bot_hw + 1, base_top_y + base_h - 1),
                      (cx + bot_hw - 1, base_top_y + base_h - 1), 1)
 
+    if icon_size:
+        return pygame.transform.smoothscale(s, (icon_size, icon_size))
     return pygame.transform.smoothscale(s, (SIZE, SIZE))

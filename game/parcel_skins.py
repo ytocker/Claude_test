@@ -52,17 +52,14 @@ def _build_none(mode: str = "normal") -> pygame.Surface:
                           pygame.SRCALPHA)
 
 
-def _none_icon(box: int = 46) -> pygame.Surface:
+def _none_icon(box: int = 88) -> pygame.Surface:
     """Store-card glyph for NO PARCEL: a faint grey ghost of the kraft box, so
     the card reads as 'the parcel slot, empty'. Parcels are shown by an icon
     (the test contract), so unlike NO SHADES it can't fall back to a blank."""
-    ghost = parrot.get_parcel("normal").copy()
+    ghost = parrot.get_parcel_icon(box).copy()
     ghost.fill((148, 154, 168, 255), special_flags=pygame.BLEND_RGB_MULT)
     ghost.fill((255, 255, 255, 105), special_flags=pygame.BLEND_RGBA_MULT)
-    out = pygame.Surface((box, box), pygame.SRCALPHA)
-    s = pygame.transform.smoothscale(ghost, (box - 8, box - 8))
-    out.blit(s, s.get_rect(center=(box // 2, box // 2)))
-    return out
+    return ghost
 
 
 # id -> design module. Each module's ``build`` is mode-agnostic (the cosmetic
@@ -101,8 +98,8 @@ BUILDERS: "dict[str, object]" = {
 }
 
 ICONS: "dict[str, pygame.Surface]" = {
-    PARCEL_BASE: _product_shot(parrot.get_parcel("normal")),
-    "parcel_none": _none_icon(),
-    "parcel_whiskey": _product_shot(parcel_whiskey.build("normal")),
-    **{pid: _product_shot(mod.build("normal")) for pid, mod in _DESIGNS.items()},
+    PARCEL_BASE:      parrot.get_parcel_icon(88),
+    "parcel_none":    _none_icon(88),
+    "parcel_whiskey": parcel_whiskey.build("normal", icon_size=88),
+    **{pid: mod.build("normal", icon_size=88) for pid, mod in _DESIGNS.items()},
 }

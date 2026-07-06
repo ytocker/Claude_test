@@ -36,7 +36,7 @@ OUTLINE = ( 30,  33,  44)      # dark, high-value: reads on bright day sky
 KEYLINE = (221, 230, 240)      # cool rim — the NIGHT lifeline
 
 
-def build(mode="normal") -> pygame.Surface:
+def build(mode="normal", icon_size: int = 0) -> pygame.Surface:
     # Mode-agnostic: one static airmail slab for every Pip skin.
     S = 44
     surf = pygame.Surface((S, S), pygame.SRCALPHA)
@@ -141,4 +141,6 @@ def build(mode="normal") -> pygame.Surface:
     # stays subtle on day, so the slab reads on both skies from one sprite.
     pygame.draw.rect(surf, KEYLINE, rect, width=1, border_radius=rad)
 
+    if icon_size:
+        return pygame.transform.smoothscale(surf, (icon_size, icon_size))
     return pygame.transform.smoothscale(surf, (22, 22))

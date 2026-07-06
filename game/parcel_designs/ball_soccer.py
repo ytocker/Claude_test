@@ -58,7 +58,7 @@ def _pentagon(cx, cy, r, rot):
              cy + r * math.sin(rot + i * 2 * math.pi / 5)) for i in range(5)]
 
 
-def build(mode="normal") -> pygame.Surface:
+def build(mode="normal", icon_size: int = 0) -> pygame.Surface:
     # Mode-agnostic: one static football sprite for every Pip skin.
     surf = pygame.Surface((S, S), pygame.SRCALPHA)
     # All geometry below is authored in the original 44px space; _s/_p scale to SS.
@@ -132,4 +132,6 @@ def build(mode="normal") -> pygame.Surface:
     # dark sky while staying subtle on day. Traces the sphere.
     pygame.draw.circle(surf, KEYLINE, _p((cx, cy)), _s(R), _w(1))
 
+    if icon_size:
+        return pygame.transform.smoothscale(surf, (icon_size, icon_size))
     return pygame.transform.smoothscale(surf, (OUT, OUT))

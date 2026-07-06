@@ -62,7 +62,7 @@ def _ellipse(surf, color, cx, cy, rx, ry):
                                     _S(rx * 2), _S(ry * 2)))
 
 
-def build(mode="normal") -> pygame.Surface:
+def build(mode="normal", icon_size: int = 0) -> pygame.Surface:
     # Mode-agnostic: one static baby-Pip for every parent skin.
     surf = pygame.Surface((S, S), pygame.SRCALPHA)
 
@@ -176,4 +176,6 @@ def build(mode="normal") -> pygame.Surface:
                          _P((body_cx + fx, body_cy + body_ry - 0.6)),
                          _P((body_cx + fx, body_cy + body_ry + 2.2)), _w(1.4))
 
+    if icon_size:
+        return pygame.transform.smoothscale(surf, (icon_size, icon_size))
     return pygame.transform.smoothscale(surf, (OUT, OUT))

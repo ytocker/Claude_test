@@ -41,7 +41,7 @@ def _p(pt): return (pt[0] * SS, pt[1] * SS)
 def _w(v):  return max(1, int(round(v * SS)))
 
 
-def build(mode="normal") -> pygame.Surface:
+def build(mode="normal", icon_size: int = 0) -> pygame.Surface:
     surf = pygame.Surface((S, S), pygame.SRCALPHA)
     # All geometry below is authored in the original 44px space; _s/_p scale to SS.
     cx = cy = DES / 2
@@ -87,4 +87,6 @@ def build(mode="normal") -> pygame.Surface:
     surf.blit(hi, (0, 0))
 
     pygame.draw.circle(surf, KEYLINE, _p((cx, cy)), _s(R), _w(1))
+    if icon_size:
+        return pygame.transform.smoothscale(surf, (icon_size, icon_size))
     return pygame.transform.smoothscale(surf, (OUT, OUT))

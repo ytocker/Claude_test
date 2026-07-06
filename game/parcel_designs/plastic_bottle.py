@@ -40,7 +40,7 @@ KEYLINE = (210, 232, 246)      # cool rim — the NIGHT lifeline
 RIB = ( 70, 130, 175)          # dark PET base flutes (ribbing)
 
 
-def build(mode="normal") -> pygame.Surface:
+def build(mode="normal", icon_size: int = 0) -> pygame.Surface:
     # Mode-agnostic: one static bottle sprite for every Pip skin.
     S = 44
     surf = pygame.Surface((S, S), pygame.SRCALPHA)
@@ -168,4 +168,6 @@ def build(mode="normal") -> pygame.Surface:
                      border_top_left_radius=0, border_top_right_radius=0)
     pygame.draw.rect(surf, KEYLINE, cap_rect, width=1, border_radius=2)
 
+    if icon_size:
+        return pygame.transform.smoothscale(surf, (icon_size, icon_size))
     return pygame.transform.smoothscale(surf, (22, 22))

@@ -54,7 +54,7 @@ def _vgrad_rounded(w, h, top, bot, radius):
     return fill
 
 
-def build(mode="normal"):  # mode ignored — parcel is mode-agnostic, one surface
+def build(mode="normal", icon_size: int = 0):  # mode ignored — parcel is mode-agnostic, one surface
     s = pygame.Surface((SS, SS), pygame.SRCALPHA)
     cx = SS // 2
 
@@ -132,4 +132,6 @@ def build(mode="normal"):  # mode ignored — parcel is mode-agnostic, one surfa
     pygame.draw.circle(s, OUTLINE, (cx, lock.y + 6), 2)
     pygame.draw.rect(s, OUTLINE, (cx - 1, lock.y + 6, 2, 4))
 
+    if icon_size:
+        return pygame.transform.smoothscale(s, (icon_size, icon_size))
     return pygame.transform.smoothscale(s, (SIZE, SIZE))

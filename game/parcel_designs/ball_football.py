@@ -50,7 +50,7 @@ def _ell(surf, color, cx, cy, rx, ry, width=0):
         pygame.draw.ellipse(surf, color, rect)
 
 
-def build(mode="normal") -> pygame.Surface:
+def build(mode="normal", icon_size: int = 0) -> pygame.Surface:
     surf = pygame.Surface((S, S), pygame.SRCALPHA)
     # All geometry below is authored in the original 44px space; _s/_p scale to SS.
     cx = cy = DES / 2
@@ -97,4 +97,6 @@ def build(mode="normal") -> pygame.Surface:
     surf.blit(hi, (0, 0))
 
     _ell(surf, KEYLINE, cx, cy, RX, RY, width=1)
+    if icon_size:
+        return pygame.transform.smoothscale(surf, (icon_size, icon_size))
     return pygame.transform.smoothscale(surf, (OUT, OUT))

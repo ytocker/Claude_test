@@ -45,7 +45,7 @@ OUTLINE = ( 21,  48,  46)     # dark, high-value: reads on bright day sky
 KEYLINE = (190, 232, 226)     # cool rim — the NIGHT lifeline
 
 
-def build(mode="normal") -> pygame.Surface:
+def build(mode="normal", icon_size: int = 0) -> pygame.Surface:
     # Mode-agnostic: one static tumbler sprite for every Pip skin.
     S = 44
     surf = pygame.Surface((S, S), pygame.SRCALPHA)
@@ -180,4 +180,6 @@ def build(mode="normal") -> pygame.Surface:
     pygame.draw.line(surf, KEYLINE, (lid_rect.right - 1, lid_rect.y + 1),
                      (lid_rect.right - 1, lid_rect.bottom - 1), 1)
 
+    if icon_size:
+        return pygame.transform.smoothscale(surf, (icon_size, icon_size))
     return pygame.transform.smoothscale(surf, (22, 22))

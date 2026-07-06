@@ -31,7 +31,7 @@ WIRE_HI = (214, 214, 224)
 OUTLINE = (40, 28, 24)           # dark high-value keyline for the bright sky
 
 
-def build(mode: str = "normal") -> pygame.Surface:
+def build(mode: str = "normal", icon_size: int = 0) -> pygame.Surface:
     # mode is ignored — the pail keeps its own look across every power-up.
     SIZE = 44
     surf = pygame.Surface((SIZE, SIZE), pygame.SRCALPHA)
@@ -140,4 +140,6 @@ def build(mode: str = "normal") -> pygame.Surface:
     pygame.draw.line(surf, OUTLINE, (fl_x - 1, top_y), (fl_x + 1, top_y + 2), 2)
     pygame.draw.line(surf, OUTLINE, (fr_x - 1, top_y + 2), (fr_x + 1, top_y), 2)
 
+    if icon_size:
+        return pygame.transform.smoothscale(surf, (icon_size, icon_size))
     return pygame.transform.smoothscale(surf, (22, 22))

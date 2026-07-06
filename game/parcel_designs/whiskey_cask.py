@@ -48,7 +48,7 @@ KEYLINE = (240, 196, 120)      # warm amber rim — the NIGHT lifeline (BOTTLE o
 KEYLINE_WOOD = (132,  98,  64) # desaturated tan rim for the cradle at night
 
 
-def build(mode="normal") -> pygame.Surface:
+def build(mode="normal", icon_size: int = 0) -> pygame.Surface:
     # Mode-agnostic: one static casked-dram sprite for every Pip skin.
     S = 44
     surf = pygame.Surface((S, S), pygame.SRCALPHA)
@@ -209,4 +209,6 @@ def build(mode="normal") -> pygame.Surface:
     pygame.draw.rect(surf, KEYLINE, cork_rect, width=1, border_radius=2)
     pygame.draw.polygon(surf, KEYLINE_WOOD, cradle_poly, width=1)
 
+    if icon_size:
+        return pygame.transform.smoothscale(surf, (icon_size, icon_size))
     return pygame.transform.smoothscale(surf, (22, 22))

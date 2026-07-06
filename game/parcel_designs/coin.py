@@ -9,7 +9,9 @@ import pygame
 _SIZE = 22   # standard parcel footprint (PARCEL_SIZE) — no larger than a parcel
 
 
-def build(mode="normal") -> pygame.Surface:
+def build(mode="normal", icon_size: int = 0) -> pygame.Surface:
     from game import entities          # lazy: avoid an import cycle at load
     face = entities._get_coin_face()    # the real coin sprite (super-sampled)
+    if icon_size:
+        return pygame.transform.smoothscale(face, (icon_size, icon_size))
     return pygame.transform.smoothscale(face, (_SIZE, _SIZE))

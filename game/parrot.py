@@ -595,7 +595,7 @@ _PARCEL_PALETTES = {
 }
 
 
-def _build_parcel_variant(palette: dict) -> pygame.Surface:
+def _build_parcel_variant(palette: dict, icon_size: int = 0) -> pygame.Surface:
     """Render a 22×22 parcel sprite using the supplied palette. Geometry
     ported from `game.intro._build_parcel` so the silhouette matches the
     intro exactly. Render at 2× detail then smoothscale-down once for crisp
@@ -672,7 +672,13 @@ def _build_parcel_variant(palette: dict) -> pygame.Surface:
     pygame.draw.line(surf, BOW_FILL, (bx - 2, by + 4), (bx - 6, by + 10), 2)
     pygame.draw.line(surf, BOW_FILL, (bx + 2, by + 4), (bx + 6, by + 10), 2)
 
-    return pygame.transform.smoothscale(surf, (PARCEL_SIZE, PARCEL_SIZE))
+    size = icon_size if icon_size else PARCEL_SIZE
+    return pygame.transform.smoothscale(surf, (size, size))
+
+
+def get_parcel_icon(icon_size: int = 88) -> pygame.Surface:
+    """High-res parcel-base icon for store cards (clean downscale into thumb())."""
+    return _build_parcel_variant(_PARCEL_PALETTES["normal"], icon_size=icon_size)
 
 
 # Lazy: building all four parcel variants up front costs ~40-80 ms on
@@ -1309,6 +1315,16 @@ def get_skin_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surf
     default look rather than crashing the draw."""
     fn = _store_skin_builders().get(skin_id) or get_parrot
     return fn(frame_idx, tilt_deg)
+
+
+def get_skin_frame_hi(skin_id: str) -> pygame.Surface:
+    """High-res skin frame for store thumbnails. Renders the base macaw at 3×
+    (192×180) so thumb() gets a clean downscale; all registered skins fall back
+    to standard get_skin_frame (already a clean downscale at 64×60)."""
+    if skin_id in _store_skin_builders():
+        return get_skin_frame(skin_id, 1, 0.0)
+    raw = _build_frame_scaled(_WING_ANGLES[1], 3.0)
+    return _add_outline_scaled(raw, 3.0)
 
 
 def get_skin_icon(skin_id: str) -> "pygame.Surface | None":
