@@ -10,11 +10,12 @@ grow-scale, ghost alpha-breath and snow overlay on top. Mirrors the
 shoe/hat/glasses cosmetic modules so it auto-merges via parrot:
 
   * ``BUILDERS = {parcel_id: build(mode="normal") -> Surface}``  (in-game look)
-  * ``ICONS    = {parcel_id: Surface}``                          (store card)
+  * ``ICONS    = {parcel_id: Surface}``  (store card — populated lazily by get_icon)
 
 Designed parcel looks (Sack, Takeout, Jar, … Comet, Snowglobe) fold in here as
 ``build_<name>`` once their design loops land.
 """
+from functools import partial as _partial
 import pygame
 
 from game import parrot
@@ -29,17 +30,10 @@ from game.parcel_designs import (
 )
 
 
-def _product_shot(sprite: pygame.Surface, box: int = 46) -> pygame.Surface:
-    """Centre a parcel sprite on a transparent square for the store thumbnail
-    (the card shows the parcel itself, like the shoe cards show the sneaker)."""
-    out = pygame.Surface((box, box), pygame.SRCALPHA)
-    s = pygame.transform.smoothscale(sprite, (box - 8, box - 8))
-    out.blit(s, s.get_rect(center=(box // 2, box // 2)))
-    return out
-
-
 # The default kraft box reuses parrot's legacy palette parcel.
-def _build_base(mode: str = "normal") -> pygame.Surface:
+def _build_base(mode: str = "normal", icon_size: int = 0) -> pygame.Surface:
+    if icon_size:
+        return parrot.get_parcel_icon(icon_size)
     return parrot.get_parcel(mode)
 
 
@@ -47,9 +41,9 @@ def _build_base(mode: str = "normal") -> pygame.Surface:
 # nothing is drawn below Pip. His parcel collision-hitbox (PARCEL_R) is left
 # untouched in world.py, so equipping this changes only the look, never the
 # difficulty — the same cosmetic-parity rule every other parcel obeys.
-def _build_none(mode: str = "normal") -> pygame.Surface:
-    return pygame.Surface((parrot.PARCEL_SIZE, parrot.PARCEL_SIZE),
-                          pygame.SRCALPHA)
+def _build_none(mode: str = "normal", icon_size: int = 0) -> pygame.Surface:
+    size = icon_size if icon_size else parrot.PARCEL_SIZE
+    return pygame.Surface((size, size), pygame.SRCALPHA)
 
 
 def _none_icon(box: int = 88) -> pygame.Surface:
@@ -97,9 +91,23 @@ BUILDERS: "dict[str, object]" = {
     **{pid: mod.build for pid, mod in _DESIGNS.items()},
 }
 
-ICONS: "dict[str, pygame.Surface]" = {
-    PARCEL_BASE:      parrot.get_parcel_icon(88),
-    "parcel_none":    _none_icon(88),
-    "parcel_whiskey": parcel_whiskey.build("normal", icon_size=88),
-    **{pid: mod.build("normal", icon_size=88) for pid, mod in _DESIGNS.items()},
+# Callables only — no surface creation at import time.
+_ICON_BUILDERS: "dict[str, object]" = {
+    PARCEL_BASE:      lambda: parrot.get_parcel_icon(88),
+    "parcel_none":    lambda: _none_icon(88),
+    "parcel_whiskey": lambda: parcel_whiskey.build("normal", icon_size=88),
+    **{pid: _partial(mod.build, "normal", icon_size=88) for pid, mod in _DESIGNS.items()},
 }
+
+# Populated on demand by get_icon() — never pre-built at import time.
+ICONS: "dict[str, pygame.Surface]" = {}
+
+
+def get_icon(sid: str) -> "pygame.Surface | None":
+    """88 px parcel store icon — built lazily on first call, cached thereafter."""
+    if sid not in ICONS:
+        builder = _ICON_BUILDERS.get(sid)
+        if builder is None:
+            return None
+        ICONS[sid] = builder()
+    return ICONS.get(sid)

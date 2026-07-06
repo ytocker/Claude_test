@@ -1278,12 +1278,12 @@ def _store_skin_builders() -> dict:
 
 def _skin_icons() -> dict:
     """Prebuilt product-shot surfaces for skins that want a store icon distinct
-    from their in-game look (shoes show the sneaker itself). Lazily merged."""
+    from their in-game look (shoes show the sneaker itself). Lazily merged.
+    Parcel icons are excluded — handled per-item lazily in get_skin_icon()."""
     global _SKIN_ICONS
     if _SKIN_ICONS is None:
         merged: dict = {}
-        for modname in ("shoe_skins", "hat_skins", "glasses_skins",
-                        "parcel_skins"):
+        for modname in ("shoe_skins", "hat_skins", "glasses_skins"):
             try:
                 mod = __import__("game." + modname, fromlist=["ICONS"])
                 merged.update(getattr(mod, "ICONS", {}))
@@ -1330,6 +1330,12 @@ def get_skin_frame_hi(skin_id: str) -> pygame.Surface:
 def get_skin_icon(skin_id: str) -> "pygame.Surface | None":
     """The store product-shot for a skin, or None to fall back to the in-game
     look (so shoe cards show the sneaker itself, not Pip wearing it)."""
+    if skin_id.startswith("parcel"):
+        try:
+            mod = __import__("game.parcel_skins", fromlist=["get_icon"])
+            return mod.get_icon(skin_id)
+        except Exception:
+            return None
     return _skin_icons().get(skin_id)
 
 

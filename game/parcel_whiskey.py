@@ -47,12 +47,17 @@ def sync_from_store() -> None:
         _apply(store_data.skin_variant("parcel_whiskey"))
     except Exception:
         _apply(None)
-    # The store card reads a cached product-shot icon; rebuild it to the rolled
-    # look (lazy imports avoid an import cycle with parcel_skins/parrot).
+    # Drop the cached icon and thumbnail so the next render rebuilds from the
+    # newly-rolled _chosen (lazy imports avoid an import cycle).
     try:
         from game import parcel_skins, parrot
-        parcel_skins.ICONS["parcel_whiskey"] = _chosen("normal", icon_size=88)
+        parcel_skins.ICONS.pop("parcel_whiskey", None)
         parrot._SKIN_ICONS = None
+    except Exception:
+        pass
+    try:
+        from game import store_cards
+        store_cards._thumb_cache.pop(("parcel_whiskey", 60), None)
     except Exception:
         pass
 
