@@ -650,7 +650,9 @@ class App:
                 self.state = STATE_MENU
                 return
             if self.store.handle_tap(pos) == "back":
-                self._close_store()
+                self._close_store()  # already sets _cooldown_t = 0.25
+            else:
+                self._cooldown_t = 0.25  # block duplicate FINGERDOWN double-fire
             return
         if self.state == STATE_MENU:
             # Single shared cooldown gate for every menu action. This is
