@@ -552,7 +552,6 @@ class StoreScene:
                          border_radius=17)
         pygame.draw.rect(surf, (*_GOLD_BRIGHT, 190), cap, width=1, border_radius=18)
         x = cap.x + pad
-        _soft_glow(surf, x + coin_d // 2, y, coin_d + 4, (255, 206, 92), 110, layers=5)
         _coin_glyph(surf, x + coin_d // 2, y, coin_d // 2)
         x += coin_d + gap_coin
         _gradient_text(surf, val, vf, (x + vimg_w // 2, y),
