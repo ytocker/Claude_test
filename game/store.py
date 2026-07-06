@@ -41,7 +41,6 @@ _CARD_W = 162
 _CARD_H = 100
 _GAP = 8
 _GRID_TOP = 116        # leaves room for the title + balance + tab bar above
-_THUMB_BOX = 48
 _PER_PAGE = 8          # 2 columns x 4 rows; each tab pages independently
 
 _TAB_Y = 92            # tab-bar centre line
@@ -372,19 +371,6 @@ def _draw_chevron(surf, rect, direction) -> None:
     pygame.draw.lines(surf, (*_GOLD_PALE, 220), False, pts, 2)
 
 
-def _fit_skin(skin_id: str, box: int) -> pygame.Surface:
-    """Render a skin's store thumbnail, crop to its opaque content, and fit that
-    into a ``box``-square (aspect preserved). Shoes/parcels supply a product-shot
-    icon via ``get_skin_icon``; everything else falls back to the in-game look."""
-    src = parrot.get_skin_icon(skin_id) or parrot.get_skin_frame(skin_id, 1, 0.0)
-    bb = src.get_bounding_rect()
-    if bb.width > 0 and bb.height > 0:
-        src = src.subsurface(bb).copy()
-    sw, sh = src.get_size()
-    scale = box / max(sw, sh)
-    return pygame.transform.smoothscale(
-        src, (max(1, int(sw * scale)), max(1, int(sh * scale))))
-
 
 def _slot_of(sid: str) -> str:
     """The equip slot a store card belongs to (its catalog ``kind``), so the
@@ -445,9 +431,6 @@ class StoreScene:
             self._lists[g] = ids
         self.tab = 0
         self.page = 0
-        # Pre-build every thumbnail once (cropped-to-content; see _fit_skin).
-        all_ids = {sid for ids in self._lists.values() for sid in ids}
-        self._thumbs = {sid: _fit_skin(sid, _THUMB_BOX) for sid in all_ids}
 
     def _cur_ids(self) -> list:
         return self._lists[_TABS[self.tab][1]]
@@ -869,14 +852,29 @@ class StoreScene:
                   stage.topleft)
         pygame.draw.rect(surf, (0, 0, 0, 150), stage, width=1, border_radius=12)
         disc_cy = stage.y + 40
-        _inset_disc(surf, cx, disc_cy, 38)
+        # Draw the disc at 2× SS so cabochon/blit_thumb quality matches store cards.
+        # r_ss=76 (38 logical × 2), pad_ss=8 (m(4) at SS=2), canvas=168×168.
+        _R_SS, _PAD_SS = 76, 8
+        _DS = _R_SS * 2 + _PAD_SS * 2   # 168
+        _C_SS = _R_SS + _PAD_SS          # 84  (center on SS canvas)
+        pal = (store_cards.MYSTERY if secret
+               else store_cards.RARITY.get(tier, store_cards.RARITY["common"]))
+        store_cards.soft_glow(surf, cx, disc_cy, _R_SS // 2 + 3,
+                              pal["glow"], 30, layers=8)
+        ss_disc = pygame.Surface((_DS, _DS), pygame.SRCALPHA)
+        store_cards.cabochon(ss_disc, _C_SS, _C_SS, _R_SS,
+                             store_cards.CABO_LO, store_cards.CABO_HI,
+                             ring=pal["gem"], ring_a=50)
         if secret:
-            _draw_qmark(surf, cx, disc_cy, 50, UI_CREAM, NEAR_BLACK, thick=3)
+            _draw_qmark(ss_disc, _C_SS, _C_SS, int(_R_SS * 1.17),
+                        UI_CREAM, NEAR_BLACK, thick=4)
             name = "???"
         else:
-            thumb = self._thumbs[sid]
-            surf.blit(thumb, thumb.get_rect(center=(cx, disc_cy)))
+            store_cards.blit_thumb(ss_disc, sid, _C_SS, _C_SS, int(_R_SS * 1.5))
             name = self._disp_name(sid)
+        store_cards.cabochon_glass(ss_disc, _C_SS, _C_SS, _R_SS, tint=pal["gem"])
+        out = pygame.transform.smoothscale(ss_disc, (_DS // 2, _DS // 2))
+        surf.blit(out, out.get_rect(center=(cx, disc_cy)))
         _shelf_bar(surf, stage, tier, mystery=secret)
         _gem(surf, stage.right - 4, stage.y + 4, 7, tier, self.t, mystery=secret)
 
