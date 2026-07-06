@@ -446,6 +446,7 @@ class StoreScene:
             self._lists[g] = ids
         self.tab = 0
         self.page = 0
+        self._flip_cooldown = 0.0  # prevents double-advance from duplicate FINGERDOWN
         # Pre-build every thumbnail once (cropped-to-content; see _fit_skin).
         all_ids = {sid for ids in self._lists.values() for sid in ids}
         self._thumbs = {sid: _fit_skin(sid, _THUMB_BOX) for sid in all_ids}
@@ -465,6 +466,8 @@ class StoreScene:
 
     def update(self, dt: float) -> None:
         self.t += dt
+        if self._flip_cooldown > 0:
+            self._flip_cooldown = max(0.0, self._flip_cooldown - dt)
         text, ttl = self._toast
         if ttl > 0.0:
             self._toast = (text, max(0.0, ttl - dt))
@@ -997,10 +1000,14 @@ class StoreScene:
                 store_cards.clear_cache()  # balance changed -> affordability tints
             return None
         if self.prev_rect and self.prev_rect.collidepoint(pos):
-            self.page = max(0, self.page - 1)
+            if self._flip_cooldown <= 0:
+                self.page = max(0, self.page - 1)
+                self._flip_cooldown = 0.4
             return None
         if self.next_rect and self.next_rect.collidepoint(pos):
-            self.page = min(self.n_pages - 1, self.page + 1)
+            if self._flip_cooldown <= 0:
+                self.page = min(self.n_pages - 1, self.page + 1)
+                self._flip_cooldown = 0.4
             return None
         for sid, rect in self.item_rects.items():
             if rect.collidepoint(pos):
