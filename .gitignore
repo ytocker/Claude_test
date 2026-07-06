@@ -5,6 +5,7 @@ dist/
 *.spec
 skybit_save.json
 skybit_scores.json
+skybit_store.json
 tools/screenshots/
 node_modules/
 *-pygbag.py
