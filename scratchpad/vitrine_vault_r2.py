@@ -10,9 +10,9 @@ pygame.display.set_mode((1, 1))
 from game import store_cards as sc
 from game.store_cards import (
     soft_glow, cabochon, cabochon_glass, blit_thumb, _ribbon, _name_on,
-    price_chip, facet_gem, gold_a_fill, top_sheen, drop_shadow, contact_shadow,
-    bevel_rim, plain_text, m, RARITY, CABO_LO, CABO_HI,
-    GOLD_A_RIM_DARK, GOLD_A_RIM_BRIGHT, GOLD_A_NUM,
+    facet_gem, gold_a_fill, top_sheen, drop_shadow, contact_shadow,
+    coin_glyph, bevel_rim, plain_text, m, RARITY, CABO_LO, CABO_HI,
+    GOLD_A_RIM_DARK, GOLD_A_RIM_BRIGHT, GOLD_A_NUM, GOLD_A_COIN_RIM,
 )
 from game.hud import _font, _GOLD_PALE, _GOLD_BRIGHT, _GOLD_DEEP
 
@@ -20,6 +20,18 @@ W, H = 360, 640
 OBSIDIAN = (8, 6, 16)
 DISC_X, DISC_Y, DISC_R = 180, 240, 70
 PAL = RARITY["legendary"]
+
+
+def gold_pill(dst, rect, radius):
+    """Canonical Ramp-A gold body with an ALPHA-blended top-third sheen (never
+    the additive gloss that clips to white at full-screen scale) and the double
+    rim. The one gold finish shared by the price chip and the BUY primary."""
+    drop_shadow(dst, rect, radius, blur=m(4), alpha=120, dy=m(2))
+    dst.blit(gold_a_fill(rect.w, rect.h, radius), rect.topleft)
+    top_sheen(dst, rect, radius, int(rect.h * 0.34), peak=46)
+    contact_shadow(dst, rect, radius, m(3), alpha=70)
+    pygame.draw.rect(dst, GOLD_A_RIM_DARK, rect, width=2, border_radius=radius)
+    bevel_rim(dst, rect, radius, GOLD_A_RIM_DARK, (*GOLD_A_RIM_BRIGHT, 235), w=2)
 
 surf = pygame.Surface((W, H))
 surf.fill(OBSIDIAN)
@@ -71,15 +83,22 @@ _ribbon(surf, "LEGENDARY", DISC_X, 138, 220, PAL)
 # ── Name + price block below the disc ──────────────────────────────────────────
 _name_on(surf, "RAINBOW LORIKEET", DISC_X, 338, 260)
 
-# The price chip's in-game coin carries a hot specular that reads as raw white
-# blocks at 1x; the store authors every chip at 2x and smoothscales down so the
-# glint blends into gold. Mirror that here: draw the chip on a 2x scratch canvas,
-# then one smoothscale down lands it as crisp gold, not a blown coin.
-_cbw, _cbh = 260, 60
-_cbig = pygame.Surface((_cbw * 2, _cbh * 2), pygame.SRCALPHA)
-price_chip(_cbig, _cbw, _cbh, "12,000", 80, affordable=True)
-_csmall = pygame.transform.smoothscale(_cbig, (_cbw, _cbh))
-surf.blit(_csmall, (DISC_X - _cbw // 2, 392 - _cbh // 2))
+# Price pill: coin + amount on the shared gold finish. Hand-rolled (not the
+# stock price_chip) because that chip's additive gloss reads as a white slab
+# once blown up to a full-screen pill — here the coin's own gold carries it.
+price_txt = "12,000"
+price_f = _font(20, True)
+p_pad, coin_d, p_gap = 18, 30, 9
+p_nw = price_f.size(price_txt)[0]
+p_w = p_pad + coin_d + p_gap + p_nw + p_pad
+price = pygame.Rect(0, 0, p_w, 44)
+price.center = (DISC_X, 392)
+gold_pill(surf, price, 22)
+_px = price.x + p_pad + coin_d // 2
+coin_glyph(surf, _px, price.centery, coin_d // 2, rim=GOLD_A_COIN_RIM)
+_px += coin_d // 2 + p_gap
+plain_text(surf, price_txt, price_f, (_px + p_nw // 2, price.centery),
+           GOLD_A_NUM, shadow_a=0, weight=m(0.9))
 
 # subtitle divider so the lower third reads as a product line, not a void
 sub_f = _font(13, True)
@@ -112,12 +131,7 @@ pygame.draw.line(surf, (40, 34, 26), (0, 559), (W, 559), 1)
 # capped low so the crown lightens without clipping to white; a double rim.
 buy = pygame.Rect(0, 0, 300, 62)
 buy.center = (DISC_X, 600)
-drop_shadow(surf, buy, 31, blur=m(4), alpha=120, dy=m(2))
-surf.blit(gold_a_fill(buy.w, buy.h, 31), buy.topleft)
-top_sheen(surf, buy, 31, int(buy.h * 0.34), peak=46)
-contact_shadow(surf, buy, 31, m(3), alpha=70)
-pygame.draw.rect(surf, GOLD_A_RIM_DARK, buy, width=2, border_radius=31)
-bevel_rim(surf, buy, 31, GOLD_A_RIM_DARK, (*GOLD_A_RIM_BRIGHT, 235), w=2)
+gold_pill(surf, buy, 31)
 plain_text(surf, "BUY", _font(26, True), buy.center, GOLD_A_NUM, shadow_a=0,
            tracking=2, weight=m(0.9), keyline=(255, 240, 196), kw=1)
 
