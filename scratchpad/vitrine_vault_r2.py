@@ -70,7 +70,16 @@ _ribbon(surf, "LEGENDARY", DISC_X, 138, 220, PAL)
 
 # ── Name + price block below the disc ──────────────────────────────────────────
 _name_on(surf, "RAINBOW LORIKEET", DISC_X, 338, 260)
-price_chip(surf, DISC_X, 392, "12,000", 40, affordable=True)
+
+# The price chip's in-game coin carries a hot specular that reads as raw white
+# blocks at 1x; the store authors every chip at 2x and smoothscales down so the
+# glint blends into gold. Mirror that here: draw the chip on a 2x scratch canvas,
+# then one smoothscale down lands it as crisp gold, not a blown coin.
+_cbw, _cbh = 260, 60
+_cbig = pygame.Surface((_cbw * 2, _cbh * 2), pygame.SRCALPHA)
+price_chip(_cbig, _cbw, _cbh, "12,000", 80, affordable=True)
+_csmall = pygame.transform.smoothscale(_cbig, (_cbw, _cbh))
+surf.blit(_csmall, (DISC_X - _cbw // 2, 392 - _cbh // 2))
 
 # subtitle divider so the lower third reads as a product line, not a void
 sub_f = _font(13, True)
