@@ -132,18 +132,19 @@ price_chip(big, m(slip_cx), m(perf_y + 60), "12,500", m(26))
 
 
 def crown_gloss(surf, rect, radius, peak, band=0.34):
-    """A restrained specular confined to the top band only, so the pill body
-    keeps its gold ramp instead of blowing to white at centre."""
+    """A restrained specular confined to the top band only, alpha-composited (NOT
+    additive) so the sheen TINTS the gold crown rather than saturating every
+    channel to pure white — the pill keeps a gold body, never a white slab."""
     sweep = pygame.Surface(rect.size, pygame.SRCALPHA)
     bh = max(1, int(rect.h * band))
     for y in range(rect.h):
         a = int(peak * (1 - y / bh) ** 2.2) if y < bh else 0
         if a > 0:
-            pygame.draw.line(sweep, (255, 255, 255, a), (0, y), (rect.w, y))
+            pygame.draw.line(sweep, (255, 250, 235, a), (0, y), (rect.w, y))
     mask = pygame.Surface(rect.size, pygame.SRCALPHA)
     pygame.draw.rect(mask, (255, 255, 255, 255), mask.get_rect(), border_radius=radius)
     sweep.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    surf.blit(sweep, rect.topleft, special_flags=pygame.BLEND_ADD)
+    surf.blit(sweep, rect.topleft)
 
 
 # Gold BUY pill spanning ~75% slip width, ~20px above slip bottom.
@@ -163,7 +164,7 @@ buy_rect = pygame.Rect(m(buy_cx - buy_w // 2), m(buy_cy - buy_h // 2),
 brad = buy_rect.h // 2
 drop_shadow(big, buy_rect, brad, blur=m(5), alpha=120, dy=m(3))
 big.blit(gold_a_fill(buy_rect.w, buy_rect.h, brad), buy_rect.topleft)
-crown_gloss(big, buy_rect, brad, peak=50, band=0.34)
+crown_gloss(big, buy_rect, brad, peak=78, band=0.34)
 pygame.draw.rect(big, GOLD_A_RIM_DARK, buy_rect, width=max(1, m(1.8)), border_radius=brad)
 bevel_rim(big, buy_rect, brad, GOLD_A_RIM_DARK, (*GOLD_A_RIM_BRIGHT, 235), w=max(1, m(1.6)))
 buy_f = font(19)
