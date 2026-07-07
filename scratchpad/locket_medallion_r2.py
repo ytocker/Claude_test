@@ -81,9 +81,10 @@ sc.soft_glow(surf, CX, CY, px(96), LEG["glow"], 30, layers=8)
 
 beveled_ring(surf, CX, CY, R_OUT, R_IN, BASE_GOLD, PALE, DEEP_GOLD)
 
-# six tier facets ringing the well, each seated in its own dark notch so the
-# amber pops off the obsidian instead of dissolving into the gold.
-gem_r = px(148)
+# six tier facets ringing the well just inside the rim, each seated in its own
+# dark notch on the obsidian so the amber pops instead of dissolving into gold
+# and the thin gold rim stays continuous.
+gem_r = px(110)
 for k in range(6):
     a = math.radians(-90 + k * 60)
     gx = int(CX + gem_r * math.cos(a))
