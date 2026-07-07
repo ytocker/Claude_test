@@ -830,7 +830,7 @@ class StoreScene:
 
         secret = store_catalog.is_secret(sid) and not store_data.is_owned(sid)
         tier = store_catalog.rarity(sid)
-        pw, ph = 252, 286
+        pw, ph = 252, 306
         panel = pygame.Rect((W - pw) // 2, (H - ph) // 2, pw, ph)
         self._confirm_panel = panel
         _drop_shadow(surf, panel, 18, blur=8, alpha=170)
@@ -847,16 +847,15 @@ class StoreScene:
         _gold_rule(surf, panel.x + 28, panel.right - 28, panel.y + 38)
 
         # Connected disc + shelf stage so they read as one lit vitrine element.
-        stage = pygame.Rect(cx - 48, panel.y + 52, 96, 96)
+        stage = pygame.Rect(cx - 55, panel.y + 50, 110, 110)
         surf.blit(_vgrad_panel(stage.w, stage.h, 12, (18, 16, 26), (8, 7, 14)),
                   stage.topleft)
         pygame.draw.rect(surf, (0, 0, 0, 150), stage, width=1, border_radius=12)
-        disc_cy = stage.y + 40
-        # Draw the disc at 2× SS so cabochon/blit_thumb quality matches store cards.
-        # r_ss=76 (38 logical × 2), pad_ss=8 (m(4) at SS=2), canvas=168×168.
-        _R_SS, _PAD_SS = 76, 8
-        _DS = _R_SS * 2 + _PAD_SS * 2   # 168
-        _C_SS = _R_SS + _PAD_SS          # 84  (center on SS canvas)
+        disc_cy = stage.y + 50
+        # Disc at 2× SS — r=46 logical (92 SS-px), matches store-card quality.
+        _R_SS, _PAD_SS = 92, 8
+        _DS = _R_SS * 2 + _PAD_SS * 2   # 200
+        _C_SS = _R_SS + _PAD_SS          # 100  (center on SS canvas)
         pal = (store_cards.MYSTERY if secret
                else store_cards.RARITY.get(tier, store_cards.RARITY["common"]))
         store_cards.soft_glow(surf, cx, disc_cy, _R_SS // 2 + 3,
@@ -867,7 +866,7 @@ class StoreScene:
                              ring=pal["gem"], ring_a=50)
         if secret:
             _draw_qmark(ss_disc, _C_SS, _C_SS, int(_R_SS * 1.17),
-                        UI_CREAM, NEAR_BLACK, thick=4)
+                        UI_CREAM, NEAR_BLACK, thick=5)
             name = "???"
         else:
             store_cards.blit_thumb(ss_disc, sid, _C_SS, _C_SS, int(_R_SS * 1.5))
@@ -878,21 +877,22 @@ class StoreScene:
         _shelf_bar(surf, stage, tier, mystery=secret)
         _gem(surf, stage.right - 4, stage.y + 4, 7, tier, self.t, mystery=secret)
 
-        nimg = _font(17, True).render(name, True, _GOLD_BRIGHT)
-        surf.blit(nimg, nimg.get_rect(center=(cx, panel.y + 162)))
-        rword_txt = "MYSTERY" if secret else tier.upper()
-        rword_col = _MYSTERY["gem"] if secret else _RARITY[tier]["gem"]
-        rword = _font(11, True).render(rword_txt, True, rword_col)
-        surf.blit(rword, rword.get_rect(center=(cx, panel.y + 180)))
+        # Ribbon + name + price chip on one 2× SS canvas — same pipeline as the
+        # store cards, smoothscaled to 1× so typography is crisp and consistent.
+        _ss = store_cards.m
+        ss_info = pygame.Surface((pw * 2, 140), pygame.SRCALPHA)
+        tier_word = "MYSTERY" if secret else tier.upper()
+        store_cards._ribbon(ss_info, tier_word, pw, 28, pw * 2 - _ss(34), pal)
+        store_cards._name_on(ss_info, name, pw, 72, pw * 2 - _ss(26))
+        store_cards.state_chip(ss_info, sid, pw, 112, False, secret, _ss(20))
+        info_out = pygame.transform.smoothscale(ss_info, (pw, 70))
+        surf.blit(info_out, (panel.x, panel.y + 164))
 
         price = store_catalog.cost(sid)
         affordable = store_data.balance() >= price
-        if affordable:
-            _chip(surf, cx, panel.y + 204, f"{price:,}", "price", coin=True, h=28)
-        else:
-            _chip(surf, cx, panel.y + 200, f"{price:,}", "locked", lock=True, h=28)
+        if not affordable:
             warn = _font(10, True).render("NOT ENOUGH COINS", True, (150, 166, 190))
-            surf.blit(warn, warn.get_rect(center=(cx, panel.y + 222)))
+            surf.blit(warn, warn.get_rect(center=(cx, panel.y + 244)))
 
         bw, bh, gutter = 100, 38, 16
         by = panel.bottom - 30
