@@ -44,6 +44,18 @@ pal = {"gem": (255, 202, 104), "glow": (255, 168, 58), "deep": (150, 92, 22)}
 GLOW_WARM = (118, 70, 22)
 
 
+def ring_glow(surf, cx, cy, inner_r, outer_r, color, peak_alpha, layers):
+    """A warm halo that hugs OUTSIDE a disc bezel. soft_glow draws filled circles
+    whose inner layers would otherwise sit on the disc face and — because
+    BLEND_ADD ignores alpha — clip the interior to white. Accumulating the glow on
+    a scratch surface, punching out the disc, then compositing normally keeps the
+    warmth as a rim ring only, never a blown-out face."""
+    tmp = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    soft_glow(tmp, cx, cy, outer_r, color, peak_alpha, layers)
+    pygame.draw.circle(tmp, (0, 0, 0, 0), (cx, cy), inner_r)
+    surf.blit(tmp, (0, 0))
+
+
 def ss_widget(w_log, h_log, drawfn):
     """Author an SS-scale widget then downscale by 1/SS so its m()-based
     geometry lands at true logical size — the card pipeline's crisp-edge trick."""
@@ -116,15 +128,19 @@ def draw_panel(canvas, ox, affordable):
     disc_r = R_DISC
 
     # can't-afford: strong blue-indigo darken so the hero reads locked, not just
-    # the button — an obvious non-colour affordability cue.
+    # the button — an obvious non-colour affordability cue. Alpha pushed past the
+    # first-pass 160 so the dimmed hero drops >50 luminance below the lit hero
+    # (the delta at which the lock is unmistakable rather than a faint tint).
     if not affordable:
         dim = pygame.Surface((R_DISC * 2, R_DISC * 2), pygame.SRCALPHA)
-        pygame.draw.circle(dim, (10, 14, 40, 160), (R_DISC, R_DISC), R_DISC)
+        pygame.draw.circle(dim, (8, 12, 34, 215), (R_DISC, R_DISC), R_DISC)
         canvas.blit(dim, dim.get_rect(center=(cx, cy)))
 
     # faint warm ring hugging the bezel — marries the item art to the legendary
-    # palette without stacking to white.
-    soft_glow(canvas, cx, cy, disc_r + 8, GLOW_WARM, peak_alpha=12, layers=3)
+    # palette. Masked to the region OUTSIDE the disc so the additive glow can't
+    # brighten (and blow out) the interior.
+    ring_glow(canvas, cx, cy, disc_r, disc_r + 12, GLOW_WARM,
+              peak_alpha=12, layers=3)
 
     # ── corner gem badges (both top corners) — unmistakable card DNA ───────────
     for gx in (panel.x + 20, panel.right - 20):
