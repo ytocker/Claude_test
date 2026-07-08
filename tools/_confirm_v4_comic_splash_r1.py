@@ -181,12 +181,13 @@ def _arc_title(surf, text, cx, cy_o, radius, f, top, bot, keyline, kw):
 
 
 # ── starburst caption chip ────────────────────────────────────────────────────
-def _starburst(surf, cx, cy, r_out, r_in, pts, color, keyline):
+def _starburst(surf, cx, cy, rx_out, ry_out, rx_in, ry_in, pts, color, keyline):
     poly = []
     for i in range(pts * 2):
-        rr = r_out if i % 2 == 0 else r_in
+        rx = rx_out if i % 2 == 0 else rx_in
+        ry = ry_out if i % 2 == 0 else ry_in
         a = math.pi * i / pts - math.pi / 2
-        poly.append((cx + rr * math.cos(a), cy + rr * math.sin(a)))
+        poly.append((cx + rx * math.cos(a), cy + ry * math.sin(a)))
     sh = [(x + _mm(2), y + _mm(3)) for x, y in poly]
     pygame.draw.polygon(surf, (0, 0, 0, 150), sh)
     pygame.draw.polygon(surf, color, poly)
@@ -236,7 +237,8 @@ def _caption(surf, cx, cy, affordable, price):
         confirm_col = (196, 202, 220)
         confirm_key = COLD_KEY
 
-    _starburst(surf, cx, cy, _mm(78), _mm(58), 12, burst_c, burst_k)
+    _starburst(surf, cx, cy, _mm(90), _mm(42), _mm(68), _mm(30), 13,
+               burst_c, burst_k)
 
     pw, ph = _mm(122), _mm(46)
     r = pygame.Rect(cx - pw // 2, cy - ph // 2, pw, ph)
@@ -257,9 +259,9 @@ def _caption(surf, cx, cy, affordable, price):
     _flat_text(surf, label, fnum, (x + coin_r * 2 + _mm(6) + nw // 2, r.y + ph // 2),
                price_col, (10, 8, 4) if affordable else (10, 12, 20), _mm(1))
 
-    fc = _font_s(12.5, True)
+    fc = _font_s(11.5, True)
     word = "CONFIRM" if affordable else "NOT ENOUGH"
-    _flat_text(surf, word, fc, (cx, cy + _mm(56)), confirm_col, confirm_key, _mm(1.4))
+    _flat_text(surf, word, fc, (cx, cy + _mm(30)), confirm_col, confirm_key, _mm(1.3))
 
 
 # ── popup ─────────────────────────────────────────────────────────────────────
@@ -290,7 +292,7 @@ def _popup(affordable):
     title_top, title_bot = (TITLE_WARM if affordable else TITLE_COLD)
     tkey = TITLE_KEY if affordable else COLD_KEY
     ftitle = _font_s(30, True)
-    _arc_title(surf, "LEGENDARY", disc_cx, int(h * 0.36), _mm(112),
+    _arc_title(surf, "LEGENDARY", disc_cx, _mm(44) + _mm(150), _mm(150),
                ftitle, title_top, title_bot, tkey, _mm(2.4))
 
     # item disc dead-centre with a warm rarity-ring glow.
@@ -305,7 +307,7 @@ def _popup(affordable):
         surf.blit(dull, (disc_cx - disc_r - _mm(3), disc_cy - disc_r - _mm(3)))
 
     # starburst price / CONFIRM caption chip at the foot.
-    _caption(surf, disc_cx, int(h * 0.855), affordable, 4800)
+    _caption(surf, disc_cx, int(h * 0.84), affordable, 4800)
 
     # heavy inked keyline last so it caps every layer.
     pygame.draw.polygon(surf, (6, 5, 12), pts, width=max(1, _mm(5)))
