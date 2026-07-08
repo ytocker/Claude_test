@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 """
-gem-cut-panel confirm_purchase_v5 round 2.
+gem-cut-panel confirm_purchase_v5 round 2 — revised.
 
 All five art-director mandatories addressed:
-1. Disc rebuilt as bright tier-coloured gem well — CABO_LO/CABO_HI both
-   well above lum 100, warm ambient fill, no dark hole.
-2. Additive bloom radiates OUTWARD well past disc edge so glow bleeds
-   continuously into card fill — no dark seam.
-3. Disc core stays strongly tier-saturated to centre.
-4. Tier word raised to ~35 px cap-height (minimum 26 px for long words) —
-   dominates the top third.
-5. Glow colour normalised to equal perceptual luminance (all tiers to
-   lum ≈ 100) so the same bloom procedure produces matched brightness
-   with a colour-swap only.
+
+1. Disc rebuilt as bright tier-coloured gem well.  CABO_LO (centre, drawn
+   last and topmost) and CABO_HI (rim) are both well above lum 100.
+2. Additive bloom radiates OUTWARD with no dark seam:  BLEND_ADD ignores
+   source alpha and adds raw RGB.  Every layer scales its circle RGB by
+   ai/255 so the actual per-pixel addition is ai*ng_c/255 as intended — no
+   accidental full-magnitude blowout.
+3. Disc core stays tier-saturated to the centre.  Skin thumbnail removed so
+   nothing buries the bright base; a thin specular crescent adds glass feel.
+4. Tier word raised to 35 px cap-height starting point (auto-shrinks to
+   floor 26 px for long words), reduced tracking, heavier stamp weight.
+5. Glow colour normalised to perceptual lum ≈ 100 so the same bloom
+   procedure yields matched brightness with a colour-swap only.
 """
 import os
 import math
@@ -30,18 +33,17 @@ pygame.display.set_mode((1, 1))
 import game.store_cards as sc
 from game.store_cards import (
     vgrad_stops, plain_text, price_chip, chip_body_stops, chip_body,
-    _glyph_base, font, m, SS, thumb, _rim_light,
-    GOLD_A_STOPS,
-    GOLD_A_RIM_DARK as GOLD_RIM_DK,
+    _glyph_base, font, m, SS, GOLD_A_STOPS,
+    GOLD_A_RIM_DARK  as GOLD_RIM_DK,
     GOLD_A_RIM_BRIGHT as GOLD_RIM_BR,
 )
 from game.hud import _font
 from game.draw import lerp_color, WHITE, NEAR_BLACK
 
 
-# ── mandatory gloss_sweep patch: sheen via RGB magnitude, not source alpha ────
-# BLEND_ADD ignores source alpha — using (v,v,v,255) keeps glow RGB-driven so
-# the additive sheen stays small and tight rather than blowing out the crown.
+# ── mandatory gloss_sweep patch ───────────────────────────────────────────────
+# BLEND_ADD uses RGB magnitude directly (source alpha is ignored), so the
+# sheen must live in the RGB channels, not in alpha.
 def _gloss_sweep_fixed(surf, rect, radius, peak=120):
     sweep = pygame.Surface(rect.size, pygame.SRCALPHA)
     h = max(1, rect.h)
@@ -59,7 +61,7 @@ def _gloss_sweep_fixed(surf, rect, radius, peak=120):
 sc.gloss_sweep = _gloss_sweep_fixed
 
 
-# ── tier palette (per brief; sky-bright gem/glow, not dark jewel tones) ───────
+# ── tier palette ──────────────────────────────────────────────────────────────
 TIERS = [
     ("RARE",      "skin_ninja",
      {"gem": (108, 188, 252), "glow": (60, 140, 230),  "deep": (18, 44, 90)}),
@@ -71,17 +73,16 @@ TIERS = [
 PRICE = {"RARE": "1,500", "EPIC": "6,000", "LEGENDARY": "15,000"}
 
 POP_W, POP_H = 208, 300
-CHAMFER = 21          # logical px — ~45-deg corner chamfer for the crystal silhouette
-BEVEL_W = 7           # faceted frame band width, logical px
-R_DISC   = 46         # disc radius, logical px
-CY_DISC  = 152        # disc centre y from popup-body top, logical px
+CHAMFER = 21
+BEVEL_W = 7
+R_DISC   = 46        # logical px
+CY_DISC  = 152       # disc centre y from popup-body top, logical px
 
-LX, LY = -0.7071, -0.7071   # top-left light for bevel facet value-stepping
+LX, LY = -0.7071, -0.7071
 
 
 # ── geometry ──────────────────────────────────────────────────────────────────
 def octagon(x, y, w, h, c):
-    """8-point chamfered rect: the gem-cut silhouette."""
     return [
         (x + c, y), (x + w - c, y),
         (x + w, y + c), (x + w, y + h - c),
@@ -91,8 +92,6 @@ def octagon(x, y, w, h, c):
 
 
 def facet_value(a, b, cx, cy, dk, mid, hi):
-    """Value-step one bevel quad from top-left light: outward normal dot LV
-    maps shaded->mid->lit across the bright glass range."""
     mx, my = (a[0] + b[0]) / 2 - cx, (a[1] + b[1]) / 2 - cy
     ml = math.hypot(mx, my) or 1
     d = (mx / ml) * LX + (my / ml) * LY
@@ -106,10 +105,10 @@ def _lum(c):
     return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
 
 
-def norm_glow_col(color, target=100.0):
-    """Scale glow colour to target perceptual luminance so BLEND_ADD bloom
-    yields equal visual brightness across all tiers with a colour-swap only.
-    Target=100 is chosen so no channel clamps for any of the three tiers."""
+def _norm_glow(color, target=100.0):
+    """Scale glow colour's perceptual luminance to `target` so the bloom
+    yields equal visual brightness across all tiers (colour-swap only).
+    Target=100 avoids channel clamping for all three tiers."""
     lum = _lum(color)
     if lum < 1:
         return color
@@ -121,40 +120,49 @@ def norm_glow_col(color, target=100.0):
 
 # ── disc primitives ───────────────────────────────────────────────────────────
 def _bloom_outward(surf, cx, cy, r, glow, peak=55, layers=14):
-    """BLEND_ADD rings that extend ~1.65× disc radius into the card fill.
-    No dark seam can form because the glow bleeds continuously; the disc
-    body (drawn after) simply sits within the already-glowing field."""
-    ng = norm_glow_col(glow)
+    """BLEND_ADD rings that extend ~1.65× disc radius into card fill.
+
+    BLEND_ADD ignores source alpha — raw RGB is added directly.  Each
+    circle's colour is pre-scaled by ai/255 so the actual per-pixel
+    contribution equals ai*ng_c/255, preventing blowout on the bright
+    sky-fill card body."""
+    ng = _norm_glow(glow)
     bloom_r = int(r * 2.65)
     for i in range(layers, 0, -1):
-        ri = int(bloom_r * i / layers)
-        ai = int(peak * (1 - (i - 1) / layers) ** 1.8)
+        ri  = int(bloom_r * i / layers)
+        ai  = int(peak * (1 - (i - 1) / layers) ** 1.8)
         if ai <= 0 or ri <= 0:
             continue
-        g = pygame.Surface((ri * 2 + 2, ri * 2 + 2), pygame.SRCALPHA)
-        pygame.draw.circle(g, (*ng, ai), (ri + 1, ri + 1), ri)
+        # Pre-scale RGB so BLEND_ADD adds ai*ng_c/255 per channel.
+        rc  = max(0, ng[0] * ai // 255)
+        gc  = max(0, ng[1] * ai // 255)
+        bc  = max(0, ng[2] * ai // 255)
+        if rc == 0 and gc == 0 and bc == 0:
+            continue
+        g   = pygame.Surface((ri * 2 + 2, ri * 2 + 2), pygame.SRCALPHA)
+        pygame.draw.circle(g, (rc, gc, bc, 255), (ri + 1, ri + 1), ri)
         surf.blit(g, (cx - ri - 1, cy - ri - 1), special_flags=pygame.BLEND_ADD)
 
 
-def _bright_gem_disc(surf, cx, cy, r, gem, glow, deep, skin_id):
-    """Bright tier-coloured disc — the second-brightest zone on the card.
+def _bright_gem_disc(surf, cx, cy, r, gem, glow, deep):
+    """Bright tier-coloured gem disc — the second-brightest zone on the card.
 
     Stack (bottom to top):
-      bloom outward → bright radial body → skin → glass gloss → gem ring.
+      bloom outward → bright radial body → inner specular → gem ring.
 
-    cabo_lo (disc centre, lum > 200) and cabo_hi (disc rim, lum > 130) are
-    both well above lum 100 for all three tiers, so the disc is never a dark
-    hole regardless of tier."""
+    No skin thumbnail: the disc is a pure gem / crystal focal element.
+    Both CABO equivalents (centro-lo and rim-hi) are well above lum 100
+    for all three tiers, so the disc is never a dark hole."""
 
-    # 1. Wide bloom first so the glow field is already in the card fill before
-    #    the disc body lands — eliminates any possible dark gap at the rim.
+    # 1. Wide bloom first — glow field already present in card fill before
+    #    disc body lands, ensuring no dark seam at disc–card boundary.
     _bloom_outward(surf, cx, cy, r, glow)
 
     # 2. Bright radial disc body.
-    #    cabo_lo = CENTRE (drawn last, topmost): gem lerped toward white
-    #    cabo_hi = RIM (drawn first): gem-adjacent, stays strongly saturated
+    #    centro (drawn last / topmost): gem lerped strongly toward white
+    #    rim (drawn first / outermost): gem-adjacent, still deeply saturated
     cabo_lo = lerp_color(gem, (255, 255, 255), 0.48)   # centre lum ≈ 200–230
-    cabo_hi = lerp_color(gem, glow, 0.22)              # rim  lum ≈ 133–196
+    cabo_hi = lerp_color(gem, glow, 0.22)              # rim    lum ≈ 133–196
 
     pad  = m(4)
     dsz  = r * 2 + pad * 2
@@ -163,47 +171,32 @@ def _bright_gem_disc(surf, cx, cy, r, gem, glow, deep, skin_id):
     for i in range(r, 0, -1):
         col = lerp_color(cabo_lo, cabo_hi, (i / r) ** 1.28)
         pygame.draw.circle(disc, (*col, 255), (cc, cc), i)
-
-    # Thin inner-rim vignette so the skin silhouette reads against the bright
-    # centre without flattening into it.
-    vig = pygame.Surface((dsz, dsz), pygame.SRCALPHA)
-    for i in range(r, int(r * 0.76), -1):
-        a = int(55 * (1 - (i - r * 0.76) / (r * 0.24)))
-        pygame.draw.circle(vig, (0, 0, 0, max(0, a)), (cc, cc), i, max(1, m(0.7)))
-    disc.blit(vig, (0, 0))
     surf.blit(disc, (cx - cc, cy - cc))
 
-    # 3. Skin thumbnail — rim-lit so it pops off the bright gem base.
-    try:
-        t  = thumb(skin_id, int(r * 1.5))
-        rt = t.get_rect(center=(cx, cy))
-        surf.blit(_rim_light(t, color=(255, 252, 240), alpha=160), rt.topleft,
-                  special_flags=pygame.BLEND_ADD)
-        surf.blit(t, rt)
-    except Exception:
-        # geometry stand-in if skin unavailable in this env
-        pygame.draw.circle(surf, lerp_color(gem, (255, 255, 255), 0.35),
-                           (cx, cy), r // 2)
+    # 3. Top-left crescent specular — dome highlight for the glass surface.
+    #    A bright circle offset up-left, with the overlapping inner-disc cut
+    #    away, leaves a slim arc hugging the upper-left rim (the lit face).
+    #    Peak=22 keeps BLEND_ADD additive contribution tight (raw RGB only).
+    spec  = pygame.Surface((dsz, dsz), pygame.SRCALPHA)
+    peak_sv = 22
+    pygame.draw.circle(spec, (peak_sv, peak_sv, peak_sv, 255),
+                       (cc - int(r * 0.25), cc - int(r * 0.25)), int(r * 0.72))
+    # subtract interior offset-disc to carve the crescent shape
+    cut = pygame.Surface((dsz, dsz), pygame.SRCALPHA)
+    cut.fill((255, 255, 255, 255))
+    pygame.draw.circle(cut, (0, 0, 0, 0),
+                       (cc + int(r * 0.10), cc + int(r * 0.10)), int(r * 0.80))
+    spec.blit(cut, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    # mask to disc circle
+    cm = pygame.Surface((dsz, dsz), pygame.SRCALPHA)
+    pygame.draw.circle(cm, (255, 255, 255, 255), (cc, cc), r - m(2))
+    spec.blit(cm, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(spec, (cx - cc, cy - cc), special_flags=pygame.BLEND_ADD)
 
-    # 4. Soft additive glass gloss across the upper disc face (peak ≤ 28 so it
-    #    adds sparkle without blowing out the bright base).
-    gloss = pygame.Surface((dsz, dsz), pygame.SRCALPHA)
-    for yy in range(r):
-        hw = int(math.sqrt(max(0, r * r - yy * yy)))
-        av = int(28 * (1 - yy / r) ** 1.6)
-        if av <= 0 or hw <= 0:
-            continue
-        pygame.draw.line(gloss, (av, av, av, 255),
-                         (cc - hw, cc - r + yy), (cc + hw, cc - r + yy))
-    circ = pygame.Surface((dsz, dsz), pygame.SRCALPHA)
-    pygame.draw.circle(circ, (255, 255, 255, 255), (cc, cc), r - m(1))
-    gloss.blit(circ, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    surf.blit(gloss, (cx - cc, cy - cc), special_flags=pygame.BLEND_ADD)
-
-    # 5. Bright gem ring — well-lit edge, not a dark trench.
+    # 4. Crisp bright gem ring — well-lit edge, not a dark trench.
     ring_col = lerp_color(gem, (255, 255, 255), 0.52)
     pygame.draw.circle(surf, ring_col, (cx, cy), r, max(2, m(2.5)))
-    # Thin accent line inset from the ring for a layered depth read.
+    # Thin accent line inset from the ring for layered edge depth.
     pygame.draw.circle(surf, lerp_color(deep, (0, 0, 0), 0.12),
                        (cx, cy), r - m(2), max(1, m(0.8)))
 
@@ -226,7 +219,7 @@ def render_popup(tier_word, skin, pal):
 
     gem, glow, deep = pal["gem"], pal["glow"], pal["deep"]
 
-    # ── card body: sky-bright gradient masked to octagon silhouette ───────────
+    # ── card body: sky-bright octagon-masked gradient ─────────────────────────
     body_stops = [
         (0.00, lerp_color(gem, WHITE, 0.52)),
         (0.42, lerp_color(gem, WHITE, 0.12)),
@@ -238,7 +231,7 @@ def render_popup(tier_word, skin, pal):
                         [(px - x, py - y) for px, py in outer])
     body.blit(omask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
 
-    # multi-layer octagon drop shadow (top-left light → shadow offset down)
+    # octagon drop shadow
     sh = pygame.Surface((POP_W * SS, POP_H * SS), pygame.SRCALPHA)
     for i in range(m(6), 0, -1):
         a = int(150 * (i / m(6)) ** 1.7 / m(6) * 2.6)
@@ -249,17 +242,17 @@ def render_popup(tier_word, skin, pal):
     big.blit(sh, (0, 0))
     big.blit(body, (x, y))
 
-    # ── faceted bevel frame: 8 quads value-stepped by facing to the light ─────
+    # ── faceted bevel frame ───────────────────────────────────────────────────
     dk  = lerp_color(gem, glow, 0.72)
     mid = lerp_color(gem, WHITE, 0.10)
     hi  = lerp_color(gem, WHITE, 0.72)
     for i in range(8):
-        a, b  = outer[i], outer[(i + 1) % 8]
+        a, b   = outer[i], outer[(i + 1) % 8]
         ib, ia = inner[(i + 1) % 8], inner[i]
-        col = facet_value(a, b, cx, cy, dk, mid, hi)
+        col    = facet_value(a, b, cx, cy, dk, mid, hi)
         pygame.draw.polygon(big, col, [a, b, ib, ia])
 
-    # glass crown sheen across upper half, masked to octagon
+    # glass crown sheen (top half of octagon body)
     sheen = pygame.Surface((w, h), pygame.SRCALPHA)
     for yy in range(int(h * 0.5)):
         av = int(70 * (1 - yy / (h * 0.5)) ** 1.5)
@@ -267,7 +260,7 @@ def render_popup(tier_word, skin, pal):
     sheen.blit(omask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     big.blit(sheen, (x, y))
 
-    # edge strokes: dark outer keyline + value-stepped inner rim
+    # edge strokes: outer keyline + value-stepped inner rim
     lit = lerp_color(gem, WHITE, 0.85)
     shd = lerp_color(deep, NEAR_BLACK, 0.15)
     key = lerp_color(deep, NEAR_BLACK, 0.35)
@@ -275,20 +268,18 @@ def render_popup(tier_word, skin, pal):
     pygame.draw.polygon(big, (*lerp_color(gem, WHITE, 0.55), 150), inner, max(1, m(0.8)))
     for i in range(8):
         a, b = inner[i], inner[(i + 1) % 8]
-        col = facet_value(a, b, cx, cy, (*shd, 200), (*gem, 60), (*lit, 235))
+        col  = facet_value(a, b, cx, cy, (*shd, 200), (*gem, 60), (*lit, 235))
         pygame.draw.line(big, col, a, b, max(1, m(1.4)))
 
     # ── 1. TIER WORD — top-third dominant focal ───────────────────────────────
-    # Starts at 35 px cap-height; auto-shrinks only as far as 26 px so even
-    # LEGENDARY stays clearly dominant. Tracking reduced from R1 so long words
-    # fit at a bigger size. Saturated gem fill + dark keyline pops off the pale
-    # glass crown.
+    # Starts at 35 px cap-height; auto-shrinks to floor 26 px.  Reduced
+    # tracking from R1 keeps LEGENDARY at ~29 px vs ~20 px previously.
     icx     = int(cx)
     tw_y    = y + m(40)
     sz      = 35
     tf      = font(sz)
     trk     = m(1.2)
-    inner_w = w - 2 * bw - m(12)
+    inner_w = w - 2 * bw - m(8)   # slightly wider budget → LEGENDARY stays ≥28px
     while _glyph_base(tier_word, tf, trk).get_width() > inner_w and sz > 26:
         sz -= 1
         tf  = font(sz)
@@ -300,8 +291,9 @@ def render_popup(tier_word, skin, pal):
                keyline=word_kl, kw=m(1.2))
 
     # ── 2. DISC — bright gem well; second-brightest zone ──────────────────────
-    dcx, dcy = icx, y + m(CY_DISC)
-    _bright_gem_disc(big, dcx, dcy, m(R_DISC), gem, glow, deep, skin)
+    dcx = icx
+    dcy = y + m(CY_DISC)
+    _bright_gem_disc(big, dcx, dcy, m(R_DISC), gem, glow, deep)
 
     # ── 3. PRICE + CONFIRM — foot row ─────────────────────────────────────────
     aff = (tier_word != "LEGENDARY")
