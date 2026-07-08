@@ -251,26 +251,41 @@ def _norm(color, target_max=235):
 
 
 def comet_plume(base, gx, gy, radius, glow):
-    """A rising bloom that escapes straight up through the open apex: build a
-    standard soft_glow, then multiply it by a 120° upward wedge (±60° from
-    straight up, feathered at the cone edges) so only the upward stream survives,
-    and composite additively. BLEND_ADD ignores source alpha, so the wedge is
-    applied as an RGB multiply BEFORE the add."""
+    """A rising bloom that escapes straight up through the open apex.
+
+    Build a soft radial glow in the tier colour, then multiply it by a 120°
+    upward wedge (±60° from straight up, feathered at the cone edges) so only the
+    upward stream survives, and composite additively.
+
+    Two constraints drive the construction. (1) A plain additive stack of full
+    tier-colour circles saturates every channel to white, killing the hue — so
+    the radial falloff is built with BLEND_RGBA_MAX (constant tier RGB, alpha
+    stepping up toward the core) which keeps the tint pure. (2) BLEND_ADD only
+    touches RGB, so a plume over the TRANSPARENT canopy above the plate would end
+    up with alpha 0 and vanish — so the cone is applied as an ALPHA multiply and
+    the plume is laid down with BLEND_RGBA_ADD, carrying both its glow RGB and
+    the alpha that makes it visible over the scrim."""
     ng = _norm(glow)
     g = pygame.Surface(base.get_size(), pygame.SRCALPHA)
-    soft_glow(g, gx, gy, radius, ng, 56, layers=12)
+    layers = 16
+    for i in range(layers, 0, -1):
+        ri = int(radius * i / layers)
+        ai = int(200 * (1 - (i - 1) / layers) ** 1.8)
+        if ri <= 0 or ai <= 0:
+            continue
+        circ = pygame.Surface((ri * 2 + 2, ri * 2 + 2), pygame.SRCALPHA)
+        pygame.draw.circle(circ, (*ng, ai), (ri + 1, ri + 1), ri)
+        g.blit(circ, (gx - ri - 1, gy - ri - 1),
+               special_flags=pygame.BLEND_RGBA_MAX)
 
-    # feathered upward cone mask via thin angular slices taken with RGBA_MAX so
-    # overlaps smooth rather than accumulate. Straight up = -90°; full inside
-    # ±45°, ramping to zero out to ±60°.
+    # feathered upward cone mask via thin angular slices. Straight up = -90°;
+    # full inside ±45°, ramping to zero out to ±60°. RGB stays white so the
+    # multiply preserves the tier tint; alpha carries the wedge feather.
     mask = pygame.Surface(base.get_size(), pygame.SRCALPHA)
-    rr = radius * 1.15
+    rr = radius * 1.2
     for a in range(-150, -29):
         off = abs(a + 90)
-        if off <= 45:
-            v = 255
-        else:
-            v = int(255 * (1 - (off - 45) / 15))
+        v = 255 if off <= 45 else int(255 * (1 - (off - 45) / 15))
         if v <= 0:
             continue
         a0 = math.radians(a)
@@ -278,9 +293,9 @@ def comet_plume(base, gx, gy, radius, glow):
         tri = [(gx, gy),
                (gx + rr * math.cos(a0), gy + rr * math.sin(a0)),
                (gx + rr * math.cos(a1), gy + rr * math.sin(a1))]
-        pygame.draw.polygon(mask, (v, v, v, v), tri)
+        pygame.draw.polygon(mask, (255, 255, 255, v), tri)
     g.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-    base.blit(g, (0, 0), special_flags=pygame.BLEND_ADD)
+    base.blit(g, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
 
 # ── disc (store-card cabochon DNA, tier-tinted) ───────────────────────────────
@@ -344,12 +359,7 @@ def render_popup(tier_word, sid, price, pal):
 
     gx, gy = m(CX), m(CY_DISC)
 
-    # 1) plume FIRST — behind the plate/disc, so it reads as bloom rising up out
-    #    of the apex; the convex arch top + the disc occlude its hot origin,
-    #    leaving only the upward stream showing above the apex.
-    comet_plume(big, gx, m(APEX_Y), m(int(R_DISC * 3.4)), pal["glow"])
-
-    # 2) plate: shadow -> silhouette-masked body gradient -> crown gloss -> bevel
+    # 1) plate: shadow -> silhouette-masked body gradient -> crown gloss -> bevel
     poly_drop_shadow(big, pts, blur=m(8), alpha=165, dy=m(4))
     minx, miny, maxx, maxy = _bbox(pts)
     bw = int(maxx - minx) + m(2)
@@ -365,6 +375,11 @@ def render_popup(tier_word, sid, price, pal):
     pygame.draw.polygon(fmask, (255, 255, 255, 255), pts)
     masked_top_sheen(big, pts, fmask, peak=60)
     poly_bevel(big, pts)
+
+    # 2) comet-tail plume rising up through the open apex — laid over the plate so
+    #    it blooms the crown, then occluded at its hot origin by the disc, leaving
+    #    only the upward stream showing above the apex.
+    comet_plume(big, gx, m(APEX_Y), m(int(R_DISC * 3.4)), pal["glow"])
 
     # 3) hero disc seated on the apex (lower 60% nested, top 40% overhanging)
     hero_disc(big, sid, gx, gy, m(R_DISC), pal)
