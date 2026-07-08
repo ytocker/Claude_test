@@ -42,7 +42,7 @@ Distinctness constraints from the `distinct-design-variants` skill apply.
 ### Step B — Critique: art-director (Opus)
 For each concept: standard per-concept critique. First line: VERDICT: SHIP-READY / ITERATE / RE-ROLL.
 
-### Step C — Round 2 (final): graphics-designer (Opus)
+### Step C — Round 2 (final): graphics-designer (Sonnet)
 For each concept: implement the art director's notes regardless of VERDICT (this is always the
 last pass); save to `docs/<feature>/<slug>/round_2.png`; commit + push.
 
@@ -62,3 +62,5 @@ The main session renders `docs/<feature>/showcase.png`:
    40 px header; 32 px footer per panel (slug name + SHIP-READY or FINAL).
 4. Save to `docs/<feature>/showcase.png`, commit + push.
 5. Post the GitHub blob URL in chat.
+
+The orchestrator (main session) runs on **Sonnet**.
