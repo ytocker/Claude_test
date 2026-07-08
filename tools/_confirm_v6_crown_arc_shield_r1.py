@@ -62,6 +62,17 @@ TIERS = [
 PANEL_W, PANEL_H = 200, 340
 CX = PANEL_W // 2
 
+# Review backdrop. Each panel tile is filled with this SAME vertical gradient so
+# the additive tier bloom lands on an OPAQUE scene (exactly as it does in-game) —
+# BLEND_ADD leaves destination alpha untouched, so a transparent headroom would
+# swallow the upward glow. Tiles then blend seamlessly into the canvas gradient.
+BG_TOP, BG_BOT = (14, 15, 30), (6, 6, 16)
+GAP = 16
+MARGIN = 20
+CANVAS_W = MARGIN * 2 + PANEL_W * 3 + GAP * 2
+CANVAS_H = PANEL_H + 74
+PANEL_Y = 48
+
 # Shield geometry (logical px). The body top sits well below the panel top so
 # the overhanging disc + its upward glow have transparent headroom to bloom into.
 CARD_L, CARD_R = 14, 186
@@ -228,6 +239,11 @@ def scaled_ribbon(surf, word, cx, cy, pal, scale=2.4):
 # =============================================================================
 def render_panel(word, rarity, sid, price, pal):
     big = pygame.Surface((PANEL_W * SS, PANEL_H * SS), pygame.SRCALPHA)
+    # opaque backdrop matching the canvas gradient (so the upward BLEND_ADD bloom
+    # has a scene to add onto and reads unclipped in the headroom).
+    for ry in range(PANEL_H * SS):
+        f = (PANEL_Y + ry / SS) / CANVAS_H
+        big.fill(lerp_color(BG_TOP, BG_BOT, min(1.0, f)), (0, ry, PANEL_W * SS, 1))
     outline = shield_outline()
     ctr = _centroid(outline)
 
@@ -303,14 +319,9 @@ def render_panel(word, rarity, sid, price, pal):
 # =============================================================================
 # Compose the three-panel review canvas
 # =============================================================================
-GAP = 16
-MARGIN = 20
-CANVAS_W = MARGIN * 2 + PANEL_W * 3 + GAP * 2
-CANVAS_H = PANEL_H + 74
 canvas = pygame.Surface((CANVAS_W, CANVAS_H))
 for y in range(CANVAS_H):
-    canvas.fill(lerp_color((14, 15, 30), (6, 6, 16), y / CANVAS_H),
-                (0, y, CANVAS_W, 1))
+    canvas.fill(lerp_color(BG_TOP, BG_BOT, y / CANVAS_H), (0, y, CANVAS_W, 1))
 
 title = _font(20, True)
 tt = title.render("confirm_purchase_v6 - crown-arc-shield - round 1", True,
@@ -321,7 +332,7 @@ lab = _font(13, True)
 for i, (word, rarity, sid, price, pal) in enumerate(TIERS):
     panel = render_panel(word, rarity, sid, price, pal)
     px = MARGIN + i * (PANEL_W + GAP)
-    canvas.blit(panel, (px, 48))
+    canvas.blit(panel, (px, PANEL_Y))
 
 out = "/home/user/skybit/docs/confirm_purchase_v6/crown-arc-shield/round_1.png"
 os.makedirs(os.path.dirname(out), exist_ok=True)
