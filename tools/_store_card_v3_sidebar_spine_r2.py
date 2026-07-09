@@ -121,6 +121,14 @@ def render_sidebar_spine(sid, pal, price, name, tier):
     rad = m(CARD_RAD)
     body_y = m(_INSET)
     cx, cy = rect.centerx, body_y + m(38)
+    # The kitsune (LEGENDARY) skin is intrinsically near-white at the disc centre
+    # (~255,255,242), so base=44 can't pull its centre under the ≤240 ceiling
+    # without a global bump that would GREY the warm RARE / cool EPIC centres.
+    # Because the legendary tint is warm gold over white it stays richly gold —
+    # never grey — even at a strong centre pull, so LEGENDARY alone gets the
+    # heavier base while RARE/EPIC keep the specified 44 and their skin colour.
+    is_leg = tier == "LEGENDARY"
+    disc_base = 115 if is_leg else 44
 
     # 1. depth: soft multi-layer drop shadow (top-left light → offset down).
     drop_shadow(big, rect, rad, blur=m(8), alpha=160, dy=m(4))
@@ -145,7 +153,7 @@ def render_sidebar_spine(sid, pal, price, name, tier):
     blit_thumb(big, sid, cx, cy, m(R) * 1.5)
 
     # 7. tier tint INSIDE the disc — now reaching the CENTRE so no white blowout.
-    _disc_tint(big, cx, cy, m(R), pal["glow"], pal["deep"])
+    _disc_tint(big, cx, cy, m(R), pal["glow"], pal["deep"], base=disc_base)
 
     # 8. glass dome overlay (crescent sheen + gold bezel) on top of the tint.
     cabochon_glass(big, cx, cy, m(R), tint=pal["gem"])
@@ -157,7 +165,6 @@ def render_sidebar_spine(sid, pal, price, name, tier):
     #     LEGENDARY glow input runs muddy (its low-value amber greys in the
     #     feather), so LEGENDARY gets a saturated, cooler gold + a hotter peak so
     #     the gutter reads unmistakably GOLD, not brown.
-    is_leg = tier == "LEGENDARY"
     gutter_col = (240, 182, 60) if is_leg else pal["glow"]
     gutter_peak = 115 if is_leg else 90
     _gutter_aura(big, cx, cy, m(R), m(R + 28), gutter_col, peak=gutter_peak,
