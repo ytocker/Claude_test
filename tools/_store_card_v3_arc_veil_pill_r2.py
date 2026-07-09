@@ -57,14 +57,19 @@ R = 32
 CY = 40
 
 
-def _disc_tint(surf, cx, cy, r, color, deep, peak=52, base=34):
+def _disc_tint(surf, cx, cy, r, color, deep, peak=92, base=78):
     """A tier colour veil INSIDE the disc, clipped to the glass. It warms the
     cool CABO_LO→CABO_HI dome away from the indigo body, and — carrying a
-    meaningful centre alpha (base raised from r1's 16 so the LEGENDARY hero stops
-    blowing to near-white) — pulls any bright skin highlight toward the tier hue.
-    Rim-biased (deeper toward the edge) reads as a coloured dome, not a flat cast;
-    the gentler exponent (1.3, down from 1.6) lets that hue carry further inward
-    instead of collapsing to nothing at the centre."""
+    meaningful centre alpha — pulls the LEGENDARY hero's near-white specular
+    toward the tier hue so it stops blowing out. The gentler exponent (1.3, down
+    from r1's 1.6) lets the hue carry further inward instead of collapsing to
+    nothing at the centre; the veil stays rim-biased because peak > base.
+
+    base sits well above the ~34 first estimate because cabochon_glass paints its
+    crescent sheen over the SAME centre AFTER this tint, re-lighting it — so the
+    centre pixel (whose alpha equals base) needs ~78 before LEGENDARY's specular
+    drops under the 245/channel ceiling, while RARE/EPIC (mid-tone, not near
+    white) only shed a few points and stay legible."""
     pad = 2
     tint = pygame.Surface((r * 2 + pad * 2, r * 2 + pad * 2), pygame.SRCALPHA)
     c = r + pad
@@ -332,12 +337,14 @@ print("saved", out, sheet.get_size())
 # plate sampled OFF the engraved text.
 body_y = m(_INSET)
 for (tier, sid, pal, price, name), panel, (cx, cy) in zip(VARIANTS, panels, centers):
+    price_txt = f"{price:,}"
+    pill_w = font(11).size(price_txt)[0] + m(18)
     gx = cx + m(R) + m(15)
     gutter_px = panel.get_at((gx, cy))[:3]
     center_px = panel.get_at((cx, cy))[:3]
-    band_px = panel.get_at((cx + m(28), cy + m(R)))[:3]   # off-text x
-    pill_px = panel.get_at((cx, body_y + m(86)))[:3]
-    print(f"{tier:9s} gutter+15 {gutter_px}  centre {center_px}  "
+    band_px = panel.get_at((cx + m(28), cy + m(R)))[:3]         # off-text x
+    pill_px = panel.get_at((cx - pill_w // 2 + m(5), body_y + m(86)))[:3]  # off-text x
+    print(f"{tier:9s} gutter+15 {gutter_px}  centre {center_px}  maxch {max(center_px)}  "
           f"pill {pill_px}  band {band_px}")
 
 # descender clearance proof for "Pygmy Jay": measure the chosen name font box.

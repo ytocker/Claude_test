@@ -317,7 +317,7 @@ for i, (tier, sid, pal, price, name) in enumerate(VARIANTS):
                       panel_y + PANEL_H + (FOOTER_H - ftxt.get_height()) // 2))
 
     rect, prect, chip = geo["rect"], geo["prect"], geo["chip"]
-    gutter_x = rect.left + 15                        # a point in the left gutter
+    gutter_x = cx - m(R) - 15                         # 15px into the left gutter aura
     plaque_off_x = cx + m(30)                        # plaque body, clear of text
     print(f"  {tier:<10} "
           f"gutter+15={_px(panel, gutter_x, cy)}  "
