@@ -202,8 +202,13 @@ def render_card(sid, pal, price, name):
     pygame.draw.circle(big, (*pal["gem"], 100), (cx, cy), m(R) + m(2), width=m(2))
 
     # 10. gutter halo — pulled back (R+16, softer peak) since the shelf bar now
-    #     carries the rarity read and the halo shouldn't compete with it.
+    #     carries the rarity read and the halo shouldn't compete with it. Clipped
+    #     to above the bar so its lower arcs stay in the side gutters and never
+    #     streak across the shelf the disc overhangs.
+    prev_clip = big.get_clip()
+    big.set_clip(pygame.Rect(0, 0, big.get_width(), bar.top))
     _gutter_aura(big, cx, cy, m(R), m(R + 16), pal["glow"], peak=65, layers=18)
+    big.set_clip(prev_clip)
 
     #     top-edge AO so the bar reads as resting below the overhanging disc.
     _top_edge_shadow(big, bar, depth=m(4), alpha=100)
