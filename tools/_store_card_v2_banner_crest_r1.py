@@ -36,8 +36,7 @@ def draw_banner_crest(big, sid, rect, pal, price_str, tier_word):
     rad = m(CARD_RAD)
     body_x, body_y = rect.x, rect.y
     cx_ss = rect.centerx
-    cy_ss = body_y + m(54 - INSET) if False else rect.y + m(48)  # disc cy: body-rel 48
-    cy_ss = rect.y + m(48)
+    cy_ss = rect.y + m(48)          # medallion centre: body-relative cy=48
 
     # 1 — depth: soft multi-layer drop shadow (top-left light => offset down).
     drop_shadow(big, rect, rad, blur=m(8), alpha=160, dy=m(4))
