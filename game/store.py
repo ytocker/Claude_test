@@ -515,10 +515,18 @@ class StoreScene:
                 and self._variant_pick is None
                 and self._confirm is None):
             dx = self._swipe_x_last - self._swipe_x_start
-            if dx < -self._SWIPE_MIN:          # left swipe → next page
-                self.page = min(self.n_pages - 1, self.page + 1)
-            elif dx > self._SWIPE_MIN:         # right swipe → prev page
-                self.page = max(0, self.page - 1)
+            if dx < -self._SWIPE_MIN:          # left swipe → next page / next tab
+                if self.page < self.n_pages - 1:
+                    self.page += 1
+                elif self.tab < len(_TABS) - 1:
+                    self.tab += 1
+                    self.page = 0
+            elif dx > self._SWIPE_MIN:         # right swipe → prev page / prev tab
+                if self.page > 0:
+                    self.page -= 1
+                elif self.tab > 0:
+                    self.tab -= 1
+                    self.page = self.n_pages - 1  # land on last page of prev tab
         return False  # swipe consumed; do not also dispatch a tap
 
     # ── rendering ────────────────────────────────────────────────────────────
