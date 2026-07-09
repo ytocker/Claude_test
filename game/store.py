@@ -414,6 +414,9 @@ def _slot_of(sid: str) -> str:
 
 
 class StoreScene:
+    _TAP_SLOP = 8   # px total horizontal move below which a press/release is a tap
+    _SWIPE_MIN = 40  # px net horizontal displacement required to commit a page flip
+
     def __init__(self) -> None:
         self.t = 0.0
         # Two-level store: open onto the lagoon "hub" (a stall per category);
@@ -462,6 +465,10 @@ class StoreScene:
             self._lists[g] = ids
         self.tab = 0
         self.page = 0
+        self._swipe_active = False
+        self._swipe_x_start = 0
+        self._swipe_x_last = 0
+        self._swipe_moved = 0
 
     def _cur_ids(self) -> list:
         return self._lists[_TABS[self.tab][1]]
@@ -484,6 +491,35 @@ class StoreScene:
 
     def _flash(self, text: str) -> None:
         self._toast = (text, 1.6)
+
+    # ── swipe / pointer ───────────────────────────────────────────────────────
+    def pointer_down(self, pos: tuple) -> None:
+        self._swipe_active = True
+        self._swipe_x_start = self._swipe_x_last = pos[0]
+        self._swipe_moved = 0
+
+    def pointer_move(self, pos: tuple) -> None:
+        if not self._swipe_active:
+            return
+        self._swipe_moved += abs(pos[0] - self._swipe_x_last)
+        self._swipe_x_last = pos[0]
+
+    def pointer_up(self) -> bool:
+        """Return True if the gesture was a tap (caller should dispatch handle_tap)."""
+        if not self._swipe_active:
+            return True
+        self._swipe_active = False
+        if self._swipe_moved < self._TAP_SLOP:
+            return True  # tap — caller calls handle_tap
+        if (self.view == "category"
+                and self._variant_pick is None
+                and self._confirm is None):
+            dx = self._swipe_x_last - self._swipe_x_start
+            if dx < -self._SWIPE_MIN:          # left swipe → next page
+                self.page = min(self.n_pages - 1, self.page + 1)
+            elif dx > self._SWIPE_MIN:         # right swipe → prev page
+                self.page = max(0, self.page - 1)
+        return False  # swipe consumed; do not also dispatch a tap
 
     # ── rendering ────────────────────────────────────────────────────────────
     def render(self, surf: pygame.Surface) -> None:
