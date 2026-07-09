@@ -69,14 +69,14 @@ TIERS = [
 # ── popup metrics (logical px, scaled from the v5 halo-badge pixel read) ───────
 # The card + popup grow by 28 px vs r1 so the NAME/CHIP/BUTTON can slide down to
 # make room for the rarity banner above the name without anything clipping.
-POP_W, POP_H = 200, 324
+POP_W, POP_H = 200, 330
 CX = POP_W // 2                                  # 100
 
 CARD_X   = 8
 CARD_W   = POP_W - CARD_X * 2                    # 184
 CARD_TOP = 98
-CARD_H   = 214
-CARD_BOT = CARD_TOP + CARD_H                     # 312
+CARD_H   = 220
+CARD_BOT = CARD_TOP + CARD_H                     # 318
 CARD_RAD = 18
 
 # Overhanging cabochon disc: ~44% overhangs; centre ~6 px below card top.
@@ -84,19 +84,18 @@ R_HERO   = 41
 DISC_CY  = CARD_TOP + 6                           # 104
 DISC_BOT = DISC_CY + R_HERO                       # 145
 
-# Tier gem PAIR — one just inside each top corner of the card body (below the
-# bevel rim), framing the disc rather than sitting under it.
+# Tier gem PAIR — pulled inward from card corners.
 GEM_R    = 11
 GEM_CY   = CARD_TOP + GEM_R + 8                   # 117
-GEM_L_X  = CARD_X + GEM_R + 4                     # 23
-GEM_R_X  = POP_W - CARD_X - GEM_R - 4             # 177
+GEM_L_X  = CARD_X + GEM_R + 14                    # 33  (was 23, +10 inward)
+GEM_R_X  = POP_W - CARD_X - GEM_R - 14            # 167 (was 177, -10 inward)
 
-# Caption plate — NAME/CHIP/BUTTON slid down 28 px from r1; the banner takes the
-# freed lane just above the name.
-Y_NAME   = 194 + 28                               # 222
-Y_BANNER = Y_NAME - 22                            # 200
-Y_CHIP   = 235 + 28                               # 263
-Y_BTN    = 264 + 28                               # 292
+# Caption plate — name (large) sits above the rarity banner.
+NAME_FS  = 22                                     # much larger than r1's 14
+Y_NAME   = DISC_BOT + 24                          # 169
+Y_BANNER = Y_NAME + 22                            # 191
+Y_CHIP   = Y_BANNER + 34                          # 225
+Y_BTN    = Y_CHIP + 32                            # 257
 BANNER_W = 120
 BANNER_H = 22
 
@@ -213,10 +212,10 @@ def render_popup(tier_word, sid, price, pal):
     # symmetric tier gems frame the top corners of the card body.
     facet_gem(big, m(GEM_L_X), m(GEM_CY), m(GEM_R), pal["gem"], pal["deep"])
     facet_gem(big, m(GEM_R_X), m(GEM_CY), m(GEM_R), pal["gem"], pal["deep"])
-    _tier_banner(big, CX, Y_BANNER, BANNER_W, BANNER_H, tier_word, pal)
     name = sc._name(sid)
-    plain_text(big, name, font(14), (m(CX), m(Y_NAME)), (250, 248, 240),
+    plain_text(big, name, font(NAME_FS), (m(CX), m(Y_NAME)), (250, 248, 240),
                shadow_a=160, weight=m(0.9), keyline=(6, 6, 16), kw=m(1.0))
+    _tier_banner(big, CX, Y_BANNER, BANNER_W, BANNER_H, tier_word, pal)
     price_chip(big, m(CX), m(Y_CHIP), f"{price:,}", m(22), affordable=True)
     _confirm_button(big, pal)
     _hero_disc(big, sid, pal)
