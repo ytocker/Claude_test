@@ -124,18 +124,26 @@ def render_crown_peek(sid, pal, price):
     pygame.draw.rect(big, (10, 10, 24, 180), tray.inflate(m(2), m(2)),
                      width=max(1, m(1)), border_radius=trad + m(1))
 
-    # 6. tier read FIRST: a gutter-only feathered halo flooding the side gutters
-    #    (drawn before the disc so the hero paints over its inner falloff).
-    _gutter_aura(big, cx, cy, m(R), m(R + 26), pal["glow"], peak=88, layers=18)
-
-    # ── crowned hero disc (crests over the tray, clips at card surface edge) ──
-    cabochon(big, cx, cy, m(R), CABO_LO, CABO_HI, ring=pal["gem"], ring_a=70)
+    # ── crowned hero disc + its gutter halo, on a MASKED layer ──
+    # The disc rides so high its dome + halo overrun both the tray AND the outer
+    # rect top. We draw the whole stack onto its own transparent layer, then clip
+    # that layer to the OUTER rounded rect via BLEND_RGBA_MIN — so the crest
+    # crests over the inner tray yet is cut cleanly at the gold bevel and never
+    # leaks into the drop-shadow margin above the card. Masking a SEPARATE layer
+    # (not `big`) keeps the min-blend off the body, which is already composited.
+    layer = pygame.Surface((CARD_W * SS, CARD_H * SS), pygame.SRCALPHA)
+    _gutter_aura(layer, cx, cy, m(R), m(R + 26), pal["glow"], peak=88, layers=18)
+    cabochon(layer, cx, cy, m(R), CABO_LO, CABO_HI, ring=pal["gem"], ring_a=70)
     if sid is not None:
-        blit_thumb(big, sid, cx, cy, m(R) * 1.5)
-    _disc_tint(big, cx, cy, m(R), pal["glow"], pal["deep"], peak=55, base=22)
-    cabochon_glass(big, cx, cy, m(R), tint=pal["gem"])
+        blit_thumb(layer, sid, cx, cy, m(R) * 1.5)
+    _disc_tint(layer, cx, cy, m(R), pal["glow"], pal["deep"], peak=55, base=22)
+    cabochon_glass(layer, cx, cy, m(R), tint=pal["gem"])
     # tier-gem bezel ring at R+2.
-    pygame.draw.circle(big, (*pal["gem"], 110), (cx, cy), m(R) + m(2), width=m(2))
+    pygame.draw.circle(layer, (*pal["gem"], 110), (cx, cy), m(R) + m(2), width=m(2))
+    clip_mask = pygame.Surface((CARD_W * SS, CARD_H * SS), pygame.SRCALPHA)
+    pygame.draw.rect(clip_mask, (255, 255, 255, 255), rect, border_radius=rad)
+    layer.blit(clip_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    big.blit(layer, (0, 0))
 
     # 7. NAMEPLATE PLAQUE — a frosted gold-rimmed pill in the lower body, its
     #    name centred. Sits below the disc so the crown + plaque bracket the card.
