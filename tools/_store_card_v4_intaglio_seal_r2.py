@@ -84,8 +84,8 @@ CANVAS_H = TITLE_H + PANEL_H + LABEL_H
 LX, LY = -0.7071, -0.7071
 # Bevel range: golden crest highlight -> a shadow-gold that still holds L>=80 so
 # the border never dissolves into the body (P2 + P3 reconciled).
-BEVEL_BRIGHT = CARD_RING_BRIGHT              # (236,202,116)
-BEVEL_SHADOW = (122, 98, 48)                 # luma ~97 — reads as a lit edge
+BEVEL_BRIGHT = CARD_RING_BRIGHT              # (236,202,116) luma ~203
+BEVEL_SHADOW = (150, 120, 58)                # luma ~122 — dimmer, still an edge
 
 
 def _quad(p0, p1, p2, steps):
@@ -209,23 +209,25 @@ def _draw_shield(big, sid, rect, pal):
     grad.blit(sheen, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
     big.blit(grad, (int(bx0), int(by0)))
 
-    # P2b — dark keyline all the way round (a closed contact edge), then
-    # P3 — a single top-left-lit gold bevel just inside it. Per-edge shade eases
-    # bright(top-left) -> shadow-gold(bottom-right); no alpha above 220.
-    pygame.draw.polygon(big, (4, 5, 16), [(int(x), int(y)) for x, y in outline],
-                        width=max(1, m(2)))
-    inset = [(x + sc_unit(x, y, ctr)[0] * m(1.4),
-              y + sc_unit(x, y, ctr)[1] * m(1.4)) for (x, y) in outline]
-    n = len(inset)
+    # P2b + P3 — the BORDER is an OPAQUE gold bevel drawn ON the outline, so the
+    # silhouette holds a bright edge all the way round (incl. lower-left). Per-edge
+    # shade eases from a bright top-left to a still-legible shadow-gold bottom-right
+    # off the ONE top-left light; the dimmest edge is luma ~122, never dissolving
+    # into the body. A thin dark keyline is then dropped just INSIDE the bevel as
+    # the pressed/incised groove that reads as a struck seal, not a coin ring.
+    obg = [(int(round(x)), int(round(y))) for x, y in outline]
+    n = len(obg)
     for i in range(n):
-        x1, y1 = inset[i]
-        x2, y2 = inset[(i + 1) % n]
+        x1, y1 = obg[i]
+        x2, y2 = obg[(i + 1) % n]
         mx, my = (x1 + x2) / 2, (y1 + y2) / 2
-        ox, oy = sc_unit(mx, my, ctr)
-        f = max(0.0, min(1.0, (ox * LX + oy * LY + 1) / 2))   # 0 shadow .. 1 lit
+        ux, uy = sc_unit(mx, my, ctr)
+        f = max(0.0, min(1.0, (ux * LX + uy * LY + 1) / 2))   # 0 shadow .. 1 lit
         col = lerp_color(BEVEL_SHADOW, BEVEL_BRIGHT, f)
-        a = int(150 + 70 * f)                                  # 150..220 (capped)
-        pygame.draw.line(big, (*col, a), (x1, y1), (x2, y2), max(1, m(1.7)))
+        pygame.draw.line(big, col, (x1, y1), (x2, y2), max(1, m(2.4)))
+    groove = [(int(round(x + sc_unit(x, y, ctr)[0] * m(2.6))),
+               int(round(y + sc_unit(x, y, ctr)[1] * m(2.6)))) for (x, y) in outline]
+    pygame.draw.polygon(big, (10, 9, 22, 210), groove, width=max(1, m(1)))
 
     return cx, sy, sw, sh
 
