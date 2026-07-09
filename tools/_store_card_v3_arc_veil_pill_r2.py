@@ -52,9 +52,11 @@ _INSET = 6
 # a clean lower stack with no overlap.
 R = 32
 
-# Disc centre at logical y40 from the body top (cy = rect.y + m(CY)): disc bottom
-# = 40 + R = 72, the rim the straddle-band is centred on.
-CY = 40
+# Disc centre at surface-logical y40 (cy = rect.y + m(CY), rect.y = _INSET=6, so
+# CY=34 lands the centre at device m(40)). Disc bottom = 40 + R = 72 — the rim the
+# straddle-band is centred on — with the pill bottom at y93 clearing the inset
+# body's bottom edge (~y94). All lower-stack y-values below are surface-logical.
+CY = 34
 
 
 def _disc_tint(surf, cx, cy, r, color, deep, peak=92, base=78):
@@ -166,14 +168,15 @@ def render_card(sid, pal, price, name):
     # 10. tier read: a gutter-only feathered halo that floods the side gutters.
     _gutter_aura(big, cx, cy, m(R), m(R + 28), pal["glow"], peak=90, layers=18)
 
-    # ── lower stack geometry (all logical, from body top) ──
+    # ── lower stack geometry (surface-logical) ──
     #   disc bottom (rim) .. y72   band y66–78 (h12, on rim)   pill top y79
     #   pill_cy y86 (h14) .. bottom y93 — a 1px gap keeps band + pill from
-    #   colliding, the whole reason r1's overlap is gone.
-    band_cy = cy + m(R)                          # centred on the disc bottom rim
-    pill_cy = body_y + m(86)
+    #   colliding (the whole reason r1's overlap is gone), and y93 clears the
+    #   inset body's bottom edge so the pill never bleeds onto the gold bevel.
+    band_cy = cy + m(R)                          # = m(72): centred on the rim
+    pill_cy = m(86)
     pill_h = m(14)
-    pill_top = pill_cy - pill_h // 2             # = body_y + m(79)
+    pill_top = pill_cy - pill_h // 2             # = m(79)
 
     # 11. NAME — a frosted straddle-band mounted ACROSS the dome's 6-o'clock,
     #     now NARROWED to ~disc width (m(74)) so it reads as a plate mounted on
@@ -307,25 +310,26 @@ ltxt = sfont.render("real scale (1×, 162×100)   +   descender test →",
                     True, (200, 204, 220))
 sheet.blit(ltxt, (MARGIN, strip_label_y + (STRIP_LABEL_H - ltxt.get_height()) // 2))
 strip_y = strip_label_y + STRIP_LABEL_H
+strip_lefts = []
 for i, panel in enumerate(panels):
     px = MARGIN + i * (PANEL_W + GUTTER)
+    left = px + (PANEL_W - CARD_W) // 2
+    strip_lefts.append(left)
     small = pygame.transform.smoothscale(panel, (CARD_W, CARD_H))
-    sheet.blit(small, (px + (PANEL_W - CARD_W) // 2, strip_y))
+    sheet.blit(small, (left, strip_y))
 
-# 4th SS panel: the "Pygmy Jay" descender test (rendered SS then shown 1× under
-# the LEGENDARY column-ish trailing space would clip — instead show it 1× in the
-# strip's rightmost free area is full; show it at 1× just to the right isn't
-# possible, so render its own 1× card into the strip's spare tail).
+# The 1× cards sit under the wider SS panels, so the strip leaves a broad gap
+# between each. Drop the "Pygmy Jay" descender-test card (rendered SS → 1×)
+# centred in the gap between the 2nd and 3rd 1× cards so it proves the 'y'
+# descenders clear the pill at true size without colliding with its neighbours.
 desc_panel, _ = render_card(*DESC_TEST[1:])
 desc_small = pygame.transform.smoothscale(desc_panel, (CARD_W, CARD_H))
-# tuck it beneath the header row would overlap; place at strip row, right of the
-# three cards if room, else overlay lower — the sheet is wide enough for 3 SS
-# panels which is wider than 3 1× cards, leaving tail room in the strip row.
-tail_x = MARGIN + 3 * (CARD_W) + 2 * GUTTER + GUTTER
-if tail_x + CARD_W <= sheet_w - MARGIN:
-    sheet.blit(desc_small, (tail_x, strip_y))
-    dl = sfont.render("Pygmy Jay", True, (200, 204, 220))
-    sheet.blit(dl, (tail_x + (CARD_W - dl.get_width()) // 2, strip_y - STRIP_LABEL_H + 2))
+gap_lo = strip_lefts[1] + CARD_W
+gap_hi = strip_lefts[2]
+tail_x = gap_lo + (gap_hi - gap_lo - CARD_W) // 2
+sheet.blit(desc_small, (tail_x, strip_y))
+dl = sfont.render('"Pygmy Jay" descender test', True, (200, 204, 220))
+sheet.blit(dl, (tail_x + (CARD_W - dl.get_width()) // 2, strip_y - STRIP_LABEL_H + 2))
 
 out = "/home/user/skybit/docs/store_card_v3/arc-veil-pill/round_2.png"
 os.makedirs(os.path.dirname(out), exist_ok=True)
@@ -335,21 +339,20 @@ print("saved", out, sheet.get_size())
 # sanity: gutter tier tint (15px past the disc edge), disc centre (LEGENDARY must
 # stay ≤~245/ch, RARE/EPIC not over-darken), the pill body glass, and the band
 # plate sampled OFF the engraved text.
-body_y = m(_INSET)
 for (tier, sid, pal, price, name), panel, (cx, cy) in zip(VARIANTS, panels, centers):
     price_txt = f"{price:,}"
     pill_w = font(11).size(price_txt)[0] + m(18)
     gx = cx + m(R) + m(15)
     gutter_px = panel.get_at((gx, cy))[:3]
     center_px = panel.get_at((cx, cy))[:3]
-    band_px = panel.get_at((cx + m(28), cy + m(R)))[:3]         # off-text x
-    pill_px = panel.get_at((cx - pill_w // 2 + m(5), body_y + m(86)))[:3]  # off-text x
+    band_px = panel.get_at((cx + m(28), cy + m(R)))[:3]              # off-text x
+    pill_px = panel.get_at((cx - pill_w // 2 + m(5), m(86)))[:3]     # off-text x
     print(f"{tier:9s} gutter+15 {gutter_px}  centre {center_px}  maxch {max(center_px)}  "
           f"pill {pill_px}  band {band_px}")
 
 # descender clearance proof for "Pygmy Jay": measure the chosen name font box.
 _band_cy = m(_INSET) + m(CY) + m(R)
-_pill_top = m(_INSET) + m(79)
+_pill_top = m(79)
 _nf = _fit_name_font("Pygmy Jay", m(74) - m(12), _band_cy, _pill_top)
 _w, _h = _nf.size("Pygmy Jay")
 _bottom = _band_cy + m(0.5) + _h // 2
