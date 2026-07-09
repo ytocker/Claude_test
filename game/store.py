@@ -299,6 +299,37 @@ def _gold_rule(surf, x0, x1, y, peak=170):
     surf.blit(line, (x0, y - 1))
 
 
+def _confirm_tier_banner(big, cx, cy, w_log, h_log, tier_word, pal):
+    """Notched-hex rarity banner for the confirm popup — white tier word over the
+    raw 3-stop tier gradient so the tier reads as a word, not just a hue."""
+    m = store_cards.m
+    w, h = m(w_log), m(h_log)
+    notch = m(6)
+    x0, y0 = m(cx) - w // 2, m(cy) - h // 2
+    stops = [(0.0, pal["gem"]), (0.5, pal["glow"]), (1.0, pal["deep"])]
+    body = store_cards.vgrad_stops(w, h, 0, stops, 255, gamma=1.08)
+    poly = [(notch, 0), (w - notch, 0), (w, h // 2), (w - notch, h),
+            (notch, h), (0, h // 2)]
+    pmask = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.polygon(pmask, (255, 255, 255, 255), poly)
+    body.blit(pmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    sh = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.polygon(sh, (0, 0, 0, 130), poly)
+    big.blit(sh, (x0, y0 + m(2)))
+    big.blit(body, (x0, y0))
+    abspoly = [(x0 + px, y0 + py) for px, py in poly]
+    pygame.draw.polygon(big, (6, 6, 16), abspoly, width=max(1, m(1.6)))
+    fsz = h_log * 0.52
+    f = store_cards.font(fsz)
+    avail = w - notch * 2 - m(8)
+    while store_cards._glyph_base(tier_word, f, m(1.6)).get_width() > avail and fsz > 6:
+        fsz -= 0.5
+        f = store_cards.font(fsz)
+    store_cards.plain_text(big, tier_word, f, (m(cx), m(cy)), (250, 248, 240),
+                           shadow_a=150, tracking=m(1.6), weight=m(1.0),
+                           keyline=(10, 10, 22), kw=m(0.8))
+
+
 def _gradient_text(surf, txt, font_obj, center, top, bot, outline=None, shadow=True):
     """Vertical gold-gradient text with optional outline + drop shadow."""
     base = font_obj.render(txt, True, WHITE)
@@ -814,10 +845,9 @@ class StoreScene:
         return None
 
     def _draw_confirm(self, surf) -> None:
-        """The buy-confirmation modal: a ~70% scrim + a centred obsidian panel —
-        the item on a connected disc+shelf stage, its rarity word, a single price
-        chip, and a BUY / CANCEL row. Spending is gated here so an accidental tap
-        can never drain the wallet; BUY locks (with a note) when unaffordable."""
+        """Buy-confirmation modal: scrim + fig-E halo-badge popup — overhanging
+        cabochon disc with spotlight halo, corner gem pair, name above rarity
+        banner, tier-coloured CONFIRM pill, muted CANCEL pill below."""
         self._confirm_panel = None
         self.confirm_yes_rect = self.confirm_no_rect = None
         sid = self._confirm
@@ -830,101 +860,134 @@ class StoreScene:
 
         secret = store_catalog.is_secret(sid) and not store_data.is_owned(sid)
         tier = store_catalog.rarity(sid)
-        pw, ph = 252, 306
-        panel = pygame.Rect((W - pw) // 2, (H - ph) // 2, pw, ph)
-        self._confirm_panel = panel
-        _drop_shadow(surf, panel, 18, blur=8, alpha=170)
-        surf.blit(_vgrad_panel(pw, ph, 18, (28, 24, 38), (12, 10, 22), 255),
-                  panel.topleft)
-        pygame.draw.rect(surf, lerp_color(_GOLD_BRIGHT, NEAR_BLACK, 0.45), panel,
-                         width=2, border_radius=18)
-        pygame.draw.rect(surf, (*_GOLD_BRIGHT, 230), panel.inflate(-2, -2),
-                         width=1, border_radius=16)
-
-        cx = panel.centerx
-        head = _font(13, True).render("CONFIRM PURCHASE", True, _GOLD_PALE)
-        surf.blit(head, head.get_rect(center=(cx, panel.y + 22)))
-        _gold_rule(surf, panel.x + 28, panel.right - 28, panel.y + 38)
-
-        # Connected disc + shelf stage so they read as one lit vitrine element.
-        stage = pygame.Rect(cx - 55, panel.y + 50, 110, 110)
-        surf.blit(_vgrad_panel(stage.w, stage.h, 12, (18, 16, 26), (8, 7, 14)),
-                  stage.topleft)
-        pygame.draw.rect(surf, (0, 0, 0, 150), stage, width=1, border_radius=12)
-        disc_cy = stage.y + 50
-        # Disc at 2× SS — r=46 logical (92 SS-px), matches store-card quality.
-        _R_SS, _PAD_SS = 92, 8
-        _DS = _R_SS * 2 + _PAD_SS * 2   # 200
-        _C_SS = _R_SS + _PAD_SS          # 100  (center on SS canvas)
         pal = (store_cards.MYSTERY if secret
                else store_cards.RARITY.get(tier, store_cards.RARITY["common"]))
-        store_cards.soft_glow(surf, cx, disc_cy, _R_SS // 2 + 3,
-                              pal["glow"], 30, layers=8)
-        ss_disc = pygame.Surface((_DS, _DS), pygame.SRCALPHA)
-        store_cards.cabochon(ss_disc, _C_SS, _C_SS, _R_SS,
+        tier_word = "MYSTERY" if secret else tier.upper()
+        name = "???" if secret else self._disp_name(sid)
+        price = store_catalog.cost(sid)
+        affordable = store_data.balance() >= price
+
+        # Popup metrics (logical px, SS=2 double-res surface).
+        POP_W, POP_H = 200, 340
+        CX = POP_W // 2
+        SS = store_cards.SS
+        m = store_cards.m
+
+        CARD_X, CARD_W, CARD_TOP, CARD_H, CARD_RAD = 8, 184, 98, 230, 18
+        R_HERO, DISC_CY = 41, 104
+        GEM_R, GEM_CY, GEM_L_X, GEM_R_X = 11, 117, 33, 167
+        NAME_FS, Y_NAME = 30, 155
+        Y_BANNER, BANNER_W, BANNER_H = 175, 120, 22
+        Y_CHIP, CHIP_H = 229, 28
+        Y_BTN, BTN_H, BTN_W = 273, 30, 136
+        Y_CANCEL, CANCEL_H, CANCEL_W = 308, 22, 80
+
+        big = pygame.Surface((POP_W * SS, POP_H * SS), pygame.SRCALPHA)
+
+        # ── card body ─────────────────────────────────────────────────────────
+        rect = pygame.Rect(m(CARD_X), m(CARD_TOP), m(CARD_W), m(CARD_H))
+        rad = m(CARD_RAD)
+        store_cards.drop_shadow(big, rect, rad, blur=m(8), alpha=165, dy=m(4))
+        big.blit(store_cards.vgrad_stops(
+            rect.w, rect.h, rad,
+            [(0.0, store_cards.CARD_T), (1.0, store_cards.CARD_B)], 255, gamma=1.15),
+            rect.topleft)
+        store_cards.top_sheen(big, rect, rad, m(30), peak=56)
+        pygame.draw.rect(big, (4, 5, 16), rect, width=max(1, m(2)), border_radius=rad)
+        store_cards.bevel_rim(big, rect, rad, store_cards.CARD_RING_DEEP,
+                              (*store_cards.CARD_RING_BRIGHT, 230), w=max(1, m(1.9)))
+        tray = rect.inflate(-m(8), -m(8))
+        pygame.draw.rect(big, (*store_cards.CARD_RING_BRIGHT, 55), tray,
+                         width=max(1, m(1)), border_radius=rad - m(3))
+
+        # ── corner gem pair ───────────────────────────────────────────────────
+        store_cards.facet_gem(big, m(GEM_L_X), m(GEM_CY), m(GEM_R),
+                              pal["gem"], pal["deep"])
+        store_cards.facet_gem(big, m(GEM_R_X), m(GEM_CY), m(GEM_R),
+                              pal["gem"], pal["deep"])
+
+        # ── name (above banner) ───────────────────────────────────────────────
+        store_cards.plain_text(big, name, store_cards.font(NAME_FS),
+                               (m(CX), m(Y_NAME)), (250, 248, 240),
+                               shadow_a=160, weight=m(0.9),
+                               keyline=(6, 6, 16), kw=m(1.0))
+
+        # ── rarity banner ─────────────────────────────────────────────────────
+        _confirm_tier_banner(big, CX, Y_BANNER, BANNER_W, BANNER_H, tier_word, pal)
+
+        # ── price chip ────────────────────────────────────────────────────────
+        store_cards.price_chip(big, m(CX), m(Y_CHIP), f"{price:,}",
+                               m(CHIP_H), affordable=affordable)
+
+        if not affordable:
+            store_cards.plain_text(big, "NOT ENOUGH COINS",
+                                   store_cards.font(9), (m(CX), m(251)),
+                                   (150, 166, 190), shadow_a=0)
+
+        # ── confirm button ────────────────────────────────────────────────────
+        h_btn = m(BTN_H)
+        w_btn = m(BTN_W)
+        btn_r = pygame.Rect(m(CX) - w_btn // 2, m(Y_BTN) - h_btn // 2, w_btn, h_btn)
+        if affordable:
+            top_c = lerp_color(pal["gem"], WHITE, 0.18)
+            bot_c = lerp_color(pal["deep"], (4, 4, 12), 0.4)
+            rim_c = lerp_color(pal["gem"], WHITE, 0.45)
+            store_cards.chip_body(big, btn_r, h_btn // 2,
+                                  top_c, bot_c, (4, 4, 12), rim_c, gloss=72)
+            store_cards.plain_text(big, "CONFIRM", store_cards.font(13),
+                                   btn_r.center, (255, 255, 255),
+                                   shadow_a=180, tracking=m(1.4), weight=m(1.0),
+                                   keyline=lerp_color(pal["deep"], (0, 0, 0), 0.5),
+                                   kw=m(1.0))
+        else:
+            store_cards.chip_body(big, btn_r, h_btn // 2,
+                                  (60, 56, 76), (36, 34, 52),
+                                  (20, 18, 32), (100, 96, 120), gloss=40)
+            store_cards.plain_text(big, "CONFIRM", store_cards.font(13),
+                                   btn_r.center, (120, 116, 134), shadow_a=0)
+
+        # ── cancel button ─────────────────────────────────────────────────────
+        h_can = m(CANCEL_H)
+        w_can = m(CANCEL_W)
+        can_r = pygame.Rect(m(CX) - w_can // 2, m(Y_CANCEL) - h_can // 2,
+                            w_can, h_can)
+        store_cards.chip_body(big, can_r, h_can // 2,
+                              (70, 62, 80), (44, 38, 56),
+                              (30, 26, 40), (120, 112, 132), gloss=30)
+        store_cards.plain_text(big, "CANCEL", store_cards.font(11),
+                               can_r.center, UI_CREAM, shadow_a=0)
+
+        # ── overhanging disc + spotlight halo (crowns the card) ───────────────
+        cx_ss, cy_ss, r_ss = m(CX), m(DISC_CY), m(R_HERO)
+        store_cards._alpha_aura(big, cx_ss, cy_ss, r_ss + m(55), pal["glow"],
+                                peak=95, layers=24)
+        store_cards._alpha_aura(big, cx_ss, cy_ss, r_ss + m(20), pal["glow"],
+                                peak=70, layers=12)
+        store_cards.cabochon(big, cx_ss, cy_ss, r_ss,
                              store_cards.CABO_LO, store_cards.CABO_HI,
                              ring=pal["gem"], ring_a=50)
         if secret:
-            _draw_qmark(ss_disc, _C_SS, _C_SS, int(_R_SS * 1.17),
-                        UI_CREAM, NEAR_BLACK, thick=5)
-            name = "???"
+            _draw_qmark(big, cx_ss, cy_ss, int(r_ss * 1.17), UI_CREAM, NEAR_BLACK,
+                        thick=5)
         else:
-            store_cards.blit_thumb(ss_disc, sid, _C_SS, _C_SS, int(_R_SS * 1.5))
-            name = self._disp_name(sid)
-        store_cards.cabochon_glass(ss_disc, _C_SS, _C_SS, _R_SS, tint=pal["gem"])
-        out = pygame.transform.smoothscale(ss_disc, (_DS // 2, _DS // 2))
-        surf.blit(out, out.get_rect(center=(cx, disc_cy)))
-        _shelf_bar(surf, stage, tier, mystery=secret)
-        _gem(surf, stage.right - 4, stage.y + 4, 7, tier, self.t, mystery=secret)
+            store_cards.blit_thumb(big, sid, cx_ss, cy_ss, int(r_ss * 1.5))
+        store_cards.cabochon_glass(big, cx_ss, cy_ss, r_ss, tint=pal["gem"])
 
-        # Ribbon + name + price chip on one 2× SS canvas — same pipeline as the
-        # store cards, smoothscaled to 1× so typography is crisp and consistent.
-        _ss = store_cards.m
-        ss_info = pygame.Surface((pw * 2, 140), pygame.SRCALPHA)
-        tier_word = "MYSTERY" if secret else tier.upper()
-        store_cards._ribbon(ss_info, tier_word, pw, 28, pw * 2 - _ss(34), pal)
-        store_cards._name_on(ss_info, name, pw, 72, pw * 2 - _ss(26))
-        store_cards.state_chip(ss_info, sid, pw, 112, False, secret, _ss(20))
-        info_out = pygame.transform.smoothscale(ss_info, (pw, 70))
-        surf.blit(info_out, (panel.x, panel.y + 164))
+        # ── downscale and composite onto screen ───────────────────────────────
+        pop = pygame.transform.smoothscale(big, (POP_W, POP_H))
+        px = (W - POP_W) // 2
+        py = (H - POP_H) // 2
+        self._confirm_panel = pygame.Rect(px, py, POP_W, POP_H)
+        surf.blit(pop, (px, py))
 
-        price = store_catalog.cost(sid)
-        affordable = store_data.balance() >= price
-        if not affordable:
-            warn = _font(10, True).render("NOT ENOUGH COINS", True, (150, 166, 190))
-            surf.blit(warn, warn.get_rect(center=(cx, panel.y + 244)))
-
-        bw, bh, gutter = 100, 38, 16
-        by = panel.bottom - 30
-        nx = cx - (bw * 2 + gutter) // 2
-        cancel = pygame.Rect(nx, by - bh // 2, bw, bh)
-        buy = pygame.Rect(nx + bw + gutter, by - bh // 2, bw, bh)
-        surf.blit(_vgrad_panel(bw, bh, bh // 2, (70, 62, 80), (44, 38, 56)),
-                  cancel.topleft)
-        pygame.draw.rect(surf, (126, 116, 138), cancel, width=1, border_radius=bh // 2)
-        ct = _font(14, True).render("CANCEL", True, UI_CREAM)
-        surf.blit(ct, ct.get_rect(center=cancel.center))
+        # Hit rects in screen space (logical coords map 1:1 post-downscale).
+        self.confirm_no_rect = pygame.Rect(
+            px + CX - CANCEL_W // 2, py + Y_CANCEL - CANCEL_H // 2,
+            CANCEL_W, CANCEL_H)
         if affordable:
-            bglow = pygame.Surface((bw + 10, bh + 10), pygame.SRCALPHA)
-            for k in range(4, 0, -1):
-                pygame.draw.rect(bglow, (255, 200, 80, int(22 * k / 4)),
-                                 (5 - k, 5 - k, bw + 2 * k, bh + 2 * k),
-                                 border_radius=bh // 2 + k)
-            surf.blit(bglow, (buy.x - 5, buy.y - 5), special_flags=pygame.BLEND_ADD)
-            surf.blit(_vgrad_panel(bw, bh, bh // 2,
-                                   lerp_color(_GOLD_BRIGHT, WHITE, 0.2), _GOLD_DEEP),
-                      buy.topleft)
-            pygame.draw.rect(surf, _GOLD_PALE, buy, width=1, border_radius=bh // 2)
-            yt = _font(15, True).render("BUY", True, (40, 24, 8))
-            surf.blit(yt, yt.get_rect(center=buy.center))
-            self.confirm_yes_rect = buy
-        else:
-            surf.blit(_vgrad_panel(bw, bh, bh // 2, (48, 44, 58), (30, 28, 40)),
-                      buy.topleft)
-            pygame.draw.rect(surf, (92, 84, 104), buy, width=1, border_radius=bh // 2)
-            yt = _font(15, True).render("BUY", True, (120, 116, 134))
-            surf.blit(yt, yt.get_rect(center=buy.center))
-        self.confirm_no_rect = cancel
+            self.confirm_yes_rect = pygame.Rect(
+                px + CX - BTN_W // 2, py + Y_BTN - BTN_H // 2,
+                BTN_W, BTN_H)
 
     # ── input ────────────────────────────────────────────────────────────────
     def handle_tap(self, pos) -> "str | None":

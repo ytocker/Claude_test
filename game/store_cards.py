@@ -226,6 +226,21 @@ def soft_glow(surf, cx, cy, radius, color, peak_alpha, layers=8):
         surf.blit(g, (cx - r - 1, cy - r - 1), special_flags=pygame.BLEND_ADD)
 
 
+def _alpha_aura(surf, cx, cy, radius, color, peak=27, layers=15):
+    """Feathered halo via normal alpha-carry blits — survives compositing in
+    transparent headroom above the card where BLEND_ADD would leave alpha=0."""
+    for i in range(layers, 0, -1):
+        r = int(radius * i / layers)
+        if r <= 0:
+            continue
+        a = int(peak * (1 - (i - 1) / layers) ** 1.6)
+        if a <= 0:
+            continue
+        g = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
+        pygame.draw.circle(g, (*color, a), (r + 1, r + 1), r)
+        surf.blit(g, (cx - r - 1, cy - r - 1))
+
+
 def drop_shadow(surf, rect, radius, blur, alpha, dy):
     """Multi-layer blurred outer shadow, offset down (top-left light source)."""
     for i in range(blur, 0, -1):
