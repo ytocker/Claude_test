@@ -5,9 +5,9 @@ Run all phases straight through with no mid-session checkpoints.
 
 ---
 
-## Phase 1 · Brainstorm — novelty-designer (Opus)
+## Phase 1 · Brainstorm — graphics-designer (Opus)
 
-Brief the `novelty-designer` agent:
+Brief the `graphics-designer` agent:
 - What is being designed (feature, context, what the current version looks like if it exists)
 - Game visual DNA reference points (e.g. game/store_cards.py, game/draw.py)
 - The `distinct-design-variants` skill constraints apply: concepts must differ in kind
@@ -16,16 +16,16 @@ Brief the `novelty-designer` agent:
   player-delight hook ("why would a player screenshot this?"), feasibility note
 - No renders yet. Mark top 2–3 picks.
 
-## Phase 2 · Brainstorm critique — gaming-experience-tester (Sonnet)
+## Phase 2 · Brainstorm critique — art-director (Opus)
 
-Hand the 5 directions to `gaming-experience-tester`:
-- Critique for: player delight, game-feel alignment, Skybit identity fit, distinctiveness
+Hand the 5 directions to `art-director`:
+- Critique for: visual clarity, Skybit identity fit, layout feasibility, distinctiveness
 - First line: VERDICT: PROCEED or VERDICT: REWORK [slugs]
 - On REWORK: one-line replacement direction per flagged slug
 
-## Phase 3 · Lock 5 concepts — novelty-designer (Opus)
+## Phase 3 · Lock 5 concepts — graphics-designer (Opus)
 
-Feed tester critique back to `novelty-designer`:
+Feed art-director critique back to `graphics-designer`:
 - Revise any flagged directions; keep approved ones unchanged
 - Deliver the locked 5 concept slugs + design briefs (one paragraph each)
 

@@ -832,6 +832,44 @@ class App:
         self.state = STATE_POWERUPS
         self._cooldown_t = 0.25
 
+    def _handle_store_event(self, e):
+        """Pointer/key routing for the store. The scene owns horizontal swipe
+        state so category pages can be swiped; a near-stationary release is a
+        tap that is forwarded to handle_tap (gated by cooldown)."""
+        sc = self.store
+        if sc is None:
+            self.state = STATE_MENU
+            return
+        if e.type == pygame.KEYDOWN:
+            if e.key in (pygame.K_ESCAPE, pygame.K_SPACE, pygame.K_UP, pygame.K_w):
+                if self._cooldown_t <= 0:
+                    if sc.handle_tap(None) == "back":
+                        self._close_store()
+                    else:
+                        self._cooldown_t = 0.25
+            return
+        if e.type == pygame.MOUSEBUTTONDOWN:
+            sc.pointer_down(e.pos)
+        elif e.type == pygame.MOUSEMOTION:
+            if e.buttons[0]:
+                sc.pointer_move(e.pos)
+        elif e.type == pygame.MOUSEBUTTONUP:
+            if sc.pointer_up() and self._cooldown_t <= 0:
+                if sc.handle_tap(e.pos) == "back":
+                    self._close_store()
+                else:
+                    self._cooldown_t = 0.25
+        elif e.type == pygame.FINGERDOWN:
+            sc.pointer_down((int(e.x * W), int(e.y * H)))
+        elif e.type == pygame.FINGERMOTION:
+            sc.pointer_move((int(e.x * W), int(e.y * H)))
+        elif e.type == pygame.FINGERUP:
+            if sc.pointer_up() and self._cooldown_t <= 0:
+                if sc.handle_tap((int(e.x * W), int(e.y * H))) == "back":
+                    self._close_store()
+                else:
+                    self._cooldown_t = 0.25
+
     def _handle_achievements_event(self, e):
         """Pointer/wheel/key routing for the scrollable achievements list. The
         scene owns scroll + drag state; a near-stationary release is a tap that
@@ -1099,6 +1137,10 @@ class App:
         elif e.type == pygame.MOUSEBUTTONDOWN:
             if now - self._last_finger_t < self._finger_dedup_window:
                 return  # this MOUSEBUTTONDOWN is a touch echo — ignore
+        # The store fully owns pointer + key input while open (swipe/tap/dismiss).
+        if self.state == STATE_STORE:
+            self._handle_store_event(e)
+            return
         # The achievements list fully owns pointer + wheel + key input while
         # open (scroll/drag/dismiss), so route every event there and stop.
         if self.state == STATE_ACHIEVEMENTS:
