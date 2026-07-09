@@ -74,7 +74,7 @@ def _spotlight_vignette(surf, rect, spot, peak=104, reach=None, falloff=1.1):
     if reach is None:
         # Reach well past the disc so the collar stays lit; corners (~0.9*reach)
         # still fall deep into the veil.
-        reach = int(math.hypot(w, h) * 0.55)
+        reach = int(math.hypot(w, h) * 0.66)
     vig = pygame.Surface((w, h), pygame.SRCALPHA)
     vig.fill((*NEAR_BLACK, peak))
     light = pygame.Surface((w, h), pygame.SRCALPHA)
@@ -134,7 +134,7 @@ def _hero_specular(surf, cx, cy, r):
     pr = max(1, int(r * 0.17))
     pip = pygame.Surface((pr * 2 + m(2), pr * 2 + m(2)), pygame.SRCALPHA)
     pygame.draw.circle(pip, (255, 255, 255, 235), (pr + m(1), pr + m(1)), pr)
-    off = int(r * 0.48)
+    off = int(r * 0.66)
     surf.blit(pip, (cx - pr - off, cy - pr - off),
               special_flags=pygame.BLEND_ADD)
 
@@ -170,9 +170,11 @@ def render_card(sid):
     top_sheen(big, rect, rad, m(30), peak=62)
     # spotlight over the bright indigo, tracking the disc centre: shallow+wide
     # veil first, then the warm additive lamp core so the collar reads lit.
-    _spotlight_vignette(big, rect, (cx - rect.x, cy - rect.y), peak=104)
+    _spotlight_vignette(big, rect, (cx - rect.x, cy - rect.y), peak=96)
     _warm_core(big, cx, cy, m(60))
-    contact_shadow(big, rect, rad, m(9), alpha=120)
+    # softened, shallower AO so the bottom corners settle to shadow (L~8-12)
+    # rather than crushing to pure black under the veil.
+    contact_shadow(big, rect, rad, m(7), alpha=70)
     pygame.draw.rect(big, (4, 5, 16), rect, width=max(1, m(2)), border_radius=rad)
     bevel_rim(big, rect, rad, CARD_RING_DEEP, (*CARD_RING_BRIGHT, 235),
               w=max(1, m(2.0)))
@@ -180,7 +182,7 @@ def render_card(sid):
     # ── HERO DISC ──
     soft_glow(big, cx, cy, m(R + 3), pal["glow"], 34, layers=9)
     cabochon(big, cx, cy, m(R), CABO_LO, CABO_HI, ring=pal["gem"], ring_a=55)
-    blit_thumb(big, sid, cx, cy, m(R) * 1.5)
+    blit_thumb(big, sid, cx, cy, m(R) * 0.66)
     cabochon_glass(big, cx, cy, m(R), tint=pal["gem"])
     _hero_specular(big, cx, cy, m(R))              # luminance-independent catch-light
 
@@ -288,6 +290,7 @@ if "--probe" in sys.argv:
         return 903.3 * y if y <= 0.008856 else 116 * y ** (1 / 3) - 16
 
     epic = render_card("skin_prism")
+    tophat = render_card("skin_tophat")           # RARE, dark jacket/top-hat
     # local disc centre in the SS panel
     r = pygame.Rect(m(_INSET), m(_INSET),
                     CARD_W * SS - 2 * m(_INSET), CARD_H * SS - 2 * m(_INSET))
@@ -305,3 +308,12 @@ if "--probe" in sys.argv:
     for label, (x, y) in probes.items():
         c = epic.get_at((x, y))
         print(f"  {label:16s} rgb={tuple(c)[:3]} L*={_lstar(c):5.1f}")
+    # dark-skin rescue check: scan the upper-left rim band of skin_tophat for its
+    # brightest specular pixel — it must be a genuine high-value catch-light.
+    best = 0.0
+    for ang in range(120, 205, 5):
+        rr = m(R) - m(4)
+        px = dcx + int(rr * math.cos(math.radians(ang)))
+        py = dcy + int(rr * math.sin(math.radians(ang)))
+        best = max(best, _lstar(tophat.get_at((px, py))))
+    print(f"  tophat_specular_peak L*={best:5.1f}")
