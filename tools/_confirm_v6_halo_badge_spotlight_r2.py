@@ -69,14 +69,14 @@ TIERS = [
 # ── popup metrics (logical px, scaled from the v5 halo-badge pixel read) ───────
 # The card + popup grow by 28 px vs r1 so the NAME/CHIP/BUTTON can slide down to
 # make room for the rarity banner above the name without anything clipping.
-POP_W, POP_H = 200, 330
+POP_W, POP_H = 200, 340
 CX = POP_W // 2                                  # 100
 
 CARD_X   = 8
 CARD_W   = POP_W - CARD_X * 2                    # 184
 CARD_TOP = 98
-CARD_H   = 220
-CARD_BOT = CARD_TOP + CARD_H                     # 318
+CARD_H   = 230
+CARD_BOT = CARD_TOP + CARD_H                     # 328
 CARD_RAD = 18
 
 # Overhanging cabochon disc: ~44% overhangs; centre ~6 px below card top.
@@ -87,17 +87,20 @@ DISC_BOT = DISC_CY + R_HERO                       # 145
 # Tier gem PAIR — pulled inward from card corners.
 GEM_R    = 11
 GEM_CY   = CARD_TOP + GEM_R + 8                   # 117
-GEM_L_X  = CARD_X + GEM_R + 14                    # 33  (was 23, +10 inward)
-GEM_R_X  = POP_W - CARD_X - GEM_R - 14            # 167 (was 177, -10 inward)
+GEM_L_X  = CARD_X + GEM_R + 14                    # 33
+GEM_R_X  = POP_W - CARD_X - GEM_R - 14            # 167
 
-# Caption plate — name (large) sits above the rarity banner.
-NAME_FS  = 22                                     # much larger than r1's 14
-Y_NAME   = DISC_BOT + 24                          # 169
-Y_BANNER = Y_NAME + 22                            # 191
-Y_CHIP   = Y_BANNER + 34                          # 225
-Y_BTN    = Y_CHIP + 32                            # 257
+# Caption plate — large name high up, banner below it, chip+button lower/larger.
+NAME_FS  = 30
+Y_NAME   = DISC_BOT + 10                          # 155 — tight under disc
+Y_BANNER = Y_NAME + 20                            # 175
+Y_CHIP   = Y_BANNER + 54                          # 229 — pushed lower
+Y_BTN    = Y_CHIP   + 44                          # 273 — pushed lower
 BANNER_W = 120
 BANNER_H = 22
+CHIP_H   = 28                                     # larger price chip
+BTN_H    = 30                                     # larger confirm button
+BTN_W    = 136                                    # wider confirm button
 
 
 # ── spotlight-marquee halo (transplanted verbatim) ────────────────────────────
@@ -181,16 +184,18 @@ def _card_body(big):
 
 
 def _confirm_button(big, pal):
-    """Dark indigo-lavender action pill with light 'CONFIRM' text — the v5
-    badge's caption-plate button (light glyphs on a dark ground, subtle rim)."""
-    h = m(22)
-    w = m(96)
+    """Tier-coloured confirm pill — vibrant gradient using the tier gem/glow so
+    it feels like the action belongs to the item being purchased."""
+    h = m(BTN_H)
+    w = m(BTN_W)
     r = pygame.Rect(m(CX) - w // 2, m(Y_BTN) - h // 2, w, h)
-    chip_body(big, r, h // 2, (72, 76, 112), (36, 38, 68),
-              (10, 12, 26), (150, 156, 192), gloss=54)
-    plain_text(big, "CONFIRM", font(11), r.center, (214, 216, 236),
-               shadow_a=150, tracking=m(1.2), weight=m(0.9),
-               keyline=(10, 12, 26), kw=m(0.9))
+    top_c = lerp_color(pal["gem"], WHITE, 0.18)
+    bot_c = lerp_color(pal["deep"], (4, 4, 12), 0.4)
+    rim_c = lerp_color(pal["gem"], WHITE, 0.45)
+    chip_body(big, r, h // 2, top_c, bot_c, (4, 4, 12), rim_c, gloss=72)
+    plain_text(big, "CONFIRM", font(13), r.center, (255, 255, 255),
+               shadow_a=180, tracking=m(1.4), weight=m(1.0),
+               keyline=lerp_color(pal["deep"], (0, 0, 0), 0.5), kw=m(1.0))
 
 
 def _hero_disc(big, sid, pal):
@@ -216,7 +221,7 @@ def render_popup(tier_word, sid, price, pal):
     plain_text(big, name, font(NAME_FS), (m(CX), m(Y_NAME)), (250, 248, 240),
                shadow_a=160, weight=m(0.9), keyline=(6, 6, 16), kw=m(1.0))
     _tier_banner(big, CX, Y_BANNER, BANNER_W, BANNER_H, tier_word, pal)
-    price_chip(big, m(CX), m(Y_CHIP), f"{price:,}", m(22), affordable=True)
+    price_chip(big, m(CX), m(Y_CHIP), f"{price:,}", m(CHIP_H), affordable=True)
     _confirm_button(big, pal)
     _hero_disc(big, sid, pal)
     return pygame.transform.smoothscale(big, (POP_W, POP_H))
