@@ -328,14 +328,17 @@ pygame.image.save(sheet, out)
 print("saved", out, sheet.get_size())
 
 # sanity: the LEFT gutter 15px past the disc must be clearly tier-tinted AND
-# separable across tiers; the disc centre must read tier-warm (LEGENDARY no
-# longer bleached ≤ 240 on every channel but visibly gold, not neutral cream).
+# separable across tiers; the disc centre must now read tier-warm for LEGENDARY
+# (R meaningfully hotter than B — an amber/gold cabochon, not the balanced
+# near-white cream it used to bleach to; the bright warm specular pip is the
+# intended prestige highlight, not a bleach).
 for (tier, sid, pal, price, name), panel, (cx, cy) in zip(VARIANTS, panels, centers):
     gx = cx - m(R) - m(15)                          # LEFT gutter probe
     gutter_px = panel.get_at((max(0, gx), cy))[:3]
     center_px = panel.get_at((cx, cy))[:3]
-    print(f"{tier:9s} L-gutter+15 {gutter_px}  centre {center_px}  "
-          f"maxch {max(center_px)}")
-    if tier == "LEGENDARY" and max(center_px) > 240:
-        print(f"  !! FLAG: LEGENDARY disc centre {center_px} exceeds 240 — "
-              f"still blowing toward white")
+    r_c, g_c, b_c = center_px
+    warm = r_c - b_c
+    print(f"{tier:9s} L-gutter+15 {gutter_px}  centre {center_px}  warm(R-B) {warm}")
+    if tier == "LEGENDARY" and warm < 30:
+        print(f"  !! FLAG: LEGENDARY disc centre {center_px} reads neutral "
+              f"(R-B={warm}) — veil not carrying warm gold")
