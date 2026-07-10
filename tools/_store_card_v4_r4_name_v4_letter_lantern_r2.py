@@ -22,22 +22,27 @@ _INSET = 6
 R = 36
 
 
-def _warm_puck(surf, cx, cy, radius, color, peak_a, layers):
+def _warm_puck(surf, cx, cy, rx, ry, color, peak_a, layers):
     # Premultiplied additive glow.  BLEND_ADD ignores source alpha, so the shared
     # soft_glow's flat-colour circles saturate every channel to 255 on overlap —
     # the r1 white-clip.  Scaling each layer's RGB by its own alpha keeps peak_a
     # governing brightness AND preserves the warm 255:236:190 ratio through
-    # accumulation, so cores read ivory and never blow to pure white.
+    # accumulation, so cores read ivory and never blow to pure white.  The pool
+    # is an ellipse: this glyph's ink fills its whole advance box, so a circular
+    # halo wide enough to sit past the letter would flood the butting neighbour
+    # and erase the dark gaps.  A tall/narrow lozenge spills vertically past the
+    # cap (the visible pool) while staying inside the advance so gaps stay dark.
     for i in range(layers, 0, -1):
-        r = int(radius * i / layers)
+        ax = int(rx * i / layers)
+        ay = int(ry * i / layers)
         a = int(peak_a * (1 - (i - 1) / layers) ** 1.8)
-        if r <= 0 or a <= 0:
+        if ax <= 0 or ay <= 0 or a <= 0:
             continue
         fr = a / 255.0
         col = (int(color[0] * fr), int(color[1] * fr), int(color[2] * fr))
-        g = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
-        pygame.draw.circle(g, (*col, 255), (r + 1, r + 1), r)
-        surf.blit(g, (cx - r - 1, cy - r - 1), special_flags=pygame.BLEND_ADD)
+        g = pygame.Surface((ax * 2 + 2, ay * 2 + 2), pygame.SRCALPHA)
+        pygame.draw.ellipse(g, (*col, 255), (1, 1, ax * 2, ay * 2))
+        surf.blit(g, (cx - ax - 1, cy - ay - 1), special_flags=pygame.BLEND_ADD)
 
 
 def _name_letter_lantern(big, name, cx, cy, max_w):
@@ -54,28 +59,33 @@ def _name_letter_lantern(big, name, cx, cy, max_w):
     n_chars = len(name)
 
     # peak_alpha base ~90; longer names (>=8) pack more pucks so each is dimmed
-    # toward ~65 to keep neighbour overlap from washing gaps or clipping cores.
-    peak_a = 90 if n_chars < 8 else int(round(max(65, 90 - (n_chars - 7) * (90 - 65) / 3)))
+    # toward ~70 to keep neighbour overlap from washing gaps or clipping cores.
+    peak_a = 90 if n_chars < 8 else int(round(max(70, 90 - (n_chars - 7) * (90 - 70) / 3)))
 
-    # Glow pass: per glyph a wide soft under-disc (halo that spills a few px past
-    # the cap so the letter visibly sits in its own pool) plus a tighter core
-    # puck.  Additive accumulation reads as individual lanterns; the dark inter-
-    # glyph gaps stay dark because pucks are sized to each advance, not the band.
+    # Glow pass, per glyph: a tall core puck plus two soft under-lobes offset
+    # above/below.  The lobes push warm light out past the cap top/bottom so each
+    # letter visibly sits in its own pool WITHOUT over-brightening (and clipping)
+    # the centre the way one big centred disc would.  Additive accumulation reads
+    # as individual lanterns; the dark inter-glyph gaps stay dark because every
+    # pool is a narrow vertical lozenge sized to its own advance, not the band.
     glow_surf = pygame.Surface(big.get_size(), pygame.SRCALPHA)
     puck_y = cy - m(1)                              # centre on the cap body, not descender space
     x = cx - total_w // 2
     for char, adv in zip(name, advances):
         glyph_cx = x + adv // 2
-        # radius = clamp(adv * 0.42, m(3), m(7)) — higher ceiling lets wide caps
-        # own a pool that clears the glyph instead of hiding under it.
-        r = max(m(3), min(m(7), int(adv * 0.42)))
+        # rx stays inside the advance so gaps stay dark; ry adds m(7) of height so
+        # the pool clears the glyph vertically (the "extend past the glyph" note).
+        rx = max(m(2.5), min(m(6), int(adv * 0.32)))
+        ry = rx + m(7)
         pa = peak_a
         # Narrow glyphs (e.g. "I") sit close to neighbours; dim their core so the
         # two pools don't fuse into one bar.
         if adv < m(4):
             pa = max(peak_a - 20, 48)
-        _warm_puck(glow_surf, glyph_cx, puck_y, m(9), (255, 236, 190), 32, layers=2)
-        _warm_puck(glow_surf, glyph_cx, puck_y, r, (255, 236, 190), pa, layers=4)
+        lobe_rx = int(rx * 0.85)
+        _warm_puck(glow_surf, glyph_cx, puck_y - m(4), lobe_rx, m(8), (255, 236, 190), 44, layers=2)
+        _warm_puck(glow_surf, glyph_cx, puck_y + m(4), lobe_rx, m(8), (255, 236, 190), 44, layers=2)
+        _warm_puck(glow_surf, glyph_cx, puck_y, rx, ry, (255, 236, 190), pa, layers=4)
         x += adv
     big.blit(glow_surf, (0, 0), special_flags=pygame.BLEND_ADD)
 
