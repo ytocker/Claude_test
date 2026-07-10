@@ -346,18 +346,15 @@ for yy in range(disc_bottom_y + m(4), rule_y - m(6)):
     for xx in range(rect.x + m(3), rule_x0 - m(1)):
         lower = max(lower, _lstar(epic.get_at((xx, yy))))
 
-# strikethrough proof. Left of the capsule the ramped HARD core is present (a
-# thin 1-2px cream filament: bright ON rule_y, dark a few px off it). Under/at
-# the capsule footprint the core is GONE — the only light left there is the soft
-# rule-bloom + capsule glow, which falls off BROADLY in y (bright above AND below
-# rule_y). We prove this by the vertical profile at each x: a hard core spikes
-# only on the line; diffuse bloom stays lit off-line.
-core_x = cap.left - m(4) - m(8)                 # a little left of the terminus
-core_on = _lstar(epic.get_at((core_x, rule_y)))
-core_off = _lstar(epic.get_at((core_x, rule_y - m(4))))
-gap_x = cap.left - m(2)                          # in the clearance, under bloom
-gap_on = _lstar(epic.get_at((gap_x, rule_y)))
-gap_off = _lstar(epic.get_at((gap_x, rule_y - m(4))))
+# strikethrough proof. The hard cream core TERMINATES at cap.left - m(4), left of
+# the coin cell, and is drawn UNDER the capsule — so where the coin sits on the
+# rule line there is coin metal on top, NOT a cream filament striking through it.
+# In round 1 the coin pixel on rule_y read near-white cream (the core over it).
+core_end_x = cap.left - m(4)
+coin_left = cap.left + m(5)                      # pad before the coin cell
+coin_cx = cap.left + m(5) + m(4.5)               # coin centre (pad + coin_r)
+coin_on_rule = tuple(epic.get_at((coin_cx, rule_y)))[:3]
+coin_is_warm = coin_on_rule[0] >= coin_on_rule[2]   # gold: R >= B (not cream/grey)
 
 print(f"  disc_bottom_y (SS)      = {disc_bottom_y}  (1x {disc_bottom_y/2:.1f})")
 print(f"  name_top_y    (SS)      = {name_top_y}  (1x {name_top_y/2:.1f})")
@@ -366,7 +363,6 @@ print(f"  capsule_cy={cap_cy}  rule_y={rule_y}  -> capsule above rule by "
       f"{rule_y - cap_cy} SS px  (center above rule => no skewer)")
 print(f"  glow band below disc    peak L*={band:5.1f}  (want < 25)")
 print(f"  lower body (bare gutter) peak L*={lower:5.1f}  (want < 25, no plate)")
-print(f"  core LEFT of capsule    on-line L*={core_on:5.1f}  off-line L*={core_off:5.1f}"
-      f"  (hard filament: spikes on rule_y)")
-print(f"  under capsule clearance on-line L*={gap_on:5.1f}  off-line L*={gap_off:5.1f}"
-      f"  (diffuse bloom: lit off-line too, no hard core)")
+print(f"  core terminus x={core_end_x}  coin cell starts x={coin_left}  "
+      f"(core ends {coin_left - core_end_x} SS px before the coin)")
+print(f"  coin ON rule_y rgb={coin_on_rule}  warm-gold(not cream strike)={coin_is_warm}")

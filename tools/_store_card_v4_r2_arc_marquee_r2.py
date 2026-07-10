@@ -65,8 +65,12 @@ R = 34
 CREAM_LABEL = (236, 230, 208)
 
 # The pooled-light band: a warm cream glass, deepening toward its floor edge so
-# the cream name reads via its dark keyline like type lit on a stage floor.
-BAND_STOPS = [(0.0, (224, 208, 170)), (1.0, (180, 160, 122))]
+# the cream name reads via its dark keyline like type lit on a stage floor. The
+# top stop is held a shade below full-cream (and the plate kept near-opaque via
+# BAND_ALPHA) so its lit lip peaks a warm ~L*83 — below the disc specular, so
+# the pool reads as warm pooled light rather than a hard cool keyline.
+BAND_STOPS = [(0.0, (196, 176, 138)), (1.0, (162, 142, 108))]
+BAND_ALPHA = 245
 
 # Disc centre height: nudged up ~3 logical px from round 1's m(43) so the arc's
 # top lip clears the disc's lower rim and the pool reads under the lamp.
@@ -329,15 +333,19 @@ def _lstar(rgb):
 
 def _lip_glow_peak(panel, band, rect):
     """Brightest pixel of the arc's warm lip glow, and whether it reads warm.
-    Scanned 2 px thick along the top edge over the CREAM SHOULDER band only —
-    between 1.15R and 2.2R from the disc centre, so the measured peak is the
-    glow-lit cream, not the disc's own gold bezel ring hugging the rim."""
+    Scanned 2 px thick along the top edge of the RIGHT shoulder only (xoff>0,
+    between 1.15R and 2.2R from the disc centre): the right shoulder is the
+    price-side span with no name glyphs riding up into it, so the measured peak
+    is genuinely the glow-lit cream lip, not the cream name text or the disc
+    bezel. The glow rides the whole symmetric arc, so this is representative."""
     dcx, dcy = rect.centerx, rect.y + m(DISC_CY)
     best = 0.0
     warm = True
     steps = 200
     for i in range(steps + 1):
         xoff = -band["half"] + band["half"] * 2 * i / steps
+        if xoff <= 0:
+            continue
         x = int(band["cx"] + xoff)
         y0 = band["top"] + _dome_dy(xoff, band["half"], band["sag"])
         d = math.hypot(x - dcx, y0 - dcy)
