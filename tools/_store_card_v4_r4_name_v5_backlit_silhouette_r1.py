@@ -71,9 +71,8 @@ def _name_backlit_silhouette(big, name, cx, cy, max_w):
     # fill, and normal alpha means it can only nudge the gold edge, never blow out.
     ring = pygame.Surface((bw, bh), pygame.SRCALPHA)
     for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-        ring.blit(master, (dx, dy), special_flags=pygame.BLEND_RGBA_MAX)
-    ring.blit(master, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)  # punch out the body
-    ring.blit(master, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)  # leaves outer 1px ring
+        ring.blit(master, (dx, dy), special_flags=pygame.BLEND_RGBA_MAX)  # dilate
+    ring.blit(master, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)  # punch out body -> outer 1px ring
     hot = pygame.Surface((bw, bh), pygame.SRCALPHA)
     hot.fill((255, 250, 235, 70))
     hot.blit(ring, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
