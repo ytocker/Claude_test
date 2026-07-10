@@ -300,7 +300,6 @@ card_disp = pygame.transform.smoothscale(card_ss, (CARD_W, CARD_H))
 # probe positions (x, y) in display pixels
 probes = [
     ("card body above shelf",  (81, 30)),   # pure card gradient, above waterline
-    ("name text centre",       (81, 63)),   # in warm lane at text centre
     ("name band bg (right)",   (140, 65)),  # warm lane away from text
     ("cool stratum 1",         (81, 73)),   # centre of first cool band (~69–77)
     ("cool stratum 2",         (81, 81)),   # centre of second cool band (~77–86)
@@ -316,10 +315,22 @@ for label, (px2, py2) in probes:
     print(f"  {label:26s} ({px2:3d},{py2:2d})  "
           f"rgb({col.r:3d},{col.g:3d},{col.b:3d})  L*={L:.1f}")
 
-L_text = Ls.get("name text centre", 0)
+# scan the full name band (y=57–69 display) for the brightest pixel so the
+# contrast measurement finds actual glyph pixels rather than letter gaps
+best_lum, best_col, best_xy = 0.0, None, (0, 0)
+for sy in range(55, 70):
+    for sx in range(8, 155):
+        c = card_disp.get_at((sx, sy))
+        lum = 0.2126 * _srgb_lin(c.r) + 0.7152 * _srgb_lin(c.g) + 0.0722 * _srgb_lin(c.b)
+        if lum > best_lum:
+            best_lum, best_col, best_xy = lum, c, (sx, sy)
+
+L_text = _lstar(best_col.r, best_col.g, best_col.b) if best_col else 0
 L_bg   = Ls.get("name band bg (right)", 0)
-print(f"\n  name contrast: {_contrast(L_text, L_bg):.1f}:1  "
-      f"(text L*={L_text:.1f}, bg L*={L_bg:.1f})")
+print(f"  name text (brightest px)   {str(best_xy):10s}  "
+      f"rgb({best_col.r:3d},{best_col.g:3d},{best_col.b:3d})  "
+      f"L*={L_text:.1f}")
+Ls["name text (brightest px)"] = L_text
 
 # strata distinctness: each pair should differ by >=5 L* units at display
 pairs = [
@@ -327,6 +338,8 @@ pairs = [
     ("stratum 1 → stratum 2", "cool stratum 1",        "cool stratum 2"),
     ("stratum 2 → stratum 3", "cool stratum 2",        "cool stratum 3"),
 ]
+print(f"\n  name contrast: {_contrast(L_text, L_bg):.1f}:1  "
+      f"(text L*={L_text:.1f}, bg L*={L_bg:.1f})")
 print()
 for label, k1, k2 in pairs:
     diff = abs(Ls.get(k1, 0) - Ls.get(k2, 0))
