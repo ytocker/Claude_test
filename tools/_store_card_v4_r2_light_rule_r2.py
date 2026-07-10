@@ -123,15 +123,17 @@ def _luminous_rule(surf, x0, x1, y, bright, core_x1=None, ramp=True):
         t = max(0.0, (px - x0) / max(1, core_x1 - x0))
         return floor + (1.0 - floor) * t
 
-    # bloom, ramped by a horizontal alpha gradient so the emission brightens
-    # toward the price without ever hardening into a border.
+    # bloom, ramped by a horizontal gradient so the emission brightens toward the
+    # price without ever hardening into a border. The bloom is blitted ADDITIVELY
+    # (RGB-only), so the ramp scales the bloom's RGB — a per-column MULT mask
+    # whose grey value IS the brightness factor.
     bloom = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     for w, a in [(m(9), 16), (m(6), 28), (m(3.5), 52), (m(2), 92)]:
         pygame.draw.line(bloom, (*bright, a), (x0, y), (x1, y), max(1, int(w)))
     grad = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     for px in range(x0, x1 + 1):
-        a = int(255 * _f(px))
-        pygame.draw.line(grad, (255, 255, 255, a), (px, y - m(6)), (px, y + m(6)))
+        v = int(255 * _f(px))
+        pygame.draw.line(grad, (v, v, v, 255), (px, y - m(10)), (px, y + m(10)))
     bloom.blit(grad, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
     surf.blit(bloom, (0, 0), special_flags=pygame.BLEND_ADD)
     # soft round cap on the LEFT terminus so the emission fades out there; the
