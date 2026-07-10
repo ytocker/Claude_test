@@ -67,11 +67,13 @@ def _enamel_band(big, rect, plinth_top, rad, pal):
     bh = rect.bottom - plinth_top
 
     # Rounded-bottom mask matching the card's lower corners so the poured
-    # enamel seats flush into the shell rather than overrunning the radius.
+    # enamel — and its bright metal wall — seat flush into the shell rather than
+    # nubbing square corners past the card's radius.  The full card rect is
+    # shifted up so its rounded bottom aligns with the band's bottom row.
+    moff = rect.y - plinth_top
     body_mask = pygame.Surface((bw, bh), pygame.SRCALPHA)
     pygame.draw.rect(body_mask, (255, 255, 255, 255),
-                     (0, plinth_top - rect.bottom, bw, rect.h),
-                     border_radius=rad)
+                     (0, moff, bw, rect.h), border_radius=rad)
 
     # Deep vitreous jewel fill.
     fill = vgrad_stops(bw, bh, 0, _enamel_stops(pal), 255, gamma=1.05)
@@ -97,8 +99,7 @@ def _enamel_band(big, rect, plinth_top, rad, pal):
     spec = pygame.transform.smoothscale(spec, (bw, int(bh * 0.72)))
     smask = pygame.Surface(spec.get_size(), pygame.SRCALPHA)
     pygame.draw.rect(smask, (255, 255, 255, 255),
-                     (0, plinth_top - rect.bottom, bw, rect.h),
-                     border_radius=rad)
+                     (0, moff, bw, rect.h), border_radius=rad)
     spec.blit(smask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     big.blit(spec, (bx, by), special_flags=pygame.BLEND_ADD)
 
