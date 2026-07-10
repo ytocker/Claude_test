@@ -41,15 +41,17 @@ def _name_backlit_silhouette(big, name, cx, cy, max_w):
 
     # --- Step 1: CARD_RING_BRIGHT rim bloom BEHIND the dark body ---
     # Dilate the mask by stamping at 8 compass offsets so the halo grows evenly
-    # on every side. Offset is a single device px so the growth stays inside each
-    # glyph's optical footprint and never bridges the inter-glyph gaps.
+    # on every side. MAX (not ADD) is the crux: overlapping gold stamps keep the
+    # gold hue instead of summing to white, so the rim stays a warm gold edge.
+    # Offset is a single device px so the growth stays inside each glyph's optical
+    # footprint and never bridges the inter-glyph gaps.
     rim_surf = pygame.Surface(big.get_size(), pygame.SRCALPHA)
     offsets = [(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]
     for (dx, dy) in offsets:
         rim_stamp = master.copy()
-        rim_stamp.fill((*CARD_RING_BRIGHT, 180), special_flags=pygame.BLEND_RGBA_MULT)
-        rim_surf.blit(rim_stamp, (gx + dx, gy + dy), special_flags=pygame.BLEND_ADD)
-    big.blit(rim_surf, (0, 0), special_flags=pygame.BLEND_ADD)
+        rim_stamp.fill((*CARD_RING_BRIGHT, 190), special_flags=pygame.BLEND_RGBA_MULT)
+        rim_surf.blit(rim_stamp, (gx + dx, gy + dy), special_flags=pygame.BLEND_RGBA_MAX)
+    big.blit(rim_surf, (0, 0))
 
     # --- Step 2: Dark body covers the interior, leaving only the outer rim ---
     # Pewter crown catches a sliver of the backlight; the root falls to near-black
@@ -62,15 +64,20 @@ def _name_backlit_silhouette(big, name, cx, cy, max_w):
     dark_body.blit(master, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     big.blit(dark_body, (gx, gy))
 
-    # --- Step 3: Thin warm-white pass to sharpen the backlit edge ---
-    # A tight 1px halo just outside the dark body crisps the rim so the letters
-    # separate cleanly from the band at the 32px read height.
-    inner_rim = pygame.Surface(big.get_size(), pygame.SRCALPHA)
+    # --- Step 3: Faint hot-edge crisp, ring-bound so it can't touch the body ---
+    # Build a 1px outer ring (dilated silhouette minus the glyph itself) and lay a
+    # restrained warm lick on ONLY that ring. Confining it to the ring is what
+    # keeps the dark bodies dark — the crisp reads as a hot backlit lip, never a
+    # fill, and normal alpha means it can only nudge the gold edge, never blow out.
+    ring = pygame.Surface((bw, bh), pygame.SRCALPHA)
     for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-        ir_stamp = master.copy()
-        ir_stamp.fill((255, 255, 252, 60), special_flags=pygame.BLEND_RGBA_MULT)
-        inner_rim.blit(ir_stamp, (gx + dx, gy + dy), special_flags=pygame.BLEND_ADD)
-    big.blit(inner_rim, (0, 0), special_flags=pygame.BLEND_ADD)
+        ring.blit(master, (dx, dy), special_flags=pygame.BLEND_RGBA_MAX)
+    ring.blit(master, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)  # punch out the body
+    ring.blit(master, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)  # leaves outer 1px ring
+    hot = pygame.Surface((bw, bh), pygame.SRCALPHA)
+    hot.fill((255, 250, 235, 70))
+    hot.blit(ring, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    big.blit(hot, (gx, gy))
 
 
 def _neutral_band(big, rect, plinth_top, rad):
