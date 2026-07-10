@@ -120,15 +120,19 @@ def _name_foil_gradient(big, name, cx, cy, max_w, pal, tier):
 
     # Baked fixed specular glint: a crisp, narrow diagonal band offset from the
     # ramp's bright band so the two-tone shift reads as real foil rather than a
-    # single centered wash.
+    # single centered wash. Intensity lives in the RGB channels (not alpha):
+    # BLEND_ADD adds raw RGB and ignores per-pixel alpha, so a grey ramp is the
+    # only way the additive glint actually attenuates instead of blowing every
+    # touched pixel to pure white.
     sheen = pygame.Surface((bw, bh), pygame.SRCALPHA)
     d0 = int(total * 0.62)
     sigma = bh * 0.26
     for d in range(total):
-        a = int(95 * math.exp(-0.5 * ((d - d0) / sigma) ** 2))
-        if a >= 2:
-            pygame.draw.line(sheen, (255, 255, 255, min(130, a)), (d, 0), (0, d), 2)
-    sheen.blit(base, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        v = min(130, int(95 * math.exp(-0.5 * ((d - d0) / sigma) ** 2)))
+        if v >= 2:
+            pygame.draw.line(sheen, (v, v, v, 255), (d, 0), (0, d), 2)
+    # Clip + feather the glint to the glyph so it never bleeds past the letters.
+    sheen.blit(base, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
     dst = base.get_rect(center=(cx, cy))
 
