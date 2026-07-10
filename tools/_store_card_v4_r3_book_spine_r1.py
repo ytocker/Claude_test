@@ -37,6 +37,17 @@ GOLD_FOIL = (240, 208, 122)  # warm letterpress gold for the spine name
 TAG_CREAM = (248, 244, 230)
 
 
+def _leather_base(pal):
+    """Cool indigo leather tone with a restrained tier hint. The strong blue
+    anchor + a blue floor guarantee the spine stays cool even for the warm-deep
+    legendary tier — never brown/tan."""
+    base = lerp_color((22, 22, 58), pal["deep"], 0.30)
+    base = lerp_color(base, (16, 16, 46), 0.30)
+    # blue floor: never let the blue channel fall below red, so it can't warm up.
+    r, g, b = base
+    return (r, g, max(b, r + 8))
+
+
 def _soft_shadow_circle(surf, cx, cy, r, alpha=120, layers=7):
     """Feathered round shadow blitted (not drawn) so it blends onto the opaque
     card body instead of punching its per-pixel alpha."""
@@ -55,11 +66,10 @@ def _soft_shadow_circle(surf, cx, cy, r, alpha=120, layers=7):
 def _leather_band(surf, sid, rect, rad, pal):
     """The book-spine strip at the card foot: a cool indigo leather grain framed
     by a gilt double-rule, carrying the gold-foil letterpressed item name."""
-    deep = pal["deep"]
-    # Cool indigo base tinted toward the tier's deep — kept dark + blue-leaning so
-    # even warm-deep tiers (legendary) read as cool leather, never brown/tan.
-    base = lerp_color((20, 18, 50), deep, 0.42)
-    base = lerp_color(base, (14, 14, 40), 0.28)
+    # Cool indigo base with only a hint of the tier's deep — a strong blue anchor
+    # keeps even warm-deep tiers (legendary) reading as cool leather, never
+    # brown/tan.
+    base = _leather_base(pal)
     b_top = lerp_color(base, WHITE, 0.07)
     b_bot = lerp_color(base, NEAR_BLACK, 0.5)
 
@@ -137,9 +147,7 @@ def _eyelet(surf, cx, cy, r):
 def _hang_tag(surf, cx, top, price, pal):
     """A small leather hang-tag: a pointed pentagon in the spine's leather tone
     with a gilt keyline, carrying the coin glyph + price numerals in cream."""
-    deep = pal["deep"]
-    base = lerp_color((20, 18, 50), deep, 0.42)
-    base = lerp_color(base, (14, 14, 40), 0.28)
+    base = _leather_base(pal)
     t_top = lerp_color(base, WHITE, 0.09)
     t_bot = lerp_color(base, NEAR_BLACK, 0.45)
 
