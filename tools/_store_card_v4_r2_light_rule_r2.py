@@ -109,23 +109,43 @@ def _luminous_rule(surf, x0, x1, y, bright, core_x1=None, ramp=True):
     drawing the eye to the price without hardening into a border."""
     if core_x1 is None:
         core_x1 = x1
+    w_surf = surf.get_size()[0]
+    floor = 0.5                                    # left end stays a complete line
+
+    def _f(px):
+        # brightness ramp: floor at the left terminus -> full at the capped
+        # (price) end, then HOLD full past core_x1 so the bloom continues at
+        # strength behind the capsule that caps the rule.
+        if not ramp:
+            return 1.0
+        if px >= core_x1:
+            return 1.0
+        t = max(0.0, (px - x0) / max(1, core_x1 - x0))
+        return floor + (1.0 - floor) * t
+
+    # bloom, ramped by a horizontal alpha gradient so the emission brightens
+    # toward the price without ever hardening into a border.
     bloom = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     for w, a in [(m(9), 16), (m(6), 28), (m(3.5), 52), (m(2), 92)]:
         pygame.draw.line(bloom, (*bright, a), (x0, y), (x1, y), max(1, int(w)))
+    grad = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    for px in range(x0, x1 + 1):
+        a = int(255 * _f(px))
+        pygame.draw.line(grad, (255, 255, 255, a), (px, y - m(6)), (px, y + m(6)))
+    bloom.blit(grad, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
     surf.blit(bloom, (0, 0), special_flags=pygame.BLEND_ADD)
     # soft round cap on the LEFT terminus so the emission fades out there; the
     # right terminus is capped by the price capsule instead, so no cap there.
-    soft_glow(surf, x0, y, m(5), bright, 26, layers=7)
+    soft_glow(surf, x0, y, m(5), bright, int(26 * floor), layers=7)
     # crisp core: bright ring-gold thread + hotter cream filament, drawn as short
-    # segments so the value can ramp up toward the price end.
+    # segments carrying the same ramp so the value climbs toward the price end.
     cream = (250, 244, 224)
     span = max(1, core_x1 - x0)
     seg_n = 56
     for i in range(seg_n):
         sx = x0 + span * i // seg_n
         ex = x0 + span * (i + 1) // seg_n
-        t = i / (seg_n - 1)                        # 0 (left) .. 1 (price end)
-        f = (0.42 + 0.58 * t) if ramp else 1.0     # gentle: ~42% left -> full
+        f = _f((sx + ex) // 2)
         pygame.draw.line(surf, (*bright, int(255 * f)), (sx, y), (ex, y),
                          max(1, m(1.4)))
         pygame.draw.line(surf, (*cream, int(255 * f)), (sx, y), (ex, y),

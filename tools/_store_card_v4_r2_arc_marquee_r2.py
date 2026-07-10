@@ -181,7 +181,7 @@ def _arc_band(big, rect, rad):
     band_bottom_local = rect.h - inset             # flush at the card floor
     band_top_local = band_bottom_local - apex_h
 
-    cream = vgrad_stops(bw, apex_h, 0, BAND_STOPS, alpha=210)
+    cream = vgrad_stops(bw, apex_h, 0, BAND_STOPS, alpha=BAND_ALPHA)
     # clip the strip to the ellipse: fill everything BELOW the elliptical top
     # edge with a filled polygon (curve sampled dense so the downscale reads
     # smooth), which keeps only the pooled-ellipse footprint.
