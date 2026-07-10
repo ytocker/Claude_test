@@ -22,6 +22,16 @@ _INSET = 6
 R = 36
 
 
+# Warm-bleed halo painted outer-ring first, inner-ring last, with a warm-white
+# hot core immediately at the stroke fading to the (255,236,190) glow tint by
+# 3px out. Normal-alpha (not additive): compositing displaces the navy's blue
+# toward the warm hue, which is the only way the fixed palette can read warm
+# (R-B) AND bright at once — additive over navy keeps blue too high to be warm.
+_FILAMENT_RINGS = ((3, 90, (255, 236, 190)),
+                   (2, 160, (255, 236, 190)),
+                   (1, 210, (255, 255, 252)))
+
+
 def _name_filament_core(big, name, cx, cy, max_w):
     sz = 13.5
     f = font(sz)
@@ -32,23 +42,27 @@ def _name_filament_core(big, name, cx, cy, max_w):
     advances = [f.size(c)[0] for c in name]
     total_w = sum(advances)
 
-    # Inverted layering vs r1: the warm halo is composited BEFORE the crisp
-    # glyph so its outer spill survives in the navy band instead of hiding
-    # under an opaque fill. Radial soft_glow is anchored per-letter so light
-    # bleeds a few px past each stroke yet never bridges the dark inter-glyph
-    # gaps (no shared bar) — each letter reads as its own heated filament.
-    halo_surf = pygame.Surface(big.get_size(), pygame.SRCALPHA)
-
+    # Inverted layering vs r1: the warm halo is a dilated per-glyph SILHOUETTE
+    # composited BEFORE the crisp glyph, so its bleed survives in the navy band
+    # instead of hiding under an opaque fill. Hugging each stroke (not a centre
+    # blob) keeps letter counters and inter-glyph gaps dark — no shared bar —
+    # so every letter reads as its own heated filament element.
     x = cx - total_w // 2
     for char, adv in zip(name, advances):
         glyph_cx = x + adv // 2
-        # Tight warm-white core, then a wider warm-ivory tint — the incandescent
-        # falloff of tube lighting where the element glows hottest at its edge.
-        soft_glow(halo_surf, glyph_cx, cy - m(1), m(5), (255, 255, 252), 60, layers=3)
-        soft_glow(halo_surf, glyph_cx, cy - m(1), m(7), (255, 236, 190), 40, layers=2)
+        tile = _stamp_bold(_glyph_base(char, f, 0), m(0.8))
+        tw, th = tile.get_size()
+        bx, by = glyph_cx - tw // 2, cy - th // 2
+        for rad, alpha, col in _FILAMENT_RINGS:
+            tinted = tile.copy()
+            tinted.fill((*col, alpha), special_flags=pygame.BLEND_RGBA_MULT)
+            steps = max(8, rad * 10)
+            for s in range(steps):
+                ang = 2 * math.pi * s / steps
+                dx = int(round(rad * math.cos(ang)))
+                dy = int(round(rad * math.sin(ang)))
+                big.blit(tinted, (bx + dx, by + dy))
         x += adv
-
-    big.blit(halo_surf, (0, 0), special_flags=pygame.BLEND_ADD)
 
     # Crisp ivory glyph on top with a hairline keyline — thinner than r1 so the
     # warm light survives immediately outside each stroke rather than being

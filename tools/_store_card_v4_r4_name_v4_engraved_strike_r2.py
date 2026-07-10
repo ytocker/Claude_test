@@ -56,13 +56,14 @@ def _name_engraved_strike(big, name, cx, cy, max_w):
         # 2. Warm ivory mid-catch at bottom-right (+1,+1): the soft intermediate
         #    step of the lit wall before the crisp specular edge.
         ivory = tile.copy()
-        ivory.fill((250, 244, 225, 180), special_flags=pygame.BLEND_RGBA_MULT)
+        ivory.fill((250, 244, 225, 120), special_flags=pygame.BLEND_RGBA_MULT)
         big.blit(ivory, (dst_x + 1, dst_y + 1))
 
         # 3. CARD_RING_BRIGHT hairline at bottom-right (+1,+1): the crisp lit edge
-        #    of the cut wall facing the raking light. Hairline only.
+        #    of the cut wall facing the raking light. Hairline only — kept bright
+        #    so the surviving rim peaks in the specular range, not the soft skirt.
         catch = tile.copy()
-        catch.fill((*CARD_RING_BRIGHT, 140), special_flags=pygame.BLEND_RGBA_MULT)
+        catch.fill((*CARD_RING_BRIGHT, 165), special_flags=pygame.BLEND_RGBA_MULT)
         big.blit(catch, (dst_x + 1, dst_y + 1))
 
         # 4. Recess floor at (0,0), LAST: a near-black stencil that carves the
