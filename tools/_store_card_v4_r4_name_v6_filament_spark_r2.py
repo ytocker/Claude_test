@@ -27,6 +27,9 @@ R = 36
 _NB8 = [(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]
 
 
+_SPARKS_ON = True  # toggled off by the 1x validation harness to diff the fleck pass
+
+
 def _name_filament_spark(big, name, cx, cy, max_w):
     import random
     sz = 13.5
@@ -73,6 +76,10 @@ def _name_filament_spark(big, name, cx, cy, max_w):
     # more dots only means more that vanish. Everything stays inside each glyph's
     # advance-width x-span so the dark inter-glyph gaps are never contaminated.
     rng = random.Random(hash(name) & 0xFFFFFFFF)  # seeded by name, stable per render
+    if not _SPARKS_ON:
+        plain_text(big, name, f, (cx, cy), (250, 244, 225), shadow_a=0,
+                   weight=m(0.8), keyline=(8, 8, 20), kw=m(0.5))
+        return
     W, H = big.get_size()
     core_w = max(2, m(1))       # 2px solid core -> one bright ship-pixel after downscale
     ring_r = m(1.5)             # navy separation disc radius
@@ -208,22 +215,30 @@ def render_card(sid):
 VARIANTS = [("RARE", "skin_tophat"), ("EPIC", "skin_prism"), ("LEGENDARY", "skin_kitsune")]
 PANEL_W, PANEL_H = CARD_W * SS, CARD_H * SS
 MARGIN, GUTTER, HEADER_H, FOOTER_H = 10, 8, 26, 22
-sheet_w = MARGIN * 2 + PANEL_W * 3 + GUTTER * 2
-sheet_h = MARGIN + HEADER_H + PANEL_H + FOOTER_H + MARGIN
-sheet = pygame.Surface((sheet_w, sheet_h))
-sheet.fill((8, 8, 20))
-hfont = _font(20, True)
-ffont = _font(18, True)
-htxt = hfont.render("store_card_v4_r4_name_v6 — filament-spark — round 2", True, (236, 232, 214))
-sheet.blit(htxt, (MARGIN, MARGIN + (HEADER_H - htxt.get_height()) // 2))
-panel_y = MARGIN + HEADER_H
-for i, (tier, sid) in enumerate(VARIANTS):
-    px = MARGIN + i * (PANEL_W + GUTTER)
-    sheet.blit(render_card(sid), (px, panel_y))
-    ftxt = ffont.render(tier, True, (218, 214, 200))
-    sheet.blit(ftxt, (px + (PANEL_W - ftxt.get_width()) // 2,
-                      panel_y + PANEL_H + (FOOTER_H - ftxt.get_height()) // 2))
-out = "/home/user/skybit/docs/store_card_v4_r4_name_v6/filament-spark/round_2.png"
-os.makedirs(os.path.dirname(out), exist_ok=True)
-pygame.image.save(sheet, out)
-print("saved", out, sheet.get_size())
+
+
+def render_sheet():
+    sheet_w = MARGIN * 2 + PANEL_W * 3 + GUTTER * 2
+    sheet_h = MARGIN + HEADER_H + PANEL_H + FOOTER_H + MARGIN
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((8, 8, 20))
+    hfont = _font(20, True)
+    ffont = _font(18, True)
+    htxt = hfont.render("store_card_v4_r4_name_v6 — filament-spark — round 2", True, (236, 232, 214))
+    sheet.blit(htxt, (MARGIN, MARGIN + (HEADER_H - htxt.get_height()) // 2))
+    panel_y = MARGIN + HEADER_H
+    for i, (tier, sid) in enumerate(VARIANTS):
+        px = MARGIN + i * (PANEL_W + GUTTER)
+        sheet.blit(render_card(sid), (px, panel_y))
+        ftxt = ffont.render(tier, True, (218, 214, 200))
+        sheet.blit(ftxt, (px + (PANEL_W - ftxt.get_width()) // 2,
+                          panel_y + PANEL_H + (FOOTER_H - ftxt.get_height()) // 2))
+    return sheet
+
+
+if __name__ == "__main__":
+    sheet = render_sheet()
+    out = "/home/user/skybit/docs/store_card_v4_r4_name_v6/filament-spark/round_2.png"
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    pygame.image.save(sheet, out)
+    print("saved", out, sheet.get_size())
