@@ -4,9 +4,9 @@ Round 2 addresses the full art-director note set from round 1:
 
 1. Coin price: no thousands comma; numerals auto-sized to ≤65% of front-coin
    diameter so the gold face shows around the numeral.  Front coin enlarged
-   (r=14 logical) vs. back coin (r=11 logical) so the stamped face reads clearly.
+   (r=16 logical) vs. back coin (r=11 logical) so the stamped face reads clearly.
 2. Coin cluster moved left (rect.right − m(56)) to keep ≥6 logical-px clearance
-   from the gem badge seat; top-right corner is reserved for the gem.
+   from the gem face (≥10px) / seat (≥6px); top-right corner reserved for gem.
 3. Two-coin stack with a bold 8-logical-px per-axis offset so both disc rims
    read as distinct stamped coins rather than an ambiguous blob.
 4. Plinth raised (plinth_top = cy − m(14), was cy − m(8)) and gradient lower
@@ -72,7 +72,7 @@ def _coin_stack(big, cx, cy, price):
     rims read as distinct discs at 1x.  No thousands comma so shorter text fits
     more comfortably; numerals auto-sized to ≤65% of the front-coin diameter so
     the gold face is visible around them."""
-    front_r = m(14)     # enlarged stamped face — reads as the primary coin
+    front_r = m(16)     # enlarged stamped face — clearly larger than back coin
     back_r  = m(11)     # smaller back coin — depth cue, clearly behind
     off     = m(8)      # bold 8-logical-px per-axis offset (≈11 logical diagonal)
 
