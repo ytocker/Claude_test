@@ -22,7 +22,22 @@ _INSET = 6
 R = 36
 
 
-def _name_marquee_glow(big, name, cx, cy, max_w):
+def _warm_halo(scratch, cx, cy, radius, color, peak, layers=8):
+    # Source-over (not additive) feathered disc: overlapping lamps deepen the
+    # alpha toward opaque but the RGB never leaves `color`, so a hot marquee
+    # cluster stays warm ivory instead of clipping to dead white the way
+    # stacked BLEND_ADD passes do — which is what kills R-B on the halo.
+    for i in range(layers, 0, -1):
+        r = int(radius * i / layers)
+        a = int(peak * (1 - (i - 1) / layers) ** 1.8)
+        if r <= 0 or a <= 0:
+            continue
+        g = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
+        pygame.draw.circle(g, (*color, a), (r + 1, r + 1), r)
+        scratch.blit(g, (cx - r - 1, cy - r - 1))
+
+
+def _name_marquee_glow(big, name, cx, cy, max_w, rect, plinth_top):
     # Backlit theatre marquee: lamp-white halo behind cream letters so the word
     # reads as lit from behind. Ivory is deliberately warm but rarity-neutral so
     # the "lit lamp" reads identically on every tier — the light is the fixture,
@@ -42,16 +57,28 @@ def _name_marquee_glow(big, name, cx, cy, max_w):
     # word and the bloom never crosses the card edge.
     spread = int(gw // 2 * 0.7)
     xs = (cx - spread, cx - spread // 3, cx + spread // 3, cx + spread)
+    # Build the whole halo on a scratch layer so it can be clipped to the band
+    # before it touches the card — otherwise the above-cap bleed spills over the
+    # plinth seam into the gem/thumb region.
+    halo = pygame.Surface(big.get_size(), pygame.SRCALPHA)
     # Centreline lamps: strong + wide so the halo actually reads against the
     # near-black band (r1 at alpha 80 / r=11 was invisible).
     for fx in xs:
-        soft_glow(big, fx, cy, m(15), IVORY, 160, layers=8)
+        _warm_halo(halo, fx, cy, m(15), IVORY, 160, layers=8)
     # Bleed the bloom above and below cap-height so warm light escapes AROUND
     # the letters — a marquee reads by the halo in the clear band, not by a hot
     # spot the type body sits on and occludes.
     for fx in xs:
-        soft_glow(big, fx, cy - m(5), m(9), IVORY, 80, layers=8)
-        soft_glow(big, fx, cy + m(5), m(9), IVORY, 80, layers=8)
+        _warm_halo(halo, fx, cy - m(5), m(9), IVORY, 80, layers=8)
+        _warm_halo(halo, fx, cy + m(5), m(9), IVORY, 80, layers=8)
+    # Clip the halo to the band interior: a straight cut at the plinth seam kills
+    # any spill above it, and the horizontal bound keeps the ends off the card
+    # edge. The band's rounded bottom sits well clear of the centred word.
+    clip = pygame.Surface(big.get_size(), pygame.SRCALPHA)
+    pygame.draw.rect(clip, (255, 255, 255, 255),
+                     (rect.left, plinth_top, rect.w, rect.bottom - plinth_top))
+    halo.blit(clip, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    big.blit(halo, (0, 0))
     # No shadow — the halo is the atmosphere; tight dark keyline keeps the cream
     # type crisp against its own glow.
     plain_text(big, name, f, (cx, cy), CREAM, shadow_a=0,
@@ -106,7 +133,7 @@ def render_card(sid):
     cabochon_glass(big, cx, cy, m(R), tint=pal["gem"])
     facet_gem(big, rect.right - m(19), rect.y + m(19), m(GEM_R + 3), pal["gem"], pal["deep"])
     _simple_price(big, rect.right - m(23), rect.y + m(48), price, pal)
-    _name_marquee_glow(big, name.upper(), rect.centerx, rect.y + m(81), rect.w - m(26))
+    _name_marquee_glow(big, name.upper(), rect.centerx, rect.y + m(81), rect.w - m(26), rect, plinth_top)
     return big
 
 
