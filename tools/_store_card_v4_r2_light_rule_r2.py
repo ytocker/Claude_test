@@ -323,8 +323,15 @@ for yy in range(rect.bottom - m(24), rect.bottom - m(4)):
         break
 gap = (name_top_y - disc_bottom_y) if name_top_y is not None else -1
 
-# strikethrough check: the price capsule centre vs the rule line.
+# strikethrough check: the price capsule centre vs the rule line (recompute the
+# capsule footprint exactly as render_card does).
 rule_y = rect.bottom - m(7)
+rule_x0 = rect.x + m(10)
+rule_x1 = rect.right - m(10)
+_pf = font(8.0)
+_num_w = _glyph_base("480", _pf, 0).get_width()
+_cap_w = m(5) + m(4.5) * 2 + m(3.5) + _num_w + m(5)
+cap = pygame.Rect(rule_x1 - _cap_w, 0, _cap_w, m(13))
 cap_cy = rule_y - m(2)
 
 # open-air check: the indigo body just below the disc must stay dark (no plate).
@@ -332,23 +339,34 @@ band = 0.0
 for yy in range(disc_bottom_y + m(2), disc_bottom_y + m(10)):
     for xx in range(cx - m(20), cx + m(20)):
         band = max(band, _lstar(epic.get_at((xx, yy))))
-# lower body between name and rule must also stay dark.
+# bare-indigo check in the LEFT gutter between disc bottom and the rule, well
+# clear of the (centred) name glyphs, to prove no plate fills the lower body.
 lower = 0.0
-for yy in range(rect.bottom - m(13), rect.bottom - m(9)):
-    for xx in range(rect.x + m(12), rect.x + m(30)):
+for yy in range(disc_bottom_y + m(4), rule_y - m(6)):
+    for xx in range(rect.x + m(3), rule_x0 - m(1)):
         lower = max(lower, _lstar(epic.get_at((xx, yy))))
 
-# strikethrough proof: scan the digits' row for any hot cream core crossing them
-# (there must be none now the core is gapped under the capsule).
-strike = 0.0
-for xx in range(rect.right - m(40), rect.right - m(12)):
-    strike = max(strike, _lstar(epic.get_at((xx, rule_y))))
+# strikethrough proof. Left of the capsule the ramped HARD core is present (a
+# thin 1-2px cream filament: bright ON rule_y, dark a few px off it). Under/at
+# the capsule footprint the core is GONE — the only light left there is the soft
+# rule-bloom + capsule glow, which falls off BROADLY in y (bright above AND below
+# rule_y). We prove this by the vertical profile at each x: a hard core spikes
+# only on the line; diffuse bloom stays lit off-line.
+core_x = cap.left - m(4) - m(8)                 # a little left of the terminus
+core_on = _lstar(epic.get_at((core_x, rule_y)))
+core_off = _lstar(epic.get_at((core_x, rule_y - m(4))))
+gap_x = cap.left - m(2)                          # in the clearance, under bloom
+gap_on = _lstar(epic.get_at((gap_x, rule_y)))
+gap_off = _lstar(epic.get_at((gap_x, rule_y - m(4))))
 
 print(f"  disc_bottom_y (SS)      = {disc_bottom_y}  (1x {disc_bottom_y/2:.1f})")
 print(f"  name_top_y    (SS)      = {name_top_y}  (1x {name_top_y/2:.1f})")
 print(f"  gap disc->name (SS)     = {gap}  (1x {gap/2:.1f})  need >= m(8)={m(8)}")
 print(f"  capsule_cy={cap_cy}  rule_y={rule_y}  -> capsule above rule by "
-      f"{rule_y - cap_cy} SS px")
+      f"{rule_y - cap_cy} SS px  (center above rule => no skewer)")
 print(f"  glow band below disc    peak L*={band:5.1f}  (want < 25)")
-print(f"  lower body (name..rule) peak L*={lower:5.1f}  (want < 25)")
-print(f"  strikethrough row L*    peak L*={strike:5.1f}  (bloom-only, capped)")
+print(f"  lower body (bare gutter) peak L*={lower:5.1f}  (want < 25, no plate)")
+print(f"  core LEFT of capsule    on-line L*={core_on:5.1f}  off-line L*={core_off:5.1f}"
+      f"  (hard filament: spikes on rule_y)")
+print(f"  under capsule clearance on-line L*={gap_on:5.1f}  off-line L*={gap_off:5.1f}"
+      f"  (diffuse bloom: lit off-line too, no hard core)")
