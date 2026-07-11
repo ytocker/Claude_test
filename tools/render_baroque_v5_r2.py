@@ -39,48 +39,20 @@ soft_glow(card, ART_CX, ART_CY, 72, (160, 140, 220), peak_alpha=50, layers=12)
 soft_glow(card, ART_CX, ART_CY, 45, GEM, peak_alpha=25, layers=6)
 card.blit(art_big, (ART_CX - art_w // 2, ART_CY - art_h // 2))
 
-# ── Diagonal diamond trellis CLIPPED TO INSIDE BORDER ONLY ────────────────────
-# Draw trellis to a temp surface then clip to inner rect via SRCALPHA mask
+# ── Diagonal diamond trellis — full card ──────────────────────────────────────
 TRELLIS_SPACING = 16
 trellis_full = pygame.Surface((W, H), pygame.SRCALPHA)
 for offset in range(-H, W + H, TRELLIS_SPACING):
     pygame.draw.line(trellis_full, (*GEM, 28), (offset, 0), (offset + H, H))
 for offset in range(0, W + H + H, TRELLIS_SPACING):
     pygame.draw.line(trellis_full, (*GEM, 28), (offset, 0), (offset - H, H))
+card.blit(trellis_full, (0, 0))
 
-# Create inner-border mask (filled rounded rect)
-inner_mask = pygame.Surface((W, H), pygame.SRCALPHA)
-inner_mask.fill((0, 0, 0, 0))
-pygame.draw.rect(inner_mask, (255, 255, 255, 255),
-                 (BDR_INSET + 2, BDR_INSET + 2,
-                  W - (BDR_INSET + 2) * 2, H - (BDR_INSET + 2) * 2),
-                 border_radius=BR)
-
-trellis_clipped = pygame.Surface((W, H), pygame.SRCALPHA)
-trellis_clipped.blit(trellis_full, (0, 0))
-trellis_clipped.blit(inner_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-card.blit(trellis_clipped, (0, 0))
-
-# ── GEM border: 4px + 5-layer outward glow ────────────────────────────────────
-for extra, alpha in [(10, 14), (7, 28), (5, 48), (3, 75), (1, 110)]:
-    gs = pygame.Surface((W, H), pygame.SRCALPHA)
-    pygame.draw.rect(gs, (*GEM, alpha),
-                     (BDR_INSET - extra, BDR_INSET - extra,
-                      W - (BDR_INSET - extra) * 2, H - (BDR_INSET - extra) * 2),
-                     extra * 2, border_radius=BR + extra)
-    card.blit(gs, (0, 0))
-pygame.draw.rect(card, GEM,
-                 (BDR_INSET, BDR_INSET, W - BDR_INSET * 2, H - BDR_INSET * 2),
-                 4, border_radius=BR)
-pygame.draw.line(card, (255, 252, 220),
-                 (BDR_INSET + BR, BDR_INSET + 2),
-                 (W - BDR_INSET - BR, BDR_INSET + 2), 1)
-
-# ── Corner flourishes: inset a few px from border so they read as separate accents
-LARGE_PIP_R = 8
-SMALL_PIP_R = 4
-ARM_LEN     = 20
-FLOU_INSET  = BDR_INSET + 6   # flourish centers sit inside the border, not on it
+# ── Corner flourishes: at outer card corners, arms form the frame ─────────────
+LARGE_PIP_R = 10
+SMALL_PIP_R = 5
+ARM_LEN     = 46
+FLOU_INSET  = 14   # outer card corners — pips replace the solid border rect
 
 def draw_diamond(surf, cx, cy, r, color=GEM, outline=(255, 248, 220)):
     pts = [(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)]
@@ -117,7 +89,7 @@ PP, PH   = 7, tier_s.get_height() + 6
 pill_w   = tier_s.get_width() + PP * 2
 pill_x   = W // 2 - pill_w // 2
 # Pill sits above the border, with clear air between it and the frame
-pill_y   = BDR_INSET - PH - 4   # just above the border line (y < BDR_INSET)
+pill_y   = FLOU_INSET - PH // 2   # centered on the corner arm height at top
 
 pill_surf = pygame.Surface((pill_w, PH), pygame.SRCALPHA)
 pygame.draw.rect(pill_surf, (14, 7, 26, 240), (0, 0, pill_w, PH), border_radius=PH // 2)
