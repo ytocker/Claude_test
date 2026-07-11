@@ -114,21 +114,32 @@ for i in range(14):
 pygame.draw.rect(card, (12, 7, 22), (0, band_y + 7, W, INNER_BOT - band_y - 7))
 
 fnt_name  = pygame.font.SysFont("DejaVu Sans", 22, bold=True)
-fnt_price = pygame.font.SysFont("DejaVu Sans", 14, bold=True)
+fnt_price = pygame.font.SysFont("DejaVu Sans", 15, bold=True)
 name_s  = fnt_name.render("KITSUNE", True, (255, 255, 255))
 price_s = fnt_price.render("3 500", True, GEM)
 ty = band_y + (FOOTER_H - name_s.get_height()) // 2
 card.blit(name_s, (FLOU_INSET + LARGE_PIP_R + 2, ty))
 
-COIN_R   = 11
-CHIP_PAD = 5
+COIN_R   = 10
+CHIP_PAD = 7
 chip_w   = COIN_R * 2 + 5 + price_s.get_width() + CHIP_PAD * 2
-chip_h   = price_s.get_height() + CHIP_PAD * 2 - 2
+chip_h   = price_s.get_height() + CHIP_PAD * 2
 chip_x   = W - FLOU_INSET - LARGE_PIP_R - 2 - chip_w
 chip_y   = ty + (name_s.get_height() - chip_h) // 2
+# Outer glow around chip
+for gi in range(3, 0, -1):
+    gs = pygame.Surface((chip_w + gi * 4, chip_h + gi * 4), pygame.SRCALPHA)
+    ga = 30 - gi * 8
+    pygame.draw.rect(gs, (*GEM, ga), (0, 0, chip_w + gi * 4, chip_h + gi * 4),
+                     border_radius=(chip_h + gi * 4) // 2)
+    card.blit(gs, (chip_x - gi * 2, chip_y - gi * 2), special_flags=pygame.BLEND_RGBA_ADD)
 chip_surf = pygame.Surface((chip_w, chip_h), pygame.SRCALPHA)
-pygame.draw.rect(chip_surf, (12, 7, 22, 230), (0, 0, chip_w, chip_h), border_radius=chip_h // 2)
-pygame.draw.rect(chip_surf, (*GEM, 210), (0, 0, chip_w, chip_h), 1, border_radius=chip_h // 2)
+pygame.draw.rect(chip_surf, (12, 7, 22, 240), (0, 0, chip_w, chip_h), border_radius=chip_h // 2)
+# Top inner sheen
+for yy in range(chip_h // 3):
+    a = int((1 - yy / (chip_h // 3)) * 55)
+    pygame.draw.line(chip_surf, (255, 252, 220, a), (3, yy), (chip_w - 3, yy))
+pygame.draw.rect(chip_surf, (*GEM, 255), (0, 0, chip_w, chip_h), 2, border_radius=chip_h // 2)
 card.blit(chip_surf, (chip_x, chip_y))
 real_coin_icon(card, chip_x + CHIP_PAD + COIN_R, chip_y + chip_h // 2, COIN_R)
 card.blit(price_s, (chip_x + CHIP_PAD + COIN_R * 2 + 5, chip_y + CHIP_PAD - 1))
