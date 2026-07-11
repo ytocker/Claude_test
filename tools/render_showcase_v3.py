@@ -30,6 +30,8 @@ except Exception:
 
 def place_card(img_path, col, row, label):
     card_img = Image.open(img_path).convert("RGBA")
+    if card_img.size != (CARD_W, CARD_H):
+        card_img = card_img.resize((CARD_W, CARD_H), Image.LANCZOS)
     x = col * PANEL_W + PAD
     y = row * PANEL_H + PAD
     # Composite with alpha over BG
