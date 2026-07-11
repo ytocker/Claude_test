@@ -314,6 +314,7 @@ def _round1_card():
 def main():
     big = render_big()
     r2 = pygame.transform.smoothscale(big, (162, 100))     # true in-game size
+    r2_2x = pygame.transform.smoothscale(big, (324, 200))  # detail view
 
     panels = [("BEFORE  ·  live card", _before_card()),
               ("ROUND 1", _round1_card()),
@@ -322,11 +323,13 @@ def main():
     CWp, CHp = 162, 100
     margin, gap = 12, 14
     y_title = 12
-    y_cap = 50
-    y_card = 72
-    y_note = y_card + CHp + 8
+    y_cap = 46
+    y_card = 66
+    y_note = y_card + CHp + 6
+    y_dcap = y_note + 26
+    y_detail = y_dcap + 20
     canvas_w = margin * 2 + CWp * 3 + gap * 2
-    canvas_h = y_note + 30
+    canvas_h = y_detail + 200 + 14
     canvas = pygame.Surface((canvas_w, canvas_h))
     canvas.fill((14, 14, 22))
 
@@ -349,6 +352,15 @@ def main():
         canvas.blit(card, (x, y_card))
         nt = note.render("162x100 · in-game size", True, (150, 148, 168))
         canvas.blit(nt, nt.get_rect(midtop=(cx, y_note)))
+
+    # 2x detail of round 2 so the torii silhouette + four-bar count are judgeable.
+    dcx = canvas_w // 2
+    dl = cap.render("ROUND 2  ·  2x detail", True, (206, 202, 224))
+    canvas.blit(dl, dl.get_rect(midtop=(dcx, y_dcap)))
+    dx = dcx - 324 // 2
+    pygame.draw.rect(canvas, (60, 60, 78),
+                     pygame.Rect(dx - 2, y_detail - 2, 328, 204), 1)
+    canvas.blit(r2_2x, (dx, y_detail))
 
     out = "/home/user/skybit/docs/item_card_redesign/depth-gate/round_2.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)
