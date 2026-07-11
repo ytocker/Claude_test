@@ -117,13 +117,13 @@ fnt_price = pygame.font.SysFont("DejaVu Sans", 14, bold=True)
 name_s  = fnt_name.render("KITSUNE", True, (255, 255, 255))
 price_s = fnt_price.render("3 500", True, GEM)
 ty = band_y + (FOOTER_H - name_s.get_height()) // 2
-card.blit(name_s, (12, ty))
+card.blit(name_s, (FLOU_INSET + LARGE_PIP_R + 2, ty))
 
 COIN_R   = 11
 CHIP_PAD = 5
 chip_w   = COIN_R * 2 + 5 + price_s.get_width() + CHIP_PAD * 2
 chip_h   = price_s.get_height() + CHIP_PAD * 2 - 2
-chip_x   = W - chip_w - 10
+chip_x   = W - FLOU_INSET - LARGE_PIP_R - 2 - chip_w
 chip_y   = ty + (name_s.get_height() - chip_h) // 2
 chip_surf = pygame.Surface((chip_w, chip_h), pygame.SRCALPHA)
 pygame.draw.rect(chip_surf, (12, 7, 22, 230), (0, 0, chip_w, chip_h), border_radius=chip_h // 2)
