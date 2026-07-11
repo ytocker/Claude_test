@@ -80,7 +80,6 @@ for cx, cy, dx, dy in corners:
     pygame.draw.line(fl_s, (*GEM, 190), (cx, cy + dy * (LARGE_PIP_R + 3)), (cx, ay1), 2)
     draw_diamond(fl_s, ax1, cy, SMALL_PIP_R)
     draw_diamond(fl_s, cx, ay1, SMALL_PIP_R)
-card.blit(fl_s, (0, 0))
 
 # ── Rarity pill: DARK FILL + gold rim + gold text (lifts off the gold border) ──
 fnt_tier = pygame.font.SysFont("DejaVu Sans", 13, bold=True)
@@ -132,6 +131,8 @@ card.blit(chip_surf, (chip_x, chip_y))
 real_coin_icon(card, chip_x + CHIP_PAD + COIN_R, chip_y + chip_h // 2, COIN_R)
 card.blit(price_s, (chip_x + CHIP_PAD + COIN_R * 2 + 5, chip_y + CHIP_PAD - 1))
 
+# Corner flourishes drawn last so they sit on top of the nameplate
+card.blit(fl_s, (0, 0))
 
 # ── Transparent corners ────────────────────────────────────────────────────────
 card_alpha = pygame.Surface((W, H), pygame.SRCALPHA)
