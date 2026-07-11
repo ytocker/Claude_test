@@ -122,27 +122,43 @@ card.blit(name_s, (FLOU_INSET + LARGE_PIP_R + 2, ty))
 
 COIN_R   = 10
 CHIP_PAD = 7
-chip_w   = COIN_R * 2 + 5 + price_s.get_width() + CHIP_PAD * 2
-chip_h   = price_s.get_height() + CHIP_PAD * 2
-chip_x   = W - FLOU_INSET - LARGE_PIP_R - 2 - chip_w
-chip_y   = ty + (name_s.get_height() - chip_h) // 2
-# Outer glow around chip
-for gi in range(3, 0, -1):
+GAP_CT   = 6
+chip_w = CHIP_PAD + COIN_R * 2 + GAP_CT + price_s.get_width() + CHIP_PAD
+chip_h = price_s.get_height() + CHIP_PAD * 2
+chip_x = W - FLOU_INSET - LARGE_PIP_R - 2 - chip_w
+chip_y = ty + (name_s.get_height() - chip_h) // 2
+# Outer glow — 5 layers BLEND_ADD, alpha 11–55 so gold visibly bleeds out
+for gi in range(5, 0, -1):
     gs = pygame.Surface((chip_w + gi * 4, chip_h + gi * 4), pygame.SRCALPHA)
-    ga = 30 - gi * 8
+    ga = int(55 * (1 - (gi - 1) / 5))
     pygame.draw.rect(gs, (*GEM, ga), (0, 0, chip_w + gi * 4, chip_h + gi * 4),
                      border_radius=(chip_h + gi * 4) // 2)
-    card.blit(gs, (chip_x - gi * 2, chip_y - gi * 2), special_flags=pygame.BLEND_RGBA_ADD)
+    card.blit(gs, (chip_x - gi * 2, chip_y - gi * 2), special_flags=pygame.BLEND_ADD)
+# Chip body — dark gradient, clipped to pill shape
 chip_surf = pygame.Surface((chip_w, chip_h), pygame.SRCALPHA)
-pygame.draw.rect(chip_surf, (12, 7, 22, 240), (0, 0, chip_w, chip_h), border_radius=chip_h // 2)
-# Top inner sheen
-for yy in range(chip_h // 3):
-    a = int((1 - yy / (chip_h // 3)) * 55)
-    pygame.draw.line(chip_surf, (255, 252, 220, a), (3, yy), (chip_w - 3, yy))
-pygame.draw.rect(chip_surf, (*GEM, 255), (0, 0, chip_w, chip_h), 2, border_radius=chip_h // 2)
+for yy in range(chip_h):
+    t = yy / max(1, chip_h - 1)
+    chip_surf.fill((int(16*(1-t)+8*t), int(9*(1-t)+5*t), int(30*(1-t)+18*t), 248),
+                   (0, yy, chip_w, 1))
+pmask = pygame.Surface((chip_w, chip_h), pygame.SRCALPHA)
+pygame.draw.rect(pmask, (255, 255, 255, 255), (0, 0, chip_w, chip_h), border_radius=chip_h // 2)
+chip_surf.blit(pmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+# Top inner sheen — top-half, power-curve, peak 90
+for yy in range(chip_h // 2):
+    a = int((1 - yy / (chip_h // 2)) ** 1.5 * 90)
+    pygame.draw.line(chip_surf, (255, 252, 220, a), (chip_h // 2, yy), (chip_w - chip_h // 2, yy))
+# 2px GEM outer border + 1px DEEP inner bevel
+pygame.draw.rect(chip_surf, (*GEM, 255),  (0, 0, chip_w, chip_h),   2, border_radius=chip_h // 2)
+pygame.draw.rect(chip_surf, (*DEEP, 180), (2, 2, chip_w-4, chip_h-4), 1,
+                 border_radius=chip_h // 2 - 1)
 card.blit(chip_surf, (chip_x, chip_y))
-real_coin_icon(card, chip_x + CHIP_PAD + COIN_R, chip_y + chip_h // 2, COIN_R)
-card.blit(price_s, (chip_x + CHIP_PAD + COIN_R * 2 + 5, chip_y + CHIP_PAD - 1))
+# Coin — soft gold halo then exact game coin
+coin_cx = chip_x + CHIP_PAD + COIN_R
+coin_cy = chip_y + chip_h // 2
+soft_glow(card, coin_cx, coin_cy, COIN_R + 8, GEM, peak_alpha=60, layers=5)
+real_coin_icon(card, coin_cx, coin_cy, COIN_R)
+text_y = chip_y + (chip_h - price_s.get_height()) // 2
+card.blit(price_s, (chip_x + CHIP_PAD + COIN_R * 2 + GAP_CT, text_y))
 
 # Corner flourishes drawn last so they sit on top of the nameplate
 card.blit(fl_s, (0, 0))
