@@ -121,7 +121,7 @@ def render_torn_reveal():
         y0 = int(max(0, mid - span))
         y1 = int(min(bh, mid + span))
         for y in range(y0, y1):
-            f = abs(y - mid) / span
+            f = min(1.0, abs(y - mid) / span)
             a = int(230 * (1 - f) ** 1.7)
             if a <= 0:
                 continue
@@ -205,7 +205,6 @@ def render_torn_reveal():
     plate.blit(embers, (0, 0), special_flags=pygame.BLEND_ADD)
 
     # ── price stub: paper tag with punched hole + string, lower-right margin ──
-    stub_w, stub_h = 70 * SS // SS, 30  # authored in 1x -> *SS below
     sw, sh = m(70), m(30)
     sx, sy = bw - sw - m(6), bh - sh - m(8)
     stub = pygame.Surface((sw, sh), pygame.SRCALPHA)
