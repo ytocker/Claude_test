@@ -114,51 +114,52 @@ for i in range(14):
 pygame.draw.rect(card, (12, 7, 22), (0, band_y + 7, W, INNER_BOT - band_y - 7))
 
 fnt_name  = pygame.font.SysFont("DejaVu Sans", 22, bold=True)
-fnt_price = pygame.font.SysFont("DejaVu Sans", 15, bold=True)
+fnt_price = pygame.font.SysFont("DejaVu Sans", 17, bold=True)
 name_s  = fnt_name.render("KITSUNE", True, (255, 255, 255))
-price_s = fnt_price.render("3 500", True, GEM)
+price_s = fnt_price.render("3 500", True, (255, 232, 140))   # bright warm gold
 ty = band_y + (FOOTER_H - name_s.get_height()) // 2
 card.blit(name_s, (FLOU_INSET + LARGE_PIP_R + 2, ty))
 
-COIN_R   = 10
-CHIP_PAD = 7
-GAP_CT   = 6
-chip_w = CHIP_PAD + COIN_R * 2 + GAP_CT + price_s.get_width() + CHIP_PAD
-chip_h = price_s.get_height() + CHIP_PAD * 2
-chip_x = W - FLOU_INSET - LARGE_PIP_R - 2 - chip_w
+COIN_R = 14                                              # parrot legible at display scale
+GAP_CT = 7
+chip_w = 5 + COIN_R * 2 + GAP_CT + price_s.get_width() + 5
+chip_h = COIN_R * 2 + 8                                 # coin-driven: 36 px
+chip_x = W - FLOU_INSET - LARGE_PIP_R - 2 - chip_w     # right edge at x=296
 chip_y = ty + (name_s.get_height() - chip_h) // 2
-# Outer glow — 5 layers BLEND_ADD, alpha 11–55 so gold visibly bleeds out
-for gi in range(5, 0, -1):
-    gs = pygame.Surface((chip_w + gi * 4, chip_h + gi * 4), pygame.SRCALPHA)
-    ga = int(55 * (1 - (gi - 1) / 5))
-    pygame.draw.rect(gs, (*GEM, ga), (0, 0, chip_w + gi * 4, chip_h + gi * 4),
-                     border_radius=(chip_h + gi * 4) // 2)
-    card.blit(gs, (chip_x - gi * 2, chip_y - gi * 2), special_flags=pygame.BLEND_ADD)
-# Chip body — dark gradient, clipped to pill shape
+# ── 1. Outer glow: BLEND_ADD at ga 17→100, effective RGB add up to (100,79,41) ──
+for gi in range(6, 0, -1):
+    gs = pygame.Surface((chip_w + gi * 6, chip_h + gi * 6), pygame.SRCALPHA)
+    ga = int(100 * (1 - (gi - 1) / 6))
+    pygame.draw.rect(gs, (*GEM, ga), (0, 0, chip_w + gi*6, chip_h + gi*6),
+                     border_radius=(chip_h + gi*6) // 2)
+    card.blit(gs, (chip_x - gi*3, chip_y - gi*3), special_flags=pygame.BLEND_ADD)
+# ── 2. Chip body: top-lit dark gradient clipped to pill ──
 chip_surf = pygame.Surface((chip_w, chip_h), pygame.SRCALPHA)
 for yy in range(chip_h):
     t = yy / max(1, chip_h - 1)
-    chip_surf.fill((int(16*(1-t)+8*t), int(9*(1-t)+5*t), int(30*(1-t)+18*t), 248),
+    chip_surf.fill((int(20*(1-t)+8*t), int(11*(1-t)+5*t), int(36*(1-t)+18*t), 252),
                    (0, yy, chip_w, 1))
 pmask = pygame.Surface((chip_w, chip_h), pygame.SRCALPHA)
 pygame.draw.rect(pmask, (255, 255, 255, 255), (0, 0, chip_w, chip_h), border_radius=chip_h // 2)
 chip_surf.blit(pmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-# Top inner sheen — top-half, power-curve, peak 90
-for yy in range(chip_h // 2):
-    a = int((1 - yy / (chip_h // 2)) ** 1.5 * 90)
-    pygame.draw.line(chip_surf, (255, 252, 220, a), (chip_h // 2, yy), (chip_w - chip_h // 2, yy))
-# 2px GEM outer border + 1px DEEP inner bevel
-pygame.draw.rect(chip_surf, (*GEM, 255),  (0, 0, chip_w, chip_h),   2, border_radius=chip_h // 2)
-pygame.draw.rect(chip_surf, (*DEEP, 180), (2, 2, chip_w-4, chip_h-4), 1,
-                 border_radius=chip_h // 2 - 1)
+# ── 3. Top sheen: top 40%, power-2 curve, peak 120 ──
+for yy in range(int(chip_h * 0.4)):
+    a = int((1 - yy / (chip_h * 0.4)) ** 2 * 120)
+    pygame.draw.line(chip_surf, (255, 248, 210, a),
+                     (chip_h // 2, yy), (chip_w - chip_h // 2, yy))
+# ── 4. Three concentric borders: outer gold, dark bevel, inner gold catch ──
+pygame.draw.rect(chip_surf, (*GEM, 255),  (0, 0, chip_w,   chip_h),   2, border_radius=chip_h // 2)
+pygame.draw.rect(chip_surf, (*DEEP, 210), (2, 2, chip_w-4, chip_h-4), 1, border_radius=chip_h // 2 - 1)
+pygame.draw.rect(chip_surf, (*GEM, 90),   (4, 4, chip_w-8, chip_h-8), 1, border_radius=chip_h // 2 - 2)
 card.blit(chip_surf, (chip_x, chip_y))
-# Coin — soft gold halo then exact game coin
-coin_cx = chip_x + CHIP_PAD + COIN_R
+# ── 5. Coin: strong halo + exact game parrot coin at r=14 ──
+coin_cx = chip_x + 5 + COIN_R
 coin_cy = chip_y + chip_h // 2
-soft_glow(card, coin_cx, coin_cy, COIN_R + 8, GEM, peak_alpha=60, layers=5)
+soft_glow(card, coin_cx, coin_cy, COIN_R + 12, GEM, peak_alpha=130, layers=8)
 real_coin_icon(card, coin_cx, coin_cy, COIN_R)
+# ── 6. Price numeral: vertically centered in chip ──
 text_y = chip_y + (chip_h - price_s.get_height()) // 2
-card.blit(price_s, (chip_x + CHIP_PAD + COIN_R * 2 + GAP_CT, text_y))
+card.blit(price_s, (chip_x + 5 + COIN_R * 2 + GAP_CT, text_y))
 
 # Corner flourishes drawn last so they sit on top of the nameplate
 card.blit(fl_s, (0, 0))
