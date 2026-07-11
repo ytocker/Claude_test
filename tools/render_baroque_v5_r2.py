@@ -52,7 +52,7 @@ card.blit(trellis_full, (0, 0))
 LARGE_PIP_R = 10
 SMALL_PIP_R = 5
 ARM_LEN     = 46
-FLOU_INSET  = 14   # outer card corners — pips replace the solid border rect
+FLOU_INSET  = 16   # at card rounded-corner arc centers — same position as outer rim
 
 def draw_diamond(surf, cx, cy, r, color=GEM, outline=(255, 248, 220)):
     pts = [(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)]
@@ -132,13 +132,6 @@ card.blit(chip_surf, (chip_x, chip_y))
 coin_glyph(card, chip_x + CHIP_PAD + COIN_R, chip_y + chip_h // 2, COIN_R)
 card.blit(price_s, (chip_x + CHIP_PAD + COIN_R * 2 + 5, chip_y + CHIP_PAD - 1))
 
-# ── Card edge: 2px rim + outer separation glow ────────────────────────────────
-outer_s = pygame.Surface((W, H), pygame.SRCALPHA)
-pygame.draw.rect(outer_s, (*DEEP, 50), (-3, -3, W + 6, H + 6), 5, border_radius=20)
-card.blit(outer_s, (0, 0))
-rim = pygame.Surface((W, H), pygame.SRCALPHA)
-pygame.draw.rect(rim, (*DEEP, 200), (0, 0, W, H), 2, border_radius=16)
-card.blit(rim, (0, 0))
 
 # ── Transparent corners ────────────────────────────────────────────────────────
 card_alpha = pygame.Surface((W, H), pygame.SRCALPHA)
