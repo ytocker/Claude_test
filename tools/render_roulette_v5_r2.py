@@ -165,18 +165,6 @@ card.blit(chip_surf, (chip_x, chip_y))
 coin_glyph(card, chip_x + CHIP_PAD + COIN_R, chip_y + chip_h // 2, COIN_R)
 card.blit(price_s, (chip_x + CHIP_PAD + COIN_R * 2 + 5, chip_y + CHIP_PAD - 1))
 
-# ── ID badge: "D" top-left ────────────────────────────────────────────────────
-fnt_id   = pygame.font.SysFont("DejaVu Sans", 13, bold=True)
-id_s     = fnt_id.render("D", True, GEM)
-BP       = 5
-badge_w  = id_s.get_width() + BP * 2
-badge_h  = id_s.get_height() + BP * 2 - 2
-badge_sf = pygame.Surface((badge_w, badge_h), pygame.SRCALPHA)
-pygame.draw.rect(badge_sf, (8, 5, 18, 200), (0, 0, badge_w, badge_h), border_radius=badge_h // 2)
-pygame.draw.rect(badge_sf, (*GEM, 210), (0, 0, badge_w, badge_h), 1, border_radius=badge_h // 2)
-card.blit(badge_sf, (8, 8))
-card.blit(id_s, (8 + BP, 8 + BP - 1))
-
 # ── Card edge rim + outer glow ────────────────────────────────────────────────
 outer_s = pygame.Surface((W, H), pygame.SRCALPHA)
 pygame.draw.rect(outer_s, (*DEEP, 50), (-3, -3, W + 6, H + 6), 5, border_radius=20)

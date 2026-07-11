@@ -78,9 +78,9 @@ except Exception:
 # ── Row 1: suit-frame, coin-face, stage-reveal ────────────────────────────────
 row1_y = row0_y + ROW_H + GAP
 cards_row1 = [
-    ("docs/item_card_redesign_v5/suit-frame/round_2.png",    "A — SUIT FRAME"),
-    ("docs/item_card_redesign_v5/coin-face/round_2.png",     "B — COIN FACE"),
-    ("docs/item_card_redesign_v5/stage-reveal/round_2.png",  "C — STAGE REVEAL"),
+    ("docs/item_card_redesign_v5/suit-frame/round_2.png",    "1 — SUIT FRAME"),
+    ("docs/item_card_redesign_v5/coin-face/round_2.png",     "2 — COIN FACE"),
+    ("docs/item_card_redesign_v5/stage-reveal/round_2.png",  "3 — STAGE REVEAL"),
 ]
 for i, (path, label) in enumerate(cards_row1):
     place_card(path, col_centers[i], row1_y, label)
@@ -88,8 +88,8 @@ for i, (path, label) in enumerate(cards_row1):
 # ── Row 2: roulette, baroque (centered in 3-col grid) ────────────────────────
 row2_y = row1_y + ROW_H + GAP
 cards_row2 = [
-    ("docs/item_card_redesign_v5/roulette/round_2.png", "D — ROULETTE ARC"),
-    ("docs/item_card_redesign_v5/baroque/round_2.png",  "E — BAROQUE"),
+    ("docs/item_card_redesign_v5/roulette/round_2.png", "4 — ROULETTE ARC"),
+    ("docs/item_card_redesign_v5/baroque/round_2.png",  "5 — BAROQUE"),
 ]
 offset_2 = (TOTAL_W - (CARD_W * 2 + GAP)) // 2 + CARD_W // 2
 for i, (path, label) in enumerate(cards_row2):
