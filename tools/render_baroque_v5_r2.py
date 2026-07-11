@@ -7,7 +7,7 @@ import pygame
 pygame.init()
 pygame.display.set_mode((1, 1))
 from game.animal_kitsune import build_kitsune
-from tools.card_helpers import soft_glow, coin_glyph
+from tools.card_helpers import soft_glow, real_coin_icon
 
 W, H = 324, 200
 GEM  = (255, 202, 104)
@@ -101,10 +101,10 @@ for yy in range(PH // 3):
 card.blit(pill_surf, (pill_x, pill_y))
 card.blit(tier_s, (pill_x + PP, pill_y + 3))
 
-# ── Nameplate: inside frame, above bottom border line ─────────────────────────
-INNER_BOT = H - BDR_INSET          # = 182 (inner face of bottom border)
+# ── Nameplate: anchored to bottom corner ornaments ────────────────────────────
+INNER_BOT = H - FLOU_INSET         # = 184 (bottom corner pip center y)
 FOOTER_H  = 28
-band_y    = INNER_BOT - FOOTER_H   # = 154
+band_y    = INNER_BOT - FOOTER_H   # = 156
 for i in range(14):
     a = int(i / 14 * 210)
     s = pygame.Surface((W, 1), pygame.SRCALPHA)
@@ -129,7 +129,7 @@ chip_surf = pygame.Surface((chip_w, chip_h), pygame.SRCALPHA)
 pygame.draw.rect(chip_surf, (12, 7, 22, 230), (0, 0, chip_w, chip_h), border_radius=chip_h // 2)
 pygame.draw.rect(chip_surf, (*GEM, 210), (0, 0, chip_w, chip_h), 1, border_radius=chip_h // 2)
 card.blit(chip_surf, (chip_x, chip_y))
-coin_glyph(card, chip_x + CHIP_PAD + COIN_R, chip_y + chip_h // 2, COIN_R)
+real_coin_icon(card, chip_x + CHIP_PAD + COIN_R, chip_y + chip_h // 2, COIN_R)
 card.blit(price_s, (chip_x + CHIP_PAD + COIN_R * 2 + 5, chip_y + CHIP_PAD - 1))
 
 

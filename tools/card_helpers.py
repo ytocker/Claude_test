@@ -81,3 +81,23 @@ def coin_glyph(surf, cx, cy, r):
         coin.blit(hl, (0, 0))
 
     surf.blit(coin, coin.get_rect(center=(cx, cy)))
+
+
+def real_coin_icon(surf, cx, cy, r=10):
+    """Replica of game/hud._coin_icon: dark rim + gold body + embossed parrot glyph."""
+    COIN_GOLD = (255, 210,  20)
+    COIN_DARK = (200, 140,   0)
+    EMBOSS    = (140,  85,   0)
+    s = r / 10  # scale from reference r=10
+    pygame.draw.circle(surf, COIN_DARK, (cx, cy), r + 1)
+    pygame.draw.circle(surf, COIN_GOLD, (cx, cy), r)
+    ew = max(1, round(7 * s))
+    eh = max(1, round(5 * s))
+    pygame.draw.ellipse(surf, EMBOSS, (cx - round(2*s), cy - round(1*s), ew, eh))
+    pygame.draw.circle(surf, EMBOSS, (cx - round(s), cy - round(3*s)), max(1, round(3*s)))
+    pygame.draw.polygon(surf, EMBOSS, [
+        (cx - round(3*s), cy - round(3*s)),
+        (cx - round(6*s), cy - round(2*s)),
+        (cx - round(3*s), cy - round(s)),
+    ])
+    pygame.draw.circle(surf, COIN_GOLD, (cx, cy - round(4*s)), 1)
