@@ -51,19 +51,10 @@ PIP_R   = 10
 CI      = 16    # tighter corner inset — pips closer to card edge
 FOOTER_H = 32
 
-# ── Inner border: overlays the art ────────────────────────────────────────────
-INSET = CI + PIP_R + 4   # tighter than r1 — border closer in, art has more room
+# Keep variables for pill positioning (inner border removed — corner ornaments only)
+INSET = CI + PIP_R + 4
 IBX, IBY = INSET, INSET
 IBW, IBH = W - INSET * 2, H - INSET - FOOTER_H - 4
-
-# 6-layer feathered glow expanding outward from border
-for extra, alpha in [(10, 12), (8, 24), (6, 42), (4, 65), (2, 95), (1, 140)]:
-    gs = pygame.Surface((W, H), pygame.SRCALPHA)
-    pygame.draw.rect(gs, (*GEM, alpha),
-                     (IBX - extra, IBY - extra, IBW + extra * 2, IBH + extra * 2), 2)
-    card.blit(gs, (0, 0))
-pygame.draw.rect(card, GEM, (IBX, IBY, IBW, IBH), 2)
-pygame.draw.line(card, (255, 252, 220), (IBX + 2, IBY + 1), (IBX + IBW - 2, IBY + 1), 1)
 
 # ── Corner ornaments overlay the art and border ───────────────────────────────
 ARM_LEN = 22

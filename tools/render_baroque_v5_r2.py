@@ -129,15 +129,16 @@ for yy in range(PH // 3):
 card.blit(pill_surf, (pill_x, pill_y))
 card.blit(tier_s, (pill_x + PP, pill_y + 3))
 
-# ── Footer: dark strip, name + price chip ──────────────────────────────────────
-FOOTER_H = 32
-band_y = H - FOOTER_H
+# ── Nameplate: inside frame, above bottom border line ─────────────────────────
+INNER_BOT = H - BDR_INSET          # = 182 (inner face of bottom border)
+FOOTER_H  = 28
+band_y    = INNER_BOT - FOOTER_H   # = 154
 for i in range(14):
-    a = int(i / 14 * 230)
+    a = int(i / 14 * 210)
     s = pygame.Surface((W, 1), pygame.SRCALPHA)
     s.fill((12, 7, 22, a))
     card.blit(s, (0, band_y + i - 7))
-pygame.draw.rect(card, (12, 7, 22), (0, band_y + 7, W, FOOTER_H))
+pygame.draw.rect(card, (12, 7, 22), (0, band_y + 7, W, INNER_BOT - band_y - 7))
 
 fnt_name  = pygame.font.SysFont("DejaVu Sans", 22, bold=True)
 fnt_price = pygame.font.SysFont("DejaVu Sans", 14, bold=True)
