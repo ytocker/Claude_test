@@ -101,9 +101,11 @@ card.blit(pill_surf, (pill_x, pill_y))
 card.blit(tier_s, (pill_x + PP, pill_y + 3))
 
 # ── Nameplate: anchored to bottom corner ornaments ────────────────────────────
-INNER_BOT = H - FLOU_INSET         # = 184 (bottom corner pip center y)
+_small_pip_y = H - FLOU_INSET - (LARGE_PIP_R + 3 + ARM_LEN)  # = 125
 FOOTER_H  = 28
-band_y    = INNER_BOT - FOOTER_H   # = 156
+_pad      = (H - FLOU_INSET - _small_pip_y - FOOTER_H) // 2  # = 15
+band_y    = _small_pip_y + _pad     # = 140
+INNER_BOT = band_y + FOOTER_H      # = 168
 for i in range(14):
     a = int(i / 14 * 210)
     s = pygame.Surface((W, 1), pygame.SRCALPHA)
