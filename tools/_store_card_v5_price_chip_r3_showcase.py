@@ -20,7 +20,7 @@ from game.hud import _font as hud_font
 SID = "skin_mummy"
 
 CARD_W = sc.CARD_W * sc.SS   # 324
-CARD_H = sc.CARD_H * sc.SS   # 200
+CARD_H = sc.CARD_H * sc.SS + 16   # 216 — extra 16px so bottom chip arc isn't clipped
 _INSET = sc._INSET
 
 docs_dir = os.path.join(os.path.dirname(__file__), "..",

@@ -200,7 +200,7 @@ def main():
     cw, ch = sc.CARD_W * sc.SS, sc.CARD_H * sc.SS
 
     def hero(affordable):
-        card = pygame.Surface((cw, ch), pygame.SRCALPHA)
+        card = pygame.Surface((cw, ch + 16), pygame.SRCALPHA)
         rect = pygame.Rect(sc.m(sc._INSET), sc.m(sc._INSET),
                            cw - 2 * sc.m(sc._INSET), ch - 2 * sc.m(sc._INSET))
         r = draw_card_with_chip(card, SID, rect, equipped=False, secret=False,
@@ -235,7 +235,7 @@ def main():
         surf.blit(img, img.get_rect(center=center))
 
     y_cards = HDR_H
-    y_striplbl = y_cards + ch + 26
+    y_striplbl = y_cards + ch + 42
     y_strip = y_striplbl + 20
     strip_h = max(chip_yes.get_height(), chip_no.get_height())
     y_1xlbl = y_strip + strip_h + 24
