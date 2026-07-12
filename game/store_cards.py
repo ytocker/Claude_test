@@ -734,6 +734,45 @@ def _ribbon(surf, tier_word, cx, cy, max_w, pal):
                tracking=m(1.4), weight=m(0.7))
 
 
+def _draw_card_v4_ref(surf, sid, rect, equipped, secret, variant=PRICE_VARIANT):
+    """v4 production card draw — preserved as a reference only.
+    Not called by any production code path; use draw_card() instead."""
+    pal = MYSTERY if secret else RARITY[_rarity(sid)]
+    rad = m(CARD_RAD)
+    drop_shadow(surf, rect, rad, blur=m(8), alpha=160, dy=m(4))
+    surf.blit(vgrad(rect.w, rect.h, rad, CARD_T, CARD_B, 252, gamma=1.15),
+              rect.topleft)
+    top_sheen(surf, rect, rad, m(30), peak=62)
+    contact_shadow(surf, rect, rad, m(9), alpha=120)
+    pygame.draw.rect(surf, (4, 5, 16), rect, width=max(1, m(2)), border_radius=rad)
+    bevel_rim(surf, rect, rad, CARD_RING_DEEP, (*CARD_RING_BRIGHT, 235),
+              w=max(1, m(2.0)))
+    tray = rect.inflate(-m(7), -m(7))
+    trad = rad - m(4)
+    pygame.draw.rect(surf, (10, 10, 24, 200), tray.inflate(m(2), m(2)),
+                     width=max(1, m(1)), border_radius=trad + m(1))
+    pygame.draw.rect(surf, (*CARD_RING_BRIGHT, 90), tray, width=max(1, m(1)),
+                     border_radius=trad)
+    orig_r = m(R_DISC)
+    cx, cy = rect.centerx, rect.y + m(CY_DISC)
+    soft_glow(surf, cx, cy, orig_r + m(3), pal["glow"], 30, layers=8)
+    cabochon(surf, cx, cy, orig_r, CABO_LO, CABO_HI, ring=pal["gem"], ring_a=50)
+    if secret:
+        _draw_qmark(surf, cx, cy, orig_r + m(6), CREAM, NEAR_BLACK, thick=m(2))
+        name = "???"
+    else:
+        blit_thumb(surf, sid, cx, cy, orig_r * 1.5)
+        name = _name(sid)
+    cabochon_glass(surf, cx, cy, orig_r, tint=pal["gem"])
+    facet_gem(surf, rect.right - m(19), rect.y + m(19), m(GEM_R + 3),
+              pal["gem"], pal["deep"], mystery=secret)
+    tier_word = "MYSTERY" if secret else _rarity(sid).upper()
+    _ribbon(surf, tier_word, cx, rect.y + m(55), rect.w - m(34), pal)
+    _name_on(surf, name, cx, rect.y + m(70), rect.w - m(26))
+    state_chip(surf, sid, cx, rect.y + m(88), equipped, secret, m(20),
+               variant=variant)
+
+
 def _ribbon_lozenge(surf, tier_word, cx, cy, max_w, pal):
     """Lozenge tier banner — outward pointed ends, shorter than the original
     notched hex."""
