@@ -567,7 +567,7 @@ _DOME_R  = 56   # int(84 / 1.5): item box 84 px, dome radius proportional
 _BOX_PX  = 84   # item thumbnail box in device px
 _ITEM_DY = 10   # m(5): item lifted 5 logical px above dome centre
 _DOME_DY = 10   # 5 logical px: dome+item shifted down from CY_DISC
-_RIBN_DY =  8   # lozenge ribbon 8 device px above the m(55) baseline
+_RIBN_DY =  5   # lozenge ribbon 5 device px above the m(55) baseline
 
 
 # ── chip family ───────────────────────────────────────────────────────────────
