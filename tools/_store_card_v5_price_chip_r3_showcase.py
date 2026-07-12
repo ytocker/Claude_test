@@ -42,11 +42,11 @@ def render_before():
 # (cx, cy) = top-left of the affordable hero card in that render sheet.
 # All r3 scripts use MARGIN=20, HDR_H=44, so the card starts at (20, 44).
 CONCEPTS = [
-    ("Heavy\nGold",    "heavy-gold",    20, 44),
-    ("Split\nCream",   "split-cream",   20, 44),
-    ("Chrome\nRing",   "chrome-ring",   20, 44),
-    ("Rarity\nRim",    "rarity-rim",    20, 44),
-    ("Gold\nSovereign","gold-sovereign", 20, 44),
+    ("A", "Heavy\nGold",    "heavy-gold",    20, 44),
+    ("B", "Split\nCream",   "split-cream",   20, 44),
+    ("C", "Chrome\nRing",   "chrome-ring",   20, 44),
+    ("D", "Rarity\nRim",    "rarity-rim",    20, 44),
+    ("E", "Gold\nSovereign","gold-sovereign", 20, 44),
 ]
 
 
@@ -79,6 +79,7 @@ htxt = hf.render(
 canvas.blit(htxt, ((canvas_w - htxt.get_width()) // 2,
                    MARGIN + (HDR_H - htxt.get_height()) // 2))
 
+lbl_id    = hud_font(16, True)
 lbl_font  = hud_font(12, True)
 lbl_font2 = hud_font(10, False)
 panel_y   = MARGIN + HDR_H
@@ -94,19 +95,23 @@ canvas.blit(t2, (MARGIN + (CARD_W - t2.get_width()) // 2,
                  panel_y + CARD_H + 6 + t.get_height() + 2))
 
 # concept panels
-for col, (label, slug, cx, cy) in enumerate(CONCEPTS, start=1):
+for col, (cid, label, slug, cx, cy) in enumerate(CONCEPTS, start=1):
     x = MARGIN + col * (CARD_W + GAP)
     panel = load_concept_panel(slug, cx, cy)
     canvas.blit(panel, (x, panel_y))
 
+    ly = panel_y + CARD_H + 4
+    tid = lbl_id.render(cid, True, (255, 230, 120))
+    canvas.blit(tid, (x + (CARD_W - tid.get_width()) // 2, ly))
+    ly += tid.get_height() + 1
+
     lines = label.split("\n")
     t1 = lbl_font.render(lines[0], True, (178, 174, 198))
-    canvas.blit(t1, (x + (CARD_W - t1.get_width()) // 2,
-                     panel_y + CARD_H + 6))
+    canvas.blit(t1, (x + (CARD_W - t1.get_width()) // 2, ly))
     if len(lines) > 1:
         t2 = lbl_font2.render(lines[1], True, (130, 126, 150))
         canvas.blit(t2, (x + (CARD_W - t2.get_width()) // 2,
-                         panel_y + CARD_H + 6 + t1.get_height() + 2))
+                         ly + t1.get_height() + 1))
 
 out = os.path.join(docs_dir, "showcase.png")
 os.makedirs(os.path.dirname(out), exist_ok=True)
