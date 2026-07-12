@@ -195,7 +195,7 @@ canvas.fill(BG)
 
 hf   = hud_font(18, True)
 htxt = hf.render(
-    f"v5 item name — smaller size options (dy=2↑ fixed) — split-cream chip ({SID})",
+    f"v5 store card — name size options (dy=2↑ fixed) — split-cream chip ({SID})",
     True, (210, 206, 224))
 canvas.blit(htxt, ((canvas_w - htxt.get_width()) // 2,
                    MARGIN + (HDR_H - htxt.get_height()) // 2))
