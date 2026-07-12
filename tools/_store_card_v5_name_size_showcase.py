@@ -172,11 +172,11 @@ def render_card(sz_logical, dy_logical):
 # ── options ───────────────────────────────────────────────────────────────────
 # (panel-id, sublabel, font-sz-logical, y-shift-logical-px-up)
 OPTIONS = [
-    ("BEFORE", "sz 13.5 · dy 0",  13.5, 0),
-    ("A",      "sz 15.5 · dy 2↑", 15.5, 2),
-    ("B",      "sz 15.5 · dy 4↑", 15.5, 4),
-    ("C",      "sz 17 · dy 2↑",   17.0, 2),
-    ("D",      "sz 17 · dy 4↑",   17.0, 4),
+    ("BEFORE", "dy 0 (current)", 13.5, 0),
+    ("A",      "dy 2↑",         13.5, 2),
+    ("B",      "dy 4↑",         13.5, 4),
+    ("C",      "dy 6↑",         13.5, 6),
+    ("D",      "dy 8↑",         13.5, 8),
 ]
 
 # ── layout ────────────────────────────────────────────────────────────────────
@@ -195,7 +195,7 @@ canvas.fill(BG)
 
 hf   = hud_font(18, True)
 htxt = hf.render(
-    f"v5 item name — size + position options — split-cream chip ({SID})",
+    f"v5 item name — y-position options (sz 13.5 fixed) — split-cream chip ({SID})",
     True, (210, 206, 224))
 canvas.blit(htxt, ((canvas_w - htxt.get_width()) // 2,
                    MARGIN + (HDR_H - htxt.get_height()) // 2))
