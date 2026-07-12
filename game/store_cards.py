@@ -568,6 +568,7 @@ _BOX_PX  = 84   # item thumbnail box in device px
 _ITEM_DY =  6   # 3 logical px above dome centre (locked: was 5, nudged +2 lx down)
 _DOME_DY = 10   # 5 logical px: dome+item shifted down from CY_DISC
 _RIBN_DY =  5   # lozenge ribbon 5 device px above the m(55) baseline
+_CHIP_DY =  6   # price chip 3 logical px above the m(88) baseline
 
 
 # ── chip family ───────────────────────────────────────────────────────────────
@@ -809,7 +810,7 @@ def draw_card(surf, sid, rect, equipped, secret, variant=PRICE_VARIANT):
     tier_word = "MYSTERY" if secret else _rarity(sid).upper()
     _ribbon_lozenge(surf, tier_word, cx, rect.y + m(55) - _RIBN_DY, rect.w - m(34), pal)
     _name_on(surf, name, cx, rect.y + m(70), rect.w - m(26))
-    state_chip(surf, sid, cx, rect.y + m(88), equipped, secret, m(20),
+    state_chip(surf, sid, cx, rect.y + m(88) - _CHIP_DY, equipped, secret, m(20),
                variant=variant)
 
 
