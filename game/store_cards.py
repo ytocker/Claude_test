@@ -566,6 +566,7 @@ GEM_R = 8
 _DOME_R  = 56   # int(84 / 1.5): item box 84 px, dome radius proportional
 _BOX_PX  = 84   # item thumbnail box in device px
 _ITEM_DY = 10   # m(5): item lifted 5 logical px above dome centre
+_DOME_DY =  8   # m(4): dome+item shifted 4 logical px down from CY_DISC
 _RIBN_DY =  8   # lozenge ribbon 8 device px above the m(55) baseline
 
 
@@ -788,7 +789,7 @@ def draw_card(surf, sid, rect, equipped, secret, variant=PRICE_VARIANT):
                      border_radius=trad)
 
     # BAND A — cabochon (dome + rim-lit hero) with a soft tier aura
-    cx, cy = rect.centerx, rect.y + m(CY_DISC)
+    cx, cy = rect.centerx, rect.y + m(CY_DISC) + _DOME_DY
     soft_glow(surf, cx, cy, _DOME_R + m(3), pal["glow"], 30, layers=8)
     cabochon(surf, cx, cy, _DOME_R, CABO_LO, CABO_HI, ring=pal["gem"], ring_a=50)
     if secret:
