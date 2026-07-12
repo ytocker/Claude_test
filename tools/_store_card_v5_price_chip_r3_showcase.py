@@ -42,16 +42,17 @@ def render_before():
 # (cx, cy) = top-left of the affordable hero card in that render sheet.
 # All r3 scripts use MARGIN=20, HDR_H=44, so the card starts at (20, 44).
 CONCEPTS = [
-    ("A", "Heavy\nGold",    "heavy-gold",    20, 44),
-    ("B", "Split\nCream",   "split-cream",   20, 44),
-    ("C", "Chrome\nRing",   "chrome-ring",   20, 44),
-    ("D", "Rarity\nRim",    "rarity-rim",    20, 44),
-    ("E", "Gold\nSovereign","gold-sovereign", 20, 44),
+    ("A", "Heavy\nGold",    "heavy-gold",    20, 44, "round_2.png"),
+    ("B", "Split\nCream",   "split-cream",   20, 44, "round_2.png"),
+    ("C", "Chrome\nRing",   "chrome-ring",   20, 44, "round_2.png"),
+    ("D", "Rarity\nRim",    "rarity-rim",    20, 44, "round_2.png"),
+    ("E", "Gold\nSovereign","gold-sovereign", 20, 44, "round_2.png"),
+    ("F", "Fusion\nA+B",    "fusion",        20, 44, "round_1.png"),
 ]
 
 
-def load_concept_panel(slug, cx, cy):
-    path = os.path.join(docs_dir, slug, "round_2.png")
+def load_concept_panel(slug, cx, cy, rnd="round_2.png"):
+    path = os.path.join(docs_dir, slug, rnd)
     img = pygame.image.load(path)
     crop = img.subsurface(pygame.Rect(cx, cy, CARD_W, CARD_H)).copy()
     return crop
@@ -95,9 +96,9 @@ canvas.blit(t2, (MARGIN + (CARD_W - t2.get_width()) // 2,
                  panel_y + CARD_H + 6 + t.get_height() + 2))
 
 # concept panels
-for col, (cid, label, slug, cx, cy) in enumerate(CONCEPTS, start=1):
+for col, (cid, label, slug, cx, cy, rnd) in enumerate(CONCEPTS, start=1):
     x = MARGIN + col * (CARD_W + GAP)
-    panel = load_concept_panel(slug, cx, cy)
+    panel = load_concept_panel(slug, cx, cy, rnd)
     canvas.blit(panel, (x, panel_y))
 
     ly = panel_y + CARD_H + 4
