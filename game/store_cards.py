@@ -796,9 +796,10 @@ def draw_card(surf, sid, rect, equipped, secret, variant=PRICE_VARIANT):
         _draw_qmark(surf, cx, cy, _DOME_R + m(6), CREAM, NEAR_BLACK, thick=m(2))
         name = "???"
     else:
-        blit_thumb(surf, sid, cx, cy - _ITEM_DY, _BOX_PX)
         name = _name(sid)
     cabochon_glass(surf, cx, cy, _DOME_R, tint=pal["gem"])
+    if not secret:
+        blit_thumb(surf, sid, cx, cy - _ITEM_DY, _BOX_PX)
 
     # CREST GEM — a larger faceted tier gem in the top-right corner.
     facet_gem(surf, rect.right - m(19), rect.y + m(19), m(GEM_R + 3),
