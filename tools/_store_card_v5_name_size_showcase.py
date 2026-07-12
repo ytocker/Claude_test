@@ -159,10 +159,11 @@ def make_name_on(sz_logical, dy_logical):
 
 def render_card(sz_logical, dy_logical):
     sc._name_on = make_name_on(sz_logical, dy_logical)
-    surf = pygame.Surface((CARD_W, CARD_H), pygame.SRCALPHA)
+    ch   = sc.CARD_H * sc.SS                           # 200 — original card height for rect
+    surf = pygame.Surface((CARD_W, ch + 16), pygame.SRCALPHA)
     rect = pygame.Rect(sc.m(_INSET), sc.m(_INSET),
                        CARD_W - 2 * sc.m(_INSET),
-                       CARD_H - 2 * sc.m(_INSET))
+                       ch - 2 * sc.m(_INSET))          # rect.h=184, matches split-cream r2
     draw_card_split_cream(surf, SID, rect, affordable=True)
     sc._name_on = _orig_name_on
     return surf
