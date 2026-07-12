@@ -53,22 +53,26 @@ def dark_chip_body(surf, r, radius, stops, rim_dark, rim_bright_3tup,
 # Gradient identical to B: tight cream→amber seam mapped to glyph bounding rect
 NUM_STOPS = [(0.0, (255, 244, 196)), (0.48, (250, 228, 148)),
              (0.52, (224, 164, 62)),  (1.0, (210, 150, 60))]
-# Outline: dark warm amber — darker than numerals, slightly warmer than body;
-# creates a visible perimeter ring around each digit stroke.
+# Outline: dark warm amber — darker than numerals, slightly warmer than body
 OUTLINE_COLOR = (85, 58, 14)
+# Tracking: extra device-px gap inserted between each character pair
+TRACKING = sc.m(2)
 
 
 def _draw_numerals(surf, nx, cy, text, f):
-    """Render gradient numerals with a dark-amber outline ring at each glyph."""
-    mask = sc._stamp_bold(sc._glyph_base(text, f, 0), sc.m(1.0))
+    """Render gradient numerals with a 2-ring dark-amber outline at each glyph."""
+    mask = sc._stamp_bold(sc._glyph_base(text, f, TRACKING), sc.m(1.0))
     bb = mask.get_bounding_rect()
 
-    # outline pass: tint mask dark amber, blit at 8 neighbour offsets so every
-    # edge pixel of every digit gets a contrasting perimeter — no additive light.
+    # 2-ring outline: outer ±2px pass first, then inner ±1px pass on top so the
+    # combined ring is ~2 device px wide on every digit edge — no additive light.
     outline = mask.copy()
     tint_s = pygame.Surface(mask.get_size(), pygame.SRCALPHA)
     tint_s.fill((*OUTLINE_COLOR, 255))
     outline.blit(tint_s, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    for ox, oy in [(-2, 0), (2, 0), (0, -2), (0, 2),
+                   (-2, -2), (2, -2), (-2, 2), (2, 2)]:
+        surf.blit(outline, outline.get_rect(center=(nx + ox, cy + oy)))
     for ox, oy in [(-1, 0), (1, 0), (0, -1), (0, 1),
                    (-1, -1), (1, -1), (-1, 1), (1, 1)]:
         surf.blit(outline, outline.get_rect(center=(nx + ox, cy + oy)))
@@ -87,7 +91,7 @@ def price_chip_fusion(surf, cx, cy, text, h, affordable=True):
     pad = sc.m(13)
     gapc = sc.m(8)
     f = sc.font(h * 0.50 / sc.SS)                       # B's default size
-    nw = sc._glyph_base(text, f, 0).get_width() + sc.m(2)
+    nw = sc._glyph_base(text, f, TRACKING).get_width() + sc.m(2)
     w = pad + coin_d + gapc + nw + pad
     rad = h // 2
     r = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
@@ -99,11 +103,13 @@ def price_chip_fusion(surf, cx, cy, text, h, affordable=True):
 
     dark_chip_body(surf, r, rad, stops, (8, 10, 20), (60, 65, 100),
                    gloss=12, gamma=1.04)
-    # B's warm keyline over the standard bevel — thin struck edge on the pill rim
-    if affordable:
-        sc.bevel_rim(surf, r, rad, (120, 90, 30, 180), (255, 230, 150, 150), w=1)
-    else:
-        sc.bevel_rim(surf, r, rad, (120, 90, 30, 120), (255, 230, 150, 80), w=1)
+    # Uniform warm gold ring drawn via SRCALPHA so it wraps the bottom arc equally
+    # — sc.bevel_rim fades to zero at the bottom arc, leaving it invisible.
+    rim_a = 160 if affordable else 80
+    rim_surf = pygame.Surface((r.w, r.h), pygame.SRCALPHA)
+    pygame.draw.rect(rim_surf, (220, 170, 60, rim_a), rim_surf.get_rect(),
+                     width=max(1, sc.m(1)), border_radius=rad)
+    surf.blit(rim_surf, r.topleft)
 
     ccx = r.x + pad + coin_d // 2
     sc.coin_glyph(surf, ccx, cy, coin_d // 2)
