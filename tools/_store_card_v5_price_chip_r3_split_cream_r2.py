@@ -60,7 +60,7 @@ def price_chip_split_cream(surf, cx, cy, text, h, affordable=True):
     coin_d = int(h * 0.66)
     pad = sc.m(13)
     gapc = sc.m(8)                                   # clear gap: coin cell -> digits
-    f = sc.font(h * 0.50 / sc.SS)                     # DEFAULT size — the seam works
+    f = sc.font(h * 0.62 / sc.SS)                       # slightly larger — more presence
     nw = sc._glyph_base(text, f, 0).get_width() + sc.m(2)
     w = pad + coin_d + gapc + nw + pad
     rad = h // 2                                     # full pill silhouette
@@ -70,16 +70,21 @@ def price_chip_split_cream(surf, cx, cy, text, h, affordable=True):
         # near the pill can read as glow — the light lives ONLY in the digits
         dark_chip_body(surf, r, rad, [(0.0, (12, 13, 22)), (1.0, (34, 37, 56))],
                        (8, 10, 20), (60, 65, 100), gloss=12, gamma=1.04)
-        # warm keyline: a thin struck edge, defined by alpha not additive light
-        sc.bevel_rim(surf, r, rad, (120, 90, 30, 180), (255, 230, 150, 150), w=1)
         coin_rim = (180, 150, 60)
         cool_coin = None
+        rim_a = 150
     else:
         dark_chip_body(surf, r, rad, [(0.0, (10, 11, 20)), (1.0, (26, 28, 44))],
                        (8, 10, 20), (60, 65, 100), gloss=12, gamma=1.04)
-        sc.bevel_rim(surf, r, rad, (120, 90, 30, 120), (255, 230, 150, 80), w=1)
         coin_rim = (120, 110, 80)
         cool_coin = (70, 74, 84, 180)                # neutral slate over the coin
+        rim_a = 80
+    # Uniform warm gold ring via SRCALPHA — sc.bevel_rim fades to alpha=0 at the
+    # bottom arc, leaving it invisible; this stroke is equal all the way around.
+    rim_surf = pygame.Surface((r.w, r.h), pygame.SRCALPHA)
+    pygame.draw.rect(rim_surf, (220, 170, 60, rim_a), rim_surf.get_rect(),
+                     width=max(1, sc.m(1)), border_radius=rad)
+    surf.blit(rim_surf, r.topleft)
     x = r.x + pad
     ccx = x + coin_d // 2
     sc.coin_glyph(surf, ccx, cy, coin_d // 2, rim=coin_rim)
