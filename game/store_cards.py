@@ -562,6 +562,12 @@ Y_NAME = 63
 Y_CHIP = 84
 GEM_R = 8
 
+# v5 item-card calibration — locked by exploration
+_DOME_R  = 56   # int(84 / 1.5): item box 84 px, dome radius proportional
+_BOX_PX  = 84   # item thumbnail box in device px
+_ITEM_DY = 10   # m(5): item lifted 5 logical px above dome centre
+_RIBN_DY =  8   # lozenge ribbon 8 device px above the m(55) baseline
+
 
 # ── chip family ───────────────────────────────────────────────────────────────
 def gloss_sweep(surf, rect, radius, peak=120):
@@ -726,6 +732,35 @@ def _ribbon(surf, tier_word, cx, cy, max_w, pal):
                tracking=m(1.4), weight=m(0.7))
 
 
+def _ribbon_lozenge(surf, tier_word, cx, cy, max_w, pal):
+    """Lozenge tier banner — outward pointed ends, shorter than the original
+    notched hex."""
+    f = font(8.5)
+    tw = _glyph_base(tier_word, f, m(1.4)).get_width()
+    pad = m(14)
+    w = min(max_w, tw + pad * 2)
+    h = m(10)
+    pt = h // 2
+    x0, y0 = cx - w // 2, cy - h // 2
+    poly = [(0, h // 2), (pt, 0), (w - pt, 0),
+            (w, h // 2), (w - pt, h), (pt, h)]
+    top = lerp_color(pal["gem"], WHITE, 0.1)
+    bot = lerp_color(pal["deep"], NEAR_BLACK, 0.05)
+    body = vgrad_stops(w, h, 0, [(0.0, top), (0.5, pal["glow"]), (1.0, bot)],
+                       255, gamma=1.08)
+    pmask = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.polygon(pmask, (255, 255, 255, 255), poly)
+    body.blit(pmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    sh = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.polygon(sh, (0, 0, 0, 120), poly)
+    surf.blit(sh, (x0, y0 + m(2)))
+    surf.blit(body, (x0, y0))
+    abspoly = [(x0 + px, y0 + py) for px, py in poly]
+    pygame.draw.polygon(surf, (4, 5, 16), abspoly, width=max(1, m(1.4)))
+    plain_text(surf, tier_word, f, (cx, cy), (14, 12, 26), shadow_a=0,
+               tracking=m(1.4), weight=m(0.7))
+
+
 def draw_card(surf, sid, rect, equipped, secret, variant=PRICE_VARIANT):
     """The full CONSTELLATION card drawn into `rect` on `surf` (both in device
     px). `secret` masks the thumbnail to ??? + a red mystery gem."""
@@ -754,15 +789,15 @@ def draw_card(surf, sid, rect, equipped, secret, variant=PRICE_VARIANT):
 
     # BAND A — cabochon (dome + rim-lit hero) with a soft tier aura
     cx, cy = rect.centerx, rect.y + m(CY_DISC)
-    soft_glow(surf, cx, cy, m(R_DISC + 3), pal["glow"], 30, layers=8)
-    cabochon(surf, cx, cy, m(R_DISC), CABO_LO, CABO_HI, ring=pal["gem"], ring_a=50)
+    soft_glow(surf, cx, cy, _DOME_R + m(3), pal["glow"], 30, layers=8)
+    cabochon(surf, cx, cy, _DOME_R, CABO_LO, CABO_HI, ring=pal["gem"], ring_a=50)
     if secret:
-        _draw_qmark(surf, cx, cy, m(R_DISC + 6), CREAM, NEAR_BLACK, thick=m(2))
+        _draw_qmark(surf, cx, cy, _DOME_R + m(6), CREAM, NEAR_BLACK, thick=m(2))
         name = "???"
     else:
-        blit_thumb(surf, sid, cx, cy, m(R_DISC) * 1.5)
+        blit_thumb(surf, sid, cx, cy - _ITEM_DY, _BOX_PX)
         name = _name(sid)
-    cabochon_glass(surf, cx, cy, m(R_DISC), tint=pal["gem"])
+    cabochon_glass(surf, cx, cy, _DOME_R, tint=pal["gem"])
 
     # CREST GEM — a larger faceted tier gem in the top-right corner.
     facet_gem(surf, rect.right - m(19), rect.y + m(19), m(GEM_R + 3),
@@ -770,7 +805,7 @@ def draw_card(surf, sid, rect, equipped, secret, variant=PRICE_VARIANT):
 
     # rarity RIBBON (tier word) -> name -> chip, each in its own clear lane.
     tier_word = "MYSTERY" if secret else _rarity(sid).upper()
-    _ribbon(surf, tier_word, cx, rect.y + m(55), rect.w - m(34), pal)
+    _ribbon_lozenge(surf, tier_word, cx, rect.y + m(55) - _RIBN_DY, rect.w - m(34), pal)
     _name_on(surf, name, cx, rect.y + m(70), rect.w - m(26))
     state_chip(surf, sid, cx, rect.y + m(88), equipped, secret, m(20),
                variant=variant)
