@@ -166,47 +166,56 @@ OPTIONS = [
     ("H",    f"pad={sc.m(5)}px",            sc.m(5)),
 ]
 
-# ── layout ────────────────────────────────────────────────────────────────────
-BG      = (8, 8, 20)
-MARGIN  = 24
-GAP     = 10
-HDR_H   = 44
-LBL_H   = 44
-ch      = sc.CARD_H * sc.SS
-PANEL_H = ch + 16
+# ── layout (two rows: 5 top, 4 bottom centred) ───────────────────────────────
+BG       = (8, 8, 20)
+MARGIN   = 24
+GAP      = 10
+HDR_H    = 44
+LBL_H    = 44
+ROW_GAP  = 20
+ch       = sc.CARD_H * sc.SS
+PANEL_H  = ch + 16
 
-n        = len(OPTIONS)
-canvas_w = MARGIN * 2 + CARD_W * n + GAP * (n - 1)
-canvas_h = MARGIN + HDR_H + PANEL_H + LBL_H + MARGIN
+ROW_SPLIT = 5
+row1, row2 = OPTIONS[:ROW_SPLIT], OPTIONS[ROW_SPLIT:]
+
+n_max    = max(len(row1), len(row2))
+canvas_w = MARGIN * 2 + CARD_W * n_max + GAP * (n_max - 1)
+canvas_h = MARGIN + HDR_H + (PANEL_H + LBL_H) * 2 + ROW_GAP + MARGIN
 
 canvas = pygame.Surface((canvas_w, canvas_h))
 canvas.fill(BG)
 
 hf   = hud_font(18, True)
 htxt = hf.render(
-    f"v5 store card — chip pad width: base → H  (h_content={H_CONTENT}px  h_frame={H_FRAME}px)  ({SID})",
+    f"v5 store card — chip pad width: all options  (h_content={H_CONTENT}px  h_frame={H_FRAME}px)  ({SID})",
     True, (210, 206, 224))
 canvas.blit(htxt, ((canvas_w - htxt.get_width()) // 2,
                    MARGIN + (HDR_H - htxt.get_height()) // 2))
 
-lbl_id  = hud_font(16, True)
-lbl_sm  = hud_font(10, False)
-panel_y = MARGIN + HDR_H
+lbl_id = hud_font(16, True)
+lbl_sm = hud_font(10, False)
 
-for col, (oid, sublabel, pad) in enumerate(OPTIONS):
-    x    = MARGIN + col * (CARD_W + GAP)
-    card = render_card(pad)
-    canvas.blit(card, (x, panel_y))
+for row_idx, row_opts in enumerate([row1, row2]):
+    n_row   = len(row_opts)
+    row_w   = CARD_W * n_row + GAP * (n_row - 1)
+    row_x0  = (canvas_w - row_w) // 2
+    panel_y = MARGIN + HDR_H + row_idx * (PANEL_H + LBL_H + ROW_GAP)
 
-    ly  = panel_y + PANEL_H + 4
-    tid = lbl_id.render(oid, True, (255, 230, 120))
-    canvas.blit(tid, (x + (CARD_W - tid.get_width()) // 2, ly))
-    ly += tid.get_height() + 1
+    for col, (oid, sublabel, pad) in enumerate(row_opts):
+        x    = row_x0 + col * (CARD_W + GAP)
+        card = render_card(pad)
+        canvas.blit(card, (x, panel_y))
 
-    t = lbl_sm.render(sublabel, True, (130, 126, 150))
-    canvas.blit(t, (x + (CARD_W - t.get_width()) // 2, ly))
+        ly  = panel_y + PANEL_H + 4
+        tid = lbl_id.render(oid, True, (255, 230, 120))
+        canvas.blit(tid, (x + (CARD_W - tid.get_width()) // 2, ly))
+        ly += tid.get_height() + 1
 
-out = os.path.join(docs_dir, "all_options.png")
+        t = lbl_sm.render(sublabel, True, (130, 126, 150))
+        canvas.blit(t, (x + (CARD_W - t.get_width()) // 2, ly))
+
+out = os.path.join(docs_dir, "two_rows.png")
 os.makedirs(docs_dir, exist_ok=True)
 pygame.image.save(canvas, out)
 print(f"Saved: {out}  ({canvas_w}×{canvas_h})")
