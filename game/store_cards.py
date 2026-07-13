@@ -610,35 +610,64 @@ def chip_body(surf, r, radius, top, bot, rim_dark, rim_bright, gloss=120,
                     rim_bright, gloss=gloss, gamma=gamma)
 
 
+_CHIP_H_CONTENT = m(18)   # 36 px — coin + numeral content height (locked)
+_CHIP_H_FRAME   = m(15)   # 30 px — pill height (locked)
+_CHIP_PAD       = m(8)    # 16 px — horizontal padding (locked)
+
+
 def price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
-    """Premium coin-price chip. The body is the ONE canonical GOLD RAMP A — a
-    single smooth bright-crown -> deep-amber gradient, a crisp double rim, one
-    gloss sweep, a clean beveled coin in its own cell with a clear gap before
-    the LOCKED legible numerals. Can't-afford shares the same pill + double-rim
-    finish: a cool slate body with light legible numerals."""
-    coin_d = int(h * 0.66)
-    pad = m(13)
-    gapc = m(8)                                    # clear gap: coin cell -> digits
-    f = font(h * 0.50 / SS)
-    nw = _glyph_base(text, f, 0).get_width() + m(2)  # account for faux-bold
-    w = pad + coin_d + gapc + nw + pad
-    r = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
+    """Dark split-cream price chip — locked geometry. The body is a deep navy
+    pill with a gold coin glyph and gradient gold numerals; can't-afford dims
+    both the coin and numerals with a cool overlay."""
+    hc   = _CHIP_H_CONTENT
+    hf   = _CHIP_H_FRAME
+    pad  = _CHIP_PAD
+    gapc = m(8)
+    coin_d = int(hc * 0.66)
+    f  = font(hc * 0.62 / SS)
+    nw = _glyph_base(text, f, 0).get_width() + m(2)
+    w  = pad + coin_d + gapc + nw + pad
+    r  = pygame.Rect(cx - w // 2, cy - hf // 2, w, hf)
+    rad = hf // 2
     if affordable:
-        chip_body_stops(surf, r, h // 2, PRICE_STOPS, PRICE_RIM_DARK,
-                        PRICE_RIM_BRIGHT, gloss=40, gamma=1.04)
-        num_col = GOLD_A_NUM
-        coin_rim = GOLD_A_COIN_RIM
+        chip_body_stops(surf, r, rad,
+                        [(0.0, (12, 13, 22)), (1.0, (34, 37, 56))],
+                        (8, 10, 20), (60, 65, 100), gloss=12, gamma=1.04)
+        coin_rim  = (180, 150, 60)
+        cool_coin = None
+        rim_a     = 150
     else:
-        chip_body(surf, r, h // 2, (96, 102, 124), (52, 56, 76),
-                  (14, 16, 26), (168, 176, 198), gloss=60)
-        num_col = (236, 240, 250)
-        coin_rim = (78, 84, 104)
-    x = r.x + pad
-    coin_glyph(surf, x + coin_d // 2, cy, coin_d // 2, rim=coin_rim)
-    x += coin_d + gapc
-    plain_text(surf, text, f, (x + nw // 2, cy), num_col, shadow_a=0,
-               weight=m(1.0), keyline=(20, 24, 38) if not affordable else None,
-               kw=m(0.7))
+        chip_body_stops(surf, r, rad,
+                        [(0.0, (10, 11, 20)), (1.0, (26, 28, 44))],
+                        (8, 10, 20), (60, 65, 100), gloss=12, gamma=1.04)
+        coin_rim  = (120, 110, 80)
+        cool_coin = (70, 74, 84, 180)
+        rim_a     = 80
+    rim_surf = pygame.Surface((r.w, r.h), pygame.SRCALPHA)
+    pygame.draw.rect(rim_surf, (220, 170, 60, rim_a), rim_surf.get_rect(),
+                     width=max(1, m(1)), border_radius=rad)
+    surf.blit(rim_surf, r.topleft)
+    x   = r.x + pad
+    ccx = x + coin_d // 2
+    coin_glyph(surf, ccx, cy, coin_d // 2, rim=coin_rim)
+    if cool_coin is not None:
+        cr   = coin_d // 2
+        tint = pygame.Surface((coin_d, coin_d), pygame.SRCALPHA)
+        pygame.draw.circle(tint, cool_coin, (cr, cr), cr)
+        surf.blit(tint, (ccx - cr, cy - cr))
+    nx = x + coin_d + gapc + nw // 2
+    if affordable:
+        mask = _stamp_bold(_glyph_base(text, f, 0), m(1.0))
+        grad = vgrad_stops(mask.get_width(), mask.get_height(), 0,
+                           [(0.0, (255, 244, 196)), (0.48, (250, 228, 148)),
+                            (0.52, (224, 164, 62)), (1.0, (210, 150, 60))],
+                           255, 1.0)
+        img = mask.copy()
+        img.blit(grad, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        surf.blit(img, img.get_rect(center=(nx, cy)))
+    else:
+        plain_text(surf, text, f, (nx, cy), color=(150, 140, 110),
+                   shadow_a=0, weight=m(1.0))
     return r
 
 
