@@ -155,11 +155,11 @@ def render_card(pad_device):
 
 # ── options ───────────────────────────────────────────────────────────────────
 OPTIONS = [
-    ("C (base)", f"pad={sc.m(13)}px each side", sc.m(13)),
-    ("A",        f"pad={sc.m(12)}px (−2 each)", sc.m(12)),
-    ("B",        f"pad={sc.m(11)}px (−4 each)", sc.m(11)),
-    ("C",        f"pad={sc.m(10)}px (−6 each)", sc.m(10)),
-    ("D",        f"pad={sc.m(9)}px  (−8 each)", sc.m(9)),
+    ("D (base)", f"pad={sc.m(9)}px each side",  sc.m(9)),
+    ("E",        f"pad={sc.m(8)}px (−2 each)",  sc.m(8)),
+    ("F",        f"pad={sc.m(7)}px (−4 each)",  sc.m(7)),
+    ("G",        f"pad={sc.m(6)}px (−6 each)",  sc.m(6)),
+    ("H",        f"pad={sc.m(5)}px (−8 each)",  sc.m(5)),
 ]
 
 # ── layout ────────────────────────────────────────────────────────────────────
