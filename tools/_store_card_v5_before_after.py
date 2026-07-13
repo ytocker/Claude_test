@@ -39,8 +39,8 @@ def render_before():
     rect = pygame.Rect(sc.m(_INSET), sc.m(_INSET),
                        CARD_W - 2 * sc.m(_INSET),
                        ch - 2 * sc.m(_INSET))
-    sc.draw_card(surf, SID, rect, equipped=False, secret=False,
-                 variant=sc.PRICE_VARIANT)
+    sc._draw_card_v4_ref(surf, SID, rect, equipped=False, secret=False,
+                         variant=sc.PRICE_VARIANT)
     return surf
 
 
@@ -188,7 +188,7 @@ lbl_sm = hud_font(10, False)
 panel_y = MARGIN + HDR_H
 
 PANELS = [
-    (render_before(), "BEFORE", "original amber chip  h=40px  pad=26px"),
+    (render_before(), "BEFORE", "v4 card — original amber chip, hex ribbon, centre thumb"),
     (render_after(),  "AFTER",  f"split-cream  h_content={H_CONTENT}  h_frame={H_FRAME}  pad={PAD}"),
 ]
 
