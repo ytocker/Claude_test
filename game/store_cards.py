@@ -616,9 +616,9 @@ _CHIP_PAD       = m(8)    # 16 px — horizontal padding (locked)
 
 
 def price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
-    """Dark split-cream price chip — locked geometry. The body is a deep navy
-    pill with a gold coin glyph and gradient gold numerals; can't-afford dims
-    both the coin and numerals with a cool overlay."""
+    """Dark split-cream price chip — locked geometry. The body is a medium-dark
+    slate pill with a gold coin glyph and gradient gold numerals; can't-afford
+    dims both the coin and numerals with a cool overlay."""
     hc   = _CHIP_H_CONTENT
     hf   = _CHIP_H_FRAME
     pad  = _CHIP_PAD
@@ -631,21 +631,21 @@ def price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
     rad = hf // 2
     if affordable:
         chip_body_stops(surf, r, rad,
-                        [(0.0, (12, 13, 22)), (1.0, (34, 37, 56))],
+                        [(0.0, (66, 70, 108)), (1.0, (44, 48, 82))],
                         (8, 10, 20), (60, 65, 100), gloss=12, gamma=1.04)
         coin_rim  = (180, 150, 60)
         cool_coin = None
         rim_a     = 150
     else:
         chip_body_stops(surf, r, rad,
-                        [(0.0, (10, 11, 20)), (1.0, (26, 28, 44))],
+                        [(0.0, (50, 54, 86)),  (1.0, (34, 38, 64))],
                         (8, 10, 20), (60, 65, 100), gloss=12, gamma=1.04)
         coin_rim  = (120, 110, 80)
         cool_coin = (70, 74, 84, 180)
         rim_a     = 80
     rim_surf = pygame.Surface((r.w, r.h), pygame.SRCALPHA)
     pygame.draw.rect(rim_surf, (220, 170, 60, rim_a), rim_surf.get_rect(),
-                     width=max(1, m(1)), border_radius=rad)
+                     width=max(1, m(1.5)), border_radius=rad)
     surf.blit(rim_surf, r.topleft)
     x   = r.x + pad
     ccx = x + coin_d // 2
