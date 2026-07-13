@@ -155,11 +155,15 @@ def render_card(pad_device):
 
 # ── options ───────────────────────────────────────────────────────────────────
 OPTIONS = [
-    ("D (base)", f"pad={sc.m(9)}px each side",  sc.m(9)),
-    ("E",        f"pad={sc.m(8)}px (−2 each)",  sc.m(8)),
-    ("F",        f"pad={sc.m(7)}px (−4 each)",  sc.m(7)),
-    ("G",        f"pad={sc.m(6)}px (−6 each)",  sc.m(6)),
-    ("H",        f"pad={sc.m(5)}px (−8 each)",  sc.m(5)),
+    ("base", f"pad={sc.m(13)}px each side", sc.m(13)),
+    ("A",    f"pad={sc.m(12)}px",           sc.m(12)),
+    ("B",    f"pad={sc.m(11)}px",           sc.m(11)),
+    ("C",    f"pad={sc.m(10)}px",           sc.m(10)),
+    ("D",    f"pad={sc.m(9)}px",            sc.m(9)),
+    ("E",    f"pad={sc.m(8)}px",            sc.m(8)),
+    ("F",    f"pad={sc.m(7)}px",            sc.m(7)),
+    ("G",    f"pad={sc.m(6)}px",            sc.m(6)),
+    ("H",    f"pad={sc.m(5)}px",            sc.m(5)),
 ]
 
 # ── layout ────────────────────────────────────────────────────────────────────
@@ -180,7 +184,7 @@ canvas.fill(BG)
 
 hf   = hud_font(18, True)
 htxt = hf.render(
-    f"v5 store card — chip width options (h_content={H_CONTENT}px h_frame={H_FRAME}px) ({SID})",
+    f"v5 store card — chip pad width: base → H  (h_content={H_CONTENT}px  h_frame={H_FRAME}px)  ({SID})",
     True, (210, 206, 224))
 canvas.blit(htxt, ((canvas_w - htxt.get_width()) // 2,
                    MARGIN + (HDR_H - htxt.get_height()) // 2))
@@ -202,7 +206,7 @@ for col, (oid, sublabel, pad) in enumerate(OPTIONS):
     t = lbl_sm.render(sublabel, True, (130, 126, 150))
     canvas.blit(t, (x + (CARD_W - t.get_width()) // 2, ly))
 
-out = os.path.join(docs_dir, "showcase.png")
+out = os.path.join(docs_dir, "all_options.png")
 os.makedirs(docs_dir, exist_ok=True)
 pygame.image.save(canvas, out)
 print(f"Saved: {out}  ({canvas_w}×{canvas_h})")
