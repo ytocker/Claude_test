@@ -678,18 +678,18 @@ def price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
     rad = hf // 2
     if affordable:
         chip_body_stops(surf, r, rad,
-                        [(0.0, (66, 70, 108)), (1.0, (44, 48, 82))],
+                        [(0.0, (90, 94, 140)), (1.0, (64, 68, 112))],
                         (8, 10, 20), (60, 65, 100), gloss=12, gamma=1.04)
         coin_rim  = (180, 150, 60)
         cool_coin = None
         rim_a     = 150
     else:
         chip_body_stops(surf, r, rad,
-                        [(0.0, (50, 54, 86)),  (1.0, (34, 38, 64))],
+                        [(0.0, (72, 76, 118)), (1.0, (52, 56, 94))],
                         (8, 10, 20), (60, 65, 100), gloss=12, gamma=1.04)
         coin_rim  = (120, 110, 80)
         cool_coin = (70, 74, 84, 180)
-        rim_a     = 80
+        rim_a     = 110
     rim_surf = pygame.Surface((r.w, r.h), pygame.SRCALPHA)
     pygame.draw.rect(rim_surf, (220, 170, 60, rim_a), rim_surf.get_rect(),
                      width=max(1, m(1.5)), border_radius=rad)
