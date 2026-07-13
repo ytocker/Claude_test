@@ -94,6 +94,7 @@ _CHIP_STATES = {
 # ── cached primitives (the store is a menu screen; cache the heavy builds) ────
 _panel_cache: dict = {}
 _disc_cache: dict = {}
+_bg_cache: dict = {}   # keyed (W, H) — gradient is constant, stars overlay live
 _shelf_cache: dict = {}
 _coin_cache: dict = {}
 
@@ -577,13 +578,19 @@ class StoreScene:
         self._draw_confirm(surf)
 
     def _draw_bg(self, surf) -> None:
-        n = len(_BG_STOPS)
-        for y in range(H):
-            f = y / (H - 1)
-            seg = min(n - 2, int(f * (n - 1)))
-            local = (f * (n - 1)) - seg
-            pygame.draw.line(surf, lerp_color(_BG_STOPS[seg], _BG_STOPS[seg + 1],
-                                              local), (0, y), (W - 1, y))
+        key = (W, H)
+        bg = _bg_cache.get(key)
+        if bg is None:
+            bg = pygame.Surface((W, H))
+            n = len(_BG_STOPS)
+            for y in range(H):
+                f = y / (H - 1)
+                seg = min(n - 2, int(f * (n - 1)))
+                local = (f * (n - 1)) - seg
+                pygame.draw.line(bg, lerp_color(_BG_STOPS[seg], _BG_STOPS[seg + 1],
+                                                local), (0, y), (W - 1, y))
+            _bg_cache[key] = bg
+        surf.blit(bg, (0, 0))
         _draw_overlay_stars(surf, self._stars, self.t + 1.4)
 
     def _draw_title(self, surf) -> None:

@@ -170,10 +170,17 @@ def lerp_stops(stops, t):
     return lerp_color(c0, c1, max(0.0, min(1.0, local)))
 
 
+_vgrad_cache: dict = {}
+
+
 def vgrad_stops(w, h, radius, stops, alpha=255, gamma=1.0):
     """Vertical rounded-rect filled by a continuous multi-stop ramp (one smooth
     gradient top->bottom). The single path every GOLD-FILL flows through so the
     card has exactly ONE gold."""
+    key = (w, h, radius, tuple(stops), alpha, gamma)
+    hit = _vgrad_cache.get(key)
+    if hit is not None:
+        return hit
     body = pygame.Surface((w, h), pygame.SRCALPHA)
     for y in range(h):
         t = (y / max(1, h - 1)) ** gamma
@@ -183,6 +190,7 @@ def vgrad_stops(w, h, radius, stops, alpha=255, gamma=1.0):
         mask = pygame.Surface((w, h), pygame.SRCALPHA)
         pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, w, h), border_radius=radius)
         body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    _vgrad_cache[key] = body
     return body
 
 
@@ -241,16 +249,28 @@ def _alpha_aura(surf, cx, cy, radius, color, peak=27, layers=15):
         surf.blit(g, (cx - r - 1, cy - r - 1))
 
 
+_shadow_cache: dict = {}
+
+
 def drop_shadow(surf, rect, radius, blur, alpha, dy):
     """Multi-layer blurred outer shadow, offset down (top-left light source)."""
-    for i in range(blur, 0, -1):
-        a = int(alpha * (i / blur) ** 1.7 / blur * 2.4)
-        if a <= 0:
-            continue
-        r = pygame.Rect(rect.x - i, rect.y - i + dy, rect.w + 2 * i, rect.h + 2 * i)
-        s = pygame.Surface(r.size, pygame.SRCALPHA)
-        pygame.draw.rect(s, (0, 0, 0, a), s.get_rect(), border_radius=radius + i)
-        surf.blit(s, r.topleft)
+    key = (rect.w, rect.h, radius, blur, alpha, dy)
+    shadow = _shadow_cache.get(key)
+    if shadow is None:
+        sw = rect.w + blur * 2
+        sh = rect.h + blur * 2 + abs(dy)
+        shadow = pygame.Surface((sw, sh), pygame.SRCALPHA)
+        ox, oy = blur, blur
+        for i in range(blur, 0, -1):
+            a = int(alpha * (i / blur) ** 1.7 / blur * 2.4)
+            if a <= 0:
+                continue
+            r = pygame.Rect(ox - i, oy - i + dy, rect.w + 2 * i, rect.h + 2 * i)
+            s = pygame.Surface(r.size, pygame.SRCALPHA)
+            pygame.draw.rect(s, (0, 0, 0, a), s.get_rect(), border_radius=radius + i)
+            shadow.blit(s, r.topleft)
+        _shadow_cache[key] = shadow
+    surf.blit(shadow, (rect.x - blur, rect.y - blur))
 
 
 def _glyph_base(txt, font_obj, tracking):
@@ -371,25 +391,33 @@ CABO_RIM_BOOST = 34           # content out-pops frame
 CABO_RIM_ALPHA = 180          # +~20% rim-light contrast
 
 
+_cabochon_cache: dict = {}
+
+
 def cabochon(surf, cx, cy, r, glass_lo=CABO_C_LO, glass_hi=CABO_C_HI,
              ring=GOLD_DEEP, ring_a=120):
     """The domed glass WELL the skin sits inside (drawn BEFORE the thumbnail):
     a radial dome (lit-ish centre, deepening to near-black rim) plus a gentle
     inner vignette so contents settle into the well. The translucent dome
     overlay + bezel land later via cabochon_glass()."""
-    pad = m(4)
-    disc = pygame.Surface((r * 2 + pad * 2, r * 2 + pad * 2), pygame.SRCALPHA)
-    c = r + pad
-    # radial domed glass body
-    for i in range(r, 0, -1):
-        col = lerp_color(glass_lo, glass_hi, (i / r) ** 1.28)
-        pygame.draw.circle(disc, (*col, 255), (c, c), i)
-    # gentle inner vignette so contents settle into the well
-    vig = pygame.Surface(disc.get_size(), pygame.SRCALPHA)
-    for i in range(r, int(r * 0.78), -1):
-        a = int(42 * (1 - (i - r * 0.78) / (r * 0.22)))
-        pygame.draw.circle(vig, (0, 0, 0, max(0, a)), (c, c), i, max(1, m(0.6)))
-    disc.blit(vig, (0, 0))
+    key = (r, glass_lo, glass_hi)
+    disc = _cabochon_cache.get(key)
+    if disc is None:
+        pad = m(4)
+        disc = pygame.Surface((r * 2 + pad * 2, r * 2 + pad * 2), pygame.SRCALPHA)
+        c = r + pad
+        # radial domed glass body
+        for i in range(r, 0, -1):
+            col = lerp_color(glass_lo, glass_hi, (i / r) ** 1.28)
+            pygame.draw.circle(disc, (*col, 255), (c, c), i)
+        # gentle inner vignette so contents settle into the well
+        vig = pygame.Surface(disc.get_size(), pygame.SRCALPHA)
+        for i in range(r, int(r * 0.78), -1):
+            a = int(42 * (1 - (i - r * 0.78) / (r * 0.22)))
+            pygame.draw.circle(vig, (0, 0, 0, max(0, a)), (c, c), i, max(1, m(0.6)))
+        disc.blit(vig, (0, 0))
+        _cabochon_cache[key] = disc
+    c = r + m(4)
     surf.blit(disc, (cx - c, cy - c))
 
 
@@ -464,32 +492,44 @@ def bevel_rim(surf, rect, radius, deep, bright, w):
     surf.blit(hl, rect.topleft)
 
 
+_sheen_cache: dict = {}
+_ao_cache: dict = {}
+
+
 def top_sheen(surf, rect, radius, h, peak=46):
     """Glossy top highlight across the upper portion of a panel."""
-    sheen = pygame.Surface((rect.w, h), pygame.SRCALPHA)
-    for y in range(h):
-        pygame.draw.line(sheen, (255, 255, 255, int(peak * (1 - y / h) ** 1.3)),
-                         (0, y), (rect.w, y))
-    sm = pygame.Surface((rect.w, h), pygame.SRCALPHA)
-    pygame.draw.rect(sm, (255, 255, 255, 255), sm.get_rect(),
-                     border_top_left_radius=radius, border_top_right_radius=radius)
-    sheen.blit(sm, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    key = (rect.w, h, radius, peak)
+    sheen = _sheen_cache.get(key)
+    if sheen is None:
+        sheen = pygame.Surface((rect.w, h), pygame.SRCALPHA)
+        for y in range(h):
+            pygame.draw.line(sheen, (255, 255, 255, int(peak * (1 - y / h) ** 1.3)),
+                             (0, y), (rect.w, y))
+        sm = pygame.Surface((rect.w, h), pygame.SRCALPHA)
+        pygame.draw.rect(sm, (255, 255, 255, 255), sm.get_rect(),
+                         border_top_left_radius=radius, border_top_right_radius=radius)
+        sheen.blit(sm, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        _sheen_cache[key] = sheen
     surf.blit(sheen, rect.topleft)
 
 
 def contact_shadow(surf, rect, radius, depth, alpha=90):
     """Inner ambient-occlusion shadow hugging the bottom + right inner edges."""
-    ao = pygame.Surface(rect.size, pygame.SRCALPHA)
-    for i in range(depth):
-        a = int(alpha * (1 - i / depth))
-        pygame.draw.rect(ao, (0, 0, 0, a),
-                         (i, i, rect.w - 2 * i, rect.h - 2 * i),
-                         width=max(1, m(0.8)), border_radius=max(1, radius - i))
-    # keep only bottom-right via a triangular mask
-    mask = pygame.Surface(rect.size, pygame.SRCALPHA)
-    pygame.draw.polygon(mask, (255, 255, 255, 255),
-                        [(rect.w, 0), (rect.w, rect.h), (0, rect.h)])
-    ao.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    key = (rect.w, rect.h, radius, depth, alpha)
+    ao = _ao_cache.get(key)
+    if ao is None:
+        ao = pygame.Surface(rect.size, pygame.SRCALPHA)
+        for i in range(depth):
+            a = int(alpha * (1 - i / depth))
+            pygame.draw.rect(ao, (0, 0, 0, a),
+                             (i, i, rect.w - 2 * i, rect.h - 2 * i),
+                             width=max(1, m(0.8)), border_radius=max(1, radius - i))
+        # keep only bottom-right via a triangular mask
+        mask = pygame.Surface(rect.size, pygame.SRCALPHA)
+        pygame.draw.polygon(mask, (255, 255, 255, 255),
+                            [(rect.w, 0), (rect.w, rect.h), (0, rect.h)])
+        ao.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        _ao_cache[key] = ao
     surf.blit(ao, rect.topleft)
 
 
@@ -572,18 +612,25 @@ _CHIP_DY =  6   # price chip 3 logical px above the m(88) baseline
 
 
 # ── chip family ───────────────────────────────────────────────────────────────
+_gloss_cache: dict = {}
+
+
 def gloss_sweep(surf, rect, radius, peak=120):
     """A specular sheen that eases smoothly over the FULL button height — bright
     at the crown, tapering to nothing at the foot — so the body reads as ONE
     gradual gradient."""
-    sweep = pygame.Surface(rect.size, pygame.SRCALPHA)
-    h = max(1, rect.h)
-    for y in range(h):
-        a = int(peak * (1 - y / h) ** 2.4)
-        pygame.draw.line(sweep, (255, 255, 255, a), (0, y), (rect.w, y))
-    sm = pygame.Surface(rect.size, pygame.SRCALPHA)
-    pygame.draw.rect(sm, (255, 255, 255, 255), sm.get_rect(), border_radius=radius)
-    sweep.blit(sm, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    key = (rect.w, rect.h, radius, peak)
+    sweep = _gloss_cache.get(key)
+    if sweep is None:
+        sweep = pygame.Surface(rect.size, pygame.SRCALPHA)
+        h = max(1, rect.h)
+        for y in range(h):
+            a = int(peak * (1 - y / h) ** 2.4)
+            pygame.draw.line(sweep, (255, 255, 255, a), (0, y), (rect.w, y))
+        sm = pygame.Surface(rect.size, pygame.SRCALPHA)
+        pygame.draw.rect(sm, (255, 255, 255, 255), sm.get_rect(), border_radius=radius)
+        sweep.blit(sm, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        _gloss_cache[key] = sweep
     surf.blit(sweep, rect.topleft, special_flags=pygame.BLEND_ADD)
 
 
