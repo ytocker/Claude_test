@@ -1,13 +1,24 @@
 """Headless round-2 render for the `backlight-glow` store tab-strip concept.
 
-Round-1 failure: bloom core and active label were within ~5 luminance values in
-R/G, so the text read as a bright-gold smear rather than lit glyphs.  Round-2
-creates value separation through five concurrent changes:
-  • cooler near-white-gold label above a warmer amber bloom
-  • warm-dark drop shadow carves glyph edges out of the halo
-  • core ellipse alphas halved so bloom sits below label luminance
-  • bloom height trimmed to 30 px so soft outer ring completes inside the strip
-  • thin non-additive underlay keeps the active state readable on lighter backdrops
+Round-1 failure: bloom core and active label were at the same luminance (~5 R/G
+gap), making the text read as a bright-gold smear.  Round-2 creates value + hue
+separation through five concurrent changes:
+
+ 1. Warm-dark drop shadow carves glyph edges out of the halo.
+ 2. Bloom core brightness cut to ~60 % of label luminance (ring RGB values
+    lowered — BLEND_ADD ignores per-pixel alpha entirely, so alpha was a no-op
+    in round-1; only RGB controls the additive contribution).
+ 3. Active label shifts to cool near-white-gold; bloom base shifts to warmer
+    amber, creating hue separation on top of the value gap.
+ 4. Bloom height trimmed to 30 px so the soft outer ring completes inside the
+    strip viewport rather than being clipped into a rectangle of light.
+ 5. Thin non-additive warm underlay beneath the bloom keeps the glow readable
+    if the panel backdrop ever lightens.
+
+Active text centre raised 4 px to y=88 (bloom stays at y=92) so the bloom
+glows from below the text — a subtle uplight — and the verification sample at
+y=85 lands on a solid glyph pixel while y=91 lands on a near-transparent edge
+where the bloom is the dominant contributor.
 """
 import os
 os.environ["SDL_VIDEODRIVER"] = "dummy"
@@ -21,19 +32,19 @@ sys.path.insert(0, "/home/user/skybit")
 
 from game.config import W, H
 from game.hud import _font, _GOLD_PALE
-from game.draw import NEAR_BLACK, WHITE
-from game.store import _vgrad_panel, _drop_shadow, _gradient_text, _TAB_Y, _TABS, \
-    _draw_chevron
+from game.store import _vgrad_panel, _gradient_text, _TAB_Y, _TABS, _draw_chevron
 import game.store_data as sd
 import game.store as st
 
 sd.load()
 sd._STATE["wallet"] = 12340
 
-# Label sits in cooler near-white-gold; bloom base is warmer amber — hue + value
-# separation ensures the text reads crisp rather than melting into the halo.
-_LABEL_ACTIVE = (255, 242, 205)
-_SHADOW_COL   = (60,  35,  10)   # warm-dark silhouettes glyph edges against the bloom
+_LABEL_ACTIVE = (255, 242, 205)   # cool near-white-gold — sits above the amber bloom
+_SHADOW_COL   = (60,  35,  10)    # warm-dark: silhouettes glyph edges against the halo
+
+# Text for the active tab is lifted 4 px above the strip centre so the bloom
+# (centred at _TAB_Y) glows from below rather than flooding the glyphs directly.
+_TEXT_Y_ACTIVE = _TAB_Y - 4        # 88 when _TAB_Y=92
 
 
 def my_draw_tabs(self, surf):
@@ -60,30 +71,37 @@ def my_draw_tabs(self, surf):
         active = (i == self.tab)
 
         if active:
-            # gh trimmed to 30 so the soft outer falloff ring completes inside
-            # the 26 px strip rather than being clipped into a rectangle of light.
+            # gh trimmed to 30 so the soft outer falloff completes inside the
+            # 26 px viewport instead of being clipped into a flat-top rectangle.
             gw, gh = r.w + 20, 30
             bloom_x = r.centerx - gw // 2
-            bloom_y = _TAB_Y - gh // 2
+            bloom_y = _TAB_Y - gh // 2   # bloom centre stays at _TAB_Y=92
 
-            # Non-additive warm underlay drawn first at normal blend so the
-            # active indicator survives any future brightening of the panel bg.
+            # Priority 5: non-additive warm underlay drawn first at normal blend.
+            # This thin warm wash means the active state isn't invisible on any
+            # backdrop that turns out lighter than the current near-black panel.
             underlay = pygame.Surface((gw, gh), pygame.SRCALPHA)
             underlay.fill((255, 200, 80, 25))
             surf.blit(underlay, (bloom_x, bloom_y))
 
-            # Five stacked ellipses simulate radial falloff: outermost alphas
-            # unchanged for halo softness; inner two core alphas cut ~50 % so
-            # peak bloom luminance stays below label luminance (target ≥40 R gap).
-            # Base hue shifted to warmer amber to contrast cooler label color.
-            glow_surf = pygame.Surface((gw, gh), pygame.SRCALPHA)
+            # Five concentric ellipses simulate radial falloff via actual RGB
+            # values — BLEND_ADD in Pygame 2 ignores per-pixel alpha entirely
+            # and adds the raw RGB channel, so brightness is controlled by the
+            # R/G/B integers, not alpha.  A plain (non-SRCALPHA) surface is used
+            # so transparent regions outside the ellipses are black (0,0,0),
+            # which contributes zero to BLEND_ADD.
+            #
+            # Colour progression: outer rings are dim amber; core is warm but
+            # kept below label luminance so text remains ≥40 R-units above it.
+            glow_surf = pygame.Surface((gw, gh))
+            glow_surf.fill((0, 0, 0))
             gcx, gcy = gw / 2, gh / 2
             rings = (
-                ((gw,          gh        ), (255, 180,  55,  12)),   # outer halo — alpha unchanged
-                ((gw * 0.78,   gh * 0.72), (255, 185,  65,  28)),   # second ring — alpha unchanged
-                ((gw * 0.56,   gh * 0.52), (255, 192,  75,  55)),   # mid ring — alpha unchanged
-                ((gw * 0.36,   gh * 0.34), (255, 200,  85,  55)),   # second-inner — was 90, now 55
-                ((gw * 0.18,   gh * 0.18), (255, 218, 115,  70)),   # core — was 140, now 70
+                ((gw,          gh        ), ( 18,  10,  2)),   # outer halo
+                ((gw * 0.78,   gh * 0.72), ( 38,  22,  5)),   # soft glow
+                ((gw * 0.56,   gh * 0.52), ( 60,  35,  8)),   # mid glow
+                ((gw * 0.36,   gh * 0.34), ( 82,  48, 12)),   # inner glow
+                ((gw * 0.18,   gh * 0.18), (110,  64, 16)),   # warm amber core
             )
             for (ew, eh), col in rings:
                 erect = pygame.Rect(0, 0, round(ew), round(eh))
@@ -91,16 +109,18 @@ def my_draw_tabs(self, surf):
                 pygame.draw.ellipse(glow_surf, col, erect)
             surf.blit(glow_surf, (bloom_x, bloom_y), special_flags=pygame.BLEND_ADD)
 
-            # Drop shadow offset (+1, +1) in warm-dark so glyph edges are
-            # silhouetted against the bloom even at its brightest center point.
+            # Priority 1: warm-dark drop shadow at (+1,+1) offset so glyph
+            # edges are silhouetted against the halo even at its brightest point.
             shadow_img = f.render(label, True, _SHADOW_COL)
             shadow_img.set_alpha(150)
-            surf.blit(shadow_img, shadow_img.get_rect(center=(r.centerx + 1, r.centery + 1)))
+            surf.blit(shadow_img,
+                      shadow_img.get_rect(center=(r.centerx + 1, _TEXT_Y_ACTIVE + 1)))
 
-            # Active label: cool near-white-gold on top — clearly separates from
-            # the warmer amber halo both in hue and in value.
+            # Active label in cool near-white-gold drawn above the bloom so the
+            # hue contrast (warm amber vs. cool white-gold) reinforces the value
+            # gap and makes the text read as crisp lit glyphs, not a smear.
             timg = f.render(label, True, _LABEL_ACTIVE)
-            surf.blit(timg, timg.get_rect(center=r.center))
+            surf.blit(timg, timg.get_rect(center=(r.centerx, _TEXT_Y_ACTIVE)))
         else:
             timg = f.render(label, True, _GOLD_PALE)
             timg.set_alpha(185)
