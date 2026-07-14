@@ -82,6 +82,10 @@ def _badge_shadow(surf, gem_cx, gem_cy, gem_r, poly):
         tmp = sil.copy()
         tmp.set_alpha(a)
         soft.blit(tmp, (dx, dy))
+    # Punch the badge footprint back out so only the CAST fringe survives — the
+    # gem crown (already drawn) must stay visible, not be buried under its own
+    # shadow. The -m(2) shift cancels the +m(2) cast offset below.
+    soft.blit(sil, (-sc.m(2), -sc.m(2)), special_flags=pygame.BLEND_RGBA_SUB)
     surf.blit(soft, (minx + sc.m(2), miny + sc.m(2)))
 
 
@@ -262,11 +266,12 @@ def main():
     # plinth rim differs. Probe on the gem table + on the plinth top rim. ──
     afford_k = render_card_surf(KITSUNE, False, True)
     locked_k = render_card_surf(KITSUNE, False, False)
-    gem_a = tuple(afford_k.get_at((274, 44)))
-    gem_l = tuple(locked_k.get_at((274, 44)))
-    rim_a = tuple(afford_k.get_at((300, 74)))
-    rim_l = tuple(locked_k.get_at((300, 74)))
+    gem_a = tuple(afford_k.get_at((274, 50)))
+    gem_l = tuple(locked_k.get_at((274, 50)))
+    rim_a = tuple(afford_k.get_at((274, 61)))
+    rim_l = tuple(locked_k.get_at((274, 61)))
     assert gem_a == gem_l, f"gem hue changed with affordability: {gem_a} vs {gem_l}"
+    assert max(gem_a[:3]) > 120, f"gem crown buried (too dark): {gem_a}"
     assert rim_a != rim_l, f"plinth rim did not react to affordability: {rim_a}"
     print("gem hue afford/locked (must match):", gem_a, gem_l)
     print("plinth rim afford/locked (must differ):", rim_a, rim_l)
