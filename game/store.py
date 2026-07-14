@@ -33,7 +33,7 @@ from game import store_catalog
 from game import store_data
 from game import store_cards
 from game.surprise_box_variants import _draw_qmark
-from game.store_hub import CLOSED_GROUPS as _STORE_CLOSED
+from game.store_hub import CLOSED_GROUPS as _STORE_CLOSED, title_wordmark
 
 # Card grid metrics (2 columns). Thumbnails are pre-rendered once so the
 # per-frame cost is a flat blit rather than eight smoothscales.
@@ -94,6 +94,7 @@ _CHIP_STATES = {
 # ── cached primitives (the store is a menu screen; cache the heavy builds) ────
 _panel_cache: dict = {}
 _disc_cache: dict = {}
+_bg_cache: dict = {}   # keyed (W, H) — gradient is constant, stars overlay live
 _shelf_cache: dict = {}
 _coin_cache: dict = {}
 
@@ -549,7 +550,7 @@ class StoreScene:
     def _render_category(self, surf: pygame.Surface) -> None:
         self._draw_bg(surf)
         self._draw_title(surf)
-        self._draw_balance(surf, y=26)
+        self._draw_balance(surf, y=38)
         self._draw_tabs(surf)
 
         base_x = (W - (_CARD_W * 2 + _GAP)) // 2
@@ -577,20 +578,23 @@ class StoreScene:
         self._draw_confirm(surf)
 
     def _draw_bg(self, surf) -> None:
-        n = len(_BG_STOPS)
-        for y in range(H):
-            f = y / (H - 1)
-            seg = min(n - 2, int(f * (n - 1)))
-            local = (f * (n - 1)) - seg
-            pygame.draw.line(surf, lerp_color(_BG_STOPS[seg], _BG_STOPS[seg + 1],
-                                              local), (0, y), (W - 1, y))
+        key = (W, H)
+        bg = _bg_cache.get(key)
+        if bg is None:
+            bg = pygame.Surface((W, H))
+            n = len(_BG_STOPS)
+            for y in range(H):
+                f = y / (H - 1)
+                seg = min(n - 2, int(f * (n - 1)))
+                local = (f * (n - 1)) - seg
+                pygame.draw.line(bg, lerp_color(_BG_STOPS[seg], _BG_STOPS[seg + 1],
+                                                local), (0, y), (W - 1, y))
+            _bg_cache[key] = bg
+        surf.blit(bg, (0, 0))
         _draw_overlay_stars(surf, self._stars, self.t + 1.4)
 
     def _draw_title(self, surf) -> None:
-        f = _font(30, True)
-        _gradient_text(surf, "STORE", f, (W // 2, 26),
-                       _GOLD_BRIGHT, _GOLD_BRIGHT,
-                       outline=_RED_OUTLINE, shadow=True)
+        title_wordmark(surf, "STORE", (W // 2, 38), 32, tracking=4)
 
     def _draw_balance(self, surf, y) -> None:
         """Gold capsule + gradient-gold digits in the top-right corner.

@@ -1158,9 +1158,8 @@ def _draw_header_static(surf):
     surf.blit(band, (0, 0))
     pygame.draw.rect(surf, (*GOLD, 60), (m(3), m(3), DW - m(6), DH - m(6)),
                      width=max(1, m(1)), border_radius=m(12))
-    title_wordmark(surf, "STORE", (DW // 2, m(26)), 30, tracking=m(4))
-    _balance_capsule_shell(surf, DW // 2, m(66))
-    _tap_hint(surf, DW // 2, m(112))
+    title_wordmark(surf, "STORE", (DW // 2, m(38)), 42, tracking=m(4))
+    _balance_capsule_shell(surf, DW // 2, m(92))
 
 
 # =============================================================================
@@ -1301,7 +1300,7 @@ class LagoonHub:
         behind it carries the crisp bezel. The 1x font size (25) matches the SS
         bake (font(25) at SS, downscaled) so the live digits read the same
         height as the baked header would have."""
-        cx, y = W // 2, 66
+        cx, y = W // 2, 92
         val = f"{balance:,}"
         vf = _font(25, True)
         vw = vf.render(val, True, WHITE).get_width() + 1
