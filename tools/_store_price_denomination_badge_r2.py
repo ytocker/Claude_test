@@ -81,6 +81,8 @@ _FORCE_AFFORD = None
 # Set while rendering a secret card so the crest crown is suppressed and the
 # badge falls back to its silhouette + price — the case round-2 must define.
 _SUPPRESS_GEM = False
+# Verification-only toggle to diff the (deliberately faint) secret silhouette.
+_SILHOUETTE_ON = True
 
 
 # ── badge geometry (device px in the 2x author buffer) ────────────────────────
@@ -156,6 +158,8 @@ def _silhouette_gem(surf, cx, cy, r):
     a neutral, near-invisible ink, struck where the crest crown would sit. Keeps
     the badge's crown+plinth shape legible even when the real gem is masked, and
     gives nothing away about the hidden item's tier."""
+    if not _SILHOUETTE_ON:
+        return
     n = 8
     rot = -math.pi / 2 - math.pi / n
     girdle = [(cx + r * math.cos(rot + 2 * math.pi * i / n),
@@ -435,23 +439,25 @@ def verify():
     assert best_r > 165, f"locked bronze not lifted: r={best_r}"
 
     # (4) secret fallback: crest crown suppressed (not the red MYSTERY gem) and a
-    # faint silhouette present where the crown would sit.
+    # faint silhouette present where the crown would sit. The silhouette is
+    # deliberately near-invisible (alpha ~40), so prove it by diffing the crown
+    # box against an identical render with the silhouette turned off.
+    global _SILHOUETTE_ON
     secret_card = render_card_surf("skin_binky", False, False, secret=True)
     crown_px = tuple(secret_card.get_at((274, 46)))
     assert not (crown_px[0] > 180 and crown_px[1] < 130 and crown_px[2] < 130), \
         f"secret crown still shows the red MYSTERY gem: {crown_px}"
-    # some faint silhouette ink lands in the crown box
-    sil_hit = False
-    for x in range(258, 292):
-        for y in range(30, 60):
-            r, g, b, aa = secret_card.get_at((x, y))
-            if 0 < aa < 120 and r > 90 and g > 90:
-                sil_hit = True
-                break
-        if sil_hit:
-            break
-    assert sil_hit, "secret silhouette gem not found in the crown box"
-    print("secret crown pixel (no red gem):", crown_px, " silhouette present:", sil_hit)
+    _SILHOUETTE_ON = False
+    bare = render_card_surf("skin_binky", False, False, secret=True)
+    _SILHOUETTE_ON = True
+    changed = 0
+    for x in range(252, 298):
+        for y in range(26, 74):
+            if secret_card.get_at((x, y)) != bare.get_at((x, y)):
+                changed += 1
+    assert changed > 60, f"secret silhouette barely renders: {changed} px changed"
+    print("secret crown pixel (no red gem):", crown_px,
+          " silhouette px lifted:", changed)
 
     # (4b) foot anchor: a warm lit lip appears along the card's bottom inner edge.
     foot = afford_k
