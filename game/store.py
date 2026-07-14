@@ -550,7 +550,7 @@ class StoreScene:
     def _render_category(self, surf: pygame.Surface) -> None:
         self._draw_bg(surf)
         self._draw_title(surf)
-        self._draw_balance(surf, y=38)
+        self._draw_balance(surf, y=16)
         self._draw_tabs(surf)
 
         base_x = (W - (_CARD_W * 2 + _GAP)) // 2
