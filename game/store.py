@@ -594,7 +594,7 @@ class StoreScene:
         _draw_overlay_stars(surf, self._stars, self.t + 1.4)
 
     def _draw_title(self, surf) -> None:
-        title_wordmark(surf, "STORE", (W // 2, 38), 42, tracking=4)
+        title_wordmark(surf, "STORE", (W // 2, 38), 32, tracking=4)
 
     def _draw_balance(self, surf, y) -> None:
         """Gold capsule + gradient-gold digits in the top-right corner.
