@@ -608,10 +608,10 @@ class StoreScene:
         val = f"{store_data.balance():,}"
         vf = _font(18, True)
         vimg_w = vf.size(val)[0]
-        coin_d, gap_coin, pad = 20, 7, 10
+        coin_d, gap_coin, pad = 20, 7, 6
         w = coin_d + gap_coin + vimg_w + pad * 2
         cap = pygame.Rect(0, y - 14, w, 28)
-        cap.right = W - 10
+        cap.right = W - 4
         _drop_shadow(surf, cap, 14, blur=4, alpha=90)
         surf.blit(_vgrad_panel(cap.w, cap.h, 14, (44, 32, 18), (20, 14, 8), 252),
                   cap.topleft)
