@@ -45,21 +45,11 @@ PEWTER_RIM_LO = (54, 58, 74)
 PEWTER_NUM    = (34, 38, 52)             # cool slate numerals
 PEWTER_NUM_HI = (198, 204, 220)
 
-ROT = 22                                 # peel lift angle (deg, CCW)
-CORNER = (sc.m(6), sc.m(94))             # (12,188): card body bottom-left corner
-
-
-def _rot_point(p, old, new, deg):
-    """Where a point on the pre-rotation flap surface lands after
-    pygame.transform.rotate — so the peel tip can be anchored to the card
-    corner. pygame rotates CCW about the surface centre (screen y is down)."""
-    w, h = old
-    w2, h2 = new
-    a = math.radians(deg)
-    c, s = math.cos(a), math.sin(a)
-    dx, dy = p[0] - w / 2.0, p[1] - h / 2.0
-    return (w2 / 2.0 + dx * c + dy * s,
-            h2 / 2.0 - dx * s + dy * c)
+# The peel lifts up-right at a SHALLOW angle: a wide flap rotated a full 22deg
+# inflates its bounding box straight up into the item name — this gentler tilt
+# keeps the whole fold in the clear bottom strip beneath the name.
+THETA = 15
+CORNER = (sc.m(7), sc.m(93))             # near the card body bottom-left corner
 
 
 def _emboss(surf, text, f, center, dark, hi):
