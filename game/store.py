@@ -33,7 +33,7 @@ from game import store_catalog
 from game import store_data
 from game import store_cards
 from game.surprise_box_variants import _draw_qmark
-from game.store_hub import CLOSED_GROUPS as _STORE_CLOSED
+from game.store_hub import CLOSED_GROUPS as _STORE_CLOSED, title_wordmark
 
 # Card grid metrics (2 columns). Thumbnails are pre-rendered once so the
 # per-frame cost is a flat blit rather than eight smoothscales.
@@ -550,7 +550,7 @@ class StoreScene:
     def _render_category(self, surf: pygame.Surface) -> None:
         self._draw_bg(surf)
         self._draw_title(surf)
-        self._draw_balance(surf, y=26)
+        self._draw_balance(surf, y=38)
         self._draw_tabs(surf)
 
         base_x = (W - (_CARD_W * 2 + _GAP)) // 2
@@ -594,10 +594,7 @@ class StoreScene:
         _draw_overlay_stars(surf, self._stars, self.t + 1.4)
 
     def _draw_title(self, surf) -> None:
-        f = _font(30, True)
-        _gradient_text(surf, "STORE", f, (W // 2, 26),
-                       _GOLD_BRIGHT, _GOLD_BRIGHT,
-                       outline=_RED_OUTLINE, shadow=True)
+        title_wordmark(surf, "STORE", (W // 2, 38), 42, tracking=4)
 
     def _draw_balance(self, surf, y) -> None:
         """Gold capsule + gradient-gold digits in the top-right corner.
