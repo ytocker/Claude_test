@@ -742,38 +742,40 @@ def price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
 
 
 def status_chip(surf, cx, cy, text, h, kind="equip"):
-    """EQUIP / EQUIPPED chips, same pill silhouette + double-rim edge finish as
-    the price chip so the row reads as one product line. EQUIPPED is a clean
-    green led by a check mark in its own cell; EQUIP is neutral cream-gold."""
-    if kind == "equipped":
-        top, bot = (96, 220, 138), (28, 138, 74)
-        rim_dark, rim_bright = (8, 56, 28), (198, 255, 218)
-        num = (6, 42, 18)
-    else:  # equip (owned, not active) — neutral cream-gold
-        top, bot = (242, 238, 226), (178, 170, 150)
-        rim_dark, rim_bright = (62, 54, 34), (255, 252, 244)
-        num = (50, 38, 16)
-    f = font(h * 0.48 / SS)
-    nw = _glyph_base(text, f, 0).get_width() + m(2)
+    """EQUIP / EQUIPPED chips — same dark-enamel sovereign body as the price
+    chip so all three states read as one product family at a glance.
+    EQUIPPED: dark green enamel, bright mint struck rim, checkmark + label.
+    EQUIP (owned, not active): dark warm-pewter enamel, aged silver rim."""
+    f   = font(h * 0.48 / SS)
+    nw  = _glyph_base(text, f, 0).get_width() + m(2)
     pad = m(15)
+    rad = h // 2
+
     if kind == "equipped":
-        ckw = m(14)
+        ckw  = m(14)
         gapc = m(7)
-        w = pad + ckw + gapc + nw + pad
-        r = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
-        chip_body(surf, r, h // 2, top, bot, rim_dark, rim_bright, gloss=74)
-        ck = r.x + pad
-        pygame.draw.lines(surf, num, False,
+        w    = pad + ckw + gapc + nw + pad
+        r    = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
+        _dark_chip_body(surf, r, rad,
+                        [(0.0, (18, 32, 24)), (1.0, (12, 22, 16))],
+                        (8, 32, 16), (40, 100, 56), gloss=14, gamma=1.04)
+        bevel_rim(surf, r, rad, (20, 88, 44, 235), (100, 230, 148, 220), w=2)
+        ink = (80, 220, 130)
+        ck  = r.x + pad
+        pygame.draw.lines(surf, ink, False,
                           [(ck, cy + m(1)), (ck + m(5), cy + m(6)),
                            (ck + ckw, cy - m(7))], max(1, m(2.8)))
-        tx = ck + ckw + gapc
-        plain_text(surf, text, f, (tx + nw // 2, cy), num, shadow_a=0,
-                   weight=m(0.9))
-    else:
+        plain_text(surf, text, f, (ck + ckw + gapc + nw // 2, cy),
+                   ink, shadow_a=0, weight=m(0.9))
+    else:  # equip — owned, not active
         w = pad * 2 + nw
         r = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
-        chip_body(surf, r, h // 2, top, bot, rim_dark, rim_bright, gloss=74)
-        plain_text(surf, text, f, r.center, num, shadow_a=0, weight=m(0.9))
+        _dark_chip_body(surf, r, rad,
+                        [(0.0, (28, 24, 36)), (1.0, (20, 16, 28))],
+                        (40, 36, 52), (90, 84, 72), gloss=14, gamma=1.04)
+        bevel_rim(surf, r, rad, (80, 72, 52, 210), (190, 182, 152, 200), w=2)
+        plain_text(surf, text, f, r.center,
+                   (180, 170, 140), shadow_a=0, weight=m(0.9))
     return r
 
 
