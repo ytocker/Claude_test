@@ -91,42 +91,49 @@ def _widest_price():
 _WIDEST_TXT, _WIDEST_W = _widest_price()
 
 
-def my_price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
-    """DOG-EAR peel: a lifted right-triangle flap in the card's bottom-left
-    corner carrying the price. Crease diagonal runs upper-right; the whole flap
-    re-tints gold (affordable) vs pewter (locked)."""
+def _label_strip(text, affordable):
+    """The coin + price as a compact horizontal strip (transparent ground). It
+    is later laid ALONG the flap's crease so a wide price fits a small corner
+    triangle — a horizontal band never would (it pinches under the diagonal)."""
     f = sc.font(10)
-    coin_r = sc.m(5.5)                     # r=11 device
+    coin_r = sc.m(5.5)
     coin_d = coin_r * 2
     gap = sc.m(4)
-    pad_l = sc.m(6)
-    pad_r = sc.m(7)
-    pad_t = sc.m(4)
     nw = sc._glyph_base(text, f, 0).get_width()
-    widest = _WIDEST_W
+    lw = coin_d + gap + nw
+    lh = max(coin_d, f.get_height())
+    if affordable:
+        num, num_hi, coin_rim, coin_tint = GOLD_NUM, GOLD_NUM_HI, sc.GOLD_A_COIN_RIM, None
+    else:
+        num, num_hi, coin_rim, coin_tint = PEWTER_NUM, PEWTER_NUM_HI, (110, 116, 134), (86, 92, 112, 150)
+    lab = pygame.Surface((lw, lh), pygame.SRCALPHA)
+    cy = lh // 2
+    sc.coin_glyph(lab, coin_r, cy, coin_r, rim=coin_rim)
+    if coin_tint:
+        tw = pygame.Surface((coin_d, coin_d), pygame.SRCALPHA)
+        pygame.draw.circle(tw, coin_tint, (coin_r, coin_r), coin_r)
+        lab.blit(tw, (0, cy - coin_r))
+    _emboss(lab, text, f, (coin_d + gap + nw // 2, cy), num, num_hi)
+    return lab
 
-    # Content (coin + widest price) sits horizontally along the flap's bottom
-    # leg. A right triangle only clears that band if it circumscribes it —
-    # content_w/Wf + content_h/Hf <= 1 — so the peel is authored just big enough
-    # to hold the LONGEST catalog price, then every card's peel matches.
-    content_w = pad_l + coin_d + gap + widest + pad_r
-    content_h = max(coin_d, f.get_height()) + pad_t
-    Hf = sc.m(40)
-    Wf = int(math.ceil(content_w / max(0.35, 1.0 - content_h / Hf)))
 
-    # Right angle at the peel tip (bottom-left corner of the card); the two legs
-    # ride the card's left + bottom edges, and the hypotenuse from the tip up to
-    # the far corner is the lifted CREASE that runs upper-right after the tilt.
+def my_price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
+    """DOG-EAR peel: a lifted right-triangle flap in the card's bottom-left
+    corner carrying the price along its crease. The whole flap re-tints gold
+    (affordable) vs pewter (locked); a soft cast shadow sells the lift."""
+    # Flap sized to hold the WIDEST catalog price along its hypotenuse so every
+    # card's peel matches. Right angle at the corner tip; the hypotenuse is the
+    # lifted crease.
+    Hf = sc.m(24)
+    Wf = sc.m(67)
     tri = [(0, Hf), (Wf, Hf), (0, 0)]
+    hyp = math.hypot(Wf, Hf)
+    ang = math.degrees(math.atan2(Hf, Wf))     # crease descends this much (upright)
 
     if affordable:
-        stops, rim_hi, rim_lo, num, num_hi = (
-            GOLD_STOPS, GOLD_RIM_HI, GOLD_RIM_LO, GOLD_NUM, GOLD_NUM_HI)
-        coin_tint = None
+        stops, rim_hi, rim_lo = GOLD_STOPS, GOLD_RIM_HI, GOLD_RIM_LO
     else:
-        stops, rim_hi, rim_lo, num, num_hi = (
-            PEWTER_STOPS, PEWTER_RIM_HI, PEWTER_RIM_LO, PEWTER_NUM, PEWTER_NUM_HI)
-        coin_tint = (86, 92, 112, 150)     # cool the coin so it joins the pewter
+        stops, rim_hi, rim_lo = PEWTER_STOPS, PEWTER_RIM_HI, PEWTER_RIM_LO
 
     flap = pygame.Surface((Wf, Hf), pygame.SRCALPHA)
     grad = sc.vgrad_stops(Wf, Hf, 0, stops, 255, gamma=sc.GOLD_A_GAMMA)
@@ -135,32 +142,27 @@ def my_price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
     pygame.draw.polygon(mask, (255, 255, 255, 255), tri)
     flap.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
 
-    # crease: a dark keyline along the fold diagonal (hypotenuse), with a bright
-    # top rim just inside it, so the lifted free edge catches light over a
-    # shaded fold line.
+    # crease: dark keyline along the fold diagonal with a bright rim just inside,
+    # so the lifted free edge catches light over a shaded fold; the two cut card
+    # edges get a thin dark contact line for paper thickness.
     pygame.draw.line(flap, (*rim_lo, 235), (0, 0), (Wf, Hf), max(1, sc.m(1.4)))
     pygame.draw.line(flap, (*rim_hi, 225),
-                     (sc.m(1.6), 0), (Wf, Hf - sc.m(1.6)), max(1, sc.m(1.0)))
-    # the two cut outer edges get a thin dark contact line for paper thickness.
-    pygame.draw.line(flap, (*rim_lo, 170), (0, 0), (0, Hf), max(1, sc.m(0.8)))
-    pygame.draw.line(flap, (*rim_lo, 170), (0, Hf), (Wf, Hf), max(1, sc.m(0.8)))
+                     (sc.m(1.4), sc.m(1.2)), (Wf - sc.m(1.4), Hf), max(1, sc.m(1.0)))
+    pygame.draw.line(flap, (*rim_lo, 165), (0, 0), (0, Hf), max(1, sc.m(0.8)))
+    pygame.draw.line(flap, (*rim_lo, 165), (0, Hf), (Wf, Hf), max(1, sc.m(0.8)))
 
-    # content: coin then price, seated along the bottom leg.
-    cyc = Hf - content_h // 2
-    coin_cx = pad_l + coin_r
-    sc.coin_glyph(flap, coin_cx, cyc, coin_r,
-                  rim=(sc.GOLD_A_COIN_RIM if affordable else (110, 116, 134)))
-    if coin_tint:
-        tw = pygame.Surface((coin_d, coin_d), pygame.SRCALPHA)
-        pygame.draw.circle(tw, coin_tint, (coin_r, coin_r), coin_r)
-        flap.blit(tw, (coin_cx - coin_r, cyc - coin_r))
-    nx = pad_l + coin_d + gap + nw // 2
-    _emboss(flap, text, f, (nx, cyc), num, num_hi)
+    # lay the coin+price along the crease (rotated to descend with it), nudged
+    # perpendicular into the flap body so it rides the face, not the fold line.
+    lab = _label_strip(text, affordable)
+    rlab = pygame.transform.rotate(lab, ang)
+    nrm = (-Wf / hyp, Hf / hyp)                 # unit normal toward the tip vertex
+    off = lab.get_height() * 0.5 + sc.m(3)
+    mid = (Wf / 2 + nrm[0] * off, Hf / 2 + nrm[1] * off)
+    flap.blit(rlab, rlab.get_rect(center=mid))
 
-    # locked peels earn a tiny padlock near the tip — a wordless "can't buy yet".
+    # locked peels earn a tiny padlock near the crease — a wordless "can't buy".
     if not affordable:
-        lx = pad_l + coin_r - sc.m(3)
-        ly = Hf - sc.m(6)
+        lx, ly = int(Wf * 0.5), sc.m(4)
         pygame.draw.rect(flap, PEWTER_NUM, (lx, ly, sc.m(6), sc.m(4)),
                          border_radius=max(1, sc.m(1)))
         pygame.draw.arc(flap, PEWTER_NUM,
@@ -169,10 +171,12 @@ def my_price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
 
     # ── cast shadow FIRST (flat on the card), then the lifted flap on top ──
     shadow = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    sh_tri = [(sc.m(6), sc.m(75)), (sc.m(78), sc.m(94)), (sc.m(6), sc.m(94))]
+    sh_tri = [(sc.m(6), sc.m(72)), (sc.m(74), sc.m(94)), (sc.m(6), sc.m(94))]
     pygame.draw.polygon(shadow, (0, 0, 0, 110), sh_tri)
     surf.blit(shadow, (sc.m(2), sc.m(2)))
 
+    # rotate the whole flap up so the crease runs gently upper-right, then anchor
+    # the right-angle tip to the card's bottom-left corner.
     rot = pygame.transform.rotate(flap, ROT)
     tip = _rot_point((0, Hf), (Wf, Hf), rot.get_size(), ROT)
     surf.blit(rot, (int(round(CORNER[0] - tip[0])), int(round(CORNER[1] - tip[1]))))
