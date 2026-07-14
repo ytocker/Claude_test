@@ -594,7 +594,13 @@ class StoreScene:
         _draw_overlay_stars(surf, self._stars, self.t + 1.4)
 
     def _draw_title(self, surf) -> None:
-        title_wordmark(surf, "STORE", (W // 2, 38), 21, tracking=4)
+        _SS = 2
+        strip_h = 72
+        bw, bh = W * _SS, strip_h * _SS
+        big = pygame.Surface((bw, bh), pygame.SRCALPHA)
+        title_wordmark(big, "STORE", (bw // 2, bh // 2), 42, tracking=8)
+        surf.blit(pygame.transform.smoothscale(big, (W, strip_h)),
+                  (0, 38 - strip_h // 2))
 
     def _draw_balance(self, surf, y) -> None:
         """Gold capsule + gradient-gold digits in the top-right corner.
