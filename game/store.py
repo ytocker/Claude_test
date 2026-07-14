@@ -625,11 +625,11 @@ class StoreScene:
                        (255, 246, 196), (236, 170, 60), shadow=True)
 
     def _draw_tabs(self, surf) -> None:
-        """Horizontally scrollable tab strip. ONE active treatment — a brighter
-        gold label + a glowing gold underline on the active tab, dimmed labels
-        elsewhere (no pills). With more tabs than fit, the strip clips to a
-        viewport flanked by ``< >`` chevrons; switching resets that tab to page 1
-        and scrolls it into view."""
+        """Horizontally scrollable tab strip. Active tab gets a warm-gold
+        gradient pill-capsule; inactive tabs show a faint gold wash + dim
+        label. With more tabs than fit the strip clips to a viewport flanked
+        by ``< >`` chevrons; switching resets that tab to page 1 and scrolls
+        it into view."""
         f = _font(12, True)
         pad, gap = 11, 6
         widths = [f.size(label)[0] + 2 * pad for label, _g in _TABS]
@@ -642,30 +642,51 @@ class StoreScene:
         self.tab_scroll = max(0.0, min(self.tab_scroll, float(max_scroll)))
         self._tab_vp, self._tab_widths, self._tab_gap = vp, widths, gap
 
+        # Center the group when all tabs fit (no overflow / dead air on right).
+        x_offset = (vp.width - content_w) // 2 if not overflow else 0
+
         prev_clip = surf.get_clip()
         surf.set_clip(vp)
         self.tab_rects = []
+
+        # Two passes: inactive wash first, active pill on top so the bright
+        # capsule and its dark label are never obscured by a neighbour's wash.
+        active_r = None
         cx = 0
         for i, (label, _g) in enumerate(_TABS):
             w = widths[i]
-            r = pygame.Rect(round(vp.x + cx - self.tab_scroll), _TAB_Y - 13, w, 26)
+            r = pygame.Rect(round(vp.x + x_offset + cx - self.tab_scroll), _TAB_Y - 13, w, 26)
             self.tab_rects.append(r)
-            active = (i == self.tab)
-            col = _GOLD_BRIGHT if active else (150, 142, 158)
-            timg = f.render(label, True, col)
-            if not active:
-                timg.set_alpha(175)
-            tr = timg.get_rect(center=r.center)
-            surf.blit(timg, tr)
-            if active:
-                ur = pygame.Rect(tr.x - 2, r.bottom - 4, tr.w + 4, 3)
-                uglow = pygame.Surface((ur.w + 12, 10), pygame.SRCALPHA)
-                for gy in range(10):
-                    pygame.draw.line(uglow, (255, 200, 80, int(40 * (1 - gy / 10))),
-                                     (0, gy), (ur.w + 12, gy))
-                surf.blit(uglow, (ur.x - 6, ur.y - 2), special_flags=pygame.BLEND_ADD)
-                rounded_rect(surf, ur, 2, _GOLD_BRIGHT)
+            if i == self.tab:
+                active_r = r
+            else:
+                wash = r.inflate(-2, -4)
+                # Inactive wash via SRCALPHA temp surface — draw.rect with an
+                # alpha colour on an opaque surface discards the alpha silently.
+                tmp = pygame.Surface((wash.width, wash.height), pygame.SRCALPHA)
+                pygame.draw.rect(tmp, (*_GOLD_PALE, 38),
+                                 (0, 0, wash.width, wash.height), width=0, border_radius=11)
+                pygame.draw.rect(tmp, (*_GOLD_DEEP, 70),
+                                 (0, 0, wash.width, wash.height), width=1, border_radius=11)
+                surf.blit(tmp, wash.topleft)
+                timg = f.render(label, True, _GOLD_PALE)
+                timg.set_alpha(190)
+                surf.blit(timg, timg.get_rect(center=r.center))
             cx += w + gap
+
+        if active_r is not None:
+            label = _TABS[self.tab][0]
+            cap = active_r.inflate(-2, -4)
+            _drop_shadow(surf, cap, 11, blur=3, alpha=100)
+            surf.blit(_vgrad_panel(cap.w, cap.h, 11, (248, 202, 92), (214, 154, 46), 242),
+                      cap.topleft)
+            pygame.draw.rect(surf, (*_GOLD_BRIGHT, 200), cap, width=1, border_radius=11)
+            # Inner highlight on top edge reads as a lit bevel.
+            pygame.draw.line(surf, (*_GOLD_PALE, 60),
+                             (cap.x + 6, cap.y + 1), (cap.right - 6, cap.y + 1))
+            timg = f.render(label, True, NEAR_BLACK)
+            surf.blit(timg, timg.get_rect(center=active_r.center))
+
         surf.set_clip(prev_clip)
 
         self.tab_chev_l = self.tab_chev_r = None
