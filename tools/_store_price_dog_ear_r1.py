@@ -107,70 +107,99 @@ def _label_strip(text, affordable):
     return lab
 
 
+def _widest_label_w(affordable):
+    return _label_strip(_WIDEST_TXT, affordable).get_width()
+
+
 def my_price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
-    """DOG-EAR peel: a lifted right-triangle flap in the card's bottom-left
-    corner carrying the price along its crease. The whole flap re-tints gold
-    (affordable) vs pewter (locked); a soft cast shadow sells the lift."""
-    # Flap sized to hold the WIDEST catalog price along its hypotenuse so every
-    # card's peel matches. Right angle at the corner tip; the hypotenuse is the
-    # lifted crease.
-    Hf = sc.m(24)
-    Wf = sc.m(67)
-    tri = [(0, Hf), (Wf, Hf), (0, 0)]
-    hyp = math.hypot(Wf, Hf)
-    ang = math.degrees(math.atan2(Hf, Wf))     # crease descends this much (upright)
+    """DOG-EAR peel: a physical price sticker lifting off the card's bottom-left.
+    The sticker carries the price horizontally (the clear strip beneath the item
+    name is only wide, not tall — a steep tilt would collide with the name), and
+    its bottom-left corner CURLS UP as a dog-ear so it reads as peeling paper.
+    The whole sticker re-tints gold (affordable) vs pewter (locked)."""
+    lab = _label_strip(text, affordable)
+    lw, lh = lab.get_size()
+    pad_x = sc.m(9)
+    ear = sc.m(9)                              # size of the peeled corner
+    plate_w = pad_x + _widest_label_w(affordable) + pad_x
+    plate_h = lh + sc.m(4)
+    rad = sc.m(3)
+
+    # anchor the plate into the bottom-left corner, snug to the card's bottom
+    # edge and left inset, sitting entirely below the item name.
+    x0 = sc.m(9)
+    y1 = sc.m(93)
+    y0 = y1 - plate_h
+    plate = pygame.Rect(x0, y0, plate_w, plate_h)
 
     if affordable:
         stops, rim_hi, rim_lo = GOLD_STOPS, GOLD_RIM_HI, GOLD_RIM_LO
+        under = (150, 92, 18)                  # dark gold sticker underside
     else:
         stops, rim_hi, rim_lo = PEWTER_STOPS, PEWTER_RIM_HI, PEWTER_RIM_LO
+        under = (78, 82, 100)
 
-    flap = pygame.Surface((Wf, Hf), pygame.SRCALPHA)
-    grad = sc.vgrad_stops(Wf, Hf, 0, stops, 255, gamma=sc.GOLD_A_GAMMA)
-    flap.blit(grad, (0, 0))
-    mask = pygame.Surface((Wf, Hf), pygame.SRCALPHA)
-    pygame.draw.polygon(mask, (255, 255, 255, 255), tri)
-    flap.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    # ── cast shadow first: the sticker floats, so it drops a soft offset shadow;
+    # the peeled corner throws a deeper wedge of shade beneath the curl ──
+    sh = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    pygame.draw.rect(sh, (0, 0, 0, 95), plate.move(sc.m(2), sc.m(3)),
+                     border_radius=rad)
+    pygame.draw.polygon(sh, (0, 0, 0, 150),
+                        [(x0, y1 - ear), (x0 + ear + sc.m(3), y1 + sc.m(2)),
+                         (x0 - sc.m(2), y1 + sc.m(3))])
+    surf.blit(sh, (0, 0))
 
-    # crease: dark keyline along the fold diagonal with a bright rim just inside,
-    # so the lifted free edge catches light over a shaded fold; the two cut card
-    # edges get a thin dark contact line for paper thickness.
-    pygame.draw.line(flap, (*rim_lo, 235), (0, 0), (Wf, Hf), max(1, sc.m(1.4)))
-    pygame.draw.line(flap, (*rim_hi, 225),
-                     (sc.m(1.4), sc.m(1.2)), (Wf - sc.m(1.4), Hf), max(1, sc.m(1.0)))
-    pygame.draw.line(flap, (*rim_lo, 165), (0, 0), (0, Hf), max(1, sc.m(0.8)))
-    pygame.draw.line(flap, (*rim_lo, 165), (0, Hf), (Wf, Hf), max(1, sc.m(0.8)))
+    # ── plate body: one gold gradient, gloss on the crown, AO on the foot, a
+    # dark keyline under a bright top-left bevel — the card's chip finish, but
+    # gold/pewter instead of dark enamel ──
+    body = sc.vgrad_stops(plate_w, plate_h, rad, stops, 255, gamma=sc.GOLD_A_GAMMA)
+    surf.blit(body, plate.topleft)
+    sc.top_sheen(surf, plate, rad, plate_h // 2, peak=70)
+    sc.contact_shadow(surf, plate, rad, sc.m(3), alpha=70)
+    # notch out the peeled corner so the plate reads as missing that triangle
+    notch = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    pygame.draw.polygon(notch, (255, 255, 255, 255),
+                        [(x0 - 1, y1 - ear), (x0 + ear, y1 + 1), (x0 - 1, y1 + 1)])
+    surf.blit(notch, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+    pygame.draw.rect(surf, (*rim_lo, 220), plate, width=max(1, sc.m(1.2)),
+                     border_radius=rad)
+    sc.bevel_rim(surf, plate, rad, (*rim_lo, 220), (*rim_hi, 225), w=max(1, sc.m(1.2)))
 
-    # lay the coin+price along the crease (rotated to descend with it), nudged
-    # perpendicular into the flap body so it rides the face, not the fold line.
-    lab = _label_strip(text, affordable)
-    rlab = pygame.transform.rotate(lab, ang)
-    nrm = (-Wf / hyp, Hf / hyp)                 # unit normal toward the tip vertex
-    off = lab.get_height() * 0.5 + sc.m(3)
-    mid = (Wf / 2 + nrm[0] * off, Hf / 2 + nrm[1] * off)
-    flap.blit(rlab, rlab.get_rect(center=mid))
+    # ── the peeled dog-ear: a triangle folded UP-LEFT off the bottom-left corner,
+    # showing the sticker's darker underside, with a bright catch of light on the
+    # curl and a dark crease along the diagonal ──
+    P0 = (x0, y1 - ear)                        # crease top on the left edge
+    P1 = (x0 + ear, y1)                        # crease foot on the bottom edge
+    P2 = (x0 - ear + sc.m(2), y1 - ear + sc.m(3))   # lifted free tip, curled out
+    curl = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    ug = sc.vgrad_stops(ear * 2, ear * 2, 0,
+                        [(0.0, sc.lerp_color(under, WHITE, 0.30)),
+                         (1.0, sc.lerp_color(under, (0, 0, 0), 0.25))], 255)
+    umask = pygame.Surface((ear * 2, ear * 2), pygame.SRCALPHA)
+    off = (P0[0] - ear, P0[1] - ear)
+    pygame.draw.polygon(umask, (255, 255, 255, 255),
+                        [(p[0] - off[0], p[1] - off[1]) for p in (P0, P1, P2)])
+    ug.blit(umask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    curl.blit(ug, off)
+    surf.blit(curl, (0, 0))
+    pygame.draw.line(surf, (*rim_lo, 235), P0, P1, max(1, sc.m(1.3)))   # crease
+    pygame.draw.line(surf, (*rim_hi, 210), P2, P0, max(1, sc.m(1.0)))   # lit curl
+    pygame.draw.line(surf, (*rim_hi, 170), P2, P1, max(1, sc.m(0.8)))
 
-    # locked peels earn a tiny padlock near the crease — a wordless "can't buy".
+    # ── the price, seated on the plate face, nudged right to clear the ear ──
+    surf.blit(lab, lab.get_rect(center=(plate.centerx + ear // 2,
+                                        plate.centery)))
+
+    # locked plates carry a tiny padlock at the right end
     if not affordable:
-        lx, ly = int(Wf * 0.5), sc.m(4)
-        pygame.draw.rect(flap, PEWTER_NUM, (lx, ly, sc.m(6), sc.m(4)),
+        lx = plate.right - sc.m(11)
+        ly = plate.centery - sc.m(2)
+        pygame.draw.rect(surf, PEWTER_RIM_LO, (lx, ly, sc.m(6), sc.m(4)),
                          border_radius=max(1, sc.m(1)))
-        pygame.draw.arc(flap, PEWTER_NUM,
+        pygame.draw.arc(surf, PEWTER_RIM_LO,
                         (lx + sc.m(1), ly - sc.m(3), sc.m(4), sc.m(6)),
                         math.radians(20), math.radians(160), max(1, sc.m(1)))
-
-    # ── cast shadow FIRST (flat on the card), then the lifted flap on top ──
-    shadow = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    sh_tri = [(sc.m(6), sc.m(72)), (sc.m(74), sc.m(94)), (sc.m(6), sc.m(94))]
-    pygame.draw.polygon(shadow, (0, 0, 0, 110), sh_tri)
-    surf.blit(shadow, (sc.m(2), sc.m(2)))
-
-    # rotate the whole flap up so the crease runs gently upper-right, then anchor
-    # the right-angle tip to the card's bottom-left corner.
-    rot = pygame.transform.rotate(flap, ROT)
-    tip = _rot_point((0, Hf), (Wf, Hf), rot.get_size(), ROT)
-    surf.blit(rot, (int(round(CORNER[0] - tip[0])), int(round(CORNER[1] - tip[1]))))
-    return pygame.Rect(cx, cy, 1, 1)
+    return plate
 
 
 sc.price_chip = my_price_chip            # patch BEFORE any draw_card call
@@ -207,20 +236,21 @@ def main():
     cards = [(render_card_1x(sid, aff), lbl) for sid, aff, lbl in specs]
     cw, ch = cards[0][0].get_size()
 
-    # 4x zoom of the price corner (bottom-left ~60x40 logical -> 240x160).
-    crop_src = render_card_1x("skin_kitsune", True)
-    crop = crop_src.subsurface(pygame.Rect(0, 60, 60, 40)).copy()
-    zoom = pygame.transform.scale(crop, (240, 160))
-    crop_src2 = render_card_1x("skin_kitsune", False)
-    crop2 = crop_src2.subsurface(pygame.Rect(0, 60, 60, 40)).copy()
-    zoom2 = pygame.transform.scale(crop2, (240, 160))
+    # 4x zoom of the price corner framing the whole peeled sticker.
+    cr = pygame.Rect(0, 70, 78, 28)
+    zdim = (cr.w * 4, cr.h * 4)
+    zoom = pygame.transform.scale(
+        render_card_1x("skin_kitsune", True).subsurface(cr).copy(), zdim)
+    zoom2 = pygame.transform.scale(
+        render_card_1x("skin_kitsune", False).subsurface(cr).copy(), zdim)
 
     row1_w = cw * 3 + gap * 2
-    row2_w = cw + gap + 240 + gap + 240
+    zw, zh = zoom.get_size()
+    row2_w = cw + gap + zw + gap + zw
     canvas_w = pad * 2 + max(row1_w, row2_w)
     row1_y = header_h
     row2_y = row1_y + ch + label_h + gap
-    canvas_h = row2_y + max(ch, 160) + label_h + pad
+    canvas_h = row2_y + max(ch, zh) + label_h + pad
 
     canvas = pygame.Surface((canvas_w, canvas_h))
     canvas.fill((8, 8, 20))
@@ -244,11 +274,11 @@ def main():
     x += cw + gap
     canvas.blit(zoom, (x, row2_y))
     canvas.blit(lf.render("4x zoom · affordable", True, (206, 202, 224)),
-                (x, row2_y + 160 + 3))
-    x += 240 + gap
+                (x, row2_y + zh + 3))
+    x += zw + gap
     canvas.blit(zoom2, (x, row2_y))
     canvas.blit(lf.render("4x zoom · locked", True, (206, 202, 224)),
-                (x, row2_y + 160 + 3))
+                (x, row2_y + zh + 3))
 
     pygame.image.save(canvas, out)
     print("saved", out, canvas.get_size())
