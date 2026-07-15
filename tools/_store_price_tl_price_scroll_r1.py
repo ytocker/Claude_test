@@ -180,7 +180,9 @@ def _draw_scroll(surf, bx, by, text, affordable):
     wax_top, wax_bot = (WAX_TOP, WAX_BOT) if affordable else (WAX_LOCK_TOP,
                                                               WAX_LOCK_BOT)
     disc = _disc_gradient(d, wax_top, wax_bot)
-    wcx, wcy = bx, by + 8
+    # seated 2px below the brief's nominal so the disc's top edge clears the panel
+    # centre — the numeral/vellum reads there, the wax is the lower accent.
+    wcx, wcy = bx, by + 10
     # tiny bright top-left pip so the wax reads glossy/domed
     pip_a = 150 if affordable else 90
     pygame.draw.circle(disc, (255, 210, 200, pip_a),
