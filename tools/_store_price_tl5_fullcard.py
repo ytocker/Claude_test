@@ -1,6 +1,7 @@
-"""Full-card comparison: BEFORE + 5 tl5 hang-tag concepts (affordable & locked).
+"""Full-card comparison: BEFORE + 5 tl5 hang-tag concepts (affordable only).
 
-6 rows × 2 columns. Each cell = full 162×100 1× card (skin_mummy EPIC).
+6 rows × 1 column. Each cell = full 162×100 1× card (skin_mummy EPIC).
+Numbered IDs on each row (BEFORE has no number; concepts are 1–5).
 """
 import os, sys
 
@@ -50,77 +51,73 @@ def load_concept(r2_path):
 
 
 CONCEPTS = [
-    ("BEFORE\n(tl2 hang-tag)",  "tools/_store_price_tl2_hang_tag_r2.py"),
-    ("cream-ruled",             "tools/_store_price_tl5_cream_ruled_r2.py"),
-    ("label-stripe",            "tools/_store_price_tl5_label_stripe_r2.py"),
-    ("vellum-border",           "tools/_store_price_tl5_vellum_border_r2.py"),
-    ("ornament-rule",           "tools/_store_price_tl5_ornament_rule_r2.py"),
-    ("parchment-ledger",        "tools/_store_price_tl5_parchment_ledger_r2.py"),
+    (None,  "BEFORE\n(tl2 hang-tag)",  "tools/_store_price_tl2_hang_tag_r2.py"),
+    (1,     "cream-ruled",             "tools/_store_price_tl5_cream_ruled_r2.py"),
+    (2,     "label-stripe",            "tools/_store_price_tl5_label_stripe_r2.py"),
+    (3,     "vellum-border",           "tools/_store_price_tl5_vellum_border_r2.py"),
+    (4,     "ornament-rule",           "tools/_store_price_tl5_ornament_rule_r2.py"),
+    (5,     "parchment-ledger",        "tools/_store_price_tl5_parchment_ledger_r2.py"),
 ]
 
 # ── layout ────────────────────────────────────────────────────────────────────
 CW, CH    = sc.CARD_W, sc.CARD_H   # 162 × 100
 PAD       = 20
-GAP_COL   = 8
 GAP_ROW   = 14
 HEADER_H  = 44
-LABEL_W   = 100
-COL_HDR_H = 24
+LABEL_W   = 110
+ID_W      = 28
 
 BG   = (8, 8, 20)
 GOLD = (255, 220, 80)
 PALE = (206, 202, 224)
 DIM  = (140, 136, 160)
 
-canvas_w = PAD + LABEL_W + GAP_COL + 2 * CW + GAP_COL + PAD
-canvas_h = (HEADER_H + COL_HDR_H
+canvas_w = PAD + ID_W + LABEL_W + CW + PAD
+canvas_h = (HEADER_H
             + len(CONCEPTS) * (CH + GAP_ROW)
             - GAP_ROW + PAD)
 
 canvas = pygame.Surface((canvas_w, canvas_h))
 canvas.fill(BG)
 
-hf  = hud_font(11, True)
-lf  = hud_font(8, True)
-smf = hud_font(7)
+hf   = hud_font(11, True)
+idf  = hud_font(14, True)
+lf   = hud_font(8, True)
+smf  = hud_font(7)
 
 # main header
 ht = hf.render("store price · tl5 hang-tag · full-card comparison", True, GOLD)
 canvas.blit(ht, (canvas_w // 2 - ht.get_width() // 2,
                  (HEADER_H - ht.get_height()) // 2))
 
-# column headers
-col_aff_x = PAD + LABEL_W + GAP_COL
-col_lck_x = col_aff_x + CW + GAP_COL
-for text, cx in [("AFFORDABLE", col_aff_x + CW // 2),
-                 ("LOCKED",     col_lck_x + CW // 2)]:
-    img = smf.render(text, True, DIM)
-    canvas.blit(img, (cx - img.get_width() // 2, HEADER_H + 4))
+card_x = PAD + ID_W + LABEL_W
+y0 = HEADER_H
 
-y0 = HEADER_H + COL_HDR_H
-
-for i, (label, r2_path) in enumerate(CONCEPTS):
+for i, (num, label, r2_path) in enumerate(CONCEPTS):
     y = y0 + i * (CH + GAP_ROW)
 
     sc.price_chip = load_concept(r2_path)
+    card_aff = render_card_1x("skin_mummy", True)
+    canvas.blit(card_aff, (card_x, y))
 
-    card_aff  = render_card_1x("skin_mummy", True)
-    card_lock = render_card_1x("skin_mummy", False)
+    # ID number (large, left of label)
+    is_before = (num is None)
+    if not is_before:
+        id_img = idf.render(str(num), True, GOLD)
+        canvas.blit(id_img, (PAD + ID_W - id_img.get_width(),
+                              y + (CH - id_img.get_height()) // 2))
 
-    canvas.blit(card_aff,  (col_aff_x, y))
-    canvas.blit(card_lock, (col_lck_x, y))
-
-    # sidebar label
-    is_before = (i == 0)
+    # slug label
     colour = GOLD if is_before else PALE
     top_lbl = label.split("\n")[0]
     lt = lf.render(top_lbl, True, colour)
-    canvas.blit(lt, (PAD + LABEL_W - lt.get_width() - 4,
-                     y + (CH - lt.get_height()) // 2 - 6))
+    lx = PAD + ID_W + LABEL_W - lt.get_width() - 4
+    ly = y + (CH - lt.get_height()) // 2 - (6 if "\n" in label else 0)
+    canvas.blit(lt, (lx, ly))
     if "\n" in label:
         sub = smf.render(label.split("\n")[1], True, DIM)
-        canvas.blit(sub, (PAD + LABEL_W - sub.get_width() - 4,
-                          y + (CH - lt.get_height()) // 2 + lt.get_height() - 4))
+        canvas.blit(sub, (PAD + ID_W + LABEL_W - sub.get_width() - 4,
+                           ly + lt.get_height() - 2))
 
 sc.price_chip = _orig_price_chip
 
