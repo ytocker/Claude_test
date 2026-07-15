@@ -6,17 +6,23 @@ tiles them into docs/store_price_tl3/arch_black/round_2.png. Not wired into the
 live store — exploration only.
 
 Round-2 fixes (all art-director notes from round 1):
- - Champagne hairline strokes widened to 2px on the face surface (which lives at
-   2× before the 0.5× downscale), so 1px survives into the final 1× card.
-   Alpha raised to 230 so the warm tone reads decisively, not as a fringe.
- - Right-edge hue matched to left: the arc and both side lines use the identical
-   (210,190,150) champagne 4-tuple — no per-side variation.
- - Base contrast lifted: grad_bot nudged from (22,20,26) to (36,34,42) so the
-   obsidian slab sits above the deep-navy card background.
- - Debossed inner border removed — it was invisible at 1× and adds no flourish.
- - 1px obsidian gap ring inserted between grommet bottom and coin_ring top
-   (they shared y=23 and were at risk of blobbing); drawn in face gradient
-   colour so it reads as bare tag material, not a drawn line.
+ 1. Champagne edge hairline is now applied POST-downscale on the final 1×
+    surface. The face (74×78) lived at 2× before a 0.5× smoothscale, so a
+    1px arc stroke on the face became a 0.5px ghost — and the arc bounding
+    rect (0,0,74,74) placed the right endpoint at x=74, one pixel outside the
+    74-wide surface, causing the right shoulder to be clipped and then blended
+    with the blue card bg. Post-downscale we draw at radius=18 in 1× space
+    where x=41 is well inside the 162px card — no clipping, no bg-bleed.
+ 2. Right-edge hue fixed — all four hairline strokes now share the identical
+    (210,190,150,230) champagne 4-tuple. The old right-side blue fringe was
+    entirely a consequence of the clipping + smoothscale bleed fixed above.
+ 3. Base contrast lifted: grad_bot nudged from (22,20,26) → (36,34,42) so the
+    obsidian slab sits above the deep-navy card background.
+ 4. Debossed inner border removed — invisible at 1× and not one of the two
+    official flourishes.
+ 5. 1px obsidian gap ring between grommet and coin_ring: both shared y=23 and
+    risked blobbing into one metallic mass; a face-coloured disc at the
+    contact row visually separates them.
 """
 import os, sys, math
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
@@ -30,6 +36,10 @@ import game.store_data as sd
 from game.draw import lerp_color, WHITE, NEAR_BLACK
 from game.hud import _font as hud_font
 sd.load()
+
+# Communicates the face blit position and variant from price_chip to
+# render_card_1x so the post-downscale hairline can be placed precisely.
+_last_price_face: tuple | None = None
 
 
 def _abbr(text):
@@ -54,6 +64,7 @@ def coin_ring(surf, cx, cy):
 
 
 def my_price_chip(surf, cx, cy, text, h, variant=sc.PRICE_VARIANT, **kw):
+    global _last_price_face
     # affordability is driven by variant here so the review sheet can force a
     # locked take regardless of the (zero) fixture wallet.
     affordable = (variant != "locked")
@@ -67,13 +78,11 @@ def my_price_chip(surf, cx, cy, text, h, variant=sc.PRICE_VARIANT, **kw):
         # grad_bot lifted from (22,20,26) → (36,34,42) so the obsidian slab
         # reads above the deep-navy card background (~16 delta was invisible).
         grad_top, grad_bot = (38, 36, 42), (36, 34, 42)
-        hair = (210, 190, 150, 230)          # champagne; alpha 230 for decisiveness
         price_col = (242, 224, 178)
         steel, steel_ul, steel_lr = (150, 158, 166), (190, 198, 204), (60, 68, 76)
         base_shadow = (200, 180, 130, 80)
     else:
         grad_top, grad_bot = (34, 34, 38), (30, 30, 34)
-        hair = (90, 90, 96, 120)
         price_col = (140, 140, 146)
         # steel kept, brightness dropped ~20 so the locked tag reads inert.
         steel, steel_ul, steel_lr = (130, 138, 146), (170, 178, 184), (40, 48, 56)
@@ -97,17 +106,12 @@ def my_price_chip(surf, cx, cy, text, h, variant=sc.PRICE_VARIANT, **kw):
     grad.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     face.blit(grad, (0, 0))
 
-    # ── FLOURISH A: champagne edge hairline hugging the arch silhouette.
-    # Width=2 on the 74-wide face surface (which goes through a 0.5× downscale
-    # to reach the live 1× card) so the stroke resolves to a clean 1px rim
-    # rather than disappearing or aliasing into a bluish fringe.
-    # All four strokes use the identical `hair` 4-tuple — no per-side deviation.
-    hl = pygame.Surface((FACE_W, FACE_H), pygame.SRCALPHA)
-    pygame.draw.arc(hl, hair, (0, 0, FACE_W, FACE_W), 0, math.pi, 2)
-    pygame.draw.line(hl, hair, (0, ARCH_R), (0, FACE_H - 1), 2)
-    pygame.draw.line(hl, hair, (FACE_W - 1, ARCH_R), (FACE_W - 1, FACE_H - 1), 2)
-    pygame.draw.line(hl, hair, (0, FACE_H - 2), (FACE_W - 1, FACE_H - 2), 2)
-    face.blit(hl, (0, 0))
+    # ── FLOURISH A: champagne edge hairline is drawn AFTER the 0.5× smoothscale
+    # in render_card_1x (see below). The arc bounding rect on the 74×78 face
+    # placed the right endpoint at x=74 — one pixel outside the surface — which
+    # was clipped and then blended with the card's blue background by
+    # smoothscale, producing the asymmetric fringe seen in r1. Post-downscale
+    # the hairline is applied at 1× pixel-precision with no boundary issues.
 
     # ── grommet (steel) centred in the arch crown; the void is a real punched
     # hole so the boutique tag reads as physically hung.
@@ -127,7 +131,7 @@ def my_price_chip(surf, cx, cy, text, h, variant=sc.PRICE_VARIANT, **kw):
     # at y=33-sc.m(5)=23 — they share a pixel row and risk reading as one blob.
     # A small disc in the face gradient colour breaks the joint cleanly without
     # looking like an added decoration.
-    gap_y = gy + outer_r      # = 23, the contact row
+    gap_y = gy + outer_r         # = 23, the contact row
     t_gap = gap_y / (FACE_H - 1)
     gap_col = lerp_color(grad_top, grad_bot, t_gap)
     pygame.draw.circle(face, gap_col, (ARCH_R, gap_y), sc.m(2))
@@ -152,22 +156,65 @@ def my_price_chip(surf, cx, cy, text, h, variant=sc.PRICE_VARIANT, **kw):
     pygame.draw.line(bl, base_shadow, (r.left, r.bottom+1), (r.right, r.bottom+1), 1)
     face.blit(bl, (0, 0))
 
-    # ── boutique tag hangs in the top-left clear zone of the 2x buffer.
-    surf.blit(face, (48 - FACE_W // 2, 50 - FACE_H // 2))
-    return pygame.Rect(48 - FACE_W // 2, 50 - FACE_H // 2, FACE_W, FACE_H)
+    # ── boutique tag hangs in the top-left clear zone of the 2× buffer.
+    blit_x = 48 - FACE_W // 2   # = 11
+    blit_y = 50 - FACE_H // 2   # = 11
+    surf.blit(face, (blit_x, blit_y))
+
+    # Store face geometry for the post-downscale hairline pass in render_card_1x.
+    _last_price_face = (blit_x, blit_y, FACE_W, FACE_H, variant)
+    return pygame.Rect(blit_x, blit_y, FACE_W, FACE_H)
 
 
 sc.price_chip = my_price_chip
 
 
 def render_card_1x(sid, variant):
+    """Render one card at live 1× size.
+
+    The hairline is applied AFTER the smoothscale so it lives at true 1×
+    pixel resolution. At 2× (the face draw scale) the arc rect (0,0,74,74)
+    placed the right arc endpoint outside the surface boundary, causing
+    endpoint clipping that smoothscale then blended with the blue card
+    background. At 1× the arc radius is 18 in a 162-wide surface so both
+    endpoints sit well inside the bounds with zero clipping.
+    """
+    global _last_price_face
+    _last_price_face = None
+
     big = pygame.Surface((sc.CARD_W * sc.SS, sc.CARD_H * sc.SS), pygame.SRCALPHA)
     inset = sc.m(sc._INSET)
     rect = pygame.Rect(inset, inset,
                        sc.CARD_W * sc.SS - 2*inset,
                        sc.CARD_H * sc.SS - 2*inset)
     sc.draw_card(big, sid, rect, equipped=False, secret=False, variant=variant)
-    return pygame.transform.smoothscale(big, (sc.CARD_W, sc.CARD_H))
+    card_1x = pygame.transform.smoothscale(big, (sc.CARD_W, sc.CARD_H))
+
+    if _last_price_face is not None:
+        bx, by, fw, fh, var = _last_price_face
+        # Map face blit position from the 2× big-canvas to 1× card coordinates.
+        fx   = bx // sc.SS        # = 5
+        fy   = by // sc.SS        # = 5
+        fw1  = fw // sc.SS        # = 37  (face width in 1×)
+        fh1  = fh // sc.SS        # = 39  (face height in 1×)
+        # Use fw1-1 for the arc bounding rect width so the circle endpoint at
+        # angle=0 lands at x=fx+fw1-1 (=41), well inside the 162-wide surface.
+        arc_w = fw1 - 1           # = 36 → circle radius = 18
+        ar    = arc_w // 2        # = 18 (arch radius in 1×)
+
+        hair_col = (210, 190, 150, 230) if var != "locked" else (90, 90, 96, 120)
+
+        hl = pygame.Surface((sc.CARD_W, sc.CARD_H), pygame.SRCALPHA)
+        # Arc: left endpoint (fx, fy+ar) → right endpoint (fx+arc_w, fy+ar).
+        # arc_w=36 keeps right endpoint at fx+36=41, which is the same x
+        # as the right side-line, so the join is gapless.
+        pygame.draw.arc(hl, hair_col, (fx, fy, arc_w, arc_w), 0, math.pi, 1)
+        pygame.draw.line(hl, hair_col, (fx,        fy + ar), (fx,        fy + fh1 - 1), 1)
+        pygame.draw.line(hl, hair_col, (fx + fw1 - 1, fy + ar), (fx + fw1 - 1, fy + fh1 - 1), 1)
+        pygame.draw.line(hl, hair_col, (fx, fy + fh1 - 2), (fx + fw1 - 1, fy + fh1 - 2), 1)
+        card_1x.blit(hl, (0, 0))
+
+    return card_1x
 
 
 def zoom_left(card_1x):
