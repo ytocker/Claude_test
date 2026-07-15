@@ -89,13 +89,30 @@ def _roll_highlight_arc(rw, rh):
     return arc
 
 
+# Vellum panel inner width the price must clear (40px panel less a margin each
+# side). font(8.5) overflows a 5-digit price, so the size auto-shrinks to fit —
+# a tiny scroll can't carry big numerals.
+_NUM_MAX_W = sc.m(17)
+
+
+def _fit_price_mask(text):
+    """The glyph mask, auto-shrunk from font(8.5) until a 5-digit price clears the
+    vellum panel. Returns (mask, size)."""
+    sz = 8.5
+    while sz > 5.0:
+        mask = sc._stamp_bold(sc._glyph_base(text, sc.font(sz), 0), sc.m(0.8))
+        if mask.get_width() <= _NUM_MAX_W:
+            return mask
+        sz -= 0.5
+    return sc._stamp_bold(sc._glyph_base(text, sc.font(sz), 0), sc.m(0.8))
+
+
 def _numerals_affordable(surf, text, cx, cy):
     """Sovereign coin-metal fill poured into the glyph mask via BLEND_RGBA_MULT,
     with a m(0.5) dark stamp offset behind it: gold-on-cream is low contrast, so
     the dark under-stamp gives the numerals a struck edge that seats them on the
-    vellum."""
-    f = sc.font(8.5)
-    mask = sc._stamp_bold(sc._glyph_base(text, f, 0), sc.m(1.0))
+    vellum. The gold face stays on top, so the numeral reads warm and light."""
+    mask = _fit_price_mask(text)
     grad = sc.vgrad_stops(mask.get_width(), mask.get_height(), 0,
                           sc._SOVEREIGN_NUM_STOPS, 255, 1.0)
     img = mask.copy()
@@ -104,15 +121,14 @@ def _numerals_affordable(surf, text, cx, cy):
 
     stamp = mask.copy()
     stamp.fill((*NEAR_BLACK, 255), special_flags=pygame.BLEND_RGBA_MULT)
-    stamp.set_alpha(150)
+    stamp.set_alpha(140)
     surf.blit(stamp, (r.x + sc.m(0.5), r.y + sc.m(0.5)))
     surf.blit(img, r)
 
 
 def _numerals_locked(surf, text, cx, cy):
     """Dim ink on the desaturated vellum — legible, plainly inert."""
-    f = sc.font(8.5)
-    mask = sc._stamp_bold(sc._glyph_base(text, f, 0), sc.m(1.0))
+    mask = _fit_price_mask(text)
     img = mask.copy()
     img.fill((*NUM_LOCK, 255), special_flags=pygame.BLEND_RGBA_MULT)
     surf.blit(img, img.get_rect(center=(cx, cy)))
