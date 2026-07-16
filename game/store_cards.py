@@ -692,53 +692,116 @@ def _dark_chip_body(surf, r, radius, stops, rim_dark, rim_bright, gloss=14,
     bevel_rim(surf, r, radius, rim_dark, (*rim_bright, 235), w=max(1, m(1.5)))
 
 
+_TAG_W, _TAG_H, _TAG_TILT = 76, 88, -7
+
+
+def _tag_full(text):
+    digits = ''.join(c for c in text if c.isdigit())
+    return f"{int(digits):,}" if digits else text
+
+
+def _tag_price_glyph(text):
+    for fs in (13, 12, 11, 10, 9, 8):
+        mask = _stamp_bold(_glyph_base(text, font(fs), 0), m(1.8))
+        if mask.get_width() <= 66:
+            return mask
+    return mask
+
+
+def _tag_draw_price(face, text, affordable):
+    """Brushwork sumi ledger: heavy max-bold amount, burnt-copper 'G' token above,
+    wedge-taper finishing stroke for the rule. All solid fills — value and
+    stroke-weight contrast carry the tag at 5-8px final scale."""
+    cx = _TAG_W // 2
+    ink = (40, 30, 26) if affordable else (40, 40, 52)
+    coin_col = (150, 100, 28) if affordable else (88, 92, 110)
+    rule_col_solid = (56, 42, 30) if affordable else (40, 40, 52)
+
+    cy_token = int(_TAG_H * 0.40)
+    coin_mask = _stamp_bold(_glyph_base("G", font(8), 0), m(1.2))
+    coin_r = coin_mask.get_rect(center=(cx, cy_token))
+    coin_fill = coin_mask.copy()
+    coin_fill.fill((*coin_col, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    face.blit(coin_fill, coin_r)
+
+    amt_mask = _tag_price_glyph(text)
+    cy_amount = int(_TAG_H * 0.62)
+    amt_r = amt_mask.get_rect(center=(cx, cy_amount))
+    amt_fill = amt_mask.copy()
+    amt_fill.fill((*ink, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    face.blit(amt_fill, amt_r)
+    amt_h = amt_mask.get_height()
+
+    rule_y = cy_amount + amt_h // 2 + m(2)
+    rule_w = min(amt_mask.get_width() + m(4), _TAG_W - m(8))
+    rule_x = _TAG_W // 2 - rule_w // 2
+    peak_h = max(3, m(3))
+    min_h  = max(1, m(1))
+    pts = [
+        (rule_x,          rule_y),
+        (rule_x + rule_w, rule_y + (peak_h - min_h) // 2),
+        (rule_x + rule_w, rule_y + (peak_h + min_h) // 2),
+        (rule_x,          rule_y + peak_h),
+    ]
+    pygame.draw.polygon(face, rule_col_solid, pts)
+
+
+def _tag_rot_point(px, py, center):
+    th = math.radians(_TAG_TILT)
+    dx, dy = px - _TAG_W / 2, py - _TAG_H / 2
+    rx = dx * math.cos(th) + dy * math.sin(th)
+    ry = -dx * math.sin(th) + dy * math.cos(th)
+    return (center[0] + rx, center[1] + ry)
+
+
 def price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
-    """Gold-Sovereign price chip. Warm near-black enamel body; the price
-    numeral is the focal point via a 4-stop coin-metal gradient poured into the
-    glyph mask. Thick 2px struck rim. Not-affordable tarnishes the whole coin."""
-    coin_d = int(h * 0.66)
-    pad    = m(13)
-    gapc   = m(8)
-    f      = font(h * 0.60 / SS)
-    nw     = _glyph_base(text, f, 0).get_width() + m(2)
-    w      = pad + coin_d + gapc + nw + pad
-    r      = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
-    rad    = h // 2
+    """Brushwork sumi hang-tag price chip. Cream swing-tag face; the price
+    numeral is struck in heavy ink-brush weight with a wedge-taper finishing
+    stroke. Locked state tarnishes to cool grey. Tag tilts -7° on a cord."""
+    text = _tag_full(text)
+    rad = m(3)
+    grommet = (28, 12)
+    tag_center = (cx, cy)
+
+    face = pygame.Surface((_TAG_W, _TAG_H), pygame.SRCALPHA)
+    brect = pygame.Rect(0, 0, _TAG_W, _TAG_H)
 
     if affordable:
-        _dark_chip_body(surf, r, rad,
-                        [(0.0, (26, 20, 32)), (1.0, (18, 14, 24))],
-                        (10, 11, 22), (56, 52, 76), gloss=14, gamma=1.04)
-        bevel_rim(surf, r, rad, (120, 88, 28, 235), (230, 200, 130, 220), w=2)
-        coin_rim = (180, 150, 60)
-        tint_col = (200, 160, 40, 40)
+        body = vgrad_stops(_TAG_W, _TAG_H, rad,
+                           [(0.0, (248, 238, 210)), (1.0, (224, 204, 166))],
+                           255, gamma=1.04)
+        face.blit(body, (0, 0))
+        bevel_rim(face, brect, rad, (80, 52, 12, 200),
+                  (255, 240, 190, 200), w=max(1, m(1.2)))
+        ring_col = (110, 80, 30)
     else:
-        _dark_chip_body(surf, r, rad,
-                        [(0.0, (14, 15, 28)), (1.0, (10, 11, 22))],
-                        (10, 11, 22), (40, 38, 56), gloss=14, gamma=1.04)
-        bevel_rim(surf, r, rad, (80, 60, 18, 200), (170, 150, 100, 180), w=2)
-        coin_rim = (120, 108, 78)
-        tint_col = (70, 74, 84, 180)
+        body = vgrad_stops(_TAG_W, _TAG_H, rad,
+                           [(0.0, (156, 160, 176)), (1.0, (88, 92, 112))],
+                           255, gamma=1.02)
+        face.blit(body, (0, 0))
+        bevel_rim(face, brect, rad, (54, 58, 74, 200),
+                  (214, 218, 232, 200), w=max(1, m(1.2)))
+        ring_col = (60, 64, 80)
 
-    ccx = r.x + pad + coin_d // 2
-    cr  = coin_d // 2
-    coin_glyph(surf, ccx, cy, cr, rim=coin_rim)
-    tint = pygame.Surface((coin_d, coin_d), pygame.SRCALPHA)
-    pygame.draw.circle(tint, tint_col, (cr, cr), cr)
-    surf.blit(tint, (ccx - cr, cy - cr))
+    _tag_draw_price(face, text, affordable)
 
-    nx = r.x + pad + coin_d + gapc + nw // 2
-    if affordable:
-        mask = _stamp_bold(_glyph_base(text, f, 0), m(1.0))
-        grad = vgrad_stops(mask.get_width(), mask.get_height(), 0,
-                           _SOVEREIGN_NUM_STOPS, 255, 1.0)
-        img = mask.copy()
-        img.blit(grad, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-        surf.blit(img, img.get_rect(center=(nx, cy)))
-    else:
-        plain_text(surf, text, f, (nx, cy), color=(150, 132, 92),
-                   shadow_a=0, weight=m(1.0))
-    return r
+    pygame.draw.circle(face, (0, 0, 0, 0), grommet, m(5))
+    pygame.draw.circle(face, ring_col, grommet, m(5) + 1, width=max(1, m(1)))
+
+    rot = pygame.transform.rotate(face, _TAG_TILT)
+    cord = (190, 165, 115) if affordable else (155, 160, 175)
+    # Fixed layout on the 324×200 SS surface — same anchor used by all review
+    # scripts so the tag lands identically here and in offline render tools.
+    tag_center = (44, 60)
+    knot       = (22, 13)
+    gx, gy = _tag_rot_point(*grommet, tag_center)
+    lw = m(1.5)
+    pygame.draw.line(surf, cord, (gx, gy), (knot[0] - 1, knot[1] - 1), lw)
+    pygame.draw.line(surf, cord, (gx, gy), (knot[0] + 2, knot[1] + 2), lw)
+    surf.blit(rot, rot.get_rect(center=tag_center))
+    pygame.draw.circle(surf, cord, knot, m(1.5))
+    pygame.draw.circle(surf, (min(cord[0]+30,255), min(cord[1]+30,255),
+                              min(cord[2]+30,255)), knot, max(1, m(0.6)))
 
 
 def status_chip(surf, cx, cy, text, h, kind="equip"):
