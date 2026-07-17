@@ -692,7 +692,7 @@ def _dark_chip_body(surf, r, radius, stops, rim_dark, rim_bright, gloss=14,
     bevel_rim(surf, r, radius, rim_dark, (*rim_bright, 235), w=max(1, m(1.5)))
 
 
-_TAG_W, _TAG_H, _TAG_TILT = 76, 88, -7
+_TAG_W, _TAG_H, _TAG_TILT = 81, 94, -7
 
 
 def _tag_full(text):
@@ -701,11 +701,11 @@ def _tag_full(text):
 
 
 def _tag_price_glyph(text):
-    for fs in (15, 14, 13, 12, 11, 10, 9, 8):
+    for fs in range(16, 7, -1):
         raw = _stamp_bold(_glyph_base(text, font(fs), 0), m(1.0))
         crushed = pygame.transform.smoothscale(
             raw, (max(1, int(raw.get_width() * 0.86)), raw.get_height()))
-        if crushed.get_width() <= 66:
+        if crushed.get_width() <= 71:
             return crushed
     return crushed
 
@@ -754,7 +754,7 @@ def price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
     stroke. Locked state tarnishes to cool grey. Tag tilts -7° on a cord."""
     text = _tag_full(text)
     rad = m(3)
-    grommet = (28, 12)
+    grommet = (30, 13)
     tag_center = (cx, cy)
 
     face = pygame.Surface((_TAG_W, _TAG_H), pygame.SRCALPHA)
