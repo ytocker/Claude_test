@@ -1,8 +1,20 @@
-"""arched-niche card concept — cathedral/tombstone aperture replacing circular dome.
+"""arched-niche card concept — a cathedral/tombstone aperture replacing the
+circular cabochon dome.
 
-Draws a rounded-rect-base + semicircular-crown (arch) in gold, fills the hero
-thumbnail inside that silhouette, delivering BOTH a larger character AND a
-larger/more architectural rim than the baseline circle.
+The character frame becomes a gold-bezeled ARCHED NICHE: a rounded-rect base
+capped by a semicircular crown. This is the only size direction whose silhouette
+is fully distinct from the circle/ellipse family — a vertical, throne-like alcove
+that simultaneously GROWS the hero (a taller aperture, head rising into the crown)
+and the gold RIM (a larger, more architectural frame around the skin).
+
+Build per card: let the standard CONSTELLATION card render with the dome/glass/
+aura AND the default ribbon+name suppressed, so draw_card only lays down the
+frame, crest gem and price chip. Then paint the niche into the dome's place — a
+tombstone silhouette filled with the dome's own glass gradient (CABO_C_LO -> HI
+radial), the hero clipped to that silhouette, a glass sheen, and a 3-layer gold
+bezel (dark contact keyline -> warm gold band -> pale glint). Finally the tier
+ribbon returns demoted to a slim SILL-PLATE under the niche base, with the item
+name dropped just beneath it; the price chip is unchanged.
 """
 import os
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
@@ -17,209 +29,225 @@ pygame.display.set_mode((1, 1), pygame.NOFRAME)
 import game.store_cards as sc
 import game.store_data as sd
 from game.hud import _font as hud_font
+from game.draw import lerp_color, NEAR_BLACK, WHITE
 
 sd.load()
 
-CARD_W_SS, CARD_H_SS = sc.CARD_W * sc.SS, sc.CARD_H * sc.SS  # 324, 200
+SID = "skin_mummy"
+CARD_W_SS, CARD_H_SS = sc.CARD_W * sc.SS, sc.CARD_H * sc.SS   # 324 x 200
 inset = sc.m(sc._INSET)
 rect_ss = pygame.Rect(inset, inset, CARD_W_SS - 2 * inset, CARD_H_SS - 2 * inset)
+
+# BLEND_ADD reads RGB magnitude directly (source alpha is ignored), so the
+# alpha-driven gloss sweep draw_card runs on the price chip silently blows it to
+# white. Route the sweep through the RGB channels instead.
+def _gloss_sweep_fixed(surf, rect, radius, peak=120):
+    sweep = pygame.Surface(rect.size, pygame.SRCALPHA)
+    h = max(1, rect.h)
+    for y in range(h):
+        v = int(peak * (1 - y / h) ** 2.4)
+        if v <= 0:
+            continue
+        pygame.draw.line(sweep, (v, v, v, 255), (0, y), (rect.w, y))
+    sm = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(sm, (255, 255, 255, 255), sm.get_rect(), border_radius=radius)
+    sweep.blit(sm, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(sweep, rect.topleft, special_flags=pygame.BLEND_ADD)
+
+
+sc.gloss_sweep = _gloss_sweep_fixed
+
+
+# ── niche geometry (device px on the 324x200 supersample card) ────────────────
+# Crown radius == half the aperture width, so the semicircle sits cleanly on the
+# jambs. The apex lifts toward the tray top so the hero's head reads INSIDE the
+# crown; the sill sits low, just above the demoted tier lane.
+CX = 162
+ARCH_W = 120
+CROWN_R = ARCH_W // 2         # 60 — semicircular crown
+SHOULDER_Y = 90               # springing line where crown meets the jambs
+SILL_Y = 150                  # niche base
+BASE_H = SILL_Y - SHOULDER_Y  # 60 — rectangular base height
+APEX_Y = SHOULDER_Y - CROWN_R # 30 — crown apex
+HERO_PX = 104                 # grows from the dome's 84
+HERO_CY = 90                  # centred so the head rises into the crown
+
+
+def _niche_mask():
+    """Tombstone silhouette as an alpha mask: the rectangular base UNIONed with
+    the crown circle (its lower half falls inside the rect, so the union is one
+    clean rounded-top alcove)."""
+    mask = pygame.Surface((CARD_W_SS, CARD_H_SS), pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255),
+                     (CX - CROWN_R, SHOULDER_Y, ARCH_W, BASE_H))
+    pygame.draw.circle(mask, (255, 255, 255, 255), (CX, SHOULDER_Y), CROWN_R)
+    return mask
+
+
+def _arch_outline(surf, cx, crown_r, half_w, shoulder_y, sill_y, color, width):
+    """One pass of the arch path: crown as a top half-circle arc, two vertical
+    jambs, and the sill line. Stacking passes at shrinking radius reads as a
+    keyline -> gold -> glint bezel."""
+    pygame.draw.arc(surf, color, (cx - crown_r, shoulder_y - crown_r,
+                                  crown_r * 2, crown_r * 2), 0.0, math.pi, width)
+    pygame.draw.line(surf, color, (cx - half_w, shoulder_y), (cx - half_w, sill_y), width)
+    pygame.draw.line(surf, color, (cx + half_w, shoulder_y), (cx + half_w, sill_y), width)
+    pygame.draw.line(surf, color, (cx - half_w, sill_y), (cx + half_w, sill_y), width)
+
+
+def draw_arch_niche_on(surf):
+    mask = _niche_mask()
+
+    # radial glass body: lit-ish centre deepening to a near-black rim — the exact
+    # cabochon dome ramp, so the niche reads as the same material as the old well.
+    mid_y = (APEX_Y + SILL_Y) // 2
+    maxr = int(math.hypot(CROWN_R, (SILL_Y - APEX_Y) / 2)) + sc.m(2)
+    body = pygame.Surface((CARD_W_SS, CARD_H_SS), pygame.SRCALPHA)
+    for i in range(maxr, 0, -1):
+        col = lerp_color(sc.CABO_C_LO, sc.CABO_C_HI, (i / maxr) ** 1.28)
+        pygame.draw.circle(body, (*col, 255), (CX, mid_y), i)
+    body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(body, (0, 0))
+
+    # soft tier aura hugging the alcove so it sits in a pool of light like the dome
+    glow = pygame.Surface((CARD_W_SS, CARD_H_SS), pygame.SRCALPHA)
+    for i in range(maxr + sc.m(6), 0, -sc.m(1) or 1):
+        a = int(26 * (i / (maxr + sc.m(6))))
+        pygame.draw.circle(glow, (150, 120, 60, a), (CX, mid_y), i)
+    surf.blit(glow, (0, 0))
+
+    # hero clipped to the silhouette so the skin fills the alcove
+    hero = pygame.Surface((CARD_W_SS, CARD_H_SS), pygame.SRCALPHA)
+    sc.blit_thumb(hero, SID, CX, HERO_CY, HERO_PX)
+    hero.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(hero, (0, 0))
+
+    # thin top-left specular so the glass dome-front still reads over the niche
+    spec = pygame.Surface((CARD_W_SS, CARD_H_SS), pygame.SRCALPHA)
+    pygame.draw.circle(spec, (255, 255, 255, 48),
+                       (CX - CROWN_R // 3, SHOULDER_Y - CROWN_R // 2),
+                       int(CROWN_R * 0.72))
+    spec.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(spec, (0, 0), special_flags=pygame.BLEND_ADD)
+
+    # gold bezel — dark contact keyline outermost, warm-gold band, pale glint.
+    _arch_outline(surf, CX, CROWN_R, CROWN_R, SHOULDER_Y, SILL_Y,
+                  (0, 0, 0, 200), max(1, sc.m(2.0)))
+    _arch_outline(surf, CX, CROWN_R - sc.m(1), CROWN_R - sc.m(1), SHOULDER_Y,
+                  SILL_Y - sc.m(1), (*sc.CARD_RING_BRIGHT, 235), max(1, sc.m(1.6)))
+    _arch_outline(surf, CX, CROWN_R - sc.m(2.4), CROWN_R - sc.m(2.4), SHOULDER_Y,
+                  SILL_Y - sc.m(2.4), (246, 220, 140, 160), max(1, sc.m(0.8)))
+
+    # bright glass kiss on the upper-left crown arc only
+    kiss = pygame.Surface((CARD_W_SS, CARD_H_SS), pygame.SRCALPHA)
+    pygame.draw.arc(kiss, (255, 255, 255, 130),
+                    (CX - CROWN_R + sc.m(1), SHOULDER_Y - CROWN_R + sc.m(1),
+                     CROWN_R * 2 - sc.m(2), CROWN_R * 2 - sc.m(2)),
+                    math.radians(108), math.radians(184), max(1, sc.m(1)))
+    surf.blit(kiss, (0, 0), special_flags=pygame.BLEND_ADD)
+
+
+def _sill_plate(surf, tier_word, cx, cy, max_w, pal):
+    """Tier ribbon demoted to a slim architectural sill-plate seated under the
+    niche base — a low tier-gradient bar edged in the bezel's gold, so it reads
+    as the alcove's stone sill rather than a floating banner."""
+    f = sc.font(8.5)
+    tw = sc._glyph_base(tier_word, f, sc.m(1.4)).get_width()
+    pad = sc.m(12)
+    w = min(max_w, tw + pad * 2)
+    h = sc.m(8)
+    rad = h // 2
+    x0, y0 = cx - w // 2, cy - h // 2
+    top = lerp_color(pal["gem"], WHITE, 0.1)
+    bot = lerp_color(pal["deep"], NEAR_BLACK, 0.05)
+    bar = sc.vgrad_stops(w, h, rad, [(0.0, top), (0.5, pal["glow"]), (1.0, bot)],
+                         255, gamma=1.08)
+    sh = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.rect(sh, (0, 0, 0, 120), (0, 0, w, h), border_radius=rad)
+    surf.blit(sh, (x0, y0 + sc.m(2)))
+    surf.blit(bar, (x0, y0))
+    pygame.draw.rect(surf, (4, 5, 16), (x0, y0, w, h),
+                     width=max(1, sc.m(1.4)), border_radius=rad)
+    pygame.draw.rect(surf, (*sc.CARD_RING_BRIGHT, 185),
+                     (x0 + sc.m(1), y0 + sc.m(1), w - sc.m(2), h - sc.m(2)),
+                     width=max(1, sc.m(1)), border_radius=rad)
+    sc.plain_text(surf, tier_word, f, (cx, cy), (14, 12, 26), shadow_a=0,
+                  tracking=sc.m(1.4), weight=sc.m(0.7))
 
 
 def render_baseline():
     sc._card_cache.clear()
     surf = pygame.Surface((CARD_W_SS, CARD_H_SS), pygame.SRCALPHA)
-    sc.draw_card(surf, 'skin_mummy', rect_ss, equipped=False, secret=False)
+    sc.draw_card(surf, SID, rect_ss, equipped=False, secret=False)
     return surf
-
-
-def draw_arch_niche_on(surf):
-    """Draw a cathedral-arch character niche over the dome area.
-
-    Arch geometry (SS coords):
-    - Total niche: 120 wide × 150 tall
-    - Crown: semicircle r=60 springing from shoulders at y=50 → apex at y=-10 (cropped to card)
-    - Rect base: y=50..150, 120 wide → rect-base height = 100
-    - Center x = 162 (card horizontal center)
-    - Sill at y = 150 SS (fits above ribbon at y≈117? No — shifts ribbon down in this concept)
-    - We target: crown apex y≈10, shoulders y≈70, sill y≈160
-    """
-    CX = 162
-    ARCH_W = 120
-    CROWN_R = 60          # semicircle at top
-    SHOULDER_Y = 70       # where the arch curve meets the vertical sides
-    SILL_Y = 160          # bottom of the niche
-    BASE_H = SILL_Y - SHOULDER_Y   # 90 px rect portion
-
-    # ── 1. Build arch silhouette mask ──────────────────────────────────────
-    mask = pygame.Surface((CARD_W_SS, CARD_H_SS), pygame.SRCALPHA)
-    mask.fill((0, 0, 0, 0))
-
-    # Rect base
-    base_rect = pygame.Rect(CX - ARCH_W // 2, SHOULDER_Y, ARCH_W, BASE_H)
-    pygame.draw.rect(mask, (255, 255, 255, 255), base_rect)
-
-    # Semicircle crown (top half of circle centered at (CX, SHOULDER_Y))
-    pygame.draw.circle(mask, (255, 255, 255, 255),
-                       (CX, SHOULDER_Y), CROWN_R)
-
-    # ── 2. Fill the niche body with gradient (CABO_C_HI at top → CABO_C_LO at bottom) ──
-    body = pygame.Surface((CARD_W_SS, CARD_H_SS), pygame.SRCALPHA)
-    body.fill((0, 0, 0, 0))
-
-    LO = sc.CABO_C_LO   # (30, 33, 64)
-    HI = sc.CABO_C_HI   # (9, 11, 30)  ← actually darker; use reversed for dome feel
-    # Dome: center lit, edges dark. Use soft radial fill via scan-lines.
-    arch_top = SHOULDER_Y - CROWN_R    # topmost pixel of arch
-    arch_bot = SILL_Y
-    total_h = arch_bot - arch_top
-    for y in range(arch_top, arch_bot):
-        frac = (y - arch_top) / total_h   # 0 = top, 1 = bottom
-        # Radial feel: lightest at center-top (dome interior), darkest at edges/bottom
-        c = tuple(int(LO[i] * (1 - frac) + HI[i] * frac) for i in range(3))
-        # horizontal extent at this y
-        if y < SHOULDER_Y:
-            # in crown semicircle
-            dy = SHOULDER_Y - y
-            if dy > CROWN_R:
-                continue
-            half_w = int(math.sqrt(max(0, CROWN_R**2 - dy**2)))
-        else:
-            half_w = ARCH_W // 2
-        if half_w > 0:
-            pygame.draw.line(body, (*c, 255),
-                             (CX - half_w, y), (CX + half_w, y))
-
-    # Clip body to mask shape
-    body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-    surf.blit(body, (0, 0))
-
-    # ── 3. Soft glow behind the arch (tier aura) ──────────────────────────
-    glow = pygame.Surface((CARD_W_SS, CARD_H_SS), pygame.SRCALPHA)
-    glow_cx = CX
-    glow_cy = (arch_top + arch_bot) // 2
-    glow_r = max(CROWN_R, BASE_H // 2) + 10
-    for i in range(glow_r, 0, -3):
-        alpha = int(35 * i / glow_r)
-        pygame.draw.circle(glow, (100, 80, 40, alpha), (glow_cx, glow_cy), i)
-    surf.blit(glow, (0, 0), special_flags=pygame.BLEND_PREMULTIPLIED)
-
-    # ── 4. Hero thumbnail clipped to arch shape ───────────────────────────
-    HERO_PX = 104
-    hero_surf = pygame.Surface((CARD_W_SS, CARD_H_SS), pygame.SRCALPHA)
-    hero_cy = (SHOULDER_Y + SILL_Y) // 2   # center in the rect base
-    sc.blit_thumb(hero_surf, 'skin_mummy', CX, hero_cy, HERO_PX)
-    # Clip to arch mask
-    hero_surf.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-    surf.blit(hero_surf, (0, 0))
-
-    # ── 5. Glass sheen on arch (top-left bright arc) ──────────────────────
-    sheen = pygame.Surface((CARD_W_SS, CARD_H_SS), pygame.SRCALPHA)
-    for angle_deg in range(-180, 0, 2):
-        angle = math.radians(angle_deg)
-        # Top-left quadrant brighter
-        brightness = max(0, -math.cos(angle - math.pi * 1.3))
-        alpha = int(80 * brightness)
-        if alpha < 4:
-            continue
-        sx = int(CX + (CROWN_R - 8) * math.cos(angle))
-        sy = int(SHOULDER_Y + (CROWN_R - 8) * math.sin(angle))
-        pygame.draw.circle(sheen, (255, 248, 220, alpha), (sx, sy), 3)
-    surf.blit(sheen, (0, 0))
-
-    # ── 6. Gold arch bezel (3 strokes: keyline, gold, pale glint) ─────────
-    def draw_arch_outline(target, cx, shoulder_y, crown_r, arch_w, base_h, color, width):
-        # Crown arc
-        crown_rect = pygame.Rect(cx - crown_r, shoulder_y - crown_r,
-                                 crown_r * 2, crown_r * 2)
-        pygame.draw.arc(target, color, crown_rect, 0, math.pi, width)
-        # Left vertical side
-        pygame.draw.line(target, color,
-                         (cx - arch_w // 2, shoulder_y),
-                         (cx - arch_w // 2, shoulder_y + base_h), width)
-        # Right vertical side
-        pygame.draw.line(target, color,
-                         (cx + arch_w // 2, shoulder_y),
-                         (cx + arch_w // 2, shoulder_y + base_h), width)
-        # Bottom sill
-        pygame.draw.line(target, color,
-                         (cx - arch_w // 2, shoulder_y + base_h),
-                         (cx + arch_w // 2, shoulder_y + base_h), width)
-
-    # Keyline (dark contact)
-    draw_arch_outline(surf, CX, SHOULDER_Y, CROWN_R + 3, ARCH_W + 6, BASE_H,
-                      (*sc.CARD_RING_DEEP, 200), 2)
-    # Gold band
-    draw_arch_outline(surf, CX, SHOULDER_Y, CROWN_R + 1, ARCH_W + 2, BASE_H,
-                      (*sc.CARD_RING_BRIGHT, 220), 3)
-    # Pale glint (inner highlight)
-    draw_arch_outline(surf, CX, SHOULDER_Y, CROWN_R - 2, ARCH_W - 4, BASE_H,
-                      (255, 246, 200, 100), 1)
 
 
 def render_concept():
-    """Render the full card but replace the cabochon dome with the arch niche."""
+    """The full card with the dome swapped for the arched niche and the tier lane
+    demoted to a sill-plate."""
     sc._card_cache.clear()
 
-    # Suppress circle dome primitives, keep everything else
-    orig_cabochon = sc.cabochon
-    orig_cabochon_glass = sc.cabochon_glass
-    orig_soft_glow = sc.soft_glow
-
-    sc.cabochon = lambda *a, **kw: None
-    sc.cabochon_glass = lambda *a, **kw: None
-    sc.soft_glow = lambda *a, **kw: None
-
-    # Also keep blit_thumb suppressed (we draw our own clipped thumb)
-    orig_blit_thumb = sc.blit_thumb
-    sc.blit_thumb = lambda *a, **kw: None
+    # suppress the circular dome stack AND the default ribbon/name so draw_card
+    # only lays down the frame, crest gem and price chip; the niche and its
+    # relocated lane are painted afterward.
+    saved = (sc.cabochon, sc.cabochon_glass, sc.soft_glow, sc.blit_thumb,
+             sc._ribbon_lozenge, sc._name_on)
+    sc.cabochon = lambda *a, **k: None
+    sc.cabochon_glass = lambda *a, **k: None
+    sc.soft_glow = lambda *a, **k: None
+    sc.blit_thumb = lambda *a, **k: None
+    sc._ribbon_lozenge = lambda *a, **k: None
+    sc._name_on = lambda *a, **k: None
 
     surf = pygame.Surface((CARD_W_SS, CARD_H_SS), pygame.SRCALPHA)
-    sc.draw_card(surf, 'skin_mummy', rect_ss, equipped=False, secret=False)
+    sc.draw_card(surf, SID, rect_ss, equipped=False, secret=False)
 
-    sc.cabochon = orig_cabochon
-    sc.cabochon_glass = orig_cabochon_glass
-    sc.soft_glow = orig_soft_glow
-    sc.blit_thumb = orig_blit_thumb
+    (sc.cabochon, sc.cabochon_glass, sc.soft_glow, sc.blit_thumb,
+     sc._ribbon_lozenge, sc._name_on) = saved
     sc._card_cache.clear()
 
-    # Now draw the arch niche on top
     draw_arch_niche_on(surf)
 
+    pal = sc.RARITY[sc._rarity(SID)]
+    _sill_plate(surf, sc._rarity(SID).upper(), CX, SILL_Y, rect_ss.w - sc.m(34), pal)
+    sc._name_on(surf, sc._name(SID), CX, rect_ss.y + sc.m(77), rect_ss.w - sc.m(26))
     return surf
 
 
-# ── Render ────────────────────────────────────────────────────────────────────
+# ── render ────────────────────────────────────────────────────────────────────
 baseline_ss = render_baseline()
 concept_ss = render_concept()
 
-# ── Comparison sheet ──────────────────────────────────────────────────────────
-GAP, PAD, LABEL_H, HEADER_H = 8, 16, 28, 40
+# ── comparison sheet: baseline | concept at 2x, plus a 1x row ─────────────────
+GAP, PAD, LABEL_H, HEADER_H = 8, 16, 28, 44
 sheet_w = PAD * 2 + 2 * CARD_W_SS + GAP
-sheet_h = PAD * 2 + HEADER_H + LABEL_H + CARD_H_SS + GAP + LABEL_H + sc.CARD_H + PAD
+sheet_h = PAD + HEADER_H + LABEL_H + CARD_H_SS + GAP + LABEL_H + sc.CARD_H + LABEL_H + PAD
 sheet = pygame.Surface((sheet_w, sheet_h))
 sheet.fill((8, 8, 20))
 
-fl = hud_font(14)
+fl = hud_font(13)
 fh = hud_font(17)
 
-title = fh.render("arched-niche  ·  baseline vs concept (skin_mummy)", True, (240, 224, 180))
-sheet.blit(title, (sheet_w // 2 - title.get_width() // 2,
-                   (HEADER_H - title.get_height()) // 2))
+title = fh.render("store_card_size  ·  arched-niche  ·  round 1", True, (240, 224, 180))
+sheet.blit(title, (PAD, 12))
+sub = hud_font(11).render(
+    "cathedral/tombstone aperture: rounded-rect base + semicircular gold crown "
+    "replaces the circular dome", True, (150, 156, 178))
+sheet.blit(sub, (PAD, 30))
 
-for i, (lbl_text, surf) in enumerate([
-    ("BASELINE (2×)", baseline_ss),
-    ("ARCHED-NICHE (2×)", concept_ss),
-]):
+panels = [("BASELINE  ·  circular dome", baseline_ss),
+          ("CONCEPT  ·  arched niche", concept_ss)]
+for i, (lbl_text, surf) in enumerate(panels):
     x = PAD + i * (CARD_W_SS + GAP)
-    lbl = fl.render(lbl_text, True, (200, 210, 228))
+    lbl = fl.render(lbl_text, True, (210, 206, 190))
     sheet.blit(lbl, (x + CARD_W_SS // 2 - lbl.get_width() // 2, PAD + HEADER_H))
     sheet.blit(surf, (x, PAD + HEADER_H + LABEL_H))
 
 y1x = PAD + HEADER_H + LABEL_H + CARD_H_SS + GAP + LABEL_H
-row_lbl = fl.render("at 1×  (162×100 final size)", True, (180, 180, 200))
-sheet.blit(row_lbl, (PAD, y1x - LABEL_H))
-for i, surf in enumerate([baseline_ss, concept_ss]):
-    x = PAD + i * (CARD_W_SS + GAP)
+row_lbl = fl.render("at 1x  (162x100 final size)", True, (180, 180, 200))
+sheet.blit(row_lbl, (PAD, y1x - LABEL_H + 4))
+for i, (_, surf) in enumerate(panels):
+    x = PAD + i * (CARD_W_SS + GAP) + (CARD_W_SS - sc.CARD_W) // 2
     small = pygame.transform.smoothscale(surf, (sc.CARD_W, sc.CARD_H))
     sheet.blit(small, (x, y1x))
 
