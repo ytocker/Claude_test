@@ -1005,7 +1005,7 @@ def draw_card(surf, sid, rect, equipped, secret, variant=PRICE_VARIANT):
 
     # rarity RIBBON (tier word) -> name -> chip, each in its own clear lane.
     tier_word = "MYSTERY" if secret else _rarity(sid).upper()
-    _ribbon_lozenge(surf, tier_word, cx, rect.y + m(59) - _RIBN_DY, rect.w - m(34), pal)
+    _ribbon_lozenge(surf, tier_word, cx, rect.y + m(67) - _RIBN_DY, rect.w - m(34), pal)
     _name_on(surf, name, cx, rect.y + m(78), rect.w - m(26))
     state_chip(surf, sid, cx, rect.y + m(88) - _CHIP_DY, equipped, secret, m(20),
                variant=variant)
