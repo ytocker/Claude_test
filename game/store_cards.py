@@ -853,7 +853,7 @@ def state_chip(surf, sid, cx, cy, equipped, secret, h, variant=PRICE_VARIANT):
 # ── card ──────────────────────────────────────────────────────────────────────
 def _name_on(surf, name, cx, cy, max_w):
     """Item name in cream with a tight dark keyline, auto-shrunk to fit."""
-    sz = 13.5
+    sz = 15.5
     f = font(sz)
     while _glyph_base(name, f, 0).get_width() > max_w and sz > 9:
         sz -= 0.5
@@ -926,7 +926,7 @@ def _draw_card_v4_ref(surf, sid, rect, equipped, secret, variant=PRICE_VARIANT):
               pal["gem"], pal["deep"], mystery=secret)
     tier_word = "MYSTERY" if secret else _rarity(sid).upper()
     _ribbon(surf, tier_word, cx, rect.y + m(55), rect.w - m(34), pal)
-    _name_on(surf, name, cx, rect.y + m(70), rect.w - m(26))
+    _name_on(surf, name, cx, rect.y + m(72), rect.w - m(26))
     state_chip(surf, sid, cx, rect.y + m(88), equipped, secret, m(20),
                variant=variant)
 
@@ -1006,7 +1006,7 @@ def draw_card(surf, sid, rect, equipped, secret, variant=PRICE_VARIANT):
     # rarity RIBBON (tier word) -> name -> chip, each in its own clear lane.
     tier_word = "MYSTERY" if secret else _rarity(sid).upper()
     _ribbon_lozenge(surf, tier_word, cx, rect.y + m(55) - _RIBN_DY, rect.w - m(34), pal)
-    _name_on(surf, name, cx, rect.y + m(70), rect.w - m(26))
+    _name_on(surf, name, cx, rect.y + m(72), rect.w - m(26))
     state_chip(surf, sid, cx, rect.y + m(88) - _CHIP_DY, equipped, secret, m(20),
                variant=variant)
 
