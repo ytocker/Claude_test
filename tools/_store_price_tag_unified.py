@@ -23,13 +23,13 @@ CARD_W, CARD_H = sc.CARD_W, sc.CARD_H
 PANEL_W, PANEL_H = CARD_W * sc.SS, CARD_H * sc.SS   # 324×200
 
 # ── steps: (label, tw, th, gx, gy, max_fs, max_glyph_w, peak_h, min_h) ──────
-# max_fs scales with tag width so digits actually grow at each step
+# Fine-grain range between 76×88 (original) and 86×100 (next step)
 STEPS = [
-    ("CURRENT",  76,  88, 28, 12, 15, 66,   6, 2),
-    ("SIZE +1",  86, 100, 32, 14, 17, 75,   7, 2),
-    ("SIZE +2",  96, 112, 35, 15, 19, 83,   8, 3),
-    ("SIZE +3", 106, 124, 39, 17, 21, 92,   9, 3),
-    ("SIZE +4", 116, 136, 43, 19, 23, 101, 10, 4),
+    ("76×88",  76,  88, 28, 12, 15, 66, 6, 2),
+    ("79×92",  79,  92, 29, 13, 15, 69, 6, 2),
+    ("81×94",  81,  94, 30, 13, 16, 71, 6, 2),
+    ("84×97",  84,  97, 31, 13, 16, 73, 6, 2),
+    ("86×100", 86, 100, 32, 14, 17, 75, 7, 2),
 ]
 
 _ORIG_TAG_W     = sc._TAG_W
@@ -78,6 +78,7 @@ def make_draw_price(peak_h, min_h):
 
 def make_price_chip(tw, th, gx, gy):
     def _chip(surf, cx, cy, text, h, variant=1, affordable=True):
+        affordable = True   # always show cream affordable state for comparison
         text = sc._tag_full(text)
         rad = sc.m(3)
         grommet = (gx, gy)
