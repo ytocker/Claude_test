@@ -25,11 +25,11 @@ PANEL_W, PANEL_H = CARD_W * sc.SS, CARD_H * sc.SS   # 324×200
 # ── steps: (label, tw, th, gx, gy, max_fs, max_glyph_w, peak_h, min_h) ──────
 # Fine-grain range between 76×88 (original) and 86×100 (next step)
 STEPS = [
-    ("76×88",  76,  88, 28, 12, 15, 66, 6, 2),
-    ("79×92",  79,  92, 29, 13, 15, 69, 6, 2),
-    ("81×94",  81,  94, 30, 13, 16, 71, 6, 2),
-    ("84×97",  84,  97, 31, 13, 16, 73, 6, 2),
-    ("86×100", 86, 100, 32, 14, 17, 75, 7, 2),
+    ("A — ORIGINAL\n76×88",  76,  88, 28, 12, 15, 66, 6, 2),
+    ("B\n79×92",              79,  92, 29, 13, 15, 69, 6, 2),
+    ("C\n81×94",              81,  94, 30, 13, 16, 71, 6, 2),
+    ("D\n84×97",              84,  97, 31, 13, 16, 73, 6, 2),
+    ("E\n86×100",             86, 100, 32, 14, 17, 75, 7, 2),
 ]
 
 _ORIG_TAG_W     = sc._TAG_W
@@ -151,7 +151,7 @@ BG    = (8, 8, 20)
 PAD   = 20
 GAP   = 10
 HDR_H = 48
-LBL_H = 34
+LBL_H = 46
 
 N = len(panels)
 sheet_w = PAD + N * PANEL_W + (N - 1) * GAP + PAD
@@ -173,12 +173,15 @@ y_panels = PAD + HDR_H + LBL_H
 for i, (lbl, surf) in enumerate(panels):
     x = PAD + i * (PANEL_W + GAP)
     col = (170, 166, 190) if i == 0 else (255, 226, 120)
-    t = fl.render(lbl, True, col)
-    sheet.blit(t, (x + (PANEL_W - t.get_width()) // 2,
-                   PAD + HDR_H + (LBL_H - t.get_height()) // 2))
+    lines = lbl.split("\n")
+    lh = fl.get_height()
+    for li, line in enumerate(lines):
+        t = fl.render(line, True, col)
+        ly = PAD + HDR_H + (LBL_H - lh * len(lines)) // 2 + li * lh
+        sheet.blit(t, (x + (PANEL_W - t.get_width()) // 2, ly))
     sheet.blit(surf, (x, y_panels))
 
-out = "docs/store_card_size/price_chip_options_2.png"
+out = "docs/store_card_size/price_chip_options_3.png"
 os.makedirs(os.path.dirname(out), exist_ok=True)
 pygame.image.save(sheet, out)
 print(f"saved {sheet_w}×{sheet_h} → {out}")
