@@ -605,7 +605,7 @@ GEM_R = 8
 # v5 item-card calibration — locked by exploration
 _DOME_R  = 62   # dome radius (device px); box proportional at 1.5×
 _BOX_PX  = 93   # item thumbnail box in device px
-_ITEM_DY =  6   # 3 logical px above dome centre (locked: was 5, nudged +2 lx down)
+_ITEM_DY = -2   # 1 logical px below dome centre (shifted 4 lx down from original)
 _DOME_DY = 10   # 5 logical px: dome+item shifted down from CY_DISC
 _RIBN_DY =  5   # lozenge ribbon 5 device px above the m(55) baseline
 _CHIP_DY =  6   # price chip 3 logical px above the m(88) baseline
