@@ -938,7 +938,7 @@ def _ribbon_lozenge(surf, tier_word, cx, cy, max_w, pal):
     tw = _glyph_base(tier_word, f, m(1.4)).get_width()
     pad = m(14)
     w = min(max_w, tw + pad * 2)
-    h = m(10)
+    h = m(12)
     pt = h // 2
     x0, y0 = cx - w // 2, cy - h // 2
     poly = [(0, h // 2), (pt, 0), (w - pt, 0),
