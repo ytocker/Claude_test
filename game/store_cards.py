@@ -697,15 +697,17 @@ _TAG_W, _TAG_H, _TAG_TILT = 76, 88, -7
 
 def _tag_full(text):
     digits = ''.join(c for c in text if c.isdigit())
-    return f"{int(digits):,}" if digits else text
+    return str(int(digits)) if digits else text
 
 
 def _tag_price_glyph(text):
-    for fs in (13, 12, 11, 10, 9, 8):
-        mask = _stamp_bold(_glyph_base(text, font(fs), 0), m(1.8))
-        if mask.get_width() <= 66:
-            return mask
-    return mask
+    for fs in (15, 14, 13, 12, 11, 10, 9, 8):
+        raw = _stamp_bold(_glyph_base(text, font(fs), 0), m(1.0))
+        crushed = pygame.transform.smoothscale(
+            raw, (max(1, int(raw.get_width() * 0.86)), raw.get_height()))
+        if crushed.get_width() <= 66:
+            return crushed
+    return crushed
 
 
 def _tag_draw_price(face, text, affordable):
@@ -714,18 +716,10 @@ def _tag_draw_price(face, text, affordable):
     stroke-weight contrast carry the tag at 5-8px final scale."""
     cx = _TAG_W // 2
     ink = (40, 30, 26) if affordable else (40, 40, 52)
-    coin_col = (150, 100, 28) if affordable else (88, 92, 110)
     rule_col_solid = (56, 42, 30) if affordable else (40, 40, 52)
 
-    cy_token = int(_TAG_H * 0.40)
-    coin_mask = _stamp_bold(_glyph_base("G", font(8), 0), m(1.2))
-    coin_r = coin_mask.get_rect(center=(cx, cy_token))
-    coin_fill = coin_mask.copy()
-    coin_fill.fill((*coin_col, 255), special_flags=pygame.BLEND_RGBA_MULT)
-    face.blit(coin_fill, coin_r)
-
     amt_mask = _tag_price_glyph(text)
-    cy_amount = int(_TAG_H * 0.62)
+    cy_amount = int(_TAG_H * 0.52)
     amt_r = amt_mask.get_rect(center=(cx, cy_amount))
     amt_fill = amt_mask.copy()
     amt_fill.fill((*ink, 255), special_flags=pygame.BLEND_RGBA_MULT)
