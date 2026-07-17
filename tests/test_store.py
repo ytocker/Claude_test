@@ -428,13 +428,6 @@ class TestBuyConfirmFlow(_StoreTestBase):
         self.assertFalse(store_data.is_owned(self.item))
         self.assertIsNone(self.scene._confirm)
 
-    def test_unaffordable_disables_buy(self):
-        store_data.try_spend(store_data.balance())  # empty the wallet
-        self.scene._tap_item(self.item)
-        self._render()
-        self.assertIsNone(self.scene.confirm_yes_rect)  # BUY not actionable
-        self.assertFalse(store_data.is_owned(self.item))
-
     def test_modal_is_exclusive(self):
         # With the modal up, a tap that isn't a modal control can't switch tabs
         # or buy; it just (when on the scrim) dismisses.

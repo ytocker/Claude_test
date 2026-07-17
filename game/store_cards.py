@@ -710,13 +710,13 @@ def _tag_price_glyph(text):
     return crushed
 
 
-def _tag_draw_price(face, text, affordable):
+def _tag_draw_price(face, text):
     """Brushwork sumi ledger: heavy max-bold amount, burnt-copper 'G' token above,
     wedge-taper finishing stroke for the rule. All solid fills — value and
     stroke-weight contrast carry the tag at 5-8px final scale."""
     cx = _TAG_W // 2
-    ink = (40, 30, 26) if affordable else (40, 40, 52)
-    rule_col_solid = (56, 42, 30) if affordable else (40, 40, 52)
+    ink = (40, 30, 26)
+    rule_col_solid = (56, 42, 30)
 
     amt_mask = _tag_price_glyph(text)
     cy_amount = int(_TAG_H * 0.52)
@@ -748,10 +748,10 @@ def _tag_rot_point(px, py, center):
     return (center[0] + rx, center[1] + ry)
 
 
-def price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
+def price_chip(surf, cx, cy, text, h, variant=1):
     """Brushwork sumi hang-tag price chip. Cream swing-tag face; the price
     numeral is struck in heavy ink-brush weight with a wedge-taper finishing
-    stroke. Locked state tarnishes to cool grey. Tag tilts -7° on a cord."""
+    stroke. Tag tilts -7° on a cord."""
     text = _tag_full(text)
     rad = m(3)
     grommet = (30, 13)
@@ -760,30 +760,21 @@ def price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
     face = pygame.Surface((_TAG_W, _TAG_H), pygame.SRCALPHA)
     brect = pygame.Rect(0, 0, _TAG_W, _TAG_H)
 
-    if affordable:
-        body = vgrad_stops(_TAG_W, _TAG_H, rad,
-                           [(0.0, (248, 238, 210)), (1.0, (224, 204, 166))],
-                           255, gamma=1.04)
-        face.blit(body, (0, 0))
-        bevel_rim(face, brect, rad, (80, 52, 12, 200),
-                  (255, 240, 190, 200), w=max(1, m(1.2)))
-        ring_col = (110, 80, 30)
-    else:
-        body = vgrad_stops(_TAG_W, _TAG_H, rad,
-                           [(0.0, (156, 160, 176)), (1.0, (88, 92, 112))],
-                           255, gamma=1.02)
-        face.blit(body, (0, 0))
-        bevel_rim(face, brect, rad, (54, 58, 74, 200),
-                  (214, 218, 232, 200), w=max(1, m(1.2)))
-        ring_col = (60, 64, 80)
+    body = vgrad_stops(_TAG_W, _TAG_H, rad,
+                       [(0.0, (248, 238, 210)), (1.0, (224, 204, 166))],
+                       255, gamma=1.04)
+    face.blit(body, (0, 0))
+    bevel_rim(face, brect, rad, (80, 52, 12, 200),
+              (255, 240, 190, 200), w=max(1, m(1.2)))
+    ring_col = (110, 80, 30)
 
-    _tag_draw_price(face, text, affordable)
+    _tag_draw_price(face, text)
 
     pygame.draw.circle(face, (0, 0, 0, 0), grommet, m(5))
     pygame.draw.circle(face, ring_col, grommet, m(5) + 1, width=max(1, m(1)))
 
     rot = pygame.transform.rotate(face, _TAG_TILT)
-    cord = (190, 165, 115) if affordable else (155, 160, 175)
+    cord = (190, 165, 115)
     # Fixed layout on the 324×200 SS surface — same anchor used by all review
     # scripts so the tag lands identically here and in offline render tools.
     tag_center = (44, 60)
@@ -846,8 +837,7 @@ def state_chip(surf, sid, cx, cy, equipped, secret, h, variant=PRICE_VARIANT):
     if equipped:
         return status_chip(surf, cx, cy, "EQUIPPED", h, kind="equipped")
     price = _cost(sid)
-    return price_chip(surf, cx, cy, f"{price:,}", h, variant=variant,
-                      affordable=store_data.balance() >= price)
+    return price_chip(surf, cx, cy, f"{price:,}", h, variant=variant)
 
 
 # ── card ──────────────────────────────────────────────────────────────────────

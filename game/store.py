@@ -940,7 +940,6 @@ class StoreScene:
         tier_word = "MYSTERY" if secret else tier.upper()
         name = "???" if secret else self._disp_name(sid)
         price = store_catalog.cost(sid)
-        affordable = store_data.balance() >= price
 
         # Popup metrics (logical px, SS=2 double-res surface).
         POP_W, POP_H = 200, 340
@@ -991,35 +990,22 @@ class StoreScene:
         _confirm_tier_banner(big, CX, Y_BANNER, BANNER_W, BANNER_H, tier_word, pal)
 
         # ── price chip ────────────────────────────────────────────────────────
-        store_cards.price_chip(big, m(CX), m(Y_CHIP), f"{price:,}",
-                               m(CHIP_H), affordable=affordable)
-
-        if not affordable:
-            store_cards.plain_text(big, "NOT ENOUGH COINS",
-                                   store_cards.font(9), (m(CX), m(251)),
-                                   (150, 166, 190), shadow_a=0)
+        store_cards.price_chip(big, m(CX), m(Y_CHIP), f"{price:,}", m(CHIP_H))
 
         # ── confirm button ────────────────────────────────────────────────────
         h_btn = m(BTN_H)
         w_btn = m(BTN_W)
         btn_r = pygame.Rect(m(CX) - w_btn // 2, m(Y_BTN) - h_btn // 2, w_btn, h_btn)
-        if affordable:
-            top_c = lerp_color(pal["gem"], WHITE, 0.18)
-            bot_c = lerp_color(pal["deep"], (4, 4, 12), 0.4)
-            rim_c = lerp_color(pal["gem"], WHITE, 0.45)
-            store_cards.chip_body(big, btn_r, h_btn // 2,
-                                  top_c, bot_c, (4, 4, 12), rim_c, gloss=72)
-            store_cards.plain_text(big, "CONFIRM", store_cards.font(13),
-                                   btn_r.center, (255, 255, 255),
-                                   shadow_a=180, tracking=m(1.4), weight=m(1.0),
-                                   keyline=lerp_color(pal["deep"], (0, 0, 0), 0.5),
-                                   kw=m(1.0))
-        else:
-            store_cards.chip_body(big, btn_r, h_btn // 2,
-                                  (60, 56, 76), (36, 34, 52),
-                                  (20, 18, 32), (100, 96, 120), gloss=40)
-            store_cards.plain_text(big, "CONFIRM", store_cards.font(13),
-                                   btn_r.center, (120, 116, 134), shadow_a=0)
+        top_c = lerp_color(pal["gem"], WHITE, 0.18)
+        bot_c = lerp_color(pal["deep"], (4, 4, 12), 0.4)
+        rim_c = lerp_color(pal["gem"], WHITE, 0.45)
+        store_cards.chip_body(big, btn_r, h_btn // 2,
+                              top_c, bot_c, (4, 4, 12), rim_c, gloss=72)
+        store_cards.plain_text(big, "CONFIRM", store_cards.font(13),
+                               btn_r.center, (255, 255, 255),
+                               shadow_a=180, tracking=m(1.4), weight=m(1.0),
+                               keyline=lerp_color(pal["deep"], (0, 0, 0), 0.5),
+                               kw=m(1.0))
 
         # ── cancel button ─────────────────────────────────────────────────────
         h_can = m(CANCEL_H)
@@ -1059,10 +1045,9 @@ class StoreScene:
         self.confirm_no_rect = pygame.Rect(
             px + CX - CANCEL_W // 2, py + Y_CANCEL - CANCEL_H // 2,
             CANCEL_W, CANCEL_H)
-        if affordable:
-            self.confirm_yes_rect = pygame.Rect(
-                px + CX - BTN_W // 2, py + Y_BTN - BTN_H // 2,
-                BTN_W, BTN_H)
+        self.confirm_yes_rect = pygame.Rect(
+            px + CX - BTN_W // 2, py + Y_BTN - BTN_H // 2,
+            BTN_W, BTN_H)
 
     # ── input ────────────────────────────────────────────────────────────────
     def handle_tap(self, pos) -> "str | None":
