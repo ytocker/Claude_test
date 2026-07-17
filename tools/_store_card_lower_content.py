@@ -27,9 +27,9 @@ PANEL_W, PANEL_H = CARD_W * sc.SS, CARD_H * sc.SS
 
 # ── locked size values ────────────────────────────────────────────────────────
 LOCKED_INSET  = 4
-LOCKED_DOME_R = 65
-LOCKED_BOX_PX = 98   # round(65 * 1.5)
-LOCKED_RIM_W  = 2.5
+LOCKED_DOME_R = 64
+LOCKED_BOX_PX = 96   # round(64 * 1.5)
+LOCKED_RIM_W  = 2.45
 
 # ── shift steps (SS pixels, all even so m() is exact) ────────────────────────
 STEPS = [
@@ -119,7 +119,7 @@ fl = hud_font(12, True)
 fs = hud_font(10, False)
 
 title = fh.render(
-    "content position — dome 65 locked · item + banner shifted lower",
+    "content position — dome 64 locked · item + banner shifted lower",
     True, (240, 224, 180))
 sheet.blit(title, ((sheet_w - title.get_width()) // 2, PAD + (HDR_H - title.get_height()) // 2))
 
