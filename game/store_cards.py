@@ -46,7 +46,7 @@ CARD_H = 100
 # The card body is inset from the surface edges so the multi-layer drop shadow
 # and the equipped gold halo (both of which bleed OUTSIDE the body rect in the
 # source) stay inside the returned 162x100 surface instead of being clipped.
-_INSET = 6
+_INSET = 4
 
 
 def m(v):
@@ -597,14 +597,14 @@ def blit_thumb(surf, sid, cx, cy, box_px):
 # =============================================================================
 CARD_RAD = 17
 R_DISC = 20
-CY_DISC = 30
+CY_DISC = 34
 Y_NAME = 63
 Y_CHIP = 84
 GEM_R = 8
 
 # v5 item-card calibration — locked by exploration
-_DOME_R  = 56   # int(84 / 1.5): item box 84 px, dome radius proportional
-_BOX_PX  = 84   # item thumbnail box in device px
+_DOME_R  = 64   # dome radius (device px); box proportional at 1.5×
+_BOX_PX  = 96   # item thumbnail box in device px
 _ITEM_DY =  6   # 3 logical px above dome centre (locked: was 5, nudged +2 lx down)
 _DOME_DY = 10   # 5 logical px: dome+item shifted down from CY_DISC
 _RIBN_DY =  5   # lozenge ribbon 5 device px above the m(55) baseline
@@ -976,7 +976,7 @@ def draw_card(surf, sid, rect, equipped, secret, variant=PRICE_VARIANT):
     # defined against the dark sky.
     pygame.draw.rect(surf, (4, 5, 16), rect, width=max(1, m(2)), border_radius=rad)
     bevel_rim(surf, rect, rad, CARD_RING_DEEP, (*CARD_RING_BRIGHT, 235),
-              w=max(1, m(2.0)))
+              w=max(1, m(2.45)))
     # RARITY CREST: a notched tier RIBBON + a faceted tier GEM rank badge
     # top-right. Neutral gold inner tray; obsidian body + gold edge survive.
     tray = rect.inflate(-m(7), -m(7))
@@ -1005,8 +1005,8 @@ def draw_card(surf, sid, rect, equipped, secret, variant=PRICE_VARIANT):
 
     # rarity RIBBON (tier word) -> name -> chip, each in its own clear lane.
     tier_word = "MYSTERY" if secret else _rarity(sid).upper()
-    _ribbon_lozenge(surf, tier_word, cx, rect.y + m(55) - _RIBN_DY, rect.w - m(34), pal)
-    _name_on(surf, name, cx, rect.y + m(72), rect.w - m(26))
+    _ribbon_lozenge(surf, tier_word, cx, rect.y + m(59) - _RIBN_DY, rect.w - m(34), pal)
+    _name_on(surf, name, cx, rect.y + m(76), rect.w - m(26))
     state_chip(surf, sid, cx, rect.y + m(88) - _CHIP_DY, equipped, secret, m(20),
                variant=variant)
 
