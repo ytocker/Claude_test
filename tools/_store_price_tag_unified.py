@@ -176,7 +176,7 @@ for i, (lbl, surf) in enumerate(panels):
                    PAD + HDR_H + (LBL_H - t.get_height()) // 2))
     sheet.blit(surf, (x, y_panels))
 
-out = "docs/store_card_size/price_tag_unified.png"
+out = "docs/store_card_size/price_chip_options.png"
 os.makedirs(os.path.dirname(out), exist_ok=True)
 pygame.image.save(sheet, out)
 print(f"saved {sheet_w}×{sheet_h} → {out}")
