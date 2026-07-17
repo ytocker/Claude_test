@@ -22,13 +22,14 @@ SID = "skin_mummy"
 CARD_W, CARD_H = sc.CARD_W, sc.CARD_H
 PANEL_W, PANEL_H = CARD_W * sc.SS, CARD_H * sc.SS   # 324×200
 
-# ── steps: (label, tw, th, gx, gy, max_glyph_w, peak_h, min_h) ──────────────
+# ── steps: (label, tw, th, gx, gy, max_fs, max_glyph_w, peak_h, min_h) ──────
+# max_fs scales with tag width so digits actually grow at each step
 STEPS = [
-    ("CURRENT",  76,  88, 28, 12, 66,  6, 2),
-    ("SIZE +1",  86, 100, 32, 14, 75,  7, 2),
-    ("SIZE +2",  96, 112, 35, 15, 83,  8, 3),
-    ("SIZE +3", 106, 124, 39, 17, 92,  9, 3),
-    ("SIZE +4", 116, 136, 43, 19, 101, 10, 4),
+    ("CURRENT",  76,  88, 28, 12, 15, 66,   6, 2),
+    ("SIZE +1",  86, 100, 32, 14, 17, 75,   7, 2),
+    ("SIZE +2",  96, 112, 35, 15, 19, 83,   8, 3),
+    ("SIZE +3", 106, 124, 39, 17, 21, 92,   9, 3),
+    ("SIZE +4", 116, 136, 43, 19, 23, 101, 10, 4),
 ]
 
 _ORIG_TAG_W     = sc._TAG_W
@@ -38,9 +39,9 @@ _orig_draw      = sc._tag_draw_price
 _orig_price     = sc.price_chip
 
 
-def make_glyph(max_w):
+def make_glyph(max_fs, max_w):
     def _fn(text):
-        for fs in (15, 14, 13, 12, 11, 10, 9, 8):
+        for fs in range(max_fs, 7, -1):
             raw = sc._stamp_bold(sc._glyph_base(text, sc.font(fs), 0), sc.m(1.0))
             crushed = pygame.transform.smoothscale(
                 raw, (max(1, int(raw.get_width() * 0.86)), raw.get_height()))
@@ -119,10 +120,10 @@ def make_price_chip(tw, th, gx, gy):
     return _chip
 
 
-def render_panel(tw, th, gx, gy, max_w, peak_h, min_h):
+def render_panel(tw, th, gx, gy, max_fs, max_w, peak_h, min_h):
     sc._TAG_W           = tw
     sc._TAG_H           = th
-    sc._tag_price_glyph = make_glyph(max_w)
+    sc._tag_price_glyph = make_glyph(max_fs, max_w)
     sc._tag_draw_price  = make_draw_price(peak_h, min_h)
     sc.price_chip       = make_price_chip(tw, th, gx, gy)
     sc._card_cache.clear()
@@ -141,8 +142,8 @@ def render_panel(tw, th, gx, gy, max_w, peak_h, min_h):
     return big
 
 
-panels = [(lbl, render_panel(tw, th, gx, gy, mw, ph, mh))
-          for lbl, tw, th, gx, gy, mw, ph, mh in STEPS]
+panels = [(lbl, render_panel(tw, th, gx, gy, mfs, mw, ph, mh))
+          for lbl, tw, th, gx, gy, mfs, mw, ph, mh in STEPS]
 
 # ── layout: single row ────────────────────────────────────────────────────────
 BG    = (8, 8, 20)
