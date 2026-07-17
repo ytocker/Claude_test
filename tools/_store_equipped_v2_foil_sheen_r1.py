@@ -40,14 +40,25 @@ CARD_RAD = sc.m(sc.CARD_RAD)
 
 
 def _card_mask():
-    """White rounded-rect matching the card body — used to clip the foil sweep
-    to the card silhouette so cream never bleeds into the margin / corners."""
+    """White rounded-rect matching the card body — used to clip normal-alpha
+    layers to the card silhouette so cream never bleeds into the margin."""
     mask = pygame.Surface((PANEL_W, PANEL_H), pygame.SRCALPHA)
     pygame.draw.rect(mask, (255, 255, 255, 255), rect, border_radius=CARD_RAD)
     return mask
 
 
+def _card_rgb_mask():
+    """Black field with a WHITE rounded-rect over the body. BLEND_RGB_ADD ignores
+    alpha, so premultiplied additive layers must be clipped by MULTIPLYING RGB
+    against this (white=keep inside, black=kill outside)."""
+    mask = pygame.Surface((PANEL_W, PANEL_H), pygame.SRCALPHA)
+    mask.fill((0, 0, 0, 255))
+    pygame.draw.rect(mask, (255, 255, 255, 255), rect, border_radius=CARD_RAD)
+    return mask
+
+
 CARD_MASK = _card_mask()
+CARD_RGB_MASK = _card_rgb_mask()
 
 
 # ── Panel 0 — UNEQUIPPED ──────────────────────────────────────────────────────
@@ -91,14 +102,16 @@ p2.blit(wm, (0, 0))
 
 # Step 2 — the diagonal foil band at -30°, pivoted on the card centre so it
 # passes through the middle and rides across the tick. Warm cream only.
-band = pygame.Surface((PANEL_W, PANEL_H), pygame.SRCALPHA)
-band_mask = pygame.Surface((PANEL_W, PANEL_H), pygame.SRCALPHA)   # alpha stencil
+band = pygame.Surface((PANEL_W, PANEL_H), pygame.SRCALPHA)         # premult cream
+band_mask = pygame.Surface((PANEL_W, PANEL_H), pygame.SRCALPHA)    # alpha stencil
 tan30 = math.tan(math.radians(30))
 HALF = 20
-# Additive over the already-bright glass dome clips to pure white; a softer peak
-# keeps the sweep reading as WARM CREM foil rather than a blown-out white slab
-# over the hero, while dark card body still lifts to a clear cream glint.
-PEAK = 58
+# BLEND_RGB_ADD adds source RGB regardless of alpha, so the falloff is baked
+# INTO the cream channels (premultiplied) — a raw alpha ramp would add full cream
+# everywhere and blow the sweep to a flat white bar. The peak is tuned so dark
+# card body lifts to a clear warm-cream glint while the dome only kisses hot.
+cr, cg, cb = CREAM
+PEAK = 108
 for x in range(PANEL_W):
     yc = PANEL_H // 2 - (x - PANEL_W // 2) * tan30
     y0 = max(0, int(yc - HALF))
@@ -107,9 +120,9 @@ for x in range(PANEL_W):
         a = int(PEAK * (1 - abs(y - yc) / HALF))
         if a <= 0:
             continue
-        band.set_at((x, y), (*CREAM, a))
+        band.set_at((x, y), (cr * a // 255, cg * a // 255, cb * a // 255, 255))
         band_mask.set_at((x, y), (255, 255, 255, a))
-band.blit(CARD_MASK, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+band.blit(CARD_RGB_MASK, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
 band_mask.blit(CARD_MASK, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
 p2.blit(band, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
