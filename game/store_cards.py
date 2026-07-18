@@ -741,29 +741,33 @@ def _tag_draw_price(face, text, affordable):
 
 
 def _tag_draw_check(face):
-    """Bold ink tick — three sumi-ink passes drawn directly on the face so each
-    layer stays opaque. w=10 device px at SS=2 matches the visual weight of the
-    price numeral. Asymmetric: short left downstroke + long sweeping right arm,
-    like a hand-struck checkmark at the same vertical position as the price digits."""
+    """Angular-drop handwritten tick. Steep short left arm, long gentle right arm.
+    Near-black ink only. Geometry: vertex shifted left+down from centre, left arm
+    nearly vertical (short), right arm long diagonal — clear short-left/long-right
+    proportion at all sizes. w=8 at SS=2."""
     cx = _TAG_W // 2
     cy = int(_TAG_H * 0.52)
-    vertex = (cx - 2, cy + 8)
-    l_arm  = (cx - 22, cy - 6)
-    r_arm  = (cx + 26, cy - 20)
-    w = 10
+    # vertex shifted 8px left and 9px down from base position
+    vx = cx - 2 - 8
+    vy = cy + 8 + 9
+    vertex = (vx, vy)
+    # arm vectors scaled ×1.25 from vertex: l=(-6,-18), r=(+28,-28)
+    l_arm  = (vx + int(-6  * 1.25), vy + int(-18 * 1.25))
+    r_arm  = (vx + int( 28 * 1.25), vy + int(-28 * 1.25))
+    w = 8
+    ink    = (28, 20, 16)
+    shadow = (20, 14, 10, 80)
 
-    def stroke(col, dx=0, dy=0, ww=w):
-        a = (l_arm[0] + dx, l_arm[1] + dy)
-        v = (vertex[0] + dx, vertex[1] + dy)
-        b = (r_arm[0] + dx, r_arm[1] + dy)
-        pygame.draw.line(face, col, a, v, ww)
-        pygame.draw.line(face, col, v, b, ww)
-        for pt in (a, v, b):
-            pygame.draw.circle(face, col, pt, ww // 2)
+    pygame.draw.line(face, shadow, (l_arm[0]+1, l_arm[1]+1), (vertex[0]+1, vertex[1]+1), w + 2)
+    pygame.draw.circle(face, shadow, (l_arm[0]+1, l_arm[1]+1), (w + 2) // 2)
+    pygame.draw.line(face, shadow, (vertex[0]+1, vertex[1]+1), (r_arm[0]+1, r_arm[1]+1), w + 1)
+    pygame.draw.circle(face, shadow, (r_arm[0]+1, r_arm[1]+1), (w + 1) // 2)
 
-    stroke((30, 22, 18, 90), dx=1, dy=1, ww=max(1, w - 3))     # pressed shadow
-    stroke((40, 30, 26, 255))                                     # main dark tick
-    stroke((250, 246, 232, 210), dx=0, dy=-1, ww=max(1, w - 6)) # thin top-light
+    pygame.draw.line(face, ink, l_arm, vertex, w)
+    pygame.draw.circle(face, ink, l_arm, w // 2)
+    pygame.draw.circle(face, ink, vertex, w // 2 + 1)
+    pygame.draw.line(face, ink, vertex, r_arm, w)
+    pygame.draw.circle(face, ink, r_arm, w // 2)
 
 
 def _tag_rot_point(px, py, center):
