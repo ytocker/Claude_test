@@ -454,6 +454,7 @@ class StoreScene:
         self._variant_cancel_rect: "pygame.Rect | None" = None
         self._variant_panel: "pygame.Rect | None" = None
         store_data.load()
+        store_cards.clear_cache()
         # Per-tab skin lists, cheapest first. PARROTS/SHADES/PARCELS are fronted
         # by a free DEFAULT card so the player can always revert.
         self._lists: "dict[str, list[str]]" = {}
