@@ -90,7 +90,7 @@ PAD    = 20
 GAP    = 8
 HDR_H  = 48
 LBL_H  = 32
-FTR_H  = 28
+FTR_H  = 52   # two property lines
 width  = PAD + N * PANEL_W + (N - 1) * GAP + PAD
 height = PAD + HDR_H + LBL_H + PANEL_H + FTR_H + PAD
 
@@ -101,17 +101,28 @@ title_f = hud_font(22, True)
 tt = title_f.render("04 · angular-drop · larger / lower / more left", True, GOLD)
 canvas.blit(tt, tt.get_rect(midtop=(width // 2, PAD // 2 + 4)))
 
-id_f  = hud_font(18, True)
-lbl_f = hud_font(13, True)
+id_f   = hud_font(18, True)
+prop_f = hud_font(13, True)
 panel_y = PAD + HDR_H + LBL_H
 
+DIM  = (180, 170, 140)   # muted for secondary text
+
 for i, ((ls, ds, w, sc_arm, lbl, note), panel) in enumerate(zip(OPTIONS, panels)):
-    px = PAD + i * (PANEL_W + GAP)
+    px  = PAD + i * (PANEL_W + GAP)
+    mid = px + PANEL_W // 2
+
     id_t = id_f.render(lbl, True, GOLD)
-    canvas.blit(id_t, id_t.get_rect(midbottom=(px + PANEL_W // 2, panel_y - 4)))
+    canvas.blit(id_t, id_t.get_rect(midbottom=(mid, panel_y - 4)))
     canvas.blit(panel, (px, panel_y))
-    nm_t = lbl_f.render(note, True, CREAM)
-    canvas.blit(nm_t, nm_t.get_rect(midtop=(px + PANEL_W // 2, panel_y + PANEL_H + 4)))
+
+    fy = panel_y + PANEL_H + 6
+    for line in (
+        f"left {ls}px · down {ds}px",
+        f"weight {w} · arms ×{sc_arm:.2f}",
+    ):
+        lt = prop_f.render(line, True, DIM)
+        canvas.blit(lt, lt.get_rect(midtop=(mid, fy)))
+        fy += 18
 
 OUT = "docs/store_equipped_v3_2_checkmarks/04_variants.png"
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
