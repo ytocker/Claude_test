@@ -26,25 +26,28 @@ def draw_warm_glow_pip_gold(surf, body):
     the bloom is masked to the card body so it never spills past the frame."""
     rad = sc.m(sc.CARD_RAD)
 
-    # Soft interior bloom: concentric gold fills at falling alpha build a radial
-    # falloff, blurred by a down/up scale, then ADD-blit so it lifts the dark
-    # obsidian body to a warm amber without touching the bright beads it sits
-    # inside of. Shape hugs the cream inner bead (inset 10) and works inward.
+    # Soft interior bloom: thick gold strokes hugging the cream inner bead, then
+    # a heavy down/up-scale blur bleeds that light INWARD — a steady falloff that
+    # is hottest at the keyline and fades toward the card centre. Premultiplied
+    # down (BLEND_RGB_ADD adds RGB at full strength regardless of surface alpha)
+    # so it lifts the obsidian body to a warm amber instead of blowing it out.
     bloom = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    for inset, col in ((10, (236, 202, 116, 120)),
-                       (16, (248, 220, 140, 100)),
-                       (24, (255, 240, 190, 70))):
+    for inset, w, col in ((10, sc.m(9), (248, 220, 140)),
+                          (18, sc.m(8), (236, 202, 116))):
         r = body.inflate(-2 * inset, -2 * inset)
-        pygame.draw.rect(bloom, col, r, border_radius=max(1, rad - inset))
-    # cheap Gaussian: collapse to a quarter and smooth back for a soft falloff.
-    small = pygame.transform.smoothscale(bloom, (surf.get_width() // 4,
-                                                 surf.get_height() // 4))
+        pygame.draw.rect(bloom, (*col, 255), r, width=w,
+                         border_radius=max(1, rad - inset))
+    # cheap Gaussian: collapse to a fifth and smooth back for a wide soft bleed.
+    small = pygame.transform.smoothscale(bloom, (surf.get_width() // 5,
+                                                 surf.get_height() // 5))
     bloom = pygame.transform.smoothscale(small, surf.get_size())
+    # dim to a gentle additive lift so the interior warms, never washes to white.
+    bloom.fill((60, 60, 60, 255), special_flags=pygame.BLEND_RGB_MULT)
     # clip the blurred bleed to the card body so light stays inside the frame.
     mask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     pygame.draw.rect(mask, (255, 255, 255, 255), body, border_radius=rad)
     bloom.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    surf.blit(bloom, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    surf.blit(bloom, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
     # Cream pip on the top inner bead — a warm lit bulb, the glow's source node.
     cx, cy = 162, 20
