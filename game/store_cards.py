@@ -740,6 +740,33 @@ def _tag_draw_price(face, text, affordable):
     pygame.draw.polygon(face, rule_col_solid, pts)
 
 
+def _tag_draw_check(face):
+    """✓ mark struck on the tag face using the same sumi-ink path as the price
+    numeral — same font, same faux-bold stamp, same horizontal crush, same ink."""
+    cx  = _TAG_W // 2
+    ink = (40, 30, 26)
+    rule_col = (56, 42, 30)
+
+    mask = _tag_price_glyph("✓")
+    cy_mark = int(_TAG_H * 0.52)
+    r = mask.get_rect(center=(cx, cy_mark))
+    fill = mask.copy()
+    fill.fill((*ink, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    face.blit(fill, r)
+
+    rule_y = cy_mark + mask.get_height() // 2 + m(2)
+    rule_w = min(mask.get_width() + m(4), _TAG_W - m(8))
+    rule_x = cx - rule_w // 2
+    peak_h = max(3, m(3))
+    min_h  = max(1, m(1))
+    pygame.draw.polygon(face, rule_col, [
+        (rule_x,          rule_y),
+        (rule_x + rule_w, rule_y + (peak_h - min_h) // 2),
+        (rule_x + rule_w, rule_y + (peak_h + min_h) // 2),
+        (rule_x,          rule_y + peak_h),
+    ])
+
+
 def _tag_rot_point(px, py, center):
     th = math.radians(_TAG_TILT)
     dx, dy = px - _TAG_W / 2, py - _TAG_H / 2
@@ -798,6 +825,40 @@ def price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
                               min(cord[2]+30,255)), knot, max(1, m(0.6)))
 
 
+def check_tag_chip(surf, cx, cy, h):
+    """Equipped hang-tag: same cord/knot/face geometry as price_chip(), but the
+    face carries a ✓ in the same sumi-ink treatment as the price numeral."""
+    rad     = m(3)
+    grommet = (30, 13)
+
+    face  = pygame.Surface((_TAG_W, _TAG_H), pygame.SRCALPHA)
+    brect = pygame.Rect(0, 0, _TAG_W, _TAG_H)
+    body  = vgrad_stops(_TAG_W, _TAG_H, rad,
+                        [(0.0, (248, 238, 210)), (1.0, (224, 204, 166))],
+                        255, gamma=1.04)
+    face.blit(body, (0, 0))
+    bevel_rim(face, brect, rad, (80, 52, 12, 200),
+              (255, 240, 190, 200), w=max(1, m(1.2)))
+
+    _tag_draw_check(face)
+
+    pygame.draw.circle(face, (0, 0, 0, 0), grommet, m(5))
+    pygame.draw.circle(face, (110, 80, 30), grommet, m(5) + 1, width=max(1, m(1)))
+
+    rot  = pygame.transform.rotate(face, _TAG_TILT)
+    cord = (190, 165, 115)
+    tag_center = (44, 60)
+    knot       = (22, 13)
+    gx, gy = _tag_rot_point(*grommet, tag_center)
+    lw = m(1.5)
+    pygame.draw.line(surf, cord, (gx, gy), (knot[0] - 1, knot[1] - 1), lw)
+    pygame.draw.line(surf, cord, (gx, gy), (knot[0] + 2, knot[1] + 2), lw)
+    surf.blit(rot, rot.get_rect(center=tag_center))
+    pygame.draw.circle(surf, cord, knot, m(1.5))
+    pygame.draw.circle(surf, (min(cord[0]+30,255), min(cord[1]+30,255),
+                              min(cord[2]+30,255)), knot, max(1, m(0.6)))
+
+
 def status_chip(surf, cx, cy, text, h, kind="equip"):
     """EQUIP / EQUIPPED chips — same dark-enamel sovereign body as the price
     chip so all three states read as one product family at a glance.
@@ -840,14 +901,58 @@ def status_chip(surf, cx, cy, text, h, kind="equip"):
 PRICE_VARIANT = 1
 
 
-def state_chip(surf, sid, cx, cy, equipped, secret, h, variant=PRICE_VARIANT):
-    """The actionable state line: green EQUIPPED, else a gold price chip whose
-    affordability tint reflects the player's REAL wallet (store_data.balance)."""
+def state_chip(surf, sid, cx, cy, equipped, secret, h, owned=False,
+               variant=PRICE_VARIANT):
+    """Actionable state line — three branches:
+      equipped=True  → ✓ hang-tag (same geometry as price tag) + regalia frame
+      owned=True     → pewter EQUIP chip (you own it, not active)
+      else           → price hang-tag (affordability-tinted)
+    The regalia frame is drawn by draw_card() — state_chip() handles the tag/chip only."""
     if equipped:
-        return status_chip(surf, cx, cy, "EQUIPPED", h, kind="equipped")
+        return check_tag_chip(surf, cx, cy, h)
+    if owned:
+        return status_chip(surf, cx, cy, "EQUIP", h, kind="equip")
     price = _cost(sid)
     return price_chip(surf, cx, cy, f"{price:,}", h, variant=variant,
                       affordable=store_data.balance() >= price)
+
+
+def _draw_regalia_frame(surf, body, rad):
+    """Constant-lit inner gold track — the approved equipped border treatment.
+    Two concentric gold beads separated by a flat dark valley; each bead is a
+    single flat-colour stroke so it stays equally hot on all four sides at 1×."""
+    OUTER = (236, 202, 116)
+    VALLEY = (9, 9, 22)
+    INNER = (255, 240, 190)
+    KEY = (46, 38, 18)
+    GLINT = (255, 248, 224)
+
+    def bead(inset, w, col):
+        r = body.inflate(-2 * inset, -2 * inset)
+        s = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+        pygame.draw.rect(s, (*col, 255), r, width=w,
+                         border_radius=max(1, rad - inset))
+        surf.blit(s, (0, 0))
+
+    bead(inset=2,  w=m(3),   col=OUTER)
+    bead(inset=8,  w=m(1.4), col=VALLEY)
+    bead(inset=10, w=m(2),   col=INNER)
+    bead(inset=13, w=max(1, m(0.6)), col=KEY)
+
+    track = body.inflate(-20, -20)
+    leg = m(7)
+    corners = [
+        (track.left,  track.top,     1,  1),
+        (track.right, track.top,    -1,  1),
+        (track.left,  track.bottom,  1, -1),
+        (track.right, track.bottom, -1, -1),
+    ]
+    for cxp, cyp, sx, sy in corners:
+        pygame.draw.polygon(surf, INNER, [
+            (cxp, cyp), (cxp + sx * leg, cyp), (cxp, cyp + sy * leg)])
+    for cxp, cyp, sx, sy in corners[:2]:
+        pygame.draw.line(surf, GLINT, (cxp, cyp), (cxp + sx * leg, cyp),
+                         max(1, m(0.8)))
 
 
 # ── card ──────────────────────────────────────────────────────────────────────
@@ -960,7 +1065,7 @@ def _ribbon_lozenge(surf, tier_word, cx, cy, max_w, pal):
                tracking=m(1.4), weight=m(0.7))
 
 
-def draw_card(surf, sid, rect, equipped, secret, variant=PRICE_VARIANT):
+def draw_card(surf, sid, rect, equipped, secret, owned=False, variant=PRICE_VARIANT):
     """The full CONSTELLATION card drawn into `rect` on `surf` (both in device
     px). `secret` masks the thumbnail to ??? + a red mystery gem."""
     pal = MYSTERY if secret else RARITY[_rarity(sid)]
@@ -1008,8 +1113,9 @@ def draw_card(surf, sid, rect, equipped, secret, variant=PRICE_VARIANT):
     _ribbon_lozenge(surf, tier_word, cx, rect.y + m(67) - _RIBN_DY, rect.w - m(34), pal)
     _name_on(surf, name, cx, rect.y + m(78), rect.w - m(26))
     state_chip(surf, sid, cx, rect.y + m(88) - _CHIP_DY, equipped, secret, m(20),
-               variant=variant)
-
+               owned=owned, variant=variant)
+    if equipped:
+        _draw_regalia_frame(surf, rect, m(CARD_RAD))
 
 
 # =============================================================================
@@ -1024,7 +1130,7 @@ def render_card(sid: str, *, equipped: bool, owned: bool) -> pygame.Surface:
     the player's real wallet (store_data.balance). The result is cached by
     (sid, equipped, secret_masked); repeat calls return the SAME surface."""
     secret_masked = _is_secret(sid) and not owned
-    key = (sid, bool(equipped), secret_masked)
+    key = (sid, bool(equipped), bool(owned), secret_masked)
     cached = _card_cache.get(key)
     if cached is not None:
         return cached
@@ -1036,7 +1142,7 @@ def render_card(sid: str, *, equipped: bool, owned: bool) -> pygame.Surface:
     big = pygame.Surface((CARD_W * SS, CARD_H * SS), pygame.SRCALPHA)
     rect = pygame.Rect(m(_INSET), m(_INSET),
                        CARD_W * SS - 2 * m(_INSET), CARD_H * SS - 2 * m(_INSET))
-    draw_card(big, sid, rect, equipped, secret_masked)
+    draw_card(big, sid, rect, equipped, secret_masked, owned=owned)
     card = pygame.transform.smoothscale(big, (CARD_W, CARD_H))
     _card_cache[key] = card
     return card
