@@ -741,30 +741,27 @@ def _tag_draw_price(face, text, affordable):
 
 
 def _tag_draw_check(face):
-    """✓ mark struck on the tag face using the same sumi-ink path as the price
-    numeral — same font, same faux-bold stamp, same horizontal crush, same ink."""
-    cx  = _TAG_W // 2
-    ink = (40, 30, 26)
-    rule_col = (56, 42, 30)
+    """Bold procedural tick in the same sumi-ink as the price digits.
+    Drawn as thick pygame lines so the mark survives smoothscale to 1×.
+    Three-layer deboss stack: faint shadow / main dark stroke / top-light echo."""
+    cx = _TAG_W // 2
+    w  = 8
+    vertex = (cx - 2, int(_TAG_H * 0.55))
+    l_arm  = (cx - 13, int(_TAG_H * 0.45))
+    r_arm  = (cx + 17, int(_TAG_H * 0.33))
 
-    mask = _tag_price_glyph("✓")
-    cy_mark = int(_TAG_H * 0.52)
-    r = mask.get_rect(center=(cx, cy_mark))
-    fill = mask.copy()
-    fill.fill((*ink, 255), special_flags=pygame.BLEND_RGBA_MULT)
-    face.blit(fill, r)
+    def stroke(col, dx=0, dy=0, ww=w):
+        a = (l_arm[0] + dx, l_arm[1] + dy)
+        v = (vertex[0] + dx, vertex[1] + dy)
+        b = (r_arm[0] + dx, r_arm[1] + dy)
+        pygame.draw.line(face, col, a, v, ww)
+        pygame.draw.line(face, col, v, b, ww)
+        for pt in (a, v, b):
+            pygame.draw.circle(face, col, pt, ww // 2)
 
-    rule_y = cy_mark + mask.get_height() // 2 + m(2)
-    rule_w = min(mask.get_width() + m(4), _TAG_W - m(8))
-    rule_x = cx - rule_w // 2
-    peak_h = max(3, m(3))
-    min_h  = max(1, m(1))
-    pygame.draw.polygon(face, rule_col, [
-        (rule_x,          rule_y),
-        (rule_x + rule_w, rule_y + (peak_h - min_h) // 2),
-        (rule_x + rule_w, rule_y + (peak_h + min_h) // 2),
-        (rule_x,          rule_y + peak_h),
-    ])
+    stroke((30, 22, 18, 90), dx=1, dy=1, ww=max(1, w - 3))    # pressed-in shadow
+    stroke((40, 30, 26, 255))                                    # main dark tick
+    stroke((250, 246, 232, 210), dx=0, dy=-1, ww=max(1, w - 6))  # 1px top-light
 
 
 def _tag_rot_point(px, py, center):
