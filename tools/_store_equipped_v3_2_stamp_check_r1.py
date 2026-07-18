@@ -100,7 +100,7 @@ def draw_regalia_frame(surf, body):
 # centre (44,60). Every tip is pulled ≥4px inside the inner track (x≥18, y≥18)
 # and clear of the corner masses.
 _V = (31.0, 72.0)     # brush vertex — thickest, lowest (warm-gold pool)
-_L = (23.0, 61.0)     # short arm tip — up-left, fine terminal
+_L = (26.0, 61.0)     # short arm tip — up-left, fine terminal (held off the track)
 _R = (68.0, 40.0)     # long arm tip  — up-right, fine terminal (longest reach)
 _HW_V = 4.0           # half-width at the vertex (~4px·SS full stroke)
 _HW_TIP = 1.7         # half-width at each tapered terminal
