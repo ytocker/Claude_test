@@ -869,8 +869,8 @@ def check_tag_chip(surf, cx, cy, h):
 
 
 def owned_tag_chip(surf, cx, cy, h):
-    """Owned hang-tag: same cord/face geometry as equipped but blank face — no mark."""
-    _draw_hang_tag(surf, cx, cy, draw_face_fn=None)
+    """Owned hang-tag: same ✓ tag as equipped but no regalia frame on the card body."""
+    _draw_hang_tag(surf, cx, cy, draw_face_fn=_tag_draw_check)
 
 
 def status_chip(surf, cx, cy, text, h, kind="equip"):

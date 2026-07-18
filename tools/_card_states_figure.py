@@ -80,7 +80,7 @@ for i, ((label, sublabel, *_), panel) in enumerate(zip(STATES, panels)):
     st = sub_f.render(sublabel, True, DIM)
     canvas.blit(st, st.get_rect(midtop=(mid, panel_y + PANEL_H + 6)))
 
-OUT = "docs/store_equipped_v3_2_checkmarks/card_states_v2.png"
+OUT = "docs/store_equipped_v3_2_checkmarks/card_states_v3.png"
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 pygame.image.save(canvas, OUT)
 print(f"saved {width}×{height} → {OUT}")
