@@ -30,7 +30,10 @@ def draw_bottom_rail_nameplate(surf):
     KEY_INK = (46, 38, 18)
     CREAM = (255, 240, 190)
     f = sc.font(7.5)
-    tracking = sc.m(2.0)
+    # Tracking is opened up so the eight letters span the FULL inner bead
+    # (x≈74→250) — a tight setting would float a short word in the rail centre
+    # and lose the full-width-inscription read the concept is built on.
+    tracking = sc.m(7.0)
 
     # Cream lower bevel first — the highlight of the incised cut, seen from below.
     sc.plain_text(surf, "EQUIPPED", f, (cx, cy + 1), CREAM,
@@ -57,7 +60,7 @@ sc.draw_card(p2, SID, rect, equipped=True, secret=False, owned=False)
 draw_bottom_rail_nameplate(p2)
 
 # Sanity: report engraved-word span so it stays inside the bead rail (x≈40-284).
-_gb = sc._glyph_base("EQUIPPED", sc.font(7.5), sc.m(2.0))
+_gb = sc._glyph_base("EQUIPPED", sc.font(7.5), sc.m(7.0))
 _gw = _gb.get_width()
 print("nameplate span x:", 162 - _gw // 2, "→", 162 + _gw // 2, "(width", _gw, ")")
 
