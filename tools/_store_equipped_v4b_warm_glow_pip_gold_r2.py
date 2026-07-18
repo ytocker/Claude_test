@@ -28,14 +28,16 @@ def draw_warm_glow_pip_gold(surf, body):
     than a white blow-out of the cream inner bead."""
     rad = sc.m(sc.CARD_RAD)
 
-    # Concentric rect rings hugging the inner frame track only: outer edge at
-    # body.inflate(-20,-20), fading inward to inflate(-34,-34). Nothing reaches
-    # the body interior where the shelf-light already lives, and nothing spills
-    # toward the outer cream bead where an add would clip it to white.
+    # Concentric rect rings that sit just INBOARD of the cream keyline: the frame's
+    # cream inner bead lives at the ~y18-20 band, so the outermost stroke starts a
+    # few px further in (body.inflate(-28,-28)) and fades inward to inflate(-40,-40).
+    # This keeps the wash strictly in the inner frame track — never on the cream
+    # bead (an add there clips it to pure white) and never in the body interior
+    # where the tier shelf-light bar already glows.
     bloom = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    for inset, w, col in ((20, 4, (248, 220, 140, 160)),
-                          (26, 3, (236, 202, 116, 110)),
-                          (34, 2, (220, 180,  80,  60))):
+    for inset, w, col in ((28, 4, (248, 220, 140, 150)),
+                          (34, 3, (236, 202, 116, 110)),
+                          (40, 2, (220, 180,  80,  70))):
         r = body.inflate(-inset, -inset)
         pygame.draw.rect(bloom, col, r, width=w,
                          border_radius=max(1, rad - inset // 2))
