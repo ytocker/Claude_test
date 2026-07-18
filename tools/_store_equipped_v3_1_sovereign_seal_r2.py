@@ -109,17 +109,18 @@ def draw_sovereign_seal(surf, cx=46, cy=52, R=20):
         t = rr / inner
         pygame.draw.circle(surf, _lerp(WAX_MID, WAX_RIM, t), (cx, cy), rr)
 
-    # heraldic 3-prong crown struck as intaglio. Bold blunt prongs with wide
-    # notches down to the base band so three distinct points still resolve small;
-    # the indigo MASS — not a hairline — carries the silhouette.
+    # heraldic 3-prong crown struck as intaglio, seated in the UPPER half so the
+    # crimson dome centre (cx,cy) still shows below its base band. Bold blunt
+    # prongs with wide notches down to the band so three distinct points still
+    # resolve small — the indigo MASS, not a hairline, carries the silhouette.
     p_l, p_m, p_r = cx - 8, cx, cx + 8      # prong centres, wide gaps
     n_l, n_r = cx - 4, cx + 4               # notch centres
-    xl, xr = cx - 11, cx + 11               # base-band edges
+    xl, xr = cx - 10, cx + 10               # base-band edges
     b = 2                                    # blunt-tip half-width
-    y_base = cy + 3                          # bottom of the base band
-    y_band = cy - 2                          # top of band / notch floor
-    y_tip = cy - 11                          # outer prong tips
-    y_tip_m = cy - 13                        # centre prong stands taller
+    y_base = cy - 1                          # bottom of the base band (above cy)
+    y_band = cy - 6                          # top of band / notch floor
+    y_tip = cy - 14                          # outer prong tips
+    y_tip_m = cy - 16                        # centre prong stands taller
 
     contour = [
         (xl, y_band),
@@ -135,11 +136,12 @@ def draw_sovereign_seal(surf, cx=46, cy=52, R=20):
     # redraw each prong as a fat line so the tips keep their mass when downscaled
     for px in (p_l, p_m, p_r):
         ty = y_tip_m if px == p_m else y_tip
-        pygame.draw.line(surf, INTAGLIO, (px, y_base), (px, ty), sc.m(2.5))
+        pygame.draw.line(surf, INTAGLIO, (px, y_base), (px, ty), sc.m(2.0))
 
-    # single ivory specular on the dome surface, upper-left, to read polished wax.
-    # Two-stop dot: a soft warm halo under a tight bright core.
-    sx, sy = cx - 9, cy - 7
+    # single ivory specular on clear upper-left wax to read polished-wax gloss.
+    # Two-stop dot: soft warm halo under a tight bright core. Kept clear of the
+    # crown x-span so it lands on high-contrast crimson, never on indigo.
+    sx, sy = cx - 11, cy - 5
     pygame.draw.circle(surf, (214, 150, 120), (sx, sy), sc.m(1.6))
     pygame.draw.circle(surf, SHEEN, (sx, sy), max(1, sc.m(0.9)))
 
