@@ -4,6 +4,8 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import pygame
+import pygame.surfarray as surfarray
+import numpy as np
 pygame.init()
 pygame.display.set_mode((1, 1), pygame.NOFRAME)
 
@@ -42,11 +44,23 @@ def draw_warm_glow_pip_gold(surf, body):
         pygame.draw.rect(bloom, col, r, width=w,
                          border_radius=max(1, rad - inset // 2))
     # Premultiply so each stroke's alpha attenuates its additive contribution —
-    # a 160-alpha stroke lifts ~63% of its RGB, a 60-alpha one barely warms.
+    # a 150-alpha stroke lifts ~59% of its RGB, a 70-alpha one barely warms.
     bloom = bloom.premul_alpha()
 
-    # Exclude the tier gem badge (~x250-310, y20-80 at SS=2) from the wash so its
-    # faceted hue stays true — clear those pixels to fully transparent.
+    # Gate the additive wash to the frame track's DARK grooves only: wherever the
+    # base frame is already bright (the cream inner bead, the gold band, the gold
+    # accent line, the white equipped check-tag, the faceted gem) an add would clip
+    # to pure white, so zero the bloom there. This confines the warm lift to the
+    # dark inset channels — the frame reads internally lit without ever blowing a
+    # cream/gold element to white.
+    base = surfarray.array3d(surf).astype(np.int16)   # copy — leaves surf unlocked
+    dark = base.max(axis=2) < 130           # max-channel keeps the grooves, drops beads
+    bl = surfarray.pixels3d(bloom)
+    bl[~dark] = 0
+    del bl
+
+    # Belt-and-braces: fully exclude the tier gem badge box (~x250-310, y20-80 at
+    # SS=2) so no dark facet inside it catches the wash.
     pygame.draw.rect(bloom, (0, 0, 0, 0), pygame.Rect(250, 20, 60, 60))
 
     surf.blit(bloom, (0, 0), special_flags=pygame.BLEND_ADD)
