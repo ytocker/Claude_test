@@ -89,12 +89,13 @@ def draw_regalia_frame(surf, body):
 
 
 # ── ghost-tag-check overlay ──────────────────────────────────────────────────
-# Warm cream chosen so a low-alpha wash over the card's strongly blue indigo body
-# still composites toward R≈G — a cold cream would only reinforce the body's blue
-# and read as lavender-grey. Alpha kept in the ~22–28% wash band: a filled plane
-# this faint is atmosphere, never ink competing with the gold regalia.
-WASH = (255, 234, 182)
-WASH_A = 76
+# Warm cream chosen so a faint wash over the card's strongly blue indigo body
+# still composites to a neutral R≈B≈G cream — a cold cream would only reinforce
+# the body's blue and read as lavender-grey. Alpha sits at the low end (~30%): a
+# filled plane this faint is atmosphere, never ink competing with the gold
+# regalia, yet enough to overcome the deep-blue body's tint at the sample point.
+WASH = (255, 233, 172)
+WASH_A = 78
 CHECK = (250, 246, 232)          # fully-opaque hero tick
 BITE = (46, 38, 18)              # dark 1px offset so the tick edges bite
 
