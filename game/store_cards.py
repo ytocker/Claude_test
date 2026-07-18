@@ -828,9 +828,9 @@ def price_chip(surf, cx, cy, text, h, variant=1, affordable=True):
                               min(cord[2]+30,255)), knot, max(1, m(0.6)))
 
 
-def check_tag_chip(surf, cx, cy, h):
-    """Equipped hang-tag: same cord/knot/face geometry as price_chip(), but the
-    face carries a ✓ in the same sumi-ink treatment as the price numeral."""
+def _draw_hang_tag(surf, cx, cy, draw_face_fn=None):
+    """Shared geometry for the owned/equipped hang-tag chip. Draws cord, knot,
+    cream face with bevel, and grommet. Calls draw_face_fn(face) if provided."""
     rad     = m(3)
     grommet = (30, 13)
 
@@ -843,7 +843,8 @@ def check_tag_chip(surf, cx, cy, h):
     bevel_rim(face, brect, rad, (80, 52, 12, 200),
               (255, 240, 190, 200), w=max(1, m(1.2)))
 
-    _tag_draw_check(face)
+    if draw_face_fn is not None:
+        draw_face_fn(face)
 
     pygame.draw.circle(face, (0, 0, 0, 0), grommet, m(5))
     pygame.draw.circle(face, (110, 80, 30), grommet, m(5) + 1, width=max(1, m(1)))
@@ -860,6 +861,16 @@ def check_tag_chip(surf, cx, cy, h):
     pygame.draw.circle(surf, cord, knot, m(1.5))
     pygame.draw.circle(surf, (min(cord[0]+30,255), min(cord[1]+30,255),
                               min(cord[2]+30,255)), knot, max(1, m(0.6)))
+
+
+def check_tag_chip(surf, cx, cy, h):
+    """Equipped hang-tag: cream face with the ✓ angular-drop mark."""
+    _draw_hang_tag(surf, cx, cy, draw_face_fn=_tag_draw_check)
+
+
+def owned_tag_chip(surf, cx, cy, h):
+    """Owned hang-tag: same cord/face geometry as equipped but blank face — no mark."""
+    _draw_hang_tag(surf, cx, cy, draw_face_fn=None)
 
 
 def status_chip(surf, cx, cy, text, h, kind="equip"):
@@ -914,7 +925,7 @@ def state_chip(surf, sid, cx, cy, equipped, secret, h, owned=False,
     if equipped:
         return check_tag_chip(surf, cx, cy, h)
     if owned:
-        return status_chip(surf, cx, cy, "EQUIP", h, kind="equip")
+        return owned_tag_chip(surf, cx, cy, h)
     price = _cost(sid)
     return price_chip(surf, cx, cy, f"{price:,}", h, variant=variant,
                       affordable=store_data.balance() >= price)
