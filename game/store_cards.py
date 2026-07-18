@@ -953,21 +953,6 @@ def _draw_regalia_frame(surf, body, rad):
     bead(inset=10, w=m(2),   col=INNER)
     bead(inset=13, w=max(1, m(0.6)), col=KEY)
 
-    track = body.inflate(-20, -20)
-    leg = m(7)
-    corners = [
-        (track.left,  track.top,     1,  1),
-        (track.right, track.top,    -1,  1),
-        (track.left,  track.bottom,  1, -1),
-        (track.right, track.bottom, -1, -1),
-    ]
-    for cxp, cyp, sx, sy in corners:
-        pygame.draw.polygon(surf, INNER, [
-            (cxp, cyp), (cxp + sx * leg, cyp), (cxp, cyp + sy * leg)])
-    for cxp, cyp, sx, sy in corners[:2]:
-        pygame.draw.line(surf, GLINT, (cxp, cyp), (cxp + sx * leg, cyp),
-                         max(1, m(0.8)))
-
 
 # ── card ──────────────────────────────────────────────────────────────────────
 def _name_on(surf, name, cx, cy, max_w):
