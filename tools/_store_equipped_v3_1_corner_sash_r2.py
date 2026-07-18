@@ -138,10 +138,10 @@ def draw_corner_sash(surf, body):
     # drops into the vertex, a longer arm rises up-right; both are thick enough
     # (≥5px at SS=2) to survive the 1× downscale as a recognisable ✓ rather than
     # a blob. Rounded joints/caps keep the strokes reading as one clean glyph.
-    Lp = (32, 38)   # top of the short (left) arm
-    Vp = (37, 43)   # bottom vertex where the strokes meet
-    Rp = (47, 29)   # top of the long (right) arm
-    cw = max(5, sc.m(2.5))                     # =5 device px → ~2.5px at 1×
+    Lp = (32, 34)   # top of the short (left) arm
+    Vp = (37, 40)   # bottom vertex where the strokes meet (≈ band centre)
+    Rp = (49, 26)   # top of the long (right) arm
+    cw = max(6, sc.m(3))                       # =6 device px → ~3px at 1×
     pygame.draw.line(sash, CHECK, Lp, Vp, cw)
     pygame.draw.line(sash, CHECK, Vp, Rp, cw)
     for cap in (Lp, Vp, Rp):
@@ -244,12 +244,17 @@ print("saved", OUT, sheet.get_size())
 # Checkmark must read at 1×, and the corner seam must show dark card, not fused
 # gold. Sample the true 162×100 tile + the device-res concept.
 tile = card1x
-indigo_hits = 0
-for yy in range(14, 24):
+dark_hits = 0
+for yy in range(12, 22):
     for xx in range(14, 26):
         r, g, b, _a = tile.get_at((xx, yy))
-        if b > r + 20 and b > 60 and r < 120:      # deep-indigo checkmark pixels
-            indigo_hits += 1
-print("1x checkmark indigo pixels:", indigo_hits, "(want a solid cluster)")
-print("concept sash body  (38,38):", p2.get_at((38, 38))[:3])
-print("concept check core (37,39):", p2.get_at((37, 39))[:3])
+        if r < 130 and b > r:                      # deep-indigo checkmark pixels
+            dark_hits += 1
+print("1x checkmark indigo pixels:", dark_hits, "(want a solid ✓ cluster)")
+print("concept check core (37,40):", p2.get_at((37, 40))[:3])
+print("concept sample    (36,36):", p2.get_at((36, 36))[:3])
+# Corner seam: dark card face must show between the sash and the frame gold so
+# the ribbon reads as a layered object rather than fusing into the bevel.
+print("concept sash cream(30,46):", p2.get_at((30, 46))[:3])
+print("concept seam gap  (24,24):", p2.get_at((24, 24))[:3])
+print("concept frame gold(18,44):", p2.get_at((18, 44))[:3])
