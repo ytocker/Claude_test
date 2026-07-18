@@ -741,14 +741,16 @@ def _tag_draw_price(face, text, affordable):
 
 
 def _tag_draw_check(face):
-    """Bold procedural tick in the same sumi-ink as the price digits.
-    Drawn as thick pygame lines so the mark survives smoothscale to 1×.
-    Three-layer deboss stack: faint shadow / main dark stroke / top-light echo."""
+    """Bold ink tick — three sumi-ink passes drawn directly on the face so each
+    layer stays opaque. w=10 device px at SS=2 matches the visual weight of the
+    price numeral. Asymmetric: short left downstroke + long sweeping right arm,
+    like a hand-struck checkmark at the same vertical position as the price digits."""
     cx = _TAG_W // 2
-    w  = 8
-    vertex = (cx - 2, int(_TAG_H * 0.55))
-    l_arm  = (cx - 13, int(_TAG_H * 0.45))
-    r_arm  = (cx + 17, int(_TAG_H * 0.33))
+    cy = int(_TAG_H * 0.52)
+    vertex = (cx - 2, cy + 8)
+    l_arm  = (cx - 22, cy - 6)
+    r_arm  = (cx + 26, cy - 20)
+    w = 10
 
     def stroke(col, dx=0, dy=0, ww=w):
         a = (l_arm[0] + dx, l_arm[1] + dy)
@@ -759,9 +761,9 @@ def _tag_draw_check(face):
         for pt in (a, v, b):
             pygame.draw.circle(face, col, pt, ww // 2)
 
-    stroke((30, 22, 18, 90), dx=1, dy=1, ww=max(1, w - 3))    # pressed-in shadow
-    stroke((40, 30, 26, 255))                                    # main dark tick
-    stroke((250, 246, 232, 210), dx=0, dy=-1, ww=max(1, w - 6))  # 1px top-light
+    stroke((30, 22, 18, 90), dx=1, dy=1, ww=max(1, w - 3))     # pressed shadow
+    stroke((40, 30, 26, 255))                                     # main dark tick
+    stroke((250, 246, 232, 210), dx=0, dy=-1, ww=max(1, w - 6)) # thin top-light
 
 
 def _tag_rot_point(px, py, center):
@@ -1109,10 +1111,10 @@ def draw_card(surf, sid, rect, equipped, secret, owned=False, variant=PRICE_VARI
     tier_word = "MYSTERY" if secret else _rarity(sid).upper()
     _ribbon_lozenge(surf, tier_word, cx, rect.y + m(67) - _RIBN_DY, rect.w - m(34), pal)
     _name_on(surf, name, cx, rect.y + m(78), rect.w - m(26))
-    state_chip(surf, sid, cx, rect.y + m(88) - _CHIP_DY, equipped, secret, m(20),
-               owned=owned, variant=variant)
     if equipped:
         _draw_regalia_frame(surf, rect, m(CARD_RAD))
+    state_chip(surf, sid, cx, rect.y + m(88) - _CHIP_DY, equipped, secret, m(20),
+               owned=owned, variant=variant)
 
 
 # =============================================================================
