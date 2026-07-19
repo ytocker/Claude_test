@@ -10,9 +10,8 @@ pygame.display.set_mode((1, 1), pygame.NOFRAME)
 import game.store_cards as sc
 import game.store_data as sd
 import game.store_catalog as catalog
-from game.draw import UI_CREAM, NEAR_BLACK, WHITE, lerp_color
-from game.surprise_box_variants import _draw_qmark
-from game.store import _confirm_tier_banner
+from game.config import W, H
+from game.store import StoreScene
 
 sd.load()
 SID    = "skin_mummy"
@@ -58,90 +57,35 @@ GRID = [
 ]
 
 
-# ── Render buy-confirmation popup (SS=2 surface, then smoothscale) ────────────
+# ── Render buy-confirmation popup via StoreScene (exact in-game rendering) ────
+
+POP_W, POP_H = 200, 340
 
 def render_popup(affordable):
-    m  = sc.m
-    SS = sc.SS
-    POP_W, POP_H = 200, 340
-    CX = POP_W // 2
+    """Render the popup exactly as the game does: full store scene, popup on top,
+    then crop the popup region."""
+    _orig_balance = sd.balance
+    sd.balance = lambda: (999_999 if affordable else 0)
+    sc._card_cache.clear()
 
-    CARD_X, CARD_W, CARD_TOP, CARD_H, CARD_RAD = 8, 184, 98, 230, 18
-    R_HERO, DISC_CY                             = 41, 104
-    GEM_R, GEM_CY, GEM_L_X, GEM_R_X            = 11, 117, 33, 167
-    NAME_FS, Y_NAME                             = 30, 155
-    Y_BANNER, BANNER_W, BANNER_H                = 175, 120, 22
-    Y_CHIP, CHIP_H                              = 229, 28
-    Y_BTN, BTN_H, BTN_W                        = 273, 30, 136
-    Y_CANCEL, CANCEL_H, CANCEL_W               = 308, 22, 80
+    scene = StoreScene()
+    scene.view     = "category"
+    scene._confirm = SID
 
-    big = pygame.Surface((POP_W * SS, POP_H * SS), pygame.SRCALPHA)
+    screen = pygame.Surface((W, H))
+    scene.render(screen)
 
-    rect = pygame.Rect(m(CARD_X), m(CARD_TOP), m(CARD_W), m(CARD_H))
-    rad  = m(CARD_RAD)
-    sc.drop_shadow(big, rect, rad, blur=m(8), alpha=165, dy=m(4))
-    big.blit(
-        sc.vgrad_stops(rect.w, rect.h, rad,
-                       [(0.0, sc.CARD_T), (1.0, sc.CARD_B)], 255, gamma=1.15),
-        rect.topleft)
-    sc.top_sheen(big, rect, rad, m(30), peak=56)
-    pygame.draw.rect(big, (4, 5, 16), rect, width=max(1, m(2)), border_radius=rad)
-    sc.bevel_rim(big, rect, rad, sc.CARD_RING_DEEP,
-                 (*sc.CARD_RING_BRIGHT, 230), w=max(1, m(1.9)))
-    tray = rect.inflate(-m(8), -m(8))
-    pygame.draw.rect(big, (*sc.CARD_RING_BRIGHT, 55), tray,
-                     width=max(1, m(1)), border_radius=rad - m(3))
+    sd.balance = _orig_balance
+    sc._card_cache.clear()
 
-    sc.facet_gem(big, m(GEM_L_X), m(GEM_CY), m(GEM_R), pal["gem"], pal["deep"])
-    sc.facet_gem(big, m(GEM_R_X), m(GEM_CY), m(GEM_R), pal["gem"], pal["deep"])
-
-    name  = sc._name(SID)
-    price = catalog.cost(SID)
-    sc.plain_text(big, name, sc.font(NAME_FS), (m(CX), m(Y_NAME)),
-                  (250, 248, 240), shadow_a=160, weight=m(0.9),
-                  keyline=(6, 6, 16), kw=m(1.0))
-
-    _confirm_tier_banner(big, CX, Y_BANNER, BANNER_W, BANNER_H,
-                         catalog.rarity(SID).upper(), pal)
-
-    sc.price_chip(big, m(CX), m(Y_CHIP), f"{price:,}", m(CHIP_H),
-                  affordable=affordable)
-
-    if not affordable:
-        sc.plain_text(big, "NOT ENOUGH COINS", sc.font(9), (m(CX), m(251)),
-                      (150, 166, 190), shadow_a=0)
-
-    h_btn = m(BTN_H); w_btn = m(BTN_W)
-    btn_r = pygame.Rect(m(CX) - w_btn // 2, m(Y_BTN) - h_btn // 2, w_btn, h_btn)
-    if affordable:
-        top_c = lerp_color(pal["gem"], WHITE, 0.18)
-        bot_c = lerp_color(pal["deep"], (4, 4, 12), 0.4)
-        rim_c = lerp_color(pal["gem"], WHITE, 0.45)
-        sc.chip_body(big, btn_r, h_btn // 2, top_c, bot_c, (4, 4, 12), rim_c, gloss=72)
-        sc.plain_text(big, "CONFIRM", sc.font(13), btn_r.center, (255, 255, 255),
-                      shadow_a=180, tracking=m(1.4), weight=m(1.0),
-                      keyline=lerp_color(pal["deep"], (0, 0, 0), 0.5), kw=m(1.0))
-    else:
-        sc.chip_body(big, btn_r, h_btn // 2,
-                     (60, 56, 76), (36, 34, 52), (20, 18, 32), (100, 96, 120), gloss=40)
-        sc.plain_text(big, "CONFIRM", sc.font(13), btn_r.center, (120, 116, 134), shadow_a=0)
-
-    h_can = m(CANCEL_H); w_can = m(CANCEL_W)
-    can_r = pygame.Rect(m(CX) - w_can // 2, m(Y_CANCEL) - h_can // 2, w_can, h_can)
-    sc.chip_body(big, can_r, h_can // 2,
-                 (70, 62, 80), (44, 38, 56), (30, 26, 40), (120, 112, 132), gloss=30)
-    sc.plain_text(big, "CANCEL", sc.font(11), can_r.center, UI_CREAM, shadow_a=0)
-
-    cx_ss, cy_ss, r_ss = m(CX), m(DISC_CY), m(R_HERO)
-    sc._alpha_aura(big, cx_ss, cy_ss, r_ss + m(55), pal["glow"], peak=95, layers=24)
-    sc._alpha_aura(big, cx_ss, cy_ss, r_ss + m(20), pal["glow"], peak=70, layers=12)
-    sc.cabochon(big, cx_ss, cy_ss, r_ss, sc.CABO_LO, sc.CABO_HI,
-                ring=pal["gem"], ring_a=50)
-    sc.blit_thumb(big, SID, cx_ss, cy_ss, int(r_ss * 1.5))
-    sc.cabochon_glass(big, cx_ss, cy_ss, r_ss, tint=pal["gem"])
-
-    pop = pygame.transform.smoothscale(big, (POP_W, POP_H))
-    return surf_to_pil(pop, f"popup_{'aff' if affordable else 'unaff'}")
+    # Crop the popup region (same calculation as _draw_confirm)
+    px = (W - POP_W) // 2
+    py = (H - POP_H) // 2
+    path = os.path.join(tmp, f"screen_{'aff' if affordable else 'unaff'}.png")
+    pygame.image.save(screen, path)
+    from PIL import Image
+    im = Image.open(path).convert("RGB")
+    return im.crop((px, py, px + POP_W, py + POP_H))
 
 popup_affordable   = render_popup(affordable=True)
 popup_unaffordable = render_popup(affordable=False)
@@ -235,6 +179,6 @@ for i, (pop_img, label) in enumerate([
 
 out_dir = "docs/store_owned_v2"
 os.makedirs(out_dir, exist_ok=True)
-out = os.path.join(out_dir, "card_states_and_popup.png")
+out = os.path.join(out_dir, "card_states_and_popup_v2.png")
 canvas.save(out)
 print(f"saved {out} ({canvas.width}x{canvas.height})")
