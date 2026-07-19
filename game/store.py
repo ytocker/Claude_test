@@ -300,36 +300,6 @@ def _gold_rule(surf, x0, x1, y, peak=170):
     surf.blit(line, (x0, y - 1))
 
 
-def _confirm_tier_banner(big, cx, cy, w_log, h_log, tier_word, pal):
-    """Notched-hex rarity banner for the confirm popup — white tier word over the
-    raw 3-stop tier gradient so the tier reads as a word, not just a hue."""
-    m = store_cards.m
-    w, h = m(w_log), m(h_log)
-    notch = m(6)
-    x0, y0 = m(cx) - w // 2, m(cy) - h // 2
-    stops = [(0.0, pal["gem"]), (0.5, pal["glow"]), (1.0, pal["deep"])]
-    body = store_cards.vgrad_stops(w, h, 0, stops, 255, gamma=1.08)
-    poly = [(notch, 0), (w - notch, 0), (w, h // 2), (w - notch, h),
-            (notch, h), (0, h // 2)]
-    pmask = pygame.Surface((w, h), pygame.SRCALPHA)
-    pygame.draw.polygon(pmask, (255, 255, 255, 255), poly)
-    body.blit(pmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    sh = pygame.Surface((w, h), pygame.SRCALPHA)
-    pygame.draw.polygon(sh, (0, 0, 0, 130), poly)
-    big.blit(sh, (x0, y0 + m(2)))
-    big.blit(body, (x0, y0))
-    abspoly = [(x0 + px, y0 + py) for px, py in poly]
-    pygame.draw.polygon(big, (6, 6, 16), abspoly, width=max(1, m(1.6)))
-    fsz = h_log * 0.52
-    f = store_cards.font(fsz)
-    avail = w - notch * 2 - m(8)
-    while store_cards._glyph_base(tier_word, f, m(1.6)).get_width() > avail and fsz > 6:
-        fsz -= 0.5
-        f = store_cards.font(fsz)
-    store_cards.plain_text(big, tier_word, f, (m(cx), m(cy)), (250, 248, 240),
-                           shadow_a=150, tracking=m(1.6), weight=m(1.0),
-                           keyline=(10, 10, 22), kw=m(0.8))
-
 
 def _gradient_text(surf, txt, font_obj, center, top, bot, outline=None, shadow=True):
     """Vertical gold-gradient text with optional outline + drop shadow."""
@@ -952,7 +922,7 @@ class StoreScene:
         R_HERO, DISC_CY = 41, 104
         GEM_R, GEM_CY, GEM_L_X, GEM_R_X = 11, 117, 33, 167
         NAME_FS, Y_NAME = 30, 155
-        Y_BANNER, BANNER_W, BANNER_H = 175, 120, 22
+        Y_BANNER, BANNER_W = 175, 120
         Y_CHIP, CHIP_H = 229, 28
         Y_BTN, BTN_H, BTN_W = 273, 30, 136
         Y_CANCEL, CANCEL_H, CANCEL_W = 308, 22, 80
@@ -988,7 +958,7 @@ class StoreScene:
                                keyline=(6, 6, 16), kw=m(1.0))
 
         # ── rarity banner ─────────────────────────────────────────────────────
-        _confirm_tier_banner(big, CX, Y_BANNER, BANNER_W, BANNER_H, tier_word, pal)
+        store_cards._ribbon_lozenge(big, tier_word, m(CX), m(Y_BANNER), m(BANNER_W), pal)
 
         # ── price chip ────────────────────────────────────────────────────────
         store_cards.price_chip(big, m(CX), m(Y_CHIP), f"{price:,}",
@@ -999,38 +969,21 @@ class StoreScene:
                                    store_cards.font(9), (m(CX), m(251)),
                                    (150, 166, 190), shadow_a=0)
 
-        # ── confirm button ────────────────────────────────────────────────────
-        h_btn = m(BTN_H)
-        w_btn = m(BTN_W)
-        btn_r = pygame.Rect(m(CX) - w_btn // 2, m(Y_BTN) - h_btn // 2, w_btn, h_btn)
-        if affordable:
-            top_c = lerp_color(pal["gem"], WHITE, 0.18)
-            bot_c = lerp_color(pal["deep"], (4, 4, 12), 0.4)
-            rim_c = lerp_color(pal["gem"], WHITE, 0.45)
-            store_cards.chip_body(big, btn_r, h_btn // 2,
-                                  top_c, bot_c, (4, 4, 12), rim_c, gloss=72)
-            store_cards.plain_text(big, "CONFIRM", store_cards.font(13),
-                                   btn_r.center, (255, 255, 255),
-                                   shadow_a=180, tracking=m(1.4), weight=m(1.0),
-                                   keyline=lerp_color(pal["deep"], (0, 0, 0), 0.5),
-                                   kw=m(1.0))
-        else:
-            store_cards.chip_body(big, btn_r, h_btn // 2,
-                                  (60, 56, 76), (36, 34, 52),
-                                  (20, 18, 32), (100, 96, 120), gloss=40)
-            store_cards.plain_text(big, "CONFIRM", store_cards.font(13),
-                                   btn_r.center, (120, 116, 134), shadow_a=0)
+        # ── equip chip ────────────────────────────────────────────────────────
+        equip_r = store_cards.status_chip(
+            big, m(CX), m(Y_BTN), "EQUIP", m(BTN_H), kind="equip"
+        )
 
         # ── cancel button ─────────────────────────────────────────────────────
         h_can = m(CANCEL_H)
         w_can = m(CANCEL_W)
         can_r = pygame.Rect(m(CX) - w_can // 2, m(Y_CANCEL) - h_can // 2,
                             w_can, h_can)
-        store_cards.chip_body(big, can_r, h_can // 2,
-                              (70, 62, 80), (44, 38, 56),
-                              (30, 26, 40), (120, 112, 132), gloss=30)
+        store_cards._dark_chip_body(big, can_r, h_can // 2,
+                                    [(0.0, (18, 16, 26)), (1.0, (12, 10, 20))],
+                                    (30, 28, 42), (70, 66, 82), gloss=14, gamma=1.04)
         store_cards.plain_text(big, "CANCEL", store_cards.font(11),
-                               can_r.center, UI_CREAM, shadow_a=0)
+                               can_r.center, (130, 124, 148), shadow_a=0)
 
         # ── overhanging disc + spotlight halo (crowns the card) ───────────────
         cx_ss, cy_ss, r_ss = m(CX), m(DISC_CY), m(R_HERO)
@@ -1061,8 +1014,8 @@ class StoreScene:
             CANCEL_W, CANCEL_H)
         if affordable:
             self.confirm_yes_rect = pygame.Rect(
-                px + CX - BTN_W // 2, py + Y_BTN - BTN_H // 2,
-                BTN_W, BTN_H)
+                px + equip_r.x // SS, py + equip_r.y // SS,
+                equip_r.w // SS, equip_r.h // SS)
 
     # ── input ────────────────────────────────────────────────────────────────
     def handle_tap(self, pos) -> "str | None":

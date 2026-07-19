@@ -179,6 +179,6 @@ for i, (pop_img, label) in enumerate([
 
 out_dir = "docs/store_owned_v2"
 os.makedirs(out_dir, exist_ok=True)
-out = os.path.join(out_dir, "card_states_and_popup_v2.png")
+out = os.path.join(out_dir, "card_states_and_popup_v3.png")
 canvas.save(out)
 print(f"saved {out} ({canvas.width}x{canvas.height})")
