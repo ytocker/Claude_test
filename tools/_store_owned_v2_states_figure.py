@@ -84,9 +84,38 @@ def surf_to_pil(surf, name):
 
 pil_cards = {k: surf_to_pil(v, k) for k, v in cards.items()}
 
-# ── Row 2 owned: cord_stub_only Panel 2 crop from its round_2.png ─────────────
-cord_stub_sheet = Image.open("docs/store_owned_v2/cord_stub_only/round_2.png").convert("RGB")
-pil_cards["owned_cord_stub"] = cord_stub_sheet.crop((700, 102, 700 + CW, 102 + CH))
+# ── Row 2 owned: cord_stub concept, NO regalia frame ──────────────────────────
+def cord_stub_face(face):
+    W, H = sc._TAG_W, sc._TAG_H
+    profile = [
+        (0,  19),
+        (10, 26),
+        (19, 18),
+        (28, 15),
+        (37, 21),
+        (45, 17),
+        (53, 27),
+        (62, 18),
+        (71, 25),
+        (81, 20),
+    ]
+    cutter = profile + [(W, H), (0, H)]
+    pygame.draw.polygon(face, (0, 0, 0, 0), cutter)
+    hi = [(x, y - 1) for x, y in profile]
+    pygame.draw.lines(face, (255, 240, 190), False, hi, 1)
+    pygame.draw.lines(face, (46, 38, 18), False, profile, 1)
+    pygame.draw.line(face, (246, 244, 232), (10, 26), (5, 35), 1)
+    pygame.draw.line(face, (60, 50, 30),    (53, 27), (60, 37), 1)
+
+_orig_chip2 = sc.state_chip
+sc.state_chip = lambda *a, **kw: None
+sc._card_cache.clear()
+s_cord = pygame.Surface((CW, CH), pygame.SRCALPHA)
+sc.draw_card(s_cord, SID, CARD_RECT, equipped=False, secret=False, owned=False)
+sc.state_chip = _orig_chip2
+sc._draw_hang_tag(s_cord, 0, 0, draw_face_fn=cord_stub_face)
+sc._card_cache.clear()
+pil_cards["owned_cord_stub"] = surf_to_pil(s_cord, "owned_cord_stub")
 
 # ── Compose PIL canvas ────────────────────────────────────────────────────────
 canvas = Image.new("RGB", (canvas_w, canvas_h), BG)
@@ -150,6 +179,6 @@ for row_idx, (row_label, owned_key, owned_sub) in enumerate(ROWS):
 
 out_dir = "docs/store_owned_v2"
 os.makedirs(out_dir, exist_ok=True)
-out = os.path.join(out_dir, "states_figure_v2.png")
+out = os.path.join(out_dir, "states_figure_v3.png")
 canvas.save(out)
 print(f"saved {out} ({canvas.width}x{canvas.height})")
