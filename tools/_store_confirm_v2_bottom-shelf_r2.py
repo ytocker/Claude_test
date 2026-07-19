@@ -390,17 +390,21 @@ def sample(x, y):
     return img_pil.getpixel((x, y))
 
 
-# BUY button centre (affordable) — target luma ≥ 65.
-bx = x0 + pw // 2
+# Samples avoid text/glyph centres: x at popup-x 60 stays inside the BUY pill
+# but well left of the "BUY" label and the padlock cluster.
 by = ytop + int(ph * (273 / 340))
-p = sample(bx, by)
+bx_body = x0 + int(pw * (60 / 200))   # popup x=60: BUY pill body, clear of text
+
+# BUY button body (affordable) — target luma ≥ 65.
+p = sample(bx_body, by)
 buy_aff_lum = lum(*p)
-print(f"BUY centre (affordable): {p}  luma={buy_aff_lum:.1f}  "
+print(f"BUY body (affordable): {p}  luma={buy_aff_lum:.1f}  "
       f"target≥65: {'OK' if buy_aff_lum >= 65 else 'FAIL'}")
 
-# Shelf face (affordable) — should be clearly lighter than the card body.
-sx = x0 + int(pw * 0.30)
-sy = ytop + int(ph * (265 / 340))
+# Shelf face (affordable) — sample below price row, above BUY, outside price
+# plate. popup-x 25 is clear of the plate (centered at 100, half-width ~27).
+sx = x0 + int(pw * (25 / 200))        # popup x=25: shelf body
+sy = ytop + int(ph * (250 / 340))     # popup y=250: between price coin and BUY
 p = sample(sx, sy)
 shelf_lum = lum(*p)
 card_body_lum = lum(*store_cards.CARD_B)
@@ -408,8 +412,9 @@ print(f"shelf face (affordable): {p}  luma={shelf_lum:.1f}  "
       f"card body luma={card_body_lum:.1f}  "
       f"clearly lighter: {'OK' if shelf_lum > card_body_lum + 5 else 'FAIL'}")
 
-# BUY button centre (unaffordable) — target luma ≤ 30.
-p = sample(x1 + pw // 2, by)
+# BUY button body (unaffordable) — target luma ≤ 30.
+bx_una = x1 + int(pw * (60 / 200))   # popup x=60: left of padlock cluster
+p = sample(bx_una, by)
 buy_una_lum = lum(*p)
-print(f"BUY centre (unaffordable): {p}  luma={buy_una_lum:.1f}  "
+print(f"BUY body (unaffordable): {p}  luma={buy_una_lum:.1f}  "
       f"target≤30: {'OK' if buy_una_lum <= 30 else 'FAIL'}")
