@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""store_owned_v2 showcase — 5 R2 concept panels + zoom strips"""
+"""store_owned_v2 showcase — 6 R2 concept panels + zoom strips"""
 from PIL import Image, ImageDraw, ImageFont
 import os
 
@@ -9,6 +9,7 @@ CONCEPTS = [
     ("diagonal_yank",       "DIAGONAL-YANK", 315),
     ("barely_attached_rip", "BARELY-RIP",    309),
     ("grommet_rip_down",    "GROMMET-RIP",   309),
+    ("top_left_gem",        "GEM-BADGE",     316),
 ]
 
 BASE = "docs/store_owned_v2"
@@ -41,7 +42,7 @@ DIM    = (90, 85, 70)
 
 draw.text(
     (canvas_w // 2, MARGIN + HEADER_H // 2),
-    "STORE OWNED V2 — 5 CONCEPTS — R2 FINAL",
+    "STORE OWNED V2 — 6 CONCEPTS — R2 FINAL",
     fill=GOLD, font=font_hdr, anchor="mm",
 )
 
