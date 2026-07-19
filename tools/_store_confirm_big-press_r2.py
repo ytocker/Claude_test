@@ -28,8 +28,6 @@ import pygame
 pygame.init()
 pygame.display.set_mode((1, 1), pygame.NOFRAME)
 
-from PIL import Image
-
 import game.store as store_mod
 import game.store_cards as sc
 import game.store_data as sd
@@ -249,26 +247,22 @@ def _render_state(affordable):
 
     POP_W, POP_H = 200, 340
     px, py = (W - POP_W) // 2, (H - POP_H) // 2
-    raw = pygame.image.tostring(screen, "RGBA")
-    full = Image.frombytes("RGBA", (W, H), raw)
-    return full.crop((px, py, px + POP_W, py + POP_H))
-
-
-afford_img   = _render_state(True)
-unafford_img = _render_state(False)
-
-
-def _pil_to_surf(img):
-    return pygame.image.fromstring(img.tobytes(), img.size, "RGBA")
+    # Extract popup region directly as a pygame Surface — avoids the
+    # platform-specific tostring/RGBA channel-order pitfall where the B
+    # component leaks into the alpha slot, collapsing warm-gold fills.
+    return screen.subsurface(pygame.Rect(px, py, POP_W, POP_H)).copy()
 
 
 # ── review sheet ──────────────────────────────────────────────────────────────
+afford_surf   = _render_state(True)
+unafford_surf = _render_state(False)
+
 SHEET_W, SHEET_H = 460, 400
 sheet = pygame.Surface((SHEET_W, SHEET_H))
 sheet.fill((8, 8, 20))
 
-sheet.blit(_pil_to_surf(afford_img),   (0,   30))
-sheet.blit(_pil_to_surf(unafford_img), (220, 30))
+sheet.blit(afford_surf,   (0,   30))
+sheet.blit(unafford_surf, (220, 30))
 
 hdr_font = store_mod._font(16, True)
 hdr = hdr_font.render("big-press · BEVELED LOZENGE  r2", True, (220, 190, 100))
