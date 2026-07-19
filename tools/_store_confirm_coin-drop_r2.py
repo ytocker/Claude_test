@@ -62,11 +62,15 @@ def _coin_drop_button(big, affordable):
     # is rendered, so it carves cleanly through all enamel layers.
     # Dark fill = machine-oil well.  Warm lip on the inner top edge = polished
     # machined rim that reads as a deliberate opening, not a chip in the paint.
-    slot_w = m(12)
+    #
+    # Width is set wider than the coin diameter (coin_r * 2 = m(20)) so the dark
+    # slot opening is visible on both sides of the coin; if the slot were narrower
+    # the coin would cover it entirely and the slot would disappear from the image.
+    slot_w = m(26)          # ~4 logical px wider per side than the coin diameter
     slot_h = m(8)
     slot_x = CX_D - slot_w // 2
     slot_y = btn_y0
-    slot_rad = m(2)
+    slot_rad = m(3)
     pygame.draw.rect(big, (8, 7, 15),
                      pygame.Rect(slot_x, slot_y, slot_w, slot_h),
                      border_radius=slot_rad)
@@ -283,12 +287,19 @@ def main():
     print("saved", out, sheet.get_size())
 
     # ── pixel verification via PIL (never display the PNG) ────────────────────
-    # Coordinate mapping: popup blitted at sheet (0,30) and (220,30).
-    # Pill top edge (btn_y0) in popup logical = 273 - 15 = 258.
-    # In sheet: y = 30 + 258 = 288.
-    # Slot/coin horizontal center in popup logical = 100.
-    # Affordable pane: sheet x = 0 + 100 = 100.
-    # Unaffordable pane: sheet x = 220 + 100 = 320.
+    # Coordinate mapping (all final 1× logical sheet coords):
+    #   Popup at sheet (0,30) [affordable] and (220,30) [unaffordable].
+    #   Pill top edge (btn_y0 logical) = 273 - 15 = 258.
+    #   Sheet y of pill top = 30 + 258 = 288.
+    #   Pill centre x in popup = 100  →  sheet x: 100 [aff], 320 [una].
+    #
+    # SLOT edge: slot_w logical = 26/2 = 13, so slot left logical = 100-13 = 87.
+    # Coin radius logical = 10, coin left = 100-10 = 90.
+    # Slot extends 3 logical px LEFT of coin edge (sheet x: 87-90 for aff pane).
+    # Sample at x=88, pill-top y → must show dark slot fill, NOT coin/enamel.
+    #
+    # COIN centre: at pill top edge → affordable=gold, unaffordable=grey.
+    # ENAMEL: left pill body well away from coin → dark enamel colour.
     from PIL import Image
     img = Image.open(out)
     px_map = img.load()
@@ -297,31 +308,44 @@ def main():
         return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
 
     pill_top_y = 30 + 258   # = 288  (pill top edge in sheet)
+    pill_mid_y = 30 + 273   # = 303  (pill vertical centre)
 
-    # Slot: sample 4 sheet-px below pill top, at the slot center x.
-    aff_slot  = px_map[100, pill_top_y + 4][:3]
-    una_slot  = px_map[320, pill_top_y + 4][:3]
+    # Slot LEFT EDGE (3px left of coin, still inside the slot rect).
+    aff_slot  = px_map[88, pill_top_y + 2][:3]
+    una_slot  = px_map[308, pill_top_y + 2][:3]
 
-    # Coin: sample at the pill top edge (coin center).
-    aff_coin  = px_map[100, pill_top_y][:3]
+    # Coin UPPER BODY — 6 logical px above coin centre avoids the "$" glyph
+    # at the coin centre and hits the bright gold rim (luma ~200+).
+    aff_coin  = px_map[100, pill_top_y - 6][:3]
+    # Grey coin: sample at coin centre (unaffordable) — the grey disc has no
+    # "$" glyph so the centre IS the flat pewter fill.
     una_coin  = px_map[320, pill_top_y][:3]
 
-    print("\nPixel verification (all in final 1× sheet):")
-    print(f"  Slot centre (affordable,   +4px):  {aff_slot}  "
-          f"luma={luma(aff_slot):.1f}  (target < 60)")
-    print(f"  Slot centre (unaffordable, +4px):  {una_slot}  "
-          f"luma={luma(una_slot):.1f}  (target < 60)")
-    print(f"  Coin centre (affordable):           {aff_coin}  "
-          f"luma={luma(aff_coin):.1f}  (target > 100, gold)")
-    print(f"  Coin centre (unaffordable):         {una_coin}  "
-          f"luma={luma(una_coin):.1f}  (target < 100, grey)")
+    # Pill body enamel (left zone, well away from coin/slot) — must be dark.
+    aff_enamel = px_map[40, pill_mid_y][:3]
 
-    assert luma(aff_slot) < 80,  f"Slot not dark enough (affordable): {aff_slot}"
-    assert luma(una_slot) < 80,  f"Slot not dark enough (unaffordable): {una_slot}"
-    assert luma(aff_coin) > 100, f"Gold coin not bright enough: {aff_coin}"
-    assert luma(una_coin) < 110, f"Grey coin not dead enough: {una_coin}"
-    assert luma(aff_coin) > luma(una_coin) + 30, \
-        f"Gold/grey contrast too low: {luma(aff_coin):.0f} vs {luma(una_coin):.0f}"
+    print("\nPixel verification (all in final 1× sheet):")
+    print(f"  Slot left edge (affordable,   y+2): {aff_slot}  "
+          f"luma={luma(aff_slot):.1f}  (target < 60, dark)")
+    print(f"  Slot left edge (unaffordable, y+2): {una_slot}  "
+          f"luma={luma(una_slot):.1f}  (target < 60, dark)")
+    print(f"  Coin upper body (affordable, -6):   {aff_coin}  "
+          f"luma={luma(aff_coin):.1f}  (target > 130, bright gold rim)")
+    print(f"  Coin centre (unaffordable, grey):   {una_coin}  "
+          f"luma={luma(una_coin):.1f}  (target < 100, dead pewter)")
+    print(f"  Pill left enamel (affordable):      {aff_enamel}  "
+          f"luma={luma(aff_enamel):.1f}  (coin NOT at left)")
+
+    assert luma(aff_slot) < 80,   f"Slot edge not dark (affordable): {aff_slot}"
+    assert luma(una_slot) < 80,   f"Slot edge not dark (unaffordable): {una_slot}"
+    assert luma(aff_coin) > 130,  f"Gold coin rim not bright enough: {aff_coin}"
+    assert luma(una_coin) < 100,  f"Grey coin not dead enough: {una_coin}"
+    # Gold vs grey contrast: bright gold rim must read clearly above grey disc.
+    assert luma(aff_coin) > luma(una_coin) + 50, \
+        f"Gold/grey coin contrast too low: {luma(aff_coin):.0f} vs {luma(una_coin):.0f}"
+    # Coin must be at TOP not left: left pill body must be dark enamel.
+    assert luma(aff_enamel) < 120, \
+        f"Left pill body too bright (coin appears to be at left): {aff_enamel}"
     print("All pixel checks passed.")
 
 
