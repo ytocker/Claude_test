@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""4-states card figure: Unaffordable | Affordable | Owned (gem) | Equipped"""
+"""4-states card figure: two rows — gem-badge owned vs cord-stub-only owned"""
 import os, sys
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
@@ -20,13 +20,15 @@ CARD_RECT = pygame.Rect(sc.m(sc._INSET), sc.m(sc._INSET),
 
 BG    = (8, 8, 20)
 GAP   = 16
+ROW_GAP = 28
 MARGIN = 20
 LABEL_H = 36
 HEADER_H = 48
 
 N = 4
+ROW_H = CH + GAP + LABEL_H
 canvas_w = MARGIN + N * CW + (N - 1) * GAP + MARGIN
-canvas_h = MARGIN + HEADER_H + GAP + CH + GAP + LABEL_H + MARGIN
+canvas_h = MARGIN + HEADER_H + GAP + ROW_H + ROW_GAP + ROW_H + MARGIN
 
 import pygame.font as pf
 from PIL import Image, ImageDraw, ImageFont
@@ -82,6 +84,10 @@ def surf_to_pil(surf, name):
 
 pil_cards = {k: surf_to_pil(v, k) for k, v in cards.items()}
 
+# ── Row 2 owned: cord_stub_only Panel 2 crop from its round_2.png ─────────────
+cord_stub_sheet = Image.open("docs/store_owned_v2/cord_stub_only/round_2.png").convert("RGB")
+pil_cards["owned_cord_stub"] = cord_stub_sheet.crop((700, 102, 700 + CW, 102 + CH))
+
 # ── Compose PIL canvas ────────────────────────────────────────────────────────
 canvas = Image.new("RGB", (canvas_w, canvas_h), BG)
 draw   = ImageDraw.Draw(canvas)
@@ -102,27 +108,45 @@ GRN   = (140, 200, 140)
 
 draw.text(
     (canvas_w // 2, MARGIN + HEADER_H // 2),
-    "STORE CARD STATES",
+    "STORE CARD STATES — OWNED CONCEPT COMPARISON",
     fill=GOLD, font=font_hdr, anchor="mm",
 )
 
-STATE_LABELS = [
+ROWS = [
+    # (row_label, owned_key, owned_sub)
+    ("OPTION A — GEM BADGE",  "owned",           "(gem badge)"),
+    ("OPTION B — TORN STUB",  "owned_cord_stub",  "(cord-stub torn tag)"),
+]
+
+COMMON_LABELS = [
     ("UNAFFORDABLE", "(grey price tag)"),
     ("AFFORDABLE",   "(cream price tag)"),
-    ("OWNED",        "(gem badge — chosen)"),
+    None,   # owned — varies per row
     ("EQUIPPED",     "(check tag + frame)"),
 ]
 
-for i, (key, (title, sub)) in enumerate(zip(
-        ["unaffordable", "affordable", "owned", "equipped"], STATE_LABELS)):
-    x0 = MARGIN + i * (CW + GAP)
-    y0 = MARGIN + HEADER_H + GAP
-    canvas.paste(pil_cards[key], (x0, y0))
+for row_idx, (row_label, owned_key, owned_sub) in enumerate(ROWS):
+    y0 = MARGIN + HEADER_H + GAP + row_idx * (ROW_H + ROW_GAP)
 
-    label_cy = y0 + CH + LABEL_H // 2
-    title_col = GRN if key == "owned" else CREAM
-    draw.text((x0 + CW // 2, label_cy - 9), title,  fill=title_col, font=font_lbl, anchor="mm")
-    draw.text((x0 + CW // 2, label_cy + 9), sub,    fill=DIM,       font=font_sub, anchor="mm")
+    # Row sub-header
+    draw.text(
+        (MARGIN, y0 - 4),
+        row_label,
+        fill=DIM, font=font_sub, anchor="lm",
+    )
+
+    state_keys  = ["unaffordable", "affordable", owned_key, "equipped"]
+    state_subs  = ["(grey price tag)", "(cream price tag)", owned_sub, "(check tag + frame)"]
+    state_names = ["UNAFFORDABLE", "AFFORDABLE", "OWNED", "EQUIPPED"]
+
+    for i, (key, title, sub) in enumerate(zip(state_keys, state_names, state_subs)):
+        x0 = MARGIN + i * (CW + GAP)
+        canvas.paste(pil_cards[key], (x0, y0))
+
+        label_cy = y0 + CH + LABEL_H // 2
+        title_col = GRN if title == "OWNED" else CREAM
+        draw.text((x0 + CW // 2, label_cy - 9), title, fill=title_col, font=font_lbl, anchor="mm")
+        draw.text((x0 + CW // 2, label_cy + 9), sub,   fill=DIM,       font=font_sub, anchor="mm")
 
 out_dir = "docs/store_owned_v2"
 os.makedirs(out_dir, exist_ok=True)
