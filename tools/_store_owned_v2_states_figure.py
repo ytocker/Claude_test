@@ -150,6 +150,6 @@ for row_idx, (row_label, owned_key, owned_sub) in enumerate(ROWS):
 
 out_dir = "docs/store_owned_v2"
 os.makedirs(out_dir, exist_ok=True)
-out = os.path.join(out_dir, "states_figure.png")
+out = os.path.join(out_dir, "states_figure_v2.png")
 canvas.save(out)
 print(f"saved {out} ({canvas.width}x{canvas.height})")
