@@ -1113,8 +1113,12 @@ def draw_card(surf, sid, rect, equipped, secret, owned=False, variant=PRICE_VARI
     _name_on(surf, name, cx, rect.y + m(78), rect.w - m(26))
     if equipped:
         _draw_regalia_frame(surf, rect, m(CARD_RAD))
-    state_chip(surf, sid, cx, rect.y + m(88) - _CHIP_DY, equipped, secret, m(20),
-               owned=owned, variant=variant)
+    if owned and not equipped:
+        facet_gem(surf, rect.x + m(19), rect.y + m(19), m(GEM_R + 3),
+                  pal["gem"], pal["deep"])
+    else:
+        state_chip(surf, sid, cx, rect.y + m(88) - _CHIP_DY, equipped, secret, m(20),
+                   owned=owned, variant=variant)
 
 
 # =============================================================================
