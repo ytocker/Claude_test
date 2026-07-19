@@ -31,6 +31,27 @@ import game.store_data as sd
 from game.config import W, H
 
 
+# The stock gloss_sweep blits pure-white (255,255,255,a) under BLEND_ADD, which
+# ignores source alpha — so on a saturated body it adds full white and blows the
+# fill out. Keep the sheen intensity in RGB magnitude instead (the same fix the
+# live dark-chip path uses) so the warm-gold pill reads gold, not white.
+def _gloss_sweep_add_safe(surf, rect, radius, peak=120):
+    sweep = pygame.Surface(rect.size, pygame.SRCALPHA)
+    h = max(1, rect.h)
+    for y in range(h):
+        v = int(peak * (1 - y / h) ** 2.4)
+        if v <= 0:
+            continue
+        pygame.draw.line(sweep, (v, v, v, 255), (0, y), (rect.w, y))
+    sm = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(sm, (255, 255, 255, 255), sm.get_rect(), border_radius=radius)
+    sweep.blit(sm, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(sweep, rect.topleft, special_flags=pygame.BLEND_ADD)
+
+
+sc.gloss_sweep = _gloss_sweep_add_safe
+
+
 # ── replacement _draw_confirm ─────────────────────────────────────────────────
 # A verbatim copy of StoreScene._draw_confirm whose ONLY change is the action
 # button: the equip status_chip is swapped for the buy-then-wear pill. Its
