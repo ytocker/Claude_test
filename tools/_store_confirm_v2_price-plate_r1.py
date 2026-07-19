@@ -281,13 +281,15 @@ def render_state(affordable):
 
     POP_W, POP_H = 200, 340
     px, py = (W - POP_W) // 2, (H - POP_H) // 2
-    raw = pygame.image.tostring(screen, "RGBA")
-    full = Image.frombytes("RGBA", (W, H), raw)
+    # The scene surface is opaque, so read it as RGB — an RGBA roundtrip off a
+    # non-SRCALPHA surface yields a garbage alpha channel and pastes translucent.
+    raw = pygame.image.tostring(screen, "RGB")
+    full = Image.frombytes("RGB", (W, H), raw)
     return full.crop((px, py, px + POP_W, py + POP_H))
 
 
 def _pil_to_surf(img):
-    return pygame.image.fromstring(img.tobytes(), img.size, "RGBA")
+    return pygame.image.fromstring(img.tobytes(), img.size, img.mode)
 
 
 afford_img = render_state(True)
