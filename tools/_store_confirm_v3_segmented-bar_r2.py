@@ -396,8 +396,10 @@ print(f"  v-groove BUY-side lip @ ({groove_x},{groove_y}): RGB={px_groove[:3]}  
 
 # 3. Unaffordable: compare BUY cell brightness vs CANCEL cell brightness —
 #    BUY should be darker to correctly signal it is disabled.
-buy_cx = BAR_X + (VCH_X - BAR_X) // 2   # BUY cell centre x ≈ 58
-can_cx = VCH_X + ((BAR_X + 168) - VCH_X) // 2  # CANCEL centre x ≈ 142
+#    Sample near the LEFT edge of each cell to avoid the padlock / text drawn
+#    at the cell centres, which would inflate the BUY lum reading.
+buy_cx = BAR_X + 5   # far left of BUY cell, clear of padlock/label
+can_cx = BAR_X + 168 - 5  # far right of CANCEL cell, clear of "CANCEL" label
 sample_y = BTN_CY
 px_buy_inert = unafford_img.getpixel((buy_cx, sample_y))
 px_cancel = unafford_img.getpixel((can_cx, sample_y))
