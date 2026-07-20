@@ -41,7 +41,7 @@ CONCEPTS = [
 
 concept_imgs = []
 for badge, slug, _ in CONCEPTS:
-    path = os.path.join(BASE_BF2, slug, "round_2.png")
+    path = os.path.join(BASE_BF2, slug, "round_3.png")
     img  = Image.open(path).crop(CROP)
     concept_imgs.append(img)
 
@@ -71,7 +71,7 @@ except Exception:
 # Global header
 hx = CANVAS_W // 2
 hy = MARGIN + HDR_H // 2
-draw.text((hx, hy - 8), "BUY BUTTON SPECTACULAR EFFECTS — v2",
+draw.text((hx, hy - 8), "BUY BUTTON SPECTACULAR EFFECTS — v2 (r3)",
           fill=(210, 205, 240), font=fnt_hdr, anchor="mm")
 draw.text((hx, hy + 8), "BEFORE (C** base)  ·  A–E final rounds  ·  AFFORDABLE STATE",
           fill=(130, 125, 155), font=fnt_lbl, anchor="mm")
