@@ -369,10 +369,14 @@ buy_px = aff.getpixel((BUY_CX, BTN_CY))
 print(f"BUY center ({BUY_CX},{BTN_CY}): {buy_px}  "
       f"→ {'OK indigo' if buy_px[2] >= buy_px[0] and buy_px[2] >= buy_px[1] else 'WARN'}")
 
-# A ray fired up-left from BUY (~45deg above centre) must clear the dark shelf.
-ray_px = aff.getpixel((BUY_CX - 22, BTN_CY - 22))
-print(f"ray ~45deg ({BUY_CX-22},{BTN_CY-22}): {ray_px}  "
-      f"→ {'OK ray' if max(ray_px) > 60 else 'WARN dim'}")
+# The toned-down rays are short + subtle; scan the arc just above the BUY top
+# edge and confirm at least one ray pixel still lifts clear of the dark shelf.
+ray_peak = 0
+for yy in range(BTN_CY - 26, BTN_CY - BTN_H // 2):
+    for xx in range(BUY_CX - 20, BUY_CX + 20):
+        ray_peak = max(ray_peak, max(aff.getpixel((xx, yy))))
+print(f"ray-arc peak above BUY (subtle-sparkle gauge): {ray_peak}  "
+      f"→ {'OK ray' if ray_peak > 60 else 'WARN dim'}")
 
 can_px = aff.getpixel((CAN_CX, BTN_CY))
 print(f"CANCEL center ({CAN_CX},{BTN_CY}): {can_px}  "
