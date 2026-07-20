@@ -10,7 +10,7 @@ gems, banner, chip, disc/aura/thumb drawn LAST). Only the affordable BUY
 treatment changes; the locked/unaffordable BUY keeps its base slate + padlock.
 
 Sheet: left=AFFORDABLE, right=UNAFFORDABLE, 444×412
-Output → docs/store_confirm_shelf_v3/buy-fancy-v2/starburst-radiance/round_1.png
+Output → docs/store_confirm_shelf_v3/buy-fancy-v2/starburst-radiance/round_2.png
 """
 import os, sys, math
 import math as _math
@@ -368,9 +368,34 @@ aff = panels_data[0][2]
 buy_px = aff.getpixel((BUY_CX, BTN_CY))
 print(f"BUY center ({BUY_CX},{BTN_CY}): {buy_px}  "
       f"→ {'OK indigo' if buy_px[2] >= buy_px[0] and buy_px[2] >= buy_px[1] else 'WARN'}")
-ray_px = aff.getpixel((78, 282))
-print(f"ray ~45deg (78,282): {ray_px}  "
-      f"→ {'OK ray' if ray_px != (8, 8, 20) else 'WARN bg'}")
+
+# A ray fired up-left from BUY (~45deg above centre) must clear the dark shelf.
+ray_px = aff.getpixel((BUY_CX - 22, BTN_CY - 22))
+print(f"ray ~45deg ({BUY_CX-22},{BTN_CY-22}): {ray_px}  "
+      f"→ {'OK ray' if max(ray_px) > 60 else 'WARN dim'}")
+
 can_px = aff.getpixel((CAN_CX, BTN_CY))
 print(f"CANCEL center ({CAN_CX},{BTN_CY}): {can_px}  "
       f"→ {'OK indigo' if can_px[2] >= can_px[0] and can_px[2] >= can_px[1] else 'WARN'}")
+
+# No blown-white bloom: the BUY burst region must stay warm gold, never a
+# white centre disc (coin/glass specular elsewhere are legitimately bright).
+peak_white = 0
+_btn_l, _btn_r = BUY_CX - BTN_W // 2, BUY_CX + BTN_W // 2
+_btn_t, _btn_b = BTN_CY - BTN_H // 2, BTN_CY + BTN_H // 2
+for yy in range(BTN_CY - 24, min(POP_H, SHELF_Y + SHELF_H)):
+    for xx in range(max(0, BUY_CX - 34), BUY_CX + 34):
+        if _btn_l <= xx <= _btn_r and _btn_t <= yy <= _btn_b:
+            continue                      # skip the button face + its BUY label
+        peak_white = max(peak_white, min(aff.getpixel((xx, yy))))
+print(f"BUY-halo peak min-channel (blown-white gauge): {peak_white}  "
+      f"→ {'OK warm' if peak_white < 210 else 'WARN blown'}")
+
+# Ray/glow containment: nothing may leak below the card body (y > 328).
+leak = 0
+for yy in range(SHELF_Y + SHELF_H + 8, POP_H):   # below card bottom edge
+    for xx in range(POP_W):
+        if max(aff.getpixel((xx, yy))) > 24:
+            leak += 1
+print(f"non-bg pixels below card (y>{SHELF_Y + SHELF_H + 8}): {leak}  "
+      f"→ {'OK contained' if leak == 0 else 'WARN spill'}")
