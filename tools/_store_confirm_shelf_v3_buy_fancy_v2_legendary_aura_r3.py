@@ -397,16 +397,15 @@ buy_px = aff.getpixel((BUY_CX, BTN_CY))
 print(f"AFF BUY center ({BUY_CX},{BTN_CY}): {buy_px}  "
       f"→ {'OK warm amber R>G>B' if buy_px[0] > buy_px[1] > buy_px[2] else 'WARN'}")
 
-# 2) Wide ambient field reaches out across the shelf to the wall. The AD's
-# suggested (BUY_CX, SHELF_Y+10) point is occluded by the price chip (which is
-# drawn opaque over the glow), so probe the OPEN shelf beside the button and the
-# left wall to prove the warm field laps outward.
+# 2) The warm haze is now a LOCAL accent hugging BUY, not a shelf-wide inferno:
+# the open shelf beside the button reads clearly warm, while the far wall stays
+# deep indigo — proving the tone-down kept the glow off the shelf edges.
 open_probe = aff.getpixel((30, 292))          # open shelf just left of BUY
 wall_probe = aff.getpixel((18, 292))          # out at the left shelf wall
 print(f"AFF open-shelf (30,292): {open_probe}  "
       f"→ {'OK warm non-bg' if open_probe[0] > open_probe[2] and open_probe != BG else 'WARN'}")
-print(f"AFF wall reach (18,292): {wall_probe}  "
-      f"→ {'OK warm at wall' if wall_probe[0] > wall_probe[2] else 'WARN'}")
+print(f"AFF wall stays cool (18,292): {wall_probe}  "
+      f"→ {'OK accent stays local, wall deep indigo' if wall_probe[2] >= wall_probe[0] else 'WARN glow reached wall'}")
 
 # The BUY face's own brightest point is its gold top-sheen — measure it over the
 # whole button rect so it can serve as the "brightest anchor" reference.
