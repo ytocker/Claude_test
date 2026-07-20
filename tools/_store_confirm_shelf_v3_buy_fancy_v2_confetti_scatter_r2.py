@@ -94,6 +94,22 @@ def _padlock(surf, cx, cy, h, color):
     pygame.draw.rect(surf, (10, 14, 26), kh, border_radius=1)
 
 
+def _sparkle(surf, px, py, hw, hh, color, alpha):
+    # A 4-point crossed-diamond glint reads as "shine" at 1×; a filled star
+    # polygon just mushes to a blob at this size. A hot white core gives it a
+    # focal highlight so it pops as the crown of the burst.
+    r_in = hw * 0.26
+    pts = [
+        (px, py - hh), (px + r_in, py - r_in),
+        (px + hw, py), (px + r_in, py + r_in),
+        (px, py + hh), (px - r_in, py + r_in),
+        (px - hw, py), (px - r_in, py - r_in),
+    ]
+    pygame.draw.polygon(surf, (*color, alpha), pts)
+    pygame.draw.circle(surf, (255, 255, 245, alpha),
+                       (int(px), int(py)), max(1, int(hw * 0.22)))
+
+
 def _draw_confetti(big):
     # Seed fixed so the still-frame burst is identical on every render across
     # both build targets — the celebration is a deliberate composition, not
@@ -106,45 +122,60 @@ def _draw_confetti(big):
     S_X1, S_Y1 = m(SHELF_X), m(SHELF_Y)
     S_X2, S_Y2 = m(SHELF_X + SHELF_W), m(SHELF_Y + SHELF_H)
 
-    for _ in range(N_PARTICLES):
-        angle = _rng.uniform(0, 2 * math.pi)
-        dist  = _rng.uniform(m(22), m(48))  # ring the button, avoid its face
-        px = cx_c + dist * math.cos(angle)
-        py = cy_c + dist * math.sin(angle)
+    # Fountain, not ring: fan the spray up-and-out from behind BUY (screen y is
+    # down, so this arc sweeps upper-left → over-the-top → lower-right).
+    A0, A1  = math.radians(-160), math.radians(20)
+    DEAD_DX = m(18)
+    DEAD_Y  = m(BTN_CY + BTN_H / 2 + 5)
+    # Keep the party BUY-side: never let confetti drift over the quiet CANCEL.
+    FENCE_R = m(BUY_CX + BTN_W // 2 + 8)
 
-        px = max(S_X1 + m(4), min(S_X2 - m(4), px))
+    for _ in range(N_PARTICLES):
+        # Re-roll any sample landing in the dead zone straight below BUY — that
+        # spot reads as spillage, not eruption.
+        for _try in range(8):
+            angle = _rng.uniform(A0, A1)
+            dist  = _rng.uniform(m(26), m(48))
+            px = cx_c + dist * math.cos(angle)
+            py = cy_c + dist * math.sin(angle)
+            if not (abs(px - cx_c) < DEAD_DX and py > DEAD_Y):
+                break
+
+        px = max(S_X1 + m(4), min(FENCE_R, px))
         py = max(S_Y1 + m(4), min(S_Y2 - m(4), py))
 
-        col = _rng.choice(COLORS)
-        ptype = _rng.randint(0, 2)
+        # Depth falloff: near the button larger + brighter, tapering toward the
+        # rim so the eye reads a 3-D spray rather than a flat sticker field.
+        d = math.hypot(px - cx_c, py - cy_c)
+        scale = max(0.4, 1.0 - (d - m(26)) / m(60))
 
-        if ptype == 0:
-            ew = _rng.randint(m(6), m(12))
-            eh = _rng.randint(m(3), m(7))
-            pygame.draw.ellipse(conf_surf, (*col, 210),
+        col = _rng.choice(COLORS)
+        if _rng.randint(0, 1) == 0:
+            ew = max(2, int(_rng.randint(m(6), m(12)) * scale))
+            eh = max(2, int(_rng.randint(m(3), m(7)) * scale))
+            a  = max(80, int(210 * scale))
+            pygame.draw.ellipse(conf_surf, (*col, a),
                                 (int(px - ew // 2), int(py - eh // 2), ew, eh))
-        elif ptype == 1:
-            hw = _rng.randint(m(3), m(7))
-            hh = _rng.randint(m(4), m(9))
-            rot = _rng.uniform(0, math.pi)
-            cos_r, sin_r = math.cos(rot), math.sin(rot)
-            pts = [
-                (px + hw * cos_r, py + hw * sin_r),
-                (px - hh * sin_r, py + hh * cos_r),
-                (px - hw * cos_r, py - hw * sin_r),
-                (px + hh * sin_r, py - hh * cos_r),
-            ]
-            pygame.draw.polygon(conf_surf, (*col, 210), pts)
         else:
-            rw = _rng.randint(m(6), m(12))
-            rh = _rng.randint(m(2), m(5))
+            rw = max(2, int(_rng.randint(m(6), m(12)) * scale))
+            rh = max(1, int(_rng.randint(m(2), m(5)) * scale))
+            a  = max(80, int(200 * scale))
             rot = _rng.uniform(0, math.pi)
             cos_r, sin_r = math.cos(rot), math.sin(rot)
             hw2, hh2 = rw / 2, rh / 2
             corners = [(-hw2, -hh2), (hw2, -hh2), (hw2, hh2), (-hw2, hh2)]
             pts = [(px + x * cos_r - y * sin_r, py + x * sin_r + y * cos_r)
                    for x, y in corners]
-            pygame.draw.polygon(conf_surf, (*col, 200), pts)
+            pygame.draw.polygon(conf_surf, (*col, a), pts)
+
+    # Hero sparkles drawn LAST — a handful of big bright glints at the crown of
+    # the fountain are the "wow" the eye lands on; keeping them on top means no
+    # confetti ever mutes them.
+    for _ in range(5):
+        sx = cx_c + _rng.uniform(-m(30), m(34))
+        sx = max(S_X1 + m(6), min(FENCE_R, sx))
+        sy = _rng.uniform(m(SHELF_Y + 6), m(SHELF_Y + 20))
+        _sparkle(conf_surf, sx, sy, m(9), m(9), (255, 252, 220), 255)
 
     big.blit(conf_surf, (0, 0))
 
@@ -368,7 +399,7 @@ except Exception:
     fnt_hdr = fnt_badge = ImageFont.load_default()
 
 draw.text((CANVAS_W // 2, MARGIN + HDR_H // 2),
-          "confetti-scatter (C) r1  |  AFFORDABLE / UNAFFORDABLE",
+          "confetti-scatter (C) r2  |  AFFORDABLE / UNAFFORDABLE",
           fill=(180, 200, 240), font=fnt_hdr, anchor="mm")
 
 panels_y = MARGIN + HDR_H + GAP_HDR
@@ -392,7 +423,7 @@ for px, affordable, panel in panels_data:
 
 OUT = os.path.join(os.path.dirname(__file__), "..",
                    "docs", "store_confirm_shelf_v3", "buy-fancy-v2",
-                   "confetti-scatter", "round_1.png")
+                   "confetti-scatter", "round_2.png")
 OUT = os.path.abspath(OUT)
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 canvas.save(OUT)
@@ -401,11 +432,38 @@ print(f"Saved {OUT}  ({CANVAS_W}x{CANVAS_H})")
 # PIL verification
 aff = panels_data[0][2]
 unaff = panels_data[1][2]
+
+
+def _bright(p):
+    # Confetti/sparkle pixels far outstrip the dark indigo shelf in total
+    # luminance, so a sum threshold cleanly separates burst from background.
+    return sum(p[:3]) > 260
+
+
 buy_c = aff.getpixel((58, 302))
-print(f"BUY center (58,302): {buy_c}  — should be clean indigo")
-for pt in [(38, 285), (78, 285), (38, 318)]:
-    px = aff.getpixel(pt)
-    print(f"confetti probe {pt}: {px}  → {'confetti' if px != (8,8,20) else 'BG'}")
+print(f"BUY center (58,302): {buy_c}  — should be clean indigo (no confetti on face)")
+
+# Count confetti in the arc above BUY (shelf band, clear of the button rim).
+arc_hits = 0
+for yy in range(255, 285):
+    for xx in range(34, 90):
+        if _bright(aff.getpixel((xx, yy))):
+            arc_hits += 1
+print(f"confetti pixels in arc above BUY (x34-90, y255-285): {arc_hits}  "
+      f"→ {'OK multiple' if arc_hits > 20 else 'TOO FEW'}")
+
 can_c = aff.getpixel((142, 302))
-print(f"CANCEL center (142,302): {can_c}  — should be indigo")
-print(f"[unaff] BUY center (58,302): {unaff.getpixel((58,302))}  — locked slate, no confetti")
+print(f"CANCEL center (142,302): {can_c}  — should be plain indigo")
+
+# CANCEL side must stay quiet — no confetti bled past the fence.
+can_hits = sum(1 for yy in range(255, 285) for xx in range(118, 170)
+               if _bright(aff.getpixel((xx, yy))))
+print(f"confetti pixels over CANCEL band (x118-170, y255-285): {can_hits}  "
+      f"→ {'OK quiet' if can_hits == 0 else 'BLEED'}")
+
+unaff_c = unaff.getpixel((58, 302))
+print(f"[unaff] BUY center (58,302): {unaff_c}  — locked slate")
+unaff_hits = sum(1 for yy in range(255, 285) for xx in range(34, 90)
+                 if _bright(unaff.getpixel((xx, yy))))
+print(f"[unaff] confetti pixels above BUY: {unaff_hits}  "
+      f"→ {'OK none' if unaff_hits == 0 else 'HAS CONFETTI'}")

@@ -1,14 +1,19 @@
-"""buy-fancy-v2 concept D — GEM-LETTERS (r2).
+"""buy-fancy-v2 concept E — legendary-aura (r2).
 
-Single hero gem set into a near-black velvet face beside a real "BUY" wordmark.
-The r1 "three gems = three letters" idea collapsed into one gold blob at 76px
-button width and its overlapping halos erased the dark face. This keeps the DNA
-— jewel-setting on velvet, legendary-BUY — but with one seated brilliant, a
-tight controlled aura behind only the gem, and a gold wordmark reading the label
-plainly. The regalia frame remains the jewel-setting border for the whole button.
+A warm legendary aura fills the shelf around BUY (affordable only) — a wide,
+low-alpha ambient field that laps up to the chip and out to the shelf walls,
+plus a tighter core halo. The BUY face itself stays the brightest anchor: the
+glow is support light, not the star. Three facet gems float clearly OUTSIDE the
+button like satellite stars, each with a controlled (non-white) glint. CANCEL
+stays a plain deep-card button. On the unaffordable panel BUY reverts to a
+locked slate + padlock with NO glow and NO satellites — the legendary treatment
+is a reward for being able to afford it.
 
-Sheet: left=AFFORDABLE, right=UNAFFORDABLE, 444×412
-Output → docs/store_confirm_shelf_v3/buy-fancy-v2/gem-letters/round_2.png
+Everything else (card body, corner gems, name, banner, shelf, chip, disc/aura/
+thumb drawn LAST, SS=2 pipeline) is preserved from the c-orig-bg base.
+
+Sheet: left=AFFORDABLE (x=18), right=UNAFFORDABLE (x=226), 444×412, panels_y=54.
+Output → docs/store_confirm_shelf_v3/buy-fancy-v2/legendary-aura/round_2.png
 """
 import os, sys, math
 
@@ -65,8 +70,9 @@ def _padlock(surf, cx, cy, h, color):
 
 
 def _btn(big, btn_rect, rad, label, font_px, locked=False, is_cancel=False):
-    # Locked BUY + CANCEL keep the original indigo fills + gold bevel so only the
-    # affordable BUY carries the gem-letters treatment.
+    # Original indigo fills + gold bevel: the CANCEL button and the LOCKED BUY
+    # both flow through here so only the affordable BUY carries the legendary
+    # gold + aura treatment applied in _draw_shelf.
     if locked:
         stops   = [(0.0, (58, 60, 74)), (1.0, (40, 42, 54))]
         lab_col = (150, 152, 162)
@@ -109,37 +115,6 @@ def _btn(big, btn_rect, rad, label, font_px, locked=False, is_cancel=False):
                       shadow_a=110, weight=m(0.8), keyline=(8, 6, 20), kw=m(0.9))
 
 
-def _buy_gem_letters(big, btn_rect, rad):
-    # One hero brilliant set into near-black velvet, paired with a plain gold
-    # "BUY" wordmark. The face must stay dark away from the gem, so the aura is
-    # tight and low — a jewel-on-velvet reading, not a flooded gold button.
-    sc.drop_shadow(big, btn_rect, rad, blur=m(3), alpha=120, dy=m(2))
-    big.blit(sc.vgrad_stops(btn_rect.w, btn_rect.h, rad,
-             [(0.0, (18, 20, 50)), (1.0, (10, 11, 30))], 255), btn_rect.topleft)
-    sc.bevel_rim(big, btn_rect, rad, sc.CARD_RING_DEEP,
-                 (*sc.CARD_RING_BRIGHT, 220), w=max(1, m(1.4)))
-    sc._draw_regalia_frame(big, btn_rect, rad)
-
-    lgd    = sc.RARITY["legendary"]
-    gem_cx = m(BUY_CX) - m(14)
-    gem_cy = m(BTN_CY)
-
-    # Gold wordmark first (right of the gem) so the gem's glint sits on top.
-    # font() re-applies SS internally, so a logical-14 size keeps the mark a
-    # peer of CANCEL and — critically — clear of the far-right velvet the brief
-    # requires to stay near-black (a larger mark would flood that sample gold).
-    text_cx = m(BUY_CX) + m(10)
-    sc.plain_text(big, "BUY", sc.font(14), (text_cx, m(BTN_CY)),
-                  (236, 202, 116))
-
-    # Tight, controlled halo behind ONLY the gem — keeps the rest near-black.
-    sc._alpha_aura(big, gem_cx, gem_cy, m(13), lgd["glow"], peak=40, layers=8)
-    sc.facet_gem(big, gem_cx, gem_cy, m(9), lgd["gem"], lgd["deep"])
-    # Single upper-left near-white glint — the specular juice of a cut jewel.
-    pygame.draw.circle(big, (255, 252, 242),
-                       (gem_cx - m(3), gem_cy - m(4)), m(1))
-
-
 def _draw_chip(big, cx, cy, price, affordable):
     global _hair_final
     chip = pygame.Rect(0, 0, m(CHIP_W), m(CHIP_H))
@@ -149,6 +124,8 @@ def _draw_chip(big, cx, cy, price, affordable):
     sc.drop_shadow(big, chip, crad, blur=m(3), alpha=90, dy=m(2))
 
     if affordable:
+        # Match the card body colour just above the shelf so the chip reads
+        # as an inlay rather than a floating pill.
         face_stops = [(0.0, (18, 20, 50)), (1.0, (10, 11, 30))]
     else:
         face_stops = [(0.0, (28, 28, 50)), (1.0, (18, 18, 36))]
@@ -202,6 +179,7 @@ def _draw_chip(big, cx, cy, price, affordable):
 
 
 def _draw_shelf(big, affordable):
+    # Original _draw_confirm shelf palette — indigo-blue instead of teal.
     shelf_rect = pygame.Rect(m(SHELF_X), m(SHELF_Y), m(SHELF_W), m(SHELF_H))
     shelf_rad  = m(CARD_RAD)
 
@@ -223,6 +201,7 @@ def _draw_shelf(big, affordable):
     big.blit(seat, (shelf_rect.x, shelf_rect.y - m(6)))
     big.blit(shelf, shelf_rect.topleft)
 
+    # Walls: original purple-lit left / dark right.
     wall_draw_h = m(CARD_TOP + CARD_H - CARD_RAD - SHELF_Y)
     if wall_draw_h > 0:
         wall_w = m(SHELF_X - CARD_X)
@@ -237,17 +216,65 @@ def _draw_shelf(big, affordable):
             pygame.draw.line(rwall, (0, 0, 0, a), (xx, 0), (xx, wall_draw_h - 1))
         big.blit(rwall, (m(SHELF_X + SHELF_W), m(SHELF_Y)))
 
+    # Step 1 — legendary aura, laid down BEFORE the chip and buttons so it reads
+    # as light welling up from under the button rather than a sticker on top.
+    # Affordable only: the bloom is the "you can claim this" reward tell. A wide,
+    # low-alpha ambient field fills the shelf with warmth (lapping up toward the
+    # chip and out to the walls), then a tighter core halo hugs the BUY seat —
+    # both kept dim enough that the BUY face stays the brightest anchor.
+    if affordable:
+        sc.soft_glow(big, m(BUY_CX), m(BTN_CY) - m(10), m(78),
+                     sc.RARITY["legendary"]["glow"], peak_alpha=45)
+        sc.soft_glow(big, m(BUY_CX), m(BTN_CY), m(44),
+                     sc.RARITY["legendary"]["glow"], peak_alpha=115)
+        sc._alpha_aura(big, m(BUY_CX), m(BTN_CY), m(30),
+                       sc.RARITY["legendary"]["gem"], peak=90, layers=12)
+
+    # Step 2 — chip (unchanged).
     _draw_chip(big, m(CX), m(CHIP_CY), PRICE, affordable)
 
+    # Step 3 — BUY button. Its gold face is the warmest/brightest point in the
+    # field; the aura above is only support light.
     buy = pygame.Rect(0, 0, m(BTN_W), m(BTN_H)); buy.center = (m(BUY_CX), m(BTN_CY))
-    can = pygame.Rect(0, 0, m(BTN_W), m(BTN_H)); can.center = (m(CAN_CX), m(BTN_CY))
     brad = m(BTN_RAD)
-
     if affordable:
-        _buy_gem_letters(big, buy, brad)
+        sc.drop_shadow(big, buy, brad, blur=m(3), alpha=150, dy=m(2))
+        gold_surf = sc.gold_a_fill(buy.w, buy.h, brad, 255)
+        big.blit(gold_surf, buy.topleft)
+        sc.top_sheen(big, buy, brad, m(12), peak=40)
+        sc.bevel_rim(big, buy, brad, sc.GOLD_A_RIM_DARK,
+                     (*sc.GOLD_A_RIM_BRIGHT, 240), w=max(1, m(2.0)))
+        sc.plain_text(big, "BUY", sc.font(14), buy.center, sc.GOLD_A_NUM,
+                      shadow_a=0, weight=m(0.8), keyline=(200, 160, 60), kw=m(0.6))
     else:
         _btn(big, buy, brad, "BUY", 14, locked=True)
+
+    # Step 4 — CANCEL button (plain deep-card; no glow, no gold).
+    can = pygame.Rect(0, 0, m(BTN_W), m(BTN_H)); can.center = (m(CAN_CX), m(BTN_CY))
     _btn(big, can, brad, "CANCEL", 13, locked=False, is_cancel=True)
+
+    # Step 5 — three satellite facet gems floating clearly OUTSIDE the button
+    # (12 o'clock, lower-left, lower-right) so none read as debris on the face.
+    # Each gets a controlled amber glint over its hot pip so no gem pixel blows
+    # past the BUY top-sheen to near-white.
+    if affordable:
+        angles_deg = [-90, 210, 330]   # from 12 o'clock
+        orbit_r = m(42)
+        gem_r   = m(7)
+        for angle_deg in angles_deg:
+            angle_rad = math.radians(angle_deg)
+            sx = m(BUY_CX) + int(orbit_r * math.sin(angle_rad))
+            sy = m(BTN_CY) + int(orbit_r * math.cos(angle_rad) * -1)
+            sc.facet_gem(big, sx, sy, gem_r,
+                         sc.RARITY["legendary"]["gem"],
+                         sc.RARITY["legendary"]["deep"])
+            # Cap the highlight: overpaint the gem's white pip with a warm glint
+            # so its peak brightness stays below the BUY top-sheen.
+            gr  = max(1, int(gem_r * 0.26))
+            gcx = sx - int(gem_r * 0.24)
+            gcy = sy - int(gem_r * 0.24)
+            pygame.draw.circle(big, (230, 200, 140), (gcx, gcy), gr)
+            pygame.draw.circle(big, (250, 230, 190), (gcx, gcy), max(1, gr - m(1)))
 
     if not affordable:
         sc.plain_text(big, "NOT ENOUGH", sc.font(7), (m(CX), m(322)),
@@ -312,7 +339,7 @@ except Exception:
     fnt_hdr = fnt_badge = ImageFont.load_default()
 
 draw.text((CANVAS_W // 2, MARGIN + HDR_H // 2),
-          "gem-letters (D) r2  |  AFFORDABLE / UNAFFORDABLE",
+          "legendary-aura (E) r2  |  AFFORDABLE / UNAFFORDABLE",
           fill=(180, 200, 240), font=fnt_hdr, anchor="mm")
 
 panels_y = MARGIN + HDR_H + GAP_HDR
@@ -328,36 +355,59 @@ for px, affordable in PANELS:
 for px, affordable, panel in panels_data:
     canvas.paste(panel, (px, panels_y))
     bx, by = px + 5, panels_y + 5
-    bw = fnt_badge.getlength("D") + 8
+    bw = fnt_badge.getlength("E") + 8
     draw.rounded_rectangle([bx - 1, by - 1, bx + bw + 1, by + 18], radius=5,
                             fill=(200, 190, 240))
     draw.rounded_rectangle([bx, by, bx + bw, by + 17], radius=4, fill=(24, 22, 38))
-    draw.text((bx + 4, by + 8), "D", fill=(230, 225, 245), font=fnt_badge, anchor="lm")
+    draw.text((bx + 4, by + 8), "E", fill=(230, 225, 245), font=fnt_badge, anchor="lm")
 
 OUT = os.path.join(os.path.dirname(__file__), "..",
-                   "docs", "store_confirm_shelf_v3", "buy-fancy-v2", "gem-letters",
-                   "round_2.png")
+                   "docs", "store_confirm_shelf_v3", "buy-fancy-v2",
+                   "legendary-aura", "round_2.png")
 OUT = os.path.abspath(OUT)
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 canvas.save(OUT)
 print(f"Saved {OUT}  ({CANVAS_W}x{CANVAS_H})")
 
-# PIL verification
+# ── PIL verification ─────────────────────────────────────────────────────────
+BG = (8, 8, 20)
 aff = panels_data[0][2]
+un  = panels_data[1][2]
 
-# Hero gem: gem_cx in 1x = BUY_CX - 14 = 44
-hero = aff.getpixel((BUY_CX - 14, BTN_CY))
-hero_ok = hero[0] > 90 and hero[0] >= hero[2]
-print(f"hero gem ({BUY_CX - 14},{BTN_CY}): {hero}  → "
-      f"{'OK gem-gold' if hero_ok else 'WARN not gold'}")
+buy_px = aff.getpixel((BUY_CX, BTN_CY))
+print(f"AFF BUY center ({BUY_CX},{BTN_CY}): {buy_px}  "
+      f"→ {'OK warm amber R>G>B' if buy_px[0] > buy_px[1] > buy_px[2] else 'WARN'}")
 
-# BUY face far right (near CAN side) — velvet must still read near-black.
-vx = BUY_CX + 33   # logical 91, inside the BUY button (spans 20..96)
-velvet = aff.getpixel((vx, BTN_CY))
-velvet_ok = (10 <= velvet[0] <= 35 and 11 <= velvet[1] <= 40 and 30 <= velvet[2] <= 65)
-print(f"BUY velvet far-right ({vx},{BTN_CY}): {velvet}  → "
-      f"{'OK near-black' if velvet_ok else 'WARN velvet lost'}")
+# Wide glow reaches shelf top.
+wide_probe = aff.getpixel((BUY_CX, SHELF_Y + 10))
+print(f"AFF wide-glow ({BUY_CX},{SHELF_Y+10}): {wide_probe}  "
+      f"→ {'OK warm non-bg' if wide_probe != BG and wide_probe[0] >= wide_probe[2] else 'WARN'}")
+
+# One satellite gem, clearly OUTSIDE the button rect. Top gem at orbit 42/SS ≈
+# 21px above BTN_CY, i.e. y ≈ 281 — button top is BTN_CY-BTN_H//2 = 287, so 281
+# is outside.
+sat_y = BTN_CY - 21
+sat_px = aff.getpixel((BUY_CX, sat_y))
+btn_top = BTN_CY - BTN_H // 2
+print(f"AFF top satellite ({BUY_CX},{sat_y}): {sat_px}  outside={sat_y < btn_top}  "
+      f"→ {'OK non-bg outside' if sat_px != BG and sat_y < btn_top else 'WARN'}")
+
+# Verify no satellite center lands inside the button rect.
+for angle_deg in [-90, 210, 330]:
+    ar = math.radians(angle_deg)
+    sx = BUY_CX + int((42 // 1) * math.sin(ar) / SS)
+    sy = BTN_CY + int((42 // 1) * math.cos(ar) * -1 / SS)
+    inside = (BUY_CX - BTN_W // 2 <= sx <= BUY_CX + BTN_W // 2 and
+              BTN_CY - BTN_H // 2 <= sy <= BTN_CY + BTN_H // 2)
+    print(f"  sat @{angle_deg}° → ({sx},{sy}) inside_btn={inside}")
+
+un_buy = un.getpixel((BUY_CX, BTN_CY))
+print(f"UN BUY center ({BUY_CX},{BTN_CY}): {un_buy}  "
+      f"→ {'OK slate/locked' if abs(un_buy[0]-un_buy[2]) < 30 and un_buy[0] < 120 else 'WARN'}")
+un_glow = un.getpixel((BUY_CX, SHELF_Y + 10))
+print(f"UN wide probe ({BUY_CX},{SHELF_Y+10}): {un_glow}  "
+      f"→ {'OK no warm glow' if un_glow[0] <= un_glow[2] + 8 else 'WARN'}")
 
 can_px = aff.getpixel((CAN_CX, BTN_CY))
-print(f"CANCEL center ({CAN_CX},{BTN_CY}): {can_px}  → "
-      f"{'OK indigo' if can_px[2] >= can_px[0] else 'WARN'}")
+print(f"AFF CANCEL center ({CAN_CX},{BTN_CY}): {can_px}  "
+      f"→ {'OK indigo' if can_px[2] > can_px[0] else 'WARN'}")
