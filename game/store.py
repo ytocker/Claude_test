@@ -921,8 +921,8 @@ class StoreScene:
         CARD_X, CARD_W, CARD_TOP, CARD_H, CARD_RAD = 8, 184, 98, 230, 18
         R_HERO, DISC_CY = 41, 104
         GEM_R, GEM_CY, GEM_L_X, GEM_R_X = 11, 117, 33, 167
-        NAME_FS, Y_NAME = 30, 168
-        Y_BANNER, BANNER_W = 188, 120
+        NAME_FS, Y_NAME = 30, 178
+        Y_BANNER, BANNER_W = 198, 120
         SHELF_X, SHELF_Y, SHELF_W, SHELF_H = 13, 235, 174, 87
         CHIP_CY = 258
         BTN_W, BTN_H, BTN_RAD, BTN_CY, BTN_GAP = 76, 30, 9, 302, 8
@@ -1037,14 +1037,14 @@ class StoreScene:
                         best_mw, best_i = mw, i
                 line1, line2 = name[:best_i] + '-', name[best_i:]
             store_cards.plain_text(big, line1, store_cards.font(30),
-                                   (m(CX), m(157)), (250, 248, 240),
+                                   (m(CX), m(167)), (250, 248, 240),
                                    shadow_a=160, weight=m(0.9),
                                    keyline=(6, 6, 16), kw=m(1.0))
             store_cards.plain_text(big, line2, store_cards.font(27),
-                                   (m(CX), m(179)), (250, 248, 240),
+                                   (m(CX), m(189)), (250, 248, 240),
                                    shadow_a=120, weight=m(0.8),
                                    keyline=(6, 6, 16), kw=m(1.0))
-            active_banner_y = 208
+            active_banner_y = 218
 
         # ── rarity banner ─────────────────────────────────────────────────────
         store_cards._ribbon_lozenge(big, tier_word, m(CX), m(active_banner_y), m(BANNER_W), pal)
