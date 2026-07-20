@@ -279,7 +279,9 @@ aff_panel = panels_data[0][2]
 probe = aff_panel.getpixel((118, 224))
 print(f"(118, 224) affordable: {probe}  "
       f"-> {'non-background OK' if probe != (8, 8, 20) else 'WARN: background!'}")
-shelf_px = aff_panel.getpixel((118, 330))
+# The next two are sheet-space (panel is only 340 tall) — read off the canvas.
+shelf_px = canvas.getpixel((118, 330))
 print(f"(118, 330) shelf: {shelf_px}")
-cancel_px = aff_panel.getpixel((160, 356))
-print(f"(160, 356) CANCEL body: {cancel_px}")
+cancel_px = canvas.getpixel((160, 356))
+print(f"(160, 356) CANCEL body: {cancel_px}  "
+      f"-> parchment ghost (blends into cream)")
