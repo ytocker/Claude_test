@@ -1,0 +1,471 @@
+"""BUY-fancy v2 concept C: confetti-scatter.
+
+60 confetti particles frozen mid-explosion around the BUY button — a
+celebration captured in a still frame. BUY stays clean in the centre;
+CANCEL is plain. Confetti only decorates the affordable (unlocked) state.
+
+Structure is inherited verbatim from the C-orig-bg hybrid: card body,
+corner gems, name, banner, shelf, chip, disc/aura/thumb drawn LAST, SS=2
+pipeline, RGB tostring, 444×412 sheet.
+
+Output → docs/store_confirm_shelf_v3/buy-fancy-v2/confetti-scatter/round_1.png
+"""
+import os, sys, math
+import random as _rng
+
+os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+import pygame
+pygame.init()
+pygame.display.set_mode((1, 1), pygame.NOFRAME)
+
+from PIL import Image, ImageDraw, ImageFont
+import game.store_cards as sc
+
+SS = sc.SS
+m  = sc.m
+
+POP_W, POP_H = 200, 340
+CX           = POP_W // 2
+
+CARD_X, CARD_W, CARD_TOP, CARD_H, CARD_RAD = 8, 184, 98, 230, 18
+R_HERO, DISC_CY                            = 41, 104
+GEM_R, GEM_CY, GEM_L_X, GEM_R_X            = 11, 117, 33, 167
+NAME_FS, Y_NAME                            = 30, 155
+Y_BANNER, BANNER_W                         = 175, 120
+
+SHELF_X, SHELF_Y, SHELF_W, SHELF_H = 13, 235, 174, 87
+CHIP_CY                            = 258
+BTN_W, BTN_H, BTN_RAD              = 76, 30, 9
+BTN_CY, BTN_GAP                    = 302, 8
+BUY_CX = CX - (BTN_W + BTN_GAP) // 2
+CAN_CX = CX + (BTN_W + BTN_GAP) // 2
+CHIP_W, CHIP_H, CHIP_RAD          = 112, 34, 8
+
+PAL   = sc.RARITY["epic"]
+PRICE = 500
+
+HAIR_GOLD = sc.CARD_RING_BRIGHT
+_hair_final = None
+
+# Confetti palette — a genuinely multicolor celebration, not a gold wash. The
+# violet / teal / coral accents read as party colours the eye can't lump into
+# one warm mass, so the burst feels festive rather than merely gilded.
+PARTICLE_GOLD = (255, 215, 0)
+PARTICLE_WHT  = (255, 255, 220)
+COLORS = [
+    PARTICLE_GOLD,          # warm gold — ~25%
+    PARTICLE_GOLD,
+    PARTICLE_GOLD,
+    PARTICLE_GOLD,
+    PARTICLE_GOLD,
+    PARTICLE_WHT,           # near-white — ~15%
+    PARTICLE_WHT,
+    PARTICLE_WHT,
+    (160, 110, 220),        # bright lilac/violet — ~20%
+    (160, 110, 220),
+    (160, 110, 220),
+    (160, 110, 220),
+    sc.CARD_RING_BRIGHT,    # amber gold — ~15%
+    sc.CARD_RING_BRIGHT,
+    sc.CARD_RING_BRIGHT,
+    (80, 200, 180),         # teal/cyan accent — ~15%
+    (80, 200, 180),
+    (80, 200, 180),
+    (255, 140, 80),         # coral/amber pop — ~10%
+    (255, 140, 80),
+]
+N_PARTICLES = 72
+
+
+def _padlock(surf, cx, cy, h, color):
+    bw, bh = int(h * 0.92), int(h * 0.60)
+    body = pygame.Rect(0, 0, bw, bh)
+    body.center = (cx, cy + int(h * 0.20))
+    pygame.draw.rect(surf, color, body, border_radius=max(1, int(h * 0.14)))
+    sr = int(h * 0.30)
+    arc = pygame.Rect(cx - sr, body.top - sr, sr * 2, sr * 2)
+    pygame.draw.arc(surf, color, arc, math.radians(15), math.radians(165),
+                    max(1, int(h * 0.17)))
+    kh = pygame.Rect(0, 0, max(1, int(h * 0.16)), max(1, int(h * 0.22)))
+    kh.center = (cx, body.centery + int(h * 0.02))
+    pygame.draw.rect(surf, (10, 14, 26), kh, border_radius=1)
+
+
+def _sparkle(surf, px, py, hw, hh, color, alpha):
+    # A 4-point crossed-diamond glint reads as "shine" at 1×; a filled star
+    # polygon just mushes to a blob at this size. A hot white core gives it a
+    # focal highlight so it pops as the crown of the burst.
+    r_in = hw * 0.26
+    pts = [
+        (px, py - hh), (px + r_in, py - r_in),
+        (px + hw, py), (px + r_in, py + r_in),
+        (px, py + hh), (px - r_in, py + r_in),
+        (px - hw, py), (px - r_in, py - r_in),
+    ]
+    pygame.draw.polygon(surf, (*color, alpha), pts)
+    pygame.draw.circle(surf, (255, 255, 245, alpha),
+                       (int(px), int(py)), max(1, int(hw * 0.22)))
+
+
+def _draw_confetti(big):
+    # Seed fixed so the still-frame burst is identical on every render across
+    # both build targets — the celebration is a deliberate composition, not
+    # per-frame noise.
+    _rng.seed(42)
+
+    conf_surf = pygame.Surface((m(POP_W), m(POP_H)), pygame.SRCALPHA)
+    cx_c, cy_c = m(BUY_CX), m(BTN_CY)
+
+    S_X1, S_Y1 = m(SHELF_X), m(SHELF_Y)
+    S_X2, S_Y2 = m(SHELF_X + SHELF_W), m(SHELF_Y + SHELF_H)
+
+    # Fountain, not ring: fan the spray up-and-out from behind BUY (screen y is
+    # down, so this arc sweeps upper-left → over-the-top → lower-right).
+    A0, A1  = math.radians(-160), math.radians(20)
+    DEAD_DX = m(18)
+    DEAD_Y  = m(BTN_CY + BTN_H / 2 + 5)
+    # Keep the party BUY-side: never let confetti drift over the quiet CANCEL.
+    FENCE_R = m(BUY_CX + BTN_W // 2 + 8)
+
+    for _ in range(N_PARTICLES):
+        # Re-roll any sample landing in the dead zone straight below BUY — that
+        # spot reads as spillage, not eruption.
+        for _try in range(8):
+            angle = _rng.uniform(A0, A1)
+            dist  = _rng.uniform(m(26), m(48))
+            px = cx_c + dist * math.cos(angle)
+            py = cy_c + dist * math.sin(angle)
+            if not (abs(px - cx_c) < DEAD_DX and py > DEAD_Y):
+                break
+
+        px = max(S_X1 + m(4), min(FENCE_R, px))
+        py = max(S_Y1 + m(4), min(S_Y2 - m(4), py))
+
+        # Depth falloff: near the button larger + brighter, tapering toward the
+        # rim so the eye reads a 3-D spray rather than a flat sticker field.
+        d = math.hypot(px - cx_c, py - cy_c)
+        scale = max(0.4, 1.0 - (d - m(26)) / m(60))
+
+        col = _rng.choice(COLORS)
+        if _rng.randint(0, 1) == 0:
+            ew = max(2, int(_rng.randint(m(6), m(12)) * scale))
+            eh = max(2, int(_rng.randint(m(3), m(7)) * scale))
+            a  = max(80, int(210 * scale))
+            pygame.draw.ellipse(conf_surf, (*col, a),
+                                (int(px - ew // 2), int(py - eh // 2), ew, eh))
+        else:
+            rw = max(2, int(_rng.randint(m(6), m(12)) * scale))
+            rh = max(1, int(_rng.randint(m(2), m(5)) * scale))
+            a  = max(80, int(200 * scale))
+            rot = _rng.uniform(0, math.pi)
+            cos_r, sin_r = math.cos(rot), math.sin(rot)
+            hw2, hh2 = rw / 2, rh / 2
+            corners = [(-hw2, -hh2), (hw2, -hh2), (hw2, hh2), (-hw2, hh2)]
+            pts = [(px + x * cos_r - y * sin_r, py + x * sin_r + y * cos_r)
+                   for x, y in corners]
+            pygame.draw.polygon(conf_surf, (*col, a), pts)
+
+    # Hero sparkles drawn LAST — a handful of big bright glints at the crown of
+    # the fountain are the "wow" the eye lands on; keeping them on top means no
+    # confetti ever mutes them.
+    for _ in range(5):
+        sx = cx_c + _rng.uniform(-m(30), m(34))
+        sx = max(S_X1 + m(6), min(FENCE_R, sx))
+        sy = _rng.uniform(m(SHELF_Y + 6), m(SHELF_Y + 20))
+        _sparkle(conf_surf, sx, sy, m(9), m(9), (255, 252, 220), 255)
+
+    big.blit(conf_surf, (0, 0))
+
+
+def _btn(big, btn_rect, rad, label, font_px, locked=False, is_cancel=False):
+    if locked:
+        stops   = [(0.0, (58, 60, 74)), (1.0, (40, 42, 54))]
+        lab_col = (150, 152, 162)
+        sheen   = 10
+    elif is_cancel:
+        stops   = [(0.0, (26, 28, 64)), (1.0, (14, 16, 44))]
+        lab_col = (150, 155, 200)
+        sheen   = 14
+    else:
+        stops   = [(0.0, (38, 40, 84)), (1.0, (22, 24, 56))]
+        lab_col = (200, 205, 240)
+        sheen   = 22
+
+    # Affordable BUY lifts slightly harder off the confetti so it stays the
+    # clean focal point in the middle of the burst.
+    shadow_a = 130 if (not locked and not is_cancel) else 100
+    sc.drop_shadow(big, btn_rect, rad, blur=m(3), alpha=shadow_a, dy=m(2))
+    big.blit(sc.vgrad_stops(btn_rect.w, btn_rect.h, rad, stops, 255), btn_rect.topleft)
+    sc.top_sheen(big, btn_rect, rad, m(12), peak=sheen)
+
+    if locked:
+        sc.bevel_rim(big, btn_rect, rad, (20, 18, 36, 180), (130, 124, 160, 200),
+                     w=max(1, m(1.2)))
+    else:
+        rim_w = m(2.2) if is_cancel else m(2.0)
+        sc.bevel_rim(big, btn_rect, rad, sc.CARD_RING_DEEP,
+                     (*sc.CARD_RING_BRIGHT, 230), w=max(1, rim_w))
+
+    lab_font = sc.font(font_px)
+    if locked:
+        lw = lab_font.size(label)[0]
+        lock_h = m(11)
+        lock_w = int(lock_h * 0.92)
+        inner  = m(4)
+        grp    = lock_w + inner + lw
+        gx     = btn_rect.centerx - grp // 2
+        _padlock(big, gx + lock_w // 2, btn_rect.centery, lock_h, lab_col)
+        sc.plain_text(big, label, lab_font,
+                      (gx + lock_w + inner + lw // 2, btn_rect.centery),
+                      lab_col, shadow_a=0, weight=m(0.6))
+    else:
+        sc.plain_text(big, label, lab_font, btn_rect.center, lab_col,
+                      shadow_a=110, weight=m(0.8), keyline=(8, 6, 20), kw=m(0.9))
+
+
+def _draw_chip(big, cx, cy, price, affordable):
+    global _hair_final
+    chip = pygame.Rect(0, 0, m(CHIP_W), m(CHIP_H))
+    chip.center = (cx, cy)
+    crad = m(CHIP_RAD)
+
+    sc.drop_shadow(big, chip, crad, blur=m(3), alpha=90, dy=m(2))
+
+    if affordable:
+        face_stops = [(0.0, (18, 20, 50)), (1.0, (10, 11, 30))]
+    else:
+        face_stops = [(0.0, (28, 28, 50)), (1.0, (18, 18, 36))]
+    big.blit(sc.vgrad_stops(chip.w, chip.h, crad, face_stops, 255), chip.topleft)
+
+    if affordable:
+        sc.bevel_rim(big, chip, crad, sc.CARD_RING_DEEP,
+                     (*sc.CARD_RING_BRIGHT, 200), w=max(1, m(1.4)))
+    else:
+        sc.bevel_rim(big, chip, crad, (44, 58, 58, 200), (120, 140, 140, 180),
+                     w=max(1, m(1.4)))
+
+    txt = f"{price:,}"
+    num_font = sc.font(22)
+    coin_r = m(15)
+    coin_d = coin_r * 2
+    gap = m(4)
+    num_w = num_font.size(txt)[0]
+    total = coin_d + gap + num_w
+    left = cx - total // 2
+    coin_cx = left + coin_r
+    num_cx = left + coin_d + gap + num_w // 2
+    num_cy = cy + m(3)
+
+    if affordable:
+        sc.coin_glyph(big, coin_cx, cy, coin_r)
+        num_col = (236, 240, 232)
+    else:
+        pygame.draw.circle(big, (150, 152, 162), (coin_cx, cy), coin_r)
+        pygame.draw.circle(big, (108, 112, 126), (coin_cx, cy), coin_r,
+                           width=max(1, m(1)))
+        pygame.draw.circle(big, (128, 132, 146), (coin_cx, cy), coin_r - m(3),
+                           width=max(1, m(1)))
+        num_col = (150, 154, 162)
+    sc.plain_text(big, txt, num_font, (num_cx, num_cy), num_col,
+                  shadow_a=0, weight=m(0.8))
+
+    if affordable:
+        num_h = num_font.size(txt)[1]
+        baseline = (num_cy - num_h // 2) + num_font.get_ascent()
+        hair_h = m(2)
+        hair_y = baseline + m(3)
+        hair = pygame.Surface((num_w, hair_h), pygame.SRCALPHA)
+        hair.fill((*HAIR_GOLD, int(255 * 0.85)))
+        big.blit(hair, (num_cx - num_w // 2, hair_y))
+        _hair_final = (
+            (num_cx - num_w // 2) / SS,
+            (num_cx + num_w // 2) / SS,
+            (hair_y + hair_h // 2) / SS,
+        )
+
+
+def _draw_shelf(big, affordable):
+    shelf_rect = pygame.Rect(m(SHELF_X), m(SHELF_Y), m(SHELF_W), m(SHELF_H))
+    shelf_rad  = m(CARD_RAD)
+
+    shelf_stops = ([(0.0, (28, 30, 62)), (1.0, (14, 16, 40))] if affordable
+                   else [(0.0, (30, 32, 52)), (0.5, (22, 22, 42)), (1.0, (14, 14, 30))])
+    shelf = sc.vgrad_stops(shelf_rect.w, shelf_rect.h, 0, shelf_stops, 255).copy()
+    shelf_mask = pygame.Surface(shelf_rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(shelf_mask, (255, 255, 255, 255), shelf_mask.get_rect(),
+                     border_bottom_left_radius=shelf_rad,
+                     border_bottom_right_radius=shelf_rad)
+    shelf.blit(shelf_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    sc.top_sheen(shelf, shelf.get_rect(), 0, m(20), peak=35)
+    lip = (115, 106, 140) if affordable else (62, 62, 86)
+    pygame.draw.line(shelf, lip, (0, 0), (shelf_rect.w - 1, 0), max(1, m(1)))
+    seat = pygame.Surface((shelf_rect.w, m(6)), pygame.SRCALPHA)
+    for yy in range(m(6)):
+        a = int(120 * (1 - yy / m(6)))
+        pygame.draw.line(seat, (0, 0, 0, a), (0, yy), (shelf_rect.w - 1, yy))
+    big.blit(seat, (shelf_rect.x, shelf_rect.y - m(6)))
+    big.blit(shelf, shelf_rect.topleft)
+
+    wall_draw_h = m(CARD_TOP + CARD_H - CARD_RAD - SHELF_Y)
+    if wall_draw_h > 0:
+        wall_w = m(SHELF_X - CARD_X)
+        lwall = pygame.Surface((wall_w, wall_draw_h), pygame.SRCALPHA)
+        for xx in range(wall_w):
+            a = int(50 * xx / max(1, wall_w - 1))
+            pygame.draw.line(lwall, (130, 120, 165, a), (xx, 0), (xx, wall_draw_h - 1))
+        big.blit(lwall, (m(CARD_X), m(SHELF_Y)))
+        rwall = pygame.Surface((wall_w, wall_draw_h), pygame.SRCALPHA)
+        for xx in range(wall_w):
+            a = int(50 * (1 - xx / max(1, wall_w - 1)))
+            pygame.draw.line(rwall, (0, 0, 0, a), (xx, 0), (xx, wall_draw_h - 1))
+        big.blit(rwall, (m(SHELF_X + SHELF_W), m(SHELF_Y)))
+
+    _draw_chip(big, m(CX), m(CHIP_CY), PRICE, affordable)
+
+    # Confetti sits above the shelf but behind the buttons so BUY reads clean
+    # in the eye of the burst. Only the affordable state earns the celebration.
+    if affordable:
+        _draw_confetti(big)
+
+    buy = pygame.Rect(0, 0, m(BTN_W), m(BTN_H)); buy.center = (m(BUY_CX), m(BTN_CY))
+    can = pygame.Rect(0, 0, m(BTN_W), m(BTN_H)); can.center = (m(CAN_CX), m(BTN_CY))
+    brad = m(BTN_RAD)
+    _btn(big, buy, brad, "BUY", 14, locked=not affordable)
+    _btn(big, can, brad, "CANCEL", 13, locked=False, is_cancel=True)
+
+    if not affordable:
+        sc.plain_text(big, "NOT ENOUGH", sc.font(7), (m(CX), m(322)),
+                      (150, 176, 176), shadow_a=0)
+
+
+def render_popup(name, affordable):
+    global _hair_final
+    _hair_final = None
+    big = pygame.Surface((POP_W * SS, POP_H * SS), pygame.SRCALPHA)
+
+    rect = pygame.Rect(m(CARD_X), m(CARD_TOP), m(CARD_W), m(CARD_H))
+    rad  = m(CARD_RAD)
+    sc.drop_shadow(big, rect, rad, blur=m(8), alpha=165, dy=m(4))
+    big.blit(sc.vgrad_stops(rect.w, rect.h, rad,
+             [(0.0, sc.CARD_T), (1.0, sc.CARD_B)], 255, gamma=1.15), rect.topleft)
+    sc.top_sheen(big, rect, rad, m(30), peak=56)
+    pygame.draw.rect(big, (4, 5, 16), rect, width=max(1, m(2)), border_radius=rad)
+    sc.bevel_rim(big, rect, rad, sc.CARD_RING_DEEP,
+                 (*sc.CARD_RING_BRIGHT, 230), w=max(1, m(1.9)))
+    tray = rect.inflate(-m(8), -m(8))
+    pygame.draw.rect(big, (*sc.CARD_RING_BRIGHT, 55), tray,
+                     width=max(1, m(1)), border_radius=rad - m(3))
+
+    sc.facet_gem(big, m(GEM_L_X), m(GEM_CY), m(GEM_R), PAL["gem"], PAL["deep"])
+    sc.facet_gem(big, m(GEM_R_X), m(GEM_CY), m(GEM_R), PAL["gem"], PAL["deep"])
+    sc.plain_text(big, name, sc.font(NAME_FS), (m(CX), m(Y_NAME)), (250, 248, 240),
+                  shadow_a=160, weight=m(0.9), keyline=(6, 6, 16), kw=m(1.0))
+    sc._ribbon_lozenge(big, 'EPIC', m(CX), m(Y_BANNER), m(BANNER_W), PAL)
+
+    _draw_shelf(big, affordable)
+
+    cx_ss, cy_ss, r_ss = m(CX), m(DISC_CY), m(R_HERO)
+    sc._alpha_aura(big, cx_ss, cy_ss, r_ss + m(55), PAL["glow"], peak=95, layers=24)
+    sc._alpha_aura(big, cx_ss, cy_ss, r_ss + m(20), PAL["glow"], peak=70, layers=12)
+    sc.cabochon(big, cx_ss, cy_ss, r_ss, sc.CABO_LO, sc.CABO_HI,
+                ring=PAL["gem"], ring_a=50)
+    sc.blit_thumb(big, "skin_tempest", cx_ss, cy_ss, int(r_ss * 1.5))
+    sc.cabochon_glass(big, cx_ss, cy_ss, r_ss, tint=PAL["gem"])
+
+    final = pygame.transform.smoothscale(big, (POP_W, POP_H))
+
+    if affordable and _hair_final is not None:
+        x0, x1, hy = _hair_final
+        pygame.draw.line(final, HAIR_GOLD, (int(round(x0)), int(round(hy))),
+                         (int(round(x1)), int(round(hy))), 1)
+
+    return final
+
+
+# ── sheet layout ─────────────────────────────────────────────────────────────
+MARGIN, HDR_H, GAP_HDR = 18, 28, 8
+CANVAS_W, CANVAS_H = 444, 412
+
+canvas = Image.new("RGB", (CANVAS_W, CANVAS_H), (8, 8, 20))
+draw   = ImageDraw.Draw(canvas)
+
+try:
+    fnt_hdr   = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 13)
+    fnt_badge = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 11)
+except Exception:
+    fnt_hdr = fnt_badge = ImageFont.load_default()
+
+draw.text((CANVAS_W // 2, MARGIN + HDR_H // 2),
+          "confetti-scatter (C) r2  |  AFFORDABLE / UNAFFORDABLE",
+          fill=(180, 200, 240), font=fnt_hdr, anchor="mm")
+
+panels_y = MARGIN + HDR_H + GAP_HDR
+PANELS = [(18, True), (226, False)]
+
+panels_data = []
+for px, affordable in PANELS:
+    surf  = render_popup("TEMPEST", affordable)
+    raw   = pygame.image.tostring(surf, "RGB")
+    panel = Image.frombytes("RGB", (POP_W, POP_H), raw)
+    panels_data.append((px, affordable, panel))
+
+for px, affordable, panel in panels_data:
+    canvas.paste(panel, (px, panels_y))
+    bx, by = px + 5, panels_y + 5
+    bw = fnt_badge.getlength("C") + 8
+    draw.rounded_rectangle([bx - 1, by - 1, bx + bw + 1, by + 18], radius=5,
+                            fill=(200, 190, 240))
+    draw.rounded_rectangle([bx, by, bx + bw, by + 17], radius=4, fill=(24, 22, 38))
+    draw.text((bx + 4, by + 8), "C", fill=(230, 225, 245), font=fnt_badge, anchor="lm")
+
+OUT = os.path.join(os.path.dirname(__file__), "..",
+                   "docs", "store_confirm_shelf_v3", "buy-fancy-v2",
+                   "confetti-scatter", "round_2.png")
+OUT = os.path.abspath(OUT)
+os.makedirs(os.path.dirname(OUT), exist_ok=True)
+canvas.save(OUT)
+print(f"Saved {OUT}  ({CANVAS_W}x{CANVAS_H})")
+
+# PIL verification
+aff = panels_data[0][2]
+unaff = panels_data[1][2]
+
+
+def _party(p):
+    # The violet / teal / coral accents are hues that appear nowhere else in the
+    # indigo-and-gold scene, so matching them isolates real confetti from the
+    # shelf, the gold price chip, and button chrome (all of which can be bright).
+    r, g, b = p[:3]
+    teal   = g > 150 and b > 140 and r < 130 and g > r + 40
+    coral  = r > 200 and g < 190 and b < 130 and r > b + 90
+    violet = b > 160 and r > 120 and g < r - 15 and g < b - 40
+    return teal or coral or violet
+
+
+buy_c = aff.getpixel((58, 302))
+print(f"BUY center (58,302): {buy_c}  — should be clean indigo (no confetti on face)")
+
+# Count party-hue confetti in the arc above BUY.
+arc_hits = sum(1 for yy in range(250, 288) for xx in range(30, 92)
+               if _party(aff.getpixel((xx, yy))))
+print(f"party-hue confetti in arc above BUY (x30-92, y250-288): {arc_hits}  "
+      f"→ {'OK multiple' if arc_hits > 20 else 'TOO FEW'}")
+
+can_c = aff.getpixel((168, 297))
+print(f"CANCEL face (168,297): {can_c}  — should be plain indigo")
+
+# CANCEL side must stay quiet — no confetti bled past the fence.
+can_hits = sum(1 for yy in range(250, 288) for xx in range(112, 176)
+               if _party(aff.getpixel((xx, yy))))
+print(f"party-hue confetti over CANCEL band (x112-176, y250-288): {can_hits}  "
+      f"→ {'OK quiet' if can_hits == 0 else 'BLEED'}")
+
+unaff_c = unaff.getpixel((58, 302))
+print(f"[unaff] BUY center (58,302): {unaff_c}  — locked slate")
+unaff_hits = sum(1 for yy in range(250, 288) for xx in range(30, 92)
+                 if _party(unaff.getpixel((xx, yy))))
+print(f"[unaff] party-hue confetti above BUY: {unaff_hits}  "
+      f"→ {'OK none' if unaff_hits == 0 else 'HAS CONFETTI'}")
