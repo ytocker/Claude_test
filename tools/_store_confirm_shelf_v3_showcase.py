@@ -105,12 +105,15 @@ def _paste_panel(panel_img, col_i, badge_id, footer_line1, footer_line2, is_befo
     canvas.paste(p, (px, py))
 
     btext = badge_id
-    bw = int(fnt_badge.getlength(btext)) + 8
-    bh = 17
+    bw = int(fnt_badge.getlength(btext)) + 10
+    bh = 19
     bx_, by_ = px + 5, py + 5
+    # Outer glow/outline so badge pops on any background
+    draw.rounded_rectangle([bx_ - 1, by_ - 1, bx_ + bw + 1, by_ + bh + 1], radius=5,
+                            fill=(200, 190, 240))
     draw.rounded_rectangle([bx_, by_, bx_ + bw, by_ + bh], radius=4,
                             fill=(24, 22, 38))
-    draw.text((bx_ + 4, by_ + bh // 2), btext, fill=(230, 225, 245),
+    draw.text((bx_ + 5, by_ + bh // 2), btext, fill=(236, 228, 255),
               font=fnt_badge, anchor="lm")
 
     fy1 = py + PANEL_H + 6
