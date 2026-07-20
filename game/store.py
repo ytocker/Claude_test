@@ -976,8 +976,12 @@ class StoreScene:
                 line1, line2 = name[:best], name[best + 1:]
             else:
                 # Single word: find the hyphen position that best balances widths.
+                # Skip positions that would produce a double-hyphen on line 1
+                # (name[i-1]=='-') or a leading hyphen on line 2 (name[i]=='-').
                 best_i, best_mw = 1, float('inf')
                 for i in range(1, len(name)):
+                    if name[i - 1] == '-' or name[i] == '-':
+                        continue
                     mw = max(_nw(name[:i] + '-', _nf30), _nw(name[i:], _nf30))
                     if mw < best_mw:
                         best_mw, best_i = mw, i
