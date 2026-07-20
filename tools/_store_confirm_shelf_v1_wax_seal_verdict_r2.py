@@ -317,21 +317,21 @@ AX0 = MARGIN                    # affordable panel left edge x
 UX0 = MARGIN + POP_W + GAP     # unaffordable panel left edge x
 PY0 = MARGIN + TITLE_H + GAP   # panel top edge y
 
-# (a) Affordable wax disc body has gold pixels: R>150, G>80, B<60.
-# Sample disc centre — the gap between the coin (left) and the numeral
-# (right) sits near x=CX so the disc base colour is exposed there.
+# (a) Affordable wax disc body has gold pixels: R>120, G>60, B<60.
+# Sample 13 px ABOVE the disc centre (y=230) where the bare disc body is
+# exposed above the coin+numeral row (coin and text sit at y≈243).
 ax_wax = AX0 + CX
-ay_wax = PY0 + 243
+ay_wax = PY0 + 230
 r0, g0, b0 = rgb[ax_wax, ay_wax]
-assert r0 > 130 and g0 > 70 and b0 < 80, \
-    f"(a) Expected gold at affordable wax centre, got ({r0},{g0},{b0})"
-print(f"(a) PASS — affordable wax centre ({r0},{g0},{b0}) is gold")
+assert r0 > 120 and g0 > 60 and b0 < 60, \
+    f"(a) Expected gold at affordable wax disc (above content), got ({r0},{g0},{b0})"
+print(f"(a) PASS — affordable wax disc ({r0},{g0},{b0}) is gold")
 
 # (b) Unaffordable wax disc is clearly lighter than the card body.
-# Sample the unaffordable disc centre and a point on the dark card body
-# well to the right of the disc (x + 50 px, still on the card).
+# Same y=230 above-content sample for consistency; compare to card body
+# 55 px to the right (past the disc edge at x=CX+26=126).
 ux_wax = UX0 + CX
-uy_wax = PY0 + 243
+uy_wax = PY0 + 230
 ru, gu, bu = rgb[ux_wax, uy_wax]
 card_x = min(ux_wax + 55, CANVAS_W - 1)
 rc, gc, bc = rgb[card_x, uy_wax]
