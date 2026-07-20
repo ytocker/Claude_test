@@ -140,7 +140,7 @@ for i, (badge, slug, label) in enumerate(SLUGS):
     crop = _crop_affordable(slug)
     _paste_panel(crop, i + 1, badge, label, "FINAL", is_before=False)
 
-OUT = "docs/store_confirm_shelf_v3/showcase.png"
+OUT = "docs/store_confirm_shelf_v3/v3_bold_redesign_showcase.png"
 canvas.save(OUT)
 print(f"Saved {OUT}  ({CANVAS_W}×{CANVAS_H})")
 
