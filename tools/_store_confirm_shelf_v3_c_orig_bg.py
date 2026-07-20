@@ -122,9 +122,11 @@ def _draw_chip(big, cx, cy, price, affordable):
     sc.drop_shadow(big, chip, crad, blur=m(3), alpha=90, dy=m(2))
 
     if affordable:
-        face_stops = [(0.0, (12, 36, 40)), (1.0, (5, 22, 26))]
+        # Match the card body colour just above the shelf so the chip reads
+        # as an inlay rather than a floating pill.
+        face_stops = [(0.0, (18, 20, 50)), (1.0, (10, 11, 30))]
     else:
-        face_stops = [(0.0, (34, 36, 44)), (1.0, (24, 26, 32))]
+        face_stops = [(0.0, (28, 28, 50)), (1.0, (18, 18, 36))]
     big.blit(sc.vgrad_stops(chip.w, chip.h, crad, face_stops, 255), chip.topleft)
 
     if affordable:
@@ -283,7 +285,7 @@ except Exception:
     fnt_hdr = fnt_badge = ImageFont.load_default()
 
 draw.text((CANVAS_W // 2, MARGIN + HDR_H // 2),
-          "C** chip + original shelf + original buttons  |  AFFORDABLE / UNAFFORDABLE",
+          "C** card-body chip  |  AFFORDABLE / UNAFFORDABLE",
           fill=(180, 200, 240), font=fnt_hdr, anchor="mm")
 
 panels_y = MARGIN + HDR_H + GAP_HDR
@@ -306,7 +308,7 @@ for px, affordable, panel in panels_data:
     draw.text((bx + 4, by + 8), "C**", fill=(230, 225, 245), font=fnt_badge, anchor="lm")
 
 OUT = os.path.join(os.path.dirname(__file__), "..",
-                   "docs", "store_confirm_shelf_v3", "c-orig-bg", "round_2.png")
+                   "docs", "store_confirm_shelf_v3", "c-orig-bg", "round_3.png")
 OUT = os.path.abspath(OUT)
 canvas.save(OUT)
 print(f"Saved {OUT}  ({CANVAS_W}x{CANVAS_H})")
