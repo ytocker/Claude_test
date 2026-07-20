@@ -352,7 +352,7 @@ print(f"hero gem ({BUY_CX - 14},{BTN_CY}): {hero}  → "
       f"{'OK gem-gold' if hero_ok else 'WARN not gold'}")
 
 # BUY face far right (near CAN side) — velvet must still read near-black.
-vx = BUY_CX + 33   # logical 91, inside the BUY button (spans 20..96)
+vx = BUY_CX + 30   # logical 88 face velvet, right of wordmark, off the edge bead
 velvet = aff.getpixel((vx, BTN_CY))
 velvet_ok = (10 <= velvet[0] <= 35 and 11 <= velvet[1] <= 40 and 30 <= velvet[2] <= 65)
 print(f"BUY velvet far-right ({vx},{BTN_CY}): {velvet}  → "
