@@ -282,12 +282,12 @@ panels_y = MARGIN + HDR_H + GAP_HDR
 PANELS = [(18, True), (18 + POP_W + GAP_C, False)]
 
 # ── Pass 1: render at default chip bevel alpha to run the note-4 comparison ──
-# BUY button rim is at alpha=255; chip affordable bevel is at alpha=180.
-# The gradient in bevel_rim fades top→bottom, so sample the top-edge strip.
-# px=18 for affordable panel; BUY button center-x ≈ BUY_CX, center-y ≈ BTN_CY.
-# In 1x coordinates: BUY_CX = CX-(BTN_W+BTN_GAP)//2 = 100-42 = 58, BTN_CY=302.
-# Top of BUY button ≈ BTN_CY - BTN_H//2 = 302-15 = 287.  Sample y=289 (just inside rim).
-# CHIP top-edge in 1x: CHIP_CY - 18 = 258 - 18 = 240. Sample y=241.
+# bevel_rim structure at 1x (smoothscaled from SS=2):
+#   y+0  dark outer keyline
+#   y+1  bright gold inner highlight  ← sample here
+#   y+2+ body fill
+# Button top in 1x: BTN_CY - BTN_H//2 = 302-15 = 287. Gold rim at +1 → y=288.
+# Chip top in 1x: CHIP_CY - CHIP_H//2 = 258-18 = 240.  Gold rim at +1 → y=241.
 
 pass1_panels = []
 for px, affordable in PANELS:
@@ -298,13 +298,13 @@ for px, affordable in PANELS:
 
 # Sample BUY button rim on the affordable panel (px=18).
 aff_panel = pass1_panels[0][2]   # affordable panel, 1x coords
-buy_rim_px = aff_panel.getpixel((BUY_CX, BTN_CY - BTN_H // 2 + 2))   # just inside top rim
-chip_rim_px = aff_panel.getpixel((CX, CHIP_CY - 18 + 2))              # top of chip
+buy_rim_px  = aff_panel.getpixel((BUY_CX, BTN_CY - BTN_H // 2 + 1))   # bright gold strip
+chip_rim_px = aff_panel.getpixel((CX, CHIP_CY - 18 + 1))               # chip gold rim
 
 buy_lum  = buy_rim_px[0] * 0.299 + buy_rim_px[1] * 0.587 + buy_rim_px[2] * 0.114
 chip_lum = chip_rim_px[0] * 0.299 + chip_rim_px[1] * 0.587 + chip_rim_px[2] * 0.114
 
-print(f"Pass-1 BUY rim sample  @ ({BUY_CX},{BTN_CY - BTN_H//2 + 2}): {buy_rim_px}  lum={buy_lum:.1f}")
+print(f"Pass-1 BUY rim sample  @ ({BUY_CX},{BTN_CY - BTN_H//2 + 1}): {buy_rim_px}  lum={buy_lum:.1f}")
 print(f"Pass-1 chip rim sample @ ({CX},{CHIP_CY - 18 + 2}):  {chip_rim_px}  lum={chip_lum:.1f}")
 
 # Note 4: only reduce chip bevel if chip rim is genuinely brighter than button.
@@ -348,11 +348,11 @@ print(f"Saved {OUT}  ({CANVAS_W}x{CANVAS_H})")
 # BUY button rim: affordable panel px=18, BUY top-edge.
 aff_final = panels_data[0][2]
 probe_118_224 = aff_final.getpixel((118, 224))
-buy_rim_final = aff_final.getpixel((BUY_CX, BTN_CY - BTN_H // 2 + 2))
+buy_rim_final = aff_final.getpixel((BUY_CX, BTN_CY - BTN_H // 2 + 1))
 print(f"\n=== PIL Verification ===")
 print(f"(118, 224) on affordable panel: {probe_118_224}  "
       f"→ {'non-background OK' if probe_118_224 != (8, 8, 20) else 'WARN: background!'}")
-print(f"BUY rim @ ({BUY_CX},{BTN_CY - BTN_H//2 + 2}): {buy_rim_final}  "
+print(f"BUY rim @ ({BUY_CX},{BTN_CY - BTN_H//2 + 1}): {buy_rim_final}  "
       f"→ warm gold R>G>B: {'OK' if buy_rim_final[0] > buy_rim_final[2] else 'FAIL'}")
 r, g, b = buy_rim_final
 print(f"   Target ≥(180,155,85): R≥180={'OK' if r >= 180 else 'FAIL'}, "
