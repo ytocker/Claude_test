@@ -923,9 +923,11 @@ class StoreScene:
         GEM_R, GEM_CY, GEM_L_X, GEM_R_X = 11, 117, 33, 167
         NAME_FS, Y_NAME = 30, 168
         Y_BANNER, BANNER_W = 188, 120
-        Y_CHIP, CHIP_H = 229, 28
-        Y_BTN, BTN_H, BTN_W = 273, 30, 136
-        Y_CANCEL, CANCEL_H, CANCEL_W = 308, 22, 80
+        SHELF_X, SHELF_Y, SHELF_W, SHELF_H = 13, 235, 174, 87
+        CHIP_CY = 258
+        BTN_W, BTN_H, BTN_RAD, BTN_CY, BTN_GAP = 76, 30, 9, 302, 8
+        BUY_CX = CX - (BTN_W + BTN_GAP) // 2
+        CAN_CX = CX + (BTN_W + BTN_GAP) // 2
 
         big = pygame.Surface((POP_W * SS, POP_H * SS), pygame.SRCALPHA)
 
@@ -957,6 +959,54 @@ class StoreScene:
 
         def _nw(txt, font):
             return store_cards._glyph_base(txt, font, 0).get_width()
+
+        def _btn(rect, label, locked=False):
+            rad = m(BTN_RAD)
+            stops = ([(0.0, (42, 40, 50)), (1.0, (28, 26, 36))] if locked
+                     else [(0.0, (84, 78, 126)), (1.0, (50, 46, 82))])
+            lab_col = (90, 88, 108) if locked else (220, 210, 240)
+            sheen   = 12 if locked else 28
+            store_cards.drop_shadow(big, rect, rad, blur=m(3), alpha=100, dy=m(2))
+            big.blit(store_cards.vgrad_stops(rect.w, rect.h, rad, stops, 255),
+                     rect.topleft)
+            store_cards.top_sheen(big, rect, rad, m(12), peak=sheen)
+            store_cards.bevel_rim(big, rect, rad, (20, 18, 36, 180),
+                                  (130, 124, 160, 200), w=max(1, m(1.2)))
+            store_cards.plain_text(big, label, store_cards.font(13), rect.center,
+                                   lab_col, shadow_a=110, weight=m(0.8),
+                                   keyline=(18, 16, 32), kw=m(0.9))
+
+        def _chip(cx, cy):
+            CHIP_W, CHIP_H, CHIP_RAD = 120, 36, 8
+            chip = pygame.Rect(0, 0, m(CHIP_W), m(CHIP_H))
+            chip.center = (cx, cy)
+            crad = m(CHIP_RAD)
+            store_cards.drop_shadow(big, chip, crad, blur=m(3), alpha=90, dy=m(2))
+            face_stops = ([(0.0, (235, 220, 175)), (1.0, (205, 190, 145))] if affordable
+                          else [(0.0, (60, 60, 74)), (1.0, (44, 44, 58))])
+            border = (120, 74, 14) if affordable else (78, 80, 96)
+            big.blit(store_cards.vgrad_stops(chip.w, chip.h, crad, face_stops, 255),
+                     chip.topleft)
+            pygame.draw.rect(big, border, chip, width=max(1, m(1)), border_radius=crad)
+            txt      = f"{price:,}"
+            num_font = store_cards.font(22)
+            coin_r   = m(14)
+            gap      = m(4)
+            num_w    = num_font.size(txt)[0]
+            total    = coin_r * 2 + gap + num_w
+            left     = cx - total // 2
+            coin_cx  = left + coin_r
+            num_cx   = left + coin_r * 2 + gap + num_w // 2
+            if affordable:
+                store_cards.coin_glyph(big, coin_cx, cy, coin_r)
+                num_col = (52, 28, 4)
+            else:
+                pygame.draw.circle(big, (150, 152, 162), (coin_cx, cy), coin_r)
+                pygame.draw.circle(big, (108, 112, 126), (coin_cx, cy), coin_r,
+                                   width=max(1, m(1)))
+                num_col = (110, 115, 130)
+            store_cards.plain_text(big, txt, num_font, (num_cx, cy + m(3)), num_col,
+                                   shadow_a=0, weight=m(0.8))
 
         active_banner_y = Y_BANNER
         if _nw(name, _nf30) <= safe_w:
@@ -999,30 +1049,58 @@ class StoreScene:
         # ── rarity banner ─────────────────────────────────────────────────────
         store_cards._ribbon_lozenge(big, tier_word, m(CX), m(active_banner_y), m(BANNER_W), pal)
 
-        # ── price chip ────────────────────────────────────────────────────────
-        store_cards.price_chip(big, m(CX), m(Y_CHIP), f"{price:,}",
-                               m(CHIP_H), affordable=affordable)
+        # ── shelf ─────────────────────────────────────────────────────────────
+        shelf_rect  = pygame.Rect(m(SHELF_X), m(SHELF_Y), m(SHELF_W), m(SHELF_H))
+        shelf_rad   = m(CARD_RAD)
+        shelf_stops = ([(0.0, (28, 30, 62)), (1.0, (14, 16, 40))] if affordable
+                       else [(0.0, (30, 32, 52)), (0.5, (22, 22, 42)),
+                             (1.0, (14, 14, 30))])
+        shelf = store_cards.vgrad_stops(
+            shelf_rect.w, shelf_rect.h, 0, shelf_stops, 255).copy()
+        smask = pygame.Surface(shelf_rect.size, pygame.SRCALPHA)
+        pygame.draw.rect(smask, (255, 255, 255, 255), smask.get_rect(),
+                         border_bottom_left_radius=shelf_rad,
+                         border_bottom_right_radius=shelf_rad)
+        shelf.blit(smask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        store_cards.top_sheen(shelf, shelf.get_rect(), 0, m(20), peak=35)
+        lip = (115, 106, 140) if affordable else (62, 62, 86)
+        pygame.draw.line(shelf, lip, (0, 0), (shelf_rect.w - 1, 0), max(1, m(1)))
+        seat = pygame.Surface((shelf_rect.w, m(6)), pygame.SRCALPHA)
+        for _yy in range(m(6)):
+            _a = int(120 * (1 - _yy / m(6)))
+            pygame.draw.line(seat, (0, 0, 0, _a), (0, _yy), (shelf_rect.w - 1, _yy))
+        big.blit(seat, (shelf_rect.x, shelf_rect.y - m(6)))
+        big.blit(shelf, shelf_rect.topleft)
+        wall_draw_h = m(CARD_TOP + CARD_H - CARD_RAD - SHELF_Y)
+        if wall_draw_h > 0:
+            wall_w = m(SHELF_X - CARD_X)
+            for _col_fn, _bx in [
+                (lambda xx: (130, 120, 165, int(50 * xx / max(1, wall_w - 1))),
+                 m(CARD_X)),
+                (lambda xx: (0, 0, 0, int(50 * (1 - xx / max(1, wall_w - 1)))),
+                 m(SHELF_X + SHELF_W)),
+            ]:
+                _wall = pygame.Surface((wall_w, wall_draw_h), pygame.SRCALPHA)
+                for _xx in range(wall_w):
+                    pygame.draw.line(_wall, _col_fn(_xx),
+                                     (_xx, 0), (_xx, wall_draw_h - 1))
+                big.blit(_wall, (_bx, m(SHELF_Y)))
+
+        # ── coin chip (inside shelf) ───────────────────────────────────────────
+        _chip(m(CX), m(CHIP_CY))
 
         if not affordable:
-            store_cards.plain_text(big, "NOT ENOUGH COINS",
-                                   store_cards.font(9), (m(CX), m(251)),
+            store_cards.plain_text(big, "NOT ENOUGH",
+                                   store_cards.font(8), (m(CX), m(317)),
                                    (150, 166, 190), shadow_a=0)
 
-        # ── equip chip ────────────────────────────────────────────────────────
-        equip_r = store_cards.status_chip(
-            big, m(CX), m(Y_BTN), "EQUIP", m(BTN_H), kind="equip"
-        )
-
-        # ── cancel button ─────────────────────────────────────────────────────
-        h_can = m(CANCEL_H)
-        w_can = m(CANCEL_W)
-        can_r = pygame.Rect(m(CX) - w_can // 2, m(Y_CANCEL) - h_can // 2,
-                            w_can, h_can)
-        store_cards._dark_chip_body(big, can_r, h_can // 2,
-                                    [(0.0, (18, 16, 26)), (1.0, (12, 10, 20))],
-                                    (30, 28, 42), (70, 66, 82), gloss=14, gamma=1.04)
-        store_cards.plain_text(big, "CANCEL", store_cards.font(11),
-                               can_r.center, (130, 124, 148), shadow_a=0)
+        # ── buy / cancel buttons ───────────────────────────────────────────────
+        buy_r = pygame.Rect(0, 0, m(BTN_W), m(BTN_H))
+        buy_r.center = (m(BUY_CX), m(BTN_CY))
+        can_r = pygame.Rect(0, 0, m(BTN_W), m(BTN_H))
+        can_r.center = (m(CAN_CX), m(BTN_CY))
+        _btn(buy_r, "BUY", locked=not affordable)
+        _btn(can_r, "CANCEL")
 
         # ── overhanging disc + spotlight halo (crowns the card) ───────────────
         cx_ss, cy_ss, r_ss = m(CX), m(DISC_CY), m(R_HERO)
@@ -1049,12 +1127,12 @@ class StoreScene:
 
         # Hit rects in screen space (logical coords map 1:1 post-downscale).
         self.confirm_no_rect = pygame.Rect(
-            px + CX - CANCEL_W // 2, py + Y_CANCEL - CANCEL_H // 2,
-            CANCEL_W, CANCEL_H)
+            px + CAN_CX - BTN_W // 2, py + BTN_CY - BTN_H // 2,
+            BTN_W, BTN_H)
         if affordable:
             self.confirm_yes_rect = pygame.Rect(
-                px + equip_r.x // SS, py + equip_r.y // SS,
-                equip_r.w // SS, equip_r.h // SS)
+                px + BUY_CX - BTN_W // 2, py + BTN_CY - BTN_H // 2,
+                BTN_W, BTN_H)
 
     # ── input ────────────────────────────────────────────────────────────────
     def handle_tap(self, pos) -> "str | None":
