@@ -1,8 +1,8 @@
-"""buy-fancy-v2 concept E — legendary-aura (r2).
+"""buy-fancy-v2 concept E — legendary-aura (r3, final).
 
-A warm legendary aura fills the shelf around BUY (affordable only) — a wide,
-low-alpha ambient field that laps up to the chip and out to the shelf walls,
-plus a tighter core halo. The BUY face itself stays the brightest anchor: the
+A warm legendary aura wells up under BUY (affordable only) — toned to a warm
+accent, not an inferno: a low, wide ambient haze that laps out to the shelf
+walls, plus a modest core halo. The BUY face itself stays the brightest anchor: the
 glow is support light, not the star. Three facet gems float clearly OUTSIDE the
 button like satellite stars, each with a controlled (non-white) glint. CANCEL
 stays a plain deep-card button. On the unaffordable panel BUY reverts to a
@@ -13,7 +13,7 @@ Everything else (card body, corner gems, name, banner, shelf, chip, disc/aura/
 thumb drawn LAST, SS=2 pipeline) is preserved from the c-orig-bg base.
 
 Sheet: left=AFFORDABLE (x=18), right=UNAFFORDABLE (x=226), 444×412, panels_y=54.
-Output → docs/store_confirm_shelf_v3/buy-fancy-v2/legendary-aura/round_2.png
+Output → docs/store_confirm_shelf_v3/buy-fancy-v2/legendary-aura/round_3.png
 """
 import os, sys, math
 
