@@ -60,7 +60,13 @@ The main session renders `docs/<feature>/showcase.png`:
    state, scale to 200 × 355 px.
 3. Canvas: (8, 8, 20) background; 200 × 355 panels; 8 px gaps; 20 px margins;
    40 px header; 32 px footer per panel (slug name + SHIP-READY or FINAL).
-4. Save to `docs/<feature>/showcase.png`, commit + push.
-5. Post the GitHub blob URL in chat.
+4. **ID badge on every panel** (applies to ALL showcase and comparison figures, not just the
+   design loop): each panel must carry a short ID — a number or letter (e.g. `0`, `1`, `2` or
+   `A`, `B`, `C`) — rendered as a small pill chip in the **top-left corner** of the panel
+   itself (not just in the footer). Use a dark pill `(24, 22, 38, 220)` with white or cream
+   text, small font (~10 pt), 4 px horizontal padding, 3 px vertical padding. This lets the
+   user say "I want option 2" unambiguously.
+5. Save to `docs/<feature>/showcase.png`, commit + push.
+6. Post the GitHub blob URL in chat.
 
 The orchestrator (main session) runs on **Sonnet**.
