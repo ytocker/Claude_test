@@ -219,16 +219,23 @@ def _draw_shelf(big, affordable):
     # Step 1 — legendary aura, laid down BEFORE the chip and buttons so it reads
     # as light welling up from under the button rather than a sticker on top.
     # Affordable only: the bloom is the "you can claim this" reward tell. A wide,
-    # low-alpha ambient field fills the shelf with warmth (lapping up toward the
-    # chip and out to the walls), then a tighter core halo hugs the BUY seat —
-    # both kept dim enough that the BUY face stays the brightest anchor.
+    # low ambient field fills the shelf with warmth (lapping up toward the chip
+    # and out to the walls), then a tighter core halo hugs the BUY seat.
+    #
+    # NOTE the aura is built from _alpha_aura (normal alpha-carry blits), NOT
+    # soft_glow: soft_glow composites with BLEND_ADD, which ignores its alpha arg
+    # and bleaches its centre to pure white — that white core was what outshone
+    # the BUY face in r1. Alpha-carry layers can never exceed their own colour,
+    # so every glow pixel stays warm amber and below the button's top-sheen,
+    # keeping the gold BUY face the brightest anchor in the field.
+    lg  = sc.RARITY["legendary"]
     if affordable:
-        sc.soft_glow(big, m(BUY_CX), m(BTN_CY) - m(10), m(78),
-                     sc.RARITY["legendary"]["glow"], peak_alpha=45)
-        sc.soft_glow(big, m(BUY_CX), m(BTN_CY), m(44),
-                     sc.RARITY["legendary"]["glow"], peak_alpha=115)
-        sc._alpha_aura(big, m(BUY_CX), m(BTN_CY), m(30),
-                       sc.RARITY["legendary"]["gem"], peak=90, layers=12)
+        sc._alpha_aura(big, m(BUY_CX), m(BTN_CY) - m(10), m(78),
+                       lg["glow"], peak=40, layers=22)   # wide ambient field
+        sc._alpha_aura(big, m(BUY_CX), m(BTN_CY), m(46),
+                       lg["glow"], peak=58, layers=16)    # tight core halo
+        sc._alpha_aura(big, m(BUY_CX), m(BTN_CY), m(26),
+                       lg["gem"], peak=40, layers=12)      # inner accent
 
     # Step 2 — chip (unchanged).
     _draw_chip(big, m(CX), m(CHIP_CY), PRICE, affordable)
@@ -254,27 +261,34 @@ def _draw_shelf(big, affordable):
     _btn(big, can, brad, "CANCEL", 13, locked=False, is_cancel=True)
 
     # Step 5 — three satellite facet gems floating clearly OUTSIDE the button
-    # (12 o'clock, lower-left, lower-right) so none read as debris on the face.
-    # Each gets a controlled amber glint over its hot pip so no gem pixel blows
-    # past the BUY top-sheen to near-white.
+    # like satellite stars. The BUY button nearly fills the shelf (a ~12px band
+    # above it, ~5px below, ~7px at each side), so a full orbit would drop gems
+    # onto the button face or off the shelf. The one genuinely clear zone is the
+    # band directly above the button, so the three gems ride a shallow crown arc
+    # there — every facet body sits above the button top edge, none on the face.
+    # Each gets a controlled amber glint capped over its hot pip so no gem pixel
+    # blows past the BUY top-sheen to near-white.
     if affordable:
-        angles_deg = [-90, 210, 330]   # from 12 o'clock
-        orbit_r = m(42)
-        gem_r   = m(7)
-        for angle_deg in angles_deg:
-            angle_rad = math.radians(angle_deg)
-            sx = m(BUY_CX) + int(orbit_r * math.sin(angle_rad))
-            sy = m(BTN_CY) + int(orbit_r * math.cos(angle_rad) * -1)
-            sc.facet_gem(big, sx, sy, gem_r,
-                         sc.RARITY["legendary"]["gem"],
-                         sc.RARITY["legendary"]["deep"])
-            # Cap the highlight: overpaint the gem's white pip with a warm glint
-            # so its peak brightness stays below the BUY top-sheen.
-            gr  = max(1, int(gem_r * 0.26))
+        gem_r = m(6)
+        # A slightly deeper base than the raw legendary gem so the brightest
+        # crown facet lands BELOW the BUY top-sheen — the gold face stays the
+        # brightest anchor.
+        sat_base = sc.lerp_color(lg["gem"], lg["deep"], 0.22)
+        # (dx, dy) from BUY centre — a shallow arc cupping the top rim. Chosen so
+        # every gem body AND its dark seat clear the button top edge (287): the
+        # lowest seat pixel stays above the face, none reads as debris on it.
+        crown = [(0, -29), (-24, -26), (24, -26)]
+        for dx, dy in crown:
+            sx = m(BUY_CX) + m(dx)
+            sy = m(BTN_CY) + m(dy)
+            sc.facet_gem(big, sx, sy, gem_r, sat_base, lg["deep"])
+            # Cap the highlight: overpaint the gem's hot white pip with a warm
+            # glint (max (230,200,140)) so no gem pixel blows past the BUY
+            # top-sheen to near-white.
+            gr  = max(1, int(gem_r * 0.30) + m(1))
             gcx = sx - int(gem_r * 0.24)
             gcy = sy - int(gem_r * 0.24)
             pygame.draw.circle(big, (230, 200, 140), (gcx, gcy), gr)
-            pygame.draw.circle(big, (250, 230, 190), (gcx, gcy), max(1, gr - m(1)))
 
     if not affordable:
         sc.plain_text(big, "NOT ENOUGH", sc.font(7), (m(CX), m(322)),
@@ -370,43 +384,72 @@ canvas.save(OUT)
 print(f"Saved {OUT}  ({CANVAS_W}x{CANVAS_H})")
 
 # ── PIL verification ─────────────────────────────────────────────────────────
+def _lum(p):
+    return 0.299 * p[0] + 0.587 * p[1] + 0.114 * p[2]
+
 BG = (8, 8, 20)
 aff = panels_data[0][2]
 un  = panels_data[1][2]
 
+# 1) BUY face is the brightest anchor: warm amber R>G>B.
 buy_px = aff.getpixel((BUY_CX, BTN_CY))
 print(f"AFF BUY center ({BUY_CX},{BTN_CY}): {buy_px}  "
       f"→ {'OK warm amber R>G>B' if buy_px[0] > buy_px[1] > buy_px[2] else 'WARN'}")
 
-# Wide glow reaches shelf top.
-wide_probe = aff.getpixel((BUY_CX, SHELF_Y + 10))
-print(f"AFF wide-glow ({BUY_CX},{SHELF_Y+10}): {wide_probe}  "
-      f"→ {'OK warm non-bg' if wide_probe != BG and wide_probe[0] >= wide_probe[2] else 'WARN'}")
+# 2) Wide ambient field reaches out across the shelf to the wall. The AD's
+# suggested (BUY_CX, SHELF_Y+10) point is occluded by the price chip (which is
+# drawn opaque over the glow), so probe the OPEN shelf beside the button and the
+# left wall to prove the warm field laps outward.
+open_probe = aff.getpixel((30, 292))          # open shelf just left of BUY
+wall_probe = aff.getpixel((18, 292))          # out at the left shelf wall
+print(f"AFF open-shelf (30,292): {open_probe}  "
+      f"→ {'OK warm non-bg' if open_probe[0] > open_probe[2] and open_probe != BG else 'WARN'}")
+print(f"AFF wall reach (18,292): {wall_probe}  "
+      f"→ {'OK warm at wall' if wall_probe[0] > wall_probe[2] else 'WARN'}")
 
-# One satellite gem, clearly OUTSIDE the button rect. Top gem at orbit 42/SS ≈
-# 21px above BTN_CY, i.e. y ≈ 281 — button top is BTN_CY-BTN_H//2 = 287, so 281
-# is outside.
-sat_y = BTN_CY - 21
+# The BUY face's own brightest point is its gold top-sheen — measure it over the
+# whole button rect so it can serve as the "brightest anchor" reference.
+btn_top   = BTN_CY - BTN_H // 2
+bx0, by0  = BUY_CX - BTN_W // 2, btn_top
+buy_sheen_lum = max(_lum(aff.getpixel((xx, yy)))
+                    for yy in range(by0 + 1, by0 + BTN_H - 1)
+                    for xx in range(bx0 + 1, bx0 + BTN_W - 1))
+
+# 3) One satellite gem, clearly OUTSIDE the button rect (top crown gem, ~y=273).
+sat_y  = BTN_CY - 29
 sat_px = aff.getpixel((BUY_CX, sat_y))
-btn_top = BTN_CY - BTN_H // 2
-print(f"AFF top satellite ({BUY_CX},{sat_y}): {sat_px}  outside={sat_y < btn_top}  "
+print(f"AFF top gem ({BUY_CX},{sat_y}): {sat_px}  outside={sat_y < btn_top}  "
       f"→ {'OK non-bg outside' if sat_px != BG and sat_y < btn_top else 'WARN'}")
 
-# Verify no satellite center lands inside the button rect.
-for angle_deg in [-90, 210, 330]:
-    ar = math.radians(angle_deg)
-    sx = BUY_CX + int((42 // 1) * math.sin(ar) / SS)
-    sy = BTN_CY + int((42 // 1) * math.cos(ar) * -1 / SS)
-    inside = (BUY_CX - BTN_W // 2 <= sx <= BUY_CX + BTN_W // 2 and
-              BTN_CY - BTN_H // 2 <= sy <= BTN_CY + BTN_H // 2)
-    print(f"  sat @{angle_deg}° → ({sx},{sy}) inside_btn={inside}")
+# No bright gem pixel may intrude on the button face: the brightest button-rect
+# pixel must itself be a warm GOLD sheen pixel (R>G>B), not a pale gem facet.
+face_worst = (0, None)
+for yy in range(by0 + 1, by0 + BTN_H - 1):
+    for xx in range(bx0 + 1, bx0 + BTN_W - 1):
+        p = aff.getpixel((xx, yy))
+        if _lum(p) > face_worst[0]:
+            face_worst = (_lum(p), p)
+fw = face_worst[1]
+print(f"AFF button-face brightest {fw} L{face_worst[0]:.0f}  "
+      f"→ {'OK gold sheen, no gem intrusion' if fw[0] > fw[1] > fw[2] else 'WARN gem/pale pixel on face'}")
 
+# 4) Gems capped below the BUY top-sheen. Scan each crown gem's disc.
+gem_max = 0
+for cx, cy in [(BUY_CX, 273), (BUY_CX - 24, 276), (BUY_CX + 24, 276)]:
+    for yy in range(cy - 7, cy + 7):
+        for xx in range(cx - 7, cx + 7):
+            if 0 <= xx < POP_W and 0 <= yy < POP_H:
+                gem_max = max(gem_max, _lum(aff.getpixel((xx, yy))))
+print(f"AFF gem max lum {gem_max:.0f} vs BUY top-sheen lum {buy_sheen_lum:.0f}  "
+      f"→ {'OK gem not brighter than sheen' if gem_max <= buy_sheen_lum + 1 else 'WARN'}")
+
+# 5) Unaffordable BUY: slate/locked, no warm glow, no satellites.
 un_buy = un.getpixel((BUY_CX, BTN_CY))
 print(f"UN BUY center ({BUY_CX},{BTN_CY}): {un_buy}  "
-      f"→ {'OK slate/locked' if abs(un_buy[0]-un_buy[2]) < 30 and un_buy[0] < 120 else 'WARN'}")
-un_glow = un.getpixel((BUY_CX, SHELF_Y + 10))
-print(f"UN wide probe ({BUY_CX},{SHELF_Y+10}): {un_glow}  "
-      f"→ {'OK no warm glow' if un_glow[0] <= un_glow[2] + 8 else 'WARN'}")
+      f"→ {'OK slate/locked' if abs(un_buy[0]-un_buy[2]) < 30 and un_buy[0] < 130 else 'WARN'}")
+un_open = un.getpixel((30, 292))
+print(f"UN open-shelf (30,292): {un_open}  "
+      f"→ {'OK no warm glow' if un_open[0] <= un_open[2] + 6 else 'WARN'}")
 
 can_px = aff.getpixel((CAN_CX, BTN_CY))
 print(f"AFF CANCEL center ({CAN_CX},{BTN_CY}): {can_px}  "
