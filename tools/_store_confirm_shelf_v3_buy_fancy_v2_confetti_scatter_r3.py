@@ -1,14 +1,16 @@
-"""BUY-fancy v2 concept C: confetti-scatter.
+"""BUY-fancy v2 concept C: confetti-scatter (r3, final tone-down).
 
-60 confetti particles frozen mid-explosion around the BUY button — a
-celebration captured in a still frame. BUY stays clean in the centre;
-CANCEL is plain. Confetti only decorates the affordable (unlocked) state.
+A restrained scatter of confetti frozen mid-arc around the BUY button — a
+celebration captured in a still frame, dialed back from the r2 burst.  BUY
+stays clean in the centre; CANCEL is plain.  Confetti only decorates the
+affordable (unlocked) state.
 
 Structure is inherited verbatim from the C-orig-bg hybrid: card body,
-corner gems, name, banner, shelf, chip, disc/aura/thumb drawn LAST, SS=2
-pipeline, RGB tostring, 444×412 sheet.
+corner gems, name, banner, shelf, chip, disc/aura/thumb drawn LAST (with
+the full cabochon + cabochon_glass stack matching the live _draw_confirm),
+SS=2 pipeline, RGB tostring, 444×412 sheet.
 
-Output → docs/store_confirm_shelf_v3/buy-fancy-v2/confetti-scatter/round_1.png
+Output → docs/store_confirm_shelf_v3/buy-fancy-v2/confetti-scatter/round_3.png
 """
 import os, sys, math
 import random as _rng
@@ -77,7 +79,7 @@ COLORS = [
     (255, 140, 80),         # coral/amber pop — ~10%
     (255, 140, 80),
 ]
-N_PARTICLES = 72
+N_PARTICLES = 42
 
 
 def _padlock(surf, cx, cy, h, color):
@@ -144,22 +146,22 @@ def _draw_confetti(big):
         px = max(S_X1 + m(4), min(FENCE_R, px))
         py = max(S_Y1 + m(4), min(S_Y2 - m(4), py))
 
-        # Depth falloff: near the button larger + brighter, tapering toward the
-        # rim so the eye reads a 3-D spray rather than a flat sticker field.
-        d = math.hypot(px - cx_c, py - cy_c)
-        scale = max(0.4, 1.0 - (d - m(26)) / m(60))
+        # Depth falloff: near the button larger + brighter, tapering harder
+        # toward the rim so the spray reads as a few crisp near flecks rather
+        # than a dense sticker field — the toned-down still frame.
+        scale = max(0.3, 1.0 - (dist - m(26)) / m(48))
 
         col = _rng.choice(COLORS)
         if _rng.randint(0, 1) == 0:
             ew = max(2, int(_rng.randint(m(6), m(12)) * scale))
             eh = max(2, int(_rng.randint(m(3), m(7)) * scale))
-            a  = max(80, int(210 * scale))
+            a  = max(80, min(180, int(210 * scale)))
             pygame.draw.ellipse(conf_surf, (*col, a),
                                 (int(px - ew // 2), int(py - eh // 2), ew, eh))
         else:
             rw = max(2, int(_rng.randint(m(6), m(12)) * scale))
             rh = max(1, int(_rng.randint(m(2), m(5)) * scale))
-            a  = max(80, int(200 * scale))
+            a  = max(80, min(180, int(200 * scale)))
             rot = _rng.uniform(0, math.pi)
             cos_r, sin_r = math.cos(rot), math.sin(rot)
             hw2, hh2 = rw / 2, rh / 2
@@ -168,14 +170,15 @@ def _draw_confetti(big):
                    for x, y in corners]
             pygame.draw.polygon(conf_surf, (*col, a), pts)
 
-    # Hero sparkles drawn LAST — a handful of big bright glints at the crown of
+    # Hero sparkles drawn LAST — a couple of restrained glints at the crown of
     # the fountain are the "wow" the eye lands on; keeping them on top means no
-    # confetti ever mutes them.
-    for _ in range(5):
+    # confetti ever mutes them, and holding alpha under the particle cap stops
+    # them from blowing out the toned-down burst.
+    for _ in range(2):
         sx = cx_c + _rng.uniform(-m(30), m(34))
         sx = max(S_X1 + m(6), min(FENCE_R, sx))
         sy = _rng.uniform(m(SHELF_Y + 6), m(SHELF_Y + 20))
-        _sparkle(conf_surf, sx, sy, m(9), m(9), (255, 252, 220), 255)
+        _sparkle(conf_surf, sx, sy, m(6), m(6), (255, 252, 220), 180)
 
     big.blit(conf_surf, (0, 0))
 
@@ -399,7 +402,7 @@ except Exception:
     fnt_hdr = fnt_badge = ImageFont.load_default()
 
 draw.text((CANVAS_W // 2, MARGIN + HDR_H // 2),
-          "confetti-scatter (C) r2  |  AFFORDABLE / UNAFFORDABLE",
+          "confetti-scatter (C) r3  |  AFFORDABLE / UNAFFORDABLE",
           fill=(180, 200, 240), font=fnt_hdr, anchor="mm")
 
 panels_y = MARGIN + HDR_H + GAP_HDR
@@ -423,7 +426,7 @@ for px, affordable, panel in panels_data:
 
 OUT = os.path.join(os.path.dirname(__file__), "..",
                    "docs", "store_confirm_shelf_v3", "buy-fancy-v2",
-                   "confetti-scatter", "round_2.png")
+                   "confetti-scatter", "round_3.png")
 OUT = os.path.abspath(OUT)
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 canvas.save(OUT)
