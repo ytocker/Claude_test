@@ -273,10 +273,10 @@ px_center = img.getpixel((left_cx, left_cy))
 assert px_center != (8, 8, 20), f"Left panel center looks like background: {px_center}"
 print(f"(a) left panel center ({left_cx},{left_cy}) = {px_center}  OK")
 
-# (b) BUY rim gold check — sample top-edge of BUY button in affordable panel
-# BUY_CX=58 in popup space; panels start at x=18; BUY top = panels_y + BTN_TOP - 2
+# (b) BUY rim gold check — sample the top rim row of BUY button in affordable panel.
+# BUY_CX=58 in popup space; panels start at x=18; BUY top row = panels_y + BTN_TOP.
 buy_sample_x = 18 + BUY_CX
-buy_sample_y = panels_y + 281 - 2
+buy_sample_y = panels_y + BTN_TOP
 px_buy = img.getpixel((buy_sample_x, buy_sample_y))
 buy_gold = (px_buy[0] + px_buy[1]) // 2 - px_buy[2]
 print(f"(b) BUY rim pixel ({buy_sample_x},{buy_sample_y}) = {px_buy}  gold-score={buy_gold}")
