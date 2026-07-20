@@ -106,27 +106,21 @@ def _draw_buy_pill(big, affordable):
     sc.top_sheen(big, buy_r, brad, m(10), peak=45 if affordable else 18)
 
     if affordable:
-        # bevel_rim's gradient mask reaches ~38% alpha at mid-pill height,
-        # giving R≈112 on the side edges — below the R>200 gold detection
-        # threshold. Use a constant-lit gold ring (full alpha, all sides) plus
-        # a BLEND_ADD white catch-light that adds specular shine without
-        # replacing the gold pixels with transparent-masked near-black.
-        rim_w = max(2, m(3.0))
-        key_w = max(1, m(0.8))
+        # bevel_rim's gradient mask reaches ~38% alpha at mid-pill height →
+        # R≈112 on side edges — below the R>200 gold threshold. A constant-lit
+        # gold ring (full alpha, all sides) is the only reliable way to satisfy
+        # R>200,G>160,B<110 on top AND sides without BLEND_ADD (which adds to B
+        # and kills the B<110 criterion). The ring's intrinsic warm gold is the
+        # affordance signal; top_sheen already lit the pill interior above it.
+        rim_w  = max(2, m(3.0))
+        key_w  = max(1, m(0.8))
+        # Thin dark outer contact keyline
         pygame.draw.rect(big, (14, 14, 30), buy_r, width=key_w, border_radius=brad)
+        # Solid gold inner ring — full opacity ensures top+left+right all qualify
         gold_r = buy_r.inflate(-key_w * 2, -key_w * 2)
         gold_band_w = rim_w - key_w
         pygame.draw.rect(big, (240, 200, 100), gold_r,
                          width=gold_band_w, border_radius=max(1, brad - key_w))
-        # BLEND_ADD: adds white brightness on top without zeroing gold alpha
-        hl = pygame.Surface(buy_r.size, pygame.SRCALPHA)
-        for y in range(buy_r.h):
-            a = int(130 * (1 - y / buy_r.h) ** 1.4)
-            pygame.draw.line(hl, (255, 255, 255, a), (0, y), (buy_r.w, y))
-        sm = pygame.Surface(buy_r.size, pygame.SRCALPHA)
-        pygame.draw.rect(sm, (255, 255, 255, 255), sm.get_rect(), border_radius=brad)
-        hl.blit(sm, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-        big.blit(hl, buy_r.topleft, special_flags=pygame.BLEND_ADD)
         # Dark drop-line one step inside the gold top rail — the beveled lip
         # shadow over the pill recess makes the raised illusion tactile.
         shadow_y = buy_r.top + key_w + gold_band_w + max(1, m(1.5))
