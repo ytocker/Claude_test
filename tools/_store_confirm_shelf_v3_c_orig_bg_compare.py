@@ -40,7 +40,7 @@ def _crop_affordable(slug):
 
 
 img_c  = _crop_affordable("twilight-vault")
-img_c2 = Image.open(os.path.join(BASE, "c-orig-bg", "round_1.png")).crop((18, 54, 218, 394))
+img_c2 = Image.open(os.path.join(BASE, "c-orig-bg", "round_2.png")).crop((18, 54, 218, 394))
 
 PANEL_W, PANEL_H = 200, 355
 MARGIN = 20; GAP = 12; HDR_H = 40; FOOT_H = 36
@@ -63,7 +63,7 @@ except Exception:
 hx = CANVAS_W // 2; hy = MARGIN + HDR_H // 2
 draw.text((hx, hy - 8), "CONCEPT C — HYBRID: C BUTTONS + ORIGINAL SHELF",
           fill=(210, 205, 240), font=fnt_hdr, anchor="mm")
-draw.text((hx, hy + 8), "BEFORE  ·  C (twilight-vault)  ·  C* (original indigo shelf)",
+draw.text((hx, hy + 8), "BEFORE  ·  C (twilight-vault)  ·  C** (C chip + original buttons + shelf)",
           fill=(130, 125, 155), font=fnt_lbl, anchor="mm")
 
 
@@ -88,7 +88,7 @@ def _panel(img, col_i, badge, line1, line2, badge_col=(200, 190, 240)):
 
 _panel(img_before, 0, "0",  "BEFORE",           "current in-game", (180, 170, 220))
 _panel(img_c,      1, "C",  "TWILIGHT VAULT",    "teal shelf",      (100, 200, 200))
-_panel(img_c2,     2, "C*", "C + ORIGINAL SHELF","indigo shelf",    (200, 190, 240))
+_panel(img_c2,     2, "C**","C CHIP + ORIG BTNS","indigo shelf",    (200, 190, 240))
 
 # Separator lines between panels
 for i in range(1, N):

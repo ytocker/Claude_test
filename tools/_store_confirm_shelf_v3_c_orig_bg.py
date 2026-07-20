@@ -68,27 +68,29 @@ def _padlock(surf, cx, cy, h, color):
 
 
 def _btn(big, btn_rect, rad, label, font_px, locked=False, is_cancel=False):
-    # Identical to twilight-vault R2 — turquoise BUY, dimmed-teal CANCEL.
+    # Original indigo fills + gold bevel: chip stays from C, buttons revert to
+    # the original palette so only the chip carries the teal accent.
     if locked:
-        stops   = [(0.0, (34, 52, 52)), (1.0, (22, 36, 36))]
-        lab_col = (110, 128, 128)
-        sheen   = 12
+        stops   = [(0.0, (58, 60, 74)), (1.0, (40, 42, 54))]
+        lab_col = (150, 152, 162)
+        sheen   = 10
     elif is_cancel:
-        stops   = [(0.0, (18, 80, 78)), (1.0, (9, 52, 52))]
-        lab_col = (157, 174, 172)
+        # 25% darker than BUY indigo for visual hierarchy
+        stops   = [(0.0, (68, 62, 104)), (1.0, (40, 36, 70))]
+        lab_col = (168, 162, 200)
         sheen   = 14
     else:
-        stops   = [(0.0, (26, 120, 116)), (1.0, (14, 80, 78))]
-        lab_col = (224, 248, 246)
-        sheen   = 26
+        stops   = [(0.0, (84, 78, 126)), (1.0, (50, 46, 82))]
+        lab_col = (220, 210, 240)
+        sheen   = 22
 
     sc.drop_shadow(big, btn_rect, rad, blur=m(3), alpha=100, dy=m(2))
     big.blit(sc.vgrad_stops(btn_rect.w, btn_rect.h, rad, stops, 255), btn_rect.topleft)
     sc.top_sheen(big, btn_rect, rad, m(12), peak=sheen)
 
     if locked:
-        sc.bevel_rim(big, btn_rect, rad, (44, 58, 58, 200), (120, 140, 140, 180),
-                     w=max(1, m(1.8)))
+        sc.bevel_rim(big, btn_rect, rad, (20, 18, 36, 180), (130, 124, 160, 200),
+                     w=max(1, m(1.2)))
     else:
         rim_w = m(2.2) if is_cancel else m(2.0)
         sc.bevel_rim(big, btn_rect, rad, sc.CARD_RING_DEEP,
@@ -108,7 +110,7 @@ def _btn(big, btn_rect, rad, label, font_px, locked=False, is_cancel=False):
                       lab_col, shadow_a=0, weight=m(0.6))
     else:
         sc.plain_text(big, label, lab_font, btn_rect.center, lab_col,
-                      shadow_a=110, weight=m(0.8), keyline=(6, 20, 20), kw=m(0.9))
+                      shadow_a=110, weight=m(0.8), keyline=(8, 6, 20), kw=m(0.9))
 
 
 def _draw_chip(big, cx, cy, price, affordable):
@@ -281,7 +283,7 @@ except Exception:
     fnt_hdr = fnt_badge = ImageFont.load_default()
 
 draw.text((CANVAS_W // 2, MARGIN + HDR_H // 2),
-          "C + original shelf  |  AFFORDABLE / UNAFFORDABLE",
+          "C** chip + original shelf + original buttons  |  AFFORDABLE / UNAFFORDABLE",
           fill=(180, 200, 240), font=fnt_hdr, anchor="mm")
 
 panels_y = MARGIN + HDR_H + GAP_HDR
@@ -297,14 +299,14 @@ for px, affordable in PANELS:
 for px, affordable, panel in panels_data:
     canvas.paste(panel, (px, panels_y))
     bx, by = px + 5, panels_y + 5
-    bw = fnt_badge.getlength("C*") + 8
+    bw = fnt_badge.getlength("C**") + 8
     draw.rounded_rectangle([bx - 1, by - 1, bx + bw + 1, by + 18], radius=5,
                             fill=(200, 190, 240))
     draw.rounded_rectangle([bx, by, bx + bw, by + 17], radius=4, fill=(24, 22, 38))
-    draw.text((bx + 4, by + 8), "C*", fill=(230, 225, 245), font=fnt_badge, anchor="lm")
+    draw.text((bx + 4, by + 8), "C**", fill=(230, 225, 245), font=fnt_badge, anchor="lm")
 
 OUT = os.path.join(os.path.dirname(__file__), "..",
-                   "docs", "store_confirm_shelf_v3", "c-orig-bg", "round_1.png")
+                   "docs", "store_confirm_shelf_v3", "c-orig-bg", "round_2.png")
 OUT = os.path.abspath(OUT)
 canvas.save(OUT)
 print(f"Saved {OUT}  ({CANVAS_W}x{CANVAS_H})")
