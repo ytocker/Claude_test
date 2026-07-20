@@ -960,37 +960,84 @@ class StoreScene:
         def _nw(txt, font):
             return store_cards._glyph_base(txt, font, 0).get_width()
 
-        def _btn(rect, label, locked=False):
+        _hair_pos = [None]
+
+        def _padlock(surf, cx, cy, h, color):
+            bw, bh = int(h * 0.92), int(h * 0.60)
+            body = pygame.Rect(0, 0, bw, bh)
+            body.center = (cx, cy + int(h * 0.20))
+            pygame.draw.rect(surf, color, body,
+                             border_radius=max(1, int(h * 0.14)))
+            sr = int(h * 0.30)
+            arc = pygame.Rect(cx - sr, body.top - sr, sr * 2, sr * 2)
+            pygame.draw.arc(surf, color, arc,
+                            math.radians(15), math.radians(165),
+                            max(1, int(h * 0.17)))
+            kh = pygame.Rect(0, 0,
+                             max(1, int(h * 0.16)), max(1, int(h * 0.22)))
+            kh.center = (cx, body.centery + int(h * 0.02))
+            pygame.draw.rect(surf, (10, 14, 26), kh, border_radius=1)
+
+        def _btn(rect, label, locked=False, is_cancel=False):
             rad = m(BTN_RAD)
-            stops = ([(0.0, (42, 40, 50)), (1.0, (28, 26, 36))] if locked
-                     else [(0.0, (84, 78, 126)), (1.0, (50, 46, 82))])
-            lab_col = (90, 88, 108) if locked else (220, 210, 240)
-            sheen   = 12 if locked else 28
+            if locked:
+                stops   = [(0.0, (58, 60, 74)), (1.0, (40, 42, 54))]
+                lab_col = (150, 152, 162)
+                sheen   = 10
+            elif is_cancel:
+                stops   = [(0.0, (26, 28, 64)), (1.0, (14, 16, 44))]
+                lab_col = (150, 155, 200)
+                sheen   = 14
+            else:
+                stops   = [(0.0, (38, 40, 84)), (1.0, (22, 24, 56))]
+                lab_col = (200, 205, 240)
+                sheen   = 22
             store_cards.drop_shadow(big, rect, rad, blur=m(3), alpha=100, dy=m(2))
             big.blit(store_cards.vgrad_stops(rect.w, rect.h, rad, stops, 255),
                      rect.topleft)
             store_cards.top_sheen(big, rect, rad, m(12), peak=sheen)
-            store_cards.bevel_rim(big, rect, rad, (20, 18, 36, 180),
-                                  (130, 124, 160, 200), w=max(1, m(1.2)))
-            store_cards.plain_text(big, label, store_cards.font(13), rect.center,
-                                   lab_col, shadow_a=110, weight=m(0.8),
-                                   keyline=(18, 16, 32), kw=m(0.9))
+            if locked:
+                store_cards.bevel_rim(big, rect, rad, (20, 18, 36, 180),
+                                      (130, 124, 160, 200), w=max(1, m(1.2)))
+            else:
+                rim_w = m(2.2) if is_cancel else m(2.0)
+                store_cards.bevel_rim(big, rect, rad, store_cards.CARD_RING_DEEP,
+                                      (*store_cards.CARD_RING_BRIGHT, 230),
+                                      w=max(1, rim_w))
+            font_px  = 13 if is_cancel else 14
+            lab_font = store_cards.font(font_px)
+            if locked:
+                lw     = lab_font.size(label)[0]
+                lock_h = m(11)
+                lock_w = int(lock_h * 0.92)
+                inner  = m(4)
+                grp    = lock_w + inner + lw
+                gx     = rect.centerx - grp // 2
+                _padlock(big, gx + lock_w // 2, rect.centery, lock_h, lab_col)
+                store_cards.plain_text(big, label, lab_font,
+                                       (gx + lock_w + inner + lw // 2, rect.centery),
+                                       lab_col, shadow_a=0, weight=m(0.6))
+            else:
+                store_cards.plain_text(big, label, lab_font, rect.center, lab_col,
+                                       shadow_a=110, weight=m(0.8),
+                                       keyline=(8, 6, 20), kw=m(0.9))
 
         def _chip(cx, cy):
-            CHIP_W, CHIP_H, CHIP_RAD = 120, 36, 8
+            CHIP_W, CHIP_H, CHIP_RAD = 112, 34, 8
             chip = pygame.Rect(0, 0, m(CHIP_W), m(CHIP_H))
             chip.center = (cx, cy)
             crad = m(CHIP_RAD)
             store_cards.drop_shadow(big, chip, crad, blur=m(3), alpha=90, dy=m(2))
-            face_stops = ([(0.0, (235, 220, 175)), (1.0, (205, 190, 145))] if affordable
-                          else [(0.0, (60, 60, 74)), (1.0, (44, 44, 58))])
-            border = (120, 74, 14) if affordable else (78, 80, 96)
+            face_stops = ([(0.0, (18, 20, 50)), (1.0, (10, 11, 30))] if affordable
+                          else [(0.0, (28, 28, 50)), (1.0, (18, 18, 36))])
             big.blit(store_cards.vgrad_stops(chip.w, chip.h, crad, face_stops, 255),
                      chip.topleft)
-            pygame.draw.rect(big, border, chip, width=max(1, m(1)), border_radius=crad)
+            store_cards.bevel_rim(big, chip, crad, store_cards.CARD_RING_DEEP,
+                                  (*store_cards.CARD_RING_BRIGHT, 200),
+                                  w=max(1, m(1.4)))
             txt      = f"{price:,}"
             num_font = store_cards.font(22)
-            coin_r   = m(14)
+            coin_r   = m(15)
             gap      = m(4)
             num_w    = num_font.size(txt)[0]
             total    = coin_r * 2 + gap + num_w
@@ -999,12 +1046,18 @@ class StoreScene:
             num_cx   = left + coin_r * 2 + gap + num_w // 2
             if affordable:
                 store_cards.coin_glyph(big, coin_cx, cy, coin_r)
-                num_col = (52, 28, 4)
+                num_col = (236, 240, 232)
+                hy_ss   = (cy + m(3) + num_font.size(txt)[1] // 2) / SS
+                x0_ss   = (num_cx - num_w // 2) / SS
+                x1_ss   = (num_cx + num_w // 2) / SS
+                _hair_pos[0] = (x0_ss, x1_ss, hy_ss)
             else:
                 pygame.draw.circle(big, (150, 152, 162), (coin_cx, cy), coin_r)
                 pygame.draw.circle(big, (108, 112, 126), (coin_cx, cy), coin_r,
                                    width=max(1, m(1)))
-                num_col = (110, 115, 130)
+                pygame.draw.circle(big, (128, 132, 146), (coin_cx, cy), coin_r - m(3),
+                                   width=max(1, m(1)))
+                num_col = (150, 154, 162)
             store_cards.plain_text(big, txt, num_font, (num_cx, cy + m(3)), num_col,
                                    shadow_a=0, weight=m(0.8))
 
@@ -1100,7 +1153,7 @@ class StoreScene:
         can_r = pygame.Rect(0, 0, m(BTN_W), m(BTN_H))
         can_r.center = (m(CAN_CX), m(BTN_CY))
         _btn(buy_r, "BUY", locked=not affordable)
-        _btn(can_r, "CANCEL")
+        _btn(can_r, "CANCEL", is_cancel=True)
 
         # ── overhanging disc + spotlight halo (crowns the card) ───────────────
         cx_ss, cy_ss, r_ss = m(CX), m(DISC_CY), m(R_HERO)
@@ -1120,6 +1173,11 @@ class StoreScene:
 
         # ── downscale and composite onto screen ───────────────────────────────
         pop = pygame.transform.smoothscale(big, (POP_W, POP_H))
+        if affordable and _hair_pos[0] is not None:
+            x0, x1, hy = _hair_pos[0]
+            pygame.draw.line(pop, store_cards.CARD_RING_BRIGHT,
+                             (int(round(x0)), int(round(hy))),
+                             (int(round(x1)), int(round(hy))), 1)
         px = (W - POP_W) // 2
         py = (H - POP_H) // 2
         self._confirm_panel = pygame.Rect(px, py, POP_W, POP_H)
