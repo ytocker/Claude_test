@@ -211,9 +211,11 @@ def render_popup(affordable):
     big.blit(shelf, shelf_rect.topleft)
 
     # ── neon-arch CTA cluster ──
-    _draw_price_meter(big, affordable)
+    # Meter is drawn LAST of the cluster so its status bar caps the arch crown
+    # rather than being buried under the taller BUY slab it overlaps.
     _draw_buy_arch(big, affordable)
     _draw_cancel_pill(big)
+    _draw_price_meter(big, affordable)
 
     # ── disc + aura + thumb (LAST, so the hero reads over the tray) ──
     cx_ss, cy_ss, r_ss = m(CX), m(DISC_CY), m(R_HERO)
