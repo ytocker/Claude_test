@@ -75,13 +75,12 @@ def _btn(big, btn_rect, rad, label, font_px, locked=False, is_cancel=False):
         lab_col = (150, 152, 162)
         sheen   = 10
     elif is_cancel:
-        # 25% darker than BUY indigo for visual hierarchy
-        stops   = [(0.0, (68, 62, 104)), (1.0, (40, 36, 70))]
-        lab_col = (168, 162, 200)
+        stops   = [(0.0, (26, 28, 64)), (1.0, (14, 16, 44))]
+        lab_col = (150, 155, 200)
         sheen   = 14
     else:
-        stops   = [(0.0, (84, 78, 126)), (1.0, (50, 46, 82))]
-        lab_col = (220, 210, 240)
+        stops   = [(0.0, (38, 40, 84)), (1.0, (22, 24, 56))]
+        lab_col = (200, 205, 240)
         sheen   = 22
 
     sc.drop_shadow(big, btn_rect, rad, blur=m(3), alpha=100, dy=m(2))
@@ -285,7 +284,7 @@ except Exception:
     fnt_hdr = fnt_badge = ImageFont.load_default()
 
 draw.text((CANVAS_W // 2, MARGIN + HDR_H // 2),
-          "C** card-body chip  |  AFFORDABLE / UNAFFORDABLE",
+          "C** deep-card buttons + card-body chip  |  AFFORDABLE / UNAFFORDABLE",
           fill=(180, 200, 240), font=fnt_hdr, anchor="mm")
 
 panels_y = MARGIN + HDR_H + GAP_HDR
@@ -308,7 +307,7 @@ for px, affordable, panel in panels_data:
     draw.text((bx + 4, by + 8), "C**", fill=(230, 225, 245), font=fnt_badge, anchor="lm")
 
 OUT = os.path.join(os.path.dirname(__file__), "..",
-                   "docs", "store_confirm_shelf_v3", "c-orig-bg", "round_3.png")
+                   "docs", "store_confirm_shelf_v3", "c-orig-bg", "round_4.png")
 OUT = os.path.abspath(OUT)
 canvas.save(OUT)
 print(f"Saved {OUT}  ({CANVAS_W}x{CANVAS_H})")
