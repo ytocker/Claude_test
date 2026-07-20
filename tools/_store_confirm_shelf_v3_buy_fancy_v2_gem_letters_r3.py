@@ -1,4 +1,4 @@
-"""buy-fancy-v2 concept D — GEM-LETTERS (r2).
+"""buy-fancy-v2 concept D — GEM-LETTERS (r3).
 
 Single hero gem set into a near-black velvet face beside a real "BUY" wordmark.
 The r1 "three gems = three letters" idea collapsed into one gold blob at 76px
@@ -8,7 +8,7 @@ tight controlled aura behind only the gem, and a gold wordmark reading the label
 plainly. The regalia frame remains the jewel-setting border for the whole button.
 
 Sheet: left=AFFORDABLE, right=UNAFFORDABLE, 444×412
-Output → docs/store_confirm_shelf_v3/buy-fancy-v2/gem-letters/round_2.png
+Output → docs/store_confirm_shelf_v3/buy-fancy-v2/gem-letters/round_3.png
 """
 import os, sys, math
 
@@ -132,9 +132,10 @@ def _buy_gem_letters(big, btn_rect, rad):
     sc.plain_text(big, "BUY", sc.font(14), (text_cx, m(BTN_CY)),
                   (236, 202, 116))
 
-    # Tight, controlled halo behind ONLY the gem — keeps the rest near-black.
-    sc._alpha_aura(big, gem_cx, gem_cy, m(13), lgd["glow"], peak=40, layers=8)
-    sc.facet_gem(big, gem_cx, gem_cy, m(9), lgd["gem"], lgd["deep"])
+    # Tight, controlled halo behind ONLY the gem — kept to a faint warmth so the
+    # velvet stays legibly dark and the regalia frame carries the legendary read.
+    sc._alpha_aura(big, gem_cx, gem_cy, m(13), lgd["glow"], peak=25, layers=8)
+    sc.facet_gem(big, gem_cx, gem_cy, m(7), lgd["gem"], lgd["deep"])
     # Single upper-left near-white glint — the specular juice of a cut jewel.
     pygame.draw.circle(big, (255, 252, 242),
                        (gem_cx - m(3), gem_cy - m(4)), m(1))
@@ -312,7 +313,7 @@ except Exception:
     fnt_hdr = fnt_badge = ImageFont.load_default()
 
 draw.text((CANVAS_W // 2, MARGIN + HDR_H // 2),
-          "gem-letters (D) r2  |  AFFORDABLE / UNAFFORDABLE",
+          "gem-letters (D) r3  |  AFFORDABLE / UNAFFORDABLE",
           fill=(180, 200, 240), font=fnt_hdr, anchor="mm")
 
 panels_y = MARGIN + HDR_H + GAP_HDR
@@ -336,7 +337,7 @@ for px, affordable, panel in panels_data:
 
 OUT = os.path.join(os.path.dirname(__file__), "..",
                    "docs", "store_confirm_shelf_v3", "buy-fancy-v2", "gem-letters",
-                   "round_2.png")
+                   "round_3.png")
 OUT = os.path.abspath(OUT)
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 canvas.save(OUT)
