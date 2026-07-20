@@ -434,36 +434,38 @@ aff = panels_data[0][2]
 unaff = panels_data[1][2]
 
 
-def _bright(p):
-    # Confetti/sparkle pixels far outstrip the dark indigo shelf in total
-    # luminance, so a sum threshold cleanly separates burst from background.
-    return sum(p[:3]) > 260
+def _party(p):
+    # The violet / teal / coral accents are hues that appear nowhere else in the
+    # indigo-and-gold scene, so matching them isolates real confetti from the
+    # shelf, the gold price chip, and button chrome (all of which can be bright).
+    r, g, b = p[:3]
+    teal   = g > 150 and b > 140 and r < 130 and g > r + 40
+    coral  = r > 200 and g < 190 and b < 130 and r > b + 90
+    violet = b > 160 and r > 120 and g < r - 15 and g < b - 40
+    return teal or coral or violet
 
 
 buy_c = aff.getpixel((58, 302))
 print(f"BUY center (58,302): {buy_c}  — should be clean indigo (no confetti on face)")
 
-# Count confetti in the arc above BUY (shelf band, clear of the button rim).
-arc_hits = 0
-for yy in range(255, 285):
-    for xx in range(34, 90):
-        if _bright(aff.getpixel((xx, yy))):
-            arc_hits += 1
-print(f"confetti pixels in arc above BUY (x34-90, y255-285): {arc_hits}  "
+# Count party-hue confetti in the arc above BUY.
+arc_hits = sum(1 for yy in range(250, 288) for xx in range(30, 92)
+               if _party(aff.getpixel((xx, yy))))
+print(f"party-hue confetti in arc above BUY (x30-92, y250-288): {arc_hits}  "
       f"→ {'OK multiple' if arc_hits > 20 else 'TOO FEW'}")
 
-can_c = aff.getpixel((142, 302))
-print(f"CANCEL center (142,302): {can_c}  — should be plain indigo")
+can_c = aff.getpixel((168, 297))
+print(f"CANCEL face (168,297): {can_c}  — should be plain indigo")
 
 # CANCEL side must stay quiet — no confetti bled past the fence.
-can_hits = sum(1 for yy in range(255, 285) for xx in range(118, 170)
-               if _bright(aff.getpixel((xx, yy))))
-print(f"confetti pixels over CANCEL band (x118-170, y255-285): {can_hits}  "
+can_hits = sum(1 for yy in range(250, 288) for xx in range(112, 176)
+               if _party(aff.getpixel((xx, yy))))
+print(f"party-hue confetti over CANCEL band (x112-176, y250-288): {can_hits}  "
       f"→ {'OK quiet' if can_hits == 0 else 'BLEED'}")
 
 unaff_c = unaff.getpixel((58, 302))
 print(f"[unaff] BUY center (58,302): {unaff_c}  — locked slate")
-unaff_hits = sum(1 for yy in range(255, 285) for xx in range(34, 90)
-                 if _bright(unaff.getpixel((xx, yy))))
-print(f"[unaff] confetti pixels above BUY: {unaff_hits}  "
+unaff_hits = sum(1 for yy in range(250, 288) for xx in range(30, 92)
+                 if _party(unaff.getpixel((xx, yy))))
+print(f"[unaff] party-hue confetti above BUY: {unaff_hits}  "
       f"→ {'OK none' if unaff_hits == 0 else 'HAS CONFETTI'}")
