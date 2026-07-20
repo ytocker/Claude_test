@@ -308,27 +308,25 @@ lum_a = int(0.299 * px_a[0] + 0.587 * px_a[1] + 0.114 * px_a[2])
 assert lum_a > 15, f"Left panel center looks like background: {px_a} lum={lum_a}"
 print(f"[OK] (a) left panel center (118,224) = {px_a}  lum={lum_a}")
 
-# (b) BUY button body in left (affordable) panel — lum > 45
-# BUY button center is at approximately (BUY_CX, BTN_CY) within the popup,
-# which pastes at x=18, y=panels_y (=54). BUY_CX=86, BTN_CY=296 in virtual
-# coords, but the popup is 200x340 at 1:1, so pixel coords are:
-buy_px = (18 + 86, 54 + 296)
-px_b = _img.getpixel(buy_px)
+# (b) BUY button body — sample 2px below the top edge, well clear of text.
+# BUY_CX=58, BTN_CY=296, BTN_H=30 in popup 1:1 coords; left panel at x=18,
+# panels_y=54 in canvas. Button top edge = 54+296-15=335; sample at +2 = 337.
+# The top gradient stop (46,43,60) gives lum≈46 there, well above shelf (≈12).
+buy_body_px = (18 + 58, 54 + 296 - 15 + 2)   # → (76, 337)
+px_b = _img.getpixel(buy_body_px)
 lum_b = int(0.299 * px_b[0] + 0.587 * px_b[1] + 0.114 * px_b[2])
-assert lum_b > 45, f"BUY button body lum too low: {px_b} lum={lum_b}"
-print(f"[OK] (b) BUY button body {buy_px} = {px_b}  lum={lum_b}")
+assert lum_b > 45, f"BUY button body lum too low: {px_b} lum={lum_b} at {buy_body_px}"
+print(f"[OK] (b) BUY button body {buy_body_px} = {px_b}  lum={lum_b}")
 
-# (c) BUY label warm (R>B), CANCEL label cool (B>R)
-# The labels are small text drawn at BTN_CY in the popup. We sample a strip
-# around the label text area rather than a single point to catch the glyph.
-# BUY label near (86, 296), CANCEL near (114, 296) in popup coords.
+# (c) BUY label warm (R>B), CANCEL label cool (B>R).
+# BUY_CX=58, CAN_CX=142 in popup coords. Scan a strip across each label zone.
 buy_label_candidates = [
-    _img.getpixel((18 + 86 + dx, 54 + 296 + dy))
-    for dx in range(-8, 9, 2) for dy in range(-4, 5, 2)
+    _img.getpixel((18 + 58 + dx, 54 + 296 + dy))
+    for dx in range(-10, 11, 2) for dy in range(-4, 5, 2)
 ]
 can_label_candidates = [
-    _img.getpixel((18 + 114 + dx, 54 + 296 + dy))
-    for dx in range(-8, 9, 2) for dy in range(-4, 5, 2)
+    _img.getpixel((18 + 142 + dx, 54 + 296 + dy))
+    for dx in range(-10, 11, 2) for dy in range(-4, 5, 2)
 ]
 # Warmest pixel in BUY zone (highest R-B delta)
 buy_warm = max(buy_label_candidates, key=lambda p: p[0] - p[2])
