@@ -921,8 +921,8 @@ class StoreScene:
         CARD_X, CARD_W, CARD_TOP, CARD_H, CARD_RAD = 8, 184, 98, 230, 18
         R_HERO, DISC_CY = 41, 104
         GEM_R, GEM_CY, GEM_L_X, GEM_R_X = 11, 117, 33, 167
-        NAME_FS, Y_NAME = 30, 155
-        Y_BANNER, BANNER_W = 175, 120
+        NAME_FS, Y_NAME = 30, 168
+        Y_BANNER, BANNER_W = 188, 120
         Y_CHIP, CHIP_H = 229, 28
         Y_BTN, BTN_H, BTN_W = 273, 30, 136
         Y_CANCEL, CANCEL_H, CANCEL_W = 308, 22, 80
@@ -951,14 +951,49 @@ class StoreScene:
         store_cards.facet_gem(big, m(GEM_R_X), m(GEM_CY), m(GEM_R),
                               pal["gem"], pal["deep"])
 
-        # ── name (above banner) ───────────────────────────────────────────────
-        store_cards.plain_text(big, name, store_cards.font(NAME_FS),
-                               (m(CX), m(Y_NAME)), (250, 248, 240),
-                               shadow_a=160, weight=m(0.9),
-                               keyline=(6, 6, 16), kw=m(1.0))
+        # ── name (above banner) — line-break for overflow ────────────────────
+        safe_w = m(168)
+        _nf30 = store_cards.font(NAME_FS)
+
+        def _nw(txt, font):
+            return store_cards._glyph_base(txt, font, 0).get_width()
+
+        active_banner_y = Y_BANNER
+        if _nw(name, _nf30) <= safe_w:
+            # Short name — boost to font 33; guard against rare edge overflow.
+            _nf33 = store_cards.font(33)
+            _draw_font = _nf33 if _nw(name, _nf33) <= safe_w else _nf30
+            store_cards.plain_text(big, name, _draw_font,
+                                   (m(CX), m(Y_NAME)), (250, 248, 240),
+                                   shadow_a=160, weight=m(0.9),
+                                   keyline=(6, 6, 16), kw=m(1.0))
+        else:
+            spaces = [i for i, c in enumerate(name) if c == ' ']
+            if spaces:
+                # Multi-word: split at the space that best balances line widths.
+                best = min(spaces, key=lambda i: max(
+                    _nw(name[:i], _nf30), _nw(name[i + 1:], _nf30)))
+                line1, line2 = name[:best], name[best + 1:]
+            else:
+                # Single word: find the hyphen position that best balances widths.
+                best_i, best_mw = 1, float('inf')
+                for i in range(1, len(name)):
+                    mw = max(_nw(name[:i] + '-', _nf30), _nw(name[i:], _nf30))
+                    if mw < best_mw:
+                        best_mw, best_i = mw, i
+                line1, line2 = name[:best_i] + '-', name[best_i:]
+            store_cards.plain_text(big, line1, store_cards.font(30),
+                                   (m(CX), m(157)), (250, 248, 240),
+                                   shadow_a=160, weight=m(0.9),
+                                   keyline=(6, 6, 16), kw=m(1.0))
+            store_cards.plain_text(big, line2, store_cards.font(27),
+                                   (m(CX), m(179)), (250, 248, 240),
+                                   shadow_a=120, weight=m(0.8),
+                                   keyline=(6, 6, 16), kw=m(1.0))
+            active_banner_y = 208
 
         # ── rarity banner ─────────────────────────────────────────────────────
-        store_cards._ribbon_lozenge(big, tier_word, m(CX), m(Y_BANNER), m(BANNER_W), pal)
+        store_cards._ribbon_lozenge(big, tier_word, m(CX), m(active_banner_y), m(BANNER_W), pal)
 
         # ── price chip ────────────────────────────────────────────────────────
         store_cards.price_chip(big, m(CX), m(Y_CHIP), f"{price:,}",
