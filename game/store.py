@@ -943,20 +943,20 @@ class StoreScene:
         price = store_catalog.cost(sid)
 
         # Popup metrics (logical px, SS=2 double-res surface).
-        POP_W, POP_H = 280, 476
+        POP_W, POP_H = 260, 442
         CX = POP_W // 2
         SS = store_cards.SS
         m = store_cards.m
 
-        CARD_X, CARD_W, CARD_TOP, CARD_H, CARD_RAD = 11, 258, 137, 322, 25
-        R_HERO, DISC_CY = 57, 146
-        GEM_R, GEM_CY, GEM_L_X, GEM_R_X = 15, 164, 46, 234
-        NAME_FS, Y_NAME = 42, 217
-        Y_BANNER, BANNER_W, BANNER_H = 245, 168, 31
+        CARD_X, CARD_W, CARD_TOP, CARD_H, CARD_RAD = 10, 240, 127, 299, 23
+        R_HERO, DISC_CY = 53, 135
+        GEM_R, GEM_CY, GEM_L_X, GEM_R_X = 14, 152, 43, 217
+        NAME_FS, Y_NAME = 39, 202
+        Y_BANNER, BANNER_W, BANNER_H = 228, 156, 29
         affordable = store_data.balance() >= price
-        SHELF_X, SHELF_Y, SHELF_W, SHELF_H = 18, 361, 244, 98
-        CHIP_CY = 433
-        BTN_W, BTN_H, BTN_RAD, BTN_CY, BTN_GAP = 106, 34, 13, 388, 11
+        SHELF_X, SHELF_Y, SHELF_W, SHELF_H = 17, 335, 226, 91
+        CHIP_CY = 402
+        BTN_W, BTN_H, BTN_RAD, BTN_CY, BTN_GAP = 99, 31, 12, 360, 10
         BUY_CX = CX - (BTN_W + BTN_GAP) // 2
         CAN_CX = CX + (BTN_W + BTN_GAP) // 2
         _hair_pos = [None]
@@ -1143,7 +1143,7 @@ class StoreScene:
         _btn(can_r, "CANCEL", is_cancel=True)
 
         # ── bottom gem pair (drawn on top of shelf) ───────────────────────────
-        BOT_GEM_CY = 433
+        BOT_GEM_CY = 402
         for _gx in [m(GEM_L_X), m(GEM_R_X)]:
             if affordable:
                 store_cards._alpha_aura(big, _gx, m(BOT_GEM_CY), m(16),
