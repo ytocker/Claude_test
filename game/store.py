@@ -301,34 +301,34 @@ def _gold_rule(surf, x0, x1, y, peak=170):
 
 
 def _confirm_tier_banner(big, cx, cy, w_log, h_log, tier_word, pal):
-    """Notched-hex rarity banner for the confirm popup — white tier word over the
-    raw 3-stop tier gradient so the tier reads as a word, not just a hue."""
+    """Lozenge rarity banner for the confirm popup — matches the item card style:
+    outward-pointed ends, tier gradient, dark embedded tier word."""
     m = store_cards.m
-    w, h = m(w_log), m(h_log)
-    notch = m(6)
+    f = store_cards.font(h_log * 0.58)
+    tw = store_cards._glyph_base(tier_word, f, m(1.4)).get_width()
+    pad = m(16)
+    w = min(m(w_log), tw + pad * 2)
+    h = m(h_log)
+    pt = h // 2
     x0, y0 = m(cx) - w // 2, m(cy) - h // 2
-    stops = [(0.0, pal["gem"]), (0.5, pal["glow"]), (1.0, pal["deep"])]
-    body = store_cards.vgrad_stops(w, h, 0, stops, 255, gamma=1.08)
-    poly = [(notch, 0), (w - notch, 0), (w, h // 2), (w - notch, h),
-            (notch, h), (0, h // 2)]
+    poly = [(0, h // 2), (pt, 0), (w - pt, 0),
+            (w, h // 2), (w - pt, h), (pt, h)]
+    top = lerp_color(pal["gem"], WHITE, 0.1)
+    bot = lerp_color(pal["deep"], NEAR_BLACK, 0.05)
+    body = store_cards.vgrad_stops(w, h, 0,
+                                   [(0.0, top), (0.5, pal["glow"]), (1.0, bot)],
+                                   255, gamma=1.08)
     pmask = pygame.Surface((w, h), pygame.SRCALPHA)
     pygame.draw.polygon(pmask, (255, 255, 255, 255), poly)
     body.blit(pmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     sh = pygame.Surface((w, h), pygame.SRCALPHA)
-    pygame.draw.polygon(sh, (0, 0, 0, 130), poly)
+    pygame.draw.polygon(sh, (0, 0, 0, 120), poly)
     big.blit(sh, (x0, y0 + m(2)))
     big.blit(body, (x0, y0))
     abspoly = [(x0 + px, y0 + py) for px, py in poly]
-    pygame.draw.polygon(big, (6, 6, 16), abspoly, width=max(1, m(1.6)))
-    fsz = h_log * 0.52
-    f = store_cards.font(fsz)
-    avail = w - notch * 2 - m(8)
-    while store_cards._glyph_base(tier_word, f, m(1.6)).get_width() > avail and fsz > 6:
-        fsz -= 0.5
-        f = store_cards.font(fsz)
-    store_cards.plain_text(big, tier_word, f, (m(cx), m(cy)), (250, 248, 240),
-                           shadow_a=150, tracking=m(1.6), weight=m(1.0),
-                           keyline=(10, 10, 22), kw=m(0.8))
+    pygame.draw.polygon(big, NEAR_BLACK, abspoly, width=max(1, m(1.4)))
+    store_cards.plain_text(big, tier_word, f, (m(cx), m(cy)), (14, 12, 26),
+                           shadow_a=0, tracking=m(1.4), weight=m(0.7))
 
 
 def _gradient_text(surf, txt, font_obj, center, top, bot, outline=None, shadow=True):
