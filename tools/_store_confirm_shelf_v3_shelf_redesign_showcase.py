@@ -5,7 +5,7 @@ import os
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 PANELS = [
-    ("1", "gem-cradle-chip",    "docs/store_confirm_shelf_v3/shelf-redesign/gem-cradle-chip/round_1.png"),
+    ("1", "gem-cradle-chip",    "docs/store_confirm_shelf_v3/shelf-redesign/gem-cradle-chip/round_2.png"),
     ("2", "fused-buy-bar",      "docs/store_confirm_shelf_v3/shelf-redesign/fused-buy-bar/round_1.png"),
     ("3", "central-seal-ribbon","docs/store_confirm_shelf_v3/shelf-redesign/central-seal-ribbon/round_1.png"),
     ("4", "hanging-price-tab",  "docs/store_confirm_shelf_v3/shelf-redesign/hanging-price-tab/round_1.png"),
