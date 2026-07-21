@@ -9,7 +9,7 @@ PANELS = [
     ("A", "full-raise",   "docs/store_confirm_shelf_v3/bottom-gems/full-raise/round_2.png"),
     ("B", "buttons-lift", "docs/store_confirm_shelf_v3/bottom-gems/buttons-lift/round_2.png"),
     ("C", "slim-buttons", "docs/store_confirm_shelf_v3/bottom-gems/slim-buttons/round_2.png"),
-    ("D", "shelf-notch",  "docs/store_confirm_shelf_v3/bottom-gems/gems-overlap/round_2.png"),
+    ("D", "shelf-notch",  "docs/store_confirm_shelf_v3/bottom-gems/shelf-notch/round_2.png"),
     ("E", "shelf-expands","docs/store_confirm_shelf_v3/bottom-gems/shelf-expands/round_2.png"),
 ]
 

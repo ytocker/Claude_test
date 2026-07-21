@@ -6,7 +6,7 @@ frame — like stones in a ring setting — rather than floating on top. Buttons
 sit raised above the gems (no overlap) so each setting stays clearly visible.
 
 Sheet: left=AFFORDABLE, right=UNAFFORDABLE, 444×412
-Output → docs/store_confirm_shelf_v3/bottom-gems/gems-overlap/round_2.png
+Output → docs/store_confirm_shelf_v3/bottom-gems/shelf-notch/round_2.png
 """
 import os, sys, math
 
@@ -329,7 +329,7 @@ for px, affordable, panel in panels_data:
     draw.text((bx + 4, by + 8), badge, fill=(230, 225, 245), font=fnt_badge, anchor="lm")
 
 OUT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
-      "docs", "store_confirm_shelf_v3", "bottom-gems", "gems-overlap", "round_2.png"))
+      "docs", "store_confirm_shelf_v3", "bottom-gems", "shelf-notch", "round_2.png"))
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 canvas.save(OUT)
 print(f"Saved {OUT}  ({CANVAS_W}x{CANVAS_H})")
