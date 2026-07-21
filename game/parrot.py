@@ -997,6 +997,80 @@ def tint_copy(sprite, tint, strength):
     return out
 
 
+# Skin-power-up composite cache.
+# Baked at run-start (Bird.rebuild_skin_combos) for the one equipped custom
+# skin.  Seven flag combos x 4 wing angles stored at tilt=0; tilt rotation is
+# applied at lookup time so the rotated result fits the standard rounded-angle
+# cache already used by all other parrot getters.
+_SKIN_COMBOS: "dict[str, dict[tuple, list]]" = {}
+_SKIN_COMBO_ROT_CACHE: "dict[tuple, pygame.Surface]" = {}
+
+
+def build_skin_powerup_composites(skin_id: str) -> None:
+    """Pre-bake the 7 non-knight power-up combos x 4 frames for one skin.
+
+    No-ops for skin_base and any id absent from the store skin registry; those
+    fall through to the original bespoke cascade which already handles the base
+    macaw correctly.
+    """
+    global _SKIN_COMBOS, _SKIN_COMBO_ROT_CACHE
+    if _store_skin_builders().get(skin_id) is None:
+        _SKIN_COMBOS.pop(skin_id, None)
+        _SKIN_COMBO_ROT_CACHE = {}
+        return
+    from game.dollar_parrot_hat import (
+        draw_stovepipe, draw_stovepipe_kfc, draw_stovepipe_ghost,
+    )
+    combos: "dict[tuple, list]" = {}
+    for kfc_f in (False, True):
+        for ghost_f in (False, True):
+            for triple_f in (False, True):
+                if not (kfc_f or ghost_f or triple_f):
+                    continue
+                frames = []
+                for fi in range(4):
+                    img = get_skin_frame(skin_id, fi, 0.0).copy()
+                    if kfc_f:
+                        # Amber fried-chicken tint; same RGB as the bespoke KFC
+                        # macaw, strength matches the spectral-ghost default.
+                        _cyan_tint_in_place(img, tint=(210, 138, 42), strength=0.55)
+                    if triple_f:
+                        # $ stovepipe hat at the shared macaw brim anchor.
+                        # Raw-composite anchor (47,30) + 2 px outline pad = (49,32)
+                        # in the 68x104 outlined frame all 31 store skins share.
+                        hat_fn = (draw_stovepipe_kfc   if kfc_f
+                                  else draw_stovepipe_ghost if ghost_f
+                                  else draw_stovepipe)
+                        hat_fn(img, 49, 32)
+                    if ghost_f:
+                        _cyan_tint_in_place(img)
+                    frames.append(img)
+                combos[(kfc_f, ghost_f, triple_f)] = frames
+    _SKIN_COMBOS[skin_id] = combos
+    _SKIN_COMBO_ROT_CACHE = {}
+
+
+def get_skin_combo_frame(
+    skin_id: str, kfc: bool, ghost: bool, triple: bool,
+    frame_idx: int, tilt_deg: float,
+) -> "pygame.Surface | None":
+    """Return the pre-baked composite for the given flags, or None to fall back."""
+    combos = _SKIN_COMBOS.get(skin_id)
+    if combos is None:
+        return None
+    frames = combos.get((kfc, ghost, triple))
+    if frames is None:
+        return None
+    fi = frame_idx % 4
+    rounded = int(round(tilt_deg / 3.0)) * 3
+    key = (skin_id, kfc, ghost, triple, fi, rounded)
+    s = _SKIN_COMBO_ROT_CACHE.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[fi], rounded, 1.0)
+        _SKIN_COMBO_ROT_CACHE[key] = s
+    return s
+
+
 # kfc + triple — fried bird + crispy KFC hat
 _kfc_hat_frames: "list | None" = None
 _kfc_hat_cache: dict = {}
