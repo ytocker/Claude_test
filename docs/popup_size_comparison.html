@@ -1,0 +1,574 @@
+<title>Skybit · Item Popup Size Comparison</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  background:#05060e;
+  color:#f0eedc;
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  min-height:100vh;
+  padding:2.5rem 1.5rem 5rem;
+}
+
+header{
+  text-align:center;
+  margin-bottom:2.75rem;
+}
+.eyebrow{
+  font-size:0.68rem;
+  letter-spacing:0.22em;
+  text-transform:uppercase;
+  color:#eeca74;
+  margin-bottom:0.65rem;
+  opacity:0.9;
+}
+header h1{
+  font-size:1.45rem;
+  font-weight:800;
+  letter-spacing:-0.01em;
+  color:#f0eedc;
+  margin-bottom:0.45rem;
+}
+header .sub{
+  font-size:0.75rem;
+  color:#5a5a8a;
+  letter-spacing:0.05em;
+}
+
+.panels-row{
+  display:flex;
+  gap:2rem;
+  justify-content:center;
+  align-items:flex-start;
+  flex-wrap:wrap;
+}
+
+.panel-col{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:0.85rem;
+}
+
+.panel-label{text-align:center;}
+.panel-label h2{
+  font-size:0.88rem;
+  font-weight:700;
+  color:#f0eedc;
+  margin-bottom:0.2rem;
+}
+.panel-label .dims{
+  font-size:0.67rem;
+  color:#eeca74;
+  letter-spacing:0.07em;
+  font-variant-numeric:tabular-nums;
+}
+.panel-label .note{
+  font-size:0.64rem;
+  color:#4a4a7a;
+  letter-spacing:0.04em;
+  margin-top:0.1rem;
+}
+.note-rec{color:#7ec8a4 !important;}
+
+.panel-frame{
+  width:216px;
+  height:384px;
+  overflow:hidden;
+  border-radius:10px;
+  border:1px solid rgba(236,202,116,0.18);
+  box-shadow:0 6px 32px rgba(0,0,0,0.7),0 0 0 1px rgba(0,0,0,0.4);
+  position:relative;
+  background:#05060e;
+}
+
+/* The real game screen at 1× (360×640), CSS-scaled to 60% */
+.game-screen{
+  width:360px;
+  height:640px;
+  transform:scale(0.6);
+  transform-origin:top left;
+  position:relative;
+  overflow:hidden;
+}
+
+.game-bg{
+  position:absolute;inset:0;
+  background:linear-gradient(180deg,#09091a 0%,#060611 60%,#04040c 100%);
+}
+
+canvas.stars{
+  position:absolute;inset:0;
+  width:360px;height:640px;
+  pointer-events:none;
+}
+
+/* ── Store header ──────────────────────────────────────────────────────── */
+.sh{
+  position:absolute;top:0;left:0;right:0;height:116px;
+  z-index:2;pointer-events:none;
+}
+.sh-title{
+  position:absolute;top:12px;left:16px;
+  font-size:18px;font-weight:900;
+  letter-spacing:0.14em;color:#eeca74;
+  text-shadow:0 0 14px rgba(236,202,116,0.45);
+}
+.sh-balance{
+  position:absolute;top:10px;right:12px;
+  background:linear-gradient(180deg,#242450,#141430);
+  border:1.5px solid rgba(236,202,116,0.55);
+  border-radius:12px;padding:4px 10px;
+  font-size:11px;color:#ecd088;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:0.02em;
+}
+.sh-tabs{
+  position:absolute;top:48px;left:0;right:0;
+  height:40px;display:flex;align-items:center;
+  padding:0 10px;gap:6px;
+}
+.sh-tab{
+  padding:5px 10px;border-radius:11px;
+  font-size:8.5px;font-weight:700;
+  letter-spacing:0.04em;
+  color:rgba(240,238,220,0.38);
+  border:1px solid transparent;
+  white-space:nowrap;
+}
+.sh-tab.on{
+  color:#eeca74;
+  border-color:rgba(236,202,116,0.45);
+  background:rgba(236,202,116,0.09);
+}
+
+/* ── Item cards ──────────────────────────────────────────────────────────── */
+.ig{position:absolute;top:116px;left:14px;z-index:2;}
+.ic{
+  position:absolute;width:162px;height:100px;
+  border-radius:10px;
+  background:linear-gradient(180deg,#1c1e46,#0c0d26);
+  border:1.5px solid rgba(236,202,116,0.32);
+  overflow:hidden;
+}
+.ic-dome{
+  position:absolute;left:10px;top:8px;
+  width:40px;height:40px;border-radius:50%;
+  background:radial-gradient(circle at 38% 30%,#282a54,#0e1026);
+  border:1.5px solid rgba(236,202,116,0.42);
+}
+.ic-gem{
+  position:absolute;right:7px;top:6px;
+  width:11px;height:11px;border-radius:50%;
+}
+.ic-name{
+  position:absolute;bottom:8px;left:0;right:0;
+  text-align:center;font-size:8px;font-weight:700;
+  color:rgba(240,238,220,0.7);letter-spacing:0.03em;
+}
+.ic-price{
+  position:absolute;bottom:22px;left:0;right:0;
+  text-align:center;font-size:7.5px;
+  color:rgba(236,202,116,0.75);
+  font-variant-numeric:tabular-nums;
+}
+
+/* ── Scrim ────────────────────────────────────────────────────────────────── */
+.scrim{
+  position:absolute;inset:0;
+  background:rgba(4,4,10,0.71);
+  z-index:5;
+}
+
+/* ── Popup elements (all positioned in popup-local space) ─────────────────── */
+.popup{position:absolute;z-index:6;}
+
+.p-card{
+  position:absolute;
+  background:linear-gradient(180deg,#1c1e46 0%,#0c0d26 100%);
+  box-shadow:0 10px 28px rgba(0,0,10,0.85),0 3px 8px rgba(0,0,10,0.6),
+             inset 0 1px 0 rgba(236,202,116,0.12);
+  border:1.5px solid #eeca74;
+}
+
+.p-disc{
+  position:absolute;border-radius:50%;
+  background:radial-gradient(circle at 38% 28%,#2e3060,#10122a);
+  border:2px solid rgba(236,202,116,0.88);
+  box-shadow:0 0 28px rgba(194,122,248,0.48),
+             0 0 10px rgba(194,122,248,0.28),
+             inset 0 2px 4px rgba(255,255,255,0.08);
+  display:flex;align-items:center;justify-content:center;
+}
+.p-disc-inner{
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#3c3e72,#0e0f28);
+}
+
+.p-gem{
+  position:absolute;border-radius:50%;
+  background:radial-gradient(circle at 38% 28%,#d49afc,#7a38cc);
+  box-shadow:0 0 10px rgba(194,122,248,0.55);
+}
+
+.p-name{
+  position:absolute;
+  transform:translate(-50%,-50%);
+  font-weight:800;letter-spacing:0.04em;
+  color:#f6f0f0;
+  text-shadow:0 1px 4px rgba(0,0,10,0.9);
+  white-space:nowrap;
+  font-family:system-ui;
+}
+
+.p-banner{
+  position:absolute;
+  transform:translate(-50%,-50%);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;letter-spacing:0.12em;
+  background:linear-gradient(90deg,rgba(194,122,248,0.08),rgba(194,122,248,0.22),rgba(194,122,248,0.08));
+  border-top:1px solid rgba(194,122,248,0.42);
+  border-bottom:1px solid rgba(194,122,248,0.42);
+  color:#d49afc;
+  font-family:system-ui;
+}
+
+.p-shelf{
+  position:absolute;
+  background:linear-gradient(180deg,#202252,#0e1030);
+  border-top:1px solid rgba(130,110,170,0.38);
+}
+
+.p-btn{
+  position:absolute;
+  transform:translate(-50%,-50%);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;letter-spacing:0.06em;
+  font-family:system-ui;
+}
+.p-buy{
+  background:linear-gradient(180deg,#262654,#161640);
+  border:1.5px solid rgba(236,202,116,0.82);
+  color:#c8ccf4;
+}
+.p-can{
+  background:linear-gradient(180deg,#1a1a3e,#0e0e2a);
+  border:1.5px solid rgba(140,144,190,0.38);
+  color:#8890c0;
+}
+
+.p-chip{
+  position:absolute;
+  transform:translate(-50%,-50%);
+  display:flex;align-items:center;justify-content:center;
+  gap:0;
+  background:linear-gradient(180deg,#282858,#161640);
+  border:1.5px solid rgba(236,202,116,0.58);
+  color:#ecd090;
+  font-weight:700;font-variant-numeric:tabular-nums;
+  font-family:system-ui;
+}
+
+/* ── Metrics table ────────────────────────────────────────────────────────── */
+.metrics{
+  margin:3rem auto 0;
+  max-width:700px;
+}
+.metrics-title{
+  text-align:center;
+  font-size:0.67rem;letter-spacing:0.14em;
+  text-transform:uppercase;color:#383868;
+  margin-bottom:1.25rem;
+}
+.metrics table{
+  width:100%;border-collapse:collapse;
+  font-size:0.8rem;
+}
+.metrics th{
+  text-align:left;color:#eeca74;font-weight:600;
+  padding:9px 14px;
+  border-bottom:1px solid rgba(236,202,116,0.18);
+  letter-spacing:0.04em;font-size:0.75rem;
+}
+.metrics td{
+  padding:8px 14px;color:#c0bed8;
+  font-variant-numeric:tabular-nums;
+}
+.metrics tr:not(:last-child) td{border-bottom:1px solid rgba(255,255,255,0.04);}
+.v0{color:#484870;}
+.va{color:#7ec8a4;}
+.vb{color:#d4b070;}
+.badge-rec{
+  display:inline-block;
+  background:rgba(126,200,164,0.12);
+  color:#7ec8a4;
+  border:1px solid rgba(126,200,164,0.28);
+  border-radius:4px;
+  font-size:0.6rem;padding:1px 5px;
+  letter-spacing:0.06em;margin-left:5px;
+  vertical-align:middle;
+}
+</style>
+
+<header>
+  <div class="eyebrow">Skybit Store — Buy Confirmation Popup</div>
+  <h1>Item Popup Size Comparison</h1>
+  <p class="sub">Current &nbsp;·&nbsp; Option A +30% &nbsp;·&nbsp; Option B +40% &nbsp;·&nbsp; overlaid on the category screen</p>
+</header>
+
+<div class="panels-row" id="pr"></div>
+
+<div class="metrics">
+  <p class="metrics-title">Metrics</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th>Current</th>
+        <th>Option A <span class="badge-rec">recommended</span></th>
+        <th>Option B</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Popup size (px)</td>
+        <td class="v0">200 × 340</td>
+        <td class="va">260 × 442</td>
+        <td class="vb">280 × 476</td>
+      </tr>
+      <tr>
+        <td>Side margins</td>
+        <td class="v0">80 px each</td>
+        <td class="va">50 px each</td>
+        <td class="vb">40 px each</td>
+      </tr>
+      <tr>
+        <td>Top / bottom margins</td>
+        <td class="v0">150 px each</td>
+        <td class="va">99 px each</td>
+        <td class="vb">82 px each</td>
+      </tr>
+      <tr>
+        <td>Screen coverage (W × H)</td>
+        <td class="v0">55.6% × 53.1%</td>
+        <td class="va">72.2% × 69.1%</td>
+        <td class="vb">77.8% × 74.4%</td>
+      </tr>
+      <tr>
+        <td>Uniform scale factor</td>
+        <td class="v0">—</td>
+        <td class="va">× 1.30</td>
+        <td class="vb">× 1.40</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+const VARIANTS = [
+  {
+    label:"Current", dims:"200 × 340", note:"55% screen width", noteClass:"",
+    pw:200, ph:340, px:80, py:150,
+    cx:100,
+    cardX:8, cardW:184, cardTop:98, cardH:230, cardRad:18,
+    rHero:41, discCy:104,
+    gemR:11, gemCy:117, gemLx:33, gemRx:167,
+    nameFs:21, nameY:155,
+    bannerW:120, bannerH:22, bannerY:175,
+    shelfX:13, shelfY:258, shelfW:174, shelfH:70,
+    chipCy:309, chipW:88, chipH:24,
+    btnW:76, btnH:24, btnRad:9, btnCy:277,
+    buyCx:58, canCx:142,
+    botGemCy:309
+  },
+  {
+    label:"Option A", dims:"260 × 442", note:"+30% · recommended", noteClass:"note-rec",
+    pw:260, ph:442, px:50, py:99,
+    cx:130,
+    cardX:10, cardW:240, cardTop:127, cardH:299, cardRad:23,
+    rHero:53, discCy:135,
+    gemR:14, gemCy:152, gemLx:43, gemRx:217,
+    nameFs:28, nameY:202,
+    bannerW:156, bannerH:29, bannerY:228,
+    shelfX:17, shelfY:335, shelfW:226, shelfH:91,
+    chipCy:402, chipW:114, chipH:31,
+    btnW:99, btnH:31, btnRad:12, btnCy:360,
+    buyCx:76, canCx:184,
+    botGemCy:402
+  },
+  {
+    label:"Option B", dims:"280 × 476", note:"+40%", noteClass:"",
+    pw:280, ph:476, px:40, py:82,
+    cx:140,
+    cardX:11, cardW:258, cardTop:137, cardH:322, cardRad:25,
+    rHero:57, discCy:146,
+    gemR:15, gemCy:164, gemLx:46, gemRx:234,
+    nameFs:30, nameY:217,
+    bannerW:168, bannerH:31, bannerY:245,
+    shelfX:18, shelfY:361, shelfW:244, shelfH:98,
+    chipCy:433, chipW:123, chipH:33,
+    btnW:106, btnH:34, btnRad:13, btnCy:388,
+    buyCx:82, canCx:198,
+    botGemCy:433
+  }
+];
+
+const CARD_DATA = [
+  {name:"PHANTOM",  price:"1,200", gem:"#c27af8"},
+  {name:"AURORA",   price:"850",   gem:"#6cbcfc"},
+  {name:"ECLIPSE",  price:"450",   gem:"#d6cee6"},
+  {name:"CRIMSON",  price:"1,800", gem:"#ffca68"},
+  {name:"NOVA",     price:"600",   gem:"#6cbcfc"},
+  {name:"PRISM",    price:"350",   gem:"#d6cee6"},
+  {name:"SHADOW",   price:"900",   gem:"#c27af8"},
+  {name:"TITAN",    price:"2,400", gem:"#ffca68"},
+];
+
+function drawStars(canvas) {
+  const ctx = canvas.getContext('2d');
+  let s = 0x12345678;
+  const rng = () => { s = (Math.imul(s,1664525) + 1013904223) >>> 0; return s / 0xFFFFFFFF; };
+  for (let i = 0; i < 130; i++) {
+    const x = rng()*360, y = rng()*640, r = rng()*1.2+0.15, a = rng()*0.5+0.15;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle = `rgba(255,255,255,${a.toFixed(2)})`; ctx.fill();
+  }
+  // a few brighter clusters near top
+  for (let i = 0; i < 8; i++) {
+    const x = rng()*360, y = rng()*200, r = rng()*0.8+0.6, a = rng()*0.3+0.5;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle = `rgba(220,230,255,${a.toFixed(2)})`; ctx.fill();
+  }
+}
+
+function el(tag, cls, css) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (css) e.style.cssText = css;
+  return e;
+}
+
+function buildStoreUI() {
+  const wrap = el('div','sh');
+
+  // Title
+  const title = el('div','sh-title'); title.textContent = 'STORE'; wrap.appendChild(title);
+  // Balance
+  const bal = el('div','sh-balance'); bal.textContent = '⊙ 2,450'; wrap.appendChild(bal);
+  // Tabs
+  const tabs = el('div','sh-tabs');
+  ['COSTUMES','PARROTS','PARCELS'].forEach((t,i) => {
+    const tab = el('div','sh-tab'+(i===0?' on':''));
+    tab.textContent = t; tabs.appendChild(tab);
+  });
+  wrap.appendChild(tabs);
+
+  // Item grid
+  const ig = el('div','ig');
+  CARD_DATA.forEach((d,i) => {
+    const col = i%2, row = Math.floor(i/2);
+    const card = el('div','ic',`left:${col*170}px;top:${row*108}px;`);
+    const dome = el('div','ic-dome'); card.appendChild(dome);
+    const gem = el('div','ic-gem',`background:radial-gradient(circle at 35% 28%,${d.gem},${d.gem}66);`);
+    card.appendChild(gem);
+    const price = el('div','ic-price'); price.textContent = '⊙ '+d.price; card.appendChild(price);
+    const name = el('div','ic-name'); name.textContent = d.name; card.appendChild(name);
+    ig.appendChild(card);
+  });
+  wrap.appendChild(ig);
+
+  return wrap;
+}
+
+function buildPopup(v) {
+  const pop = el('div','popup',`left:${v.px}px;top:${v.py}px;width:${v.pw}px;height:${v.ph}px;`);
+
+  // Card body
+  pop.appendChild(el('div','p-card',
+    `left:${v.cardX}px;top:${v.cardTop}px;width:${v.cardW}px;height:${v.cardH}px;border-radius:${v.cardRad}px;`));
+
+  // Disc (overhanging)
+  const disc = el('div','p-disc',
+    `left:${v.cx-v.rHero}px;top:${v.discCy-v.rHero}px;width:${v.rHero*2}px;height:${v.rHero*2}px;`);
+  const inner = el('div','p-disc-inner',`width:${Math.round(v.rHero*1.4)}px;height:${Math.round(v.rHero*1.4)}px;`);
+  disc.appendChild(inner);
+  pop.appendChild(disc);
+
+  // Upper corner gems
+  [v.gemLx, v.gemRx].forEach(gx => {
+    pop.appendChild(el('div','p-gem',
+      `left:${gx-v.gemR}px;top:${v.gemCy-v.gemR}px;width:${v.gemR*2}px;height:${v.gemR*2}px;`));
+  });
+
+  // Item name
+  const name = el('div','p-name',`left:${v.cx}px;top:${v.nameY}px;font-size:${v.nameFs}px;`);
+  name.textContent = 'PHANTOM'; pop.appendChild(name);
+
+  // Rarity banner
+  const banner = el('div','p-banner',
+    `left:${v.cx}px;top:${v.bannerY}px;width:${v.bannerW}px;height:${v.bannerH}px;font-size:${Math.max(7,Math.round(v.bannerH*0.52))}px;`);
+  banner.textContent = 'EPIC'; pop.appendChild(banner);
+
+  // Shelf
+  pop.appendChild(el('div','p-shelf',
+    `left:${v.shelfX}px;top:${v.shelfY}px;width:${v.shelfW}px;height:${v.shelfH}px;border-radius:0 0 ${v.cardRad}px ${v.cardRad}px;`));
+
+  // BUY button
+  const buy = el('div','p-btn p-buy',
+    `left:${v.buyCx}px;top:${v.btnCy}px;width:${v.btnW}px;height:${v.btnH}px;border-radius:${v.btnRad}px;font-size:${Math.max(7,Math.round(v.btnH*0.48))}px;`);
+  buy.textContent = 'BUY'; pop.appendChild(buy);
+
+  // CANCEL button
+  const can = el('div','p-btn p-can',
+    `left:${v.canCx}px;top:${v.btnCy}px;width:${v.btnW}px;height:${v.btnH}px;border-radius:${v.btnRad}px;font-size:${Math.max(7,Math.round(v.btnH*0.44))}px;`);
+  can.textContent = 'CANCEL'; pop.appendChild(can);
+
+  // Price chip
+  const chip = el('div','p-chip',
+    `left:${v.cx}px;top:${v.chipCy}px;width:${v.chipW}px;height:${v.chipH}px;border-radius:${Math.round(v.chipH*0.32)}px;font-size:${Math.max(8,Math.round(v.chipH*0.52))}px;gap:${Math.round(v.chipH*0.18)}px;`);
+  const coinSz = Math.round(v.chipH*0.62);
+  chip.innerHTML = `<div style="width:${coinSz}px;height:${coinSz}px;border-radius:50%;background:radial-gradient(circle at 38% 28%,#f0c840,#b07c18);border:1px solid rgba(255,220,100,0.75);flex-shrink:0;"></div><span>1,200</span>`;
+  pop.appendChild(chip);
+
+  // Bottom gems (on top of shelf)
+  [v.gemLx, v.gemRx].forEach(gx => {
+    pop.appendChild(el('div','p-gem',
+      `left:${gx-v.gemR}px;top:${v.botGemCy-v.gemR}px;width:${v.gemR*2}px;height:${v.gemR*2}px;box-shadow:0 0 ${v.gemR*2+4}px rgba(194,122,248,0.65);`));
+  });
+
+  return pop;
+}
+
+function buildPanel(v) {
+  const col = el('div','panel-col');
+
+  // Top label
+  const lbl = el('div','panel-label');
+  lbl.innerHTML = `<h2>${v.label}</h2><div class="dims">${v.dims}</div><div class="note ${v.noteClass}">${v.note}</div>`;
+  col.appendChild(lbl);
+
+  // Frame + game screen
+  const frame = el('div','panel-frame');
+  const screen = el('div','game-screen');
+
+  screen.appendChild(el('div','game-bg'));
+
+  const canvas = el('canvas','stars');
+  canvas.width = 360; canvas.height = 640;
+  screen.appendChild(canvas);
+  drawStars(canvas);
+
+  screen.appendChild(buildStoreUI());
+  screen.appendChild(el('div','scrim'));
+  screen.appendChild(buildPopup(v));
+
+  frame.appendChild(screen);
+  col.appendChild(frame);
+  return col;
+}
+
+const pr = document.getElementById('pr');
+VARIANTS.forEach(v => pr.appendChild(buildPanel(v)));
+</script>
