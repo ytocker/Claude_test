@@ -303,7 +303,10 @@ panels_y    = MARGIN + HDR_H + GAP_HDR
 panels_data = []
 for px, affordable in [(18, True), (226, False)]:
     surf  = render_popup("TEMPEST", affordable)
-    raw   = pygame.image.tostring(surf, "RGB")
+    bg    = pygame.Surface((POP_W, POP_H))
+    bg.fill((8, 8, 20))
+    bg.blit(surf, (0, 0))
+    raw   = pygame.image.tostring(bg, "RGB")
     panel = Image.frombytes("RGB", (POP_W, POP_H), raw)
     panels_data.append((px, affordable, panel))
 
