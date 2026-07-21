@@ -894,7 +894,7 @@ class Bird:
         base_parcel = self.equipped_parcel in (None, "parcel_base")
         parcel = parrot.get_parcel(mode, self.equipped_parcel)
         if self.kfc_active and not base_parcel:
-            parcel = parrot.tint_copy(parcel, (210, 138, 42), 0.40)
+            parcel = parrot.get_crispy_parcel(self.equipped_parcel, parcel)
         from game.config import GROW_SCALE, PARCEL_Y_OFFSET
         scale = GROW_SCALE if self.grow_active else 1.0
         if scale != 1.0:

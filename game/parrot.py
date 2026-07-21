@@ -997,6 +997,75 @@ def tint_copy(sprite, tint, strength):
     return out
 
 
+# Crispy-parcel KFC cache — keyed by parcel_id; built once on first KFC pickup,
+# never invalidated (parcel art is deterministic so the same id always produces
+# the same surface).
+_PARCEL_KFC_CACHE: "dict[str, pygame.Surface]" = {}
+
+
+def _build_crispy_parcel(parcel_id: str, surf: pygame.Surface) -> pygame.Surface:
+    """Return an 'extra crispy' KFC version of a 22×22 parcel surface.
+
+    Samples the parcel's own dominant color and derives three crust tones from
+    it — a mid amber coat, a dark spot/crack shade, and a light grease sheen —
+    so every parcel gets a unique fried palette that harmonises with its own hue
+    rather than a uniform amber wash.
+    """
+    w, h = surf.get_size()
+    out = surf.copy()
+
+    # Sample opaque interior pixels (skip 3px outer ring to avoid outline bias).
+    margin = 3
+    samples: list = []
+    for px in range(margin, w - margin, 2):
+        for py in range(margin, h - margin, 2):
+            col = out.get_at((px, py))
+            if col[3] > 160:
+                samples.append(col[:3])
+    avg = (tuple(sum(c[i] for c in samples) // len(samples) for i in range(3))
+           if samples else _CRISPY_GOLD)
+
+    def _blend(a, b, t):
+        return tuple(int(a[i] * (1 - t) + b[i] * t) for i in range(3))
+
+    # Three crust tones: mid coat, dark spots/cracks, light sheen.
+    coat  = _blend(avg, _CRISPY_GOLD,  0.50)
+    dark  = _blend(avg, _CRISPY_DARK,  0.65)
+    light = _blend(avg, _CRISPY_LIGHT, 0.50)
+
+    # Amber base coat.
+    _cyan_tint_in_place(out, tint=coat, strength=0.48)
+
+    # Crispy spots — fixed relative positions so the pattern is consistent.
+    hw, hh = w // 2, h // 2
+    for sx, sy, sr in ((hw - 5, hh - 4, 2), (hw + 4, hh - 3, 1),
+                       (hw - 4, hh + 4, 1), (hw + 5, hh + 3, 2),
+                       (4,      hh,     1), (w - 5,  hh,     1)):
+        if 0 <= sx < w and 0 <= sy < h:
+            pygame.draw.circle(out, dark, (sx, sy), sr)
+
+    # Crackle lines — dark valley then light ridge.
+    for (x1, y1, x2, y2) in ((3, 5, 7, 3), (w - 4, h - 6, w - 8, h - 4)):
+        pygame.draw.line(out, dark,  (x1,     y1    ), (x2,     y2    ), 1)
+        pygame.draw.line(out, light, (x1 - 1, y1 - 1), (x2 - 1, y2 - 1), 1)
+
+    # Grease sheen ellipse — upper-centre.
+    sheen = pygame.Surface((10, 4), pygame.SRCALPHA)
+    pygame.draw.ellipse(sheen, (*light, 110), sheen.get_rect())
+    out.blit(sheen, (hw - 5, hh - 5))
+
+    return out
+
+
+def get_crispy_parcel(parcel_id: str, base_surf: pygame.Surface) -> pygame.Surface:
+    """Return a cached crispy-KFC parcel surface, building it on first call."""
+    s = _PARCEL_KFC_CACHE.get(parcel_id)
+    if s is None:
+        s = _build_crispy_parcel(parcel_id, base_surf)
+        _PARCEL_KFC_CACHE[parcel_id] = s
+    return s
+
+
 # Skin-power-up composite cache.
 # Baked at run-start (Bird.rebuild_skin_combos) for the one equipped custom
 # skin.  Seven flag combos x 4 wing angles stored at tilt=0; tilt rotation is
