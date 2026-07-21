@@ -923,9 +923,9 @@ class StoreScene:
         GEM_R, GEM_CY, GEM_L_X, GEM_R_X = 11, 117, 33, 167
         NAME_FS, Y_NAME = 30, 178
         Y_BANNER, BANNER_W = 198, 120
-        SHELF_X, SHELF_Y, SHELF_W, SHELF_H = 13, 235, 174, 87
-        CHIP_CY = 258
-        BTN_W, BTN_H, BTN_RAD, BTN_CY, BTN_GAP = 76, 30, 9, 302, 8
+        SHELF_X, SHELF_Y, SHELF_W, SHELF_H = 13, 258, 174, 70
+        CHIP_CY = 309
+        BTN_W, BTN_H, BTN_RAD, BTN_CY, BTN_GAP = 76, 24, 9, 277, 8
         BUY_CX = CX - (BTN_W + BTN_GAP) // 2
         CAN_CX = CX + (BTN_W + BTN_GAP) // 2
 
@@ -1023,21 +1023,26 @@ class StoreScene:
                                        keyline=(8, 6, 20), kw=m(0.9))
 
         def _chip(cx, cy):
-            CHIP_W, CHIP_H, CHIP_RAD = 112, 34, 8
+            CHIP_W, CHIP_H, CHIP_RAD = 88, 26, 8
             chip = pygame.Rect(0, 0, m(CHIP_W), m(CHIP_H))
             chip.center = (cx, cy)
             crad = m(CHIP_RAD)
-            store_cards.drop_shadow(big, chip, crad, blur=m(3), alpha=90, dy=m(2))
-            face_stops = ([(0.0, (18, 20, 50)), (1.0, (10, 11, 30))] if affordable
-                          else [(0.0, (28, 28, 50)), (1.0, (18, 18, 36))])
+            store_cards.drop_shadow(big, chip, crad, blur=m(3), alpha=80, dy=m(2))
+            face_stops = ([(0.0, (40, 42, 74)), (1.0, (26, 28, 54))] if affordable
+                          else [(0.0, (40, 42, 62)), (1.0, (28, 28, 46))])
             big.blit(store_cards.vgrad_stops(chip.w, chip.h, crad, face_stops, 255),
                      chip.topleft)
-            store_cards.bevel_rim(big, chip, crad, store_cards.CARD_RING_DEEP,
-                                  (*store_cards.CARD_RING_BRIGHT, 200),
-                                  w=max(1, m(1.4)))
+            store_cards.top_sheen(big, chip, crad, m(9), peak=30 if affordable else 14)
+            if affordable:
+                store_cards.bevel_rim(big, chip, crad, store_cards.CARD_RING_DEEP,
+                                      (*store_cards.CARD_RING_BRIGHT, 200),
+                                      w=max(1, m(1.4)))
+            else:
+                store_cards.bevel_rim(big, chip, crad, (44, 58, 58, 200),
+                                      (110, 130, 130, 160), w=max(1, m(1.2)))
             txt      = f"{price:,}"
-            num_font = store_cards.font(22)
-            coin_r   = m(15)
+            num_font = store_cards.font(18)
+            coin_r   = m(11)
             gap      = m(4)
             num_w    = num_font.size(txt)[0]
             total    = coin_r * 2 + gap + num_w
@@ -1046,20 +1051,16 @@ class StoreScene:
             num_cx   = left + coin_r * 2 + gap + num_w // 2
             if affordable:
                 store_cards.coin_glyph(big, coin_cx, cy, coin_r)
-                num_col = (236, 240, 232)
-                hy_ss   = (cy + m(3) + num_font.size(txt)[1] // 2) / SS
-                x0_ss   = (num_cx - num_w // 2) / SS
-                x1_ss   = (num_cx + num_w // 2) / SS
+                num_col  = (236, 240, 232)
+                hy_ss    = (cy + num_font.get_ascent() - num_font.size(txt)[1] // 2 + m(3)) / SS
+                x0_ss    = (num_cx - num_w // 2) / SS
+                x1_ss    = (num_cx + num_w // 2) / SS
                 _hair_pos[0] = (x0_ss, x1_ss, hy_ss)
             else:
-                pygame.draw.circle(big, (150, 152, 162), (coin_cx, cy), coin_r)
-                pygame.draw.circle(big, (108, 112, 126), (coin_cx, cy), coin_r,
-                                   width=max(1, m(1)))
-                pygame.draw.circle(big, (128, 132, 146), (coin_cx, cy), coin_r - m(3),
-                                   width=max(1, m(1)))
-                num_col = (150, 154, 162)
-            store_cards.plain_text(big, txt, num_font, (num_cx, cy + m(3)), num_col,
-                                   shadow_a=0, weight=m(0.8))
+                pygame.draw.circle(big, (120, 122, 138), (coin_cx, cy), coin_r)
+                num_col = (140, 144, 152)
+            store_cards.plain_text(big, txt, num_font, (num_cx, cy + m(1)), num_col,
+                                   shadow_a=0, weight=m(0.7))
 
         active_banner_y = Y_BANNER
         if _nw(name, _nf30) <= safe_w:
@@ -1105,9 +1106,8 @@ class StoreScene:
         # ── shelf ─────────────────────────────────────────────────────────────
         shelf_rect  = pygame.Rect(m(SHELF_X), m(SHELF_Y), m(SHELF_W), m(SHELF_H))
         shelf_rad   = m(CARD_RAD)
-        shelf_stops = ([(0.0, (28, 30, 62)), (1.0, (14, 16, 40))] if affordable
-                       else [(0.0, (30, 32, 52)), (0.5, (22, 22, 42)),
-                             (1.0, (14, 14, 30))])
+        shelf_stops = ([(0.0, (34, 36, 72)), (0.5, (22, 24, 54)), (1.0, (12, 14, 36))] if affordable
+                       else [(0.0, (32, 34, 56)), (0.5, (22, 22, 44)), (1.0, (12, 12, 30))])
         shelf = store_cards.vgrad_stops(
             shelf_rect.w, shelf_rect.h, 0, shelf_stops, 255).copy()
         smask = pygame.Surface(shelf_rect.size, pygame.SRCALPHA)
@@ -1142,11 +1142,6 @@ class StoreScene:
         # ── coin chip (inside shelf) ───────────────────────────────────────────
         _chip(m(CX), m(CHIP_CY))
 
-        if not affordable:
-            store_cards.plain_text(big, "NOT ENOUGH",
-                                   store_cards.font(8), (m(CX), m(317)),
-                                   (150, 166, 190), shadow_a=0)
-
         # ── buy / cancel buttons ───────────────────────────────────────────────
         buy_r = pygame.Rect(0, 0, m(BTN_W), m(BTN_H))
         buy_r.center = (m(BUY_CX), m(BTN_CY))
@@ -1154,6 +1149,20 @@ class StoreScene:
         can_r.center = (m(CAN_CX), m(BTN_CY))
         _btn(buy_r, "BUY", locked=not affordable)
         _btn(can_r, "CANCEL", is_cancel=True)
+
+        # ── bottom gem pair (drawn on top of shelf) ───────────────────────────
+        BOT_GEM_CY = 309
+        for _gx in [m(GEM_L_X), m(GEM_R_X)]:
+            if affordable:
+                store_cards._alpha_aura(big, _gx, m(BOT_GEM_CY), m(16),
+                                        pal["glow"], peak=60, layers=14)
+                store_cards.facet_gem(big, _gx, m(BOT_GEM_CY), m(GEM_R),
+                                      pal["gem"], pal["deep"])
+            else:
+                store_cards._alpha_aura(big, _gx, m(BOT_GEM_CY), m(16),
+                                        (90, 92, 110), peak=35, layers=14)
+                store_cards.facet_gem(big, _gx, m(BOT_GEM_CY), m(GEM_R),
+                                      (80, 82, 100), (50, 52, 66))
 
         # ── overhanging disc + spotlight halo (crowns the card) ───────────────
         cx_ss, cy_ss, r_ss = m(CX), m(DISC_CY), m(R_HERO)
