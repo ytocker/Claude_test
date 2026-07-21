@@ -1180,7 +1180,7 @@ class StoreScene:
                              (int(round(x0)), int(round(hy))),
                              (int(round(x1)), int(round(hy))), 1)
         px = (W - POP_W) // 2
-        py = (H - POP_H) // 2
+        py = 40
         self._confirm_panel = pygame.Rect(px, py, POP_W, POP_H)
         surf.blit(pop, (px, py))
 
