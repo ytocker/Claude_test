@@ -1006,6 +1006,60 @@ _SKIN_COMBOS: "dict[str, dict[tuple, list]]" = {}
 _SKIN_COMBO_ROT_CACHE: "dict[tuple, pygame.Surface]" = {}
 
 
+def _apply_kfc_batter(surf: pygame.Surface) -> None:
+    """Convert a skin frame to deep-fried KFC golden-brown in-place.
+
+    Uses RGB-multiply (no alpha damage) to map all skin colours into the
+    crispy batter palette, then a small additive lift so dark areas read
+    as dark brown rather than near-black, then overlays the same crispy-
+    spot and crackle-line marks used by the bespoke KFC macaw sprite.
+
+    Sprite (sx, sy) coordinates map to the shared 68x104 outlined
+    composite frame via fp(sx, sy) = (sx+2, sy+22).
+    """
+    # Multiply every visible pixel toward the crispy-gold base (alpha untouched)
+    surf.fill(_CRISPY_GOLD, special_flags=pygame.BLEND_RGB_MULT)
+    # Additive lift: prevents highlights from collapsing to near-black
+    surf.fill((45, 28, 2), special_flags=pygame.BLEND_RGB_ADD)
+
+    w, h = surf.get_size()
+    overlay = pygame.Surface((w, h), pygame.SRCALPHA)
+
+    def fp(sx, sy):
+        # sprite → outlined 68×104 frame: outline_pad=2, PARROT_DY=20 → offset (2, 22)
+        return (sx + 2, sy + 22)
+
+    # Dense crispy spots (body + head positions from _build_fried_frame)
+    for sx, sy, r in (
+        (20, 30, 3), (37, 27, 3), (43, 35, 3),
+        (24, 39, 2), (38, 39, 2), (28, 34, 2),
+        (32, 26, 2), (44, 30, 2), (16, 37, 2),
+        (34, 42, 2), (40, 24, 1), (22, 43, 1),
+        (52, 18, 2), (45, 22, 2), (51, 25, 1),
+    ):
+        pygame.draw.circle(overlay, (*_CRISPY_SPOT, 200), fp(sx, sy), r)
+
+    # Crackle lines — dark valley + gold ridge pair = raised batter texture
+    for x1, y1, x2, y2 in (
+        (14, 30, 23, 25), (37, 25, 47, 30),
+        (15, 39, 25, 44), (40, 38, 50, 33),
+        (22, 34, 31, 29), (34, 39, 43, 36),
+    ):
+        p1, p2 = fp(x1, y1), fp(x2, y2)
+        pygame.draw.line(overlay, (*_CRISPY_DARK, 180), p1, p2, 1)
+        pygame.draw.line(overlay, (*_CRISPY_LIGHT, 130),
+                         (p1[0] - 1, p1[1] - 1), (p2[0] - 1, p2[1] - 1), 1)
+
+    # Golden grease sheen
+    sheen = pygame.Surface((30, 7), pygame.SRCALPHA)
+    pygame.draw.ellipse(sheen, (255, 225, 145, 110), sheen.get_rect())
+    overlay.blit(sheen, fp(17, 20))
+
+    # Mask overlay to the (now-fried) sprite silhouette so marks don't leak
+    overlay.blit(surf, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(overlay, (0, 0))
+
+
 def build_skin_powerup_composites(skin_id: str) -> None:
     """Pre-bake the 7 non-knight power-up combos x 4 frames for one skin.
 
@@ -1031,9 +1085,7 @@ def build_skin_powerup_composites(skin_id: str) -> None:
                 for fi in range(4):
                     img = get_skin_frame(skin_id, fi, 0.0).copy()
                     if kfc_f:
-                        # Amber fried-chicken tint; same RGB as the bespoke KFC
-                        # macaw, strength matches the spectral-ghost default.
-                        _cyan_tint_in_place(img, tint=(210, 138, 42), strength=0.55)
+                        _apply_kfc_batter(img)
                     if triple_f:
                         # $ stovepipe hat at the shared macaw brim anchor.
                         # Raw-composite anchor (47,30) + 2 px outline pad = (49,32)
