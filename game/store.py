@@ -952,7 +952,7 @@ class StoreScene:
         R_HERO, DISC_CY = 53, 135
         GEM_R, GEM_CY, GEM_L_X, GEM_R_X = 14, 152, 43, 217
         NAME_FS, Y_NAME = 35, 217
-        Y_BANNER, BANNER_W, BANNER_H = 243, 156, 29
+        Y_BANNER, BANNER_W, BANNER_H = 251, 156, 29
         affordable = store_data.balance() >= price
         SHELF_X, SHELF_Y, SHELF_W, SHELF_H = 17, 335, 226, 91
         CHIP_CY = 402
