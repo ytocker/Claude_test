@@ -1,15 +1,16 @@
-"""gem-cradle-tab lower-position options showcase — v1 through v5."""
+"""gem-cradle-tab lower-position options showcase — opt-A + v1 through v5."""
 from PIL import Image, ImageDraw, ImageFont
 import os
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 PANELS = [
-    ("1", "v1 (Δ4)",  "docs/store_confirm_shelf_v3/shelf-redesign/gem-cradle-tab/v1/round_1.png"),
-    ("2", "v2 (Δ7)",  "docs/store_confirm_shelf_v3/shelf-redesign/gem-cradle-tab/v2/round_1.png"),
-    ("3", "v3 (Δ10)", "docs/store_confirm_shelf_v3/shelf-redesign/gem-cradle-tab/v3/round_1.png"),
-    ("4", "v4 (Δ14)", "docs/store_confirm_shelf_v3/shelf-redesign/gem-cradle-tab/v4/round_1.png"),
-    ("5", "v5 (Δ18)", "docs/store_confirm_shelf_v3/shelf-redesign/gem-cradle-tab/v5/round_1.png"),
+    ("A", "opt-a (base)", "docs/store_confirm_shelf_v3/shelf-redesign/gem-cradle-tab/opt-a/round_1.png"),
+    ("1", "v1 (Δ4)",      "docs/store_confirm_shelf_v3/shelf-redesign/gem-cradle-tab/v1/round_1.png"),
+    ("2", "v2 (Δ7)",      "docs/store_confirm_shelf_v3/shelf-redesign/gem-cradle-tab/v2/round_1.png"),
+    ("3", "v3 (Δ10)",     "docs/store_confirm_shelf_v3/shelf-redesign/gem-cradle-tab/v3/round_1.png"),
+    ("4", "v4 (Δ14)",     "docs/store_confirm_shelf_v3/shelf-redesign/gem-cradle-tab/v4/round_1.png"),
+    ("5", "v5 (Δ18)",     "docs/store_confirm_shelf_v3/shelf-redesign/gem-cradle-tab/v5/round_1.png"),
 ]
 
 CROP = (18, 54, 218, 394)   # affordable panel → 200 × 340
@@ -59,7 +60,7 @@ def main():
         font_foot  = font_title
         font_badge = font_title
 
-    title = "gem-cradle-tab — lower position options (A + 5 steps)"
+    title = "gem-cradle-tab — original (A) + 5 lower positions"
     tw = draw.textlength(title, font=font_title)
     draw.text(((W - tw) / 2, MARGIN + (HEADER_H - 16) // 2),
               title, font=font_title, fill=TITLE_C)
