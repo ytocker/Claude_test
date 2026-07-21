@@ -985,11 +985,41 @@ class StoreScene:
         store_cards.facet_gem(big, m(GEM_R_X), m(GEM_CY), m(GEM_R),
                               pal["gem"], pal["deep"])
 
-        # ── name (above banner) ───────────────────────────────────────────────
-        store_cards.plain_text(big, name, store_cards.font(NAME_FS),
-                               (m(CX), m(Y_NAME)), (250, 248, 240),
-                               shadow_a=160, weight=m(0.9),
-                               keyline=(6, 6, 16), kw=m(1.0))
+        # ── name (above banner): shrink to floor, wrap to 2 lines if needed ──
+        _MIN_FS = 24
+        _nfs    = NAME_FS
+        _nfnt   = store_cards.font(_nfs)
+        _mw     = m(CARD_W - 20)
+        while store_cards._glyph_base(name, _nfnt, 0).get_width() > _mw and _nfs > _MIN_FS:
+            _nfs -= 1
+            _nfnt = store_cards.font(_nfs)
+        if store_cards._glyph_base(name, _nfnt, 0).get_width() <= _mw:
+            store_cards.plain_text(big, name, _nfnt,
+                                   (m(CX), m(Y_NAME)), (250, 248, 240),
+                                   shadow_a=160, weight=m(0.9),
+                                   keyline=(6, 6, 16), kw=m(1.0))
+        else:
+            _words = name.split()
+            _best  = max(1, len(_words) // 2)
+            for _i in range(1, len(_words)):
+                _a = ' '.join(_words[:_i]); _b = ' '.join(_words[_i:])
+                if max(store_cards._glyph_base(_a, _nfnt, 0).get_width(),
+                       store_cards._glyph_base(_b, _nfnt, 0).get_width()) <= _mw:
+                    _best = _i
+            _a = ' '.join(_words[:_best]); _b = ' '.join(_words[_best:])
+            _disc_bot_ss = m(DISC_CY + R_HERO) + m(6)
+            _cy1 = _disc_bot_ss + _nfnt.get_height() // 2
+            _cy2 = _cy1 + int(_nfnt.get_height() * 1.15)
+            store_cards.plain_text(big, _a, _nfnt,
+                                   (m(CX), _cy1), (250, 248, 240),
+                                   shadow_a=160, weight=m(0.9),
+                                   keyline=(6, 6, 16), kw=m(1.0))
+            store_cards.plain_text(big, _b, _nfnt,
+                                   (m(CX), _cy2), (250, 248, 240),
+                                   shadow_a=160, weight=m(0.9),
+                                   keyline=(6, 6, 16), kw=m(1.0))
+            Y_BANNER = max(Y_BANNER,
+                           (_cy2 + _nfnt.get_height() // 2) // SS + 10 + BANNER_H // 2)
 
         # ── rarity banner ─────────────────────────────────────────────────────
         _confirm_tier_banner(big, CX, Y_BANNER, BANNER_W, BANNER_H, tier_word, pal)
