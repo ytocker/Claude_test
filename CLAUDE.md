@@ -74,6 +74,10 @@ docs/                         Screenshots + asset exploration galleries
 analytics/                    Streamlit + Supabase telemetry dashboard
 ```
 
+## Agent rules
+
+- **25-minute agent cap.** Never let a background agent run longer than 25 minutes. If you launch a background agent, schedule a `send_later` wakeup at 25 minutes; when it fires, call `TaskStop` on any still-running agent and continue the work yourself with direct Bash/tool calls. Prefer direct Bash for diagnostic work — agents add overhead and can stall silently.
+
 ## Hard rules
 
 These are project identity. Don't violate without explicit user OK.
