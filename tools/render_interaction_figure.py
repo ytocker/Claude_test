@@ -35,24 +35,20 @@ BG      = (22, 26, 36)
 
 # ── All 18 Parrots store items (skin_base prepended, rest sorted by cost) ───
 SKIN_ROWS = [
-    ("skin_base",      "Base Macaw"),
-    ("skin_bluegold",  "Blue Macaw"),
-    ("skin_skeleton",  "Skeleton"),
-    ("skin_amazon",    "Amazon"),
-    ("skin_sunconure", "Sun Conure"),
-    ("skin_hyacinth",  "Hyacinth"),
-    ("skin_zombie",    "Zombie"),
-    ("skin_cockatoo",  "Cockatoo"),
-    ("skin_lorikeet",  "Lorikeet"),
-    ("skin_disco",     "Disco"),
-    ("skin_prism",     "Prism"),
-    ("skin_thorncrest","Thorncrest"),
-    ("skin_embermoth", "Embermoth"),
-    ("skin_aurora",    "Aurora Macaw"),
-    ("skin_moonbloom", "Moonbloom"),
-    ("skin_tempest",   "Tempest Condor"),
-    ("skin_binky",     "Binky"),
-    ("skin_chrome",    "Chrome Macaw"),
+    ("skin_pirate",      "Pirate"),
+    ("skin_cowboy",      "Cowboy"),
+    ("skin_pharaoh",     "Pharaoh"),
+    ("skin_crown",       "Crown"),
+    ("skin_tophat",      "Gentleman"),
+    ("skin_ninja",       "Ninja"),
+    ("skin_viking",      "Viking"),
+    ("skin_wizard",      "Wizard"),
+    ("skin_baseball",    "Baseball"),
+    ("skin_basketball",  "Basketball"),
+    ("skin_tennis",      "Tennis"),
+    ("skin_mummy",       "Mummy"),
+    ("skin_pilot",       "Captain"),
+    ("skin_astronaut",   "Astronaut"),
 ]
 
 # (column label, effect key)
@@ -119,7 +115,7 @@ font_row   = pygame.font.SysFont("monospace", 11, bold=True)
 # ── Title ────────────────────────────────────────────────────────────────────
 
 canvas.blit(
-    font_title.render("Parrots — Normal / Poison / Skateboard", True, (240, 235, 180)),
+    font_title.render("Costumes — Normal / Poison / Skateboard", True, (240, 235, 180)),
     (MARGIN, MARGIN + 6),
 )
 
