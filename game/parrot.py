@@ -1158,11 +1158,8 @@ def build_skin_powerup_composites(skin_id: str) -> None:
                     ax = (iw - 68) // 2
                     ay = (ih - 64) // 2
                     if kfc_f:
-                        # Warm the ~30% skin that shows through toward amber.
-                        _cyan_tint_in_place(img, tint=_CRISPY_GOLD, strength=0.35)
-                        # Scale KFC fried frame to match this skin's content extent.
-                        # Parrot skins (content_height≈64): scale=1.0, unchanged.
-                        # Costume skins with accessories: scale covers hat/staff/etc.
+                        # KFC shows only the fried body — erase skin so nothing bleeds through.
+                        img.fill((0, 0, 0, 0))
                         kfc_frame = _get_kfc_frames()[fi].copy()
                         kw, kh = kfc_frame.get_size()
                         if kfc_content_scale > 1.0:
@@ -1170,7 +1167,6 @@ def build_skin_powerup_composites(skin_id: str) -> None:
                                 kfc_frame,
                                 (int(kw * kfc_content_scale), int(kh * kfc_content_scale)))
                             kw, kh = kfc_frame.get_size()
-                        kfc_frame.fill((255, 255, 255, 178), special_flags=pygame.BLEND_RGBA_MULT)
                         img.blit(kfc_frame,
                                  (_content_rect.centerx - kw // 2,
                                   _content_rect.centery - kh // 2))
