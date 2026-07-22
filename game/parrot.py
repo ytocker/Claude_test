@@ -1145,11 +1145,14 @@ def build_skin_powerup_composites(skin_id: str) -> None:
                     if kfc_f:
                         # Warm the ~30% skin that shows through toward amber.
                         _cyan_tint_in_place(img, tint=_CRISPY_GOLD, strength=0.35)
-                        # Overlay the bespoke KFC fried frame at 70% opacity so the
-                        # plumper fried-chicken shape dominates the macaw silhouette.
+                        # Scale the KFC fried frame to the full skin canvas so oversized
+                        # skins (zombie aura, costume hat headroom, animal extensions)
+                        # receive the fried-shape overlay across their whole extent.
                         kfc_frame = _get_kfc_frames()[fi].copy()
+                        if kfc_frame.get_size() != (iw, ih):
+                            kfc_frame = pygame.transform.smoothscale(kfc_frame, (iw, ih))
                         kfc_frame.fill((255, 255, 255, 178), special_flags=pygame.BLEND_RGBA_MULT)
-                        img.blit(kfc_frame, (ax, ay))
+                        img.blit(kfc_frame, (0, 0))
                     if triple_f:
                         # $ stovepipe hat: brim anchor in 68×64 core space is (49,12);
                         # shift by (ax, ay) to reach canvas space.
