@@ -1084,6 +1084,24 @@ def get_crispy_parcel(parcel_id: str, base_surf: pygame.Surface) -> pygame.Surfa
     return s
 
 
+_PARCEL_GHOST_CACHE: "dict[str, pygame.Surface]" = {}
+
+
+def get_ghost_parcel(parcel_id: str) -> pygame.Surface:
+    """Return a SPECTRAL-blue ghost version of a custom parcel.
+
+    Built from the normal-mode surface so the cache is stable regardless of
+    whether KFC was active — ghost dominates KFC, matching bird behaviour.
+    """
+    s = _PARCEL_GHOST_CACHE.get(parcel_id)
+    if s is None:
+        src = get_parcel("normal", parcel_id)
+        s = src.copy()
+        _ghostify_in_place(s)
+        _PARCEL_GHOST_CACHE[parcel_id] = s
+    return s
+
+
 # Skin-power-up composite cache.
 # Baked at run-start (Bird.rebuild_skin_combos) for the one equipped custom
 # skin.  Seven flag combos x 4 wing angles stored at tilt=0; tilt rotation is

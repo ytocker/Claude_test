@@ -66,14 +66,20 @@ PARCEL_HDR_H  = 34
 PARCEL_CELL_H = 80
 PARCEL_SCALE  = 3   # scale parcels 3x for visibility
 
-# (column label, parcel_id, use_kfc_tint)
+# (column label, parcel_id, use_kfc, use_ghost)
 PARCEL_COLS = [
-    ("love/normal",      "parcel_love",      False),
-    ("love/KFC",         "parcel_love",      True),
-    ("chest/normal",     "parcel_chest",     False),
-    ("chest/KFC",        "parcel_chest",     True),
-    ("snowglobe/normal", "parcel_snowglobe", False),
-    ("snowglobe/KFC",    "parcel_snowglobe", True),
+    ("love/normal",       "parcel_love",      False, False),
+    ("love/KFC",          "parcel_love",      True,  False),
+    ("love/ghost",        "parcel_love",      False, True),
+    ("love/KFC+ghost",    "parcel_love",      True,  True),
+    ("chest/normal",      "parcel_chest",     False, False),
+    ("chest/KFC",         "parcel_chest",     True,  False),
+    ("chest/ghost",       "parcel_chest",     False, True),
+    ("chest/KFC+ghost",   "parcel_chest",     True,  True),
+    ("globe/normal",      "parcel_snowglobe", False, False),
+    ("globe/KFC",         "parcel_snowglobe", True,  False),
+    ("globe/ghost",       "parcel_snowglobe", False, True),
+    ("globe/KFC+ghost",   "parcel_snowglobe", True,  True),
 ]
 
 N_PCOLS = len(PARCEL_COLS)
@@ -117,18 +123,18 @@ def render_bird_cell(skin_id, kfc, ghost, triple):
     return cell
 
 
-def render_parcel_cell(parcel_id, use_kfc_tint, cell_w, cell_h):
+def render_parcel_cell(parcel_id, use_kfc, use_ghost, cell_w, cell_h):
     """Return a sky tile with the parcel sprite scaled up for visibility."""
     cell = pygame.Surface((cell_w, cell_h))
     fill_sky(cell)
-    if use_kfc_tint and parcel_id == "parcel_base":
-        # base parcel: legacy per-mode KFC palette
-        p = parrot.get_parcel("kfc", parcel_id)
-    else:
-        p = parrot.get_parcel("normal", parcel_id)
-        if use_kfc_tint:
-            # custom parcel: palette-derived crispy treatment (same as entities.py)
-            p = parrot.get_crispy_parcel(parcel_id, p)
+    p = parrot.get_parcel("normal", parcel_id)
+    if use_kfc:
+        p = parrot.get_crispy_parcel(parcel_id, p)
+    if use_ghost:
+        # Ghost dominates KFC, matching bird behaviour (applied last).
+        p = parrot.get_ghost_parcel(parcel_id)
+        p = p.copy()
+        p.set_alpha(170)  # peak ghost_pulse phase, same as render_bird_cell
     pw, ph = p.get_size()
     big = pygame.transform.scale(p, (pw * PARCEL_SCALE, ph * PARCEL_SCALE))
     cell.blit(big, big.get_rect(center=(cell_w // 2, cell_h // 2 - 4)))
@@ -197,15 +203,15 @@ pygame.draw.line(
 parcel_section_top = grid_top + N_ROWS * CELL_H
 parcel_hdr_y = parcel_section_top + PARCEL_HDR_H // 2
 hdr_surf = font_hdr.render(
-    "Parcels — KFC amber tint on custom parcels (kraft box uses built-in KFC palette)",
+    "Parcels — normal / KFC amber / ghost blue / KFC+ghost",
     True, (200, 200, 200),
 )
 canvas.blit(hdr_surf, hdr_surf.get_rect(midleft=(MARGIN, parcel_hdr_y)))
 
 parcel_row_top = parcel_section_top + PARCEL_HDR_H
-for ci, (label, parcel_id, kfc_tint) in enumerate(PARCEL_COLS):
+for ci, (label, parcel_id, kfc_tint, ghost_tint) in enumerate(PARCEL_COLS):
     px = ci * PARCEL_CELL_W
-    cell = render_parcel_cell(parcel_id, kfc_tint, PARCEL_CELL_W, PARCEL_CELL_H)
+    cell = render_parcel_cell(parcel_id, kfc_tint, ghost_tint, PARCEL_CELL_W, PARCEL_CELL_H)
     canvas.blit(cell, (px, parcel_row_top))
     # label below parcel
     lbl = font_sm.render(label, True, (190, 190, 190))
