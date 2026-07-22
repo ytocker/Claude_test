@@ -952,10 +952,10 @@ class StoreScene:
         R_HERO, DISC_CY = 53, 135
         GEM_R, GEM_CY, GEM_L_X, GEM_R_X = 14, 152, 43, 217
         NAME_FS, Y_NAME = 45, 213
-        Y_BANNER, BANNER_W, BANNER_H = 247, 156, 23
+        Y_BANNER, BANNER_W, BANNER_H = 402, 156, 23
         affordable = store_data.balance() >= price
         SHELF_X, SHELF_Y, SHELF_W, SHELF_H = 17, 335, 226, 91
-        CHIP_CY = 402
+        CHIP_CY = 247
         BTN_W, BTN_H, BTN_RAD, BTN_CY, BTN_GAP = 99, 31, 12, 360, 10
         BUY_CX = CX - (BTN_W + BTN_GAP) // 2
         CAN_CX = CX + (BTN_W + BTN_GAP) // 2
