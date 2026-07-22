@@ -124,22 +124,21 @@ def hero_disc(big, sid, pal):
     pygame.draw.circle(big, pal["gem"], (cx, cy), r + rw // 2 + m(1), rw)
 
 
-# ── BEFORE: original v5_integration shelf layout ──────────────────────────────
+# ── BEFORE: faithful reproduction of _draw_confirm (affordable=True) ─────────
 def before_shelf(big, price_str, pal):
-    """Reproduces the current v5_integration shelf: small buttons + isolated price chip."""
+    """Mirrors _draw_confirm shelf, chip, buttons, bottom gems exactly (affordable=True)."""
     SHELF_X, SHELF_Y, SHELF_W, SHELF_H = 17, 335, 226, 91
     SHELF_RAD = m(CARD_RAD)
     BTN_W, BTN_H, BTN_RAD, BTN_CY, BTN_GAP = 99, 31, 12, 360, 10
     BUY_CX = CX - (BTN_W + BTN_GAP) // 2   # = 75
     CAN_CX = CX + (BTN_W + BTN_GAP) // 2   # = 185
-    CHIP_CY, CHIP_W, CHIP_H = 402, 88, 26
+    CHIP_CY, CHIP_W, CHIP_H, CHIP_RAD = 402, 88, 26, 8
     BOT_GEM_CY = 402
 
     # shelf body (bottom rounded corners only)
     shelf_rect = pygame.Rect(m(SHELF_X), m(SHELF_Y), m(SHELF_W), m(SHELF_H))
     shelf = vgrad_stops(shelf_rect.w, shelf_rect.h, 0,
-                        [(0.0, (34,36,72)), (0.5, (22,24,54)), (1.0, (12,14,36))],
-                        255).copy()
+                        [(0.0,(34,36,72)),(0.5,(22,24,54)),(1.0,(12,14,36))], 255).copy()
     smask = pygame.Surface(shelf_rect.size, pygame.SRCALPHA)
     pygame.draw.rect(smask, (255,255,255,255), smask.get_rect(),
                      border_bottom_left_radius=SHELF_RAD,
@@ -147,52 +146,74 @@ def before_shelf(big, price_str, pal):
     shelf.blit(smask, (0,0), special_flags=pygame.BLEND_RGBA_MIN)
     sc.top_sheen(shelf, shelf.get_rect(), 0, m(20), peak=35)
     pygame.draw.line(shelf, (115,106,140), (0,0), (shelf_rect.w-1, 0), max(1, m(1)))
+    seat = pygame.Surface((shelf_rect.w, m(6)), pygame.SRCALPHA)
+    for _yy in range(m(6)):
+        _a = int(120 * (1 - _yy / m(6)))
+        pygame.draw.line(seat, (0,0,0,_a), (0,_yy), (shelf_rect.w-1, _yy))
+    big.blit(seat, (shelf_rect.x, shelf_rect.y - m(6)))
     big.blit(shelf, shelf_rect.topleft)
 
-    # price chip (88×26) at cy=402
+    # side-wall feathering between card edge and shelf edge
+    wall_draw_h = m(CARD_TOP_Y + CARD_H - CARD_RAD - SHELF_Y)  # m(68)
+    if wall_draw_h > 0:
+        wall_w = m(SHELF_X - CARD_X)
+        for col_fn, bx in [
+            (lambda xx: (130,120,165, int(50*xx/max(1,wall_w-1))), m(CARD_X)),
+            (lambda xx: (0,0,0, int(50*(1-xx/max(1,wall_w-1)))), m(SHELF_X+SHELF_W)),
+        ]:
+            _wall = pygame.Surface((wall_w, wall_draw_h), pygame.SRCALPHA)
+            for _xx in range(wall_w):
+                pygame.draw.line(_wall, col_fn(_xx), (_xx,0), (_xx, wall_draw_h-1))
+            big.blit(_wall, (bx, m(SHELF_Y)))
+
+    # price chip (88×26, font 18, coin_r=m(11)) — mirrors _chip() in store.py
     cx_ = m(CX)
     cy_ = m(CHIP_CY)
-    cw_ = m(CHIP_W)
-    ch_ = m(CHIP_H)
-    chip_rad = m(8)
-    chip_r = pygame.Rect(cx_ - cw_//2, cy_ - ch_//2, cw_, ch_)
-    sc.drop_shadow(big, chip_r, chip_rad, blur=m(3), alpha=80, dy=m(2))
-    big.blit(vgrad_stops(cw_, ch_, chip_rad,
-                         [(0.0,(22,18,34)),(1.0,(12,10,22))], 255, gamma=1.0),
-             chip_r.topleft)
-    sc.bevel_rim(big, chip_r, chip_rad, CARD_RING_DEEP, (*CARD_RING_BRIGHT, 200),
+    chip = pygame.Rect(0, 0, m(CHIP_W), m(CHIP_H))
+    chip.center = (cx_, cy_)
+    crad = m(CHIP_RAD)
+    sc.drop_shadow(big, chip, crad, blur=m(3), alpha=80, dy=m(2))
+    big.blit(vgrad_stops(chip.w, chip.h, crad,
+                         [(0.0,(40,42,74)),(1.0,(26,28,54))], 255), chip.topleft)
+    sc.top_sheen(big, chip, crad, m(9), peak=30)
+    sc.bevel_rim(big, chip, crad, CARD_RING_DEEP, (*CARD_RING_BRIGHT, 200),
                  w=max(1, m(1.4)))
+    num_font = font(18)
+    coin_r   = m(11)
+    gap      = m(4)
+    num_w    = num_font.size(price_str)[0]
+    total    = coin_r * 2 + gap + num_w
+    left     = cx_ - total // 2
+    coin_cx  = left + coin_r
+    num_cx   = left + coin_r * 2 + gap + num_w // 2
+    sc.coin_glyph(big, coin_cx, cy_, coin_r)
+    plain_text(big, price_str, num_font, (num_cx, cy_ + m(1)), (236,240,232),
+               shadow_a=0, weight=m(0.7))
 
-    # coin + price on chip (small — price is subordinate to the isolated chip)
-    f_chip = font(10)
-    tw_chip = sc._glyph_base(price_str, f_chip, 0).get_width()
-    coin_r_c = m(8)
-    grp = coin_r_c*2 + m(4) + tw_chip
-    coin_cx_c = cx_ - grp//2 + coin_r_c
-    text_cx_c = coin_cx_c + coin_r_c + m(4) + tw_chip//2
-    sc.coin_glyph(big, coin_cx_c, cy_, coin_r_c)
-    plain_text(big, price_str, f_chip, (text_cx_c, cy_), (230, 210, 160),
-               shadow_a=80, weight=m(0.7), keyline=(20,14,4), kw=m(0.6))
+    # BUY button (99×31, blue-purple) — mirrors _btn(rect, "BUY") in store.py
+    brad = m(BTN_RAD)
+    buy_r = pygame.Rect(0, 0, m(BTN_W), m(BTN_H))
+    buy_r.center = (m(BUY_CX), m(BTN_CY))
+    sc.drop_shadow(big, buy_r, brad, blur=m(3), alpha=100, dy=m(2))
+    big.blit(vgrad_stops(buy_r.w, buy_r.h, brad,
+                         [(0.0,(38,40,84)),(1.0,(22,24,56))], 255), buy_r.topleft)
+    sc.top_sheen(big, buy_r, brad, m(12), peak=22)
+    sc.bevel_rim(big, buy_r, brad, CARD_RING_DEEP, (*CARD_RING_BRIGHT, 230),
+                 w=max(1, m(2.0)))
+    plain_text(big, "BUY", font(14), buy_r.center, (200,205,240),
+               shadow_a=110, weight=m(0.8), keyline=(8,6,20), kw=m(0.9))
 
-    # BUY button (99×31)
-    for cx_btn, lbl, is_b in [(m(BUY_CX), "BUY", True), (m(CAN_CX), "CANCEL", False)]:
-        bw, bh, br = m(BTN_W), m(BTN_H), m(BTN_RAD)
-        br_rect = pygame.Rect(cx_btn - bw//2, m(BTN_CY) - bh//2, bw, bh)
-        if is_b:
-            stops = [(0.0,(148,106,28)),(1.0,(72,48,10))]
-            lab_c = (255,246,208)
-            rim_b = (*CARD_RING_BRIGHT, 220)
-        else:
-            stops = [(0.0,(28,24,42)),(1.0,(16,14,28))]
-            lab_c = (176,172,208)
-            rim_b = (*CARD_RING_BRIGHT, 140)
-        sc.drop_shadow(big, br_rect, br, blur=m(3), alpha=100, dy=m(2))
-        big.blit(vgrad_stops(bw, bh, br, stops, 255, gamma=1.1), br_rect.topleft)
-        sc.top_sheen(big, br_rect, br, m(10), peak=36 if is_b else 10)
-        sc.bevel_rim(big, br_rect, br, CARD_RING_DEEP, rim_b, w=max(1, m(1.4)))
-        plain_text(big, lbl, font(9), br_rect.center, lab_c,
-                   shadow_a=120, tracking=m(1.1), weight=m(0.8 if is_b else 0.6),
-                   keyline=(6,6,16), kw=m(0.6))
+    # CANCEL button (99×31, dark blue) — mirrors _btn(rect, "CANCEL", is_cancel=True)
+    can_r = pygame.Rect(0, 0, m(BTN_W), m(BTN_H))
+    can_r.center = (m(CAN_CX), m(BTN_CY))
+    sc.drop_shadow(big, can_r, brad, blur=m(3), alpha=100, dy=m(2))
+    big.blit(vgrad_stops(can_r.w, can_r.h, brad,
+                         [(0.0,(26,28,64)),(1.0,(14,16,44))], 255), can_r.topleft)
+    sc.top_sheen(big, can_r, brad, m(12), peak=14)
+    sc.bevel_rim(big, can_r, brad, CARD_RING_DEEP, (*CARD_RING_BRIGHT, 230),
+                 w=max(1, m(2.2)))
+    plain_text(big, "CANCEL", font(13), can_r.center, (150,155,200),
+               shadow_a=110, weight=m(0.8), keyline=(8,6,20), kw=m(0.9))
 
     # bottom gems flanking chip
     for gx in [m(GEM_L_X), m(GEM_R_X)]:
