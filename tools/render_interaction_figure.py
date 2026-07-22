@@ -229,6 +229,6 @@ pygame.draw.rect(
 # ── Save ───────────────────────────────────────────────────────────────────
 
 repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-out  = os.path.join(repo, "docs", "skin_powerup_interactions_v6.png")
+out  = os.path.join(repo, "docs", "skin_powerup_interactions_v7.png")
 pygame.image.save(canvas, out)
 print(f"saved {TOTAL_W}x{TOTAL_H} -> {out}")
