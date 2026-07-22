@@ -228,7 +228,15 @@ pygame.draw.rect(
 
 # ── Save ───────────────────────────────────────────────────────────────────
 
+BRANCH   = "claude/v5-item-interactions-f8eeqx"
+FILENAME = "skin_powerup_interactions_v8.png"
+GITHUB_URL = (
+    f"https://github.com/ytocker/skybit/blob/{BRANCH}/docs/{FILENAME}"
+)
+
 repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-out  = os.path.join(repo, "docs", "skin_powerup_interactions_v7.png")
+out  = os.path.join(repo, "docs", FILENAME)
 pygame.image.save(canvas, out)
 print(f"saved {TOTAL_W}x{TOTAL_H} -> {out}")
+# Clickable hyperlink via OSC 8 (supported by most modern terminals)
+print(f"\033]8;;{GITHUB_URL}\033\\{GITHUB_URL}\033]8;;\033\\")
