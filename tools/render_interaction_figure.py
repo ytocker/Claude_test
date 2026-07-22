@@ -125,8 +125,8 @@ def render_parcel_cell(parcel_id, use_kfc_tint, cell_w, cell_h):
     else:
         p = parrot.get_parcel("normal", parcel_id)
         if use_kfc_tint:
-            # custom parcel: new amber tint (same as entities.py draw-time path)
-            p = parrot.tint_copy(p, (210, 138, 42), 0.40)
+            # custom parcel: palette-derived crispy treatment (same as entities.py)
+            p = parrot.get_crispy_parcel(parcel_id, p)
     pw, ph = p.get_size()
     big = pygame.transform.scale(p, (pw * PARCEL_SCALE, ph * PARCEL_SCALE))
     cell.blit(big, big.get_rect(center=(cell_w // 2, cell_h // 2 - 4)))
@@ -221,6 +221,6 @@ pygame.draw.rect(
 # ── Save ───────────────────────────────────────────────────────────────────
 
 repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-out  = os.path.join(repo, "docs", "skin_powerup_interactions.png")
+out  = os.path.join(repo, "docs", "skin_powerup_interactions_v5.png")
 pygame.image.save(canvas, out)
 print(f"saved {TOTAL_W}x{TOTAL_H} -> {out}")
