@@ -741,8 +741,27 @@ class Bird:
         # fixed sprite. The terminal death overlay (below) still carries the
         # X-eyes when the kill finally fires.
         if self.poison_active and self.poison_t > 0.0:
-            img = parrot.tint_copy(img, (180, 225, 75),
-                                   min(0.78, 0.78 * self.poison_t))
+            # For plain skin frames (no combo overlay active) use the pre-baked
+            # selective-poison frame: parrot body turns vivid green, costume
+            # accessories keep their original colors. Fall back to a simple
+            # tint when a combo sprite is already rendered (rare) or for skin_base.
+            _has_combo = (self.kfc_active or self.ghost_active or triple_vis
+                          or self.knight_active or self.grow_active)
+            _pf = (
+                parrot.get_poison_frame(self.equipped_skin, frame_idx, tilt)
+                if not _has_combo
+                   and self._skin_combos_built_for == self.equipped_skin
+                else None
+            )
+            if _pf is not None:
+                _pfc = _pf.copy()
+                _pfc.set_alpha(int(255 * min(1.0, self.poison_t)))
+                _blended = img.copy()
+                _blended.blit(_pfc, (0, 0))
+                img = _blended
+            else:
+                img = parrot.tint_copy(img, (180, 225, 75),
+                                       min(0.78, 0.78 * self.poison_t))
         if self.grow_active and (self.kfc_active or self.ghost_active
                                   or triple_vis or self.knight_active):
             # Combo + grow: smoothscale-up the variant sprite. No hi-res
