@@ -1126,22 +1126,7 @@ def build_skin_powerup_composites(skin_id: str) -> None:
     from game.dollar_parrot_hat import (
         draw_stovepipe, draw_stovepipe_kfc, draw_stovepipe_ghost,
     )
-    # Measure only how far the costume extends ABOVE the standard KFC head top (ay+11).
-    # Parrot color-repaints: beak sits at ay+11 → _extra_above=0 → scale=1.0 (identical
-    #   to base macaw). Costume skins with tall accessories: content_rect.top < ay+11
-    #   → scale > 1.0, fried frame covers the full accessorised height.
-    _base0 = get_skin_frame(skin_id, 0, 0.0)
-    _iw0, _ih0 = _base0.get_size()
-    _mask = pygame.mask.from_surface(_base0, threshold=8)
-    _bounds = _mask.get_bounding_rects()
-    if _bounds:
-        _content_rect = _bounds[0].unionall(_bounds[1:])
-    else:
-        _content_rect = pygame.Rect((_iw0 - 68) // 2, (_ih0 - 64) // 2, 68, 64)
-    _ay0 = (_ih0 - 64) // 2
-    _kfc_head_y = _ay0 + 11   # canvas y of KFC head top (= 31 for 68x104 skins)
-    _extra_above = max(0, _kfc_head_y - _content_rect.top)
-    kfc_content_scale = (64 + _extra_above) / 64.0
+
 
     combos: "dict[tuple, list]" = {}
     for kfc_f in (False, True):
@@ -1157,23 +1142,13 @@ def build_skin_powerup_composites(skin_id: str) -> None:
                     # Zombie 100×96 (16 px aura on every side): ax=ay=16.
                     # The same formula aligns both KFC overlay and hat anchor
                     # without any per-skin branching.
-                    ax = (iw - 68) // 2
+                    ax = (iw - 68) // 2  # used by triple hat anchor
                     ay = (ih - 64) // 2
-                    kfc_blit_x = ax  # updated below when kfc_f; used by triple hat anchor
-                    kfc_blit_y = ay
                     if kfc_f:
                         # KFC shows only the fried body — erase skin so nothing bleeds through.
                         img.fill((0, 0, 0, 0))
                         kfc_frame = _get_kfc_frames()[fi].copy()
-                        kw, kh = kfc_frame.get_size()
-                        if kfc_content_scale > 1.0:
-                            kfc_frame = pygame.transform.smoothscale(
-                                kfc_frame,
-                                (int(kw * kfc_content_scale), int(kh * kfc_content_scale)))
-                            kw, kh = kfc_frame.get_size()
-                        kfc_blit_x = _content_rect.centerx - kw // 2
-                        kfc_blit_y = _kfc_head_y - int(11 * kfc_content_scale)
-                        img.blit(kfc_frame, (kfc_blit_x, kfc_blit_y))
+                        img.blit(kfc_frame, (ax, ay))
                     if triple_f:
                         # $ stovepipe hat: brim always at (ax+50, ay+12) in canvas coords.
                         # In KFC+triple, the fried head is anchored at ay+11 regardless of scale.
