@@ -1157,6 +1157,8 @@ def build_skin_powerup_composites(skin_id: str) -> None:
                     # without any per-skin branching.
                     ax = (iw - 68) // 2
                     ay = (ih - 64) // 2
+                    kfc_blit_x = ax  # updated below when kfc_f; used by triple hat anchor
+                    kfc_blit_y = ay
                     if kfc_f:
                         # KFC shows only the fried body — erase skin so nothing bleeds through.
                         img.fill((0, 0, 0, 0))
@@ -1167,16 +1169,21 @@ def build_skin_powerup_composites(skin_id: str) -> None:
                                 kfc_frame,
                                 (int(kw * kfc_content_scale), int(kh * kfc_content_scale)))
                             kw, kh = kfc_frame.get_size()
-                        img.blit(kfc_frame,
-                                 (_content_rect.centerx - kw // 2,
-                                  _content_rect.centery - kh // 2))
+                        kfc_blit_x = _content_rect.centerx - kw // 2
+                        kfc_blit_y = _content_rect.centery - kh // 2
+                        img.blit(kfc_frame, (kfc_blit_x, kfc_blit_y))
                     if triple_f:
-                        # $ stovepipe hat: brim anchor in 68×64 core space is (49,12);
-                        # shift by (ax, ay) to reach canvas space.
+                        # $ stovepipe hat: brim anchor in 68×64 core space is (49,12).
+                        # When KFC is active the frame is scaled, so scale the anchor too.
                         hat_fn = (draw_stovepipe_kfc   if kfc_f
                                   else draw_stovepipe_ghost if ghost_f
                                   else draw_stovepipe)
-                        hat_fn(img, 49 + ax, 12 + ay)
+                        if kfc_f:
+                            hat_fn(img,
+                                   kfc_blit_x + int(49 * kfc_content_scale),
+                                   kfc_blit_y + int(12 * kfc_content_scale))
+                        else:
+                            hat_fn(img, 49 + ax, 12 + ay)
                     if ghost_f:
                         # Full SPECTRAL palette replacement: kills original hues,
                         # gradient-maps luminance to the ghost blue range (40,80,140)→(220,240,250).
