@@ -883,10 +883,10 @@ class Bird:
         # Parcel — Pip's permanent companion. Tucked below his centre with
         # a tilt-aware offset so it banks with him; mode-coloured to match
         # the active palette; alpha-breathes in ghost mode; grow-scaled.
-        if self.kfc_active:
-            mode = "kfc"
-        elif self.ghost_active:
+        if self.ghost_active:
             mode = "ghost"
+        elif self.kfc_active:
+            mode = "kfc"
         elif self.triple_active:
             mode = "triple"
         else:
