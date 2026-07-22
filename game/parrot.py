@@ -1180,7 +1180,7 @@ def build_skin_powerup_composites(skin_id: str) -> None:
                                   else draw_stovepipe)
                         if kfc_f:
                             hat_fn(img,
-                                   kfc_blit_x + int(49 * kfc_content_scale),
+                                   kfc_blit_x + int(50 * kfc_content_scale),
                                    kfc_blit_y + int(12 * kfc_content_scale))
                         else:
                             hat_fn(img, 49 + ax, 12 + ay)
