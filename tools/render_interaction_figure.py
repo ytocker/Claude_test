@@ -35,12 +35,12 @@ MARGIN  = 10
 BG      = (22, 26, 36)
 
 SKIN_ROWS = [
-    ("skin_base",   "Base Macaw"),
-    ("skin_pirate", "Pirate"),
-    ("skin_zombie", "Zombie"),
-    ("skin_chrome", "Chrome Macaw"),
-    ("skin_disco",  "Disco"),
-    ("skin_cowboy", "Cowboy"),
+    ("skin_bluegold",  "Blue/Gold Macaw"),
+    ("skin_sunconure", "Sun Conure"),
+    ("skin_moonbloom", "Moonbloom"),
+    ("skin_pharaoh",   "Pharaoh"),
+    ("skin_wizard",    "Wizard"),
+    ("skin_mummy",     "Mummy"),
 ]
 
 # (column label, kfc, ghost, triple)
@@ -68,12 +68,12 @@ PARCEL_SCALE  = 3   # scale parcels 3x for visibility
 
 # (column label, parcel_id, use_kfc_tint)
 PARCEL_COLS = [
-    ("kraft/normal",   "parcel_base",    False),
-    ("kraft/KFC",      "parcel_base",    True),
-    ("airmail/normal", "parcel_airmail", False),
-    ("airmail/KFC",    "parcel_airmail", True),
-    ("soccer/normal",  "parcel_soccer",  False),
-    ("soccer/KFC",     "parcel_soccer",  True),
+    ("love/normal",      "parcel_love",      False),
+    ("love/KFC",         "parcel_love",      True),
+    ("chest/normal",     "parcel_chest",     False),
+    ("chest/KFC",        "parcel_chest",     True),
+    ("snowglobe/normal", "parcel_snowglobe", False),
+    ("snowglobe/KFC",    "parcel_snowglobe", True),
 ]
 
 N_PCOLS = len(PARCEL_COLS)
