@@ -228,14 +228,24 @@ pygame.draw.rect(
 
 # ── Save ───────────────────────────────────────────────────────────────────
 
-BRANCH   = "claude/v5-item-interactions-f8eeqx"
-FILENAME = "skin_powerup_interactions_v9.png"
-GITHUB_URL = (
-    f"https://github.com/ytocker/skybit/blob/{BRANCH}/docs/{FILENAME}"
-)
+BRANCH = "claude/v5-item-interactions-f8eeqx"
 
-repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-out  = os.path.join(repo, "docs", FILENAME)
+repo  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+docs  = os.path.join(repo, "docs")
+
+# Auto-increment: find the highest existing vN and write v(N+1).
+import re as _re
+_existing = [
+    int(m.group(1))
+    for f in os.listdir(docs)
+    for m in [_re.search(r"skin_powerup_interactions_v(\d+)\.png", f)]
+    if m
+]
+_next = (max(_existing) + 1) if _existing else 1
+FILENAME   = f"skin_powerup_interactions_v{_next}.png"
+GITHUB_URL = f"https://github.com/ytocker/skybit/blob/{BRANCH}/docs/{FILENAME}"
+
+out = os.path.join(docs, FILENAME)
 pygame.image.save(canvas, out)
 print(f"saved {TOTAL_W}x{TOTAL_H} -> {out}")
 # Clickable hyperlink via OSC 8 (supported by most modern terminals)
