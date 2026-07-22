@@ -35,12 +35,14 @@ MARGIN  = 10
 BG      = (22, 26, 36)
 
 SKIN_ROWS = [
-    ("skin_bluegold",  "Blue/Gold Macaw"),
+    ("skin_base",      "Base Macaw"),
+    ("skin_bluegold",  "Blue Macaw"),
+    ("skin_skeleton",  "Skeleton"),
+    ("skin_amazon",    "Amazon"),
     ("skin_sunconure", "Sun Conure"),
-    ("skin_moonbloom", "Moonbloom"),
-    ("skin_pharaoh",   "Pharaoh"),
-    ("skin_wizard",    "Wizard"),
-    ("skin_mummy",     "Mummy"),
+    ("skin_hyacinth",  "Hyacinth"),
+    ("skin_zombie",    "Zombie"),
+    ("skin_cockatoo",  "Cockatoo"),
 ]
 
 # (column label, kfc, ghost, triple)
