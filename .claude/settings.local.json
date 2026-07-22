@@ -5,7 +5,9 @@
       "Bash(python -)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(awk 'NR>=303 && NR<=360 {printf \"%d: %s\\\\n\", NR, $0}')",
+      "Bash(awk 'NR>=923 && NR<=1240 {printf \"%d: %s\\\\n\", NR, $0}')"
     ]
   }
 }
