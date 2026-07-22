@@ -1126,11 +1126,10 @@ def build_skin_powerup_composites(skin_id: str) -> None:
     from game.dollar_parrot_hat import (
         draw_stovepipe, draw_stovepipe_kfc, draw_stovepipe_ghost,
     )
-    # Measure the skin's actual visible content extent from frame 0 (tilt=0).
-    # Parrot skins (color repaints): content height ≈ 64  → kfc_content_scale = 1.0,
-    #   same KFC frame size as the base macaw.
-    # Costume skins (hats, staffs, accessories): content height ≈ 90–104
-    #   → kfc_content_scale ≈ 1.4–1.6, fried frame covers the full accessorised extent.
+    # Measure only how far the costume extends ABOVE the standard KFC head top (ay+11).
+    # Parrot color-repaints: beak sits at ay+11 → _extra_above=0 → scale=1.0 (identical
+    #   to base macaw). Costume skins with tall accessories: content_rect.top < ay+11
+    #   → scale > 1.0, fried frame covers the full accessorised height.
     _base0 = get_skin_frame(skin_id, 0, 0.0)
     _iw0, _ih0 = _base0.get_size()
     _mask = pygame.mask.from_surface(_base0, threshold=8)
@@ -1139,7 +1138,10 @@ def build_skin_powerup_composites(skin_id: str) -> None:
         _content_rect = _bounds[0].unionall(_bounds[1:])
     else:
         _content_rect = pygame.Rect((_iw0 - 68) // 2, (_ih0 - 64) // 2, 68, 64)
-    kfc_content_scale = _content_rect.height / 64.0
+    _ay0 = (_ih0 - 64) // 2
+    _kfc_head_y = _ay0 + 11   # canvas y of KFC head top (= 31 for 68x104 skins)
+    _extra_above = max(0, _kfc_head_y - _content_rect.top)
+    kfc_content_scale = (64 + _extra_above) / 64.0
 
     combos: "dict[tuple, list]" = {}
     for kfc_f in (False, True):
@@ -1170,18 +1172,16 @@ def build_skin_powerup_composites(skin_id: str) -> None:
                                 (int(kw * kfc_content_scale), int(kh * kfc_content_scale)))
                             kw, kh = kfc_frame.get_size()
                         kfc_blit_x = _content_rect.centerx - kw // 2
-                        kfc_blit_y = _content_rect.centery - kh // 2
+                        kfc_blit_y = _kfc_head_y - int(11 * kfc_content_scale)
                         img.blit(kfc_frame, (kfc_blit_x, kfc_blit_y))
                     if triple_f:
-                        # $ stovepipe hat: brim anchor in 68×64 core space is (49,12).
-                        # When KFC is active the frame is scaled, so scale the anchor too.
+                        # $ stovepipe hat: brim always at (ax+50, ay+12) in canvas coords.
+                        # In KFC+triple, the fried head is anchored at ay+11 regardless of scale.
                         hat_fn = (draw_stovepipe_kfc   if kfc_f
                                   else draw_stovepipe_ghost if ghost_f
                                   else draw_stovepipe)
                         if kfc_f:
-                            hat_fn(img,
-                                   kfc_blit_x + int(50 * kfc_content_scale),
-                                   kfc_blit_y + int(12 * kfc_content_scale))
+                            hat_fn(img, ax + 50, ay + 12)
                         else:
                             hat_fn(img, 49 + ax, 12 + ay)
                     if ghost_f:
