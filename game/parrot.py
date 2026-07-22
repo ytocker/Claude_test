@@ -997,6 +997,24 @@ def tint_copy(sprite, tint, strength):
     return out
 
 
+def _ghostify_in_place(sprite: "pygame.Surface") -> None:
+    """Replace the sprite's colour plate with the SPECTRAL ghost palette.
+
+    Desaturates to luminance-correct grayscale, then gradient-maps:
+      black  → SPECTRAL shadow  (40,  80, 140)
+      white  → SPECTRAL highlight (220, 240, 250)
+    The original skin's light/dark contrast is preserved as variation within
+    the blue range. Alpha is carried through unchanged.
+    """
+    gray = pygame.transform.grayscale(sprite)
+    # MULT scales [0,255] → [0,(180,160,110)]; ADD then lifts base to (40,80,140).
+    # Result: black→(40,80,140), white→(220,240,250) — the SPECTRAL palette range.
+    gray.fill((180, 160, 110, 255), special_flags=pygame.BLEND_MULT)
+    gray.fill(( 40,  80, 140,   0), special_flags=pygame.BLEND_ADD)
+    sprite.fill((0, 0, 0, 0))
+    sprite.blit(gray, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+
 # Crispy-parcel KFC cache — keyed by parcel_id; built once on first KFC pickup,
 # never invalidated (parcel art is deterministic so the same id always produces
 # the same surface).
@@ -1122,10 +1140,9 @@ def build_skin_powerup_composites(skin_id: str) -> None:
                                   else draw_stovepipe)
                         hat_fn(img, 49 + ax, 12 + ay)
                     if ghost_f:
-                        # Richer, more saturated blue — matches the SPECTRAL palette
-                        # (wing_main ~85,145,210; body_chest ~180,225,245) better than
-                        # the default pale sky-cyan (170,230,255) @ 0.55.
-                        _cyan_tint_in_place(img, tint=(110, 185, 248), strength=0.72)
+                        # Full SPECTRAL palette replacement: kills original hues,
+                        # gradient-maps luminance to the ghost blue range (40,80,140)→(220,240,250).
+                        _ghostify_in_place(img)
                     frames.append(img)
                 combos[(kfc_f, ghost_f, triple_f)] = frames
     _SKIN_COMBOS[skin_id] = combos
