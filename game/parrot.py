@@ -1126,6 +1126,21 @@ def build_skin_powerup_composites(skin_id: str) -> None:
     from game.dollar_parrot_hat import (
         draw_stovepipe, draw_stovepipe_kfc, draw_stovepipe_ghost,
     )
+    # Measure the skin's actual visible content extent from frame 0 (tilt=0).
+    # Parrot skins (color repaints): content height ≈ 64  → kfc_content_scale = 1.0,
+    #   same KFC frame size as the base macaw.
+    # Costume skins (hats, staffs, accessories): content height ≈ 90–104
+    #   → kfc_content_scale ≈ 1.4–1.6, fried frame covers the full accessorised extent.
+    _base0 = get_skin_frame(skin_id, 0, 0.0)
+    _iw0, _ih0 = _base0.get_size()
+    _mask = pygame.mask.from_surface(_base0, threshold=8)
+    _bounds = _mask.get_bounding_rects()
+    if _bounds:
+        _content_rect = _bounds[0].unionall(_bounds[1:])
+    else:
+        _content_rect = pygame.Rect((_iw0 - 68) // 2, (_ih0 - 64) // 2, 68, 64)
+    kfc_content_scale = _content_rect.height / 64.0
+
     combos: "dict[tuple, list]" = {}
     for kfc_f in (False, True):
         for ghost_f in (False, True):
@@ -1145,19 +1160,20 @@ def build_skin_powerup_composites(skin_id: str) -> None:
                     if kfc_f:
                         # Warm the ~30% skin that shows through toward amber.
                         _cyan_tint_in_place(img, tint=_CRISPY_GOLD, strength=0.35)
-                        # Scale the KFC fried frame proportionally (aspect-ratio-preserving)
-                        # so it fills the skin canvas without distorting the fried-body shape.
-                        # Standard 68×104/68×88 skins: fit_scale=1.0 → original position.
-                        # Wider canvases (zombie 100×96): scale up to fill width proportionally.
+                        # Scale KFC fried frame to match this skin's content extent.
+                        # Parrot skins (content_height≈64): scale=1.0, unchanged.
+                        # Costume skins with accessories: scale covers hat/staff/etc.
                         kfc_frame = _get_kfc_frames()[fi].copy()
                         kw, kh = kfc_frame.get_size()
-                        fit_scale = min(iw / kw, ih / kh)
-                        if fit_scale > 1.0:
+                        if kfc_content_scale > 1.0:
                             kfc_frame = pygame.transform.smoothscale(
-                                kfc_frame, (int(kw * fit_scale), int(kh * fit_scale)))
+                                kfc_frame,
+                                (int(kw * kfc_content_scale), int(kh * kfc_content_scale)))
                             kw, kh = kfc_frame.get_size()
                         kfc_frame.fill((255, 255, 255, 178), special_flags=pygame.BLEND_RGBA_MULT)
-                        img.blit(kfc_frame, ((iw - kw) // 2, (ih - kh) // 2))
+                        img.blit(kfc_frame,
+                                 (_content_rect.centerx - kw // 2,
+                                  _content_rect.centery - kh // 2))
                     if triple_f:
                         # $ stovepipe hat: brim anchor in 68×64 core space is (49,12);
                         # shift by (ax, ay) to reach canvas space.
