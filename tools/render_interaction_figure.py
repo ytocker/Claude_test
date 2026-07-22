@@ -229,7 +229,7 @@ pygame.draw.rect(
 # ── Save ───────────────────────────────────────────────────────────────────
 
 BRANCH   = "claude/v5-item-interactions-f8eeqx"
-FILENAME = "skin_powerup_interactions_v8.png"
+FILENAME = "skin_powerup_interactions_v9.png"
 GITHUB_URL = (
     f"https://github.com/ytocker/skybit/blob/{BRANCH}/docs/{FILENAME}"
 )
