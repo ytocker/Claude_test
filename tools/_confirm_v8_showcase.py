@@ -305,7 +305,7 @@ for i, (panel, slug) in enumerate(zip(panels, labels)):
     draw.text((px + PANEL_W // 2, label_y), slug,
               fill=(180, 176, 210), anchor="mt")
 
-OUT = "/home/user/skybit/docs/confirm_purchase_v8/showcase.png"
+OUT = "/home/user/skybit/docs/confirm_purchase_v8/showcase_v1.png"
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 canvas.save(OUT)
 print(f"saved {canvas.size[0]}×{canvas.size[1]}  →  {OUT}")
