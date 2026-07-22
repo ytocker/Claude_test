@@ -1145,14 +1145,19 @@ def build_skin_powerup_composites(skin_id: str) -> None:
                     if kfc_f:
                         # Warm the ~30% skin that shows through toward amber.
                         _cyan_tint_in_place(img, tint=_CRISPY_GOLD, strength=0.35)
-                        # Scale the KFC fried frame to the full skin canvas so oversized
-                        # skins (zombie aura, costume hat headroom, animal extensions)
-                        # receive the fried-shape overlay across their whole extent.
+                        # Scale the KFC fried frame proportionally (aspect-ratio-preserving)
+                        # so it fills the skin canvas without distorting the fried-body shape.
+                        # Standard 68×104/68×88 skins: fit_scale=1.0 → original position.
+                        # Wider canvases (zombie 100×96): scale up to fill width proportionally.
                         kfc_frame = _get_kfc_frames()[fi].copy()
-                        if kfc_frame.get_size() != (iw, ih):
-                            kfc_frame = pygame.transform.smoothscale(kfc_frame, (iw, ih))
+                        kw, kh = kfc_frame.get_size()
+                        fit_scale = min(iw / kw, ih / kh)
+                        if fit_scale > 1.0:
+                            kfc_frame = pygame.transform.smoothscale(
+                                kfc_frame, (int(kw * fit_scale), int(kh * fit_scale)))
+                            kw, kh = kfc_frame.get_size()
                         kfc_frame.fill((255, 255, 255, 178), special_flags=pygame.BLEND_RGBA_MULT)
-                        img.blit(kfc_frame, (0, 0))
+                        img.blit(kfc_frame, ((iw - kw) // 2, (ih - kh) // 2))
                     if triple_f:
                         # $ stovepipe hat: brim anchor in 68×64 core space is (49,12);
                         # shift by (ax, ay) to reach canvas space.
