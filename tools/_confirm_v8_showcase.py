@@ -113,15 +113,14 @@ def rarity_banner(big, tier_word, pal):
 
 def hero_disc(big, sid, pal):
     cx, cy, r = m(CX), m(DISC_CY), m(DISC_R)
-    sc._alpha_aura(big, cx, cy, r + m(18), pal["glow"], peak=52, layers=15)
+    sc._alpha_aura(big, cx, cy, r + m(55), pal["glow"], peak=95, layers=24)
+    sc._alpha_aura(big, cx, cy, r + m(20), pal["glow"], peak=70, layers=12)
     sc.cabochon(big, cx, cy, r, CABO_LO, CABO_HI, ring=pal["gem"], ring_a=50)
     try:
         sc.blit_thumb(big, sid, cx, cy, int(r * 1.5))
     except Exception:
         pygame.draw.circle(big, pal["gem"], (cx, cy), int(r * 0.7))
     sc.cabochon_glass(big, cx, cy, r, tint=pal["gem"])
-    rw = max(3, m(3.0))
-    pygame.draw.circle(big, pal["gem"], (cx, cy), r + rw // 2 + m(1), rw)
 
 
 # ── BEFORE: faithful reproduction of _draw_confirm (affordable=True) ─────────
