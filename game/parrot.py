@@ -1122,7 +1122,10 @@ def build_skin_powerup_composites(skin_id: str) -> None:
                                   else draw_stovepipe)
                         hat_fn(img, 49 + ax, 12 + ay)
                     if ghost_f:
-                        _cyan_tint_in_place(img)
+                        # Richer, more saturated blue — matches the SPECTRAL palette
+                        # (wing_main ~85,145,210; body_chest ~180,225,245) better than
+                        # the default pale sky-cyan (170,230,255) @ 0.55.
+                        _cyan_tint_in_place(img, tint=(110, 185, 248), strength=0.72)
                     frames.append(img)
                 combos[(kfc_f, ghost_f, triple_f)] = frames
     _SKIN_COMBOS[skin_id] = combos

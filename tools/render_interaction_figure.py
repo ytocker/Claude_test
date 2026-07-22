@@ -108,6 +108,8 @@ def render_bird_cell(skin_id, kfc, ghost, triple):
     b.y            = 58.0  # leaves headroom for stovepipe hat at top
     b.equipped_skin = skin_id
     b.rebuild_skin_combos()
+    if ghost:
+        b.ghost_pulse = math.pi / 2  # peak of breathing oscillation → alpha=170
     b.kfc_active    = kfc
     b.ghost_active  = ghost
     b.triple_active = triple
@@ -221,6 +223,6 @@ pygame.draw.rect(
 # ── Save ───────────────────────────────────────────────────────────────────
 
 repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-out  = os.path.join(repo, "docs", "skin_powerup_interactions_v5.png")
+out  = os.path.join(repo, "docs", "skin_powerup_interactions_v6.png")
 pygame.image.save(canvas, out)
 print(f"saved {TOTAL_W}x{TOTAL_H} -> {out}")
