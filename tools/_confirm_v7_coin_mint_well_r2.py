@@ -161,19 +161,23 @@ def coin_well(big, price, pal):
     #    tell. The well rim physically occludes top-left light, casting a dark
     #    crescent shadow on the coin's upper-left quadrant. Nothing else reads
     #    "the coin is below the surface" as unambiguously as this.
-    #    Technique: fill a coin-sized surface with the shadow colour, then punch
-    #    out the lower-right with a shifted-down-right circle to leave only the
-    #    upper-left crescent exposed.
+    #    Technique: draw the shadow disc on an SRCALPHA surface, then blit a
+    #    punch-mask (opaque everywhere except the lower-right shifted hole) with
+    #    BLEND_RGBA_MIN — the zero-alpha hole zeros out the overhang there, leaving
+    #    only the upper-left crescent.
     cr = m(COIN_R)
     pad = m(10)
     overhang = pygame.Surface((cr * 2 + pad * 2, cr * 2 + pad * 2), pygame.SRCALPHA)
     oc = cr + pad
-    # shadow fills the full coin disc
+    # shadow fills the full coin disc at (0,0,0,120)
     pygame.draw.circle(overhang, (0, 0, 0, 120), (oc, oc), cr)
-    # punch out lower-right with transparent circle, leaving upper-left crescent
+    # punch_mask is (255,255,255,255) everywhere; the shifted circle is drawn
+    # with alpha=0 on an SRCALPHA surface so BLEND_RGBA_MIN zeroes out those pixels.
     shift = m(9)
-    pygame.draw.circle(overhang, (0, 0, 0, 0), (oc + shift, oc + shift), cr,
-                       special_flags=pygame.BLEND_RGBA_MIN)
+    punch_mask = pygame.Surface(overhang.get_size(), pygame.SRCALPHA)
+    punch_mask.fill((255, 255, 255, 255))
+    pygame.draw.circle(punch_mask, (0, 0, 0, 0), (oc + shift, oc + shift), cr)
+    overhang.blit(punch_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     big.blit(overhang, (cx - oc, cy - oc))
 
     # 7) Top-left specular crescent on the coin's raised upper-left edge —
