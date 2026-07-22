@@ -221,15 +221,35 @@ def before_shelf(big, price_str, pal):
 
 
 def render_before():
-    """Render the current v5_integration confirm popup using EPIC palette."""
-    big = pygame.Surface((POP_W * SS, POP_H * SS), pygame.SRCALPHA)
-    card_body(big)
-    corner_gems(big, EPIC_PAL)
-    name_text(big, EPIC_NAME)
-    rarity_banner(big, EPIC_WORD, EPIC_PAL)
-    before_shelf(big, EPIC_PRICE, EPIC_PAL)
-    hero_disc(big, EPIC_SID, EPIC_PAL)
-    return pygame.transform.smoothscale(big, (POP_W, POP_H))
+    """Call the real _draw_confirm — pixel-perfect, no manual approximation."""
+    from game.store import StoreScene as Store
+    import game.store_catalog as _cat
+    import game.store_data as _dat
+
+    SID = "skin_prism"
+
+    orig_balance = _dat.balance
+    _dat.balance = lambda: 99999
+    try:
+        class _Stub:
+            _confirm = SID
+            _confirm_panel = None
+            confirm_yes_rect = None
+            confirm_no_rect = None
+            @staticmethod
+            def _disp_name(sid):
+                try:
+                    return _cat.name(sid)
+                except Exception:
+                    return sid.replace("skin_", "").upper()
+
+        canvas = pygame.Surface((360, 640))
+        canvas.fill((8, 8, 20))
+        Store._draw_confirm(_Stub(), canvas)
+        # popup sits at px=(360-260)//2=50, py=40
+        return canvas.subsurface(pygame.Rect(50, 40, 260, 442)).copy()
+    finally:
+        _dat.balance = orig_balance
 
 
 # ── showcase assembly ─────────────────────────────────────────────────────────
