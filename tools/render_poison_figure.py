@@ -1,8 +1,8 @@
 """Poison power-up diagnostic figure.
 
 3 rows (skin_base, skin_wizard, skin_bluegold) × 2 columns (Normal, Poison-final).
-Shows the actual in-game final-state rendering for each skin so the poison
-appearance can be evaluated and fixed.
+Poison column shows the true final state: the P_CHARTREUSE death sprite for
+skin_base, and BLEND_RGB_MULT greenification for costume/parrot skins.
 
 Run from repo root or tools/:
     python tools/render_poison_figure.py
@@ -22,7 +22,8 @@ import pygame  # noqa: E402
 pygame.init()
 pygame.display.set_mode((1, 1))
 
-from game.entities import Bird  # noqa: E402
+from game.entities import Bird   # noqa: E402
+from game import parrot          # noqa: E402
 
 # ── Layout constants (match render_interaction_figure.py) ────────────────────
 LABEL_W = 130
@@ -67,18 +68,30 @@ def render_cell(skin_id, effect):
     cell = pygame.Surface((CELL_W, CELL_H))
     fill_sky(cell)
 
-    b = Bird()
-    b.frame_t       = 1.0
-    b.x             = CELL_W / 2
-    b.y             = 48.0
-    b.equipped_skin = skin_id
-    b.rebuild_skin_combos()
-
     if effect == "poison":
-        b.poison_active = True
-        b.poison_t      = 1.0
+        if skin_id == "skin_base":
+            # Bespoke P_CHARTREUSE dead sprite — the canonical reference.
+            img = parrot.get_poisoned_parrot(1, 0.0)
+        else:
+            # No bespoke dead sprite: grayscale the skin frame to neutralise
+            # all original hues, then BLEND_RGB_MULT to chartreuse so every
+            # pixel ends up green regardless of its original colour.
+            src = parrot.get_skin_frame(skin_id, 1, 0.0)
+            img = pygame.transform.grayscale(src.copy())
+            overlay = pygame.Surface(img.get_size())
+            overlay.fill((190, 220, 70))
+            img.blit(overlay, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+        # Centre in cell — 68×64 (base dead) and 68×104 (costume) both fit
+        cell.blit(img, img.get_rect(center=(CELL_W // 2, CELL_H // 2)))
+    else:
+        b = Bird()
+        b.frame_t       = 1.0
+        b.x             = CELL_W / 2
+        b.y             = 48.0
+        b.equipped_skin = skin_id
+        b.rebuild_skin_combos()
+        b.draw(cell, 0, 0)
 
-    b.draw(cell, 0, 0)
     return cell
 
 
@@ -94,7 +107,7 @@ font_row   = pygame.font.SysFont("monospace", 11, bold=True)
 # ── Title ────────────────────────────────────────────────────────────────────
 
 canvas.blit(
-    font_title.render("Poison power-up — current in-game final state", True, (240, 235, 180)),
+    font_title.render("Poison final state — P_CHARTREUSE reference", True, (240, 235, 180)),
     (MARGIN, MARGIN + 6),
 )
 
