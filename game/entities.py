@@ -28,6 +28,7 @@ from game.draw import (
 )
 from game import parrot
 from game import snow_fx
+from game.store_catalog import CATALOG as _CATALOG
 from game.pillar_pagodas import (draw_pillar_pair,
                                  CANDIDATES, VARIANT_KEYS, VARIANT_COUNT)
 
@@ -743,11 +744,20 @@ class Bird:
             # store loadout). Unknown ids degrade to the base parrot inside
             # get_skin_frame, so a stale save never crashes the draw.
             img = parrot.get_skin_frame(self.equipped_skin, frame_idx, tilt)
-        # POISON — chartreuse tint (matches P_CHARTREUSE palette of the original
-        # poisoned-parrot sprite), mask-clamped to silhouette, ramped by poison_t.
+        # POISON — chartreuse tint while ramping; full dead composite at peak.
+        # Costume skins preserve accessories over the P_CHARTREUSE body; all
+        # other skins (parrot species, animals, base) use the bespoke dead sprite.
         if self.poison_active and self.poison_t > 0.0:
-            img = parrot.tint_copy(img, (180, 225, 75),
-                                   min(0.78, 0.78 * self.poison_t))
+            if self.poison_t >= 1.0:
+                from game import store_skins
+                if _CATALOG.get(self.equipped_skin, {}).get("group") == "costume":
+                    img = store_skins.get_poisoned_costume_frame(
+                        self.equipped_skin, frame_idx, tilt)
+                else:
+                    img = parrot.get_poisoned_parrot(frame_idx, tilt)
+            else:
+                img = parrot.tint_copy(img, (180, 225, 75),
+                                       min(0.78, 0.78 * self.poison_t))
         if self.grow_active and (self.kfc_active or self.ghost_active
                                   or triple_vis or self.knight_active):
             # Combo + grow: smoothscale-up the variant sprite. No hi-res

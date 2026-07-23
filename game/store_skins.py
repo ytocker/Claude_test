@@ -3664,3 +3664,96 @@ BUILDERS = {
     # Baby parrot (secret pacifier-and-diaper chick).
     "skin_binky":     get_binky_parrot,
 }
+
+# ── Poison final-state composites for costume-group skins ────────────────────
+# Dead P_CHARTREUSE parrot body (X-eyes) + accessory pixels at full poison_t.
+# Lives here (not parrot.py) because it imports store_skins functions; the
+# reverse import direction would be circular.
+
+# Body-only references for the two skins that recolour the base plumage:
+_BODY_ONLY_BASES_P = {
+    "skin_ninja":  _ninja_base,
+    "skin_tophat": _tophat_base,
+}
+_body_only_p_cache: "dict" = {}   # (skin_id, wing_angle) -> 68×104 Surface
+
+
+def _get_body_only_p(skin_id, wing_angle):
+    key = (skin_id, wing_angle)
+    if key not in _body_only_p_cache:
+        comp = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+        comp.blit(_BODY_ONLY_BASES_P[skin_id](wing_angle), (0, PARROT_DY))
+        _body_only_p_cache[key] = _add_outline(comp)
+    return _body_only_p_cache[key]
+
+
+_poison_flat_cache: "dict" = {}   # (skin_id, frame_idx) -> Surface (tilt=0)
+_poison_rot_cache_p: "dict" = {}  # (skin_id, frame_idx, tilt_bucket) -> Surface
+
+
+def _build_poison_flat(skin_id, frame_idx):
+    wing_angle = _WING_ANGLES[frame_idx]
+    dead_flat = parrot.get_poisoned_parrot(frame_idx, 0.0)
+    cw, dh = dead_flat.get_size()                          # 68 × 84
+    canvas = pygame.Surface((cw, PARROT_DY + dh), pygame.SRCALPHA)  # 68 × 104
+    canvas.blit(dead_flat, (0, PARROT_DY))
+
+    if skin_id == "skin_viking":
+        # Render accessory layer (shield+ruff, helm, face) on a blank canvas
+        # with the Viking-specific outline so the compositing is colour-exact.
+        acc = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+        _viking_back(acc)
+        _viking_helm(acc)
+        _viking_face(acc)
+        canvas.blit(_add_outline(acc, _VK_OUTLINE), (0, 0))
+        return canvas
+
+    skin_frame = parrot.get_skin_frame(skin_id, frame_idx, 0.0)
+    base_frame = parrot.get_skin_frame("skin_base", frame_idx, 0.0)
+
+    if skin_id in _BODY_ONLY_BASES_P:
+        ref = _get_body_only_p(skin_id, wing_angle)
+        def _is_acc(x, y, sr, sg, sb):
+            r0, g0, b0, _ = ref.get_at((x, y))
+            return abs(sr - r0) + abs(sg - g0) + abs(sb - b0) >= 80
+    else:
+        def _is_acc(x, y, sr, sg, sb):
+            r0, g0, b0, _ = base_frame.get_at((x, y - PARROT_DY))
+            return abs(sr - r0) + abs(sg - g0) + abs(sb - b0) >= 80
+
+    fw, fh = skin_frame.get_size()
+    bh = base_frame.get_height()
+    for x in range(fw):
+        for y in range(fh):
+            by = y - PARROT_DY
+            sr, sg, sb, sa = skin_frame.get_at((x, y))
+            if by < 0 or by >= bh:
+                if sa > 0:
+                    canvas.set_at((x, y), (sr, sg, sb, sa))
+            else:
+                _, _, _, a0 = base_frame.get_at((x, by))
+                if sa > 0 and (a0 == 0 or _is_acc(x, y, sr, sg, sb)):
+                    canvas.set_at((x, y), (sr, sg, sb, sa))
+    return canvas
+
+
+def get_poisoned_costume_frame(skin_id, frame_idx, tilt_deg):
+    """Return the poison final-state surface for a costume-group skin.
+
+    Cached per (skin_id, frame_idx, tilt_bucket) — first call per combination
+    builds a flat composite then rotates it, matching the _make_skin pattern."""
+    frame_idx = frame_idx % len(_WING_ANGLES)
+    tilt_bucket = int(round(tilt_deg / 3.0)) * 3
+    rot_key = (skin_id, frame_idx, tilt_bucket)
+    s = _poison_rot_cache_p.get(rot_key)
+    if s is not None:
+        return s
+
+    flat = _poison_flat_cache.get((skin_id, frame_idx))
+    if flat is None:
+        flat = _build_poison_flat(skin_id, frame_idx)
+        _poison_flat_cache[(skin_id, frame_idx)] = flat
+
+    s = pygame.transform.rotozoom(flat, tilt_bucket, 1.0)
+    _poison_rot_cache_p[rot_key] = s
+    return s
