@@ -24,7 +24,7 @@ sys.path.insert(0, "/home/user/skybit")
 import pygame; pygame.init(); pygame.display.set_mode((1, 1))
 import game.store_cards as sc
 from game.store_cards import (m, SS, font, vgrad_stops, bevel_rim, top_sheen,
-                              coin_glyph, facet_gem, _alpha_aura, soft_glow,
+                              coin_glyph, facet_gem, _alpha_aura,
                               plain_text, lerp_color, CABO_LO, CABO_HI, CARD_T,
                               CARD_B, CARD_RING_BRIGHT, CARD_RING_DEEP)
 from PIL import Image, ImageDraw
@@ -233,10 +233,11 @@ def zone_a(big, tier_word, price_str, pal):
 
     # 1) elliptical orbit aura — peaks reduced (45, 28) and layers raised to
     #    18 so the falloff is smooth and the centre never clips to 255.
+    #    soft_glow omitted entirely: BLEND_ADD ignores fill alpha and adds the
+    #    full gem-colour value per layer, causing white blowout even at low
+    #    peak values.  The tier-tint core below handles centre saturation.
     _aura_orbit(big, cx, cy, m(82), glow_col, peak=45, layers=18)
     _aura_orbit(big, cx, cy, m(50), glow_col, peak=28, layers=18)
-    # reduced gem bloom so the aura core stays below the 200-lum ceiling
-    soft_glow(big, cx, cy, m(60), pal["gem"], peak_alpha=12, layers=8)
 
     # 2) tier-tinted core — normal-alpha radial fill ensures tier hue dominates
     #    the centre; sits under the coin glyph, not additive.
