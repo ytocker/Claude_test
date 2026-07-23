@@ -96,18 +96,14 @@ def _poison_costume(skin_id):
     for x in range(fw):
         for y in range(fh):
             by = y - PARROT_DY
+            r, g, b, a = skin_frame.get_at((x, y))
             if by < 0 or by >= bh:
-                r, g, b, a = skin_frame.get_at((x, y))
                 if a > 0:
                     canvas.set_at((x, y), (r, g, b, a))
             else:
-                r0, g0, b0, a0 = base_frame.get_at((x, by))
-                sr, sg, sb, sa = skin_frame.get_at((x, y))
-                if sa > 0 and (
-                    a0 == 0
-                    or abs(sr - r0) + abs(sg - g0) + abs(sb - b0) >= 80
-                ):
-                    canvas.set_at((x, y), (sr, sg, sb, sa))
+                _, _, _, a0 = base_frame.get_at((x, by))
+                if a0 == 0 and a > 0:
+                    canvas.set_at((x, y), (r, g, b, a))
     return canvas
 
 
