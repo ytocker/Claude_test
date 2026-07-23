@@ -69,41 +69,37 @@ def fill_sky(surf):
         ), (0, y, w, 1))
 
 
-def _chartreuse_colorize(surf):
-    """Grayscale → double luminance → MULT(190,220,70) ≈ P_CHARTREUSE body_main."""
-    result = pygame.transform.grayscale(surf.copy())
-    result.blit(result.copy(), (0, 0), special_flags=pygame.BLEND_RGB_ADD)
-    overlay = pygame.Surface(result.get_size())
-    overlay.fill((190, 220, 70))
-    result.blit(overlay, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
-    return result
+def _poison_costume(skin_id):
+    """68×104 surface: dead P_CHARTREUSE parrot (X-eyes) + original costume accessories.
 
-
-def _chartreuse_costume(skin_id):
-    """Greenify only the parrot-body pixels; keep costume accessories as-is.
-
-    Identifies parrot pixels by comparing each skin pixel against the base macaw
-    at the same canvas position (base parrot sits at PARROT_DY inside the costume
-    canvas). Manhattan-distance < 80 → parrot body → replace with chartreuse.
-    Distance ≥ 80 → costume pixel (hat, robe, etc.) → untouched.
+    Blits the dead macaw (X-eyes, no lenses) at the same y-offset as the costume's
+    living parrot, then overlays only the accessory pixels (hat, robe, beard) whose
+    colour differs from the base macaw by Manhattan distance ≥ 80.
     """
     PARROT_DY = 20
-    base_frame = parrot.get_skin_frame("skin_base", 1, 0.0)
-    green_base = _chartreuse_colorize(base_frame)
-    skin_frame = parrot.get_skin_frame(skin_id, 1, 0.0)
-    output = skin_frame.copy()
+    dead_frame = parrot.get_poisoned_parrot(1, 0.0)          # 68×64, X-eyes + tongue
+    base_frame = parrot.get_skin_frame("skin_base", 1, 0.0)  # 68×64 reference
+    skin_frame = parrot.get_skin_frame(skin_id, 1, 0.0)      # 68×104
+
+    canvas = pygame.Surface(skin_frame.get_size(), pygame.SRCALPHA)
+    canvas.blit(dead_frame, (0, PARROT_DY))
+
+    fw, fh = skin_frame.get_size()
     bh = base_frame.get_height()
-    for x in range(output.get_width()):
-        for y in range(output.get_height()):
+    for x in range(fw):
+        for y in range(fh):
             by = y - PARROT_DY
-            if 0 <= by < bh:
+            if by < 0 or by >= bh:
+                r, g, b, a = skin_frame.get_at((x, y))
+                if a > 0:
+                    canvas.set_at((x, y), (r, g, b, a))
+            else:
                 r0, g0, b0, a0 = base_frame.get_at((x, by))
                 if a0 > 0:
                     sr, sg, sb, sa = skin_frame.get_at((x, y))
-                    if abs(sr - r0) + abs(sg - g0) + abs(sb - b0) < 80:
-                        gr, gg, gb, _ = green_base.get_at((x, by))
-                        output.set_at((x, y), (gr, gg, gb, sa))
-    return output
+                    if abs(sr - r0) + abs(sg - g0) + abs(sb - b0) >= 80:
+                        canvas.set_at((x, y), (sr, sg, sb, sa))
+    return canvas
 
 
 def render_cell(skin_id, effect):
@@ -111,14 +107,11 @@ def render_cell(skin_id, effect):
     fill_sky(cell)
 
     if effect == "poison":
-        if skin_id == "skin_base":
-            img = parrot.get_poisoned_parrot(1, 0.0)
+        group = CATALOG.get(skin_id, {}).get("group", "parrot")
+        if group == "costume":
+            img = _poison_costume(skin_id)
         else:
-            group = CATALOG.get(skin_id, {}).get("group", "parrot")
-            if group == "costume":
-                img = _chartreuse_costume(skin_id)
-            else:
-                img = _chartreuse_colorize(parrot.get_skin_frame(skin_id, 1, 0.0))
+            img = parrot.get_poisoned_parrot(1, 0.0)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, CELL_H // 2)))
     else:
         b = Bird()
