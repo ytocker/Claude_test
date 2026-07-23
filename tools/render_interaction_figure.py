@@ -94,8 +94,16 @@ def render_eff_cell(skin_id, effect):
     draw_flipped = False
 
     if effect == "poison":
-        b.poison_active = True
-        b.poison_t = 1.0
+        # Show the final-state (poison_t=1.0) appearance directly:
+        # skin_base uses the bespoke P_CHARTREUSE dead sprite (completely redrawn green);
+        # costume skins use a strong chartreuse tint from the same palette's body_main.
+        if skin_id == "skin_base":
+            img = parrot.get_poisoned_parrot(1, 0.0)
+        else:
+            img = parrot.get_skin_frame(skin_id, 1, 0.0)
+            img = parrot.tint_copy(img, (190, 220, 70), 0.95)
+        cell.blit(img, img.get_rect(center=(CELL_W // 2, 48)))
+        return cell
     elif effect == "skateboard":
         b.skateboard_active = True
         b.y = 44.0   # raise slightly — board hangs below centre
