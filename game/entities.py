@@ -735,12 +735,11 @@ class Bird:
             # store loadout). Unknown ids degrade to the base parrot inside
             # get_skin_frame, so a stale save never crashes the draw.
             img = parrot.get_skin_frame(self.equipped_skin, frame_idx, tilt)
-        # POISON — vivid green tint over whichever skin the cascade chose
-        # (mask-clamped to silhouette, ramped by poison_t). Terminal X-eyes
-        # death overlay still fires when the kill lands.
+        # POISON — chartreuse tint (matches P_CHARTREUSE palette of the original
+        # poisoned-parrot sprite), mask-clamped to silhouette, ramped by poison_t.
         if self.poison_active and self.poison_t > 0.0:
-            img = parrot.tint_copy(img, (80, 210, 50),
-                                   min(0.90, 0.90 * self.poison_t))
+            img = parrot.tint_copy(img, (180, 225, 75),
+                                   min(0.78, 0.78 * self.poison_t))
         if self.grow_active and (self.kfc_active or self.ghost_active
                                   or triple_vis or self.knight_active):
             # Combo + grow: smoothscale-up the variant sprite. No hi-res
