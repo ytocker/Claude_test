@@ -94,14 +94,18 @@ def render_eff_cell(skin_id, effect):
     draw_flipped = False
 
     if effect == "poison":
-        # Show the final-state (poison_t=1.0) appearance directly:
-        # skin_base uses the bespoke P_CHARTREUSE dead sprite (completely redrawn green);
-        # costume skins use a strong chartreuse tint from the same palette's body_main.
+        # Show the final-state (poison_t=1.0) appearance directly.
+        # skin_base: bespoke P_CHARTREUSE dead sprite — completely redrawn green.
+        # Costume skins: multiplicative colorize (BLEND_RGB_MULT) so every pixel
+        # shifts proportionally toward chartreuse — white→(190,220,70), dark stays
+        # dark-green. Same visual impression as P_CHARTREUSE across all lightness levels.
         if skin_id == "skin_base":
             img = parrot.get_poisoned_parrot(1, 0.0)
         else:
-            img = parrot.get_skin_frame(skin_id, 1, 0.0)
-            img = parrot.tint_copy(img, (190, 220, 70), 0.95)
+            img = parrot.get_skin_frame(skin_id, 1, 0.0).copy()
+            overlay = pygame.Surface(img.get_size())
+            overlay.fill((190, 220, 70))
+            img.blit(overlay, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, 48)))
         return cell
     elif effect == "skateboard":
