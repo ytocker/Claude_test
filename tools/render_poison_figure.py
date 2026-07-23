@@ -73,8 +73,10 @@ def _poison_costume(skin_id):
     """68×104 surface: dead P_CHARTREUSE parrot (X-eyes) + original costume accessories.
 
     Blits the dead macaw (X-eyes, no lenses) at the same y-offset as the costume's
-    living parrot, then overlays only the accessory pixels (hat, robe, beard) whose
-    colour differs from the base macaw by Manhattan distance ≥ 80.
+    living parrot, then overlays accessory pixels from the living skin frame.
+    A pixel is an accessory if the base macaw is transparent at that position (a0==0 —
+    e.g. the hat cone extends past the parrot silhouette) OR the colour differs from
+    the base macaw by Manhattan distance ≥ 80 (hat fill, robe, beard overtop the parrot).
     """
     PARROT_DY = 20
     dead_frame = parrot.get_poisoned_parrot(1, 0.0)          # 68×64, X-eyes + tongue
@@ -95,10 +97,12 @@ def _poison_costume(skin_id):
                     canvas.set_at((x, y), (r, g, b, a))
             else:
                 r0, g0, b0, a0 = base_frame.get_at((x, by))
-                if a0 > 0:
-                    sr, sg, sb, sa = skin_frame.get_at((x, y))
-                    if abs(sr - r0) + abs(sg - g0) + abs(sb - b0) >= 80:
-                        canvas.set_at((x, y), (sr, sg, sb, sa))
+                sr, sg, sb, sa = skin_frame.get_at((x, y))
+                if sa > 0 and (
+                    a0 == 0
+                    or abs(sr - r0) + abs(sg - g0) + abs(sb - b0) >= 80
+                ):
+                    canvas.set_at((x, y), (sr, sg, sb, sa))
     return canvas
 
 
