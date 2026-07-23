@@ -49,7 +49,6 @@ _SCARLET_TOP_DIM = (220,  45,  22)  # #dc2d16  brighter rust (top of grad)
 _SCARLET_BOT_DIM = (110,  22,  10)  # #6e160a  darker rust  (bottom of grad)
 _SCARLET_SHADOW = ( 60,   8,   8)   # #3c0808  pill text shadow
 _GOLD_DEEP      = (180, 130,  20)   # #b48214  inner laurel/ring tone
-_GOLD_MID       = (212, 160,  44)   # #d4a02c  mid step for struck bevels
 _GOLD_PALE      = (255, 232, 168)   # #ffe8a8  bright highlight for engraving
 _PANEL_DARK     = ( 12,   8,  38)   # deep purple panel
 _PANEL_LIGHTER  = ( 26,  18,  62)   # navy gradient stop above PANEL_DARK
@@ -252,6 +251,16 @@ def _volume_panel(surf, rect, radius=14, alpha=235):
     + bottom shadow, and a 4-step drop shadow. Used by ``draw_menu`` for
     the BEST + TOP 10 cards so they sit with real volume against the
     scarlet pill buttons above them."""
+    # 4-step drop shadow — softer, more diffuse than _dark_panel's.
+    sh = pygame.Surface((rect.width + 8, rect.height + 8), pygame.SRCALPHA)
+    for k in range(4):
+        a = 80 - k * 16
+        pygame.draw.rect(sh, (0, 0, 0, a),
+                         (k, k * 2, rect.width + 8 - k * 2,
+                          rect.height + 8 - k * 2),
+                         border_radius=radius)
+    surf.blit(sh, (rect.x - 4, rect.y + 2))
+
     # Gradient body — lighter at top, dark at bottom, fixed alpha.
     pnl = pygame.Surface(rect.size, pygame.SRCALPHA)
     for yy in range(rect.height):
@@ -271,6 +280,9 @@ def _volume_panel(surf, rect, radius=14, alpha=235):
                      width=2, border_radius=radius)
     pygame.draw.line(pnl, (*_GOLD_PALE, 140),
                      (10, 3), (rect.width - 10, 3), 1)
+    pygame.draw.line(pnl, (0, 0, 0, 80),
+                     (10, rect.height - 4),
+                     (rect.width - 10, rect.height - 4), 1)
     surf.blit(pnl, rect.topleft)
 
 
@@ -754,135 +766,6 @@ def _draw_trophy(surf, cx, cy, size):
     surf.blit(g, (cx - gx, cy - gy))
 
 
-# ── AWARDS-tile star emblem (sibling of _draw_trophy) ──────────────────────────
-# Struck-metal beveled 5-point star for the main-menu AWARDS tile. Each arm
-# splits at a central ridge into a lit + a shadowed facet under the shared
-# upper-left light, so it reads as raised metal beside the trophy. Drawn
-# supersampled then smoothscaled so the rim stays crisp at the ~20 px tile size.
-_AWSTAR_SS   = 4
-_AWSTAR_GOLD = (240, 192,  64)
-_AWSTAR_HI   = (255, 230, 150)
-_AWSTAR_RIM  = (140,  90,   8)
-_AWSTAR_RIMD = (110,  72,   8)
-
-
-def _awstar_lerp(a, b, t):
-    return (int(a[0] + (b[0] - a[0]) * t),
-            int(a[1] + (b[1] - a[1]) * t),
-            int(a[2] + (b[2] - a[2]) * t))
-
-
-def _awstar_pts(cx, cy, R, r, rot_deg=-90, n=5):
-    pts = []
-    for i in range(n * 2):
-        ang = math.radians(rot_deg + i * 180.0 / n)
-        rad = R if i % 2 == 0 else r
-        pts.append((cx + rad * math.cos(ang), cy + rad * math.sin(ang)))
-    return pts
-
-
-def _draw_award_star(surf, cx, cy, R=10):
-    SS = _AWSTAR_SS
-    box = int(R * 2 + 8)
-    B = box * SS
-    c = (B / 2, B / 2)
-    Rs, rs = R * SS, R * SS * 0.46
-    ss = pygame.Surface((B, B), pygame.SRCALPHA)
-
-    # Dark rim first (scaled-up star behind the facets) for a keyline mass.
-    k = (Rs + 2.2 * SS) / Rs
-    pygame.draw.polygon(ss, _AWSTAR_RIM, _awstar_pts(c[0], c[1], Rs * k, rs * k))
-
-    light = (-0.55, -0.83)  # upper-left (screen y down → up is negative)
-    outer = [(c[0] + Rs * math.cos(math.radians(-90 + 72 * i)),
-              c[1] + Rs * math.sin(math.radians(-90 + 72 * i))) for i in range(5)]
-    inner = [(c[0] + rs * math.cos(math.radians(-54 + 72 * i)),
-              c[1] + rs * math.sin(math.radians(-54 + 72 * i))) for i in range(5)]
-    # Each arm splits into two facets; smoothstep the lit/shadow contrast so the
-    # emboss survives the downscale instead of muddying into a flat star.
-    for i in range(5):
-        o = outer[i]
-        il, ir = inner[(i - 1) % 5], inner[i]
-        for tri in ((c, il, o), (c, o, ir)):
-            mx = (tri[1][0] + tri[2][0]) / 2 - c[0]
-            my = (tri[1][1] + tri[2][1]) / 2 - c[1]
-            nn = math.hypot(mx, my) or 1.0
-            d = (mx / nn) * light[0] + (my / nn) * light[1]
-            t = (d + 1) / 2
-            t = t * t * (3 - 2 * t)
-            pygame.draw.polygon(ss, _awstar_lerp(_AWSTAR_RIM, _AWSTAR_HI, t), tri)
-    # Ridge keylines from centre to each tip sharpen the emboss.
-    for o in outer:
-        pygame.draw.line(ss, _AWSTAR_RIMD, c, o, max(1, int(0.7 * SS)))
-    # A small flush sheen dot upper-left of centre (not a raised boss — that
-    # punches through as a hole at tile scale).
-    pygame.draw.circle(ss, _AWSTAR_HI,
-                       (int(c[0] - rs * 0.14), int(c[1] - rs * 0.14)),
-                       int(rs * 0.12))
-    small = pygame.transform.smoothscale(ss, (box, box))
-    surf.blit(small, (int(round(cx - box / 2)), int(round(cy - box / 2))))
-
-
-_AWSTAR_NAVY = (12, 8, 38)   # gear centre-hole fill (navy panel family)
-
-
-def _draw_gear(surf, cx, cy, R, teeth=None):
-    """Struck-metal cog — the SETTINGS sibling to the AWARDS star + TOP 10
-    trophy. Supersampled then smoothscaled so teeth + hole stay crisp at the
-    ~18 px tile size. At R<=10 a 6-tooth cog + tight hole keeps the same solid
-    disc-with-teeth weight as the star/trophy; larger renders keep 8 teeth."""
-    if teeth is None:
-        teeth = 6 if R <= 10 else 8
-    hole = 0.24 if R <= 10 else 0.30
-    SS = _AWSTAR_SS
-    box = int(R * 2 + 6)
-    B = box * SS
-    c = B / 2
-    g = pygame.Surface((B, B), pygame.SRCALPHA)
-    Ro = R * SS                 # tooth-tip radius
-    Rb = R * SS * 0.74          # gear-body radius
-    hw = math.radians(360.0 / teeth * 0.34)   # tooth half-angle at the base
-    # Teeth first (trapezoids) so the body disc laps over their inner edge.
-    for i in range(teeth):
-        a = 2 * math.pi * i / teeth
-        pts = [
-            (c + Rb * math.cos(a - hw), c + Rb * math.sin(a - hw)),
-            (c + Ro * math.cos(a - hw * 0.62), c + Ro * math.sin(a - hw * 0.62)),
-            (c + Ro * math.cos(a + hw * 0.62), c + Ro * math.sin(a + hw * 0.62)),
-            (c + Rb * math.cos(a + hw), c + Rb * math.sin(a + hw)),
-        ]
-        pygame.draw.polygon(g, _AWSTAR_RIM, pts)
-        inset = [(px - (px - c) * 0.10, py - (py - c) * 0.10) for px, py in pts]
-        pygame.draw.polygon(g, _AWSTAR_GOLD, inset)
-    # Body disc + dark rim + upper-left sheen so it reads as raised metal.
-    pygame.draw.circle(g, _AWSTAR_GOLD, (c, c), Rb)
-    pygame.draw.circle(g, _AWSTAR_RIM, (c, c), Rb, max(1, int(0.9 * SS)))
-    pygame.draw.circle(g, _AWSTAR_HI, (c - Rb * 0.24, c - Rb * 0.24), Rb * 0.30)
-    pygame.draw.circle(g, _AWSTAR_GOLD, (c, c), Rb * 0.70)
-    pygame.draw.circle(g, _AWSTAR_NAVY, (c, c), R * SS * hole)
-    pygame.draw.circle(g, _AWSTAR_RIMD, (c, c), R * SS * hole, max(1, int(0.9 * SS)))
-    small = pygame.transform.smoothscale(g, (box, box))
-    surf.blit(small, (int(round(cx - box / 2)), int(round(cy - box / 2))))
-
-
-def _tracked_label(surf, text, center, size, color=_GOLD_PALE, track=0, alpha=230):
-    """Render a label with optional per-letter tracking, so a tight menu chip
-    can pull a caption in without the wide 'A W A R D S' letter spacing."""
-    f = _font(size, True)
-    if track == 0:
-        img = f.render(text, True, color)
-        img.set_alpha(alpha)
-        surf.blit(img, img.get_rect(center=center))
-        return
-    glyphs = [f.render(ch, True, color) for ch in text]
-    total = sum(gg.get_width() for gg in glyphs) + track * (len(glyphs) - 1)
-    x = center[0] - total // 2
-    for gg in glyphs:
-        gg.set_alpha(alpha)
-        surf.blit(gg, (x, center[1] - gg.get_height() // 2))
-        x += gg.get_width() + track
-
-
 def _draw_mountain_silhouette(surf, alpha=200):
     """Mountain silhouettes at the bottom — matches the welcome-screen SVG."""
     mtn = pygame.Surface((W, H), pygame.SRCALPHA)
@@ -949,14 +832,6 @@ def _coin_icon(surf, cx, cy, r=10):
 # misread as the round gold coin.
 _SS = 4  # supersample factor — composite big, smoothscale down for crisp edges
 _NA_PAD = 11  # padding baked around each cached plate so its soft glow can bleed
-
-# The coin plate is composited fresh every play frame though it only changes when
-# the count changes — memoize it by its text so the per-frame cost is set_alpha +
-# blit (the alpha fade still tracks the bird's height each frame). The count only
-# ever climbs within a run, so old entries are never revisited — cap the cache
-# (FIFO) so a long run can't grow it without bound on the WASM memory ceiling.
-_COIN_PLATE_CACHE: dict = {}
-_COIN_PLATE_CAP = 64
 
 _NA_SLATE    = ( 40,  38,  36)   # warm slate plate body (opaque value floor)
 _NA_SLATE_D  = ( 22,  18,  16)
@@ -1651,14 +1526,6 @@ def _score_plaque(surf, rect, score: int, best: int, new_best: bool):
     surf.blit(cf, cf.get_rect(center=(rect.centerx, rect.bottom - 20)))
 
 
-def _profile_tri(surf, cx, cy, size, color):
-    """Right-pointing 'tap through' chevron for the PROFILE nameplate — the
-    vendored font has no such glyph, so it is a small filled triangle."""
-    pygame.draw.polygon(surf, color, [(cx - size // 2, cy - size),
-                                      (cx + size // 2, cy),
-                                      (cx - size // 2, cy + size)])
-
-
 class HUD:
     def __init__(self):
         self.pause_btn = PauseButton()
@@ -1689,16 +1556,9 @@ class HUD:
         # by scenes.py click-handling. Pre-init to None so a click that
         # arrives before the first menu render falls through harmlessly.
         self.menu_start_rect: "pygame.Rect | None" = None
-        # The framed standing-Pip diorama IS the Profile entry; its records
-        # (achievements) live behind it. STORE is a bottom chip (stub on this
-        # branch — the real shop ships on another line).
-        self.menu_profile_rect: "pygame.Rect | None" = None
-        self.menu_store_rect: "pygame.Rect | None" = None
+        self.menu_howto_rect: "pygame.Rect | None" = None
+        self.menu_powerups_rect: "pygame.Rect | None" = None
         self.menu_top10_rect: "pygame.Rect | None" = None
-        self.menu_settings_rect: "pygame.Rect | None" = None
-        # Countdown for the transient STORE "coming soon" toast, ticked by
-        # draw_menu; armed by trigger_store_toast on a STORE tap.
-        self.store_toast_t = 0.0
         # Leaderboard tab hit-rects (CURRENT | LEGACY) — populated each frame
         # by draw_leaderboard in screen space, read by scenes.py to switch
         # boards without dismissing the screen. None until the first draw.
@@ -1721,68 +1581,6 @@ class HUD:
         # Same flat dim-scarlet pill as the main-menu CTAs.
         _pill_btn(surf, (W // 2, cy + 72), "TAP TO GAME",
                   size=18, alpha=230, min_width=220, dim=True, shadow=False)
-
-    def trigger_store_toast(self):
-        """Arm the transient STORE 'coming soon' toast (real shop is on
-        another branch); draw_menu ticks it down and paints it."""
-        self.store_toast_t = 1.6
-
-    def _draw_profile_card(self, surf):
-        """Frame the live standing-Pip diorama (already blitted to `surf` by
-        the menu scene) as a tappable PROFILE card: a thin double-rule jewel
-        edge + a beveled brass nameplate, riding the START-pill pulse so it
-        reads as interactive, not scenery. The player's look shows through
-        the frame; their records (achievements) open behind it. Publishes
-        menu_profile_rect for the tap router."""
-        from game import intro as _intro
-        house = _intro.get_sprite("skyhouse_post")
-        hw, hh = house.get_size()
-        hx = int(W * 0.30) - hw // 2
-        hy = int(H * 0.42) - hh // 2
-        house_r = pygame.Rect(hx, hy, hw, hh)
-        # Pip's standing footprint at his menu rest position (BIRD_X=90).
-        bird_r = pygame.Rect(90 - 34, int(H * 0.42) - 34, 68, 84)
-        fr = house_r.union(bird_r).inflate(24, 24)
-        fr.height += 20
-
-        # Gold tap-glow halo; alpha rides the same sin(t*3.6) pulse as START
-        # so the card breathes as tappable chrome, not a static vignette.
-        glow_amt = 0.5 + 0.5 * math.sin(self.title_t * 3.6)
-        pad = 14
-        glow = pygame.Surface((fr.width + pad * 2, fr.height + pad * 2),
-                              pygame.SRCALPHA)
-        for k in range(pad, 0, -1):
-            a = int(0.9 * (48 + 40 * glow_amt) * k / pad / 3.6)
-            gr = pygame.Rect(pad - k, pad - k, fr.width + k * 2, fr.height + k * 2)
-            pygame.draw.rect(glow, (*_GOLD_BRIGHT, a), gr, border_radius=15 + k)
-        surf.blit(glow, (fr.x - pad, fr.y - pad))
-
-        # Double-rule jewel edge: mid-gold outer, bright inner, ~6px air gap,
-        # with a pale top rim-light so it reads as struck gold catching light.
-        pygame.draw.rect(surf, _GOLD_MID, fr, width=1, border_radius=14)
-        pygame.draw.rect(surf, _GOLD_BRIGHT, fr.inflate(-12, -12), width=1,
-                         border_radius=9)
-        pygame.draw.line(surf, (*_GOLD_PALE, 200), (fr.left + 16, fr.top + 2),
-                         (fr.right - 16, fr.top + 2), 1)
-
-        # Beveled brass PROFILE nameplate on the bottom rail.
-        plate = pygame.Rect(fr.centerx - 60, fr.bottom - 24, 120, 22)
-        pygame.draw.rect(surf, _GOLD_DEEP, plate, border_radius=7)
-        pygame.draw.rect(surf, _GOLD_MID, plate.inflate(-3, -3), border_radius=6)
-        pygame.draw.line(surf, _GOLD_PALE, (plate.left + 8, plate.top + 3),
-                         (plate.right - 8, plate.top + 3), 1)
-        pygame.draw.line(surf, (60, 40, 6), (plate.left + 8, plate.bottom - 3),
-                         (plate.right - 8, plate.bottom - 3), 1)
-        inset = plate.inflate(-8, -8)
-        pygame.draw.rect(surf, (30, 18, 8), inset, border_radius=4)
-        lx = inset.centerx - 7
-        _tracked_label(surf, "PROFILE", (lx, inset.centery + 1), 13,
-                       color=(20, 10, 4), track=2, alpha=200)
-        _tracked_label(surf, "PROFILE", (lx, inset.centery), 13,
-                       color=_GOLD_PALE, track=2, alpha=250)
-        _profile_tri(surf, inset.right - 9, inset.centery, 4, _GOLD_PALE)
-
-        self.menu_profile_rect = fr
 
     def draw_menu(self, surf, dt, best: int):
         self.title_t += dt
@@ -1815,61 +1613,68 @@ class HUD:
         pygame.draw.line(surf, (*_ORANGE_BORDER, 120),
                          (W // 2 - 70, 208), (W // 2 + 70, 208), 1)
 
-        # Single primary pill: HOW TO PLAY + POWER-UPS moved into the (future)
-        # Settings screen, so START is recentered + enlarged to own the freed
-        # band instead of sitting cramped atop a now-empty stack.
+        # Three stacked pill buttons replace the single tap-to-play pill
+        # and the corner `?` button. Centres are computed from each pill's
+        # actual rendered height so the white space between buttons is
+        # even regardless of font metrics; the block is anchored 14 px
+        # above the BEST score panel so the bottom pill always clears it.
+        def _pill_h(text: str, size: int) -> int:
+            return _font(size, True).render(text, True, WHITE).get_height() + 22
+
+        GAP = 12
+        h_start = _pill_h("START", 22)
+        h_howto = _pill_h("HOW TO PLAY", 18)
+        h_power = _pill_h("POWER-UPS", 18)
+        y_power = (H - 110) - 14 - h_power // 2
+        y_howto = y_power - h_power // 2 - GAP - h_howto // 2
+        y_start = y_howto - h_howto // 2 - GAP - h_start // 2
+
         btn_alpha = int(225 + math.sin(self.title_t * 3.6) * 30)
-        # dim=True swaps the bright scarlet for the bordeaux variant so the pill
-        # sits more quietly in the dark night-sky palette.
+        # dim=True swaps the bright scarlet for the bordeaux variant so
+        # the menu pills sit more quietly in the dark night-sky palette.
         self.menu_start_rect = _pill_btn(
-            surf, (W // 2, 430), "START",
-            size=24, alpha=btn_alpha, min_width=240, primary=True, dim=True,
+            surf, (W // 2, y_start), "START",
+            size=22, alpha=btn_alpha, min_width=220, primary=True, dim=True,
             shadow=False)
+        self.menu_howto_rect = _pill_btn(
+            surf, (W // 2, y_howto), "HOW TO PLAY",
+            size=18, alpha=230, min_width=220, dim=True, shadow=False)
+        self.menu_powerups_rect = _pill_btn(
+            surf, (W // 2, y_power), "POWER-UPS",
+            size=18, alpha=230, min_width=220, dim=True, shadow=False)
 
-        # Profile card — the standing Pip diorama, framed as a tappable entry
-        # (records/achievements live behind it). Drawn over the already-blitted
-        # diorama so the frame + nameplate sit on top of Pip.
-        self._draw_profile_card(surf)
+        # Twin panels at the bottom: BEST score (left) + TOP 10 trophy
+        # (right). Same pill dimensions side-by-side so they read as a
+        # pair. The trophy panel is the leaderboard hit-zone — scenes.py
+        # routes taps that land inside ``self.menu_top10_rect`` to
+        # STATE_LEADERBOARD.
+        panel_w = 132
+        gap = 8
+        total_w = panel_w * 2 + gap
+        left_x = (W - total_w) // 2
+        cy = H - 86  # vertical centre (matches the previous BEST y)
+        lf = _font(13, True)
+        vf = _font(24, True)
 
-        # Bottom trio — STORE · TOP 10 · SETTINGS as icon-forward chips, inset
-        # and centre-clustered so they clear the screen edges. The glyph carries
-        # each chip with a quiet tracked caption beneath. STORE is a stub on
-        # this branch (coming-soon toast), TOP 10 opens the leaderboard,
-        # SETTINGS the settings screen; AWARDS has folded into the Profile card.
-        # Hit-rects are read by scenes.py STATE_MENU routing.
-        cy = H - 86
-        tile_w, tgap, tile_h = 84, 8, 54
-        tx = (W - (tile_w * 3 + tgap * 2)) // 2
-        chips = []
-        for _label, _kind in (("STORE", "coin"), ("TOP 10", "trophy"),
-                              ("SETTINGS", "gear")):
-            r = pygame.Rect(tx, cy - tile_h // 2, tile_w, tile_h)
-            _volume_panel(surf, r, radius=13)
-            if _kind == "coin":
-                _coin_icon(surf, r.centerx, cy - 5, 12)
-            elif _kind == "trophy":
-                _draw_trophy(surf, r.centerx, cy - 5, 10)
-            else:
-                _draw_gear(surf, r.centerx, cy - 5, 12)
-            _tracked_label(surf, _label, (r.centerx, cy + 15), 10,
-                           color=_AWSTAR_HI, track=1, alpha=210)
-            chips.append(r)
-            tx += tile_w + tgap
-        self.menu_store_rect, self.menu_top10_rect, self.menu_settings_rect = chips
+        # BEST panel (left) — heavier emboss treatment via _volume_panel.
+        best_cx = left_x + panel_w // 2
+        best_rect = pygame.Rect(left_x, cy - 24, panel_w, 48)
+        _volume_panel(surf, best_rect, radius=14)
+        lbl = lf.render("B E S T", True, _GOLD_PALE)
+        lbl.set_alpha(230)
+        surf.blit(lbl, lbl.get_rect(center=(best_cx, cy - 12)))
+        val = vf.render(str(best), True, _GOLD_BRIGHT)
+        surf.blit(val, val.get_rect(center=(best_cx, cy + 9)))
 
-        # Transient STORE "coming soon" toast — a small gold-rimmed tag above
-        # the STORE chip, fading via the countdown armed on a STORE tap.
-        if self.store_toast_t > 0 and self.menu_store_rect is not None:
-            self.store_toast_t = max(0.0, self.store_toast_t - dt)
-            img = _font(11, True).render("COMING SOON", True, _GOLD_PALE)
-            bg = img.get_rect().inflate(16, 8)
-            bg.center = (self.menu_store_rect.centerx,
-                         self.menu_store_rect.top - 16)
-            tag = pygame.Surface(bg.size, pygame.SRCALPHA)
-            tag.fill((16, 10, 34, 232))
-            surf.blit(tag, bg.topleft)
-            pygame.draw.rect(surf, _GOLD_BRIGHT, bg, width=1, border_radius=6)
-            surf.blit(img, img.get_rect(center=bg.center))
+        # TOP 10 panel (right) — same volume treatment, trophy glyph.
+        top_cx = left_x + panel_w + gap + panel_w // 2
+        top_rect = pygame.Rect(left_x + panel_w + gap, cy - 24, panel_w, 48)
+        _volume_panel(surf, top_rect, radius=14)
+        top_lbl = lf.render("T O P  10", True, _GOLD_PALE)
+        top_lbl.set_alpha(230)
+        surf.blit(top_lbl, top_lbl.get_rect(center=(top_cx, cy - 12)))
+        _draw_trophy(surf, top_cx, cy + 6, 9)
+        self.menu_top10_rect = top_rect
 
         # The corner `?` help button is intentionally not drawn here —
         # the POWER-UPS pill above replaces it. HelpButton class itself
@@ -1941,25 +1746,19 @@ class HUD:
         # icon + gold count are composited on one surface so the whole element
         # fades together as the bird nears the top edge.
         coin_text = f"x{world.coin_count}"
+        cf2 = _font(20, True)
+        cw = cf2.size("8" * len(coin_text))[0] + 46
+        cp = pygame.Rect(12, 14, cw, 38)
         pad = _NA_PAD
-        coin_surf = _COIN_PLATE_CACHE.get(coin_text)
-        if coin_surf is None:
-            cf2 = _font(20, True)
-            cw = cf2.size("8" * len(coin_text))[0] + 46
-            coin_surf = pygame.Surface((cw + pad * 2, 38 + pad * 2),
-                                       pygame.SRCALPHA)
-            _na_plate(coin_surf, pygame.Rect(pad, pad, cw, 38), cut=7, round_r=8,
-                      glow=False)
-            _coin_icon(coin_surf, pad + 19, pad + 19, 12)
-            tw = cf2.size(coin_text)[0]
-            _outlined_text(coin_surf, coin_text, (pad + 36 + tw // 2, pad + 19),
-                           20, fill=UI_GOLD, outline=NEAR_BLACK, px=2,
-                           shadow_offset=None)
-            if len(_COIN_PLATE_CACHE) >= _COIN_PLATE_CAP:
-                del _COIN_PLATE_CACHE[next(iter(_COIN_PLATE_CACHE))]
-            _COIN_PLATE_CACHE[coin_text] = coin_surf
+        coin_surf = pygame.Surface((cw + pad * 2, 38 + pad * 2), pygame.SRCALPHA)
+        _na_plate(coin_surf, pygame.Rect(pad, pad, cw, 38), cut=7, round_r=8,
+                  glow=False)
+        _coin_icon(coin_surf, pad + 19, pad + 19, 12)
+        tw = cf2.size(coin_text)[0]
+        _outlined_text(coin_surf, coin_text, (pad + 36 + tw // 2, pad + 19), 20,
+                       fill=UI_GOLD, outline=NEAR_BLACK, px=2, shadow_offset=None)
         coin_surf.set_alpha(ui_alpha)
-        surf.blit(coin_surf, (12 - pad, 14 - pad))
+        surf.blit(coin_surf, (cp.x - pad, cp.y - pad))
 
         # Pause button
         self.pause_btn.draw(surf, paused=paused)
@@ -2008,8 +1807,7 @@ class HUD:
         if world.kfc_timer > 0:
             active.append(("kfc", world.kfc_timer, KFC_DURATION))
         if world.ghost_timer > 0:
-            active.append(("ghost", world.ghost_timer,
-                           getattr(world, "ghost_timer_total", GHOST_DURATION)))
+            active.append(("ghost", world.ghost_timer, GHOST_DURATION))
         if world.grow_timer > 0:
             active.append(("grow", world.grow_timer, GROW_DURATION))
         if world.reverse_timer > 0:

@@ -13,7 +13,7 @@ import pygame
 from game.config import (
     W, H, GRAVITY, FLAP_V, MAX_FALL,
     BIRD_X, BIRD_R, PIPE_W, COIN_R, POWERUP_R, GROUND_Y,
-    BACKFLIP_DURATION, DEATH_FADE_DURATION, RAIL_ABOVE_FINIAL,
+    BACKFLIP_DURATION, DEATH_FADE_DURATION,
     GEYSER_W, GEYSER_H, GEYSER_TELEGRAPH,
     GEYSER_ACTIVE_HOT, GEYSER_ACTIVE_COLD,
     GEYSER_DORMANT_HOT, GEYSER_DORMANT_COLD,
@@ -28,21 +28,7 @@ from game.draw import (
 )
 from game import parrot
 from game import snow_fx
-from game.pillar_pagodas import (draw_pillar_pair,
-                                 CANDIDATES, VARIANT_KEYS, VARIANT_COUNT)
-
-# Cached filled-circle masks (one per integer radius) for pagoda mask collision.
-_CIRCLE_MASKS: dict = {}
-
-def _circle_mask(r):
-    r = max(1, int(round(r)))
-    m = _CIRCLE_MASKS.get(r)
-    if m is None:
-        s = pygame.Surface((r * 2 + 1, r * 2 + 1), pygame.SRCALPHA)
-        pygame.draw.circle(s, (255, 255, 255, 255), (r, r), r)
-        m = pygame.mask.from_surface(s, 50)
-        _CIRCLE_MASKS[r] = m
-    return m
+from game.pillar_variants import draw_pillar_pair
 from game.dollar_coin_glyphs import draw_coin_font_bold as _draw_dollar_coin
 from game.surprise_box_variants import draw_cross as _draw_surprise_box
 
@@ -476,7 +462,6 @@ _SKATE_HAT_SPRITE = None     # skate+3x gold bunny top-hat
 _SKATE_HAT_SCALED: dict = {}
 _BOARD_BASE = None          # native board sprite, no wheel-spokes
 _BOARD_WHEELS = None        # native-space [(wx, wy, wr, sign), ...] for the spokes
-_BOARD_SCRATCH = None       # reused scratch for the per-frame spoke stamp
 _SKATE_ICON_SPRITE = None   # genie skateboard-offer pickup token
 
 
@@ -487,11 +472,6 @@ class Bird:
         self.vy = 0.0
         self.alive = True
         self.frame_t = 0.0
-        # Cosmetic loadout from the coin store (synced per run from store_data);
-        # the equipped skin is the base look the power-up cascade draws over,
-        # and equipped_parcel swaps the gift Pip carries.
-        self.equipped_skin = "skin_base"
-        self.equipped_parcel = "parcel_base"
         self.flap_boost = 0.0
         self.kfc_active = False
         self.ghost_active = False
@@ -708,10 +688,7 @@ class Bird:
             # the legacy upscale below — they pre-empt this branch.
             img = parrot.get_grow_parrot(frame_idx, tilt)
         else:
-            # No power-up skin active: draw the equipped COSMETIC skin (the
-            # store loadout). Unknown ids degrade to the base parrot inside
-            # get_skin_frame, so a stale save never crashes the draw.
-            img = parrot.get_skin_frame(self.equipped_skin, frame_idx, tilt)
+            img = parrot.get_parrot(frame_idx, tilt)
         # POISON — generic chartreuse tint over whichever skin the cascade
         # chose (mask-clamped to the silhouette, ramped by poison_t), so the
         # poisoning reads on kfc/ghost/knight/hat rather than swapping to a
@@ -872,7 +849,7 @@ class Bird:
             mode = "triple"
         else:
             mode = "normal"
-        parcel = parrot.get_parcel(mode, self.equipped_parcel)
+        parcel = parrot.get_parcel(mode)
         from game.config import GROW_SCALE, PARCEL_Y_OFFSET
         scale = GROW_SCALE if self.grow_active else 1.0
         if scale != 1.0:
@@ -900,10 +877,7 @@ class Bird:
         surf.blit(parcel_rot, pr.topleft)
         # Snow settles on the parcel too (objects get capped, not the underside)
         # — fades in only at high load, matched to the parcel's transform chain.
-        # The cap is shaped for the default kraft box, so it's skipped for an
-        # equipped custom parcel rather than draping box-snow over a balloon.
-        base_parcel = self.equipped_parcel in (None, "parcel_base")
-        if base_parcel and self.snow_load > snow_fx.PARCEL_ONSET and not skeleton_visible:
+        if self.snow_load > snow_fx.PARCEL_ONSET and not skeleton_visible:
             pov = snow_fx.get_parcel_snow(mode, self.snow_load)
             if pov is not None:
                 if scale != 1.0:
@@ -1291,7 +1265,7 @@ class Bird:
         we only stamp the two spinning wheel-spokes and apply Pip's tilt +
         kickflip/heelflip/popshuvit + flip — no per-frame supersample rebuild
         (which used to run twice via the HUD re-blit)."""
-        global _BOARD_BASE, _BOARD_WHEELS, _BOARD_SCRATCH
+        global _BOARD_BASE, _BOARD_WHEELS
         from game.config import PARCEL_Y_OFFSET, GROW_SCALE
         # Track Pip's body scale so the board sizes + seats under a grown/shrunk
         # bird instead of staying fixed under a mismatched body.
@@ -1303,11 +1277,7 @@ class Bird:
         by = cy + offset.y
         if _BOARD_BASE is None:
             _BOARD_BASE, _BOARD_WHEELS = Bird._build_board_base()
-            _BOARD_SCRATCH = pygame.Surface(_BOARD_BASE.get_size(),
-                                            pygame.SRCALPHA)
-        board_surf = _BOARD_SCRATCH
-        board_surf.fill((0, 0, 0, 0))
-        board_surf.blit(_BOARD_BASE, (0, 0))
+        board_surf = _BOARD_BASE.copy()
         spin = self.frame_t * 4.0
         for wx, wy, wr, sign in _BOARD_WHEELS:
             sx_p = wx + math.cos(spin + sign * 1.0) * wr * 0.6
@@ -1379,6 +1349,11 @@ class Pipe:
         # stone at timer=0 alongside the fries mountain + fried Pip; only
         # the wider gap outlives the timer.
         self.is_kfc = False
+        # SKATEBOARD: True when World._maybe_spawn_ramp drops a wooden
+        # wedge on top of this pipe's lower-pillar crown. Used by the
+        # ramp draw + collision logic in World; the Pipe itself stays
+        # unchanged in its own draw (the wedge overpaints the crown).
+        self.has_ramp = False
         # Per-instance random seed → chooses variant + stable decoration seed
         self.seed = random.randint(0, 0xFFFFFF)
         # KFC re-skin is deterministic per pipe (seed + gap_y + gap_h all
@@ -1389,46 +1364,9 @@ class Pipe:
         # the dominant source of KFC-mode lag.
         self._kfc_cache: "pygame.Surface | None" = None
         self._kfc_cache_dx = 0  # x-offset between blit corner and self.x
-        # Carousel-Barker staff re-skin (warren demo route): same bake-once
-        # bitmap treatment as KFC since the jester-staff art never animates.
-        self.is_staff = False
-        self._staff_cache: "pygame.Surface | None" = None
-        self._staff_cache_dx = 0
-        # Skull-King stacked-skull totem re-skin (warren demo's second event): same
-        # bake-once bitmap treatment as the staff/KFC caches. `skull_idx` selects
-        # which of the 20 column designs this pillar wears (set at spawn).
-        self.is_skull_king = False
-        self.skull_idx = 0
-        self._skull_cache: "pygame.Surface | None" = None
-        self._skull_cache_dx = 0
-        # Pagoda body + ornaments are far heavier than the retired sandstone
-        # silhouette, and their internal draw helpers re-alias curved eaves
-        # every call. Bake the pair once into a per-instance bitmap (same
-        # pattern as the KFC cache) and blit it at the scrolling x — drawing
-        # straight to the screen every frame would blow the 60 FPS budget on
-        # WASM and re-roll the ornament layer each frame.
-        self._pagoda_cache: "pygame.Surface | None" = None
-        self._pagoda_cache_dx = 0
-        # Per-pixel collision mask of the whole pagoda STRUCTURE (body + every
-        # floor roof/eave incl. overhangs + the crown at the gap edge); ornaments
-        # are not in it, so flags/vines/lanterns stay non-lethal. Built with the bake.
-        self._collision_mask = None
-        self._collision_mask_dx = 0
-        # SKATEBOARD ride surfaces (lazy, derived from the mask): the LOWER
-        # pagoda's roof crown (highest lethal y Pip rides over) and the UPPER
-        # pagoda's underside (lowest lethal y the helmet bonks). The roofs
-        # overhang the gap rim, so these are NOT the gap edges.
-        self._skate_computed = False
-        self._skate_low = None
-        self._skate_up = None
-        # Ornament density + first-pillar quiet rule key off the spawn order;
-        # World sets this at spawn (0 = first pillar of the run).
-        self.spawn_index = 0
 
     @property
     def top_rect(self):
-        # Full gap extent. Used as the KFC fallback hitbox; pagoda collision uses
-        # the per-pixel structural mask of the whole silhouette.
         return pygame.Rect(int(self.x), 0, PIPE_W, int(self.gap_y - self.gap_h / 2))
 
     @property
@@ -1436,150 +1374,26 @@ class Pipe:
         top = int(self.gap_y + self.gap_h / 2)
         return pygame.Rect(int(self.x), top, PIPE_W, GROUND_Y - top)
 
-    @property
-    def finial_tip_y(self):
-        """Y of the bottom pillar's lethal crown = the kill-zone top the grind
-        rail rests on. Every variant's crown is calibrated to the gap edge."""
-        return self.gap_y + self.gap_h / 2
-
-    @property
-    def rail_y(self):
-        """Y of the grind-rail track — RAIL_ABOVE_FINIAL px above the crown, so
-        the cart rides on top of the kill zone / just above the roof (short
-        support posts connect the rail down to the crown)."""
-        return self.gap_y + self.gap_h / 2 - RAIL_ABOVE_FINIAL
-
     def off_screen(self):
         return self.x + PIPE_W + 8 < 0
 
-    def collides_circle(self, cx, cy, r, *, kfc=False):
+    def collides_circle(self, cx, cy, r):
         if self.is_phantom:
             return False
-        if kfc:
-            # Fries re-skin roughly fills the rect and has no antenna — keep the
-            # cheap AABB hitbox during the KFC window.
-            box = pygame.Rect(cx - r, cy - r, r * 2, r * 2)
-            return self.top_rect.colliderect(box) or self.bot_rect.colliderect(box)
-        # Pagoda: kill zone == the structural silhouette (body + every floor
-        # roof/eave incl. overhangs + the crown at the gap edge). Only the loose
-        # ornaments (prayer flags / vines / lanterns) are non-lethal, and those are
-        # never in the mask (CANDIDATES draws structure only).
-        if self._collision_mask is None:
-            self._build_collision_mask()
-        offset = (int(cx - r - self.x - self._collision_mask_dx), int(cy - r))
-        return self._collision_mask.overlap(_circle_mask(r), offset) is not None
+        return self.top_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2)) or \
+               self.bot_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2))
 
-    def draw(self, surf, palette=None, kfc_visual=False, phase=0.0):
+    def draw(self, surf, palette=None, kfc_visual=False):
         if self.is_phantom:
             return
         palette = palette or _DEFAULT_PILLAR
-        if self.is_staff:
-            if self._staff_cache is None:
-                self._build_staff_cache(palette)
-            surf.blit(self._staff_cache, (int(self.x) + self._staff_cache_dx, 0))
-            return
-        if self.is_skull_king:
-            if self._skull_cache is None:
-                self._build_skull_cache(palette)
-            surf.blit(self._skull_cache, (int(self.x) + self._skull_cache_dx, 0))
-            return
         if self.is_kfc and kfc_visual:
             if self._kfc_cache is None:
                 self._build_kfc_cache(palette)
             surf.blit(self._kfc_cache,
                       (int(self.x) + self._kfc_cache_dx, 0))
             return
-        if self._pagoda_cache is None:
-            self._build_pagoda_cache(palette, phase)
-        surf.blit(self._pagoda_cache,
-                  (int(self.x) + self._pagoda_cache_dx, 0))
-
-    def _build_pagoda_cache(self, palette, phase):
-        """Render the pagoda pillar pair + ornament layer onto a per-instance
-        SRCALPHA surface once, then blit at the scrolling x each frame. Margin
-        covers curled eaves / finials / prayer-flag spans that overhang the
-        PIPE_W column. Baking once also freezes the ornament roll for the
-        pillar's lifetime (so it doesn't re-randomize per frame); the spawn-time
-        palette stays close enough over the few seconds a pillar is on screen."""
-        margin = 64
-        cache_w = PIPE_W + margin * 2
-        cache_h = GROUND_Y
-        cache = pygame.Surface((cache_w, cache_h), pygame.SRCALPHA)
-        local_top = pygame.Rect(margin, 0,
-                                PIPE_W, int(self.gap_y - self.gap_h / 2))
-        local_bot_top = int(self.gap_y + self.gap_h / 2)
-        local_bot = pygame.Rect(margin, local_bot_top,
-                                PIPE_W, GROUND_Y - local_bot_top)
-        draw_pillar_pair(cache, local_top, local_bot, palette, self.seed,
-                         phase=phase, is_rush=self.is_rush,
-                         pillar_index=self.spawn_index)
-        self._pagoda_cache = cache
-        self._pagoda_cache_dx = -margin
-        # Build the collision mask now (first draw, well before the pillar reaches
-        # the bird) so there's no collision-time hitch.
-        if self._collision_mask is None:
-            self._build_collision_mask()
-
-    def _build_collision_mask(self):
-        """Per-pixel kill-zone mask = the whole pagoda STRUCTURE (body + all floor
-        roofs/eaves incl. overhangs past PIPE_W + the crown). Structure only (no
-        ornaments), so prayer flags / vines / lanterns are non-lethal. Each
-        variant's lethal top reaches ~the nominal gap edge — the tiered tō present a
-        solid wide roofed crown there (no thin spire to sneak past), the spired
-        variants their spire — so the effective passable gap is ~gap_h, matching the
-        old sandstone-pillar AABB collision. Geometry is palette-independent."""
-        from game import biome as _biome
-        margin = 64
-        surf = pygame.Surface((PIPE_W + margin * 2, GROUND_Y), pygame.SRCALPHA)
-        local_top = pygame.Rect(margin, 0,
-                                PIPE_W, int(self.gap_y - self.gap_h / 2))
-        lbt = int(self.gap_y + self.gap_h / 2)
-        local_bot = pygame.Rect(margin, lbt, PIPE_W, GROUND_Y - lbt)
-        if self.is_staff:
-            from game.pillar_staff import draw_pillar_pair_staff
-            draw_pillar_pair_staff(surf, local_top, local_bot,
-                                   _biome.palette_for_phase(0.0), self.seed)
-        elif self.is_skull_king:
-            from game.pillar_skull import draw_pillar_pair_skull
-            if not draw_pillar_pair_skull(surf, local_top, local_bot,
-                                          _biome.palette_for_phase(0.0),
-                                          self.seed, self.skull_idx):
-                key = VARIANT_KEYS[self.seed % VARIANT_COUNT]
-                CANDIDATES[key](surf, local_top, local_bot,
-                                _biome.palette_for_phase(0.0), self.seed)
-        else:
-            key = VARIANT_KEYS[self.seed % VARIANT_COUNT]
-            CANDIDATES[key](surf, local_top, local_bot,
-                            _biome.palette_for_phase(0.0), self.seed)
-        self._collision_mask = pygame.mask.from_surface(surf, 50)
-        self._collision_mask_dx = -margin
-
-    def skate_surfaces(self):
-        """SKATEBOARD ride surfaces (lower_crown_top_y, upper_crown_bottom_y),
-        read off the structural mask. `lower_crown_top` is the HIGHEST lethal
-        pixel of the lower pagoda — the roofline Pip rides over; `upper_crown_bot`
-        is the LOWEST lethal pixel of the upper pagoda — where the helmet bonks.
-        The pagoda roofs overhang the gap rim (the roof tiers rise above
-        gap_bot / hang below gap_top), so these are NOT the gap edges: snapping to
-        the gap edge left Pip clipping the roof and dying. Cached per pipe."""
-        if self._skate_computed:
-            return self._skate_low, self._skate_up
-        if self._collision_mask is None:
-            self._build_collision_mask()
-        low = up = None
-        # The gap splits the silhouette into an upper and a lower component; the
-        # mask carries no x-offset in y, so rect.top/.bottom are world-y directly.
-        for rc in self._collision_mask.get_bounding_rects():
-            if rc.centery < self.gap_y:
-                up = rc.bottom if up is None else max(up, rc.bottom)
-            else:
-                low = rc.top if low is None else min(low, rc.top)
-        self._skate_low = (float(low) if low is not None
-                           else self.gap_y + self.gap_h / 2)
-        self._skate_up = (float(up) if up is not None
-                          else self.gap_y - self.gap_h / 2)
-        self._skate_computed = True
-        return self._skate_low, self._skate_up
+        draw_pillar_pair(surf, self.top_rect, self.bot_rect, palette, self.seed)
 
     def _build_kfc_cache(self, palette):
         """Render the KFC pillar pair onto a per-instance SRCALPHA
@@ -1599,59 +1413,6 @@ class Pipe:
         draw_pillar_pair_kfc(cache, local_top, local_bot, palette, self.seed)
         self._kfc_cache = cache
         self._kfc_cache_dx = -margin
-
-    def _build_staff_cache(self, palette):
-        """Render the Carousel-Barker staff pillar pair onto a per-instance
-        SRCALPHA surface once; later frames blit the bitmap at the scrolling x.
-        Margin covers the cap tips / ruff bells that overhang the PIPE_W column."""
-        from game.pillar_staff import draw_pillar_pair_staff, staff_collision_mask
-        margin = 64
-        cache_w = PIPE_W + margin * 2
-        cache_h = GROUND_Y
-        cache = pygame.Surface((cache_w, cache_h), pygame.SRCALPHA)
-        local_top = pygame.Rect(margin, 0,
-                                PIPE_W, int(self.gap_y - self.gap_h / 2))
-        local_bot_top = int(self.gap_y + self.gap_h / 2)
-        local_bot = pygame.Rect(margin, local_bot_top,
-                                PIPE_W, GROUND_Y - local_bot_top)
-        draw_pillar_pair_staff(cache, local_top, local_bot, palette, self.seed)
-        self._staff_cache = cache
-        self._staff_cache_dx = -margin
-        # Build the matching collision mask by stamping the shared per-bucket
-        # obstacle masks at the same offsets — avoids a full-surface
-        # mask.from_surface scan per tower, which is a big cost in the warren
-        # burst (esp. under WASM). Offsets line up with draw_pillar_pair_staff.
-        if self._collision_mask is None:
-            self._collision_mask = staff_collision_mask(
-                (cache_w, cache_h), local_top, local_bot)
-            self._collision_mask_dx = -margin
-
-    def _build_skull_cache(self, palette):
-        """Render the Skull-King stacked-skull totem pair once into a per-instance
-        SRCALPHA bitmap; later frames blit it at the scrolling x. Same margin +
-        bake-once treatment as the staff cache. If the skull engine isn't present in
-        this checkout (e.g. a stripped/web build), fall back to a plain pagoda pair
-        so the pillar stays visible and lethal instead of vanishing."""
-        from game.pillar_skull import draw_pillar_pair_skull
-        margin = 64
-        cache = pygame.Surface((PIPE_W + margin * 2, GROUND_Y), pygame.SRCALPHA)
-        local_top = pygame.Rect(margin, 0,
-                                PIPE_W, int(self.gap_y - self.gap_h / 2))
-        local_bot_top = int(self.gap_y + self.gap_h / 2)
-        local_bot = pygame.Rect(margin, local_bot_top,
-                                PIPE_W, GROUND_Y - local_bot_top)
-        ok = draw_pillar_pair_skull(cache, local_top, local_bot, palette,
-                                    self.seed, self.skull_idx)
-        if not ok:
-            draw_pillar_pair(cache, local_top, local_bot, palette, self.seed,
-                             phase=0.0, is_rush=self.is_rush,
-                             pillar_index=self.spawn_index)
-        self._skull_cache = cache
-        self._skull_cache_dx = -margin
-        # Collision mask straight from the rendered cache alpha (same as the staff).
-        if self._collision_mask is None:
-            self._collision_mask = pygame.mask.from_surface(cache, 50)
-            self._collision_mask_dx = -margin
 
 
 # ── Coin ─────────────────────────────────────────────────────────────────────
@@ -1910,10 +1671,12 @@ def _get_coin_face_triple() -> pygame.Surface:
 
 
 class Ramp:
-    """SKATEBOARD ramp — a wooden wedge on the GROUND that Pip can skate up
-    while the buff is active (never placed on a pillar top). Shape ``/|`` :
-    slope rises LEFT→RIGHT and the vertical kicker face is on the RIGHT.
-    ``base_y`` is the bottom edge of the wedge, defaulting to GROUND_Y."""
+    """SKATEBOARD ramp — a wooden wedge perched on a lower pillar's
+    crown that Pip can skate up while the buff is active. Shape
+    ``/|`` : slope rises LEFT→RIGHT and the vertical kicker face is
+    on the RIGHT. ``base_y`` is the bottom edge of the wedge — defaults
+    to GROUND_Y for legacy floor placement, otherwise set to the host
+    pipe's ``gap_y + gap_h / 2``."""
 
     def __init__(self, x: float, w: float, h: float,
                  base_y: float | None = None):
@@ -1956,22 +1719,6 @@ class Ramp:
         pygame.draw.polygon(surf, EDGE, pts, 1)
         pygame.draw.line(surf, WOOD_HI, (x1 - 1, y_top + 2),
                          (x1 - 1, y0 - 1), 1)
-
-
-# Pre-rendered coin-sparkle dot, cached per alpha bucket -- the twinkle used to
-# allocate a fresh 6x6 SRCALPHA surface per sparkle (~100/frame in a coin rush).
-_SPARKLE_CACHE: dict = {}
-
-
-def _sparkle_sprite(alpha):
-    a = max(8, min(255, (int(alpha) // 8) * 8))
-    spr = _SPARKLE_CACHE.get(a)
-    if spr is None:
-        spr = pygame.Surface((6, 6), pygame.SRCALPHA)
-        pygame.draw.circle(spr, (255, 250, 220, a), (3, 3), 2)
-        pygame.draw.circle(spr, (255, 255, 255, a), (3, 3), 1)
-        _SPARKLE_CACHE[a] = spr
-    return spr
 
 
 class Coin:
@@ -2038,7 +1785,10 @@ class Coin:
                 t = 0.5 + 0.5 * math.sin(self.float_t * 3.0 + phase)
                 if t > 0.7:
                     a = int(255 * (t - 0.7) / 0.3)
-                    surf.blit(_sparkle_sprite(a), (cx + dx - 3, cy + dy - 3))
+                    star = pygame.Surface((6, 6), pygame.SRCALPHA)
+                    pygame.draw.circle(star, (255, 250, 220, a), (3, 3), 2)
+                    pygame.draw.circle(star, (255, 255, 255, a), (3, 3), 1)
+                    surf.blit(star, (cx + dx - 3, cy + dy - 3))
 
 
 # ── PowerUp ──────────────────────────────────────────────────────────────────
@@ -2333,24 +2083,6 @@ class PowerUp:
         sprite = _get_surprise_sprite()
         surf.blit(sprite, sprite.get_rect(center=(cx, cy)))
 
-    @staticmethod
-    def _render_magnet_body(sz, scx, scy, outer_r, inner_r, leg_span):
-        """Static crimson horseshoe with the inner hollow + leg gap punched out.
-        Position-independent (callers blit it at the per-frame magnet centre)."""
-        s = pygame.Surface((sz, sz), pygame.SRCALPHA)
-        pygame.draw.circle(s, (80, 5, 8), (scx, scy), outer_r + 2)
-        pygame.draw.rect(s, (80, 5, 8),
-                         (scx - outer_r - 2, scy, (outer_r + 2) * 2, leg_span + 4))
-        RED_HI = (235, 35, 45)
-        pygame.draw.circle(s, RED_HI, (scx, scy), outer_r + 1)
-        pygame.draw.rect(s, RED_HI,
-                         (scx - outer_r - 1, scy, (outer_r + 1) * 2, leg_span + 3))
-        pygame.draw.circle(s, (255, 95, 95), (scx, scy), inner_r + 1, 2)
-        pygame.draw.circle(s, (255, 85, 85), (scx, scy), outer_r, 2)
-        pygame.draw.circle(s, (0, 0, 0, 0), (scx, scy), inner_r)
-        pygame.draw.rect(s, (0, 0, 0, 0), (scx - inner_r, scy, inner_r * 2, sz - scy))
-        return s
-
     def _draw_magnet(self, surf):
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 1.1) * 3)   # float bob
@@ -2360,16 +2092,40 @@ class PowerUp:
         arch_cy = cy - 3
         leg_bot = cy + 12
 
-        # The horseshoe body is position-independent (rect heights only use the
-        # constant leg_bot-arch_cy span), so it is baked once and reused.
+        # Build the horseshoe on an SRCALPHA scratch surface so the hollow
+        # can be punched cleanly with alpha=0 overdraw.
         sz  = 42
         scx = sz // 2
         scy = outer_r + 4
-        global _MAGNET_BODY
-        if _MAGNET_BODY is None:
-            _MAGNET_BODY = self._render_magnet_body(
-                sz, scx, scy, outer_r, inner_r, leg_span=15)
-        surf.blit(_MAGNET_BODY, (cx - scx, arch_cy - scy))
+
+        scratch = pygame.Surface((sz, sz), pygame.SRCALPHA)
+
+        # Dark shadow rim
+        pygame.draw.circle(scratch, (80, 5, 8), (scx, scy), outer_r + 2)
+        pygame.draw.rect(scratch, (80, 5, 8),
+                         (scx - outer_r - 2, scy,
+                          (outer_r + 2) * 2, leg_bot - arch_cy + 4))
+
+        # Vivid crimson body
+        RED_HI = (235, 35, 45)
+        pygame.draw.circle(scratch, RED_HI, (scx, scy), outer_r + 1)
+        pygame.draw.rect(scratch, RED_HI,
+                         (scx - outer_r - 1, scy,
+                          (outer_r + 1) * 2, leg_bot - arch_cy + 3))
+
+        # No upper specular sheen — the body keeps a clean uniform red.
+
+        # Highlight rings
+        pygame.draw.circle(scratch, (255, 95, 95), (scx, scy), inner_r + 1, 2)
+        pygame.draw.circle(scratch, (255, 85, 85), (scx, scy), outer_r, 2)
+
+        # Punch inner hollow
+        pygame.draw.circle(scratch, (0, 0, 0, 0), (scx, scy), inner_r)
+        # Punch gap between legs
+        pygame.draw.rect(scratch, (0, 0, 0, 0),
+                         (scx - inner_r, scy, inner_r * 2, sz - scy))
+
+        surf.blit(scratch, (cx - scx, arch_cy - scy))
 
         # Chrome pole tips
         left_cx  = cx - inner_r - (outer_r - inner_r) // 2
@@ -2465,16 +2221,28 @@ class PowerUp:
         arch_cy = cy - 3
         leg_bot = cy + 13
 
-        # The horseshoe body is position-independent (rect heights only use the
-        # constant leg_bot-arch_cy span), so it is baked once and reused.
+        # Build the horseshoe on an SRCALPHA scratch surface so the
+        # hollow can be punched cleanly with alpha=0 overdraw.
         sz = 52
         scx = sz // 2
         scy = OUTER_R + 4
-        global _MEGAMAGNET_BODY
-        if _MEGAMAGNET_BODY is None:
-            _MEGAMAGNET_BODY = self._render_magnet_body(
-                sz, scx, scy, OUTER_R, INNER_R, leg_span=16)
-        surf.blit(_MEGAMAGNET_BODY, (cx - scx, arch_cy - scy))
+
+        scratch = pygame.Surface((sz, sz), pygame.SRCALPHA)
+        pygame.draw.circle(scratch, (80, 5, 8), (scx, scy), OUTER_R + 2)
+        pygame.draw.rect(scratch, (80, 5, 8),
+                         (scx - OUTER_R - 2, scy,
+                          (OUTER_R + 2) * 2, leg_bot - arch_cy + 4))
+        RED_HI = (235, 35, 45)
+        pygame.draw.circle(scratch, RED_HI, (scx, scy), OUTER_R + 1)
+        pygame.draw.rect(scratch, RED_HI,
+                         (scx - OUTER_R - 1, scy,
+                          (OUTER_R + 1) * 2, leg_bot - arch_cy + 3))
+        pygame.draw.circle(scratch, (255, 95, 95), (scx, scy), INNER_R + 1, 2)
+        pygame.draw.circle(scratch, (255, 85, 85), (scx, scy), OUTER_R, 2)
+        pygame.draw.circle(scratch, (0, 0, 0, 0), (scx, scy), INNER_R)
+        pygame.draw.rect(scratch, (0, 0, 0, 0),
+                         (scx - INNER_R, scy, INNER_R * 2, sz - scy))
+        surf.blit(scratch, (cx - scx, arch_cy - scy))
 
         left_cx = cx - INNER_R - ARM_W // 2
         right_cx = cx + INNER_R + ARM_W // 2
@@ -2543,11 +2311,17 @@ class PowerUp:
             pygame.draw.circle(surf, (255, 255, 240),
                                (tip_cx, ball_cy), max(1, BALL_R - 2))
 
-    @staticmethod
-    def _render_slowmo_face(R, D, gc):
-        """Static clock face: shadow ring, bezel, face, specular highlight and
-        the 12 tick marks. The animated hands + pin are drawn per-frame on top."""
+    def _draw_slowmo(self, surf):
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 0.7) * 3)
+        R = POWERUP_R  # 14
+
+        # Clock face on scratch SRCALPHA surface for clean edges
+        PAD = 2
+        D = (R + PAD) * 2
         g = pygame.Surface((D, D), pygame.SRCALPHA)
+        gc = (D // 2, D // 2)
+
         # Outer shadow ring
         pygame.draw.circle(g, (15, 0, 35, 200), gc, R + 1)
         # Bezel: two rings for a bevelled metallic look
@@ -2576,26 +2350,6 @@ class PowerUp:
             col = (230, 200, 255, 240) if major else (165, 125, 210, 160)
             pygame.draw.line(g, col, (int(x1), int(y1)), (int(x2), int(y2)),
                              2 if major else 1)
-        return g
-
-    def _draw_slowmo(self, surf):
-        cx = int(self.x)
-        cy = int(self.y + math.sin(self.pulse * 0.7) * 3)
-        R = POWERUP_R  # 14
-        PAD = 2
-        D = (R + PAD) * 2
-        gc = (D // 2, D // 2)
-
-        # Static face is baked once; the per-frame composite reuses one scratch
-        # so the alpha hands still blend over the face exactly as before with no
-        # per-frame allocation.
-        global _SLOWMO_FACE, _SLOWMO_SCRATCH
-        if _SLOWMO_FACE is None:
-            _SLOWMO_FACE = self._render_slowmo_face(R, D, gc)
-            _SLOWMO_SCRATCH = pygame.Surface((D, D), pygame.SRCALPHA)
-        g = _SLOWMO_SCRATCH
-        g.fill((0, 0, 0, 0))
-        g.blit(_SLOWMO_FACE, (0, 0))
 
         # Hour hand — short, thick, slow
         hr_ang = self.pulse * 0.15 - math.pi / 2
@@ -2715,23 +2469,13 @@ class PowerUp:
         surf.blit(sprite, sprite.get_rect(center=(cx, cy)))
 
     def _draw_rail_icon(self, surf):
-        """RAIL pickup — Victorian engraved train ticket. The card art is fully
-        static, so the supersample is built once and cached; per frame only the
-        small sin() tilt + bob vary (handled via the bucketed icon cache)."""
+        """RAIL pickup — Victorian engraved train ticket (RT2): sepia
+        paper card with a thick black outer perimeter, a lighter
+        engraved inner border, a small "TRAIN" caption, and a
+        detailed steam-locomotive silhouette centred on the card."""
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 1.0) * 2)
-        global _RAIL_BIG
-        if _RAIL_BIG is None:
-            _RAIL_BIG = self._render_rail_big()
-        tilt = math.sin(self.pulse * 0.7) * 4
-        final = _tilt_icon(_RAIL_BIG, 6, tilt)
-        surf.blit(final, final.get_rect(center=(cx, cy)))
 
-    @staticmethod
-    def _render_rail_big():
-        """Sepia paper card with a thick black outer perimeter, a lighter
-        engraved inner border, a small "TRAIN" caption, and a detailed
-        steam-locomotive silhouette centred on the card."""
         SS = 6
         NATIVE_W, NATIVE_H = 48, 36
         sw, sh = NATIVE_W * SS, NATIVE_H * SS
@@ -2830,25 +2574,20 @@ class PowerUp:
                          card.top + int(SS * 6.5) + dy)))
 
         locomotive(card.centerx, card.centery + int(SS * 3.5), scale=1.15)
-        return big
 
-    def _draw_lottery_icon(self, surf):
-        """Scratch-off lottery card. Fully static art → build the supersample
-        once, cache it, and let the bucketed icon cache handle the per-frame
-        sin() tilt + bob."""
-        cx = int(self.x)
-        cy = int(self.y + math.sin(self.pulse * 0.8) * 2)
-        global _LOTTERY_BIG
-        if _LOTTERY_BIG is None:
-            _LOTTERY_BIG = self._render_lottery_big()
-        tilt = math.sin(self.pulse * 0.7) * 5
-        final = _tilt_icon(_LOTTERY_BIG, 6, tilt)
+        tilt = math.sin(self.pulse * 0.7) * 4
+        rotated = pygame.transform.rotate(big, tilt)
+        rw, rh = rotated.get_size()
+        final = pygame.transform.smoothscale(rotated, (rw // SS, rh // SS))
         surf.blit(final, final.get_rect(center=(cx, cy)))
 
-    @staticmethod
-    def _render_lottery_big():
-        """Gold body with a chrome perimeter, a red LUCKY chip riding the top
-        edge, and 3 large silver scratch cells each with a single "?"."""
+    def _draw_lottery_icon(self, surf):
+        """Scratch-off lottery card: gold body with a chrome perimeter,
+        a red LUCKY chip riding the top edge, and 3 large silver
+        scratch cells each with a single "?"."""
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 0.8) * 2)
+
         SS = 6
         NATIVE_W, NATIVE_H = 56, 42
         sw, sh = NATIVE_W * SS, NATIVE_H * SS
@@ -2994,7 +2733,12 @@ class PowerUp:
             cell = pygame.Rect(x0, cell_top, cell_w, cell_h)
             silver_cell(cell, radius=int(SS * 1.5))
             fit_question_mark(cell)
-        return big
+
+        tilt = math.sin(self.pulse * 0.7) * 5
+        rotated = pygame.transform.rotate(big, tilt)
+        rw, rh = rotated.get_size()
+        final = pygame.transform.smoothscale(rotated, (rw // SS, rh // SS))
+        surf.blit(final, final.get_rect(center=(cx, cy)))
 
     def _draw_skateboard_icon(self, surf):
         """SKATEBOARD pickup token (punk skull-bunny over crossed decks). The
@@ -3298,45 +3042,6 @@ Mushroom = PowerUp
 
 # ── Particle ─────────────────────────────────────────────────────────────────
 
-# Solid-disc sprite cache shared by Particle (additive blit) and CloudPuff
-# (normal blit) — both draw the identical disc, only the blend differs, so one
-# cache keyed by (colour, radius, exact alpha) serves both and avoids a fresh
-# Surface per particle per frame. Exact alpha keeps it pixel-identical; the key
-# space is small (few colours × small radii × 0–255) so the cache stays tiny.
-_DISC_CACHE: dict = {}
-
-
-def _disc_sprite(color, r, alpha):
-    r = max(1, int(r))
-    a = max(0, min(255, int(alpha)))
-    key = (tuple(color), r, a)
-    spr = _DISC_CACHE.get(key)
-    if spr is None:
-        spr = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
-        pygame.draw.circle(spr, (*color, a), (r + 1, r + 1), r)
-        _DISC_CACHE[key] = spr
-    return spr
-
-
-# Static-art pickup icons (Lottery, Rail): the heavy part is rebuilding the 6×
-# supersample every frame (gradients, scratch cells, fonts + several intermediate
-# surfaces). Build it ONCE and cache; the per-frame rotate+smoothscale uses the
-# exact tilt so the output stays pixel-identical.
-_LOTTERY_BIG = None
-_RAIL_BIG = None
-_SLOWMO_FACE = None
-_SLOWMO_SCRATCH = None
-_MAGNET_BODY = None
-_MEGAMAGNET_BODY = None
-
-
-def _tilt_icon(big, ss, tilt_deg):
-    rotated = pygame.transform.rotate(big, tilt_deg)
-    rw, rh = rotated.get_size()
-    return pygame.transform.smoothscale(rotated, (max(1, rw // ss),
-                                                  max(1, rh // ss)))
-
-
 class Particle:
     __slots__ = ("x", "y", "vx", "vy", "life", "life_max", "r", "color", "gravity")
 
@@ -3364,7 +3069,8 @@ class Particle:
         t = max(0.0, self.life / self.life_max)
         a = int(255 * t)
         rr = max(1, int(self.r * (0.4 + 0.6 * t)))
-        s = _disc_sprite(self.color, rr, a)
+        s = pygame.Surface((rr * 2 + 2, rr * 2 + 2), pygame.SRCALPHA)
+        pygame.draw.circle(s, (*self.color, a), (rr + 1, rr + 1), rr)
         surf.blit(s, (int(self.x - rr - 1), int(self.y - rr - 1)), special_flags=pygame.BLEND_ADD)
 
 
@@ -3394,7 +3100,8 @@ class CloudPuff:
         t = max(0.0, self.life / self.life_max)          # 1→0 as puff dies
         alpha = int(200 * t)
         r = max(1, int(self.r_start + (self.r_end - self.r_start) * (1.0 - t)))
-        s = _disc_sprite(self.color, r, alpha)
+        s = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
+        pygame.draw.circle(s, (*self.color, alpha), (r + 1, r + 1), r)
         surf.blit(s, (int(self.x - r - 1), int(self.y - r - 1)))
 
 
@@ -3478,14 +3185,6 @@ def _lazy_import_genie_design():
     return cache
 
 
-# The genie body is deterministic and identical for every instance, so it is
-# built once (shared native cache) and the per-display-size smoothscale is
-# memoized — scale is a constant 1.0 through the long HOLD — so the heavy 320×460
-# smoothscale stops running every frame; only the cheap exact rotate remains.
-_GENIE_BODY = None
-_GENIE_SCALE_CACHE: dict = {}
-
-
 class GenieCharacter:
     """Conjured genie that hovers ahead of Pip and casts three Genie offer
     powerups. Procedural sprite drawn from game/_genie_assets.py, translucent
@@ -3531,12 +3230,9 @@ class GenieCharacter:
         # supersample is ~16x less pixel work per frame — the genie is on
         # screen for its whole ~3.3 s life, so smoothscaling 5.3 MP every
         # frame was a real per-frame stutter, badly so on the WASM target.
-        global _GENIE_BODY
-        if _GENIE_BODY is None:
-            _GENIE_BODY = pygame.transform.smoothscale(
-                self._render_body_supersample(),
-                (self._native_w, self._native_h))
-        self._cached_body = _GENIE_BODY
+        self._cached_body = pygame.transform.smoothscale(
+            self._render_body_supersample(),
+            (self._native_w, self._native_h))
         self._spawn_appear_poof()
 
     def update(self, dt):
@@ -3700,14 +3396,8 @@ class GenieCharacter:
         eff = scale * self._display_scale
         out_w = max(2, int(self._native_w * eff))
         out_h = max(2, int(self._native_h * eff))
-        # Cache the costly smoothscale (320×460 source) per display size — scale
-        # is a constant 1.0 through the long HOLD, so this is one entry reused —
-        # then rotate by the exact sway each frame (cheap, keeps it identical).
-        scaled = _GENIE_SCALE_CACHE.get((out_w, out_h))
-        if scaled is None:
-            scaled = pygame.transform.smoothscale(self._cached_body,
-                                                  (out_w, out_h))
-            _GENIE_SCALE_CACHE[(out_w, out_h)] = scaled
+        scaled = pygame.transform.smoothscale(self._cached_body,
+                                              (out_w, out_h))
         sway = math.sin(self._t * 1.4) * 3.0
         rotated = pygame.transform.rotate(scaled, sway)
         rotated.set_alpha(alpha)
@@ -3830,28 +3520,6 @@ class Rock:
     def draw(self, surf):
         s, ox, oy = geyser_fx.get_rock_variants()[self.variant]
         surf.blit(s, (int(self.x - ox), int(self.y - oy)))
-
-
-class RockPatch:
-    """A whole pillar's scattered-rock cluster pre-baked into ONE surface. The
-    thermal field can put 100s of rocks on screen; baking each pillar's scatter
-    into a single patch keeps it to one blit per pillar instead of one per rock —
-    a big saving on the WASM blit path. Same world-scroll + cull contract as Rock
-    (duck-typed: x / off_screen / draw), so World treats the two interchangeably."""
-
-    __slots__ = ("x", "y", "_surf", "_w")
-
-    def __init__(self, x, y, surf):
-        self.x = float(x)
-        self.y = float(y)
-        self._surf = surf
-        self._w = surf.get_width()
-
-    def off_screen(self):
-        return self.x + self._w < 0
-
-    def draw(self, surf):
-        surf.blit(self._surf, (int(self.x), int(self.y)))
 
 
 # ── FloatText ────────────────────────────────────────────────────────────────
