@@ -39,13 +39,13 @@ SLUGS = [
 ]
 BASE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                     "docs", "confirm_purchase_v8", "premium-v1")
-OUT_PNG = os.path.join(BASE, "showcase_v1.png")
+OUT_PNG = os.path.join(BASE, "showcase_v2.png")
 
 PANEL_W, PANEL_H = 200, 355
 MARGIN = 20
 GAP = 8
 HEADER_H = 40
-FOOTER_H = 32
+FOOTER_H = 48  # taller footer: ID badge + slug name
 N_PANELS = 6  # BEFORE + 5
 
 CANVAS_W = MARGIN + N_PANELS * PANEL_W + (N_PANELS - 1) * GAP + MARGIN
@@ -128,6 +128,10 @@ def make_showcase():
         font_lbl = ImageFont.truetype("game/assets/bold.ttf", 11)
     except Exception:
         font_lbl = ImageFont.load_default()
+    try:
+        font_id = ImageFont.truetype("game/assets/bold.ttf", 16)
+    except Exception:
+        font_id = ImageFont.load_default()
 
     draw.text((CANVAS_W // 2, HEADER_H // 2),
               "CONFIRM POPUP · PREMIUM ENHANCE v1",
@@ -152,12 +156,20 @@ def make_showcase():
             d.text((10, 160), slug[:20], fill=(255, 80, 80))
         panels.append((slug, panel))
 
+    ID_LABELS = ["BEFORE", "#1", "#2", "#3", "#4", "#5"]
     for i, (label, panel) in enumerate(panels):
         x = MARGIN + i * (PANEL_W + GAP)
         y = HEADER_H + MARGIN
         canvas.paste(panel, (x, y))
-        draw.text((x + PANEL_W // 2, y + PANEL_H + FOOTER_H // 2),
-                  label, fill=(180, 170, 220), font=font_lbl, anchor="mm")
+        footer_top = y + PANEL_H
+        # ID badge (large, bright)
+        id_text = ID_LABELS[i]
+        id_col = (240, 220, 100) if i > 0 else (160, 160, 180)
+        draw.text((x + PANEL_W // 2, footer_top + 14),
+                  id_text, fill=id_col, font=font_id, anchor="mm")
+        # Slug name (smaller, muted)
+        draw.text((x + PANEL_W // 2, footer_top + 34),
+                  label, fill=(150, 140, 190), font=font_lbl, anchor="mm")
 
     canvas.save(OUT_PNG)
     print(f"\nShowcase saved → {OUT_PNG}")
