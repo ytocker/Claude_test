@@ -1110,14 +1110,6 @@ def get_ghost_parcel(parcel_id: str) -> pygame.Surface:
 _SKIN_COMBOS: "dict[str, dict[tuple, list]]" = {}
 _SKIN_COMBO_ROT_CACHE: "dict[tuple, pygame.Surface]" = {}
 
-# Poison pre-bake: one vivid-green frame per (skin_id, fi) with parrot body
-# tinted strongly green and costume accessories left at original colors.
-_POISON_FRAMES: "dict[str, list]" = {}
-_POISON_ROT_CACHE: "dict[tuple, pygame.Surface]" = {}
-_POISON_GREEN     = (80, 210, 50)   # vivid toxic green (replaces yellow-green 180,225,75)
-_POISON_STRENGTH  = 0.90            # fraction toward green (vs. old 0.78)
-_POISON_THRESHOLD = 100             # L1 RGB diff vs base macaw → body vs accessory
-
 
 def build_skin_powerup_composites(skin_id: str) -> None:
     """Pre-bake the 7 non-knight power-up combos x 4 frames for one skin.
@@ -1126,12 +1118,10 @@ def build_skin_powerup_composites(skin_id: str) -> None:
     fall through to the original bespoke cascade which already handles the base
     macaw correctly.
     """
-    global _SKIN_COMBOS, _SKIN_COMBO_ROT_CACHE, _POISON_FRAMES, _POISON_ROT_CACHE
+    global _SKIN_COMBOS, _SKIN_COMBO_ROT_CACHE
     if _store_skin_builders().get(skin_id) is None:
         _SKIN_COMBOS.pop(skin_id, None)
-        _POISON_FRAMES.pop(skin_id, None)
         _SKIN_COMBO_ROT_CACHE = {}
-        _POISON_ROT_CACHE = {}
         return
     from game.dollar_parrot_hat import (
         draw_stovepipe, draw_stovepipe_kfc, draw_stovepipe_ghost,
@@ -1177,8 +1167,6 @@ def build_skin_powerup_composites(skin_id: str) -> None:
                 combos[(kfc_f, ghost_f, triple_f)] = frames
     _SKIN_COMBOS[skin_id] = combos
     _SKIN_COMBO_ROT_CACHE = {}
-    _build_poison_frames_for_skin(skin_id)
-    _POISON_ROT_CACHE = {}
 
 
 def get_skin_combo_frame(
@@ -1201,78 +1189,6 @@ def get_skin_combo_frame(
         _SKIN_COMBO_ROT_CACHE[key] = s
     return s
 
-
-def _build_poison_frames_for_skin(skin_id: str) -> None:
-    """Pre-bake 4 tilt=0 poison frames for a custom skin.
-
-    For costume skins: body pixels (close in color to the base macaw) are
-    shifted strongly toward _POISON_GREEN; accessory pixels (hats, swords,
-    crowns, etc.) retain their original colors.
-    For parrot / animal group skins: the whole sprite is tinted uniformly
-    (no accessories to preserve).
-    """
-    try:
-        import numpy as np
-        _has_numpy = True
-    except ImportError:
-        _has_numpy = False
-
-    from game.store_catalog import CATALOG
-    group = CATALOG.get(skin_id, {}).get("group", "parrot")
-
-    frames = []
-    for fi in range(4):
-        img = get_skin_frame(skin_id, fi, 0.0).copy()
-
-        if group == "costume" and _has_numpy:
-            # Compare skin body region against base macaw to identify accessories.
-            base = _get_frames()[0]          # 68×64 reference (tilt=0, outline included)
-            iw, ih = img.get_size()
-            bw, bh = base.get_size()
-            ax = (iw - bw) // 2             # 0 for standard 68-wide skins
-            ay = (ih - bh) // 2             # 20 for standard 104-tall skins
-
-            base_rgb = pygame.surfarray.array3d(base)    # (bw, bh, 3) — copy, no lock
-            base_a   = pygame.surfarray.array_alpha(base) # (bw, bh)
-
-            rgb_view = pygame.surfarray.pixels3d(img)     # (iw, ih, 3) live view — locks
-            body = rgb_view[ax:ax+bw, ay:ay+bh, :]       # (bw, bh, 3) view into body region
-
-            diff = (np.abs(body.astype(np.int32) - base_rgb.astype(np.int32))
-                    .sum(axis=2))                         # (bw, bh) L1 distance
-
-            # Pixels where base macaw has alpha AND skin color is close to base macaw
-            is_body = (base_a > 20) & (diff < _POISON_THRESHOLD)
-
-            tint = np.array(_POISON_GREEN, dtype=np.float32)
-            s    = _POISON_STRENGTH
-            tinted = (body.astype(np.float32) * (1.0 - s) + tint * s
-                      ).clip(0, 255).astype(np.uint8)
-            body[is_body] = tinted[is_body]
-            del rgb_view                                  # unlock surface
-        else:
-            # Parrot/animal recolors or numpy unavailable: tint the whole sprite.
-            _cyan_tint_in_place(img, tint=_POISON_GREEN, strength=_POISON_STRENGTH)
-
-        frames.append(img)
-    _POISON_FRAMES[skin_id] = frames
-
-
-def get_poison_frame(
-    skin_id: str, frame_idx: int, tilt_deg: float,
-) -> "pygame.Surface | None":
-    """Return the pre-baked selective-poison frame for a custom skin, or None."""
-    frames = _POISON_FRAMES.get(skin_id)
-    if frames is None:
-        return None
-    fi      = frame_idx % 4
-    rounded = int(round(tilt_deg / 3.0)) * 3
-    key = (skin_id, fi, rounded)
-    s = _POISON_ROT_CACHE.get(key)
-    if s is None:
-        s = pygame.transform.rotozoom(frames[fi], rounded, 1.0) if rounded else frames[fi]
-        _POISON_ROT_CACHE[key] = s
-    return s
 
 
 

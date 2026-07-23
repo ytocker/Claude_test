@@ -735,33 +735,12 @@ class Bird:
             # store loadout). Unknown ids degrade to the base parrot inside
             # get_skin_frame, so a stale save never crashes the draw.
             img = parrot.get_skin_frame(self.equipped_skin, frame_idx, tilt)
-        # POISON — generic chartreuse tint over whichever skin the cascade
-        # chose (mask-clamped to the silhouette, ramped by poison_t), so the
-        # poisoning reads on kfc/ghost/knight/hat rather than swapping to a
-        # fixed sprite. The terminal death overlay (below) still carries the
-        # X-eyes when the kill finally fires.
+        # POISON — vivid green tint over whichever skin the cascade chose
+        # (mask-clamped to silhouette, ramped by poison_t). Terminal X-eyes
+        # death overlay still fires when the kill lands.
         if self.poison_active and self.poison_t > 0.0:
-            # For plain skin frames (no combo overlay active) use the pre-baked
-            # selective-poison frame: parrot body turns vivid green, costume
-            # accessories keep their original colors. Fall back to a simple
-            # tint when a combo sprite is already rendered (rare) or for skin_base.
-            _has_combo = (self.kfc_active or self.ghost_active or triple_vis
-                          or self.knight_active or self.grow_active)
-            _pf = (
-                parrot.get_poison_frame(self.equipped_skin, frame_idx, tilt)
-                if not _has_combo
-                   and self._skin_combos_built_for == self.equipped_skin
-                else None
-            )
-            if _pf is not None:
-                _pfc = _pf.copy()
-                _pfc.set_alpha(int(255 * min(1.0, self.poison_t)))
-                _blended = img.copy()
-                _blended.blit(_pfc, (0, 0))
-                img = _blended
-            else:
-                img = parrot.tint_copy(img, (180, 225, 75),
-                                       min(0.78, 0.78 * self.poison_t))
+            img = parrot.tint_copy(img, (80, 210, 50),
+                                   min(0.90, 0.90 * self.poison_t))
         if self.grow_active and (self.kfc_active or self.ghost_active
                                   or triple_vis or self.knight_active):
             # Combo + grow: smoothscale-up the variant sprite. No hi-res
