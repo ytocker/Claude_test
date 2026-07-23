@@ -165,7 +165,9 @@ def zone_a(big, price):
     # ~40 lum pts, reading unmistakably as a rose-engine–turned subdial face.
     eng = pygame.Surface(chip.size, pygame.SRCALPHA)
     ecy = chip.h // 2
-    for ring_r in (m(7), m(12), m(17), m(22), m(27)):
+    # tighter pitch: 5 rings at 3-px intervals (1x) pack 4-5 arcs into the
+    # ~22-32 px exposed flank at every tier's price width.
+    for ring_r in (m(4), m(7), m(10), m(13), m(16)):
         pygame.draw.circle(eng, (*GUILLOCHE_VIS, 88), (0, ecy), ring_r, max(1, m(1)))
         pygame.draw.circle(eng, (*GUILLOCHE_VIS, 88), (chip.w, ecy), ring_r, max(1, m(1)))
     eng.blit(_rounded_mask(chip.w, chip.h, crad), (0, 0),
