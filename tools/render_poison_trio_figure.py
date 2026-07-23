@@ -23,8 +23,10 @@ pygame.display.set_mode((1, 1))
 
 from game.entities import Bird  # noqa: E402
 from game import parrot         # noqa: E402
-from game.store_skins import _ninja_base, _viking_base, _tophat_base  # noqa: E402
-from game.parrot import _add_outline as _parrot_add_outline            # noqa: E402
+from game.store_skins import (_ninja_base, _viking_base, _tophat_base,    # noqa: E402
+                               _viking_back, _viking_helm, _viking_face,
+                               COMPOSITE_W, COMPOSITE_H)
+from game.parrot import _add_outline as _parrot_add_outline              # noqa: E402
 
 # ── Layout constants ──────────────────────────────────────────────────────────
 LABEL_W = 130
@@ -82,16 +84,33 @@ def fill_sky(surf):
         ), (0, y, w, 1))
 
 
+_VK_OUTLINE = (26, 20, 16, 235)
+
+
+def _viking_acc_frame():
+    acc = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+    _viking_back(acc)
+    _viking_helm(acc)
+    _viking_face(acc)
+    return _parrot_add_outline(acc, _VK_OUTLINE)
+
+
 def _poison_costume(skin_id):
     PARROT_DY = 20
     dead_frame = parrot.get_poisoned_parrot(1, 0.0)
     base_frame = parrot.get_skin_frame("skin_base", 1, 0.0)
     skin_frame = parrot.get_skin_frame(skin_id, 1, 0.0)
 
+    if skin_id == "skin_viking":
+        canvas = pygame.Surface(skin_frame.get_size(), pygame.SRCALPHA)
+        canvas.blit(dead_frame, (0, PARROT_DY))
+        canvas.blit(_viking_acc_frame(), (0, 0))
+        return canvas
+
     ref = _get_body_only(skin_id)
     def _is_acc(x, y, sr, sg, sb):
         r0, g0, b0, _ = ref.get_at((x, y))
-        return abs(sr - r0) + abs(sg - g0) + abs(sb - b0) > 2
+        return abs(sr - r0) + abs(sg - g0) + abs(sb - b0) >= 80
 
     canvas = pygame.Surface(skin_frame.get_size(), pygame.SRCALPHA)
     canvas.blit(dead_frame, (0, PARROT_DY))
