@@ -4,7 +4,7 @@ import os
 import random
 import pygame
 
-from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, MEGAMAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION, SKATEBOARD_DURATION, KNIGHT_DURATION, POISON_DURATION, UMBRELLA_DURATION
+from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, MEGAMAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION, SKATEBOARD_DURATION, KNIGHT_DURATION, POISON_DURATION, UMBRELLA_DURATION, LIVES_PER_RUN
 from game.draw import (
     rounded_rect, rounded_rect_grad, lerp_color,
     UI_SCORE, UI_GOLD, UI_ORANGE, UI_SHADOW, UI_CREAM, UI_RED,
@@ -57,6 +57,34 @@ _NIGHT_DEEP     = (  6,   1,  21)   # #060115
 
 
 _fonts: dict = {}
+
+# ── Heart icon colours ────────────────────────────────────────────────────────
+_HEART_R     = (220,  60,  80)   # filled heart (lives remaining)
+_HEART_DARK  = ( 60,  60,  74)   # empty heart  (lives spent)
+_HEART_SHINE = (255, 205, 215)   # highlight dot on filled hearts
+
+
+def _draw_heart_at(surf, cx, cy, filled):
+    """Procedural 14×11 heart at (cx, cy): two circle bumps + V polygon."""
+    col = _HEART_R if filled else _HEART_DARK
+    pygame.draw.circle(surf, col, (cx - 3, cy - 2), 3)
+    pygame.draw.circle(surf, col, (cx + 3, cy - 2), 3)
+    pygame.draw.polygon(surf, col,
+                        [(cx - 6, cy - 2), (cx + 6, cy - 2), (cx, cy + 5)])
+    if filled:
+        pygame.draw.circle(surf, _HEART_SHINE, (cx - 4, cy - 3), 1)
+
+
+def _draw_lives_row(surf, lives_remaining, lives_total, cy=105):
+    """Centred row of hearts just below the score plate (default cy=105)."""
+    heart_w, gap = 14, 7
+    total_w = lives_total * heart_w + (lives_total - 1) * gap
+    sx = (W - total_w) // 2
+    for i in range(lives_total):
+        _draw_heart_at(surf,
+                       sx + i * (heart_w + gap) + heart_w // 2,
+                       cy,
+                       i < lives_remaining)
 
 
 # ── Theme drawing helpers ────────────────────────────────────────────────────
@@ -1958,6 +1986,11 @@ class HUD:
                               lr.y - 9))
             surf.blit(label, lr.topleft)
 
+        # Hearts row — centred just below the score plate.
+        _draw_lives_row(surf,
+                        getattr(world, "lives_remaining", LIVES_PER_RUN),
+                        LIVES_PER_RUN)
+
         # Active-buff timer bars — every active power-up gets its own
         # progress bar at the top of the screen with the buff's logo on the
         # left. Stacks vertically when multiple are active. Each bar's fill
@@ -2172,6 +2205,32 @@ class HUD:
             r = pygame.Rect(start_x + i * (tile_w + tile_gap), tile_y,
                             tile_w, tile_h)
             _stat_tile_chunky(surf, r, kind, val, lbl, subline=sub)
+
+        # Lives row — small hearts + "CLEAN RUN!" badge below the stat tiles.
+        lives_used  = getattr(world, "lives_used",      0)
+        lives_total = getattr(world, "lives_remaining", 0) + lives_used
+        if lives_total == 0:
+            lives_total = LIVES_PER_RUN
+        _lives_y = tile_y + tile_h + 10
+        if lives_used == 0:
+            cf_clean = _font(15, True)
+            badge = cf_clean.render("♥  CLEAN RUN!", True, _GOLD_BRIGHT)
+            surf.blit(badge, badge.get_rect(center=(W // 2, _lives_y + 8)))
+        else:
+            lf = _font(13, True)
+            lbl_surf = lf.render("LIVES", True, _GOLD_MUTED)
+            lives_remaining = lives_total - lives_used
+            heart_w, gap = 14, 7
+            hearts_total_w = lives_total * heart_w + (lives_total - 1) * gap
+            row_w = lbl_surf.get_width() + 6 + hearts_total_w
+            sx = (W - row_w) // 2
+            surf.blit(lbl_surf, lbl_surf.get_rect(midleft=(sx, _lives_y + 6)))
+            hx = sx + lbl_surf.get_width() + 6
+            for i in range(lives_total):
+                _draw_heart_at(surf,
+                               hx + i * (heart_w + gap) + heart_w // 2,
+                               _lives_y + 6,
+                               i < lives_remaining)
 
         # Power-ups row — Variant C "Horizontal Pills": each power-up
         # rendered as a navy gold-bordered chip with [icon | ×N] laid

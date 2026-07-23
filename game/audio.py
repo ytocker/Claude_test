@@ -263,3 +263,7 @@ def play_knight() -> None:       _play("grow", 0.75); _play("thunder", 0.45)
 def play_achievement() -> None:  _play("triple_coin", 0.9); _play("magnet", 0.5)
 def play_backflip() -> None:     _play("poof", 0.50)
 def play_helmet_bonk() -> None:  _play("thunder", 0.50)
+# Life-loss: short sharp hit — poof for the burst, softer death chime for
+# the sting. Clearly distinct from full death (louder, longer) and from
+# power-up activations (no ghost whoosh).
+def play_life_lost() -> None:    _play("poof", 0.65); _play("death", 0.35)

@@ -1,7 +1,6 @@
 W, H   = 360, 640
 FPS    = 60
 TITLE  = "Skybit"
-VERSION = "1.1.0"          # shown on Settings → Credits; keep in sync with pyproject
 
 GROUND_Y   = 595
 CEILING_Y  = 0
@@ -69,9 +68,6 @@ RAIL_PILLAR_COUNT  = 7       # cart rides over exactly N pillars then releases
 RAIL_LEAD_PILLARS  = 1       # pillars to skip before the cart so players have
                             # time to reach it (cart parks on the 2nd ahead)
 RAIL_SCROLL_MULT   = 2.5     # world scrolls 2.5x faster during the ride
-RAIL_ABOVE_FINIAL  = 6       # rail track sits this many px above the (lethal)
-                            # finial tips — on top of the kill zone, just above
-                            # the antennas, with short posts connecting down
 # Lottery tiers: (label, weight, coin_delta). Weights need not sum to anything
 # — normalized at pick time. Loss tiers clamp at score 0 (see
 # World._apply_lottery_result), so total coins never go negative.
@@ -133,25 +129,18 @@ POWERUP_REPLACED_AT = {
 
 # ── Secret late-game power-ups ───────────────────────────────────────────────
 # A separate, undeclared tier that only enters the spawn roll once the run
-# crosses the genie milestone. Kept out of POWERUP_WEIGHTS (and the
+# crosses LATE_GAME_PILLAR pillars. Kept out of POWERUP_WEIGHTS (and the
 # Surprise re-roll) so the gate can't be bypassed, and out of the help screen
 # so the roster stays a surprise. Weights are normalized at pick time alongside
 # the normal pool.
 #
 # The milestone is keyed to PILLARS PASSED (not score) so it lands at the
 # same gameplay moment every run regardless of coin pickups, lottery wins,
-# or storm-jolt deductions. The genie lamp is placed in the spacing right after
-# its milestone pillar (so the player encounters it just after scoring that
-# pillar); from that moment the genie also joins the regular spawn pool and the
-# Surprise Box re-roll pool.
-#
-# The milestone pillar is anchored RELATIVE to the morning geyser event rather
-# than hard-coded: the lamp lands GENIE_PILLARS_AFTER_GEYSER_PEAK pillars past
-# the geyser's thermal peak (resolved in weather.GENIE_PILLAR, which owns the
-# pillar↔phase math). So if the geyser window — or the onboarding ramp that maps
-# pillars to time — is retuned, the genie travels with it and stays part of that
-# beat. With today's tuning this resolves to pillar 50.
-GENIE_PILLARS_AFTER_GEYSER_PEAK = 3
+# or storm-jolt deductions. A genie lamp is placed in the spacing between
+# pillar LATE_GAME_PILLAR and the next pillar (so the player encounters it
+# right after scoring that pillar). From that moment, the genie is also added
+# to the regular spawn pool and the Surprise Box re-roll pool.
+LATE_GAME_PILLAR       = 50
 # DEBUG: extra genie spawn early in the run so the pickup + chamber + wishes
 # can be exercised without playing through the full milestone. Same one-shot rules
 # as the production milestone (also flips on the genie pool + surprise-box
@@ -213,72 +202,21 @@ HEELFLIP_DURATION     = 0.55
 KNIGHT_DURATION     = 30.0
 KNIGHT_INVULN       = 1.5
 
-# ── CLOWN EVENT ──────────────────────────────────────────────────────────────
-# A scripted set-piece inserted into every biome day: a tight "warren" gauntlet
-# of fused staff-pillars. It starts at CLOWN_START_PILLAR and RESERVES a fixed
-# CLOWN_SLOT_PILLARS-wide slot (the max gauntlet length) regardless of the rolled
-# length, so the rest of the timeline stays at deterministic pillar numbers — the
-# gauntlet is the rolled N (CLOWN_ROLL_MIN..MAX) warren pillars and any remaining
-# slot pillars are regular gameplay. Then CLOWN_TO_RAIN_BUFFER regular pillars
-# play before the rain block begins.
-CLOWN_START_PILLAR    = 65
-CLOWN_SLOT_PILLARS    = 25          # held max slot width (== CLOWN_ROLL_MAX)
-CLOWN_TO_RAIN_BUFFER  = 10
-CLOWN_ROLL_MIN        = 10
-CLOWN_ROLL_MAX        = 25
-CLOWN_WARREN_SPACING  = 72          # fused centre-to-centre spacing (vs PIPE_SPACING)
-CLOWN_WARREN_GAP      = 172         # per-pillar gap height inside the gauntlet
-
-# Relief "empties" around the gauntlet: three clear-sky stretches, all spawned as
-# phantom pillars (invisible / non-colliding / non-scoring) that HIDE existing
-# pillars rather than adding any — so they take a spawn slot a normal pillar would
-# and shift NOTHING downstream (biome phase is time-based; rain stays anchored at
-# RAIN_START_PILLAR). The gauntlet keeps its full CLOWN_ROLL range.
-#   pre-clear → the field is already empty when the clown+die walk on, so the
-#              jester makes its entrance into a clean sky (the clown is created
-#              only after these are laid; the beat then stays clear through the
-#              die roll until the reveal);
-#   lead-in  → a short "here it comes" gap after the die settles, before the
-#              first warren tower;
-#   outro    → a breather right after the gauntlet.
-CLOWN_PRECLEAR_PILLARS = 2          # empties BEFORE the clown+die appear
-CLOWN_LEADIN_PILLARS  = 1           # empties after the reveal, before the gauntlet
-CLOWN_OUTRO_PILLARS   = 1           # empties right after the gauntlet
-
-# Inserting the slot + buffer pushes the rain block (and everything after it)
-# this many pillars later than the pre-clown anchor. The biome DAY phase is
-# lengthened by the matching run-time (DAY_EXTRA_SECONDS) so each later event
-# keeps its time-of-day — see biome.CYCLE_SECONDS.
-_RAIN_START_PILLAR_PRE_CLOWN = 70
-_SNOW_START_PILLAR_PRE_CLOWN = 139
-
 # RAIN + THUNDERSTORM anchor. The dusk storm block (drizzle build →
 # storm peak → fade, plus the in-game lightning gate) is shifted along
 # the biome phase axis so its drizzle's lower edge lands at this
-# pillar number. Anchored 10 pillars after the held clown slot so the
-# storm always trails the event; weather.py derives the phase shift from
-# the same onboarding-ramp dwell math the world uses.
-RAIN_START_PILLAR   = CLOWN_START_PILLAR + CLOWN_SLOT_PILLARS + CLOWN_TO_RAIN_BUFFER  # 100
-
-# How far the clown insertion shifts the whole post-clown timeline, and the
-# matching daytime added to the biome (the time to fly the inserted pillars at
-# post-ramp regular pace: spacing / scroll per pillar).
-_POST_CLOWN_SHIFT   = RAIN_START_PILLAR - _RAIN_START_PILLAR_PRE_CLOWN                 # +30
-
-# Clear pillars held open between the snow squall's tail and the cycle-finale
-# celebration, so the predawn snow fully fades before the treasure-box / crowd
-# fanfare arrives instead of the finale stepping on the snow tail. Adds matching
-# daytime to the cycle (same pillars->seconds conversion as the clown shift).
-# Snow stays pinned to SNOW_START_PILLAR and weather._WIDTH_SCALE holds every
-# event's duration, so this only pushes the wrap later — it lengthens no storm.
-_FINALE_SNOW_BUFFER_PILLARS = 12
-
-DAY_EXTRA_SECONDS   = (_POST_CLOWN_SHIFT + _FINALE_SNOW_BUFFER_PILLARS) * (PIPE_SPACING / SCROLL_BASE)
+# pillar number. The block's SHAPE/WIDTH/PEAK HEIGHT is unchanged —
+# only the start anchor moves. Tune this to move the whole storm
+# earlier (smaller pillar) or later (larger pillar); weather.py
+# derives the phase shift from the same onboarding-ramp dwell math
+# the world uses, so the storm always lands at the chosen pillar.
+RAIN_START_PILLAR   = 70
 
 # SNOW SQUALL anchor. Same idea as RAIN_START_PILLAR but for the
-# predawn snow-squall block in `weather.storm_intensity`; shifted by the
-# same clown insertion so it keeps its predawn slot.
-SNOW_START_PILLAR   = _SNOW_START_PILLAR_PRE_CLOWN + _POST_CLOWN_SHIFT                # 169
+# predawn snow-squall block in `weather.storm_intensity`. The bump's
+# lower edge lands at this pillar; the SHAPE/WIDTH (half-width 0.10,
+# scale 1.045) stay unchanged, so only the start anchor moves.
+SNOW_START_PILLAR   = 139
 
 # Seconds of scroll buffer added to the first seeded pipe's spawn x so
 # the cottage opener has clean air to scroll behind Pip before pillars
@@ -292,12 +230,8 @@ SPAWN_GRACE         = 1.5
 # both of which fall inside the dusk rain block, so the pickup naturally
 # only appears while it's raining (a cull step also drops any uncollected
 # umbrella once rain returns to 0).
-#
-# Anchored RELATIVE to the rain event (RAIN_START_PILLAR, the drizzle's lower
-# edge) rather than hard-coded, so the two pickups stay inside the storm — and
-# travel with it — if the rain is moved to a different pillar.
 UMBRELLA_DURATION       = 8.0
-UMBRELLA_SPAWN_PILLARS  = (RAIN_START_PILLAR + 12, RAIN_START_PILLAR + 24)
+UMBRELLA_SPAWN_PILLARS  = (75, 87)
 
 # TREASURE BOX — once-per-biome-cycle finale reward. When the day/night
 # cycle wraps from late-night back to dawn, the next CYCLE_FINALE_RUSH_PILLARS
@@ -353,12 +287,6 @@ WEATHER_COIN_SHAKE_AMP   = 4.0
 WEATHER_PIP_SHIVER_AMP   = 1.5
 WEATHER_FLAP_DAMPEN_MAX  = 0.18
 
-# Storm jolt: the bolt that actually STRIKES Pip and docks score (distinct
-# from the cosmetic background flashes). Only armed once rain intensity is at
-# or above this near-peak level, so the strike can only land in the heart of
-# the downpour — the exact pillar within that window is random.
-STORM_JOLT_RAIN_MIN      = 0.85
-
 # Tailwind event (predawn, phase ~0.85). Two effects scaled by
 # weather.wind_intensity(phase):
 #   - WEATHER_WIND_LEAN_AMP: max RIGHTWARD visual x-offset on
@@ -388,31 +316,6 @@ WEATHER_SNOW_MELT_AT    = 0.04    # phase PAST the peak at which defrost begins 
                                   # of the start): ~phase 0.95 → snow sheds and is gone ~1.0
 WEATHER_SNOW_ACCUM_RATE = 0.037   # constant build pace while it's snowing hard (~full by ~0.92)
 WEATHER_SNOW_MELT_RATE  = 0.06    # defrost pace past the peak (gone ~the day boundary)
-
-# ── Weather reacting on the sidewalk ────────────────────────────────────────
-# The promenade (sidewalk floor + living crowd) reads the same phase-driven
-# weather curves the sky does, so the street reacts: rain lands + splashes on
-# the paving, puddles glaze it, the crowd thins under rain/snow and the
-# survivors carry umbrellas. Purely visual — no physics/score change.
-#
-# Wet sheen on the paving: a 0..1 state that ramps up while the rain is heavy
-# and dries after, so the ground reads soaked at the storm peak and merely damp
-# on the drizzle shoulders, then dries out before the next clear stretch.
-WEATHER_WET_ON_RI    = 0.18   # rain intensity at/above which the paving wets up
-WEATHER_WET_RISE_RATE = 0.45  # per-second wetness build while raining hard
-WEATHER_WET_DRY_RATE  = 0.18  # per-second dry-out once the rain eases
-
-# Crowd thinning by weather. The day-arc density is multiplied by a factor that
-# falls as the rain/snow worsen, taking the HARSHER of the two so a storm reads
-# as "everyone went inside". At the snow-squall peak the deck is near-empty
-# (a lone umbrella or two braving it), per the chosen severity.
-WEATHER_CROWD_RAIN_MIN = 0.22   # crowd-density multiplier at the heaviest rain
-WEATHER_CROWD_SNOW_MIN = 0.06   # crowd-density multiplier at the snow-squall peak (near-empty)
-
-# Umbrella adoption: the fraction of the (thinned) cast that raises an umbrella,
-# ramping with rain so a stray brolly appears in drizzle and nearly everyone
-# left is under one in the downpour. Snow gets a lighter share.
-WEATHER_UMBRELLA_RAIN_AT = 0.12  # rain intensity at which umbrellas start appearing
 
 # ── Morning-thermal geysers ─────────────────────────────────────────────────
 # Ground geysers spawned during the thermal window. Spawn density + how many
@@ -479,9 +382,3 @@ PIPE_SPACING_NEWBIE  = 370
 
 SAVE_FILE = "skybit_save.json"
 SCORES_FILE = "skybit_scores.json"
-
-# ── Coin store ────────────────────────────────────────────────────────────────
-# Wallet + owned cosmetics persist here (native JSON; localStorage on web). Coins
-# bank at run-end and buy cosmetics; DAILY_REWARD is the once-per-day login grant.
-STORE_FILE = "skybit_store.json"
-DAILY_REWARD = 75
