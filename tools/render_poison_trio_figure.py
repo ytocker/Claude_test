@@ -17,6 +17,7 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pygame  # noqa: E402
+from collections import deque         # noqa: E402
 
 pygame.init()
 pygame.display.set_mode((1, 1))
@@ -69,6 +70,50 @@ def _get_body_only(skin_id):
     return _body_only_cache[skin_id]
 
 
+def _viking_accessory_mask(skin_frame, ref, base_frame, PARROT_DY=20, threshold=80):
+    """BFS from definite-accessory pixels (dist≥threshold or outside silhouette)
+    through candidate pixels (0<dist<threshold).  Body pixels (dist==0) block
+    expansion.  Returns the set of (x,y) classified as accessories."""
+    fw, fh = skin_frame.get_size()
+    bh = base_frame.get_height()
+    BODY, CANDIDATE, DEFINITE = 0, 1, 2
+    classify = [[BODY] * fh for _ in range(fw)]
+    for x in range(fw):
+        for y in range(fh):
+            sr, sg, sb, sa = skin_frame.get_at((x, y))
+            if sa == 0:
+                continue
+            by = y - PARROT_DY
+            if by < 0 or by >= bh:
+                classify[x][y] = DEFINITE
+                continue
+            _, _, _, a0 = base_frame.get_at((x, by))
+            if a0 == 0:
+                classify[x][y] = DEFINITE
+                continue
+            r0, g0, b0, _ = ref.get_at((x, y))
+            dist = abs(sr - r0) + abs(sg - g0) + abs(sb - b0)
+            if dist >= threshold:
+                classify[x][y] = DEFINITE
+            elif dist > 0:
+                classify[x][y] = CANDIDATE
+    acc = set()
+    q = deque()
+    for x in range(fw):
+        for y in range(fh):
+            if classify[x][y] == DEFINITE:
+                acc.add((x, y))
+                q.append((x, y))
+    while q:
+        x, y = q.popleft()
+        for dx, dy in ((-1,0),(1,0),(0,-1),(0,1),(-1,-1),(1,-1),(-1,1),(1,1)):
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < fw and 0 <= ny < fh and (nx, ny) not in acc and classify[nx][ny] == CANDIDATE:
+                acc.add((nx, ny))
+                q.append((nx, ny))
+    return acc
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def fill_sky(surf):
@@ -88,10 +133,16 @@ def _poison_costume(skin_id):
     base_frame = parrot.get_skin_frame("skin_base", 1, 0.0)
     skin_frame = parrot.get_skin_frame(skin_id, 1, 0.0)
 
-    ref = _get_body_only(skin_id)
-    def _is_acc(x, y, sr, sg, sb):
-        r0, g0, b0, _ = ref.get_at((x, y))
-        return abs(sr - r0) + abs(sg - g0) + abs(sb - b0) >= 80
+    if skin_id == "skin_viking":
+        ref = _get_body_only(skin_id)
+        acc_mask = _viking_accessory_mask(skin_frame, ref, base_frame, PARROT_DY)
+        def _is_acc(x, y, sr, sg, sb):
+            return (x, y) in acc_mask
+    else:
+        ref = _get_body_only(skin_id)
+        def _is_acc(x, y, sr, sg, sb):
+            r0, g0, b0, _ = ref.get_at((x, y))
+            return abs(sr - r0) + abs(sg - g0) + abs(sb - b0) >= 80
 
     canvas = pygame.Surface(skin_frame.get_size(), pygame.SRCALPHA)
     canvas.blit(dead_frame, (0, PARROT_DY))
