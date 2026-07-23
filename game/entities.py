@@ -724,12 +724,20 @@ class Bird:
             else:
                 img = parrot.get_hat_parrot(frame_idx, tilt)
         elif self.grow_active:
-            # Hi-res grow-mode bird: pre-built at full grow display size by
-            # `parrot._build_grow_frame` (round-9 v3 = 3× supersample → 1.5×
-            # downscale). Skips the smoothscale-up that produced the prior
-            # blur. Combo modes (kfc / ghost / triple + grow) still use
-            # the legacy upscale below — they pre-empt this branch.
-            img = parrot.get_grow_parrot(frame_idx, tilt)
+            if self.equipped_skin == "skin_base":
+                # Hi-res grow-mode bird: pre-built at full grow display size by
+                # `parrot._build_grow_frame` (round-9 v3 = 3× supersample → 1.5×
+                # downscale). Skips the smoothscale-up that produced the prior
+                # blur. Combo modes (kfc / ghost / triple + grow) still use
+                # the legacy upscale below — they pre-empt this branch.
+                img = parrot.get_grow_parrot(frame_idx, tilt)
+            else:
+                # Costume skin: no hi-res grow variant; scale up the skin frame.
+                from game.config import GROW_SCALE
+                img = parrot.get_skin_frame(self.equipped_skin, frame_idx, tilt)
+                iw, ih = img.get_size()
+                img = pygame.transform.smoothscale(
+                    img, (int(iw * GROW_SCALE), int(ih * GROW_SCALE)))
         else:
             # No power-up skin active: draw the equipped COSMETIC skin (the
             # store loadout). Unknown ids degrade to the base parrot inside

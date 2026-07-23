@@ -9,7 +9,7 @@ Run from the repo root or from tools/:
 
 Output: docs/skin_powerup_interactions_vN.png (auto-incremented)
 """
-import math
+import math  # noqa: F401 — used for ghost_pulse peak
 import os
 import sys
 
@@ -54,9 +54,17 @@ SKIN_ROWS = [
 
 # (column label, effect key)
 EFF_COLS = [
-    ("Normal",      "normal"),
-    ("Poison",      "poison"),
-    ("Skateboard",  "skateboard"),
+    ("Normal",       "normal"),
+    ("KFC",          "kfc"),
+    ("Ghost",        "ghost"),
+    ("Triple",       "triple"),
+    ("KFC+Ghost",    "kfc_ghost"),
+    ("KFC+Triple",   "kfc_triple"),
+    ("Gst+Trpl",     "ghost_triple"),
+    ("All Three",    "kfc_ghost_triple"),
+    ("Skateboard",   "skateboard"),
+    ("Grow",         "grow"),
+    ("Shrink",       "shrink"),
 ]
 
 N_ROWS  = len(SKIN_ROWS)
@@ -108,9 +116,37 @@ def render_eff_cell(skin_id, effect):
             img.blit(overlay, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, 48)))
         return cell
+    elif effect == "kfc":
+        b.kfc_active = True
+    elif effect == "ghost":
+        b.ghost_active = True
+        b.ghost_pulse = math.pi / 2          # peak brightness phase
+    elif effect == "triple":
+        b.triple_active = True
+    elif effect == "kfc_ghost":
+        b.kfc_active = True
+        b.ghost_active = True
+        b.ghost_pulse = math.pi / 2
+    elif effect == "kfc_triple":
+        b.kfc_active = True
+        b.triple_active = True
+    elif effect == "ghost_triple":
+        b.ghost_active = True
+        b.triple_active = True
+        b.ghost_pulse = math.pi / 2
+    elif effect == "kfc_ghost_triple":
+        b.kfc_active = True
+        b.ghost_active = True
+        b.triple_active = True
+        b.ghost_pulse = math.pi / 2
     elif effect == "skateboard":
         b.skateboard_active = True
         b.y = 44.0   # raise slightly — board hangs below centre
+    elif effect == "grow":
+        b.grow_active = True
+    elif effect == "shrink":
+        b.shrink_active = True
+        b.shrink_scale = 0.6
 
     b.draw(cell, 0, 0, flipped=draw_flipped)
     return cell
@@ -128,7 +164,7 @@ font_row   = pygame.font.SysFont("monospace", 11, bold=True)
 # ── Title ────────────────────────────────────────────────────────────────────
 
 canvas.blit(
-    font_title.render("Costumes — Normal / Poison / Skateboard", True, (240, 235, 180)),
+    font_title.render("Costumes x Power-ups (poison excluded)", True, (240, 235, 180)),
     (MARGIN, MARGIN + 6),
 )
 
