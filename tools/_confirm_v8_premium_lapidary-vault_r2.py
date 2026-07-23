@@ -104,20 +104,23 @@ def card_body(big, pal):
     band_cy = rect.h * 0.52                     # centred in the dead-zone band
     ext = max(rect.w, rect.h) * 2.0             # extend past card edges before masking
     grain_col = (37, 37, 78, 70)
+    # m(2) = 4 device px → 2 logical px after downscale — the minimum width that
+    # survives smoothscale and LANCZOS as a readable line at 1× game resolution.
+    grain_w = max(1, m(2))
     for k in range(-2, 3):                      # 5 parallel lines
         ox = band_cx + k * m(9) * pxb
         oy = band_cy + k * m(9) * pyb
         pygame.draw.line(lat, grain_col,
                          (int(ox - dxb * ext), int(oy - dyb * ext)),
                          (int(ox + dxb * ext), int(oy + dyb * ext)),
-                         max(1, m(1)))
+                         grain_w)
     for k in (-1, 0, 1):                        # 3 crosshatch lines at 90° to band
         ox = band_cx + k * m(20) * dxb
         oy = band_cy + k * m(20) * dyb
         pygame.draw.line(lat, grain_col,
                          (int(ox - pxb * ext), int(oy - pyb * ext)),
                          (int(ox + pxb * ext), int(oy + pyb * ext)),
-                         max(1, m(1)))
+                         grain_w)
     lmask = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
     pygame.draw.rect(lmask, (255, 255, 255, 255), lmask.get_rect(), border_radius=rad)
     lat.blit(lmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
@@ -160,18 +163,22 @@ def dead_zone(big, pal):
              cy + rr * math.sin(rot + 2 * math.pi * i / 8)) for i in range(8)]
     # faint base polygon so the overall shape has a ghost fill
     pygame.draw.polygon(dz, (*pal["deep"], 30), oct8, width=max(1, m(1)))
-    # 3 scattered facet edges in tier colour — together they read as an octagon
+    # 3 scattered facet edges in tier colour — together they read as an octagon.
+    # m(2) = 4 device px → 2 logical px at 1×, the floor for resolving past
+    # anti-aliasing in the smoothscale/LANCZOS pipeline.
     gem = pal["gem"]
+    edge_w = max(1, m(2))
     for i, j in ((0, 1), (3, 4), (5, 6)):
         pygame.draw.line(dz, (*gem, 80),
                          (int(oct8[i][0]), int(oct8[i][1])),
                          (int(oct8[j][0]), int(oct8[j][1])),
-                         max(1, m(1)))
-    # ONE bright girdle-glint on the upper-left facet catch
+                         edge_w)
+    # ONE bright girdle-glint on the upper-left facet catch — 2 extra device px
+    # so the catch survives the downscale as a single legible highlight.
     pygame.draw.line(dz, (140, 120, 180, 150),
                      (int(oct8[6][0]), int(oct8[6][1])),
                      (int(oct8[7][0]), int(oct8[7][1])),
-                     max(1, m(1)))
+                     max(2, m(2)))
     big.blit(dz, (0, 0))
 
 
