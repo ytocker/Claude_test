@@ -546,6 +546,9 @@ class Bird:
         # the collision moment; Bird.draw alpha-blends the dead palette
         # on top of the alive sprite while this is in flight.
         self.death_fade_t = 0.0
+        # i-frame flicker synced from World.update: False on the "hidden"
+        # half of each LIVES_FLICKER_HZ period while lives_invuln > 0.
+        self.lives_flicker_visible = True
 
         # Weather event state (visual-only):
         #   wind_lean       — rightward x-offset under the predawn tailwind
@@ -746,6 +749,10 @@ class Bird:
             img = img.copy()
             pulse = 0.5 + 0.5 * math.sin(self.ghost_pulse)
             img.set_alpha(int(90 + pulse * 80))
+        # i-frame flicker during the post-revive lives grace window.
+        if not self.lives_flicker_visible:
+            img = img.copy()
+            img.set_alpha(0)
         cx_int = int(self.x + shake_x)
         cy_int = int(self.y + shake_y)
         # X-Ray Sparks rim glow — a tight silhouette-edge trim

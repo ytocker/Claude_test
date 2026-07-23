@@ -224,6 +224,7 @@ def play_slowmo() -> None:      _play("slowmo", 0.75)
 # strike loud), so play_thunder takes an optional volume.
 def play_thunder(volume: float = 0.85) -> None: _play("thunder", volume)
 def play_death() -> None:       _play("death", 0.75)
+def play_life_lost() -> None:   _play("poof", 0.65); _play("death", 0.35)
 def play_poof() -> None:        _play("poof", 0.88)
 def play_ghost() -> None:       _play("ghost", 0.70)
 def play_grow() -> None:        _play("grow", 0.80)

@@ -57,6 +57,7 @@ def _build_payload(world, submit_error=None) -> str:
         "pillars":     int(world.pillars_passed),
         "near_misses": int(world.near_misses),
         "powerups":    {k: int(v) for k, v in world.powerups_picked.items()},
+        "lives_used":  int(getattr(world, "lives_used", 0)),
     }
     if submit_error:
         body["submit_error"] = str(submit_error)[:200]

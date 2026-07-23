@@ -4,7 +4,7 @@ import os
 import random
 import pygame
 
-from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, MEGAMAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION, SKATEBOARD_DURATION, KNIGHT_DURATION, POISON_DURATION, UMBRELLA_DURATION
+from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, MEGAMAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION, SKATEBOARD_DURATION, KNIGHT_DURATION, POISON_DURATION, UMBRELLA_DURATION, LIVES_PER_RUN
 from game.draw import (
     rounded_rect, rounded_rect_grad, lerp_color,
     UI_SCORE, UI_GOLD, UI_ORANGE, UI_SHADOW, UI_CREAM, UI_RED,
@@ -57,6 +57,49 @@ _NIGHT_DEEP     = (  6,   1,  21)   # #060115
 
 
 _fonts: dict = {}
+
+# ── Pip (parrot) life-icon ────────────────────────────────────────────────────
+_PIP_ICON_H    = 24   # icon height in HUD screen pixels
+_PIP_ICON_ALIVE: "pygame.Surface | None" = None
+_PIP_ICON_SPENT: "pygame.Surface | None" = None
+
+
+def _get_pip_icon(filled: bool) -> "pygame.Surface":
+    """Tiny Pip icon for the lives row. Filled = alive, dim = spent life."""
+    global _PIP_ICON_ALIVE, _PIP_ICON_SPENT
+    if filled and _PIP_ICON_ALIVE is not None:
+        return _PIP_ICON_ALIVE
+    if not filled and _PIP_ICON_SPENT is not None:
+        return _PIP_ICON_SPENT
+
+    src = parrot._get_frames()[1]   # mid-wing-up: neutral glide pose
+    h   = _PIP_ICON_H
+    w   = max(1, int(src.get_width() * h / src.get_height()))
+    scaled = pygame.transform.smoothscale(src, (w, h))
+
+    if filled:
+        _PIP_ICON_ALIVE = scaled
+        return scaled
+
+    # Spent life: darken + partial transparency via RGBA multiply
+    dim = scaled.copy()
+    darken = pygame.Surface((w, h), pygame.SRCALPHA)
+    darken.fill((100, 95, 115, 110))
+    dim.blit(darken, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    _PIP_ICON_SPENT = dim
+    return dim
+
+
+def _draw_pip_lives_row(surf, lives_remaining, lives_total, cy=106):
+    """Centred row of Pip icons just below the score plate."""
+    icon = _get_pip_icon(True)
+    iw, ih = icon.get_size()
+    gap = 8
+    total_w = lives_total * iw + (lives_total - 1) * gap
+    sx = (W - total_w) // 2
+    for i in range(lives_total):
+        ico = _get_pip_icon(i < lives_remaining)
+        surf.blit(ico, (sx + i * (iw + gap), cy - ih // 2))
 
 
 # ── Theme drawing helpers ────────────────────────────────────────────────────
@@ -1958,6 +2001,11 @@ class HUD:
                               lr.y - 9))
             surf.blit(label, lr.topleft)
 
+        # Pip icons row — centred just below the score plate.
+        _draw_pip_lives_row(surf,
+                            getattr(world, "lives_remaining", LIVES_PER_RUN),
+                            LIVES_PER_RUN)
+
         # Active-buff timer bars — every active power-up gets its own
         # progress bar at the top of the screen with the buff's logo on the
         # left. Stacks vertically when multiple are active. Each bar's fill
@@ -2172,6 +2220,32 @@ class HUD:
             r = pygame.Rect(start_x + i * (tile_w + tile_gap), tile_y,
                             tile_w, tile_h)
             _stat_tile_chunky(surf, r, kind, val, lbl, subline=sub)
+
+        # Pip icons row + "CLEAN RUN!" badge below the stat tiles.
+        lives_used  = getattr(world, "lives_used",      0)
+        lives_total = getattr(world, "lives_remaining", 0) + lives_used
+        if lives_total == 0:
+            lives_total = LIVES_PER_RUN
+        _lives_y = tile_y + tile_h + 10
+        if lives_used == 0:
+            cf_clean = _font(15, True)
+            badge = cf_clean.render("✦  CLEAN RUN!", True, _GOLD_BRIGHT)
+            surf.blit(badge, badge.get_rect(center=(W // 2, _lives_y + 8)))
+        else:
+            lf = _font(13, True)
+            lbl_surf = lf.render("LIVES", True, _GOLD_MUTED)
+            lives_remaining = lives_total - lives_used
+            icon = _get_pip_icon(True)
+            iw, ih = icon.get_size()
+            gap = 8
+            icons_w = lives_total * iw + (lives_total - 1) * gap
+            row_w = lbl_surf.get_width() + 6 + icons_w
+            sx = (W - row_w) // 2
+            surf.blit(lbl_surf, lbl_surf.get_rect(midleft=(sx, _lives_y + 6)))
+            hx = sx + lbl_surf.get_width() + 6
+            for i in range(lives_total):
+                ico = _get_pip_icon(i < lives_remaining)
+                surf.blit(ico, (hx + i * (iw + gap), _lives_y + 6 - ih // 2))
 
         # Power-ups row — Variant C "Horizontal Pills": each power-up
         # rendered as a navy gold-bordered chip with [icon | ×N] laid

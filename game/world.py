@@ -39,6 +39,7 @@ from game.config import (
     HEELFLIP_DURATION, HEELFLIP_TAP_GAP_MIN, HEELFLIP_TAP_GAP_MAX,
     POPSHUVIT_DURATION, POPSHUVIT_TAP_GAP_MIN, POPSHUVIT_TAP_GAP_MAX,
     KNIGHT_DURATION, KNIGHT_INVULN,
+    LIVES_PER_RUN, LIVES_INVULN_DUR, LIVES_FLICKER_HZ,
     UMBRELLA_DURATION, UMBRELLA_SPAWN_PILLARS,
     DEATH_FADE_DURATION,
     TREASURE_BOX_GRANT, TREASURE_BOX_ANIM_T,
@@ -238,6 +239,12 @@ class World:
         # collision grace.
         self.knight_timer = 0.0
         self.knight_invuln = 0.0
+        # LIVES: two hearts per run. Each pipe collision that would otherwise
+        # end the run spends one heart and calls _revive_life() instead of
+        # game_over. lives_invuln is the post-revive immunity countdown.
+        self.lives_remaining = LIVES_PER_RUN
+        self.lives_invuln    = 0.0
+        self.lives_used      = 0
         # UMBRELLA: independent power-up that cancels rain flap-dampening.
         # Spawned once per storm during the rain window; never in the regular
         # weighted pool or the surprise re-roll.
@@ -1989,6 +1996,15 @@ class World:
             self.bird.knight_active = self.knight_timer > 0
             if self.knight_invuln > 0:
                 self.knight_invuln = max(0.0, self.knight_invuln - dt)
+            if self.lives_invuln > 0:
+                self.lives_invuln = max(0.0, self.lives_invuln - dt)
+            # Sync flicker: bird is hidden on the second half of each
+            # LIVES_FLICKER_HZ period while the i-frame window is active.
+            _lperiod = 1.0 / LIVES_FLICKER_HZ
+            self.bird.lives_flicker_visible = (
+                self.lives_invuln <= 0
+                or (self.lives_invuln % _lperiod) < _lperiod * 0.5
+            )
             if self.umbrella_timer > 0:
                 self.umbrella_timer = max(0.0, self.umbrella_timer - dt)
             self.bird.umbrella_active = self.umbrella_timer > 0
@@ -2149,6 +2165,10 @@ class World:
         # KNIGHT grace: brief window after a revive where Pip is immune to
         # ground + pipe collisions so he can clear the obstacle that hit him.
         if self.knight_invuln > 0:
+            return
+        # LIVES grace: same immunity window granted after spending a heart,
+        # so Pip has time to fly clear of the pipe that hit him.
+        if self.lives_invuln > 0:
             return
         # SKATEBOARD ramp surface: while skating, snap Pip to any wedge
         # he's currently over so he rolls UP the slope, before the
@@ -2349,6 +2369,10 @@ class World:
             self.bird.poison_active = False
             self.bird.poison_t = 0.0
             self._revive_knight()
+            return
+        # LIVES revive: spend a heart instead of ending the run.
+        if self.lives_remaining > 0:
+            self._revive_life()
             return
         # Wall of Shame: snapshot the death-moment context while effect state is
         # still live (read post-death by achievements.evaluate_run). Only a real
@@ -3098,6 +3122,32 @@ class World:
         self.float_texts.append(FloatText(
             "+1 LIFE", m.x, m.y - 26, KNIGHT_GOLD,
             size=30, life=1.4, vy=-32, style="powerup",
+        ))
+
+    def _revive_life(self):
+        """Spend one heart: grant collision immunity, kick upward, fire a
+        modest burst so the player reads it as a recoverable hit, not death."""
+        self.lives_remaining -= 1
+        self.lives_used      += 1
+        self.lives_invuln     = LIVES_INVULN_DUR
+        self.bird.vy          = FLAP_V * 0.7
+        self.hit_flash        = 0.20
+        self.shake_mag        = max(self.shake_mag, 4.0)
+        self.shake_t          = max(self.shake_t,   0.25)
+        audio.play_life_lost()
+        for _ in range(12):
+            ang = random.uniform(0, math.tau)
+            spd = random.uniform(80, 200)
+            self.particles.append(Particle(
+                self.bird.x, self.bird.y,
+                math.cos(ang) * spd, math.sin(ang) * spd,
+                random.uniform(0.35, 0.8), random.randint(2, 4),
+                random.choice(((255, 160, 30), (255, 220, 60), (255, 255, 200))),
+                gravity=500,
+            ))
+        self.float_texts.append(FloatText(
+            "♥ -1 LIFE", self.bird.x, self.bird.y - 40, (220, 60, 80),
+            size=26, life=1.2, vy=-60, style="powerup",
         ))
 
     def _revive_knight(self):

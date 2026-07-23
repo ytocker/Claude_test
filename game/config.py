@@ -213,6 +213,15 @@ HEELFLIP_DURATION     = 0.55
 KNIGHT_DURATION     = 30.0
 KNIGHT_INVULN       = 1.5
 
+# LIVES — every run starts with LIVES_PER_RUN hearts. A pipe collision that
+# would otherwise end the run instead spends one heart and grants
+# LIVES_INVULN_DUR seconds of full collision immunity so Pip can clear the
+# obstacle that hit him. LIVES_FLICKER_HZ is the opacity-toggle rate of the
+# bird sprite during that grace window (classic i-frame signal).
+LIVES_PER_RUN    = 2
+LIVES_INVULN_DUR = 1.5
+LIVES_FLICKER_HZ = 10
+
 # ── CLOWN EVENT ──────────────────────────────────────────────────────────────
 # A scripted set-piece inserted into every biome day: a tight "warren" gauntlet
 # of fused staff-pillars. It starts at CLOWN_START_PILLAR and RESERVES a fixed
