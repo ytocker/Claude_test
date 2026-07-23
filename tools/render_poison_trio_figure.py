@@ -1,17 +1,13 @@
-"""Poison final-state diagnostic grid.
+"""Poison final-state verification grid for the 3 body-recoloring costume skins.
 
-3 rows × 2 columns:
-  Rows: skin_base (Base Macaw), skin_wizard (Wizard), skin_bluegold (Blue Macaw)
-  Cols: Normal, Poison (final)
-
-Poison final = the bespoke P_CHARTREUSE death sprite for skin_base;
-               parrot-body pixels greenified, accessories kept for costume skins;
-               full greenify for parrot-group skins.
+3 rows (Viking, Ninja, Gentleman) × 2 columns (Normal, Poison final).
+These skins recolor the entire parrot body before adding accessories, requiring
+a body-only reference frame for correct poison compositing.
 
 Run from the repo root or from tools/:
-    python tools/render_poison_figure.py
+    python tools/render_poison_trio_figure.py
 
-Output: docs/poison_diagnostic_vN.png (auto-incremented)
+Output: docs/poison_trio_vN.png (auto-incremented)
 """
 import os
 import sys
@@ -25,13 +21,12 @@ import pygame  # noqa: E402
 pygame.init()
 pygame.display.set_mode((1, 1))
 
-from game.entities import Bird        # noqa: E402
-from game import parrot               # noqa: E402
-from game.store_catalog import CATALOG  # noqa: E402
+from game.entities import Bird  # noqa: E402
+from game import parrot         # noqa: E402
 from game.store_skins import _ninja_base, _viking_base, _tophat_base  # noqa: E402
 from game.parrot import _add_outline as _parrot_add_outline            # noqa: E402
 
-# ── Layout constants (mirror render_interaction_figure.py) ───────────────────
+# ── Layout constants ──────────────────────────────────────────────────────────
 LABEL_W = 130
 CELL_W  = 96
 CELL_H  = 120
@@ -40,12 +35,12 @@ MARGIN  = 10
 BG      = (22, 26, 36)
 
 SKIN_ROWS = [
-    ("skin_base",    "Base Macaw"),
-    ("skin_wizard",  "Wizard"),
-    ("skin_bluegold","Blue Macaw"),
+    ("skin_viking", "Viking"),
+    ("skin_ninja",  "Ninja"),
+    ("skin_tophat", "Gentleman"),
 ]
 EFF_COLS = [
-    ("Normal",        "normal"),
+    ("Normal",         "normal"),
     ("Poison (final)", "poison"),
 ]
 
@@ -57,8 +52,7 @@ TITLE_H = 28
 TOTAL_W = GRID_W
 TOTAL_H = MARGIN + TITLE_H + GRID_H + MARGIN
 
-
-# ── Body-only frames for body-recoloring costume skins ───────────────────────
+# ── Body-only frames ──────────────────────────────────────────────────────────
 
 _BODY_ONLY_BASES = {
     "skin_ninja":  _ninja_base,
@@ -75,7 +69,7 @@ def _get_body_only(skin_id):
     return _body_only_cache[skin_id]
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def fill_sky(surf):
     w, h = surf.get_size()
@@ -89,26 +83,15 @@ def fill_sky(surf):
 
 
 def _poison_costume(skin_id):
-    """68×104 surface: dead P_CHARTREUSE parrot (X-eyes) + accessory pixels.
-
-    For body-recoloring skins (ninja, viking, tophat) compares against the
-    skin's own body-only frame so costume body paint turns green correctly.
-    Other skins use Manhattan distance from the scarlet base macaw as before.
-    """
     PARROT_DY = 20
     dead_frame = parrot.get_poisoned_parrot(1, 0.0)
     base_frame = parrot.get_skin_frame("skin_base", 1, 0.0)
     skin_frame = parrot.get_skin_frame(skin_id, 1, 0.0)
 
-    if skin_id in _BODY_ONLY_BASES:
-        ref = _get_body_only(skin_id)
-        def _is_acc(x, y, sr, sg, sb):
-            r0, g0, b0, _ = ref.get_at((x, y))
-            return abs(sr - r0) + abs(sg - g0) + abs(sb - b0) >= 80
-    else:
-        def _is_acc(x, y, sr, sg, sb):
-            r0, g0, b0, _ = base_frame.get_at((x, y - PARROT_DY))
-            return abs(sr - r0) + abs(sg - g0) + abs(sb - b0) >= 80
+    ref = _get_body_only(skin_id)
+    def _is_acc(x, y, sr, sg, sb):
+        r0, g0, b0, _ = ref.get_at((x, y))
+        return abs(sr - r0) + abs(sg - g0) + abs(sb - b0) >= 80
 
     canvas = pygame.Surface(skin_frame.get_size(), pygame.SRCALPHA)
     canvas.blit(dead_frame, (0, PARROT_DY))
@@ -132,13 +115,8 @@ def _poison_costume(skin_id):
 def render_cell(skin_id, effect):
     cell = pygame.Surface((CELL_W, CELL_H))
     fill_sky(cell)
-
     if effect == "poison":
-        group = CATALOG.get(skin_id, {}).get("group", "parrot")
-        if group == "costume":
-            img = _poison_costume(skin_id)
-        else:
-            img = parrot.get_poisoned_parrot(1, 0.0)
+        img = _poison_costume(skin_id)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, CELL_H // 2)))
     else:
         b = Bird()
@@ -148,11 +126,10 @@ def render_cell(skin_id, effect):
         b.equipped_skin = skin_id
         b.rebuild_skin_combos()
         b.draw(cell, 0, 0)
-
     return cell
 
 
-# ── Canvas ───────────────────────────────────────────────────────────────────
+# ── Canvas ────────────────────────────────────────────────────────────────────
 
 canvas = pygame.Surface((TOTAL_W, TOTAL_H))
 canvas.fill(BG)
@@ -162,7 +139,7 @@ font_hdr   = pygame.font.SysFont("monospace", 11, bold=True)
 font_row   = pygame.font.SysFont("monospace", 11, bold=True)
 
 canvas.blit(
-    font_title.render("Poison final state: parrot body only → P_CHARTREUSE", True, (240, 235, 180)),
+    font_title.render("Body-recoloring skins — Poison verification", True, (240, 235, 180)),
     (MARGIN, MARGIN + 6),
 )
 
@@ -194,7 +171,7 @@ pygame.draw.rect(
     (LABEL_W, grid_top, N_COLS * CELL_W, N_ROWS * CELL_H), 2,
 )
 
-# ── Save ─────────────────────────────────────────────────────────────────────
+# ── Save ──────────────────────────────────────────────────────────────────────
 
 BRANCH = "claude/v5-item-interactions-f8eeqx"
 repo   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -204,11 +181,11 @@ import re as _re
 _existing = [
     int(m.group(1))
     for f in os.listdir(docs)
-    for m in [_re.search(r"poison_diagnostic_v(\d+)\.png", f)]
+    for m in [_re.search(r"poison_trio_v(\d+)\.png", f)]
     if m
 ]
 _next = (max(_existing) + 1) if _existing else 1
-FILENAME   = f"poison_diagnostic_v{_next}.png"
+FILENAME   = f"poison_trio_v{_next}.png"
 GITHUB_URL = f"https://github.com/ytocker/skybit/blob/{BRANCH}/docs/{FILENAME}"
 
 out = os.path.join(docs, FILENAME)

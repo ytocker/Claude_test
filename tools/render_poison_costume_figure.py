@@ -22,6 +22,8 @@ pygame.display.set_mode((1, 1))
 
 from game.entities import Bird  # noqa: E402
 from game import parrot         # noqa: E402
+from game.store_skins import _ninja_base, _viking_base, _tophat_base  # noqa: E402
+from game.parrot import _add_outline as _parrot_add_outline            # noqa: E402
 
 # ── Layout constants (mirror render_poison_figure.py) ────────────────────────
 LABEL_W = 130
@@ -61,6 +63,23 @@ TOTAL_W = GRID_W
 TOTAL_H = MARGIN + TITLE_H + GRID_H + MARGIN
 
 
+# ── Body-only frames for body-recoloring costume skins ───────────────────────
+
+_BODY_ONLY_BASES = {
+    "skin_ninja":  _ninja_base,
+    "skin_viking": _viking_base,
+    "skin_tophat": _tophat_base,
+}
+_body_only_cache = {}
+
+def _get_body_only(skin_id):
+    if skin_id not in _body_only_cache:
+        comp = pygame.Surface((64, 100), pygame.SRCALPHA)
+        comp.blit(_BODY_ONLY_BASES[skin_id](20), (0, 20))  # frame_idx=1 → wing_angle=20
+        _body_only_cache[skin_id] = _parrot_add_outline(comp)
+    return _body_only_cache[skin_id]
+
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def fill_sky(surf):
@@ -75,18 +94,26 @@ def fill_sky(surf):
 
 
 def _poison_costume(skin_id):
-    """68×104 surface: dead P_CHARTREUSE parrot (X-eyes) + original costume accessories.
+    """68×104 surface: dead P_CHARTREUSE parrot (X-eyes) + accessory pixels.
 
-    Blits the dead macaw (X-eyes, no lenses) at the same y-offset as the costume's
-    living parrot, then overlays accessory pixels from the living skin frame.
-    A pixel is an accessory if the base macaw is transparent at that position (a0==0 —
-    e.g. the hat cone extends past the parrot silhouette) OR the colour differs from
-    the base macaw by Manhattan distance >= 80 (hat fill, robe, beard overtop the parrot).
+    For body-recoloring skins (ninja, viking, tophat) compares against the
+    skin's own body-only frame so costume body paint turns green correctly.
+    Other skins use Manhattan distance from the scarlet base macaw as before.
     """
     PARROT_DY = 20
-    dead_frame = parrot.get_poisoned_parrot(1, 0.0)          # 68×64, X-eyes + tongue
-    base_frame = parrot.get_skin_frame("skin_base", 1, 0.0)  # 68×64 reference
-    skin_frame = parrot.get_skin_frame(skin_id, 1, 0.0)      # 68×104
+    dead_frame = parrot.get_poisoned_parrot(1, 0.0)
+    base_frame = parrot.get_skin_frame("skin_base", 1, 0.0)
+    skin_frame = parrot.get_skin_frame(skin_id, 1, 0.0)
+
+    if skin_id in _BODY_ONLY_BASES:
+        ref = _get_body_only(skin_id)
+        def _is_acc(x, y, sr, sg, sb):
+            r0, g0, b0, _ = ref.get_at((x, y))
+            return abs(sr - r0) + abs(sg - g0) + abs(sb - b0) >= 80
+    else:
+        def _is_acc(x, y, sr, sg, sb):
+            r0, g0, b0, _ = base_frame.get_at((x, y - PARROT_DY))
+            return abs(sr - r0) + abs(sg - g0) + abs(sb - b0) >= 80
 
     canvas = pygame.Surface(skin_frame.get_size(), pygame.SRCALPHA)
     canvas.blit(dead_frame, (0, PARROT_DY))
@@ -96,17 +123,13 @@ def _poison_costume(skin_id):
     for x in range(fw):
         for y in range(fh):
             by = y - PARROT_DY
+            sr, sg, sb, sa = skin_frame.get_at((x, y))
             if by < 0 or by >= bh:
-                r, g, b, a = skin_frame.get_at((x, y))
-                if a > 0:
-                    canvas.set_at((x, y), (r, g, b, a))
+                if sa > 0:
+                    canvas.set_at((x, y), (sr, sg, sb, sa))
             else:
-                r0, g0, b0, a0 = base_frame.get_at((x, by))
-                sr, sg, sb, sa = skin_frame.get_at((x, y))
-                if sa > 0 and (
-                    a0 == 0
-                    or abs(sr - r0) + abs(sg - g0) + abs(sb - b0) >= 80
-                ):
+                _, _, _, a0 = base_frame.get_at((x, by))
+                if sa > 0 and (a0 == 0 or _is_acc(x, y, sr, sg, sb)):
                     canvas.set_at((x, y), (sr, sg, sb, sa))
     return canvas
 
