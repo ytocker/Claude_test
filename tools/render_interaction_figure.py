@@ -35,6 +35,7 @@ BG      = (22, 26, 36)
 
 # ── All 18 Parrots store items (skin_base prepended, rest sorted by cost) ───
 SKIN_ROWS = [
+    ("skin_base",        "Base Macaw"),
     ("skin_pirate",      "Pirate"),
     ("skin_cowboy",      "Cowboy"),
     ("skin_pharaoh",     "Pharaoh"),
