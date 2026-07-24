@@ -132,7 +132,7 @@ def make_params(s, cx):
     rim_rect      = (cx - r(21), -r(5), r(42), max(4, r(12)))
     stick_bottom  = r(18)
     hollow        = (cx - r(11), r(16), r(22), max(2, r(3)))
-    bird_h        = max(8, r(34))
+    bird_h        = 34   # parrot always full size; only nest scales
     return verts, courses, stick_wins, rim_rect, stick_bottom, hollow, bird_h
 
 
@@ -159,8 +159,7 @@ def make_draw_fn(s):
 
         # bird or hollow
         if alive:
-            drop = max(2, round(5 * s))
-            surf.blit(bird, (cx - bird_w // 2, cy - bird_h // 2 + drop))
+            surf.blit(bird, (cx - bird_w // 2, cy - bird_h // 2 + 5))
         else:
             hx, hy_off, hw, hh = hollow
             pygame.draw.rect(surf, HOLLOW_COL, (hx, cy + hy_off, hw, hh))
