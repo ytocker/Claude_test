@@ -997,6 +997,201 @@ def tint_copy(sprite, tint, strength):
     return out
 
 
+def _ghostify_in_place(sprite: "pygame.Surface") -> None:
+    """Replace the sprite's colour plate with the SPECTRAL ghost palette.
+
+    Desaturates to luminance-correct grayscale, then gradient-maps:
+      black  → SPECTRAL shadow  (40,  80, 140)
+      white  → SPECTRAL highlight (220, 240, 250)
+    The original skin's light/dark contrast is preserved as variation within
+    the blue range. Alpha is carried through unchanged.
+    """
+    gray = pygame.transform.grayscale(sprite)
+    # MULT scales [0,255] → [0,(180,160,110)]; ADD then lifts base to (40,80,140).
+    # Result: black→(40,80,140), white→(220,240,250) — the SPECTRAL palette range.
+    gray.fill((180, 160, 110, 255), special_flags=pygame.BLEND_MULT)
+    gray.fill(( 40,  80, 140,   0), special_flags=pygame.BLEND_ADD)
+    sprite.fill((0, 0, 0, 0))
+    sprite.blit(gray, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+
+# Crispy-parcel KFC cache — keyed by parcel_id; built once on first KFC pickup,
+# never invalidated (parcel art is deterministic so the same id always produces
+# the same surface).
+_PARCEL_KFC_CACHE: "dict[str, pygame.Surface]" = {}
+
+
+def _build_crispy_parcel(parcel_id: str, surf: pygame.Surface) -> pygame.Surface:
+    """Return an 'extra crispy' KFC version of a 22×22 parcel surface.
+
+    Samples the parcel's own dominant color and derives three crust tones from
+    it — a mid amber coat, a dark spot/crack shade, and a light grease sheen —
+    so every parcel gets a unique fried palette that harmonises with its own hue
+    rather than a uniform amber wash.
+    """
+    w, h = surf.get_size()
+    out = surf.copy()
+
+    # Sample opaque interior pixels (skip 3px outer ring to avoid outline bias).
+    margin = 3
+    samples: list = []
+    for px in range(margin, w - margin, 2):
+        for py in range(margin, h - margin, 2):
+            col = out.get_at((px, py))
+            if col[3] > 160:
+                samples.append(col[:3])
+    avg = (tuple(sum(c[i] for c in samples) // len(samples) for i in range(3))
+           if samples else _CRISPY_GOLD)
+
+    def _blend(a, b, t):
+        return tuple(int(a[i] * (1 - t) + b[i] * t) for i in range(3))
+
+    # Three crust tones: mid coat, dark spots/cracks, light sheen.
+    coat  = _blend(avg, _CRISPY_GOLD,  0.50)
+    dark  = _blend(avg, _CRISPY_DARK,  0.65)
+    light = _blend(avg, _CRISPY_LIGHT, 0.50)
+
+    # Amber base coat.
+    _cyan_tint_in_place(out, tint=coat, strength=0.48)
+
+    # Crispy spots — fixed relative positions so the pattern is consistent.
+    hw, hh = w // 2, h // 2
+    for sx, sy, sr in ((hw - 5, hh - 4, 2), (hw + 4, hh - 3, 1),
+                       (hw - 4, hh + 4, 1), (hw + 5, hh + 3, 2),
+                       (4,      hh,     1), (w - 5,  hh,     1)):
+        if 0 <= sx < w and 0 <= sy < h:
+            pygame.draw.circle(out, dark, (sx, sy), sr)
+
+    # Crackle lines — dark valley then light ridge.
+    for (x1, y1, x2, y2) in ((3, 5, 7, 3), (w - 4, h - 6, w - 8, h - 4)):
+        pygame.draw.line(out, dark,  (x1,     y1    ), (x2,     y2    ), 1)
+        pygame.draw.line(out, light, (x1 - 1, y1 - 1), (x2 - 1, y2 - 1), 1)
+
+    # Grease sheen ellipse — upper-centre.
+    sheen = pygame.Surface((10, 4), pygame.SRCALPHA)
+    pygame.draw.ellipse(sheen, (*light, 110), sheen.get_rect())
+    out.blit(sheen, (hw - 5, hh - 5))
+
+    return out
+
+
+def get_crispy_parcel(parcel_id: str, base_surf: pygame.Surface) -> pygame.Surface:
+    """Return a cached crispy-KFC parcel surface, building it on first call."""
+    s = _PARCEL_KFC_CACHE.get(parcel_id)
+    if s is None:
+        s = _build_crispy_parcel(parcel_id, base_surf)
+        _PARCEL_KFC_CACHE[parcel_id] = s
+    return s
+
+
+_PARCEL_GHOST_CACHE: "dict[str, pygame.Surface]" = {}
+
+
+def get_ghost_parcel(parcel_id: str) -> pygame.Surface:
+    """Return a SPECTRAL-blue ghost version of a custom parcel.
+
+    Built from the normal-mode surface so the cache is stable regardless of
+    whether KFC was active — ghost dominates KFC, matching bird behaviour.
+    """
+    s = _PARCEL_GHOST_CACHE.get(parcel_id)
+    if s is None:
+        src = get_parcel("normal", parcel_id)
+        s = src.copy()
+        _ghostify_in_place(s)
+        _PARCEL_GHOST_CACHE[parcel_id] = s
+    return s
+
+
+# Skin-power-up composite cache.
+# Baked at run-start (Bird.rebuild_skin_combos) for the one equipped custom
+# skin.  Seven flag combos x 4 wing angles stored at tilt=0; tilt rotation is
+# applied at lookup time so the rotated result fits the standard rounded-angle
+# cache already used by all other parrot getters.
+_SKIN_COMBOS: "dict[str, dict[tuple, list]]" = {}
+_SKIN_COMBO_ROT_CACHE: "dict[tuple, pygame.Surface]" = {}
+
+
+def build_skin_powerup_composites(skin_id: str) -> None:
+    """Pre-bake the 7 non-knight power-up combos x 4 frames for one skin.
+
+    No-ops for skin_base and any id absent from the store skin registry; those
+    fall through to the original bespoke cascade which already handles the base
+    macaw correctly.
+    """
+    global _SKIN_COMBOS, _SKIN_COMBO_ROT_CACHE
+    if _store_skin_builders().get(skin_id) is None:
+        _SKIN_COMBOS.pop(skin_id, None)
+        _SKIN_COMBO_ROT_CACHE = {}
+        return
+    from game.dollar_parrot_hat import (
+        draw_stovepipe, draw_stovepipe_kfc, draw_stovepipe_ghost,
+    )
+
+
+    combos: "dict[tuple, list]" = {}
+    for kfc_f in (False, True):
+        for ghost_f in (False, True):
+            for triple_f in (False, True):
+                if not (kfc_f or ghost_f or triple_f):
+                    continue
+                frames = []
+                for fi in range(4):
+                    img = get_skin_frame(skin_id, fi, 0.0).copy()
+                    iw, ih = img.get_size()
+                    # Standard 68×104 skin: ax=0, ay=20 (= PARROT_DY).
+                    # Zombie 100×96 (16 px aura on every side): ax=ay=16.
+                    # The same formula aligns both KFC overlay and hat anchor
+                    # without any per-skin branching.
+                    ax = (iw - 68) // 2  # used by triple hat anchor
+                    ay = (ih - 64) // 2
+                    if kfc_f:
+                        # KFC shows only the fried body — erase skin so nothing bleeds through.
+                        img.fill((0, 0, 0, 0))
+                        kfc_frame = _get_kfc_frames()[fi].copy()
+                        img.blit(kfc_frame, (ax, ay))
+                    if triple_f:
+                        # $ stovepipe hat: brim always at (ax+50, ay+12) in canvas coords.
+                        # In KFC+triple, the fried head is anchored at ay+11 regardless of scale.
+                        hat_fn = (draw_stovepipe_kfc   if kfc_f
+                                  else draw_stovepipe_ghost if ghost_f
+                                  else draw_stovepipe)
+                        if kfc_f:
+                            hat_fn(img, ax + 50, ay + 12)
+                        else:
+                            hat_fn(img, 49 + ax, 12 + ay)
+                    if ghost_f:
+                        # Full SPECTRAL palette replacement: kills original hues,
+                        # gradient-maps luminance to the ghost blue range (40,80,140)→(220,240,250).
+                        _ghostify_in_place(img)
+                    frames.append(img)
+                combos[(kfc_f, ghost_f, triple_f)] = frames
+    _SKIN_COMBOS[skin_id] = combos
+    _SKIN_COMBO_ROT_CACHE = {}
+
+
+def get_skin_combo_frame(
+    skin_id: str, kfc: bool, ghost: bool, triple: bool,
+    frame_idx: int, tilt_deg: float,
+) -> "pygame.Surface | None":
+    """Return the pre-baked composite for the given flags, or None to fall back."""
+    combos = _SKIN_COMBOS.get(skin_id)
+    if combos is None:
+        return None
+    frames = combos.get((kfc, ghost, triple))
+    if frames is None:
+        return None
+    fi = frame_idx % 4
+    rounded = int(round(tilt_deg / 3.0)) * 3
+    key = (skin_id, kfc, ghost, triple, fi, rounded)
+    s = _SKIN_COMBO_ROT_CACHE.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[fi], rounded, 1.0)
+        _SKIN_COMBO_ROT_CACHE[key] = s
+    return s
+
+
+
+
 # kfc + triple — fried bird + crispy KFC hat
 _kfc_hat_frames: "list | None" = None
 _kfc_hat_cache: dict = {}

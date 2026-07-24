@@ -971,6 +971,7 @@ class App:
         b = self.world.bird
         b.equipped_skin = store_data.equipped("skin") or "skin_base"
         b.equipped_parcel = store_data.equipped("parcel") or "parcel_base"
+        b.rebuild_skin_combos()
 
     def _start_play(self):
         # On the event-test branch the demo is the ONLY mode — every run

@@ -28,6 +28,7 @@ from game.draw import (
 )
 from game import parrot
 from game import snow_fx
+from game.store_catalog import CATALOG as _CATALOG
 from game.pillar_pagodas import (draw_pillar_pair,
                                  CANDIDATES, VARIANT_KEYS, VARIANT_COUNT)
 
@@ -492,6 +493,7 @@ class Bird:
         # and equipped_parcel swaps the gift Pip carries.
         self.equipped_skin = "skin_base"
         self.equipped_parcel = "parcel_base"
+        self._skin_combos_built_for: "str | None" = None
         self.flap_boost = 0.0
         self.kfc_active = False
         self.ghost_active = False
@@ -596,6 +598,16 @@ class Bird:
             self.vy = FLAP_V * gravity_sign * (1.0 - self.flap_dampen)
             self.flap_boost = 0.45
 
+    def rebuild_skin_combos(self) -> None:
+        """Pre-bake power-up composites for the currently equipped skin.
+
+        Called once at run-start so tint ops don't spike during gameplay
+        (especially critical on WASM where tinting runs 4-8x slower).
+        No-ops for skin_base — the bespoke cascade handles the base macaw.
+        """
+        parrot.build_skin_powerup_composites(self.equipped_skin)
+        self._skin_combos_built_for = self.equipped_skin
+
     def update(self, dt, gravity_sign=1):
         new_vy = self.vy + GRAVITY * gravity_sign * dt
         if gravity_sign >= 0:
@@ -683,40 +695,69 @@ class Bird:
             img = parrot.get_knight_hat_parrot(frame_idx, tilt)
         elif self.knight_active:
             img = parrot.get_knight_parrot(frame_idx, tilt)
-        elif self.kfc_active and self.ghost_active and triple_vis:
-            img = parrot.get_kfc_ghost_hat_parrot(frame_idx, tilt)
-        elif self.kfc_active and self.ghost_active:
-            img = parrot.get_kfc_ghost_parrot(frame_idx, tilt)
-        elif self.kfc_active and triple_vis:
-            img = parrot.get_kfc_hat_parrot(frame_idx, tilt)
-        elif self.ghost_active and triple_vis:
-            img = parrot.get_ghost_hat_parrot(frame_idx, tilt)
-        elif self.kfc_active:
-            img = parrot.get_fried_parrot(frame_idx, tilt)
-        elif self.ghost_active:
-            img = parrot.get_ghost_parrot(frame_idx, tilt)
-        elif triple_vis:
-            img = parrot.get_hat_parrot(frame_idx, tilt)
+        elif self.kfc_active or self.ghost_active or triple_vis:
+            # Non-knight power-up combo: try the pre-baked composite for the
+            # equipped custom skin first; fall back to the bespoke base-macaw
+            # sprites when no custom skin is equipped (skin_base path).
+            _combo = (
+                parrot.get_skin_combo_frame(
+                    self.equipped_skin,
+                    bool(self.kfc_active), bool(self.ghost_active), bool(triple_vis),
+                    frame_idx, tilt,
+                )
+                if self._skin_combos_built_for == self.equipped_skin
+                else None
+            )
+            if _combo is not None:
+                img = _combo
+            elif self.kfc_active and self.ghost_active and triple_vis:
+                img = parrot.get_kfc_ghost_hat_parrot(frame_idx, tilt)
+            elif self.kfc_active and self.ghost_active:
+                img = parrot.get_kfc_ghost_parrot(frame_idx, tilt)
+            elif self.kfc_active and triple_vis:
+                img = parrot.get_kfc_hat_parrot(frame_idx, tilt)
+            elif self.ghost_active and triple_vis:
+                img = parrot.get_ghost_hat_parrot(frame_idx, tilt)
+            elif self.kfc_active:
+                img = parrot.get_fried_parrot(frame_idx, tilt)
+            elif self.ghost_active:
+                img = parrot.get_ghost_parrot(frame_idx, tilt)
+            else:
+                img = parrot.get_hat_parrot(frame_idx, tilt)
         elif self.grow_active:
-            # Hi-res grow-mode bird: pre-built at full grow display size by
-            # `parrot._build_grow_frame` (round-9 v3 = 3× supersample → 1.5×
-            # downscale). Skips the smoothscale-up that produced the prior
-            # blur. Combo modes (kfc / ghost / triple + grow) still use
-            # the legacy upscale below — they pre-empt this branch.
-            img = parrot.get_grow_parrot(frame_idx, tilt)
+            if self.equipped_skin == "skin_base":
+                # Hi-res grow-mode bird: pre-built at full grow display size by
+                # `parrot._build_grow_frame` (round-9 v3 = 3× supersample → 1.5×
+                # downscale). Skips the smoothscale-up that produced the prior
+                # blur. Combo modes (kfc / ghost / triple + grow) still use
+                # the legacy upscale below — they pre-empt this branch.
+                img = parrot.get_grow_parrot(frame_idx, tilt)
+            else:
+                # Costume skin: no hi-res grow variant; scale up the skin frame.
+                from game.config import GROW_SCALE
+                img = parrot.get_skin_frame(self.equipped_skin, frame_idx, tilt)
+                iw, ih = img.get_size()
+                img = pygame.transform.smoothscale(
+                    img, (int(iw * GROW_SCALE), int(ih * GROW_SCALE)))
         else:
             # No power-up skin active: draw the equipped COSMETIC skin (the
             # store loadout). Unknown ids degrade to the base parrot inside
             # get_skin_frame, so a stale save never crashes the draw.
             img = parrot.get_skin_frame(self.equipped_skin, frame_idx, tilt)
-        # POISON — generic chartreuse tint over whichever skin the cascade
-        # chose (mask-clamped to the silhouette, ramped by poison_t), so the
-        # poisoning reads on kfc/ghost/knight/hat rather than swapping to a
-        # fixed sprite. The terminal death overlay (below) still carries the
-        # X-eyes when the kill finally fires.
+        # POISON — chartreuse tint while ramping; full dead composite at peak.
+        # Costume skins preserve accessories over the P_CHARTREUSE body; all
+        # other skins (parrot species, animals, base) use the bespoke dead sprite.
         if self.poison_active and self.poison_t > 0.0:
-            img = parrot.tint_copy(img, (180, 225, 75),
-                                   min(0.78, 0.78 * self.poison_t))
+            if self.poison_t >= 1.0:
+                from game import store_skins
+                if _CATALOG.get(self.equipped_skin, {}).get("group") == "costume":
+                    img = store_skins.get_poisoned_costume_frame(
+                        self.equipped_skin, frame_idx, tilt)
+                else:
+                    img = parrot.get_poisoned_parrot(frame_idx, tilt)
+            else:
+                img = parrot.tint_copy(img, (180, 225, 75),
+                                       min(0.78, 0.78 * self.poison_t))
         if self.grow_active and (self.kfc_active or self.ghost_active
                                   or triple_vis or self.knight_active):
             # Combo + grow: smoothscale-up the variant sprite. No hi-res
@@ -857,15 +898,20 @@ class Bird:
         # Parcel — Pip's permanent companion. Tucked below his centre with
         # a tilt-aware offset so it banks with him; mode-coloured to match
         # the active palette; alpha-breathes in ghost mode; grow-scaled.
-        if self.kfc_active:
-            mode = "kfc"
-        elif self.ghost_active:
+        if self.ghost_active:
             mode = "ghost"
+        elif self.kfc_active:
+            mode = "kfc"
         elif self.triple_active:
             mode = "triple"
         else:
             mode = "normal"
+        base_parcel = self.equipped_parcel in (None, "parcel_base")
         parcel = parrot.get_parcel(mode, self.equipped_parcel)
+        if self.kfc_active and not base_parcel:
+            parcel = parrot.get_crispy_parcel(self.equipped_parcel, parcel)
+        if self.ghost_active and not base_parcel and not skeleton_visible:
+            parcel = parrot.get_ghost_parcel(self.equipped_parcel)
         from game.config import GROW_SCALE, PARCEL_Y_OFFSET
         scale = GROW_SCALE if self.grow_active else 1.0
         if scale != 1.0:
@@ -895,7 +941,6 @@ class Bird:
         # — fades in only at high load, matched to the parcel's transform chain.
         # The cap is shaped for the default kraft box, so it's skipped for an
         # equipped custom parcel rather than draping box-snow over a balloon.
-        base_parcel = self.equipped_parcel in (None, "parcel_base")
         if base_parcel and self.snow_load > snow_fx.PARCEL_ONSET and not skeleton_visible:
             pov = snow_fx.get_parcel_snow(mode, self.snow_load)
             if pov is not None:
