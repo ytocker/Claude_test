@@ -58,48 +58,171 @@ _NIGHT_DEEP     = (  6,   1,  21)   # #060115
 
 _fonts: dict = {}
 
-# ── Pip (parrot) life-icon ────────────────────────────────────────────────────
-_PIP_ICON_H    = 24   # icon height in HUD screen pixels
+# ── V15 smooth-taper-weave nest (s=0.80, nest-only scale) ────────────────────
 _PIP_ICON_ALIVE: "pygame.Surface | None" = None
 _PIP_ICON_SPENT: "pygame.Surface | None" = None
 
+_NEST_S          = 0.80
+_NEST_CX         = 31
+_NEST_CY_LIST    = [73, 113]
+_NEST_PANEL_DARK   = (12, 8, 38)
+_NEST_GOLD_BRIGHT  = (240, 192, 64)
+_NEST_OUTER_SHADOW = (4, 4, 12)
+_NEST_TWIG_BRIGHT  = (160, 110, 55)
+_NEST_TWIG_MID     = (110, 75, 35)
+_NEST_TWIG_DARK    = (70, 45, 18)
+_NEST_STICK_COL    = (130, 90, 42)
+_NEST_STICK_HI     = (170, 120, 60)
+_NEST_STICK_SH     = (80,  55, 22)
+_NEST_COURSE_TOP   = (180, 130, 65)
+_NEST_COURSE_BOT   = (80,  55, 22)
+_NEST_HOLLOW_COL   = (50,  35, 14)
+_NEST_STICK_X_OFF  = (-1, 0, 1, 2)
 
-def _get_pip_icon(filled: bool) -> "pygame.Surface":
-    """Tiny Pip icon for the lives row. Filled = alive, dim = spent life."""
-    global _PIP_ICON_ALIVE, _PIP_ICON_SPENT
-    if filled and _PIP_ICON_ALIVE is not None:
-        return _PIP_ICON_ALIVE
-    if not filled and _PIP_ICON_SPENT is not None:
-        return _PIP_ICON_SPENT
+_nest_bird: "pygame.Surface | None" = None
+_nest_bird_w: int = 0
+_nest_bird_h: int = 34
+_nest_params: "tuple | None" = None
 
-    src = parrot._get_frames()[1]   # mid-wing-up: neutral glide pose
-    h   = _PIP_ICON_H
-    w   = max(1, int(src.get_width() * h / src.get_height()))
-    scaled = pygame.transform.smoothscale(src, (w, h))
 
-    if filled:
-        _PIP_ICON_ALIVE = scaled
-        return scaled
+def _nest_cy_sag(x, x1, x2, base_y, sag):
+    half_w = (x2 - x1) / 2.0
+    if half_w <= 0:
+        return base_y
+    t = ((x - x1) / half_w) - 1.0
+    return base_y + int(round(sag * (1.0 - t * t)))
 
-    # Spent life: darken + partial transparency via RGBA multiply
-    dim = scaled.copy()
-    darken = pygame.Surface((w, h), pygame.SRCALPHA)
-    darken.fill((100, 95, 115, 110))
-    dim.blit(darken, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-    _PIP_ICON_SPENT = dim
-    return dim
+
+def _nest_stick_row(surf, vx, y):
+    surf.set_at((vx - 1, y), _NEST_STICK_HI)
+    surf.set_at((vx,     y), _NEST_STICK_COL)
+    surf.set_at((vx + 1, y), _NEST_STICK_COL)
+    surf.set_at((vx + 2, y), _NEST_STICK_SH)
+
+
+def _nest_stick_span(surf, vx, y1, y2):
+    for y in range(y1, y2 + 1):
+        _nest_stick_row(surf, vx, y)
+
+
+def _nest_course_col(surf, x, x1, x2, base_y, sag, mid_col):
+    y = _nest_cy_sag(x, x1, x2, base_y, sag)
+    surf.set_at((x, y),     _NEST_COURSE_TOP)
+    surf.set_at((x, y + 1), mid_col)
+    surf.set_at((x, y + 2), mid_col)
+    surf.set_at((x, y + 3), _NEST_COURSE_BOT)
+
+
+def _nest_course_full(surf, x1, x2, base_y, sag, mid_col, skip_xs):
+    skip_set = set()
+    for sx in skip_xs:
+        for dx in _NEST_STICK_X_OFF:
+            skip_set.add(sx + dx)
+    for x in range(x1, x2 + 1):
+        if x not in skip_set:
+            _nest_course_col(surf, x, x1, x2, base_y, sag, mid_col)
+
+
+def _nest_course_at_vx(surf, vx, x1, x2, base_y, sag, mid_col):
+    for dx in _NEST_STICK_X_OFF:
+        x = vx + dx
+        if x1 <= x <= x2:
+            _nest_course_col(surf, x, x1, x2, base_y, sag, mid_col)
+
+
+def _nest_stick_at_course(surf, vx, x1, x2, base_y, sag):
+    y_top = _nest_cy_sag(vx, x1, x2, base_y, sag)
+    for y in range(y_top, y_top + 4):
+        _nest_stick_row(surf, vx, y)
+
+
+def _nest_notches(surf, cy, courses, stick_wins):
+    for ci, (offset, col, x1, x2, sag) in enumerate(courses):
+        base_y = cy + offset
+        for (cii, vx), wins in stick_wins.items():
+            if cii != ci:
+                continue
+            y_cross = _nest_cy_sag(vx, x1, x2, base_y, sag)
+            if wins:
+                for x in [vx - 2, vx + 3]:
+                    if x1 <= x <= x2:
+                        surf.set_at((x, y_cross + 1), _NEST_TWIG_DARK)
+                        surf.set_at((x, y_cross + 2), _NEST_TWIG_DARK)
+            else:
+                for dy in (-1, 4):
+                    surf.set_at((vx,     y_cross + dy), _NEST_TWIG_DARK)
+                    surf.set_at((vx + 1, y_cross + dy), _NEST_TWIG_DARK)
+
+
+def _nest_weave(surf, cy, ci_range, courses, stick_wins):
+    for ci in ci_range:
+        offset, col, x1, x2, sag = courses[ci]
+        base_y = cy + offset
+        skip = [vx for (cii, vx), wins in stick_wins.items()
+                if cii == ci and wins]
+        _nest_course_full(surf, x1, x2, base_y, sag, col, skip_xs=skip)
+        for (cii, vx), wins in stick_wins.items():
+            if cii == ci and not wins:
+                _nest_course_at_vx(surf, vx, x1, x2, base_y, sag, col)
+
+
+def _nest_get_params():
+    global _nest_params, _nest_bird, _nest_bird_w
+    if _nest_params is not None:
+        return _nest_params
+    s  = _NEST_S
+    cx = _NEST_CX
+    r  = lambda v: round(v * s)
+    verts = [cx - r(9), cx + r(9)]
+    courses = [
+        (r(2),  _NEST_TWIG_BRIGHT, cx - r(21), cx + r(21), max(1, r(2))),
+        (r(6),  _NEST_TWIG_MID,    cx - r(20), cx + r(20), max(1, r(2))),
+        (r(10), _NEST_TWIG_BRIGHT, cx - r(18), cx + r(18), max(1, r(2))),
+        (r(14), _NEST_TWIG_MID,    cx - r(16), cx + r(16), max(1, r(2))),
+        (r(18), _NEST_TWIG_BRIGHT, cx - r(14), cx + r(14), max(1, r(3))),
+    ]
+    vxL, vxR = verts
+    stick_wins = {(ci, vxL): (ci % 2 == 0) for ci in range(5)}
+    stick_wins.update({(ci, vxR): (ci % 2 == 1) for ci in range(5)})
+    rim_rect     = (cx - r(21), -r(5), r(42), max(4, r(12)))
+    stick_bottom = r(18)
+    hollow       = (cx - r(11), r(16), r(22), max(2, r(3)))
+    _nest_params = (verts, courses, stick_wins, rim_rect, stick_bottom, hollow)
+    src = parrot._get_frames()[1]
+    _nest_bird_w = max(1, int(src.get_width() * _nest_bird_h / src.get_height()))
+    _nest_bird = pygame.transform.smoothscale(src, (_nest_bird_w, _nest_bird_h))
+    return _nest_params
+
+
+def _nest_draw_slot(surf, cy, alive):
+    verts, courses, stick_wins, rim_rect, stick_bottom, hollow = _nest_get_params()
+    cx = _NEST_CX
+    rx, ry_off, rw, rh = rim_rect
+    pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
+    for vx in verts:
+        _nest_stick_span(surf, vx, cy, cy + stick_bottom)
+    _nest_weave(surf, cy, (0, 1), courses, stick_wins)
+    if alive:
+        surf.blit(_nest_bird, (cx - _nest_bird_w // 2, cy - _nest_bird_h // 2 + 5))
+    else:
+        hx, hy_off, hw, hh = hollow
+        pygame.draw.rect(surf, _NEST_HOLLOW_COL, (hx, cy + hy_off, hw, hh))
+    _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
+    for ci in (2, 3, 4):
+        offset, col, x1, x2, sag = courses[ci]
+        base_y = cy + offset
+        for (cii, vx), wins in stick_wins.items():
+            if cii == ci and wins:
+                _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
+    _nest_notches(surf, cy, courses, stick_wins)
 
 
 def _draw_pip_lives_row(surf, lives_remaining, lives_total, cy=106):
-    """Centred row of Pip icons just below the score plate."""
-    icon = _get_pip_icon(True)
-    iw, ih = icon.get_size()
-    gap = 8
-    total_w = lives_total * iw + (lives_total - 1) * gap
-    sx = (W - total_w) // 2
-    for i in range(lives_total):
-        ico = _get_pip_icon(i < lives_remaining)
-        surf.blit(ico, (sx + i * (iw + gap), cy - ih // 2))
+    pygame.draw.rect(surf, _NEST_OUTER_SHADOW, (1, 56, 60, 82), 1, border_radius=6)
+    pygame.draw.rect(surf, _NEST_PANEL_DARK,   (2, 57, 58, 80),    border_radius=5)
+    pygame.draw.rect(surf, _NEST_GOLD_BRIGHT,  (2, 57, 58, 80), 1, border_radius=5)
+    for i, cy_s in enumerate(_NEST_CY_LIST[:max(lives_total, 2)]):
+        _nest_draw_slot(surf, cy_s, i < lives_remaining)
 
 
 # ── Theme drawing helpers ────────────────────────────────────────────────────
