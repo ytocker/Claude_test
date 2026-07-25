@@ -37,7 +37,7 @@ _FRAME_MAP = {10: 0, -5: 1, -20: 2, -35: 3}
 # shift every frame would read as a deliberate static pattern instead.
 _SHIFTS = (10, 8, 12, 6)
 
-CYAN = (0, 240, 220)
+CYAN = (38, 240, 220)
 GHOST_CYAN = (0, 220, 200)
 MAGENTA = (255, 0, 160)
 
@@ -203,7 +203,7 @@ def _build_hurt_frame(wing_angle_deg):
     BODY = (190, 42, 42)
     BODY_SH = (162, 26, 26)
     CHEST = (232, 70, 64)
-    BELLY = (235, 155, 42)
+    BELLY = (234, 76, 36)
     BEAK = (240, 170, 0)
     BEAK_D = (190, 125, 0)
 
