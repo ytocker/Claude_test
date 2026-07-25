@@ -6,13 +6,14 @@ exactly the class of detail that dies at 1x — dark-on-dark cuts on a dark red
 breast. So the rake is gone entirely and the whole story is carried by three
 pieces of high-contrast *applied* hardware: a temple gauze strip, an adhesive
 plaster on the breast, and a tape band across the wing. Off-white on red is the
-strongest value pair available in this palette, and the red cross is the one
-piece of universal shorthand a player parses before they parse anything else.
+strongest value pair available in this palette.
 
-The shades escalate to match: the left lens is a full shatter web, not a star,
-and the exhaustion is sold by under-eye shadow plus a crown of feather wisps
-kicked out of place. Damage now reads as *stuff stuck to the bird* rather than
-marks drawn into it, which is the only version that survives the downscale.
+Round 2 fixes what round 1 got structurally wrong rather than cosmetically:
+the gauze now goes on *under* the shades (he put them back on over it), the
+wing tape lives in wing-local space so it actually rides the wing through the
+flap cycle, the left lens is broken into tinted plates instead of scratched
+lines, and there is exactly ONE red cross on the sprite — a second one on the
+chest was competing with the hero mark for no extra information.
 """
 import math
 import os, sys
@@ -33,23 +34,36 @@ SHADE_FRAME = (220, 175, 40)
 
 GAUZE      = (232, 228, 215)
 PAD        = (255, 248, 230)
-STITCH     = (160, 148, 130)
-CROSS      = (210, 30, 30)
-# Cracks read as light caught in the fracture — glass chips bright, and the
-# bright line is also the only thing that survives the downscale.
+# Hem sits a full four values darker than the gauze it edges. At the old
+# stitch tone the border merged with the fill at 1x and every bandage read as
+# an undifferentiated white chip.
+HEM        = (120, 108,  95)
+CROSS      = (210,  30,  30)
+BROW       = (120,  10,  14)
+
+# Cracks read as light caught in the fracture; the plates behind them are the
+# lens itself, come apart into pieces that no longer sit in the same plane.
 CRACK      = (180, 210, 240)
 CRACK_WEB  = (140, 170, 200)
+PLATE_A    = ( 42,  52,  78)
+PLATE_B    = ( 28,  34,  56)
 
-WISP_L   = (230,  80,  80)
-WISP_C   = (210,  60,  60)
-WISP_R   = (220,  70,  70)
-WISP_TIP = (240, 130, 130)
+WISP       = (220,  70,  70)
+WISP_TIP   = (230, 195,  65)
 
 # Left lens rides five pixels low and a size larger than its twin: the side that
-# took the hit is the side the eye should land on first, and the drop is also
-# what clears the shatter web out from under the temple gauze.
+# took the hit is the side the eye should land on first.
 LENS_L, LENS_LR = (43, 24), 7
 LENS_R, LENS_RR = (56, 19), 6
+
+# The wing is drawn into an oversized surface so hardware and tear-outs near
+# the primaries have room to exist; the constant offset keeps the shape in the
+# same place relative to the rotation pivot as the original 50x50 build.
+WING_SURF, WING_OFF = 56, 3
+
+
+def _wp(pts):
+    return [(x + WING_OFF, y + WING_OFF) for x, y in pts]
 
 
 def _aaellipse(surf, color, center, rx, ry):
@@ -58,24 +72,14 @@ def _aaellipse(surf, color, center, rx, ry):
 
 
 def _stamp_clipped(surf, layer):
-    """Composite a layer only where the sprite already has body. Applied
-    hardware — tape, plaster — is drawn in flat world coordinates so it lands
-    the same on every frame; clipping is what stops the overhang from becoming
-    a floating white chip once the outline pass runs."""
+    """Composite a layer only where the sprite already has body. Clipping is
+    what stops an overhanging bandage edge from becoming a floating white chip
+    once the outline pass runs."""
     for x in range(surf.get_width()):
         for y in range(surf.get_height()):
             px = layer.get_at((x, y))
             if px[3] > 8 and surf.get_at((x, y))[3] > 8:
-                if px[3] >= 250:
-                    surf.set_at((x, y), px)
-                else:
-                    base = surf.get_at((x, y))
-                    a = px[3] / 255.0
-                    surf.set_at((x, y), (
-                        int(base[0] * (1 - a) + px[0] * a),
-                        int(base[1] * (1 - a) + px[1] * a),
-                        int(base[2] * (1 - a) + px[2] * a),
-                        base[3]))
+                surf.set_at((x, y), (px[0], px[1], px[2], surf.get_at((x, y))[3]))
 
 
 def _add_outline(src, outline_color=(20, 12, 18, 220)):
@@ -93,7 +97,37 @@ def _add_outline(src, outline_color=(20, 12, 18, 220)):
     return out
 
 
-def _build_wing(angle_deg):
+# Tear-out through the primaries, held outboard of where the skull lands so it
+# survives on the up-stroke frames as well as the down-stroke ones.
+WING_TEAR = [(37, 33), (47, 30), (45, 39), (36, 38)]
+
+
+TAPE_A, TAPE_B = (29.0, 34.0), (41.0, 30.0)
+
+
+def _wing_tape(w):
+    """Tape band across the primaries, in wing-local coordinates so it rotates
+    with the wing for free. Drawn in world space it only *looked* right on one
+    frame — and on that frame 96 % of it was sitting on the chest."""
+    d = pygame.draw
+    (ax, ay), (bx, by) = TAPE_A, TAPE_B
+    dx, dy = bx - ax, by - ay
+    L = math.hypot(dx, dy)
+    px, py = -dy / L * 2.5, dx / L * 2.5
+    quad = [(ax + px, ay + py), (bx + px, by + py),
+            (bx - px, by - py), (ax - px, ay - py)]
+    layer = pygame.Surface(w.get_size(), pygame.SRCALPHA)
+    d.polygon(layer, GAUZE, _wp(quad))
+    # Hem on all four edges, short ends included: the two ends are where the
+    # eye decides whether it is looking at tape or at a smear of light.
+    d.polygon(layer, HEM, _wp(quad), 1)
+    mask = pygame.mask.from_surface(w, threshold=8).to_surface(
+        setcolor=(255, 255, 255, 255), unsetcolor=(0, 0, 0, 0))
+    layer.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    w.blit(layer, (0, 0))
+
+
+def _build_wing(angle_deg, tear=True):
     WING   = (30,  70, 180)
     WING_D = (18,  42, 125)
     # Pulled back off the healthy bird's vivid green: the wing is the one large
@@ -102,103 +136,125 @@ def _build_wing(angle_deg):
     TIP    = (40, 185,  80)
     STRIPE = (210, 175,  50)
     HL     = (130, 175, 240)
-    w = pygame.Surface((50, 50), pygame.SRCALPHA)
+    w = pygame.Surface((WING_SURF, WING_SURF), pygame.SRCALPHA)
     d = pygame.draw
-    d.polygon(w, (0,0,0,100), [(24,26),(46,14),(50,30),(34,44),(18,40)])
-    d.polygon(w, WING,        [(24,24),(44,13),(48,28),(32,42),(18,36)])
-    d.polygon(w, WING_D,      [(24,24),(32,42),(18,36)])
-    d.polygon(w, TIP,         [(44,13),(50,18),(48,28)])
-    d.polygon(w, STRIPE,      [(42,18),(48,22),(46,28),(40,24)])
-    d.line(w, WING_D,         (26,25),(42,18), 2)
-    d.line(w, WING_D,         (28,30),(44,25), 2)
-    d.line(w, WING_D,         (30,34),(46,32), 2)
-    d.line(w, HL,             (25,25),(41,15), 1)
-    # A chunk torn out of the primaries, punched as transparency rather than
-    # painted dark so the break survives the outline pass and the 1x downscale.
-    d.polygon(w, (0,0,0,0),   [(41,11),(53,17),(47,25),(43,16)])
+    d.polygon(w, (0,0,0,100), _wp([(24,26),(46,14),(50,30),(34,44),(18,40)]))
+    d.polygon(w, WING,        _wp([(24,24),(44,13),(48,28),(32,42),(18,36)]))
+    d.polygon(w, WING_D,      _wp([(24,24),(32,42),(18,36)]))
+    d.polygon(w, TIP,         _wp([(44,13),(50,18),(48,28)]))
+    d.polygon(w, STRIPE,      _wp([(42,18),(48,22),(46,28),(40,24)]))
+    d.line(w, WING_D,         *_wp([(26,25),(42,18)]), 2)
+    d.line(w, WING_D,         *_wp([(28,30),(44,25)]), 2)
+    d.line(w, WING_D,         *_wp([(30,34),(46,32)]), 2)
+    d.line(w, HL,             *_wp([(25,25),(41,15)]), 1)
+
+    _wing_tape(w)
+
+    # Punched as transparency rather than painted dark so the break survives
+    # the outline pass and the 1x downscale. The toggle exists so the render
+    # pass can diff a torn frame against an intact one and prove the tear is
+    # not simply hiding behind the skull, which is what it was doing before.
+    if tear:
+        d.polygon(w, (0,0,0,0), _wp(WING_TEAR))
     return pygame.transform.rotate(w, angle_deg)
 
 
 def _draw_plaster(surf):
-    """Adhesive plaster on the breast. A square of gauze with a purer white pad
-    inside it: two values plus a hemmed outline is the smallest arrangement
-    that still parses as "sticking plaster" and not "white blob".
+    """Sticking plaster on the breast — 8x8 with the corners taken off. The
+    corner punch is doing real work: a hard square at this size reads as a
+    label stuck on the bird, while the rounded chip reads as an adhesive pad.
 
-    Sits low on the belly and goes on after the wing. Pinned higher on the
-    chest and layered under the wing — the anatomically tidier order — the
-    downstroke frames swallowed it whole, and a medical mark that exists on
-    half the animation is worse than none at all."""
+    No cross on it. Two crosses on one sprite is two hero marks, which is none;
+    pad plus hem carries "plaster" on its own and lets the temple gauze own the
+    medical read."""
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     d = pygame.draw
     cx, cy = 26, 38
-    d.rect(layer, GAUZE, (cx - 5, cy - 5, 10, 10))
-    d.rect(layer, PAD,   (cx - 3, cy - 3,  6,  6))
-    d.rect(layer, STITCH, (cx - 5, cy - 5, 10, 10), 1)
-    d.line(layer, CROSS, (cx - 2, cy), (cx + 1, cy), 1)
-    d.line(layer, CROSS, (cx, cy - 2), (cx, cy + 1), 1)
+    x0, y0, s = cx - 4, cy - 4, 8
+    d.rect(layer, GAUZE, (x0, y0, s, s))
+    d.rect(layer, PAD,   (x0 + 2, y0 + 2, s - 4, s - 4))
+    d.rect(layer, HEM,   (x0, y0, s, s), 1)
+    for ox, oy in ((0, 0), (s - 1, 0), (0, s - 1), (s - 1, s - 1)):
+        layer.set_at((x0 + ox, y0 + oy), (0, 0, 0, 0))
     _stamp_clipped(surf, layer)
 
 
-def _draw_wing_tape(surf):
-    """Tape band across the wing. Held just off opaque so the covert banding
-    tints through and the strip stays bonded to the wing instead of floating
-    like a sticker — but no further: over the red body a genuinely translucent
-    white curdles to pink and stops reading as tape at all. Kept clear of the
-    head lobe, since anything past x~38 in this band is overpainted by the
-    skull on the very next call."""
-    layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    d = pygame.draw
-    # Five tall, not four: the hemmed edges eat a row each, and a two-pixel
-    # white core is not a tape strip at 1x, it is a scuff.
-    x0, y0, w, h = 19, 22, 20, 5
-    d.rect(layer, (*GAUZE, 235), (x0, y0, w, h))
-    d.line(layer, STITCH, (x0, y0), (x0 + w - 1, y0), 1)
-    d.line(layer, STITCH, (x0, y0 + h - 1), (x0 + w - 1, y0 + h - 1), 1)
-    _stamp_clipped(surf, layer)
-
-
-def _draw_head_wisps(surf):
-    """Feather wisps kicked off the crown at wrong angles. Hurt is posture as
-    much as damage, and a broken crown line is the cheapest posture cue there
-    is — it costs three polylines and changes the whole silhouette. Drawn under
-    the shades so the frame naturally sits over the roots."""
-    d = pygame.draw
-    for pts, col in (
-        ([(46, 14), (43, 9), (41, 6)], WISP_L),
-        ([(47, 13), (47, 8), (48, 5)], WISP_C),
-        ([(48, 14), (51, 9), (53, 7)], WISP_R),
-    ):
-        d.lines(surf, col, False, pts, 2)
-        d.line(surf, WISP_TIP, pts[-2], pts[-1], 2)
+GAUZE_QUAD = [(29, 24), (31, 7), (48, 9), (46, 26)]
+# The cross sits in the clear strip between the first two crown wisps and above
+# the left rim. Centred on the dressing it was being eaten from both sides at
+# once — by a wisp on the left and by the lens on the bottom.
+CROSS_H    = ((41, 15), (47, 15))
+CROSS_V    = ((44, 11), (44, 20))
 
 
 def _draw_bandage(surf):
-    """Gauze taped diagonally across the temple, on top of the shades. Widened
-    to 6 px perpendicular and hemmed on both long edges — at V3's 4 px the
-    strip lost half its white to the stitching and stopped reading as gauze at
-    1x. The cross is the single most legible mark on the sprite, so it gets
-    real width rather than the one-pixel scratch it was.
+    """Gauze taped diagonally across the temple, and — the round-2 change —
+    *under* the shades rather than over them. Over the top it was erasing the
+    shatter web and half the left lens, which is the one place on the sprite
+    that has to stay readable. Under it, the shades sit on the gauze the way
+    they would if he had put them back on after being patched up.
 
     Clipped to the silhouette: the skull narrows fast above the brow, and drawn
-    free the crown end of the strip hung in open sky as a loose white flag. Let
-    the head cut it and the same quad instead reads as gauze wrapping over the
-    top of the skull, which is what the strip is supposed to be doing."""
+    free the crown end of the strip hung in open sky as a loose white flag."""
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     d = pygame.draw
-    quad = [(33, 21), (39, 10), (50, 12), (44, 23)]
-    d.polygon(layer, GAUZE, quad)
-    d.line(layer, STITCH, quad[0], quad[1], 2)
-    d.line(layer, STITCH, quad[2], quad[3], 2)
-    d.line(layer, CROSS, (39, 16), (46, 16), 2)
-    d.line(layer, CROSS, (42, 12), (42, 20), 2)
+    d.polygon(layer, GAUZE, GAUZE_QUAD)
+    d.polygon(layer, HEM, GAUZE_QUAD, 1)
+    d.line(layer, CROSS, *CROSS_H, 2)
+    d.line(layer, CROSS, *CROSS_V, 2)
     _stamp_clipped(surf, layer)
 
 
+def _wisp(surf, pts):
+    """One crown feather, tapered 3 px at the root to 1 px at the tip and
+    finished in the tail's warm gold. A wisp of constant width is a twig; the
+    taper plus the warm tip is what makes it read as a feather that has been
+    knocked out of line."""
+    samples = []
+    for i in range(len(pts) - 1):
+        (x0, y0), (x1, y1) = pts[i], pts[i + 1]
+        n = max(2, int(math.hypot(x1 - x0, y1 - y0) * 3))
+        for k in range(n + 1):
+            t = k / n
+            samples.append((x0 + (x1 - x0) * t, y0 + (y1 - y0) * t))
+    cum, total = [0.0], 0.0
+    for i in range(1, len(samples)):
+        total += math.hypot(samples[i][0] - samples[i - 1][0],
+                            samples[i][1] - samples[i - 1][1])
+        cum.append(total)
+    for i in range(1, len(samples)):
+        t = cum[i] / total
+        col = WISP_TIP if (total - cum[i]) <= 3.0 else WISP
+        pygame.draw.line(surf, col,
+                         (round(samples[i - 1][0]), round(samples[i - 1][1])),
+                         (round(samples[i][0]), round(samples[i][1])),
+                         max(1, int(round(3 - 2 * t))))
+
+
+def _draw_head_wisps(surf):
+    """Three crown feathers spread across the whole width of the skull rather
+    than bunched over one spot — a fan that fights the head's clean dome is a
+    posture cue, a tuft is just a hat. One forward over the brow, one straight
+    up, one kicked back, all of them breaking the ellipse."""
+    _wisp(surf, [(41, 15), (39, 9), (37, 6)])
+    _wisp(surf, [(47, 14), (47, 8), (47, 5)])
+    _wisp(surf, [(52, 15), (54, 9), (56, 6)])
+
+
+def _draw_brow(surf):
+    """A single downturned line above the right lens. It replaces the under-eye
+    shadow, which was a soft blob sitting behind glass where nothing soft can
+    survive. The exhaustion read now lives in geometry — the good eye is the
+    one squinting — and it is on the intact side so it never fights the rim of
+    the broken one."""
+    pygame.draw.lines(surf, BROW, False, [(48, 12), (53, 14), (57, 17)], 2)
+
+
 def _draw_sunglasses(surf):
-    """Aviator shades, knocked crooked. The left lens rides 3 px low and a size
-    wider; the bridge kinks up to meet its twin instead of running level. "Took
-    one to the face" told entirely in geometry. Only the right lens keeps its
-    glint — one dead lens against one still catching the sun is the read."""
+    """Aviator shades, knocked crooked. The left lens rides low and a size
+    wider; the bridge kinks up to meet its twin instead of running level.
+    Only the right lens keeps its glint — one dead lens against one still
+    catching the sun is the read."""
     d = pygame.draw
     d.circle(surf, SHADE_FRAME, LENS_L, LENS_LR + 1)
     d.circle(surf, SHADE_FRAME, LENS_R, LENS_RR + 1)
@@ -219,46 +275,64 @@ def _draw_sunglasses(surf):
 def _lens_clip(surf, layer, center, radius):
     """Fracture lines are clipped to the glass they belong to. Left free they
     ran off the rim and onto the skull, which read as face wounds rather than
-    broken glass — and a crack that stops dead at the frame is exactly what
-    real shattered glass does."""
+    broken glass."""
     mask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     pygame.draw.circle(mask, (255, 255, 255, 255), center, radius)
     layer.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    # The clip leaves single orphaned pixels where a crack grazes the rim. One
+    # loose bright pixel on black glass reads as dirt on the screen, not as
+    # damage, so anything with no neighbour goes.
+    orphans = []
+    for x in range(center[0] - radius - 1, center[0] + radius + 2):
+        for y in range(center[1] - radius - 1, center[1] + radius + 2):
+            if not (0 <= x < layer.get_width() and 0 <= y < layer.get_height()):
+                continue
+            if layer.get_at((x, y))[3] <= 8:
+                continue
+            if not any(0 <= x + dx < layer.get_width()
+                       and 0 <= y + dy < layer.get_height()
+                       and layer.get_at((x + dx, y + dy))[3] > 8
+                       for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+                orphans.append((x, y))
+    for p in orphans:
+        layer.set_at(p, (0, 0, 0, 0))
     surf.blit(layer, (0, 0))
 
 
+# Radials off the impact point, kept in clockwise screen order so consecutive
+# pairs bound a wedge of glass.
+_RADIALS = ((38, 18), (49, 19), (48, 28), (42, 29), (37, 25))
+_IMPACT  = (43, 23)
+
+
 def _draw_cracked_lenses(surf):
-    """Left lens shatters, right lens only sympathises. Five uneven radials off
-    a single off-centre impact point plus two chords webbing their tips: the
-    chords are what turn a starburst into shattered glass, because they imply
-    plates of lens that have come apart rather than lines scratched on it."""
+    """Left lens shatters, right lens only sympathises. The round-1 version was
+    lines scratched on a flat black disc; this one floods the wedges *between*
+    the radials with two off-tones first, so the lens reads as plates that have
+    come apart and are catching light at different angles. Cracks then go on
+    top, with the two longest carrying double width — at 1x a one-pixel crack
+    on a seven-pixel lens is noise, and the long pair is what sells the axis of
+    the impact."""
     d = pygame.draw
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    impact = (43, 23)
-    for end in ((38, 18), (49, 19), (37, 25), (48, 28), (42, 29)):
-        d.line(layer, CRACK, impact, end, 1)
+    for i, tone in ((0, PLATE_A), (2, PLATE_B), (4, PLATE_A)):
+        d.polygon(layer, tone,
+                  [_IMPACT, _RADIALS[i], _RADIALS[(i + 1) % len(_RADIALS)]])
+    longest = sorted(_RADIALS,
+                     key=lambda p: -math.hypot(p[0] - _IMPACT[0],
+                                               p[1] - _IMPACT[1]))[:2]
+    for end in _RADIALS:
+        d.line(layer, CRACK, _IMPACT, end, 2 if end in longest else 1)
     d.line(layer, CRACK_WEB, (39, 19), (37, 25), 1)
     d.line(layer, CRACK_WEB, (48, 19), (48, 28), 1)
     # Clipped to the rim rather than the glass: a fracture that runs right into
-    # the frame is what real shattered glass does, and holding it a pixel short
-    # cost the web its outermost — most legible — spans.
+    # the frame is what real shattered glass does.
     _lens_clip(surf, layer, LENS_L, LENS_LR + 1)
 
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     d.line(layer, CRACK, (55, 19), (52, 16), 1)
     d.line(layer, CRACK, (55, 19), (58, 22), 1)
     _lens_clip(surf, layer, LENS_R, LENS_RR)
-
-
-def _draw_eye_shadow(surf):
-    """Exhaustion bag under the cracked lens, hung low enough that half of it
-    clears the rim. Entirely behind the glass it just muddied the lens fill;
-    breaking below the frame is what turns it into a face reading tired."""
-    shadow = pygame.Surface((13, 7), pygame.SRCALPHA)
-    pygame.draw.ellipse(shadow, (40, 8, 8, 160), shadow.get_rect())
-    layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    layer.blit(shadow, (37, 28))
-    _stamp_clipped(surf, layer)
 
 
 def _tail_feather(pts, damaged=False):
@@ -281,7 +355,7 @@ def _tail_feather(pts, damaged=False):
     return out
 
 
-def _build_hurt_frame(wing_angle_deg):
+def _build_hurt_frame(wing_angle_deg, tear=True):
     surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
     d = pygame.draw
 
@@ -312,10 +386,9 @@ def _build_hurt_frame(wing_angle_deg):
     d.ellipse(sheen, (205, 150, 150, 120), sheen.get_rect())
     surf.blit(sheen, (22, 21))
 
-    wing = _build_wing(wing_angle_deg)
+    wing = _build_wing(wing_angle_deg, tear=tear)
     surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
 
-    _draw_wing_tape(surf)
     _draw_plaster(surf)
 
     # Head hangs 1 px lower than the healthy build — small in absolute terms,
@@ -325,15 +398,13 @@ def _build_hurt_frame(wing_angle_deg):
     _aaellipse(surf, (200, 90, 90), (44, 24),  4,  3)
     _aaellipse(surf, (230, 140, 140), (46, 17),  7,  3)
 
+    _draw_bandage(surf)
     _draw_head_wisps(surf)
+    _draw_brow(surf)
     _draw_sunglasses(surf)
     _draw_cracked_lenses(surf)
-    _draw_eye_shadow(surf)
-    _draw_bandage(surf)
 
     # Beak parted only ~2 px, and the lower mandible tucked up under the upper.
-    # Dropping it further left a spur hanging off the chin that made the bird
-    # read as some other species entirely.
     upper = [(55, 21), (61, 24), (58, 26), (52, 25)]
     lower = [(52, 26), (58, 27), (59, 30), (54, 31)]
     d.polygon(surf, BEAK,    upper)
@@ -354,12 +425,68 @@ def _count(frame, pred, box=None):
     wing — each mark has to be proved present in its own region."""
     x0, y0, x1, y1 = box or (0, 0, SPRITE_W, SPRITE_H)
     n = 0
-    for x in range(x0, min(x1, SPRITE_W)):
-        for y in range(y0, min(y1, SPRITE_H)):
+    for x in range(max(0, x0), min(x1, SPRITE_W)):
+        for y in range(max(0, y0), min(y1, SPRITE_H)):
             r, g, b, a = frame.get_at((x, y))
             if a > 8 and pred(r, g, b):
                 n += 1
     return n
+
+
+def _blobs(frame, pred, min_size=6):
+    """Connected components of bandage-coloured pixel. Pixel budgets alone
+    cannot tell "three separate dressings" from "one white smear of the same
+    total area", and the smear is the failure mode that actually happened."""
+    seen = set()
+    out = []
+    for sx in range(SPRITE_W):
+        for sy in range(SPRITE_H):
+            if (sx, sy) in seen:
+                continue
+            r, g, b, a = frame.get_at((sx, sy))
+            if a <= 8 or not pred(r, g, b):
+                continue
+            stack, comp = [(sx, sy)], []
+            seen.add((sx, sy))
+            while stack:
+                x, y = stack.pop()
+                comp.append((x, y))
+                for nx, ny in ((x+1,y),(x-1,y),(x,y+1),(x,y-1)):
+                    if not (0 <= nx < SPRITE_W and 0 <= ny < SPRITE_H):
+                        continue
+                    if (nx, ny) in seen:
+                        continue
+                    rr, gg, bb, aa = frame.get_at((nx, ny))
+                    if aa > 8 and pred(rr, gg, bb):
+                        seen.add((nx, ny))
+                        stack.append((nx, ny))
+            if len(comp) >= min_size:
+                out.append((len(comp),
+                            (sum(p[0] for p in comp) / len(comp),
+                             sum(p[1] for p in comp) / len(comp))))
+    return out
+
+
+def _dressings(frame, pred):
+    """Sort the bandage blobs into the three dressings by where they sit, then
+    give each its pixel budget and its centroid. Grouping by region rather than
+    by blob size is what makes the check honest: a dressing that has been split
+    in two by a feather wisp is still one dressing, and three fragments of one
+    smear must not be able to pass as three separate marks."""
+    groups = {"gauze": [], "plaster": [], "tape": []}
+    for n, (cx, cy) in _blobs(frame, pred, min_size=3):
+        if cy < 27 and cx > 30:
+            groups["gauze"].append((n, cx, cy))
+        elif cy > 32 and cx < 32:
+            groups["plaster"].append((n, cx, cy))
+        else:
+            groups["tape"].append((n, cx, cy))
+    out = {}
+    for k, g in groups.items():
+        n = sum(p[0] for p in g)
+        out[k] = (n, (sum(p[0] * p[1] for p in g) / n if n else 0.0,
+                      sum(p[0] * p[2] for p in g) / n if n else 0.0))
+    return out
 
 
 def _strip(frames, scale, gap, bg):
@@ -378,24 +505,45 @@ if __name__ == "__main__":
     os.makedirs(OUT_DIR, exist_ok=True)
 
     raw    = [_build_hurt_frame(a) for a in _HURT_ANGLES]
+    notear = [_build_hurt_frame(a, tear=False) for a in _HURT_ANGLES]
     frames = [_add_outline(f) for f in raw]
 
-    is_gauze  = lambda r, g, b: 220 < r < 245 and 215 < g < 235 and 200 < b < 225
-    is_pad    = lambda r, g, b: (r, g, b) in (GAUZE, PAD, STITCH)
-    is_crack  = lambda r, g, b: r < 200 and g > 160 and b > 180
-    is_wisp   = lambda r, g, b: (r, g, b) in (WISP_L, WISP_C, WISP_R)
+    is_white = lambda r, g, b: (r, g, b) in (GAUZE, PAD)
+    is_glass = lambda r, g, b: (r, g, b) in (CRACK, CRACK_WEB, PLATE_A, PLATE_B)
+    is_wisp  = lambda r, g, b: (r, g, b) in (WISP, WISP_TIP)
+    is_cross = lambda r, g, b: (r, g, b) == CROSS
 
-    gauze_a  = min(_count(f, is_gauze, (32,  8, 56, 26)) for f in raw)
-    plaster  = min(_count(f, is_pad,   (18, 30, 36, 48)) for f in raw)
-    tape     = min(_count(f, is_gauze, (16, 20, 40, 30)) for f in raw)
-    crack_px = min(_count(f, is_crack, (32, 12, 56, 36)) for f in raw)
-    wisp_px  = min(_count(f, is_wisp,  ( 0,  0, 64, 15)) for f in raw)
+    stats = []
+    for idx, f in enumerate(raw):
+        marks   = _dressings(f, is_white)
+        gauze   = marks["gauze"][0]
+        plaster = marks["plaster"][0]
+        tape    = marks["tape"][0]
+        glass   = _count(f, is_glass, (34, 14, 54, 34))
+        wisps   = _count(f, is_wisp,  ( 0,  0, 64, 12))
+        cross   = _count(f, is_cross, (30,  6, 50, 26))
+        total   = _count(f, is_white)
 
-    assert gauze_a  >= 40, f"Temple bandage too faint: {gauze_a}"
-    assert plaster  >= 20, f"Chest plaster missing: {plaster}"
-    assert tape     >= 20, f"Wing tape missing: {tape}"
-    assert crack_px >= 25, f"Cracks invisible: {crack_px}"
-    assert wisp_px  >=  6, f"Head wisps missing: {wisp_px}"
+        assert gauze   >= 40, f"f{idx}: temple bandage too faint: {gauze}"
+        assert plaster >= 15, f"f{idx}: chest plaster too small: {plaster}"
+        assert tape    >= 15, f"f{idx}: wing tape not visible: {tape}"
+        assert glass   >= 45, f"f{idx}: shattered glass not legible: {glass}"
+        assert wisps   >= 30, f"f{idx}: wisps not protruding past head: {wisps}"
+        assert cross   >=  8, f"f{idx}: red cross missing: {cross}"
+        # Exactly one cross on the sprite — the chest plaster must not have one.
+        assert _count(f, is_cross) == cross, f"f{idx}: second cross on sprite"
+
+        cents = [marks[k][1] for k in ("gauze", "plaster", "tape")]
+        dmin = min(math.hypot(a[0] - b[0], a[1] - b[1])
+                   for i, a in enumerate(cents) for b in cents[i + 1:])
+        assert dmin >= 12, f"f{idx}: bandages merging, min centroid gap {dmin:.1f}"
+
+        delta = sum(1 for x in range(SPRITE_W) for y in range(SPRITE_H)
+                    if f.get_at((x, y)) != notear[idx].get_at((x, y)))
+        assert delta >= 25, f"f{idx}: wing tear hidden, delta {delta}"
+
+        stats.append((gauze, plaster, tape, glass, wisps, cross, total,
+                      dmin, delta))
 
     NIGHT, DAY = (8, 8, 20), (100, 160, 220)
     margin, gap = 20, 10
@@ -434,12 +582,14 @@ if __name__ == "__main__":
                 (margin + pad3, y - pad3 + 1))
     canvas.blit(small.render("1x on night sky", True, (200, 205, 230)),
                 (margin + row3a.get_width() + pad3 * 3 + gap * 2, y - pad3 + 1))
-    lbl = font.render("bandaged-crisis — round 1   (4x / 2x / 1x day + night)",
+    lbl = font.render("bandaged-crisis — round 2   (4x / 2x / 1x day + night)",
                       True, (225, 225, 245))
     canvas.blit(lbl, (margin, canvas_h - margin - lbl.get_height() + 4))
 
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
-    print(f"gauze_A={gauze_a}  plaster={plaster}  tape={tape}  "
-          f"cracks={crack_px}  wisps={wisp_px}")
+    for i, s in enumerate(stats):
+        print(f"f{i}: gauze={s[0]} plaster={s[1]} tape={s[2]} glass={s[3]} "
+              f"wisps={s[4]} cross={s[5]} white_total={s[6]} "
+              f"blobgap={s[7]:.1f} tear_delta={s[8]}")
