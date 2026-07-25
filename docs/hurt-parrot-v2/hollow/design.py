@@ -21,11 +21,15 @@ pygame.init()
 
 SPRITE_W, SPRITE_H = 64, 60
 
-# Compressed downward arc — the wing barely lifts any more.
-_HURT_ANGLES = (10, -5, -20, -35)
+# A husk this far gone can't really flap — the arc is compressed to ten degrees
+# of twitch so the loop reads as guttering rather than flying.
+_HURT_ANGLES = (-25, -28, -32, -35)
 
 # --- charcoal husk palette (replaces every core parrot colour) ---
 BODY        = (28, 10, 10)
+# Bled one step warmer and drawn a hair oversized, purely so the silhouette
+# still separates from the (5, 8, 30) night sky where the body alone vanishes.
+BODY_RIM    = (38, 16, 10)
 BODY_SHADOW = (15,  5,  5)
 CHEST_DARK  = (20,  8,  8)
 CROWN       = (35, 12, 12)
@@ -40,22 +44,33 @@ WING_HI     = (60, 30, 15)
 TAIL_COLORS = ((35, 15, 10), (45, 20, 12), (55, 25, 15), (65, 30, 18))
 TAIL_LINE   = (20,  8,  5)
 
-BEAK        = (185, 168, 148)
-BEAK_D      = (140, 125, 108)
-BEAK_HI     = (210, 195, 175)
+# Held below the ember's value so the dying heart stays the brightest thing on
+# the sprite; a bright beak would fight it for the eye.
+BEAK        = (122, 112, 102)
+BEAK_D      = (86,  78,  70)
+BEAK_HI     = (146, 136, 124)
 FOOT        = (80, 40, 20)
 
-EMBER_OUTER = (175,  58, 18)
-EMBER_MID   = (220,  95, 25)
-EMBER_CORE  = (255, 165, 50)
-EMBER_WHITE = (255, 230, 180)
+EMBER_OUTER = (180,  60, 20)
+EMBER_MID   = (225, 100, 28)
+EMBER_CORE  = (255, 175, 55)
+EMBER_WHITE = (255, 240, 190)
+# Fissures sit on TOP of the glow — a crack is a gap in the shell, so it must
+# occlude the coal behind it, not be occluded by it.
+CRACK_DARK  = (42, 13,  8)
+CRACK_WARM  = (150, 52, 16)
 EYE_EMBER   = (220, 100, 30)
-EYE_GLINT   = (255, 220, 150)
+EYE_GLINT   = (232, 176, 112)
 
 
 def _aaellipse(surf, color, center, rx, ry):
+    # Radii are kept fractional by callers so the ember stack can step in
+    # half-pixels; round only at the blit boundary.
     cx, cy = center
-    pygame.draw.ellipse(surf, color, (cx - rx, cy - ry, rx * 2, ry * 2))
+    pygame.draw.ellipse(surf, color, (
+        round(cx - rx), round(cy - ry),
+        max(1, round(rx * 2)), max(1, round(ry * 2)),
+    ))
 
 
 def _dim(color, k):
@@ -118,23 +133,32 @@ def _build_hurt_frame(wing_angle_deg):
     d.line(surf, TAIL_LINE, (6, 33), (20, 35), 1)
 
     # --- BODY (hollow husk) ---
+    # The warm rim goes down first and 2px proud of the shell, so a couple of
+    # pixels of it survive as a halo and the husk keeps a readable edge at night.
+    _aaellipse(surf, BODY_RIM,    (32, 32), 21, 16)
+    # The halo alone only lifts contrast against the night sky to ~1.1; a warm
+    # ash stroke on its perimeter is what actually carries the silhouette.
+    rim = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
+    d.ellipse(rim, (85, 40, 22, 180), (32 - 21, 32 - 16, 42, 32), 2)
+    surf.blit(rim, (0, 0))
     _aaellipse(surf, BODY_SHADOW, (34, 35), 19, 14)
     _aaellipse(surf, BODY,        (32, 32), 19, 14)
     _aaellipse(surf, CHEST_DARK,  (30, 29), 13,  8)
 
-    # Cracks first, so the heat reads as bleeding out from under the shell
-    # rather than as a glowing decal painted on top of it.
-    crack = _dim((150, 52, 16), k)
-    for a, b in (((30, 30), (20, 24)), ((30, 30), (22, 38)),
-                 ((30, 30), (41, 24)), ((30, 30), (38, 39))):
-        d.line(surf, crack, a, b, 1)
-
     # --- EMBER CORE ---
-    _aaellipse(surf, _dim(EMBER_OUTER, k * 0.86), (32, 32), 13, 8)
-    _aaellipse(surf, _dim(EMBER_MID,   k),        (31, 31), 8 if k > 0.95 else 7, 4)
-    _aaellipse(surf, _dim(EMBER_CORE,  k),        (30, 30), 3, 2)
+    _aaellipse(surf, _dim(EMBER_OUTER, k * 0.88), (32, 31), 16,  11)
+    _aaellipse(surf, _dim(EMBER_MID,   k),        (32, 31),  9,   6)
+    _aaellipse(surf, _dim(EMBER_CORE,  k),        (32, 31),  4,   2.5)
     if k > 0.86:
-        _aaellipse(surf, EMBER_WHITE, (30, 30), 1, 1)
+        _aaellipse(surf, EMBER_WHITE, (32, 31), 1.5, 1)
+
+    # Fissures last: dark through the coal (shell fragments still bridging the
+    # hole), turning warm past the ember where the heat leaks into cold char.
+    warm = _dim(CRACK_WARM, k)
+    for ex, ey in ((17, 23), (19, 41), (47, 23), (45, 41), (32, 44), (32, 19)):
+        d.line(surf, CRACK_DARK, (32, 31), (ex, ey), 1)
+        mx, my = 32 + (ex - 32) * 0.72, 31 + (ey - 31) * 0.72
+        d.line(surf, warm, (round(mx), round(my)), (ex, ey), 1)
 
     # Hard charcoal rim keeps the glow contained inside the husk.
     d.ellipse(surf, (10, 4, 4), (32 - 19, 32 - 14, 38, 28), 2)
@@ -192,7 +216,7 @@ if __name__ == "__main__":
         font = pygame.font.SysFont("dejavusans", 16)
     except Exception:
         font = pygame.font.Font(None, 16)
-    lbl = font.render("hollow — round 1", True, (220, 220, 240))
+    lbl = font.render("hollow — round 2", True, (220, 220, 240))
     canvas.blit(lbl, (margin, margin + (label_h - lbl.get_height()) // 2))
 
     for i, frame in enumerate(frames):
@@ -201,6 +225,6 @@ if __name__ == "__main__":
         big = pygame.transform.scale(frame, (fw * scale, fh * scale))
         canvas.blit(big, (px, py))
 
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
