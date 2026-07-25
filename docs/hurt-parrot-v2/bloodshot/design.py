@@ -3,9 +3,10 @@
 
 Medical-crisis read: the macaw is not "a normal parrot with a hurt marker on
 top" — the construction itself changes. Aviators are gone so the eyes can do
-the acting, the beak breaks into two jaws that hang open, and the plumage
-drops a full value step into bruised, oxygen-starved reds. Silhouette + colour
-carry the state at 1x so a player reads it in a single glance mid-flap.
+the acting, the beak breaks into two jaws that hang a real gape open, and the
+plumage drops a full value step into bruised, oxygen-starved reds. Silhouette,
+value and colour all carry the state at 1x so a player reads it in a single
+glance mid-flap.
 """
 import math
 import os, sys
@@ -56,22 +57,33 @@ def _build_wing(angle_deg):
     d.line(w, WING_D,         (28,30),(44,25), 2)
     d.line(w, WING_D,         (30,34),(46,32), 2)
     d.line(w, HL,             (25,25),(41,15), 1)
-    # A torn-out primary reads as injury in silhouette, which survives the
-    # rotation and the 1x downscale better than any painted-on detail would.
-    d.polygon(w, (0,0,0,0),   [(44,13),(50,18),(48,22),(46,16)])
+    # A chunk bitten clean out of the primaries: punched as transparency rather
+    # than painted dark, so the hole survives the outline pass and the 1x
+    # downscale as a genuine break in the silhouette.
+    d.polygon(w, (0,0,0,0),   [(43,12),(51,17),(47,23),(44,17)])
     return pygame.transform.rotate(w, angle_deg)
+
+
+def _clip_to_body(layer, body):
+    """Keep a paint layer inside whatever has already been drawn. Bruises hang
+    off the belly edge otherwise, and a stray purple lump outside the body gets
+    picked up by the outline pass as if it were anatomy."""
+    keep = pygame.mask.from_surface(body, threshold=8).to_surface(
+        setcolor=(255, 255, 255, 255), unsetcolor=(255, 255, 255, 0))
+    layer.blit(keep, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
 
 def _draw_bruises(surf, alpha_boost):
     """Subdermal haemorrhage layer, painted translucent so the red plumage
     still shows through — an opaque purple patch would read as a sticker."""
     layer = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
-    # The flank patch sits low and aft of the shoulder because the flapping
-    # wing sweeps over the mid-chest and would swallow it on half the frames.
+    # Shoulder, low-left belly and flank. The belly patch is placed clear of
+    # the wing's sweep arc, which swallows anything sitting mid-chest on half
+    # the frames.
     bruises = (
-        ((90, 15, 52), (28, 30), 9, 6, 205),
-        ((80, 12, 45), (40, 39), 7, 5, 195),
-        ((70, 10, 38), (25, 38), 5, 4, 185),
+        ((90, 15, 52), (30, 25), 8, 5, 205),
+        ((90, 15, 52), (24, 42), 7, 4, 205),
+        ((90, 15, 52), (38, 35), 5, 3, 195),
     )
     for rgb, center, rx, ry, base_a in bruises:
         a = min(255, base_a + alpha_boost)
@@ -79,45 +91,77 @@ def _draw_bruises(surf, alpha_boost):
         cx, cy = center
         pygame.draw.ellipse(layer, (50, 5, 28, min(255, a + 40)),
                             (cx - rx, cy - ry, rx * 2, ry * 2), 1)
+    _clip_to_body(layer, surf)
     surf.blit(layer, (0, 0))
 
 
-def _draw_bloodshot_eye(surf, cx, cy):
-    """Engorged, lidded eye. The sclera is bigger than the aviator lens it
-    replaces so the head silhouette still balances against the open beak."""
-    SCLERA = (210, 45, 45)
-    IRIS   = (40,   8,  8)
-    PUPIL  = (10,   5,  5)
-    VESSEL = (180, 20, 20)
-    LID    = (185, 45, 45)
-    rx, ry = 7, 6
+def _draw_bloodshot_eye(surf, cx, cy, rx, ry, iris_r, lid=True):
+    """Engorged eye. The sclera is deliberately pale bone rather than red —
+    against red plumage a red sclera has almost no luma delta and the whole eye
+    dissolves into the head. Bone + red veins is the only version that reads."""
+    SCLERA = (240, 228, 196)
+    SCLERA_SH = (216, 200, 166)
+    IRIS   = (120, 15, 15)
+    VEIN   = (200, 30, 30)
+    LID    = (188, 46, 46)
 
     _aaellipse(surf, SCLERA, (cx, cy), rx, ry)
+    _aaellipse(surf, SCLERA_SH, (cx, cy + 1), rx - 1, max(1, ry - 2))
+    _aaellipse(surf, SCLERA, (cx, cy), rx - 1, ry - 1)
 
-    # Burst capillaries radiate outward, so they must be drawn under the iris
-    # to look like they surface from behind it rather than sit on the glass.
-    for deg in (205, 250, 315, 25):
+    # Iris rides high and forward, which leaves the widest run of bare sclera
+    # exactly where the veins are angled — a centred iris would bury them.
+    ix, iy = cx + 1, cy - 1
+
+    for deg in (30, 75, 120, 165, 210):
         a = math.radians(deg)
-        x0, y0 = cx + math.cos(a) * 3.2, cy + math.sin(a) * 2.8
-        x1, y1 = cx + math.cos(a) * (rx - 0.5), cy + math.sin(a) * (ry - 0.5)
-        pygame.draw.line(surf, VESSEL, (x0, y0), (x1, y1), 1)
+        ca, sa = math.cos(a), math.sin(a)
+        # Ray length solved against the sclera ellipse so a vein dies at the
+        # rim (+1 px onto the lid skin) instead of bleeding across the cheek.
+        edge = 1.0 / math.sqrt((ca / rx) ** 2 + (sa / ry) ** 2)
+        pygame.draw.line(surf, VEIN,
+                         (cx + ca * 1.5, cy + sa * 1.5),
+                         (cx + ca * (edge + 1.0), cy + sa * (edge + 1.0)), 1)
 
-    pygame.draw.circle(surf, IRIS,  (cx, cy), 4)
-    pygame.draw.circle(surf, PUPIL, (cx, cy), 2)
-    pygame.draw.circle(surf, (255, 255, 255), (cx - 2, cy - 2), 1)
+    pygame.draw.circle(surf, IRIS, (ix, iy), iris_r)
+    pygame.draw.circle(surf, (70, 8, 8), (ix, iy), iris_r, 1)
+    pygame.draw.circle(surf, (0, 0, 0), (ix, iy), 2)
+    pygame.draw.circle(surf, (255, 255, 255), (ix - 1, iy - 2), 1)
 
-    # Heavy upper lid — the single strongest "barely conscious" cue, and the
-    # only thing that stops two big round eyes reading as startled instead.
-    lid = [(cx - rx, cy - 1)]
-    for i in range(9):
-        t = i / 8.0
-        x = cx - rx + t * rx * 2
-        # Ellipse top arc, sampled so the lid hugs the sclera edge exactly.
-        k = max(0.0, 1.0 - ((x - cx) / rx) ** 2) ** 0.5
-        lid.append((x, cy - ry * k))
-    lid.append((cx + rx, cy - 1))
-    pygame.draw.polygon(surf, LID, lid)
-    pygame.draw.line(surf, (120, 25, 30), (cx - rx, cy - 1), (cx + rx, cy - 1), 1)
+    if lid:
+        # A hooded top edge is the single strongest "barely conscious" cue; it
+        # is kept to a sliver so it never eats the bone the concept rests on.
+        drop = cy - ry + 1
+        pts = [(cx - rx, drop)]
+        for i in range(9):
+            t = i / 8.0
+            x = cx - rx + t * rx * 2
+            k = max(0.0, 1.0 - ((x - cx) / float(rx)) ** 2) ** 0.5
+            pts.append((x, cy - ry * k))
+        pts.append((cx + rx, drop))
+        pygame.draw.polygon(surf, LID, pts)
+        pygame.draw.line(surf, (120, 25, 30), (cx - rx + 1, drop),
+                         (cx + rx - 1, drop), 1)
+
+
+def _tail_feather(pts, damaged=False):
+    """Tail feathers run root-right, tip-left. A damaged one is snapped short
+    and kicked off-axis so the fan's clean outline breaks — silhouette damage
+    survives the 1x downscale where any painted-on detail would not."""
+    if not damaged:
+        return pts
+    root = ((pts[1][0] + pts[2][0]) / 2.0, (pts[1][1] + pts[2][1]) / 2.0)
+    a = math.radians(12)
+    ca, sa = math.cos(a), math.sin(a)
+    out = []
+    for i, (x, y) in enumerate(pts):
+        if i in (0, 3):
+            dx, dy = root[0] - x, root[1] - y
+            L = max(1e-3, math.hypot(dx, dy))
+            x, y = x + dx / L * 8.0, y + dy / L * 8.0
+        vx, vy = x - root[0], y - root[1]
+        out.append((root[0] + vx * ca - vy * sa, root[1] + vx * sa + vy * ca))
+    return out
 
 
 def _build_hurt_frame(wing_angle_deg):
@@ -127,19 +171,21 @@ def _build_hurt_frame(wing_angle_deg):
     BODY    = (205, 28, 28)
     BODY_SH = (130, 12, 12)
     CHEST   = (160, 22, 22)
-    BELLY   = (175, 70, 20)
+    BELLY   = (180, 80, 20)
     BEAK    = (220, 160,  0)
     BEAK_LO = (190, 130,  0)
     BEAK_D  = (140,  92,  0)
+    THROAT  = (30, 10, 10)
 
     # Tail — same fan construction, dropped a value step so it no longer
     # out-saturates the head where the acting happens.
     for i, c in enumerate(((180, 25, 35), (190, 70, 30),
                            (210, 130, 40), (230, 195, 65))):
-        d.polygon(surf, c, [
+        pts = [
             (2 + i * 3, 26 + i * 2), (14 + i, 24 + i),
             (20 + i, 30 + i * 2), (6 + i * 3, 36 + i * 2),
-        ])
+        ]
+        d.polygon(surf, c, _tail_feather(pts, damaged=(i == 1)))
     d.line(surf, BODY_SH, (4, 27), (18, 31), 1)
     d.line(surf, BODY_SH, (6, 33), (20, 35), 1)
 
@@ -167,22 +213,26 @@ def _build_hurt_frame(wing_angle_deg):
     # but it breaks the proud upward line of the original silhouette.
     _aaellipse(surf, (155, 15, 20), (48, 24), 12, 11)
     _aaellipse(surf, BODY,          (47, 22), 12, 11)
-    _aaellipse(surf, (150, 40, 45), (44, 25),  4,  3)
+    _aaellipse(surf, (150, 40, 45), (40, 27),  4,  3)
     _aaellipse(surf, (175, 60, 60), (46, 17),  7,  3)
 
-    _draw_bloodshot_eye(surf, 46, 20)
-    _draw_bloodshot_eye(surf, 56, 19)
+    # Both eyes are pulled inboard of the skull's right edge; the beak owns
+    # everything past x=51 now that the jaws hang open.
+    _draw_bloodshot_eye(surf, 44, 20, 7, 6, 5)
+    _draw_bloodshot_eye(surf, 53, 19, 5, 4, 3, lid=False)
 
-    # Open beak: the dark throat void is laid down first so both jaws can be
-    # stamped over it and keep clean edges against the gap.
-    d.polygon(surf, (30, 10, 10), [(51, 24), (57, 26), (60, 28), (57, 28), (51, 26)])
-    upper = [(55, 21), (61, 24), (57, 26), (51, 24)]
-    lower = [(51, 26), (57, 28), (60, 30), (54, 32)]
+    # Jaws hang a full 6 px apart. The throat void goes down first so both
+    # beak halves stamp over it with clean edges against the gap.
+    d.polygon(surf, THROAT, [(51, 24), (58, 26), (58, 32), (51, 30)])
+    upper = [(55, 20), (61, 24), (58, 26), (51, 25)]
+    lower = [(51, 30), (58, 31), (60, 34), (54, 36)]
+    d.polygon(surf, THROAT, [(52, 26), (57, 27), (57, 30), (52, 29)])
+    _aaellipse(surf, (200, 60, 60), (55, 29), 3, 2)
     d.polygon(surf, BEAK,    upper)
     d.polygon(surf, BEAK_D,  upper, 1)
     d.polygon(surf, BEAK_LO, lower)
     d.polygon(surf, BEAK_D,  lower, 1)
-    d.line(surf, (255, 220, 100), (55, 22), (59, 24), 1)
+    d.line(surf, (255, 220, 100), (55, 21), (59, 24), 1)
 
     d.line(surf, BEAK_D, (28, 45), (26, 49), 2)
     d.line(surf, BEAK_D, (34, 45), (36, 49), 2)
@@ -194,7 +244,8 @@ if __name__ == "__main__":
     OUT_DIR = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(OUT_DIR, exist_ok=True)
     scale   = 4
-    frames  = [_add_outline(_build_hurt_frame(a)) for a in _HURT_ANGLES]
+    raw     = [_build_hurt_frame(a) for a in _HURT_ANGLES]
+    frames  = [_add_outline(f) for f in raw]
     fw, fh  = frames[0].get_size()
     margin, gap, label_h = 20, 8, 30
     canvas_w = margin + len(frames)*fw*scale + (len(frames)-1)*gap + margin
@@ -205,12 +256,28 @@ if __name__ == "__main__":
         font = pygame.font.SysFont("dejavusans", 16)
     except Exception:
         font = pygame.font.Font(None, 16)
-    lbl = font.render("bloodshot — round 1", True, (220, 220, 240))
+    lbl = font.render("bloodshot — round 2", True, (220, 220, 240))
     canvas.blit(lbl, (margin, margin + (label_h - lbl.get_height()) // 2))
     for i, frame in enumerate(frames):
         px = margin + i * (fw * scale + gap)
         py = margin + label_h + gap
         canvas.blit(pygame.transform.scale(frame, (fw*scale, fh*scale)), (px, py))
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(canvas, out_path)
-    print(f"Saved {canvas_w}x{canvas_h} → {out_path}")
+    print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
+
+    sclera = throat = bruise = 0
+    for f in raw:
+        for x in range(SPRITE_W):
+            for y in range(SPRITE_H):
+                r, g, b, a = f.get_at((x, y))
+                if a < 8:
+                    continue
+                if r > 200 and g > 180 and b > 140:
+                    sclera += 1
+                if 48 <= x <= 62 and 22 <= y <= 38 and r < 50 and g < 20:
+                    throat += 1
+                if r > 60 and g < 25 and b > 30:
+                    bruise += 1
+    print(f"sclera={sclera} (need >200)  throat={throat} (need >10)  "
+          f"bruise={bruise} (need >50)")
