@@ -1,13 +1,14 @@
 """
 `battle-bloodshot` — hurt-parrot concept exploration (standalone, not wired in).
 
-V3 of the bloodshot line. The V2 read was medical-crisis: bare bloodshot eyes,
-a jaw hanging six pixels open, purple haemorrhage. That crossed from "hurt" into
-"dying", and it threw away the aviators — the single strongest piece of Pip's
-identity. This version keeps the shades on and tells the story as an injury
-sustained in a fight rather than a body failing: fresh claw-scratches raked
-across the breast, a taped bandage over the brow, and one lens starred with
-cracks under a drooping lid. Battle-worn, still Pip, still readable at 1x.
+V3 of the bloodshot line, round 2. The story is an injury taken in a fight, not
+a body failing: claw-cuts raked low across the breast, a gauze strip taped
+diagonally over the temple, and shades knocked crooked with one lens starred.
+Round 1's mistake was value, not idea — the plumage went so dark the bird read
+as morbid rather than scrappy. Everything here is built back to a bright,
+high-contrast casual-arcade palette, and the damage is carried by *shape* and
+*asymmetry* (crooked frame, torn primaries, kicked tail feather) so it survives
+the 1x downscale instead of relying on dark-on-dark texture nobody can see.
 """
 import math
 import os, sys
@@ -27,6 +28,16 @@ SHADE_TINT  = (35, 55, 90)
 # Tarnished rather than the healthy bird's bright gold — the frame took the same
 # beating the lens did.
 SHADE_FRAME = (220, 175, 40)
+
+GAUZE      = (232, 228, 215)
+STITCH     = (180, 170, 160)
+CROSS      = (210, 30, 30)
+SCRATCH_D  = (100,  10,  10)
+SCRATCH_HL = (230, 110,  90)
+# Cracks read as light caught in the fracture. Round 1 drew them near-black on a
+# black lens, which vanished entirely; glass chips bright, and the bright line is
+# also the only thing that survives the downscale.
+CRACK      = (150, 175, 205)
 
 
 def _aaellipse(surf, color, center, rx, ry):
@@ -68,53 +79,65 @@ def _build_wing(angle_deg):
     d.line(w, HL,             (25,25),(41,15), 1)
     # A chunk torn out of the primaries, punched as transparency rather than
     # painted dark so the break survives the outline pass and the 1x downscale.
-    d.polygon(w, (0,0,0,0),   [(43,12),(51,17),(47,23),(44,17)])
+    # Widened along the primaries edge: at 1x a 4px notch closes up, an 8px one
+    # still reads as a bite taken out of the wing.
+    d.polygon(w, (0,0,0,0),   [(41,11),(53,17),(47,25),(43,16)])
     return pygame.transform.rotate(w, angle_deg)
 
 
 def _draw_scratches(surf):
-    """Three raked claw-marks across the breast. Each is a dark cut with a pale
+    """Two raked claw-marks low across the breast. Each is a dark cut with a pale
     lip drawn one pixel off-normal: the value pair is what makes it read as a
-    torn ridge of feather rather than a flat drawn-on stripe, and it survives
-    the downscale where a single dark line just dissolves into the plumage."""
-    SCRATCH_D  = (100, 10, 10)
-    SCRATCH_HL = (230, 110, 90)
+    torn ridge of feather rather than a flat drawn-on stripe.
+
+    Composited over the wing rather than under it, and clipped to whatever the
+    silhouette already covers. Under the wing the rake all but disappeared on
+    the upstroke frames — and a claw that opened the breast would have opened
+    the coverts on the way through anyway, so carrying it across the wing is
+    both the truthful read and the only one that holds for all four frames."""
     cuts = (
-        ((22, 29), (36, 23)),
-        ((23, 33), (37, 27)),
-        ((24, 37), (38, 31)),
+        ((18, 35), (32, 29)),
+        ((19, 40), (28, 35)),
     )
+    layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     for (x0, y0), (x1, y1) in cuts:
         dx, dy = x1 - x0, y1 - y0
         L = max(1e-3, math.hypot(dx, dy))
         # Unit normal, rounded to whole pixels so the highlight stays a crisp
         # neighbour line instead of an antialiased smear.
         ox, oy = round(-dy / L), round(dx / L)
-        pygame.draw.line(surf, SCRATCH_D, (x0, y0), (x1, y1), 1)
-        pygame.draw.line(surf, SCRATCH_HL,
+        pygame.draw.line(layer, SCRATCH_D, (x0, y0), (x1, y1), 1)
+        pygame.draw.line(layer, SCRATCH_HL,
                          (x0 + ox, y0 + oy), (x1 + ox, y1 + oy), 1)
+    for x in range(surf.get_width()):
+        for y in range(surf.get_height()):
+            if layer.get_at((x, y))[3] > 8 and surf.get_at((x, y))[3] > 8:
+                surf.set_at((x, y), layer.get_at((x, y)))
 
 
 def _draw_bandage(surf):
-    """Taped gauze across the brow. The red cross is the one piece of universal
-    shorthand in the whole sprite — a player parses "patched up" from it before
-    they have resolved anything else on the head."""
-    GAUZE  = (240, 240, 230)
-    STITCH = (180, 170, 160)
-    CROSS  = (210, 30, 30)
-    pygame.draw.rect(surf, GAUZE, pygame.Rect(38, 14, 17, 5))
-    pygame.draw.line(surf, STITCH, (38, 14), (54, 14), 1)
-    pygame.draw.line(surf, STITCH, (38, 18), (54, 18), 1)
-    pygame.draw.rect(surf, CROSS, pygame.Rect(43, 15, 6, 2))
-    pygame.draw.rect(surf, CROSS, pygame.Rect(45, 13, 2, 6))
+    """Gauze taped diagonally across the temple, drawn on top of the shades. A
+    horizontal brow strip hid behind the aviator lenses and effectively did not
+    exist; running it on the diagonal puts white where the head is otherwise a
+    single flat red, and the red cross is the one piece of universal shorthand in
+    the sprite — a player parses "patched up" from it before anything else."""
+    quad = [(36, 20), (41, 11), (48, 12), (43, 22)]
+    pygame.draw.polygon(surf, GAUZE, quad)
+    # Hemmed just outside the fill rather than on it: on-edge stitching eats a
+    # third of the white and the strip stops reading as gauze at 1x.
+    pygame.draw.line(surf, STITCH, (35, 20), (40, 11), 1)
+    pygame.draw.line(surf, STITCH, (49, 12), (44, 22), 1)
+    pygame.draw.line(surf, CROSS, (37, 17), (43, 17), 1)
+    pygame.draw.line(surf, CROSS, (40, 14), (40, 20), 1)
 
 
 def _draw_sunglasses(surf, cx, cy):
-    """Aviator shades: two teardrop lenses joined by a gold bridge, with a tiny
-    gold nose pad and a white sunlight glint on each lens. Carried over from the
-    healthy build unchanged so the hurt bird is unmistakably the same bird."""
+    """Aviator shades, knocked crooked. The left lens rides 2 px low and the brow
+    bar tilts to match — "took one to the face" told entirely in geometry, no
+    alpha tricks, no eyelid. Only the right lens keeps its glint: one dead
+    cracked lens against one still catching the sun is the whole read."""
     r_outer = 6
-    left  = (cx - 4, cy)
+    left  = (cx - 4, cy + 2)
     right = (cx + 6, cy - 1)
 
     pygame.draw.circle(surf, SHADE_FRAME, left, r_outer + 1)
@@ -125,36 +148,21 @@ def _draw_sunglasses(surf, cx, cy):
     pygame.draw.ellipse(tint, (*SHADE_TINT, 130), tint.get_rect())
     surf.blit(tint, (left[0] - r_outer, left[1] - r_outer + 1))
     surf.blit(tint, (right[0] - r_outer, right[1] - r_outer + 1))
-    pygame.draw.circle(surf, SHADE_GLINT, (left[0] - 2, left[1] - 2), 2)
     pygame.draw.circle(surf, SHADE_GLINT, (right[0] - 2, right[1] - 3), 2)
-    pygame.draw.circle(surf, (255, 255, 255, 200), (left[0] + 2, left[1] + 2), 1)
     pygame.draw.circle(surf, (255, 255, 255, 200), (right[0] + 2, right[1] + 1), 1)
-    pygame.draw.line(surf, SHADE_FRAME, (left[0] + r_outer, left[1]),
-                     (right[0] - r_outer, right[1]), 2)
+    pygame.draw.line(surf, SHADE_FRAME, (left[0] + 6, 21), (right[0] - 6, 19), 2)
     pygame.draw.line(surf, SHADE_FRAME,
                      (left[0] - r_outer + 1, left[1] - r_outer + 2),
                      (right[0] + r_outer - 1, right[1] - r_outer + 2), 1)
 
 
 def _draw_cracked_lens(surf):
-    """Star fracture radiating from the middle of the near lens. Near-black on
-    black is deliberate: the crack should catch the eye as a texture break at
-    2x, not read as a bright drawn X at 1x where it would look like a cartoon
-    dead-eye cross."""
-    CRACK = (12, 5, 5)
-    for end in ((41, 16), (52, 16), (40, 25), (50, 25)):
-        pygame.draw.line(surf, CRACK, (46, 20), end, 1)
-
-
-def _draw_droopy_lid(surf):
-    """Half-mast eyelid hanging over the cracked lens. Translucent so the lens
-    still reads as glass underneath — an opaque red bar would look like the
-    shades had been painted over."""
-    lid = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
-    pygame.draw.polygon(lid, (180, 35, 35),
-                        [(40, 14), (52, 14), (52, 18), (40, 18)])
-    lid.set_alpha(140)
-    surf.blit(lid, (0, 0))
+    """Star fracture in the low lens: three radials of uneven length plus a chord
+    linking two of them. Uneven beats symmetric — four equal spokes read as a
+    cartoon dead-eye X, while a lopsided star reads as impact."""
+    for end in ((41, 17), (50, 18), (47, 26)):
+        pygame.draw.line(surf, CRACK, (45, 21), end, 1)
+    pygame.draw.line(surf, CRACK, (43, 19), (47, 23), 1)
 
 
 def _tail_feather(pts, damaged=False):
@@ -164,7 +172,7 @@ def _tail_feather(pts, damaged=False):
     if not damaged:
         return pts
     root = ((pts[1][0] + pts[2][0]) / 2.0, (pts[1][1] + pts[2][1]) / 2.0)
-    a = math.radians(12)
+    a = math.radians(18)
     ca, sa = math.cos(a), math.sin(a)
     out = []
     for i, (x, y) in enumerate(pts):
@@ -181,16 +189,17 @@ def _build_hurt_frame(wing_angle_deg):
     surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
     d = pygame.draw
 
-    BODY    = (205, 28, 28)
-    BODY_SH = (130, 12, 12)
-    CHEST   = (160, 22, 22)
-    BELLY   = (195, 120, 30)
-    BEAK    = (235, 168, 0)
-    BEAK_LO = (205, 138, 0)
-    BEAK_D  = (140,  92, 0)
+    BODY    = (205,  28,  28)
+    BODY_SH = (130,  12,  12)
+    # Chest and belly carry the form modelling. Round 1 crushed both toward the
+    # base red, which flattened the bird into a dark silhouette; hurt is told by
+    # the damage marks, not by draining the light out of the plumage.
+    CHEST   = (235,  80,  80)
+    BELLY   = (215, 140,  45)
+    BEAK    = (235, 168,   0)
+    BEAK_LO = (205, 138,   0)
+    BEAK_D  = (140,  92,   0)
 
-    # Tail — same fan construction as the healthy bird, dropped a value step so
-    # it no longer out-saturates the head where the acting happens.
     for i, c in enumerate(((180, 25, 35), (190, 70, 30),
                            (210, 130, 40), (230, 195, 65))):
         pts = [
@@ -206,34 +215,31 @@ def _build_hurt_frame(wing_angle_deg):
     _aaellipse(surf, CHEST,   (30, 29), 13,  8)
     _aaellipse(surf, BELLY,   (28, 38), 12,  6)
 
-    # Sheen kept, but dulled to a matte film — healthy gloss would fight the
-    # whole premise.
     sheen = pygame.Surface((28, 6), pygame.SRCALPHA)
-    d.ellipse(sheen, (205, 150, 150, 70), sheen.get_rect())
+    d.ellipse(sheen, (205, 150, 150, 120), sheen.get_rect())
     surf.blit(sheen, (22, 21))
-
-    _draw_scratches(surf)
 
     wing = _build_wing(wing_angle_deg)
     surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
+
+    _draw_scratches(surf)
 
     # Head hangs 1 px lower than the healthy build — small in absolute terms,
     # but it breaks the proud upward line of the original silhouette.
     _aaellipse(surf, (155, 15, 20), (48, 24), 12, 11)
     _aaellipse(surf, BODY,          (47, 22), 12, 11)
-    _aaellipse(surf, (150, 40, 45), (40, 27),  4,  3)
-    _aaellipse(surf, (175, 60, 60), (46, 17),  7,  3)
+    _aaellipse(surf, (200, 90, 90), (44, 24),  4,  3)
+    _aaellipse(surf, (230, 140, 140), (46, 17),  7,  3)
 
-    _draw_bandage(surf)
     _draw_sunglasses(surf, 50, 20)
     _draw_cracked_lens(surf)
-    _draw_droopy_lid(surf)
+    _draw_bandage(surf)
 
-    # Beak parted only 2 px. Enough to read as a winded, open-mouthed pant; a
-    # wider gape tips over into the dying-bird register V2 got stuck in.
+    # Beak parted only ~2 px, and the lower mandible tucked up under the upper.
+    # Dropping it further left a spur hanging off the chin that made the bird
+    # read as some other species entirely.
     upper = [(55, 21), (61, 24), (58, 26), (52, 25)]
-    lower = [(52, 28), (58, 29), (60, 31), (54, 33)]
-    d.line(surf, BEAK_D, (52, 27), (59, 28), 1)
+    lower = [(52, 26), (58, 27), (59, 30), (54, 31)]
     d.polygon(surf, BEAK,    upper)
     d.polygon(surf, BEAK_D,  upper, 1)
     d.polygon(surf, BEAK_LO, lower)
@@ -246,63 +252,103 @@ def _build_hurt_frame(wing_angle_deg):
     return surf
 
 
+def _count_exact(frame, color):
+    n = 0
+    for x in range(SPRITE_W):
+        for y in range(SPRITE_H):
+            r, g, b, a = frame.get_at((x, y))
+            if a > 8 and (r, g, b) == color:
+                n += 1
+    return n
+
+
+def _mean_luma(frame):
+    total, n = 0.0, 0
+    for x in range(SPRITE_W):
+        for y in range(SPRITE_H):
+            r, g, b, a = frame.get_at((x, y))
+            if a < 8:
+                continue
+            total += 0.299 * r + 0.587 * g + 0.114 * b
+            n += 1
+    return total / max(1, n)
+
+
+def _strip(frames, scale, gap, bg):
+    fw, fh = frames[0].get_size()
+    w = len(frames) * fw * scale + (len(frames) - 1) * gap
+    s = pygame.Surface((w, fh * scale))
+    s.fill(bg)
+    for i, f in enumerate(frames):
+        s.blit(pygame.transform.scale(f, (fw * scale, fh * scale)),
+               (i * (fw * scale + gap), 0))
+    return s
+
+
 if __name__ == "__main__":
     OUT_DIR = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(OUT_DIR, exist_ok=True)
 
     raw    = [_build_hurt_frame(a) for a in _HURT_ANGLES]
     frames = [_add_outline(f) for f in raw]
-    fw, fh = frames[0].get_size()
 
-    scale, margin, gap, label_h = 4, 20, 8, 28
-    strip_w  = len(frames) * fw * scale + (len(frames) - 1) * gap
-    small_h  = fh * 2
-    canvas_w = margin * 2 + strip_w
-    canvas_h = margin * 2 + fh * scale + gap + small_h + gap + label_h
-    canvas   = pygame.Surface((canvas_w, canvas_h))
-    canvas.fill((8, 8, 20))
+    gauze_count = _count_exact(raw[0], GAUZE)
+    cross_count = _count_exact(raw[0], CROSS)
+    scratch_min = min(_count_exact(f, SCRATCH_D) + _count_exact(f, SCRATCH_HL)
+                      for f in raw)
+    luma = _mean_luma(raw[0])
 
-    for i, frame in enumerate(frames):
-        canvas.blit(pygame.transform.scale(frame, (fw * scale, fh * scale)),
-                    (margin + i * (fw * scale + gap), margin))
+    assert gauze_count >= 35, f"Bandage too faint: {gauze_count} gauze px (need >=35)"
+    assert cross_count >= 10, f"Cross missing: {cross_count} cross px (need >=10)"
+    assert scratch_min >= 25, (f"Scratches fade: min {scratch_min} px on worst "
+                               f"frame (need >=25)")
+    assert luma >= 95, f"Body too dark: mean luma {luma:.1f} (need >=95)"
 
-    # In-game scale reference: 2x and 1x side by side, because every decision
-    # above is only worth anything if it still reads at the size it ships at.
-    y = margin + fh * scale + gap
-    x = margin
-    for frame in frames:
-        canvas.blit(pygame.transform.scale(frame, (fw * 2, fh * 2)), (x, y))
-        x += fw * 2 + gap
-    x += gap * 2
-    for frame in frames:
-        canvas.blit(frame, (x, y + (small_h - fh) // 2))
-        x += fw + gap
+    NIGHT, DAY = (8, 8, 20), (100, 160, 220)
+    margin, gap = 20, 10
+    row1 = _strip(frames, 4, gap, NIGHT)
+    row2 = _strip(frames, 2, gap, NIGHT)
+    row3a = _strip(frames, 1, gap, DAY)
+    row3b = _strip(frames, 1, gap, (5, 8, 30))
+
+    label_h = 30
+    pad3    = 12
+    canvas_w = margin * 2 + max(row1.get_width(), row2.get_width())
+    canvas_h = (margin + row1.get_height() + gap + row2.get_height() + gap +
+                row3a.get_height() + pad3 * 2 + label_h + margin)
+    canvas = pygame.Surface((canvas_w, canvas_h))
+    canvas.fill(NIGHT)
+
+    canvas.blit(row1, (margin, margin))
+    y = margin + row1.get_height() + gap
+    canvas.blit(row2, (margin, y))
+    y += row2.get_height() + gap
+
+    # Day and night side by side at shipping size: the whole point of the bright
+    # crack and the white gauze is that they hold on both backgrounds.
+    for i, (panel, bg) in enumerate(((row3a, DAY), (row3b, (5, 8, 30)))):
+        px = margin + i * (panel.get_width() + pad3 * 2 + gap * 2)
+        pygame.draw.rect(canvas, bg,
+                         (px, y, panel.get_width() + pad3 * 2,
+                          panel.get_height() + pad3 * 2))
+        canvas.blit(panel, (px + pad3, y + pad3))
+    y += row3a.get_height() + pad3 * 2
 
     try:
-        font = pygame.font.SysFont("dejavusans", 16)
+        font  = pygame.font.SysFont("dejavusans", 17)
+        small = pygame.font.SysFont("dejavusans", 12)
     except Exception:
-        font = pygame.font.Font(None, 16)
-    lbl = font.render("battle-bloodshot — round 1  (4x / 2x / 1x)",
-                      True, (220, 220, 240))
-    canvas.blit(lbl, (margin, canvas_h - margin - label_h +
-                      (label_h - lbl.get_height()) // 2))
+        font = small = pygame.font.Font(None, 17)
+    canvas.blit(small.render("1x on day sky", True, (10, 20, 40)),
+                (margin + pad3, y - pad3 + 1))
+    canvas.blit(small.render("1x on night sky", True, (200, 205, 230)),
+                (margin + row3a.get_width() + pad3 * 3 + gap * 2, y - pad3 + 1))
+    lbl = font.render("battle-bloodshot — round 2   (4x / 2x / 1x day + night)",
+                      True, (225, 225, 245))
+    canvas.blit(lbl, (margin, canvas_h - margin - lbl.get_height() + 4))
 
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
-
-    red = gauze = hl = 0
-    for f in raw:
-        for x in range(SPRITE_W):
-            for y in range(SPRITE_H):
-                r, g, b, a = f.get_at((x, y))
-                if a < 8:
-                    continue
-                if r > 150 and g < 100:
-                    red += 1
-                if r > 220 and g > 220 and b > 200:
-                    gauze += 1
-                if r > 200 and g > 80 and b < 100:
-                    hl += 1
-    print(f"bird-red={red} (need >800)  bandage={gauze} (need >30)  "
-          f"scratch-highlight={hl} (need >20)")
+    print(f"gauze={gauze_count}  cross={cross_count}  "
+          f"scratch_min={scratch_min}  luma={luma:.1f}")
