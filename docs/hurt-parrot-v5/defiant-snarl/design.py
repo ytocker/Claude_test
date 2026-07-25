@@ -130,12 +130,13 @@ def _draw_brows(surf, head_c, head_rx, head_ry):
     fuse with it into a heavy dark cap."""
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
 
-    rear = ((41.0, 14.8), (47.0, 17.4))
-    front = ((51.5, 13.5), (59.5, 17.0))
+    thick = 3.4
+    rear = ((40.5, 14.4), (47.5, 17.2))
+    front = ((51.0, 13.6), (58.5, 17.0))
     for a, b in (rear, front):
-        lit_a, lit_b = (a[0], a[1] - 1.6), (b[0], b[1] - 1.6)
-        pygame.draw.polygon(layer, BROW_EDGE, _brow_wedge(lit_a, lit_b, 1.8))
-        pygame.draw.polygon(layer, BROW_DARK, _brow_wedge(a, b, 3.4))
+        pygame.draw.polygon(layer, BROW_DARK, _brow_wedge(a, b, thick))
+        pygame.draw.line(layer, BROW_EDGE,
+                         (a[0], a[1] + thick), (b[0], b[1] + thick), 1)
 
     mask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     _aaellipse(mask, (255, 255, 255, 255), head_c, head_rx - 0.9, head_ry - 0.9)
