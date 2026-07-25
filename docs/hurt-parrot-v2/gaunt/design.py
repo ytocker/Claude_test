@@ -65,7 +65,7 @@ IRIS        = ( 40,  10,  10)
 BONE        = (210, 195, 162)
 
 # Body ellipse the ribs are stencilled against — shared so the two can't drift.
-_BODY_C, _BODY_RX, _BODY_RY = (32, 35), 15, 10
+_BODY_C, _BODY_RX, _BODY_RY = (32, 35), 15, 9
 
 # Head pivot. Sits high enough that the throat gap between head and back reads
 # as a bared neck without any neck geometry being drawn for it.
