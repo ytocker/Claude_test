@@ -216,13 +216,15 @@ def _punch_notches(surf, wingless, angle_deg):
 
 # ── bare skin ────────────────────────────────────────────────────────────────
 
-# Two patches on the upper body. Positions are pushed toward the shoulder and
-# the flank rather than the mid-back: the wing sweeps across the middle of the
-# body at every flap angle, and a patch hidden under it for three frames of four
-# is not a patch.
+# Two patches, sited by measuring which body pixels survive the wing in all
+# four flap frames rather than by picking coordinates off the body ellipse. The
+# wing sweeps across the whole mid-back, so only two windows of exposed plumage
+# exist for the entire cycle: the narrow shoulder strip between wing and head,
+# and the flank above the belly. A patch anywhere else is invisible three frames
+# out of four, which is the same as not drawing it.
 _SKIN_PATCHES = (
-    ((38, 25), 5.0, 3.4),
-    ((41, 33), 4.4, 3.0),
+    ((37.0, 24.0), 2.6, 3.2),
+    ((26.0, 29.0), 4.6, 2.4),
 )
 
 
@@ -240,13 +242,15 @@ def _draw_skin_patch(surf, center, rx, ry):
         pts.append((cx + math.cos(a) * rx * k, cy + math.sin(a) * ry * k))
     pygame.draw.polygon(surf, SKIN, [(int(round(x)), int(round(y)))
                                      for x, y in pts])
-    # Lip: the upper arc only. Running it all the way round would outline the
-    # patch and flatten it back into a sticker.
+    # Lip along the upper arc only, drawn on the patch boundary itself. Running
+    # it the whole way round would outline the blob and flatten it back into a
+    # sticker; keeping it on top makes the dark field read as the shadowed floor
+    # of a dent lit from above.
     rim = [p for p in pts if p[1] <= cy]
     rim.sort(key=lambda p: p[0])
     if len(rim) >= 2:
         pygame.draw.lines(surf, SKIN_RIM, False,
-                          [(int(round(x)), int(round(y - 1))) for x, y in rim], 1)
+                          [(int(round(x)), int(round(y))) for x, y in rim], 1)
 
 
 # ── crest ────────────────────────────────────────────────────────────────────
