@@ -5,10 +5,10 @@ Pip after the hit reads as *structurally* damaged rather than recoloured, and
 the damage is carried by the outline: the tail fan loses two feathers and 30%
 of its reach, the head shrinks and tips further nose-down every frame, and the
 wing thins to a semi-transparent membrane over a forked bone. The body itself
-stays near full size (0.82) on purpose — the game already owns "small bird" as
-the Shrink power-up's reward signature, so shrinking the whole sprite would
-read as a pickup. Collapsing the *hull* while the body stays big reads as
-starvation instead.
+stays near full width (0.79 of healthy) on purpose — the game already owns
+"small bird" as the Shrink power-up's reward signature, so uniformly scaling the
+sprite down would read as a pickup. Collapsing the *hull* while the body stays
+big reads as starvation instead; the body only loses depth, not span.
 
 The face is the fastest beat: the aviators have slipped — right lens dropped
 onto the beak, frame bar canted ~10° — and one bare, haunted eye stares out
@@ -173,6 +173,13 @@ def _build_head(droop_deg):
     # Temple arm hanging loose off the face.
     d.line(s, SHADE_FRAME, (cx - 8, cy - 3), (cx - 12, cy), 1)
 
+    # Hollow socket: a crescent on the upper-inner rim of the dropped lens,
+    # last in the stack. Underneath the head it rendered as nothing, and even
+    # over the head the eye and the frame bar ate it — the flesh the glasses
+    # slid off has to be drawn on top of everything that could cover it.
+    d.arc(s, SOCKET,
+          (right_lens[0] - 6, right_lens[1] - 6, 12, 12), 1.2, 3.3, 2)
+
     if droop_deg:
         s = pygame.transform.rotate(s, -droop_deg)
     return s
@@ -200,7 +207,7 @@ def _build_hurt_frame(wing_angle_deg):
     d.line(surf, TAIL_LINE, _t(4, 27), _t(18, 31), 1)
     d.line(surf, TAIL_LINE, _t(6, 33), _t(20, 35), 1)
 
-    # --- BODY (0.82 of healthy — deliberately NOT the 0.6 Shrink signature) ---
+    # --- BODY (full-span, flattened — deliberately NOT the 0.6 Shrink look) ---
     _aaellipse(surf, BODY_SHADOW, (_BODY_C[0] + 1, _BODY_C[1] + 2), _BODY_RX, _BODY_RY)
     _aaellipse(surf, BODY,        _BODY_C,                          _BODY_RX, _BODY_RY)
     _aaellipse(surf, CHEST,       (30, 32), 11, 6)
@@ -241,64 +248,83 @@ def _build_hurt_frame(wing_angle_deg):
 
 
 if __name__ == "__main__":
+    from game.parrot import _build_frame as _healthy_frame
+
     OUT_DIR = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(OUT_DIR, exist_ok=True)
 
-    raw    = [_build_hurt_frame(a) for a in _HURT_ANGLES]
-    frames = [_add_outline(f) for f in raw]
-    fw, fh = frames[0].get_size()
-    scale  = 4
-    margin, gap, label_h = 20, 8, 30
+    raw     = [_build_hurt_frame(a) for a in _HURT_ANGLES]
+    hurt    = [_add_outline(f) for f in raw]
+    healthy = [_add_outline(_healthy_frame(a)) for a in (20, 0, -20, -40)]
 
-    canvas_w = margin + len(frames) * fw * scale + (len(frames) - 1) * gap + margin
-    canvas_h = margin + label_h + gap + fh * scale + margin
-    canvas   = pygame.Surface((canvas_w, canvas_h))
-    canvas.fill((8, 8, 20))
+    fw, fh = hurt[0].get_size()
+    scale  = 4
+    margin, gap, label_h, row_gap = 20, 8, 26, 14
 
     try:
-        font = pygame.font.SysFont("dejavusans", 16)
+        font  = pygame.font.SysFont("dejavusans", 16)
+        small = pygame.font.SysFont("dejavusans", 12)
     except Exception:
-        font = pygame.font.Font(None, 16)
-    lbl = font.render("gaunt — round 2", True, (220, 220, 240))
-    canvas.blit(lbl, (margin, margin + (label_h - lbl.get_height()) // 2))
+        font  = pygame.font.Font(None, 16)
+        small = pygame.font.Font(None, 12)
 
-    for i, frame in enumerate(frames):
-        big = pygame.transform.scale(frame, (fw * scale, fh * scale))
-        canvas.blit(big, (margin + i * (fw * scale + gap), margin + label_h + gap))
+    canvas_w = margin * 2 + 4 * fw * scale + 3 * gap
+    canvas_h = (margin + label_h
+                + 2 * (label_h + fh * scale + row_gap)
+                + label_h + fh + margin)
+    canvas = pygame.Surface((canvas_w, canvas_h))
+    canvas.fill((8, 8, 20))
+
+    def _title(text, y, f=small, col=(190, 190, 215)):
+        canvas.blit(f.render(text, True, col), (margin, y))
+
+    y = margin
+    _title("gaunt — round 2", y, font, (235, 235, 250))
+    y += label_h
+
+    _title("hurt (4x)  —  hull 46-48 px vs healthy 61 px", y)
+    y += label_h
+    for i, frame in enumerate(hurt):
+        canvas.blit(pygame.transform.scale(frame, (fw * scale, fh * scale)),
+                    (margin + i * (fw * scale + gap), y))
+    y += fh * scale + row_gap
+
+    _title("healthy reference (4x)", y)
+    y += label_h
+    for i, frame in enumerate(healthy):
+        canvas.blit(pygame.transform.scale(frame, (fw * scale, fh * scale)),
+                    (margin + i * (fw * scale + gap), y))
+    y += fh * scale + row_gap
+
+    _title("1x game scale — hurt, then healthy", y)
+    y += label_h
+    for i, frame in enumerate(hurt + healthy):
+        canvas.blit(frame, (margin + i * (fw + 6), y))
 
     pygame.image.save(canvas, os.path.join(OUT_DIR, "round_2.png"))
 
     # --- verification ---
-    for i, f in enumerate(raw):
-        opaque = 0
-        minx, maxx = 999, -1
-        ribpx = 0
+    _stub = lambda a: pygame.Surface((1, 1), pygame.SRCALPHA)
+    real_wing = _build_wing
+    for i, frame in enumerate(raw):
+        opaque, ribpx = 0, 0
+        minx, maxx = SPRITE_W, -1
         for x in range(SPRITE_W):
-            for y in range(SPRITE_H):
-                r, g, b, a = f.get_at((x, y))
-                if a > 0:
+            for py in range(SPRITE_H):
+                r, g, b, a = frame.get_at((x, py))
+                if a:
                     opaque += 1
                     minx, maxx = min(minx, x), max(maxx, x)
                     if 55 < r < 80 and g < 20:
                         ribpx += 1
-        nowing = _build_hurt_frame(_HURT_ANGLES[i])
-        # diff against a wingless rebuild to count what the membrane actually
-        # contributes after the head and body have had their turn
-        wing_px = 0
-        bare = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
-        bare.blit(f, (0, 0))
-        print(f"frame {i}: opaque={opaque}  width={maxx - minx + 1}  ribpx={ribpx}")
-
-    # wing visibility measured by rebuilding each frame without the wing blit
-    import types
-    src_wing = _build_wing
-    for i, ang in enumerate(_HURT_ANGLES):
-        globals()['_build_wing'] = lambda a: pygame.Surface((1, 1), pygame.SRCALPHA)
-        no_w = _build_hurt_frame(ang)
-        globals()['_build_wing'] = src_wing
-        with_w = _build_hurt_frame(ang)
-        diff = sum(1 for x in range(SPRITE_W) for y in range(SPRITE_H)
-                   if with_w.get_at((x, y)) != no_w.get_at((x, y)))
-        print(f"frame {i}: visible wing px={diff}")
+        # Wing contribution is measured by diffing against a wingless rebuild,
+        # so it counts what survives the head and body, not what was drawn.
+        globals()["_build_wing"] = _stub
+        no_wing = _build_hurt_frame(_HURT_ANGLES[i])
+        globals()["_build_wing"] = real_wing
+        wing_px = sum(1 for x in range(SPRITE_W) for py in range(SPRITE_H)
+                      if frame.get_at((x, py)) != no_wing.get_at((x, py)))
+        print(f"frame {i}: opaque={opaque}  width={maxx - minx + 1}  "
+              f"ribs={ribpx}  wing={wing_px}")
 
     print(f"Saved round_2.png {canvas_w}x{canvas_h}")
