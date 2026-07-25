@@ -3,11 +3,11 @@
 
 The shades took the hit. Pip's damage is told almost entirely through the one
 accessory every player already reads as *his* — the aviators. The left lens is
-simply gone: a bare gold rim over an empty socket, one squinting lid inside it.
-The right lens is untouched, tinted and glinting exactly as in the healthy
-sprite. That pairing is the whole story, and it is a pure shape read: a solid
-disc next to a hollow ring survives the 1x downscale where painted-on texture
-does not.
+simply gone: a bare gold ring over warm head skin, one squinting crease inside
+it. The right lens is untouched, tinted and glinting exactly as in the healthy
+sprite. That pairing is the whole story, and it is a pure shape read: a bright
+hollow ring next to a dark filled disc survives the 1x downscale where painted-
+on texture does not.
 
 Reference note: real glasses almost never shatter in place — the frame warps and
 a lens pops out. Drawing the loss rather than a crack is both the truthful read
@@ -43,23 +43,23 @@ SHADE_FRAME = (255, 200,  50)
 SHADE_GLINT = (255, 255, 255)
 SHADE_TINT  = ( 35,  55,  90)
 
-# The empty rim is filled with a near-black recess rather than punched to
-# transparency: a real hole would let `_add_outline` draw a dark halo *inside*
-# the ring and would break the silhouette. Kept a touch violet and a touch
-# lighter than SHADE_BLACK so the socket reads as depth, not as a second lens.
-SOCKET      = ( 25,  18,  30)
-# Warm pale lid, borrowed from the macaw's bare facial-skin family — the only
-# light value inside the socket, so it is what the eye finds there at 1x.
-LID         = (235, 200, 195)
 GAPE        = ( 15,  10,  10)
 
-# Left ring rides 2 px above its healthy position and the frame axis reads ~8deg
-# off level. A bigger kick starts to look like a drawing mistake rather than a
-# knock; 8deg is enough asymmetry to notice and still parse as a worn object.
+# Left ring center rides 2 px above its healthy position; all three frame
+# elements share exactly one 8° tilt so the knocked frame reads as one object.
 LEFT_C  = (46, 18)
 RIGHT_C = (56, 19)
 RIM_R   = 7
 HOLLOW_R = 5
+
+# tan(8°) — single slope constant shared by brow bar, ring-center axis, and
+# temple stub so they all tilt at exactly the same angle.
+_FRAME_SLOPE = 0.1405
+
+
+def _frame_y(x, anchor_x=39, anchor_y=17):
+    """Y on the shared 8° tilt line through the left-edge anchor."""
+    return round(anchor_y + (x - anchor_x) * _FRAME_SLOPE)
 
 
 def _aaellipse(surf, color, center, rx, ry):
@@ -103,16 +103,20 @@ def _build_wing(angle_deg):
 def _draw_busted_shades(surf):
     """Aviators with the left lens knocked clean out.
 
-    Draw order matters. The brow bar goes down first and the rims stamp over it,
-    so the bar only ever supplies structural connection — at 10 px lens spacing
-    the two rims overlap and a bar drawn on top would either be invisible or
-    would streak gold across the empty socket. The tilt is therefore carried by
-    the rim positions plus the temple stub, which is the one piece of frame that
-    lives outside both lens interiors and so stays readable.
+    All three frame elements — brow bar, left ring, temple stub — are derived
+    from the same _frame_y slope so they share a single tilt axis. The left
+    interior is bare head skin (no socket fill): a bright hollow ring opposite
+    a dark filled disc is the plainest binary shape read available, surviving
+    the 1x downscale where any painted texture does not.
     """
     d = pygame.draw
 
-    d.line(surf, SHADE_FRAME, (39, 19), (62, 16), 2)
+    # Brow bar: both endpoints derived from _frame_y so the line's slope is
+    # exactly _FRAME_SLOPE — identical to the ring-center axis and temple stub.
+    brow_x0, brow_x1 = 39, 62
+    d.line(surf, SHADE_FRAME,
+           (brow_x0, _frame_y(brow_x0)),
+           (brow_x1, _frame_y(brow_x1)), 2)
 
     # Right: fully intact, canonical geometry. Any softening here would cost the
     # concept its whole contrast.
@@ -124,25 +128,24 @@ def _draw_busted_shades(surf):
     d.circle(surf, SHADE_GLINT, (RIGHT_C[0] - 2, RIGHT_C[1] - 3), 2)
     d.circle(surf, (255, 255, 255, 200), (RIGHT_C[0] + 2, RIGHT_C[1] + 1), 1)
 
-    # Left: 2 px gold annulus over a recessed socket. The rim is deliberately
-    # thicker than the right lens's 1 px rim — a hollow ring needs the extra
-    # pixel to survive the downscale, and the weight difference reads as the
-    # bare frame edge you'd actually see with the glass gone. Stamped after the
-    # right lens because at 10 px spacing the two rims overlap: putting the
-    # broken side in front keeps its ring unbroken, which is the read the whole
-    # concept rests on.
-    d.circle(surf, SHADE_FRAME, LEFT_C, RIM_R)
-    d.circle(surf, SOCKET,      LEFT_C, HOLLOW_R)
+    # Left: 2 px gold annulus only — no socket fill. The head skin drawn before
+    # this function shows through the hollow interior, so the interior reads as
+    # warm bright (~luma 174) against the right lens's dark interior (~luma 16).
+    # Stamped after the right lens because the rims overlap; the broken side in
+    # front keeps the ring arc continuous, which is the read the concept rests on.
+    d.circle(surf, SHADE_FRAME, LEFT_C, RIM_R + 1, 2)
 
-    # Temple arm swinging back toward the ear, drawn last because it clears both
-    # lens interiors. Its angle is the frame's angle, so this stub is what
-    # actually sells "knocked askew" at gameplay size.
-    d.line(surf, SHADE_FRAME, (40, 19), (35, 20), 2)
+    # Temple arm: same anchor as brow bar start, same slope, so the stub and
+    # bar share a continuous direction rather than three conflicting readings.
+    temple_x0, temple_x1 = 39, 35
+    d.line(surf, SHADE_FRAME,
+           (temple_x0, _frame_y(temple_x0)),
+           (temple_x1, _frame_y(temple_x1)), 2)
 
-    # The single squinting lid. One 2 px arc, endpoints landing on the rim so the
-    # lid is continuous with the frame — nothing floats, and there is no eye
-    # anatomy behind it to turn to mush at 1x.
-    d.arc(surf, LID,
+    # Single squinting crease. Dark BIRD_RED_D on the warm pink head highlight
+    # reads as a skin crease (shut eye) rather than a lid — no anatomy, nothing
+    # to mush at 1x. Exactly one 2 px arc, endpoints landing on the ring.
+    d.arc(surf, BIRD_RED_D,
           (LEFT_C[0] - HOLLOW_R, LEFT_C[1] - HOLLOW_R + 1,
            HOLLOW_R * 2, HOLLOW_R + 3),
           0.35, 2.79, 2)
@@ -181,13 +184,13 @@ def _build_hurt_frame(wing_angle_deg):
     _draw_busted_shades(surf)
 
     # Beak split into a partial gape. The dark wedge is laid down first and the
-    # two mandibles stamp over it, so the interior shows only as the 3 px sliver
-    # between them — a gap that widens with the jaws rather than a painted line.
-    # The lower mandible's root stays well inside the head ellipse, so the drop
-    # can never orphan it into a detached island.
+    # two mandibles stamp over it, so the interior shows only as the sliver
+    # between them. Hinge left-edge pulled from x=52 to x=54 (2 px toward the
+    # tip) so the gape narrows correctly at the jaw pivot and widens toward the
+    # tip at x=59 — a jaw is tightest at the hinge, not the tip.
     upper = [(55, 21), (61, 24), (58, 26), (52, 25)]
     lower = [(52, 28), (58, 29), (59, 32), (54, 32)]
-    d.polygon(surf, GAPE,        [(52, 25), (59, 26), (59, 31), (53, 31)])
+    d.polygon(surf, GAPE,        [(54, 25), (59, 26), (59, 31), (54, 31)])
     d.polygon(surf, BIRD_BEAK,   upper)
     d.polygon(surf, BIRD_BEAK_D, upper, 1)
     d.polygon(surf, BIRD_BEAK,   lower)
@@ -214,6 +217,26 @@ def _count_in_disc(frame, color, center, radius, tol=0):
                     and abs(b - color[2]) <= tol):
                 n += 1
     return n
+
+
+def _mean_luma_in_disc(frame, center, radius):
+    """Average Rec.601 luminance of opaque pixels inside the given disc.
+
+    r=4 sampling radius avoids the gold rim and measures only the true interior
+    zone, so the delta between left (head skin) and right (dark tinted lens)
+    is clean and not diluted by shared rim pixels.
+    """
+    cx, cy = center
+    lumas = []
+    for x in range(max(0, cx - radius), min(SPRITE_W, cx + radius + 1)):
+        for y in range(max(0, cy - radius), min(SPRITE_H, cy + radius + 1)):
+            if (x - cx) ** 2 + (y - cy) ** 2 > radius * radius:
+                continue
+            r, g, b, a = frame.get_at((x, y))
+            if a <= 8:
+                continue
+            lumas.append(0.299 * r + 0.587 * g + 0.114 * b)
+    return sum(lumas) / len(lumas) if lumas else 0.0
 
 
 def _islands(frame):
@@ -250,18 +273,29 @@ if __name__ == "__main__":
     frames = [_add_outline(f) for f in raw]
 
     f0 = raw[0]
-    ring_px   = _count_in_disc(f0, SHADE_FRAME, LEFT_C, RIM_R + 1)
-    left_fill = _count_in_disc(f0, SHADE_BLACK, LEFT_C, HOLLOW_R)
-    lid_px    = _count_in_disc(f0, LID, LEFT_C, RIM_R)
+    ring_px    = _count_in_disc(f0, SHADE_FRAME, LEFT_C, RIM_R + 1)
     right_fill = _count_in_disc(f0, SHADE_BLACK, RIGHT_C, RIM_R - 1)
-    gape_px   = _count_in_disc(f0, GAPE, (56, 28), 8)
+    gape_px    = _count_in_disc(f0, GAPE, (56, 28), 8)
+
+    # Luminance delta is the canonical shape-read check: left interior must be
+    # bright (warm head skin showing through) and right interior must be dark
+    # (black tinted lens). r=4 avoids the gold rim pixels so only the interior
+    # zone of each lens is sampled.
+    left_luma  = _mean_luma_in_disc(f0, LEFT_C,  4)
+    right_luma = _mean_luma_in_disc(f0, RIGHT_C, 4)
+    delta = left_luma - right_luma
 
     print(f"left ring (gold)   : {ring_px}   (want > 15)")
-    print(f"left fill (dark)   : {left_fill}   (want 0 / very few)")
-    print(f"squint arc         : {lid_px}   (want > 3)")
     print(f"right lens fill    : {right_fill}   (want > 20)")
     print(f"beak gape interior : {gape_px}")
+    print(f"left interior luma : {left_luma:.1f}")
+    print(f"right lens luma    : {right_luma:.1f}")
+    print(f"luma delta (L-R)   : {delta:.1f}   (want >= 60)")
     print(f"islands per frame  : {[_islands(f) for f in raw]}   (want all 1)")
+
+    assert delta >= 60, (
+        f"luminance delta {delta:.1f} < 60 — left interior must be brighter than right lens"
+    )
 
     BG = (8, 8, 20)
     fw, fh = frames[0].get_size()
@@ -270,6 +304,6 @@ if __name__ == "__main__":
     for i, f in enumerate(frames):
         strip.blit(f, (i * fw, 0))
 
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(strip, out_path)
     print(f"Saved {strip.get_width()}x{strip.get_height()} -> {out_path}")
