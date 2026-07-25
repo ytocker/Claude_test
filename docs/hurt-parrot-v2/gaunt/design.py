@@ -148,13 +148,14 @@ def _build_hurt_frame(wing_angle_deg):
 
     # --- RIBS ---
     # Drawn on their own layer and min-blended against a body-shaped stencil:
-    # the lowest ribs are wider than what is left of the belly, and unclipped
-    # they would float free below the silhouette.
+    # the lower ribs are wider than what is left of the belly, and unclipped
+    # they would float free below the silhouette. Spacing is a flat 3 px so the
+    # four bands read as a ribcage rhythm instead of as stray scratches.
     ribs = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
-    _aaellipse(ribs, RIB,     (30, 37), 8, 1)
-    _aaellipse(ribs, RIB,     (30, 40), 7, 1)
-    _aaellipse(ribs, RIB,     (29, 43), 6, 1)
-    _aaellipse(ribs, RIB_LOW, (28, 46), 5, 1)
+    _aaellipse(ribs, RIB,     (30, 33), 8, 1)
+    _aaellipse(ribs, RIB,     (30, 36), 7, 1)
+    _aaellipse(ribs, RIB,     (29, 39), 6, 1)
+    _aaellipse(ribs, RIB_LOW, (28, 42), 5, 1)
     stencil = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
     _aaellipse(stencil, (255, 255, 255, 255), (32, 34), 12, 9)
     ribs.blit(stencil, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
