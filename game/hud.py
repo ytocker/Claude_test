@@ -199,7 +199,7 @@ def _nest_draw_slot(surf, cy, alive):
     cx = _NEST_CX
     rx, ry_off, rw, rh = rim_rect
     pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
-    pygame.draw.ellipse(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 2)
+    pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
     stick_top = cy + ry_off + rh
     for vx in verts:
         _nest_stick_span(surf, vx, stick_top, cy + stick_bottom)
