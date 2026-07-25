@@ -80,7 +80,7 @@ _RADIALS = tuple(
 
 
 # Wing-local triangle for the torn-off primary shard (see `_build_wing`).
-_WING_NOTCH = [(47, 17), (51, 30), (38, 25)]
+_WING_NOTCH = [(46, 24), (52, 36), (37, 30)]
 
 
 def _aaellipse(surf, color, center, rx, ry):
@@ -188,9 +188,9 @@ def _build_wing(angle_deg, glow):
     w.blit(cut, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
     # Splinter rim on the two fresh break edges only — the third edge is open
     # sky and is already carried by the keyline.
-    d.line(w, CRACK_CORE, (39, 25), (46, 19), 1)
-    d.line(w, CRACK_CORE, (39, 26), (49, 30), 1)
-    d.line(w, glow, (40, 27), (49, 31), 1)
+    d.line(w, CRACK_CORE, (38, 30), (45, 25), 1)
+    d.line(w, CRACK_CORE, (38, 31), (49, 34), 1)
+    d.line(w, glow, (39, 29), (45, 24), 1)
 
     return pygame.transform.rotate(w, angle_deg)
 
