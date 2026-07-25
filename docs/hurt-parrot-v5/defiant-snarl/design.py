@@ -51,7 +51,7 @@ _HEAD_DX, _HEAD_DY = 1, 2
 _BODY_DY = 2
 
 BROW_DARK = (40, 8, 8)
-BROW_EDGE = (120, 22, 22)          # thin lit top so the wedge beds into feathers
+BROW_EDGE = (255, 214, 196)        # rim light so the ridge reads over the lens
 MOUTH_DARK = (15, 10, 10)
 
 _JAW_HINGE = (52 + _HEAD_DX, 26 + _HEAD_DY)
@@ -82,7 +82,9 @@ def _draw_snarl_shades(surf, cx, cy):
     +6 so the forward head shift doesn't push the gold rim off the canvas."""
     from game.parrot import SHADE_FRAME, SHADE_BLACK, SHADE_TINT, SHADE_GLINT
 
-    r_outer = 6
+    # Lenses drop from r=6 to r=5: a narrower aperture both frees the skull
+    # real estate the brow wedge needs and reads as a squint in its own right.
+    r_outer = 5
     left = (cx - 4, cy)
     right = (cx + 5, cy - 1)
 
@@ -113,20 +115,30 @@ def _brow_wedge(a, b, thick):
 
 
 def _draw_brows(surf, head_c, head_rx, head_ry):
-    """Both brow wedges, angled down toward the beak so they converge into a
-    fierce V. Painted through a head-shaped mask: unclipped they would spill
-    past the skull contour and leave stray pixels the outline pass would
-    happily halo."""
+    """Two brow wedges, each angled down toward the beak so the pair converges
+    into a fierce V with a red notch left open at the bridge — one continuous
+    bar would read as a hat brim instead of a scowl.
+
+    Each wedge gets a lit line along its UNDER edge, not its top. Above the
+    brow there is already high contrast (near-black on scarlet); below it the
+    brow crosses the black lens, where dark-on-dark would erase the ridge
+    entirely. Lighting the under edge also keeps the highlight clear of the
+    skull contour, where a top rim light gets clipped away by the mask.
+
+    The whole layer is clipped to a head mask inset by ~1 px so no brow pixel
+    ever reaches the skull contour, where the sprite's 2 px outline halo would
+    fuse with it into a heavy dark cap."""
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
 
-    rear = ((38.0, 15.0), (49.0, 19.5))
-    front = ((50.0, 13.0), (61.0, 17.5))
+    rear = ((41.0, 14.8), (47.0, 17.4))
+    front = ((51.5, 13.5), (59.5, 17.0))
     for a, b in (rear, front):
-        pygame.draw.polygon(layer, BROW_DARK, _brow_wedge(a, b, 3.6))
-        pygame.draw.line(layer, BROW_EDGE, a, b, 1)
+        lit_a, lit_b = (a[0], a[1] - 1.6), (b[0], b[1] - 1.6)
+        pygame.draw.polygon(layer, BROW_EDGE, _brow_wedge(lit_a, lit_b, 1.8))
+        pygame.draw.polygon(layer, BROW_DARK, _brow_wedge(a, b, 3.4))
 
     mask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    _aaellipse(mask, (255, 255, 255, 255), head_c, head_rx, head_ry)
+    _aaellipse(mask, (255, 255, 255, 255), head_c, head_rx - 0.9, head_ry - 0.9)
     layer.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(layer, (0, 0))
 
