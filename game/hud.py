@@ -198,11 +198,11 @@ def _nest_draw_slot(surf, cy, alive):
     verts, courses, stick_wins, rim_rect, stick_bottom, hollow = _nest_get_params()
     cx = _NEST_CX
     rx, ry_off, rw, rh = rim_rect
-    pygame.draw.rect(surf, (0, 0, 0), (rx, cy + ry_off + rh // 2, rw, rh - rh // 2))
+    pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
     pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
-    stick_top = cy + courses[2][0]
     for vx in verts:
-        _nest_stick_span(surf, vx, stick_top, cy + stick_bottom)
+        _nest_stick_span(surf, vx, cy, cy + stick_bottom)
+    _nest_weave(surf, cy, (0, 1), courses, stick_wins)
     if alive:
         surf.blit(_nest_bird, (cx - _nest_bird_w // 2, cy - _nest_bird_h // 2 + 5))
     else:
