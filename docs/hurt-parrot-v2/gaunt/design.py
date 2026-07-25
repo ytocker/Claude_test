@@ -143,7 +143,7 @@ def _build_head(droop_deg):
     d = pygame.draw
     cx, cy = 20, 20
 
-    _aaellipse(s, HEAD_SHADOW, (cx + 1, cy + 2), 8, 7)
+    _aaellipse(s, HEAD_SHADOW, (cx + 1, cy + 1), 8, 7)
     _aaellipse(s, BODY,        (cx, cy),         8, 7)
     _aaellipse(s, CHEEK,       (cx - 3, cy + 3), 3, 2)
     _aaellipse(s, CROWN,       (cx - 1, cy - 5), 5, 2)
@@ -206,7 +206,7 @@ def _build_hurt_frame(wing_angle_deg):
     d.line(surf, TAIL_LINE, _t(6, 33), _t(20, 35), 1)
 
     # --- BODY (0.82 of healthy — deliberately NOT the 0.6 Shrink signature) ---
-    _aaellipse(surf, BODY_SHADOW, (_BODY_C[0] + 2, _BODY_C[1] + 3), _BODY_RX, _BODY_RY)
+    _aaellipse(surf, BODY_SHADOW, (_BODY_C[0] + 1, _BODY_C[1] + 2), _BODY_RX, _BODY_RY)
     _aaellipse(surf, BODY,        _BODY_C,                          _BODY_RX, _BODY_RY)
     _aaellipse(surf, CHEST,       (30, 32), 11, 6)
     _aaellipse(surf, BELLY,       (28, 41), 10, 5)
@@ -217,11 +217,11 @@ def _build_hurt_frame(wing_angle_deg):
     # their own layer and min-blended against a body-shaped stencil so the wider
     # bands can't float outside the silhouette.
     ribs = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
-    for (rcx, rcy, rrx, rc) in ((36, 32, 8, RIB_TOP),
-                                (35, 37, 7, RIB_MID),
-                                (33, 42, 6, RIB_LOW)):
+    for (rcx, rcy, rrx, rc) in ((37, 30, 8, RIB_TOP),
+                                (36, 35, 7, RIB_MID),
+                                (35, 40, 6, RIB_LOW)):
         d.arc(ribs, rc, (rcx - rrx, rcy - 4, rrx * 2, 8),
-              math.radians(200), math.radians(340), 2)
+              math.radians(200), math.radians(340), 1)
     stencil = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
     _aaellipse(stencil, (255, 255, 255, 255), _BODY_C, _BODY_RX, _BODY_RY)
     ribs.blit(stencil, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
@@ -230,7 +230,7 @@ def _build_hurt_frame(wing_angle_deg):
     # --- WING ---
     # Seated low and back of the shoulder so the head can't eat the membrane.
     wing = _build_wing(wing_angle_deg)
-    surf.blit(wing, wing.get_rect(center=(26, 29)).topleft)
+    surf.blit(wing, wing.get_rect(center=(24, 25)).topleft)
 
     # --- HEAD (8° further nose-down each frame) ---
     head = _build_head(fidx * 8)
