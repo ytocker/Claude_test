@@ -152,11 +152,6 @@ def _build_head(droop_deg):
     # The right lens has slid 3 px down the face and off onto the beak.
     right_lens = (cx + 4, cy + 1)
 
-    # Hollow socket rim, drawn over the head so it actually survives — the
-    # upper-inner arc the dropped lens no longer covers.
-    d.arc(s, SOCKET,
-          (right_lens[0] - 6, right_lens[1] - 6, 12, 12), 1.0, 3.1, 2)
-
     # One bare eye above the crooked rim. This single detail does more of the
     # "not okay" work than any amount of anatomy below it.
     _aaellipse(s, SCLERA, (cx + 2, cy - 5), 4, 3)
