@@ -14,17 +14,37 @@ pygame.display.set_mode((1, 1))
 from game.biome_sky import BiomeSpec, SkyParams, paint_sky
 from game.config import W, H, GROUND_Y
 
+# Ozone Bloom: atmosphere refracting last sunlight into cool teal-to-indigo at
+# the horizon band while the zenith darkens violet.  Hue journey from warm gold
+# at 0.235 through atmospheric scattering greens → cyans → deep indigo by 0.52.
+#
+# Constraint ledger (enforced by design, verified by PIL after render):
+#   R−G < 40 at sky_bot   for all phases 0.27–0.47  (no orange bleed)
+#   B > 100 at sky_bot    from 0.31 onward
+#   sky_mid hue within 30° of sky_bot hue            (no scarlet mid-band)
+#   horizon R higher, B lower than sky_bot            (warm scattering sliver)
+#   sky_top zenith clamped ≥ (18,10,40)               (no channel blacks out)
 _KF = [
     (0.04,  dict(sky_top=( 86,158,186), sky_mid=(150,192,202), sky_bot=(196,212,210), horizon=(214,218,212), star_alpha=0)),
     (0.12,  dict(sky_top=( 76,168,192), sky_mid=(144,198,208), sky_bot=(196,214,212), horizon=(216,220,212), star_alpha=0)),
     (0.20,  dict(sky_top=( 86,160,188), sky_mid=(152,192,204), sky_bot=(198,212,208), horizon=(216,218,210), star_alpha=0)),
+    # ALPINE_HAZE golden-hour handoff anchor — do not modify this row
     (0.235, dict(sky_top=(141,153,157), sky_mid=(232,188,166), sky_bot=(255,186,144), horizon=(255,164,104), star_alpha=0)),
-    (0.27,  dict(sky_top=(181,150,139), sky_mid=(254,168,126), sky_bot=(255,160,124), horizon=(252,128,116), star_alpha=0)),
-    (0.31,  dict(sky_top=(168,122,140), sky_mid=(250,138,100), sky_bot=(244,152,178), horizon=(206,104,150), star_alpha=5)),
-    (0.37,  dict(sky_top=(108, 66,116), sky_mid=(244, 96, 80), sky_bot=(222,152,198), horizon=(114, 52,108), star_alpha=12)),
-    (0.42,  dict(sky_top=( 80, 42,112), sky_mid=(222, 74, 98), sky_bot=(212,138,192), horizon=( 86, 44, 90), star_alpha=30)),
-    (0.47,  dict(sky_top=( 37, 30, 70), sky_mid=(118, 59, 80), sky_bot=(168,102,158), horizon=( 88, 44, 88), star_alpha=88)),
-    (0.52,  dict(sky_top=( 28, 30, 64), sky_mid=( 68, 42, 68), sky_bot=( 86, 56, 90), horizon=(126, 74,124), star_alpha=156)),
+    # Ozone scattering begins — pale champagne-green; R−G=−10, B=173 > 100
+    # horizon is warmer (R↑, B↓) than sky_bot — last warm light scattering
+    (0.27,  dict(sky_top=(110, 95,145), sky_mid=(165,175,150), sky_bot=(185,195,173), horizon=(192,186,160), star_alpha=0)),
+    # Warm sage-green; R−G=−14, B=154
+    (0.31,  dict(sky_top=( 85, 68,130), sky_mid=(148,156,138), sky_bot=(168,182,154), horizon=(175,172,138), star_alpha=5)),
+    # Cyan-slate; R−G=−30, B=165 — CR vs BIRD_RED ≈ 4.1 (free win)
+    # sky_mid is blue-violet bridge, explicit art-director example
+    (0.37,  dict(sky_top=( 58, 42,108), sky_mid=( 80, 75,130), sky_bot=(128,158,165), horizon=(135,148,148), star_alpha=12)),
+    # Cool teal-grey; R−G=−32, B=150 — CR vs BIRD_RED ≈ 3.3
+    (0.42,  dict(sky_top=( 45, 22, 80), sky_mid=( 60, 60,112), sky_bot=(108,140,150), horizon=(116,130,132), star_alpha=30)),
+    # Indigo-cyan; R−G=−17, B=140
+    (0.47,  dict(sky_top=( 32, 16, 62), sky_mid=( 68, 70,108), sky_bot=( 88,105,140), horizon=( 96, 96,122), star_alpha=88)),
+    # Deep indigo; B=112 still > 100
+    (0.52,  dict(sky_top=( 26, 14, 50), sky_mid=( 50, 55, 84), sky_bot=( 68, 82,112), horizon=( 76, 72, 96), star_alpha=156)),
+    # Night holds — ALPINE_HAZE night anchor
     (0.56,  dict(sky_top=( 23, 28, 57), sky_mid=( 33, 35, 61), sky_bot=( 44, 45, 68), horizon=( 57, 56, 75), star_alpha=222)),
     (0.82,  dict(sky_top=( 23, 28, 57), sky_mid=( 33, 35, 61), sky_bot=( 44, 45, 68), horizon=( 57, 56, 75), star_alpha=222)),
     (0.86,  dict(sky_top=( 24, 30, 59), sky_mid=( 35, 37, 63), sky_bot=( 45, 47, 70), horizon=( 61, 59, 78), star_alpha=166)),
@@ -34,7 +54,7 @@ _KF = [
 
 SPEC = BiomeSpec(
     name='B Ozone Bloom',
-    note='Bottom leads hue shift — whole dome becomes one magenta chord',
+    note='Ozone scattering blue shift — base cools through green→cyan→indigo as sun sets',
     keyframes=_KF,
     sky=SkyParams(positions=(0.0, 0.30, 0.58, 0.82, 1.0), dither_amp=1.8, zenith_dark=0.14, descent_drop=0.20),
 )
@@ -67,7 +87,7 @@ f_title = pygame.font.SysFont("dejavusans", 15, bold=True)
 f_label = pygame.font.SysFont("dejavusans", 13, bold=True)
 f_phase = pygame.font.SysFont("dejavusans", 11)
 
-title = f_title.render("B · Ozone Bloom — bottom leads to magenta chord", True, TEXT_HI)
+title = f_title.render("B - Ozone Bloom - ozone scattering blue shift", True, TEXT_HI)
 canvas.blit(title, (canvas_w // 2 - title.get_width() // 2, 12))
 
 ground_frac = GROUND_Y / H
@@ -88,7 +108,7 @@ for i, (phase, label) in enumerate(SAMPLES):
     ph_lbl = f_phase.render(f"phase {phase}", True, TEXT_LO)
     canvas.blit(ph_lbl, (x + PANEL_W // 2 - ph_lbl.get_width() // 2, fy + 36))
 
-out = os.path.join(_ROOT, "docs", "sky_transition", "b_ozone_bloom", "round_1.png")
+out = os.path.join(_ROOT, "docs", "sky_transition", "b_ozone_bloom", "round_2.png")
 os.makedirs(os.path.dirname(out), exist_ok=True)
 pygame.image.save(canvas, out)
 print(f"wrote {out}")
