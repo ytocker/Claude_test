@@ -219,9 +219,6 @@ def _nest_draw_slot(surf, cy, alive):
 
 
 def _draw_pip_lives_row(surf, lives_remaining, lives_total, cy=106):
-    pygame.draw.rect(surf, _NEST_OUTER_SHADOW, (1, 56, 60, 82), 1, border_radius=6)
-    pygame.draw.rect(surf, _NEST_PANEL_DARK,   (2, 57, 58, 80),    border_radius=5)
-    pygame.draw.rect(surf, _NEST_GOLD_BRIGHT,  (2, 57, 58, 80), 1, border_radius=5)
     for i, cy_s in enumerate(_NEST_CY_LIST[:max(lives_total, 2)]):
         _nest_draw_slot(surf, cy_s, i < lives_remaining)
 
