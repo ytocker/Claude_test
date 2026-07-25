@@ -31,19 +31,20 @@ _KF = [
     # ALPINE_HAZE golden-hour handoff anchor — do not modify this row
     (0.235, dict(sky_top=(141,153,157), sky_mid=(232,188,166), sky_bot=(255,186,144), horizon=(255,164,104), star_alpha=0)),
     # Ozone scattering begins — pale champagne-green; R−G=−10, B=173 > 100
-    # horizon is warmer (R↑, B↓) than sky_bot — last warm light scattering
-    (0.27,  dict(sky_top=(110, 95,145), sky_mid=(165,175,150), sky_bot=(185,195,173), horizon=(192,186,160), star_alpha=0)),
+    # horizon R↑B↓ vs sky_bot — last warm light scattering at base
+    # sky_top G raised so zenith_dark pass (−0.14 OKLab L) keeps all channels ≥ 15
+    (0.27,  dict(sky_top=(125,110,162), sky_mid=(165,175,150), sky_bot=(185,195,173), horizon=(192,186,160), star_alpha=0)),
     # Warm sage-green; R−G=−14, B=154
-    (0.31,  dict(sky_top=( 85, 68,130), sky_mid=(148,156,138), sky_bot=(168,182,154), horizon=(175,172,138), star_alpha=5)),
-    # Cyan-slate; R−G=−30, B=165 — CR vs BIRD_RED ≈ 4.1 (free win)
-    # sky_mid is blue-violet bridge, explicit art-director example
-    (0.37,  dict(sky_top=( 58, 42,108), sky_mid=( 80, 75,130), sky_bot=(128,158,165), horizon=(135,148,148), star_alpha=12)),
-    # Cool teal-grey; R−G=−32, B=150 — CR vs BIRD_RED ≈ 3.3
-    (0.42,  dict(sky_top=( 45, 22, 80), sky_mid=( 60, 60,112), sky_bot=(108,140,150), horizon=(116,130,132), star_alpha=30)),
+    (0.31,  dict(sky_top=(100, 80,145), sky_mid=(148,156,138), sky_bot=(168,182,154), horizon=(175,172,138), star_alpha=5)),
+    # Cyan-slate; sky_bot lightened (L≈0.50) so real CR vs BIRD_RED ≥ 2.0 at y≈470
+    # sky_mid blue-violet bridge per art-director example; horizon R↑B↓ ✓
+    (0.37,  dict(sky_top=( 75, 58,118), sky_mid=( 80, 75,130), sky_bot=(162,192,200), horizon=(182,196,198), star_alpha=12)),
+    # Cool teal-grey; sky_bot lightened; horizon kf CR_kf≈2.1 for robust y≈470 check
+    (0.42,  dict(sky_top=( 82, 60,125), sky_mid=( 60, 60,112), sky_bot=(155,184,198), horizon=(180,192,196), star_alpha=30)),
     # Indigo-cyan; R−G=−17, B=140
-    (0.47,  dict(sky_top=( 32, 16, 62), sky_mid=( 68, 70,108), sky_bot=( 88,105,140), horizon=( 96, 96,122), star_alpha=88)),
+    (0.47,  dict(sky_top=( 65, 58,105), sky_mid=( 68, 70,108), sky_bot=( 88,105,140), horizon=( 96, 96,122), star_alpha=88)),
     # Deep indigo; B=112 still > 100
-    (0.52,  dict(sky_top=( 26, 14, 50), sky_mid=( 50, 55, 84), sky_bot=( 68, 82,112), horizon=( 76, 72, 96), star_alpha=156)),
+    (0.52,  dict(sky_top=( 52, 52, 88), sky_mid=( 50, 55, 84), sky_bot=( 68, 82,112), horizon=( 76, 72, 96), star_alpha=156)),
     # Night holds — ALPINE_HAZE night anchor
     (0.56,  dict(sky_top=( 23, 28, 57), sky_mid=( 33, 35, 61), sky_bot=( 44, 45, 68), horizon=( 57, 56, 75), star_alpha=222)),
     (0.82,  dict(sky_top=( 23, 28, 57), sky_mid=( 33, 35, 61), sky_bot=( 44, 45, 68), horizon=( 57, 56, 75), star_alpha=222)),
