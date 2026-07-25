@@ -60,7 +60,7 @@ EMBER_WHITE = (255, 240, 190)
 CRACK_DARK  = (42, 13,  8)
 CRACK_WARM  = (150, 52, 16)
 EYE_EMBER   = (220, 100, 30)
-EYE_GLINT   = (232, 176, 112)
+EYE_GLINT   = (198, 138,  86)
 
 
 def _aaellipse(surf, color, center, rx, ry):
@@ -98,7 +98,9 @@ def _ember_pulse(wing_angle_deg):
     lo, hi = min(_HURT_ANGLES), max(_HURT_ANGLES)
     t = (wing_angle_deg - lo) / float(hi - lo) if hi != lo else 1.0
     t = max(0.0, min(1.0, t))
-    return 0.76 + 0.24 * t
+    # Shallow floor on purpose: the heart may gutter but it must never drop out
+    # of the frame, or the sprite loses its only bright read mid-cycle.
+    return 0.90 + 0.10 * t
 
 
 def _build_wing(angle_deg):
@@ -145,19 +147,28 @@ def _build_hurt_frame(wing_angle_deg):
     _aaellipse(surf, BODY,        (32, 32), 19, 14)
     _aaellipse(surf, CHEST_DARK,  (30, 29), 13,  8)
 
+    # --- WING (soot-dark, tucked behind the cavity) ---
+    # It sits under the ember rather than over it: a wing painted across the
+    # chest buries the one bright read the whole concept hangs on.
+    wing = _build_wing(wing_angle_deg)
+    surf.blit(wing, wing.get_rect(center=(34, 27)).topleft)
+
     # --- EMBER CORE ---
     _aaellipse(surf, _dim(EMBER_OUTER, k * 0.88), (32, 31), 16,  11)
     _aaellipse(surf, _dim(EMBER_MID,   k),        (32, 31),  9,   6)
     _aaellipse(surf, _dim(EMBER_CORE,  k),        (32, 31),  4,   2.5)
-    if k > 0.86:
+    if k > 0.94:
         _aaellipse(surf, EMBER_WHITE, (32, 31), 1.5, 1)
 
     # Fissures last: dark through the coal (shell fragments still bridging the
     # hole), turning warm past the ember where the heat leaks into cold char.
     warm = _dim(CRACK_WARM, k)
     for ex, ey in ((17, 23), (19, 41), (47, 23), (45, 41), (32, 44), (32, 19)):
-        d.line(surf, CRACK_DARK, (32, 31), (ex, ey), 1)
+        # Struck from a ring outside the core rather than from dead centre, so
+        # six converging lines can't erase the hottest pixels between them.
+        sx, sy = 32 + (ex - 32) * 0.36, 31 + (ey - 31) * 0.36
         mx, my = 32 + (ex - 32) * 0.72, 31 + (ey - 31) * 0.72
+        d.line(surf, CRACK_DARK, (round(sx), round(sy)), (ex, ey), 1)
         d.line(surf, warm, (round(mx), round(my)), (ex, ey), 1)
 
     # Hard charcoal rim keeps the glow contained inside the husk.
@@ -166,10 +177,6 @@ def _build_hurt_frame(wing_angle_deg):
     # Ash speckle on the lower shell — cooled crust below the live coal.
     for px, py in ((22, 40), (27, 42), (33, 41), (38, 38), (18, 34), (41, 33)):
         surf.set_at((px, py), (52, 46, 44))
-
-    # --- WING (soot-dark) ---
-    wing = _build_wing(wing_angle_deg)
-    surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
 
     # --- HEAD (charcoal) ---
     _aaellipse(surf, HEAD_SHADOW, (48, 23), 12, 11)

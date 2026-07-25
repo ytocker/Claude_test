@@ -1,13 +1,20 @@
 """
 `corrupted` — hurt-parrot concept exploration (standalone, not wired in).
 
-The premise is that the *sprite* is damaged, not the bird. Rather than paint
-injury onto a healthy macaw, the frame is built and then destroyed: horizontal
-scan bands are torn sideways with the RGB channels pulled apart, the eyes are
-overwritten by raw bitmap artifacts (a white no-data void and a black dead
-block), and the beak leaves a ghost echo where the blit landed twice. Damage is
-therefore readable as a rendering failure — the one hurt language that can't be
-mistaken for a decal stuck on a parrot.
+The premise is that the *sprite* is damaged, not the bird. The frame is built
+healthy, then one horizontal scan band across the chest is torn sideways with
+the RGB channels pulled apart, and the single aviator lens is displaced a few
+pixels off its socket with a cyan ghost left behind at the true position.
+Damage therefore reads as a rendering failure — the one hurt language that
+can't be mistaken for a decal stuck on a parrot.
+
+Round 2 rebuilds the corruption to survive rotation. The bird tilts +-40 deg
+in play, so any stripe that owns a large share of the sprite stops reading as
+a scanline and starts reading as a diagonal paint stroke. The corruption is
+therefore rationed: ONE band, blended at ~40% so the body form shows straight
+through it, clipped inside the silhouette and short of the beak, plus a single
+displaced-eye artifact. Two small tells that stay legible at any angle beat six
+large ones that only work at 0 deg.
 
 Everything is procedural; numpy is used only as a fast pixel-array shim over
 pygame.surfarray, which ships with pygame on both build targets.
@@ -31,13 +38,24 @@ _FRAME_MAP = {10: 0, -5: 1, -20: 2, -35: 3}
 _SHIFTS = (10, 8, 12, 6)
 
 CYAN = (0, 240, 220)
+GHOST_CYAN = (0, 220, 200)
 MAGENTA = (255, 0, 160)
-VOID = (255, 255, 255)
-DEAD = (5, 5, 5)
 
-# Bands are placed to bisect the three silhouette masses (head/shoulder, mid
-# body under the wing, belly) so no single mass survives intact.
-_BANDS = ((12, 19), (27, 34), (43, 50))
+# One band only, sat on the chest/wing junction: the most legible tear position
+# and the only place a horizontal artifact still reads as a scanline once the
+# sprite is rotated. Everything right of BAND_X_MAX is off limits so the beak —
+# the silhouette cue that says "bird" — is never touched.
+_BAND = (27, 34)
+BAND_X_MAX = 48
+
+# Tear opacity. Full pixel replacement erased the body underneath; at ~40% the
+# displaced data reads as interference laid over an intact parrot.
+_TEAR_ALPHA = 102
+_TEAR_ADD = 0.16
+
+EYE_ANCHOR = (46, 20)
+EYE_SHIFT = 4
+EYE_ECHO_SHIFT = 5
 
 
 def _aaellipse(surf, color, center, rx, ry):
@@ -60,39 +78,55 @@ def _add_outline(src, outline_color=(20, 12, 18, 220)):
     return out
 
 
-def _apply_glitch_bands(surf, shift):
-    """Tear three horizontal bands sideways with the colour channels separated.
+def _apply_glitch_band(surf, shift):
+    """Tear ONE chest band sideways with the colour channels separated.
 
-    The alpha channel is displaced along with the pixels, so the *silhouette*
-    breaks too — that is the part that survives the 1x downscale and the later
-    outline pass. Red leads and blue lags the green shift by 3 px, which is
-    real chromatic aberration rather than a fringe painted on afterwards.
+    The tear is composited *over* the untouched sprite instead of replacing it,
+    and the alpha channel is left alone entirely — the silhouette stays a clean
+    parrot, which is what keeps the read honest once the bird is rotated. Red
+    leads and blue lags the green shift by 3 px, which is real chromatic
+    aberration rather than a fringe painted on afterwards. The roll happens
+    inside the x < BAND_X_MAX slice so nothing can wrap onto the beak.
     """
+    r0, r1 = _BAND
     rgb = pygame.surfarray.array3d(surf).astype(np.uint8)
-    alpha = pygame.surfarray.array_alpha(surf).astype(np.uint8)
+    alpha = pygame.surfarray.array_alpha(surf)
 
-    for r0, r1 in _BANDS:
-        band_rgb = rgb[:, r0:r1 + 1, :]
-        band_a = alpha[:, r0:r1 + 1]
-        for chan, lag in ((0, 3), (1, 0), (2, -3)):
-            band_rgb[:, :, chan] = np.roll(band_rgb[:, :, chan], shift + lag, axis=0)
-        rgb[:, r0:r1 + 1, :] = band_rgb
-        alpha[:, r0:r1 + 1] = np.roll(band_a, shift, axis=0)
+    band = rgb[:BAND_X_MAX, r0:r1 + 1, :].copy()
+    for chan, lag in ((0, 3), (1, 0), (2, -3)):
+        band[:, :, chan] = np.roll(band[:, :, chan], shift + lag, axis=0)
 
-    # blit_array only accepts a matching-format surface, so the RGB plane is
-    # staged on a plain surface and the recovered alpha is stamped back on.
-    plane = pygame.Surface((SPRITE_W, SPRITE_H))
-    pygame.surfarray.blit_array(plane, rgb)
-    out = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
-    out.blit(plane, (0, 0))
-    pygame.surfarray.pixels_alpha(out)[:] = alpha
+    tear = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
+    trgb = pygame.surfarray.pixels3d(tear)
+    ta = pygame.surfarray.pixels_alpha(tear)
+    trgb[:BAND_X_MAX, r0:r1 + 1, :] = band
+    # Masking the tear by the *host* alpha is what keeps the corruption inside
+    # the bird: displaced data never sprays out into the sky.
+    ta[:BAND_X_MAX, r0:r1 + 1] = np.where(
+        alpha[:BAND_X_MAX, r0:r1 + 1] > 8, _TEAR_ALPHA, 0).astype(np.uint8)
+    del trgb, ta
 
-    # The fringe lines run the full frame width, past the bird's edges: the
-    # corruption belongs to the render target, not to the parrot.
-    for r0, r1 in _BANDS:
-        pygame.draw.line(out, CYAN, (0, r0), (SPRITE_W - 1, r0), 1)
-        pygame.draw.line(out, MAGENTA, (0, r1), (SPRITE_W - 1, r1), 1)
-    return out
+    surf.blit(tear, (0, 0))
+
+    glow = tear.copy()
+    grgb = pygame.surfarray.pixels3d(glow)
+    grgb[:] = (grgb.astype(np.float32) * _TEAR_ADD).astype(np.uint8)
+    del grgb
+    surf.blit(glow, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+    # Only 2 px of the whole sprite carry full-contrast corruption colour, so
+    # the fringe can stay saturated without swamping the macaw palette.
+    for x in range(BAND_X_MAX):
+        if alpha[x, r0] > 8:
+            surf.set_at((x, r0), CYAN)
+        if alpha[x, r1] > 8:
+            surf.set_at((x, r1), MAGENTA)
+    # Hard vertical nick where the tear stops: real datamosh has a clip edge,
+    # and it doubles as the visual promise that nothing reaches the beak.
+    for y in range(r0, r1 + 1):
+        if alpha[BAND_X_MAX - 1, y] > 8:
+            surf.set_at((BAND_X_MAX - 1, y), CYAN)
+    return surf
 
 
 def _build_wing(angle_deg):
@@ -115,6 +149,50 @@ def _build_wing(angle_deg):
     return pygame.transform.rotate(w, angle_deg)
 
 
+def _build_lens(r=6):
+    """A single aviator lens on its own surface, so it can be displaced whole."""
+    size = r * 2 + 3
+    lens = pygame.Surface((size, size), pygame.SRCALPHA)
+    c = (r + 1, r + 1)
+    pygame.draw.circle(lens, (255, 200, 50), c, r)
+    pygame.draw.circle(lens, (16, 16, 22), c, r - 1)
+    tint = pygame.Surface((r * 2 - 2, r - 1), pygame.SRCALPHA)
+    pygame.draw.ellipse(tint, (35, 55, 90, 150), tint.get_rect())
+    lens.blit(tint, (c[0] - r + 1, c[1] - r + 2))
+    pygame.draw.circle(lens, (255, 255, 255), (c[0] - 2, c[1] - 2), 2)
+    pygame.draw.circle(lens, (255, 255, 255, 200), (c[0] + 2, c[1] + 2), 1)
+    return lens
+
+
+def _draw_displaced_eye(surf):
+    """The one face artifact: the lens has slid right off its own socket.
+
+    Read order left-to-right is empty socket -> cyan outline of where the lens
+    should be -> the lens itself -> a cyan trailing sliver. That is the whole
+    grammar of a horizontal pixel shift, delivered in about 200 px, and it
+    survives rotation because it is a compact cluster rather than a stripe.
+    """
+    ax, ay = EYE_ANCHOR
+    lens = _build_lens()
+    off = lens.get_width() // 2
+
+    # Dark socket first: the lens took its pixels with it and left a hole.
+    pygame.draw.circle(surf, (26, 14, 18), (ax, ay), 5)
+
+    ghost = pygame.Surface(lens.get_size(), pygame.SRCALPHA)
+    pygame.draw.circle(ghost, (*GHOST_CYAN, 190), (off, off), 5, 1)
+    surf.blit(ghost, (ax - off, ay - off))
+
+    # Cyan-tinted duplicate of the eye content one step further right than the
+    # lens itself, so only a trailing sliver survives — a smear, not a twin.
+    echo = lens.copy()
+    echo.fill((0, 210, 200, 90), special_flags=pygame.BLEND_RGBA_MULT)
+    echo.set_alpha(72)
+    surf.blit(echo, (ax - off + EYE_ECHO_SHIFT, ay - off))
+
+    surf.blit(lens, (ax - off + EYE_SHIFT, ay - off))
+
+
 def _build_hurt_frame(wing_angle_deg):
     fidx = _FRAME_MAP.get(int(round(wing_angle_deg)), 0)
     shift = _SHIFTS[fidx]
@@ -123,15 +201,15 @@ def _build_hurt_frame(wing_angle_deg):
     d = pygame.draw
 
     BODY = (190, 42, 42)
-    BODY_SH = (130, 20, 20)
-    CHEST = (230, 88, 88)
+    BODY_SH = (162, 26, 26)
+    CHEST = (232, 70, 64)
     BELLY = (235, 155, 42)
     BEAK = (240, 170, 0)
     BEAK_D = (190, 125, 0)
 
     # Palette sits a step off the healthy macaw's — the flatter, slightly
     # washed reds read as a badly re-encoded texture before any glitch lands.
-    for i, tc in enumerate(((188, 28, 36), (225, 88, 36),
+    for i, tc in enumerate(((196, 30, 34), (224, 70, 34),
                             (242, 152, 48), (248, 212, 74))):
         d.polygon(surf, tc, [
             (2 + i * 3, 26 + i * 2), (14 + i, 24 + i),
@@ -148,9 +226,9 @@ def _build_hurt_frame(wing_angle_deg):
     wing = _build_wing(wing_angle_deg)
     surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
 
-    _aaellipse(surf, (138, 18, 20), (48, 23), 12, 11)
+    _aaellipse(surf, (164, 24, 26), (48, 23), 12, 11)
     _aaellipse(surf, BODY, (47, 21), 12, 11)
-    _aaellipse(surf, (235, 110, 110), (44, 24), 4, 3)
+    _aaellipse(surf, (236, 96, 88), (44, 24), 4, 3)
     _aaellipse(surf, (235, 158, 158), (46, 16), 7, 3)
 
     beak_pts = [(55, 21), (61, 24), (58, 28), (52, 26)]
@@ -161,27 +239,11 @@ def _build_hurt_frame(wing_angle_deg):
     d.line(surf, BEAK_D, (28, 45), (26, 49), 2)
     d.line(surf, BEAK_D, (34, 45), (36, 49), 2)
 
-    surf = _apply_glitch_bands(surf, shift)
+    surf = _apply_glitch_band(surf, shift)
 
-    # Ghost beak. A straight +10 px echo would fall off a 64 px frame and read
-    # as nothing, so the duplicate lands down-right instead: same displacement
-    # magnitude, but it hangs clear of the head where the doubling is legible.
-    echo = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
-    ghost = [(x + 3, y + 9) for x, y in beak_pts]
-    d.polygon(echo, (*BEAK, 160), ghost)
-    d.polygon(echo, (*CYAN, 160), ghost, 1)
-    surf.blit(echo, (0, 0))
-
-    # Eyes are stamped after the tear so they stay pinned while the head slides
-    # out from under them — the face is the one place the corruption must be
-    # unambiguous, so both are raw blocks rather than anything eye-shaped.
-    d.circle(surf, VOID, (46, 20), 7)
-    d.rect(surf, DEAD, (50, 13, 12, 12))
-
-    d.line(surf, CYAN, (5, 8), (13, 8), 1)
-    d.line(surf, MAGENTA, (45, 52), (53, 52), 1)
-    for y in range(5, 56, 2):
-        surf.set_at((52, y), DEAD)
+    # Stamped after the tear so the artifact stays pinned to the face; the eye
+    # is the one place the corruption has to be unambiguous at 1x.
+    _draw_displaced_eye(surf)
 
     return surf
 
@@ -196,18 +258,31 @@ def _sky_patch(w, h):
     return s
 
 
+def _count(surf, pred):
+    a = pygame.surfarray.array3d(surf).astype(np.int16)
+    al = pygame.surfarray.array_alpha(surf)
+    r, g, b = a[:, :, 0], a[:, :, 1], a[:, :, 2]
+    return int(np.count_nonzero(pred(r, g, b) & (al > 8)))
+
+
 if __name__ == "__main__":
     OUT_DIR = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(OUT_DIR, exist_ok=True)
 
-    frames = [_add_outline(_build_hurt_frame(a)) for a in _HURT_ANGLES]
+    raw = [_build_hurt_frame(a) for a in _HURT_ANGLES]
+    frames = [_add_outline(f) for f in raw]
     fw, fh = frames[0].get_size()
     scale, margin, gap, label_h = 4, 20, 8, 30
 
+    tilts = (-41, 0, 27)
+    tscale = 3
+    tile_w = int((fw ** 2 + fh ** 2) ** 0.5) + 4
+
     canvas_w = margin * 2 + len(frames) * fw * scale + (len(frames) - 1) * gap
     row2_h = fh * 2 + 12
+    row3_h = tile_w * tscale
     canvas_h = (margin + label_h + gap + fh * scale + gap + label_h
-                + gap + row2_h + margin)
+                + gap + row2_h + gap + label_h + gap + row3_h + margin)
     canvas = pygame.Surface((canvas_w, canvas_h))
     canvas.fill((8, 8, 20))
 
@@ -218,7 +293,7 @@ if __name__ == "__main__":
         font = pygame.font.Font(None, 16)
         small = pygame.font.Font(None, 14)
 
-    lbl = font.render("corrupted — round 1  |  4x flap cycle", True, (220, 220, 240))
+    lbl = font.render("corrupted — round 2  |  4x flap cycle", True, (220, 220, 240))
     canvas.blit(lbl, (margin, margin + (label_h - lbl.get_height()) // 2))
 
     top = margin + label_h + gap
@@ -243,6 +318,33 @@ if __name__ == "__main__":
         x += fw + gap
     canvas.blit(small.render("2x", True, (24, 40, 70)), (margin + 10, y3 + 2))
 
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    y4 = y3 + row2_h + gap
+    lbl3 = font.render("TILT CHECK — frame 0 at the game's dive/climb angles",
+                       True, (255, 210, 120))
+    canvas.blit(lbl3, (margin, y4 + (label_h - lbl3.get_height()) // 2))
+
+    y5 = y4 + label_h + gap
+    tx = margin
+    for ang in tilts:
+        rot = pygame.transform.rotate(frames[0], ang)
+        tile = pygame.Surface((tile_w, tile_w), pygame.SRCALPHA)
+        tile.blit(rot, rot.get_rect(center=(tile_w // 2, tile_w // 2)))
+        canvas.blit(pygame.transform.scale(tile, (tile_w * tscale, tile_w * tscale)),
+                    (tx, y5))
+        canvas.blit(small.render(f"{ang:+d}°", True, (200, 200, 220)),
+                    (tx + 4, y5 + 4))
+        tx += tile_w * tscale + gap
+    # 1x row of the same tilts: the angles have to survive the size they ship at.
+    for ang in tilts:
+        rot = pygame.transform.rotate(frames[0], ang)
+        canvas.blit(rot, (tx, y5 + row3_h // 2 - rot.get_height() // 2))
+        tx += rot.get_width() + gap
+
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
+
+    probe = raw[0]
+    print("bird-red   :", _count(probe, lambda r, g, b: (r > 150) & (g < 80)))
+    print("cyan fringe:", _count(probe, lambda r, g, b: (r < 50) & (g > 180) & (b > 150)))
+    print("ghost eye  :", _count(probe, lambda r, g, b: (r < 30) & (g > 150) & (b > 150)))
