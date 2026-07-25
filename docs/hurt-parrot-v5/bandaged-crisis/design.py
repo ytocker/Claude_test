@@ -318,7 +318,10 @@ def _draw_cracked_lenses(surf):
 
 
 TAIL_TRUNCATE = 0.75
-TAIL_KICK_DEG = -15.0
+# Kicked up, away from the stack. Down is into the other three feathers, where
+# a broken feather is a feather nobody can see: the fan is drawn back-to-front
+# and the body ellipse lands on top of everything inboard of x~13.
+TAIL_KICK_DEG = 15.0
 
 
 def _tail_feather(pts, damaged=False):
@@ -327,9 +330,10 @@ def _tail_feather(pts, damaged=False):
     rather than a clean edge — a shortened feather with a straight tip reads as
     a *smaller* feather, and the notch is what makes it read as a snapped one.
 
-    It is the outermost feather on purpose: kicked away from the stack it
-    breaks the fan's outline, and outline damage is the only damage that
-    survives the 1x downscale."""
+    It is the outermost feather on purpose. The three inboard ones are almost
+    entirely behind the body ellipse — snapping one of those is a change only a
+    pixel diff can find. The outer feather is the one that owns the fan's top
+    outline, and outline damage is the only damage that survives 1x."""
     if not damaged:
         return pts
     root = ((pts[1][0] + pts[2][0]) / 2.0, (pts[1][1] + pts[2][1]) / 2.0)
@@ -350,7 +354,7 @@ def _tail_feather(pts, damaged=False):
     return [moved[0], moved[1], moved[2], moved[3], notch]
 
 
-def _build_hurt_frame(wing_angle_deg, tear=True):
+def _build_hurt_frame(wing_angle_deg, tear=True, snap=True):
     surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
     d = pygame.draw
 
@@ -368,7 +372,7 @@ def _build_hurt_frame(wing_angle_deg, tear=True):
             (2 + i * 3, 26 + i * 2), (14 + i, 24 + i),
             (20 + i, 30 + i * 2), (6 + i * 3, 36 + i * 2),
         ]
-        d.polygon(surf, c, _tail_feather(pts, damaged=(i == 3)))
+        d.polygon(surf, c, _tail_feather(pts, damaged=(snap and i == 0)))
     d.line(surf, BODY_SH, (4, 27), (18, 31), 1)
     d.line(surf, BODY_SH, (6, 33), (20, 35), 1)
 
@@ -457,6 +461,7 @@ if __name__ == "__main__":
 
     raw    = [_build_hurt_frame(a) for a in _HURT_ANGLES]
     notear = [_build_hurt_frame(a, tear=False) for a in _HURT_ANGLES]
+    nosnap = [_build_hurt_frame(a, snap=False) for a in _HURT_ANGLES]
     frames = [_add_outline(f) for f in raw]
 
     is_white = lambda r, g, b: (r, g, b) in (GAUZE, PAD)
@@ -476,9 +481,15 @@ if __name__ == "__main__":
         wisps = _count(f, is_wisp,  (0, 0, SPRITE_W, 12))
         cross = _count(f, is_cross)
         changed, opened = _tear_stats(f, notear[idx])
+        # For the tail the silhouette number is the only one worth having: the
+        # snap is meant to be read as a broken outline, not as recoloured
+        # pixels somewhere under the body.
+        t_changed, t_sil = _tear_stats(f, nosnap[idx])
         flag = lambda ok: "ok " if ok else "LOW"
         print(f"f{idx}: gauze={gauze:3d} {flag(gauze >= 30)}  "
               f"glass={glass:3d} {flag(glass >= 80)}  "
               f"wisps={wisps:3d} {flag(wisps >= 30)}  "
               f"tear_changed={changed:3d} tear_opened={opened:3d} "
-              f"{flag(changed >= 20)}  tape={tape:3d} cross={cross:2d}")
+              f"{flag(changed >= 20)}  "
+              f"snap_changed={t_changed:3d} snap_silhouette={t_sil:3d} "
+              f"{flag(t_sil >= 20)}  tape={tape:3d} cross={cross:2d}")
