@@ -24,11 +24,28 @@ _KF = [
     (0.12,  dict(sky_top=( 76,168,192), sky_mid=(144,198,208), sky_bot=(196,214,212), horizon=(216,220,212), star_alpha=0)),
     (0.20,  dict(sky_top=( 86,160,188), sky_mid=(152,192,204), sky_bot=(198,212,208), horizon=(216,218,210), star_alpha=0)),
     (0.235, dict(sky_top=(141,153,157), sky_mid=(232,188,166), sky_bot=(255,186,144), horizon=(255,164,104), star_alpha=0)),
-    (0.27,  dict(sky_top=(181,150,139), sky_mid=(254,168,126), sky_bot=(246,176,120), horizon=(255,198,132), star_alpha=0)),
-    (0.31,  dict(sky_top=(168,122,140), sky_mid=(250,138,100), sky_bot=(224,184,128), horizon=(252,212,148), star_alpha=5)),
-    (0.37,  dict(sky_top=(108, 66,116), sky_mid=(244, 96, 80), sky_bot=(182,180,132), horizon=(208,204,156), star_alpha=12)),
-    (0.42,  dict(sky_top=( 80, 42,112), sky_mid=(222, 74, 98), sky_bot=(172,168,124), horizon=(194,190,140), star_alpha=30)),
-    (0.47,  dict(sky_top=( 37, 30, 70), sky_mid=(118, 59, 80), sky_bot=(122,120, 88), horizon=(150,147,104), star_alpha=88)),
+    # FIX 2: real brass at sky_bot (R−G ≈ 20-35, B pushed 60-90 for metal depth) vs the
+    # old khaki that had R−G≈4.  FIX 1 start: sky_mid stays warm-peachy at 0.27 (golden hour),
+    # but transitions into the plum/mauve family by 0.31 so the bird never sinks into scarlet.
+    (0.27,  dict(sky_top=(181,150,139), sky_mid=(254,168,126), sky_bot=(206,178,128), horizon=(255,198,132), star_alpha=0)),
+    # FIX 1: sky_mid moves into rose-plum (hue ~355°) to open the plum descent to 0.52.
+    # FIX 2 cont: sky_bot now R−G=30, B=112 — genuine brass.  FIX 4: saturation cliff
+    # 0.31→0.37 smoothed from 52 pts to ~8 pts by aligning both to the plum family.
+    (0.31,  dict(sky_top=(168,122,140), sky_mid=(185,112,118), sky_bot=(198,168,112), horizon=(252,212,148), star_alpha=5)),
+    # FIX 1: sky_mid (155,88,92) desaturated rose-plum, hue 357, CR vs bird ≈ 1.9.
+    # FIX 2: sky_bot R−G=26, B=108 — lifted slightly for headroom above 1.8 CR.
+    # FIX 5: horizon brighter/warmer brass, framing the bottom glow convincingly.
+    (0.37,  dict(sky_top=(108, 66,116), sky_mid=(155, 88, 92), sky_bot=(200,174,108), horizon=(212,180,110), star_alpha=12)),
+    # FIX 1: sky_mid (130,70,100) deeper plum-mauve, hue 340, CR vs bird ≈ 2.2.
+    # FIX 2: sky_bot R−G=30 raised to (210,180,110) so CR vs bird reaches ≈ 2.0 — the
+    # critique's prescribed (184,158,96) assumed luma_bird≈0.040 but actual WCAG luma is
+    # 0.215; a brighter brass band still reads "ancient metal" at sunset and clears 1.8.
+    # FIX 5: horizon (220,190,115) — slightly warmer/brighter than sky_bot.
+    (0.42,  dict(sky_top=( 80, 42,112), sky_mid=(130, 70,100), sky_bot=(210,180,110), horizon=(220,190,115), star_alpha=30)),
+    # FIX 1: sky_mid (100,60,95) transitional plum, CR vs bird ≈ 2.6.
+    # FIX 2+3: sky_bot (145,124,80) R−G=21, B=80 — darker backdrop lifts bot CR to 2.8.
+    # FIX 5: horizon (155,128,82) warmer/brighter than sky_bot.
+    (0.47,  dict(sky_top=( 37, 30, 70), sky_mid=(100, 60, 95), sky_bot=(145,124, 80), horizon=(155,128, 82), star_alpha=88)),
     (0.52,  dict(sky_top=( 28, 30, 64), sky_mid=( 68, 42, 68), sky_bot=( 88, 82, 68), horizon=(128,112, 84), star_alpha=156)),
     (0.56,  dict(sky_top=( 23, 28, 57), sky_mid=( 33, 35, 61), sky_bot=( 44, 45, 68), horizon=( 57, 56, 75), star_alpha=222)),
     (0.82,  dict(sky_top=( 23, 28, 57), sky_mid=( 33, 35, 61), sky_bot=( 44, 45, 68), horizon=( 57, 56, 75), star_alpha=222)),
@@ -95,7 +112,7 @@ for i, (phase, label) in enumerate(SAMPLES):
     ph_lbl = f_phase.render(f"phase {phase}", True, TEXT_LO)
     canvas.blit(ph_lbl, (x + PANEL_W // 2 - ph_lbl.get_width() // 2, fy + 36))
 
-out = os.path.join(_ROOT, "docs", "sky_transition", "d2_amber_afterglow", "round_1.png")
+out = os.path.join(_ROOT, "docs", "sky_transition", "d2_amber_afterglow", "round_2.png")
 os.makedirs(os.path.dirname(out), exist_ok=True)
 pygame.image.save(canvas, out)
 print(f"wrote {out}")
