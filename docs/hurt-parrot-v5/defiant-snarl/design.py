@@ -55,7 +55,7 @@ BROW_EDGE = (120, 22, 22)          # thin lit top so the wedge beds into feather
 MOUTH_DARK = (15, 10, 10)
 
 _JAW_HINGE = (52 + _HEAD_DX, 26 + _HEAD_DY)
-_JAW_OPEN_DEG = 28.0
+_JAW_OPEN_DEG = 34.0
 
 _TAIL_PIVOT = (22, 33)
 _TAIL_SWEEP_DEG = 10.0
@@ -138,23 +138,34 @@ def _draw_snarl_beak(surf):
     dx, dy = _HEAD_DX, _HEAD_DY
     hinge = _JAW_HINGE
 
+    # Upper mandible: the macaw hook is kept intact, but its cutting edge
+    # rises toward the tip so the gape widens forward instead of pinching —
+    # a wedge-shaped opening reads as a shout, a parallel slit reads as a
+    # seam.
+    up_back = (53 + dx, 28 + dy)
+    up_front = (59 + dx, 26.5 + dy)
     upper = [(52 + dx, 22 + dy), (57 + dx, 21 + dy), (62 + dx, 25 + dy),
-             (61 + dx, 30 + dy), (59 + dx, 28 + dy), (53 + dx, 28 + dy)]
+             (61 + dx, 30 + dy), up_front, up_back]
     lower_flat = [(53 + dx, 28 + dy), (59 + dx, 29 + dy),
                   (58 + dx, 32 + dy), (52 + dx, 31 + dy)]
     lower = [_rot(p, hinge, _JAW_OPEN_DEG) for p in lower_flat]
-
-    # Gape wedge: hinge -> upper underside front -> rotated lower jaw front.
-    gape = [(hinge[0], hinge[1] - 0.4),
-            (59 + dx + 0.4, 28 + dy - 0.4),
-            lower[1]]
-    pygame.draw.polygon(surf, MOUTH_DARK, [(int(round(p[0])), int(round(p[1])))
-                                           for p in gape])
 
     pygame.draw.polygon(surf, BIRD_BEAK, lower)
     pygame.draw.polygon(surf, BIRD_BEAK_D, lower, 1)
     pygame.draw.polygon(surf, BIRD_BEAK, upper)
     pygame.draw.polygon(surf, BIRD_BEAK_D, upper, 1)
+
+    # Mouth cavity painted last: stroking the two jaws first and cutting the
+    # cavity out of them afterwards keeps the 1 px jaw outlines from eating
+    # the gap, which at this scale is the difference between an open snarl
+    # and a closed beak with a seam.
+    inset = 0.7
+    cavity = [(up_back[0] + 0.6, up_back[1] + inset),
+              (up_front[0] + 0.9, up_front[1] + inset),
+              (up_front[0] - 0.4, up_front[1] + inset + 3.2),
+              (lower[1][0] - 0.2, lower[1][1] - inset),
+              (lower[0][0] + 0.6, lower[0][1] - inset * 0.4)]
+    pygame.draw.polygon(surf, MOUTH_DARK, cavity)
     # Ridge gloss on the upper mandible only — the lower one is in shadow.
     pygame.draw.line(surf, (255, 230, 150),
                      (54 + dx, 23 + dy), (59 + dx, 25 + dy), 1)
