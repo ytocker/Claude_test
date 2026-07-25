@@ -66,7 +66,7 @@ SHADE_TINT  = ( 35,  55,  90)
 
 # Wing anchor in sprite space, and the wing surface's own centre — both needed
 # to map a wing-local point through the flap rotation into sprite coordinates.
-_WING_ANCHOR = (34, 28)
+_WING_ANCHOR = (34, 30)
 _WING_C      = (25, 25)
 
 # Head ellipse the crest is grown from. Shared so the tufts can't float free of
@@ -76,7 +76,7 @@ _HEAD_C, _HEAD_RX, _HEAD_RY = (47, 21), 12, 11
 # Trailing (lower-left) edge of the wing polygon, as a polyline. The notches are
 # spaced along its arc length so they stay evenly distributed even though the
 # two segments differ in length.
-_TRAILING = ((48, 28), (32, 42), (18, 36))
+_TRAILING = ((48, 28), (34, 46), (14, 44))
 _NOTCH_TS = (0.20, 0.48, 0.76)
 
 
@@ -103,19 +103,31 @@ def _add_outline(src, outline_color=(20, 12, 18, 220)):
 # ── wing ─────────────────────────────────────────────────────────────────────
 
 def _build_wing(angle_deg):
-    """The healthy wing, unmodified. The molt is cut out of the composed sprite
-    instead of here — see `_punch_notches`."""
+    """The healthy wing with its trailing edge dropped clear of the body.
+
+    This is not decoration — it is what makes the notches possible. On the
+    healthy bird the wing's lower edge tucks *inside* the body ellipse, so a
+    wedge cut there would expose red body rather than sky and read as a smear.
+    Letting the wing hang loose and unpreened pushes that edge 4-8 px past the
+    body contour, which is both on-concept for a moulting bird and the only
+    geometry in which a torn notch can actually be a hole. Everything above the
+    elbow — leading edge, green primaries, yellow secondary — is untouched.
+    """
     w = pygame.Surface((50, 50), pygame.SRCALPHA)
     pygame.draw.polygon(w, (0, 0, 0, 110),
-                        [(24, 26), (46, 14), (50, 30), (34, 44), (18, 40)])
+                        [(24, 26), (46, 14), (50, 30), (36, 48), (14, 46)])
     pygame.draw.polygon(w, BIRD_WING,
-                        [(24, 24), (44, 13), (48, 28), (32, 42), (18, 36)])
-    pygame.draw.polygon(w, BIRD_WING_D, [(24, 24), (32, 42), (18, 36)])
+                        [(24, 24), (44, 13), (48, 28), (34, 46), (14, 44)])
+    pygame.draw.polygon(w, BIRD_WING_D, [(24, 24), (34, 46), (14, 44)])
     pygame.draw.polygon(w, BIRD_TIP, [(44, 13), (50, 18), (48, 28)])
     pygame.draw.polygon(w, (255, 200, 60), [(42, 18), (48, 22), (46, 28), (40, 24)])
     pygame.draw.line(w, BIRD_WING_D, (26, 25), (42, 18), 2)
     pygame.draw.line(w, BIRD_WING_D, (28, 30), (44, 25), 2)
-    pygame.draw.line(w, BIRD_WING_D, (30, 34), (46, 32), 2)
+    pygame.draw.line(w, BIRD_WING_D, (28, 36), (46, 32), 2)
+    # Two long shafts running out into the dropped section, so the extra span
+    # reads as separated flight feathers rather than a swollen blue paddle.
+    pygame.draw.line(w, BIRD_WING_D, (25, 30), (30, 45), 2)
+    pygame.draw.line(w, BIRD_WING_D, (25, 30), (41, 38), 2)
     pygame.draw.line(w, (170, 210, 255), (25, 25), (41, 15), 1)
     return pygame.transform.rotate(w, angle_deg)
 
