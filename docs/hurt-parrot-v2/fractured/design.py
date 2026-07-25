@@ -95,9 +95,13 @@ def _lerp_pt(p1, p2, t):
     return (p1[0] + (p2[0] - p1[0]) * t, p1[1] + (p2[1] - p1[1]) * t)
 
 
-def _draw_fracture(surf, p1, p2, glow, core_w=3, glow_w=1):
+def _draw_fracture(surf, p1, p2, glow, core_w=3, glow_w=1, taper=False):
     """Crack = black core with a hot rim on both flanks, so it reads as a
-    split in the surface rather than an ink line drawn on top of it."""
+    split in the surface rather than an ink line drawn on top of it.
+
+    Tapered cracks widen at the impact and close to a hairline at the tip,
+    which is what makes a radial read as a fracture and not as a painted
+    spoke — and it keeps the ink off the parrot's silhouette out at the rim."""
     x1, y1 = p1
     x2, y2 = p2
     dx, dy = x2 - x1, y2 - y1
@@ -109,8 +113,16 @@ def _draw_fracture(surf, p1, p2, glow, core_w=3, glow_w=1):
         a = (round(x1 + nx * sign), round(y1 + ny * sign))
         b = (round(x2 + nx * sign), round(y2 + ny * sign))
         pygame.draw.line(surf, glow, a, b, glow_w)
-    pygame.draw.line(surf, CRACK_CORE, (round(x1), round(y1)),
-                     (round(x2), round(y2)), core_w)
+    if not taper:
+        pygame.draw.line(surf, CRACK_CORE, (round(x1), round(y1)),
+                         (round(x2), round(y2)), core_w)
+        return
+    steps = max(core_w, 1)
+    for i in range(steps):
+        a = _lerp_pt(p1, p2, i / steps)
+        b = _lerp_pt(p1, p2, min((i + 1) / steps + 0.06, 1.0))
+        pygame.draw.line(surf, CRACK_CORE, (round(a[0]), round(a[1])),
+                         (round(b[0]), round(b[1])), core_w - i)
 
 
 def _displace_shard(surf, rect, offset):
@@ -130,7 +142,7 @@ def _displace_shard(surf, rect, offset):
     surf.blit(piece, (region.x + offset[0], region.y + offset[1]))
 
 
-def _build_wing(angle_deg):
+def _build_wing(angle_deg, glow):
     w = pygame.Surface((50, 50), pygame.SRCALPHA)
     d = pygame.draw
     d.polygon(w, (0, 0, 0, 110), [(24, 26), (46, 14), (50, 30), (34, 44), (18, 40)])
@@ -143,12 +155,18 @@ def _build_wing(angle_deg):
     d.line(w, WING_D, (30, 34), (46, 32), 2)
     d.line(w, WING_HI, (25, 25), (41, 15), 1)
 
-    # A primary is missing outright — punched clean out along crack angles.
-    # pygame.draw writes RGBA verbatim, so a zero-alpha polygon erases.
-    d.polygon(w, (0, 0, 0, 0), [(45, 12), (52, 20), (47, 29), (43, 22)])
-    # Torn edges either side of the void.
-    d.line(w, CRACK_CORE, (45, 12), (43, 22), 1)
-    d.line(w, CRACK_CORE, (47, 29), (43, 22), 1)
+    # Primaries missing outright, punched out along crack angles. The cuts sit
+    # on the trailing sweep rather than the upper tip because at every hurt
+    # wing angle that tip is buried behind the head. They are filled dark
+    # instead of erased to alpha for the same visibility reason: the wing
+    # overlaps the body, so a transparent cut would just show red feathers
+    # through and read as a patch rather than a hole.
+    bite = [(44, 29), (49, 36), (35, 45), (33, 37)]
+    hole = [(29, 34), (35, 33), (36, 39), (30, 40)]
+    for cut in (bite, hole):
+        d.polygon(w, CRACK_GAP, cut)
+        d.polygon(w, glow, cut, 1)
+        d.polygon(w, CRACK_CORE, [(p[0] + 1, p[1] + 1) for p in cut], 1)
 
     return pygame.transform.rotate(w, angle_deg)
 
@@ -203,7 +221,7 @@ def _build_hurt_frame(wing_angle_deg):
     _aaellipse(surf, BELLY,       (28, 38), 12, 6)
 
     # --- wing ---
-    wing = _build_wing(wing_angle_deg)
+    wing = _build_wing(wing_angle_deg, glow)
     surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
 
     # --- head ---
@@ -245,7 +263,7 @@ def _build_hurt_frame(wing_angle_deg):
     # --- fracture network, masked to the silhouette and drawn over all of it ---
     frac = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
     for tip in _RADIALS:
-        _draw_fracture(frac, IMPACT, tip, glow)
+        _draw_fracture(frac, IMPACT, tip, glow, core_w=3, taper=True)
 
     # Chords between neighbouring radials — these are what close the web into
     # shards; without them the radials read as scratches, not shattered glass.
