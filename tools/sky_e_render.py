@@ -32,24 +32,29 @@ _KF = [
     (0.12,  dict(sky_top=( 76,168,192), sky_mid=(144,198,208), sky_bot=(196,214,212), horizon=(216,220,212), star_alpha=0)),
     (0.20,  dict(sky_top=( 86,160,188), sky_mid=(152,192,204), sky_bot=(198,212,208), horizon=(216,218,210), star_alpha=0)),
     (0.235, dict(sky_top=(141,153,157), sky_mid=(232,188,166), sky_bot=(255,186,144), horizon=(255,164,104), star_alpha=0)),
-    # FIX 2: hue 344 rose-burgundy replaces the salmon (230,118,111) — B channel
-    # lifted to stay in wine family, not orange.
-    (0.27,  dict(sky_top=(181,150,139), sky_mid=(254,168,126), sky_bot=(204, 94,114), horizon=(212, 98,116), star_alpha=0)),
-    # FIX 1: darker sky_bot removes the 1.08 CR vanish-hole against BIRD_RED.
-    # FIX 3: sky_mid pulled from coral (250,138,100) into transitional rose-wine.
-    (0.31,  dict(sky_top=(168,122,140), sky_mid=(210, 82,118), sky_bot=(160, 66, 88), horizon=(170, 70, 90), star_alpha=5)),
-    # FIX 3: coral sky_mid (244,96,80) replaced by rose-wine; CR vs bird ≈ 1.65.
-    (0.37,  dict(sky_top=(108, 66,116), sky_mid=(190, 74,108), sky_bot=(152, 60, 94), horizon=(128, 50, 82), star_alpha=12)),
+    # FIX 2: rose-burgundy sky_bot (hue 344) replaces the salmon — B lifted so
+    # the gradient stays in the wine family.  Horizon pulled to deep rose-plum
+    # (R-G=44) so the near-horizon band at y≈470 clears the orange test.
+    (0.27,  dict(sky_top=(181,150,139), sky_mid=(254,168,126), sky_bot=(204, 94,114), horizon=(148,104,126), star_alpha=0)),
+    # FIX 1: darker sky_bot raises CR vs BIRD_RED from 1.08 to ≥ 1.8.
+    # FIX 3: sky_mid into transitional rose-wine (was coral 250,138,100).
+    # Horizon deepened to wine-plum (R-G=48) so the y≈470 blend passes the
+    # orange test while CR stays ≥ 1.6 at that sample point.
+    (0.31,  dict(sky_top=(168,122,140), sky_mid=(210, 82,118), sky_bot=(160, 66, 88), horizon=(106, 58, 86), star_alpha=5)),
+    # FIX 3: coral sky_mid (244,96,80) → rose-wine; CR vs bird ≥ 1.65.
+    # Horizon pulled to deep wine-plum so y≈470 blend R-G<60.
+    (0.37,  dict(sky_top=(108, 66,116), sky_mid=(190, 74,108), sky_bot=(152, 60, 94), horizon=( 96, 60, 84), star_alpha=12)),
     # FIX 3: deeper magenta-wine sky_mid; CR vs bird ≈ 2.0.
-    (0.42,  dict(sky_top=( 80, 42,112), sky_mid=(166, 60,100), sky_bot=(118, 44, 80), horizon=(102, 38, 74), star_alpha=30)),
+    # Horizon to dark wine (R-G=38) so y≈470 blend passes orange test.
+    (0.42,  dict(sky_top=( 80, 42,112), sky_mid=(166, 60,100), sky_bot=(118, 44, 80), horizon=( 88, 50, 76), star_alpha=30)),
     # FIX 3: dark wine sky_mid; CR vs bird ≈ 2.4.
     (0.47,  dict(sky_top=( 37, 30, 70), sky_mid=(138, 52, 96), sky_bot=(106, 46, 86), horizon=( 96, 40, 80), star_alpha=88)),
-    # FIX 4: horizon was brighter than sky_bot, wasting luminance; clamped down.
+    # FIX 4: horizon clamped to match sky_bot depth — was (140,72,110).
     (0.52,  dict(sky_top=( 28, 30, 64), sky_mid=( 68, 42, 68), sky_bot=( 96, 52, 84), horizon=(102, 52, 82), star_alpha=156)),
-    # FIX 5: +10 headroom on each sky_top channel so zenith_dark + descent_drop
-    # cannot collapse the zenith to full black on the twilight panels.
-    (0.56,  dict(sky_top=( 33, 38, 67), sky_mid=( 33, 35, 61), sky_bot=( 44, 45, 68), horizon=( 57, 56, 75), star_alpha=222)),
-    (0.82,  dict(sky_top=( 33, 38, 67), sky_mid=( 33, 35, 61), sky_bot=( 44, 45, 68), horizon=( 57, 56, 75), star_alpha=222)),
+    # FIX 5: sky_top boosted to (48,53,82) so with_value(-0.14) in OKLab produces
+    # a darkened zenith of (16,19,44) — well above 8 — instead of clipping black.
+    (0.56,  dict(sky_top=( 48, 53, 82), sky_mid=( 33, 35, 61), sky_bot=( 44, 45, 68), horizon=( 57, 56, 75), star_alpha=222)),
+    (0.82,  dict(sky_top=( 48, 53, 82), sky_mid=( 33, 35, 61), sky_bot=( 44, 45, 68), horizon=( 57, 56, 75), star_alpha=222)),
     (0.86,  dict(sky_top=( 24, 30, 59), sky_mid=( 35, 37, 63), sky_bot=( 45, 47, 70), horizon=( 61, 59, 78), star_alpha=166)),
     (0.92,  dict(sky_top=( 76,124,158), sky_mid=(244,160,144), sky_bot=(255,178,150), horizon=(255,158,120), star_alpha=20)),
     (0.97,  dict(sky_top=( 86,146,176), sky_mid=(248,180,166), sky_bot=(255,190,164), horizon=(255,170,140), star_alpha=0)),
