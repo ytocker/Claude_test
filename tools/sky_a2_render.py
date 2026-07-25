@@ -28,12 +28,17 @@ _KF = [
     (0.12,  dict(sky_top=( 76,168,192), sky_mid=(144,198,208), sky_bot=(196,214,212), horizon=(216,220,212), star_alpha=0)),
     (0.20,  dict(sky_top=( 86,160,188), sky_mid=(152,192,204), sky_bot=(198,212,208), horizon=(216,218,210), star_alpha=0)),
     (0.235, dict(sky_top=(141,153,157), sky_mid=(232,188,166), sky_bot=(255,186,144), horizon=(255,164,104), star_alpha=0)),
-    (0.27,  dict(sky_top=(181,150,139), sky_mid=(254,168,126), sky_bot=(250,170,124), horizon=(240,146, 96), star_alpha=0)),
-    (0.31,  dict(sky_top=(168,122,140), sky_mid=(250,138,100), sky_bot=(196,150,122), horizon=(162,124,104), star_alpha=5)),
-    (0.37,  dict(sky_top=(108, 66,116), sky_mid=(244, 96, 80), sky_bot=(112, 94, 84), horizon=( 90, 76, 68), star_alpha=12)),
-    (0.42,  dict(sky_top=( 80, 42,112), sky_mid=(222, 74, 98), sky_bot=( 98, 82, 74), horizon=( 76, 64, 58), star_alpha=30)),
-    (0.47,  dict(sky_top=( 37, 30, 70), sky_mid=(118, 59, 80), sky_bot=( 84, 72, 66), horizon=(102, 88, 80), star_alpha=88)),
-    (0.52,  dict(sky_top=( 28, 30, 64), sky_mid=( 68, 42, 68), sky_bot=( 76, 66, 60), horizon=(108, 94, 86), star_alpha=156)),
+    # sky_bot/horizon redesigned for smoky taupe — orange bleed scrubbed, hue
+    # held at 26-30° through the sunset arc then swings to dusty mauve at 0.47
+    # so the violet sky_mid has a coherent base to land on.
+    (0.27,  dict(sky_top=(181,150,139), sky_mid=(254,168,126), sky_bot=(214,178,152), horizon=(206,166,138), star_alpha=0)),
+    (0.31,  dict(sky_top=(168,122,140), sky_mid=(250,138,100), sky_bot=(205,180,162), horizon=(188,152,124), star_alpha=5)),
+    (0.37,  dict(sky_top=(108, 66,116), sky_mid=(244, 96, 80), sky_bot=(194,170,150), horizon=(165,132,106), star_alpha=12)),
+    # hue begins drifting toward rose-taupe so the 0.47 mauve isn't a sudden jump
+    (0.42,  dict(sky_top=( 80, 42,112), sky_mid=(222, 74, 98), sky_bot=(178,155,136), horizon=(142,112, 88), star_alpha=30)),
+    # dusty mauve bridges the violet sky_mid; L kept bright enough for bird contrast
+    (0.47,  dict(sky_top=( 37, 30, 70), sky_mid=(118, 59, 80), sky_bot=(150,128,152), horizon=(118, 96,116), star_alpha=88)),
+    (0.52,  dict(sky_top=( 28, 30, 64), sky_mid=( 68, 42, 68), sky_bot=( 78, 64, 76), horizon=( 88, 72, 86), star_alpha=156)),
     (0.56,  dict(sky_top=( 23, 28, 57), sky_mid=( 33, 35, 61), sky_bot=( 44, 45, 68), horizon=( 57, 56, 75), star_alpha=222)),
     (0.82,  dict(sky_top=( 23, 28, 57), sky_mid=( 33, 35, 61), sky_bot=( 44, 45, 68), horizon=( 57, 56, 75), star_alpha=222)),
     (0.86,  dict(sky_top=( 24, 30, 59), sky_mid=( 35, 37, 63), sky_bot=( 45, 47, 70), horizon=( 61, 59, 78), star_alpha=166)),
@@ -99,7 +104,7 @@ for i, (phase, label) in enumerate(SAMPLES):
     ph_lbl = f_phase.render(f"phase {phase}", True, TEXT_LO)
     canvas.blit(ph_lbl, (x + PANEL_W // 2 - ph_lbl.get_width() // 2, fy + 36))
 
-out = os.path.join(_ROOT, "docs", "sky_transition", "a2_smoky_haze", "round_1.png")
+out = os.path.join(_ROOT, "docs", "sky_transition", "a2_smoky_haze", "round_2.png")
 os.makedirs(os.path.dirname(out), exist_ok=True)
 pygame.image.save(canvas, out)
 print(f"wrote {out}")
