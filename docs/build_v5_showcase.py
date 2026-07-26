@@ -35,7 +35,7 @@ HDR_H     = 60
 FTR_H     = 80
 BG        = (8, 8, 20)
 
-N_PANELS  = 7
+N_PANELS  = 8
 CANVAS_W  = MARGIN + N_PANELS * PANEL_W + (N_PANELS - 1) * GAP + MARGIN
 CANVAS_H  = MARGIN + HDR_H + GAP + PANEL_H + FTR_H + MARGIN
 
@@ -102,6 +102,7 @@ V5_SLUGS = [
     "defiant-snarl",
     "ragged-molt",
     "scorched-afterburn",
+    "scorched-no-lens",
 ]
 
 
