@@ -184,7 +184,7 @@ def _draw_tail_splint(surf):
     d.polygon(layer, HEM, SPLINT_PAD, 1)
 
     # Rigid spine: 1px HEM line down long axis, inset 1px from both hems
-    d.line(layer, HEM, (15, 26), (15, 32), 1)
+    d.line(layer, HEM, (16, 26), (16, 32), 1)
 
     _stamp_clipped(surf, layer)
 
