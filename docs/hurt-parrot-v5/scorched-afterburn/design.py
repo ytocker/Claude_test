@@ -3,10 +3,9 @@
 
 Elemental damage: the bird came through the fire. This concept owns the *tail*
 — no other hurt concept touches it — so the injury is legible from the
-silhouette alone, before any surface detail resolves. The three tail feathers
-burn back to ~70% length and their tips crumble into a serrated, uneven fan,
-which changes the outline in all four wing frames regardless of how the wing
-sits.
+silhouette alone, before any surface detail resolves. Each feather burns back
+by a different fraction, producing a staggered fan whose ragged silhouette reads
+immediately as fire damage rather than a smaller healthy tail.
 
 Everything else is a surface read carried by *value contrast*, not by hue:
 soot patches are a warm grey-brown that would vanish against BIRD_RED on its
@@ -47,15 +46,18 @@ SHADE_TINT  = ( 35,  55,  90)
 SOOT       = ( 80,  45,  28)   # warm grey-brown burn centre
 SOOT_ASH   = (118,  78,  52)   # lifted ash heart inside a patch
 EMBER      = (255, 150,  60)   # 1-2 px leading edge, rear/tail-facing side
-EMBER_HOT  = (255, 210, 130)   # single-pixel crackle, always sitting on a rim
 CHAR       = ( 58,  36,  28)   # burnt-back tail tips
-LID        = ( 40,   8,   8)   # angry squint, matches the brow dark
+LID_COLOR  = (170,  25,  25)   # squint lid — bright enough to read against black lens
 
 # The healthy bird's own four-feather fan is kept intact so the only thing that
-# changed about the tail is the burn — dropping a feather outright would read as
-# a different bird rather than a damaged one.
-TAIL_COLORS = ((200,  30,  40), (240,  95,  40), (255, 160,  55), (255, 220,  80))
-TAIL_BURN   = 0.30             # fraction of each feather burnt away
+# changed about the tail is the burn. Feathers burn by different fractions so
+# the staggered tips read as fire damage; a uniform shortening reads as a
+# smaller healthy tail.
+TAIL_COLORS  = ((200,  30,  40), (240,  95,  40), (255, 160,  55), (255, 220,  80))
+FEATHER_BURN = (0.65, 0.10, 0.80, 0.40)   # fraction burnt away per feather — stagger ≥8px
+
+# Index of the least-burnt (longest) feather — the notch lives here only.
+_LONGEST_FEATHER = FEATHER_BURN.index(min(FEATHER_BURN))
 
 
 def _aaellipse(surf, color, center, rx, ry):
@@ -82,53 +84,58 @@ def _lerp(a, b, t):
     return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
 
 
-def _burnt_feather(pts, seed):
-    """Return a feather polygon burnt back to ~70% with a serrated tip edge.
+def _burnt_feather(pts, burn_frac, add_notch=False):
+    """Return a feather polygon burnt back by burn_frac with optional notch.
 
-    `pts` is the healthy quad in root/tip order (TL, TR, BR, BL); the tip edge
-    is the left side, BL->TL. Both tip corners are pulled toward their own root
-    corner so the feather shortens along its own axis instead of pivoting, then
-    the tip edge is rebuilt as an alternating in/out chain. Serration is baked
-    into the polygon rather than punched as transparency because a punched
-    notch inside a fan gets covered by the next feather layer, while a jagged
-    edge stays in the silhouette.
+    Tip corners shift toward their root corners along the feather axis.
+    On the longest feather only, a single deep notch (≥5px wide, 4px deep) is
+    cut into the outer third of the tip edge — one cut reads as crumbled
+    material; seven cuts at ~1.65px pitch all bridge shut under the 2px outline.
     """
     tl, tr, br, bl = pts
-    tip_t = _lerp(tl, tr, TAIL_BURN)
-    tip_b = _lerp(bl, br, TAIL_BURN)
+    tip_t = _lerp(tl, tr, burn_frac)
+    tip_b = _lerp(bl, br, burn_frac)
 
-    # Inward = along the feather axis, toward the root; notches bite backwards
-    # rather than sideways so they read as crumbled ends, not as a torn side.
-    ax, ay = tr[0] - tl[0], tr[1] - tl[1]
-    L = max(1e-3, math.hypot(ax, ay))
-    ax, ay = ax / L, ay / L
+    if add_notch:
+        # Inward axis from tip toward root, for notch depth direction.
+        dx, dy = tr[0] - tl[0], tr[1] - tl[1]
+        L = max(1e-3, math.hypot(dx, dy))
+        ax, ay = dx / L, dy / L
 
-    # Uneven depths beat a uniform comb: an even sawtooth reads as decoration,
-    # a ragged one reads as burnt-off material.
-    depths = ((0.0, 3.0, 0.0, 2.0, 0.0, 3.5, 0.0)
-              if seed % 2 == 0 else
-              (0.0, 2.5, 0.0, 3.5, 0.0, 2.0, 0.0))
-    edge = []
-    n = len(depths)
-    for i, dpt in enumerate(depths):
-        s = i / (n - 1.0)
-        x, y = _lerp(tip_b, tip_t, s)
-        edge.append((x + ax * dpt, y + ay * dpt))
+        # Notch center at outer third of tip edge (near tip_t).
+        nc = _lerp(tip_b, tip_t, 0.67)
+
+        # Unit vector along the tip edge for notch half-width placement.
+        ex, ey = tip_t[0] - tip_b[0], tip_t[1] - tip_b[1]
+        eL = max(1e-3, math.hypot(ex, ey))
+        ex, ey = ex / eL, ey / eL
+
+        n_left = (nc[0] - ex * 2.5, nc[1] - ey * 2.5)
+        n_right = (nc[0] + ex * 2.5, nc[1] + ey * 2.5)
+        # Notch bites 4px inward (toward root) so it survives outline dilation.
+        n_deep = (nc[0] + ax * 4, nc[1] + ay * 4)
+
+        edge = [tip_b, n_left, n_deep, n_right, tip_t]
+    else:
+        edge = [tip_b, tip_t]
+
     return [*edge, tr, br]
 
 
 def _draw_tail(surf):
-    for i, c in enumerate(TAIL_COLORS):
+    for i, (c, burn) in enumerate(zip(TAIL_COLORS, FEATHER_BURN)):
         pts = [
             (2 + i * 3, 26 + i * 2), (14 + i, 24 + i),
             (20 + i, 30 + i * 2), (6 + i * 3, 36 + i * 2),
         ]
-        poly = _burnt_feather(pts, i)
+        poly = _burnt_feather(pts, burn, add_notch=(i == _LONGEST_FEATHER))
         pygame.draw.polygon(surf, c, poly)
-        # Char creeps back from the break. Drawn as a thick outline on the
-        # burnt polygon so it hugs every serration instead of needing a second
-        # hand-fitted shape per feather.
-        pygame.draw.polygon(surf, CHAR, poly[:len(poly) - 2], 2)
+        # Char as a 1px open polyline on the tip edge only. A 2px closed polygon
+        # would dilate under the outline pass and bridge the notch shut; an open
+        # stroke stays narrow and keeps the notch geometry visible.
+        tip_edge = poly[:len(poly) - 2]
+        if len(tip_edge) >= 2:
+            pygame.draw.lines(surf, CHAR, False, tip_edge, 1)
     pygame.draw.line(surf, BIRD_RED_D, (7, 27), (18, 31), 1)
     pygame.draw.line(surf, BIRD_RED_D, (9, 33), (20, 35), 1)
 
@@ -148,17 +155,13 @@ def _build_wing(angle_deg):
     return pygame.transform.rotate(w, angle_deg)
 
 
-# Patch outlines, drawn to overrun the body edge on purpose: clipping them to
-# the existing silhouette guarantees each burn meets the outline instead of
-# floating as an island the outline pass would ring into a blob.
-#
-# Kept small on purpose. Scaled up to "half the breast" the bird stops reading
-# as scarred and starts reading as charred-through and morbid; the damage has
-# to lose the value fight against the plumage, not win it.
+# Two body patches only, all vertices x≥18 so soot stays on chest/body and
+# cannot repaint the tail fan. Ember crescent is made by stamping each patch
+# 2px toward the tail first; whatever the soot body doesn't cover is a ≥12px
+# crescent on the rear-facing side, showing where the fire came from.
 _SOOT_PATCHES = (
-    [(14, 27), (21, 22), (27, 21), (29, 26), (24, 30), (18, 32)],
-    [(16, 37), (23, 34), (27, 37), (25, 42), (19, 43), (15, 41)],
-    [(34, 20), (40, 20), (42, 24), (37, 26), (33, 24)],
+    [(18, 27), (21, 22), (27, 21), (29, 26), (24, 30), (18, 32)],
+    [(18, 37), (23, 34), (27, 37), (25, 42), (19, 43), (18, 41)],
 )
 
 
@@ -170,9 +173,9 @@ def _draw_soot(surf):
     carrying the soot across the wing is both the truthful read and the only
     one that holds for all four frames.
 
-    The ember rim is made by stamping the same polygon 2 px toward the tail
-    first: whatever the soot body does not cover is left as a crescent on the
-    rear-facing side, which is where the fire came from.
+    The ember crescent is made by stamping the same polygon 2 px toward the
+    tail first: whatever the soot body does not cover is left as a crescent on
+    the rear-facing side, which is where the fire came from.
     """
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     d = pygame.draw
@@ -188,10 +191,6 @@ def _draw_soot(surf):
         cy = sum(p[1] for p in poly) / len(poly)
         d.polygon(layer, SOOT_ASH,
                   [(cx + (x - cx) * 0.5, cy + (y - cy) * 0.5) for x, y in poly])
-        # Crackle sits on the rim itself, never off the body — detached sparks
-        # would collide with the game's own particle FX.
-        hot = _lerp(rim[0], rim[1], 0.5)
-        d.line(layer, EMBER_HOT, (hot[0], hot[1] - 1), (hot[0], hot[1] + 1), 1)
 
     for x in range(surf.get_width()):
         for y in range(surf.get_height()):
@@ -221,27 +220,30 @@ def _draw_sunglasses(surf, cx, cy):
 
 
 def _draw_squint(surf, center, r):
-    """Heavy lid dropped over the top ~40% of the rear lens.
+    """Heavy lid dropped over the top ~40% of the rear lens, drawn after the
+    sunglasses so it paints over the gold arc.
 
-    Filled rather than stroked: a 3 px arc alone leaves lit lens above it and
-    reads as a reflection, while a solid lid subtracts the lens's top edge and
-    the whole eye narrows. The lower edge slants down toward the beak, which is
-    the universal shorthand for a scowl.
+    Killing the gold rim arc is what makes the eye read as clamped shut; a lid
+    drawn before the arc leaves the shiny rim above it and the whole thing reads
+    as an open eye with a tint. LID_COLOR=(170,25,25) has lum≈68 vs the black
+    lens lum≈16 — it's a legible dark-red contrast rather than an invisible
+    near-black smear.
     """
     cx, cy = center
     size = (r + 2) * 2
     lid = pygame.Surface((size, size), pygame.SRCALPHA)
     lc = r + 2
     top = lc - r
-    pygame.draw.polygon(lid, LID, [
+    pygame.draw.polygon(lid, LID_COLOR, [
         (0, top), (size, top),
         (size, top + int(r * 2 * 0.60)), (0, top + int(r * 2 * 0.34)),
     ])
+    # Clip the polygon to the lens circle so the lid has a clean arc lower edge.
     mask = pygame.Surface((size, size), pygame.SRCALPHA)
     pygame.draw.circle(mask, (255, 255, 255, 255), (lc, lc), r)
     lid.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(lid, (cx - lc, cy - lc))
-    # A lash line one value up keeps the lid from merging with the black lens.
+    # A lash line one value up from the body keeps the lid edge readable.
     pygame.draw.line(surf, (90, 22, 18),
                      (cx - r + 1, cy - r + int(r * 2 * 0.34) - 1),
                      (cx + r - 1, cy - r + int(r * 2 * 0.57) - 1), 1)
@@ -271,6 +273,8 @@ def _build_hurt_frame(wing_angle_deg):
     _aaellipse(surf, (255, 130, 130), (44, 24),  4,  3)
     _aaellipse(surf, (255, 170, 170), (46, 16),  7,  3)
 
+    # Squint drawn after sunglasses so the lid paints over the gold rim arc,
+    # which is what makes the eye read as shut rather than just tinted.
     left, r = _draw_sunglasses(surf, 50, 20)
     _draw_squint(surf, left, r)
 
@@ -308,6 +312,20 @@ def _tail_extent(frame):
     return frame.get_width()
 
 
+def _tip_x_positions(raw_frame):
+    """Return the x position of each feather tip for stagger verification."""
+    tips = []
+    for i, burn in enumerate(FEATHER_BURN):
+        tl = (2 + i * 3, 26 + i * 2)
+        tr = (14 + i,    24 + i)
+        bl = (6 + i * 3, 36 + i * 2)
+        br = (20 + i,    30 + i * 2)
+        tip_t = _lerp(tl, tr, burn)
+        tip_b = _lerp(bl, br, burn)
+        tips.append(min(tip_t[0], tip_b[0]))
+    return tips
+
+
 if __name__ == "__main__":
     OUT_DIR = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -320,8 +338,16 @@ if __name__ == "__main__":
     for i, f in enumerate(raw):
         soot  = _count(f, lambda r, g, b: r < 120 and g < 80 and b < 90, 12)
         ember = _count(f, lambda r, g, b: r > 200 and 100 < g < 180, 24)
+        bright = _count(f, lambda r, g, b: r > 200 and g > 120 and b < 100)
         print(f"frame {i}: soot={soot} (need >=20)  ember_rim={ember} "
-              f"(need >=8)  tail_leftmost_x={_tail_extent(f)} (healthy=2)")
+              f"(need 30-45)  bright_feather_px={bright}  "
+              f"tail_leftmost_x={_tail_extent(f)} (healthy=2)")
+
+    tips = _tip_x_positions(raw[0])
+    stagger = max(tips) - min(tips)
+    print(f"feather tip x positions: {[round(x,1) for x in tips]}")
+    print(f"stagger range: {stagger:.1f}px (need >=8)")
+    assert stagger >= 8, f"stagger {stagger:.1f}px < 8px"
 
     NIGHT = (8, 8, 20)
     fw, fh = frames[0].get_size()
@@ -330,6 +356,6 @@ if __name__ == "__main__":
     for i, f in enumerate(frames):
         strip.blit(f, (i * fw, 0))
 
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(strip, out_path)
     print(f"Saved {strip.get_width()}x{strip.get_height()} -> {out_path}")

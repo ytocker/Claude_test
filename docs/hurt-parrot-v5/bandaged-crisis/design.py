@@ -36,10 +36,10 @@ SHADE_GLINT = (255, 255, 255)
 SHADE_TINT  = (35, 55, 90)
 SHADE_FRAME = (220, 175, 40)
 
-GAUZE      = (232, 228, 215)
+GAUZE      = (198, 190, 172)
 PAD        = (255, 248, 230)
 HEM        = (120, 108,  95)
-CROSS      = (210,  30,  30)
+CROSS      = (190,  20,  35)
 
 CRACK      = (180, 210, 240)
 CRACK_WEB  = (140, 170, 200)
@@ -102,8 +102,8 @@ def _add_outline(src, outline_color=(20, 12, 18, 220)):
 # as a shape — V4's notch was a dent, and a dent at 1x is just a soft edge. The
 # two cut edges carry a 2 px zigzag: a straight cut reads as scissors, and the
 # bird did not have scissors.
-WING_TEAR = [(29, 31), (34, 30), (38, 32), (43, 31), (49, 33),
-             (31, 47), (29, 42), (32, 38), (28, 34)]
+WING_TEAR = [(32, 21), (37, 19), (43, 22), (46, 27), (44, 32),
+             (39, 35), (33, 31), (30, 26)]
 
 
 def _tear_lip(pts, grow=1.35):
@@ -178,9 +178,9 @@ def _build_wing(angle_deg, tear=True):
     return pygame.transform.rotate(w, angle_deg)
 
 
-GAUZE_QUAD = [(29, 24), (31, 7), (48, 9), (46, 26)]
-CROSS_H    = ((41, 15), (47, 15))
-CROSS_V    = ((44, 11), (44, 20))
+GAUZE_QUAD = [(41, 10), (56, 13), (54, 22), (39, 19)]
+CROSS_H    = ((46, 15), (52, 15))
+CROSS_V    = ((49, 12), (49, 19))
 
 
 def _draw_bandage(surf):
@@ -283,30 +283,28 @@ def _lens_clip(surf, layer, center, radius):
     surf.blit(layer, (0, 0))
 
 
-# Radials off the impact point, kept in clockwise screen order so consecutive
-# pairs bound a wedge of glass.
-_RADIALS = ((38, 18), (49, 19), (48, 28), (42, 29), (37, 25))
+# Three radials only — 15-18% coverage target. Five radials + two web lines
+# produced a bright mess; dropping to three (two at 2px, one at 1px) and one
+# web line keeps the shatter readable without flooding the lens with light.
+_RADIALS = ((38, 18), (49, 19), (42, 29))
 _IMPACT  = (43, 23)
 
 
 def _draw_cracked_lenses(surf):
-    """Left lens shatters, right lens only sympathises. The wedges *between*
-    the radials are flooded with two off-tones first, so the lens reads as
-    plates that have come apart and are catching light at different angles.
-    Cracks go on top, the two longest at double width — at 1x a one-pixel crack
-    on a seven-pixel lens is noise."""
+    """Left lens shatters, right lens only sympathises. One wedge fill between
+    the two longest radials; three crack lines, the two longest at 2px. At 1x
+    a single-pixel crack on a seven-pixel lens is noise — the coverage limit
+    keeps the dark field dominant so the lens reads as *glass* not confetti."""
     d = pygame.draw
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    for i, tone in ((0, PLATE_A), (2, PLATE_B), (4, PLATE_A)):
-        d.polygon(layer, tone,
-                  [_IMPACT, _RADIALS[i], _RADIALS[(i + 1) % len(_RADIALS)]])
+    # One wedge fill (between radials 0 and 1) — reduces coverage vs round 1
+    d.polygon(layer, PLATE_A, [_IMPACT, _RADIALS[0], _RADIALS[1]])
     longest = sorted(_RADIALS,
                      key=lambda p: -math.hypot(p[0] - _IMPACT[0],
                                                p[1] - _IMPACT[1]))[:2]
     for end in _RADIALS:
         d.line(layer, CRACK, _IMPACT, end, 2 if end in longest else 1)
     d.line(layer, CRACK_WEB, (39, 19), (37, 25), 1)
-    d.line(layer, CRACK_WEB, (48, 19), (48, 28), 1)
     # Clipped to the rim rather than the glass: a fracture that runs right into
     # the frame is what real shattered glass does.
     _lens_clip(surf, layer, LENS_L, LENS_LR + 1)
@@ -395,8 +393,8 @@ def _build_hurt_frame(wing_angle_deg, tear=True, snap=True):
     _aaellipse(surf, (200, 90, 90), (44, 24),  4,  3)
     _aaellipse(surf, (230, 140, 140), (46, 17),  7,  3)
 
-    _draw_bandage(surf)
     _draw_head_wisps(surf)
+    _draw_bandage(surf)
     _draw_sunglasses(surf)
     _draw_cracked_lenses(surf)
 
@@ -470,7 +468,7 @@ if __name__ == "__main__":
     is_cross = lambda r, g, b: (r, g, b) == CROSS
 
     strip = _strip(frames, (8, 8, 20))
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(strip, out_path)
     print(f"Saved {strip.get_width()}x{strip.get_height()} -> {out_path}")
 

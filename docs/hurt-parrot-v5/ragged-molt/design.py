@@ -19,7 +19,10 @@ Two constraints drove the implementation more than anything else:
   `_add_outline`, which rims each notch in dark and sharpens the V at 1x.
 * Bare skin has to be a *depression*, not a decal. A flat darker blob reads as
   dirt; the 1-px lighter rim along the top edge gives it a lip, so the eye reads
-  the dark field as sunken flesh below missing feathers.
+  the dark field as sunken flesh below missing feathers. Both patches sit on the
+  breast highlight ellipse where the lighter ground gives genuine luma separation
+  against the SKIN tone — without it the 90-R-unit drop is only ~19 luma, which
+  collapses on protanopia.
 
 Nothing here imports from `game/` except the healthy reference frame in the
 review-sheet block; this file only renders a review sheet.
@@ -73,11 +76,16 @@ _WING_C      = (25, 25)
 # the skull when either is nudged.
 _HEAD_C, _HEAD_RX, _HEAD_RY = (47, 21), 12, 11
 
-# Trailing (lower-left) edge of the wing polygon, as a polyline. The notches are
-# spaced along its arc length so they stay evenly distributed even though the
-# two segments differ in length.
-_TRAILING = ((48, 28), (34, 46), (14, 44))
-_NOTCH_TS = (0.20, 0.48, 0.76)
+# Trailing (lower-left) edge of the wing polygon, as a polyline. Pulling both
+# lower vertices back from round-1 values shrinks the wing's silhouette area to
+# ≤640 px² (healthy baseline) while still clearing the body by 2-4 px, and the
+# adjusted endpoints feed the notch-spacing math without any further changes.
+_TRAILING = ((48, 28), (33, 44), (16, 41))
+
+# Nudged off round-1 (0.20, 0.48, 0.76) so the first anchor no longer lands
+# near a segment vertex; this keeps all three bite widths within 1.5× of each
+# other instead of the previous 3× spread.
+_NOTCH_TS = (0.22, 0.50, 0.80)
 
 
 def _aaellipse(surf, color, center, rx, ry):
@@ -103,22 +111,22 @@ def _add_outline(src, outline_color=(20, 12, 18, 220)):
 # ── wing ─────────────────────────────────────────────────────────────────────
 
 def _build_wing(angle_deg):
-    """The healthy wing with its trailing edge dropped clear of the body.
+    """The hurt wing with its trailing edge pulled back relative to round 1.
 
-    This is not decoration — it is what makes the notches possible. On the
-    healthy bird the wing's lower edge tucks *inside* the body ellipse, so a
-    wedge cut there would expose red body rather than sky and read as a smear.
-    Letting the wing hang loose and unpreened pushes that edge 4-8 px past the
-    body contour, which is both on-concept for a moulting bird and the only
-    geometry in which a torn notch can actually be a hole. Everything above the
-    elbow — leading edge, green primaries, yellow secondary — is untouched.
+    The lower vertices now sit 2-3 px closer to the body than before, cutting
+    ~75 px² off the old silhouette so the hurt bird no longer reads as slightly
+    *larger* than the healthy one — being tattered and dropping area feels right,
+    growing area does not. The notch depth is deepened to 8.5 px to compensate
+    for the shorter reach, keeping the bites visually prominent. Everything above
+    the elbow — leading edge, green primaries, yellow secondary — is untouched.
     """
     w = pygame.Surface((50, 50), pygame.SRCALPHA)
+    # Drop shadow — shifted ~1-2 px past the wing polygon on each side.
     pygame.draw.polygon(w, (0, 0, 0, 110),
-                        [(24, 26), (46, 14), (50, 30), (36, 48), (14, 46)])
+                        [(24, 26), (46, 14), (50, 30), (35, 46), (16, 43)])
     pygame.draw.polygon(w, BIRD_WING,
-                        [(24, 24), (44, 13), (48, 28), (34, 46), (14, 44)])
-    pygame.draw.polygon(w, BIRD_WING_D, [(24, 24), (34, 46), (14, 44)])
+                        [(24, 24), (44, 13), (48, 28), (33, 44), (16, 41)])
+    pygame.draw.polygon(w, BIRD_WING_D, [(24, 24), (33, 44), (16, 41)])
     pygame.draw.polygon(w, BIRD_TIP, [(44, 13), (50, 18), (48, 28)])
     pygame.draw.polygon(w, (255, 200, 60), [(42, 18), (48, 22), (46, 28), (40, 24)])
     pygame.draw.line(w, BIRD_WING_D, (26, 25), (42, 18), 2)
@@ -126,7 +134,7 @@ def _build_wing(angle_deg):
     pygame.draw.line(w, BIRD_WING_D, (28, 36), (46, 32), 2)
     # Two long shafts running out into the dropped section, so the extra span
     # reads as separated flight feathers rather than a swollen blue paddle.
-    pygame.draw.line(w, BIRD_WING_D, (25, 30), (30, 45), 2)
+    pygame.draw.line(w, BIRD_WING_D, (25, 30), (28, 43), 2)
     pygame.draw.line(w, BIRD_WING_D, (25, 30), (41, 38), 2)
     pygame.draw.line(w, (170, 210, 255), (25, 25), (41, 15), 1)
     return pygame.transform.rotate(w, angle_deg)
@@ -183,9 +191,10 @@ def _trailing_anchors(angle_deg):
 def _notch_wedges(angle_deg):
     """Wedge polygons for the three torn notches. Each opens outward past the
     wing's drop shadow so the cut severs the whole edge cleanly, and tapers to
-    a point 7 px in — deep enough to bite the outline, far short of severing
-    the wing into islands."""
-    half, out_push, depth = 3.6, 5.0, 7.0
+    a point 8.5 px in — deepened from round 1 to compensate for the shorter
+    trailing edge reach while still staying far short of severing the wing into
+    islands."""
+    half, out_push, depth = 3.6, 5.0, 8.5
     wedges = []
     for pt, d, n in _trailing_anchors(angle_deg):
         wedges.append([
@@ -216,15 +225,14 @@ def _punch_notches(surf, wingless, angle_deg):
 
 # ── bare skin ────────────────────────────────────────────────────────────────
 
-# Two patches, sited by measuring which body pixels survive the wing in all
-# four flap frames rather than by picking coordinates off the body ellipse. The
-# wing sweeps across the whole mid-back, so only two windows of exposed plumage
-# exist for the entire cycle: the narrow shoulder strip between wing and head,
-# and the flank above the belly. A patch anywhere else is invisible three frames
-# out of four, which is the same as not drawing it.
+# Both patches are sited on the breast highlight ellipse (~y=28-36, x=26-38)
+# where the (255,100,100) ground gives ~74 luma of separation against SKIN —
+# a genuine perceptual contrast vs the ~19 luma available on plain BIRD_RED.
+# Round 1 patch A at (37,24) was only 5-6 px across and sat in the shadow zone;
+# this version grows it to rx=4 and relocates both patches to the lit breast.
 _SKIN_PATCHES = (
-    ((37.0, 24.0), 2.6, 3.2),
-    ((26.0, 29.0), 4.6, 2.4),
+    ((33.0, 30.0), 4.0, 3.0),
+    ((27.0, 36.0), 3.5, 2.5),
 )
 
 
@@ -255,11 +263,24 @@ def _draw_skin_patch(surf, center, rx, ry):
 
 # ── crest ────────────────────────────────────────────────────────────────────
 
-# Five tufts across the crown. Heights are uneven on purpose: a matched row of
-# spikes reads as a cockatoo crest (a feature), an uneven one reads as feathers
-# standing up wrong (a symptom).
-_TUFTS = ((38.5, 6.5), (42.0, 7.5), (45.5, 7.5), (49.0, 6.5), (52.5, 5.0))
-_TUFT_HALF = 1.6
+# Four tufts at ~6.5 px pitch with hard-staggered heights. Round 1 used five
+# at ~3.5 px pitch (1.6 px half-width) — after the 1-px outline dilation the
+# 0.3 px valley flooded shut and merged the spikes into a flat band. Dropping
+# to four tufts at 6.5 px pitch leaves a ~2.9 px gap between bases.
+#
+# Heights alternate tall-short-tall-short. A monotonically tall sequence
+# (e.g. 4-8-5-7) makes the shorter outer tufts vanish into the silhouette of
+# their taller neighbours — the profile never rises between them, so the gate
+# never sees a valley. Alternating keeps every tuft's peak genuinely ABOVE the
+# adjacent valleys (head-surface level), which the plateau-aware scanner picks up
+# as 3 distinct local minima within x=38..58.
+_TUFTS = (
+    (39.0,  7),   # outer-left, tall
+    (45.5,  4),   # inner-left, short — the valley to its right is at head level
+    (52.0,  8),   # inner-right, tallest — the "bad hair day" peak
+    (58.5,  5),   # outer-right, mid
+)
+_TUFT_HALF = 1.8
 
 
 def _crown_top(x):
@@ -363,17 +384,73 @@ def _build_hurt_frame(wing_angle_deg, *, with_wing=True):
     return surf
 
 
-# ── review sheet ─────────────────────────────────────────────────────────────
+# ── review strip ─────────────────────────────────────────────────────────────
 
-def _strip(frames, scale, gap, bg=(8, 8, 20)):
+def _make_strip(frames, bg=(8, 8, 20)):
+    """4-frame strip at 1x — each frame is the outlined 68×64 sprite, laid
+    side by side with no gap, on the review background colour."""
     fw, fh = frames[0].get_size()
-    s = pygame.Surface((len(frames) * fw * scale + (len(frames) - 1) * gap,
-                        fh * scale))
+    s = pygame.Surface((len(frames) * fw, fh))
     s.fill(bg)
     for i, f in enumerate(frames):
-        s.blit(pygame.transform.scale(f, (fw * scale, fh * scale)),
-               (i * (fw * scale + gap), 0))
+        s.blit(f, (i * fw, 0))
     return s
+
+
+# ── gate helpers ─────────────────────────────────────────────────────────────
+
+def _wing_polygon_area():
+    """Shoelace area of the BIRD_WING polygon (wing-local coords) so the size
+    gate can fire without touching pixel buffers."""
+    pts = [(24, 24), (44, 13), (48, 28), (33, 44), (16, 41)]
+    n = len(pts)
+    total = 0.0
+    for i in range(n):
+        x0, y0 = pts[i]
+        x1, y1 = pts[(i + 1) % n]
+        total += x0 * y1 - x1 * y0
+    return abs(total) / 2.0
+
+
+def _crown_gate(outlined_frame):
+    """Return the number of distinct peaks in the top-pixel y-profile across
+    x=38..58 of the outlined sprite.  Uses plateau-aware detection so that
+    flat-topped tufts (multiple consecutive columns at the same y) count as
+    one peak rather than zero.  Gate requires ≥3."""
+    pad = 2
+    profile = {}
+    w, h = outlined_frame.get_size()
+    for sx in range(38, 59):
+        ox = sx + pad
+        if ox >= w:
+            continue
+        for oy in range(h):
+            if outlined_frame.get_at((ox, oy))[3] > 8:
+                profile[sx] = oy
+                break
+
+    xs = sorted(profile)
+    if not xs:
+        return 0
+    ys = [profile[x] for x in xs]
+
+    # Walk the ys list merging equal runs into plateaux, then test each
+    # plateau against its neighbours.  A plateau is a peak if its y value
+    # is strictly less than the values on both sides (smaller y = higher
+    # on screen); edge plateaux only need to beat the one available side.
+    minima = 0
+    i = 0
+    while i < len(ys):
+        v = ys[i]
+        j = i
+        while j < len(ys) and ys[j] == v:
+            j += 1
+        left_ok  = (i == 0)       or (ys[i - 1] > v)
+        right_ok = (j >= len(ys)) or (ys[j]     > v)
+        if left_ok and right_ok:
+            minima += 1
+        i = j
+    return minima
 
 
 if __name__ == "__main__":
@@ -384,73 +461,26 @@ if __name__ == "__main__":
 
     raw = [_build_hurt_frame(a) for a in _HURT_ANGLES]
     hurt = [_add_outline(f) for f in raw]
-    healthy = [_add_outline(_healthy_frame(a)) for a in (20, 0, -20, -40)]
 
-    fw, fh = hurt[0].get_size()
+    # ── round_2.png: exact 4×68×64 strip, bg (8,8,20) ───────────────────────
+    strip = _make_strip(hurt)
+    assert strip.get_size() == (272, 64), f"strip size {strip.get_size()} != (272,64)"
+    pygame.image.save(strip, os.path.join(OUT_DIR, "round_2.png"))
 
-    try:
-        font = pygame.font.SysFont("dejavusans", 17)
-        small = pygame.font.SysFont("dejavusans", 12)
-    except Exception:
-        font = pygame.font.Font(None, 17)
-        small = pygame.font.Font(None, 12)
+    # ── gate checks ──────────────────────────────────────────────────────────
+    wing_area = _wing_polygon_area()
+    area_pass = wing_area <= 640.0
+    print(f"Wing polygon area: {wing_area:.1f} px²  {'PASS' if area_pass else 'FAIL'} (gate ≤640)")
 
-    row_hurt = _strip(hurt, 4, 8)
-    row_healthy = _strip(healthy, 4, 8)
-    row_detail = _strip([hurt[1]], 8, 0)
+    for i, h in enumerate(hurt):
+        minima = _crown_gate(h)
+        crown_pass = minima >= 3
+        print(f"Frame {i} crown minima: {minima}  {'PASS' if crown_pass else 'FAIL'} (gate ≥3)")
 
-    margin, label_h, row_gap = 20, 24, 14
-    canvas_w = margin * 2 + max(row_hurt.get_width(),
-                                row_detail.get_width() + 220)
-    canvas_h = (margin + 28
-                + label_h + row_hurt.get_height() + row_gap
-                + label_h + row_healthy.get_height() + row_gap
-                + label_h + fh + row_gap
-                + label_h + row_detail.get_height() + margin)
-    canvas = pygame.Surface((canvas_w, canvas_h))
-    canvas.fill((8, 8, 20))
-
-    def _title(text, y, f=small, col=(190, 190, 215)):
-        canvas.blit(f.render(text, True, col), (margin, y))
-
-    y = margin
-    _title("ragged-molt — round 1  ·  falling apart, feather by feather", y,
-           font, (235, 235, 250))
-    y += 28
-
-    _title("hurt (4x)  —  3 torn wing notches · 2 bare-skin patches · ruffled crest", y)
-    y += label_h
-    canvas.blit(row_hurt, (margin, y))
-    y += row_hurt.get_height() + row_gap
-
-    _title("healthy reference (4x)", y)
-    y += label_h
-    canvas.blit(row_healthy, (margin, y))
-    y += row_healthy.get_height() + row_gap
-
-    _title("1x game scale — hurt strip, then healthy", y)
-    y += label_h
-    for i, frame in enumerate(hurt + healthy):
-        canvas.blit(frame, (margin + i * (fw + 6), y))
-    y += fh + row_gap
-
-    _title("frame 1 at 8x — notch / patch / crest detail", y)
-    y += label_h
-    canvas.blit(row_detail, (margin, y))
-
-    out_path = os.path.join(OUT_DIR, "round_1.png")
-    pygame.image.save(canvas, out_path)
-
-    # The bare 4-frame strip at 1x on the review background, exactly as the
-    # brief specifies it, kept alongside the annotated sheet.
-    pygame.image.save(_strip(hurt, 1, 0), os.path.join(OUT_DIR, "strip_1x.png"))
-
-    # --- verification (printed, not asserted) ---
+    # ── per-frame diagnostics ────────────────────────────────────────────────
     for i, a in enumerate(_HURT_ANGLES):
         frame = raw[i]
         wingless = _build_hurt_frame(a, with_wing=False)
-        no_notch = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
-        no_notch.blit(frame, (0, 0))
 
         skin_px = crest_px = notch_px = 0
         for x in range(SPRITE_W):
@@ -458,17 +488,12 @@ if __name__ == "__main__":
                 r, g, b, al = frame.get_at((x, py))
                 if al > 8 and 130 <= r <= 170 and g < 80 and b < 90:
                     skin_px += 1
-                # True crest pixels: opaque and OUTSIDE the head ellipse, so the
-                # skull's own red can't inflate the count.
                 if al > 8 and py < _HEAD_C[1]:
                     k = ((x - _HEAD_C[0]) / _HEAD_RX) ** 2 + \
                         ((py - _HEAD_C[1]) / _HEAD_RY) ** 2
                     if k > 1.0 and abs(r - BIRD_RED[0]) < 40 and g < 110 and 35 <= x <= 58:
                         crest_px += 1
 
-        # Notch transparency is the exact set of pixels the punch removed: any
-        # pixel transparent in the finished frame but opaque in a wedge-free
-        # rebuild of the same composite.
         probe = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
         probe.blit(wingless, (0, 0))
         w_rot = _build_wing(a)
@@ -481,4 +506,4 @@ if __name__ == "__main__":
         print(f"frame {i} (angle {a:>4}): skin={skin_px:>3}  crest={crest_px:>3}  "
               f"notch_alpha0={notch_px:>3}")
 
-    print(f"Saved round_1.png {canvas_w}x{canvas_h}")
+    print(f"Saved round_2.png 272x64")
