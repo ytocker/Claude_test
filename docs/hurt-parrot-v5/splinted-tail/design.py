@@ -340,34 +340,6 @@ def _cross_margin(frame):
     return worst
 
 
-def _inside(poly, px, py):
-    inside = False
-    n = len(poly)
-    for i in range(n):
-        x0, y0 = poly[i]
-        x1, y1 = poly[(i + 1) % n]
-        if (y0 > py) != (y1 > py):
-            if px < x0 + (py - y0) * (x1 - x0) / float(y1 - y0):
-                inside = not inside
-    return inside
-
-
-def _scratch_spans_tape():
-    """The lower rake has to surface on both sides of the body strip. Walking the
-    cut and asking how much of it falls outside the tape at each end is the only
-    check that distinguishes a strip laid *across* the wound from one merely
-    parked next to it — a parallel strip would score zero at one end."""
-    (x0, y0), (x1, y1) = LOWER_CUT
-    steps = 200
-    hits = [i for i in range(steps + 1)
-            if _inside(STRIP_B,
-                       x0 + (x1 - x0) * i / steps,
-                       y0 + (y1 - y0) * i / steps)]
-    if not hits:
-        return 0, 0
-    return hits[0], steps - hits[-1]
-
-
 def _mean_luma(frame):
     total, n = 0.0, 0
     for x in range(SPRITE_W):
@@ -404,9 +376,8 @@ if __name__ == "__main__":
                       for f in raw)
     luma = _mean_luma(raw[0])
     cross_margin = _cross_margin(raw[0])
-    left_px, right_px = _scratch_spans_tape()
 
-    # Summed across the jaw pad and the body strip: the threshold is about the
+    # Summed across the jaw pad and the tail splint: the threshold is about the
     # total amount of white on the bird, not about any one dressing.
     assert gauze_count >= 35, f"Bandage too faint: {gauze_count} gauze px (need >=35)"
     assert cross_count >= 10, f"Cross missing: {cross_count} cross px (need >=10)"
@@ -415,8 +386,6 @@ if __name__ == "__main__":
     assert luma >= 95, f"Body too dark: mean luma {luma:.1f} (need >=95)"
     assert cross_margin >= 2, (f"Cross crowds the pad edge: {cross_margin} px "
                                f"gauze (need >=2)")
-    assert left_px and right_px, (f"Rake does not emerge past the tape: "
-                                  f"{left_px} left / {right_px} right")
 
     NIGHT, DAY = (8, 8, 20), (100, 160, 220)
     margin, gap = 20, 10
@@ -457,13 +426,13 @@ if __name__ == "__main__":
                 (margin + pad3, y - pad3 + 1))
     canvas.blit(small.render("1x on night sky", True, (200, 205, 230)),
                 (margin + row3a.get_width() + pad3 * 3 + gap * 2, y - pad3 + 1))
-    lbl = font.render("bandaged-cheek — round 2   (4x / 2x / 1x day + night)",
+    lbl = font.render("splinted-tail — round 1   (4x / 2x / 1x day + night)",
                       True, (225, 225, 245))
     canvas.blit(lbl, (margin, canvas_h - margin - lbl.get_height() + 4))
 
-    out_path = os.path.join(OUT_DIR, "round_2.png")
+    out_path = os.path.join(OUT_DIR, "round_1.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
     print(f"gauze={gauze_count}  cross={cross_count}  "
           f"scratch_min={scratch_min}  luma={luma:.1f}  "
-          f"cross_margin={cross_margin}  rake L/R={left_px}/{right_px}")
+          f"cross_margin={cross_margin}")
