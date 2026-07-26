@@ -25,7 +25,7 @@ HDR_H    = 60
 FTR_H    = 80
 BG       = (8, 8, 20)
 
-N_PANELS = 6
+N_PANELS = 7
 CANVAS_W = MARGIN + N_PANELS * PANEL_W + (N_PANELS - 1) * GAP + MARGIN
 CANVAS_H = MARGIN + HDR_H + GAP + PANEL_H + FTR_H + MARGIN
 
@@ -92,7 +92,8 @@ PANELS = [
     ("field-dressed",  "field-\ndressed",      lambda: _get_v5("field-dressed"),      (255, 210,  80), "V5"),
     ("gauze-gorget",   "gauze-\ngorget",       lambda: _get_v5("gauze-gorget"),       (100, 200, 255), "V5 NEW"),
     ("splinted-tail",  "splinted-\ntail",      lambda: _get_v5("splinted-tail"),      (100, 200, 255), "V5 NEW"),
-    ("belly-strapped", "belly-\nstrapped",     lambda: _get_v5("belly-strapped"),     (100, 200, 255), "V5 NEW"),
+    ("belly-strapped",      "belly-\nstrapped",      lambda: _get_v5("belly-strapped"),      (100, 200, 255), "V5 NEW"),
+    ("field-dressed-plus",  "field-dressed-\nplus",  lambda: _get_v5("field-dressed-plus"),  (255, 210,  80), "V5"),
 ]
 
 # Separator after panel index 0 (after ORIGINAL) and after panel index 2 (after field-dressed)
