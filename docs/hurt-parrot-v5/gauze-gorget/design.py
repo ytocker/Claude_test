@@ -2,9 +2,10 @@
 `gauze-gorget` — hurt-parrot V5 concept: shifted jaw pad + upper-throat pad.
 
 The jaw wrap moves 4 px left so its right edge clears the face ellipse.
-A small gauze square sits in the gorget crescent above the jaw pad — a
-second field dressing applied to the throat where feather density thins.
-Stitched tabs at the four corners; no cross, so the jaw pad's mark stays
+A second gauze pad straddles the head/body seam in the gorget crescent,
+where feather density thins — a separate field dressing rather than a
+patch floating on the breast. Its stitch tabs sit outside the pad on the
+red plumage so they separate; no cross on it, so the jaw pad's mark stays
 the one red focal point.
 """
 import math
@@ -129,11 +130,15 @@ def _stamp_clipped(surf, layer):
 
 
 JAW_PAD  = [(31, 32), (43, 31), (45, 40), (33, 42)]
-CROSS_H  = ((35, 36), (41, 36))
+# Horizontal arm kept to 5 px so it reads square against the 4 px vertical arm;
+# a wider bar turned the mark into a dash long before the 1x downscale did.
+CROSS_H  = ((36, 36), (40, 36))
 CROSS_V  = ((37, 35), (37, 38))
-# Upper-throat pad: sits in the gorget crescent, x=26-31 y=20-27, clear of face
-# ellipse (center (47,22) rx=12 ry=11) and of the jaw pad below (gap >= 4px).
-GORGET_PAD = [(26, 21), (31, 20), (31, 26), (26, 27)]
+# Upper-throat pad, straddling the head ellipse's left edge (head center (47,22)
+# rx=12 terminates at x=35) so it crosses the head/body seam the way the jaw pad
+# crosses the lower jaw. Right edge clears the left lens by 1 px; bottom leaves a
+# 3 px gap to the jaw pad.
+GORGET_PAD = [(32, 22), (38, 21), (38, 28), (32, 29)]
 
 
 def _draw_jaw_dressing(surf):
@@ -159,23 +164,21 @@ def _draw_jaw_dressing(surf):
 
 
 def _draw_gorget(surf):
-    """Small gauze square in the upper-throat crescent. No cross — the jaw pad
-    owns the only red mark. Four stitch tabs at the corners show careful
-    application over the thin feathers of the gorget."""
+    """Gauze pad at the head/body seam — the gorget crescent where feather density
+    drops and a second dressing is legible. Crosses the head ellipse's left edge
+    the same way the jaw pad crosses the lower jaw seam. Tabs sit outside the
+    polygon on body-red substrate, where they actually separate; drawn inside the
+    pad they were pale-on-pale and vanished."""
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     d = pygame.draw
 
+    d.line(layer, STITCH, (33, 19), (33, 20), 1)
+    d.line(layer, STITCH, (36, 19), (36, 20), 1)
+    d.line(layer, STITCH, (29, 24), (30, 24), 1)
+    d.line(layer, STITCH, (29, 27), (30, 27), 1)
+
     d.polygon(layer, GAUZE, GORGET_PAD)
     d.polygon(layer, HEM, GORGET_PAD, 1)
-
-    # Stitch tabs: short horizontal dashes extending outward from each corner
-    for (x0, y0), (x1, y1) in (
-        ((24, 23), (27, 23)),
-        ((24, 25), (27, 25)),
-        ((30, 22), (33, 22)),
-        ((30, 25), (33, 25)),
-    ):
-        d.line(layer, STITCH, (x0, y0), (x1, y1), 1)
 
     _stamp_clipped(surf, layer)
 
@@ -264,7 +267,9 @@ def _build_hurt_frame(wing_angle_deg):
     _aaellipse(surf, CHEST,   (30, 29), 13,  8)
     _aaellipse(surf, BELLY,   (28, 38), 12,  6)
 
-    sheen = pygame.Surface((28, 6), pygame.SRCALPHA)
+    # Stops at x=30 rather than running the full breast: past that it lifted the
+    # substrate under the gorget pad and ate the gauze/body contrast.
+    sheen = pygame.Surface((9, 6), pygame.SRCALPHA)
     d.ellipse(sheen, (205, 150, 150, 120), sheen.get_rect())
     surf.blit(sheen, (22, 21))
 
@@ -400,6 +405,31 @@ if __name__ == "__main__":
     assert cross_margin >= 2, (f"Cross crowds the pad edge: {cross_margin} px "
                                f"gauze (need >=2)")
 
+    # The second dressing only earns its place if it survives the downscale, so
+    # gate it on its own area and on its own contrast against what it sits on.
+    gorget_gauze = sum(
+        1 for x in range(30, 40) for y in range(20, 31)
+        if raw[0].get_at((x, y))[3] > 8
+        and (raw[0].get_at((x, y))[0],
+             raw[0].get_at((x, y))[1],
+             raw[0].get_at((x, y))[2]) == GAUZE
+    )
+    assert gorget_gauze >= 28, f"Gorget pad too faint: {gorget_gauze} gauze px in gorget region (need >=28)"
+
+    gorget_px = [(x, y) for x in range(30, 40) for y in range(20, 31)
+                 if (raw[0].get_at((x, y))[0],
+                     raw[0].get_at((x, y))[1],
+                     raw[0].get_at((x, y))[2]) == GAUZE
+                 and raw[0].get_at((x, y))[3] > 8]
+    if gorget_px:
+        avg_gauze_luma = sum(
+            0.299 * raw[0].get_at((x, y))[0]
+            + 0.587 * raw[0].get_at((x, y))[1]
+            + 0.114 * raw[0].get_at((x, y))[2]
+            for x, y in gorget_px
+        ) / len(gorget_px)
+        assert avg_gauze_luma >= 155, f"Gorget gauze too dark: luma {avg_gauze_luma:.1f} (need >=155)"
+
     NIGHT, DAY = (8, 8, 20), (100, 160, 220)
     margin, gap = 20, 10
     row1 = _strip(frames, 4, gap, NIGHT)
@@ -439,13 +469,13 @@ if __name__ == "__main__":
                 (margin + pad3, y - pad3 + 1))
     canvas.blit(small.render("1x on night sky", True, (200, 205, 230)),
                 (margin + row3a.get_width() + pad3 * 3 + gap * 2, y - pad3 + 1))
-    lbl = font.render("gauze-gorget — round 1   (4x / 2x / 1x day + night)",
+    lbl = font.render("gauze-gorget — round 2   (4x / 2x / 1x day + night)",
                       True, (225, 225, 245))
     canvas.blit(lbl, (margin, canvas_h - margin - lbl.get_height() + 4))
 
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
     print(f"gauze={gauze_count}  cross={cross_count}  "
           f"scratch_min={scratch_min}  luma={luma:.1f}  "
-          f"cross_margin={cross_margin}")
+          f"cross_margin={cross_margin}  gorget_gauze={gorget_gauze}")
