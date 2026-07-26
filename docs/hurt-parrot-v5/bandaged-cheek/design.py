@@ -120,20 +120,62 @@ def _draw_scratches(surf):
                 surf.set_at((x, y), layer.get_at((x, y)))
 
 
-def _draw_bandage(surf):
-    """Gauze taped diagonally across the temple, drawn on top of the shades. A
-    horizontal brow strip hid behind the aviator lenses and effectively did not
-    exist; running it on the diagonal puts white where the head is otherwise a
-    single flat red, and the red cross is the one piece of universal shorthand in
-    the sprite — a player parses "patched up" from it before anything else."""
-    quad = [(36, 20), (41, 11), (48, 12), (43, 22)]
-    pygame.draw.polygon(surf, GAUZE, quad)
-    # Hemmed just outside the fill rather than on it: on-edge stitching eats a
-    # third of the white and the strip stops reading as gauze at 1x.
-    pygame.draw.line(surf, STITCH, (35, 20), (40, 11), 1)
-    pygame.draw.line(surf, STITCH, (49, 12), (44, 22), 1)
-    pygame.draw.line(surf, CROSS, (37, 17), (43, 17), 1)
-    pygame.draw.line(surf, CROSS, (40, 14), (40, 20), 1)
+def _stamp_clipped(surf, layer):
+    """Composite a layer only where the silhouette already has pixels, keeping
+    the destination alpha. Dressings sit *on* the bird, so any part of a strip
+    that runs off the body has to be discarded rather than widening the outline
+    pass into a lumpy silhouette."""
+    for x in range(surf.get_width()):
+        for y in range(surf.get_height()):
+            px = layer.get_at((x, y))
+            if px[3] > 8 and surf.get_at((x, y))[3] > 8:
+                surf.set_at((x, y), (px[0], px[1], px[2], surf.get_at((x, y))[3]))
+
+
+def _draw_jaw_dressing(surf):
+    """The main pad, wrapped under the jaw and across the chin. Kept wholly below
+    y=30 so it never fights the lenses for the head's focal point — the shades
+    own the upper head, the gauze owns the lower. Running it over the head/body
+    seam is what sells it as a wrap tied around the jaw rather than a patch stuck
+    on a cheek."""
+    layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    d = pygame.draw
+
+    pad = [(36, 30), (47, 28), (50, 36), (38, 38)]
+    d.polygon(layer, GAUZE, pad)
+    d.polygon(layer, HEM, pad, 1)
+
+    # Red cross — the one piece of universal shorthand in the sprite, and the
+    # first thing a player parses. Both arms sit a pixel inside the pad so the
+    # hem still closes around them, and the whole mark rides left of centre:
+    # applied in a hurry, not printed on like a logo.
+    d.line(layer, CROSS, (39, 33), (45, 33), 2)
+    d.line(layer, CROSS, (42, 30), (42, 36), 2)
+
+    _stamp_clipped(surf, layer)
+
+
+def _draw_body_bandaids(surf):
+    """Two small strips taped on the plumage. Neither carries a cross — one red
+    mark on the sprite is the read, three is a first-aid poster — so they work as
+    quiet supporting texture. Strip A crosses the tail of the upper claw-cut and
+    is drawn after the rake, which lets the wound run out from under it; that
+    overlap is the whole reason the strips are believable as treatment for the
+    damage rather than unrelated decoration."""
+    layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    d = pygame.draw
+
+    strip_a = [(26, 28), (32, 25), (34, 29), (28, 32)]
+    d.polygon(layer, GAUZE, strip_a)
+    d.polygon(layer, HEM, strip_a, 1)
+
+    # Laid parallel to the rake rather than across it: echoing the cut direction
+    # keeps the lower body reading as one damaged region instead of a crosshatch.
+    strip_b = [(19, 44), (27, 40), (29, 43), (21, 47)]
+    d.polygon(layer, GAUZE, strip_b)
+    d.polygon(layer, HEM, strip_b, 1)
+
+    _stamp_clipped(surf, layer)
 
 
 def _draw_sunglasses(surf, cx, cy):
@@ -238,7 +280,8 @@ def _build_hurt_frame(wing_angle_deg):
 
     _draw_sunglasses(surf, 50, 20)
     _draw_cracked_lens(surf)
-    _draw_bandage(surf)
+    _draw_body_bandaids(surf)
+    _draw_jaw_dressing(surf)
 
     # Beak parted only ~2 px, and the lower mandible tucked up under the upper.
     # Dropping it further left a spur hanging off the chin that made the bird
@@ -303,6 +346,8 @@ if __name__ == "__main__":
                       for f in raw)
     luma = _mean_luma(raw[0])
 
+    # Summed across the jaw pad and both body strips: the threshold is about the
+    # total amount of white on the bird, not about any one dressing.
     assert gauze_count >= 35, f"Bandage too faint: {gauze_count} gauze px (need >=35)"
     assert cross_count >= 10, f"Cross missing: {cross_count} cross px (need >=10)"
     assert scratch_min >= 25, (f"Scratches fade: min {scratch_min} px on worst "
@@ -348,11 +393,11 @@ if __name__ == "__main__":
                 (margin + pad3, y - pad3 + 1))
     canvas.blit(small.render("1x on night sky", True, (200, 205, 230)),
                 (margin + row3a.get_width() + pad3 * 3 + gap * 2, y - pad3 + 1))
-    lbl = font.render("battle-bloodshot — round 2   (4x / 2x / 1x day + night)",
+    lbl = font.render("bandaged-cheek — round 1   (4x / 2x / 1x day + night)",
                       True, (225, 225, 245))
     canvas.blit(lbl, (margin, canvas_h - margin - lbl.get_height() + 4))
 
-    out_path = os.path.join(OUT_DIR, "round_2.png")
+    out_path = os.path.join(OUT_DIR, "round_1.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
     print(f"gauze={gauze_count}  cross={cross_count}  "
