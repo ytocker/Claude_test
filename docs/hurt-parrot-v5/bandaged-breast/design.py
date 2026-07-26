@@ -5,9 +5,12 @@ V5, built on battle-bloodshot (V3). Same fight, later in the story: the bird has
 been patched up. V3 put its one bandage on the temple, where it competed with
 the shades for the head's small pixel budget; here the dressing moves to the
 breast, the largest uninterrupted field on the sprite, so the white pad and its
-red cross have somewhere to actually live. Three separate dressings — chest pad,
-jaw strip, diagonal belly strip — because a *scatter* of patches reads as
-"repeatedly hurt" where one big patch just reads as "wearing something".
+red cross have somewhere to actually live. Two dressings — one big taped chest
+pad plus a low belly strip — because a *scatter* of patches reads as
+"repeatedly hurt" where one big patch just reads as "wearing something". A third
+strip on the jaw was tried and cut: sitting that close under the shades it
+merged with the chest pad into a single bib-shaped mass instead of reading as
+two separate dressings.
 
 Gauze is deliberately dirty-cream rather than the V3 near-white: field dressing
 that has already been bled through and rained on, and the lower value keeps it
@@ -42,7 +45,10 @@ SHADE_FRAME = (220, 175, 40)
 # the brightest thing on the sprite and steals the read from the beak and the
 # lens glint. HEM is dark enough to hold the pad's edge as a shape at 1x.
 GAUZE      = (198, 190, 172)
-HEM        = (120, 108,  95)
+# A mid-grey hem sat only ~30 luma off the gauze and dissolved into it at 1x;
+# this near-bark value keeps a hard border so the pad stays a *shape* rather than
+# a soft cream blob, and reads as the grubby taped edge of a field dressing.
+HEM        = ( 72,  62,  54)
 STITCH     = (180, 170, 160)
 CROSS      = (190,  20,  35)
 SCRATCH_D  = (100,  10,  10)
@@ -148,39 +154,62 @@ def _draw_chest_dressing(surf):
     in the design, so it gets the biggest, flattest field on the bird."""
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     d = pygame.draw
-    # Pad sits right of the scratch origins and off the orange belly, so it
-    # neither swallows the rake nor muddies the two-tone body modelling.
-    pad = [(26, 30), (38, 27), (39, 34), (27, 37)]
+    # Grown in both axes over the first pass: at 1x the cross needs enough gauze
+    # around it to still read as a *symbol on a pad* rather than as two stray red
+    # pixels, and the pad only earns that if it clears the cross by a margin.
+    pad = [(25, 29), (39, 26), (40, 35), (26, 38)]
     d.polygon(layer, GAUZE, pad)
     d.polygon(layer, HEM, pad, 1)
-    # Cross deliberately off-centre and off-square: taped on in a hurry by
-    # someone who was not being careful, which is the whole tone of the concept.
-    d.line(layer, CROSS, (28, 32), (34, 32), 2)
-    d.line(layer, CROSS, (31, 29), (31, 35), 2)
+
+    # Tape tabs: 1 px stubs off the pad's short edges, normal to each edge. They
+    # cost almost nothing and are what says "stuck on" instead of "painted on".
+    for (ax, ay), (bx, by), sign in (((25, 29), (26, 38), -1),
+                                     ((39, 26), (40, 35), +1)):
+        ex, ey = bx - ax, by - ay
+        L = max(1e-3, math.hypot(ex, ey))
+        nx, ny = sign * (ey / L), sign * (-ex / L)
+        for t in (0.3, 0.7):
+            px, py = ax + ex * t, ay + ey * t
+            d.line(layer, STITCH, (round(px), round(py)),
+                   (round(px + nx * 3), round(py + ny * 3)), 1)
+
+    # Cross drawn into its own layer and trimmed to an inset of the pad, so the
+    # arms can be specified generously and still be guaranteed a gauze border on
+    # every side — hand-fitted arm lengths drift the moment the pad moves.
+    cross = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    d.line(cross, CROSS, (27, 31), (36, 31), 2)
+    d.line(cross, CROSS, (32, 27), (32, 35), 2)
+    inset = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    d.polygon(inset, (255, 255, 255), _shrink(pad, 2.6))
+    for x in range(surf.get_width()):
+        for y in range(surf.get_height()):
+            if cross.get_at((x, y))[3] > 8 and inset.get_at((x, y))[3] > 8:
+                layer.set_at((x, y), CROSS)
+
     _stamp_clipped(surf, layer)
 
 
-def _draw_face_bandaid(surf):
-    """A single small strip on the jaw. No cross — a second cross would read as a
-    pattern on a garment; one cross plus plain strips reads as a bird that got
-    patched up in several places."""
-    layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    d = pygame.draw
-    # Held clear of the left lens: gauze crossing the shades would fight the
-    # starred-lens silhouette, which is V3's strongest single detail.
-    strip = [(36, 31), (42, 29), (43, 32), (37, 34)]
-    d.polygon(layer, GAUZE, strip)
-    d.polygon(layer, HEM, strip, 1)
-    _stamp_clipped(surf, layer)
+def _shrink(poly, amount):
+    """Pull a convex quad in toward its centroid by roughly `amount` pixels."""
+    cx = sum(p[0] for p in poly) / len(poly)
+    cy = sum(p[1] for p in poly) / len(poly)
+    out = []
+    for x, y in poly:
+        dx, dy = cx - x, cy - y
+        L = max(1e-3, math.hypot(dx, dy))
+        out.append((x + dx / L * amount, y + dy / L * amount))
+    return out
 
 
 def _draw_belly_bandaid(surf):
-    """A third strip low on the body, laid roughly parallel to the claw rake so
+    """A second strip low on the body, laid roughly parallel to the claw rake so
     it reads as covering one more cut from the same swipe rather than as an
-    unrelated decoration at a random angle."""
+    unrelated decoration at a random angle. Dropped clear of the lower rake cut —
+    overlapping it, the strip ate the one scratch that still had to survive the
+    downscale and the bird lost half its "clawed" read."""
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     d = pygame.draw
-    strip = [(20, 41), (28, 37), (29, 40), (21, 43)]
+    strip = [(22, 43), (30, 40), (31, 43), (23, 46)]
     d.polygon(layer, GAUZE, strip)
     d.polygon(layer, HEM, strip, 1)
     _stamp_clipped(surf, layer)
@@ -293,7 +322,6 @@ def _build_hurt_frame(wing_angle_deg):
     # so the cuts emerge from beneath its right edge instead of being drawn
     # across it.
     _draw_belly_bandaid(surf)
-    _draw_face_bandaid(surf)
     _draw_chest_dressing(surf)
 
     # Beak parted only ~2 px, and the lower mandible tucked up under the upper.

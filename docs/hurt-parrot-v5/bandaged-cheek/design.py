@@ -8,8 +8,8 @@ point on the head, and both live in the same 10 px band; putting the gauze on
 the jaw/chin instead gives the white its own territory below the lenses, and
 the pad crossing the head/body seam reads as a wrap that was tied on rather
 than a sticker floating on the skull. Two small strips on the body carry the
-patched-up story down into the plumage, one of them taped over the tail of a
-claw-cut so the wound visibly runs out from under it.
+patched-up story down into the plumage, taped over the tail of a claw-cut so the
+wound visibly runs out from under it.
 """
 import math
 import os, sys
@@ -43,6 +43,9 @@ SCRATCH_HL = (230, 110,  90)
 # black lens, which vanished entirely; glass chips bright, and the bright line is
 # also the only thing that survives the downscale.
 CRACK      = (150, 175, 205)
+
+UPPER_CUT = ((18, 35), (32, 29))
+LOWER_CUT = ((19, 40), (28, 35))
 
 
 def _aaellipse(surf, color, center, rx, ry):
@@ -100,10 +103,7 @@ def _draw_scratches(surf):
     the upstroke frames — and a claw that opened the breast would have opened
     the coverts on the way through anyway, so carrying it across the wing is
     both the truthful read and the only one that holds for all four frames."""
-    cuts = (
-        ((18, 35), (32, 29)),
-        ((19, 40), (28, 35)),
-    )
+    cuts = (UPPER_CUT, LOWER_CUT)
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     for (x0, y0), (x1, y1) in cuts:
         dx, dy = x1 - x0, y1 - y0
@@ -132,48 +132,51 @@ def _stamp_clipped(surf, layer):
                 surf.set_at((x, y), (px[0], px[1], px[2], surf.get_at((x, y))[3]))
 
 
+JAW_PAD  = [(35, 32), (47, 31), (49, 40), (37, 42)]
+# Horizontal arm sits on y=36 and the vertical arm centres on x=41, but both are
+# cropped in from the endpoints the pad outline would allow: the mark has to keep
+# a clear ring of gauze all the way round, and a cross that touches its own hem
+# stops reading as a cross and starts reading as a torn patch.
+CROSS_H  = ((39, 36), (45, 36))
+CROSS_V  = ((41, 35), (41, 38))
+# Laid across the tail of the lower rake rather than alongside it. Taping over
+# the cut is what ties dressing and damage into one event — the wound emerging
+# on both sides of the strip is the whole storytelling beat.
+STRIP_B  = [(23, 32), (28, 41), (24, 44), (19, 35)]
+
+
 def _draw_jaw_dressing(surf):
-    """The main pad, wrapped under the jaw and across the chin. Kept wholly below
-    y=30 so it never fights the lenses for the head's focal point — the shades
-    own the upper head, the gauze owns the lower. Running it over the head/body
-    seam is what sells it as a wrap tied around the jaw rather than a patch stuck
-    on a cheek."""
+    """The main pad, wrapped under the jaw and across the chin. Its top edge is
+    held at y>=31 so it clears the cracked-lens radials entirely — the shades own
+    the upper head, the gauze owns the lower, and neither crops the other.
+    Running it over the head/body seam is what sells it as a wrap tied around the
+    jaw rather than a patch stuck on a cheek."""
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     d = pygame.draw
 
-    pad = [(36, 30), (47, 28), (50, 36), (38, 38)]
-    d.polygon(layer, GAUZE, pad)
-    d.polygon(layer, HEM, pad, 1)
+    d.polygon(layer, GAUZE, JAW_PAD)
+    d.polygon(layer, HEM, JAW_PAD, 1)
 
     # Red cross — the one piece of universal shorthand in the sprite, and the
-    # first thing a player parses. Both arms sit a pixel inside the pad so the
-    # hem still closes around them, and the whole mark rides left of centre:
-    # applied in a hurry, not printed on like a logo.
-    d.line(layer, CROSS, (39, 33), (45, 33), 2)
-    d.line(layer, CROSS, (42, 30), (42, 36), 2)
+    # first thing a player parses.
+    d.line(layer, CROSS, *CROSS_H, 2)
+    d.line(layer, CROSS, *CROSS_V, 2)
 
     _stamp_clipped(surf, layer)
 
 
-def _draw_body_bandaids(surf):
-    """Two small strips taped on the plumage. Neither carries a cross — one red
-    mark on the sprite is the read, three is a first-aid poster — so they work as
-    quiet supporting texture. Strip A crosses the tail of the upper claw-cut and
-    is drawn after the rake, which lets the wound run out from under it; that
-    overlap is the whole reason the strips are believable as treatment for the
-    damage rather than unrelated decoration."""
+def _draw_body_bandaid(surf):
+    """One strip taped on the lower plumage. It carries no cross — one red mark on
+    the sprite is the read, two is a first-aid poster — so it works as quiet
+    supporting texture under the jaw pad. Drawn after the rake and straddling the
+    lower claw-cut, so the wound runs out from under it; that overlap is the whole
+    reason the strip is believable as treatment for the damage rather than
+    unrelated decoration."""
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     d = pygame.draw
 
-    strip_a = [(26, 28), (32, 25), (34, 29), (28, 32)]
-    d.polygon(layer, GAUZE, strip_a)
-    d.polygon(layer, HEM, strip_a, 1)
-
-    # Laid parallel to the rake rather than across it: echoing the cut direction
-    # keeps the lower body reading as one damaged region instead of a crosshatch.
-    strip_b = [(19, 44), (27, 40), (29, 43), (21, 47)]
-    d.polygon(layer, GAUZE, strip_b)
-    d.polygon(layer, HEM, strip_b, 1)
+    d.polygon(layer, GAUZE, STRIP_B)
+    d.polygon(layer, HEM, STRIP_B, 1)
 
     _stamp_clipped(surf, layer)
 
@@ -280,7 +283,7 @@ def _build_hurt_frame(wing_angle_deg):
 
     _draw_sunglasses(surf, 50, 20)
     _draw_cracked_lens(surf)
-    _draw_body_bandaids(surf)
+    _draw_body_bandaid(surf)
     _draw_jaw_dressing(surf)
 
     # Beak parted only ~2 px, and the lower mandible tucked up under the upper.
@@ -308,6 +311,63 @@ def _count_exact(frame, color):
             if a > 8 and (r, g, b) == color:
                 n += 1
     return n
+
+
+def _cross_margin(frame):
+    """Smallest number of clear gauze pixels between any cross pixel and whatever
+    is not the pad — measured on the finished frame, so hem, clipping and the
+    body edge all count against it."""
+    def rgb(x, y):
+        r, g, b, a = frame.get_at((x, y))
+        return (r, g, b) if a > 8 else None
+
+    worst = 99
+    for x in range(SPRITE_W):
+        for y in range(SPRITE_H):
+            if rgb(x, y) != CROSS:
+                continue
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                run = 0
+                sx, sy = x + dx, y + dy
+                while 0 <= sx < SPRITE_W and 0 <= sy < SPRITE_H:
+                    c = rgb(sx, sy)
+                    if c == CROSS:
+                        run = 0
+                    elif c == GAUZE:
+                        run += 1
+                    else:
+                        break
+                    sx, sy = sx + dx, sy + dy
+                worst = min(worst, run)
+    return worst
+
+
+def _inside(poly, px, py):
+    inside = False
+    n = len(poly)
+    for i in range(n):
+        x0, y0 = poly[i]
+        x1, y1 = poly[(i + 1) % n]
+        if (y0 > py) != (y1 > py):
+            if px < x0 + (py - y0) * (x1 - x0) / float(y1 - y0):
+                inside = not inside
+    return inside
+
+
+def _scratch_spans_tape():
+    """The lower rake has to surface on both sides of the body strip. Walking the
+    cut and asking how much of it falls outside the tape at each end is the only
+    check that distinguishes a strip laid *across* the wound from one merely
+    parked next to it — a parallel strip would score zero at one end."""
+    (x0, y0), (x1, y1) = LOWER_CUT
+    steps = 200
+    hits = [i for i in range(steps + 1)
+            if _inside(STRIP_B,
+                       x0 + (x1 - x0) * i / steps,
+                       y0 + (y1 - y0) * i / steps)]
+    if not hits:
+        return 0, 0
+    return hits[0], steps - hits[-1]
 
 
 def _mean_luma(frame):
@@ -345,14 +405,19 @@ if __name__ == "__main__":
     scratch_min = min(_count_exact(f, SCRATCH_D) + _count_exact(f, SCRATCH_HL)
                       for f in raw)
     luma = _mean_luma(raw[0])
+    margin = _cross_margin(raw[0])
+    left_px, right_px = _scratch_spans_tape()
 
-    # Summed across the jaw pad and both body strips: the threshold is about the
+    # Summed across the jaw pad and the body strip: the threshold is about the
     # total amount of white on the bird, not about any one dressing.
     assert gauze_count >= 35, f"Bandage too faint: {gauze_count} gauze px (need >=35)"
     assert cross_count >= 10, f"Cross missing: {cross_count} cross px (need >=10)"
     assert scratch_min >= 25, (f"Scratches fade: min {scratch_min} px on worst "
                                f"frame (need >=25)")
     assert luma >= 95, f"Body too dark: mean luma {luma:.1f} (need >=95)"
+    assert margin >= 2, f"Cross crowds the pad edge: {margin} px gauze (need >=2)"
+    assert left_px and right_px, (f"Rake does not emerge past the tape: "
+                                  f"{left_px} left / {right_px} right")
 
     NIGHT, DAY = (8, 8, 20), (100, 160, 220)
     margin, gap = 20, 10
@@ -393,12 +458,13 @@ if __name__ == "__main__":
                 (margin + pad3, y - pad3 + 1))
     canvas.blit(small.render("1x on night sky", True, (200, 205, 230)),
                 (margin + row3a.get_width() + pad3 * 3 + gap * 2, y - pad3 + 1))
-    lbl = font.render("bandaged-cheek — round 1   (4x / 2x / 1x day + night)",
+    lbl = font.render("bandaged-cheek — round 2   (4x / 2x / 1x day + night)",
                       True, (225, 225, 245))
     canvas.blit(lbl, (margin, canvas_h - margin - lbl.get_height() + 4))
 
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
     print(f"gauze={gauze_count}  cross={cross_count}  "
-          f"scratch_min={scratch_min}  luma={luma:.1f}")
+          f"scratch_min={scratch_min}  luma={luma:.1f}  "
+          f"cross_margin={margin}  rake L/R={left_px}/{right_px}")
