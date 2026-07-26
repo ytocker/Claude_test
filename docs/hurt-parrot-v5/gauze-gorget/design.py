@@ -137,7 +137,9 @@ GORGET_PAD = [(26, 21), (31, 20), (31, 26), (26, 27)]
 
 
 def _draw_jaw_dressing(surf):
-    """The main pad, wrapped under the jaw and across the chin. Its top edge is
+    """The main pad, wrapped under the jaw and across the chin, sitting 4 px
+    further left than the cheek version so its right edge clears the face
+    ellipse instead of riding up onto it. Its top edge is
     held at y>=31 so it clears the cracked-lens radials entirely — the shades own
     the upper head, the gauze owns the lower, and neither crops the other.
     Running it over the head/body seam is what sells it as a wrap tied around the
@@ -441,9 +443,9 @@ if __name__ == "__main__":
                       True, (225, 225, 245))
     canvas.blit(lbl, (margin, canvas_h - margin - lbl.get_height() + 4))
 
-    out_path = os.path.join(OUT_DIR, "round_2.png")
+    out_path = os.path.join(OUT_DIR, "round_1.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
     print(f"gauze={gauze_count}  cross={cross_count}  "
           f"scratch_min={scratch_min}  luma={luma:.1f}  "
-          f"cross_margin={cross_margin}  rake L/R={left_px}/{right_px}")
+          f"cross_margin={cross_margin}")
