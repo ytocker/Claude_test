@@ -55,6 +55,7 @@ GROUND_L = (60, 65, 80)
 LABEL_W      = 90
 INTER_GAP    = 8
 MAIN_TITLE_H = 52
+COL_HDR_H    = 48
 
 CONCEPTS = [
     ("ORIGINAL",         None),
@@ -102,7 +103,7 @@ def _render_original(f_title, f_label, f_phase):
 
 def main():
     canvas_w = LABEL_W + ROW_W
-    canvas_h = MAIN_TITLE_H + len(CONCEPTS) * ROW_H + (len(CONCEPTS) - 1) * INTER_GAP
+    canvas_h = MAIN_TITLE_H + COL_HDR_H + len(CONCEPTS) * ROW_H + (len(CONCEPTS) - 1) * INTER_GAP
     canvas = pygame.Surface((canvas_w, canvas_h))
     canvas.fill(BG)
 
@@ -118,10 +119,25 @@ def main():
     canvas.blit(mt, (canvas_w // 2 - mt.get_width() // 2,
                      MAIN_TITLE_H // 2 - mt.get_height() // 2))
 
+    # Column header strip
+    col_hdr_y = MAIN_TITLE_H
+    pygame.draw.line(canvas, ACCENT, (0, col_hdr_y), (canvas_w, col_hdr_y), 1)
+    for i, (phase, label) in enumerate(SAMPLES):
+        cx = LABEL_W + MARGIN + i * (PANEL_W + GAP) + PANEL_W // 2
+        lines = _wrap(label)
+        line_h = f_label.get_height()
+        total_h = len(lines) * line_h
+        base_y = col_hdr_y + (COL_HDR_H - total_h) // 2
+        for j, line in enumerate(lines):
+            s = f_label.render(line, True, TEXT_HI)
+            canvas.blit(s, (cx - s.get_width() // 2, base_y + j * line_h))
+    pygame.draw.line(canvas, ACCENT, (0, col_hdr_y + COL_HDR_H - 1),
+                     (canvas_w, col_hdr_y + COL_HDR_H - 1), 1)
+
     base_dir = os.path.join(_ROOT, "docs", "sky_transition")
 
     for i, (name, rel_path) in enumerate(CONCEPTS):
-        y = MAIN_TITLE_H + i * (ROW_H + INTER_GAP)
+        y = MAIN_TITLE_H + COL_HDR_H + i * (ROW_H + INTER_GAP)
 
         label_surf = pygame.Surface((LABEL_W, ROW_H))
         label_surf.fill(BG_LABEL)
@@ -152,7 +168,7 @@ def main():
     print(f"wrote {out}  ({img.width}×{img.height})")
 
     for i, (name, _) in enumerate(CONCEPTS):
-        row_y = MAIN_TITLE_H + i * (ROW_H + INTER_GAP) + HEADER + PANEL_H // 2
+        row_y = MAIN_TITLE_H + COL_HDR_H + i * (ROW_H + INTER_GAP) + HEADER + PANEL_H // 2
         mid_x = LABEL_W + MARGIN + 4 * (PANEL_W + GAP) + PANEL_W // 2
         px = img.getpixel((mid_x, row_y))
         print(f"  {name:20s} panel4 mid: {px}")
