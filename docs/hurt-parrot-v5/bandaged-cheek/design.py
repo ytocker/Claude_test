@@ -7,9 +7,9 @@ forehead. A forehead strip competes with the shades for the one bright focal
 point on the head, and both live in the same 10 px band; putting the gauze on
 the jaw/chin instead gives the white its own territory below the lenses, and
 the pad crossing the head/body seam reads as a wrap that was tied on rather
-than a sticker floating on the skull. Two small strips on the body carry the
-patched-up story down into the plumage, taped over the tail of a claw-cut so the
-wound visibly runs out from under it.
+than a sticker floating on the skull. A single strip on the body carries the
+patched-up story down into the plumage, taped across a claw-cut so the wound
+visibly runs out from under both ends of it.
 """
 import math
 import os, sys
@@ -405,7 +405,7 @@ if __name__ == "__main__":
     scratch_min = min(_count_exact(f, SCRATCH_D) + _count_exact(f, SCRATCH_HL)
                       for f in raw)
     luma = _mean_luma(raw[0])
-    margin = _cross_margin(raw[0])
+    cross_margin = _cross_margin(raw[0])
     left_px, right_px = _scratch_spans_tape()
 
     # Summed across the jaw pad and the body strip: the threshold is about the
@@ -415,7 +415,8 @@ if __name__ == "__main__":
     assert scratch_min >= 25, (f"Scratches fade: min {scratch_min} px on worst "
                                f"frame (need >=25)")
     assert luma >= 95, f"Body too dark: mean luma {luma:.1f} (need >=95)"
-    assert margin >= 2, f"Cross crowds the pad edge: {margin} px gauze (need >=2)"
+    assert cross_margin >= 2, (f"Cross crowds the pad edge: {cross_margin} px "
+                               f"gauze (need >=2)")
     assert left_px and right_px, (f"Rake does not emerge past the tape: "
                                   f"{left_px} left / {right_px} right")
 
@@ -467,4 +468,4 @@ if __name__ == "__main__":
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
     print(f"gauze={gauze_count}  cross={cross_count}  "
           f"scratch_min={scratch_min}  luma={luma:.1f}  "
-          f"cross_margin={margin}  rake L/R={left_px}/{right_px}")
+          f"cross_margin={cross_margin}  rake L/R={left_px}/{right_px}")
