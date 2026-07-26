@@ -1,18 +1,17 @@
 """
 `scorched-no-lens` — scorched-afterburn variant, one lens missing.
 
-Built on scorched-afterburn: burnt tail fan, soot patches with ember rims,
-squint — but the left aviator lens is gone. The gold ring frame remains
-(it warped, the lens popped out), and the bird's own eye shows through the
-hollow opening. Exposed after fire impact, the iris is an angry bloodshot
-red; the pupil is the same near-black as a healthy lens. The contrast is
-the same ring-vs-disc binary as busted-aviator, but earned differently:
-here the damage story is fire, not a blunt hit, so the *frame* is still
-intact (not tilted) and the soot patches locate the heat source.
+Built on scorched-afterburn: burnt tail fan, soot patches with ember rims — but
+the left aviator lens is gone. The gold ring frame remains (it warped, the lens
+popped out), and Pip's own bare eye shows through the hollow opening. The eye is
+the exact same one the store's NO SHADES skin (skin_shades_none) reveals: creamy
+facial patch, faint feather streaks, dark maroon iris, near-black pupil ring, and
+a single white glint. Nothing custom or horror-adjacent — just the bird looking
+back through an empty frame.
 
-The right lens stays exactly as in scorched-afterburn — intact, tinted,
-glinting — so the asymmetry is the whole read. One eye in shadow, one eye
-wide open and angry.
+The right lens stays exactly as in scorched-afterburn — intact, tinted, glinting
+— so the asymmetry is the whole read. One eye hidden in shadow, one looking
+straight back at you.
 """
 import math
 import os, sys
@@ -45,11 +44,6 @@ SOOT      = ( 80,  45,  28)
 SOOT_ASH  = (118,  78,  52)
 EMBER     = (255, 150,  60)
 CHAR      = ( 58,  36,  28)
-
-# Exposed eye colors — fire-damaged iris reads angry/bloodshot.
-EYE_IRIS  = (195,  40,  40)   # bloodshot red iris
-EYE_PUPIL = ( 15,  15,  25)   # same near-black as lens fill
-EYE_GLINT = (255, 220, 200)   # warm glint, not pure white (fire-lit)
 
 TAIL_COLORS  = ((200,  30,  40), (240,  95,  40), (255, 160,  55), (255, 220,  80))
 FEATHER_BURN = (0.65, 0.10, 0.80, 0.40)
@@ -181,13 +175,16 @@ def _draw_sunglasses_one_lens(surf, cx, cy):
     d.line(surf, SHADE_FRAME,
            (left[0] - r + 1, left[1] - r + 2), (right[0] + r - 1, right[1] - r + 2), 1)
 
-    # ── left lens: ring only, exposed eye inside ─────────────────────────────
-    # Iris and pupil drawn *before* the gold ring so the rim stamps over the edge
-    # and gives a clean boundary rather than a gap between ring and eye.
-    d.circle(surf, EYE_IRIS,  left, 4)
-    d.circle(surf, EYE_PUPIL, left, 2)
-    # Warm glint offset toward brow — fire-lit, not ice-white.
-    d.circle(surf, EYE_GLINT, (left[0] - 1, left[1] - 2), 1)
+    # ── left lens: ring only, authentic bare-eye inside ─────────────────────
+    # Eye drawn before the gold ring so the rim stamps cleanly over the edge.
+    # Identical to parrot._draw_eye / the NO SHADES store skin, offset to lx,ly.
+    lx, ly = left
+    _aaellipse(surf, (250, 243, 236), (lx, ly), 6, 5)          # facial patch
+    d.line(surf, (236, 210, 205), (lx-5, ly-2), (lx+5, ly-2), 1)
+    d.line(surf, (236, 210, 205), (lx-5, ly+2), (lx+5, ly+2), 1)
+    d.circle(surf, ( 40,  26,  30), (lx+1, ly), 3)             # iris
+    d.circle(surf, ( 15,  10,  12), (lx+1, ly), 3, 1)          # pupil ring
+    d.circle(surf, (255, 255, 255), (lx, ly-1), 1)             # glint
 
     # Gold ring stamps over the iris edge — 2 px wide annulus only, no fill.
     d.circle(surf, SHADE_FRAME, left, r + 1, 2)
