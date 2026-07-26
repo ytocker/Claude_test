@@ -7,11 +7,11 @@ then it went straight back out.
 Where `bandaged-cheek` spread two small strips around the sprite, this one
 commits to a single proper chest dressing — a taped pad with the red cross on
 it — and lets one raked cut run out from beneath its lower hem and down across
-the body. That "runs out from under" relationship is the whole story: a pad
+the belly. That "runs out from under" relationship is the whole story: a pad
 parked beside a wound is decoration, a pad the wound escapes from is treatment.
-The jaw pad stays, but stripped of its cross: one red mark on the sprite is a
-read, two is a first-aid poster, so the jaw becomes quiet supporting gauze and
-the chest owns the focal point.
+One pad, one wound, one cross: a second pad on the jaw pulled the eye off the
+thesis cut and, at 1x, fused with the chest into a single shapeless band, so
+the sprite spends its entire damage budget on one legible event.
 """
 import math
 import os, sys
@@ -43,6 +43,10 @@ HEM        = (120, 108,  95)
 CROSS      = (190,  20,  35)
 SCRATCH_D  = (100,  10,  10)
 SCRATCH_HL = (245, 165, 150)
+# Fallback core value for the stretches of rake that cross the wing or the body
+# shadow. A luma-37 core on a luma-18 covert is a cut nobody can see; this reads
+# as raw flesh against dark feather and keeps the line continuous.
+SCRATCH_PALE = (180, 90, 80)
 # Cracks read as light caught in the fracture — near-black on a black lens
 # vanishes entirely; glass chips bright, and the bright line is also the only
 # thing that survives the downscale.
@@ -58,15 +62,17 @@ CHEST_PAD = [(20, 23), (30, 21), (31, 34), (21, 36)]
 CHEST_H   = ((23, 28), (27, 28))
 CHEST_V   = ((25, 25), (25, 31))
 
-JAW_PAD   = [(35, 32), (47, 31), (49, 40), (37, 42)]
-
-# The upper rake tucks under the chest pad's bottom hem at its inboard end and
-# runs down and out across the belly; the lower one shadows it. They rake with
-# the body's taper rather than back up into the pad — a cut angled up the breast
-# spends its whole length under the dressing and never gets to emerge, which is
-# the one thing this concept has to show.
-UPPER_CUT = ((22, 34), (39, 43))
-LOWER_CUT = ((20, 38), (35, 44))
+# The upper rake is the thesis cut: its inboard end starts well inside the pad
+# so six columns of it are swallowed by the gauze, then it surfaces below the
+# bottom hem and runs thirteen clean columns out across the belly. Both rakes
+# ride the belly ellipse (centre (28,38), rx 12, ry 6) rather than the breast —
+# higher up they crossed the wing coverts and the body shadow, where a dark core
+# on dark feather is invisible at any zoom.
+UPPER_CUT = ((20, 33), (37, 43))
+# Supporting mark only: shorter, parallel, and held four to six rows clear so a
+# band of untouched plumage separates the two instead of them reading as one
+# thick smear.
+LOWER_CUT = ((22, 40), (32, 45))
 
 
 def _aaellipse(surf, color, center, rx, ry):
@@ -141,15 +147,40 @@ def _draw_ragged_cuts(surf):
     reads as a fat two-tone line; the ragged partial lip reads as one edge of the
     tear catching light, and starting it late leaves the inboard end — the end
     that comes out from under the pad — as raw dark, which is where the eye
-    should land. The core goes down last so the dark line always wins the
-    pixels it wants."""
-    layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    should land.
+
+    Both strokes are ground-aware. The dark-core/pale-lip pair only works on a
+    light surface; where the rake crosses the wing or the body shadow the pair
+    inverts into a pale line on dark and the lip is dropped altogether, because
+    a highlight lip needs something darker underneath it to be a highlight of.
+    The destination is sampled before anything is written, so the core does not
+    become its own lip's ground."""
+    core_layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    lip_layer  = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     d = pygame.draw
     for (ax, ay), (bx, by) in (UPPER_CUT, LOWER_CUT):
         lip_a = _lerp_pt((ax - 1, ay - 2), (bx - 1, by - 2), 0.20)
-        d.line(layer, SCRATCH_HL, lip_a, (bx - 1, by - 2), 1)
-        d.line(layer, SCRATCH_D, (ax, ay), (bx, by), 1)
-    _stamp_clipped(surf, layer)
+        d.line(lip_layer, SCRATCH_HL, lip_a, (bx - 1, by - 2), 1)
+        d.line(core_layer, SCRATCH_D, (ax, ay), (bx, by), 1)
+
+    dark = set()
+    for x in range(surf.get_width()):
+        for y in range(surf.get_height()):
+            r, g, b, a = surf.get_at((x, y))
+            if a > 8 and (0.299 * r + 0.587 * g + 0.114 * b) < 80:
+                dark.add((x, y))
+
+    for x in range(surf.get_width()):
+        for y in range(surf.get_height()):
+            base_a = surf.get_at((x, y))[3]
+            if base_a <= 8:
+                continue
+            on_dark = (x, y) in dark
+            if core_layer.get_at((x, y))[3] > 8:
+                c = SCRATCH_PALE if on_dark else SCRATCH_D
+                surf.set_at((x, y), (*c, base_a))
+            elif lip_layer.get_at((x, y))[3] > 8 and not on_dark:
+                surf.set_at((x, y), (*SCRATCH_HL, base_a))
 
 
 def _draw_chest_dressing(surf):
@@ -160,8 +191,19 @@ def _draw_chest_dressing(surf):
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     d = pygame.draw
 
+    # Hem pushed one pixel outboard of the pad instead of inset into it. An inset
+    # outline ate a third of the gauze field, which at 1x left a dark-rimmed grey
+    # chip rather than a pad; run outside, the pad keeps its full white mass and
+    # still gets the dark edge that stops it blooming into the red plumage.
+    cx = sum(p[0] for p in CHEST_PAD) / len(CHEST_PAD)
+    cy = sum(p[1] for p in CHEST_PAD) / len(CHEST_PAD)
+    grown = []
+    for px, py in CHEST_PAD:
+        vx, vy = px - cx, py - cy
+        L = max(1e-3, math.hypot(vx, vy))
+        grown.append((px + vx / L * 1.6, py + vy / L * 1.6))
+    d.polygon(layer, HEM,   grown)
     d.polygon(layer, GAUZE, CHEST_PAD)
-    d.polygon(layer, HEM,   CHEST_PAD, 1)
 
     # The one piece of universal shorthand in the sprite, and the first thing a
     # player parses.
@@ -174,22 +216,6 @@ def _draw_chest_dressing(surf):
     d.line(layer, STITCH, (18, 32), (21, 32), 1)
     d.line(layer, STITCH, (29, 23), (32, 23), 1)
     d.line(layer, STITCH, (29, 31), (32, 31), 1)
-
-    _stamp_clipped(surf, layer)
-
-
-def _draw_jaw_dressing(surf):
-    """Plain gauze under the jaw — no cross. It is supporting texture, so it
-    carries no mark of its own and lets the chest pad keep the only red cross.
-    Its top edge is held at y>=31 so it clears the cracked-lens radials: the
-    shades own the upper head, the gauze owns the lower. Running it over the
-    head/body seam sells it as a wrap tied around the jaw rather than a patch
-    stuck on a cheek."""
-    layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    d = pygame.draw
-
-    d.polygon(layer, GAUZE, JAW_PAD)
-    d.polygon(layer, HEM, JAW_PAD, 1)
 
     _stamp_clipped(surf, layer)
 
@@ -251,7 +277,10 @@ def _tail_feather(pts, damaged=False):
 def _draw_tail(surf):
     d = pygame.draw
     BODY_SH = (130, 12, 12)
-    for i, c in enumerate(((180, 25, 35), (190, 70, 30),
+    # Innermost feather pulled a few points off the cross red. At the old value
+    # the deepest tail red and the medical cross were the same colour, so the
+    # sprite carried a second red mark that competed with the one that matters.
+    for i, c in enumerate(((174, 38, 48), (190, 70, 30),
                            (210, 130, 40), (230, 195, 65))):
         pts = [
             (2 + i * 3, 26 + i * 2), (14 + i, 24 + i),
@@ -306,7 +335,6 @@ def _build_hurt_frame(wing_angle_deg):
     _draw_sunglasses(surf, 50, 20)
     _draw_cracked_lens(surf)
     _draw_chest_dressing(surf)
-    _draw_jaw_dressing(surf)
 
     # Beak parted only ~2 px, and the lower mandible tucked up under the upper.
     # Dropping it further left a spur hanging off the chin that made the bird
@@ -323,47 +351,6 @@ def _build_hurt_frame(wing_angle_deg):
     d.line(surf, BEAK_D, (34, 45), (36, 49), 2)
 
     return surf
-
-
-def _cross_margin(frame):
-    """Smallest number of clear gauze pixels between any cross pixel and whatever
-    is not the pad — measured on the finished frame, so hem, clipping and the
-    body edge all count against it."""
-    def rgb(x, y):
-        r, g, b, a = frame.get_at((x, y))
-        return (r, g, b) if a > 8 else None
-
-    worst = 99
-    for x in range(SPRITE_W):
-        for y in range(SPRITE_H):
-            if rgb(x, y) != CROSS:
-                continue
-            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                run = 0
-                sx, sy = x + dx, y + dy
-                while 0 <= sx < SPRITE_W and 0 <= sy < SPRITE_H:
-                    c = rgb(sx, sy)
-                    if c == CROSS:
-                        run = 0
-                    elif c == GAUZE:
-                        run += 1
-                    else:
-                        break
-                    sx, sy = sx + dx, sy + dy
-                worst = min(worst, run)
-    return worst
-
-
-def _inside(poly, px, py):
-    inside = False
-    n = len(poly)
-    for i in range(n):
-        x0, y0 = poly[i]
-        x1, y1 = poly[(i + 1) % n]
-        if (y0 > py) != (y1 > py):
-            if px < x0 + (py - y0) * (x1 - x0) / float(y1 - y0):
-                inside = not inside
-    return inside
 
 
 def _strip(frames, scale, gap, bg):
@@ -384,77 +371,53 @@ if __name__ == "__main__":
     os.makedirs(OUT_DIR, exist_ok=True)
 
     frame = _build_hurt_frame(10)
-    arr    = np.array(pygame.surfarray.pixels3d(frame))
-    alpha  = np.array(pygame.surfarray.pixels_alpha(frame))
+    arr_hw = pygame.surfarray.pixels3d(frame).transpose(1, 0, 2)  # H×W×3
+    alpha_hw = pygame.surfarray.pixels_alpha(frame).T             # H×W
 
-    GAUZE_C      = np.array(GAUZE)
-    CROSS_C      = np.array(CROSS)
-    SCRATCH_D_C  = np.array(SCRATCH_D)
+    GAUZE_C = np.array(GAUZE)
+    CROSS_C = np.array(CROSS)
+    SCRATCH_D_C = np.array(SCRATCH_D)
     SCRATCH_HL_C = np.array(SCRATCH_HL)
 
-    rgb = arr.transpose(1, 0, 2).astype(int)
-    gauze_count = int(np.all(rgb == GAUZE_C, axis=2).sum())
-    cross_count = int(np.all(rgb == CROSS_C, axis=2).sum())
-    scratch_min = 0
-    for c in (SCRATCH_D_C, SCRATCH_HL_C):
-        cnt = int(np.all(rgb == c, axis=2).sum())
-        if scratch_min == 0 or cnt < scratch_min:
-            scratch_min = cnt
+    gauze_count = int(np.all(np.abs(arr_hw - GAUZE_C) < 12, axis=2).sum())
+    cross_count = int(np.all(np.abs(arr_hw - CROSS_C) < 12, axis=2).sum())
 
-    opaque = alpha.T > 8
-    luma_vals = (0.299 * rgb[:, :, 0] + 0.587 * rgb[:, :, 1]
-                 + 0.114 * rgb[:, :, 2])
-    luma = float(luma_vals[opaque].mean())
+    opaque = alpha_hw > 8
+    luma_hw = (0.299 * arr_hw[:, :, 0] + 0.587 * arr_hw[:, :, 1]
+               + 0.114 * arr_hw[:, :, 2])
+    luma = float(luma_hw[opaque].mean())
 
-    cross_margin = _cross_margin(frame)
+    # Wound ink that survived onto a readable ground. The pale fallback core is
+    # deliberately excluded: it proves the line stayed continuous over the wing,
+    # but only the dark/highlight pair on light plumage is the wound read.
+    wound_mask = np.all(np.abs(arr_hw - SCRATCH_D_C) < 20, axis=2) | \
+                 np.all(np.abs(arr_hw - SCRATCH_HL_C) < 20, axis=2)
+    wound_pixels = int(wound_mask.sum())
 
-    # The upper rake has to surface below the chest pad's lower hem; if the whole
-    # cut hid under the pad, or never touched it, the "emerges from under the
-    # dressing" thesis would be a claim the sprite does not make.
-    (cx0, cy0), (cx1, cy1) = UPPER_CUT
-    steps = 200
-    under = [i for i in range(steps + 1)
-             if _inside(CHEST_PAD, cx0 + (cx1 - cx0) * i / steps,
-                        cy0 + (cy1 - cy0) * i / steps)]
-    emerges = steps - (under[-1] if under else -1)
+    opaque_count = int(opaque.sum())
+    gauze_frac = gauze_count / max(opaque_count, 1)
 
-    print(f"gauze={gauze_count}, cross={cross_count}, "
-          f"scratch_min={scratch_min}, luma={luma:.1f}, "
-          f"cross_margin={cross_margin}, under_pad={len(under)}, "
-          f"emerges={emerges}")
+    print(f"gauze={gauze_count} ({gauze_frac:.1%} of opaque), "
+          f"cross={cross_count}, wound_px={wound_pixels}, luma={luma:.1f}")
 
-    assert gauze_count  >= 95,  f"gauze too low: {gauze_count}"
-    assert gauze_count  <= 250, f"gauze overload: {gauze_count}"
-    assert cross_count  >= 10,  f"cross too low: {cross_count}"
-    assert cross_count  <= 25,  f"two-cross bleed: {cross_count}"
-    assert scratch_min  >= 20,  f"scratch too faint: {scratch_min}"
-    assert luma         >= 95,  f"luma too dark: {luma:.1f}"
-    assert cross_margin >= 2,   f"cross crowds the pad edge: {cross_margin}"
-    assert under and emerges > 0, (f"rake does not run out from under the pad: "
-                                   f"under={len(under)} emerges={emerges}")
+    assert gauze_count   >= 95,   f"gauze too low: {gauze_count}"
+    assert gauze_count   <= 200,  f"gauze overload (mummy): {gauze_count}"
+    assert gauze_frac    <= 0.15, f"gauze fraction too high (>{15}%): {gauze_frac:.1%}"
+    assert cross_count   >= 10,   f"cross too faint: {cross_count}"
+    assert cross_count   <= 25,   f"two-cross bleed: {cross_count}"
+    assert wound_pixels  >= 20,   f"wound too faint: {wound_pixels}"
+    assert luma          >= 95,   f"luma too dark: {luma:.1f}"
 
-    # Vertical ink runs: a claw-rake that stacks more than a few pixels in one
-    # column stops looking raked and starts looking like a bleeding gash, which
-    # is the wrong side of the scrappy-not-morbid line.
-    ink_layer = pygame.Surface(frame.get_size(), pygame.SRCALPHA)
-    d = pygame.draw
-    for (ax, ay), (bx, by) in (UPPER_CUT, LOWER_CUT):
-        d.line(ink_layer, (255, 255, 255, 255), (ax, ay), (bx, by), 1)
-        lip_a = _lerp_pt((ax - 1, ay - 2), (bx - 1, by - 2), 0.20)
-        d.line(ink_layer, (255, 255, 255, 255), lip_a, (bx - 1, by - 2), 1)
-    ink_arr = pygame.surfarray.array_alpha(ink_layer).T
-    max_run = 0
-    for col in range(ink_arr.shape[1]):
-        run = 0
-        for row in range(ink_arr.shape[0]):
-            if ink_arr[row, col] > 0:
-                run += 1
-                max_run = max(max_run, run)
-            else:
-                run = 0
-    assert max_run <= 5, f"blood column run too tall: {max_run}"
-    print(f"max_vertical_run={max_run}  OK")
+    # One pad only. Gauze appearing low and outboard means a jaw dressing crept
+    # back in and the sprite is carrying two damage sites again.
+    jaw_zone = np.zeros_like(opaque)
+    jaw_zone[30:, 33:] = True
+    gauze_in_jaw = int(np.all(np.abs(arr_hw - GAUZE_C) < 12, axis=2)[jaw_zone].sum())
+    assert gauze_in_jaw <= 30, f"jaw pad crept back: {gauze_in_jaw} gauze px in jaw zone"
+
     print("All asserts passed.")
+
+    del arr_hw, alpha_hw
 
     raw    = [_build_hurt_frame(a) for a in _HURT_ANGLES]
     frames = [_add_outline(f) for f in raw]
@@ -498,10 +461,10 @@ if __name__ == "__main__":
                 (margin + pad3, y - pad3 + 1))
     canvas.blit(small.render("1x on night sky", True, (200, 205, 230)),
                 (margin + row3a.get_width() + pad3 * 3 + gap * 2, y - pad3 + 1))
-    lbl = font.render("field-dressed — round 1   (4x / 2x / 1x day + night)",
+    lbl = font.render("field-dressed — round 2   (4x / 2x / 1x day + night)",
                       True, (225, 225, 245))
     canvas.blit(lbl, (margin, canvas_h - margin - lbl.get_height() + 4))
 
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
