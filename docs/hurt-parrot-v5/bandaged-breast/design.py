@@ -387,9 +387,10 @@ if __name__ == "__main__":
                       for f in raw)
     luma = _mean_luma(raw[0])
 
-    # Gauze is now summed across all three dressings; the floor still guards the
-    # same thing it did in V3 — that the patched-up read survives the downscale.
-    assert gauze_count >= 35, f"Bandage too faint: {gauze_count} gauze px (need >=35)"
+    # Re-baselined for the single large pad: with the jaw strip gone the chest
+    # dressing has to carry the whole read on its own, so the floor goes *up*
+    # rather than down to catch a pad that has quietly shrunk back.
+    assert gauze_count >= 70, f"Bandage too faint: {gauze_count} gauze px (need >=70)"
     assert cross_count >= 10, f"Cross missing: {cross_count} cross px (need >=10)"
     assert scratch_min >= 25, (f"Scratches fade: min {scratch_min} px on worst "
                                f"frame (need >=25)")
@@ -434,11 +435,11 @@ if __name__ == "__main__":
                 (margin + pad3, y - pad3 + 1))
     canvas.blit(small.render("1x on night sky", True, (200, 205, 230)),
                 (margin + row3a.get_width() + pad3 * 3 + gap * 2, y - pad3 + 1))
-    lbl = font.render("bandaged-breast — round 1   (4x / 2x / 1x day + night)",
+    lbl = font.render("bandaged-breast — round 2   (4x / 2x / 1x day + night)",
                       True, (225, 225, 245))
     canvas.blit(lbl, (margin, canvas_h - margin - lbl.get_height() + 4))
 
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
     print(f"gauze={gauze_count}  cross={cross_count}  "
