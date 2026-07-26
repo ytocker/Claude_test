@@ -4,8 +4,9 @@
 The jaw wrap moves 4 px left so its right edge clears the face ellipse.
 An angled gauze strap sits on the lower flank, below the jaw pad, crossing
 part of the lower claw-cut so the wound emerges on both sides of the tape.
-Asymmetric hem on the lower edge only — belly contrast without a thick frame
-all round. Stitched tabs at four corners; no cross, jaw pad owns the red mark.
+Hem only on the two edges that meet the low-contrast belly tone, and stitch tabs
+only on the left, where body red backs them; no cross — the jaw pad owns the red
+mark.
 """
 import math
 import os, sys
@@ -41,7 +42,7 @@ SCRATCH_HL = (230, 110,  90)
 CRACK      = (150, 175, 205)
 
 UPPER_CUT = ((14, 35), (28, 29))
-LOWER_CUT = ((15, 40), (24, 35))
+LOWER_CUT = ((15, 40), (29, 33))
 
 
 def _aaellipse(surf, color, center, rx, ry):
@@ -133,8 +134,10 @@ CROSS_H   = ((35, 36), (41, 36))
 CROSS_V   = ((37, 35), (37, 38))
 # Angled strap on the lower flank. Sits below and left of the jaw pad (gap >= 9 px).
 # Crosses LOWER_CUT so the wound runs out from under both ends of the tape.
-# Asymmetric: only the lower edge gets a hem line for belly contrast.
-BELLY_PAD = [(14, 32), (19, 34), (19, 40), (14, 38)]
+# Held fully on the body/chest/belly fill — pushed off the tail fan, whose ochre
+# feathers sat too close to gauze in value for the strap to read as a separate
+# object. The steeper top edge also stops it echoing the jaw pad's near-flat one.
+BELLY_PAD = [(18, 33), (23, 35), (23, 41), (18, 39)]
 
 
 def _draw_jaw_dressing(surf):
@@ -158,25 +161,26 @@ def _draw_jaw_dressing(surf):
 
 
 def _draw_belly_strap(surf):
-    """Angled gauze strap across the lower flank. The lower-flank claw-cut emerges
-    from both sides of the tape, tying the dressing to the wound it treats.
-    Asymmetric hem on the lower edge only — the warm belly tone behind it needs
-    only one contrast line, and a full frame would over-box a narrow strap."""
+    """Angled gauze strap on the lower flank, fully on body-red/belly substrate.
+    Asymmetric hem on bottom and right edges only — those face the low-contrast
+    belly tone (Δ39) while the top-left edges sit on body red (Δ109) and hold
+    without extra framing. Two stitch tabs on the left (high-contrast) side only;
+    right tabs would vanish against the belly. The wound runs out from both ends."""
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     d = pygame.draw
 
-    d.polygon(layer, GAUZE, BELLY_PAD)
-    # Asymmetric hem: lower edge only
-    d.line(layer, HEM, (14, 38), (19, 40), 2)
-
-    # Stitch tabs: short dashes extending outward from the four corners
+    # Two stitch tabs on the left (body-red substrate, ΔL≈91 vs STITCH)
     for (x0, y0), (x1, y1) in (
-        ((12, 34), (15, 34)),
-        ((12, 37), (15, 37)),
-        ((18, 35), (21, 35)),
-        ((18, 39), (21, 39)),
+        ((15, 35), (17, 35)),
+        ((15, 38), (17, 38)),
     ):
         d.line(layer, STITCH, (x0, y0), (x1, y1), 1)
+
+    d.polygon(layer, GAUZE, BELLY_PAD)
+
+    # Asymmetric hem: bottom edge (18,39)→(23,41) and right edge (23,35)→(23,41)
+    d.line(layer, HEM, (18, 39), (23, 41), 1)
+    d.line(layer, HEM, (23, 35), (23, 41), 1)
 
     _stamp_clipped(surf, layer)
 
@@ -400,6 +404,26 @@ if __name__ == "__main__":
     assert luma >= 95, f"Body too dark: mean luma {luma:.1f} (need >=95)"
     assert cross_margin >= 2, (f"Cross crowds the pad edge: {cross_margin} px "
                                f"gauze (need >=2)")
+    # Belly strap must be on high-contrast substrate (no tail-feather bleed)
+    belly_gauze = sum(
+        1 for x in range(16, 26) for y in range(31, 44)
+        if raw[0].get_at((x, y))[3] > 8
+        and (raw[0].get_at((x, y))[0],
+             raw[0].get_at((x, y))[1],
+             raw[0].get_at((x, y))[2]) == GAUZE
+    )
+    assert belly_gauze >= 30, f"Belly strap too faint: {belly_gauze} gauze px in strap region (need >=30)"
+    # Mass ratio: belly strap should be substantial vs jaw pad (target 1:2.5 or better)
+    jaw_gauze = sum(
+        1 for x in range(29, 48) for y in range(30, 44)
+        if raw[0].get_at((x, y))[3] > 8
+        and (raw[0].get_at((x, y))[0],
+             raw[0].get_at((x, y))[1],
+             raw[0].get_at((x, y))[2]) == GAUZE
+    )
+    assert belly_gauze * 2 >= jaw_gauze // 2, (
+        f"Belly strap ({belly_gauze} px) too light vs jaw pad ({jaw_gauze} px)"
+    )
 
     NIGHT, DAY = (8, 8, 20), (100, 160, 220)
     margin, gap = 20, 10
@@ -440,13 +464,13 @@ if __name__ == "__main__":
                 (margin + pad3, y - pad3 + 1))
     canvas.blit(small.render("1x on night sky", True, (200, 205, 230)),
                 (margin + row3a.get_width() + pad3 * 3 + gap * 2, y - pad3 + 1))
-    lbl = font.render("belly-strapped — round 1   (4x / 2x / 1x day + night)",
+    lbl = font.render("belly-strapped — round 2   (4x / 2x / 1x day + night)",
                       True, (225, 225, 245))
     canvas.blit(lbl, (margin, canvas_h - margin - lbl.get_height() + 4))
 
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
     print(f"gauze={gauze_count}  cross={cross_count}  "
           f"scratch_min={scratch_min}  luma={luma:.1f}  "
-          f"cross_margin={cross_margin}")
+          f"cross_margin={cross_margin}  belly_gauze={belly_gauze}")

@@ -2,10 +2,11 @@
 `splinted-tail` — hurt-parrot V5 concept: shifted jaw pad + splinted tail.
 
 The jaw wrap moves 4 px left so its right edge clears the face ellipse.
-A narrow vertical gauze strip wraps the tail fan on the left side of the
-bird — a splint over a feather or ligament injury. It clears the jaw pad
-by 14+ px and sits on the static tail, so no wing-sweep variance.
-Stitched tabs at top and bottom; no cross, the jaw pad owns the red mark.
+A vertical gauze splint wraps the root of the snapped tail feather — the
+dressing sits on the break rather than beside it, and its footprint keeps
+body red on all four sides so the gauze stays high-contrast. A hem spine
+down the long axis reads as the stick. Stitched tabs left and right; no
+cross, the jaw pad owns the only red mark on the sprite.
 """
 import math
 import os, sys
@@ -128,13 +129,18 @@ def _stamp_clipped(surf, layer):
                 surf.set_at((x, y), (px[0], px[1], px[2], surf.get_at((x, y))[3]))
 
 
-JAW_PAD  = [(31, 32), (43, 31), (45, 40), (33, 42)]
-CROSS_H  = ((35, 36), (41, 36))
-CROSS_V  = ((37, 35), (37, 38))
-# Splint pad on the tail fan: narrow vertical rectangle on the left body/tail,
-# x=11-15 y=27-33. Static tail region — no wing-sweep variance at any frame.
-# Gap to jaw pad right edge (x=45) is 30 px; gap to jaw pad bottom (y=42) is 6.
-SPLINT_PAD = [(11, 27), (15, 27), (15, 33), (11, 33)]
+JAW_PAD  = [(31, 32), (44, 30), (46, 39), (33, 42)]
+# Equal-armed 5x5 cross. A lopsided one stops reading as the medical glyph and
+# starts reading as a smudge once it is down at 1x.
+CROSS_H  = ((36, 36), (40, 36))
+CROSS_V  = ((38, 34), (38, 38))
+# Splint pad sits on the snapped feather's root rather than out on the clean fan:
+# the dressing has to be where the break is. The 6x9 footprint also puts gauze
+# against body red on every side, which is the highest-contrast ground available.
+# Seven columns wide rather than six: at six, the hem ring plus the rigid spine
+# leave too little clear gauze between them for the wrap to read as cloth rather
+# than as a striped chip.
+SPLINT_PAD = [(13, 25), (19, 25), (19, 33), (13, 33)]
 
 
 def _draw_jaw_dressing(surf):
@@ -158,23 +164,27 @@ def _draw_jaw_dressing(surf):
 
 
 def _draw_tail_splint(surf):
-    """Narrow vertical gauze wrap over the tail fan. Reads as a splinted feather
-    or ligament — the tall rectangle and the stitch tabs both reinforce that read.
-    No cross: the jaw pad owns the only red mark on the sprite."""
+    """Vertical gauze splint over the snapped-feather root. Landed on body-red
+    ground (luma 81) for maximum GAUZE contrast. The HEM spine down the long
+    axis reads as the stick under the dressing. Tabs drawn before the outline
+    so the hem ring is never eaten."""
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     d = pygame.draw
+
+    # Tabs first so the HEM outline overwrites any overlap
+    for (x0, y0), (x1, y1) in (
+        ((10, 27), (12, 27)),
+        ((10, 31), (12, 31)),
+        ((19, 27), (21, 27)),
+        ((19, 31), (21, 31)),
+    ):
+        d.line(layer, STITCH, (x0, y0), (x1, y1), 1)
 
     d.polygon(layer, GAUZE, SPLINT_PAD)
     d.polygon(layer, HEM, SPLINT_PAD, 1)
 
-    # Stitch tabs: horizontal dashes extending left and right from the pad edges
-    for (x0, y0), (x1, y1) in (
-        ((9, 29), (12, 29)),
-        ((9, 32), (12, 32)),
-        ((14, 28), (17, 28)),
-        ((14, 33), (17, 33)),
-    ):
-        d.line(layer, STITCH, (x0, y0), (x1, y1), 1)
+    # Rigid spine: 1px HEM line down long axis, inset 1px from both hems
+    d.line(layer, HEM, (15, 26), (15, 32), 1)
 
     _stamp_clipped(surf, layer)
 
@@ -387,6 +397,14 @@ if __name__ == "__main__":
     assert cross_margin >= 2, (f"Cross crowds the pad edge: {cross_margin} px "
                                f"gauze (need >=2)")
 
+    # Splint must be legible as a second dressing, not a speck
+    splint_gauze = sum(
+        1 for x in range(10, 24) for y in range(23, 36)
+        if raw[0].get_at((x, y))[3] > 8
+        and (raw[0].get_at((x, y))[0], raw[0].get_at((x, y))[1], raw[0].get_at((x, y))[2]) == GAUZE
+    )
+    assert splint_gauze >= 28, f"Splint too faint: {splint_gauze} gauze px in splint region (need >=28)"
+
     NIGHT, DAY = (8, 8, 20), (100, 160, 220)
     margin, gap = 20, 10
     row1 = _strip(frames, 4, gap, NIGHT)
@@ -426,13 +444,13 @@ if __name__ == "__main__":
                 (margin + pad3, y - pad3 + 1))
     canvas.blit(small.render("1x on night sky", True, (200, 205, 230)),
                 (margin + row3a.get_width() + pad3 * 3 + gap * 2, y - pad3 + 1))
-    lbl = font.render("splinted-tail — round 1   (4x / 2x / 1x day + night)",
+    lbl = font.render("splinted-tail — round 2   (4x / 2x / 1x day + night)",
                       True, (225, 225, 245))
     canvas.blit(lbl, (margin, canvas_h - margin - lbl.get_height() + 4))
 
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
     print(f"gauze={gauze_count}  cross={cross_count}  "
           f"scratch_min={scratch_min}  luma={luma:.1f}  "
-          f"cross_margin={cross_margin}")
+          f"cross_margin={cross_margin}  splint_gauze={splint_gauze}")
