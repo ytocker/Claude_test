@@ -137,7 +137,7 @@ CROSS_V   = ((37, 35), (37, 38))
 # Held fully on the body/chest/belly fill — pushed off the tail fan, whose ochre
 # feathers sat too close to gauze in value for the strap to read as a separate
 # object. The steeper top edge also stops it echoing the jaw pad's near-flat one.
-BELLY_PAD = [(18, 33), (23, 35), (23, 41), (18, 39)]
+BELLY_PAD = [(17, 33), (23, 35), (23, 41), (17, 39)]
 
 
 def _draw_jaw_dressing(surf):
@@ -178,8 +178,8 @@ def _draw_belly_strap(surf):
 
     d.polygon(layer, GAUZE, BELLY_PAD)
 
-    # Asymmetric hem: bottom edge (18,39)→(23,41) and right edge (23,35)→(23,41)
-    d.line(layer, HEM, (18, 39), (23, 41), 1)
+    # Asymmetric hem: bottom edge (17,39)→(23,41) and right edge (23,35)→(23,41)
+    d.line(layer, HEM, (17, 39), (23, 41), 1)
     d.line(layer, HEM, (23, 35), (23, 41), 1)
 
     _stamp_clipped(surf, layer)
