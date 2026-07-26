@@ -18,9 +18,11 @@ from out-shouting the beak and the lens glint as the sprite's brightest point.
 
 Everything V3 got right is untouched — bright plumage, the raked claw cuts, the
 crooked aviators, the starred lens, the torn primaries, the kicked tail feather.
-The chest pad is narrowed on its right so the outboard halves of the rake stay
+The pad is held off the left flank so the outboard halves of the rake stay
 visible: the cuts read as emerging from *under* the pad, which is what sells the
-pad as covering a wound rather than being a costume element.
+pad as covering a wound rather than being a costume element. Its right edge is
+pulled back off the throat for the same reason in reverse — gauze that reaches
+the jawline stops reading as a chest dressing and starts reading as a bib.
 """
 import math
 import os, sys
@@ -51,6 +53,9 @@ GAUZE      = (198, 190, 172)
 HEM        = ( 72,  62,  54)
 STITCH     = (180, 170, 160)
 CROSS      = (190,  20,  35)
+# The chest pad, as a slightly-off-square quad: taped on in a hurry by someone
+# who was not being careful, which is the whole tone of the concept.
+PAD        = [(26, 27), (39, 25), (40, 36), (27, 38)]
 SCRATCH_D  = (100,  10,  10)
 SCRATCH_HL = (230, 110,  90)
 # Cracks read as light caught in the fracture. Round 1 drew them near-black on a
@@ -157,14 +162,13 @@ def _draw_chest_dressing(surf):
     # Grown in both axes over the first pass: at 1x the cross needs enough gauze
     # around it to still read as a *symbol on a pad* rather than as two stray red
     # pixels, and the pad only earns that if it clears the cross by a margin.
-    pad = [(25, 29), (39, 26), (40, 35), (26, 38)]
-    d.polygon(layer, GAUZE, pad)
-    d.polygon(layer, HEM, pad, 1)
+    # Held off the left flank so the raked claw cuts still emerge from under it.
+    d.polygon(layer, GAUZE, PAD)
+    d.polygon(layer, HEM, PAD, 1)
 
     # Tape tabs: 1 px stubs off the pad's short edges, normal to each edge. They
     # cost almost nothing and are what says "stuck on" instead of "painted on".
-    for (ax, ay), (bx, by), sign in (((25, 29), (26, 38), -1),
-                                     ((39, 26), (40, 35), +1)):
+    for (ax, ay), (bx, by), sign in ((PAD[0], PAD[3], -1), (PAD[1], PAD[2], +1)):
         ex, ey = bx - ax, by - ay
         L = max(1e-3, math.hypot(ex, ey))
         nx, ny = sign * (ey / L), sign * (-ex / L)
@@ -173,32 +177,38 @@ def _draw_chest_dressing(surf):
             d.line(layer, STITCH, (round(px), round(py)),
                    (round(px + nx * 3), round(py + ny * 3)), 1)
 
-    # Cross drawn into its own layer and trimmed to an inset of the pad, so the
-    # arms can be specified generously and still be guaranteed a gauze border on
-    # every side — hand-fitted arm lengths drift the moment the pad moves.
+    # The cross is drawn generously and then *trimmed* to a 3 px inset of the
+    # pad, which guarantees a hem plus two clear pixels of gauze on every side no
+    # matter how the quad is tilted. Hand-fitted arm lengths only hold for one
+    # exact pad, and quietly break the margin the moment the pad is nudged.
     cross = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    d.line(cross, CROSS, (27, 31), (36, 31), 2)
-    d.line(cross, CROSS, (32, 27), (32, 35), 2)
-    inset = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    d.polygon(inset, (255, 255, 255), _shrink(pad, 2.6))
+    d.line(cross, CROSS, (30, 31), (38, 31), 2)
+    d.line(cross, CROSS, (33, 28), (33, 35), 2)
     for x in range(surf.get_width()):
         for y in range(surf.get_height()):
-            if cross.get_at((x, y))[3] > 8 and inset.get_at((x, y))[3] > 8:
+            if cross.get_at((x, y))[3] > 8 and _inside_by(PAD, x, y, 3.0):
                 layer.set_at((x, y), CROSS)
 
     _stamp_clipped(surf, layer)
 
 
-def _shrink(poly, amount):
-    """Pull a convex quad in toward its centroid by roughly `amount` pixels."""
+def _inside_by(poly, x, y, margin):
+    """True when (x, y) sits at least `margin` px inside every edge of a convex
+    polygon — a perpendicular inset, unlike shrinking toward the centroid, which
+    under-insets the long sides of a non-square quad."""
     cx = sum(p[0] for p in poly) / len(poly)
     cy = sum(p[1] for p in poly) / len(poly)
-    out = []
-    for x, y in poly:
-        dx, dy = cx - x, cy - y
-        L = max(1e-3, math.hypot(dx, dy))
-        out.append((x + dx / L * amount, y + dy / L * amount))
-    return out
+    for i in range(len(poly)):
+        ax, ay = poly[i]
+        bx, by = poly[(i + 1) % len(poly)]
+        ex, ey = bx - ax, by - ay
+        L = max(1e-3, math.hypot(ex, ey))
+        nx, ny = ey / L, -ex / L
+        if (cx - ax) * nx + (cy - ay) * ny < 0:
+            nx, ny = -nx, -ny
+        if (x - ax) * nx + (y - ay) * ny < margin:
+            return False
+    return True
 
 
 def _draw_belly_bandaid(surf):
