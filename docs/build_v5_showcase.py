@@ -32,7 +32,7 @@ PANEL_H   = SPRITE_H * SCALE   # 512
 GAP       = 12
 MARGIN    = 20
 HDR_H     = 60
-FTR_H     = 52
+FTR_H     = 80
 BG        = (8, 8, 20)
 
 N_PANELS  = 7
@@ -139,6 +139,7 @@ def main():
     draw   = ImageDraw.Draw(canvas)
 
     hdr_font  = _font(26, bold=True)
+    id_font   = _font(24, bold=True)
     slug_font = _font(18, bold=False)
     sub_font  = _font(13, bold=False)
 
@@ -177,8 +178,17 @@ def main():
             draw.line([(line_x, panel_top - 4), (line_x, panel_top + PANEL_H + 4)],
                       fill=(60, 40, 80, 200), width=2)
 
-        # Footer: slug name
-        slug_y = panel_top + PANEL_H + 6
+        # Footer: numeric ID just below the sprite
+        id_label = str(idx + 1)
+        id_bb    = draw.textbbox((0, 0), id_label, font=id_font)
+        id_w     = id_bb[2] - id_bb[0]
+        id_h     = id_bb[3] - id_bb[1]
+        id_y     = panel_top + PANEL_H + 6
+        draw.text((x0 + (PANEL_W - id_w) // 2, id_y),
+                  id_label, font=id_font, fill=(220, 220, 240, 255))
+
+        # Footer: slug name (shifted down past the ID)
+        slug_y = id_y + id_h + 6
         bbox2  = draw.textbbox((0, 0), label, font=slug_font)
         lw     = bbox2[2] - bbox2[0]
         lines  = label.split("\n")
