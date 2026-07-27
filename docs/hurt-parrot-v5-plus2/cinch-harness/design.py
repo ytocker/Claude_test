@@ -37,11 +37,11 @@ CRACK      = (150, 175, 205)
 # Improvised tape. Deliberately far darker than anything else on the body so it
 # reads by contrast against red plumage instead of competing with the gauze.
 TAPE       = ( 38,  42,  30)
-TAPE_HI    = ( 62,  68,  50)
+TAPE_HI    = ( 98, 104,  78)   # raised to luma≈96 so it reads as cloth sheen not shadow
 
-CINCH_A    = (38, 25)
-CINCH_B    = (21, 43)
-BUCKLE_C   = (29, 34)
+CINCH_A    = (35, 28)   # upper end on red plumage, 2 px from body edge
+CINCH_B    = (22, 40)   # lower end, 2 px in from left silhouette
+BUCKLE_C   = (28, 34)
 
 CHEST_PAD = [(20, 23), (30, 21), (31, 34), (21, 36)]
 CHEST_H   = ((23, 28), (27, 28))
@@ -174,30 +174,28 @@ def _draw_bandaids(surf):
 
 
 def _draw_cinch_harness(surf):
-    """Dark tape strap cinching the chest wound, with a brass buckle.
+    """Dark tape strap over the chest pad, with a HEM-framed brass buckle.
 
-    Adds zero gauze: the silhouette is already carrying as much white as it can
-    before it reads as a mummy, so this beat is spent on value contrast instead.
-    The highlight ridge sits on the upper-left edge to match the sheen already
-    lighting the body from above.
+    Called AFTER _draw_chest_dressing so the strap cinches the pad visibly
+    rather than disappearing under it. The wound gaps are preserved as a
+    transparent break in the tape to keep the injury the dominant read.
+    A short frayed tail exits lower-left beyond the silhouette.
     """
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     d = pygame.draw
 
-    d.line(layer, TAPE, CINCH_A, CINCH_B, 3)
-    d.line(layer, TAPE_HI,
-           (CINCH_A[0] - 1, CINCH_A[1] - 1),
-           (CINCH_B[0] - 1, CINCH_B[1] - 1), 1)
+    d.line(layer, TAPE,    CINCH_A, CINCH_B, 3)
+    d.line(layer, TAPE_HI, (CINCH_A[0] - 1, CINCH_A[1] - 1),
+                           (CINCH_B[0] - 1, CINCH_B[1] - 1), 1)
 
+    # Buckle: HEM keyline outside the SHADE_FRAME fill
     bx, by = BUCKLE_C
+    d.rect(layer, HEM,         (bx - 2, by - 2, 5, 5))
     d.rect(layer, SHADE_FRAME, (bx - 1, by - 1, 3, 3))
     layer.set_at((bx + 1, by - 1), SHADE_GLINT)
 
-    # The strap runs diagonally straight through both claw-cuts, and a 3 px band
-    # of near-black is enough to swallow a 1 px gash whole. Damage outranks
-    # dressing here: punching the wound out of the tape keeps the injury the
-    # thing you read first, and the break where the slash crosses sells the tape
-    # as something torn and improvised rather than a clean costume strap.
+    # Punch wound pixels out: the strap reads as torn/improvised if the cut
+    # breaks it rather than the clean tape erasing the damage.
     for x in range(surf.get_width()):
         for y in range(surf.get_height()):
             if layer.get_at((x, y))[3] <= 8:
@@ -211,6 +209,14 @@ def _draw_cinch_harness(surf):
                     break
 
     _stamp_clipped(surf, layer)
+
+    # Frayed tail: 3-4 px drawn DIRECTLY to surf so the tail can exit the
+    # silhouette (stamp_clipped would eat it — the tail is the point that the
+    # strap is improvised and slightly too long).
+    d = pygame.draw
+    tx, ty = CINCH_B[0] - 1, CINCH_B[1] + 1
+    d.line(surf, TAPE,    (tx, ty), (tx - 3, ty + 3), 1)
+    d.line(surf, TAPE_HI, (tx, ty), (tx - 2, ty + 2), 1)
 
 
 def _draw_chest_dressing(surf):
@@ -325,7 +331,6 @@ def _build_hurt_frame(wing_angle_deg):
 
     _draw_ragged_cuts(surf)
     _draw_bandaids(surf)
-    _draw_cinch_harness(surf)
 
     _aaellipse(surf, (155, 15, 20),   (48, 24), 12, 11)
     _aaellipse(surf, BODY,            (47, 22), 12, 11)
@@ -335,6 +340,7 @@ def _build_hurt_frame(wing_angle_deg):
     _draw_sunglasses(surf, 50, 20)
     _draw_cracked_lens(surf)
     _draw_chest_dressing(surf)
+    _draw_cinch_harness(surf)   # after chest pad so strap visibly cinches it
 
     upper = [(55, 21), (61, 24), (58, 26), (52, 25)]
     lower = [(52, 26), (58, 27), (59, 30), (54, 31)]
@@ -406,12 +412,20 @@ if __name__ == "__main__":
     assert luma          >= 93,   f"luma too dark: {luma:.1f}"
 
     tape_pixels = int(np.all(np.abs(arr_hw - np.array(TAPE)) < 20, axis=2).sum())
-    assert tape_pixels >= 8, f"strap too faint: {tape_pixels}"
+    print(f"tape={tape_pixels}")
+    assert tape_pixels >= 20, f"strap too faint or draw-order hidden: {tape_pixels}"
+
+    # Buckle must show at least 6 SHADE_FRAME pixels in the 5×5 around BUCKLE_C
+    bx, by = BUCKLE_C
+    buckle_zone = arr_hw[max(0,by-2):by+3, max(0,bx-2):bx+3, :]
+    SHADE_FRAME_C = np.array(SHADE_FRAME)
+    buckle_px = int(np.all(np.abs(buckle_zone - SHADE_FRAME_C) < 15, axis=2).sum())
+    print(f"buckle={buckle_px}")
+    assert buckle_px >= 6, f"buckle too faint: {buckle_px}"
 
     jaw_zone = np.zeros_like(opaque)
     jaw_zone[30:, 33:] = True
     gauze_in_jaw = int(np.all(np.abs(arr_hw - GAUZE_C) < 12, axis=2)[jaw_zone].sum())
-    # Right + upper bandaids are in this zone; face-pad would need 200+ to sneak back in
     assert gauze_in_jaw <= 150, f"jaw pad crept back: {gauze_in_jaw} gauze px in jaw zone"
 
     print("All asserts passed.")
@@ -458,10 +472,10 @@ if __name__ == "__main__":
                 (margin + pad3, y - pad3 + 1))
     canvas.blit(small.render("1x on night sky", True, (200, 205, 230)),
                 (margin + row3a.get_width() + pad3 * 3 + gap * 2, y - pad3 + 1))
-    lbl = font.render("cinch-harness — round 1   (4x / 2x / 1x day + night)",
+    lbl = font.render("cinch-harness — round 2   (4x / 2x / 1x day + night)",
                       True, (225, 225, 245))
     canvas.blit(lbl, (margin, canvas_h - margin - lbl.get_height() + 4))
 
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")

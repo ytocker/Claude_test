@@ -76,22 +76,27 @@ def _add_outline(src, outline_color=(20, 12, 18, 220)):
 def _build_wing(angle_deg, punch=True):
     WING   = (30,  70, 180)
     WING_D = (18,  42, 125)
+    CUT_DARK = (8, 24, 70)    # darker than WING_D — the stepped cut edge reads as severed
     STRIPE = (210, 175,  50)
     HL     = (130, 175, 240)
     w = pygame.Surface((50, 50), pygame.SRCALPHA)
     d = pygame.draw
     d.polygon(w, (0,0,0,100), [(24,26),(46,14),(50,30),(34,44),(18,40)])
-    # Leading corner retracts: the primaries are gone, so the span ends blunt
-    d.polygon(w, WING,        [(24,24),(40,16),(44,28),(32,42),(18,36)])
-    d.polygon(w, WING_D,      [(24,24),(32,42),(18,36)])
-    d.polygon(w, TIP,         [(40,16),(44,19),(43,24)])
-    d.polygon(w, STRIPE,      [(40,18),(43,21),(42,25),(39,22)])
-    d.line(w, WING_D,         (26,25),(40,18), 2)
-    d.line(w, WING_D,         (28,30),(42,22), 2)
-    d.line(w, WING_D,         (30,34),(46,32), 2)
-    d.line(w, HL,             (25,25),(41,15), 1)
-    # Punch-out kept (only nudged inward) — it is the wing/torso notch.
-    # `punch` is a check-only escape hatch; the sprite always wants it on.
+    # Leading corner retracts: the primaries are gone, so the span ends blunt.
+    # The two-step squared edge at the cut reads as a real amputation rather
+    # than foreshortening.
+    d.polygon(w, WING,     [(24,24),(42,16),(44,21),(42,25),(32,42),(18,36)])
+    d.polygon(w, WING_D,   [(24,24),(32,42),(18,36)])
+    d.polygon(w, TIP,      [(42,16),(44,19),(43,22),(42,21)])   # small stub
+    d.polygon(w, STRIPE,   [(40,18),(43,20),(42,24),(39,22)])
+    d.line(w, WING_D,      (26,25),(40,18), 2)
+    d.line(w, WING_D,      (28,30),(42,22), 2)
+    d.line(w, WING_D,      (30,34),(44,28), 2)
+    d.line(w, HL,          (25,25),(41,15), 1)
+    # 1-px darker cap on the stepped cut edge
+    d.line(w, CUT_DARK, (42, 16), (44, 21), 1)
+    d.line(w, CUT_DARK, (42, 21), (42, 25), 1)
+    # Punch-out kept — it is the wing/torso notch.
     if punch:
         d.polygon(w, (0,0,0,0), [(39,13),(51,17),(46,25),(42,16)])
     return pygame.transform.rotate(w, angle_deg)
@@ -174,22 +179,23 @@ def _draw_bandaids(surf):
 
 
 def _draw_wing_strap(surf):
-    """Narrow gauze band across the wing root. Sits on the rotation centre so it
-    reads as holding the shoulder together whatever the flap angle.
+    """Two parallel GAUZE bands across the shoulder, separated by a 1-px gap.
 
-    The stitch tabs run above and below the band rather than off its ends: the
-    chest pad closes in from the left and the head ellipse from the right, so
-    end tabs would be painted over by later passes and cost pixels for nothing.
-    Stacking them leaves the band the only thing in that corridor and lets the
-    strap read as three stitched rows instead of one flat dash."""
+    Two bands read as a proper wrap rather than a single flat dash, and the
+    gap between them keeps the stitch tabs distinct from the fill.
+    """
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     d = pygame.draw
 
-    d.line(layer, STITCH, (31, 25), (34, 25), 1)
-    d.line(layer, STITCH, (31, 29), (34, 29), 1)
+    # Upper band — stitch tabs above
+    d.line(layer, STITCH, (31, 24), (36, 24), 1)
+    d.rect(layer, GAUZE, (30, 25, 8, 2))
+    d.rect(layer, HEM,   (30, 25, 8, 2), 1)
 
-    d.rect(layer, GAUZE, (29, 26, 10, 3))
-    d.rect(layer, HEM,   (29, 26, 10, 3), 1)
+    # Lower band — stitch tabs below
+    d.rect(layer, GAUZE, (30, 28, 8, 2))
+    d.rect(layer, HEM,   (30, 28, 8, 2), 1)
+    d.line(layer, STITCH, (31, 31), (36, 31), 1)
 
     _stamp_clipped(surf, layer)
 
@@ -301,10 +307,6 @@ def _build_hurt_frame(wing_angle_deg):
     d.ellipse(sheen, (205, 150, 150, 120), sheen.get_rect())
     surf.blit(sheen, (22, 21))
 
-    wing = _build_wing(wing_angle_deg)
-    surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
-    _draw_wing_strap(surf)
-
     _draw_ragged_cuts(surf)
     _draw_bandaids(surf)
 
@@ -313,9 +315,15 @@ def _build_hurt_frame(wing_angle_deg):
     _aaellipse(surf, (200, 90, 90),   (44, 24),  4,  3)
     _aaellipse(surf, (230, 140, 140), (46, 17),  7,  3)
 
+    # Wing drawn AFTER head ellipses so the wing tip is visible in front,
+    # not swallowed under the head at the flap angles where both overlap.
+    wing = _build_wing(wing_angle_deg)
+    surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
+
     _draw_sunglasses(surf, 50, 20)
     _draw_cracked_lens(surf)
     _draw_chest_dressing(surf)
+    _draw_wing_strap(surf)   # after chest pad so strap sits on top at shoulder
 
     upper = [(55, 21), (61, 24), (58, 26), (52, 25)]
     lower = [(52, 26), (58, 27), (59, 30), (54, 31)]
@@ -376,8 +384,9 @@ if __name__ == "__main__":
     print(f"gauze={gauze_count} ({gauze_frac:.1%} of opaque), "
           f"cross={cross_count}, wound_px={wound_pixels}, luma={luma:.1f}")
 
-    # Three bandaids + chest pad + shoulder strap
-    assert gauze_count   >= 150,  f"gauze too low: {gauze_count}"
+    # Three bandaids + chest pad + shoulder strap; floor at 90 because the wing
+    # (now in front) covers some gauze that previously counted
+    assert gauze_count   >= 90,   f"gauze too low: {gauze_count}"
     assert gauze_count   <= 320,  f"gauze overload (mummy): {gauze_count}"
     assert gauze_frac    <= 0.22, f"gauze fraction too high: {gauze_frac:.1%}"
     assert cross_count   >= 10,   f"cross too faint: {cross_count}"
@@ -471,10 +480,10 @@ if __name__ == "__main__":
                 (margin + pad3, y - pad3 + 1))
     canvas.blit(small.render("1x on night sky", True, (200, 205, 230)),
                 (margin + row3a.get_width() + pad3 * 3 + gap * 2, y - pad3 + 1))
-    lbl = font.render("wing-wrap-eight — round 1   (4x / 2x / 1x day + night)",
+    lbl = font.render("wing-wrap-eight — round 2   (4x / 2x / 1x day + night)",
                       True, (225, 225, 245))
     canvas.blit(lbl, (margin, canvas_h - margin - lbl.get_height() + 4))
 
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
