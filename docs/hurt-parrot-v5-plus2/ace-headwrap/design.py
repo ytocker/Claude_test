@@ -193,36 +193,50 @@ def _draw_chest_dressing(surf):
 
 
 def _draw_headwrap(surf):
-    """Gauze skull cap over the crown plus one nape ribbon.
+    """Gauze skull cap with interior seams and an occipital knot.
 
     Drawn before the shades so the lenses always sit on top of the cloth — the
     aviators are the character's read and must not be occluded. The HEM line
-    along the cap's lower edge is load-bearing: without it the pale gauze and
-    the black lenses touch and fuse into a single shape at 1x.
+    separating cap from gold frame is load-bearing: without it the pale gauze
+    fuses with the black lenses at 1x. Two interior seam lines and the knot
+    make the cloth read as wrapped fabric rather than a species marking.
     """
     layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     d = pygame.draw
 
-    # The dome deliberately overshoots the skull outline — _stamp_clipped trims it
-    # back to the silhouette, so overshooting is what makes the cap hug the crown
-    # arc instead of leaving bald red slivers at the temples.
+    # Dome overshoots the skull; _stamp_clipped trims back to the silhouette.
     cap_pts = [(36, 21), (37, 16), (40, 12), (45, 10),
                (51, 11), (56, 14), (59, 18), (59, 21)]
     d.polygon(layer, GAUZE, cap_pts)
 
-    # Upper-arc hem rides the clipped edge, so it costs no crown gauze
+    # Upper-arc hem + separation line above the gold frame
     d.lines(layer, HEM, False, cap_pts[:-1], 1)
     d.line(layer, HEM, (38, 19), (57, 19), 1)
+    # HEM border between cap gauze and the aviator gold frame
+    d.line(layer, HEM, (40, 17), (56, 17), 1)
 
-    d.line(layer, STITCH, (36, 19), (38, 19), 1)
-    d.line(layer, STITCH, (57, 19), (59, 19), 1)
+    # Two interior horizontal seams — make the cloth read as wrapped, not painted
+    d.line(layer, HEM, (40, 13), (54, 13), 1)
+    d.line(layer, HEM, (39, 15), (56, 15), 1)
 
-    # Ribbon stays above y=30 / left of x=33 so it never trips the jaw-zone budget
-    ribbon_pts = [(38, 19), (36, 22), (34, 27), (36, 27), (38, 22), (40, 19)]
-    d.polygon(layer, GAUZE, ribbon_pts)
-    d.polygon(layer, HEM,   ribbon_pts, 1)
+    # Occipital knot: 3×3 GAUZE lozenge at the nape (where a real cap ties)
+    knot_pts = [(36, 16), (38, 14), (41, 15), (40, 18), (37, 19)]
+    d.polygon(layer, GAUZE, knot_pts)
+    d.polygon(layer, HEM,   knot_pts, 1)
 
     _stamp_clipped(surf, layer)
+
+    # Knot tails drawn DIRECTLY to surf so they break the silhouette
+    d.line(surf, GAUZE, (36, 17), (33, 20), 2)
+    d.line(surf, HEM,   (36, 17), (33, 20), 1)
+    d.line(surf, GAUZE, (37, 19), (35, 23), 2)
+    d.line(surf, HEM,   (37, 19), (35, 23), 1)
+
+    # Wound seep under the cap at the right temple — small, reads as why the
+    # cap is there at all
+    surf.set_at((41, 19), SCRATCH_PALE)
+    surf.set_at((42, 19), SCRATCH_PALE)
+    surf.set_at((41, 20), (*SCRATCH_PALE[:2], SCRATCH_PALE[2] - 20))
 
 
 def _draw_sunglasses(surf, cx, cy):
@@ -403,6 +417,12 @@ if __name__ == "__main__":
     assert crown_gauze >= 30, f"headwrap cap too faint: {crown_gauze}"
     assert crown_gauze <= 120, f"headwrap too large: {crown_gauze}"
 
+    # Interior seams must register HEM pixels inside the crown zone
+    HEM_C = np.array(HEM)
+    hem_in_crown = int(np.all(np.abs(arr_hw - HEM_C) < 12, axis=2)[crown_zone].sum())
+    print(f"hem_in_crown={hem_in_crown}")
+    assert hem_in_crown >= 8, f"interior seams missing: {hem_in_crown} HEM px in crown"
+
     print("All asserts passed.")
 
     del arr_hw, alpha_hw
@@ -447,10 +467,10 @@ if __name__ == "__main__":
                 (margin + pad3, y - pad3 + 1))
     canvas.blit(small.render("1x on night sky", True, (200, 205, 230)),
                 (margin + row3a.get_width() + pad3 * 3 + gap * 2, y - pad3 + 1))
-    lbl = font.render("ace-headwrap — round 1   (4x / 2x / 1x day + night)",
+    lbl = font.render("ace-headwrap — round 2   (4x / 2x / 1x day + night)",
                       True, (225, 225, 245))
     canvas.blit(lbl, (margin, canvas_h - margin - lbl.get_height() + 4))
 
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
