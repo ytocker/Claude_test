@@ -2058,6 +2058,8 @@ class World:
         self.lives_remaining -= 1
         self.lives_used      += 1
         self.lives_invuln     = LIVES_INVULN_DUR
+        if self.lives_remaining == 0:
+            self.bird.on_last_life = True
         self.bird.vy          = FLAP_V * 0.7
         self.hit_flash        = 0.20
         self.shake_mag        = max(self.shake_mag, 4.0)

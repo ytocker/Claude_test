@@ -529,6 +529,7 @@ class Bird:
         # i-frame flicker synced from World.update: False on the "hidden"
         # half of each LIVES_FLICKER_HZ period while lives_invuln > 0.
         self.lives_flicker_visible = True
+        self.on_last_life = False
 
         # Weather event state (visual-only):
         #   wind_lean       — rightward x-offset under the predawn tailwind
@@ -687,6 +688,8 @@ class Bird:
             # blur. Combo modes (kfc / ghost / triple + grow) still use
             # the legacy upscale below — they pre-empt this branch.
             img = parrot.get_grow_parrot(frame_idx, tilt)
+        elif self.on_last_life:
+            img = parrot.get_hurt_parrot(frame_idx, tilt)
         else:
             img = parrot.get_parrot(frame_idx, tilt)
         # POISON — generic chartreuse tint over whichever skin the cascade

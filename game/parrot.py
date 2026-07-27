@@ -721,6 +721,295 @@ def get_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
     return s
 
 
+# ── Hurt parrot variant (last-life skin — ace headwrap) ──────────────────────
+
+_H_SHADE_BLACK  = (15, 15, 25)
+_H_SHADE_GLINT  = (255, 255, 255)
+_H_SHADE_TINT   = (35, 55, 90)
+_H_SHADE_FRAME  = (220, 175, 40)
+_H_STITCH       = (180, 170, 160)
+_H_GAUZE        = (198, 190, 172)
+_H_HEM          = (120, 108,  95)
+_H_CROSS        = (190,  20,  35)
+_H_SCRATCH_D    = (100,  10,  10)
+_H_SCRATCH_HL   = (245, 165, 150)
+_H_SCRATCH_PALE = (180,  90,  80)
+_H_CRACK        = (150, 175, 205)
+
+_H_HURT_ANGLES = (10, -5, -20, -35)
+
+_H_CHEST_PAD = [(20, 23), (30, 21), (31, 34), (21, 36)]
+_H_CHEST_H   = ((23, 28), (27, 28))
+_H_CHEST_V   = ((25, 25), (25, 31))
+_H_UPPER_CUT = ((20, 33), (37, 43))
+_H_LOWER_CUT = ((22, 40), (32, 45))
+_H_BANDAID_L = (12, 40, 24, 46)
+_H_BANDAID_R = (33, 37, 44, 43)
+_H_BANDAID_3 = (38, 33, 47, 38)
+
+
+def _h_stamp_clipped(surf: pygame.Surface, layer: pygame.Surface) -> None:
+    for x in range(surf.get_width()):
+        for y in range(surf.get_height()):
+            px = layer.get_at((x, y))
+            if px[3] > 8 and surf.get_at((x, y))[3] > 8:
+                surf.set_at((x, y), (px[0], px[1], px[2], surf.get_at((x, y))[3]))
+
+
+def _h_lerp_pt(a, b, t):
+    return (int(a[0] + (b[0] - a[0]) * t), int(a[1] + (b[1] - a[1]) * t))
+
+
+def _h_draw_ragged_cuts(surf: pygame.Surface) -> None:
+    core_layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    lip_layer  = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    d = pygame.draw
+    for (ax, ay), (bx, by) in (_H_UPPER_CUT, _H_LOWER_CUT):
+        lip_a = _h_lerp_pt((ax - 1, ay - 2), (bx - 1, by - 2), 0.20)
+        d.line(lip_layer,  _H_SCRATCH_HL, lip_a, (bx - 1, by - 2), 1)
+        d.line(core_layer, _H_SCRATCH_D,  (ax, ay), (bx, by), 1)
+    dark: set = set()
+    for x in range(surf.get_width()):
+        for y in range(surf.get_height()):
+            r, g, b, a = surf.get_at((x, y))
+            if a > 8 and (0.299 * r + 0.587 * g + 0.114 * b) < 80:
+                dark.add((x, y))
+    for x in range(surf.get_width()):
+        for y in range(surf.get_height()):
+            base_a = surf.get_at((x, y))[3]
+            if base_a <= 8:
+                continue
+            on_dark = (x, y) in dark
+            if core_layer.get_at((x, y))[3] > 8:
+                c = _H_SCRATCH_PALE if on_dark else _H_SCRATCH_D
+                surf.set_at((x, y), (*c, base_a))
+            elif lip_layer.get_at((x, y))[3] > 8 and not on_dark:
+                surf.set_at((x, y), (*_H_SCRATCH_HL, base_a))
+
+
+def _h_draw_bandaid(surf: pygame.Surface, x0, y0, x1, y1, tab_left: bool = True) -> None:
+    layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    d = pygame.draw
+    if tab_left:
+        d.line(layer, _H_STITCH, (x0 - 3, y0 + 1), (x0, y0 + 1), 1)
+        d.line(layer, _H_STITCH, (x0 - 3, y1 - 1), (x0, y1 - 1), 1)
+    else:
+        d.line(layer, _H_STITCH, (x1, y0 + 1), (x1 + 3, y0 + 1), 1)
+        d.line(layer, _H_STITCH, (x1, y1 - 1), (x1 + 3, y1 - 1), 1)
+    d.rect(layer, _H_GAUZE, (x0, y0, x1 - x0, y1 - y0))
+    d.rect(layer, _H_HEM,   (x0, y0, x1 - x0, y1 - y0), 1)
+    _h_stamp_clipped(surf, layer)
+
+
+def _h_draw_bandaids(surf: pygame.Surface) -> None:
+    x0, y0, x1, y1 = _H_BANDAID_L
+    _h_draw_bandaid(surf, x0, y0, x1, y1, tab_left=True)
+    x0, y0, x1, y1 = _H_BANDAID_R
+    _h_draw_bandaid(surf, x0, y0, x1, y1, tab_left=False)
+    x0, y0, x1, y1 = _H_BANDAID_3
+    _h_draw_bandaid(surf, x0, y0, x1, y1, tab_left=False)
+
+
+def _h_draw_chest_dressing(surf: pygame.Surface) -> None:
+    import math as _math
+    layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    d = pygame.draw
+    cx = sum(p[0] for p in _H_CHEST_PAD) / len(_H_CHEST_PAD)
+    cy = sum(p[1] for p in _H_CHEST_PAD) / len(_H_CHEST_PAD)
+    grown = []
+    for px, py in _H_CHEST_PAD:
+        vx, vy = px - cx, py - cy
+        L = max(1e-3, _math.hypot(vx, vy))
+        grown.append((px + vx / L * 1.6, py + vy / L * 1.6))
+    d.polygon(layer, _H_HEM,   grown)
+    d.polygon(layer, _H_GAUZE, _H_CHEST_PAD)
+    d.line(layer, _H_CROSS, _H_CHEST_H[0], _H_CHEST_H[1], 2)
+    d.line(layer, _H_CROSS, _H_CHEST_V[0], _H_CHEST_V[1], 2)
+    d.line(layer, _H_STITCH, (18, 26), (21, 26), 1)
+    d.line(layer, _H_STITCH, (18, 32), (21, 32), 1)
+    d.line(layer, _H_STITCH, (29, 23), (32, 23), 1)
+    d.line(layer, _H_STITCH, (29, 31), (32, 31), 1)
+    _h_stamp_clipped(surf, layer)
+
+
+def _h_draw_headwrap(surf: pygame.Surface) -> None:
+    layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    d = pygame.draw
+    cap_pts = [(36, 21), (37, 16), (40, 12), (45, 10),
+               (51, 11), (56, 14), (59, 18), (59, 21)]
+    d.polygon(layer, _H_GAUZE, cap_pts)
+    d.lines(layer, _H_HEM, False, cap_pts[:-1], 1)
+    d.line(layer, _H_HEM, (38, 19), (57, 19), 1)
+    d.line(layer, _H_HEM, (40, 17), (56, 17), 1)
+    d.line(layer, _H_HEM, (40, 13), (54, 13), 1)
+    d.line(layer, _H_HEM, (39, 15), (56, 15), 1)
+    knot_pts = [(36, 16), (38, 14), (41, 15), (40, 18), (37, 19)]
+    d.polygon(layer, _H_GAUZE, knot_pts)
+    d.polygon(layer, _H_HEM,   knot_pts, 1)
+    _h_stamp_clipped(surf, layer)
+    d.line(surf, _H_GAUZE, (36, 17), (33, 20), 2)
+    d.line(surf, _H_HEM,   (36, 17), (33, 20), 1)
+    d.line(surf, _H_GAUZE, (37, 19), (35, 23), 2)
+    d.line(surf, _H_HEM,   (37, 19), (35, 23), 1)
+    surf.set_at((41, 19), _H_SCRATCH_PALE)
+    surf.set_at((42, 19), _H_SCRATCH_PALE)
+    surf.set_at((41, 20), (*_H_SCRATCH_PALE[:2], _H_SCRATCH_PALE[2] - 20))
+
+
+def _h_draw_sunglasses(surf: pygame.Surface, cx: int, cy: int) -> None:
+    r_outer = 6
+    left  = (cx - 4, cy + 2)
+    right = (cx + 6, cy - 1)
+    pygame.draw.circle(surf, _H_SHADE_FRAME, left,  r_outer + 1)
+    pygame.draw.circle(surf, _H_SHADE_FRAME, right, r_outer + 1)
+    pygame.draw.circle(surf, _H_SHADE_BLACK, left,  r_outer)
+    pygame.draw.circle(surf, _H_SHADE_BLACK, right, r_outer)
+    tint = pygame.Surface((r_outer * 2, r_outer), pygame.SRCALPHA)
+    pygame.draw.ellipse(tint, (*_H_SHADE_TINT, 130), tint.get_rect())
+    surf.blit(tint, (left[0]  - r_outer, left[1]  - r_outer + 1))
+    surf.blit(tint, (right[0] - r_outer, right[1] - r_outer + 1))
+    pygame.draw.circle(surf, _H_SHADE_GLINT,       (right[0] - 2, right[1] - 3), 2)
+    pygame.draw.circle(surf, (255, 255, 255, 200),  (right[0] + 2, right[1] + 1), 1)
+    pygame.draw.line(surf, _H_SHADE_FRAME, (left[0] + 6, 21), (right[0] - 6, 19), 2)
+    pygame.draw.line(surf, _H_SHADE_FRAME,
+                     (left[0]  - r_outer + 1, left[1]  - r_outer + 2),
+                     (right[0] + r_outer - 1, right[1] - r_outer + 2), 1)
+
+
+def _h_draw_cracked_lens(surf: pygame.Surface) -> None:
+    for end in ((41, 17), (50, 18), (47, 26)):
+        pygame.draw.line(surf, _H_CRACK, (45, 21), end, 1)
+    pygame.draw.line(surf, _H_CRACK, (43, 19), (47, 23), 1)
+
+
+def _h_tail_feather(pts, damaged: bool = False):
+    if not damaged:
+        return pts
+    import math as _math
+    root = ((pts[1][0] + pts[2][0]) / 2.0, (pts[1][1] + pts[2][1]) / 2.0)
+    a = _math.radians(18)
+    ca, sa = _math.cos(a), _math.sin(a)
+    out = []
+    for i, (x, y) in enumerate(pts):
+        if i in (0, 3):
+            dx, dy = root[0] - x, root[1] - y
+            L = max(1e-3, _math.hypot(dx, dy))
+            x, y = x + dx / L * 8.0, y + dy / L * 8.0
+        vx, vy = x - root[0], y - root[1]
+        out.append((root[0] + vx * ca - vy * sa, root[1] + vx * sa + vy * ca))
+    return out
+
+
+def _h_draw_tail(surf: pygame.Surface) -> None:
+    d = pygame.draw
+    BODY_SH = (130, 12, 12)
+    for i, c in enumerate(((174, 38, 48), (190, 70, 30),
+                            (210, 130, 40), (230, 195, 65))):
+        pts = [
+            (2 + i * 3, 26 + i * 2), (14 + i, 24 + i),
+            (20 + i, 30 + i * 2),    (6 + i * 3, 36 + i * 2),
+        ]
+        d.polygon(surf, c, _h_tail_feather(pts, damaged=(i == 1)))
+    d.line(surf, BODY_SH, (4, 27), (18, 31), 1)
+    d.line(surf, BODY_SH, (6, 33), (20, 35), 1)
+
+
+def _h_build_wing(angle_deg: float) -> pygame.Surface:
+    WING   = (30,  70, 180)
+    WING_D = (18,  42, 125)
+    TIP    = (50, 200,  95)
+    STRIPE = (210, 175,  50)
+    HL     = (130, 175, 240)
+    w = pygame.Surface((50, 50), pygame.SRCALPHA)
+    d = pygame.draw
+    d.polygon(w, (0, 0, 0, 100), [(24, 26), (46, 14), (50, 30), (34, 44), (18, 40)])
+    d.polygon(w, WING,           [(24, 24), (44, 13), (48, 28), (32, 42), (18, 36)])
+    d.polygon(w, WING_D,         [(24, 24), (32, 42), (18, 36)])
+    d.polygon(w, TIP,            [(44, 13), (50, 18), (48, 28)])
+    d.polygon(w, STRIPE,         [(42, 18), (48, 22), (46, 28), (40, 24)])
+    d.line(w, WING_D, (26, 25), (42, 18), 2)
+    d.line(w, WING_D, (28, 30), (44, 25), 2)
+    d.line(w, WING_D, (30, 34), (46, 32), 2)
+    d.line(w, HL,     (25, 25), (41, 15), 1)
+    d.polygon(w, (0, 0, 0, 0), [(41, 11), (53, 17), (47, 25), (43, 16)])
+    return pygame.transform.rotate(w, angle_deg)
+
+
+def _h_build_hurt_frame(wing_angle_deg: float) -> pygame.Surface:
+    surf = pygame.Surface((64, 60), pygame.SRCALPHA)
+    d = pygame.draw
+
+    BODY    = (205,  28,  28)
+    BODY_SH = (130,  12,  12)
+    CHEST   = (235,  80,  80)
+    BELLY   = (215, 140,  45)
+    BEAK    = (235, 168,   0)
+    BEAK_LO = (205, 138,   0)
+    BEAK_D  = (140,  92,   0)
+
+    _h_draw_tail(surf)
+
+    _aaellipse(surf, BODY_SH, (34, 35), 19, 14)
+    _aaellipse(surf, BODY,    (32, 32), 19, 14)
+    _aaellipse(surf, CHEST,   (30, 29), 13,  8)
+    _aaellipse(surf, BELLY,   (28, 38), 12,  6)
+
+    sheen = pygame.Surface((28, 6), pygame.SRCALPHA)
+    d.ellipse(sheen, (205, 150, 150, 120), sheen.get_rect())
+    surf.blit(sheen, (22, 21))
+
+    wing = _h_build_wing(wing_angle_deg)
+    surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
+
+    _h_draw_ragged_cuts(surf)
+    _h_draw_bandaids(surf)
+
+    _aaellipse(surf, (155, 15, 20),   (48, 24), 12, 11)
+    _aaellipse(surf, BODY,            (47, 22), 12, 11)
+    _aaellipse(surf, (200, 90, 90),   (44, 24),  4,  3)
+    _aaellipse(surf, (230, 140, 140), (46, 17),  7,  3)
+
+    _h_draw_headwrap(surf)
+    _h_draw_sunglasses(surf, 50, 20)
+    _h_draw_cracked_lens(surf)
+    _h_draw_chest_dressing(surf)
+
+    upper = [(55, 21), (61, 24), (58, 26), (52, 25)]
+    lower = [(52, 26), (58, 27), (59, 30), (54, 31)]
+    d.polygon(surf, BEAK,    upper)
+    d.polygon(surf, BEAK_D,  upper, 1)
+    d.polygon(surf, BEAK_LO, lower)
+    d.polygon(surf, BEAK_D,  lower, 1)
+    d.line(surf, (255, 220, 100), (55, 22), (59, 24), 1)
+
+    d.line(surf, BEAK_D, (28, 45), (26, 49), 2)
+    d.line(surf, BEAK_D, (34, 45), (36, 49), 2)
+
+    return surf
+
+
+_hurt_frames: list | None = None
+_hurt_rot_cache: dict = {}
+
+
+def _get_hurt_frames() -> list:
+    global _hurt_frames
+    if _hurt_frames is None:
+        _hurt_frames = [_add_outline(_h_build_hurt_frame(a)) for a in _H_HURT_ANGLES]
+    return _hurt_frames
+
+
+def get_hurt_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Return hurt-parrot (ace-headwrap last-life skin), cached by (frame, rounded-angle)."""
+    frames = _get_hurt_frames()
+    key = (frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _hurt_rot_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _hurt_rot_cache[key] = s
+    return s
+
+
 def __getattr__(name: str):
     """Lazy module attribute: external code reading `parrot.FRAMES`
     triggers the build on first access. Keeps the previous public API
