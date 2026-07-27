@@ -40,10 +40,10 @@ CHEST_V   = ((25, 25), (25, 31))
 UPPER_CUT = ((20, 33), (37, 43))
 LOWER_CUT = ((22, 40), (32, 45))
 
-# Small adhesive plasters: left-flank and right-lower-body.
-# Neither carries a cross — the chest pad owns the one red focal mark.
-BANDAID_L = (16, 41, 24, 44)   # (x0, y0, x1, y1) left flank below cuts
-BANDAID_R = (33, 39, 40, 42)   # right lower body
+# Small adhesive plasters. Neither carries a cross.
+BANDAID_L = (12, 40, 24, 46)   # left flank below cuts — 12×6 px
+BANDAID_R = (33, 37, 44, 43)   # right lower body — 11×6 px
+BANDAID_3 = (38, 33, 47, 38)   # upper-right body, just below head/body seam — 9×5 px
 
 
 def _aaellipse(surf, color, center, rx, ry):
@@ -158,6 +158,8 @@ def _draw_bandaids(surf):
     x0, y0, x1, y1 = BANDAID_L
     _draw_bandaid(surf, x0, y0, x1, y1, tab_left=True)
     x0, y0, x1, y1 = BANDAID_R
+    _draw_bandaid(surf, x0, y0, x1, y1, tab_left=False)
+    x0, y0, x1, y1 = BANDAID_3
     _draw_bandaid(surf, x0, y0, x1, y1, tab_left=False)
 
 
@@ -341,10 +343,10 @@ if __name__ == "__main__":
     print(f"gauze={gauze_count} ({gauze_frac:.1%} of opaque), "
           f"cross={cross_count}, wound_px={wound_pixels}, luma={luma:.1f}")
 
-    # Floor raised from 95 to account for two additional bandaid strips (~20 px each)
-    assert gauze_count   >= 130,  f"gauze too low: {gauze_count}"
-    assert gauze_count   <= 200,  f"gauze overload (mummy): {gauze_count}"
-    assert gauze_frac    <= 0.15, f"gauze fraction too high (>{15}%): {gauze_frac:.1%}"
+    # Three bandaids + chest pad; ceiling raised to allow the extra gauze
+    assert gauze_count   >= 150,  f"gauze too low: {gauze_count}"
+    assert gauze_count   <= 320,  f"gauze overload (mummy): {gauze_count}"
+    assert gauze_frac    <= 0.22, f"gauze fraction too high: {gauze_frac:.1%}"
     assert cross_count   >= 10,   f"cross too faint: {cross_count}"
     assert cross_count   <= 25,   f"two-cross bleed: {cross_count}"
     assert wound_pixels  >= 20,   f"wound too faint: {wound_pixels}"
@@ -353,8 +355,8 @@ if __name__ == "__main__":
     jaw_zone = np.zeros_like(opaque)
     jaw_zone[30:, 33:] = True
     gauze_in_jaw = int(np.all(np.abs(arr_hw - GAUZE_C) < 12, axis=2)[jaw_zone].sum())
-    # Right bandaid (x=33-40, y=39-42) adds ~18 px to this zone; allow up to 50
-    assert gauze_in_jaw <= 50, f"jaw pad crept back: {gauze_in_jaw} gauze px in jaw zone"
+    # Right + upper bandaids are in this zone; face-pad would need 200+ to sneak back in
+    assert gauze_in_jaw <= 150, f"jaw pad crept back: {gauze_in_jaw} gauze px in jaw zone"
 
     print("All asserts passed.")
 
