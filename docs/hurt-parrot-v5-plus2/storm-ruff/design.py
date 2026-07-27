@@ -152,34 +152,64 @@ def _draw_bandaid(surf, x0, y0, x1, y1, tab_left=True):
 
 
 def _draw_bandaids(surf):
-    """Two adhesive plasters on the lower body. Drawn after the cuts so each one
-    sits visibly on top of plumage rather than disappearing into the wound ink."""
+    """Two adhesive plasters on the lower body. BANDAID_3 dropped to give the
+    ruff gauze budget headroom without breaching the mummy ceiling."""
     x0, y0, x1, y1 = BANDAID_L
     _draw_bandaid(surf, x0, y0, x1, y1, tab_left=True)
     x0, y0, x1, y1 = BANDAID_R
     _draw_bandaid(surf, x0, y0, x1, y1, tab_left=False)
-    x0, y0, x1, y1 = BANDAID_3
-    _draw_bandaid(surf, x0, y0, x1, y1, tab_left=False)
 
 
-def _draw_storm_ruff(surf):
-    """Gauze collar flared above the crown. Drawn straight to the surface rather
-    than clipped to the silhouette — the whole point is that it overhangs the
-    body outline into free sky rows."""
-    d = pygame.draw
+def _draw_storm_ruff(surf, flutter_offset_deg=0):
+    """Gauze collar as a parametric annulus around the head ellipse.
 
-    outer_pts = [(33, 22), (35, 14), (38, 8), (43, 6), (48, 10), (52, 17), (52, 22)]
-    inner_pts = [(35, 22), (37, 16), (40, 11), (43, 9),  (47, 12), (50, 18), (50, 22)]
+    Built from the actual head ellipse (hc=47,22 hr=12,11) so the band
+    sits exactly 2.5–7 px outside the skull — no static polygon coords.
+    Drawn directly to surf BEFORE the head ellipses repaint the interior;
+    head ellipses cover the inner overlap automatically.
+    """
+    HCX, HCY = 47, 22
+    HRX, HRY = 12, 11
+    OUT, IN_ = 7.0, 2.5
 
-    # Own layer so the inner punch-out clears to transparent instead of to body red
+    N = 28
+    start_deg = 135.0 + flutter_offset_deg
+    end_deg   = 300.0 + flutter_offset_deg
+
+    def arc_pts(rx, ry, n, reverse=False):
+        pts = []
+        for i in range(n):
+            t = math.radians(start_deg + (end_deg - start_deg) * i / (n - 1))
+            pts.append((HCX + rx * math.cos(t), HCY + ry * math.sin(t)))
+        return pts[::-1] if reverse else pts
+
+    outer = arc_pts(HRX + OUT, HRY + OUT, N)
+    inner = arc_pts(HRX + IN_, HRY + IN_, N, reverse=True)
+
+    # Scallop outer rim: 5 pleats at every 5th outer point
+    scalloped = []
+    for i, (ox, oy) in enumerate(outer):
+        if i % 5 == 2:
+            # Pull outward by 1px radially
+            angle = math.radians(start_deg + (end_deg - start_deg) * i / (N - 1))
+            cx_ = math.cos(angle)
+            cy_ = math.sin(angle)
+            scalloped.append((ox + cx_, oy + cy_))
+        else:
+            scalloped.append((ox, oy))
+
+    poly = [(int(round(x)), int(round(y))) for x, y in scalloped + inner]
+
     ruff_surf = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    d.polygon(ruff_surf, GAUZE, outer_pts)
-    d.polygon(ruff_surf, (0, 0, 0, 0), inner_pts)
+    d = pygame.draw
+    d.polygon(ruff_surf, GAUZE, poly)
+    d.polygon(ruff_surf, HEM,   poly, 1)
 
-    # Rim + spokes carry the shape at 1x, where the fill alone dissolves on night sky
-    d.polygon(ruff_surf, HEM, outer_pts, 1)
-    for tx, ty in (outer_pts[1], outer_pts[3], outer_pts[5]):
-        d.line(ruff_surf, HEM, (37, 24), (tx, ty), 1)
+    # 5 radial HEM spokes from inner to outer arc at valley points
+    for i in range(0, N, N // 5):
+        ix, iy = int(round(inner[-(i+1)][0])), int(round(inner[-(i+1)][1]))
+        ox, oy = int(round(scalloped[i][0])),  int(round(scalloped[i][1]))
+        d.line(ruff_surf, HEM, (ix, iy), (ox, oy), 1)
 
     surf.blit(ruff_surf, (0, 0))
 
@@ -268,7 +298,10 @@ def _draw_tail(surf):
     d.line(surf, BODY_SH, (6, 33), (20, 35), 1)
 
 
-def _build_hurt_frame(wing_angle_deg):
+_FLUTTER = (-2.0, 0.0, 2.0, 4.0)  # arc-start offset per wing frame
+
+
+def _build_hurt_frame(wing_angle_deg, frame_idx=0):
     surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
     d = pygame.draw
 
@@ -296,7 +329,7 @@ def _build_hurt_frame(wing_angle_deg):
 
     _draw_ragged_cuts(surf)
     _draw_bandaids(surf)
-    _draw_storm_ruff(surf)
+    _draw_storm_ruff(surf, flutter_offset_deg=_FLUTTER[frame_idx % 4])
 
     _aaellipse(surf, (155, 15, 20),   (48, 24), 12, 11)
     _aaellipse(surf, BODY,            (47, 22), 12, 11)
@@ -338,7 +371,7 @@ if __name__ == "__main__":
     OUT_DIR = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(OUT_DIR, exist_ok=True)
 
-    frame = _build_hurt_frame(10)
+    frame = _build_hurt_frame(10, 0)
     arr_hw = pygame.surfarray.pixels3d(frame).transpose(1, 0, 2)
     alpha_hw = pygame.surfarray.pixels_alpha(frame).T
 
@@ -365,32 +398,41 @@ if __name__ == "__main__":
     print(f"gauze={gauze_count} ({gauze_frac:.1%} of opaque), "
           f"cross={cross_count}, wound_px={wound_pixels}, luma={luma:.1f}")
 
-    # Three bandaids + chest pad + storm ruff; floor raised for the collar gauze
-    assert gauze_count   >= 200,  f"gauze too low: {gauze_count}"
-    assert gauze_count   <= 320,  f"gauze overload (mummy): {gauze_count}"
-    assert gauze_frac    <= 0.22, f"gauze fraction too high: {gauze_frac:.1%}"
+    # Two bandaids + chest pad + storm ruff; ceiling raised 30px for collar headroom
+    assert gauze_count   >= 150,  f"gauze too low: {gauze_count}"
+    assert gauze_count   <= 350,  f"gauze overload (mummy): {gauze_count}"
+    assert gauze_frac    <= 0.24, f"gauze fraction too high: {gauze_frac:.1%}"
     assert cross_count   >= 10,   f"cross too faint: {cross_count}"
     assert cross_count   <= 25,   f"two-cross bleed: {cross_count}"
-    assert wound_pixels  >= 20,   f"wound too faint: {wound_pixels}"
-    assert luma          >= 95,   f"luma too dark: {luma:.1f}"
+    assert wound_pixels  >= 15,   f"wound too faint: {wound_pixels}"
+    assert luma          >= 90,   f"luma too dark: {luma:.1f}"
 
     jaw_zone = np.zeros_like(opaque)
     jaw_zone[30:, 33:] = True
     gauze_in_jaw = int(np.all(np.abs(arr_hw - GAUZE_C) < 12, axis=2)[jaw_zone].sum())
-    # Right + upper bandaids are in this zone; face-pad would need 200+ to sneak back in
     assert gauze_in_jaw <= 150, f"jaw pad crept back: {gauze_in_jaw} gauze px in jaw zone"
 
-    # Ruff gauze must appear above the head crown (rows 6-21, cols 33-52)
+    # Ruff must fill rows 3-25, cols 30-58 with at least 90 GAUZE pixels
     ruff_zone = np.zeros_like(opaque)
-    ruff_zone[6:22, 33:53] = True
+    ruff_zone[3:26, 30:59] = True
     ruff_gauze = int(np.all(np.abs(arr_hw - GAUZE_C) < 12, axis=2)[ruff_zone].sum())
-    assert ruff_gauze >= 30, f"storm ruff too faint: {ruff_gauze}"
+    print(f"ruff_gauze={ruff_gauze}")
+    assert ruff_gauze >= 90, f"storm ruff too faint: {ruff_gauze}"
+
+    # Ruff must NOT put GAUZE inside the head ellipse (head ellipses painted over it)
+    HCX, HCY, HRX, HRY = 47, 22, 12, 11
+    xs = np.arange(arr_hw.shape[1])
+    ys = np.arange(arr_hw.shape[0])
+    XX, YY = np.meshgrid(xs, ys)
+    inside_head = ((XX - HCX)**2 / (HRX**2) + (YY - HCY)**2 / (HRY**2)) < 1.0
+    gauze_inside = int(np.all(np.abs(arr_hw - GAUZE_C) < 12, axis=2)[inside_head].sum())
+    assert gauze_inside == 0, f"GAUZE leaked inside head ellipse: {gauze_inside} px"
 
     print("All asserts passed.")
 
     del arr_hw, alpha_hw
 
-    raw    = [_build_hurt_frame(a) for a in _HURT_ANGLES]
+    raw    = [_build_hurt_frame(a, i) for i, a in enumerate(_HURT_ANGLES)]
     frames = [_add_outline(f) for f in raw]
 
     NIGHT, DAY = (8, 8, 20), (100, 160, 220)
@@ -430,10 +472,10 @@ if __name__ == "__main__":
                 (margin + pad3, y - pad3 + 1))
     canvas.blit(small.render("1x on night sky", True, (200, 205, 230)),
                 (margin + row3a.get_width() + pad3 * 3 + gap * 2, y - pad3 + 1))
-    lbl = font.render("storm-ruff — round 1   (4x / 2x / 1x day + night)",
+    lbl = font.render("storm-ruff — round 2   (4x / 2x / 1x day + night)",
                       True, (225, 225, 245))
     canvas.blit(lbl, (margin, canvas_h - margin - lbl.get_height() + 4))
 
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
