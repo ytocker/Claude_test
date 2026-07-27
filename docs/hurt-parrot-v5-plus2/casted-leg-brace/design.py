@@ -5,6 +5,10 @@ Thesis: a rigid splint rail and peg-foot break the sprite's outline below the
 body — the injury you can see in silhouette alone. Everything above the hips is
 unchanged from field-dressed-plus (one chest pad, one cross, three plasters);
 the read at 1x comes from the asymmetric leg, not from more gauze.
+
+Round 2: plaster-white cast sleeve (reads against both day and night sky),
+wider 7px cuff separated from dark rail by value, left leg extended with foot
+and animated to emphasise the brace's rigidity by contrast.
 """
 import math
 import os, sys
@@ -32,6 +36,9 @@ SCRATCH_HL = (245, 165, 150)
 SCRATCH_PALE = (180, 90, 80)
 CRACK      = (150, 175, 205)
 
+# Plaster-white cast: luma≈231, reads 1.9:1 vs day-sky, ~10:1 vs night
+CAST_WHITE = (236, 231, 218)
+
 CHEST_PAD = [(20, 23), (30, 21), (31, 34), (21, 36)]
 CHEST_H   = ((23, 28), (27, 28))
 CHEST_V   = ((25, 25), (25, 31))
@@ -43,6 +50,9 @@ LOWER_CUT = ((22, 40), (32, 45))
 BANDAID_L = (12, 40, 24, 46)   # left flank below cuts — 12×6 px
 BANDAID_R = (33, 37, 44, 43)   # right lower body — 11×6 px
 BANDAID_3 = (38, 33, 47, 38)   # upper-right body, just below head/body seam — 9×5 px
+
+# Left leg x offsets per frame — good leg sways ±1px while brace is frozen
+_LEFT_LEG_X = [28, 29, 28, 27]
 
 
 def _aaellipse(surf, color, center, rx, ry):
@@ -137,7 +147,6 @@ def _draw_bandaid(surf, x0, y0, x1, y1, tab_left=True):
     d = pygame.draw
 
     # Tabs drawn before the pad so HEM always wins at the pad edge
-    mid_y = (y0 + y1) // 2
     if tab_left:
         d.line(layer, STITCH, (x0 - 3, y0 + 1), (x0, y0 + 1), 1)
         d.line(layer, STITCH, (x0 - 3, y1 - 1), (x0, y1 - 1), 1)
@@ -190,17 +199,22 @@ def _draw_chest_dressing(surf):
 
 def _draw_cast_brace(surf):
     """Splinted right leg. Drawn straight onto the sprite — not through
-    `_stamp_clipped` — because the whole point is that the rail and foot plate
-    live OUTSIDE the body silhouette, so the injury survives at 1x where
-    on-body gauze detail collapses into noise."""
+    `_stamp_clipped` — because the rail and foot plate live OUTSIDE the body
+    silhouette, so the injury survives at 1x where on-body gauze detail collapses.
+
+    Two-value design: plaster-white sleeve (soft cast wrapping) over a dark HEM
+    rail (rigid peg) so the sleeve reads as padding and the rail reads as rigid.
+    Wider 7px cuff distinguishes cast bulk from the 3px rail below.
+    """
     d = pygame.draw
 
-    sleeve_x, sleeve_y = 33, 44
-    d.rect(surf, GAUZE, (sleeve_x, sleeve_y, 5, 6))
-    d.rect(surf, HEM,   (sleeve_x, sleeve_y, 5, 6), 1)
-    # Tape rings read as wrap direction at 4x and as texture noise at 1x
-    d.line(surf, STITCH, (sleeve_x, sleeve_y + 2), (sleeve_x + 4, sleeve_y + 2), 1)
-    d.line(surf, STITCH, (sleeve_x, sleeve_y + 4), (sleeve_x + 4, sleeve_y + 4), 1)
+    sleeve_x, sleeve_y = 32, 44
+    # Plaster-white: luma≈231 reads against both day (149) and night (9) sky
+    d.rect(surf, CAST_WHITE, (sleeve_x, sleeve_y, 7, 6))
+    d.rect(surf, HEM,        (sleeve_x, sleeve_y, 7, 6), 1)
+    # Two diagonal HEM straps across the cast face — diagonals survive downsampling
+    d.line(surf, HEM, (sleeve_x + 1, sleeve_y + 1), (sleeve_x + 5, sleeve_y + 3), 1)
+    d.line(surf, HEM, (sleeve_x + 1, sleeve_y + 3), (sleeve_x + 5, sleeve_y + 5), 1)
 
     rail_x, rail_y = 34, 50
     d.rect(surf, HEM, (rail_x, rail_y, 3, 7))
@@ -267,7 +281,7 @@ def _draw_tail(surf):
     d.line(surf, BODY_SH, (6, 33), (20, 35), 1)
 
 
-def _build_hurt_frame(wing_angle_deg):
+def _build_hurt_frame(wing_angle_deg, frame_idx=0):
     surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
     d = pygame.draw
 
@@ -313,8 +327,13 @@ def _build_hurt_frame(wing_angle_deg):
     d.polygon(surf, BEAK_D,  lower, 1)
     d.line(surf, (255, 220, 100), (55, 22), (59, 24), 1)
 
-    # Only the good leg keeps a bare claw; the right one is replaced by the brace
-    d.line(surf, BEAK_D, (28, 45), (26, 49), 2)
+    # Left (good) leg — extended foot makes the asymmetry legible;
+    # lateral sway per frame contrasts with the frozen brace
+    lx = _LEFT_LEG_X[frame_idx % 4]
+    d.line(surf, BEAK_D, (lx, 45), (lx - 2, 52), 2)
+    d.line(surf, BEAK_D, (lx - 2, 52), (lx - 4, 53), 2)  # toe kink
+
+    # Right leg replaced by cast-brace — brace is identical in all 4 frames
     _draw_cast_brace(surf)
 
     return surf
@@ -337,14 +356,15 @@ if __name__ == "__main__":
     OUT_DIR = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(OUT_DIR, exist_ok=True)
 
-    frame = _build_hurt_frame(10)
+    frame = _build_hurt_frame(10, 0)
     arr_hw = pygame.surfarray.pixels3d(frame).transpose(1, 0, 2)
     alpha_hw = pygame.surfarray.pixels_alpha(frame).T
 
-    GAUZE_C     = np.array(GAUZE)
-    HEM_C       = np.array(HEM)
-    CROSS_C     = np.array(CROSS)
-    SCRATCH_D_C = np.array(SCRATCH_D)
+    GAUZE_C      = np.array(GAUZE)
+    HEM_C        = np.array(HEM)
+    CAST_WHITE_C = np.array(CAST_WHITE)
+    CROSS_C      = np.array(CROSS)
+    SCRATCH_D_C  = np.array(SCRATCH_D)
     SCRATCH_HL_C = np.array(SCRATCH_HL)
 
     gauze_count = int(np.all(np.abs(arr_hw - GAUZE_C) < 12, axis=2).sum())
@@ -362,13 +382,17 @@ if __name__ == "__main__":
     opaque_count = int(opaque.sum())
     gauze_frac = gauze_count / max(opaque_count, 1)
 
-    # Brace rail must reach below the body — sample rows 50-57 for HEM colour
+    # Cast sleeve plaster-white pixels in the cuff region
+    sleeve_region = arr_hw[44:50, 32:39, :]
+    sleeve_white  = int(np.all(np.abs(sleeve_region - CAST_WHITE_C) < 12, axis=2).sum())
+
+    # Brace rail must reach below body — sample rows 50-57 for HEM colour
     brace_region = arr_hw[50:58, 32:38, :]
-    brace_count = int(np.all(np.abs(brace_region - HEM_C) < 20, axis=2).sum())
+    brace_count  = int(np.all(np.abs(brace_region - HEM_C) < 20, axis=2).sum())
 
     print(f"gauze={gauze_count} ({gauze_frac:.1%} of opaque), "
           f"cross={cross_count}, wound_px={wound_pixels}, "
-          f"brace={brace_count}, luma={luma:.1f}")
+          f"brace={brace_count}, sleeve_white={sleeve_white}, luma={luma:.1f}")
 
     # Three bandaids + chest pad + cast sleeve; ceiling holds the mummy line
     assert gauze_count   >= 150,  f"gauze too low: {gauze_count}"
@@ -379,18 +403,18 @@ if __name__ == "__main__":
     assert wound_pixels  >= 20,   f"wound too faint: {wound_pixels}"
     assert luma          >= 95,   f"luma too dark: {luma:.1f}"
     assert brace_count   >= 10,   f"brace peg too faint or not reaching row 50+: {brace_count}"
+    assert sleeve_white  >= 6,    f"cast sleeve too pale or missing: {sleeve_white}"
 
     jaw_zone = np.zeros_like(opaque)
     jaw_zone[30:, 33:] = True
     gauze_in_jaw = int(np.all(np.abs(arr_hw - GAUZE_C) < 12, axis=2)[jaw_zone].sum())
-    # Right + upper bandaids are in this zone; face-pad would need 200+ to sneak back in
     assert gauze_in_jaw <= 150, f"jaw pad crept back: {gauze_in_jaw} gauze px in jaw zone"
 
     print("All asserts passed.")
 
-    del arr_hw, alpha_hw, brace_region
+    del arr_hw, alpha_hw, brace_region, sleeve_region
 
-    raw    = [_build_hurt_frame(a) for a in _HURT_ANGLES]
+    raw    = [_build_hurt_frame(a, i) for i, a in enumerate(_HURT_ANGLES)]
     frames = [_add_outline(f) for f in raw]
 
     NIGHT, DAY = (8, 8, 20), (100, 160, 220)
@@ -430,10 +454,10 @@ if __name__ == "__main__":
                 (margin + pad3, y - pad3 + 1))
     canvas.blit(small.render("1x on night sky", True, (200, 205, 230)),
                 (margin + row3a.get_width() + pad3 * 3 + gap * 2, y - pad3 + 1))
-    lbl = font.render("casted-leg-brace — round 1   (4x / 2x / 1x day + night)",
+    lbl = font.render("casted-leg-brace — round 2   (4x / 2x / 1x day + night)",
                       True, (225, 225, 245))
     canvas.blit(lbl, (margin, canvas_h - margin - lbl.get_height() + 4))
 
-    out_path = os.path.join(OUT_DIR, "round_1.png")
+    out_path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {canvas_w}x{canvas_h} -> {out_path}")
