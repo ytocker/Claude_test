@@ -226,7 +226,7 @@ def render_cell(lives_state: str, effect: str) -> pygame.Surface:
     # Triple (hat) + lives skin: build composite with lives sprite + stovepipe hat.
     # Uses the same canvas layout as build_hat_frames in dollar_parrot_hat.py.
     if effect == "triple" and lives_state != "clean":
-        from game.parrot import _h_build_hurt_frame, _fh_build_hurt_frame, _add_outline
+        from game.parrot import _h_build_hurt_frame, _fh_build_hurt_frame, _add_outline, get_parcel
         from game.dollar_parrot_hat import (
             draw_stovepipe, COMPOSITE_W, COMPOSITE_H, PARROT_DY, HAT_HX, HAT_HY,
         )
@@ -240,6 +240,8 @@ def render_cell(lives_state: str, effect: str) -> pygame.Surface:
         cell = pygame.Surface((CELL_W, CELL_H))
         fill_sky(cell)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
+        par = get_parcel("normal").copy()
+        cell.blit(par, par.get_rect(center=(CELL_W // 2, BIRD_Y + 12)))
         return cell
 
     # Poison: clean → terminal chartreuse-dead sprite; lives → chartreuse palette base
