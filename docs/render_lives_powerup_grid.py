@@ -122,12 +122,27 @@ def configure_bird(b: Bird, lives_state: str, effect: str):
 def render_cell(lives_state: str, effect: str) -> pygame.Surface:
     from game import parrot as _parrot
 
-    # Ghost + lives skin: cyan-tint the lives sprite then apply ghost alpha —
-    # same recipe the game uses for kfc+ghost (tint_copy + set_alpha).
+    # Ghost + lives skin: build_spectral_frame as the blue base (same as regular
+    # ghost), then add the lives-specific dressings on top — same pattern as
+    # build_ghost_hat_frames (spectral base + overlay added after).
     if effect == "ghost" and lives_state != "clean":
-        img_fn = _parrot.get_hurt_parrot if lives_state == "last_life" \
-                 else _parrot.get_first_hit_parrot
-        img = _parrot.tint_copy(img_fn(1, 0.0), (170, 230, 255), 0.55)
+        from game.dollar_parrot_ghost import _build_parrot_with_palette, P_SPECTRAL
+        from game.parrot import (
+            _h_draw_bandaids, _h_draw_headwrap, _h_draw_chest_dressing,
+            _h_draw_cracked_lens, _h_draw_ragged_cuts,
+            _fh_draw_single_crack, _add_outline,
+        )
+        base = _build_parrot_with_palette(10.0, P_SPECTRAL)
+        if lives_state == "last_life":
+            _h_draw_bandaids(base)
+            _h_draw_headwrap(base)
+            _h_draw_chest_dressing(base)
+            _h_draw_ragged_cuts(base)
+            _h_draw_cracked_lens(base)
+        else:  # first_hit
+            _h_draw_bandaids(base)
+            _fh_draw_single_crack(base)
+        img = _add_outline(base)
         img.set_alpha(170)
         cell = pygame.Surface((CELL_W, CELL_H))
         fill_sky(cell)
