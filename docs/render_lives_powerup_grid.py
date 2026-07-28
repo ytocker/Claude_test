@@ -242,24 +242,39 @@ def render_cell(lives_state: str, effect: str) -> pygame.Surface:
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
         return cell
 
-    # Poison: clean row → terminal chartreuse-dead sprite; lives rows → chartreuse tint.
-    # tint_copy's BLEND_RGBA_MIN approach can't raise the G channel on a red body
-    # (clamps at sprite's G≈40), so direct surfarray interpolation is used instead.
+    # Poison: clean → terminal chartreuse-dead sprite; lives → chartreuse palette base
+    # with lives dressings applied on top (same pattern as ghost+lives but with P_CHARTREUSE).
+    # draw_lenses=False for last_life so headwrap goes behind the chartreuse shades.
     if effect == "poison":
         cell = pygame.Surface((CELL_W, CELL_H))
         fill_sky(cell)
         if lives_state == "clean":
             img = _parrot.get_poisoned_parrot(1, 0.0)
         else:
-            import numpy as np
-            import pygame.surfarray as sa
-            img_fn = _parrot.get_hurt_parrot if lives_state == "last_life" \
-                     else _parrot.get_first_hit_parrot
-            img = img_fn(1, 0.0).copy()
-            arr = sa.pixels3d(img)
-            target = np.array([180, 225, 75], dtype=np.float32)
-            arr[:] = (arr.astype(np.float32) * 0.3 + target * 0.7).clip(0, 255).astype(np.uint8)
-            del arr
+            from game.dollar_parrot_ghost import _build_parrot_with_palette, _draw_lenses
+            from game.dollar_parrot_dead import P_CHARTREUSE
+            from game.parrot import (
+                _h_draw_bandaids, _h_draw_headwrap, _h_draw_chest_dressing,
+                _h_draw_cracked_lens, _h_draw_ragged_cuts,
+                _fh_draw_single_crack, _add_outline, get_parcel,
+            )
+            if lives_state == "last_life":
+                base = _build_parrot_with_palette(10.0, P_CHARTREUSE, draw_lenses=False)
+                _h_draw_bandaids(base)
+                _h_draw_headwrap(base)
+                _draw_lenses(base, 50, 20, P_CHARTREUSE)
+                _h_draw_chest_dressing(base)
+                _h_draw_ragged_cuts(base)
+                _h_draw_cracked_lens(base)
+            else:  # first_hit
+                base = _build_parrot_with_palette(10.0, P_CHARTREUSE)
+                _h_draw_bandaids(base)
+                _fh_draw_single_crack(base)
+            img = _add_outline(base)
+            par = get_parcel("normal").copy()
+            cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
+            cell.blit(par, par.get_rect(center=(CELL_W // 2, BIRD_Y + 12)))
+            return cell
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
         return cell
 
