@@ -205,6 +205,24 @@ def render_cell(lives_state: str, effect: str) -> pygame.Surface:
         cell.blit(par, par.get_rect(center=(CELL_W // 2, BIRD_Y + 12)))
         return cell
 
+    # Grow + lives: hurt/first_hit frame scaled up by GROW_SCALE with scaled parcel.
+    if effect == "grow" and lives_state != "clean":
+        from game.parrot import _h_build_hurt_frame, _fh_build_hurt_frame, _add_outline, get_parcel
+        from game.config import GROW_SCALE, PARCEL_Y_OFFSET
+        raw_fn = _h_build_hurt_frame if lives_state == "last_life" else _fh_build_hurt_frame
+        raw = raw_fn(10.0)
+        img = _add_outline(raw)
+        img = pygame.transform.smoothscale(
+            img, (int(img.get_width() * GROW_SCALE), int(img.get_height() * GROW_SCALE)))
+        cell = pygame.Surface((CELL_W, CELL_H))
+        fill_sky(cell)
+        cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
+        par = get_parcel("normal").copy()
+        pw, ph = par.get_size()
+        par = pygame.transform.smoothscale(par, (int(pw * GROW_SCALE), int(ph * GROW_SCALE)))
+        cell.blit(par, par.get_rect(center=(CELL_W // 2, BIRD_Y + int(PARCEL_Y_OFFSET * GROW_SCALE))))
+        return cell
+
     # Triple (hat) + lives skin: build composite with lives sprite + stovepipe hat.
     # Uses the same canvas layout as build_hat_frames in dollar_parrot_hat.py.
     if effect == "triple" and lives_state != "clean":
