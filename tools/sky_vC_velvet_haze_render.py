@@ -6,7 +6,7 @@ rose/burgundy/plum above it.
 
     python tools/sky_vC_velvet_haze_render.py
 
-Output: docs/sky_transition/vC_velvet_haze/round_1.png
+Output: docs/sky_transition/vC_velvet_haze/round_2.png
 """
 import os
 import sys
@@ -28,17 +28,22 @@ from game.config import W, H, GROUND_Y                             # noqa: E402
 
 
 # Aerial scatter: haze near the ground bounces light back at the viewer, so the
-# base sits ~17% brighter in luma than sky_mid rather than sinking below it.
-# That lift is spent on G and B (B a shade harder) so the extra luminance
-# desaturates instead of warming — G-B stays negative and the hue never leaves
-# the rose/mauve family. Horizon is a hair warmer and brighter again, reading as
-# an illuminated edge under the band. Every other channel of the live spec
-# (sky_top, sky_mid, star_alpha, SkyParams, all non-sunset phases) is inherited
-# untouched, so any delta on the sheet is attributable to these stops alone.
+# base has to sit clearly brighter in luma than sky_mid rather than sinking below
+# it — that inversion is the whole identity of this take, and round_1 pitched it
+# too dark to read. The lift is spent disproportionately on G and B so the extra
+# luminance desaturates (base saturation lands well under sky_mid's) instead of
+# warming — G-B stays negative and the hue never leaves the rose family, keeping
+# the late stop out of the plum lane a neighbouring concept already owns. The
+# 0.42 base still clears a comfortable contrast ratio against the bird so the
+# silhouette never dissolves into the brightest part of the gradient. Horizon is
+# a hair brighter again, reading as an illuminated edge under the band. Every
+# other channel of the live spec (sky_top, sky_mid, star_alpha, SkyParams, all
+# non-sunset phases) is inherited untouched, so any delta on the sheet is
+# attributable to these stops alone.
 _OVERRIDES = {
-    0.42: dict(sky_bot=(233,  94, 114), horizon=(242, 100, 108)),
-    0.47: dict(sky_bot=(131,  72,  91), horizon=(142,  76,  88)),
-    0.52: dict(sky_bot=( 75,  51,  76), horizon=( 86,  55,  74)),
+    0.42: dict(sky_bot=(246, 138, 150), horizon=(250, 150, 162)),
+    0.47: dict(sky_bot=(138,  80,  98), horizon=(144,  84, 102)),
+    0.52: dict(sky_bot=( 90,  56,  76), horizon=( 96,  60,  80)),
 }
 
 _KF = []
@@ -98,8 +103,9 @@ def main():
     f_label = pygame.font.SysFont("dejavusans", 13, bold=True)
     f_phase = pygame.font.SysFont("dejavusans", 11)
 
-    title = f_title.render("vC_velvet_haze — luminous misty-rose base, backlit like velvet",
-                           True, TEXT_HI)
+    title = f_title.render(
+        "vC_velvet_haze round 2 — base lifts brighter than mid, aerial scatter in misty rose",
+        True, TEXT_HI)
     canvas.blit(title, (canvas_w // 2 - title.get_width() // 2, 12))
 
     ground_frac = GROUND_Y / H
@@ -129,7 +135,7 @@ def main():
         ph_lbl = f_phase.render(f"phase {phase}", True, TEXT_LO)
         canvas.blit(ph_lbl, (x + PANEL_W // 2 - ph_lbl.get_width() // 2, fy + 36))
 
-    out = os.path.join(_ROOT, "docs", "sky_transition", "vC_velvet_haze", "round_1.png")
+    out = os.path.join(_ROOT, "docs", "sky_transition", "vC_velvet_haze", "round_2.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(canvas, out)
     print(f"wrote {out}  ({canvas.get_width()}×{canvas.get_height()})")
