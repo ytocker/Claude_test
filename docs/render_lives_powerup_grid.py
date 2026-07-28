@@ -122,12 +122,19 @@ def configure_bird(b: Bird, lives_state: str, effect: str):
 def render_cell(lives_state: str, effect: str) -> pygame.Surface:
     from game import parrot as _parrot
 
-    # Ghost + lives skin: lives sprite at ghost alpha (170 at pulse=π/2).
+    # Ghost + lives skin: shift RGB toward P_SPECTRAL blue palette, then ghost alpha.
     # In-game ghost pre-empts the lives cascade; here we show the theoretical combo.
     if effect == "ghost" and lives_state != "clean":
+        import numpy as np
+        import pygame.surfarray as sa
         img_fn = _parrot.get_hurt_parrot if lives_state == "last_life" \
                  else _parrot.get_first_hit_parrot
         img = img_fn(1, 0.0).copy()
+        # Interpolate RGB toward P_SPECTRAL body_main (140, 200, 230) at 85% strength.
+        arr = sa.pixels3d(img)
+        target = np.array([140, 200, 230], dtype=np.float32)
+        arr[:] = (arr.astype(np.float32) * 0.15 + target * 0.85).clip(0, 255).astype(np.uint8)
+        del arr
         img.set_alpha(170)
         cell = pygame.Surface((CELL_W, CELL_H))
         fill_sky(cell)
