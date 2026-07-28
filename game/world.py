@@ -27,9 +27,7 @@ from game.config import (
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
     FLAP_V,
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
-    SECRET_POWERUP_WEIGHTS, DEBUG_GENIE_PILLAR,
-    CLOWN_START_PILLAR, CLOWN_SLOT_PILLARS, CLOWN_WARREN_SPACING,
-    CLOWN_PRECLEAR_PILLARS, CLOWN_LEADIN_PILLARS, CLOWN_OUTRO_PILLARS,
+    SECRET_POWERUP_WEIGHTS, LATE_GAME_PILLAR, DEBUG_GENIE_PILLAR,
     GENIE_OFFER_COUNT, GENIE_OFFER_Y_SLOTS,
     GENIE_CHAMBER_GAP_BOOST, GENIE_CHAMBER_SPACING,
     GENIE_CHAMBER_REVEAL_DIST,
@@ -39,6 +37,7 @@ from game.config import (
     HEELFLIP_DURATION, HEELFLIP_TAP_GAP_MIN, HEELFLIP_TAP_GAP_MAX,
     POPSHUVIT_DURATION, POPSHUVIT_TAP_GAP_MIN, POPSHUVIT_TAP_GAP_MAX,
     KNIGHT_DURATION, KNIGHT_INVULN,
+    LIVES_PER_RUN, LIVES_INVULN_DUR, LIVES_FLICKER_HZ,
     UMBRELLA_DURATION, UMBRELLA_SPAWN_PILLARS,
     DEATH_FADE_DURATION,
     TREASURE_BOX_GRANT, TREASURE_BOX_ANIM_T,
@@ -46,7 +45,6 @@ from game.config import (
     CYCLE_FINALE_PHASE_HI, CYCLE_FINALE_PHASE_LO,
     WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP, WEATHER_PIP_SHIVER_AMP,
     WEATHER_FLAP_DAMPEN_MAX, WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
-    STORM_JOLT_RAIN_MIN,
     THERMAL_SPAWN_THRESHOLD, THERMAL_SPAWN_CHANCE_MAX,
     GEYSER_MAX_CONCURRENT,
     ROCK_SPAWN_THRESHOLD, ROCK_PER_PILLAR_MAX, ROCK_RING_COUNT,
@@ -57,7 +55,7 @@ from game.config import (
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, PoofGrain, FloatText,
     GenieCharacter, TrickBubble, Ramp,
-    FlyingCoinParticle, Geyser, Rock, RockPatch,
+    FlyingCoinParticle, Geyser, Rock,
 )
 from game._proof import ProofState
 from game.draw import (
@@ -73,20 +71,8 @@ from game.weather import (
     rain_intensity as _rain_intensity,
     storm_intensity as _storm_intensity,
     thermal_intensity as _thermal_intensity,
-    GENIE_PILLAR,
-    _phase_for_pillar,
 )
-from game.clown_event import ClownEvent
 from game.ambient import AmbientScenes
-
-# Biome phase at which the clown event fires each day — the phase of
-# CLOWN_START_PILLAR. On day 1 this lands at pillar 65; on later days it recurs
-# at the same time-of-day (the run-length per day is constant after the biome
-# day was lengthened to absorb the event).
-CLOWN_EVENT_PHASE = _phase_for_pillar(CLOWN_START_PILLAR)
-# The clear-sky pre-clear begins this many pillars-of-time earlier, so the field
-# is already empty when the clown appears (it still enters at ~CLOWN_START_PILLAR).
-CLOWN_PRECLEAR_PHASE = _phase_for_pillar(CLOWN_START_PILLAR - CLOWN_PRECLEAR_PILLARS)
 
 
 def _lerp(a, b, t):
@@ -102,13 +88,7 @@ class World:
     # `_phase_for_pillar` and `_seed_first_pipes` agree on the first-pillar
     # offset).
 
-    def __init__(self, demo=None):
-        # `demo`, when set, is a branch-only scripted prototype controller
-        # (see game/warren_demo.py) that owns spawning + the clown/dice/route
-        # beat. Every demo branch below is gated on `demo is not None`, so the
-        # normal run path is untouched.
-        self.demo = demo
-
+    def __init__(self):
         # Reshuffle the meadow at the start of every new World — picks a
         # fresh ground theme + sparsity baseline + decoration positions
         # so no two plays look the same.
@@ -180,7 +160,6 @@ class World:
         self.kfc_mountain_layers: "list[pygame.Surface] | None" = None
         self.kfc_activation_scroll = 0.0
         self.ghost_timer  = 0.0
-        self.ghost_timer_total = GHOST_DURATION  # full window the HUD bar drains over
         self.grow_timer   = 0.0
         self.reverse_timer = 0.0
         self.shrink_timer = 0.0
@@ -238,6 +217,12 @@ class World:
         # collision grace.
         self.knight_timer = 0.0
         self.knight_invuln = 0.0
+        # LIVES: three hearts per run. Each pipe collision that would otherwise
+        # end the run spends one heart and calls _revive_life() instead of
+        # game_over. lives_invuln is the post-revive immunity countdown.
+        self.lives_remaining = LIVES_PER_RUN
+        self.lives_invuln    = 0.0
+        self.lives_used      = 0
         # UMBRELLA: independent power-up that cancels rain flap-dampening.
         # Spawned once per storm during the rain window; never in the regular
         # weighted pool or the surprise re-roll.
@@ -268,35 +253,6 @@ class World:
         # encountered coins grabbed" figure (coins still on screen don't
         # count as missed yet).
         self.coins_spawned = 0
-        # Ceiling bonks this run (Pip clamped against the top edge). Edge-detected
-        # via _was_ceiling_clamped so a held bonk counts once, not every frame.
-        self.ceiling_hits = 0
-        self._was_ceiling_clamped = False
-        # Skateboard tricks landed this run + the distinct trick types performed
-        # (for a "land all four in one run" goal). Both reset with the fresh World.
-        self.tricks_landed = 0
-        self.tricks_landed_types: set = set()
-        # Wall of Shame: a small death-moment snapshot (filled in _die) + two
-        # live trackers. max_flaps_per_sec is the worst 1-second flap burst this
-        # run (panic-spike roast); _lottery_pulled marks a lottery slot pull.
-        self.death_pillar = 0
-        self.death_ghost = False
-        self.death_kfc = False
-        self.died_early_phase = False
-        # Hall-of-Shame expansion: more death-moment snapshots, all filled in
-        # _die while the effect state is still live (read post-death by
-        # achievements.evaluate_run on the same frame).
-        self.death_slowmo = False
-        self.death_poison = False
-        self.death_skateboard = False
-        self.death_lightning = False
-        self.death_celebration = False
-        self.death_magnet_zero = False
-        self.death_wish_pending = False
-        self._lottery_pulled = False
-        self.max_flaps_per_sec = 0
-        self._flap_window_t = 0.0
-        self._flap_window_n = 0
         self.powerups_picked = {
             "triple": 0, "magnet": 0, "megamagnet": 0, "slowmo": 0, "kfc": 0,
             "ghost": 0, "grow": 0, "reverse": 0, "surprise": 0,
@@ -304,29 +260,6 @@ class World:
             "skateboard": 0, "knight": 0, "genie": 0,
             "poison": 0, "treasure": 0,
         }
-        # Hall-of-Fame per-run trackers (cheap, event-driven — no per-frame scan).
-        # max_active_powerups: peak count of simultaneously-active timed buffs,
-        # sampled at each activation. max_pillars_in_slowmo / _in_ghost: most
-        # pillars cleared within ONE continuous Slow-Mo / Ghost window (the
-        # per-activation counter resets when that buff (re)starts). surprise_repeat
-        # flags a Surprise Box that re-rolled a kind it already rolled this run.
-        self.max_active_powerups = 0
-        self.max_pillars_in_slowmo = 0
-        self.max_pillars_in_ghost = 0
-        self._slowmo_run_pillars = 0
-        self._ghost_run_pillars = 0
-        self.surprise_repeat = 0
-        self._surprise_rolls: set = set()
-        # Hall-of-Shame live trackers: coins grabbed inside the current magnet
-        # window (Rich and Reckless), whether a genie-chamber wish was ever
-        # collected (Wish Unspent), the Coin Rush grab tally (Coin Blind), and
-        # the count of storm jolts survived this run (Lightning Magnet).
-        self._coins_in_magnet = 0
-        self._genie_wish_taken = False
-        self.coin_blind = False
-        self._rush_cur_total = 0
-        self._rush_cur_got = 0
-        self._lightning_strikes_run = 0
         # Cycle-finale "treasure box" state. _last_biome_phase samples the
         # phase every frame so a wrap from ~1.0 back to ~0.0 can be detected
         # one frame after biome_time crosses CYCLE_SECONDS. When that fires
@@ -336,23 +269,6 @@ class World:
         self._last_biome_phase = 0.0
         self._finale_rush_remaining = 0
         self._finale_box_dropped = False
-        # Clown event: a held CLOWN_SLOT_PILLARS-wide slot, re-armed each day.
-        # `_clown_route` is the rolled gauntlet (list of (gap_cy, gap_h)); the
-        # first len(route) slot pillars are warren towers, the rest regular fill.
-        self._clown_slot_remaining = 0
-        self._clown_route = []
-        self._clown_fired_this_cycle = False
-        # Relief empties around the gauntlet (spawned as phantom pillars): the
-        # pre-clear runs BEFORE the clown is created (so it enters a clean sky),
-        # lead-in is armed on the die reveal (before the first tower), outro on
-        # the last warren tower. All take precedence over the slot in _spawn_pipe.
-        self._clown_preclear_remaining = 0
-        self._clown_entrance_pending = False
-        self._clown_leadin_remaining = 0
-        self._clown_outro_remaining = 0
-        # The cinematic controller (clown walk-in + die roll); set when the clown
-        # phase is crossed, reserves the gauntlet on the die roll, then clears.
-        self.clown_event = None
         # Transient flag so near-miss detection fires once per pillar.
         self._near_miss_flags: dict[int, bool] = {}
 
@@ -381,10 +297,6 @@ class World:
         # Manual chest-event playtest uses the debug F9 hotkey rather
         # than a baked-in time shift.
         self.biome_time = 0.0
-        # Bake the parallax mountain strips for the opening bucket so the first
-        # rendered frame is a cache hit (mirrors geyser_fx.prewarm above).
-        from game import mountains_v14 as _mtn
-        _mtn.prewarm(W, GROUND_Y, self.biome_phase)
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
@@ -399,13 +311,6 @@ class World:
 
         self.weather = Weather()
         self.ambient = AmbientScenes()
-        # Stateful near-lane sidewalk crowd (independent walking). Registered with
-        # the foreground facade so draw_near_lane picks it up; re-registered here so
-        # each new World (each run) owns a fresh, empty crowd.
-        from game.sidewalk_crowd import SidewalkCrowd
-        from game import foreground as _foreground
-        self.crowd = SidewalkCrowd()
-        _foreground.set_crowd(self.crowd)
 
         # "Get ready" freeze at the start of a round: physics paused until
         # the player flaps or the timer expires. Gives new players a moment
@@ -414,7 +319,7 @@ class World:
 
         self.game_over = False
 
-        # One-shot: when pillars_passed crosses GENIE_PILLAR, a genie
+        # One-shot: when pillars_passed crosses LATE_GAME_PILLAR, a genie
         # lamp is placed in the gap between that pillar and the next one,
         # and from that point on the genie joins the regular spawn pool
         # and the Surprise Box re-roll pool.
@@ -424,9 +329,7 @@ class World:
         # to pillar 65. Also enables the late-game pool/surprise rules.
         self._debug_genie_milestone_fired = False
 
-        # Demo starts on an EMPTY sky; the controller feeds the route in later.
-        if self.demo is None:
-            self._seed_first_pipes()
+        self._seed_first_pipes()
 
     # Back-compat: older snapshot/playtest scripts poke `world.mushrooms`.
     @property
@@ -447,10 +350,6 @@ class World:
         # toward the regular endpoints by pillar RAMP_PIPES. Keyed off
         # self.pillars_passed (per-run, NOT per-day) so the easier
         # intro never re-triggers after the first cycle wraps.
-        # Demo runs at the regular (post-ramp) tuning from pillar 0 — no
-        # newbie warmup.
-        if self.demo is not None:
-            return 1.0
         pp = self.pillars_passed
         if pp < PLATEAU_PIPES:
             return 0.0
@@ -511,20 +410,6 @@ class World:
 
     def _current_spacing(self):
         return int(_lerp(PIPE_SPACING_NEWBIE, PIPE_SPACING, self._ramp_t()))
-
-    def _next_spacing(self):
-        """Spacing for the NEXT pillar to spawn. During the clown slot the
-        warren towers sit at the tight fused spacing; everything else (the
-        relief empties, the slot's regular-fill tail, normal play) uses the
-        normal ramped spacing."""
-        # Relief empties are normal-spaced clear-sky gaps, not warren towers.
-        if self._clown_leadin_remaining > 0 or self._clown_outro_remaining > 0:
-            return self._current_spacing()
-        if self._clown_slot_remaining > 0:
-            idx = CLOWN_SLOT_PILLARS - self._clown_slot_remaining
-            if idx < len(self._clown_route):
-                return CLOWN_WARREN_SPACING
-        return self._current_spacing()
 
     def _current_powerup_chance(self):
         return _lerp(POWERUP_CHANCE_NEWBIE, POWERUP_CHANCE, self._ramp_t())
@@ -587,7 +472,7 @@ class World:
         # to lose. Kicks off a ~4.4 s buildup of telegraph bolts → the strike.
         if self._storm_jolt_lockout > 0:
             self._storm_jolt_lockout = max(0.0, self._storm_jolt_lockout - dt)
-        elif (ri > STORM_JOLT_RAIN_MIN
+        elif (ri > 0.85
               and self.score > 0
               and not self.game_over
               and self.ready_t <= 0
@@ -693,7 +578,6 @@ class World:
         lost = min(100, self.score)
         if lost <= 0:
             return
-        self._lightning_strikes_run += 1      # Lightning Magnet lifetime tally
         self.score = max(0, self.score - lost)
         self._proof.record(self.time_alive, -lost, "weather_jolt")
 
@@ -792,84 +676,12 @@ class World:
             self._spawn_pipe(x)
             x += spacing
 
-    def _spawn_phantom_relief(self, x):
-        """A clear-sky relief slot bracketing the clown gauntlet: an invisible,
-        non-colliding, non-scoring phantom pillar that still scrolls and consumes
-        a spawn slot, so it HIDES a pillar without shifting the timeline (same
-        device as the cycle-finale phantoms). Gap geometry is inert (never drawn
-        or collided)."""
-        p = Pipe(x, GROUND_Y * 0.5, int(self._current_gap()))
-        p.is_phantom = True
-        p.spawn_index = self.pipes_spawned - 1
-        self.pipes.append(p)
-
     def _spawn_pipe(self, x):
         gap_h = self._current_gap()
         # Every Nth pipe is a "coin rush": wider gap + dense coin arc, no
         # power-up. The visual announcement fires below.
         self.pipes_spawned += 1
         is_rush = (self.pipes_spawned % COIN_RUSH_INTERVAL == 0)
-        # ── Clown relief empties ────────────────────────────────────────────
-        # Clear-sky stretches around the gauntlet, all spawned as phantom pillars
-        # (invisible / non-colliding / non-scoring) that take a normal spawn slot
-        # so they HIDE pillars without shifting the timeline. Checked before the
-        # slot so they always bracket the warren run even if the die rolled fast.
-        #
-        # Pre-clear runs FIRST, before the clown exists: it empties the field so
-        # the jester enters a clean sky. The clown controller is created the
-        # instant the last pre-clear phantom is laid; the beat then stays clear
-        # (below) through the die roll until the reveal arms the lead-in.
-        if self._clown_preclear_remaining > 0:
-            self._clown_preclear_remaining -= 1
-            self._spawn_phantom_relief(x)
-            if self._clown_preclear_remaining == 0 and self._clown_entrance_pending:
-                self._clown_entrance_pending = False
-                self.clown_event = ClownEvent()
-            return
-        # Keep the sky clear for the whole clown beat — entrance through the die
-        # roll — so the jester is never among real pillars. Ends the instant the
-        # reveal fires (phase flips off "enter"/"rolling") and the lead-in +
-        # warren slot take over.
-        if (self.clown_event is not None
-                and self.clown_event.phase in ("enter", "rolling")):
-            self._spawn_phantom_relief(x)
-            return
-        if self._clown_leadin_remaining > 0:
-            self._clown_leadin_remaining -= 1
-            self._spawn_phantom_relief(x)
-            return
-        if self._clown_outro_remaining > 0:
-            self._clown_outro_remaining -= 1
-            self._spawn_phantom_relief(x)
-            return
-        # ── Clown event slot ───────────────────────────────────────────────
-        # While the held slot is active, the first len(route) pillars are the
-        # warren gauntlet (tight is_staff towers on the rolled route, scoring +
-        # colliding but no coins/powerups/geyser); any remaining slot pillars
-        # are normal gameplay. Coin rush is suppressed across the whole slot so
-        # downstream pillar numbering stays deterministic.
-        if self._clown_slot_remaining > 0:
-            idx = CLOWN_SLOT_PILLARS - self._clown_slot_remaining
-            self._clown_slot_remaining -= 1
-            is_rush = False
-            is_route_tower = idx < len(self._clown_route)
-            if is_route_tower:
-                route_cy, route_gap = self._clown_route[idx]
-                p = Pipe(x, float(route_cy), int(route_gap))
-                p.is_rush = False
-                p.spawn_index = self.pipes_spawned - 1
-                p.is_staff = True
-                self.pipes.append(p)
-                # Last warren tower → arm the post-gauntlet relief breather.
-                if idx == len(self._clown_route) - 1:
-                    self._clown_outro_remaining = CLOWN_OUTRO_PILLARS
-            # Free the rolled route once the whole slot has been laid (after this
-            # pillar has read it), so it doesn't linger for the rest of the run.
-            if self._clown_slot_remaining == 0:
-                self._clown_route = []
-            if is_route_tower:
-                return
-            # else: regular-fill pillar — fall through to normal spawning.
         # Cycle-finale: while a finale is queued (5 pillars after the
         # day/night rollover), every pillar is forced into a coin rush.
         # The chamber path still wins if both coincide — the finale just
@@ -909,10 +721,6 @@ class World:
             gy = random.randint(lo, hi)
         p = Pipe(x, gy, gap_h)
         p.is_rush = is_rush
-        # pipes_spawned was bumped at the top of this call, so the first
-        # pillar of the run lands at spawn_index 0 — the pagoda ornament
-        # picker uses that for its first-pillar quiet rule.
-        p.spawn_index = self.pipes_spawned - 1
         p.is_genie_chamber = is_chamber
         # is_kfc is sticky for the pipe's lifetime - it gates the gap
         # widening (see _activate_kfc) so the wider gap outlives the
@@ -1013,20 +821,22 @@ class World:
                 self._spawn_genie_chamber_offers(p)
 
     def _maybe_spawn_ramp(self, pipe: Pipe):
-        """During the SKATEBOARD window, sometimes drop a wooden wedge on the
-        GROUND in the open lane just past this pillar — never on a pillar top.
-        38x22 gentle kicker with small jitter so wedges look hand-placed."""
+        """During the SKATEBOARD window, sometimes drop a wooden wedge
+        on top of this pipe's LOWER pillar. 38x22 gentle incline with
+        a small +/-2 px jitter so wedges look hand-placed. Right-
+        aligned on the pillar so the kicker sits flush with the
+        pillar's right edge."""
         if self.skateboard_timer <= 0:
             return
         if random.random() >= 0.55:
             return
         ramp_w = 38 + random.randint(-2, 2)
         ramp_h = 22 + random.randint(-2, 2)
-        # Sit the wedge on the FLOOR, roughly centred in the open lane after the
-        # pillar so it never overlaps a pillar base or its eave overhang.
-        lane = PIPE_SPACING - PIPE_W
-        rx = pipe.x + PIPE_W + max(16, (lane - ramp_w) // 2) + random.randint(-8, 8)
-        self.ramps.append(Ramp(rx, ramp_w, ramp_h, base_y=GROUND_Y))
+        ramp_w = min(ramp_w, PIPE_W - 2)
+        base_y = pipe.gap_y + pipe.gap_h / 2
+        rx = pipe.x + PIPE_W - ramp_w
+        self.ramps.append(Ramp(rx, ramp_w, ramp_h, base_y=base_y))
+        pipe.has_ramp = True
 
     def _maybe_spawn_geyser(self, pipe: Pipe):
         # Geysers are held back until the rock field has ramped across
@@ -1090,36 +900,21 @@ class World:
         """Lay `count` rocks across [x_lo, x_hi] as natural little clusters —
         a larger anchor rock with 1-3 smaller companions huddled around it —
         rather than an even sprinkle, so the field reads as real scree."""
-        # Bake the whole cluster into ONE patch surface (blitted as a single
-        # sprite each frame) instead of 100s of per-rock blits. The RNG draw
-        # order/positions/variants are unchanged, so the scatter looks identical.
-        variants = geyser_fx.get_rock_variants()
-        pad = geyser_fx.ROCK_MAX_W + 16        # cover companion offset + sprite half
-        patch_x = x_lo - pad
-        patch_top = GROUND_Y - 24
-        patch = pygame.Surface((max(1, int(x_hi - x_lo) + 2 * pad), 44),
-                               pygame.SRCALPHA)
-
-        def _stamp(rx, ry, v):
-            s, ox, oy = variants[v]
-            patch.blit(s, (int(rx - patch_x - ox), int(ry - patch_top - oy)))
-
         placed = 0
         while placed < count:
             cx = random.uniform(x_lo, x_hi)
             for _ in range(random.randint(1, 3)):       # smaller companions (behind)
                 if placed >= count:
                     break
-                _stamp(cx + random.uniform(-15.0, 15.0),
-                       GROUND_Y + random.uniform(0.0, 6.0),
-                       random.randint(0, 3))
+                self.rocks.append(Rock(cx + random.uniform(-15.0, 15.0),
+                                       GROUND_Y + random.uniform(0.0, 6.0),
+                                       random.randint(0, 3)))
                 placed += 1
             if placed >= count:
                 break
-            _stamp(cx, GROUND_Y + random.uniform(1.0, 5.0),
-                   random.randint(3, geyser_fx.ROCK_N - 1))   # larger anchor (front)
-            placed += 1
-        self.rocks.append(RockPatch(patch_x, patch_top, patch))
+            self.rocks.append(Rock(cx, GROUND_Y + random.uniform(1.0, 5.0),
+                                   random.randint(3, geyser_fx.ROCK_N - 1)))
+            placed += 1                                  # larger anchor (in front)
 
     def _maybe_spawn_rocks(self, pipe: Pipe):
         # The rock field is the event's telegraph: density ramps by PILLAR
@@ -1219,29 +1014,6 @@ class World:
                 self.coins.append(Coin(x, y))
 
         self.coins_spawned += len(self.coins) - prev_count
-        # Open a fresh Coin Blind window: tag this rush's coins and reset the
-        # grab tally (force-close any prior window — rushes are 15 pillars apart,
-        # so the previous one is always fully behind Pip by now).
-        self._finalize_rush(force=True)
-        for c in self.coins[prev_count:]:
-            c.is_rush = True
-        self._rush_cur_total = len(self.coins) - prev_count
-        self._rush_cur_got = 0
-
-    def _finalize_rush(self, force: bool = False):
-        """Close the current Coin Rush window for the Coin Blind roast. Only
-        fires once the rush is fully behind Pip (no uncollected rush coin still
-        ahead), unless force-closed by the next rush spawning."""
-        if self._rush_cur_total <= 0:
-            return
-        if not force and any(
-                getattr(c, "is_rush", False) and not c.collected
-                and c.x > self.bird.x for c in self.coins):
-            return
-        if self._rush_cur_got < 3:
-            self.coin_blind = True
-        self._rush_cur_total = 0
-        self._rush_cur_got = 0
 
     def _spawn_finale_long_rush_coins(self, first_phantom_x: float,
                                       center_y: float, gap_h: int,
@@ -1338,7 +1110,7 @@ class World:
             ))
 
     def _check_genie_milestone(self, last_scored_pipe):
-        """Fires once per run when pillars_passed crosses GENIE_PILLAR
+        """Fires once per run when pillars_passed crosses LATE_GAME_PILLAR
         (and a separate debug one-shot at DEBUG_GENIE_PILLAR). Called from
         the pipe-pass loop with the pipe just scored, so the genie lamp
         lands in the spacing immediately after it — the player encounters
@@ -1356,7 +1128,7 @@ class World:
             return
         if self._genie_milestone_fired:
             return
-        if self.pillars_passed < GENIE_PILLAR:
+        if self.pillars_passed < LATE_GAME_PILLAR:
             return
         self._genie_milestone_fired = True
         self._spawn_milestone_genie(last_scored_pipe)
@@ -1403,7 +1175,7 @@ class World:
             kinds.append(k)
             weights.append(w)
         # Secret late-game tier: only enters the roll once a genie
-        # milestone has fired (production at pillar GENIE_PILLAR or
+        # milestone has fired (production at pillar LATE_GAME_PILLAR or
         # the debug one-shot at DEBUG_GENIE_PILLAR). Kept out of
         # POWERUP_WEIGHTS so the gate can't be bypassed.
         if self._genie_milestone_fired or self._debug_genie_milestone_fired:
@@ -1429,9 +1201,6 @@ class World:
             sign = -1 if self.reverse_timer > 0 else 1
             self.bird.flap(gravity_sign=sign)
             self.flap_count += 1
-            self._flap_window_n += 1
-            if self._flap_window_n > self.max_flaps_per_sec:
-                self.max_flaps_per_sec = self._flap_window_n
             audio.play_flap()
             # SKATEBOARD tricks. The detector handles 4 tap patterns:
             #   1) 3 FAST taps   (gap ≤ BACKFLIP_TAP_WINDOW)   → backflip
@@ -1472,35 +1241,25 @@ class World:
         self.bird.backflip_t = BACKFLIP_DURATION
         self.bird.backflip_dur = BACKFLIP_DURATION
         audio.play_backflip()
-        self._record_trick("backflip")
         self._spawn_trick_bubble("BACKFLIP!")
 
     def _trigger_kickflip(self):
         self.bird.kickflip_t = KICKFLIP_DURATION
         self.bird.kickflip_dur = KICKFLIP_DURATION
         audio.play_backflip()
-        self._record_trick("kickflip")
         self._spawn_trick_bubble("KICKFLIP!")
 
     def _trigger_heelflip(self):
         self.bird.heelflip_t = HEELFLIP_DURATION
         self.bird.heelflip_dur = HEELFLIP_DURATION
         audio.play_backflip()
-        self._record_trick("heelflip")
         self._spawn_trick_bubble("HEELFLIP!")
 
     def _trigger_popshuvit(self):
         self.bird.popshuvit_t = POPSHUVIT_DURATION
         self.bird.popshuvit_dur = POPSHUVIT_DURATION
         audio.play_backflip()
-        self._record_trick("popshuvit")
         self._spawn_trick_bubble("POP SHUVIT!")
-
-    def _record_trick(self, kind: str):
-        # One landed trick: bump the run total and note the distinct type so a
-        # "land all four types in one run" goal can read len(tricks_landed_types).
-        self.tricks_landed += 1
-        self.tricks_landed_types.add(kind)
 
     # Trick bubble anchor zones — RIGHT of the score (original POW!
     # badge home) or a mirror LEFT anchor below the coins pill. Each
@@ -1561,9 +1320,6 @@ class World:
                 and _new_phase < CYCLE_FINALE_PHASE_LO):
             self._finale_rush_remaining = CYCLE_FINALE_RUSH_PILLARS
             self._finale_box_dropped = False
-            # Re-arm the clown event for the new day so it fires again when the
-            # phase next crosses CLOWN_EVENT_PHASE.
-            self._clown_fired_this_cycle = False
             # Day counter ticks once per cycle wrap. The banner that
             # rides the chest pickup later in this same finale rush
             # reads max(1, cycles_completed) so the first cycle the
@@ -1628,22 +1384,6 @@ class World:
                     CelebrationBalloonCluster(decor_left_x, right_x))
                 self.celebration_crowds.append(
                     CelebrationCrowd(decor_left_x, right_x, finish_x=finish_x))
-        # Clown event trigger: once per day, when the phase crosses the clown
-        # anchor, send in the clown + die. The controller rolls the gauntlet
-        # length on pickup and reserves the held slot (see ClownEvent._reveal),
-        # which _spawn_pipe then lays as warren towers + regular fill.
-        if (not self._clown_fired_this_cycle
-                and self._last_biome_phase < CLOWN_PRECLEAR_PHASE <= _new_phase):
-            self._clown_fired_this_cycle = True
-            # Start clearing the field a few pillars BEFORE the clown appears; the
-            # controller is created only once these phantoms are laid, so the
-            # jester enters an already-empty sky (see _spawn_pipe).
-            self._clown_preclear_remaining = CLOWN_PRECLEAR_PILLARS
-            self._clown_entrance_pending = True
-        if self.clown_event is not None:
-            self.clown_event.update(self, sdt)
-            if self.clown_event.done:
-                self.clown_event = None
         self._last_biome_phase = _new_phase
         # Weather tracks biome phase, scales with sdt so slowmo softens rain too.
         self.weather.update(sdt, self.biome_phase)
@@ -1687,18 +1427,8 @@ class World:
             # snow tailwind + back-snow, and the storm-jolt scheduling.
             self._apply_weather_effects(sdt)
 
-            # Scripted demo beat (clown → dice → route → fall); spawns its own
-            # pillars, so the auto-spawn block below is gated off for it.
-            if self.demo is not None:
-                self.demo.update(self, sdt)
-
             speed = self._current_scroll() if not self.game_over else 0
             self.bg_scroll += speed * sdt
-            # Advance the sidewalk crowd in lockstep with the ground (sdt carries
-            # slow-mo; speed carries rail/skate/weather), so planted entities stay
-            # pixel-locked and walkers move relative to the ground.
-            self.crowd.update(self.bg_scroll, speed, sdt,
-                              self.biome_phase, self.biome_time)
             for p in self.pipes:
                 p.x -= speed * sdt
             for r in self.ramps:
@@ -1773,15 +1503,6 @@ class World:
                 or (getattr(p, "rail_active", False)
                     and (self.bird.cart_locked or p.x + PIPE_W > -300))
             ]
-            # Drop near-miss flags for culled pipes. Flags are keyed by id(p),
-            # which CPython recycles once a pipe is freed — so an unpruned flag
-            # could both grow unbounded and suppress a legitimate near-miss on a
-            # future pipe that happens to reuse the id.
-            if self._near_miss_flags:
-                _live = {id(p) for p in self.pipes}
-                self._near_miss_flags = {
-                    k: v for k, v in self._near_miss_flags.items() if k in _live
-                }
             # Refresh rail_pipes every frame so the renderer still sees
             # the on-screen tail of tagged pipes after expiry.
             self.rail_pipes = [
@@ -1807,29 +1528,10 @@ class World:
             # track and the right edge. After the ride ends the pipe
             # list may be empty (all rail pipes culled); re-seed one
             # fresh pipe so the player has something to navigate.
-            spacing = self._next_spacing()
-            if self.demo is None and not self.bird.cart_active:
-                # Warren (clown-gauntlet) towers must sit at the TRUE tight fused
-                # spacing. The normal path below triggers only once `prev.x +
-                # spacing` is already on-screen, then clamps the entry x up to
-                # W+60 so nothing pops mid-air after a rail ride — but that floor
-                # silently adds ~60px to whatever `spacing` asks for. It's
-                # invisible at the wide normal spacing yet nearly DOUBLES the
-                # 72px warren gap (→133px). So warren towers instead trigger off
-                # the off-screen spawn line, entering at the exact fused spacing.
-                warren_next = (self._clown_leadin_remaining == 0
-                               and self._clown_outro_remaining == 0
-                               and self._clown_slot_remaining > 0
-                               and (CLOWN_SLOT_PILLARS - self._clown_slot_remaining)
-                               < len(self._clown_route))
+            spacing = self._current_spacing()
+            if not self.bird.cart_active:
                 if not self.pipes:
                     self._spawn_pipe(W + 60)
-                elif warren_next:
-                    if self.pipes[-1].x + spacing <= W + 60:
-                        # Enter just off the right edge at the true gap; the max
-                        # only bites the very first tower if the slot armed while
-                        # the prior pillar was already mid-screen (avoids a pop).
-                        self._spawn_pipe(max(self.pipes[-1].x + spacing, W + 60))
                 elif self.pipes[-1].x < W - spacing:
                     # Spawn off-screen on the right: after a rail ride the
                     # last tagged pipe sits near Pip (x≈80) so the natural
@@ -1852,17 +1554,6 @@ class World:
                     p.scored = True
                     self.score += 1
                     self.pillars_passed += 1
-                    # Per-activation buff-clearing tallies (Bullet Time / Ghost
-                    # Rider). Timers are decremented later this frame, so a
-                    # still-positive value means the buff was active at pass time.
-                    if self.slowmo_timer > 0:
-                        self._slowmo_run_pillars += 1
-                        self.max_pillars_in_slowmo = max(
-                            self.max_pillars_in_slowmo, self._slowmo_run_pillars)
-                    if self.ghost_timer > 0:
-                        self._ghost_run_pillars += 1
-                        self.max_pillars_in_ghost = max(
-                            self.max_pillars_in_ghost, self._ghost_run_pillars)
                     self._check_genie_milestone(p)
                     # UMBRELLA: fixed-pillar spawn (both pillars inside the
                     # rain block, so the "only while raining" rule is
@@ -1905,12 +1596,6 @@ class World:
 
             # Time alive
             self.time_alive += dt
-
-            # Wall of Shame: tumbling 1-second window for the worst flap burst.
-            self._flap_window_t += dt
-            if self._flap_window_t >= 1.0:
-                self._flap_window_t -= 1.0
-                self._flap_window_n = 0
 
             # collisions
             self._check_collisions()
@@ -1989,6 +1674,15 @@ class World:
             self.bird.knight_active = self.knight_timer > 0
             if self.knight_invuln > 0:
                 self.knight_invuln = max(0.0, self.knight_invuln - dt)
+            if self.lives_invuln > 0:
+                self.lives_invuln = max(0.0, self.lives_invuln - dt)
+            # Sync flicker: bird is hidden on the second half of each
+            # LIVES_FLICKER_HZ period while the i-frame window is active.
+            _lperiod = 1.0 / LIVES_FLICKER_HZ
+            self.bird.lives_flicker_visible = (
+                self.lives_invuln <= 0
+                or (self.lives_invuln % _lperiod) < _lperiod * 0.5
+            )
             if self.umbrella_timer > 0:
                 self.umbrella_timer = max(0.0, self.umbrella_timer - dt)
             self.bird.umbrella_active = self.umbrella_timer > 0
@@ -2078,9 +1772,6 @@ class World:
         self.biome_time += dt
         self.weather.update(dt, self.biome_phase)
         self.bg_scroll += SCROLL_BASE * 0.5 * dt
-        # Keep the crowd alive on the menu too (no slow-mo here → sdt == dt).
-        self.crowd.update(self.bg_scroll, SCROLL_BASE * 0.5, dt,
-                          self.biome_phase, self.biome_time)
         self.ambient.update(dt, self.biome_phase, self.biome_palette,
                             self.bg_scroll)
         for p in self.pipes:
@@ -2140,15 +1831,13 @@ class World:
             if self.bird.vy < 0:
                 self.bird.vy = 0.0
             by = self.bird.y
-            # Count one bonk per contact (rising edge), not every clamped frame.
-            if not self._was_ceiling_clamped:
-                self.ceiling_hits += 1
-            self._was_ceiling_clamped = True
-        else:
-            self._was_ceiling_clamped = False
         # KNIGHT grace: brief window after a revive where Pip is immune to
         # ground + pipe collisions so he can clear the obstacle that hit him.
         if self.knight_invuln > 0:
+            return
+        # LIVES grace: same immunity window granted after spending a heart,
+        # so Pip has time to fly clear of the pipe that hit him.
+        if self.lives_invuln > 0:
             return
         # SKATEBOARD ramp surface: while skating, snap Pip to any wedge
         # he's currently over so he rolls UP the slope, before the
@@ -2196,11 +1885,7 @@ class World:
                     continue
                 if self._skateboard_handle_pipe(p, bx, by, br):
                     by = self.bird.y
-            # Skating RIDES OVER pagodas — it never dies to a pillar. The ride
-            # snaps above keep Pip on the rooflines (and bonk the undersides), so
-            # skip the lethal pipe loop entirely (mirrors the ghost phase-through
-            # return). The ground slide + ceiling clamp already ran above.
-            return
+                    break
         # Pip's hitboxes: body (existing) + parcel below him. The parcel
         # offset rotates with his tilt so when he dives the parcel swings
         # forward/down with him.
@@ -2234,60 +1919,55 @@ class World:
         # Parcel shouldn't graze the ground unless the bird already would
         # have died (the bird circle's r > parcel offset+r in normal flight).
         # Skip ground/ceiling re-check; only pipes are added.
-        kfc_now = self.kfc_timer > 0
         for p in self.pipes:
-            kfc = kfc_now and p.is_kfc
-            if p.collides_circle(bx, by, br - PIPE_HITBOX_SHRINK, kfc=kfc):
+            if p.collides_circle(bx, by, br - PIPE_HITBOX_SHRINK):
                 self._die()
                 return
-            if pr > 0 and p.collides_circle(px, py, pr - 1, kfc=kfc):
+            if pr > 0 and p.collides_circle(px, py, pr - 1):
                 self._die()
                 return
 
     def _skateboard_handle_pipe(self, p, bx, by, br) -> bool:
-        """When SKATEBOARD is active, RIDE OVER the pagoda instead of dying on it.
+        """When SKATEBOARD is active, intercept lethal pipe collisions.
 
-        If Pip's circle overlaps the pagoda's structural silhouette, eject him to
-        the nearest rideable surface and absorb the hit (returns True):
-          - Lower half of the gap → land/roll along the LOWER pagoda's ROOFLINE
-            (snap to its true mask crown — the roof overhangs the gap rim, so the
-            old gap-rim snap left Pip clipping the roof and dying). Sets
-            `_sliding_this_frame` so a NOSE / TAIL grind can fire on landing.
-          - Upper half → helmet CLONK! off the UPPER pagoda's underside (stars +
-            audio + shake; the punk helmet absorbs the bonk).
-        The crown / underside come from `p.skate_surfaces()`, read off the actual
-        per-pixel mask, so every pagoda variant's overhanging roof is cleared.
+        Returns True if the collision was absorbed (no death):
+          - Bottom-pillar TOP hit: land and roll along the rim.
+          - Upper-pillar UNDERSIDE hit: helmet CLONK! deflect with
+            stars + audio + shake. The cyan-lamp / skull-bunny helmet
+            absorbs the bonk so Pip bounces gently instead of dying.
+        Returns False for side hits, which are still lethal.
         """
-        if p.is_phantom:
-            return False
-        if not p.collides_circle(bx, by, br):
-            return False
-        low, up = p.skate_surfaces()
-        if by >= p.gap_y:                       # lower half → ride the rooftop
-            self.bird.y = low - br
+        gap_top = p.gap_y - p.gap_h / 2
+        gap_bot = p.gap_y + p.gap_h / 2
+        in_column = (p.x - br < bx < p.x + PIPE_W + br)
+        if (in_column and by < gap_bot and self.bird.vy >= -50
+                and (by + br) >= gap_bot):
+            self.bird.y = gap_bot - br
             self.bird.vy = 0.0
-            self._maybe_skateboard_dust(bx, low)
-            self._maybe_grind_sparks(low)
+            self._maybe_skateboard_dust(bx, gap_bot)
+            self._maybe_grind_sparks(gap_bot)
             self._sliding_this_frame = True
             return True
-        # upper half → helmet bonk off the underside
-        self.bird.y = up + br
-        self.bird.vy = max(self.bird.vy, 0.0) + 25
-        self.shake_mag = max(self.shake_mag, 5.0)
-        self.shake_t = max(self.shake_t, 0.18)
-        audio.play_helmet_bonk()
-        for _ in range(10):
-            ang = random.uniform(-math.pi, 0)
-            spd = random.uniform(120, 220)
-            self.particles.append(Particle(
-                bx, up,
-                math.cos(ang) * spd, math.sin(ang) * spd,
-                random.uniform(0.3, 0.6),
-                random.randint(2, 4),
-                random.choice((UI_GOLD, UI_CREAM, WHITE)),
-                gravity=400,
-            ))
-        return True
+        if (in_column and by > gap_top and self.bird.vy <= 50
+                and (by - br) <= gap_top):
+            self.bird.y = gap_top + br
+            self.bird.vy = max(self.bird.vy, 0.0) + 25
+            self.shake_mag = max(self.shake_mag, 5.0)
+            self.shake_t = max(self.shake_t, 0.18)
+            audio.play_helmet_bonk()
+            for _ in range(10):
+                ang = random.uniform(-math.pi, 0)
+                spd = random.uniform(120, 220)
+                self.particles.append(Particle(
+                    bx, gap_top,
+                    math.cos(ang) * spd, math.sin(ang) * spd,
+                    random.uniform(0.3, 0.6),
+                    random.randint(2, 4),
+                    random.choice((UI_GOLD, UI_CREAM, WHITE)),
+                    gravity=400,
+                ))
+            return True
+        return False
 
     def _maybe_skateboard_dust(self, x, y_ground):
         """Occasional dust puff while sliding — throttled, not every frame."""
@@ -2350,27 +2030,10 @@ class World:
             self.bird.poison_t = 0.0
             self._revive_knight()
             return
-        # Wall of Shame: snapshot the death-moment context while effect state is
-        # still live (read post-death by achievements.evaluate_run). Only a real
-        # death reaches here — a knight revive returned above.
-        self.death_pillar = self.pillars_passed
-        self.death_ghost = bool(self.bird.ghost_active)
-        self.death_kfc = bool(self.bird.kfc_active)
-        self.died_early_phase = (self.cycles_completed >= 1
-                                 and (self.biome_time % biome.CYCLE_SECONDS) < 5.0)
-        # Poison is only reachable here with no knight save (the revive above
-        # returns and clears it), so poison_active at death means it killed Pip.
-        self.death_slowmo = self.slowmo_timer > 0
-        self.death_poison = bool(self.bird.poison_active)
-        self.death_skateboard = bool(self.bird.skateboard_active)
-        self.death_lightning = self._lightning_scorch_t > 0
-        self.death_celebration = bool(self.treasure_banners
-                                      or self.celebration_garlands)
-        self.death_magnet_zero = ((self.magnet_timer > 0 or self.megamagnet_timer > 0)
-                                  and self._coins_in_magnet == 0)
-        self.death_wish_pending = (self.powerups_picked.get("genie", 0) > 0
-                                   and not self._genie_wish_taken)
-        self._finalize_rush()      # close an in-progress rush for Coin Blind
+        # LIVES revive: spend a heart instead of ending the run.
+        if self.lives_remaining > 0:
+            self._revive_life()
+            return
         self.game_over = True
         self.bird.alive = False
         # Start the dead-Pip cross-fade. Tiny non-zero value gates the
@@ -2388,6 +2051,37 @@ class World:
                 random.choice((PARTICLE_CRIM, PARTICLE_ORNG, PARTICLE_WHT)),
                 gravity=900,
             ))
+
+    def _revive_life(self):
+        """Spend one heart: grant collision immunity, kick upward, fire a
+        modest burst so the player reads it as a recoverable hit, not death."""
+        self.lives_remaining -= 1
+        self.lives_used      += 1
+        self.lives_invuln     = LIVES_INVULN_DUR
+        if self.lives_remaining == 0:
+            self.bird.on_last_life = True
+            self.bird.on_first_hit = False
+        elif self.lives_remaining == 1:
+            self.bird.on_first_hit = True
+        self.bird.vy          = FLAP_V * 0.7
+        self.hit_flash        = 0.20
+        self.shake_mag        = max(self.shake_mag, 4.0)
+        self.shake_t          = max(self.shake_t,   0.25)
+        audio.play_life_lost()
+        for _ in range(12):
+            ang = random.uniform(0, math.tau)
+            spd = random.uniform(80, 200)
+            self.particles.append(Particle(
+                self.bird.x, self.bird.y,
+                math.cos(ang) * spd, math.sin(ang) * spd,
+                random.uniform(0.35, 0.8), random.randint(2, 4),
+                random.choice(((255, 160, 30), (255, 220, 60), (255, 255, 200))),
+                gravity=500,
+            ))
+        self.float_texts.append(FloatText(
+            "♥ -1 LIFE", self.bird.x, self.bird.y - 40, (220, 60, 80),
+            size=26, life=1.2, vy=-60, style="powerup",
+        ))
 
     # ── pickups ──────────────────────────────────────────────────────────────
 
@@ -2453,10 +2147,6 @@ class World:
         self.score += value
         self.coin_count += 1
         self._proof.record(self.time_alive, value, "coin")
-        if self.magnet_timer > 0 or self.megamagnet_timer > 0:
-            self._coins_in_magnet += 1
-        if getattr(coin, "is_rush", False):
-            self._rush_cur_got += 1
 
         # *** GLITCH FIX ***
         # NO screen-wide flash. Only localized sparkle particles.
@@ -2499,7 +2189,6 @@ class World:
         # others (with a poof). Done before activation so the chosen kind's
         # activator still runs normally below.
         if getattr(m, "is_genie_offer", False):
-            self._genie_wish_taken = True
             self._cull_genie_offers_except(m)
         # POISON HEAL: grabbing ANY power-up other than another poison
         # cures Pip mid-dive. Clear the poison state before the kind's
@@ -2539,11 +2228,6 @@ class World:
             if self._genie_milestone_fired or self._debug_genie_milestone_fired:
                 choices.append("genie")
             kind = random.choice(choices)
-            # Regifted: a Surprise Box re-rolling a kind it already produced
-            # this run.
-            if kind in self._surprise_rolls:
-                self.surprise_repeat = 1
-            self._surprise_rolls.add(kind)
             self._spawn_surprise_reveal(m)
         # Treasure isn't a power-up, it's a once-per-day reward. Skip the
         # pickup-counter increment so it doesn't surface in the run-summary
@@ -2587,20 +2271,6 @@ class World:
         elif kind == "treasure":
             self._activate_treasure_box(m)
 
-        # Sample the peak stack of simultaneously-active timed buffs (Overloaded)
-        # right after this pickup's activator sets its timer.
-        self.max_active_powerups = max(self.max_active_powerups,
-                                       self._count_active_powerups())
-
-    def _count_active_powerups(self) -> int:
-        """Number of timed power-up buffs currently running (for the Overloaded
-        stack tally). Counts the standard effect timers only."""
-        timers = (self.triple_timer, self.magnet_timer, self.megamagnet_timer,
-                  self.slowmo_timer, self.kfc_timer, self.ghost_timer,
-                  self.grow_timer, self.reverse_timer, self.shrink_timer,
-                  self.skateboard_timer, self.knight_timer, self.umbrella_timer)
-        return sum(1 for t in timers if t > 0)
-
     def _spawn_surprise_reveal(self, m):
         """Brief gold-burst + cloud puff so the player sees the box "open"
         before the resolved power-up's own activator fires."""
@@ -2643,7 +2313,6 @@ class World:
         ))
 
     def _activate_magnet(self, m):
-        self._coins_in_magnet = 0        # fresh window for the Rich and Reckless tally
         self.magnet_timer = MAGNET_DURATION
         self.shake_mag = max(self.shake_mag, 2.5)
         self.shake_t = max(self.shake_t, 0.25)
@@ -2655,7 +2324,6 @@ class World:
         ))
 
     def _activate_megamagnet(self, m):
-        self._coins_in_magnet = 0        # fresh window for the Rich and Reckless tally
         self.megamagnet_timer = MEGAMAGNET_DURATION
         self.shake_mag = max(self.shake_mag, 3.5)
         self.shake_t = max(self.shake_t, 0.3)
@@ -2668,7 +2336,6 @@ class World:
         ))
 
     def _activate_slowmo(self, m):
-        self._slowmo_run_pillars = 0     # fresh window for the Bullet Time tally
         self.slowmo_timer = SLOWMO_DURATION
         self.shake_mag = max(self.shake_mag, 2.5)
         self.shake_t = max(self.shake_t, 0.25)
@@ -2729,9 +2396,7 @@ class World:
     def _activate_ghost(self, m):
         GHOST_BLUE  = (140, 180, 255)
         GHOST_WHITE = (210, 225, 255)
-        self._ghost_run_pillars = 0      # fresh window for the Ghost Rider tally
         self.ghost_timer = GHOST_DURATION
-        self.ghost_timer_total = GHOST_DURATION
         self.bird.ghost_active = True
         self.shake_mag = max(self.shake_mag, 2.0)
         self.shake_t   = max(self.shake_t,   0.2)
@@ -3423,7 +3088,7 @@ class World:
         pillar's gap, so touching the pillar BODY of the same pipe
         returns False and falls through to normal pipe collision."""
         cart_cx = pipe.x + PIPE_W // 2
-        rail_y = pipe.rail_y
+        rail_y = pipe.gap_y + pipe.gap_h / 2
         left = cart_cx - self._CART_HALF_W
         right = cart_cx + self._CART_HALF_W
         top = rail_y - self._CART_TOP_OFF
@@ -3451,13 +3116,14 @@ class World:
 
         for i, p in enumerate(sorted_pipes):
             if p.x - 6 <= bx <= p.x + PIPE_W + 6:
-                rail_y = p.rail_y
+                rail_y = p.gap_y + p.gap_h / 2
                 self.bird.y = rail_y - offset
                 self.bird.vy = 0.0
                 if i + 1 < len(sorted_pipes):
                     nxt = sorted_pipes[i + 1]
                     self.bird.cart_tilt_deg = self._rail_slope_deg(
-                        p.x + PIPE_W, rail_y, nxt.x, nxt.rail_y)
+                        p.x + PIPE_W, rail_y,
+                        nxt.x, nxt.gap_y + nxt.gap_h / 2)
                 else:
                     self.bird.cart_tilt_deg = 0.0
                 return
@@ -3467,8 +3133,8 @@ class World:
             if p1.x + PIPE_W <= bx <= p2.x:
                 span = max(1, p2.x - (p1.x + PIPE_W))
                 t = (bx - (p1.x + PIPE_W)) / span
-                y1 = p1.rail_y
-                y2 = p2.rail_y
+                y1 = p1.gap_y + p1.gap_h / 2
+                y2 = p2.gap_y + p2.gap_h / 2
                 self.bird.y = (y1 + (y2 - y1) * t) - offset
                 self.bird.vy = 0.0
                 self.bird.cart_tilt_deg = self._rail_slope_deg(
@@ -3499,19 +3165,12 @@ class World:
         self.bird.cart_active = False
         self.bird.cart_locked = False
         self.bird.cart_tilt_deg = 0.0
+        self.rail_cart_pipe = None
         if was_locked:
-            # Leave the cart parked where the ride ended (nearest rail pillar) so
-            # it stays in place and scrolls off with the world instead of
-            # vanishing. cart_active is False now, so it can't re-lock Pip.
-            self.rail_cart_pipe = min(
-                self.rail_pipes, key=lambda p: abs(p.x - self.bird.x),
-                default=None)
             sign = -1 if self.reverse_timer > 0 else 1
             self.bird.vy = FLAP_V * sign
             self.bird.flap_boost = 0.45
             audio.play_flap()
-        else:
-            self.rail_cart_pipe = None
 
     def _apply_lottery_result(self):
         anim = self.lottery_anim
@@ -3561,7 +3220,6 @@ class World:
         deltas = {t[0]: t[2] for t in LOTTERY_TIERS}
         tier = random.choices(labels, weights=weights, k=1)[0]
         delta = deltas[tier]
-        self._lottery_pulled = True   # Wall of Shame: "Lottery Loser" trigger
         self.lottery_anim = {
             "t": 0.0,
             "tier": tier,
