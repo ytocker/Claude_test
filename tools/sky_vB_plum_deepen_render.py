@@ -8,7 +8,7 @@ hue clash for a taste change.
 
     python tools/sky_vB_plum_deepen_render.py
 
-Output: docs/sky_transition/vB_plum_deepen/round_1.png
+Output: docs/sky_transition/vB_plum_deepen/round_2.png
 """
 import os
 import sys
@@ -29,16 +29,19 @@ from game.biome_sky import BiomeSpec, paint_sky                    # noqa: E402
 from game.config import W, H, GROUND_Y                             # noqa: E402
 
 
-# Each sky_bot is its own phase's sky_mid rotated ~15% down in luminance with
-# the Blue channel lifted past Green — the small B-over-G margin is what reads
-# as plum rather than rose, and it is why v3's near-monochrome oxblood looked
-# muddy while a mere darkening of sky_mid would look flat. Horizon repeats the
-# same colour a step brighter with a touch more Red, so the last band still
-# carries a warm sunset accent instead of dying into the base.
+# Every sky_bot sits well below its own sky_mid in luminance and carries Blue
+# a clear 38–49 points above Green. That B-over-G margin is the whole point of
+# this variant: a narrower one collapses back into the live rose base, and a
+# straight darkening of sky_mid would read flat rather than plum. The arc also
+# rotates as it falls — Red still leads Blue at 0.42, they meet at 0.47, and
+# Blue overtakes Red by 0.52, so dusk lands on violet-plum instead of oxblood.
+# Horizon trails each base a step brighter and warmer so the last band keeps a
+# sunset accent, and the 0.42 base holds ~1.75:1 against BIRD_RED so the parrot
+# never sinks into it.
 _OVERRIDES = {
-    0.42: dict(sky_bot=(189, 63, 93), horizon=(202, 69, 86)),
-    0.47: dict(sky_bot=(100, 50, 76), horizon=(110, 54, 70)),
-    0.52: dict(sky_bot=( 56, 34, 72), horizon=( 66, 40, 66)),
+    0.42: dict(sky_bot=(155, 52, 92), horizon=(172, 59, 78)),
+    0.47: dict(sky_bot=( 92, 46, 84), horizon=(110, 54, 70)),
+    0.52: dict(sky_bot=( 50, 31, 80), horizon=( 66, 40, 66)),
 }
 
 _KF = []
@@ -99,7 +102,7 @@ def main():
     f_phase = pygame.font.SysFont("dejavusans", 11)
 
     title = f_title.render(
-        "vB_plum_deepen — warm rose zenith sinking into a deep rose-plum base "
+        "vB_plum_deepen (round 2) — warm rose zenith sinking into a deep violet-plum base "
         "(sky_bot + horizon, phases 0.42 / 0.47 / 0.52 only)", True, TEXT_HI)
     canvas.blit(title, (canvas_w // 2 - title.get_width() // 2, 12))
 
@@ -136,7 +139,7 @@ def main():
         ph_lbl = f_phase.render(f"phase {phase}", True, TEXT_LO)
         canvas.blit(ph_lbl, (x + PANEL_W // 2 - ph_lbl.get_width() // 2, fy + 36))
 
-    out = os.path.join(_ROOT, "docs", "sky_transition", "vB_plum_deepen", "round_1.png")
+    out = os.path.join(_ROOT, "docs", "sky_transition", "vB_plum_deepen", "round_2.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(canvas, out)
     print(f"wrote {out}  ({canvas.get_width()}×{canvas.get_height()})")
