@@ -4,7 +4,7 @@ Only sky_bot and horizon differ from live ALPINE_HAZE at phases 0.42–0.52.
 
     python tools/sky_vD_ember_fade_render.py
 
-Output: docs/sky_transition/vD_ember_fade/round_1.png
+Output: docs/sky_transition/vD_ember_fade/round_2.png
 """
 import os
 import sys
@@ -35,10 +35,17 @@ from game.config import W, H, GROUND_Y                             # noqa: E402
 # bottom-up, night therefore arrives at the horizon before it arrives overhead,
 # which is both the dramatic read we want and how dusk actually behaves once the
 # sun is below the horizon line.
+#
+# Round 2 retunes the two outer stops. 0.42 was bright enough to flatten the
+# gradient against sky_mid and to crowd the bird's red silhouette, so it drops
+# to a ~39% falloff that both restores the vertical read and clears the
+# contrast gate. 0.52 rises slightly so the late-dusk base never sinks below
+# the 0.56 night floor — night should be the darkest thing on the strip. 0.47
+# is the anchor of the whole ramp and is deliberately untouched.
 _OVERRIDES = {
-    0.42: dict(sky_bot=(206, 66, 110), horizon=(216, 70, 102)),
+    0.42: dict(sky_bot=(174, 52, 106), horizon=(185, 58, 112)),
     0.47: dict(sky_bot=( 74, 44,  78), horizon=( 90, 50,  76)),
-    0.52: dict(sky_bot=( 38, 33,  68), horizon=( 46, 37,  68)),
+    0.52: dict(sky_bot=( 44, 42,  70), horizon=( 50, 45,  72)),
 }
 
 _KF = []
@@ -98,7 +105,7 @@ def main():
     f_label = pygame.font.SysFont("dejavusans", 13, bold=True)
     f_phase = pygame.font.SysFont("dejavusans", 11)
 
-    title = f_title.render("vD_ember_fade — night bleeds up from the horizon", True, TEXT_HI)
+    title = f_title.render("vD_ember_fade v2 (round 2) — night bleeds up from the horizon", True, TEXT_HI)
     canvas.blit(title, (canvas_w // 2 - title.get_width() // 2, 12))
 
     ground_frac = GROUND_Y / H
@@ -128,7 +135,7 @@ def main():
         ph_lbl = f_phase.render(f"phase {phase}", True, TEXT_LO)
         canvas.blit(ph_lbl, (x + PANEL_W // 2 - ph_lbl.get_width() // 2, fy + 36))
 
-    out = os.path.join(_ROOT, "docs", "sky_transition", "vD_ember_fade", "round_1.png")
+    out = os.path.join(_ROOT, "docs", "sky_transition", "vD_ember_fade", "round_2.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(canvas, out)
     print(f"wrote {out}  ({canvas.get_width()}×{canvas.get_height()})")
