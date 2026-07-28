@@ -17,7 +17,9 @@ import pygame
 
 from game.parrot import (
     SPRITE_W, SPRITE_H,
-    _WING_ANGLES, _build_frame, _build_fried_frame, _add_outline,
+    _WING_ANGLES, _H_HURT_ANGLES,
+    _build_frame, _build_fried_frame, _add_outline,
+    _h_build_hurt_frame, _fh_build_hurt_frame,
     _cyan_tint_in_place,
 )
 from game.draw import COIN_GOLD, COIN_DARK, WHITE, NEAR_BLACK
@@ -443,6 +445,55 @@ def build_ghost_hat_frames() -> list:
         ))
         for a in _WING_ANGLES
     ]
+
+
+def build_hat_hurt_frames() -> list:
+    """Normal stovepipe + last-life dressings (ace-headwrap, bandaids, etc.)."""
+    return [
+        _add_outline(_build_combo_frame(_h_build_hurt_frame(a), draw_stovepipe))
+        for a in _H_HURT_ANGLES
+    ]
+
+
+def build_hat_first_hit_frames() -> list:
+    """Normal stovepipe + first-hit dressings (bandaids + single crack)."""
+    return [
+        _add_outline(_build_combo_frame(_fh_build_hurt_frame(a), draw_stovepipe))
+        for a in _H_HURT_ANGLES
+    ]
+
+
+def build_ghost_hat_hurt_frames() -> list:
+    """Ghost stovepipe + last-life dressings on a spectral parrot."""
+    from game.dollar_parrot_ghost import _build_parrot_with_palette, P_SPECTRAL, _draw_lenses
+    from game.parrot import (
+        _h_draw_bandaids, _h_draw_headwrap, _h_draw_chest_dressing,
+        _h_draw_ragged_cuts, _h_draw_cracked_lens,
+    )
+    frames = []
+    for a in _H_HURT_ANGLES:
+        base = _build_parrot_with_palette(a, P_SPECTRAL, draw_lenses=False)
+        _h_draw_bandaids(base)
+        _h_draw_headwrap(base)
+        _draw_lenses(base, 50, 20, P_SPECTRAL)
+        _h_draw_chest_dressing(base)
+        _h_draw_ragged_cuts(base)
+        _h_draw_cracked_lens(base)
+        frames.append(_add_outline(_build_combo_frame(base, draw_stovepipe_ghost)))
+    return frames
+
+
+def build_ghost_hat_first_hit_frames() -> list:
+    """Ghost stovepipe + first-hit dressings on a spectral parrot."""
+    from game.dollar_parrot_ghost import _build_parrot_with_palette, P_SPECTRAL
+    from game.parrot import _h_draw_bandaids, _fh_draw_single_crack
+    frames = []
+    for a in _H_HURT_ANGLES:
+        base = _build_parrot_with_palette(a, P_SPECTRAL)
+        _h_draw_bandaids(base)
+        _fh_draw_single_crack(base)
+        frames.append(_add_outline(_build_combo_frame(base, draw_stovepipe_ghost)))
+    return frames
 
 
 def build_kfc_ghost_hat_frames() -> list:

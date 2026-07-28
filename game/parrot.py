@@ -1090,6 +1090,128 @@ def get_first_hit_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
     return s
 
 
+# ── Ghost + last-life ─────────────────────────────────────────────────────────
+
+def _build_ghost_hurt_frame(angle_deg: float) -> pygame.Surface:
+    from game.dollar_parrot_ghost import _build_parrot_with_palette, P_SPECTRAL, _draw_lenses
+    base = _build_parrot_with_palette(angle_deg, P_SPECTRAL, draw_lenses=False)
+    _h_draw_bandaids(base)
+    _h_draw_headwrap(base)
+    _draw_lenses(base, 50, 20, P_SPECTRAL)
+    _h_draw_chest_dressing(base)
+    _h_draw_ragged_cuts(base)
+    _h_draw_cracked_lens(base)
+    return base
+
+
+_ghost_hurt_frames: list | None = None
+_ghost_hurt_cache: dict = {}
+
+
+def _get_ghost_hurt_frames() -> list:
+    global _ghost_hurt_frames
+    if _ghost_hurt_frames is None:
+        _ghost_hurt_frames = [_add_outline(_build_ghost_hurt_frame(a)) for a in _H_HURT_ANGLES]
+    return _ghost_hurt_frames
+
+
+def get_ghost_hurt_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    frames = _get_ghost_hurt_frames()
+    key = (frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _ghost_hurt_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _ghost_hurt_cache[key] = s
+    return s
+
+
+# ── Ghost + first-hit ─────────────────────────────────────────────────────────
+
+def _build_ghost_fh_frame(angle_deg: float) -> pygame.Surface:
+    from game.dollar_parrot_ghost import _build_parrot_with_palette, P_SPECTRAL
+    base = _build_parrot_with_palette(angle_deg, P_SPECTRAL)
+    _h_draw_bandaids(base)
+    _fh_draw_single_crack(base)
+    return base
+
+
+_ghost_fh_frames: list | None = None
+_ghost_fh_cache: dict = {}
+
+
+def _get_ghost_fh_frames() -> list:
+    global _ghost_fh_frames
+    if _ghost_fh_frames is None:
+        _ghost_fh_frames = [_add_outline(_build_ghost_fh_frame(a)) for a in _H_HURT_ANGLES]
+    return _ghost_fh_frames
+
+
+def get_ghost_first_hit_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    frames = _get_ghost_fh_frames()
+    key = (frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _ghost_fh_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _ghost_fh_cache[key] = s
+    return s
+
+
+# ── Grow + last-life ──────────────────────────────────────────────────────────
+
+def _build_grow_hurt_frame(angle_deg: float) -> pygame.Surface:
+    return pygame.transform.smoothscale(
+        _add_outline(_h_build_hurt_frame(angle_deg)), (_GROW_W, _GROW_H))
+
+
+_grow_hurt_frames: list | None = None
+_grow_hurt_cache: dict = {}
+
+
+def _get_grow_hurt_frames() -> list:
+    global _grow_hurt_frames
+    if _grow_hurt_frames is None:
+        _grow_hurt_frames = [_build_grow_hurt_frame(a) for a in _H_HURT_ANGLES]
+    return _grow_hurt_frames
+
+
+def get_grow_hurt_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    frames = _get_grow_hurt_frames()
+    key = (frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _grow_hurt_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _grow_hurt_cache[key] = s
+    return s
+
+
+# ── Grow + first-hit ──────────────────────────────────────────────────────────
+
+def _build_grow_fh_frame(angle_deg: float) -> pygame.Surface:
+    return pygame.transform.smoothscale(
+        _add_outline(_fh_build_hurt_frame(angle_deg)), (_GROW_W, _GROW_H))
+
+
+_grow_fh_frames: list | None = None
+_grow_fh_cache: dict = {}
+
+
+def _get_grow_fh_frames() -> list:
+    global _grow_fh_frames
+    if _grow_fh_frames is None:
+        _grow_fh_frames = [_build_grow_fh_frame(a) for a in _H_HURT_ANGLES]
+    return _grow_fh_frames
+
+
+def get_grow_first_hit_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    frames = _get_grow_fh_frames()
+    key = (frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _grow_fh_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _grow_fh_cache[key] = s
+    return s
+
+
 def __getattr__(name: str):
     """Lazy module attribute: external code reading `parrot.FRAMES`
     triggers the build on first access. Keeps the previous public API
@@ -1411,6 +1533,98 @@ def get_ghost_hat_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
     if s is None:
         s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
         _ghost_hat_cache[key] = s
+    return s
+
+
+# triple + last-life — stovepipe hat + ace-headwrap dressings
+_hat_hurt_frames: "list | None" = None
+_hat_hurt_cache: dict = {}
+
+
+def _ensure_hat_hurt_frames():
+    global _hat_hurt_frames
+    if _hat_hurt_frames is None:
+        from game.dollar_parrot_hat import build_hat_hurt_frames
+        _hat_hurt_frames = build_hat_hurt_frames()
+    return _hat_hurt_frames
+
+
+def get_hat_hurt_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    frames = _ensure_hat_hurt_frames()
+    key = (frame_idx % len(frames), int(round(tilt_deg / 3.0)) * 3)
+    s = _hat_hurt_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _hat_hurt_cache[key] = s
+    return s
+
+
+# triple + first-hit — stovepipe hat + bandaids + single crack
+_hat_fh_frames: "list | None" = None
+_hat_fh_cache: dict = {}
+
+
+def _ensure_hat_fh_frames():
+    global _hat_fh_frames
+    if _hat_fh_frames is None:
+        from game.dollar_parrot_hat import build_hat_first_hit_frames
+        _hat_fh_frames = build_hat_first_hit_frames()
+    return _hat_fh_frames
+
+
+def get_hat_first_hit_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    frames = _ensure_hat_fh_frames()
+    key = (frame_idx % len(frames), int(round(tilt_deg / 3.0)) * 3)
+    s = _hat_fh_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _hat_fh_cache[key] = s
+    return s
+
+
+# ghost + triple + last-life — ghost stovepipe + spectral parrot + dressings
+_ghost_hat_hurt_frames: "list | None" = None
+_ghost_hat_hurt_cache: dict = {}
+
+
+def _ensure_ghost_hat_hurt_frames():
+    global _ghost_hat_hurt_frames
+    if _ghost_hat_hurt_frames is None:
+        from game.dollar_parrot_hat import build_ghost_hat_hurt_frames
+        _ghost_hat_hurt_frames = build_ghost_hat_hurt_frames()
+    return _ghost_hat_hurt_frames
+
+
+def get_ghost_hat_hurt_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    frames = _ensure_ghost_hat_hurt_frames()
+    key = (frame_idx % len(frames), int(round(tilt_deg / 3.0)) * 3)
+    s = _ghost_hat_hurt_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _ghost_hat_hurt_cache[key] = s
+    return s
+
+
+# ghost + triple + first-hit — ghost stovepipe + spectral parrot + first-hit dressings
+_ghost_hat_fh_frames: "list | None" = None
+_ghost_hat_fh_cache: dict = {}
+
+
+def _ensure_ghost_hat_fh_frames():
+    global _ghost_hat_fh_frames
+    if _ghost_hat_fh_frames is None:
+        from game.dollar_parrot_hat import build_ghost_hat_first_hit_frames
+        _ghost_hat_fh_frames = build_ghost_hat_first_hit_frames()
+    return _ghost_hat_fh_frames
+
+
+def get_ghost_hat_first_hit_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    frames = _ensure_ghost_hat_fh_frames()
+    key = (frame_idx % len(frames), int(round(tilt_deg / 3.0)) * 3)
+    s = _ghost_hat_fh_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _ghost_hat_fh_cache[key] = s
     return s
 
 
