@@ -1010,6 +1010,86 @@ def get_hurt_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
     return s
 
 
+# ── First-hit parrot (lives_remaining == 1) ──────────────────────────────────
+
+def _fh_draw_single_crack(surf: pygame.Surface) -> None:
+    """One hairline crack on the left lens — centre to lower-right rim only."""
+    pygame.draw.line(surf, _H_CRACK, (45, 21), (47, 26), 1)
+
+
+def _fh_build_hurt_frame(wing_angle_deg: float) -> pygame.Surface:
+    """First-hit variant: bandaids + single lens crack, nothing else."""
+    surf = pygame.Surface((64, 60), pygame.SRCALPHA)
+    d = pygame.draw
+
+    BODY    = (205,  28,  28)
+    BODY_SH = (130,  12,  12)
+    CHEST   = (235,  80,  80)
+    BELLY   = (215, 140,  45)
+    BEAK    = (235, 168,   0)
+    BEAK_LO = (205, 138,   0)
+    BEAK_D  = (140,  92,   0)
+
+    _h_draw_tail(surf)
+
+    _aaellipse(surf, BODY_SH, (34, 35), 19, 14)
+    _aaellipse(surf, BODY,    (32, 32), 19, 14)
+    _aaellipse(surf, CHEST,   (30, 29), 13,  8)
+    _aaellipse(surf, BELLY,   (28, 38), 12,  6)
+
+    sheen = pygame.Surface((28, 6), pygame.SRCALPHA)
+    d.ellipse(sheen, (205, 150, 150, 120), sheen.get_rect())
+    surf.blit(sheen, (22, 21))
+
+    wing = _h_build_wing(wing_angle_deg)
+    surf.blit(wing, wing.get_rect(center=(34, 28)).topleft)
+
+    _h_draw_bandaids(surf)
+
+    _aaellipse(surf, (155, 15, 20),   (48, 24), 12, 11)
+    _aaellipse(surf, BODY,            (47, 22), 12, 11)
+    _aaellipse(surf, (200, 90, 90),   (44, 24),  4,  3)
+    _aaellipse(surf, (230, 140, 140), (46, 17),  7,  3)
+
+    _h_draw_sunglasses(surf, 50, 20)
+    _fh_draw_single_crack(surf)
+
+    upper = [(55, 21), (61, 24), (58, 26), (52, 25)]
+    lower = [(52, 26), (58, 27), (59, 30), (54, 31)]
+    d.polygon(surf, BEAK,    upper)
+    d.polygon(surf, BEAK_D,  upper, 1)
+    d.polygon(surf, BEAK_LO, lower)
+    d.polygon(surf, BEAK_D,  lower, 1)
+    d.line(surf, (255, 220, 100), (55, 22), (59, 24), 1)
+
+    d.line(surf, BEAK_D, (28, 45), (26, 49), 2)
+    d.line(surf, BEAK_D, (34, 45), (36, 49), 2)
+
+    return surf
+
+
+_fh_frames: list | None = None
+_fh_rot_cache: dict = {}
+
+
+def _get_fh_frames() -> list:
+    global _fh_frames
+    if _fh_frames is None:
+        _fh_frames = [_add_outline(_fh_build_hurt_frame(a)) for a in _H_HURT_ANGLES]
+    return _fh_frames
+
+
+def get_first_hit_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Return first-hit parrot (bandaids + single crack), cached by (frame, rounded-angle)."""
+    frames = _get_fh_frames()
+    key = (frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _fh_rot_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _fh_rot_cache[key] = s
+    return s
+
+
 def __getattr__(name: str):
     """Lazy module attribute: external code reading `parrot.FRAMES`
     triggers the build on first access. Keeps the previous public API

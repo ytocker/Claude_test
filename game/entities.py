@@ -530,6 +530,7 @@ class Bird:
         # half of each LIVES_FLICKER_HZ period while lives_invuln > 0.
         self.lives_flicker_visible = True
         self.on_last_life = False
+        self.on_first_hit = False
 
         # Weather event state (visual-only):
         #   wind_lean       — rightward x-offset under the predawn tailwind
@@ -690,6 +691,8 @@ class Bird:
             img = parrot.get_grow_parrot(frame_idx, tilt)
         elif self.on_last_life:
             img = parrot.get_hurt_parrot(frame_idx, tilt)
+        elif self.on_first_hit:
+            img = parrot.get_first_hit_parrot(frame_idx, tilt)
         else:
             img = parrot.get_parrot(frame_idx, tilt)
         # POISON — generic chartreuse tint over whichever skin the cascade
