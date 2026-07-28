@@ -162,6 +162,49 @@ def render_cell(lives_state: str, effect: str) -> pygame.Surface:
         cell.blit(par, par.get_rect(center=(CELL_W // 2, BIRD_Y + 12)))
         return cell
 
+    # Ghost + Triple + lives: spectral blue base + lives dressings + ghost hat + tint + parcel.
+    # Same pattern as ghost+lives but parrot is composited onto a taller canvas before the hat.
+    if effect == "ghost_triple" and lives_state != "clean":
+        import numpy as np
+        import pygame.surfarray as sa
+        from game.dollar_parrot_ghost import _build_parrot_with_palette, P_SPECTRAL, _draw_lenses
+        from game.dollar_parrot_hat import (
+            draw_stovepipe_ghost, COMPOSITE_W, COMPOSITE_H, PARROT_DY, HAT_HX, HAT_HY,
+        )
+        from game.parrot import (
+            _h_draw_bandaids, _h_draw_headwrap, _h_draw_chest_dressing,
+            _h_draw_cracked_lens, _h_draw_ragged_cuts,
+            _fh_draw_single_crack, _add_outline, get_parcel,
+        )
+        if lives_state == "last_life":
+            base = _build_parrot_with_palette(10.0, P_SPECTRAL, draw_lenses=False)
+            _h_draw_bandaids(base)
+            _h_draw_headwrap(base)
+            _draw_lenses(base, 50, 20, P_SPECTRAL)
+            _h_draw_chest_dressing(base)
+            _h_draw_ragged_cuts(base)
+            _h_draw_cracked_lens(base)
+        else:  # first_hit
+            base = _build_parrot_with_palette(10.0, P_SPECTRAL)
+            _h_draw_bandaids(base)
+            _fh_draw_single_crack(base)
+        canvas = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+        canvas.blit(base, (0, PARROT_DY))
+        draw_stovepipe_ghost(canvas, HAT_HX, HAT_HY)
+        img = _add_outline(canvas)
+        arr = sa.pixels3d(img)
+        target = np.array([140, 200, 230], dtype=np.float32)
+        arr[:] = (arr.astype(np.float32) * 0.60 + target * 0.40).clip(0, 255).astype(np.uint8)
+        del arr
+        img.set_alpha(170)
+        cell = pygame.Surface((CELL_W, CELL_H))
+        fill_sky(cell)
+        cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
+        par = get_parcel("ghost").copy()
+        par.set_alpha(170)
+        cell.blit(par, par.get_rect(center=(CELL_W // 2, BIRD_Y + 12)))
+        return cell
+
     # Triple (hat) + lives skin: build composite with lives sprite + stovepipe hat.
     # Uses the same canvas layout as build_hat_frames in dollar_parrot_hat.py.
     if effect == "triple" and lives_state != "clean":
