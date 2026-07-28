@@ -1,4 +1,4 @@
-"""ALPINE_HAZE fine-tune vE_magenta_mist — cool-purple floor under the rose arc.
+"""ALPINE_HAZE fine-tune vE_magenta_mist — magenta-violet afterglow floor (v2).
 
 Only sky_bot and horizon differ from live ALPINE_HAZE, and only across the
 three sunset-arc phases where the shipped orange base fights the rose/plum
@@ -6,7 +6,7 @@ above it. Every other phase is inherited verbatim.
 
     python tools/sky_vE_magenta_mist_render.py
 
-Output: docs/sky_transition/vE_magenta_mist/round_1.png
+Output: docs/sky_transition/vE_magenta_mist/round_2.png
 """
 import os
 import sys
@@ -31,16 +31,19 @@ from game.config import W, H, GROUND_Y                             # noqa: E402
 # star_alpha, SkyParams, all non-sunset phases) is inherited untouched, so any
 # visual delta on the sheet is attributable to these two stops alone.
 #
-# The concept is a raised Blue channel rather than a lowered Value: sky_bot
-# keeps sky_mid's magenta family but swings ~20-60 hue degrees toward violet,
-# which is what kills the orange clash without draining the band to oxblood.
-# It stays only ~9-11% below sky_mid in luminance so the arc still reads bright.
-# horizon sits a few degrees warmer and a touch lighter than sky_bot, so the
-# bottom strip carries its own warm-to-cool fall inside the last few pixels.
+# Real afterglow scatters toward the viewer, so the band nearest the ground is
+# the brightest and the *least* saturated part of the arc — hazier, not denser.
+# sky_bot therefore sits above sky_mid in luminance at all three phases and runs
+# 8-18 saturation points under it, which is what separates this concept from a
+# plain darkened floor. The magenta-violet cast comes from a Blue channel held
+# far higher than the warm variants, and G-B stays negative everywhere so no
+# orange can creep back in against the plum above. horizon is nudged slightly
+# darker and more saturated than sky_bot to act as a bridge band, keeping the
+# last few pixels from flattening into the terrain silhouette.
 _OVERRIDES = {
-    0.42: dict(sky_bot=(200, 58, 120), horizon=(214, 70, 108)),
-    0.47: dict(sky_bot=(104, 48,  94), horizon=(114, 54,  84)),
-    0.52: dict(sky_bot=( 61, 35,  77), horizon=( 68, 40,  70)),
+    0.42: dict(sky_bot=(246, 126, 178), horizon=(238, 104, 152)),
+    0.47: dict(sky_bot=(126,  60, 112), horizon=(122,  58,  98)),
+    0.52: dict(sky_bot=( 74,  42,  88), horizon=( 74,  44,  80)),
 }
 
 _KF = []
@@ -54,7 +57,7 @@ for phase, d in _ALPINE_HAZE_KF:
 
 SPEC = BiomeSpec(
     name='alpine_haze_vE_magenta_mist',
-    note='vE magenta mist - jewel-toned magenta-violet base, warm-to-cool inside the bottom strip',
+    note='vE magenta mist - brighter desaturated magenta-violet afterglow floor',
     keyframes=_KF,
     sky=ALPINE_HAZE.sky,
 )
@@ -101,7 +104,8 @@ def main():
     f_phase = pygame.font.SysFont("dejavusans", 11)
 
     title = f_title.render(
-        "vE_magenta_mist — magenta base with a cool-purple cast", True, TEXT_HI)
+        "vE_magenta_mist (round 2) — brighter, desaturated magenta-violet afterglow floor",
+        True, TEXT_HI)
     canvas.blit(title, (canvas_w // 2 - title.get_width() // 2, 12))
 
     ground_frac = GROUND_Y / H
@@ -131,7 +135,7 @@ def main():
         ph_lbl = f_phase.render(f"phase {phase}", True, TEXT_LO)
         canvas.blit(ph_lbl, (x + PANEL_W // 2 - ph_lbl.get_width() // 2, fy + 36))
 
-    out = os.path.join(_ROOT, "docs", "sky_transition", "vE_magenta_mist", "round_1.png")
+    out = os.path.join(_ROOT, "docs", "sky_transition", "vE_magenta_mist", "round_2.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(canvas, out)
     print(f"wrote {out}  ({canvas.get_width()}×{canvas.get_height()})")
