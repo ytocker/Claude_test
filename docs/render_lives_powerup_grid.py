@@ -20,7 +20,7 @@ pygame.display.set_mode((1, 1), pygame.NOFRAME)
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from game import parrot
+from game.entities import Bird
 
 # ── Grid geometry ─────────────────────────────────────────────────────────────
 
@@ -60,87 +60,6 @@ COLS = [
     ("Poison",    "poison"),
 ]
 
-# ── The draw cascade (from Bird.draw) reproduced here without full Bird import ─
-# Priority: kfc_ghost_triple > kfc_ghost > kfc_triple > ghost_triple >
-#           kfc > ghost > triple > grow > on_last_life > on_first_hit > clean
-# Post-cascade: poison tint, shrink scale, ghost alpha
-
-def _get_sprite(lives_state: str, effect: str, frame_idx: int = 1, tilt: float = 0.0) -> pygame.Surface:
-    """Return the final parrot sprite for (lives_state, effect) as Bird.draw would."""
-    GROW_SCALE = 1.5   # from game.config; used for grow upscale
-    SHRINK_VAL = 0.6   # fixed for the shrink demo
-
-    ghost_pulse = math.pi / 2   # peak ghost brightness
-    ghost_alpha = int(90 + 0.5 * (1 + math.sin(ghost_pulse)) * 80)  # ~170
-
-    kfc    = "kfc"    in effect
-    ghost  = "ghost"  in effect
-    triple = "triple" in effect
-    skate  = effect == "skateboard"
-    grow   = effect == "grow"
-    shrink = effect == "shrink"
-    poison = effect == "poison"
-
-    # Cascade — matches Bird.draw order (knight combos omitted; not a
-    # column in the grid).
-    if kfc and ghost and triple:
-        img = parrot.get_kfc_ghost_hat_parrot(frame_idx, tilt)
-    elif kfc and ghost:
-        img = parrot.get_kfc_ghost_parrot(frame_idx, tilt)
-    elif kfc and triple:
-        img = parrot.get_kfc_hat_parrot(frame_idx, tilt)
-    elif ghost and triple:
-        img = parrot.get_ghost_hat_parrot(frame_idx, tilt)
-    elif kfc:
-        img = parrot.get_fried_parrot(frame_idx, tilt)
-    elif ghost:
-        img = parrot.get_ghost_parrot(frame_idx, tilt)
-    elif triple:
-        img = parrot.get_hat_parrot(frame_idx, tilt)
-    elif grow:
-        img = parrot.get_grow_parrot(frame_idx, tilt)
-    elif lives_state == "last_life":
-        img = parrot.get_hurt_parrot(frame_idx, tilt)
-    elif lives_state == "first_hit":
-        img = parrot.get_first_hit_parrot(frame_idx, tilt)
-    else:
-        img = parrot.get_parrot(frame_idx, tilt)
-
-    # Skateboard: the cascade picks the parrot skin normally, but in-game
-    # the helmet+board are drawn on top and the parcel is suppressed. For
-    # the grid we show the underlying sprite (lives-state visible) so the
-    # viewer understands which parrot skin is beneath the helmet.
-    # Mark the cell with a label strip instead of trying to render the helmet
-    # outside the Bird context. In practice on the grid the underbird skin is
-    # visible — that's the accurate information.
-    if skate:
-        # Skateboard in-game: underlying parrot is the lives skin (cascade above).
-        # Re-run without skateboard flag (already done — skate is only post-effect).
-        pass  # img already set by lives cascade above
-
-    # Poison tint (BLEND_RGB_MULT over the silhouette)
-    if poison:
-        img = parrot.tint_copy(img, (180, 225, 75), 0.75)
-
-    # Grow upscale (combo grows use smoothscale)
-    if grow and (kfc or ghost or triple):
-        w, h = img.get_size()
-        img = pygame.transform.smoothscale(img, (int(w * GROW_SCALE), int(h * GROW_SCALE)))
-
-    # Shrink
-    if shrink:
-        sw, sh = img.get_size()
-        img = pygame.transform.smoothscale(
-            img, (max(1, int(sw * SHRINK_VAL)), max(1, int(sh * SHRINK_VAL))))
-
-    # Ghost alpha fade
-    if ghost:
-        img = img.copy()
-        img.set_alpha(ghost_alpha)
-
-    return img
-
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def fill_sky(surf: pygame.Surface):
@@ -157,20 +76,72 @@ def make_font(size: int, bold: bool = False) -> pygame.font.Font:
     return pygame.font.SysFont("dejavusans,arial,sans", size, bold=bold)
 
 
+BIRD_Y      = 46   # bird center y within cell — pushed up so board/parcel fit
+BOARD_EXTRA = 20   # extra cell height added when skateboard is active
+
+def configure_bird(b: Bird, lives_state: str, effect: str):
+    """Apply lives-state flags and power-up flags to a fresh Bird."""
+    from game.config import DEATH_FADE_DURATION
+    b.frame_t  = 1.0
+    b.x        = CELL_W / 2
+    b.y        = BIRD_Y
+    b.lives_flicker_visible = True
+
+    if lives_state == "first_hit":
+        b.on_first_hit = True
+    elif lives_state == "last_life":
+        b.on_last_life = True
+
+    if effect == "kfc":
+        b.kfc_active = True
+    elif effect == "ghost":
+        b.ghost_active = True
+        b.ghost_pulse  = math.pi / 2
+    elif effect == "triple":
+        b.triple_active = True
+    elif effect == "kfc_ghost":
+        b.kfc_active   = True
+        b.ghost_active = True
+        b.ghost_pulse  = math.pi / 2
+    elif effect == "kfc_triple":
+        b.kfc_active    = True
+        b.triple_active = True
+    elif effect == "ghost_triple":
+        b.ghost_active  = True
+        b.ghost_pulse   = math.pi / 2
+        b.triple_active = True
+    elif effect == "skateboard":
+        b.skateboard_active = True
+    elif effect == "grow":
+        b.grow_active = True
+    elif effect == "shrink":
+        b.shrink_active = True
+        b.shrink_scale  = 0.6
+    elif effect == "poison":
+        b.poison_active = True
+        b.poison_t      = 0.5
+        # Show the death cross-fade at 50% — the most visually distinct
+        # indicator of the poison effect (green dead-parrot fading in on
+        # top of the lives skin, exactly as the player sees it).
+        b.death_fade_t  = DEATH_FADE_DURATION * 0.5
+
+
 def render_cell(lives_state: str, effect: str) -> pygame.Surface:
-    cell = pygame.Surface((CELL_W, CELL_H))
+    # Skateboard board extends below the parcel y-offset; give it extra height
+    # so the wheels aren't clipped, then crop back to CELL_H for the canvas.
+    tall = CELL_H + (BOARD_EXTRA if effect == "skateboard" else 0)
+    cell = pygame.Surface((CELL_W, tall))
     fill_sky(cell)
 
-    img = _get_sprite(lives_state, effect)
-    r = img.get_rect(center=(CELL_W // 2, 52))
-    cell.blit(img, r.topleft)
+    b = Bird()
+    configure_bird(b, lives_state, effect)
+    b.draw(cell, 0, 0)
 
-    # Skateboard label strip
-    if effect == "skateboard":
-        font_tiny = make_font(8)
-        note = font_tiny.render("+ board", True, (240, 240, 120))
-        cell.blit(note, note.get_rect(centerx=CELL_W // 2, bottom=CELL_H - 4))
-
+    if tall > CELL_H:
+        # Crop to standard height — board is fully drawn within the tall buffer.
+        out = pygame.Surface((CELL_W, CELL_H))
+        out.blit(cell, (0, 0))
+        return out
     return cell
 
 
