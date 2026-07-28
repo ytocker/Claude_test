@@ -122,31 +122,44 @@ def configure_bird(b: Bird, lives_state: str, effect: str):
 def render_cell(lives_state: str, effect: str) -> pygame.Surface:
     from game import parrot as _parrot
 
-    # Ghost + lives skin: build_spectral_frame as the blue base (same as regular
-    # ghost), then add the lives-specific dressings on top — same pattern as
-    # build_ghost_hat_frames (spectral base + overlay added after).
+    # Ghost + lives skin: spectral blue base + lives dressings + ghost alpha.
+    # draw_lenses=False for last_life so the headwrap is drawn BEFORE the lenses,
+    # matching the draw order in _h_build_hurt_frame. Dressings are numpy-blended
+    # toward the spectral palette so warm earthy tones go ghostly. Parcel drawn
+    # separately (it is never part of any parrot sprite surface).
     if effect == "ghost" and lives_state != "clean":
-        from game.dollar_parrot_ghost import _build_parrot_with_palette, P_SPECTRAL
+        import numpy as np
+        import pygame.surfarray as sa
+        from game.dollar_parrot_ghost import _build_parrot_with_palette, P_SPECTRAL, _draw_lenses
         from game.parrot import (
             _h_draw_bandaids, _h_draw_headwrap, _h_draw_chest_dressing,
             _h_draw_cracked_lens, _h_draw_ragged_cuts,
-            _fh_draw_single_crack, _add_outline,
+            _fh_draw_single_crack, _add_outline, get_parcel,
         )
-        base = _build_parrot_with_palette(10.0, P_SPECTRAL)
         if lives_state == "last_life":
+            base = _build_parrot_with_palette(10.0, P_SPECTRAL, draw_lenses=False)
             _h_draw_bandaids(base)
             _h_draw_headwrap(base)
+            _draw_lenses(base, 50, 20, P_SPECTRAL)
             _h_draw_chest_dressing(base)
             _h_draw_ragged_cuts(base)
             _h_draw_cracked_lens(base)
-        else:  # first_hit
+        else:  # first_hit — no headwrap, lens draw order is fine
+            base = _build_parrot_with_palette(10.0, P_SPECTRAL)
             _h_draw_bandaids(base)
             _fh_draw_single_crack(base)
         img = _add_outline(base)
+        arr = sa.pixels3d(img)
+        target = np.array([140, 200, 230], dtype=np.float32)
+        arr[:] = (arr.astype(np.float32) * 0.60 + target * 0.40).clip(0, 255).astype(np.uint8)
+        del arr
         img.set_alpha(170)
         cell = pygame.Surface((CELL_W, CELL_H))
         fill_sky(cell)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
+        par = get_parcel("ghost").copy()
+        par.set_alpha(170)
+        cell.blit(par, par.get_rect(center=(CELL_W // 2, BIRD_Y + 12)))
         return cell
 
     # Triple (hat) + lives skin: build composite with lives sprite + stovepipe hat.
