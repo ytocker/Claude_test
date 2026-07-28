@@ -830,8 +830,8 @@ def draw_cloud_cinnabar(surf, x, y, palette, scale=1.0):
 
 # Active rotation. Each run picks one variant at random (scenes/intro use
 # random.randrange(VARIANT_COUNT)); nothing persists a variant id, so retiring one
-# and letting the rest renumber is safe. draw_ruyi_deco is kept defined but pulled
-# from the rotation (retired by user request).
-_VARIANTS = (draw_cloud_ruyi, draw_ruyi_dragon, draw_ruyi_mandala,
-             draw_cloud_origami, draw_cloud_cinnabar)
+# and letting the rest renumber is safe. All designs are kept defined above for
+# easy re-activation — add them back to the tuple to restore them.
+# Currently pinned to the mandala design (user request).
+_VARIANTS = (draw_ruyi_mandala,)
 VARIANT_COUNT = len(_VARIANTS)
