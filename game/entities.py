@@ -28,7 +28,7 @@ from game.draw import (
 )
 from game import parrot
 from game import snow_fx
-from game.pillar_variants import draw_pillar_pair
+from game.pillar_pagodas import draw_pillar_pair
 from game.dollar_coin_glyphs import draw_coin_font_bold as _draw_dollar_coin
 from game.surprise_box_variants import draw_cross as _draw_surprise_box
 
