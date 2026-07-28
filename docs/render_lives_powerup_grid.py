@@ -120,13 +120,57 @@ def configure_bird(b: Bird, lives_state: str, effect: str):
 
 
 def render_cell(lives_state: str, effect: str) -> pygame.Surface:
-    # Poison always shows the terminal chartreuse-dead state regardless of
-    # lives phase — that's what the player sees when the effect completes.
-    if effect == "poison":
-        from game import parrot as _parrot
+    from game import parrot as _parrot
+
+    # Ghost + lives skin: lives sprite at ghost alpha (170 at pulse=π/2).
+    # In-game ghost pre-empts the lives cascade; here we show the theoretical combo.
+    if effect == "ghost" and lives_state != "clean":
+        img_fn = _parrot.get_hurt_parrot if lives_state == "last_life" \
+                 else _parrot.get_first_hit_parrot
+        img = img_fn(1, 0.0).copy()
+        img.set_alpha(170)
         cell = pygame.Surface((CELL_W, CELL_H))
         fill_sky(cell)
-        img = _parrot.get_poisoned_parrot(1, 0.0)
+        cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
+        return cell
+
+    # Triple (hat) + lives skin: build composite with lives sprite + stovepipe hat.
+    # Uses the same canvas layout as build_hat_frames in dollar_parrot_hat.py.
+    if effect == "triple" and lives_state != "clean":
+        from game.parrot import _h_build_hurt_frame, _fh_build_hurt_frame, _add_outline
+        from game.dollar_parrot_hat import (
+            draw_stovepipe, COMPOSITE_W, COMPOSITE_H, PARROT_DY, HAT_HX, HAT_HY,
+        )
+        raw_fn = _h_build_hurt_frame if lives_state == "last_life" \
+                 else _fh_build_hurt_frame
+        raw = raw_fn(10.0)  # wing angle 10° = hero frame
+        canvas = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
+        canvas.blit(raw, (0, PARROT_DY))
+        draw_stovepipe(canvas, HAT_HX, HAT_HY)
+        img = _add_outline(canvas)
+        cell = pygame.Surface((CELL_W, CELL_H))
+        fill_sky(cell)
+        cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
+        return cell
+
+    # Poison: clean row → terminal chartreuse-dead sprite; lives rows → chartreuse tint.
+    # tint_copy's BLEND_RGBA_MIN approach can't raise the G channel on a red body
+    # (clamps at sprite's G≈40), so direct surfarray interpolation is used instead.
+    if effect == "poison":
+        cell = pygame.Surface((CELL_W, CELL_H))
+        fill_sky(cell)
+        if lives_state == "clean":
+            img = _parrot.get_poisoned_parrot(1, 0.0)
+        else:
+            import numpy as np
+            import pygame.surfarray as sa
+            img_fn = _parrot.get_hurt_parrot if lives_state == "last_life" \
+                     else _parrot.get_first_hit_parrot
+            img = img_fn(1, 0.0).copy()
+            arr = sa.pixels3d(img)
+            target = np.array([180, 225, 75], dtype=np.float32)
+            arr[:] = (arr.astype(np.float32) * 0.3 + target * 0.7).clip(0, 255).astype(np.uint8)
+            del arr
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
         return cell
 
