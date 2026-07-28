@@ -254,7 +254,7 @@ def render_cell(lives_state: str, effect: str) -> pygame.Surface:
             img = _parrot.get_poisoned_parrot(1, 0.0)
         else:
             from game.dollar_parrot_ghost import _build_parrot_with_palette
-            from game.dollar_parrot_dead import P_CHARTREUSE
+            from game.dollar_parrot_dead import P_CHARTREUSE, _draw_b_x_eyes
             from game.parrot import (
                 _h_draw_bandaids, _h_draw_headwrap, _h_draw_chest_dressing,
                 _h_draw_cracked_lens, _h_draw_ragged_cuts,
@@ -271,6 +271,7 @@ def render_cell(lives_state: str, effect: str) -> pygame.Surface:
                 base = _build_parrot_with_palette(10.0, P_CHARTREUSE, draw_lenses=False)
                 _h_draw_bandaids(base)
                 _fh_draw_single_crack(base)
+            _draw_b_x_eyes(base)
             img = _add_outline(base)
             cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
             return cell
