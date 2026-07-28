@@ -81,7 +81,6 @@ BOARD_EXTRA = 20   # extra cell height added when skateboard is active
 
 def configure_bird(b: Bird, lives_state: str, effect: str):
     """Apply lives-state flags and power-up flags to a fresh Bird."""
-    from game.config import DEATH_FADE_DURATION
     b.frame_t  = 1.0
     b.x        = CELL_W / 2
     b.y        = BIRD_Y
@@ -117,16 +116,20 @@ def configure_bird(b: Bird, lives_state: str, effect: str):
     elif effect == "shrink":
         b.shrink_active = True
         b.shrink_scale  = 0.6
-    elif effect == "poison":
-        b.poison_active = True
-        b.poison_t      = 0.5
-        # Show the death cross-fade at 50% — the most visually distinct
-        # indicator of the poison effect (green dead-parrot fading in on
-        # top of the lives skin, exactly as the player sees it).
-        b.death_fade_t  = DEATH_FADE_DURATION * 0.5
+    # poison: no Bird flags — handled directly via get_poisoned_parrot
 
 
 def render_cell(lives_state: str, effect: str) -> pygame.Surface:
+    # Poison always shows the terminal chartreuse-dead state regardless of
+    # lives phase — that's what the player sees when the effect completes.
+    if effect == "poison":
+        from game import parrot as _parrot
+        cell = pygame.Surface((CELL_W, CELL_H))
+        fill_sky(cell)
+        img = _parrot.get_poisoned_parrot(1, 0.0)
+        cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
+        return cell
+
     # Skateboard board extends below the parcel y-offset; give it extra height
     # so the wheels aren't clipped, then crop back to CELL_H for the canvas.
     tall = CELL_H + (BOARD_EXTRA if effect == "skateboard" else 0)
