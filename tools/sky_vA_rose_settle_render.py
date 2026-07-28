@@ -4,7 +4,7 @@ Only sky_bot and horizon differ from live ALPINE_HAZE at phases 0.42–0.52.
 
     python tools/sky_vA_rose_settle_render.py
 
-Output: docs/sky_transition/vA_rose_settle/round_1.png
+Output: docs/sky_transition/vA_rose_settle/round_2.png
 """
 import os
 import sys
@@ -26,14 +26,22 @@ from game.config import W, H, GROUND_Y                             # noqa: E402
 
 
 # Only the three sunset-arc stops where the live base reads orange against the
-# rose/plum above it. Each sky_bot is its own phase's sky_mid scaled ~0.90 in
-# value with hue held (drift under 0.5 deg), horizon another ~5% down, so the
-# column reads as one gradient instead of two stacked hue families. The golden
-# hour stops (0.27-0.37) are deliberately left alone — orange belongs there.
+# rose/plum above it. Each sky_bot takes its own phase's sky_mid hue a step
+# darker so the column reads as one gradient instead of two stacked hue
+# families. The golden hour stops (0.27-0.37) are deliberately left alone —
+# orange belongs there.
+#
+# Three constraints hold these numbers in place:
+#   - 0.42 sky_bot is dark enough to keep contrast over BIRD_RED above the 1.5
+#     gate; the bird silhouettes against the deepest part of the sunset arc.
+#   - horizon is LIGHTER than sky_bot at every stop, so distance haze re-lifts
+#     at ground level the way real atmosphere scatters it back.
+#   - 0.52 leans blue-over-red (hue ~282 deg) so the ramp 343 -> 328 -> 282
+#     hands off cleanly to the untouched 0.56 twilight instead of going muddy.
 _OVERRIDES = {
-    0.42: dict(sky_bot=(200, 67, 88), horizon=(190, 63, 84)),
-    0.47: dict(sky_bot=(106, 52, 72), horizon=(100, 49, 68)),
-    0.52: dict(sky_bot=( 61, 37, 61), horizon=( 57, 34, 57)),
+    0.42: dict(sky_bot=(152, 52, 80),  horizon=(168, 58, 92)),
+    0.47: dict(sky_bot=(100, 48, 76),  horizon=(110, 53, 84)),
+    0.52: dict(sky_bot=( 55, 34, 64),  horizon=( 62, 38, 72)),
 }
 
 _KF = []
@@ -47,7 +55,7 @@ for phase, d in _ALPINE_HAZE_KF:
 
 SPEC = BiomeSpec(
     name='alpine_haze_vA_rose_settle',
-    note='vA rose settle - base takes sky_mid hue ~10% darker, horizon ~5% under that',
+    note='vA rose settle v2 - base takes sky_mid hue darker, horizon re-lifts ~10% above it',
     keyframes=_KF,
     sky=ALPINE_HAZE.sky,
 )
@@ -94,7 +102,7 @@ def main():
     f_phase = pygame.font.SysFont("dejavusans", 11)
 
     title = f_title.render(
-        "vA_rose_settle — base settles into the same rose, one continuous gradient",
+        "vA_rose_settle v2 — one continuous rose, bird-safe contrast, haze re-lift at the horizon",
         True, TEXT_HI)
     canvas.blit(title, (canvas_w // 2 - title.get_width() // 2, 12))
 
@@ -125,7 +133,7 @@ def main():
         ph_lbl = f_phase.render(f"phase {phase}", True, TEXT_LO)
         canvas.blit(ph_lbl, (x + PANEL_W // 2 - ph_lbl.get_width() // 2, fy + 36))
 
-    out = os.path.join(_ROOT, "docs", "sky_transition", "vA_rose_settle", "round_1.png")
+    out = os.path.join(_ROOT, "docs", "sky_transition", "vA_rose_settle", "round_2.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(canvas, out)
     print(f"wrote {out}  ({canvas.get_width()}×{canvas.get_height()})")
