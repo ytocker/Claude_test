@@ -27,6 +27,7 @@ from game.store_skins import (
     _paint_disco, _paint_cockatoo_crest, _paint_prism,
     _paint_thorncrest, _paint_embermoth, _paint_binky,
     _aurora_front, _moonbloom_front, _tempest_front,
+    _chrome_front,
 )
 from game.skeleton_skin import _flesh_base
 
@@ -49,7 +50,7 @@ COLS = ["CLEAN", "FIRST-HIT", "LAST-LIFE"]
 COL_STATES = ["clean", "first_hit", "last_life"]
 
 # Rows: (skin_id, display_name, palette | None, paint_fn | None, special)
-# special: None | "skeleton" | "zombie"
+# special: None | "skeleton" | "zombie" | "chrome"
 SKINS = [
     ("skin_skeleton",   "SKELETON",   None,        None,                  "skeleton"),
     ("skin_zombie",     "ZOMBIE",     None,        None,                  "zombie"),
@@ -67,7 +68,7 @@ SKINS = [
     ("skin_moonbloom",  "MOONBLOOM",  P_MOONBLOOM, _moonbloom_front,      None),
     ("skin_tempest",    "TEMPEST",    P_TEMPEST,   _tempest_front,        None),
     ("skin_binky",      "BINKY",      P_BINKY,     _paint_binky,          None),
-    ("skin_chrome",     "CHROME",     P_CHROME,    None,                  None),
+    ("skin_chrome",     "CHROME",     P_CHROME,    None,                  "chrome"),
 ]
 
 
@@ -85,18 +86,24 @@ def fill_sky(surf):
         pygame.draw.line(surf, (r, g, b), (0, y), (w - 1, y))
 
 
-def _redraw_beak(surf, P):
-    """Re-draw beak on top of lenses to restore correct z-order."""
-    beak_pts = [(55, 21), (61, 24), (58, 28), (52, 26)]
-    pygame.draw.polygon(surf, P['beak_main'], beak_pts)
-    pygame.draw.polygon(surf, P['beak_dark'], beak_pts, 1)
+def _draw_open_beak(surf, P):
+    """Split two-polygon beak matching the hurt-frame anatomy (open mouth look)."""
+    beak_lo = tuple(int(c * 0.87) for c in P['beak_main'])
+    upper = [(55, 21), (61, 24), (58, 26), (52, 25)]
+    lower = [(52, 26), (58, 27), (59, 30), (54, 31)]
+    pygame.draw.polygon(surf, P['beak_main'], upper)
+    pygame.draw.polygon(surf, P['beak_dark'], upper, 1)
+    pygame.draw.polygon(surf, beak_lo, lower)
+    pygame.draw.polygon(surf, P['beak_dark'], lower, 1)
     pygame.draw.line(surf, P['beak_gloss'], (55, 22), (59, 24), 1)
-    pygame.draw.line(surf, P['beak_dark'],  (52, 24), (58, 25), 1)
 
+
+# ── palette-only hurt builders ────────────────────────────────────────────────
 
 def _build_first_hit_simple(palette):
     """First-hit for pure-palette skins (no accessories)."""
     base = _build_parrot_with_palette(10.0, palette)
+    _draw_open_beak(base, palette)
     _h_draw_bandaids(base)
     _fh_draw_single_crack(base)
     return _add_outline(base)
@@ -108,12 +115,14 @@ def _build_last_life_simple(palette):
     _h_draw_bandaids(base)
     _h_draw_headwrap(base)
     _draw_lenses(base, 50, 20, palette)
-    _redraw_beak(base, palette)
+    _draw_open_beak(base, palette)
     _h_draw_chest_dressing(base)
     _h_draw_ragged_cuts(base)
     _h_draw_cracked_lens(base)
     return _add_outline(base)
 
+
+# ── composite hurt builders (with paint_fn accessories) ──────────────────────
 
 def _build_first_hit_composite(palette, paint_fn):
     """First-hit for skins with accessories: preserves paint_fn layer."""
@@ -122,6 +131,7 @@ def _build_first_hit_composite(palette, paint_fn):
     comp.blit(body, (0, PARROT_DY))
     paint_fn(comp, 10.0)
     sprite = comp.subsurface((0, PARROT_DY, 64, 60))
+    _draw_open_beak(sprite, palette)
     _h_draw_bandaids(sprite)
     _fh_draw_single_crack(sprite)
     return _add_outline(comp)
@@ -137,22 +147,55 @@ def _build_last_life_composite(palette, paint_fn):
     _h_draw_bandaids(sprite)
     _h_draw_headwrap(sprite)
     _draw_lenses(sprite, 50, 20, palette)
-    _redraw_beak(sprite, palette)
+    _draw_open_beak(sprite, palette)
     _h_draw_chest_dressing(sprite)
     _h_draw_ragged_cuts(sprite)
     _h_draw_cracked_lens(sprite)
     return _add_outline(comp)
 
 
+# ── chrome hurt builders (own-lenses — no _draw_lenses call) ─────────────────
+
+def _build_first_hit_chrome():
+    """First-hit for chrome: uses _chrome_front for crown blades + own lenses."""
+    body = _build_parrot_with_palette(10.0, P_CHROME, draw_lenses=False)
+    comp = pygame.Surface((64, 100), pygame.SRCALPHA)
+    comp.blit(body, (0, PARROT_DY))
+    _chrome_front(comp, 10.0)
+    sprite = comp.subsurface((0, PARROT_DY, 64, 60))
+    _draw_open_beak(sprite, P_CHROME)
+    _h_draw_bandaids(sprite)
+    _fh_draw_single_crack(sprite)
+    return _add_outline(comp)
+
+
+def _build_last_life_chrome():
+    """Last-life for chrome: _chrome_front draws lenses; no second _draw_lenses call."""
+    body = _build_parrot_with_palette(10.0, P_CHROME, draw_lenses=False)
+    comp = pygame.Surface((64, 100), pygame.SRCALPHA)
+    comp.blit(body, (0, PARROT_DY))
+    _chrome_front(comp, 10.0)
+    sprite = comp.subsurface((0, PARROT_DY, 64, 60))
+    _h_draw_bandaids(sprite)
+    _h_draw_headwrap(sprite)
+    _draw_open_beak(sprite, P_CHROME)
+    _h_draw_chest_dressing(sprite)
+    _h_draw_ragged_cuts(sprite)
+    _h_draw_cracked_lens(sprite)
+    return _add_outline(comp)
+
+
+# ── skeleton / zombie special-case builders ───────────────────────────────────
+
 def _build_special_first_hit(base_surf):
-    """First-hit for skeleton/zombie (no lenses)."""
+    """First-hit for skeleton/zombie (no lenses, no palette beak)."""
     _h_draw_bandaids(base_surf)
     _fh_draw_single_crack(base_surf)
     return _add_outline(base_surf)
 
 
 def _build_special_last_life(base_surf):
-    """Last-life for skeleton/zombie (no lenses)."""
+    """Last-life for skeleton/zombie (no lenses, no palette beak)."""
     _h_draw_bandaids(base_surf)
     _h_draw_headwrap(base_surf)
     _h_draw_chest_dressing(base_surf)
@@ -174,6 +217,8 @@ def render_cell(skin_id, palette, paint_fn, lives_state, special):
             img = _build_special_first_hit(_flesh_base(10.0))
         elif special == "zombie":
             img = _build_special_first_hit(_build_voodoo_zombie(10.0))
+        elif special == "chrome":
+            img = _build_first_hit_chrome()
         elif paint_fn is not None:
             img = _build_first_hit_composite(palette, paint_fn)
         else:
@@ -185,6 +230,8 @@ def render_cell(skin_id, palette, paint_fn, lives_state, special):
             img = _build_special_last_life(_flesh_base(10.0))
         elif special == "zombie":
             img = _build_special_last_life(_build_voodoo_zombie(10.0))
+        elif special == "chrome":
+            img = _build_last_life_chrome()
         elif paint_fn is not None:
             img = _build_last_life_composite(palette, paint_fn)
         else:
