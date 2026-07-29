@@ -31,8 +31,9 @@ from game.store_skins import (
     _tempest_front,  _tempest_back,   _TP_OUTLINE,
     _chrome_front,   _chrome_back,
     _zb_hex_aura, _zb_rim_halo,
+    _ZB_STITCH, _ZB_CURSED, _ZB_CURSED_H,
 )
-from game.skeleton_skin import _flesh_base, _paint as _skeleton_paint
+from game.skeleton_skin import _flesh_base, _paint as _skeleton_paint, _eye_socket
 
 # ── layout ────────────────────────────────────────────────────────────────────
 LABEL_W = 150
@@ -188,6 +189,7 @@ def _build_hurt_skeleton(lives_state):
     else:
         _h_draw_bandaids(sprite)
         _h_draw_headwrap(sprite)
+        _eye_socket(comp)
         _h_draw_chest_dressing(sprite)
         _h_draw_ragged_cuts(sprite)
     return _add_outline(comp)
@@ -202,6 +204,13 @@ def _build_hurt_zombie(lives_state):
     else:
         _h_draw_bandaids(base)
         _h_draw_headwrap(base)
+        pygame.draw.line(base, _ZB_STITCH, (41, 21), (47, 21), 2)
+        for vx in (42, 44, 46):
+            pygame.draw.line(base, _ZB_STITCH, (vx, 19), (vx, 23), 1)
+        _zb_hex_aura(base, 50, 19, 7)
+        pygame.draw.circle(base, _ZB_STITCH, (50, 19), 5)
+        pygame.draw.circle(base, _ZB_CURSED, (50, 19), 4)
+        pygame.draw.circle(base, _ZB_CURSED_H, (49, 18), 1)
         _h_draw_chest_dressing(base)
         _h_draw_ragged_cuts(base)
     core = _add_outline(base)
