@@ -334,7 +334,8 @@ def render_cell(skin_id, palette, paint_fn, back_fn, outline_color,
     # ── ghost (skin-agnostic — spectral palette overrides all skins) ──
     if effect == "ghost":
         if lives_state == "clean":
-            img = _parrot.get_ghost_parrot(1, 0.0)
+            img = _parrot.get_ghost_parrot(1, 0.0).copy()
+            _ghost_tint(img)
         else:
             img = _build_ghost_hurt(lives_state)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
@@ -357,7 +358,8 @@ def render_cell(skin_id, palette, paint_fn, back_fn, outline_color,
     # ── ghost_triple (skin-agnostic — spectral + ghost hat) ──
     if effect == "ghost_triple":
         if lives_state == "clean":
-            img = _parrot.get_ghost_hat_parrot(1, 0.0)
+            img = _parrot.get_ghost_hat_parrot(1, 0.0).copy()
+            _ghost_tint(img)
         else:
             img = _build_ghost_triple_hurt(lives_state)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
