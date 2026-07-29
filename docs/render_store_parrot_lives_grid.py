@@ -290,7 +290,7 @@ def main():
 
     pygame.draw.rect(canvas, (60, 65, 85), canvas.get_rect(), 2)
 
-    out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "store_parrot_lives_grid.png")
+    out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "parrot_lives_grid.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {total_w}×{total_h} → {out_path}")
     pygame.quit()
