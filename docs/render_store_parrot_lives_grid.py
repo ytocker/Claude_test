@@ -65,7 +65,7 @@ SKINS = [
     ("skin_amazon",     "AMAZON",     P_AMAZON,    None,                  None,            None,        True,  None),
     ("skin_sunconure",  "SUN CONURE", P_SUNCONURE, None,                  None,            None,        True,  None),
     ("skin_hyacinth",   "HYACINTH",   P_HYACINTH,  None,                  None,            None,        True,  None),
-    ("skin_cockatoo",   "COCKATOO",   P_COCKATOO,  _paint_cockatoo_crest, None,            None,        True,  None),
+    ("skin_cockatoo",   "COCKATOO",   P_COCKATOO,  None,                  _paint_cockatoo_crest, None, True,  None),
     ("skin_lorikeet",   "LORIKEET",   P_LORIKEET,  None,                  None,            None,        True,  None),
     ("skin_prism",      "PRISM",      P_PRISM,     _paint_prism,          None,            None,        True,  None),
     ("skin_thorncrest", "THORNCREST", P_THORNCREST,_paint_thorncrest,     None,            None,        True,  None),
