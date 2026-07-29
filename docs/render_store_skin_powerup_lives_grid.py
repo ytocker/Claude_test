@@ -132,12 +132,17 @@ def _composite_with_back(comp, back_fn, outline_color):
 
 
 def _ghost_tint(img):
-    """Apply spectral blue numpy tint + translucency in-place."""
+    """Spectral-blue tint + translucency; works on SRCALPHA and non-SRCALPHA."""
     arr = sa.pixels3d(img)
     target = np.array([140, 200, 230], dtype=np.float32)
     arr[:] = (arr.astype(np.float32) * 0.60 + target * 0.40).clip(0, 255).astype(np.uint8)
     del arr
-    img.set_alpha(170)
+    if img.get_flags() & pygame.SRCALPHA:
+        alpha = sa.pixels_alpha(img)
+        alpha[:] = (alpha.astype(np.float32) * (170 / 255)).clip(0, 255).astype(np.uint8)
+        del alpha
+    else:
+        img.set_alpha(170)
 
 
 # ── skin raw composite (unoutlined, for hat insertion) ────────────────────────
@@ -247,49 +252,6 @@ def _build_triple(palette, paint_fn, back_fn, outline_color, draw_std_lenses,
     return result
 
 
-# ── ghost / ghost_triple builders (skin-agnostic) ─────────────────────────────
-
-def _build_ghost_hurt(lives_state):
-    """Spectral-blue macaw + lives dressings + ghost tint. Same for all skins."""
-    if lives_state == "last_life":
-        base = _build_parrot_with_palette(10.0, P_SPECTRAL, draw_lenses=False)
-        _h_draw_bandaids(base)
-        _h_draw_headwrap(base)
-        _draw_lenses(base, 50, 20, P_SPECTRAL)
-        _h_draw_chest_dressing(base)
-        _h_draw_ragged_cuts(base)
-        _h_draw_cracked_lens(base)
-    else:
-        base = _build_parrot_with_palette(10.0, P_SPECTRAL)
-        _h_draw_bandaids(base)
-        _fh_draw_single_crack(base)
-    img = _add_outline(base)
-    _ghost_tint(img)
-    return img
-
-
-def _build_ghost_triple_hurt(lives_state):
-    """Spectral-blue + ghost stovepipe + tint. Same for all skins."""
-    if lives_state == "last_life":
-        base = _build_parrot_with_palette(10.0, P_SPECTRAL, draw_lenses=False)
-        _h_draw_bandaids(base)
-        _h_draw_headwrap(base)
-        _draw_lenses(base, 50, 20, P_SPECTRAL)
-        _h_draw_chest_dressing(base)
-        _h_draw_ragged_cuts(base)
-        _h_draw_cracked_lens(base)
-    else:
-        base = _build_parrot_with_palette(10.0, P_SPECTRAL)
-        _h_draw_bandaids(base)
-        _fh_draw_single_crack(base)
-    canvas = pygame.Surface((COMPOSITE_W, COMPOSITE_H), pygame.SRCALPHA)
-    canvas.blit(base, (0, PARROT_DY))
-    draw_stovepipe_ghost(canvas, HAT_HX, HAT_HY)
-    img = _add_outline(canvas)
-    _ghost_tint(img)
-    return img
-
-
 # ── poison builders (skin-agnostic) ───────────────────────────────────────────
 
 def _build_poison_hurt(lives_state):
@@ -331,13 +293,15 @@ def render_cell(skin_id, palette, paint_fn, back_fn, outline_color,
             cell.blit(par, par.get_rect(center=(CELL_W // 2, BIRD_Y + 12)))
         return cell
 
-    # ── ghost (skin-agnostic — spectral palette overrides all skins) ──
+    # ── ghost (skin-aware: tint each skin's own frame to spectral) ──
     if effect == "ghost":
         if lives_state == "clean":
-            img = _parrot.get_ghost_parrot(1, 0.0).copy()
-            _ghost_tint(img)
+            img = _parrot.get_skin_frame(skin_id, 1, 0.0).copy()
+        elif lives_state == "first_hit":
+            img = _parrot.get_skin_first_hit_frame(skin_id, 1, 0.0).copy()
         else:
-            img = _build_ghost_hurt(lives_state)
+            img = _parrot.get_skin_hurt_frame(skin_id, 1, 0.0).copy()
+        _ghost_tint(img)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
         if is_hurt:
             par = get_parcel("ghost").copy()
@@ -355,13 +319,11 @@ def render_cell(skin_id, palette, paint_fn, back_fn, outline_color,
             cell.blit(par, par.get_rect(center=(CELL_W // 2, BIRD_Y + 12)))
         return cell
 
-    # ── ghost_triple (skin-agnostic — spectral + ghost hat) ──
+    # ── ghost_triple (skin-aware: triple build + tint) ──
     if effect == "ghost_triple":
-        if lives_state == "clean":
-            img = _parrot.get_ghost_hat_parrot(1, 0.0).copy()
-            _ghost_tint(img)
-        else:
-            img = _build_ghost_triple_hurt(lives_state)
+        img = _build_triple(palette, paint_fn, back_fn, outline_color,
+                            draw_std_lenses, special, lives_state).copy()
+        _ghost_tint(img)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
         if is_hurt:
             par = get_parcel("ghost").copy()
