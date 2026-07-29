@@ -151,6 +151,37 @@ def _ghost_tint(img):
         img.set_alpha(170)
 
 
+def _poison_tint(img):
+    """Colorize to chartreuse preserving per-pixel luminance; handles SRCALPHA."""
+    arr = sa.pixels3d(img)
+    f = arr.astype(np.float32)
+    lum = f[:, :, 0] * 0.299 + f[:, :, 1] * 0.587 + f[:, :, 2] * 0.114
+    lum_n = lum / 255.0
+    dark   = np.array([30,  75, 10], np.float32)
+    bright = np.array([200, 240, 75], np.float32)
+    for c in range(3):
+        f[:, :, c] = dark[c] + lum_n * (bright[c] - dark[c])
+    arr[:] = f.clip(0, 255).astype(np.uint8)
+    del arr
+    if img.get_flags() & pygame.SRCALPHA:
+        alpha = sa.pixels_alpha(img)
+        alpha[:] = (alpha.astype(np.float32) * (170 / 255)).clip(0, 255).astype(np.uint8)
+        del alpha
+    else:
+        img.set_alpha(170)
+
+
+def _draw_x_eyes_outlined(surf):
+    """X-eyes drawn at outline-padded coordinates (LENS_L/R + 2px each axis)."""
+    ink   = (20, 25, 15)
+    glint = (245, 245, 200)
+    for (fx, fy), r in (((48, 22), 3), ((58, 21), 4)):
+        pygame.draw.line(surf, ink, (fx - r, fy - r), (fx + r, fy + r), 2)
+        pygame.draw.line(surf, ink, (fx - r, fy + r), (fx + r, fy - r), 2)
+        pygame.draw.line(surf, glint, (fx - r, fy - r - 1), (fx - 1, fy - 2), 1)
+        pygame.draw.line(surf, glint, (fx - r, fy + r - 1), (fx - 1, fy), 1)
+
+
 # ── skin raw composite (unoutlined, for hat insertion) ────────────────────────
 
 def _build_skin_raw_comp(palette, paint_fn, draw_std_lenses, lives_state, angle=10.0):
@@ -258,23 +289,6 @@ def _build_triple(palette, paint_fn, back_fn, outline_color, draw_std_lenses,
     return result
 
 
-# ── poison builders (skin-agnostic) ───────────────────────────────────────────
-
-def _build_poison_hurt(lives_state):
-    """Chartreuse macaw + lives dressings + X-eyes. Same for all skins."""
-    if lives_state == "last_life":
-        base = _build_parrot_with_palette(10.0, P_CHARTREUSE, draw_lenses=False)
-        _h_draw_bandaids(base)
-        _h_draw_headwrap(base)
-        _h_draw_chest_dressing(base)
-        _h_draw_ragged_cuts(base)
-        _h_draw_cracked_lens(base)
-    else:
-        base = _build_parrot_with_palette(10.0, P_CHARTREUSE, draw_lenses=False)
-        _h_draw_bandaids(base)
-        _fh_draw_single_crack(base)
-    _draw_b_x_eyes(base)
-    return _add_outline(base)
 
 
 # ── cell renderer ──────────────────────────────────────────────────────────────
@@ -357,13 +371,21 @@ def render_cell(skin_id, palette, paint_fn, back_fn, outline_color,
                 center=(CELL_W // 2, BIRD_Y + int(PARCEL_Y_OFFSET * GROW_SCALE))))
         return cell
 
-    # ── poison (skin-agnostic — chartreuse palette + X-eyes) ──
+    # ── poison (skin-aware: tint each skin's own frame to chartreuse + X-eyes) ──
     if effect == "poison":
         if lives_state == "clean":
-            img = _parrot.get_poisoned_parrot(1, 0.0)
+            img = _parrot.get_skin_frame(skin_id, 1, 0.0).copy()
+        elif lives_state == "first_hit":
+            img = _parrot.get_skin_first_hit_frame(skin_id, 1, 0.0).copy()
         else:
-            img = _build_poison_hurt(lives_state)
+            img = _parrot.get_skin_hurt_frame(skin_id, 1, 0.0).copy()
+        _poison_tint(img)
+        _draw_x_eyes_outlined(img)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
+        if is_hurt:
+            par = get_parcel("normal").copy()
+            par.set_alpha(170)
+            cell.blit(par, par.get_rect(center=(CELL_W // 2, BIRD_Y + 12)))
         return cell
 
     return cell
