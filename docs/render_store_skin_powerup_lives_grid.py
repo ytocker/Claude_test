@@ -151,6 +151,20 @@ def _ghost_tint(img):
         img.set_alpha(170)
 
 
+def _poison_tint(img):
+    """Chartreuse luminance remap in-place; handles SRCALPHA."""
+    arr = sa.pixels3d(img)
+    f = arr.astype(np.float32)
+    lum = f[:, :, 0] * 0.299 + f[:, :, 1] * 0.587 + f[:, :, 2] * 0.114
+    lum_n = lum / 255.0
+    dark   = np.array([30,  75, 10], np.float32)
+    bright = np.array([200, 240, 75], np.float32)
+    for c in range(3):
+        f[:, :, c] = dark[c] + lum_n * (bright[c] - dark[c])
+    arr[:] = f.clip(0, 255).astype(np.uint8)
+    del arr
+
+
 def _build_poison_hurt(lives_state):
     """Chartreuse macaw + lives dressings + X-eyes. For no-element skins."""
     if lives_state == "last_life":
@@ -173,10 +187,10 @@ def _build_poison_skin(palette, paint_fn, back_fn, outline_color, draw_std_lense
     """Poison visual for element skins: P_CHARTREUSE body + skin accessories + X-eyes."""
     if special == "skeleton":
         comp = pygame.Surface((64, 100), pygame.SRCALPHA)
-        body = _build_parrot_with_palette(10.0, P_CHARTREUSE,
-                                          draw_lenses=(lives_state == "clean"))
+        body = _build_parrot_with_palette(10.0, P_CHARTREUSE, draw_lenses=False)
         comp.blit(body, (0, PARROT_DY))
         _skeleton_paint(comp, 10.0)
+        _poison_tint(comp)
         sprite = comp.subsurface((0, PARROT_DY, 64, 60))
         if lives_state == "clean":
             _eye_socket(comp)
@@ -193,8 +207,7 @@ def _build_poison_skin(palette, paint_fn, back_fn, outline_color, draw_std_lense
         return _add_outline(comp)
 
     if special == "zombie":
-        base = _build_parrot_with_palette(10.0, P_CHARTREUSE,
-                                          draw_lenses=(lives_state == "clean"))
+        base = _build_parrot_with_palette(10.0, P_CHARTREUSE, draw_lenses=False)
         if lives_state == "first_hit":
             _h_draw_bandaids(base)
             _fh_draw_single_crack(base)
@@ -210,42 +223,31 @@ def _build_poison_skin(palette, paint_fn, back_fn, outline_color, draw_std_lense
         out = pygame.Surface((cw + pad * 2, ch + pad * 2), pygame.SRCALPHA)
         _zb_hex_aura(out, out.get_width() // 2, out.get_height() // 2 + 4,
                      max(cw, ch) // 2 + 6)
+        _poison_tint(out)
         ring = _zb_rim_halo(core)
         out.blit(ring, (pad - 2, pad - 2))
         out.blit(core, (pad, pad))
         return out
 
     # Standard composite skins: chartreuse base + paint_fn + back_fn
-    if lives_state == "clean":
-        body = _build_parrot_with_palette(10.0, P_CHARTREUSE)
-        comp = pygame.Surface((64, 100), pygame.SRCALPHA)
-        comp.blit(body, (0, PARROT_DY))
-        if paint_fn:
-            paint_fn(comp, 10.0)
-        sprite = comp.subsurface((0, PARROT_DY, 64, 60))
-        _draw_b_x_eyes(sprite)
-    else:
-        is_last = (lives_state == "last_life")
-        body = _build_parrot_with_palette(10.0, P_CHARTREUSE, draw_lenses=False)
-        comp = pygame.Surface((64, 100), pygame.SRCALPHA)
-        comp.blit(body, (0, PARROT_DY))
-        if paint_fn:
-            paint_fn(comp, 10.0)
-        sprite = comp.subsurface((0, PARROT_DY, 64, 60))
-        if is_last:
-            _h_draw_bandaids(sprite)
-            _h_draw_headwrap(sprite)
-            if draw_std_lenses:
-                _draw_lenses(sprite, 50, 20, P_CHARTREUSE)
-            _open_beak(sprite, P_CHARTREUSE)
-            _h_draw_chest_dressing(sprite)
-            _h_draw_ragged_cuts(sprite)
-            _h_draw_cracked_lens(sprite)
-        else:
-            _open_beak(sprite, P_CHARTREUSE)
-            _h_draw_bandaids(sprite)
-            _fh_draw_single_crack(sprite)
-        _draw_b_x_eyes(sprite)
+    is_last = (lives_state == "last_life")
+    body = _build_parrot_with_palette(10.0, P_CHARTREUSE, draw_lenses=False)
+    comp = pygame.Surface((64, 100), pygame.SRCALPHA)
+    comp.blit(body, (0, PARROT_DY))
+    if paint_fn:
+        paint_fn(comp, 10.0)
+    _poison_tint(comp)
+    sprite = comp.subsurface((0, PARROT_DY, 64, 60))
+    if lives_state == "last_life":
+        _h_draw_bandaids(sprite)
+        _h_draw_headwrap(sprite)
+        _h_draw_chest_dressing(sprite)
+        _h_draw_ragged_cuts(sprite)
+        _h_draw_cracked_lens(sprite)
+    elif lives_state == "first_hit":
+        _h_draw_bandaids(sprite)
+        _fh_draw_single_crack(sprite)
+    _draw_b_x_eyes(sprite)
 
     kw = {"outline_color": outline_color} if outline_color else {}
     outlined = _add_outline(comp, **kw)
@@ -255,6 +257,7 @@ def _build_poison_skin(palette, paint_fn, back_fn, outline_color, draw_std_lense
     result = pygame.Surface(outlined.get_size(), pygame.SRCALPHA)
     back = pygame.Surface((64, 100), pygame.SRCALPHA)
     back_fn(back, 10.0)
+    _poison_tint(back)
     result.blit(back, (pad, pad))
     result.blit(outlined, (0, 0))
     return result
