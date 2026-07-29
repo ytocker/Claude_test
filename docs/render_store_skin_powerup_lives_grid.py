@@ -132,10 +132,16 @@ def _composite_with_back(comp, back_fn, outline_color):
 
 
 def _ghost_tint(img):
-    """Spectral-blue tint + translucency; works on SRCALPHA and non-SRCALPHA."""
+    """Colorize to spectral-blue preserving per-pixel luminance; handles SRCALPHA."""
     arr = sa.pixels3d(img)
-    target = np.array([140, 200, 230], dtype=np.float32)
-    arr[:] = (arr.astype(np.float32) * 0.60 + target * 0.40).clip(0, 255).astype(np.uint8)
+    f = arr.astype(np.float32)
+    lum = f[:, :, 0] * 0.299 + f[:, :, 1] * 0.587 + f[:, :, 2] * 0.114
+    lum_n = lum / 255.0
+    dark   = np.array([50,  95, 145], np.float32)
+    bright = np.array([200, 230, 245], np.float32)
+    for c in range(3):
+        f[:, :, c] = dark[c] + lum_n * (bright[c] - dark[c])
+    arr[:] = f.clip(0, 255).astype(np.uint8)
     del arr
     if img.get_flags() & pygame.SRCALPHA:
         alpha = sa.pixels_alpha(img)
