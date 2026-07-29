@@ -141,16 +141,15 @@ def _build_hurt_composite(palette, paint_fn, back_fn, outline_color,
         _h_draw_bandaids(sprite)
         _fh_draw_single_crack(sprite)
     else:
-        # last_life: dressings first, then lenses, then paint_fn so lens overlays
-        # are drawn ON TOP of the palette lenses (fixes prism crystal rim lines etc.)
+        # last_life: paint_fn first so crest/accessories go behind dressings
+        if paint_fn:
+            paint_fn(comp, 10.0)
         sprite = comp.subsurface((0, PARROT_DY, 64, 60))
         _h_draw_bandaids(sprite)
         _h_draw_headwrap(sprite)
         if draw_std_lenses:
             _draw_lenses(sprite, 50, 20, palette)
         _draw_open_beak(sprite, palette)
-        if paint_fn:
-            paint_fn(comp, 10.0)
         _h_draw_chest_dressing(sprite)
         _h_draw_ragged_cuts(sprite)
         _h_draw_cracked_lens(sprite)
