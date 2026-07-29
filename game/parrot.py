@@ -1900,6 +1900,40 @@ def get_skin_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surf
     return fn(frame_idx, tilt_deg)
 
 
+_STORE_SKIN_HURT: "dict | None" = None
+
+
+def _store_skin_hurt_getters() -> dict:
+    global _STORE_SKIN_HURT
+    if _STORE_SKIN_HURT is None:
+        try:
+            mod = __import__("game.store_skin_hurt", fromlist=["SKIN_HURT_GETTERS"])
+            _STORE_SKIN_HURT = mod.SKIN_HURT_GETTERS
+        except Exception:
+            _STORE_SKIN_HURT = {}
+    return _STORE_SKIN_HURT
+
+
+def get_skin_hurt_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Last-life frame for the equipped store skin. Falls back to the base
+    macaw hurt skin when skin_id is unrecognised."""
+    pair = _store_skin_hurt_getters().get(skin_id)
+    if pair is None:
+        return get_hurt_parrot(frame_idx, tilt_deg)
+    ll_getter, _ = pair
+    return ll_getter(frame_idx, tilt_deg)
+
+
+def get_skin_first_hit_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """First-hit frame for the equipped store skin. Falls back to the base
+    macaw first-hit skin when skin_id is unrecognised."""
+    pair = _store_skin_hurt_getters().get(skin_id)
+    if pair is None:
+        return get_first_hit_parrot(frame_idx, tilt_deg)
+    _, fh_getter = pair
+    return fh_getter(frame_idx, tilt_deg)
+
+
 def get_skin_frame_hi(skin_id: str) -> pygame.Surface:
     """High-res skin frame for store thumbnails. Renders the base macaw at 3×
     (192×180) so thumb() gets a clean downscale; all registered skins fall back

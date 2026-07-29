@@ -531,6 +531,7 @@ class Bird:
         self.lives_flicker_visible = True
         self.on_last_life = False
         self.on_first_hit = False
+        self.equipped_skin = "skin_base"
 
         # Weather event state (visual-only):
         #   wind_lean       — rightward x-offset under the predawn tailwind
@@ -706,11 +707,11 @@ class Bird:
             # the legacy upscale below — they pre-empt this branch.
             img = parrot.get_grow_parrot(frame_idx, tilt)
         elif self.on_last_life:
-            img = parrot.get_hurt_parrot(frame_idx, tilt)
+            img = parrot.get_skin_hurt_frame(self.equipped_skin, frame_idx, tilt)
         elif self.on_first_hit:
-            img = parrot.get_first_hit_parrot(frame_idx, tilt)
+            img = parrot.get_skin_first_hit_frame(self.equipped_skin, frame_idx, tilt)
         else:
-            img = parrot.get_parrot(frame_idx, tilt)
+            img = parrot.get_skin_frame(self.equipped_skin, frame_idx, tilt)
         # POISON — generic chartreuse tint over whichever skin the cascade
         # chose (mask-clamped to the silhouette, ramped by poison_t), so the
         # poisoning reads on kfc/ghost/knight/hat rather than swapping to a
