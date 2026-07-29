@@ -26,8 +26,10 @@ from game.store_skins import (
     _build_voodoo_zombie,
     _paint_disco, _paint_cockatoo_crest, _paint_prism,
     _paint_thorncrest, _paint_embermoth, _paint_binky,
-    _aurora_front, _moonbloom_front, _tempest_front,
-    _chrome_front,
+    _aurora_front,   _aurora_back,
+    _moonbloom_front, _moonbloom_back, _MB_OUTLINE,
+    _tempest_front,  _tempest_back,   _TP_OUTLINE,
+    _chrome_front,   _chrome_back,
 )
 from game.skeleton_skin import _flesh_base
 
@@ -42,33 +44,35 @@ BIRD_Y  = 52
 BG        = (22, 26, 36)
 LABEL_BG  = (32, 36, 50)
 TEXT_COL  = (220, 220, 230)
-DIM_COL   = (130, 130, 150)
 SKY_TOP   = (80, 130, 210)
 SKY_BOT   = (100, 150, 200)
 
 COLS = ["CLEAN", "FIRST-HIT", "LAST-LIFE"]
 COL_STATES = ["clean", "first_hit", "last_life"]
 
-# Rows: (skin_id, display_name, palette | None, paint_fn | None, special)
-# special: None | "skeleton" | "zombie" | "chrome"
+# Rows: (skin_id, display_name, palette, paint_fn, back_fn,
+#        outline_color, draw_std_lenses, special)
+# draw_std_lenses=False → body built with draw_lenses=False always;
+#                          no _draw_lenses call in last_life (paint_fn owns lenses)
+# special: None | "skeleton" | "zombie"
 SKINS = [
-    ("skin_skeleton",   "SKELETON",   None,        None,                  "skeleton"),
-    ("skin_zombie",     "ZOMBIE",     None,        None,                  "zombie"),
-    ("skin_disco",      "DISCO",      P_DISCO,     _paint_disco,          None),
-    ("skin_bluegold",   "BLUE MACAW", P_BLUEGOLD,  None,                  None),
-    ("skin_amazon",     "AMAZON",     P_AMAZON,    None,                  None),
-    ("skin_sunconure",  "SUN CONURE", P_SUNCONURE, None,                  None),
-    ("skin_hyacinth",   "HYACINTH",   P_HYACINTH,  None,                  None),
-    ("skin_cockatoo",   "COCKATOO",   P_COCKATOO,  _paint_cockatoo_crest, None),
-    ("skin_lorikeet",   "LORIKEET",   P_LORIKEET,  None,                  None),
-    ("skin_prism",      "PRISM",      P_PRISM,     _paint_prism,          None),
-    ("skin_thorncrest", "THORNCREST", P_THORNCREST,_paint_thorncrest,     None),
-    ("skin_embermoth",  "EMBERMOTH",  P_EMBERMOTH, _paint_embermoth,      None),
-    ("skin_aurora",     "AURORA",     _AURORA_PAL, _aurora_front,         None),
-    ("skin_moonbloom",  "MOONBLOOM",  P_MOONBLOOM, _moonbloom_front,      None),
-    ("skin_tempest",    "TEMPEST",    P_TEMPEST,   _tempest_front,        None),
-    ("skin_binky",      "BINKY",      P_BINKY,     _paint_binky,          None),
-    ("skin_chrome",     "CHROME",     P_CHROME,    None,                  "chrome"),
+    ("skin_skeleton",   "SKELETON",   None,        None,                  None,            None,        True,  "skeleton"),
+    ("skin_zombie",     "ZOMBIE",     None,        None,                  None,            None,        True,  "zombie"),
+    ("skin_disco",      "DISCO",      P_DISCO,     _paint_disco,          None,            None,        True,  None),
+    ("skin_bluegold",   "BLUE MACAW", P_BLUEGOLD,  None,                  None,            None,        True,  None),
+    ("skin_amazon",     "AMAZON",     P_AMAZON,    None,                  None,            None,        True,  None),
+    ("skin_sunconure",  "SUN CONURE", P_SUNCONURE, None,                  None,            None,        True,  None),
+    ("skin_hyacinth",   "HYACINTH",   P_HYACINTH,  None,                  None,            None,        True,  None),
+    ("skin_cockatoo",   "COCKATOO",   P_COCKATOO,  _paint_cockatoo_crest, None,            None,        True,  None),
+    ("skin_lorikeet",   "LORIKEET",   P_LORIKEET,  None,                  None,            None,        True,  None),
+    ("skin_prism",      "PRISM",      P_PRISM,     _paint_prism,          None,            None,        True,  None),
+    ("skin_thorncrest", "THORNCREST", P_THORNCREST,_paint_thorncrest,     None,            None,        True,  None),
+    ("skin_embermoth",  "EMBERMOTH",  P_EMBERMOTH, _paint_embermoth,      None,            None,        True,  None),
+    ("skin_aurora",     "AURORA",     _AURORA_PAL, _aurora_front,         _aurora_back,    None,        True,  None),
+    ("skin_moonbloom",  "MOONBLOOM",  P_MOONBLOOM, _moonbloom_front,      _moonbloom_back, _MB_OUTLINE, True,  None),
+    ("skin_tempest",    "TEMPEST",    P_TEMPEST,   _tempest_front,        _tempest_back,   _TP_OUTLINE, True,  None),
+    ("skin_binky",      "BINKY",      P_BINKY,     _paint_binky,          None,            None,        True,  None),
+    ("skin_chrome",     "CHROME",     P_CHROME,    _chrome_front,         _chrome_back,    None,        False, None),
 ]
 
 
@@ -98,104 +102,88 @@ def _draw_open_beak(surf, P):
     pygame.draw.line(surf, P['beak_gloss'], (55, 22), (59, 24), 1)
 
 
-# ── palette-only hurt builders ────────────────────────────────────────────────
+def _composite_with_back(comp, back_fn, outline_color):
+    """Outline comp, composite back_fn result behind it, return final surface."""
+    kw = {"outline_color": outline_color} if outline_color else {}
+    bird = _add_outline(comp, **kw)
+    if back_fn is None:
+        return bird
+    pad = (bird.get_width() - 64) // 2
+    result = pygame.Surface(bird.get_size(), pygame.SRCALPHA)
+    back = pygame.Surface((64, 100), pygame.SRCALPHA)
+    back_fn(back, 10.0)
+    result.blit(back, (pad, pad))
+    result.blit(bird, (0, 0))
+    return result
 
-def _build_first_hit_simple(palette):
-    """First-hit for pure-palette skins (no accessories)."""
-    base = _build_parrot_with_palette(10.0, palette)
-    _draw_open_beak(base, palette)
-    _h_draw_bandaids(base)
-    _fh_draw_single_crack(base)
+
+# ── palette / composite hurt builders ────────────────────────────────────────
+
+def _build_hurt_composite(palette, paint_fn, back_fn, outline_color,
+                          lives_state, draw_std_lenses):
+    """Unified builder for all composite (palette-based) hurt states."""
+    is_last = (lives_state == "last_life")
+
+    # body: draw standard lenses in base only for first_hit with std lenses
+    draw_body_lenses = (not is_last) and draw_std_lenses
+    body = _build_parrot_with_palette(10.0, palette, draw_lenses=draw_body_lenses)
+    comp = pygame.Surface((64, 100), pygame.SRCALPHA)
+    comp.blit(body, (0, PARROT_DY))
+
+    if not is_last:
+        # first_hit: paint_fn AFTER body (lenses already in body for std-lens skins)
+        if paint_fn:
+            paint_fn(comp, 10.0)
+        sprite = comp.subsurface((0, PARROT_DY, 64, 60))
+        _draw_open_beak(sprite, palette)
+        _h_draw_bandaids(sprite)
+        _fh_draw_single_crack(sprite)
+    else:
+        # last_life: dressings first, then lenses, then paint_fn so lens overlays
+        # are drawn ON TOP of the palette lenses (fixes prism crystal rim lines etc.)
+        sprite = comp.subsurface((0, PARROT_DY, 64, 60))
+        _h_draw_bandaids(sprite)
+        _h_draw_headwrap(sprite)
+        if draw_std_lenses:
+            _draw_lenses(sprite, 50, 20, palette)
+        _draw_open_beak(sprite, palette)
+        if paint_fn:
+            paint_fn(comp, 10.0)
+        _h_draw_chest_dressing(sprite)
+        _h_draw_ragged_cuts(sprite)
+        _h_draw_cracked_lens(sprite)
+
+    return _composite_with_back(comp, back_fn, outline_color)
+
+
+def _build_hurt_simple(palette, lives_state):
+    """Hurt builder for pure-palette skins (no accessories, no back layer)."""
+    if lives_state == "first_hit":
+        base = _build_parrot_with_palette(10.0, palette)
+        _draw_open_beak(base, palette)
+        _h_draw_bandaids(base)
+        _fh_draw_single_crack(base)
+    else:
+        base = _build_parrot_with_palette(10.0, palette, draw_lenses=False)
+        _h_draw_bandaids(base)
+        _h_draw_headwrap(base)
+        _draw_lenses(base, 50, 20, palette)
+        _draw_open_beak(base, palette)
+        _h_draw_chest_dressing(base)
+        _h_draw_ragged_cuts(base)
+        _h_draw_cracked_lens(base)
     return _add_outline(base)
 
-
-def _build_last_life_simple(palette):
-    """Last-life for pure-palette skins (no accessories)."""
-    base = _build_parrot_with_palette(10.0, palette, draw_lenses=False)
-    _h_draw_bandaids(base)
-    _h_draw_headwrap(base)
-    _draw_lenses(base, 50, 20, palette)
-    _draw_open_beak(base, palette)
-    _h_draw_chest_dressing(base)
-    _h_draw_ragged_cuts(base)
-    _h_draw_cracked_lens(base)
-    return _add_outline(base)
-
-
-# ── composite hurt builders (with paint_fn accessories) ──────────────────────
-
-def _build_first_hit_composite(palette, paint_fn):
-    """First-hit for skins with accessories: preserves paint_fn layer."""
-    body = _build_parrot_with_palette(10.0, palette, draw_lenses=True)
-    comp = pygame.Surface((64, 100), pygame.SRCALPHA)
-    comp.blit(body, (0, PARROT_DY))
-    paint_fn(comp, 10.0)
-    sprite = comp.subsurface((0, PARROT_DY, 64, 60))
-    _draw_open_beak(sprite, palette)
-    _h_draw_bandaids(sprite)
-    _fh_draw_single_crack(sprite)
-    return _add_outline(comp)
-
-
-def _build_last_life_composite(palette, paint_fn):
-    """Last-life for skins with accessories: preserves paint_fn layer."""
-    body = _build_parrot_with_palette(10.0, palette, draw_lenses=False)
-    comp = pygame.Surface((64, 100), pygame.SRCALPHA)
-    comp.blit(body, (0, PARROT_DY))
-    paint_fn(comp, 10.0)
-    sprite = comp.subsurface((0, PARROT_DY, 64, 60))
-    _h_draw_bandaids(sprite)
-    _h_draw_headwrap(sprite)
-    _draw_lenses(sprite, 50, 20, palette)
-    _draw_open_beak(sprite, palette)
-    _h_draw_chest_dressing(sprite)
-    _h_draw_ragged_cuts(sprite)
-    _h_draw_cracked_lens(sprite)
-    return _add_outline(comp)
-
-
-# ── chrome hurt builders (own-lenses — no _draw_lenses call) ─────────────────
-
-def _build_first_hit_chrome():
-    """First-hit for chrome: uses _chrome_front for crown blades + own lenses."""
-    body = _build_parrot_with_palette(10.0, P_CHROME, draw_lenses=False)
-    comp = pygame.Surface((64, 100), pygame.SRCALPHA)
-    comp.blit(body, (0, PARROT_DY))
-    _chrome_front(comp, 10.0)
-    sprite = comp.subsurface((0, PARROT_DY, 64, 60))
-    _draw_open_beak(sprite, P_CHROME)
-    _h_draw_bandaids(sprite)
-    _fh_draw_single_crack(sprite)
-    return _add_outline(comp)
-
-
-def _build_last_life_chrome():
-    """Last-life for chrome: _chrome_front draws lenses; no second _draw_lenses call."""
-    body = _build_parrot_with_palette(10.0, P_CHROME, draw_lenses=False)
-    comp = pygame.Surface((64, 100), pygame.SRCALPHA)
-    comp.blit(body, (0, PARROT_DY))
-    _chrome_front(comp, 10.0)
-    sprite = comp.subsurface((0, PARROT_DY, 64, 60))
-    _h_draw_bandaids(sprite)
-    _h_draw_headwrap(sprite)
-    _draw_open_beak(sprite, P_CHROME)
-    _h_draw_chest_dressing(sprite)
-    _h_draw_ragged_cuts(sprite)
-    _h_draw_cracked_lens(sprite)
-    return _add_outline(comp)
-
-
-# ── skeleton / zombie special-case builders ───────────────────────────────────
 
 def _build_special_first_hit(base_surf):
-    """First-hit for skeleton/zombie (no lenses, no palette beak)."""
+    """First-hit for skeleton/zombie (no palette lenses)."""
     _h_draw_bandaids(base_surf)
     _fh_draw_single_crack(base_surf)
     return _add_outline(base_surf)
 
 
 def _build_special_last_life(base_surf):
-    """Last-life for skeleton/zombie (no lenses, no palette beak)."""
+    """Last-life for skeleton/zombie (no palette lenses)."""
     _h_draw_bandaids(base_surf)
     _h_draw_headwrap(base_surf)
     _h_draw_chest_dressing(base_surf)
@@ -203,7 +191,8 @@ def _build_special_last_life(base_surf):
     return _add_outline(base_surf)
 
 
-def render_cell(skin_id, palette, paint_fn, lives_state, special):
+def render_cell(skin_id, palette, paint_fn, back_fn, outline_color,
+                draw_std_lenses, lives_state, special):
     cell = pygame.Surface((CELL_W, CELL_H))
     fill_sky(cell)
 
@@ -212,30 +201,20 @@ def render_cell(skin_id, palette, paint_fn, lives_state, special):
     if lives_state == "clean":
         img = _parrot.get_skin_frame(skin_id, 1, 0.0)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
-    elif lives_state == "first_hit":
+    else:
         if special == "skeleton":
-            img = _build_special_first_hit(_flesh_base(10.0))
+            base = _flesh_base(10.0)
+            img = (_build_special_first_hit(base) if lives_state == "first_hit"
+                   else _build_special_last_life(base))
         elif special == "zombie":
-            img = _build_special_first_hit(_build_voodoo_zombie(10.0))
-        elif special == "chrome":
-            img = _build_first_hit_chrome()
-        elif paint_fn is not None:
-            img = _build_first_hit_composite(palette, paint_fn)
+            base = _build_voodoo_zombie(10.0)
+            img = (_build_special_first_hit(base) if lives_state == "first_hit"
+                   else _build_special_last_life(base))
+        elif paint_fn is not None or back_fn is not None:
+            img = _build_hurt_composite(palette, paint_fn, back_fn, outline_color,
+                                        lives_state, draw_std_lenses)
         else:
-            img = _build_first_hit_simple(palette)
-        cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
-        cell.blit(par, par.get_rect(center=(CELL_W // 2, BIRD_Y + 12)))
-    else:  # last_life
-        if special == "skeleton":
-            img = _build_special_last_life(_flesh_base(10.0))
-        elif special == "zombie":
-            img = _build_special_last_life(_build_voodoo_zombie(10.0))
-        elif special == "chrome":
-            img = _build_last_life_chrome()
-        elif paint_fn is not None:
-            img = _build_last_life_composite(palette, paint_fn)
-        else:
-            img = _build_last_life_simple(palette)
+            img = _build_hurt_simple(palette, lives_state)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
         cell.blit(par, par.get_rect(center=(CELL_W // 2, BIRD_Y + 12)))
 
@@ -258,35 +237,28 @@ def main():
     title = fnt_title.render("STORE PARROTS × LIVES STATE", True, TEXT_COL)
     canvas.blit(title, title.get_rect(center=(total_w // 2, MARGIN + HDR_H // 2)))
 
-    # column headers
     for ci, col_label in enumerate(COLS):
         cx = MARGIN + LABEL_W + ci * CELL_W + CELL_W // 2
-        cy = MARGIN + HDR_H // 2
         surf = fnt_hdr.render(col_label, True, TEXT_COL)
-        canvas.blit(surf, surf.get_rect(center=(cx, cy)))
+        canvas.blit(surf, surf.get_rect(center=(cx, MARGIN + HDR_H // 2)))
 
-    # rows
-    for ri, (skin_id, display_name, palette, paint_fn, special) in enumerate(SKINS):
+    for ri, (skin_id, display_name, palette, paint_fn, back_fn,
+             outline_color, draw_std_lenses, special) in enumerate(SKINS):
         row_top = MARGIN + HDR_H + ri * CELL_H
 
-        # label panel
         label_rect = pygame.Rect(MARGIN, row_top, LABEL_W, CELL_H)
         pygame.draw.rect(canvas, LABEL_BG, label_rect)
-
-        # skin name centred in label
         lbl = fnt_label.render(display_name, True, TEXT_COL)
         canvas.blit(lbl, lbl.get_rect(center=(MARGIN + LABEL_W // 2, row_top + CELL_H // 2)))
 
-        # cells
         for ci, (col_label, col_state) in enumerate(zip(COLS, COL_STATES)):
             cell_x = MARGIN + LABEL_W + ci * CELL_W
-            cell = render_cell(skin_id, palette, paint_fn, col_state, special)
+            cell = render_cell(skin_id, palette, paint_fn, back_fn, outline_color,
+                               draw_std_lenses, col_state, special)
             canvas.blit(cell, (cell_x, row_top))
-            # 1-px divider
             pygame.draw.rect(canvas, BG, (cell_x, row_top, CELL_W, 1))
             pygame.draw.rect(canvas, BG, (cell_x, row_top, 1, CELL_H))
 
-    # outer border
     pygame.draw.rect(canvas, (60, 65, 85), canvas.get_rect(), 2)
 
     out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "store_parrot_lives_grid.png")
