@@ -232,7 +232,15 @@ def render_cell(skin_id, palette, paint_fn, back_fn, outline_color,
     par = get_parcel("normal")
 
     if lives_state == "clean":
-        img = _parrot.get_skin_frame(skin_id, 1, 0.0)
+        if back_fn is not None and paint_fn is None and special is None:
+            # back_fn-only skins (e.g. cockatoo): build clean via composite so
+            # the back layer renders behind the body, matching the hurt columns.
+            body = _build_parrot_with_palette(10.0, palette)
+            comp = pygame.Surface((64, 100), pygame.SRCALPHA)
+            comp.blit(body, (0, PARROT_DY))
+            img = _composite_with_back(comp, back_fn, outline_color)
+        else:
+            img = _parrot.get_skin_frame(skin_id, 1, 0.0)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
     else:
         if special == "skeleton":
