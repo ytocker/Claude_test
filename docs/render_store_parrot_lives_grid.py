@@ -30,8 +30,9 @@ from game.store_skins import (
     _moonbloom_front, _moonbloom_back, _MB_OUTLINE,
     _tempest_front,  _tempest_back,   _TP_OUTLINE,
     _chrome_front,   _chrome_back,
+    _zb_hex_aura, _zb_rim_halo,
 )
-from game.skeleton_skin import _flesh_base
+from game.skeleton_skin import _flesh_base, _paint as _skeleton_paint
 
 # ── layout ────────────────────────────────────────────────────────────────────
 LABEL_W = 150
@@ -175,20 +176,43 @@ def _build_hurt_simple(palette, lives_state):
     return _add_outline(base)
 
 
-def _build_special_first_hit(base_surf):
-    """First-hit for skeleton/zombie (no palette lenses)."""
-    _h_draw_bandaids(base_surf)
-    _fh_draw_single_crack(base_surf)
-    return _add_outline(base_surf)
+def _build_hurt_skeleton(lives_state):
+    """Skeleton hurt: build in composite space so bones (skull/ribs/spine) are present."""
+    comp = pygame.Surface((64, 100), pygame.SRCALPHA)
+    comp.blit(_flesh_base(10.0), (0, PARROT_DY))
+    _skeleton_paint(comp, 10.0)
+    sprite = comp.subsurface((0, PARROT_DY, 64, 60))
+    if lives_state == "first_hit":
+        _h_draw_bandaids(sprite)
+        _fh_draw_single_crack(sprite)
+    else:
+        _h_draw_bandaids(sprite)
+        _h_draw_headwrap(sprite)
+        _h_draw_chest_dressing(sprite)
+        _h_draw_ragged_cuts(sprite)
+    return _add_outline(comp)
 
 
-def _build_special_last_life(base_surf):
-    """Last-life for skeleton/zombie (no palette lenses)."""
-    _h_draw_bandaids(base_surf)
-    _h_draw_headwrap(base_surf)
-    _h_draw_chest_dressing(base_surf)
-    _h_draw_ragged_cuts(base_surf)
-    return _add_outline(base_surf)
+def _build_hurt_zombie(lives_state):
+    """Zombie hurt: dressings + cursed-green aura compositing (no headwrap — crown X stays)."""
+    base = _build_voodoo_zombie(10.0)
+    if lives_state == "first_hit":
+        _h_draw_bandaids(base)
+        _fh_draw_single_crack(base)
+    else:
+        _h_draw_bandaids(base)
+        _h_draw_chest_dressing(base)
+        _h_draw_ragged_cuts(base)
+    core = _add_outline(base)
+    pad = 16
+    cw, ch = core.get_size()
+    out = pygame.Surface((cw + pad * 2, ch + pad * 2), pygame.SRCALPHA)
+    _zb_hex_aura(out, out.get_width() // 2, out.get_height() // 2 + 4,
+                 max(cw, ch) // 2 + 6)
+    ring = _zb_rim_halo(core)
+    out.blit(ring, (pad - 2, pad - 2))
+    out.blit(core, (pad, pad))
+    return out
 
 
 def render_cell(skin_id, palette, paint_fn, back_fn, outline_color,
@@ -203,13 +227,9 @@ def render_cell(skin_id, palette, paint_fn, back_fn, outline_color,
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
     else:
         if special == "skeleton":
-            base = _flesh_base(10.0)
-            img = (_build_special_first_hit(base) if lives_state == "first_hit"
-                   else _build_special_last_life(base))
+            img = _build_hurt_skeleton(lives_state)
         elif special == "zombie":
-            base = _build_voodoo_zombie(10.0)
-            img = (_build_special_first_hit(base) if lives_state == "first_hit"
-                   else _build_special_last_life(base))
+            img = _build_hurt_zombie(lives_state)
         elif paint_fn is not None or back_fn is not None:
             img = _build_hurt_composite(palette, paint_fn, back_fn, outline_color,
                                         lives_state, draw_std_lenses)
