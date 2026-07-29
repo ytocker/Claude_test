@@ -676,36 +676,36 @@ class Bird:
         elif self.kfc_active and triple_vis:
             img = parrot.get_kfc_hat_parrot(frame_idx, tilt)
         elif self.ghost_active and triple_vis and self.on_last_life:
-            img = parrot.get_ghost_hat_hurt_parrot(frame_idx, tilt)
+            img = parrot.get_skin_ghost_hat_hurt_frame(self.equipped_skin, frame_idx, tilt)
         elif self.ghost_active and triple_vis and self.on_first_hit:
-            img = parrot.get_ghost_hat_first_hit_parrot(frame_idx, tilt)
+            img = parrot.get_skin_ghost_hat_first_hit_frame(self.equipped_skin, frame_idx, tilt)
         elif self.ghost_active and triple_vis:
-            img = parrot.get_ghost_hat_parrot(frame_idx, tilt)
+            img = parrot.get_skin_ghost_hat_frame(self.equipped_skin, frame_idx, tilt)
         elif self.kfc_active:
             img = parrot.get_fried_parrot(frame_idx, tilt)
         elif self.ghost_active and self.on_last_life:
-            img = parrot.get_ghost_hurt_parrot(frame_idx, tilt)
+            img = parrot.get_skin_ghost_hurt_frame(self.equipped_skin, frame_idx, tilt)
         elif self.ghost_active and self.on_first_hit:
-            img = parrot.get_ghost_first_hit_parrot(frame_idx, tilt)
+            img = parrot.get_skin_ghost_first_hit_frame(self.equipped_skin, frame_idx, tilt)
         elif self.ghost_active:
-            img = parrot.get_ghost_parrot(frame_idx, tilt)
+            img = parrot.get_skin_ghost_frame(self.equipped_skin, frame_idx, tilt)
         elif triple_vis and self.on_last_life:
-            img = parrot.get_hat_hurt_parrot(frame_idx, tilt)
+            img = parrot.get_skin_hat_hurt_frame(self.equipped_skin, frame_idx, tilt)
         elif triple_vis and self.on_first_hit:
-            img = parrot.get_hat_first_hit_parrot(frame_idx, tilt)
+            img = parrot.get_skin_hat_first_hit_frame(self.equipped_skin, frame_idx, tilt)
         elif triple_vis:
-            img = parrot.get_hat_parrot(frame_idx, tilt)
+            img = parrot.get_skin_hat_frame(self.equipped_skin, frame_idx, tilt)
         elif self.grow_active and self.on_last_life:
-            img = parrot.get_grow_hurt_parrot(frame_idx, tilt)
+            img = parrot.get_skin_grow_hurt_frame(self.equipped_skin, frame_idx, tilt)
         elif self.grow_active and self.on_first_hit:
-            img = parrot.get_grow_first_hit_parrot(frame_idx, tilt)
+            img = parrot.get_skin_grow_first_hit_frame(self.equipped_skin, frame_idx, tilt)
         elif self.grow_active:
             # Hi-res grow-mode bird: pre-built at full grow display size by
             # `parrot._build_grow_frame` (round-9 v3 = 3× supersample → 1.5×
             # downscale). Skips the smoothscale-up that produced the prior
             # blur. Combo modes (kfc / ghost / triple + grow) still use
             # the legacy upscale below — they pre-empt this branch.
-            img = parrot.get_grow_parrot(frame_idx, tilt)
+            img = parrot.get_skin_grow_frame(self.equipped_skin, frame_idx, tilt)
         elif self.on_last_life:
             img = parrot.get_skin_hurt_frame(self.equipped_skin, frame_idx, tilt)
         elif self.on_first_hit:
