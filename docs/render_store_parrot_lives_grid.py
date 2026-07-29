@@ -16,6 +16,7 @@ from game.parrot import (
     _h_draw_bandaids, _h_draw_headwrap, _h_draw_chest_dressing,
     _h_draw_ragged_cuts, _h_draw_cracked_lens, _fh_draw_single_crack,
     _add_outline, get_parcel,
+    _H_GAUZE, _H_HEM, _H_SCRATCH_PALE, _h_stamp_clipped,
 )
 from game.dollar_parrot_ghost import _build_parrot_with_palette, _draw_lenses
 from game.store_skins import (
@@ -176,6 +177,31 @@ def _build_hurt_simple(palette, lives_state):
     return _add_outline(base)
 
 
+def _draw_headwrap_shifted(surf, dy):
+    """Headwrap cap shifted down by dy pixels — so it sits on visible skull bone."""
+    layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    d = pygame.draw
+    cap_pts = [(36, 21 + dy), (37, 16 + dy), (40, 12 + dy), (45, 10 + dy),
+               (51, 11 + dy), (56, 14 + dy), (59, 18 + dy), (59, 21 + dy)]
+    d.polygon(layer, _H_GAUZE, cap_pts)
+    d.lines(layer, _H_HEM, False, cap_pts[:-1], 1)
+    d.line(layer, _H_HEM, (38, 19 + dy), (57, 19 + dy), 1)
+    d.line(layer, _H_HEM, (40, 17 + dy), (56, 17 + dy), 1)
+    d.line(layer, _H_HEM, (40, 13 + dy), (54, 13 + dy), 1)
+    d.line(layer, _H_HEM, (39, 15 + dy), (56, 15 + dy), 1)
+    knot_pts = [(36, 16 + dy), (38, 14 + dy), (41, 15 + dy), (40, 18 + dy), (37, 19 + dy)]
+    d.polygon(layer, _H_GAUZE, knot_pts)
+    d.polygon(layer, _H_HEM,   knot_pts, 1)
+    _h_stamp_clipped(surf, layer)
+    d.line(surf, _H_GAUZE, (36, 17 + dy), (33, 20 + dy), 2)
+    d.line(surf, _H_HEM,   (36, 17 + dy), (33, 20 + dy), 1)
+    d.line(surf, _H_GAUZE, (37, 19 + dy), (35, 23 + dy), 2)
+    d.line(surf, _H_HEM,   (37, 19 + dy), (35, 23 + dy), 1)
+    surf.set_at((41, 19 + dy), _H_SCRATCH_PALE)
+    surf.set_at((42, 19 + dy), _H_SCRATCH_PALE)
+    surf.set_at((41, 20 + dy), (*_H_SCRATCH_PALE[:2], _H_SCRATCH_PALE[2] - 20))
+
+
 def _build_hurt_skeleton(lives_state):
     """Skeleton hurt: build in composite space so bones (skull/ribs/spine) are present."""
     comp = pygame.Surface((64, 100), pygame.SRCALPHA)
@@ -187,20 +213,21 @@ def _build_hurt_skeleton(lives_state):
         _fh_draw_single_crack(sprite)
     else:
         _h_draw_bandaids(sprite)
-        _h_draw_headwrap(sprite)
+        _draw_headwrap_shifted(sprite, 5)
         _h_draw_chest_dressing(sprite)
         _h_draw_ragged_cuts(sprite)
     return _add_outline(comp)
 
 
 def _build_hurt_zombie(lives_state):
-    """Zombie hurt: dressings + cursed-green aura compositing (no headwrap — crown X stays)."""
+    """Zombie hurt: dressings + cursed-green aura compositing."""
     base = _build_voodoo_zombie(10.0)
     if lives_state == "first_hit":
         _h_draw_bandaids(base)
         _fh_draw_single_crack(base)
     else:
         _h_draw_bandaids(base)
+        _draw_headwrap_shifted(base, 7)
         _h_draw_chest_dressing(base)
         _h_draw_ragged_cuts(base)
     core = _add_outline(base)
