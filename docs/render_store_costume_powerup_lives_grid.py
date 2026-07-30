@@ -220,13 +220,14 @@ def _build_costume_triple(base_type, palette, paint_fn, draw_std_lenses, outline
 
 def _build_costume_poison(base_type, palette, paint_fn, draw_std_lenses, outline_color, lives_state):
     """Chartreuse body; costume accessories keep original colours.
-    Draw order mirrors _build_costume_raw_comp: tint runs on the body first,
-    then dressings → lenses → paint_fn (hat/helmet) → chest/cuts → X-eyes."""
+    P_CHARTREUSE already defines the correct body/beak/foot colours (matching
+    get_poisoned_parrot) so no _poison_tint post-pass is needed — that would
+    double-tint the beak and feet to full green.
+    Draw order: body (P_CHARTREUSE) → dressings → lenses → paint_fn (hat) → chest/cuts → X-eyes."""
     comp = pygame.Surface((64, 100), pygame.SRCALPHA)
 
     if base_type in ("standard", "palette"):
         comp.blit(_build_parrot_with_palette(10.0, P_CHARTREUSE, draw_lenses=False), (0, PARROT_DY))
-        _poison_tint(comp)
         sprite = comp.subsurface((0, PARROT_DY, 64, 60))
         if lives_state == "last_life":
             _h_draw_bandaids(sprite)
@@ -257,7 +258,6 @@ def _build_costume_poison(base_type, palette, paint_fn, draw_std_lenses, outline
         _viking_axe(comp)
         comp.blit(_build_parrot_with_palette(10.0, P_CHARTREUSE, draw_lenses=False), (0, PARROT_DY))
         _viking_back(comp)
-        _poison_tint(comp)
         sprite = comp.subsurface((0, PARROT_DY, 64, 60))
         if lives_state != "clean":
             _h_draw_bandaids(sprite)
