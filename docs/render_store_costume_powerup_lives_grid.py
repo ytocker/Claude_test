@@ -219,26 +219,37 @@ def _build_costume_triple(base_type, palette, paint_fn, draw_std_lenses, outline
 
 
 def _build_costume_poison(base_type, palette, paint_fn, draw_std_lenses, outline_color, lives_state):
-    """Chartreuse costume: accessories tinted, dressings + X-eyes applied after."""
+    """Chartreuse body; costume accessories keep original colours.
+    Draw order mirrors _build_costume_raw_comp: tint runs on the body first,
+    then dressings → lenses → paint_fn (hat/helmet) → chest/cuts → X-eyes."""
     comp = pygame.Surface((64, 100), pygame.SRCALPHA)
 
     if base_type in ("standard", "palette"):
         comp.blit(_build_parrot_with_palette(10.0, P_CHARTREUSE, draw_lenses=False), (0, PARROT_DY))
-        # Tint body chartreuse BEFORE paint_fn so costume accessories keep their
-        # original colours (hats, armour, etc. are not body-integrated effects).
         _poison_tint(comp)
-        if paint_fn:
-            paint_fn(comp, 10.0)
         sprite = comp.subsurface((0, PARROT_DY, 64, 60))
         if lives_state == "last_life":
             _h_draw_bandaids(sprite)
             _h_draw_headwrap(sprite)
+            if draw_std_lenses:
+                _draw_lenses(sprite, 50, 20, palette)
+            if paint_fn:
+                paint_fn(comp, 10.0)
             _h_draw_chest_dressing(sprite)
             _h_draw_ragged_cuts(sprite)
             _h_draw_cracked_lens(sprite)
         elif lives_state == "first_hit":
             _h_draw_bandaids(sprite)
+            if draw_std_lenses:
+                _draw_lenses(sprite, 50, 20, palette)
             _fh_draw_single_crack(sprite)
+            if paint_fn:
+                paint_fn(comp, 10.0)
+        else:  # clean
+            if draw_std_lenses:
+                _draw_lenses(sprite, 50, 20, palette)
+            if paint_fn:
+                paint_fn(comp, 10.0)
         _draw_b_x_eyes(sprite)
         return _add_outline(comp)
 
@@ -246,20 +257,20 @@ def _build_costume_poison(base_type, palette, paint_fn, draw_std_lenses, outline
         _viking_axe(comp)
         comp.blit(_build_parrot_with_palette(10.0, P_CHARTREUSE, draw_lenses=False), (0, PARROT_DY))
         _viking_back(comp)
-        # Tint before viking helm/face so the armour keeps its original colours.
         _poison_tint(comp)
+        sprite = comp.subsurface((0, PARROT_DY, 64, 60))
+        if lives_state != "clean":
+            _h_draw_bandaids(sprite)
+        if lives_state == "last_life":
+            _h_draw_headwrap(sprite)
         _viking_helm(comp)
         _viking_face(comp)
-        sprite = comp.subsurface((0, PARROT_DY, 64, 60))
-        if lives_state == "last_life":
-            _h_draw_bandaids(sprite)
-            _h_draw_headwrap(sprite)
+        if lives_state == "first_hit":
+            _fh_draw_single_crack(sprite)
+        elif lives_state == "last_life":
             _h_draw_chest_dressing(sprite)
             _h_draw_ragged_cuts(sprite)
             _h_draw_cracked_lens(sprite)
-        elif lives_state == "first_hit":
-            _h_draw_bandaids(sprite)
-            _fh_draw_single_crack(sprite)
         _draw_b_x_eyes(sprite)
         kw = {"outline_color": outline_color} if outline_color else {}
         return _add_outline(comp, **kw)
