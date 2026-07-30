@@ -141,6 +141,10 @@ POWERUP_REPLACED_AT = {
 # right after scoring that pillar). From that moment, the genie is also added
 # to the regular spawn pool and the Surprise Box re-roll pool.
 LATE_GAME_PILLAR       = 50
+# The genie lamp's pillar number is resolved in weather.GENIE_PILLAR as
+# pillar_for_phase(THERMAL_PEAK_PHASE) + GENIE_PILLARS_AFTER_GEYSER_PEAK,
+# anchoring it to the geyser event so both stay in sync when thermal tuning changes.
+GENIE_PILLARS_AFTER_GEYSER_PEAK = 3
 # DEBUG: extra genie spawn early in the run so the pickup + chamber + wishes
 # can be exercised without playing through the full milestone. Same one-shot rules
 # as the production milestone (also flips on the genie pool + surprise-box
@@ -210,6 +214,25 @@ KNIGHT_INVULN       = 1.5
 LIVES_PER_RUN    = 2
 LIVES_INVULN_DUR = 1.5
 LIVES_FLICKER_HZ = 10
+
+# ── CLOWN EVENT ──────────────────────────────────────────────────────────────
+# A scripted set-piece: a tight "warren" gauntlet of fused staff-pillars.
+# CLOWN_SLOT_PILLARS is the max gauntlet length (== CLOWN_ROLL_MAX) reserved in
+# the timeline so all downstream pillar numbers stay deterministic regardless of
+# the actual rolled length. CLOWN_LEADIN_PILLARS is the clear-sky gap between
+# the die-reveal and the first warren tower.
+CLOWN_START_PILLAR    = 65
+CLOWN_SLOT_PILLARS    = 25           # held max slot width (== CLOWN_ROLL_MAX)
+CLOWN_ROLL_MIN        = 10
+CLOWN_ROLL_MAX        = 25
+CLOWN_WARREN_SPACING  = 72           # fused centre-to-centre spacing (vs PIPE_SPACING)
+CLOWN_WARREN_GAP      = 172          # per-pillar gap height inside the gauntlet
+CLOWN_PRECLEAR_PILLARS = 2           # phantom empties BEFORE the clown+die appear
+CLOWN_LEADIN_PILLARS  = 1            # empties after the die reveal, before the gauntlet
+CLOWN_OUTRO_PILLARS   = 1            # empties right after the gauntlet
+
+# Rain intensity above which the storm-jolt lightning strike can fire.
+STORM_JOLT_RAIN_MIN   = 0.85
 
 # RAIN + THUNDERSTORM anchor. The dusk storm block (drizzle build →
 # storm peak → fade, plus the in-game lightning gate) is shifted along
@@ -326,6 +349,14 @@ WEATHER_SNOW_MELT_AT    = 0.04    # phase PAST the peak at which defrost begins 
 WEATHER_SNOW_ACCUM_RATE = 0.037   # constant build pace while it's snowing hard (~full by ~0.92)
 WEATHER_SNOW_MELT_RATE  = 0.06    # defrost pace past the peak (gone ~the day boundary)
 
+WEATHER_WET_ON_RI      = 0.18   # rain intensity at/above which paving wets up
+WEATHER_WET_RISE_RATE  = 0.45   # per-second wetness build while raining hard
+WEATHER_WET_DRY_RATE   = 0.18   # per-second dry-out once the rain eases
+
+WEATHER_CROWD_RAIN_MIN   = 0.22  # crowd-density multiplier at heaviest rain
+WEATHER_CROWD_SNOW_MIN   = 0.06  # crowd-density multiplier at snow-squall peak
+WEATHER_UMBRELLA_RAIN_AT = 0.12  # rain intensity at which umbrellas appear in the crowd
+
 # ── Morning-thermal geysers ─────────────────────────────────────────────────
 # Ground geysers spawned during the thermal window. Spawn density + how many
 # appear at once (1→GEYSER_MAX_CONCURRENT) scale with the live intensity, so
@@ -391,5 +422,8 @@ PIPE_SPACING_NEWBIE  = 370
 
 SAVE_FILE = "skybit_save.json"
 SCORES_FILE = "skybit_scores.json"
+STORE_FILE = "skybit_store.json"
+
+DAILY_REWARD = 75
 
 DAY_EXTRA_SECONDS = 0.0
