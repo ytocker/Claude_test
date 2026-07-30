@@ -25,8 +25,9 @@ from game.parrot import (
     _h_draw_bandaids, _h_draw_headwrap, _h_draw_chest_dressing,
     _h_draw_ragged_cuts, _h_draw_cracked_lens, _fh_draw_single_crack,
     _h_build_hurt_frame, _fh_build_hurt_frame,
-    _add_outline, get_parcel,
+    _add_outline, get_parcel, get_fried_parrot,
 )
+from game.entities import Bird
 from game.dollar_parrot_ghost import _build_parrot_with_palette, _draw_lenses
 from game.dollar_parrot_dead import P_CHARTREUSE, _draw_b_x_eyes
 from game.dollar_parrot_hat import draw_stovepipe, HAT_HX, HAT_HY
@@ -59,8 +60,11 @@ DIM_COL  = (130, 130, 150)
 SKY_TOP  = (80, 130, 210)
 SKY_BOT  = (100, 150, 200)
 
-COLS     = ["Normal", "Ghost", "Triple", "Gst+Trpl", "Grow", "Poison"]
-COL_KEYS = ["normal", "ghost", "triple", "ghost_triple", "grow", "poison"]
+COLS     = ["Normal", "Ghost", "Triple", "Gst+Trpl", "Grow", "Poison", "KFC", "Skateboard"]
+COL_KEYS = ["normal", "ghost", "triple", "ghost_triple", "grow", "poison", "kfc", "skateboard"]
+
+_HELMET_CACHE = None
+_BOARD_CACHE  = None
 
 ROWS     = ["CLEAN", "FIRST-HIT", "LAST-LIFE"]
 ROW_KEYS = ["clean", "first_hit", "last_life"]
@@ -342,6 +346,33 @@ def render_cell(skin_id, base_type, palette, paint_fn, draw_std_lenses,
         img = _build_costume_poison(base_type, palette, paint_fn, draw_std_lenses,
                                     outline_color, lives_state)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
+        return cell
+
+    if effect == "kfc":
+        img = get_fried_parrot(1, 0.0)
+        cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
+        if is_hurt:
+            par = get_parcel("kfc")
+            cell.blit(par, par.get_rect(center=(CELL_W // 2, BIRD_Y + 12)))
+        return cell
+
+    if effect == "skateboard":
+        global _HELMET_CACHE, _BOARD_CACHE
+        if _HELMET_CACHE is None:
+            _HELMET_CACHE = Bird._build_helmet_sprite()
+        if _BOARD_CACHE is None:
+            _BOARD_CACHE, _ = Bird._build_board_base()
+        bird_cx, bird_cy = CELL_W // 2, BIRD_Y
+        # Board below feet first
+        cell.blit(_BOARD_CACHE, _BOARD_CACHE.get_rect(
+            center=(bird_cx, bird_cy + PARCEL_Y_OFFSET + 4)))
+        # Lives-aware costume sprite
+        img = _build_costume_normal(base_type, palette, paint_fn, draw_std_lenses,
+                                    outline_color, lives_state)
+        cell.blit(img, img.get_rect(center=(bird_cx, bird_cy)))
+        # Punk skull-bunny helmet above head
+        # At s=1.0, tilt=0, flipped=False: Vector2(18, -10 + (-18/2)) = (18, -19)
+        cell.blit(_HELMET_CACHE, _HELMET_CACHE.get_rect(center=(bird_cx + 18, bird_cy - 19)))
         return cell
 
     return cell
