@@ -433,8 +433,13 @@ def main():
 
     pygame.draw.rect(canvas, (60, 65, 85), canvas.get_rect(), 2)
 
-    out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            "costume_powerup_lives_grid.png")
+    import glob as _glob, re as _re
+    docs_dir = os.path.dirname(os.path.abspath(__file__))
+    existing = _glob.glob(os.path.join(docs_dir, "costume_powerup_lives_grid_v*.png"))
+    versions = [int(m.group(1)) for f in existing
+                for m in [_re.search(r'_v(\d+)\.png$', f)] if m]
+    next_v = max(versions, default=0) + 1
+    out_path = os.path.join(docs_dir, f"costume_powerup_lives_grid_v{next_v}.png")
     pygame.image.save(canvas, out_path)
     print(f"Saved {total_w}×{total_h} → {out_path}")
     pygame.quit()
