@@ -25,7 +25,7 @@ from game.parrot import (
     _h_build_hurt_frame, _fh_build_hurt_frame,
     _add_outline, get_parcel,
 )
-from game.dollar_parrot_ghost import _build_parrot_with_palette
+from game.dollar_parrot_ghost import _build_parrot_with_palette, _draw_lenses
 from game.store_skins import (
     PARROT_DY,
     P_NINJA, _TH_BODY, _MU_BODY, P_ASTRONAUT, P_PILOT,
@@ -59,20 +59,21 @@ COL_STATES = ["clean", "first_hit", "last_life"]
 # base_type "palette"  → _build_parrot_with_palette(palette) + paint_fn + manual dressings
 # base_type "viking"   → custom axe-behind-body composite
 COSTUMES = [
-    ("skin_pirate",     "PIRATE",     "standard", None,        _paint_pirate),
-    ("skin_cowboy",     "COWBOY",     "standard", None,        _paint_cowboy),
-    ("skin_pharaoh",    "PHARAOH",    "standard", None,        _paint_pharaoh),
-    ("skin_crown",      "CROWN",      "standard", None,        _paint_crown),
-    ("skin_baseball",   "BASEBALL",   "standard", None,        _paint_baseball),
-    ("skin_tennis",     "TENNIS",     "standard", None,        _paint_tennis),
-    ("skin_wizard",     "WIZARD",     "standard", None,        _paint_wizard),
-    ("skin_basketball", "BASKETBALL", "standard", None,        _paint_laker),
-    ("skin_tophat",     "GENTLEMAN",  "palette",  _TH_BODY,    _paint_tophat),
-    ("skin_ninja",      "NINJA",      "palette",  P_NINJA,     _paint_ninja),
-    ("skin_mummy",      "MUMMY",      "palette",  _MU_BODY,    _paint_mummy),
-    ("skin_astronaut",  "ASTRONAUT",  "palette",  P_ASTRONAUT, _paint_astronaut),
-    ("skin_pilot",      "CAPTAIN",    "palette",  P_PILOT,     _paint_pilot),
-    ("skin_viking",     "VIKING",     "viking",   _VK_PAL,     None),
+    # (skin_id, display_name, base_type, palette, paint_fn, draw_std_lenses)
+    ("skin_pirate",     "PIRATE",     "standard", None,        _paint_pirate,     False),
+    ("skin_cowboy",     "COWBOY",     "standard", None,        _paint_cowboy,     False),
+    ("skin_pharaoh",    "PHARAOH",    "standard", None,        _paint_pharaoh,    False),
+    ("skin_crown",      "CROWN",      "standard", None,        _paint_crown,      False),
+    ("skin_baseball",   "BASEBALL",   "standard", None,        _paint_baseball,   False),
+    ("skin_tennis",     "TENNIS",     "standard", None,        _paint_tennis,     False),
+    ("skin_wizard",     "WIZARD",     "standard", None,        _paint_wizard,     False),
+    ("skin_basketball", "BASKETBALL", "standard", None,        _paint_laker,      False),
+    ("skin_tophat",     "GENTLEMAN",  "palette",  _TH_BODY,    _paint_tophat,     False),
+    ("skin_ninja",      "NINJA",      "palette",  P_NINJA,     _paint_ninja,      False),
+    ("skin_mummy",      "MUMMY",      "palette",  _MU_BODY,    _paint_mummy,      False),
+    ("skin_astronaut",  "ASTRONAUT",  "palette",  P_ASTRONAUT, _paint_astronaut,  False),
+    ("skin_pilot",      "CAPTAIN",    "palette",  P_PILOT,     _paint_pilot,      True),
+    ("skin_viking",     "VIKING",     "viking",   _VK_PAL,     None,              False),
 ]
 
 
@@ -103,19 +104,25 @@ def _build_standard_hurt(paint_fn, lives_state):
     return _add_outline(comp)
 
 
-def _build_palette_hurt(palette, paint_fn, lives_state):
+def _build_palette_hurt(palette, paint_fn, lives_state, draw_std_lenses=False):
     """Hurt frame for custom-palette costumes: palette body + accessories + manual dressings."""
     base = _build_parrot_with_palette(10.0, palette, draw_lenses=False)
     comp = pygame.Surface((64, 100), pygame.SRCALPHA)
     comp.blit(base, (0, PARROT_DY))
-    if paint_fn:
-        paint_fn(comp, 10.0)
     sprite = comp.subsurface((0, PARROT_DY, 64, 60))
     _h_draw_bandaids(sprite)
     if lives_state == "first_hit":
+        if draw_std_lenses:
+            _draw_lenses(sprite, 50, 20, palette)
         _fh_draw_single_crack(sprite)
+        if paint_fn:
+            paint_fn(comp, 10.0)
     else:
         _h_draw_headwrap(sprite)
+        if draw_std_lenses:
+            _draw_lenses(sprite, 50, 20, palette)
+        if paint_fn:
+            paint_fn(comp, 10.0)
         _h_draw_chest_dressing(sprite)
         _h_draw_ragged_cuts(sprite)
         _h_draw_cracked_lens(sprite)
@@ -124,29 +131,27 @@ def _build_palette_hurt(palette, paint_fn, lives_state):
 
 def _build_viking_hurt(lives_state):
     """Viking hurt: axe behind palette hurt body, then shield/helm/face, then dressings."""
-    if lives_state == "first_hit":
-        body = _build_parrot_with_palette(10.0, _VK_PAL, draw_lenses=False)
-    else:
-        body = _build_parrot_with_palette(10.0, _VK_PAL, draw_lenses=False)
+    body = _build_parrot_with_palette(10.0, _VK_PAL, draw_lenses=False)
     comp = pygame.Surface((64, 100), pygame.SRCALPHA)
     _viking_axe(comp)
     comp.blit(body, (0, PARROT_DY))
     _viking_back(comp)
-    _viking_helm(comp)
-    _viking_face(comp)
     sprite = comp.subsurface((0, PARROT_DY, 64, 60))
     _h_draw_bandaids(sprite)
+    if lives_state == "last_life":
+        _h_draw_headwrap(sprite)
+    _viking_helm(comp)
+    _viking_face(comp)
     if lives_state == "first_hit":
         _fh_draw_single_crack(sprite)
     else:
-        _h_draw_headwrap(sprite)
         _h_draw_chest_dressing(sprite)
         _h_draw_ragged_cuts(sprite)
         _h_draw_cracked_lens(sprite)
     return _add_outline(comp, outline_color=_VK_OUTLINE)
 
 
-def render_cell(skin_id, base_type, palette, paint_fn, lives_state):
+def render_cell(skin_id, base_type, palette, paint_fn, draw_std_lenses, lives_state):
     cell = pygame.Surface((CELL_W, CELL_H))
     fill_sky(cell)
 
@@ -181,7 +186,7 @@ def render_cell(skin_id, base_type, palette, paint_fn, lives_state):
         if base_type == "standard":
             img = _build_standard_hurt(paint_fn, lives_state)
         elif base_type == "palette":
-            img = _build_palette_hurt(palette, paint_fn, lives_state)
+            img = _build_palette_hurt(palette, paint_fn, lives_state, draw_std_lenses)
         else:  # viking
             img = _build_viking_hurt(lives_state)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
@@ -211,7 +216,7 @@ def main():
         surf = fnt_hdr.render(col_label, True, TEXT_COL)
         canvas.blit(surf, surf.get_rect(center=(cx, MARGIN + HDR_H // 2)))
 
-    for ri, (skin_id, display_name, base_type, palette, paint_fn) in enumerate(COSTUMES):
+    for ri, (skin_id, display_name, base_type, palette, paint_fn, draw_std_lenses) in enumerate(COSTUMES):
         row_top = MARGIN + HDR_H + ri * CELL_H
 
         label_rect = pygame.Rect(MARGIN, row_top, LABEL_W, CELL_H)
@@ -221,7 +226,7 @@ def main():
 
         for ci, col_state in enumerate(COL_STATES):
             cell_x = MARGIN + LABEL_W + ci * CELL_W
-            cell = render_cell(skin_id, base_type, palette, paint_fn, col_state)
+            cell = render_cell(skin_id, base_type, palette, paint_fn, draw_std_lenses, col_state)
             canvas.blit(cell, (cell_x, row_top))
             pygame.draw.rect(canvas, BG, (cell_x, row_top, CELL_W, 1))
             pygame.draw.rect(canvas, BG, (cell_x, row_top, 1, CELL_H))
