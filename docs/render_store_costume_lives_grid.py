@@ -119,13 +119,13 @@ def _build_palette_hurt(palette, paint_fn, lives_state, draw_std_lenses=False):
             paint_fn(comp, 10.0)
     else:
         _h_draw_headwrap(sprite)
-        if draw_std_lenses:
-            _draw_lenses(sprite, 50, 20, palette)
-        if paint_fn:
-            paint_fn(comp, 10.0)
         _h_draw_chest_dressing(sprite)
         _h_draw_ragged_cuts(sprite)
+        if draw_std_lenses:
+            _draw_lenses(sprite, 50, 20, palette)
         _h_draw_cracked_lens(sprite)
+        if paint_fn:
+            paint_fn(comp, 10.0)
     return _add_outline(comp)
 
 

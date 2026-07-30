@@ -169,13 +169,13 @@ def _build_costume_raw_comp(base_type, palette, paint_fn, draw_std_lenses, lives
                     paint_fn(comp, 10.0)
             else:
                 _h_draw_headwrap(sprite)
-                if draw_std_lenses:
-                    _draw_lenses(sprite, 50, 20, palette)
-                if paint_fn:
-                    paint_fn(comp, 10.0)
                 _h_draw_chest_dressing(sprite)
                 _h_draw_ragged_cuts(sprite)
+                if draw_std_lenses:
+                    _draw_lenses(sprite, 50, 20, palette)
                 _h_draw_cracked_lens(sprite)
+                if paint_fn:
+                    paint_fn(comp, 10.0)
 
     else:  # viking
         if lives_state == "clean":
@@ -232,13 +232,13 @@ def _build_costume_poison(base_type, palette, paint_fn, draw_std_lenses, outline
         if lives_state == "last_life":
             _h_draw_bandaids(sprite)
             _h_draw_headwrap(sprite)
-            if draw_std_lenses:
-                _draw_lenses(sprite, 50, 20, palette)
-            if paint_fn:
-                paint_fn(comp, 10.0)
             _h_draw_chest_dressing(sprite)
             _h_draw_ragged_cuts(sprite)
+            if draw_std_lenses:
+                _draw_lenses(sprite, 50, 20, palette)
             _h_draw_cracked_lens(sprite)
+            if paint_fn:
+                paint_fn(comp, 10.0)
         elif lives_state == "first_hit":
             _h_draw_bandaids(sprite)
             if draw_std_lenses:
