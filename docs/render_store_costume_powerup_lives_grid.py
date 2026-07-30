@@ -81,7 +81,7 @@ COSTUMES = [
     ("skin_basketball", "BASKETBALL", "standard", None,        _paint_laker,     False, None),
     ("skin_tophat",     "GENTLEMAN",  "palette",  _TH_BODY,    _paint_tophat,    False, None),
     ("skin_ninja",      "NINJA",      "palette",  P_NINJA,     _paint_ninja,     False, None),
-    ("skin_mummy",      "MUMMY",      "palette",  _MU_BODY,    _paint_mummy,     False, None),
+    ("skin_mummy",      "MUMMY",      "palette",  _MU_BODY,    _paint_mummy,     False, None, True),
     ("skin_astronaut",  "ASTRONAUT",  "palette",  P_ASTRONAUT, _paint_astronaut, False, None),
     ("skin_pilot",      "CAPTAIN",    "palette",  P_PILOT,     _paint_pilot,     True,  None),
     ("skin_viking",     "VIKING",     "viking",   _VK_PAL,     None,             False, _VK_OUTLINE),
@@ -138,7 +138,8 @@ def _poison_tint(img):
 
 # ── raw composite builder (unoutlined 64×100) ─────────────────────────────────
 
-def _build_costume_raw_comp(base_type, palette, paint_fn, draw_std_lenses, lives_state):
+def _build_costume_raw_comp(base_type, palette, paint_fn, draw_std_lenses, lives_state,
+                            damage_over_costume=False):
     """Return an unoutlined 64×100 SRCALPHA composite with dressings applied."""
     comp = pygame.Surface((64, 100), pygame.SRCALPHA)
 
@@ -160,21 +161,26 @@ def _build_costume_raw_comp(base_type, palette, paint_fn, draw_std_lenses, lives
         else:
             comp.blit(_build_parrot_with_palette(10.0, palette, draw_lenses=False), (0, PARROT_DY))
             sprite = comp.subsurface((0, PARROT_DY, 64, 60))
-            _h_draw_bandaids(sprite)
             if lives_state == "first_hit":
+                if damage_over_costume and paint_fn:
+                    paint_fn(comp, 10.0)
+                _h_draw_bandaids(sprite)
                 if draw_std_lenses:
                     _draw_lenses(sprite, 50, 20, palette)
                 _fh_draw_single_crack(sprite)
-                if paint_fn:
+                if not damage_over_costume and paint_fn:
                     paint_fn(comp, 10.0)
             else:
+                if damage_over_costume and paint_fn:
+                    paint_fn(comp, 10.0)
+                _h_draw_bandaids(sprite)
                 _h_draw_headwrap(sprite)
                 _h_draw_chest_dressing(sprite)
                 _h_draw_ragged_cuts(sprite)
                 if draw_std_lenses:
                     _draw_lenses(sprite, 50, 20, palette)
                 _h_draw_cracked_lens(sprite)
-                if paint_fn:
+                if not damage_over_costume and paint_fn:
                     paint_fn(comp, 10.0)
 
     else:  # viking
@@ -205,31 +211,37 @@ def _build_costume_raw_comp(base_type, palette, paint_fn, draw_std_lenses, lives
     return comp
 
 
-def _build_costume_normal(base_type, palette, paint_fn, draw_std_lenses, outline_color, lives_state):
-    comp = _build_costume_raw_comp(base_type, palette, paint_fn, draw_std_lenses, lives_state)
+def _build_costume_normal(base_type, palette, paint_fn, draw_std_lenses, outline_color, lives_state,
+                          damage_over_costume=False):
+    comp = _build_costume_raw_comp(base_type, palette, paint_fn, draw_std_lenses, lives_state,
+                                   damage_over_costume)
     kw = {"outline_color": outline_color} if outline_color else {}
     return _add_outline(comp, **kw)
 
 
-def _build_costume_triple(base_type, palette, paint_fn, draw_std_lenses, outline_color, lives_state):
-    comp = _build_costume_raw_comp(base_type, palette, paint_fn, draw_std_lenses, lives_state)
+def _build_costume_triple(base_type, palette, paint_fn, draw_std_lenses, outline_color, lives_state,
+                          damage_over_costume=False):
+    comp = _build_costume_raw_comp(base_type, palette, paint_fn, draw_std_lenses, lives_state,
+                                   damage_over_costume)
     draw_stovepipe(comp, HAT_HX, HAT_HY)
     kw = {"outline_color": outline_color} if outline_color else {}
     return _add_outline(comp, **kw)
 
 
-def _build_costume_poison(base_type, palette, paint_fn, draw_std_lenses, outline_color, lives_state):
-    """Chartreuse body; costume accessories keep original colours.
-    P_CHARTREUSE already defines the correct body/beak/foot colours (matching
-    get_poisoned_parrot) so no _poison_tint post-pass is needed — that would
-    double-tint the beak and feet to full green.
-    Draw order: body (P_CHARTREUSE) → dressings → lenses → paint_fn (hat) → chest/cuts → X-eyes."""
+def _build_costume_poison(base_type, palette, paint_fn, draw_std_lenses, outline_color, lives_state,
+                          damage_over_costume=False):
+    """Chartreuse body for standard skins; palette types keep their original body colour.
+    X-eyes signal poison for all types.  No _poison_tint needed — P_CHARTREUSE already
+    matches get_poisoned_parrot's beak/foot colours and a second tint would double-shift."""
     comp = pygame.Surface((64, 100), pygame.SRCALPHA)
 
     if base_type in ("standard", "palette"):
-        comp.blit(_build_parrot_with_palette(10.0, P_CHARTREUSE, draw_lenses=False), (0, PARROT_DY))
+        body_pal = P_CHARTREUSE if base_type == "standard" else palette
+        comp.blit(_build_parrot_with_palette(10.0, body_pal, draw_lenses=False), (0, PARROT_DY))
         sprite = comp.subsurface((0, PARROT_DY, 64, 60))
         if lives_state == "last_life":
+            if damage_over_costume and paint_fn:
+                paint_fn(comp, 10.0)
             _h_draw_bandaids(sprite)
             _h_draw_headwrap(sprite)
             _h_draw_chest_dressing(sprite)
@@ -237,14 +249,16 @@ def _build_costume_poison(base_type, palette, paint_fn, draw_std_lenses, outline
             if draw_std_lenses:
                 _draw_lenses(sprite, 50, 20, palette)
             _h_draw_cracked_lens(sprite)
-            if paint_fn:
+            if not damage_over_costume and paint_fn:
                 paint_fn(comp, 10.0)
         elif lives_state == "first_hit":
+            if damage_over_costume and paint_fn:
+                paint_fn(comp, 10.0)
             _h_draw_bandaids(sprite)
             if draw_std_lenses:
                 _draw_lenses(sprite, 50, 20, palette)
             _fh_draw_single_crack(sprite)
-            if paint_fn:
+            if not damage_over_costume and paint_fn:
                 paint_fn(comp, 10.0)
         else:  # clean
             if draw_std_lenses:
@@ -279,14 +293,14 @@ def _build_costume_poison(base_type, palette, paint_fn, draw_std_lenses, outline
 # ── cell renderer ──────────────────────────────────────────────────────────────
 
 def render_cell(skin_id, base_type, palette, paint_fn, draw_std_lenses,
-                outline_color, lives_state, effect):
+                outline_color, lives_state, effect, damage_over_costume=False):
     cell = pygame.Surface((CELL_W, CELL_H))
     fill_sky(cell)
     is_hurt = (lives_state != "clean")
 
     if effect == "normal":
         img = _build_costume_normal(base_type, palette, paint_fn, draw_std_lenses,
-                                    outline_color, lives_state)
+                                    outline_color, lives_state, damage_over_costume)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
         if is_hurt:
             par = get_parcel("normal")
@@ -295,7 +309,7 @@ def render_cell(skin_id, base_type, palette, paint_fn, draw_std_lenses,
 
     if effect == "ghost":
         img = _build_costume_normal(base_type, palette, paint_fn, draw_std_lenses,
-                                    outline_color, lives_state).copy()
+                                    outline_color, lives_state, damage_over_costume).copy()
         _ghost_tint(img)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
         if is_hurt:
@@ -306,7 +320,7 @@ def render_cell(skin_id, base_type, palette, paint_fn, draw_std_lenses,
 
     if effect == "triple":
         img = _build_costume_triple(base_type, palette, paint_fn, draw_std_lenses,
-                                    outline_color, lives_state)
+                                    outline_color, lives_state, damage_over_costume)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
         if is_hurt:
             par = get_parcel("normal")
@@ -315,7 +329,7 @@ def render_cell(skin_id, base_type, palette, paint_fn, draw_std_lenses,
 
     if effect == "ghost_triple":
         img = _build_costume_triple(base_type, palette, paint_fn, draw_std_lenses,
-                                    outline_color, lives_state).copy()
+                                    outline_color, lives_state, damage_over_costume).copy()
         _ghost_tint(img)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
         if is_hurt:
@@ -326,7 +340,7 @@ def render_cell(skin_id, base_type, palette, paint_fn, draw_std_lenses,
 
     if effect == "grow":
         img = _build_costume_normal(base_type, palette, paint_fn, draw_std_lenses,
-                                    outline_color, lives_state)
+                                    outline_color, lives_state, damage_over_costume)
         img = pygame.transform.smoothscale(
             img, (int(img.get_width() * GROW_SCALE), int(img.get_height() * GROW_SCALE)))
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
@@ -340,8 +354,11 @@ def render_cell(skin_id, base_type, palette, paint_fn, draw_std_lenses,
 
     if effect == "poison":
         img = _build_costume_poison(base_type, palette, paint_fn, draw_std_lenses,
-                                    outline_color, lives_state)
+                                    outline_color, lives_state, damage_over_costume)
         cell.blit(img, img.get_rect(center=(CELL_W // 2, BIRD_Y)))
+        if is_hurt:
+            par = get_parcel("normal")
+            cell.blit(par, par.get_rect(center=(CELL_W // 2, BIRD_Y + 12)))
         return cell
 
     if effect == "kfc":
@@ -399,8 +416,9 @@ def main():
         surf = fnt_hdr.render(col_label, True, TEXT_COL)
         canvas.blit(surf, surf.get_rect(center=(cx, MARGIN + HDR_H // 2)))
 
-    for si, (skin_id, display_name, base_type, palette, paint_fn,
-             draw_std_lenses, outline_color) in enumerate(COSTUMES):
+    for si, costume in enumerate(COSTUMES):
+        skin_id, display_name, base_type, palette, paint_fn, draw_std_lenses, outline_color = costume[:7]
+        damage_over_costume = len(costume) > 7 and costume[7]
 
         group_top = MARGIN + HDR_H + si * (3 * CELL_H + SKIN_DIV)
 
@@ -426,7 +444,8 @@ def main():
             for ci, effect in enumerate(COL_KEYS):
                 cell_x = MARGIN + LABEL_W + ci * CELL_W
                 cell = render_cell(skin_id, base_type, palette, paint_fn,
-                                   draw_std_lenses, outline_color, row_key, effect)
+                                   draw_std_lenses, outline_color, row_key, effect,
+                                   damage_over_costume)
                 canvas.blit(cell, (cell_x, row_top))
                 pygame.draw.rect(canvas, BG, (cell_x, row_top, CELL_W, 1))
                 pygame.draw.rect(canvas, BG, (cell_x, row_top, 1, CELL_H))
