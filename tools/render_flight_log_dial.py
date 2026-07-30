@@ -1,4 +1,4 @@
-"""Render docs/flight_log/sky_dial/round_1.png — the SKY DIAL flight-log screen.
+"""Render docs/flight_log/sky_dial/round_2.png — the SKY DIAL flight-log screen.
 
 SKY DIAL reads the whole day as a clock face: 12 o'clock is phase 0.0 and one
 clockwise revolution is one full day cycle. The colour annulus is sampled
@@ -16,6 +16,20 @@ The unflown sweep is desaturated at the COLOUR SOURCE (each quad picks a
 chroma-reduced tone when its phase is past the death phase) instead of by
 post-processing the raster: numpy is not a dependency here, and source-side
 desaturation also gives a clean edge exactly on the death angle.
+
+Round-2 changes from art-director critique
+  - Gold sector fill (hub→tick ring, phase 0→death, alpha 38) plus a brighter
+    gold arc cap at the outer edge; the flown sky annulus bulges 4 px outward
+    on the outer band so it physically separates from the grey remainder.
+  - Unflown chroma dropped to 0.28 (was 0.40) so the contrast between flown
+    and unflown reads more immediately.
+  - Hub text reframed as "NEXT UP: THERMALS / N PILLARS AWAY", computed from
+    the live GEYSER_SPAWN_THRESHOLD so the dial is a motivator, not an obituary.
+  - Phase-name labels raised to 10 px; legend labels raised to 10 px.
+  - Legend simplified to 3 chips: WEATHER / EVENTS / YOU FELL.
+  - Stat plates: PILLARS replaced with DAY (eliminates the triple "25" read).
+  - Coin-rush tick arcs widened from ±0.0044 to ±0.0097 phase (~7 deg), giving
+    ~9-10 px visible arcs on the events track instead of 4-5 px dust.
 """
 import math
 import os
@@ -31,7 +45,8 @@ import pygame
 pygame.init()
 pygame.display.set_mode((1, 1))
 
-from game.config import COIN_RUSH_INTERVAL, CLOWN_START_PILLAR, CYCLE_FINALE_RUSH_PILLARS
+from game.config import (COIN_RUSH_INTERVAL, CLOWN_START_PILLAR,
+                         CYCLE_FINALE_RUSH_PILLARS, GEYSER_SPAWN_THRESHOLD)
 from game.biome import PHASE_BOUNDARIES, palette_for_phase
 from game.draw import NEAR_BLACK, UI_CREAM, WHITE
 from game.hud import _GOLD_BRIGHT, _GOLD_MUTED, _font, _na_plate, _outlined_text
@@ -39,7 +54,7 @@ from game import weather as _weather
 
 
 ROOT = pathlib.Path(__file__).parent.parent
-OUT = ROOT / "docs" / "flight_log" / "sky_dial" / "round_1.png"
+OUT = ROOT / "docs" / "flight_log" / "sky_dial" / "round_2.png"
 
 W, H = 360, 640
 
@@ -57,8 +72,9 @@ DAY_PILLARS = 175
 DIAL_C = (180, 280)
 R_HUB = 70
 R_PLAY_IN, R_PLAY_OUT = 77, 86       # gameplay sub-track
-R_WX_IN, R_WX_OUT = 90, 99           # weather sub-track
-R_SKY_IN, R_SKY_OUT = 101, 129       # colour annulus (3 stacked sky bands)
+R_WX_IN, R_WX_OUT = 90, 99          # weather sub-track
+R_SKY_IN, R_SKY_OUT = 101, 129      # colour annulus (3 stacked sky bands)
+R_SKY_FLOWN_OUT = R_SKY_OUT + 4     # flown arc bulges outward to separate from the grey
 R_TICK_OUT = 137
 # A near-horizontal phase name is as wide as the whole margin between the tick
 # ring and the canvas edge, so the ring is sized to let those names start just
@@ -85,8 +101,11 @@ C_RAIN = (80, 100, 130)
 C_SNOW = (220, 225, 235)
 C_CLOWN = (100, 60, 180)
 C_DEATH = (232, 58, 58)
+C_WEATHER_CHIP = (90, 130, 195)     # legend-only: neutral sky blue, distinct from event colours
 
-UNFLOWN_CHROMA = 0.40
+# A lower chroma factor makes the unflown majority read unmistakably dimmer
+# so the gold wedge fill and the bright flown arc become the dominant focus.
+UNFLOWN_CHROMA = 0.28
 
 
 def _desat(c, k=UNFLOWN_CHROMA):
@@ -164,6 +183,16 @@ RUSH_PHASES = [_weather._phase_for_pillar(p)
 FINALE_SPAN = (_weather._phase_for_pillar(DAY_PILLARS - CYCLE_FINALE_RUSH_PILLARS),
                1.0)
 
+# Phase where geyser columns first become active (intensity must clear the
+# GEYSER_SPAWN_THRESHOLD, not just the rock threshold — rocks arrive first and
+# the hook is about the dramatic lift event, not the pebble telegraph).
+_GEYSER_PHASE = next(
+    (i / 2000.0 for i in range(2000)
+     if _weather.thermal_intensity(i / 2000.0) >= GEYSER_SPAWN_THRESHOLD),
+    _weather.THERMAL_PEAK_PHASE,
+)
+PILLARS_TO_GEYSERS = max(0, _weather.pillar_for_phase(_GEYSER_PHASE) - RUN_PILLARS)
+
 _SHORT = {"GOLDEN HOUR": "GOLDEN"}
 
 
@@ -176,15 +205,19 @@ def _build_disc():
 
     # Colour annulus. Stepping at 2 deg keeps the gradient smooth at final size;
     # the death phase is forced in as a step edge so the flown/unflown boundary
-    # lands on the needle rather than on the nearest 2-deg tick.
+    # lands on the needle rather than on the nearest 2-deg tick. The outermost
+    # sky band extends 4 px further on the flown arc so it physically protrudes
+    # past the standard annulus edge — the bulge separates the "you were here"
+    # zone from the grey unflown remainder without any extra tinting.
     edges = sorted(set([i / 180.0 for i in range(181)] + [DEATH_PHASE]))
     for p0, p1 in zip(edges, edges[1:]):
         mid = 0.5 * (p0 + p1)
         pal = palette_for_phase(mid)
         flown = mid <= DEATH_PHASE
-        for r_in, r_out, key in ((R_SKY_IN, 108, "sky_bot"),
-                                 (108, 118, "sky_mid"),
-                                 (118, R_SKY_OUT, "sky_top")):
+        for r_in, r_out_base, key in ((R_SKY_IN, 108, "sky_bot"),
+                                      (108, 118, "sky_mid"),
+                                      (118, R_SKY_OUT, "sky_top")):
+            r_out = r_out_base + (4 if (flown and key == "sky_top") else 0)
             col = tuple(int(v) for v in pal[key])
             _quad(ss, r_in, r_out, p0, p1, col if flown else _desat(col))
 
@@ -200,27 +233,33 @@ def _build_disc():
     _event_arc(ss, R_WX_IN, R_WX_OUT, *SNOW_SPAN, C_SNOW)
 
     _event_arc(ss, R_PLAY_IN, R_PLAY_OUT, *CLOWN_SPAN, C_CLOWN)
+    # Coin-rush ticks widened to ~7 ° so they register clearly on the track
+    # rather than disappearing as sub-5 px arcs in the grey unflown zone.
     for ph in RUSH_PHASES:
         _event_arc(ss, R_PLAY_IN, R_PLAY_OUT,
-                   ph - 0.0044, ph + 0.0044, _GOLD_BRIGHT)
+                   ph - 0.0097, ph + 0.0097, _GOLD_BRIGHT)
     _event_arc(ss, R_PLAY_IN, R_PLAY_OUT, *FINALE_SPAN, _GOLD_BRIGHT)
 
     # Phase hairlines across the sky annulus make the seven segments countable
     # inside an otherwise continuous gradient.
     for frac, _name in PHASE_BOUNDARIES:
-        _quad(ss, R_SKY_IN, R_SKY_OUT, frac - 0.0007, frac + 0.0007,
+        _quad(ss, R_SKY_IN, R_SKY_FLOWN_OUT, frac - 0.0007, frac + 0.0007,
               (255, 255, 255), 62)
 
-    # Warm bloom on the flown arc only: the "lit" half of the instrument.
-    for i in range(9):
-        _band(ss, R_SKY_OUT + i, R_SKY_OUT + i + 1, 0.0, DEATH_PHASE,
-              _GOLD_BRIGHT, int(78 * (1.0 - i / 9.0)))
+    # Warm bloom on the flown arc only: starts 1 px past the outer annulus
+    # edge so it doesn't overwrite that pixel row (drawing on an SRCALPHA
+    # surface replaces pixels rather than compositing, which would destroy
+    # the sky colour at the ring boundary).
+    for i in range(8):
+        _band(ss, R_SKY_FLOWN_OUT + 1 + i, R_SKY_FLOWN_OUT + 2 + i,
+              0.0, DEATH_PHASE, _GOLD_BRIGHT, int(78 * (1.0 - i / 8.0)))
 
     # Tick spurs stay full-white through the unflown sweep — structure must not
     # dim, or the later phase names stop reading as reachable places.
     for frac, _name in PHASE_BOUNDARIES:
         a = _rad(frac)
-        p0 = (CX + R_SKY_OUT * SS * math.cos(a), CY + R_SKY_OUT * SS * math.sin(a))
+        p0 = (CX + R_SKY_FLOWN_OUT * SS * math.cos(a),
+               CY + R_SKY_FLOWN_OUT * SS * math.sin(a))
         p1 = (CX + R_TICK_OUT * SS * math.cos(a), CY + R_TICK_OUT * SS * math.sin(a))
         pygame.draw.line(ss, WHITE, p0, p1, 2 * SS)
 
@@ -306,8 +345,46 @@ def _legend_chip(surf, x, y, color, label, outline=None):
     pygame.draw.rect(surf, color, (x, y - 4, 9, 9), border_radius=2)
     pygame.draw.rect(surf, outline or NEAR_BLACK, (x, y - 4, 9, 9), 1,
                      border_radius=2)
-    r = _txt(surf, label, 8, (188, 194, 214), midleft=(x + 13, y))
+    r = _txt(surf, label, 10, (188, 194, 214), midleft=(x + 13, y))
     return r.right
+
+
+# ── screen-level overlays ────────────────────────────────────────────────────
+
+def _draw_gold_sector(s):
+    """Composite a gold sector fill over the already-blitted disc.
+
+    Done at screen resolution on a fresh SRCALPHA surface rather than on the
+    SS disc surface: pygame.draw on SRCALPHA surfaces replaces destination
+    pixels instead of compositing — drawing the fill on the disc SS surface
+    would overwrite the sky colours with near-transparent gold, which after
+    downscale and blit would render as dark near-background rather than a
+    warm tint. A separate blit to the non-SRCALPHA screen surface uses the
+    overlay alpha correctly as a blend weight."""
+    overlay = pygame.Surface((W, H), pygame.SRCALPHA)
+    cx, cy = DIAL_C
+    seam = math.radians(0.14)
+
+    def sector_fan(r_in, r_out, p0, p1, color, step_deg=3.0):
+        n = max(1, int(math.ceil((p1 - p0) * 360.0 / step_deg)))
+        for i in range(n):
+            a0 = _rad(p0 + (p1 - p0) * i / n)
+            a1 = _rad(p0 + (p1 - p0) * (i + 1) / n) + seam
+            pts = [
+                (cx + r_in  * math.cos(a0), cy + r_in  * math.sin(a0)),
+                (cx + r_out * math.cos(a0), cy + r_out * math.sin(a0)),
+                (cx + r_out * math.cos(a1), cy + r_out * math.sin(a1)),
+                (cx + r_in  * math.cos(a1), cy + r_in  * math.sin(a1)),
+            ]
+            pygame.draw.polygon(overlay, color, pts)
+
+    # Body fill pulls focus to the flown wedge across the full disc depth.
+    sector_fan(R_HUB, R_TICK_OUT, 0.0, DEATH_PHASE, (*_GOLD_BRIGHT, 38), step_deg=3.0)
+    # Brighter outer arc cap marks the boundary at the tick ring.
+    sector_fan(R_TICK_OUT - 3, R_TICK_OUT + 2, 0.0, DEATH_PHASE,
+               (*_GOLD_BRIGHT, 115), step_deg=1.5)
+
+    s.blit(overlay, (0, 0))
 
 
 # ── the screen ───────────────────────────────────────────────────────────────
@@ -328,15 +405,18 @@ def build_screen():
     disc = _build_disc()
     s.blit(disc, (DIAL_C[0] - R_ART, DIAL_C[1] - R_ART))
 
+    _draw_gold_sector(s)
+
     _outlined_text(s, "FLIGHT LOG", (W // 2, 42), 18, px=2, shadow_offset=(2, 3))
     _txt(s, f"DAY {RUN_DAY}", 9, _GOLD_MUTED, midleft=(14, 42))
 
     # Phase names ride outside the tick ring, anchored by quadrant so no name is
     # ever centred on its own spur. Unflown names lose chroma but not value —
     # all seven have to stay readable as places the player could still get to.
+    # Raised to 10 px so they register at a glance rather than requiring squinting.
     for frac, name in PHASE_BOUNDARIES:
         col = UI_CREAM if frac <= DEATH_PHASE else _desat(UI_CREAM)
-        f = _font(8, True)
+        f = _font(10, True)
         txt = _SHORT.get(name, name)
         img = f.render(txt, True, col)
         r = img.get_rect(**_label_anchor(frac))
@@ -346,11 +426,12 @@ def build_screen():
         s.blit(sh, (r.x + 1, r.y + 1))
         s.blit(img, r.topleft)
 
-    # Hub readout.
-    _txt(s, f"PILLAR {RUN_PILLARS}", 9, _GOLD_MUTED, center=(180, 254))
-    _txt(s, str(RUN_SCORE), 36, _GOLD_BRIGHT, center=(180, 281))
-    _txt(s, f"{round(DEATH_PHASE * 100)}% OF THE DAY", 10, UI_CREAM,
-         center=(180, 306))
+    # Hub readout. Reframed around the "next event" hook rather than the raw
+    # phase percentage so the screen motivates a retry instead of eulogising the run.
+    _txt(s, f"DAY {RUN_DAY}", 9, _GOLD_MUTED, center=(180, 254))
+    _txt(s, str(RUN_SCORE), 36, _GOLD_BRIGHT, center=(180, 279))
+    _txt(s, "NEXT UP: THERMALS", 8, UI_CREAM, center=(180, 302))
+    _txt(s, f"{PILLARS_TO_GEYSERS} PILLARS AWAY", 8, C_THERMAL, center=(180, 314))
 
     # Needle callout, parked in the free top-right corner and led back along the
     # OUTSIDE of the disc so the "~2 o'clock = early morning" reading is
@@ -367,9 +448,12 @@ def build_screen():
 
 
 def _stat_plates(s):
+    # PILLARS dropped — the hub already shows the score as a large numeral and
+    # repeating it on a stat plate diluted both. DAY contextualises the run
+    # without duplicating anything visible on the dial face.
     labels = (("TIME", f"0:{RUN_TIME_S:02d}"),
               ("COINS", str(RUN_COINS)),
-              ("PILLARS", str(RUN_PILLARS)))
+              ("DAY", str(RUN_DAY)))
     x, y, w, h, gap = 18, 452, 102, 68, 9
     for i, (cap, val) in enumerate(labels):
         rect = pygame.Rect(x + i * (w + gap), y, w, h)
@@ -379,17 +463,26 @@ def _stat_plates(s):
 
 
 def _legend(s):
-    rows = (
-        ((C_THERMAL, "THERMAL"), (C_RAIN, "RAIN"), (C_SNOW, "SNOW")),
-        ((C_CLOWN, "CLOWN"), (_GOLD_BRIGHT, "COIN RUSH"), (C_DEATH, "YOU FELL")),
+    # Three category chips carry the structural read: outer ring vs inner ring
+    # vs the death marker. Individual event colours on the disc are distinctive
+    # enough (thermal gold, rain blue, snow white, clown purple) that a per-event
+    # chip row just adds clutter without aiding comprehension.
+    chips = (
+        (C_WEATHER_CHIP, "WEATHER"),
+        (C_CLOWN,        "EVENTS"),
+        (C_DEATH,        "YOU FELL"),
     )
-    for ri, row in enumerate(rows):
-        y = 534 + ri * 15
-        x = 30
-        for col, lab in row:
-            x = _legend_chip(s, x, y, col, lab) + 16
-    _txt(s, "OUTER RING = WEATHER   INNER RING = EVENTS", 7, (120, 126, 148),
-         midright=(348, 541), shadow=False)
+    f = _font(10, True)
+    chip_box = 9
+    chip_label_gap = 4
+    between = 18
+    item_widths = [chip_box + chip_label_gap + f.size(lab)[0] for _, lab in chips]
+    total = sum(item_widths) + between * (len(chips) - 1)
+    x = (W - total) // 2
+    y = 548
+    for (col, lab), iw in zip(chips, item_widths):
+        _legend_chip(s, x, y, col, lab)
+        x += iw + between
 
 
 def _back_pill(s):
@@ -426,27 +519,28 @@ def _framed(sheet, surf, x, y, label):
 
 NOTES = [
     "CONSTRUCTION  x3 supersampled disc (1008px), polygon quad fans only - no draw.arc, no gfxdraw; smoothscaled to 336px and freed. Every glyph is drawn once at final size, so no text passes through the downscale.",
-    "ANNULUS  180 x 2deg steps, three stacked sky bands (sky_bot / sky_mid / sky_top) sampled from biome.palette_for_phase. 12 o'clock = phase 0.0, clockwise = one full day.",
-    "TWO SUB-TRACKS  weather r90-99 (thermal / rain / snow) and gameplay r77-86 (clown gauntlet / 11 coin rushes / finale). Radius separation resolves the clown-vs-rain overlap; both channels are drawn full-circle so an empty stretch still reads as a track with nothing in it.",
-    "DATA  every arc is derived from live constants - weather.thermal_intensity / rain_intensity / storm_intensity spans, CLOWN_START_PILLAR, COIN_RUSH_INTERVAL, CYCLE_FINALE_RUSH_PILLARS - not hand-placed.",
-    "UNFLOWN SWEEP  chroma x0.40 applied at the colour source, value untouched: nothing darkens, tick spurs stay full white and all seven phase names stay legible.",
-    "DEATH MARKER  angular needle plus kite pennant, white core inside a red halo. Shape and value carry the read - see the greyscale panel. Its ~2 o'clock angle is what the EARLY MORNING callout names.",
-    "LABELS  phase names are quadrant-anchored (midleft / midright / midtop / midbottom outside the tick tip, centred on the diagonals) rather than centred on the ring - a centred GOLDEN or PREDAWN would sit on its own spur or run off the 360px edge.",
+    "ANNULUS  180 x 2deg steps, three stacked sky bands (sky_bot / sky_mid / sky_top) sampled from biome.palette_for_phase. 12 o'clock = phase 0.0, clockwise = one full day. FLOWN ARC: outermost sky band extends to R_SKY_FLOWN_OUT=133px (4px bulge) so the played arc physically protrudes past the unflown ring. UNFLOWN CHROMA: dropped to 0.28 (was 0.40) for sharper focus contrast.",
+    "GOLD SECTOR FILL  a gold wash at alpha 38 covers hub to tick ring across phase 0->death; a brighter gold arc cap (alpha 115) marks the outer boundary. Drawn after the sky bloom so the warm highlight sits over the full instrument depth, then tick spurs and the hub well overlay it.",
+    "TWO SUB-TRACKS  weather r90-99 (thermal / rain / snow) and gameplay r77-86 (clown gauntlet / 11 coin rushes / finale). Coin-rush arcs widened from +-0.0044 to +-0.0097 phase (~7 deg) so they read at ~9px on the track instead of 4px dust.",
+    "DATA  every arc is derived from live constants - weather.thermal_intensity / rain_intensity / storm_intensity spans, CLOWN_START_PILLAR, COIN_RUSH_INTERVAL, CYCLE_FINALE_RUSH_PILLARS, GEYSER_SPAWN_THRESHOLD - not hand-placed.",
+    "HUB REFRAME  'PILLAR 25 / 25 / 18% OF THE DAY' replaced by 'NEXT UP: THERMALS / N PILLARS AWAY' computed from GEYSER_SPAWN_THRESHOLD so the dial reads as a motivator (you were only N pillars from the geysers) not an obituary. PILLARS stat plate replaced with DAY to eliminate the triple-25 duplication.",
+    "LEGEND  simplified from 6 chips to 3: WEATHER / EVENTS / YOU FELL. Individual colours on the disc carry the per-event identity; the chips just map ring position to category. Labels raised to 10px; phase names raised to 10px; 7px caption line removed.",
+    "DEATH MARKER  angular needle plus kite pennant, white core inside a red halo. Shape and value carry the read - see the greyscale panel.",
 ]
 
 
 def build_sheet(screen):
-    sw, sh = 1256, 1030
+    sw, sh = 1256, 1060
     sheet = pygame.Surface((sw, sh))
     sheet.fill(SHEET_BG)
 
     _sheet_txt(sheet, "SKY DIAL", 30, _GOLD_BRIGHT, topleft=(48, 30))
-    _sheet_txt(sheet, "Flight Log concept  -  round 1", 15, SHEET_LO,
+    _sheet_txt(sheet, "Flight Log concept  -  round 2", 15, SHEET_LO,
                topleft=(48, 68))
     _sheet_txt(sheet, "run: pillar 25  -  phase 0.184  -  47s  -  day 1",
                13, SHEET_LO, topright=(sw - 48, 40))
-    _sheet_txt(sheet, "no current design - first pass", 13, (110, 116, 138),
-               topright=(sw - 48, 62))
+    _sheet_txt(sheet, f"death {DEATH_PHASE:.4f}  geysers at pillar {_weather.pillar_for_phase(_GEYSER_PHASE)} ({PILLARS_TO_GEYSERS}p away)",
+               13, (110, 116, 138), topright=(sw - 48, 62))
     pygame.draw.line(sheet, PANEL_EDGE, (48, 100), (sw - 48, 100), 1)
 
     _framed(sheet, screen, 48, 130, "FULL SCREEN - 360x640 @1x")
@@ -462,7 +556,7 @@ def build_sheet(screen):
     _framed(sheet, crop2x((100, 200, 180, 155)), 848, 460,
             "@2x - hub, event sub-tracks")
 
-    y = 800
+    y = 820
     f = _font(12, True)
     for line in NOTES:
         cur = ""
@@ -487,6 +581,7 @@ def main():
     print(f"wrote {OUT}  {sheet.get_size()}")
     print(f"thermal {THERMAL_SPAN}  rain {RAIN_SPAN}  snow {SNOW_SPAN}")
     print(f"clown {CLOWN_SPAN}  finale {FINALE_SPAN}  death {DEATH_PHASE:.4f}")
+    print(f"geyser phase {_GEYSER_PHASE:.4f}  pillars_to_geysers {PILLARS_TO_GEYSERS}")
 
 
 if __name__ == "__main__":
