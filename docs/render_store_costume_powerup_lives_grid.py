@@ -222,29 +222,13 @@ def _build_costume_poison(base_type, palette, paint_fn, draw_std_lenses, outline
     """Chartreuse costume: accessories tinted, dressings + X-eyes applied after."""
     comp = pygame.Surface((64, 100), pygame.SRCALPHA)
 
-    if base_type == "standard":
+    if base_type in ("standard", "palette"):
         comp.blit(_build_parrot_with_palette(10.0, P_CHARTREUSE, draw_lenses=False), (0, PARROT_DY))
+        # Tint body chartreuse BEFORE paint_fn so costume accessories keep their
+        # original colours (hats, armour, etc. are not body-integrated effects).
+        _poison_tint(comp)
         if paint_fn:
             paint_fn(comp, 10.0)
-        _poison_tint(comp)
-        sprite = comp.subsurface((0, PARROT_DY, 64, 60))
-        if lives_state == "last_life":
-            _h_draw_bandaids(sprite)
-            _h_draw_headwrap(sprite)
-            _h_draw_chest_dressing(sprite)
-            _h_draw_ragged_cuts(sprite)
-            _h_draw_cracked_lens(sprite)
-        elif lives_state == "first_hit":
-            _h_draw_bandaids(sprite)
-            _fh_draw_single_crack(sprite)
-        _draw_b_x_eyes(sprite)
-        return _add_outline(comp)
-
-    elif base_type == "palette":
-        comp.blit(_build_parrot_with_palette(10.0, P_CHARTREUSE, draw_lenses=False), (0, PARROT_DY))
-        if paint_fn:
-            paint_fn(comp, 10.0)
-        _poison_tint(comp)
         sprite = comp.subsurface((0, PARROT_DY, 64, 60))
         if lives_state == "last_life":
             _h_draw_bandaids(sprite)
@@ -262,9 +246,10 @@ def _build_costume_poison(base_type, palette, paint_fn, draw_std_lenses, outline
         _viking_axe(comp)
         comp.blit(_build_parrot_with_palette(10.0, P_CHARTREUSE, draw_lenses=False), (0, PARROT_DY))
         _viking_back(comp)
+        # Tint before viking helm/face so the armour keeps its original colours.
+        _poison_tint(comp)
         _viking_helm(comp)
         _viking_face(comp)
-        _poison_tint(comp)
         sprite = comp.subsurface((0, PARROT_DY, 64, 60))
         if lives_state == "last_life":
             _h_draw_bandaids(sprite)
