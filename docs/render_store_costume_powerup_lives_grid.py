@@ -230,14 +230,14 @@ def _build_costume_triple(base_type, palette, paint_fn, draw_std_lenses, outline
 
 def _build_costume_poison(base_type, palette, paint_fn, draw_std_lenses, outline_color, lives_state,
                           damage_over_costume=False):
-    """Chartreuse body for standard skins; palette types keep their original body colour.
-    X-eyes signal poison for all types.  No _poison_tint needed — P_CHARTREUSE already
-    matches get_poisoned_parrot's beak/foot colours and a second tint would double-shift."""
+    """Chartreuse parrot body for all skin types; costume accessories (hat, epaulette, etc.)
+    keep their original colours via paint_fn.  Lens frames are omitted — X-eyes replace them,
+    matching the base poison parrot appearance.  No _poison_tint needed — P_CHARTREUSE already
+    matches get_poisoned_parrot's beak/foot colours."""
     comp = pygame.Surface((64, 100), pygame.SRCALPHA)
 
     if base_type in ("standard", "palette"):
-        body_pal = P_CHARTREUSE if base_type == "standard" else palette
-        comp.blit(_build_parrot_with_palette(10.0, body_pal, draw_lenses=False), (0, PARROT_DY))
+        comp.blit(_build_parrot_with_palette(10.0, P_CHARTREUSE, draw_lenses=False), (0, PARROT_DY))
         sprite = comp.subsurface((0, PARROT_DY, 64, 60))
         if lives_state == "last_life":
             if damage_over_costume and paint_fn:
@@ -246,8 +246,6 @@ def _build_costume_poison(base_type, palette, paint_fn, draw_std_lenses, outline
             _h_draw_headwrap(sprite)
             _h_draw_chest_dressing(sprite)
             _h_draw_ragged_cuts(sprite)
-            if draw_std_lenses:
-                _draw_lenses(sprite, 50, 20, palette)
             _h_draw_cracked_lens(sprite)
             if not damage_over_costume and paint_fn:
                 paint_fn(comp, 10.0)
@@ -255,14 +253,10 @@ def _build_costume_poison(base_type, palette, paint_fn, draw_std_lenses, outline
             if damage_over_costume and paint_fn:
                 paint_fn(comp, 10.0)
             _h_draw_bandaids(sprite)
-            if draw_std_lenses:
-                _draw_lenses(sprite, 50, 20, palette)
             _fh_draw_single_crack(sprite)
             if not damage_over_costume and paint_fn:
                 paint_fn(comp, 10.0)
         else:  # clean
-            if draw_std_lenses:
-                _draw_lenses(sprite, 50, 20, palette)
             if paint_fn:
                 paint_fn(comp, 10.0)
         _draw_b_x_eyes(sprite)
