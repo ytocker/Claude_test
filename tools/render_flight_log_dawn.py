@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""dawn_to_dusk_panorama · flight_log · round_1
+"""dawn_to_dusk_panorama · flight_log · round_2
 
 The run's whole day painted as one full-bleed horizon, read left to right.
 The x axis is deliberately NONLINEAR: a sqrt-warp anchors the death column at
@@ -27,7 +27,13 @@ pygame.display.set_mode((1, 1))
 
 from game.draw import lerp_color, NEAR_BLACK, UI_CREAM
 from game.biome import palette_for_phase, PHASE_BOUNDARIES
-from game.weather import _phase_for_pillar
+from game.weather import (
+    _phase_for_pillar,
+    THERMAL_START_PHASE, THERMAL_END_PHASE,
+    RAIN_DRIZZLE_START, LIGHTNING_PHASE_MAX,
+    SNOW_STORM_CENTER, SNOW_STORM_WIDTH,
+)
+from game.config import CLOWN_START_PILLAR, CLOWN_SLOT_PILLARS
 
 W, H = 360, 640
 HORIZON_Y = 395
@@ -54,6 +60,18 @@ def font(size):
         f = pygame.font.Font(_FONT_PATH, size)
         _fonts[size] = f
     return f
+
+
+# Event phase extents — one source so the sky-band drawing, the ribbon label,
+# and any future callout all refer to the same game-authoritative anchors.
+THERMAL_P0 = THERMAL_START_PHASE
+THERMAL_P1 = THERMAL_END_PHASE
+RAIN_P0    = RAIN_DRIZZLE_START
+RAIN_P1    = LIGHTNING_PHASE_MAX
+CLOWN_P0   = _phase_for_pillar(CLOWN_START_PILLAR)
+CLOWN_P1   = _phase_for_pillar(CLOWN_START_PILLAR + CLOWN_SLOT_PILLARS)
+SNOW_P0    = max(0.0, SNOW_STORM_CENTER - SNOW_STORM_WIDTH)
+SNOW_P1    = 1.0
 
 
 # ── nonlinear day axis ───────────────────────────────────────────────────────
@@ -230,7 +248,7 @@ def paint_snow(surf, p0, p1):
 def paint_horizon_haze(surf):
     """Atmospheric band where sky meets land. Laid over the FAR ridge but
     under the near one so distance reads as veiling, and it doubles as the
-    legibility rail for the phase labels — otherwise a 7px caption would land
+    legibility rail for the phase labels — otherwise a 9px caption would land
     on a bright sunrise column and vanish."""
     layer = alpha_layer()
     for y in range(HAZE_TOP, HAZE_BOT + 1):
@@ -290,8 +308,8 @@ def paint_ribbon_base(surf):
 
 def paint_ribbon_events(surf):
     layer = alpha_layer()
-    # Clown gauntlet — the one long-form gameplay event, so it gets a bar.
-    cx0, cx1 = x_at_phase(0.403), x_at_phase(0.539)
+    # Clown gauntlet bar — spans the scripted warren.
+    cx0, cx1 = x_at_phase(CLOWN_P0), x_at_phase(CLOWN_P1)
     pygame.draw.rect(layer, (96, 64, 160, 160),
                      (cx0, RIBBON_TOP, max(3, cx1 - cx0), RIBBON_BOT - RIBBON_TOP))
     pygame.draw.rect(layer, (168, 138, 232, 190),
@@ -306,19 +324,16 @@ def paint_ribbon_events(surf):
     for px, py in ((-3, -1), (0, 0), (3, 1)):
         surf.set_at((dcx + px, dcy + py), (255, 255, 255))
 
-    # Coin rushes: notches on the ribbon's top edge. Flown ones ring bright,
-    # unflown ones drop to muted gold — chroma, never brightness, marks the
-    # boundary.
+    # Only FLOWN coin-rush notches: 3px wide × 8px tall. Unflown notches were
+    # a picket fence implying passage rather than marking it — they are dropped.
     for p in range(15, DAY_PILLARS + 1, 15):
         x = int(x_at_phase(_phase_for_pillar(p)))
-        if x >= W:
+        if x >= W or x > X_D:
             continue
-        col = _GOLD_BRIGHT if x <= X_D else _GOLD_MUTED
-        pygame.draw.line(surf, col, (x, RIBBON_TOP - 3), (x, RIBBON_TOP + 3), 2)
+        pygame.draw.rect(surf, _GOLD_BRIGHT, (x - 1, RIBBON_TOP - 4, 3, 8))
 
-    # Finale rush — the day's last three pillars all resolve inside 2px of the
-    # right edge under the warp, so they read as one deliberate end-cap block
-    # instead of three notches fighting over the same column.
+    # Finale end-cap: day's last pillars compress to the right edge under the
+    # warp, so they earn one deliberate block instead of three overlapping notches.
     fx = min(W - 5, int(x_at_phase(min(0.999, _phase_for_pillar(DAY_PILLARS - 2)))) - 3)
     pygame.draw.rect(surf, _GOLD_MUTED,
                      (fx, RIBBON_TOP - 4, W - fx, RIBBON_BOT - RIBBON_TOP + 4))
@@ -326,12 +341,37 @@ def paint_ribbon_events(surf):
                      (fx, RIBBON_TOP - 4, W - fx, RIBBON_BOT - RIBBON_TOP + 4), 1)
 
 
+def paint_ribbon_zone_labels(surf):
+    """Cream caps right-aligned inside each event zone let the viewer name
+    what they're looking at without cross-referencing the sky band above."""
+    LABEL_Y = RIBBON_BOT - 5
+    events = [
+        (THERMAL_P0, THERMAL_P1, "GEYSERS"),
+        (RAIN_P0,    RAIN_P1,    "STORM"),
+        (CLOWN_P0,   CLOWN_P1,   "CLOWNS"),
+        (SNOW_P0,    SNOW_P1,    "SNOW"),
+    ]
+    f = font(7)
+    for p0, p1, label in events:
+        x0 = x_at_phase(p0)
+        x1 = float(W - 1) if p1 >= 1.0 else min(W - 1, x_at_phase(p1))
+        zone_w = x1 - x0
+        if zone_w < 6:
+            continue
+        fw = f.size(label)[0]
+        # Right-align: text right edge sits 3px inside the zone's right boundary;
+        # clamp left so the label stays within the zone even in narrow spans.
+        cx = max(x0 + fw // 2 + 2, x1 - 3 - fw // 2)
+        outline_text(surf, label, 7, (cx, LABEL_Y), UI_CREAM)
+
+
 # ── unflown territory ────────────────────────────────────────────────────────
 
 def desaturate_ahead(surf, x_from, chroma=0.40, value=1.05):
     """Ahead of the death column the day is drained of colour, not of light:
     darkening would read as 'night' in a screen whose whole subject is
-    time of day."""
+    time of day. Higher chroma and value keep the unflown zone near the
+    flown zone's luminance so it reads as 'not yet' rather than 'gone'."""
     for x in range(x_from, W):
         for y in range(H):
             r, g, b = surf.get_at((x, y))[:3]
@@ -357,26 +397,28 @@ def outline_text(surf, txt, size, center, color, outline=NEAR_BLACK, ow=1):
     return r
 
 
+# Four bands span the axis without crowding a single row at 9px; the
+# intermediate phases (GOLDEN HOUR, DUSK, PREDAWN) are decodable from colour.
+_FOUR_BANDS = {"DAY", "SUNSET", "NIGHT", "SUNRISE"}
+
+
 def paint_phase_labels(surf):
-    """All seven times of day get a name. The compressed right half can't hold
-    them on one line, so they stagger across two rows rather than dropping the
-    most characterful bands (sunset, sunrise) off the log entirely."""
-    rows = ([], [])
-    row_y = (380, 392)
+    """Four-band, single-row labels at 9px. Culling the intermediate names
+    prevents the horizontal header from becoming a dense timeline and keeps
+    one row free for the tick-line spacing to breathe."""
+    ROW_Y = 380
     for frac, name in PHASE_BOUNDARIES:
+        if name not in _FOUR_BANDS:
+            continue
         x = x_at_phase(frac)
         if x > W - 6:
             continue
-        short = {"GOLDEN HOUR": "GOLDEN"}.get(name, name)
-        wpx = font(7).size(short)[0]
-        r = 0 if not any(abs(x - px) < (wpx + pw) * 0.5 + 5 for px, pw in rows[0]) else 1
-        rows[r].append((x, wpx))
+        wpx = font(9).size(name)[0]
         cx = max(wpx // 2 + 3, min(W - wpx // 2 - 3, int(x)))
-        y = row_y[r]
         tick = alpha_layer()
-        pygame.draw.line(tick, (255, 255, 255, 110), (x, 356), (x, y - 5), 1)
+        pygame.draw.line(tick, (255, 255, 255, 110), (x, 356), (x, ROW_Y - 6), 1)
         surf.blit(tick, (0, 0))
-        outline_text(surf, short, 7, (cx, y),
+        outline_text(surf, name, 9, (cx, ROW_Y),
                      UI_CREAM if x <= X_D else (198, 196, 192))
 
 
@@ -394,7 +436,9 @@ def paint_death_marker(surf):
     pygame.draw.polygon(surf, (214, 42, 42), tri)
     pygame.draw.polygon(surf, (255, 255, 255), tri, 1)
 
-    label = f"YOU · PILLAR {RUN['pillars']}"
+    # "YOU DIED HERE" avoids repeating the pillar count already on the score
+    # display and in the stat row.
+    label = "YOU DIED HERE"
     lw = font(9).size(label)[0]
     cx = max(lw // 2 + 6, min(W - lw // 2 - 6, X_D))
     pygame.draw.line(surf, (255, 255, 255), (X_D, 92), (X_D, 96), 2)
@@ -423,6 +467,14 @@ def stat_glyph(surf, kind, cx, cy):
     elif kind == "coin":
         pygame.draw.circle(surf, c, (cx, cy), 6, 1)
         pygame.draw.circle(surf, c, (cx, cy), 3, 1)
+    elif kind == "day":
+        # Sun disc + 8 short spokes to read as a day/calendar glyph.
+        pygame.draw.circle(surf, c, (cx, cy), 4, 1)
+        for a in range(0, 360, 45):
+            rad = math.radians(a)
+            pygame.draw.line(surf, c,
+                             (cx + int(math.cos(rad) * 6), cy + int(math.sin(rad) * 6)),
+                             (cx + int(math.cos(rad) * 8), cy + int(math.sin(rad) * 8)), 1)
     else:
         pygame.draw.rect(surf, c, (cx - 4, cy - 6, 8, 12), 1)
         pygame.draw.line(surf, c, (cx - 6, cy - 6), (cx + 5, cy - 6), 1)
@@ -441,9 +493,11 @@ def paint_chrome(surf):
     surf.blit(score, sr.topleft)
     outline_text(surf, "SCORE", 8, (sr.centerx, 72), (198, 178, 138))
 
+    # PILLARS dropped from the stat row: score + "YOU DIED HERE" already anchor
+    # the pillar count; replacing with DAY makes the row uniquely informative.
     stats = (("time", f"0:{RUN['time_alive']:02d}", "TIME"),
-             ("coin", str(RUN["coins"]), "COINS"),
-             ("pillar", str(RUN["pillars"]), "PILLARS"))
+             ("coin", str(RUN["coins"]),             "COINS"),
+             ("day",  f"DAY {RUN['day']}",           "DAY"))
     for i, (kind, val, lab) in enumerate(stats):
         cx = 70 + i * 110
         stat_glyph(surf, kind, cx, 502)
@@ -472,9 +526,9 @@ def render_screen():
     paint_sky(s)
     paint_stars(s)
     paint_celestials(s)
-    paint_thermals(s, 0.106, 0.206)
-    paint_rain(s, 0.43, 0.69)
-    paint_snow(s, 0.78, 1.0)
+    paint_thermals(s, THERMAL_P0, THERMAL_P1)
+    paint_rain(s, RAIN_P0, RAIN_P1)
+    paint_snow(s, SNOW_P0, SNOW_P1)
 
     rng = random.Random(42)
     far = ridge_profile(rng, 9, FAR_BASE, 30, 50, 4, 15)
@@ -484,11 +538,14 @@ def render_screen():
     paint_ridge(s, near, "mtn_near", (8, 8, 18))
     paint_ribbon_base(s)
 
-    desaturate_ahead(s, X_D + 1)
+    # chroma=0.55, value=1.25 closes the flown/unflown luminance gap that made
+    # the ahead zone read as 'night' rather than 'not yet reached'.
+    desaturate_ahead(s, X_D + 1, chroma=0.55, value=1.25)
 
     paint_scrims(s)
     paint_phase_labels(s)
     paint_ribbon_events(s)
+    paint_ribbon_zone_labels(s)
     paint_death_marker(s)
     paint_chrome(s)
     return s
@@ -508,7 +565,7 @@ def sheet(screen, grey):
     SW, SH = 1176, 768
     sh = pygame.Surface((SW, SH))
     sh.fill((26, 26, 34))
-    outline_text(sh, "SKYBIT · FLIGHT LOG · dawn_to_dusk_panorama · round 1",
+    outline_text(sh, "SKYBIT · FLIGHT LOG · dawn_to_dusk_panorama · round 2",
                  18, (SW // 2, 26), _GOLD_BRIGHT, (10, 10, 14))
 
     def frame(surf, x, y, cap):
@@ -521,8 +578,8 @@ def sheet(screen, grey):
     frame(screen, 24, 64, "1x · in-game scale (360x640)")
     frame(grey, 408, 64, "greyscale proof · marker survives on shape + value")
 
-    crops = ((pygame.Rect(70, 336, 180, 112), "2x · marker, ridges, event ribbon"),
-             (pygame.Rect(180, 128, 180, 112), "2x · weather register + unflown drain"))
+    crops = ((pygame.Rect(70, 336, 180, 112), "2x · marker, ridges, event ribbon + labels"),
+             (pygame.Rect(180, 128, 180, 112), "2x · weather register + unflown drain fix"))
     for i, (rect, cap) in enumerate(crops):
         z = pygame.transform.scale(screen.subsurface(rect), (360, 224))
         frame(z, 792, 64 + i * 268, cap)
@@ -540,5 +597,5 @@ if __name__ == "__main__":
     os.makedirs(out_dir, exist_ok=True)
     screen = render_screen()
     pygame.image.save(sheet(screen, greyscale(screen)),
-                      os.path.join(out_dir, "round_1.png"))
-    print("saved", os.path.join(out_dir, "round_1.png"), "x_d =", X_D)
+                      os.path.join(out_dir, "round_2.png"))
+    print("saved", os.path.join(out_dir, "round_2.png"), "x_d =", X_D)
