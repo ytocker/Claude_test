@@ -1,13 +1,15 @@
 """Flight Log concept `strata_core` — review sheet renderer.
 
-A run is drawn as a geological core sample read BOTTOM-UP: the base of the
-core is pillar 0 (launch), the top is pillar 175 (a full biome day). The
-rock's colour IS the biome palette at that depth, so the sample reads
-cyan -> amber -> rose -> lavender -> night-blue -> purple -> peach as the eye
-climbs. Where the run ended the record is physically broken: a red fracture
-with a 3 px fault throw. Everything above it is territory the player never
-flew, so it is desaturated and hazed — never darkened, because dimming would
-collide with the palette's own night and destroy the whole premise.
+A run is drawn as a geological core sample read TOP-DOWN: the apex of the
+core is pillar 0 (launch), the base is pillar 175 (a full biome day). The
+rock's colour IS the biome palette at that depth, so the sample flows
+cyan → amber → rose → lavender → night-blue → purple → peach as the eye
+descends — matching the casual player's top-to-bottom reading order
+(start → now). Where the run ended the record is physically broken: a red
+fracture with a 3 px fault throw. Everything below it is territory the
+player never flew, so it is desaturated to ≤15% chroma and normalised to
+a flat ~160-lumen grey — never brightened by haze alone, because a simple
+lightening trick cannot distinguish itself from the palette's own midday.
 
 Event zones sit on two spatial registers so they can never be confused:
 gameplay on the LEFT face of the core, weather on the RIGHT face.
@@ -52,7 +54,7 @@ W, H = 360, 640
 # ── core geometry ───────────────────────────────────────────────────────────
 CORE_X0, CORE_X1 = 80, 280
 CORE_W = CORE_X1 - CORE_X0
-CORE_Y0, CORE_Y1 = 110, 590          # top = day complete, bottom = launch
+CORE_Y0, CORE_Y1 = 110, 590          # top = launch, bottom = day complete
 SPAN = CORE_Y1 - CORE_Y0
 DAY_PILLARS = 175
 THROW = 3                            # fault offset of the unflown block
@@ -62,10 +64,10 @@ BED_SPACING = 8                      # bedding-plane pitch down the core
 RUN_PILLARS, RUN_SCORE, RUN_DAY, RUN_SECONDS = 25, 25, 1, 47
 
 # Most runs die inside the first fifth of a day. On a linear phase axis that
-# squashes everything the player actually lived into a sliver at the bottom,
-# so the axis is lifted by phase**0.75: early phase gets more pixels, the tail
-# compresses, and the median run still occupies readable rock.
-AXIS_LIFT = 0.75
+# squashes everything the player actually lived into a sliver at the top,
+# so the axis is stretched by phase**AXIS_LIFT: early phase gets more pixels,
+# the tail compresses, and a 25-pillar mock run occupies ~45% of visible rock.
+AXIS_LIFT = 0.47
 
 
 def t_for_phase(p: float) -> float:
@@ -73,11 +75,12 @@ def t_for_phase(p: float) -> float:
 
 
 def y_for_phase(p: float) -> float:
-    return CORE_Y1 - t_for_phase(p) * SPAN
+    # Launch (phase 0) maps to CORE_Y0 (top); day-complete (phase 1) to CORE_Y1.
+    return CORE_Y0 + t_for_phase(p) * SPAN
 
 
 def phase_for_y(y: float) -> float:
-    t = max(0.0, min(1.0, (CORE_Y1 - y) / SPAN))
+    t = max(0.0, min(1.0, (y - CORE_Y0) / SPAN))
     return t ** (1.0 / AXIS_LIFT)
 
 
@@ -130,7 +133,7 @@ def caps_width(text: str, size: int, tracking: int = 1) -> int:
 
 
 def fit_tracking(text: str, size: int, max_w: int) -> int:
-    """Tracking is what makes 7-8 px caps legible, but not at the cost of
+    """Tracking is what makes 8 px caps legible, but not at the cost of
     running out of the gutter — the long labels give it up instead of
     shrinking to a size that stops reading at all."""
     return 1 if caps_width(text, size, 1) <= max_w else 0
@@ -218,7 +221,10 @@ FACE_R0 = 240 - CORE_X0               # weather register starts here
 
 
 def build_core_body() -> pygame.Surface:
-    surf = pygame.Surface((CORE_W, SPAN), pygame.SRCALPHA)
+    # PixelArray gives direct C-level pixel access and avoids the overhead of
+    # per-pixel set_at syscalls; the locked surface is unlocked on del.
+    surf = pygame.Surface((CORE_W, SPAN))
+    pa = pygame.PixelArray(surf)
     rnd = random.Random(311)
     for row in range(SPAN):
         body, dark, lit, _ = row_tones(CORE_Y0 + row)
@@ -228,10 +234,15 @@ def build_core_body() -> pygame.Surface:
             i, t = _COL_MIX[x]
             a, b = stops[i], stops[i + 1]
             g = rnd.gauss(0.0, 4.2) + _FABRIC[x] * 5.0
-            surf.set_at((x, row), (
+            pa[x, row] = surf.map_rgb(
                 clamp8(a[0] + (b[0] - a[0]) * t + g),
                 clamp8(a[1] + (b[1] - a[1]) * t + g),
-                clamp8(a[2] + (b[2] - a[2]) * t + g), 255))
+                clamp8(a[2] + (b[2] - a[2]) * t + g))
+    del pa
+    surf = surf.convert_alpha()
+    # Single-pixel specular highlight runs the full length of the lit edge.
+    for row in range(SPAN):
+        body, dark, lit, _ = row_tones(CORE_Y0 + row)
         spec = lerp_color(lit, (255, 255, 255), 0.42)
         surf.set_at((SPEC_X, row), (*spec, 255))
     return surf
@@ -300,10 +311,12 @@ def draw_clown_inclusions(surf):
     """Violet euhedral inclusions in a trail — the clown gauntlet reads as a
     run of hard angular crystals the flight had to thread."""
     rnd = random.Random(514)
-    y_lo, y_hi = y_for_phase(CLOWN_HI), y_for_phase(CLOWN_LO)
+    # After axis flip: lower phase → higher on screen (smaller y).
+    # CLOWN_LO is the earlier phase, so y_lo is smaller (top of zone).
+    y_lo, y_hi = y_for_phase(CLOWN_LO), y_for_phase(CLOWN_HI)
     for i in range(5):
         t = (i + 0.5) / 5.0
-        cy = y_hi + (y_lo - y_hi) * t + rnd.uniform(-3, 3) - CORE_Y0
+        cy = y_lo + (y_hi - y_lo) * t + rnd.uniform(-3, 3) - CORE_Y0
         cx = 22 + rnd.uniform(-9, 11)
         r = rnd.uniform(4.2, 7.6)
         pts = []
@@ -350,9 +363,10 @@ def draw_pyrite_cubes(surf):
 
 def draw_finale_vein(surf):
     """The day-end finale is a continuous rush, so it stops being separate
-    cubes and becomes a solid gold stringer running out the top of the core."""
-    y_bot = y_for_phase(FINALE_LO) - CORE_Y0
-    y_top = 0
+    cubes and becomes a solid gold stringer running out the bottom of the core
+    — the deepest layer the player never reached."""
+    y_top = int(y_for_phase(FINALE_LO)) - CORE_Y0   # finale band starts here
+    y_bot = SPAN
     rnd = random.Random(96)
     pts, x = [], 17.0
     for row in range(int(y_top), int(y_bot) + 1, 3):
@@ -373,8 +387,9 @@ def draw_finale_vein(surf):
 def draw_rain_seep(surf):
     """Percolation stain: water enters at the storm band and runs DOWN, so
     the drips hang below the zone instead of floating inside it."""
-    r0 = int(y_for_phase(RAIN_HI)) - CORE_Y0
-    r1 = int(y_for_phase(RAIN_LO)) - CORE_Y0
+    # After axis flip: lower phase → smaller y. RAIN_LO is the earlier phase.
+    r0 = int(y_for_phase(RAIN_LO)) - CORE_Y0    # top row of rain zone
+    r1 = int(y_for_phase(RAIN_HI)) - CORE_Y0    # bottom row of rain zone
     rnd = random.Random(613)
     stain = pygame.Surface((CORE_W, SPAN), pygame.SRCALPHA)
     edge = float(FACE_R0)
@@ -398,8 +413,9 @@ def draw_rain_seep(surf):
 def draw_snow_frost(surf):
     """Micro-crystal frost crust, clustered and denser toward the exposed
     right edge where the squall actually hit the rock."""
-    r0 = max(0, int(y_for_phase(SNOW_HI)) - CORE_Y0)
-    r1 = min(SPAN - 1, int(y_for_phase(SNOW_LO)) - CORE_Y0)
+    # After axis flip: SNOW_LO is earlier phase (smaller y = top of zone).
+    r0 = max(0, int(y_for_phase(SNOW_LO)) - CORE_Y0)
+    r1 = min(SPAN - 1, int(y_for_phase(SNOW_HI)) - CORE_Y0)
     rnd = random.Random(2210)
     crust = pygame.Surface((CORE_W, SPAN), pygame.SRCALPHA)
     for row in range(r0, r1 + 1):
@@ -423,12 +439,14 @@ def draw_snow_frost(surf):
 def draw_thermal_vesicles(surf):
     """Gas vesicles frozen into the rock — the morning thermal as bubbles
     that rose through the melt."""
-    y_top, y_bot = y_for_phase(THERM_HI), y_for_phase(THERM_LO)
+    # After axis flip: THERM_LO is the earlier phase (smaller y = top of zone).
+    y_zone_lo = y_for_phase(THERM_LO)   # higher on screen (smaller y)
+    y_zone_hi = y_for_phase(THERM_HI)   # lower on screen (larger y)
     rnd = random.Random(404)
     bub = pygame.Surface((CORE_W, SPAN), pygame.SRCALPHA)
     for _ in range(10):
         cx = rnd.randint(FACE_R0 + 1, CORE_W - 5)
-        cy = int(rnd.uniform(y_top + 5, y_bot - 5)) - CORE_Y0
+        cy = int(rnd.uniform(y_zone_lo + 5, y_zone_hi - 5)) - CORE_Y0
         r = rnd.randint(3, 6)
         pygame.draw.circle(bub, (128, 78, 26, 120), (cx, cy), r)
         pygame.draw.circle(bub, (240, 178, 78, 120), (cx, cy), max(1, r - 1))
@@ -464,37 +482,59 @@ def fracture_column_y(pts):
 
 
 def split_blocks(core, col_y):
-    """Cut the core into the flown block and the unflown block."""
-    lower, upper = core.copy(), core.copy()
+    """Cut the core into the flown block (rows above fracture) and the
+    unflown block (rows below fracture)."""
+    flown, unflown = core.copy(), core.copy()
     for x in range(CORE_W):
         cut = max(0, min(SPAN, int(round(col_y[x])) - CORE_Y0))
-        lower.fill((0, 0, 0, 0), (x, 0, 1, cut))
-        upper.fill((0, 0, 0, 0), (x, cut, 1, SPAN - cut))
-    return lower, upper
+        # Clear everything below cut on the flown block.
+        flown.fill((0, 0, 0, 0), (x, cut, 1, SPAN - cut))
+        # Clear everything above cut on the unflown block.
+        unflown.fill((0, 0, 0, 0), (x, 0, 1, cut))
+    return flown, unflown
 
 
 def veil_unflown(block, col_y):
-    """Unflown ground is pulled toward grey and lifted with white haze, never
-    darkened — dimming would collide with the palette's own night, and the
-    whole premise of the core is that colour means time of day. The
-    desaturation ramps with distance so the rows just past the fracture still
-    show what the run was about to fly into."""
-    depth = max(1.0, sum(col_y) / len(col_y) - CORE_Y0)
+    """Unflown ground is crushed to ≤15% chroma and normalised to a flat
+    ~160-lumen target so it reads as one uniform ghost material regardless
+    of what biome colour the phase was — the player must see 'grey = missed'
+    in 200ms with no legend."""
+    TARGET_LUM = 160.0
     for x in range(CORE_W):
         cut = max(0, min(SPAN, int(round(col_y[x])) - CORE_Y0))
-        for row in range(cut):
+        for row in range(cut, SPAN):
             c = block.get_at((x, row))
             if c[3] == 0:
                 continue
-            ramp = min(1.0, (cut - row) / depth) ** 0.85
-            chroma = 1.0 - 0.60 * ramp
-            haze = (8.0 + 22.0 * ramp) / 255.0
-            g = lum(c)
-            out = []
-            for ch in (c[0], c[1], c[2]):
-                v = g + (ch - g) * chroma
-                out.append(clamp8(v + (255 - v) * haze))
-            block.set_at((x, row), (*out, c[3]))
+            g = c[0] * 0.299 + c[1] * 0.587 + c[2] * 0.114
+            # 15% chroma retention: push toward grey
+            r2 = g + (c[0] - g) * 0.15
+            g2v = g + (c[1] - g) * 0.15
+            b2 = g + (c[2] - g) * 0.15
+            # Normalise to target luminance
+            new_lum = r2 * 0.299 + g2v * 0.587 + b2 * 0.114
+            if new_lum > 1.0:
+                s = TARGET_LUM / new_lum
+                r2 *= s
+                g2v *= s
+                b2 *= s
+            block.set_at((x, row), (clamp8(r2), clamp8(g2v), clamp8(b2), c[3]))
+
+
+def warm_flown(block, col_y):
+    """The flown section gets a ~10% warm shift — red and green channels up —
+    so the contrast with the grey unflown material reads as 'coloured = mine'
+    without any annotation."""
+    for x in range(CORE_W):
+        cut = max(0, min(SPAN, int(round(col_y[x])) - CORE_Y0))
+        for row in range(0, cut):
+            c = block.get_at((x, row))
+            if c[3] == 0:
+                continue
+            block.set_at((x, row), (
+                clamp8(c[0] * 1.08 + 4),
+                clamp8(c[1] * 1.05 + 2),
+                c[2], c[3]))
 
 
 def draw_fracture(surf, pts):
@@ -534,47 +574,41 @@ def draw_header(surf):
 
 
 def draw_left_gutter(surf, y_frac):
-    """Depth ruler plus the gameplay register's callouts. Ruler numbers hug
-    the core and callouts start at the far edge, so the two never queue up in
-    the same column."""
-    ruler_rows = []
-    for p in range(25, DAY_PILLARS + 1, 25):
-        y = int(round(y_for_pillar(p)))
-        flown = p <= RUN_PILLARS
-        col = UI_CREAM if flown else (138, 138, 158)
-        a = 235 if flown else 175
-        tick = pygame.Surface((8, 1), pygame.SRCALPHA)
-        tick.fill((*col, a))
-        surf.blit(tick, (70, y))
-        # The last tick is already named by the core's own DAY-COMPLETE cap,
-        # so repeating "175" here would just crowd the busiest corner.
-        if p < DAY_PILLARS:
-            caps(surf, str(p), 66, y - 5, 8, col, alpha=a, right=True)
-            ruler_rows.append(y)
+    """Gameplay register callouts only — two annotation families (phase names
+    right, event callouts left) keep the gutter readable at 8 px caps."""
+    claimed: list[float] = []
 
     def callout(lines, y_target, swatch, lo, hi):
-        y = dodge(y_target, ruler_rows, 6, lo, hi,
-                  up=3 + len(lines) * 10, down=6)
-        wid = max(caps_width(l, 7, fit_tracking(l, 7, 41)) for l in lines)
-        top = y - 3 - len(lines) * 10
-        plate = pygame.Rect(13, top - 2, wid + 4, len(lines) * 10 + 2)
+        # lo < hi in screen coords (lo is smaller y = higher on screen)
+        y = dodge(y_target, claimed, 6, lo, hi,
+                  up=3 + len(lines) * 11, down=6)
+        wid = max(caps_width(ln, 8, fit_tracking(ln, 8, 41)) for ln in lines)
+        top = y - 3 - len(lines) * 11
+        plate = pygame.Rect(13, top - 2, wid + 4, len(lines) * 11 + 2)
         pl = pygame.Surface(plate.size, pygame.SRCALPHA)
         pl.fill((*NEAR_BLACK, 185))
         surf.blit(pl, plate.topleft)
         for i, line in enumerate(lines):
-            caps(surf, line, 15, top + i * 10, 7, UI_CREAM, alpha=235,
-                 tracking=fit_tracking(line, 7, 41))
+            caps(surf, line, 15, top + i * 11, 8, UI_CREAM, alpha=235,
+                 tracking=fit_tracking(line, 8, 41))
         pygame.draw.rect(surf, swatch, (7, y - 2, 4, 4))
         dotted(surf, 13, 78, y, swatch, 130)
+        claimed.append(y)
 
+    # CLOWN: after axis flip lo_p < hi_p → y_for_phase(lo_p) < y_for_phase(hi_p)
+    y_clown_top = y_for_phase(CLOWN_LO)
+    y_clown_bot = y_for_phase(CLOWN_HI)
     callout(["CLOWN", "GAUNTLET"],
-            (y_for_phase(CLOWN_LO) + y_for_phase(CLOWN_HI)) / 2,
-            (128, 82, 205), y_for_phase(CLOWN_HI) + 6,
-            y_for_phase(CLOWN_LO) - 6)
+            (y_clown_top + y_clown_bot) / 2,
+            (128, 82, 205),
+            y_clown_top - 6, y_clown_bot + 6)
+
     rush_y = CORE_Y0 + pyrite_slots()[0][2] + 3
-    callout(["COIN RUSH", "x11"], rush_y, _GOLD_BRIGHT, rush_y - 6, rush_y + 24)
-    callout(["FINALE RUSH"], y_for_phase(FINALE_LO) - 4, (255, 236, 176),
-            CORE_Y0 + 12, y_for_phase(FINALE_LO))
+    callout(["COIN RUSH", "x11"], rush_y, _GOLD_BRIGHT, rush_y - 30, rush_y + 30)
+
+    y_finale = y_for_phase(FINALE_LO)
+    callout(["FINALE RUSH"], y_finale - 4, (255, 236, 176),
+            y_finale - 20, CORE_Y1 - 8)
 
 
 def draw_right_gutter(surf, y_frac):
@@ -585,7 +619,8 @@ def draw_right_gutter(surf, y_frac):
     for frac, name in PHASE_BOUNDARIES:
         y = int(round(y_for_phase(frac)))
         phase_rows.append(y)
-        flown = y >= y_frac
+        # After axis flip: flown rows have smaller y (above fracture line).
+        flown = y <= y_frac
         a = 235 if flown else 170
         edge = 282 if flown else 285
         tick = pygame.Surface((288 - edge, 1), pygame.SRCALPHA)
@@ -600,19 +635,21 @@ def draw_right_gutter(surf, y_frac):
         ("RAIN SEEP", (150, 190, 235), RAIN_LO, RAIN_HI),
         ("SNOW FROST", (222, 238, 255), SNOW_LO, SNOW_HI),
     ):
-        y_lo, y_hi = y_for_phase(hi_p) + 8, y_for_phase(lo_p) - 8
-        y = dodge((y_lo + y_hi) / 2, phase_rows + tab_rows, 16, y_lo, y_hi)
-        flown = y >= y_frac
+        # After axis flip: lo_p is earlier phase → smaller y (top of zone).
+        y_top = y_for_phase(lo_p) - 8
+        y_bot = y_for_phase(hi_p) + 8
+        y = dodge((y_top + y_bot) / 2, phase_rows + tab_rows, 16, y_top, y_bot)
+        flown = y <= y_frac
         a = 220 if flown else 180
-        tr = fit_tracking(label, 7, 52)
-        caps(surf, label, 352, y - 4, 7, col, alpha=a, tracking=tr, right=True)
-        sw = 352 - caps_width(label, 7, tr) - 7
+        tr = fit_tracking(label, 8, 52)
+        caps(surf, label, 352, y - 4, 8, col, alpha=a, tracking=tr, right=True)
+        sw = 352 - caps_width(label, 8, tr) - 7
         pygame.draw.rect(surf, col, (sw, y - 2, 4, 4))
         dotted(surf, 282 if flown else 285, sw - 2, y, col, 120)
 
 
 def draw_back_pill(surf):
-    cx, cy, pw, ph = 180, 616, 92, 22
+    cx, cy, pw, ph = 180, 621, 92, 22
     body = pygame.Surface((pw, ph), pygame.SRCALPHA)
     pygame.draw.rect(body, (12, 8, 38, 200), (0, 0, pw, ph), border_radius=ph // 2)
     pygame.draw.rect(body, _GOLD_BRIGHT, (0, 0, pw, ph), width=2,
@@ -644,8 +681,9 @@ def render_screen() -> pygame.Surface:
     pts = fracture_points()
     col_y = fracture_column_y(pts)
     y_frac = sum(col_y) / len(col_y)
-    lower, upper = split_blocks(core, col_y)
-    veil_unflown(upper, col_y)
+    flown_block, unflown_block = split_blocks(core, col_y)
+    veil_unflown(unflown_block, col_y)
+    warm_flown(flown_block, col_y)
 
     # Bed the sample into the background before the blocks land on it.
     halo = pygame.Surface((CORE_W + 26, SPAN + 26), pygame.SRCALPHA)
@@ -654,29 +692,40 @@ def render_screen() -> pygame.Surface:
                          (i, i, CORE_W + 26 - 2 * i, SPAN + 26 - 2 * i), 1)
     surf.blit(halo, (CORE_X0 - 13, CORE_Y0 - 13))
 
-    surf.blit(lower, (CORE_X0, CORE_Y0))
-    surf.blit(upper, (CORE_X0 + THROW, CORE_Y0))
+    # Flown (top) sits at the base position; unflown (bottom) throws right.
+    surf.blit(flown_block, (CORE_X0, CORE_Y0))
+    surf.blit(unflown_block, (CORE_X0 + THROW, CORE_Y0))
 
     # The sample's own outline steps at the break, so the throw is legible
     # even with the red stripped out.
     fl, fr = col_y[0], col_y[-1]
-    for (x, top, bot) in ((CORE_X0 - 1, fl, CORE_Y1), (CORE_X1, fr, CORE_Y1),
-                          (CORE_X0 - 1 + THROW, CORE_Y0, fl),
-                          (CORE_X1 + THROW, CORE_Y0, fr)):
+    # Flown edges: left and right of the top (launch) section — no throw.
+    for (x, top, bot) in ((CORE_X0 - 1, CORE_Y0, fl), (CORE_X1, CORE_Y0, fr)):
         pygame.draw.line(surf, (6, 6, 14), (x, int(top)), (x, int(bot)))
-    rim = pygame.Surface((1, int(CORE_Y1 - fl)), pygame.SRCALPHA)
+    # Unflown edges: left and right of the bottom (future) section — with throw.
+    for (x, top, bot) in ((CORE_X0 - 1 + THROW, fl, CORE_Y1),
+                          (CORE_X1 + THROW, fr, CORE_Y1)):
+        pygame.draw.line(surf, (6, 6, 14), (x, int(top)), (x, int(bot)))
+
+    # Rim highlight on the flown column edges to separate it from the bg.
+    rim_h = max(1, int(fl - CORE_Y0))
+    rim = pygame.Surface((1, rim_h), pygame.SRCALPHA)
     rim.fill((*UI_CREAM, 55))
-    surf.blit(rim, (CORE_X0, int(fl)))
-    surf.blit(rim, (CORE_X1 - 1, int(fl)))
-    pygame.draw.line(surf, _GOLD_MUTED, (CORE_X0, CORE_Y1 - 1),
-                     (CORE_X1 - 1, CORE_Y1 - 1), 2)
-    pygame.draw.line(surf, _GOLD_MUTED, (CORE_X0 + THROW, CORE_Y0),
-                     (CORE_X1 - 1 + THROW, CORE_Y0), 2)
+    surf.blit(rim, (CORE_X0, CORE_Y0))
+    surf.blit(rim, (CORE_X1 - 1, CORE_Y0))
+
+    # Gold cap on the launch edge (top = no throw) and day-complete edge (bottom = throw).
+    pygame.draw.line(surf, _GOLD_MUTED, (CORE_X0, CORE_Y0),
+                     (CORE_X1 - 1, CORE_Y0), 2)
+    pygame.draw.line(surf, _GOLD_MUTED, (CORE_X0 + THROW, CORE_Y1 - 1),
+                     (CORE_X1 - 1 + THROW, CORE_Y1 - 1), 2)
 
     draw_header(surf)
-    centred_caps(surf, f"PILLAR {DAY_PILLARS}  ·  FULL DAY", 100, 7,
+    # Launch label sits in the gap between the header rule and the core top.
+    centred_caps(surf, "PILLAR 0  ·  LAUNCH", 100, 7, _GOLD_MUTED, alpha=215)
+    # Day-complete label below the core; kept above the BACK pill with room.
+    centred_caps(surf, f"PILLAR {DAY_PILLARS}  ·  FULL DAY", 593, 7,
                  _GOLD_MUTED, alpha=215)
-    centred_caps(surf, "PILLAR 0  ·  LAUNCH", 593, 7, _GOLD_MUTED, alpha=215)
 
     draw_left_gutter(surf, y_frac)
     draw_right_gutter(surf, y_frac)
@@ -706,10 +755,10 @@ def build_sheet(screen) -> pygame.Surface:
     for x in range(0, 1100, 40):
         pygame.draw.line(board, (16, 16, 30), (x, 0), (x, 900))
 
-    caps(board, "SKYBIT  ·  FLIGHT LOG  ·  CONCEPT: STRATA CORE  ·  ROUND 1",
+    caps(board, "SKYBIT  ·  FLIGHT LOG  ·  CONCEPT: STRATA CORE  ·  ROUND 2",
          30, 22, 19, _GOLD_BRIGHT, tracking=2)
     caps(board, "PROCEDURAL · 360x640 CANVAS · MOCK RUN: 25 PILLARS, DAY 1, "
-                "0:47 · NEW SCREEN, NO CURRENT DESIGN TO COMPARE",
+                "0:47 · LAUNCH-AT-TOP · WARM FLOWN / GREY UNFLOWN",
          31, 50, 11, (140, 140, 162))
 
     def place(img, x, y, cap):
@@ -719,16 +768,25 @@ def build_sheet(screen) -> pygame.Surface:
         board.blit(img, (x, y))
 
     place(screen, 30, 100, "1x — FULL SCREEN, 360x640")
+
+    # Fracture detail: shows the break, fault throw, and the warm/grey contrast.
+    frac_rect = pygame.Rect(60, 290, 300, 120)
+    # Launch zone: shows the golden flown section with its coin rush markers.
+    launch_rect = pygame.Rect(60, 104, 300, 120)
+    # Left face unflown: clown inclusions sitting in grey ghost territory.
+    left_detail = pygame.Rect(78, 370, 96, 76)
+    # Right face: rain seep + lamination banding at 3x.
+    right_detail = pygame.Rect(228, 390, 96, 76)
+
     for rect, factor, cap, x, y in (
-        (pygame.Rect(60, 396, 300, 120), 2,
-         "2x — DEATH FRACTURE · FAULT THROW · DEPTH RULER · TAB", 430, 100),
-        (pygame.Rect(60, 104, 300, 120), 2,
-         "2x — DAY-COMPLETE CAP · FINALE VEIN · SNOW FROST · UNFLOWN HAZE",
-         430, 372),
-        (pygame.Rect(78, 282, 96, 76), 3,
-         "3x — CLOWN INCLUSIONS · PYRITE", 430, 644),
-        (pygame.Rect(228, 300, 96, 76), 3,
-         "3x — RAIN SEEP · LAMINATION", 750, 644),
+        (frac_rect, 2,
+         "2x — DEATH FRACTURE · FAULT THROW · WARM vs GREY CONTRAST", 430, 100),
+        (launch_rect, 2,
+         "2x — LAUNCH ZONE (TOP) · COIN RUSH · DAY PHASE", 430, 372),
+        (left_detail, 3,
+         "3x — UNFLOWN TERRITORY · CLOWN INCLUSIONS · VEILED ROCK", 430, 644),
+        (right_detail, 3,
+         "3x — RAIN SEEP · LAMINATION · WEATHER REGISTER", 750, 644),
     ):
         crop = pygame.Surface(rect.size)
         crop.blit(screen, (0, 0), rect)
@@ -742,7 +800,7 @@ def main():
     sheet = build_sheet(screen)
     out_dir = os.path.join(ROOT, "docs", "flight_log", "strata_core")
     os.makedirs(out_dir, exist_ok=True)
-    out = os.path.join(out_dir, "round_1.png")
+    out = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out, sheet.get_size())
 
