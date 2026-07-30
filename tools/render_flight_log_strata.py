@@ -160,12 +160,17 @@ def dotted(surf, x0, x1, y, color, alpha=110):
     surf.blit(line, (x0, y))
 
 
-def dodge(y: float, blocked: list[float], gap: int, lo: float, hi: float) -> int:
+def dodge(y: float, blocked: list[float], gap: int, lo: float, hi: float,
+          up: int = 0, down: int = 0) -> int:
     """Nudge a label off any row already claimed by another annotation while
-    keeping it inside the band it points at."""
+    keeping it inside the band it points at. `up`/`down` describe how far the
+    label's own plate reaches beyond its leader row, so a tall two-line
+    callout clears its neighbours by its real extent, not by its anchor."""
+    def clear(c):
+        return all(not (c - up - gap < b < c + down + gap) for b in blocked)
     for step in range(0, 60, 3):
         for cand in (y + step, y - step):
-            if lo <= cand <= hi and all(abs(cand - b) >= gap for b in blocked):
+            if lo <= cand <= hi and clear(cand):
                 return int(cand)
     return int(y)
 
@@ -535,17 +540,21 @@ def draw_left_gutter(surf, y_frac):
     ruler_rows = []
     for p in range(25, DAY_PILLARS + 1, 25):
         y = int(round(y_for_pillar(p)))
-        ruler_rows.append(y)
         flown = p <= RUN_PILLARS
         col = UI_CREAM if flown else (138, 138, 158)
         a = 235 if flown else 175
         tick = pygame.Surface((8, 1), pygame.SRCALPHA)
         tick.fill((*col, a))
         surf.blit(tick, (70, y))
-        caps(surf, str(p), 66, y - 5, 8, col, alpha=a, right=True)
+        # The last tick is already named by the core's own DAY-COMPLETE cap,
+        # so repeating "175" here would just crowd the busiest corner.
+        if p < DAY_PILLARS:
+            caps(surf, str(p), 66, y - 5, 8, col, alpha=a, right=True)
+            ruler_rows.append(y)
 
     def callout(lines, y_target, swatch, lo, hi):
-        y = dodge(y_target, ruler_rows, 12, lo, hi)
+        y = dodge(y_target, ruler_rows, 6, lo, hi,
+                  up=3 + len(lines) * 10, down=6)
         wid = max(caps_width(l, 7, fit_tracking(l, 7, 41)) for l in lines)
         top = y - 3 - len(lines) * 10
         plate = pygame.Rect(13, top - 2, wid + 4, len(lines) * 10 + 2)
