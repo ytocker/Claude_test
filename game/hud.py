@@ -1559,6 +1559,9 @@ class HUD:
         self.menu_howto_rect: "pygame.Rect | None" = None
         self.menu_powerups_rect: "pygame.Rect | None" = None
         self.menu_top10_rect: "pygame.Rect | None" = None
+        self.menu_settings_rect: "pygame.Rect | None" = None
+        self.menu_profile_rect: "pygame.Rect | None" = None
+        self.menu_store_rect: "pygame.Rect | None" = None
         # Leaderboard tab hit-rects (CURRENT | LEGACY) — populated each frame
         # by draw_leaderboard in screen space, read by scenes.py to switch
         # boards without dismissing the screen. None until the first draw.
