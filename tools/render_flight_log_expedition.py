@@ -1,4 +1,4 @@
-"""Round-1 review render of the `expedition_board` Flight Log concept.
+"""Round-2 review render of the `expedition_board` Flight Log concept.
 
 The board reads like a printed expedition chart: the 175-pillar day is wrapped
 across five strictly left-to-right lanes so every lane keeps the same reading
@@ -6,7 +6,7 @@ direction the game itself scrolls in. Return travel between lanes is a
 de-emphasised gutter wire, never route, so the eye never mistakes it for
 distance flown.
 
-Offline tool — writes docs/flight_log/expedition_board/round_1.png. Nothing
+Offline tool — writes docs/flight_log/expedition_board/round_2.png. Nothing
 here is imported by the game.
 """
 from __future__ import annotations
@@ -281,7 +281,7 @@ def _lane_stars(surf, lane, top_y):
             surf.set_at((INNER_X0 + px, top_y + py), (v + 45, v + 45, 255))
 
 
-def _road_segment(surf, lane, seg, cy, gold):
+def _road_segment(surf, lane, seg, cy, gold, flown=True):
     """One paving stone == one pillar. The seam between stones is the whole
     point: the player can count the stones they actually cleared."""
     pillar = lane * PER_LANE + seg + 1
@@ -302,7 +302,11 @@ def _road_segment(surf, lane, seg, cy, gold):
         c = lerp_color(lo, mid, t / 0.55) if t < 0.55 else \
             lerp_color(mid, dk, (t - 0.55) / 0.45)
         pygame.draw.line(surf, c, (x0, y0 + i), (x1 - 1, y0 + i))
-    pygame.draw.line(surf, acc, (x0, y0), (x1 - 1, y0))
+    # Top highlight only on cleared stones — warmth the player earns by flying
+    # through. Unflown stones have no highlight so the split reads in value,
+    # not hue alone.
+    if flown:
+        pygame.draw.line(surf, acc, (x0, y0), (x1 - 1, y0))
     pygame.draw.line(surf, NEAR_BLACK, (x0, y0 + ROAD_H - 2),
                      (x1 - 1, y0 + ROAD_H - 2))
     pygame.draw.line(surf, NEAR_BLACK, (x0, y0 + ROAD_H - 1),
@@ -395,7 +399,8 @@ def _zone(surf, spec):
             continue
         my = cy - 22 if above else cy + 22
         pal = _pal(phase_at(lane * PER_LANE + 17))
-        lw = _caps_w(spec["label"], 7)
+        # Font raised to 10 so zone labels are legible at arm's length.
+        lw = _caps_w(spec["label"], 10)
         if spec["anchor"] == "start":
             mx = int(x0) + 10
         else:
@@ -408,7 +413,7 @@ def _zone(surf, spec):
         else:
             lx, la = mx - 13, "right"
         _medallion(surf, mx, my, spec["glyph"], pal, tint)
-        _caps(surf, spec["label"], lx, my, 7, UI_CREAM, tracking=1, anchor=la)
+        _caps(surf, spec["label"], lx, my, 10, UI_CREAM, tracking=1, anchor=la)
 
 
 def _coin_rush_marks(surf):
@@ -424,7 +429,9 @@ def _coin_rush_marks(surf):
 
 
 def _death_marker(surf):
-    x = int(round(INNER_X0 + (DEATH_PILLAR % PER_LANE) * SEG_W))
+    # (DEATH_PILLAR - 1) % PER_LANE mirrors seg_x's (pillar - 1) convention so
+    # the marker lands on the correct stone.
+    x = int(round(INNER_X0 + ((DEATH_PILLAR - 1) % PER_LANE) * SEG_W))
     cy = LANE_CY[lane_of(DEATH_PILLAR)]
     top, bot = cy - 31, cy + 31
     halo = pygame.Surface((26, BAND_H + 8), pygame.SRCALPHA)
@@ -451,13 +458,32 @@ def _death_marker(surf):
     return x
 
 
+def _next_caret(surf, p0):
+    """Gold right-pointing caret on the nearest unreached event; the screen
+    ends on a goal not a gravestone."""
+    lane = lane_of(p0)
+    cy = LANE_CY[lane]
+    x0, _ = seg_x(p0)
+    lx = int(x0)
+    by = cy + 22          # event-register label row, same as zone labels below
+    # Shadow offset first so the caret lifts off the desaturated ground.
+    sh = pygame.Surface((14, 14), pygame.SRCALPHA)
+    pygame.draw.polygon(sh, (*NEAR_BLACK, 200), [(2, 1), (10, 6), (2, 11)])
+    surf.blit(sh, (lx, by - 5))
+    pts = [(lx + 1, by - 5), (lx + 9, by), (lx + 1, by + 5)]
+    pygame.draw.polygon(surf, _GOLD_BRIGHT, pts)
+    _caps(surf, "NEXT", lx + 13, by, 9, _GOLD_BRIGHT, tracking=1,
+          shadow=NEAR_BLACK)
+
+
 def _stat_chip(surf, x, y, w, h, label, value):
     plate = pygame.Surface((w, h), pygame.SRCALPHA)
     pygame.draw.polygon(plate, (26, 26, 46, 245), _cut_rect_pts(0, 0, w, h, 5))
     pygame.draw.polygon(plate, (*_GOLD_MUTED, 130),
                         _cut_rect_pts(0, 0, w, h, 5), 1)
     surf.blit(plate, (x, y))
-    _caps(surf, label, x + 10, y + h // 2, 7, _GOLD_MUTED, tracking=1)
+    # Label raised to 9 px so it reads without squinting.
+    _caps(surf, label, x + 10, y + h // 2, 9, _GOLD_MUTED, tracking=1)
     _caps(surf, value, x + w - 10, y + h // 2, 12, UI_CREAM, tracking=0,
           anchor="right")
 
@@ -490,40 +516,19 @@ def _back_pill(surf, cx, cy):
           anchor="center", shadow=(90, 12, 12))
 
 
-def _legend(surf, y):
-    """The board has two spatial registers; the key states that outright so
-    the player never has to infer it from the medallions alone."""
-    pygame.draw.line(surf, (*_GOLD_MUTED, 90), (20, y - 13), (340, y - 13), 1)
-    items = [("WEATHER ABOVE", "up"), ("EVENTS BELOW", "down"),
-             ("RUN END", "flag")]
-    widths = [16 + _caps_w(t, 7) for t, _ in items]
-    gap = (320 - sum(widths)) // (len(items) - 1)
-    x = 20
-    for (txt, kind), wd in zip(items, widths):
-        if kind == "up":
-            pygame.draw.polygon(surf, _TINT["rain"],
-                                [(x + 1, y + 3), (x + 9, y + 3), (x + 5, y - 4)])
-        elif kind == "down":
-            pygame.draw.polygon(surf, _TINT["clown"],
-                                [(x + 1, y - 4), (x + 9, y - 4), (x + 5, y + 3)])
-        else:
-            pygame.draw.polygon(surf, (255, 255, 255),
-                                [(x + 1, y - 5), (x + 10, y - 5), (x + 7, y),
-                                 (x + 10, y + 5), (x + 1, y + 5)])
-            pygame.draw.polygon(surf, _DEATH_RED,
-                                [(x + 3, y - 3), (x + 8, y - 3), (x + 5, y),
-                                 (x + 8, y + 3), (x + 3, y + 3)])
-        _caps(surf, txt, x + 15, y, 7, UI_CREAM, tracking=1)
-        x += wd + gap
-
-
-def _desaturate(surf, rect, keep=0.40):
-    """Unflown territory loses chroma, never luminance — the labels there must
-    stay as readable as the flown ones."""
+def _desaturate(surf, rect, chroma_keep=0.65):
+    """Unflown territory loses chroma AND drops to ~65% luminance so the
+    flown/unflown boundary reads in both hue and value — not chroma alone."""
     sub = surf.subsurface(rect).copy()
     grey = pygame.transform.grayscale(sub)
-    grey.set_alpha(int(255 * (1.0 - keep)))
+    # At chroma_keep=0.65, 35% of each channel is pulled toward greyscale.
+    grey.set_alpha(int(255 * (1.0 - chroma_keep)))
     surf.blit(grey, rect.topleft)
+    # Black overlay brings luminance to ~65%; separates unflown from flown
+    # even on a greyscale printout.
+    dark = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+    dark.fill((0, 0, 0, 90))
+    surf.blit(dark, rect.topleft)
 
 
 ZONES = [
@@ -575,14 +580,16 @@ def render_screen():
         cy = LANE_CY[lane]
         top = cy - BAND_H // 2
         sky = _lane_sky(lane)
-        sky.set_alpha(140)
+        # Alpha raised to 215 so the day→golden→night ramp is the beauty shot;
+        # desaturation alone handles the flown/unflown difference.
+        sky.set_alpha(215)
         surf.blit(sky, (INNER_X0, top))
         # Cut corners keep the lane plates in the same family as the in-game
         # HUD plates instead of reading as plain web rectangles.
         for cx0, cy0, sx, sy in ((INNER_X0, top, 1, 1),
-                                 (INNER_X1 - 1, top, -1, 1),
-                                 (INNER_X0, top + BAND_H - 1, 1, -1),
-                                 (INNER_X1 - 1, top + BAND_H - 1, -1, -1)):
+                                  (INNER_X1 - 1, top, -1, 1),
+                                  (INNER_X0, top + BAND_H - 1, 1, -1),
+                                  (INNER_X1 - 1, top + BAND_H - 1, -1, -1)):
             pygame.draw.polygon(surf, NEAR_BLACK,
                                 [(cx0, cy0), (cx0 + 6 * sx, cy0),
                                  (cx0, cy0 + 6 * sy)])
@@ -594,7 +601,10 @@ def render_screen():
                                           BAND_H + 1, 6), 1)
         for seg in range(PER_LANE):
             pillar = lane * PER_LANE + seg + 1
-            _road_segment(surf, lane, seg, cy, pillar % 15 == 0)
+            # Cleared pillars keep their stone_accent top highlight; unflown
+            # stones are born without it so the contrast rests on shape + value.
+            flown = pillar < DEATH_PILLAR
+            _road_segment(surf, lane, seg, cy, pillar % 15 == 0, flown=flown)
         _caps(surf, "%02d" % (lane + 1), 8, cy, 8,
               pal_edge["stone_accent"], tracking=1)
 
@@ -608,7 +618,10 @@ def render_screen():
     # ── unflown territory ──
     # Clipped to the lane plates: draining chroma from the bare NEAR_BLACK
     # margin would leave a visible seam between flown and unflown background.
-    death_x = int(round(INNER_X0 + (DEATH_PILLAR % PER_LANE) * SEG_W))
+    # (DEATH_PILLAR - 1) mirrors seg_x's own (pillar - 1) convention so the
+    # desaturation edge aligns exactly with the death marker and the correct
+    # stone boundary.
+    death_x = int(round(INNER_X0 + ((DEATH_PILLAR - 1) % PER_LANE) * SEG_W))
     plate_x, plate_w = INNER_X0 - 2, INNER_X1 - INNER_X0 + 4
     _desaturate(surf, pygame.Rect(death_x, LANE_CY[0] - BAND_H // 2,
                                   plate_x + plate_w - death_x, BAND_H))
@@ -618,11 +631,14 @@ def render_screen():
 
     _death_marker(surf)
 
-    # ── footer ──
-    _legend(surf, 528)
-    _stat_chip(surf, 20, 558, 152, 26, "TIME", "0:%02d" % TIME_ALIVE)
-    _stat_chip(surf, 188, 558, 152, 26, "COINS", str(COINS))
-    _back_pill(surf, 180, 612)
+    # NEXT caret on the first stone of CLOWN GAUNTLET so the desaturated
+    # half reads as "ahead" rather than "missed".
+    _next_caret(surf, ZONES[3]["p0"])
+
+    # ── footer — legend row deleted; stat chips move into the recovered space ──
+    _stat_chip(surf, 20, 516, 152, 32, "TIME", "0:%02d" % TIME_ALIVE)
+    _stat_chip(surf, 188, 516, 152, 32, "COINS", str(COINS))
+    _back_pill(surf, 180, 598)
     return surf
 
 
@@ -646,7 +662,7 @@ def build_sheet(screen):
     sheet.fill((22, 22, 32))
     _outlined(sheet, "FLIGHT LOG  ·  EXPEDITION BOARD", 32, 34, 22,
               _GOLD_BRIGHT, px=2)
-    _caps(sheet, "ROUND 1  ·  175-PILLAR DAY WRAPPED ACROSS 5 LEFT-TO-RIGHT "
+    _caps(sheet, "ROUND 2  ·  175-PILLAR DAY WRAPPED ACROSS 5 LEFT-TO-RIGHT "
                  "LANES  ·  RUN ENDED AT PILLAR 25", 34, 62, 11,
           (170, 164, 148), tracking=1)
     pygame.draw.line(sheet, (*_GOLD_MUTED, 90), (32, 78), (1168, 78), 1)
@@ -656,9 +672,9 @@ def build_sheet(screen):
     _panel(sheet, screen, (440, 104), pygame.Rect(0, 86, W, 270), 2,
            "2×  LANES 01–03  (DAY → GOLDEN → DUSK/NIGHT)")
     _panel(sheet, screen, (440, 690), pygame.Rect(0, 346, W, 292), 2,
-           "2×  LANES 04–05 + KEY + FOOTER")
+           "2×  LANES 04–05 + STAT CHIPS + BACK BUTTON")
     _panel(sheet, screen, (32, 790), pygame.Rect(222, 92, 118, 78), 3,
-           "3×  RUN-END PENNANT + DESATURATION EDGE")
+           "3×  RUN-END PENNANT + DESATURATION EDGE (VALUE DROP ~65%)")
     _panel(sheet, screen, (32, 1058), pygame.Rect(96, 92, 118, 78), 3,
            "3×  THERMALS MEDALLION + COIN-RUSH STONE")
     _panel(sheet, screen, (56, 1330), pygame.Rect(0, 262, W, 76), 3,
@@ -672,7 +688,7 @@ def main():
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir,
                        "docs", "flight_log", "expedition_board")
     os.makedirs(out, exist_ok=True)
-    path = os.path.normpath(os.path.join(out, "round_1.png"))
+    path = os.path.normpath(os.path.join(out, "round_2.png"))
     pygame.image.save(sheet, path)
     print(path, sheet.get_size())
 
