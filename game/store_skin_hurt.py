@@ -16,6 +16,7 @@ from game.parrot import (
     _h_draw_bandaids, _h_draw_headwrap, _h_draw_chest_dressing,
     _h_draw_ragged_cuts, _h_draw_cracked_lens, _fh_draw_single_crack,
     _add_outline, _H_HURT_ANGLES,
+    _h_build_hurt_frame, _fh_build_hurt_frame,
 )
 from game.dollar_parrot_ghost import _build_parrot_with_palette, _draw_lenses
 from game.store_skins import (
@@ -32,6 +33,15 @@ from game.store_skins import (
     _chrome_front,    _chrome_back,
     _zb_hex_aura, _zb_rim_halo,
     _ZB_STITCH, _ZB_CURSED, _ZB_CURSED_H,
+    P_NINJA, _paint_ninja,
+    _TH_BODY, _paint_tophat,
+    _MU_BODY, _paint_mummy,
+    P_ASTRONAUT, _paint_astronaut,
+    P_PILOT, _paint_pilot,
+    _VK_PAL, _VK_OUTLINE,
+    _viking_axe, _viking_back, _viking_helm, _viking_face,
+    _paint_pirate, _paint_cowboy, _paint_pharaoh, _paint_crown,
+    _paint_baseball, _paint_tennis, _paint_wizard,
 )
 from game.skeleton_skin import _flesh_base, _paint as _skeleton_paint, _eye_socket
 
@@ -192,6 +202,102 @@ def _fh_zombie(angle_deg):
     return out
 
 
+# ── costume builders ──────────────────────────────────────────────────────────
+
+def _hurt_std_accessory(paint_fn, angle_deg):
+    """Last_life for standard-macaw costumes: baked hurt body + costume on top."""
+    body = _h_build_hurt_frame(angle_deg)
+    comp = pygame.Surface((64, 100), pygame.SRCALPHA)
+    comp.blit(body, (0, PARROT_DY))
+    if paint_fn:
+        paint_fn(comp, angle_deg)
+    return _add_outline(comp)
+
+
+def _fh_std_accessory(paint_fn, angle_deg):
+    """First_hit for standard-macaw costumes."""
+    body = _fh_build_hurt_frame(angle_deg)
+    comp = pygame.Surface((64, 100), pygame.SRCALPHA)
+    comp.blit(body, (0, PARROT_DY))
+    if paint_fn:
+        paint_fn(comp, angle_deg)
+    return _add_outline(comp)
+
+
+def _hurt_costume_composite(palette, paint_fn, draw_std_lenses, damage_over_costume, angle_deg):
+    """Last_life for palette-based costume skins.
+    damage_over_costume=True: paint_fn first, dressings on top (mummy).
+    damage_over_costume=False: dressings first, paint_fn (hat/hood) on top."""
+    body = _build_parrot_with_palette(angle_deg, palette, draw_lenses=False)
+    comp = pygame.Surface((64, 100), pygame.SRCALPHA)
+    comp.blit(body, (0, PARROT_DY))
+    sprite = comp.subsurface((0, PARROT_DY, 64, 60))
+    if damage_over_costume and paint_fn:
+        paint_fn(comp, angle_deg)
+    _h_draw_bandaids(sprite)
+    _h_draw_headwrap(sprite)
+    _h_draw_chest_dressing(sprite)
+    _h_draw_ragged_cuts(sprite)
+    if draw_std_lenses:
+        _draw_lenses(sprite, 50, 20, palette)
+    _open_beak(sprite, palette)
+    _h_draw_cracked_lens(sprite)
+    if not damage_over_costume and paint_fn:
+        paint_fn(comp, angle_deg)
+    return _add_outline(comp)
+
+
+def _fh_costume_composite(palette, paint_fn, draw_std_lenses, damage_over_costume, angle_deg):
+    """First_hit for palette-based costume skins."""
+    body = _build_parrot_with_palette(angle_deg, palette, draw_lenses=False)
+    comp = pygame.Surface((64, 100), pygame.SRCALPHA)
+    comp.blit(body, (0, PARROT_DY))
+    sprite = comp.subsurface((0, PARROT_DY, 64, 60))
+    if damage_over_costume and paint_fn:
+        paint_fn(comp, angle_deg)
+    _open_beak(sprite, palette)
+    _h_draw_bandaids(sprite)
+    if draw_std_lenses:
+        _draw_lenses(sprite, 50, 20, palette)
+    _fh_draw_single_crack(sprite)
+    if not damage_over_costume and paint_fn:
+        paint_fn(comp, angle_deg)
+    return _add_outline(comp)
+
+
+def _hurt_viking(angle_deg):
+    """Viking last_life: axe behind body, helm + face over dressings."""
+    body = _build_parrot_with_palette(angle_deg, _VK_PAL, draw_lenses=False)
+    comp = pygame.Surface((64, 100), pygame.SRCALPHA)
+    _viking_axe(comp)
+    comp.blit(body, (0, PARROT_DY))
+    _viking_back(comp)
+    sprite = comp.subsurface((0, PARROT_DY, 64, 60))
+    _h_draw_bandaids(sprite)
+    _h_draw_headwrap(sprite)
+    _viking_helm(comp)
+    _viking_face(comp)
+    _h_draw_chest_dressing(sprite)
+    _h_draw_ragged_cuts(sprite)
+    _h_draw_cracked_lens(sprite)
+    return _add_outline(comp, outline_color=_VK_OUTLINE)
+
+
+def _fh_viking(angle_deg):
+    """Viking first_hit."""
+    body = _build_parrot_with_palette(angle_deg, _VK_PAL, draw_lenses=False)
+    comp = pygame.Surface((64, 100), pygame.SRCALPHA)
+    _viking_axe(comp)
+    comp.blit(body, (0, PARROT_DY))
+    _viking_back(comp)
+    sprite = comp.subsurface((0, PARROT_DY, 64, 60))
+    _h_draw_bandaids(sprite)
+    _viking_helm(comp)
+    _viking_face(comp)
+    _fh_draw_single_crack(sprite)
+    return _add_outline(comp, outline_color=_VK_OUTLINE)
+
+
 # ── frame cache factory ────────────────────────────────────────────────────────
 
 def _make_getter(frames, rot_cache):
@@ -262,6 +368,48 @@ def _build_registry():
 
     # Chrome — composite, draw_std_lenses=False (chrome_front owns lenses)
     reg["skin_chrome"] = _composite(P_CHROME, _chrome_front, _chrome_back, None, False)
+
+    def _std(paint_fn):
+        return _prebuild_pair(
+            lambda a: _hurt_std_accessory(paint_fn, a),
+            lambda a: _fh_std_accessory(paint_fn, a),
+        )
+
+    def _costume(pal, paint_fn, draw_std_lenses, damage_over_costume=False):
+        return _prebuild_pair(
+            lambda a: _hurt_costume_composite(pal, paint_fn, draw_std_lenses,
+                                              damage_over_costume, a),
+            lambda a: _fh_costume_composite(pal, paint_fn, draw_std_lenses,
+                                            damage_over_costume, a),
+        )
+
+    # Group A — standard macaw + costume accessory
+    reg["skin_pirate"]     = _std(_paint_pirate)
+    reg["skin_cowboy"]     = _std(_paint_cowboy)
+    reg["skin_pharaoh"]    = _std(_paint_pharaoh)
+    reg["skin_crown"]      = _std(_paint_crown)
+    reg["skin_baseball"]   = _std(_paint_baseball)
+    reg["skin_tennis"]     = _std(_paint_tennis)
+    reg["skin_wizard"]     = _std(_paint_wizard)
+
+    # skin_basketball: stub store_data if missing (branch without STORE_FILE)
+    import sys, types  # noqa: PLC0415
+    if 'game.store_data' not in sys.modules:
+        sys.modules['game.store_data'] = types.ModuleType('game.store_data')
+    from game.skin_basketball import _paint_laker  # noqa: PLC0415
+    reg["skin_basketball"] = _std(_paint_laker)
+
+    # Group B — custom palette, no lenses
+    reg["skin_tophat"]    = _costume(_TH_BODY,    _paint_tophat,    False)
+    reg["skin_ninja"]     = _costume(P_NINJA,     _paint_ninja,     False)
+    reg["skin_mummy"]     = _costume(_MU_BODY,    _paint_mummy,     False, True)
+    reg["skin_astronaut"] = _costume(P_ASTRONAUT, _paint_astronaut, False)
+
+    # Group C — custom palette, with lenses
+    reg["skin_pilot"] = _costume(P_PILOT, _paint_pilot, True)
+
+    # Group D — full custom composite
+    reg["skin_viking"] = _prebuild_pair(_hurt_viking, _fh_viking)
 
     return reg
 
