@@ -1090,6 +1090,128 @@ def get_first_hit_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
     return s
 
 
+# ── Ghost + last-life ─────────────────────────────────────────────────────────
+
+def _build_ghost_hurt_frame(angle_deg: float) -> pygame.Surface:
+    from game.dollar_parrot_ghost import _build_parrot_with_palette, P_SPECTRAL, _draw_lenses
+    base = _build_parrot_with_palette(angle_deg, P_SPECTRAL, draw_lenses=False)
+    _h_draw_bandaids(base)
+    _h_draw_headwrap(base)
+    _draw_lenses(base, 50, 20, P_SPECTRAL)
+    _h_draw_chest_dressing(base)
+    _h_draw_ragged_cuts(base)
+    _h_draw_cracked_lens(base)
+    return base
+
+
+_ghost_hurt_frames: list | None = None
+_ghost_hurt_cache: dict = {}
+
+
+def _get_ghost_hurt_frames() -> list:
+    global _ghost_hurt_frames
+    if _ghost_hurt_frames is None:
+        _ghost_hurt_frames = [_add_outline(_build_ghost_hurt_frame(a)) for a in _H_HURT_ANGLES]
+    return _ghost_hurt_frames
+
+
+def get_ghost_hurt_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    frames = _get_ghost_hurt_frames()
+    key = (frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _ghost_hurt_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _ghost_hurt_cache[key] = s
+    return s
+
+
+# ── Ghost + first-hit ─────────────────────────────────────────────────────────
+
+def _build_ghost_fh_frame(angle_deg: float) -> pygame.Surface:
+    from game.dollar_parrot_ghost import _build_parrot_with_palette, P_SPECTRAL
+    base = _build_parrot_with_palette(angle_deg, P_SPECTRAL)
+    _h_draw_bandaids(base)
+    _fh_draw_single_crack(base)
+    return base
+
+
+_ghost_fh_frames: list | None = None
+_ghost_fh_cache: dict = {}
+
+
+def _get_ghost_fh_frames() -> list:
+    global _ghost_fh_frames
+    if _ghost_fh_frames is None:
+        _ghost_fh_frames = [_add_outline(_build_ghost_fh_frame(a)) for a in _H_HURT_ANGLES]
+    return _ghost_fh_frames
+
+
+def get_ghost_first_hit_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    frames = _get_ghost_fh_frames()
+    key = (frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _ghost_fh_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _ghost_fh_cache[key] = s
+    return s
+
+
+# ── Grow + last-life ──────────────────────────────────────────────────────────
+
+def _build_grow_hurt_frame(angle_deg: float) -> pygame.Surface:
+    return pygame.transform.smoothscale(
+        _add_outline(_h_build_hurt_frame(angle_deg)), (_GROW_W, _GROW_H))
+
+
+_grow_hurt_frames: list | None = None
+_grow_hurt_cache: dict = {}
+
+
+def _get_grow_hurt_frames() -> list:
+    global _grow_hurt_frames
+    if _grow_hurt_frames is None:
+        _grow_hurt_frames = [_build_grow_hurt_frame(a) for a in _H_HURT_ANGLES]
+    return _grow_hurt_frames
+
+
+def get_grow_hurt_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    frames = _get_grow_hurt_frames()
+    key = (frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _grow_hurt_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _grow_hurt_cache[key] = s
+    return s
+
+
+# ── Grow + first-hit ──────────────────────────────────────────────────────────
+
+def _build_grow_fh_frame(angle_deg: float) -> pygame.Surface:
+    return pygame.transform.smoothscale(
+        _add_outline(_fh_build_hurt_frame(angle_deg)), (_GROW_W, _GROW_H))
+
+
+_grow_fh_frames: list | None = None
+_grow_fh_cache: dict = {}
+
+
+def _get_grow_fh_frames() -> list:
+    global _grow_fh_frames
+    if _grow_fh_frames is None:
+        _grow_fh_frames = [_build_grow_fh_frame(a) for a in _H_HURT_ANGLES]
+    return _grow_fh_frames
+
+
+def get_grow_first_hit_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    frames = _get_grow_fh_frames()
+    key = (frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _grow_fh_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _grow_fh_cache[key] = s
+    return s
+
+
 def __getattr__(name: str):
     """Lazy module attribute: external code reading `parrot.FRAMES`
     triggers the build on first access. Keeps the previous public API
@@ -1609,6 +1731,98 @@ def get_ghost_hat_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
     return s
 
 
+# triple + last-life — stovepipe hat + ace-headwrap dressings
+_hat_hurt_frames: "list | None" = None
+_hat_hurt_cache: dict = {}
+
+
+def _ensure_hat_hurt_frames():
+    global _hat_hurt_frames
+    if _hat_hurt_frames is None:
+        from game.dollar_parrot_hat import build_hat_hurt_frames
+        _hat_hurt_frames = build_hat_hurt_frames()
+    return _hat_hurt_frames
+
+
+def get_hat_hurt_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    frames = _ensure_hat_hurt_frames()
+    key = (frame_idx % len(frames), int(round(tilt_deg / 3.0)) * 3)
+    s = _hat_hurt_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _hat_hurt_cache[key] = s
+    return s
+
+
+# triple + first-hit — stovepipe hat + bandaids + single crack
+_hat_fh_frames: "list | None" = None
+_hat_fh_cache: dict = {}
+
+
+def _ensure_hat_fh_frames():
+    global _hat_fh_frames
+    if _hat_fh_frames is None:
+        from game.dollar_parrot_hat import build_hat_first_hit_frames
+        _hat_fh_frames = build_hat_first_hit_frames()
+    return _hat_fh_frames
+
+
+def get_hat_first_hit_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    frames = _ensure_hat_fh_frames()
+    key = (frame_idx % len(frames), int(round(tilt_deg / 3.0)) * 3)
+    s = _hat_fh_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _hat_fh_cache[key] = s
+    return s
+
+
+# ghost + triple + last-life — ghost stovepipe + spectral parrot + dressings
+_ghost_hat_hurt_frames: "list | None" = None
+_ghost_hat_hurt_cache: dict = {}
+
+
+def _ensure_ghost_hat_hurt_frames():
+    global _ghost_hat_hurt_frames
+    if _ghost_hat_hurt_frames is None:
+        from game.dollar_parrot_hat import build_ghost_hat_hurt_frames
+        _ghost_hat_hurt_frames = build_ghost_hat_hurt_frames()
+    return _ghost_hat_hurt_frames
+
+
+def get_ghost_hat_hurt_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    frames = _ensure_ghost_hat_hurt_frames()
+    key = (frame_idx % len(frames), int(round(tilt_deg / 3.0)) * 3)
+    s = _ghost_hat_hurt_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _ghost_hat_hurt_cache[key] = s
+    return s
+
+
+# ghost + triple + first-hit — ghost stovepipe + spectral parrot + first-hit dressings
+_ghost_hat_fh_frames: "list | None" = None
+_ghost_hat_fh_cache: dict = {}
+
+
+def _ensure_ghost_hat_fh_frames():
+    global _ghost_hat_fh_frames
+    if _ghost_hat_fh_frames is None:
+        from game.dollar_parrot_hat import build_ghost_hat_first_hit_frames
+        _ghost_hat_fh_frames = build_ghost_hat_first_hit_frames()
+    return _ghost_hat_fh_frames
+
+
+def get_ghost_hat_first_hit_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    frames = _ensure_ghost_hat_fh_frames()
+    key = (frame_idx % len(frames), int(round(tilt_deg / 3.0)) * 3)
+    s = _ghost_hat_fh_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[key[0]], key[1], 1.0)
+        _ghost_hat_fh_cache[key] = s
+    return s
+
+
 # kfc + ghost — fried body cyan-tinted to read as spectral fried (no hat)
 _kfc_ghost_frames: "list | None" = None
 _kfc_ghost_cache: dict = {}
@@ -1881,6 +2095,40 @@ def get_skin_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surf
     return fn(frame_idx, tilt_deg)
 
 
+_STORE_SKIN_HURT: "dict | None" = None
+
+
+def _store_skin_hurt_getters() -> dict:
+    global _STORE_SKIN_HURT
+    if _STORE_SKIN_HURT is None:
+        try:
+            mod = __import__("game.store_skin_hurt", fromlist=["SKIN_HURT_GETTERS"])
+            _STORE_SKIN_HURT = mod.SKIN_HURT_GETTERS
+        except Exception:
+            _STORE_SKIN_HURT = {}
+    return _STORE_SKIN_HURT
+
+
+def get_skin_hurt_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Last-life frame for the equipped store skin. Falls back to the base
+    macaw hurt skin when skin_id is unrecognised."""
+    pair = _store_skin_hurt_getters().get(skin_id)
+    if pair is None:
+        return get_hurt_parrot(frame_idx, tilt_deg)
+    ll_getter, _ = pair
+    return ll_getter(frame_idx, tilt_deg)
+
+
+def get_skin_first_hit_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """First-hit frame for the equipped store skin. Falls back to the base
+    macaw first-hit skin when skin_id is unrecognised."""
+    pair = _store_skin_hurt_getters().get(skin_id)
+    if pair is None:
+        return get_first_hit_parrot(frame_idx, tilt_deg)
+    _, fh_getter = pair
+    return fh_getter(frame_idx, tilt_deg)
+
+
 def get_skin_frame_hi(skin_id: str) -> pygame.Surface:
     """High-res skin frame for store thumbnails. Renders the base macaw at 3×
     (192×180) so thumb() gets a clean downscale; all registered skins fall back
@@ -1909,3 +2157,194 @@ def skin_builder_ids() -> set:
     implicit default — it renders as the base parrot via the get_parrot
     fallback, so it counts as drawable."""
     return {"skin_base"} | set(_store_skin_builders())
+
+
+# ── Skin-aware powerup frame helpers ─────────────────────────────────────────
+# Ghost, hat (triple), ghost+hat, and grow all route through these getters so
+# the equipped store skin's own body/accessories appear under each powerup.
+
+def _spectral_colorize(surf: pygame.Surface) -> pygame.Surface:
+    """Return a new spectral-blue copy of surf; alpha channel unchanged."""
+    import pygame.surfarray as sa
+    import numpy as np
+    out = surf.copy()
+    arr = sa.pixels3d(out)
+    f = arr.astype(np.float32)
+    lum = f[:, :, 0] * 0.299 + f[:, :, 1] * 0.587 + f[:, :, 2] * 0.114
+    lum_n = lum / 255.0
+    dark   = np.array([50,  95, 145], np.float32)
+    bright = np.array([200, 230, 245], np.float32)
+    for c in range(3):
+        f[:, :, c] = dark[c] + lum_n * (bright[c] - dark[c])
+    arr[:] = f.clip(0, 255).astype(np.uint8)
+    del arr
+    return out
+
+
+# ── Ghost + skin ──────────────────────────────────────────────────────────────
+
+_skin_ghost_cache: dict = {}
+_skin_ghost_fh_cache: dict = {}
+_skin_ghost_hurt_cache: dict = {}
+
+
+def get_skin_ghost_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Ghost-colorized clean frame for the equipped skin."""
+    key = (skin_id, frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _skin_ghost_cache.get(key)
+    if s is None:
+        base = get_skin_frame(skin_id, key[1], 0.0)
+        colored = _spectral_colorize(base)
+        s = pygame.transform.rotozoom(colored, key[2], 1.0)
+        _skin_ghost_cache[key] = s
+    return s
+
+
+def get_skin_ghost_first_hit_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Ghost-colorized first-hit frame for the equipped skin."""
+    key = (skin_id, frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _skin_ghost_fh_cache.get(key)
+    if s is None:
+        base = get_skin_first_hit_frame(skin_id, key[1], 0.0)
+        colored = _spectral_colorize(base)
+        s = pygame.transform.rotozoom(colored, key[2], 1.0)
+        _skin_ghost_fh_cache[key] = s
+    return s
+
+
+def get_skin_ghost_hurt_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Ghost-colorized last-life frame for the equipped skin."""
+    key = (skin_id, frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _skin_ghost_hurt_cache.get(key)
+    if s is None:
+        base = get_skin_hurt_frame(skin_id, key[1], 0.0)
+        colored = _spectral_colorize(base)
+        s = pygame.transform.rotozoom(colored, key[2], 1.0)
+        _skin_ghost_hurt_cache[key] = s
+    return s
+
+
+# ── Hat (triple) + skin ───────────────────────────────────────────────────────
+
+_STORE_SKIN_HAT: "dict | None" = None
+
+
+def _store_skin_hat_getters() -> dict:
+    global _STORE_SKIN_HAT
+    if _STORE_SKIN_HAT is None:
+        try:
+            mod = __import__("game.store_skin_hat", fromlist=["SKIN_HAT_GETTERS"])
+            _STORE_SKIN_HAT = mod.SKIN_HAT_GETTERS
+        except Exception:
+            _STORE_SKIN_HAT = {}
+    return _STORE_SKIN_HAT
+
+
+def get_skin_hat_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Hatted clean frame for the equipped skin; falls back to base macaw hat."""
+    triple = _store_skin_hat_getters().get(skin_id)
+    if triple is None:
+        return get_hat_parrot(frame_idx, tilt_deg)
+    return triple[0](frame_idx, tilt_deg)
+
+
+def get_skin_hat_first_hit_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Hatted first-hit frame for the equipped skin."""
+    triple = _store_skin_hat_getters().get(skin_id)
+    if triple is None:
+        return get_hat_first_hit_parrot(frame_idx, tilt_deg)
+    return triple[1](frame_idx, tilt_deg)
+
+
+def get_skin_hat_hurt_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Hatted last-life frame for the equipped skin."""
+    triple = _store_skin_hat_getters().get(skin_id)
+    if triple is None:
+        return get_hat_hurt_parrot(frame_idx, tilt_deg)
+    return triple[2](frame_idx, tilt_deg)
+
+
+# ── Ghost+hat + skin ──────────────────────────────────────────────────────────
+
+_skin_ghost_hat_cache: dict = {}
+_skin_ghost_hat_fh_cache: dict = {}
+_skin_ghost_hat_hurt_cache: dict = {}
+
+
+def get_skin_ghost_hat_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Ghost-colorized hatted clean frame for the equipped skin."""
+    key = (skin_id, frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _skin_ghost_hat_cache.get(key)
+    if s is None:
+        base = get_skin_hat_frame(skin_id, key[1], 0.0)
+        colored = _spectral_colorize(base)
+        s = pygame.transform.rotozoom(colored, key[2], 1.0)
+        _skin_ghost_hat_cache[key] = s
+    return s
+
+
+def get_skin_ghost_hat_first_hit_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Ghost-colorized hatted first-hit frame for the equipped skin."""
+    key = (skin_id, frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _skin_ghost_hat_fh_cache.get(key)
+    if s is None:
+        base = get_skin_hat_first_hit_frame(skin_id, key[1], 0.0)
+        colored = _spectral_colorize(base)
+        s = pygame.transform.rotozoom(colored, key[2], 1.0)
+        _skin_ghost_hat_fh_cache[key] = s
+    return s
+
+
+def get_skin_ghost_hat_hurt_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Ghost-colorized hatted last-life frame for the equipped skin."""
+    key = (skin_id, frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _skin_ghost_hat_hurt_cache.get(key)
+    if s is None:
+        base = get_skin_hat_hurt_frame(skin_id, key[1], 0.0)
+        colored = _spectral_colorize(base)
+        s = pygame.transform.rotozoom(colored, key[2], 1.0)
+        _skin_ghost_hat_hurt_cache[key] = s
+    return s
+
+
+# ── Grow + skin ───────────────────────────────────────────────────────────────
+
+_skin_grow_cache: dict = {}
+_skin_grow_fh_cache: dict = {}
+_skin_grow_hurt_cache: dict = {}
+
+
+def get_skin_grow_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Grow-scaled clean frame for the equipped skin."""
+    key = (skin_id, frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _skin_grow_cache.get(key)
+    if s is None:
+        base = get_skin_frame(skin_id, key[1], 0.0)
+        scaled = pygame.transform.smoothscale(base, (_GROW_W, _GROW_H))
+        s = pygame.transform.rotozoom(scaled, key[2], 1.0)
+        _skin_grow_cache[key] = s
+    return s
+
+
+def get_skin_grow_first_hit_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Grow-scaled first-hit frame for the equipped skin."""
+    key = (skin_id, frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _skin_grow_fh_cache.get(key)
+    if s is None:
+        base = get_skin_first_hit_frame(skin_id, key[1], 0.0)
+        scaled = pygame.transform.smoothscale(base, (_GROW_W, _GROW_H))
+        s = pygame.transform.rotozoom(scaled, key[2], 1.0)
+        _skin_grow_fh_cache[key] = s
+    return s
+
+
+def get_skin_grow_hurt_frame(skin_id: str, frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Grow-scaled last-life frame for the equipped skin."""
+    key = (skin_id, frame_idx % 4, int(round(tilt_deg / 3.0)) * 3)
+    s = _skin_grow_hurt_cache.get(key)
+    if s is None:
+        base = get_skin_hurt_frame(skin_id, key[1], 0.0)
+        scaled = pygame.transform.smoothscale(base, (_GROW_W, _GROW_H))
+        s = pygame.transform.rotozoom(scaled, key[2], 1.0)
+        _skin_grow_hurt_cache[key] = s
+    return s

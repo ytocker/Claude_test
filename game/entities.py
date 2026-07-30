@@ -552,6 +552,7 @@ class Bird:
         self.lives_flicker_visible = True
         self.on_last_life = False
         self.on_first_hit = False
+        self.equipped_skin = "skin_base"
 
         # Weather event state (visual-only):
         #   wind_lean       — rightward x-offset under the predawn tailwind
@@ -699,6 +700,18 @@ class Bird:
             img = parrot.get_knight_hat_parrot(frame_idx, tilt)
         elif self.knight_active:
             img = parrot.get_knight_parrot(frame_idx, tilt)
+        elif self.ghost_active and triple_vis and self.on_last_life:
+            img = parrot.get_skin_ghost_hat_hurt_frame(self.equipped_skin, frame_idx, tilt)
+        elif self.ghost_active and triple_vis and self.on_first_hit:
+            img = parrot.get_skin_ghost_hat_first_hit_frame(self.equipped_skin, frame_idx, tilt)
+        elif self.ghost_active and self.on_last_life:
+            img = parrot.get_skin_ghost_hurt_frame(self.equipped_skin, frame_idx, tilt)
+        elif self.ghost_active and self.on_first_hit:
+            img = parrot.get_skin_ghost_first_hit_frame(self.equipped_skin, frame_idx, tilt)
+        elif triple_vis and self.on_last_life:
+            img = parrot.get_skin_hat_hurt_frame(self.equipped_skin, frame_idx, tilt)
+        elif triple_vis and self.on_first_hit:
+            img = parrot.get_skin_hat_first_hit_frame(self.equipped_skin, frame_idx, tilt)
         elif self.kfc_active or self.ghost_active or triple_vis:
             # Non-knight power-up combo: try the pre-baked composite for the
             # equipped custom skin first; fall back to the bespoke base-macaw
@@ -728,6 +741,10 @@ class Bird:
                 img = parrot.get_ghost_parrot(frame_idx, tilt)
             else:
                 img = parrot.get_hat_parrot(frame_idx, tilt)
+        elif self.grow_active and self.on_last_life:
+            img = parrot.get_skin_grow_hurt_frame(self.equipped_skin, frame_idx, tilt)
+        elif self.grow_active and self.on_first_hit:
+            img = parrot.get_skin_grow_first_hit_frame(self.equipped_skin, frame_idx, tilt)
         elif self.grow_active:
             if self.equipped_skin == "skin_base":
                 # Hi-res grow-mode bird: pre-built at full grow display size by
@@ -744,9 +761,9 @@ class Bird:
                 img = pygame.transform.smoothscale(
                     img, (int(iw * GROW_SCALE), int(ih * GROW_SCALE)))
         elif self.on_last_life:
-            img = parrot.get_hurt_parrot(frame_idx, tilt)
+            img = parrot.get_skin_hurt_frame(self.equipped_skin, frame_idx, tilt)
         elif self.on_first_hit:
-            img = parrot.get_first_hit_parrot(frame_idx, tilt)
+            img = parrot.get_skin_first_hit_frame(self.equipped_skin, frame_idx, tilt)
         else:
             # No power-up skin active: draw the equipped COSMETIC skin (the
             # store loadout). Unknown ids degrade to the base parrot inside

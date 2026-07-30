@@ -391,3 +391,5 @@ PIPE_SPACING_NEWBIE  = 370
 
 SAVE_FILE = "skybit_save.json"
 SCORES_FILE = "skybit_scores.json"
+
+DAY_EXTRA_SECONDS = 0.0
