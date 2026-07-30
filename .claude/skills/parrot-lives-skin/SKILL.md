@@ -108,6 +108,45 @@ Then call `_add_outline(surf)` — this returns a NEW 68×64 surface; it does no
 
 ---
 
+## Tinted palette variants (e.g. poison)
+
+When a status effect replaces the body palette (e.g. poison → `P_CHARTREUSE`):
+
+- Always pass `draw_lenses=False` to `_build_parrot_with_palette` — no sunglasses on
+  any tinted hurt skin; X-eyes replace them.
+- Draw dressings (bandaids, headwrap, chest dressing, cuts) **AFTER** the tint step
+  so GAUZE/HEM/CROSS retain their original colours.
+- Draw `_draw_b_x_eyes(surf)` **LAST** — after all dressings — so the ink stays dark.
+- For element skins (skins with `paint_fn`, `back_fn`, or `special` accessories),
+  apply a luminance-remap tint function (e.g. `_poison_tint`) **AFTER** element
+  accessories are composited and **BEFORE** dressings/X-eyes. This ensures accessories
+  match the tinted palette without affecting the dressings drawn afterward.
+- For `back_fn` elements (wings, aura that sit behind the bird), apply the same tint
+  to the back surface before compositing it behind the outlined bird.
+- Never call `_open_beak` or `_draw_lenses` in a tinted hurt path.
+
+Luminance remap pattern (copy and adjust `dark`/`bright` for the target palette):
+
+```python
+def _<effect>_tint(img):
+    arr = sa.pixels3d(img)
+    f = arr.astype(np.float32)
+    lum = f[:,:,0]*0.299 + f[:,:,1]*0.587 + f[:,:,2]*0.114
+    lum_n = lum / 255.0
+    dark   = np.array([R_dark,  G_dark,  B_dark ], np.float32)
+    bright = np.array([R_bright, G_bright, B_bright], np.float32)
+    for c in range(3):
+        f[:,:,c] = dark[c] + lum_n * (bright[c] - dark[c])
+    arr[:] = f.clip(0, 255).astype(np.uint8)
+    del arr
+    # Add alpha scaling here if the effect requires transparency (e.g. ghost)
+```
+
+Canonical reference: `_build_poison_hurt` and `_build_poison_skin` in
+`docs/render_store_skin_powerup_lives_grid.py`.
+
+---
+
 ## Dressing primitives
 
 ### `_h_stamp_clipped(surf, layer)`
