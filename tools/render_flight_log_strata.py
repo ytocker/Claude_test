@@ -650,7 +650,7 @@ def render_screen() -> pygame.Surface:
     # Bed the sample into the background before the blocks land on it.
     halo = pygame.Surface((CORE_W + 26, SPAN + 26), pygame.SRCALPHA)
     for i in range(13):
-        pygame.draw.rect(halo, (110, 120, 160, int(9 * (1 - i / 13.0))),
+        pygame.draw.rect(halo, (110, 120, 160, int(2 + 13 * (i / 12.0) ** 1.8)),
                          (i, i, CORE_W + 26 - 2 * i, SPAN + 26 - 2 * i), 1)
     surf.blit(halo, (CORE_X0 - 13, CORE_Y0 - 13))
 
