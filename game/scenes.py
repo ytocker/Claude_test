@@ -559,10 +559,12 @@ class App:
         from game import parrot
         from game.fries_mountains import LAYER_DRAWERS, get_cached_mountain
         self._prewarm_queue = [
-            ("grow",    lambda: parrot._get_grow_frames()),
-            ("kfc0",    lambda: get_cached_mountain(0, GROUND_Y, W)),
-            ("kfc1",    lambda: get_cached_mountain(1, GROUND_Y, W)),
-            ("kfc2",    lambda: get_cached_mountain(2, GROUND_Y, W)),
+            ("grow",       lambda: parrot._get_grow_frames()),
+            ("first_hit",  lambda: parrot._get_fh_frames()),
+            ("hurt",       lambda: parrot._get_hurt_frames()),
+            ("kfc0",       lambda: get_cached_mountain(0, GROUND_Y, W)),
+            ("kfc1",       lambda: get_cached_mountain(1, GROUND_Y, W)),
+            ("kfc2",       lambda: get_cached_mountain(2, GROUND_Y, W)),
         ]
 
     # ── helpers ─────────────────────────────────────────────────────────────
