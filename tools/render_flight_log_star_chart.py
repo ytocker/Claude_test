@@ -169,9 +169,14 @@ def chart_pillars(run):
 
 
 def magnitude(pillar, span):
-    """Radius of a reached star. Log rather than linear: a linear ramp made
-    pillar 250 a blob wider than the gap between it and its neighbour."""
-    return 3.0 + 1.35 * math.log10(1.0 + pillar / 11.0)
+    """Radius of a reached star: 3.0px at pillar 1 up to ~4.0px at 250.
+
+    Log rather than linear, and deliberately shallow. Magnitude has to climb
+    monotonically, but every extra pixel of radius is two pixels stolen from
+    the asterism segment either side of it, and past ~4px the chain stops
+    reading as joined stars and starts reading as a string of beads.
+    """
+    return 3.0 + 1.0 * math.log10(1.0 + pillar / 16.0)
 
 
 def is_anchor(pillar):
@@ -180,34 +185,72 @@ def is_anchor(pillar):
 
 # ── the seeded curve ─────────────────────────────────────────────────────────
 
-def curve_points(run, pillars):
-    """Star positions: a smooth S spine plus a coherent lateral wander.
+CURVE_LEN = 1330       # px of path the stars are strung along
+AMP_CAP = 133          # keeps the widest swing clear of the label gutters
 
-    The wander is not decoration. On the raw spine consecutive stars sit
-    ~11px apart along a near-vertical line, so a 4px disc with a 2px line
-    break leaves nothing to draw; the lateral term lifts real neighbour
-    spacing to ~16px and, more importantly, makes the joins change direction
-    star to star — which is what makes a chain of dots read as a
-    constellation rather than as a dotted rule.
+
+def curve_points(run, pillars):
+    """Star positions: a seeded serpentine, sampled at EQUAL ARC LENGTH.
+
+    Sampling by parameter instead of by arc length was the first attempt and
+    it fails badly: on the steep part of a lobe two consecutive stars landed
+    1.4px apart, so their discs merged and the segment between them — which
+    has to clear both radii plus two 2px breaks — had nothing left to draw.
+    Measured, 52 of run B's 68 joins vanished. Resampling by arc length makes
+    every gap identical by construction, which is also simply how a chart
+    reads best: even spacing lets magnitude carry the hierarchy alone.
+
+    The amplitude then grows until the path is long enough that the tightest
+    run (the 83-star chart) still clears ~16px per gap. The lateral wander on
+    top is what stops the joins all pointing the same way — a constellation
+    changes direction star to star; a dotted rule does not.
     """
     rng = random.Random(run.pillars)
-    lobes = rng.uniform(2.3, 3.0)
-    amp = rng.uniform(84, 96)
+    lobes = rng.uniform(4.8, 5.8)
     ph = rng.uniform(0, math.tau)
     skew = rng.choice((-1, 1))
-    a1, k1, q1 = rng.uniform(7, 11), rng.uniform(0.85, 1.25), rng.uniform(0, math.tau)
-    a2, k2, q2 = rng.uniform(12, 20), rng.uniform(0.16, 0.30), rng.uniform(0, math.tau)
+    w1, f1, q1 = rng.uniform(6, 9), rng.uniform(44, 60), rng.uniform(0, math.tau)
+    w2, f2, q2 = rng.uniform(3, 5), rng.uniform(26, 38), rng.uniform(0, math.tau)
 
+    def dense(amp):
+        out = []
+        for i in range(1201):
+            u = i / 1200
+            x = CX + skew * amp * math.sin(u * math.pi * lobes + ph) + w1 * math.sin(u * f1 + q1)
+            y = FIELD_Y0 + (FIELD_Y1 - FIELD_Y0) * u + w2 * math.sin(u * f2 + q2)
+            out.append((min(FIELD_X1, max(FIELD_X0, x)), y))
+        return out
+
+    amp = 100.0
+    poly = dense(amp)
+    while amp < AMP_CAP:
+        cum = arc_lengths(poly)
+        if cum[-1] >= CURVE_LEN:
+            break
+        amp = min(AMP_CAP, amp * 1.05)
+        poly = dense(amp)
+
+    cum = arc_lengths(poly)
+    total = cum[-1]
     n = len(pillars)
-    pts = []
+    pts, j = [], 0
     for i in range(n):
-        t = i / max(1, n - 1)
-        x = CX + skew * amp * math.sin(t * math.pi * lobes + ph)
-        y = FIELD_Y0 + (FIELD_Y1 - FIELD_Y0) * t
-        x += a1 * math.sin(i * k1 + q1) + a2 * math.sin(i * k2 + q2)
-        y += 2.4 * math.sin(i * k1 * 1.7 + q1)
-        pts.append((min(FIELD_X1, max(FIELD_X0, x)), y))
+        target = total * i / max(1, n - 1)
+        while j < len(cum) - 2 and cum[j + 1] < target:
+            j += 1
+        seg = cum[j + 1] - cum[j]
+        f = 0.0 if seg <= 0 else (target - cum[j]) / seg
+        (x0, y0), (x1, y1) = poly[j], poly[j + 1]
+        pts.append((x0 + (x1 - x0) * f, y0 + (y1 - y0) * f))
     return pts
+
+
+def arc_lengths(poly):
+    cum = [0.0]
+    for i in range(len(poly) - 1):
+        cum.append(cum[-1] + math.hypot(poly[i + 1][0] - poly[i][0],
+                                        poly[i + 1][1] - poly[i][1]))
+    return cum
 
 
 # ── drawing helpers ──────────────────────────────────────────────────────────
