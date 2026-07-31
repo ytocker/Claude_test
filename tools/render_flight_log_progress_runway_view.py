@@ -822,15 +822,24 @@ def g_diamond(lay, cx, cy, u, col):
 
 
 def g_drop(lay, cx, cy, u, col):
+    # Storm reads as FALL, not as a single bead. A lone drop is a pointed blob
+    # that swaps places with the clown diamond at marker size; the slanted
+    # streaks give it a horizontal, directional silhouette instead.
+    for dx, top, bot in ((-0.85, -0.98, -0.30), (0.05, -1.02, -0.42),
+                         (0.95, -0.92, -0.24)):
+        pygame.draw.line(lay, (*col, 250),
+                         (s(cx + dx * u + 0.18 * u), s(cy + top * u)),
+                         (s(cx + dx * u - 0.18 * u), s(cy + bot * u)),
+                         max(1, int(SS * 0.28 * u)))
     pygame.draw.polygon(lay, (*col, 255), [
-        (s(cx), s(cy - 1.15 * u)),
-        (s(cx + 0.60 * u), s(cy + 0.34 * u)),
-        (s(cx - 0.60 * u), s(cy + 0.34 * u))])
-    pygame.draw.circle(lay, (*col, 255), (s(cx), s(cy + 0.30 * u)),
-                       max(1, s(0.61 * u)))
+        (s(cx - 0.05 * u), s(cy - 0.14 * u)),
+        (s(cx + 0.46 * u), s(cy + 0.56 * u)),
+        (s(cx - 0.56 * u), s(cy + 0.56 * u))])
+    pygame.draw.circle(lay, (*col, 255), (s(cx - 0.05 * u), s(cy + 0.52 * u)),
+                       max(1, s(0.46 * u)))
     pygame.draw.circle(lay, (30, 44, 60, 235),
-                       (s(cx - 0.20 * u), s(cy + 0.22 * u)),
-                       max(1, s(0.18 * u)))
+                       (s(cx - 0.22 * u), s(cy + 0.45 * u)),
+                       max(1, s(0.15 * u)))
 
 
 def g_asterism(lay, cx, cy, u, col):

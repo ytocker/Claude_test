@@ -267,17 +267,22 @@ def add_ink(src, color=(6, 8, 14, 240), pad=2):
 
 # ── sky ──────────────────────────────────────────────────────────────────────
 
+SKY_STOPS = [
+    (0.00, DEATH_PALETTE["sky_top"]),
+    (0.42, DEATH_PALETTE["sky_mid"]),
+    (0.80, DEATH_PALETTE["sky_bot"]),
+    (1.00, DEATH_PALETTE["horizon"]),
+]
+
+
+def sky_at(x, y):
+    return veil(lerp_color_multi(SKY_STOPS, y / (HORIZON_Y - 1)), veil_strength(x))
+
+
 def draw_dome(surf):
     """One sky — the death-phase sky — veiled column by column past the point
     the run ended."""
-    pal = DEATH_PALETTE
-    stops = [
-        (0.00, pal["sky_top"]),
-        (0.42, pal["sky_mid"]),
-        (0.80, pal["sky_bot"]),
-        (1.00, pal["horizon"]),
-    ]
-    column = [lerp_color_multi(stops, y / (HORIZON_Y - 1)) for y in range(HORIZON_Y)]
+    column = [lerp_color_multi(SKY_STOPS, y / (HORIZON_Y - 1)) for y in range(HORIZON_Y)]
     for x in range(W):
         k = veil_strength(x)
         if k <= 0.0:
@@ -744,8 +749,8 @@ def render_screen():
     text(surf, pct, 21, midleft=(x0, 104), color=GOLD, shadow=(0, 0, 0, 170))
     text(surf, "  OF THE DAY FLOWN", 11, midleft=(x0 + w_pct, 106), color=CREAM,
          shadow=(0, 0, 0, 170))
-    pygame.draw.line(surf, (255, 206, 92, 70), (int(x0), 120),
-                     (int(x0 + w_pct + w_tail), 120), 1)
+    alpha_line(surf, (255, 206, 92, 96), (int(x0), 120),
+               (int(x0 + w_pct + w_tail), 120), 1)
 
     # ── phase chips: only the upper span of the arc, outside it ──
     def phase_chip(label, frac):
@@ -762,8 +767,8 @@ def render_screen():
             phase_chip("GOLDEN" if name == "GOLDEN HOUR" else name, frac)
 
     # ── death callout, hung off the macaw into the open dome interior ──
-    pygame.draw.line(surf, (10, 8, 14, 190), (int(bx) + 5, int(by) + 12), (126, 318), 1)
-    pygame.draw.line(surf, (255, 226, 168, 210), (int(bx) + 4, int(by) + 11), (125, 317), 1)
+    alpha_line(surf, (10, 8, 14, 200), (int(bx) + 6, int(by) + 13), (127, 319), 1)
+    alpha_line(surf, (255, 226, 168, 225), (int(bx) + 5, int(by) + 12), (126, 318), 1)
     f9, f8 = font(10), font(8)
     cw = max(f9.size("ENDED HERE")[0], f8.size(f"PILLAR {DEATH_PILLAR}  ·  {PHASE_LABEL} 18.4%")[0]) + 20
     cr = pygame.Rect(0, 0, cw, 34)
@@ -790,7 +795,7 @@ def render_screen():
     for i, (_fn, col, t) in enumerate(rows):
         text(surf, t, 10, midleft=(tx, 481 + i * 19), color=DEEP_BROWN, shadow=None)
 
-    pygame.draw.line(surf, (232, 196, 148, 60), (28, 512), (332, 512), 1)
+    alpha_line(surf, (246, 214, 168, 80), (28, 512), (332, 512), 1)
     for i, (_fn, name, _c) in enumerate(GLYPHS):
         text(surf, name, 8, center=(36 + i * 72, 557), color=CREAM,
              shadow=(20, 12, 8, 170))
@@ -940,7 +945,11 @@ def main():
     earned = region_mean_lum(blur, 6, int(DEATH_X) - 4, 80, HORIZON_Y - 4)
     aheadm = region_mean_lum(blur, int(DEATH_X) + 8, W - 6, 80, HORIZON_Y - 4)
 
-    sky_at_trail = DEATH_PALETTE["sky_bot"]
+    # Worst-case keyline separation: the darkest sky the flown run crosses.
+    seps = []
+    for i in range(41):
+        tx_, ty_ = arc_pos(DEATH_PHASE * i / 40)
+        seps.append(abs(lum(sky_at(min(W - 1, max(0, int(tx_))), int(ty_))) - lum(INK)))
     notes = [
         "· SQUINT PROBE (box blur r=4)",
         f"  death marker  ({int(bird_xy[0])},{int(bird_xy[1])})   RGB {p_death}   L={lum(p_death):6.1f}",
@@ -948,8 +957,7 @@ def main():
         f"  ahead  phi=0.60 ({int(x60)},{int(y60)})   RGB {p_ahead}   L={lum(p_ahead):6.1f}",
         f"  earned sky mean L={earned:.1f}   ahead sky mean L={aheadm:.1f}   ratio={earned / aheadm:.2f}x  (target >= 1.80)",
         "· KEYLINE / TEXT SEPARATION",
-        f"  ink(6,8,14) vs lit sky {sky_at_trail}: dL={lum(sky_at_trail) - lum(INK):.0f}   "
-        f"vs veiled slate {veil(DEATH_PALETTE['sky_mid'], 1.0)}: dL={lum(veil(DEATH_PALETTE['sky_mid'], 1.0)) - lum(INK):.0f}",
+        f"  trail ink keyline vs every sky it crosses: min dL={min(seps):.0f}, max dL={max(seps):.0f}  (target >= 110)",
         f"  gold {GOLD} on scrim {SCRIM}: {contrast(GOLD, SCRIM):.2f}:1     "
         f"cream {CREAM} on scrim: {contrast(CREAM, SCRIM):.2f}:1",
         f"  deep-brown {DEEP_BROWN} on lit dune (206,160,102): {contrast(DEEP_BROWN, (206, 160, 102)):.2f}:1     "
