@@ -347,6 +347,31 @@ def _foil(target, clip, cx, cy, length, band, peak, dark=False, angle=-39.0):
     target.set_clip(old)
 
 
+def _gold_foil(target, clip, cx, cy, length, band, angle=-39.0):
+    """Tinted gold specular for unflown boxes. Applies a warm colorimetric
+    shift (R+6, G+3, B-4 at peak, Gaussian falloff) via additive and
+    subtractive BLEND passes — a visible hue difference from the neutral
+    244-value stock that can't be achieved by pushing toward white, which has
+    almost no headroom left on the sheet."""
+    old = target.get_clip()
+    target.set_clip(clip)
+    for sub_pass in (False, True):
+        strip = pygame.Surface((length, band))
+        strip.fill((0, 0, 0))
+        for i in range(band):
+            t = (i - band / 2.0) / (band / 2.0)
+            g = math.exp(-3.4 * t * t)
+            if sub_pass:
+                strip.fill((0, 0, int(round(4 * g))), (0, i, length, 1))
+            else:
+                strip.fill((int(round(6 * g)), int(round(3 * g)), 0),
+                           (0, i, length, 1))
+        rot = pygame.transform.rotate(strip, angle)
+        flag = pygame.BLEND_SUB if sub_pass else pygame.BLEND_ADD
+        target.blit(rot, rot.get_rect(center=(cx, cy)), special_flags=flag)
+    target.set_clip(old)
+
+
 # ── booklet furniture ────────────────────────────────────────────────────────
 
 def _cover_and_spine(surf, page, spine_w, signatures, seed):
@@ -432,8 +457,8 @@ def _prev_page_curl(surf, page, spine_w, curl_w, seed):
     for k, name in enumerate(PHASE_NAMES[:5]):
         cy = top + 70 + k * 96 - page.y
         cx = x0 + curl_w * 0.42 - page.x
-        pygame.draw.circle(lay, (*PHASE_INK[name], 54), (int(cx), int(cy)), 13, 3)
-        pygame.draw.circle(lay, (*PHASE_INK[name], 40), (int(cx), int(cy)), 8, 1)
+        pygame.draw.circle(lay, (*PHASE_INK[name], 85), (int(cx), int(cy)), 13, 2)
+        pygame.draw.circle(lay, (*PHASE_INK[name], 80), (int(cx), int(cy)), 8, 2)
         rnd.random()
     surf.blit(lay, page.topleft)
 
@@ -659,7 +684,7 @@ def _chit(surf, rect, label, phase, reached, seed):
 def _layout(run):
     page = pygame.Rect(14, 40, 336, 556)
     spine_w = 14
-    curl_w = 18 if run["day"] > 1 else 0
+    curl_w = 38 if run["day"] > 1 else 0
     gx0 = 42 + (curl_w + 4 if curl_w else 0)
     mx1 = 344
     grid_w = mx1 - 22 - 4 - gx0
@@ -762,8 +787,8 @@ def render_screen(run):
             unflown_rects.append(rect)
 
     for rect in unflown_rects:
-        _foil(surf, rect.inflate(-2, -2), rect.centerx - 4, rect.centery - 8,
-              260, 84, 150)
+        _gold_foil(surf, rect.inflate(-2, -2), rect.centerx - 4, rect.centery - 8,
+                   260, 84)
 
     # A run barely into its first phase has not earned a cancellation; a gold
     # tab carries the "you are here" instead, since a hairline arc alone is
@@ -992,7 +1017,7 @@ def build_sheet(screens, seals):
     sh = 12 + 26 + 12 + H + 16
     sheet = pygame.Surface((sw, sh))
     sheet.fill((7, 6, 12))
-    _caps(sheet, "SEALED PERMIT  ·  FLIGHT LOG  ·  ROUND 1", 12, 22, 15, GOLD,
+    _caps(sheet, "SEALED PERMIT  ·  FLIGHT LOG  ·  ROUND 2", 12, 22, 15, GOLD,
           tracking=3)
     _caps(sheet, "permit booklet, spine left, cover peeled  —  flown phases "
                  "cancelled by cachet, run stopped by one wax seal",
@@ -1014,7 +1039,7 @@ def main():
     seals = [c for _, c in rendered]
     sheet = build_sheet(screens, seals)
     os.makedirs(OUT_DIR, exist_ok=True)
-    path = os.path.join(OUT_DIR, "round_1.png")
+    path = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(sheet, path)
     print("saved", path, sheet.get_size())
     probes = (("sheet bg", (4, 700)), ("page stock A", (240, 500)),

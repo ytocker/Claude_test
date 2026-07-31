@@ -1,4 +1,4 @@
-"""Render docs/flight_log_screen/loom_band/round_1.png — the LOOM BAND flight log.
+"""Render docs/flight_log_screen/loom_band/round_2.png — the LOOM BAND flight log.
 
 LOOM BAND reads a run as a strap loom seen head-on. The day is a warp: ~20 pale
 flax threads tensioned from a gold heddle bar and running off the bottom edge.
@@ -38,7 +38,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONT_PATH = os.path.join(ROOT, "game", "assets", "LiberationSans-Bold.ttf")
 OUT_DIR = os.path.join(ROOT, "docs", "flight_log_screen", "loom_band")
 os.makedirs(OUT_DIR, exist_ok=True)
-OUT = os.path.join(OUT_DIR, "round_1.png")
+OUT = os.path.join(OUT_DIR, "round_2.png")
 
 
 # ── canvas + palette ─────────────────────────────────────────────────────────
@@ -399,21 +399,25 @@ def draw_heading_cord(surf, strap, y_top):
 
 
 # ── bare warp ────────────────────────────────────────────────────────────────
-def draw_bare_warp(surf, strap, y_from, slack=0.0, fade_to=546):
+def draw_bare_warp(surf, strap, y_from, slack=0.0, fade_to=640):
     x0, x1 = strap["x0"], strap["x1"]
-    w = int(x1 - x0)
+    # Extend 8 px past x1 to give right-margin phase labels a consistent pale substrate.
+    w = int(x1 - x0) + 8
     top = int(math.ceil(y_from))
     bot = fade_to
+    # Threads run off the bottom edge — hold full opacity until y=620, then a
+    # short 20 px taper so the canvas seam stays clean.
+    FADE_START = 620
     ground = pygame.Surface((w, bot - top), pygame.SRCALPHA)
     for y in range(bot - top):
         yy = top + y
         t = (yy - top) / max(1.0, float(WEAVE_BOT - top))
         c = lerp(GROUND_TOP, GROUND_BOT, min(1.0, t))
-        a = 255 if yy <= WEAVE_BOT else int(255 * max(0.0, 1.0 - (yy - WEAVE_BOT) / 16.0))
+        a = 255 if yy <= FADE_START else int(255 * max(0.0, 1.0 - (yy - FADE_START) / 20.0))
         ground.fill((c[0], c[1], c[2], a), (0, y, w, 1))
     surf.blit(ground, (int(x0), top))
 
-    draw_warps(surf, strap, top + 1, min(bot - 2, WEAVE_BOT + 12),
+    draw_warps(surf, strap, top + 1, min(bot - 2, 620),
                THREAD_ON_GROUND, slack, hilite=THREAD_HILITE)
 
     # Raking light across taut thread — the sheen is what makes the unflown
@@ -426,13 +430,13 @@ def draw_bare_warp(surf, strap, y_from, slack=0.0, fade_to=546):
             continue
         for y in range(bot - top):
             yy = top + y
-            fall = 1.0 if yy <= WEAVE_BOT else max(0.0, 1.0 - (yy - WEAVE_BOT) / 16.0)
+            fall = 1.0 if yy <= FADE_START else max(0.0, 1.0 - (yy - FADE_START) / 20.0)
             sheen.fill((255, 255, 250, int(v * fall)), (x, y, 1, 1))
     surf.blit(sheen, (int(x0), top))
 
     for ex in (x0, x1):
-        pygame.draw.line(surf, BAND_EDGE, (ex, top), (ex, WEAVE_BOT))
-    pygame.draw.line(surf, lerp(BAND_EDGE, GROUND_TOP, 0.5), (x0 + 1, top), (x0 + 1, WEAVE_BOT))
+        pygame.draw.line(surf, BAND_EDGE, (ex, top), (ex, 620))
+    pygame.draw.line(surf, lerp(BAND_EDGE, GROUND_TOP, 0.5), (x0 + 1, top), (x0 + 1, 620))
 
 
 def draw_fringe(surf, strap, slack=0.0):
@@ -516,7 +520,7 @@ def draw_bead(surf, x, y, kind, keep_chroma=1.0):
 
 
 # ── death ────────────────────────────────────────────────────────────────────
-def draw_death(surf, strap, y, phase, slack=0.0, reach=20):
+def draw_death(surf, strap, y, phase, slack=0.0, reach=36):
     """Broken weft: both ends spring loose, keep their crimp, and the run is
     tied off with the one scarlet knot on the screen."""
     dx, sq = row_shift(y, slack)
@@ -528,7 +532,9 @@ def draw_death(surf, strap, y, phase, slack=0.0, reach=20):
         for k in range(0, 23):
             t = k / 22.0
             px = ex + side * (2 + reach * t)
-            py = y + 1 + math.sin(t * 6.6) * 4.6 * min(1.0, t * 3.0) + t * t * 5.0
+            # Amplitude ×1.8 so the broken ends read as a definite fling, not a
+            # gentle curl — this is the crash moment.
+            py = y + 1 + math.sin(t * 6.6) * 8.28 * min(1.0, t * 3.0) + t * t * 5.0
             pts.append((px, py))
         pygame.draw.aalines(surf, (18, 14, 22), False, [(p[0], p[1] + 1) for p in pts])
         pygame.draw.aalines(surf, end_col, False, pts)
@@ -537,9 +543,12 @@ def draw_death(surf, strap, y, phase, slack=0.0, reach=20):
 
     cx = (x0 + x1) * 0.5
     ky = y + 2
-    pygame.draw.circle(surf, (18, 14, 22), (int(cx), int(ky) + 1), 7)
-    pygame.draw.circle(surf, SCARLET, (int(cx), int(ky)), 6)
-    pygame.draw.circle(surf, scale_v(SCARLET, 0.62), (int(cx), int(ky)), 3)
+    # Outer halo ring separates the knot from the surrounding weft so its
+    # 20 px diameter reads at a glance.
+    pygame.draw.circle(surf, scale_v(SCARLET, 0.55), (int(cx), int(ky)), 12, 2)
+    pygame.draw.circle(surf, (18, 14, 22), (int(cx), int(ky) + 1), 11)
+    pygame.draw.circle(surf, SCARLET, (int(cx), int(ky)), 10)
+    pygame.draw.circle(surf, scale_v(SCARLET, 0.62), (int(cx), int(ky)), 5)
     pygame.draw.circle(surf, SCARLET_LIT, (int(cx) - 2, int(ky) - 2), 2)
     for sgn in (-1, 1):
         pygame.draw.aalines(surf, SCARLET, False, [
@@ -587,6 +596,16 @@ def draw_screen(run, two_strap=False, min_rule=False):
 
     draw_bare_warp(surf, live, death_y)
 
+    # A single gold pass on each unflown phase boundary keeps the "would-have-
+    # been gold" reading alive on the bare warp without adding colour.
+    death_phase_actual = (death_y - WEAVE_TOP) / WEAVE_H
+    for p, _name in PHASE_BOUNDARIES[1:]:
+        if p > death_phase_actual:
+            gy = int(WEAVE_TOP + p * WEAVE_H)
+            bare_gold = pygame.Surface((live["x1"] - live["x0"], 1), pygame.SRCALPHA)
+            bare_gold.fill((*GOLD_MUTED, 160))
+            surf.blit(bare_gold, (live["x0"], gy))
+
     label_x = live["x1"] + 8
     draw_phase_labels(surf, live, (death_y - WEAVE_TOP) / WEAVE_H, label_x,
                       size=(7 if two_strap else 8), short=two_strap,
@@ -610,11 +629,18 @@ def draw_screen(run, two_strap=False, min_rule=False):
             draw_event_labels(surf, live, name, ey, live["x0"] - 12, bx)
         draw_bead(surf, bx, ey, name)
 
-    draw_death(surf, live, death_y, phase, reach=13 if two_strap else 20)
+    draw_death(surf, live, death_y, phase, reach=13 if two_strap else 36)
 
     pct = max(1, int(round(phase * 100)))
-    text(surf, "%d%% OF DAY %d WOVEN" % (pct, run["day"]), 8, INK,
-         ((live["x0"] + live["x1"]) // 2, death_y + 17), anchor="center")
+    label_str = "%d%% OF DAY %d WOVEN" % (pct, run["day"])
+    lw, lh = font(8).size(label_str)
+    lcx = (live["x0"] + live["x1"]) // 2
+    lcy = int(death_y) + 17
+    pad_x, pad_y = 8, 3
+    pill = pygame.Rect(lcx - lw // 2 - pad_x, lcy - lh // 2 - pad_y,
+                       lw + pad_x * 2, lh + pad_y * 2)
+    pygame.draw.rect(surf, (26, 22, 34), pill, border_radius=pill.height // 2)
+    text(surf, label_str, 8, GOLD_MUTED, (lcx, lcy), anchor="center")
 
     if min_rule:
         ly = WEAVE_TOP + 5
@@ -696,7 +722,7 @@ def build_sheet():
         sheet.fill(lerp((20, 18, 26), (10, 9, 14), y / float(SHEET_H)), (0, y, SHEET_W, 1))
 
     text(sheet, "SKYBIT  ·  FLIGHT LOG  ·  LOOM BAND", 20, GOLD, (40, 26), track=3)
-    text(sheet, "round 1  —  the day is a warp; what you flew is woven, what you "
+    text(sheet, "round 2  —  the day is a warp; what you flew is woven, what you "
                 "missed is bare thread still waiting on the loom",
          12, (150, 142, 132), (40, 56))
 

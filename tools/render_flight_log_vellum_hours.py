@@ -513,10 +513,10 @@ def draw_ivy(dest, top, bot, events, death_phase, rows, r):
 # ── the leaf page ────────────────────────────────────────────────────────────
 
 BLOCK_L, BLOCK_R = 76, 308
-BLOCK_T, BLOCK_B = 52, 452
+BLOCK_T, BLOCK_B = 42, 452
 COL_X = 172
-ROUND_R = 20
-ROW0, ROW_PITCH = 78, 56
+ROUND_R = 34
+ROW0, ROW_PITCH = 78, 50
 ROWS = [ROW0 + ROW_PITCH * i for i in range(7)]
 RULE_STEP = 14
 
