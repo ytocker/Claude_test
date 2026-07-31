@@ -861,6 +861,10 @@ class Bird:
             self._draw_skateboard(surf, hx, hy, flipped)
             return
 
+        # Parcel flickers in sync with Pip during the post-revive i-frame window.
+        if not self.lives_flicker_visible:
+            return
+
         # Parcel — Pip's permanent companion. Tucked below his centre with
         # a tilt-aware offset so it banks with him; mode-coloured to match
         # the active palette; alpha-breathes in ghost mode; grow-scaled.

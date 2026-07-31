@@ -58,10 +58,10 @@ _NIGHT_DEEP     = (  6,   1,  21)   # #060115
 _fonts: dict = {}
 
 # ── V15 smooth-taper-weave nest lives display ─────────────────────────────────
-_NEST_S          = 0.80
+_NEST_S          = 1.0
 _NEST_CX         = 31
 _NEST_CY         = 73
-_NEST_DX_LIST    = [0, 40]
+_NEST_DX_LIST    = [0, 50]
 _NEST_SCRATCH: "pygame.Surface | None" = None
 _NEST_PANEL_DARK   = (12, 8, 38)
 _NEST_GOLD_BRIGHT  = (240, 192, 64)
@@ -79,7 +79,7 @@ _NEST_STICK_X_OFF  = (-1, 0, 1, 2)
 
 _nest_bird: "pygame.Surface | None" = None
 _nest_bird_w: int = 0
-_nest_bird_h: int = 34
+_nest_bird_h: int = 44
 _nest_params: "tuple | None" = None
 
 
@@ -230,31 +230,6 @@ def _draw_pip_lives_row(surf, lives_remaining, lives_total, cy=106):
             _NEST_SCRATCH.fill((0, 0, 0, 0))
             _nest_draw_slot(_NEST_SCRATCH, _NEST_CY, alive)
             surf.blit(_NEST_SCRATCH, (dx, 0))
-
-
-_PIP_ICON_ALIVE: "pygame.Surface | None" = None
-_PIP_ICON_SPENT: "pygame.Surface | None" = None
-_PIP_ICON_H = 16
-
-
-def _get_pip_icon(filled: bool) -> "pygame.Surface":
-    global _PIP_ICON_ALIVE, _PIP_ICON_SPENT
-    if filled and _PIP_ICON_ALIVE is not None:
-        return _PIP_ICON_ALIVE
-    if not filled and _PIP_ICON_SPENT is not None:
-        return _PIP_ICON_SPENT
-    src = parrot._get_frames()[1]
-    w = max(1, int(src.get_width() * _PIP_ICON_H / src.get_height()))
-    img = pygame.transform.smoothscale(src, (w, _PIP_ICON_H))
-    if not filled:
-        grey = pygame.Surface(img.get_size(), pygame.SRCALPHA)
-        grey.fill((40, 32, 40, 180))
-        img.blit(grey, (0, 0))
-    if filled:
-        _PIP_ICON_ALIVE = img
-    else:
-        _PIP_ICON_SPENT = img
-    return img
 
 
 # ── Theme drawing helpers ────────────────────────────────────────────────────
@@ -2174,32 +2149,6 @@ class HUD:
             r = pygame.Rect(start_x + i * (tile_w + tile_gap), tile_y,
                             tile_w, tile_h)
             _stat_tile_chunky(surf, r, kind, val, lbl, subline=sub)
-
-        # Lives row — small hearts + "CLEAN RUN!" badge below the stat tiles.
-        lives_used  = getattr(world, "lives_used",      0)
-        lives_total = getattr(world, "lives_remaining", 0) + lives_used
-        if lives_total == 0:
-            lives_total = LIVES_PER_RUN
-        _lives_y = tile_y + tile_h + 10
-        if lives_used == 0:
-            cf_clean = _font(15, True)
-            badge = cf_clean.render("✦  CLEAN RUN!", True, _GOLD_BRIGHT)
-            surf.blit(badge, badge.get_rect(center=(W // 2, _lives_y + 8)))
-        else:
-            lf = _font(13, True)
-            lbl_surf = lf.render("LIVES", True, _GOLD_MUTED)
-            lives_remaining = lives_total - lives_used
-            icon = _get_pip_icon(True)
-            iw, ih = icon.get_size()
-            gap = 8
-            icons_w = lives_total * iw + (lives_total - 1) * gap
-            row_w = lbl_surf.get_width() + 6 + icons_w
-            sx = (W - row_w) // 2
-            surf.blit(lbl_surf, lbl_surf.get_rect(midleft=(sx, _lives_y + 6)))
-            hx = sx + lbl_surf.get_width() + 6
-            for i in range(lives_total):
-                ico = _get_pip_icon(i < lives_remaining)
-                surf.blit(ico, (hx + i * (iw + gap), _lives_y + 6 - ih // 2))
 
         # Power-ups row — Variant C "Horizontal Pills": each power-up
         # rendered as a navy gold-bordered chip with [icon | ×N] laid
