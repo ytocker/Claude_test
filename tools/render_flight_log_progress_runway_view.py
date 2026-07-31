@@ -101,9 +101,11 @@ HAZE = (240, 232, 210)
 PAINT_NEAR = (252, 246, 232)
 PAINT_FAR = (245, 239, 226)
 
-APRON_STOPS = [(100.0, (172, 190, 168)),
-               (168.0, (108, 136, 114)),
-               (330.0, (58, 82, 68)),
+# Apron stays below the pavement in value at every depth — the lit runway has
+# to be the brightest thing on screen even where haze flattens everything.
+APRON_STOPS = [(100.0, (140, 160, 142)),
+               (168.0, (96, 124, 104)),
+               (330.0, (56, 80, 66)),
                (640.0, (26, 40, 35))]
 
 BAR_BODY = (74, 108, 132)
@@ -274,20 +276,18 @@ def draw_sun_streaks():
     reading as lit rather than merely undrawn."""
     lay = new_layer()
     rng = random.Random(77)
-    for i in range(9):
-        p0 = DEATH_PHASE + (1.0 - DEATH_PHASE) * (i / 9.0) + rng.uniform(0, 0.03)
-        p1 = min(1.0, p0 + rng.uniform(0.05, 0.13))
+    for i in range(6):
+        p0 = DEATH_PHASE + (1.0 - DEATH_PHASE) * (i / 6.0) + rng.uniform(0, 0.04)
+        p1 = min(1.0, p0 + rng.uniform(0.09, 0.20))
         ya, yb = phase_to_y(p0), phase_to_y(p1)
-        u = rng.uniform(-0.75, 0.75)
-        pts = []
-        for (yy, off) in ((ya, 0.0), (yb, 0.0)):
-            hw = hw_at_y(yy)
-            pts.append((CX + u * hw - 0.16 * hw, yy))
-        quad = [(s(pts[0][0]), s(ya)),
-                (s(pts[0][0] + 0.32 * hw_at_y(ya)), s(ya)),
-                (s(pts[1][0] + 0.32 * hw_at_y(yb)), s(yb)),
-                (s(pts[1][0]), s(yb))]
-        pygame.draw.polygon(lay, (255, 246, 216, 26), quad)
+        u = rng.uniform(-0.60, 0.60)
+        wa, wb = 0.52 * hw_at_y(ya), 0.52 * hw_at_y(yb)
+        xa, xb = CX + u * hw_at_y(ya), CX + u * hw_at_y(yb)
+        # Broad and faint: light, not a painted stripe. Anything stronger
+        # competes with the centreline for the eye.
+        pygame.draw.polygon(lay, (255, 246, 216, 10), [
+            (s(xa - wa / 2), s(ya)), (s(xa + wa / 2), s(ya)),
+            (s(xb + wb / 2), s(yb)), (s(xb - wb / 2), s(yb))])
     clip_to_pavement(lay)
     geo.blit(lay, (0, 0), special_flags=pygame.BLEND_ADD)
 
@@ -593,14 +593,16 @@ def draw_events():
         y1 = ya + (yb - ya) * t1
         x0 = edges_at_y(y0)[1] + 3.2
         x1 = edges_at_y(y1)[1] + 3.2
-        a = 215 if y0 < DEATH_Y else 85
+        # Bracket runs through the death line: its lower stub is flown, its
+        # long lit run is the part of the thermal the player never saw.
+        a = 235 if y0 < DEATH_Y else 95
         pygame.draw.line(lay, (*amber, a), (s(x0), s(y0)), (s(x1), s(y1)),
-                         max(1, int(SS * 0.8)))
+                         max(1, int(SS * 1.4)))
     for yt in (ya, yb):
         xt = edges_at_y(yt)[1] + 3.2
-        a = 215 if yt < DEATH_Y else 110
-        pygame.draw.line(lay, (*amber, a), (s(xt - 1.6), s(yt)),
-                         (s(xt + 4.2), s(yt)), max(1, int(SS * 0.8)))
+        a = 235 if yt < DEATH_Y else 130
+        pygame.draw.line(lay, (*amber, a), (s(xt - 2.2), s(yt)),
+                         (s(xt + 5.0), s(yt)), max(1, int(SS * 1.2)))
 
     draw_board(lay, phase_to_y(THERMAL_START_PHASE), g_plume, amber)
     draw_board(lay, phase_to_y(GENIE_PHASE), g_lamp, (255, 214, 120))
@@ -619,20 +621,28 @@ def draw_death_marker():
     lay = new_layer()
     xl, xr = edges_at_y(DEATH_Y)
     yy = s(DEATH_Y)
-    for k, a in ((3.0, 26), (1.8, 52)):
-        pygame.draw.line(lay, (*SCARLET, a), (s(xl - 8), yy), (s(xr + 8), yy),
+    for k, a in ((3.4, 30), (1.9, 58)):
+        pygame.draw.line(lay, (*SCARLET, a), (s(xl - 14), yy), (s(xr + 14), yy),
                          max(1, int(SS * k * 2)))
-    pygame.draw.line(lay, (*SCARLET, 190), (s(xl - 7), yy), (s(xr + 7), yy),
-                     max(1, int(SS * 0.75)))
+    pygame.draw.line(lay, (*SCARLET, 215), (s(xl - 13), yy), (s(xr + 13), yy),
+                     max(1, int(SS * 1.05)))
+    for sgn, ex in ((-1, xl - 13), (1, xr + 13)):
+        pygame.draw.line(lay, (*SCARLET, 215),
+                         (s(ex), s(DEATH_Y - 3.5)), (s(ex), s(DEATH_Y + 3.5)),
+                         max(1, int(SS * 0.8)))
 
     mx = 134.0
-    pygame.draw.circle(lay, (*SCARLET, 70), (s(mx), yy), s(7.0))
-    pygame.draw.circle(lay, (*SCARLET, 255), (s(mx), yy), s(4.4))
-    pygame.draw.circle(lay, (*SCARLET_HI, 255), (s(mx), yy), s(2.6))
-    pygame.draw.circle(lay, (*CREAM, 255), (s(mx), yy), s(1.2))
+    pygame.draw.circle(lay, (*SCARLET, 80), (s(mx), yy), s(8.5))
+    # Cream collar: scarlet alone is close to the pavement in value, so the
+    # marker needs a light ring to punch out of warm stone.
+    pygame.draw.circle(lay, (*CREAM, 245), (s(mx), yy), s(5.8))
+    pygame.draw.circle(lay, (*SCARLET, 255), (s(mx), yy), s(4.5))
+    pygame.draw.circle(lay, (*SCARLET_HI, 255), (s(mx), yy), s(2.4))
+    pygame.draw.circle(lay, (24, 10, 12, 255), (s(mx), yy), s(1.0))
 
-    pygame.draw.line(lay, (*SCARLET, 200), (s(74), yy), (s(mx - 5.6), yy),
-                     max(1, int(SS * 0.7)))
+    pygame.draw.line(lay, (*SCARLET, 215), (s(70), yy), (s(mx - 6.6), yy),
+                     max(1, int(SS * 0.8)))
+    pygame.draw.circle(lay, (*SCARLET, 215), (s(70), yy), max(1, s(1.4)))
     geo.blit(lay, (0, 0))
 
 
@@ -643,16 +653,18 @@ TEASER = pygame.Rect(4, 505, 158, 44)
 
 def draw_teaser_plate():
     body = pygame.Surface((s(TEASER.w), s(TEASER.h)), pygame.SRCALPHA)
-    pygame.draw.rect(body, (16, 28, 38, 190), body.get_rect(),
+    # Mid-value slate: the plate crosses a near-black apron AND lit pavement,
+    # so it has to sit above one and below the other to read as one object.
+    pygame.draw.rect(body, (46, 66, 82, 232), body.get_rect(),
                      border_radius=s(4))
-    pygame.draw.rect(body, (126, 158, 178, 210), body.get_rect(),
+    pygame.draw.rect(body, (158, 186, 202, 235), body.get_rect(),
                      max(1, int(SS * 0.6)), border_radius=s(4))
-    pygame.draw.rect(body, (255, 206, 120, 235),
-                     (s(1.4), s(5), s(2.2), s(TEASER.h - 10)))
+    pygame.draw.rect(body, (255, 206, 120, 240),
+                     (s(1.4), s(5), s(2.4), s(TEASER.h - 10)))
     alpha = pygame.Surface((s(TEASER.w), s(TEASER.h)), pygame.SRCALPHA)
     for i in range(s(TEASER.w)):
         u = i / (s(TEASER.w) - 1)
-        a = 255 if u < 0.52 else int(255 - 95 * ((u - 0.52) / 0.48) ** 1.3)
+        a = 255 if u < 0.58 else int(255 - 78 * ((u - 0.58) / 0.42) ** 1.3)
         pygame.draw.line(alpha, (255, 255, 255, a), (i, 0), (i, s(TEASER.h)))
     body.blit(alpha, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     # Fade the edge that crosses onto the pavement so the flown-surface

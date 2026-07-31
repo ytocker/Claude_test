@@ -160,6 +160,15 @@ def text(surf, txt, size, color, pos, anchor="midleft", spacing=0,
     return r
 
 
+def runs(surf, parts, x, y, size, shadow=150):
+    """One baseline, several colours — so a sentence can carry hierarchy
+    without breaking into separate lines."""
+    for txt, col in parts:
+        r = text(surf, txt, size, col, (x, y), "midleft", shadow=shadow)
+        x = r.right
+    return x
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # glyphs — drawn at SSx then smoothscaled so diagonals and curves antialias
 # without pygame.draw.arc / gfxdraw (neither is WASM-safe)
@@ -389,22 +398,22 @@ def draw_loupe_guides(surf):
     s = pygame.Surface((bw * SS, bh * SS), pygame.SRCALPHA)
 
     def q(x0, x1, w0, w1):
-        pygame.draw.polygon(s, (*GOLD_PALE, 150), [
+        pygame.draw.polygon(s, (*GOLD_PALE, 215), [
             ((x0 - bx - w0) * SS, 0), ((x0 - bx + w0) * SS, 0),
             ((x1 - bx + w1) * SS, bh * SS), ((x1 - bx - w1) * SS, bh * SS)])
 
-    pygame.draw.polygon(s, (*GOLD, 20), [
+    pygame.draw.polygon(s, (*GOLD, 26), [
         ((LOUPE.left - bx) * SS, 0), ((LOUPE.right - bx) * SS, 0),
         ((px(LOUPE_P1) - bx) * SS, bh * SS), ((px(LOUPE_P0) - bx) * SS, bh * SS)])
-    q(LOUPE.left, px(LOUPE_P0), 1.1, 0.5)
-    q(LOUPE.right, px(LOUPE_P1), 1.1, 0.5)
+    q(LOUPE.left, px(LOUPE_P0), 1.6, 0.8)
+    q(LOUPE.right, px(LOUPE_P1), 1.6, 0.8)
     surf.blit(pygame.transform.smoothscale(s, (bw, bh)), (bx, by))
 
 
 def draw_loupe(surf):
     r = LOUPE
     soft_shadow(surf, r, 8, spread=5, peak=40)
-    panel(surf, r, 8, (32, 39, 58), (17, 21, 34), (0, 0, 0, 0), 255)
+    panel(surf, r, 8, (46, 56, 82), (23, 29, 46), (0, 0, 0, 0), 255)
 
     # Range left, magnification right: it leaves the centre of the header row
     # clear for the death chevron, which has to sit above its own blade.
@@ -557,16 +566,19 @@ def panel(surf, rect, radius=10, top=SLATE, bot=SLATE_D, ring=(*GOLD, 70),
 def draw_teaser(surf):
     r = pygame.Rect(24, 298, 312, 52)
     soft_shadow(surf, r, 10, spread=4, peak=30)
-    panel(surf, r, 10, (52, 40, 76), (26, 20, 44), (*GOLD, 105), 248)
+    panel(surf, r, 10, (54, 42, 78), (34, 26, 54), (*GOLD, 110), 250)
     lr = text(surf, "STILL AHEAD", 9, GOLD, (r.x + 12, r.y + 13), "midleft",
               spacing=1.6)
     aline(surf, GOLD, (lr.right + 8, r.y + 13), (r.right - 12, r.y + 13),
           alpha=80)
-    text(surf, f"GENIE LAMP AT PILLAR {LATE_GAME_PILLAR}   ·   "
-               f"CLOWN GAUNTLET AT PILLAR {CLOWN_START_PILLAR}",
-         9, (226, 232, 244), (r.x + 12, r.y + 29), "midleft")
-    text(surf, f"STORM AT {RAIN_START_PILLAR}   ·   SNOWFALL BEFORE DAWN",
-         9, (226, 232, 244), (r.x + 12, r.y + 42), "midleft")
+    # The nouns carry the tease; the connective tissue steps back a value.
+    body = (222, 229, 242)
+    runs(surf, [("GENIE LAMP", GOLD_PALE), (f"  AT PILLAR {LATE_GAME_PILLAR}", body),
+                ("   ·   ", MUTED_D), ("CLOWN GAUNTLET", GOLD_PALE),
+                (f"  AT {CLOWN_START_PILLAR}", body)], r.x + 12, r.y + 29, 9)
+    runs(surf, [("STORM", GOLD_PALE), (f"  AT {RAIN_START_PILLAR}", body),
+                ("   ·   ", MUTED_D), ("SNOWFALL", GOLD_PALE),
+                ("  BEFORE DAWN", body)], r.x + 12, r.y + 42, 9)
 
 
 LEGEND = [("geyser", "GEYSER PLUME"), ("lamp", "GENIE LAMP"),
