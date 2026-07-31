@@ -518,45 +518,39 @@ def draw_ferrule(plate, label, dim=1.0):
 def draw_death(plate, s_death, dim=1.0):
     """The run ends twice over: enamel stops (a colour event) and the metal is
     chisel-nicked (a physical event). Two channels of the same news."""
-    drop_len = 13.0
-    s0 = s_death - drop_len
-    n = int(drop_len / 0.5)
-    for i in range(n):
-        s = s0 + i * 0.5
-        x, y = point_at(s)
-        t = i / max(1, n - 1)
-        r = 8.5 * (1.0 - 0.20 * t * t)
-        dcircle(plate, shade((84, 16, 14), dim), x, y, r)
-    for i in range(n):
-        s = s0 + i * 0.5
-        x, y = point_at(s)
-        t = i / max(1, n - 1)
-        r = 7.2 * (1.0 - 0.24 * t * t)
-        dcircle(plate, shade(SCARLET, dim), x, y + 0.5, r)
-    for i in range(n):
-        s = s0 + i * 0.5
-        x, y = point_at(s)
-        t = i / max(1, n - 1)
-        r = 4.6 * (1.0 - 0.34 * t * t)
-        dcircle(plate, shade((208, 62, 44), dim), x, y - 1.4, r)
-    hx, hy = point_at(s0 + drop_len * 0.34)
-    dcircle(plate, shade((255, 170, 150), dim), hx, hy - 3.6, 1.9)
-    dcircle(plate, shade((255, 240, 232), dim), hx - 0.3, hy - 4.0, 0.9)
+    # chisel first: the drop is poured over it, but the overrun onto the bronze
+    # walls stays proud of the enamel and keeps reading
+    s_nick = s_death - 4.5
+    x, y = point_at(s_nick)
+    nx, ny = normal_at(s_nick)
+    tx, ty = tangent_at(s_nick)
+    skew = 2.8
+    ax, ay = x + nx * -15.0 - tx * skew, y + ny * -15.0 - ty * skew
+    bx, by = x + nx * 15.0 + tx * skew, y + ny * 15.0 + ty * skew
+    dline(plate, shade((26, 20, 11), dim), ax, ay, bx, by, 2.8)
+    dline(plate, shade((250, 214, 138), dim), ax + tx * 1.6, ay + ty * 1.6,
+          bx + tx * 1.6, by + ty * 1.6, 1.0)
+    dline(plate, shade((62, 44, 21), dim), ax - tx * 1.7, ay - ty * 1.7,
+          bx - tx * 1.7, by - ty * 1.7, 0.9)
+    for ex, ey in ((ax, ay), (bx, by)):
+        dcircle(plate, shade((238, 200, 128), dim), ex + tx * 1.3, ey + ty * 1.3, 1.4)
 
-    # chisel nick chased across the wall — struck by hand, so it overruns
-    x, y = point_at(s_death + 1.4)
-    nx, ny = normal_at(s_death + 1.4)
-    tx, ty = tangent_at(s_death + 1.4)
-    skew = 2.6
-    ax, ay = x + nx * -14.5 - tx * skew, y + ny * -14.5 - ty * skew
-    bx, by = x + nx * 14.5 + tx * skew, y + ny * 14.5 + ty * skew
-    dline(plate, shade((30, 22, 12), dim), ax, ay, bx, by, 2.6)
-    dline(plate, shade((250, 214, 138), dim), ax + tx * 1.5, ay + ty * 1.5,
-          bx + tx * 1.5, by + ty * 1.5, 1.0)
-    dline(plate, shade((66, 46, 22), dim), ax - tx * 1.6, ay - ty * 1.6,
-          bx - tx * 1.6, by - ty * 1.6, 0.8)
-    # burr where the chisel lifted
-    dcircle(plate, shade((236, 198, 124), dim), bx + tx * 1.2, by + ty * 1.2, 1.3)
+    s0 = s_death - DROP_LEN
+    s1 = s_death - 2.4
+    n = int((s1 - s0) / 0.4)
+    for radius, off, col in ((8.6, 0.0, (78, 14, 12)),
+                             (7.2, 0.5, SCARLET),
+                             (4.5, -1.4, (206, 60, 42))):
+        for i in range(n + 1):
+            t = i / float(n)
+            s = s0 + (s1 - s0) * t
+            px_, py_ = point_at(s)
+            # the tail thins to a bead so the run reads as stopping, not fading
+            r = radius * (1.0 - 0.72 * t ** 2.4)
+            dcircle(plate, shade(col, dim), px_, py_ + off, max(0.6, r))
+    hx, hy = point_at(s0 + (s1 - s0) * 0.28)
+    dcircle(plate, shade((255, 168, 148), dim), hx, hy - 3.6, 2.0)
+    dcircle(plate, shade((255, 242, 234), dim), hx - 0.4, hy - 4.1, 1.0)
 
 
 # ── event rivets ─────────────────────────────────────────────────────────────
@@ -849,53 +843,59 @@ def draw_addendum(scr, add):
     bx, by = sx + 8, sy + 8
     strip = make_bronze(bw, bh, seed=31)
 
-    engrave(strip, add["day_label"], 11, 8, 5, ink=(46, 40, 26), bevel=GOLD,
+    engrave(strip, add["day_label"], 11, 8, 4, ink=(46, 40, 26), bevel=GOLD,
             spacing=1.4, depth=1.0)
-    engrave(strip, "%d PILLARS  %s" % (add["pillars"], add["time"]), 8, 8, 22,
-            ink=(56, 48, 30), bevel=(224, 182, 104), depth=0.8, spacing=0.4)
+    engrave(strip, "%d PILLARS  %s" % (add["pillars"], add["time"]), 8, 8, 21,
+            ink=(56, 48, 30), bevel=(224, 182, 104), depth=0.8, spacing=0.3)
 
-    # short single-row channel: an addendum states a fraction, not a whole day
-    cx0, cx1, cy = 96.0, bw - 12.0, bh / 2.0
+    # One short row: an addendum states a fraction of a day, so it doesn't earn
+    # the full snake. Same material grammar, smaller casting.
+    cx0, cx1, cy = 78.0, bw - 8.0, bh / 2.0 + 1.0
     clen = cx1 - cx0
     hw = 6.5
-    for x in [cx0 + i * 0.5 for i in range(int(clen / 0.5) + 1)]:
-        dcircle(strip, (92, 66, 36), x - 0.8, cy - 1.1, hw + 1.4)
-    for x in [cx0 + i * 0.5 for i in range(int(clen / 0.5) + 1)]:
-        dcircle(strip, (216, 176, 104), x + 0.8, cy + 1.1, hw + 1.4)
-    for x in [cx0 + i * 0.5 for i in range(int(clen / 0.5) + 1)]:
+    xs = [cx0 + i * 0.4 for i in range(int(clen / 0.4) + 1)]
+    for x in xs:
+        dcircle(strip, (92, 66, 36), x - 0.7, cy - 1.0, hw + 1.3)
+    for x in xs:
+        dcircle(strip, (216, 176, 104), x + 0.7, cy + 1.0, hw + 1.3)
+    for x in xs:
         dcircle(strip, BED, x, cy, hw)
+
     s_d = cx0 + clen * add["phase"]
-    for x in [cx0 + i * 0.5 for i in range(int(clen / 0.5) + 1)]:
-        if x < s_d - 5:
+    for x in xs:
+        if x < s_d - 8.0:
             c = enamel_color((x - cx0) / clen)
-            dcircle(strip, shade(c, 0.62), x, cy, hw - 1.4)
-            dcircle(strip, c, x, cy + 0.4, hw - 2.6)
-            dcircle(strip, tint(c, (255, 255, 255), 0.55), x, cy - 2.6, 1.2)
-        elif x > s_d + 2:
-            dcircle(strip, (226, 224, 221), x, cy, hw - 0.9)
-            dcircle(strip, (242, 240, 238), x, cy - 0.4, hw - 2.2)
-            dcircle(strip, (249, 248, 246), x, cy - 1.2, hw - 4.0)
+            dcircle(strip, shade(c, 0.60), x, cy, hw - 1.3)
+            dcircle(strip, c, x, cy + 0.4, hw - 2.4)
+            dcircle(strip, tint(c, (255, 255, 255), 0.6), x, cy - 2.7, 1.0)
+        elif x > s_d + 7.5:
+            dcircle(strip, (226, 224, 221), x, cy, hw - 0.8)
+            dcircle(strip, (242, 240, 238), x, cy - 0.4, hw - 2.0)
+            dcircle(strip, (249, 248, 246), x, cy - 1.3, hw - 3.8)
     rnd = random.Random(77)
-    for _ in range(900):
-        x = rnd.uniform(s_d + 2, cx1)
-        yy = cy + rnd.uniform(-5.2, 5.2)
+    for _ in range(1100):
+        x = rnd.uniform(s_d + 7.5, cx1)
+        yy = cy + rnd.uniform(-5.0, 5.0)
         d = rnd.randint(-11, 6)
         dcircle(strip, rgb((242 + d, 240 + d, 238 + d)), x, yy, rnd.uniform(0.4, 0.9))
-    # scarlet drop + nick, same grammar as the main plate
+
+    dline(strip, (26, 20, 11), s_d - 4.5, cy - 9.6, s_d - 1.0, cy + 9.6, 2.2)
+    dline(strip, (250, 214, 138), s_d - 3.2, cy - 9.6, s_d + 0.3, cy + 9.6, 0.9)
+    n = 14
+    for radius, off, col in ((hw - 1.3, 0.0, (78, 14, 12)),
+                             (hw - 2.4, 0.4, SCARLET),
+                             (hw - 4.0, -1.1, (206, 60, 42))):
+        for i in range(n + 1):
+            t = i / float(n)
+            dcircle(strip, col, s_d - 9.0 + 7.6 * t, cy + off,
+                    max(0.5, radius * (1.0 - 0.74 * t ** 2.4)))
+    dcircle(strip, (255, 180, 158), s_d - 7.4, cy - 2.3, 1.1)
+
     for i in range(11):
-        x = s_d - 5 + i * 0.5
-        dcircle(strip, (84, 16, 14), x, cy, hw - 1.4)
-        dcircle(strip, SCARLET, x, cy + 0.4, hw - 2.6)
-        dcircle(strip, (208, 62, 44), x, cy - 1.0, hw - 4.2)
-    dcircle(strip, (255, 180, 158), s_d - 3.4, cy - 2.4, 1.2)
-    dline(strip, (30, 22, 12), s_d + 1.0 - 1.6, cy - 9.5, s_d + 1.0 + 1.6, cy + 9.5, 2.0)
-    dline(strip, (250, 214, 138), s_d + 2.2 - 1.6, cy - 9.5, s_d + 2.2 + 1.6, cy + 9.5, 0.9)
-    # ferrule cap
-    for i in range(8):
-        dcircle(strip, (150, 112, 34), cx0 + i * 0.5, cy, hw + 0.6)
-        dcircle(strip, GOLD, cx0 + i * 0.5, cy, hw - 0.4)
-        dcircle(strip, (255, 228, 146), cx0 + i * 0.5, cy - 1.8, 2.6)
-    engrave(strip, add["rarity"], 8, cx0 - 3, cy - 15, align="right",
+        dcircle(strip, (150, 112, 34), cx0 + i * 0.4, cy, hw + 0.5)
+        dcircle(strip, GOLD, cx0 + i * 0.4, cy, hw - 0.5)
+        dcircle(strip, (255, 228, 146), cx0 + i * 0.4, cy - 2.0, 2.4)
+    engrave(strip, add["rarity"], 8, bw - 8, 1, align="right",
             ink=(52, 44, 28), bevel=GOLD, depth=0.8)
 
     drect(strip, (226, 190, 120), 0, 0, bw, 1.4)
@@ -912,7 +912,7 @@ RUN_A = dict(phase=0.184, pillars=25, time="0:47", day_label="DAY 1",
 RUN_DEEP = dict(phase=0.720, pillars=118, time="3:36", day_label="DAY 1",
                 rarity="0.4%", seed=13)
 RUN_A_OLD = dict(RUN_A, patina=True, frit=232)
-ADD_B = dict(phase=0.061, pillars=12, time="0:19", day_label="DAY 2", rarity="41%")
+ADD_B = dict(phase=0.118, pillars=24, time="0:35", day_label="DAY 2", rarity="12%")
 
 
 def sheet_font(size):
@@ -936,7 +936,7 @@ def scarlet_audit_tile(w, h):
     t.fill((16, 16, 19))
     pad = 10
     bar_h = 30
-    label(t, "RAW SKY", 11, pad, 6, (150, 150, 158))
+    label(t, "PRE-CLAMP SKY", 11, pad, 6, (150, 150, 158))
     for i in range(w - pad * 2):
         ph = i / float(w - pad * 2 - 1)
         pygame.draw.line(t, enamel_raw(ph), (pad + i, 22), (pad + i, 22 + bar_h))

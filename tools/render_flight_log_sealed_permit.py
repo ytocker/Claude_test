@@ -313,16 +313,25 @@ def _page_stock(rect, seed, gutter_w):
     return page
 
 
-def _foil(target, clip, cx, cy, length, band, peak, angle=-39.0):
-    """Diagonal specular sweep. Drawn per-clip so the unflown boxes can take a
-    hotter pass than the sheet — untouched stock is the thing meant to gleam."""
+def _axis_strip(length, band, peak, dark, angle=-39.0):
     strip = pygame.Surface((length, band), pygame.SRCALPHA)
+    col = (44, 38, 32) if dark else (255, 255, 254)
     for i in range(band):
         t = (i - band / 2.0) / (band / 2.0)
-        a = int(peak * math.exp(-3.4 * t * t))
+        g = math.exp(-3.4 * t * t)
+        a = int(peak * ((1.0 - g) if dark else g))
         if a > 0:
-            strip.fill((255, 255, 254, a), (0, i, length, 1))
-    rot = pygame.transform.rotate(strip, angle)
+            strip.fill((*col, a), (0, i, length, 1))
+    return pygame.transform.rotate(strip, angle)
+
+
+def _foil(target, clip, cx, cy, length, band, peak, dark=False, angle=-39.0):
+    """Diagonal specular sweep. Bright stock has barely 11 levels of headroom
+    to white, so the gleam is built by shading the sheet *away* from the axis
+    as well as lighting it along the axis — the contrast has to come from the
+    surround. Drawn per-clip so unflown boxes take a hotter pass than the
+    sheet; untouched stock is the thing meant to shine."""
+    rot = _axis_strip(length, band, peak, dark, angle)
     old = target.get_clip()
     target.set_clip(clip)
     target.blit(rot, rot.get_rect(center=(cx, cy)))
@@ -667,8 +676,11 @@ def render_screen(run):
     surf.blit(_page_stock(face, run["seed"], L["gutter"]), face.topleft)
     pygame.draw.line(surf, STOCK_EDGE, (face.x, face.y), (face.right - 1, face.y))
 
-    # Base sheet sweep; unflown boxes take a second, hotter pass below.
-    _foil(surf, face, face.centerx - 26, face.centery - 40, 760, 130, 34)
+    # Sheet shading first, then the specular axis over it; unflown boxes take
+    # a third, hotter pass below.
+    _foil(surf, face, face.centerx - 26, face.centery - 40, 900, 620, 30,
+          dark=True)
+    _foil(surf, face, face.centerx - 26, face.centery - 40, 900, 150, 46)
 
     if L["curl_w"]:
         _prev_page_curl(surf, page, L["spine_w"], L["curl_w"], run["seed"] + 7)
@@ -695,7 +707,13 @@ def render_screen(run):
     for i, name in enumerate(PHASE_NAMES):
         rect = _box_rect(L, i)
         flown = i <= flown_idx
-        pygame.draw.rect(surf, STOCK, rect)
+        # The box interior is never repainted — it *is* the sheet, so the
+        # shading and specular axis run straight through it. A cancelled box
+        # only picks up the handling soil that comes with being stamped.
+        if flown:
+            soil = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+            soil.fill((104, 92, 74, 30))
+            surf.blit(soil, rect.topleft)
         pygame.draw.rect(surf, HAIRLINE, rect, 1)
         pygame.draw.rect(surf, BAND, (rect.x + 1, rect.y + 1, rect.w - 2, 11))
         pygame.draw.line(surf, HAIRLINE, (rect.x + 1, rect.y + 12),
@@ -721,8 +739,8 @@ def render_screen(run):
             unflown_rects.append(rect)
 
     for rect in unflown_rects:
-        _foil(surf, rect.inflate(-2, -2), rect.centerx - 6, rect.centery - 10,
-              240, 74, 78)
+        _foil(surf, rect.inflate(-2, -2), rect.centerx - 4, rect.centery - 8,
+              260, 84, 150)
 
     # A run barely into its first phase has not earned a cancellation; a gold
     # tab carries the "you are here" instead, since a hairline arc alone is
@@ -735,8 +753,16 @@ def render_screen(run):
         span = max(1e-6, PHASE_END[i] - PHASE_BOUNDARIES[i][0])
         prog = (death - PHASE_BOUNDARIES[i][0]) / span if i == flown_idx else 1.0
         partial = prog if (i == flown_idx and prog < 0.25) else None
+        # Cachets are placed by hand, so none of them sits dead centre. The
+        # last one is nudged off the seam on purpose: the seal is meant to
+        # overlap the final stamp, not erase it.
+        jr = random.Random(run["seed"] + i * 31)
+        jx, jy = jr.uniform(-4, 4), jr.uniform(-3, 3)
+        if i == flown_idx:
+            jx -= 10
         st = _cachet(name, 25, run["seed"] + i * 31, PHASE_INK[name], partial)
-        surf.blit(st, st.get_rect(center=(rect.centerx, rect.centery - 3)))
+        surf.blit(st, st.get_rect(center=(rect.centerx + jx,
+                                          rect.centery - 3 + jy)))
 
     if tiny:
         r0 = _box_rect(L, 0)
@@ -817,16 +843,17 @@ def render_screen(run):
     _cover_peel(surf, page, L["spine_w"])
 
     # The seal lands on the seam between the last cancelled box and the first
-    # untouched one — the document closes exactly where the run stopped.
+    # untouched one — the document closes exactly where the run stopped. Its
+    # radius is held just under a box width so it straddles two boxes and no
+    # more; a wider seal swallows the stamp it is supposed to be sitting on.
+    a = _box_rect(L, flown_idx)
     if flown_idx < len(PHASE_NAMES) - 1:
-        a, b = _box_rect(L, flown_idx), _box_rect(L, flown_idx + 1)
-        sx = (a.right + b.x) / 2 if a.y == b.y else a.centerx
+        b = _box_rect(L, flown_idx + 1)
+        seam_x = (a.right + b.x) / 2 if a.y == b.y else a.centerx
     else:
-        a = _box_rect(L, flown_idx)
-        sx = a.right
-    seam_x = a.x if tiny else sx
-    _wax_seal(surf, seam_x, _box_rect(L, flown_idx).centery, 38,
-              run["seed"] + 3)
+        seam_x = a.right
+    seal = (seam_x, a.centery)
+    _wax_seal(surf, seal[0], seal[1], 33, run["seed"] + 3)
 
     back = pygame.Rect(0, 604, 98, 28)
     back.centerx = W // 2
@@ -834,12 +861,12 @@ def render_screen(run):
     pygame.draw.rect(surf, GOLD, back, 1, border_radius=4)
     _caps(surf, "BACK", back.centerx, back.centery, 11, GOLD, tracking=3,
           anchor="center")
-    return surf
+    return surf, seal
 
 
 # ── detail column ────────────────────────────────────────────────────────────
 
-def _detail_column(w, h, run_a_surf):
+def _detail_column(w, h, run_a_surf, run_a_seal):
     surf = pygame.Surface((w, h))
     surf.fill((20, 17, 26))
     pygame.draw.rect(surf, (52, 46, 40), (0, 0, w, h), 1)
@@ -899,32 +926,34 @@ def _detail_column(w, h, run_a_surf):
         pygame.draw.rect(surf, c, (12 + i * 108, 464, 22, 22))
         _caps(surf, lab, 38 + i * 108, 475, 6, (168, 162, 152), tracking=0)
 
-    stray = _audit_scarlet(run_a_surf)
-    _caps(surf, "STRAY SCARLET OUTSIDE SEAL: %d px" % stray, 12, 498, 7,
+    stray = _audit_scarlet(run_a_surf, run_a_seal)
+    _caps(surf, "STRAY SCARLET OUTSIDE SEAL: %d px" % stray, 12, 496, 7,
           (120, 200, 130) if stray == 0 else (230, 160, 90), tracking=1)
 
-    _caps(surf, "PAGE STOCK  ·  3x", 12, 520, 8, (150, 145, 140), tracking=2)
-    crop = pygame.Surface((104, 32))
+    _caps(surf, "PAGE STOCK  ·  3x", 12, 516, 8, (150, 145, 140), tracking=2)
+    crop = pygame.Surface((104, 28))
     crop.fill(STOCK)
-    crop.blit(ros, ros.get_rect(center=(30, 10)))
-    crop.blit(ros, ros.get_rect(center=(84, 26)))
-    _foil(crop, crop.get_rect(), 40, 8, 240, 30, 90)
-    surf.blit(pygame.transform.scale(crop, (312, 96)), (12, 532))
-    _caps(surf, "VALUE 244  ·  GUILLOCHE 4%  ·  FOIL SWEEP", 12, 640, 7,
+    crop.blit(ros, ros.get_rect(center=(30, 8)))
+    crop.blit(ros, ros.get_rect(center=(84, 24)))
+    _foil(crop, crop.get_rect(), 52, 14, 240, 60, 30, dark=True)
+    _foil(crop, crop.get_rect(), 52, 14, 240, 26, 90)
+    surf.blit(pygame.transform.scale(crop, (312, 84)), (12, 528))
+    _caps(surf, "VALUE 244  ·  GUILLOCHE 4%  ·  FOIL SWEEP", 12, 620, 7,
           (168, 162, 152), tracking=1)
-
-    _caps(surf, "SEAL 38r  vs  CACHET 25r  —  the stop outweighs the entry",
-          12, h - 16, 7, (140, 134, 126), tracking=1)
+    _caps(surf, "SEAL 33r  vs  CACHET 25r  —  the stop outweighs the entry",
+          12, 632, 7, (140, 134, 126), tracking=1)
     return surf
 
 
-def _audit_scarlet(screen, cx=112, cy=149, r=52):
+def _audit_scarlet(screen, seal, pad=10):
     """Proof that scarlet is spent once: nothing red-dominant may exist outside
     the seal's footprint."""
+    cx, cy = seal
+    r2 = (33 + pad) ** 2
     n = 0
     for y in range(0, H, 2):
         for x in range(0, W, 2):
-            if (x - cx) ** 2 + (y - cy) ** 2 <= r * r:
+            if (x - cx) ** 2 + (y - cy) ** 2 <= r2:
                 continue
             cr, cg, cb = screen.get_at((x, y))[:3]
             if cr > 120 and cr - cg > 60 and cr - cb > 60:
@@ -934,7 +963,7 @@ def _audit_scarlet(screen, cx=112, cy=149, r=52):
 
 # ── review sheet ─────────────────────────────────────────────────────────────
 
-def build_sheet(screens):
+def build_sheet(screens, seals):
     col_w = 348
     sw = 12 + W + 14 + W + 14 + col_w + 12
     sh = 12 + 26 + 12 + H + 16
@@ -951,14 +980,16 @@ def build_sheet(screens):
         x = 12 + i * (W + 14)
         _caps(sheet, cap, x, 40, 8, (168, 160, 142), tracking=1)
         sheet.blit(scr, (x, 50))
-    sheet.blit(_detail_column(col_w, H, screens[0]),
+    sheet.blit(_detail_column(col_w, H, screens[0], seals[0]),
                (12 + 2 * (W + 14), 50))
     return sheet
 
 
 def main():
-    screens = [render_screen(r) for r in RUNS]
-    sheet = build_sheet(screens)
+    rendered = [render_screen(r) for r in RUNS]
+    screens = [s for s, _ in rendered]
+    seals = [c for _, c in rendered]
+    sheet = build_sheet(screens, seals)
     os.makedirs(OUT_DIR, exist_ok=True)
     path = os.path.join(OUT_DIR, "round_1.png")
     pygame.image.save(sheet, path)
@@ -969,7 +1000,9 @@ def main():
               ("detail col", (900, 60)))
     for name, pos in probes:
         print("  %-13s %-11s -> %s" % (name, pos, sheet.get_at(pos)[:3]))
-    print("  stray scarlet outside seal (RUN A):", _audit_scarlet(screens[0]))
+    for r, s, c in zip(RUNS, screens, seals):
+        print("  %s seal@%s stray scarlet outside seal: %d"
+              % (r["tag"], (int(c[0]), int(c[1])), _audit_scarlet(s, c)))
 
 
 if __name__ == "__main__":
