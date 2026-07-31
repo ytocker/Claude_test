@@ -633,7 +633,7 @@ def trail_bloom(surf):
 
 # ── the sun, moved ahead of the bird ─────────────────────────────────────────
 
-SUN_ARC_LEAD = 14.0            # px of arc length between macaw and sun
+SUN_ARC_LEAD = 16.0            # px of arc length between macaw and sun
 
 
 def sun_u():
@@ -642,21 +642,30 @@ def sun_u():
 
 def draw_sun(surf, ss):
     """Pale and hazed: the sun is in the veiled sky now. It marks that the day
-    carried on, and must stay quieter than the bird that stopped."""
+    carried on, and must stay quieter than the bird that stopped.
+
+    Its corona only fans FORWARD. A full ring at this radius reaches back into
+    the macaw's beak, and the whole point of moving the sun off the death angle
+    was to stop the two reading as one object.
+    """
     x, y = pos_u(sun_u())
-    g = soft_glow(24, (208, 198, 186), peak=30, falloff=2.2)
-    surf.blit(g, (int(x) - 25, int(y) - 25), special_flags=pygame.BLEND_ADD)
+    tilt = arc_tangent_deg(DEATH_PHASE)
+    fx, fy = math.cos(math.radians(tilt)), -math.sin(math.radians(tilt))
+    g = soft_glow(20, (206, 198, 188), peak=26, falloff=2.2)
+    surf.blit(g, (int(x) - 21, int(y) - 21), special_flags=pygame.BLEND_ADD)
     k = SS
-    for i in range(8):
-        a = math.radians(i * 45 + 10)
-        pygame.draw.line(ss, (214, 206, 194, 120),
-                         ((x + math.cos(a) * 8.5) * k, (y + math.sin(a) * 8.5) * k),
-                         ((x + math.cos(a) * 12.5) * k, (y + math.sin(a) * 12.5) * k),
-                         int(1.2 * k))
-    pygame.draw.circle(ss, (96, 100, 116, 190), (int(x * k), int(y * k)), int(7.0 * k))
-    pygame.draw.circle(ss, (206, 198, 184, 235), (int(x * k), int(y * k)), int(6.0 * k))
-    pygame.draw.circle(ss, (226, 220, 206, 235), (int((x - 1.2) * k), int((y - 1.4) * k)),
-                       int(3.4 * k))
+    for i in range(12):
+        a = math.radians(i * 30 + 8)
+        dx, dy = math.cos(a), math.sin(a)
+        if dx * fx + dy * fy < 0.05:
+            continue
+        pygame.draw.line(ss, (214, 206, 194, 130),
+                         ((x + dx * 7.6) * k, (y + dy * 7.6) * k),
+                         ((x + dx * 11.4) * k, (y + dy * 11.4) * k), int(1.2 * k))
+    pygame.draw.circle(ss, (94, 98, 114, 200), (int(x * k), int(y * k)), int(6.2 * k))
+    pygame.draw.circle(ss, (204, 196, 182, 240), (int(x * k), int(y * k)), int(5.2 * k))
+    pygame.draw.circle(ss, (226, 220, 206, 240), (int((x - 1.1) * k), int((y - 1.2) * k)),
+                       int(2.9 * k))
     return (x, y)
 
 
@@ -710,7 +719,7 @@ def draw_macaw(surf):
                (sx - tx * 8, sy - ty * 8), (sx + tx * 5, sy + ty * 5), 5)
 
     src = _parrot.get_parrot(1, tilt)
-    scale = 26.0 / 68.0
+    scale = 24.0 / 68.0
     small = pygame.transform.smoothscale(
         src, (max(1, int(src.get_width() * scale)),
               max(1, int(src.get_height() * scale))))
