@@ -427,8 +427,8 @@ def render_screen():
         x, y, dx, dy = at_phase(ph)
         if kind == "geyser":
             # leans back off the route so it clears the GOLDEN HOUR name
-            stroke(marks, [(x, y - 5), (x - 8, y - 9)], 1.4, INK_SOFT)
-            glyph_geyser(marks, x - 8, y - 9)
+            stroke(marks, [(x, y - 5), (x - 12, y - 9)], 1.4, INK_SOFT)
+            glyph_geyser(marks, x - 12, y - 9)
             continue
         # Clown and rain sit 15 px apart on the route, so the rain leader leans
         # forward -- the standard cartographic answer to two marks in one spot.
