@@ -148,6 +148,13 @@ def phase_at_x(x):
     return unease(1.0 - math.acos(t) / math.pi)
 
 
+def in_label_band(p):
+    """Only the upper 120° of the arc has room for a horizontal pill. Below
+    that the arc is steep, the phases are compressed and a chip would sit on
+    top of its own neighbours."""
+    return 30.0 <= 180.0 * (1.0 - ease(p)) <= 150.0
+
+
 DEATH_X, DEATH_Y = arc_pos(DEATH_PHASE)
 STAR_FLOOR_X = arc_pos(STAR_FLOOR_PHASE)[0]
 
@@ -275,8 +282,23 @@ SKY_STOPS = [
 ]
 
 
+# A gentle vignette, centred on the flown quarter rather than on the canvas:
+# it pulls the four corners down without touching the death point, which is
+# the cheapest way to stop a cream-bright horizon competing with the subject.
+VIG_C = (150, 250)
+VIG_D = 290.0
+VIG_S = 0.34
+
+
+def vignette(x, y):
+    d = math.hypot(x - VIG_C[0], y - VIG_C[1]) / VIG_D
+    return 1.0 - VIG_S * min(1.0, d) ** 1.7
+
+
 def sky_at(x, y):
-    return veil(lerp_color_multi(SKY_STOPS, y / (HORIZON_Y - 1)), veil_strength(x))
+    c = veil(lerp_color_multi(SKY_STOPS, y / (HORIZON_Y - 1)), veil_strength(x))
+    v = vignette(x, y)
+    return (int(c[0] * v), int(c[1] * v), int(c[2] * v))
 
 
 def draw_dome(surf):
@@ -285,12 +307,11 @@ def draw_dome(surf):
     column = [lerp_color_multi(SKY_STOPS, y / (HORIZON_Y - 1)) for y in range(HORIZON_Y)]
     for x in range(W):
         k = veil_strength(x)
-        if k <= 0.0:
-            for y in range(HORIZON_Y):
-                surf.set_at((x, y), column[y])
-        else:
-            for y in range(HORIZON_Y):
-                surf.set_at((x, y), veil(column[y], k))
+        col = column if k <= 0.0 else [veil(c, k) for c in column]
+        for y in range(HORIZON_Y):
+            v = vignette(x, y)
+            c = col[y]
+            surf.set_at((x, y), (int(c[0] * v), int(c[1] * v), int(c[2] * v)))
 
 
 def draw_clouds(surf):
@@ -315,9 +336,9 @@ def draw_clouds(surf):
                             (4, h * 0.72 + 4, w, h * 0.30))
         surf.blit(s, (cx - w // 2, cy - h // 2))
 
-    puff(46, 196, 62, 30, (255, 246, 228), (240, 206, 168), 226)
-    puff(30, 336, 78, 32, (255, 250, 236), (246, 214, 172), 240)
-    puff(240, 176, 96, 34, (108, 114, 132), (86, 92, 110), 120)
+    puff(44, 194, 60, 28, (250, 234, 208), (232, 194, 156), 214)
+    puff(32, 352, 68, 28, (252, 238, 214), (236, 200, 160), 224)
+    puff(238, 172, 96, 34, (108, 114, 132), (86, 92, 110), 118)
 
 
 def draw_ghost_night(surf):
@@ -495,8 +516,10 @@ def draw_overlay(ss):
 
     # AHEAD run — thin, cool, ~35% alpha, no glow, no keyline. It has to read
     # as a plan, not an achievement.
+    # The 3× downscale roughly halves a hairline's effective density, so the
+    # authored alpha is set high enough to LAND at ~35% once composited.
     ahead = [PU(u_death + (1.0 - u_death) * i / 150) for i in range(151)]
-    pygame.draw.lines(ss, (*COOL, 90), False, ahead, max(1, int(1.4 * k)))
+    pygame.draw.lines(ss, (*COOL, 132), False, ahead, max(1, int(1.9 * k)))
 
     # Phase ticks at TRUE phases: the eased mapping compresses early morning,
     # and the uneven tick spacing is the only thing that admits it.
@@ -511,7 +534,7 @@ def draw_overlay(ss):
                          (b[0], b[1] + 1.2 * k), int(2.2 * k))
         pygame.draw.line(ss, (196, 208, 228, 150), a, b, int(1.6 * k))
         # Leader out to the phase chip, for the four labels that get one.
-        if 0.20 <= frac <= 0.80:
+        if in_label_band(frac):
             c = ((x + ux * 8.0) * k, (y + uy * 8.0) * k)
             d = ((x + ux * 22.0) * k, (y + uy * 22.0) * k)
             pygame.draw.line(ss, (176, 190, 214, 96), c, d, int(1.0 * k))
@@ -545,7 +568,7 @@ def draw_overlay(ss):
     # Event glyphs at true angular positions. Rain rides a tighter radius: it
     # sits 0.027 phase from the clown gauntlet and would otherwise collide.
     ring_items = [
-        (GEYSER_SPAN[0], R_INNER, g_geyser, GEYSER_C),
+        (GEYSER_SPAN[0], R_INNER - 24, g_geyser, GEYSER_C),
         (GENIE_PHASE, R_INNER, g_genie, GENIE_C),
         (CLOWN_PHASE, R_INNER, g_clown, CLOWN_C),
         (RAIN_PHASE, R_INNER - 22, g_rain, RAIN_C),
@@ -647,6 +670,26 @@ def arc_tangent_deg(p):
     return math.degrees(math.atan2(-(y1 - y0), (x1 - x0)))
 
 
+def macaw_backlight(surf):
+    """Warm lift around the death point, laid down BEFORE the vector overlay.
+
+    Additive light run after the overlay would wash the trail's ink keyline
+    straight out — which is exactly what it did before this was split out.
+    """
+    tilt = arc_tangent_deg(DEATH_PHASE)
+    tx = math.cos(math.radians(tilt))
+    ty = -math.sin(math.radians(tilt))
+    # Trailing BACK along the flown run so the sun ahead of her stays clear.
+    for off, rad, peak in ((0.0, 30, 74), (11.0, 24, 84), (23.0, 26, 56)):
+        gx = DEATH_X - tx * off
+        gy = DEATH_Y - ty * off
+        # Warm rather than white: over a sky this bright an additive glow clips
+        # channel by channel, and a neutral one clips straight to flat white.
+        g = soft_glow(rad, (255, 206, 138), peak=peak, falloff=2.0)
+        surf.blit(g, (int(gx) - rad - 1, int(gy) - rad - 1),
+                  special_flags=pygame.BLEND_ADD)
+
+
 def draw_macaw(surf):
     """Single-frame macaw canted along the tangent, ink-keylined, with a short
     cast shadow smeared along the rail underneath her.
@@ -659,16 +702,6 @@ def draw_macaw(surf):
     tx = math.cos(math.radians(tilt))
     ty = -math.sin(math.radians(tilt))
 
-    # Backlight, trailing BACK along the flown run so the sun ahead of her is
-    # left clear. This is what makes the death point the brightest thing on a
-    # squint pass — a scarlet macaw over a lit sky is mid-value on her own.
-    for off, rad, peak in ((5.0, 15, 128), (12.0, 22, 150), (22.0, 27, 96)):
-        gx = DEATH_X - tx * off
-        gy = DEATH_Y - ty * off
-        g = soft_glow(rad, (255, 226, 172), peak=peak, falloff=2.0)
-        surf.blit(g, (int(gx) - rad - 1, int(gy) - rad - 1),
-                  special_flags=pygame.BLEND_ADD)
-
     # Cast shadow along the rail, slightly behind — plants her ON the arc
     # instead of floating over it.
     sx = DEATH_X - tx * 2.0 + ux * 1.2
@@ -677,7 +710,7 @@ def draw_macaw(surf):
                (sx - tx * 8, sy - ty * 8), (sx + tx * 5, sy + ty * 5), 5)
 
     src = _parrot.get_parrot(1, tilt)
-    scale = 30.0 / 68.0
+    scale = 26.0 / 68.0
     small = pygame.transform.smoothscale(
         src, (max(1, int(src.get_width() * scale)),
               max(1, int(src.get_height() * scale))))
@@ -702,6 +735,7 @@ def render_screen():
 
     ss = pygame.Surface((W * SS, H * SS), pygame.SRCALPHA)
     trail_bloom(surf)
+    macaw_backlight(surf)
     sun_xy = draw_sun(surf, ss)
     draw_overlay(ss)
 
@@ -763,7 +797,7 @@ def render_screen():
         text(surf, label, 9, center=r.center, color=CREAM, shadow=None)
 
     for frac, name in PHASE_BOUNDARIES:
-        if 0.20 <= frac <= 0.80:
+        if in_label_band(frac):
             phase_chip("GOLDEN" if name == "GOLDEN HOUR" else name, frac)
 
     # ── death callout, hung off the macaw into the open dome interior ──
@@ -881,6 +915,18 @@ def contrast(a, b):
     return (la + 0.05) / (lb + 0.05)
 
 
+def annulus_mean(blur, cx, cy, r0, r1):
+    tot, n = 0.0, 0
+    for a in range(0, 360, 6):
+        for r in range(r0, r1 + 1, 2):
+            x = int(cx + math.cos(math.radians(a)) * r)
+            y = int(cy + math.sin(math.radians(a)) * r)
+            if 0 <= x < W and 0 <= y < HORIZON_Y:
+                tot += lum(blur.get_at((x, y))[:3])
+                n += 1
+    return tot / max(1, n)
+
+
 def region_mean_lum(blur, x0, x1, y0, y1, step=3):
     tot, n = 0.0, 0
     for x in range(x0, x1, step):
@@ -956,6 +1002,10 @@ def main():
         f"  trail  phi=0.10 ({int(x10)},{int(y10)})   RGB {p_trail}   L={lum(p_trail):6.1f}",
         f"  ahead  phi=0.60 ({int(x60)},{int(y60)})   RGB {p_ahead}   L={lum(p_ahead):6.1f}",
         f"  earned sky mean L={earned:.1f}   ahead sky mean L={aheadm:.1f}   ratio={earned / aheadm:.2f}x  (target >= 1.80)",
+        "· LOCAL PUNCH  |centre L - surrounding-annulus L|  (blob isolation, blurred)",
+        f"  death marker {abs(lum(p_death) - annulus_mean(blur, bird_xy[0], bird_xy[1], 16, 26)):5.1f}"
+        f"     trail phi=0.10 {abs(lum(p_trail) - annulus_mean(blur, x10, y10, 16, 26)):5.1f}"
+        f"     ahead phi=0.60 {abs(lum(p_ahead) - annulus_mean(blur, x60, y60, 16, 26)):5.1f}",
         "· KEYLINE / TEXT SEPARATION",
         f"  trail ink keyline vs every sky it crosses: min dL={min(seps):.0f}, max dL={max(seps):.0f}  (target >= 110)",
         f"  gold {GOLD} on scrim {SCRIM}: {contrast(GOLD, SCRIM):.2f}:1     "
