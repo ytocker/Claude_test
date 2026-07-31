@@ -281,13 +281,15 @@ def draw_sun_streaks():
         p1 = min(1.0, p0 + rng.uniform(0.09, 0.20))
         ya, yb = phase_to_y(p0), phase_to_y(p1)
         u = rng.uniform(-0.60, 0.60)
-        wa, wb = 0.52 * hw_at_y(ya), 0.52 * hw_at_y(yb)
         xa, xb = CX + u * hw_at_y(ya), CX + u * hw_at_y(yb)
-        # Broad and faint: light, not a painted stripe. Anything stronger
-        # competes with the centreline for the eye.
-        pygame.draw.polygon(lay, (255, 246, 216, 10), [
-            (s(xa - wa / 2), s(ya)), (s(xa + wa / 2), s(ya)),
-            (s(xb + wb / 2), s(yb)), (s(xb - wb / 2), s(yb))])
+        # BLEND_ADD reads RGB and ignores source alpha, so the intensity has
+        # to live in the channels. Three nested quads fake a soft falloff;
+        # broad and faint, so light never competes with the centreline.
+        for span, lift in ((0.62, 4), (0.40, 5), (0.18, 5)):
+            wa, wb = span * hw_at_y(ya), span * hw_at_y(yb)
+            pygame.draw.polygon(lay, (lift + 1, lift, lift - 2, 255), [
+                (s(xa - wa / 2), s(ya)), (s(xa + wa / 2), s(ya)),
+                (s(xb + wb / 2), s(yb)), (s(xb - wb / 2), s(yb))])
     clip_to_pavement(lay)
     geo.blit(lay, (0, 0), special_flags=pygame.BLEND_ADD)
 
