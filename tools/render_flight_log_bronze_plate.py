@@ -491,8 +491,8 @@ def draw_cell_dividers(plate, s_death, dim=1.0):
         x, y = point_at(s)
         nx, ny = normal_at(s)
         for w, c, off in ((3.4, shade((150, 114, 54), dim), 0.0),
-                          (1.2, shade((226, 188, 116), dim), -1.3),
-                          (1.0, shade((72, 50, 24), dim), 1.5)):
+                          (2.0, shade((248, 210, 128), dim), -1.3),
+                          (1.0, shade((42, 28, 10), dim), 1.5)):
             dline(plate, c,
                   x + nx * -10.2 + (-ny) * off, y + ny * -10.2 + nx * off,
                   x + nx * 10.2 + (-ny) * off, y + ny * 10.2 + nx * off, w)
@@ -602,29 +602,11 @@ def draw_rivet(plate, s, kind, dim=1.0):
     dcircle(plate, shade((230, 194, 118), dim), x - 0.9, y - 1.2, 4.3)
     dcircle(plate, shade((250, 224, 160), dim), x - 1.7, y - 2.1, 2.0)
 
-    if kind == "GEYSER":
-        _punch(plate, [(-2.8, 3.2), (2.8, 3.2)], x, y, dim)
-        _punch(plate, [(0, 3.0), (0, -1.0)], x, y, dim, w=1.3)
-        _punch(plate, [(0, -0.6), (-2.6, -3.2)], x, y, dim)
-        _punch(plate, [(0, -0.6), (2.6, -3.2)], x, y, dim)
-    elif kind == "CLOWN":
-        _punch(plate, [(-3.0, -0.4), (-2.0, -2.6), (0, -3.4), (2.0, -2.6), (3.0, -0.4)],
-               x, y, dim)
-        _punch(plate, [(-2.8, 0.6), (-1.4, 3.0), (1.4, 3.0), (2.8, 0.6)], x, y, dim)
-        _punch(plate, [(-1.5, -0.9), (-1.5, -0.2)], x, y, dim, w=1.3)
-        _punch(plate, [(1.5, -0.9), (1.5, -0.2)], x, y, dim, w=1.3)
-    elif kind == "STORM":
-        _punch(plate, [(1.4, -3.6), (-1.9, 0.2), (0.3, 0.2), (-1.2, 3.6)], x, y, dim, w=1.3)
-    elif kind == "SNOW":
-        for k in range(3):
-            a = math.radians(k * 60)
-            dxp, dyp = math.cos(a) * 3.4, math.sin(a) * 3.4
-            _punch(plate, [(-dxp, -dyp), (dxp, dyp)], x, y, dim)
-        for k in range(3):
-            a = math.radians(k * 60)
-            dxp, dyp = math.cos(a) * 3.4, math.sin(a) * 3.4
-            _punch(plate, [(dxp * 0.72 - dyp * 0.26, dyp * 0.72 + dxp * 0.26),
-                           (dxp, dyp)], x, y, dim, w=0.8)
+    # One character reads at this size; a multiline glyph does not.
+    _RIVET_LETTERS = {"GEYSER": "G", "CLOWN": "C", "STORM": "S", "SNOW": "N"}
+    letter = _RIVET_LETTERS.get(kind, "?")
+    engrave(plate, letter, 7, x - 0.4, y - 4.5, align="center",
+            ink=shade((44, 40, 26), dim), bevel=shade((255, 210, 80), dim), depth=1.0)
 
 
 # ── phase labels + extent brackets ───────────────────────────────────────────
@@ -632,13 +614,13 @@ def draw_rivet(plate, s, kind, dim=1.0):
 # Each phase is labelled once, under the row where most of it lies; the bracket
 # under the channel states the extent so a name can't drift off its own segment.
 LABEL_PLAN = [
-    ("DAY", 0, X_L, X_R, 9),
-    ("GOLDEN HOUR", 1, 50.0, 160.6, 9),
-    ("SUNSET", 2, 68.9, X_R, 9),
-    ("DUSK", 3, 57.0, X_R, 9),
-    ("NIGHT", 4, X_L, 202.9, 9),
-    ("PREDAWN", 5, 209.5, X_R, 8),
-    ("SUNRISE", 5, X_L, 209.5, 9),
+    ("DAY", 0, X_L, X_R, 11),
+    ("GOLDEN HOUR", 1, 50.0, 160.6, 11),
+    ("SUNSET", 2, 68.9, X_R, 11),
+    ("DUSK", 3, 57.0, X_R, 11),
+    ("NIGHT", 4, X_L, 202.9, 11),
+    ("PREDAWN", 5, 209.5, X_R, 10),
+    ("SUNRISE", 5, X_L, 209.5, 10),
 ]
 
 
@@ -653,13 +635,13 @@ def draw_labels(plate, s_death, dim=1.0):
                 ph = p
         flown = ph is not None and ph < flown_phase
         ink = shade((48, 42, 26), dim)
-        bev = shade(GOLD if flown else (206, 166, 74), dim)
+        bev = shade((255, 210, 80) if flown else (206, 166, 74), dim)
         for col, off in ((bev, 0.9), (ink, 0.0)):
             dline(plate, col, x0, by + off, x1, by + off, 0.9)
             dline(plate, col, x0, by + off - 2.6, x0, by + off, 0.9)
             dline(plate, col, x1, by + off - 2.6, x1, by + off, 0.9)
         engrave(plate, name, size, (x0 + x1) / 2.0, y + 21.0, align="center",
-                ink=ink, bevel=bev, depth=0.9, spacing=0.5)
+                ink=ink, bevel=bev, depth=1.4, spacing=0.5)
 
 
 # ── plate assembly ───────────────────────────────────────────────────────────
@@ -721,6 +703,10 @@ def render_plate(run, patina=False):
         dx = 16 + inner * i / 3.0
         dline(plate, (86, 60, 28), dx, fy + 8, dx, fy + fh - 8, 0.9)
         dline(plate, (226, 188, 116), dx + 0.9, fy + 8, dx + 0.9, fy + fh - 8, 0.9)
+
+    # BACK navigation — engraved bottom-left, same cut style as the header
+    engrave(plate, "← BACK", 10, 20, 510, align="left",
+            ink=(44, 40, 26), bevel=(255, 210, 80), depth=1.0)
 
     # cast rim bevel
     drect(plate, (226, 190, 120), 0, 0, PLATE_W, 1.6)
@@ -1035,7 +1021,7 @@ def main():
 
     label(sheet, "SKYBIT — FLIGHT LOG SCREEN", 15, 28, 22, (150, 150, 158))
     label(sheet, "CONCEPT: BRONZE PLATE", 30, 28, 42, (240, 192, 64))
-    label(sheet, "ROUND 1", 15, SHEET_W - 28, 24, (150, 150, 158), align="right")
+    label(sheet, "ROUND 2", 15, SHEET_W - 28, 24, (150, 150, 158), align="right")
     label(sheet, "champlevé day-channel · fired enamel = flown · raw opal frit = unflown",
           13, SHEET_W - 28, 46, (200, 196, 188), align="right")
     label(sheet, "360x640 · procedural · LiberationSans-Bold only",
@@ -1073,7 +1059,7 @@ def main():
         label(sheet, c1, 13, txs[i], ty + th + 8, (238, 234, 226))
         label(sheet, c2, 10, txs[i], ty + th + 25, (140, 140, 148))
 
-    out = os.path.join(OUT_DIR, "round_1.png")
+    out = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(sheet, out)
     print("saved", out, sheet.get_size())
 
