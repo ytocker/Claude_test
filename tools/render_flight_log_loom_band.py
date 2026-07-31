@@ -70,8 +70,8 @@ BAR_Y0, BAR_Y1 = 80, 96
 WEAVE_TOP, WEAVE_BOT = 110, 530
 WEAVE_H = WEAVE_BOT - WEAVE_TOP
 ROW_H = 5
-WARP_PITCH = 9.0            # thread gauge is constant; narrow straps just hold fewer warps
-
+# Thread gauge is a constant 9 px on every strap — a narrower band holds fewer
+# warps, it does not hold thinner ones.
 STRAP_SOLO = dict(x0=90, x1=270, n=20)
 STRAP_D1 = dict(x0=48, x1=156, n=12)
 STRAP_D2 = dict(x0=180, x1=288, n=12)
@@ -100,11 +100,13 @@ EVENT_MARKERS = [
 EVENT_WARP_SOLO = {"GEYSER": 5, "CLOWN": 6, "STORM": 13, "SNOW": 9}
 EVENT_WARP_NARROW = {"GEYSER": 3, "CLOWN": 4, "STORM": 8, "SNOW": 6}
 
+# A day runs ~175 pillars for a steady flyer, which is what makes the day-2
+# mock runs land on pillar 249 (42% into day 2) and pillar 180 (3% into it).
 DAY_PILLARS = 175
 
 RUN_A = dict(phase=0.184, pillar=25, day=1, time="0:47")
-RUN_B = dict(phase=0.420, pillar=249, day=2, time="7:06")
-RUN_C = dict(phase=0.030, pillar=180, day=2, time="5:09")
+RUN_B = dict(phase=0.420, pillar=DAY_PILLARS + 74, day=2, time="7:06")
+RUN_C = dict(phase=0.030, pillar=DAY_PILLARS + 5, day=2, time="5:09")
 
 
 # ── colour helpers ───────────────────────────────────────────────────────────
@@ -724,19 +726,19 @@ def build_sheet():
         sheet.blit(img, (x, 786))
         text(sheet, title, 11, GOLD_MUTED, (x, 786 + img.get_height() + 8))
 
-    kx, ky = 1290, 92
-    text(sheet, "HOW TO READ IT", 13, GOLD, (kx, ky), track=2)
-    ky += 26
+    kx, ky = 1264, 92
+    text(sheet, "HOW TO READ IT", 12, GOLD, (kx, ky), track=2)
+    ky += 24
     for head, body in READING_KEY:
         if head == "":
-            ky += 9
+            ky += 8
             continue
         x = kx
         if head is not None:
-            r = text(sheet, head, 11, GOLD_MUTED, (x, ky))
-            x = r.right + 6
-        text(sheet, body, 11, (146, 138, 130), (x, ky))
-        ky += 15
+            r = text(sheet, head, 10, GOLD_MUTED, (x, ky))
+            x = r.right + 5
+        text(sheet, body, 10, (146, 138, 130), (x, ky))
+        ky += 14
 
     small = pygame.transform.smoothscale(hero, (135, 240))
     sx, sy = 1310, 786
