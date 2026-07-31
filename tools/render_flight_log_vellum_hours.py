@@ -754,7 +754,7 @@ def build_sheet():
 
 
 if __name__ == "__main__":
-    out = os.path.join(OUT_DIR, "round_1.png")
+    out = os.path.join(OUT_DIR, "round_2.png")
     sheet = build_sheet()
     pygame.image.save(sheet, out)
     print("saved", out, sheet.get_size())
