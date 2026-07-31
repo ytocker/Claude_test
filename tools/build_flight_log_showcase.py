@@ -26,6 +26,8 @@ LABELS = {
     'sun_arc':          'SUN ARC',
 }
 
+IDS = ['A', 'B', 'C', 'D', 'E']
+
 # Layout constants
 BG        = (8, 8, 20)
 PANEL_W   = 200
@@ -44,8 +46,8 @@ surf.fill(BG)
 
 # ── header ──────────────────────────────────────────────────────────────────
 font_hdr = pygame.font.Font(FONT_PATH, 18)
-font_lbl = pygame.font.Font(FONT_PATH, 11)
-font_tag = pygame.font.Font(FONT_PATH, 9)
+font_lbl = pygame.font.Font(FONT_PATH, 12)
+font_id  = pygame.font.Font(FONT_PATH, 30)
 
 hdr_text = font_hdr.render('FLIGHT LOG PROGRESS · ROUND 2 FINALS', True, (240, 192, 64))
 hdr_x = (CANVAS_W - hdr_text.get_width()) // 2
@@ -53,10 +55,13 @@ hdr_y = MARGIN + (HEADER_H - hdr_text.get_height()) // 2
 surf.blit(hdr_text, (hdr_x, hdr_y))
 
 # ── panels ───────────────────────────────────────────────────────────────────
+GOLD = (200, 160, 50)
+
 for i, slug in enumerate(SLUGS):
     panel_x = MARGIN + i * (PANEL_W + GAP)
     panel_y = MARGIN + HEADER_H
     footer_y = panel_y + PANEL_H
+    letter = IDS[i]
 
     # Load the source image and crop the primary 360×640 game frame
     src = pygame.image.load(f'docs/flight_log_progress/{slug}/round_2.png')
@@ -70,21 +75,28 @@ for i, slug in enumerate(SLUGS):
     surf.blit(panel, (panel_x, panel_y))
 
     # 1px gold border around panel
-    GOLD = (200, 160, 50)
     pygame.draw.rect(surf, GOLD, (panel_x - 1, panel_y - 1, PANEL_W + 2, PANEL_H + 2), 1)
 
-    # Footer: slug label + FINAL tag
-    label = LABELS[slug]
+    # ID letter chip — dark background square in top-left corner of panel
+    CHIP = 32
+    chip_x, chip_y = panel_x + 4, panel_y + 4
+    chip_surf = pygame.Surface((CHIP, CHIP))
+    chip_surf.fill((8, 8, 20))
+    chip_surf.set_alpha(200)
+    surf.blit(chip_surf, (chip_x, chip_y))
+    pygame.draw.rect(surf, GOLD, (chip_x, chip_y, CHIP, CHIP), 1)
+
+    id_surf = font_id.render(letter, True, (240, 192, 64))
+    id_x = chip_x + (CHIP - id_surf.get_width()) // 2
+    id_y = chip_y + (CHIP - id_surf.get_height()) // 2
+    surf.blit(id_surf, (id_x, id_y))
+
+    # Footer: "A · SKY RULER" on one line
+    label = f'{letter} · {LABELS[slug]}'
     lbl_surf = font_lbl.render(label, True, (220, 210, 190))
-    tag_surf = font_tag.render('FINAL', True, (140, 200, 140))
-
     lbl_x = panel_x + (PANEL_W - lbl_surf.get_width()) // 2
-    lbl_y = footer_y + 6
+    lbl_y = footer_y + (FOOTER_H - lbl_surf.get_height()) // 2
     surf.blit(lbl_surf, (lbl_x, lbl_y))
-
-    tag_x = panel_x + (PANEL_W - tag_surf.get_width()) // 2
-    tag_y = lbl_y + lbl_surf.get_height() + 2
-    surf.blit(tag_surf, (tag_x, tag_y))
 
 # ── save ──────────────────────────────────────────────────────────────────────
 out = 'docs/flight_log_progress/showcase.png'
