@@ -152,7 +152,7 @@ def deco_geyser(surf, x, y, w, h, rng):
         if a <= 0:
             continue
         half = (w * 0.5 - 3) * (0.34 + 0.66 * v)
-        off = math.sin((1 - v) * 5.2 + rng.random() * 0.0) * (1 - v) * 5.0
+        off = math.sin((1 - v) * 5.2) * (1 - v) * 5.0
         cx = (w + 24) * 0.5 + off
         c = lerp_color(TEAL, (188, 250, 244), 1 - v)
         pygame.draw.line(plume, (*c, a), (cx - half, j), (cx + half, j), 1)
@@ -181,7 +181,8 @@ def deco_clown(surf, x, y, w, h, rng):
         t = i / 8.0
         pts.append((x + w * 0.5 - mw * 0.5 + mw * t, my + math.sin(t * math.pi) * 4.2))
     pygame.draw.lines(surf, (16, 10, 10), False, [(px, py + 1) for px, py in pts], 3)
-    pygame.draw.lines(surf, (186, 54, 52), False, pts, 2)
+    # Warmer and lighter than the death scarlet, so a grin never reads as a crack.
+    pygame.draw.lines(surf, (214, 92, 62), False, pts, 2)
 
 
 def deco_snow(surf, x, y, w, h, rng):
