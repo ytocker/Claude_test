@@ -963,35 +963,52 @@ def label(surf, text, size, x, y, col=(232, 228, 220), align="left"):
     return img.get_width()
 
 
+def hue_of(c):
+    mx, mn = max(c), min(c)
+    d = mx - mn
+    if d == 0:
+        return 0.0
+    if mx == c[0]:
+        return 60.0 * (((c[1] - c[2]) / d) % 6)
+    if mx == c[1]:
+        return 60.0 * ((c[2] - c[0]) / d + 2)
+    return 60.0 * ((c[0] - c[1]) / d + 4)
+
+
 def scarlet_audit_tile(w, h):
+    """Hue, not RGB distance, is the metric that matters here: pre-clamp sunset
+    sits at almost exactly the drop's hue and differs only in lightness, which
+    is the confusion the clamp exists to prevent."""
     t = pygame.Surface((w, h))
     t.fill((16, 16, 19))
     pad = 10
-    bar_h = 30
-    label(t, "PRE-CLAMP SKY", 11, pad, 6, (150, 150, 158))
+    bar_h = 28
+    label(t, "PRE-CLAMP SKY", 11, pad, 4, (150, 150, 158))
     for i in range(w - pad * 2):
-        ph = i / float(w - pad * 2 - 1)
-        pygame.draw.line(t, enamel_raw(ph), (pad + i, 22), (pad + i, 22 + bar_h))
-    label(t, "CLAMPED ENAMEL", 11, pad, 58, (150, 150, 158))
-    worst = 1e9
+        pygame.draw.line(t, enamel_raw(i / float(w - pad * 2 - 1)),
+                         (pad + i, 20), (pad + i, 20 + bar_h))
+    label(t, "CLAMPED ENAMEL", 11, pad, 52, (150, 150, 158))
+    worst_hue = 999.0
     for i in range(w - pad * 2):
-        ph = i / float(w - pad * 2 - 1)
-        c = enamel_color(ph)
-        d = math.dist(c, SCARLET)
-        worst = min(worst, d)
-        pygame.draw.line(t, c, (pad + i, 74), (pad + i, 74 + bar_h))
-    chip = 26
-    cy = 112
-    for i, (c, name) in enumerate(((SCARLET, "DROP"), (AMBER_MAX, "AMBER CAP"))):
-        cx = pad + i * 108
+        c = enamel_color(i / float(w - pad * 2 - 1))
+        hd = abs(hue_of(c) - hue_of(SCARLET))
+        if max(c) - min(c) > 25:
+            worst_hue = min(worst_hue, min(hd, 360 - hd))
+        pygame.draw.line(t, c, (pad + i, 68), (pad + i, 68 + bar_h))
+    chip = 22
+    cy = 104
+    for i, (c, name) in enumerate(((SCARLET, "DROP"), (AMBER_MAX, "AMBER CAP"),
+                                   (enamel_raw(0.42), "SUNSET RAW"))):
+        cx = pad + i * 85
         pygame.draw.rect(t, c, pygame.Rect(cx, cy, chip, chip))
         pygame.draw.rect(t, (70, 70, 76), pygame.Rect(cx, cy, chip, chip), 1)
-        label(t, name, 10, cx + chip + 6, cy + 3, (176, 176, 184))
-        label(t, "%d,%d,%d" % c, 9, cx + chip + 6, cy + 15, (120, 120, 128))
-    label(t, "min RGB dist to drop: %d" % int(worst), 10, w - pad, cy + 3,
-          (240, 200, 120), align="right")
-    label(t, "no enamel enters scarlet", 10, w - pad, cy + 15, (120, 120, 128),
-          align="right")
+        label(t, name, 9, cx + chip + 4, cy, (176, 176, 184))
+        label(t, "hue %d\xb0" % int(hue_of(c)), 9, cx + chip + 4, cy + 11,
+              (120, 120, 128))
+    label(t, "closest enamel hue sits %d\xb0 off the drop, and the drop also"
+             % int(worst_hue), 9, pad, cy + 30, (240, 200, 120))
+    label(t, "carries a hot specular, a chisel nick and the bed seam.",
+          9, pad, cy + 41, (140, 140, 148))
     pygame.draw.rect(t, (52, 52, 58), t.get_rect(), 1)
     return t
 
@@ -1063,14 +1080,18 @@ def main():
     probes = [
         ("wall", screen_a.get_at((6, 620))),
         ("walnut border", screen_a.get_at((20, 300))),
-        ("bronze face", screen_a.get_at((320, 300))),
-        ("enamel row0", screen_a.get_at((160, 140))),
+        ("bronze face", screen_a.get_at((180, 175))),
+        ("ferrule cap", screen_a.get_at((72, 140))),
+        ("enamel row0", screen_a.get_at((160, 142))),
+        ("drop core", screen_a.get_at((276, 200))),
+        ("bed seam", screen_a.get_at((267, 200))),
         ("frit row3", screen_a.get_at((160, 320))),
-        ("drop", screen_a.get_at((262, 200))),
-        ("footer value", screen_a.get_at((100, 508))),
+        ("footer band", screen_a.get_at((60, 495))),
     ]
     for name, c in probes:
         print("  %-16s %s" % (name, tuple(c)[:3]))
+    print("  cell palette: " + " ".join("%s=%s" % (n[:3], enamel_color(b + 0.01))
+                                        for b, n in PHASE_BOUNDARIES))
     print("  channel length %.1f px, death at %.1f px (%.1f%%)"
           % (TOTAL_LEN, RUN_A["phase"] * TOTAL_LEN, RUN_A["phase"] * 100))
 
