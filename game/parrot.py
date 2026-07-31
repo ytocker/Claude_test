@@ -749,11 +749,11 @@ _H_BANDAID_3 = (38, 33, 47, 38)
 
 
 def _h_stamp_clipped(surf: pygame.Surface, layer: pygame.Surface) -> None:
-    for x in range(surf.get_width()):
-        for y in range(surf.get_height()):
-            px = layer.get_at((x, y))
-            if px[3] > 8 and surf.get_at((x, y))[3] > 8:
-                surf.set_at((x, y), (px[0], px[1], px[2], surf.get_at((x, y))[3]))
+    # C-level mask replaces the Python 64×60 pixel loop — critical for WASM speed.
+    surf_mask = pygame.mask.from_surface(surf, threshold=8)
+    stamp = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    surf_mask.to_surface(stamp, setsurface=layer, unsetcolor=(0, 0, 0, 0))
+    surf.blit(stamp, (0, 0))
 
 
 def _h_lerp_pt(a, b, t):
@@ -764,18 +764,27 @@ def _h_draw_ragged_cuts(surf: pygame.Surface) -> None:
     core_layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     lip_layer  = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     d = pygame.draw
+    pts = []
     for (ax, ay), (bx, by) in (_H_UPPER_CUT, _H_LOWER_CUT):
         lip_a = _h_lerp_pt((ax - 1, ay - 2), (bx - 1, by - 2), 0.20)
         d.line(lip_layer,  _H_SCRATCH_HL, lip_a, (bx - 1, by - 2), 1)
         d.line(core_layer, _H_SCRATCH_D,  (ax, ay), (bx, by), 1)
+        pts.extend([(ax, ay), (bx, by), lip_a, (bx - 1, by - 2)])
+    # Restrict pixel scan to the bounding box of the scratch lines — ~15×20 px
+    # instead of 64×60, cutting 3840-iteration loops down to ~300.
+    w, h = surf.get_size()
+    x0 = max(0, min(p[0] for p in pts) - 1)
+    x1 = min(w, max(p[0] for p in pts) + 2)
+    y0 = max(0, min(p[1] for p in pts) - 1)
+    y1 = min(h, max(p[1] for p in pts) + 2)
     dark: set = set()
-    for x in range(surf.get_width()):
-        for y in range(surf.get_height()):
+    for x in range(x0, x1):
+        for y in range(y0, y1):
             r, g, b, a = surf.get_at((x, y))
             if a > 8 and (0.299 * r + 0.587 * g + 0.114 * b) < 80:
                 dark.add((x, y))
-    for x in range(surf.get_width()):
-        for y in range(surf.get_height()):
+    for x in range(x0, x1):
+        for y in range(y0, y1):
             base_a = surf.get_at((x, y))[3]
             if base_a <= 8:
                 continue
