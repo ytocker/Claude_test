@@ -2165,19 +2165,8 @@ def skin_builder_ids() -> set:
 
 def _spectral_colorize(surf: pygame.Surface) -> pygame.Surface:
     """Return a new spectral-blue copy of surf; alpha channel unchanged."""
-    import pygame.surfarray as sa
-    import numpy as np
     out = surf.copy()
-    arr = sa.pixels3d(out)
-    f = arr.astype(np.float32)
-    lum = f[:, :, 0] * 0.299 + f[:, :, 1] * 0.587 + f[:, :, 2] * 0.114
-    lum_n = lum / 255.0
-    dark   = np.array([50,  95, 145], np.float32)
-    bright = np.array([200, 230, 245], np.float32)
-    for c in range(3):
-        f[:, :, c] = dark[c] + lum_n * (bright[c] - dark[c])
-    arr[:] = f.clip(0, 255).astype(np.uint8)
-    del arr
+    _ghostify_in_place(out)
     return out
 
 
