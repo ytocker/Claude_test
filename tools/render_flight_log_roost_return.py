@@ -249,8 +249,10 @@ def draw_horizon_band(surf, sun_phase):
 
     sun_x = int(sun_phase * W)
     sun_y = 592
-    add_glow(surf, sun_x, sun_y, 22, (255, 196, 120), 44, 2.2)
-    add_glow(surf, sun_x, sun_y, 9, (255, 224, 168), 70, 1.7)
+    # Tight halo on purpose: a wide one merges with the lit landmarks either
+    # side of it and the horizon becomes one undifferentiated smear.
+    add_glow(surf, sun_x, sun_y, 15, (255, 196, 120), 38, 2.2)
+    add_glow(surf, sun_x, sun_y, 7, (255, 224, 168), 66, 1.7)
     pygame.draw.circle(surf, (255, 226, 158), (sun_x, sun_y), 4)
     return sun_x, sun_y
 
@@ -352,7 +354,7 @@ def draw_landmarks(surf, reached):
     # is what separates "visited" from "merely drawn brighter".
     for cx, ok in zip(LANDMARK_X, reached):
         if ok:
-            add_glow(surf, cx, LANDMARK_BASE - 9, 13, (255, 206, 140), 22, 2.4)
+            add_glow(surf, cx, LANDMARK_BASE - 9, 10, (255, 206, 140), 18, 2.4)
 
 
 # ── perch ────────────────────────────────────────────────────────────────────
@@ -402,7 +404,7 @@ def build_pillar(ov):
     crack = [(284, 471), (281, 486), (285, 498), (280, 512), (283, 527)]
     pygame.draw.lines(ov, (8, 7, 10, 230),
                       False, [(p[0] * SS, p[1] * SS) for p in crack], 2 * SS)
-    pygame.draw.lines(ov, (196, 138, 58, 150),
+    pygame.draw.lines(ov, (196, 138, 58, 108),
                       False, [((p[0] - 1) * SS, p[1] * SS) for p in crack], SS)
 
     # Chipped rubble on the cap and a couple of fallen chips below the lip.
@@ -483,6 +485,12 @@ def build_bird(ov):
 
 
 def draw_perch(surf):
+    # Backlight first, under the silhouette. A near-black bird on a near-black
+    # sky has no shape without it — the column has to lift the air behind her
+    # before she can be cut out of it.
+    add_glow(surf, 266, 452, 46, (255, 172, 98), 16, 2.4)
+    add_glow(surf, 284, 462, 30, (255, 186, 110), 18, 2.2)
+
     ov = pygame.Surface((W * SS, H * SS), pygame.SRCALPHA)
     build_pillar(ov)
     build_bird(ov)
@@ -490,9 +498,13 @@ def draw_perch(surf):
     # Rim light comes off the ember column, up and to the right of the perch,
     # so the crescent sits on the head, breast and the pillar's right arris,
     # then dies out down the shaft and along the tail.
-    rim = rim_light(ov, -2 * SS, 2 * SS, GOLD, 240)
-    ramp = falloff_mask((COL_X, COL_BASE_Y - 8), 132, inner=255, outer=22,
-                        gamma=1.15)
+    # Offset is mostly horizontal: the column is a tall source standing beside
+    # her, so right-facing contours take the light and up-facing ones only
+    # graze it. A even diagonal offset lit her whole back, which read as a
+    # second light behind the bird.
+    rim = rim_light(ov, -2 * SS, 1 * SS, GOLD, 240)
+    ramp = falloff_mask((COL_X, COL_BASE_Y - 18), 80, inner=255, outer=18,
+                        gamma=1.05)
     rim.blit(pygame.transform.smoothscale(ramp, rim.get_size()), (0, 0),
              special_flags=pygame.BLEND_RGBA_MULT)
     ov.blit(rim, (0, 0))
