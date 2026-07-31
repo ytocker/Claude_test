@@ -3615,6 +3615,28 @@ class Rock:
         surf.blit(s, (int(self.x - ox), int(self.y - oy)))
 
 
+class RockPatch:
+    """A whole pillar's scattered-rock cluster pre-baked into ONE surface. The
+    thermal field can put 100s of rocks on screen; baking each pillar's scatter
+    into a single patch keeps it to one blit per pillar instead of one per rock —
+    a big saving on the WASM blit path. Same world-scroll + cull contract as Rock
+    (duck-typed: x / off_screen / draw), so World treats the two interchangeably."""
+
+    __slots__ = ("x", "y", "_surf", "_w")
+
+    def __init__(self, x, y, surf):
+        self.x = float(x)
+        self.y = float(y)
+        self._surf = surf
+        self._w = surf.get_width()
+
+    def off_screen(self):
+        return self.x + self._w < 0
+
+    def draw(self, surf):
+        surf.blit(self._surf, (int(self.x), int(self.y)))
+
+
 # ── FloatText ────────────────────────────────────────────────────────────────
 
 _float_font_cache: dict = {}
