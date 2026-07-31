@@ -179,6 +179,10 @@ every session (cloud + local); each is auto-delegated by its
   web path.
 - `gaming-experience-tester` (sonnet) — read-only QA for feel, balance,
   power-ups, scene flow, and both build targets.
+- `qa-tester` (sonnet) — code-level QA: static analysis of imports, method
+  signatures, attribute initialization, parameter forwarding, dead code, deferred
+  runtime imports, merge artifacts, and pre-warm gaps. Call after any merge or
+  multi-file restoration to catch silent regressions before they hit gameplay.
 - `novelty-designer` (opus) — divergent ideation: surprising, delightful concept
   directions; proposes freely, never self-critiques.
 - `data-analyst` (opus) — Streamlit + Supabase analytics dashboard; brainstorms
