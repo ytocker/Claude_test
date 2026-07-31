@@ -27,10 +27,10 @@ Five ideas carry it:
    path through them. No line means no promise.
 
 Scale rule: one star per pillar to 40, then one per five, with a brighter
-anchor every 50. That keeps a 25-pillar run and a 250-pillar chart at the
-same comfortable ~14px star spacing instead of letting a long run collapse
-into a solid bead of light. Note the compression is honest but non-linear:
-run A reached 25 of 139 charted pillars (18%) yet lights 41% of the plotted
+anchor every 50. That holds a 61-star chart at 24px per gap and a 83-star
+chart at 17px instead of letting a long run collapse into a solid bead of
+light. The compression is honest but non-linear, and worth stating: run A
+reached 25 of 140 charted pillars (18%) yet lights 41% of the plotted
 stars, because the far field is sampled five times coarser.
 
 The curve seed is the pillar count, so two runs genuinely chart as two
@@ -51,7 +51,7 @@ import pygame
 pygame.init()
 pygame.display.set_mode((1, 1))
 
-from game.draw import lerp_color, lerp_color_multi
+from game.draw import lerp_color_multi
 
 W, H = 360, 640
 SS = 4                      # chart layer supersample: 4 lets a 1px ring keep a hole
@@ -185,8 +185,8 @@ def is_anchor(pillar):
 
 # ── the seeded curve ─────────────────────────────────────────────────────────
 
-CURVE_LEN = 1330       # px of path the stars are strung along
-AMP_CAP = 133          # keeps the widest swing clear of the label gutters
+CURVE_LEN = 1450       # px of path the stars are strung along
+AMP_CAP = 126          # keeps the widest swing clear of the label gutters
 
 
 def curve_points(run, pillars):
@@ -206,10 +206,10 @@ def curve_points(run, pillars):
     changes direction star to star; a dotted rule does not.
     """
     rng = random.Random(run.pillars)
-    lobes = rng.uniform(4.8, 5.8)
+    lobes = rng.uniform(5.0, 5.9)
     ph = rng.uniform(0, math.tau)
     skew = rng.choice((-1, 1))
-    w1, f1, q1 = rng.uniform(6, 9), rng.uniform(44, 60), rng.uniform(0, math.tau)
+    w1, f1, q1 = rng.uniform(11, 15), rng.uniform(68, 88), rng.uniform(0, math.tau)
     w2, f2, q2 = rng.uniform(3, 5), rng.uniform(26, 38), rng.uniform(0, math.tau)
 
     def dense(amp):
@@ -421,10 +421,15 @@ def draw_phase_ring(surf, run):
     surf.blit(lay, (0, 0))
 
 
-def draw_phase_labels(surf, cartouche_rect):
+def draw_phase_labels(surf, keep_out):
     """Only the boundaries whose tick actually lands in the rim band get a
     word; the rest keep the hairline and lose the label. A leader out to a
-    tick hiding under the stencil would be a promise the ring can't keep."""
+    tick hiding under the stencil would be a promise the ring can't keep.
+
+    The offset runs ALONG the nearest edge, never away from it — pushing a
+    top-edge label inward would drop it straight onto the wordmark, and
+    pushing a bottom-edge one inward drops it onto the clock line.
+    """
     for frac, name in PHASE_BOUNDARIES:
         x, y = ring_pt(frac)
         if not (0 <= x < W and 0 <= y < H):
@@ -433,13 +438,17 @@ def draw_phase_labels(surf, cartouche_rect):
             continue
         img = font(7).render(name, True, COOL)
         img.set_alpha(38)
-        r = img.get_rect()
-        r.center = (int(x + (12 if x < CX else -12) * (0 if abs(y - RING_C[1]) > 240 else 1)),
-                    int(y + (11 if y < RING_C[1] else -11)))
-        r.clamp_ip(pygame.Rect(3, 3, W - 6, H - 6))
-        if r.colliderect(cartouche_rect):
-            continue
-        surf.blit(img, r)
+        vertical_edge = min(x, W - 1 - x) < min(y, H - 1 - y)
+        for sign in (1, -1):
+            r = img.get_rect()
+            if vertical_edge:
+                r.center = (int(x), int(y + sign * 14))
+            else:
+                r.center = (int(x + sign * (img.get_width() / 2 + 14)), int(y))
+            r.clamp_ip(pygame.Rect(3, 3, W - 6, H - 6))
+            if not any(r.colliderect(k) for k in keep_out):
+                surf.blit(img, r)
+                break
 
 
 # ── the chart ────────────────────────────────────────────────────────────────
@@ -454,7 +463,7 @@ def draw_chart(surf, run, pillars, pts, span):
         if not reached[i]:
             continue
         t = i / max(1, len(pts) - 1)
-        add_glow(surf, x, y, 6, GOLD, int(38 + 30 * t))
+        add_glow(surf, x, y, 6, GOLD, int(46 + 34 * t))
     dx, dy = pts[death_i]
     add_glow(surf, dx, dy, 9, SCARLET, 76)
 
@@ -490,8 +499,8 @@ def draw_chart(surf, run, pillars, pts, span):
             pygame.draw.circle(ss, (*STAR_WHITE, 255), (int(x * k), int(y * k)),
                                int((r - 1.0) * k))
             if anchor:
-                for a in range(4):
-                    th = math.radians(a * 90 + 45)
+                for q in range(4):
+                    th = math.radians(q * 90 + 45)
                     c0, c1 = r + 1.4, r + 5.2
                     pygame.draw.line(ss, (*GOLD, 210),
                                      P((x + math.cos(th) * c0, y + math.sin(th) * c0)),
@@ -499,13 +508,18 @@ def draw_chart(surf, run, pillars, pts, span):
         else:
             t = i / max(1, len(pts) - 1)
             r = 1.5 + 0.5 * t                      # stays <= 2px, still ramps
-            a = int(78 + 62 * t) + (58 if anchor else 0)
+            # Authored high because the stroke is 3/4 of an output pixel wide
+            # after the downscale, so it lands at roughly three-quarters of
+            # whatever alpha is asked for here.
+            a = int(112 + 78 * t) + (58 if anchor else 0)
             pygame.draw.circle(ss, (*COOL, min(255, a)), (int(x * k), int(y * k)),
                                int(r * k), k - 1)
+            # Same four-tick anchor mark as a lit anchor, so the every-50
+            # rhythm survives the crossing from flown sky into empty sky.
             if anchor:
-                for ax in range(4):
-                    th = math.radians(ax * 90)
-                    c0, c1 = r + 1.6, r + 3.6
+                for q in range(4):
+                    th = math.radians(q * 90 + 45)
+                    c0, c1 = r + 1.6, r + 3.8
                     pygame.draw.line(ss, (*COOL, 150),
                                      P((x + math.cos(th) * c0, y + math.sin(th) * c0)),
                                      P((x + math.cos(th) * c1, y + math.sin(th) * c1)), k - 1)
@@ -599,7 +613,8 @@ def place_labels(surf, run, pillars, pts, death_i):
         placed.append(rect)
         surf.blit(img, rect)
 
-    draw_death_callout(surf, run, pts, death_i, placed)
+    placed.append(draw_death_callout(surf, run, pts, death_i, placed))
+    return placed
 
 
 def draw_death_callout(surf, run, pts, death_i, placed):
@@ -635,6 +650,7 @@ def draw_death_callout(surf, run, pts, death_i, placed):
     surf.blit(l1, (box.left if right else box.right - l1.get_width(), box.top))
     surf.blit(l2, (box.left if right else box.right - l2.get_width(),
                    box.top + l1.get_height() - 2))
+    return box
 
 
 # ── cartouche ────────────────────────────────────────────────────────────────
@@ -711,16 +727,18 @@ def render_panel(run):
     pillars, span = chart_pillars(run)
     pts = curve_points(run, pillars)
     death_i = draw_chart(surf, run, pillars, pts, span)
-    place_labels(surf, run, pillars, pts, death_i)
+    placed = place_labels(surf, run, pillars, pts, death_i)
 
     cart = draw_cartouche(surf, run)
-    draw_phase_labels(surf, cart)
 
     wordmark = font(9).render("F L I G H T   L O G", True, (150, 160, 196))
     wordmark.set_alpha(96)
-    surf.blit(wordmark, wordmark.get_rect(center=(CX, 26)))
+    wrect = wordmark.get_rect(center=(CX, 24))
+    surf.blit(wordmark, wrect)
 
-    return surf, pts, death_i, pillars, span
+    draw_phase_labels(surf, (cart, wrect.inflate(10, 6)))
+
+    return surf, pts, death_i, pillars, span, placed, cart
 
 
 # ── sheet ────────────────────────────────────────────────────────────────────
@@ -773,7 +791,7 @@ def main():
 
     panels, captions = [], []
     for run in (RUN_A, RUN_B):
-        surf, pts, death_i, pillars, span = render_panel(run)
+        surf, pts, death_i, pillars, span, placed, cart = render_panel(run)
         panels.append(surf)
         reached = sum(1 for p in pillars if p <= run.pillars)
         captions.append(f"{run.tag}  ·  PILLAR {run.pillars}  ·  DAY {run.day}  ·  "
@@ -787,8 +805,14 @@ def main():
               f"({sc[0]},{sc[1]})-({sc[2]},{sc[3]})  "
               f"= {sc[2] - sc[0] + 1}x{sc[3] - sc[1] + 1}px")
         print(f"        sky top {surf.get_at((4, 2))[:3]}   "
-              f"sky bottom {surf.get_at((4, 637))[:3]}   "
-              f"numeral core {surf.get_at((CX, 530))[:3]}")
+              f"sky bottom {surf.get_at((4, 637))[:3]}")
+
+        clash = [(a, b) for i, a in enumerate(placed) for b in placed[i + 1:]
+                 if a.colliderect(b)]
+        off = [r for r in placed if not pygame.Rect(0, 0, W, H).contains(r)]
+        over_cart = [r for r in placed if r.colliderect(cart)]
+        print(f"        labels: {len(placed)} placed, {len(clash)} overlapping, "
+              f"{len(off)} off-canvas, {len(over_cart)} touching the cartouche")
 
     sheet = render_sheet(panels, captions)
     path = os.path.join(out_dir, "round_1.png")
