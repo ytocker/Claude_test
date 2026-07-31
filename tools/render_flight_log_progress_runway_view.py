@@ -1,23 +1,31 @@
 #!/usr/bin/env python3
 """
-runway-view  ·  flight_log_progress  ·  round 1
+runway-view  ·  flight_log_progress  ·  round 2
 
-The day cycle read as a single vertical runway in one-point perspective: the
-player's run is a takeoff roll that ran out of pavement. Foreshortening is the
-whole argument — the flown 18.4% of the day eats ~30% of the runway's screen
-height, so the near events that would collide on a linear timeline separate on
-their own.
+The day cycle read as a single receding corridor in one-point perspective: the
+run is a flight down a sandstone canyon that ran out of daylight. Foreshortening
+is still the whole argument — the flown 18.4% of the day eats ~30% of the
+corridor's screen height, so near events that would collide on a linear timeline
+separate on their own.
 
-Lighting is inverted against the usual "progress bar dims what's spent": the
-UNFLOWN runway stays fully lit and saturated, hazing out toward the vanishing
-point, while the FLOWN section is marked rather than dimmed — rubber laid down
-the centreline and heat scorch, the evidence of having been there.
+Round 2 rebuilds the vocabulary. The corridor is Skybit's, not an airport's:
+coins mark the centreline, a launch rock caps the near end, pillar-top markers
+carry the event glyphs, and the flown stretch is written in shed feathers and a
+wing-tip scuff rather than tyre rubber. The far threshold gained the object the
+whole composition was missing — a two-pillar gate with the day's last light
+pouring through it, dark against the sky so the horizon finally reads.
+
+Flown vs ahead is now an event rather than a ramp: the flown stone drops ~42
+luminance points into cool desaturated shade, the ahead stone holds its value
+and gains chroma all the way to the gate, and a hard sunlit lip sits on the
+ahead side of the death line.
 
 Run from the repo root:  python tools/render_flight_log_progress_runway_view.py
 """
 import os
 import math
 import random
+import colorsys
 
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 os.environ["SDL_AUDIODRIVER"] = "dummy"
@@ -29,7 +37,9 @@ import pygame
 pygame.init()
 pygame.display.set_mode((1, 1))
 
-from game.draw import lerp_color, draw_cloud
+from game.draw import (lerp_color, draw_cloud, COIN_GOLD, COIN_DARK,
+                       BIRD_RED, BIRD_RED_D, BIRD_WING, BIRD_WING_D,
+                       BIRD_TIP, BIRD_BEAK)
 from game.biome import PHASE_BOUNDARIES, palette_for_phase
 from game.weather import (THERMAL_START_PHASE, THERMAL_PEAK_PHASE,
                           THERMAL_END_PHASE, SNOW_STORM_CENTER)
@@ -41,7 +51,10 @@ from game.config import LATE_GAME_PILLAR, CLOWN_START_PILLAR, RAIN_START_PILLAR
 W, H = 360, 640
 SS = 3                      # supersample factor for the geometry pass
 
-Y_NEAR, Y_FAR = 560.0, 100.0
+# The far end sits just under the header rather than a third of the way down
+# the canvas: every pixel bought back up here goes straight into the four
+# compressed late-day bands, which were the first thing to become unreadable.
+Y_NEAR, Y_FAR = 560.0, 62.0
 HW_NEAR, HW_FAR = 100.0, 35.0
 CX = 180.0
 
@@ -75,6 +88,12 @@ def smoothstep(t):
     return t * t * (3 - 2 * t)
 
 
+def bump(t):
+    """0 at both ends, 1 in the middle — for effects that live in a band."""
+    t = max(0.0, min(1.0, t))
+    return math.sin(math.pi * t) ** 1.4
+
+
 def ymix(stops, y):
     """Multi-stop colour ramp keyed on screen-y rather than 0..1."""
     for i in range(len(stops) - 1):
@@ -90,23 +109,27 @@ def s(v):
     return int(round(v * SS))
 
 
+def clamp8(v):
+    return max(0, min(255, int(round(v))))
+
+
+def luma(c):
+    return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
+
+
 # ── palette ──────────────────────────────────────────────────────────────────
 
 DAY_PAL = palette_for_phase(0.0)
 
-PAV_NEAR = (206, 174, 133)          # lit sandstone at the threshold
-PAV_FAR = (216, 200, 177)           # same stone, washed by distance haze
-HAZE = (240, 232, 210)
+# Sandstone ramp keyed on depth. Value is held flat (luma ≈ 177 at every stop)
+# while chroma climbs toward the gate — distance reads as saturation here, not
+# as fading, so the unflown stretch never looks spent.
+SAND_STOPS = [(62.0, (228, 168, 92)),
+              (250.0, (214, 170, 112)),
+              (560.0, (204, 172, 132))]
 
-PAINT_NEAR = (252, 246, 232)
-PAINT_FAR = (245, 239, 226)
-
-# Apron stays below the pavement in value at every depth — the lit runway has
-# to be the brightest thing on screen even where haze flattens everything.
-APRON_STOPS = [(100.0, (140, 160, 142)),
-               (168.0, (96, 124, 104)),
-               (330.0, (56, 80, 66)),
-               (640.0, (26, 40, 35))]
+HAZE = (238, 230, 208)
+GATE_WARM = (255, 196, 110)
 
 BAR_BODY = (74, 108, 132)
 BAR_EDGE = (170, 206, 226)
@@ -116,9 +139,20 @@ SCARLET_HI = (255, 132, 112)
 
 CREAM = (246, 240, 226)
 SLATE = (24, 36, 48)
+BOARD_BODY = (13, 19, 27)
+BOARD_HALO = (5, 9, 13)
 
-RUBBER = (56, 38, 30)
-SCORCH = (48, 34, 27)
+STONE_DK = (58, 42, 34)             # gate pillars, read as near-silhouette
+STONE_DKR = (38, 27, 22)
+STONE_RIM = (255, 206, 132)
+CROWN_DK = (22, 40, 28)
+
+# Apron stays below the corridor in value at every depth; re-keyed for the new
+# far edge so the recession still starts at the horizon and not above it.
+APRON_STOPS = [(62.0, (150, 168, 150)),
+               (132.0, (104, 132, 110)),
+               (330.0, (56, 80, 66)),
+               (640.0, (26, 40, 35))]
 
 
 # ── mock run ─────────────────────────────────────────────────────────────────
@@ -156,16 +190,50 @@ def pavement_mask():
 PAV_MASK = pavement_mask()
 
 
-def clip_to_pavement(layer):
+def clip_to_corridor(layer):
     layer.blit(PAV_MASK, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+
+
+# ── the flown / ahead split ──────────────────────────────────────────────────
+
+def shade_flown(col):
+    """Stone the bird has already passed: dropped in value, pulled almost grey,
+    tipped toward blue. Shade, not dirt — the surface is identical, the light
+    on it is gone."""
+    h, l, sat = colorsys.rgb_to_hls(*[c / 255.0 for c in col])
+    r, g, b = colorsys.hls_to_rgb(h, max(0.0, l - 0.158), 0.18)
+    return (clamp8(r * 255 - 3), clamp8(g * 255 + 1), clamp8(b * 255 + 9))
+
+
+def sand_at_y(y):
+    """Corridor stone before the flown/ahead treatment."""
+    base = ymix(SAND_STOPS, y)
+
+    # Mist sits in ONE band in the middle distance instead of a global fade, so
+    # the far end can stay the most chromatic stone on screen.
+    if 150.0 < y < 262.0:
+        base = lerp_color(base, HAZE, 0.32 * bump((y - 150.0) / 112.0))
+
+    # Last stretch before the gate picks the gate's own warmth back up.
+    if y < 112.0:
+        base = lerp_color(base, GATE_WARM, 0.35 * smoothstep((112.0 - y) / 50.0))
+
+    if y > DEATH_Y:
+        base = shade_flown(base)
+        # A short cast shadow under the death line makes the change an edge
+        # rather than a boundary you have to be told about.
+        k = 1.0 - smoothstep((y - DEATH_Y) / 18.0)
+        base = (clamp8(base[0] - 22 * k), clamp8(base[1] - 20 * k),
+                clamp8(base[2] - 14 * k))
+    return base
 
 
 # ── sky ──────────────────────────────────────────────────────────────────────
 
 def draw_sky():
     stops = [(0.0, DAY_PAL["sky_top"]),
-             (0.52, DAY_PAL["sky_mid"]),
-             (0.86, DAY_PAL["sky_bot"]),
+             (0.50, DAY_PAL["sky_mid"]),
+             (0.84, DAY_PAL["sky_bot"]),
              (1.0, DAY_PAL["horizon"])]
     rows = s(Y_FAR)
     for i in range(rows):
@@ -187,8 +255,6 @@ def draw_apron():
         y = yy / SS
         pygame.draw.line(geo, ymix(APRON_STOPS, y), (0, yy), (W * SS, yy))
 
-    # Sparse scuff so the surround is not a dead flat fill; density thins with
-    # distance the same way the pavement grain does.
     rng = random.Random(4021)
     scuff = new_layer()
     for _ in range(2600):
@@ -203,21 +269,29 @@ def draw_apron():
         pygame.draw.circle(scuff, (*c, a), (s(x), s(y)), r)
     geo.blit(scuff, (0, 0))
 
+    # The mid-distance mist band crosses the whole ground plane, so the apron
+    # carries it too — otherwise the corridor looks mis-painted, not hazed.
+    mist = new_layer()
+    for yy in range(s(150.0), s(262.0)):
+        y = yy / SS
+        a = int(64 * bump((y - 150.0) / 112.0))
+        pygame.draw.line(mist, (*HAZE, a), (0, yy), (W * SS, yy))
+    geo.blit(mist, (0, 0))
 
-# ── pavement ─────────────────────────────────────────────────────────────────
 
-def draw_pavement():
-    SEGS = 12
+# ── corridor stone ───────────────────────────────────────────────────────────
+
+def draw_corridor():
+    SEGS = 14
     y0, y1 = s(Y_FAR), s(Y_NEAR)
     for yy in range(y0, y1 + 1):
         y = yy / SS
-        t = (Y_NEAR - y) / (Y_NEAR - Y_FAR)
-        base = lerp_color(PAV_NEAR, PAV_FAR, smoothstep(t))
+        base = sand_at_y(y)
         xl, xr = edges_at_y(y)
         span = xr - xl
         for k in range(SEGS):
             u = (k + 0.5) / SEGS * 2 - 1
-            # Pavement is crowned: the shoulders fall away from the light.
+            # The floor is crowned: the shoulders fall away from the light.
             f = 1.0 - 0.13 * (abs(u) ** 2.1)
             col = (int(base[0] * f), int(base[1] * f), int(base[2] * f))
             ax = s(xl + span * k / SEGS)
@@ -236,20 +310,23 @@ def draw_pavement():
         r = max(1, int(SS * 0.45 * sc + 0.5))
         c = (120, 96, 70) if rng.random() < 0.6 else (255, 246, 226)
         pygame.draw.circle(grain, (*c, a), (s(x), s(y)), r)
-    clip_to_pavement(grain)
+    clip_to_corridor(grain)
     geo.blit(grain, (0, 0))
 
-    # Material lip at the pavement edge plus a contact shadow on the apron —
-    # the runway is a raised slab, not a decal.
+    # Material lip at the corridor edge plus a contact shadow on the apron —
+    # the floor is a raised slab, not a decal. The lip goes dull where the
+    # stone is in shade so the edge does not smuggle light into the flown half.
     lip = new_layer()
     for yy in range(y0, y1 + 1):
         y = yy / SS
         xl, xr = edges_at_y(y)
         t = (Y_NEAR - y) / (Y_NEAR - Y_FAR)
-        a = int(150 - 60 * t)
+        lit = y < DEATH_Y
+        col = (255, 244, 222) if lit else (150, 152, 152)
+        a = int((150 - 60 * t) * (1.0 if lit else 0.52))
         lw = max(1, int(SS * 0.9))
-        pygame.draw.line(lip, (255, 244, 222, a), (s(xl), yy), (s(xl) + lw, yy))
-        pygame.draw.line(lip, (255, 244, 222, a), (s(xr) - lw, yy), (s(xr), yy))
+        pygame.draw.line(lip, (*col, a), (s(xl), yy), (s(xl) + lw, yy))
+        pygame.draw.line(lip, (*col, a), (s(xr) - lw, yy), (s(xr), yy))
         sh = max(1, int(SS * (1.0 + 1.8 * (1 - t))))
         pygame.draw.line(lip, (14, 24, 20, int(90 - 40 * t)),
                          (s(xl) - sh, yy), (s(xl), yy))
@@ -258,145 +335,320 @@ def draw_pavement():
     geo.blit(lip, (0, 0))
 
 
-def draw_distance_haze():
-    """Atmospheric recession on the lit half — the runway ahead does not dim,
-    it dissolves."""
-    haze = new_layer()
-    for yy in range(s(Y_FAR), s(340.0)):
-        y = yy / SS
-        t = (340.0 - y) / (340.0 - Y_FAR)
-        a = int(78 * smoothstep(t) ** 1.15)
-        pygame.draw.line(haze, (*HAZE, a), (0, yy), (W * SS, yy))
-    clip_to_pavement(haze)
-    geo.blit(haze, (0, 0))
+def draw_death_lip():
+    """The hard sunlit edge on the AHEAD side of the death line: the last inch
+    of stone the light still reaches. Two whole native rows of near-white —
+    anything thinner averages away when the supersample is resolved down."""
+    lay = new_layer()
+    for y0, y1, col, a in ((DEATH_Y - 5.4, DEATH_Y - 3.0, (255, 214, 158), 70),
+                           (DEATH_Y - 3.0, DEATH_Y - 2.0, (255, 240, 208), 190),
+                           (DEATH_Y - 2.0, DEATH_Y - 0.1, (255, 253, 247), 255)):
+        xl0, xr0 = edges_at_y(y0)
+        xl1, xr1 = edges_at_y(y1)
+        pygame.draw.polygon(lay, (*col, a), [
+            (s(xl0 + 1), s(y0)), (s(xr0 - 1), s(y0)),
+            (s(xr1 - 1), s(y1)), (s(xl1 + 1), s(y1))])
+    clip_to_corridor(lay)
+    geo.blit(lay, (0, 0))
 
 
-def draw_sun_streaks():
-    """Low-angle light running up the unflown pavement; keeps the ahead half
-    reading as lit rather than merely undrawn."""
+def draw_gate_light():
+    """Light pouring back down the corridor FROM the gate: wedges that converge
+    on the far gap, so the destination is also the light source."""
     lay = new_layer()
     rng = random.Random(77)
-    for i in range(6):
-        p0 = DEATH_PHASE + (1.0 - DEATH_PHASE) * (i / 6.0) + rng.uniform(0, 0.04)
-        p1 = min(1.0, p0 + rng.uniform(0.09, 0.20))
-        ya, yb = phase_to_y(p0), phase_to_y(p1)
-        u = rng.uniform(-0.60, 0.60)
-        xa, xb = CX + u * hw_at_y(ya), CX + u * hw_at_y(yb)
-        # BLEND_ADD reads RGB and ignores source alpha, so the intensity has
-        # to live in the channels. Three nested quads fake a soft falloff;
-        # broad and faint, so light never competes with the centreline.
-        for span, lift in ((0.62, 4), (0.40, 5), (0.18, 5)):
-            wa, wb = span * hw_at_y(ya), span * hw_at_y(yb)
-            pygame.draw.polygon(lay, (lift + 1, lift, lift - 2, 255), [
-                (s(xa - wa / 2), s(ya)), (s(xa + wa / 2), s(ya)),
-                (s(xb + wb / 2), s(yb)), (s(xb - wb / 2), s(yb))])
-    clip_to_pavement(lay)
+    for i in range(7):
+        y_far_edge = Y_FAR + rng.uniform(0.0, 6.0)
+        y_near_edge = phase_to_y(DEATH_PHASE + rng.uniform(0.05, 0.62))
+        u = rng.uniform(-0.72, 0.72)
+        xa = CX + u * 0.30 * hw_at_y(y_far_edge)
+        xb = CX + u * hw_at_y(y_near_edge)
+        # BLEND_ADD reads RGB and ignores source alpha, so intensity has to
+        # live in the channels. Three nested wedges fake a soft falloff.
+        for span, lift in ((0.50, 5), (0.30, 6), (0.13, 6)):
+            wa = span * hw_at_y(y_far_edge) * 0.35
+            wb = span * hw_at_y(y_near_edge)
+            pygame.draw.polygon(lay, (lift + 3, lift, max(0, lift - 4), 255), [
+                (s(xa - wa / 2), s(y_far_edge)), (s(xa + wa / 2), s(y_far_edge)),
+                (s(xb + wb / 2), s(y_near_edge)), (s(xb - wb / 2), s(y_near_edge))])
+    clip_to_corridor(lay)
     geo.blit(lay, (0, 0), special_flags=pygame.BLEND_ADD)
 
 
-# ── markings: centreline + thresholds only ───────────────────────────────────
+# ── the gate: two pillars + the last light of the day between them ───────────
 
-def paint_at_y(y):
-    t = (Y_NEAR - y) / (Y_NEAR - Y_FAR)
-    base = lerp_color(PAINT_NEAR, PAINT_FAR, smoothstep(t))
-    pav = lerp_color(PAV_NEAR, PAV_FAR, smoothstep(t))
-    return lerp_color(base, pav, 0.15 * t)
+def gate_pillar_pts(bx, by, h, w, flip):
+    """Skybit sandstone column language at silhouette scale: stepped plinth,
+    tapered shaft with erosion notches, overhanging capital."""
+    sgn = -1.0 if flip else 1.0
+
+    def P(u, v):
+        return (s(bx + sgn * u * w), s(by - v * h))
+
+    return [
+        P(-0.62, 0.00), P(-0.62, 0.07), P(-0.50, 0.085),
+        P(-0.44, 0.17), P(-0.48, 0.40), P(-0.37, 0.50),
+        P(-0.43, 0.72), P(-0.36, 0.83),
+        P(-0.60, 0.840), P(-0.60, 0.900), P(-0.46, 0.912),
+        P(-0.51, 0.962), P(0.50, 0.988),
+        P(0.45, 0.912), P(0.58, 0.900), P(0.58, 0.840),
+        P(0.35, 0.830), P(0.40, 0.58), P(0.32, 0.42),
+        P(0.42, 0.19), P(0.50, 0.085), P(0.62, 0.07), P(0.62, 0.00),
+    ]
 
 
-def draw_centreline():
+def draw_gate_glow():
+    """Warm bloom in the gap, drawn before the pillars so they cut into it."""
     lay = new_layer()
-    p = 0.012
-    step = 0.0250
-    dash = 0.0152
-    while p < 0.995:
-        pa, pb = p, min(0.995, p + dash)
-        ya, yb = phase_to_y(pa), phase_to_y(pb)
-        wa = 3.5 * scale_at_y(ya)
-        wb = 3.5 * scale_at_y(yb)
-        col = paint_at_y((ya + yb) * 0.5)
-        pygame.draw.polygon(lay, (*col, 250), [
-            (s(CX - wa / 2), s(ya)), (s(CX + wa / 2), s(ya)),
-            (s(CX + wb / 2), s(yb)), (s(CX - wb / 2), s(yb))])
-        p += step
-    geo.blit(lay, (0, 0))
+    gx, gy = CX, Y_FAR - 2.0
+    for r, lift in ((70, 4), (52, 6), (36, 9), (23, 14), (13, 22), (6, 30)):
+        pygame.draw.circle(lay, (lift + 6, int(lift * 0.78), int(lift * 0.30),
+                                 255), (s(gx), s(gy)), s(r))
+    # Rays fanning up and out of the gate mouth.
+    rng = random.Random(515)
+    for i in range(11):
+        a0 = -math.pi / 2 + (i / 10.0 - 0.5) * 2.05
+        wid = rng.uniform(0.035, 0.075)
+        L = rng.uniform(30, 74)
+        tip = (gx + math.cos(a0) * L, gy + math.sin(a0) * L)
+        p1 = (gx + math.cos(a0 - wid) * 8, gy + math.sin(a0 - wid) * 8)
+        p2 = (gx + math.cos(a0 + wid) * 8, gy + math.sin(a0 + wid) * 8)
+        pygame.draw.polygon(lay, (9, 7, 3, 255),
+                            [(s(p1[0]), s(p1[1])), (s(p2[0]), s(p2[1])),
+                             (s(tip[0]), s(tip[1]))])
+    geo.blit(lay, (0, 0), special_flags=pygame.BLEND_ADD)
 
 
-def _threshold_bank(y_base, y_top, spread, stripe_w, gap0):
-    """Eight stripes symmetric about the centreline, per the real threshold
-    convention — the one marking that says 'runway' with no words."""
+GATE_H, GATE_W = 34.0, 32.0
+# Inner faces overlap the corridor edge by ~3 px: the columns stand ON the rim
+# of the canyon, so they occlude it rather than floating beside it.
+GATE_CX_L = 148.0 - 0.62 * GATE_W
+GATE_CX_R = 212.0 + 0.62 * GATE_W
+
+
+def draw_gate_sill():
+    """Dark stone at the far rim, opening up in the middle where the light
+    actually pours through. Without it the sky and the corridor floor meet at
+    the same value and the horizon disappears."""
     lay = new_layer()
-    sb = scale_at_y(y_base)
-    st = scale_at_y(y_top)
-    col_b = paint_at_y(y_base)
-    col_t = paint_at_y(y_top)
-    col = lerp_color(col_b, col_t, 0.4)
-    for i in range(4):
-        o0 = gap0 + i * (stripe_w + spread)
-        o1 = o0 + stripe_w
-        for sgn in (-1, 1):
-            pygame.draw.polygon(lay, (*col, 245), [
-                (s(CX + sgn * o0 * sb), s(y_base)),
-                (s(CX + sgn * o1 * sb), s(y_base)),
-                (s(CX + sgn * o1 * st), s(y_top)),
-                (s(CX + sgn * o0 * st), s(y_top))])
-    clip_to_pavement(lay)
-    geo.blit(lay, (0, 0))
-
-
-def draw_thresholds():
-    # Eight bars spanning ~80% of the half-width; a narrower bank stops
-    # reading as a threshold and starts reading as touchdown-zone clutter.
-    _threshold_bank(Y_NEAR - 0.5, Y_NEAR - 27.0, spread=8.0, stripe_w=12.0,
-                    gap0=6.0)
-    _threshold_bank(Y_FAR + 5.0, Y_FAR + 0.5, spread=8.0, stripe_w=12.0,
-                    gap0=6.0)
-
-
-# ── flown section: marked, never dimmed ──────────────────────────────────────
-
-def draw_rubber_and_scorch():
-    lay = new_layer()
-    yy0, yy1 = s(DEATH_Y), s(Y_NEAR)
-    for yy in range(yy0, yy1 + 1):
+    for yy in range(s(Y_FAR), s(Y_FAR + 9.0)):
         y = yy / SS
-        # Rubber accumulates toward the threshold: that end saw the whole run.
+        xl, xr = edges_at_y(y)
+        fade = 1.0 - smoothstep((y - Y_FAR) / 9.0)
+        span = xr - xl
+        for k in range(24):
+            u = (k + 0.5) / 24 * 2 - 1
+            a = int(180 * fade * (abs(u) ** 0.75))
+            if a <= 2:
+                continue
+            pygame.draw.line(lay, (52, 36, 30, a),
+                             (s(xl + span * k / 24), yy),
+                             (s(xl + span * (k + 1) / 24), yy))
+    clip_to_corridor(lay)
+    geo.blit(lay, (0, 0))
+
+
+def draw_gate_pillars():
+    lay = new_layer()
+    h, w = GATE_H, GATE_W
+    for flip, bx in ((True, GATE_CX_L), (False, GATE_CX_R)):
+        inner = 1.0 if flip else -1.0
+        pts = gate_pillar_pts(bx, Y_FAR + 1.0, h, w, flip)
+
+        # Ground shadow first: the sun is beyond the gate, so each column
+        # throws its shadow straight back toward the viewer, and those two
+        # dark wedges are what pin the horizon onto the ground plane.
+        for i in range(s(24.0)):
+            y = Y_FAR + 1.0 + i / SS
+            t = i / float(s(24.0))
+            a = int(135 * (1.0 - t) ** 1.35)
+            x0 = bx - 0.62 * w - 2.0 * t
+            x1 = bx + 0.62 * w + 6.0 * t * inner
+            pygame.draw.line(lay, (26, 22, 24, a),
+                             (s(min(x0, x1)), s(y)), (s(max(x0, x1)), s(y)))
+
+        pygame.draw.polygon(lay, (*STONE_DK, 255), pts)
+
+        # Strata: the only internal detail that survives at silhouette value.
+        for v in (0.19, 0.33, 0.47, 0.61, 0.74):
+            yy = s(Y_FAR + 1.0 - v * h)
+            pygame.draw.line(lay, (*STONE_DKR, 190),
+                             (s(bx - 0.46 * w), yy), (s(bx + 0.46 * w), yy),
+                             max(1, int(SS * 0.5)))
+
+        # Rim light on the edge facing the gap — the gate is backlit, so the
+        # inner face is the only lit stone on the pillar.
+        rx = bx + inner * 0.335 * w
+        pygame.draw.line(lay, (*STONE_RIM, 210),
+                         (s(rx), s(Y_FAR - 0.5)), (s(rx + inner * 1.2), s(Y_FAR - 0.80 * h)),
+                         max(1, int(SS * 0.9)))
+        pygame.draw.line(lay, (*STONE_RIM, 235),
+                         (s(bx + inner * 0.50 * w), s(Y_FAR - 0.985 * h)),
+                         (s(bx - inner * 0.10 * w), s(Y_FAR - 0.965 * h)),
+                         max(1, int(SS * 0.8)))
+
+        # Foliage crown — the columns are alive in game, and the tuft is what
+        # says sandstone pillar rather than obelisk.
+        rng = random.Random(int(bx))
+        for i in range(9):
+            fx = bx + rng.uniform(-0.44, 0.44) * w
+            fy = Y_FAR + 1.0 - h * (0.985 + rng.uniform(0.0, 0.02))
+            fl = rng.uniform(4.0, 8.5)
+            lean = rng.uniform(-2.6, 2.6)
+            pygame.draw.line(lay, (*CROWN_DK, 245), (s(fx), s(fy)),
+                             (s(fx + lean), s(fy - fl)), max(1, int(SS * 0.7)))
+    geo.blit(lay, (0, 0))
+
+
+# ── centreline: a lane of coins, not paint ───────────────────────────────────
+
+def draw_coin_lane():
+    lay = new_layer()
+    p = 0.010
+    step = 0.0232
+    while p < 0.995:
+        y = phase_to_y(p)
+        sc = scale_at_y(y)
+        r = 3.4 * sc
+        flown = y > DEATH_Y
+        if flown:
+            # Already banked: an empty socket in the shaded stone.
+            pygame.draw.circle(lay, (46, 42, 44, 150), (s(CX), s(y)),
+                               max(1, s(r)), max(1, int(SS * 0.7)))
+            pygame.draw.circle(lay, (176, 178, 176, 70), (s(CX), s(y - 0.5 * r)),
+                               max(1, s(r * 0.55)), max(1, int(SS * 0.5)))
+        else:
+            pygame.draw.circle(lay, (*COIN_DARK, 235), (s(CX), s(y)),
+                               max(1, s(r * 1.16)))
+            pygame.draw.circle(lay, (*COIN_GOLD, 255), (s(CX), s(y)),
+                               max(1, s(r)))
+            pygame.draw.circle(lay, (255, 244, 176, 255),
+                               (s(CX - r * 0.28), s(y - r * 0.30)),
+                               max(1, s(r * 0.42)))
+            # Contact shadow keeps the coin sitting on the stone.
+            pygame.draw.ellipse(lay, (70, 52, 38, 90),
+                                (s(CX - r * 1.1), s(y + r * 0.60),
+                                 s(r * 2.2), s(r * 0.85)))
+        p += step
+    clip_to_corridor(lay)
+    geo.blit(lay, (0, 0))
+
+
+# ── near end: the launch rock ────────────────────────────────────────────────
+
+def draw_launch_rock():
+    """The ledge the run started from. Replaces the painted threshold: a slab
+    of the same sandstone, chipped along its lit top edge."""
+    lay = new_layer()
+    rng = random.Random(2201)
+    top_y = Y_NEAR - 4.0
+    bot_y = 582.0
+    xl, xr = 72.0, 288.0
+
+    face = [(s(xl), s(bot_y)), (s(xl + 6), s(top_y + 2))]
+    x = xl + 6
+    while x < xr - 6:
+        step = rng.uniform(13.0, 26.0)
+        x = min(xr - 6, x + step)
+        face.append((s(x), s(top_y + rng.uniform(-2.2, 2.6))))
+    face += [(s(xr - 6), s(top_y + 2)), (s(xr), s(bot_y))]
+    pygame.draw.polygon(lay, (96, 70, 52, 255), face)
+
+    # Lit cap: warm top plane above the shaded front face.
+    cap = [(px, py) for (px, py) in face[1:-1]]
+    cap = cap + [(s(xr - 10), s(top_y + 13)), (s(xl + 10), s(top_y + 13))]
+    pygame.draw.polygon(lay, (198, 160, 116, 255), cap)
+    for i in range(s(11)):
+        t = i / s(11)
+        col = lerp_color((222, 186, 140), (150, 116, 84), t)
+        pygame.draw.line(lay, (*col, 190), (s(xl + 8), s(top_y + 2) + i),
+                         (s(xr - 8), s(top_y + 2) + i))
+
+    # Strata + chipped speckle on the front face.
+    for v, a in ((0.34, 130), (0.58, 110), (0.80, 90)):
+        yy = s(top_y + 13 + (bot_y - top_y - 13) * v)
+        pygame.draw.line(lay, (66, 46, 34, a), (s(xl + 4), yy), (s(xr - 4), yy),
+                         max(1, int(SS * 0.8)))
+    for _ in range(240):
+        px = rng.uniform(xl + 3, xr - 3)
+        py = rng.uniform(top_y + 13, bot_y)
+        c = (60, 42, 32) if rng.random() < 0.6 else (168, 136, 100)
+        pygame.draw.circle(lay, (*c, int(40 + 60 * rng.random())),
+                           (s(px), s(py)), max(1, int(SS * 0.6)))
+
+    pygame.draw.line(lay, (255, 236, 200, 225), (s(xl + 7), s(top_y + 1.2)),
+                     (s(xr - 7), s(top_y + 1.2)), max(1, int(SS * 0.9)))
+    geo.blit(lay, (0, 0))
+
+
+# ── flown stretch: feathers and a wing scuff, not rubber ─────────────────────
+
+FEATHER_COLS = ((214, 66, 58), (186, 44, 42), (52, 96, 210),
+                (232, 178, 60), (58, 168, 96))
+
+
+def draw_feather(lay, x, y, ang, L, col, a=225):
+    """Quill + two vane lobes. At 3–9 px this reads as 'a bird shed this'."""
+    ca, sa = math.cos(ang), math.sin(ang)
+    tipx, tipy = x + ca * L, y + sa * L
+    nx, ny = -sa, ca
+    wpk = L * 0.30
+    pts = []
+    for t, wf in ((0.02, 0.18), (0.28, 0.95), (0.60, 0.80), (1.0, 0.0)):
+        px, py = x + ca * L * t, y + sa * L * t
+        pts.append((s(px + nx * wpk * wf), s(py + ny * wpk * wf)))
+    for t, wf in ((1.0, 0.0), (0.60, 0.72), (0.28, 0.88), (0.02, 0.16)):
+        px, py = x + ca * L * t, y + sa * L * t
+        pts.append((s(px - nx * wpk * wf), s(py - ny * wpk * wf)))
+    pygame.draw.polygon(lay, (*col, a), pts)
+    dk = (clamp8(col[0] * 0.55), clamp8(col[1] * 0.55), clamp8(col[2] * 0.55))
+    pygame.draw.line(lay, (*dk, min(255, a + 20)), (s(x), s(y)),
+                     (s(tipx), s(tipy)), max(1, int(SS * 0.45)))
+
+
+def draw_flown_evidence():
+    """Everything the bird left behind: a dusty wing scuff down the lane and a
+    scatter of shed feathers."""
+    lay = new_layer()
+    rng = random.Random(313)
+
+    # Soft dust the wingbeats kicked up, heaviest near the launch rock.
+    for yy in range(s(DEATH_Y), s(Y_NEAR)):
+        y = yy / SS
         t = (y - DEATH_Y) / (Y_NEAR - DEATH_Y)
         sc = scale_at_y(y)
-        peak = 118 * smoothstep(t) ** 0.75
+        peak = 52 * smoothstep(t) ** 0.8
         for sgn in (-1, 1):
-            for k in range(10):
-                u0 = 5.0 + 20.0 * (k / 10.0)
-                u1 = 5.0 + 20.0 * ((k + 1) / 10.0)
-                # Soft shoulders on the band so it reads as deposit, not a stripe.
-                f = math.sin(math.pi * (k + 0.5) / 10.0) ** 0.7
+            for k in range(8):
+                u0 = 6.0 + 22.0 * (k / 8.0)
+                u1 = 6.0 + 22.0 * ((k + 1) / 8.0)
+                f = math.sin(math.pi * (k + 0.5) / 8.0) ** 0.7
                 a = int(peak * f)
                 if a <= 1:
                     continue
                 x0 = CX + sgn * u0 * sc
                 x1 = CX + sgn * u1 * sc
-                pygame.draw.line(lay, (*RUBBER, a),
+                pygame.draw.line(lay, (198, 190, 176, a),
                                  (s(min(x0, x1)), yy), (s(max(x0, x1)), yy))
 
-    rng = random.Random(313)
-    for i in range(9):
-        p = rng.uniform(0.005, DEATH_PHASE - 0.004)
+    # Shed feathers, thickening toward the end of the run.
+    for i in range(17):
+        p = rng.uniform(0.004, DEATH_PHASE - 0.002)
+        bias = (p / DEATH_PHASE) ** 0.6
         y = phase_to_y(p)
         sc = scale_at_y(y)
-        x = CX + rng.uniform(-0.55, 0.55) * hw_at_y(y)
-        rad = rng.uniform(7, 17) * sc
-        pts = []
-        for k in range(11):
-            ang = 2 * math.pi * k / 11
-            rr = rad * (0.62 + 0.5 * rng.random())
-            pts.append((s(x + math.cos(ang) * rr),
-                        s(y + math.sin(ang) * rr * 0.55)))
-        pygame.draw.polygon(lay, (*SCORCH, int(34 + 30 * rng.random())), pts)
+        x = CX + rng.uniform(-0.68, 0.68) * hw_at_y(y)
+        L = rng.uniform(5.5, 10.0) * sc
+        col = FEATHER_COLS[rng.randrange(len(FEATHER_COLS))]
+        a = int(150 + 85 * bias)
+        pygame.draw.ellipse(lay, (34, 30, 30, 60),
+                            (s(x - L * 0.5), s(y + L * 0.16),
+                             s(L * 1.0), s(L * 0.36)))
+        draw_feather(lay, x, y, rng.uniform(0, 2 * math.pi), L, col, a)
 
-    clip_to_pavement(lay)
+    clip_to_corridor(lay)
     geo.blit(lay, (0, 0))
 
-
-# ── skid arc ─────────────────────────────────────────────────────────────────
 
 def _bez(p0, p1, p2, t):
     u = 1 - t
@@ -421,30 +673,46 @@ def _taper_strip(lay, pts, w0, w1, col, alpha):
     pygame.draw.polygon(lay, (*col, alpha), left + right[::-1])
 
 
-def draw_skid():
-    p0 = (CX + 1.0, phase_to_y(0.052))
-    p1 = (CX - 6.0, phase_to_y(0.128))
+def draw_wing_scuff():
+    """The last few metres: a wing tip dragging dust off the stone, curving out
+    of the lane into the death marker."""
+    p0 = (CX + 1.0, phase_to_y(0.058))
+    p1 = (CX - 7.0, phase_to_y(0.132))
     p2 = (134.0, DEATH_Y)
     pts = [_bez(p0, p1, p2, i / 46.0) for i in range(47)]
     lay = new_layer()
-    _taper_strip(lay, pts, 11.0, 5.0, (30, 22, 20), 46)     # smear halo
-    _taper_strip(lay, pts, 5.6, 2.4, (40, 28, 24), 215)     # rubber core
-    _taper_strip(lay, pts[28:], 3.0, 1.6, SCARLET, 90)      # last contact
-    clip_to_pavement(lay)
+    _taper_strip(lay, pts, 12.0, 5.5, (226, 216, 198), 44)
+    _taper_strip(lay, pts, 5.4, 2.2, (240, 232, 214), 120)
+    _taper_strip(lay, pts[30:], 3.0, 1.5, SCARLET, 105)
+    clip_to_corridor(lay)
     geo.blit(lay, (0, 0))
 
+    fx = new_layer()
+    rng = random.Random(981)
+    for t in (0.62, 0.74, 0.86, 0.95):
+        i = int(t * 46)
+        x, y = pts[i]
+        L = rng.uniform(5.0, 8.0) * scale_at_y(y)
+        draw_feather(fx, x + rng.uniform(-5, 5), y + rng.uniform(-3, 3),
+                     rng.uniform(0, 2 * math.pi), L,
+                     FEATHER_COLS[rng.randrange(3)], 235)
+    clip_to_corridor(fx)
+    geo.blit(fx, (0, 0))
 
-# ── phase boundary bars + biome chips ────────────────────────────────────────
+
+# ── phase boundary bars ──────────────────────────────────────────────────────
 
 def draw_phase_bars():
     lay = new_layer()
     for p, _name in PHASE_BOUNDARIES:
+        if p <= 0.0001:
+            continue                    # the launch rock IS the p=0 boundary
         y = phase_to_y(p)
         yy = s(y)
         body_h = max(1, int(SS * 1.9))
         xl, xr = edges_at_y(y)
-        # Over the apron the bar is a quiet rule; over the warm pavement it is
-        # a cool band, so the temperature flip does the phase-change reading.
+        # Over the apron the bar is a quiet rule; over the warm stone it is a
+        # cool band, so the temperature flip does the phase-change reading.
         pygame.draw.rect(lay, (46, 70, 84, 120), (0, yy, s(W), body_h))
         pygame.draw.rect(lay, (*BAR_BODY, 138),
                          (s(xl), yy, s(xr) - s(xl), body_h))
@@ -453,88 +721,116 @@ def draw_phase_bars():
     geo.blit(lay, (0, 0))
 
 
-def draw_chip(surface, cx, cy, phase, size=8):
+# ── biome chips ──────────────────────────────────────────────────────────────
+
+# GOLDEN HOUR and SUNRISE average to nearly the same swatch straight off the
+# sky palette. The chip is an identity mark rather than a literal sky readout,
+# so each phase is biased toward its signature hue — enough separation that
+# neighbours in the column never trade places at a glance.
+CHIP_SIG = {
+    "DAY":         (70, 175, 255),
+    "GOLDEN HOUR": (255, 150, 40),
+    "SUNSET":      (240, 70, 90),
+    "DUSK":        (150, 55, 190),
+    "NIGHT":       (18, 30, 90),
+    "PREDAWN":     (95, 150, 225),
+    "SUNRISE":     (240, 120, 170),
+}
+CHIP_BIAS = 0.42
+CHIP_SIZE = 10.0
+
+
+def chip_stops(phase, name):
     pal = palette_for_phase(phase)
+    sig = CHIP_SIG[name]
+    return [lerp_color(pal[k], sig, CHIP_BIAS)
+            for k in ("sky_top", "sky_mid", "sky_bot")]
+
+
+def draw_chip(surface, cx, cy, phase, name, size=CHIP_SIZE):
+    top, mid, bot = chip_stops(phase, name)
     half = size / 2.0
     chip = pygame.Surface((s(size), s(size)), pygame.SRCALPHA)
     rows = s(size)
     for i in range(rows):
         t = i / max(1, rows - 1)
-        if t < 0.5:
-            col = lerp_color(pal["sky_top"], pal["sky_mid"], t * 2)
-        else:
-            col = lerp_color(pal["sky_mid"], pal["sky_bot"], (t - 0.5) * 2)
+        col = (lerp_color(top, mid, t * 2) if t < 0.5
+               else lerp_color(mid, bot, (t - 0.5) * 2))
         pygame.draw.line(chip, col, (0, i), (s(size), i))
     mask = pygame.Surface((s(size), s(size)), pygame.SRCALPHA)
     pygame.draw.rect(mask, (255, 255, 255, 255), mask.get_rect(),
                      border_radius=s(2))
     chip.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    pygame.draw.rect(surface, (8, 12, 16, 190),
+                     (s(cx - half - 1), s(cy - half - 1), s(size + 2),
+                      s(size + 2)), border_radius=s(2.6))
     surface.blit(chip, (s(cx - half), s(cy - half)))
-    pygame.draw.rect(surface, (*CREAM, 210),
+    pygame.draw.rect(surface, (*CREAM, 225),
                      (s(cx - half), s(cy - half), s(size), s(size)),
-                     max(1, int(SS * 0.5)), border_radius=s(2))
+                     max(1, int(SS * 0.6)), border_radius=s(2))
 
 
-# ── event glyph boards ───────────────────────────────────────────────────────
+# ── event glyphs ─────────────────────────────────────────────────────────────
 
 def g_plume(lay, cx, cy, u, col):
     for sgn, lean in ((-1, 0.62), (0, 0.0), (1, 0.62)):
         tipx = cx + sgn * lean * u
         tipy = cy - u * (1.15 if sgn == 0 else 0.92)
         pygame.draw.polygon(lay, (*col, 255), [
-            (s(cx - 0.22 * u), s(cy + 0.72 * u)),
-            (s(cx + 0.22 * u), s(cy + 0.72 * u)),
-            (s(tipx + 0.10 * u), s(tipy)),
-            (s(tipx - 0.10 * u), s(tipy))])
-    pygame.draw.ellipse(lay, (*col, 235),
-                        (s(cx - 0.62 * u), s(cy + 0.60 * u),
-                         s(1.24 * u), s(0.34 * u)))
-    for dx, dy, r in ((-0.86, -0.28, 0.15), (0.86, -0.42, 0.13)):
-        pygame.draw.circle(lay, (*col, 220),
+            (s(cx - 0.26 * u), s(cy + 0.72 * u)),
+            (s(cx + 0.26 * u), s(cy + 0.72 * u)),
+            (s(tipx + 0.14 * u), s(tipy)),
+            (s(tipx - 0.14 * u), s(tipy))])
+    pygame.draw.ellipse(lay, (*col, 245),
+                        (s(cx - 0.68 * u), s(cy + 0.58 * u),
+                         s(1.36 * u), s(0.40 * u)))
+    for dx, dy, r in ((-0.88, -0.30, 0.18), (0.88, -0.44, 0.16)):
+        pygame.draw.circle(lay, (*col, 235),
                            (s(cx + dx * u), s(cy + dy * u)), max(1, s(r * u)))
 
 
 def g_lamp(lay, cx, cy, u, col):
     pygame.draw.ellipse(lay, (*col, 255),
-                        (s(cx - 0.72 * u), s(cy - 0.18 * u),
-                         s(1.28 * u), s(0.72 * u)))
+                        (s(cx - 0.78 * u), s(cy - 0.20 * u),
+                         s(1.36 * u), s(0.80 * u)))
     pygame.draw.polygon(lay, (*col, 255), [
         (s(cx + 0.48 * u), s(cy + 0.02 * u)),
-        (s(cx + 1.16 * u), s(cy - 0.46 * u)),
-        (s(cx + 0.52 * u), s(cy + 0.34 * u))])
-    pygame.draw.circle(lay, (*col, 255), (s(cx - 0.10 * u), s(cy - 0.26 * u)),
-                       max(1, s(0.16 * u)))
-    pygame.draw.circle(lay, (*col, 255), (s(cx - 0.78 * u), s(cy + 0.20 * u)),
-                       max(2, s(0.30 * u)), max(1, s(0.11 * u)))
-    for k, (dx, dy, r) in enumerate(((0.62, -0.72, 0.13),
-                                     (0.86, -1.02, 0.10),
-                                     (0.58, -1.26, 0.08))):
-        pygame.draw.circle(lay, (*col, 210 - k * 40),
+        (s(cx + 1.20 * u), s(cy - 0.50 * u)),
+        (s(cx + 0.52 * u), s(cy + 0.38 * u))])
+    pygame.draw.circle(lay, (*col, 255), (s(cx - 0.10 * u), s(cy - 0.30 * u)),
+                       max(1, s(0.20 * u)))
+    pygame.draw.circle(lay, (*col, 255), (s(cx - 0.84 * u), s(cy + 0.22 * u)),
+                       max(2, s(0.34 * u)), max(1, s(0.13 * u)))
+    for k, (dx, dy, r) in enumerate(((0.62, -0.76, 0.16),
+                                     (0.88, -1.06, 0.13),
+                                     (0.58, -1.30, 0.10))):
+        pygame.draw.circle(lay, (*col, 225 - k * 35),
                            (s(cx + dx * u), s(cy + dy * u)), max(1, s(r * u)))
 
 
 def g_diamond(lay, cx, cy, u, col):
-    outer = [(s(cx), s(cy - u)), (s(cx + 0.74 * u), s(cy)),
-             (s(cx), s(cy + u)), (s(cx - 0.74 * u), s(cy))]
+    outer = [(s(cx), s(cy - 1.06 * u)), (s(cx + 0.80 * u), s(cy)),
+             (s(cx), s(cy + 1.06 * u)), (s(cx - 0.80 * u), s(cy))]
     pygame.draw.polygon(lay, (*col, 255), outer)
     # Harlequin quartering — the clown gauntlet reads at 12 px this way.
     pygame.draw.polygon(lay, (*CREAM, 245), [
-        (s(cx), s(cy - u)), (s(cx + 0.74 * u), s(cy)), (s(cx), s(cy))])
+        (s(cx), s(cy - 1.06 * u)), (s(cx + 0.80 * u), s(cy)), (s(cx), s(cy))])
     pygame.draw.polygon(lay, (*CREAM, 245), [
-        (s(cx), s(cy + u)), (s(cx - 0.74 * u), s(cy)), (s(cx), s(cy))])
-    pygame.draw.circle(lay, (*col, 255), (s(cx), s(cy - 1.34 * u)),
-                       max(1, s(0.17 * u)))
+        (s(cx), s(cy + 1.06 * u)), (s(cx - 0.80 * u), s(cy)), (s(cx), s(cy))])
+    pygame.draw.circle(lay, (*col, 255), (s(cx), s(cy - 1.40 * u)),
+                       max(1, s(0.20 * u)))
 
 
 def g_drop(lay, cx, cy, u, col):
     pygame.draw.polygon(lay, (*col, 255), [
-        (s(cx), s(cy - 1.05 * u)),
-        (s(cx + 0.52 * u), s(cy + 0.34 * u)),
-        (s(cx - 0.52 * u), s(cy + 0.34 * u))])
+        (s(cx), s(cy - 1.15 * u)),
+        (s(cx + 0.60 * u), s(cy + 0.34 * u)),
+        (s(cx - 0.60 * u), s(cy + 0.34 * u))])
     pygame.draw.circle(lay, (*col, 255), (s(cx), s(cy + 0.30 * u)),
-                       max(1, s(0.53 * u)))
-    pygame.draw.circle(lay, (*CREAM, 190), (s(cx - 0.18 * u), s(cy + 0.22 * u)),
-                       max(1, s(0.14 * u)))
+                       max(1, s(0.61 * u)))
+    pygame.draw.circle(lay, (30, 44, 60, 235),
+                       (s(cx - 0.20 * u), s(cy + 0.22 * u)),
+                       max(1, s(0.18 * u)))
 
 
 def g_asterism(lay, cx, cy, u, col):
@@ -542,43 +838,70 @@ def g_asterism(lay, cx, cy, u, col):
         a = math.pi * k / 3.0
         ex, ey = cx + math.cos(a) * u, cy + math.sin(a) * u
         nx, ny = -math.sin(a), math.cos(a)
-        t = 0.11 * u
+        t = 0.155 * u
         pygame.draw.polygon(lay, (*col, 255), [
             (s(cx + nx * t), s(cy + ny * t)), (s(cx - nx * t), s(cy - ny * t)),
             (s(ex - nx * t), s(ey - ny * t)), (s(ex + nx * t), s(ey + ny * t))])
-        bx, by = cx + math.cos(a) * 0.58 * u, cy + math.sin(a) * 0.58 * u
-        for ba in (a + 0.72, a - 0.72):
-            fx, fy = bx + math.cos(ba) * 0.32 * u, by + math.sin(ba) * 0.32 * u
+        bx, by = cx + math.cos(a) * 0.56 * u, cy + math.sin(a) * 0.56 * u
+        for ba in (a + 0.74, a - 0.74):
+            fx, fy = bx + math.cos(ba) * 0.36 * u, by + math.sin(ba) * 0.36 * u
             pygame.draw.polygon(lay, (*col, 255), [
-                (s(bx + nx * t * 0.8), s(by + ny * t * 0.8)),
-                (s(bx - nx * t * 0.8), s(by - ny * t * 0.8)),
+                (s(bx + nx * t * 0.9), s(by + ny * t * 0.9)),
+                (s(bx - nx * t * 0.9), s(by - ny * t * 0.9)),
                 (s(fx), s(fy))])
-    pygame.draw.circle(lay, (*col, 255), (s(cx), s(cy)), max(1, s(0.2 * u)))
+    pygame.draw.circle(lay, (*col, 255), (s(cx), s(cy)), max(1, s(0.30 * u)))
 
 
-def draw_board(lay, y, glyph, tint, out=0.0):
-    """Edge-lit plaque staked just outside the right runway edge, scaled by
-    depth so the far events sit back without going illegible."""
+# ── event markers: a glyph plate on a pillar-top ─────────────────────────────
+
+BOARD_W, BOARD_H = 25.0, 21.0
+
+
+def draw_marker(lay, y, glyph, tint, out=0.0):
+    """A plate resting on a miniature sandstone pillar-top, staked just outside
+    the right edge. Plate size is FIXED — a marker that shrinks with distance
+    stops being readable long before it stops being needed, so only the tether
+    that ties it to its row carries the depth cue."""
     xr = edges_at_y(y)[1]
-    sc = 0.60 + 0.40 * scale_at_y(y)
-    bw, bh = 21.0 * sc, 17.5 * sc
-    bx = xr + 7.0 + out
-    r = pygame.Rect(s(bx), s(y - bh / 2), s(bw), s(bh))
+    sc = max(0.82, scale_at_y(y))
+    bx = xr + 8.0 + out
+    r = pygame.Rect(s(bx), s(y - BOARD_H / 2), s(BOARD_W), s(BOARD_H))
 
+    # Tether from the corridor edge to the marker, plus the tick on the stone.
     pygame.draw.line(lay, (*tint, 150), (s(xr), s(y)), (s(bx), s(y)),
-                     max(1, int(SS * 0.7)))
+                     max(1, int(SS * 0.7 * sc)))
     pygame.draw.line(lay, (*tint, 235), (s(xr - 3.5 * sc), s(y)),
-                     (s(xr + 0.5), s(y)), max(1, int(SS * 1.1)))
+                     (s(xr + 0.5), s(y)), max(1, int(SS * 1.1 * sc)))
 
-    sh = r.move(0, s(1.4 * sc))
-    pygame.draw.rect(lay, (10, 16, 22, 90), sh, border_radius=s(3 * sc))
-    pygame.draw.rect(lay, (*SLATE, 240), r, border_radius=s(3 * sc))
-    pygame.draw.rect(lay, (*tint, 120), r, max(1, int(SS * 0.55)),
-                     border_radius=s(3 * sc))
-    pygame.draw.line(lay, (*tint, 235), (r.left + s(2 * sc), r.top),
-                     (r.right - s(2 * sc), r.top), max(1, int(SS * 0.7)))
+    # Dark halo: the aprons up near the horizon are light enough to swallow a
+    # small plate under squint, so the plate carries its own darkness with it.
+    for pad, a in ((5.4, 62), (3.4, 120), (1.7, 185)):
+        pygame.draw.rect(lay, (*BOARD_HALO, a), r.inflate(s(pad * 2), s(pad * 2)),
+                         border_radius=s(3 + pad * 0.5))
 
-    glyph(lay, bx + bw / 2, y, 4.6 * sc, tint)
+    # Pillar-top the plate sits on: a capital slab over a short shaft.
+    px, pw = bx + BOARD_W / 2, BOARD_W * 0.52
+    pygame.draw.rect(lay, (74, 54, 42, 255),
+                     (s(px - pw * 0.34), s(r.bottom / SS), s(pw * 0.68), s(6.5)))
+    pygame.draw.rect(lay, (108, 80, 60, 255),
+                     (s(px - pw * 0.60), s(r.bottom / SS - 0.6), s(pw * 1.20),
+                      s(3.0)))
+    pygame.draw.line(lay, (196, 158, 116, 220),
+                     (s(px - pw * 0.58), s(r.bottom / SS - 0.2)),
+                     (s(px + pw * 0.58), s(r.bottom / SS - 0.2)),
+                     max(1, int(SS * 0.7)))
+
+    pygame.draw.rect(lay, (*BOARD_BODY, 255), r, border_radius=s(3))
+    pygame.draw.rect(lay, (*tint, 150), r, max(1, int(SS * 0.6)),
+                     border_radius=s(3))
+    pygame.draw.line(lay, (*tint, 245), (r.left + s(2), r.top + s(0.6)),
+                     (r.right - s(2), r.top + s(0.6)), max(1, int(SS * 0.9)))
+
+    glyph(lay, bx + BOARD_W / 2, y + 0.4, 6.3, tint)
+    return pygame.Rect(bx, y - BOARD_H / 2, BOARD_W, BOARD_H)
+
+
+MARKER_RECTS = {}
 
 
 def draw_events():
@@ -595,8 +918,6 @@ def draw_events():
         y1 = ya + (yb - ya) * t1
         x0 = edges_at_y(y0)[1] + 3.2
         x1 = edges_at_y(y1)[1] + 3.2
-        # Bracket runs through the death line: its lower stub is flown, its
-        # long lit run is the part of the thermal the player never saw.
         a = 235 if y0 < DEATH_Y else 95
         pygame.draw.line(lay, (*amber, a), (s(x0), s(y0)), (s(x1), s(y1)),
                          max(1, int(SS * 1.4)))
@@ -606,18 +927,79 @@ def draw_events():
         pygame.draw.line(lay, (*amber, a), (s(xt - 2.2), s(yt)),
                          (s(xt + 5.0), s(yt)), max(1, int(SS * 1.2)))
 
-    draw_board(lay, phase_to_y(THERMAL_START_PHASE), g_plume, amber)
-    draw_board(lay, phase_to_y(GENIE_PHASE), g_lamp, (255, 214, 120))
-    draw_board(lay, phase_to_y(CLOWN_PHASE), g_diamond, (255, 120, 190))
-    # Rain sits 12 px above the clown gauntlet — stepped outboard rather than
+    MARKER_RECTS["plume"] = draw_marker(lay, ya, g_plume, amber)
+    MARKER_RECTS["lamp"] = draw_marker(lay, phase_to_y(GENIE_PHASE), g_lamp,
+                                       (255, 214, 120))
+    MARKER_RECTS["diamond"] = draw_marker(lay, phase_to_y(CLOWN_PHASE),
+                                          g_diamond, (255, 120, 190))
+    # Rain sits 13 px above the clown gauntlet — stepped outboard rather than
     # stacked, so both keep their true phase row.
-    draw_board(lay, phase_to_y(RAIN_PHASE), g_drop, (130, 200, 255), out=22.0)
-    draw_board(lay, phase_to_y(SNOW_PHASE), g_asterism, (206, 236, 255))
+    MARKER_RECTS["drop"] = draw_marker(lay, phase_to_y(RAIN_PHASE), g_drop,
+                                       (150, 206, 255), out=26.0)
+    MARKER_RECTS["asterism"] = draw_marker(lay, phase_to_y(SNOW_PHASE),
+                                           g_asterism, (206, 236, 255))
 
     geo.blit(lay, (0, 0))
 
 
+# ── the macaw ────────────────────────────────────────────────────────────────
+
+def macaw_surface(size_px, tilt_deg):
+    """A 14 px scarlet macaw, tumbling. Drawn oversized and scaled down so the
+    beak hook and wing bands survive at silhouette size."""
+    K = 12                              # working px per native px
+    n = int(size_px * K)
+    surf = pygame.Surface((n, n), pygame.SRCALPHA)
+
+    def P(u, v):
+        return (int(u * n), int(v * n))
+
+    def E(u, v, ru, rv):
+        return pygame.Rect(int((u - ru) * n), int((v - rv) * n),
+                           int(2 * ru * n), int(2 * rv * n))
+
+    # Tail streamers first — the macaw silhouette is mostly tail.
+    pygame.draw.polygon(surf, BIRD_RED_D, [P(0.44, 0.55), P(0.52, 0.62),
+                                           P(0.12, 0.95), P(0.06, 0.85)])
+    pygame.draw.polygon(surf, BIRD_RED, [P(0.46, 0.52), P(0.53, 0.58),
+                                         P(0.16, 0.88), P(0.11, 0.80)])
+    pygame.draw.polygon(surf, (52, 96, 210), [P(0.44, 0.60), P(0.50, 0.66),
+                                              P(0.20, 0.93), P(0.16, 0.87)])
+
+    pygame.draw.ellipse(surf, BIRD_RED_D, E(0.545, 0.505, 0.235, 0.185))
+    pygame.draw.ellipse(surf, BIRD_RED, E(0.535, 0.485, 0.215, 0.165))
+    pygame.draw.ellipse(surf, (255, 150, 90), E(0.505, 0.545, 0.135, 0.090))
+
+    # Wing thrown up and back, macaw banding intact.
+    pygame.draw.polygon(surf, BIRD_WING_D, [P(0.52, 0.44), P(0.86, 0.18),
+                                            P(0.93, 0.33), P(0.66, 0.53)])
+    pygame.draw.polygon(surf, BIRD_WING, [P(0.53, 0.43), P(0.83, 0.20),
+                                          P(0.89, 0.32), P(0.65, 0.50)])
+    pygame.draw.polygon(surf, (255, 200, 60), [P(0.78, 0.24), P(0.87, 0.29),
+                                               P(0.83, 0.37), P(0.74, 0.32)])
+    pygame.draw.polygon(surf, BIRD_TIP, [P(0.83, 0.20), P(0.94, 0.26),
+                                         P(0.88, 0.32)])
+
+    # Head + hooked beak.
+    pygame.draw.circle(surf, BIRD_RED_D, P(0.735, 0.565), int(0.150 * n))
+    pygame.draw.circle(surf, BIRD_RED, P(0.725, 0.550), int(0.135 * n))
+    pygame.draw.polygon(surf, BIRD_BEAK, [P(0.845, 0.520), P(0.960, 0.575),
+                                          P(0.845, 0.640)])
+    pygame.draw.polygon(surf, (150, 90, 10), [P(0.905, 0.560), P(0.960, 0.575),
+                                              P(0.900, 0.622)])
+    pygame.draw.circle(surf, (250, 246, 236), P(0.775, 0.510), int(0.055 * n))
+    pygame.draw.circle(surf, (18, 14, 20), P(0.783, 0.512), int(0.030 * n))
+
+    rot = pygame.transform.rotate(surf, tilt_deg)
+    tw = max(1, rot.get_width() * SS // K)
+    th = max(1, rot.get_height() * SS // K)
+    return pygame.transform.smoothscale(rot, (tw, th))
+
+
 # ── death marker ─────────────────────────────────────────────────────────────
+
+MARKER_X = 134.0
+
 
 def draw_death_marker():
     lay = new_layer()
@@ -633,10 +1015,10 @@ def draw_death_marker():
                          (s(ex), s(DEATH_Y - 3.5)), (s(ex), s(DEATH_Y + 3.5)),
                          max(1, int(SS * 0.8)))
 
-    mx = 134.0
+    mx = MARKER_X
     pygame.draw.circle(lay, (*SCARLET, 80), (s(mx), yy), s(8.5))
-    # Cream collar: scarlet alone is close to the pavement in value, so the
-    # marker needs a light ring to punch out of warm stone.
+    # Cream collar: scarlet alone is close to the stone in value, so the marker
+    # needs a light ring to punch out of sandstone.
     pygame.draw.circle(lay, (*CREAM, 245), (s(mx), yy), s(5.8))
     pygame.draw.circle(lay, (*SCARLET, 255), (s(mx), yy), s(4.5))
     pygame.draw.circle(lay, (*SCARLET_HI, 255), (s(mx), yy), s(2.4))
@@ -648,75 +1030,80 @@ def draw_death_marker():
     geo.blit(lay, (0, 0))
 
 
-# ── teaser plate + footer ────────────────────────────────────────────────────
+def draw_death_macaw():
+    """The bird itself, still tumbling above the point it went down — the run
+    ended to somebody, not at a coordinate."""
+    bird = macaw_surface(15.0, -46.0)
+    bx = s(MARKER_X) - bird.get_width() // 2
+    by = s(DEATH_Y - 13.0) - bird.get_height() // 2
 
-TEASER = pygame.Rect(4, 505, 158, 44)
+    halo = new_layer()
+    pygame.draw.circle(halo, (255, 176, 150, 46), (s(MARKER_X), s(DEATH_Y - 13.0)),
+                       s(12.5))
+    pygame.draw.circle(halo, (255, 200, 176, 34), (s(MARKER_X), s(DEATH_Y - 13.0)),
+                       s(9.0))
+    geo.blit(halo, (0, 0))
+
+    trail = new_layer()
+    for k, (dx, dy, a, r) in enumerate(((7.5, 5.0, 90, 2.2), (12.0, 8.6, 60, 1.6),
+                                        (16.0, 11.6, 36, 1.1))):
+        pygame.draw.circle(trail, (255, 190, 150, a),
+                           (s(MARKER_X + dx), s(DEATH_Y - 13.0 + dy)), s(r))
+    geo.blit(trail, (0, 0))
+
+    geo.blit(bird, (bx, by))
 
 
-def draw_teaser_plate():
-    body = pygame.Surface((s(TEASER.w), s(TEASER.h)), pygame.SRCALPHA)
-    # Mid-value slate: the plate crosses a near-black apron AND lit pavement,
-    # so it has to sit above one and below the other to read as one object.
-    pygame.draw.rect(body, (46, 66, 82, 232), body.get_rect(),
-                     border_radius=s(4))
-    pygame.draw.rect(body, (158, 186, 202, 235), body.get_rect(),
-                     max(1, int(SS * 0.6)), border_radius=s(4))
-    pygame.draw.rect(body, (255, 206, 120, 240),
-                     (s(1.4), s(5), s(2.4), s(TEASER.h - 10)))
-    alpha = pygame.Surface((s(TEASER.w), s(TEASER.h)), pygame.SRCALPHA)
-    for i in range(s(TEASER.w)):
-        u = i / (s(TEASER.w) - 1)
-        a = 255 if u < 0.58 else int(255 - 78 * ((u - 0.58) / 0.42) ** 1.3)
-        pygame.draw.line(alpha, (255, 255, 255, a), (i, 0), (i, s(TEASER.h)))
-    body.blit(alpha, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    # Fade the edge that crosses onto the pavement so the flown-surface
-    # evidence still reads underneath it.
-    geo.blit(body, (s(TEASER.x), s(TEASER.y)))
-
+# ── footer ───────────────────────────────────────────────────────────────────
 
 def draw_footer():
     pygame.draw.rect(geo, (16, 24, 30), (0, s(584), s(W), s(H - 584)))
     pygame.draw.line(geo, (62, 84, 96), (0, s(584)), (s(W), s(584)),
                      max(1, int(SS * 0.7)))
-    pill = pygame.Rect(s(132), s(585), s(96), s(30))
-    pygame.draw.rect(geo, (34, 50, 62), pill, border_radius=s(15))
+    pill = pygame.Rect(s(130), s(608), s(100), s(26))
+    pygame.draw.rect(geo, (34, 50, 62), pill, border_radius=s(13))
     pygame.draw.rect(geo, (128, 158, 178), pill, max(1, int(SS * 0.8)),
-                     border_radius=s(15))
+                     border_radius=s(13))
     pygame.draw.polygon(geo, CREAM, [
-        (s(150), s(600)), (s(157), s(595)), (s(157), s(605))])
+        (s(148), s(621)), (s(155), s(616)), (s(155), s(626))])
+
+
+# ── clouds ───────────────────────────────────────────────────────────────────
+
+def draw_clouds(dst):
+    sky_lay = pygame.Surface((W, H), pygame.SRCALPHA)
+    for (cx, cy, sc, var) in ((48, 50, 0.30, 0), (96, 55, 0.22, 1),
+                              (300, 48, 0.27, 2), (338, 56, 0.20, 3)):
+        draw_cloud(sky_lay, cx, cy, sc, var, DAY_PAL)
+    sky_lay.set_alpha(150)
+    clip = pygame.Surface((W, H), pygame.SRCALPHA)
+    clip.blit(sky_lay, (0, 0))
+    pygame.draw.rect(clip, (0, 0, 0, 0), (0, int(Y_FAR) - 1, W, H))
+    dst.blit(clip, (0, 0))
 
 
 # ── build the geometry pass ──────────────────────────────────────────────────
 
 draw_sky()
 draw_apron()
-draw_pavement()
-draw_centreline()
-draw_thresholds()
-draw_rubber_and_scorch()
-draw_skid()
-draw_sun_streaks()
-draw_distance_haze()
+draw_corridor()
+draw_gate_light()
+draw_launch_rock()
+draw_coin_lane()
+draw_flown_evidence()
+draw_wing_scuff()
+draw_death_lip()
+draw_gate_sill()
+draw_gate_glow()
+draw_gate_pillars()
 draw_phase_bars()
 draw_events()
 draw_death_marker()
-draw_teaser_plate()
+draw_death_macaw()
 draw_footer()
 
 base = pygame.transform.smoothscale(geo, (W, H))
-
-
-# ── clouds (drawn at native scale by the shared helper) ──────────────────────
-
-sky_lay = pygame.Surface((W, H), pygame.SRCALPHA)
-for (cx, cy, sc, var) in ((56, 60, 0.54, 0), (128, 79, 0.38, 1),
-                          (246, 56, 0.48, 2), (322, 80, 0.32, 3)):
-    draw_cloud(sky_lay, cx, cy, sc, var, DAY_PAL)
-sky_lay.set_alpha(215)
-clip = pygame.Surface((W, H), pygame.SRCALPHA)
-clip.blit(sky_lay, (0, 0))
-pygame.draw.rect(clip, (0, 0, 0, 0), (0, int(Y_FAR) - 1, W, H))
-base.blit(clip, (0, 0))
+draw_clouds(base)
 
 
 # ── text pass at native resolution ───────────────────────────────────────────
@@ -732,7 +1119,8 @@ def font(size):
 
 
 def text(msg, size, col, x, y, anchor="topleft", shadow=(0, 0, 0, 130),
-         spacing=0.0):
+         spacing=0.0, dst=None):
+    dst = dst if dst is not None else base
     f = font(size)
     if spacing:
         parts = [f.render(ch, True, col) for ch in msg]
@@ -751,66 +1139,188 @@ def text(msg, size, col, x, y, anchor="topleft", shadow=(0, 0, 0, 130),
         sh = surf.copy()
         sh.fill(shadow[:3], special_flags=pygame.BLEND_RGB_MULT)
         sh.set_alpha(shadow[3])
-        base.blit(sh, (r.x + 1, r.y + 1))
-    base.blit(surf, r.topleft)
+        dst.blit(sh, (r.x + 1, r.y + 1))
+    dst.blit(surf, r.topleft)
     return r
 
 
-# header
-text("FLIGHT LOG", 13, CREAM, 10, 9, spacing=0.8)
-text(f"DAY {DAY_NO}  ·  {TIME_ALIVE} s ALIVE", 8, (206, 224, 240), 11, 27)
-pct = text(f"{int(round(DEATH_PHASE * 100))}%", 17, CREAM, 350, 7, "topright")
+# header — kept clear of the gate columns between x=112 and x=248
+text("FLIGHT LOG", 13, CREAM, 10, 8, spacing=0.8)
+text(f"DAY {DAY_NO}  ·  {TIME_ALIVE} s ALIVE", 8, (206, 224, 240), 11, 26)
+pct = text(f"{int(round(DEATH_PHASE * 100))}%", 17, CREAM, 350, 6, "topright")
 text("OF DAY 1 FLOWN", 6, (198, 218, 234), 350, pct.bottom + 1, "topright")
 
-# far threshold plaque
-plq = pygame.Rect(0, 0, 62, 13)
-plq.center = (int(CX), 90)
-pygame.draw.rect(base, (22, 36, 46), plq, border_radius=6)
-pygame.draw.rect(base, (128, 160, 180), plq, 1, border_radius=6)
-text("DAY COMPLETE", 6, CREAM, plq.centerx, plq.centery, "center", shadow=None)
+# the destination, named in the sky above its own gate
+text("DAY COMPLETE", 7, (255, 230, 158), int(CX), 20, "center", spacing=1.5,
+     shadow=(0, 0, 0, 190))
 
-# phase names + biome chips, alternating aprons, never rotated
+# phase names + biome chips: ONE left-aligned column in the left apron, each
+# name centred in the MIDDLE of its own band. The right apron belongs to the
+# event markers alone.
 chip_lay = pygame.Surface((W * SS, H * SS), pygame.SRCALPHA)
+BOUNDS = list(PHASE_BOUNDARIES) + [(1.0, None)]
+band_report = []
 for i, (p, name) in enumerate(PHASE_BOUNDARIES):
-    y = phase_to_y(p)
-    right = (i % 2 == 0)
-    f = font(8)
-    tw = f.size(name)[0]
-    if right:
-        tx = W - 4
-        r = text(name, 8, CREAM, tx, int(round(y)), "midright")
-        draw_chip(chip_lay, r.left - 6.0, y, p)
-    else:
-        r = text(name, 8, CREAM, 4, int(round(y)), "midleft")
-        draw_chip(chip_lay, r.right + 6.0, y, p)
+    y_lo = phase_to_y(p)
+    y_hi = phase_to_y(BOUNDS[i + 1][0])
+    mid = (y_lo + y_hi) * 0.5
+    h = y_lo - y_hi
+    draw_chip(chip_lay, 11.0, mid, p, name)
+    # Under ~28 px a band cannot hold a name AND stay clear of its neighbours;
+    # the chip alone still carries the colour, which is the point of the row.
+    if h >= 28.0:
+        text(name, 8, CREAM, 21, int(round(mid)), "midleft")
+    band_report.append((name, round(h, 1), h >= 28.0))
 base.blit(pygame.transform.smoothscale(chip_lay, (W, H)), (0, 0))
 
-# death callout — horizontal, left apron
-text("ENDED HERE", 9, SCARLET_HI, 5, int(DEATH_Y) - 12, "midleft")
+# death callout — left apron, clear of the phase column
+text("ENDED HERE", 9, SCARLET_HI, 5, int(DEATH_Y) - 13, "midleft")
 text(f"PILLAR {DEATH_PILLAR}", 8, CREAM, 5, int(DEATH_Y) + 1, "midleft")
 text(f"DAY {DEATH_PHASE:.3f}", 8, (214, 226, 234), 5, int(DEATH_Y) + 13,
      "midleft")
 
-# teaser strip
-line1 = f"STILL AHEAD: GENIE LAMP AT PILLAR {LATE_GAME_PILLAR} ·"
-line2 = (f"CLOWN GAUNTLET AT PILLAR {CLOWN_START_PILLAR} · "
-         f"STORM AT {RAIN_START_PILLAR}")
-tsize = 8
-while tsize > 5 and max(font(tsize).size(line1)[0],
-                        font(tsize).size(line2)[0]) > TEASER.w - 11:
-    tsize -= 1
-text(line1, tsize, CREAM, TEASER.x + 7, TEASER.centery - 7, "midleft")
-text(line2, tsize, (226, 234, 240), TEASER.x + 7, TEASER.centery + 6, "midleft")
+# pillar tags on the three events still ahead — the markers ARE the teaser now
+for key, tag in (("lamp", str(LATE_GAME_PILLAR)),
+                 ("diamond", str(CLOWN_START_PILLAR)),
+                 ("drop", str(RAIN_START_PILLAR))):
+    r = MARKER_RECTS[key]
+    text(f"P{tag}", 8, (255, 226, 168), int(r.right) + 4, int(r.centery),
+         "midleft")
 
-# footer
-text("BACK", 12, CREAM, 190, 600, "center")
+# footer: the one teaser headline, at a size that can actually be read
+text(f"STILL AHEAD  ·  GENIE P{LATE_GAME_PILLAR}  ·  "
+     f"CLOWNS P{CLOWN_START_PILLAR}  ·  STORM P{RAIN_START_PILLAR}",
+     9, (226, 236, 244), int(CX), 596, "center")
+text("BACK", 12, CREAM, 190, 621, "center")
 
-pygame.image.save(base, os.path.join(
-    "docs", "flight_log_progress", "runway_view", "round_1.png"))
-print("phase rows:", [(n, round(phase_to_y(p), 1)) for p, n in PHASE_BOUNDARIES])
-print("death y", round(DEATH_Y, 1),
-      "geyser-start y", round(phase_to_y(THERMAL_START_PHASE), 1),
-      "separation px", round(phase_to_y(THERMAL_START_PHASE) - DEATH_Y, 1))
-print("flown band px", round(Y_NEAR - DEATH_Y, 1),
-      "= %.1f%% of runway for %.1f%% of day"
-      % (100 * (Y_NEAR - DEATH_Y) / (Y_NEAR - Y_FAR), 100 * DEATH_PHASE))
+OUT_DIR = os.path.join("docs", "flight_log_progress", "runway_view")
+os.makedirs(OUT_DIR, exist_ok=True)
+OUT = os.path.join(OUT_DIR, "round_2.png")
+pygame.image.save(base, OUT)
+
+
+# ── verification (never open the PNG; read it numerically) ───────────────────
+
+def row_luma(y):
+    return [luma(base.get_at((x, int(y)))[:3]) for x in range(W)]
+
+
+def px(x, y):
+    return base.get_at((int(x), int(y)))[:3]
+
+
+def corridor_row_mean(y):
+    xl, xr = edges_at_y(y)
+    xs = range(int(xl) + 3, int(xr) - 2)
+    return sum(luma(px(x, y)) for x in xs) / len(xs)
+
+
+print("wrote", OUT, base.get_size())
+print("bands:", band_report)
+print("death y", round(DEATH_Y, 2))
+
+print("\n-- squint test 1: the far seam (y=62) --")
+for y in (56, 58, 60, 62, 64, 66, 70):
+    row = row_luma(y)[95:266]
+    print("  y=%d  min L=%6.1f  max L=%6.1f  range=%6.1f"
+          % (y, min(row), max(row), max(row) - min(row)))
+sky_L = luma(px(180, 54))
+pav_L = corridor_row_mean(66)
+pil_L = min(luma(px(x, 46)) for x in range(int(GATE_CX_L) - 8,
+                                           int(GATE_CX_L) + 9))
+pil_R = min(luma(px(x, 46)) for x in range(int(GATE_CX_R) - 8,
+                                           int(GATE_CX_R) + 9))
+print("  sky@(180,54) L=%.1f   corridor mean @y=66 L=%.1f   delta=%.1f"
+      % (sky_L, pav_L, abs(sky_L - pav_L)))
+print("  gate pillar L: left=%.1f right=%.1f   (target <= 70)" % (pil_L, pil_R))
+print("  pillar vs sky separation: %.1f / %.1f  (target >= 90)"
+      % (abs(sky_L - pil_L), abs(sky_L - pil_R)))
+
+print("\n-- squint test 2: the death line --")
+lip_rows = [(int(y), round(corridor_row_mean(y), 1))
+            for y in range(int(DEATH_Y) - 6, int(DEATH_Y) + 2)]
+print("  lip rows (corridor mean):", lip_rows)
+lip_L = max(v for _, v in lip_rows)
+ahead_L = corridor_row_mean(DEATH_Y - 14)
+flown_L = corridor_row_mean(DEATH_Y + 16)
+print("  ahead mean @y=%d L=%.1f | lip peak L=%.1f | flown mean @y=%d L=%.1f"
+      % (int(DEATH_Y - 14), ahead_L, lip_L, int(DEATH_Y + 16), flown_L))
+print("  ahead-flown = %.1f  (target 35-45 stone drop)" % (ahead_L - flown_L))
+print("  lip-flown   = %.1f  (target >= 55)" % (lip_L - flown_L))
+prof = [(int(y), round(corridor_row_mean(y), 1))
+        for y in (DEATH_Y - 16, DEATH_Y - 8, DEATH_Y - 3, DEATH_Y - 1,
+                  DEATH_Y + 4, DEATH_Y + 10, DEATH_Y + 16, DEATH_Y + 30)]
+print("  corridor-mean profile:", prof)
+
+print("\n-- marker contrast under 4x blur --")
+for key, r in MARKER_RECTS.items():
+    reg = pygame.Surface((r.w + 12, r.h + 12))
+    reg.blit(base, (0, 0), pygame.Rect(r.x - 6, r.y - 6, r.w + 12, r.h + 12))
+    small = pygame.transform.smoothscale(reg, (max(1, (r.w + 12) // 4),
+                                               max(1, (r.h + 12) // 4)))
+    vals = [luma(small.get_at((x, y))[:3])
+            for y in range(small.get_height()) for x in range(small.get_width())]
+    print("  %-9s blurred L range = %5.1f  (target >= 85)"
+          % (key, max(vals) - min(vals)))
+
+print("\n-- glyphs at 9 px in isolation --")
+GLYPHS = (("plume", g_plume, (255, 186, 92)),
+          ("lamp", g_lamp, (255, 214, 120)),
+          ("diamond", g_diamond, (255, 120, 190)),
+          ("drop", g_drop, (150, 206, 255)),
+          ("asterism", g_asterism, (206, 236, 255)))
+sigs = {}
+for gname, gfn, gtint in GLYPHS:
+    tile = pygame.Surface((14 * SS, 14 * SS), pygame.SRCALPHA)
+    tile.fill((*BOARD_BODY, 255))
+    gfn(tile, 7.0, 7.0, 4.5, gtint)           # 4.5 half-extent -> 9 px glyph
+    flat = pygame.transform.smoothscale(tile, (14, 14))
+    ink = [[1 if luma(flat.get_at((x, y))[:3]) > 70 else 0 for x in range(14)]
+           for y in range(14)]
+    cov = sum(sum(r) for r in ink) / 196.0
+    sigs[gname] = [v for r in ink for v in r]
+    xs = [x for y in range(14) for x in range(14) if ink[y][x]]
+    ys = [y for y in range(14) for x in range(14) if ink[y][x]]
+    print("  %-9s ink %4.1f%%  bbox %dx%d px" %
+          (gname, cov * 100, max(xs) - min(xs) + 1, max(ys) - min(ys) + 1))
+gn = list(sigs)
+pairs = [(sum(a != b for a, b in zip(sigs[gn[i]], sigs[gn[j]])), gn[i], gn[j])
+         for i in range(len(gn)) for j in range(i + 1, len(gn))]
+pairs.sort()
+print("  most confusable pair: %s / %s  differ in %d of 196 cells"
+      % (pairs[0][1], pairs[0][2], pairs[0][0]))
+
+print("\n-- layout clearances (zero corridor occlusion) --")
+hdr_w = font(8).size(f"DAY {DAY_NO}  ·  {TIME_ALIVE} s ALIVE")[0]
+print("  header line 2 ends x=%d ; left gate column starts x=%.1f"
+      % (11 + hdr_w, GATE_CX_L - 0.62 * GATE_W))
+worst_gap = None
+for i, (p, name) in enumerate(PHASE_BOUNDARIES):
+    y_lo, y_hi = phase_to_y(p), phase_to_y(BOUNDS[i + 1][0])
+    mid = (y_lo + y_hi) * 0.5
+    if (y_lo - y_hi) < 28.0:
+        continue
+    right = 21 + font(8).size(name)[0]
+    gap = edges_at_y(mid)[0] - right
+    if worst_gap is None or gap < worst_gap[0]:
+        worst_gap = (gap, name)
+print("  tightest phase label -> corridor gap: %.1f px (%s)" % worst_gap)
+print("  widest marker+tag right edge: %.1f px (canvas %d)"
+      % (max(MARKER_RECTS["drop"].right + 4 + font(8).size("P70")[0],
+             MARKER_RECTS["plume"].right), W))
+
+print("\n-- chip separation (min pairwise RGB distance) --")
+avgs = {}
+for p, name in PHASE_BOUNDARIES:
+    st = chip_stops(p, name)
+    avgs[name] = tuple(sum(c[k] for c in st) / 3.0 for k in range(3))
+worst = None
+names = list(avgs)
+for i in range(len(names)):
+    for j in range(i + 1, len(names)):
+        d = math.dist(avgs[names[i]], avgs[names[j]])
+        if worst is None or d < worst[0]:
+            worst = (d, names[i], names[j])
+print("  closest pair: %s / %s  distance %.1f" % (worst[1], worst[2], worst[0]))
+print("  GOLDEN HOUR vs SUNRISE: %.1f"
+      % math.dist(avgs["GOLDEN HOUR"], avgs["SUNRISE"]))
