@@ -226,7 +226,7 @@ draw_terrain_bands()
 wash_h = death_y - 40
 if wash_h > 0:
     wash = pygame.Surface((SW, wash_h), pygame.SRCALPHA)
-    wash.fill((230, 225, 210, 140))
+    wash.fill((230, 225, 210, 175))
     surf.blit(wash, (0, 40))
 
 # 4. Phase boundary lines + VOR roses + waypoint labels
@@ -241,13 +241,16 @@ for (p, name) in PHASE_BOUNDARIES:
     # VOR rose
     draw_vor_rose(ROUTE_X, py)
 
-    # Intersection triangle to the right
-    draw_intersection(ROUTE_X + 12, py)
+    # Intersection triangle to the LEFT of route (avoid VOR rose collision)
+    tri_x = ROUTE_X - 22
+    tri_pts = [(tri_x, py + 8), (tri_x - 10, py - 6), (tri_x + 10, py - 6)]
+    pygame.draw.polygon(surf, CHART_PAPER, tri_pts)
+    pygame.draw.polygon(surf, MAGENTA, tri_pts, 1)
 
-    # Waypoint label to the left
+    # Waypoint label to the right side
     label = WPT_NAMES.get(name, name[:5])
     txt = F8.render(label, True, DARK_TEXT)
-    surf.blit(txt, (ROUTE_X - 14 - txt.get_width(), py - txt.get_height() // 2))
+    surf.blit(txt, (198, py - txt.get_height() // 2))
 
 # 5. Event markers
 for (ep, ename) in EVENTS:
@@ -275,15 +278,16 @@ for (ep, ename) in EVENTS:
         surf.blit(txt, (ROUTE_X + 22, ey - 8))
 
     elif ename == "CL-41":
-        # MOA polygon (hexagon)
+        # MOA polygon (hexagon) — staggered LEFT to avoid STORM collision
+        sym_cx = 150  # LEFT of route
         r = 20
         sides = 6
         poly_pts = []
         for s in range(sides):
             ang = math.radians(s * 60 - 90)
             poly_pts.append((
-                ROUTE_X + int(r * math.cos(ang)),
-                ey      + int(r * math.sin(ang))
+                sym_cx + int(r * math.cos(ang)),
+                ey     + int(r * math.sin(ang))
             ))
         # Fill with alpha
         moa_surf = pygame.Surface((SW, SH), pygame.SRCALPHA)
@@ -291,10 +295,11 @@ for (ep, ename) in EVENTS:
         surf.blit(moa_surf, (0, 0))
         pygame.draw.polygon(surf, MOA_BLUE, poly_pts, 1)
         txt = F7.render("MOA", True, MOA_BLUE)
-        surf.blit(txt, (ROUTE_X + 24, ey - 6))
+        surf.blit(txt, (116, ey - 6))
 
     elif ename == "STORM":
-        # Convective SIGMET — 8-sided polygon
+        # Convective SIGMET — 8-sided polygon — staggered LEFT
+        sym_cx = 150  # LEFT of route
         r = 24
         sides = 8
         poly_pts = []
@@ -303,15 +308,15 @@ for (ep, ename) in EVENTS:
             ang = math.radians(s * 45 - 90)
             jr = jitter_rs[s]
             poly_pts.append((
-                ROUTE_X + int(jr * math.cos(ang)),
-                ey      + int(jr * math.sin(ang))
+                sym_cx + int(jr * math.cos(ang)),
+                ey     + int(jr * math.sin(ang))
             ))
         sig_surf = pygame.Surface((SW, SH), pygame.SRCALPHA)
         pygame.draw.polygon(sig_surf, SIGMET_RED + (35,), poly_pts)
         surf.blit(sig_surf, (0, 0))
         pygame.draw.polygon(surf, SIGMET_RED, poly_pts, 1)
         txt = F7.render("SIG", True, SIGMET_RED)
-        surf.blit(txt, (ROUTE_X + 26, ey - 6))
+        surf.blit(txt, (116, ey - 6))
 
     elif ename == "SNOW":
         # Icing area — dashed rectangle + asterisk
@@ -358,22 +363,24 @@ while y > Y_END:
     y -= 12
 
 # 7. Death marker at (180, death_y)
-# Red X
-pygame.draw.line(surf, DEATH_RED, (ROUTE_X - 7, death_y - 7), (ROUTE_X + 7, death_y + 7), 2)
-pygame.draw.line(surf, DEATH_RED, (ROUTE_X + 7, death_y - 7), (ROUTE_X - 7, death_y + 7), 2)
-# Circle around X
-pygame.draw.circle(surf, DEATH_RED, (ROUTE_X, death_y), 12, 2)
+# Hard red cap line across full canvas width
+pygame.draw.line(surf, DEATH_RED, (0, death_y), (360, death_y), 2)
+# Red X — enlarged arms (20px)
+pygame.draw.line(surf, DEATH_RED, (ROUTE_X - 10, death_y - 10), (ROUTE_X + 10, death_y + 10), 3)
+pygame.draw.line(surf, DEATH_RED, (ROUTE_X + 10, death_y - 10), (ROUTE_X - 10, death_y + 10), 3)
+# Circle around X — enlarged radius 18
+pygame.draw.circle(surf, DEATH_RED, (ROUTE_X, death_y), 18, 2)
 
-# Annotation pill to the right
-pill_x, pill_y, pill_w, pill_h = 195, death_y - 12, 80, 14
+# Annotation pill to the right — expanded 90×18px at font size 9
+pill_x, pill_y, pill_w, pill_h = 196, death_y - 16, 90, 18
 pygame.draw.rect(surf, DEATH_RED, (pill_x, pill_y, pill_w, pill_h), border_radius=4)
-pill_txt = F7.render("TERRAIN CONTACT", True, (255, 255, 255))
+pill_txt = F9.render("TERRAIN CONTACT", True, (255, 255, 255))
 surf.blit(pill_txt, (pill_x + (pill_w - pill_txt.get_width()) // 2,
                      pill_y + (pill_h - pill_txt.get_height()) // 2))
 
-# "LAST FIX  0:47" below pill
+# "LAST FIX  0:47" below pill (moved down to avoid overlap)
 fix_txt = F8.render("LAST FIX  0:47", True, DARK_TEXT)
-surf.blit(fix_txt, (195, death_y + 4))
+surf.blit(fix_txt, (196, death_y + 6))
 
 # 8. Chart fold creases (alpha)
 crease_surf = pygame.Surface((SW, SH), pygame.SRCALPHA)
@@ -402,17 +409,18 @@ surf.blit(nm50, (90 - nm50.get_width(), 33))
 # 10. Footer (y=602→640)
 footer_col = (230, 220, 200)
 pygame.draw.rect(surf, footer_col, (0, 602, SW, 38))
-# Info line
+# Stat strip — centered
 info = F10.render("PILLAR 25  •  DAY 1  •  0:47  •  18% FLOWN", True, DARK_TEXT)
 surf.blit(info, ((SW - info.get_width()) // 2, 607))
-# BACK button
-btn_rect = pygame.Rect(130, 617, 100, 22)
-pygame.draw.rect(surf, DARK_TEXT, btn_rect, 1, border_radius=8)
-back_txt = F11.render("BACK", True, DARK_TEXT)
-surf.blit(back_txt, (130 + (100 - back_txt.get_width()) // 2,
-                     617 + (22 - back_txt.get_height()) // 2))
+# BACK button — filled FAA-style, bottom-left
+MUTED_MAGENTA = (168, 0, 128)
+btn_rect = pygame.Rect(10, 614, 110, 20)
+pygame.draw.rect(surf, MUTED_MAGENTA, btn_rect, border_radius=4)
+back_txt = F11.render("◄ BACK", True, (250, 250, 250))
+surf.blit(back_txt, (10 + (110 - back_txt.get_width()) // 2,
+                     614 + (20 - back_txt.get_height()) // 2))
 
 # ── Save ──────────────────────────────────────────────────────────────────────
-out = os.path.join(OUT_DIR, "round_1.png")
+out = os.path.join(OUT_DIR, "round_2.png")
 pygame.image.save(surf, out)
 print(f"saved {out}")
