@@ -54,7 +54,7 @@ def _font(size):
 
 
 # ── palette ──────────────────────────────────────────────────────────────────
-BG          = (  8,   8,  20)
+BG          = ( 16,  16,  36)
 GOLD        = (240, 192,  64)
 GOLD_MUTED  = (216, 184,  85)
 GOLD_PALE   = (255, 232, 168)
@@ -255,7 +255,7 @@ def render_panel(run):
         if px is not None and li == pl and int((px + x) * 0.5 / 3.0) % 2 == 0:
             pygame.draw.line(ghost, GOLD, (px, py), (x, y), 2)
         px, py, pl = x, y, li
-    ghost.set_alpha(66)
+    ghost.set_alpha(160)
     surf.blit(ghost, (0, 0))
 
     # ── lane baselines: the tape's own rule, faint enough to sit under the
@@ -332,7 +332,7 @@ def render_panel(run):
 
     # ── the flatline: the one scarlet mark, and the whole death report ───────
     # Radial glow baked into RGB channels (BLEND_ADD ignores source alpha).
-    gw, gh = int(dx1 - dx) + 28, 28
+    gw, gh = int(dx1 - dx) + 64, 64
     glow_surf = pygame.Surface((gw, gh))
     glow_surf.fill((0, 0, 0))
     cx_local = gw // 2
@@ -340,10 +340,10 @@ def render_panel(run):
     for gy in range(gh):
         for gx in range(gw):
             dist = abs(gy - cy_local) + 0.3 * abs(gx - cx_local)
-            r_max = 14.0
+            r_max = 32.0
             if dist < r_max:
                 f = (1.0 - dist / r_max) ** 1.8
-                peak = 0.18
+                peak = 0.45
                 rc = int(FLATLINE_SCARLET[0] * f * peak)
                 gc = int(FLATLINE_SCARLET[1] * f * peak)
                 bc = int(FLATLINE_SCARLET[2] * f * peak)
@@ -395,7 +395,7 @@ def main():
         sheet.blit(panel, (MARGIN + k * (W + GAP), MARGIN + HEADER))
         info.append((run, meta))
 
-    out = "/home/user/skybit/docs/flight_log_screen/black_box/round_2.png"
+    out = "/home/user/skybit/docs/flight_log_screen/black_box/round_3.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
 

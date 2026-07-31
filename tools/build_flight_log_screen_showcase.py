@@ -55,7 +55,7 @@ font_lbl = pygame.font.Font(FONT_PATH, 11)
 font_id = pygame.font.Font(FONT_PATH, 28)
 
 hdr_text = font_hdr.render(
-    "FLIGHT LOG SCREEN  ·  ROUND 2 FINALS", True, GOLD)
+    "FLIGHT LOG SCREEN  ·  ROUND 3", True, GOLD)
 hdr_x = (CANVAS_W - hdr_text.get_width()) // 2
 hdr_y = MARGIN + (HEADER_H - hdr_text.get_height()) // 2
 surf.blit(hdr_text, (hdr_x, hdr_y))
@@ -66,7 +66,7 @@ for i, slug in enumerate(SLUGS):
     footer_y = panel_y + PANEL_H
     letter = IDS[i]
 
-    src_path = os.path.join(FEATURE_DIR, slug, "round_2.png")
+    src_path = os.path.join(FEATURE_DIR, slug, "round_3.png")
     src = pygame.image.load(src_path)
     sw, sh = src.get_size()
     # The sheet may be wider than one 360×640 panel; crop to the first panel.

@@ -28,11 +28,11 @@ pygame.display.set_mode((1, 1))
 W, H = 360, 640
 
 BG = (8, 8, 20)
-PAGE_TOP = (18, 18, 40)
-PAGE_BOT = (14, 14, 32)
-PAGE_LIP = (34, 34, 64)
+PAGE_TOP = (32, 30, 62)
+PAGE_BOT = (24, 22, 48)
+PAGE_LIP = (52, 48, 90)
 GOLD = (240, 192, 64)
-GOLD_MUTED = (180, 140, 32)
+GOLD_MUTED = (240, 192, 64)
 INK = (228, 218, 198)
 RULE_BLUE = (108, 112, 156)
 SCARLET = (172, 40, 32)
@@ -351,7 +351,7 @@ def _draw_route(surf, pts, death_frac=1.0):
                     step = min(4 - phase_in_period, remaining)
                     t0 = drawn / seg
                     t1 = (drawn + step) / seg
-                    pygame.draw.line(lay, (*INK, 55),
+                    pygame.draw.line(lay, (*INK, 150),
                                      (int(ax + (bx - ax) * t0), int(ay + (by - ay) * t0)),
                                      (int(ax + (bx - ax) * t1), int(ay + (by - ay) * t1)), 2)
                     drawn += step
@@ -601,7 +601,7 @@ def main():
         os.path.dirname(os.path.abspath(__file__)), os.pardir, "docs",
         "flight_log_screen", "flight_logbook"))
     os.makedirs(out, exist_ok=True)
-    path = os.path.join(out, "round_2.png")
+    path = os.path.join(out, "round_3.png")
     pygame.image.save(sheet, path)
     print("saved", path, sheet.get_size())
     for name, pos in (("sheet bg", (2, 690)), ("page A", (200, 200)),

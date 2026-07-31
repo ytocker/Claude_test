@@ -406,7 +406,7 @@ def draw_phase_band(surf, phase, days_done):
     marker = pygame.Surface((30, 30), pygame.SRCALPHA)
     for r, a in ((12, 20), (8, 34), (5, 70)):
         pygame.draw.circle(marker, (255, 226, 158, a), (15, 15), r)
-    pygame.draw.circle(marker, (200, 168, 112), (15, 15), 3)
+    pygame.draw.circle(marker, (255, 240, 200), (15, 15), 5)
     surf.blit(marker, (mx - 15, my - 15))
 
     for d in range(days_done):
@@ -462,7 +462,14 @@ def render_panel(spec):
     surf = pygame.Surface((W, H))
     for y in range(H):
         v = y / (H - 1.0)
-        surf.fill(lerp_color(BG, (16, 15, 30), v ** 1.4), (0, y, W, 1))
+        sky = lerp_color((14, 12, 36), (16, 15, 30), v ** 1.4)
+        # Warm amber glow near the horizon (bottom 35% of sky)
+        if y > int(H * 0.65):
+            hw = (y / (H - 1.0) - 0.65) / 0.35
+            glow = (int(60 * hw), int(28 * hw), int(6 * hw))
+            sky = (min(255, sky[0] + glow[0]), min(255, sky[1] + glow[1]),
+                   min(255, sky[2] + glow[2]))
+        surf.fill(sky, (0, y, W, 1))
 
     rng = random.Random(spec["seed"] + 5)
     for _ in range(70):
@@ -480,12 +487,12 @@ def render_panel(spec):
 
     # Day-complete ceiling: dashed rule at where a full-day run's crown would sit
     full_y = max(10, int(BASE_Y - spec["rise_total"] * 170 / max(1, spec["pillars"])))
-    sky_rule = pygame.Surface((W - 32, 1), pygame.SRCALPHA)
+    sky_rule = pygame.Surface((W - 32, 2), pygame.SRCALPHA)
     for ix in range(0, W - 32, 8):
-        sky_rule.fill((180, 160, 100, 28), (ix, 0, 4, 1))
+        sky_rule.fill((220, 190, 80, 90), (ix, 0, 5, 2))
     surf.blit(sky_rule, (16, full_y))
-    text(surf, "DAY COMPLETE", 8, (100, 86, 52), (W - 20, full_y - 6), "topright",
-         alpha=80, track=1)
+    text(surf, "DAY COMPLETE", 9, (220, 190, 80), (W - 20, full_y - 7), "topright",
+         alpha=200, track=1)
 
     cap = blocks[-1]
     ly = cap["y"] - cap["h"] * 0.5
@@ -542,7 +549,7 @@ for i, spec in enumerate((RUN_A, RUN_B)):
 
 OUT_DIR = os.path.join(ROOT, "docs", "flight_log_screen", "pillar_cairn")
 os.makedirs(OUT_DIR, exist_ok=True)
-OUT = os.path.join(OUT_DIR, "round_2.png")
+OUT = os.path.join(OUT_DIR, "round_3.png")
 pygame.image.save(sheet, OUT)
 
 print("wrote %s  (%dx%d)" % (OUT, SHEET_W, SHEET_H))

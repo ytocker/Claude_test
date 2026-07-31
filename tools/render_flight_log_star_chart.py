@@ -74,22 +74,22 @@ def font(size):
 SHEET_BG = (8, 8, 20)
 GOLD = (240, 192, 64)
 GOLD_DIM = (216, 184, 85)
-GOLD_SAND = (162, 128, 68)   # warm sandstone gold for asterism segments
-GHOST_WARM = (110, 88, 52)   # ghost path colour: warm, not grey
+GOLD_SAND = (240, 192,  64)  # bright gold for asterism segments
+GHOST_WARM = (200, 180, 110) # ghost path: bright warm gold
 SCARLET = (172, 40, 32)
 CREAM = (232, 228, 216)
 STAR_WHITE = (250, 244, 228)
 COOL = (126, 140, 178)
-LABEL_DIM = (88, 72, 44)     # unreached landmark labels: solid fill at L≈70
+LABEL_DIM = (200, 170, 100)  # unreached landmark labels: bright warm gold
 
 # Raised the floor in the chart's lower half so unreached stars in the empty
 # sky have actual sky to sit on (they were at +3–5 L over near-black = JND).
 SKY_STOPS = [
-    (0.00, (20, 25, 62)),
-    (0.34, (13, 15, 40)),
-    (0.60, (10, 12, 28)),
-    (0.80, (9, 10, 22)),
-    (1.00, (6, 6, 16)),
+    (0.00, (40, 50, 110)),
+    (0.34, (28, 32,  80)),
+    (0.60, (20, 24,  60)),
+    (0.80, (16, 18,  48)),
+    (1.00, (12, 14,  40)),
 ]
 
 PHASE_BOUNDARIES = [
@@ -407,21 +407,21 @@ def draw_phase_ring(surf, run):
     lay = pygame.Surface((W, H), pygame.SRCALPHA)
 
     ring = [ring_pt(i / 360.0) for i in range(361)]
-    pygame.draw.lines(lay, (100, 92, 54, 42), False, ring, 1)
+    pygame.draw.lines(lay, (180, 160, 90, 100), False, ring, 1)
 
     for frac, _name in PHASE_BOUNDARIES:
-        p0, p1 = ring_pt(frac, 0.965), ring_pt(frac, 1.035)
-        pygame.draw.line(lay, (100, 92, 54, 48), p0, p1, 1)
+        p0, p1 = ring_pt(frac, 0.960), ring_pt(frac, 1.040)
+        pygame.draw.line(lay, (200, 180, 100, 140), p0, p1, 2)
 
     # Travelled arc. A wrapped run paints the whole ring, so "a full day was
     # flown" is legible from the rim alone without a second readout.
     steps = max(2, int(run.total_phase * 360))
     trav = [ring_pt(run.total_phase * i / steps) for i in range(steps + 1)]
-    pygame.draw.lines(lay, (*GOLD, 40), False, trav, 1)
+    pygame.draw.lines(lay, (*GOLD, 140), False, trav, 2)
 
     ex, ey = ring_pt(run.total_phase)
-    pygame.draw.circle(lay, (*GOLD, 40), (int(ex), int(ey)), 3)
-    pygame.draw.circle(lay, (*GOLD, 40), (int(ex), int(ey)), 5, 1)
+    pygame.draw.circle(lay, (*GOLD, 160), (int(ex), int(ey)), 4)
+    pygame.draw.circle(lay, (*GOLD, 140), (int(ex), int(ey)), 7, 2)
 
     lay.blit(rim_mask(), (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
     surf.blit(lay, (0, 0))
@@ -861,7 +861,7 @@ def main():
               f"{len(off)} off-canvas, {len(over_cart)} touching the cartouche")
 
     sheet = render_sheet(panels, captions)
-    path = os.path.join(out_dir, "round_2.png")
+    path = os.path.join(out_dir, "round_3.png")
     pygame.image.save(sheet, path)
     print("saved", path, sheet.get_size())
 

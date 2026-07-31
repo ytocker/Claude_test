@@ -36,7 +36,7 @@ pygame.display.set_mode((1, 1))
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONT_PATH = os.path.join(ROOT, "game", "assets", "LiberationSans-Bold.ttf")
 OUT_DIR = os.path.join(ROOT, "docs", "flight_log_screen", "roost_return")
-OUT_PATH = os.path.join(OUT_DIR, "round_2.png")
+OUT_PATH = os.path.join(OUT_DIR, "round_3.png")
 
 W, H = 360, 640
 SS = 3
@@ -49,24 +49,26 @@ GOLD_HOT = (255, 236, 186)
 SCARLET = (172, 40, 32)
 SCARLET_LIT = (214, 92, 74)
 SCARLET_DEEP = (104, 22, 18)
-SILHOUETTE = (20, 16, 12)
-FAR_WING = (31, 25, 20)
+SILHOUETTE = (48, 42, 68)
+FAR_WING = (30, 26, 46)
 
 SKY_STOPS = [
-    (0.00, (12, 14, 32)),
-    (0.42, (16, 18, 40)),
-    (0.74, (22, 22, 48)),
-    (1.00, (32, 28, 54)),
+    (0.00, (22, 26, 60)),
+    (0.42, (28, 32, 72)),
+    (0.74, (34, 30, 64)),
+    (1.00, (44, 36, 70)),
 ]
 
+# Vivid cyan→amber→rose dawn wash — the defining palette of this concept.
 DAWN_STOPS = [
-    (0.00, (96, 62, 44)),
-    (0.46, (150, 104, 58)),
-    (1.00, (195, 110, 100)),
+    (0.00, (90, 150, 180)),
+    (0.40, (245, 190, 110)),
+    (0.75, (220, 130, 110)),
+    (1.00, (180,  90,  70)),
 ]
 
 # ── scene geometry ───────────────────────────────────────────────────────────
-BAND_TOP, BAND_BOT = 556, 604          # 48px = 7.5% of the canvas
+BAND_TOP, BAND_BOT = 240, 616          # extended dawn wash — vivid cyan at top
 FAR_RIDGE_Y = 594
 NEAR_RIDGE_Y = 608
 LANDMARK_BASE = 596
@@ -273,10 +275,11 @@ def draw_horizon_band(surf, sun_phase):
     # Sun anchored in the left half so it has clear sky, not the ember column
     sun_x = int(min(sun_phase, 0.55) * W + 40)
     sun_y = 588
-    add_glow(surf, sun_x, sun_y, 48, (255, 170, 80), 28, 2.6)
-    add_glow(surf, sun_x, sun_y, 26, (255, 210, 140), 55, 2.0)
-    pygame.draw.circle(surf, (255, 230, 170), (sun_x, sun_y), 12)
-    pygame.draw.circle(surf, (255, 248, 220), (sun_x, sun_y), 7)
+    add_glow(surf, sun_x, sun_y, 70, (220, 100, 40), 20, 2.8)
+    add_glow(surf, sun_x, sun_y, 50, (255, 170, 80), 40, 2.6)
+    add_glow(surf, sun_x, sun_y, 30, (255, 210, 140), 80, 2.0)
+    pygame.draw.circle(surf, (255, 230, 170), (sun_x, sun_y), 16)
+    pygame.draw.circle(surf, (255, 248, 220), (sun_x, sun_y), 10)
     return sun_x, sun_y
 
 
@@ -286,9 +289,9 @@ def ridge_y(x, base, amp, freq, phase):
 
 def draw_terrain(surf):
     far = [(x, ridge_y(x, FAR_RIDGE_Y, 3.0, 0.021, 0.4)) for x in range(0, W + 1, 4)]
-    pygame.draw.polygon(surf, (17, 16, 26), far + [(W, H), (0, H)])
+    pygame.draw.polygon(surf, (52, 44, 72), far + [(W, H), (0, H)])
     near = [(x, ridge_y(x, NEAR_RIDGE_Y, 5.0, 0.013, 2.6)) for x in range(0, W + 1, 4)]
-    pygame.draw.polygon(surf, (9, 8, 14), near + [(W, H), (0, H)])
+    pygame.draw.polygon(surf, (28, 22, 40), near + [(W, H), (0, H)])
 
 
 # ── landmarks ────────────────────────────────────────────────────────────────
