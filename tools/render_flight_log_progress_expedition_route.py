@@ -333,8 +333,8 @@ def glyph_rain(s, cx, cy):
         drop.append((cx + math.sin(a) * 5.2, cy + 1.4 + math.cos(a) * -5.2))
     pygame.draw.polygon(s, SLATE, [(p[0] * SS, p[1] * SS) for p in drop])
     stroke(s, [(cx - 1.6, cy - 5.6), (cx - 2.6, cy - 1.2)], 1.4, (196, 214, 238))
-    for dx in (-8.0, 8.0):
-        stroke(s, [(cx + dx, cy - 3.0), (cx + dx - 1.8, cy + 2.6)], 1.4, SLATE)
+    for dx in (-7.0, 7.0):
+        stroke(s, [(cx + dx, cy + 1.0), (cx + dx - 1.4, cy + 5.4)], 1.4, SLATE)
 
 
 def glyph_snow(s, cx, cy):
@@ -430,8 +430,11 @@ def render_screen():
             stroke(marks, [(x, y - 5), (x - 8, y - 9)], 1.4, INK_SOFT)
             glyph_geyser(marks, x - 8, y - 9)
             continue
-        stroke(marks, [(x, y + 3), (x, y + 10)], 1.4, INK_SOFT)
-        gx, gy = x, y + 19
+        # Clown and rain sit 15 px apart on the route, so the rain leader leans
+        # forward -- the standard cartographic answer to two marks in one spot.
+        lean = 9 if kind == "rain" else 0
+        stroke(marks, [(x, y + 3), (x + lean, y + 10)], 1.4, INK_SOFT)
+        gx, gy = x + lean, y + 19
         if kind == "lamp":
             glyph_lamp(marks, gx, gy)
         elif kind == "clown":
@@ -461,7 +464,7 @@ def render_screen():
     lab_b = "PILLAR %d · DAY %.3f" % (DEATH_PILLAR, DEATH_PHASE)
     wa = ls_surf(8, lab_a, SCARLET, 1).get_width()
     wb = ls_surf(8, lab_b, INK, 1).get_width()
-    bw = 11 + max(wa, wb) + 13
+    bw = 11 + max(wa, wb) + 20        # right pad clears the swallowtail notch
     tail = 7
     banner = [(dx_, flag_top), (dx_ + bw, flag_top), (dx_ + bw - tail, (flag_top + flag_bot) / 2),
               (dx_ + bw, flag_bot), (dx_, flag_bot)]

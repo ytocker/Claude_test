@@ -99,7 +99,7 @@ PAV_FAR = (216, 200, 177)           # same stone, washed by distance haze
 HAZE = (240, 232, 210)
 
 PAINT_NEAR = (252, 246, 232)
-PAINT_FAR = (232, 226, 212)
+PAINT_FAR = (245, 239, 226)
 
 APRON_STOPS = [(100.0, (172, 190, 168)),
                (168.0, (108, 136, 114)),
@@ -113,7 +113,6 @@ SCARLET = (232, 62, 58)
 SCARLET_HI = (255, 132, 112)
 
 CREAM = (246, 240, 226)
-MUTED = (196, 206, 200)
 SLATE = (24, 36, 48)
 
 RUBBER = (56, 38, 30)
@@ -264,7 +263,7 @@ def draw_distance_haze():
     for yy in range(s(Y_FAR), s(340.0)):
         y = yy / SS
         t = (340.0 - y) / (340.0 - Y_FAR)
-        a = int(96 * smoothstep(t) ** 1.15)
+        a = int(78 * smoothstep(t) ** 1.15)
         pygame.draw.line(haze, (*HAZE, a), (0, yy), (W * SS, yy))
     clip_to_pavement(haze)
     geo.blit(haze, (0, 0))
@@ -299,7 +298,7 @@ def paint_at_y(y):
     t = (Y_NEAR - y) / (Y_NEAR - Y_FAR)
     base = lerp_color(PAINT_NEAR, PAINT_FAR, smoothstep(t))
     pav = lerp_color(PAV_NEAR, PAV_FAR, smoothstep(t))
-    return lerp_color(base, pav, 0.30 * t)
+    return lerp_color(base, pav, 0.15 * t)
 
 
 def draw_centreline():
@@ -343,8 +342,12 @@ def _threshold_bank(y_base, y_top, spread, stripe_w, gap0):
 
 
 def draw_thresholds():
-    _threshold_bank(Y_NEAR - 0.5, Y_NEAR - 27.0, spread=5.0, stripe_w=6.5, gap0=5.0)
-    _threshold_bank(Y_FAR + 5.0, Y_FAR + 0.5, spread=5.0, stripe_w=6.5, gap0=5.0)
+    # Eight bars spanning ~80% of the half-width; a narrower bank stops
+    # reading as a threshold and starts reading as touchdown-zone clutter.
+    _threshold_bank(Y_NEAR - 0.5, Y_NEAR - 27.0, spread=8.0, stripe_w=12.0,
+                    gap0=6.0)
+    _threshold_bank(Y_FAR + 5.0, Y_FAR + 0.5, spread=8.0, stripe_w=12.0,
+                    gap0=6.0)
 
 
 # ── flown section: marked, never dimmed ──────────────────────────────────────

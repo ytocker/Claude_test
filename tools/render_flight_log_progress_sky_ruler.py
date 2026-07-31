@@ -371,8 +371,8 @@ def draw_death_callout(surf):
     """Flows RIGHT, into the ahead region: the eye leaves the failure and lands
     on the day still unseen, which is the screen's whole argument."""
     x, y = px(DEATH_PHASE), 201
-    pygame.draw.line(surf, (8, 10, 18), (int(x) + 4, y - 1), (121, y - 1), 5)
-    pygame.draw.line(surf, SCARLET, (int(x) + 5, y), (119, y), 1)
+    pygame.draw.line(surf, (8, 10, 18), (int(x) + 8, y - 1), (121, y - 1), 5)
+    pygame.draw.line(surf, SCARLET, (int(x) + 8, y), (119, y), 1)
     pygame.draw.circle(surf, SCARLET, (119, y), 2)
     text(surf, f"PILLAR {DEATH_PILLAR}  ·  YOU FELL HERE", 9, SCARLET_PAL,
          (125, y), "midleft", shadow=170)
@@ -406,10 +406,12 @@ def draw_loupe(surf):
     soft_shadow(surf, r, 8, spread=5, peak=40)
     panel(surf, r, 8, (32, 39, 58), (17, 21, 34), (0, 0, 0, 0), 255)
 
-    text(surf, "x5", 9, GOLD, (r.x + 8, r.y + 11), "midleft")
-    text(surf, "0.140 – 0.200", 7, MUTED_D, (r.right - 7, r.y + 11), "midright")
+    # Range left, magnification right: it leaves the centre of the header row
+    # clear for the death chevron, which has to sit above its own blade.
+    text(surf, "0.140 – 0.200", 7, MUTED_D, (r.x + 8, r.y + 11), "midleft")
+    text(surf, "x5", 9, GOLD, (r.right - 8, r.y + 11), "midright")
 
-    bx, by, bw, bh = r.x + 3, r.y + 20, 90, 22
+    bx, by, bw, bh = r.x + 3, r.y + 19, 90, 22
     surf.blit(build_sky_strip(bw, bh, LOUPE_P0, LOUPE_P1, 2), (bx, by))
 
     def lx(phv):
@@ -438,16 +440,16 @@ def draw_loupe(surf):
     pygame.draw.rect(surf, SCARLET, (dx - 1, by, 2, bh))
     ch = pygame.Surface((11 * SS, 8 * SS), pygame.SRCALPHA)
     pygame.draw.polygon(ch, SCARLET, [(0, 0), (11 * SS, 0), (5.5 * SS, 8 * SS)])
-    surf.blit(pygame.transform.smoothscale(ch, (11, 8)), (dx - 5, by - 7))
+    surf.blit(pygame.transform.smoothscale(ch, (11, 8)), (dx - 5, by - 8))
 
     ly = by + bh + 3
     aline(surf, STEAM, (int(gx), ly), (int(gx), ly + 3), alpha=130)
     aline(surf, SCARLET, (dx, ly), (dx, ly + 3), alpha=150)
-    text(surf, "GEYSER", 7, STEAM, (gx, ly + 9), "center")
+    text(surf, "GEYSER", 7, STEAM, (gx, ly + 8), "center")
     text(surf, f"PILLAR {pillar_for_phase(THERMAL_START_PHASE)}", 6, MUTED_D,
-         (gx, ly + 17), "center")
-    text(surf, "YOU FELL", 7, SCARLET_PAL, (dx, ly + 9), "center")
-    text(surf, f"PILLAR {DEATH_PILLAR}", 6, MUTED_D, (dx, ly + 17), "center")
+         (gx, ly + 15), "center")
+    text(surf, "YOU FELL", 7, SCARLET_PAL, (dx, ly + 8), "center")
+    text(surf, f"PILLAR {DEATH_PILLAR}", 6, MUTED_D, (dx, ly + 15), "center")
 
     ring = pygame.Surface((r.w * SS, r.h * SS), pygame.SRCALPHA)
     pygame.draw.rect(ring, (*GOLD, 160), ring.get_rect(), width=SS,
@@ -554,7 +556,8 @@ def panel(surf, rect, radius=10, top=SLATE, bot=SLATE_D, ring=(*GOLD, 70),
 
 def draw_teaser(surf):
     r = pygame.Rect(24, 298, 312, 52)
-    panel(surf, r, 10, (34, 28, 52), (20, 17, 34), (*GOLD, 90))
+    soft_shadow(surf, r, 10, spread=4, peak=30)
+    panel(surf, r, 10, (52, 40, 76), (26, 20, 44), (*GOLD, 105), 248)
     lr = text(surf, "STILL AHEAD", 9, GOLD, (r.x + 12, r.y + 13), "midleft",
               spacing=1.6)
     aline(surf, GOLD, (lr.right + 8, r.y + 13), (r.right - 12, r.y + 13),
@@ -634,12 +637,7 @@ def draw_header(surf):
 def draw_back_pill(surf):
     r = pygame.Rect(0, 0, 160, 36)
     r.center = (W // 2, 598)
-    sh = pygame.Surface((r.w + 10, r.h + 10), pygame.SRCALPHA)
-    for i in range(4):
-        pygame.draw.rect(sh, (0, 0, 0, 30 - i * 6),
-                         (5 - i, 7 - i, r.w + i * 2, r.h + i * 2),
-                         border_radius=18 + i)
-    surf.blit(sh, (r.x - 5, r.y - 5))
+    soft_shadow(surf, r, 18, spread=5, peak=44)
     panel(surf, r, 18, (40, 32, 56), (22, 16, 38), (*GOLD, 185), 244)
     text(surf, "BACK", 18, GOLD_PALE, r.center, "center")
 
@@ -650,7 +648,7 @@ def draw_back_pill(surf):
 def draw_background(surf):
     for y in range(H):
         t = y / (H - 1)
-        c = lerp_color((7, 9, 16), (26, 34, 52), t ** 0.85)
+        c = lerp_color((6, 8, 15), (30, 40, 62), t ** 0.85)
         pygame.draw.line(surf, c, (0, y), (W, y))
 
     rnd = random.Random(20260731)
@@ -667,28 +665,36 @@ def draw_background(surf):
     surf.blit(stars, (0, 0))
 
     # A low ridgeline gives the panel stack a horizon to sit above, and puts
-    # the footer pill in the world rather than floating on a flat field.
-    far = [(0, H)]
+    # the footer pill in the world rather than floating on a flat field. The
+    # ranges have to be markedly DARKER than the sky or they vanish into it —
+    # the earlier near-tone pair read as one flat field.
+    glow = pygame.Surface((W, 96), pygame.SRCALPHA)
+    for y in range(96):
+        pygame.draw.line(glow, (52, 74, 116, int(46 * (y / 96) ** 2.0)),
+                         (0, y), (W, y))
+    surf.blit(glow, (0, 462))
+
     rnd2 = random.Random(4242)
+    far = [(0, H)]
     x = -10
     while x < W + 20:
-        far.append((x, 566 + rnd2.randint(-6, 10)))
-        x += rnd2.randint(26, 46)
+        far.append((x, 548 + rnd2.randint(-9, 12)))
+        x += rnd2.randint(22, 40)
     far.append((W, H))
-    pygame.draw.polygon(surf, (21, 27, 43), far)
+    pygame.draw.polygon(surf, (15, 20, 33), far)
 
-    near = [(0, H)]
-    peaks = [(-20, 620), (30, 588), (78, 604), (128, 578), (186, 600),
-             (232, 584), (286, 606), (330, 586), (380, 616)]
-    near.extend(peaks)
-    near.append((W, H))
-    pygame.draw.polygon(surf, (13, 17, 28), near)
+    mid = [(0, H)]
+    x = -10
+    while x < W + 20:
+        mid.append((x, 578 + rnd2.randint(-14, 8)))
+        x += rnd2.randint(34, 58)
+    mid.append((W, H))
+    pygame.draw.polygon(surf, (11, 14, 24), mid)
 
-    mist = pygame.Surface((W, 46), pygame.SRCALPHA)
-    for y in range(46):
-        pygame.draw.line(mist, (60, 78, 110, int(30 * (1 - y / 46))),
-                         (0, y), (W, y))
-    surf.blit(mist, (0, 558))
+    near = [(0, H), (-20, 632), (34, 598), (82, 614), (132, 590),
+            (188, 610), (236, 596), (290, 616), (334, 598), (380, 626),
+            (W, H)]
+    pygame.draw.polygon(surf, (6, 8, 14), near)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -701,8 +707,8 @@ def main():
     draw_death_marker(surf)
     draw_death_callout(surf)
     draw_loupe(surf)
-    rects = draw_ticks_and_labels(surf)
-    draw_event_rail(surf, rects)
+    draw_ticks(surf)
+    draw_event_rail(surf)
     draw_teaser(surf)
     draw_legend(surf)
     draw_phase_table(surf)
