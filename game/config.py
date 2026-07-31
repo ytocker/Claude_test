@@ -1,6 +1,7 @@
 W, H   = 360, 640
 FPS    = 60
 TITLE  = "Skybit"
+VERSION = "1.1.0"          # shown on Settings → Credits; keep in sync with pyproject
 
 GROUND_Y   = 595
 CEILING_Y  = 0
@@ -68,6 +69,9 @@ RAIL_PILLAR_COUNT  = 7       # cart rides over exactly N pillars then releases
 RAIL_LEAD_PILLARS  = 1       # pillars to skip before the cart so players have
                             # time to reach it (cart parks on the 2nd ahead)
 RAIL_SCROLL_MULT   = 2.5     # world scrolls 2.5x faster during the ride
+RAIL_ABOVE_FINIAL  = 6       # rail track sits this many px above the (lethal)
+                            # finial tips — on top of the kill zone, just above
+                            # the antennas, with short posts connecting down
 # Lottery tiers: (label, weight, coin_delta). Weights need not sum to anything
 # — normalized at pick time. Loss tiers clamp at score 0 (see
 # World._apply_lottery_result), so total coins never go negative.
@@ -242,13 +246,30 @@ STORM_JOLT_RAIN_MIN   = 0.85
 # earlier (smaller pillar) or later (larger pillar); weather.py
 # derives the phase shift from the same onboarding-ramp dwell math
 # the world uses, so the storm always lands at the chosen pillar.
-RAIN_START_PILLAR   = 70
+#
+# The clown event occupies CLOWN_START_PILLAR … CLOWN_START_PILLAR +
+# CLOWN_SLOT_PILLARS − 1 (pillars 65–89). CLOWN_TO_RAIN_BUFFER gives
+# a gap of clean gameplay between the clown outro and the first drizzle
+# so the two events never overlap.
+CLOWN_TO_RAIN_BUFFER      = 10          # gap between clown end and rain drizzle
+_RAIN_START_PILLAR_PRE_CLOWN = 70       # original pre-clown anchor (reference only)
+_SNOW_START_PILLAR_PRE_CLOWN = 139      # original pre-clown anchor (reference only)
+RAIN_START_PILLAR   = (                 # pillar 100
+    CLOWN_START_PILLAR + CLOWN_SLOT_PILLARS + CLOWN_TO_RAIN_BUFFER
+)
+_POST_CLOWN_SHIFT   = RAIN_START_PILLAR - _RAIN_START_PILLAR_PRE_CLOWN  # +30
+_FINALE_SNOW_BUFFER_PILLARS = 12        # snow-to-finale clearance
+
+# Extra scroll time (seconds) the biome day must cover to accommodate
+# the clown block. Keeps every post-clown phase-anchor in sync because
+# weather.py and World._seed_first_pipes both read this.
+DAY_EXTRA_SECONDS   = (_POST_CLOWN_SHIFT + _FINALE_SNOW_BUFFER_PILLARS) * (PIPE_SPACING / SCROLL_BASE)
 
 # SNOW SQUALL anchor. Same idea as RAIN_START_PILLAR but for the
 # predawn snow-squall block in `weather.storm_intensity`. The bump's
 # lower edge lands at this pillar; the SHAPE/WIDTH (half-width 0.10,
 # scale 1.045) stay unchanged, so only the start anchor moves.
-SNOW_START_PILLAR   = 139
+SNOW_START_PILLAR   = _SNOW_START_PILLAR_PRE_CLOWN + _POST_CLOWN_SHIFT  # 169
 
 # Seconds of scroll buffer added to the first seeded pipe's spawn x so
 # the cottage opener has clean air to scroll behind Pip before pillars
@@ -263,7 +284,7 @@ SPAWN_GRACE         = 1.5
 # only appears while it's raining (a cull step also drops any uncollected
 # umbrella once rain returns to 0).
 UMBRELLA_DURATION       = 8.0
-UMBRELLA_SPAWN_PILLARS  = (75, 87)
+UMBRELLA_SPAWN_PILLARS  = (RAIN_START_PILLAR + 12, RAIN_START_PILLAR + 24)  # (112, 124)
 
 # TREASURE BOX — once-per-biome-cycle finale reward. When the day/night
 # cycle wraps from late-night back to dawn, the next CYCLE_FINALE_RUSH_PILLARS
@@ -426,4 +447,3 @@ STORE_FILE = "skybit_store.json"
 
 DAILY_REWARD = 75
 
-DAY_EXTRA_SECONDS = 0.0
