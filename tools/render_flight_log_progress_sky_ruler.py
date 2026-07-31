@@ -365,7 +365,8 @@ def draw_death_marker(surf):
 
     pygame.draw.rect(surf, SCARLET, (int(x) - 1, RIB_Y, 2, RIB_H))
 
-    # chevron head, pointing down into the strip
+    # The chevron head sits ABOVE the strip so the blade itself never has to
+    # thicken: at 300 px the whole ribbon is only 1.5 px per pillar.
     ch = pygame.Surface((13 * SS, 10 * SS), pygame.SRCALPHA)
     pygame.draw.polygon(ch, SCARLET, [(1 * SS, 0), (12 * SS, 0),
                                       (6.5 * SS, 9.5 * SS)])
@@ -557,7 +558,7 @@ def panel(surf, rect, radius=10, top=SLATE, bot=SLATE_D, ring=(*GOLD, 70),
     pygame.draw.rect(m, (255, 255, 255, 255), m.get_rect(),
                      border_radius=radius * SS)
     s.blit(m, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    if ring[3] if len(ring) > 3 else True:
+    if len(ring) < 4 or ring[3]:
         pygame.draw.rect(s, ring, s.get_rect(), width=SS,
                          border_radius=radius * SS)
     surf.blit(pygame.transform.smoothscale(s, rect.size), rect.topleft)
