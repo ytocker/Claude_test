@@ -1476,7 +1476,7 @@ class Pipe:
         return self.top_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2)) or \
                self.bot_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2))
 
-    def draw(self, surf, palette=None, kfc_visual=False):
+    def draw(self, surf, palette=None, kfc_visual=False, phase=0.0):
         if self.is_phantom:
             return
         palette = palette or _DEFAULT_PILLAR
