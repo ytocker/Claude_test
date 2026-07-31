@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-black-box  ·  flight_log_screen  ·  round 1
+black-box  ·  flight_log_screen  ·  round 2
 
 The screen is the flight recorder tape, not a report about it. There is no
 container, no bezel and no chrome: a single 2 px gold trace of the parrot's
@@ -213,6 +213,22 @@ def normalise(ys):
 # ═════════════════════════════════════════════════════════════════════════════
 # panel
 # ═════════════════════════════════════════════════════════════════════════════
+FLATLINE_SCARLET = (255, 92, 74)
+
+
+def _macaw_glyph(surf, cx, cy):
+    """Tiny macaw silhouette: filled gold circle (head) + beak polygon."""
+    r = 5
+    pygame.draw.circle(surf, (0, 0, 12), (cx + 1, cy + 1), r + 1)
+    pygame.draw.circle(surf, GOLD, (cx, cy), r)
+    pygame.draw.circle(surf, BG, (cx, cy), r - 2)
+    pygame.draw.polygon(surf, GOLD, [
+        (cx + r - 1, cy - 1),
+        (cx + r + 3, cy),
+        (cx + r - 1, cy + 2),
+    ])
+
+
 def render_panel(run):
     surf = pygame.Surface((W, H))
     surf.fill(BG)
@@ -222,21 +238,6 @@ def render_panel(run):
     norm = normalise(ys)
     n = len(norm)
     death_i = min(n - 1, int(run["seconds"] / DT))
-
-    # ── phase rail ───────────────────────────────────────────────────────────
-    rail = pygame.Surface((RAIL_W, RAIL_Y1 - RAIL_Y0), pygame.SRCALPHA)
-    rh = rail.get_height()
-    for i in range(rh):
-        pal = palette_for_phase(i / max(1, rh - 1))
-        rail.fill(pal["sky_mid"], (0, i, RAIL_W, 1))
-    rail.set_alpha(78)
-    surf.blit(rail, (RAIL_X, RAIL_Y0))
-
-    mk = pygame.Surface((RAIL_W + 8, 7), pygame.SRCALPHA)
-    pygame.draw.circle(mk, GOLD_PALE, (RAIL_W // 2, 3), 3)
-    pygame.draw.line(mk, GOLD_PALE, (RAIL_W + 1, 3), (RAIL_W + 7, 3), 1)
-    mk.set_alpha(90)
-    surf.blit(mk, (RAIL_X, RAIL_Y0 + int(run["phase"] * (rh - 1)) - 3))
 
     # The flatline owns the rest of its lane outright — letting the uncharted
     # dashes run underneath it would turn the one unambiguous mark on the
@@ -277,6 +278,9 @@ def render_panel(run):
     ticks.set_alpha(120)
     surf.blit(ticks, (0, 0))
 
+    # ── macaw glyph at trace origin ──────────────────────────────────────────
+    _macaw_glyph(surf, LX0, lane_top(0) + BAND_HI + 5)
+
     # ── charted trace ────────────────────────────────────────────────────────
     px, py, pl = None, None, None
     for i in range(0, death_i + 1):
@@ -302,25 +306,66 @@ def render_panel(run):
     coins.set_alpha(180)
     surf.blit(coins, (0, 0))
 
+    # ── phase rail — drawn after trace so it reads as an annotation ──────────
+    rail = pygame.Surface((RAIL_W, RAIL_Y1 - RAIL_Y0), pygame.SRCALPHA)
+    rh = rail.get_height()
+    for i in range(rh):
+        phase_t = i / max(1, rh - 1)
+        pal = palette_for_phase(phase_t)
+        c = pal["sky_mid"]
+        # Lift night-range luma so the rail stays readable on the dark bg
+        luma = int(0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2])
+        if luma < 45:
+            boost = (45 - luma) / 255.0
+            c = (min(255, int(c[0] + boost * 80)),
+                 min(255, int(c[1] + boost * 80)),
+                 min(255, int(c[2] + boost * 100)))
+        rail.fill(c, (0, i, RAIL_W, 1))
+    rail.set_alpha(88)
+    surf.blit(rail, (RAIL_X, RAIL_Y0))
+
+    mk = pygame.Surface((RAIL_W + 8, 7), pygame.SRCALPHA)
+    pygame.draw.circle(mk, GOLD_PALE, (RAIL_W // 2, 3), 3)
+    pygame.draw.line(mk, GOLD_PALE, (RAIL_W + 1, 3), (RAIL_W + 7, 3), 1)
+    mk.set_alpha(90)
+    surf.blit(mk, (RAIL_X, RAIL_Y0 + int(run["phase"] * (rh - 1)) - 3))
+
     # ── the flatline: the one scarlet mark, and the whole death report ───────
-    glow = pygame.Surface((W, H), pygame.SRCALPHA)
-    for k, a in ((5, 16), (3, 30)):
-        pygame.draw.line(glow, (*SCARLET, a), (dx, dy), (dx1, dy), k)
-    surf.blit(glow, (0, 0))
-    pygame.draw.line(surf, SCARLET, (dx, dy), (dx1, dy), 2)
+    # Radial glow baked into RGB channels (BLEND_ADD ignores source alpha).
+    gw, gh = int(dx1 - dx) + 28, 28
+    glow_surf = pygame.Surface((gw, gh))
+    glow_surf.fill((0, 0, 0))
+    cx_local = gw // 2
+    cy_local = gh // 2
+    for gy in range(gh):
+        for gx in range(gw):
+            dist = abs(gy - cy_local) + 0.3 * abs(gx - cx_local)
+            r_max = 14.0
+            if dist < r_max:
+                f = (1.0 - dist / r_max) ** 1.8
+                peak = 0.18
+                rc = int(FLATLINE_SCARLET[0] * f * peak)
+                gc = int(FLATLINE_SCARLET[1] * f * peak)
+                bc = int(FLATLINE_SCARLET[2] * f * peak)
+                glow_surf.set_at((gx, gy), (rc, gc, bc))
+    surf.blit(glow_surf, (int(dx) - 14, int(dy) - cy_local),
+              special_flags=pygame.BLEND_ADD)
+    # 3px solid flatline + terminal cap dot
+    pygame.draw.line(surf, FLATLINE_SCARLET, (int(dx), int(dy)), (int(dx1), int(dy)), 3)
+    pygame.draw.circle(surf, FLATLINE_SCARLET, (int(dx1), int(dy)), 3)
 
     # ── telemetry block ──────────────────────────────────────────────────────
     text(surf, "PILLAR", 11, GOLD_MUTED, (LX0, 474), spacing=2.6, alpha=190)
-    num = gradient_numeral(str(run["pillars"]), 106,
-                           [(0.00, GOLD_PALE), (0.42, GOLD), (1.00, GOLD_DEEP)])
+    num = gradient_numeral(str(run["pillars"]), 100,
+                           [(0.00, (250, 235, 200)), (0.42, GOLD), (1.00, GOLD_DEEP)])
     surf.blit(num, (LX0 - 2, 486))
 
     y2 = 486 + num.get_height() + 22
     runs(surf, [(f"DAY {run['day']}", GOLD_MUTED),
                 ("  ·  ", (120, 104, 62)),
-                (run["clock"], GOLD_MUTED)], LX0, y2, 13)
+                (run["clock"], GOLD_MUTED)], LX0, y2, 12)
     runs(surf, [("CAUSE ", (138, 118, 70)),
-                (run["cause"], GOLD_MUTED)], LX0, y2 + 21, 13, spacing=1.2)
+                (run["cause"], GOLD_MUTED)], LX0, y2 + 19, 12, spacing=1.2)
 
     return surf, {"span": span_s, "flaps": None, "death_x": dx, "lane": dl}
 
@@ -341,7 +386,7 @@ SHEET_H = MARGIN * 2 + HEADER + H
 def main():
     sheet = pygame.Surface((SHEET_W, SHEET_H))
     sheet.fill(BG)
-    text(sheet, "BLACK BOX  ·  ROUND 1", 14, GOLD,
+    text(sheet, "BLACK BOX  ·  ROUND 2", 14, GOLD,
          (SHEET_W // 2, MARGIN + HEADER // 2), "center", spacing=3.0)
 
     info = []
@@ -350,7 +395,7 @@ def main():
         sheet.blit(panel, (MARGIN + k * (W + GAP), MARGIN + HEADER))
         info.append((run, meta))
 
-    out = "/home/user/skybit/docs/flight_log_screen/black_box/round_1.png"
+    out = "/home/user/skybit/docs/flight_log_screen/black_box/round_2.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
 

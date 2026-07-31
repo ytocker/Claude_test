@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-pillar-cairn  ·  flight_log  ·  round 1
+pillar-cairn  ·  flight_log  ·  round 2
 
 The run read as a monument rather than a readout. Every pillar cleared is one
 stone the player stacked on a night field; the cairn IS the score, so the
@@ -49,9 +49,10 @@ BG = (8, 8, 20)
 GOLD = (240, 192, 64)
 SCARLET = (172, 40, 32)
 
-STONE = (35, 28, 20)
-STONE_ANCHOR = (58, 47, 33)
+STONE = (120, 96, 66)
+STONE_ANCHOR = (148, 118, 82)
 SEAM = (13, 10, 8)
+HOT_CORAL = (236, 92, 72)
 
 TEAL = (72, 196, 186)
 EMBER = (255, 150, 52)
@@ -128,11 +129,12 @@ def shift(pts, dx, dy):
     return [(px + dx, py + dy) for px, py in pts]
 
 
-def draw_stone(surf, pts, body, rim, rim_w=2, top_rim=True):
+def draw_stone(surf, pts, body, rim, rim_w=2, top_rim=True, rise=None):
     """Rim light is drawn as the same silhouette offset one step toward the
     light and then re-covered by the body, so the highlight tracks every chip
     exactly instead of being a straight line pasted on a jagged edge."""
-    pygame.draw.polygon(surf, SEAM, shift(pts, 0, 1))
+    if rise is None or rise >= 3.0:
+        pygame.draw.polygon(surf, SEAM, shift(pts, 0, 1))
     if top_rim:
         pygame.draw.polygon(surf, dim(rim, 0.45), shift(pts, 0, -1))
     pygame.draw.polygon(surf, rim, shift(pts, -rim_w, 0))
@@ -331,16 +333,16 @@ def draw_stack(surf, spec, blocks):
             rim = GOLD
             rw = 3
         elif b["role"] in ("landmark", "cap"):
-            body = (44, 35, 25)
+            body = (130, 104, 72)
             rim = dim(GOLD, 0.82)
             rw = 2
         else:
-            j = rng.randint(-5, 5)
+            j = rng.randint(-8, 8)
             body = (STONE[0] + j, STONE[1] + j, STONE[2] + max(-4, j))
             rim = dim(GOLD, 0.70 + 0.22 * rng.random())
             rw = 2 if b["rise"] > 2.6 else 1
 
-        draw_stone(surf, pts, body, rim, rim_w=rw, top_rim=b["rise"] > 2.2)
+        draw_stone(surf, pts, body, rim, rim_w=rw, top_rim=b["rise"] > 2.2, rise=b["rise"])
 
     for b in blocks:
         # Marks live on the exposed lip of a course, not on its buried body.
@@ -350,7 +352,7 @@ def draw_stack(surf, spec, blocks):
             DECOS[b["kind"]](surf, x, face_top, b["w"], b["rise"], rng)
         if b["role"] == "anchor" or (b["idx"] in spec["anchors"] and b["kind"]):
             text(surf, str(b["idx"]), 9, GOLD,
-                 (x + b["w"] + 6, face_top + b["rise"] * 0.5), "midleft", alpha=130)
+                 (x + b["w"] + 6, face_top + b["rise"] * 0.5), "midleft", alpha=200)
 
 
 def draw_crack(surf, cap):
@@ -370,10 +372,12 @@ def draw_crack(surf, cap):
             pygame.draw.line(glow, (*SCARLET, a), (fx - ox, fy - oy), (e[0] - ox, e[1] - oy), wdt)
     surf.blit(glow, (ox, oy))
 
-    pygame.draw.line(surf, SCARLET, stem, (fx, fy), 2)
+    pygame.draw.line(surf, SCARLET, stem, (fx, fy), 3)
     for e in ends:
-        pygame.draw.line(surf, SCARLET, (fx, fy), e, 2)
-    pygame.draw.line(surf, (236, 92, 72), (fx, fy), (ends[1][0], ends[1][1]), 1)
+        pygame.draw.line(surf, SCARLET, (fx, fy), e, 3)
+    pygame.draw.line(surf, HOT_CORAL, stem, (fx, fy), 1)
+    for e in ends:
+        pygame.draw.line(surf, HOT_CORAL, (fx, fy), e, 1)
 
 
 # ── phase band ───────────────────────────────────────────────────────────────
@@ -402,7 +406,7 @@ def draw_phase_band(surf, phase, days_done):
     marker = pygame.Surface((30, 30), pygame.SRCALPHA)
     for r, a in ((12, 20), (8, 34), (5, 70)):
         pygame.draw.circle(marker, (255, 226, 158, a), (15, 15), r)
-    pygame.draw.circle(marker, (255, 240, 200), (15, 15), 3)
+    pygame.draw.circle(marker, (200, 168, 112), (15, 15), 3)
     surf.blit(marker, (mx - 15, my - 15))
 
     for d in range(days_done):
@@ -474,6 +478,15 @@ def render_panel(spec):
     draw_stack(surf, spec, blocks)
     draw_crack(surf, blocks[-1])
 
+    # Day-complete ceiling: dashed rule at where a full-day run's crown would sit
+    full_y = max(10, int(BASE_Y - spec["rise_total"] * 170 / max(1, spec["pillars"])))
+    sky_rule = pygame.Surface((W - 32, 1), pygame.SRCALPHA)
+    for ix in range(0, W - 32, 8):
+        sky_rule.fill((180, 160, 100, 28), (ix, 0, 4, 1))
+    surf.blit(sky_rule, (16, full_y))
+    text(surf, "DAY COMPLETE", 8, (100, 86, 52), (W - 20, full_y - 6), "topright",
+         alpha=80, track=1)
+
     cap = blocks[-1]
     ly = cap["y"] - cap["h"] * 0.5
     lx = cap["cx"] + cap["w"] * 0.5 + 10
@@ -511,7 +524,7 @@ SHEET_W, SHEET_H = 736, HEAD + H + CAPS
 sheet = pygame.Surface((SHEET_W, SHEET_H))
 sheet.fill((8, 8, 20))
 
-text(sheet, "PILLAR CAIRN  ·  ROUND 1", 21, GOLD, (16, 18), "topleft", track=1)
+text(sheet, "PILLAR CAIRN  ·  ROUND 2", 21, GOLD, (16, 18), "topleft", track=1)
 text(sheet, "flight log  ·  360×640  ·  procedural", 11, (120, 116, 140),
      (SHEET_W - 16, 26), "topright", track=1)
 pygame.draw.line(sheet, (44, 40, 60), (16, HEAD - 6), (SHEET_W - 16, HEAD - 6), 1)
@@ -529,7 +542,7 @@ for i, spec in enumerate((RUN_A, RUN_B)):
 
 OUT_DIR = os.path.join(ROOT, "docs", "flight_log_screen", "pillar_cairn")
 os.makedirs(OUT_DIR, exist_ok=True)
-OUT = os.path.join(OUT_DIR, "round_1.png")
+OUT = os.path.join(OUT_DIR, "round_2.png")
 pygame.image.save(sheet, OUT)
 
 print("wrote %s  (%dx%d)" % (OUT, SHEET_W, SHEET_H))

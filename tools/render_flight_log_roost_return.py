@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-roost-return  ·  flight-log progress screen  ·  round 1
+roost-return  ·  flight-log progress screen  ·  round 2
 
 The thesis: a run summary that reads as a *place the bird came home to*
 rather than a chart of what she failed to reach.
@@ -36,7 +36,7 @@ pygame.display.set_mode((1, 1))
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONT_PATH = os.path.join(ROOT, "game", "assets", "LiberationSans-Bold.ttf")
 OUT_DIR = os.path.join(ROOT, "docs", "flight_log_screen", "roost_return")
-OUT_PATH = os.path.join(OUT_DIR, "round_1.png")
+OUT_PATH = os.path.join(OUT_DIR, "round_2.png")
 
 W, H = 360, 640
 SS = 3
@@ -53,18 +53,16 @@ SILHOUETTE = (20, 16, 12)
 FAR_WING = (31, 25, 20)
 
 SKY_STOPS = [
-    (0.00, (5, 6, 15)),
-    (0.42, (9, 10, 22)),
-    (0.74, (16, 15, 30)),
-    (1.00, (26, 22, 36)),
+    (0.00, (12, 14, 32)),
+    (0.42, (16, 18, 40)),
+    (0.74, (22, 22, 48)),
+    (1.00, (32, 28, 54)),
 ]
 
-# Dawn read straight off the biome's sunrise family: cyan overhead, amber at
-# the band's waist, rose where it meets the ground.
 DAWN_STOPS = [
-    (0.00, (84, 142, 168)),
-    (0.46, (238, 186, 116)),
-    (1.00, (214, 122, 112)),
+    (0.00, (96, 62, 44)),
+    (0.46, (150, 104, 58)),
+    (1.00, (195, 110, 100)),
 ]
 
 # ── scene geometry ───────────────────────────────────────────────────────────
@@ -77,14 +75,14 @@ PILLAR_X0, PILLAR_X1 = 230, 302
 PILLAR_TOP = 470
 
 BIRD_FX, BIRD_FY = 248, 476            # the foot the silhouette is built around
-COL_X = 288
+COL_X = 328
 COL_BASE_Y = 464
 
-LANDMARK_X = [24, 84, 128, 168, 200]
+LANDMARK_X = [24, 128, 200]
 
 STAT_LEFT = 22
-LABEL_Y = 418
-NUM_TOP = 432
+LABEL_Y = 456
+NUM_TOP = 472
 NUM_CAP = 94                           # hero numeral cap height (brief: >= 90)
 NUM_MAX_W = 172                        # keeps a 3-figure score clear of the perch
 SUB_Y = 546
@@ -225,15 +223,40 @@ def draw_sky(surf):
 
 def draw_stars(surf):
     rnd = random.Random(9184)
-    for _ in range(64):
+    # Tier 1: 8 bright stars, +30-45L above sky
+    for _ in range(8):
+        x = rnd.randrange(4, W - 4)
+        y = rnd.randrange(14, 380)
+        sky = lerp_multi(SKY_STOPS, y / (H - 1))
+        base_l = int(0.299 * sky[0] + 0.587 * sky[1] + 0.114 * sky[2])
+        boost = rnd.randint(30, 45)
+        c = (min(255, base_l + boost + 20), min(255, base_l + boost + 14),
+             min(255, base_l + boost + 35))
+        lay = pygame.Surface((5, 5), pygame.SRCALPHA)
+        pygame.draw.circle(lay, (*c, 210), (2, 2), 2)
+        surf.blit(lay, (x - 2, y - 2))
+    # Tier 2: 20 medium stars, +15L above sky
+    for _ in range(20):
+        x = rnd.randrange(4, W - 4)
+        y = rnd.randrange(14, 420)
+        sky = lerp_multi(SKY_STOPS, y / (H - 1))
+        base_l = int(0.299 * sky[0] + 0.587 * sky[1] + 0.114 * sky[2])
+        boost = rnd.randint(14, 22)
+        c = (min(255, base_l + boost + 10), min(255, base_l + boost + 8),
+             min(255, base_l + boost + 22))
+        lay = pygame.Surface((3, 3), pygame.SRCALPHA)
+        pygame.draw.circle(lay, (*c, 160), (1, 1), 1)
+        surf.blit(lay, (x - 1, y - 1))
+    # Tier 3: 36 dim stars, +8L above sky
+    for _ in range(36):
         x = rnd.randrange(4, W - 4)
         y = rnd.randrange(14, 440)
-        # Faint and cool, so they describe depth without reading as embers.
-        a = rnd.randint(18, 74) * (1.0 - y / 620.0)
-        c = rnd.choice([(198, 210, 236), (226, 224, 236), (176, 196, 226)])
-        lay = pygame.Surface((3, 3), pygame.SRCALPHA)
-        pygame.draw.circle(lay, (*c, int(a)), (1, 1), 1 if rnd.random() < 0.22 else 0)
-        surf.blit(lay, (x - 1, y - 1))
+        sky = lerp_multi(SKY_STOPS, y / (H - 1))
+        base_l = int(0.299 * sky[0] + 0.587 * sky[1] + 0.114 * sky[2])
+        boost = rnd.randint(7, 12)
+        c = (min(255, base_l + boost + 4), min(255, base_l + boost + 3),
+             min(255, base_l + boost + 14))
+        surf.set_at((x, y), c)
 
 
 def draw_horizon_band(surf, sun_phase):
@@ -247,13 +270,13 @@ def draw_horizon_band(surf, sun_phase):
         band.fill((*c, int(88 * t ** 2.1)), pygame.Rect(0, y, W, 1))
     surf.blit(band, (0, BAND_TOP))
 
-    sun_x = int(sun_phase * W)
-    sun_y = 592
-    # Tight halo on purpose: a wide one merges with the lit landmarks either
-    # side of it and the horizon becomes one undifferentiated smear.
-    add_glow(surf, sun_x, sun_y, 15, (255, 196, 120), 38, 2.2)
-    add_glow(surf, sun_x, sun_y, 7, (255, 224, 168), 66, 1.7)
-    pygame.draw.circle(surf, (255, 226, 158), (sun_x, sun_y), 4)
+    # Sun anchored in the left half so it has clear sky, not the ember column
+    sun_x = int(min(sun_phase, 0.55) * W + 40)
+    sun_y = 588
+    add_glow(surf, sun_x, sun_y, 48, (255, 170, 80), 28, 2.6)
+    add_glow(surf, sun_x, sun_y, 26, (255, 210, 140), 55, 2.0)
+    pygame.draw.circle(surf, (255, 230, 170), (sun_x, sun_y), 12)
+    pygame.draw.circle(surf, (255, 248, 220), (sun_x, sun_y), 7)
     return sun_x, sun_y
 
 
@@ -329,7 +352,7 @@ def lm_snow(ov, cx, base, col, filled):
                      ((cx + 5) * SS, (base - 14) * SS), SS)
 
 
-LANDMARKS = [lm_geyser, lm_lamp, lm_clown, lm_rain, lm_snow]
+LANDMARKS = [lm_geyser, lm_clown, lm_snow]
 
 
 def draw_landmarks(surf, reached):
@@ -380,7 +403,7 @@ def build_pillar(ov):
     pw = PILLAR_X1 - PILLAR_X0
     top = [(PILLAR_X0 + x, PILLAR_TOP + y) for x, y in CAP_PROFILE]
     body = top + [(PILLAR_X1, H), (PILLAR_X0, H)]
-    pygame.draw.polygon(ov, (28, 24, 26, 255), [(p[0] * SS, p[1] * SS) for p in body])
+    pygame.draw.polygon(ov, (70, 52, 34, 255), [(p[0] * SS, p[1] * SS) for p in body])
 
     # Vertical falloff: the stone goes to near-black at the base so the pillar
     # dissolves into the ground silhouette instead of ending in a hard line.
@@ -445,6 +468,9 @@ def build_bird(ov):
     pygame.draw.ellipse(ov, (*SILHOUETTE, 255),
                         pygame.Rect((fx - 20) * SS, (fy - 31) * SS,
                                     35 * SS, 28 * SS))
+    # Neck bridge: fills the gap between the head circle and body ellipse
+    pygame.draw.polygon(ov, (*SILHOUETTE, 255),
+                        P([(6, -38), (20, -38), (20, -24), (6, -24)]))
     # Head + ruffled nape.
     c, r = C(12, -31, 10.5)
     pygame.draw.circle(ov, (*SILHOUETTE, 255), c, r)
@@ -533,7 +559,7 @@ def draw_embers(surf, positions, anchor_every=None):
     n = len(positions)
     for i, (x, y) in enumerate(positions):
         t = i / max(1, n - 1)
-        a = lerp(1.0, 0.60, t)
+        a = lerp(0.55, 1.0, t)
         anchor = anchor_every and i > 0 and (i + 1) % anchor_every == 0
         halo_r = 13 if anchor else 8
         peak = int((92 if anchor else 62) * a)
@@ -549,6 +575,9 @@ def draw_embers(surf, positions, anchor_every=None):
         surf.blit(core, (int(x) - 7, int(y) - 7))
 
 
+FEATHER_SCARLET = (232, 58, 44)
+
+
 def draw_feather(surf, x, y):
     """The death marker. Elongated, canted off vertical so it reads as falling,
     and the only scarlet anywhere in the frame.
@@ -556,31 +585,32 @@ def draw_feather(surf, x, y):
     It lands inside the ember glow, so it carries its own dark keyline —
     without one a 5px-wide scarlet shape is eaten by the warm bloom behind it.
     """
-    fw, fh = 5, 16
+    fw, fh = 7, 19
     pad = 3
     s = pygame.Surface((fw * SS + pad * 2, fh * SS + pad * 2), pygame.SRCALPHA)
     cxs = s.get_width() / 2.0
     left, right = [], []
-    steps = 26
+    steps = 30
     for i in range(steps + 1):
         t = i / steps
         yy = pad + t * fh * SS
-        half = (fw * SS / 2.0) * (math.sin(math.pi * t) ** 0.66) * (1.0 - 0.42 * t)
+        half = (fw * SS / 2.0) * (math.sin(math.pi * t) ** 0.66) * (1.0 - 0.38 * t)
         left.append((cxs - half, yy))
         right.append((cxs + half, yy))
-    pygame.draw.polygon(s, (*SCARLET, 255), left + right[::-1])
+    pygame.draw.polygon(s, (*FEATHER_SCARLET, 255), left + right[::-1])
     pygame.draw.line(s, (*SCARLET_DEEP, 235), (cxs, pad + 4), (cxs, pad + fh * SS), SS)
-    pygame.draw.lines(s, (*SCARLET_LIT, 235), False, right[3:-5], SS)
+    pygame.draw.lines(s, (255, 110, 90, 235), False, right[4:-5], SS)
 
     small = pygame.transform.smoothscale(s, (fw + pad, fh + pad))
-    keyed = pygame.Surface((small.get_width() + 2, small.get_height() + 2),
+    # Dark halo — 3px expansion
+    keyed = pygame.Surface((small.get_width() + 6, small.get_height() + 6),
                            pygame.SRCALPHA)
     ink = pygame.mask.from_surface(small, threshold=20).to_surface(
-        setcolor=(10, 4, 6, 200), unsetcolor=(0, 0, 0, 0))
-    for dx in (0, 1, 2):
-        for dy in (0, 1, 2):
+        setcolor=(8, 3, 4, 220), unsetcolor=(0, 0, 0, 0))
+    for dx in range(0, 5):
+        for dy in range(0, 5):
             keyed.blit(ink, (dx, dy))
-    keyed.blit(small, (1, 1))
+    keyed.blit(small, (3, 3))
     rot = pygame.transform.rotozoom(keyed, -30, 1.0)
     surf.blit(rot, (int(x) - rot.get_width() // 2, int(y) - rot.get_height() // 2))
 
@@ -666,16 +696,25 @@ def render_run(run):
     fx, fy = pos[-1]
     draw_feather(surf, fx + 11, fy - 4)
 
+    # Day-complete ceiling: dashed rule where a full-day run would top out
+    full_y = max(8, COL_BASE_Y - run["embers"] * run["spacing"] * run.get("day_scale", 1.0))
+    rule = pygame.Surface((W - 32, 1), pygame.SRCALPHA)
+    for ix in range(0, W - 32, 8):
+        rule.fill((180, 158, 96, 30), (ix, 0, 4, 1))
+    surf.blit(rule, (16, int(full_y)))
+    text(surf, "DAY COMPLETE", 8, (100, 86, 52),
+         topleft=(W - 100, int(full_y) - 12), alpha=75, shadow=None)
+
     draw_stats(surf, run["pillar"], run["sub"])
     return surf
 
 
-RUN_A = dict(pillar=25, sub="DAY 1 · 0:47", phase=0.184, embers=25, spacing=9.5,
-             reached=[True, False, False, False, False],
-             caption="RUN A · PILLAR 25 · 1 EMBER / PILLAR")
-RUN_B = dict(pillar=180, sub="DAY 2 · 5:30", phase=0.292, embers=36, spacing=8.6,
-             reached=[True, True, True, True, True], anchor_every=10,
-             caption="RUN B · PILLAR 180 · 1 EMBER / 5 PILLARS")
+RUN_A = dict(pillar=25, sub="DAY 1 · 0:47", phase=0.184, embers=25, spacing=4.2,
+             reached=[True, False, False], day_scale=1.0,
+             caption="RUN A · PILLAR 25 · DAY 1 · GEYSER")
+RUN_B = dict(pillar=180, sub="DAY 2 · 5:30", phase=0.292, embers=36, spacing=15.5,
+             reached=[True, True, True], anchor_every=10, day_scale=1.0,
+             caption="RUN B · PILLAR 180 · DAY 2 · SNOW")
 
 
 def main():
@@ -688,7 +727,7 @@ def main():
     sheet = pygame.Surface((sw, sh))
     sheet.fill(SHEET_BG)
 
-    text(sheet, "ROOST RETURN · ROUND 1", 18, GOLD,
+    text(sheet, "ROOST RETURN · ROUND 2", 18, GOLD,
          center=(sw // 2, margin + header_h // 2), track=2, shadow=None)
 
     for i, p in enumerate(panels):

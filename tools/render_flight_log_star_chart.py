@@ -74,16 +74,22 @@ def font(size):
 SHEET_BG = (8, 8, 20)
 GOLD = (240, 192, 64)
 GOLD_DIM = (216, 184, 85)
+GOLD_SAND = (162, 128, 68)   # warm sandstone gold for asterism segments
+GHOST_WARM = (110, 88, 52)   # ghost path colour: warm, not grey
 SCARLET = (172, 40, 32)
 CREAM = (232, 228, 216)
 STAR_WHITE = (250, 244, 228)
 COOL = (126, 140, 178)
+LABEL_DIM = (88, 72, 44)     # unreached landmark labels: solid fill at L≈70
 
+# Raised the floor in the chart's lower half so unreached stars in the empty
+# sky have actual sky to sit on (they were at +3–5 L over near-black = JND).
 SKY_STOPS = [
     (0.00, (20, 25, 62)),
     (0.34, (13, 15, 40)),
-    (0.68, (9, 10, 25)),
-    (1.00, (5, 5, 14)),
+    (0.60, (10, 12, 28)),
+    (0.80, (9, 10, 22)),
+    (1.00, (6, 6, 16)),
 ]
 
 PHASE_BOUNDARIES = [
@@ -401,11 +407,11 @@ def draw_phase_ring(surf, run):
     lay = pygame.Surface((W, H), pygame.SRCALPHA)
 
     ring = [ring_pt(i / 360.0) for i in range(361)]
-    pygame.draw.lines(lay, (*COOL, 34), False, ring, 1)
+    pygame.draw.lines(lay, (100, 92, 54, 42), False, ring, 1)
 
     for frac, _name in PHASE_BOUNDARIES:
         p0, p1 = ring_pt(frac, 0.965), ring_pt(frac, 1.035)
-        pygame.draw.line(lay, (*COOL, 40), p0, p1, 1)
+        pygame.draw.line(lay, (100, 92, 54, 48), p0, p1, 1)
 
     # Travelled arc. A wrapped run paints the whole ring, so "a full day was
     # flown" is legible from the rim alone without a second readout.
@@ -456,9 +462,8 @@ def draw_phase_labels(surf, keep_out):
 def draw_chart(surf, run, pillars, pts, span):
     reached = [p <= run.pillars for p in pillars]
     death_i = max(i for i, r in enumerate(reached) if r)
+    next_i = death_i + 1 if death_i + 1 < len(pts) else None
 
-    # Halos go down natively and first: run additively over the vector layer
-    # instead and they wash the asterism's own weight straight out.
     for i, (x, y) in enumerate(pts):
         if not reached[i]:
             continue
@@ -473,9 +478,7 @@ def draw_chart(surf, run, pillars, pts, span):
     def P(pt):
         return (pt[0] * k, pt[1] * k)
 
-    # Asterism: reached pairs only, each segment stopping 2px short of both
-    # discs. The gap is what keeps a 4px star reading as a star instead of
-    # as a thickening in a rule.
+    # Asterism: warm sandstone segments on the flown half
     for i in range(death_i):
         (x0, y0), (x1, y1) = pts[i], pts[i + 1]
         r0 = magnitude(pillars[i], span)
@@ -485,9 +488,30 @@ def draw_chart(surf, run, pillars, pts, span):
         if d <= cut0 + cut1 + 1.2:
             continue
         ux, uy = (x1 - x0) / d, (y1 - y0) / d
-        pygame.draw.line(ss, (*GOLD_DIM, 175),
+        pygame.draw.line(ss, (*GOLD_SAND, 175),
                          P((x0 + ux * cut0, y0 + uy * cut0)),
                          P((x1 - ux * cut1, y1 - uy * cut1)), k)
+
+    # Ghost dashed continuation through the unreached half (warm, 3px on/3px off)
+    for i in range(death_i, len(pts) - 1):
+        (x0, y0), (x1, y1) = pts[i], pts[i + 1]
+        d = math.hypot(x1 - x0, y1 - y0)
+        if d < 1:
+            continue
+        ux, uy = (x1 - x0) / d, (y1 - y0) / d
+        start_cut = magnitude(pillars[i], span) + 2.0
+        seg_len = d - start_cut - 1.5
+        if seg_len <= 0:
+            continue
+        t_d = 0.0
+        while t_d < seg_len:
+            t1 = min(t_d + 3.0, seg_len)
+            ax = x0 + ux * (start_cut + t_d)
+            ay = y0 + uy * (start_cut + t_d)
+            bx = x0 + ux * (start_cut + t1)
+            by = y0 + uy * (start_cut + t1)
+            pygame.draw.line(ss, (*GHOST_WARM, 110), P((ax, ay)), P((bx, by)), k)
+            t_d += 6.0
 
     for i, (x, y) in enumerate(pts):
         anchor = is_anchor(pillars[i])
@@ -499,23 +523,24 @@ def draw_chart(surf, run, pillars, pts, span):
             pygame.draw.circle(ss, (*STAR_WHITE, 255), (int(x * k), int(y * k)),
                                int((r - 1.0) * k))
             if anchor:
+                # Pillar-cap motif: sandstone-warm flares
                 for q in range(4):
                     th = math.radians(q * 90 + 45)
                     c0, c1 = r + 1.4, r + 5.2
-                    pygame.draw.line(ss, (*GOLD, 210),
+                    pygame.draw.line(ss, (*GOLD_SAND, 210),
                                      P((x + math.cos(th) * c0, y + math.sin(th) * c0)),
                                      P((x + math.cos(th) * c1, y + math.sin(th) * c1)), k)
         else:
             t = i / max(1, len(pts) - 1)
-            r = 1.5 + 0.5 * t                      # stays <= 2px, still ramps
-            # Authored high because the stroke is 3/4 of an output pixel wide
-            # after the downscale, so it lands at roughly three-quarters of
-            # whatever alpha is asked for here.
-            a = int(112 + 78 * t) + (58 if anchor else 0)
-            pygame.draw.circle(ss, (*COOL, min(255, a)), (int(x * k), int(y * k)),
-                               int(r * k), k - 1)
-            # Same four-tick anchor mark as a lit anchor, so the every-50
-            # rhythm survives the crossing from flown sky into empty sky.
+            # Contrast-compensated: brighter where the sky is darker (lower y)
+            sky_col = lerp_color_multi(SKY_STOPS, y / (H - 1))
+            sl = int(0.299 * sky_col[0] + 0.587 * sky_col[1] + 0.114 * sky_col[2])
+            boost = max(0, 18 - sl)
+            a = min(255, int(110 + 90 * t) + (60 if anchor else 0) + boost)
+            r = 1.8 + 0.4 * t
+            # True hollow ring: 1px output stroke
+            pygame.draw.circle(ss, (*COOL, a), (int(x * k), int(y * k)),
+                               int(r * k), k)
             if anchor:
                 for q in range(4):
                     th = math.radians(q * 90 + 45)
@@ -524,6 +549,21 @@ def draw_chart(surf, run, pillars, pts, span):
                                      P((x + math.cos(th) * c0, y + math.sin(th) * c0)),
                                      P((x + math.cos(th) * c1, y + math.sin(th) * c1)), k - 1)
 
+    # Flag the first unreached star: gold halo ring + lead-in tick
+    if next_i is not None:
+        nx, ny = pts[next_i]
+        r_n = 1.8 + 0.4 * (next_i / max(1, len(pts) - 1))
+        pygame.draw.circle(ss, (*GOLD_DIM, 175), (int(nx * k), int(ny * k)),
+                           int((r_n + 1.5) * k), k)
+        ddx, ddy = pts[death_i]
+        d_lead = math.hypot(nx - ddx, ny - ddy)
+        if d_lead > 4:
+            utx = (ddx - nx) / d_lead
+            uty = (ddy - ny) / d_lead
+            pygame.draw.line(ss, (*GOLD_DIM, 140),
+                             P((nx + utx * (r_n + 1.5), ny + uty * (r_n + 1.5))),
+                             P((nx + utx * (r_n + 3.5), ny + uty * (r_n + 3.5))), k * 2)
+
     draw_death_burst(ss, pts[death_i], k)
 
     surf.blit(pygame.transform.smoothscale(ss, (W, H)), (0, 0))
@@ -531,15 +571,15 @@ def draw_chart(surf, run, pillars, pts, span):
 
 
 def draw_death_burst(ss, pt, k):
-    """Four long rays on the cardinals, four short on the diagonals, tight
-    white core. Tapered triangles rather than lines — a burst built from
-    even-width strokes reads as a plus sign, not as a star."""
+    """8 tapered rays; dark moat separates them from the layered core.
+    Build order: rays → dark moat → outer scarlet ring → inner dark gap → white core.
+    Each layer reads independently in greyscale."""
     x, y = pt
     for a in range(8):
         th = math.radians(a * 45)
         long_ray = (a % 2 == 0)
-        length = 11.5 if long_ray else 6.0
-        half = 1.7 if long_ray else 1.3
+        length = 18.0 if long_ray else 10.0
+        half = 2.7 if long_ray else 2.0
         ux, uy = math.cos(th), math.sin(th)
         px, py = -uy, ux
         pygame.draw.polygon(ss, (*SCARLET, 255), [
@@ -547,8 +587,14 @@ def draw_death_burst(ss, pt, k):
             ((x - px * half) * k, (y - py * half) * k),
             ((x + ux * length) * k, (y + uy * length) * k),
         ])
-    pygame.draw.circle(ss, (*SCARLET, 255), (int(x * k), int(y * k)), int(3.4 * k))
-    pygame.draw.circle(ss, (255, 246, 240, 255), (int(x * k), int(y * k)), int(1.9 * k))
+    # Dark moat: covers inner ray ends, creates clear separation
+    pygame.draw.circle(ss, (6, 6, 14, 255), (int(x * k), int(y * k)), int(8.5 * k))
+    # Outer scarlet ring (visible between moat edge and next dark gap)
+    pygame.draw.circle(ss, (*SCARLET, 255), (int(x * k), int(y * k)), int(7.5 * k))
+    # Inner dark gap
+    pygame.draw.circle(ss, (6, 6, 14, 255), (int(x * k), int(y * k)), int(5.8 * k))
+    # White-hot core: 8–9px output diameter (radius 4–4.5px)
+    pygame.draw.circle(ss, (255, 248, 240, 255), (int(x * k), int(y * k)), int(4.5 * k))
 
 
 # ── labels ───────────────────────────────────────────────────────────────────
@@ -559,18 +605,18 @@ def place_labels(surf, run, pillars, pts, death_i):
 
     def fit(rect):
         for _ in range(30):
-            hit = next((r for r in placed if rect.colliderect(r.inflate(7, 5))), None)
+            hit = next((r for r in placed if rect.colliderect(r.inflate(7, 16))), None)
             if hit is None:
                 return rect
-            rect.y = hit.bottom + 4
+            rect.y = hit.bottom + 20
             if rect.bottom > FIELD_Y1 + 16:
                 break
         rect.bottom = min(rect.bottom, FIELD_Y1 + 16)
         for _ in range(30):
-            hit = next((r for r in placed if rect.colliderect(r.inflate(7, 5))), None)
+            hit = next((r for r in placed if rect.colliderect(r.inflate(7, 16))), None)
             if hit is None:
                 break
-            rect.y = hit.top - rect.height - 4
+            rect.y = hit.top - rect.height - 20
         return rect
 
     for i, pillar in enumerate(pillars):
@@ -579,8 +625,8 @@ def place_labels(surf, run, pillars, pts, death_i):
             continue
         lit = pillar <= run.pillars
         x, y = pts[i]
-        body = smallcaps(name, 11, 8, (255, 255, 255) if not lit else GOLD, 0.7)
-        img = body if lit else outline_of(body, COOL, 178)
+        body = smallcaps(name, 11, 8, GOLD if lit else LABEL_DIM, 0.7)
+        img = body
         right = x < CX
         rect = img.get_rect()
         rect.centery = int(y)
@@ -750,7 +796,7 @@ def render_sheet(panels, captions):
     sheet = pygame.Surface((sw, sh))
     sheet.fill(SHEET_BG)
 
-    head = "STAR CHART · ROUND 1"
+    head = "STAR CHART · ROUND 2"
     f = font(17)
     glyphs = [f.render(ch, True, GOLD) for ch in head]
     tw = sum(g.get_width() for g in glyphs) + 3 * (len(head) - 1)
@@ -815,7 +861,7 @@ def main():
               f"{len(off)} off-canvas, {len(over_cart)} touching the cartouche")
 
     sheet = render_sheet(panels, captions)
-    path = os.path.join(out_dir, "round_1.png")
+    path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, path)
     print("saved", path, sheet.get_size())
 
