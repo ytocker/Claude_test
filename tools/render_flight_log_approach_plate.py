@@ -198,17 +198,18 @@ pygame.draw.circle(surf, GREASE_RED, (180, dy), 12, 2)
 pygame.draw.line(surf, GREASE_RED, (180 - 4, dy - 4), (180 + 4, dy + 4), 2)
 pygame.draw.line(surf, GREASE_RED, (180 + 4, dy - 4), (180 - 4, dy + 4), 2)
 
-# Labels to the right
-surf.blit(F7.render("DR POSN", True, GREASE_RED), (196, dy - 10))
-surf.blit(F7.render("TERRAIN CONTACT", True, GREASE_RED), (196, dy + 2))
+# Labels to the LEFT (avoid collision with GOLDH fix label)
+surf.blit(F7.render("DR POSN", True, GREASE_RED), (136, dy - 10))
+surf.blit(F7.render("TERRAIN CONTACT", True, GREASE_RED), (136, dy + 2))
 
-# Crash trajectory dashes (diagonal right-down)
-dash_line(surf, GREASE_RED, 182, dy + 2, 200, 370, dash=3, gap=3, width=1)
+# Crash trajectory dashes (diagonal left-down)
+dash_line(surf, GREASE_RED, 178, dy + 2, 158, 372, dash=3, gap=3, width=1)
 
 # ── Grease pencil flown annotation ───────────────────────────────────────────
-# Yellow highlight strip over flown portion (dy to 410)
-hl_surf = pygame.Surface((360, 640), pygame.SRCALPHA)
-pygame.draw.rect(hl_surf, (255, 240, 80, 90), (176, dy, 8, 410 - dy))
+# Yellow highlight strip over flown portion — wider parallelogram brush stroke
+hl_surf = pygame.Surface((360, 420), pygame.SRCALPHA)
+points = [(173, death_y_plan), (185, death_y_plan), (188, 410), (176, 410)]
+pygame.draw.polygon(hl_surf, (255, 240, 80, 145), points)
 surf.blit(hl_surf, (0, 0))
 
 # Green checkmark at midpoint of flown route (~y=380)
@@ -223,18 +224,18 @@ pygame.draw.ellipse(surf, PAPER, (145, gy - 7, 20, 14))
 pygame.draw.ellipse(surf, INK_LIGHT, (145, gy - 7, 20, 14), 1)
 surf.blit(F6.render("GEYSR", True, INK_LIGHT), (132, gy - 2))
 
-# Clown (MOA) at 0.41 → y≈267
+# Clown (MOA) at 0.41 → y≈267 — keep on RIGHT
 cy_ev = fix_y(0.41)
 clown_pts = [(188, cy_ev), (188, cy_ev - 10), (196, cy_ev - 5)]
 pygame.draw.polygon(surf, INK_LIGHT, clown_pts)
-surf.blit(F6.render("MOA-CL", True, INK_LIGHT), (200, cy_ev - 6))
+surf.blit(F6.render("MOA-CL", True, INK_LIGHT), (200, cy_ev - 2))
 
-# Storm at 0.44 → y≈256
+# Storm at 0.44 → y≈256 — move to LEFT (staggered from CLOWN)
 sy_ev = fix_y(0.44)
-bolt = [(190, sy_ev - 4), (194, sy_ev - 4), (192, sy_ev),
-        (196, sy_ev), (192, sy_ev + 4), (193, sy_ev + 1), (189, sy_ev + 1)]
+bolt = [(170, sy_ev - 4), (174, sy_ev - 4), (172, sy_ev),
+        (176, sy_ev), (172, sy_ev + 4), (173, sy_ev + 1), (169, sy_ev + 1)]
 pygame.draw.polygon(surf, INK, bolt)
-surf.blit(F6.render("CB/TS", True, INK), (200, sy_ev - 4))
+surf.blit(F6.render("CB/TS", True, INK), (138, sy_ev - 4))
 
 # Snow/ice at 0.85 → y≈112
 snow_x, snow_y = 165, fix_y(0.85)
@@ -288,23 +289,27 @@ for ay, alabel in alt_lines:
     surf.blit(F7.render(alabel, True, INK_LIGHT), (7, ay - 8))
 
 # ── Descent glidepath ─────────────────────────────────────────────────────────
-pygame.draw.line(surf, FAA_MAGENTA, (340, 440), (30, 590), 2)
+# Start at y=436 (5000' gridline) so first fix kisses that altitude line
+pygame.draw.line(surf, FAA_MAGENTA, (340, 436), (30, 590), 2)
 
-# Fix ticks on glidepath
+# Fix ticks on glidepath with altitude annotations
 profile_fixes = [
-    (0.231, "GOLDH"),
-    (0.363, "SUNST"),
-    (0.513, "DUSKK"),
-    (0.644, "NYTIM"),
-    (0.794, "PREDN"),
-    (0.906, "SUNRS"),
+    (0.231, "GOLDH", "5000'"),
+    (0.363, "SUNST", "4000'"),
+    (0.513, "DUSKK", "3000'"),
+    (0.644, "NYTIM", "2500'"),
+    (0.794, "PREDN", "2000'"),
+    (0.906, "SUNRS", "1500'"),
 ]
-for f, fname in profile_fixes:
+for f, fname, alt_label in profile_fixes:
     px = int(340 - f * 310)
-    py = int(440 + f * 150)
+    py = int(436 + f * 154)
     pygame.draw.line(surf, INK, (px, py - 5), (px, py + 5), 1)
     lbl = F6.render(fname, True, INK_LIGHT)
     surf.blit(lbl, (px - lbl.get_width() // 2, py + 6))
+    # Altitude label to the left of the tick
+    alt_lbl = F7.render(alt_label, True, INK_LIGHT)
+    surf.blit(alt_lbl, (px - 42, py - 4))
 
 # ── Death fix in profile ──────────────────────────────────────────────────────
 df = 0.184
@@ -332,17 +337,17 @@ surf.blit(dh_txt, ((360 - dh_txt.get_width()) // 2, 607))
 # STATS & BACK BUTTON (y=619 to y=636)
 # ══════════════════════════════════════════════════════════════════════════════
 stats_txt = F8.render("PILLAR 25  ·  DAY 1  ·  0:47  ·  18% FLOWN", True, INK_LIGHT)
-surf.blit(stats_txt, ((360 - stats_txt.get_width()) // 2, 619))
+surf.blit(stats_txt, ((360 - stats_txt.get_width()) // 2, 588))
 
-# BACK button (fits in lower border strip)
-pygame.draw.rect(surf, INK, (148, 626, 64, 10), border_radius=3)
-back_txt = F7.render("BACK", True, PAPER)
-surf.blit(back_txt, (148 + (64 - back_txt.get_width()) // 2,
-                     626 + (10 - back_txt.get_height()) // 2))
+# 24px pill BACK button — proper tap target at bottom of profile section
+pygame.draw.rect(surf, INK, (134, 597, 92, 24), border_radius=6)
+back_surf = F10.render("BACK", True, PAPER)
+surf.blit(back_surf, (134 + (92 - back_surf.get_width()) // 2,
+                      597 + (24 - back_surf.get_height()) // 2))
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Save
 # ══════════════════════════════════════════════════════════════════════════════
-out = os.path.join(OUT_DIR, "round_1.png")
+out = os.path.join(OUT_DIR, "round_2.png")
 pygame.image.save(surf, out)
 print(f"saved {out}")
