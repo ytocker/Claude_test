@@ -43,7 +43,7 @@ pygame.init()
 pygame.display.set_mode((1, 1))
 
 from game.weather import THERMAL_START_PHASE, THERMAL_END_PHASE, SNOW_STORM_CENTER
-from game.config import LATE_GAME_PILLAR, CLOWN_START_PILLAR, RAIN_START_PILLAR
+from game.config import LATE_GAME_PILLAR, CLOWN_START_PILLAR
 from game.biome import PHASE_BOUNDARIES, palette_for_phase
 from game.draw import lerp_color, lerp_color_multi
 from game import parrot as _parrot
@@ -596,8 +596,12 @@ def draw_overlay(ss):
             t = i / steps
             core = 3.0 + 2.4 * t ** 1.4
             if pass_ink:
-                pygame.draw.line(ss, (*INK, 245), PU(u0), PU(u1),
-                                 int((core + 2.0) * k))
+                # 2px a side, not 1. A 1px keyline authored at 3× straddles the
+                # output grid and averages to a mid-grey wherever it lands off
+                # a pixel boundary — measured, it never got darker than L=160
+                # against a core at L=245. 2px always lands one clean ink pixel.
+                pygame.draw.line(ss, (*INK, 250), PU(u0), PU(u1),
+                                 int((core + 4.0) * k))
             else:
                 col = lerp_color((255, 176, 74), (255, 246, 214), t ** 0.75)
                 pygame.draw.line(ss, (*col, 255), PU(u0), PU(u1), int(core * k))
@@ -627,7 +631,7 @@ def trail_bloom(surf):
         x, y = pos_u(u_death * 0.95 * t)
         rad = int(6 + 8 * t ** 1.3)
         g = soft_glow(rad, lerp_color((255, 158, 60), (255, 224, 168), t),
-                      peak=int(18 + 30 * t ** 1.4), falloff=1.9)
+                      peak=int(12 + 18 * t ** 1.4), falloff=1.9)
         surf.blit(g, (int(x) - rad - 1, int(y) - rad - 1), special_flags=pygame.BLEND_ADD)
 
 
@@ -663,8 +667,8 @@ def draw_sun(surf, ss):
                          ((x + dx * 7.6) * k, (y + dy * 7.6) * k),
                          ((x + dx * 11.4) * k, (y + dy * 11.4) * k), int(1.2 * k))
     pygame.draw.circle(ss, (94, 98, 114, 200), (int(x * k), int(y * k)), int(6.2 * k))
-    pygame.draw.circle(ss, (204, 196, 182, 240), (int(x * k), int(y * k)), int(5.2 * k))
-    pygame.draw.circle(ss, (226, 220, 206, 240), (int((x - 1.1) * k), int((y - 1.2) * k)),
+    pygame.draw.circle(ss, (216, 202, 178, 240), (int(x * k), int(y * k)), int(5.2 * k))
+    pygame.draw.circle(ss, (238, 226, 202, 240), (int((x - 1.1) * k), int((y - 1.2) * k)),
                        int(2.9 * k))
     return (x, y)
 
@@ -689,7 +693,7 @@ def macaw_backlight(surf):
     tx = math.cos(math.radians(tilt))
     ty = -math.sin(math.radians(tilt))
     # Trailing BACK along the flown run so the sun ahead of her stays clear.
-    for off, rad, peak in ((0.0, 30, 74), (11.0, 24, 84), (23.0, 26, 56)):
+    for off, rad, peak in ((0.0, 32, 54), (12.0, 26, 60), (24.0, 26, 36)):
         gx = DEATH_X - tx * off
         gy = DEATH_Y - ty * off
         # Warm rather than white: over a sky this bright an additive glow clips
