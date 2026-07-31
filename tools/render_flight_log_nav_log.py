@@ -1,8 +1,9 @@
-"""Render: nav_log Flight Log — Round 1
+"""Render: nav_log Flight Log — Round 2
 
 IFR navigation log (kneeboard form) on a dark leather clipboard.
 7 phase rows; death row (DAY) has a red line-through, not a stamp.
 """
+import math
 import os
 
 os.environ["SDL_VIDEODRIVER"] = "dummy"
@@ -83,6 +84,9 @@ PHASE_BOUNDARIES = [
 # Display names for unflown rows (1-6)
 PHASE_SHORT = ["GOLDEN", "SUNSET", "DUSK", "NIGHT", "PREDWN", "SUNRS"]
 
+# Short FROM→TO nav leg labels — abbreviated to fit 80px column (index 0 = DAY row)
+NAV_LEGS = ["RST→GLD", "GLD→SUN", "SUN→DSK", "DSK→NGT", "NGT→PRD", "PRD→SRS", "SRS→RST"]
+
 # Estimated time en-route for each phase row (index 0 = DAY)
 ETE_LIST = ["27:00", "42:00", "48:00", "40:00", "37:00", "45:00", "28:00"]
 
@@ -102,10 +106,10 @@ PAPER_BOT  = PAPER_Y + PAPER_H   # 610
 FORM_HDR_BOT = 108   # bottom of header block
 COL_HDR_BOT  = 130   # bottom of column-header strip
 
-ROW_H       = 62
+ROW_H       = 46     # tighter rows (was 62); 7 rows × 46 = 322px
 ROW_START_Y = COL_HDR_BOT
 N_ROWS      = 7
-STATS_Y     = ROW_START_Y + N_ROWS * ROW_H  # 130 + 434 = 564
+STATS_Y     = ROW_START_Y + N_ROWS * ROW_H  # 130 + 322 = 452
 
 # Column x boundaries on canvas
 COL_X = [22, 72, 152, 192, 232, 338]  # left edge of each col; last = right edge
@@ -216,23 +220,30 @@ for i in range(N_ROWS):
     y_top = ROW_START_Y + i * ROW_H
     y_bot = y_top + ROW_H
 
+    # Subtle mid-row ruling — makes empty space read as intentional writing lines
+    alpha_rect(surf, (180, 195, 220, 60), PAPER_X, y_top + 24, PAPER_W, 1)
+
     if i == 0:
         # ── DEATH ROW (DAY phase, death at 18.4%) ─────────────────────────────
-        # Faint red wash
-        alpha_rect(surf, (172, 40, 32, 25), PAPER_X + 1, y_top, PAPER_W - 2, ROW_H)
+        # Red wash — boosted alpha for clear visibility
+        alpha_rect(surf, (172, 40, 32, 55), PAPER_X + 1, y_top, PAPER_W - 2, ROW_H)
 
         # Row content — filled in as if pilot was logging
-        draw_text(surf, "DAY",          COL_X[0] + 3, y_top + 8,  9, INK_DARK)
-        draw_text(surf, "ROOST→GOLHR", COL_X[1] + 3, y_top + 8, 7, INK_DARK)
-        draw_text(surf, ETE_LIST[0],    COL_X[2] + 3, y_top + 8,  8, INK_DARK)
-        draw_text(surf, "0:47",         COL_X[3] + 3, y_top + 8,  8, INK_DARK)
-        draw_text(surf, "GEYSR ACTV",   COL_X[4] + 3, y_top + 8,  7, INK_DARK)
-        # Sub-note in red
-        draw_text(surf, "BIRD DOWN",    COL_X[4] + 3, y_top + 22, 7, DEATH_RED)
+        draw_text(surf, "DAY",        COL_X[0] + 3, y_top + 8, 9, INK_DARK)
+        draw_text(surf, NAV_LEGS[0],  COL_X[1] + 3, y_top + 8, 8, INK_DARK)
+        draw_text(surf, ETE_LIST[0],  COL_X[2] + 3, y_top + 8, 8, INK_DARK)
+        draw_text(surf, "0:47",       COL_X[3] + 3, y_top + 8, 8, INK_DARK)
+        draw_text(surf, "GEYSR ACTV", COL_X[4] + 3, y_top + 8, 7, INK_DARK)
 
-        # STRIKETHROUGH — two parallel red lines
-        pygame.draw.line(surf, DEATH_RED, (24, y_top + 18), (336, y_top + 18), 2)
-        pygame.draw.line(surf, DEATH_RED, (24, y_top + 30), (336, y_top + 30), 2)
+        # STRIKETHROUGH — two parallel red lines (moved UP to before annotation)
+        pygame.draw.line(surf, DEATH_RED, (24, y_top + 14), (336, y_top + 14), 2)
+        pygame.draw.line(surf, DEATH_RED, (24, y_top + 22), (336, y_top + 22), 2)
+
+        # Third shorter line at 50% alpha — adds depth beneath the main strikes
+        alpha_rect(surf, (172, 40, 32, 128), 60, y_top + 28, 250, 2)
+
+        # "BIRD DOWN" annotation — placed BELOW both strike lines
+        draw_text(surf, "BIRD DOWN", COL_X[4] + 3, y_top + 36, 7, DEATH_RED)
 
         # Red X in left margin
         x_cx, x_cy = 30, y_top + 24
@@ -245,17 +256,15 @@ for i in range(N_ROWS):
         # ── UNFLOWN ROW ────────────────────────────────────────────────────────
         idx       = i - 1                # 0-based index into PHASE_SHORT etc.
         ph_short  = PHASE_SHORT[idx]
-        ph_from   = PHASE_BOUNDARIES[i][2]
-        ph_to     = PHASE_BOUNDARIES[i][3]
         ete_str   = ETE_LIST[i]
         note_str  = UNFLOWN_NOTES[idx]
 
-        draw_text(surf, ph_short,                COL_X[0] + 3, y_top + 8, 9, INK_GREY)
-        draw_text(surf, f"{ph_from}→{ph_to}", COL_X[1] + 3, y_top + 8, 7, INK_GREY)
-        draw_text(surf, ete_str,                 COL_X[2] + 3, y_top + 8, 8, INK_GREY)
+        draw_text(surf, ph_short,     COL_X[0] + 3, y_top + 8, 9, INK_GREY)
+        draw_text(surf, NAV_LEGS[i],  COL_X[1] + 3, y_top + 8, 8, INK_GREY)
+        draw_text(surf, ete_str,      COL_X[2] + 3, y_top + 8, 8, INK_GREY)
         # ATE left blank
         if note_str:
-            draw_text(surf, note_str,            COL_X[4] + 3, y_top + 8, 7, INK_GREY)
+            draw_text(surf, note_str, COL_X[4] + 3, y_top + 8, 7, INK_GREY)
 
     # Row divider
     pygame.draw.line(surf, INK_GREY, (PAPER_X, y_bot), (PAPER_R, y_bot), 1)
@@ -268,9 +277,9 @@ pygame.draw.line(surf, INK_DARK, (PAPER_X, STATS_Y),     (PAPER_R, STATS_Y),    
 pygame.draw.line(surf, INK_DARK, (PAPER_X, STATS_Y + 4), (PAPER_R, STATS_Y + 4), 1)
 
 draw_text(surf, "PILLAR 25  ·  DAY 1  ·  0:47  ·  18% FLOWN",
-          CW // 2, 575, 9, INK_DARK, align="center")
+          CW // 2, STATS_Y + 11, 9, INK_DARK, align="center")
 draw_text(surf, "PHASE: DAY  ·  STATUS: MAYDAY",
-          CW // 2, 594, 8, DEATH_RED, align="center")
+          CW // 2, STATS_Y + 27, 8, DEATH_RED, align="center")
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║  9. BACK BUTTON                                              ║
@@ -280,24 +289,47 @@ pygame.draw.rect(surf, GOLD, (105, 617, 150, 24), width=2, border_radius=8)
 draw_text(surf, "BACK", 180, 622, 12, GOLD, align="center")
 
 # ╔══════════════════════════════════════════════════════════════╗
-# ║  10. EVENT MARKER HINTS (left clipboard leather edge)        ║
+# ║  10. EVENT MARKER STRIP (slim vertical timeline, left margin)║
 # ╚══════════════════════════════════════════════════════════════╝
-# Map event day-fractions onto the paper y span
+EV_Y_TOP = 130
+EV_Y_BOT = 564
+
+# Thin vertical timeline line at x=36, inside left paper margin
+pygame.draw.line(surf, (180, 195, 220), (36, EV_Y_TOP), (36, EV_Y_BOT), 1)
+
+# Event markers mapped to y proportional within the row block
 EVENT_MARKS = [
-    (0.15, GOLD),                # GEYSER — gold (active event, caused death)
-    (0.41, (180, 160, 100)),     # CLOWN
-    (0.44, (140, 170, 200)),     # STORM
-    (0.85, (200, 215, 235)),     # SNOW
+    (0.15, "geyser"),   # Geysers — gold (active event, caused death)
+    (0.41, "clown"),    # Clown — death red diamond
+    (0.44, "storm"),    # Storm — orange lightning bolt
+    (0.85, "snow"),     # Snow — blue asterisk
 ]
-MARK_Y_TOP = PAPER_Y
-MARK_Y_BOT = PAPER_BOT
-for frac, col in EVENT_MARKS:
-    ey = int(MARK_Y_TOP + frac * (MARK_Y_BOT - MARK_Y_TOP))
-    # small dot + dash on the leather left border
-    pygame.draw.circle(surf, col, (15, ey), 2)
-    pygame.draw.line(surf, col, (17, ey), (21, ey), 1)
+
+for frac, kind in EVENT_MARKS:
+    ey = int(EV_Y_TOP + frac * (EV_Y_BOT - EV_Y_TOP))
+    if kind == "geyser":
+        # Small circle radius=4 in warm gold
+        pygame.draw.circle(surf, (240, 180, 60), (36, ey), 4, 1)
+    elif kind == "clown":
+        # Small diamond (4-point rotated square) in DEATH_RED
+        pts = [(36, ey - 4), (36 + 4, ey), (36, ey + 4), (36 - 4, ey)]
+        pygame.draw.polygon(surf, DEATH_RED, pts, 1)
+    elif kind == "storm":
+        # Lightning bolt — 3 connected line segments
+        c = (180, 80, 20)
+        pygame.draw.line(surf, c, (38, ey - 4), (34, ey),     1)
+        pygame.draw.line(surf, c, (34, ey),     (37, ey),     1)
+        pygame.draw.line(surf, c, (37, ey),     (33, ey + 4), 1)
+    elif kind == "snow":
+        # Asterisk — 3 lines at 0°, 60°, 120° (radius 4)
+        c = (140, 180, 220)
+        for angle in [0, 60, 120]:
+            rad = math.radians(angle)
+            dx = int(round(4 * math.cos(rad)))
+            dy = int(round(4 * math.sin(rad)))
+            pygame.draw.line(surf, c, (36 - dx, ey - dy), (36 + dx, ey + dy), 1)
 
 # ── save ───────────────────────────────────────────────────────────────────────
-out = os.path.join(OUT_DIR, "round_1.png")
+out = os.path.join(OUT_DIR, "round_2.png")
 pygame.image.save(surf, out)
 print(f"saved {out}")
