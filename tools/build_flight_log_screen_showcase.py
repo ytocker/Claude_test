@@ -98,7 +98,11 @@ for i, slug in enumerate(SLUGS):
     surf.blit(lbl_surf, (panel_x + (PANEL_W - lbl_surf.get_width()) // 2,
                          footer_y + (FOOTER_H - lbl_surf.get_height()) // 2))
 
-out = os.path.join(FEATURE_DIR, "showcase.png")
+import glob as _glob
+_existing = _glob.glob(os.path.join(FEATURE_DIR, "showcase_v*.png"))
+_next_v = max((int(os.path.basename(p)[10:-4]) for p in _existing
+               if os.path.basename(p)[10:-4].isdigit()), default=0) + 1
+out = os.path.join(FEATURE_DIR, f"showcase_v{_next_v}.png")
 pygame.image.save(surf, out)
 loaded = pygame.image.load(out)
 print(f"saved {out}  {loaded.get_size()}")
