@@ -24,13 +24,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONT_PATH = os.path.join(ROOT, "game", "assets", "LiberationSans-Bold.ttf")
 FEATURE_DIR = os.path.join(ROOT, "docs", "flight_log_screen")
 
-SLUGS = ["cable_tape", "bronze_plate", "vellum_hours", "loom_band", "sealed_permit"]
+SLUGS = ["sectional_chart", "nav_log", "departure_board", "approach_plate", "ticket_book"]
 LABELS = {
-    "cable_tape":     "CABLE TAPE",
-    "bronze_plate":   "BRONZE PLATE",
-    "vellum_hours":   "VELLUM HOURS",
-    "loom_band":      "LOOM BAND",
-    "sealed_permit":  "SEALED PERMIT",
+    "sectional_chart":  "SECTIONAL CHART",
+    "nav_log":          "NAV LOG",
+    "departure_board":  "DEPARTURE BOARD",
+    "approach_plate":   "APPROACH PLATE",
+    "ticket_book":      "TICKET BOOK",
 }
 IDS = ["A", "B", "C", "D", "E"]
 
