@@ -16,7 +16,6 @@ from __future__ import annotations
 import math
 import os
 import random
-import sys
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
