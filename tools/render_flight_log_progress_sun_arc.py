@@ -30,7 +30,7 @@ pygame.display.set_mode((1, 1))
 from game.weather import THERMAL_START_PHASE, THERMAL_END_PHASE, SNOW_STORM_CENTER
 from game.config import LATE_GAME_PILLAR, CLOWN_START_PILLAR, RAIN_START_PILLAR
 from game.biome import PHASE_BOUNDARIES, palette_for_phase
-from game.draw import lerp_color, lerp_color_multi, make_glow_surface
+from game.draw import lerp_color, lerp_color_multi
 
 W, H = 360, 640
 CX, CY, R = 180, 400, 150
@@ -52,8 +52,6 @@ def font(size):
 IVORY = (255, 246, 232)
 GOLD = (255, 206, 112)
 SCARLET = (240, 66, 60)
-EMBER = (255, 148, 96)
-INK = (16, 12, 20)
 
 GEYSER_C = (146, 232, 255)
 GENIE_C = (196, 150, 255)
@@ -512,9 +510,9 @@ def render_screen():
         fn(ss, gx * k, (452 + i * 18) * k, 6.2 * k, col)
     for i, (fn, _name, col) in enumerate(GLYPHS):
         cx = 36 + i * 72
-        pygame.draw.circle(ss, (255, 246, 232, 26), (int(cx * k), int(516 * k)), int(12.5 * k))
-        pygame.draw.circle(ss, (255, 246, 232, 46), (int(cx * k), int(516 * k)), int(12.5 * k), int(1.0 * k))
-        fn(ss, cx * k, 516 * k, 7.0 * k, col)
+        pygame.draw.circle(ss, (255, 246, 232, 26), (int(cx * k), int(517 * k)), int(11.8 * k))
+        pygame.draw.circle(ss, (255, 246, 232, 46), (int(cx * k), int(517 * k)), int(11.8 * k), int(1.0 * k))
+        fn(ss, cx * k, 517 * k, 6.8 * k, col)
 
     surf.blit(pygame.transform.smoothscale(ss, (W, H)), (0, 0))
 
@@ -525,20 +523,26 @@ def render_screen():
     pygame.draw.line(surf, (255, 206, 112, 90), (128, 68), (232, 68), 1)
 
     # Phase name labels — three only, all horizontal, chipped so they stay
-    # legible where they cross the guide line.
-    def phase_chip(label, cx, cy, col=IVORY):
+    # legible against a fully saturated dome. NIGHT sits outside the arc in
+    # open sky; the two horizon labels sit just inside it, because a 40px-wide
+    # horizontal word cannot clear a 150px arc that meets the horizon only
+    # 30px from the canvas edge — outside there, the chip would eat the arc's
+    # own terminal.
+    def phase_chip(label, cy, col=IVORY, center=None, left=None, right=None):
         f = font(9)
-        w = f.size(label)[0] + 14
-        r = pygame.Rect(0, 0, w, 18)
-        r.center = (cx, cy)
-        r.clamp_ip(pygame.Rect(3, 0, W - 6, H))
-        chip(surf, r, radius=9, alpha=160)
+        r = pygame.Rect(0, 0, f.size(label)[0] + 14, 18)
+        if center:
+            r.center = (center, cy)
+        elif left:
+            r.midleft = (left, cy)
+        else:
+            r.midright = (right, cy)
+        chip(surf, r, radius=9, alpha=162)
         text(surf, label, 9, center=r.center, color=col, shadow=None)
-        return r
 
-    phase_chip("DAY", 26, 381, GOLD)
-    phase_chip("NIGHT", 262, 236, (198, 216, 255))
-    phase_chip("SUNRISE", 330, 381, (255, 196, 168))
+    phase_chip("DAY", 384, GOLD, left=43)
+    phase_chip("NIGHT", 236, (198, 216, 255), center=262)
+    phase_chip("SUNRISE", 384, (255, 196, 168), right=320)
 
     # Death callout, hung off the inward spur into the ahead sector.
     f = font(9)
@@ -562,9 +566,9 @@ def render_screen():
     for i, (_fn, col, t) in enumerate(rows):
         text(surf, t, 9, midleft=(tx, 452 + i * 18), color=(255, 240, 216), shadow=(40, 22, 12, 160))
 
-    pygame.draw.line(surf, (255, 226, 180, 70), (40, 498), (320, 498), 1)
+    pygame.draw.line(surf, (255, 226, 180, 70), (40, 499), (320, 499), 1)
     for i, (_fn, name, _c) in enumerate(GLYPHS):
-        text(surf, name, 7, center=(36 + i * 72, 535), color=(255, 236, 206),
+        text(surf, name, 7, center=(36 + i * 72, 537), color=(255, 236, 206),
              shadow=(38, 22, 12, 150))
 
     # BACK pill
