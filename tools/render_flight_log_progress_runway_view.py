@@ -138,7 +138,6 @@ SCARLET = (232, 62, 58)
 SCARLET_HI = (255, 132, 112)
 
 CREAM = (246, 240, 226)
-SLATE = (24, 36, 48)
 BOARD_BODY = (13, 19, 27)
 BOARD_HALO = (5, 9, 13)
 
@@ -512,11 +511,13 @@ def draw_coin_lane():
         r = 3.4 * sc
         flown = y > DEATH_Y
         if flown:
-            # Already banked: an empty socket in the shaded stone.
-            pygame.draw.circle(lay, (46, 42, 44, 150), (s(CX), s(y)),
-                               max(1, s(r)), max(1, int(SS * 0.7)))
-            pygame.draw.circle(lay, (176, 178, 176, 70), (s(CX), s(y - 0.5 * r)),
-                               max(1, s(r * 0.55)), max(1, int(SS * 0.5)))
+            # Already banked: a dished socket in the shaded stone, lit on its
+            # near rim. A hairline ring vanishes in the downscale, so the
+            # empty coin has to be a solid form, not an outline.
+            pygame.draw.circle(lay, (188, 178, 164, 165),
+                               (s(CX), s(y + 0.32 * r)), max(2, s(r * 1.02)))
+            pygame.draw.circle(lay, (44, 40, 42, 225),
+                               (s(CX), s(y - 0.10 * r)), max(1, s(r * 0.92)))
         else:
             pygame.draw.circle(lay, (*COIN_DARK, 235), (s(CX), s(y)),
                                max(1, s(r * 1.16)))
@@ -967,37 +968,40 @@ def macaw_surface(size_px, tilt_deg):
         return pygame.Rect(int((u - ru) * n), int((v - rv) * n),
                            int(2 * ru * n), int(2 * rv * n))
 
-    # Tail streamers first — the macaw silhouette is mostly tail.
-    pygame.draw.polygon(surf, BIRD_RED_D, [P(0.44, 0.55), P(0.52, 0.62),
-                                           P(0.12, 0.95), P(0.06, 0.85)])
-    pygame.draw.polygon(surf, BIRD_RED, [P(0.46, 0.52), P(0.53, 0.58),
-                                         P(0.16, 0.88), P(0.11, 0.80)])
-    pygame.draw.polygon(surf, (52, 96, 210), [P(0.44, 0.60), P(0.50, 0.66),
-                                              P(0.20, 0.93), P(0.16, 0.87)])
+    # Pose is built nose-right and level, then rolled as one piece: at this
+    # size a pre-tilted pose loses the tail-to-beak axis the moment it rotates.
 
-    pygame.draw.ellipse(surf, BIRD_RED_D, E(0.545, 0.505, 0.235, 0.185))
-    pygame.draw.ellipse(surf, BIRD_RED, E(0.535, 0.485, 0.215, 0.165))
-    pygame.draw.ellipse(surf, (255, 150, 90), E(0.505, 0.545, 0.135, 0.090))
+    # Tail fan — broad enough to survive the downscale.
+    pygame.draw.polygon(surf, BIRD_RED_D, [P(0.36, 0.40), P(0.36, 0.68),
+                                           P(0.02, 0.80), P(0.00, 0.50)])
+    pygame.draw.polygon(surf, BIRD_RED, [P(0.36, 0.42), P(0.36, 0.62),
+                                         P(0.05, 0.70), P(0.04, 0.48)])
+    pygame.draw.polygon(surf, (52, 96, 210), [P(0.30, 0.60), P(0.34, 0.68),
+                                              P(0.03, 0.79), P(0.04, 0.66)])
+
+    pygame.draw.ellipse(surf, BIRD_RED_D, E(0.52, 0.52, 0.29, 0.235))
+    pygame.draw.ellipse(surf, BIRD_RED, E(0.51, 0.505, 0.265, 0.205))
+    pygame.draw.ellipse(surf, (255, 150, 90), E(0.47, 0.60, 0.175, 0.115))
 
     # Wing thrown up and back, macaw banding intact.
-    pygame.draw.polygon(surf, BIRD_WING_D, [P(0.52, 0.44), P(0.86, 0.18),
-                                            P(0.93, 0.33), P(0.66, 0.53)])
-    pygame.draw.polygon(surf, BIRD_WING, [P(0.53, 0.43), P(0.83, 0.20),
-                                          P(0.89, 0.32), P(0.65, 0.50)])
-    pygame.draw.polygon(surf, (255, 200, 60), [P(0.78, 0.24), P(0.87, 0.29),
-                                               P(0.83, 0.37), P(0.74, 0.32)])
-    pygame.draw.polygon(surf, BIRD_TIP, [P(0.83, 0.20), P(0.94, 0.26),
-                                         P(0.88, 0.32)])
+    pygame.draw.polygon(surf, BIRD_WING_D, [P(0.56, 0.42), P(0.30, 0.02),
+                                            P(0.14, 0.16), P(0.40, 0.52)])
+    pygame.draw.polygon(surf, BIRD_WING, [P(0.55, 0.40), P(0.31, 0.06),
+                                          P(0.19, 0.17), P(0.41, 0.48)])
+    pygame.draw.polygon(surf, (255, 200, 60), [P(0.28, 0.10), P(0.36, 0.20),
+                                               P(0.28, 0.27), P(0.20, 0.18)])
+    pygame.draw.polygon(surf, BIRD_TIP, [P(0.31, 0.03), P(0.16, 0.13),
+                                         P(0.22, 0.19)])
 
     # Head + hooked beak.
-    pygame.draw.circle(surf, BIRD_RED_D, P(0.735, 0.565), int(0.150 * n))
-    pygame.draw.circle(surf, BIRD_RED, P(0.725, 0.550), int(0.135 * n))
-    pygame.draw.polygon(surf, BIRD_BEAK, [P(0.845, 0.520), P(0.960, 0.575),
-                                          P(0.845, 0.640)])
-    pygame.draw.polygon(surf, (150, 90, 10), [P(0.905, 0.560), P(0.960, 0.575),
-                                              P(0.900, 0.622)])
-    pygame.draw.circle(surf, (250, 246, 236), P(0.775, 0.510), int(0.055 * n))
-    pygame.draw.circle(surf, (18, 14, 20), P(0.783, 0.512), int(0.030 * n))
+    pygame.draw.circle(surf, BIRD_RED_D, P(0.775, 0.435), int(0.205 * n))
+    pygame.draw.circle(surf, BIRD_RED, P(0.765, 0.420), int(0.185 * n))
+    pygame.draw.polygon(surf, BIRD_BEAK, [P(0.885, 0.330), P(1.00, 0.435),
+                                          P(0.880, 0.560)])
+    pygame.draw.polygon(surf, (150, 90, 10), [P(0.955, 0.400), P(1.00, 0.440),
+                                              P(0.930, 0.530)])
+    pygame.draw.circle(surf, (250, 246, 236), P(0.845, 0.360), int(0.072 * n))
+    pygame.draw.circle(surf, (18, 14, 20), P(0.858, 0.365), int(0.040 * n))
 
     rot = pygame.transform.rotate(surf, tilt_deg)
     tw = max(1, rot.get_width() * SS // K)
@@ -1042,22 +1046,21 @@ def draw_death_marker():
 def draw_death_macaw():
     """The bird itself, still tumbling above the point it went down — the run
     ended to somebody, not at a coordinate."""
-    bird = macaw_surface(15.0, -46.0)
+    cy = DEATH_Y - 17.0
+    bird = macaw_surface(16.0, -34.0)
     bx = s(MARKER_X) - bird.get_width() // 2
-    by = s(DEATH_Y - 13.0) - bird.get_height() // 2
+    by = s(cy) - bird.get_height() // 2
 
     halo = new_layer()
-    pygame.draw.circle(halo, (255, 176, 150, 46), (s(MARKER_X), s(DEATH_Y - 13.0)),
-                       s(12.5))
-    pygame.draw.circle(halo, (255, 200, 176, 34), (s(MARKER_X), s(DEATH_Y - 13.0)),
-                       s(9.0))
+    pygame.draw.circle(halo, (255, 176, 150, 46), (s(MARKER_X), s(cy)), s(13.5))
+    pygame.draw.circle(halo, (255, 200, 176, 34), (s(MARKER_X), s(cy)), s(9.5))
     geo.blit(halo, (0, 0))
 
     trail = new_layer()
-    for k, (dx, dy, a, r) in enumerate(((7.5, 5.0, 90, 2.2), (12.0, 8.6, 60, 1.6),
-                                        (16.0, 11.6, 36, 1.1))):
+    for dx, dy, a, r in ((8.0, 5.4, 90, 2.2), (12.6, 9.2, 60, 1.6),
+                         (16.6, 12.4, 36, 1.1)):
         pygame.draw.circle(trail, (255, 190, 150, a),
-                           (s(MARKER_X + dx), s(DEATH_Y - 13.0 + dy)), s(r))
+                           (s(MARKER_X + dx), s(cy + dy)), s(r))
     geo.blit(trail, (0, 0))
 
     geo.blit(bird, (bx, by))
@@ -1205,7 +1208,89 @@ text("BACK", 12, CREAM, 190, 621, "center")
 OUT_DIR = os.path.join("docs", "flight_log_progress", "runway_view")
 os.makedirs(OUT_DIR, exist_ok=True)
 OUT = os.path.join(OUT_DIR, "round_2.png")
-pygame.image.save(base, OUT)
+
+
+# ── review sheet: the 1× canvas plus nearest-neighbour detail crops ──────────
+
+SHEET_W, SHEET_H = 1090, 1030
+sheet = pygame.Surface((SHEET_W, SHEET_H))
+sheet.fill((16, 20, 26))
+
+INK = (232, 240, 246)
+DIM = (150, 172, 188)
+ACC = (255, 206, 132)
+
+
+def label(msg, x, y, size=12, col=DIM):
+    text(msg, size, col, x, y, "topleft", shadow=None, dst=sheet)
+
+
+def crop_at(rect, factor):
+    src = pygame.Surface((rect[2], rect[3]))
+    src.blit(base, (0, 0), pygame.Rect(*rect))
+    # Nearest-neighbour on purpose: the reviewer has to see real pixels, not a
+    # resampler's opinion of them.
+    return pygame.transform.scale(src, (int(rect[2] * factor),
+                                        int(rect[3] * factor)))
+
+
+def framed(surf, x, y):
+    pygame.draw.rect(sheet, (70, 90, 104),
+                     (x - 1, y - 1, surf.get_width() + 2, surf.get_height() + 2), 1)
+    sheet.blit(surf, (x, y))
+
+
+text("FLIGHT LOG PROGRESS   ·   runway-view   ·   ROUND 2", 19, INK, 20, 12,
+     "topleft", shadow=None, dst=sheet)
+label("one-point corridor · day 1 · ended at pillar 25, 18% of the day flown",
+      20, 36, 12)
+
+framed(base, 20, 60)
+label("1×  —  360 × 640 virtual canvas", 20, 706, 12, ACC)
+
+label("THE GATE — the destination is now an object   ·   3×", 400, 44, 12, ACC)
+framed(crop_at((96, 2, 190, 102), 3), 400, 60)
+
+label("DEATH LINE — flown vs ahead, macaw on the marker   ·   2.5×",
+      400, 384, 12, ACC)
+framed(crop_at((2, 366, 264, 104), 2.5), 400, 400)
+
+pygame.draw.line(sheet, (48, 62, 74), (20, 690), (SHEET_W - 20, 690), 1)
+label("EVENT MARKERS — actual size, then 4×", 20, 702, 12, ACC)
+mk_order = ("plume", "lamp", "diamond", "drop", "asterism")
+for i, key in enumerate(mk_order):
+    r = MARKER_RECTS[key]
+    box = (int(r.x) - 6, int(r.y) - 6, int(r.w) + 12, int(r.h) + 12)
+    framed(crop_at(box, 1), 20 + i * 156, 722)
+    framed(crop_at(box, 4), 20 + i * 156, 762)
+    label(key.upper(), 20 + i * 156, 762 + box[3] * 4 + 4, 10)
+
+label("MACAW — actual size, then 5×", 830, 702, 12, ACC)
+framed(crop_at((122, 378, 26, 26), 1), 836, 722)
+framed(crop_at((122, 378, 26, 26), 5), 830, 762)
+
+label("PHASE CHIPS — actual size (10 px), then 5×", 20, 916, 12, ACC)
+for i, (p, name) in enumerate(PHASE_BOUNDARIES):
+    y_lo, y_hi = phase_to_y(p), phase_to_y(BOUNDS[i + 1][0])
+    mid = int(round((y_lo + y_hi) * 0.5))
+    cxs = 20 + i * 88 + 19
+    framed(crop_at((6, mid - 5, 10, 10), 1), cxs + 20, 936)
+    framed(crop_at((6, mid - 5, 10, 10), 5), cxs, 952)
+    text(name, 9, DIM, cxs + 25, 1006, "midtop", shadow=None, dst=sheet)
+
+checks = [
+    "far seam y=62 : L range 156  (target >= 90)",
+    "gate pillar L : 44          (target <= 70)",
+    "pillar vs sky : 195         (target >= 90)",
+    "death line    : lip-flown 95 (target >= 55)",
+    "stone drop    : 42 L        (target 35-45)",
+    "markers @4x blur: 134-198   (target >= 85)",
+    "chip min pair : 58 RGB      (was 11)",
+]
+for i, line in enumerate(checks):
+    label(line, 700, 918 + i * 15, 11, (172, 196, 210))
+
+pygame.image.save(sheet, OUT)
 
 
 # ── verification (never open the PNG; read it numerically) ───────────────────
@@ -1224,7 +1309,7 @@ def corridor_row_mean(y):
     return sum(luma(px(x, y)) for x in xs) / len(xs)
 
 
-print("wrote", OUT, base.get_size())
+print("wrote", OUT, sheet.get_size(), "| canvas", base.get_size())
 print("bands:", band_report)
 print("death y", round(DEATH_Y, 2))
 
