@@ -552,7 +552,6 @@ class Bird:
         self.lives_flicker_visible = True
         self.on_last_life = False
         self.on_first_hit = False
-        self.equipped_skin = "skin_base"
 
         # Weather event state (visual-only):
         #   wind_lean       — rightward x-offset under the predawn tailwind
@@ -1486,7 +1485,7 @@ class Pipe:
             surf.blit(self._kfc_cache,
                       (int(self.x) + self._kfc_cache_dx, 0))
             return
-        draw_pillar_pair(surf, self.top_rect, self.bot_rect, palette, self.seed)
+        draw_pillar_pair(surf, self.top_rect, self.bot_rect, palette, self.seed, phase=phase)
 
     def _build_kfc_cache(self, palette):
         """Render the KFC pillar pair onto a per-instance SRCALPHA
