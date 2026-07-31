@@ -312,10 +312,21 @@ def _make_getter(frames, rot_cache):
 
 
 def _prebuild_pair(ll_fn, fh_fn):
-    """Pre-build 4 frames for each state; return (ll_getter, fh_getter)."""
-    ll_frames = [ll_fn(a) for a in _H_HURT_ANGLES]
-    fh_frames = [fh_fn(a) for a in _H_HURT_ANGLES]
-    return (_make_getter(ll_frames, {}), _make_getter(fh_frames, {}))
+    """Return lazy (ll_getter, fh_getter); frames built on first call per state."""
+    ll_state: dict = {}
+    fh_state: dict = {}
+
+    def ll_getter(frame_idx, tilt_deg):
+        if "g" not in ll_state:
+            ll_state["g"] = _make_getter([ll_fn(a) for a in _H_HURT_ANGLES], {})
+        return ll_state["g"](frame_idx, tilt_deg)
+
+    def fh_getter(frame_idx, tilt_deg):
+        if "g" not in fh_state:
+            fh_state["g"] = _make_getter([fh_fn(a) for a in _H_HURT_ANGLES], {})
+        return fh_state["g"](frame_idx, tilt_deg)
+
+    return (ll_getter, fh_getter)
 
 
 # ── skin registry ──────────────────────────────────────────────────────────────

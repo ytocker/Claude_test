@@ -247,15 +247,27 @@ def _make_getter(frames, rot_cache):
 
 
 def _prebuild_triple(clean_fn, fh_fn, ll_fn):
-    """Pre-build frames for all three life states; return (clean, fh, ll) getters."""
-    clean_frames = [clean_fn(a) for a in _WING_ANGLES]
-    fh_frames    = [fh_fn(a)    for a in _H_HURT_ANGLES]
-    ll_frames    = [ll_fn(a)    for a in _H_HURT_ANGLES]
-    return (
-        _make_getter(clean_frames, {}),
-        _make_getter(fh_frames,    {}),
-        _make_getter(ll_frames,    {}),
-    )
+    """Return lazy (clean, fh, ll) getters; frames built on first call per state."""
+    clean_state: dict = {}
+    fh_state:    dict = {}
+    ll_state:    dict = {}
+
+    def clean_getter(frame_idx, tilt_deg):
+        if "g" not in clean_state:
+            clean_state["g"] = _make_getter([clean_fn(a) for a in _WING_ANGLES], {})
+        return clean_state["g"](frame_idx, tilt_deg)
+
+    def fh_getter(frame_idx, tilt_deg):
+        if "g" not in fh_state:
+            fh_state["g"] = _make_getter([fh_fn(a) for a in _H_HURT_ANGLES], {})
+        return fh_state["g"](frame_idx, tilt_deg)
+
+    def ll_getter(frame_idx, tilt_deg):
+        if "g" not in ll_state:
+            ll_state["g"] = _make_getter([ll_fn(a) for a in _H_HURT_ANGLES], {})
+        return ll_state["g"](frame_idx, tilt_deg)
+
+    return (clean_getter, fh_getter, ll_getter)
 
 
 # ── skin registry ──────────────────────────────────────────────────────────────
