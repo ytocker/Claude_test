@@ -642,22 +642,34 @@ def arc_tangent_deg(p):
     return math.degrees(math.atan2(-(y1 - y0), (x1 - x0)))
 
 
-def draw_macaw(surf, ss):
+def draw_macaw(surf):
     """Single-frame macaw canted along the tangent, ink-keylined, with a short
-    cast shadow smeared along the rail underneath her."""
+    cast shadow smeared along the rail underneath her.
+
+    Composited natively rather than into the supersampled overlay: her keyline
+    is only 2px, and a 3× downscale averages it into a grey smudge.
+    """
     tilt = arc_tangent_deg(DEATH_PHASE)
-    k = SS
     ux, uy = radial_unit(DEATH_PHASE)
     tx = math.cos(math.radians(tilt))
     ty = -math.sin(math.radians(tilt))
 
-    # Shadow first, along the rail and slightly behind — it plants her ON the
-    # arc instead of floating over it.
-    sx = DEATH_X - tx * 3.0 + ux * 1.6
-    sy = DEATH_Y - ty * 3.0 + uy * 1.6 + 1.6
-    pygame.draw.line(ss, (8, 6, 12, 140),
-                     ((sx - tx * 7) * k, (sy - ty * 7) * k),
-                     ((sx + tx * 5) * k, (sy + ty * 5) * k), int(4.6 * k))
+    # Backlight, trailing BACK along the flown run so the sun ahead of her is
+    # left clear. This is what makes the death point the brightest thing on a
+    # squint pass — a scarlet macaw over a lit sky is mid-value on her own.
+    for off, rad, peak in ((5.0, 15, 128), (12.0, 22, 150), (22.0, 27, 96)):
+        gx = DEATH_X - tx * off
+        gy = DEATH_Y - ty * off
+        g = soft_glow(rad, (255, 226, 172), peak=peak, falloff=2.0)
+        surf.blit(g, (int(gx) - rad - 1, int(gy) - rad - 1),
+                  special_flags=pygame.BLEND_ADD)
+
+    # Cast shadow along the rail, slightly behind — plants her ON the arc
+    # instead of floating over it.
+    sx = DEATH_X - tx * 2.0 + ux * 1.2
+    sy = DEATH_Y - ty * 2.0 + uy * 1.2 + 1.6
+    alpha_line(surf, (8, 6, 12, 150),
+               (sx - tx * 8, sy - ty * 8), (sx + tx * 5, sy + ty * 5), 5)
 
     src = _parrot.get_parrot(1, tilt)
     scale = 30.0 / 68.0
@@ -709,19 +721,15 @@ def render_screen():
 
     surf.blit(pygame.transform.smoothscale(ss, (W, H)), (0, 0))
 
-    bx, by, bw = draw_macaw(surf, ss)
-    # The macaw is composited natively AFTER the downscale so her 2px keyline
-    # stays 2px instead of averaging away.
+    bx, by, bw = draw_macaw(surf)
 
-    # ── banner: opaque dark neutral, no sky bleeding through ──
+    # ── banner: fully opaque dark neutral, no sky bleeding through ──
     pygame.draw.rect(surf, SCRIM, (0, 0, W, 74))
-    for i in range(6):
-        a = int(232 * (1 - i / 6))
-        pygame.draw.line(surf, lerp_color(SCRIM, (60, 60, 70), 0.0), (0, 74 + i), (W - 1, 74 + i))
-        fade = pygame.Surface((W, 1), pygame.SRCALPHA)
-        fade.fill((*SCRIM, a))
-        surf.blit(fade, (0, 74 + i))
-    pygame.draw.line(surf, (255, 206, 92, 120), (0, 74), (W - 1, 74), 1)
+    fade = pygame.Surface((W, 10), pygame.SRCALPHA)
+    for i in range(10):
+        fade.fill((*SCRIM, int(238 * (1 - i / 10) ** 1.4)), pygame.Rect(0, i, W, 1))
+    surf.blit(fade, (0, 74))
+    alpha_line(surf, (255, 206, 92, 150), (0, 74), (W - 1, 74), 1)
 
     text(surf, "FLIGHT LOG", 24, center=(W // 2, 28), color=GOLD, track=4, shadow=None)
     text(surf, f"DAY {DAY_N}   ·   PILLAR {DEATH_PILLAR}   ·   0:{TIME_ALIVE:02d}", 12,
