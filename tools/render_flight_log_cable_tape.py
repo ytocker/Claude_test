@@ -345,9 +345,9 @@ def _ghost_ferrule(ink, u, flipped, kind):
     w = 15 * SS
     x0 = int(u - w / 2)
     g = pygame.Surface((w, STRIP_H), pygame.SRCALPHA)
-    col = CHARCOAL + (128,)
+    col = CHARCOAL + (160,)
     pygame.draw.rect(g, col, (0, TAPE_V0 + SS, w, TAPE_V1 - TAPE_V0 - 2 * SS), SS)
-    _glyph(g, kind, w / 2, STRIP_H / 2, CHARCOAL + (150,))
+    _glyph(g, kind, w / 2, STRIP_H / 2, CHARCOAL + (180,))
     if flipped:
         g = pygame.transform.rotate(g, 180)
     ink.blit(g, (x0, 0))
@@ -419,6 +419,8 @@ def build_strip(run):
         a, b = PATH.marks[f"c{ci}s"], PATH.marks[f"c{ci}e"]
         inked = u <= u_cut
         capped = on_course and ((u - a) < cap_w or (b - u) < cap_w)
+        # Hard greyscale boundary on the flown side of the cut: 5px charcoal stripe.
+        cut_end_cap = inked and on_course and 0 <= (u_cut - u) < cap_w
         # Ink-bleed: the printed edge wanders a pixel or two into the weave.
         bl = (noise(u * 3) - 0.5) * 2.4 * SS
         bl2 = (noise(u * 3 + 991) - 0.5) * 2.4 * SS
@@ -450,7 +452,7 @@ def build_strip(run):
                         ic = lerp_c(top, mid, vq * 2)
                     else:
                         ic = lerp_c(mid, bot, (vq - 0.5) * 2)
-                    if capped:
+                    if capped or cut_end_cap:
                         ic = CHARCOAL
                     if in_gold:
                         ic = GOLD
@@ -667,14 +669,19 @@ def render_run(run):
         pygame.draw.circle(s, GOLD, (int(lx), int(my)), int(SS * 1.6))
         text(s, run["leader"], CW - INSET, ROW0_Y - PITCH * 0.46 - 12, 9, GOLD, align="right", track=1)
     else:
-        fx = dx + nx * (HALF + 3)
-        fy = dy + ny * (HALF + 3)
-        tag = [(fx, fy), (fx + nx * 11 - tx * 5, fy + ny * 11 - ty * 5),
-               (fx + nx * 11 + tx * 9, fy + ny * 11 + ty * 9),
-               (fx + tx * 4, fy + ty * 4)]
+        # Parallelogram flag hanging off tape outer edge at the cut point.
+        # Base spans 10px along the tape edge; body extends 16px outward — well
+        # above the 14px minimum and self-explanatory without a text label.
+        fx = dx + nx * HALF
+        fy = dy + ny * HALF
+        tag = [
+            (fx - tx * 5, fy - ty * 5),
+            (fx + tx * 5, fy + ty * 5),
+            (fx + nx * 16 + tx * 5, fy + ny * 16 + ty * 5),
+            (fx + nx * 16 - tx * 5, fy + ny * 16 - ty * 5),
+        ]
         pygame.draw.polygon(s, SCARLET, [(p[0] * SS, p[1] * SS) for p in tag])
         pygame.draw.polygon(s, (232, 96, 80), [(p[0] * SS, p[1] * SS) for p in tag], max(1, SS // 2))
-        text(s, "CUT", fx + nx * 4.2 + tx * 0.5, fy + ny * 4.0 - 2.0, 6, (255, 214, 206), track=0)
 
     # run summary
     by = 512
@@ -686,6 +693,19 @@ def render_run(run):
     text(s, f"CUT IN  {run['cut_phase']}", INSET, by + 72, 10, (168, 174, 194), track=1)
     text(s, run["note"], INSET, by + 90, 9, (120, 126, 148), track=1)
     text(s, "TAPE CONTINUES", CW - INSET - 26, 596, 7, (108, 114, 136), align="right", track=1)
+
+    # BACK navigation button — gold outlined rect, tracked caps, 24px tap height.
+    _btn_cx = CW // 2
+    _btn_cy = 623
+    _btn_w = 72
+    _btn_h = 22
+    pygame.draw.rect(
+        s, GOLD,
+        (int((_btn_cx - _btn_w // 2) * SS), int((_btn_cy - _btn_h // 2) * SS),
+         _btn_w * SS, _btn_h * SS),
+        max(1, SS),
+    )
+    text(s, "BACK", _btn_cx, _btn_cy - 5, 10, GOLD, align="center", track=2)
 
     return pygame.transform.smoothscale(s, (CW, CH)), s
 
@@ -727,7 +747,7 @@ def main():
                          (0, y), (SHEET_W, y))
 
     label(sheet, "SKYBIT  ·  FLIGHT LOG SCREEN", 36, 30, 26, GOLD, track=2)
-    label(sheet, "CONCEPT: CABLE TAPE   —   ROUND 1", 36, 64, 15, (176, 182, 202), track=2)
+    label(sheet, "CONCEPT: CABLE TAPE   —   ROUND 2", 36, 64, 15, (176, 182, 202), track=2)
     label(sheet, "marker-tape drum pays out linen cable tape · serpentine courses · "
                  "flown tape over-printed, unflown tape bare stock", 640, 40, 14, (128, 134, 156))
     label(sheet, "360x640 virtual canvas · all art procedural · scarlet reserved for the crimp tag",
@@ -779,7 +799,7 @@ def main():
                  "(DAY · GOLDEN HOUR · SUNSET · DUSK · NIGHT · PREDAWN · SUNRISE)",
           36, fy + 34, 12, (104, 110, 132))
 
-    out = os.path.join(OUT_DIR, "round_1.png")
+    out = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(sheet, out)
     print("saved", out, sheet.get_size())
     return out

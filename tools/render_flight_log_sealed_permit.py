@@ -1,4 +1,4 @@
-"""Round-1 review render of the `sealed_permit` Flight Log concept.
+"""Round-2 review render of the `sealed_permit` Flight Log concept.
 
 The run is told as a border-control document rather than a chart: a permit
 booklet stood portrait, spine at left, cover flap peeled back off the gutter
@@ -14,7 +14,7 @@ onto the next unstamped one: the document is closed, the flight stops there.
 Scarlet is spent once, on the seal. Every warm phase ink is clamped short of
 it so nothing else on the page competes for that read.
 
-Offline tool — writes docs/flight_log_screen/sealed_permit/round_1.png.
+Offline tool — writes docs/flight_log_screen/sealed_permit/round_2.png.
 Nothing here is imported by the game.
 """
 from __future__ import annotations
@@ -151,6 +151,15 @@ def _build_inks():
         if _lum(c) < 45:
             c = _mix(c, (255, 255, 255), (45 - _lum(c)) / (255 - _lum(c)))
         inks[n] = c
+    # NIGHT and PREDAWN both collapse to near-black smudge on 244-value stock
+    # even after the 45-lum floor; lift each to a target that keeps the blue /
+    # purple hue difference luminous enough to tell apart.
+    _NIGHT_INK = (52, 58, 100)    # lum ≈ 65 — distinctly blue
+    _PREDAWN_INK = (72, 62, 130)  # lum ≈ 78 — distinctly purple
+    if _lum(inks["NIGHT"]) < _lum(_NIGHT_INK):
+        inks["NIGHT"] = _NIGHT_INK
+    if _lum(inks["PREDAWN"]) < _lum(_PREDAWN_INK):
+        inks["PREDAWN"] = _PREDAWN_INK
     return clamped, inks
 
 
@@ -488,12 +497,13 @@ def _cachet(name, r, seed, ink, partial=None):
         pygame.draw.line(surf, ink, (c - r + 12, c + 9), (c + r - 12, c + 9), 1)
 
     # Ink break-up: speckle, a few starved wedges, and an overall bite so the
-    # impression sits in the paper rather than on top of it.
+    # impression sits in the paper rather than on top of it. Speckle count kept
+    # moderate so phase hue dominates the ring; heavy mottling neutralises colour.
     mot = pygame.Surface((size, size), pygame.SRCALPHA)
     mot.fill((255, 255, 255, 232))
-    for _ in range(190):
+    for _ in range(100):
         px, py = rnd.randrange(size), rnd.randrange(size)
-        pygame.draw.circle(mot, (255, 255, 255, rnd.randint(30, 150)),
+        pygame.draw.circle(mot, (255, 255, 255, rnd.randint(30, 90)),
                            (px, py), rnd.randint(1, 3))
     for _ in range(4):
         a = rnd.uniform(0, math.tau)
