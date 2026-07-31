@@ -73,11 +73,11 @@ FAR_RIDGE_Y = 594
 NEAR_RIDGE_Y = 608
 LANDMARK_BASE = 596
 
-PILLAR_X0, PILLAR_X1 = 222, 294
+PILLAR_X0, PILLAR_X1 = 230, 302
 PILLAR_TOP = 470
 
-BIRD_FX, BIRD_FY = 240, 476            # the foot the silhouette is built around
-COL_X = 280
+BIRD_FX, BIRD_FY = 248, 476            # the foot the silhouette is built around
+COL_X = 288
 COL_BASE_Y = 464
 
 LANDMARK_X = [24, 84, 128, 168, 200]
@@ -86,6 +86,7 @@ STAT_LEFT = 22
 LABEL_Y = 418
 NUM_TOP = 432
 NUM_CAP = 94                           # hero numeral cap height (brief: >= 90)
+NUM_MAX_W = 172                        # keeps a 3-figure score clear of the perch
 SUB_Y = 546
 
 _fonts: dict = {}
@@ -174,16 +175,19 @@ def add_glow(dst, cx, cy, radius, color, peak, falloff=2.0):
              special_flags=pygame.BLEND_ADD)
 
 
-def radial_mask(size, center, radius, inner=255, outer=48, gamma=1.4):
-    """Small white surface with a radial alpha ramp, meant to be scaled up and
-    multiplied into another layer — building it at target resolution in Python
-    is an order of magnitude slower for no visible gain."""
-    m = pygame.Surface(size, pygame.SRCALPHA)
-    w, h = size
-    for y in range(h):
-        for x in range(w):
-            d = math.hypot(x - center[0], y - center[1]) / radius
-            t = min(1.0, d) ** gamma
+def falloff_mask(center, radius, inner=255, outer=40, gamma=1.3, cell=8):
+    """Canvas-sized radial alpha ramp, built at 1/cell scale then stretched.
+
+    The low-res grid keeps the canvas aspect exactly, so the ramp stays
+    circular after the stretch — a square scratch surface would smear it into
+    an ellipse and put the brightest rim light nowhere near the light source.
+    """
+    gw, gh = W // cell, H // cell
+    m = pygame.Surface((gw, gh), pygame.SRCALPHA)
+    cx, cy, rr = center[0] / cell, center[1] / cell, radius / cell
+    for y in range(gh):
+        for x in range(gw):
+            t = min(1.0, math.hypot(x - cx, y - cy) / rr) ** gamma
             m.set_at((x, y), (255, 255, 255, int(lerp(inner, outer, t))))
     return m
 
@@ -238,7 +242,9 @@ def draw_horizon_band(surf, sun_phase):
     for y in range(band_h):
         t = y / (band_h - 1)
         c = lerp_multi(DAWN_STOPS, t)
-        band.fill((*c, int(90 * t ** 1.5)), pygame.Rect(0, y, W, 1))
+        # Weighted hard toward the ridge: the landmarks stand in the upper two
+        # thirds of the strip and need darker sky behind them to read.
+        band.fill((*c, int(88 * t ** 2.1)), pygame.Rect(0, y, W, 1))
     surf.blit(band, (0, BAND_TOP))
 
     sun_x = int(sun_phase * W)
@@ -325,16 +331,28 @@ LANDMARKS = [lm_geyser, lm_lamp, lm_clown, lm_rain, lm_snow]
 
 
 def draw_landmarks(surf, reached):
-    ov = pygame.Surface((W * SS, H * SS), pygame.SRCALPHA)
+    glyphs = pygame.Surface((W * SS, H * SS), pygame.SRCALPHA)
     for fn, cx, ok in zip(LANDMARKS, LANDMARK_X, reached):
-        col = (246, 228, 190, 204) if ok else (156, 168, 192, 77)
-        fn(ov, cx, LANDMARK_BASE, col, ok)
+        col = (246, 228, 190, 204) if ok else (162, 176, 200, 77)
+        fn(glyphs, cx, LANDMARK_BASE, col, ok)
+
+    # Both states sit on the dawn strip, and a 1px unreached outline at 30%
+    # dissolves into it without a keyline behind. Dilating the glyph mask keeps
+    # the halo exactly on the shape, including the rain hatch.
+    ink = pygame.mask.from_surface(glyphs, threshold=10).to_surface(
+        setcolor=(4, 5, 10, 185), unsetcolor=(0, 0, 0, 0))
+    ov = pygame.Surface((W * SS, H * SS), pygame.SRCALPHA)
+    for dx in (-2, 0, 2):
+        for dy in (-2, 0, 2):
+            ov.blit(ink, (dx, dy))
+    ov.blit(glyphs, (0, 0))
     surf.blit(pygame.transform.smoothscale(ov, (W, H)), (0, 0))
+
     # A reached landmark is a place she stood in; the faint warm lift under it
     # is what separates "visited" from "merely drawn brighter".
     for cx, ok in zip(LANDMARK_X, reached):
         if ok:
-            add_glow(surf, cx, LANDMARK_BASE - 10, 16, (255, 206, 140), 26, 2.4)
+            add_glow(surf, cx, LANDMARK_BASE - 9, 13, (255, 206, 140), 22, 2.4)
 
 
 # ── perch ────────────────────────────────────────────────────────────────────
@@ -381,16 +399,16 @@ def build_pillar(ov):
                          (PILLAR_X1 * SS, sy * SS), SS)
 
     # The crack the light comes out of.
-    crack = [(276, 471), (273, 486), (277, 498), (272, 512), (275, 527)]
+    crack = [(284, 471), (281, 486), (285, 498), (280, 512), (283, 527)]
     pygame.draw.lines(ov, (8, 7, 10, 230),
                       False, [(p[0] * SS, p[1] * SS) for p in crack], 2 * SS)
     pygame.draw.lines(ov, (196, 138, 58, 150),
                       False, [((p[0] - 1) * SS, p[1] * SS) for p in crack], SS)
 
     # Chipped rubble on the cap and a couple of fallen chips below the lip.
-    for cx, cy, r in ((232, 486, 3), (252, 480, 2), (288, 492, 2)):
+    for cx, cy, r in ((240, 486, 3), (260, 480, 2), (296, 492, 2)):
         pygame.draw.circle(ov, (24, 20, 22, 255), (cx * SS, cy * SS), r * SS)
-    for cx, cy, r in ((208, 542, 2), (302, 566, 2), (213, 588, 3)):
+    for cx, cy, r in ((216, 542, 2), (310, 566, 2), (221, 588, 3)):
         pygame.draw.circle(ov, (18, 16, 20, 255), (cx * SS, cy * SS), r * SS)
 
 
@@ -411,10 +429,10 @@ def build_bird(ov):
 
     # Tail — the long diagonal that stops the silhouette reading as an egg.
     pygame.draw.polygon(ov, (*SILHOUETTE, 255),
-                        P([(-11, -19), (-3, -14), (-30, 12), (-38, 13),
-                           (-36, 6), (-16, -11)]))
+                        P([(-11, -19), (-3, -14), (-26, 12), (-33, 13),
+                           (-31, 6), (-16, -11)]))
     pygame.draw.line(ov, (10, 8, 8, 255), P([(-14, -14)])[0],
-                     P([(-34, 9)])[0], SS)
+                     P([(-29, 9)])[0], SS)
 
     # Far wing, one value step up.
     pygame.draw.polygon(ov, (*FAR_WING, 255),
@@ -470,18 +488,21 @@ def draw_perch(surf):
     build_bird(ov)
 
     # Rim light comes off the ember column, up and to the right of the perch,
-    # so the crescent sits on the head, breast and the pillar's right arris.
-    rim = rim_light(ov, -3 * SS, 3 * SS, GOLD, 255)
-    ramp = radial_mask((36, 36), (26, 8), 30, inner=255, outer=26, gamma=1.25)
+    # so the crescent sits on the head, breast and the pillar's right arris,
+    # then dies out down the shaft and along the tail.
+    rim = rim_light(ov, -2 * SS, 2 * SS, GOLD, 240)
+    ramp = falloff_mask((COL_X, COL_BASE_Y - 8), 132, inner=255, outer=22,
+                        gamma=1.15)
     rim.blit(pygame.transform.smoothscale(ramp, rim.get_size()), (0, 0),
              special_flags=pygame.BLEND_RGBA_MULT)
     ov.blit(rim, (0, 0))
 
     surf.blit(pygame.transform.smoothscale(ov, (W, H)), (0, 0))
     # Light leaking out of the crack, laid after the stone so it reads as
-    # escaping rather than painted on.
-    add_glow(surf, 274, 476, 26, (255, 178, 84), 40, 2.3)
-    add_glow(surf, 250, 470, 34, (255, 168, 92), 20, 2.6)
+    # escaping rather than painted on. Kept low: the stone has to stay a dark
+    # mass, or the bird loses the ground it is silhouetted against.
+    add_glow(surf, 282, 477, 20, (255, 178, 84), 30, 2.3)
+    add_glow(surf, 260, 472, 30, (255, 168, 92), 13, 2.6)
 
 
 # ── ember column ─────────────────────────────────────────────────────────────
@@ -518,39 +539,75 @@ def draw_embers(surf, positions, anchor_every=None):
 
 def draw_feather(surf, x, y):
     """The death marker. Elongated, canted off vertical so it reads as falling,
-    and the only scarlet anywhere in the frame."""
-    fw, fh = 4, 14
-    s = pygame.Surface((fw * SS + 4, fh * SS + 4), pygame.SRCALPHA)
-    cxs = (fw * SS + 4) / 2.0
+    and the only scarlet anywhere in the frame.
+
+    It lands inside the ember glow, so it carries its own dark keyline —
+    without one a 5px-wide scarlet shape is eaten by the warm bloom behind it.
+    """
+    fw, fh = 5, 16
+    pad = 3
+    s = pygame.Surface((fw * SS + pad * 2, fh * SS + pad * 2), pygame.SRCALPHA)
+    cxs = s.get_width() / 2.0
     left, right = [], []
-    steps = 24
+    steps = 26
     for i in range(steps + 1):
         t = i / steps
-        yy = 2 + t * fh * SS
-        half = (fw * SS / 2.0) * (math.sin(math.pi * t) ** 0.7) * (1.0 - 0.45 * t)
+        yy = pad + t * fh * SS
+        half = (fw * SS / 2.0) * (math.sin(math.pi * t) ** 0.66) * (1.0 - 0.42 * t)
         left.append((cxs - half, yy))
         right.append((cxs + half, yy))
     pygame.draw.polygon(s, (*SCARLET, 255), left + right[::-1])
-    pygame.draw.line(s, (*SCARLET_DEEP, 230), (cxs, 4), (cxs, fh * SS), SS)
-    pygame.draw.lines(s, (*SCARLET_LIT, 220), False, right[2:-4], SS)
-    small = pygame.transform.smoothscale(s, (max(1, s.get_width() // SS),
-                                             max(1, s.get_height() // SS)))
-    rot = pygame.transform.rotozoom(small, -30, 1.0)
+    pygame.draw.line(s, (*SCARLET_DEEP, 235), (cxs, pad + 4), (cxs, pad + fh * SS), SS)
+    pygame.draw.lines(s, (*SCARLET_LIT, 235), False, right[3:-5], SS)
+
+    small = pygame.transform.smoothscale(s, (fw + pad, fh + pad))
+    keyed = pygame.Surface((small.get_width() + 2, small.get_height() + 2),
+                           pygame.SRCALPHA)
+    ink = pygame.mask.from_surface(small, threshold=20).to_surface(
+        setcolor=(10, 4, 6, 200), unsetcolor=(0, 0, 0, 0))
+    for dx in (0, 1, 2):
+        for dy in (0, 1, 2):
+            keyed.blit(ink, (dx, dy))
+    keyed.blit(small, (1, 1))
+    rot = pygame.transform.rotozoom(keyed, -30, 1.0)
     surf.blit(rot, (int(x) - rot.get_width() // 2, int(y) - rot.get_height() // 2))
 
 
 # ── stat block ───────────────────────────────────────────────────────────────
 
 def hero_numeral(value):
-    """Gold-gradient numeral, cropped to its own ink so the cap height is exact
-    — font metrics leave enough leading to throw the block off by 20px."""
-    img = font(150).render(str(value), True, (255, 255, 255))
-    box = img.get_bounding_rect()
-    glyph = pygame.Surface(box.size, pygame.SRCALPHA)
-    glyph.blit(img, (-box.x, -box.y))
-    scale = NUM_CAP / box.h
-    glyph = pygame.transform.smoothscale(
-        glyph, (max(1, int(box.w * scale)), NUM_CAP))
+    """Gold-gradient numeral set digit-by-digit on its own ink boxes.
+
+    Two reasons not to render the string whole: font metrics leave enough
+    leading to throw the block off by 20px, and the default sidebearings make a
+    three-digit score wide enough to collide with the perch. Setting the ink
+    boxes with one fixed optical gap keeps the cap height at spec while a
+    "180" still clears the pillar.
+    """
+    f = font(150)
+    digits = []
+    for ch in str(value):
+        img = f.render(ch, True, (255, 255, 255))
+        box = img.get_bounding_rect()
+        g = pygame.Surface(box.size, pygame.SRCALPHA)
+        g.blit(img, (-box.x, -box.y))
+        digits.append(g)
+    src_cap = max(g.get_height() for g in digits)
+    scale = NUM_CAP / src_cap
+    gap = max(2, int(NUM_CAP * 0.11))
+    scaled = [pygame.transform.smoothscale(
+        g, (max(1, int(g.get_width() * scale)), max(1, int(g.get_height() * scale))))
+        for g in digits]
+    total = sum(g.get_width() for g in scaled) + gap * (len(scaled) - 1)
+    glyph = pygame.Surface((total, NUM_CAP), pygame.SRCALPHA)
+    x = 0
+    for g in scaled:
+        glyph.blit(g, (x, NUM_CAP - g.get_height()))
+        x += g.get_width() + gap
+    if total > NUM_MAX_W:
+        # Condense rather than shrink: the cap height is the spec, and a
+        # four-figure score must still clear the perch on the right.
+        glyph = pygame.transform.smoothscale(glyph, (NUM_MAX_W, NUM_CAP))
 
     grad = pygame.Surface(glyph.get_size(), pygame.SRCALPHA)
     gw, gh = grad.get_size()
@@ -567,10 +624,11 @@ def draw_stats(surf, pillar, sub):
     text(surf, "PILLAR", 12, GOLD_DIM, topleft=(STAT_LEFT, LABEL_Y), track=4,
          alpha=210, shadow=(0, 0, 0, 120))
     num = hero_numeral(pillar)
-    # A wide, weak bloom behind the numeral ties it to the ember light instead
-    # of leaving it as UI pasted on a night sky.
+    # A weak bloom ties the numeral to the ember light instead of leaving it as
+    # UI pasted on a night sky. Radius is capped rather than tracking the digit
+    # count, or a three-digit score washes warm light across the whole horizon.
     add_glow(surf, STAT_LEFT + num.get_width() // 2, NUM_TOP + NUM_CAP // 2,
-             max(num.get_width(), NUM_CAP), (120, 84, 30), 26, 2.6)
+             88, (120, 84, 30), 22, 2.6)
     sh = num.copy()
     sh.fill((0, 0, 0, 255), special_flags=pygame.BLEND_RGBA_MULT)
     sh.set_alpha(150)
@@ -600,10 +658,10 @@ def render_run(run):
     return surf
 
 
-RUN_A = dict(pillar=25, sub="DAY 1 · 0:47", phase=0.184, embers=25, spacing=9.0,
+RUN_A = dict(pillar=25, sub="DAY 1 · 0:47", phase=0.184, embers=25, spacing=9.5,
              reached=[True, False, False, False, False],
              caption="RUN A · PILLAR 25 · 1 EMBER / PILLAR")
-RUN_B = dict(pillar=180, sub="DAY 2 · 5:30", phase=0.292, embers=36, spacing=8.4,
+RUN_B = dict(pillar=180, sub="DAY 2 · 5:30", phase=0.292, embers=36, spacing=8.6,
              reached=[True, True, True, True, True], anchor_every=10,
              caption="RUN B · PILLAR 180 · 1 EMBER / 5 PILLARS")
 
