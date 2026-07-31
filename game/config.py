@@ -414,7 +414,7 @@ GEYSER_GY_DELTA_MAX = 140
 # Δgy ≤ 0, GEYSER_GX_SHIFT_MAX at Δgy ≥ GEYSER_GY_DELTA_MAX. Bounded so
 # post-column gap stays ≥ ~30 px at standard spacing (pre/post = 70 px each
 # at center, becomes 110/30 at max shift) — leaves the bird real recovery
-# room after the forced in-column rise.
+# room after the column forced in-column rise.
 GEYSER_GX_SHIFT_MAX = 40
 # Probability a planted geyser is a "dud" — the sinter cone + rock ring still
 # appear on the ground, but no hot-air column erupts and no updraft is applied
@@ -446,4 +446,3 @@ SCORES_FILE = "skybit_scores.json"
 STORE_FILE = "skybit_store.json"
 
 DAILY_REWARD = 75
-
