@@ -58,10 +58,10 @@ _NIGHT_DEEP     = (  6,   1,  21)   # #060115
 _fonts: dict = {}
 
 # ── V15 smooth-taper-weave nest lives display ─────────────────────────────────
-_NEST_S          = 1.0
+_NEST_S          = 0.80
 _NEST_CX         = 31
 _NEST_CY         = 73
-_NEST_DX_LIST    = [0, 50]
+_NEST_DX_LIST    = [0, 40]
 _NEST_SCRATCH: "pygame.Surface | None" = None
 _NEST_PANEL_DARK   = (12, 8, 38)
 _NEST_GOLD_BRIGHT  = (240, 192, 64)
@@ -79,7 +79,7 @@ _NEST_STICK_X_OFF  = (-1, 0, 1, 2)
 
 _nest_bird: "pygame.Surface | None" = None
 _nest_bird_w: int = 0
-_nest_bird_h: int = 44
+_nest_bird_h: int = 34
 _nest_params: "tuple | None" = None
 
 
