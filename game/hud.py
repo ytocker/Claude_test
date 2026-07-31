@@ -64,7 +64,9 @@ _PIP_ICON_SPENT: "pygame.Surface | None" = None
 
 _NEST_S          = 0.80
 _NEST_CX         = 31
-_NEST_CY_LIST    = [73, 113]
+_NEST_CY         = 73
+_NEST_DX_LIST    = [0, 40]
+_NEST_SCRATCH: "pygame.Surface | None" = None
 _NEST_PANEL_DARK   = (12, 8, 38)
 _NEST_GOLD_BRIGHT  = (240, 192, 64)
 _NEST_OUTER_SHADOW = (4, 4, 12)
@@ -219,8 +221,19 @@ def _nest_draw_slot(surf, cy, alive):
 
 
 def _draw_pip_lives_row(surf, lives_remaining, lives_total, cy=106):
-    for i, cy_s in enumerate(_NEST_CY_LIST[:max(lives_total, 2)]):
-        _nest_draw_slot(surf, cy_s, i < lives_remaining)
+    global _NEST_SCRATCH
+    n = max(lives_total, 2)
+    for i, dx in enumerate(_NEST_DX_LIST[:n]):
+        alive = i < lives_remaining
+        if dx == 0:
+            _nest_draw_slot(surf, _NEST_CY, alive)
+        else:
+            W, H = surf.get_size()
+            if _NEST_SCRATCH is None or _NEST_SCRATCH.get_size() != (W, H):
+                _NEST_SCRATCH = pygame.Surface((W, H), pygame.SRCALPHA)
+            _NEST_SCRATCH.fill((0, 0, 0, 0))
+            _nest_draw_slot(_NEST_SCRATCH, _NEST_CY, alive)
+            surf.blit(_NEST_SCRATCH, (dx, 0))
 
 
 # ── Theme drawing helpers ────────────────────────────────────────────────────
