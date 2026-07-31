@@ -1178,6 +1178,14 @@ class World:
                 self.coins.append(Coin(x, y))
 
         self.coins_spawned += len(self.coins) - prev_count
+        # Open a fresh Coin Blind window: tag this rush's coins and reset the
+        # grab tally. Force-close any prior window — rushes are 15 pillars apart
+        # so the previous one is always fully behind Pip by now.
+        self._finalize_rush(force=True)
+        for c in self.coins[prev_count:]:
+            c.is_rush = True
+        self._rush_cur_total = len(self.coins) - prev_count
+        self._rush_cur_got = 0
 
     def _spawn_finale_long_rush_coins(self, first_phantom_x: float,
                                       center_y: float, gap_h: int,
@@ -2293,6 +2301,25 @@ class World:
         if self.lives_remaining > 0:
             self._revive_life()
             return
+        # Wall of Shame: snapshot the death-moment context while effect state is
+        # still live (read post-death by achievements.evaluate_run). Only a real
+        # death reaches here — a knight revive returned above.
+        self.death_pillar = self.pillars_passed
+        self.death_ghost = bool(self.bird.ghost_active)
+        self.death_kfc = bool(self.bird.kfc_active)
+        self.died_early_phase = (self.cycles_completed >= 1
+                                 and (self.biome_time % biome.CYCLE_SECONDS) < 5.0)
+        self.death_slowmo = self.slowmo_timer > 0
+        self.death_poison = bool(self.bird.poison_active)
+        self.death_skateboard = bool(self.bird.skateboard_active)
+        self.death_lightning = self._lightning_scorch_t > 0
+        self.death_celebration = bool(self.treasure_banners
+                                      or self.celebration_garlands)
+        self.death_magnet_zero = ((self.magnet_timer > 0 or self.megamagnet_timer > 0)
+                                  and self._coins_in_magnet == 0)
+        self.death_wish_pending = (self.powerups_picked.get("genie", 0) > 0
+                                   and not self._genie_wish_taken)
+        self._finalize_rush()      # close an in-progress rush for Coin Blind
         self.game_over = True
         self.bird.alive = False
         # Start the dead-Pip cross-fade. Tiny non-zero value gates the
@@ -3103,6 +3130,21 @@ class World:
         # current rightmost pipe), fall back to next-spawn.
         if not self._convert_rightmost_pipe_to_chamber():
             self.genie_chamber_pending = True
+        self.shake_mag = max(self.shake_mag, 2.0)
+        self.shake_t   = max(self.shake_t, 0.2)
+        try:
+            audio.play_genie()
+        except Exception:
+            pass
+        self._pickup_burst(
+            m, ((185, 130, 45), (250, 215, 130),
+                (170, 130, 195), (220, 200, 240)),
+            n=24, speed_hi=260,
+        )
+        self.float_texts.append(FloatText(
+            "GENIE!", m.x, m.y - 26, (250, 215, 130),
+            size=28, life=1.3, vy=-28, style="powerup",
+        ))
 
     def _convert_rightmost_pipe_to_chamber(self) -> bool:
         """Retroactively turn the most recently spawned pipe into a
@@ -3148,21 +3190,6 @@ class World:
             or getattr(p, "is_genie_offer", False)
         ]
         return True
-        self.shake_mag = max(self.shake_mag, 2.0)
-        self.shake_t   = max(self.shake_t, 0.2)
-        try:
-            audio.play_genie()
-        except Exception:
-            pass
-        self._pickup_burst(
-            m, ((185, 130, 45), (250, 215, 130),
-                (170, 130, 195), (220, 200, 240)),
-            n=24, speed_hi=260,
-        )
-        self.float_texts.append(FloatText(
-            "GENIE!", m.x, m.y - 26, (250, 215, 130),
-            size=28, life=1.3, vy=-28, style="powerup",
-        ))
 
     def _spawn_storm_umbrella(self):
         """Drop an umbrella offscreen-right at a comfortable mid-screen y

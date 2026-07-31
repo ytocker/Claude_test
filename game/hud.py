@@ -224,7 +224,7 @@ def _nest_draw_slot(surf, cy, alive):
     _nest_notches(surf, cy, courses, stick_wins)
 
 
-def _draw_pip_lives_row(surf, lives_remaining, lives_total, cy=106):
+def _draw_pip_lives_row(surf, lives_remaining, lives_total):
     global _NEST_SCRATCH
     n = max(lives_total, 2)
     for i, dx in enumerate(_NEST_DX_LIST[:n]):
