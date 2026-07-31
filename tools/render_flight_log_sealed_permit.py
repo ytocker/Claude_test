@@ -465,7 +465,16 @@ def _cachet(name, r, seed, ink, partial=None):
             pts_i.append((c + (r - 3) * math.cos(a), c + (r - 3) * math.sin(a)))
         pygame.draw.lines(surf, ink, False, pts_o, 2)
         pygame.draw.lines(surf, ink, False, pts_i, 1)
-        pygame.draw.circle(surf, ink, (c, c), 2)
+        # Start and end ticks plus a hub, so a 48-degree scratch of ink reads
+        # as a measured arc rather than a printing fault.
+        for a in (math.radians(-90), math.radians(-90 + sweep)):
+            pygame.draw.line(surf, ink,
+                             (c + (r - 7) * math.cos(a), c + (r - 7) * math.sin(a)),
+                             (c + (r + 3) * math.cos(a), c + (r + 3) * math.sin(a)), 2)
+        a = math.radians(-90 + sweep)
+        pygame.draw.line(surf, ink, (c, c),
+                         (c + (r - 8) * math.cos(a), c + (r - 8) * math.sin(a)), 1)
+        pygame.draw.circle(surf, ink, (c, c), 3)
     else:
         pygame.draw.circle(surf, ink, (c, c), r, 3)
         pygame.draw.circle(surf, ink, (c, c), r - 6, 1)
@@ -528,7 +537,9 @@ def _wax_seal(surf, cx, cy, r, seed, ribbons=True):
         for sx, tilt in ((-1, 22), (1, -18)):
             base = (cx + sx * r * 0.42, cy + r * 0.52)
             ang = math.radians(74 + tilt)
-            L = r * 1.35
+            # Tails stop inside the seal's own box row; any longer and the
+            # grey laces across the untouched stock it is meant to leave alone.
+            L = r * 0.85
             tip = (base[0] + sx * math.cos(ang) * L * 0.55,
                    base[1] + math.sin(ang) * L)
             wid = r * 0.26
@@ -564,11 +575,13 @@ def _wax_seal(surf, cx, cy, r, seed, ribbons=True):
     pygame.draw.polygon(surf, _mix(SCARLET, SCARLET_DEEP, 0.34), well)
     pygame.draw.lines(surf, _mix(SCARLET, (0, 0, 0), 0.45), True, well, 1)
 
-    _draw_parrot(surf, cx + 0.9, cy + 1.4, r * 0.030, SCARLET_DEEP)
-    _draw_parrot(surf, cx, cy, r * 0.030, SCARLET_LIT)
-    _draw_parrot(surf, cx - 0.8, cy - 1.0, r * 0.028,
-                 _mix(SCARLET_LIT, (255, 210, 200), 0.5))
-    _draw_parrot(surf, cx, cy, r * 0.030, _mix(SCARLET_LIT, SCARLET, 0.45))
+    # Chop is sized to fill the pressed well: the die is the whole point of a
+    # seal, so it has to survive at the 33px radius the page actually uses.
+    cs, e = r * 0.42, max(1.0, r * 0.045)
+    _draw_parrot(surf, cx + e, cy + e * 1.3, cs, SCARLET_DEEP)
+    _draw_parrot(surf, cx - e * 0.6, cy - e * 0.8, cs,
+                 _mix(SCARLET_LIT, (255, 214, 204), 0.55))
+    _draw_parrot(surf, cx, cy, cs, _mix(SCARLET_LIT, SCARLET, 0.35))
 
     hot = pygame.Surface((int(r * 4), int(r * 4)), pygame.SRCALPHA)
     rect = pygame.Rect(vc - r + 3, vc - r + 3, 2 * (r - 3), 2 * (r - 3))
@@ -873,11 +886,11 @@ def _detail_column(w, h, run_a_surf, run_a_seal):
     _caps(surf, "CONSTRUCTION  ·  SCALE", 12, 16, 10, GOLD, tracking=2)
 
     _caps(surf, "WAX SEAL  ·  2x", 12, 38, 8, (150, 145, 140), tracking=2)
-    plate = pygame.Surface((176, 176))
+    plate = pygame.Surface((176, 182))
     plate.fill(STOCK)
     ros = _rosette()
     plate.blit(ros, ros.get_rect(center=(88, 88)))
-    _wax_seal(plate, 88, 84, 68, 4024)
+    _wax_seal(plate, 88, 76, 56, 4024)
     surf.blit(plate, (12, 50))
     notes = ["LOBED RIM r+4sin8t", "HOT ARC UPPER-LEFT",
              "EMBOSSED PARROT CHOP", "GUNMETAL RIBBON TAILS",
