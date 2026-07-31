@@ -5,10 +5,12 @@ stacked vertically. Flown coupons get a torn stub + USED die-stamp. The death
 coupon gets a VOID — IRREGULAR OPERATION overprint. Unflown coupons are pristine.
 
 Mock run: death at phase 0.184 (within the DAY phase, row 0).
-  Row 0 (DAY):    DEATH coupon
-  Rows 1-6:       UNFLOWN / pristine
+  Row 0 (DAY):          DEATH coupon (voided mid-use)
+  Row 1 (GOLDEN HOUR):  CHAIN CANCEL (downstream cancellation)
+  Rows 2-6:             UNFLOWN / pristine
 """
 import os
+import random
 
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 os.environ["SDL_AUDIODRIVER"] = "dummy"
@@ -57,10 +59,12 @@ PHASES = [
 ]
 DEATH_PHASE = 0.184  # bird died within DAY (row 0)
 
-# Row 0 = DEATH, rows 1-6 = UNFLOWN (never reached)
+# Row 0 = DEATH, row 1 = CHAIN_CANCEL (downstream cancellation), rows 2-6 = UNFLOWN
 def row_state(i):
     if i == 0:
         return "death"
+    if i == 1:
+        return "chain_cancel"
     return "unflown"
 
 # ── Fonts ─────────────────────────────────────────────────────────────────────
@@ -137,6 +141,8 @@ for i, (phase_start, phase_name, origin, dest, flight_no) in enumerate(PHASES):
         coupon_color = COUPON_DEATH
     elif state == "used":
         coupon_color = COUPON_USED
+    elif state == "chain_cancel":
+        coupon_color = COUPON_PAPER
     else:
         coupon_color = COUPON_PAPER
 
@@ -207,34 +213,74 @@ for i, (phase_start, phase_name, origin, dest, flight_no) in enumerate(PHASES):
     phase_val = font_xs.render(range_str, True, DARK_TEXT)
     blit_at(surf, phase_val, 225, y + 56)
 
+    # ── Edge vignette — subtle dark gradient top & bottom of each coupon ──────
+    vig_top = pygame.Surface((339, 3), pygame.SRCALPHA)
+    for dy in range(3):
+        alpha_v = 40 - dy * 13  # 40, 27, 14
+        pygame.draw.line(vig_top, (*TICKET_NAVY, alpha_v), (0, dy), (338, dy), 1)
+    surf.blit(vig_top, (11, y))
+
+    vig_bot = pygame.Surface((339, 2), pygame.SRCALPHA)
+    for dy in range(2):
+        alpha_v = 30 - dy * 15  # 30, 15
+        pygame.draw.line(vig_bot, (*TICKET_NAVY, alpha_v), (0, dy), (338, dy), 1)
+    surf.blit(vig_bot, (11, y + 73))
+
     # ── Death coupon overlays ─────────────────────────────────────────────────
     if state == "death":
-        # X pattern across the full coupon body
-        x_surf = pygame.Surface((282, 76), pygame.SRCALPHA)
-        pygame.draw.line(x_surf, (172, 20, 20, 80), (0, 0), (282, 76), 1)
-        pygame.draw.line(x_surf, (172, 20, 20, 80), (282, 0), (0, 76), 1)
-        surf.blit(x_surf, (67, y))
+        # Bold X pattern across full coupon — 3px lines, alpha=160
+        x_surf = pygame.Surface((340, 78), pygame.SRCALPHA)
+        pygame.draw.line(x_surf, (172, 20, 20, 160), (0, 0), (340, 78), 3)
+        pygame.draw.line(x_surf, (172, 20, 20, 160), (340, 0), (0, 78), 3)
+        surf.blit(x_surf, (10, y))
 
-        # "VOID — IRREGULAR OPERATION" rotated overprint
-        void_surf_raw = font_lrg.render("VOID — IRREGULAR OPERATION", True, VOID_CRIMSON)
-        void_rotated  = pygame.transform.rotate(void_surf_raw, -12)
-        vx = 67 + (282 - void_rotated.get_width())  // 2
-        vy = y  + (76  - void_rotated.get_height()) // 2
-        surf.blit(void_rotated, (vx, vy))
+        # "VOID — IRREGULAR OPERATION" at font size 18, ~70% opacity rubber-stamp look
+        void_font = pygame.font.Font(FONT_PATH, 18)
+        void_surf_base = void_font.render("VOID — IRREGULAR OPERATION", True, VOID_CRIMSON)
+        # Use colorkey + set_alpha for reliable semi-transparent blit
+        void_surf_base.set_colorkey(void_surf_base.get_at((0, 0)))
+        void_rot = pygame.transform.rotate(void_surf_base, -12)
+        void_rot.set_alpha(180)  # 70% opacity — authentic rubber-stamp look
+        vx = 10 + (340 - void_rot.get_width()) // 2
+        vy = y + (78 - void_rot.get_height()) // 2
+        surf.blit(void_rot, (vx, vy))
 
         # Red border on the death coupon
         pygame.draw.rect(surf, VOID_CRIMSON, (10, y, 340, 76), width=2, border_radius=2)
+
+    # ── Chain-cancel overlay (row 1 — downstream cancellation) ───────────────
+    elif state == "chain_cancel":
+        # Light pink wash on right half of coupon body
+        cancel_wash = pygame.Surface((170, 74), pygame.SRCALPHA)
+        cancel_wash.fill((172, 40, 32, 20))
+        surf.blit(cancel_wash, (180, y + 1))
+        # Small "CHAIN CANCEL" label at far right of coupon body
+        cc_surf = font_xs.render("CHAIN CANCEL", True, GREY_TEXT)
+        blit_at(surf, cc_surf, 285, y + 67)
 
     # ── Perforation holes along x=66 ─────────────────────────────────────────
     for yp in range(y + 4, y + 74, 8):
         pygame.draw.circle(surf, PERF_HOLE, (66, yp), 3)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# BOTTOM STATUS BAR
+# PAPER GRAIN TEXTURE (sparse noise — fast approach)
+# ─────────────────────────────────────────────────────────────────────────────
+noise_surf = pygame.Surface((360, 640), pygame.SRCALPHA)
+rng = random.Random(42)
+for _ in range(8000):
+    nx, ny = rng.randint(10, 349), rng.randint(65, 620)
+    alpha = rng.randint(0, 12)
+    light = rng.choice([True, False])
+    col = (255, 255, 255, alpha) if light else (0, 0, 0, alpha)
+    noise_surf.set_at((nx, ny), col)
+surf.blit(noise_surf, (0, 0))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BOTTOM STATUS BAR  (moved above BACK pill to fix overlap)
 # ─────────────────────────────────────────────────────────────────────────────
 status_txt = "PILLAR 25  ·  DAY 1  ·  0:47  ·  FLIGHT VOIDED"
 status_surf = font_med.render(status_txt, True, GOLD)
-blit_centered(surf, status_surf, 180, 632)
+blit_centered(surf, status_surf, 180, 617)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # BACK BUTTON
@@ -246,6 +292,6 @@ blit_centered(surf, back_surf, 180, 633)
 # ─────────────────────────────────────────────────────────────────────────────
 # SAVE
 # ─────────────────────────────────────────────────────────────────────────────
-out = os.path.join(OUT_DIR, "round_1.png")
+out = os.path.join(OUT_DIR, "round_2.png")
 pygame.image.save(surf, out)
 print(f"saved {out}")
