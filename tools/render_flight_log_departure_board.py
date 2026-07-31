@@ -32,8 +32,8 @@ BG            = (8,   8,  20)
 BOARD_BLACK   = (14,  14,  22)
 CARD_BG       = (18,  18,  28)
 CARD_TEXT     = (240, 240, 245)
-CARD_FLIP_TOP = (24,  24,  36)
-CARD_FLIP_BOT = (16,  16,  26)
+CARD_FLIP_TOP = (40,  40,  58)
+CARD_FLIP_BOT = (30,  30,  46)
 DEPART_GREEN  = (80,  200, 100)
 CANCEL_AMBER  = (240, 165,  20)
 SCHED_GREY    = (120, 120, 140)
@@ -125,7 +125,7 @@ draw_rail(surf, 595, 640, 617)
 # ─────────────────────────────────────────────────────────────────────────────
 # LED TICKER STRIP  y=45..68
 # ─────────────────────────────────────────────────────────────────────────────
-pygame.draw.rect(surf, (10, 10, 18), (0, 45, SW, 23))
+pygame.draw.rect(surf, (10, 10, 18), (0, 45, SW, 18))
 # LED indicator blobs left
 for bx, by in [(8, 50), (16, 50)]:
     pygame.draw.rect(surf, (60, 10, 10), (bx, by, 5, 5))     # dim background
@@ -156,7 +156,7 @@ for label, lx, cx0, cx1 in headers:
 # ─────────────────────────────────────────────────────────────────────────────
 # CARD ROWS
 # ─────────────────────────────────────────────────────────────────────────────
-ROW_H   = 68   # visible card height
+ROW_H   = 64   # visible card height
 ROW_GAP = 4    # gap between rows (BG colour shows through)
 ROW_START = 80
 
@@ -182,7 +182,23 @@ for i, (phase_t, phase_name, dest, gate, dept_time, status) in enumerate(PHASES)
 
     if is_death:
         # ── HERO: FROZEN MID-FLIP CARD ───────────────────────────────────────
-        flip_y = row_y + ROW_H // 2    # midpoint = row_y + 34
+        flip_y = row_y + ROW_H // 2    # midpoint = row_y + 32
+
+        # Font for STATUS column — size 9 across all rows
+        font_status = font_9
+        status_h = font_status.size("DEPARTED")[1]
+
+        # Pre-compute bisection y positions — text vertically centered at flip_y
+        d_surf_top = font_11.render(dest, True, CARD_TEXT)
+        dest_bisect_y = flip_y - d_surf_top.get_height() // 2
+
+        gate_surf_top = font_11.render(gate, True, CANCEL_AMBER)
+        gate_bisect_y = flip_y - gate_surf_top.get_height() // 2
+
+        dept_surf_top = font_11.render(dept_time, True, CARD_TEXT)
+        dept_bisect_y = flip_y - dept_surf_top.get_height() // 2
+
+        departed_y = flip_y - status_h // 2
 
         # ---- TOP HALF: old face (DEPARTED) ----------------------------------
         surf.set_clip(pygame.Rect(0, row_y, SW, ROW_H // 2))
@@ -193,23 +209,20 @@ for i, (phase_t, phase_name, dest, gate, dept_time, status) in enumerate(PHASES)
         for cx in col_xs:
             pygame.draw.line(surf, (50, 50, 70), (cx, row_y), (cx, flip_y), 1)
 
-        # DESTINATION — top half shows old destination + phase label
-        d_surf = font_11.render(dest, True, CARD_TEXT)
-        surf.blit(d_surf, (8, row_y + 6))
+        # DESTINATION — bisected at flip_y; phase label sits at top of card
+        surf.blit(d_surf_top, (8, dest_bisect_y))
         ph_surf = font_8.render(phase_name, True, (160, 160, 180))
-        surf.blit(ph_surf, (8, row_y + 22))
+        surf.blit(ph_surf, (8, row_y + 4))
 
-        # GATE
-        g_surf = font_11.render(gate, True, CANCEL_AMBER)
-        blit_center_x(surf, g_surf, row_y + 6, COL_GATE_X0, COL_GATE_X1)
+        # GATE — bisected at flip_y
+        blit_center_x(surf, gate_surf_top, gate_bisect_y, COL_GATE_X0, COL_GATE_X1)
 
-        # DEPT TIME
-        t_surf_d = font_11.render(dept_time, True, CARD_TEXT)
-        blit_center_x(surf, t_surf_d, row_y + 6, COL_DEPT_X0, COL_DEPT_X1)
+        # DEPT TIME — bisected at flip_y
+        blit_center_x(surf, dept_surf_top, dept_bisect_y, COL_DEPT_X0, COL_DEPT_X1)
 
-        # STATUS top half — "DEPARTED" in green (old card face)
-        dep_label = font_11.render("DEPARTED", True, DEPART_GREEN)
-        blit_center_x(surf, dep_label, row_y + 6, COL_STAT_X0, COL_STAT_X1)
+        # STATUS top half — "DEPARTED" in green, bisected at flip_y
+        dep_label = font_status.render("DEPARTED", True, DEPART_GREEN)
+        blit_center_x(surf, dep_label, departed_y, COL_STAT_X0, COL_STAT_X1)
 
         # Glare highlight along the top edge of the top half
         for gx in range(0, SW, 4):
@@ -225,32 +238,31 @@ for i, (phase_t, phase_name, dest, gate, dept_time, status) in enumerate(PHASES)
         for cx in col_xs:
             pygame.draw.line(surf, (50, 50, 70), (cx, flip_y), (cx, row_y + ROW_H), 1)
 
-        # The "CANCELLED" text — we want only the BOTTOM half of the text to
-        # show inside this clip region. Position the text so its vertical
-        # midline aligns with flip_y.
-        fh = font_11.size("CANCELLED")[1]   # font height ≈ 14px at size 11
-        text_top = flip_y - fh // 2         # text starts above flip_y
-
-        # DESTINATION bottom half (continuation of text from top)
+        # DESTINATION bottom half — same bisect position as top (clip shows lower half)
         d2_surf = font_11.render(dest, True, CARD_TEXT)
-        surf.blit(d2_surf, (8, text_top))
-        # "CANCELLED" destination sub-label
+        surf.blit(d2_surf, (8, dest_bisect_y))
+        # "CANCELLED" sub-label sits below flip_y on the new card face
         can_dest = font_8.render("CANCELLED", True, CANCEL_AMBER)
         surf.blit(can_dest, (8, flip_y + 2))
 
-        # GATE — blank in new face (flight gone)
+        # GATE bottom half — dash, bisected at flip_y
         dash = font_11.render("—", True, (60, 60, 80))
-        blit_center_x(surf, dash, text_top, COL_GATE_X0, COL_GATE_X1)
+        dash_y = flip_y - dash.get_height() // 2
+        blit_center_x(surf, dash, dash_y, COL_GATE_X0, COL_GATE_X1)
 
-        # DEPT TIME — blank
-        blit_center_x(surf, dash, text_top, COL_DEPT_X0, COL_DEPT_X1)
+        # DEPT TIME bottom half — dash, bisected at flip_y
+        blit_center_x(surf, dash, dash_y, COL_DEPT_X0, COL_DEPT_X1)
 
-        # STATUS bottom half — "CANCELLED" in amber
-        can_surf = font_11.render("CANCELLED", True, CANCEL_AMBER)
-        blit_center_x(surf, can_surf, text_top, COL_STAT_X0, COL_STAT_X1)
+        # STATUS bottom half — "CANCELLED" in amber, bisected at flip_y
+        cancel_y = flip_y - status_h // 2
+        can_surf = font_status.render("CANCELLED", True, CANCEL_AMBER)
+        blit_center_x(surf, can_surf, cancel_y, COL_STAT_X0, COL_STAT_X1)
 
         # ---- Release clip ------------------------------------------------
         surf.set_clip(None)
+
+        # ---- Left-margin accent stripe (full row height) ----------------
+        pygame.draw.rect(surf, DEATH_RED, (0, row_y, 4, ROW_H))
 
         # ---- Hairline split line -----------------------------------------
         # Main split
@@ -282,7 +294,7 @@ for i, (phase_t, phase_name, dest, gate, dept_time, status) in enumerate(PHASES)
         dim = SCHED_GREY
 
         # Phase name (small, above destination)
-        ph_surf = font_8.render(phase_name, True, (70, 70, 90))
+        ph_surf = font_7.render(phase_name, True, SCHED_GREY)
         surf.blit(ph_surf, (8, row_y + 4))
 
         # Destination name
@@ -313,7 +325,7 @@ for i, (phase_t, phase_name, dest, gate, dept_time, status) in enumerate(PHASES)
 # FULL-HEIGHT COLUMN DIVIDERS (drawn over everything)
 # ─────────────────────────────────────────────────────────────────────────────
 total_rows = len(PHASES)
-board_end = ROW_START + total_rows * (ROW_H + ROW_GAP)
+board_end = ROW_START + total_rows * (ROW_H + ROW_GAP) - 6
 for cx in col_xs:
     pygame.draw.line(surf, (45, 45, 68), (cx, 80), (cx, board_end - ROW_GAP), 1)
 
@@ -367,6 +379,6 @@ surf.blit(vignette, (0, 0))
 # ─────────────────────────────────────────────────────────────────────────────
 # SAVE
 # ─────────────────────────────────────────────────────────────────────────────
-out = os.path.join(OUT_DIR, "round_1.png")
+out = os.path.join(OUT_DIR, "round_2.png")
 pygame.image.save(surf, out)
 print(f"saved {out}")
