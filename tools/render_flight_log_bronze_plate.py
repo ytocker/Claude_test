@@ -855,9 +855,9 @@ def draw_addendum(scr, add):
     hw = 6.5
     xs = [cx0 + i * 0.4 for i in range(int(clen / 0.4) + 1)]
     for x in xs:
-        dcircle(strip, (92, 66, 36), x - 0.7, cy - 1.0, hw + 1.3)
+        dcircle(strip, (92, 66, 36), x - 0.7, cy - 1.0, hw + 1.2)
     for x in xs:
-        dcircle(strip, (216, 176, 104), x + 0.7, cy + 1.0, hw + 1.3)
+        dcircle(strip, (216, 176, 104), x + 0.7, cy + 1.0, hw + 1.2)
     for x in xs:
         dcircle(strip, BED, x, cy, hw)
 
