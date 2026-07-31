@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
 """
-sky-ruler  ·  flight_log_progress  ·  round 1
+sky-ruler  ·  flight_log_progress  ·  round 2
 
-The ruler IS the sky. One 300x34 ribbon carries a full-saturation horizontal
-sweep of the real biome palette, so the seven times of day are read as colour
-rather than as seven labelled boxes. Nothing ahead of the player is dimmed,
-hatched or greyed: the day the player has NOT seen yet is the most beautiful
-thing on the screen, because that is the thing the screen is selling. Progress
-is therefore marked additively -- a lit top rail over the flown 18% -- and the
-one place where two marks would collide (geyser start 0.156 vs. death 0.184,
-3.6 px apart at true scale) is solved the way a chart solves it: a x5 loupe
-inset, joined to the ribbon by tapered guides, where the same two marks sit
-42 px apart and can both be labelled.
+The ruler IS the sky. One 300x52 ribbon carries a full-saturation sweep of the
+real biome palette, so the times of day are read as colour rather than as
+labelled boxes. Nothing ahead of the player is dimmed or greyed: the day the
+player has NOT seen is the most beautiful thing on the screen, because that is
+what the screen is selling. Progress is therefore marked additively -- a lit
+rail over the flown 18%, keylined in ink so it survives against a bright
+daylight sky -- and the one place two marks would collide (geyser 0.156 vs.
+death 0.184, 8 px apart at true scale) is handed wholesale to a x5 loupe: the
+main strip carries ONLY the death blade inside that window, so the loupe owns
+its subject instead of echoing it.
+
+Five tiers, top to bottom: title / hero percentage / sky ribbon / STILL AHEAD /
+BACK. Everything that was a second way of saying the same thing -- phase table,
+event key, death callout -- is gone, and the pixels went into the ribbon.
 """
 import os
 import math
@@ -27,12 +31,10 @@ import pygame
 pygame.init()
 pygame.display.set_mode((1, 1))
 
-from game.biome import PHASE_BOUNDARIES, palette_for_phase, CYCLE_SECONDS
-from game.weather import (THERMAL_START_PHASE, THERMAL_END_PHASE,
-                          SNOW_STORM_CENTER, _phase_for_pillar,
-                          pillar_for_phase, GENIE_PILLAR)
-from game.config import (LATE_GAME_PILLAR, CLOWN_START_PILLAR,
-                         RAIN_START_PILLAR)
+from game.biome import PHASE_BOUNDARIES, palette_for_phase
+from game.weather import (THERMAL_START_PHASE, SNOW_STORM_CENTER,
+                          _phase_for_pillar)
+from game.config import LATE_GAME_PILLAR, RAIN_START_PILLAR
 from game.draw import lerp_color
 
 
@@ -51,33 +53,44 @@ def _font(size):
     return f
 
 
+# ── type scale ───────────────────────────────────────────────────────────────
+# Four sizes and nothing else. Anything smaller than MICRO is unreadable on a
+# phone held at arm's length, so it may as well not be drawn.
+HERO, SECT, BODY_S, MICRO = 32, 16, 12, 10
+
 # ── palette ──────────────────────────────────────────────────────────────────
-GOLD        = (240, 192,  64)
-GOLD_PALE   = (255, 232, 168)
-GOLD_WARM   = (255, 208, 120)
+GOLD        = (240, 192,  64)            # hud.py _GOLD_BRIGHT
+GOLD_PALE   = (255, 232, 168)            # hud.py _GOLD_PALE
+GOLD_DEEP   = (255, 176,  56)
+RAIL_CORE   = (255, 246, 214)
 SCARLET     = (255,  78,  78)
 SCARLET_PAL = (255, 158, 158)
 INK         = (  6,   8,  14)
-SLATE       = ( 24,  29,  44)
-SLATE_D     = ( 15,  19,  31)
-MUTED       = (146, 160, 186)
-MUTED_D     = (100, 113, 138)
+PANEL_DARK  = ( 12,   8,  38)            # hud.py _PANEL_DARK
+PANEL_LIGHT = ( 26,  18,  62)            # hud.py _PANEL_LIGHTER
+FRAME_WARM  = (120,  96,  64)
+BODY_TXT    = (226, 232, 244)
+MUTED       = (176, 188, 212)
+MUTED_D     = (146, 160, 186)
 ICE         = (198, 230, 255)
 STEAM       = (196, 240, 250)
-VIOLET      = (232, 118, 226)
 RAINBLUE    = (126, 186, 255)
 
 # ── geometry ─────────────────────────────────────────────────────────────────
-RIB_X, RIB_Y, RIB_W, RIB_H = 30, 210, 300, 34
+RIB_X, RIB_Y, RIB_W, RIB_H = 30, 292, 300, 52
 RIB_R = RIB_X + RIB_W
 
-LOUPE = pygame.Rect(33, 114, 96, 64)
+LOUPE = pygame.Rect(24, 138, 156, 96)
 LOUPE_P0, LOUPE_P1 = 0.140, 0.200       # phase window the loupe magnifies
 
 DEATH_PHASE = 0.184
 DAY_N       = 1
 TIME_ALIVE  = 47
 DEATH_PILLAR = 25
+
+TICK_Y  = RIB_Y + RIB_H + 8
+LABEL_Y = TICK_Y + 14
+GLYPH_Y = 392
 
 
 def px(phase):
@@ -105,15 +118,15 @@ def aline(surf, color, p0, p1, alpha=255, width=1):
     surf.blit(tmp, (minx, miny))
 
 
-def soft_shadow(surf, rect, radius, spread=5, peak=34):
+def soft_shadow(surf, rect, radius, spread=5, peak=34, drop=2):
     """Outer ring first: draw.rect replaces pixels, so an inside-out stack
     would erase every brighter layer it was built on."""
-    s = pygame.Surface((rect.w + spread * 2, rect.h + spread * 2),
+    s = pygame.Surface((rect.w + spread * 2, rect.h + spread * 2 + drop),
                        pygame.SRCALPHA)
     for i in range(spread, 0, -1):
         a = int(peak * (1 - i / (spread + 1)) ** 0.7)
         pygame.draw.rect(s, (0, 0, 0, a),
-                         (spread - i, spread - i + 2,
+                         (spread - i, spread - i + drop,
                           rect.w + i * 2, rect.h + i * 2),
                          border_radius=radius + i)
     surf.blit(s, (rect.x - spread, rect.y - spread))
@@ -219,22 +232,6 @@ def glyph_lamp(size, col=GOLD):
     return g
 
 
-def glyph_diamond(size, col=VIOLET):
-    S = size * SS
-    g = _gsurf(size)
-    lite = (255, 214, 250)
-    top, rgt, bot, lft = (0.5, 0.03), (0.97, 0.5), (0.5, 0.97), (0.03, 0.5)
-    ctr = (0.5, 0.5)
-    _poly(g, S, [ctr, top, rgt], lite)
-    _poly(g, S, [ctr, rgt, bot], col)
-    _poly(g, S, [ctr, bot, lft], lite)
-    _poly(g, S, [ctr, lft, top], col)
-    pygame.draw.lines(g, (255, 255, 255, 210), True,
-                      [(x * S, y * S) for x, y in (top, rgt, bot, lft)],
-                      max(1, int(0.05 * S)))
-    return g
-
-
 def glyph_drop(size, col=RAINBLUE):
     S = size * SS
     g = _gsurf(size)
@@ -267,7 +264,6 @@ def glyph_snow(size, col=ICE):
 GLYPHS = {
     "geyser": glyph_geyser,
     "lamp":   glyph_lamp,
-    "clown":  glyph_diamond,
     "rain":   glyph_drop,
     "snow":   glyph_snow,
 }
@@ -286,10 +282,20 @@ def draw_glyph(dst, kind, size, cx, cy):
 # ═════════════════════════════════════════════════════════════════════════════
 # the ribbon itself
 # ═════════════════════════════════════════════════════════════════════════════
-def build_sky_strip(w, h, p0, p1, step=2):
+_STRIP_CACHE = {}
+
+
+def sky_strip(w, h, p0, p1, step=2):
     """Each 2 px column is a miniature sky for its phase: sky_top -> sky_mid ->
     sky_bot down the strip's height. Sampling the live palette means the ruler
-    can never drift out of sync with the sky the player actually flew through."""
+    can never drift out of sync with the sky the player actually flew through.
+
+    Cached: a per-column palette solve is far too expensive to repeat on a
+    screen that redraws every frame, and the strip never changes."""
+    key = (w, h, p0, p1, step)
+    s = _STRIP_CACHE.get(key)
+    if s is not None:
+        return s
     s = pygame.Surface((w, h))
     x = 0
     while x < w:
@@ -302,127 +308,215 @@ def build_sky_strip(w, h, p0, p1, step=2):
                  else lerp_color(mid, bot, (t - 0.55) / 0.45))
             pygame.draw.rect(s, c, (x, y, step, 1))
         x += step
+    _STRIP_CACHE[key] = s
     return s
 
 
-def draw_ribbon(surf):
-    strip = build_sky_strip(RIB_W, RIB_H, 0.0, 1.0, 2)
-    surf.blit(strip, (RIB_X, RIB_Y))
+def flown_rail(surf, x0, y0, width, span, tall=True):
+    """Warm at the origin, resolving to a near-white spark at the leading edge:
+    the run reads as heat that has burned forward and is about to run out.
 
-    flown_w = DEATH_PHASE * RIB_W
+    The 1 px INK undercut is the whole reason the rail survives: over a noon
+    sky a pale gold line is only ~2.9:1 against the body it sits on, but the
+    ink boundary under it is >6:1, so the eye locks onto the EDGE rather than
+    the fill. Value keyline, not hue."""
+    core_h = 2 if tall else 2
+    r = pygame.Surface((span, core_h + 1), pygame.SRCALPHA)
+    for i in range(span):
+        t = i / max(1.0, span - 1)
+        c = lerp_color(GOLD_DEEP, RAIL_CORE, t ** 0.75)
+        spark = max(0.0, (i - (span - 8)) / 8.0)
+        if spark > 0:
+            c = lerp_color(c, (255, 255, 255), spark ** 0.8)
+        pygame.draw.rect(r, (*c, 255), (i, 0, 1, core_h))
+        pygame.draw.rect(r, (*INK, 255), (i, core_h, 1, 1))
+    surf.blit(r, (x0, y0))
+
+
+def rail_terminus(surf, x, y, height=5):
+    """A hard stop. The rail does not fade out — it hits a raised gold notch
+    and the scarlet blade begins one pixel later, which is what a run ending
+    actually feels like."""
+    pygame.draw.rect(surf, INK, (x - 4, y - height - 1, 5, height + 1))
+    for i, c in enumerate((GOLD, GOLD_PALE, RAIL_CORE)):
+        pygame.draw.rect(surf, c, (x - 3 + i, y - height, 1, height))
+
+
+def frame_shadow(surf):
+    """Outline rings only, laid down AFTER everything that could brighten the
+    band around the ribbon (guide cone, rail glow). In the night sector the
+    ribbon body and the page sit at ~1.06:1, so the separation has to come
+    from a dark moat plus a warm keyline — and a moat that anything is allowed
+    to paint over is not a moat."""
+    for off in range(7, 0, -1):
+        a = (0, 140, 118, 98, 74, 50, 30, 15)[off]
+        r = pygame.Rect(RIB_X - 1 - off, RIB_Y - 1 - off,
+                        RIB_W + 2 + off * 2, RIB_H + 2 + off * 2 + 1)
+        sh = pygame.Surface(r.size, pygame.SRCALPHA)
+        pygame.draw.rect(sh, (0, 0, 0, a), sh.get_rect(), width=1,
+                         border_radius=min(off, 3))
+        surf.blit(sh, r.topleft)
+
+
+def draw_ribbon(surf):
+    surf.blit(sky_strip(RIB_W, RIB_H, 0.0, 1.0, 2), (RIB_X, RIB_Y))
+
+    flown_w = int(DEATH_PHASE * RIB_W)
 
     # Progress is ADDITIVE only. A warm bloom lifts the flown span instead of
     # a scrim knocking the unflown day back -- the unflown day is the product.
-    bloom = pygame.Surface((int(flown_w), RIB_H))
+    bloom = pygame.Surface((flown_w, RIB_H))
     for y in range(RIB_H):
         f = (1.0 - y / RIB_H) ** 1.7
         pygame.draw.line(bloom, (int(58 * f), int(42 * f), int(14 * f)),
-                         (0, y), (int(flown_w), y))
+                         (0, y), (flown_w, y))
     surf.blit(bloom, (RIB_X, RIB_Y), special_flags=pygame.BLEND_RGB_ADD)
 
-    # 3 px lit rail + 1 px raised bevel: the flown span reads as a machined
-    # edge catching light, which needs no colour of its own to be seen.
-    rail = pygame.Surface((int(flown_w), 5), pygame.SRCALPHA)
-    for x in range(int(flown_w)):
-        t = x / max(1.0, flown_w - 1)
-        c = lerp_color(GOLD_WARM, (255, 252, 240), t ** 0.7)
-        pygame.draw.rect(rail, (*c, 255), (x, 0, 1, 3))
-        pygame.draw.rect(rail, (*lerp_color(GOLD, (210, 150, 70), t), 130),
-                         (x, 3, 1, 1))
-        pygame.draw.rect(rail, (60, 34, 12, 90), (x, 4, 1, 1))
-    surf.blit(rail, (RIB_X, RIB_Y))
+    # Specular runs the FULL width, under the rail: it belongs to the ribbon as
+    # an object, not to the flown span, so the unflown day gets the same
+    # machined top edge and does not read as a leftover.
+    aline(surf, (255, 255, 255), (RIB_X, RIB_Y), (RIB_R - 1, RIB_Y), alpha=51)
 
-    glow = pygame.Surface((int(flown_w) + 24, 18), pygame.SRCALPHA)
-    for i in range(8, -1, -1):
-        a = int(30 * (1 - i / 9) ** 1.4)
-        pygame.draw.rect(glow, (255, 196, 110, a),
-                         (12 - i, 7 - i, int(flown_w) + i * 2, 3 + i * 2))
-    surf.blit(glow, (RIB_X - 12, RIB_Y - 7))
+    flown_rail(surf, RIB_X, RIB_Y, RIB_W, flown_w - 3)
+
+    # The rail's heat blooms DOWN into the sky it is lying on, not out onto the
+    # page: bleeding warmth past the frame is what erased the ribbon's own
+    # edge in round 1.
+    glow = pygame.Surface((flown_w, 14), pygame.SRCALPHA)
+    for y in range(14):
+        pygame.draw.line(glow, (255, 196, 110, int(30 * (1 - y / 14) ** 1.6)),
+                         (0, y), (flown_w, y))
+    surf.blit(glow, (RIB_X, RIB_Y + 3))
 
     # Loupe window brackets — brightening marks, never a scrim.
     for phv in (LOUPE_P0, LOUPE_P1):
-        wx = int(px(phv))
         wl = pygame.Surface((1, RIB_H), pygame.SRCALPHA)
-        wl.fill((255, 255, 255, 105))
-        surf.blit(wl, (wx, RIB_Y))
+        wl.fill((255, 255, 255, 120))
+        surf.blit(wl, (int(px(phv)), RIB_Y))
 
-    pygame.draw.rect(surf, (0, 0, 0), (RIB_X - 1, RIB_Y - 1,
-                                       RIB_W + 2, RIB_H + 2), width=1)
-    edge = pygame.Surface((RIB_W + 4, RIB_H + 4), pygame.SRCALPHA)
-    pygame.draw.rect(edge, (*GOLD, 46), edge.get_rect(), width=1)
-    surf.blit(edge, (RIB_X - 2, RIB_Y - 2))
+    frame_shadow(surf)
+
+    # Warm mid-value keyline, not black: a black outline on a near-black page
+    # is invisible, which is exactly where the night sector was losing its
+    # edge. A 46%-value warm line reads against both the sky and the page.
+    pygame.draw.rect(surf, FRAME_WARM,
+                     (RIB_X - 1, RIB_Y - 1, RIB_W + 2, RIB_H + 2), width=1)
+
+    # Last, on top of the frame: the terminus is a raised feature of the rail,
+    # so the ribbon's own moat must not grey it down.
+    rail_terminus(surf, RIB_X + flown_w - 3, RIB_Y)
 
 
 def draw_death_marker(surf):
-    x = px(DEATH_PHASE)
+    x = int(px(DEATH_PHASE))
     # BLEND_RGB_ADD reads RGB and ignores source alpha, so the falloff has to
     # live in the channel values; the blade goes on afterwards to stay pure.
-    halo = pygame.Surface((11, RIB_H + 6))
-    for i, v in ((2, 16), (1, 30), (0, 52)):
+    # Kept strictly inside the strip: an additive bloom spilling onto the page
+    # would raise the very band the ribbon's keyline needs to stay dark.
+    halo = pygame.Surface((15, RIB_H))
+    for i, v in ((2, 14), (1, 26), (0, 46)):
         pygame.draw.rect(halo, (v, int(v * 0.16), int(v * 0.16)),
-                         (4 - i * 2, 0, 3 + i * 4, RIB_H + 6))
-    surf.blit(halo, (int(x) - 6, RIB_Y - 3), special_flags=pygame.BLEND_RGB_ADD)
+                         (6 - i * 2, 0, 3 + i * 4, RIB_H))
+    surf.blit(halo, (x - 7, RIB_Y), special_flags=pygame.BLEND_RGB_ADD)
 
-    pygame.draw.rect(surf, SCARLET, (int(x) - 1, RIB_Y, 2, RIB_H))
+    # 1 px ink | 2 px scarlet | 1 px ink. The ink flanks are what make the mark
+    # colourblind-safe: it is a black-white-black edge before it is red, so it
+    # survives both a deuteranope and a squint at arm's length.
+    top = RIB_Y - 7
+    bot = RIB_Y + RIB_H + 4
+    pygame.draw.rect(surf, INK, (x - 2, top, 1, bot - top))
+    pygame.draw.rect(surf, INK, (x + 1, top, 1, bot - top))
+    pygame.draw.rect(surf, SCARLET, (x - 1, top, 2, bot - top))
 
-    # The chevron head sits ABOVE the strip so the blade itself never has to
-    # thicken: at 300 px the whole ribbon is only 1.5 px per pillar.
-    ch = pygame.Surface((13 * SS, 10 * SS), pygame.SRCALPHA)
-    pygame.draw.polygon(ch, SCARLET, [(1 * SS, 0), (12 * SS, 0),
-                                      (6.5 * SS, 9.5 * SS)])
-    pygame.draw.polygon(ch, (255, 200, 200), [(3 * SS, 1 * SS), (10 * SS, 1 * SS),
-                                              (6.5 * SS, 3.4 * SS)])
-    surf.blit(pygame.transform.smoothscale(ch, (13, 10)),
-              (int(x) - 6, RIB_Y - 9))
-    pygame.draw.rect(surf, SCARLET, (int(x) - 1, RIB_Y + RIB_H, 2, 3))
-
-
-def draw_death_callout(surf):
-    """Flows RIGHT, into the ahead region: the eye leaves the failure and lands
-    on the day still unseen, which is the screen's whole argument."""
-    x, y = px(DEATH_PHASE), 201
-    pygame.draw.line(surf, (8, 10, 18), (int(x) + 8, y - 1), (121, y - 1), 5)
-    pygame.draw.line(surf, SCARLET, (int(x) + 8, y), (119, y), 1)
-    pygame.draw.circle(surf, SCARLET, (119, y), 2)
-    text(surf, f"PILLAR {DEATH_PILLAR}  ·  YOU FELL HERE", 9, SCARLET_PAL,
-         (125, y), "midleft", shadow=170)
+    ch = pygame.Surface((17 * SS, 13 * SS), pygame.SRCALPHA)
+    pygame.draw.polygon(ch, INK, [(0, 0), (17 * SS, 0), (8.5 * SS, 13 * SS)])
+    pygame.draw.polygon(ch, SCARLET, [(2 * SS, 1.6 * SS), (15 * SS, 1.6 * SS),
+                                      (8.5 * SS, 10.6 * SS)])
+    pygame.draw.polygon(ch, (255, 206, 206),
+                        [(4 * SS, 3 * SS), (13 * SS, 3 * SS),
+                         (8.5 * SS, 6 * SS)])
+    surf.blit(pygame.transform.smoothscale(ch, (17, 13)), (x - 8, RIB_Y - 19))
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# loupe
+# loupe — owns the 0.140–0.200 window outright
 # ═════════════════════════════════════════════════════════════════════════════
 def draw_loupe_guides(surf):
     """Tapered guides — wide at the loupe, narrow where they touch the ribbon,
-    so the eye reads the direction of the magnification."""
-    bx, by = 24, LOUPE.bottom - 2
-    bw, bh = 120, (RIB_Y - by) + 2
-    s = pygame.Surface((bw * SS, bh * SS), pygame.SRCALPHA)
+    so the eye reads the direction of the magnification. The cone is opaque
+    enough to be one solid frustum: below ~50 alpha it broke into two unrelated
+    diagonal lines with nothing between them.
 
-    def q(x0, x1, w0, w1):
-        pygame.draw.polygon(s, (*GOLD_PALE, 215), [
-            ((x0 - bx - w0) * SS, 0), ((x0 - bx + w0) * SS, 0),
-            ((x1 - bx + w1) * SS, bh * SS), ((x1 - bx - w1) * SS, bh * SS)])
+    It darkens in value AND alpha as it descends, which is both how a light
+    cone actually falls off and the only way the ribbon's own keyline can hold
+    3:1 against the page it lands on — a flat gold wash right up to the frame
+    swamps the frame."""
+    bx, by = 18, LOUPE.bottom - 2
+    bw, bh = 172, (RIB_Y - by) + 2
 
-    pygame.draw.polygon(s, (*GOLD, 26), [
-        ((LOUPE.left - bx) * SS, 0), ((LOUPE.right - bx) * SS, 0),
-        ((px(LOUPE_P1) - bx) * SS, bh * SS), ((px(LOUPE_P0) - bx) * SS, bh * SS)])
-    q(LOUPE.left, px(LOUPE_P0), 1.6, 0.8)
-    q(LOUPE.right, px(LOUPE_P1), 1.6, 0.8)
-    surf.blit(pygame.transform.smoothscale(s, (bw, bh)), (bx, by))
+    def ramped(draw, a_top, a_bot):
+        s = pygame.Surface((bw * SS, bh * SS), pygame.SRCALPHA)
+        draw(s)
+        ramp = pygame.Surface((bw * SS, bh * SS), pygame.SRCALPHA)
+        for y in range(bh * SS):
+            t = y / max(1, bh * SS - 1)
+            v = int(255 * (1.0 - 0.80 * t ** 1.6))
+            a = int(a_top + (a_bot - a_top) * t ** 1.8)
+            pygame.draw.line(ramp, (v, v, v, a), (0, y), (bw * SS, y))
+        s.blit(ramp, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        surf.blit(pygame.transform.smoothscale(s, (bw, bh)), (bx, by))
+
+    def body(s):
+        pygame.draw.polygon(s, (*GOLD, 255), [
+            ((LOUPE.left - bx) * SS, 0), ((LOUPE.right - bx) * SS, 0),
+            ((px(LOUPE_P1) - bx) * SS, bh * SS),
+            ((px(LOUPE_P0) - bx) * SS, bh * SS)])
+
+    def rails(s):
+        for x0, x1 in ((LOUPE.left, px(LOUPE_P0)),
+                       (LOUPE.right, px(LOUPE_P1))):
+            pygame.draw.polygon(s, (*GOLD_PALE, 255), [
+                ((x0 - bx - 1.6) * SS, 0), ((x0 - bx + 1.6) * SS, 0),
+                ((x1 - bx + 0.8) * SS, bh * SS),
+                ((x1 - bx - 0.8) * SS, bh * SS)])
+
+    ramped(body, 68, 16)
+    ramped(rails, 235, 46)
+
+
+def shipping_panel(surf, rect, radius=10, alpha=246):
+    """hud.py's stat-card recipe: _PANEL_LIGHTER -> _PANEL_DARK body, 2 px
+    gold border, inner top sheen, inner bottom shadow. Built at SSx so the
+    corners are genuinely round at these small radii."""
+    w, h = rect.w * SS, rect.h * SS
+    s = pygame.Surface((w, h), pygame.SRCALPHA)
+    for y in range(h):
+        c = lerp_color(PANEL_LIGHT, PANEL_DARK, y / max(1, h - 1))
+        pygame.draw.line(s, (*c, alpha), (0, y), (w, y))
+    m = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.rect(m, (255, 255, 255, 255), m.get_rect(),
+                     border_radius=radius * SS)
+    s.blit(m, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    pygame.draw.rect(s, GOLD, s.get_rect(), width=2 * SS,
+                     border_radius=radius * SS)
+    pygame.draw.line(s, (*GOLD_PALE, 140), (10 * SS, 3 * SS),
+                     (w - 10 * SS, 3 * SS), SS)
+    pygame.draw.line(s, (0, 0, 0, 80), (10 * SS, h - 4 * SS),
+                     (w - 10 * SS, h - 4 * SS), SS)
+    surf.blit(pygame.transform.smoothscale(s, rect.size), rect.topleft)
 
 
 def draw_loupe(surf):
     r = LOUPE
-    soft_shadow(surf, r, 8, spread=5, peak=40)
-    panel(surf, r, 8, (46, 56, 82), (23, 29, 46), (0, 0, 0, 0), 255)
+    soft_shadow(surf, r, 10, spread=6, peak=68, drop=3)
+    shipping_panel(surf, r, 10)
 
-    # Range left, magnification right: it leaves the centre of the header row
-    # clear for the death chevron, which has to sit above its own blade.
-    text(surf, "0.140 – 0.200", 7, MUTED_D, (r.x + 8, r.y + 11), "midleft")
-    text(surf, "x5", 9, GOLD, (r.right - 8, r.y + 11), "midright")
+    text(surf, "×5", SECT, GOLD, (r.x + 13, r.y + 16), "midleft", shadow=170)
+    text(surf, "0.140 – 0.200", MICRO, MUTED_D, (r.right - 13, r.y + 16),
+         "midright")
 
-    bx, by, bw, bh = r.x + 3, r.y + 19, 90, 22
-    surf.blit(build_sky_strip(bw, bh, LOUPE_P0, LOUPE_P1, 2), (bx, by))
+    bx, by, bw, bh = r.x + 10, r.y + 30, 136, 26
+    surf.blit(sky_strip(bw, bh, LOUPE_P0, LOUPE_P1, 2), (bx, by))
 
     def lx(phv):
         return bx + (phv - LOUPE_P0) / (LOUPE_P1 - LOUPE_P0) * bw
@@ -434,46 +528,50 @@ def draw_loupe(surf):
         pygame.draw.line(bl, (int(58 * f), int(42 * f), int(14 * f)),
                          (0, y), (fw, y))
     surf.blit(bl, (bx, by), special_flags=pygame.BLEND_RGB_ADD)
-    for i in range(fw):
-        t = i / max(1, fw - 1)
-        c = lerp_color(GOLD_WARM, (255, 252, 240), t ** 0.7)
-        pygame.draw.rect(surf, c, (bx + i, by, 1, 3))
-        pygame.draw.rect(surf, lerp_color(GOLD, (210, 150, 70), t),
-                         (bx + i, by + 3, 1, 1))
-    pygame.draw.rect(surf, (0, 0, 0), (bx - 1, by - 1, bw + 2, bh + 2), width=1)
+    aline(surf, (255, 255, 255), (bx, by), (bx + bw - 1, by), alpha=51)
+    flown_rail(surf, bx, by, bw, fw - 3)
 
-    gx = lx(THERMAL_START_PHASE)
-    pygame.draw.line(surf, (*STEAM, 200), (int(gx), by), (int(gx), by + bh), 1)
-    draw_glyph(surf, "geyser", 15, gx, by + bh // 2)
+    gx = int(lx(THERMAL_START_PHASE))
+    pygame.draw.rect(surf, INK, (gx - 2, by, 1, bh))
+    pygame.draw.rect(surf, INK, (gx + 1, by, 1, bh))
+    pygame.draw.rect(surf, STEAM, (gx - 1, by, 2, bh))
+    draw_glyph(surf, "geyser", 16, gx, by + bh // 2 + 1)
 
+    rail_terminus(surf, bx + fw - 3, by, 4)
+    # No chevron in here: the loupe exists to give these two marks room, and a
+    # second arrowhead would only claw back the space it just bought. The blade
+    # standing proud of the strip is terminus enough at x5.
     dx = int(lx(DEATH_PHASE))
-    pygame.draw.rect(surf, SCARLET, (dx - 1, by, 2, bh))
-    ch = pygame.Surface((11 * SS, 8 * SS), pygame.SRCALPHA)
-    pygame.draw.polygon(ch, SCARLET, [(0, 0), (11 * SS, 0), (5.5 * SS, 8 * SS)])
-    surf.blit(pygame.transform.smoothscale(ch, (11, 8)), (dx - 5, by - 8))
+    pygame.draw.rect(surf, INK, (dx - 2, by - 6, 1, bh + 6))
+    pygame.draw.rect(surf, INK, (dx + 1, by - 6, 1, bh + 6))
+    pygame.draw.rect(surf, SCARLET, (dx - 1, by - 6, 2, bh + 6))
+
+    pygame.draw.rect(surf, FRAME_WARM, (bx - 1, by - 1, bw + 2, bh + 2),
+                     width=1)
 
     ly = by + bh + 3
-    aline(surf, STEAM, (int(gx), ly), (int(gx), ly + 3), alpha=130)
-    aline(surf, SCARLET, (dx, ly), (dx, ly + 3), alpha=150)
-    text(surf, "GEYSER", 7, STEAM, (gx, ly + 8), "center")
-    text(surf, f"PILLAR {pillar_for_phase(THERMAL_START_PHASE)}", 6, MUTED_D,
-         (gx, ly + 15), "center")
-    text(surf, "YOU FELL", 7, SCARLET_PAL, (dx, ly + 8), "center")
-    text(surf, f"PILLAR {DEATH_PILLAR}", 6, MUTED_D, (dx, ly + 15), "center")
-
-    ring = pygame.Surface((r.w * SS, r.h * SS), pygame.SRCALPHA)
-    pygame.draw.rect(ring, (*GOLD, 160), ring.get_rect(), width=SS,
-                     border_radius=8 * SS)
-    pygame.draw.rect(ring, (255, 255, 255, 34), (SS, SS, (r.w - 2) * SS,
-                                                 (r.h - 2) * SS),
-                     width=SS, border_radius=7 * SS)
-    surf.blit(pygame.transform.smoothscale(ring, r.size), r.topleft)
+    aline(surf, STEAM, (gx, ly), (gx, ly + 4), alpha=150)
+    aline(surf, SCARLET, (dx, ly), (dx, ly + 4), alpha=170)
+    text(surf, "GEYSER", MICRO, STEAM, (gx, ly + 12), "center")
+    text(surf, "YOU FELL", MICRO, SCARLET_PAL, (dx, ly + 12), "center")
+    text(surf, f"PILLAR {DEATH_PILLAR}", MICRO, GOLD_PALE, (dx, ly + 24),
+         "center")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
 # ticks, phase labels, event rail
 # ═════════════════════════════════════════════════════════════════════════════
 LABELLED = {"DAY", "NIGHT", "SUNRISE"}
+
+# Three events, well spaced, no legend: a lamp, a raindrop and a snowflake do
+# not need a key to be understood, and the geyser now lives in the loupe.
+EVENTS = [
+    ("lamp", _phase_for_pillar(LATE_GAME_PILLAR), "GENIE LAMP", GOLD,
+     "right"),
+    ("rain", _phase_for_pillar(RAIN_START_PILLAR), "RAIN STORM", RAINBLUE,
+     "left"),
+    ("snow", SNOW_STORM_CENTER, "SNOWFALL", ICE, "center"),
+]
 
 
 def draw_ticks(surf):
@@ -482,177 +580,94 @@ def draw_ticks(surf):
     for frac, name in PHASE_BOUNDARIES:
         x = int(px(frac))
         if name in LABELLED:
-            pygame.draw.line(surf, GOLD_PALE, (x, RIB_Y + RIB_H + 1),
-                             (x, RIB_Y + RIB_H + 8), 1)
+            pygame.draw.line(surf, GOLD_PALE, (x, TICK_Y), (x, TICK_Y + 6), 1)
         else:
-            t = pygame.Surface((1, 5), pygame.SRCALPHA)
-            t.fill((*MUTED, 165))
-            surf.blit(t, (x, RIB_Y + RIB_H + 1))
-
-
-def _phase_label_pos(frac, name):
-    img = _render(name, 9, GOLD_PALE, 1.0)
-    lx = px(frac) + 3
-    if lx + img.get_width() > RIB_R:
-        lx = RIB_R - img.get_width()
-    return lx
-
-
-EVENTS = [
-    ("geyser", THERMAL_START_PHASE, None),
-    ("lamp",   _phase_for_pillar(LATE_GAME_PILLAR), None),
-    ("clown",  _phase_for_pillar(CLOWN_START_PILLAR), -6.0),
-    ("rain",   _phase_for_pillar(RAIN_START_PILLAR), +9.0),
-    ("snow",   SNOW_STORM_CENTER, None),
-]
-GLYPH_Y = 282
+            t = pygame.Surface((1, 4), pygame.SRCALPHA)
+            t.fill((*MUTED, 175))
+            surf.blit(t, (x, TICK_Y))
 
 
 def draw_event_rail(surf):
-    # Geyser is a WINDOW, not a moment: a translucent span band under the strip
-    # says "this whole stretch erupts" without stealing the strip's colour.
-    gx0, gx1 = px(THERMAL_START_PHASE), px(THERMAL_END_PHASE)
-    band = pygame.Surface((int(gx1 - gx0) + 1, 9), pygame.SRCALPHA)
-    pygame.draw.rect(band, (*STEAM, 62), (0, 2, band.get_width(), 3))
-    pygame.draw.rect(band, (*STEAM, 150), (0, 0, 1, 8))
-    pygame.draw.rect(band, (*STEAM, 150), (band.get_width() - 1, 0, 1, 8))
-    surf.blit(band, (int(gx0), RIB_Y + RIB_H + 2))
-
-    # Clown (0.403) and rain (0.430) land 8 px apart at true scale, so their
-    # glyphs step aside and an angled leader keeps each pinned to its real x.
-    for kind, phv, off in EVENTS:
-        x = px(phv)
-        gxp = x + (off or 0.0)
-        top = (int(x), RIB_Y + RIB_H + 2)
-        bot = (int(gxp), GLYPH_Y - 9)
-        aline(surf, MUTED, top, bot, alpha=185)
-        pygame.draw.circle(surf, MUTED, top, 1)
+    for kind, phv, name, col, side in EVENTS:
+        x = int(px(phv))
+        pygame.draw.line(surf, col, (x, TICK_Y), (x, TICK_Y + 9), 1)
+        aline(surf, col, (x, TICK_Y + 9), (x, GLYPH_Y - 11), alpha=95)
 
     # Type last: the halo knocks the leaders out from behind each label, which
     # is how a chart keeps a rule and a word in the same place.
     for frac, name in PHASE_BOUNDARIES:
         if name not in LABELLED:
             continue
-        aline(surf, GOLD_PALE, (int(px(frac)), 249), (int(px(frac)), 252),
-              alpha=130)
-        text(surf, name, 9, GOLD_PALE, (_phase_label_pos(frac, name), 257),
-             "midleft", spacing=1.0, halo=115, shadow=160)
+        img = _render(name, MICRO, GOLD_PALE, 1.0)
+        lx = min(px(frac) + 4, RIB_R - img.get_width())
+        text(surf, name, MICRO, GOLD_PALE, (lx, LABEL_Y), "midleft",
+             spacing=1.0, halo=125, shadow=160)
 
-    for kind, phv, off in EVENTS:
-        draw_glyph(surf, kind, 16, px(phv) + (off or 0.0), GLYPH_Y)
+    for kind, phv, name, col, side in EVENTS:
+        x = px(phv)
+        draw_glyph(surf, kind, 20, x, GLYPH_Y)
+        if side == "right":
+            text(surf, name, MICRO, MUTED, (x - 14, GLYPH_Y), "midright",
+                 shadow=170)
+        elif side == "left":
+            text(surf, name, MICRO, MUTED, (x + 14, GLYPH_Y), "midleft",
+                 shadow=170)
+        else:
+            text(surf, name, MICRO, MUTED, (x, GLYPH_Y + 16), "center",
+                 shadow=170)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
 # panels
 # ═════════════════════════════════════════════════════════════════════════════
-def panel(surf, rect, radius=10, top=SLATE, bot=SLATE_D, ring=(*GOLD, 70),
-          alpha=232):
-    """Built at SSx and smoothscaled so the corners are genuinely round —
-    pygame's border_radius alone leaves stair-steps at these small radii."""
-    w, h = rect.w * SS, rect.h * SS
-    s = pygame.Surface((w, h), pygame.SRCALPHA)
-    for y in range(h):
-        c = lerp_color(top, bot, y / max(1, h))
-        pygame.draw.line(s, (*c, alpha), (0, y), (w, y))
-    m = pygame.Surface((w, h), pygame.SRCALPHA)
-    pygame.draw.rect(m, (255, 255, 255, 255), m.get_rect(),
-                     border_radius=radius * SS)
-    s.blit(m, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    if len(ring) < 4 or ring[3]:
-        pygame.draw.rect(s, ring, s.get_rect(), width=SS,
-                         border_radius=radius * SS)
-    surf.blit(pygame.transform.smoothscale(s, rect.size), rect.topleft)
-
-
 def draw_teaser(surf):
-    r = pygame.Rect(24, 298, 312, 52)
-    soft_shadow(surf, r, 10, spread=4, peak=30)
-    panel(surf, r, 10, (54, 42, 78), (34, 26, 54), (*GOLD, 110), 250)
-    lr = text(surf, "STILL AHEAD", 9, GOLD, (r.x + 12, r.y + 13), "midleft",
-              spacing=1.6)
-    aline(surf, GOLD, (lr.right + 8, r.y + 13), (r.right - 12, r.y + 13),
-          alpha=80)
-    # The nouns carry the tease; the connective tissue steps back a value.
-    body = (222, 229, 242)
-    runs(surf, [("GENIE LAMP", GOLD_PALE), (f"  AT PILLAR {LATE_GAME_PILLAR}", body),
-                ("   ·   ", MUTED_D), ("CLOWN GAUNTLET", GOLD_PALE),
-                (f"  AT {CLOWN_START_PILLAR}", body)], r.x + 12, r.y + 29, 9)
-    runs(surf, [("STORM", GOLD_PALE), (f"  AT {RAIN_START_PILLAR}", body),
-                ("   ·   ", MUTED_D), ("SNOWFALL", GOLD_PALE),
-                ("  BEFORE DAWN", body)], r.x + 12, r.y + 42, 9)
+    r = pygame.Rect(24, 424, 312, 74)
+    soft_shadow(surf, r, 12, spread=5, peak=54, drop=3)
+    shipping_panel(surf, r, 12)
 
+    lr = text(surf, "STILL AHEAD", SECT, GOLD, (r.x + 16, r.y + 21), "midleft",
+              spacing=2.0, shadow=180)
+    aline(surf, GOLD, (lr.right + 10, r.y + 21), (r.right - 16, r.y + 21),
+          alpha=90)
 
-LEGEND = [("geyser", "GEYSER PLUME"), ("lamp", "GENIE LAMP"),
-          ("clown", "CLOWN GAUNTLET"), ("rain", "RAIN STORM"),
-          ("snow", "SNOWFALL")]
-
-
-def draw_legend(surf):
-    lr = text(surf, "EVENT KEY", 8, MUTED_D, (30, 366), "midleft", spacing=1.4)
-    aline(surf, MUTED, (lr.right + 8, 366), (330, 366), alpha=52)
-    for i, (kind, name) in enumerate(LEGEND):
-        col, row = i % 2, i // 2
-        cx = 38 + col * 156
-        cy = 386 + row * 21
-        draw_glyph(surf, kind, 15, cx, cy)
-        text(surf, name, 9, (206, 216, 234), (cx + 12, cy), "midleft")
-
-
-def draw_phase_table(surf):
-    lr = text(surf, "PHASE TABLE", 8, MUTED_D, (30, 452), "midleft",
-              spacing=1.4)
-    aline(surf, MUTED, (lr.right + 8, 452), (330, 452), alpha=52)
-
-    bounds = [f for f, _ in PHASE_BOUNDARIES] + [1.0]
-    rows = []
-    for i, (frac, name) in enumerate(PHASE_BOUNDARIES):
-        p_start = max(1, pillar_for_phase(frac))
-        p_end = pillar_for_phase(bounds[i + 1]) - 1
-        rows.append((frac, bounds[i + 1], name, p_start, p_end))
-
-    for i, (f0, f1, name, p0, p1) in enumerate(rows):
-        col, row = i % 2, i // 2
-        x = 28 + col * 156
-        y = 470 + row * 21
-        sw = build_sky_strip(20, 11, f0 + (f1 - f0) * 0.18,
-                             f0 + (f1 - f0) * 0.82, 2)
-        surf.blit(sw, (x, y - 5))
-        pygame.draw.rect(surf, (0, 0, 0), (x - 1, y - 6, 22, 13), width=1)
-        flown = DEATH_PHASE >= f1
-        part = f0 <= DEATH_PHASE < f1
-        if flown or part:
-            pygame.draw.rect(surf, GOLD_WARM, (x, y - 5, 20, 2))
-        text(surf, name, 8, (206, 216, 234) if (flown or part) else MUTED,
-             (x + 27, y), "midleft")
-        text(surf, f"{p0}–{p1}", 8, MUTED_D, (x + 146, y), "midright")
+    # One named thing with a distance, one thing you can feel. Four bullets was
+    # a schedule; two lines is a lure — specificity plus scarcity.
+    ahead = LATE_GAME_PILLAR - DEATH_PILLAR
+    runs(surf, [("GENIE LAMP", GOLD_PALE),
+                (f"   {ahead} PILLARS AHEAD", BODY_TXT)],
+         r.x + 16, r.y + 46, BODY_S)
+    runs(surf, [("SNOWFALL", GOLD_PALE),
+                ("   BEFORE DAWN", BODY_TXT)],
+         r.x + 16, r.y + 64, BODY_S)
 
 
 def draw_header(surf):
-    tr = text(surf, "FLIGHT LOG", 23, GOLD, (W // 2, 31), "center",
-              spacing=3.0, shadow=190)
-    for x0, x1 in ((30, tr.left - 10), (tr.right + 10, 330)):
-        aline(surf, GOLD, (x0, 31), (x1, 31), alpha=95)
-    text(surf, f"DAY {DAY_N}  —  HOW FAR YOU GOT INTO THE DAY", 9, MUTED,
-         (W // 2, 51), "center", spacing=0.8)
-    aline(surf, MUTED, (30, 64), (330, 64), alpha=42)
+    tr = text(surf, "FLIGHT LOG", SECT, GOLD, (W // 2, 30), "center",
+              spacing=3.4, shadow=190)
+    for x0, x1 in ((30, tr.left - 12), (tr.right + 12, 330)):
+        aline(surf, GOLD, (x0, 30), (x1, 30), alpha=95)
+    text(surf, f"DAY {DAY_N}   ·   HOW FAR YOU GOT INTO THE DAY", MICRO, MUTED,
+         (W // 2, 48), "center", spacing=0.8)
+    aline(surf, MUTED, (30, 62), (330, 62), alpha=48)
 
     pct = int(round(DEATH_PHASE * 100))
-    r = text(surf, f"{pct}%", 32, GOLD_PALE, (30, 88), "midleft", shadow=200)
-    text(surf, "OF THE DAY FLOWN", 9, (216, 224, 240), (r.right + 9, 80),
-         "midleft", spacing=0.6)
-    text(surf, f"{100 - pct}% STILL UNSEEN", 9, GOLD, (r.right + 9, 95),
-         "midleft", spacing=0.6)
-    text(surf, f"PILLAR {DEATH_PILLAR}", 11, (216, 224, 240), (330, 80),
-         "midright")
-    text(surf, f"{TIME_ALIVE} s ALIVE", 9, MUTED, (330, 95), "midright")
+    r = text(surf, f"{pct}%", HERO, GOLD_PALE, (30, 96), "midleft", shadow=200)
+    text(surf, "OF THE DAY FLOWN", BODY_S, BODY_TXT, (r.right + 11, 86),
+         "midleft", spacing=0.4)
+    # The unseen share is the pitch, so it gets the second-largest type on the
+    # screen and the brand colour; the flown share is only the receipt.
+    text(surf, f"{100 - pct}% STILL UNSEEN", SECT, GOLD, (r.right + 11, 107),
+         "midleft", spacing=0.4, shadow=180)
+    text(surf, f"{TIME_ALIVE} s ALIVE", BODY_S, MUTED_D, (330, 96), "midright")
 
 
 def draw_back_pill(surf):
-    r = pygame.Rect(0, 0, 160, 36)
-    r.center = (W // 2, 598)
-    soft_shadow(surf, r, 18, spread=5, peak=44)
-    panel(surf, r, 18, (40, 32, 56), (22, 16, 38), (*GOLD, 185), 244)
-    text(surf, "BACK", 18, GOLD_PALE, r.center, "center")
+    r = pygame.Rect(0, 0, 168, 42)
+    r.center = (W // 2, 574)
+    soft_shadow(surf, r, 21, spread=6, peak=72, drop=3)
+    shipping_panel(surf, r, 21)
+    text(surf, "BACK", SECT, GOLD_PALE, r.center, "center", spacing=2.0,
+         shadow=190)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -664,15 +679,24 @@ def draw_background(surf):
         c = lerp_color((6, 8, 15), (30, 40, 62), t ** 0.85)
         pygame.draw.line(surf, c, (0, y), (W, y))
 
+    # Nothing twinkles inside the ribbon's shadow moat: a star sitting in the
+    # dark band around a solid object is both physically wrong and enough on
+    # its own to drop the frame under 3:1 for the few columns it touches.
+    moat = pygame.Rect(RIB_X, RIB_Y, RIB_W, RIB_H).inflate(22, 22)
+
     rnd = random.Random(20260731)
     stars = pygame.Surface((W, H), pygame.SRCALPHA)
     for _ in range(120):
         x, y = rnd.randrange(W), rnd.randrange(H)
+        if moat.collidepoint(x, y):
+            continue
         a = rnd.randint(20, 130)
         rr = 1 if rnd.random() < 0.85 else 2
         pygame.draw.circle(stars, (200, 220, 255, a), (x, y), rr)
     for _ in range(7):
         x, y = rnd.randrange(W), rnd.randrange(int(H * 0.7))
+        if moat.collidepoint(x, y):
+            continue
         pygame.draw.circle(stars, (255, 255, 255, 190), (x, y), 1)
         pygame.draw.circle(stars, (170, 200, 255, 40), (x, y), 3)
     surf.blit(stars, (0, 0))
@@ -711,6 +735,78 @@ def draw_background(surf):
 
 
 # ═════════════════════════════════════════════════════════════════════════════
+# squint / contrast audit — printed, never displayed
+# ═════════════════════════════════════════════════════════════════════════════
+def _lin(v):
+    v /= 255.0
+    return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+
+
+def _lum(c):
+    return 0.2126 * _lin(c[0]) + 0.7152 * _lin(c[1]) + 0.0722 * _lin(c[2])
+
+
+def _cr(a, b):
+    la, lb = _lum(a), _lum(b)
+    hi, lo = max(la, lb), min(la, lb)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def audit(surf):
+    dx = int(px(DEATH_PHASE))
+    print("\n── death blade squint test  (x =", dx, ") ───────────────")
+    worst = 99.0
+    for dy in (2, 12, 22, 32, 42, 50):
+        y = RIB_Y + dy
+        left = surf.get_at((dx - 6, y))[:3]
+        ink_l = surf.get_at((dx - 2, y))[:3]
+        core = surf.get_at((dx, y))[:3]
+        ink_r = surf.get_at((dx + 1, y))[:3]
+        right = surf.get_at((dx + 6, y))[:3]
+        c = max(_cr(core, left), _cr(core, right),
+                _cr(ink_l, left), _cr(ink_r, right))
+        worst = min(worst, c)
+        print(f"  y+{dy:<3} L{left} ink{ink_l} core{core} ink{ink_r} "
+              f"R{right}   best-edge {c:.2f}:1")
+    print(f"  worst edge contrast along the blade: {worst:.2f}:1")
+
+    print("\n── flown rail vs ribbon body ─────────────────────────────")
+    worst_core = worst_ink = 99.0
+    for x in range(RIB_X + 2, RIB_X + int(DEATH_PHASE * RIB_W) - 4, 6):
+        core = surf.get_at((x, RIB_Y))[:3]
+        under = surf.get_at((x, RIB_Y + 2))[:3]
+        body = surf.get_at((x, RIB_Y + 4))[:3]
+        worst_core = min(worst_core, _cr(core, body))
+        worst_ink = min(worst_ink, _cr(under, body))
+    print(f"  core  {RAIL_CORE} vs body : min {worst_core:.2f}:1")
+    print(f"  ink undercut keyline vs body : min {worst_ink:.2f}:1  "
+          f"(this is the value keyline)")
+    print(f"  assembly (best of the two) at every x : "
+          f"min {max(worst_core, worst_ink):.2f}:1")
+
+    print("\n── ribbon frame vs page ──────────────────────────────────")
+    # The terminus notch and the death blade deliberately stand proud of the
+    # frame; they are marks, not frame, so they are audited separately above.
+    marks = range(dx - 8, dx + 3)
+    for lbl, ky, py in (("top", RIB_Y - 1, RIB_Y - 4),
+                        ("bottom", RIB_Y + RIB_H, RIB_Y + RIB_H + 3)):
+        worst_f, wx = 99.0, 0
+        for x in range(RIB_X, RIB_R):
+            if x in marks:
+                continue
+            c = _cr(surf.get_at((x, ky))[:3], surf.get_at((x, py))[:3])
+            if c < worst_f:
+                worst_f, wx = c, x
+        print(f"  {lbl:<7} worst keyline-vs-page over 300 px: "
+              f"{worst_f:.2f}:1  (at x={wx})")
+    night_x = int(px(0.70))
+    k, p = (surf.get_at((night_x, RIB_Y - 1))[:3],
+            surf.get_at((night_x, RIB_Y - 4))[:3])
+    print(f"  night sector x={night_x}: keyline {k} vs page {p} = "
+          f"{_cr(k, p):.2f}:1   (was 1.06:1 body-vs-page in round 1)")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
 def main():
     surf = pygame.Surface((W, H))
     draw_background(surf)
@@ -718,19 +814,17 @@ def main():
     draw_loupe_guides(surf)
     draw_ribbon(surf)
     draw_death_marker(surf)
-    draw_death_callout(surf)
     draw_loupe(surf)
     draw_ticks(surf)
     draw_event_rail(surf)
     draw_teaser(surf)
-    draw_legend(surf)
-    draw_phase_table(surf)
     draw_back_pill(surf)
 
-    out = "/home/user/skybit/docs/flight_log_progress/sky_ruler/round_1.png"
+    out = "/home/user/skybit/docs/flight_log_progress/sky_ruler/round_2.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(surf, out)
     print("saved", out, surf.get_size())
+    audit(surf)
 
 
 if __name__ == "__main__":
