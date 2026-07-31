@@ -91,13 +91,7 @@ _SKY_KEYS = [
 ]
 
 
-def sky_stops(phase, snap=0.0):
-    """`snap` biases t away from 0.5. Straight RGB interpolation between two
-    near-complementary skies (cyan day → amber golden hour) passes through a
-    dead grey; enamel is a saturated material and cannot afford that, so the
-    crossover is compressed into a narrow band instead of spread over the whole
-    phase. Hue interpolation can't fix it — every arc from cyan to amber runs
-    through a colour the sky never is."""
+def sky_stops(phase):
     phase = phase % 1.0
     for i in range(len(_SKY_KEYS) - 1):
         t0, a_top, a_mid, a_bot = _SKY_KEYS[i]
@@ -105,9 +99,6 @@ def sky_stops(phase, snap=0.0):
         if t0 <= phase <= t1:
             span = t1 - t0
             t = (phase - t0) / span if span > 0 else 0.0
-            if snap > 0.0:
-                d = 2.0 * t - 1.0
-                t = 0.5 + 0.5 * (1.0 if d >= 0 else -1.0) * abs(d) ** snap
             t = t * t * (3 - 2 * t)  # smoothstep, matching biome.py
             return lerp(a_top, b_top, t), lerp(a_mid, b_mid, t), lerp(a_bot, b_bot, t)
     return _SKY_KEYS[0][1], _SKY_KEYS[0][2], _SKY_KEYS[0][3]
@@ -134,9 +125,38 @@ def amber_clamp(c):
     return rgb(out)
 
 
-def enamel_raw(phase):
-    _, mid, bot = sky_stops(phase, snap=0.5)
+# One fired colour per named phase, taken from that phase's biome keyframe.
+# Continuous interpolation across the whole day was the wrong model twice over:
+# it drifts each colour off the name engraved beside it, and lerping cyan→amber
+# in RGB dies in a grey no sky ever is. Champlevé is cells, so the day is cells:
+# each holds its colour and cross-fades only in its last fifth, right where the
+# divider bar lands.
+_KEY_PHASE_FOR_LABEL = [0.00, 0.18, 0.32, 0.48, 0.62, 0.78, 0.90]
+_CELL_EDGES = [b for b, _ in PHASE_BOUNDARIES] + [1.0]
+
+
+def _cell_rep(i):
+    _, mid, bot = sky_stops(_KEY_PHASE_FOR_LABEL[i])
     return rgb(vibrance(lerp(mid, bot, 0.35)))
+
+
+_CELL_REPS = [_cell_rep(i) for i in range(7)]
+_HOLD = 0.80
+
+
+def enamel_raw(phase):
+    p = phase % 1.0
+    for i in range(7):
+        e0, e1 = _CELL_EDGES[i], _CELL_EDGES[i + 1]
+        if e0 <= p < e1:
+            c = _CELL_REPS[i]
+            local = (p - e0) / (e1 - e0)
+            if local > _HOLD:
+                t = (local - _HOLD) / (1.0 - _HOLD)
+                t = t * t * (3 - 2 * t)
+                c = lerp(c, _CELL_REPS[(i + 1) % 7], t)
+            return rgb(c)
+    return _CELL_REPS[0]
 
 
 def enamel_color(phase):
@@ -478,39 +498,49 @@ def draw_cell_dividers(plate, s_death, dim=1.0):
                   x + nx * 10.2 + (-ny) * off, y + ny * 10.2 + nx * off, w)
 
 
+def _enamel_patch(plate, s0, s1, dim=1.0):
+    for radius, off, mix in ((8.5, 0.0, -0.40), (7.0, 0.6, -0.08),
+                             (5.0, -1.4, 0.14), (1.9, -4.2, 0.50), (0.9, -4.6, 0.88)):
+        for i in range(int((s1 - s0) / 0.5) + 1):
+            s = s0 + i * 0.5
+            x, y = point_at(s)
+            c = enamel_color(s / TOTAL_LEN)
+            c = shade(c, 1.0 + mix) if mix < 0 else tint(c, (255, 255, 255), mix)
+            dcircle(plate, shade(c, dim), x, y + off, radius)
+
+
 def draw_ferrule(plate, label, dim=1.0):
     """Machined gold collar capping the channel head — a turned part, not cast,
-    so it gets concentric tool rings the plate never has."""
+    so it gets tool rings the sand-cast plate never has. Drawn long, then the
+    enamel is re-laid over it: a stamped stroke ends in a cap of its own radius,
+    so trimming the collar back to ~10 px means letting the enamel take it back."""
     x0, y0 = point_at(0.0)
-    for i in range(22):
-        d = i * 0.5
-        x, y = point_at(d)
+    tx, ty = tangent_at(0.0)
+    nx, ny = normal_at(0.0)
+    for i in range(52):
+        x, y = point_at(i * 0.5)
         dcircle(plate, shade((150, 112, 34), dim), x, y, 11.2)
-    for i in range(22):
-        d = i * 0.5
-        x, y = point_at(d)
+    for i in range(52):
+        x, y = point_at(i * 0.5)
         dcircle(plate, shade(GOLD, dim), x, y, 10.0)
-    for i in range(22):
-        d = i * 0.5
-        x, y = point_at(d)
-        dcircle(plate, shade((255, 226, 140), dim), x, y - 2.6, 5.4)
-        dcircle(plate, shade((146, 104, 30), dim), x, y + 6.4, 2.6)
-    for ring in (2.0, 5.0, 8.0):
-        x, y = point_at(ring)
-        nx, ny = normal_at(ring)
-        dline(plate, shade((176, 132, 44), dim), x + nx * -9.4, y + ny * -9.4,
-              x + nx * 9.4, y + ny * 9.4, 0.8)
-    # domed end cap
-    dcircle(plate, shade((150, 112, 34), dim), x0, y0, 10.2)
-    dcircle(plate, shade((248, 208, 108), dim), x0 + 0.4, y0 - 0.6, 8.6)
-    dcircle(plate, shade((255, 232, 158), dim), x0 + 0.2, y0 - 2.4, 4.4)
+    for i in range(52):
+        x, y = point_at(i * 0.5)
+        dcircle(plate, shade((255, 226, 140), dim), x, y - 2.8, 5.2)
+        dcircle(plate, shade((146, 104, 30), dim), x, y + 6.6, 2.6)
+    dcircle(plate, shade((255, 236, 176), dim), x0 - tx * 5.5, y0 - ty * 5.5 - 2.6, 2.4)
+    for ring in (3.0, 6.5):
+        rx, ry = x0 - tx * ring, y0 - ty * ring
+        dline(plate, shade((172, 128, 42), dim), rx + nx * -9.0, ry + ny * -9.0,
+              rx + nx * 9.0, ry + ny * 9.0, 0.9)
+        dline(plate, shade((255, 224, 148), dim), rx + tx * 0.9 + nx * -9.0,
+              ry + ty * 0.9 + ny * -9.0, rx + tx * 0.9 + nx * 9.0,
+              ry + ty * 0.9 + ny * 9.0, 0.7)
+    _enamel_patch(plate, 9.0, 30.0, dim)
 
     # engraved leader out to the rarity stamp
-    lx = 38.0
-    ly = 72.0
     for col, off in ((shade(GOLD, dim), 1.0), (shade((52, 44, 28), dim), 0.0)):
-        dline(plate, col, lx, ly + off, 46.0, ly + off, 1.0)
-        dline(plate, col, 46.0, ly + off, 50.0, 94.0 + off, 1.0)
+        dline(plate, col, 38.0, 72.0 + off, 46.0, 72.0 + off, 1.0)
+        dline(plate, col, 46.0, 72.0 + off, 44.0, 95.0 + off, 1.0)
     engrave(plate, label, 12, 36, 64, align="right",
             ink=shade((52, 44, 28), dim), bevel=shade(GOLD, dim), depth=1.0)
 
@@ -843,16 +873,20 @@ def draw_addendum(scr, add):
     bx, by = sx + 8, sy + 8
     strip = make_bronze(bw, bh, seed=31)
 
-    engrave(strip, add["day_label"], 11, 8, 4, ink=(46, 40, 26), bevel=GOLD,
-            spacing=1.4, depth=1.0)
-    engrave(strip, "%d PILLARS  %s" % (add["pillars"], add["time"]), 8, 8, 21,
-            ink=(56, 48, 30), bevel=(224, 182, 104), depth=0.8, spacing=0.3)
+    engrave(strip, add["day_label"], 10, 9, 3, ink=(46, 40, 26), bevel=GOLD,
+            spacing=1.6, depth=1.0)
+    engrave(strip, "%d PILLARS \xb7 %s \xb7 %s"
+            % (add["pillars"], add["time"], add["rarity"]),
+            8, bw - 9, 5, align="right", ink=(56, 48, 30), bevel=(224, 182, 104),
+            depth=0.8, spacing=0.3)
 
-    # One short row: an addendum states a fraction of a day, so it doesn't earn
-    # the full snake. Same material grammar, smaller casting.
-    cx0, cx1, cy = 78.0, bw - 8.0, bh / 2.0 + 1.0
+    # One full-width row at half the main channel's gauge: an addendum states a
+    # fraction of a day, so it doesn't earn the snake. It has to run the whole
+    # strip, though — any shorter and the stamped end caps of the ferrule and
+    # the drop meet, and a short run shows no fired colour at all.
+    cx0, cx1, cy = 10.0, bw - 10.0, bh - 10.0
     clen = cx1 - cx0
-    hw = 6.5
+    hw = 5.0
     xs = [cx0 + i * 0.4 for i in range(int(clen / 0.4) + 1)]
     for x in xs:
         dcircle(strip, (92, 66, 36), x - 0.7, cy - 1.0, hw + 1.2)
@@ -863,40 +897,38 @@ def draw_addendum(scr, add):
 
     s_d = cx0 + clen * add["phase"]
     for x in xs:
-        if x < s_d - 8.0:
+        if x < s_d - 4.0:
             c = enamel_color((x - cx0) / clen)
-            dcircle(strip, shade(c, 0.60), x, cy, hw - 1.3)
-            dcircle(strip, c, x, cy + 0.4, hw - 2.4)
-            dcircle(strip, tint(c, (255, 255, 255), 0.6), x, cy - 2.7, 1.0)
-        elif x > s_d + 7.5:
+            dcircle(strip, shade(c, 0.60), x, cy, hw - 1.2)
+            dcircle(strip, c, x, cy + 0.4, hw - 2.2)
+            dcircle(strip, tint(c, (255, 255, 255), 0.6), x, cy - 2.3, 0.9)
+        elif x > s_d + 6.0:
             dcircle(strip, (226, 224, 221), x, cy, hw - 0.8)
-            dcircle(strip, (242, 240, 238), x, cy - 0.4, hw - 2.0)
-            dcircle(strip, (249, 248, 246), x, cy - 1.3, hw - 3.8)
+            dcircle(strip, (242, 240, 238), x, cy - 0.4, hw - 1.8)
+            dcircle(strip, (249, 248, 246), x, cy - 1.2, hw - 3.2)
     rnd = random.Random(77)
-    for _ in range(1100):
-        x = rnd.uniform(s_d + 7.5, cx1)
-        yy = cy + rnd.uniform(-5.0, 5.0)
+    for _ in range(1400):
+        x = rnd.uniform(s_d + 6.0, cx1)
+        yy = cy + rnd.uniform(-4.2, 4.2)
         d = rnd.randint(-11, 6)
         dcircle(strip, rgb((242 + d, 240 + d, 238 + d)), x, yy, rnd.uniform(0.4, 0.9))
 
-    dline(strip, (26, 20, 11), s_d - 4.5, cy - 9.6, s_d - 1.0, cy + 9.6, 2.2)
-    dline(strip, (250, 214, 138), s_d - 3.2, cy - 9.6, s_d + 0.3, cy + 9.6, 0.9)
-    n = 14
-    for radius, off, col in ((hw - 1.3, 0.0, (78, 14, 12)),
-                             (hw - 2.4, 0.4, SCARLET),
-                             (hw - 4.0, -1.1, (206, 60, 42))):
+    dline(strip, (26, 20, 11), s_d - 3.2, cy - 7.6, s_d - 0.6, cy + 7.6, 1.8)
+    dline(strip, (250, 214, 138), s_d - 2.2, cy - 7.6, s_d + 0.4, cy + 7.6, 0.9)
+    n = 12
+    for radius, off, col in ((hw - 1.2, 0.0, (78, 14, 12)),
+                             (hw - 2.0, 0.4, SCARLET),
+                             (hw - 3.3, -0.9, (206, 60, 42))):
         for i in range(n + 1):
             t = i / float(n)
-            dcircle(strip, col, s_d - 9.0 + 7.6 * t, cy + off,
+            dcircle(strip, col, s_d - 4.5 + 3.5 * t, cy + off,
                     max(0.5, radius * (1.0 - 0.74 * t ** 2.4)))
-    dcircle(strip, (255, 180, 158), s_d - 7.4, cy - 2.3, 1.1)
+    dcircle(strip, (255, 180, 158), s_d - 3.7, cy - 1.8, 0.9)
 
-    for i in range(11):
-        dcircle(strip, (150, 112, 34), cx0 + i * 0.4, cy, hw + 0.5)
-        dcircle(strip, GOLD, cx0 + i * 0.4, cy, hw - 0.5)
-        dcircle(strip, (255, 228, 146), cx0 + i * 0.4, cy - 2.0, 2.4)
-    engrave(strip, add["rarity"], 8, bw - 8, 1, align="right",
-            ink=(52, 44, 28), bevel=GOLD, depth=0.8)
+    # cap only — at this gauge a full collar would swallow the fired colour
+    dcircle(strip, (150, 112, 34), cx0, cy, hw + 0.4)
+    dcircle(strip, GOLD, cx0, cy, hw - 0.4)
+    dcircle(strip, (255, 228, 146), cx0, cy - 1.6, 1.9)
 
     drect(strip, (226, 190, 120), 0, 0, bw, 1.4)
     drect(strip, (74, 50, 22), 0, bh - 1.4, bw, 1.4)
