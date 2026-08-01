@@ -84,15 +84,6 @@ _NEST_COURSE_TOP   = (180, 130, 65)
 _NEST_COURSE_BOT   = (80,  55, 22)
 _NEST_HOLLOW_COL   = (50,  35, 14)
 _NEST_STICK_X_OFF  = (-1, 0, 1, 2)
-# Warm bowl ramp for empty cup interior: (cy_offset, centre_col, edge_col, uniform)
-_NEST_VOID_RAMP = [
-    (-2, (24, 14,  8), (24, 14,  8), True ),   # AO: uniform dark under rim lip
-    (-1, (38, 24, 12), (23, 14,  7), False),
-    ( 0, (54, 35, 13), (33, 21,  8), False),
-    ( 1, (72, 46, 18), (44, 28, 11), False),
-    ( 2, (120, 82, 34),(74, 50, 21), False),    # floor crescent
-    ( 3, (96,  64, 26),(60, 40, 16), False),
-]
 
 _nest_bird: "pygame.Surface | None" = None
 _nest_bird_w: int = 0
@@ -181,25 +172,6 @@ def _nest_weave(surf, cy, ci_range, courses, stick_wins):
                 _nest_course_at_vx(surf, vx, x1, x2, base_y, sag, col)
 
 
-def _nest_lerp_col(a, b, t):
-    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
-
-
-def _nest_void_halfwidth(surf, y, cx_):
-    left = right = 0
-    for d in range(1, 25):
-        if surf.get_at((cx_ - d, y))[:3] == (0, 0, 0):
-            left = d
-        else:
-            break
-    for d in range(1, 25):
-        if surf.get_at((cx_ + d, y))[:3] == (0, 0, 0):
-            right = d
-        else:
-            break
-    return max(1, max(left, right))
-
-
 def _nest_get_params():
     global _nest_params, _nest_bird, _nest_bird_w
     if _nest_params is not None:
@@ -247,20 +219,8 @@ def _nest_draw_slot(surf, cy, alive):
     if alive:
         surf.blit(_nest_bird, (cx - _nest_bird_w // 2, cy - _nest_bird_h // 2 + 5))
     else:
-        rx_, ry_off_, rw_, _ = rim_rect
-        for dy_off, col_c, col_e, uniform in _NEST_VOID_RAMP:
-            _y = cy + dy_off
-            if uniform:
-                for _x in range(rx_, rx_ + rw_ + 1):
-                    if surf.get_at((_x, _y))[:3] == (0, 0, 0):
-                        surf.set_at((_x, _y), col_c)
-            else:
-                hw_ = _nest_void_halfwidth(surf, _y, cx)
-                for _x in range(rx_, rx_ + rw_ + 1):
-                    if surf.get_at((_x, _y))[:3] != (0, 0, 0):
-                        continue
-                    u = abs(_x - cx) / hw_
-                    surf.set_at((_x, _y), _nest_lerp_col(col_c, col_e, min(1.0, u * u)))
+        hx, hy_off, hw, hh = hollow
+        pygame.draw.rect(surf, _NEST_HOLLOW_COL, (hx, cy + hy_off, hw, hh))
     _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
     for ci in (2, 3, 4):
         offset, col, x1, x2, sag = courses[ci]
