@@ -205,16 +205,14 @@ def _nest_draw_slot(surf, cy, alive):
     cx = _NEST_CX
     rx, ry_off, rw, rh = rim_rect
     pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
-    _cxe = rx + rw * 0.5
-    _cye = cy + ry_off + rh * 0.5
-    _a2  = (rw * 0.5) ** 2
-    _b2  = (rh * 0.5) ** 2
-    for _x in range(rx, rx + rw + 1):
-        _d2 = (_x - _cxe) ** 2
-        if _d2 < _a2:
-            _yb = int(_cye + math.sqrt(_b2 * (1.0 - _d2 / _a2)))
-            surf.set_at((_x, _yb),     _NEST_TWIG_BRIGHT)
-            surf.set_at((_x, _yb - 1), _NEST_TWIG_BRIGHT)
+    pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
+    # The arc stop at π leaves a small gap on the bottom-left of the ellipse rim;
+    # paint those pixels explicitly so the left stick has no black cap above it.
+    _vxL = verts[0]
+    for _dy in (-2, -1):
+        _y = cy + ry_off + rh + _dy
+        for _dx in _NEST_STICK_X_OFF:
+            surf.set_at((_vxL + _dx, _y), _NEST_TWIG_BRIGHT)
     for vx in verts:
         _nest_stick_span(surf, vx, cy + ry_off + rh, cy + stick_bottom)
     _nest_weave(surf, cy, (0, 1), courses, stick_wins)
