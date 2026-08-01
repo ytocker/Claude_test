@@ -215,9 +215,17 @@ def _nest_draw_slot(surf, cy, alive):
             surf.set_at((_vxL + _dx, _y), _NEST_TWIG_BRIGHT)
     for vx in verts:
         _nest_stick_span(surf, vx, cy + ry_off + rh, cy + stick_bottom)
+    _nest_weave(surf, cy, (0, 1), courses, stick_wins)
     if alive:
-        _nest_weave(surf, cy, (0, 1), courses, stick_wins)
         surf.blit(_nest_bird, (cx - _nest_bird_w // 2, cy - _nest_bird_h // 2 + 5))
+    else:
+        # Warm the void interior — any black pixel left inside the rim becomes
+        # a dark shadowed bowl colour so the cup reads as a hollow with depth.
+        rx_, ry_off_, rw_, rh_ = rim_rect
+        for _y in range(cy + ry_off_, cy + ry_off_ + rh_ + 1):
+            for _x in range(rx_, rx_ + rw_ + 1):
+                if surf.get_at((_x, _y))[:3] == (0, 0, 0):
+                    surf.set_at((_x, _y), _NEST_HOLLOW_COL)
     _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
     for ci in (2, 3, 4):
         offset, col, x1, x2, sag = courses[ci]
