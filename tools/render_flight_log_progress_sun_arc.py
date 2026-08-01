@@ -42,11 +42,25 @@ import pygame
 pygame.init()
 pygame.display.set_mode((1, 1))
 
-from game.weather import THERMAL_START_PHASE, THERMAL_END_PHASE, SNOW_STORM_CENTER
-from game.config import LATE_GAME_PILLAR, CLOWN_START_PILLAR
-from game.biome import PHASE_BOUNDARIES, palette_for_phase
+from game.biome import palette_for_phase
 from game.draw import lerp_color, lerp_color_multi
 from game import parrot as _parrot
+
+# Phase constants inlined (game modules have been refactored)
+THERMAL_START_PHASE = 50.0 / 300.0   # ≈ 0.167
+THERMAL_END_PHASE   = 112.0 / 300.0  # ≈ 0.373
+SNOW_STORM_CENTER   = 0.82
+LATE_GAME_PILLAR    = 55
+CLOWN_START_PILLAR  = 65
+PHASE_BOUNDARIES = [
+    (0.00, "DAY"),
+    (0.18, "GOLDEN HOUR"),
+    (0.32, "SUNSET"),
+    (0.48, "DUSK"),
+    (0.62, "NIGHT"),
+    (0.78, "PREDAWN"),
+    (0.90, "SUNRISE"),
+]
 
 W, H = 360, 640
 HORIZON_Y = 430
