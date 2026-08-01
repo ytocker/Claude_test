@@ -36,17 +36,31 @@ import pygame
 pygame.init()
 pygame.display.set_mode((1, 1))
 
-from game.biome import PHASE_BOUNDARIES, palette_for_phase
-from game.weather import (THERMAL_START_PHASE, THERMAL_END_PHASE, SNOW_STORM_CENTER,
-                          _phase_for_pillar)
-from game.config import LATE_GAME_PILLAR, CLOWN_START_PILLAR, RAIN_START_PILLAR
+from game.biome import palette_for_phase
+
+# ── phase constants (defined locally; game modules on this branch are stripped) ──
+PHASE_BOUNDARIES = [
+    (0.000, "DAY"),
+    (0.231, "GOLDEN HOUR"),
+    (0.363, "SUNSET"),
+    (0.513, "DUSK"),
+    (0.644, "NIGHT"),
+    (0.794, "PREDAWN"),
+    (0.906, "SUNRISE"),
+]
+THERMAL_START_PHASE = 0.13
+THERMAL_END_PHASE   = 0.22
+SNOW_STORM_CENTER   = 0.85
+LATE_GAME_PILLAR    = 40
+CLOWN_START_PILLAR  = 55
+RAIN_START_PILLAR   = 58
 
 # Pillar-gated events ride the same phase axis as the weather ones, so the map
 # has a single ruler: every mark sits at the phase the player will actually
 # reach it, not at a decorative slot.
-LAMP_PHASE = _phase_for_pillar(LATE_GAME_PILLAR)
-CLOWN_PHASE = _phase_for_pillar(CLOWN_START_PILLAR)
-RAIN_PHASE = _phase_for_pillar(RAIN_START_PILLAR)
+LAMP_PHASE  = 0.300
+CLOWN_PHASE = 0.403
+RAIN_PHASE  = 0.430
 
 
 W, H = 360, 640
