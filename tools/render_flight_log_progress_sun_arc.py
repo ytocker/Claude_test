@@ -55,6 +55,7 @@ R_INNER = 159          # event-glyph rail, inside the arc
 R_LABEL = 205          # phase-name chips, outside the arc
 SS = 3
 
+ROOT = "/home/user/skybit"
 FONT_PATH = "/home/user/skybit/game/assets/LiberationSans-Bold.ttf"
 _fonts: dict = {}
 
@@ -736,15 +737,63 @@ def draw_macaw(surf):
     return (bx, by, bird.get_width())
 
 
+# ── skybit background ────────────────────────────────────────────────────────
+
+def build_skybit_bg(w=360, h=640):
+    surf = pygame.Surface((w, h))
+    sky_bot_y = int(h * 0.62)
+    for y in range(sky_bot_y):
+        t = y / sky_bot_y
+        c = (
+            int(8  + (18 - 8)  * t),
+            int(12 + (40 - 12) * t),
+            int(40 + (90 - 40) * t),
+        )
+        pygame.draw.line(surf, c, (0, y), (w - 1, y))
+    for y in range(sky_bot_y, h):
+        pygame.draw.line(surf, (10, 16, 48), (0, y), (w - 1, y))
+    rng = random.Random(20260801)
+    star_zone = int(h * 0.55)
+    for _ in range(40):
+        sx, sy = rng.randrange(w), rng.randrange(star_zone)
+        a = rng.randint(100, 210)
+        r = 1 if rng.random() < 0.8 else 2
+        lay = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
+        pygame.draw.circle(lay, (220, 230, 255, a), (r + 1, r + 1), r)
+        surf.blit(lay, (sx - r - 1, sy - r - 1))
+    far_y = int(h * 0.60)
+    pts_far = [(0, h)]
+    for x in range(0, w + 1, 3):
+        offs = (math.sin(x * 0.022 + 1.4) * 28 + math.sin(x * 0.041 + 0.6) * 14)
+        pts_far.append((x, far_y + int(offs)))
+    pts_far.append((w, h))
+    pygame.draw.polygon(surf, (35, 45, 100), pts_far)
+    near_y = int(h * 0.70)
+    pts_near = [(0, h)]
+    for x in range(0, w + 1, 3):
+        offs = (math.sin(x * 0.033 + 2.1) * 22 + math.sin(x * 0.058 + 1.0) * 10)
+        pts_near.append((x, near_y + int(offs)))
+    pts_near.append((w, h))
+    pygame.draw.polygon(surf, (22, 30, 72), pts_near)
+    return surf
+
+
 # ── screen ───────────────────────────────────────────────────────────────────
 
 def render_screen():
     surf = pygame.Surface((W, H))
-    draw_dome(surf)
-    draw_clouds(surf)
-    draw_ghost_night(surf)
-    draw_horizon_light(surf)
-    draw_ground(surf)
+    bg = build_skybit_bg(W, H)
+    surf.blit(bg, (0, 0))
+    # Dark veil on the unearned side (right of death position)
+    vx = int(DEATH_X)
+    for dx in range(14):
+        a = int(140 * (1 - dx / 14))
+        lay = pygame.Surface((1, H), pygame.SRCALPHA)
+        lay.fill((6, 8, 20, a))
+        surf.blit(lay, (vx - 7 + dx, 0))
+    veil_surf = pygame.Surface((W - vx, H), pygame.SRCALPHA)
+    veil_surf.fill((6, 8, 20, 140))
+    surf.blit(veil_surf, (vx, 0))
 
     ss = pygame.Surface((W * SS, H * SS), pygame.SRCALPHA)
     trail_bloom(surf)
@@ -828,19 +877,19 @@ def render_screen():
     # ── ground band ──
     # Near-horizon phase names lose the pill entirely and become dune signage
     # under the arc feet, where there is room for them.
-    text(surf, "DAY", 8, midleft=(10, 442), color=DEEP_BROWN, shadow=None, track=2)
-    text(surf, "PREDAWN · SUNRISE", 8, midright=(350, 442), color=DEEP_BROWN,
+    text(surf, "DAY", 8, midleft=(10, 442), color=(180, 190, 210), shadow=None, track=2)
+    text(surf, "PREDAWN · SUNRISE", 8, midright=(350, 442), color=(180, 190, 210),
          shadow=None, track=1)
     pygame.draw.line(surf, (150, 104, 66), (10, 451), (350, 451), 1)
 
     hr = font(10).size("STILL AHEAD")[0] + 2 * 2
-    text(surf, "STILL AHEAD", 10, center=(W // 2, 465), color=DEEP_BROWN, track=2,
+    text(surf, "STILL AHEAD", 10, center=(W // 2, 465), color=(180, 190, 210), track=2,
          shadow=None)
     for sgn in (-1, 1):
         x0 = W // 2 + sgn * (hr // 2 + 14)
         pygame.draw.line(surf, (140, 96, 62), (x0, 465), (x0 + sgn * 48, 465), 1)
     for i, (_fn, col, t) in enumerate(rows):
-        text(surf, t, 10, midleft=(tx, 481 + i * 19), color=DEEP_BROWN, shadow=None)
+        text(surf, t, 10, midleft=(tx, 481 + i * 19), color=(180, 190, 210), shadow=None)
 
     alpha_line(surf, (246, 214, 168, 80), (28, 512), (332, 512), 1)
     for i, (_fn, name, _c) in enumerate(GLYPHS):
@@ -1030,13 +1079,12 @@ def main():
     for line in notes:
         print(line)
 
-    sheet = render_sheet(screen, blur, notes)
-    out = "/home/user/skybit/docs/flight_log_progress/sun_arc/round_2.png"
-    os.makedirs(os.path.dirname(out), exist_ok=True)
-    pygame.image.save(sheet, out)
-    pygame.image.save(screen, "/tmp/claude-0/-home-user-skybit/"
-                              "7f4ec15a-b5d0-559d-b89a-efd7cfaf73bc/scratchpad/sun_arc_r2_screen.png")
-    print("saved", out, sheet.get_size())
+    out_r3 = os.path.join(ROOT, "docs", "flight_log_progress",
+                          "sun_arc", "round_3.png")
+    os.makedirs(os.path.dirname(out_r3), exist_ok=True)
+    pygame.image.save(screen, out_r3)
+    loaded = pygame.image.load(out_r3)
+    print(f"saved {out_r3}  {loaded.get_size()}")
 
 
 if __name__ == "__main__":
