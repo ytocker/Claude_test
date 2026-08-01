@@ -25,11 +25,31 @@ import pygame
 pygame.init()
 pygame.display.set_mode((1, 1))
 
-from game.biome import PHASE_BOUNDARIES, palette_for_phase, CYCLE_SECONDS
-from game.config import (LATE_GAME_PILLAR, CLOWN_START_PILLAR, RAIN_START_PILLAR,
-                         SCROLL_BASE, SCROLL_NEWBIE_BASE, PIPE_SPACING,
-                         PIPE_SPACING_NEWBIE, RAMP_PIPES, PLATEAU_PIPES)
-from game.weather import THERMAL_START_PHASE, SNOW_STORM_CENTER
+from game.biome import palette_for_phase, CYCLE_SECONDS
+from game.config import SCROLL_BASE, PIPE_SPACING
+
+# ── constants not present in this branch's stripped game modules ─────────────
+# Values mirror the authored brief; see render_flight_log_cable_tape.py.
+PHASE_BOUNDARIES = [
+    (0.000, "DAY"),
+    (0.231, "GOLDEN HOUR"),
+    (0.363, "SUNSET"),
+    (0.513, "DUSK"),
+    (0.644, "NIGHT"),
+    (0.794, "PREDAWN"),
+    (0.906, "SUNRISE"),
+]
+LATE_GAME_PILLAR    = 50
+CLOWN_START_PILLAR  = 65
+RAIN_START_PILLAR   = 70
+SCROLL_NEWBIE_BASE  = 125.0
+PIPE_SPACING_NEWBIE = 370
+RAMP_PIPES          = 25
+PLATEAU_PIPES       = 5
+# Geyser starts at pillar ~47, expressed as phase over the base 320 s cycle.
+THERMAL_START_PHASE = 50.0 / 320.0
+# Snow squall centre: pillar 139 at 320 s cycle ≈ phase 0.804, +0.10 width offset.
+SNOW_STORM_CENTER   = 0.904
 
 
 # ── canvas / geometry ────────────────────────────────────────────────────────
