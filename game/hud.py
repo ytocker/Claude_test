@@ -66,10 +66,10 @@ _AWSTAR_NAVY = ( 12,   8,  38)   # gear centre-hole fill (navy panel family)
 _fonts: dict = {}
 
 # ── V15 smooth-taper-weave nest lives display ─────────────────────────────────
-_NEST_S          = 0.80
+_NEST_S          = 1.0
 _NEST_CX         = 31
 _NEST_CY         = 73
-_NEST_DX_LIST    = [0, 40]
+_NEST_DX_LIST    = [0, 50]
 _NEST_SCRATCH: "pygame.Surface | None" = None
 _NEST_PANEL_DARK   = (12, 8, 38)
 _NEST_GOLD_BRIGHT  = (240, 192, 64)
@@ -87,7 +87,7 @@ _NEST_STICK_X_OFF  = (-1, 0, 1, 2)
 
 _nest_bird: "pygame.Surface | None" = None
 _nest_bird_w: int = 0
-_nest_bird_h: int = 34
+_nest_bird_h: int = 44
 _nest_params: "tuple | None" = None
 
 
@@ -215,12 +215,9 @@ def _nest_draw_slot(surf, cy, alive):
             surf.set_at((_vxL + _dx, _y), _NEST_TWIG_BRIGHT)
     for vx in verts:
         _nest_stick_span(surf, vx, cy + ry_off + rh, cy + stick_bottom)
-    _nest_weave(surf, cy, (0, 1), courses, stick_wins)
     if alive:
+        _nest_weave(surf, cy, (0, 1), courses, stick_wins)
         surf.blit(_nest_bird, (cx - _nest_bird_w // 2, cy - _nest_bird_h // 2 + 5))
-    else:
-        hx, hy_off, hw, hh = hollow
-        pygame.draw.rect(surf, _NEST_HOLLOW_COL, (hx, cy + hy_off, hw, hh))
     _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
     for ci in (2, 3, 4):
         offset, col, x1, x2, sag = courses[ci]
