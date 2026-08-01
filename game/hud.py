@@ -219,13 +219,21 @@ def _nest_draw_slot(surf, cy, alive):
     if alive:
         surf.blit(_nest_bird, (cx - _nest_bird_w // 2, cy - _nest_bird_h // 2 + 5))
     else:
-        # Warm the void interior — any black pixel left inside the rim becomes
-        # a dark shadowed bowl colour so the cup reads as a hollow with depth.
+        # Depth gradient across the rim void: inner-rim shadow at the top
+        # (just under the lip) stepping to near-black at the cup floor.
+        # Real bowls are darkest at the floor, lighter toward the opening.
         rx_, ry_off_, rw_, rh_ = rim_rect
-        for _y in range(cy + ry_off_, cy + ry_off_ + rh_ + 1):
+        _BT = (42, 26, 10)   # inner wall just under rim
+        _BF = (10,  6,  2)   # cup floor — deep shadow
+        for dy in range(ry_off_, ry_off_ + rh_ + 1):
+            t = (dy - ry_off_) / max(1, rh_)
+            col = (int(_BT[0] + (_BF[0] - _BT[0]) * t),
+                   int(_BT[1] + (_BF[1] - _BT[1]) * t),
+                   int(_BT[2] + (_BF[2] - _BT[2]) * t))
+            _y = cy + dy
             for _x in range(rx_, rx_ + rw_ + 1):
                 if surf.get_at((_x, _y))[:3] == (0, 0, 0):
-                    surf.set_at((_x, _y), _NEST_HOLLOW_COL)
+                    surf.set_at((_x, _y), col)
     _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
     for ci in (2, 3, 4):
         offset, col, x1, x2, sag = courses[ci]
