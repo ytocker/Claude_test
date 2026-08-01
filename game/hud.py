@@ -66,10 +66,10 @@ _AWSTAR_NAVY = ( 12,   8,  38)   # gear centre-hole fill (navy panel family)
 _fonts: dict = {}
 
 # ── V15 smooth-taper-weave nest lives display ─────────────────────────────────
-_NEST_S          = 1.0
+_NEST_S          = 0.80
 _NEST_CX         = 31
 _NEST_CY         = 73
-_NEST_DX_LIST    = [0, 50]
+_NEST_DX_LIST    = [0, 40]
 _NEST_SCRATCH: "pygame.Surface | None" = None
 _NEST_PANEL_DARK   = (12, 8, 38)
 _NEST_GOLD_BRIGHT  = (240, 192, 64)
@@ -87,7 +87,7 @@ _NEST_STICK_X_OFF  = (-1, 0, 1, 2)
 
 _nest_bird: "pygame.Surface | None" = None
 _nest_bird_w: int = 0
-_nest_bird_h: int = 44
+_nest_bird_h: int = 34
 _nest_params: "tuple | None" = None
 
 
@@ -219,21 +219,8 @@ def _nest_draw_slot(surf, cy, alive):
     if alive:
         surf.blit(_nest_bird, (cx - _nest_bird_w // 2, cy - _nest_bird_h // 2 + 5))
     else:
-        # Depth gradient across the rim void: inner-rim shadow at the top
-        # (just under the lip) stepping to near-black at the cup floor.
-        # Real bowls are darkest at the floor, lighter toward the opening.
-        rx_, ry_off_, rw_, rh_ = rim_rect
-        _BT = (42, 26, 10)   # inner wall just under rim
-        _BF = (10,  6,  2)   # cup floor — deep shadow
-        for dy in range(ry_off_, ry_off_ + rh_ + 1):
-            t = (dy - ry_off_) / max(1, rh_)
-            col = (int(_BT[0] + (_BF[0] - _BT[0]) * t),
-                   int(_BT[1] + (_BF[1] - _BT[1]) * t),
-                   int(_BT[2] + (_BF[2] - _BT[2]) * t))
-            _y = cy + dy
-            for _x in range(rx_, rx_ + rw_ + 1):
-                if surf.get_at((_x, _y))[:3] == (0, 0, 0):
-                    surf.set_at((_x, _y), col)
+        hx, hy_off, hw, hh = hollow
+        pygame.draw.rect(surf, _NEST_HOLLOW_COL, (hx, cy + hy_off, hw, hh))
     _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
     for ci in (2, 3, 4):
         offset, col, x1, x2, sag = courses[ci]
