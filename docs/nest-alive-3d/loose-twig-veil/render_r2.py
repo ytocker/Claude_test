@@ -228,11 +228,9 @@ def draw_slot_after(surf, cy, alive):
     cx = _NEST_CX
     rx,ry_off,rw,rh = rim_rect
 
-    # ── Base nest — identical to today's ship ────────────────────────────────
+    # ── Identical to draw_slot_before ────────────────────────────────────────
     pygame.draw.ellipse(surf,(0,0,0),(rx,cy+ry_off,rw,rh))
-    # Thicker back rim reads as the far wall of a hollow bowl.
-    back_w = 3 if alive else 2
-    pygame.draw.arc(surf,_NEST_TWIG_BRIGHT,(rx,cy+ry_off,rw,rh),0,math.pi,back_w)
+    pygame.draw.arc(surf,_NEST_TWIG_BRIGHT,(rx,cy+ry_off,rw,rh),0,math.pi,2)
     _vxL = verts[0]
     for _dy in (-2,-1):
         _y = cy+ry_off+rh+_dy
@@ -255,73 +253,9 @@ def draw_slot_after(surf, cy, alive):
                 _nest_stick_at_course(surf,vx,x1,x2,base_y,sag)
     _nest_notches(surf,cy,courses,stick_wins)
 
-    # ── Collect nest-mass pixels for connectivity gate ────────────────────────
-    # The panel is filled with background before this call; (0,0) is always
-    # untouched sky, giving us the background colour without hardcoding it.
-    bg = surf.get_at((0, 0))
-    sw, sh = surf.get_size()
-    nest_px = set()
-    for yy in range(sh):
-        for xx in range(sw):
-            if surf.get_at((xx, yy)) != bg:
-                nest_px.add((xx, yy))
-
-    # ── Splayed straw spurs — unconditional (nest anatomy, not tenancy) ───────
-    # Spurs whose anchor pixel has no 8-neighbour inside the nest mass are
-    # floating islands; they are killed silently here.  Tips are clamped to
-    # the 38-px silhouette envelope so they cannot collide with the adjacent
-    # slot at 40-px pitch.
-    raw_spurs = [
-        ((cx-16, cy+2),  (cx-19, cy-1)),   # left,  going up   — tip capped to x 12
-        ((cx+16, cy+3),  (cx+18, cy+0)),   # right, going up   — tip capped to x 49
-        ((cx-14, cy+9),  (cx-18, cy+12)),  # left,  going down
-        ((cx+15, cy+7),  (cx+18, cy+5)),   # right, going up   — tip capped to x 49
-        ((cx-9,  cy+20), (cx-12, cy+23)),  # left,  going down — likely disconnected
-        ((cx+9,  cy+20), (cx+12, cy+23)),  # right, going down — likely disconnected
-        ((cx+1,  cy+21), (cx+3,  cy+24)),  # centre-right, down — likely disconnected
-    ]
-
-    for p0, p1 in raw_spurs:
-        ax, ay = p0
-        # 8-neighbour test includes the anchor pixel itself (dx==dy==0).
-        connected = any(
-            (ax+dx, ay+dy) in nest_px
-            for dx in (-1,0,1) for dy in (-1,0,1)
-        )
-        if not connected:
-            continue
-        # Clamp tip x to the silhouette envelope.
-        p1 = (max(_SPUR_X_MIN, min(_SPUR_X_MAX, p1[0])), p1[1])
-        _draw_spur_lit(surf, p0, p1, cx)
-
-    if not alive:
-        return
-
-    # ── Front arc + contact shadow (alive only) ───────────────────────────────
-    ecx = rx + rw / 2.0
-    ecy = cy + ry_off + rh / 2.0
-    a, b = rw / 2.0, rh / 2.0
-    bx0 = cx - bird_w // 2
-    bx1 = bx0 + bird_w - 1
-
-    # Front half of rim drawn after the bird so the bowl wraps its belly.
-    pygame.draw.arc(surf,_NEST_TWIG_BRIGHT,(rx,cy+ry_off,rw,rh),math.pi,2*math.pi,2)
-    # Shadow lands only where the front rim crosses a solid bird pixel.
-    by0 = cy - bird_h // 2 + 5
-    for x in range(bx0, bx1+1):
-        fy = _front_arc_y(x, ecx, ecy, a-1.0, b-1.0)
-        if fy is None:
-            continue
-        sy = int(round(fy)) + 1
-        if bird.get_at((x - bx0, sy - by0))[3] < 128:
-            continue
-        _shadow_px(surf, x, sy, 140)
-
-    # Single chest strand below the front arc (arc bottom ≈ cy+6; starting at
-    # cy+8 keeps eye and beak unobstructed).  Three control points give a
-    # gentle catenary sag without obscuring the belly feathers.
-    pygame.draw.lines(surf, _NEST_TWIG_MID, False,
-                      [(cx-13, cy+8), (cx, cy+11), (cx+13, cy+8)])
+    # ── Veil concept: arc only redrawn on top of bird (minimal overdraw) ─────
+    if alive:
+        pygame.draw.arc(surf,_NEST_TWIG_BRIGHT,(rx,cy+ry_off,rw,rh),0,math.pi,2)
 
 
 # ── Review sheet ─────────────────────────────────────────────────────────────

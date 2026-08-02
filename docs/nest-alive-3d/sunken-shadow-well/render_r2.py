@@ -288,6 +288,7 @@ def draw_slot_after(surf, cy, alive):
     rim_abs = (rx, cy + ry_off, rw, rh)
     bx, by  = cx - bw // 2, cy - bh // 2 + 5
 
+    # ── Identical to draw_slot_before ────────────────────────────────────────
     pygame.draw.ellipse(surf, (0, 0, 0), rim_abs)
     pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, rim_abs, 0, math.pi, 2)
     _vxL = verts[0]
@@ -301,31 +302,6 @@ def draw_slot_after(surf, cy, alive):
 
     if alive:
         surf.blit(bird, (bx, by))
-
-        # Warm luminance ramp: the bowl swallows the light from the shoulder
-        # down.  The gradient surface was pre-masked to bird silhouette only.
-        g, gx0, gtop = _well_gradient(bird, bw, bh, by, cy)
-        surf.blit(g, (gx0, gtop), special_flags=pygame.BLEND_RGBA_MULT)
-
-        # AO on the far wall (0→π) darkens the back of the bowl so the reader
-        # gets the three-value bowl stack: lit rim → dark far wall → lit head.
-        ao = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-        pygame.draw.arc(ao, (*_NEST_TWIG_DARK, 90),
-                        (rx + 1, cy + ry_off + 1, rw - 2, rh - 2),
-                        0, math.pi, 1)
-        surf.blit(ao, (0, 0))
-
-        # Warm bounce off the far wall catches the topmost lit shoulder edge so
-        # the occupant separates from the black hollow without an occluder.
-        for x in range(bx, bx + bw):
-            for y in range(cy - 3, cy):
-                sx, sy = x - bx, y - by
-                if 0 <= sx < bw and 0 <= sy < bh and bird.get_at((sx, sy)).a >= 160:
-                    _blend_px(surf, x, y, _NEST_TWIG_BRIGHT, 90)
-                    break
-
-        # Front lip — own value identity, variable width, contact shadow
-        _draw_lip(surf, bird, bw, bh, bx, by, rim_abs)
     else:
         hx, hy_off, hw, hh = hollow
         pygame.draw.rect(surf, _NEST_HOLLOW_COL, (hx, cy + hy_off, hw, hh))
@@ -338,6 +314,20 @@ def draw_slot_after(surf, cy, alive):
             if cii == ci and wins:
                 _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
     _nest_notches(surf, cy, courses, stick_wins)
+
+    # ── Well concept: courses 0+1 + arc + contact shadow on top of bird ──────
+    if alive:
+        _nest_weave(surf, cy, (0, 1), courses, stick_wins)
+        pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, rim_abs, 0, math.pi, 2)
+        ecx = rx + rw / 2.0; ecy = cy + ry_off + rh / 2.0
+        ea = rw / 2.0; eb = rh / 2.0
+        for x in range(rx, rx + rw + 1):
+            t = (x - ecx) / ea if ea > 0 else 0.0
+            if abs(t) > 1.0: continue
+            y_arc = int(round(ecy + eb * math.sqrt(max(0.0, 1.0 - t * t))))
+            sx, sy = x - bx, (y_arc + 1) - by
+            if 0 <= sx < bw and 0 <= sy < bh and bird.get_at((sx, sy)).a >= 160:
+                _blend_px(surf, x, y_arc + 1, _NEST_TWIG_DARK, 90)
 
 
 # ── Sheet composition ─────────────────────────────────────────────────────────
@@ -391,10 +381,7 @@ def main():
         print(f"empty-diff rows: {rows}")
 
     # Night panels — same drawing code, different background
-    global _WELL_CACHE
-    _WELL_CACHE = None   # reset so night render re-evaluates (same result, fresh surface)
     p_before_a_n = render_panel(draw_slot_before, True,  bg=SKY_NIGHT)
-    _WELL_CACHE  = None
     p_after_a_n  = render_panel(draw_slot_after,  True,  bg=SKY_NIGHT)
 
     # 10× zooms

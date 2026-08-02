@@ -218,12 +218,9 @@ def draw_slot_after(surf, cy, alive):
     rx, ry_off, rw, rh = rim_rect
     bx, by = cx - bw // 2, cy - bh // 2 + 5
 
+    # ── Identical to draw_slot_before ────────────────────────────────────────
     pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
-    # The far wall thickens into a band so the hollow reads as a bowl seen
-    # slightly from above rather than a flat painted ring. Gated on `alive`
-    # because the empty slot is required to stay pixel-identical to today.
-    pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh),
-                    0, math.pi, 3 if alive else 2)
+    pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
     _vxL = verts[0]
     for _dy in (-2, -1):
         _y = cy + ry_off + rh + _dy
@@ -231,31 +228,13 @@ def draw_slot_after(surf, cy, alive):
             surf.set_at((_vxL + _dx, _y), _NEST_TWIG_BRIGHT)
     for vx in verts:
         _nest_stick_span(surf, vx, cy + ry_off + rh, cy + stick_bottom)
-    _nest_weave_split(surf, cy, (0, 1), courses, stick_wins, outer=True)
+    _nest_weave(surf, cy, (0, 1), courses, stick_wins)
 
     if alive:
         surf.blit(bird, (bx, by))
     else:
         hx, hy_off, hw, hh = hollow
         pygame.draw.rect(surf, _NEST_HOLLOW_COL, (hx, cy + hy_off, hw, hh))
-
-    # Near-side uprights are re-laid over the occupant; re-running them before
-    # the near course span keeps the original over/under weave intact.
-    for vx in verts:
-        _nest_stick_span(surf, vx, cy + 6, cy + 8)
-    _nest_weave_split(surf, cy, (0, 1), courses, stick_wins, outer=False)
-
-    if alive:
-        shadow = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-        for x, y, t in _front_arc_pixels(rim_rect, cy):
-            col = _lerp(_NEST_TWIG_BRIGHT, _NEST_TWIG_MID, t)
-            for dy in (0, -1, -2):
-                surf.set_at((x, y + dy), col)
-            on_bird = (bx <= x < bx + bw and by <= y < by + bh
-                       and bird.get_at((x - bx, y - by)).a > 0)
-            if on_bird:
-                shadow.set_at((x, y + 1), (*_NEST_TWIG_DARK, 140))
-        surf.blit(shadow, (0, 0))
 
     _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
     for ci in (2, 3, 4):
@@ -265,6 +244,11 @@ def draw_slot_after(surf, cy, alive):
             if cii == ci and wins:
                 _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
     _nest_notches(surf, cy, courses, stick_wins)
+
+    # ── Split concept: near-side courses + arc redrawn on top of bird ────────
+    if alive:
+        _nest_weave_split(surf, cy, (0, 1), courses, stick_wins, outer=False)
+        pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
 
 
 # ── Sheet composition ────────────────────────────────────────────────────────

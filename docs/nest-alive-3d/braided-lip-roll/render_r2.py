@@ -286,9 +286,10 @@ def draw_slot_after(surf, cy, alive, roll_y_extra=0):
 
     _nest_notches(surf, cy, courses, stick_wins)
 
-    # Cord roll is drawn last so it occludes everything above it in layering
+    # ── Braid concept: courses 0+1 + chunky arc redrawn on top of bird ───────
     if alive:
-        _draw_cord_roll(surf, cx, cy, bird, bx, by, y_extra=roll_y_extra)
+        _nest_weave(surf, cy, (0, 1), courses, stick_wins)
+        pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 3)
 
 
 # Sheet composition

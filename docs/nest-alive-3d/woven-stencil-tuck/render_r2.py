@@ -177,7 +177,7 @@ def draw_slot_after(surf, cy, alive):
     cx = _NEST_CX
     rx, ry_off, rw, rh = rim_rect
 
-    # Shared setup unchanged from before
+    # ── Identical to draw_slot_before ────────────────────────────────────────
     pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
     pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
     _vxL = verts[0]
@@ -190,73 +190,7 @@ def draw_slot_after(surf, cy, alive):
     _nest_weave(surf, cy, (0, 1), courses, stick_wins)
 
     if alive:
-        bx = cx - bw // 2
-        by = cy - bh // 2 + 5
-
-        # Bird blitted at full alpha — mass is preserved, tucking is modelled by
-        # a warm-dark multiply so the belly loses brightness rather than opacity.
-        faded = pygame.Surface((bw, bh), pygame.SRCALPHA)
-        faded.blit(bird, (0, 0))
-
-        # Build multiply mask: white = no-op, warm-dark below the curved lip.
-        # Sampling the original bird surface keeps the alpha check on clean data.
-        mask = pygame.Surface((bw, bh), pygame.SRCALPHA)
-        mask.fill((255, 255, 255, 255))
-
-        cx_rim  = rx + rw // 2
-        ry_half = rh // 2
-
-        for px in range(bw):
-            abs_x   = bx + px
-            dx_norm = (abs_x - cx_rim) / (rw / 2) if rw > 0 else 0.0
-            disc    = max(0.0, 1.0 - dx_norm * dx_norm)
-            # Bottom of the rim ellipse at this column — the actual tuck line
-            lip_y   = cy + ry_off + ry_half + int(ry_half * math.sqrt(disc))
-            # Darkening eases in 3 rows before the lip reaches full depth at lip+1
-            start_y = lip_y - 3
-
-            for py in range(bh):
-                if bird.get_at((px, py))[3] < 160:
-                    continue
-                abs_y   = by + py
-                row_idx = abs_y - start_y
-                if row_idx < 0:
-                    continue
-                step    = min(row_idx, 5)
-                mr, mg, mb = _TUCK_WARM[step]
-                # Luminance floor prevents any pixel going completely black even on
-                # deepest rows — the nest interior still reads as warm, not void
-                mask.set_at((px, py), (max(mr, 30), max(mg, 30), max(mb, 30), 255))
-
-        faded.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-        surf.blit(faded, (bx, by))
-
-        # AO shadow just inside the front lip — inset 2 px to sit behind the rim,
-        # drawn at 1 px so it reads as occlusion without competing with the arc line
-        ao = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-        pygame.draw.arc(
-            ao, (*_NEST_TWIG_DARK, 110),
-            (rx + 2, cy + ry_off + 2, rw - 4, rh - 4),
-            math.pi, 2 * math.pi, 1,
-        )
-        surf.blit(ao, (0, 0))
-
-        # Front rim: width 2, per-column so it curves with the ellipse.
-        # Top row in COURSE_TOP, bottom row in TWIG_MID — the two-tone split reads
-        # as the thickness of the woven edge at 10x zoom.  Stick columns revert to
-        # stick highlight/mid colours so the vertical uprights interrupt the ring.
-        stick_xs = set(verts)
-        for x in range(rx, rx + rw + 1):
-            dx_norm = (x - cx_rim) / (rw / 2) if rw > 0 else 0.0
-            disc    = max(0.0, 1.0 - dx_norm * dx_norm)
-            y_arc   = cy + ry_off + ry_half + int(ry_half * math.sqrt(disc))
-            if x in stick_xs:
-                surf.set_at((x, y_arc),     _NEST_STICK_HI)
-                surf.set_at((x, y_arc + 1), _NEST_STICK_COL)
-            else:
-                surf.set_at((x, y_arc),     _NEST_COURSE_TOP)
-                surf.set_at((x, y_arc + 1), _NEST_TWIG_MID)
-
+        surf.blit(bird, (cx - bw // 2, cy - bh // 2 + 5))
     else:
         hx, hy_off, hw, hh = hollow
         pygame.draw.rect(surf, _NEST_HOLLOW_COL, (hx, cy + hy_off, hw, hh))
@@ -269,6 +203,11 @@ def draw_slot_after(surf, cy, alive):
             if cii == ci and wins:
                 _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
     _nest_notches(surf, cy, courses, stick_wins)
+
+    # ── Tuck concept: full courses 0+1 and arc redrawn on top of bird ─────────
+    if alive:
+        _nest_weave(surf, cy, (0, 1), courses, stick_wins)
+        pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
 
 
 # ------------------------------------------------------------- REVIEW PNG ----
