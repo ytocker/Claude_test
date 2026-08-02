@@ -25,11 +25,13 @@ PANEL_H   = 355
 FOOTER_H  = 32
 CONTENT_H = PANEL_H - FOOTER_H          # 323
 
-# Native draw surface and the crop that maps to 200×323
+# Native draw surface and the crop that maps to 200×CONTENT_H
+# y=8: well above the bird's head  y=90: below the lowest notch (cy+18=91)
+# 46 wide × 82 tall → scale ≈ 4.35× uniform (200/46 ≈ 355/82)
 NATIVE_W  = 70
 NATIVE_H  = 100
 NEST_CY   = 73
-CROP      = pygame.Rect(8, 15, 46, 74)  # approx. bird-head → weave bottom
+CROP      = pygame.Rect(8, 8, 46, 82)   # head of sky above → notch below
 
 GAP       = 8
 MARGIN    = 20
@@ -110,14 +112,15 @@ def _build_row(alive, row_label):
     row.blit(lbl, (0, (ROW_LABEL_H - lbl.get_height()) // 2))
 
     x = 0
-    # BEFORE panel (today)
-    slug_lbl = 'BEFORE' if alive else 'BEFORE (empty)'
+    # BEFORE panel — always uses today's draw_slot_before for both states
     row.blit(
         _make_panel(_ref_mod.draw_slot_before, 'BEFORE',
-                    slug_lbl, '(today)', alive=alive),
+                    'BEFORE', '(today)', alive=alive),
         (x, ROW_LABEL_H))
     x += PANEL_W + GAP
 
+    # Each concept uses its own draw_slot_after for BOTH alive and empty,
+    # so the empty row shows that concept's own empty-state design.
     for label, mod in concept_mods:
         row.blit(
             _make_panel(mod.draw_slot_after, label, label, 'FINAL', alive=alive),
