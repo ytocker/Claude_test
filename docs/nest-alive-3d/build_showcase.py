@@ -25,13 +25,16 @@ PANEL_H   = 355
 FOOTER_H  = 32
 CONTENT_H = PANEL_H - FOOTER_H          # 323
 
-# Native draw surface and the crop that maps to 200×CONTENT_H
-# y=8: well above the bird's head  y=90: below the lowest notch (cy+18=91)
+# Native draw surface and the crop that maps to 200×CONTENT_H.
+# cy=73 puts bird y≈58..93 and weave bottom y≈91.  Content midpoint ≈ y=76.
+# Taller surface (120) + crop centred on that midpoint keeps the nest
+# in the middle of the sky rectangle instead of at the bottom.
 # 46 wide × 82 tall → scale ≈ 4.35× uniform (200/46 ≈ 355/82)
 NATIVE_W  = 70
-NATIVE_H  = 100
+NATIVE_H  = 130
 NEST_CY   = 73
-CROP      = pygame.Rect(8, 8, 46, 82)   # head of sky above → notch below
+_CROP_CY  = 81          # empirically measured: sky_above=sky_below at this value
+CROP      = pygame.Rect(8, _CROP_CY - 41, 46, 82)   # centred on nest
 
 GAP       = 8
 MARGIN    = 20
