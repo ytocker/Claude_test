@@ -1,6 +1,8 @@
 """Phase 5 showcase — alive-nest 3D layering concepts.
 
-One BEFORE panel + five concept AFTER panels, each 200×355 px.
+Two rows of panels, each 200×355 px:
+  Row 1 (parrot IN / alive):  BEFORE + 5 concepts
+  Row 2 (parrot OUT / empty): BEFORE + 5 concepts
 Crop: Rect(8, 15, 46, 74) in the native 70×100 draw surface at cy=73,
 scaled to 200×323 content area + 32 px slug/verdict footer.
 """
@@ -76,34 +78,65 @@ def _make_panel(draw_fn, slug, footer_line1, footer_line2=None, alive=True):
 # ── Load all concept modules ──────────────────────────────────────────────────
 
 CONCEPTS = [
-    ('split-shell-rim',   'render.py',    'split-shell-rim',    'FINAL'),
-    ('woven-stencil-tuck','render_r2.py', 'woven-stencil-tuck', 'FINAL'),
-    ('loose-twig-veil',   'render_r2.py', 'loose-twig-veil',    'FINAL'),
-    ('sunken-shadow-well','render_r2.py', 'sunken-shadow-well', 'FINAL'),
-    ('braided-lip-roll',  'render_r2.py', 'braided-lip-roll',   'FINAL'),
+    ('split-shell-rim',   'render.py',    'split-shell-rim'),
+    ('woven-stencil-tuck','render_r2.py', 'woven-stencil-tuck'),
+    ('loose-twig-veil',   'render_r2.py', 'loose-twig-veil'),
+    ('sunken-shadow-well','render_r2.py', 'sunken-shadow-well'),
+    ('braided-lip-roll',  'render_r2.py', 'braided-lip-roll'),
 ]
 
-# Load reference module for draw_slot_before (any concept works; they're identical)
+# Load reference module for draw_slot_before (identical across all concepts)
 _ref_mod = _load_module(
     os.path.join(FEATURE_DIR, 'split-shell-rim', 'render.py'), 'ref')
 
-panels = []
-
-# BEFORE panel
-panels.append(_make_panel(
-    _ref_mod.draw_slot_before, 'before', 'BEFORE', '(today / alive)'))
-
-# Concept panels
-for slug, script, label, verdict in CONCEPTS:
+# Build concept modules list (keeps modules alive so garbage collector
+# doesn't free their internal state between the two row renders)
+concept_mods = []
+for slug, script, label in CONCEPTS:
     path = os.path.join(FEATURE_DIR, slug, script)
-    mod  = _load_module(path, slug.replace('-', '_'))
-    panels.append(_make_panel(mod.draw_slot_after, slug, label, verdict))
+    concept_mods.append((label, _load_module(path, slug.replace('-', '_'))))
+
+ROW_LABEL_H = 24     # row heading above each row
+
+def _build_row(alive, row_label):
+    """Return a Surface of one full row (6 panels side-by-side) + heading."""
+    row_w = 6 * PANEL_W + 5 * GAP
+    row_h = ROW_LABEL_H + PANEL_H
+    row   = pygame.Surface((row_w, row_h))
+    row.fill(BG)
+
+    font_row = pygame.font.SysFont('dejavusans', 12, bold=True)
+    lbl = font_row.render(row_label, True, TXT_LIGHT)
+    row.blit(lbl, (0, (ROW_LABEL_H - lbl.get_height()) // 2))
+
+    x = 0
+    # BEFORE panel (today)
+    slug_lbl = 'BEFORE' if alive else 'BEFORE (empty)'
+    row.blit(
+        _make_panel(_ref_mod.draw_slot_before, 'BEFORE',
+                    slug_lbl, '(today)', alive=alive),
+        (x, ROW_LABEL_H))
+    x += PANEL_W + GAP
+
+    for label, mod in concept_mods:
+        row.blit(
+            _make_panel(mod.draw_slot_after, label, label, 'FINAL', alive=alive),
+            (x, ROW_LABEL_H))
+        x += PANEL_W + GAP
+
+    return row
+
+row_alive = _build_row(True,  'ROW 1 — parrot IN  (alive)')
+row_empty = _build_row(False, 'ROW 2 — parrot OUT (empty)')
+
+ROW_GAP = 16
 
 # ── Composite ────────────────────────────────────────────────────────────────
 
-n   = len(panels)                              # 6
+n   = 6
 W   = 2 * MARGIN + n * PANEL_W + (n - 1) * GAP
-H   = 2 * MARGIN + HEADER_H + PANEL_H
+H   = (2 * MARGIN + HEADER_H
+       + row_alive.get_height() + ROW_GAP + row_empty.get_height())
 
 canvas = pygame.Surface((W, H))
 canvas.fill(BG)
@@ -114,11 +147,10 @@ title = font_title.render(
     True, TXT_LIGHT)
 canvas.blit(title, (MARGIN, MARGIN + (HEADER_H - title.get_height()) // 2))
 
-x_off = MARGIN
-y_off = MARGIN + HEADER_H
-for p in panels:
-    canvas.blit(p, (x_off, y_off))
-    x_off += PANEL_W + GAP
+y = MARGIN + HEADER_H
+canvas.blit(row_alive, (MARGIN, y))
+y += row_alive.get_height() + ROW_GAP
+canvas.blit(row_empty, (MARGIN, y))
 
 out_path = os.path.join(FEATURE_DIR, 'showcase.png')
 pygame.image.save(canvas, out_path)
