@@ -179,6 +179,9 @@ def draw_slot_after(surf, cy, alive):
     bx, by = cx - bw // 2, cy - bh // 2 + 5
 
     pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
+    # Back rim arc (far wall = top half in screen) — darker, reads as receded
+    pygame.draw.arc(surf, _NEST_TWIG_MID,    (rx, cy + ry_off, rw, rh), math.pi, 2 * math.pi, 2)
+    # Front rim arc (near wall = bottom half in screen) — brighter, closest to viewer
     pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
     _vxL = verts[0]
     for _dy in (-2, -1):
@@ -192,12 +195,18 @@ def draw_slot_after(surf, cy, alive):
     if alive:
         surf.blit(bird, (bx, by))
     else:
-        # The parrot's alpha silhouette, zeroed to pure black — the void is
-        # exactly bird-shaped, reading as the deep shadow inside the cup.
+        # Parrot alpha silhouette zeroed to pure black — bird-shaped cup shadow.
+        # Clip rows above the rim top (cy+ry_off) to prevent dark fringe in sky.
         sil = bird.copy()
         arr = pygame.surfarray.pixels3d(sil)
         arr[:] = 0
         del arr
+        top_clip   = cy + ry_off            # top y of rim ellipse
+        rows_above = max(0, top_clip - by)   # rows of sil that are above the rim
+        if 0 < rows_above <= sil.get_height():
+            alp = pygame.surfarray.pixels_alpha(sil)
+            alp[:, :rows_above] = 0          # surfarray axes: (x, y)
+            del alp
         surf.blit(sil, (bx, by))
 
     _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
