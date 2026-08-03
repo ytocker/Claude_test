@@ -44,8 +44,8 @@ surf.blit(hdr, ((CANVAS_W - hdr.get_width()) // 2,
                 MARGIN + (HEADER_H - hdr.get_height()) // 2))
 
 panels = [
-    ("round_4.png", "C · BEFORE (R4)",  "TARGET RINGS + STATS GRID",           "A"),
-    ("round_5.png", "C · AFTER (R5)",   "EVENT ZONES + ? + DAY COMPLETE",      "B"),
+    ("round_5.png", "C · BEFORE (R5)", "FLAT AHEAD + TEXT ABOVE",     "A"),
+    ("round_6.png", "C · AFTER (R6)",  "DASHED FADE + BELOW + CLEAN", "B"),
 ]
 
 for i, (fname, footer_top, footer_bot, letter) in enumerate(panels):
