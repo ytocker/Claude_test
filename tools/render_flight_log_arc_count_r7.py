@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-arc_count round 6 — event zones with ?, no stats grid, DAY COMPLETE label.
+arc_count round 7 — arc to macaw center, DAY COMPLETE left, day N in header.
 
 Applies the approved rule-set to the round-3 sun_arc visual:
   - Weather determines the Skybit background only.
@@ -520,18 +520,19 @@ def draw_overlay(ss):
     # as a plan, not an achievement.
     # The 3× downscale roughly halves a hairline's effective density, so the
     # authored alpha is set high enough to LAND at ~35% once composited.
+    u_ahead_start = u_death + 12.0 / (R * math.pi)   # skip macaw half-width
     # Pass 1: wide dim haze — fades from death toward right terminus
     for _ai in range(100):
-        _u0 = u_death + (1.0 - u_death) * _ai / 100
-        _u1 = u_death + (1.0 - u_death) * (_ai + 1) / 100
+        _u0 = u_ahead_start + (1.0 - u_ahead_start) * _ai / 100
+        _u1 = u_ahead_start + (1.0 - u_ahead_start) * (_ai + 1) / 100
         _a = int(55 - 38 * (_ai / 99))
         pygame.draw.line(ss, (*COOL, _a), PU(_u0), PU(_u1), max(1, int(2.8 * k)))
     # Pass 2: dashed bright centerline, fading as it recedes
     for _di in range(90):
         if _di % 3 == 2:
             continue
-        _u0 = u_death + (1.0 - u_death) * _di / 90
-        _u1 = u_death + (1.0 - u_death) * (_di + 0.65) / 90
+        _u0 = u_ahead_start + (1.0 - u_ahead_start) * _di / 90
+        _u1 = u_ahead_start + (1.0 - u_ahead_start) * (_di + 0.65) / 90
         _a = int(130 - 90 * (_di / 89))
         pygame.draw.line(ss, (*COOL, _a), PU(_u0), PU(_u1), max(1, int(1.1 * k)))
 
@@ -660,6 +661,13 @@ def draw_overlay(ss):
         t = i / steps
         pygame.draw.line(ss, (255, 252, 238, int(120 + 135 * t)), PU(u0), PU(u1),
                          max(1, int(1.3 * k)))
+
+    # Bridge from arc rail to macaw center — makes the gold trail end AT the bird
+    _ux_d, _uy_d = radial_unit(DEATH_PHASE)
+    _mac = ((DEATH_X + _ux_d * 5.0) * k, (DEATH_Y + _uy_d * 5.0 - 1.0) * k)
+    _tip = PU(u_death)
+    pygame.draw.line(ss, (*INK, 250), _tip, _mac, int(9.4 * k))
+    pygame.draw.line(ss, (255, 246, 214, 255), _tip, _mac, int(5.4 * k))
 
     # Personal best notch — gold diamond on the arc past death, shows achievable gap
     bx_b, by_b = arc_pos(BEST_PHASE, R)
@@ -888,7 +896,7 @@ def render_screen():
     pygame.draw.circle(surf, (255, 240, 180), (int(xdc), int(ydc)), 7)
     pygame.draw.circle(surf, (255, 255, 220), (int(xdc) - 1, int(ydc) - 1), 4)
 
-    text(surf, "DAY COMPLETE", 9, center=(int(xdc), int(ydc) + 18), color=GOLD, shadow=None)
+    text(surf, "DAY COMPLETE", 9, midright=(W - 6, int(ydc) + 18), color=GOLD, shadow=None)
 
     bx, by, bw = draw_macaw(surf)
 
@@ -900,8 +908,8 @@ def render_screen():
     surf.blit(fade, (0, 74))
     alpha_line(surf, (255, 206, 92, 150), (0, 74), (W - 1, 74), 1)
 
-    text(surf, "FLIGHT LOG", 24, center=(W // 2, 28), color=GOLD, track=4, shadow=None)
-    text(surf, f"DAY {DAY_N}   ·   PILLAR {DEATH_PILLAR}   ·   0:{TIME_ALIVE:02d}", 12,
+    text(surf, f"FLIGHT LOG  ·  DAY {DAY_N}", 21, center=(W // 2, 28), color=GOLD, track=3, shadow=None)
+    text(surf, f"PILLAR {DEATH_PILLAR}   ·   0:{TIME_ALIVE:02d}", 12,
          center=(W // 2, 55), color=CREAM, shadow=None)
 
     # ── headline, in the quiet sky above the apex ──
@@ -1114,7 +1122,7 @@ def render_sheet(screen, squint, notes):
 
 
 OUT_SLUG = "arc_count"
-OUT_ROUND = "round_6"
+OUT_ROUND = "round_7"
 
 
 def main():
