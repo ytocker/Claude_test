@@ -179,10 +179,9 @@ def draw_slot_after(surf, cy, alive):
     bx, by = cx - bw // 2, cy - bh // 2 + 5
 
     pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
-    # Back rim arc (far wall = top half in screen) — darker, reads as receded
-    pygame.draw.arc(surf, _NEST_TWIG_MID,    (rx, cy + ry_off, rw, rh), math.pi, 2 * math.pi, 2)
-    # Front rim arc (near wall = bottom half in screen) — brighter, closest to viewer
-    pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
+    # Full oval ring: closed outline avoids arc endpoint gaps; front half overdrawn brighter.
+    pygame.draw.ellipse(surf, _NEST_TWIG_MID,    (rx, cy + ry_off, rw, rh), 2)
+    pygame.draw.arc(surf,    _NEST_TWIG_BRIGHT,  (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
     _vxL = verts[0]
     for _dy in (-2, -1):
         _y = cy + ry_off + rh + _dy
@@ -191,22 +190,29 @@ def draw_slot_after(surf, cy, alive):
     for vx in verts:
         _nest_stick_span(surf, vx, cy + ry_off + rh, cy + stick_bottom)
     _nest_weave(surf, cy, (0, 1), courses, stick_wins)
+    # Re-clear any weave pixels that landed inside the rim ellipse, then restore the ring.
+    pygame.draw.ellipse(surf, (0, 0, 0),        (rx, cy + ry_off, rw, rh))
+    pygame.draw.ellipse(surf, _NEST_TWIG_MID,   (rx, cy + ry_off, rw, rh), 2)
+    pygame.draw.arc(surf,    _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
 
     if alive:
         surf.blit(bird, (bx, by))
     else:
         # Parrot alpha silhouette zeroed to pure black — bird-shaped cup shadow.
-        # Clip rows above the rim top (cy+ry_off) to prevent dark fringe in sky.
+        # Clip to rim ellipse so no dark pixels bleed outside the oval boundary.
         sil = bird.copy()
         arr = pygame.surfarray.pixels3d(sil)
         arr[:] = 0
         del arr
-        top_clip   = cy + ry_off            # top y of rim ellipse
-        rows_above = max(0, top_clip - by)   # rows of sil that are above the rim
-        if 0 < rows_above <= sil.get_height():
-            alp = pygame.surfarray.pixels_alpha(sil)
-            alp[:, :rows_above] = 0          # surfarray axes: (x, y)
-            del alp
+        ecx = rx + rw / 2.0
+        ecy = cy + ry_off + rh / 2.0
+        ra, rb = rw / 2.0, rh / 2.0
+        alp = pygame.surfarray.pixels_alpha(sil)
+        for sy in range(sil.get_height()):
+            for sx in range(sil.get_width()):
+                if ((bx + sx - ecx) / ra) ** 2 + ((by + sy - ecy) / rb) ** 2 >= 1.0:
+                    alp[sx, sy] = 0
+        del alp
         surf.blit(sil, (bx, by))
 
     _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
@@ -217,3 +223,6 @@ def draw_slot_after(surf, cy, alive):
             if cii == ci and wins:
                 _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
     _nest_notches(surf, cy, courses, stick_wins)
+    # Redraw ring on top so it sits above notches and any final overdraw.
+    pygame.draw.ellipse(surf, _NEST_TWIG_MID,   (rx, cy + ry_off, rw, rh), 2)
+    pygame.draw.arc(surf,    _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
