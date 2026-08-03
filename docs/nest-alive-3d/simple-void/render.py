@@ -180,7 +180,7 @@ def draw_slot_after(surf, cy, alive):
 
     pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
     # Full oval ring: closed outline avoids arc endpoint gaps; front half overdrawn brighter.
-    pygame.draw.ellipse(surf, _NEST_TWIG_MID,    (rx, cy + ry_off, rw, rh), 2)
+    pygame.draw.arc(surf, _NEST_TWIG_MID, (rx, cy + ry_off, rw, rh), math.pi, 2 * math.pi, 2)
     pygame.draw.arc(surf,    _NEST_TWIG_BRIGHT,  (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
     _vxL = verts[0]
     for _dy in (-2, -1):
@@ -192,7 +192,7 @@ def draw_slot_after(surf, cy, alive):
     _nest_weave(surf, cy, (0, 1), courses, stick_wins)
     # Re-clear any weave pixels that landed inside the rim ellipse, then restore the ring.
     pygame.draw.ellipse(surf, (0, 0, 0),        (rx, cy + ry_off, rw, rh))
-    pygame.draw.ellipse(surf, _NEST_TWIG_MID,   (rx, cy + ry_off, rw, rh), 2)
+    pygame.draw.arc(surf, _NEST_TWIG_MID, (rx, cy + ry_off, rw, rh), math.pi, 2 * math.pi, 2)
     pygame.draw.arc(surf,    _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
 
     if alive:
@@ -223,6 +223,3 @@ def draw_slot_after(surf, cy, alive):
             if cii == ci and wins:
                 _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
     _nest_notches(surf, cy, courses, stick_wins)
-    # Redraw ring on top so it sits above notches and any final overdraw.
-    pygame.draw.ellipse(surf, _NEST_TWIG_MID,   (rx, cy + ry_off, rw, rh), 2)
-    pygame.draw.arc(surf,    _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
