@@ -161,20 +161,25 @@ def draw_slot_v2(surf, cy, alive):
     _nest_notches(surf, cy, courses, stick_wins)
 
 def _stamp_void_hull(surf, cy, rx, ry_off, rw, rh, bird, bw, bh):
-    """Fill ellipse black, blit soft silhouette, restore bright arc, add crescent."""
+    """Black fill, ellipse-clipped bird shadow, full ring drawn last."""
     bx = _NEST_CX - bw // 2; by = cy - bh // 2 + 5
     pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
-    # All-black bird blit — feathered alpha edges give soft shadow boundary.
+    ecx = rx + rw / 2.0; ecy = cy + ry_off + rh / 2.0
+    ra, rb = rw / 2.0, rh / 2.0
+    # All-black bird clipped per-pixel to ellipse — no feathering leaks outside oval.
     sil = bird.copy()
     arr = pygame.surfarray.pixels3d(sil); arr[:] = 0; del arr
-    top_clip = cy + ry_off; rows_above = max(0, top_clip - by)
-    if 0 < rows_above <= sil.get_height():
-        alp = pygame.surfarray.pixels_alpha(sil); alp[:, :rows_above] = 0; del alp
+    alp = pygame.surfarray.pixels_alpha(sil)
+    for sy in range(sil.get_height()):
+        for sx in range(sil.get_width()):
+            if ((bx + sx - ecx) / ra) ** 2 + ((by + sy - ecy) / rb) ** 2 >= 1.0:
+                alp[sx, sy] = 0
+    del alp
     surf.blit(sil, (bx, by))
-    # Restore top arc — no MID arc (fills interior on flat ellipse).
-    pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
-    # Concavity crescent at lower inner rim for depth.
-    pygame.draw.arc(surf, (40, 26, 12), (rx + 6, cy + ry_off + 5, rw - 12, max(2, rh - 6)), 0, math.pi, 1)
+    # Ring drawn on top of bird: full outline (no arc degenerate fill),
+    # front half overdrawn brighter. Top-right is now fully covered.
+    pygame.draw.ellipse(surf, _NEST_TWIG_MID,    (rx, cy + ry_off, rw, rh), 2)
+    pygame.draw.arc(surf,    _NEST_TWIG_BRIGHT,  (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
 
 
 def draw_slot_after(surf, cy, alive):
