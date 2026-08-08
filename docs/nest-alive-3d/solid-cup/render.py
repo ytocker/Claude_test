@@ -1,10 +1,9 @@
-"""solid-cup: empty nest shows a plain black oval void — full ellipse fill, no bird silhouette."""
+"""solid-cup r2: void drawn last; pure black fill + bright rim arc + concavity crescent."""
 import os, sys, math
 os.environ.setdefault('SDL_VIDEODRIVER', 'offscreen')
 os.environ.setdefault('SDL_AUDIODRIVER', 'dummy')
 sys.path.insert(0, '/home/user/skybit')
-import pygame
-import pygame.surfarray
+import pygame, pygame.surfarray
 pygame.init()
 import game.parrot as parrot
 
@@ -29,40 +28,32 @@ def _nest_cy_sag(x, x1, x2, base_y, sag):
     return base_y + int(round(sag * (1.0 - t * t)))
 
 def _nest_stick_row(surf, vx, y):
-    surf.set_at((vx-1, y), _NEST_STICK_HI)
-    surf.set_at((vx,   y), _NEST_STICK_COL)
-    surf.set_at((vx+1, y), _NEST_STICK_COL)
-    surf.set_at((vx+2, y), _NEST_STICK_SH)
+    surf.set_at((vx-1, y), _NEST_STICK_HI); surf.set_at((vx, y), _NEST_STICK_COL)
+    surf.set_at((vx+1, y), _NEST_STICK_COL); surf.set_at((vx+2, y), _NEST_STICK_SH)
 
 def _nest_stick_span(surf, vx, y1, y2):
-    for y in range(y1, y2 + 1):
-        _nest_stick_row(surf, vx, y)
+    for y in range(y1, y2 + 1): _nest_stick_row(surf, vx, y)
 
 def _nest_course_col(surf, x, x1, x2, base_y, sag, mid_col):
     y = _nest_cy_sag(x, x1, x2, base_y, sag)
-    surf.set_at((x, y),   _NEST_COURSE_TOP)
-    surf.set_at((x, y+1), mid_col)
-    surf.set_at((x, y+2), mid_col)
-    surf.set_at((x, y+3), _NEST_COURSE_BOT)
+    surf.set_at((x, y), _NEST_COURSE_TOP); surf.set_at((x, y+1), mid_col)
+    surf.set_at((x, y+2), mid_col); surf.set_at((x, y+3), _NEST_COURSE_BOT)
 
 def _nest_course_full(surf, x1, x2, base_y, sag, mid_col, skip_xs):
     skip_set = set()
     for sx in skip_xs:
         for dx in _NEST_STICK_X_OFF: skip_set.add(sx + dx)
     for x in range(x1, x2 + 1):
-        if x not in skip_set:
-            _nest_course_col(surf, x, x1, x2, base_y, sag, mid_col)
+        if x not in skip_set: _nest_course_col(surf, x, x1, x2, base_y, sag, mid_col)
 
 def _nest_course_at_vx(surf, vx, x1, x2, base_y, sag, mid_col):
     for dx in _NEST_STICK_X_OFF:
         x = vx + dx
-        if x1 <= x <= x2:
-            _nest_course_col(surf, x, x1, x2, base_y, sag, mid_col)
+        if x1 <= x <= x2: _nest_course_col(surf, x, x1, x2, base_y, sag, mid_col)
 
 def _nest_stick_at_course(surf, vx, x1, x2, base_y, sag):
     y_top = _nest_cy_sag(vx, x1, x2, base_y, sag)
-    for y in range(y_top, y_top + 4):
-        _nest_stick_row(surf, vx, y)
+    for y in range(y_top, y_top + 4): _nest_stick_row(surf, vx, y)
 
 def _nest_notches(surf, cy, courses, stick_wins):
     for ci, (offset, col, x1, x2, sag) in enumerate(courses):
@@ -77,7 +68,7 @@ def _nest_notches(surf, cy, courses, stick_wins):
                         surf.set_at((x, y_cross+2), _NEST_TWIG_DARK)
             else:
                 for dy in (-1, 4):
-                    surf.set_at((vx,   y_cross+dy), _NEST_TWIG_DARK)
+                    surf.set_at((vx, y_cross+dy), _NEST_TWIG_DARK)
                     surf.set_at((vx+1, y_cross+dy), _NEST_TWIG_DARK)
 
 def _nest_weave(surf, cy, ci_range, courses, stick_wins):
@@ -114,19 +105,26 @@ def _make_nest_params():
 
 P = _make_nest_params()
 
+def _stamp_void(surf, cy, rx, ry_off, rw, rh):
+    """Fill ellipse black, restore bright top arc, clear arc fringe, add crescent."""
+    pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
+    pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
+    # Clear interior fringe left by the arc on the flat top of the oval.
+    pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
+    pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
+    # Concavity crescent: lighter bounce off the lower-inner rim reads as depth.
+    pygame.draw.arc(surf, (45, 30, 14), (rx + 6, cy + ry_off + 5, rw - 12, max(2, rh - 6)), 0, math.pi, 1)
+
 def draw_slot_before(surf, cy, alive):
     verts, courses, stick_wins, rim_rect, stick_bottom, hollow, bird, bw, bh = P
-    cx = _NEST_CX
-    rx, ry_off, rw, rh = rim_rect
+    cx = _NEST_CX; rx, ry_off, rw, rh = rim_rect
     pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
     pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
     _vxL = verts[0]
     for _dy in (-2, -1):
         _y = cy + ry_off + rh + _dy
-        for _dx in _NEST_STICK_X_OFF:
-            surf.set_at((_vxL + _dx, _y), _NEST_TWIG_BRIGHT)
-    for vx in verts:
-        _nest_stick_span(surf, vx, cy + ry_off + rh, cy + stick_bottom)
+        for _dx in _NEST_STICK_X_OFF: surf.set_at((_vxL + _dx, _y), _NEST_TWIG_BRIGHT)
+    for vx in verts: _nest_stick_span(surf, vx, cy + ry_off + rh, cy + stick_bottom)
     _nest_weave(surf, cy, (0, 1), courses, stick_wins)
     if alive:
         surf.blit(bird, (cx - bw // 2, cy - bh // 2 + 5))
@@ -138,14 +136,12 @@ def draw_slot_before(surf, cy, alive):
         offset, col, x1, x2, sag = courses[ci]
         base_y = cy + offset
         for (cii, vx), wins in stick_wins.items():
-            if cii == ci and wins:
-                _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
+            if cii == ci and wins: _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
     _nest_notches(surf, cy, courses, stick_wins)
 
 def draw_slot_v2(surf, cy, alive):
     verts, courses, stick_wins, rim_rect, stick_bottom, hollow, bird, bw, bh = P
-    cx = _NEST_CX
-    rx, ry_off, rw, rh = rim_rect
+    cx = _NEST_CX; rx, ry_off, rw, rh = rim_rect
     bx, by = cx - bw // 2, cy - bh // 2 + 5
     pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
     pygame.draw.arc(surf, _NEST_TWIG_MID,    (rx, cy + ry_off, rw, rh), math.pi, 2 * math.pi, 2)
@@ -153,39 +149,30 @@ def draw_slot_v2(surf, cy, alive):
     _vxL = verts[0]
     for _dy in (-2, -1):
         _y = cy + ry_off + rh + _dy
-        for _dx in _NEST_STICK_X_OFF:
-            surf.set_at((_vxL + _dx, _y), _NEST_TWIG_BRIGHT)
-    for vx in verts:
-        _nest_stick_span(surf, vx, cy + ry_off + rh, cy + stick_bottom)
+        for _dx in _NEST_STICK_X_OFF: surf.set_at((_vxL + _dx, _y), _NEST_TWIG_BRIGHT)
+    for vx in verts: _nest_stick_span(surf, vx, cy + ry_off + rh, cy + stick_bottom)
     _nest_weave(surf, cy, (0, 1), courses, stick_wins)
     if alive:
         surf.blit(bird, (bx, by))
     else:
         sil = bird.copy()
-        arr = pygame.surfarray.pixels3d(sil)
-        arr[:] = 0
-        del arr
-        top_clip   = cy + ry_off
-        rows_above = max(0, top_clip - by)
+        arr = pygame.surfarray.pixels3d(sil); arr[:] = 0; del arr
+        top_clip = cy + ry_off; rows_above = max(0, top_clip - by)
         if 0 < rows_above <= sil.get_height():
-            alp = pygame.surfarray.pixels_alpha(sil)
-            alp[:, :rows_above] = 0
-            del alp
+            alp = pygame.surfarray.pixels_alpha(sil); alp[:, :rows_above] = 0; del alp
         surf.blit(sil, (bx, by))
     _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
     for ci in (2, 3, 4):
         offset, col, x1, x2, sag = courses[ci]
         base_y = cy + offset
         for (cii, vx), wins in stick_wins.items():
-            if cii == ci and wins:
-                _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
+            if cii == ci and wins: _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
     _nest_notches(surf, cy, courses, stick_wins)
 
 def draw_slot_after(surf, cy, alive):
-    """solid-cup: full black ellipse fill — gap-free oval void."""
+    """solid-cup r2: void stamped last — black fill + bright top arc + crescent."""
     verts, courses, stick_wins, rim_rect, stick_bottom, hollow, bird, bw, bh = P
-    cx = _NEST_CX
-    rx, ry_off, rw, rh = rim_rect
+    cx = _NEST_CX; rx, ry_off, rw, rh = rim_rect
     bx, by = cx - bw // 2, cy - bh // 2 + 5
     pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
     pygame.draw.arc(surf, _NEST_TWIG_MID,    (rx, cy + ry_off, rw, rh), math.pi, 2 * math.pi, 2)
@@ -193,28 +180,20 @@ def draw_slot_after(surf, cy, alive):
     _vxL = verts[0]
     for _dy in (-2, -1):
         _y = cy + ry_off + rh + _dy
-        for _dx in _NEST_STICK_X_OFF:
-            surf.set_at((_vxL + _dx, _y), _NEST_TWIG_BRIGHT)
-    for vx in verts:
-        _nest_stick_span(surf, vx, cy + ry_off + rh, cy + stick_bottom)
+        for _dx in _NEST_STICK_X_OFF: surf.set_at((_vxL + _dx, _y), _NEST_TWIG_BRIGHT)
+    for vx in verts: _nest_stick_span(surf, vx, cy + ry_off + rh, cy + stick_bottom)
     _nest_weave(surf, cy, (0, 1), courses, stick_wins)
     if alive:
         surf.blit(bird, (bx, by))
-    else:
-        # Full ellipse fill closes every gap; faint crescent hints at concavity.
-        pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
-        pygame.draw.arc(surf, _NEST_TWIG_MID,    (rx, cy + ry_off, rw, rh), math.pi, 2 * math.pi, 2)
-        pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
-        # Faint inner crescent near bottom — reads as concave cup shadow.
-        pygame.draw.arc(surf, (20, 12, 4), (rx + 6, cy + ry_off + 4, rw - 12, rh - 5), 0, math.pi, 1)
     _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
     for ci in (2, 3, 4):
         offset, col, x1, x2, sag = courses[ci]
         base_y = cy + offset
         for (cii, vx), wins in stick_wins.items():
-            if cii == ci and wins:
-                _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
+            if cii == ci and wins: _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
     _nest_notches(surf, cy, courses, stick_wins)
+    if not alive:
+        _stamp_void(surf, cy, rx, ry_off, rw, rh)
 
 if __name__ == '__main__':
     ZOOM, GAP, W, H, CY = 10, 10, 62, 100, 73
@@ -225,8 +204,23 @@ if __name__ == '__main__':
     pw, ph = W*ZOOM, H*ZOOM
     canvas = pygame.Surface((len(panels)*pw + (len(panels)-1)*GAP, ph))
     canvas.fill((8, 8, 20))
-    for i, p in enumerate(panels):
-        canvas.blit(p, (i*(pw+GAP), 0))
-    out = 'docs/nest-alive-3d/solid-cup/round_1.png'
+    for i, p in enumerate(panels): canvas.blit(p, (i*(pw+GAP), 0))
+    out = 'docs/nest-alive-3d/solid-cup/round_2.png'
     pygame.image.save(canvas, out)
+    # Verify: no sky or interior-brown inside ellipse
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("r", __file__)
+    s2 = pygame.Surface((W, H)); s2.fill(SKY)
+    draw_slot_after(s2, CY, False)
+    rx, ry_off, rw, rh = 14, -4, 34, 10
+    ecx, ecy = rx + rw/2.0, CY + ry_off + rh/2.0
+    ra, rb = rw/2.0, rh/2.0
+    leaks = []
+    for y in range(CY + ry_off, CY + ry_off + rh + 1):
+        for x in range(rx, rx + rw + 1):
+            if ((x-ecx)/ra)**2 + ((y-ecy)/rb)**2 < 0.95:
+                c = s2.get_at((x,y))[:3]
+                if c == SKY or c == _NEST_TWIG_MID:
+                    leaks.append((x, y, c))
     print('saved', canvas.get_size(), '->', out)
+    print('interior leaks:', leaks[:5] if leaks else 'none ✓')

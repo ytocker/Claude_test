@@ -160,8 +160,25 @@ def draw_slot_v2(surf, cy, alive):
             if cii == ci and wins: _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
     _nest_notches(surf, cy, courses, stick_wins)
 
+def _stamp_void_hull(surf, cy, rx, ry_off, rw, rh, bird, bw, bh):
+    """Fill ellipse black, blit soft silhouette, restore bright arc, add crescent."""
+    bx = _NEST_CX - bw // 2; by = cy - bh // 2 + 5
+    pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
+    # All-black bird blit — feathered alpha edges give soft shadow boundary.
+    sil = bird.copy()
+    arr = pygame.surfarray.pixels3d(sil); arr[:] = 0; del arr
+    top_clip = cy + ry_off; rows_above = max(0, top_clip - by)
+    if 0 < rows_above <= sil.get_height():
+        alp = pygame.surfarray.pixels_alpha(sil); alp[:, :rows_above] = 0; del alp
+    surf.blit(sil, (bx, by))
+    # Restore top arc — no MID arc (fills interior on flat ellipse).
+    pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
+    # Concavity crescent at lower inner rim for depth.
+    pygame.draw.arc(surf, (40, 26, 12), (rx + 6, cy + ry_off + 5, rw - 12, max(2, rh - 6)), 0, math.pi, 1)
+
+
 def draw_slot_after(surf, cy, alive):
-    """hull-cup: solid black pre-fill closes gap; bird alpha-feathers over it."""
+    """hull-cup r2: void stamped last — soft bird-shadow inside, gap closed."""
     verts, courses, stick_wins, rim_rect, stick_bottom, hollow, bird, bw, bh = P
     cx = _NEST_CX; rx, ry_off, rw, rh = rim_rect
     bx, by = cx - bw // 2, cy - bh // 2 + 5
@@ -176,17 +193,6 @@ def draw_slot_after(surf, cy, alive):
     _nest_weave(surf, cy, (0, 1), courses, stick_wins)
     if alive:
         surf.blit(bird, (bx, by))
-    else:
-        # Pre-fill closes gap; bird alpha-feathering softens interior edge.
-        pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
-        pygame.draw.arc(surf, _NEST_TWIG_MID,    (rx, cy + ry_off, rw, rh), math.pi, 2 * math.pi, 2)
-        pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
-        sil = bird.copy()
-        arr = pygame.surfarray.pixels3d(sil); arr[:] = 0; del arr
-        top_clip = cy + ry_off; rows_above = max(0, top_clip - by)
-        if 0 < rows_above <= sil.get_height():
-            alp = pygame.surfarray.pixels_alpha(sil); alp[:, :rows_above] = 0; del alp
-        surf.blit(sil, (bx, by))
     _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
     for ci in (2, 3, 4):
         offset, col, x1, x2, sag = courses[ci]
@@ -194,6 +200,8 @@ def draw_slot_after(surf, cy, alive):
         for (cii, vx), wins in stick_wins.items():
             if cii == ci and wins: _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
     _nest_notches(surf, cy, courses, stick_wins)
+    if not alive:
+        _stamp_void_hull(surf, cy, rx, ry_off, rw, rh, bird, bw, bh)
 
 if __name__ == '__main__':
     ZOOM, GAP, W, H, CY = 10, 10, 62, 100, 73
@@ -205,6 +213,20 @@ if __name__ == '__main__':
     canvas = pygame.Surface((len(panels)*pw + (len(panels)-1)*GAP, ph))
     canvas.fill((8, 8, 20))
     for i, p in enumerate(panels): canvas.blit(p, (i*(pw+GAP), 0))
-    out = 'docs/nest-alive-3d/hull-cup/round_1.png'
+    out = 'docs/nest-alive-3d/hull-cup/round_2.png'
     pygame.image.save(canvas, out)
+    # Verify interior: center and top-right must be black; no MID-brown leaks.
+    s2 = pygame.Surface((W, H)); s2.fill(SKY)
+    draw_slot_after(s2, CY, False)
+    rx, ry_off, rw, rh = 14, -4, 34, 10
+    ecx, ecy = rx + rw/2.0, CY + ry_off + rh/2.0
+    ra, rb = rw/2.0, rh/2.0
+    leaks = []
+    for y in range(CY + ry_off, CY + ry_off + rh + 1):
+        for x in range(rx, rx + rw + 1):
+            if ((x-ecx)/ra)**2 + ((y-ecy)/rb)**2 < 0.9:
+                c = s2.get_at((x,y))[:3]
+                if c == SKY or c == _NEST_TWIG_MID:
+                    leaks.append((x, y, c))
     print('saved', canvas.get_size(), '->', out)
+    print('interior leaks:', leaks[:5] if leaks else 'none ✓')

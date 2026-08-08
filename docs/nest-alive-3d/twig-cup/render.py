@@ -106,17 +106,26 @@ def _make_nest_params():
 
 P = _make_nest_params()
 
-def _draw_twig_floor(surf, cy, rx, ry_off, rw, rh):
-    """3 short twig strands at the cup bottom — like looking into the wicker floor."""
-    floor_y = cy + ry_off + rh - 3  # bottom quarter of interior
-    # Central crossing strand
-    for x in range(rx + 8, rx + rw - 8):
-        surf.set_at((x, floor_y), _NEST_TWIG_DARK)
-    # Two shorter flanking strands, offset 1px up
-    for x in range(rx + 12, rx + 20):
-        surf.set_at((x, floor_y - 1), _NEST_TWIG_DARK)
-    for x in range(rx + rw - 20, rx + rw - 12):
-        surf.set_at((x, floor_y - 1), _NEST_TWIG_DARK)
+def _stamp_void_twig(surf, cy, rx, ry_off, rw, rh):
+    """Black fill + interior depth cues: dark back-rim stripe + warm front lip strands."""
+    pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
+    # Dark band at topmost interior row — receded back-rim read from inside.
+    back_y = cy + ry_off + 1
+    ecx = rx + rw / 2.0; ra = rw / 2.0; rb = rh / 2.0; ecy = cy + ry_off + rh / 2.0
+    for x in range(rx, rx + rw + 1):
+        if ((x - ecx) / ra) ** 2 + ((back_y - ecy) / rb) ** 2 <= 1.0:
+            surf.set_at((x, back_y), _NEST_TWIG_DARK)
+    # Two warm twig strands near the bottom interior — front wicker lip from inside.
+    lip_y = cy + ry_off + rh - 2
+    for x in range(rx + 6, rx + rw - 6):
+        if ((x - ecx) / ra) ** 2 + ((lip_y - ecy) / rb) ** 2 <= 1.0:
+            surf.set_at((x, lip_y), _NEST_STICK_COL)
+    lip_y2 = lip_y - 1
+    for x in range(rx + 10, rx + rw - 10):
+        if ((x - ecx) / ra) ** 2 + ((lip_y2 - ecy) / rb) ** 2 <= 1.0:
+            surf.set_at((x, lip_y2), _NEST_STICK_HI)
+    # Restore bright top arc only (no MID which fills interior).
+    pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
 
 def draw_slot_before(surf, cy, alive):
     verts, courses, stick_wins, rim_rect, stick_bottom, hollow, bird, bw, bh = P
@@ -173,7 +182,7 @@ def draw_slot_v2(surf, cy, alive):
     _nest_notches(surf, cy, courses, stick_wins)
 
 def draw_slot_after(surf, cy, alive):
-    """twig-cup: solid fill + twig strand marks at cup floor."""
+    """twig-cup r2: void stamped last — back-rim stripe + warm front lip strands."""
     verts, courses, stick_wins, rim_rect, stick_bottom, hollow, bird, bw, bh = P
     cx = _NEST_CX; rx, ry_off, rw, rh = rim_rect
     bx, by = cx - bw // 2, cy - bh // 2 + 5
@@ -188,11 +197,6 @@ def draw_slot_after(surf, cy, alive):
     _nest_weave(surf, cy, (0, 1), courses, stick_wins)
     if alive:
         surf.blit(bird, (bx, by))
-    else:
-        pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
-        pygame.draw.arc(surf, _NEST_TWIG_MID,    (rx, cy + ry_off, rw, rh), math.pi, 2 * math.pi, 2)
-        pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
-        _draw_twig_floor(surf, cy, rx, ry_off, rw, rh)
     _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
     for ci in (2, 3, 4):
         offset, col, x1, x2, sag = courses[ci]
@@ -200,6 +204,8 @@ def draw_slot_after(surf, cy, alive):
         for (cii, vx), wins in stick_wins.items():
             if cii == ci and wins: _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
     _nest_notches(surf, cy, courses, stick_wins)
+    if not alive:
+        _stamp_void_twig(surf, cy, rx, ry_off, rw, rh)
 
 if __name__ == '__main__':
     ZOOM, GAP, W, H, CY = 10, 10, 62, 100, 73
@@ -211,6 +217,20 @@ if __name__ == '__main__':
     canvas = pygame.Surface((len(panels)*pw + (len(panels)-1)*GAP, ph))
     canvas.fill((8, 8, 20))
     for i, p in enumerate(panels): canvas.blit(p, (i*(pw+GAP), 0))
-    out = 'docs/nest-alive-3d/twig-cup/round_1.png'
+    out = 'docs/nest-alive-3d/twig-cup/round_2.png'
     pygame.image.save(canvas, out)
+    # Verify interior: no sky or MID-brown leaks.
+    s2 = pygame.Surface((W, H)); s2.fill(SKY)
+    draw_slot_after(s2, CY, False)
+    rx, ry_off, rw, rh = 14, -4, 34, 10
+    ecx, ecy = rx + rw/2.0, CY + ry_off + rh/2.0
+    ra, rb = rw/2.0, rh/2.0
+    leaks = []
+    for y in range(CY + ry_off, CY + ry_off + rh + 1):
+        for x in range(rx, rx + rw + 1):
+            if ((x-ecx)/ra)**2 + ((y-ecy)/rb)**2 < 0.9:
+                c = s2.get_at((x,y))[:3]
+                if c == SKY or c == _NEST_TWIG_MID:
+                    leaks.append((x, y, c))
     print('saved', canvas.get_size(), '->', out)
+    print('interior leaks:', leaks[:5] if leaks else 'none ✓')
