@@ -13,7 +13,10 @@ Grafts:
 """
 import os
 import sys
+import re
 import math
+import inspect
+import textwrap
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
@@ -41,6 +44,7 @@ sc.gloss_sweep = _safe_gloss
 
 import game.store_data as store_data
 import game.store_catalog as store_catalog
+import game.store as store_mod
 from game.store import StoreScene, _confirm_tier_banner
 from game.store_cards import (m, SS, font, vgrad_stops, bevel_rim, top_sheen,
                               drop_shadow, coin_glyph, plain_text,
@@ -66,7 +70,24 @@ Q_DEEP = (22, 24, 56)
 AMBER_GLINT = (200, 165, 90)
 
 
+_DRAW_FN = [None]
+
+
+def _patched_draw_confirm():
+    """Base draw with its own price chip suppressed — the bullion bar overlay
+    owns the price now, and it moves with the wrapped name while the base chip
+    would stay pinned at 247 and peek out from underneath."""
+    src = textwrap.dedent(inspect.getsource(StoreScene._draw_confirm))
+    src, n = re.subn(r"_chip\(m\(CX\), m\(CHIP_CY\)\)", "pass", src)
+    assert n == 1, f"chip suppression patch failed: {n}"
+    ns = {}
+    exec(compile(src, "<hybrid2_draw_confirm>", "exec"), store_mod.__dict__, ns)
+    return ns["_draw_confirm"]
+
+
 def render_base(tier):
+    if _DRAW_FN[0] is None:
+        _DRAW_FN[0] = _patched_draw_confirm()
     sid = SIDS[tier]
 
     class _Stub:
@@ -81,7 +102,7 @@ def render_base(tier):
 
     surf = pygame.Surface((360, 640))
     surf.fill((8, 8, 20))
-    StoreScene._draw_confirm(_Stub(), surf)
+    _DRAW_FN[0](_Stub(), surf)
     return surf.subsurface(pygame.Rect(50, 40, POP_W, POP_H)).copy()
 
 
@@ -118,10 +139,36 @@ def overlay_quatrefoil(ov):
     ov.blit(layer, (0, 0))
 
 
-def overlay_bullion_chip(ov, price):
+def _chip_cy(tier):
+    """Mirror the base draw's two-line name maths: when the name wraps, push
+    the price bar below the second line exactly the way the banner is pushed —
+    covering the quatrefoil is accepted in that case."""
+    name = NAMES[tier]
+    fs = 45
+    f = sc.font(fs)
+    mw = m(240 - 20)
+    while sc._glyph_base(name, f, 0).get_width() > mw and fs > 24:
+        fs -= 1
+        f = sc.font(fs)
+    if sc._glyph_base(name, f, 0).get_width() <= mw:
+        return CHIP_CY
+    words = name.split()
+    best = max(1, len(words) // 2)
+    for i in range(1, len(words)):
+        a, b = " ".join(words[:i]), " ".join(words[i:])
+        if max(sc._glyph_base(a, f, 0).get_width(),
+               sc._glyph_base(b, f, 0).get_width()) <= mw:
+            best = i
+    fh = f.get_height()
+    cy1 = m(135 + 53) + m(6) + fh // 2
+    cy2 = cy1 + int(fh * 1.15)
+    return max(CHIP_CY, (cy2 + fh // 2) // SS + 10 + 14)
+
+
+def overlay_bullion_chip(ov, price, cy=CHIP_CY):
     txt = f"{price:,}"
     r = pygame.Rect(0, 0, m(168), m(28))
-    r.center = (m(CX), m(CHIP_CY))
+    r.center = (m(CX), m(cy))
     chip_body_stops(ov, r, m(11), GOLD_A_STOPS, GOLD_A_RIM_DARK,
                     GOLD_A_RIM_BRIGHT, gloss=120)
 
@@ -131,13 +178,13 @@ def overlay_bullion_chip(ov, price):
     coin_d, gap = m(22), m(5)
     group_w = coin_d + gap + bw
     left = m(CX) - group_w // 2
-    coin_glyph(ov, left + coin_d // 2, m(CHIP_CY), m(11))
+    coin_glyph(ov, left + coin_d // 2, m(cy), m(11))
     plain_text(ov, txt, num_font,
-               (left + coin_d + gap + bw // 2, m(CHIP_CY)), GOLD_A_NUM,
+               (left + coin_d + gap + bw // 2, m(cy)), GOLD_A_NUM,
                shadow_a=0, weight=m(0.7))
 
     for bx in (r.left + m(13), r.right - m(13)):
-        _bolt_dot(ov, bx, m(CHIP_CY))
+        _bolt_dot(ov, bx, m(cy))
 
 
 def _bolt_dot(ov, bx, by):
@@ -157,7 +204,7 @@ def render_popup(tier):
     ov = pygame.Surface((POP_W * SS, POP_H * SS), pygame.SRCALPHA)
     overlay_quatrefoil(ov)
     overlay_buttons(ov)
-    overlay_bullion_chip(ov, PRICES[tier])
+    overlay_bullion_chip(ov, PRICES[tier], _chip_cy(tier))
     # The live draw buries the banner under the shelf at Y_BANNER=402, so the
     # visible banner is re-drawn here on top; 140 keeps its tips clear of the
     # flanking bottom gems.
