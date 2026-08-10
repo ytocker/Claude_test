@@ -113,6 +113,28 @@ def _make_nest_params():
 
 P = _make_nest_params()
 
+def _draw_nest_only(surf, cy):
+    """Full nest, no bird and no hollow — reference for wall-pixel restores."""
+    verts, courses, stick_wins, rim_rect, stick_bottom, hollow, bird, bw, bh = P
+    rx, ry_off, rw, rh = rim_rect
+    pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
+    pygame.draw.arc(surf, _NEST_TWIG_MID,    (rx, cy + ry_off, rw, rh), math.pi, 2 * math.pi, 2)
+    pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
+    _vxL = verts[0]
+    for _dy in (-2, -1):
+        _y = cy + ry_off + rh + _dy
+        for _dx in _NEST_STICK_X_OFF: surf.set_at((_vxL + _dx, _y), _NEST_TWIG_BRIGHT)
+    for vx in verts: _nest_stick_span(surf, vx, cy + ry_off + rh, cy + stick_bottom)
+    _nest_weave(surf, cy, (0, 1), courses, stick_wins)
+    _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
+    for ci in (2, 3, 4):
+        offset, col, x1, x2, sag = courses[ci]
+        base_y = cy + offset
+        for (cii, vx), wins in stick_wins.items():
+            if cii == ci and wins: _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
+    _nest_notches(surf, cy, courses, stick_wins)
+
+
 def _draw_v2_body(surf, cy, alive, patch):
     """V2 draw verbatim; when patch=True a final interior-sharpen pass runs."""
     verts, courses, stick_wins, rim_rect, stick_bottom, hollow, bird, bw, bh = P
@@ -185,6 +207,20 @@ def _draw_v2_body(surf, cy, alive, patch):
             if cii == ci and wins: _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
     _nest_notches(surf, cy, courses, stick_wins)
     if patch and not alive:
+        # Left outer-wall thickening: the blob eats the weave to within 1 px of
+        # the sky for rows cy+4..cy+8 at the far left. Rebuild a bird-less nest
+        # and copy its 3 leftmost wall columns back for just those rows.
+        ref = pygame.Surface(surf.get_size())
+        ref.fill(SKY)
+        _draw_nest_only(ref, cy)
+        for y in range(cy + 4, cy + 9):
+            xl = None
+            for x in range(0, surf.get_width()):
+                if ref.get_at((x, y))[:3] != SKY:
+                    xl = x; break
+            if xl is None: continue
+            for x in range(xl, xl + 3):
+                surf.set_at((x, y), ref.get_at((x, y))[:3])
         # Gap patch, run last so notch/weave specks can't reappear: pure black on
         # every pixel strictly inside the rim ring. The ring band (outer 2 px of
         # the oval) is untouched, as is the whole parrot-blob outline below the
@@ -229,7 +265,8 @@ if __name__ == '__main__':
     diff = [(x, y) for y in range(H) for x in range(W)
             if s2.get_at((x, y)) != s3.get_at((x, y))]
     out_of_zone = [(x, y) for (x, y) in diff
-                   if not (CY+ry_off <= y <= CY+ry_off+rh)]
+                   if not (CY+ry_off <= y <= CY+ry_off+rh)
+                   and not (CY+4 <= y <= CY+8 and x <= 18)]
     print('saved', canvas.get_size(), '->', out)
     print('interior non-black:', bad[:5] if bad else 'none ✓')
     print('changed px:', len(diff), '| outside rim rows:', out_of_zone[:5] if out_of_zone else 'none ✓')
