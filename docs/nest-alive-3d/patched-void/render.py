@@ -231,6 +231,19 @@ def _draw_v2_body(surf, cy, alive, patch):
             for x in range(rx, rx + rw + 1):
                 if ((x - ecx) / ira) ** 2 + ((y - ecy) / irb) ** 2 <= 1.0:
                     surf.set_at((x, y), (0, 0, 0))
+        # Stray sweep: kill brown specks enclosed by the void — a brown pixel
+        # with near-black within 3 px on BOTH sides sits inside the blob, not
+        # on the visible weave, so it reads as noise.
+        def _blk(c): return c[0] < 12 and c[1] < 12 and c[2] < 12
+        for y in range(cy + ry_off, cy + ry_off + rh + 1):
+            for x in range(rx + 1, rx + rw):
+                c = surf.get_at((x, y))[:3]
+                if _blk(c) or c == (136, 183, 197) or c[0] <= 30: continue
+                if not (c[0] > c[2]): continue
+                lb = any(_blk(surf.get_at((x - d, y))[:3]) for d in (1, 2, 3))
+                rb = any(_blk(surf.get_at((x + d, y))[:3]) for d in (1, 2, 3))
+                if lb and rb:
+                    surf.set_at((x, y), (0, 0, 0))
 
 def draw_slot_v2(surf, cy, alive):
     _draw_v2_body(surf, cy, alive, patch=False)
