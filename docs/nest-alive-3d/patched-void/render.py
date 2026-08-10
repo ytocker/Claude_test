@@ -235,15 +235,30 @@ def _draw_v2_body(surf, cy, alive, patch):
         # with near-black within 3 px on BOTH sides sits inside the blob, not
         # on the visible weave, so it reads as noise.
         def _blk(c): return c[0] < 12 and c[1] < 12 and c[2] < 12
-        for y in range(cy + ry_off, cy + ry_off + rh + 1):
-            for x in range(rx + 1, rx + rw):
+        def _enclosed_sweep():
+            for y in range(cy + ry_off, cy + 10):
+                for x in range(rx + 1, rx + rw):
+                    c = surf.get_at((x, y))[:3]
+                    if _blk(c) or c == (136, 183, 197) or c[0] <= 30: continue
+                    if not (c[0] > c[2]): continue
+                    lb = any(_blk(surf.get_at((x - d, y))[:3]) for d in (1, 2, 3))
+                    rb = any(_blk(surf.get_at((x + d, y))[:3]) for d in (1, 2, 3))
+                    if lb and rb:
+                        surf.set_at((x, y), (0, 0, 0))
+        _enclosed_sweep()
+        # Second sweep, bottom-right shoulder of the blob (rows cy+7..cy+9):
+        # right-stick notch marks land on the black body there. Only DARK
+        # browns go — the bright right-wall / course pixels (x >= cx+11) stay.
+        for y in range(cy + 7, cy + 10):
+            for x in range(_NEST_CX + 2, _NEST_CX + 11):
                 c = surf.get_at((x, y))[:3]
-                if _blk(c) or c == (136, 183, 197) or c[0] <= 30: continue
-                if not (c[0] > c[2]): continue
-                lb = any(_blk(surf.get_at((x - d, y))[:3]) for d in (1, 2, 3))
-                rb = any(_blk(surf.get_at((x + d, y))[:3]) for d in (1, 2, 3))
-                if lb and rb:
-                    surf.set_at((x, y), (0, 0, 0))
+                if _blk(c) or c == (136, 183, 197): continue
+                if c[0] < 120 and c[0] > c[2]:
+                    if any(_blk(surf.get_at((x - d, y))[:3]) for d in (1, 2, 3, 4)):
+                        surf.set_at((x, y), (0, 0, 0))
+        # Re-run the enclosed sweep: the pass above may have freshly enclosed
+        # a bright speck between two newly blacked pixels.
+        _enclosed_sweep()
 
 def draw_slot_v2(surf, cy, alive):
     _draw_v2_body(surf, cy, alive, patch=False)
@@ -279,7 +294,8 @@ if __name__ == '__main__':
             if s2.get_at((x, y)) != s3.get_at((x, y))]
     out_of_zone = [(x, y) for (x, y) in diff
                    if not (CY+ry_off <= y <= CY+ry_off+rh)
-                   and not (CY+4 <= y <= CY+8 and x <= 18)]
+                   and not (CY+4 <= y <= CY+8 and x <= 18)
+                   and not (CY+7 <= y <= CY+9 and 33 <= x <= 41)]
     print('saved', canvas.get_size(), '->', out)
     print('interior non-black:', bad[:5] if bad else 'none ✓')
     print('changed px:', len(diff), '| outside rim rows:', out_of_zone[:5] if out_of_zone else 'none ✓')
