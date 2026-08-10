@@ -200,11 +200,14 @@ def _nest_get_params():
     return _nest_params
 
 
-def _nest_draw_slot(surf, cy, alive):
-    verts, courses, stick_wins, rim_rect, stick_bottom, hollow = _nest_get_params()
-    cx = _NEST_CX
+def _nest_draw_chrome_back(surf, cy, verts, courses, stick_wins, rim_rect,
+                           stick_bottom, back_arc=False):
+    """Everything drawn behind the bird: rim ring, sticks, upper weave."""
     rx, ry_off, rw, rh = rim_rect
     pygame.draw.ellipse(surf, (0, 0, 0), (rx, cy + ry_off, rw, rh))
+    if back_arc:
+        pygame.draw.arc(surf, _NEST_TWIG_MID, (rx, cy + ry_off, rw, rh),
+                        math.pi, 2 * math.pi, 2)
     pygame.draw.arc(surf, _NEST_TWIG_BRIGHT, (rx, cy + ry_off, rw, rh), 0, math.pi, 2)
     # The arc stop at π leaves a small gap on the bottom-left of the ellipse rim;
     # paint those pixels explicitly so the left stick has no black cap above it.
@@ -216,11 +219,10 @@ def _nest_draw_slot(surf, cy, alive):
     for vx in verts:
         _nest_stick_span(surf, vx, cy + ry_off + rh, cy + stick_bottom)
     _nest_weave(surf, cy, (0, 1), courses, stick_wins)
-    if alive:
-        surf.blit(_nest_bird, (cx - _nest_bird_w // 2, cy - _nest_bird_h // 2 + 5))
-    else:
-        hx, hy_off, hw, hh = hollow
-        pygame.draw.rect(surf, _NEST_HOLLOW_COL, (hx, cy + hy_off, hw, hh))
+
+
+def _nest_draw_chrome_front(surf, cy, courses, stick_wins):
+    """Everything drawn in front of the bird: lower weave, sticks, notches."""
     _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
     for ci in (2, 3, 4):
         offset, col, x1, x2, sag = courses[ci]
@@ -229,6 +231,146 @@ def _nest_draw_slot(surf, cy, alive):
             if cii == ci and wins:
                 _nest_stick_at_course(surf, vx, x1, x2, base_y, sag)
     _nest_notches(surf, cy, courses, stick_wins)
+
+
+_NEST_EMPTY_SPRITE: "pygame.Surface | None" = None
+_NEST_EMPTY_SPRITE_CY: int = -1
+
+
+def _nest_build_empty_sprite(cy):
+    """Empty-slot art: the nest cup holds a parrot-shaped black void.
+
+    The bird silhouette (zeroed RGB, original alpha) reads as the shadow of
+    the missing parrot; the rim ring is kept closed on top of it and stray
+    weave/notch marks that land on the void are swept to pure black. Built
+    once on a transparent canvas and cached — the art is static.
+    """
+    verts, courses, stick_wins, rim_rect, stick_bottom, hollow = _nest_get_params()
+    cx = _NEST_CX
+    rx, ry_off, rw, rh = rim_rect
+    # Height covers the lowest weave course (offset + sag + 4 course rows).
+    canvas = pygame.Surface((rx + rw + 4, cy + stick_bottom + 10), pygame.SRCALPHA)
+
+    _nest_draw_chrome_back(canvas, cy, verts, courses, stick_wins, rim_rect,
+                           stick_bottom, back_arc=True)
+    snap = canvas.copy()
+
+    ecx = rx + rw / 2.0
+    ecy = cy + ry_off + rh / 2.0
+    ra, rb = rw / 2.0, rh / 2.0
+    bx = cx - _nest_bird_w // 2
+    by = cy - _nest_bird_h // 2 + 5
+
+    # Bird-shaped void: black RGB, bird alpha; clipped to the rim rows and,
+    # in the oval's top half, to the oval itself so the head cannot bulge
+    # through the back rim.
+    sil = pygame.Surface((_nest_bird_w, _nest_bird_h), pygame.SRCALPHA)
+    for sy in range(_nest_bird_h):
+        py = by + sy
+        if py < cy + ry_off:
+            continue
+        for sx in range(_nest_bird_w):
+            a = _nest_bird.get_at((sx, sy))[3]
+            if a == 0:
+                continue
+            px = bx + sx
+            if py < ecy and ((px - ecx) / ra) ** 2 + ((py - ecy) / rb) ** 2 > 1.0:
+                continue
+            sil.set_at((sx, sy), (0, 0, 0, a))
+    canvas.blit(sil, (bx, by))
+
+    # The void covered parts of the ring — restore the top rim band from the
+    # pre-blit snapshot so the crib mouth stays a closed oval.
+    for y in range(cy + ry_off, int(ecy) + 1):
+        for x in range(rx, rx + rw + 1):
+            c = snap.get_at((x, y))[:3]
+            if c in (_NEST_TWIG_BRIGHT, _NEST_TWIG_MID):
+                canvas.set_at((x, y), c)
+    # Narrow bridge at the far-left edge keeps the wall column continuous
+    # between the rim tip and the weave below.
+    _by2 = int(ecy) + 1
+    for bxp, byp in ((rx, _by2), (rx + 1, _by2), (rx + 1, _by2 + 1)):
+        c = snap.get_at((bxp, byp))[:3]
+        if c in (_NEST_TWIG_BRIGHT, _NEST_TWIG_MID,
+                 _NEST_COURSE_TOP, _NEST_COURSE_BOT):
+            canvas.set_at((bxp, byp), c)
+
+    _nest_draw_chrome_front(canvas, cy, courses, stick_wins)
+
+    # The void eats the outer-left wall to a sliver — copy the 3 leftmost
+    # wall columns back from a bird-free reference for those rows.
+    ref = pygame.Surface(canvas.get_size(), pygame.SRCALPHA)
+    _nest_draw_chrome_back(ref, cy, verts, courses, stick_wins, rim_rect,
+                           stick_bottom, back_arc=True)
+    _nest_draw_chrome_front(ref, cy, courses, stick_wins)
+    for y in range(cy + 4, cy + 9):
+        xl = None
+        for x in range(ref.get_width()):
+            if ref.get_at((x, y))[3] > 0:
+                xl = x
+                break
+        if xl is None:
+            continue
+        for x in range(xl, xl + 3):
+            canvas.set_at((x, y), ref.get_at((x, y))[:3])
+
+    # Interior sharpen: everything strictly inside the rim ring is pure black.
+    ira, irb = ra - 2.0, rb - 2.0
+    for y in range(cy + ry_off, cy + ry_off + rh + 1):
+        for x in range(rx, rx + rw + 1):
+            if ((x - ecx) / ira) ** 2 + ((y - ecy) / irb) ** 2 <= 1.0:
+                canvas.set_at((x, y), (0, 0, 0))
+
+    # Stray sweep: weave/notch marks that land on the void read as noise.
+    # A brown pixel flanked by opaque near-black within 3 px on both sides
+    # sits inside the void, not on the visible weave.
+    def _blk(x, y):
+        c = canvas.get_at((x, y))
+        return c[3] == 255 and c[0] < 12 and c[1] < 12 and c[2] < 12
+
+    def _enclosed_sweep():
+        for y in range(cy + ry_off, cy + 10):
+            for x in range(rx + 1, rx + rw):
+                c = canvas.get_at((x, y))
+                if c[3] == 0 or c[0] <= 30 or not (c[0] > c[2]):
+                    continue
+                if _blk(x, y):
+                    continue
+                lb = any(_blk(x - d, y) for d in (1, 2, 3))
+                rb_ = any(_blk(x + d, y) for d in (1, 2, 3))
+                if lb and rb_:
+                    canvas.set_at((x, y), (0, 0, 0))
+
+    _enclosed_sweep()
+    # Bottom-right shoulder: right-stick notch marks land on the black body.
+    # Only dark browns go — the bright right-wall / course pixels stay.
+    for y in range(cy + 7, cy + 10):
+        for x in range(cx + 2, cx + 11):
+            c = canvas.get_at((x, y))
+            if c[3] == 0 or _blk(x, y):
+                continue
+            if c[0] < 120 and c[0] > c[2]:
+                if any(_blk(x - d, y) for d in (1, 2, 3, 4)):
+                    canvas.set_at((x, y), (0, 0, 0))
+    # Re-run: the pass above may have freshly enclosed a bright speck.
+    _enclosed_sweep()
+    return canvas
+
+
+def _nest_draw_slot(surf, cy, alive):
+    verts, courses, stick_wins, rim_rect, stick_bottom, hollow = _nest_get_params()
+    cx = _NEST_CX
+    if alive:
+        _nest_draw_chrome_back(surf, cy, verts, courses, stick_wins, rim_rect,
+                               stick_bottom)
+        surf.blit(_nest_bird, (cx - _nest_bird_w // 2, cy - _nest_bird_h // 2 + 5))
+        _nest_draw_chrome_front(surf, cy, courses, stick_wins)
+    else:
+        global _NEST_EMPTY_SPRITE, _NEST_EMPTY_SPRITE_CY
+        if _NEST_EMPTY_SPRITE is None or _NEST_EMPTY_SPRITE_CY != cy:
+            _NEST_EMPTY_SPRITE = _nest_build_empty_sprite(cy)
+            _NEST_EMPTY_SPRITE_CY = cy
+        surf.blit(_NEST_EMPTY_SPRITE, (0, 0))
 
 
 def _draw_pip_lives_row(surf, lives_remaining, lives_total):
