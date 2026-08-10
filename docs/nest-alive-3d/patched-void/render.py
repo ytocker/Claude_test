@@ -164,6 +164,19 @@ def _draw_v2_body(surf, cy, alive, patch):
                     c = snap.get_at((x, y))[:3]
                     if c in (_NEST_TWIG_BRIGHT, _NEST_TWIG_MID):
                         surf.set_at((x, y), c)
+            # Left wall thickening: the tail feathering eats the lower-left rim
+            # band, leaving the left crib wall thin. Restore a narrow strip of
+            # ring pixels hugging the left ellipse boundary in the lower rows.
+            wall_cols = (_NEST_TWIG_BRIGHT, _NEST_TWIG_MID,
+                         _NEST_COURSE_TOP, _NEST_COURSE_BOT)
+            for y in range(int(ecy_mid) + 1, cy + ry_off + rh - 1):
+                dyn = (y - ecy_mid) / (rh / 2.0)
+                if dyn >= 1.0: break
+                xl = (rx + rw / 2.0) - (rw / 2.0) * math.sqrt(1.0 - dyn * dyn)
+                for x in range(int(xl), int(xl) + 3):
+                    c = snap.get_at((x, y))[:3]
+                    if c in wall_cols:
+                        surf.set_at((x, y), c)
     _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
     for ci in (2, 3, 4):
         offset, col, x1, x2, sag = courses[ci]
