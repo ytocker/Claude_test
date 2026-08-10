@@ -196,6 +196,7 @@ def _draw_v2_body(surf, cy, alive, patch):
                 if dyn >= 1.0: break
                 xl = (rx + rw / 2.0) - (rw / 2.0) * math.sqrt(1.0 - dyn * dyn)
                 for x in range(int(xl), int(xl) + 3):
+                    if x > 16: continue  # only hug the far-left wall, never drift right
                     c = snap.get_at((x, y))[:3]
                     if c in wall_cols:
                         surf.set_at((x, y), c)
