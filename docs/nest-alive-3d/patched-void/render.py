@@ -130,12 +130,40 @@ def _draw_v2_body(surf, cy, alive, patch):
     if alive:
         surf.blit(bird, (bx, by))
     else:
+        snap = surf.copy() if patch else None
         sil = bird.copy()
         arr = pygame.surfarray.pixels3d(sil); arr[:] = 0; del arr
         top_clip = cy + ry_off; rows_above = max(0, top_clip - by)
         if 0 < rows_above <= sil.get_height():
             alp = pygame.surfarray.pixels_alpha(sil); alp[:, :rows_above] = 0; del alp
+        if patch:
+            # The head's feathered pixels bulge OUTSIDE the rim oval at the
+            # top-right, breaking the crib outline. Clip silhouette pixels that
+            # fall outside the ellipse in its top half; below the rim the blob
+            # keeps spilling over the weave exactly as in V2.
+            ecx = rx + rw / 2.0; ecy = cy + ry_off + rh / 2.0
+            ra, rb = rw / 2.0, rh / 2.0
+            alp = pygame.surfarray.pixels_alpha(sil)
+            for sy in range(sil.get_height()):
+                py = by + sy
+                if py >= ecy: break
+                for sx in range(sil.get_width()):
+                    px = bx + sx
+                    if ((px - ecx) / ra) ** 2 + ((py - ecy) / rb) ** 2 > 1.0:
+                        alp[sx, sy] = 0
+            del alp
         surf.blit(sil, (bx, by))
+        if patch:
+            # Close the broken crib rim: the black head covered the twig ring
+            # across the top-right. Restore every twig-coloured pixel of the top
+            # rim band (back half of the oval) from the pre-blit snapshot, so the
+            # ring reads closed IN FRONT of the void. Nothing else is restored.
+            ecy_mid = cy + ry_off + rh / 2.0
+            for y in range(cy + ry_off, int(ecy_mid) + 1):
+                for x in range(rx, rx + rw + 1):
+                    c = snap.get_at((x, y))[:3]
+                    if c in (_NEST_TWIG_BRIGHT, _NEST_TWIG_MID):
+                        surf.set_at((x, y), c)
     _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
     for ci in (2, 3, 4):
         offset, col, x1, x2, sag = courses[ci]
