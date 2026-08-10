@@ -191,12 +191,14 @@ def _draw_v2_body(surf, cy, alive, patch):
             # ring pixels hugging the left ellipse boundary in the lower rows.
             wall_cols = (_NEST_TWIG_BRIGHT, _NEST_TWIG_MID,
                          _NEST_COURSE_TOP, _NEST_COURSE_BOT)
-            # Single bridging pixel at the far-left edge keeps the wall column
-            # continuous between the rim tip and the lower-wall restore below.
+            # Narrow bridge at the far-left edge keeps the wall column
+            # continuous between the rim tip and the lower-wall restore below:
+            # two pixels on the first bridge row, one on the second.
             _by = int(ecy_mid) + 1
-            c = snap.get_at((14, _by))[:3]
-            if c in wall_cols:
-                surf.set_at((14, _by), c)
+            for (bxp, byp) in ((14, _by), (15, _by), (15, _by + 1)):
+                c = snap.get_at((bxp, byp))[:3]
+                if c in wall_cols:
+                    surf.set_at((bxp, byp), c)
     _nest_weave(surf, cy, (2, 3, 4), courses, stick_wins)
     for ci in (2, 3, 4):
         offset, col, x1, x2, sag = courses[ci]
