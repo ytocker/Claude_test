@@ -2,8 +2,8 @@
 
 Four EPIC panels: each concept's round_2 (gold BUY) next to a variant whose
 BUY derives its gradient from the price bar's own ramp (same top/mid, ~10%
-darker foot so the bar stays brightest). Matched BUYs take dark text in the
-bar's numeral colour — cream would wash out on the bright panel fills.
+darker foot so the bar stays brightest). BUY text keeps the locked T3
+treatment (cream, CANCEL-matched style) in every panel.
 """
 import os
 import sys
@@ -30,10 +30,12 @@ def _darken(c, f=0.9):
 
 
 def matched_buy(bar):
-    stops, num_col, rim_d, rim_b = bar
+    stops, _num_col, rim_d, rim_b = bar
     buy_stops = [(0.00, stops[0][1]), (0.40, stops[1][1]),
                  (1.00, _darken(stops[-1][1], 0.9))]
-    return (buy_stops, num_col, rim_d, rim_b)
+    # Text stays the locked T3 treatment (cream, CANCEL-matched style) — the
+    # dark keyline carries legibility on the bright panel fill.
+    return (buy_stops, cw.CREAM, rim_d, rim_b)
 
 
 def variant(slug, pal, matched):
