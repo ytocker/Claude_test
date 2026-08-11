@@ -317,8 +317,10 @@ def _nest_build_empty_sprite(cy):
         c = canvas.get_at((x, y))
         return c[3] == 255 and c[0] < 12 and c[1] < 12 and c[2] < 12
 
+    # Both sweeps stop above the dark row that joins the right wall to the
+    # bottom weave — that line is real border, not noise.
     def _enclosed_sweep():
-        for y in range(cy + ry_off, cy + 10):
+        for y in range(cy + ry_off, cy + 9):
             for x in range(rx + 1, rx + rw):
                 c = canvas.get_at((x, y))
                 if c[3] == 0 or c[0] <= 30 or not (c[0] > c[2]):
@@ -333,7 +335,7 @@ def _nest_build_empty_sprite(cy):
     _enclosed_sweep()
     # Bottom-right shoulder: right-stick notch marks land on the black body.
     # Only dark browns go — the bright right-wall / course pixels stay.
-    for y in range(cy + 7, cy + 10):
+    for y in range(cy + 7, cy + 9):
         for x in range(cx + 2, cx + 11):
             c = canvas.get_at((x, y))
             if c[3] == 0 or _blk(x, y):
@@ -343,6 +345,11 @@ def _nest_build_empty_sprite(cy):
                     canvas.set_at((x, y), (0, 0, 0))
     # Re-run: the pass above may have freshly enclosed a bright speck.
     _enclosed_sweep()
+    # Upper-right shoulder thickening: the ring arc runs 1-2 px there while
+    # its left mirror runs 3 — pad each thin column inward with one bright
+    # pixel (and close the tip gap) so both shoulders match.
+    for px_, dy_ in ((42, -1), (44, 0), (45, 0), (45, 1), (46, 1), (47, 2), (48, 2)):
+        canvas.set_at((px_, cy + dy_), _NEST_TWIG_BRIGHT)
     return canvas
 
 
