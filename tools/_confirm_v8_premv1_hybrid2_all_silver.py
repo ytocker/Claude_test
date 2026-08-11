@@ -6,7 +6,7 @@ constellation web glint, the platinum bar/BUY panels, and the cabochon ring
 around the item itself (patched from tier gem alpha 50 to crisp silver
 alpha 140).
 
-Output: colorways/all_silver_showcase_v1.png — 5 frames, EPIC.
+Output: colorways/all_silver_showcase_v2.png — 5 frames, EPIC.
 """
 import os
 import sys
@@ -62,6 +62,12 @@ def _patched_draw_all_silver():
         # faint tier tint
         (r'ring=pal\["gem"\], ring_a=50\)',
          f"ring={HERO_RING}, ring_a=140)"),
+        # the glass dome edge carried a tier tint that violet-washed the ring;
+        # neutralize it and stamp a crisp silver bezel on top of the glass
+        (r'store_cards\.cabochon_glass\(big, cx_ss, cy_ss, r_ss, tint=pal\["gem"\]\)',
+         f"store_cards.cabochon_glass(big, cx_ss, cy_ss, r_ss, tint={HERO_RING})\n"
+         f"    pygame.draw.circle(big, {HERO_RING}, (cx_ss, cy_ss), r_ss,"
+         f" max(2, m(1.6)))"),
     ]
     for pat, rep in subs:
         src, n = re.subn(pat, rep, src)
@@ -102,7 +108,10 @@ def main():
     store_mod._bg_hook = hook_constellation((190, 200, 215), BG_DEEP_A, BG_GLINT_A)
     bar, buy = PLATINUM
     h2.overlay_bullion_chip = cw.make_chip_fn(bar)
-    h2.overlay_buttons = cw.make_buttons_fn(buy, silver_pal["can"])
+    # CANCEL keeps its charcoal fill but the border joins the silver system
+    can_stops, can_text, _, _ = silver_pal["can"]
+    can_silver = (can_stops, can_text, SILVER["deep"], SILVER["bright"])
+    h2.overlay_buttons = cw.make_buttons_fn(buy, can_silver)
     try:
         MARGIN, HEAD, GAP = 20, 58, 12
         strip_w = MARGIN * 2 + len(FRAMES) * (POP_W + GAP) - GAP
@@ -125,7 +134,7 @@ def main():
         out_img = strip.resize((strip_w * 2, strip_h * 2), Image.LANCZOS)
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "all_silver_showcase_v1.png")
+                           "all_silver_showcase_v2.png")
         out_img.save(out)
         print("saved", out, out_img.size)
     finally:
