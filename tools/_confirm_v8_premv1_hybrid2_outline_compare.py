@@ -5,7 +5,7 @@ CANCEL fill, B5 web, zone-centred name, bar at cy=300. Only the OUTLINE
 system differs per row — frame construction colours, web glint, hero bezel
 (glass tint neutralized + crisp ring), and the CANCEL border.
 
-Output: colorways/outline_compare_v1.png
+Output: colorways/outline_compare_v2.png
 """
 import os
 import sys
@@ -38,9 +38,11 @@ from PIL import Image, ImageDraw
 
 POP_W, POP_H = 260, 442
 
-GOLD = dict(deep=(58, 48, 22), mid=(190, 154, 74), bright=(236, 202, 116),
-            gem=(220, 170, 60), gem_deep=(100, 62, 12),
-            glint=(220, 170, 60), ring=(222, 184, 96))
+# Saturated gold — the CARD_RING values wash toward grey once 2-3px lines go
+# through the LANCZOS downscale, so the row must overshoot to read as gold.
+GOLD = dict(deep=(96, 66, 14), mid=(214, 156, 48), bright=(255, 210, 92),
+            gem=(240, 178, 54), gem_deep=(120, 76, 12),
+            glint=(240, 182, 62), ring=(250, 200, 80))
 SILVER = dict(deep=(60, 68, 88), mid=(178, 186, 202), bright=(240, 244, 252),
               gem=(168, 196, 232), gem_deep=(52, 72, 104),
               glint=(190, 200, 215), ring=(206, 214, 226))
@@ -134,7 +136,7 @@ def main():
         out_img = grid.resize((strip_w * 2, strip_h * 2), Image.LANCZOS)
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "outline_compare_v1.png")
+                           "outline_compare_v2.png")
         out_img.save(out)
         print("saved", out, out_img.size)
     finally:
