@@ -247,11 +247,11 @@ SCRIBBLES3_R1 = [
 # wings gained trailing edge feathers (shared hook code above) so the emblem
 # spans the flanks — its alphas hold.
 SCRIBBLES3_R2 = [
-    ("#1 dragon-scales", hook_dragon_scales, 85, 70),
-    ("#2 clockwork-gears", hook_clockwork, 110, 95),
-    ("#3 wing-emblem", hook_wing_emblem, 100, 85),
-    ("#4 runic-frame", hook_runic_frame, 110, 95),
-    ("#5 lotus-throne", hook_lotus_throne, 105, 90),
+    ("C1 · dragon-scales", hook_dragon_scales, 85, 70),
+    ("C2 · clockwork-gears", hook_clockwork, 110, 95),
+    ("C3 · wing-emblem", hook_wing_emblem, 100, 85),
+    ("C4 · runic-frame", hook_runic_frame, 110, 95),
+    ("C5 · lotus-throne", hook_lotus_throne, 105, 90),
 ]
 
 
@@ -275,7 +275,7 @@ def main():
         grid = Image.new("RGB", (strip_w, strip_h), (10, 9, 20))
         idr = ImageDraw.Draw(grid)
         idr.text((MARGIN, 14),
-                 f"game-card ornaments run 3 · round_{round_no} · bar cy=300 · EPIC",
+                 f"FIGURE C · game-card ornaments run 3 · round_{round_no} · bar cy=300 · EPIC",
                  fill=(236, 214, 160))
 
         y = HEAD

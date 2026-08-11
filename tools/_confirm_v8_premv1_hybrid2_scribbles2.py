@@ -229,11 +229,11 @@ SCRIBBLES2_R1 = [
 # floor; constellation's web extended with side nodes (nodes 8/9 above) so it
 # reaches the card flanks — the extension is shared code, alphas bumped here.
 SCRIBBLES2_R2 = [
-    ("#1 arcane-sigil", hook_arcane_sigil, 100, 85),
-    ("#2 mandala-medallion", hook_mandala, 95, 80),
-    ("#3 heraldic-crest", hook_heraldic, 115, 95),
-    ("#4 celtic-knot", hook_celtic, 105, 90),
-    ("#5 constellation-web", hook_constellation, 110, 100),
+    ("B1 · arcane-sigil", hook_arcane_sigil, 100, 85),
+    ("B2 · mandala-medallion", hook_mandala, 95, 80),
+    ("B3 · heraldic-crest", hook_heraldic, 115, 95),
+    ("B4 · celtic-knot", hook_celtic, 105, 90),
+    ("B5 · constellation-web", hook_constellation, 110, 100),
 ]
 
 
@@ -257,7 +257,7 @@ def main():
         grid = Image.new("RGB", (strip_w, strip_h), (10, 9, 20))
         idr = ImageDraw.Draw(grid)
         idr.text((MARGIN, 14),
-                 f"game-card ornaments · round_{round_no} · bar cy=300 · EPIC",
+                 f"FIGURE B · game-card ornaments · round_{round_no} · bar cy=300 · EPIC",
                  fill=(236, 214, 160))
 
         y = HEAD

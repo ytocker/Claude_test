@@ -172,11 +172,11 @@ SCRIBBLES_R1 = [
 # lattice glint studs sat under the 1x readability threshold; the other three
 # passed unchanged.
 SCRIBBLES_R2 = [
-    ("#1 guilloche-rosette", hook_guilloche, 95, 70),
-    ("#2 laurel-arcs", hook_laurel, 110, 80),
-    ("#3 filigree-corners", hook_filigree, 120, 95),
-    ("#4 radiant-fan", hook_fan, 95, 70),
-    ("#5 damask-lattice", hook_lattice, 60, 95),
+    ("A1 · guilloche-rosette", hook_guilloche, 95, 70),
+    ("A2 · laurel-arcs", hook_laurel, 110, 80),
+    ("A3 · filigree-corners", hook_filigree, 120, 95),
+    ("A4 · radiant-fan", hook_fan, 95, 70),
+    ("A5 · damask-lattice", hook_lattice, 60, 95),
 ]
 
 
@@ -200,7 +200,7 @@ def main():
         grid = Image.new("RGB", (strip_w, strip_h), (10, 9, 20))
         idr = ImageDraw.Draw(grid)
         idr.text((MARGIN, 14),
-                 f"elegant background ornaments · round_{round_no} · bar cy=300 · EPIC",
+                 f"FIGURE A · elegant background ornaments · round_{round_no} · bar cy=300 · EPIC",
                  fill=(236, 214, 160))
 
         y = HEAD
