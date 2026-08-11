@@ -39,11 +39,13 @@ from PIL import Image, ImageDraw
 
 POP_W, POP_H = 260, 442
 
-SIL_DEEP = (60, 68, 88)
-SIL_MID = (178, 186, 202)
-SIL_BRIGHT = (240, 244, 252)
-GEM_SIL = (168, 196, 232)
-GEM_SIL_DEEP = (52, 72, 104)
+# Frame stays in the popup's ORIGINAL outline gold (CARD_RING family) — the
+# constructions add presence, the colour identity is untouched.
+SIL_DEEP = (58, 48, 22)          # CARD_RING_DEEP
+SIL_MID = (190, 154, 74)         # mid-gold between deep and bright
+SIL_BRIGHT = (236, 202, 116)     # CARD_RING_BRIGHT
+GEM_SIL = (220, 170, 60)
+GEM_SIL_DEEP = (100, 62, 12)
 
 
 def _patched_draw_frames():
