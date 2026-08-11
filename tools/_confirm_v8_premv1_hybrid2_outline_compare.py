@@ -5,7 +5,7 @@ CANCEL fill, B5 web, zone-centred name, bar at cy=300. Only the OUTLINE
 system differs per row — frame construction colours, web glint, hero bezel
 (glass tint neutralized + crisp ring), and the CANCEL border.
 
-Output: colorways/outline_compare_v5.png
+Output: colorways/outline_compare_v6.png
 """
 import os
 import sys
@@ -61,26 +61,24 @@ def _lift(c, f):
     return tuple(min(255, int(v * f)) for v in c)
 
 
-def make_buttons_unified(buy_cfg, can_text):
-    """CANCEL is drawn as a full clone of the BUY design — same panel fill,
-    rims, sheen, shadow, and text treatment. The only elements kept from the
-    old CANCEL are its label word and its muted label colour; the dark
-    keyline keeps that colour legible on the bright panel."""
+def make_buttons_unified(buy_cfg, can_stops, rim_d, rim_b):
+    """Cross-graft per the user's spec: BOTH buttons wear CANCEL's charcoal
+    background (fill, its softer sheen, row-metal border), and BOTH labels
+    wear BUY's text design (cream colour, keyline, shadow)."""
     from game.store_cards import (vgrad_stops, bevel_rim, top_sheen,
                                   drop_shadow, plain_text, font)
-    buy_stops, buy_text, buy_rd, buy_rb = buy_cfg
+    _, buy_text, _, _ = buy_cfg
 
     def buttons(ov):
         rad = m(12)
-        for cx, text_col, lbl in ((76, buy_text, "BUY"),
-                                  (184, can_text, "CANCEL")):
+        for cx, lbl in ((76, "BUY"), (184, "CANCEL")):
             r = pygame.Rect(0, 0, m(99), m(42))
             r.center = (m(cx), m(360))
             drop_shadow(ov, r, rad, blur=m(3), alpha=100, dy=m(2))
-            ov.blit(vgrad_stops(r.w, r.h, rad, buy_stops, 255), r.topleft)
-            top_sheen(ov, r, rad, m(12), peak=28)
-            bevel_rim(ov, r, rad, buy_rd, (*buy_rb, 235), w=max(1, m(2.0)))
-            plain_text(ov, lbl, font(14), r.center, text_col,
+            ov.blit(vgrad_stops(r.w, r.h, rad, can_stops, 255), r.topleft)
+            top_sheen(ov, r, rad, m(12), peak=14)
+            bevel_rim(ov, r, rad, rim_d, (*rim_b, 235), w=max(1, m(2.0)))
+            plain_text(ov, lbl, font(14), r.center, buy_text,
                        shadow_a=110, weight=m(0.8), keyline=(8, 6, 20), kw=m(0.9))
     return buttons
 
@@ -150,7 +148,8 @@ def main():
             store_mod._bg_hook = hook_constellation(pal["glint"],
                                                     BG_DEEP_A, BG_GLINT_A)
             h2.overlay_bullion_chip = cw.make_chip_fn(bar)
-            h2.overlay_buttons = make_buttons_unified(buy, can_text)
+            h2.overlay_buttons = make_buttons_unified(
+                buy, can_stops, pal["deep"], pal["bright"])
             idr.text((MARGIN, y + 2), row_label, fill=(206, 190, 150))
             y += 20
             for i, (label, frame_fn) in enumerate(FRAMES):
@@ -167,7 +166,7 @@ def main():
         out_img = grid.resize((strip_w * 2, strip_h * 2), Image.LANCZOS)
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "outline_compare_v5.png")
+                           "outline_compare_v6.png")
         out_img.save(out)
         print("saved", out, out_img.size)
     finally:
