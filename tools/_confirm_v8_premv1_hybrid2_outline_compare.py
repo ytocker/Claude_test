@@ -5,7 +5,7 @@ CANCEL fill, B5 web, zone-centred name, bar at cy=300. Only the OUTLINE
 system differs per row — frame construction colours, web glint, hero bezel
 (glass tint neutralized + crisp ring), and the CANCEL border.
 
-Output: colorways/outline_compare_v3.png
+Output: colorways/outline_compare_v4.png
 """
 import os
 import sys
@@ -55,6 +55,38 @@ FRAMES = [
     ("D4 · filigree-inlay", fr.frame_filigree_inlay),
     ("D5 · gemset", fr.frame_gemset),
 ]
+
+
+def _lift(c, f):
+    return tuple(min(255, int(v * f)) for v in c)
+
+
+def make_buttons_unified(buy_cfg, can_top, can_text, rim_d, rim_b):
+    """ONE construction for both buttons — BUY's design (3-stop panel ramp,
+    sheen 28, same rim and text treatment); only the colour sets differ.
+    CANCEL's ramp derives from its own charcoal family."""
+    import _confirm_v8_premv1_hybrid2 as _h2
+    from game.store_cards import (vgrad_stops, bevel_rim, top_sheen,
+                                  drop_shadow, plain_text, font)
+    buy_stops, buy_text, buy_rd, buy_rb = buy_cfg
+    can_stops = [(0.00, _lift(can_top, 1.7)), (0.40, can_top),
+                 (1.00, _lift(can_top, 0.55))]
+
+    def buttons(ov):
+        rad = m(12)
+        for cx, stops, text_col, rd, rb, lbl in (
+            (76, buy_stops, buy_text, buy_rd, buy_rb, "BUY"),
+            (184, can_stops, can_text, rim_d, rim_b, "CANCEL"),
+        ):
+            r = pygame.Rect(0, 0, m(99), m(42))
+            r.center = (m(cx), m(360))
+            drop_shadow(ov, r, rad, blur=m(3), alpha=100, dy=m(2))
+            ov.blit(vgrad_stops(r.w, r.h, rad, stops, 255), r.topleft)
+            top_sheen(ov, r, rad, m(12), peak=28)
+            bevel_rim(ov, r, rad, rd, (*rb, 235), w=max(1, m(2.0)))
+            plain_text(ov, lbl, font(14), r.center, text_col,
+                       shadow_a=110, weight=m(0.8), keyline=(8, 6, 20), kw=m(0.9))
+    return buttons
 
 
 def _patched_draw(ring):
@@ -122,8 +154,8 @@ def main():
             store_mod._bg_hook = hook_constellation(pal["glint"],
                                                     BG_DEEP_A, BG_GLINT_A)
             h2.overlay_bullion_chip = cw.make_chip_fn(bar)
-            h2.overlay_buttons = cw.make_buttons_fn(
-                buy, (can_stops, can_text, pal["deep"], pal["bright"]))
+            h2.overlay_buttons = make_buttons_unified(
+                buy, can_stops[0][1], can_text, pal["deep"], pal["bright"])
             idr.text((MARGIN, y + 2), row_label, fill=(206, 190, 150))
             y += 20
             for i, (label, frame_fn) in enumerate(FRAMES):
@@ -140,7 +172,7 @@ def main():
         out_img = grid.resize((strip_w * 2, strip_h * 2), Image.LANCZOS)
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "outline_compare_v3.png")
+                           "outline_compare_v4.png")
         out_img.save(out)
         print("saved", out, out_img.size)
     finally:
