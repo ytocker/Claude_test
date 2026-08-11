@@ -5,7 +5,7 @@ CANCEL fill, B5 web, zone-centred name, bar at cy=300. Only the OUTLINE
 system differs per row — frame construction colours, web glint, hero bezel
 (glass tint neutralized + crisp ring), and the CANCEL border.
 
-Output: colorways/outline_compare_v2.png
+Output: colorways/outline_compare_v3.png
 """
 import os
 import sys
@@ -23,7 +23,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _confirm_v8_premv1_hybrid2 as h2
 import _confirm_v8_premv1_hybrid2_colorway as cw
 import _confirm_v8_premv1_hybrid2_frames as fr
-from _confirm_v8_premv1_hybrid2_panel_color_options import PLATINUM
+from _confirm_v8_premv1_hybrid2_panel_color_options import (PLATINUM,
+                                                            GOLD as PANEL_GOLD)
 from _confirm_v8_premv1_hybrid2_scribbles import DESIGNS
 from _confirm_v8_premv1_hybrid2_scribbles2 import hook_constellation
 from _confirm_v8_premv1_hybrid2_name_layout import (NAME_ZONE_C, CHIP_CY,
@@ -97,8 +98,6 @@ def main():
     h2.CHIP_CY = CHIP_CY
     h2._chip_cy = _chip_cy_zone
     _, silver_pal = DESIGNS[0]
-    bar, buy = PLATINUM
-    h2.overlay_bullion_chip = cw.make_chip_fn(bar)
     can_stops, can_text, _, _ = silver_pal["can"]
     try:
         MARGIN, HEAD, GAP, ROW_FOOT = 20, 46, 12, 26
@@ -111,13 +110,18 @@ def main():
                  fill=(236, 214, 160))
 
         y = HEAD
-        for row_label, pal in (("GOLD outlines", GOLD), ("SILVER outlines", SILVER)):
+        # each row is its complete design system: gold outlines carry the gold
+        # bar/BUY panels, silver outlines carry the platinum panels
+        rows = (("GOLD outlines · gold panels", GOLD, PANEL_GOLD),
+                ("SILVER outlines · platinum panels", SILVER, PLATINUM))
+        for row_label, pal, (bar, buy) in rows:
             fr.SIL_DEEP, fr.SIL_MID, fr.SIL_BRIGHT = (pal["deep"], pal["mid"],
                                                       pal["bright"])
             fr.GEM_SIL, fr.GEM_SIL_DEEP = pal["gem"], pal["gem_deep"]
             h2._DRAW_FN[0] = _patched_draw(pal["ring"])
             store_mod._bg_hook = hook_constellation(pal["glint"],
                                                     BG_DEEP_A, BG_GLINT_A)
+            h2.overlay_bullion_chip = cw.make_chip_fn(bar)
             h2.overlay_buttons = cw.make_buttons_fn(
                 buy, (can_stops, can_text, pal["deep"], pal["bright"]))
             idr.text((MARGIN, y + 2), row_label, fill=(206, 190, 150))
@@ -136,7 +140,7 @@ def main():
         out_img = grid.resize((strip_w * 2, strip_h * 2), Image.LANCZOS)
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "outline_compare_v2.png")
+                           "outline_compare_v3.png")
         out_img.save(out)
         print("saved", out, out_img.size)
     finally:
