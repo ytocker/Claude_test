@@ -6,7 +6,7 @@ ornament, so every frame sits above the B5 web but below gems, name and the
 overhanging hero — the natural z-order of a collectible-card frame.
 
 Usage: python _confirm_v8_premv1_hybrid2_frames.py <round>
-round 1 → colorways/frames_r1.png ; round 2 → frames_showcase_v2.png
+round 1 → colorways/frames_r1.png ; round 2 → frames_showcase_v3.png
 """
 import os
 import sys
@@ -205,7 +205,7 @@ FRAMES_R2 = list(FRAMES_R1)
 def main():
     round_no = int(sys.argv[1]) if len(sys.argv) > 1 else 1
     frames = FRAMES_R1 if round_no == 1 else FRAMES_R2
-    out_name = "frames_r1.png" if round_no == 1 else "frames_showcase_v2.png"
+    out_name = "frames_r1.png" if round_no == 1 else "frames_showcase_v3.png"
 
     _orig_bal = store_data.balance
     _orig_cost = store_catalog.cost
@@ -217,7 +217,8 @@ def main():
     h2.CHIP_CY = CHIP_CY
     h2._chip_cy = _chip_cy_zone
     silver_label, silver = DESIGNS[0]
-    store_mod._bg_hook = hook_constellation(silver["glint"], BG_DEEP_A, BG_GLINT_A)
+    # scribble glint follows the gold outline family, not the silver panels
+    store_mod._bg_hook = hook_constellation(GEM_SIL, BG_DEEP_A, BG_GLINT_A)
     h2.overlay_bullion_chip = cw.make_chip_fn(silver["bar"])
     h2.overlay_buttons = cw.make_buttons_fn(silver["buy"], silver["can"])
     try:
