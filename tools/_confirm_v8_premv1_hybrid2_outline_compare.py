@@ -1,0 +1,150 @@
+"""Outline comparison — gold vs silver, one figure, 2 rows × 5 frames.
+
+Both rows share identical content: platinum bar/BUY panels (E2), charcoal
+CANCEL fill, B5 web, zone-centred name, bar at cy=300. Only the OUTLINE
+system differs per row — frame construction colours, web glint, hero bezel
+(glass tint neutralized + crisp ring), and the CANCEL border.
+
+Output: colorways/outline_compare_v1.png
+"""
+import os
+import sys
+import re
+import inspect
+import textwrap
+
+os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+import pygame
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import _confirm_v8_premv1_hybrid2 as h2
+import _confirm_v8_premv1_hybrid2_colorway as cw
+import _confirm_v8_premv1_hybrid2_frames as fr
+from _confirm_v8_premv1_hybrid2_panel_color_options import PLATINUM
+from _confirm_v8_premv1_hybrid2_scribbles import DESIGNS
+from _confirm_v8_premv1_hybrid2_scribbles2 import hook_constellation
+from _confirm_v8_premv1_hybrid2_name_layout import (NAME_ZONE_C, CHIP_CY,
+                                                    BG_DEEP_A, BG_GLINT_A,
+                                                    _chip_cy_zone)
+import game.store as store_mod
+import game.store_data as store_data
+import game.store_catalog as store_catalog
+from game.store import StoreScene
+from game.store_cards import m
+from PIL import Image, ImageDraw
+
+POP_W, POP_H = 260, 442
+
+GOLD = dict(deep=(58, 48, 22), mid=(190, 154, 74), bright=(236, 202, 116),
+            gem=(220, 170, 60), gem_deep=(100, 62, 12),
+            glint=(220, 170, 60), ring=(222, 184, 96))
+SILVER = dict(deep=(60, 68, 88), mid=(178, 186, 202), bright=(240, 244, 252),
+              gem=(168, 196, 232), gem_deep=(52, 72, 104),
+              glint=(190, 200, 215), ring=(206, 214, 226))
+
+FRAMES = [
+    ("D1 · double-bevel", fr.frame_double_bevel),
+    ("D2 · beaded", fr.frame_beaded),
+    ("D3 · corner-plates", fr.frame_corner_plates),
+    ("D4 · filigree-inlay", fr.frame_filigree_inlay),
+    ("D5 · gemset", fr.frame_gemset),
+]
+
+
+def _patched_draw(ring):
+    src = textwrap.dedent(inspect.getsource(StoreScene._draw_confirm))
+    subs = [
+        (r"_chip\(m\(CX\), m\(CHIP_CY\)\)", "pass"),
+        (r'_btn\(buy_r, "BUY", locked=not affordable\)', "pass"),
+        (r'_btn\(can_r, "CANCEL", is_cancel=True\)', "pass"),
+        (r"NAME_FS, Y_NAME = 45, 213", f"NAME_FS, Y_NAME = 45, {NAME_ZONE_C}"),
+        (r"_cy1 = _disc_bot_ss \+ _nfnt\.get_height\(\) // 2",
+         f"_cy1 = m({NAME_ZONE_C}) - int(_nfnt.get_height() * 1.15) // 2"),
+        (r"store_cards\.bevel_rim\(big, rect, rad, store_cards\.CARD_RING_DEEP,"
+         r"\s*\(\*store_cards\.CARD_RING_BRIGHT, 230\), w=max\(1, m\(1\.9\)\)\)",
+         "pass"),
+        (r"pygame\.draw\.rect\(big, \(\*store_cards\.CARD_RING_BRIGHT, 55\), tray,"
+         r"\s*width=max\(1, m\(1\)\), border_radius=rad - m\(3\)\)",
+         "pass"),
+        (r"(\n\s*# ── corner gem pair)",
+         r"\n    _bg_hook(big)\n    _frame_hook(big, rect, rad)\1"),
+        (r'ring=pal\["gem"\], ring_a=50\)', f"ring={ring}, ring_a=140)"),
+        (r'store_cards\.cabochon_glass\(big, cx_ss, cy_ss, r_ss, tint=pal\["gem"\]\)',
+         f"store_cards.cabochon_glass(big, cx_ss, cy_ss, r_ss, tint={ring})\n"
+         f"    pygame.draw.circle(big, {ring}, (cx_ss, cy_ss), r_ss,"
+         f" max(2, m(1.6)))"),
+    ]
+    for pat, rep in subs:
+        src, n = re.subn(pat, rep, src)
+        assert n == 1, f"patch failed: {pat}"
+    ns = {}
+    exec(compile(src, "<outline_compare_draw>", "exec"), store_mod.__dict__, ns)
+    return ns["_draw_confirm"]
+
+
+def main():
+    _orig_bal = store_data.balance
+    _orig_cost = store_catalog.cost
+    _orig_chip_cy = h2.CHIP_CY
+    store_data.balance = lambda: 99999
+    store_catalog.cost = lambda sid: 1400
+    h2.overlay_quatrefoil = lambda ov: None
+    h2.CHIP_CY = CHIP_CY
+    h2._chip_cy = _chip_cy_zone
+    _, silver_pal = DESIGNS[0]
+    bar, buy = PLATINUM
+    h2.overlay_bullion_chip = cw.make_chip_fn(bar)
+    can_stops, can_text, _, _ = silver_pal["can"]
+    try:
+        MARGIN, HEAD, GAP, ROW_FOOT = 20, 46, 12, 26
+        strip_w = MARGIN * 2 + len(FRAMES) * (POP_W + GAP) - GAP
+        strip_h = HEAD + 2 * (POP_H + ROW_FOOT + 24) + MARGIN
+        grid = Image.new("RGB", (strip_w, strip_h), (10, 9, 20))
+        idr = ImageDraw.Draw(grid)
+        idr.text((MARGIN, 14),
+                 "outline systems · GOLD vs SILVER · platinum panels · EPIC",
+                 fill=(236, 214, 160))
+
+        y = HEAD
+        for row_label, pal in (("GOLD outlines", GOLD), ("SILVER outlines", SILVER)):
+            fr.SIL_DEEP, fr.SIL_MID, fr.SIL_BRIGHT = (pal["deep"], pal["mid"],
+                                                      pal["bright"])
+            fr.GEM_SIL, fr.GEM_SIL_DEEP = pal["gem"], pal["gem_deep"]
+            h2._DRAW_FN[0] = _patched_draw(pal["ring"])
+            store_mod._bg_hook = hook_constellation(pal["glint"],
+                                                    BG_DEEP_A, BG_GLINT_A)
+            h2.overlay_buttons = cw.make_buttons_fn(
+                buy, (can_stops, can_text, pal["deep"], pal["bright"]))
+            idr.text((MARGIN, y + 2), row_label, fill=(206, 190, 150))
+            y += 20
+            for i, (label, frame_fn) in enumerate(FRAMES):
+                store_mod._frame_hook = frame_fn
+                pop = h2.render_popup("EPIC")
+                pil = Image.frombytes("RGB", (POP_W, POP_H),
+                                      pygame.image.tostring(pop, "RGB"))
+                x = MARGIN + i * (POP_W + GAP)
+                grid.paste(pil, (x, y))
+                idr.text((x + POP_W // 2, y + POP_H + 5), label,
+                         fill=(170, 170, 195), anchor="mt")
+            y += POP_H + ROW_FOOT + 4
+
+        out_img = grid.resize((strip_w * 2, strip_h * 2), Image.LANCZOS)
+        out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "confirm_purchase_v8", "premium-v1", "colorways",
+                           "outline_compare_v1.png")
+        out_img.save(out)
+        print("saved", out, out_img.size)
+    finally:
+        store_data.balance = _orig_bal
+        store_catalog.cost = _orig_cost
+        h2.CHIP_CY = _orig_chip_cy
+        for attr in ("_bg_hook", "_frame_hook"):
+            if hasattr(store_mod, attr):
+                delattr(store_mod, attr)
+
+
+if __name__ == "__main__":
+    main()
