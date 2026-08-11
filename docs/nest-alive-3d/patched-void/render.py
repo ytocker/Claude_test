@@ -236,7 +236,7 @@ def _draw_v2_body(surf, cy, alive, patch):
         # on the visible weave, so it reads as noise.
         def _blk(c): return c[0] < 12 and c[1] < 12 and c[2] < 12
         def _enclosed_sweep():
-            for y in range(cy + ry_off, cy + 10):
+            for y in range(cy + ry_off, cy + 9):
                 for x in range(rx + 1, rx + rw):
                     c = surf.get_at((x, y))[:3]
                     if _blk(c) or c == (136, 183, 197) or c[0] <= 30: continue
@@ -249,7 +249,7 @@ def _draw_v2_body(surf, cy, alive, patch):
         # Second sweep, bottom-right shoulder of the blob (rows cy+7..cy+9):
         # right-stick notch marks land on the black body there. Only DARK
         # browns go — the bright right-wall / course pixels (x >= cx+11) stay.
-        for y in range(cy + 7, cy + 10):
+        for y in range(cy + 7, cy + 9):
             for x in range(_NEST_CX + 2, _NEST_CX + 11):
                 c = surf.get_at((x, y))[:3]
                 if _blk(c) or c == (136, 183, 197): continue
