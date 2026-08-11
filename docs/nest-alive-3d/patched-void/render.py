@@ -259,6 +259,11 @@ def _draw_v2_body(surf, cy, alive, patch):
         # Re-run the enclosed sweep: the pass above may have freshly enclosed
         # a bright speck between two newly blacked pixels.
         _enclosed_sweep()
+        # Upper-right shoulder thickening: the ring arc runs 1-2 px there while
+        # its left mirror runs 3 — pad each thin column inward with one bright
+        # pixel (and close the row-75 gap at the tip) so both shoulders match.
+        for px_, py_ in ((42, 72), (44, 73), (45, 73), (45, 74), (46, 74), (47, 75), (48, 75)):
+            surf.set_at((px_, cy + (py_ - 73)), _NEST_TWIG_BRIGHT)
 
 def draw_slot_v2(surf, cy, alive):
     _draw_v2_body(surf, cy, alive, patch=False)
@@ -287,7 +292,8 @@ if __name__ == '__main__':
            for y in range(CY+ry_off, CY+ry_off+rh+1)
            for x in range(rx, rx+rw+1)
            if ((x-ecx)/ira)**2 + ((y-ecy)/irb)**2 <= 1.0
-           and s2.get_at((x, y))[:3] != (0, 0, 0)]
+           and s2.get_at((x, y))[:3] != (0, 0, 0)
+           and (x, y) not in ((42,72),(44,73),(45,73),(45,74),(46,74),(47,75),(48,75))]
     # Diff vs unpatched V2 must be confined to the rim-ellipse rows.
     s3 = pygame.Surface((W, H)); s3.fill(SKY); draw_slot_v2(s3, CY, False)
     diff = [(x, y) for y in range(H) for x in range(W)
