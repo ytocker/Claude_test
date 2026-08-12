@@ -1,10 +1,10 @@
-"""Compact 5×5 button grid: label size × border width, button zone only.
+"""Compact 5×5 button grid: label size × border width, FULL popups at 1×.
 
-Each cell is the popup's button band (cropped), so 25 combinations fit one
-readable figure. Rows: font sizes 14–18. Cols: border widths 2.0–4.0.
+Each cell is the complete popup at native game scale, so the buttons are
+judged in full context while 25 combinations still fit one figure. Rows: font sizes 14–18. Cols: border widths 2.0–4.0.
 Gold system, D1 frame, EPIC, per checkpoint 2.
 
-Output: colorways/button_text_border_grid_v2.png
+Output: colorways/button_text_border_grid_v3.png
 """
 import os
 import sys
@@ -33,9 +33,8 @@ from PIL import Image, ImageDraw
 POP_W, POP_H = 260, 442
 TEXT_SIZES = [14, 15, 16, 17, 18]
 RIM_WIDTHS = [2.0, 2.5, 3.0, 3.5, 4.0]
-# button band crop in logical px, scaled 2x per cell
-CROP = (14, 328, 246, 396)
-CELL_W, CELL_H = (CROP[2] - CROP[0]) * 2, (CROP[3] - CROP[1]) * 2
+# full popup at native 1x scale per cell
+CELL_W, CELL_H = POP_W, POP_H
 
 
 def main():
@@ -83,11 +82,10 @@ def main():
                 pop = h2.render_popup("EPIC")
                 pil = Image.frombytes("RGB", (POP_W, POP_H),
                                       pygame.image.tostring(pop, "RGB"))
-                cell = pil.crop(CROP).resize((CELL_W, CELL_H), Image.LANCZOS)
-                grid.paste(cell, (L_MARGIN + i * (CELL_W + GAP), y))
+                grid.paste(pil, (L_MARGIN + i * (CELL_W + GAP), y))
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "button_text_border_grid_v2.png")
+                           "button_text_border_grid_v3.png")
         grid.save(out)
         print("saved", out, grid.size)
     finally:
