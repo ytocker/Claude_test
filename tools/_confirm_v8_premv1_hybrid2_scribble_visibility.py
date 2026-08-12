@@ -4,7 +4,7 @@ Five levels from the current alphas upward, including a "bold" variant that
 double-draws the web with a 1px offset to thicken every line and star.
 Gold system, D1 frame, fs15/border4 buttons, EPIC, full popups at 1×.
 
-Output: colorways/scribble_visibility_v1.png
+Output: colorways/scribble_visibility_v2.png
 """
 import os
 import sys
@@ -48,10 +48,10 @@ def bold_hook(glint, deep_a, glint_a):
 # (label, hook factory, deep alpha, glint alpha)
 OPTIONS = [
     ("V1 · current (110/100)", hook_constellation, 110, 100),
-    ("V2 · lifted (140/125)", hook_constellation, 140, 125),
-    ("V3 · strong (170/150)", hook_constellation, 170, 150),
-    ("V4 · bold lines (140/125)", bold_hook, 140, 125),
-    ("V5 · max (205/180)", hook_constellation, 205, 180),
+    ("V1.5 · (125/112)", hook_constellation, 125, 112),
+    ("V2 · (140/125)", hook_constellation, 140, 125),
+    ("V2.5 · (155/138)", hook_constellation, 155, 138),
+    ("V3 · (170/150)", hook_constellation, 170, 150),
 ]
 
 
@@ -96,7 +96,7 @@ def main():
                      fill=(170, 170, 195), anchor="mt")
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "scribble_visibility_v1.png")
+                           "scribble_visibility_v2.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
