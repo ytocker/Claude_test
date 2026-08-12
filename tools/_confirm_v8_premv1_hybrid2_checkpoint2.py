@@ -9,7 +9,7 @@ Still open: the colour system — GOLD (gold outlines/web/panels) vs SILVER
 (silver outlines/web, platinum panels). Both rows render here across all
 three tiers. NOT yet ported to game/store.py.
 
-Output: colorways/CHECKPOINT2_D1.png (2 rows × RARE/EPIC/LEGENDARY)
+Output: colorways/CHECKPOINT3.png (2 rows × RARE/EPIC/LEGENDARY)
 """
 import os
 import sys
@@ -25,6 +25,7 @@ import _confirm_v8_premv1_hybrid2 as h2
 import _confirm_v8_premv1_hybrid2_colorway as cw
 import _confirm_v8_premv1_hybrid2_frames as fr
 import _confirm_v8_premv1_hybrid2_outline_compare as oc
+from _confirm_v8_premv1_hybrid2_button_text_border import make_buttons
 from _confirm_v8_premv1_hybrid2_scribbles import DESIGNS
 from _confirm_v8_premv1_hybrid2_scribbles2 import hook_constellation
 from _confirm_v8_premv1_hybrid2_name_layout import (CHIP_CY, BG_DEEP_A,
@@ -56,7 +57,7 @@ def main():
         grid = Image.new("RGB", (strip_w, strip_h), (10, 9, 20))
         idr = ImageDraw.Draw(grid)
         idr.text((MARGIN, 14),
-                 "CHECKPOINT 2 · D1 frame locked · colour system still open",
+                 "CHECKPOINT 3 · D1 · fs15/border4 buttons · colour system open",
                  fill=(236, 214, 160))
 
         rows = (("GOLD system", oc.GOLD, oc.PANEL_GOLD),
@@ -71,8 +72,9 @@ def main():
                                                     BG_DEEP_A, BG_GLINT_A)
             store_mod._frame_hook = fr.frame_double_bevel
             h2.overlay_bullion_chip = cw.make_chip_fn(bar)
-            h2.overlay_buttons = oc.make_buttons_unified(
-                buy, can_stops, pal["deep"], pal["bright"])
+            _bs, buy_text, _rd, _rb = buy
+            h2.overlay_buttons = make_buttons(
+                can_stops, buy_text, pal["deep"], pal["bright"], 15, 4.0)
             idr.text((MARGIN, y + 2), row_label, fill=(206, 190, 150))
             y += 20
             for i, tier in enumerate(TIERS):
@@ -88,7 +90,7 @@ def main():
         out_img = grid.resize((strip_w * 2, strip_h * 2), Image.LANCZOS)
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "CHECKPOINT2_D1.png")
+                           "CHECKPOINT3.png")
         out_img.save(out)
         print("saved", out, out_img.size)
     finally:

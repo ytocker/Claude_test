@@ -71,3 +71,17 @@ Reference image: `CHECKPOINT2_D1.png` (2 colour systems × 3 tiers)
   `oc.GOLD` + `PANEL_GOLD`) vs SILVER (silver outlines/web + platinum
   panels — `oc.SILVER` + `PLATINUM`). Both render in the checkpoint image.
 - Fresh-filename rule for every published figure (git blob caching).
+
+
+---
+
+# CHECKPOINT 3 addendum
+
+Reference image: `CHECKPOINT3.png` · renderer `tools/_confirm_v8_premv1_hybrid2_checkpoint2.py`
+
+- **Button label size: font 15** (was 14) — BUY's cream text design on both labels.
+- **Button border width: 4.0 logical px** (was 2.0) — outline-metal bevel,
+  drawn inward so the 99×42 hit area is unchanged.
+- Chosen from `button_text_border_grid_v3.png` (5×5 full popups) and
+  `button_border_wide_v1.png` (widths 4–8 at fs 15).
+- Colour system (gold vs silver) remains the open decision.
