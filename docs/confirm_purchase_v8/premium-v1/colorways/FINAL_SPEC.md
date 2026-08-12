@@ -40,3 +40,34 @@ G2→two-metals colourway (gold-on-gold rejected) → matched BUY panel →
 B2 button size → T3 text → S2-clean shine → B5 ornament (design run 2) →
 zone-centred name. Option strips for every step live in this directory and
 `docs/confirm_purchase_v8/premium-v1/`.
+
+
+---
+
+# CHECKPOINT 2 addendum (supersedes conflicting items above)
+
+Status: **locked design state, still tuning — not ported to `game/store.py`**.
+Reference renderer: `tools/_confirm_v8_premv1_hybrid2_checkpoint2.py`
+Reference image: `CHECKPOINT2_D1.png` (2 colour systems × 3 tiers)
+
+## Locked since checkpoint 1
+
+- **Frame: D1 platinum-double-bevel** (`frame_double_bevel` in
+  `tools/_confirm_v8_premv1_hybrid2_frames.py`): filled mid-band (alpha 150,
+  width 5) under a 4px bevel rim, twin inner keylines. Replaces the stock
+  bevel + tray ring; drawn ABOVE the B5 web, BELOW gems/name/hero.
+- **Bar position: cy=300** (moved down from 247; push-down maths kept).
+- **Hero bezel**: glass tint neutralized to the outline metal + crisp ring
+  (alpha 140, width 1.6) stamped over the glass.
+- **CANCEL border**: outline-metal rims (no longer CARD_RING gold).
+- **Buttons cross-graft**: BOTH buttons use CANCEL's charcoal fill
+  [(24,28,44)->(12,14,26)], sheen 14, outline-metal border; BOTH labels use
+  BUY's text design (cream (255,248,220), keyline (8,6,20), shadow 110).
+  Buttons are intentionally equal — the price bar is the brightest element.
+
+## Still open
+
+- **Colour system**: GOLD (saturated gold outlines/web/panels — see
+  `oc.GOLD` + `PANEL_GOLD`) vs SILVER (silver outlines/web + platinum
+  panels — `oc.SILVER` + `PLATINUM`). Both render in the checkpoint image.
+- Fresh-filename rule for every published figure (git blob caching).
