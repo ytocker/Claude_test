@@ -85,3 +85,15 @@ Reference image: `CHECKPOINT3.png` · renderer `tools/_confirm_v8_premv1_hybrid2
 - Chosen from `button_text_border_grid_v3.png` (5×5 full popups) and
   `button_border_wide_v1.png` (widths 4–8 at fs 15).
 - Colour system (gold vs silver) remains the open decision.
+
+
+---
+
+# CHECKPOINT 4 addendum
+
+Reference image: `CHECKPOINT4.png` · renderer `tools/_confirm_v8_premv1_hybrid2_checkpoint2.py`
+
+- **Web visibility: V2.5** — constellation-web alphas raised to deep 155 /
+  glint 138 (was 110/100). Chosen from `scribble_visibility_v2.png`
+  (fine ladder V1→V3).
+- Colour system (gold vs silver) remains the open decision.

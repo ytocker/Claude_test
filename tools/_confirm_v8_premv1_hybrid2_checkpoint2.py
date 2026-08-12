@@ -9,7 +9,7 @@ Still open: the colour system — GOLD (gold outlines/web/panels) vs SILVER
 (silver outlines/web, platinum panels). Both rows render here across all
 three tiers. NOT yet ported to game/store.py.
 
-Output: colorways/CHECKPOINT3.png (2 rows × RARE/EPIC/LEGENDARY)
+Output: colorways/CHECKPOINT4.png (2 rows × RARE/EPIC/LEGENDARY)
 """
 import os
 import sys
@@ -28,8 +28,10 @@ import _confirm_v8_premv1_hybrid2_outline_compare as oc
 from _confirm_v8_premv1_hybrid2_button_text_border import make_buttons
 from _confirm_v8_premv1_hybrid2_scribbles import DESIGNS
 from _confirm_v8_premv1_hybrid2_scribbles2 import hook_constellation
-from _confirm_v8_premv1_hybrid2_name_layout import (CHIP_CY, BG_DEEP_A,
-                                                    BG_GLINT_A, _chip_cy_zone)
+from _confirm_v8_premv1_hybrid2_name_layout import CHIP_CY, _chip_cy_zone
+
+# V2.5 web visibility (locked from scribble_visibility_v2.png)
+BG_DEEP_A, BG_GLINT_A = 155, 138
 import game.store as store_mod
 import game.store_data as store_data
 import game.store_catalog as store_catalog
@@ -57,7 +59,7 @@ def main():
         grid = Image.new("RGB", (strip_w, strip_h), (10, 9, 20))
         idr = ImageDraw.Draw(grid)
         idr.text((MARGIN, 14),
-                 "CHECKPOINT 3 · D1 · fs15/border4 buttons · colour system open",
+                 "CHECKPOINT 4 · D1 · fs15/border4 · web V2.5 · colour open",
                  fill=(236, 214, 160))
 
         rows = (("GOLD system", oc.GOLD, oc.PANEL_GOLD),
@@ -90,7 +92,7 @@ def main():
         out_img = grid.resize((strip_w * 2, strip_h * 2), Image.LANCZOS)
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "CHECKPOINT3.png")
+                           "CHECKPOINT4.png")
         out_img.save(out)
         print("saved", out, out_img.size)
     finally:
