@@ -4,7 +4,7 @@ Each cell is the complete popup at native game scale, so the buttons are
 judged in full context while 25 combinations still fit one figure. Rows: font sizes 14–18. Cols: border widths 2.0–4.0.
 Gold system, D1 frame, EPIC, per checkpoint 2.
 
-Output: colorways/button_text_border_grid_v3.png
+Output: colorways/button_border_wide_v1.png
 """
 import os
 import sys
@@ -31,8 +31,8 @@ import game.store_catalog as store_catalog
 from PIL import Image, ImageDraw
 
 POP_W, POP_H = 260, 442
-TEXT_SIZES = [14, 15, 16, 17, 18]
-RIM_WIDTHS = [2.0, 2.5, 3.0, 3.5, 4.0]
+TEXT_SIZES = [15]
+RIM_WIDTHS = [4.0, 5.0, 6.0, 7.0, 8.0]
 # full popup at native 1x scale per cell
 CELL_W, CELL_H = POP_W, POP_H
 
@@ -68,12 +68,12 @@ def main():
                  fill=(236, 214, 160))
         for i, w in enumerate(RIM_WIDTHS):
             x = L_MARGIN + i * (CELL_W + GAP)
-            tag = " (cur)" if w == 2.0 else ""
+            tag = ""
             idr.text((x + CELL_W // 2, T_MARGIN + 8),
                      f"border {w:g}{tag}", fill=(206, 190, 150), anchor="mm")
         for r, fpx in enumerate(TEXT_SIZES):
             y = T_MARGIN + HDR + r * (CELL_H + GAP)
-            tag = " (cur)" if fpx == 14 else ""
+            tag = " (locked)"
             idr.text((L_MARGIN - 10, y + CELL_H // 2),
                      f"fs {fpx}{tag}", fill=(206, 190, 150), anchor="rm")
             for i, rim_w in enumerate(RIM_WIDTHS):
@@ -85,7 +85,7 @@ def main():
                 grid.paste(pil, (L_MARGIN + i * (CELL_W + GAP), y))
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "button_text_border_grid_v3.png")
+                           "button_border_wide_v1.png")
         grid.save(out)
         print("saved", out, grid.size)
     finally:
