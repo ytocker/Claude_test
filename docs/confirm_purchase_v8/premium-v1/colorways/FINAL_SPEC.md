@@ -127,3 +127,25 @@ Reference image: `CHECKPOINT5.png` · renderer `tools/_confirm_v8_premv1_hybrid2
   from the glyphs and inside the 99×42 hit rect. CANCEL byte-identical to a
   plain render.
 - Colour system (gold vs silver) remains the open decision.
+
+
+---
+
+# Halo smoothing addendum (post-checkpoint-5)
+
+Reference image: `halo_smooth_v1.png`
+
+- The hero spotlight halo (the two rarity-glow `_alpha_aura` calls around the
+  cabochon disc, radii R_HERO+55 / R_HERO+20, peaks 95/70) reads as concentric
+  circles — the stepped layers are ~4.5 logical px apart.
+- Replaced in the design pipeline by `smooth_aura`
+  (`tools/_confirm_v8_premv1_hybrid2_smooth_halo.py`): the same cumulative
+  alpha-composite profile computed per-pixel in log space, each ring boundary
+  feathered across one layer step (ramp centred on the boundary so overall
+  strength is preserved). Single RGBA blit, same colour and extent.
+- Measured: max radial luminance step 9.2 → ~3.5; mean halo luminance within
+  4% of the stepped original.
+- Scope: hero halo only — the small shelf-gem auras keep `_alpha_aura` (their
+  radius is too small to band visibly).
+- The port must replace the two hero `_alpha_aura` calls in `_draw_confirm`
+  with the smooth implementation.

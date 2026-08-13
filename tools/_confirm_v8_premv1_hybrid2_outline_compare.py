@@ -83,8 +83,14 @@ def make_buttons_unified(buy_cfg, can_stops, rim_d, rim_b):
     return buttons
 
 
-def _patched_draw(ring):
+def _patched_draw(ring, smooth_halo=True):
     src = textwrap.dedent(inspect.getsource(StoreScene._draw_confirm))
+    if smooth_halo:
+        from _confirm_v8_premv1_hybrid2_smooth_halo import smooth_aura
+        store_mod._smooth_aura = smooth_aura
+        src, n_aura = re.subn(r"store_cards\._alpha_aura\(big, cx_ss, cy_ss, r_ss",
+                              "_smooth_aura(big, cx_ss, cy_ss, r_ss", src)
+        assert n_aura == 2, f"aura patch failed: {n_aura}"
     subs = [
         (r"_chip\(m\(CX\), m\(CHIP_CY\)\)", "pass"),
         (r'_btn\(buy_r, "BUY", locked=not affordable\)', "pass"),
