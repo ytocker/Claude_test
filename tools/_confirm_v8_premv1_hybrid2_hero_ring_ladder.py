@@ -36,13 +36,13 @@ from PIL import Image, ImageDraw
 POP_W, POP_H = 260, 442
 BG_DEEP_A, BG_GLINT_A = 155, 138
 
-# (label, hero_circle)
+# (role line, detail line, hero_circle)
 RUNGS = [
-    ("R0 · in-game bezel, no circle", None),
-    ("R1 · +1.0px circle a70", (1.0, 70)),
-    ("R2 · +1.2px circle a120", (1.2, 120)),
-    ("R3 · +1.4px circle a180", (1.4, 180)),
-    ("R4 · locked (1.6px opaque)", (1.6, 255)),
+    ("R0 · CURRENT — as in game today", "stock bezel, no added circle", None),
+    ("R1 · IN-BETWEEN 1", "+1.0px gold circle, alpha 70", (1.0, 70)),
+    ("R2 · IN-BETWEEN 2", "+1.2px gold circle, alpha 120", (1.2, 120)),
+    ("R3 · IN-BETWEEN 3", "+1.4px gold circle, alpha 180", (1.4, 180)),
+    ("R4 · CHOSEN DESIGN — current lock", "1.6px opaque gold circle", (1.6, 255)),
 ]
 
 
@@ -69,32 +69,29 @@ def main():
         can_stops, buy_text, pal["deep"], pal["bright"],
         make_inner_keyline(pal["glint"], pal["bright"], (26, 17, 4)))
     try:
-        ZX0, ZY0, ZX1, ZY1 = 40, 62, 220, 214
-        zoom_w, zoom_h = (ZX1 - ZX0) * 2, (ZY1 - ZY0) * 2
         MARGIN, HEAD, GAP = 24, 52, 16
-        cell_w = max(POP_W, zoom_w)
+        cell_w, cell_h = POP_W * 2, POP_H * 2
         strip_w = MARGIN * 2 + len(RUNGS) * (cell_w + GAP) - GAP
-        strip_h = HEAD + POP_H + 8 + zoom_h + 34
+        strip_h = HEAD + cell_h + 48
         strip = Image.new("RGB", (strip_w, strip_h), (10, 9, 20))
         idr = ImageDraw.Draw(strip)
         idr.text((MARGIN, 16),
-                 "hero ring dominance ladder · checkpoint 5 · gold · EPIC · zoom 2x",
+                 "hero ring dominance ladder · checkpoint 5 · gold · EPIC · 2x",
                  fill=(236, 214, 160))
-        for i, (label, circle) in enumerate(RUNGS):
+        for i, (role, detail, circle) in enumerate(RUNGS):
             h2._DRAW_FN[0] = oc._patched_draw(pal["ring"], hero_circle=circle)
             pop = h2.render_popup("EPIC")
             pil = Image.frombytes("RGB", (POP_W, POP_H),
                                   pygame.image.tostring(pop, "RGB"))
             x = MARGIN + i * (cell_w + GAP)
-            strip.paste(pil, (x + (cell_w - POP_W) // 2, HEAD))
-            zoom = pil.crop((ZX0, ZY0, ZX1, ZY1)).resize((zoom_w, zoom_h),
-                                                         Image.LANCZOS)
-            strip.paste(zoom, (x + (cell_w - zoom_w) // 2, HEAD + POP_H + 8))
-            idr.text((x + cell_w // 2, HEAD + POP_H + 8 + zoom_h + 10), label,
-                     fill=(206, 190, 150), anchor="mt")
+            strip.paste(pil.resize((cell_w, cell_h), Image.LANCZOS), (x, HEAD))
+            idr.text((x + cell_w // 2, HEAD + cell_h + 10), role,
+                     fill=(236, 214, 160), anchor="mt")
+            idr.text((x + cell_w // 2, HEAD + cell_h + 26), detail,
+                     fill=(170, 170, 195), anchor="mt")
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "hero_ring_ladder_v2.png")
+                           "hero_ring_ladder_v3.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
