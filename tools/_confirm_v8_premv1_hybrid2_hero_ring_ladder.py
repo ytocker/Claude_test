@@ -31,7 +31,7 @@ from _confirm_v8_premv1_hybrid2_name_layout import CHIP_CY, _chip_cy_zone
 import game.store as store_mod
 import game.store_data as store_data
 import game.store_catalog as store_catalog
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 POP_W, POP_H = 260, 442
 BG_DEEP_A, BG_GLINT_A = 155, 138
@@ -69,15 +69,21 @@ def main():
         can_stops, buy_text, pal["deep"], pal["bright"],
         make_inner_keyline(pal["glint"], pal["bright"], (26, 17, 4)))
     try:
-        MARGIN, HEAD, GAP = 24, 52, 16
+        f_head = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
+        f_role = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 26)
+        f_detail = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 22)
+        MARGIN, HEAD, GAP = 24, 64, 16
         cell_w, cell_h = POP_W * 2, POP_H * 2
         strip_w = MARGIN * 2 + len(RUNGS) * (cell_w + GAP) - GAP
-        strip_h = HEAD + cell_h + 48
+        strip_h = HEAD + cell_h + 96
         strip = Image.new("RGB", (strip_w, strip_h), (10, 9, 20))
         idr = ImageDraw.Draw(strip)
         idr.text((MARGIN, 16),
                  "hero ring dominance ladder · checkpoint 5 · gold · EPIC · 2x",
-                 fill=(236, 214, 160))
+                 fill=(236, 214, 160), font=f_head)
         for i, (role, detail, circle) in enumerate(RUNGS):
             h2._DRAW_FN[0] = oc._patched_draw(pal["ring"], hero_circle=circle)
             pop = h2.render_popup("EPIC")
@@ -85,13 +91,13 @@ def main():
                                   pygame.image.tostring(pop, "RGB"))
             x = MARGIN + i * (cell_w + GAP)
             strip.paste(pil.resize((cell_w, cell_h), Image.LANCZOS), (x, HEAD))
-            idr.text((x + cell_w // 2, HEAD + cell_h + 10), role,
-                     fill=(236, 214, 160), anchor="mt")
-            idr.text((x + cell_w // 2, HEAD + cell_h + 26), detail,
-                     fill=(170, 170, 195), anchor="mt")
+            idr.text((x + cell_w // 2, HEAD + cell_h + 14), role,
+                     fill=(236, 214, 160), anchor="mt", font=f_role)
+            idr.text((x + cell_w // 2, HEAD + cell_h + 50), detail,
+                     fill=(180, 180, 205), anchor="mt", font=f_detail)
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "hero_ring_ladder_v3.png")
+                           "hero_ring_ladder_v4.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
