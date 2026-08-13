@@ -1,15 +1,17 @@
-"""CHECKPOINT 2 — locked design state after the outline/button sessions.
+"""CHECKPOINT 5 — locked design state after the outline/button/accent sessions.
 
-Locked: D1 platinum-double-bevel frame construction · B5 constellation web ·
-bar 168×34 S2-clean at cy=300 with push-down · zone-centred name · cross-
-graft buttons (CANCEL's charcoal background on both, BUY's cream text design
-on both) · hero bezel + CANCEL border follow the outline system.
+Locked: D1 platinum-double-bevel frame construction · B5 constellation web at
+V2.5 (155/138) · bar 168×34 S2-clean at cy=300 with push-down · zone-centred
+name · cross-graft buttons (CANCEL's charcoal background on both, BUY's cream
+text design on both, fs15, border 4.0) · I5 inner keyline on BUY only (the
+jeweller's hairline mat that differentiates it from CANCEL) · hero bezel +
+CANCEL border follow the outline system.
 
 Still open: the colour system — GOLD (gold outlines/web/panels) vs SILVER
 (silver outlines/web, platinum panels). Both rows render here across all
 three tiers. NOT yet ported to game/store.py.
 
-Output: colorways/CHECKPOINT4.png (2 rows × RARE/EPIC/LEGENDARY)
+Output: colorways/CHECKPOINT5.png (2 rows × RARE/EPIC/LEGENDARY)
 """
 import os
 import sys
@@ -25,7 +27,8 @@ import _confirm_v8_premv1_hybrid2 as h2
 import _confirm_v8_premv1_hybrid2_colorway as cw
 import _confirm_v8_premv1_hybrid2_frames as fr
 import _confirm_v8_premv1_hybrid2_outline_compare as oc
-from _confirm_v8_premv1_hybrid2_button_text_border import make_buttons
+from _confirm_v8_premv1_hybrid2_buy_accents import make_buttons_accent
+from _confirm_v8_premv1_hybrid2_buy_accents4 import make_inner_keyline
 from _confirm_v8_premv1_hybrid2_scribbles import DESIGNS
 from _confirm_v8_premv1_hybrid2_scribbles2 import hook_constellation
 from _confirm_v8_premv1_hybrid2_name_layout import CHIP_CY, _chip_cy_zone
@@ -59,9 +62,15 @@ def main():
         grid = Image.new("RGB", (strip_w, strip_h), (10, 9, 20))
         idr = ImageDraw.Draw(grid)
         idr.text((MARGIN, 14),
-                 "CHECKPOINT 4 · D1 · fs15/border4 · web V2.5 · colour open",
+                 "CHECKPOINT 5 · D1 · fs15/border4 · web V2.5 · I5 keyline · colour open",
                  fill=(236, 214, 160))
 
+        keylines = {
+            "GOLD system": make_inner_keyline(oc.GOLD["glint"],
+                                              oc.GOLD["bright"], (26, 17, 4)),
+            "SILVER system": make_inner_keyline(oc.SILVER["glint"],
+                                                oc.SILVER["bright"], (14, 16, 30)),
+        }
         rows = (("GOLD system", oc.GOLD, oc.PANEL_GOLD),
                 ("SILVER system", oc.SILVER, oc.PLATINUM))
         y = HEAD
@@ -75,8 +84,9 @@ def main():
             store_mod._frame_hook = fr.frame_double_bevel
             h2.overlay_bullion_chip = cw.make_chip_fn(bar)
             _bs, buy_text, _rd, _rb = buy
-            h2.overlay_buttons = make_buttons(
-                can_stops, buy_text, pal["deep"], pal["bright"], 15, 4.0)
+            h2.overlay_buttons = make_buttons_accent(
+                can_stops, buy_text, pal["deep"], pal["bright"],
+                keylines[row_label])
             idr.text((MARGIN, y + 2), row_label, fill=(206, 190, 150))
             y += 20
             for i, tier in enumerate(TIERS):
@@ -92,7 +102,7 @@ def main():
         out_img = grid.resize((strip_w * 2, strip_h * 2), Image.LANCZOS)
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "CHECKPOINT4.png")
+                           "CHECKPOINT5.png")
         out_img.save(out)
         print("saved", out, out_img.size)
     finally:

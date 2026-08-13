@@ -124,14 +124,19 @@ def acc_centre_finial(ov, r, half_tw):
 
 
 # ── I5 · inner keyline: hairline jeweller's mat inside the border ─────────────
-def acc_inner_keyline(ov, r, half_tw):
-    kr = r.inflate(-m(13), -m(13))
-    rad = m(7)
-    pygame.draw.rect(ov, (*SHADOW, 175),
-                     kr.move(m(0.7), m(0.7)), max(1, m(0.9)), border_radius=rad)
-    pygame.draw.rect(ov, (*GLINT, 185), kr, max(1, m(0.9)), border_radius=rad)
-    pygame.draw.rect(ov, (*BRIGHT, 85),
-                     kr.move(-m(0.5), -m(0.5)), max(1, m(0.5)), border_radius=rad)
+def make_inner_keyline(glint, bright, shadow):
+    def accent(ov, r, half_tw):
+        kr = r.inflate(-m(13), -m(13))
+        rad = m(7)
+        pygame.draw.rect(ov, (*shadow, 175),
+                         kr.move(m(0.7), m(0.7)), max(1, m(0.9)), border_radius=rad)
+        pygame.draw.rect(ov, (*glint, 185), kr, max(1, m(0.9)), border_radius=rad)
+        pygame.draw.rect(ov, (*bright, 85),
+                         kr.move(-m(0.5), -m(0.5)), max(1, m(0.5)), border_radius=rad)
+    return accent
+
+
+acc_inner_keyline = make_inner_keyline(GLINT, BRIGHT, SHADOW)
 
 
 ACCENTS4_R1 = [

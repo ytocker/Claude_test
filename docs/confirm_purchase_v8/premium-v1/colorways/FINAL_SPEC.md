@@ -97,3 +97,33 @@ Reference image: `CHECKPOINT4.png` · renderer `tools/_confirm_v8_premv1_hybrid2
   glint 138 (was 110/100). Chosen from `scribble_visibility_v2.png`
   (fine ladder V1→V3).
 - Colour system (gold vs silver) remains the open decision.
+
+
+---
+
+# CHECKPOINT 5 addendum
+
+Reference image: `CHECKPOINT5.png` · renderer `tools/_confirm_v8_premv1_hybrid2_checkpoint2.py`
+
+- **BUY accent: I5 `inner-keyline`** — the buttons stay twins except BUY
+  carries a hairline inner frame (a jeweller's "double mat"), the sole
+  differentiator from CANCEL. Chosen from `buy_accents4_showcase_v1.png`
+  (Figure I, single-gesture runs) after Figures F/G/H were rejected as
+  amateur/scattered; the run's rule was ONE bilaterally symmetric gesture
+  attached to the button's own geometry.
+- **Geometry** (device px, SS=2): keyline rect = BUY rect inflated by
+  (−m(13), −m(13)) (6.5 logical px inset per side), border_radius m(7),
+  stroke width max(1, m(0.9)).
+- **Three-pass engraving** (draw order):
+  1. shadow: rect offset (+m(0.7), +m(0.7)), colour system shadow, alpha 175
+  2. body: outline-metal glint, alpha 185
+  3. crest: rect offset (−m(0.5), −m(0.5)), width max(1, m(0.5)),
+     outline-metal bright, alpha 85
+- **Per colour system**: GOLD → glint/bright from `oc.GOLD`, shadow
+  (26,17,4); SILVER → glint/bright from `oc.SILVER`, shadow (14,16,30).
+  Factory: `make_inner_keyline(glint, bright, shadow)` in
+  `tools/_confirm_v8_premv1_hybrid2_buy_accents4.py`.
+- Drawn before the label (label always on top); ornament stays ≥8 logical px
+  from the glyphs and inside the 99×42 hit rect. CANCEL byte-identical to a
+  plain render.
+- Colour system (gold vs silver) remains the open decision.
