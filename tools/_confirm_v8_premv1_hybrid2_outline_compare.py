@@ -83,7 +83,7 @@ def make_buttons_unified(buy_cfg, can_stops, rim_d, rim_b):
     return buttons
 
 
-def _patched_draw(ring, smooth_halo=True, hero_circle=(1.6, 255)):
+def _patched_draw(ring, smooth_halo=True, hero_circle=(1.4, 180)):
     """hero_circle=(width, alpha) grades the outline-metal circle stamped
     over the stock bezel; None (or zero alpha/width) keeps the in-game bezel
     untouched. The stock cabochon ring/ring_a and cabochon_glass tint params

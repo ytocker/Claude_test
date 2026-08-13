@@ -149,3 +149,26 @@ Reference image: `halo_smooth_v1.png`
   radius is too small to band visibly).
 - The port must replace the two hero `_alpha_aura` calls in `_draw_confirm`
   with the smooth implementation.
+
+
+---
+
+# CHECKPOINT 6 addendum
+
+Reference image: `CHECKPOINT6.png` · renderer `tools/_confirm_v8_premv1_hybrid2_checkpoint2.py`
+
+- **Hero ring: R3** — the outline-metal circle stamped over the stock bezel
+  softened from 1.6px opaque to **width max(2, m(1.4)), alpha 180**, drawn on
+  a SRCALPHA layer and alpha-blended (not pixel-replaced) so the stock bezel
+  reads through. Chosen from `hero_ring_ladder_v4.png`.
+- **Discovery the port must respect**: `store_cards.cabochon`'s `ring` /
+  `ring_a` params and `store_cards.cabochon_glass`'s `tint` param are DEAD —
+  the bezel colours are hardcoded inside cabochon_glass (dark keyline,
+  CARD_RING gold rim, pale glint). The design's entire hero-ring treatment is
+  the stamped circle; do not try to restyle the bezel through those params.
+- **Silver-system caveat**: under the silver circle the stock bezel stays
+  gold. If SILVER is chosen as the colour system, re-tinting the hardcoded
+  bezel is a separate follow-up decision.
+- Rolls up the halo smoothing (see "Halo smoothing addendum") into the
+  checkpoint image — CHECKPOINT6.png is the first grid rendered with it.
+- Colour system (gold vs silver) remains the open decision.

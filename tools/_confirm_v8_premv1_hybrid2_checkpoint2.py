@@ -1,17 +1,19 @@
-"""CHECKPOINT 5 — locked design state after the outline/button/accent sessions.
+"""CHECKPOINT 6 — locked design state after the outline/button/accent sessions.
 
 Locked: D1 platinum-double-bevel frame construction · B5 constellation web at
 V2.5 (155/138) · bar 168×34 S2-clean at cy=300 with push-down · zone-centred
 name · cross-graft buttons (CANCEL's charcoal background on both, BUY's cream
 text design on both, fs15, border 4.0) · I5 inner keyline on BUY only (the
-jeweller's hairline mat that differentiates it from CANCEL) · hero bezel +
-CANCEL border follow the outline system.
+jeweller's hairline mat that differentiates it from CANCEL) · smooth hero halo
+(per-pixel gradient, no stepped rings) · hero ring R3 (1.4px outline-metal
+circle at alpha 180 over the stock bezel) · CANCEL border follows the outline
+system.
 
 Still open: the colour system — GOLD (gold outlines/web/panels) vs SILVER
 (silver outlines/web, platinum panels). Both rows render here across all
 three tiers. NOT yet ported to game/store.py.
 
-Output: colorways/CHECKPOINT5.png (2 rows × RARE/EPIC/LEGENDARY)
+Output: colorways/CHECKPOINT6.png (2 rows × RARE/EPIC/LEGENDARY)
 """
 import os
 import sys
@@ -62,7 +64,8 @@ def main():
         grid = Image.new("RGB", (strip_w, strip_h), (10, 9, 20))
         idr = ImageDraw.Draw(grid)
         idr.text((MARGIN, 14),
-                 "CHECKPOINT 5 · D1 · fs15/border4 · web V2.5 · I5 keyline · colour open",
+                 "CHECKPOINT 6 · D1 · fs15/border4 · web V2.5 · I5 keyline · "
+                 "smooth halo · hero ring R3 · colour open",
                  fill=(236, 214, 160))
 
         keylines = {
@@ -102,7 +105,7 @@ def main():
         out_img = grid.resize((strip_w * 2, strip_h * 2), Image.LANCZOS)
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "CHECKPOINT5.png")
+                           "CHECKPOINT6.png")
         out_img.save(out)
         print("saved", out, out_img.size)
     finally:
