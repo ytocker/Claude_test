@@ -83,7 +83,12 @@ def make_buttons_unified(buy_cfg, can_stops, rim_d, rim_b):
     return buttons
 
 
-def _patched_draw(ring, smooth_halo=True):
+def _patched_draw(ring, smooth_halo=True, hero_circle=(1.6, 255)):
+    """hero_circle=(width, alpha) grades the outline-metal circle stamped
+    over the stock bezel; None (or zero alpha/width) keeps the in-game bezel
+    untouched. The stock cabochon ring/ring_a and cabochon_glass tint params
+    are dead in store_cards — the bezel colours are hardcoded there — so the
+    stamped circle is the design's entire hero-ring treatment."""
     src = textwrap.dedent(inspect.getsource(StoreScene._draw_confirm))
     if smooth_halo:
         from _confirm_v8_premv1_hybrid2_smooth_halo import smooth_aura
@@ -106,12 +111,25 @@ def _patched_draw(ring, smooth_halo=True):
          "pass"),
         (r"(\n\s*# ── corner gem pair)",
          r"\n    _bg_hook(big)\n    _frame_hook(big, rect, rad)\1"),
-        (r'ring=pal\["gem"\], ring_a=50\)', f"ring={ring}, ring_a=140)"),
-        (r'store_cards\.cabochon_glass\(big, cx_ss, cy_ss, r_ss, tint=pal\["gem"\]\)',
-         f"store_cards.cabochon_glass(big, cx_ss, cy_ss, r_ss, tint={ring})\n"
-         f"    pygame.draw.circle(big, {ring}, (cx_ss, cy_ss), r_ss,"
-         f" max(2, m(1.6)))"),
     ]
+    if hero_circle is not None:
+        cw_, ca = hero_circle
+
+        def _hero_circle(big, cx, cy, r):
+            if ca <= 0 or cw_ <= 0:
+                return
+            side = r * 2 + 4
+            layer = pygame.Surface((side, side), pygame.SRCALPHA)
+            pygame.draw.circle(layer, (*ring, ca), (side // 2, side // 2), r,
+                               max(2, m(cw_)))
+            big.blit(layer, (cx - side // 2, cy - side // 2))
+
+        store_mod._hero_circle = _hero_circle
+        subs += [
+            (r'store_cards\.cabochon_glass\(big, cx_ss, cy_ss, r_ss, tint=pal\["gem"\]\)',
+             "store_cards.cabochon_glass(big, cx_ss, cy_ss, r_ss, tint=pal[\"gem\"])\n"
+             "    _hero_circle(big, cx_ss, cy_ss, r_ss)"),
+        ]
     for pat, rep in subs:
         src, n = re.subn(pat, rep, src)
         assert n == 1, f"patch failed: {pat}"
