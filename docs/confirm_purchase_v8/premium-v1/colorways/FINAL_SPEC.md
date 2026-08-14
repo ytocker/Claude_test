@@ -172,3 +172,23 @@ Reference image: `CHECKPOINT6.png` · renderer `tools/_confirm_v8_premv1_hybrid2
 - Rolls up the halo smoothing (see "Halo smoothing addendum") into the
   checkpoint image — CHECKPOINT6.png is the first grid rendered with it.
 - Colour system (gold vs silver) remains the open decision.
+
+
+---
+
+# CHECKPOINT 7 addendum
+
+Reference image: `CHECKPOINT7.png` · renderer `tools/_confirm_v8_premv1_hybrid2_checkpoint2.py`
+
+- **Colour system: GOLD — locked.** Silver is dropped; the silver bezel
+  re-tint caveat from checkpoint 6 is moot. All future renders and the port
+  use `oc.GOLD` outlines/web/ring and `PANEL_GOLD` bar/button panels.
+- **D1 frame at full perimeter (draw-order fix).** The base draw blits the
+  shelf tray (y 335–426, x 17–243) and two side-wall gradients (x 10–17 and
+  243–250, y 335–403) AFTER the early frame position, burying the frame's
+  bottom band. The frame hook now runs after the shelf/walls section
+  (injected at the "# ── coin chip (inside shelf)" marker) and before the
+  overhanging hero disc. Same class of bug as the buried banner.
+- **Port note**: in `_draw_confirm`, draw the D1 frame after the shelf blit
+  and wall gradients (exactly once — a second early draw would double the
+  bevel alphas), like the banner redraw.

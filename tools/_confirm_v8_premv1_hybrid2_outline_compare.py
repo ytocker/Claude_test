@@ -110,7 +110,11 @@ def _patched_draw(ring, smooth_halo=True, hero_circle=(1.4, 180)):
          r"\s*width=max\(1, m\(1\)\), border_radius=rad - m\(3\)\)",
          "pass"),
         (r"(\n\s*# ── corner gem pair)",
-         r"\n    _bg_hook(big)\n    _frame_hook(big, rect, rad)\1"),
+         r"\n    _bg_hook(big)\1"),
+        # The shelf tray and side-wall gradients paint over the card's bottom
+        # border, so the frame must land after them to keep its full perimeter.
+        (r"(\n\s*# ── coin chip \(inside shelf\))",
+         r"\n    _frame_hook(big, rect, rad)\1"),
     ]
     if hero_circle is not None:
         cw_, ca = hero_circle
