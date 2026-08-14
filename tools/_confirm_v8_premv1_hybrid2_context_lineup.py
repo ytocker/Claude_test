@@ -34,7 +34,7 @@ import game.store_data as store_data
 import game.store_catalog as store_catalog
 from game.store import StoreScene
 from game.config import W, H
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 BG_DEEP_A, BG_GLINT_A = 155, 138
 
@@ -50,8 +50,7 @@ def main():
         scene.page = 0
         tier = store_catalog.rarity(SID)
 
-        panels = [("STORE CATEGORY (as in game)", store_frame(scene, None)),
-                  ("CURRENT confirm (live gameplay)", store_frame(scene, SID))]
+        panels = [("CURRENT confirm (in game)", store_frame(scene, SID))]
 
         h2.CHIP_CY = CHIP_CY
         h2._chip_cy = lambda _tier: _chip_cy_zone_named(scene._disp_name(SID))
@@ -73,26 +72,32 @@ def main():
                 can_stops, buy_text, pal["deep"], pal["bright"],
                 make_inner_keyline(pal["glint"], pal["bright"], shadow))
             panels.append((label, render_locked_frame(scene, tier)))
+        panels.append(("STORE CATEGORY (item cards as in game)",
+                       store_frame(scene, None)))
 
-        MARGIN, HEAD, GAP = 24, 52, 20
+        f_head = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
+        f_role = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 26)
+        MARGIN, HEAD, GAP = 24, 64, 20
         cell_w, cell_h = W * 2, H * 2
         strip_w = MARGIN * 2 + len(panels) * (cell_w + GAP) - GAP
-        strip_h = HEAD + cell_h + 34
+        strip_h = HEAD + cell_h + 56
         strip = Image.new("RGB", (strip_w, strip_h), (10, 9, 20))
         idr = ImageDraw.Draw(strip)
         idr.text((MARGIN, 16),
-                 "store context lineup · category cards · live confirm · "
-                 f"chosen design · {scene._disp_name(SID)} ({tier}) · 2x",
-                 fill=(236, 214, 160))
+                 "confirm popup · chosen design (checkpoint 6) vs in game · "
+                 f"{scene._disp_name(SID)} ({tier}) · 2x",
+                 fill=(236, 214, 160), font=f_head)
         for i, (label, surf) in enumerate(panels):
             pil = Image.frombytes("RGB", (W, H), pygame.image.tostring(surf, "RGB"))
             x = MARGIN + i * (cell_w + GAP)
             strip.paste(pil.resize((cell_w, cell_h), Image.LANCZOS), (x, HEAD))
-            idr.text((x + cell_w // 2, HEAD + cell_h + 10), label,
-                     fill=(206, 190, 150), anchor="mt")
+            idr.text((x + cell_w // 2, HEAD + cell_h + 14), label,
+                     fill=(236, 214, 160), anchor="mt", font=f_role)
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "store_context_lineup_v1.png")
+                           "store_context_lineup_v2.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
