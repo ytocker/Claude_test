@@ -95,11 +95,15 @@ COLORWAYS = [
 ]
 
 
-def make_rim_shine_frame(s=1.0):
+def make_rim_shine_frame(s=1.0, t=1.0):
     """The hero rim's stroke stack translated to the rounded-rect perimeter:
     dark contact keyline, warm-gold rim + ring-gold overlay, inner pale
     glint, and the additive white specular kiss fading down from the top —
-    the same layers cabochon_glass + the hero circle put around the item."""
+    the same layers cabochon_glass + the hero circle put around the item.
+    t scales every stroke width and inset (perimeter thickness); colors and
+    the polished grade stay identical."""
+    s = s * t
+
     def frame(surf, rect, rad):
         # opaque stack: the rim's layers pre-blended so thin strokes keep
         # their chroma through the downscale (the rim gets its luminosity
