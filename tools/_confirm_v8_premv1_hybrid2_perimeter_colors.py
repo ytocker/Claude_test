@@ -82,7 +82,65 @@ COLORWAYS = [
      dict(deep=(92, 75, 37), mid=(204, 168, 86), bright=(230, 197, 111),
           gem=(222, 186, 98), gem_deep=(104, 84, 42),
           glint=(224, 190, 104), ring=(232, 198, 110))),
+    # The rim's actual layered build (cabochon_glass bezel + hero circle):
+    # dark contact keyline / warm gold (236,202,116)@230 + ring (250,200,80)
+    # @180 / pale glint (246,220,140)@150 / additive white kiss on top.
+    # Native-res profile: peak (237,213,156), main (230,195,105), top of the
+    # ring ~1.6x brighter than the bottom.
+    ("G8 · rim-shine", "the rim's exact layered gradient as the perimeter",
+     dict(deep=(96, 74, 30), mid=(236, 202, 116), bright=(246, 220, 140),
+          gem=(236, 202, 116), gem_deep=(96, 74, 30),
+          glint=(246, 220, 140), ring=(250, 200, 80)),
+     "shine"),
 ]
+
+
+def make_rim_shine_frame(s=1.0):
+    """The hero rim's stroke stack translated to the rounded-rect perimeter:
+    dark contact keyline, warm-gold rim + ring-gold overlay, inner pale
+    glint, and the additive white specular kiss fading down from the top —
+    the same layers cabochon_glass + the hero circle put around the item."""
+    def frame(surf, rect, rad):
+        # opaque stack: the rim's layers pre-blended so thin strokes keep
+        # their chroma through the downscale (the rim gets its luminosity
+        # from sitting on the bright aura; the perimeter must bring its own)
+        layer = pygame.Surface(rect.size, pygame.SRCALPHA)
+        lrect = layer.get_rect()
+        pygame.draw.rect(layer, (5, 5, 12), lrect,
+                         width=max(1, m(1.4 * s)), border_radius=rad)
+        r1 = lrect.inflate(-2 * m(0.9 * s), -2 * m(0.9 * s))
+        pygame.draw.rect(layer, (232, 196, 108), r1,
+                         width=max(1, m(1.6 * s)),
+                         border_radius=max(2, rad - m(0.9 * s)))
+        r3 = lrect.inflate(-2 * m(2.0 * s), -2 * m(2.0 * s))
+        pygame.draw.rect(layer, (246, 220, 140), r3,
+                         width=max(1, m(0.8 * s)),
+                         border_radius=max(2, rad - m(2.0 * s)))
+        # polished grade: full brightness at the top, ~65% at the bottom
+        grade = pygame.Surface(rect.size, pygame.SRCALPHA)
+        for yy in range(rect.h):
+            g = 255 - int(90 * yy / max(1, rect.h - 1))
+            pygame.draw.line(grade, (g, g, g, 255), (0, yy),
+                             (rect.w - 1, yy))
+        layer.blit(grade, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+        surf.blit(layer, rect.topleft)
+        # specular kiss: additive warm light fading out by 40% height,
+        # premultiplied into RGB (BLEND_RGB_ADD ignores alpha)
+        kiss = pygame.Surface(rect.size, pygame.SRCALPHA)
+        pygame.draw.rect(kiss, (85, 72, 48),
+                         kiss.get_rect().inflate(-2 * m(0.9 * s),
+                                                 -2 * m(0.9 * s)),
+                         width=max(1, m(1.6 * s)),
+                         border_radius=max(2, rad - m(0.9 * s)))
+        fade_h = int(rect.h * 0.4)
+        fade = pygame.Surface(rect.size, pygame.SRCALPHA)
+        for yy in range(rect.h):
+            a = max(0, 255 - yy * 255 // max(1, fade_h))
+            pygame.draw.line(fade, (a, a, a, 255), (0, yy),
+                             (rect.w - 1, yy))
+        kiss.blit(fade, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+        surf.blit(kiss, rect.topleft, special_flags=pygame.BLEND_RGB_ADD)
+    return frame
 
 
 def framed_card_draw():
@@ -143,17 +201,24 @@ def main():
                    render_stock(), render_card(sc.draw_card),
                    render_category())]
 
-        for role, note, pal in COLORWAYS:
+        for entry in COLORWAYS:
+            role, note, pal = entry[:3]
+            shine = len(entry) > 3 and entry[3] == "shine"
             params = dict(P2, pal=pal)
+
+            def frame_at(scale):
+                return (make_rim_shine_frame(scale) if shine
+                        else make_frame(params, scale))
+
             fr.SIL_DEEP, fr.SIL_MID, fr.SIL_BRIGHT = (pal["deep"], pal["mid"],
                                                       pal["bright"])
             fr.GEM_SIL, fr.GEM_SIL_DEEP = pal["gem"], pal["gem_deep"]
             store_mod._bg_hook = hook_constellation(pal["glint"], BG_DEEP_A,
                                                     BG_GLINT_A)
-            store_mod._frame_hook = make_frame(params, 1.0)
+            store_mod._frame_hook = frame_at(1.0)
             h2.overlay_buttons = make_buttons_frame(
-                can_stops, buy_text, make_frame(params, CARD_S), pal)
-            sc._card_frame = make_frame(params, CARD_S)
+                can_stops, buy_text, frame_at(CARD_S), pal)
+            sc._card_frame = frame_at(CARD_S)
             h2._DRAW_FN[0] = oc._patched_draw(pal["ring"])
             panels.append((role, note, render_pop(),
                            render_card(patched_card),
