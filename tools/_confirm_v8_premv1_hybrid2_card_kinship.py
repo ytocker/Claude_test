@@ -224,36 +224,48 @@ def main():
         stock_card = render_card(sc.draw_card)
         panels = []
 
-        panels.append(("BEFORE", "checkpoint 7 + current card",
+        panels.append(("BEFORE",
+                       "no change — checkpoint 7 design",
+                       "no change — card as in game",
                        render_pop(), stock_card))
 
         store_mod._frame_hook = frame_card_kinship
         panels.append(("K1 · card-frame-kinship",
-                       "popup frame = card frame recipe, scaled",
+                       "frame rebuilt from the card's recipe: keyline + "
+                       "single gold bevel + tray hairlines, scaled up",
+                       "no change",
                        render_pop(), stock_card))
         store_mod._frame_hook = fr.frame_double_bevel
 
         h2._DRAW_FN[0] = oc._patched_draw(pal["ring"], gem_pair=False)
         panels.append(("K2 · crest-gem-grammar",
-                       "one top-right tier gem, like the card",
+                       "side gem pair removed; one crest tier gem added "
+                       "top-right, like the card's",
+                       "no change",
                        render_pop(extra=crest_gem_overlay), stock_card))
         h2._DRAW_FN[0] = oc._patched_draw(pal["ring"])
 
         _orig_chip_fn = h2.overlay_bullion_chip
         h2.overlay_bullion_chip = lambda ov, price, cy: tag_chip(ov, price, cy)
         panels.append(("K3 · unified-price-chip",
-                       "price as the card's hang-tag, scaled",
+                       "gold price bar replaced by the card's tilted "
+                       "hang-tag on a cord, scaled up",
+                       "no change",
                        render_pop(), stock_card))
         h2.overlay_bullion_chip = _orig_chip_fn
 
         panels.append(("K4 · unified-ribbon",
-                       "banner = card lozenge ribbon, scaled",
+                       "rarity banner redrawn as the card's lozenge "
+                       "ribbon construction, scaled up",
+                       "no change",
                        render_pop(banner=ribbon_banner), stock_card))
 
         sc._card_web = _card_web
         web_card = render_card(patched_card_draw())
         panels.append(("K5 · web-echo-on-card",
-                       "card body gains a faint constellation web",
+                       "no change",
+                       "faint constellation web added on the card "
+                       "body behind the hero",
                        render_pop(), web_card))
 
         f_head = ImageFont.truetype(
@@ -267,14 +279,15 @@ def main():
         card_w, card_h = sc.CARD_W * 2, sc.CARD_H * 2
         cell_w = max(pop_w, card_w) + 40
         cell_h = pop_h + 12 + card_h
+        import textwrap as _tw
         strip_w = MARGIN * 2 + 6 * (cell_w + GAP) - GAP
-        strip_h = HEAD + cell_h + 96
+        strip_h = HEAD + cell_h + 220
         strip = Image.new("RGB", (strip_w, strip_h), (10, 9, 20))
         idr = ImageDraw.Draw(strip)
         idr.text((MARGIN, 16),
                  "FIGURE K · popup-card kinship concepts · gold · MUMMY (epic) · 2x",
                  fill=(236, 214, 160), font=f_head)
-        for i, (role, detail, pop, card) in enumerate(panels):
+        for i, (role, pop_change, card_change, pop, card) in enumerate(panels):
             x = MARGIN + i * (cell_w + GAP)
             pp = Image.frombytes("RGB", (POP_W, POP_H),
                                  pygame.image.tostring(pop, "RGB"))
@@ -286,13 +299,22 @@ def main():
             cbg.alpha_composite(cc.resize((card_w, card_h), Image.LANCZOS))
             strip.paste(cbg.convert("RGB"),
                         (x + (cell_w - card_w) // 2, HEAD + pop_h + 12))
-            idr.text((x + cell_w // 2, HEAD + cell_h + 14), role,
+            ty = HEAD + cell_h + 14
+            idr.text((x + cell_w // 2, ty), role,
                      fill=(236, 214, 160), anchor="mt", font=f_role)
-            idr.text((x + cell_w // 2, HEAD + cell_h + 50), detail,
-                     fill=(180, 180, 205), anchor="mt", font=f_detail)
+            ty += 40
+            for prefix, change in (("POPUP: ", pop_change),
+                                   ("CARD: ", card_change)):
+                col = ((150, 150, 170) if change.startswith("no change")
+                       else (222, 208, 170))
+                for j, line in enumerate(_tw.wrap(prefix + change, 44)):
+                    idr.text((x + cell_w // 2, ty), line,
+                             fill=col, anchor="mt", font=f_detail)
+                    ty += 27
+                ty += 6
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "card_kinship_k_v1.png")
+                           "card_kinship_k_v2.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
