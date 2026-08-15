@@ -83,7 +83,8 @@ def make_buttons_unified(buy_cfg, can_stops, rim_d, rim_b):
     return buttons
 
 
-def _patched_draw(ring, smooth_halo=True, hero_circle=(1.4, 180), gem_pair=True):
+def _patched_draw(ring, smooth_halo=True, hero_circle=(1.4, 180), gem_pair=True,
+                  gem_x=None):
     """hero_circle=(width, alpha) grades the outline-metal circle stamped
     over the stock bezel; None (or zero alpha/width) keeps the in-game bezel
     untouched. The stock cabochon ring/ring_a and cabochon_glass tint params
@@ -96,6 +97,12 @@ def _patched_draw(ring, smooth_halo=True, hero_circle=(1.4, 180), gem_pair=True)
         src, n_aura = re.subn(r"store_cards\._alpha_aura\(big, cx_ss, cy_ss, r_ss",
                               "_smooth_aura(big, cx_ss, cy_ss, r_ss", src)
         assert n_aura == 2, f"aura patch failed: {n_aura}"
+    if gem_x is not None:
+        gx_l, gx_r = gem_x
+        src, n_gx = re.subn(
+            r"GEM_R, GEM_CY, GEM_L_X, GEM_R_X = 14, 152, 43, 217",
+            f"GEM_R, GEM_CY, GEM_L_X, GEM_R_X = 14, 152, {gx_l}, {gx_r}", src)
+        assert n_gx == 1, f"gem-x patch failed: {n_gx}"
     if not gem_pair:
         src, n_gem = re.subn(
             r"store_cards\.facet_gem\(big, m\(GEM_[LR]_X\), m\(GEM_CY\), m\(GEM_R\),"

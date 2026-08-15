@@ -237,12 +237,12 @@ def main():
                        render_pop(), stock_card))
         store_mod._frame_hook = fr.frame_double_bevel
 
-        h2._DRAW_FN[0] = oc._patched_draw(pal["ring"], gem_pair=False)
+        h2._DRAW_FN[0] = oc._patched_draw(pal["ring"], gem_x=(29, 231))
         panels.append(("K2 · crest-gem-grammar",
-                       "side gem pair removed; one crest tier gem added "
-                       "top-right, like the card's",
+                       "gem pair moved to the sides, tucked against the "
+                       "frame like the card's crest gem",
                        "no change",
-                       render_pop(extra=crest_gem_overlay), stock_card))
+                       render_pop(), stock_card))
         h2._DRAW_FN[0] = oc._patched_draw(pal["ring"])
 
         _orig_chip_fn = h2.overlay_bullion_chip
@@ -314,7 +314,7 @@ def main():
                 ty += 6
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "card_kinship_k_v2.png")
+                           "card_kinship_k_v3.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
