@@ -84,7 +84,7 @@ def make_buttons_unified(buy_cfg, can_stops, rim_d, rim_b):
 
 
 def _patched_draw(ring, smooth_halo=True, hero_circle=(1.4, 180), gem_pair=True,
-                  gem_x=(35, 225)):
+                  gem_x=(35, 225), shelf_hook=False):
     # (35, 225) scales the card's measured crest-gem placement: 8px of air
     # between gem edge and body edge at gem radius 10.5 (0.76 r), so the
     # popup's r=14 gems get 0.76·14 ≈ 11px of air (edge inset 21 on the
@@ -107,6 +107,11 @@ def _patched_draw(ring, smooth_halo=True, hero_circle=(1.4, 180), gem_pair=True,
             r"GEM_R, GEM_CY, GEM_L_X, GEM_R_X = 14, 152, 43, 217",
             f"GEM_R, GEM_CY, GEM_L_X, GEM_R_X = 14, 152, {gx_l}, {gx_r}", src)
         assert n_gx == 1, f"gem-x patch failed: {n_gx}"
+    if shelf_hook:
+        src, n_sh = re.subn(
+            r"shelf_rect  = pygame\.Rect.*?big\.blit\(_wall, \(_bx, m\(SHELF_Y\)\)\)",
+            "_shelf_hook(big, affordable)", src, flags=re.DOTALL)
+        assert n_sh == 1, f"shelf patch failed: {n_sh}"
     if not gem_pair:
         src, n_gem = re.subn(
             r"store_cards\.facet_gem\(big, m\(GEM_[LR]_X\), m\(GEM_CY\), m\(GEM_R\),"
