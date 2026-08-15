@@ -1,13 +1,14 @@
-"""Perimeter colorways on the locked P2 slim-double frame.
+"""Gold shade ladder on the locked P2 slim-double frame.
 
-No structural changes anywhere — same P2 frame construction, stock shelf,
-stock card footer. Each column swaps only the perimeter palette,
+Same golden palette family throughout — the options differ only in shade,
+value, and chroma of the gold. No structural changes: same P2 frame, stock
+shelf, stock card footer. Each column swaps the perimeter gold
 holistically: popup frame, button rims, card frame, category cards, hero
-ring, corner/bottom gems, and background glints all follow the metal.
-Columns: IN-GAME · C1 antique-gold (reference) · C2 rich-gold ·
-C3 champagne · C4 rose-gold · C5 platinum · C6 bronze-copper.
+ring, corner/bottom gems, and background glints all follow.
+Columns: IN-GAME · G1 antique (reference) · G2 rich · G3 luminous ·
+G4 deep-old · G5 honey · G6 soft.
 
-Output: colorways/perimeter_colors_v1.png
+Output: colorways/perimeter_gold_shades_v1.png
 """
 import os
 import sys
@@ -52,26 +53,28 @@ P2 = {"key_w": 1.2, "band_w": 2.5, "band_a": 110, "bevel_w": 2.6,
       "hairs": ((3.8, 1.0, "deep", 170), (4.8, 1.0, "bright", 120))}
 
 COLORWAYS = [
-    ("C1 · antique-gold", "current muted gold — as shipped (reference)",
+    ("G1 · antique-gold", "current muted gold — as shipped (reference)",
      oc.GOLD),
-    ("C2 · rich-gold", "saturated, higher-chroma gold",
+    ("G2 · rich-gold", "saturated amber gold — highest chroma",
      dict(deep=(122, 74, 0), mid=(244, 164, 14), bright=(255, 190, 30),
           gem=(252, 176, 20), gem_deep=(140, 86, 2),
           glint=(252, 180, 30), ring=(255, 188, 40))),
-    ("C3 · champagne", "pale desaturated warm gold — quieter luxury",
-     dict(deep=(96, 84, 58), mid=(216, 198, 158), bright=(250, 238, 206),
-          gem=(236, 216, 168), gem_deep=(118, 102, 66),
-          glint=(232, 216, 178), ring=(240, 226, 188))),
-    ("C4 · rose-gold", "warm pink-leaning gold",
-     dict(deep=(110, 58, 44), mid=(226, 150, 124), bright=(255, 196, 172),
-          gem=(244, 168, 140), gem_deep=(128, 66, 48),
-          glint=(240, 176, 152), ring=(248, 184, 160))),
-    ("C5 · platinum", "cool silver-white — the non-gold alternative",
-     oc.SILVER),
-    ("C6 · bronze-copper", "deeper, redder metal — heavier antique feel",
-     dict(deep=(88, 44, 18), mid=(190, 110, 54), bright=(244, 162, 96),
-          gem=(220, 132, 64), gem_deep=(104, 52, 20),
-          glint=(224, 148, 84), ring=(232, 152, 88))),
+    ("G3 · luminous-gold", "lighter, sunnier — bright leans yellow-white",
+     dict(deep=(112, 86, 26), mid=(240, 194, 78), bright=(255, 232, 140),
+          gem=(250, 210, 92), gem_deep=(132, 100, 30),
+          glint=(250, 214, 104), ring=(255, 224, 120))),
+    ("G4 · deep-old-gold", "darker, moodier — heavier antique read",
+     dict(deep=(66, 44, 6), mid=(176, 126, 30), bright=(228, 174, 54),
+          gem=(206, 148, 38), gem_deep=(88, 58, 8),
+          glint=(210, 156, 46), ring=(222, 168, 56))),
+    ("G5 · honey-gold", "warmer amber lean — still unmistakably gold",
+     dict(deep=(112, 62, 6), mid=(230, 148, 30), bright=(255, 186, 62),
+          gem=(244, 166, 44), gem_deep=(126, 72, 10),
+          glint=(244, 170, 52), ring=(250, 178, 62))),
+    ("G6 · soft-gold", "gently desaturated pale gold — calm luxury",
+     dict(deep=(100, 82, 42), mid=(212, 184, 112), bright=(250, 226, 156),
+          gem=(232, 202, 126), gem_deep=(116, 94, 48),
+          glint=(230, 204, 134), ring=(238, 212, 144))),
 ]
 
 
@@ -168,9 +171,9 @@ def main():
         strip = Image.new("RGB", (strip_w, strip_h), (10, 9, 20))
         idr = ImageDraw.Draw(strip)
         idr.text((MARGIN, 16),
-                 "perimeter colorways on the P2 slim-double frame · palette "
-                 "swap only, no structural changes · popup / card / category "
-                 "· 2x", fill=(236, 214, 160), font=f_head)
+                 "gold shade ladder on the P2 slim-double frame · same golden "
+                 "palette, shade/chroma variations only · popup / card / "
+                 "category · 2x", fill=(236, 214, 160), font=f_head)
         for i, (role, note, pop, card, cat) in enumerate(panels):
             x = MARGIN + i * (cell_w + GAP)
             pp = Image.frombytes("RGB", (POP_W, POP_H),
@@ -198,7 +201,7 @@ def main():
                 ty += 27
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1",
-                           "colorways", "perimeter_colors_v1.png")
+                           "colorways", "perimeter_gold_shades_v1.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
