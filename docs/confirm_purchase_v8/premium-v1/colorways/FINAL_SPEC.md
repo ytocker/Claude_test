@@ -192,3 +192,23 @@ Reference image: `CHECKPOINT7.png` · renderer `tools/_confirm_v8_premv1_hybrid2
 - **Port note**: in `_draw_confirm`, draw the D1 frame after the shelf blit
   and wall gradients (exactly once — a second early draw would double the
   bevel alphas), like the banner redraw.
+
+
+---
+
+# Gem placement addendum (card kinship)
+
+Reference image: `card_kinship_k_v8.png`
+
+- **Gem pairs moved to the frame, card grammar.** The card's crest gem was
+  measured (not assumed): body-edge air 8px at gem radius 10.5–11 → ratio
+  ~0.76 r. Scaled to the popup's r=14 gems: air ≈ 11px → **gem centre x =
+  35 / 225** (was 43 / 217), edge inset 21 on the 10..250 body.
+- Applies to BOTH pairs (the base draw reuses GEM_L_X/GEM_R_X for the shelf
+  gems flanking the banner) — top and bottom stay column-aligned. Banner
+  tips (w=140 → x 60/200) clear the bottom gems (inner edge ~52).
+- Now the default in `oc._patched_draw` (`gem_x=(35, 225)`); every
+  new-design render inherits it. Port note: change the constant line
+  `GEM_R, GEM_CY, GEM_L_X, GEM_R_X = 14, 152, 43, 217` → `..., 35, 225`.
+- Verified in render: gem centres 34.5/224.5 (diff-blob), bottom gems same
+  columns, air ratio 0.79 r vs card 0.73 r.

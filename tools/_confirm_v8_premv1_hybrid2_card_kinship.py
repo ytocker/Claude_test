@@ -231,8 +231,9 @@ def main():
                        "no change — card as in game",
                        render_stock(), stock_card))
 
-        panels.append(("BEFORE",
-                       "no change — checkpoint 7 design",
+        panels.append(("BASE (new design)",
+                       "checkpoint 7 + gems moved to the sides, tucked "
+                       "to the frame at the card's measured placement",
                        "no change — card as in game",
                        render_pop(), stock_card))
 
@@ -243,14 +244,6 @@ def main():
                        "no change",
                        render_pop(), stock_card))
         store_mod._frame_hook = fr.frame_double_bevel
-
-        h2._DRAW_FN[0] = oc._patched_draw(pal["ring"], gem_x=(29, 231))
-        panels.append(("K2 · crest-gem-grammar",
-                       "gem pair moved to the sides, tucked against the "
-                       "frame like the card's crest gem",
-                       "no change",
-                       render_pop(), stock_card))
-        h2._DRAW_FN[0] = oc._patched_draw(pal["ring"])
 
         panels.append(("K4 · unified-ribbon",
                        "rarity banner redrawn as the card's lozenge "
@@ -331,7 +324,7 @@ def main():
                  fill=(150, 150, 170), font=f_detail)
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "card_kinship_k_v7.png")
+                           "card_kinship_k_v8.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:

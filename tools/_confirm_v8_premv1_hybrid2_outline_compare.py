@@ -84,7 +84,11 @@ def make_buttons_unified(buy_cfg, can_stops, rim_d, rim_b):
 
 
 def _patched_draw(ring, smooth_halo=True, hero_circle=(1.4, 180), gem_pair=True,
-                  gem_x=None):
+                  gem_x=(35, 225)):
+    # (35, 225) scales the card's measured crest-gem placement: 8px of air
+    # between gem edge and body edge at gem radius 10.5 (0.76 r), so the
+    # popup's r=14 gems get 0.76·14 ≈ 11px of air (edge inset 21 on the
+    # 10..250 body). None keeps the stock (43, 217) placement.
     """hero_circle=(width, alpha) grades the outline-metal circle stamped
     over the stock bezel; None (or zero alpha/width) keeps the in-game bezel
     untouched. The stock cabochon ring/ring_a and cabochon_glass tint params
