@@ -40,8 +40,9 @@ import game.store as store_mod
 import game.store_cards as sc
 import game.store_data as store_data
 import game.store_catalog as store_catalog
-from game.store import _confirm_tier_banner
+from game.store import StoreScene, _confirm_tier_banner
 from game.store_cards import m
+from game.config import W, H
 from PIL import Image, ImageDraw, ImageFont
 
 POP_W, POP_H = 260, 442
@@ -274,6 +275,17 @@ def main():
                        "body behind the hero",
                        render_pop(), web_card))
 
+        scene = StoreScene()
+        scene.view = "category"
+        scene.tab = 0
+        scene.page = 0
+        cat_surf = pygame.Surface((W, H))
+        scene.render(cat_surf)
+        panels.append(("STORE CATEGORY",
+                       "item cards together, as in game",
+                       "stock cards — K5 web not applied here",
+                       cat_surf, None))
+
         f_head = ImageFont.truetype(
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
         f_role = ImageFont.truetype(
@@ -299,22 +311,30 @@ def main():
         for i, (role, pop_change, card_change, pop, card) in enumerate(panels):
             x = MARGIN + (i % COLS) * (cell_w + GAP)
             HEAD_i = HEAD + (i // COLS) * (cell_h + FOOT + GAP)
-            pp = Image.frombytes("RGB", (POP_W, POP_H),
-                                 pygame.image.tostring(pop, "RGB"))
-            strip.paste(pp.resize((pop_w, pop_h), Image.LANCZOS),
-                        (x + (cell_w - pop_w) // 2, HEAD_i))
-            cc = Image.frombytes("RGBA", (sc.CARD_W, sc.CARD_H),
-                                 pygame.image.tostring(card, "RGBA"))
-            cbg = Image.new("RGBA", (card_w, card_h), (10, 9, 20, 255))
-            cbg.alpha_composite(cc.resize((card_w, card_h), Image.LANCZOS))
-            strip.paste(cbg.convert("RGB"),
-                        (x + (cell_w - card_w) // 2, HEAD_i + pop_h + 12))
+            if card is None:
+                fw, fh = cell_w, cell_w * H // W
+                fp = Image.frombytes("RGB", (W, H),
+                                     pygame.image.tostring(pop, "RGB"))
+                strip.paste(fp.resize((fw, fh), Image.LANCZOS),
+                            (x, HEAD_i + (cell_h - fh) // 2))
+            else:
+                pp = Image.frombytes("RGB", (POP_W, POP_H),
+                                     pygame.image.tostring(pop, "RGB"))
+                strip.paste(pp.resize((pop_w, pop_h), Image.LANCZOS),
+                            (x + (cell_w - pop_w) // 2, HEAD_i))
+                cc = Image.frombytes("RGBA", (sc.CARD_W, sc.CARD_H),
+                                     pygame.image.tostring(card, "RGBA"))
+                cbg = Image.new("RGBA", (card_w, card_h), (10, 9, 20, 255))
+                cbg.alpha_composite(cc.resize((card_w, card_h), Image.LANCZOS))
+                strip.paste(cbg.convert("RGB"),
+                            (x + (cell_w - card_w) // 2, HEAD_i + pop_h + 12))
             ty = HEAD_i + cell_h + 14
             idr.text((x + cell_w // 2, ty), role,
                      fill=(236, 214, 160), anchor="mt", font=f_role)
             ty += 40
-            for prefix, change in (("POPUP: ", pop_change),
-                                   ("CARD: ", card_change)):
+            lines = ((("", pop_change), ("", card_change)) if card is None
+                     else (("POPUP: ", pop_change), ("CARD: ", card_change)))
+            for prefix, change in lines:
                 col = ((150, 150, 170) if change.startswith("no change")
                        else (222, 208, 170))
                 for j, line in enumerate(_tw.wrap(prefix + change, 44)):
@@ -324,7 +344,7 @@ def main():
                 ty += 6
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "card_kinship_k_v4.png")
+                           "card_kinship_k_v5.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
