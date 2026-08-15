@@ -32,6 +32,7 @@ import _confirm_v8_premv1_hybrid2_frames as fr
 import _confirm_v8_premv1_hybrid2_outline_compare as oc
 from _confirm_v8_premv1_hybrid2_buy_accents import make_buttons_accent
 from _confirm_v8_premv1_hybrid2_buy_accents4 import make_inner_keyline
+from _confirm_v8_premv1_hybrid2_current_vs_locked import render_stock
 from _confirm_v8_premv1_hybrid2_scribbles import DESIGNS
 from _confirm_v8_premv1_hybrid2_scribbles2 import hook_constellation
 from _confirm_v8_premv1_hybrid2_name_layout import CHIP_CY, _chip_cy_zone
@@ -224,6 +225,11 @@ def main():
         stock_card = render_card(sc.draw_card)
         panels = []
 
+        panels.append(("IN-GAME",
+                       "the design currently live in the game",
+                       "no change — card as in game",
+                       render_stock(), stock_card))
+
         panels.append(("BEFORE",
                        "no change — checkpoint 7 design",
                        "no change — card as in game",
@@ -280,26 +286,30 @@ def main():
         cell_w = max(pop_w, card_w) + 40
         cell_h = pop_h + 12 + card_h
         import textwrap as _tw
-        strip_w = MARGIN * 2 + 6 * (cell_w + GAP) - GAP
-        strip_h = HEAD + cell_h + 220
+        COLS = 4
+        FOOT = 220
+        rows = (len(panels) + COLS - 1) // COLS
+        strip_w = MARGIN * 2 + COLS * (cell_w + GAP) - GAP
+        strip_h = HEAD + rows * (cell_h + FOOT + GAP) - GAP
         strip = Image.new("RGB", (strip_w, strip_h), (10, 9, 20))
         idr = ImageDraw.Draw(strip)
         idr.text((MARGIN, 16),
                  "FIGURE K · popup-card kinship concepts · gold · MUMMY (epic) · 2x",
                  fill=(236, 214, 160), font=f_head)
         for i, (role, pop_change, card_change, pop, card) in enumerate(panels):
-            x = MARGIN + i * (cell_w + GAP)
+            x = MARGIN + (i % COLS) * (cell_w + GAP)
+            HEAD_i = HEAD + (i // COLS) * (cell_h + FOOT + GAP)
             pp = Image.frombytes("RGB", (POP_W, POP_H),
                                  pygame.image.tostring(pop, "RGB"))
             strip.paste(pp.resize((pop_w, pop_h), Image.LANCZOS),
-                        (x + (cell_w - pop_w) // 2, HEAD))
+                        (x + (cell_w - pop_w) // 2, HEAD_i))
             cc = Image.frombytes("RGBA", (sc.CARD_W, sc.CARD_H),
                                  pygame.image.tostring(card, "RGBA"))
             cbg = Image.new("RGBA", (card_w, card_h), (10, 9, 20, 255))
             cbg.alpha_composite(cc.resize((card_w, card_h), Image.LANCZOS))
             strip.paste(cbg.convert("RGB"),
-                        (x + (cell_w - card_w) // 2, HEAD + pop_h + 12))
-            ty = HEAD + cell_h + 14
+                        (x + (cell_w - card_w) // 2, HEAD_i + pop_h + 12))
+            ty = HEAD_i + cell_h + 14
             idr.text((x + cell_w // 2, ty), role,
                      fill=(236, 214, 160), anchor="mt", font=f_role)
             ty += 40
@@ -314,7 +324,7 @@ def main():
                 ty += 6
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "card_kinship_k_v3.png")
+                           "card_kinship_k_v4.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
