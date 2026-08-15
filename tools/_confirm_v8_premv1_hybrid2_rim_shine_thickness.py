@@ -1,13 +1,13 @@
 """Perimeter thickness ladder for the G8 rim-shine design.
 
-G8 (the perimeter wearing the hero rim's layered gold gradient) at four
-stroke-stack thicknesses: x0.7 slim, x1.0 as added, x1.5 bold, x2.0 heavy.
-Colors and the polished grade are identical across the ladder — only the
-stroke widths and insets scale. Anchors: the in-game design and the current
-P2 antique-gold frame. Columns: IN-GAME · CURRENT (G1) · T1..T4, each
-popup / card / category.
+G8 (the perimeter wearing the hero rim's layered gold gradient) with the
+stroke stack swept between x1.0 and x1.5 in 0.1 steps — the fine ladder
+inside the earlier coarse one. Colors and the polished grade are identical
+across the ladder — only the stroke widths and insets scale. Anchors: the
+in-game design and the current P2 antique-gold frame. Columns: IN-GAME ·
+CURRENT (G1) · x1.0 .. x1.5, each popup / card / category.
 
-Output: colorways/rim_shine_thickness_v1.png
+Output: colorways/rim_shine_thickness_v2.png
 """
 import os
 import sys
@@ -45,11 +45,15 @@ from PIL import Image, ImageDraw, ImageFont
 G8_PAL = COLORWAYS[-1][2]
 assert COLORWAYS[-1][0].startswith("G8")
 
+# rungs picked where the stroke stack actually crosses a pixel boundary —
+# in-between values render identically to a neighbor and would mislead
 THICKNESS = [
-    ("T1 · slim ×0.7", "every stroke and inset at 70%", 0.7),
-    ("T2 · as-is ×1.0", "G8 exactly as added (ladder reference)", 1.0),
-    ("T3 · bold ×1.5", "×1.5 — heavier presence", 1.5),
-    ("T4 · heavy ×2.0", "×2.0 — full jewelry bezel weight", 2.0),
+    ("×1.0", "G8 exactly as added (lower anchor)", 1.0),
+    ("×1.15", "one pixel step up on the popup frame", 1.15),
+    ("×1.25", "popup and card both one step up", 1.25),
+    ("×1.3", "next pixel step", 1.3),
+    ("×1.4", "next pixel step", 1.4),
+    ("×1.5", "the T3 bold weight (upper anchor)", 1.5),
 ]
 
 
@@ -175,7 +179,7 @@ def main():
                 ty += 27
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1",
-                           "colorways", "rim_shine_thickness_v1.png")
+                           "colorways", "rim_shine_thickness_v2.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
