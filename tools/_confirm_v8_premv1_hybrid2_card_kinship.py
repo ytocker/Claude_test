@@ -171,6 +171,36 @@ def patched_card_draw():
     return ns["draw_card"]
 
 
+def card_frame_d1(surf, rect, rad):
+    """The popup's D1 double-bevel perimeter scaled to card proportions
+    (card body 154 wide vs popup 240 -> s = 0.64)."""
+    s = 154 / 240
+    band = rect.inflate(-m(3 * s), -m(3 * s))
+    pygame.draw.rect(surf, (*fr.SIL_MID, 150), band, width=max(2, m(5 * s)),
+                     border_radius=rad - m(1 * s))
+    sc.bevel_rim(surf, rect, rad, fr.SIL_DEEP, (*fr.SIL_BRIGHT, 245),
+                 w=max(1, m(4 * s)))
+    inner = rect.inflate(-m(11 * s), -m(11 * s))
+    pygame.draw.rect(surf, (*fr.SIL_BRIGHT, 170), inner,
+                     width=max(1, m(1.2 * s)), border_radius=rad - m(5 * s))
+    pygame.draw.rect(surf, (*fr.SIL_DEEP, 210),
+                     rect.inflate(-m(8 * s), -m(8 * s)),
+                     width=max(1, m(1 * s)), border_radius=rad - m(4 * s))
+
+
+def d1_card_draw():
+    """draw_card with its whole frame section (keyline + bevel + tray
+    hairlines) replaced by the scaled D1 perimeter."""
+    src = textwrap.dedent(inspect.getsource(sc.draw_card))
+    src, n = re.subn(
+        r"pygame\.draw\.rect\(surf, \(4, 5, 16\), rect.*?border_radius=trad\)",
+        "_card_frame(surf, rect, rad)", src, flags=re.DOTALL)
+    assert n == 1, f"card frame patch failed: {n}"
+    ns = {}
+    exec(compile(src, "<kinship_card_d1>", "exec"), sc.__dict__, ns)
+    return ns["draw_card"]
+
+
 def render_card(draw_fn):
     big = pygame.Surface((sc.CARD_W * sc.SS, sc.CARD_H * sc.SS), pygame.SRCALPHA)
     rect = pygame.Rect(m(sc._INSET), m(sc._INSET),
@@ -224,48 +254,64 @@ def main():
     h2._DRAW_FN[0] = oc._patched_draw(pal["ring"])
     try:
         stock_card = render_card(sc.draw_card)
-        panels = []
+        sc._card_frame = card_frame_d1
+        d1_draw = d1_card_draw()
+        d1_card = render_card(d1_draw)
 
+        _orig_owned = store_data.is_owned
+        _orig_equipped = store_data.equipped
+        _orig_card_draw = sc.draw_card
+        EQUIP_SID = "skin_cowboy"
+
+        def render_category(card_draw=None):
+            store_data.is_owned = lambda s: s == EQUIP_SID or _orig_owned(s)
+            store_data.equipped = lambda slot: EQUIP_SID
+            if card_draw is not None:
+                sc.draw_card = card_draw
+            sc.clear_cache()
+            scene = StoreScene()
+            scene.view = "category"
+            scene.tab = 0
+            scene.page = 0
+            surf_c = pygame.Surface((W, H))
+            scene.render(surf_c)
+            sc.draw_card = _orig_card_draw
+            store_data.is_owned = _orig_owned
+            store_data.equipped = _orig_equipped
+            sc.clear_cache()
+            return surf_c
+
+        cat_stock = render_category()
+        cat_d1 = render_category(d1_draw)
+
+        panels = []
         panels.append(("IN-GAME",
                        "the design currently live in the game",
                        "no change — card as in game",
-                       render_stock(), stock_card))
+                       render_stock(), stock_card, cat_stock))
 
         panels.append(("BASE (new design)",
-                       "checkpoint 7 + gems moved to the sides, tucked "
-                       "to the frame at the card's measured placement",
-                       "no change — card as in game",
-                       render_pop(), stock_card))
+                       "checkpoint 7 + gems tucked to the frame at the "
+                       "card's measured placement",
+                       "popup's D1 double-bevel perimeter applied, scaled "
+                       "to card proportions (also in the category below)",
+                       render_pop(), d1_card, cat_d1))
 
         store_mod._frame_hook = frame_card_kinship
         panels.append(("K1 · card-frame-kinship",
                        "frame rebuilt from the card's recipe: keyline + "
                        "single gold bevel + tray hairlines, scaled up",
-                       "no change",
-                       render_pop(), stock_card))
+                       "no change — the popup perimeter here IS the "
+                       "card's own frame, so the card already matches",
+                       render_pop(), stock_card, cat_stock))
         store_mod._frame_hook = fr.frame_double_bevel
 
         panels.append(("K4 · unified-ribbon",
                        "rarity banner redrawn as the card's lozenge "
                        "ribbon construction, scaled up",
-                       "no change",
-                       render_pop(banner=ribbon_banner), stock_card))
-
-        _orig_owned = store_data.is_owned
-        _orig_equipped = store_data.equipped
-        EQUIP_SID = "skin_cowboy"
-        store_data.is_owned = lambda s: s == EQUIP_SID or _orig_owned(s)
-        store_data.equipped = lambda slot: EQUIP_SID
-        sc.clear_cache()
-        scene = StoreScene()
-        scene.view = "category"
-        scene.tab = 0
-        scene.page = 0
-        cat_surf = pygame.Surface((W, H))
-        scene.render(cat_surf)
-        store_data.is_owned = _orig_owned
-        store_data.equipped = _orig_equipped
-        sc.clear_cache()
+                       "popup's D1 double-bevel perimeter applied, scaled "
+                       "to card proportions (also in the category below)",
+                       render_pop(banner=ribbon_banner), d1_card, cat_d1))
 
         f_head = ImageFont.truetype(
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
@@ -289,10 +335,7 @@ def main():
                  "FIGURE K · popup-card kinship concepts · gold · MUMMY (epic) · "
                  "each column: popup / card / store category · 2x",
                  fill=(236, 214, 160), font=f_head)
-        cat_img = Image.frombytes("RGB", (W, H),
-                                  pygame.image.tostring(cat_surf, "RGB"))
-        cat_img = cat_img.resize((cat_w, cat_h), Image.LANCZOS)
-        for i, (role, pop_change, card_change, pop, card) in enumerate(panels):
+        for i, (role, pop_change, card_change, pop, card, cat) in enumerate(panels):
             x = MARGIN + i * (cell_w + GAP)
             pp = Image.frombytes("RGB", (POP_W, POP_H),
                                  pygame.image.tostring(pop, "RGB"))
@@ -304,7 +347,10 @@ def main():
             cbg.alpha_composite(cc.resize((card_w, card_h), Image.LANCZOS))
             strip.paste(cbg.convert("RGB"),
                         (x + (cell_w - card_w) // 2, HEAD + pop_h + 12))
-            strip.paste(cat_img, (x, HEAD + pop_h + 12 + card_h + 12))
+            cat_img = Image.frombytes("RGB", (W, H),
+                                      pygame.image.tostring(cat, "RGB"))
+            strip.paste(cat_img.resize((cat_w, cat_h), Image.LANCZOS),
+                        (x, HEAD + pop_h + 12 + card_h + 12))
             ty = HEAD + cell_h + 14
             idr.text((x + cell_w // 2, ty), role,
                      fill=(236, 214, 160), anchor="mt", font=f_role)
@@ -319,8 +365,8 @@ def main():
                     ty += 27
                 ty += 6
         idr.text((MARGIN, strip_h - 34),
-                 "bottom row: store category as in game (COWBOY in its proper "
-                 "EQUIPPED state) — identical context for every column",
+                 "bottom row: store category per column (COWBOY in its proper "
+                 "EQUIPPED state) — card frames follow each column's CARD line",
                  fill=(150, 150, 170), font=f_detail)
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
