@@ -231,23 +231,30 @@ def main():
                        "no change — card as in game",
                        render_stock(), stock_card))
 
-        panels.append(("BASE (new design)",
-                       "checkpoint 7 + gems moved to the sides, tucked "
-                       "to the frame at the card's measured placement",
+        h2._DRAW_FN[0] = oc._patched_draw(pal["ring"], gem_x=None)
+        panels.append(("BEFORE",
+                       "no change — checkpoint 7, gems at stock position",
                        "no change — card as in game",
+                       render_pop(), stock_card))
+        h2._DRAW_FN[0] = oc._patched_draw(pal["ring"])
+
+        panels.append(("K2 · crest-gem-grammar",
+                       "gems moved to the sides, tucked to the frame at "
+                       "the card's measured placement (in all K designs)",
+                       "no change",
                        render_pop(), stock_card))
 
         store_mod._frame_hook = frame_card_kinship
         panels.append(("K1 · card-frame-kinship",
-                       "frame rebuilt from the card's recipe: keyline + "
-                       "single gold bevel + tray hairlines, scaled up",
+                       "K2 gems + frame rebuilt from the card's recipe: "
+                       "keyline + single gold bevel + tray hairlines",
                        "no change",
                        render_pop(), stock_card))
         store_mod._frame_hook = fr.frame_double_bevel
 
         panels.append(("K4 · unified-ribbon",
-                       "rarity banner redrawn as the card's lozenge "
-                       "ribbon construction, scaled up",
+                       "K2 gems + rarity banner redrawn as the card's "
+                       "lozenge ribbon construction, scaled up",
                        "no change",
                        render_pop(banner=ribbon_banner), stock_card))
 
@@ -324,7 +331,7 @@ def main():
                  fill=(150, 150, 170), font=f_detail)
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "card_kinship_k_v8.png")
+                           "card_kinship_k_v9.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
