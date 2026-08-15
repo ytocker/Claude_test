@@ -252,38 +252,30 @@ def main():
                        render_pop(), stock_card))
         h2._DRAW_FN[0] = oc._patched_draw(pal["ring"])
 
-        _orig_chip_fn = h2.overlay_bullion_chip
-        h2.overlay_bullion_chip = lambda ov, price, cy: tag_chip(ov, price, cy)
-        panels.append(("K3 · unified-price-chip",
-                       "gold price bar replaced by the card's tilted "
-                       "hang-tag on a cord, scaled up",
-                       "no change",
-                       render_pop(), stock_card))
-        h2.overlay_bullion_chip = _orig_chip_fn
-
         panels.append(("K4 · unified-ribbon",
                        "rarity banner redrawn as the card's lozenge "
                        "ribbon construction, scaled up",
                        "no change",
                        render_pop(banner=ribbon_banner), stock_card))
 
-        sc._card_web = _card_web
-        web_card = render_card(patched_card_draw())
-        panels.append(("K5 · web-echo-on-card",
-                       "no change",
-                       "faint constellation web added on the card "
-                       "body behind the hero",
-                       render_pop(), web_card))
-
+        _orig_owned = store_data.is_owned
+        _orig_equipped = store_data.equipped
+        EQUIP_SID = "skin_cowboy"
+        store_data.is_owned = lambda s: s == EQUIP_SID or _orig_owned(s)
+        store_data.equipped = lambda slot: EQUIP_SID
+        sc.clear_cache()
         scene = StoreScene()
         scene.view = "category"
         scene.tab = 0
         scene.page = 0
         cat_surf = pygame.Surface((W, H))
         scene.render(cat_surf)
+        store_data.is_owned = _orig_owned
+        store_data.equipped = _orig_equipped
+        sc.clear_cache()
         panels.append(("STORE CATEGORY",
                        "item cards together, as in game",
-                       "stock cards — K5 web not applied here",
+                       "COWBOY shown in its proper EQUIPPED state",
                        cat_surf, None))
 
         f_head = ImageFont.truetype(
@@ -298,7 +290,7 @@ def main():
         cell_w = max(pop_w, card_w) + 40
         cell_h = pop_h + 12 + card_h
         import textwrap as _tw
-        COLS = 4
+        COLS = 3
         FOOT = 220
         rows = (len(panels) + COLS - 1) // COLS
         strip_w = MARGIN * 2 + COLS * (cell_w + GAP) - GAP
@@ -344,7 +336,7 @@ def main():
                 ty += 6
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "card_kinship_k_v5.png")
+                           "card_kinship_k_v6.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
