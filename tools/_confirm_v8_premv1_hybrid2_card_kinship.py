@@ -65,6 +65,38 @@ def frame_card_kinship(big, rect, rad):
                      width=max(1, m(1 * k)), border_radius=trad)
 
 
+def make_buttons_card_frame(can_stops, buy_text):
+    """The locked button build with the rim swapped for the card's frame
+    recipe (dark keyline + CARD_RING gold bevel); BUY alone keeps an inner
+    mat via the card's tray hairline pair (the I5 role in card grammar)."""
+    from game.store_cards import (vgrad_stops, bevel_rim, top_sheen,
+                                  drop_shadow, plain_text, font)
+
+    def buttons(ov):
+        rad = m(12)
+        for cx, lbl in ((76, "BUY"), (184, "CANCEL")):
+            r = pygame.Rect(0, 0, m(99), m(42))
+            r.center = (m(cx), m(360))
+            drop_shadow(ov, r, rad, blur=m(3), alpha=100, dy=m(2))
+            ov.blit(vgrad_stops(r.w, r.h, rad, can_stops, 255), r.topleft)
+            top_sheen(ov, r, rad, m(12), peak=14)
+            pygame.draw.rect(ov, (4, 5, 16), r, width=max(1, m(2)),
+                             border_radius=rad)
+            bevel_rim(ov, r, rad, sc.CARD_RING_DEEP,
+                      (*sc.CARD_RING_BRIGHT, 235), w=max(1, m(2.45)))
+            if lbl == "BUY":
+                tray = r.inflate(-m(7), -m(7))
+                trad = rad - m(4)
+                pygame.draw.rect(ov, (10, 10, 24, 200),
+                                 tray.inflate(m(2), m(2)),
+                                 width=max(1, m(1)), border_radius=trad + m(1))
+                pygame.draw.rect(ov, (*sc.CARD_RING_BRIGHT, 90), tray,
+                                 width=max(1, m(1)), border_radius=trad)
+            plain_text(ov, lbl, font(15), r.center, buy_text,
+                       shadow_a=110, weight=m(0.8), keyline=(8, 6, 20), kw=m(0.9))
+    return buttons
+
+
 # ── K2 · single crest gem at the card's corner grammar ────────────────────────
 def crest_gem_overlay(ov, pal_tier):
     # card: gem centre inset 19/162 of width from the corner; popup card body
@@ -298,12 +330,16 @@ def main():
                        render_pop(), d1_card, cat_d1))
 
         store_mod._frame_hook = frame_card_kinship
+        _orig_buttons = h2.overlay_buttons
+        h2.overlay_buttons = make_buttons_card_frame(can_stops, buy_text)
         panels.append(("K1 · card-frame-kinship",
-                       "frame rebuilt from the card's recipe: keyline + "
-                       "single gold bevel + tray hairlines, scaled up",
+                       "card-recipe perimeter on the popup frame AND on "
+                       "both buttons (BUY keeps an inner mat via the "
+                       "card's tray hairlines)",
                        "no change — the popup perimeter here IS the "
                        "card's own frame, so the card already matches",
                        render_pop(), stock_card, cat_stock))
+        h2.overlay_buttons = _orig_buttons
         store_mod._frame_hook = fr.frame_double_bevel
 
         panels.append(("K4 · unified-ribbon",
@@ -370,7 +406,7 @@ def main():
                  fill=(150, 150, 170), font=f_detail)
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "card_kinship_k_v10.png")
+                           "card_kinship_k_v11.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
