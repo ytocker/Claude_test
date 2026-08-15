@@ -7,7 +7,7 @@ lettering, scaled up), so both surfaces speak one ribbon language.
 Columns: IN-GAME · LOCKED + I1 (stock banner) · LOCKED + I1 + card ribbon
 · card ribbon at the same size but with the stock banner's lettering.
 
-Output: colorways/locked_i1_ribbon_v2.png
+Output: colorways/locked_i1_ribbon_v3.png
 """
 import os
 import sys
@@ -47,14 +47,14 @@ G8_PAL = COLORWAYS[-1][2]
 
 
 def ribbon_banner_stock_text(ov, tier_word, cx, cy, max_w, pal):
-    """The K4 lozenge at its full size, but lettered like the stock popup
-    banner (font 13.3, tracking m1.4, weight m0.7) instead of K4's scaled-up
-    type. The polygon width still comes from the K4 metrics so the banner's
-    footprint is identical to the card-ribbon version."""
+    """The K4 lozenge height, lettered like the stock popup banner (font
+    13.3, tracking m1.4, weight m0.7), and narrowed: the width follows the
+    stock text plus the stock banner's m16 padding instead of K4's wide
+    metrics."""
     k = 1.9
-    f_k4 = sc.font(int(8.5 * k))
-    tw = sc._glyph_base(tier_word, f_k4, sc.m(1.4 * k)).get_width()
-    pad = sc.m(14 * k)
+    f_stock_w = sc.font(23 * 0.58)
+    tw = sc._glyph_base(tier_word, f_stock_w, sc.m(1.4)).get_width()
+    pad = sc.m(16)
     w = min(sc.m(max_w), tw + pad * 2)
     h = sc.m(12 * k)
     pt = h // 2
@@ -157,9 +157,9 @@ def main():
                        render_category(patched_card)))
 
         set_candidate_column()
-        panels.append(("RIBBON · STOCK TEXT",
-                       "same lozenge banner size, but lettered like the "
-                       "previous banner (smaller, tighter type)",
+        panels.append(("RIBBON · STOCK TEXT · NARROW",
+                       "lozenge banner narrowed to the stock text width "
+                       "plus stock padding; same height",
                        render_pop(banner=ribbon_banner_stock_text),
                        render_card(patched_card),
                        render_category(patched_card)))
@@ -213,7 +213,7 @@ def main():
                 ty += 27
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1",
-                           "colorways", "locked_i1_ribbon_v2.png")
+                           "colorways", "locked_i1_ribbon_v3.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
