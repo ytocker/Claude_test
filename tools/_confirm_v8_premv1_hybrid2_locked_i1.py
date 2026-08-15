@@ -3,10 +3,11 @@
 I1 (one calligraphic divider under the BUY label, ending in curls with a
 micro gem at centre) re-colored from its original antique gold into the
 locked rim-shine palette: body strokes in the rim gold (236,202,116),
-crests in the pale glint (246,220,140). Everything else is the locked
-design untouched. Columns: IN-GAME · LOCKED · LOCKED + I1.
+crests in the pale glint (246,220,140). BUY drops the I5 inner keyline —
+the swash is its only ornament. Everything else is the locked design
+untouched. Columns: IN-GAME · LOCKED · LOCKED + I1.
 
-Output: colorways/locked_i1_accent_v1.png
+Output: colorways/locked_i1_accent_v2.png
 """
 import os
 import sys
@@ -53,15 +54,27 @@ CHOSEN = dict(GLINT=(236, 202, 116), BRIGHT=(246, 220, 140),
 
 
 def make_buttons_i1(can_stops, buy_text):
-    locked = make_buttons_frame(can_stops, buy_text,
-                                make_locked_frame(CARD_S), G8_PAL)
+    """The locked button build minus the I5 inner keyline on BUY — the I1
+    swash-underline is BUY's only ornament."""
+    from game.store_cards import (vgrad_stops, top_sheen, drop_shadow,
+                                  plain_text, font)
+    frame_fn = make_locked_frame(CARD_S)
 
     def buttons(ov):
-        locked(ov)
-        r = pygame.Rect(0, 0, m(99), m(42))
-        r.center = (m(76), m(360))
-        half_tw = sc._glyph_base("BUY", sc.font(15), 0).get_width() // 2
-        acc_swash_underline(ov, r, half_tw + m(4))
+        rad = m(12)
+        for cx, lbl in ((76, "BUY"), (184, "CANCEL")):
+            r = pygame.Rect(0, 0, m(99), m(42))
+            r.center = (m(cx), m(360))
+            drop_shadow(ov, r, rad, blur=m(3), alpha=100, dy=m(2))
+            ov.blit(vgrad_stops(r.w, r.h, rad, can_stops, 255), r.topleft)
+            top_sheen(ov, r, rad, m(12), peak=14)
+            frame_fn(ov, r, rad)
+            if lbl == "BUY":
+                half_tw = sc._glyph_base("BUY", font(15), 0).get_width() // 2
+                acc_swash_underline(ov, r, half_tw + m(4))
+            plain_text(ov, lbl, font(15), r.center, buy_text,
+                       shadow_a=110, weight=m(0.8), keyline=(8, 6, 20),
+                       kw=m(0.9))
     return buttons
 
 
@@ -136,8 +149,9 @@ def main():
             setattr(acc2, k, v)
         set_locked_column(make_buttons_i1(can_stops, buy_text))
         panels.append(("LOCKED + I1",
-                       "I1 swash-underline under the BUY label, engraved "
-                       "in the rim gold with pale-glint crests",
+                       "I1 swash-underline under the BUY label in the rim "
+                       "gold; the I5 inner keyline removed — the swash is "
+                       "BUY's only ornament",
                        render_pop(), render_card(patched_card),
                        render_category(patched_card)))
 
@@ -190,7 +204,7 @@ def main():
                 ty += 27
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1",
-                           "colorways", "locked_i1_accent_v1.png")
+                           "colorways", "locked_i1_accent_v2.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
