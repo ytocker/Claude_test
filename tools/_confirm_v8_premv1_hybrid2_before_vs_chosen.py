@@ -1,11 +1,13 @@
-"""Before vs chosen: the in-game design next to the full chosen build.
+"""Before vs BASE vs chosen.
 
-Chosen = the locked G8 rim-shine perimeter at x1.4 thickness, the I1
-swash-underline on a mat-free BUY button, stock rarity banner — applied
-holistically to popup, cards, and category. Two columns, popup / card /
-category each.
+BEFORE is the in-game design; BASE is the checkpoint-7 baseline exactly as
+the column of that name in figure K v11 (antique gold, D1 double-bevel
+perimeter, I5 inner-keyline buttons, D1-framed cards); CHOSEN is the
+current candidate — the locked G8 rim-shine perimeter at x1.4 thickness
+with the I1 swash on a mat-free BUY and the stock rarity banner. Three
+columns, popup / card / category each.
 
-Output: colorways/before_vs_chosen_v1.png
+Output: colorways/before_vs_chosen_v2.png
 """
 import os
 import sys
@@ -22,8 +24,12 @@ import _confirm_v8_premv1_hybrid2_buy_accents2 as acc2
 import _confirm_v8_premv1_hybrid2_colorway as cw
 import _confirm_v8_premv1_hybrid2_frames as fr
 import _confirm_v8_premv1_hybrid2_outline_compare as oc
+from _confirm_v8_premv1_hybrid2_buy_accents import make_buttons_accent
+from _confirm_v8_premv1_hybrid2_buy_accents4 import make_inner_keyline
 from _confirm_v8_premv1_hybrid2_card_kinship import (SID, TIER, render_pop,
-                                                     render_card)
+                                                     render_card,
+                                                     card_frame_d1,
+                                                     d1_card_draw)
 from _confirm_v8_premv1_hybrid2_current_vs_locked import render_stock
 from _confirm_v8_premv1_hybrid2_locked_i1 import CHOSEN, make_buttons_i1
 from _confirm_v8_premv1_hybrid2_perimeter_colors import (
@@ -92,6 +98,27 @@ def main():
                    render_stock(), render_card(sc.draw_card),
                    render_category())]
 
+        # BASE exactly as in figure K v11: antique gold, D1 double-bevel
+        # perimeter, I5 inner-keyline buttons, D1-framed cards.
+        pal = oc.GOLD
+        fr.SIL_DEEP, fr.SIL_MID, fr.SIL_BRIGHT = (pal["deep"], pal["mid"],
+                                                  pal["bright"])
+        fr.GEM_SIL, fr.GEM_SIL_DEEP = pal["gem"], pal["gem_deep"]
+        store_mod._bg_hook = hook_constellation(pal["glint"], BG_DEEP_A,
+                                                BG_GLINT_A)
+        store_mod._frame_hook = fr.frame_double_bevel
+        h2.overlay_buttons = make_buttons_accent(
+            can_stops, buy_text, pal["deep"], pal["bright"],
+            make_inner_keyline(pal["glint"], pal["bright"], (26, 17, 4)))
+        h2._DRAW_FN[0] = oc._patched_draw(pal["ring"])
+        sc._card_frame = card_frame_d1
+        d1_draw = d1_card_draw()
+        panels.append(("BASE (from figure K v11)",
+                       "checkpoint 7: antique gold, D1 double-bevel "
+                       "perimeter, I5 inner-keyline buttons, D1 cards",
+                       render_pop(), render_card(d1_draw),
+                       render_category(d1_draw)))
+
         for k, v in CHOSEN.items():
             setattr(acc2, k, v)
         pal = G8_PAL
@@ -158,7 +185,7 @@ def main():
                 ty += 27
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1",
-                           "colorways", "before_vs_chosen_v1.png")
+                           "colorways", "before_vs_chosen_v2.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
