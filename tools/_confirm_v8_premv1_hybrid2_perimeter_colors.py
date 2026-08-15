@@ -6,7 +6,8 @@ shelf, stock card footer. Each column swaps the perimeter gold
 holistically: popup frame, button rims, card frame, category cards, hero
 ring, corner/bottom gems, and background glints all follow.
 Columns: IN-GAME · G1 antique (reference) · G2 rich · G3 luminous ·
-G4 deep-old · G5 honey · G6 soft.
+G4 deep-old · G5 honey · G6 soft · G7 rim-matched (perimeter takes the
+gold sampled from the popup's hero rim).
 
 Output: colorways/perimeter_gold_shades_v1.png
 """
@@ -75,6 +76,12 @@ COLORWAYS = [
      dict(deep=(100, 82, 42), mid=(212, 184, 112), bright=(250, 226, 156),
           gem=(232, 202, 126), gem_deep=(116, 94, 48),
           glint=(230, 204, 134), ring=(238, 212, 144))),
+    # Sampled from the popup's hero rim as rendered: mean (200,166,87),
+    # peak (228,196,112), hue 42° — the perimeter takes the rim's own gold.
+    ("G7 · rim-matched", "the hero rim's own gold, spread to the perimeter",
+     dict(deep=(92, 75, 37), mid=(204, 168, 86), bright=(230, 197, 111),
+          gem=(222, 186, 98), gem_deep=(104, 84, 42),
+          glint=(224, 190, 104), ring=(232, 198, 110))),
 ]
 
 
