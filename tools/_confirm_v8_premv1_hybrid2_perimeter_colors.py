@@ -9,7 +9,7 @@ Columns: IN-GAME · G1 antique (reference) · G2 rich · G3 luminous ·
 G4 deep-old · G5 honey · G6 soft · G7 rim-matched (perimeter takes the
 gold sampled from the popup's hero rim).
 
-Output: colorways/perimeter_gold_shades_v1.png
+Output: colorways/perimeter_gold_shades_v2.png
 """
 import os
 import sys
@@ -273,7 +273,7 @@ def main():
                 ty += 27
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1",
-                           "colorways", "perimeter_gold_shades_v1.png")
+                           "colorways", "perimeter_gold_shades_v2.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
