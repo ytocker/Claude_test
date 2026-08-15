@@ -95,6 +95,15 @@ COLORWAYS = [
 ]
 
 
+# LOCKED 2026-08-15: G8 rim-shine at x1.4 thickness is the chosen perimeter.
+LOCKED_THICKNESS = 1.4
+
+
+def make_locked_frame(s=1.0):
+    """The locked perimeter: G8 rim-shine at the chosen x1.4 weight."""
+    return make_rim_shine_frame(s, LOCKED_THICKNESS)
+
+
 def make_rim_shine_frame(s=1.0, t=1.0):
     """The hero rim's stroke stack translated to the rounded-rect perimeter:
     dark contact keyline, warm-gold rim + ring-gold overlay, inner pale
