@@ -273,10 +273,6 @@ def main():
         store_data.is_owned = _orig_owned
         store_data.equipped = _orig_equipped
         sc.clear_cache()
-        panels.append(("STORE CATEGORY",
-                       "item cards together, as in game",
-                       "COWBOY shown in its proper EQUIPPED state",
-                       cat_surf, None))
 
         f_head = ImageFont.truetype(
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
@@ -288,55 +284,54 @@ def main():
         pop_w, pop_h = POP_W * 2, POP_H * 2
         card_w, card_h = sc.CARD_W * 2, sc.CARD_H * 2
         cell_w = max(pop_w, card_w) + 40
-        cell_h = pop_h + 12 + card_h
+        cat_w, cat_h = cell_w, cell_w * H // W
+        cell_h = pop_h + 12 + card_h + 12 + cat_h
         import textwrap as _tw
-        COLS = 3
         FOOT = 220
-        rows = (len(panels) + COLS - 1) // COLS
-        strip_w = MARGIN * 2 + COLS * (cell_w + GAP) - GAP
-        strip_h = HEAD + rows * (cell_h + FOOT + GAP) - GAP
+        strip_w = MARGIN * 2 + len(panels) * (cell_w + GAP) - GAP
+        strip_h = HEAD + cell_h + FOOT + 40
         strip = Image.new("RGB", (strip_w, strip_h), (10, 9, 20))
         idr = ImageDraw.Draw(strip)
         idr.text((MARGIN, 16),
-                 "FIGURE K · popup-card kinship concepts · gold · MUMMY (epic) · 2x",
+                 "FIGURE K · popup-card kinship concepts · gold · MUMMY (epic) · "
+                 "each column: popup / card / store category · 2x",
                  fill=(236, 214, 160), font=f_head)
+        cat_img = Image.frombytes("RGB", (W, H),
+                                  pygame.image.tostring(cat_surf, "RGB"))
+        cat_img = cat_img.resize((cat_w, cat_h), Image.LANCZOS)
         for i, (role, pop_change, card_change, pop, card) in enumerate(panels):
-            x = MARGIN + (i % COLS) * (cell_w + GAP)
-            HEAD_i = HEAD + (i // COLS) * (cell_h + FOOT + GAP)
-            if card is None:
-                fw, fh = cell_w, cell_w * H // W
-                fp = Image.frombytes("RGB", (W, H),
-                                     pygame.image.tostring(pop, "RGB"))
-                strip.paste(fp.resize((fw, fh), Image.LANCZOS),
-                            (x, HEAD_i + (cell_h - fh) // 2))
-            else:
-                pp = Image.frombytes("RGB", (POP_W, POP_H),
-                                     pygame.image.tostring(pop, "RGB"))
-                strip.paste(pp.resize((pop_w, pop_h), Image.LANCZOS),
-                            (x + (cell_w - pop_w) // 2, HEAD_i))
-                cc = Image.frombytes("RGBA", (sc.CARD_W, sc.CARD_H),
-                                     pygame.image.tostring(card, "RGBA"))
-                cbg = Image.new("RGBA", (card_w, card_h), (10, 9, 20, 255))
-                cbg.alpha_composite(cc.resize((card_w, card_h), Image.LANCZOS))
-                strip.paste(cbg.convert("RGB"),
-                            (x + (cell_w - card_w) // 2, HEAD_i + pop_h + 12))
-            ty = HEAD_i + cell_h + 14
+            x = MARGIN + i * (cell_w + GAP)
+            pp = Image.frombytes("RGB", (POP_W, POP_H),
+                                 pygame.image.tostring(pop, "RGB"))
+            strip.paste(pp.resize((pop_w, pop_h), Image.LANCZOS),
+                        (x + (cell_w - pop_w) // 2, HEAD))
+            cc = Image.frombytes("RGBA", (sc.CARD_W, sc.CARD_H),
+                                 pygame.image.tostring(card, "RGBA"))
+            cbg = Image.new("RGBA", (card_w, card_h), (10, 9, 20, 255))
+            cbg.alpha_composite(cc.resize((card_w, card_h), Image.LANCZOS))
+            strip.paste(cbg.convert("RGB"),
+                        (x + (cell_w - card_w) // 2, HEAD + pop_h + 12))
+            strip.paste(cat_img, (x, HEAD + pop_h + 12 + card_h + 12))
+            ty = HEAD + cell_h + 14
             idr.text((x + cell_w // 2, ty), role,
                      fill=(236, 214, 160), anchor="mt", font=f_role)
             ty += 40
-            lines = ((("", pop_change), ("", card_change)) if card is None
-                     else (("POPUP: ", pop_change), ("CARD: ", card_change)))
-            for prefix, change in lines:
+            for prefix, change in (("POPUP: ", pop_change),
+                                   ("CARD: ", card_change)):
                 col = ((150, 150, 170) if change.startswith("no change")
                        else (222, 208, 170))
-                for j, line in enumerate(_tw.wrap(prefix + change, 44)):
+                for line in _tw.wrap(prefix + change, 44):
                     idr.text((x + cell_w // 2, ty), line,
                              fill=col, anchor="mt", font=f_detail)
                     ty += 27
                 ty += 6
+        idr.text((MARGIN, strip_h - 34),
+                 "bottom row: store category as in game (COWBOY in its proper "
+                 "EQUIPPED state) — identical context for every column",
+                 fill=(150, 150, 170), font=f_detail)
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1", "colorways",
-                           "card_kinship_k_v6.png")
+                           "card_kinship_k_v7.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
