@@ -4,9 +4,10 @@ The popup's stock tier banner is a notched-hex construction; the item card
 uses a pointed lozenge ribbon. This version redraws the popup banner with
 the card's own lozenge build (K4: same polygon, gradient, keyline, and
 lettering, scaled up), so both surfaces speak one ribbon language.
-Columns: IN-GAME · LOCKED + I1 (stock banner) · LOCKED + I1 + card ribbon.
+Columns: IN-GAME · LOCKED + I1 (stock banner) · LOCKED + I1 + card ribbon
+· card ribbon at the same size but with the stock banner's lettering.
 
-Output: colorways/locked_i1_ribbon_v1.png
+Output: colorways/locked_i1_ribbon_v2.png
 """
 import os
 import sys
@@ -43,6 +44,40 @@ from game.config import W, H
 from PIL import Image, ImageDraw, ImageFont
 
 G8_PAL = COLORWAYS[-1][2]
+
+
+def ribbon_banner_stock_text(ov, tier_word, cx, cy, max_w, pal):
+    """The K4 lozenge at its full size, but lettered like the stock popup
+    banner (font 13.3, tracking m1.4, weight m0.7) instead of K4's scaled-up
+    type. The polygon width still comes from the K4 metrics so the banner's
+    footprint is identical to the card-ribbon version."""
+    k = 1.9
+    f_k4 = sc.font(int(8.5 * k))
+    tw = sc._glyph_base(tier_word, f_k4, sc.m(1.4 * k)).get_width()
+    pad = sc.m(14 * k)
+    w = min(sc.m(max_w), tw + pad * 2)
+    h = sc.m(12 * k)
+    pt = h // 2
+    x0, y0 = sc.m(cx) - w // 2, sc.m(cy) - h // 2
+    poly = [(0, h // 2), (pt, 0), (w - pt, 0),
+            (w, h // 2), (w - pt, h), (pt, h)]
+    top = sc.lerp_color(pal["gem"], sc.WHITE, 0.1)
+    bot = sc.lerp_color(pal["deep"], sc.NEAR_BLACK, 0.05)
+    body = sc.vgrad_stops(w, h, 0,
+                          [(0.0, top), (0.5, pal["glow"]), (1.0, bot)],
+                          255, gamma=1.08)
+    pmask = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.polygon(pmask, (255, 255, 255, 255), poly)
+    body.blit(pmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    sh = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.polygon(sh, (0, 0, 0, 120), poly)
+    ov.blit(sh, (x0, y0 + sc.m(2)))
+    ov.blit(body, (x0, y0))
+    abspoly = [(x0 + px, y0 + py) for px, py in poly]
+    pygame.draw.polygon(ov, (4, 5, 16), abspoly, width=max(1, sc.m(1.4)))
+    f_stock = sc.font(23 * 0.58)
+    sc.plain_text(ov, tier_word, f_stock, (sc.m(cx), sc.m(cy)), (14, 12, 26),
+                  shadow_a=0, tracking=sc.m(1.4), weight=sc.m(0.7))
 
 
 def main():
@@ -121,6 +156,14 @@ def main():
                        render_card(patched_card),
                        render_category(patched_card)))
 
+        set_candidate_column()
+        panels.append(("RIBBON · STOCK TEXT",
+                       "same lozenge banner size, but lettered like the "
+                       "previous banner (smaller, tighter type)",
+                       render_pop(banner=ribbon_banner_stock_text),
+                       render_card(patched_card),
+                       render_category(patched_card)))
+
         f_head = ImageFont.truetype(
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
         f_role = ImageFont.truetype(
@@ -170,7 +213,7 @@ def main():
                 ty += 27
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1",
-                           "colorways", "locked_i1_ribbon_v1.png")
+                           "colorways", "locked_i1_ribbon_v2.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
