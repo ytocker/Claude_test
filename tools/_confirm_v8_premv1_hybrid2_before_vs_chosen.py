@@ -1,13 +1,18 @@
 """Before vs BASE vs chosen.
 
-BEFORE is the in-game design; BASE is the checkpoint-7 baseline exactly as
-the column of that name in figure K v11 (antique gold, D1 double-bevel
-perimeter, I5 inner-keyline buttons, D1-framed cards); CHOSEN is the
-current candidate — the locked G8 rim-shine perimeter at x1.4 thickness
-with the I1 swash on a mat-free BUY and the stock rarity banner. Three
-columns, popup / card / category each.
+BEFORE is the true in-game design, rendered from the v5_item_popup branch
+(the build the game actually runs: notched-hex rarity banner visible at
+y245 above the shelf, coin chip inside the shelf at y433) — NOT from
+v5_integration, whose WIP draw buries the banner under the shelf. Its
+renders live as committed PNGs in colorways/stock_ref/ (produced in a
+v5_item_popup worktree with the same stub/crop as render_stock).
+BASE is the checkpoint-7 baseline exactly as the column of that name in
+figure K v11 (antique gold, D1 double-bevel perimeter, I5 inner-keyline
+buttons, D1-framed cards); CHOSEN is the current candidate — the locked
+G8 rim-shine perimeter at x1.4 thickness with the I1 swash on a mat-free
+BUY. Three columns, popup / card / category each.
 
-Output: colorways/before_vs_chosen_v2.png
+Output: colorways/before_vs_chosen_v3.png
 """
 import os
 import sys
@@ -30,7 +35,6 @@ from _confirm_v8_premv1_hybrid2_card_kinship import (SID, TIER, render_pop,
                                                      render_card,
                                                      card_frame_d1,
                                                      d1_card_draw)
-from _confirm_v8_premv1_hybrid2_current_vs_locked import render_stock
 from _confirm_v8_premv1_hybrid2_locked_i1 import CHOSEN, make_buttons_i1
 from _confirm_v8_premv1_hybrid2_perimeter_colors import (
     POP_W, POP_H, BG_DEEP_A, BG_GLINT_A, CARD_S, COLORWAYS,
@@ -93,10 +97,16 @@ def main():
         return surf_c
 
     try:
+        ref = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "confirm_purchase_v8", "premium-v1",
+                           "colorways", "stock_ref")
         panels = [("BEFORE · IN-GAME",
-                   "the design currently live in the game",
-                   render_stock(), render_card(sc.draw_card),
-                   render_category())]
+                   "the design the game actually runs (v5_item_popup): "
+                   "rarity banner above the shelf, coin chip in the shelf",
+                   pygame.image.load(os.path.join(ref, "stock_pop.png")),
+                   pygame.image.load(
+                       os.path.join(ref, "stock_card.png")).convert_alpha(),
+                   pygame.image.load(os.path.join(ref, "stock_cat.png")))]
 
         # BASE exactly as in figure K v11: antique gold, D1 double-bevel
         # perimeter, I5 inner-keyline buttons, D1-framed cards.
@@ -164,10 +174,13 @@ def main():
                                  pygame.image.tostring(pop, "RGB"))
             strip.paste(pp.resize((pop_w, pop_h), Image.LANCZOS),
                         (x + (cell_w - pop_w) // 2, HEAD))
-            cc = Image.frombytes("RGBA", (sc.CARD_W, sc.CARD_H),
+            cw0, ch0 = card.get_size()
+            cc = Image.frombytes("RGBA", (cw0, ch0),
                                  pygame.image.tostring(card, "RGBA"))
+            tw_ = round(cw0 * card_h / ch0)   # fit to cell height, keep aspect
             cbg = Image.new("RGBA", (card_w, card_h), (10, 9, 20, 255))
-            cbg.alpha_composite(cc.resize((card_w, card_h), Image.LANCZOS))
+            cbg.alpha_composite(cc.resize((tw_, card_h), Image.LANCZOS),
+                                (max(0, (card_w - tw_) // 2), 0))
             strip.paste(cbg.convert("RGB"),
                         (x + (cell_w - card_w) // 2, HEAD + pop_h + 12))
             cat_img = Image.frombytes("RGB", (W, H),
@@ -185,7 +198,7 @@ def main():
                 ty += 27
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1",
-                           "colorways", "before_vs_chosen_v2.png")
+                           "colorways", "before_vs_chosen_v3.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
