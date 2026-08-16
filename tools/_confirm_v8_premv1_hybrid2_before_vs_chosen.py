@@ -1,18 +1,18 @@
 """Before vs BASE vs chosen.
 
-BEFORE is the true in-game design, rendered from the v5_item_popup branch
-(the build the game actually runs: notched-hex rarity banner visible at
-y245 above the shelf, coin chip inside the shelf at y433) — NOT from
-v5_integration, whose WIP draw buries the banner under the shelf. Its
-renders live as committed PNGs in colorways/stock_ref/ (produced in a
-v5_item_popup worktree with the same stub/crop as render_stock).
+BEFORE is the design live in v5_integration: bullion coin chip at y247
+below the name, rarity banner at y402 between the bottom gems. The
+in-game draw has a known z-order bug (FINAL_SPEC.md: "base draws it under
+the shelf at 402 — the port must fix that draw order"), so the banner is
+re-drawn on top here exactly as the design harness does, showing the
+integrated design as intended.
 BASE is the checkpoint-7 baseline exactly as the column of that name in
 figure K v11 (antique gold, D1 double-bevel perimeter, I5 inner-keyline
 buttons, D1-framed cards); CHOSEN is the current candidate — the locked
 G8 rim-shine perimeter at x1.4 thickness with the I1 swash on a mat-free
 BUY. Three columns, popup / card / category each.
 
-Output: colorways/before_vs_chosen_v3.png
+Output: colorways/before_vs_chosen_v4.png
 """
 import os
 import sys
@@ -35,6 +35,7 @@ from _confirm_v8_premv1_hybrid2_card_kinship import (SID, TIER, render_pop,
                                                      render_card,
                                                      card_frame_d1,
                                                      d1_card_draw)
+from _confirm_v8_premv1_hybrid2_current_vs_locked import render_stock
 from _confirm_v8_premv1_hybrid2_locked_i1 import CHOSEN, make_buttons_i1
 from _confirm_v8_premv1_hybrid2_perimeter_colors import (
     POP_W, POP_H, BG_DEEP_A, BG_GLINT_A, CARD_S, COLORWAYS,
@@ -96,17 +97,24 @@ def main():
         sc.clear_cache()
         return surf_c
 
+    def render_before():
+        """The v5_integration in-game popup with the rarity banner drawn in
+        the intended order (above the shelf) per FINAL_SPEC.md."""
+        from game.store import _confirm_tier_banner
+        pop = render_stock()
+        ov = pygame.Surface((POP_W * sc.SS, POP_H * sc.SS), pygame.SRCALPHA)
+        _confirm_tier_banner(ov, 130, 402, 140, 23, TIER,
+                             sc.RARITY[TIER.lower()])
+        pop.blit(pygame.transform.smoothscale(ov, (POP_W, POP_H)), (0, 0))
+        return pop
+
     try:
-        ref = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                           "docs", "confirm_purchase_v8", "premium-v1",
-                           "colorways", "stock_ref")
-        panels = [("BEFORE · IN-GAME",
-                   "the design the game actually runs (v5_item_popup): "
-                   "rarity banner above the shelf, coin chip in the shelf",
-                   pygame.image.load(os.path.join(ref, "stock_pop.png")),
-                   pygame.image.load(
-                       os.path.join(ref, "stock_card.png")).convert_alpha(),
-                   pygame.image.load(os.path.join(ref, "stock_cat.png")))]
+        panels = [("BEFORE · IN-GAME (v5_integration)",
+                   "the integrated design: bullion chip below the name, "
+                   "rarity banner between the bottom gems (drawn above "
+                   "the shelf as the spec intends)",
+                   render_before(), render_card(sc.draw_card),
+                   render_category())]
 
         # BASE exactly as in figure K v11: antique gold, D1 double-bevel
         # perimeter, I5 inner-keyline buttons, D1-framed cards.
@@ -198,7 +206,7 @@ def main():
                 ty += 27
         out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "confirm_purchase_v8", "premium-v1",
-                           "colorways", "before_vs_chosen_v3.png")
+                           "colorways", "before_vs_chosen_v4.png")
         strip.save(out)
         print("saved", out, strip.size)
     finally:
