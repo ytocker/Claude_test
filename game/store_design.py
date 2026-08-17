@@ -191,9 +191,20 @@ def make_constellation(glint, deep_a=155, glint_a=138):
 
 
 # ── smooth hero halo (ring-free replacement for _alpha_aura) ─────────────────
-def smooth_aura(surf, cx, cy, radius, color, peak=27, layers=15):
-    import numpy as np
+_aura_cache: dict = {}
+
+
+def _build_aura(radius, color, peak, layers):
     side = radius * 2 + 2
+    try:
+        import numpy as np
+    except ImportError:
+        # numpy is absent on the pygbag/web runtime (and bare CI): fall
+        # back to the stock ring-stacked aura, prerendered into the cache
+        g = pygame.Surface((side, side), pygame.SRCALPHA)
+        sc._alpha_aura(g, radius + 1, radius + 1, radius, color,
+                       peak=peak, layers=layers)
+        return g
     yy, xx = np.mgrid[0:side, 0:side]
     d = np.hypot(xx - (radius + 1), yy - (radius + 1))
     step = radius / layers
@@ -211,6 +222,17 @@ def smooth_aura(surf, cx, cy, radius, color, peak=27, layers=15):
     rgb[..., 0], rgb[..., 1], rgb[..., 2] = color[0], color[1], color[2]
     del rgb
     pygame.surfarray.pixels_alpha(g)[:, :] = alpha.T
+    return g
+
+
+def smooth_aura(surf, cx, cy, radius, color, peak=27, layers=15):
+    """Built once per (radius, colour, strength) and cached — the confirm
+    popup redraws every frame, so the halo must not be recomputed live."""
+    key = (radius, color, peak, layers)
+    g = _aura_cache.get(key)
+    if g is None:
+        g = _build_aura(radius, color, peak, layers)
+        _aura_cache[key] = g
     surf.blit(g, (cx - radius - 1, cy - radius - 1))
 
 
