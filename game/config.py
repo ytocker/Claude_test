@@ -454,4 +454,4 @@ DAILY_REWARD = 75
 #               inner-keyline buttons, constellation-web ornament
 #   "gilded"  — polished rim-shine gold perimeter at x1.4 weight,
 #               swash-underlined BUY
-STORE_DESIGN = "gilded"
+STORE_DESIGN = "antique"
