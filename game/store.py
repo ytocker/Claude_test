@@ -949,7 +949,7 @@ class StoreScene:
         SS = store_cards.SS
         m = store_cards.m
 
-        design = store_design.DESIGN     # None = "live"
+        design = store_design.DESIGN     # None = "classic"
         CARD_X, CARD_W, CARD_TOP, CARD_H, CARD_RAD = 10, 240, 127, 299, 23
         R_HERO, DISC_CY = 53, 135
         GEM_R, GEM_CY = 14, 152

@@ -3,17 +3,18 @@
 Three designs (see docs/confirm_purchase_v8/premium-v1/colorways/
 before_vs_chosen_v4.png, columns left to right):
 
-  "live"   — the shipped design; the only change applied game-side is the
-             rarity-banner draw order fix from FINAL_SPEC.md (drawn above
-             the shelf instead of buried under it).
-  "base"   — checkpoint 7 (figure K v11 "BASE"): antique-gold palette,
-             D1 double-bevel perimeter on popup/buttons/cards, gold
-             constellation-web behind the upper card, bullion price bar,
-             I5 inner-keyline BUY accent, tucked corner gems, smooth halo.
-  "chosen" — the locked candidate: same skeleton as base, with the
-             perimeter swapped for the rim-shine gold stack at x1.4
-             thickness (popup, buttons, cards) and the I1 swash-underline
-             on a mat-free BUY.
+  "classic" — the original store look; the only change applied game-side
+              is the rarity-banner draw order fix from FINAL_SPEC.md
+              (drawn above the shelf instead of buried under it).
+  "antique" — aged-gold metalwork (exploration lineage: checkpoint 7 /
+              figure K v11 "BASE"): antique-gold palette, D1 double-bevel
+              perimeter on popup/buttons/cards, gold constellation-web
+              behind the upper card, bullion price bar, I5 inner-keyline
+              BUY accent, tucked corner gems, smooth halo.
+  "gilded"  — polished rim-shine gold (the locked candidate): same
+              skeleton as antique, with the perimeter swapped for the
+              rim-shine gold stack at x1.4 thickness (popup, buttons,
+              cards) and the I1 swash-underline on a mat-free BUY.
 
 Everything here is a self-contained port of the reference renderers under
 tools/ (the _confirm_v8_premv1_hybrid2_* family); store.py and
@@ -51,7 +52,7 @@ BAR_H = 34
 NAME_ZONE_C = 237          # zone-centred name block centre
 CHIP_CY = 300              # bullion bar centre (may push down, see chip_cy)
 CARD_S = 154.0 / 240.0     # card-frame scale relative to the popup
-LOCKED_T = 1.4             # chosen perimeter thickness
+LOCKED_T = 1.4             # gilded perimeter thickness
 
 
 # ── perimeter frames ──────────────────────────────────────────────────────────
@@ -279,7 +280,7 @@ def chip_cy(name):
 
 
 # ── BUY engraving (I1 swash + I5 keyline) ─────────────────────────────────────
-# chosen-design engraving metal (the rim-shine golds)
+# gilded-design engraving metal (the rim-shine golds)
 _ENG_GLINT, _ENG_BRIGHT = (236, 202, 116), (246, 220, 140)
 _ENG_SHADOW = (26, 17, 4)
 _ENG_GEM, _ENG_GEM_DEEP = (236, 202, 116), (96, 74, 30)
@@ -352,9 +353,9 @@ def _inner_keyline(ov, r):
 
 
 # ── buttons ───────────────────────────────────────────────────────────────────
-def draw_buttons_base(ov):
-    """K v11 BASE: silver-can faces, antique-gold bevel rims (w=4), I5
-    inner keyline on BUY."""
+def draw_buttons_antique(ov):
+    """Antique design: silver-can faces, antique-gold bevel rims (w=4),
+    I5 inner keyline on BUY."""
     rad = m(12)
     for cx, lbl in ((76, "BUY"), (184, "CANCEL")):
         r = pygame.Rect(0, 0, m(99), m(42))
@@ -373,8 +374,8 @@ def draw_buttons_base(ov):
 _rim_shine_btn = make_rim_shine_frame(CARD_S)
 
 
-def draw_buttons_chosen(ov):
-    """Locked candidate: rim-shine rims, I1 swash on a mat-free BUY."""
+def draw_buttons_gilded(ov):
+    """Gilded design: rim-shine rims, I1 swash on a mat-free BUY."""
     rad = m(12)
     for cx, lbl in ((76, "BUY"), (184, "CANCEL")):
         r = pygame.Rect(0, 0, m(99), m(42))
@@ -392,18 +393,18 @@ def draw_buttons_chosen(ov):
 
 # ── design registry ───────────────────────────────────────────────────────────
 def _resolve():
-    if STORE_DESIGN == "base":
+    if STORE_DESIGN == "antique":
         return dict(ring=GOLD["ring"],
                     bg_hook=make_constellation(GOLD["glint"]),
                     frame_hook=frame_double_bevel,
                     card_frame=card_frame_d1,
-                    buttons=draw_buttons_base)
-    if STORE_DESIGN == "chosen":
+                    buttons=draw_buttons_antique)
+    if STORE_DESIGN == "gilded":
         return dict(ring=G8["ring"],
                     bg_hook=make_constellation(G8["glint"]),
                     frame_hook=make_rim_shine_frame(1.0),
                     card_frame=make_rim_shine_frame(CARD_S),
-                    buttons=draw_buttons_chosen)
+                    buttons=draw_buttons_gilded)
     return None
 
 

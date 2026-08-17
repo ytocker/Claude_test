@@ -1,12 +1,12 @@
 """Verify STORE_DESIGN flag renders against before_vs_chosen_v4.png.
 
-Usage: python _verify_store_design_flag.py <live|base|chosen>
+Usage: python _verify_store_design_flag.py <classic|antique|gilded>
 
 Sets game.config.STORE_DESIGN BEFORE the store modules import, renders the
 confirm popup (same stub + crop as the reference figures), one card, and
 the category screen through the REAL game code — no tools patching — and
 diffs each against the matching column of the reference figure
-(col 0 = live, 1 = base, 2 = chosen). The figure composited its overlays
+(col 0 = classic, 1 = antique, 2 = gilded). The figure composited its overlays
 after the popup downscale while the game draws everything in one pass, so
 small sub-pixel differences are expected; the check uses a mean-abs-diff
 tolerance and reports per-surface numbers.
@@ -19,8 +19,8 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-FLAG = sys.argv[1] if len(sys.argv) > 1 else "chosen"
-COL = {"live": 0, "base": 1, "chosen": 2}[FLAG]
+FLAG = sys.argv[1] if len(sys.argv) > 1 else "gilded"
+COL = {"classic": 0, "antique": 1, "gilded": 2}[FLAG]
 
 import game.config as config
 config.STORE_DESIGN = FLAG
