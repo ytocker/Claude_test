@@ -10,7 +10,7 @@ can't-afford), the item card in its five states (priced affordable,
 priced can't-afford, owned EQUIP, EQUIPPED, secret), and the store
 category screen.
 
-Output: colorways/store_design_showcase_v4.png
+Output: colorways/store_design_showcase_v5.png
 """
 import os
 import subprocess
@@ -184,7 +184,7 @@ def main():
         cat = load(f"{flag}_cat.png").resize((cat_w, cat_h), Image.LANCZOS)
         strip.paste(cat, (x0, y))
 
-    out = os.path.join(OUT_DIR, "store_design_showcase_v4.png")
+    out = os.path.join(OUT_DIR, "store_design_showcase_v5.png")
     strip.save(out)
     print("saved", out, strip.size)
     for f in os.listdir(TMP):
