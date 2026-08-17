@@ -1194,20 +1194,14 @@ class StoreScene:
             design["buttons"](big, affordable=affordable)
 
         # ── bottom gem pair (drawn on top of shelf) ───────────────────────────
-        # the designs keep the gems in tier colour regardless of balance —
-        # only the BUY button carries the can't-afford signal
+        # gems keep their tier colour regardless of balance — only the BUY
+        # button carries the can't-afford signal
         BOT_GEM_CY = 402
         for _gx in [m(GEM_L_X), m(GEM_R_X)]:
-            if affordable or design is not None:
-                store_cards._alpha_aura(big, _gx, m(BOT_GEM_CY), m(16),
-                                        pal["glow"], peak=60, layers=14)
-                store_cards.facet_gem(big, _gx, m(BOT_GEM_CY), m(GEM_R),
-                                      pal["gem"], pal["deep"])
-            else:
-                store_cards._alpha_aura(big, _gx, m(BOT_GEM_CY), m(16),
-                                        (90, 92, 110), peak=35, layers=14)
-                store_cards.facet_gem(big, _gx, m(BOT_GEM_CY), m(GEM_R),
-                                      (80, 82, 100), (50, 52, 66))
+            store_cards._alpha_aura(big, _gx, m(BOT_GEM_CY), m(16),
+                                    pal["glow"], peak=60, layers=14)
+            store_cards.facet_gem(big, _gx, m(BOT_GEM_CY), m(GEM_R),
+                                  pal["gem"], pal["deep"])
 
         # ── overhanging disc + spotlight halo (crowns the card) ───────────────
         cx_ss, cy_ss, r_ss = m(CX), m(DISC_CY), m(R_HERO)
