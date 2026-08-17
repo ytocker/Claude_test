@@ -236,48 +236,33 @@ def _bolt_dot(ov, bx, by):
     ov.blit(arc_s, (bx - m(3), by - m(3)))
 
 
-# pewter bar for the can't-afford state: the bullion bar desaturated
-PEWTER_STOPS = [(0.0, (196, 198, 206)), (0.35, (166, 168, 178)),
-                (0.7, (138, 140, 152)), (1.0, (100, 102, 114))]
-PEWTER_NUM, PEWTER_RIM_D, PEWTER_RIM_B = ((44, 46, 56), (58, 62, 76),
-                                          (214, 218, 228))
-
-
-def draw_bullion_chip(ov, price, cy=CHIP_CY, affordable=True):
+def draw_bullion_chip(ov, price, cy=CHIP_CY):
+    """The gold bullion price bar — identical in both affordability states
+    (the can't-afford signal lives on the BUY button alone)."""
     txt = f"{price:,}"
     r = pygame.Rect(0, 0, m(168), m(BAR_H))
     r.center = (m(CX), m(cy))
-    stops = BAR_STOPS if affordable else PEWTER_STOPS
-    num_col = BAR_NUM if affordable else PEWTER_NUM
-    rim_d = BAR_RIM_D if affordable else PEWTER_RIM_D
-    rim_b = BAR_RIM_B if affordable else PEWTER_RIM_B
     # chip_body_stops minus its gloss_sweep call: the S2-clean finish wants
     # NO gloss ellipse, and stock gloss_sweep's BLEND_ADD pass whites the
     # body out even at peak=0 (it adds the sweep's RGB regardless of alpha)
     rad = m(11)
     drop_shadow(ov, r, rad, blur=m(4), alpha=110, dy=m(2))
-    ov.blit(vgrad_stops(r.w, r.h, rad, stops, 255, gamma=1.05), r.topleft)
+    ov.blit(vgrad_stops(r.w, r.h, rad, BAR_STOPS, 255, gamma=1.05), r.topleft)
     contact_shadow(ov, r, rad, m(3), alpha=80)
-    pygame.draw.rect(ov, rim_d, r, width=max(1, m(1.6)), border_radius=rad)
-    bevel_rim(ov, r, rad, rim_d, (*rim_b, 235), w=max(1, m(1.5)))
-    top_sheen(ov, r, m(11), m(12), peak=64 if affordable else 30)
+    pygame.draw.rect(ov, BAR_RIM_D, r, width=max(1, m(1.6)), border_radius=rad)
+    bevel_rim(ov, r, rad, BAR_RIM_D, (*BAR_RIM_B, 235), w=max(1, m(1.5)))
+    top_sheen(ov, r, m(11), m(12), peak=64)
     num_font = font(18)
     base = _stamp_bold(_glyph_base(txt, num_font, 0), m(0.7))
     bw = base.get_width()
     coin_d, gap = m(22), m(5)
     left = m(CX) - (coin_d + gap + bw) // 2
-    if affordable:
-        coin_glyph(ov, left + coin_d // 2, m(cy), m(11))
-    else:
-        # stock's can't-afford signal: the coin goes flat grey
-        pygame.draw.circle(ov, (120, 122, 138),
-                           (left + coin_d // 2, m(cy)), m(11))
+    coin_glyph(ov, left + coin_d // 2, m(cy), m(11))
     plain_text(ov, txt, num_font,
-               (left + coin_d + gap + bw // 2, m(cy)), num_col,
+               (left + coin_d + gap + bw // 2, m(cy)), BAR_NUM,
                shadow_a=0, weight=m(0.7))
-    if affordable:
-        for bx in (r.left + m(13), r.right - m(13)):
-            _bolt_dot(ov, bx, m(cy))
+    for bx in (r.left + m(13), r.right - m(13)):
+        _bolt_dot(ov, bx, m(cy))
 
 
 def chip_cy(name):
