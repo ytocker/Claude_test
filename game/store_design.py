@@ -389,8 +389,9 @@ def _locked_label(ov, r, lbl):
 
 def draw_buttons_antique(ov, affordable=True):
     """Antique design: silver-can faces, antique-gold bevel rims (w=4),
-    I5 inner keyline on BUY. An unaffordable BUY greys out like stock:
-    locked face, grey rim, padlock label, ornament omitted."""
+    I5 inner keyline on BUY. An unaffordable BUY keeps the same frame
+    construction dimmed to pewter: locked face, full-width grey rim,
+    padlock label, ornament omitted."""
     rad = m(12)
     for cx, lbl in ((76, "BUY"), (184, "CANCEL")):
         locked = lbl == "BUY" and not affordable
@@ -402,8 +403,8 @@ def draw_buttons_antique(ov, affordable=True):
                 r.topleft)
         top_sheen(ov, r, rad, m(12), peak=10 if locked else 14)
         if locked:
-            bevel_rim(ov, r, rad, (20, 18, 36, 180), (130, 124, 160, 200),
-                      w=max(1, m(1.2)))
+            bevel_rim(ov, r, rad, (44, 44, 54), (156, 152, 164, 235),
+                      w=max(1, m(4.0)))
             _locked_label(ov, r, lbl)
             continue
         bevel_rim(ov, r, rad, GOLD["deep"], (*GOLD["bright"], 235),
