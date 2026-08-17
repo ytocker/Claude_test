@@ -236,31 +236,48 @@ def _bolt_dot(ov, bx, by):
     ov.blit(arc_s, (bx - m(3), by - m(3)))
 
 
-def draw_bullion_chip(ov, price, cy=CHIP_CY):
+# pewter bar for the can't-afford state: the bullion bar desaturated
+PEWTER_STOPS = [(0.0, (196, 198, 206)), (0.35, (166, 168, 178)),
+                (0.7, (138, 140, 152)), (1.0, (100, 102, 114))]
+PEWTER_NUM, PEWTER_RIM_D, PEWTER_RIM_B = ((44, 46, 56), (58, 62, 76),
+                                          (214, 218, 228))
+
+
+def draw_bullion_chip(ov, price, cy=CHIP_CY, affordable=True):
     txt = f"{price:,}"
     r = pygame.Rect(0, 0, m(168), m(BAR_H))
     r.center = (m(CX), m(cy))
+    stops = BAR_STOPS if affordable else PEWTER_STOPS
+    num_col = BAR_NUM if affordable else PEWTER_NUM
+    rim_d = BAR_RIM_D if affordable else PEWTER_RIM_D
+    rim_b = BAR_RIM_B if affordable else PEWTER_RIM_B
     # chip_body_stops minus its gloss_sweep call: the S2-clean finish wants
     # NO gloss ellipse, and stock gloss_sweep's BLEND_ADD pass whites the
     # body out even at peak=0 (it adds the sweep's RGB regardless of alpha)
     rad = m(11)
     drop_shadow(ov, r, rad, blur=m(4), alpha=110, dy=m(2))
-    ov.blit(vgrad_stops(r.w, r.h, rad, BAR_STOPS, 255, gamma=1.05), r.topleft)
+    ov.blit(vgrad_stops(r.w, r.h, rad, stops, 255, gamma=1.05), r.topleft)
     contact_shadow(ov, r, rad, m(3), alpha=80)
-    pygame.draw.rect(ov, BAR_RIM_D, r, width=max(1, m(1.6)), border_radius=rad)
-    bevel_rim(ov, r, rad, BAR_RIM_D, (*BAR_RIM_B, 235), w=max(1, m(1.5)))
-    top_sheen(ov, r, m(11), m(12), peak=64)
+    pygame.draw.rect(ov, rim_d, r, width=max(1, m(1.6)), border_radius=rad)
+    bevel_rim(ov, r, rad, rim_d, (*rim_b, 235), w=max(1, m(1.5)))
+    top_sheen(ov, r, m(11), m(12), peak=64 if affordable else 30)
     num_font = font(18)
     base = _stamp_bold(_glyph_base(txt, num_font, 0), m(0.7))
     bw = base.get_width()
     coin_d, gap = m(22), m(5)
     left = m(CX) - (coin_d + gap + bw) // 2
-    coin_glyph(ov, left + coin_d // 2, m(cy), m(11))
+    if affordable:
+        coin_glyph(ov, left + coin_d // 2, m(cy), m(11))
+    else:
+        # stock's can't-afford signal: the coin goes flat grey
+        pygame.draw.circle(ov, (120, 122, 138),
+                           (left + coin_d // 2, m(cy)), m(11))
     plain_text(ov, txt, num_font,
-               (left + coin_d + gap + bw // 2, m(cy)), BAR_NUM,
+               (left + coin_d + gap + bw // 2, m(cy)), num_col,
                shadow_a=0, weight=m(0.7))
-    for bx in (r.left + m(13), r.right - m(13)):
-        _bolt_dot(ov, bx, m(cy))
+    if affordable:
+        for bx in (r.left + m(13), r.right - m(13)):
+            _bolt_dot(ov, bx, m(cy))
 
 
 def chip_cy(name):
@@ -353,16 +370,57 @@ def _inner_keyline(ov, r):
 
 
 # ── buttons ───────────────────────────────────────────────────────────────────
-def draw_buttons_antique(ov):
+# locked (can't-afford) BUY: stock's greyed language on the design build
+LOCKED_STOPS = [(0.0, (58, 60, 74)), (1.0, (40, 42, 54))]
+LOCKED_LABEL = (150, 152, 162)
+
+
+def _padlock(surf, cx, cy, h, color):
+    bw, bh = int(h * 0.92), int(h * 0.60)
+    body = pygame.Rect(0, 0, bw, bh)
+    body.center = (cx, cy + int(h * 0.20))
+    pygame.draw.rect(surf, color, body, border_radius=max(1, int(h * 0.14)))
+    sr = int(h * 0.30)
+    arc = pygame.Rect(cx - sr, body.top - sr, sr * 2, sr * 2)
+    pygame.draw.arc(surf, color, arc, math.radians(15), math.radians(165),
+                    max(1, int(h * 0.17)))
+    kh = pygame.Rect(0, 0, max(1, int(h * 0.16)), max(1, int(h * 0.22)))
+    kh.center = (cx, body.centery + int(h * 0.02))
+    pygame.draw.rect(surf, (10, 14, 26), kh, border_radius=1)
+
+
+def _locked_label(ov, r, lbl):
+    lab_font = font(15)
+    lw = lab_font.size(lbl)[0]
+    lock_h = m(11)
+    lock_w = int(lock_h * 0.92)
+    inner = m(4)
+    grp = lock_w + inner + lw
+    gx = r.centerx - grp // 2
+    _padlock(ov, gx + lock_w // 2, r.centery, lock_h, LOCKED_LABEL)
+    plain_text(ov, lbl, lab_font, (gx + lock_w + inner + lw // 2, r.centery),
+               LOCKED_LABEL, shadow_a=0, weight=m(0.6))
+
+
+def draw_buttons_antique(ov, affordable=True):
     """Antique design: silver-can faces, antique-gold bevel rims (w=4),
-    I5 inner keyline on BUY."""
+    I5 inner keyline on BUY. An unaffordable BUY greys out like stock:
+    locked face, grey rim, padlock label, ornament omitted."""
     rad = m(12)
     for cx, lbl in ((76, "BUY"), (184, "CANCEL")):
+        locked = lbl == "BUY" and not affordable
         r = pygame.Rect(0, 0, m(99), m(42))
         r.center = (m(cx), m(360))
         drop_shadow(ov, r, rad, blur=m(3), alpha=100, dy=m(2))
-        ov.blit(vgrad_stops(r.w, r.h, rad, CAN_STOPS, 255), r.topleft)
-        top_sheen(ov, r, rad, m(12), peak=14)
+        ov.blit(vgrad_stops(r.w, r.h, rad,
+                            LOCKED_STOPS if locked else CAN_STOPS, 255),
+                r.topleft)
+        top_sheen(ov, r, rad, m(12), peak=10 if locked else 14)
+        if locked:
+            bevel_rim(ov, r, rad, (20, 18, 36, 180), (130, 124, 160, 200),
+                      w=max(1, m(1.2)))
+            _locked_label(ov, r, lbl)
+            continue
         bevel_rim(ov, r, rad, GOLD["deep"], (*GOLD["bright"], 235),
                   w=max(1, m(4.0)))
         if lbl == "BUY":
@@ -374,15 +432,38 @@ def draw_buttons_antique(ov):
 _rim_shine_btn = make_rim_shine_frame(CARD_S)
 
 
-def draw_buttons_gilded(ov):
-    """Gilded design: rim-shine rims, I1 swash on a mat-free BUY."""
+def _pewter_rim(ov, r, rad):
+    """Desaturated rim-shine stack for the locked BUY: same construction,
+    grey metal, no specular kiss."""
+    s = CARD_S * LOCKED_T
+    pygame.draw.rect(ov, (5, 5, 12), r, width=max(1, m(1.4 * s)),
+                     border_radius=rad)
+    r1 = r.inflate(-2 * m(0.9 * s), -2 * m(0.9 * s))
+    pygame.draw.rect(ov, (150, 146, 138), r1, width=max(1, m(1.6 * s)),
+                     border_radius=max(2, rad - m(0.9 * s)))
+    r3 = r.inflate(-2 * m(2.0 * s), -2 * m(2.0 * s))
+    pygame.draw.rect(ov, (176, 172, 164), r3, width=max(1, m(0.8 * s)),
+                     border_radius=max(2, rad - m(2.0 * s)))
+
+
+def draw_buttons_gilded(ov, affordable=True):
+    """Gilded design: rim-shine rims, I1 swash on a mat-free BUY. An
+    unaffordable BUY greys out like stock: locked face, pewter rim,
+    padlock label, swash omitted."""
     rad = m(12)
     for cx, lbl in ((76, "BUY"), (184, "CANCEL")):
+        locked = lbl == "BUY" and not affordable
         r = pygame.Rect(0, 0, m(99), m(42))
         r.center = (m(cx), m(360))
         drop_shadow(ov, r, rad, blur=m(3), alpha=100, dy=m(2))
-        ov.blit(vgrad_stops(r.w, r.h, rad, CAN_STOPS, 255), r.topleft)
-        top_sheen(ov, r, rad, m(12), peak=14)
+        ov.blit(vgrad_stops(r.w, r.h, rad,
+                            LOCKED_STOPS if locked else CAN_STOPS, 255),
+                r.topleft)
+        top_sheen(ov, r, rad, m(12), peak=10 if locked else 14)
+        if locked:
+            _pewter_rim(ov, r, rad)
+            _locked_label(ov, r, lbl)
+            continue
         _rim_shine_btn(ov, r, rad)
         if lbl == "BUY":
             half_tw = _glyph_base("BUY", font(15), 0).get_width() // 2

@@ -1190,8 +1190,9 @@ class StoreScene:
             _btn(can_r, "CANCEL", is_cancel=True)
         else:
             store_design.draw_bullion_chip(big, price,
-                                           store_design.chip_cy(name))
-            design["buttons"](big)
+                                           store_design.chip_cy(name),
+                                           affordable=affordable)
+            design["buttons"](big, affordable=affordable)
 
         # ── bottom gem pair (drawn on top of shelf) ───────────────────────────
         BOT_GEM_CY = 402
