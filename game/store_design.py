@@ -199,11 +199,33 @@ def _build_aura(radius, color, peak, layers):
     try:
         import numpy as np
     except ImportError:
-        # numpy is absent on the pygbag/web runtime (and bare CI): fall
-        # back to the stock ring-stacked aura, prerendered into the cache
+        # numpy is absent on the pygbag/web runtime (and bare CI). The
+        # halo's alpha depends only on distance, so evaluate the same
+        # cumulative profile per integer radius (1D, cheap) and paint it
+        # as 1px-stepped rings — smooth, unlike the stock 24-ring stack.
+        step = radius / layers
+        ris = []
+        for i in range(layers, 0, -1):
+            r_i = int(radius * i / layers)
+            a_i = int(peak * (1 - (i - 1) / layers) ** 1.6)
+            if r_i > 0 and a_i > 0:
+                ris.append((r_i, math.log1p(-a_i / 255.0)))
         g = pygame.Surface((side, side), pygame.SRCALPHA)
-        sc._alpha_aura(g, radius + 1, radius + 1, radius, color,
-                       peak=peak, layers=layers)
+        c = (radius + 1, radius + 1)
+        for d in range(radius, -1, -1):
+            log_keep = 0.0
+            for r_i, la in ris:
+                w = min(1.0, max(0.0, (r_i - d) / step + 0.5))
+                log_keep += w * la
+            a = int(round(255.0 * (1.0 - math.exp(log_keep))))
+            if a <= 0:
+                continue
+            if d == 0:
+                pygame.draw.circle(g, (*color, a), c, 1)
+            else:
+                # width=2 so adjacent rings overlap pixel-complete; drawn
+                # outside-in, the inner (stronger) ring wins the overlap
+                pygame.draw.circle(g, (*color, a), c, d, 2)
         return g
     yy, xx = np.mgrid[0:side, 0:side]
     d = np.hypot(xx - (radius + 1), yy - (radius + 1))
