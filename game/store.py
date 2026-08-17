@@ -32,6 +32,7 @@ from game import parrot
 from game import store_catalog
 from game import store_data
 from game import store_cards
+from game import store_design
 from game.surprise_box_variants import _draw_qmark
 from game.store_hub import CLOSED_GROUPS as _STORE_CLOSED, title_wordmark
 
@@ -948,11 +949,14 @@ class StoreScene:
         SS = store_cards.SS
         m = store_cards.m
 
+        design = store_design.DESIGN     # None = "live"
         CARD_X, CARD_W, CARD_TOP, CARD_H, CARD_RAD = 10, 240, 127, 299, 23
         R_HERO, DISC_CY = 53, 135
-        GEM_R, GEM_CY, GEM_L_X, GEM_R_X = 14, 152, 43, 217
-        NAME_FS, Y_NAME = 45, 213
-        Y_BANNER, BANNER_W, BANNER_H = 402, 156, 23
+        GEM_R, GEM_CY = 14, 152
+        # base/chosen tuck the corner gems to the frame
+        GEM_L_X, GEM_R_X = (35, 225) if design else (43, 217)
+        NAME_FS, Y_NAME = 45, (store_design.NAME_ZONE_C if design else 213)
+        Y_BANNER, BANNER_W, BANNER_H = 402, 140, 23
         affordable = store_data.balance() >= price
         SHELF_X, SHELF_Y, SHELF_W, SHELF_H = 17, 335, 226, 91
         CHIP_CY = 247
@@ -973,11 +977,17 @@ class StoreScene:
             rect.topleft)
         store_cards.top_sheen(big, rect, rad, m(30), peak=56)
         pygame.draw.rect(big, (4, 5, 16), rect, width=max(1, m(2)), border_radius=rad)
-        store_cards.bevel_rim(big, rect, rad, store_cards.CARD_RING_DEEP,
-                              (*store_cards.CARD_RING_BRIGHT, 230), w=max(1, m(1.9)))
-        tray = rect.inflate(-m(8), -m(8))
-        pygame.draw.rect(big, (*store_cards.CARD_RING_BRIGHT, 55), tray,
-                         width=max(1, m(1)), border_radius=rad - m(3))
+        if design is None:
+            # stock ring + tray hairline; base/chosen draw their own frame
+            # AFTER the shelf so its full perimeter survives (see below)
+            store_cards.bevel_rim(big, rect, rad, store_cards.CARD_RING_DEEP,
+                                  (*store_cards.CARD_RING_BRIGHT, 230), w=max(1, m(1.9)))
+            tray = rect.inflate(-m(8), -m(8))
+            pygame.draw.rect(big, (*store_cards.CARD_RING_BRIGHT, 55), tray,
+                             width=max(1, m(1)), border_radius=rad - m(3))
+        else:
+            # B5 constellation-web behind gems/name/hero, clipped to the body
+            design["bg_hook"](big)
 
         # ── corner gem pair ───────────────────────────────────────────────────
         store_cards.facet_gem(big, m(GEM_L_X), m(GEM_CY), m(GEM_R),
@@ -1007,8 +1017,12 @@ class StoreScene:
                        store_cards._glyph_base(_b, _nfnt, 0).get_width()) <= _mw:
                     _best = _i
             _a = ' '.join(_words[:_best]); _b = ' '.join(_words[_best:])
-            _disc_bot_ss = m(DISC_CY + R_HERO) + m(6)
-            _cy1 = _disc_bot_ss + _nfnt.get_height() // 2
+            if design is None:
+                _disc_bot_ss = m(DISC_CY + R_HERO) + m(6)
+                _cy1 = _disc_bot_ss + _nfnt.get_height() // 2
+            else:
+                # zone-centred: the 2-line block keeps its centre at Y_NAME
+                _cy1 = m(Y_NAME) - int(_nfnt.get_height() * 1.15) // 2
             _cy2 = _cy1 + int(_nfnt.get_height() * 1.15)
             store_cards.plain_text(big, _a, _nfnt,
                                    (m(CX), _cy1), (250, 248, 240),
@@ -1021,8 +1035,7 @@ class StoreScene:
             Y_BANNER = max(Y_BANNER,
                            (_cy2 + _nfnt.get_height() // 2) // SS + 10 + BANNER_H // 2)
 
-        # ── rarity banner ─────────────────────────────────────────────────────
-        _confirm_tier_banner(big, CX, Y_BANNER, BANNER_W, BANNER_H, tier_word, pal)
+        # (rarity banner drawn after the shelf — FINAL_SPEC draw-order fix)
 
         # ── shelf + action helpers ─────────────────────────────────────────────
         def _padlock(surf, cx, cy, h, color):
@@ -1161,16 +1174,24 @@ class StoreScene:
                                      (_xx, 0), (_xx, wall_draw_h - 1))
                 big.blit(_wall, (_bx, m(SHELF_Y)))
 
-        # ── coin chip (inside shelf) ───────────────────────────────────────────
-        _chip(m(CX), m(CHIP_CY))
+        if design is not None:
+            # the design perimeter lands after the shelf/walls so its full
+            # outline survives them
+            design["frame_hook"](big, rect, rad)
 
-        # ── buy / cancel buttons ───────────────────────────────────────────────
-        buy_r = pygame.Rect(0, 0, m(BTN_W), m(BTN_H))
-        buy_r.center = (m(BUY_CX), m(BTN_CY))
-        can_r = pygame.Rect(0, 0, m(BTN_W), m(BTN_H))
-        can_r.center = (m(CAN_CX), m(BTN_CY))
-        _btn(buy_r, "BUY", locked=not affordable)
-        _btn(can_r, "CANCEL", is_cancel=True)
+        # ── price chip + buy / cancel buttons ─────────────────────────────────
+        if design is None:
+            _chip(m(CX), m(CHIP_CY))
+            buy_r = pygame.Rect(0, 0, m(BTN_W), m(BTN_H))
+            buy_r.center = (m(BUY_CX), m(BTN_CY))
+            can_r = pygame.Rect(0, 0, m(BTN_W), m(BTN_H))
+            can_r.center = (m(CAN_CX), m(BTN_CY))
+            _btn(buy_r, "BUY", locked=not affordable)
+            _btn(can_r, "CANCEL", is_cancel=True)
+        else:
+            store_design.draw_bullion_chip(big, price,
+                                           store_design.chip_cy(name))
+            design["buttons"](big)
 
         # ── bottom gem pair (drawn on top of shelf) ───────────────────────────
         BOT_GEM_CY = 402
@@ -1188,10 +1209,12 @@ class StoreScene:
 
         # ── overhanging disc + spotlight halo (crowns the card) ───────────────
         cx_ss, cy_ss, r_ss = m(CX), m(DISC_CY), m(R_HERO)
-        store_cards._alpha_aura(big, cx_ss, cy_ss, r_ss + m(55), pal["glow"],
-                                peak=95, layers=24)
-        store_cards._alpha_aura(big, cx_ss, cy_ss, r_ss + m(20), pal["glow"],
-                                peak=70, layers=12)
+        _aura = (store_design.smooth_aura if design is not None
+                 else store_cards._alpha_aura)
+        _aura(big, cx_ss, cy_ss, r_ss + m(55), pal["glow"],
+              peak=95, layers=24)
+        _aura(big, cx_ss, cy_ss, r_ss + m(20), pal["glow"],
+              peak=70, layers=12)
         store_cards.cabochon(big, cx_ss, cy_ss, r_ss,
                              store_cards.CABO_LO, store_cards.CABO_HI,
                              ring=pal["gem"], ring_a=50)
@@ -1201,6 +1224,11 @@ class StoreScene:
         else:
             store_cards.blit_thumb(big, sid, cx_ss, cy_ss, int(r_ss * 1.5))
         store_cards.cabochon_glass(big, cx_ss, cy_ss, r_ss, tint=pal["gem"])
+        if design is not None:
+            store_design.hero_circle(big, cx_ss, cy_ss, r_ss, design["ring"])
+
+        # ── rarity banner (topmost, above the shelf — FINAL_SPEC fix) ────────
+        _confirm_tier_banner(big, CX, Y_BANNER, BANNER_W, BANNER_H, tier_word, pal)
 
         # ── downscale and composite onto screen ───────────────────────────────
         pop = pygame.transform.smoothscale(big, (POP_W, POP_H))
@@ -1215,12 +1243,13 @@ class StoreScene:
         surf.blit(pop, (px, py))
 
         # Hit rects in screen space (logical coords map 1:1 post-downscale).
+        _hit_h = 42 if design is not None else BTN_H   # design buttons are taller
         self.confirm_yes_rect = pygame.Rect(
-            px + BUY_CX - BTN_W // 2, py + BTN_CY - BTN_H // 2,
-            BTN_W, BTN_H)
+            px + BUY_CX - BTN_W // 2, py + BTN_CY - _hit_h // 2,
+            BTN_W, _hit_h)
         self.confirm_no_rect = pygame.Rect(
-            px + CAN_CX - BTN_W // 2, py + BTN_CY - BTN_H // 2,
-            BTN_W, BTN_H)
+            px + CAN_CX - BTN_W // 2, py + BTN_CY - _hit_h // 2,
+            BTN_W, _hit_h)
 
     # ── input ────────────────────────────────────────────────────────────────
     def handle_tap(self, pos) -> "str | None":

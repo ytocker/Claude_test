@@ -447,3 +447,11 @@ STORE_FILE = "skybit_store.json"
 
 DAILY_REWARD = 75
 
+
+# Store visual design. Switch to compare the three candidate designs:
+#   "live"   — the design as shipped (plus the banner draw-order fix)
+#   "base"   — checkpoint 7: antique gold, D1 double-bevel perimeter,
+#              I5 inner-keyline buttons, D1 card frames
+#   "chosen" — the locked candidate: rim-shine gold perimeter at x1.4,
+#              I1 swash-underline on a mat-free BUY
+STORE_DESIGN = "chosen"
