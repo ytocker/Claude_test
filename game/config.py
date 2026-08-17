@@ -447,3 +447,11 @@ STORE_FILE = "skybit_store.json"
 
 DAILY_REWARD = 75
 
+
+# Store visual design:
+#   "classic" — the original store look (plus the banner draw-order fix)
+#   "antique" — aged-gold metalwork: D1 double-bevel perimeter,
+#               inner-keyline buttons, constellation-web ornament
+#   "gilded"  — polished rim-shine gold perimeter at x1.4 weight,
+#               swash-underlined BUY
+STORE_DESIGN = "gilded"

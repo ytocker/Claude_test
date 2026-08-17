@@ -1086,17 +1086,21 @@ def draw_card(surf, sid, rect, equipped, secret, owned=False, variant=PRICE_VARI
     contact_shadow(surf, rect, rad, m(9), alpha=120)
     # crisp dark outer keyline UNDER the bright bevel so the card edge is clearly
     # defined against the dark sky.
-    pygame.draw.rect(surf, (4, 5, 16), rect, width=max(1, m(2)), border_radius=rad)
-    bevel_rim(surf, rect, rad, CARD_RING_DEEP, (*CARD_RING_BRIGHT, 235),
-              w=max(1, m(2.45)))
-    # RARITY CREST: a notched tier RIBBON + a faceted tier GEM rank badge
-    # top-right. Neutral gold inner tray; obsidian body + gold edge survive.
-    tray = rect.inflate(-m(7), -m(7))
-    trad = rad - m(4)
-    pygame.draw.rect(surf, (10, 10, 24, 200), tray.inflate(m(2), m(2)),
-                     width=max(1, m(1)), border_radius=trad + m(1))
-    pygame.draw.rect(surf, (*CARD_RING_BRIGHT, 90), tray, width=max(1, m(1)),
-                     border_radius=trad)
+    from .store_design import DESIGN as _sd     # late: avoids circular import
+    if _sd is None:
+        pygame.draw.rect(surf, (4, 5, 16), rect, width=max(1, m(2)), border_radius=rad)
+        bevel_rim(surf, rect, rad, CARD_RING_DEEP, (*CARD_RING_BRIGHT, 235),
+                  w=max(1, m(2.45)))
+        # RARITY CREST: a notched tier RIBBON + a faceted tier GEM rank badge
+        # top-right. Neutral gold inner tray; obsidian body + gold edge survive.
+        tray = rect.inflate(-m(7), -m(7))
+        trad = rad - m(4)
+        pygame.draw.rect(surf, (10, 10, 24, 200), tray.inflate(m(2), m(2)),
+                         width=max(1, m(1)), border_radius=trad + m(1))
+        pygame.draw.rect(surf, (*CARD_RING_BRIGHT, 90), tray, width=max(1, m(1)),
+                         border_radius=trad)
+    else:
+        _sd["card_frame"](surf, rect, rad)
 
     # BAND A — cabochon (dome + rim-lit hero) with a soft tier aura
     cx, cy = rect.centerx, rect.y + m(CY_DISC) + _DOME_DY
