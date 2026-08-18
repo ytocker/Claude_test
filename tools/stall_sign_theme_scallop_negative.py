@@ -151,11 +151,14 @@ def sign_hook(surf, ctx):
     spar_y = Y(SPAR_H)
     spar_t = max(2, int(SPAR_T * unit))
     sl, sr = X(-SPAR_HALF), X(SPAR_HALF)
-    pygame.draw.line(surf, WOOD_LO, (sl, spar_y + spar_t * 0.5),
+    # The pole must read DARKER than the lit thatch it hangs on — a WOOD_MID
+    # body is the same value as the roof and the sign loses its whole top edge.
+    pygame.draw.line(surf, lerp_color(WOOD_LO, WOOD_EDGE, 0.55),
+                     (sl, spar_y + spar_t * 0.5),
                      (sr, spar_y + spar_t * 0.5), spar_t)
-    pygame.draw.line(surf, WOOD_MID, (sl, spar_y), (sr, spar_y), spar_t)
+    pygame.draw.line(surf, WOOD_LO, (sl, spar_y), (sr, spar_y), spar_t)
     pygame.draw.line(surf, WOOD_HI, (sl, spar_y - spar_t * 0.34),
-                     (sr, spar_y - spar_t * 0.34), max(1, int(spar_t * 0.42)))
+                     (sr, spar_y - spar_t * 0.34), max(1, int(unit * 0.55)))
     for s in (-1, 1):
         # Nodes and end caps are kept inside the spar's own thickness: the h=20
         # ceiling leaves the spar only 0.75 px of headroom above its top edge.
@@ -199,14 +202,8 @@ def sign_hook(surf, ctx):
     pygame.draw.lines(surf, HEM_KEY, False,
                       [(x, y - kw * 0.5) for x, y in arc_pts], kw)
 
-    # Cusp beads are square, not round: the smallest circle pygame will draw is
-    # 3 px across at SS, which is wider than the cream band itself and would eat
-    # the hem it is supposed to punctuate.
-    bd = max(2, int(round(unit)))
-    for c in CUSPS[1:-1]:
-        pygame.draw.rect(surf, AWN_RED,
-                         (int(X(c) - bd * 0.5),
-                          int(Y(HEM_H + HEM_BAND * 0.75) - bd * 0.5), bd, bd))
+    # No cusp beads: a dark punctuation on the cusp row destroys the cream peak
+    # that carries the whole negative-scallop read at 1x.
 
     # ---- lashings. The spar tips land all but flush with the thatch rake, so
     # the only tie-able crossing IS the tip: clamp inboard of it rather than
@@ -236,7 +233,19 @@ def sign_hook(surf, ctx):
     bb = base.get_bounding_rect()
     cy = int(round((Y(CAP_TOP_H) + Y(CAP_BOT_H)) * 0.5
                    + base.get_height() * 0.5 - bb.centery))
-    gradient_text(surf, label, f, (cx, cy), INK_TOP, INK_BOT,
+    # gradient_text ramps the font EM box and caps start ~25% down it, so cap
+    # tops never receive GOLD_A_TOP; extrapolate the stops so the full ramp
+    # spans the INK box and the wordmark stops losing a quarter of its light.
+    eh = max(1, base.get_height())
+    t1, t2 = bb.top / eh, bb.bottom / eh
+    span = max(1e-6, t2 - t1)
+    ink_top, ink_bot = [], []
+    for a, b in zip(INK_TOP, INK_BOT):
+        d = (b - a) / span
+        t = a - t1 * d
+        ink_top.append(max(0, min(255, int(round(t)))))
+        ink_bot.append(max(0, min(255, int(round(t + d)))))
+    gradient_text(surf, label, f, (cx, cy), tuple(ink_top), tuple(ink_bot),
                   weight=m(1.0 * scale), keyline=LABEL_KEY, kw=max(1, m(1.0)),
                   shadow=False, tracking=m(0.6))
 
