@@ -31,6 +31,14 @@ ROPE_LO = lerp_color(WOOD_LO, WOOD_EDGE, 0.35)
 # only on a hairline top-edge catch.
 CLOTH_HI = AWN_CREAM_D
 CLOTH_LO = (186, 166, 138)
+# colorway seams: the harness swaps these wholesale, the construction never moves
+TRIM_LIT = AWN_RED
+TRIM_SHD = AWN_RED_D
+TRIM_CATCH = AWN_CREAM
+INK_TOP = GOLD_A_TOP
+INK_BOT = GOLD_A_BOT
+INK_KEY = LABEL_KEY
+INK_KW = 1.0
 
 SWAG_TOP = (138, 96, 72)
 SWAG_BOT = (96, 64, 48)
@@ -254,17 +262,17 @@ def sign_hook(surf, ctx):
             fx = cx + s * fold_x
             _soft_fold(surf, fx, hem_y + border, bot_y(fx) - border, fw)
 
-    # Macaw-red trim, split by the key: lit runs up-left, shaded runs down-right.
+    # Trim, split by the key: lit runs up-left, shaded runs down-right.
     lit = [(x, y + border * 0.5) for x, y in top_pts]
     shd = [(x, y - border * 0.5) for x, y in bot_pts]
-    pygame.draw.lines(surf, AWN_RED, False, lit, border)
-    pygame.draw.lines(surf, AWN_RED_D, False, shd, border)
-    pygame.draw.line(surf, AWN_RED, (top_pts[0][0] + border * 0.5, hem_y),
+    pygame.draw.lines(surf, TRIM_LIT, False, lit, border)
+    pygame.draw.lines(surf, TRIM_SHD, False, shd, border)
+    pygame.draw.line(surf, TRIM_LIT, (top_pts[0][0] + border * 0.5, hem_y),
                      (bot_pts[0][0] + border * 0.5, bot_pts[0][1]), border)
-    pygame.draw.line(surf, AWN_RED_D,
+    pygame.draw.line(surf, TRIM_SHD,
                      (top_pts[-1][0] - border * 0.5, hem_y),
                      (bot_pts[-1][0] - border * 0.5, bot_pts[-1][1]), border)
-    pygame.draw.lines(surf, AWN_CREAM, False,
+    pygame.draw.lines(surf, TRIM_CATCH, False,
                       [(x, y + border * 1.35) for x, y in top_pts], 1)
 
     # Lash the spar where it actually crosses the thatch rake — the only two
@@ -292,9 +300,9 @@ def sign_hook(surf, ctx):
     # gradient_text centres the glyph BOX; caps sit high inside it, so re-centre
     # on the ink or the type floats off the chord it is supposed to sit on.
     cy = int(round(ink_cy + base.get_height() * 0.5 - bb.centery))
-    gradient_text(surf, label, f, (cx, cy), GOLD_A_TOP, GOLD_A_BOT,
-                  weight=m(1.0 * scale), keyline=LABEL_KEY,
-                  kw=max(1, m(0.7)), shadow=False, tracking=m(0.6))
+    gradient_text(surf, label, f, (cx, cy), INK_TOP, INK_BOT,
+                  weight=m(1.0 * scale), keyline=INK_KEY,
+                  kw=max(1, m(INK_KW)), shadow=False, tracking=m(0.6))
 
 
 # =============================================================================

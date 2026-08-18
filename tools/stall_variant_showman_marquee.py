@@ -32,6 +32,12 @@ BULB_SEAT = GOLD_DEEP
 # above the hero's — the item has to be the brightest thing in the stall.
 BULB_GLASS = lerp_color(GOLD_PALE, GOLD, 0.18)
 POOL_CORE = lerp_color(WOOD_HI, GOLD_PALE, 0.35)
+# colorway seams: the harness swaps these wholesale, the construction never moves
+INK_TOP = GOLD_A_TOP
+INK_BOT = GOLD_A_BOT
+INK_KEY = LABEL_KEY
+INK_W = 1.0
+PANEL_INSET = None  # (color) draws a recessed name panel inside the frame
 
 
 # ── sign ─────────────────────────────────────────────────────────────────────
@@ -86,10 +92,18 @@ def _sign(surf, ctx):
                              half_2 - d, t0 + d, t1 + d, t2 + d)
     pygame.draw.polygon(surf, GOLD_DEEP, bead, max(1, m(0.5)))
 
+    if PANEL_INSET is not None:
+        pr = pygame.Rect(cx - half_c + d * 2, t0 + d * 2,
+                         (half_c - d * 2) * 2, (bottom_y - d) - (t0 + d * 2))
+        pygame.draw.rect(surf, PANEL_INSET, pr,
+                         border_radius=max(2, int(m(2) * scale)))
+        pygame.draw.rect(surf, GOLD_DEEP, pr, max(1, m(0.5)),
+                         border_radius=max(2, int(m(2) * scale)))
+
     f = font(11 * scale)
     gradient_text(surf, label, f, (cx, t0 + int(h * 0.56)),
-                  GOLD_A_TOP, GOLD_A_BOT, weight=m(1.0 * scale),
-                  keyline=LABEL_KEY, kw=m(1.0), shadow=False, tracking=m(0.6))
+                  INK_TOP, INK_BOT, weight=m(INK_W * scale),
+                  keyline=INK_KEY, kw=m(1.0), shadow=False, tracking=m(0.6))
 
     # exactly six bulbs, each a discrete disc on its own seat — a fairy-light
     # dusting of 1px points would only read as noise after the downscale.
