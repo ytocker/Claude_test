@@ -14,6 +14,9 @@ MIXES = {
           "costume": "hatch_board"},
     "B": {"parrot": "paper_lantern", "parcels": "sailcloth_pennant",
           "costume": "hook_shingle"},
+    # C is the CHOSEN assignment for the three launch stalls. The two concepts
+    # it leaves out (hook_shingle, hatch_board) stay maintained here so the
+    # four shuttered categories can each claim one when they open.
     "C": {"parrot": "sailcloth_pennant", "parcels": "paper_lantern",
           "costume": "showman_marquee"},
 }
@@ -29,7 +32,7 @@ def _capture(slug):
 
 
 def install():
-    mapping = MIXES[os.environ.get("SKYBIT_STALL_MIX", "A")]
+    mapping = MIXES[os.environ.get("SKYBIT_STALL_MIX", "C")]
     pairs = {g: _capture(slug) for g, slug in mapping.items()}
     default = next(iter(pairs.values()))
 
