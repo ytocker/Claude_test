@@ -31,19 +31,23 @@ from game.store_hub import (
 # lightest row and still sits well under the thatch it lies on.
 CD_TOP = (86, 32, 26)
 CD_BOT = (50, 24, 16)
-# One notch under GOLD_PALE so the sign's peak value can never climb above the
-# lit hero's — the item has to stay the brightest thing in the stall.
-BULB_GLASS = lerp_color(GOLD_PALE, GOLD, 0.18)
+# Pulled most of the way to GOLD: at 0.18 the glass sat at 0.83 luma, so the
+# rail's lights out-shone the lit hero once the halo piled on top. The item has
+# to stay the brightest thing in the stall by a visible margin, not a hair.
+BULB_GLASS = lerp_color(GOLD_PALE, GOLD, 0.45)
 REVEAL = (40, 22, 14)
 # Cream teeth are 1.09:1 against lit thatch, so their edge — not their fill —
 # is the silhouette. Red is only 2.5:1, so it takes the same keyline.
 TOOTH_KEY = (74, 22, 24)
 
-# Shared awning grid, authored in logical px: stripe boundaries and the gap
-# midpoints between them. Asymmetric by construction — never centre it.
-GRID_0 = -33.0
+# Shared awning grid, authored in logical px. Phased a HALF pitch off the stripe
+# boundaries: a tooth now caps the MIDDLE of a stripe (so it can take that
+# stripe's own colour and the candy reads as one continuous run of cloth up into
+# the trim) and every bulb sits on a boundary. Asymmetric by construction —
+# never centre it; the end reveals come out unequal and that is the phase-lock.
+GRID_0 = -26.75
 PITCH = 12.5
-BULB_U = (-26.75, -14.25, -1.75, 10.75, 23.25, 35.75)
+BULB_U = (-33.0, -20.5, -8.0, 4.5, 17.0, 29.5)
 
 HALF_HI, HALF_LO = 44.0, 40.0
 STEP_H = 8.0
@@ -81,23 +85,35 @@ def _edges(surf, X, Y, ew, col):
     r(xr1, ys - ew, xr2 - xr1, ew)
 
 
-def _teeth(X):
-    """Candy teeth on the awning's own boundaries, walked one pitch PAST the
-    board on each side and clipped to the edge — the two stubs that fall out
-    are unequal because the grid is, and forcing them equal would break the
-    phase-lock with the stripes below."""
+def _stripe_col(cx, scale, x):
+    """The colour of the awning stripe the given device column actually lands
+    on, recomputed from the hut's own stripe maths. Tooth colour is READ from
+    the cloth rather than alternated on the loop index: the stripe count is
+    floor-divided per hut, so index parity flips between the 0.92 and 0.96
+    stalls and a hardcoded alternation would put a red tooth over cream cloth
+    on some of them."""
+    half_w = int(m(58) * scale)
+    stripe_w = max(m(8), int((half_w * 2) / 9))
+    s = (x - (cx - half_w)) // stripe_w
+    return AWN_RED if s % 2 == 0 else AWN_CREAM_D
+
+
+def _teeth(X, cx, scale):
+    """Candy teeth centred on the stripe midpoints, every one the SAME width.
+    Built outward from the snapped centre instead of from two independently
+    snapped edges: the edge-first form lost a device px to rounding wherever a
+    tooth straddled cx, which showed up as one narrow tooth per stall. Nothing
+    is walked past the board any more, so no stub and no clipped corner tooth —
+    the unequal end reveals that fall out are the grid's asymmetry, showing."""
+    tw = max(2, int(round(TOOTH_HALF * m(1) * scale)) * 2)
     out = []
-    for k in range(-1, 7):
+    for k in range(-1, 6):
         u = GRID_0 + PITCH * k
-        lo = max(-HALF_HI, u - TOOTH_HALF)
-        hi = min(HALF_HI, u + TOOTH_HALF)
-        if hi - lo <= 0.5:
+        x0 = X(u) - tw // 2
+        x1 = x0 + tw
+        if x0 < X(-HALF_HI) or x1 > X(HALF_HI):
             continue
-        x0, x1 = X(lo), X(hi)
-        if x1 - x0 < 1:
-            continue
-        col = AWN_RED if k % 2 == 0 else AWN_CREAM_D
-        out.append((x0, x1, col, lo <= -HALF_HI, hi >= HALF_HI))
+        out.append((x0, x1, _stripe_col(cx, scale, (x0 + x1) // 2)))
     return out
 
 
@@ -140,16 +156,10 @@ def _sign(surf, ctx):
     _edges(surf, X, Y, ew, WOOD_EDGE)
 
     rail_top, rail_bot = Y(RAIL_TOP_H), Y(BODY_TOP_H)
-    for tx0, tx1, col, at_l, at_r in _teeth(X):
+    for tx0, tx1, col in _teeth(X, cx, scale):
         pygame.draw.rect(surf, col, (tx0, rail_top, tx1 - tx0,
                                      rail_bot - rail_top))
         pygame.draw.rect(surf, TOOTH_KEY, (tx0, rail_top, tx1 - tx0, ew))
-        if at_l:
-            pygame.draw.rect(surf, TOOTH_KEY,
-                             (tx0, rail_top, ew, rail_bot - rail_top))
-        if at_r:
-            pygame.draw.rect(surf, TOOTH_KEY,
-                             (tx1 - ew, rail_top, ew, rail_bot - rail_top))
 
     # ONE continuous reveal under the whole course. Per-tooth shadows average
     # away at 1x; a single unbroken dark line survives and doubles as the rail's
@@ -157,23 +167,35 @@ def _sign(surf, ctx):
     pygame.draw.rect(surf, REVEAL,
                      (X(-HALF_HI), rail_bot, X(HALF_HI) - X(-HALF_HI), ew))
 
-    cap = _plinth_pts(X, Y, HALF_HI - BEAD_IN, HALF_LO - BEAD_IN,
-                      CAP_TOP_H, CAP_BOT_H, STEP_H + BEAD_IN)
-    prev = surf.get_clip()
-    # the bead is decoration; it may never eat into the structural edge, so it
-    # is fenced inside the outline rather than trusted to clear it at every scale
-    surf.set_clip(pygame.Rect(X(-HALF_HI) + ew, Y(RAIL_TOP_H) + ew,
-                              X(HALF_HI) - X(-HALF_HI) - ew * 2,
-                              Y(BODY_BOT_H) - Y(RAIL_TOP_H) - ew * 2))
-    pygame.draw.polygon(surf, GOLD_DEEP, cap, max(1, m(0.5)))
-    surf.set_clip(prev)
-
     # centred between the bead's own runs, not on the board — the cap-height ink
     # is a hair taller than the cap, so it is the FRAME that has to look centred.
     f = font(11 * scale)
-    gradient_text(surf, label, f, (cx, (Y(CAP_TOP_H) + Y(CAP_BOT_H)) // 2),
-                  GOLD_A_TOP, GOLD_A_BOT, weight=m(1.0 * scale),
-                  keyline=LABEL_KEY, kw=m(1.0), shadow=False, tracking=m(0.6))
+    tr = gradient_text(surf, label, f, (cx, (Y(CAP_TOP_H) + Y(CAP_BOT_H)) // 2),
+                       GOLD_A_TOP, GOLD_A_BOT, weight=m(1.0 * scale),
+                       keyline=LABEL_KEY, kw=m(1.0), shadow=False,
+                       tracking=m(0.6))
+
+    cap = _plinth_pts(X, Y, HALF_HI - BEAD_IN, HALF_LO - BEAD_IN,
+                      CAP_TOP_H, CAP_BOT_H, STEP_H + BEAD_IN)
+    # the bead is decoration; it may never eat into the structural edge, so it
+    # is fenced inside the outline rather than trusted to clear it at every scale
+    fence = pygame.Rect(X(-HALF_HI) + ew, Y(RAIL_TOP_H) + ew,
+                        X(HALF_HI) - X(-HALF_HI) - ew * 2,
+                        Y(BODY_BOT_H) - Y(RAIL_TOP_H) - ew * 2)
+    prev = surf.get_clip()
+    # CORNER BRACKETS, not a closed frame: the cap-height ink overshoots the
+    # cap, so the continuous top and bottom runs were crossing the glyphs and
+    # both lines lost. Clipping the same outline to the two END MARGINS keeps
+    # the corners (which is all the eye needs to read an enclosure) and hands
+    # the ink rows back to the type — the type itself is not moved or resized.
+    pad = ew + m(1)
+    for mx0, mx1 in ((fence.left, tr.left - pad), (tr.right + pad, fence.right)):
+        band = pygame.Rect(mx0, fence.top, mx1 - mx0, fence.height).clip(fence)
+        if band.w <= 0:
+            continue
+        surf.set_clip(band)
+        pygame.draw.polygon(surf, GOLD_DEEP, cap, max(1, m(0.5)))
+    surf.set_clip(prev)
 
     # Exactly six bulbs, one per tooth gap — the lights read as the rhythm's
     # negative space, so they never collide with a glyph and the count is fixed
@@ -194,15 +216,19 @@ def _sign(surf, ctx):
                           pygame.SRCALPHA)
     for u in BULB_U:
         capped_glow(glow, X(u) - x0 + pad, by - rail_top + pad,
-                    max(2, int(m(4) * scale)), GOLD, 30)
+                    max(2, int(m(4) * scale)), GOLD, 16)
     surf.blit(glow, (x0 - pad, rail_top - pad))
 
     # the GOLD_DEEP seat IS the rim at this size: the base's inner rim ring is a
     # whole pixel of a 2px-radius disc, so drawing it leaves no lit core at all
-    # and the bulb reads as a dull washer instead of a light.
+    # and the bulb reads as a dull washer instead of a light. Dimmed glass makes
+    # the seat load-bearing — bulb-against-cream-tooth is only ~1.15:1, so the
+    # dark collar is the entire separation, and the small stalls get a device px
+    # more of it or the downscale eats one flank and the bulb runs into a tooth.
+    seat = r + max(1, ew // 2) + (0 if scale >= 0.95 else 1)
     for u in BULB_U:
         bx = X(u)
-        pygame.draw.circle(surf, GOLD_DEEP, (bx, by), r + max(1, ew // 2))
+        pygame.draw.circle(surf, GOLD_DEEP, (bx, by), seat)
         pygame.draw.circle(surf, BULB_GLASS, (bx, by), r)
     surf.set_clip(prev)
 

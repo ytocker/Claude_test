@@ -2,14 +2,19 @@
 
 The board is read as the stall's awning caught mid-roll: an oxblood lacquer
 plank whose cloth is bolted to the TOP edge only and rolled up onto a real
-timber bar, with the last 1.5px of unrolled selvedge still showing below the
-plank. The bar is the signature — a shaded cylinder with red whipping bands
-and proud cream end knobs, silhouette carried by a dark reveal along its
-outer arc rather than by the cream, which is far too close in value to lit
-thatch to hold an edge.
+timber bar, with a two-device-row band of unrolled selvedge still showing
+below the plank. The bar is the signature — a shaded cylinder with red
+whipping bands and radius-matched cream end caps, silhouette carried by a
+dark reveal along its outer arc rather than by the cream, which is far too
+close in value to lit thatch to hold an edge.
 
-Bulbs come OFF the ornament and onto the field as two three-lamp end columns,
-so lighting never depends on the label's width and the type band stays clear.
+Value hierarchy is authored downward from the item, not upward from the sign:
+the roll crown is the sign's one bright, the caps sit a step under it, and the
+cream is pulled off pure so the whole board stays subordinate to the goods in
+the opening.
+
+Bulbs come OFF the ornament and onto the field as one lamp per end, so
+lighting never depends on the label's width and the type band stays clear.
 
 Exploration-only: install() layers this sign over the chosen mix-C item hooks;
 game/ is never edited.
@@ -39,19 +44,35 @@ BULB_GLASS = lerp_color(GOLD_PALE, GOLD, 0.18)
 # awning seam. The seam is a hard floor at h=1.5 and the roof rake caps the
 # board's width, so every number here is authored against those two limits.
 PLANK_HALF = 42.0
-PLANK_TOP, PLANK_BOT = 13.5, 3.0
-SELVEDGE_FLOOR = 1.5
-ROLL_AXIS_H = 15.5
+PLANK_TOP, PLANK_BOT = 14.4, 3.2
+SELVEDGE_FLOOR = 1.05
+ROLL_AXIS_H = 16.4
 ROLL_R = 2.5
-KNOB_X, KNOB_R = 42.5, 3.0
-WHIP_X, WHIP_HALF = 38.0, 1.0
-BULB_X = 37.5
-BULB_HS = (5.0, 8.0, 11.0)
-BULB_R = 1.4
+# The cap matches the bar's radius, so the pair reads as one capsule rather
+# than a rod pushed through two beads; the half-radius overhang past the tube
+# end is what makes the bar look like a real turned dowel with proud ends.
+KNOB_X, KNOB_R = 42.5, 2.5
+WHIP_X, WHIP_HALF = 36.0, 1.0
+BULB_X = 37.6
+BULB_HS = (8.8,)
+BULB_R = 2.6
 
-# Cylinder ramp sampled across the bar's diameter; the upper-left third keeps
-# the cream and everything below it rolls off to the shadowed underside.
-ROLL_STOPS = [(0.0, AWN_CREAM), (0.30, AWN_CREAM), (0.62, AWN_CREAM_D),
+# The sign's cream is pulled OFF pure awning cream: at full value the board
+# out-shouted the item in the opening, and the crown is the one place on the
+# whole stall front that has to stay under it.
+ROLL_CREAM = lerp_color(AWN_CREAM, AWN_CREAM_D, 0.22)
+# The caps take a further step down so the bar's brightest pixel is its crown
+# at centre — a sphere's specular otherwise wins on value and the eye reads the
+# sign as two dots with a bar between them.
+KNOB_CREAM = lerp_color(ROLL_CREAM, AWN_CREAM_D, 0.30)
+
+# Cylinder ramp sampled across the bar's diameter; the upper-left keeps the
+# cream and everything below it rolls off to the shadowed underside. The cream
+# plateau runs deep (0.44) because a shorter one put the ramp's knee inside the
+# lit face and left a dull patch part-way along the bar.
+ROLL_STOPS = [(0.0, ROLL_CREAM), (0.44, ROLL_CREAM), (0.62, AWN_CREAM_D),
+              (1.0, ROLL_LO)]
+KNOB_STOPS = [(0.0, KNOB_CREAM), (0.44, KNOB_CREAM), (0.62, AWN_CREAM_D),
               (1.0, ROLL_LO)]
 WHIP_STOPS = [(0.0, AWN_RED), (0.30, AWN_RED), (0.62, (150, 30, 32)),
               (1.0, (96, 20, 22))]
@@ -81,7 +102,7 @@ def _cylinder(surf, x0, x1, y_ax, r, cx, u):
         whip = min(abs(xx - (cx - WHIP_X * u)),
                    abs(xx - (cx + WHIP_X * u))) <= WHIP_HALF * u
         stops = WHIP_STOPS if whip else ROLL_STOPS
-        kx = 0.16 * max(0.0, min(1.0, (xx - x0) / span))
+        kx = 0.10 * max(0.0, min(1.0, (xx - x0) / span))
         for iy in range(h):
             yy = y_lo + iy + 0.5
             d = yy - y_ax
@@ -97,14 +118,22 @@ def _cylinder(surf, x0, x1, y_ax, r, cx, u):
     surf.blit(tube, (x_lo, y_lo))
 
 
-def _knob(surf, kx, ky, r, u):
-    """A turned end cap on the bar: a cream sphere keyed upper-left, ringed by
-    the plank's own dark keyline so the proudest part of the sign still owns a
-    hard edge wherever it crosses the roof rake."""
+def _knob(surf, kx, ky, r, u, outward):
+    """A turned end cap on the bar: a cream hemisphere keyed upper-left, its
+    dark keyline run as an ARC over the outer/upper face only. A full ring drew
+    a hard seam exactly where the cap meets the tube and cut the bar into three
+    parked objects; leaving the inboard ~160 degrees un-keyed lets the cap's
+    cream run straight into the cylinder's, so the whole thing reads as one
+    turned dowel while the outer face still owns a hard edge over the rake."""
     ir = int(math.ceil(r)) + 1
     w = ir * 2 + 1
     ball = pygame.Surface((w, w), pygame.SRCALPHA)
     lx, ly, lz = -0.58, -0.58, 0.57
+    edge = 1.0 - max(1.0, 1.0 * u) / r
+    # The kept arc is centred slightly ABOVE the outward horizontal so it hands
+    # off to the tube's own top reveal instead of ending in mid-air.
+    a_c = math.radians(20.0 if outward > 0 else 160.0)
+    half = math.radians(100.0)
     for iy in range(w):
         for ix in range(w):
             dx = (ix + 0.5 - ir) / r
@@ -114,12 +143,15 @@ def _knob(surf, kx, ky, r, u):
                 continue
             nz = math.sqrt(max(0.0, 1.0 - min(1.0, rr * rr)))
             lam = max(0.0, dx * lx + dy * ly + nz * lz)
-            col = lerp_stops(ROLL_STOPS, max(0.0, min(1.0, 1.0 - lam * 1.15)))
+            col = lerp_stops(KNOB_STOPS, max(0.0, min(1.0, 1.0 - lam * 1.15)))
+            if rr >= edge:
+                da = math.atan2(-dy, dx) - a_c
+                da = abs((da + math.pi) % (2 * math.pi) - math.pi)
+                if da <= half:
+                    col = OX_KEY
             cov = max(0.0, min(1.0, (1.0 - rr) * r + 0.5))
             ball.set_at((ix, iy), (*col, int(255 * cov)))
     surf.blit(ball, (int(round(kx)) - ir, int(round(ky)) - ir))
-    pygame.draw.circle(surf, OX_KEY, (int(round(kx)), int(round(ky))),
-                       int(round(r)), max(1, int(round(1.0 * u))))
 
 
 def _sign(surf, ctx):
@@ -132,8 +164,14 @@ def _sign(surf, ctx):
     kl = max(1, int(round(1.0 * u)))
 
     # ── lacquer plank ────────────────────────────────────────────────────────
+    # The selvedge is snapped to whole 2-device-row blocks from the plank's
+    # bottom DOWN: the downscale samples in 2x2 blocks, so a band authored in
+    # fractional rows lands as cream-tinted mud instead of one clean cream
+    # screen row over one clean dark one, which is the whole point of it.
     sel_top = int(round(Y(PLANK_BOT)))
-    sel_end = int(math.floor(Y(SELVEDGE_FLOOR)))
+    sel_top += sel_top & 1
+    key_top = sel_top + 2
+    sel_end = key_top + 2
     x0, x1 = int(round(X(-PLANK_HALF))), int(round(X(PLANK_HALF)))
     p_top = int(round(Y(PLANK_TOP)))
     p_rect = pygame.Rect(x0, p_top, x1 - x0, sel_top - p_top)
@@ -144,46 +182,50 @@ def _sign(surf, ctx):
     # Centred on the CAP band, not on the font's padded box: the glyph surface
     # carries descender air the all-caps label never uses, and a plank this
     # shallow shows the error immediately. The bolded cap measures ~8.7 logical
-    # px at this size against a 10.5 plank, so the band is hung on the plank's
-    # own middle and the 1px rims absorb the last fifth of a pixel each.
-    f = font(11 * scale)
+    # px at this size against an 11.2 plank, so the band is hung on the plank's
+    # own middle and the 1px rims absorb the last fifth of a pixel each. The cap
+    # is deliberately held near 72% of the field: at 83% the counters closed and
+    # the ink touched both rims, which is what made the board look shouty.
+    f = font(10.4 * scale)
     base = _stamp_bold(_glyph_base(label, f, m(0.6)), m(1.0 * scale))
     ink = base.get_bounding_rect()
     band_c = Y((PLANK_TOP + PLANK_BOT) * 0.5)
     cy = band_c + (base.get_height() * 0.5 - ink.centery)
-    gradient_text(surf, label, f, (cx, int(round(cy))), GOLD_A_TOP, GOLD_A_BOT,
+    # The ramp's bottom stop is lifted off pure GOLD_A_BOT: the descending edge
+    # of a 6px cap on near-black lacquer is where contrast actually fails, and
+    # unlifted it fell under 4.5:1 exactly on the letters' lower halves.
+    ink_bot = lerp_color(GOLD_A_BOT, GOLD_A_TOP, 0.30)
+    gradient_text(surf, label, f, (cx, int(round(cy))), GOLD_A_TOP, ink_bot,
                   weight=m(1.0 * scale), keyline=LABEL_KEY, kw=m(1.0),
                   shadow=False, tracking=m(0.6))
 
-    # ── cream selvedge, then its closure hairline ────────────────────────────
-    # Cloth, so it is laid over the board's lower rim and AFTER the type: the
-    # keyline stamp reaches a fifth of a px past the plank and would otherwise
-    # smear the one cream row the reveal owns. The whole reveal is ~1.4px once
-    # the scene is downscaled, so the closure is SNAPPED to the 2-device-px
-    # block the downscale samples — unaligned it averages half-and-half with
-    # the cream and the sign's bottom edge dissolves into lit thatch, the one
-    # edge cream can never hold on its own.
-    key_top = max(sel_top, (sel_end - 2) & ~1)
-    pygame.draw.rect(surf, AWN_CREAM_D, (x0, sel_top, x1 - x0,
-                                         max(0, key_top - sel_top)))
-    pygame.draw.rect(surf, OX_KEY, (x0, key_top, x1 - x0, sel_end - key_top))
-
-    # ── end-lamp columns ─────────────────────────────────────────────────────
+    # ── end lamps ────────────────────────────────────────────────────────────
     # Lamps live on the FIELD, outboard of the widest label, so the lighting is
-    # identical on a seven-letter stall and an eight-letter one.
+    # identical on a seven-letter stall and an eight-letter one. ONE lamp a side,
+    # not a column of three: at this size three discs merged into a smear with
+    # no dark between them, so the sign paid for six lights and read as two
+    # blurs. One bigger bulb with a real halo buys the fairground note honestly.
     r = max(1, int(round(BULB_R * u)))
-    seat = max(1, int(round(0.7 * u)))
+    seat = max(1, int(round(1.0 * u)))
     pad = m(8)
     gw, gh = (x1 - x0) + pad * 2, (sel_top - p_top) + pad * 2
     glow = pygame.Surface((gw, gh), pygame.SRCALPHA)
     bulbs = [(int(round(X(sgn * BULB_X))), int(round(Y(bh))))
              for bh in BULB_HS for sgn in (-1, 1)]
     for bx, by in bulbs:
-        capped_glow(glow, bx - x0 + pad, by - p_top + pad, m(5), GOLD, 30)
+        capped_glow(glow, bx - x0 + pad, by - p_top + pad, m(8), GOLD, 70)
     surf.blit(glow, (x0 - pad, p_top - pad))
     for bx, by in bulbs:
         pygame.draw.circle(surf, GOLD_DEEP, (bx, by), r + seat)
         pygame.draw.circle(surf, BULB_GLASS, (bx, by), r)
+
+    # ── cream selvedge, then its closure hairline ────────────────────────────
+    # Cloth, so it is laid over the board's lower rim and AFTER the type AND the
+    # lamp halo: the keyline stamp reaches a fifth of a px past the plank and
+    # the halo washes gold over the rim, either of which would contaminate the
+    # one clean cream screen row this band exists to produce.
+    pygame.draw.rect(surf, AWN_CREAM_D, (x0, sel_top, x1 - x0, key_top - sel_top))
+    pygame.draw.rect(surf, OX_KEY, (x0, key_top, x1 - x0, sel_end - key_top))
 
     # ── the roll, over the plank's top edge ──────────────────────────────────
     # It overlaps the plank by half a px because cloth rolls OVER a top-bolted
@@ -196,7 +238,7 @@ def _sign(surf, ctx):
     y_ax = (crown - (crown & 1)) + rr
     _cylinder(surf, X(-KNOB_X), X(KNOB_X), y_ax, rr, cx, u)
     for sgn in (-1, 1):
-        _knob(surf, X(sgn * KNOB_X), y_ax, KNOB_R * u, u)
+        _knob(surf, X(sgn * KNOB_X), y_ax, KNOB_R * u, u, sgn)
 
 
 def install():
