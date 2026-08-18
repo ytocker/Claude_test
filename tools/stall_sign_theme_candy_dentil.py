@@ -4,14 +4,18 @@ The showman marquee re-cut as a cornice: a two-tier plinth board carrying a
 DENTIL RAIL of candy-striped teeth along its top course. Dentils are the
 tooth-blocks of a classical bedmould, and here their pitch is stolen wholesale
 from the awning's stripe grid below, so the sign reads as the SAME building's
-trim rather than a plaque hung on it. The awning grid is asymmetric about the
-hut's centre and is deliberately left that way — phase-locking to the stripes
-matters more than a mirrored board, so the end teeth come out unequal.
+trim rather than a plaque hung on it. Registration is literal: a tooth is a
+whole stripe wide, sits over that stripe's middle and takes ITS colour, so the
+cloth appears to continue up into the trim. The awning grid is asymmetric about
+the hut's centre and is deliberately left that way — phase-locking to the
+stripes matters more than a mirrored board, so the end reveals come out unequal
+(~1 final px at the left end, ~5 at the right) and the teeth stay uniform.
 
 Two reads carry the rail at 1x: one continuous reveal line under the whole
 course (per-tooth drop shadows dissolve at the downscale) and one bulb per
-tooth GAP, so the lights are the negative space of the candy rhythm and never
-depend on where the label's glyphs land.
+tooth GAP — which is also one bulb per stripe SEAM — so the lights are the
+negative space of the candy rhythm and never depend on where the label's
+glyphs land.
 
 Exploration-only: install() binds the chosen mix-C item hooks, then swaps in
 THIS sign; game/ is never edited.
@@ -88,10 +92,11 @@ def _edges(surf, X, Y, ew, col):
 def _stripe_col(cx, scale, x):
     """The colour of the awning stripe the given device column actually lands
     on, recomputed from the hut's own stripe maths. Tooth colour is READ from
-    the cloth rather than alternated on the loop index: the stripe count is
-    floor-divided per hut, so index parity flips between the 0.92 and 0.96
-    stalls and a hardcoded alternation would put a red tooth over cream cloth
-    on some of them."""
+    the cloth rather than alternated on the loop index: the stripe width is
+    floor-divided from a per-hut half-width, so which stripe index a fixed
+    logical offset falls on is not guaranteed across scales. A hardcoded
+    alternation happens to line up on today's three stalls and would silently
+    put a red tooth over cream cloth the first time a scale changes."""
     half_w = int(m(58) * scale)
     stripe_w = max(m(8), int((half_w * 2) / 9))
     s = (x - (cx - half_w)) // stripe_w

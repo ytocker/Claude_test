@@ -34,7 +34,7 @@ OX_KEY = (46, 14, 16)
 # keyline can eat its outermost row and a full device row still survives the
 # downscale — a thicker, calmer lip reads as a machined edge where a thin bright
 # one only read as a stray highlight.
-OX_RIM_HI = lerp_color(OX_TOP, AWN_CREAM, 0.24)
+OX_RIM_HI = lerp_color(OX_TOP, AWN_CREAM, 0.25)
 OX_RIM_LO = lerp_color(OX_BOT, (0, 0, 0), 0.42)
 # The boss lands ON the board, and oxblood-on-oxblood gave its ink rim nothing
 # to cut against there. A brass collar seats it — same metal as the bead, so the

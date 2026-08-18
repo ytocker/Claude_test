@@ -27,7 +27,7 @@ import game.store_hub as sh
 from game.store_hub import (
     m, font, lerp_color, lerp_stops, vgrad, gradient_text, capped_glow,
     _glyph_base, _stamp_bold,
-    GOLD, GOLD_PALE, GOLD_DEEP, GOLD_A_TOP, GOLD_A_BOT, LABEL_KEY,
+    GOLD, GOLD_DEEP, GOLD_A_TOP, GOLD_A_BOT, LABEL_KEY,
     AWN_RED, AWN_CREAM, AWN_CREAM_D,
 )
 
@@ -38,33 +38,41 @@ OX_KEY = (46, 14, 16)
 # The roll's outer arc, NOT the cream, is the silhouette pixel against thatch.
 ROLL_REVEAL = (74, 22, 24)
 ROLL_LO = (168, 150, 124)
-BULB_GLASS = lerp_color(GOLD_PALE, GOLD, 0.18)
+# The glass is deliberately kept under the roll crown's value: a paler bulb
+# stole the sign's brightest pixel from the ornament and the board read as two
+# gold dots. The halo, not the disc, is what sells the lamp.
+BULB_GLASS = GOLD
 
 # Board metrics in logical px: x as ±offset from cx, h as height above the
-# awning seam. The seam is a hard floor at h=1.5 and the roof rake caps the
-# board's width, so every number here is authored against those two limits.
+# awning seam. The seam is a hard floor just under h=1 and the roof rake caps
+# the board's width, so every number here is authored against those two limits.
 PLANK_HALF = 42.0
 PLANK_TOP, PLANK_BOT = 14.4, 3.2
 SELVEDGE_FLOOR = 1.05
 ROLL_AXIS_H = 16.4
 ROLL_R = 2.5
 # The cap matches the bar's radius, so the pair reads as one capsule rather
-# than a rod pushed through two beads; the half-radius overhang past the tube
+# than a rod pushed through two beads; the one-radius overhang past the tube
 # end is what makes the bar look like a real turned dowel with proud ends.
 KNOB_X, KNOB_R = 42.5, 2.5
 WHIP_X, WHIP_HALF = 36.0, 1.0
 BULB_X = 37.6
 BULB_HS = (8.8,)
 BULB_R = 2.6
+# Type is authored at TYPE_PT and steps DOWN per stall until the longest label
+# still leaves the lamps their clear air — the lamp is the fixed part.
+TYPE_PT, TYPE_PT_MIN, TYPE_CLEAR = 10.4, 8.6, 3.5
 
-# The sign's cream is pulled OFF pure awning cream: at full value the board
-# out-shouted the item in the opening, and the crown is the one place on the
-# whole stall front that has to stay under it.
-ROLL_CREAM = lerp_color(AWN_CREAM, AWN_CREAM_D, 0.22)
-# The caps take a further step down so the bar's brightest pixel is its crown
-# at centre — a sphere's specular otherwise wins on value and the eye reads the
-# sign as two dots with a bar between them.
-KNOB_CREAM = lerp_color(ROLL_CREAM, AWN_CREAM_D, 0.30)
+# The sign's cream is pulled well OFF pure awning cream. Measured against the
+# goods in the opening, a full-value crown put the sign's brightest pixel at
+# 0.93 of the item's on COSTUMES — the board was winning the stall. Held here,
+# every stall's sign peak sits at 0.76-0.84 of its item's.
+ROLL_CREAM = lerp_color(AWN_CREAM, AWN_CREAM_D, 0.70)
+# The caps take a further step down, past the awning's shadow cream toward the
+# tube's underside: an end face is turned off the upper-left key, and a cap that
+# holds plateau value beats the crown on the downscale (its dome carries a whole
+# 2x2 block of peak) so the sign reads as two dots with a bar between them.
+KNOB_CREAM = lerp_color(ROLL_CREAM, ROLL_LO, 0.62)
 
 # Cylinder ramp sampled across the bar's diameter; the upper-left keeps the
 # cream and everything below it rolls off to the shadowed underside. The cream
@@ -72,8 +80,12 @@ KNOB_CREAM = lerp_color(ROLL_CREAM, AWN_CREAM_D, 0.30)
 # lit face and left a dull patch part-way along the bar.
 ROLL_STOPS = [(0.0, ROLL_CREAM), (0.44, ROLL_CREAM), (0.62, AWN_CREAM_D),
               (1.0, ROLL_LO)]
-KNOB_STOPS = [(0.0, KNOB_CREAM), (0.44, KNOB_CREAM), (0.62, AWN_CREAM_D),
-              (1.0, ROLL_LO)]
+# The cap's ramp keeps the tube's SHAPE (same knee, same quarter-of-the-drop at
+# it) but rides lower throughout; reusing the tube's literal mid stop would put
+# a tone brighter than the cap's own plateau into its shadow side and hang a
+# bright ring round the bottom of the dome.
+KNOB_STOPS = [(0.0, KNOB_CREAM), (0.44, KNOB_CREAM),
+              (0.62, lerp_color(KNOB_CREAM, ROLL_LO, 0.25)), (1.0, ROLL_LO)]
 WHIP_STOPS = [(0.0, AWN_RED), (0.30, AWN_RED), (0.62, (150, 30, 32)),
               (1.0, (96, 20, 22))]
 
@@ -181,14 +193,27 @@ def _sign(surf, ctx):
     # ── type ─────────────────────────────────────────────────────────────────
     # Centred on the CAP band, not on the font's padded box: the glyph surface
     # carries descender air the all-caps label never uses, and a plank this
-    # shallow shows the error immediately. The bolded cap measures ~8.7 logical
+    # shallow shows the error immediately. The bolded cap measures ~8.2 logical
     # px at this size against an 11.2 plank, so the band is hung on the plank's
     # own middle and the 1px rims absorb the last fifth of a pixel each. The cap
     # is deliberately held near 72% of the field: at 83% the counters closed and
     # the ink touched both rims, which is what made the board look shouty.
-    f = font(10.4 * scale)
-    base = _stamp_bold(_glyph_base(label, f, m(0.6)), m(1.0 * scale))
-    ink = base.get_bounding_rect()
+    #
+    # Width is fitted, not assumed: the LAMP is the fixed part of this sign (its
+    # whole reason for living on the field is that lighting must not vary with
+    # the label), so the longest word steps down a half point at a time until it
+    # leaves the bulb its clear air — which is what a sign painter does anyway.
+    r = max(1, int(round(BULB_R * u)))
+    seat = max(1, int(round(1.0 * u)))
+    free = (X(BULB_X) - (r + seat)) - cx - m(TYPE_CLEAR)
+    pt = TYPE_PT
+    while True:
+        f = font(pt * scale)
+        base = _stamp_bold(_glyph_base(label, f, m(0.6)), m(1.0 * scale))
+        ink = base.get_bounding_rect()
+        if ink.w * 0.5 + m(1.0) <= free or pt <= TYPE_PT_MIN:
+            break
+        pt -= 0.2
     band_c = Y((PLANK_TOP + PLANK_BOT) * 0.5)
     cy = band_c + (base.get_height() * 0.5 - ink.centery)
     # The ramp's bottom stop is lifted off pure GOLD_A_BOT: the descending edge
@@ -205,8 +230,6 @@ def _sign(surf, ctx):
     # not a column of three: at this size three discs merged into a smear with
     # no dark between them, so the sign paid for six lights and read as two
     # blurs. One bigger bulb with a real halo buys the fairground note honestly.
-    r = max(1, int(round(BULB_R * u)))
-    seat = max(1, int(round(1.0 * u)))
     pad = m(8)
     gw, gh = (x1 - x0) + pad * 2, (sel_top - p_top) + pad * 2
     glow = pygame.Surface((gw, gh), pygame.SRCALPHA)
