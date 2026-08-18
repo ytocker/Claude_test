@@ -953,6 +953,13 @@ def _hut_label(surf, label, cx, cy, scale):
                   tracking=m(0.6))
 
 
+# Exploration seam (this scratch branch only): tools-side variant modules
+# swap the sign / item presentation without touching the stall architecture,
+# so parallel concept explorations never edit this file.
+STALL_SIGN_HOOK = None
+STALL_ITEM_HOOK = None
+
+
 def draw_hut(surf, cx, deck_y, scale, group, label):
     """One stilt-market hut, drawn back-to-front so it reads as a solid lit
     object over water: thatched roof carrying a bold gold-keyline name board
@@ -1049,22 +1056,33 @@ def draw_hut(surf, cx, deck_y, scale, group, label):
         pygame.draw.line(surf, WOOD_LO, (sx, deck_rect.top),
                          (sx, deck_rect.bottom), max(1, m(0.8)))
 
-    dome_r = max(m(24), int(m(28) * scale))
-    dome_cx = cx
-    # centre of the visible opening (below the awning, above the deck lip),
-    # not of the raw body — the awning eats the top of the stall interior.
-    dome_cy = body_top + int(body_h * 0.55)
-    capped_glow(surf, dome_cx, dome_cy, dome_r + m(6), GOLD, 34, layers=8)
-    if group == "shades":
-        cabochon(surf, dome_cx, dome_cy, dome_r, (96, 104, 134), (44, 50, 78))
+    ctx = dict(cx=cx, deck_y=deck_y, body_top=body_top, body_h=body_h,
+               half_w=half_w, eave=eave, roof_apex_y=roof_apex_y,
+               scale=scale, group=group, label=label)
+    if STALL_ITEM_HOOK is not None:
+        STALL_ITEM_HOOK(surf, ctx)
     else:
-        cabochon(surf, dome_cx, dome_cy, dome_r, CABO_LO, CABO_HI)
-    _place_thumb(surf, group, dome_cx, dome_cy, dome_r, False)
-    cabochon_glass(surf, dome_cx, dome_cy, dome_r, tint=(240, 224, 196))
+        dome_r = max(m(24), int(m(28) * scale))
+        dome_cx = cx
+        # centre of the visible opening (below the awning, above the deck
+        # lip), not of the raw body — the awning eats the top of the stall
+        # interior.
+        dome_cy = body_top + int(body_h * 0.55)
+        capped_glow(surf, dome_cx, dome_cy, dome_r + m(6), GOLD, 34, layers=8)
+        if group == "shades":
+            cabochon(surf, dome_cx, dome_cy, dome_r, (96, 104, 134),
+                     (44, 50, 78))
+        else:
+            cabochon(surf, dome_cx, dome_cy, dome_r, CABO_LO, CABO_HI)
+        _place_thumb(surf, group, dome_cx, dome_cy, dome_r, False)
+        cabochon_glass(surf, dome_cx, dome_cy, dome_r, tint=(240, 224, 196))
 
-    # name board rides the lower roof, its bottom edge resting on the awning
-    # line, so the opening below stays free for the preview dome.
-    _hut_label(surf, label, cx, body_top - int(m(10) * scale), scale)
+    if STALL_SIGN_HOOK is not None:
+        STALL_SIGN_HOOK(surf, ctx)
+    else:
+        # name board rides the lower roof, its bottom edge resting on the
+        # awning line, so the opening below stays free for the preview dome.
+        _hut_label(surf, label, cx, body_top - int(m(10) * scale), scale)
 
     return half_w, roof_apex_y
 
