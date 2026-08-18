@@ -51,7 +51,6 @@ RAIL_TOP_H, BODY_TOP_H, BODY_BOT_H = 16.0, 13.5, 3.0
 CAP_TOP_H, CAP_BOT_H = 12.25, 4.5
 BEAD_IN = 2.0
 TOOTH_HALF = 3.125
-BULB_H = 14.75
 
 
 def _plinth_pts(X, Y, half_hi, half_lo, top_h, bot_h, step_h):
@@ -169,8 +168,10 @@ def _sign(surf, ctx):
     pygame.draw.polygon(surf, GOLD_DEEP, cap, max(1, m(0.5)))
     surf.set_clip(prev)
 
+    # centred between the bead's own runs, not on the board — the cap-height ink
+    # is a hair taller than the cap, so it is the FRAME that has to look centred.
     f = font(11 * scale)
-    gradient_text(surf, label, f, (cx, Y((CAP_TOP_H + CAP_BOT_H) * 0.5) + ew),
+    gradient_text(surf, label, f, (cx, (Y(CAP_TOP_H) + Y(CAP_BOT_H)) // 2),
                   GOLD_A_TOP, GOLD_A_BOT, weight=m(1.0 * scale),
                   keyline=LABEL_KEY, kw=m(1.0), shadow=False, tracking=m(0.6))
 
@@ -178,9 +179,9 @@ def _sign(surf, ctx):
     # negative space, so they never collide with a glyph and the count is fixed
     # whatever the label says.
     r = max(2, int(round(m(1.25) * scale)))
-    # authored on the course's mid-line (h=14.75); snapped to the mid-line of
-    # its OPEN interior, since the keyline claims the top row and an unsnapped
-    # bulb would clip lop-sided against it.
+    # authored on the course's own mid-line (h=14.75), then re-centred on the
+    # mid-line of its OPEN interior: the keyline claims the top row, so an
+    # un-recentred bulb clips lop-sided against it.
     top_in = rail_top + ew
     by = top_in + (rail_bot - top_in) // 2
     # bulbs live wholly INSIDE the course: a halo spilling onto the thatch would
@@ -196,12 +197,13 @@ def _sign(surf, ctx):
                     max(2, int(m(4) * scale)), GOLD, 30)
     surf.blit(glow, (x0 - pad, rail_top - pad))
 
+    # the GOLD_DEEP seat IS the rim at this size: the base's inner rim ring is a
+    # whole pixel of a 2px-radius disc, so drawing it leaves no lit core at all
+    # and the bulb reads as a dull washer instead of a light.
     for u in BULB_U:
         bx = X(u)
-        pygame.draw.circle(surf, GOLD_DEEP, (bx, by), r + max(1, ew))
+        pygame.draw.circle(surf, GOLD_DEEP, (bx, by), r + max(1, ew // 2))
         pygame.draw.circle(surf, BULB_GLASS, (bx, by), r)
-        pygame.draw.circle(surf, lerp_color(BULB_GLASS, WOOD_EDGE, 0.35),
-                           (bx, by), r, 1)
     surf.set_clip(prev)
 
 
