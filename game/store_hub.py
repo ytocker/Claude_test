@@ -933,7 +933,7 @@ def _place_thumb(surf, group, cx, cy, dome_r, hero):
 
 
 def _hut_label(surf, label, cx, cy, scale):
-    """A small carved-timber name board under the dome carrying the category in
+    """A small carved-timber name board on the roof carrying the category in
     bold gradient gold with a dark keyline — the canonical defined-edge label."""
     f = font(11 * scale)
     tw = _glyph_base(label, f, m(0.6)).get_width()
@@ -956,9 +956,10 @@ def _hut_label(surf, label, cx, cy, scale):
 
 def draw_hut(surf, cx, deck_y, scale, group, label):
     """One stilt-market hut, drawn back-to-front so it reads as a solid lit
-    object over water: thatched roof -> striped macaw-red/cream awning -> a
-    shaded stall interior carrying a glass cabochon with the category's REAL
-    preview thumbnail -> a bold gold-keyline label."""
+    object over water: thatched roof carrying a bold gold-keyline name board
+    just above the awning -> striped macaw-red/cream awning -> a shaded stall
+    interior carrying a glass cabochon with the category's REAL preview
+    thumbnail centred in the opening."""
     half_w = int(m(58) * scale)
     body_h = int(m(64) * scale)
     roof_h = int(m(40) * scale)
@@ -1051,7 +1052,9 @@ def draw_hut(surf, cx, deck_y, scale, group, label):
 
     dome_r = max(m(24), int(m(28) * scale))
     dome_cx = cx
-    dome_cy = body_top + int(body_h * 0.46)
+    # centre of the visible opening (below the awning, above the deck lip),
+    # not of the raw body — the awning eats the top of the stall interior.
+    dome_cy = body_top + int(body_h * 0.55)
     capped_glow(surf, dome_cx, dome_cy, dome_r + m(6), GOLD, 34, layers=8)
     if group == "shades":
         cabochon(surf, dome_cx, dome_cy, dome_r, (96, 104, 134), (44, 50, 78))
@@ -1060,7 +1063,9 @@ def draw_hut(surf, cx, deck_y, scale, group, label):
     _place_thumb(surf, group, dome_cx, dome_cy, dome_r, False)
     cabochon_glass(surf, dome_cx, dome_cy, dome_r, tint=(240, 224, 196))
 
-    _hut_label(surf, label, cx, deck_y - int(m(16) * scale), scale)
+    # name board rides the lower roof, its bottom edge floating just clear of
+    # the awning line, so the opening below stays free for the preview dome.
+    _hut_label(surf, label, cx, body_top - int(m(14) * scale), scale)
 
     return half_w, roof_apex_y
 
