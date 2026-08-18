@@ -44,7 +44,7 @@ BOSS_COLLAR = GOLD_DEEP
 # Cream is the brightest thing the sign owns, and the merchandise has to out-rank
 # the signage that points at it — so the lit cream is compressed toward its own
 # shade tone rather than run at full awning white.
-CREAM_LIT = lerp_color(AWN_CREAM, AWN_CREAM_D, 0.18)
+CREAM_LIT = lerp_color(AWN_CREAM, AWN_CREAM_D, 0.30)
 
 HALF = 42.0            # plank half-width, logical px
 H_BOT, H_TOP = 1.75, 14.25  # plank band above body_top
@@ -131,7 +131,10 @@ def _collar(surf, pts, bx, by, r, w1):
     outline floating over the thatch."""
     pad = r + m(4)
     s = pygame.Surface((pad * 2, pad * 2), pygame.SRCALPHA)
-    pygame.draw.circle(s, BOSS_COLLAR, (pad, pad), r + m(1), max(2, w1 + 1))
+    # The ring sits ENTIRELY outside the boss rim and is authored two logical px
+    # wide: a 1px ring lands on the downscale seam between rim and board and
+    # averages back into the oxblood it was meant to cut against.
+    pygame.draw.circle(s, BOSS_COLLAR, (pad, pad), r + m(2), max(4, w1 + 2))
     mask = pygame.Surface((pad * 2, pad * 2), pygame.SRCALPHA)
     pygame.draw.polygon(mask, (255, 255, 255, 255),
                         [(x - bx + pad, y - by + pad) for x, y in pts])
@@ -167,6 +170,15 @@ def _sign(surf, ctx):
     w1 = max(1, int(round(m(1.0) * scale)))
     half = sv(HALF)
     top_y, bot_y = body_top - sv(H_TOP), body_top - sv(H_BOT)
+    # Downscale parity is the whole difference between a lit lip and mud: the
+    # 2x build folds device rows in PAIRS, so a 3px lip only keeps a full-value
+    # row at 1x when the keyline row is odd — otherwise every surviving row is a
+    # 50/50 average with the ink above or the field below. Both edges are nudged
+    # AWAY from the awning (never toward it) so the fix can't cost floor margin.
+    if top_y % 2 == 0:
+        top_y -= 1
+    if bot_y % 2 == 1:
+        bot_y -= 1
     ch = sv(CHAMFER)
     pts = _plank_points(cx, top_y, bot_y, half, ch)
 
