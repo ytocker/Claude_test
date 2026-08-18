@@ -44,7 +44,7 @@ BOSS_COLLAR = GOLD_DEEP
 # Cream is the brightest thing the sign owns, and the merchandise has to out-rank
 # the signage that points at it — so the lit cream is compressed toward its own
 # shade tone rather than run at full awning white.
-CREAM_LIT = lerp_color(AWN_CREAM, AWN_CREAM_D, 0.30)
+CREAM_LIT = lerp_color(AWN_CREAM, AWN_CREAM_D, 0.40)
 
 HALF = 42.0            # plank half-width, logical px
 H_BOT, H_TOP = 1.75, 14.25  # plank band above body_top
