@@ -151,12 +151,16 @@ def _sign(surf, ctx):
     # negative space, so they never collide with a glyph and the count is fixed
     # whatever the label says.
     r = max(2, int(round(m(1.25) * scale)))
-    by = Y(BULB_H)
+    # authored on the course's mid-line (h=14.75); snapped to the mid-line of
+    # its OPEN interior, since the keyline claims the top row and an unsnapped
+    # bulb would clip lop-sided against it.
+    top_in = rail_top + ew
+    by = top_in + (rail_bot - top_in) // 2
     # bulbs live wholly INSIDE the course: a halo spilling onto the thatch would
     # wash out the very edge the silhouette gate depends on, and a seat poking
     # past the top line would hand that edge a low-contrast gold pixel.
     prev = surf.get_clip()
-    surf.set_clip(pygame.Rect(x0, rail_top + ew, bw, rail_bot - rail_top - ew))
+    surf.set_clip(pygame.Rect(x0, top_in, bw, rail_bot - top_in))
     pad = m(6)
     glow = pygame.Surface((bw + pad * 2, (rail_bot - rail_top) + pad * 2),
                           pygame.SRCALPHA)

@@ -84,12 +84,14 @@ def _fill_poly(surf, pts, top, bot, sheen=0):
     h = max(1, int(max(ys)) - y0 + 2)
     body = vgrad(w, h, 0, top, bot)
     if sheen:
+        # Alpha-blended, never BLEND_RGBA_ADD: an additive blit adds the wash's
+        # raw RGB unweighted by its alpha and blows a dark field out to paper.
         wash = pygame.Surface((w, h), pygame.SRCALPHA)
         for i in range(w):
             a = int(sheen * max(0.0, 1.0 - i / (w * 0.62)) ** 1.5)
             if a > 0:
                 pygame.draw.line(wash, (255, 206, 168, a), (i, 0), (i, h))
-        body.blit(wash, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+        body.blit(wash, (0, 0))
     mask = pygame.Surface((w, h), pygame.SRCALPHA)
     pygame.draw.polygon(mask, (255, 255, 255, 255),
                         [(p[0] - x0, p[1] - y0) for p in pts])

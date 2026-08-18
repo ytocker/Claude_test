@@ -185,8 +185,13 @@ def _sign(surf, ctx):
     # ── the roll, over the plank's top edge ──────────────────────────────────
     # It overlaps the plank by half a px because cloth rolls OVER a top-bolted
     # edge; leaving a seam there would read as a separate object parked on top.
-    y_ax = Y(ROLL_AXIS_H)
-    _cylinder(surf, X(-KNOB_X), X(KNOB_X), y_ax, ROLL_R * u, cx, u)
+    # The axis is nudged (<=0.5 device px) so the bar's crown starts on an even
+    # device row: that is what lets the reveal land as whole 1x pixels on every
+    # stall instead of only on the ones whose scale happens to line up.
+    rr = ROLL_R * u
+    crown = int(round(Y(ROLL_AXIS_H) - rr))
+    y_ax = (crown - (crown & 1)) + rr
+    _cylinder(surf, X(-KNOB_X), X(KNOB_X), y_ax, rr, cx, u)
     for sgn in (-1, 1):
         _knob(surf, X(sgn * KNOB_X), y_ax, KNOB_R * u, u)
 

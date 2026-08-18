@@ -28,11 +28,11 @@ from game.store_hub import (
 OX_TOP = (88, 26, 28)
 OX_BOT = (52, 16, 18)
 OX_KEY = (46, 14, 16)
-# rims are the plank's only modelling: a lit lip up top, a shade lip below, both
+# Rims are the plank's only modelling: a lit lip up top, a shade lip below, both
 # still far darker than lit thatch so the board never competes with the roof.
-# the lit lip is pushed further than it looks on paper: at 2x the keyline eats
-# its outer device pixel, so only half of it survives the downscale and a timid
-# value would read as mud instead of a machined edge.
+# The lit lip is pushed further than it looks on paper because at 2x the keyline
+# eats its outer device pixel — only half of it survives the downscale, and a
+# timid value would read as mud rather than a machined edge.
 OX_RIM_HI = lerp_color(OX_TOP, AWN_CREAM, 0.26)
 OX_RIM_LO = lerp_color(OX_BOT, (0, 0, 0), 0.42)
 
@@ -85,7 +85,6 @@ def _cockade(surf, bx, by, r, w1):
                         int(round(by + rw * math.sin(a)))))
         pygame.draw.polygon(surf, col, pts)
 
-    # the rim is the boss's silhouette pixel: continuous, dark, drawn last.
     pygame.draw.circle(surf, LABEL_KEY, (bx, by), r, rim_w)
 
 
