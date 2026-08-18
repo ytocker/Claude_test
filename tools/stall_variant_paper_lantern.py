@@ -170,14 +170,14 @@ def _geom(ctx):
     receives and the hero that casts it can never drift apart."""
     cx, deck_y, scale = ctx["cx"], ctx["deck_y"], ctx["scale"]
     sill = deck_y - m(8)
-    pw, ph = _px(46, scale), _px(33, scale)
+    pw, ph = _px(58, scale), _px(33, scale)
     foot_h = _px(3, scale, 2)
     return dict(
         cx=cx, scale=scale, sill=sill, foot_h=foot_h,
         awn_b=ctx["body_top"] + int(m(15) * scale),
         panel=pygame.Rect(cx - pw // 2, sill - foot_h - ph, pw, ph),
         fw=_px(5, scale, 3), hair=max(1, m(0.8)),
-        box=int(m(30) * scale), base=deck_y - m(10),
+        box=int(m(44) * scale), base=deck_y - m(10),
     )
 
 

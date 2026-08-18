@@ -311,7 +311,7 @@ def item_hook(surf, ctx):
     # The m(8) posts are hard walls, so the span stops a hair short of the inner
     # face and lets the line cap land flush instead of biting into the timber.
     post_in = half_w - m(8) - max(3, _sv(2.0, scale))
-    rope_y = body_top + _sv(20, scale)
+    rope_y = body_top + _sv(15, scale)
     rope_w = max(m(1.6), _sv(1.8, scale))
 
     # ---- swag valance: mid-tone by contract. It is the backdrop the goods are
@@ -366,9 +366,9 @@ def item_hook(surf, ctx):
                  max(2, _sv(1.4, scale)))
 
     # ---- the cradle: two risers into a five-strand net sling.
-    sling_x = _sv(22, scale)
-    env = _sv(30, scale)
-    item_bot = deck_y - m(13)
+    sling_x = _sv(30, scale)
+    env = _sv(45, scale)
+    item_bot = deck_y - m(9)
     end_y = item_bot - _sv(10, scale)
     sag_base = _sv(12, scale)
 
@@ -403,17 +403,18 @@ def item_hook(surf, ctx):
     # clear air between the span rope and the item's hang line — and solve it on
     # the POST-tilt footprint, or a near-square item grows through the rope it is
     # supposed to be hanging from.
-    ca, sa = math.cos(math.radians(6)), math.sin(math.radians(6))
     # The risers are SHORT: a heavy load rides right up under its span, and the
     # extra device pixel of hang would cost the goods legibility at 1x.
     avail = max(m(8), item_bot - rope_y - 1)
-    f = min(env / (w * ca + h * sa), avail / (w * sa + h * ca))
+    # Rotate the SOURCE first so the hero is resampled once — tilting after the
+    # downscale costs a second resample and half the edge acuity at 1x. The rim
+    # still bakes after the tilt, locked to the one up-left key.
+    rot = pygame.transform.rotate(src, 3)
+    rw, rh = rot.get_size()
+    f = min(env / rw, avail / rh)
     img = pygame.transform.smoothscale(
-        src, (max(1, int(w * f)), max(1, int(h * f))))
+        rot, (max(1, int(rw * f)), max(1, int(rh * f))))
     img = _punch_contrast(img)
-    # Rotate BEFORE the rim so the contour highlight stays locked to the one
-    # up-left key; a rim baked in before the tilt would swing the sun with it.
-    img = pygame.transform.rotate(img, 6)
     bb = img.get_bounding_rect()
     ix = int(cx - bb.centerx)
     iy = int(item_bot - bb.bottom)

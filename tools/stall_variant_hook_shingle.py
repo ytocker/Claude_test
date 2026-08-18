@@ -279,7 +279,7 @@ def item_hook(surf, ctx):
     # where the hero actually lands.
     src, _lb = _group_thumb(group)
     sw, shh = src.get_size()
-    box = int(m(30) * scale)
+    box = int(m(40) * scale)
     s = box / max(sw, shh)
     img = pygame.transform.smoothscale(
         src, (max(1, int(sw * s)), max(1, int(shh * s))))
@@ -293,7 +293,7 @@ def item_hook(surf, ctx):
     _sun_shaft(inner, w, h, max(4, irect.left))
     sill_top = _sill(inner, w, h, scale)
 
-    rail_y = (body_top + int(m(21) * scale)) - ot
+    rail_y = (body_top + int(m(16) * scale)) - ot
     rt = max(m(1.6), int(m(1.8) * scale))
     shs = pygame.Surface((w, h), pygame.SRCALPHA)
     pygame.draw.line(shs, (0, 0, 0, 90), (0, rail_y + rt + 1),

@@ -45,15 +45,15 @@ def _geom(ctx):
         sill_top=deck_y - m(8),
         # hatch board
         y_hinge=body_top + int(m(9) * s),
-        y_front=body_top + int(m(22) * s),
+        y_front=body_top + int(m(20) * s),
         top_half=int(m(84) * s) // 2,
         front_half=int(m(96) * s) // 2,
         y_text=body_top + int(m(15.5) * s),
         y_prop_foot=body_top + int(m(31) * s),
         x_prop_head=int(m(44) * s),
         # merchandise
-        item_base=deck_y - m(11),
-        box=int(m(30) * s),
+        item_base=deck_y - m(7),
+        box=int(m(38) * s),
         dress_dx=int(m(32) * s),
     )
     return g

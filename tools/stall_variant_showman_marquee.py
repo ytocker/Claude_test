@@ -159,12 +159,13 @@ def _riser(surf, cx, bottom_y, w, h, inner_sign):
 
 
 def _pedestal(surf, cx, base_y, scale):
-    """A turned baluster: foot disc, torus, tapered shaft, collar with one bead
-    nail-head, top plate. Every upper-left curve takes WOOD_HI and every
-    lower-right one WOOD_EDGE so the turning still reads at ~27px wide."""
-    total = int(m(10) * scale)
+    """A turned baluster cut to the three elements that survive the 1x
+    downscale: foot disc, short tapered shaft carrying the single gold bead,
+    top plate. Every upper-left curve takes WOOD_HI and every lower-right one
+    WOOD_EDGE so the turning still reads."""
+    total = int(m(4.7) * scale)
     ys = [base_y - int(round(total * f / 10.0))
-          for f in (0.0, 2.0, 4.5, 7.5, 8.5, 10.0)]
+          for f in (0.0, 2.5, 7.5, 10.0)]
     hi, lo = WOOD_HI, WOOD_EDGE
 
     def band(y_bot, y_top, w_bot, w_top, ellipse=False):
@@ -186,20 +187,18 @@ def _pedestal(surf, cx, base_y, scale):
         return rect
 
     w = lambda v: max(2, int(m(v) * scale))
-    band(ys[0], ys[1], w(20), w(20), ellipse=True)
-    band(ys[1], ys[2], w(13), w(13), ellipse=True)
-    band(ys[2], ys[3], w(9), w(7))
-    collar = band(ys[3], ys[4], w(11), w(11))
-    plate = band(ys[4], ys[5], w(26), w(26))
+    band(ys[0], ys[1], w(18), w(18), ellipse=True)
+    shaft = band(ys[1], ys[2], w(9), w(7))
+    plate = band(ys[2], ys[3], w(20), w(20))
     pygame.draw.line(surf, hi, plate.topleft, (plate.right - 1, plate.top),
                      max(1, m(0.6)))
     pygame.draw.line(surf, lo, (plate.left, plate.bottom - 1),
                      (plate.right - 1, plate.bottom - 1), max(1, m(0.6)))
     bead = max(1, int(round(m(0.7) * scale)))
     bcx = cx - max(1, int(m(2) * scale))
-    pygame.draw.circle(surf, GOLD_DEEP, (bcx, collar.centery), bead + 1)
-    pygame.draw.circle(surf, GOLD_PALE, (bcx, collar.centery), bead)
-    return ys[5]
+    pygame.draw.circle(surf, GOLD_DEEP, (bcx, shaft.centery), bead + 1)
+    pygame.draw.circle(surf, GOLD_PALE, (bcx, shaft.centery), bead)
+    return ys[3]
 
 
 def _item(surf, ctx):
@@ -212,14 +211,10 @@ def _item(surf, ctx):
     prev_clip = surf.get_clip()
     surf.set_clip(pygame.Rect(open_l, hem_y, open_r - open_l, sill_y - hem_y))
 
-    riser_w, riser_h = int(m(18) * scale), max(2, int(m(4) * scale))
-    for sgn in (-1, 1):
-        _riser(surf, cx + sgn * int(m(30) * scale), sill_y, riser_w, riser_h, sgn)
-
-    # hard vignette: past the risers the interior drops to STALL_DARK so the
-    # eye is squeezed back onto the lit hero instead of wandering the sill.
+    # hard vignette: past the light pool the interior drops to STALL_DARK so
+    # the eye is squeezed back onto the lit hero instead of wandering the sill.
     half_open = (open_r - open_l) // 2
-    knee = int(m(39) * scale)          # the risers' outer edge: dark starts there
+    knee = int(m(39) * scale)
     vig = pygame.Surface((open_r - open_l, sill_y - hem_y), pygame.SRCALPHA)
     for px in range(vig.get_width()):
         t = (abs(open_l + px - cx) - knee) / max(1, half_open - knee)
@@ -247,9 +242,9 @@ def _item(surf, ctx):
     iw, ih = src.get_size()
     # contain to the envelope, then give height priority to the awning hem so a
     # tall skin loses a pixel rather than tucking under the stripes.
-    box = int(m(29) * scale)
+    box = int(m(40) * scale)
     s = box / max(iw, ih)
-    head_room = plate_y - (hem_y + m(2))
+    head_room = plate_y - (hem_y + m(1))
     if ih * s > head_room:
         s = head_room / ih
     img = pygame.transform.smoothscale(
