@@ -942,7 +942,6 @@ def _hut_label(surf, label, cx, cy, scale):
     bh = int(m(20) * scale)
     r = pygame.Rect(cx - bw // 2, cy - bh // 2, bw, bh)
     rad = bh // 2
-    drop_shadow(surf, r, rad, blur=m(4), alpha=120, dy=m(2))
     surf.blit(vgrad(r.w, r.h, rad, (44, 30, 18), (24, 15, 8)), r.topleft)
     rim_d, rim_b = (60, 38, 14), (*GOLD_PALE, 230)
     top_sheen(surf, r, rad, bh // 2, peak=46)
@@ -1063,9 +1062,9 @@ def draw_hut(surf, cx, deck_y, scale, group, label):
     _place_thumb(surf, group, dome_cx, dome_cy, dome_r, False)
     cabochon_glass(surf, dome_cx, dome_cy, dome_r, tint=(240, 224, 196))
 
-    # name board rides the lower roof, its bottom edge floating just clear of
-    # the awning line, so the opening below stays free for the preview dome.
-    _hut_label(surf, label, cx, body_top - int(m(14) * scale), scale)
+    # name board rides the lower roof, its bottom edge resting on the awning
+    # line, so the opening below stays free for the preview dome.
+    _hut_label(surf, label, cx, body_top - int(m(10) * scale), scale)
 
     return half_w, roof_apex_y
 
