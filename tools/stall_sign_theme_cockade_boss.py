@@ -30,8 +30,11 @@ OX_BOT = (52, 16, 18)
 OX_KEY = (46, 14, 16)
 # rims are the plank's only modelling: a lit lip up top, a shade lip below, both
 # still far darker than lit thatch so the board never competes with the roof.
-OX_RIM_HI = lerp_color(OX_TOP, AWN_CREAM, 0.18)
-OX_RIM_LO = lerp_color(OX_BOT, LABEL_KEY, 0.5)
+# the lit lip is pushed further than it looks on paper: at 2x the keyline eats
+# its outer device pixel, so only half of it survives the downscale and a timid
+# value would read as mud instead of a machined edge.
+OX_RIM_HI = lerp_color(OX_TOP, AWN_CREAM, 0.26)
+OX_RIM_LO = lerp_color(OX_BOT, (0, 0, 0), 0.42)
 
 HALF = 42.0            # plank half-width, logical px
 H_BOT, H_TOP = 3.0, 13.0   # plank band above body_top
@@ -56,9 +59,14 @@ def _cockade(surf, bx, by, r, w1):
     horizontal — that offset is the whole difference between a rosette and a
     pie chart. The down-right arc takes the shaded tone of its own colour, which
     keeps the single upper-left key light the rest of the hut is lit by."""
-    # wedges are inset a full rim width and laid over a solid ink disc, so a
-    # rasteriser rounding a wedge vertex outward still lands INSIDE the rim —
-    # a cream wedge is never allowed to touch the thatch.
+    # The rim is authored one supersampled pixel PROUD of a nominal 1px stroke:
+    # at 2x a 2px ring can straddle the downscale box and average away against a
+    # cream wedge on one side and lit thatch on the other, which would cost the
+    # boss its silhouette. Three device px guarantees one fully-ink pixel at 1x.
+    # Wedges are inset behind it over a solid ink disc, so a rasteriser rounding
+    # a wedge vertex outward still lands INSIDE the rim — cream never touches
+    # the thatch.
+    rim_w = w1 + 1
     rw = r - w1
     pygame.draw.circle(surf, LABEL_KEY, (bx, by), r)
     for i in range(8):
@@ -78,7 +86,7 @@ def _cockade(surf, bx, by, r, w1):
         pygame.draw.polygon(surf, col, pts)
 
     # the rim is the boss's silhouette pixel: continuous, dark, drawn last.
-    pygame.draw.circle(surf, LABEL_KEY, (bx, by), r, w1)
+    pygame.draw.circle(surf, LABEL_KEY, (bx, by), r, rim_w)
 
 
 def _button(surf, bx, by, br):

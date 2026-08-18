@@ -68,7 +68,12 @@ def _cylinder(surf, x0, x1, y_ax, r, cx, u):
     y_lo, y_hi = int(math.floor(y_ax - r)) - 1, int(math.ceil(y_ax + r)) + 1
     w, h = x_hi - x_lo, y_hi - y_lo
     tube = pygame.Surface((w, h), pygame.SRCALPHA)
-    reveal = max(1.0, 1.0 * u)
+    # The outer-arc reveal is the bar's only silhouette against lit thatch, so
+    # it is counted in whole device rows and padded to the next even one: a
+    # 1px line straddling the downscale's 2-row block averages into the cream
+    # and the bar loses its edge on exactly the stalls whose parity is odd.
+    rev_r0 = int(round(y_ax - r))
+    rev_r1 = rev_r0 + 2 + (rev_r0 & 1)
     span = max(1.0, x1 - x0)
     for ix in range(w):
         xx = x_lo + ix + 0.5
@@ -85,7 +90,7 @@ def _cylinder(surf, x0, x1, y_ax, r, cx, u):
             if cov <= 0.0:
                 continue
             t = max(0.0, min(1.0, (d / r + 1.0) * 0.5))
-            if d < -(r - reveal):
+            if y_lo + iy < rev_r1:
                 col = ROLL_REVEAL
             else:
                 col = lerp_stops(stops, min(1.0, t + kx))
@@ -129,16 +134,17 @@ def _sign(surf, ctx):
 
     # ── cream selvedge, then its closure hairline ────────────────────────────
     # The last of the unrolled cloth shows below the plank inside the seam
-    # clearance. The hairline that closes it never eats more than a third of
-    # the reveal, or the cream stops reading as cloth at 1x.
+    # clearance. The whole reveal is only ~1.4px once the scene is downscaled,
+    # so the closure is SNAPPED to the 2-device-px block the downscale samples:
+    # unaligned it averages half-and-half with the cream and the sign's bottom
+    # edge dissolves into lit thatch, which is the one edge cream can't hold.
     sel_top = int(round(Y(PLANK_BOT)))
     sel_end = int(math.floor(Y(SELVEDGE_FLOOR)))
-    sel_h = max(2, sel_end - sel_top)
-    key_w = max(1, min(kl, sel_h // 3))
+    key_top = max(sel_top, (sel_end - 2) & ~1)
     x0, x1 = int(round(X(-PLANK_HALF))), int(round(X(PLANK_HALF)))
-    pygame.draw.rect(surf, AWN_CREAM_D, (x0, sel_top, x1 - x0, sel_h - key_w))
-    pygame.draw.rect(surf, OX_KEY,
-                     (x0, sel_top + sel_h - key_w, x1 - x0, key_w))
+    pygame.draw.rect(surf, AWN_CREAM_D, (x0, sel_top, x1 - x0,
+                                         max(0, key_top - sel_top)))
+    pygame.draw.rect(surf, OX_KEY, (x0, key_top, x1 - x0, sel_end - key_top))
 
     # ── lacquer plank ────────────────────────────────────────────────────────
     p_top = int(round(Y(PLANK_TOP)))

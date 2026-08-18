@@ -84,38 +84,30 @@ def _roof_mask(ctx):
             (cx, ctx["roof_apex_y"])]
 
 
+def _outset(pts, d, floor_y):
+    """Push a polygon outward from its own centroid by d device px, but never
+    DOWN past floor_y. A flag this shallow has no cloth to spare: an inward
+    keyline would consume the whole triangle, so the key is grown outside it —
+    and growing it downward too would eat the measured tip-to-board air."""
+    cxp = sum(p[0] for p in pts) / len(pts)
+    cyp = sum(p[1] for p in pts) / len(pts)
+    out = []
+    for x, y in pts:
+        dx, dy = x - cxp, y - cyp
+        n = (dx * dx + dy * dy) ** 0.5 or 1.0
+        out.append((x + dx / n * d, min(y + dy / n * d, floor_y)))
+    return out
+
+
 def _garland(layer, cx, body_top, scale):
-    """One halyard, five hanging flags. Flags are laid first and the cord runs
-    over their heads, so the cord reads as a single unbroken run that the cloth
-    is stitched to rather than as five separate strings."""
+    """One halyard, five hanging flags. The cord is laid FIRST and the cloth
+    folds over it, so the halyard shows only in the gaps — the way bunting is
+    actually strung, and the only way the flags keep their full depth."""
     def P(u, h):
         return (cx + _d(u, scale), body_top - _d(h, scale))
 
     key1 = max(1, _sv(1.0, scale))
     key2 = max(key1 + 1, _sv(1.5, scale))
-
-    for i, b in enumerate(GRID[:5]):
-        left, right = P(b, _cord_h(b)), P(b + FLAG_W, _cord_h(b + FLAG_W))
-        tip = P(b + FLAG_W * 0.5, _cord_h(b + FLAG_W * 0.5) - FLAG_D)
-        top, bot = ((FLAG_RED_TOP, FLAG_RED_BOT) if i % 2 == 0
-                    else (FLAG_CREAM_TOP, FLAG_CREAM_BOT))
-
-        xs = [p[0] for p in (left, right, tip)]
-        ys = [p[1] for p in (left, right, tip)]
-        x0, y0 = int(min(xs)), int(min(ys))
-        w = max(1, int(max(xs)) - x0 + 1)
-        h = max(1, int(max(ys)) - y0 + 1)
-        cloth = vgrad(w, h, 0, top, bot)
-        mask = pygame.Surface((w, h), pygame.SRCALPHA)
-        pygame.draw.polygon(mask, (255, 255, 255, 255),
-                            [(x - x0, y - y0) for x, y in (left, right, tip)])
-        cloth.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-        layer.blit(cloth, (x0, y0))
-
-        pygame.draw.polygon(layer, FLAG_KEY, [left, right, tip], key1)
-        # the down-right run takes the heavier line: one low key from the upper
-        # left, and at this depth the doubled edge IS the flag's shape cue.
-        pygame.draw.line(layer, FLAG_KEY, right, tip, key2)
 
     pts = []
     steps = 48
@@ -123,6 +115,31 @@ def _garland(layer, cx, body_top, scale):
         u = ANCHOR_L + (ANCHOR_R - ANCHOR_L) * i / steps
         pts.append(P(u, _cord_h(u)))
     pygame.draw.lines(layer, WOOD_EDGE, False, pts, key1)
+
+    for i, b in enumerate(GRID[:5]):
+        left, right = P(b, _cord_h(b)), P(b + FLAG_W, _cord_h(b + FLAG_W))
+        tip = P(b + FLAG_W * 0.5, _cord_h(b + FLAG_W * 0.5) - FLAG_D)
+        cloth_pts = [left, right, tip]
+        top, bot = ((FLAG_RED_TOP, FLAG_RED_BOT) if i % 2 == 0
+                    else (FLAG_CREAM_TOP, FLAG_CREAM_BOT))
+
+        pygame.draw.polygon(layer, FLAG_KEY, _outset(cloth_pts, key1, tip[1]))
+        # the down-right run takes the heavier line: one low key from the upper
+        # left, and at this depth the doubled edge IS the flag's shape cue.
+        er = _outset(cloth_pts, key2, tip[1])
+        pygame.draw.polygon(layer, FLAG_KEY, [er[1], er[2], tip, right])
+
+        xs = [p[0] for p in cloth_pts]
+        ys = [p[1] for p in cloth_pts]
+        x0, y0 = int(min(xs)), int(min(ys))
+        w = max(1, int(max(xs)) - x0 + 2)
+        h = max(1, int(max(ys)) - y0 + 2)
+        cloth = vgrad(w, h, 0, top, bot)
+        mask = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.polygon(mask, (255, 255, 255, 255),
+                            [(x - x0, y - y0) for x, y in cloth_pts])
+        cloth.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        layer.blit(cloth, (x0, y0))
 
     r = max(1, int(round(_d(PEG_R, scale))))
     for u in (ANCHOR_L, ANCHOR_R):
