@@ -40,7 +40,6 @@ BULB_GLASS = lerp_color(GOLD_PALE, GOLD, 0.18)
 # board's width, so every number here is authored against those two limits.
 PLANK_HALF = 42.0
 PLANK_TOP, PLANK_BOT = 13.5, 3.0
-CAP_TOP, CAP_BOT = 11.75, 3.75
 SELVEDGE_FLOOR = 1.5
 ROLL_AXIS_H = 15.5
 ROLL_R = 2.5
@@ -132,21 +131,10 @@ def _sign(surf, ctx):
     Y = lambda hh: body_top - hh * u
     kl = max(1, int(round(1.0 * u)))
 
-    # ── cream selvedge, then its closure hairline ────────────────────────────
-    # The last of the unrolled cloth shows below the plank inside the seam
-    # clearance. The whole reveal is only ~1.4px once the scene is downscaled,
-    # so the closure is SNAPPED to the 2-device-px block the downscale samples:
-    # unaligned it averages half-and-half with the cream and the sign's bottom
-    # edge dissolves into lit thatch, which is the one edge cream can't hold.
+    # ── lacquer plank ────────────────────────────────────────────────────────
     sel_top = int(round(Y(PLANK_BOT)))
     sel_end = int(math.floor(Y(SELVEDGE_FLOOR)))
-    key_top = max(sel_top, (sel_end - 2) & ~1)
     x0, x1 = int(round(X(-PLANK_HALF))), int(round(X(PLANK_HALF)))
-    pygame.draw.rect(surf, AWN_CREAM_D, (x0, sel_top, x1 - x0,
-                                         max(0, key_top - sel_top)))
-    pygame.draw.rect(surf, OX_KEY, (x0, key_top, x1 - x0, sel_end - key_top))
-
-    # ── lacquer plank ────────────────────────────────────────────────────────
     p_top = int(round(Y(PLANK_TOP)))
     p_rect = pygame.Rect(x0, p_top, x1 - x0, sel_top - p_top)
     surf.blit(vgrad(p_rect.w, p_rect.h, 0, OX_TOP, OX_BOT), p_rect.topleft)
@@ -155,15 +143,30 @@ def _sign(surf, ctx):
     # ── type ─────────────────────────────────────────────────────────────────
     # Centred on the CAP band, not on the font's padded box: the glyph surface
     # carries descender air the all-caps label never uses, and a plank this
-    # shallow shows the error immediately.
+    # shallow shows the error immediately. The bolded cap measures ~8.7 logical
+    # px at this size against a 10.5 plank, so the band is hung on the plank's
+    # own middle and the 1px rims absorb the last fifth of a pixel each.
     f = font(11 * scale)
     base = _stamp_bold(_glyph_base(label, f, m(0.6)), m(1.0 * scale))
     ink = base.get_bounding_rect()
-    band_c = Y((CAP_TOP + CAP_BOT) * 0.5 + 0.25)
+    band_c = Y((PLANK_TOP + PLANK_BOT) * 0.5)
     cy = band_c + (base.get_height() * 0.5 - ink.centery)
     gradient_text(surf, label, f, (cx, int(round(cy))), GOLD_A_TOP, GOLD_A_BOT,
                   weight=m(1.0 * scale), keyline=LABEL_KEY, kw=m(1.0),
                   shadow=False, tracking=m(0.6))
+
+    # ── cream selvedge, then its closure hairline ────────────────────────────
+    # Cloth, so it is laid over the board's lower rim and AFTER the type: the
+    # keyline stamp reaches a fifth of a px past the plank and would otherwise
+    # smear the one cream row the reveal owns. The whole reveal is ~1.4px once
+    # the scene is downscaled, so the closure is SNAPPED to the 2-device-px
+    # block the downscale samples — unaligned it averages half-and-half with
+    # the cream and the sign's bottom edge dissolves into lit thatch, the one
+    # edge cream can never hold on its own.
+    key_top = max(sel_top, (sel_end - 2) & ~1)
+    pygame.draw.rect(surf, AWN_CREAM_D, (x0, sel_top, x1 - x0,
+                                         max(0, key_top - sel_top)))
+    pygame.draw.rect(surf, OX_KEY, (x0, key_top, x1 - x0, sel_end - key_top))
 
     # ── end-lamp columns ─────────────────────────────────────────────────────
     # Lamps live on the FIELD, outboard of the widest label, so the lighting is

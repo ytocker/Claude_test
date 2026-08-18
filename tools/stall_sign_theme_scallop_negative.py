@@ -157,11 +157,13 @@ def sign_hook(surf, ctx):
     pygame.draw.line(surf, WOOD_HI, (sl, spar_y - spar_t * 0.34),
                      (sr, spar_y - spar_t * 0.34), max(1, int(spar_t * 0.42)))
     for s in (-1, 1):
+        # Nodes and end caps are kept inside the spar's own thickness: the h=20
+        # ceiling leaves the spar only 0.75 px of headroom above its top edge.
         nx = X(s * SPAR_HALF * 0.58)
-        pygame.draw.line(surf, WOOD_LO, (nx, spar_y - spar_t),
-                         (nx, spar_y + spar_t), max(1, int(unit)))
+        pygame.draw.line(surf, WOOD_LO, (nx, spar_y - spar_t * 0.55),
+                         (nx, spar_y + spar_t * 0.55), max(1, int(unit)))
         pygame.draw.circle(surf, WOOD_EDGE, (int(X(s * SPAR_HALF)), int(spar_y)),
-                           max(1, int(spar_t * 0.7)))
+                           max(1, int(spar_t * 0.5)))
 
     _fill_poly(surf, field, CLOTH_HI, CLOTH_LO, sheen=26)
 
@@ -197,10 +199,14 @@ def sign_hook(surf, ctx):
     pygame.draw.lines(surf, HEM_KEY, False,
                       [(x, y - kw * 0.5) for x, y in arc_pts], kw)
 
+    # Cusp beads are square, not round: the smallest circle pygame will draw is
+    # 3 px across at SS, which is wider than the cream band itself and would eat
+    # the hem it is supposed to punctuate.
+    bd = max(2, int(round(unit)))
     for c in CUSPS[1:-1]:
-        pygame.draw.circle(surf, AWN_RED,
-                           (int(X(c)), int(Y(HEM_H + HEM_BAND * 0.5))),
-                           max(1, int(unit * 0.6)))
+        pygame.draw.rect(surf, AWN_RED,
+                         (int(X(c) - bd * 0.5),
+                          int(Y(HEM_H + HEM_BAND * 0.75) - bd * 0.5), bd, bd))
 
     # ---- lashings. The spar tips land all but flush with the thatch rake, so
     # the only tie-able crossing IS the tip: clamp inboard of it rather than
@@ -211,7 +217,7 @@ def sign_hook(surf, ctx):
         # Wraps hug the spar rather than standing proud of it: the h=20 ceiling
         # is only 1.25 px clear of the spar's own top edge.
         _lashing(surf, cx + s * lash, spar_y, max(2, int(unit * 2.6)),
-                 spar_t * 0.58, 3, max(2, int(unit * 1.2)))
+                 spar_t * 0.50, 3, max(2, int(unit * 1.1)))
 
     # Corner ties run DOWN THE FACE of the dark field, where bleached cord
     # actually reads; run outside the flare they would sit pale-on-pale against

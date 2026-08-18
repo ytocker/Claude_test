@@ -48,7 +48,7 @@ BULB_U = (-26.75, -14.25, -1.75, 10.75, 23.25, 35.75)
 HALF_HI, HALF_LO = 44.0, 40.0
 STEP_H = 8.0
 RAIL_TOP_H, BODY_TOP_H, BODY_BOT_H = 16.0, 13.5, 3.0
-CAP_TOP_H, CAP_BOT_H = 12.25, 4.25
+CAP_TOP_H, CAP_BOT_H = 12.25, 4.5
 BEAD_IN = 2.0
 TOOTH_HALF = 3.125
 BULB_H = 14.75
@@ -64,6 +64,22 @@ def _plinth_pts(X, Y, half_hi, half_lo, top_h, bot_h, step_h):
         (X(half_hi), Y(top_h)), (X(half_hi), Y(step_h)),
         (X(half_lo), Y(step_h)), (X(half_lo), Y(bot_h)),
     ]
+
+
+def _edges(surf, X, Y, ew, col):
+    """The silhouette drawn as INWARD rects on the two-tier outline — the one
+    dark ring the board's read against lit thatch depends on."""
+    yt, yb, ys = Y(RAIL_TOP_H), Y(BODY_BOT_H), Y(STEP_H)
+    xl2, xr2, xl1, xr1 = X(-HALF_HI), X(HALF_HI), X(-HALF_LO), X(HALF_LO)
+    r = lambda *a: pygame.draw.rect(surf, col, a)
+    r(xl2, yt, xr2 - xl2, ew)
+    r(xl1, yb - ew, xr1 - xl1, ew)
+    r(xl2, yt, ew, ys - yt)
+    r(xr2 - ew, yt, ew, ys - yt)
+    r(xl1, ys, ew, yb - ys)
+    r(xr1 - ew, ys, ew, yb - ys)
+    r(xl2, ys - ew, xl1 - xl2, ew)
+    r(xr1, ys - ew, xr2 - xr1, ew)
 
 
 def _teeth(X):
@@ -91,8 +107,12 @@ def _sign(surf, ctx):
     body_top = ctx["body_top"]
 
     sv = lambda v: int(m(v) * scale)
-    X = lambda u: cx + sv(u)
-    Y = lambda h: body_top - sv(h)
+    # Every feature lands on the 2-device-px cell that becomes ONE final pixel.
+    # Unsnapped, a tooth or an edge straddles two target pixels and the
+    # downscale averages half its contrast away — fatal for a rail this small.
+    cell = lambda p: p - (p & 1)
+    X = lambda u: cell(cx + sv(u))
+    Y = lambda h: cell(body_top - sv(h))
 
     slab = _plinth_pts(X, Y, HALF_HI, HALF_LO, RAIL_TOP_H, BODY_BOT_H, STEP_H)
     off = max(1, int(m(1.5) * scale))
@@ -114,33 +134,40 @@ def _sign(surf, ctx):
     surf.blit(body, (x0, y0))
 
     # every structural line is authored ONE FINAL-TARGET pixel wide (2 device px
-    # at SS=2). A single device px would land as a half-covered pixel after the
-    # downscale and lose ~half its contrast against the thatch.
+    # at SS=2) and drawn INWARD. pygame's polygon width straddles the path, so
+    # it would both halve the edge's contrast and push the board's shadow below
+    # the seam floor.
     ew = max(2, int(round(m(1.0) * scale)))
-    pygame.draw.polygon(surf, WOOD_EDGE, slab, ew)
+    _edges(surf, X, Y, ew, WOOD_EDGE)
 
     rail_top, rail_bot = Y(RAIL_TOP_H), Y(BODY_TOP_H)
     for tx0, tx1, col, at_l, at_r in _teeth(X):
         pygame.draw.rect(surf, col, (tx0, rail_top, tx1 - tx0,
                                      rail_bot - rail_top))
-        pygame.draw.line(surf, TOOTH_KEY, (tx0, rail_top), (tx1 - 1, rail_top),
-                         ew)
+        pygame.draw.rect(surf, TOOTH_KEY, (tx0, rail_top, tx1 - tx0, ew))
         if at_l:
-            pygame.draw.line(surf, TOOTH_KEY, (tx0, rail_top),
-                             (tx0, rail_bot - 1), ew)
+            pygame.draw.rect(surf, TOOTH_KEY,
+                             (tx0, rail_top, ew, rail_bot - rail_top))
         if at_r:
-            pygame.draw.line(surf, TOOTH_KEY, (tx1 - 1, rail_top),
-                             (tx1 - 1, rail_bot - 1), ew)
+            pygame.draw.rect(surf, TOOTH_KEY,
+                             (tx1 - ew, rail_top, ew, rail_bot - rail_top))
 
     # ONE continuous reveal under the whole course. Per-tooth shadows average
     # away at 1x; a single unbroken dark line survives and doubles as the rail's
     # silhouette against the board.
-    pygame.draw.line(surf, REVEAL, (X(-HALF_HI), rail_bot),
-                     (X(HALF_HI) - 1, rail_bot), ew)
+    pygame.draw.rect(surf, REVEAL,
+                     (X(-HALF_HI), rail_bot, X(HALF_HI) - X(-HALF_HI), ew))
 
     cap = _plinth_pts(X, Y, HALF_HI - BEAD_IN, HALF_LO - BEAD_IN,
                       CAP_TOP_H, CAP_BOT_H, STEP_H + BEAD_IN)
+    prev = surf.get_clip()
+    # the bead is decoration; it may never eat into the structural edge, so it
+    # is fenced inside the outline rather than trusted to clear it at every scale
+    surf.set_clip(pygame.Rect(X(-HALF_HI) + ew, Y(RAIL_TOP_H) + ew,
+                              X(HALF_HI) - X(-HALF_HI) - ew * 2,
+                              Y(BODY_BOT_H) - Y(RAIL_TOP_H) - ew * 2))
     pygame.draw.polygon(surf, GOLD_DEEP, cap, max(1, m(0.5)))
+    surf.set_clip(prev)
 
     f = font(11 * scale)
     gradient_text(surf, label, f, (cx, Y((CAP_TOP_H + CAP_BOT_H) * 0.5) + ew),
