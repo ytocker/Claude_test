@@ -383,20 +383,27 @@ def _lantern_front_light(img, warm=(255, 216, 162), peak=52, ambient=18):
     A flat _punch_contrast alone lifts the whole silhouette evenly, which reads
     as a washed sticker AND still loses to warm paper at the shadow side; a
     directional ramp buys the same average lift while keeping modelling, so the
-    hero sits IN the lantern's light instead of being pasted over it."""
+    hero sits IN the lantern's light instead of being pasted over it.
+
+    The ramp is a smooth field, so it is authored on a small proxy surface and
+    scaled up rather than walked pixel by pixel: a per-pixel Python loop over
+    the hero is the classic pygbag cliff, and this is the same picture for a
+    fraction of the work. BLEND_RGB_ADD leaves alpha alone, so transparent
+    pixels stay transparent without needing to be skipped one at a time."""
     w, h = img.get_size()
-    out = img.copy()
-    for y in range(h):
-        ty = y / max(1, h - 1)
-        for x in range(w):
-            r, g, b, a = out.get_at((x, y))
-            if a == 0:
-                continue
-            t = max(0.0, 1.0 - (x / max(1, w - 1) * 0.55 + ty * 0.45))
+    pw, ph = max(2, min(w, 48)), max(2, min(h, 48))
+    ramp = pygame.Surface((pw, ph))
+    for py in range(ph):
+        ty = py / max(1, ph - 1)
+        for px in range(pw):
+            t = max(0.0, 1.0 - (px / max(1, pw - 1) * 0.55 + ty * 0.45))
             k = (ambient + peak * t ** 1.15) / 255.0
-            out.set_at((x, y), (min(255, int(r + warm[0] * k)),
-                                min(255, int(g + warm[1] * k)),
-                                min(255, int(b + warm[2] * k)), a))
+            ramp.set_at((px, py), (min(255, int(warm[0] * k)),
+                                   min(255, int(warm[1] * k)),
+                                   min(255, int(warm[2] * k))))
+    out = img.copy()
+    out.blit(pygame.transform.smoothscale(ramp, (w, h)), (0, 0),
+             special_flags=pygame.BLEND_RGB_ADD)
     return out
 
 
@@ -611,20 +618,27 @@ def draw_sign(surf, ctx):
 # =============================================================================
 def _light_pool(surf, cx, bottom_y, w, h):
     """The spotlight itself, read as a POOL on the floor: a warm elliptical
-    ramp alpha-feathered to nothing at its rim. No cone, no beam."""
-    pool = pygame.Surface((w, h), pygame.SRCALPHA)
-    hw, hh = w / 2.0, h / 2.0
-    for py in range(h):
+    ramp alpha-feathered to nothing at its rim. No cone, no beam.
+
+    The ramp is authored on a small proxy and scaled up rather than walked
+    pixel by pixel: the field is smooth, so the picture is the same, and a
+    per-pixel Python loop is the kind of thing that costs little natively and
+    a great deal in the browser."""
+    pw, ph = max(2, min(w, 40)), max(2, min(h, 40))
+    proxy = pygame.Surface((pw, ph), pygame.SRCALPHA)
+    hw, hh = pw / 2.0, ph / 2.0
+    for py in range(ph):
         dy = (py + 0.5 - hh) / hh
-        for px in range(w):
+        for px in range(pw):
             dx = (px + 0.5 - hw) / hw
             rr = math.sqrt(dx * dx + dy * dy)
             if rr >= 1.0:
                 continue
-            k = (1.0 - rr)
+            k = 1.0 - rr
             col = lerp_color(WOOD_MID, POOL_CORE, min(1.0, k ** 0.75))
-            pool.set_at((px, py), (*col, int(255 * k ** 0.85)))
-    surf.blit(pool, (cx - w // 2, bottom_y - h))
+            proxy.set_at((px, py), (*col, int(255 * k ** 0.85)))
+    surf.blit(pygame.transform.smoothscale(proxy, (w, h)),
+              (cx - w // 2, bottom_y - h))
 
 
 def _pedestal(surf, cx, base_y, scale):
@@ -1119,7 +1133,11 @@ def _counter_sun_shaft(surf, g):
     xmin = min(x0a, x1a) - fe
     xmax = max(x0b, x1b) + fe
     h = y1 - y0
+    # Each row is a flat core with a feathered edge either side, so it is drawn
+    # as a handful of nested lines instead of pixel by pixel — same profile,
+    # without a Python loop over every pixel of the beam.
     beam = pygame.Surface((xmax - xmin + 1, h), pygame.SRCALPHA)
+    steps = max(2, int(2 * fe))
     for iy in range(h):
         t = iy / max(1, h - 1)
         a0 = 34.0 * (1.0 - t)
@@ -1127,12 +1145,17 @@ def _counter_sun_shaft(surf, g):
             continue
         xa = x0a + (x1a - x0a) * t - fe
         xb = x0b + (x1b - x0b) * t + fe
-        for ix in range(int(xa), int(xb) + 1):
-            d = min(ix - xa, xb - ix)
-            k = min(1.0, d / (2 * fe))
+        for j in range(steps, 0, -1):
+            k = j / steps
             a = int(a0 * k)
-            if a > 0:
-                beam.set_at((ix - xmin, iy), (*GOLD_PALE, a))
+            if a <= 0:
+                continue
+            inset = (1.0 - k) * 2 * fe
+            lx, rx = xa + inset, xb - inset
+            if rx <= lx:
+                continue
+            pygame.draw.line(beam, (*GOLD_PALE, a),
+                             (int(lx - xmin), iy), (int(rx - xmin), iy))
     surf.blit(beam, (xmin, y0))
 
     pool_rx, pool_ry = int(m(5.5) * s), int(m(2) * s)
