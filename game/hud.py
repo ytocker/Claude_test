@@ -235,6 +235,8 @@ def _nest_draw_chrome_front(surf, cy, courses, stick_wins):
 
 _NEST_EMPTY_SPRITE: "pygame.Surface | None" = None
 _NEST_EMPTY_SPRITE_CY: int = -1
+_NEST_ALIVE_SPRITE: "pygame.Surface | None" = None
+_NEST_ALIVE_SPRITE_CY: int = -1
 
 
 def _nest_build_empty_sprite(cy):
@@ -364,14 +366,30 @@ def _nest_build_empty_sprite(cy):
     return canvas
 
 
-def _nest_draw_slot(surf, cy, alive):
+def _nest_build_alive_sprite(cy):
+    """Alive-slot art: Pip sitting in the nest cup.
+
+    Static, exactly like the empty slot, so it is built once on a transparent
+    canvas and cached. Drawn live it costs a few hundred per-pixel twig writes
+    every frame, which is invisible natively and expensive in the browser."""
     verts, courses, stick_wins, rim_rect, stick_bottom, hollow = _nest_get_params()
-    cx = _NEST_CX
+    rx, ry_off, rw, rh = rim_rect
+    canvas = pygame.Surface((rx + rw + 4, cy + stick_bottom + 10), pygame.SRCALPHA)
+    _nest_draw_chrome_back(canvas, cy, verts, courses, stick_wins, rim_rect,
+                           stick_bottom)
+    canvas.blit(_nest_bird, (_NEST_CX - _nest_bird_w // 2,
+                             cy - _nest_bird_h // 2 + 5))
+    _nest_draw_chrome_front(canvas, cy, courses, stick_wins)
+    return canvas
+
+
+def _nest_draw_slot(surf, cy, alive):
     if alive:
-        _nest_draw_chrome_back(surf, cy, verts, courses, stick_wins, rim_rect,
-                               stick_bottom)
-        surf.blit(_nest_bird, (cx - _nest_bird_w // 2, cy - _nest_bird_h // 2 + 5))
-        _nest_draw_chrome_front(surf, cy, courses, stick_wins)
+        global _NEST_ALIVE_SPRITE, _NEST_ALIVE_SPRITE_CY
+        if _NEST_ALIVE_SPRITE is None or _NEST_ALIVE_SPRITE_CY != cy:
+            _NEST_ALIVE_SPRITE = _nest_build_alive_sprite(cy)
+            _NEST_ALIVE_SPRITE_CY = cy
+        surf.blit(_NEST_ALIVE_SPRITE, (0, 0))
     else:
         global _NEST_EMPTY_SPRITE, _NEST_EMPTY_SPRITE_CY
         if _NEST_EMPTY_SPRITE is None or _NEST_EMPTY_SPRITE_CY != cy:
