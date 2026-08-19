@@ -37,6 +37,10 @@ INK_TOP = GOLD_A_TOP
 INK_BOT = GOLD_A_BOT
 INK_KEY = LABEL_KEY
 INK_W = 1.0
+INK_PT = 11        # font point before scale
+INK_KW = 1.0       # keyline (char border) width multiplier
+INK_REMAP = False  # remap the gold ramp onto the glyph INK box (caps sit ~25%
+                   # down the em box, so unremapped they never see GOLD_A_TOP)
 PANEL_INSET = None  # (color) draws a recessed name panel inside the frame
 
 
@@ -100,10 +104,25 @@ def _sign(surf, ctx):
         pygame.draw.rect(surf, GOLD_DEEP, pr, max(1, m(0.5)),
                          border_radius=max(2, int(m(2) * scale)))
 
-    f = font(11 * scale)
+    f = font(INK_PT * scale)
+    ink_top, ink_bot = INK_TOP, INK_BOT
+    if INK_REMAP:
+        base = _glyph_base(label, f, m(0.6))
+        bb = base.get_bounding_rect()
+        eh = max(1, base.get_height())
+        t1, t2 = bb.top / eh, bb.bottom / eh
+        span = max(1e-6, t2 - t1)
+        ink_top, ink_bot = [], []
+        for a, b in zip(INK_TOP, INK_BOT):
+            dd = (b - a) / span
+            t = a - t1 * dd
+            ink_top.append(max(0, min(255, int(round(t)))))
+            ink_bot.append(max(0, min(255, int(round(t + dd)))))
+        ink_top, ink_bot = tuple(ink_top), tuple(ink_bot)
     gradient_text(surf, label, f, (cx, t0 + int(h * 0.56)),
-                  INK_TOP, INK_BOT, weight=m(INK_W * scale),
-                  keyline=INK_KEY, kw=m(1.0), shadow=False, tracking=m(0.6))
+                  ink_top, ink_bot, weight=m(INK_W * scale),
+                  keyline=INK_KEY, kw=m(INK_KW), shadow=False,
+                  tracking=m(0.6))
 
     # exactly six bulbs, each a discrete disc on its own seat — a fairy-light
     # dusting of 1px points would only read as noise after the downscale.
