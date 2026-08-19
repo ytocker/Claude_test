@@ -1049,6 +1049,18 @@ def draw_hut(surf, cx, deck_y, scale, group, label):
         pygame.draw.line(surf, WOOD_LO, (sx, deck_rect.top),
                          (sx, deck_rect.bottom), max(1, m(0.8)))
 
+    # The three open categories carry the chosen stall-front designs (their own
+    # item presentation each, one shared awning-red sign); every other category
+    # keeps the stock cabochon + name-board front until it opens.
+    from game import stall_fronts
+    if group in stall_fronts.ITEM:
+        ctx = dict(cx=cx, deck_y=deck_y, body_top=body_top, body_h=body_h,
+                   half_w=half_w, eave=eave, roof_apex_y=roof_apex_y,
+                   scale=scale, group=group, label=label)
+        stall_fronts.draw_item(surf, ctx)
+        stall_fronts.draw_sign(surf, ctx)
+        return half_w, roof_apex_y
+
     dome_r = max(m(24), int(m(28) * scale))
     dome_cx = cx
     # centre of the visible opening (below the awning, above the deck lip),
