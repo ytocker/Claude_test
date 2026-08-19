@@ -40,7 +40,7 @@ OPTIONS = [
         BULB_GLASS=lerp_color(AWN_CREAM, AWN_CREAM_D, 0.35), **GOLD_INK)),
     ("C RED + CREAM PIPING", dict(
         CARTOUCHE_TOP=(122, 26, 30), CARTOUCHE_BOT=(74, 12, 18),
-        GOLD_DEEP=AWN_CREAM_D, **GOLD_INK)),
+        PIPING_COLOR=AWN_CREAM_D, **GOLD_INK)),
     ("D OXBLOOD + ROSE BULBS", dict(
         CARTOUCHE_TOP=(88, 26, 28), CARTOUCHE_BOT=(52, 16, 18),
         BULB_GLASS=lerp_color(AWN_RED, (255, 244, 224), 0.55),

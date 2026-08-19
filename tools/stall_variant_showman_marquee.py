@@ -25,8 +25,10 @@ from game.store_hub import (
     WOOD_HI, WOOD_MID, WOOD_LO, WOOD_EDGE, STALL_DARK, LABEL_KEY,
 )
 
-CARTOUCHE_TOP = (66, 40, 22)
-CARTOUCHE_BOT = (40, 24, 13)
+# Awning-matched lacquer red (colorway C, chosen over the original warm-brown
+# marquee): the cartouche now quotes the stall's own red/cream flags.
+CARTOUCHE_TOP = (122, 26, 30)
+CARTOUCHE_BOT = (74, 12, 18)
 BULB_SEAT = GOLD_DEEP
 # bulbs sit a notch under GOLD_PALE so the sign's peak value can never climb
 # above the hero's — the item has to be the brightest thing in the stall.
@@ -37,11 +39,15 @@ INK_TOP = GOLD_A_TOP
 INK_BOT = GOLD_A_BOT
 INK_KEY = LABEL_KEY
 INK_W = 1.0
-INK_PT = 11        # font point before scale
+INK_PT = 11.5      # font point before scale — the largest that still fits
+                   # COSTUMES (widest label) inside the cartouche
 INK_KW = 1.0       # keyline (char border) width multiplier
 INK_REMAP = False  # remap the gold ramp onto the glyph INK box (caps sit ~25%
                    # down the em box, so unremapped they never see GOLD_A_TOP)
 PANEL_INSET = None  # (color) draws a recessed name panel inside the frame
+# The bead/piping is its own seam (not raw GOLD_DEEP) so recoloring it never
+# bleeds into the item's pedestal bead, which shares this module and GOLD_DEEP.
+PIPING_COLOR = (206, 188, 158)  # AWN_CREAM_D — the awning's cream, on the sign
 
 
 # ── sign ─────────────────────────────────────────────────────────────────────
@@ -94,14 +100,14 @@ def _sign(surf, ctx):
     d = max(1, int(m(2) * scale))
     bead = _cartouche_points(cx, bottom_y - d, half_c - d, half_1 - d,
                              half_2 - d, t0 + d, t1 + d, t2 + d)
-    pygame.draw.polygon(surf, GOLD_DEEP, bead, max(1, m(0.5)))
+    pygame.draw.polygon(surf, PIPING_COLOR, bead, max(1, m(0.5)))
 
     if PANEL_INSET is not None:
         pr = pygame.Rect(cx - half_c + d * 2, t0 + d * 2,
                          (half_c - d * 2) * 2, (bottom_y - d) - (t0 + d * 2))
         pygame.draw.rect(surf, PANEL_INSET, pr,
                          border_radius=max(2, int(m(2) * scale)))
-        pygame.draw.rect(surf, GOLD_DEEP, pr, max(1, m(0.5)),
+        pygame.draw.rect(surf, PIPING_COLOR, pr, max(1, m(0.5)),
                          border_radius=max(2, int(m(2) * scale)))
 
     f = font(INK_PT * scale)

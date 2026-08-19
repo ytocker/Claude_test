@@ -23,7 +23,7 @@ import tools.stall_variant_showman_marquee as mar
 
 # option C palette, fixed across the ladder
 C_PALETTE = dict(CARTOUCHE_TOP=(122, 26, 30), CARTOUCHE_BOT=(74, 12, 18),
-                 GOLD_DEEP=(206, 188, 158),
+                 PIPING_COLOR=(206, 188, 158),
                  INK_TOP=(255, 232, 160), INK_BOT=(216, 166, 84))
 
 LADDER = [
