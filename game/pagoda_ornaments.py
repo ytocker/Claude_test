@@ -50,8 +50,9 @@ this directly.
 Cell-local ornaments pre-render to a tiny SRCALPHA cell per
 (name, phase_bucket) the first time they are requested so palette
 interpolation for the small glyphs is amortized across all pillars in a
-session. The cache key uses `game.biome.PHASE_BUCKETS` (32 buckets) for
-symmetry with the sky cache.
+session. The cache key uses `game.biome.PHASE_BUCKETS` for symmetry with
+the sky cache, plus enough of the pillar seed to keep two pipes from
+sharing a cell that was baked from only one of their seeds.
 
 # Direct-draw ornaments
 A small set of ornaments need the actual `top_rect` / `bot_rect` of the
@@ -1150,7 +1151,10 @@ def _flag_signature(flags: dict) -> tuple:
 def _get_cell(name: str, palette: dict, phase: float,
               seed: int, flags: dict) -> pygame.Surface:
     bucket = _biome.phase_bucket(phase)
-    key = (name, bucket, seed % 32, _flag_signature(flags))
+    # Seeds are 24-bit, so a narrow modulus collides often — and the cell is
+    # baked with the *full* seed, so colliding pipes would silently wear the
+    # first pipe's art (and re-bake from a different seed after an eviction).
+    key = (name, bucket, seed % 1024, _flag_signature(flags))
     cached = _CELL_CACHE.get(key)
     if cached is not None:
         _CELL_CACHE.move_to_end(key)
@@ -1179,7 +1183,13 @@ def apply_ornaments(surf: pygame.Surface,
 
     Returns the tuple of ornament names that were applied (for label/debug).
     """
-    rng = random.Random(seed * 1009 + pillar_index * 17 + int(phase * 1000))
+    # The seed must NOT carry `phase`. This rng drives the count, the pick,
+    # the per-ornament flags AND the anchor, so any live term in it re-rolls
+    # the whole pillar every time it ticks — at CYCLE_SECONDS that was a
+    # fresh ornament set ~2.5x/second. Phase still reaches the eligibility
+    # gates via pick_ornaments and the palette via _get_cell; it just can't
+    # touch the stream. Placement is a pure function of the Pipe's seed.
+    rng = random.Random(seed * 1009 + pillar_index * 17)
     picks = pick_ornaments(rng, candidate_key, pillar_index, phase, is_rush)
     if not picks:
         return ()

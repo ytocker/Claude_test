@@ -13,7 +13,7 @@ import pygame
 from game.config import (
     W, H, GRAVITY, FLAP_V, MAX_FALL,
     BIRD_X, BIRD_R, PIPE_W, COIN_R, POWERUP_R, GROUND_Y,
-    BACKFLIP_DURATION, DEATH_FADE_DURATION,
+    BACKFLIP_DURATION, DEATH_FADE_DURATION, RAIL_ABOVE_FINIAL,
     GEYSER_W, GEYSER_H, GEYSER_TELEGRAPH,
     GEYSER_ACTIVE_HOT, GEYSER_ACTIVE_COLD,
     GEYSER_DORMANT_HOT, GEYSER_DORMANT_COLD,
@@ -1420,14 +1420,16 @@ class Bird:
 # ── Pipe (nature pillar) ─────────────────────────────────────────────────────
 
 class Pipe:
-    """Sandstone pillar column. Each instance picks one of 8 visual variants
-    (original + 7 sketched picks) deterministically from its seed, so the
-    vegetation and ornament arrangement is stable across frames."""
+    """Pagoda pillar column. Each instance picks one of the 11 variants
+    deterministically from its seed, so the vegetation and ornament
+    arrangement is stable across frames."""
 
     def __init__(self, x: float, gap_y: float, gap_h: float):
         self.x = x
-        self.gap_y = gap_y
-        self.gap_h = gap_h
+        # Set behind the properties: the invalidation setters below read the
+        # cache attrs, which don't exist yet this early in __init__.
+        self._gap_y = gap_y
+        self._gap_h = gap_h
         self.scored = False
         self.is_rush = False
         # Cycle-finale phantom: a non-drawn, non-colliding, non-scoring
@@ -1460,9 +1462,85 @@ class Pipe:
         # the dominant source of KFC-mode lag.
         self._kfc_cache: "pygame.Surface | None" = None
         self._kfc_cache_dx = 0  # x-offset between blit corner and self.x
+        # Carousel-Barker staff re-skin (warren demo route): same bake-once
+        # bitmap treatment as KFC since the jester-staff art never animates.
+        self.is_staff = False
+        self._staff_cache: "pygame.Surface | None" = None
+        self._staff_cache_dx = 0
+        # Skull-King stacked-skull totem re-skin (warren demo's second event): same
+        # bake-once bitmap treatment as the staff/KFC caches. `skull_idx` selects
+        # which of the 20 column designs this pillar wears (set at spawn).
+        self.is_skull_king = False
+        self.skull_idx = 0
+        self._skull_cache: "pygame.Surface | None" = None
+        self._skull_cache_dx = 0
+        # Pagoda body + ornaments are far heavier than the retired sandstone
+        # silhouette, and their internal draw helpers re-alias curved eaves
+        # every call. Bake the pair once into a per-instance bitmap (same
+        # pattern as the KFC cache) and blit it at the scrolling x — drawing
+        # straight to the screen every frame would blow the 60 FPS budget on
+        # WASM and re-roll the ornament layer each frame.
+        self._pagoda_cache: "pygame.Surface | None" = None
+        self._pagoda_cache_dx = 0
+        # Per-pixel collision mask of the whole pagoda STRUCTURE (body + every
+        # floor roof/eave incl. overhangs + the crown at the gap edge); ornaments
+        # are not in it, so flags/vines/lanterns stay non-lethal. Built with the bake.
+        self._collision_mask = None
+        self._collision_mask_dx = 0
+        # SKATEBOARD ride surfaces (lazy, derived from the mask): the LOWER
+        # pagoda's roof crown (highest lethal y Pip rides over) and the UPPER
+        # pagoda's underside (lowest lethal y the helmet bonks). The roofs
+        # overhang the gap rim, so these are NOT the gap edges.
+        self._skate_computed = False
+        self._skate_low = None
+        self._skate_up = None
+        # Ornament density + first-pillar quiet rule key off the spawn order;
+        # World sets this at spawn (0 = first pillar of the run).
+        self.spawn_index = 0
+
+    # Two power-ups re-cut a pillar's gap AFTER it has already baked: KFC
+    # widens every live pipe on pickup (World._activate_kfc) and the genie
+    # chamber re-centres and widens one pipe several hundred px ahead
+    # (World._retarget_genie_chamber). The bake and the collision mask are
+    # both cut to the old gap, so both have to be dropped with it — a stale
+    # mask leaves ~50 px of visibly-open sky that still kills.
+
+    @property
+    def gap_y(self):
+        return self._gap_y
+
+    @gap_y.setter
+    def gap_y(self, value):
+        if value != self._gap_y:
+            self._invalidate_bakes()
+        self._gap_y = value
+
+    @property
+    def gap_h(self):
+        return self._gap_h
+
+    @gap_h.setter
+    def gap_h(self, value):
+        if value != self._gap_h:
+            self._invalidate_bakes()
+        self._gap_h = value
+
+    def _invalidate_bakes(self):
+        """Drop every geometry-derived bitmap + mask so the next draw and the
+        next collision test rebuild against the pillar's current gap."""
+        self._pagoda_cache = None
+        self._kfc_cache = None
+        self._staff_cache = None
+        self._skull_cache = None
+        self._collision_mask = None
+        self._skate_computed = False
+        self._skate_low = None
+        self._skate_up = None
 
     @property
     def top_rect(self):
+        # Full gap extent. Used as the KFC fallback hitbox; pagoda collision uses
+        # the per-pixel structural mask of the whole silhouette.
         return pygame.Rect(int(self.x), 0, PIPE_W, int(self.gap_y - self.gap_h / 2))
 
     @property
@@ -1470,26 +1548,150 @@ class Pipe:
         top = int(self.gap_y + self.gap_h / 2)
         return pygame.Rect(int(self.x), top, PIPE_W, GROUND_Y - top)
 
+    @property
+    def finial_tip_y(self):
+        """Y of the bottom pillar's lethal crown = the kill-zone top the grind
+        rail rests on. Every variant's crown is calibrated to the gap edge."""
+        return self.gap_y + self.gap_h / 2
+
+    @property
+    def rail_y(self):
+        """Y of the grind-rail track — RAIL_ABOVE_FINIAL px above the crown, so
+        the cart rides on top of the kill zone / just above the roof (short
+        support posts connect the rail down to the crown)."""
+        return self.gap_y + self.gap_h / 2 - RAIL_ABOVE_FINIAL
+
     def off_screen(self):
         return self.x + PIPE_W + 8 < 0
 
-    def collides_circle(self, cx, cy, r):
+    def collides_circle(self, cx, cy, r, *, kfc=False):
         if self.is_phantom:
             return False
-        return self.top_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2)) or \
-               self.bot_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2))
+        if kfc:
+            # Fries re-skin roughly fills the rect and has no antenna — keep the
+            # cheap AABB hitbox during the KFC window.
+            box = pygame.Rect(cx - r, cy - r, r * 2, r * 2)
+            return self.top_rect.colliderect(box) or self.bot_rect.colliderect(box)
+        # Pagoda: kill zone == the structural silhouette (body + every floor
+        # roof/eave incl. overhangs + the crown at the gap edge). Only the loose
+        # ornaments (prayer flags / vines / lanterns) are non-lethal, and those are
+        # never in the mask (CANDIDATES draws structure only).
+        if self._collision_mask is None:
+            self._build_collision_mask()
+        offset = (int(cx - r - self.x - self._collision_mask_dx), int(cy - r))
+        return self._collision_mask.overlap(_circle_mask(r), offset) is not None
 
     def draw(self, surf, palette=None, kfc_visual=False, phase=0.0):
         if self.is_phantom:
             return
         palette = palette or _DEFAULT_PILLAR
+        if self.is_staff:
+            if self._staff_cache is None:
+                self._build_staff_cache(palette)
+            surf.blit(self._staff_cache, (int(self.x) + self._staff_cache_dx, 0))
+            return
+        if self.is_skull_king:
+            if self._skull_cache is None:
+                self._build_skull_cache(palette)
+            surf.blit(self._skull_cache, (int(self.x) + self._skull_cache_dx, 0))
+            return
         if self.is_kfc and kfc_visual:
             if self._kfc_cache is None:
                 self._build_kfc_cache(palette)
             surf.blit(self._kfc_cache,
                       (int(self.x) + self._kfc_cache_dx, 0))
             return
-        draw_pillar_pair(surf, self.top_rect, self.bot_rect, palette, self.seed, phase=phase)
+        if self._pagoda_cache is None:
+            self._build_pagoda_cache(palette, phase)
+        surf.blit(self._pagoda_cache,
+                  (int(self.x) + self._pagoda_cache_dx, 0))
+
+    def _build_pagoda_cache(self, palette, phase):
+        """Render the pagoda pillar pair + ornament layer onto a per-instance
+        SRCALPHA surface once, then blit at the scrolling x each frame. Margin
+        covers curled eaves / finials / prayer-flag spans that overhang the
+        PIPE_W column. Baking once also freezes the ornament roll for the
+        pillar's lifetime (so it doesn't re-randomize per frame); the spawn-time
+        palette stays close enough over the few seconds a pillar is on screen."""
+        margin = 64
+        cache_w = PIPE_W + margin * 2
+        cache_h = GROUND_Y
+        cache = pygame.Surface((cache_w, cache_h), pygame.SRCALPHA)
+        local_top = pygame.Rect(margin, 0,
+                                PIPE_W, int(self.gap_y - self.gap_h / 2))
+        local_bot_top = int(self.gap_y + self.gap_h / 2)
+        local_bot = pygame.Rect(margin, local_bot_top,
+                                PIPE_W, GROUND_Y - local_bot_top)
+        draw_pillar_pair(cache, local_top, local_bot, palette, self.seed,
+                         phase=phase, is_rush=self.is_rush,
+                         pillar_index=self.spawn_index)
+        self._pagoda_cache = cache
+        self._pagoda_cache_dx = -margin
+        # Build the collision mask now (first draw, well before the pillar reaches
+        # the bird) so there's no collision-time hitch.
+        if self._collision_mask is None:
+            self._build_collision_mask()
+
+    def _build_collision_mask(self):
+        """Per-pixel kill-zone mask = the whole pagoda STRUCTURE (body + all floor
+        roofs/eaves incl. overhangs past PIPE_W + the crown). Structure only (no
+        ornaments), so prayer flags / vines / lanterns are non-lethal. Each
+        variant's lethal top reaches ~the nominal gap edge — the tiered tō present a
+        solid wide roofed crown there (no thin spire to sneak past), the spired
+        variants their spire — so the effective passable gap is ~gap_h, matching the
+        old sandstone-pillar AABB collision. Geometry is palette-independent."""
+        from game import biome as _biome
+        margin = 64
+        surf = pygame.Surface((PIPE_W + margin * 2, GROUND_Y), pygame.SRCALPHA)
+        local_top = pygame.Rect(margin, 0,
+                                PIPE_W, int(self.gap_y - self.gap_h / 2))
+        lbt = int(self.gap_y + self.gap_h / 2)
+        local_bot = pygame.Rect(margin, lbt, PIPE_W, GROUND_Y - lbt)
+        if self.is_staff:
+            from game.pillar_staff import draw_pillar_pair_staff
+            draw_pillar_pair_staff(surf, local_top, local_bot,
+                                   _biome.palette_for_phase(0.0), self.seed)
+        elif self.is_skull_king:
+            from game.pillar_skull import draw_pillar_pair_skull
+            if not draw_pillar_pair_skull(surf, local_top, local_bot,
+                                          _biome.palette_for_phase(0.0),
+                                          self.seed, self.skull_idx):
+                key = VARIANT_KEYS[self.seed % VARIANT_COUNT]
+                CANDIDATES[key](surf, local_top, local_bot,
+                                _biome.palette_for_phase(0.0), self.seed)
+        else:
+            key = VARIANT_KEYS[self.seed % VARIANT_COUNT]
+            CANDIDATES[key](surf, local_top, local_bot,
+                            _biome.palette_for_phase(0.0), self.seed)
+        self._collision_mask = pygame.mask.from_surface(surf, 50)
+        self._collision_mask_dx = -margin
+
+    def skate_surfaces(self):
+        """SKATEBOARD ride surfaces (lower_crown_top_y, upper_crown_bottom_y),
+        read off the structural mask. `lower_crown_top` is the HIGHEST lethal
+        pixel of the lower pagoda — the roofline Pip rides over; `upper_crown_bot`
+        is the LOWEST lethal pixel of the upper pagoda — where the helmet bonks.
+        The pagoda roofs overhang the gap rim (the roof tiers rise above
+        gap_bot / hang below gap_top), so these are NOT the gap edges: snapping to
+        the gap edge left Pip clipping the roof and dying. Cached per pipe."""
+        if self._skate_computed:
+            return self._skate_low, self._skate_up
+        if self._collision_mask is None:
+            self._build_collision_mask()
+        low = up = None
+        # The gap splits the silhouette into an upper and a lower component; the
+        # mask carries no x-offset in y, so rect.top/.bottom are world-y directly.
+        for rc in self._collision_mask.get_bounding_rects():
+            if rc.centery < self.gap_y:
+                up = rc.bottom if up is None else max(up, rc.bottom)
+            else:
+                low = rc.top if low is None else min(low, rc.top)
+        self._skate_low = (float(low) if low is not None
+                           else self.gap_y + self.gap_h / 2)
+        self._skate_up = (float(up) if up is not None
+                          else self.gap_y - self.gap_h / 2)
+        self._skate_computed = True
+        return self._skate_low, self._skate_up
 
     def _build_kfc_cache(self, palette):
         """Render the KFC pillar pair onto a per-instance SRCALPHA
@@ -1509,6 +1711,60 @@ class Pipe:
         draw_pillar_pair_kfc(cache, local_top, local_bot, palette, self.seed)
         self._kfc_cache = cache
         self._kfc_cache_dx = -margin
+
+    def _build_staff_cache(self, palette):
+        """Render the Carousel-Barker staff pillar pair onto a per-instance
+        SRCALPHA surface once; later frames blit the bitmap at the scrolling x.
+        Margin covers the cap tips / ruff bells that overhang the PIPE_W column."""
+        from game.pillar_staff import draw_pillar_pair_staff, staff_collision_mask
+        margin = 64
+        cache_w = PIPE_W + margin * 2
+        cache_h = GROUND_Y
+        cache = pygame.Surface((cache_w, cache_h), pygame.SRCALPHA)
+        local_top = pygame.Rect(margin, 0,
+                                PIPE_W, int(self.gap_y - self.gap_h / 2))
+        local_bot_top = int(self.gap_y + self.gap_h / 2)
+        local_bot = pygame.Rect(margin, local_bot_top,
+                                PIPE_W, GROUND_Y - local_bot_top)
+        draw_pillar_pair_staff(cache, local_top, local_bot, palette, self.seed)
+        self._staff_cache = cache
+        self._staff_cache_dx = -margin
+        # Build the matching collision mask by stamping the shared per-bucket
+        # obstacle masks at the same offsets — avoids a full-surface
+        # mask.from_surface scan per tower, which is a big cost in the warren
+        # burst (esp. under WASM). Offsets line up with draw_pillar_pair_staff.
+        if self._collision_mask is None:
+            self._collision_mask = staff_collision_mask(
+                (cache_w, cache_h), local_top, local_bot)
+            self._collision_mask_dx = -margin
+
+    def _build_skull_cache(self, palette):
+        """Render the Skull-King stacked-skull totem pair once into a per-instance
+        SRCALPHA bitmap; later frames blit it at the scrolling x. Same margin +
+        bake-once treatment as the staff cache. If the skull engine isn't present in
+        this checkout (e.g. a stripped/web build), fall back to a plain pagoda pair
+        so the pillar stays visible and lethal instead of vanishing."""
+        from game.pillar_skull import draw_pillar_pair_skull
+        margin = 64
+        cache = pygame.Surface((PIPE_W + margin * 2, GROUND_Y), pygame.SRCALPHA)
+        local_top = pygame.Rect(margin, 0,
+                                PIPE_W, int(self.gap_y - self.gap_h / 2))
+        local_bot_top = int(self.gap_y + self.gap_h / 2)
+        local_bot = pygame.Rect(margin, local_bot_top,
+                                PIPE_W, GROUND_Y - local_bot_top)
+        ok = draw_pillar_pair_skull(cache, local_top, local_bot, palette,
+                                    self.seed, self.skull_idx)
+        if not ok:
+            draw_pillar_pair(cache, local_top, local_bot, palette, self.seed,
+                             phase=0.0, is_rush=self.is_rush,
+                             pillar_index=self.spawn_index)
+        self._skull_cache = cache
+        self._skull_cache_dx = -margin
+        # Collision mask straight from the rendered cache alpha (same as the staff).
+        if self._collision_mask is None:
+            self._collision_mask = pygame.mask.from_surface(cache, 50)
+            self._collision_mask_dx = -margin
+
 
 
 # ── Coin ─────────────────────────────────────────────────────────────────────
