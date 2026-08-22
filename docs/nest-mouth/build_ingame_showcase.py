@@ -84,23 +84,39 @@ def load(slug):
 
 
 def main():
-    cols = [('CUR', hud._nest_draw_slot)]
+    import _model3d as m3
+    cols = [('CUR', hud._nest_draw_slot, None)]
     for idl, slug in [('D1', 'classic-seat'), ('L1', 'len-1'), ('L2', 'len-2'),
                       ('L3', 'len-3'), ('L4', 'len-4'), ('L5', 'len-5'),
                       ('D2', 'short-crib')]:
-        cols.append((idl, load(slug).draw_slot))
+        mod = load(slug)
+        courses = getattr(mod, '_COURSES', None)
+        sticks = getattr(mod, '_STICK_BOTTOM', None) or getattr(mod, '_STICKS', None)
+        interior = mod._interior
+
+        def raised(surf, cy, alive, _i=interior, _c=courses, _s=sticks):
+            m3.draw_crib(surf, cy, alive, _i, courses=_c, stick_bottom=_s,
+                         bird_dy=-6)
+        cols.append((idl, mod.draw_slot, raised))
     pygame.font.init()
     idfont = pygame.font.SysFont('monospace', 44, bold=True)
-    GAP, M, FOOT = 14, 18, 64
+    rowfont = pygame.font.SysFont('monospace', 30, bold=True)
+    GAP, M, FOOT, SIDE = 14, 18, 64, 90
     n = len(cols)
-    canvas = pygame.Surface((2 * M + n * W + (n - 1) * GAP, 2 * M + H + FOOT))
+    canvas = pygame.Surface((SIDE + 2 * M + n * W + (n - 1) * GAP,
+                             2 * M + 2 * H + GAP + FOOT))
     canvas.fill((8, 8, 20))
-    for ci, (idl, fn) in enumerate(cols):
-        x0 = M + ci * (W + GAP)
-        canvas.blit(draw_frame(fn), (x0, M))
+    for ci, (idl, fn_seated, fn_raised) in enumerate(cols):
+        x0 = SIDE + M + ci * (W + GAP)
+        canvas.blit(draw_frame(fn_seated), (x0, M))
+        canvas.blit(draw_frame(fn_raised or fn_seated), (x0, M + H + GAP))
         t = idfont.render(idl, True, (255, 220, 120))
-        canvas.blit(t, (x0 + W // 2 - t.get_width() // 2, M + H + 10))
-    out = 'docs/nest-mouth/showcase_ingame.png'
+        canvas.blit(t, (x0 + W // 2 - t.get_width() // 2, M + 2 * H + GAP + 10))
+    for ri, lbl in enumerate(['SEATED', 'RAISED']):
+        t = rowfont.render(lbl, True, (200, 180, 140))
+        t = pygame.transform.rotate(t, 90)
+        canvas.blit(t, (10, M + ri * (H + GAP) + H // 2 - t.get_height() // 2))
+    out = 'docs/nest-mouth/showcase_ingame2.png'
     pygame.image.save(canvas, out)
     print('saved', canvas.get_size(), '->', out)
 
