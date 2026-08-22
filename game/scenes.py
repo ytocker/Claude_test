@@ -606,10 +606,7 @@ class App:
             if self._cooldown_t > 0:
                 return
             self.powerup_help = None
-            if self._powerups_return_state == STATE_MENU:
-                self._enter_menu()
-            else:
-                self.state = self._powerups_return_state
+            self.state = self._powerups_return_state
             self._powerups_return_state = STATE_MENU
             self._cooldown_t = 0.25
             return
@@ -652,7 +649,7 @@ class App:
             if self._cooldown_t > 0:
                 return
             if self.store is None:
-                self._enter_menu()
+                self.state = STATE_MENU
                 return
             if self.store.handle_tap(pos) == "back":
                 self._close_store()  # already sets _cooldown_t = 0.25
@@ -751,7 +748,7 @@ class App:
                 if self._post_leaderboard == "play":
                     self._restart()
                 else:
-                    self._enter_menu()
+                    self.state = STATE_MENU
                 # Keep the menu visible for a beat instead of letting the
                 # next event in the same tap (FINGERDOWN / MOUSEBUTTONDOWN
                 # echoes, or a fast double-click) skip straight into play.
@@ -772,7 +769,7 @@ class App:
 
     def _close_achievements(self):
         self.achievements = None
-        self._enter_menu()
+        self.state = STATE_MENU
         self._cooldown_t = 0.25
 
     # ── coin store ────────────────────────────────────────────────────────────
@@ -784,7 +781,7 @@ class App:
 
     def _close_store(self):
         self.store = None
-        self._enter_menu()
+        self.state = STATE_MENU
         self._cooldown_t = 0.25
 
     # ── settings screen ───────────────────────────────────────────────────────
@@ -796,7 +793,7 @@ class App:
 
     def _close_settings(self):
         self.settings = None
-        self._enter_menu()
+        self.state = STATE_MENU
         self._cooldown_t = 0.25
 
     def _toggle_sound(self):
@@ -843,7 +840,7 @@ class App:
         tap that is forwarded to handle_tap (gated by cooldown)."""
         sc = self.store
         if sc is None:
-            self._enter_menu()
+            self.state = STATE_MENU
             return
         if e.type == pygame.KEYDOWN:
             if e.key in (pygame.K_ESCAPE, pygame.K_SPACE, pygame.K_UP, pygame.K_w):
@@ -882,7 +879,7 @@ class App:
         tap's echo can't bounce straight back out)."""
         sc = self.achievements
         if sc is None:
-            self._enter_menu()
+            self.state = STATE_MENU
             return
         if e.type == pygame.KEYDOWN:
             if e.key == pygame.K_ESCAPE or self._cooldown_t <= 0:
@@ -978,39 +975,6 @@ class App:
         b.equipped_parcel = store_data.equipped("parcel") or "parcel_base"
         b.rebuild_skin_combos()
 
-    def _enter_menu(self):
-        """Switch to the menu with a clean, correctly-dressed bird.
-
-        The World is never rebuilt on the way back from a run, and the idle
-        tick touches no bird flag, so without this the menu inherits whatever
-        the last run left behind — death_fade_t still ramping (a *dead* Pip on
-        the menu), a last-life bandage, a KFC/ghost skin that never expired —
-        and it never picks up a loadout equipped in the store, because the only
-        other sync happens at run start.
-
-        A fresh Bird is the reset rather than an explicit flag list:
-        Bird.__init__ is already the single source of truth for clean state, so
-        power-ups added later can't quietly go unreset here. Nothing holds a
-        long-lived reference to world.bird — every reader goes through it at
-        call time — so swapping the object is safe.
-        """
-        from game import store_data
-        from game.entities import Bird
-        # What's already baked is module-global (parrot._SKIN_COMBOS), not a
-        # property of this Bird, so carry the marker across the swap — a fresh
-        # Bird would otherwise report "nothing built" and re-bake every entry.
-        built_for = self.world.bird._skin_combos_built_for
-        b = self.world.bird = Bird()
-        b._skin_combos_built_for = built_for
-        b.equipped_skin = store_data.equipped("skin") or "skin_base"
-        b.equipped_parcel = store_data.equipped("parcel") or "parcel_base"
-        # rebuild_skin_combos re-bakes 28 composites and drops the shared
-        # rotation cache on every call, so only pay it when the loadout
-        # actually changed. Repeat menu entries then cost nothing.
-        if b._skin_combos_built_for != b.equipped_skin:
-            b.rebuild_skin_combos()
-        self.state = STATE_MENU
-
     def _start_play(self):
         # On the event-test branch the demo is the ONLY mode — every run
         # start (menu, restart) replays it, so route through it here.
@@ -1082,10 +1046,10 @@ class App:
         elif self._intro_from_menu:
             # HOW TO PLAY replay always returns to MENU regardless of
             # whether the player tapped to skip or watched it through.
-            self._enter_menu()
+            self.state = STATE_MENU
             self._intro_from_menu = False
         elif skipped:
-            self._enter_menu()
+            self.state = STATE_MENU
         else:
             from game.powerup_help import PowerUpHelpScene
             self.powerup_help = PowerUpHelpScene()
@@ -1421,7 +1385,7 @@ class App:
                 if self._post_leaderboard == "play":
                     self._restart()
                 else:
-                    self._enter_menu()
+                    self.state = STATE_MENU
                 self._cooldown_t = 0.25
 
     @staticmethod
@@ -1602,7 +1566,7 @@ class App:
             if self._post_leaderboard == "play":
                 self._restart()
             else:
-                self._enter_menu()
+                self.state = STATE_MENU
             self._cooldown_t = 0.25
 
     # ── render ──────────────────────────────────────────────────────────────
