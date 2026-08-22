@@ -2035,27 +2035,14 @@ class World:
                           self.biome_phase, self.biome_time)
         self.ambient.update(dt, self.biome_phase, self.biome_palette,
                             self.bg_scroll)
-        for p in self.pipes:
-            p.x -= SCROLL_BASE * 0.25 * dt
-        for c in self.coins:
-            c.x -= SCROLL_BASE * 0.25 * dt
-            c.update(dt)
-        for m in self.powerups:
-            m.x -= SCROLL_BASE * 0.25 * dt
-            m.update(dt)
-        self.pipes = [p for p in self.pipes if not p.off_screen()]
-        self.ramps = [r for r in self.ramps if not r.off_screen()]
-        self.coins = [c for c in self.coins if c.x + 20 > 0]
-        self.powerups = [m for m in self.powerups if m.x + 20 > 0]
-        if self.pipes and self.pipes[-1].x < W - PIPE_SPACING:
-            self._spawn_pipe(self.pipes[-1].x + PIPE_SPACING)
-        # Geysers + rocks are gameplay-window elements only; the cosmetic menu
-        # background doesn't scroll/cull them, so don't let _spawn_pipe
-        # accumulate any (and keep the telegraph counter from pre-advancing).
-        self.geysers.clear()
-        self.rocks.clear()
-        self._thermal_pillars = 0
-        self._pending_gap_y = None
+        # Pipes/coins/power-ups are deliberately NOT scrolled or spawned here.
+        # The menu branch returns before any of them is drawn, and every path
+        # into STATE_PLAY builds a fresh World, so none of it could ever be
+        # seen. Worse, running _spawn_pipe kept driving the *previous* run's
+        # state machines from the menu — advancing the clown lead-in, letting a
+        # ClownEvent or the finale treasure spawn, and inflating coins_spawned
+        # on a run that was already over. The geyser/rock clear that used to
+        # follow existed only to mop that up.
 
         # animate bird gently (bobbing)
         self.bird.frame_t += dt * 8.0
