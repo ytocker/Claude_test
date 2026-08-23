@@ -219,6 +219,7 @@ _SCRATCH_W = 96
 # instead of allocating + redrawing + scaling a scratch deck per figure per frame.
 # That per-figure alloc was the dominant near-lane cost; this is the perf safeguard.
 _CAST_FPS = 8                            # animation buckets/sec for background figures
+_CAST_WRAP = 64                          # gait frames per shared 8 s loop (bounds the bake-cache key space)
 
 # Per-drawer authoring box (w, h). Default fits a standing cast figure; taller/
 # wider acts (performers) get their own box so the supersample bake never clips.
@@ -240,7 +241,13 @@ def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y,
     render_box = (box_w * ss, box_h * ss)
     foot_w = max(1, int(box_w * scale))
     foot_h = max(1, int(box_h * scale))
-    tb = int(t * _CAST_FPS)              # quantise the gait clock -> bounded cache
+    # Quantise AND WRAP the gait clock: the raw clocks fed here (biome_time, a
+    # crowd entity's gait) grow without bound, so an unwrapped bucket mints a
+    # brand-new cache key every 1/_CAST_FPS s forever — near-permanent cache
+    # misses plus eviction churn on everything else. Wrapping to a shared 8 s
+    # loop collapses the key space to _CAST_WRAP frames per variant (the once-
+    # per-8 s phase seam is invisible at this figure scale).
+    tb = int(t * _CAST_FPS) % _CAST_WRAP
     # Key on the biome phase BUCKET (set per frame by draw_near_lane), not id(pal):
     # the play palette is a fresh dict every frame, so id(pal) only ever hits within
     # a frame -- bucketing lets the bake survive across frames.

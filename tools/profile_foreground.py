@@ -23,13 +23,15 @@ from game import biome
 import game.foreground as fg
 
 # (label, phase, biome_time): biome_time large enough to be past the 7 s opening
-# so the density curve is fully expressed.
+# so the density curve is fully expressed. Phases follow the weekend day plan's
+# remapped chapters (the market crest, the storm, the night-market peak).
 _CASES = [
-    ("calm late-morning", 0.30, 60.0),
-    ("calm golden lull", 0.34, 60.0),
-    ("FOOD-MARKET peak", 0.06, 60.0),
-    ("NIGHT FESTIVAL peak", 0.66, 60.0),
-    ("pre-dawn (near-empty)", 0.86, 60.0),
+    ("the long middle", 0.28, 60.0),
+    ("golden refill (median)", 0.396, 60.0),
+    ("MORNING MARKET peak", 0.09, 60.0),
+    ("storm peak", 0.629, 60.0),
+    ("NIGHT MARKET peak", 0.724, 60.0),
+    ("small hours (near-empty)", 0.87, 60.0),
 ]
 
 _FRAMES = 120
@@ -42,14 +44,14 @@ def _profile(phase, t0):
     # warm caches first (palette strips, scaled-cast bake) so we time steady state
     for i in range(8):
         sc = 1000 + i * 7
-        fg.draw_foreground_floor(surf, sc, pal)
+        fg.draw_foreground_floor(surf, sc, pal, phase)
         fg.draw_promenade(surf, sc, pal, phase, t0 + i * 0.05)
         fg.draw_near_lane(surf, sc, pal, phase, t0 + i * 0.05)
     start = time.perf_counter()
     for i in range(_FRAMES):
         sc = 2000 + i * 7
         t = t0 + i * 0.05
-        fg.draw_foreground_floor(surf, sc, pal)
+        fg.draw_foreground_floor(surf, sc, pal, phase)
         fg.draw_promenade(surf, sc, pal, phase, t)
         fg.draw_near_lane(surf, sc, pal, phase, t)
     return (time.perf_counter() - start) / _FRAMES * 1000.0

@@ -133,9 +133,30 @@ def _wisp(surf, x, y0, t, *, n=3, rise=18, spread=2.6, speed=0.55, phase=0.0,
 ADD_BUDGET = 78
 
 
+# The halo field is a pure function of (radius, peak, color); the float-accumulator
+# build below costs ~6k Python iterations, so built fields are cached (peak
+# quantised to steps of 4, same trick as foreground_props._warm_glow) instead of
+# re-accumulated per prop per frame.
+_HALO_CACHE = {}
+_HALO_CACHE_CAP = 96
+
+
 def _warm_halo(surf, cx, cy, *, radius, peak, color):
     """A small warm ember/lantern halo. The ONLY BLEND_RGB_ADD path, and it never
-    touches the deck raw.
+    touches the deck raw."""
+    pk = max(0, int(peak) - int(peak) % 4)
+    key = (radius, pk, tuple(color))
+    g = _HALO_CACHE.get(key)
+    if g is None:
+        g = _build_halo(radius, pk, key[2])
+        if len(_HALO_CACHE) >= _HALO_CACHE_CAP:
+            _HALO_CACHE.pop(next(iter(_HALO_CACHE)))
+        _HALO_CACHE[key] = g
+    surf.blit(g, (cx - radius - 1, cy - radius - 1), special_flags=pygame.BLEND_RGB_ADD)
+
+
+def _build_halo(radius, peak, color):
+    """Accumulate the halo's additive field into a surface (cache-miss path only).
 
     pygame's BLEND_RGB_ADD adds the SOURCE RGB channels directly to the destination
     and IGNORES source alpha (this is exactly what made round-1 clip to 243 — raw
@@ -183,7 +204,7 @@ def _warm_halo(surf, cx, cy, *, radius, peak, color):
                 continue
             g.set_at((px, py), (_clamp(cell[0] * scale), _clamp(cell[1] * scale),
                                 _clamp(cell[2] * scale), 255))
-    surf.blit(g, (cx - radius - 1, cy - radius - 1), special_flags=pygame.BLEND_RGB_ADD)
+    return g
 
 
 def _smoke_col(night):
@@ -264,25 +285,43 @@ _LIT_MARGIN_UP = 104
 _LIT_MARGIN_DOWN = 10
 
 
+# The clamped lit layer is deterministic given (drawer, variant row, night, t), and
+# the per-pixel clamp costs ~10k get_at/set_at per prop — so layers are baked once
+# per (variant, night step, flicker frame) and served from a small FIFO cache. The
+# night term quantises to 0.05 steps and the flicker clock to an 8 fps / 2 s loop,
+# matching the near-lane cast-bake convention; at 88×114 px the steps are invisible.
+_LIT_CACHE = {}
+_LIT_CACHE_CAP = 256
+
+
 def _night_clamped(drawer):
     """Wrap a per-type drawer so that at NIGHT its whole drawing — core glow faces,
     coals AND the additive _warm_halo — lands on its own SRCALPHA layer, gets the
-    composite luma clamp, then blits to the deck. By day it draws straight through,
-    so the day appearance is byte-identical to round 2. This is the ONLY behavioural
-    change in round 3 and it lives entirely in the night lighting-composite path."""
+    composite luma clamp, then blits to the deck (from the bake cache). By day it
+    draws straight through, so the day appearance is byte-identical."""
+    name = getattr(drawer, "__name__", "drawer")
+
     def _wrapped(surf, cx, base_y, v, night, t):
         if night <= 0.05:
             return drawer(surf, cx, base_y, v, night, t)
-        ox = _LIT_MARGIN_X
-        oy = _LIT_MARGIN_UP
-        layer = pygame.Surface((_LIT_MARGIN_X * 2, _LIT_MARGIN_UP + _LIT_MARGIN_DOWN),
-                               pygame.SRCALPHA)
-        # draw the prop into the layer's local frame (its additive halo also lands
-        # here, so the clamp below sees the true core+halo composite)
-        drawer(layer, ox, oy, v, night, t)
-        _clamp_surface_luma(layer)
-        surf.blit(layer, (int(cx) - ox, int(base_y) - oy))
-    _wrapped.__name__ = getattr(drawer, "__name__", "drawer")
+        nq = min(20, int(night * 20 + 0.5))
+        tq = int(t * 8) % 16
+        key = (name, id(v), nq, tq)
+        layer = _LIT_CACHE.get(key)
+        if layer is None:
+            ox = _LIT_MARGIN_X
+            oy = _LIT_MARGIN_UP
+            layer = pygame.Surface((_LIT_MARGIN_X * 2, _LIT_MARGIN_UP + _LIT_MARGIN_DOWN),
+                                   pygame.SRCALPHA)
+            # draw the prop into the layer's local frame (its additive halo also
+            # lands here, so the clamp below sees the true core+halo composite)
+            drawer(layer, ox, oy, v, nq / 20.0, tq / 8.0)
+            _clamp_surface_luma(layer)
+            if len(_LIT_CACHE) >= _LIT_CACHE_CAP:
+                _LIT_CACHE.pop(next(iter(_LIT_CACHE)))
+            _LIT_CACHE[key] = layer
+        surf.blit(layer, (int(cx) - _LIT_MARGIN_X, int(base_y) - _LIT_MARGIN_UP))
+    _wrapped.__name__ = name
     return _wrapped
 
 
