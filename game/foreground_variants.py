@@ -133,19 +133,82 @@ def _weighted_pick(seed: int, weights: list) -> int:
     return len(weights) - 1
 
 
+# ── deal-not-roll ────────────────────────────────────────────────────────────
+# A with-replacement weighted roll repeats early (by the birthday principle a
+# 50-pool shows a duplicate within ~8 draws), which is exactly the "same people
+# over and over" read. Selection is therefore DEALT: each family holds a deck of
+# not-yet-seen indices and every pick removes one, so the whole pool is walked
+# before any repeat; the beat/weather weights still bias WHICH remaining index
+# goes next. Two recency exclusions keep neighbours distinct — the last few
+# dealt indices, and the last couple of silhouette-height classes (outline
+# variety is what actually kills the loop read at 18 px; palette alone doesn't).
+# Callers only invoke this at decision time (slot latch / entity spawn), so the
+# statefulness never destabilises an on-screen figure.
+_RECENT_IDX_N = 3
+_RECENT_CLASS_N = 2
+_deck_remaining: dict[str, list[int]] = {}
+_deck_recent_idx: dict[str, list[int]] = {}
+_deck_recent_cls: dict[str, list[str]] = {}
+
+
+def reset_decks() -> None:
+    """Fresh decks (called per run) so every day deals its pools in a new order."""
+    _deck_remaining.clear()
+    _deck_recent_idx.clear()
+    _deck_recent_cls.clear()
+
+
+def _sil_class(v: Variant) -> str:
+    """Coarse silhouette-height class — the outline read at 18 px."""
+    a = v.attrs.get("arch", "")
+    if a in ("pole", "yoke", "headload"):
+        return "carry"
+    if v.attrs.get("stoop", 0.0) > 0.05:
+        return "stooped"
+    if v.attrs.get("height", 1.0) >= 1.04:
+        return "tall"
+    if v.attrs.get("build", 1.0) >= 1.08:
+        return "broad"
+    return "mid"
+
+
 def select_variant(family: str, seed: int, beat: int, wbucket: int) -> int:
-    """Stable variant index for a family at (seed, beat, weather). Returns 0 (the
-    legacy look) when the family pool is empty/singleton, so it's safe to call
-    everywhere before the registry is populated."""
+    """Variant index for a family at (seed, beat, weather), dealt without
+    replacement. Returns 0 (the legacy look) when the family pool is
+    empty/singleton, so it's safe to call everywhere before the registry is
+    populated. Callers must resolve this ONCE per slot/entity (latch it)."""
     p = _VARIANT_REGISTRY.get(family)
     if not p or len(p) == 1:
         return 0
-    weights = [
-        v.base_weight
-        * v.beat_weights.get(beat, 1.0)
-        * v.weather_weights.get(wbucket, 1.0)
-        for v in p
-    ]
-    # Fold beat/weather into the seed so the same slot can show different (but
-    # still stable-per-traversal) picks across beats without correlating families.
-    return _weighted_pick(seed ^ (beat << 3) ^ (wbucket << 6), weights)
+    rem = _deck_remaining.get(family)
+    if not rem:
+        rem = list(range(len(p)))
+        _deck_remaining[family] = rem
+    recent = _deck_recent_idx.setdefault(family, [])
+    recent_cls = _deck_recent_cls.setdefault(family, [])
+    # Candidate order of preference: unseen + not recent + fresh outline class →
+    # unseen + not recent → unseen. Weather-zero weights are ALWAYS respected
+    # (a snow-only coat must never deal into a clear noon just to empty a deck).
+    def _w(i):
+        v = p[i]
+        return (v.base_weight
+                * v.beat_weights.get(beat, 1.0)
+                * v.weather_weights.get(wbucket, 1.0))
+    live = [i for i in rem if _w(i) > 0.0]
+    if not live:
+        # nothing in the deck suits this weather/beat — deal from the full pool
+        live = [i for i in range(len(p)) if _w(i) > 0.0]
+        if not live:
+            return 0
+    cands = [i for i in live if i not in recent and _sil_class(p[i]) not in recent_cls]
+    if not cands:
+        cands = [i for i in live if i not in recent] or live
+    pick = cands[_weighted_pick(seed ^ (beat << 3) ^ (wbucket << 6),
+                                [_w(i) for i in cands])]
+    if pick in rem:
+        rem.remove(pick)
+    recent.append(pick)
+    del recent[:-_RECENT_IDX_N]
+    recent_cls.append(_sil_class(p[pick]))
+    del recent_cls[:-_RECENT_CLASS_N]
+    return pick

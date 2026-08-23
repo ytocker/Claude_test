@@ -1162,13 +1162,25 @@ def draw_greenery(surf, sx, pal, *, t=0.0, variant=0):
 # stable world-slot key so a repeat reads as a fresh streetscape, not a loop. Centres
 # stay cool/green and flankers pink/green so nothing on the deck rivals the warm gold
 # coin. (Art-directed — see docs/sidewalk_overhaul/greenery_clusters.)
-_GRN_TALL = (1, 21, 6, 17, 2, 26, 9, 18)     # cool/green tall centres
-_GRN_SHORT = (0, 20, 10, 11, 4, 23, 16)      # low flankers (shrub/peony/mum/pink-flower/fern)
-_GRN_LOW = (16, 14, 7, 0)                    # ground/back fillers
+# Role pools cover the ENTIRE 30-design greenery registry exactly once, classed
+# by measured rendered height (tall ≥34 px centres / 27–33 px flankers / <27 px
+# ground fillers) so every authored plant is actually placed somewhere.
+_GRN_TALL = (1, 2, 3, 6, 9, 10, 12, 13, 17, 18, 19, 21, 22, 25, 26, 29)
+_GRN_SHORT = (0, 4, 5, 8, 11, 16, 20, 23)
+_GRN_LOW = (7, 14, 15, 24, 27, 28)
 
 
 def _grn_pick(pool, k, salt):
-    return pool[(k * salt + salt) % len(pool)]
+    # Avalanche hash, NOT a linear stride: (k*salt+salt) % n marched the pool in
+    # strict order, so planting beds read as a repeating loop of the same few
+    # plants. Still pure in (k, salt) — no flicker — and adjacent beds never
+    # place identical twins (a hash collision with bed k-1 is nudged aside).
+    n = len(pool)
+    h = _mix32((k * 0x9E3779B1) ^ (salt * 0x85EBCA77))
+    i = h % n
+    if n > 1 and (_mix32(((k - 1) * 0x9E3779B1) ^ (salt * 0x85EBCA77)) % n) == i:
+        i = (i + 1 + (h >> 8) % (n - 1)) % n
+    return pool[i]
 
 
 def _draw_greenery_cluster(surf, sx, pal, k):
@@ -1451,18 +1463,31 @@ def _run_fill(t):
     x = max(0.0, min(1.0, t / _FILL_SECONDS))
     return x * x * (3.0 - 2.0 * x)   # smoothstep: street starts empty, fills in
 
+def _mix32(h):
+    """Finalising avalanche (xorshift-multiply): a bare k*CONST is an arithmetic
+    ramp in k, so thresholding or reducing it produces evenly-spaced combs and
+    strict cycles — the 'scattered' street turns into a metronome. Mixing kills
+    the ramp while staying pure in the inputs (no flicker)."""
+    h &= 0xFFFFFFFF
+    h ^= h >> 15
+    h = (h * 0x2C1B3C6D) & 0xFFFFFFFF
+    h ^= h >> 12
+    h = (h * 0x297A2D39) & 0xFFFFFFFF
+    h ^= h >> 15
+    return h
+
 def _slot_on(k, salt, density):
     """Stable per-slot inclusion gate: hash (slot index, salt) to [0,1) and admit
     the slot iff that fixed threshold is below `density`. Because the threshold is
     keyed to the WORLD slot (not the frame), a slot pops in exactly once as the
     density curve rises and never flickers — and its x never moves."""
-    h = ((k * 0x9E3779B1) ^ (salt * 0x85EBCA77)) & 0xFFFF
+    h = _mix32((k * 0x9E3779B1) ^ (salt * 0x85EBCA77)) & 0xFFFF
     return (h / 65535.0) < density
 
 def _slot_pick(k, n):
     """Stable per-slot choice in [0, n): which roster entry a world slot uses. Keyed
     to the slot index so the choice is identical as the slot scrolls (no flicker)."""
-    return ((k * 0x9E3779B1) >> 16) % n
+    return (_mix32(k * 0x9E3779B1) >> 8) % n
 
 # Decoration density is PHASE-ONLY and decoupled from the cast curve: a street
 # stripped of people at 3 a.m. keeps its dressing (a dressed, empty street reads

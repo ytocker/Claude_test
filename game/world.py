@@ -399,8 +399,12 @@ class World:
         # each new World (each run) owns a fresh, empty crowd.
         from game.sidewalk_crowd import SidewalkCrowd
         from game import foreground as _foreground
+        from game import foreground_variants as _fv
         self.crowd = SidewalkCrowd()
         _foreground.set_crowd(self.crowd)
+        # Fresh variant decks per run: the deal-not-roll selection walks each
+        # family's whole pool before repeating, and a new day deals a new order.
+        _fv.reset_decks()
 
         # "Get ready" freeze at the start of a round: physics paused until
         # the player flaps or the timer expires. Gives new players a moment
