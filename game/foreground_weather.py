@@ -105,15 +105,54 @@ def _snow_dusting(ov, scroll, snow_cover):
                             (int(sx - pw / 2), int(cy), pw, 2 + (h >> 5 & 1)))
 
 
-def draw_ground_weather(surf, scroll, pal, wetness, snow_cover):
-    """Paint the reactive ground state (wet sheen + puddles, snow dusting) into the
-    sidewalk band, world-anchored to `scroll`. A no-op in clear weather."""
+def _light_smears(ov, scroll, wetness):
+    """Every lit light on the street doubles as a vertical smear in the wet
+    sheen — the reflections that make the post-rain market its best-looking
+    self. Consumes the promenade's light-spot collector (last frame's spots;
+    the one-frame lag is under 3 px of scroll)."""
+    from game import foreground_promenade as pr
+    tj = int(getattr(pr, "_CUR_T", 0.0) * 8.0)
+    for i, (wx, col) in enumerate(pr.LIGHT_SPOTS):
+        sx = int(wx - scroll)
+        if sx < -4 or sx > W + 4:
+            continue
+        h = ((i * 0x9E3779B1) ^ (int(wx) * 0x85EBCA77)) & 0xFFFF
+        length = 8 + (h % 11)                     # 8..18 px
+        jitter = ((tj + i) % 3) - 1               # 1 px shimmer at ~8 Hz
+        a = int(60 * wetness)
+        for dy in range(length):
+            fade = 1.0 - dy / length
+            pygame.draw.rect(ov, (*col, int(a * fade)),
+                             (sx - 1 + jitter, 2 + dy, 2, 1))
+
+
+def _footprints(ov, scroll, snow_cover, foot_spots):
+    """Fresh tracks behind each walking figure while snow lies — the one weather
+    state in which the street records that anyone was here."""
+    a = int(min(110, 150 * snow_cover))
+    for wx, facing, gait in foot_spots:
+        sx = int(wx - scroll)
+        for i in range(1, 4):
+            fx = sx + facing * (5 + i * 6) + (int(gait * 2 + i) % 2)
+            if -4 <= fx <= W + 4:
+                pygame.draw.rect(ov, (96, 106, 126, max(0, a - i * 24)),
+                                 (fx, _BAND_H - 3, 2, 1))
+
+
+def draw_ground_weather(surf, scroll, pal, wetness, snow_cover, foot_spots=()):
+    """Paint the reactive ground state (wet sheen + puddles, snow dusting, light
+    reflections, footprints) into the sidewalk band, world-anchored to `scroll`.
+    A no-op in clear weather."""
     if wetness <= 0.01 and snow_cover <= 0.01:
         return
     _OVERLAY.fill((0, 0, 0, 0))
     if wetness > 0.01:
         _wet_sheen(_OVERLAY, wetness)
         _puddles(_OVERLAY, scroll, wetness)
+        if wetness > 0.15:
+            _light_smears(_OVERLAY, scroll, wetness)
     if snow_cover > 0.01:
         _snow_dusting(_OVERLAY, scroll, snow_cover)
+        if snow_cover > 0.25 and foot_spots:
+            _footprints(_OVERLAY, scroll, snow_cover, foot_spots)
     surf.blit(_OVERLAY, (0, GROUND_Y))

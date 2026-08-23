@@ -98,9 +98,14 @@ def draw_foreground_floor(surf, scroll, pal, phase):
 
 def draw_ground_weather(surf, scroll, pal, wetness, snow_cover):
     """Paint the weather's reactive ground state (wet sheen + puddles, snow
-    dusting) onto the sidewalk band — drawn after the floor, before the crowd, so
-    it glazes/frosts the paving UNDER the cast's feet."""
-    _gweather.draw_ground_weather(surf, scroll, pal, wetness, snow_cover)
+    dusting, light reflections, footprints) onto the sidewalk band — drawn after
+    the floor, before the crowd, so it glazes/frosts the paving UNDER the cast's
+    feet."""
+    foot_spots = ()
+    if snow_cover > 0.25 and _crowd is not None:
+        foot_spots = [(e.world_x, e.facing, e.gait) for e in _crowd.near
+                      if abs(e.walk_vel) > 4.0]
+    _gweather.draw_ground_weather(surf, scroll, pal, wetness, snow_cover, foot_spots)
 
 
 def draw_promenade(surf, scroll, pal, phase, t):

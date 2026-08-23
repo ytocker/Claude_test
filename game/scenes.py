@@ -1643,6 +1643,8 @@ class App:
             score=w.score,
             near_misses=w.near_misses,
             finale_active=w._finale_rush_remaining > 0,
+            wetness=w.weather.wetness,
+            snow_cover=w.weather.snow_cover,
         )
         foreground.draw_promenade(surf, scroll, palette,
                                   self.world.biome_phase, self.world.biome_time)

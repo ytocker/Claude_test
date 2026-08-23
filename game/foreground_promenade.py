@@ -359,6 +359,17 @@ def _garland_faint(surf, w, scroll, pal, *, top_y, period=120, sag=24,
             glow_col = (255, 150, 110) if color == 'red' else (255, 205, 120)
             _string_glow(surf, int(bx), int(by) + 5, pal, radius=7, alpha=52,
                          color=glow_col)
+            if _nightf(pal) > 0.25:
+                add_light_spot(int(bx), glow_col)
+            snowc = _SIG.get('snow_cover', 0.0) or 0.0
+            if snowc > 0.12:
+                # a white cap settling on the lantern's crown
+                cap = (238, 243, 249)
+                aa = int(min(200, 90 + 130 * snowc))
+                capw = 6
+                caps = pygame.Surface((capw + 2, 3), pygame.SRCALPHA)
+                pygame.draw.ellipse(caps, (*cap, aa), (0, 0, capw + 2, 3))
+                surf.blit(caps, (int(bx) - capw // 2 - 1, int(by) - 7))
 
 
 def _fairy_faint(surf, w, scroll, pal, *, top_y, period=200, sag=26, per_span=5,
@@ -1534,6 +1545,18 @@ def calm_now():
             or _CUR_T < _CALM_UNTIL)
 
 
+# ── light-spot collector (for the wet-paving reflections) ────────────────────
+# Every lit hung/standing light on the street reports itself here per frame;
+# the ground-weather painter mirrors LAST frame's spots as vertical smears in
+# the wet sheen (one frame of lag at 160 px/s is under 3 px — invisible).
+LIGHT_SPOTS: list = []
+_CUR_SCROLL = 0.0
+
+
+def add_light_spot(screen_x, color):
+    LIGHT_SPOTS.append((screen_x + _CUR_SCROLL, color))
+
+
 def street_density(phase, t):
     """THE density authority — the one place the cast curve, run fill, weather
     factor and calm clamp combine. Promenade, near lane and the crowd sim all
@@ -1650,12 +1673,15 @@ def _dressing(surf, w, scroll, pal, phase):
     # OUT after dawn, instead of the whole on-screen row blinking at the window edge.
     lamp_win = (0.20 <= p < 0.924)   # installed by golden, gutter out at sunrise
     fy = GROUND_Y - 1
+    lamps_lit = _nightf(pal) > 0.25
     for sx, k in sp._world_xs(scroll, w, 251, x0=18):
         on, lv = sp._slot_latch(('lampR',), k, lambda k=k: (
             lamp_win, _prop_latch('prop_lamp', k, 31)))
         if on:
             _zbuf.enqueue(fy, TB_STRUCTURE, lambda s, sx=sx, lv=lv: draw_prop_lamp(
                 s, sx, pal, t=_CUR_T, variant=lv))
+            if lamps_lit:
+                add_light_spot(sx, (250, 210, 140))
     sp._latch_prune(('lampR',))
     for sx, k in sp._world_xs(scroll, w, 253, x0=152):
         on, lv = sp._slot_latch(('lampG',), k, lambda k=k: (
@@ -1663,6 +1689,8 @@ def _dressing(surf, w, scroll, pal, phase):
         if on:
             _zbuf.enqueue(fy, TB_STRUCTURE, lambda s, sx=sx, lv=lv: draw_prop_lamp(
                 s, sx, pal, t=_CUR_T, variant=lv))
+            if lamps_lit:
+                add_light_spot(sx, (250, 210, 140))
     sp._latch_prune(('lampG',))
     fairy_win = True                    # hung fairy lights stay strung + lit all cycle
     sp._draw_fairy_lights(surf, w, scroll, pal, top_y=GROUND_Y - 84,
@@ -1732,9 +1760,11 @@ def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
 def draw_promenade(surf, scroll, pal, phase, t):
     """Draw the promenade as a living day-arc: fixtures by phase, cast thinned by a
     crowd-density curve, and the whole street filling in from empty at run-start."""
-    global _CUR_BUCKET, _CUR_T, _CUR_PAL, _CUR_RAIN, _CUR_SNOW, _CUR_WIND, _CUR_PHASE
+    global _CUR_BUCKET, _CUR_T, _CUR_PAL, _CUR_RAIN, _CUR_SNOW, _CUR_WIND, _CUR_PHASE, _CUR_SCROLL
     _CUR_BUCKET = _biome.phase_bucket(phase)
     _CUR_T = t
+    _CUR_SCROLL = scroll
+    del LIGHT_SPOTS[:]   # the ground-weather pass consumed last frame's spots
     _CUR_PAL = pal
     _CUR_PHASE = phase
     _CUR_RAIN = rain_intensity(phase)

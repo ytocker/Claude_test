@@ -1451,6 +1451,8 @@ def draw_near_lane(surf, scroll, pal, phase, t, crowd=None):
         if on:
             _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx, fvar=fvar: _scaled_cast(
                 s, pr.draw_prop_fire, sx, pal, 1.5, t=t, variant=fvar))
+            if _nightf(pal) > 0.25:
+                pr.add_light_spot(sx, (235, 150, 80))
     sp._latch_prune(('brazier',))
     # Performers: ONE world-anchored grid. Each slot latches at entry both whether
     # it is occupied (busy-street gate) and WHICH act it holds, so a busker never
