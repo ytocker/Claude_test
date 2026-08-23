@@ -337,11 +337,12 @@ def _draw_faint_catenary(surf, xl, xr, top_y, sag, steps, pal):
 
 
 def _garland_faint(surf, w, scroll, pal, *, top_y, period=120, sag=24,
-                   per_span=3, colors=('red', 'gold'), span_gate=None):
+                   per_span=3, colors=('red', 'gold'), span_gate=None, x0=12):
     """r15 lantern garland with the faint single-catenary wire. The hung lanterns
     stay lit + cast a soft warm halo across the WHOLE cycle (string-light floor,
-    not the dusk lamp gate), so the strand never reads 'off'."""
-    for xl, xr, k in sp._garland_spans(scroll, w, period, x0=12):
+    not the dusk lamp gate), so the strand never reads 'off'. `x0` anchors the
+    span lattice so a second row can interleave offset from the first."""
+    for xl, xr, k in sp._garland_spans(scroll, w, period, x0=x0):
         if span_gate is not None and not span_gate(k):
             continue
         _draw_faint_catenary(surf, xl, xr, top_y, sag, 16, pal)
@@ -902,12 +903,12 @@ def _ground_furniture(surf, w, scroll, pal, fd=1.0):
     # blinks out in view when `fd` dips — it scrolls in and out like the deck it
     # sits on.
     fy = GROUND_Y - 1
-    for sx, k in sp._world_xs(scroll, w, 440, x0=14):
+    for sx, k in sp._world_xs(scroll, w, 439, x0=14):
         if sp._slot_latch(('furn', 11), k, lambda k=k: _slot_on(k, 11, fd)):
             _zbuf.enqueue(fy, TB_FIXTURE,
                           lambda s, sx=sx: sp._draw_barrel(s, sx, pal))
     sp._latch_prune(('furn', 11))
-    for sx, k in sp._world_xs(scroll, w, 440, x0=118):
+    for sx, k in sp._world_xs(scroll, w, 443, x0=118):
         if sp._slot_latch(('furn', 12), k, lambda k=k: _slot_on(k, 12, fd)):
             _zbuf.enqueue(fy, TB_FIXTURE,
                           lambda s, sx=sx: sp._draw_cairn(s, sx, pal, scale=1.2))
@@ -915,12 +916,12 @@ def _ground_furniture(surf, w, scroll, pal, fd=1.0):
     # Greenery as static cluster beds — one row of planting beds (see
     # _draw_greenery_cluster). A wide period + the stable per-slot gate leave open
     # stretches between beds so the planted street breathes rather than walling up.
-    for sx, k in sp._world_xs(scroll, w, 330, x0=70):
+    for sx, k in sp._world_xs(scroll, w, 331, x0=70):
         if sp._slot_latch(('furn', 13), k, lambda k=k: _slot_on(k, 13, fd)):
             _zbuf.enqueue(fy, TB_FIXTURE,
                           lambda s, sx=sx, k=k: _draw_greenery_cluster(s, sx, pal, k))
     sp._latch_prune(('furn', 13))
-    for sx, k in sp._world_xs(scroll, w, 700, x0=330):
+    for sx, k in sp._world_xs(scroll, w, 701, x0=330):
         on, dv = sp._slot_latch(('furn', 15), k, lambda k=k: (
             _slot_on(k, 15, fd), _prop_latch('prop_dress', k, 15)))
         if on:
@@ -1366,7 +1367,7 @@ def phase_day(surf, w, gy, h, scroll, pal, t):
     global _CUR_PAL
     _CUR_PAL = pal
     _ground_furniture(surf, w, scroll, pal)
-    for xl, xr, _k in sp._garland_spans(scroll, w, period=150, x0=20):
+    for xl, xr, _k in sp._garland_spans(scroll, w, period=149, x0=20):
         draw_prayer_flags(surf, int(xl), GROUND_Y - 118, int(xr), GROUND_Y - 116, n=5)
     _scenarios(surf, w, scroll, pal, t, (_scene_market, _scene_pastoral), x0=40)
 
@@ -1377,7 +1378,7 @@ def phase_golden(surf, w, gy, h, scroll, pal, t):
     _CUR_PAL = pal
     _ground_furniture(surf, w, scroll, pal)
     sp._draw_lantern_garland(surf, w, scroll, pal, top_y=GROUND_Y - 96,
-                             period=150, sag=22, per_span=2)
+                             period=149, sag=22, per_span=2)
     for sx, k in sp._world_xs(scroll, w, 250, x0=20):
         sp._draw_lamp_post(surf, sx, pal, style='ornate', height=96, lantern='red')
     for sx, k in sp._world_xs(scroll, w, 250, x0=160):
@@ -1410,9 +1411,9 @@ def phase_night(surf, w, gy, h, scroll, pal, t):
                              period=118, sag=24, per_span=3)
     sp._draw_fairy_lights(surf, w, scroll, pal, top_y=GROUND_Y - 78,
                           period=200, sag=22, per_span=5)
-    for sx, k in sp._world_xs(scroll, w, 250, x0=18):
+    for sx, k in sp._world_xs(scroll, w, 251, x0=18):
         sp._draw_lamp_post(surf, sx, pal, style='ornate', height=96, lantern='red')
-    for sx, k in sp._world_xs(scroll, w, 250, x0=152):
+    for sx, k in sp._world_xs(scroll, w, 253, x0=152):
         sp._draw_lamp_post(surf, sx, pal, style='ornate', height=90, lantern='gold')
     _scenarios(surf, w, scroll, pal, t, (_scene_campfire, _scene_market), x0=30)
 
@@ -1623,30 +1624,39 @@ def _dressing(surf, w, scroll, pal, phase):
     # entry: the strand scrolls in/out span-by-span instead of the whole row
     # flashing at the phase-window edge.
     bunting_win = (p >= 0.924 or p < 0.416)                      # daytime bunting
-    for xl, xr, k in sp._garland_spans(scroll, w, period=150, x0=20):
+    for xl, xr, k in sp._garland_spans(scroll, w, period=149, x0=20):
         if sp._slot_latch(('bunting',), k, lambda: bunting_win):
             draw_prayer_flags(surf, int(xl), GROUND_Y - 118,
                               int(xr), GROUND_Y - 116, n=5)
     sp._latch_prune(('bunting',))
     lantern_win = True                  # hung lantern garland stays strung + lit all cycle
     sp._draw_lantern_garland(surf, w, scroll, pal, top_y=GROUND_Y - 97,
-                             period=128, sag=23, per_span=3,
+                             period=127, sag=23, per_span=3,
                              span_gate=lambda k: sp._slot_latch(('lantgar',), k,
                                                                 lambda: lantern_win))
     sp._latch_prune(('lantgar',))
+    # A SECOND lantern row interleaves through the night market only — the
+    # overhead ceiling visibly doubles for the evening (span-latched so it
+    # strings itself up ahead of Pip and comes down span by span after).
+    market_win = (0.644 <= p < 0.802)
+    sp._draw_lantern_garland(surf, w, scroll, pal, top_y=GROUND_Y - 112,
+                             period=127, sag=20, per_span=4, x0=63,
+                             span_gate=lambda k: sp._slot_latch(('lantgar2',), k,
+                                                                lambda: market_win))
+    sp._latch_prune(('lantgar2',))
     # Lamp posts: a discrete world-slot row. Latch each post's "is the evening
     # window open?" at entry so the row scrolls IN when dusk arrives and scrolls
     # OUT after dawn, instead of the whole on-screen row blinking at the window edge.
     lamp_win = (0.20 <= p < 0.924)   # installed by golden, gutter out at sunrise
     fy = GROUND_Y - 1
-    for sx, k in sp._world_xs(scroll, w, 250, x0=18):
+    for sx, k in sp._world_xs(scroll, w, 251, x0=18):
         on, lv = sp._slot_latch(('lampR',), k, lambda k=k: (
             lamp_win, _prop_latch('prop_lamp', k, 31)))
         if on:
             _zbuf.enqueue(fy, TB_STRUCTURE, lambda s, sx=sx, lv=lv: draw_prop_lamp(
                 s, sx, pal, t=_CUR_T, variant=lv))
     sp._latch_prune(('lampR',))
-    for sx, k in sp._world_xs(scroll, w, 250, x0=152):
+    for sx, k in sp._world_xs(scroll, w, 253, x0=152):
         on, lv = sp._slot_latch(('lampG',), k, lambda k=k: (
             lamp_win, _prop_latch('prop_lamp', k, 32)))
         if on:
@@ -1655,7 +1665,7 @@ def _dressing(surf, w, scroll, pal, phase):
     sp._latch_prune(('lampG',))
     fairy_win = True                    # hung fairy lights stay strung + lit all cycle
     sp._draw_fairy_lights(surf, w, scroll, pal, top_y=GROUND_Y - 84,
-                          period=205, sag=24, per_span=5,
+                          period=199, sag=24, per_span=5,
                           span_gate=lambda k: sp._slot_latch(('fairy',), k,
                                                              lambda: fairy_win))
     sp._latch_prune(('fairy',))

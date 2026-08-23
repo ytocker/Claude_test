@@ -87,6 +87,10 @@ def _warm_glow(surf, cx, cy, *, radius, peak, color):
 
 
 def _steam_col(night):
+    # By day steam cools toward the sky; at night it warms instead — lit from
+    # below by the stall's own lanterns, the cheapest night-market cue there is.
+    if night > 0.4:
+        return _mix((236, 230, 218), (214, 168, 110), min(1.0, (night - 0.4) * 1.4))
     return _mix((236, 238, 240), (150, 170, 200), 0.35 + 0.4 * night)
 
 

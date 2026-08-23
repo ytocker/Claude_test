@@ -1226,7 +1226,7 @@ def phase_dusk(surf, w, gy, h, scroll, pal, t):
     lamps come on; near banner poles + braziers glow as they pass."""
     _general_greenery(surf, w, scroll, pal, t)
     _general_pedestrians(surf, w, scroll, pal, t)
-    for sx, k in _near_xs(scroll, w, 340, x0=30):
+    for sx, k in _near_xs(scroll, w, 337, x0=30):
         _near_banner(surf, sx, pal)
     for sx, k in _near_xs(scroll, w, 300, x0=120):
         _near_brazier(surf, sx, pal, t=t)
@@ -1239,7 +1239,7 @@ def phase_night(surf, w, gy, h, scroll, pal, t):
     still draw after this and stay brightest."""
     _general_greenery(surf, w, scroll, pal, t)
     _general_pedestrians(surf, w, scroll, pal, t)
-    for sx, k in _near_xs(scroll, w, 340, x0=30):
+    for sx, k in _near_xs(scroll, w, 337, x0=30):
         _near_banner(surf, sx, pal)
     for sx, k in _near_xs(scroll, w, 280, x0=110):
         _near_brazier(surf, sx, pal, t=t)
@@ -1416,14 +1416,14 @@ def draw_near_lane(surf, scroll, pal, phase, t, crowd=None):
     banner_win = (0.483 <= p < 0.820)
     brazier_win = (0.520 <= p < 0.924)
     ny = NEAR_GROUND_Y
-    for sx, k in _near_static_xs(scroll, W, 340, x0=30):
+    for sx, k in _near_static_xs(scroll, W, 337, x0=30):
         on, bv = sp._slot_latch(('banner',), k, lambda k=k: (
             banner_win, pr._prop_latch('prop_banner', k, 41)))
         if on:
             _zbuf.enqueue(ny, TB_STRUCTURE, lambda s, sx=sx, bv=bv: _scaled_cast(
                 s, pr.draw_prop_banner, sx, pal, 1.5, t=t, variant=bv))
     sp._latch_prune(('banner',))
-    for sx, k in _near_static_xs(scroll, W, 290, x0=115):
+    for sx, k in _near_static_xs(scroll, W, 293, x0=115):
         on, fvar = sp._slot_latch(('brazier',), k, lambda k=k: (
             brazier_win, pr._prop_latch('prop_fire', k, 42)))
         if on:
