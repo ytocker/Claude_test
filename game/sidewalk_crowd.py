@@ -31,10 +31,12 @@ _FAMILY = {"stroller": "pedestrian", "kids": "kid", "dog": "dog"}
 _SALT = {"stroller": 31, "kids": 41, "dog": 51}   # match the legacy per-row salts
 _GAIT_RATE = {"stroller": 1.0, "kids": 1.2, "dog": 1.9}
 
-_NEAR_CAP = 8              # hard ceiling regardless of density (perf)
+_NEAR_CAP = 10             # hard ceiling regardless of density (perf)
 _BASE_N = 6               # target near-lane living count at full density
+_MARKET_N = 9             # fuller front lane through the night-market window
 _SPAWN_MARGIN = 120       # spawn/cull this far off the screen edges (world px)
 _SPAWN_COOLDOWN = 0.35    # min seconds between spawns (so they don't enter as a wall)
+_LEAVE_STAGGER = 0.8      # seconds between departures when the street empties
 
 # Walk speeds, world px/s. Sign convention: <0 walks WITH the flow (nets faster
 # leftward on screen), >0 walks AGAINST it (upstream — still nets leftward, just
@@ -57,12 +59,25 @@ def _pick_kind():
     return "dog"
 
 
-def _roll_ped_vel():
-    """Two-way distribution: ~10% standing, ~30% upstream, ~60% with the flow."""
+def _market_now(phase):
+    """The night-market window (remapped keyframes): the front lane strolls."""
+    p = phase % 1.0
+    return 0.644 <= p < 0.785
+
+
+def _roll_ped_vel(phase=0.0):
+    """Two-way distribution: ~10% standing, ~30% upstream, ~60% with the flow.
+    Through the night market more people stand and everyone ambles (an eating,
+    browsing crowd, not a commuting one); in real rain the walkers hurry."""
+    market = _market_now(phase)
     r = random.random()
-    if r < 0.10:
+    if r < (0.22 if market else 0.10):
         return 0.0
     mag = random.uniform(*_PED_SPEED)
+    if market:
+        mag *= 0.72
+    elif getattr(pr, "_CUR_RAIN", 0.0) > 0.35:
+        mag *= 1.25
     return mag if r < 0.40 else -mag
 
 
@@ -73,6 +88,7 @@ class SidewalkCrowd:
     def __init__(self):
         self.near: list[_Ent] = []
         self._spawn_cd = 0.0
+        self._leave_cd = 0.0
         self._id = 0
 
     def _density(self, phase, t):
@@ -100,14 +116,16 @@ class SidewalkCrowd:
             e.timer = random.uniform(0.4, 1.1)
         else:
             e.state = "walk"
-            e.walk_vel = _roll_ped_vel()
+            e.walk_vel = _roll_ped_vel(phase)
             e.target_vel = 0.0
             e.accel = 0.0
             e.timer = random.uniform(2.0, 5.0)
         e.facing = 1 if e.walk_vel > 0 else -1
         self.near.append(e)
 
-    def _transition(self, e):
+    def _transition(self, e, phase=0.0):
+        if e.state == "leaving":
+            return                       # a departure is one-way — no re-decisions
         if e.kind == "dog":
             # Re-pick a dart target — occasionally upstream → weaving/darting.
             mag = random.uniform(*_DOG_SPEED)
@@ -117,10 +135,12 @@ class SidewalkCrowd:
         elif e.state == "walk":
             e.state = "pause"
             e.walk_vel = 0.0
-            e.timer = random.uniform(0.8, 2.5)
+            # Night-market pauses are BROWSE pauses — longer, at a stall's pace.
+            e.timer = (random.uniform(1.5, 3.0) if _market_now(phase)
+                       else random.uniform(0.8, 2.5))
         else:
             e.state = "walk"
-            e.walk_vel = _roll_ped_vel()
+            e.walk_vel = _roll_ped_vel(phase)
             e.timer = random.uniform(2.0, 5.0)
 
     def update(self, scroll, speed, sdt, phase, t):
@@ -132,7 +152,7 @@ class SidewalkCrowd:
         for e in self.near:
             e.timer -= sdt
             if e.timer <= 0.0:
-                self._transition(e)
+                self._transition(e, phase)
             if e.kind == "dog":
                 dv = e.target_vel - e.walk_vel
                 step = e.accel * sdt
@@ -155,7 +175,21 @@ class SidewalkCrowd:
         self.near = keep
 
         self._spawn_cd -= sdt
-        target = min(_NEAR_CAP, int(round(_BASE_N * self._density(phase, t))))
+        base_n = _MARKET_N if _market_now(phase) else _BASE_N
+        target = min(_NEAR_CAP, int(round(base_n * self._density(phase, t))))
         if len(self.near) < target and self._spawn_cd <= 0.0:
             self._spawn(scroll, phase)
             self._spawn_cd = _SPAWN_COOLDOWN
+        # Departure choreography: when the street empties (a storm building, the
+        # market closing), the surplus figures don't fade — one at a time, on a
+        # stagger, someone visibly hurries off with the flow and exits.
+        self._leave_cd -= sdt
+        if len(self.near) > target + 1 and self._leave_cd <= 0.0:
+            for e in self.near:
+                if e.state not in ("leaving", "dart"):
+                    e.state = "leaving"
+                    e.walk_vel = -random.uniform(66.0, 92.0)
+                    e.facing = -1
+                    e.timer = 1e9
+                    self._leave_cd = _LEAVE_STAGGER
+                    break
