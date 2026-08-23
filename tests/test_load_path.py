@@ -71,22 +71,23 @@ class TestNestArtIsCached(unittest.TestCase):
 
     def test_both_slots_cache_after_first_draw(self):
         from game import hud
-        hud._NEST_ALIVE_SPRITE = None
-        hud._NEST_EMPTY_SPRITE = None
+        hud._NEST_SLOT_SPRITES = {}
         surf = pygame.Surface((360, 640), pygame.SRCALPHA)
         hud._nest_draw_slot(surf, hud._NEST_CY, True)
         hud._nest_draw_slot(surf, hud._NEST_CY, False)
-        self.assertIsNotNone(hud._NEST_ALIVE_SPRITE, "alive slot is not cached")
-        self.assertIsNotNone(hud._NEST_EMPTY_SPRITE, "empty slot is not cached")
+        self.assertIsNotNone(hud._NEST_SLOT_SPRITES.get((hud._NEST_CY, True)),
+                             "alive slot is not cached")
+        self.assertIsNotNone(hud._NEST_SLOT_SPRITES.get((hud._NEST_CY, False)),
+                             "empty slot is not cached")
 
     def test_cached_slot_is_reused_not_rebuilt(self):
         from game import hud
-        hud._NEST_ALIVE_SPRITE = None
+        hud._NEST_SLOT_SPRITES = {}
         surf = pygame.Surface((360, 640), pygame.SRCALPHA)
         hud._nest_draw_slot(surf, hud._NEST_CY, True)
-        first = hud._NEST_ALIVE_SPRITE
+        first = hud._NEST_SLOT_SPRITES[(hud._NEST_CY, True)]
         hud._nest_draw_slot(surf, hud._NEST_CY, True)
-        self.assertIs(hud._NEST_ALIVE_SPRITE, first,
+        self.assertIs(hud._NEST_SLOT_SPRITES[(hud._NEST_CY, True)], first,
                       "alive nest sprite was rebuilt on the second frame")
 
 
