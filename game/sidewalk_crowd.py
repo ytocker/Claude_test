@@ -47,7 +47,7 @@ _DOG_SPEED = (72.0, 140.0)
 
 class _Ent:
     __slots__ = ("kind", "variant", "world_x", "walk_vel", "facing", "gait",
-                 "state", "timer", "target_vel", "accel")
+                 "state", "timer", "target_vel", "accel", "wave")
 
 
 def _pick_kind():
@@ -90,6 +90,8 @@ class SidewalkCrowd:
         self._spawn_cd = 0.0
         self._leave_cd = 0.0
         self._id = 0
+        self._seen_score = 0
+        self._seen_misses = 0
 
     def _density(self, phase, t):
         return pr.street_density(phase, t)
@@ -121,6 +123,7 @@ class SidewalkCrowd:
             e.accel = 0.0
             e.timer = random.uniform(2.0, 5.0)
         e.facing = 1 if e.walk_vel > 0 else -1
+        e.wave = 0.0
         self.near.append(e)
 
     def _transition(self, e, phase=0.0):
@@ -150,6 +153,8 @@ class SidewalkCrowd:
         maxv = 0.9 * speed   # nothing outruns the world → always exits left (0 → frozen)
         keep = []
         for e in self.near:
+            if not hasattr(e, "wave"):      # tolerate externally-built entities
+                e.wave = 0.0
             e.timer -= sdt
             if e.timer <= 0.0:
                 self._transition(e, phase)
@@ -180,6 +185,33 @@ class SidewalkCrowd:
         if len(self.near) < target and self._spawn_cd <= 0.0:
             self._spawn(scroll, phase)
             self._spawn_cd = _SPAWN_COOLDOWN
+        # Tournament awareness — the town is cheerful and notices the flyer,
+        # without ever becoming HUD: a couple of figures wave for a beat at a
+        # score milestone or a near-miss, and through the finale's coin rush the
+        # whole front lane stops and waves Pip through. Muted during the calm
+        # mandates; waves decay on their own.
+        for e in self.near:
+            if e.wave > 0.0:
+                e.wave -= sdt
+        if not pr.calm_now():
+            score = int(pr.signal('score', 0) or 0)
+            if score // 25 > self._seen_score // 25:
+                for e in random.sample(self.near, min(3, len(self.near))):
+                    if e.kind != "dog":
+                        e.wave = max(e.wave, 1.5)
+            self._seen_score = score
+            misses = int(pr.signal('near_misses', 0) or 0)
+            if misses > self._seen_misses and self.near:
+                e = random.choice(self.near)
+                if e.kind != "dog":
+                    e.wave = max(e.wave, 0.8)
+            self._seen_misses = misses
+            if pr.signal('finale_active'):
+                for e in self.near:
+                    if e.kind != "dog":
+                        e.wave = max(e.wave, 0.5)
+                        if e.state == "walk" and abs(e.walk_vel) > 20.0:
+                            e.walk_vel *= 0.5   # slow to see the flyer through
         # Departure choreography: when the street empties (a storm building, the
         # market closing), the surplus figures don't fade — one at a time, on a
         # stagger, someone visibly hurries off with the flow and exits.

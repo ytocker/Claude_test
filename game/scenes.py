@@ -1641,6 +1641,8 @@ class App:
                               and w.clown_event.phase in ("enter", "rolling")),
             newbie_calm=w.pipes_spawned < 5,
             score=w.score,
+            near_misses=w.near_misses,
+            finale_active=w._finale_rush_remaining > 0,
         )
         foreground.draw_promenade(surf, scroll, palette,
                                   self.world.biome_phase, self.world.biome_time)

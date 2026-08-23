@@ -1136,6 +1136,21 @@ _CROWD_DRAW = {
 }
 
 
+def _wave_arm(surf, sx, pal, gait, facing):
+    """A raised, gently-bobbing arm overlay on a waving crowd figure — the town
+    saying hello to the flyer. Drawn over the baked sprite (shoulder-height
+    anchor for the ~27 px near figures), toward up-left where Pip flies."""
+    night = _nightf(pal)
+    sleeve = pr._retint_person((150, 122, 92), night)
+    skin = pr._retint_person((232, 192, 150), night)
+    bob = int(max(0.0, math.sin(gait * 5.0)) * 2)
+    ax = sx - 4 if facing <= 0 else sx + 4
+    sh_y = NEAR_GROUND_Y - 18
+    ex, ey = ax - 4, sh_y - 7 - bob
+    pygame.draw.line(surf, sleeve, (ax, sh_y), (ex, ey), 2)
+    pygame.draw.circle(surf, skin, (ex, ey), 1)
+
+
 def _emit_near_crowd(surf, crowd, scroll, pal):
     ny = NEAR_GROUND_Y
     for e in crowd.near:
@@ -1145,6 +1160,9 @@ def _emit_near_crowd(surf, crowd, scroll, pal):
         _zbuf.enqueue(ny, TB_CAST, lambda s, drawer=drawer, sx=sx, scale=scale,
                       g=e.gait, flip=flip, kw=kw, v=e.variant: _scaled_cast(
                           s, drawer, sx, pal, scale, t=g, flip=flip, variant=v, **kw))
+        if e.wave > 0.0 and e.kind != "dog":
+            _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx, g=e.gait, f=e.facing:
+                          _wave_arm(s, sx, pal, g, f))
 
 
 def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
