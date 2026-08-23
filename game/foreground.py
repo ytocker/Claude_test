@@ -55,8 +55,10 @@ def set_world_signals(**kw):
 
 
 def reset_street():
-    """Per-run street state reset (calm holds, dealt decks live elsewhere)."""
+    """Per-run street state reset (calm holds, the once-per-run big show;
+    dealt decks live in foreground_variants)."""
     _promenade.reset_run()
+    _near.reset_run()
 
 
 def _bake_floor_strip(scroll, pal, bucket):

@@ -1308,26 +1308,83 @@ def _pooled_perf(variant):
     return _draw
 
 
+# ── the street-show system ───────────────────────────────────────────────────
+# Shows are INCIDENTAL, the way a real weekend street works: a busker draws a
+# small knot here and there, occasionally something bigger, and once in a rare
+# run the lion or the dragon comes out. Probability follows the daypart, show
+# slots keep a hard minimum spacing (~9 slots ≈ 40 s of flight) so two never
+# stack, and the big act fires at most once per run, in the clear night window.
+
+_BIG_SHOW_FIRED = False
+
+
+def reset_run():
+    global _BIG_SHOW_FIRED
+    _BIG_SHOW_FIRED = False
+
+
+def _show_period(p):
+    """Show cadence by daypart, in performer slots (~4.5 s of flight each):
+    a busker roughly every 80 s of daylight, every ~55 s through the night
+    market's golden odds, rarely in the rain, almost never in the small hours."""
+    p %= 1.0
+    if p < 0.157:
+        return 18          # morning market — one per ~80 s
+    if p < 0.309:
+        return 20          # lazy middle
+    if p < 0.416:
+        return 14          # golden hour — one per ~63 s
+    if p < 0.483:
+        return 20          # setup
+    if p < 0.644:
+        return 26          # rain — most buskers pack up
+    if p < 0.785:
+        return 12          # the night market — one per ~54 s
+    if p < 0.924:
+        return 120         # small hours
+    return 18              # first light
+
+
+def _show_here(k, p):
+    """Shows sit on a jittered grid: one per `period` slots, each grid cell
+    placing its show at a hashed offset. Guarantees ≥10 slots (~45 s of flight)
+    between any two shows, hits the daypart cadence exactly, and stays a pure
+    function of (k, phase) — no stored state, no flicker."""
+    period = _show_period(p)
+    cell = k // period
+    jit_range = max(1, period - 10)
+    jit = pr._mix32((cell * 0x9E3779B1) ^ 0xC3A5) % jit_range
+    return (k % period) == jit
+
+
 def _perf_decide(k, phase, density):
-    """The act a performer slot holds (or None) — sampled ONCE at slot entry and
-    latched. Festival window: lion/dragon alternate every slot; otherwise a busker
-    FROZEN from the time-appropriate beat band of the 8-act 'performer' pool (so the
-    bird passes a varied cast, not the same act on a metronome), at the sparse
-    1-in-4 gate. The busy-street gate (density>0.25) is captured here too, so a slot
-    that opened during a busy stretch keeps its act as the street empties around it."""
+    """(act, tier) a performer slot holds (or None) — sampled ONCE at slot entry
+    and latched. Tier 1 (~80%): a busker with a small knot of watchers. Tier 2:
+    a bigger draw with a full gathered ring. Tier 3: the lion or the dragon —
+    at most once per run, night-market window only, never in weather. The
+    busy-street gate (density>0.25) and the calm mandates are captured here."""
+    global _BIG_SHOW_FIRED
     if density <= 0.25 or pr.calm_now():
         return None
     p = phase % 1.0
-    if 0.644 <= p < 0.785:
-        return perf_dragon_dance if (k % 2) else perf_lion_dance
-    if not pr._slot_on(k, 7, 0.25):
+    if not _show_here(k, p):
         return None
+    rain = getattr(pr, "_CUR_RAIN", 0.0)
+    snow = getattr(pr, "_CUR_SNOW", 0.0)
+    roll = (pr._mix32(k * 0x51ED2701) & 0xFFFF) / 65535.0
+    if (not _BIG_SHOW_FIRED and 0.644 <= p < 0.785
+            and rain < 0.15 and snow <= 0.0 and roll < 0.08):
+        _BIG_SHOW_FIRED = True
+        act = perf_dragon_dance if (k & 1) else perf_lion_dance
+        return (act, 3)
     band = _perf_band(p)
+    if band is None:
+        band = "market" if 0.644 <= p < 0.785 else None
     if band is None:
         return None
     idxs = _pf.PERFORMERS_BY_BEAT[band]
     variant = idxs[_fv.slot_seed(k, 73) % len(idxs)]
-    return _pooled_perf(variant)
+    return (_pooled_perf(variant), 2 if roll > 0.80 else 1)
 
 def draw_near_lane(surf, scroll, pal, phase, t, crowd=None):
     """Draw the near/front activity lane + the time-appropriate performance, thinned
@@ -1378,8 +1435,17 @@ def draw_near_lane(surf, scroll, pal, phase, t, crowd=None):
     # morphs (juggler->musician etc.) or blinks (density crossing 0.25, day<->festival)
     # while on screen — it performs its act for the whole pass and scrolls off.
     for bx, k in _near_static_xs(scroll, W, _PERF_PERIOD, x0=_PERF_X0, margin=_PERF_MARGIN):
-        act = sp._slot_latch(('perf',), k,
+        dec = sp._slot_latch(('perf',), k,
                              lambda k=k: _perf_decide(k, phase, density))
-        if act is not None:
+        if dec is not None:
+            act, tier = dec
+            # The audience scales with the act: a small knot for a busker, the
+            # full gathered ring for a draw or the lion/dragon.
+            if tier >= 2:
+                _zbuf.enqueue(ny, TB_CAST,
+                              lambda s, bx=bx: _gathered_crowd(s, bx - 8, pal, t))
+            else:
+                _zbuf.enqueue(ny, TB_CAST,
+                              lambda s, bx=bx: _watch_arc(s, bx - 4, pal, t))
             _zbuf.enqueue(ny, TB_CAST, lambda s, act=act, bx=bx: act(s, bx, pal, t))
     sp._latch_prune(('perf',))
