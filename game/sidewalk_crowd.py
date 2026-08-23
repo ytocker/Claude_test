@@ -76,8 +76,7 @@ class SidewalkCrowd:
         self._id = 0
 
     def _density(self, phase, t):
-        return (pr._population(phase) * pr._run_fill(t)
-                * pr._weather_crowd_factor(phase))
+        return pr.street_density(phase, t)
 
     def _spawn(self, scroll, phase):
         self._id += 1

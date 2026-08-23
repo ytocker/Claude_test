@@ -405,6 +405,7 @@ class World:
         # Fresh variant decks per run: the deal-not-roll selection walks each
         # family's whole pool before repeating, and a new day deals a new order.
         _fv.reset_decks()
+        _foreground.reset_street()
 
         # "Get ready" freeze at the start of a round: physics paused until
         # the player flaps or the timer expires. Gives new players a moment

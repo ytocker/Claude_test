@@ -1635,6 +1635,13 @@ class App:
         foreground.draw_ground_weather(surf, scroll, palette,
                                        self.world.weather.wetness,
                                        self.world.weather.snow_cover)
+        w = self.world
+        foreground.set_world_signals(
+            clown_active=bool(w.clown_event is not None
+                              and w.clown_event.phase in ("enter", "rolling")),
+            newbie_calm=w.pipes_spawned < 5,
+            score=w.score,
+        )
         foreground.draw_promenade(surf, scroll, palette,
                                   self.world.biome_phase, self.world.biome_time)
         # NOTE: the NEAR/front lane is intentionally NOT drawn here. It is painted

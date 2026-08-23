@@ -1457,6 +1457,57 @@ def _interp_keys(keys, p):
 def _population(phase):
     return _interp_keys(_POP_KEYS, phase % 1.0)
 
+
+# ── world→street signals + the calm mandates ─────────────────────────────────
+# Gameplay state the street reacts to (clown gauntlet, newbie opening, score…),
+# pushed once per frame by scenes via foreground.set_world_signals — the same
+# module-state idiom as _CUR_*/set_crowd. The street must never read gameplay
+# objects directly.
+_SIG = {}
+_CALM_UNTIL = -1.0   # biome_time until which the post-gauntlet hold keeps the hush
+
+
+def set_signals(**kw):
+    _SIG.update(kw)
+
+
+def signal(name, default=None):
+    return _SIG.get(name, default)
+
+
+def reset_run():
+    """Per-run street state reset (called from World.__init__)."""
+    global _CALM_UNTIL
+    _CALM_UNTIL = -1.0
+    _SIG.clear()
+
+
+def street_calm(t):
+    """The calm mandates: the whole strip goes quiet during the clown gauntlet
+    (plus a 2 s hold after it clears, so the refill reads as relief rather than a
+    snap) and through the newbie opening. Mutates the hold timer — call once per
+    frame from draw_promenade; everyone else reads calm_now()."""
+    global _CALM_UNTIL
+    if _SIG.get('clown_active'):
+        _CALM_UNTIL = t + 2.0
+        return True
+    return t < _CALM_UNTIL or bool(_SIG.get('newbie_calm'))
+
+
+def calm_now():
+    return (bool(_SIG.get('clown_active') or _SIG.get('newbie_calm'))
+            or _CUR_T < _CALM_UNTIL)
+
+
+def street_density(phase, t):
+    """THE density authority — the one place the cast curve, run fill, weather
+    factor and calm clamp combine. Promenade, near lane and the crowd sim all
+    read this, so the street can never double-dip a multiplier."""
+    pop = _population(phase)
+    if calm_now():
+        pop = min(pop, 0.30)
+    return pop * _run_fill(t) * _weather_crowd_factor(phase)
+
 _FILL_SECONDS = 7.0   # the market "opens" over the first few seconds of a run
 
 def _run_fill(t):
@@ -1641,7 +1692,8 @@ def draw_promenade(surf, scroll, pal, phase, t):
     # The crowd thins in bad weather: the day-arc density is scaled down by rain/
     # snow. Multiplying only lowers each slot's stable inclusion gate, so figures
     # walk off ONCE as the storm builds (no flicker) and the survivors get brollies.
-    density = _population(phase) * _run_fill(t) * _weather_crowd_factor(phase)
+    street_calm(t)   # advance the calm-mandate hold once per frame
+    density = street_density(phase, t)
     _ground_furniture(surf, W, scroll, pal, fd=_furn_density(phase))
     _dressing(surf, W, scroll, pal, phase)
     _place_scenarios(surf, W, scroll, pal, t, _roster_for(phase), density)

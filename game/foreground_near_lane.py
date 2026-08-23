@@ -1315,7 +1315,7 @@ def _perf_decide(k, phase, density):
     bird passes a varied cast, not the same act on a metronome), at the sparse
     1-in-4 gate. The busy-street gate (density>0.25) is captured here too, so a slot
     that opened during a busy stretch keeps its act as the street empties around it."""
-    if density <= 0.25:
+    if density <= 0.25 or pr.calm_now():
         return None
     p = phase % 1.0
     if 0.644 <= p < 0.785:
@@ -1343,7 +1343,7 @@ def draw_near_lane(surf, scroll, pal, phase, t, crowd=None):
     # Same day-arc density as the far lane, thinned by the weather so the near
     # edge empties out in a storm too (promenade sets pr._CUR_RAIN/SNOW/WIND just
     # before this call, so the umbrella gate downstream reads the live weather).
-    density = pr._population(phase) * pr._run_fill(t) * pr._weather_crowd_factor(phase)
+    density = pr.street_density(phase, t)
     _general_greenery(surf, W, scroll, pal, t, pr._furn_density(phase))  # fixtures, sparse
     if crowd is not None:
         _emit_near_crowd(surf, crowd, scroll, pal)

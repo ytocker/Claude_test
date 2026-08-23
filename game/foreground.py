@@ -47,6 +47,18 @@ def set_crowd(crowd):
     _crowd = crowd
 
 
+def set_world_signals(**kw):
+    """Per-frame gameplay signals the street reacts to (clown gauntlet, newbie
+    opening, score…) — pushed by scenes so the foreground never reads gameplay
+    objects directly. Same module-state idiom as set_crowd."""
+    _promenade.set_signals(**kw)
+
+
+def reset_street():
+    """Per-run street state reset (calm holds, dealt decks live elsewhere)."""
+    _promenade.reset_run()
+
+
 def _bake_floor_strip(scroll, pal, bucket):
     global _floor_strip, _floor_anchor, _floor_bucket
     # Anchor on an integer world-x so an integer scroll reproduces the live
