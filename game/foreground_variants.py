@@ -41,18 +41,21 @@ WB_SNOW = 2
 
 
 def beat_for_phase(phase: float) -> int:
+    # Windows follow the REMAPPED biome keyframes (biome.py shifts every keyframe
+    # by DAY_EXTRA/NIGHT_BORROW): day-hold ends 0.157, golden 0.309, sunset 0.416,
+    # night 0.644, first flakes 0.785, sunrise 0.924.
     p = phase % 1.0
-    if p < 0.14:
+    if p < 0.157:
         return BEAT_MARKET
-    if p < 0.25:
+    if p < 0.309:
         return BEAT_MORNING
-    if p < 0.40:
+    if p < 0.416:
         return BEAT_GOLDEN
-    if p < 0.58:
+    if p < 0.644:
         return BEAT_DUSK
-    if p < 0.80:
+    if p < 0.785:
         return BEAT_FESTIVAL
-    if p < 0.85:
+    if p < 0.924:
         return BEAT_PREDAWN
     return BEAT_MORNING            # sunrise vendors share the calm-morning cast
 

@@ -1393,35 +1393,57 @@ PHASES_R17 = [
 # SINGLE pass (no per-frame double-beat layer) — also cheaper than the old crossfade.
 
 # Crowd-density curve over the day (piecewise-linear keypoints, phase -> 0..1).
-# Two NAMED PEAK EVENTS rise out of an otherwise-CALM ("lightly populated") day:
-# the early-Day FOOD-MARKET rush (the run opens on it) and the NIGHT FESTIVAL.
-# Everything between is a quiet ~0.25 stroll, and pre-dawn is near-empty. Keeping
-# the floor this low is also the main lag win (object count dominates the cost).
+# FAIR-WEATHER intent, authored against the REMAPPED biome keyframes (biome.py
+# shifts every keyframe by DAY_EXTRA/NIGHT_BORROW, so window literals here must
+# match the shifted day, not the pre-extension one). The weather crowd factor
+# multiplies on top exactly once — never pre-dip these keys for weather, or the
+# storm empties the street twice. The curve deliberately KEEPS RISING through
+# the rain (the market is still being set up under it), so when the rain ends
+# the crowd floods back instead of ramping; the night-market crest sits in the
+# clear dark window between rain-end and the snow squall.
 _POP_KEYS = [
-    (0.00, 0.58),   # run-start: the market is already opening (peak fills via _run_fill)
-    (0.06, 0.85),   # FOOD-MARKET peak
-    (0.14, 0.50),   # market winding down
-    (0.20, 0.26),   # calm late-morning
-    (0.34, 0.24),   # golden lull — just strolling
-    (0.50, 0.30),   # dusk, lamps starting to light
-    (0.58, 0.55),   # festival ramp
-    (0.66, 1.00),   # NIGHT FESTIVAL peak
-    (0.74, 0.94),
-    (0.80, 0.22),   # teardown
-    (0.86, 0.06),   # pre-dawn — near-empty
-    (0.93, 0.22),   # sunrise — first vendors return
-    (1.00, 0.58),   # wrap back to the opener
+    (0.000, 0.30),  # street opening — calm mandate window
+    (0.030, 0.34),
+    (0.055, 0.58),  # market waking
+    (0.090, 0.86),  # MORNING MARKET peak
+    (0.130, 0.78),
+    (0.160, 0.55),  # winding down (day-hold expires here)
+    (0.215, 0.34),  # lazy midday
+    (0.280, 0.31),  # the long middle — authored daytime floor
+    (0.309, 0.40),  # golden hour; people come back out
+    (0.330, 0.30),  # clown-gauntlet calm dip (clamped live by the event too)
+    (0.375, 0.44),  # the refill wave
+    (0.396, 0.62),  # median run ends here — warm, full, golden
+    (0.416, 0.66),  # sunset; night-market setup begins under it
+    (0.470, 0.62),
+    (0.483, 0.60),  # first drops — weather factor takes over from here
+    (0.538, 0.72),  # dusk; setup pushes on through the rain
+    (0.600, 0.80),
+    (0.629, 0.84),  # storm peak (weather crushes the actual to ~0.19)
+    (0.694, 0.94),  # rain ends — the street floods back in
+    (0.724, 1.00),  # NIGHT MARKET peak (clear, dark, drying)
+    (0.755, 0.95),
+    (0.785, 0.72),  # first flakes
+    (0.820, 0.34),  # closing under the squall
+    (0.860, 0.10),  # small hours
+    (0.900, 0.07),  # the floor
+    (0.924, 0.10),  # sunrise begins
+    (0.955, 0.24),  # squall gone; sweepers + the first tea stall
+    (0.985, 0.36),  # early vendors; the chest approaches
+    (1.000, 0.30),  # wrap — matches phase 0.000 exactly
 ]
 
-def _population(phase):
-    p = phase % 1.0
-    for i in range(len(_POP_KEYS) - 1):
-        a, va = _POP_KEYS[i]
-        b, vb = _POP_KEYS[i + 1]
+def _interp_keys(keys, p):
+    for i in range(len(keys) - 1):
+        a, va = keys[i]
+        b, vb = keys[i + 1]
         if a <= p <= b:
             f = (p - a) / (b - a) if b > a else 0.0
             return va + (vb - va) * f
-    return _POP_KEYS[-1][1]
+    return keys[-1][1]
+
+def _population(phase):
+    return _interp_keys(_POP_KEYS, phase % 1.0)
 
 _FILL_SECONDS = 7.0   # the market "opens" over the first few seconds of a run
 
@@ -1442,11 +1464,22 @@ def _slot_pick(k, n):
     to the slot index so the choice is identical as the slot scrolls (no flicker)."""
     return ((k * 0x9E3779B1) >> 16) % n
 
+# Decoration density is PHASE-ONLY and decoupled from the cast curve: a street
+# stripped of people at 3 a.m. keeps its dressing (a dressed, empty street reads
+# as late-night; a bare one reads as unbuilt). Shape: steady by day, climbs as
+# the night market is dressed at sunset, full through the market AND the small
+# hours (nobody takes bunting down at 3 a.m.), back to the day look at sunrise.
+_DECOR_KEYS = [
+    (0.000, 0.45), (0.157, 0.45), (0.309, 0.42), (0.416, 0.42),
+    (0.483, 0.55), (0.537, 0.62), (0.644, 0.72), (0.900, 0.72),
+    (0.940, 0.55), (1.000, 0.45),
+]
+
 def _furn_density(phase):
-    """Fixture density (planters/cairns/greenery). Gentle and PHASE-ONLY — NOT
-    multiplied by `_run_fill` — so the static deck dressing is present from t=0 and
-    never flickers; just sparser off-peak and a touch fuller at the peak events."""
-    return 0.34 + 0.22 * _population(phase)
+    """Fixture density (planters/cairns/greenery). PHASE-ONLY — NOT multiplied by
+    `_run_fill` or the cast curve — so the static deck dressing is present from
+    t=0 and never flickers."""
+    return _interp_keys(_DECOR_KEYS, phase % 1.0)
 
 def _roster_for(phase):
     """The cast vocabulary by time of day. The early-Day window is the FOOD-MARKET
@@ -1454,18 +1487,23 @@ def _roster_for(phase):
     until the NIGHT festival. Pre-dawn is near-empty. Bigger, more varied rosters
     (4–5 options) + the no-repeat rule in _place_scenarios kill the short loop."""
     p = phase % 1.0
-    if p < 0.14:                       # DAY — FOOD-MARKET rush (the run opener)
+    if p < 0.157:                      # MORNING MARKET (the run opener; day-hold)
         return (_scene_food_grill, _scene_food_soup, _scene_market, _scene_food_steamer,
                 _scene_food_tea, _scene_dawn_setup, _scene_vendor)
-    if p < 0.25 or p >= 0.85:          # DAY / SUNRISE — calm morning
+    if p < 0.309:                      # THE LONG MIDDLE — lazy, green, quiet
         return (_scene_pastoral, _scene_vendor, _scene_quiet, _scene_stroll)
-    if p < 0.40:                       # GOLDEN — afternoon stroll
+    if p < 0.416:                      # GOLDEN STROLL — pairs, benches, warmth
         return (_scene_stroll, _scene_pastoral, _scene_quiet, _scene_bench)
-    if p < 0.58:                       # DUSK — lamps lighting
-        return (_scene_lamplighter, _scene_stroll, _scene_bench, _scene_rest)
-    if p < 0.80:                       # NIGHT — festival (food stalls glow nicely)
-        return (_scene_campfire, _scene_food_grill, _scene_food_soup, _scene_stroll, _scene_bench)
-    return (_scene_quiet, _scene_rest) # PRE-DAWN — near-empty teardown
+    if p < 0.483:                      # LAMPS & SETUP — the market being assembled
+        return (_scene_lamplighter, _scene_dawn_setup, _scene_stroll, _scene_vendor)
+    if p < 0.644:                      # THE RAIN — setup pushes on; tea never closes
+        return (_scene_food_tea, _scene_dawn_setup, _scene_stroll, _scene_rest)
+    if p < 0.785:                      # NIGHT MARKET — the clear dark window
+        return (_scene_food_grill, _scene_food_soup, _scene_food_steamer,
+                _scene_food_tea, _scene_campfire, _scene_stroll, _scene_bench)
+    if p < 0.924:                      # SMALL HOURS — near-empty, braziers warm
+        return (_scene_quiet, _scene_rest, _scene_campfire)
+    return (_scene_food_tea, _scene_quiet, _scene_vendor, _scene_stroll)  # FIRST LIGHT — tea opens first
 
 def _dressing(surf, w, scroll, pal, phase):
     """Phase-gated street fixtures in one pass (glow follows the palette). Lamps +
@@ -1475,7 +1513,7 @@ def _dressing(surf, w, scroll, pal, phase):
     # Garland strands are continuous, so each SPAN latches its window membership at
     # entry: the strand scrolls in/out span-by-span instead of the whole row
     # flashing at the phase-window edge.
-    bunting_win = (p >= 0.85 or p < 0.28)                        # daytime bunting
+    bunting_win = (p >= 0.924 or p < 0.416)                      # daytime bunting
     for xl, xr, k in sp._garland_spans(scroll, w, period=150, x0=20):
         if sp._slot_latch(('bunting',), k, lambda: bunting_win):
             draw_prayer_flags(surf, int(xl), GROUND_Y - 118,
@@ -1490,7 +1528,7 @@ def _dressing(surf, w, scroll, pal, phase):
     # Lamp posts: a discrete world-slot row. Latch each post's "is the evening
     # window open?" at entry so the row scrolls IN when dusk arrives and scrolls
     # OUT after dawn, instead of the whole on-screen row blinking at the window edge.
-    lamp_win = (0.20 <= p < 0.93)
+    lamp_win = (0.20 <= p < 0.924)   # installed by golden, gutter out at sunrise
     fy = GROUND_Y - 1
     for sx, k in sp._world_xs(scroll, w, 250, x0=18):
         on, lv = sp._slot_latch(('lampR',), k, lambda k=k: (

@@ -1270,22 +1270,22 @@ def _perf_for(phase):
     The NIGHT festival window (0.58..0.80) is handled by the caller (`_perf_decide`),
     and 0.80..0.85 is the pre-dawn teardown (no act) — both return None here."""
     p = phase % 1.0
-    if p >= 0.85 or p < 0.25:
+    if p >= 0.924 or p < 0.309:
         return (perf_juggler, 40)
-    if p < 0.40:
+    if p < 0.416:
         return (perf_musician, 200)
-    if p < 0.58:
+    if p < 0.644:
         return (perf_stilt, 120)
-    return None                          # 0.58..0.85: festival (caller) / pre-dawn
+    return None                          # 0.644..0.924: night market (caller) / small hours
 
 def _perf_band(p):
     """The performer beat-band for a day-arc phase (festival 0.58..0.80 + the
     0.80..0.85 teardown are handled by the caller and return None here)."""
-    if p >= 0.85 or p < 0.25:
+    if p >= 0.924 or p < 0.309:
         return "day"
-    if p < 0.40:
+    if p < 0.416:
         return "golden"
-    if p < 0.58:
+    if p < 0.644:
         return "dusk"
     return None
 
@@ -1311,7 +1311,7 @@ def _perf_decide(k, phase, density):
     if density <= 0.25:
         return None
     p = phase % 1.0
-    if 0.58 <= p < 0.80:
+    if 0.644 <= p < 0.785:
         return perf_dragon_dance if (k % 2) else perf_lion_dance
     if not pr._slot_on(k, 7, 0.25):
         return None
@@ -1346,7 +1346,11 @@ def draw_near_lane(surf, scroll, pal, phase, t, crowd=None):
     # Festival banners + braziers: discrete world slots, each latching its window
     # membership at entry so the row scrolls in/out instead of the on-screen ones
     # blinking when the festival window opens/closes.
-    banner_win = (0.45 <= p < 0.86)
+    # Banners dress the market (setup through the staggered close-down); braziers
+    # kindle early in the storm gloom and are the ONE fixture that persists through
+    # the small hours — two warm points in a cold near-empty street — gone at sunrise.
+    banner_win = (0.483 <= p < 0.820)
+    brazier_win = (0.520 <= p < 0.924)
     ny = NEAR_GROUND_Y
     for sx, k in _near_static_xs(scroll, W, 340, x0=30):
         on, bv = sp._slot_latch(('banner',), k, lambda k=k: (
@@ -1357,7 +1361,7 @@ def draw_near_lane(surf, scroll, pal, phase, t, crowd=None):
     sp._latch_prune(('banner',))
     for sx, k in _near_static_xs(scroll, W, 290, x0=115):
         on, fvar = sp._slot_latch(('brazier',), k, lambda k=k: (
-            banner_win, pr._prop_latch('prop_fire', k, 42)))
+            brazier_win, pr._prop_latch('prop_fire', k, 42)))
         if on:
             _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx, fvar=fvar: _scaled_cast(
                 s, pr.draw_prop_fire, sx, pal, 1.5, t=t, variant=fvar))
