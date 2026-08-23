@@ -33,6 +33,7 @@ import random
 import pygame
 
 from game import foreground_props as sp
+from game import foreground_weekend as _wk
 from game import biome as _biome
 from game.config import (W, H, WEATHER_CROWD_RAIN_MIN, WEATHER_CROWD_SNOW_MIN,
                          WEATHER_UMBRELLA_RAIN_AT)
@@ -1689,11 +1690,18 @@ def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
         # scrolls in and out. New slots entering later read the new density/roster.
         def _decide(k=k):
             r = random.Random((k * 0x9E3779B1) & 0xFFFFFFFF)
-            if r.random() > density:        # stable per-slot inclusion
+            # The block layer: this slot's world block multiplies the day density
+            # (a stall row runs hot, a green walk runs sparse) and reorders the
+            # hour's roster to the block's taste — the spatial ebb and flow.
+            wx = k * _SCENARIO_PERIOD + x0
+            d_here = min(1.0, density * _wk.density_mult(wx, _CUR_PHASE))
+            if r.random() > d_here:         # stable per-slot inclusion
                 return None
-            idx = _slot_pick(k, n)
-            if n > 1 and idx == _slot_pick(k - 1, n):
-                idx = (idx + 1) % n
+            roster_b = _wk.filter_roster(wx, _CUR_PHASE, roster)
+            nb = len(roster_b)
+            idx = _slot_pick(k, nb)
+            if nb > 1 and idx == _slot_pick(k - 1, nb):
+                idx = (idx + 1) % nb
             jit = (((k * 0x85EBCA77) >> 13) % 97) - 48
             # Freeze the day-arc beat + weather bucket at slot ENTRY so the cast's
             # variant choices stay fixed for the whole on-screen traversal (a slot
@@ -1701,7 +1709,7 @@ def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
             # starts while it crosses; new slots entering in rain get brollies).
             beat0 = _fv.beat_for_phase(_CUR_PHASE)
             wb0 = _fv.weather_bucket(_CUR_RAIN, _CUR_SNOW)
-            return (roster[idx], jit, beat0, wb0)
+            return (roster_b[idx], jit, beat0, wb0)
         dec = sp._slot_latch(row, k, _decide)
         if dec is not None:
             scene_fn, jit, beat0, wb0 = dec

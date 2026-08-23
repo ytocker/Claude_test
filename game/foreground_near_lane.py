@@ -51,6 +51,7 @@ import pygame
 
 from game import foreground_props as sp
 from game import foreground_promenade as pr
+from game import foreground_weekend as _wk
 from game import biome as _biome
 from game.config import W, H
 from game.draw import draw_side_shrub, draw_wuling_pine
@@ -1377,6 +1378,9 @@ def _perf_decide(k, phase, density):
         _BIG_SHOW_FIRED = True
         act = perf_dragon_dance if (k & 1) else perf_lion_dance
         return (act, 3)
+    # A full gathered ring needs room: tier-2 draws only land where the block
+    # layer opens a small square; elsewhere the show stays a busker + knot.
+    in_square = _wk.is_square(k * _PERF_PERIOD + _PERF_X0, p)
     band = _perf_band(p)
     if band is None:
         band = "market" if 0.644 <= p < 0.785 else None
@@ -1384,7 +1388,7 @@ def _perf_decide(k, phase, density):
         return None
     idxs = _pf.PERFORMERS_BY_BEAT[band]
     variant = idxs[_fv.slot_seed(k, 73) % len(idxs)]
-    return (_pooled_perf(variant), 2 if roll > 0.80 else 1)
+    return (_pooled_perf(variant), 2 if (roll > 0.80 and in_square) else 1)
 
 def draw_near_lane(surf, scroll, pal, phase, t, crowd=None):
     """Draw the near/front activity lane + the time-appropriate performance, thinned

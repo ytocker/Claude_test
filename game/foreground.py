@@ -16,6 +16,7 @@ from game import foreground_detail as _detail
 from game import foreground_promenade as _promenade
 from game import foreground_near_lane as _near
 from game import foreground_weather as _gweather
+from game import foreground_weekend as _weekend
 from game import foreground_zbuffer as _zbuf
 
 
@@ -55,10 +56,11 @@ def set_world_signals(**kw):
 
 
 def reset_street():
-    """Per-run street state reset (calm holds, the once-per-run big show;
-    dealt decks live in foreground_variants)."""
+    """Per-run street state reset (calm holds, the once-per-run big show, the
+    block layout's seed; dealt decks live in foreground_variants)."""
     _promenade.reset_run()
     _near.reset_run()
+    _weekend.reset_run()
 
 
 def _bake_floor_strip(scroll, pal, bucket):
