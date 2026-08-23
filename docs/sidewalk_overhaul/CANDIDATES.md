@@ -12,6 +12,7 @@ different creative territory so they are genuine alternatives, not variations.
 | [DAY_PLAN_C_STREET_READS_SKY.md](DAY_PLAN_C_STREET_READS_SKY.md) | **C — The Street That Reads the Sky** (omens & offerings: sign → reading → answer) |
 | [DAY_PLAN_D_WORKING_DAY.md](DAY_PLAN_D_WORKING_DAY.md) | **D — The Working Day** (the tournament as the town's ground operation & payday) |
 | [DAY_PLAN_E_MIRROR_PLAY.md](DAY_PLAN_E_MIRROR_PLAY.md) | **E — The Mirror-Play** (a troupe builds a stage all day; the night shadow-play mirrors the flight) |
+| [DAY_PLAN_WEEKEND.md](DAY_PLAN_WEEKEND.md) | **★ The Town Is Having a Weekend** — the commissioned direction: an ordinary rich, lively weekend day (abundant crowd/decoration/animal variety, night food market in the clear window, incidental street shows, concrete weather-dress adjustments, organic block-by-block occupancy). Supersedes A–E as the chosen brief; folds in their portable findings. |
 
 ## Difference table
 
