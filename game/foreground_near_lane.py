@@ -1135,8 +1135,8 @@ def _emit_near_crowd(surf, crowd, scroll, pal):
         sx = int(round(e.world_x - scroll))
         flip = e.facing > 0
         _zbuf.enqueue(ny, TB_CAST, lambda s, drawer=drawer, sx=sx, scale=scale,
-                      g=e.gait, flip=flip, kw=kw: _scaled_cast(
-                          s, drawer, sx, pal, scale, t=g, flip=flip, **kw))
+                      g=e.gait, flip=flip, kw=kw, v=e.variant: _scaled_cast(
+                          s, drawer, sx, pal, scale, t=g, flip=flip, variant=v, **kw))
 
 
 def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
