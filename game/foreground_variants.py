@@ -149,6 +149,12 @@ _RECENT_CLASS_N = 2
 _deck_remaining: dict[str, list[int]] = {}
 _deck_recent_idx: dict[str, list[int]] = {}
 _deck_recent_cls: dict[str, list[str]] = {}
+# Some call sites (the scenario _pick) re-resolve their variants EVERY FRAME and
+# rely on select_variant being stable for identical arguments — so each dealt
+# result is memoised by its full argument tuple: the deck advances on the first
+# resolution only and every re-ask returns the frozen answer (no flicker).
+_dealt_memo: dict[tuple, int] = {}
+_MEMO_CAP = 4096
 
 
 def reset_decks() -> None:
@@ -156,6 +162,7 @@ def reset_decks() -> None:
     _deck_remaining.clear()
     _deck_recent_idx.clear()
     _deck_recent_cls.clear()
+    _dealt_memo.clear()
 
 
 def _sil_class(v: Variant) -> str:
@@ -180,6 +187,10 @@ def select_variant(family: str, seed: int, beat: int, wbucket: int) -> int:
     p = _VARIANT_REGISTRY.get(family)
     if not p or len(p) == 1:
         return 0
+    memo_key = (family, seed, beat, wbucket)
+    hit = _dealt_memo.get(memo_key)
+    if hit is not None:
+        return hit
     rem = _deck_remaining.get(family)
     if not rem:
         rem = list(range(len(p)))
@@ -211,4 +222,7 @@ def select_variant(family: str, seed: int, beat: int, wbucket: int) -> int:
     del recent[:-_RECENT_IDX_N]
     recent_cls.append(_sil_class(p[pick]))
     del recent_cls[:-_RECENT_CLASS_N]
+    if len(_dealt_memo) >= _MEMO_CAP:
+        _dealt_memo.clear()
+    _dealt_memo[memo_key] = pick
     return pick

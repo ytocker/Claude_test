@@ -117,7 +117,13 @@ def _flat_awning(surf, sx, post_top, half_w, night, awning):
 
 
 def _stall_shell(surf, sx, base_y, night, *, awning=("terra", "cream"),
-                 counter_h=15, post_top_off=34, roof=True, sign=None):
+                 counter_h=15, post_top_off=34, roof=True, sign=None,
+                 openness=1.0):
+    """The shared booth shell, in three assembly states so the market can be seen
+    being BUILT and struck (the weekend plan's setup/close-down choreography):
+      openness < 0.25 — skeleton: two posts + the crossbar, awning still rolled
+      openness < 0.50 — frame: + counter, awning still a rolled tube, no wall/sign
+      openness >= 0.50 — the full stall (awning unrolled, wall, sign)"""
     half_w = HALF_W
     post_top = base_y - post_top_off
     post = _mix((92, 64, 40), (60, 66, 92), 0.30 * night)
@@ -125,20 +131,32 @@ def _stall_shell(surf, sx, base_y, night, *, awning=("terra", "cream"),
     for px in (sx - half_w + 3, sx + half_w - 3):
         pygame.draw.rect(surf, post, (px - 1, post_top, 3, base_y - post_top))
         pygame.draw.line(surf, post_dk, (px + 1, post_top), (px + 1, base_y), 1)
-    wall = _mix((150, 132, 110), (150, 124, 96), 0.5)
-    wall = _mix(wall, (56, 62, 88), 0.32 * night)
-    pygame.draw.rect(surf, _shade(wall, -10),
-                     (sx - half_w + 4, post_top + 2, (half_w - 4) * 2, 13))
+    if openness >= 0.5:
+        wall = _mix((150, 132, 110), (150, 124, 96), 0.5)
+        wall = _mix(wall, (56, 62, 88), 0.32 * night)
+        pygame.draw.rect(surf, _shade(wall, -10),
+                         (sx - half_w + 4, post_top + 2, (half_w - 4) * 2, 13))
     if roof:
-        _flat_awning(surf, sx, post_top, half_w, night, awning)
-    counter = _mix((120, 84, 52), (60, 66, 92), 0.30 * night)
-    counter_lt = _shade(counter, 16)
+        if openness >= 0.5:
+            _flat_awning(surf, sx, post_top, half_w, night, awning)
+        else:
+            # crossbar + the awning as a rolled tube waiting to be unfurled
+            aw = half_w + 1
+            ay = post_top - 4
+            pygame.draw.rect(surf, _mix((110, 80, 50), (60, 66, 92), 0.3 * night),
+                             (sx - aw - 1, ay - 2, aw * 2 + 2, 2))
+            roll = _mix((198, 86, 66), (70, 70, 96), min(0.6, 0.9 * night))
+            pygame.draw.rect(surf, _shade(roll, -14), (sx - aw + 2, ay, aw * 2 - 4, 3))
+            pygame.draw.line(surf, _shade(roll, 14), (sx - aw + 2, ay), (sx + aw - 3, ay), 1)
     cy = base_y - counter_h
-    pygame.draw.rect(surf, counter, (sx - half_w + 1, cy, (half_w - 1) * 2, counter_h))
-    pygame.draw.rect(surf, counter_lt, (sx - half_w + 1, cy, (half_w - 1) * 2, 2))
-    pygame.draw.rect(surf, _shade(counter, -22),
-                     (sx - half_w + 1, base_y - 4, (half_w - 1) * 2, 4))
-    if sign:
+    if openness >= 0.25:
+        counter = _mix((120, 84, 52), (60, 66, 92), 0.30 * night)
+        counter_lt = _shade(counter, 16)
+        pygame.draw.rect(surf, counter, (sx - half_w + 1, cy, (half_w - 1) * 2, counter_h))
+        pygame.draw.rect(surf, counter_lt, (sx - half_w + 1, cy, (half_w - 1) * 2, 2))
+        pygame.draw.rect(surf, _shade(counter, -22),
+                         (sx - half_w + 1, base_y - 4, (half_w - 1) * 2, 4))
+    if sign and openness >= 0.5:
         col = _cap150(_retint(sign, night))
         bx = sx - half_w + 6
         by = post_top + 1
@@ -150,8 +168,10 @@ def _stall_shell(surf, sx, base_y, night, *, awning=("terra", "cream"),
 
 # ── the five stalls — (surf, sx, base_y, night, t) ────────────────────────────
 
-def stall_steamer(surf, sx, base_y, night, t):
-    cy = _stall_shell(surf, sx, base_y, night, awning=("terra", "cream"), sign=(190, 150, 90))
+def stall_steamer(surf, sx, base_y, night, t, openness=1.0):
+    cy = _stall_shell(surf, sx, base_y, night, awning=("terra", "cream"), sign=(190, 150, 90), openness=openness)
+    if openness < 0.5:
+        return
     stove = _retint((86, 70, 60), night)
     pygame.draw.rect(surf, stove, (sx - 10, cy - 6, 20, 6))
     pygame.draw.rect(surf, _shade(stove, -20), (sx - 10, cy - 6, 20, 6), 1)
@@ -183,8 +203,10 @@ def stall_steamer(surf, sx, base_y, night, t):
           phase=0.5, peak_a=58, r0=2, sway=2.6, color=_steam_col(night))
 
 
-def stall_cauldron(surf, sx, base_y, night, t):
-    cy = _stall_shell(surf, sx, base_y, night, awning=("indigo", "cream"), sign=(168, 96, 80))
+def stall_cauldron(surf, sx, base_y, night, t, openness=1.0):
+    cy = _stall_shell(surf, sx, base_y, night, awning=("indigo", "cream"), sign=(168, 96, 80), openness=openness)
+    if openness < 0.5:
+        return
     brick = _retint((150, 96, 70), night)
     pygame.draw.rect(surf, brick, (sx - 13, cy - 8, 26, 8))
     pygame.draw.rect(surf, _shade(brick, -22), (sx - 13, cy - 8, 26, 8), 1)
@@ -219,8 +241,10 @@ def stall_cauldron(surf, sx, base_y, night, t):
           phase=0.5, peak_a=62, r0=2, sway=3.0, color=_steam_col(night))
 
 
-def stall_grill(surf, sx, base_y, night, t):
-    cy = _stall_shell(surf, sx, base_y, night, awning=("rust", "cream"), sign=(176, 110, 70))
+def stall_grill(surf, sx, base_y, night, t, openness=1.0):
+    cy = _stall_shell(surf, sx, base_y, night, awning=("rust", "cream"), sign=(176, 110, 70), openness=openness)
+    if openness < 0.5:
+        return
     metal = _retint((52, 50, 56), night)
     metal_d = _shade(metal, -16)
     trough = pygame.Rect(sx - 17, cy - 10, 34, 8)
@@ -268,8 +292,10 @@ def stall_grill(surf, sx, base_y, night, t):
             surf.blit(lay, (ex, ey), special_flags=pygame.BLEND_RGB_ADD)
 
 
-def stall_wok(surf, sx, base_y, night, t):
-    cy = _stall_shell(surf, sx, base_y, night, awning=("jade", "cream"), sign=(150, 120, 70))
+def stall_wok(surf, sx, base_y, night, t, openness=1.0):
+    cy = _stall_shell(surf, sx, base_y, night, awning=("jade", "cream"), sign=(150, 120, 70), openness=openness)
+    if openness < 0.5:
+        return
     stove = _retint((70, 64, 64), night)
     stove_d = _shade(stove, -20)
     pygame.draw.polygon(surf, stove, [(sx - 8, cy - 9), (sx + 8, cy - 9), (sx + 11, cy), (sx - 11, cy)])
@@ -308,8 +334,10 @@ def stall_wok(surf, sx, base_y, night, t):
           phase=0.5, peak_a=54, r0=1, sway=2.8, color=_steam_col(night))
 
 
-def stall_tea(surf, sx, base_y, night, t):
-    cy = _stall_shell(surf, sx, base_y, night, awning=("bamboo", "indigo"), sign=(176, 96, 80))
+def stall_tea(surf, sx, base_y, night, t, openness=1.0):
+    cy = _stall_shell(surf, sx, base_y, night, awning=("bamboo", "indigo"), sign=(176, 96, 80), openness=openness)
+    if openness < 0.5:
+        return
     if night > 0.05:
         _warm_glow(surf, sx - 6, cy - 3, radius=6, peak=40, color=(150, 92, 46))
     warmer = _retint((92, 76, 64), night)

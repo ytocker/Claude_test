@@ -1082,24 +1082,57 @@ def _scene_market(emit, bx, pal, t, rng, pick=None):
     emit(TB_CAST, lambda s, kv=kv: draw_kids(s, bx + 152, pal, t=t, n=2, variant=kv))
 
 
-def draw_food_stall(surf, sx, pal, *, t=0.0, kind="steamer"):
+def draw_food_stall(surf, sx, pal, *, t=0.0, kind="steamer", openness=1.0):
     """One food-market stall structure (steamer/cauldron/grill/wok/tea) from
     food_stalls, feet/base on GROUND_Y, centred on `sx`. A far-lane STRUCTURE; the
     working vendor is placed separately (CAST) so it sorts in front of the booth."""
     fn, _pose = _food.STALLS.get(kind, _food.STALLS["steamer"])
-    fn(surf, sx, GROUND_Y - 1, _nightf(pal), t)
+    fn(surf, sx, GROUND_Y - 1, _nightf(pal), t, openness=openness)
+
+
+def _stall_openness(phase, u):
+    """The market-assembly timeline: how built a stall is at `phase`, with `u` in
+    [0,1) the stall's dealt stagger so the market closes raggedly from both ends
+    rather than on one frame. By day a placed stall is simply open; from sunset
+    the frames go up bare, dress through the rain (the vendors carted everything
+    here — they work through it), peak open in the clear night window, then run a
+    visible staggered close as the flakes arrive."""
+    p = phase % 1.0
+    if p < 0.416 or p >= 0.924:
+        return 1.0                     # daytime / first-light stalls: open
+    if p < 0.452:
+        return 0.35                    # carts arrive — bare frames, rolled awnings
+    if p < 0.483:
+        return 0.6                     # dressing: awnings unrolled, goods going on
+    if p < 0.694:
+        return 0.7                     # rained-on setup: open, working under it
+    if p < 0.785:
+        return 1.0                     # the night-market peak
+    start = 0.785 + u * 0.035          # staggered close-down (~0-14 s spread)
+    if p < start:
+        return 1.0
+    return max(0.0, 1.0 - (p - start) / 0.02)
 
 
 def _scene_food(emit, bx, pal, t, kind, vendor_variant, rng, *, pick=None, cust_salt=0):
     """A food stall + the vendor working it (fixed pose: fanner at the grill,
     ladler at the cauldron, etc.) + a browsing customer, and critters foraging the
-    scraps (pigeons mostly, sometimes a market cat or a hen) so it reads alive."""
+    scraps (pigeons mostly, sometimes a market cat or a hen) so it reads alive.
+    The stall's assembly state follows the market timeline; its people follow the
+    state (a bare frame has its builder, an open stall has its trade)."""
+    u = rng.random()
+    openness = _stall_openness(_CUR_PHASE, u)
+    if openness <= 0.05:
+        return                          # struck and carried off
     cust = pick('pedestrian', cust_salt) if pick else 0
     crit = rng.choice(('pigeons', 'pigeons', 'cat', 'hen'))
-    emit(TB_STRUCTURE, lambda s: draw_food_stall(s, bx, pal, t=t, kind=kind))
-    emit(TB_CAST, lambda s: draw_vendor(s, bx - 6, pal, t=t, variant=vendor_variant))
-    emit(TB_CAST, lambda s, crit=crit: draw_critter(s, bx + 16, pal, t=t, kind=crit))
-    emit(TB_CAST, lambda s, cust=cust: draw_strollers(s, bx + 36, pal, t=t, variant=cust))
+    emit(TB_STRUCTURE, lambda s: draw_food_stall(s, bx, pal, t=t, kind=kind,
+                                                 openness=openness))
+    if openness >= 0.30:
+        emit(TB_CAST, lambda s: draw_vendor(s, bx - 6, pal, t=t, variant=vendor_variant))
+    if openness >= 0.80:
+        emit(TB_CAST, lambda s, crit=crit: draw_critter(s, bx + 16, pal, t=t, kind=crit))
+        emit(TB_CAST, lambda s, cust=cust: draw_strollers(s, bx + 36, pal, t=t, variant=cust))
 
 
 def _scene_food_grill(emit, bx, pal, t, rng, pick=None):
