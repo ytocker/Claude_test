@@ -88,18 +88,22 @@ _SHADOW_CACHE = {}
 
 
 def _shadow(surf, cx, feet_y, wpx, night):
-    """Soft contact ellipse under a cast figure — the grounding cue that
-    separates a low-contrast figure from the paving without touching either's
-    colour (the mid-walk tiers otherwise wash out against the darker back
-    plate and the lantern pools at night)."""
-    a = 55 - int(20 * min(1.0, night))
-    key = (wpx, a)
+    """Soft contact pool under a cast figure — the grounding cue that separates
+    a low-contrast figure from the paving without touching either's colour. By
+    day it is a dark cast shadow; after dusk the cue INVERTS to a faint pale
+    pool (lantern spill), because a dark ellipse does nothing on dark wet
+    stone — exactly the frames that need grounding most. Height tracks width
+    (~5:1) so a wide figure gets a pool, not a smear."""
+    dark = night < 0.5
+    h = max(3, wpx // 5)
+    key = (wpx, dark)
     sp_ = _SHADOW_CACHE.get(key)
     if sp_ is None:
-        sp_ = pygame.Surface((wpx, 4), pygame.SRCALPHA)
-        pygame.draw.ellipse(sp_, (18, 20, 30, a), (0, 0, wpx, 4))
+        sp_ = pygame.Surface((wpx, h), pygame.SRCALPHA)
+        col = (18, 20, 30, 55) if dark else (216, 224, 240, 34)
+        pygame.draw.ellipse(sp_, col, (0, 0, wpx, h))
         _SHADOW_CACHE[key] = sp_
-    surf.blit(sp_, (cx - wpx // 2, feet_y - 2))
+    surf.blit(sp_, (cx - wpx // 2, feet_y - h // 2 - 1))
 
 # ── weather the street reacts to ─────────────────────────────────────────────
 #
@@ -607,6 +611,19 @@ def draw_strollers(surf, sx, pal, *, t=0.0, umbrella=None, variant=0):
     _ped._draw_one(surf, sx, GROUND_Y - 1, pal, v, night, t)
 
 
+def _draw_shelterer(surf, sx, pal, *, t=0.0, h=0):
+    """One huddled umbrella-holder under the standard far-cast drawer contract
+    (colours dealt from the slot hash `h`), so shelterers ride the depth law's
+    bake like the rest of the cast."""
+    night = _nightf(pal)
+    base = (78 + (h >> 2 & 63), 84 + (h >> 5 & 55), 108 + (h >> 8 & 47))
+    shirt = _retint_person(base, night)
+    body_y = GROUND_Y - 1 - 8 - 3
+    _draw_bench_person(surf, sx, body_y, shirt, _shade(shirt, -34),
+                       _retint_person((60, 45, 38), night), night=night)
+    _draw_umbrella(surf, sx + 3, body_y - 6, (h >> 2), night=night)
+
+
 def _shelter_figures(surf, w, scroll, pal, t):
     """A few people standing huddled under umbrellas at stable world slots, shown
     only once the open deck has emptied (heavy rain / real snow) — so the street
@@ -616,26 +633,22 @@ def _shelter_figures(surf, w, scroll, pal, t):
     sev = max(_CUR_RAIN, _CUR_SNOW)
     if sev < 0.45:
         return
-    night = _nightf(pal)
     for sx, k in sp._world_xs(scroll, w, 250, x0=30, mult=sp.GROUND_MULT, margin=40):
         h = (k * 0x9E3779B1) & 0xFFFFFFFF
         if (h & 3) != 0:                       # ~1 in 4 slots is occupied
             continue
         bx = sx + 6 + (h >> 4 & 7)
-        base = (78 + (h >> 6 & 63), 84 + (h >> 9 & 55), 108 + (h >> 12 & 47))
-        shirt = _retint_person(base, night)
-        shirt_dk = _shade(shirt, -34)
-        hair = _retint_person((60, 45, 38), night)
-        # Standing still (sheltering) — no gait, feet planted on the kerb.
-        body_y = GROUND_Y - 1 - 8 - 3
-        def _figure(s, bx=bx, body_y=body_y, shirt=shirt, shirt_dk=shirt_dk,
-                    hair=hair, h=h):
-            _draw_bench_person(s, bx, body_y, shirt, shirt_dk, hair, night=night)
-            _draw_umbrella(s, bx + 3, body_y - 6, (h >> 2), night=night)
-        # Shelterers spread through the walk's depth like any other cast.
-        dy = 2 + (h >> 16 & 7) + (h >> 20 & 3)          # 2..12, stable per slot
-        _zbuf.enqueue(GROUND_Y - 1 + dy, TB_CAST,
-                      lambda s, f=_figure, d=dy: f(_sunk(s, d)))
+        # Shelterers spread through the walk's depth on the band's tier pitch
+        # and ride the shared bake so they scale, dim, and shadow like any
+        # other cast.
+        d_eff = _FAR_TIER_DY[(h >> 16) % 3]
+        fyc = GROUND_Y - 1 + d_eff
+
+        def _fig(s, bx=bx, h=h, fyc=fyc, d_eff=d_eff):
+            from game import foreground_near_lane as _nl
+            _nl._scaled_cast(s, _draw_shelterer, bx, _CUR_PAL,
+                             1.0 + 0.0134 * d_eff, feet_y=fyc, h=h & 0xFFFF)
+        _zbuf.enqueue(fyc, TB_CAST, _fig)
 
 
 # ── KIOSK / vendor stall: a pagoda-roofed market stall ───────────────────────
@@ -1007,9 +1020,10 @@ def _ground_furniture(surf, w, scroll, pal, fd=1.0):
 # world-anchored, no flicker (same idiom as the mountain-ornament fix). Members
 # animate in place from the live clock `t`; positions ride the scroll.
 
-_SCENARIO_PERIOD = 640          # world-px between scene SLOTS -> lots of open road;
-                                # most calm slots are also empty (density gate), so a
-                                # vignette is an occasional event, not a metronome.
+_SCENARIO_PERIOD = 384          # world-px between scene SLOTS — dense enough that a
+                                # busy hour keeps ~1 vignette on screen (the depth
+                                # ladder needs bodies to sort); calm hours still read
+                                # open because the density gate empties most slots.
 _SCENE_MARGIN = 220             # wide enough to slide a whole scene in/out smoothly
 
 # ── re-themed cast + hero beats (Chinese market) ──────────────────────────────
@@ -1437,8 +1451,9 @@ def _scene_pastoral(emit, bx, pal, t, rng, pick=None):
                                dict(t=t, kind=rng.choice(('pigeons', 'cat', 'hen', 'duck')))))
 
 def _scene_lamplighter(emit, bx, pal, t, rng, pick=None):
-    """A lamplighter kindling the street lanterns at dusk."""
-    emit(TB_CAST, lambda s: draw_lamplighter(s, bx, pal, t=t), dy=2)
+    """A lamplighter kindling the street lanterns at dusk — on the back kerb,
+    where the lamps stand."""
+    emit(TB_CAST, dy=0, cast=(draw_lamplighter, bx, dict(t=t)))
 
 def _scene_dawn_setup(emit, bx, pal, t, rng, pick=None):
     """Vendors assembling the morning market."""
@@ -1498,17 +1513,25 @@ def _happenings(surf, scroll, pal, phase, t):
             bob = 1 if (k > 0.62 and int(t * 6) % 2) else 0
             _zbuf.enqueue(GROUND_Y + 8, TB_CAST, lambda s, sx=sx, spill=spill: (
                 pygame.draw.rect(s, spill, (sx - 2, GROUND_Y + 6, 4, 2))))
-            _zbuf.enqueue(GROUND_Y + 8, TB_CAST,
-                          lambda s, dog_x=dog_x, bob=bob: draw_dog(
-                              _sunk(s, 9), dog_x, pal, t=t, variant=2 + bob))
+
+            def _hdog(s, dog_x=dog_x, bob=bob):
+                from game import foreground_near_lane as _nl
+                _nl._scaled_cast(s, draw_dog, dog_x, pal, 1.0 + 0.0134 * 9,
+                                 feet_y=GROUND_Y + 8, t=t, variant=2 + bob)
+            _zbuf.enqueue(GROUND_Y + 8, TB_CAST, _hdog)
+
+
+def draw_sweeper_cast(surf, sx, pal, *, t=0.0, ph=0.0):
+    """Signature adapter: the weekend kit's sweeper under the standard far-cast
+    drawer contract, so it rides the depth law's bake like everyone else."""
+    _wkit.draw_sweeper(surf, sx, GROUND_Y - 1, _nightf(pal), t, phase=ph, pal=pal)
 
 
 def _scene_sweeper(emit, bx, pal, t, rng, pick=None):
     """The first inhabitant of the morning: the sweeper working a besom over
     yesterday's street, pile inching ahead of the twigs."""
     ph = rng.random() * 1.3
-    emit(TB_CAST, lambda s: _wkit.draw_sweeper(s, bx, GROUND_Y - 1, _nightf(pal),
-                                               t, phase=ph, pal=pal), dy=8)
+    emit(TB_CAST, dy=9, cast=(draw_sweeper_cast, bx, dict(t=t, ph=round(ph, 2))))
 
 
 def _scene_bench(emit, bx, pal, t, rng, pick=None):
@@ -1539,7 +1562,7 @@ def _scene_stroll(emit, bx, pal, t, rng, pick=None):
 
 def _scene_rest(emit, bx, pal, t, rng, pick=None):
     """A napper on a mat."""
-    emit(TB_CAST, lambda s: draw_napper(s, bx, pal, t=t), dy=6)
+    emit(TB_CAST, dy=9, cast=(draw_napper, bx, dict(t=t)))
 
 def _scene_campfire(emit, bx, pal, t, rng, pick=None):
     """A campfire with cozy pool adults + kids gathered (lit by the drawer at night)."""
@@ -1957,21 +1980,18 @@ def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
                 if cast is not None:
                     drawer, x, kw = cast
                     d_eff = _FAR_TIER_DY[max(0, min(2, _far_tier(dy) + tshift))]
-                    if d_eff:
-                        fyc = GROUND_Y - 1 + d_eff
-                        sc = 1.0 + 0.0134 * d_eff
+                    fyc = GROUND_Y - 1 + d_eff
+                    sc = 1.0 + 0.0134 * d_eff
 
-                        def _draw(s, drawer=drawer, x=x, kw=kw, fyc=fyc, sc=sc):
-                            # _scaled_cast draws the contact shadow itself.
-                            from game import foreground_near_lane as _nl
-                            _nl._scaled_cast(s, drawer, x, _CUR_PAL, sc,
-                                             feet_y=fyc, **kw)
-                        _zbuf.enqueue(fyc, tier, _draw)
-                    else:
-                        def _draw(s, drawer=drawer, x=x, kw=kw):
-                            _shadow(s, x, GROUND_Y - 1, 16, _nightf(_CUR_PAL))
-                            drawer(s, x, _CUR_PAL, **kw)
-                        _zbuf.enqueue(GROUND_Y - 1, tier, _draw)
+                    def _draw(s, drawer=drawer, x=x, kw=kw, fyc=fyc, sc=sc):
+                        # _scaled_cast draws the contact shadow + aerial dim +
+                        # outline itself; the back kerb goes through the same
+                        # bake at scale 1.0 so the band's value ladder has no
+                        # native/baked seam.
+                        from game import foreground_near_lane as _nl
+                        _nl._scaled_cast(s, drawer, x, _CUR_PAL, sc,
+                                         feet_y=fyc, **kw)
+                    _zbuf.enqueue(fyc, tier, _draw)
                     return
                 if dy:
                     _zbuf.enqueue(GROUND_Y - 1 + dy, tier,

@@ -171,7 +171,9 @@ def plant_scheme(world_x):
     b = int(world_x // BLOCK_PX)
     h = _mix((b * 0xB5297A4D) ^ _run_seed ^ 0x9E37)
     r = h & 0xFF
-    cadence = 0 if r < 38 else (2 if r < 128 else 1)
+    # Mostly full rows: lamp–tree–lamp only reads as a rhythm when most lamp
+    # gaps actually hold a tree, so unplanted stretches are the exception.
+    cadence = 0 if r < 20 else (2 if r < 84 else 1)
     return cadence, (h >> 8) & 0xFFFF, ((h >> 24) & 0xFF) < 76
 
 

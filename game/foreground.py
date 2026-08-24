@@ -120,17 +120,19 @@ def draw_ground_weather(surf, scroll, pal, wetness, snow_cover):
 
 
 def draw_promenade(surf, scroll, pal, phase, t):
-    """Draw the FAR promenade props + living cast on the sidewalk, depth-sorted by
-    feet-Y. Flushed here (in _draw_background, before the gameplay pillars) so the
-    far lane sits BEHIND the pillars, as it always has."""
+    """Enqueue the FAR promenade props + living cast, then flush ONLY the
+    back-kerb entries (feet <= 594, where the pillar bases sit) behind the
+    pillars. Cast sunk INTO the walk stays queued — a figure standing in front
+    of a pillar's ground line must not draw behind the pillar — and paints in
+    draw_near_lane's front pass, y-sorted together with the near crowd."""
     _zbuf.reset()
     _promenade.draw_promenade(surf, scroll, pal, phase, t)   # enqueue only
-    _zbuf.flush(surf)
+    _zbuf.flush(surf, up_to=GROUND_Y - 1)
 
 
 def draw_near_lane(surf, scroll, pal, phase, t):
-    """Draw the NEAR/front activity lane, depth-sorted by feet-Y. Flushed here —
-    relocated in scenes._render to run AFTER the gameplay pillars — so near-lane
-    plants/people (feet lower on screen) occlude the pillar bases."""
+    """Draw everything deeper than the back kerb — the far lane's sunk cast
+    plus the whole near lane — in ONE y-sorted pass. Runs AFTER the gameplay
+    pillars in scenes._render, so all of it correctly occludes pillar bases."""
     _near.draw_near_lane(surf, scroll, pal, phase, t, crowd=_crowd)  # enqueue only
     _zbuf.flush(surf)

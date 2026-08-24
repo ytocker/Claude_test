@@ -31,9 +31,9 @@ _FAMILY = {"stroller": "pedestrian", "kids": "kid", "dog": "dog"}
 _SALT = {"stroller": 31, "kids": 41, "dog": 51}   # match the legacy per-row salts
 _GAIT_RATE = {"stroller": 1.0, "kids": 1.2, "dog": 1.9}
 
-_NEAR_CAP = 10             # hard ceiling regardless of density (perf)
-_BASE_N = 6               # target near-lane living count at full density
-_MARKET_N = 9             # fuller front lane through the night-market window
+_NEAR_CAP = 18             # hard ceiling regardless of density (perf)
+_BASE_N = 12              # target near-lane living count at full density
+_MARKET_N = 16            # fuller front lane through the night-market window
 _SPAWN_MARGIN = 120       # spawn/cull this far off the screen edges (world px)
 _SPAWN_COOLDOWN = 0.35    # min seconds between spawns (so they don't enter as a wall)
 _LEAVE_STAGGER = 0.8      # seconds between departures when the street empties
@@ -125,10 +125,12 @@ class SidewalkCrowd:
         e.facing = 1 if e.walk_vel > 0 else -1
         e.wave = 0.0
         # Depth across the front walk, dealt for the entity's whole life: 0 =
-        # the walk's mid-line, 1 = the kerb nearest the camera. Bottom-weighted
-        # so the front edge stays the busiest but no longer the only line, and
-        # nearer figures drift a touch faster for a cheap parallax read.
-        e.depth = random.random() ** 0.6
+        # the walk's mid-line, 1 = the kerb nearest the camera. Mildly
+        # bottom-weighted — the front edge stays the busiest, but every tier
+        # gets real traffic (a steeper curve starved the back tiers so the
+        # depth ladder had nothing to show) — and nearer figures drift a touch
+        # faster for a cheap parallax read.
+        e.depth = random.random() ** 0.85
         e.walk_vel *= 0.90 + 0.10 * e.depth
         self.near.append(e)
 

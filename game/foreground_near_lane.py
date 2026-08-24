@@ -249,11 +249,17 @@ def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y,
     # loop collapses the key space to _CAST_WRAP frames per variant (the once-
     # per-8 s phase seam is invisible at this figure scale).
     tb = int(t * _CAST_FPS) % _CAST_WRAP
+    # Aerial perspective: the dim deepens with distance from the front kerb, so
+    # the band's value ladder agrees with its size ladder (a flat dim left the
+    # deepest tier the brightest — an inverted depth cue). ~2% per 9 px tier;
+    # the front kerb keeps the original 240 don't-outshine-the-parrot cap.
+    dv = 240 - int(max(0, NEAR_GROUND_Y - feet_y) * 0.52)
+    night = _nightf(pal)
     # Key on the biome phase BUCKET (set per frame by draw_near_lane), not id(pal):
     # the play palette is a fresh dict every frame, so id(pal) only ever hits within
     # a frame -- bucketing lets the bake survive across frames.
     key = (cast_fn.__name__, foot_w, foot_h, ss, smooth, pr._CUR_BUCKET, tb, flip,
-           tuple(sorted(kw.items())))
+           dv, tuple(sorted(kw.items())))
 
     def _render(scratch):
         deck = render_box[1] - 1         # scratch deck near the bottom edge
@@ -263,17 +269,32 @@ def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y,
             cast_fn(scratch, render_box[0] // 2, pal, t=tb / _CAST_FPS, **kw)
         finally:
             pr.GROUND_Y = saved
+        # 1 px silhouette outline, baked with the figure: dark against day
+        # paving, pale after dusk (when the wet/dark ground swallows a dark
+        # edge) — the floor that keeps a figure findable at the low-contrast
+        # tiers regardless of its own fabric colours.
+        oc = (26, 30, 42, 130) if night < 0.45 else (172, 182, 202, 120)
+        try:
+            m = pygame.mask.from_surface(scratch)
+            wmax, hmax = scratch.get_size()
+            for px, py in m.outline(2):
+                for nx, ny_ in ((px - 1, py), (px + 1, py), (px, py - 1), (px, py + 1)):
+                    if (0 <= nx < wmax and 0 <= ny_ < hmax
+                            and scratch.get_at((nx, ny_)).a == 0):
+                        scratch.set_at((nx, ny_), oc)
+        except (pygame.error, IndexError):
+            pass
 
     # A LARGE near figure shouldn't pull focus from the parrot: knock its
     # brightest fabric down ~6% (applied pre-resample so a smoothscale averages
     # already-dimmed pixels).
     big = _spr.baked_sprite(key, render_box, (foot_w, foot_h), _render,
-                            dim=(240, 240, 240), smooth=smooth, flip=flip)
+                            dim=(dv, dv, dv), smooth=smooth, flip=flip)
     sw, _sh = big.get_size()
     # Contact shadow first, so every baked figure (crowd, performers, far-lane
     # scaled cast) is grounded and stays separable from the paving at the
     # low-contrast tiers.
-    pr._shadow(surf, sx, feet_y - 1, max(12, int(18 * scale)), _nightf(pal))
+    pr._shadow(surf, sx, feet_y - 1, max(12, int(18 * scale)), night)
     surf.blit(big, (sx - sw // 2, feet_y - foot_h))
 
 
