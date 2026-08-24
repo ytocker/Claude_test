@@ -170,6 +170,11 @@ def _sil_class(v: Variant) -> str:
     a = v.attrs.get("arch", "")
     if a in ("pole", "yoke", "headload"):
         return "carry"
+    if a in ("rod", "barrow", "pipa"):
+        # Each of these owns its own outline event (steep diagonal / deck-level
+        # cart / chest bulge) — lumping them under "carry" would let the recency
+        # rule place a fisherman right after a barrow and read them as one class.
+        return a
     if v.attrs.get("stoop", 0.0) > 0.05:
         return "stooped"
     if v.attrs.get("height", 1.0) >= 1.04:

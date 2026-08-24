@@ -474,7 +474,9 @@ def _place_greenery(surf, pal):
     # lone pots — show a few across the deck, varied by slot key so the frame carries
     # both the 3-pot triad (even k) and the 2-pot pair (odd k) footprints.
     for sx, k in [(70, 0), (200, 3), (322, 2)]:
-        fp._draw_greenery_cluster(surf, sx, pal, k)
+        fp._bed_base(surf, sx, k, pal)
+        for idx, xo, dy in fp._bed_layout(k):
+            fp._grn_at(surf, sx + xo, idx, dy)
     _ambient_strollers(surf, pal, 1.0, [130, 264])
 
 

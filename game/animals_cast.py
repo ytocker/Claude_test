@@ -1,17 +1,17 @@
 """Promenade ANIMALS — a varied dog pool + street critters.
 
-Replaces the single repeated street dog with a 5-strong 'dog' pool (lean hound /
-short-leg dash / fluffy spitz / stocky shiba / droopy long-ear pup) whose breed
-read lives entirely in the OUTLINE (proportion + tail + ear + muzzle), plus a
-'critter' pool (sitting cat / pecking hen / pigeon trio / waddling duck), each
-with its own t-driven idle motion. Art-director SHIP-READY
-(docs/sidewalk_overhaul/animals/round_2.png), sibling to the ped_cast / day_cast /
-food_stalls families.
+A 9-strong 'dog' pool over one parametric drawer — mostly strays and mongrels
+with the odd recognisable house dog, because dog sightings are rare enough that
+each one has to read as a fresh animal. Breed lives entirely in the OUTLINE
+(proportion + tail + ear + muzzle + ragged-edge attrs: a village dog's give-away
+is the broken outline, never the coat colour). Plus a 7-strong 'critter' pool
+(sitting cat / pecking hen / pigeon trio / waddling duck / stilt-leg crane /
+rooting piglet / long-ear rabbit), each with its own t-driven idle motion.
+Sibling to the ped_cast / day_cast / food_stalls families.
 
 Drawn CRISP at native size (no smoothscale). Night cooling toward (54,64,96) with
 an extra pull on pale coats so nothing breaches the 150 luma cap — the gold coin
-stays the sole brightest element (measured hottest animal pixel 144.5 vs coin
-231). Pure-Pygame / pygbag-safe.
+stays the sole brightest element. Pure-Pygame / pygbag-safe.
 """
 from __future__ import annotations
 
@@ -69,6 +69,10 @@ def draw_dog(surf, cx, base_y, v, night, t):
     chestf = A.get("chest", 1.0)
     headf = A.get("head", 1.0)
     fluffy = A.get("fluffy", False)
+    scruffy = A.get("scruffy", False)
+    ruffcrop = A.get("ruffcrop", False)
+    mane = A.get("mane", False)
+    skirtcoat = A.get("skirtcoat", False)
     tail = A.get("tail", "low")
     ear = A.get("ear", "drop")
     muzzle = A.get("muzzle", "med")
@@ -115,6 +119,23 @@ def draw_dog(surf, cx, base_y, v, night, t):
         pygame.draw.lines(surf, coat_dk, False, [
             (tx - 1, body_cy), (tx + int(sh_h * 0.55), body_cy + int(sh_h * 0.22)),
             (tx + int(sh_h * 0.80), body_cy + int(sh_h * 0.60) + sway)], 1)
+    elif tail == "streetlow":
+        # A tail hung almost straight DOWN off the rump — the universal "this dog
+        # is not anybody's pet" read, and the cheapest way to re-dress a shipped
+        # breed as a stray without touching its proportions.
+        pygame.draw.lines(surf, tcol, False, [
+            (tx - 1, body_cy + 1), (tx + int(sh_h * 0.22), body_cy + int(sh_h * 0.45)),
+            (tx + int(sh_h * 0.14) + sway, body_cy + int(sh_h * 0.85))], max(2, sh_h // 6))
+        pygame.draw.circle(surf, coat_dk,
+                           (tx + int(sh_h * 0.14) + sway, body_cy + int(sh_h * 0.85)), 1)
+    elif tail == "sickle":
+        # Carried up and curved back over the loin but NOT touching it — reads
+        # between the hound's sabre and the spitz's tight ring.
+        pygame.draw.lines(surf, tcol, False, [
+            (tx - 1, body_cy), (tx + int(sh_h * 0.5), body_cy - int(sh_h * 0.25)),
+            (tx + int(sh_h * 0.42), body_top - int(sh_h * 0.45) + sway)], max(2, sh_h // 6))
+        pygame.draw.circle(surf, coat_lt,
+                           (tx + int(sh_h * 0.42), body_top - int(sh_h * 0.45) + sway), 1)
     elif tail == "lowpup":
         pygame.draw.lines(surf, tcol, False, [
             (tx - 1, body_cy), (tx + int(sh_h * 0.32), body_cy + int(sh_h * 0.20)),
@@ -147,6 +168,54 @@ def draw_dog(surf, cx, base_y, v, night, t):
     if fluffy:
         for bxp in range(body_left + 2, body_right - 1, 2):
             pygame.draw.circle(surf, coat_lt, (bxp, body_top + 1), 1)
+    if scruffy:
+        # RAGGED OUTLINE: alternating tufts standing off the back line and a torn
+        # hip. Colour says nothing at 10px, but a broken edge says "stray" instantly
+        # — and it survives the crisp far-lane downscale because it IS the outline.
+        # 2px wide: a 1px tuft is the first thing a nearest downscale throws away,
+        # which left the far lane with a smooth back and no stray read at all.
+        for k, bxp in enumerate(range(body_left + 2, body_right - 1, 3)):
+            up = 1 + (k % 2)
+            pygame.draw.line(surf, coat_dk, (bxp, body_top + 1), (bxp - 1, body_top - up), 2)
+        pygame.draw.line(surf, coat_dk, (body_right - 2, body_cy),
+                         (body_right + 1, body_cy + 2), 2)
+        pygame.draw.line(surf, coat_dk, (body_left + 2, body_top + body_h - 2),
+                         (body_left, body_top + body_h + 1), 2)
+    if ruffcrop:
+        # A stray's ruff wears away unevenly — thick over the withers, rubbed back
+        # to the skin on the throat side. The flat-bottomed, back-heavy collar is
+        # an ASYMMETRIC outline event, which is what stops a re-dressed breed from
+        # reading as nothing more than the same dog in a duller colour.
+        rr = max(3, int(head_r * 1.35))
+        rx = body_left + max(1, head_r // 2)
+        ry = body_top + max(1, int(body_h * 0.30))
+        collar = [(rx - rr * 0.55, ry - rr * 0.85), (rx + rr * 0.85, ry - rr * 0.75),
+                  (rx + rr * 0.75, ry + rr * 0.25), (rx - rr * 0.15, ry + rr * 0.35),
+                  (rx - rr * 0.95, ry - rr * 0.05)]
+        pygame.draw.polygon(surf, _mix(coat, belly, 0.30), collar)
+        pygame.draw.polygon(surf, coat_dk, collar, 1)
+        for k in range(3):
+            sx0 = rx - rr * 0.45 + rr * 0.5 * k
+            pygame.draw.line(surf, coat_dk, (sx0, ry - rr * 0.8),
+                             (sx0 + 1, ry - rr * 1.35), 2)
+    if skirtcoat:
+        # A fringed coat falling to the deck: the legs disappear and the dog reads
+        # as a moving loaf. Nothing else in the pool loses its legs.
+        hem = ground - max(1, leg_h // 4)
+        skirt = [(body_right, body_top + body_h // 2)]
+        step = max(2, body_w // 6)
+        xx = body_right
+        k = 0
+        # The fringe alternates phase with the stride: without it a legless coat
+        # slides along like a dropped sack instead of walking under its own fur.
+        wob = 1 if gait > 0 else 0
+        while xx > body_left:
+            skirt.append((xx, hem - ((k + wob) % 2)))
+            xx -= step
+            k += 1
+        skirt.append((body_left, body_top + body_h // 2))
+        pygame.draw.polygon(surf, coat, skirt)
+        pygame.draw.lines(surf, coat_dk, False, skirt[1:-1], 1)
 
     hx = body_left - max(1, int(head_r * 0.3))
     hy = body_top + max(1, int(body_h * 0.1)) - max(1, int(sh_h * 0.18))
@@ -155,6 +224,17 @@ def draw_dog(surf, cx, base_y, v, night, t):
         (hx, hy + head_r), (hx - 1, hy - head_r // 2)])
     if fluffy:
         pygame.draw.circle(surf, coat_lt, (body_left + 1, body_cy), max(2, head_r - 1))
+    if mane:
+        # The ruff is drawn BEFORE the head so the head sits inside it: the whole
+        # front end becomes one big shaggy disc, which is the chow read in two
+        # dozen pixels.
+        mr = max(3, int(head_r * 1.5))
+        pygame.draw.circle(surf, _mix(coat, belly, 0.35), (hx + head_r // 2, hy + 1), mr)
+        for k in range(8):
+            a = k * math.pi / 4
+            pygame.draw.line(surf, coat_dk,
+                             (hx + head_r // 2 + math.cos(a) * (mr - 1), hy + 1 + math.sin(a) * (mr - 1)),
+                             (hx + head_r // 2 + math.cos(a) * (mr + 1), hy + 1 + math.sin(a) * (mr + 1)), 1)
     pygame.draw.circle(surf, coat, (hx, hy), head_r)
     pygame.draw.circle(surf, coat_dk, (hx, hy), head_r, 1)
 
@@ -162,6 +242,8 @@ def draw_dog(surf, cx, base_y, v, night, t):
         mlen = int(head_r * 1.4); mh = max(2, head_r - 1)
     elif muzzle == "short":
         mlen = max(2, int(head_r * 0.6)); mh = max(2, head_r)
+    elif muzzle == "flat":
+        mlen = 1; mh = max(2, head_r)
     else:
         mlen = max(3, int(head_r * 1.0)); mh = max(2, head_r - 1)
     mx = hx - head_r // 2 - mlen
@@ -182,6 +264,18 @@ def draw_dog(surf, cx, base_y, v, night, t):
     elif ear == "drop":
         pygame.draw.polygon(surf, coat_dk, [
             (hx + head_r // 2, hy - head_r + 1), (hx + head_r + 1, hy - head_r // 2), (hx + head_r - 1, hy + head_r)])
+    elif ear == "halfflop":
+        # One ear up, one folded over at the tip: an asymmetric head outline.
+        # Sub-pixel at street size (a 4x-zoom bonus, not the read) — the stray is
+        # carried by its hung tail, dust coat and ragged back line.
+        pygame.draw.polygon(surf, coat_dk, [
+            (hx, hy - head_r), (hx + head_r - 1, hy - int(head_r * 1.9)), (hx + head_r, hy - head_r // 3)])
+        pygame.draw.polygon(surf, _shade(coat_dk, -14), [
+            (hx + head_r * 0.6, hy - head_r), (hx + head_r * 1.6, hy - int(head_r * 1.3)),
+            (hx + head_r * 0.9, hy - int(head_r * 0.2))])
+        pygame.draw.line(surf, _shade(coat_dk, -22),
+                         (hx + head_r * 1.6, hy - int(head_r * 1.3)),
+                         (hx + head_r * 2.0, hy - int(head_r * 0.6)), 1)
     elif ear == "longdrop":
         sway2 = int(round(gait * 0.8))
         for depth, fx_off, shade in ((2.7, 1, 0), (2.4, -1, -16)):
@@ -199,7 +293,8 @@ def draw_dog(surf, cx, base_y, v, night, t):
 def draw_critter(surf, cx, base_y, v, night, t):
     kind = v.attrs.get("kind", "hen")
     {"cat": _crit_cat, "hen": _crit_hen, "pigeons": _crit_pigeons,
-     "duck": _crit_duck}[kind](surf, cx, base_y, v, night, t)
+     "duck": _crit_duck, "crane": _crit_crane, "piglet": _crit_piglet,
+     "rabbit": _crit_rabbit}[kind](surf, cx, base_y, v, night, t)
 
 
 def _crit_cat(surf, cx, base_y, v, night, t):
@@ -333,6 +428,124 @@ def _crit_duck(surf, cx, base_y, v, night, t):
     pygame.draw.circle(surf, (22, 20, 18), (hx - 1, hy - 1), 1)
 
 
+def _crit_crane(surf, cx, base_y, v, night, t):
+    """A tall wading bird: two stilt legs, a small high body, a long S-neck and a
+    spear bill, standing about twice the duck's height. It is the only VERTICAL
+    critter, so it never competes with the low pecking clumps. 2-beat: the neck
+    folds down to preen, then unfurls; one leg lifts on the slower half."""
+    pf = lambda c: _retint(c, night)
+    P = v.palette
+    body = pf(P.get("body", (188, 186, 178)))
+    body_dk = pf(P.get("body_dk", _shade(P["body"], -40)))
+    dark = pf(P.get("accent", (86, 84, 92)))
+    bill = pf((178, 150, 92))
+    leg = pf((120, 110, 96))
+    g = int(base_y)
+    dip = max(0.0, math.sin(t * 1.7))
+    lift = max(0.0, math.sin(t * 0.9 + 1.4))
+    body_h = 5
+    by = g - 11
+    for k, lx in enumerate((cx - 1, cx + 2)):
+        foot_y = g - (2 if (k == 1 and lift > 0.75) else 0)
+        knee_y = by + body_h + 2
+        pygame.draw.line(surf, leg, (lx, by + body_h - 1), (lx, knee_y), 1)
+        pygame.draw.line(surf, leg, (lx, knee_y), (lx + (1 if k else -1), foot_y), 1)
+        if foot_y >= g:
+            pygame.draw.line(surf, leg, (lx - 1, g), (lx + 1, g), 1)
+    bw = 8
+    pygame.draw.ellipse(surf, body, (cx - bw // 2, by, bw, body_h))
+    pygame.draw.ellipse(surf, body_dk, (cx - bw // 2, by, bw, body_h), 1)
+    pygame.draw.polygon(surf, dark, [
+        (cx + bw // 2 - 1, by + 1), (cx + bw // 2 + 3, by + 4), (cx + bw // 2 - 1, by + body_h)])
+    nx = cx - bw // 2 + 1
+    if dip > 0.6:
+        hx, hy = nx - 2, by + 2
+        pygame.draw.lines(surf, dark, False, [(nx, by + 1), (nx - 3, by - 1), (hx, hy)], 1)
+    else:
+        hx, hy = nx - 2, by - 7
+        pygame.draw.lines(surf, dark, False, [(nx, by + 1), (nx + 1, by - 4), (hx, hy)], 1)
+    pygame.draw.circle(surf, body, (int(hx), int(hy)), 2)
+    pygame.draw.circle(surf, dark, (int(hx), int(hy)), 2, 1)
+    pygame.draw.line(surf, bill, (hx - 1, hy), (hx - 5, hy + (1 if dip > 0.6 else 0)), 1)
+    pygame.draw.circle(surf, (24, 20, 18), (int(hx - 1), int(hy - 1)), 1)
+    pygame.draw.circle(surf, pf(P.get("crest", (150, 84, 76))), (int(hx + 1), int(hy - 2)), 1)
+
+
+def _crit_piglet(surf, cx, base_y, v, night, t):
+    """A low horizontal tube on four stubby legs with a blunt snout disc and a
+    curl of tail: the widest-for-its-height silhouette in the cast, the exact
+    opposite of the crane. 2-beat: the snout roots down into the deck and lifts,
+    tail flicking on the off-beat."""
+    pf = lambda c: _retint(c, night)
+    P = v.palette
+    body = pf(P.get("body", (196, 158, 152)))
+    body_dk = pf(P.get("body_dk", _shade(P["body"], -40)))
+    body_lt = _hi(body, 14, night)
+    snout = pf(P.get("accent", (176, 128, 126)))
+    g = int(base_y)
+    root = max(0.0, math.sin(t * 2.6))
+    bw, bh = 13, 5
+    by = g - bh - 1
+    pygame.draw.ellipse(surf, body, (cx - bw // 2, by, bw, bh))
+    pygame.draw.ellipse(surf, body_dk, (cx - bw // 2, by, bw, bh), 1)
+    pygame.draw.arc(surf, body_lt, (cx - bw // 2, by, bw, bh), math.radians(35), math.radians(150), 1)
+    for k, lx in enumerate((cx - bw // 2 + 2, cx - bw // 2 + 3, cx + bw // 2 - 3, cx + bw // 2 - 2)):
+        step = int(round(math.sin(t * 2.6 + k) * 0.6))
+        pygame.draw.line(surf, body_dk, (lx, by + bh - 1), (lx + step, g), 2)
+    curl = math.sin(t * 2.6 + 1.0)
+    tx = cx + bw // 2 - 1
+    pygame.draw.arc(surf, body, (tx - 1, by - 2, 5, 5),
+                    math.radians(-40 + curl * 25), math.radians(210 + curl * 25), 1)
+    hx = cx - bw // 2 - 1
+    hy = by + 1 + int(root * 2)
+    pygame.draw.circle(surf, body, (hx, hy), 3)
+    pygame.draw.circle(surf, body_dk, (hx, hy), 3, 1)
+    for sgn in (-1, 1):
+        pygame.draw.polygon(surf, body_dk, [
+            (hx + 1, hy - 2), (hx + 2 + sgn, hy - 4), (hx + 3, hy - 1)])
+    sx = hx - 3
+    pygame.draw.ellipse(surf, snout, (sx - 1, hy - 1, 3, 3))
+    pygame.draw.circle(surf, _shade(snout, -46), (sx, hy), 1)
+    pygame.draw.circle(surf, (26, 20, 20), (hx - 1, hy - 2), 1)
+
+
+def _crit_rabbit(surf, cx, base_y, v, night, t):
+    """A compact crouched ball with two LONG upright ears: a tiny body under an
+    outsized vertical pair, which nothing else in the cast has. 2-beat: a
+    nibbling head bob, with one ear twitching back on a slower cycle."""
+    pf = lambda c: _retint(c, night)
+    P = v.palette
+    fur = pf(P.get("body", (168, 154, 136)))
+    fur_dk = pf(P.get("body_dk", _shade(P["body"], -38)))
+    fur_lt = _hi(fur, 14, night)
+    ear_in = pf(P.get("accent", (166, 128, 124)))
+    g = int(base_y)
+    nib = max(0.0, math.sin(t * 4.2))
+    twitch = math.sin(t * 1.1)
+    bw, bh = 7, 5
+    by = g - bh
+    pygame.draw.ellipse(surf, fur, (cx - bw // 2, by, bw, bh))
+    pygame.draw.ellipse(surf, fur_dk, (cx - bw // 2, by, bw, bh), 1)
+    pygame.draw.arc(surf, fur_lt, (cx - bw // 2, by, bw, bh), math.radians(40), math.radians(150), 1)
+    pygame.draw.circle(surf, fur_lt, (cx + bw // 2 - 1, g - 2), 2)
+    pygame.draw.circle(surf, fur_dk, (cx + bw // 2 - 1, g - 2), 2, 1)
+    hx = cx - 2
+    hy = by - 1 + int(nib * 1.5)
+    pygame.draw.circle(surf, fur, (hx, hy), 3)
+    pygame.draw.circle(surf, fur_dk, (hx, hy), 3, 1)
+    for k, sgn in enumerate((-1, 1)):
+        # Long and set wide apart: the ears are the ONLY thing separating this
+        # from the sitting cat, so the gap between them has to survive the
+        # far-lane downscale as a gap.
+        tilt = twitch * (1.6 if k else 0.3)
+        base_pt = (hx + sgn * 1.5, hy - 2)
+        tip = (hx + sgn * 1.5 + tilt, hy - 9 + abs(tilt) * 0.6)
+        pygame.draw.line(surf, fur, base_pt, tip, 2)
+        pygame.draw.line(surf, ear_in, (base_pt[0], base_pt[1] - 1), (tip[0], tip[1] + 1), 1)
+    pygame.draw.circle(surf, (26, 20, 20), (hx - 2, hy - 1), 1)
+    pygame.draw.circle(surf, ear_in, (hx - 3, hy + 1), 1)
+
+
 # ── pools → foreground_variants rows ──────────────────────────────────────────
 
 def _V(palette, **attrs):
@@ -340,17 +553,32 @@ def _V(palette, **attrs):
 
 
 def _build_dogs():
+    # The first five keep their pool order (scene code addresses them by index);
+    # D1 and D3 are re-dressed toward stray IN PLACE, the four new looks append.
     return [
-        _V(dict(coat=(176, 150, 110), coat_dk=(120, 98, 66), belly=(206, 188, 150)),
-           build=1.05, leg=1.15, length=1.30, chest=0.85, head=0.92, tail="low", ear="drop", muzzle="long"),
+        _V(dict(coat=(150, 130, 100), coat_dk=(102, 86, 62), belly=(178, 162, 134)),
+           build=1.05, leg=1.15, length=1.30, chest=0.85, head=0.92, scruffy=True,
+           tail="streetlow", ear="drop", muzzle="long"),
         _V(dict(coat=(150, 102, 64), coat_dk=(104, 68, 42), belly=(196, 160, 110)),
            build=0.95, leg=0.52, length=1.45, chest=1.05, head=1.0, tail="stub", ear="bigprick", muzzle="med"),
-        _V(dict(coat=(214, 208, 196), coat_dk=(150, 144, 132), belly=(226, 222, 212)),
-           build=0.80, leg=0.92, length=0.98, chest=1.10, head=0.90, fluffy=True, tail="plume", ear="prick", muzzle="med"),
+        _V(dict(coat=(184, 178, 164), coat_dk=(128, 122, 110), belly=(196, 190, 178)),
+           build=0.80, leg=0.92, length=0.98, chest=1.10, head=0.90, fluffy=True, scruffy=True,
+           ruffcrop=True, tail="sickle", ear="prick", muzzle="med"),
         _V(dict(coat=(196, 130, 74), coat_dk=(140, 86, 46), belly=(228, 206, 172)),
            build=0.98, leg=0.80, length=1.0, chest=1.12, head=0.92, fluffy=True, tail="tightcurl", ear="prick", muzzle="short"),
         _V(dict(coat=(150, 124, 96), coat_dk=(104, 84, 64), belly=(186, 166, 142)),
            build=0.94, leg=0.74, length=1.06, chest=1.02, head=1.10, tail="lowpup", ear="longdrop", muzzle="short"),
+        _V(dict(coat=(132, 122, 108), coat_dk=(88, 82, 74), belly=(158, 148, 132)),
+           build=0.92, leg=0.95, length=1.18, chest=0.86, head=0.95, scruffy=True,
+           tail="streetlow", ear="halfflop", muzzle="med"),
+        _V(dict(coat=(172, 140, 96), coat_dk=(118, 94, 60), belly=(190, 168, 134)),
+           build=0.96, leg=1.30, length=1.20, chest=0.72, head=0.86, tail="sickle", ear="prick", muzzle="long"),
+        _V(dict(coat=(164, 106, 66), coat_dk=(112, 70, 42), belly=(186, 142, 100)),
+           build=0.86, leg=0.70, length=0.96, chest=1.22, head=0.95, fluffy=True, mane=True,
+           tail="tightcurl", ear="prick", muzzle="short"),
+        _V(dict(coat=(178, 156, 118), coat_dk=(124, 106, 78), belly=(196, 178, 146)),
+           build=0.72, leg=0.45, length=1.0, chest=1.15, head=1.15, fluffy=True, skirtcoat=True,
+           tail="plume", ear="drop", muzzle="flat"),
     ]
 
 
@@ -360,10 +588,15 @@ def _build_critters():
         _V(dict(body=(204, 190, 170), body_dk=(150, 130, 104), accent=(176, 70, 60)), kind="hen"),
         _V(dict(body=(142, 144, 154), body_dk=(96, 98, 108), accent=(108, 120, 152)), kind="pigeons"),
         _V(dict(body=(212, 206, 192), body_dk=(150, 140, 120), accent=(96, 120, 96)), kind="duck"),
+        _V(dict(body=(188, 186, 178), body_dk=(132, 130, 124), accent=(86, 84, 92), crest=(150, 84, 76)), kind="crane"),
+        # The piglet arrives with the produce: scenes only offer it on the market
+        # beat, so it never turns up at dusk with nobody to own it.
+        _V(dict(body=(196, 158, 152), body_dk=(134, 104, 100), accent=(176, 128, 126)), kind="piglet"),
+        _V(dict(body=(168, 154, 136), body_dk=(114, 104, 92), accent=(166, 128, 124)), kind="rabbit"),
     ]
 
 
-_CRITTER_KINDS = ("cat", "hen", "pigeons", "duck")
+_CRITTER_KINDS = ("cat", "hen", "pigeons", "duck", "crane", "piglet", "rabbit")
 
 
 def critter_index(kind):

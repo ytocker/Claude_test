@@ -1,18 +1,18 @@
 """Promenade DAY-CAST — three variety pools that fill the daytime market street.
 
-KIDS (6), temple ELDERS (6), market VENDORS/WORKERS (7), each a variety set over
-ONE shared drawer, registered as foreground_variants 'kid'/'elder'/'vendor' rows.
-Replaces the single fixed draw_kids / draw_old_man / vendor templates. Sibling to
-the adult-pedestrian pool (game/ped_cast.py) — same model: silhouette-distinct
-archetypes (here pose/stance + age/build) × palette role-sets × pose/accessory/
-attrs flags. Art-director SHIP-READY (docs/sidewalk_overhaul/day_cast/round_2.png).
+KIDS (10), temple ELDERS (10), market VENDORS/WORKERS (10), each a variety set
+over ONE shared drawer, registered as foreground_variants 'kid'/'elder'/'vendor'
+rows. Replaces the single fixed draw_kids / draw_old_man / vendor templates.
+Sibling to the adult-pedestrian pool (game/ped_cast.py) — same model: silhouette-
+distinct archetypes (here pose/stance + age/build) × palette role-sets × pose/
+accessory/attrs flags.
 
 Variety lives in the OUTLINE (pose/stance/build/height) because the tiny on-screen
-size kills colour and interior detail first; hot accent props (balloons, candy,
+size kills colour and interior detail first; hot accent props (balloons, lanterns,
 the vendor price-board) are desaturated (_knock) and luma-capped (_cap_luma) so
 none can rival the gold coin. Authored feet-on-base_y; drawn crisp. Night cooling
-via ped_cast._retint_person (toward (54,64,96), nothing self-lit, ≤150 luma).
-Pure-Pygame / pygbag-safe.
+via ped_cast._retint_person (toward (54,64,96)) with every cooled colour clamped
+through _cap_luma — nothing self-lit, ≤150 luma. Pure-Pygame / pygbag-safe.
 """
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def _cap_luma(col, cap=150.0):
     g = _luma(col)
     if g <= cap:
         return col
-    return _clamp((col[0] * cap / g, col[1] * cap / g, col[2] * cap / g))
+    return (_clamp(col[0] * cap / g), _clamp(col[1] * cap / g), _clamp(col[2] * cap / g))
 
 
 def _knock(col, amount=0.18):
@@ -50,7 +50,7 @@ KID_H = 13
 
 def draw_kid(surf, cx, base_y, v, night, t):
     P, A = v.palette, v.attrs
-    pf = lambda c: _retint(c, night)
+    pf = lambda c: _cap_luma(_retint(c, night)) if night > 0.05 else c
     skin = pf(SKIN.get(P.get("skin", "warm"), SKIN["warm"]))
     skin_sh = _shade(skin, -26)
     shirt = pf(P["shirt"]); shirt_dk = pf(P.get("shirt_dk", _shade(P["shirt"], -42)))
@@ -64,6 +64,7 @@ def draw_kid(surf, cx, base_y, v, night, t):
     run = "run" in v.pose
     chase = "chase" in v.pose
     carried = "carried" in v.pose
+    tiptoe = "tiptoe" in v.pose
     head_bias = 0.10 if squat else 0.0
     head_r = max(2, int(total * (0.34 + head_bias - 0.06 * age)))
     body_h = max(3, int(total * 0.32))
@@ -113,6 +114,30 @@ def draw_kid(surf, cx, base_y, v, night, t):
                          (cx + chase_dx - stride, ground), 2)
         pygame.draw.line(surf, pants, (cx + chase_dx + body_w * 0.4, body_bot),
                          (cx + chase_dx + stride * 0.7, ground), 2)
+    elif tiptoe:
+        # STANCE — the child stretches: body lifted off its usual seat, legs
+        # dead straight with the heels off the deck and both arms thrown up over a
+        # counter edge. Reads as a tall thin exclamation mark, which is the exact
+        # opposite of the squat/chase rows and survives the far-lane downscale.
+        stretch = 0.5 + 0.5 * math.sin(t * 1.9)
+        body_y = ground - int(total * 0.46) - body_h - int(round(stretch))
+        body_bot = body_y + body_h
+        hy = body_y - head_r + 1
+        pygame.draw.ellipse(surf, shirt, (cx - body_w + 1, body_y, body_w * 2 - 2, body_h + 1))
+        pygame.draw.ellipse(surf, shirt_dk, (cx - body_w + 1, body_y, body_w * 2 - 2, body_h + 1), 1)
+        for sgn in (-1, 1):
+            lx = cx + sgn * body_w * 0.45
+            pygame.draw.line(surf, pants, (lx, body_bot), (lx, ground - 1), 2)
+            pygame.draw.line(surf, _shade(pants, -22), (lx - 1, ground - 1), (lx + 1, ground), 1)
+        for sgn, off in ((-1, 0.12), (1, 0.0)):
+            # The REACH is the animation. Truncating a 0..1 float with int() froze
+            # the whole cycle at zero, so the row read as a still figure; driving
+            # the fingertips off the float instead moves the top of the silhouette
+            # ~2px a beat and puts the crown-to-fingertip stack above the squat
+            # rows without touching the kite runner's ceiling.
+            tip_y = hy - head_r * (2.15 + off + 0.70 * stretch)
+            pygame.draw.line(surf, skin, (cx + sgn * body_w * 0.5, body_y + 1),
+                             (cx + sgn * body_w * 0.85 - body_w * 0.35, tip_y), 2)
     else:
         pygame.draw.ellipse(surf, shirt, (cx - body_w, body_y, body_w * 2, body_h + 1))
         pygame.draw.ellipse(surf, shirt_dk, (cx - body_w, body_y, body_w * 2, body_h + 1), 1)
@@ -144,6 +169,14 @@ def draw_kid(surf, cx, base_y, v, night, t):
         pygame.draw.arc(surf, hair, (hx - head_r, hy - head_r, head_r * 2 + 1, head_r * 2 + 1),
                         math.radians(20), math.radians(160), max(1, head_r // 2))
         pygame.draw.circle(surf, hair, (hx, hy - head_r), max(1, head_r // 3))
+    elif hairstyle == "sidetails":
+        # Two tails swinging out past the jaw, so the head silhouette widens at
+        # the BOTTOM (buns widen it at the top). A cheap, readable note.
+        pygame.draw.circle(surf, hair, (hx, hy - head_r // 3), head_r)
+        for sgn in (-1, 1):
+            tip = (hx + sgn * (head_r + 2), hy + head_r + 1 + int(round(gait * 0.8)))
+            pygame.draw.line(surf, hair, (hx + sgn * head_r, hy - head_r // 3), tip, 2)
+            pygame.draw.circle(surf, _shade(hair, -20), tip, 1)
     elif hairstyle == "cap":
         cap = pf(P.get("cap", (210, 90, 80)))
         pygame.draw.circle(surf, cap, (hx, hy - head_r // 3), int(head_r * 1.05))
@@ -165,13 +198,15 @@ def draw_kid(surf, cx, base_y, v, night, t):
         sx2 = cx + body_w + 2
         pygame.draw.line(surf, (70, 64, 60), (cx + body_w * 0.3, arm_y), (sx2, hy - head_r * 3), 1)
         pygame.draw.circle(surf, bcol, (sx2, hy - head_r * 3 - 2), max(2, int(head_r * 1.2)))
-        pygame.draw.circle(surf, _shade(bcol, 24), (sx2 - 1, hy - head_r * 3 - 3), max(1, head_r // 2))
+        pygame.draw.circle(surf, _cap_luma(_shade(bcol, 24)), (sx2 - 1, hy - head_r * 3 - 3), max(1, head_r // 2))
     if "kite" in v.accessory:
         kcol = _cap_luma(pf(_knock(P.get("prop", (240, 196, 70)))))
         pygame.draw.line(surf, skin, (cx - body_w * 0.4, arm_y), (cx - body_w * 1.3, arm_y - 2), 2)
         kx, ky = cx + body_w + 4, hy - head_r * 3
         tail = _cap_luma(pf(_knock(P.get("tail", (224, 150, 70)))))
-        pygame.draw.line(surf, tail, (cx - body_w * 1.3, arm_y - 2), (kx, ky), 1)
+        # A 1px string is erased by the crisp far-lane downscale and the kite
+        # detaches into a floating lozenge; 2px keeps child and kite one object.
+        pygame.draw.line(surf, tail, (cx - body_w * 1.3, arm_y - 2), (kx, ky), 2)
         pygame.draw.polygon(surf, kcol, [(kx, ky - 3), (kx + 3, ky), (kx, ky + 3), (kx - 3, ky)])
         pygame.draw.polygon(surf, _shade(kcol, -34), [(kx, ky - 3), (kx + 3, ky), (kx, ky + 3), (kx - 3, ky)], 1)
     if "stick" in v.accessory:
@@ -192,6 +227,38 @@ def draw_kid(surf, cx, base_y, v, night, t):
         pygame.draw.line(surf, (150, 120, 70), (sx2, arm_y), (sx2 - 1, hy - head_r * 2), 1)
         for k in range(3):
             pygame.draw.circle(surf, ccol, (int(sx2 - 1), int(hy - head_r * 2 + k * 3)), 2)
+    if "ribbon" in v.accessory:
+        # A long wavy streamer trailing BEHIND the runner: a horizontal squiggle
+        # twice the child's own width, which is a bigger outline event than any
+        # held object could be at 10px.
+        rc = _cap_luma(pf(_knock(P.get("prop", (216, 120, 150)))))
+        hxr, hyr = cx - body_w * 1.0, arm_y - body_h * 0.5
+        pygame.draw.line(surf, skin, (cx - body_w * 0.4, arm_y), (hxr, hyr), 2)
+        pts = []
+        for k in range(6):
+            px = hxr + body_w * (0.6 * k + 0.4)
+            py = hyr + math.sin(t * 3.0 + k * 1.1) * (1.2 + 0.35 * k)
+            pts.append((px, py))
+        pygame.draw.lines(surf, rc, False, pts, 1)
+    if "lantern" in v.accessory:
+        # Carried FORWARD on a short stick at chest height — deliberately not an
+        # overhead sphere, so it never doubles the balloon row's silhouette.
+        pc = pf(P.get("stick", (140, 106, 66)))
+        lc = _cap_luma(pf(_knock(P.get("prop", (214, 122, 74)))))
+        hxp, hyp = cx - body_w * 1.9, arm_y - body_h * 0.7
+        pygame.draw.line(surf, skin, (cx - body_w * 0.4, arm_y), (cx - body_w * 1.1, arm_y - 1), 2)
+        pygame.draw.line(surf, pc, (cx - body_w * 1.1, arm_y - 1), (hxp, hyp), 1)
+        lr = pygame.Rect(int(hxp - 2), int(hyp + 1), 4, 5)
+        pygame.draw.ellipse(surf, lc, lr)
+        pygame.draw.ellipse(surf, _shade(lc, -40), lr, 1)
+        pygame.draw.line(surf, _shade(lc, -50), (lr.left, lr.centery), (lr.right, lr.centery), 1)
+    if "satchel" in v.accessory:
+        sc = pf(P.get("bag", (146, 122, 86)))
+        sr = pygame.Rect(int(cx + body_w * 0.5), int(body_y + body_h * 0.25),
+                         int(body_w * 1.2), int(body_h * 1.0))
+        pygame.draw.rect(surf, sc, sr, border_radius=1)
+        pygame.draw.rect(surf, _shade(sc, -34), sr, 1, border_radius=1)
+        pygame.draw.line(surf, _shade(sc, -28), (sr.left, sr.top), (cx - body_w * 0.4, body_y + 1), 1)
 
 
 # ── ELDERS — robe/padded body, outline built from stance + accessory (~16-18px) ─
@@ -200,7 +267,7 @@ ELDER_H = 17
 
 def draw_elder(surf, cx, base_y, v, night, t):
     P, A = v.palette, v.attrs
-    pf = lambda c: _retint(c, night)
+    pf = lambda c: _cap_luma(_retint(c, night)) if night > 0.05 else c
     skin = pf(SKIN.get(P.get("skin", "warm"), SKIN["warm"]))
     skin_sh = _shade(skin, -28)
     robe = pf(P["robe"]); robe_dk = pf(P.get("robe_dk", _shade(P["robe"], -42)))
@@ -224,6 +291,8 @@ def draw_elder(surf, cx, base_y, v, night, t):
     taichi = stance == "taichi"
     hands_back = stance == "hands_back"
     birds = stance == "birds"
+    brush = stance == "brush"
+    reading = stance == "reading"
 
     if seated:
         stool = pf((120, 92, 60))
@@ -238,7 +307,7 @@ def draw_elder(surf, cx, base_y, v, night, t):
     else:
         torso_bot = ground - leg_h
         torso_top = torso_bot - torso_h
-        if taichi:
+        if taichi or brush:
             for sgn in (-1, 1):
                 pygame.draw.line(surf, robe_dk, (cx + sgn * body_w * 0.4, torso_bot),
                                  (cx + sgn * body_w * 1.5, ground), max(2, body_w // 3))
@@ -260,7 +329,7 @@ def draw_elder(surf, cx, base_y, v, night, t):
         fur = pf(P.get("fur", (224, 216, 202)))
         pygame.draw.line(surf, fur, (r.left, r.top), (r.right, r.top), max(2, body_w // 4))
     else:
-        sh_w = int(body_w * 0.72); hem_w = int(body_w * (1.4 if not taichi else 1.55))
+        sh_w = int(body_w * 0.72); hem_w = int(body_w * (1.4 if not (taichi or brush) else 1.55))
         bot = ground if not seated else torso_bot
         pts = [(cx - sh_w + lean, torso_top), (cx + sh_w + lean, torso_top),
                (cx + hem_w, bot), (cx - hem_w, bot)]
@@ -287,6 +356,40 @@ def draw_elder(surf, cx, base_y, v, night, t):
         pygame.draw.circle(surf, skin, (int(cx - body_w * 1.8), int(arm_y + torso_h * 0.4)), max(1, body_w // 4))
         for bx2, by2 in ((cx - body_w * 2.2, ground - 1), (cx - body_w * 1.4, ground)):
             pygame.draw.circle(surf, pf((90, 80, 70)), (int(bx2), int(by2)), 1)
+    elif brush:
+        # STANCE — water calligraphy. A long brush runs from the low hand all
+        # the way to the DECK ahead of the figure, so the silhouette gains a
+        # ground-touching diagonal no other elder has; the wet stroke it leaves
+        # behind sits on the deck and dries (fades) on a slow cycle.
+        bcol = pf(P.get("brush", (126, 96, 62)))
+        hxb = cx - body_w * 1.4
+        hyb = arm_y + torso_h * 0.45
+        tip_x = cx - body_w * 2.9 + math.sin(t * 1.5) * body_w * 0.5
+        pygame.draw.line(surf, robe, (cx - body_w * 0.3 + lean, arm_y), (hxb, hyb), max(2, body_w // 4))
+        pygame.draw.circle(surf, skin, (int(hxb), int(hyb)), max(1, body_w // 4))
+        pygame.draw.line(surf, bcol, (hxb, hyb), (tip_x, ground - 1), max(1, body_w // 5))
+        pygame.draw.circle(surf, _shade(bcol, -40), (int(tip_x), int(ground - 1)), 1)
+        wet = pf(P.get("wet", (96, 88, 78)))
+        for k, wx in enumerate((cx - body_w * 3.4, cx - body_w * 2.2)):
+            fade = 0.4 + 0.4 * math.sin(t * 1.1 + k)
+            pygame.draw.line(surf, _mix(wet, (140, 130, 112), fade),
+                             (wx, ground), (wx + body_w * 0.8, ground), 1)
+    elif reading:
+        # STANCE — an open scroll held wide at chest height on both hands: a
+        # hard horizontal bar across the body, the one elder read that widens the
+        # figure instead of extending it.
+        sc = _cap_luma(pf(P.get("scroll", (208, 196, 168))))
+        sw2 = int(body_w * 2.1)
+        sy2 = int(arm_y + torso_h * 0.26)
+        for sgn in (-1, 1):
+            pygame.draw.line(surf, robe, (cx + sgn * body_w * 0.5 + lean, arm_y),
+                             (cx + sgn * sw2 * 0.8, sy2), max(2, body_w // 4))
+        r = pygame.Rect(cx - sw2, sy2 - 1, sw2 * 2, max(4, int(torso_h * 0.38)))
+        pygame.draw.rect(surf, sc, r)
+        pygame.draw.rect(surf, _shade(sc, -46), r, 1)
+        for k in range(2):
+            pygame.draw.line(surf, _shade(sc, -60), (r.left + 2, r.top + 2 + k * 2),
+                             (r.right - 2, r.top + 2 + k * 2), 1)
 
     pygame.draw.line(surf, skin_sh, (hx, hy + head_r - 1), (hx, torso_top + 1), max(2, head_r // 2))
     pygame.draw.circle(surf, skin, (hx, hy), head_r)
@@ -312,13 +415,15 @@ def draw_elder(surf, cx, base_y, v, night, t):
 
     if "cane" in v.accessory:
         cane = pf(P.get("cane", (118, 82, 50)))
-        tap = int(math.sin(t * 1.3))
+        # int() on a (-1,1) float is zero everywhere but the two extremes — the
+        # tap never moved a pixel until it was rounded instead of truncated.
+        tap = int(round(math.sin(t * 1.3)))
         chx = cx + body_w * 1.4 + lean
         pygame.draw.line(surf, cane, (chx, arm_y), (chx + tap, ground), max(2, body_w // 6))
         pygame.draw.line(surf, cane, (chx, arm_y), (chx - 3, arm_y), max(2, body_w // 6))
         pygame.draw.line(surf, robe, (cx + body_w * 0.5 + lean, arm_y), (chx, arm_y), max(2, body_w // 5))
     if "fan" in v.accessory:
-        fcol = pf(P.get("fan", (224, 212, 190)))
+        fcol = _cap_luma(pf(P.get("fan", (224, 212, 190))))
         fx = cx - body_w * 1.5 + lean; fy = arm_y - 1
         pygame.draw.line(surf, robe, (cx - body_w * 0.3 + lean, arm_y), (fx, fy), max(2, body_w // 5))
         pygame.draw.polygon(surf, fcol, [(fx, fy), (fx - 4, fy - 4), (fx - 5, fy + 1), (fx - 3, fy + 4)])
@@ -334,11 +439,42 @@ def draw_elder(surf, cx, base_y, v, night, t):
             pygame.draw.line(surf, cage, (gx, cg.top + 1), (gx, cg.bottom - 1), 1)
         pygame.draw.circle(surf, pf((110, 150, 90)), (cg.centerx, cg.centery + 1), 1)
     if "teacup" in v.accessory:
-        tc = pf(P.get("tea", (228, 222, 210)))
+        tc = _cap_luma(pf(P.get("tea", (228, 222, 210))))
         tx = cx - body_w * 1.2 + lean; ty = arm_y + 1
         pygame.draw.line(surf, robe, (cx - body_w * 0.3 + lean, arm_y), (tx, ty), max(2, body_w // 5))
         pygame.draw.ellipse(surf, tc, (tx - 2, ty - 1, 4, 3))
         pygame.draw.ellipse(surf, _shade(tc, -34), (tx - 2, ty - 1, 4, 3), 1)
+    if "sword" in v.accessory:
+        # A straight blade continuing the arm well past the hand: the taichi
+        # stance's soft curves get one hard straight edge, which is the whole
+        # difference between the two sword/empty-hand rows at 15px.
+        bl = _cap_luma(pf(P.get("blade", (168, 176, 184))))
+        h0 = (cx - body_w * 1.5, arm_y + torso_h * 0.2)
+        tip = (cx - body_w * 3.4, arm_y - torso_h * 0.55 + math.sin(t * 1.4) * 1.5)
+        pygame.draw.line(surf, robe, (cx - body_w * 0.3 + lean, arm_y), h0, max(2, body_w // 4))
+        pygame.draw.line(surf, bl, h0, tip, 1)
+        pygame.draw.line(surf, pf((120, 96, 60)), (h0[0] - 1, h0[1] - 1), (h0[0] + 1, h0[1] + 1), 2)
+        tsl = pf(P.get("tassel", (150, 92, 88)))
+        pygame.draw.line(surf, tsl, h0, (h0[0] + 2, h0[1] + 3 + math.sin(t * 2.2)), 1)
+    if "back_basket" in v.accessory:
+        # A tall pannier riding on the BACK — the day cast carried nothing behind
+        # the body before.
+        bk = pf(P.get("basket", (166, 126, 76)))
+        bwid = int(body_w * 1.25)
+        bh = int(torso_h * 1.15)
+        br = pygame.Rect(int(cx + body_w * 0.8 + lean), int(torso_top - head_r * 0.8), bwid, bh)
+        pygame.draw.polygon(surf, bk, [
+            (br.left, br.bottom), (br.right - 1, br.bottom - 1),
+            (br.right, br.top + 2), (br.left - 1, br.top)])
+        pygame.draw.polygon(surf, _shade(bk, -34), [
+            (br.left, br.bottom), (br.right - 1, br.bottom - 1),
+            (br.right, br.top + 2), (br.left - 1, br.top)], 1)
+        for q in (0.4, 0.75):
+            yy = int(br.top + bh * q)
+            pygame.draw.line(surf, _shade(bk, -26), (br.left, yy), (br.right - 1, yy), 1)
+        grn = pf(P.get("herbs", (104, 128, 92)))
+        for gx in (0.25, 0.6):
+            pygame.draw.circle(surf, grn, (int(br.left + bwid * gx), br.top), 1)
 
 
 # ── VENDORS — standing working cast, must read chest-up behind a counter ──────
@@ -347,7 +483,7 @@ VEND_H = 17
 
 def draw_vendor(surf, cx, base_y, v, night, t):
     P, A = v.palette, v.attrs
-    pf = lambda c: _retint(c, night)
+    pf = lambda c: _cap_luma(_retint(c, night)) if night > 0.05 else c
     skin = pf(SKIN.get(P.get("skin", "warm"), SKIN["warm"]))
     skin_sh = _shade(skin, -28)
     shirt = pf(P["shirt"]); shirt_dk = pf(P.get("shirt_dk", _shade(P["shirt"], -42)))
@@ -400,7 +536,7 @@ def draw_vendor(surf, cx, base_y, v, night, t):
     if "rolled" in v.accessory:
         pygame.draw.line(surf, _shade(shirt, 14), (cx - body_w * 0.6, arm_y), (cx - body_w, arm_y + 2), max(2, body_w // 3))
     if "towel" in v.accessory:
-        tw = pf(P.get("towel", (220, 214, 200)))
+        tw = _cap_luma(pf(P.get("towel", (220, 214, 200))))
         pygame.draw.line(surf, tw, (cx + body_w * 0.3, torso_top - 1), (cx + body_w * 0.9, torso_top + torso_h * 0.4), max(2, body_w // 4))
 
     if pose == "call":
@@ -413,7 +549,9 @@ def draw_vendor(surf, cx, base_y, v, night, t):
             pygame.draw.line(surf, (90, 80, 64), (sx2 + ox, arm_y - 4), (sx2 + ox, arm_y), 1)
             pygame.draw.arc(surf, pf((150, 120, 70)), (sx2 + ox - 2, arm_y - 1, 4, 3), math.radians(180), math.radians(360), 1)
     elif pose == "fan":
-        fy = arm_y + int(math.sin(t * 6) * 1)
+        # int() on a (-1,1) float is zero everywhere but the two extremes — this
+        # flutter never moved a pixel until it was rounded instead of truncated.
+        fy = arm_y + int(round(math.sin(t * 6) * 1.2))
         pygame.draw.line(surf, shirt, (cx - body_w * 0.4, arm_y), (cx - body_w * 1.4, fy + 2), max(2, body_w // 4))
         pygame.draw.rect(surf, pf((200, 180, 140)), (int(cx - body_w * 1.7), int(fy), 4, 5))
         pygame.draw.rect(surf, pf((140, 110, 70)), (int(cx - body_w * 1.7), int(fy), 4, 5), 1)
@@ -449,6 +587,60 @@ def draw_vendor(surf, cx, base_y, v, night, t):
             pygame.draw.rect(surf, sg, sr)
             pygame.draw.rect(surf, _shade(sg, -34), sr, 1)
             pygame.draw.line(surf, sg_hi, (sr.left + 1, sr.centery), (sr.right - 1, sr.centery), 1)
+    elif pose == "chop":
+        # 2-beat cleaver: the arm swings from above the shoulder down to the
+        # board — the most total motion in the family across a cycle.
+        beat = max(0.0, math.sin(t * 5.0))
+        hxc = cx - body_w * 1.35
+        hyc = arm_y + torso_h * 0.30 - beat * head_r * 3.2
+        pygame.draw.line(surf, shirt, (cx - body_w * 0.4, arm_y), (hxc, hyc), max(2, body_w // 4))
+        pygame.draw.circle(surf, skin, (int(hxc), int(hyc)), max(1, body_w // 5))
+        bl = _cap_luma(pf(P.get("blade", (176, 182, 190))))
+        blade = pygame.Rect(int(hxc - body_w * 0.9), int(hyc - 1), max(3, int(body_w * 0.9)), max(2, head_r))
+        pygame.draw.rect(surf, bl, blade)
+        pygame.draw.rect(surf, _shade(bl, -50), blade, 1)
+        board = pf(P.get("board", (146, 116, 76)))
+        brd = pygame.Rect(int(cx - body_w * 2.1), int(arm_y + torso_h * 0.62), int(body_w * 1.9), 3)
+        pygame.draw.rect(surf, board, brd)
+        pygame.draw.rect(surf, _shade(board, -34), brd, 1)
+    elif pose == "pour":
+        # Long-spout pot held HIGH with a thin thread of tea falling into a cup:
+        # a tall arm plus a vertical hairline, unlike any other vendor action.
+        lift = math.sin(t * 2.2) * 1.5
+        hxp = cx - body_w * 1.25
+        hyp = hy + head_r * 0.2 + lift
+        pygame.draw.line(surf, shirt, (cx - body_w * 0.4, arm_y), (hxp, hyp), max(2, body_w // 4))
+        pot = pf(P.get("pot", (140, 118, 96)))
+        pr = pygame.Rect(int(hxp - body_w * 0.6), int(hyp - 1), max(4, int(body_w * 1.1)), max(3, head_r + 1))
+        pygame.draw.ellipse(surf, pot, pr)
+        pygame.draw.ellipse(surf, _shade(pot, -34), pr, 1)
+        spout_tip = (pr.left - body_w * 1.1, pr.centery + 1)
+        pygame.draw.line(surf, pot, (pr.left + 1, pr.centery), spout_tip, 1)
+        tea = _cap_luma(pf(P.get("tea", (196, 168, 120))))
+        cup_y = arm_y + torso_h * 0.66
+        pygame.draw.line(surf, tea, spout_tip, (spout_tip[0] - 1, cup_y), 1)
+        cup = pygame.Rect(int(spout_tip[0] - 3), int(cup_y), 5, 3)
+        pygame.draw.ellipse(surf, _cap_luma(pf((216, 210, 196))), cup)
+        pygame.draw.ellipse(surf, (90, 84, 76), cup, 1)
+    elif pose == "wok":
+        # Both hands on a wide tilted pan with a tossed arc of food above it: the
+        # only vendor whose outline is a WIDE ellipse held away from the body.
+        toss = math.sin(t * 3.4)
+        wx = cx - body_w * 1.5
+        wy = arm_y + torso_h * 0.30 + toss
+        for sgn, off in ((-1, 0.0), (1, 0.5)):
+            pygame.draw.line(surf, shirt, (cx + sgn * body_w * 0.5, arm_y),
+                             (wx + off * body_w * 1.6, wy + 1), max(2, body_w // 4))
+        pan = pf(P.get("pan", (96, 88, 82)))
+        pr = pygame.Rect(int(wx - body_w * 1.0), int(wy - 1), max(6, int(body_w * 2.2)), max(3, head_r + 1))
+        pygame.draw.ellipse(surf, pan, pr)
+        pygame.draw.ellipse(surf, _shade(pan, -30), pr, 1)
+        pygame.draw.line(surf, _shade(pan, 20), (pr.right - 1, pr.centery), (pr.right + body_w * 0.8, pr.centery - 1), 1)
+        food = _cap_luma(pf(_knock(P.get("food", (206, 156, 92)))))
+        for k in range(3):
+            fx = pr.centerx - 2 + k * 2
+            fy = pr.top - 2 - abs(math.sin(t * 3.4 + k * 0.7)) * 3
+            pygame.draw.circle(surf, food, (int(fx), int(fy)), 1)
 
     pygame.draw.line(surf, skin_sh, (hx, hy + head_r - 1), (hx, torso_top + 1), max(2, head_r // 2))
     pygame.draw.circle(surf, skin, (hx, hy), head_r)
@@ -489,44 +681,64 @@ _BW_ELDER = {_B.BEAT_MARKET: 0.8, _B.BEAT_MORNING: 1.1, _B.BEAT_GOLDEN: 1.5,
              _B.BEAT_DUSK: 1.4, _B.BEAT_FESTIVAL: 1.0, _B.BEAT_PREDAWN: 0.5}
 _BW_VENDOR = {_B.BEAT_MARKET: 2.4, _B.BEAT_MORNING: 1.8, _B.BEAT_GOLDEN: 1.0,
               _B.BEAT_DUSK: 0.8, _B.BEAT_FESTIVAL: 0.9, _B.BEAT_PREDAWN: 0.3}
+# A padded winter mass must never turn up on a warm market day — snow-only, zero
+# elsewhere (same gating idea as ped_cast's _WW buckets).
+_WW_SNOW = {_B.WB_CLEAR: 0.0, _B.WB_RAIN: 0.0, _B.WB_SNOW: 1.0}
 
 
-def _V(palette, *, pose=(), acc=(), attrs=None, bw=None):
+def _V(palette, *, pose=(), acc=(), attrs=None, bw=None, ww=None):
     return fv.Variant(palette=palette, pose=frozenset(pose), accessory=frozenset(acc),
-                      attrs=dict(attrs or {}), beat_weights=dict(bw or {}))
+                      attrs=dict(attrs or {}), beat_weights=dict(bw or {}),
+                      weather_weights=dict(ww or {}))
 
 
 def _build_kids():
     return [
-        _V(dict(shirt=(235, 95, 90), pants=(74, 60, 52), hair=(58, 44, 36), hair_style="tuft", skin="warm"),
-           pose=("run",), attrs=dict(age=0.05), bw=_BW_KID),
         _V(dict(shirt=(90, 165, 220), pants=(58, 52, 56), hair=(46, 36, 30), hair_style="bowl", skin="fair", prop=(150, 110, 64)),
            pose=("chase",), acc=("hoop", "stick"), attrs=dict(age=0.9), bw=_BW_KID),
         _V(dict(shirt=(250, 200, 70), pants=(70, 56, 48), hair=(40, 32, 28), hair_style="bowl", skin="tan"),
            pose=("squat",), attrs=dict(age=0.55), bw=_BW_KID),
         _V(dict(shirt=(120, 200, 130), pants=(64, 58, 50), hair=(50, 40, 32), hair_style="buns", skin="warm", prop=(228, 84, 92)),
            pose=("point",), acc=("balloon",), attrs=dict(age=0.7), bw=_BW_KID),
-        _V(dict(shirt=(220, 130, 200), pants=(70, 56, 60), hair=(44, 34, 28), hair_style="cap", skin="ruddy", cap=(210, 90, 80), prop=(224, 60, 60)),
-           acc=("candy",), attrs=dict(age=0.45), bw=_BW_KID),
         _V(dict(shirt=(110, 130, 235), pants=(60, 54, 58), hair=(54, 42, 34), hair_style="bowl", skin="warm", carrier=(96, 84, 110)),
            pose=("carried",), attrs=dict(age=0.2), bw=_BW_KID),
+        _V(dict(shirt=(212, 128, 92), pants=(66, 56, 50), hair=(44, 34, 28), hair_style="bowl", skin="tan"),
+           pose=("tiptoe",), attrs=dict(age=0.5), bw=_BW_KID),
+        _V(dict(shirt=(96, 186, 176), pants=(58, 56, 52), hair=(38, 30, 26), hair_style="tuft", skin="warm", prop=(240, 196, 70), tail=(224, 150, 70)),
+           pose=("run",), acc=("kite",), attrs=dict(age=0.8), bw=_BW_KID),
+        _V(dict(shirt=(226, 156, 186), pants=(64, 54, 58), hair=(46, 36, 30), hair_style="sidetails", skin="fair", prop=(216, 120, 150)),
+           pose=("run",), acc=("ribbon",), attrs=dict(age=0.65), bw=_BW_KID),
+        _V(dict(shirt=(150, 120, 200), pants=(60, 52, 56), hair=(40, 32, 28), hair_style="bowl", skin="ruddy", prop=(214, 122, 74), stick=(140, 106, 66)),
+           acc=("lantern",), attrs=dict(age=0.6), bw=_BW_KID),
+        _V(dict(shirt=(120, 158, 108), pants=(62, 56, 48), hair=(52, 40, 32), hair_style="bowl", skin="deep", bag=(146, 122, 86)),
+           pose=("run",), acc=("satchel",), attrs=dict(age=0.95), bw=_BW_KID),
+        _V(dict(shirt=(232, 176, 96), pants=(68, 58, 50), hair=(44, 34, 28), hair_style="sidetails", skin="warm"),
+           pose=("squat",), attrs=dict(age=0.35), bw=_BW_KID),
     ]
 
 
 def _build_elders():
     return [
-        _V(dict(robe=(92, 72, 108), robe_dk=(58, 44, 74), sash=(196, 180, 150), hair=(212, 210, 202), skin="fair", head="bald", cane=(118, 82, 50)),
-           acc=("beard", "cane"), attrs=dict(stance="stoop", stoop=0.46, height=0.92, build=0.95), bw=_BW_ELDER),
         _V(dict(robe=(86, 96, 140), robe_dk=(52, 60, 100), sash=(200, 188, 150), hair=(208, 206, 198), skin="warm", head="bun"),
            acc=("fan", "beard"), attrs=dict(stance="taichi", height=1.04, build=1.0, fan=(224, 212, 190)), bw=_BW_ELDER),
         _V(dict(robe=(110, 134, 112), robe_dk=(70, 92, 76), sash=(206, 180, 140), hair=(204, 202, 196), skin="tan", head="cap", cap=(120, 96, 70)),
            acc=("birdcage",), attrs=dict(stance="upright", height=1.0, build=1.05, cage=(150, 116, 70)), bw=_BW_ELDER),
-        _V(dict(robe=(128, 124, 112), robe_dk=(84, 82, 72), sash=(186, 188, 196), hair=(210, 208, 200), skin="warm", head="bald"),
-           acc=("beard",), attrs=dict(stance="hands_back", stoop=0.18, height=1.02, build=0.98), bw=_BW_ELDER),
         _V(dict(robe=(118, 96, 84), robe_dk=(74, 58, 50), fur=(224, 216, 202), sash=(196, 170, 130), hair=(206, 204, 196), skin="ruddy", head="cap", cap=(110, 90, 66)),
            acc=("teacup", "beard"), attrs=dict(stance="seated", height=0.94, build=1.15, padded=True, tea=(228, 222, 210)), bw=_BW_ELDER),
         _V(dict(robe=(104, 80, 116), robe_dk=(66, 48, 78), sash=(208, 160, 140), hair=(206, 204, 198), skin="deep", head="bun"),
            attrs=dict(stance="birds", height=0.98, build=1.0), bw=_BW_ELDER),
+        _V(dict(robe=(96, 110, 118), robe_dk=(58, 72, 80), sash=(184, 180, 156), hair=(210, 208, 200), skin="warm", head="bald", brush=(126, 96, 62), wet=(96, 88, 78)),
+           acc=("beard",), attrs=dict(stance="brush", height=1.0, build=1.0, stoop=0.30), bw=_BW_ELDER),
+        _V(dict(robe=(126, 108, 92), robe_dk=(82, 68, 56), sash=(196, 182, 152), hair=(208, 206, 198), skin="fair", head="cap", cap=(112, 92, 68), scroll=(208, 196, 168)),
+           acc=("beard",), attrs=dict(stance="reading", height=1.02, build=1.02), bw=_BW_ELDER),
+        _V(dict(robe=(92, 108, 96), robe_dk=(56, 72, 62), sash=(190, 184, 150), hair=(206, 204, 198), skin="tan", head="bun", blade=(168, 176, 184), tassel=(150, 92, 88)),
+           acc=("sword",), attrs=dict(stance="taichi", height=1.06, build=0.96), bw=_BW_ELDER),
+        _V(dict(robe=(120, 116, 88), robe_dk=(78, 76, 56), sash=(190, 176, 138), hair=(204, 202, 196), skin="deep", head="cap", cap=(118, 96, 70), basket=(166, 126, 76), herbs=(104, 128, 92), cane=(118, 82, 50)),
+           acc=("back_basket", "cane"), attrs=dict(stance="upright", height=0.96, build=1.0, stoop=0.22), bw=_BW_ELDER),
+        _V(dict(robe=(112, 92, 116), robe_dk=(72, 56, 76), sash=(198, 176, 150), hair=(210, 208, 200), skin="warm", head="bald", fan=(214, 202, 180)),
+           acc=("fan",), attrs=dict(stance="seated", height=0.96, build=1.05), bw=_BW_ELDER),
+        _V(dict(robe=(100, 96, 108), robe_dk=(62, 60, 70), fur=(216, 208, 194), sash=(186, 180, 160), hair=(208, 206, 198), skin="fair", head="cap", cap=(106, 88, 70), tea=(224, 218, 206)),
+           acc=("teacup", "beard"), attrs=dict(stance="upright", height=0.98, build=1.12, padded=True), bw=_BW_ELDER, ww=_WW_SNOW),
     ]
 
 
@@ -542,10 +754,16 @@ def _build_vendors():
            acc=("rolled",), attrs=dict(pose="ladle", height=1.0, build=1.06), bw=_BW_VENDOR),
         _V(dict(shirt=(100, 108, 124), shirt_dk=(64, 72, 90), apron=(200, 192, 178), pants=(58, 60, 70), hair=(54, 42, 34), skin="warm", hat="conical", hat_c=(184, 150, 88), basket=(176, 132, 78)),
            attrs=dict(pose="stack", height=1.04, build=1.0), bw=_BW_VENDOR),
-        _V(dict(shirt=(168, 120, 84), shirt_dk=(114, 78, 54), apron=(208, 198, 178), pants=(70, 60, 50), hair=(40, 32, 28), skin="tan", hat="cap", hat_c=(110, 96, 74)),
-           acc=("skewers",), attrs=dict(pose="sign", height=1.0, build=1.05), bw=_BW_VENDOR),
         _V(dict(shirt=(140, 104, 130), shirt_dk=(94, 66, 90), apron=(206, 194, 174), pants=(64, 56, 58), hair=(50, 40, 32), skin="fair", hat="cloth", hat_c=(150, 100, 84), sign=(168, 78, 70)),
            attrs=dict(pose="sign", height=1.0, build=1.04), bw=_BW_VENDOR),
+        _V(dict(shirt=(150, 86, 70), shirt_dk=(104, 56, 46), apron=(214, 200, 178), pants=(70, 60, 52), hair=(46, 36, 30), skin="tan", hat="wrap", hat_c=(146, 108, 92), blade=(176, 182, 190), board=(146, 116, 76)),
+           acc=("rolled",), attrs=dict(pose="chop", height=1.0, build=1.1), bw=_BW_VENDOR),
+        _V(dict(shirt=(88, 110, 148), shirt_dk=(54, 70, 104), apron=(204, 194, 176), pants=(60, 58, 62), hair=(40, 32, 28), skin="fair", hat="cap", hat_c=(112, 96, 74), pot=(140, 118, 96), tea=(196, 168, 120)),
+           acc=("towel",), attrs=dict(pose="pour", height=1.04, build=0.98), bw=_BW_VENDOR),
+        _V(dict(shirt=(126, 92, 84), shirt_dk=(84, 58, 52), apron=(208, 196, 176), pants=(66, 56, 50), hair=(50, 40, 32), skin="deep", hat="none", pan=(96, 88, 82), food=(206, 156, 92)),
+           acc=("rolled", "towel"), attrs=dict(pose="wok", height=0.98, build=1.16), bw=_BW_VENDOR),
+        _V(dict(shirt=(112, 128, 96), shirt_dk=(72, 88, 62), apron=(208, 198, 176), pants=(62, 58, 48), hair=(44, 34, 28), skin="ruddy", hat="cloth", hat_c=(148, 104, 88)),
+           acc=("rolled",), attrs=dict(pose="weigh", height=0.96, build=1.22), bw=_BW_VENDOR),
     ]
 
 

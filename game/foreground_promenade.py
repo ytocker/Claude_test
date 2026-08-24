@@ -459,7 +459,7 @@ def _draw_bench_person(surf, x_base, body_y, shirt, shirt_dk, hair, *, night=0.0
 
 
 def draw_kids(surf, sx, pal, *, t=0.0, n=3, variant=0):
-    """`n` small children drawn from the 6-strong 'kid' variety pool (day_cast),
+    """`n` small children drawn from the 10-strong 'kid' variety pool (day_cast),
     feet on GROUND_Y. `variant` is a resolved base pool index; each of the n kids
     takes the next pool member (variant, variant+1, …) so a group reads as several
     different children, not one cloned thrice."""
@@ -474,7 +474,7 @@ def draw_kids(surf, sx, pal, *, t=0.0, n=3, variant=0):
 
 
 def draw_vendor(surf, sx, pal, *, t=0.0, variant=0):
-    """One standing market vendor/worker from the 7-strong 'vendor' pool
+    """One standing market vendor/worker from the 10-strong 'vendor' pool
     (day_cast), feet on GROUND_Y, centred on `sx`. `variant` is a resolved pool
     index; the near lane passes it as a kwarg so it enters the bake cache key."""
     v = _fv.get("vendor", variant)
@@ -484,7 +484,7 @@ def draw_vendor(surf, sx, pal, *, t=0.0, variant=0):
 
 
 def draw_old_man(surf, sx, pal, *, t=0.0, seated_bench=False, variant=0):
-    """A TEMPLE ELDER from the 6-strong 'elder' variety pool (day_cast) — varied
+    """A TEMPLE ELDER from the 10-strong 'elder' variety pool (day_cast) — varied
     stance (stoop+cane / tai-chi / birdcage / hands-behind / seated+tea / feeding
     birds), feet on GROUND_Y. `variant` is a resolved pool index. The legacy
     seated-on-bench companion pose is kept as a fallback for `seated_bench`."""
@@ -1226,7 +1226,12 @@ def _scene_food(emit, bx, pal, t, kind, vendor_variant, rng, *, pick=None, cust_
             s, bx, GROUND_Y - 1, _nightf(pal), t, kind=kind, rain=_CUR_RAIN))
         return
     cust = pick('pedestrian', cust_salt) if pick else 0
-    crit = rng.choice(('pigeons', 'pigeons', 'cat', 'hen'))
+    crit_pool = ('pigeons', 'pigeons', 'cat', 'hen')
+    if _fv.beat_for_phase(_CUR_PHASE) == _fv.BEAT_MARKET:
+        # The piglet arrives with the produce — market beat only, so it never
+        # turns up at dusk with nobody to own it.
+        crit_pool += ('piglet',)
+    crit = rng.choice(crit_pool)
     emit(TB_STRUCTURE, lambda s: draw_food_stall(s, bx, pal, t=t, kind=kind,
                                                  openness=openness))
     if openness < 0.65:
@@ -1261,7 +1266,7 @@ def _scene_food_tea(emit, bx, pal, t, rng, pick=None):
     _scene_food(emit, bx, pal, t, 'tea', _food.STALLS['tea'][1], rng, pick=pick, cust_salt=64)
 
 def draw_dog(surf, sx, pal, *, t=0.0, variant=0):
-    """One street dog from the 5-strong 'dog' pool (animals_cast), feet on
+    """One street dog from the 9-strong 'dog' pool (animals_cast), feet on
     GROUND_Y, centred on `sx`, ambling/facing the scroll direction. `variant` is a
     resolved pool index; the near lane passes it as a kwarg into the bake cache."""
     v = _fv.get("dog", variant)
@@ -1276,9 +1281,9 @@ def draw_dog(surf, sx, pal, *, t=0.0, variant=0):
 
 
 def draw_critter(surf, sx, pal, *, t=0.0, kind="pigeons"):
-    """One street critter (pigeons/hen/cat/duck) from the 'critter' pool, feet on
-    GROUND_Y, centred on `sx`. Placed near the food stalls so the market reads as
-    alive (birds pecking scraps, a market cat, a hen)."""
+    """One street critter (pigeons/hen/cat/duck/crane/piglet/rabbit) from the
+    'critter' pool, feet on GROUND_Y, centred on `sx`. Placed near the food
+    stalls so the market reads as alive (birds pecking scraps, a market cat)."""
     v = _fv.get("critter", _animals.critter_index(kind))
     if v is None:
         return
@@ -1459,7 +1464,8 @@ def _scene_pastoral(emit, bx, pal, t, rng, pick=None):
     emit(TB_STRUCTURE, lambda s: draw_wish_tree(s, bx, pal, t=t))
     emit(TB_CAST, dy=9, cast=(draw_dog, bx + 66, dict(t=t, variant=dv)))
     emit(TB_CAST, dy=18, cast=(draw_critter, bx + 96,
-                               dict(t=t, kind=rng.choice(('pigeons', 'cat', 'hen', 'duck')))))
+                               dict(t=t, kind=rng.choice(('pigeons', 'cat', 'hen',
+                                                          'duck', 'crane', 'rabbit')))))
 
 def _scene_lamplighter(emit, bx, pal, t, rng, pick=None):
     """A lamplighter kindling the street lanterns at dusk — on the back kerb,
