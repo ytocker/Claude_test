@@ -592,7 +592,7 @@ def draw_flock(surf, sx, pal, *, t=0.0, n=3):
 
 
 def draw_strollers(surf, sx, pal, *, t=0.0, umbrella=None, variant=0):
-    """Draw ONE adult pedestrian from the 50-strong variety pool (ped_cast),
+    """Draw ONE adult pedestrian from the 57-strong variety pool (ped_cast),
     feet on GROUND_Y, centred on `sx`. `variant` is a resolved pool index; the
     near lane passes it as a kwarg so it enters the bake cache key. Umbrella/hood/
     coat looks now come from weather-weighted pool variants, so the old `umbrella`
