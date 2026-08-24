@@ -34,6 +34,7 @@ import pygame
 
 from game import foreground_props as sp
 from game import foreground_weekend as _wk
+from game import weekend_kit as _wkit
 from game import biome as _biome
 from game.config import (W, H, WEATHER_CROWD_RAIN_MIN, WEATHER_CROWD_SNOW_MIN,
                          WEATHER_UMBRELLA_RAIN_AT)
@@ -106,36 +107,10 @@ def _draw_umbrella(surf, cx, canopy_y, color_idx, *, night=0.0, scale=1.0,
     couple of ribs, and a pole running down to the hand. Leans into the wind by
     `_CUR_WIND`. Opaque draws (no alpha) so it composites straight onto the deck;
     colour capped under the coin at night."""
-    color = _UMBRELLA_COLORS[color_idx % len(_UMBRELLA_COLORS)]
-    if night > 0.05:
-        color = _cap150(_mix(color, (54, 64, 96), min(0.5, 0.4 * night + 0.15)))
-    dark = _shade(color, -46)
-    r = max(5, int(8 * scale))
-    tilt = int(round(_CUR_WIND * 3.0)) + 1          # lean downwind (rain drives left→ canopy right)
-    apex_x = cx + tilt
-    cy = int(canopy_y)
-    # Dome + scalloped hem as one filled fan.
-    canopy = [
-        (cx - r, cy),
-        (apex_x - int(r * 0.55), cy - int(r * 0.55)),
-        (apex_x, cy - r),
-        (apex_x + int(r * 0.55), cy - int(r * 0.55)),
-        (cx + r, cy),
-        (cx + int(r * 0.6), cy + 2),
-        (cx, cy + 1),
-        (cx - int(r * 0.6), cy + 2),
-    ]
-    pygame.draw.polygon(surf, color, canopy)
-    pygame.draw.polygon(surf, dark, canopy, 1)
-    # Ribs from the apex out to the hem scallops, and a top nub.
-    pygame.draw.line(surf, dark, (apex_x, cy - r), (cx, cy + 1), 1)
-    pygame.draw.line(surf, dark, (apex_x, cy - r), (cx - int(r * 0.6), cy + 2), 1)
-    pygame.draw.line(surf, dark, (apex_x, cy - r), (cx + int(r * 0.6), cy + 2), 1)
-    pygame.draw.circle(surf, dark, (apex_x, cy - r), 1)
-    # Pole down to the hand (slightly off the canopy centre so the figure "holds" it).
-    hand_x = cx - 1
-    pygame.draw.line(surf, (96, 74, 52), (cx, cy + 1),
-                     (hand_x, cy + int(pole_len * scale)), 1)
+    # Canopy geometry lives in the kit now (the ribbed oil-paper build — panel
+    # value alternation + hem scallops that count the ribs); wind lean preserved.
+    _wkit.draw_umbrella8(surf, cx, canopy_y, color_idx, night=night, scale=scale,
+                         pole_len=pole_len, wind=_CUR_WIND)
 
 
 # A reused bounding-box scratch for the faint catenary wires. Each wire used to
@@ -578,7 +553,21 @@ def draw_strollers(surf, sx, pal, *, t=0.0, umbrella=None, variant=0):
     v = _fv.get("pedestrian", variant)
     if v is None:
         return
-    _ped._draw_one(surf, sx, GROUND_Y - 1, pal, v, _nightf(pal), t)
+    night = _nightf(pal)
+    # Weather-dress substitution: in a real storm/snow, weather-locked rows may
+    # trade their look for the kit's suoyi cape / padded winter figure.
+    dress = _wkit.weekend_dress(variant, _CUR_RAIN, _CUR_SNOW)
+    if dress == "suoyi":
+        _wkit.draw_suoyi(surf, sx, GROUND_Y - 1, night, t,
+                         carry=("crate" if variant % 3 else "pole"))
+        return
+    if dress == "winter":
+        _wkit.draw_winter_figure(surf, sx, GROUND_Y - 1, night, t,
+                                 coat=("indigo" if variant % 2 else "rust"),
+                                 scarf=("stream" if variant % 3 else "drape"),
+                                 storm=max(0.4, _CUR_SNOW), phase=variant * 0.73)
+        return
+    _ped._draw_one(surf, sx, GROUND_Y - 1, pal, v, night, t)
 
 
 def _shelter_figures(surf, w, scroll, pal, t):
@@ -1137,10 +1126,22 @@ def _scene_food(emit, bx, pal, t, kind, vendor_variant, rng, *, pick=None, cust_
     openness = _stall_openness(_CUR_PHASE, u)
     if openness <= 0.05:
         return                          # struck and carried off
+    # In a real downpour the stall doesn't close — the vendor pitched a tarp
+    # over it (the sheet sheds toward the downwind corner, the brazier and the
+    # steam keep going, the vendor sits it out underneath). Open despite rain.
+    if _CUR_RAIN > 0.35 and openness >= 0.5:
+        emit(TB_STRUCTURE, lambda s: _wkit.draw_stall_tarp(
+            s, bx, GROUND_Y - 1, _nightf(pal), t, kind=kind, rain=_CUR_RAIN))
+        return
     cust = pick('pedestrian', cust_salt) if pick else 0
     crit = rng.choice(('pigeons', 'pigeons', 'cat', 'hen'))
     emit(TB_STRUCTURE, lambda s: draw_food_stall(s, bx, pal, t=t, kind=kind,
                                                  openness=openness))
+    if openness < 0.65:
+        # the market being assembled or struck: the handcart stands alongside
+        load = "loaded" if openness < 0.45 else "half"
+        emit(TB_FIXTURE, lambda s, load=load: _wkit.draw_cart_folded(
+            s, bx + 34, GROUND_Y - 1, _nightf(pal), t, load=load))
     if openness >= 0.30:
         emit(TB_CAST, lambda s: draw_vendor(s, bx - 6, pal, t=t, variant=vendor_variant))
     if openness >= 0.80:
@@ -1173,6 +1174,11 @@ def draw_dog(surf, sx, pal, *, t=0.0, variant=0):
     resolved pool index; the near lane passes it as a kwarg into the bake cache."""
     v = _fv.get("dog", variant)
     if v is None:
+        return
+    if _CUR_SNOW >= 0.35:
+        # every dog bundles into its winter self (breath puffs and all)
+        _wkit.draw_winter_dog(surf, sx, GROUND_Y - 1, _nightf(pal), t,
+                              variant=variant, phase=variant * 0.61)
         return
     _animals.draw_dog(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
 
@@ -1320,6 +1326,14 @@ def _scene_quiet(emit, bx, pal, t, rng, pick=None):
     """The temple elder pausing — a quiet, near-empty-street beat."""
     ev = pick('elder', 14) if pick else 0
     emit(TB_CAST, lambda s, ev=ev: draw_old_man(s, bx + 30, pal, t=t, variant=ev))
+
+
+def _scene_sweeper(emit, bx, pal, t, rng, pick=None):
+    """The first inhabitant of the morning: the sweeper working a besom over
+    yesterday's street, pile inching ahead of the twigs."""
+    ph = rng.random() * 1.3
+    emit(TB_CAST, lambda s: _wkit.draw_sweeper(s, bx, GROUND_Y - 1, _nightf(pal),
+                                               t, phase=ph, pal=pal))
 
 
 def _scene_bench(emit, bx, pal, t, rng, pick=None):
@@ -1637,7 +1651,7 @@ def _roster_for(phase):
                 _scene_food_tea, _scene_campfire, _scene_stroll, _scene_bench)
     if p < 0.924:                      # SMALL HOURS — near-empty, braziers warm
         return (_scene_quiet, _scene_rest, _scene_campfire)
-    return (_scene_food_tea, _scene_quiet, _scene_vendor, _scene_stroll)  # FIRST LIGHT — tea opens first
+    return (_scene_food_tea, _scene_sweeper, _scene_quiet, _scene_vendor)  # FIRST LIGHT — tea + brooms first
 
 def _dressing(surf, w, scroll, pal, phase):
     """Phase-gated street fixtures in one pass (glow follows the palette). Lamps +

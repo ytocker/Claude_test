@@ -302,17 +302,17 @@ def _draw_one(surf, cx, base_y, pal, v, night, t):
 
     # ── HELD PARASOL / UMBRELLA (overhead — strongest outline-breaker) ──
     if "parasol" in v.accessory or "umbrella" in v.accessory:
-        col = pf(P.get("canopy", (236, 224, 210))); dark = _shade(col, -42)
+        # The ribbed oil-paper canopy from the weekend kit, in this row's own
+        # canopy colour (deferred import: the kit imports this module).
+        from game import weekend_kit as _wkit
+        col = pf(P.get("canopy", (236, 224, 210)))
         cr = int(head_r * 2.5)
-        tilt = int(head_r * (0.5 if "umbrella" in v.accessory else 0.15))
-        cy = hy - int(head_r * 2.7); apex_x = hx + tilt
-        canopy = [(hx - cr, cy), (apex_x - cr // 2, cy - cr // 2), (apex_x, cy - cr),
-                  (apex_x + cr // 2, cy - cr // 2), (hx + cr, cy),
-                  (hx + cr * 3 // 5, cy + 3), (hx, cy + 1), (hx - cr * 3 // 5, cy + 3)]
-        pygame.draw.polygon(surf, col, canopy)
-        pygame.draw.polygon(surf, dark, canopy, max(1, head_r // 4))
-        pygame.draw.line(surf, pf((110, 84, 56)), (hx, cy + 1), (hx - 1, arm_y + torso_h // 3),
-                         max(2, head_r // 4))
+        cy = hy - int(head_r * 2.7)
+        wind = 0.5 if "umbrella" in v.accessory else 0.1
+        sc = max(0.5, cr / 8.0)
+        _wkit.draw_umbrella8(surf, hx, cy, 0, night=0.0, scale=sc,
+                             pole_len=max(6, int(((arm_y + torso_h // 3) - (cy + 1)) / sc)),
+                             wind=wind, color=col)
 
 
 # ── the 50-strong pool, registered as foreground_variants 'pedestrian' rows ───

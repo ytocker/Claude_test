@@ -59,7 +59,7 @@ _ROSTER_PREF = {
     TEMPLE: ("_scene_quiet", "_scene_pastoral", "_scene_rest", "_scene_vendor"),
     GREEN: ("_scene_pastoral", "_scene_quiet", "_scene_bench", "_scene_rest"),
     QUIET: ("_scene_quiet", "_scene_rest", "_scene_pastoral", "_scene_bench"),
-    WORKS: ("_scene_rest", "_scene_quiet", "_scene_dawn_setup"),
+    WORKS: ("_scene_rest", "_scene_sweeper", "_scene_quiet", "_scene_dawn_setup"),
 }
 
 _run_seed = 0x5EED
