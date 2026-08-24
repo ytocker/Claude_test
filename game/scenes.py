@@ -995,8 +995,14 @@ class App:
         self._sync_bird_cosmetics()
         self.world.ready_t = 0.0
         # Sidewalk showcase: no parrot, so no launch flap (which would play
-        # the flap SFX and count a phantom input).
-        if not self.world.sidewalk_demo:
+        # the flap SFX and count a phantom input). The start tap's touch/mouse
+        # echo (SDL can deliver mouse-then-finger, which the dedup above the
+        # dispatcher only catches in the other order) would otherwise land in
+        # PLAY and end the round on the spot — swallow it with the same grace
+        # window the un-pause tap uses.
+        if self.world.sidewalk_demo:
+            self._resume_grace_t = 0.35
+        else:
             self.world.flap()
         self._pick_cloud_variant()
         self.state = STATE_PLAY
@@ -1075,8 +1081,14 @@ class App:
         self._sync_bird_cosmetics()
         self.world.ready_t = 0.0
         # Sidewalk showcase: no parrot, so no launch flap (which would play
-        # the flap SFX and count a phantom input).
-        if not self.world.sidewalk_demo:
+        # the flap SFX and count a phantom input). The start tap's touch/mouse
+        # echo (SDL can deliver mouse-then-finger, which the dedup above the
+        # dispatcher only catches in the other order) would otherwise land in
+        # PLAY and end the round on the spot — swallow it with the same grace
+        # window the un-pause tap uses.
+        if self.world.sidewalk_demo:
+            self._resume_grace_t = 0.35
+        else:
             self.world.flap()
         self._pick_cloud_variant()
         self.state = STATE_PLAY
