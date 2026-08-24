@@ -194,6 +194,20 @@ class SidewalkCrowd:
             if e.wave > 0.0:
                 e.wave -= sdt
         if not pr.calm_now():
+            # Once-per-day: the first drops — the frame rain arrives, everyone
+            # on the front lane stops, looks up, then moves on.
+            from game import foreground_weekend as _wkd
+            if (getattr(pr, "_CUR_RAIN", 0.0) >= 0.12
+                    and _wkd.happening('first_umbrella', (0.48, 0.545),
+                                       phase, t, 2.0) is not None
+                    and not getattr(self, "_first_drops_done", False)):
+                self._first_drops_done = True
+                for i, e in enumerate(self.near):
+                    if e.kind != "dog":
+                        e.state = "pause"
+                        e.walk_vel = 0.0
+                        e.timer = 1.0 + 0.25 * i
+                        e.wave = max(e.wave, 0.9 + 0.2 * i)
             score = int(pr.signal('score', 0) or 0)
             if score // 25 > self._seen_score // 25:
                 for e in random.sample(self.near, min(3, len(self.near))):

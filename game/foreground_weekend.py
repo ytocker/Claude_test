@@ -64,12 +64,32 @@ _ROSTER_PREF = {
 
 _run_seed = 0x5EED
 _phi = 0.0     # the breathing sine's per-run phase
+_h_started: dict = {}   # once-per-day happening ledger: name -> (t0, anchor)
 
 
 def reset_run():
     global _run_seed, _phi
     _run_seed = random.getrandbits(32) or 0x5EED
     _phi = random.uniform(0.0, 6.28318)
+    _h_started.clear()
+
+
+def happening(name, window, phase, t, dur, anchor=0.0):
+    """Once-per-day happenings: the first time `phase` enters `window` the
+    happening starts and plays for `dur` seconds; afterwards it never re-fires
+    this run. Returns (progress 0..1, anchor latched at start) while playing,
+    else None. `anchor` typically latches a world-x so the beat stays planted."""
+    rec = _h_started.get(name)
+    if rec is None:
+        p = phase % 1.0
+        if not (window[0] <= p < window[1]):
+            return None
+        rec = (t, anchor)
+        _h_started[name] = rec
+    k = (t - rec[0]) / dur
+    if 0.0 <= k <= 1.0:
+        return (k, rec[1])
+    return None
 
 
 def _mix(h):

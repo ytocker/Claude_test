@@ -1458,6 +1458,25 @@ def draw_near_lane(surf, scroll, pal, phase, t, crowd=None):
     # it is occupied (busy-street gate) and WHICH act it holds, so a busker never
     # morphs (juggler->musician etc.) or blinks (density crossing 0.25, day<->festival)
     # while on screen — it performs its act for the whole pass and scrolls off.
+    # Once-per-day: the snowball — in the near-white small hours, the only two
+    # figures on the block are two kids and a 2px arc between them.
+    hb = _wk.happening('snowball', (0.845, 0.905), phase, t, 4.5,
+                       anchor=scroll + W * 0.55)
+    if hb and not pr.calm_now():
+        kk, wx = hb
+        sxx = int(wx - scroll)
+        if -60 < sxx < W + 60:
+            _zbuf.enqueue(ny, TB_CAST, lambda s, sxx=sxx: _scaled_cast(
+                s, pr.draw_kids, sxx - 16, pal, 1.5, t=0.4, n=1, flip=True))
+            _zbuf.enqueue(ny, TB_CAST, lambda s, sxx=sxx: _scaled_cast(
+                s, pr.draw_kids, sxx + 16, pal, 1.5, t=1.1, n=1))
+            u = (kk * 3.0) % 1.0
+            if int(kk * 3.0) % 2:
+                u = 1.0 - u
+            bxp = int(sxx - 12 + u * 24)
+            byp = int(ny - 16 - math.sin(u * math.pi) * 8)
+            _zbuf.enqueue(ny, TB_CAST, lambda s, bxp=bxp, byp=byp:
+                          pygame.draw.rect(s, (238, 243, 249), (bxp, byp, 2, 2)))
     for bx, k in _near_static_xs(scroll, W, _PERF_PERIOD, x0=_PERF_X0, margin=_PERF_MARGIN):
         dec = sp._slot_latch(('perf',), k,
                              lambda k=k: _perf_decide(k, phase, density))

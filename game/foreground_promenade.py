@@ -1328,6 +1328,53 @@ def _scene_quiet(emit, bx, pal, t, rng, pick=None):
     emit(TB_CAST, lambda s, ev=ev: draw_old_man(s, bx + 30, pal, t=t, variant=ev))
 
 
+def _draw_pigeon_flush(surf, sx, pal, k):
+    """Seven pigeons burst off the paving and fan up-and-right — the one moment
+    street birds fly. Held inside the band (never past y=562)."""
+    night = _nightf(pal)
+    body = _retint_person((88, 92, 104), night)
+    wing = _retint_person((132, 136, 148), night)
+    for i in range(7):
+        lift = k * (18 + i * 3.5)
+        px = sx - 12 + i * 5 + int(k * (26 + i * 4))
+        py = max(563, int(GROUND_Y - 5 - lift))
+        flick = int(k * 24 + i) % 2
+        pygame.draw.rect(surf, body, (px, py, 2, 2))
+        if flick:
+            pygame.draw.line(surf, wing, (px - 1, py), (px + 2, py - 1), 1)
+
+
+def _happenings(surf, scroll, pal, phase, t):
+    """The once-per-day charming beats (weekend-scale, never epic). Each fires
+    the first time its window opens, plays out planted at a latched world-x,
+    and never repeats this run."""
+    if calm_now():
+        return
+    h = _wk.happening('pigeon_flush', (0.06, 0.28), phase, t, 2.5,
+                      anchor=scroll + W * 0.62)
+    if h:
+        k, wx = h
+        sx = int(wx - scroll)
+        if -40 < sx < W + 40:
+            _zbuf.enqueue(GROUND_Y - 1, TB_CAST,
+                          lambda s, k=k, sx=sx: _draw_pigeon_flush(s, sx, pal, k))
+    h = _wk.happening('noodles_dog', (0.70, 0.78), phase, t, 4.0,
+                      anchor=scroll + W * 0.72)
+    if h:
+        # a spill at a stall corner; a dog arrives within seconds; the dog wins
+        k, wx = h
+        sx = int(wx - scroll)
+        if -60 < sx < W + 60:
+            spill = _retint_person((214, 178, 120), _nightf(pal))
+            dog_x = int(sx - 52 + min(1.0, k * 1.6) * 44)
+            bob = 1 if (k > 0.62 and int(t * 6) % 2) else 0
+            _zbuf.enqueue(GROUND_Y - 1, TB_CAST, lambda s, sx=sx, spill=spill: (
+                pygame.draw.rect(s, spill, (sx - 2, GROUND_Y - 3, 4, 2))))
+            _zbuf.enqueue(GROUND_Y - 1, TB_CAST,
+                          lambda s, dog_x=dog_x, bob=bob: draw_dog(
+                              s, dog_x, pal, t=t, variant=2 + bob))
+
+
 def _scene_sweeper(emit, bx, pal, t, rng, pick=None):
     """The first inhabitant of the morning: the sweeper working a besom over
     yesterday's street, pile inching ahead of the twigs."""
@@ -1792,6 +1839,7 @@ def draw_promenade(surf, scroll, pal, phase, t):
     _ground_furniture(surf, W, scroll, pal, fd=_furn_density(phase))
     _dressing(surf, W, scroll, pal, phase)
     _place_scenarios(surf, W, scroll, pal, t, _roster_for(phase), density)
+    _happenings(surf, scroll, pal, phase, t)
     # A few souls shelter near the dressing (kiosk awnings / lamp posts) when the
     # open deck has emptied — keeps the street alive at the storm's worst.
     _shelter_figures(surf, W, scroll, pal, t)
