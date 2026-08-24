@@ -154,6 +154,11 @@ GENIE_PILLARS_AFTER_GEYSER_PEAK = 3
 # as the production milestone (also flips on the genie pool + surprise-box
 # choices). Set to None to disable.
 DEBUG_GENIE_PILLAR     = None
+# Sidewalk showcase build: the round runs with no parrot — the world scrolls
+# and simulates normally so the street can be watched on its own, and a tap
+# ends the round instead of flapping. Telemetry, achievements, and the
+# leaderboard are skipped for these rounds since nothing was played.
+SIDEWALK_DEMO          = True
 # Only the genie spawns directly from the secret tier. Knight, skateboard,
 # and poison are reachable EXCLUSIVELY via the genie's fixed offer — they
 # are not in any weight table and cannot be Surprise-re-rolled.

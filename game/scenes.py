@@ -705,6 +705,11 @@ class App:
             if getattr(self.world, "demo", None) is not None \
                     and self.world.demo.gates_flap():
                 return
+            # Sidewalk showcase: there is no parrot to flap — a tap while the
+            # street plays means "I'm done watching", so it ends the round.
+            if self.world.sidewalk_demo:
+                self.world.end_demo_run()
+                return
             self.world.flap()
         elif self.state == STATE_PAUSE:
             self.state = STATE_PLAY
@@ -989,7 +994,10 @@ class App:
         self.world = World()
         self._sync_bird_cosmetics()
         self.world.ready_t = 0.0
-        self.world.flap()
+        # Sidewalk showcase: no parrot, so no launch flap (which would play
+        # the flap SFX and count a phantom input).
+        if not self.world.sidewalk_demo:
+            self.world.flap()
         self._pick_cloud_variant()
         self.state = STATE_PLAY
 
@@ -1066,7 +1074,10 @@ class App:
         self.world = World()
         self._sync_bird_cosmetics()
         self.world.ready_t = 0.0
-        self.world.flap()
+        # Sidewalk showcase: no parrot, so no launch flap (which would play
+        # the flap SFX and count a phantom input).
+        if not self.world.sidewalk_demo:
+            self.world.flap()
         self._pick_cloud_variant()
         self.state = STATE_PLAY
 
@@ -1315,8 +1326,9 @@ class App:
         # (browser-only; native is a silent no-op). Strong ref on
         # self prevents GC from killing the task mid-flight.
         import asyncio as _asyncio
-        # The branch-only demo never writes telemetry / the DB.
-        if getattr(self.world, "demo", None) is None:
+        # Neither demo mode writes telemetry / the DB — nothing was played.
+        if (getattr(self.world, "demo", None) is None
+                and not self.world.sidewalk_demo):
             try:
                 self._play_log_task = _asyncio.create_task(play_log.log_run(self.world))
             except RuntimeError:
@@ -1326,7 +1338,8 @@ class App:
         # scripted demo). Any newly-unlocked ids get a full-screen
         # "ACHIEVEMENT EARNED!" card screen (scrollable) before the run summary.
         newly = []
-        if getattr(self.world, "demo", None) is None:
+        if (getattr(self.world, "demo", None) is None
+                and not self.world.sidewalk_demo):
             try:
                 from game import achievements
                 newly = achievements.evaluate_run(self.world)
@@ -1360,6 +1373,16 @@ class App:
         if self._warren_demo:
             self.hud.title_t = 0.0
             self._start_warren_demo()
+            self._cooldown_t = 0.25
+            return
+        # Sidewalk showcase: no leaderboard detour — the score wasn't earned
+        # by play. Still honour the stats-screen choice (PLAY AGAIN / MENU).
+        if self.world.sidewalk_demo:
+            self.hud.title_t = 0.0
+            if self._post_leaderboard == "play":
+                self._restart()
+            else:
+                self.state = STATE_MENU
             self._cooldown_t = 0.25
             return
         self._final_score = self.world.score
@@ -1810,8 +1833,9 @@ class App:
         if locked:
             _draw_cart_on_bird(self.screen, self.world, sx, sy, layer="wheels")
 
-        self.world.bird.draw(self.screen, sx, sy,
-                             flipped=self.world.reverse_timer > 0)
+        if not self.world.sidewalk_demo:
+            self.world.bird.draw(self.screen, sx, sy,
+                                 flipped=self.world.reverse_timer > 0)
 
         if locked:
             _draw_cart_on_bird(self.screen, self.world, sx, sy, layer="body")
@@ -1968,7 +1992,8 @@ class App:
             ce = getattr(self.world, "clown_event", None)
             if ce is not None:
                 ce.draw_sign(self.screen, self.world, 0, 0)
-                if getattr(ce, "die_pop_t", 0) > 0:
+                if (getattr(ce, "die_pop_t", 0) > 0
+                        and not self.world.sidewalk_demo):
                     self.world.bird.draw(self.screen, sx, sy,
                                          flipped=self.world.reverse_timer > 0)
         elif self.state == STATE_PAUSE:

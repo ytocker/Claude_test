@@ -28,6 +28,7 @@ from game.config import (
     FLAP_V,
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
     SECRET_POWERUP_WEIGHTS, LATE_GAME_PILLAR, DEBUG_GENIE_PILLAR,
+    SIDEWALK_DEMO,
     CLOWN_START_PILLAR, CLOWN_SLOT_PILLARS, CLOWN_WARREN_SPACING,
     CLOWN_PRECLEAR_PILLARS, CLOWN_LEADIN_PILLARS, CLOWN_OUTRO_PILLARS,
     STORM_JOLT_RAIN_MIN,
@@ -413,6 +414,13 @@ class World:
         self.ready_t = 1.0
 
         self.game_over = False
+
+        # Sidewalk showcase: no parrot in the round, so everything that only
+        # exists to move, kill, or reward the bird is gated off while the
+        # rest of the simulation (spawning, scroll, scoring, weather, street)
+        # runs untouched. Distinct from `demo` (the scripted clown beat),
+        # which takes over pillar spawning.
+        self.sidewalk_demo = SIDEWALK_DEMO
 
         # One-shot: when pillars_passed crosses LATE_GAME_PILLAR, a genie
         # lamp is placed in the gap between that pillar and the next one,
@@ -1642,7 +1650,8 @@ class World:
 
         if not self.game_over:
             sign = -1 if self.reverse_timer > 0 else 1
-            self.bird.update(dt, gravity_sign=sign)  # bird physics at real time
+            if not self.sidewalk_demo:
+                self.bird.update(dt, gravity_sign=sign)  # bird physics at real time
             # Terminal poison: Bird.update ramps poison_t toward 1.0; the HUD
             # poison bar reads the same ramp and disappears at t=1.0. From
             # that point Bird.flap is guarded — Pip can no longer rise, so
@@ -1712,7 +1721,8 @@ class World:
                 r.x -= speed * sdt
             # Morning-thermal updraft: continuous lift while Pip is inside an
             # active geyser column (capped, zone ends mid-screen — see method).
-            self._apply_thermal_lift(dt)
+            if not self.sidewalk_demo:
+                self._apply_thermal_lift(dt)
 
             # Magnet pull — tug uncollected coins toward the bird.
             # Either timer triggers; the bigger radius wins if both
@@ -1832,7 +1842,9 @@ class World:
             # Near-miss detection: once per pipe, flag if the bird was within
             # a narrow band of either edge without hitting. Fires as the pipe
             # passes behind the bird so it doesn't double-count mid-flight.
-            for p in self.pipes:
+            # Meaningless with no parrot — a frozen bird parked near a gap
+            # edge would rack up false grazes.
+            for p in (self.pipes if not self.sidewalk_demo else ()):
                 # Phantoms have no visible edges to graze.
                 if p.is_phantom:
                     continue
@@ -1860,11 +1872,13 @@ class World:
                 self._flap_window_t -= 1.0
                 self._flap_window_n = 0
 
-            # collisions
-            self._check_collisions()
-
-            # pickups
-            self._check_pickups()
+            # collisions + pickups — bird-only physics: with no parrot in the
+            # round there is nothing to kill and nothing that can collect, and
+            # the stationary bird anchor at BIRD_X would otherwise vacuum any
+            # coin drifting through it.
+            if not self.sidewalk_demo:
+                self._check_collisions()
+                self._check_pickups()
 
             # timers (real time, not scaled — the buffs shouldn't self-extend).
             if self.triple_timer > 0:
@@ -2306,9 +2320,33 @@ class World:
         if self.lives_remaining > 0:
             self._revive_life()
             return
-        # Wall of Shame: snapshot the death-moment context while effect state is
-        # still live (read post-death by achievements.evaluate_run). Only a real
-        # death reaches here — a knight revive returned above.
+        self._finalize_death()
+        self.hit_flash = 0.35
+        self.shake_mag = 8
+        self.shake_t = 0.45
+        audio.play_death()
+        for _ in range(26):
+            self.particles.append(Particle(
+                self.bird.x, self.bird.y,
+                random.uniform(-260, 260), random.uniform(-360, -40),
+                random.uniform(0.5, 1.2), random.randint(3, 6),
+                random.choice((PARTICLE_CRIM, PARTICLE_ORNG, PARTICLE_WHT)),
+                gravity=900,
+            ))
+
+    def end_demo_run(self):
+        """End a sidewalk-demo round on request. No revives, no death
+        cosmetics (flash/shake/SFX/particles) — nothing died, the viewer
+        simply chose to stop watching."""
+        if self.game_over:
+            return
+        self._finalize_death()
+
+    def _finalize_death(self):
+        # Wall of Shame: snapshot the death-moment context while effect state
+        # is still live (read post-death by achievements.evaluate_run). Only a
+        # run that is truly over reaches here — _die's revives returned before
+        # calling this.
         self.death_pillar = self.pillars_passed
         self.death_ghost = bool(self.bird.ghost_active)
         self.death_kfc = bool(self.bird.kfc_active)
@@ -2330,18 +2368,6 @@ class World:
         # Start the dead-Pip cross-fade. Tiny non-zero value gates the
         # overlay in Bird.draw; world.update advances it each frame.
         self.bird.death_fade_t = 1e-6
-        self.hit_flash = 0.35
-        self.shake_mag = 8
-        self.shake_t = 0.45
-        audio.play_death()
-        for _ in range(26):
-            self.particles.append(Particle(
-                self.bird.x, self.bird.y,
-                random.uniform(-260, 260), random.uniform(-360, -40),
-                random.uniform(0.5, 1.2), random.randint(3, 6),
-                random.choice((PARTICLE_CRIM, PARTICLE_ORNG, PARTICLE_WHT)),
-                gravity=900,
-            ))
 
     def _revive_life(self):
         """Spend one heart: grant collision immunity, kick upward, fire a
