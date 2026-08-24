@@ -120,7 +120,7 @@ Newbie plateau ends at 15.9 s; the ramp starts tightening underneath the player 
 > *So the player feels: I've arrived somewhere busy and I'm welcome in it.*
 > The day's **first crest**. Density 0.58 → **0.86 at 35 s** → 0.78 → 0.55.
 
-**B3 · 20 – 35 s | φ 0.051 – 0.089** — Density 0.58 → 0.80. Calm mandate lifts at 19 s.
+**B3 · 20 – 35 s | φ 0.051 – 0.089** — Density 0.58 → 0.80. Calm mandate lifts at ~15 s (pillar 5 of the newbie plateau).
 Block deck shifts hard toward **STALL ROW** and **CROSSING**. Three food stalls arrive in the first STALL ROW, dealt so no two are the same kind: *steamer* + *tea* + *grill*. Vendors work their matched poses (`STALLS` maps each kind to a `day_cast` vendor index: steamer→V1 calling, grill→V3 fanning, tea→V1 calling). Between them, `prop_dress` produce crates and woven baskets.
 **Signature:** the morning-market read is **buying, not eating** — figures with `basket_arm` walking *away* from stalls, one basket per two adults. (Research: morning markets are errands; night markets are meals. The two crowds must not look alike.)
 Ramp is still tightening; the street's business is rising with it, which reads as the game "opening up."
@@ -425,13 +425,13 @@ Placement rules: no personality repeats within 3 blocks; **CROSSING never adjace
 
 ## 6. The street-show system — occasional, not scheduled
 
-Shows live **only in SMALL SQUARE blocks** (and very rarely in CROSSING).
+Shows spawn on their own sparse cadence anywhere the street allows, but the **bigger tier-2 ring only opens where a SMALL SQUARE block gives it room** (as built: hard-gating admission to squares would cut the documented cadence ~8x, so the square gates the ring, not the busker).
 
 **Frequency.** A SMALL SQUARE block rolls a show at `p_show(phase)`: **0.35** morning, **0.55** golden, **0.30** dusk, **0.65** night market, **0.05** small hours. SMALL SQUARE is itself about 1-in-6 blocks (~every 33 s of flight at fair weather), so a show lands roughly **every 60–90 s in daylight and every ~45 s at the market peak.** That's a busker here and there.
 
-**Cooldown.** A hard 40 s of flight time (≈6400 world px) between show *starts*, so two never stack. Fully suppressed during the newbie ramp (t < 19 s) and while `clown_active`.
+**Cooldown.** A hard 40 s of flight time (≈6400 world px) between show *starts*, so two never stack. Fully suppressed during the newbie ramp (t < 15 s) and while `clown_active`.
 
-**Act selection.** Use the existing `PERFORMERS_BY_BEAT` bands (`day`: juggler/calligrapher/fortune · `golden`: musician/tea-pourer/fan-dancer · `dusk`: stilt/juggler/mask-changer · `market`: calligrapher/fortune/juggler), **dealt not rolled**, with a per-run no-repeat-until-exhausted rule across the whole day. Tall acts (`is_tall`: stilt, tea-pour, fan-dance) are gated to `_tall_ok` clear zones outside the bird lane (48–188) and pillar lane (212–320).
+**Act selection.** Use the existing `PERFORMERS_BY_BEAT` bands (`day`: juggler/calligrapher/fortune · `golden`: musician/tea-pourer/fan-dancer · `dusk`: stilt/juggler/mask-changer · `market`: calligrapher/fortune/juggler), **dealt not rolled**, with a per-run no-repeat-until-exhausted rule across the whole day. Tall acts (`is_tall`: stilt, tea-pour, fan-dance) scroll through freely — gameplay entities draw on top of the whole foreground, so a clear-zone gate would only make them wink out mid-screen (`_tall_ok` intentionally passes everything).
 
 **Crowd-gathering — the show as a 3-stage tableau across its 900 px.** Pip flies through, so he experiences the show's arc *spatially*, exactly the way you experience a real busker: you approach, you see the ring, you pass.
 
@@ -562,7 +562,7 @@ Replaces `_POP_KEYS`. **All values are fair-weather**; `weather_factor` multipli
 - **Milestone (score % 25 == 0, and on power-up pickup):** for 3 s, glance probability **triples** and up to 3 near-lane figures wave, staggered 0.25 s. No sound, no text. The player who's paying attention notices the street noticed; the one who isn't, doesn't.
 - **Coin Rush (every 15th pillar):** kids in the current block **point** up-left for the rush's duration. Pointing is a distinct silhouette from waving — arm at 30°, not 90°.
 - **Score 100 / 200 / …:** the nearest performer's crowd ring **turns as one** to face up-left for 2 s. It's ~7 figures. It's the closest the town comes to applauding, and it costs one flag.
-- **Hard mutes:** zero glances, waves or points during the newbie ramp (t < 19 s) and during `clown_active`.
+- **Hard mutes:** zero glances, waves or points during the newbie ramp (t < 15 s) and during `clown_active`.
 - **Never:** text, arrows, cheer SFX, any figure above y=560, any pixel brighter than the coin.
 
 ---

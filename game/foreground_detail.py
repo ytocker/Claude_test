@@ -431,8 +431,13 @@ def _damp(surf, w, top_y, region_h, scroll, front, back, mortar, night,
             # rivalling the lit props), so it's clamped to zero above ~0.85 night.
             ga = int(13 * wet * max(0.0, 1.0 - 1.18 * night))
             if ga >= 2 and depth_t > 0.6:
-                glint = pygame.Surface((max(2, sw // 3), 1), pygame.SRCALPHA)
-                glint.fill((200, 210, 220, ga))
+                # BLEND_RGB_ADD ignores source alpha and adds the raw RGB, so the
+                # intended opacity must be pre-scaled into the colour itself — a
+                # low-alpha fill here added the full (200,210,220) and clipped the
+                # paving to white, out-brighting the coin.
+                kk = ga / 255.0
+                glint = pygame.Surface((max(2, sw // 3), 1))
+                glint.fill((int(200 * kk), int(210 * kk), int(220 * kk)))
                 surf.blit(glint, (sx - sw // 6, py - 1),
                           special_flags=pygame.BLEND_RGB_ADD)
 

@@ -1401,7 +1401,11 @@ def _perf_decide(k, phase, density):
     in_square = _wk.is_square(k * _PERF_PERIOD + _PERF_X0, p)
     band = _perf_band(p)
     if band is None:
-        band = "market" if 0.644 <= p < 0.785 else None
+        if 0.644 <= p < 0.785:
+            band = "market"
+        elif 0.785 <= p < 0.924:
+            band = "dusk"      # the small hours: the 120-slot grid makes this
+                               # the rarest sighting of the day (~1 per 9 min)
     if band is None:
         return None
     idxs = _pf.PERFORMERS_BY_BEAT[band]
