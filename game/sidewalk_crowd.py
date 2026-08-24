@@ -48,7 +48,9 @@ _LEAVE_STAGGER = 0.8      # seconds between departures when the street empties
 # leftward on screen), >0 walks AGAINST it (upstream — still nets leftward, just
 # slower), 0 = standing (rides exactly world speed, i.e. planted).
 _PED_SPEED = (34.0, 66.0)
-_DOG_SPEED = (72.0, 140.0)
+# A stray ambles: the old (72, 140) dart made every dog re-cross the screen
+# several times, multiplying its perceived frequency well past its spawn share.
+_DOG_SPEED = (55.0, 100.0)
 
 
 class _Ent:
@@ -57,15 +59,16 @@ class _Ent:
 
 
 def _pick_kind():
-    # Mix in the slower elder so the front lane isn't a stroller monoculture.
+    # People dominate; the dog is a STRAY — an occasional sighting, not a
+    # fifth of the street (at 20% the fast re-crossing dogs read as a pack).
     r = random.random()
-    if r < 0.42:
+    if r < 0.46:
         return "stroller"
-    if r < 0.64:
+    if r < 0.71:
         return "kids"
-    if r < 0.84:
-        return "dog"
-    return "elder"
+    if r < 0.93:
+        return "elder"
+    return "dog"
 
 
 def _market_now(phase):

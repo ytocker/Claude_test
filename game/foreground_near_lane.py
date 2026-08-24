@@ -1164,7 +1164,7 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
         return (pr._slot_on(k, 3, density),
                 _fv.select_variant('dog', _fv.slot_seed(k, 51),
                                    _fv.beat_for_phase(pr._CUR_PHASE), _fv.WB_CLEAR))
-    for sx, k in _near_xs(scroll, w, 300, x0=96):
+    for sx, k in _near_xs(scroll, w, 560, x0=96):
         on, dvar = sp._slot_latch(('ped', 3), k, lambda k=k: _dog_decide(k))
         if on:
             fy, fac = _DEPTH_TIERS[3]
