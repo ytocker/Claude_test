@@ -899,13 +899,15 @@ def _stepped(cls, pal, frames, x, *, rng_seed=7):
 
 
 def _ground_furniture(surf, w, scroll, pal, fd=1.0):
-    """World-anchored ground FIXTURES — a barrel, a cairn, a planter trailing a
-    cascading vine, and a sparse bamboo planter. Part of the street, not the crowd:
+    """World-anchored ground FIXTURES — barrels, cairns, market clutter, plus
+    the town's PLANTING (tree line + beds). Part of the street, not the crowd:
     FIXED spacing so they stay pinned to the sidewalk and scroll at world speed.
-    `fd` is the furniture density: each lane is thinned by a STABLE per-slot gate
-    (keyed to the world slot, not t/scroll) so the deck reads scattered, never a
-    wall — yet stays present from t=0 and never flickers. Wide periods + the gate
-    keep the average scene open. Clears the bird column; drawn behind the cast."""
+    `fd` thins the loose clutter rows (barrel/cairn/dress) via a STABLE
+    per-slot gate (keyed to the world slot, not t/scroll) so the deck reads
+    scattered, never a wall — yet stays present from t=0 and never flickers.
+    The planting rows deliberately ignore `fd`: they follow the per-run,
+    day-stable plant_scheme instead, because street trees and kept beds don't
+    come and go with the decor curve. Drawn behind the cast."""
     # Each lane's inclusion is latched at entry (off-screen) so a fixture never
     # blinks out in view when `fd` dips — it scrolls in and out like the deck it
     # sits on.
@@ -1458,8 +1460,8 @@ def _scenarios(surf, w, scroll, pal, t, roster, x0=40):
 
     Legacy gallery path (PHASES_R17): scenes now EMIT their sub-objects, so give
     them an emit that paints immediately in submission order — no depth buffer."""
-    def _emit(_tier, fn):
-        fn(surf)
+    def _emit(_tier, fn, dy=0):
+        fn(surf if not dy else _sunk(surf, dy))
     for bx, k in sp._world_xs(scroll, w, _SCENARIO_PERIOD, x0,
                               mult=sp.GROUND_MULT, margin=_SCENE_MARGIN):
         rng = random.Random((k * 0x9E3779B1) & 0xFFFFFFFF)

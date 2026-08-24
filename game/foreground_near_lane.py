@@ -1192,19 +1192,22 @@ def _emit_near_crowd(surf, crowd, scroll, pal):
 
 def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
     """Near-lane greenery accents — a vine tub + the odd pine. The pooled potted
-    plants now live in the far-band cluster beds on the sidewalk (see
-    foreground_promenade._draw_greenery_cluster), so the front edge is kept open
-    rather than jammed with large low pots. Fixtures, so thinned by the phase-only
-    furniture density `fd` via a stable per-slot gate (present from t=0, no flicker)
-    and spaced on wide periods; the taller pine is gated to a clear zone."""
+    plants live in the far-band planting beds (see
+    foreground_promenade._bed_layout), so the front edge is kept open rather
+    than jammed with large low pots. Placement follows the town's planting plan
+    on fixed wide cadences; `fd` is accepted for call-site uniformity but
+    unused — planting is day-stable, unlike the decor the density curve thins."""
     ny = NEAR_GROUND_Y
 
     # Planned, not rolled: the front accents keep a deterministic cadence tied
-    # to the back tree line's grid (vine lanterns every other tree interval,
+    # to the back tree line's grid (vine lanterns on every 4th tree interval,
     # offset to sit between back-line trees) so the front edge reads as part of
-    # the same planting plan. The pine skips densely-treed blocks — a tall
-    # front pine against a full back row over-greens the frame.
-    for sx, k in _near_static_xs(scroll, w, 502, x0=268):
+    # the same planting plan. The wide fixed periods carry the average density
+    # the old fd-thinned rows had, without the hash scatter — planting doesn't
+    # follow the decor-density curve, because pots don't leave at night. The
+    # pine skips densely-treed blocks — a tall front pine against a full back
+    # row over-greens the frame.
+    for sx, k in _near_static_xs(scroll, w, 1004, x0=268):
         _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx: _near_vine_lantern(s, sx, pal))
     for sx, k in _near_static_xs(scroll, w, 753, x0=394):
         if _wk.plant_scheme(k * 753 + 394)[0] != 1:
