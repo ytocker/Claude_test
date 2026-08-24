@@ -15,7 +15,7 @@ What makes the depth read (the contract the art-director gates):
     below the far deck; near figures (and the near dog) clip naturally at the
     screen bottom, the way a foreground subject does.
   * FASTER PARALLAX — the far props track at PROP_MULT=0.20; the near lane anchors
-    at NEAR_MULT=0.35 so it slides past faster, the classic near-vs-far cue.
+    at NEAR_MULT=1.15 so it slides past faster, the classic near-vs-far cue.
   * OCCLUSION — the near lane is painted AFTER the far lane / props and BEFORE the
     gameplay actors, so near figures cover the far cast's feet (real depth, not a
     transparent overlay). Within the near lane we still draw back-to-front.

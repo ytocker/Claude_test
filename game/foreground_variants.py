@@ -223,6 +223,10 @@ def select_variant(family: str, seed: int, beat: int, wbucket: int) -> int:
     recent_cls.append(_sil_class(p[pick]))
     del recent_cls[:-_RECENT_CLASS_N]
     if len(_dealt_memo) >= _MEMO_CAP:
-        _dealt_memo.clear()
+        # evict only the OLDEST quarter (insertion order): those slots scrolled
+        # off long ago, so a re-ask that could flip a visible actor never loses
+        # its memo — bulk clearing here caused a one-frame variant pop
+        for k in list(_dealt_memo)[:_MEMO_CAP // 4]:
+            del _dealt_memo[k]
     _dealt_memo[memo_key] = pick
     return pick

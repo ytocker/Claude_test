@@ -840,6 +840,10 @@ _TARP_MARGIN_UP = 78
 _TARP_MARGIN_DOWN = 8
 
 
+_LIT_KIT_CACHE = {}
+_LIT_KIT_CACHE_CAP = 128
+
+
 def _clamped_lit(drawer):
     """The props_cast._night_clamped contract, applied to a new LIT piece.
 
@@ -849,14 +853,28 @@ def _clamped_lit(drawer):
     at night the whole piece — core, broth, halo — draws onto its own SRCALPHA
     layer, gets props_cast's composite luma clamp, and only then blits. Day is
     a straight-through draw, so the daylight look is byte-identical."""
+    name = getattr(drawer, "__name__", "drawer")
+
     def _wrapped(surf, sx, base_y, night, t, **kw):
         if night <= 0.05:
             return drawer(surf, sx, base_y, night, t, **kw)
-        layer = pygame.Surface((_TARP_MARGIN_X * 2,
-                                _TARP_MARGIN_UP + _TARP_MARGIN_DOWN),
-                               pygame.SRCALPHA)
-        drawer(layer, _TARP_MARGIN_X, _TARP_MARGIN_UP, night, t, **kw)
-        _props._clamp_surface_luma(layer)
+        # Baked, like props_cast._night_clamped: the per-pixel clamp costs ~3 ms
+        # a call, so the lit layer renders once per (variant kwargs, night step,
+        # flicker frame) and replays from a small FIFO cache.
+        nq = min(20, int(night * 20 + 0.5))
+        tq = int(t * 8) % 16
+        key = (name, tuple(sorted((k, round(v, 2) if isinstance(v, float) else v)
+                                  for k, v in kw.items())), nq, tq)
+        layer = _LIT_KIT_CACHE.get(key)
+        if layer is None:
+            layer = pygame.Surface((_TARP_MARGIN_X * 2,
+                                    _TARP_MARGIN_UP + _TARP_MARGIN_DOWN),
+                                   pygame.SRCALPHA)
+            drawer(layer, _TARP_MARGIN_X, _TARP_MARGIN_UP, nq / 20.0, tq / 8.0, **kw)
+            _props._clamp_surface_luma(layer)
+            if len(_LIT_KIT_CACHE) >= _LIT_KIT_CACHE_CAP:
+                _LIT_KIT_CACHE.pop(next(iter(_LIT_KIT_CACHE)))
+            _LIT_KIT_CACHE[key] = layer
         surf.blit(layer, (int(sx) - _TARP_MARGIN_X, int(base_y) - _TARP_MARGIN_UP))
     _wrapped.__name__ = getattr(drawer, "__name__", "drawer")
     return _wrapped
@@ -944,6 +962,7 @@ def _stall_tarp(surf, sx, base_y, night, t, *, kind="steamer", rain=1.0):
     hair = _retint((52, 42, 34), night)
     vx = sx - 6
     body_y = cy - 10
+    # deferred for the same import-cycle reason as _umbrella_colors()
     from game import foreground_promenade as _fp
     _fp._draw_bench_person(surf, vx, body_y, shirt, shirt_dk, hair, night=night)
     # Arms folded: one bar plus two hand pixels tucked under the opposite elbow —
@@ -1116,8 +1135,6 @@ def draw_sweeper(surf, cx, base_y, night, t, *, phase=0.0, coat=(108, 118, 96),
 
 
 
-
-draw_stall_tarp = _stall_tarp
 
 
 def weekend_dress(variant, rain, snow):

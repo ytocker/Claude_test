@@ -94,12 +94,6 @@ _UMBRELLA_COLORS = (
 )
 
 
-def _wants_umbrella():
-    """True when the weather is wet/snowy enough that a walking figure would put
-    up a brolly. A single frame-wide gate (not a per-figure random) so umbrellas
-    appear together as the rain crosses in — no per-figure strobing."""
-    return _CUR_RAIN >= WEATHER_UMBRELLA_RAIN_AT or _CUR_SNOW >= 0.35
-
 
 def _draw_umbrella(surf, cx, canopy_y, color_idx, *, night=0.0, scale=1.0,
                    pole_len=9):

@@ -14,6 +14,7 @@ and every run deals the town a new layout.
 """
 from __future__ import annotations
 
+import math
 import random
 
 BLOCK_PX = 900
@@ -163,7 +164,6 @@ def density_mult(world_x, phase):
     """The block's density multiplier × the slow breathing sine (period 1730 px,
     near-coprime with the block and scenario lattices, per-run phase) — knots
     and gaps that never phase-lock into a rhythm."""
-    import math
     pers = personality(block_at(world_x), phase)
     breathe = 1.0 + 0.28 * math.sin(world_x * (6.28318 / 1730.0) + _phi)
     return _DENS_MULT[pers] * breathe

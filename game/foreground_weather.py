@@ -23,6 +23,7 @@ from __future__ import annotations
 import pygame
 
 from game.config import W, H, GROUND_Y
+from game import foreground_promenade as pr
 from game.foreground_props import _world_xs, GROUND_MULT
 
 # The reactive layer paints into this band-local overlay (y=0 maps to GROUND_Y),
@@ -110,7 +111,6 @@ def _light_smears(ov, scroll, wetness):
     sheen — the reflections that make the post-rain market its best-looking
     self. Consumes the promenade's light-spot collector (last frame's spots;
     the one-frame lag is under 3 px of scroll)."""
-    from game import foreground_promenade as pr
     tj = int(getattr(pr, "_CUR_T", 0.0) * 8.0)
     for i, (wx, col) in enumerate(pr.LIGHT_SPOTS):
         sx = int(wx - scroll)
