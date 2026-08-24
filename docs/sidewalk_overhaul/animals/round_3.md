@@ -1,11 +1,16 @@
 # Street animals — round 3 (VARIETY EXPANSION)
 
-**Sheet:** `docs/sidewalk_overhaul/animals/round_3.png` (1240×3363)
+**Sheet:** `docs/sidewalk_overhaul/animals/round_3.png` (1240×3377)
 **Generator:** `tools/_animals_round3.py` (scratch copy of the drawers; `game/` untouched)
 
 Dogs **5 → 9** (4 new + 2 re-dressed toward stray), critters **4 → 7**.
 Dog frequency was already cut separately, so each sighting now has to be a rarer, fresher
 look — the pool has to read as a village street, not as five pets on a loop.
+
+> **Revised after the art director's round-3 critique.** Fixed this pass: D3 read as a
+> dimmer D3, D6's distinctness claim was resting on a sub-pixel ear, D9's coat slid like a
+> dropped sack, the rabbit was too close to the cat, and the ragged-stray edge was being
+> erased by the far-lane downscale.
 
 ---
 
@@ -24,51 +29,88 @@ never the coat.
 | **D9** | **LION-DOG** | `skirtcoat` + `muzzle:flat` + `tail:plume`, build 0.72 / leg 0.45 — smallest, roundest thing in the cast |
 
 New outline enums (everything else is data): `tail` gains **`sickle`** and **`streetlow`**,
-`ear` gains **`halfflop`**, `muzzle` gains **`flat`**, plus three attrs — **`scruffy`**,
-**`mane`**, **`skirtcoat`**.
+`ear` gains **`halfflop`**, `muzzle` gains **`flat`**, plus four attrs — **`scruffy`**,
+**`ruffcrop`** (new this pass), **`mane`**, **`skirtcoat`**.
+
+### FIX — the ragged edge was being erased at far-lane scale
+
+`scruffy` tufts were 1 px: the first thing a nearest downscale throws away. Measured as the
+IoU of a scruffy dog against the same dog with `scruffy=False`, at FAR 0.78× (lower = the
+raggedness actually registers):
+
+| Row | 1 px tufts | 2 px tufts |
+|---|---|---|
+| D1 | 0.94 | **0.91** |
+| D3 | 0.97 | **0.94** |
+| D6 | 0.95 | **0.91** |
+
+### FIX — D3 was "a dimmer D3"
+
+Re-dressing the spitz with a duller coat and a lower tail changed **19 %** of its outline
+(0.81 IoU against the shipped spitz) — colour did the rest of the work, and colour dies
+first. It now carries a second outline event, a new `ruffcrop` attr:
 
 ```python
-elif tail == "streetlow":          # hangs almost straight DOWN off the rump
-    pygame.draw.lines(surf, tcol, False, [
-        (tx - 1, body_cy + 1), (tx + int(sh_h * 0.22), body_cy + int(sh_h * 0.45)),
-        (tx + int(sh_h * 0.14) + sway, body_cy + int(sh_h * 0.85))], max(2, sh_h // 6))
+if ruffcrop:
+    # A stray's ruff wears away unevenly — thick over the withers, rubbed back
+    # to the skin on the throat side. The flat-bottomed, back-heavy collar is an
+    # ASYMMETRIC outline event.
+    rr = max(3, int(head_r * 1.35))
+    collar = [(rx - rr * 0.55, ry - rr * 0.85), (rx + rr * 0.85, ry - rr * 0.75),
+              (rx + rr * 0.75, ry + rr * 0.25), (rx - rr * 0.15, ry + rr * 0.35),
+              (rx - rr * 0.95, ry - rr * 0.05)]
+    pygame.draw.polygon(surf, _mix(coat, belly, 0.30), collar)
+    ...three 2px standing tufts on the upper rim
+```
 
-if scruffy:                        # RAGGED edge: tufts standing off the back line
-    for k, bxp in enumerate(range(body_left + 2, body_right - 1, 3)):
-        up = 1 + (k % 2)
-        pygame.draw.line(surf, coat_dk, (bxp, body_top + 1), (bxp - 1, body_top - up), 1)
-    # + a torn hip and a broken shoulder line
+```
+D3 vs the SHIPPED spitz outline:   0.81  →  0.74
+D3 max-IoU inside the pool:        0.71  →  0.73 (vs D8)
+```
 
-elif ear == "halfflop":            # one up, one folded — the pool's first ASYMMETRIC head
-    pygame.draw.polygon(surf, coat_dk, [...prick...])
-    pygame.draw.polygon(surf, _shade(coat_dk, -14), [...folded tip...])
+The small rise against D8 is the cost of any ruff; 0.73 is inside the pool's normal band
+(D4 ↔ D5 also measure 0.73) and D8 still owns the full mane disc, the tight curl tail and
+the short legs.
 
-if mane:                           # ruff drawn BEHIND the head so the head sits inside it
-    mr = max(3, int(head_r * 1.5))
-    pygame.draw.circle(surf, _mix(coat, belly, 0.35), (hx + head_r // 2, hy + 1), mr)
-    for k in range(8):             # 8 shaggy spikes on the rim
-        ...
+### CORRECTED — what actually makes D6 the stray
 
-if skirtcoat:                      # fringed coat to the deck; the legs disappear
-    skirt = [(body_right, body_top + body_h // 2)] + zigzag_hem + [(body_left, ...)]
-    pygame.draw.polygon(surf, coat, skirt)
+Round 3 sold D6 on "the pool's first asymmetric head". Measured, the half-flopped ear is
+**sub-pixel** at this size:
+
+```
+D6 with halfflop  vs  D6 with a plain prick ear   =  0.97 IoU   (native AND at 0.78x)
+D6 with streetlow vs  D6 with a sabre tail        =  0.89 IoU
+D6 ragged         vs  D6 smooth-backed (FAR)      =  0.91 IoU
+```
+
+So D6's read is the **tail hung straight down, the dust-grey coat and the broken back
+line**. The ear is a 4× zoom bonus and is now described as one — in the row note, the
+module docstring and the sheet.
+
+### FIX — D9's coat was a dropped sack
+
+The `skirtcoat` hem was a static zigzag, so a legless dog slid along the deck. The zigzag
+now flips phase with the gait:
+
+```python
+# The fringe alternates phase with the stride: without it a legless coat slides
+# along like a dropped sack instead of walking under its own fur.
+wob = 1 if gait > 0 else 0
+skirt.append((xx, hem - ((k + wob) % 2)))
+```
+
+```
+D9 px changing along the bottom 3 rows per cycle:  0  →  21
 ```
 
 ### Two shipped breeds re-dressed toward stray
 
 * **D1 hound** — coat dulled `(176,150,110) → (150,130,100)`, `tail:low → streetlow`,
-  `scruffy` on. Same proportions, now a street dog.
-* **D3 spitz** — cream `(214,208,196) → (184,178,164)` dusty, `tail:plume → sickle`
-  (carried lower/looser), `scruffy` on. Still fluffy, no longer groomed. (Bonus: the duller
-  coat also buys night-cap headroom.)
+  `scruffy` on (now 2 px).
+* **D3 spitz** — dusty coat, `tail:plume → sickle`, `scruffy` + the new `ruffcrop`.
 
 D2 dash (the height benchmark), D4 shiba and D5 long-ear pup are untouched — D4 is
 deliberately left as the one clearly *owned* dog on the street.
-
-### Passed over
-
-* **Spotted village dog** — spots are interior colour and vanish in the far lane; round 2
-  cut a spotted mutt for exactly this reason.
 
 ### Measured checks
 
@@ -78,58 +120,67 @@ Height (must stay under an adult, PED_H 18; D2 dash is the ceiling at 18):
 D1 17  D2 18  D3 16  D4 18  D5 15  D6 17  D7 17  D8 17  D9 16
 ```
 
-(D8 was 20 px on the first pass — the mane was pushing it to adult height; build 1.0 → 0.86,
-head 1.0 → 0.95, mane radius 1.7 → 1.5 `head_r` brought it back to 17.)
-
-Silhouette IoU, each new dog against its nearest neighbour in the pool: D6 0.68 (vs D5),
-D7 0.66 (vs D5), D8 0.71 (vs D3), D9 0.58 (vs D8) — in the same band as the shipped pool's
-own spread, with D9 the most distinct thing in the family.
+Silhouette max-IoU inside the pool: D1 0.66 · D2 0.63 · D3 0.73 · D4 0.73 · D5 0.73 ·
+D6 0.68 · D7 0.66 · D8 0.73 · **D9 0.58** (the most distinct thing in the family).
 
 ---
 
 ## 2. Critters — three new kinds
 
-Picked for maximum silhouette separation from the sitting cat / pecking hen / pigeon clump /
-waddling duck, and from each other:
-
 | Row | Silhouette | 2-beat motion |
 |---|---|---|
 | **C5 CRANE** | The only **vertical** critter: stilt legs + long S-neck + spear bill, ~2× the duck's height (13 px), dark trailing plumes | neck folds down to preen then unfurls; one leg lifts on the slow half of the cycle |
-| **C6 PIGLET** | The **widest-for-its-height** shape: a low tube (19×9) on four stubby legs, blunt snout disc, curl tail | roots the snout down into the deck and lifts; tail flicks off-beat |
+| **C6 PIGLET** | The **widest-for-its-height** shape: a low tube on four stubby legs, blunt snout disc, curl tail | roots the snout down into the deck and lifts; tail flicks off-beat |
 | **C7 RABBIT** | A compact ball under **two outsized upright ears**, bright scut behind | nibbling head bob; one ear twitches back on a slower cycle |
+
+**FIX — the rabbit was too close to the cat.** The ears are the only thing separating the
+two silhouettes, so they gained 1 px of length and 1 px of gap:
+
+```
+C7 rabbit vs C1 cat:   0.51  →  0.45      (identical at native and at 0.78x)
+```
+
+**C6 PIGLET is now marked `[BEAT-GATED: BEAT_MARKET only]`** in its row data note — it
+arrives with the produce and must not turn up at dusk with nobody to own it. (Carried from
+the round-1 note; integration will honour it.)
 
 **Goose was passed over deliberately:** at 6–10 px a goose is a duck with a longer neck —
 the same size-only read that got the sparrows cut in round 2. The crane takes the
 long-necked slot instead because its stilt legs make it a different *shape*, not a different
-*size*. (Sparrow pair: still cut, nothing has changed at this scale.)
-
-Critter IoU vs the shipped four: crane **0.11–0.31** (completely separate), rabbit
-0.30–0.51, piglet 0.33–0.58 (its closest neighbour is the pigeon clump, which is three
-separated blobs against the piglet's one solid tube plus snout and curl).
+*size*. **Spotted village dog** was passed over too: spots are interior colour and vanish in
+the far lane, exactly why round 2 cut a spotted mutt.
 
 ---
 
-## 3. Night-cap audit (measured, not asserted)
+## 3. Audits (measured on rendered pixels, not asserted)
 
-All 9 dogs + 7 critters × 3 motion phases rendered onto the night deck; scan over the
-**rendered** pixels:
+**Outline** (printed in the sheet footer):
+
+```
+D3 vs shipped spitz      = 0.74   (tail swap alone was 0.81 — 'a dimmer D3')
+D6 ragged vs smooth FAR  = 0.91   (1px tufts measured 0.95 — the downscale erased them)
+D6 streetlow vs sabre    = 0.89   ·   D6 halfflop vs prick = 0.97  (SUB-PIXEL — not the read)
+D9 hem px moving/cycle   = 21     (was 0)
+rabbit vs cat            = 0.45   (was 0.51)
+```
+
+**Night cap** — all 9 dogs + 7 critters × 3 motion phases on the night deck:
 
 ```
 hottest ANIMAL px luma = 144   ·   px over 150 = 0   ·   gold-coin core = 230
 PASS — all animal px <= cap.
 ```
 
-Both new pale coats (crane body 188,186,178 and lion-dog 178,156,118) ride the existing
-pale-coat second pull in `_retint`, and every derived highlight goes through `_hi`, so
-nothing drifts over 150 at any gait phase.
+The new `ruffcrop` collar is mixed from the already-cooled `coat`/`belly`, so it inherits
+the pale-coat second pull in `_retint` and cannot drift over the cap.
 
 ---
 
 ## 4. Open questions for the art director
 
-1. Nine dogs may be more than the (now rarer) dog slot can show — should the pool be nine
-   with weighting that favours the strays, or trimmed to eight by cutting D5?
-2. The lion-dog's skirt coat hides its legs entirely, so it slides rather than walks. Add a
-   1 px hem wobble on the gait, or is the loaf-glide the charm?
-3. The piglet has no obvious owner on the street yet — should it be beat-gated to
-   BEAT_MARKET only (arriving with the produce), rather than appearing at dusk?
+1. Nine dogs may be more than the (now rarer) dog slot can show — nine with weighting that
+   favours the strays, or trim to eight by cutting D5?
+2. D3's cropped ruff pushes it from 0.71 to 0.73 against the chow. Keep the full collar, or
+   shrink it to `head_r*1.2` (0.72 vs D8, but only 0.76 vs the shipped spitz)?
+3. The half-flop ear is honest 4× detail that costs nothing — keep it as a zoom reward, or
+   drop it so the enum list stays small?

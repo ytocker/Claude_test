@@ -15,14 +15,15 @@ one genuinely NEW pose/stance branch on its shared drawer — not another palett
             behind it) and `reading` (an open scroll held wide at the chest —
             a hard horizontal bar across the body). Plus a sword-form elder and
             a back-basket herb gatherer.
-  VENDORS   5 kept + 5 new = 10.  NEW POSES `chop` (cleaver up over a board,
+  VENDORS   6 kept + 4 new = 10.  NEW POSES `chop` (cleaver up over a board,
             2-beat), `pour` (long-spout pot high, a thread of tea arcing into a
             cup) and `wok` (two hands on a tilted wok, food tossed above it) —
             all upper-body actions, because vendors read chest-up behind a
-            counter.
+            counter.  V1 the caller STAYS: it is the only hawking vendor, and the
+            market needs a voice.
 
   RETIRES (2 per family, justified in the sheet's cut band): K1, K5 · E1, E4 ·
-  V1, V6.
+  V6, V12.
 
 CONSTRAINTS (from the module header): pure pygame.draw.* + Surface, pygbag-safe;
 night cools toward (54,64,96) with a hard <=150 luma cap so the gold coin (~230)
@@ -185,7 +186,7 @@ def draw_kid(surf, cx, base_y, v, night, t):
         # counter edge. Reads as a tall thin exclamation mark, which is the exact
         # opposite of the squat/chase rows and survives the far-lane downscale.
         stretch = 0.5 + 0.5 * math.sin(t * 1.9)
-        body_y = ground - int(total * 0.46) - body_h - int(stretch)
+        body_y = ground - int(total * 0.46) - body_h - int(round(stretch))
         body_bot = body_y + body_h
         hy = body_y - head_r + 1
         pygame.draw.ellipse(surf, shirt, (cx - body_w + 1, body_y, body_w * 2 - 2, body_h + 1))
@@ -194,10 +195,15 @@ def draw_kid(surf, cx, base_y, v, night, t):
             lx = cx + sgn * body_w * 0.45
             pygame.draw.line(surf, pants, (lx, body_bot), (lx, ground - 1), 2)
             pygame.draw.line(surf, _shade(pants, -22), (lx - 1, ground - 1), (lx + 1, ground), 1)
-        for sgn, off in ((-1, 0.0), (1, 0.35)):
+        for sgn, off in ((-1, 0.12), (1, 0.0)):
+            # The REACH is the animation. Truncating a 0..1 float with int() froze
+            # the whole cycle at zero, so the row read as a still figure; driving
+            # the fingertips off the float instead moves the top of the silhouette
+            # ~2px a beat and puts the crown-to-fingertip stack above the squat
+            # rows without touching the kite runner's ceiling.
+            tip_y = hy - head_r * (2.15 + off + 0.70 * stretch)
             pygame.draw.line(surf, skin, (cx + sgn * body_w * 0.5, body_y + 1),
-                             (cx + sgn * body_w * 0.9 - body_w * 0.5,
-                              hy - head_r * (1.5 + off * 0.4)), 2)
+                             (cx + sgn * body_w * 0.85 - body_w * 0.35, tip_y), 2)
     else:
         pygame.draw.ellipse(surf, shirt, (cx - body_w, body_y, body_w * 2, body_h + 1))
         pygame.draw.ellipse(surf, shirt_dk, (cx - body_w, body_y, body_w * 2, body_h + 1), 1)
@@ -234,7 +240,7 @@ def draw_kid(surf, cx, base_y, v, night, t):
         # widens at the BOTTOM (buns widen it at the top). A cheap, readable note.
         pygame.draw.circle(surf, hair, (hx, hy - head_r // 3), head_r)
         for sgn in (-1, 1):
-            tip = (hx + sgn * (head_r + 2), hy + head_r + 1 + int(gait * 0.8))
+            tip = (hx + sgn * (head_r + 2), hy + head_r + 1 + int(round(gait * 0.8)))
             pygame.draw.line(surf, hair, (hx + sgn * head_r, hy - head_r // 3), tip, 2)
             pygame.draw.circle(surf, _shade(hair, -20), tip, 1)
     elif hairstyle == "cap":
@@ -263,7 +269,9 @@ def draw_kid(surf, cx, base_y, v, night, t):
         pygame.draw.line(surf, skin, (cx - body_w * 0.4, arm_y), (cx - body_w * 1.3, arm_y - 2), 2)
         kx, ky = cx + body_w + 4, hy - head_r * 3
         tail = _cap_luma(pf(_knock(P.get("tail", (224, 150, 70)))))
-        pygame.draw.line(surf, tail, (cx - body_w * 1.3, arm_y - 2), (kx, ky), 1)
+        # A 1px string is erased by the crisp far-lane downscale and the kite
+        # detaches into a floating lozenge; 2px keeps child and kite one object.
+        pygame.draw.line(surf, tail, (cx - body_w * 1.3, arm_y - 2), (kx, ky), 2)
         pygame.draw.polygon(surf, kcol, [(kx, ky - 3), (kx + 3, ky), (kx, ky + 3), (kx - 3, ky)])
         pygame.draw.polygon(surf, _shade(kcol, -34), [(kx, ky - 3), (kx + 3, ky), (kx, ky + 3), (kx - 3, ky)], 1)
     if "stick" in v.accessory:
@@ -477,7 +485,7 @@ def draw_elder(surf, cx, base_y, v, night, t):
 
     if "cane" in v.accessory:
         cane = pf(P.get("cane", (118, 82, 50)))
-        tap = int(math.sin(t * 1.3))
+        tap = int(round(math.sin(t * 1.3)))
         chx = cx + body_w * 1.4 + lean
         pygame.draw.line(surf, cane, (chx, arm_y), (chx + tap, ground), max(2, body_w // 6))
         pygame.draw.line(surf, cane, (chx, arm_y), (chx - 3, arm_y), max(2, body_w // 6))
@@ -612,7 +620,9 @@ def draw_vendor(surf, cx, base_y, v, night, t):
             pygame.draw.line(surf, (90, 80, 64), (sx2 + ox, arm_y - 4), (sx2 + ox, arm_y), 1)
             pygame.draw.arc(surf, pf((150, 120, 70)), (sx2 + ox - 2, arm_y - 1, 4, 3), math.radians(180), math.radians(360), 1)
     elif pose == "fan":
-        fy = arm_y + int(math.sin(t * 6) * 1)
+        # int() on a (-1,1) float is zero everywhere but the two extremes — this
+        # flutter never moved a pixel until it was rounded instead of truncated.
+        fy = arm_y + int(round(math.sin(t * 6) * 1.2))
         pygame.draw.line(surf, shirt, (cx - body_w * 0.4, arm_y), (cx - body_w * 1.4, fy + 2), max(2, body_w // 4))
         pygame.draw.rect(surf, pf((200, 180, 140)), (int(cx - body_w * 1.7), int(fy), 4, 5))
         pygame.draw.rect(surf, pf((140, 110, 70)), (int(cx - body_w * 1.7), int(fy), 4, 5), 1)
@@ -829,8 +839,8 @@ ELDERS_NEW = [
     V(dict(robe=(100, 96, 108), robe_dk=(62, 60, 70), fur=(216, 208, 194), sash=(186, 180, 160), hair=(208, 206, 198),
            skin="fair", head="cap", cap=(106, 88, 70), tea=(224, 218, 206)),
       acc=("teacup", "beard"), attrs=dict(stance="upright", height=0.98, build=1.12, padded=True),
-      label="E12 padded upright + tea",
-      note="ROW | the padded winter mass on its FEET (E5's padding only ever appeared sitting) — a boxy standing elder for the cold beats"),
+      label="E12 padded upright + tea  [SNOW-GATED]",
+      note="ROW [WEATHER-GATED: snow-only weights, zero elsewhere] | the padded winter mass on its FEET (E5's padding only ever appeared sitting) — a boxy standing elder that must never turn up on a warm market day"),
 ]
 
 ELDERS_CUT = [
@@ -843,6 +853,9 @@ ELDERS_CUT = [
 ]
 
 VENDORS_KEEP = [
+    V(dict(shirt=(150, 86, 70), shirt_dk=(104, 56, 46), apron=(214, 200, 178), pants=(70, 60, 52), hair=(46, 36, 30), skin="tan", hat="conical", hat_c=(196, 158, 92)),
+      acc=("rolled", "towel"), attrs=dict(pose="call", height=1.0, build=1.08), label="V1 calling",
+      note="KEPT | pose:call — the pool's ONLY hawking vendor: the market's voice, and the conical hat + raised arm is a read no other action makes"),
     V(dict(shirt=(78, 124, 124), shirt_dk=(48, 84, 84), apron=(206, 196, 176), pants=(66, 58, 50), hair=(40, 32, 28), skin="warm", hat="wrap", hat_c=(150, 110, 96)),
       attrs=dict(pose="weigh", height=1.12, build=0.9), label="V2 weighing (lean/tall)",
       note="KEPT | pose:weigh | lean build, head wrap"),
@@ -864,7 +877,7 @@ VENDORS_NEW = [
     V(dict(shirt=(150, 86, 70), shirt_dk=(104, 56, 46), apron=(214, 200, 178), pants=(70, 60, 52), hair=(46, 36, 30),
            skin="tan", hat="wrap", hat_c=(146, 108, 92), blade=(176, 182, 190), board=(146, 116, 76)),
       acc=("rolled",), attrs=dict(pose="chop", height=1.0, build=1.1), label="V8 cleaver chop  [NEW POSE]",
-      note="NEW POSE chop | 2-beat: the cleaver swings from ABOVE the head down to the board, so the figure's topmost point moves half a head between frames — the loudest motion cue in the family"),
+      note="NEW POSE chop | 2-beat cleaver, raised hand to board. MEASURED, not claimed: top of silhouette travels 1px and 71 native px (45 at 0.78x) change across the cycle — the most in the family (wok 64, pour 47; the six static vendors move 0)"),
     V(dict(shirt=(88, 110, 148), shirt_dk=(54, 70, 104), apron=(204, 194, 176), pants=(60, 58, 62), hair=(40, 32, 28),
            skin="fair", hat="cap", hat_c=(112, 96, 74), pot=(140, 118, 96), tea=(196, 168, 120)),
       acc=("towel",), attrs=dict(pose="pour", height=1.04, build=0.98), label="V9 long-spout tea pour  [NEW POSE]",
@@ -877,19 +890,16 @@ VENDORS_NEW = [
            skin="ruddy", hat="cloth", hat_c=(148, 104, 88)),
       acc=("rolled",), attrs=dict(pose="weigh", height=0.96, build=1.22), label="V11 weighing (heavy)",
       note="ROW | the scale action on a HEAVY body under a cloth hat — V2's read at the opposite end of the build range"),
-    V(dict(shirt=(132, 112, 148), shirt_dk=(88, 72, 104), apron=(202, 190, 172), pants=(58, 54, 60), hair=(52, 42, 34),
-           skin="warm", hat="none", basket=(186, 168, 132)),
-      attrs=dict(pose="stack", height=1.10, build=0.9), label="V12 cloth-bolt stacker (lean)",
-      note="ROW | the stack action on a LEAN/TALL bare-headed body with pale cloth bolts instead of baskets — same branch, different mass and cargo"),
 ]
 
 VENDORS_CUT = [
-    (V(dict(shirt=(150, 86, 70), shirt_dk=(104, 56, 46), apron=(214, 200, 178), pants=(70, 60, 52), hair=(46, 36, 30), skin="tan", hat="conical", hat_c=(196, 158, 92)),
-       acc=("rolled", "towel"), attrs=dict(pose="call", height=1.0, build=1.08), label="V1 calling"),
-     "the whole action is one short arm to the mouth; cropped at the counter it is an apron torso with no outline event at all."),
     (V(dict(shirt=(168, 120, 84), shirt_dk=(114, 78, 54), apron=(208, 198, 178), pants=(70, 60, 50), hair=(40, 32, 28), skin="tan", hat="cap", hat_c=(110, 96, 74)),
        acc=("skewers",), attrs=dict(pose="sign", height=1.0, build=1.05), label="V6 skewers"),
      "four 1px skewers dissolve in the far lane and it shares pose:sign with V7 — so it reads as the sign vendor minus the sign."),
+    (V(dict(shirt=(132, 112, 148), shirt_dk=(88, 72, 104), apron=(202, 190, 172), pants=(58, 54, 60), hair=(52, 42, 34),
+           skin="warm", hat="none", basket=(186, 168, 132)),
+       attrs=dict(pose="stack", height=1.10, build=0.9), label="V12 cloth-bolt stacker (lean)"),
+     "the worst new row of the round: same stack branch as V5, and the pale bolts are the same three stacked ellipses — a lean re-dress, not a new action."),
 ]
 
 FAMILIES = [
@@ -983,6 +993,32 @@ def _figure_cell(parent, fam, v, x, y, w, h, night):
     pygame.draw.rect(parent, (70, 74, 90), (x, y, w, h), 1)
 
 
+def _alpha_mask(surf, scale=1.0):
+    if scale != 1.0:
+        surf = pygame.transform.scale(surf, (int(surf.get_width() * scale),
+                                             int(surf.get_height() * scale)))
+    return {(x, y) for x in range(surf.get_width()) for y in range(surf.get_height())
+            if surf.get_at((x, y))[3] > 0}
+
+
+def _measure_motion(fam, v, n=40, step=0.16):
+    """Honest motion: how far the TOP of the silhouette travels, and how many
+    pixels differ between the busiest and quietest phase. A cycle that renders
+    identically at every t is worth nothing however lively the prose is."""
+    ms, tops, hts = [], [], []
+    for i in range(n):
+        s = _fig_surface(fam, v, 0.0, i * step)
+        m = _alpha_mask(s)
+        if not m:
+            continue
+        ms.append(m)
+        tops.append(min(y for _x, y in m))
+        hts.append(max(y for _x, y in m) - min(y for _x, y in m) + 1)
+    union = set().union(*ms)
+    inter = set.intersection(*ms)
+    return max(tops) - min(tops), len(union - inter), min(hts), max(hts)
+
+
 def _measure_night_cap():
     night = 0.95
     strip = pygame.Surface((1400, 90))
@@ -1025,21 +1061,22 @@ def render():
     secB_h = 24 + 2 * (16 + new_rows * (cell_h + 6))
     secC_h = 24 + len(FAMILIES) * (86 + 6)
     secD_h = 24 + 2 * (strip_h + 6)
-    total_h = head_h + secA_h + secB_h + secC_h + secD_h + PAD * 6 + 24
+    total_h = head_h + secA_h + secB_h + secC_h + secD_h + PAD * 6 + 38
 
     sheet = pygame.Surface((W, total_h))
     sheet.fill((26, 28, 38))
 
     y = PAD
-    _text(sheet, "SKYBIT PROMENADE — DAY-CAST VARIETY EXPANSION (round 3): KIDS 6→10 · ELDERS 6→10 · VENDORS 7→10  (17 new rows, 6 retires)",
+    _text(sheet, "SKYBIT PROMENADE — DAY-CAST VARIETY EXPANSION (round 3): KIDS 6→10 · ELDERS 6→10 · VENDORS 7→10  (16 new rows, 6 retires)",
           PAD, y, 17, (250, 246, 236), bold=True)
     y += 22
     y = _wrap(sheet,
               "Every family gains at least one NEW pose/stance branch on its shared drawer, not just palettes — KIDS: tiptoe (heels up, both arms over a counter). "
               "ELDERS: brush (bent over a long water-calligraphy brush that touches the deck) and reading (an open scroll held wide across the chest). "
               "VENDORS: chop (cleaver from above the head to the board, 2-beat), pour (long-spout pot high + a thread of tea) and wok (a wide tilted pan with food tossed above it). "
-              "The remaining new rows re-dress existing branches with new props/hair/builds (kite — a branch no shipped row ever used — ribbon, lantern-on-a-stick, satchel, side-tails, sword, back-basket, cloth bolts). "
-              "Two retires per family are nominated below with reasons; the pools land at 10/10/10 after they go.",
+              "The remaining new rows re-dress existing branches with new props/hair/builds (kite — a branch no shipped row ever used — ribbon, lantern-on-a-stick, satchel, side-tails, sword, back-basket). "
+              "Two retires per family are nominated below with reasons; the pools land at 10/10/10 after they go. V1 the CALLER is kept (the only hawking vendor); V12 goes instead. "
+              "Motion is now MEASURED, not asserted — see the footer audit; four cycles that truncated a (-1,1) float with int() and therefore never moved a pixel (tiptoe reach, fan flutter, cane tap, side-tails) are rounded instead.",
               PAD, y, W - PAD * 2, 9, (188, 186, 200))
     y = head_h + PAD
 
@@ -1139,12 +1176,27 @@ def render():
         pygame.draw.rect(sheet, (70, 74, 90), (PAD, y, W - PAD * 2, strip_h), 1)
         y += strip_h + 6
 
+    vend = {v.label.split(" ")[0]: _measure_motion("vendor", v)
+            for v in VENDORS_KEEP + VENDORS_NEW}
+    k7 = [v for v in KIDS_NEW if v.label.startswith("K7")][0]
+    k3 = [v for v in KIDS_KEEP if v.label.startswith("K3")][0]
+    k8 = [v for v in KIDS_NEW if v.label.startswith("K8")][0]
+    k7m, k3m, k8m = (_measure_motion("kid", v, 30, 0.29) for v in (k7, k3, k8))
+    order = sorted(vend.items(), key=lambda kv: -kv[1][1])
+    audit = ("MOTION AUDIT (rendered alpha, 40 phases, measured not asserted) — vendors ranked by px that CHANGE over the cycle: "
+             + "  ·  ".join(f"{k} {m[1]} px (top edge travels {m[0]}px)" for k, m in order[:4])
+             + f"  ·  the remaining {sum(1 for _k, m in order if m[1] == 0)} vendors render identically at every phase (0 px). "
+               f"So CHOP is the busiest action in the family, but its top-of-silhouette travel is ONE pixel — not 'half a head'. "
+               f"K7 tiptoe: silhouette {k7m[2]}-{k7m[3]}px tall and the top travels {k7m[0]}px a beat (it was 0 — int() truncated a 0..1 stretch to zero); "
+               f"squat K3 = {k3m[3]}px, kite K8 = {k8m[3]}px, so the reach now sits between them.")
+    y = _wrap(sheet, audit, PAD, y + 2, W - PAD * 2, 9, (170, 200, 180))
+
     hottest, over = _measure_night_cap()
     coin_l = _luma((255, 232, 150))
     msg = (f"NIGHT-CAP AUDIT (measured on RENDERED pixels, all 30 shipping rows x 3 motion phases): hottest day-cast px luma = {hottest:.0f}  ·  "
            f"px over {NIGHT_GLOW_CAP} = {over}  ·  gold-coin core luma = {coin_l:.0f} (sole brightest).  "
            f"{'PASS — every day-cast px sits under the cap.' if over == 0 else 'FAIL — ' + str(over) + ' px breach the cap.'}")
-    _text(sheet, msg, PAD, total_h - 18, 9, (170, 200, 180) if over == 0 else (220, 140, 130))
+    _text(sheet, msg, PAD, total_h - 16, 9, (170, 200, 180) if over == 0 else (220, 140, 130))
 
     out = "/home/user/skybit/docs/sidewalk_overhaul/day_cast/round_3.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)

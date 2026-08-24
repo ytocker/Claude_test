@@ -9,9 +9,10 @@ recognisable house dog.
   set of new outline enums (village dogs are spitz-ish — wedge head, pointed
   muzzle, erect ears, a tail carried curled over the back OR hanging free — and
   the give-away of a street dog is the RAGGED outline, not its colour):
-    D6 scruffy STRAY   — tufted/notched coat edge, one ear up + one flopped, a
-                         tail hanging almost straight down. The pool's first
-                         BROKEN outline.
+    D6 scruffy STRAY   — tufted/notched coat edge and a tail hanging almost
+                         straight down. The pool's first BROKEN outline. (The
+                         half-flopped ear is a 4x-zoom bonus, not the read: it
+                         measures 0.97 IoU against a plain prick ear.)
     D7 lean STREET MUTT— tall legs, shallow tucked chest, a SICKLE tail carried
                          up and back; the sighthound-ish frame of a dog that
                          lives on the move.
@@ -21,9 +22,12 @@ recognisable house dog.
                          the legs: a furry loaf with a flat face and a plume over
                          the back. The smallest, roundest thing in the cast.
   RE-DRESSED toward stray: D1 hound and D3 spitz — duller, dustier coats, ragged
-  outlines, tails carried lower. (SPOTTED village dog was NOT taken: round 2 cut a
-  spotted mutt precisely because spots are interior colour and die at far-lane
-  size — a third attempt at it would repeat that mistake.)
+  outlines, tails carried lower. D3 also takes a new `ruffcrop` attr: a ruff thick
+  over the withers and rubbed flat at the throat, because a tail swap alone left
+  only 19% of its outline changed (0.81 IoU vs the shipped spitz) — i.e. a dimmer
+  D3 rather than a different dog. With the cropped ruff it measures 0.74.
+  (SPOTTED village dog was NOT taken: round 2 cut a spotted mutt precisely because
+  spots are interior colour and die at far-lane size.)
 
   CRITTERS 4 → 7, chosen for maximum silhouette separation:
     C5 CRANE   — a tall vertical: stilt legs + long S-neck + spear bill, ~2x the
@@ -127,6 +131,7 @@ def draw_dog(surf, cx, base_y, v, night, t):
     headf = A.get("head", 1.0)
     fluffy = A.get("fluffy", False)
     scruffy = A.get("scruffy", False)
+    ruffcrop = A.get("ruffcrop", False)
     mane = A.get("mane", False)
     skirtcoat = A.get("skirtcoat", False)
     tail = A.get("tail", "low")
@@ -227,13 +232,32 @@ def draw_dog(surf, cx, base_y, v, night, t):
         # RAGGED OUTLINE: alternating tufts standing off the back line and a torn
         # hip. Colour says nothing at 10px, but a broken edge says "stray" instantly
         # — and it survives the crisp far-lane downscale because it IS the outline.
+        # 2px wide: a 1px tuft is the first thing a nearest downscale throws away,
+        # which left the far lane with a smooth back and no stray read at all.
         for k, bxp in enumerate(range(body_left + 2, body_right - 1, 3)):
             up = 1 + (k % 2)
-            pygame.draw.line(surf, coat_dk, (bxp, body_top + 1), (bxp - 1, body_top - up), 1)
+            pygame.draw.line(surf, coat_dk, (bxp, body_top + 1), (bxp - 1, body_top - up), 2)
         pygame.draw.line(surf, coat_dk, (body_right - 2, body_cy),
-                         (body_right + 1, body_cy + 2), 1)
+                         (body_right + 1, body_cy + 2), 2)
         pygame.draw.line(surf, coat_dk, (body_left + 2, body_top + body_h - 2),
-                         (body_left, body_top + body_h + 1), 1)
+                         (body_left, body_top + body_h + 1), 2)
+    if ruffcrop:
+        # A stray's ruff wears away unevenly — thick over the withers, rubbed back
+        # to the skin on the throat side. The flat-bottomed, back-heavy collar is
+        # an ASYMMETRIC outline event, which is what stops a re-dressed breed from
+        # reading as nothing more than the same dog in a duller colour.
+        rr = max(3, int(head_r * 1.35))
+        rx = body_left + max(1, head_r // 2)
+        ry = body_top + max(1, int(body_h * 0.30))
+        collar = [(rx - rr * 0.55, ry - rr * 0.85), (rx + rr * 0.85, ry - rr * 0.75),
+                  (rx + rr * 0.75, ry + rr * 0.25), (rx - rr * 0.15, ry + rr * 0.35),
+                  (rx - rr * 0.95, ry - rr * 0.05)]
+        pygame.draw.polygon(surf, _mix(coat, belly, 0.30), collar)
+        pygame.draw.polygon(surf, coat_dk, collar, 1)
+        for k in range(3):
+            sx0 = rx - rr * 0.45 + rr * 0.5 * k
+            pygame.draw.line(surf, coat_dk, (sx0, ry - rr * 0.8),
+                             (sx0 + 1, ry - rr * 1.35), 2)
     if skirtcoat:
         # A fringed coat falling to the deck: the legs disappear and the dog reads
         # as a moving loaf. Nothing else in the pool loses its legs.
@@ -243,8 +267,11 @@ def draw_dog(surf, cx, base_y, v, night, t):
         step = max(2, body_w // 6)
         xx = body_right
         k = 0
+        # The fringe alternates phase with the stride: without it a legless coat
+        # slides along like a dropped sack instead of walking under its own fur.
+        wob = 1 if gait > 0 else 0
         while xx > body_left:
-            skirt.append((xx, hem - (k % 2)))
+            skirt.append((xx, hem - ((k + wob) % 2)))
             xx -= step
             k += 1
         skirt.append((body_left, body_top + body_h // 2))
@@ -568,9 +595,12 @@ def _crit_rabbit(surf, cx, base_y, v, night, t):
     pygame.draw.circle(surf, fur, (hx, hy), 3)
     pygame.draw.circle(surf, fur_dk, (hx, hy), 3, 1)
     for k, sgn in enumerate((-1, 1)):
+        # Longer and set wider apart than the first pass: the ears are the ONLY
+        # thing separating this from the sitting cat, so the gap between them has
+        # to survive the far-lane downscale as a gap.
         tilt = twitch * (1.6 if k else 0.3)
-        base_pt = (hx + sgn * 1, hy - 2)
-        tip = (hx + sgn * 1 + tilt, hy - 8 + abs(tilt) * 0.6)
+        base_pt = (hx + sgn * 1.5, hy - 2)
+        tip = (hx + sgn * 1.5 + tilt, hy - 9 + abs(tilt) * 0.6)
         pygame.draw.line(surf, fur, base_pt, tip, 2)
         pygame.draw.line(surf, ear_in, (base_pt[0], base_pt[1] - 1), (tip[0], tip[1] + 1), 1)
     pygame.draw.circle(surf, (26, 20, 20), (hx - 2, hy - 1), 1)
@@ -603,8 +633,8 @@ DOGS = [
     ("D3 dusty street SPITZ", _V(
         dict(coat=(184, 178, 164), coat_dk=(128, 122, 110), belly=(196, 190, 178)),
         build=0.80, leg=0.92, length=0.98, chest=1.10, head=0.90,
-        fluffy=True, scruffy=True, tail="sickle", ear="prick", muzzle="med"),
-     "RE-DRESSED | cream (214,208,196)->dusty (184,178,164), plume->SICKLE (carried lower/looser), ragged edge | still fluffy, no longer groomed"),
+        fluffy=True, scruffy=True, ruffcrop=True, tail="sickle", ear="prick", muzzle="med"),
+     "RE-DRESSED | plume->SICKLE + NEW attr RUFFCROP: the ruff is thick over the withers and rubbed flat at the throat, an asymmetric collar. Tail alone only moved 19% of the outline (0.81 IoU vs the shipped spitz) — with the cropped ruff and 2px tufts it is 0.74, a re-shaped dog rather than a dimmer one"),
     ("D4 stocky SHIBA", _V(
         dict(coat=(196, 130, 74), coat_dk=(140, 86, 46), belly=(228, 206, 172)),
         build=0.98, leg=0.80, length=1.0, chest=1.12, head=0.92,
@@ -619,7 +649,7 @@ DOGS = [
         dict(coat=(132, 122, 108), coat_dk=(88, 82, 74), belly=(158, 148, 132)),
         build=0.92, leg=0.95, length=1.18, chest=0.86, head=0.95,
         scruffy=True, tail="streetlow", ear="halfflop", muzzle="med"),
-     "NEW | ear:HALFFLOP (one up, one folded — the pool's first ASYMMETRIC head) + scruffy tufted outline + tail hung straight down | ribby dust-grey"),
+     "NEW | what actually carries this row is the STREETLOW tail (0.89 IoU vs the same dog with a sabre tail) plus the dust-grey coat and the 2px ragged back (0.91 vs a smooth one). MEASURED: ear:HALFFLOP is sub-pixel at this size — 0.97 IoU against a plain prick ear — so it is a bonus at 4x, not the read"),
     ("D7 lean STREET MUTT  [NEW]", _V(
         dict(coat=(172, 140, 96), coat_dk=(118, 94, 60), belly=(190, 168, 134)),
         build=0.96, leg=1.30, length=1.20, chest=0.72, head=0.86,
@@ -634,7 +664,7 @@ DOGS = [
         dict(coat=(178, 156, 118), coat_dk=(124, 106, 78), belly=(196, 178, 146)),
         build=0.72, leg=0.45, length=1.0, chest=1.15, head=1.15,
         fluffy=True, skirtcoat=True, tail="plume", ear="drop", muzzle="flat"),
-     "NEW | attr SKIRTCOAT — a fringed coat falling to the deck that HIDES THE LEGS (a moving loaf) + flat face + plume over the back | the smallest, roundest animal in the cast"),
+     "NEW | attr SKIRTCOAT — a fringed coat falling to the deck that HIDES THE LEGS (a moving loaf) + flat face + plume over the back | the smallest, roundest animal in the cast | the hem zigzag now FLIPS PHASE with the gait: 21 px change along the bottom edge per cycle, so the coat walks instead of sliding like a dropped sack"),
 ]
 
 CRITTERS = [
@@ -649,9 +679,9 @@ CRITTERS = [
     ("C5 CRANE  [NEW]", _V(dict(body=(188, 186, 178), body_dk=(132, 130, 124), accent=(86, 84, 92), crest=(150, 84, 76)), kind="crane"),
      "NEW | the only VERTICAL critter: stilt legs + long S-neck + spear bill, ~2x the duck's height, dark trailing plumes | MOTION: neck folds down to preen then unfurls; one leg lifts on the slow half"),
     ("C6 PIGLET  [NEW]", _V(dict(body=(196, 158, 152), body_dk=(134, 104, 100), accent=(176, 128, 126)), kind="piglet"),
-     "NEW | the widest-for-its-height silhouette: a low tube on stubby legs, blunt snout disc, curl tail | MOTION: roots the snout down into the deck and lifts, tail flicks off-beat"),
+     "NEW [BEAT-GATED: BEAT_MARKET only — it arrives with the produce and must not turn up at dusk with nobody to own it] | the widest-for-its-height silhouette: a low tube on stubby legs, blunt snout disc, curl tail | MOTION: roots the snout down into the deck and lifts, tail flicks off-beat"),
     ("C7 RABBIT  [NEW]", _V(dict(body=(168, 154, 136), body_dk=(114, 104, 92), accent=(166, 128, 124)), kind="rabbit"),
-     "NEW | a compact ball under two OUTSIZED upright ears + a bright scut | MOTION: nibbling head bob, one ear twitching back on a slower cycle"),
+     "NEW | a compact ball under two OUTSIZED upright ears + a bright scut | ears lengthened 1px and set 1px further apart because they are the ONLY separator from the sitting cat: IoU vs C1 drops 0.51 -> 0.45 | MOTION: nibbling head bob, one ear twitching back on a slower cycle"),
 ]
 
 PASSED = [
@@ -782,6 +812,49 @@ def _true_band(sheet, y, title, items, drawer, night):
     return y + band_h + 8
 
 
+def _alpha_mask(surf, scale=1.0):
+    if scale != 1.0:
+        surf = pygame.transform.scale(surf, (int(surf.get_width() * scale),
+                                             int(surf.get_height() * scale)))
+    return {(x, y) for x in range(surf.get_width()) for y in range(surf.get_height())
+            if surf.get_at((x, y))[3] > 0}
+
+
+def _fig(drawer, v, t, scale=1.0):
+    s = pygame.Surface((46, 32), pygame.SRCALPHA)
+    drawer(s, 23, 28, v, 0.0, t)
+    return _alpha_mask(s, scale)
+
+
+def _iou(a, b):
+    return len(a & b) / max(1, len(a | b))
+
+
+def _measure_outlines():
+    """Every distinctness claim on this sheet, re-derived from rendered alpha."""
+    by = {nm.split(" ")[0]: v for nm, v, _n in DOGS}
+    crit = {nm.split(" ")[0]: v for nm, v, _n in CRITTERS}
+    shipped_d3 = _V(dict(coat=(214, 208, 196), coat_dk=(150, 144, 132), belly=(228, 222, 210)),
+                    build=0.80, leg=0.92, length=0.98, chest=1.10, head=0.90,
+                    fluffy=True, tail="plume", ear="prick", muzzle="med")
+    d6 = by["D6"]
+    d6_prick = _V(dict(d6.palette), **{**d6.attrs, "ear": "prick"})
+    d6_sabre = _V(dict(d6.palette), **{**d6.attrs, "tail": "low"})
+    d6_smooth = _V(dict(d6.palette), **{**d6.attrs, "scruffy": False})
+    d9 = by["D9"]
+    ms = [_fig(draw_dog, d9, i * 0.13) for i in range(24)]
+    moving = set().union(*ms) - set.intersection(*ms)
+    bot = max(y for _x, y in set().union(*ms))
+    return {
+        "d3": _iou(_fig(draw_dog, by["D3"], 0.5), _fig(draw_dog, shipped_d3, 0.5)),
+        "d6_ear": _iou(_fig(draw_dog, d6, 0.5), _fig(draw_dog, d6_prick, 0.5)),
+        "d6_tail": _iou(_fig(draw_dog, d6, 0.5), _fig(draw_dog, d6_sabre, 0.5)),
+        "d6_scruff": _iou(_fig(draw_dog, d6, 0.5, 0.78), _fig(draw_dog, d6_smooth, 0.5, 0.78)),
+        "d9_hem": len({p for p in moving if p[1] >= bot - 2}),
+        "rabbit": _iou(_fig(draw_critter, crit["C7"], 0.5), _fig(draw_critter, crit["C1"], 0.5)),
+    }
+
+
 def _measure_night_cap():
     night = 0.95
     strip = pygame.Surface((1200, 80))
@@ -831,7 +904,7 @@ def render():
     passed_h = 26 + len(PASSED) * 13 + 8
     strip_h = 96
     comp_h = 22 + 2 * (strip_h + 6)
-    total_h = title_h + bandA_h + detail_h + passed_h + comp_h + PAD * 6 + 26
+    total_h = title_h + bandA_h + detail_h + passed_h + comp_h + PAD * 6 + 40
 
     sheet = pygame.Surface((WIDTH, total_h))
     sheet.fill((26, 28, 38))
@@ -941,12 +1014,19 @@ def render():
         pygame.draw.rect(sheet, (70, 74, 90), (PAD, y, WIDTH - PAD * 2, strip_h), 1)
         y += strip_h + 6
 
+    o = _measure_outlines()
+    audit = (f"OUTLINE AUDIT (rendered alpha, measured not asserted): D3 vs the SHIPPED spitz = {o['d3']:.2f} — a tail swap alone left it at 0.81, i.e. a dimmer D3; the asymmetrically cropped ruff plus 2px tufts re-shape it.  ·  "
+             f"D6 ragged-vs-smooth at FAR 0.78x = {o['d6_scruff']:.2f} (1px tufts measured 0.95 — the downscale was erasing them).  ·  "
+             f"D6 streetlow-vs-sabre tail = {o['d6_tail']:.2f} and halfflop-vs-prick ear = {o['d6_ear']:.2f}: the EAR IS SUB-PIXEL at this size, so D6's read is the low tail + dust coat + broken back, not the ear.  ·  "
+             f"D9 hem px moving per cycle = {o['d9_hem']} (was 0 — a static zigzag).  ·  rabbit vs cat = {o['rabbit']:.2f}, down from 0.51 on +1px ear length and +1px ear gap.")
+    y = _wrap(sheet, audit, PAD, y + 2, WIDTH - PAD * 2, 9, (170, 200, 180))
+
     hottest, over = _measure_night_cap()
     coin_l = _luma((255, 232, 150))
     msg = (f"NIGHT-CAP AUDIT (measured on RENDERED pixels across motion phases, all 9 dogs + 7 critters): hottest ANIMAL px luma = {hottest:.0f}  ·  "
            f"px over {NIGHT_GLOW_CAP} = {over}  ·  gold-coin core luma = {coin_l:.0f} (sole brightest).  "
            f"{'PASS — all animal px <= cap.' if over == 0 else 'FAIL — ' + str(over) + ' px breach the cap.'}")
-    _text(sheet, msg, PAD, total_h - 18, 9, (170, 200, 180) if over == 0 else (220, 140, 130))
+    _text(sheet, msg, PAD, total_h - 16, 9, (170, 200, 180) if over == 0 else (220, 140, 130))
 
     out = "/home/user/skybit/docs/sidewalk_overhaul/animals/round_3.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)

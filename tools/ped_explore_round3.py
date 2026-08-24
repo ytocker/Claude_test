@@ -34,8 +34,11 @@ are pure data, variety lives in the OUTLINE):
   official brim + scroll, back-basket gleaner, back-bundle traveller, ear-flap
   snow cap).
 
-  SIX CUTS nominated (#5, #10, #13, #15, #30, #39) — every one a palette-only
-  clone of a surviving row; each cut keeps its archetype's unique construction.
+  SIX CUTS (#5, #13, #15, #30, #35, #38) — five of them measure a 1.00-IoU
+  duplicate mask against a survivor at the far-lane scale; each cut keeps its
+  archetype's unique construction. #39 is KEPT (0.83 max-IoU, the head-tray
+  band's most distinct row) and its twin #38 goes instead; #10 measures clear of
+  the twin band (0.79) and is no longer nominated.
 
 CONSTRAINTS (repeated from the module header): pure pygame.draw.* + Surface
 (SRCALPHA ok), pygbag-safe, no numpy/PIL/gfxdraw in anything game-bound. Night
@@ -325,7 +328,10 @@ def _draw_one(surf, cx, base_y, v, night, t):
         hand = (cx + body_w * 0.9 + lean, arm_y + torso_h * 0.35)
         mid = (cx - body_w * 0.6, hy - head_r * 1.4)
         tip = (cx - body_w * 3.0, hy - total_h * 0.62 + gait * 1.5)
-        pygame.draw.lines(surf, rod_c, False, [hand, mid, tip], max(1, body_w // 7))
+        # A 1px rod is destroyed by the crisp far-lane downscale — the outer half
+        # drops out and the tip becomes a floating splinter. Two pixels is the
+        # minimum that survives a nearest 0.78x and keeps the figure ONE island.
+        pygame.draw.lines(surf, rod_c, False, [hand, mid, tip], max(2, body_w // 6))
         pygame.draw.line(surf, coat, (cx + body_w * 0.4 + lean, arm_y), hand, max(2, body_w // 5))
         pygame.draw.circle(surf, skin, (int(hand[0]), int(hand[1])), max(1, body_w // 5))
         # catch on a short line off the rod tip — a hanging blob that keeps the
@@ -514,15 +520,27 @@ def _draw_one(surf, cx, base_y, v, night, t):
                              (hx + head_r // 2, hy - int(head_r * 1.7)), 2)
     # ── NEW HEADWEAR ──
     elif hat == "shawl":
-        # A head-cloth that keeps going PAST the head onto the shoulders: it turns
-        # the head+shoulder join into one continuous triangle, the one silhouette
-        # note none of the shipped hats make.
+        # A head-cloth that keeps FALLING — over the crown, past both shoulders,
+        # out to a hem below the elbow and down to one hanging point that swings
+        # with the stride. Draped only to the collar it was a 1px difference from
+        # the cloth-cap matrons; carried to the elbow it turns head+shoulders+torso
+        # into a single BELL, which is a shape no other row in the pool makes.
         col = pf(P.get("hat_c", (176, 140, 118)))
-        pts = [(hx - head_r * 1.9, torso_top + 2), (hx - head_r * 1.15, hy - head_r * 0.5),
-               (hx, hy - head_r * 1.35), (hx + head_r * 1.15, hy - head_r * 0.5),
-               (hx + head_r * 1.9, torso_top + 2)]
+        hem_y = arm_y + torso_h * 0.62
+        tip_y = hem_y + torso_h * 0.62 + gait * 1.4
+        # Thrown over one shoulder and gathered under the carrying arm, so the
+        # drape flares OUTSIDE the A-line on the left and tucks in on the right.
+        # A symmetric cape would sit inside the skirt's own cone and change nothing.
+        pts = [(cx - body_w * 2.05, hem_y),
+               (cx - body_w * 1.05, torso_top), (hx - head_r * 1.3, hy - head_r * 0.5),
+               (hx, hy - head_r * 1.5), (hx + head_r * 1.3, hy - head_r * 0.5),
+               (cx + body_w * 0.95, torso_top + 1), (cx + body_w * 1.05, hem_y - 1),
+               (cx - body_w * 0.25, hem_y + 1), (cx - body_w * 0.85, tip_y),
+               (cx - body_w * 1.45, hem_y + 1)]
         pygame.draw.polygon(surf, col, pts)
         pygame.draw.polygon(surf, _shade(col, -32), pts, 1)
+        pygame.draw.line(surf, _shade(col, -32), (cx - body_w * 1.5, hem_y - 2),
+                         (cx + body_w * 0.6, hem_y - 2), 1)
         pygame.draw.circle(surf, skin, (hx + head_r // 3, hy + head_r // 5), int(head_r * 0.72))
     elif hat == "flatbrim":
         # Official's flat disc brim + a low box crown: a hard horizontal above the
@@ -536,17 +554,23 @@ def _draw_one(surf, cx, base_y, v, night, t):
         pygame.draw.ellipse(surf, col, brim)
         pygame.draw.ellipse(surf, _shade(col, -30), brim, 1)
     elif hat == "earflap":
-        # Winter cap whose two flaps hang BELOW the jaw, widening the head blob —
-        # a different snow head from the round fur cap.
+        # Winter cap whose two flaps hang BELOW the jaw, widening the head blob.
+        # The leading flap is untied and SWINGS with the stride: a static flap was
+        # a hat swap the eye can't see past a fur cap, a moving one is an outline
+        # event, and it is the only head in the pool that animates.
         col = pf(P.get("hat_c", (132, 98, 78)))
         cap = pygame.Rect(hx - head_r, int(hy - head_r * 1.7), head_r * 2, int(head_r * 1.6))
         pygame.draw.ellipse(surf, col, cap)
         for sgn in (-1, 1):
+            # Flaps flare OUT at ear level rather than hanging down: on a padded
+            # coat anything below the jaw is inside the coat's own width and adds
+            # nothing to the outline. Ear level is where the figure is narrowest.
+            sw = gait * head_r * 1.1 if sgn > 0 else 0.0
             pygame.draw.polygon(surf, _shade(col, -20), [
-                (hx + sgn * head_r, hy - head_r * 0.5),
-                (hx + sgn * head_r * 1.5, hy + head_r * 0.4),
-                (hx + sgn * head_r * 0.9, hy + head_r * 1.5),
-                (hx + sgn * head_r * 0.4, hy + head_r * 0.6)])
+                (hx + sgn * head_r * 0.9, hy - head_r * 0.7),
+                (hx + sgn * head_r * 2.3 + sw, hy + head_r * 0.2),
+                (hx + sgn * head_r * 1.9 + sw * 1.5, hy + head_r * 1.2),
+                (hx + sgn * head_r * 0.5, hy + head_r * 0.9)])
         fur = pf(P.get("fur", (216, 206, 190)))
         pygame.draw.line(surf, fur, (hx - head_r, hy - head_r * 0.45),
                          (hx + head_r, hy - head_r * 0.45), max(2, head_r // 2))
@@ -617,7 +641,7 @@ SHIPPED = [
     ("#9 Skirt · olive merchant", V(dict(**_c("olive"), sash=(140, 80, 70), hair=_HAIRS[3], skin="deep", hat="conical", hat_c=(176, 146, 86)),
         A_SKIRT, pose=("stroll",), height=1.0, build=1.22), ""),
     ("#10 Skirt · stone basket", V(dict(**_c("stone"), sash=(196, 150, 120), hair=_HAIRS[2], skin="warm", hat="cloth", hat_c=(150, 110, 96), basket=(170, 128, 80), goods=(180, 140, 80)),
-        A_SKIRT, pose=("stroll",), acc=("basket_arm",), height=0.97, build=1.08), "CUT"),
+        A_SKIRT, pose=("stroll",), acc=("basket_arm",), height=0.97, build=1.08), ""),
     # ARCH 3 — tunic
     ("#11 Tunic · clay porter", V(dict(**_c("clay"), trousers=(74, 64, 56), hair=_HAIRS[3], skin="deep"),
         A_TUNIC, pose=("hurry", "swing_arm"), height=1.02, build=1.12), ""),
@@ -672,16 +696,16 @@ SHIPPED = [
     ("#34 Yoke · clay", V(dict(**_c("clay"), trousers=(70, 60, 52), hair=_HAIRS[4], skin="ruddy", load=(162, 134, 92)),
         A_YOKE, pose=("hurry",), height=0.98, build=1.1), ""),
     ("#35 Yoke · olive", V(dict(**_c("olive"), trousers=(70, 60, 52), hair=_HAIRS[2], skin="warm", load=(152, 126, 88)),
-        A_YOKE, pose=("hurry",), build=1.06), ""),
+        A_YOKE, pose=("hurry",), build=1.06), "CUT"),
     # ARCH 8 — head tray
     ("#36 Headload · sage", V(dict(**_c("sage"), tray=(164, 120, 76), hair=_HAIRS[1], skin="warm", goods=(214, 130, 70)),
         A_HEADLOAD, pose=("stroll",)), ""),
     ("#37 Headload · clay", V(dict(**_c("clay"), tray=(160, 118, 74), hair=_HAIRS[4], skin="ruddy", goods=(196, 150, 80)),
         A_HEADLOAD, pose=("stroll",), height=0.96), ""),
     ("#38 Headload · indigo", V(dict(**_c("indigo"), tray=(150, 112, 70), hair=_HAIRS[2], skin="fair", goods=(206, 120, 70)),
-        A_HEADLOAD, pose=("stroll",), height=1.04), ""),
+        A_HEADLOAD, pose=("stroll",), height=1.04), "CUT"),
     ("#39 Headload · ochre box", V(dict(**_c("ochre"), tray=(140, 104, 64), hair=_HAIRS[0], skin="tan", goods=(180, 140, 84)),
-        A_HEADLOAD, pose=("stroll",), build=1.05), "CUT"),
+        A_HEADLOAD, pose=("stroll",), build=1.05), ""),
     ("#40 Headload · rust", V(dict(**_c("rust"), tray=(158, 116, 74), hair=_HAIRS[3], skin="deep", goods=(210, 120, 64)),
         A_HEADLOAD, pose=("stroll",), height=0.98), ""),
     # ARCH 9 — children + parents
@@ -750,7 +774,9 @@ NEW = [
         hat="shawl", hat_c=(176, 140, 118), basket=(170, 128, 78)),
         A_SKIRT, pose=("stroll",), acc=("basket_arm",), height=0.95, build=1.14,
         note="EXISTING arch, NEW hat | head-cloth continues onto the shoulders so head+shoulder read as one triangle — no shipped hat does that"), "NEW"),
-    ("N11 Stoop · back-basket gleaner", V(dict(**_c("sage"), sash=(186, 172, 132), hair=(202, 200, 194), skin="deep",
+    # Sage on a sunlit deck is nearly the deck's own luma; this row is half a step
+    # darker than the shared sage so a stooped figure doesn't sink into the ground.
+    ("N11 Stoop · back-basket gleaner", V(dict(coat=(84, 104, 86), coat_dk=(52, 68, 56), sash=(186, 172, 132), hair=(202, 200, 194), skin="deep",
         hat="cloth", hat_c=(140, 108, 92), basket=(166, 126, 76), cane=(118, 82, 50)),
         A_STOOP, pose=("stroll",), acc=("back_basket", "cane"), height=0.9, stoop=0.44,
         note="EXISTING arch, NEW acc | tall pannier riding high on the BACK — the shipped pool carries everything in front, overhead or out to the side"), "NEW"),
@@ -760,18 +786,28 @@ NEW = [
         note="EXISTING arch, NEW acc | bedroll hump behind the shoulder + strap across the chest: a humped tunic instead of a sixth clean one"), "NEW"),
     ("N13 Padded · ear-flap snow", V(dict(**_c("teal"), fur=(216, 206, 190), hair=_HAIRS[1], skin="ruddy",
         hat="earflap", hat_c=(132, 98, 78), bundle=(196, 180, 154)),
-        A_PADDED, pose=("hurry",), acc=("bundle",), height=0.94, build=1.16,
-        note="EXISTING arch, NEW hat [SNOW] | flaps hang past the jaw, widening the head blob — a second snow head so the padded band isn't five fur caps"), "NEW"),
+        A_PADDED, pose=("hurry",), acc=("back_bundle",), height=0.94, build=1.16,
+        note="EXISTING arch, NEW hat [SNOW] | flaps flare at EAR level (the padded coat swallows anything lower) and the leading one swings with the stride | carried bundle moved to the BACK: the front bundle #17/#21 wear is entirely inside the coat and adds no outline"), "NEW"),
 ]
 
 CUT_REASONS = {
-    "#5": "palette-only clone of #1 — same bun+topknot, same stroll, same h1.10 narrow robe; at 14px the pair is one person twice.",
-    "#10": "third identical basket-arm matron after #6 and #8; the arm-basket outline is already covered twice in the same build band.",
-    "#13": "sits between #11 and #15 on every axis (hurry+swing_arm, h1.0, b1.05) with no accessory — the most anonymous row in the pool.",
-    "#15": "second clone of the #11 porter read (hurry+swing_arm, heavy build, no accessory); the tunic band keeps 4 rows with a real height spread.",
-    "#30": "duplicate of #27 (cloth-hat pole vendor, hurry, b1.05); the pole family loses nothing but a hue.",
-    "#39": "fifth head-tray with no unique note — same stroll, same tray, same goods bumps; #36–38/#40 already span the height range.",
+    "#5": "0.92 max-IoU vs #2 — bun+topknot narrow robe on a stroll at h1.10; at 14px it is #1/#2 a third time.",
+    "#13": "MEASURED 1.00 IoU vs #11 — identical mask (hurry+swing_arm, h1.0, b1.05, no accessory).",
+    "#15": "MEASURED 1.00 IoU vs #11 — the third member of the same tunic-porter mask.",
+    "#30": "MEASURED 1.00 IoU vs #27 — same pole silhouette, hurry, b1.05; only the hue differs.",
+    "#35": "MEASURED 1.00 IoU vs #31/#32 — the third member of a yoke triplet that renders the same mask.",
+    "#38": "MEASURED 1.00 IoU vs #36 — the head-tray twin. #39 is the tray family's MOST distinct row (0.83 max-IoU) and stays.",
 }
+# Everything below survives the round but is not clean: these are the honest
+# runners-up, kept only because the agreed cut depth is six.
+RUNNER_UP_CUTS = [
+    ("#26", "0.94 vs #27 — the near-twin the pole family keeps once #30 goes."),
+    ("#2/#4", "1.00 twin pair (robe, bun, stroll) — separable only by hairpin vs beard, both interior."),
+    ("#12/#16", "1.00 twin pair (hurry tunic youth) — the tunic band's remaining duplicate mask."),
+    ("#37/#40", "1.00 twin pair (head tray, h0.96/0.98) — the tray band's remaining duplicate mask."),
+    ("#31/#32", "1.00 twin pair (yoke) — the yoke band's remaining duplicate mask."),
+    ("#10", "0.79 vs #2 — third basket-arm matron, but it measures clear of the twin band; NOT cut this round."),
+]
 
 KEEP = [(n, v, tag) for (n, v, tag) in SHIPPED if tag != "CUT"]
 CUTS = [(n, v, tag) for (n, v, tag) in SHIPPED if tag == "CUT"]
@@ -874,6 +910,64 @@ def _cell(parent, name, v, note, x, y, w, h, night):
     pygame.draw.rect(parent, (70, 74, 90), (x, y, w, h), 1)
 
 
+def _alpha_mask(surf, scale=1.0):
+    if scale != 1.0:
+        surf = pygame.transform.scale(surf, (int(surf.get_width() * scale),
+                                             int(surf.get_height() * scale)))
+    return {(x, y) for x in range(surf.get_width()) for y in range(surf.get_height())
+            if surf.get_at((x, y))[3] > 0}
+
+
+def _islands(m):
+    """8-connected component count — a figure that breaks into several islands at
+    the far-lane scale reads as debris, not as a person."""
+    seen, n = set(), 0
+    for p in m:
+        if p in seen:
+            continue
+        n += 1
+        stack = [p]
+        seen.add(p)
+        while stack:
+            x, y = stack.pop()
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    q = (x + dx, y + dy)
+                    if q in m and q not in seen:
+                        seen.add(q)
+                        stack.append(q)
+    return n
+
+
+def _iou(a, b):
+    return len(a & b) / max(1, len(a | b))
+
+
+def _measure_outlines():
+    """Far-lane connectivity for the new ROD archetype + the max-IoU of the two
+    rows the round redrew, both measured on rendered alpha."""
+    worst_islands = {}
+    for nm, v, _tg in NEW:
+        if v.arch != A_ROD:
+            continue
+        worst_islands[nm.split(" ")[0]] = max(
+            _islands(_alpha_mask(_fig_surface(v, 0.0, i * 0.3), 0.78)) for i in range(8))
+    rows = [(nm.split(" ")[0], v) for nm, v, tg in SHIPPED if tg != "CUT"] + \
+           [(nm.split(" ")[0], v) for nm, v, _tg in NEW]
+    masks = {k: _alpha_mask(_fig_surface(v, 0.0, 0.62), 0.78) for k, v in rows}
+    peaks = {}
+    for k in ("N10", "N13"):
+        best, bk = 0.0, ""
+        for k2 in masks:
+            if k2 == k:
+                continue
+            s = _iou(masks[k], masks[k2])
+            if s > best:
+                best, bk = s, k2
+        peaks[k] = (best, bk)
+    return worst_islands, peaks
+
+
 def _measure_night_cap():
     """Render EVERY final row at night onto a strip and scan the rendered pixels
     for the hottest non-background luma — the honest cap measurement."""
@@ -918,10 +1012,11 @@ def render():
     head_h = 74
     secA_h = 26 + 2 * (16 + 4 * (new_cell_h + 6))       # 8 new-arch rows, day+night
     secB_h = 26 + sum(20 + _band_rows(a) * (grid_ch + 14) + 6 for _l, a in ARCH_GROUPS)
-    secC_h = 26 + 96 + 6 * 13
+    cut_band_h = 96 + 6 * 13 + 10 + len(RUNNER_UP_CUTS) * 12
+    secC_h = 26 + cut_band_h
     strip_h = 96
     secD_h = 26 + 2 * (strip_h + 6)
-    total_h = head_h + secA_h + secB_h + secC_h + secD_h + PAD * 6 + 26
+    total_h = head_h + secA_h + secB_h + secC_h + secD_h + PAD * 6 + 40
 
     sheet = pygame.Surface((WIDTH, total_h))
     sheet.fill((26, 28, 38))
@@ -982,10 +1077,10 @@ def render():
         y += bh + 6
 
     # ── C. the cut list ──
-    _text(sheet, "C.  CUT LIST — 6 nominated retires (every one a palette-only clone of a surviving row; no archetype loses its unique construction)",
+    _text(sheet, "C.  CUT LIST — 6 retires, MEASURED (five of them render a 1.00-IoU duplicate mask of a survivor).  #39 is KEPT: at 0.83 max-IoU it is the head-tray band's most distinct row; its twin #38 goes instead.",
           PAD, y, 13, (240, 150, 140), bold=True)
     y += 22
-    cband = pygame.Surface((WIDTH - PAD * 2, 96 + 6 * 13))
+    cband = pygame.Surface((WIDTH - PAD * 2, cut_band_h))
     cband.fill((44, 34, 38))
     cw = (WIDTH - PAD * 2) // 6
     for i, (nm, v, _t) in enumerate(CUTS):
@@ -999,9 +1094,16 @@ def render():
         key = nm.split(" ")[0]
         _text(cband, f"{key}  {CUT_REASONS[key]}", 8, yy, 9, (222, 196, 194))
         yy += 13
+    yy += 6
+    _text(cband, "RUNNERS-UP — still in the pool at the agreed cut depth of six, listed honestly:",
+          8, yy, 9, (238, 176, 172), bold=True)
+    yy += 12
+    for key, why in RUNNER_UP_CUTS:
+        _text(cband, f"   {key}  {why}", 8, yy, 9, (196, 174, 174))
+        yy += 12
     sheet.blit(cband, (PAD, y))
-    pygame.draw.rect(sheet, (120, 74, 78), (PAD, y, WIDTH - PAD * 2, 96 + 6 * 13), 1)
-    y += 96 + 6 * 13 + 6
+    pygame.draw.rect(sheet, (120, 74, 78), (PAD, y, WIDTH - PAD * 2, cut_band_h), 1)
+    y += cut_band_h + 6
 
     # ── D. on-street composite ──
     _text(sheet, "D.  ON-STREET COMPOSITE — new rows mixed through the kept pool at native size, with the gold-coin yardstick  (DAY then NIGHT)",
@@ -1029,12 +1131,23 @@ def render():
         pygame.draw.rect(sheet, (70, 74, 90), (PAD, y, WIDTH - PAD * 2, strip_h), 1)
         y += strip_h + 6
 
+    isl, peaks = _measure_outlines()
+    ok = all(v == 1 for v in isl.values())
+    audit = ("OUTLINE AUDIT (rendered alpha at FAR 0.78x, worst of 8 gait phases):  "
+             + "  ·  ".join(f"{k} islands = {v}" for k, v in sorted(isl.items()))
+             + "   — the rod is now max(2, body_w//6); at max(1, body_w//7) the three rows broke into 2 / 2 / 3 islands and the tip floated free.  "
+             + "  ·  ".join(f"{k} max-IoU {p[0]:.2f} vs {p[1]}" for k, p in sorted(peaks.items()))
+             + f"   (N10 was 0.93 vs #6 with a collar-length shawl, N13 0.83 with flaps that hung inside the padded coat.)   "
+             + ("PASS — one island each, and both redrawn rows sit under 0.85." if ok else "FAIL"))
+    y = _wrap(sheet, audit, PAD, y + 2, WIDTH - PAD * 2, 9,
+              (170, 200, 180) if ok else (220, 140, 130))
+
     hottest, over = _measure_night_cap()
     coin_l = _luma((255, 232, 150))
     msg = (f"NIGHT-CAP AUDIT (measured on RENDERED pixels, all 57 final rows x 3 gait phases): hottest pedestrian px luma = {hottest:.0f}  ·  "
            f"px over {NIGHT_GLOW_CAP} = {over}  ·  gold-coin core luma = {coin_l:.0f} (sole brightest).  "
            f"{'PASS — every pedestrian px sits under the cap.' if over == 0 else 'FAIL — ' + str(over) + ' px breach the cap.'}")
-    _text(sheet, msg, PAD, total_h - 18, 9, (170, 200, 180) if over == 0 else (220, 140, 130))
+    _text(sheet, msg, PAD, total_h - 16, 9, (170, 200, 180) if over == 0 else (220, 140, 130))
 
     out = "/home/user/skybit/docs/sidewalk_overhaul/pedestrians/round_3.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)
