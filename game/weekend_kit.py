@@ -27,7 +27,6 @@ from game import ped_cast as _ped
 from game import props_cast as _props
 from game import weather as _wx
 from game import foreground_variants as _fv
-from game.config import GROUND_Y
 from game.foreground_props import _mix, _shade
 
 PED_H = _ped.PED_H          # 18

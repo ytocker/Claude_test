@@ -1768,7 +1768,6 @@ def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
     crowd fills in. Off-peak the street is mostly open paving; at night it fills."""
     if not roster:
         return
-    n = len(roster)
     row = ('scenario', x0)
     for bx, k in sp._world_xs(scroll, w, _SCENARIO_PERIOD, x0,
                               mult=sp.GROUND_MULT, margin=_SCENE_MARGIN):
