@@ -78,10 +78,15 @@ def _frame(t, extra):
         sc += 160.0 / 30.0
         crowd.update(sc, 160.0, 1.0 / 30.0, phase, t - 25.0 + i / 30.0)
     surf = pygame.Surface((W, H))
-    # a warm-up promenade pass fills the light-spot collector so the ground
-    # weather pass can mirror the lights
+    # Warm-up renders: the first pass fills the light-spot collector for the
+    # ground-weather mirror AND primes the slot latches — a cold latch state
+    # shifts ~1-2% of cast pixels vs what actually ships, so the sheet must
+    # show the steady state, not the first frame. Two discarded full passes
+    # settle both lanes.
     pal = _biome.palette_for_phase(phase)
-    foreground.draw_promenade(surf, scroll, pal, phase, t)
+    for _ in range(2):
+        foreground.draw_promenade(surf, scroll, pal, phase, t)
+        foreground.draw_near_lane(surf, scroll, pal, phase, t)
     surf.fill((0, 0, 0))
     # the real frame, in the play scene's order
     _build_background_pre(surf, scroll, phase, t, sig)

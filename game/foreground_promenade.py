@@ -92,16 +92,22 @@ def _shadow(surf, cx, feet_y, wpx, night):
     a low-contrast figure from the paving without touching either's colour. By
     day it is a dark cast shadow; after dusk the cue INVERTS to a faint pale
     pool (lantern spill), because a dark ellipse does nothing on dark wet
-    stone — exactly the frames that need grounding most. Height tracks width
-    (~5:1) so a wide figure gets a pool, not a smear."""
-    dark = night < 0.5
+    stone — exactly the frames that need grounding most. The two polarities
+    CROSSFADE over night 0.40-0.60 (a hard switch left the dusk band, where
+    ground and figures share one mid value, with neither cue). Height tracks
+    width (~5:1) so a wide figure gets a pool, not a smear."""
+    wl = min(1.0, max(0.0, (night - 0.40) / 0.20))     # pale-pool weight
     h = max(3, wpx // 5)
-    key = (wpx, dark)
+    key = (wpx, int(wl * 8))
     sp_ = _SHADOW_CACHE.get(key)
     if sp_ is None:
         sp_ = pygame.Surface((wpx, h), pygame.SRCALPHA)
-        col = (18, 20, 30, 55) if dark else (216, 224, 240, 34)
-        pygame.draw.ellipse(sp_, col, (0, 0, wpx, h))
+        if wl < 1.0:
+            pygame.draw.ellipse(sp_, (18, 20, 30, int(55 * (1.0 - wl))),
+                                (0, 0, wpx, h))
+        if wl > 0.0:
+            pygame.draw.ellipse(sp_, (216, 224, 240, int(34 * wl)),
+                                (wpx // 6, h // 4, wpx - wpx // 3, h - h // 2))
         _SHADOW_CACHE[key] = sp_
     surf.blit(sp_, (cx - wpx // 2, feet_y - h // 2 - 1))
 
@@ -978,19 +984,23 @@ def _ground_furniture(surf, w, scroll, pal, fd=1.0):
                       lambda s, sx=sx: sp._draw_cairn(s, sx, pal, scale=1.2))
     sp._latch_prune(('furn', 12))
     # THE TREE LINE — the town's planned street planting. Both lamp rows run
-    # the 251 lattice (x0 18 and 185), so a tree at x0=101 sits ≥83 px from
-    # every lamp forever — lamp–tree–lamp–tree, the rhythm real streets plant.
-    # (The gold row's old period 253 drifted through every offset and
-    # eventually grew a tree out of a lamp post.) Per-run, per-block plan: one
-    # species + height per block (uniform rows), a cadence per block, and some
-    # deliberately unplanted stretches. Pure in (k, run seed) and phase-free —
-    # trees don't move at dusk.
-    for sx, k in sp._world_xs(scroll, w, 251, x0=101):
-        cad, salt, _gdn = _wk.plant_scheme(k * 251 + 101)
-        if not cad or (k % cad):
-            continue
-        _zbuf.enqueue(fy, TB_STRUCTURE,
-                      lambda s, sx=sx, salt=salt: _street_tree(s, sx, pal, salt))
+    # the 251 lattice at even offsets (x0 18 and 143 → gaps of 125/126 px), and
+    # EVERY gap holds a tree slot (x0 80 and 206, ≥62 px from every lamp
+    # forever) — lamp–tree–lamp–tree with no treeless gap, the rhythm real
+    # streets plant. (The gold row's old 253 period drifted through every
+    # offset and eventually grew a tree out of a lamp post.) Per-run,
+    # per-block plan: one species + height per block (uniform rows), a cadence
+    # per block, and rare deliberately unplanted stretches. Pure in (k, run
+    # seed) and phase-free — trees don't move at dusk. The second offset's
+    # slot is the tighter one, so it plants the slim conifer form.
+    for x0, slim in ((80, False), (206, True)):
+        for sx, k in sp._world_xs(scroll, w, 251, x0=x0):
+            cad, salt, _gdn = _wk.plant_scheme(k * 251 + x0)
+            if not cad or (k % cad):
+                continue
+            _zbuf.enqueue(fy, TB_STRUCTURE,
+                          lambda s, sx=sx, salt=salt, slim=slim:
+                          _street_tree(s, sx, pal, salt, slim=slim))
     # PLANTING BEDS — only on the blocks the plan marks as garden stretches,
     # so a bed reads as a kept front-garden rather than a random pot drop. The
     # bed's soil rectangle + stone edging draw first (back line, structure
@@ -1322,15 +1332,16 @@ def _grn_pick(pool, k, salt):
     return pool[i]
 
 
-def _street_tree(surf, sx, pal, salt):
+def _street_tree(surf, sx, pal, salt, slim=False):
     """One planted street tree — the tree line's own silhouette. The greenery
     pool's tallest pots top out ~52 px, which read as shrubs beside the ~90 px
     lamp posts; a street tree needs a bare trunk and a canopy at lantern
     height for lamp–tree–lamp to read as a rhythm. ONE form + height per
-    block (`salt`), because uniform rows are what says 'planted'."""
+    block (`salt`), because uniform rows are what says 'planted'. `slim`
+    forces the narrow conifer form for the tighter lamp gap."""
     night = _nightf(pal)
     h = _mix32(salt * 0x9E3779B1)
-    form = h % 3
+    form = 1 if slim else h % 3
     top = 506 + (h >> 4) % 13              # canopy top y ≈ 506..518 (±6 / block)
     trunk = _retint_person((96, 68, 44), night)
     fol_d = _retint_person((44, 92, 54), night)
@@ -1901,10 +1912,11 @@ def _dressing(surf, w, scroll, pal, phase):
             if lamps_lit:
                 add_light_spot(sx, (250, 210, 140))
     sp._latch_prune(('lampR',))
-    # Gold row shares the red row's 251 lattice (offset 185) so the tree line
-    # at x0=101 keeps a fixed ≥83 px clearance from every lamp — the old 253
-    # period drifted through every phase against the trees.
-    for sx, k in sp._world_xs(scroll, w, 251, x0=185):
+    # Gold row shares the red row's 251 lattice at the even half-offset (143)
+    # so both lamp gaps are ~125 px and each holds a tree slot with a fixed
+    # ≥62 px clearance — the old 253 period drifted through every phase
+    # against the trees, and the old 185 offset left the short gap treeless.
+    for sx, k in sp._world_xs(scroll, w, 251, x0=143):
         on, lv = sp._slot_latch(('lampG',), k, lambda k=k: (
             lamp_win, _prop_latch('prop_lamp', k, 32)))
         if on:

@@ -76,16 +76,25 @@ def _bake_floor_strip(scroll, pal, bucket):
                                        anchor, pal)
     _detail.add_embedded_detail("buff", strip, _FLOOR_STRIP_W, gy_local, band_h,
                                 anchor, pal)
-    # A continuous value ramp toward the camera (back rows multiplied darker,
-    # front kerb untouched) — the monotone ground gradient that carries the
-    # walk's depth read in EVERY palette, where the courses' own two-plate
-    # value step washes out at night and under snow. Multiplicative, so it
-    # survives retints; ~11% total across the band.
+    # A continuous value ramp toward the camera — the monotone ground gradient
+    # that carries the walk's depth read in EVERY palette, where the courses'
+    # own two-plate value step washes out at night and under snow. By day the
+    # back rows are multiplied darker (~11% total, survives retints); after
+    # dark a multiplicative ramp is sub-JND on the dim stone, so the cue
+    # flips to an ADDITIVE haze that lifts the back rows toward the ambient
+    # skyglow — how distance actually reads at night.
     band_rows = band_h - gy_local
+    night = _promenade._nightf(pal)
     for r in range(band_rows):
-        m = 230 + int(25 * r / max(1, band_rows - 1))
+        back_t = 1.0 - r / max(1, band_rows - 1)
+        m = 255 - int(25 * back_t)
         strip.fill((m, m, m), (0, gy_local + r, _FLOOR_STRIP_W, 1),
                    special_flags=pygame.BLEND_RGB_MULT)
+        if night > 0.5:
+            a = int(26 * back_t * night)
+            if a > 0:
+                strip.fill((a, a, a + 4), (0, gy_local + r, _FLOOR_STRIP_W, 1),
+                           special_flags=pygame.BLEND_RGB_ADD)
     _floor_strip = strip
     _floor_anchor = anchor
     _floor_bucket = bucket

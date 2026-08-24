@@ -27,15 +27,21 @@ from game import foreground_variants as _fv
 
 # kind -> variant family for _fv.select_variant. Draw scale + drawer live in the
 # lane module (foreground_near_lane._emit_near_crowd); the sim only carries state.
-_FAMILY = {"stroller": "pedestrian", "kids": "kid", "dog": "dog"}
-_SALT = {"stroller": 31, "kids": 41, "dog": 51}   # match the legacy per-row salts
-_GAIT_RATE = {"stroller": 1.0, "kids": 1.2, "dog": 1.9}
+_FAMILY = {"stroller": "pedestrian", "kids": "kid", "dog": "dog",
+           "elder": "elder"}
+_SALT = {"stroller": 31, "kids": 41, "dog": 51, "elder": 61}
+_GAIT_RATE = {"stroller": 1.0, "kids": 1.2, "dog": 1.9, "elder": 0.7}
 
-_NEAR_CAP = 18             # hard ceiling regardless of density (perf)
-_BASE_N = 12              # target near-lane living count at full density
-_MARKET_N = 16            # fuller front lane through the night-market window
+_NEAR_CAP = 34             # hard ceiling regardless of density (perf)
+# Targets are IN-BAND counts: the walk band spans W + 2*_SPAWN_MARGIN world-px
+# (~1.9x the screen), so an on-screen crowd of N needs ~1.9N in the band. Sized
+# for ~7 on-screen figures on a calm day and ~15 at the night-market peak.
+_BASE_N = 20              # target near-lane living count at full density
+_MARKET_N = 30            # fuller front lane through the night-market window
 _SPAWN_MARGIN = 120       # spawn/cull this far off the screen edges (world px)
-_SPAWN_COOLDOWN = 0.35    # min seconds between spawns (so they don't enter as a wall)
+_SPAWN_COOLDOWN = 0.14    # min seconds between spawns (so they don't enter as a wall)
+                          # — the real population gate: at 160 px/s over the
+                          # ~690 px band, steady state ~= band_time/cooldown.
 _LEAVE_STAGGER = 0.8      # seconds between departures when the street empties
 
 # Walk speeds, world px/s. Sign convention: <0 walks WITH the flow (nets faster
@@ -51,12 +57,15 @@ class _Ent:
 
 
 def _pick_kind():
+    # Mix in the slower elder so the front lane isn't a stroller monoculture.
     r = random.random()
-    if r < 0.50:
+    if r < 0.42:
         return "stroller"
-    if r < 0.75:
+    if r < 0.64:
         return "kids"
-    return "dog"
+    if r < 0.84:
+        return "dog"
+    return "elder"
 
 
 def _market_now(phase):
@@ -163,6 +172,8 @@ class SidewalkCrowd:
         for e in self.near:
             if not hasattr(e, "wave"):      # tolerate externally-built entities
                 e.wave = 0.0
+            if not hasattr(e, "depth"):
+                e.depth = 1.0
             e.timer -= sdt
             if e.timer <= 0.0:
                 self._transition(e, phase)
@@ -178,6 +189,14 @@ class SidewalkCrowd:
             elif e.walk_vel < -maxv:
                 e.walk_vel = -maxv
             e.world_x += e.walk_vel * sdt
+            # Depth parallax: nearer WALKERS drift faster across the screen —
+            # the motion cue the size ladder needs — quantised to the same four
+            # tiers the renderer maps depth onto. Only while moving: a standing
+            # figure must stay pixel-locked to the paving (the planted
+            # invariant), so the drift gates on the walk itself.
+            if abs(e.walk_vel) > 1.0:
+                e.world_x -= speed * sdt * (0.0614, 0.092, 0.1227, 0.15)[
+                    min(3, int(e.depth * 4.0))]
             e.gait += _GAIT_RATE[e.kind] * sdt
             if e.walk_vel < -1.0:
                 e.facing = -1

@@ -269,11 +269,25 @@ def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y,
             cast_fn(scratch, render_box[0] // 2, pal, t=tb / _CAST_FPS, **kw)
         finally:
             pr.GROUND_Y = saved
+        # Night aerial lift: after dusk, distance should read as a drift toward
+        # the ambient skyglow, not extra darkness (a 2%/tier multiplicative dim
+        # is sub-JND on a ~60-luma night ground). Additive, baked, keyed by
+        # bucket+dv so it follows both the hour and the tier.
+        if night > 0.5:
+            lift = int((NEAR_GROUND_Y - feet_y) * 0.5 * night)
+            if lift > 0:
+                scratch.fill((lift, lift, lift + 3),
+                             special_flags=pygame.BLEND_RGB_ADD)
         # 1 px silhouette outline, baked with the figure: dark against day
-        # paving, pale after dusk (when the wet/dark ground swallows a dark
-        # edge) — the floor that keeps a figure findable at the low-contrast
-        # tiers regardless of its own fabric colours.
-        oc = (26, 30, 42, 130) if night < 0.45 else (172, 182, 202, 120)
+        # paving crossfading to pale after dusk (when the wet/dark ground
+        # swallows a dark edge) — the floor that keeps a figure findable at
+        # the low-contrast tiers regardless of its own fabric colours. The
+        # colour is pre-scaled against the aerial dim so the bake's dim
+        # multiply can't erode the one cue meant to be a contrast floor.
+        wl = min(1.0, max(0.0, (night - 0.40) / 0.20))
+        oc = tuple(int((a + (b - a) * wl) * 255 / dv)
+                   for a, b in ((26, 172), (30, 182), (42, 202)))
+        oc = (min(255, oc[0]), min(255, oc[1]), min(255, oc[2]), 130)
         try:
             m = pygame.mask.from_surface(scratch)
             wmax, hmax = scratch.get_size()
@@ -1118,10 +1132,14 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
                 _fv.select_variant('pedestrian', _fv.slot_seed(k, 31),
                                    _fv.beat_for_phase(pr._CUR_PHASE),
                                    _fv.weather_bucket(pr._CUR_RAIN, pr._CUR_SNOW)))
-    for sx, k in _near_xs(scroll, w, 196, x0=20):
+    # Each tiled row owns ONE depth tier, and its lattice scrolls at that
+    # tier's parallax rate — matching the living crowd's per-tier drift, so
+    # same-tier figures never slide against each other while different tiers
+    # genuinely move apart.
+    for sx, k in sp._world_xs(scroll, w, 196, x0=20, mult=1.123, margin=80):
         on, var = sp._slot_latch(('ped', 1), k, lambda k=k: _ped_decide(k))
         if on:
-            fy, fac = _DEPTH_TIERS[pr._mix32(k * 0x9E3779B1) % len(_DEPTH_TIERS)]
+            fy, fac = _DEPTH_TIERS[2]
             _zbuf.enqueue(fy, TB_CAST, lambda s, sx=sx, var=var, fy=fy, fac=fac:
                           _scaled_cast(s, pr.draw_strollers, sx, pal,
                                        round(1.6 * fac, 2), t=t, variant=var,
@@ -1131,10 +1149,10 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
         return (pr._slot_on(k, 2, density),
                 _fv.select_variant('kid', _fv.slot_seed(k, 41),
                                    _fv.beat_for_phase(pr._CUR_PHASE), _fv.WB_CLEAR))
-    for sx, k in _near_xs(scroll, w, 224, x0=150):
+    for sx, k in sp._world_xs(scroll, w, 224, x0=150, mult=1.092, margin=80):
         on, kvar = sp._slot_latch(('ped', 2), k, lambda k=k: _kid_decide(k))
         if on:
-            fy, fac = _DEPTH_TIERS[pr._mix32(k * 0x85EBCA77) % len(_DEPTH_TIERS)]
+            fy, fac = _DEPTH_TIERS[1]
             _zbuf.enqueue(fy, TB_CAST, lambda s, sx=sx, kvar=kvar, fy=fy, fac=fac:
                           _scaled_cast(s, pr.draw_kids, sx, pal,
                                        round(1.55 * fac, 2), t=t, n=2,
@@ -1149,7 +1167,7 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
     for sx, k in _near_xs(scroll, w, 300, x0=96):
         on, dvar = sp._slot_latch(('ped', 3), k, lambda k=k: _dog_decide(k))
         if on:
-            fy, fac = _DEPTH_TIERS[pr._mix32(k * 0xC2B2AE35) % len(_DEPTH_TIERS)]
+            fy, fac = _DEPTH_TIERS[3]
             _zbuf.enqueue(fy, TB_CAST, lambda s, sx=sx, dvar=dvar, fy=fy, fac=fac:
                           _scaled_cast(s, pr.draw_dog, sx, pal,
                                        round(1.5 * fac, 2), t=t, variant=dvar,
@@ -1167,6 +1185,7 @@ _CROWD_DRAW = {
     "stroller": (pr.draw_strollers, 1.6, {}),
     "kids":     (pr.draw_kids, 1.55, {"n": 2}),
     "dog":      (pr.draw_dog, 1.5, {}),
+    "elder":    (pr.draw_old_man, 1.5, {}),
 }
 
 
