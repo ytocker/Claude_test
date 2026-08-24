@@ -128,15 +128,18 @@ def _light_smears(ov, scroll, wetness):
 
 def _footprints(ov, scroll, snow_cover, foot_spots):
     """Fresh tracks behind each walking figure while snow lies — the one weather
-    state in which the street records that anyone was here."""
+    state in which the street records that anyone was here. Tracks land on the
+    walker's own depth tier (feet line), sized down for the farther tiers."""
     a = int(min(110, 150 * snow_cover))
-    for wx, facing, gait in foot_spots:
+    for wx, facing, gait, feet_y in foot_spots:
         sx = int(wx - scroll)
+        fy = feet_y - GROUND_Y - 1                     # band-local track line
+        pw = 3 if feet_y >= GROUND_Y + 41 else 2       # nearer prints are bigger
         for i in range(1, 4):
             fx = sx + facing * (5 + i * 6) + (int(gait * 2 + i) % 2)
             if -4 <= fx <= W + 4:
                 pygame.draw.rect(ov, (96, 106, 126, max(0, a - i * 24)),
-                                 (fx, _BAND_H - 3, 2, 1))
+                                 (fx, max(0, fy), pw, 1))
 
 
 def draw_ground_weather(surf, scroll, pal, wetness, snow_cover, foot_spots=()):

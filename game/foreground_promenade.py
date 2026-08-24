@@ -67,6 +67,40 @@ def _sunk(surf, dy):
     feet line. Shares pixels with the frame; creation is O(1)."""
     return surf.subsurface((0, dy, surf.get_width(), surf.get_height() - dy))
 
+
+# ── the band's one perspective law ───────────────────────────────────────────
+#
+# Every figure in the 45 px walk follows the same size-for-depth ramp,
+# calibrated so the front kerb matches the shipped near-lane size: s(dy) =
+# 1 + 0.0134·dy, dy measured down from the back kerb (594). Far-lane cast
+# quantises to three tiers on a 9 px pitch; the near lane continues the same
+# pitch to the front kerb — so there is no dead zone mid-walk and no scale
+# cliff at the lane seam.
+_FAR_TIER_DY = (0, 9, 18)
+
+
+def _far_tier(dy):
+    """Authored role-depth → tier index (0 back kerb / 1 mid / 2 walk)."""
+    return 0 if dy < 5 else (1 if dy < 12 else 2)
+
+
+_SHADOW_CACHE = {}
+
+
+def _shadow(surf, cx, feet_y, wpx, night):
+    """Soft contact ellipse under a cast figure — the grounding cue that
+    separates a low-contrast figure from the paving without touching either's
+    colour (the mid-walk tiers otherwise wash out against the darker back
+    plate and the lantern pools at night)."""
+    a = 55 - int(20 * min(1.0, night))
+    key = (wpx, a)
+    sp_ = _SHADOW_CACHE.get(key)
+    if sp_ is None:
+        sp_ = pygame.Surface((wpx, 4), pygame.SRCALPHA)
+        pygame.draw.ellipse(sp_, (18, 20, 30, a), (0, 0, wpx, 4))
+        _SHADOW_CACHE[key] = sp_
+    surf.blit(sp_, (cx - wpx // 2, feet_y - 2))
+
 # ── weather the street reacts to ─────────────────────────────────────────────
 #
 # Live rain/snow/wind for the current frame, set by draw_promenade/draw_near_lane
@@ -930,26 +964,29 @@ def _ground_furniture(surf, w, scroll, pal, fd=1.0):
             _enq_sunk((_mix32(k * 0x85EBCA77) >> 5) % 9, TB_FIXTURE,
                       lambda s, sx=sx: sp._draw_cairn(s, sx, pal, scale=1.2))
     sp._latch_prune(('furn', 12))
-    # THE TREE LINE — the town's planned street planting. Trees sit on the lamp
-    # lattice's half-offset (same period 251, x0 midway between lamp posts) so
-    # the back kerb reads lamp–tree–lamp–tree, the rhythm real streets plant.
-    # Per-run, per-block plan: one species per block (uniform rows), a cadence
-    # per block, and some deliberately unplanted stretches. Pure in (k, run
-    # seed) and phase-free, so the line never flickers and never follows the
-    # dayparts — trees don't move at dusk.
-    for sx, k in sp._world_xs(scroll, w, 251, x0=143):
-        cad, salt, _gdn = _wk.plant_scheme(k * 251 + 143)
+    # THE TREE LINE — the town's planned street planting. Both lamp rows run
+    # the 251 lattice (x0 18 and 185), so a tree at x0=101 sits ≥83 px from
+    # every lamp forever — lamp–tree–lamp–tree, the rhythm real streets plant.
+    # (The gold row's old period 253 drifted through every offset and
+    # eventually grew a tree out of a lamp post.) Per-run, per-block plan: one
+    # species + height per block (uniform rows), a cadence per block, and some
+    # deliberately unplanted stretches. Pure in (k, run seed) and phase-free —
+    # trees don't move at dusk.
+    for sx, k in sp._world_xs(scroll, w, 251, x0=101):
+        cad, salt, _gdn = _wk.plant_scheme(k * 251 + 101)
         if not cad or (k % cad):
             continue
-        idx = _GRN_TALL[_mix32(salt * 0x9E3779B1) % len(_GRN_TALL)]
         _zbuf.enqueue(fy, TB_STRUCTURE,
-                      lambda s, sx=sx, idx=idx: _grn_at(s, sx, idx, 0))
+                      lambda s, sx=sx, salt=salt: _street_tree(s, sx, pal, salt))
     # PLANTING BEDS — only on the blocks the plan marks as garden stretches,
     # so a bed reads as a kept front-garden rather than a random pot drop. The
-    # triad's plants enqueue on their own feet lines (back filler on the kerb,
-    # front flanker sunk into the walk) so passers-by sort between the rows.
+    # bed's soil rectangle + stone edging draw first (back line, structure
+    # tier); its plants enqueue on their own feet lines so passers-by sort
+    # between the rows while the rectangle ties them into ONE bed.
     for sx, k in sp._world_xs(scroll, w, 331, x0=70):
         if _wk.plant_scheme(k * 331 + 70)[2]:
+            _zbuf.enqueue(fy, TB_STRUCTURE,
+                          lambda s, sx=sx, k=k: _bed_base(s, sx, k, pal))
             for idx, xo, dy in _bed_layout(k):
                 _zbuf.enqueue(fy + dy, TB_FIXTURE,
                               lambda s, x=sx + xo, idx=idx, dy=dy: _grn_at(s, x, idx, dy))
@@ -1110,9 +1147,9 @@ def _scene_market(emit, bx, pal, t, rng, pick=None):
     vv = pick('vendor', 31) if pick else 0
     kv = pick('kid', 32) if pick else 0
     emit(TB_STRUCTURE, lambda s: draw_kiosk(s, bx, pal, t=t, openness=0.9))
-    emit(TB_CAST, lambda s, vv=vv: draw_vendor(s, bx + 10, pal, t=t, variant=vv), dy=5)
+    emit(TB_CAST, dy=9, cast=(draw_vendor, bx + 10, dict(t=t, variant=vv)))
     emit(TB_STRUCTURE, lambda s: draw_birdcage_stand(s, bx + 84, pal, t=t))
-    emit(TB_CAST, lambda s, kv=kv: draw_kids(s, bx + 152, pal, t=t, n=2, variant=kv), dy=10)
+    emit(TB_CAST, dy=18, cast=(draw_kids, bx + 152, dict(t=t, n=2, variant=kv)))
 
 
 def draw_food_stall(surf, sx, pal, *, t=0.0, kind="steamer", openness=1.0):
@@ -1174,10 +1211,10 @@ def _scene_food(emit, bx, pal, t, kind, vendor_variant, rng, *, pick=None, cust_
         emit(TB_FIXTURE, lambda s, load=load: _wkit.draw_cart_folded(
             s, bx + 34, GROUND_Y - 1, _nightf(pal), t, load=load), dy=6)
     if openness >= 0.30:
-        emit(TB_CAST, lambda s: draw_vendor(s, bx - 6, pal, t=t, variant=vendor_variant), dy=4)
+        emit(TB_CAST, dy=9, cast=(draw_vendor, bx - 6, dict(t=t, variant=vendor_variant)))
     if openness >= 0.80:
-        emit(TB_CAST, lambda s, crit=crit: draw_critter(s, bx + 16, pal, t=t, kind=crit), dy=11)
-        emit(TB_CAST, lambda s, cust=cust: draw_strollers(s, bx + 36, pal, t=t, variant=cust), dy=8)
+        emit(TB_CAST, dy=18, cast=(draw_critter, bx + 16, dict(t=t, kind=crit)))
+        emit(TB_CAST, dy=9, cast=(draw_strollers, bx + 36, dict(t=t, variant=cust)))
 
 
 def _scene_food_grill(emit, bx, pal, t, rng, pick=None):
@@ -1250,7 +1287,12 @@ def draw_greenery(surf, sx, pal, *, t=0.0, variant=0):
 # ground fillers) so every authored plant is actually placed somewhere.
 _GRN_TALL = (1, 2, 3, 6, 9, 10, 12, 13, 17, 18, 19, 21, 22, 25, 26, 29)
 _GRN_SHORT = (0, 4, 5, 8, 11, 16, 20, 23)
-_GRN_LOW = (7, 14, 15, 24, 27, 28)
+# 7 (trough/vine) and 24 (bamboo/vine) cascade 12-15 px BELOW their soil line,
+# so as back fillers they'd paint past figures that sort in front of them —
+# they live in the front-flanker pool instead, where the spill points at the
+# camera.
+_GRN_LOW = (14, 15, 27, 28)
+_GRN_SPILL = (7, 24)
 
 
 def _grn_pick(pool, k, salt):
@@ -1266,6 +1308,40 @@ def _grn_pick(pool, k, salt):
     return pool[i]
 
 
+def _street_tree(surf, sx, pal, salt):
+    """One planted street tree — the tree line's own silhouette. The greenery
+    pool's tallest pots top out ~52 px, which read as shrubs beside the ~90 px
+    lamp posts; a street tree needs a bare trunk and a canopy at lantern
+    height for lamp–tree–lamp to read as a rhythm. ONE form + height per
+    block (`salt`), because uniform rows are what says 'planted'."""
+    night = _nightf(pal)
+    h = _mix32(salt * 0x9E3779B1)
+    form = h % 3
+    top = 506 + (h >> 4) % 13              # canopy top y ≈ 506..518 (±6 / block)
+    trunk = _retint_person((96, 68, 44), night)
+    fol_d = _retint_person((44, 92, 54), night)
+    fol_m = _retint_person((66, 122, 64), night)
+    fol_l = _retint_person((96, 150, 78), night)
+    by = GROUND_Y - 1
+    pygame.draw.line(surf, trunk, (sx, by), (sx, top + 24), 3)
+    pygame.draw.line(surf, _shade(trunk, -18), (sx + 1, by), (sx + 1, top + 28), 1)
+    if form == 0:            # round crown
+        pygame.draw.circle(surf, fol_d, (sx, top + 15), 15)
+        pygame.draw.circle(surf, fol_m, (sx - 2, top + 12), 12)
+        pygame.draw.circle(surf, fol_l, (sx - 5, top + 9), 7)
+    elif form == 1:          # tiered conifer
+        for i, (tw, yy) in enumerate(((28, 30), (21, 19), (14, 9))):
+            c = (fol_d, fol_m, fol_l)[i]
+            pygame.draw.polygon(surf, c, [(sx - tw // 2, top + yy),
+                                          (sx + tw // 2, top + yy),
+                                          (sx, top + yy - 13)])
+    else:                    # twin-lobe scholar tree
+        pygame.draw.ellipse(surf, fol_d, (sx - 16, top + 7, 20, 14))
+        pygame.draw.ellipse(surf, fol_m, (sx - 4, top + 1, 20, 15))
+        pygame.draw.ellipse(surf, fol_l, (sx - 8, top + 5, 12, 9))
+        pygame.draw.line(surf, trunk, (sx, top + 22), (sx + 6, top + 9), 2)
+
+
 def _grn_at(surf, x, idx, dy):
     """One pooled plant with its soil line sunk `dy` into the walk. Greenery
     holds its daytime look the whole cycle: greenery_cast's night retint cooled
@@ -1278,17 +1354,38 @@ def _grn_at(surf, x, idx, dy):
 
 def _bed_layout(k):
     """A planting bed's plants as (pool_idx, x_off, dy) — deterministic in `k`.
-    dy staggers the triad through the walk's depth (back filler on the kerb,
-    front flanker well into the walk), and each plant enqueues on its own feet
-    line so the cast can pass BETWEEN the bed's rows."""
+    dy staggers the rows through the walk's depth (back filler on the kerb,
+    front flanker into the walk), and each plant enqueues on its own feet line
+    so the cast can pass BETWEEN the bed's rows. The front role draws from the
+    flankers PLUS the two cascading vines (their spill points at the camera —
+    as back fillers it painted over anything sorted in front of them)."""
     triad = (k % 2 == 0)
     spread = 23 if (k % 3) else 16
+    front = _GRN_SHORT + _GRN_SPILL
     if triad:
         return ((_grn_pick(_GRN_LOW, k, 7), spread - 5, 0),
                 (_grn_pick(_GRN_TALL, k, 1), -2, 3),
-                (_grn_pick(_GRN_SHORT, k, 5), -spread, 10))
+                (_grn_pick(front, k, 5), -spread, 10))
     return ((_grn_pick(_GRN_TALL, k, 1), -spread // 2, 1),
-            (_grn_pick(_GRN_SHORT, k, 5), spread // 2, 8))
+            (_grn_pick(front, k, 5), spread // 2, 8))
+
+
+def _bed_base(surf, sx, k, pal):
+    """The bed itself — a soil rectangle with a stone edging spanning the
+    plants' footprint. A kept garden reads from its edge, not its plants; the
+    rectangle also visually ties the depth-staggered rows into ONE bed."""
+    night = _nightf(pal)
+    spread = 23 if (k % 3) else 16
+    left = sx - spread - 10
+    w = spread * 2 + 18
+    soil = _mix((86, 64, 46), (52, 56, 76), 0.4 * night)
+    edge = _mix((168, 158, 142), (92, 98, 118), 0.4 * night)
+    top = GROUND_Y - 2
+    pygame.draw.rect(surf, soil, (left, top, w, 13))
+    pygame.draw.rect(surf, _shade(soil, -14), (left, top, w, 13), 1)
+    # stone edging along the front lip, the "kept" cue
+    pygame.draw.rect(surf, edge, (left - 1, top + 12, w + 2, 2))
+    pygame.draw.rect(surf, _shade(edge, -22), (left - 1, top + 13, w + 2, 1))
 
 
 def _prop_latch(family, k, salt):
@@ -1335,10 +1432,9 @@ def _scene_pastoral(emit, bx, pal, t, rng, pick=None):
     """Wish-tree + a varied dog ambling with the street + a foraging critter."""
     dv = pick('dog', 71) if pick else 0
     emit(TB_STRUCTURE, lambda s: draw_wish_tree(s, bx, pal, t=t))
-    emit(TB_CAST, lambda s, dv=dv: draw_dog(s, bx + 66, pal, t=t, variant=dv), dy=9)
-    emit(TB_CAST, lambda s: draw_critter(s, bx + 96, pal, t=t,
-                                         kind=rng.choice(('pigeons', 'cat', 'hen', 'duck'))),
-         dy=12)
+    emit(TB_CAST, dy=9, cast=(draw_dog, bx + 66, dict(t=t, variant=dv)))
+    emit(TB_CAST, dy=18, cast=(draw_critter, bx + 96,
+                               dict(t=t, kind=rng.choice(('pigeons', 'cat', 'hen', 'duck')))))
 
 def _scene_lamplighter(emit, bx, pal, t, rng, pick=None):
     """A lamplighter kindling the street lanterns at dusk."""
@@ -1352,12 +1448,12 @@ def _scene_vendor(emit, bx, pal, t, rng, pick=None):
     """A songbird-cage seller working the stand."""
     vv = pick('vendor', 33) if pick else 0
     emit(TB_STRUCTURE, lambda s: draw_birdcage_stand(s, bx, pal, t=t))
-    emit(TB_CAST, lambda s, vv=vv: draw_vendor(s, bx + 12, pal, t=t, variant=vv), dy=5)
+    emit(TB_CAST, dy=9, cast=(draw_vendor, bx + 12, dict(t=t, variant=vv)))
 
 def _scene_quiet(emit, bx, pal, t, rng, pick=None):
     """The temple elder pausing — a quiet, near-empty-street beat."""
     ev = pick('elder', 14) if pick else 0
-    emit(TB_CAST, lambda s, ev=ev: draw_old_man(s, bx + 30, pal, t=t, variant=ev), dy=7)
+    emit(TB_CAST, dy=9, cast=(draw_old_man, bx + 30, dict(t=t, variant=ev)))
 
 
 def _draw_pigeon_flush(surf, sx, pal, k):
@@ -1430,16 +1526,16 @@ def _scene_bench(emit, bx, pal, t, rng, pick=None):
     # The seated companion shares the bench's depth so it stays ON the seat.
     emit(TB_CAST, lambda s: _draw_bench_person(s, bx + 8, seat_y - 8, *comp, night=night),
          dy=2)
-    emit(TB_CAST, lambda s, ev=ev: draw_old_man(s, bx + 44, pal, t=t, variant=ev), dy=8)
+    emit(TB_CAST, dy=9, cast=(draw_old_man, bx + 44, dict(t=t, variant=ev)))
 
 def _scene_stroll(emit, bx, pal, t, rng, pick=None):
     """Two strolling adults from the variety pool + a varied elder on a slow walk."""
     v1 = pick('pedestrian', 11) if pick else 0
     v2 = pick('pedestrian', 12) if pick else 0
     ev = pick('elder', 13) if pick else 0
-    emit(TB_CAST, lambda s, v1=v1: draw_strollers(s, bx - 7, pal, t=t, variant=v1), dy=5)
-    emit(TB_CAST, lambda s, v2=v2: draw_strollers(s, bx + 9, pal, t=t, variant=v2), dy=11)
-    emit(TB_CAST, lambda s, ev=ev: draw_old_man(s, bx + 48, pal, t=t, variant=ev), dy=8)
+    emit(TB_CAST, dy=0, cast=(draw_strollers, bx - 7, dict(t=t, variant=v1)))
+    emit(TB_CAST, dy=18, cast=(draw_strollers, bx + 9, dict(t=t, variant=v2)))
+    emit(TB_CAST, dy=9, cast=(draw_old_man, bx + 48, dict(t=t, variant=ev)))
 
 def _scene_rest(emit, bx, pal, t, rng, pick=None):
     """A napper on a mat."""
@@ -1451,16 +1547,20 @@ def _scene_campfire(emit, bx, pal, t, rng, pick=None):
     v2 = pick('pedestrian', 22) if pick else 0
     kv = pick('kid', 23) if pick else 0
     emit(TB_FIXTURE, lambda s: draw_campfire(s, bx, pal, t=t), dy=4)
-    emit(TB_CAST, lambda s, v1=v1: draw_strollers(s, bx + 50, pal, t=t, variant=v1), dy=8)
-    emit(TB_CAST, lambda s, v2=v2: draw_strollers(s, bx + 64, pal, t=t, variant=v2), dy=12)
-    emit(TB_CAST, lambda s, kv=kv: draw_kids(s, bx + 100, pal, t=t, n=2, variant=kv), dy=10)
+    emit(TB_CAST, dy=9, cast=(draw_strollers, bx + 50, dict(t=t, variant=v1)))
+    emit(TB_CAST, dy=18, cast=(draw_strollers, bx + 64, dict(t=t, variant=v2)))
+    emit(TB_CAST, dy=9, cast=(draw_kids, bx + 100, dict(t=t, n=2, variant=kv)))
 
 def _scenarios(surf, w, scroll, pal, t, roster, x0=40):
     """Place the beat's scene roster at world-x slots, scrolling at world speed.
 
     Legacy gallery path (PHASES_R17): scenes now EMIT their sub-objects, so give
     them an emit that paints immediately in submission order — no depth buffer."""
-    def _emit(_tier, fn, dy=0):
+    def _emit(_tier, fn=None, dy=0, cast=None):
+        if cast is not None:
+            drawer, x, kw = cast
+            drawer(surf if not dy else _sunk(surf, min(dy, 12)), x, pal, **kw)
+            return
         fn(surf if not dy else _sunk(surf, dy))
     for bx, k in sp._world_xs(scroll, w, _SCENARIO_PERIOD, x0,
                               mult=sp.GROUND_MULT, margin=_SCENE_MARGIN):
@@ -1778,7 +1878,10 @@ def _dressing(surf, w, scroll, pal, phase):
             if lamps_lit:
                 add_light_spot(sx, (250, 210, 140))
     sp._latch_prune(('lampR',))
-    for sx, k in sp._world_xs(scroll, w, 253, x0=152):
+    # Gold row shares the red row's 251 lattice (offset 185) so the tree line
+    # at x0=101 keeps a fixed ≥83 px clearance from every lamp — the old 253
+    # period drifted through every phase against the trees.
+    for sx, k in sp._world_xs(scroll, w, 251, x0=185):
         on, lv = sp._slot_latch(('lampG',), k, lambda k=k: (
             lamp_win, _prop_latch('prop_lamp', k, 32)))
         if on:
@@ -1839,12 +1942,37 @@ def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
             # internal variety matches the pre-latch behaviour exactly.
             r = random.Random((k * 0x9E3779B1) & 0xFFFFFFFF)
             r.random()
-            # Each scene enqueues its sub-objects with a per-figure depth: `dy`
-            # sinks a figure into the walk (0 = back kerb, ~14 = mid-band), and
-            # the z-buffer sorts on the resulting feet line so nearer figures
-            # draw over farther ones. Drawers keep their hard-coded GROUND_Y
-            # geometry — the shifted subsurface translates the whole figure.
-            def _emit(tier, fn, dy=0):
+            # Each scene enqueues its sub-objects with a per-figure depth.
+            # Fixtures/structures pass an opaque `fn` and sink by translation
+            # (`dy` via the shifted subsurface). CAST figures instead pass
+            # cast=(drawer, x, kwargs): their authored dy quantises to the
+            # band's tier pitch, shifted ±1 tier per slot so two instances of
+            # a scene never share one depth arrangement, and figures sunk past
+            # the back tier bake through the shared depth law's scale — walking
+            # forward means growing, not just dropping. Every cast figure gets
+            # a contact shadow so it stays separable from the paving.
+            tshift = (_mix32(k * 0x51ED2701) % 3) - 1
+
+            def _emit(tier, fn=None, dy=0, cast=None, tshift=tshift):
+                if cast is not None:
+                    drawer, x, kw = cast
+                    d_eff = _FAR_TIER_DY[max(0, min(2, _far_tier(dy) + tshift))]
+                    if d_eff:
+                        fyc = GROUND_Y - 1 + d_eff
+                        sc = 1.0 + 0.0134 * d_eff
+
+                        def _draw(s, drawer=drawer, x=x, kw=kw, fyc=fyc, sc=sc):
+                            # _scaled_cast draws the contact shadow itself.
+                            from game import foreground_near_lane as _nl
+                            _nl._scaled_cast(s, drawer, x, _CUR_PAL, sc,
+                                             feet_y=fyc, **kw)
+                        _zbuf.enqueue(fyc, tier, _draw)
+                    else:
+                        def _draw(s, drawer=drawer, x=x, kw=kw):
+                            _shadow(s, x, GROUND_Y - 1, 16, _nightf(_CUR_PAL))
+                            drawer(s, x, _CUR_PAL, **kw)
+                        _zbuf.enqueue(GROUND_Y - 1, tier, _draw)
+                    return
                 if dy:
                     _zbuf.enqueue(GROUND_Y - 1 + dy, tier,
                                   lambda s, f=fn, d=dy: f(_sunk(s, d)))

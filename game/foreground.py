@@ -76,6 +76,16 @@ def _bake_floor_strip(scroll, pal, bucket):
                                        anchor, pal)
     _detail.add_embedded_detail("buff", strip, _FLOOR_STRIP_W, gy_local, band_h,
                                 anchor, pal)
+    # A continuous value ramp toward the camera (back rows multiplied darker,
+    # front kerb untouched) — the monotone ground gradient that carries the
+    # walk's depth read in EVERY palette, where the courses' own two-plate
+    # value step washes out at night and under snow. Multiplicative, so it
+    # survives retints; ~11% total across the band.
+    band_rows = band_h - gy_local
+    for r in range(band_rows):
+        m = 230 + int(25 * r / max(1, band_rows - 1))
+        strip.fill((m, m, m), (0, gy_local + r, _FLOOR_STRIP_W, 1),
+                   special_flags=pygame.BLEND_RGB_MULT)
     _floor_strip = strip
     _floor_anchor = anchor
     _floor_bucket = bucket
@@ -103,8 +113,9 @@ def draw_ground_weather(surf, scroll, pal, wetness, snow_cover):
     feet."""
     foot_spots = ()
     if snow_cover > 0.25 and _crowd is not None:
-        foot_spots = [(e.world_x, e.facing, e.gait) for e in _crowd.near
-                      if abs(e.walk_vel) > 4.0]
+        foot_spots = [(e.world_x, e.facing, e.gait,
+                       _near._crowd_tier(getattr(e, "depth", 1.0))[0])
+                      for e in _crowd.near if abs(e.walk_vel) > 4.0]
     _gweather.draw_ground_weather(surf, scroll, pal, wetness, snow_cover, foot_spots)
 
 

@@ -270,6 +270,10 @@ def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y,
     big = _spr.baked_sprite(key, render_box, (foot_w, foot_h), _render,
                             dim=(240, 240, 240), smooth=smooth, flip=flip)
     sw, _sh = big.get_size()
+    # Contact shadow first, so every baked figure (crowd, performers, far-lane
+    # scaled cast) is grounded and stays separable from the paving at the
+    # low-contrast tiers.
+    pr._shadow(surf, sx, feet_y - 1, max(12, int(18 * scale)), _nightf(pal))
     surf.blit(big, (sx - sw // 2, feet_y - foot_h))
 
 
@@ -1096,7 +1100,7 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
     for sx, k in _near_xs(scroll, w, 196, x0=20):
         on, var = sp._slot_latch(('ped', 1), k, lambda k=k: _ped_decide(k))
         if on:
-            fy, fac = _DEPTH_TIERS[pr._mix32(k * 0x9E3779B1) % 3]
+            fy, fac = _DEPTH_TIERS[pr._mix32(k * 0x9E3779B1) % len(_DEPTH_TIERS)]
             _zbuf.enqueue(fy, TB_CAST, lambda s, sx=sx, var=var, fy=fy, fac=fac:
                           _scaled_cast(s, pr.draw_strollers, sx, pal,
                                        round(1.6 * fac, 2), t=t, variant=var,
@@ -1109,7 +1113,7 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
     for sx, k in _near_xs(scroll, w, 224, x0=150):
         on, kvar = sp._slot_latch(('ped', 2), k, lambda k=k: _kid_decide(k))
         if on:
-            fy, fac = _DEPTH_TIERS[pr._mix32(k * 0x85EBCA77) % 3]
+            fy, fac = _DEPTH_TIERS[pr._mix32(k * 0x85EBCA77) % len(_DEPTH_TIERS)]
             _zbuf.enqueue(fy, TB_CAST, lambda s, sx=sx, kvar=kvar, fy=fy, fac=fac:
                           _scaled_cast(s, pr.draw_kids, sx, pal,
                                        round(1.55 * fac, 2), t=t, n=2,
@@ -1124,7 +1128,7 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
     for sx, k in _near_xs(scroll, w, 300, x0=96):
         on, dvar = sp._slot_latch(('ped', 3), k, lambda k=k: _dog_decide(k))
         if on:
-            fy, fac = _DEPTH_TIERS[pr._mix32(k * 0xC2B2AE35) % 3]
+            fy, fac = _DEPTH_TIERS[pr._mix32(k * 0xC2B2AE35) % len(_DEPTH_TIERS)]
             _zbuf.enqueue(fy, TB_CAST, lambda s, sx=sx, dvar=dvar, fy=fy, fac=fac:
                           _scaled_cast(s, pr.draw_dog, sx, pal,
                                        round(1.5 * fac, 2), t=t, variant=dvar,
@@ -1161,17 +1165,19 @@ def _wave_arm(surf, sx, pal, gait, facing, feet_y=None):
 
 
 # The front walk's depth tiers: the crowd's dealt depth (0 = mid-walk line,
-# 1 = front kerb) quantises to three (feet_y, scale-factor) steps so the bake
+# 1 = front kerb) quantises to four (feet_y, scale-factor) steps so the bake
 # cache stays bounded (a continuous scale would key a fresh sprite per figure).
-# The factor multiplies each kind's kerb scale, so a mid-walk stroller reads
-# smaller AND higher — and the z-buffer sorts the real feet lines, so nearer
-# figures overlay farther ones naturally.
-_DEPTH_TIERS = ((NEAR_GROUND_Y - 20, 0.82), (NEAR_GROUND_Y - 10, 0.91),
-                (NEAR_GROUND_Y, 1.0))
+# The steps continue the band's ONE perspective law, s(dy)=1+0.0134·dy from
+# the back kerb (594), on the same ~9 px pitch the far lane's tiers use — so
+# there is no dead zone mid-walk and no scale cliff at the lane seam. The
+# factor multiplies each kind's kerb scale; the z-buffer sorts the real feet
+# lines, so nearer figures overlay farther ones naturally.
+_DEPTH_TIERS = ((NEAR_GROUND_Y - 26, 0.78), (NEAR_GROUND_Y - 17, 0.85),
+                (NEAR_GROUND_Y - 8, 0.925), (NEAR_GROUND_Y, 1.0))
 
 
 def _crowd_tier(depth):
-    return _DEPTH_TIERS[min(2, int(depth * 3.0))]
+    return _DEPTH_TIERS[min(3, int(depth * 4.0))]
 
 
 def _emit_near_crowd(surf, crowd, scroll, pal):
@@ -1197,8 +1203,6 @@ def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
     than jammed with large low pots. Placement follows the town's planting plan
     on fixed wide cadences; `fd` is accepted for call-site uniformity but
     unused — planting is day-stable, unlike the decor the density curve thins."""
-    ny = NEAR_GROUND_Y
-
     # Planned, not rolled: the front accents keep a deterministic cadence tied
     # to the back tree line's grid (vine lanterns on every 4th tree interval,
     # offset to sit between back-line trees) so the front edge reads as part of
@@ -1208,10 +1212,14 @@ def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
     # pine skips densely-treed blocks — a tall front pine against a full back
     # row over-greens the frame.
     for sx, k in _near_static_xs(scroll, w, 1004, x0=268):
-        _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx: _near_vine_lantern(s, sx, pal))
+        fy = _DEPTH_TIERS[1 + pr._mix32(k * 0x9E3779B1) % 3][0]
+        _zbuf.enqueue(fy, TB_FIXTURE,
+                      lambda s, sx=sx, fy=fy: _near_vine_lantern(s, sx, pal, feet_y=fy))
     for sx, k in _near_static_xs(scroll, w, 753, x0=394):
         if _wk.plant_scheme(k * 753 + 394)[0] != 1:
-            _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx: _near_pine(s, sx, pal))
+            fy = _DEPTH_TIERS[1 + pr._mix32(k * 0x85EBCA77) % 3][0]
+            _zbuf.enqueue(fy, TB_FIXTURE,
+                          lambda s, sx=sx, fy=fy: _near_pine(s, sx, pal, feet_y=fy))
 
 
 # A performance (performer + its own crowd) is itself a scene cluster; place it at
