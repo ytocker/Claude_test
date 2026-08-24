@@ -1085,8 +1085,8 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
     # Inclusion AND the pool variant are latched together at entry (off-screen):
     # the variant is frozen to the slot's entry beat/weather so it never re-rolls
     # mid-screen, and it rides into _scaled_cast's cache key (smooth=True gives the
-    # near figure light anti-aliasing; the FAR lane stays crisp).
-    ny = NEAR_GROUND_Y
+    # near figure light anti-aliasing; the FAR lane stays crisp). Each slot also
+    # hashes a stable depth tier so the tiling crowd fills the walk, not a line.
 
     def _ped_decide(k):
         return (pr._slot_on(k, 1, density),
@@ -1096,8 +1096,11 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
     for sx, k in _near_xs(scroll, w, 196, x0=20):
         on, var = sp._slot_latch(('ped', 1), k, lambda k=k: _ped_decide(k))
         if on:
-            _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx, var=var: _scaled_cast(
-                s, pr.draw_strollers, sx, pal, 1.6, t=t, variant=var))
+            fy, fac = _DEPTH_TIERS[pr._mix32(k * 0x9E3779B1) % 3]
+            _zbuf.enqueue(fy, TB_CAST, lambda s, sx=sx, var=var, fy=fy, fac=fac:
+                          _scaled_cast(s, pr.draw_strollers, sx, pal,
+                                       round(1.6 * fac, 2), t=t, variant=var,
+                                       feet_y=fy))
     sp._latch_prune(('ped', 1))
     def _kid_decide(k):
         return (pr._slot_on(k, 2, density),
@@ -1106,8 +1109,11 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
     for sx, k in _near_xs(scroll, w, 224, x0=150):
         on, kvar = sp._slot_latch(('ped', 2), k, lambda k=k: _kid_decide(k))
         if on:
-            _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx, kvar=kvar: _scaled_cast(
-                s, pr.draw_kids, sx, pal, 1.55, t=t, n=2, variant=kvar))
+            fy, fac = _DEPTH_TIERS[pr._mix32(k * 0x85EBCA77) % 3]
+            _zbuf.enqueue(fy, TB_CAST, lambda s, sx=sx, kvar=kvar, fy=fy, fac=fac:
+                          _scaled_cast(s, pr.draw_kids, sx, pal,
+                                       round(1.55 * fac, 2), t=t, n=2,
+                                       variant=kvar, feet_y=fy))
     sp._latch_prune(('ped', 2))
     # A varied pooled dog ambles across the front on its own anchor — breed frozen
     # per slot so it doesn't re-roll mid-screen, and rides the bake cache key.
@@ -1118,8 +1124,11 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
     for sx, k in _near_xs(scroll, w, 300, x0=96):
         on, dvar = sp._slot_latch(('ped', 3), k, lambda k=k: _dog_decide(k))
         if on:
-            _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx, dvar=dvar: _scaled_cast(
-                s, pr.draw_dog, sx, pal, 1.5, t=t, variant=dvar))
+            fy, fac = _DEPTH_TIERS[pr._mix32(k * 0xC2B2AE35) % 3]
+            _zbuf.enqueue(fy, TB_CAST, lambda s, sx=sx, dvar=dvar, fy=fy, fac=fac:
+                          _scaled_cast(s, pr.draw_dog, sx, pal,
+                                       round(1.5 * fac, 2), t=t, variant=dvar,
+                                       feet_y=fy))
     sp._latch_prune(('ped', 3))
 
 
@@ -1136,7 +1145,7 @@ _CROWD_DRAW = {
 }
 
 
-def _wave_arm(surf, sx, pal, gait, facing):
+def _wave_arm(surf, sx, pal, gait, facing, feet_y=None):
     """A raised, gently-bobbing arm overlay on a waving crowd figure — the town
     saying hello to the flyer. Drawn over the baked sprite (shoulder-height
     anchor for the ~27 px near figures), toward up-left where Pip flies."""
@@ -1145,24 +1154,40 @@ def _wave_arm(surf, sx, pal, gait, facing):
     skin = pr._retint_person((232, 192, 150), night)
     bob = int(max(0.0, math.sin(gait * 5.0)) * 2)
     ax = sx - 4 if facing <= 0 else sx + 4
-    sh_y = NEAR_GROUND_Y - 18
+    sh_y = (NEAR_GROUND_Y if feet_y is None else feet_y) - 18
     ex, ey = ax - 4, sh_y - 7 - bob
     pygame.draw.line(surf, sleeve, (ax, sh_y), (ex, ey), 2)
     pygame.draw.circle(surf, skin, (ex, ey), 1)
 
 
+# The front walk's depth tiers: the crowd's dealt depth (0 = mid-walk line,
+# 1 = front kerb) quantises to three (feet_y, scale-factor) steps so the bake
+# cache stays bounded (a continuous scale would key a fresh sprite per figure).
+# The factor multiplies each kind's kerb scale, so a mid-walk stroller reads
+# smaller AND higher — and the z-buffer sorts the real feet lines, so nearer
+# figures overlay farther ones naturally.
+_DEPTH_TIERS = ((NEAR_GROUND_Y - 20, 0.82), (NEAR_GROUND_Y - 10, 0.91),
+                (NEAR_GROUND_Y, 1.0))
+
+
+def _crowd_tier(depth):
+    return _DEPTH_TIERS[min(2, int(depth * 3.0))]
+
+
 def _emit_near_crowd(surf, crowd, scroll, pal):
-    ny = NEAR_GROUND_Y
     for e in crowd.near:
         drawer, scale, kw = _CROWD_DRAW[e.kind]
+        fy, fac = _crowd_tier(getattr(e, "depth", 1.0))
         sx = int(round(e.world_x - scroll))
         flip = e.facing > 0
-        _zbuf.enqueue(ny, TB_CAST, lambda s, drawer=drawer, sx=sx, scale=scale,
+        _zbuf.enqueue(fy, TB_CAST, lambda s, drawer=drawer, sx=sx,
+                      scale=round(scale * fac, 2), fy=fy,
                       g=e.gait, flip=flip, kw=kw, v=e.variant: _scaled_cast(
-                          s, drawer, sx, pal, scale, t=g, flip=flip, variant=v, **kw))
+                          s, drawer, sx, pal, scale, t=g, flip=flip, variant=v,
+                          feet_y=fy, **kw))
         if e.wave > 0.0 and e.kind != "dog":
-            _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx, g=e.gait, f=e.facing:
-                          _wave_arm(s, sx, pal, g, f))
+            _zbuf.enqueue(fy, TB_CAST, lambda s, sx=sx, g=e.gait, f=e.facing, fy=fy:
+                          _wave_arm(s, sx, pal, g, f, feet_y=fy))
 
 
 def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
@@ -1174,14 +1199,16 @@ def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
     and spaced on wide periods; the taller pine is gated to a clear zone."""
     ny = NEAR_GROUND_Y
 
-    for sx, k in _near_static_xs(scroll, w, 520, x0=200):
-        if sp._slot_latch(('grn', 22), k, lambda k=k: pr._slot_on(k, 22, fd)):
-            _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx: _near_vine_lantern(s, sx, pal))
-    sp._latch_prune(('grn', 22))
-    for sx, k in _near_static_xs(scroll, w, 480, x0=12):
-        if sp._slot_latch(('grn', 23), k, lambda k=k: pr._slot_on(k, 23, fd)):
+    # Planned, not rolled: the front accents keep a deterministic cadence tied
+    # to the back tree line's grid (vine lanterns every other tree interval,
+    # offset to sit between back-line trees) so the front edge reads as part of
+    # the same planting plan. The pine skips densely-treed blocks — a tall
+    # front pine against a full back row over-greens the frame.
+    for sx, k in _near_static_xs(scroll, w, 502, x0=268):
+        _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx: _near_vine_lantern(s, sx, pal))
+    for sx, k in _near_static_xs(scroll, w, 753, x0=394):
+        if _wk.plant_scheme(k * 753 + 394)[0] != 1:
             _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx: _near_pine(s, sx, pal))
-    sp._latch_prune(('grn', 23))
 
 
 # A performance (performer + its own crowd) is itself a scene cluster; place it at

@@ -160,6 +160,21 @@ def block_at(world_x):
     return int(world_x // BLOCK_PX)
 
 
+def plant_scheme(world_x):
+    """The town's planting plan for the block at `world_x` — dealt per run and
+    DAY-STABLE (unlike personalities, which follow dayparts: trees don't move
+    at dusk). Returns (cadence, species_salt, garden): cadence 0 marks an
+    unplanted stretch, else plant every Nth tree-line slot; species_salt fixes
+    ONE tall species for the whole block, because uniform rows are what makes
+    street planting read planned rather than scattered; garden flags the
+    blocks that additionally get planting beds."""
+    b = int(world_x // BLOCK_PX)
+    h = _mix((b * 0xB5297A4D) ^ _run_seed ^ 0x9E37)
+    r = h & 0xFF
+    cadence = 0 if r < 38 else (2 if r < 128 else 1)
+    return cadence, (h >> 8) & 0xFFFF, ((h >> 24) & 0xFF) < 76
+
+
 def density_mult(world_x, phase):
     """The block's density multiplier × the slow breathing sine (period 1730 px,
     near-coprime with the block and scenario lattices, per-run phase) — knots

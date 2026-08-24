@@ -47,7 +47,7 @@ _DOG_SPEED = (72.0, 140.0)
 
 class _Ent:
     __slots__ = ("kind", "variant", "world_x", "walk_vel", "facing", "gait",
-                 "state", "timer", "target_vel", "accel", "wave")
+                 "state", "timer", "target_vel", "accel", "wave", "depth")
 
 
 def _pick_kind():
@@ -124,6 +124,12 @@ class SidewalkCrowd:
             e.timer = random.uniform(2.0, 5.0)
         e.facing = 1 if e.walk_vel > 0 else -1
         e.wave = 0.0
+        # Depth across the front walk, dealt for the entity's whole life: 0 =
+        # the walk's mid-line, 1 = the kerb nearest the camera. Bottom-weighted
+        # so the front edge stays the busiest but no longer the only line, and
+        # nearer figures drift a touch faster for a cheap parallax read.
+        e.depth = random.random() ** 0.6
+        e.walk_vel *= 0.90 + 0.10 * e.depth
         self.near.append(e)
 
     def _transition(self, e, phase=0.0):

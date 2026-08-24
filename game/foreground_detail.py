@@ -206,7 +206,10 @@ def _weeds(surf, w, top_y, region_h, scroll, front, back, mortar, night,
         bond = (c % 2) * (step // 2)
         speed = 1.0  # locked to the floor bricks (full world-speed scroll)
         for sx, k, srng in _scatter(scroll, w, speed, step, 0x5EED + c):
-            if srng.random() > 0.20 + 0.18 * depth_t:
+            # A kept street: the odd tuft in a mortar crack, not a scatter that
+            # competes with the planted tree line and beds for the "vegetation"
+            # read.
+            if srng.random() > 0.05 + 0.04 * depth_t:
                 continue
             in_mid = mid_lo <= (y_back + y_front) * 0.5 <= mid_hi
             if in_mid and srng.random() < 0.7:
