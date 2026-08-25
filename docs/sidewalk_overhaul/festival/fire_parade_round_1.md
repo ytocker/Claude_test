@@ -246,3 +246,38 @@ crew.thrower  140
 - **No sky lanterns**, per §4's rejection — nothing enters the play space.
 - **No text, no HUD marker, no confetti.**
 - The lantern-arch height is presented as a choice, not resolved unilaterally.
+
+
+---
+
+## ROUND 2 REVISION (art-director punch list, all items verified on rendered pixels)
+
+1. Parade drift +0.55x scroll: dwell 2.52s static -> 5.61s drifting; THREE bursts
+   visible per pass (fallback if drift is refused: three static scaffolds).
+2. Real trails: sub-stepped comets, median 11.1px (peak 24.5) -> 1276 lit px =
+   2.87% of frame, luma mass 95,606 (was ~300px / 14,408), ZERO peak-luma gain.
+3. Flat top killed: per-spark apex jitter -> clamped population spans 7 scanlines
+   (512.1-519.0), only 3 sparks on the top line (was 24 on one).
+4. Tree proportions: spread +/-62deg, G_ACC 700 -> envelope 152w x 80h
+   (was 218 x 77 splash); faster fall lengthens the comets.
+5. Contrast ladder: at contact the hearth/rig/paving dim (non-spark 140 -> 108)
+   so the 123-luma sustain owns the frame's top.
+6. Near-deck figures rescaled to 31px (spark-watch crowd, pearl-bearer,
+   drum-cart crew) matching the shipped 1.5x near lane.
+9. Corridor safety: spark alpha x1.0 -> x0.35 over y540->512, hue cooled to
+   (170,120,90) at the arc top. FX composites with the promenade layer, before
+   pillars/coins/bird; rim-light applies to promenade silhouettes only.
+10. Rim-light 3 frames, 100/60/30 decay; measured avg +59.5 (spec corrected
+    from the old +18 claim).
+11. Lantern arch apex y 497 — the shipped night garland's own top_y
+    (grandfathered geometry); the mislabeled 477 ghost is dropped.
+12. Honesty: rig tops y 543, cold smoke 523, burst smoke 517 (the old
+    "only sparks cross 560" claim deleted). R8 restated: the 512 spark ceiling
+    is a 6px extension of the shipped steamer's y518 AND sits 13px inside the
+    lowest pillar gap (y525) — sparks are behind the pillars, dim, cooled and
+    attenuated there. Burst arithmetic corrected to 3 per square. Pearl dimmed
+    to 127.6 with its 3px pole always legible; procession gaps widened to
+    40/30 (415px total — never fits one frame).
+
+AUDIT (round 2): hottest 149.8, 0 px over the 150 cap, apex y 512.1,
+sustain 53.8-123.0 effective luma, coin core 229.5 sole-brightest.

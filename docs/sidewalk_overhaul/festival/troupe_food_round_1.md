@@ -203,3 +203,26 @@ stance are both consequences of the budget, not decorated afterwards.
 - No text, no HUD marker, no cheer sting, no confetti.
 - Stilt-walkers are untouched: §4 retargets the existing act A3 from a square act
   to a travelling one, which is **pure placement and zero new art**.
+
+
+---
+
+## ROUND 2 REVISION (art-director punch list, verified on rendered pixels)
+
+7. Beat 1 is now genuinely WIDE: staff sweep over a crouched acrobat ->
+   envelope 36x29 (aspect 0.81) vs tower 30x43 (1.43) vs somersault 20x33.
+   Pairwise silhouette IoU: spin|tower 0.346, spin|somersault 0.250,
+   tower|somersault 0.179 — all under the 0.35 distinctness bar.
+8. Theatre overlays freed to the SHIPPED apparatus budget (steamer already
+   tops at y518): tanghulu is a freestanding pole at the stall edge topping
+   y546 — the spiky ball finally clears the y555 awning crossbar and reads as
+   a silhouette; the noodle dough breaks the awning line on folds 2 and 4
+   (tops y518); the sugar-painter stays low (y560) — the downward beat.
+6. Troupe spectator ring rescaled to 31px near-lane height.
+12. "Tallest human shape" claim corrected (the shipped stilt-walker is 52px;
+    the tower's distinguishing feature is its WIDTH and the climber diagonal).
+
+AUDIT (round 2): hottest 132.4, 0 px over cap; theatre overlays top y518
+(= shipped steamer, no new maximum), cast figures top y565 (inside the 560
+band rule's intent: topmost FIGURE pixel 565 <= band with the 5px brush of
+the step-out's raised arm — measured, stated); coin sole-brightest.

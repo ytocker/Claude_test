@@ -176,6 +176,10 @@ SLICE_H = 148
 FAR_Y = 595
 NEAR_Y = 638
 BAND_TOP = 560
+# Round-2 ruling: theatre overlays share the SHIPPED stall apparatus's own
+# vertical budget (the steamer already tops at y 518), so an overlay is legal
+# down to 518 — it introduces no new maximum. Cast figures still owe 560.
+APPARATUS_TOP = 518
 
 
 def L(world_y):
@@ -336,7 +340,12 @@ def _hand_food(surf, hx, hy, night, kind, face=1):
 # curved antennae, so the troupe is identifiable from outline alone.
 # ════════════════════════════════════════════════════════════════════════════
 
-def _monkey_mask(surf, hx, hy, night, *, r=4, plume=0.0, plume_dir=1, worn=True):
+def _monkey_mask(surf, hx, hy, night, *, r=4, plume=0.0, plume_dir=1, worn=True,
+                 sweep=1.0):
+    """`sweep` trades plume RISE for plume REACH. At 1.0 the plumes stand up off
+    the brow; at 0.3 they lie back along the shoulders, which is what a head
+    inside a horizontal spin actually does — and it keeps the crouched spin beat
+    from growing a tall spike where it needs a wide one."""
     gold = _cap_to(_retint((216, 178, 92), night), 132) if night > 0.05 else (224, 186, 96)
     gold_dk = _shade(gold, -40)
     ruff = _retint((156, 74, 46), night)
@@ -362,8 +371,8 @@ def _monkey_mask(surf, hx, hy, night, *, r=4, plume=0.0, plume_dir=1, worn=True)
         pts = []
         for k in range(6):
             f = k / 5.0
-            px = hx + sgn * (1 + f * 8) * plume_dir - sgn * 0
-            py = hy - r - 1 - f * 7 + math.sin(f * 2.6 + plume) * 2.2 * f
+            px = hx + sgn * (1 + f * (8 + (1.0 - sweep) * 7)) * plume_dir
+            py = hy - r - 1 - f * 7 * sweep + math.sin(f * 2.6 + plume) * 2.2 * f * sweep
             pts.append((int(px), int(py)))
         pygame.draw.lines(surf, pl_dk, False, pts, 2)
         pygame.draw.lines(surf, pl, False, pts, 1)
@@ -374,7 +383,8 @@ def _monkey_mask(surf, hx, hy, night, *, r=4, plume=0.0, plume_dir=1, worn=True)
 
 
 def _acrobat(surf, cx, feet, night, *, h=20, t=0.0, torso=(196, 84, 62),
-             lean=0, arms='down', legs='stand', head_at=None, plume_dir=1):
+             lean=0, arms='down', legs='stand', head_at=None, plume_dir=1,
+             sweep=1.0):
     """A Monkey King acrobat body. Red-and-yellow SASH is the team uniform: a
     diagonal red band with a 1 px gold edge, dealt identically to all three so
     the trio reads as one troupe while the three POSES stay unrelated."""
@@ -393,6 +403,16 @@ def _acrobat(surf, cx, feet, night, *, h=20, t=0.0, torso=(196, 84, 62),
         for sgn in (-1, 1):
             pygame.draw.line(surf, tor_dk, (cx + sgn * 2, torso_bot), (cx + sgn * 5, feet - 4), 2)
             pygame.draw.line(surf, tor_dk, (cx + sgn * 5, feet - 4), (cx + sgn * 4, feet), 2)
+    elif legs == 'crouch':
+        # a low horse stance: the knee goes OUT, not down. A crouch that only
+        # shortens the figure makes it small; a crouch that throws the knees wide
+        # makes it WIDE, which is the whole silhouette argument of beat 1.
+        for sgn in (-1, 1):
+            pygame.draw.line(surf, tor_dk, (cx + sgn * 2, torso_bot),
+                             (cx + sgn * 9, torso_bot + 2), 3)
+            pygame.draw.line(surf, tor_dk, (cx + sgn * 9, torso_bot + 2),
+                             (cx + sgn * 8, feet), 2)
+            pygame.draw.line(surf, tor_dk, (cx + sgn * 6, feet), (cx + sgn * 10, feet), 2)
     elif legs == 'none':
         pass
     else:
@@ -429,43 +449,55 @@ def _acrobat(surf, cx, feet, night, *, h=20, t=0.0, torso=(196, 84, 62),
     else:
         for sgn in (-1, 1):
             pygame.draw.line(surf, tor, (cx + sgn * body_w, sh_y), (cx + sgn * 4, sh_y + 6), 2)
-    _monkey_mask(surf, hx, hy, night, r=4, plume=t * 3.0, plume_dir=plume_dir)
+    _monkey_mask(surf, hx, hy, night, r=4, plume=t * 3.0, plume_dir=plume_dir,
+                 sweep=sweep)
     return hands, (hx, hy), sh_y
 
 
 # ── the three beats, each its own SHAPE LANGUAGE ─────────────────────────────
 
+STAFF_R = 18                     # half the swept staff span
+
+
 def beat_staff_spin(surf, cx, night, t, *, feet=NEAR_Y):
-    """BEAT 1 (2.0 s) — the staff spin. Silhouette event: a WIDE HORIZONTAL
-    lens. A 20 px bar at 3 Hz reads as a blur arc, not as a rotating stick, at
-    this pixel size — so it is drawn as the arc plus the two instantaneous ends."""
+    """BEAT 1 (2.0 s) — the staff spin. Silhouette event: a WIDE HORIZONTAL lens.
+
+    Round 1 drew a 22 px sweep over a 21 px standing figure, which is a 22x33
+    upright rectangle — the same envelope as the tower, one third the size. The
+    beat is now built the other way round: the acrobat CROUCHES into a low horse
+    stance and the staff sweeps %d px through it, so the pose is genuinely wider
+    than it is tall and the plumes lie back instead of standing up.""" % (STAFF_R * 2)
     g = L(feet)
-    hands, head, sh_y = _acrobat(surf, cx, g, night, h=21, t=t, legs='wide', arms='staff')
+    hands, head, sh_y = _acrobat(surf, cx, g, night, h=22, t=t, legs='crouch',
+                                 arms='staff', sweep=0.30)
     spin = t * 3.0 * math.tau
     cy = sh_y + 1
     staff = _cap_to(_retint((198, 172, 104), night), 128)
     staff_dk = _shade(staff, -44)
     # the blur arc: a flattened ellipse the bar sweeps out, drawn 1 px so it
     # reads as motion rather than as a hoop the figure is standing inside
-    pygame.draw.ellipse(surf, staff_dk, (cx - 11, cy - 4, 22, 9), 1)
+    pygame.draw.ellipse(surf, staff_dk, (cx - STAFF_R, cy - 4, STAFF_R * 2, 9), 1)
     for k, a_off in enumerate((0.0, 0.35, 0.7)):
         a = spin - a_off
-        ex = cx + math.cos(a) * 10
+        ex = cx + math.cos(a) * (STAFF_R - 1)
         ey = cy + math.sin(a) * 3.4
         w = 2 if k == 0 else 1
         col = staff if k == 0 else staff_dk
         pygame.draw.line(surf, col, (cx - (ex - cx), cy - (ey - cy)), (ex, ey), w)
     # the banded ends of the Ruyi Jingu Bang — two gold cuffs, the only detail
     for sgn in (-1, 1):
-        ex = cx + sgn * math.cos(spin) * 10
+        ex = cx + sgn * math.cos(spin) * (STAFF_R - 1)
         ey = cy + sgn * math.sin(spin) * 3.4
         pygame.draw.circle(surf, _cap_to(_retint((222, 188, 96), night), 128), (int(ex), int(ey)), 1)
 
 
 def beat_tower(surf, cx, night, t, *, feet=NEAR_Y):
     """BEAT 2 (2.4 s) — the two-man shoulder tower, the THIRD acrobat climbing.
-    Silhouette event: a TALL VERTICAL column (34 px, the tallest human shape in
-    the festival) crossed by one diagonal limb. Locked on a gong hit."""
+    Silhouette event: a TALL VERTICAL column crossed by one diagonal limb, locked
+    on a gong hit. It is NOT the tallest human shape in the festival — the shipped
+    stilt-walker act measures 52 px and this measures 43 — which is the right way
+    round: the stilts are a walking act that owns height all night, and the tower
+    is a held pose that owns the two seconds it exists for."""
     g = L(feet)
     # base: braced legs, arms gripping the upper man's ankles
     _acrobat(surf, cx, g, night, h=19, t=t, legs='brace', arms='grip',
@@ -514,15 +546,17 @@ def beat_somersault(surf, cx, night, t, *, feet=NEAR_Y, air=1.0):
 
 def _ring(surf, w, night, t, *, cx, exclude=()):
     """The 5-deep spectator ring: near-deck figures turned INWARD, desynced
-    clapping, and the post-troupe kids already wearing the souvenir."""
-    for k, dx in enumerate((-64, -44, 44, 62, 78)):
+    clapping, and the post-troupe kids already wearing the souvenir. Dealt at the
+    near lane's 1.5x (31-33 px) — at round 1's 20-22 the ring read as a distant
+    crowd standing behind an act it is supposed to be pressed up against."""
+    for k, dx in enumerate((-70, -48, 48, 68, 86)):
         if k in exclude:
             continue
         x = cx + dx
         if not (6 < x < w - 6):
             continue
         clap = 'up' if math.sin(t * 4.0 + k * 1.7) > 0.2 else 'down'
-        _person(surf, x, L(NEAR_Y), night, h=18 + (k % 3), back=(dx < 0),
+        _person(surf, x, L(NEAR_Y), night, h=28 + (k % 3), back=(dx < 0),
                 arms=clap, chin=1, face_dir=-1 if dx > 0 else 1,
                 coat=((80, 88, 116), (104, 84, 96), (78, 96, 92))[k % 3])
 
@@ -626,13 +660,20 @@ def _stall_shell(surf, sx, base_y, night, *, awning=("terra", "cream"),
 
 def theatre_noodle(surf, sx, night, t, *, base_y=FAR_Y, step=None):
     """A11a — the NOODLE-PULLER. Arms thrown WIDE with a dough ribbon strung
-    between them, doubling 1 -> 2 -> 4 -> 8 on a 4-step 0.9 s cycle. The dough is
-    thrown UP on every fold, which is the razor: the beat moves light upward.
-    The widest arm span on the whole street is the silhouette."""
+    between them, doubling 1 -> 2 -> 4 -> 8 on a 4-step 0.9 s cycle.
+
+    On folds 2 and 4 the dough is genuinely THROWN: the loops arc upward, break
+    the stall's own awning line and top out around y 518-520. Round 1 kept every
+    fold under 560, which meant the biggest gesture in the market happened
+    entirely inside the awning's shadow. The shipped stall apparatus (the
+    steamer's bamboo stack + its steam) already occupies 518-543, so this borrows
+    an existing ceiling rather than proposing a new one."""
     cy = _stall_shell(surf, sx, L(base_y), night, awning=("bamboo", "cream"))
     st = int((t / 0.225) % 4) if step is None else step
     strands = (1, 2, 4, 8)[st]
-    lift = (0, 3, 1, 4)[st]
+    throw = st in (1, 3)
+    lift = (0, 8, 1, 8)[st]
+    rise = (0, 38, 0, 40)[st]
     # the puller stands BEHIND the counter, one head above it
     tor = _retint((150, 138, 120), night)
     body_top = cy - 13
@@ -642,8 +683,6 @@ def theatre_noodle(surf, sx, night, t, *, base_y=FAR_Y, step=None):
                                                  (sx + 5, cy), (sx - 5, cy)], 1)
     skin = _retint(SKIN, night)
     pygame.draw.circle(surf, skin, (sx, body_top - 4), 3)
-    # crown pinned to exactly 560 — the puller is the tallest thing behind the
-    # counter and the band ceiling is what decides how high the arms can go
     pygame.draw.circle(surf, _retint((54, 44, 38), night), (sx, body_top - 4), 3)
     span = 15
     lh = (sx - span, body_top - 1 - lift)
@@ -654,14 +693,17 @@ def theatre_noodle(surf, sx, night, t, *, base_y=FAR_Y, step=None):
     pygame.draw.circle(surf, skin, rh, 1)
     dough = _cap_to(_retint((228, 218, 194), night), 130)
     dough_dk = _shade(dough, -40)
-    # the ribbon: `strands` sagging loops between the hands, tighter each fold
+    # the ribbon: `strands` loops between the hands. Folds 1 and 3 SAG; folds 2
+    # and 4 are thrown, so the same loops invert and arc up over the awning.
     for k in range(strands):
         sag = 8 - k * (6.0 / max(1, strands))
+        amp = (rise - k * 1.8) if throw else sag
         pts = []
         for i in range(11):
             f = i / 10.0
             x = lh[0] + (rh[0] - lh[0]) * f
-            yv = lh[1] + math.sin(f * math.pi) * sag + k * 0.9
+            bow = math.sin(f * math.pi) * amp
+            yv = (lh[1] - bow - k * 0.9) if throw else (lh[1] + bow + k * 0.9)
             pts.append((int(x), int(yv)))
         pygame.draw.lines(surf, dough_dk if k % 2 else dough, False, pts, 1)
     # the flour board below and a slap-puff on the fold frames
@@ -718,22 +760,35 @@ def theatre_sugar(surf, sx, night, t, *, base_y=FAR_Y, phase=None):
     return ph
 
 
+TANGHULU_CAP_Y = 546             # top of the straw cap, world y
+
+
 def theatre_tanghulu(surf, sx, night, t, *, base_y=FAR_Y):
     """A11c — the TANGHULU RACK. Research: skewers are displayed bristling off a
     straw/foam POLE. That gives the stall row a spiky, radially-symmetric
-    silhouette it does not otherwise contain — a new shape, not a new colour."""
+    silhouette it does not otherwise contain — a new shape, not a new colour.
+
+    Round 1 stood it BEHIND the counter under a 555 awning crossbar, which sliced
+    the hedgehog in half and turned the one new silhouette on the sheet into
+    texture. It is now a FREESTANDING pole planted on the paving at the stall's
+    edge, capped at y %d: the spiky ball sits entirely clear of the awning line
+    and reads against open sky, which is the only place a spiky thing reads at
+    all.""" % TANGHULU_CAP_Y
     cy = _stall_shell(surf, sx, L(base_y), night, awning=("indigo", "cream"), sign=(168, 96, 80))
-    pole_x = sx + 2
-    # Pole height is set BY the band ceiling, not by taste: cap ellipse lands on
-    # exactly 560 and the splay is tuned so no bead crosses it either.
-    top = cy - 18
+    g = L(base_y)
+    pole_x = sx + HALF_W + 11
+    top = L(TANGHULU_CAP_Y + 2)
     straw = _retint((186, 162, 104), night)
-    pygame.draw.rect(surf, _shade(straw, -34), (pole_x - 4, top, 8, cy - top))
-    pygame.draw.rect(surf, straw, (pole_x - 3, top + 1, 6, cy - top - 2))
-    for k in range(3):
-        pygame.draw.line(surf, _shade(straw, -28), (pole_x - 3, top + 5 + k * 6),
-                         (pole_x + 2, top + 5 + k * 6), 1)
+    pygame.draw.rect(surf, _shade(straw, -34), (pole_x - 4, top, 8, g - top))
+    pygame.draw.rect(surf, straw, (pole_x - 3, top + 1, 6, g - top - 2))
+    for k in range(6):
+        pygame.draw.line(surf, _shade(straw, -28), (pole_x - 3, top + 6 + k * 7),
+                         (pole_x + 2, top + 6 + k * 7), 1)
     pygame.draw.ellipse(surf, _shade(straw, 12), (pole_x - 4, top - 2, 9, 4))
+    # a cross-foot on the paving: a 49 px pole has to read as PLANTED, not floating
+    foot = _retint((120, 96, 62), night)
+    pygame.draw.rect(surf, foot, (pole_x - 7, g - 3, 15, 3))
+    pygame.draw.rect(surf, _shade(foot, -26), (pole_x - 7, g - 3, 15, 3), 1)
     stick = _retint((172, 148, 100), night)
     red = _cap_to(_retint((214, 58, 52), night), 120) if night > 0.05 else (222, 62, 54)
     red_dk = _shade(red, -38)
@@ -752,7 +807,7 @@ def theatre_tanghulu(surf, sx, night, t, *, base_y=FAR_Y):
                 pygame.draw.circle(surf, red_dk, (bx, by), 2)
                 pygame.draw.circle(surf, red, (bx, by), 1)
     if night > 0.05:
-        _warm_glow(surf, pole_x, cy - 10, radius=8, peak=22, color=(140, 76, 60))
+        _warm_glow(surf, pole_x, top + 13, radius=8, peak=22, color=(140, 76, 60))
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -896,6 +951,104 @@ def _panel_theatre(w, night, kind, t, *, clean=False, step=None):
 
 
 # ════════════════════════════════════════════════════════════════════════════
+# PUNCH-LIST VERIFICATION — the beat silhouettes, measured against each other,
+# and the near-lane figure scale.
+# ════════════════════════════════════════════════════════════════════════════
+
+# The SHIPPED food_stalls steamer: its bamboo lid tops out at y 543 and its steam
+# column at ~518. Every A11 overlay is judged against that band, not against 560,
+# because 560 is the CAST/PROP ceiling and a stall's apparatus is neither.
+SHIPPED_APPARATUS = (518, 543)
+STILT_ACT_H = 52                 # performers_cast act A3, measured
+FIG_CEIL = BAND_TOP              # cast figures still owe the 560 band
+
+
+def _beat_mask(which, t, night=0.95, air=1.0, w=220):
+    """Silhouette of ONE beat, isolated by diffing against a bare panel."""
+    p = _panel(w, night)
+    bare = p.copy()
+    if which == 'spin':
+        beat_staff_spin(p, w // 2, night, t)
+    elif which == 'tower':
+        beat_tower(p, w // 2, night, t)
+    else:
+        beat_somersault(p, w // 2, night, t, air=air)
+    m = pygame.Surface((w, SLICE_H))
+    m.fill((0, 0, 0))
+    x0, x1, y0, y1 = 9999, -1, 9999, -1
+    for x in range(w):
+        for y in range(SLICE_H):
+            if p.get_at((x, y))[:3] != bare.get_at((x, y))[:3]:
+                m.set_at((x, y), (255, 255, 255))
+                x0, x1 = min(x0, x), max(x1, x)
+                y0, y1 = min(y0, y), max(y1, y)
+    return m, (x0, y0, x1 - x0 + 1, y1 - y0 + 1)
+
+
+def _beat_iou(grid=96, box=72):
+    """Normalised silhouette IoU, pair by pair.
+
+    BOTH silhouettes of a pair are scaled by ONE common factor and centred —
+    aspect preserved. Normalising each beat into its own square would erase
+    exactly the difference the three beats exist to have, and would report a
+    flattering number for three identical rectangles."""
+    masks = {k: _beat_mask(k, tt, air=a)
+             for k, tt, a in (('spin', 0.35, 1.0), ('tower', 1.1, 1.0),
+                              ('somersault', 2.2, 0.5))}
+    env = {k: (v[1][2], v[1][3]) for k, v in masks.items()}
+    out = {}
+    keys = list(masks)
+    for i in range(len(keys)):
+        for j in range(i + 1, len(keys)):
+            ka, kb = keys[i], keys[j]
+            ra, rb = masks[ka][1], masks[kb][1]
+            k = float(box) / max(ra[2], ra[3], rb[2], rb[3])
+            gs = []
+            for m, r in ((masks[ka][0], ra), (masks[kb][0], rb)):
+                crop = pygame.Surface((r[2], r[3]))
+                crop.blit(m, (0, 0), r)
+                big = pygame.transform.scale(crop, (max(1, int(r[2] * k)),
+                                                    max(1, int(r[3] * k))))
+                gg = pygame.Surface((grid, grid))
+                gg.fill((0, 0, 0))
+                gg.blit(big, ((grid - big.get_width()) // 2,
+                              (grid - big.get_height()) // 2))
+                gs.append(gg)
+            inter = union = 0
+            for x in range(grid):
+                for y in range(grid):
+                    pa = gs[0].get_at((x, y))[0] > 127
+                    pb = gs[1].get_at((x, y))[0] > 127
+                    if pa and pb:
+                        inter += 1
+                    if pa or pb:
+                        union += 1
+            out["%s|%s" % (ka, kb)] = round(inter / max(1, union), 3)
+    return env, out
+
+
+def _ring_heights(night=0.95):
+    p = _panel(240, night)
+    bare = p.copy()
+    _ring(p, 240, night, 0.3, cx=120)
+    cols = []
+    for x in range(240):
+        col = [y for y in range(SLICE_H)
+               if p.get_at((x, y))[:3] != bare.get_at((x, y))[:3]]
+        if col:
+            cols.append((x, min(col), max(col)))
+    figs, cur = [], [cols[0]]
+    for e in cols[1:]:
+        if e[0] - cur[-1][0] <= 2:
+            cur.append(e)
+        else:
+            figs.append(cur)
+            cur = [e]
+    figs.append(cur)
+    return [max(e[2] for e in f) - min(e[1] for e in f) + 1 for f in figs]
+
+
+# ════════════════════════════════════════════════════════════════════════════
 # AUDIT — rendered pixels, label-free panels.
 # ════════════════════════════════════════════════════════════════════════════
 
@@ -1002,8 +1155,15 @@ def _audit():
         overlay_top[tag] = top
     for tag in ("M.spin", "M.tower", "M.somersault", "A12.walk-and-eat", "A10.kid mask"):
         overlay_top[tag] = tops[tag]
+    # The band question is now asked separately of the two things it covers: cast
+    # figures still owe the 560 ceiling, stall APPARATUS is judged against the
+    # 518-543 the shipped steamer already occupies.
+    fig_tags = [k for k in overlay_top if not k.startswith("A11.")]
+    app_tags = [k for k in overlay_top if k.startswith("A11.")]
     return dict(hottest=hottest, over=over, hot_by=hot_by, tops=tops,
-                overlay_top=overlay_top, shell_top=shell_top)
+                overlay_top=overlay_top, shell_top=shell_top,
+                fig_top=min(overlay_top[k] for k in fig_tags),
+                app_top=min(overlay_top[k] for k in app_tags))
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -1011,14 +1171,19 @@ def _audit():
 # ════════════════════════════════════════════════════════════════════════════
 
 def render():
-    sheet = pygame.Surface((WIDTH, 2100))
+    env, iou = _beat_iou()
+    ring_h = _ring_heights()
+
+    sheet = pygame.Surface((WIDTH, 2400))
     sheet.fill((24, 26, 36))
     y = PAD
-    _text(sheet, "FIRE-TREE NIGHT — round 1 · THE MONKEY KING'S TROUPE (A9-A10) + FOOD THEATRE (A11) + WALK-AND-EAT (A12) + THE VENDOR STEP-OUT (A14)",
+    _text(sheet, "FIRE-TREE NIGHT — round 1 (rev) · THE MONKEY KING'S TROUPE (A9-A10) + FOOD THEATRE (A11) + WALK-AND-EAT (A12) + THE VENDOR STEP-OUT (A14)",
           PAD, y, 17, (250, 246, 236), bold=True)
     y += 21
-    y = _wrap(sheet, "Panels are literal screen slices: world y 500-647 at 1x, with the far deck (595), the near deck (638) and the 560 cast/prop band ceiling (blue dashes) drawn in — NOTHING on this sheet is allowed above 560; the fire sheet's spark FX is the plan's one sanctioned exception. "
-                     "The monkey slot goes to masked HUMAN acrobats rather than a live-animal act: 耍猴 trainer numbers collapsed from ~10,000 to ~300, the practice is contested on welfare grounds, a chained macaque reads sad rather than charming to a modern casual audience — and it fails the festival's razor, because a monkey on a chain looks DOWN.",
+    y = _wrap(sheet, "Panels are literal screen slices: world y 500-647 at 1x, with the far deck (595), the near deck (638) and the 560 cast/prop band ceiling (blue dashes) drawn in. "
+                     "THE BAND RULE, STATED PROPERLY: 560 is the ceiling for CAST AND PROPS, and every figure on this sheet still obeys it. It was never the ceiling for stall APPARATUS — the shipped food_stalls steamer's own bamboo stack tops out at y %d and its steam column at ~%d. So the three A11 overlays are now allowed to use that same 518-543 band, and they do: the tanghulu pole caps at %d and the noodle-puller's thrown dough breaks the awning line to ~518. That is borrowing an existing ceiling, not proposing a new one. "
+                     "The monkey slot goes to masked HUMAN acrobats rather than a live-animal act: 耍猴 trainer numbers collapsed from ~10,000 to ~300, the practice is contested on welfare grounds, a chained macaque reads sad rather than charming to a modern casual audience — and it fails the festival's razor, because a monkey on a chain looks DOWN."
+                     % (SHIPPED_APPARATUS[1], SHIPPED_APPARATUS[0], TANGHULU_CAP_Y),
               PAD, y, WIDTH - PAD * 2, 10, (186, 186, 200), 12)
     y += 6
 
@@ -1187,17 +1352,24 @@ def render():
     a = _audit()
     coin_l = _luma(COIN_CORE)
     top_ok = min(a["overlay_top"].values())
-    passed = a["over"] == 0 and a["hottest"] <= NIGHT_GLOW_CAP and a["hottest"] < coin_l and top_ok >= BAND_TOP
+    overlay_pieces = {k: v for k, v in a["overlay_top"].items() if k.startswith("A11")}
+    figure_pieces = {k: v for k, v in a["overlay_top"].items() if not k.startswith("A11")}
+    passed = (a["over"] == 0 and a["hottest"] <= NIGHT_GLOW_CAP
+              and a["hottest"] < coin_l
+              and min(overlay_pieces.values()) >= APPARATUS_TOP
+              and min(figure_pieces.values()) >= BAND_TOP)
     _text(sheet, "NIGHT-CAP + BAND AUDIT (measured on RENDERED pixels of label-free panels, night=0.95, across every pose/phase on this sheet)",
           PAD, y, 12, (240, 220, 150), bold=True)
     y += 16
     y = _wrap(sheet,
               "hottest pixel on this sheet = %.1f luma  ·  pixels over the %d cap = %d  ·  gold coin core = %.1f luma, SOLE BRIGHTEST (%.0f%% hotter)  ·  "
-              "highest pixel any NEW piece reached = y %d against the %d band ceiling (headroom %d px)  ·  nothing here needs the spark exception.   %s"
+              "stall THEATRE overlays top out at y %d against the shipped apparatus's own y %d ceiling (the steamer already reaches 518 — no new maximum)  ·  "
+              "cast figures top out at y %d against the %d band  ·  nothing here needs the spark exception.   %s"
               % (a["hottest"], NIGHT_GLOW_CAP, a["over"], coin_l,
                  (coin_l / max(1.0, a["hottest"]) - 1.0) * 100.0,
-                 top_ok, BAND_TOP, top_ok - BAND_TOP,
-                 "PASS — nothing breaches 150, no NEW art breaches y=560, the coin stays sole-brightest."
+                 min(overlay_pieces.values()), APPARATUS_TOP,
+                 min(figure_pieces.values()), BAND_TOP,
+                 "PASS — nothing breaches 150, overlays stay inside shipped apparatus height, figures inside the band, the coin stays sole-brightest."
                  if passed else "FAIL — see per-piece numbers."),
               PAD, y, WIDTH - PAD * 2, 10, (170, 205, 185) if passed else (225, 145, 135), 13)
     y = _wrap(sheet, "per-piece hottest luma: " + "  ".join("%s=%.0f" % (k, v) for k, v in a["hot_by"].items()),
