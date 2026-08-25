@@ -84,6 +84,55 @@ Rejected: close enough to the shipped menu that they didn't earn the change.
 | [`shadow_before_after.png`](https://github.com/ytocker/skybit/blob/claude/menu-buttons-redesign/docs/main-menu/launch-perch/shadow_before_after.png) | Shadows retuned to Material's opacity budget, sky-tinted instead of black, with real falloff. |
 | [`settings_fix.png`](https://github.com/ytocker/skybit/blob/claude/menu-buttons-redesign/docs/main-menu/launch-perch/settings_fix.png) | The SETTINGS label overflowing its plank, and the fix (2× crop). |
 
+
+## Round 7 — sharpening `harbour-post`
+
+[**launch-perch/sharp_showcase.png**](https://github.com/ytocker/skybit/blob/claude/menu-buttons-redesign/docs/main-menu/launch-perch/sharp_showcase.png)
+
+Two repaints of the approved variant-B layout, against the current build, at
+both biome poles. Layout frozen — this round changes surface treatment only.
+
+| Figure | What it shows |
+|---|---|
+| [`lamplit_day.png`](https://github.com/ytocker/skybit/blob/claude/menu-buttons-redesign/docs/main-menu/launch-perch/lamplit_day.png) · [`lamplit_night.png`](https://github.com/ytocker/skybit/blob/claude/menu-buttons-redesign/docs/main-menu/launch-perch/lamplit_night.png) | `lamplit-ladder` — warm timber staged under one light source. Body ladder 118/94/80/68, cool shade skirts at H199–207. |
+| [`bleached_day.png`](https://github.com/ytocker/skybit/blob/claude/menu-buttons-redesign/docs/main-menu/launch-perch/bleached_day.png) · [`bleached_night.png`](https://github.com/ytocker/skybit/blob/claude/menu-buttons-redesign/docs/main-menu/launch-perch/bleached_night.png) | `bleached-board` — limewashed boards with engraved ink. Ladder 179/167/157/146; figure/ground inverted so contrast grows at night. |
+
+## Correction: every figure above this line has the wrong background
+
+`hud.draw_menu` blits a `(6,1,21)` veil at **alpha 110** over the whole screen
+before drawing any UI (`game/hud.py:2036-2039`), then the star field and
+`_draw_mountain_silhouette(alpha=180)`. The render harness used for rounds 1–6
+substituted a hand-rolled vignette and never applied that stack, so every
+figure above shows a sky roughly **80 luma brighter than the real screen**.
+
+Proof: the mock's day sky in the UI band is `(168,199,204)`; to survive a
+0.431-alpha `(6,1,21)` composite and land there, the source would have to be
+`(291,349,343)`.
+
+Measured on the corrected harness:
+
+| | veiled day (`PHASE=0.0`) | veiled night (`PHASE=0.65`) |
+|---|---|---|
+| UI band, open sky | L106 | L20 |
+
+Two consequences that drove round 7:
+
+- **The furniture was value-matched to its own background.** The plank body is
+  L78 against a day sky of L106 — Δ32 across a 172px shape.
+- **Polarity inverts twice per cycle.** Furniture keeps raw values while the
+  background runs L106 → L20, so the boards are a *dark* figure by day and a
+  *light* figure at night. No single-value keyline separates at both poles;
+  every contour has to be a two-step.
+
+The mountain silhouette further means the flat "day L106" figure holds **only
+for the top rung**. Real local backdrops, day: STORE 105, TOP 10 47,
+SETTINGS 41, START 36, post 37.
+
+Two bugs in the mock harness were found and fixed during this round:
+`_board_points` emitted vertices at `x=w`/`y=h`, past the last valid index, so
+the boards' bottom and right keyline runs were clipped away entirely; and
+`draw_start_B`'s contact-shadow rect landed on the post rather than under it.
+
 ## Findings worth keeping
 
 Defects the audits turned up in the **shipped** menu. Fixed once, then reverted
