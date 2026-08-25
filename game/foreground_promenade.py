@@ -458,11 +458,13 @@ def _draw_bench_person(surf, x_base, body_y, shirt, shirt_dk, hair, *, night=0.0
     pygame.draw.circle(surf, (30, 20, 15), (x_base + 4, head_y + 1), 0)
 
 
-def draw_kids(surf, sx, pal, *, t=0.0, n=3, variant=0):
+def draw_kids(surf, sx, pal, *, t=0.0, n=3, variant=0, masks=False):
     """`n` small children drawn from the 10-strong 'kid' variety pool (day_cast),
     feet on GROUND_Y. `variant` is a resolved base pool index; each of the n kids
     takes the next pool member (variant, variant+1, …) so a group reads as several
-    different children, not one cloned thrice."""
+    different children, not one cloned thrice. With `masks`, ~1 kid in 3 wears
+    the paper monkey mask (worn / pushed-up mix) — the troupe's souvenir
+    spreading through the crowd after the act."""
     night = _nightf(pal)
     cnt = _fv.variant_count("kid")
     if not cnt:
@@ -470,7 +472,42 @@ def draw_kids(surf, sx, pal, *, t=0.0, n=3, variant=0):
     spread = (-13, 9, 26, 40, -28)
     for i in range(n):
         v = _fv.get("kid", (variant + i) % cnt)
-        _day.draw_kid(surf, sx + spread[i % len(spread)], GROUND_Y - 1, v, night, t + i * 0.6)
+        kx = sx + spread[i % len(spread)]
+        _day.draw_kid(surf, kx, GROUND_Y - 1, v, night, t + i * 0.6)
+        if masks:
+            _kid_mask_overlay(surf, kx, v, variant + i, night, t + i * 0.6)
+
+
+def _kid_mask_overlay(surf, kx, v, salt, night, t):
+    """Seat the souvenir mask on the drawn kid's own head circle, recomputing
+    the day_cast head geometry for the poses where it is stable (standing,
+    squat). ~1 in 3 wears one; the worn/pushed-up split is hashed with it so a
+    kid never flickers between the two."""
+    h = _mix32(salt * 0x9E3779B1)
+    if h % 3:
+        return
+    pose = v.pose
+    if any(k in pose for k in ('carried', 'chase', 'tiptoe')):
+        return
+    A = v.attrs
+    age = A.get("age", 0.6)
+    total = max(7, int(13 * (0.62 + 0.38 * age)))
+    squat = 'squat' in pose
+    head_bias = 0.10 if squat else 0.0
+    head_r = max(2, int(total * (0.34 + head_bias - 0.06 * age)))
+    body_h = max(3, int(total * 0.32))
+    ground = GROUND_Y - 1
+    if squat:
+        body_y = ground - body_h - 1
+    else:
+        body_y = (ground - max(2, int(total * 0.30))) - body_h
+    hy = body_y - head_r + 1
+    from game import festival as _fest
+    if (h >> 8) & 1:
+        _fest.draw_monkey_mask(surf, kx, hy, night, r=head_r + 1, plume=t * 2.0)
+    else:
+        _fest.draw_monkey_mask(surf, kx, hy - head_r - 1, night, r=head_r,
+                               plume=t * 2.0, worn=False)
 
 
 def draw_vendor(surf, sx, pal, *, t=0.0, variant=0):
@@ -1283,14 +1320,46 @@ _STRIP_PITCH = 104
 _SPINE_WINS = ((0.715, 0.735), (0.765, 0.785))
 
 
+def _eat_deal(bx, salt):
+    """Stable walk-and-eat deal for one strip figure: ~half the festival crowd
+    grazes as it strolls (night-market seating is sparse, so supper is a
+    stroll). Hash-keyed to the strip + figure so it never re-rolls mid-screen
+    and never disturbs the scene's rng sequence."""
+    h = _mix32((int(bx) * 0x9E3779B1) ^ (salt * 0x85EBCA77))
+    if (h & 0xFFFF) / 65535.0 >= 0.5:
+        return None
+    from game import festival as _fest
+    return _fest.HAND_FOODS[(h >> 16) % len(_fest.HAND_FOODS)]
+
+
+def draw_stroller_eating(surf, sx, pal, *, t=0.0, variant=0, prop='tanghulu'):
+    """A strolling customer with a hand-held supper at chest height — the
+    festival's dominant crowd behaviour, carried by a 3-9 px prop."""
+    draw_strollers(surf, sx, pal, t=t, variant=variant)
+    from game import festival as _fest
+    _fest.draw_hand_food(surf, sx + 7, GROUND_Y - 10, _nightf(pal), prop)
+
+
+def draw_vendor_stepout_cast(surf, sx, pal, *, t=0.0):
+    """The market-pause pose under the standard far-cast drawer contract."""
+    from game import festival as _fest
+    _fest.draw_vendor_stepout(surf, sx, _nightf(pal), t, feet=GROUND_Y - 1)
+
+
 def _scene_stall_strip(emit, bx, pal, t, rng, pick=None):
     """Four stalls at market pitch + their vendors, customers and critters —
-    plus, at the crests, a spine rank behind the walk. During the dragon
-    parade the customers melt away to watch (the market pauses itself)."""
+    plus, at the crests, a spine rank behind the walk. One stall per strip is
+    a THEATRE stall (its overlay performs over the structure), the queue forms
+    at it (people queue for the show, not the food), and during the dragon
+    parade the customers melt away while the vendors step out to watch."""
     p = _CUR_PHASE % 1.0
     deck = list(_STRIP_KINDS)
     rng.shuffle(deck)
     q_at = rng.randrange(4)          # ONE stall per strip grows a queue
+    # The theatre stall + its act are dealt unconditionally so the rng
+    # sequence never depends on live state (openness, the parade).
+    th_at = rng.randrange(4)
+    th_kind = rng.choice(('noodle', 'sugar', 'tanghulu'))
     parade = _wk.happening_active('festival_dragon')
     for i in range(4):
         x = bx + i * _STRIP_PITCH
@@ -1305,31 +1374,55 @@ def _scene_stall_strip(emit, bx, pal, t, rng, pick=None):
         openness = _stall_openness(p, u)
         if openness <= 0.05:
             continue
+        theatre = (i == th_at and kind != 'kiosk' and openness >= 0.80)
         if kind == 'kiosk':
             emit(TB_STRUCTURE, lambda s, x=x, op=openness:
                  draw_kiosk(s, x, pal, t=t, openness=op))
         else:
             emit(TB_STRUCTURE, lambda s, x=x, kind=kind, op=openness:
                  draw_food_stall(s, x, pal, t=t, kind=kind, openness=op))
+        if theatre:
+            # Food theatre: the overlay draws AFTER the stall structure, so
+            # the performer works over the shipped counter.
+            def _theatre(s, x=x, tk=th_kind):
+                from game import festival as _fest
+                _fest.THEATRE_OVERLAYS[tk](s, x, _nightf(pal), _CUR_T,
+                                           base_y=GROUND_Y - 1)
+            emit(TB_STRUCTURE, _theatre)
         if openness >= 0.30:
-            vv = pick('vendor', 80 + i) if pick else 0
-            emit(TB_CAST, dy=9, cast=(draw_vendor, x - 8, dict(t=t, variant=vv)))
+            if parade:
+                # Market pause: the vendor is out front watching the dragon,
+                # not behind the counter working.
+                emit(TB_CAST, dy=9, cast=(draw_vendor_stepout_cast,
+                                          x + _food.HALF_W + 6, dict(t=t)))
+            elif not (theatre and th_kind in ('noodle', 'sugar')):
+                # The noodle/sugar overlays bring their own performer — a
+                # second vendor behind the same counter would double-cast it.
+                vv = pick('vendor', 80 + i) if pick else 0
+                emit(TB_CAST, dy=9, cast=(draw_vendor, x - 8, dict(t=t, variant=vv)))
         if openness >= 0.80 and not parade:
             if r_cust < 0.55:
                 cust = pick('pedestrian', 84 + i) if pick else 0
+                ek = _eat_deal(bx, 84 + i)
                 emit(TB_CAST, dy=18,
-                     cast=(draw_strollers, x + 34, dict(t=t, variant=cust)))
+                     cast=((draw_stroller_eating, x + 34,
+                            dict(t=t, variant=cust, prop=ek)) if ek else
+                           (draw_strollers, x + 34, dict(t=t, variant=cust))))
             if r_crit < 0.30:
                 emit(TB_CAST, dy=18, cast=(draw_critter, x + 18,
                      dict(t=t, kind=crit_kind)))
-            if i == q_at:
+            if i == (th_at if theatre else q_at):
                 # The queue — three more waiting their turn behind the
                 # customer spot, stepped through the walk's depth so the
-                # line reads as a line, not a wall.
+                # line reads as a line, not a wall. It forms at the theatre
+                # stall when the strip has one: people queue for the show.
                 for qi, (qx, qdy) in enumerate(((48, 18), (61, 9), (73, 9))):
                     qv = pick('pedestrian', 88 + qi) if pick else 0
+                    ek = _eat_deal(bx, 88 + qi)
                     emit(TB_CAST, dy=qdy,
-                         cast=(draw_strollers, x + qx, dict(t=t, variant=qv)))
+                         cast=((draw_stroller_eating, x + qx,
+                                dict(t=t, variant=qv, prop=ek)) if ek else
+                               (draw_strollers, x + qx, dict(t=t, variant=qv))))
     # Spine rank: two more stalls on the walk's mid-deck, scaled by the depth
     # law and z-sorted into the front pass, so the crest frame reads as a
     # market with ROWS — the festival's "5 structures, 7 plumes" image.
@@ -1554,8 +1647,19 @@ def _scene_lamplighter(emit, bx, pal, t, rng, pick=None):
     emit(TB_CAST, dy=0, cast=(draw_lamplighter, bx, dict(t=t)))
 
 def _scene_dawn_setup(emit, bx, pal, t, rng, pick=None):
-    """Vendors assembling the morning market."""
+    """Vendors assembling the morning market. Through the evening setup and
+    the rain, some slots also park the draped dragon-head handcart beside the
+    work — the festival's covered plant, arriving long before it dances."""
+    r_cart = rng.random()            # dealt unconditionally: the rng sequence
+                                     # must not depend on the phase window
     emit(TB_FIXTURE, lambda s: draw_market_setup(s, bx, pal, t=t), dy=3)
+    p = _CUR_PHASE % 1.0
+    if 0.43 <= p < 0.680 and r_cart < 0.20:
+        def _plant(s):
+            from game import festival as _fest
+            _fest.draw_draped_cart(s, bx + 58, _nightf(pal), _CUR_T,
+                                   feet=GROUND_Y - 1)
+        emit(TB_FIXTURE, _plant, dy=6)
 
 def _scene_vendor(emit, bx, pal, t, rng, pick=None):
     """A songbird-cage seller working the stand."""
@@ -2022,6 +2126,65 @@ def _dressing(surf, w, scroll, pal, phase):
                           span_gate=lambda k: sp._slot_latch(('fairy',), k,
                                                              lambda: fairy_win))
     sp._latch_prune(('fairy',))
+    _festival_dressing(surf, w, scroll, pal, p)
+
+
+def _festival_dressing(surf, w, scroll, pal, p):
+    """FIRE-TREE NIGHT's block-anchored fixtures, all on the 900 px block
+    lattice: the lantern arch gating each festival stall-row block, the dark
+    iron-flower scaffold standing in the rain (the show's set, seen before it
+    ever lights), and the small-hours residue (the cold smoking rig, the
+    scorch fan, the swept masks). Slot-latched so nothing blinks at a phase
+    edge — fixtures only ever scroll in and out."""
+    fy = GROUND_Y - 1
+    night = _nightf(pal)
+    # A gateway arch at each festival stall-row block's entry edge.
+    arch_win = (0.680 <= p < 0.820)
+    for sx, k in sp._world_xs(scroll, w, _wk.BLOCK_PX, x0=72, margin=110):
+        on = sp._slot_latch(('arch',), k, lambda k=k: (
+            arch_win and _wk.personality(k, _CUR_PHASE) == _wk.STALL_ROW))
+        if on:
+            def _arch(s, sx=sx):
+                from game import festival as _fest
+                _fest.draw_lantern_arch(s, sx, night, _CUR_T)
+            _zbuf.enqueue(fy, TB_STRUCTURE, _arch)
+    sp._latch_prune(('arch',))
+    # The plant: the scaffold stands dark and draped through the rain, roughly
+    # one block in three, so the player has seen the fire show's set before it
+    # lights.
+    plant_win = (0.483 <= p < 0.680)
+    for sx, k in sp._world_xs(scroll, w, _wk.BLOCK_PX, x0=402, margin=110):
+        on = sp._slot_latch(('firerig',), k, lambda k=k: (
+            plant_win and _mix32((k * 0xA24BAED4) ^ 0x1F7) % 3 == 0))
+        if on:
+            def _rig(s, sx=sx):
+                from game import festival as _fest
+                _fest.draw_scaffold(s, sx, night, _CUR_T, state='bare')
+            _zbuf.enqueue(fy, TB_STRUCTURE, _rig)
+    sp._latch_prune(('firerig',))
+    # The residue: the festival hands the street back with evidence, not a
+    # fade — a cold smoking rig with a fresh scorch fan and swept masks on
+    # some blocks, a thinned-out speckle field with one mask on others.
+    res_win = (0.820 <= p < 0.924)
+    for sx, k in sp._world_xs(scroll, w, _wk.BLOCK_PX, x0=402, margin=110):
+        on = sp._slot_latch(('resid',), k, lambda k=k: (
+            0 if not res_win else
+            {0: 1, 1: 2, 2: 3}.get(_mix32((k * 0xC13FA9A9) ^ 0x9E3) % 8, 0)))
+        if on:
+            def _res(s, sx=sx, mode=on):
+                from game import festival as _fest
+                if mode == 1:
+                    _fest.draw_scorch_fan(s, sx, night, decay=0.0)
+                    _fest.draw_scaffold(s, sx, night, _CUR_T, state='cold')
+                    _fest.draw_dropped_mask(s, sx + 54, night)
+                    _fest.draw_dropped_mask(s, sx - 62, night, flipped=True)
+                elif mode == 2:
+                    _fest.draw_scorch_fan(s, sx, night, decay=0.55)
+                    _fest.draw_dropped_mask(s, sx + 10, night)
+                else:
+                    _fest.draw_scorch_fan(s, sx, night, decay=0.9)
+            _zbuf.enqueue(fy, TB_FIXTURE, _res)
+    sp._latch_prune(('resid',))
 
 def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
     """Place the time-appropriate cast at FIXED world-x slots, THINNED by `density`:
@@ -2109,6 +2272,39 @@ def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
             scene_fn(_emit, bx + jit, pal, t, r, _pick)
     sp._latch_prune(row)
 
+# ── the IRON FLOWER — the fire show, once per festival night ─────────────────
+# The rig rides the dragon's own parade-drift mechanic (+0.55x scroll), so the
+# 2.5 s burst cycle fits three times inside one dwell instead of once: the
+# player gets BURST -> DARK BEAT -> BURST rather than one burst glimpsed on
+# the way past. It draws HERE, in the promenade pass, because the sparks
+# belong behind the pillars, the coins and the bird — the near lane only adds
+# the spark-watch crowd in front.
+_FIRE_BEAT = (0.706, 0.727)
+_FIRE_DUR = 8.0
+
+
+def _festival_fire(surf, scroll, pal, phase, t, density):
+    from game import festival as _fest
+    p = phase % 1.0
+    if not (0.680 <= p < 0.820):
+        return
+    if density <= 0.20 or calm_now():
+        _fest.set_fire_state(None)
+        return
+    h = _wk.happening('festival_fire', _FIRE_BEAT, phase, t, _FIRE_DUR)
+    if not h:
+        _fest.set_fire_state(None)
+        return
+    k, _a = h
+    show_t = k * _FIRE_DUR
+    sx = int((W + 108) - k * (W + 216))
+    night = _nightf(pal)
+    _zbuf.enqueue(GROUND_Y - 1, TB_CAST,
+                  lambda s, sx=sx, show_t=show_t: _fest.draw_fire_show(
+                      s, sx, night, t, show_t))
+    _fest.set_fire_state((sx, show_t))
+
+
 def draw_promenade(surf, scroll, pal, phase, t):
     """Draw the promenade as a living day-arc: fixtures by phase, cast thinned by a
     crowd-density curve, and the whole street filling in from empty at run-start."""
@@ -2131,6 +2327,7 @@ def draw_promenade(surf, scroll, pal, phase, t):
     _dressing(surf, W, scroll, pal, phase)
     _place_scenarios(surf, W, scroll, pal, t, _roster_for(phase), density)
     _happenings(surf, scroll, pal, phase, t)
+    _festival_fire(surf, scroll, pal, phase, t, density)
     # A few souls shelter near the dressing (kiosk awnings / lamp posts) when the
     # open deck has emptied — keeps the street alive at the storm's worst.
     _shelter_figures(surf, W, scroll, pal, t)

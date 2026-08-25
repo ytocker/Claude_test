@@ -1221,8 +1221,14 @@ def _crowd_tier(depth):
 
 
 def _emit_near_crowd(surf, crowd, scroll, pal):
+    from game import festival as _fest
+    kid_masks = _fest.masks_active(pr._CUR_PHASE)
     for e in crowd.near:
         drawer, scale, kw = _CROWD_DRAW[e.kind]
+        if e.kind == "kids" and kid_masks:
+            # Post-troupe souvenir propagation: the mask deal rides the bake
+            # cache key, so a masked kid stays masked for its whole crossing.
+            kw = dict(kw, masks=True)
         fy, fac = _crowd_tier(getattr(e, "depth", 1.0))
         sx = int(round(e.world_x - scroll))
         flip = e.facing > 0
@@ -1419,6 +1425,11 @@ def _pooled_perf(variant):
 _FESTIVAL_WIN = (0.680, 0.820)
 _DRAGON_BEAT = (0.788, 0.818)
 _STILT_BEAT = (0.730, 0.744)
+_TROUPE_BEAT = (0.744, 0.760)
+_TROUPE_DUR = 7.0
+# The wind-down's closing image: seven people carrying the dragon home, low
+# on the shoulders, after the market has begun to strike.
+_DRAGON_HOME_BEAT = (0.822, 0.840)
 
 
 def _festival_now(p):
@@ -1431,13 +1442,49 @@ def parade_active():
     return _wk.happening_active('festival_dragon')
 
 
-def _festival_bill(surf, pal, phase, t, density):
+def _festival_bill(surf, pal, phase, t, density, scroll):
     """The festival's scheduled acts. Each is a once-per-run beat latched by
     the weekend happening ledger; acts animate in SCREEN space (a parade
     drifts with the town, slower than the scroll, so Pip flies alongside)."""
     if density <= 0.20 or pr.calm_now():
         return
+    from game import festival as _fest
     ny = NEAR_GROUND_Y
+    night = _nightf(pal)
+    # ★ THE IRON FLOWER — the rig itself burns in the promenade pass, behind
+    # the pillars; the near deck adds its audience: spark-watchers, backs to
+    # us, chins up, rippling on each burst. They ride the rig's drift so the
+    # square crosses the frame as one travelling show.
+    st = _fest.fire_state()
+    if st is not None:
+        fx_x, show_t = st
+        burst_age = show_t - 0.75
+        if burst_age >= 0:
+            burst_age = (burst_age + _fest.CONTACT_T) % _fest.BURST_PERIOD - _fest.CONTACT_T
+        for wi, dx in enumerate((-84, -58, -33, 28, 54, 82)):
+            wx = fx_x + dx
+            if -20 < wx < W + 20:
+                _zbuf.enqueue(ny, TB_CAST,
+                              lambda s, wx=wx, wi=wi, ba=burst_age:
+                              _fest.draw_spark_watcher(s, wx, night, t, wi, ba))
+    # ★ THE MONKEY KING'S TROUPE — three masked acrobats cycling staff spin ->
+    # shoulder tower -> somersault inside the gathered ring, planted on the
+    # near deck so Pip flies past a show square.
+    h = _wk.happening('festival_troupe', _TROUPE_BEAT, phase, t, _TROUPE_DUR,
+                      anchor=scroll + W * 1.15)
+    if h:
+        k, wx = h
+        if k > 0.9:
+            # The act has played out — from here the souvenir masks spread
+            # through the kids for the rest of the night window.
+            _fest.set_masks_on()
+        sx = int(wx - scroll)
+        if -80 < sx < W + 80:
+            _zbuf.enqueue(ny, TB_CAST,
+                          lambda s, sx=sx: _gathered_crowd(s, sx - 8, pal, t))
+            _zbuf.enqueue(ny, TB_CAST,
+                          lambda s, sx=sx, ts=k * _TROUPE_DUR:
+                          _fest.draw_troupe(s, sx + 12, night, ts))
     # Travelling stilt-walker crossing the recovery block between the crests.
     h = _wk.happening('festival_stilts', _STILT_BEAT, phase, t, 6.0)
     if h:
@@ -1449,13 +1496,34 @@ def _festival_bill(surf, pal, phase, t, density):
     # the right and drifting forward with the town so the crossing lingers.
     # Latched only under light snow, but the weather hold (snow starts 0.800)
     # means the beat almost always opens clear and the flakes arrive mid-act.
+    # The procession: drum cart, then the pearl-bearer, then the dragon —
+    # rhythm, then mystery, then the face — one set too long to ever fit a
+    # single frame, which is what makes it read longer than it is.
     if getattr(pr, "_CUR_SNOW", 0.0) < 0.25 or _wk.happening_active('festival_dragon'):
         h = _wk.happening('festival_dragon', _DRAGON_BEAT, phase, t, 10.5)
         if h:
             k, _a = h
             sx = int((W + 130) - k * (W + 130 + 230))
             _zbuf.enqueue(ny, TB_CAST,
+                          lambda s, sx=sx: _fest.draw_drum_cart(s, sx + 165, night, t))
+            _zbuf.enqueue(ny, TB_CAST,
+                          lambda s, sx=sx: _fest.draw_pearl_bearer(s, sx + 112, night, t))
+            _zbuf.enqueue(ny, TB_CAST,
                           lambda s, sx=sx: perf_dragon_dance(s, sx, pal, t))
+
+
+def _dragon_home_act(surf, sx, pal, t):
+    """Seven people carrying the dragon home: the spine slung low over the
+    shoulders, undulating only with the walk — none of the dance's bounce —
+    heading off with the last of the market."""
+    feet = NEAR_GROUND_Y
+    kit = _dragon_kit(pal, 'red')
+    pts = _dragon_spine(sx, feet, 7, 156, amp=3, t=t * 0.4, head_rise=2, sag=10)
+    _dragon_dancers(surf, pts, feet, pal, t * 0.5, robes=_DRAGON_ROBES,
+                    leg_stagger=1.4)
+    _dragon_tail(surf, pts[0], pts[1], pal, kit=kit, t=t * 0.4)
+    _dragon_body(surf, pts, pal, kit=kit)
+    _dragon_head(surf, pts[-1], pal, 0.0, kit)
 
 
 def _pf_stilt_act(surf, sx, pal, *, t=0.0):
@@ -1465,7 +1533,8 @@ def _pf_stilt_act(surf, sx, pal, *, t=0.0):
 
 
 def reset_run():
-    pass
+    from game import festival as _fest
+    _fest.reset_run()
 
 
 def _show_period(p):
@@ -1620,4 +1689,14 @@ def draw_near_lane(surf, scroll, pal, phase, t, crowd=None):
     # FIRE-TREE NIGHT: the scheduled festival bill (guaranteed dragon parade,
     # travelling acts) replaces the busker grid inside the festival window.
     if _festival_now(phase):
-        _festival_bill(surf, pal, phase, t, density)
+        _festival_bill(surf, pal, phase, t, density, scroll)
+    # The wind-down's closing image, once per run: the carriers walking the
+    # dragon home through the first of the small hours.
+    hd = _wk.happening('dragon_home', _DRAGON_HOME_BEAT, phase, t, 6.0,
+                       anchor=scroll + W * 0.72)
+    if hd and not pr.calm_now():
+        kk, wx = hd
+        sxx = int(wx - scroll) - int(kk * 70)
+        if -140 < sxx < W + 140:
+            _zbuf.enqueue(ny, TB_CAST, lambda s, sxx=sxx:
+                          _dragon_home_act(s, sxx, pal, t))
