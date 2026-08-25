@@ -344,7 +344,6 @@ SPARK_COL = (191, 142, 82)           # (255,190,110) × 150/200 — its own luma
                                      # sits ON the cap, so full-alpha core
                                      # pixels are the show's hottest output
 SPARK_COOL = (170, 120, 90)
-RIM_CAP = 140
 
 G_ACC = 900.0                        # the shipped Particle gravity: at 900 the
                                      # skirt tucks under the crown and the

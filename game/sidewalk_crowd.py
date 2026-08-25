@@ -230,7 +230,9 @@ class SidewalkCrowd:
             # for its own crown is the festival's strongest beat.
             if _wkd.happening_active('festival_dragon'):
                 for e in self.near:
-                    if e.kind != "dog" and e.state != "watch_parade":
+                    # A departure stays one-way even for the dragon — someone
+                    # already walking off doesn't spin back around.
+                    if e.kind != "dog" and e.state not in ("watch_parade", "leaving"):
                         e.state = "watch_parade"
                         e.walk_vel = 0.0
                         e.facing = 1          # the dragon enters from the right
@@ -273,7 +275,7 @@ class SidewalkCrowd:
         self._leave_cd -= sdt
         if len(self.near) > target + 1 and self._leave_cd <= 0.0:
             for e in self.near:
-                if e.state not in ("leaving", "dart"):
+                if e.state not in ("leaving", "dart", "watch_parade"):
                     e.state = "leaving"
                     e.walk_vel = -random.uniform(66.0, 92.0)
                     e.facing = -1

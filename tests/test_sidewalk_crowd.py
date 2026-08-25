@@ -109,5 +109,47 @@ class CountCapped(unittest.TestCase):
             self.assertLessEqual(len(c.near), sc._NEAR_CAP)
 
 
+class ParadeStateSafety(unittest.TestCase):
+    """The dragon parade must never fight the departure choreography: a
+    departure stays one-way, and a planted spectator is never sent away
+    mid-parade."""
+
+    def _with_parade(self):
+        from game import foreground_weekend as wk
+        wk.reset_run()
+        wk._h_started['festival_dragon'] = (0.0, 0.0)
+        wk._h_playing.add('festival_dragon')
+        return wk
+
+    def test_leaving_entity_not_reverted_by_parade(self):
+        wk = self._with_parade()
+        c = sc.SidewalkCrowd()
+        e = _standing(c, 500.0)
+        e.state = "leaving"
+        e.walk_vel = -80.0
+        e.timer = 1e9
+        c.update(600.0, 160.0, 1 / 60.0, 0.80, 1.0)
+        self.assertEqual(e.state, "leaving")
+        wk._h_playing.clear()
+
+    def test_watcher_not_sent_leaving_mid_parade(self):
+        wk = self._with_parade()
+        c = sc.SidewalkCrowd()
+        for i in range(5):
+            e = _standing(c, 500.0 + i)
+            e.state = "watch_parade"
+            e.walk_vel = 0.0
+            e.timer = 12.0
+        c._leave_cd = 0.0
+        saved = sc.pr.street_density
+        sc.pr.street_density = lambda phase, t: 0.0
+        try:
+            c.update(600.0, 160.0, 1 / 60.0, 0.815, 1.0)
+        finally:
+            sc.pr.street_density = saved
+        self.assertTrue(all(x.state == "watch_parade" for x in c.near))
+        wk._h_playing.clear()
+
+
 if __name__ == "__main__":
     unittest.main()

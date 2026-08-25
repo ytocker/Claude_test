@@ -1377,8 +1377,8 @@ def add_near_lane(surf, w, gy, h, scroll, pal, phase_name, t):
 
 def _perf_for(phase):
     """(performer_fn, x0) for the SINGLE-act phases (day/golden/dusk), else None.
-    The NIGHT festival window (0.58..0.80) is handled by the caller (`_perf_decide`),
-    and 0.80..0.85 is the pre-dawn teardown (no act) — both return None here."""
+    The festival window (0.680..0.820) is handled by the caller (`_perf_decide`),
+    and 0.820..0.924 is the small hours (no act) — both return None here."""
     p = phase % 1.0
     if p >= 0.924 or p < 0.309:
         return (perf_juggler, 40)
@@ -1389,8 +1389,8 @@ def _perf_for(phase):
     return None                          # 0.680..0.924: festival (caller) / small hours
 
 def _perf_band(p):
-    """The performer beat-band for a day-arc phase (festival 0.58..0.80 + the
-    0.80..0.85 teardown are handled by the caller and return None here)."""
+    """The performer beat-band for a day-arc phase (festival 0.680..0.820 + the
+    0.820..0.924 small hours are handled by the caller and return None here)."""
     if p >= 0.924 or p < 0.309:
         return "day"
     if p < 0.416:
