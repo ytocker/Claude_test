@@ -74,7 +74,7 @@ def _pick_kind():
 def _market_now(phase):
     """The night-market window (remapped keyframes): the front lane strolls."""
     p = phase % 1.0
-    return 0.644 <= p < 0.785
+    return 0.680 <= p < 0.820
 
 
 def _roll_ped_vel(phase=0.0):

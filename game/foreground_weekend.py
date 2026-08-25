@@ -42,8 +42,8 @@ _DAYPARTS = (
     (0.157, {STALL_ROW: 5, CROSSING: 4, SHOPFRONT: 3, GREEN: 2, QUIET: 1, TEMPLE: 1, WORKS: 1, SQUARE: 1}),   # morning market
     (0.309, {GREEN: 4, QUIET: 4, TEMPLE: 3, WORKS: 2, SHOPFRONT: 2, SQUARE: 1, STALL_ROW: 1, CROSSING: 1}),   # the long middle
     (0.416, {SQUARE: 4, SHOPFRONT: 3, GREEN: 3, STALL_ROW: 2, QUIET: 2, TEMPLE: 2, CROSSING: 1, WORKS: 1}),   # golden stroll
-    (0.644, {STALL_ROW: 5, SHOPFRONT: 2, SQUARE: 2, QUIET: 2, GREEN: 2, TEMPLE: 1, CROSSING: 1, WORKS: 1}),   # setup + rain
-    (0.785, {STALL_ROW: 5, CROSSING: 4, SQUARE: 3, SHOPFRONT: 2, GREEN: 2, TEMPLE: 1, QUIET: 1, WORKS: 1}),   # night market
+    (0.680, {STALL_ROW: 5, SHOPFRONT: 2, SQUARE: 2, QUIET: 2, GREEN: 2, TEMPLE: 1, CROSSING: 1, WORKS: 1}),   # setup + rain
+    (0.820, {STALL_ROW: 8, CROSSING: 4, SQUARE: 3, SHOPFRONT: 2, GREEN: 2, TEMPLE: 1, QUIET: 1, WORKS: 1}),   # FIRE-TREE NIGHT
     (0.924, {QUIET: 5, WORKS: 3, GREEN: 3, TEMPLE: 2, STALL_ROW: 1, SQUARE: 1, SHOPFRONT: 1, CROSSING: 1}),   # small hours
     (1.001, {SHOPFRONT: 3, STALL_ROW: 3, QUIET: 3, GREEN: 2, WORKS: 2, TEMPLE: 1, SQUARE: 1, CROSSING: 1}),   # first light
 )
@@ -52,9 +52,11 @@ _DAYPARTS = (
 # only REORDERS/FILTERS the daypart roster — it never invents scenes the hour
 # doesn't offer, so the temporal story stays authoritative.
 _ROSTER_PREF = {
-    STALL_ROW: ("_scene_food_grill", "_scene_food_soup", "_scene_food_steamer",
-                "_scene_food_tea", "_scene_market", "_scene_dawn_setup", "_scene_vendor"),
-    CROSSING: ("_scene_stroll", "_scene_market", "_scene_food_tea", "_scene_vendor"),
+    STALL_ROW: ("_scene_stall_strip", "_scene_food_grill", "_scene_food_soup",
+                "_scene_food_steamer", "_scene_food_tea", "_scene_food_wok",
+                "_scene_market", "_scene_dawn_setup", "_scene_vendor"),
+    CROSSING: ("_scene_stroll", "_scene_market", "_scene_food_tea",
+               "_scene_food_wok", "_scene_vendor"),
     SQUARE: ("_scene_stroll", "_scene_bench", "_scene_campfire"),
     SHOPFRONT: ("_scene_vendor", "_scene_stroll", "_scene_market", "_scene_bench"),
     TEMPLE: ("_scene_quiet", "_scene_pastoral", "_scene_rest", "_scene_vendor"),
@@ -66,6 +68,7 @@ _ROSTER_PREF = {
 _run_seed = 0x5EED
 _phi = 0.0     # the breathing sine's per-run phase
 _h_started: dict = {}   # once-per-day happening ledger: name -> (t0, anchor)
+_h_playing: set = set()  # names currently mid-play (updated by happening())
 
 
 def reset_run():
@@ -73,6 +76,14 @@ def reset_run():
     _run_seed = random.getrandbits(32) or 0x5EED
     _phi = random.uniform(0.0, 6.28318)
     _h_started.clear()
+    _h_playing.clear()
+
+
+def happening_active(name):
+    """True while `name` is mid-play. Live only while its owner keeps calling
+    happening() each frame (it does — draw paths poll their beats), so other
+    systems can react to a beat without knowing its clock."""
+    return name in _h_playing
 
 
 def happening(name, window, phase, t, dur, anchor=0.0):
@@ -89,7 +100,9 @@ def happening(name, window, phase, t, dur, anchor=0.0):
         _h_started[name] = rec
     k = (t - rec[0]) / dur
     if 0.0 <= k <= 1.0:
+        _h_playing.add(name)
         return (k, rec[1])
+    _h_playing.discard(name)
     return None
 
 
@@ -120,9 +133,17 @@ _HIGH_ODD = (CROSSING, SHOPFRONT)
 
 
 def _raw(b, phase):
-    """Daypart-weighted personality roll for block b within its parity set."""
+    """Daypart-weighted personality roll for block b within its parity set.
+    FIRE-TREE NIGHT relaxes the parity lock for STALL_ROW only: during the
+    festival window every block can deal a stall row, so runs of market can
+    sit back to back ("dense, denser, dense") — the grid-forced low in _pre
+    still guarantees the breath between phrases."""
     deck = _deck_for(phase)
-    allowed = _LOW + (_HIGH_EVEN if (b % 2 == 0) else _HIGH_ODD)
+    p = phase % 1.0
+    highs = _HIGH_EVEN if (b % 2 == 0) else _HIGH_ODD
+    if 0.680 <= p < 0.820 and STALL_ROW not in highs:
+        highs = highs + (STALL_ROW,)
+    allowed = _LOW + highs
     items = [(pers, wt) for pers, wt in deck.items() if pers in allowed]
     h = _mix((b * 0x9E3779B1) ^ _run_seed)
     x = (h & 0xFFFF) / 65535.0 * sum(wt for _, wt in items)
@@ -191,6 +212,12 @@ def filter_roster(world_x, phase, roster):
     full roster when the intersection is empty, so a block can never silence an
     hour entirely."""
     pers = personality(block_at(world_x), phase)
+    # FIRE-TREE NIGHT: a festival stall-row block IS the market strip — the
+    # single-stall scenes live on in the other personalities' rosters.
+    if pers == STALL_ROW and 0.680 <= (phase % 1.0) < 0.820:
+        strip = tuple(fn for fn in roster if fn.__name__ == "_scene_stall_strip")
+        if strip:
+            return strip
     pref = _ROSTER_PREF.get(pers, ())
     liked = [fn for fn in roster if fn.__name__ in pref]
     return tuple(liked) if liked else roster

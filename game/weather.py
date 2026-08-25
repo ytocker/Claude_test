@@ -128,6 +128,10 @@ LIGHTNING_PHASE_MAX  = RAIN_DRIZZLE_START + 0.26 * _WIDTH_SCALE
 _SNOW_LOWER_EDGE     = _SNOW_LOWER_EDGE_BASE + _SNOW_PHASE_SHIFT
 SNOW_STORM_CENTER    = _SNOW_LOWER_EDGE + 0.10 * _WIDTH_SCALE
 SNOW_STORM_WIDTH     = 0.13 * _WIDTH_SCALE
+# First flakes held until the festival's dragon beat (see storm_intensity);
+# expressed off the bump's TRUE onset (center - width) so pillar retunes
+# carry it along.
+SNOW_ONSET_HOLD      = SNOW_STORM_CENTER - SNOW_STORM_WIDTH + 0.035
 
 # Morning-thermal (geyser) phase window — long buildup, short fade. Named here
 # so the curve in `thermal_intensity` and anything anchored to the event (the
@@ -222,8 +226,19 @@ def storm_intensity(phase: float) -> float:
     while the ramps stay smooth. 0 everywhere outside the snow
     window, so the golden-hour breeze (`calm_breeze`) never triggers
     snow."""
-    return min(1.0, _bump(phase, SNOW_STORM_CENTER, SNOW_STORM_WIDTH)
-               * 1.045)
+    v = min(1.0, _bump(phase, SNOW_STORM_CENTER, SNOW_STORM_WIDTH)
+            * 1.045)
+    # FIRE-TREE NIGHT holds the first flakes until the dragon parade's beat:
+    # the squall's lower edge would otherwise land on the festival's crest.
+    # The rise is gated (smoothstepped over ~8 s) while the peak and the fade
+    # keep their anchored shape — the climax is untouched, only the overture
+    # waits for its cue.
+    if phase < SNOW_ONSET_HOLD:
+        return 0.0
+    if phase < SNOW_ONSET_HOLD + 0.02:
+        u = (phase - SNOW_ONSET_HOLD) / 0.02
+        return v * (u * u * (3 - 2 * u))
+    return v
 
 
 def wind_intensity(phase: float) -> float:

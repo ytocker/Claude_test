@@ -1034,7 +1034,7 @@ _SCENARIO_PERIOD = 384          # world-px between scene SLOTS — dense enough 
                                 # busy hour keeps ~1 vignette on screen (the depth
                                 # ladder needs bodies to sort); calm hours still read
                                 # open because the density gate empties most slots.
-_SCENE_MARGIN = 220             # wide enough to slide a whole scene in/out smoothly
+_SCENE_MARGIN = 420             # wide enough to slide a whole STRIP in/out smoothly
 
 # ── re-themed cast + hero beats (Chinese market) ──────────────────────────────
 
@@ -1198,11 +1198,11 @@ def _stall_openness(phase, u):
         return 0.35                    # carts arrive — bare frames, rolled awnings
     if p < 0.483:
         return 0.6                     # dressing: awnings unrolled, goods going on
-    if p < 0.694:
+    if p < 0.680:
         return 0.7                     # rained-on setup: open, working under it
-    if p < 0.785:
-        return 1.0                     # the night-market peak
-    start = 0.785 + u * 0.035          # staggered close-down (~0-14 s spread)
+    if p < 0.820:
+        return 1.0                     # the festival peak
+    start = 0.820 + u * 0.035          # staggered close-down (~0-14 s spread)
     if p < start:
         return 1.0
     return max(0.0, 1.0 - (p - start) / 0.02)
@@ -1264,6 +1264,78 @@ def _scene_food_steamer(emit, bx, pal, t, rng, pick=None):
 def _scene_food_tea(emit, bx, pal, t, rng, pick=None):
     """A tea/drinks-urn stall with a vendor + a customer pausing for a cup."""
     _scene_food(emit, bx, pal, t, 'tea', _food.STALLS['tea'][1], rng, pick=pick, cust_salt=64)
+
+
+def _scene_food_wok(emit, bx, pal, t, rng, pick=None):
+    """The flared wok stall — a vendor tossing over the flame + a customer."""
+    _scene_food(emit, bx, pal, t, 'wok', _food.STALLS['wok'][1], rng, pick=pick, cust_salt=65)
+
+
+# FIRE-TREE NIGHT's market strip: the festival's signature block. One scene
+# slot becomes a ROW of stalls at market pitch — the thing a single-stall
+# scene on a wider-than-screen lattice could never produce (measured 0.23
+# stalls per frame at the old "peak"). Kinds are dealt with no repeat inside
+# a strip, kiosk included, so a night shows every structure the town owns.
+_STRIP_KINDS = ('steamer', 'cauldron', 'grill', 'wok', 'tea', 'kiosk')
+_STRIP_PITCH = 104
+# The two crest sub-windows get a second, mid-deck rank — the "spine" that
+# lifts the frame to the plan's 5+ structures.
+_SPINE_WINS = ((0.715, 0.735), (0.765, 0.785))
+
+
+def _scene_stall_strip(emit, bx, pal, t, rng, pick=None):
+    """Four stalls at market pitch + their vendors, customers and critters —
+    plus, at the crests, a spine rank behind the walk. During the dragon
+    parade the customers melt away to watch (the market pauses itself)."""
+    p = _CUR_PHASE % 1.0
+    deck = list(_STRIP_KINDS)
+    rng.shuffle(deck)
+    parade = _wk.happening_active('festival_dragon')
+    for i in range(4):
+        x = bx + i * _STRIP_PITCH
+        kind = deck[i]
+        # Draw ALL of this stall's randoms up front, unconditionally — the
+        # rng sequence must not depend on live state (openness thresholds,
+        # the parade) or later slots would re-roll mid-screen.
+        u = rng.random()
+        r_cust = rng.random()
+        r_crit = rng.random()
+        crit_kind = rng.choice(('pigeons', 'cat', 'hen'))
+        openness = _stall_openness(p, u)
+        if openness <= 0.05:
+            continue
+        if kind == 'kiosk':
+            emit(TB_STRUCTURE, lambda s, x=x, op=openness:
+                 draw_kiosk(s, x, pal, t=t, openness=op))
+        else:
+            emit(TB_STRUCTURE, lambda s, x=x, kind=kind, op=openness:
+                 draw_food_stall(s, x, pal, t=t, kind=kind, openness=op))
+        if openness >= 0.30:
+            vv = pick('vendor', 80 + i) if pick else 0
+            emit(TB_CAST, dy=9, cast=(draw_vendor, x - 8, dict(t=t, variant=vv)))
+        if openness >= 0.80 and not parade:
+            if r_cust < 0.55:
+                cust = pick('pedestrian', 84 + i) if pick else 0
+                emit(TB_CAST, dy=18,
+                     cast=(draw_strollers, x + 34, dict(t=t, variant=cust)))
+            if r_crit < 0.30:
+                emit(TB_CAST, dy=18, cast=(draw_critter, x + 18,
+                     dict(t=t, kind=crit_kind)))
+    # Spine rank: two more stalls on the walk's mid-deck, scaled by the depth
+    # law and z-sorted into the front pass, so the crest frame reads as a
+    # market with ROWS — the festival's "5 structures, 7 plumes" image.
+    if any(a <= p < b for a, b in _SPINE_WINS):
+        for j, xo in enumerate((52, 52 + 2 * _STRIP_PITCH)):
+            kind = deck[(4 + j) % len(deck)]
+            if kind == 'kiosk':
+                kind = 'tea'          # the kiosk's pagoda roof is too tall mid-walk
+            u2 = rng.random()
+
+            def _spine(s, x=bx + xo, kind=kind, op=_stall_openness(p, u2)):
+                from game import foreground_near_lane as _nl
+                _nl._scaled_cast(s, draw_food_stall, x, _CUR_PAL, 1.28,
+                                 feet_y=GROUND_Y + 21, kind=kind, openness=op)
+            _zbuf.enqueue(GROUND_Y + 21, TB_STRUCTURE, _spine)
 
 def draw_dog(surf, sx, pal, *, t=0.0, variant=0):
     """One street dog from the 9-strong 'dog' pool (animals_cast), feet on
@@ -1713,12 +1785,15 @@ _POP_KEYS = [
     (0.538, 0.72),  # dusk; setup pushes on through the rain
     (0.600, 0.80),
     (0.629, 0.84),  # storm peak (weather crushes the actual to ~0.19)
-    (0.694, 0.94),  # rain ends — the street floods back in
-    (0.724, 1.00),  # NIGHT MARKET peak (clear, dark, drying)
+    (0.680, 0.90),  # rain ends — the festival floods back in
+    (0.694, 0.94),
+    (0.724, 1.00),  # FIRE-TREE NIGHT crest #1 (clear, dark, drying)
     (0.755, 0.95),
-    (0.785, 0.72),  # first flakes
-    (0.820, 0.34),  # closing under the squall
-    (0.860, 0.10),  # small hours
+    (0.775, 0.98),  # crest #2 — the food-theatre spine
+    (0.790, 0.85),  # the breath, then the parade crowd
+    (0.820, 0.72),  # afterglow — first flakes land in the dragon's tail
+    (0.840, 0.34),  # closing under the squall
+    (0.875, 0.10),  # small hours
     (0.900, 0.07),  # the floor
     (0.924, 0.10),  # sunrise begins
     (0.955, 0.24),  # squall gone; sweepers + the first tea stall
@@ -1865,11 +1940,12 @@ def _roster_for(phase):
         return (_scene_stroll, _scene_pastoral, _scene_quiet, _scene_bench)
     if p < 0.483:                      # LAMPS & SETUP — the market being assembled
         return (_scene_lamplighter, _scene_dawn_setup, _scene_stroll, _scene_vendor)
-    if p < 0.644:                      # THE RAIN — setup pushes on; tea never closes
+    if p < 0.680:                      # THE RAIN — setup pushes on; tea never closes
         return (_scene_food_tea, _scene_dawn_setup, _scene_stroll, _scene_rest)
-    if p < 0.785:                      # NIGHT MARKET — the clear dark window
-        return (_scene_food_grill, _scene_food_soup, _scene_food_steamer,
-                _scene_food_tea, _scene_campfire, _scene_stroll, _scene_bench)
+    if p < 0.820:                      # FIRE-TREE NIGHT — the festival window
+        return (_scene_stall_strip, _scene_food_grill, _scene_food_soup,
+                _scene_food_steamer, _scene_food_tea, _scene_food_wok,
+                _scene_market, _scene_stroll, _scene_bench)
     if p < 0.924:                      # SMALL HOURS — near-empty, braziers warm
         return (_scene_quiet, _scene_rest, _scene_campfire)
     return (_scene_food_tea, _scene_sweeper, _scene_quiet, _scene_vendor)  # FIRST LIGHT — tea + brooms first
@@ -1897,7 +1973,7 @@ def _dressing(surf, w, scroll, pal, phase):
     # A SECOND lantern row interleaves through the night market only — the
     # overhead ceiling visibly doubles for the evening (span-latched so it
     # strings itself up ahead of Pip and comes down span by span after).
-    market_win = (0.644 <= p < 0.802)
+    market_win = (0.680 <= p < 0.840)
     sp._draw_lantern_garland(surf, w, scroll, pal, top_y=GROUND_Y - 112,
                              period=127, sag=20, per_span=4, x0=63,
                              span_gate=lambda k: sp._slot_latch(('lantgar2',), k,

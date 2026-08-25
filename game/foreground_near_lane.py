@@ -1378,9 +1378,9 @@ def _perf_for(phase):
         return (perf_juggler, 40)
     if p < 0.416:
         return (perf_musician, 200)
-    if p < 0.644:
+    if p < 0.680:
         return (perf_stilt, 120)
-    return None                          # 0.644..0.924: night market (caller) / small hours
+    return None                          # 0.680..0.924: festival (caller) / small hours
 
 def _perf_band(p):
     """The performer beat-band for a day-arc phase (festival 0.58..0.80 + the
@@ -1389,7 +1389,7 @@ def _perf_band(p):
         return "day"
     if p < 0.416:
         return "golden"
-    if p < 0.644:
+    if p < 0.680:
         return "dusk"
     return None
 
@@ -1406,18 +1406,66 @@ def _pooled_perf(variant):
 
 
 # ── the street-show system ───────────────────────────────────────────────────
-# Shows are INCIDENTAL, the way a real weekend street works: a busker draws a
-# small knot here and there, occasionally something bigger, and once in a rare
-# run the lion or the dragon comes out. Probability follows the daypart, show
-# slots keep a hard minimum spacing (~9 slots ≈ 40 s of flight) so two never
-# stack, and the big act fires at most once per run, in the clear night window.
+# By day, shows are INCIDENTAL, the way a real weekend street works: a busker
+# draws a small knot here and there, occasionally something bigger, on a
+# jittered grid with hard minimum spacing. FIRE-TREE NIGHT is different: the
+# festival window runs a SCHEDULED bill (see _festival_bill) — the dragon
+# parade is guaranteed, the travelling acts land at their beats — and the
+# random busker grid stands down for the duration.
 
-_BIG_SHOW_FIRED = False
+# The festival window (biome phase). The parade beat sits at the end so the
+# squall's first flakes (held until 0.800 in weather.py) land in the dragon's
+# tail — the plan's closing image.
+_FESTIVAL_WIN = (0.680, 0.820)
+_DRAGON_BEAT = (0.788, 0.818)
+_STILT_BEAT = (0.730, 0.744)
+
+
+def _festival_now(p):
+    return _FESTIVAL_WIN[0] <= (p % 1.0) < _FESTIVAL_WIN[1]
+
+
+def parade_active():
+    """True while the dragon parade is on stage — the market pauses for it
+    (vendors step out, steam thins, calls stop; consumed by the promenade)."""
+    return _wk.happening_active('festival_dragon')
+
+
+def _festival_bill(surf, pal, phase, t, density):
+    """The festival's scheduled acts. Each is a once-per-run beat latched by
+    the weekend happening ledger; acts animate in SCREEN space (a parade
+    drifts with the town, slower than the scroll, so Pip flies alongside)."""
+    if density <= 0.20 or pr.calm_now():
+        return
+    ny = NEAR_GROUND_Y
+    # Travelling stilt-walker crossing the recovery block between the crests.
+    h = _wk.happening('festival_stilts', _STILT_BEAT, phase, t, 6.0)
+    if h:
+        k, _a = h
+        sx = int((W + 40) - k * (W + 120))
+        _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx: _scaled_cast(
+            s, _pf_stilt_act, sx, pal, 1.5, t=t))
+    # ★★ THE DRAGON — guaranteed every festival night, 10.5 s, entering from
+    # the right and drifting forward with the town so the crossing lingers.
+    # Latched only under light snow, but the weather hold (snow starts 0.800)
+    # means the beat almost always opens clear and the flakes arrive mid-act.
+    if getattr(pr, "_CUR_SNOW", 0.0) < 0.25 or _wk.happening_active('festival_dragon'):
+        h = _wk.happening('festival_dragon', _DRAGON_BEAT, phase, t, 10.5)
+        if h:
+            k, _a = h
+            sx = int((W + 130) - k * (W + 130 + 230))
+            _zbuf.enqueue(ny, TB_CAST,
+                          lambda s, sx=sx: perf_dragon_dance(s, sx, pal, t))
+
+
+def _pf_stilt_act(surf, sx, pal, *, t=0.0):
+    v = _fv.get("performer", 2)
+    if v is not None:
+        _pf.draw_act(surf, sx, NEAR_GROUND_Y, v, _nightf(pal), t)
 
 
 def reset_run():
-    global _BIG_SHOW_FIRED
-    _BIG_SHOW_FIRED = False
+    pass
 
 
 def _show_period(p):
@@ -1433,10 +1481,10 @@ def _show_period(p):
         return 14          # golden hour — one per ~63 s
     if p < 0.483:
         return 20          # setup
-    if p < 0.644:
+    if p < 0.680:
         return 26          # rain — most buskers pack up
-    if p < 0.785:
-        return 12          # the night market — one per ~54 s
+    if p < 0.820:
+        return 12          # the festival — one per ~54 s (bill acts override)
     if p < 0.924:
         return 120         # small hours
     return 18              # first light
@@ -1460,28 +1508,23 @@ def _perf_decide(k, phase, density):
     a bigger draw with a full gathered ring. Tier 3: the lion or the dragon —
     at most once per run, night-market window only, never in weather. The
     busy-street gate (density>0.25) and the calm mandates are captured here."""
-    global _BIG_SHOW_FIRED
     if density <= 0.25 or pr.calm_now():
         return None
     p = phase % 1.0
+    # FIRE-TREE NIGHT: inside the festival window the bill is SCHEDULED
+    # (dragon parade, travelling stilts — see _festival_bill), so the random
+    # busker grid stands down rather than competing with the programme.
+    if _festival_now(p):
+        return None
     if not _show_here(k, p):
         return None
-    rain = getattr(pr, "_CUR_RAIN", 0.0)
-    snow = getattr(pr, "_CUR_SNOW", 0.0)
     roll = (pr._mix32(k * 0x51ED2701) & 0xFFFF) / 65535.0
-    if (not _BIG_SHOW_FIRED and 0.644 <= p < 0.785
-            and rain < 0.15 and snow <= 0.0 and roll < 0.08):
-        _BIG_SHOW_FIRED = True
-        act = perf_dragon_dance if (k & 1) else perf_lion_dance
-        return (act, 3)
     # A full gathered ring needs room: tier-2 draws only land where the block
     # layer opens a small square; elsewhere the show stays a busker + knot.
     in_square = _wk.is_square(k * _PERF_PERIOD + _PERF_X0, p)
     band = _perf_band(p)
     if band is None:
-        if 0.644 <= p < 0.785:
-            band = "market"
-        elif 0.785 <= p < 0.924:
+        if 0.820 <= p < 0.924:
             band = "dusk"      # the small hours: the 120-slot grid makes this
                                # the rarest sighting of the day (~1 per 9 min)
     if band is None:
@@ -1517,7 +1560,7 @@ def draw_near_lane(surf, scroll, pal, phase, t, crowd=None):
     # Banners dress the market (setup through the staggered close-down); braziers
     # kindle early in the storm gloom and are the ONE fixture that persists through
     # the small hours — two warm points in a cold near-empty street — gone at sunrise.
-    banner_win = (0.483 <= p < 0.820)
+    banner_win = (0.483 <= p < 0.840)
     brazier_win = (0.520 <= p < 0.924)
     ny = NEAR_GROUND_Y
     for sx, k in _near_static_xs(scroll, W, 337, x0=30):
@@ -1574,3 +1617,7 @@ def draw_near_lane(surf, scroll, pal, phase, t, crowd=None):
                               lambda s, bx=bx: _watch_arc(s, bx - 4, pal, t))
             _zbuf.enqueue(ny, TB_CAST, lambda s, act=act, bx=bx: act(s, bx, pal, t))
     sp._latch_prune(('perf',))
+    # FIRE-TREE NIGHT: the scheduled festival bill (guaranteed dragon parade,
+    # travelling acts) replaces the busker grid inside the festival window.
+    if _festival_now(phase):
+        _festival_bill(surf, pal, phase, t, density)
