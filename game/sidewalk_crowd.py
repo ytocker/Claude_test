@@ -224,9 +224,20 @@ class SidewalkCrowd:
             if e.wave > 0.0:
                 e.wave -= sdt
         if not pr.calm_now():
+            from game import foreground_weekend as _wkd
+            # FIRE-TREE NIGHT: while the dragon parades, the whole front lane
+            # stops where it stands and turns to face it — the market pausing
+            # for its own crown is the festival's strongest beat.
+            if _wkd.happening_active('festival_dragon'):
+                for e in self.near:
+                    if e.kind != "dog" and e.state != "watch_parade":
+                        e.state = "watch_parade"
+                        e.walk_vel = 0.0
+                        e.facing = 1          # the dragon enters from the right
+                        e.timer = 12.0
+                        e.wave = max(e.wave, 0.6 + random.random() * 0.8)
             # Once-per-day: the first drops — the frame rain arrives, everyone
             # on the front lane stops, looks up, then moves on.
-            from game import foreground_weekend as _wkd
             if (getattr(pr, "_CUR_RAIN", 0.0) >= 0.12
                     and _wkd.happening('first_umbrella', (0.48, 0.545),
                                        phase, t, 2.0) is not None

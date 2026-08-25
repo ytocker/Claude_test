@@ -1290,6 +1290,7 @@ def _scene_stall_strip(emit, bx, pal, t, rng, pick=None):
     p = _CUR_PHASE % 1.0
     deck = list(_STRIP_KINDS)
     rng.shuffle(deck)
+    q_at = rng.randrange(4)          # ONE stall per strip grows a queue
     parade = _wk.happening_active('festival_dragon')
     for i in range(4):
         x = bx + i * _STRIP_PITCH
@@ -1321,6 +1322,14 @@ def _scene_stall_strip(emit, bx, pal, t, rng, pick=None):
             if r_crit < 0.30:
                 emit(TB_CAST, dy=18, cast=(draw_critter, x + 18,
                      dict(t=t, kind=crit_kind)))
+            if i == q_at:
+                # The queue — three more waiting their turn behind the
+                # customer spot, stepped through the walk's depth so the
+                # line reads as a line, not a wall.
+                for qi, (qx, qdy) in enumerate(((48, 18), (61, 9), (73, 9))):
+                    qv = pick('pedestrian', 88 + qi) if pick else 0
+                    emit(TB_CAST, dy=qdy,
+                         cast=(draw_strollers, x + qx, dict(t=t, variant=qv)))
     # Spine rank: two more stalls on the walk's mid-deck, scaled by the depth
     # law and z-sorted into the front pass, so the crest frame reads as a
     # market with ROWS — the festival's "5 structures, 7 plumes" image.
