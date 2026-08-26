@@ -886,7 +886,10 @@ def _verify_pip(before, after):
     """Pass/fail gate: the pixels bird.draw() actually touched must be
     centred on the respawn point, or the menu pops the moment START is hit."""
     from PIL import Image, ImageChops
-    tmp = os.path.dirname(os.path.abspath(__file__))
+    # Scratch comparison frames: keep them out of the repo — these
+    # scripts live under tools/ now, not in a throwaway directory.
+    import tempfile
+    tmp = tempfile.gettempdir()
     pa, pb = os.path.join(tmp, "_a.png"), os.path.join(tmp, "_b.png")
     pygame.image.save(before, pa)
     pygame.image.save(after, pb)
