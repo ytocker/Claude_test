@@ -86,6 +86,14 @@ def _warm_glow(surf, cx, cy, *, radius, peak, color):
     surf.blit(g, (cx - radius - 1, cy - radius - 1), special_flags=pygame.BLEND_RGB_ADD)
 
 
+def _cool(col, night):
+    """Retint + a second pull for anything still over the cap. Pale materials —
+    ice, glazed porcelain, a bone-white lid — survive the generic night cooling
+    above 150 and start competing with the coin unless they get this."""
+    c = _retint(col, night)
+    return _cap150(c) if night > 0.05 else c
+
+
 def _steam_col(night):
     # By day steam cools toward the sky; at night it warms instead — lit from
     # below by the stall's own lanterns, the cheapest night-market cue there is.
@@ -107,6 +115,12 @@ def _flat_awning(surf, sx, post_top, half_w, night, awning):
         "terra": (198, 86, 66), "cream": (236, 224, 204),
         "bamboo": (170, 150, 96), "indigo": (86, 104, 150),
         "jade": (108, 150, 120), "rust": (176, 96, 58),
+        # round-3 family expansion — one new pair per new stall so no two
+        # booths in a strip wear the same cloth
+        "plum": (132, 80, 92), "wheat": (214, 196, 158),
+        "ochre": (192, 148, 70), "ink": (62, 70, 86),
+        "clay": (172, 124, 96), "slate": (104, 116, 126),
+        "moss": (114, 124, 84), "teal": (84, 130, 134),
     }
     a_name, b_name = awning
     dimk = min(0.72, 1.3 * night)
@@ -291,8 +305,14 @@ def stall_grill(surf, sx, base_y, night, t, openness=1.0):
         ey = cy - 11 - int(ph * 16)
         a = int(120 * (1.0 - ph))
         if a > 8:
-            lay = pygame.Surface((2, 2), pygame.SRCALPHA)
-            lay.fill((*_cap150((150, 90, 40)), a))
+            # BLEND_RGB_ADD ignores alpha, so capping the SOURCE colour does
+            # not cap the SUM — the ember used to add its full value onto an
+            # already-lit deck and climb well past the night ceiling. Pre-scale
+            # the RGB by the fade instead, so the ember dims as it rises.
+            k = a / 255.0
+            er, eg, eb = _cap150((150, 90, 40))
+            lay = pygame.Surface((2, 2))
+            lay.fill((int(er * k), int(eg * k), int(eb * k)))
             surf.blit(lay, (ex, ey), special_flags=pygame.BLEND_RGB_ADD)
 
 
@@ -372,10 +392,431 @@ def stall_tea(surf, sx, base_y, night, t, openness=1.0):
 
 
 # Stall kinds → drawer, and the day_cast vendor pose (pool index) that works it.
+def stall_duck(surf, sx, base_y, night, t, *, openness=1.0):
+    """S6 ROAST-DUCK / CHAR-SIU HANGING CABINET — awning plum/wheat, vendor pose
+    CHOP (day_cast vendor idx 6).
+
+    The market's first TALL ENCLOSED silhouette: a glazed vitrine standing on the
+    counter, birds hanging on hooks from its top rail. Every other stall is an
+    open cooking surface with its heat on show; this one puts the food behind
+    glass and lights it from inside, so at night it is the only stall that reads
+    as a WINDOW — an upright bright rectangle in a row of glowing puddles. The
+    cleaver-and-board at the right edge is the pose hand-off: the chopping vendor
+    slots in with no new cast art."""
+    cy = _stall_shell(surf, sx, base_y, night, awning=("plum", "wheat"),
+                      sign=(168, 78, 70), openness=openness)
+    if openness < 0.5:
+        return
+    # The cabinet sits left of centre so the hanging sign, the awning stripes and
+    # the vendor's right-hand chopping space all stay unblocked.
+    bx = sx - 13
+    bw = 20
+    bh = 30
+    by = cy - bh
+    frame = _retint((78, 60, 46), night)
+    glass = _mix(_retint((96, 108, 112), night), (40, 48, 64), 0.35)
+    pygame.draw.rect(surf, frame, (bx, by, bw, bh))
+    pygame.draw.rect(surf, _shade(frame, -22), (bx, by, bw, bh), 1)
+    pygame.draw.rect(surf, glass, (bx + 2, by + 3, bw - 4, bh - 6))
+    # the interior lamp — capped, and small enough that it lights the birds
+    # rather than becoming a lantern of its own
+    if night > 0.05:
+        _warm_glow(surf, bx + bw // 2, by + 10, radius=8, peak=36, color=(150, 104, 56))
+    lamp = _cap150(_retint((196, 156, 96), night))
+    pygame.draw.line(surf, lamp, (bx + 3, by + 4), (bx + bw - 4, by + 4), 1)
+    rail = _retint((150, 136, 104), night)
+    pygame.draw.line(surf, rail, (bx + 3, by + 7), (bx + bw - 4, by + 7), 1)
+    # three lacquered birds on hooks, swaying a hair out of phase — the cabinet
+    # is glass, so its only motion has to come from what hangs inside it
+    duck = _cap150(_retint((156, 84, 48), night))
+    duck_d = _shade(duck, -34)
+    duck_hi = _shade(duck, 20)
+    for i in range(3):
+        dx = bx + 5 + i * 5 + int(math.sin(t * 1.1 + i * 1.7) * 1.2)
+        dy = by + 9
+        pygame.draw.line(surf, rail, (dx, by + 7), (dx, dy + 1), 1)
+        pygame.draw.ellipse(surf, duck, (dx - 2, dy, 5, 11))
+        pygame.draw.ellipse(surf, duck_d, (dx - 2, dy, 5, 11), 1)
+        pygame.draw.line(surf, duck_hi, (dx - 1, dy + 2), (dx - 1, dy + 7), 1)
+        pygame.draw.circle(surf, duck_d, (dx + 2, dy + 10), 1)
+    # glass reflection: a single diagonal, the cheapest "this is glazed" cue
+    pygame.draw.line(surf, _shade(glass, 26), (bx + 4, by + bh - 6), (bx + bw - 6, by + 6), 1)
+    pygame.draw.line(surf, _shade(frame, 14), (bx + 1, by + 1), (bx + 1, by + bh - 2), 1)
+    # chopping board + cleaver at the counter's right — the CHOP pose's props
+    board = _retint((150, 118, 78), night)
+    pygame.draw.rect(surf, board, (sx + 8, cy - 3, 13, 3))
+    pygame.draw.rect(surf, _shade(board, -26), (sx + 8, cy - 3, 13, 3), 1)
+    meat = _cap150(_retint((160, 96, 62), night))
+    pygame.draw.rect(surf, meat, (sx + 10, cy - 5, 5, 2))
+    blade = _cool((168, 176, 184), night)
+    pygame.draw.rect(surf, blade, (sx + 16, cy - 8, 5, 3))
+    pygame.draw.line(surf, _retint((110, 86, 60), night), (sx + 20, cy - 7), (sx + 22, cy - 9), 1)
+    # a stub roof vent — the cabinet still breathes, so the stall animates even
+    # though nothing in it is boiling
+    vent = _retint((86, 78, 70), night)
+    pygame.draw.rect(surf, vent, (bx + 4, by - 3, 5, 3))
+    _wisp(surf, bx + 6, by - 3, t, n=2, rise=16, spread=1.8, speed=0.42,
+          phase=0.2, peak_a=34, r0=1, sway=2.0, color=_smoke_col(night))
+
+
+def stall_griddle(surf, sx, base_y, night, t, *, openness=1.0):
+    """S7 FLAT GRIDDLE (jianbing / pot-sticker pan) — awning ochre/ink, vendor
+    pose POUR (day_cast vendor idx 7).
+
+    The family's FLATTEST apparatus and the only one that stays entirely under
+    the awning line: a wide low iron disc read as a shallow ellipse, a domed lid
+    tipped up on its edge, and a batter rake that sweeps an arc with t. Where the
+    steamer and the boiler are columns, this stall is a horizon — and its steam
+    matches, a broad low SHEET of short wisps instead of a plume, so it reads
+    differently in motion as well as in outline. The pouring vendor's vertical
+    batter stream is the only tall thing here, by design."""
+    cy = _stall_shell(surf, sx, base_y, night, awning=("ochre", "ink"),
+                      sign=(190, 150, 90), openness=openness)
+    if openness < 0.5:
+        return
+    stove = _retint((84, 72, 64), night)
+    pygame.draw.rect(surf, stove, (sx - 15, cy - 7, 30, 7))
+    pygame.draw.rect(surf, _shade(stove, -22), (sx - 15, cy - 7, 30, 7), 1)
+    if night > 0.05:
+        _warm_glow(surf, sx - 2, cy - 3, radius=7, peak=36, color=(150, 92, 44))
+    mouth = _cap150(_retint((140, 78, 40), night)) if night > 0.05 else _retint((74, 48, 34), night)
+    pygame.draw.rect(surf, mouth, (sx - 6, cy - 5, 9, 3))
+    # the plate: one broad shallow ellipse, deliberately wider than any other
+    # apparatus in the family and barely taller than the counter lip
+    iron = _retint((60, 58, 62), night)
+    plate = pygame.Rect(sx - 18, cy - 12, 36, 9)
+    pygame.draw.ellipse(surf, iron, plate)
+    pygame.draw.ellipse(surf, _shade(iron, -20), plate, 1)
+    pygame.draw.arc(surf, _shade(iron, 22), plate, math.radians(10), math.radians(170), 1)
+    crepe = _cool((216, 198, 148), night)
+    pygame.draw.ellipse(surf, crepe, (sx - 11, cy - 11, 21, 6))
+    pygame.draw.ellipse(surf, _shade(crepe, -30), (sx - 11, cy - 11, 21, 6), 1)
+    # the folded half, so the plate shows a crepe mid-service rather than a disc
+    fill = _cool((196, 152, 96), night)
+    pygame.draw.polygon(surf, fill, [(sx + 1, cy - 11), (sx + 9, cy - 10),
+                                     (sx + 6, cy - 6), (sx, cy - 7)])
+    pygame.draw.line(surf, _shade(fill, -28), (sx + 1, cy - 11), (sx + 6, cy - 6), 1)
+    # the rake: a wooden T that sweeps the batter round the plate with t — the
+    # apparatus's own motion, so the stall lives even with no vendor attached
+    ang = math.sin(t * 1.5) * 1.05
+    rx = sx - 4 + int(math.cos(ang) * 8)
+    ry = cy - 9 + int(math.sin(ang) * 2)
+    wood = _retint((146, 116, 78), night)
+    pygame.draw.line(surf, _shade(wood, -26), (rx, ry), (sx + 12, cy - 20), 2)
+    pygame.draw.line(surf, wood, (rx - 2, ry), (rx + 2, ry), 2)
+    # the lid tipped on its edge at the left — a half-dome, the one curve that
+    # breaks the horizontal
+    lid = _retint((150, 142, 128), night)
+    pygame.draw.arc(surf, lid, (sx - 21, cy - 19, 11, 16), math.radians(20), math.radians(200), 2)
+    pygame.draw.line(surf, _shade(lid, -30), (sx - 20, cy - 11), (sx - 12, cy - 12), 1)
+    pygame.draw.circle(surf, _shade(lid, 18), (sx - 16, cy - 19), 1)
+    # spatula + scraper standing in a jar at the right
+    jar = _retint((120, 110, 96), night)
+    pygame.draw.rect(surf, jar, (sx + 14, cy - 6, 6, 6))
+    pygame.draw.rect(surf, _shade(jar, -24), (sx + 14, cy - 6, 6, 6), 1)
+    tool = _cool((172, 178, 184), night)
+    pygame.draw.line(surf, tool, (sx + 16, cy - 6), (sx + 15, cy - 15), 1)
+    pygame.draw.line(surf, _retint((140, 112, 76), night), (sx + 18, cy - 6), (sx + 20, cy - 14), 1)
+    # a LOW WIDE steam sheet: four short offset wisps across the plate, so the
+    # vapour hugs the iron instead of forming a column
+    sc = _steam_col(night)
+    for i, ox in enumerate((-12, -5, 3, 10)):
+        _wisp(surf, sx + ox, cy - 12, t, n=2, rise=11 + (i % 2) * 3, spread=2.6,
+              speed=0.66, phase=i * 0.27, peak_a=38, r0=1, sway=3.0, color=sc)
+
+
+def stall_claypot(surf, sx, base_y, night, t, *, openness=1.0):
+    """S8 CLAY-POT BANK — awning clay/slate, vendor pose WEIGH (day_cast vendor
+    idx 1).
+
+    REPETITION is the silhouette. Five small lidded pots dropped into a
+    multi-hole stove make a crenellated row of domes — a rhythm no other stall
+    in the market has, since every other apparatus is one big object. The steam
+    matches: five little offset wisps that read as a keyboard rather than a
+    plume, and one lid at a time chatters up off its rim on a slow cycle, which
+    is the whole stall's animation and the reason it never reads static."""
+    cy = _stall_shell(surf, sx, base_y, night, awning=("clay", "slate"),
+                      sign=(150, 120, 70), openness=openness)
+    if openness < 0.5:
+        return
+    stove = _retint((132, 106, 86), night)
+    pygame.draw.rect(surf, stove, (sx - 19, cy - 9, 38, 9))
+    pygame.draw.rect(surf, _shade(stove, -24), (sx - 19, cy - 9, 38, 9), 1)
+    pygame.draw.line(surf, _shade(stove, -16), (sx - 18, cy - 4), (sx + 18, cy - 4), 1)
+    xs = (-14, -7, 0, 7, 14)
+    # three low burner halos rather than one stove-wide wash: the stall's read is
+    # separate fires along the bank, and holding each halo faint keeps their
+    # additive overlap under the night cap where one broad wash ran hot.
+    if night > 0.05:
+        for ox in (-11, 0, 11):
+            _warm_glow(surf, sx + ox, cy - 5, radius=5, peak=10, color=(150, 88, 42))
+    hot = _cap150((146, 82, 38)) if night > 0.05 else _retint((78, 50, 36), night)
+    pot = _retint((122, 88, 70), night)
+    pot_d = _shade(pot, -28)
+    lid = _retint((146, 116, 92), night)
+    chatter = int(t * 1.4) % 5
+    for i, ox in enumerate(xs):
+        px = sx + ox
+        # the fire showing through each burner ring, so the stove reads as five
+        # separate flames rather than one hot block
+        pygame.draw.rect(surf, hot, (px - 2, cy - 9, 5, 2))
+        pygame.draw.ellipse(surf, pot_d, (px - 4, cy - 11, 9, 4))
+        body = pygame.Rect(px - 4, cy - 14, 9, 6)
+        pygame.draw.ellipse(surf, pot, body)
+        pygame.draw.ellipse(surf, pot_d, body, 1)
+        lift = 1 if i == chatter else 0
+        ly = cy - 17 - lift
+        pygame.draw.arc(surf, lid, (px - 4, ly, 9, 8), math.radians(10), math.radians(170), 2)
+        pygame.draw.line(surf, _shade(lid, -30), (px - 4, ly + 4), (px + 4, ly + 4), 1)
+        pygame.draw.circle(surf, _shade(lid, 20), (px, ly + 1), 1)
+        _wisp(surf, px, ly + 1, t, n=2, rise=13 + lift * 5, spread=1.8,
+              speed=0.5 + i * 0.04, phase=i * 0.21,
+              peak_a=42 if lift else 30, r0=1, sway=1.8, color=_steam_col(night))
+    # a rice paddle + a small bowl stack, so the counter reads as a portioning
+    # bench (which is what the WEIGH pose is doing above it)
+    bowl = _cool((208, 198, 178), night)
+    for k in range(2):
+        pygame.draw.ellipse(surf, bowl, (sx + 12, cy - 4 - k * 3, 8, 4))
+        pygame.draw.ellipse(surf, _shade(bowl, -34), (sx + 12, cy - 4 - k * 3, 8, 4), 1)
+
+
+def stall_roaster(surf, sx, base_y, night, t, *, openness=1.0):
+    """S9 DRUM ROASTER (chestnuts / sweet potato) — awning moss/ochre, vendor
+    pose STACK (day_cast vendor idx 4, the one carrying a basket).
+
+    The only HORIZONTAL CYLINDER in the market and the only genuinely ROTATING
+    machine: a hooped barrel slung in a cradle over a firebox, its crank turning
+    on t and its hoop bands travelling around the shell so the drum reads as
+    revolving rather than as a log. Against four squat stoves and two columns, a
+    lying-down barrel with a wheel on its end is an instantly separate outline,
+    and the stub chimney gives it sooty smoke — the only smoke besides the
+    skewer grill's, and pitched lower and lazier."""
+    cy = _stall_shell(surf, sx, base_y, night, awning=("moss", "ochre"),
+                      sign=(176, 110, 70), openness=openness)
+    if openness < 0.5:
+        return
+    fire = _retint((92, 76, 66), night)
+    pygame.draw.rect(surf, fire, (sx - 15, cy - 8, 27, 8))
+    pygame.draw.rect(surf, _shade(fire, -22), (sx - 15, cy - 8, 27, 8), 1)
+    if night > 0.05:
+        _warm_glow(surf, sx - 3, cy - 4, radius=8, peak=34, color=(150, 90, 44))
+    flick = 0.5 + 0.5 * math.sin(t * 5.2)
+    mouth = _cap150(_mix((92, 54, 32), (148, 86, 40), flick)) if night > 0.05 \
+        else _retint((80, 52, 36), night)
+    pygame.draw.rect(surf, mouth, (sx - 10, cy - 6, 10, 4))
+    # the cradle the drum turns in
+    cradle = _retint((70, 64, 62), night)
+    for ox in (-13, 9):
+        pygame.draw.line(surf, cradle, (sx + ox, cy - 8), (sx + ox, cy - 15), 2)
+    # the barrel: a body block closed by an end-cap ellipse, so it reads as a
+    # cylinder seen three-quarters rather than a flat box
+    drum = _retint((96, 84, 78), night)
+    drum_d = _shade(drum, -26)
+    drum_hi = _shade(drum, 20)
+    dy = cy - 26
+    pygame.draw.rect(surf, drum, (sx - 15, dy, 25, 15))
+    pygame.draw.ellipse(surf, _shade(drum, -8), (sx + 5, dy, 11, 15))
+    pygame.draw.ellipse(surf, drum_d, (sx + 5, dy, 11, 15), 1)
+    pygame.draw.line(surf, drum_hi, (sx - 14, dy + 2), (sx + 8, dy + 2), 1)
+    pygame.draw.line(surf, drum_d, (sx - 15, dy + 14), (sx + 9, dy + 14), 1)
+    # hoop bands that TRAVEL with t — the rotation cue that costs three lines
+    off = (t * 7.0) % 8
+    for k in range(4):
+        hx = int(sx - 14 + (off + k * 8) % 25)
+        pygame.draw.line(surf, drum_d, (hx, dy + 1), (hx, dy + 14), 1)
+    pygame.draw.ellipse(surf, _shade(drum, 6), (sx + 8, dy + 4, 5, 7))
+    # the crank: an axle, an arm on a radius, a knob — one real revolution/sec
+    ax, ay = sx + 16, dy + 7
+    a = t * 2.4
+    hx2 = int(ax + math.cos(a) * 5)
+    hy2 = int(ay + math.sin(a) * 5)
+    steel = _cool((150, 156, 162), night)
+    pygame.draw.circle(surf, _shade(steel, -40), (ax, ay), 2)
+    pygame.draw.line(surf, steel, (ax, ay), (hx2, hy2), 2)
+    pygame.draw.circle(surf, _retint((120, 92, 60), night), (hx2, hy2), 2)
+    # stub chimney at the drum's shoulder + its slow sooty ribbon
+    ch = _retint((74, 70, 68), night)
+    pygame.draw.rect(surf, ch, (sx - 12, dy - 6, 5, 6))
+    pygame.draw.rect(surf, _shade(ch, -24), (sx - 12, dy - 6, 5, 6), 1)
+    _wisp(surf, sx - 10, dy - 6, t, n=3, rise=22, spread=2.8, speed=0.44,
+          phase=0.1, peak_a=36, r0=1, sway=3.2, color=_smoke_col(night))
+    # a tray of roasted chestnuts on the counter front — the STACK vendor's goods
+    tray = _retint((126, 98, 66), night)
+    pygame.draw.ellipse(surf, tray, (sx - 21, cy - 5, 14, 5))
+    pygame.draw.ellipse(surf, _shade(tray, -28), (sx - 21, cy - 5, 14, 5), 1)
+    nut = _cap150(_retint((118, 74, 44), night))
+    for k, (nx, ny) in enumerate(((-18, -5), (-15, -6), (-12, -5), (-16, -4))):
+        pygame.draw.circle(surf, nut if k % 2 else _shade(nut, -18), (sx + nx, cy + ny), 1)
+
+
+def stall_ice(surf, sx, base_y, night, t, *, openness=1.0):
+    """S10 SHAVED ICE / cold sweets — awning teal/wheat, vendor pose SIGN
+    (day_cast vendor idx 5, the one holding a price board).
+
+    The market's COLD stall, and its whole reason to exist is contrast: no
+    steam, no flame, no warm glow anywhere in the drawer. In a row where every
+    silhouette is topped by rising vapour, the one stall with nothing above it
+    is the beat that makes the others read as hot. Its motion is inverted too —
+    a hand crank turning over a clamped ice block and flecks of snow falling DOWN
+    into the bowl, the only downward motion in the family. The syrup bottles are
+    the one place the row gets a clean saturated accent, and they are the whole
+    stall's colour story, which is why the flavour-board vendor is the match."""
+    cy = _stall_shell(surf, sx, base_y, night, awning=("teal", "wheat"),
+                      sign=(96, 142, 150), openness=openness)
+    if openness < 0.5:
+        return
+    mx = sx - 7
+    iron = _retint((78, 104, 100), night)
+    iron_d = _shade(iron, -28)
+    iron_hi = _shade(iron, 18)
+    # cast-iron pedestal: foot plate, column, blade housing — heavy and squat so
+    # the crank above it reads as the working part
+    pygame.draw.rect(surf, iron, (mx - 9, cy - 4, 18, 4))
+    pygame.draw.rect(surf, iron_d, (mx - 9, cy - 4, 18, 4), 1)
+    pygame.draw.rect(surf, iron, (mx - 4, cy - 15, 9, 11))
+    pygame.draw.rect(surf, iron_d, (mx - 4, cy - 15, 9, 11), 1)
+    pygame.draw.line(surf, iron_hi, (mx - 3, cy - 14), (mx - 3, cy - 5), 1)
+    pygame.draw.rect(surf, _shade(iron, -10), (mx - 8, cy - 21, 17, 6))
+    pygame.draw.rect(surf, iron_d, (mx - 8, cy - 21, 17, 6), 1)
+    # the ice block clamped under the head — pale, but cooled + capped so the one
+    # near-white object in the market never competes with the coin at night
+    ice = _cool((190, 208, 216), night)
+    pygame.draw.polygon(surf, ice, [(mx - 6, cy - 21), (mx + 5, cy - 21),
+                                    (mx + 7, cy - 27), (mx - 4, cy - 27)])
+    pygame.draw.polygon(surf, _shade(ice, -40), [(mx - 6, cy - 21), (mx + 5, cy - 21),
+                                                 (mx + 7, cy - 27), (mx - 4, cy - 27)], 1)
+    pygame.draw.line(surf, _shade(ice, 16), (mx - 3, cy - 26), (mx + 5, cy - 26), 1)
+    # the crank: a shaft over the block with an arm that really goes round
+    a = t * 2.0
+    cxp, cyp = mx + 8, cy - 26
+    hx = int(cxp + math.cos(a) * 5)
+    hy = int(cyp + math.sin(a) * 4)
+    steel = _cool((150, 158, 164), night)
+    pygame.draw.line(surf, steel, (mx - 1, cy - 27), (cxp, cyp), 2)
+    pygame.draw.line(surf, steel, (cxp, cyp), (hx, hy), 2)
+    pygame.draw.circle(surf, _retint((122, 94, 62), night), (hx, hy), 2)
+    # the bowl of shaved snow under the blade + the flecks falling into it
+    bowl = _cool((186, 196, 202), night)
+    pygame.draw.ellipse(surf, bowl, (mx - 7, cy - 8, 14, 5))
+    pygame.draw.ellipse(surf, _shade(bowl, -38), (mx - 7, cy - 8, 14, 5), 1)
+    snow = _cool((202, 214, 220), night)
+    pygame.draw.ellipse(surf, snow, (mx - 5, cy - 11, 11, 5))
+    syrup_top = _cap150(_retint((186, 76, 84), night))
+    pygame.draw.arc(surf, syrup_top, (mx - 4, cy - 12, 8, 5), math.radians(10), math.radians(160), 2)
+    for i in range(3):
+        ph = ((t * 0.9) + i / 3.0) % 1.0
+        fy = cy - 20 + ph * 9
+        fx = mx - 3 + i * 3 + math.sin(ph * 5 + i) * 1.2
+        aa = int(150 * (1.0 - ph * 0.7))
+        lay = pygame.Surface((2, 2), pygame.SRCALPHA)
+        lay.fill((*_cool((198, 210, 216), night), aa))
+        surf.blit(lay, (int(fx), int(fy)))
+    # three syrup bottles — the row's only clean colour accent, capped at night
+    for i, col in enumerate(((178, 66, 74), (196, 148, 60), (86, 140, 104))):
+        bx = sx + 9 + i * 5
+        body = _cap150(_retint(col, night))
+        pygame.draw.rect(surf, body, (bx, cy - 11, 4, 8))
+        pygame.draw.rect(surf, _shade(body, -34), (bx, cy - 11, 4, 8), 1)
+        pygame.draw.line(surf, _shade(body, 26), (bx + 1, cy - 10), (bx + 1, cy - 5), 1)
+        pygame.draw.rect(surf, _cool((190, 190, 184), night), (bx + 1, cy - 14, 2, 3))
+
+
+def stall_boiler(surf, sx, base_y, night, t, *, openness=1.0):
+    """S11 NOODLE BOILER — awning ink/wheat, vendor pose WOK (day_cast vendor
+    idx 8, the wide-vessel-held-out arm).
+
+    A tall STRAIGHT-SIDED stock column — pointedly not the cauldron's wide
+    ellipse belly — under a GANTRY RAIL of long-handled strainer baskets that
+    dip into the boil on their own cycle. The gantry is the point: an ordered
+    row of hanging teardrops on a bar is a silhouette the market does not
+    otherwise own, and it sits above the pot where every other stall has open
+    sky. It also keeps this stall firmly in the BOILING-AND-SERVING register:
+    bowls stacked, chopsticks in a jar, no dough, no arms-wide showman — the
+    festival's hand-pulled-noodle theatre stays the performance, this stays the
+    kitchen."""
+    cy = _stall_shell(surf, sx, base_y, night, awning=("ink", "wheat"),
+                      sign=(198, 188, 166), openness=openness)
+    if openness < 0.5:
+        return
+    px = sx - 5
+    stove = _retint((80, 72, 68), night)
+    pygame.draw.rect(surf, stove, (px - 11, cy - 6, 22, 6))
+    pygame.draw.rect(surf, _shade(stove, -22), (px - 11, cy - 6, 22, 6), 1)
+    if night > 0.05:
+        _warm_glow(surf, px, cy - 3, radius=7, peak=36, color=(150, 92, 46))
+    ring = _cap150((142, 80, 38)) if night > 0.05 else _retint((76, 50, 34), night)
+    pygame.draw.rect(surf, ring, (px - 6, cy - 5, 12, 2))
+    # the column: straight sides, a hoop band, a heavy rim — a cylinder, where
+    # the shipped cauldron is a sphere
+    steel = _retint((92, 96, 104), night)
+    steel_d = _shade(steel, -30)
+    ty = cy - 26
+    pygame.draw.rect(surf, steel, (px - 9, ty, 19, 20))
+    pygame.draw.rect(surf, steel_d, (px - 9, ty, 19, 20), 1)
+    pygame.draw.line(surf, _shade(steel, 22), (px - 7, ty + 3), (px - 7, cy - 8), 1)
+    pygame.draw.line(surf, steel_d, (px - 9, ty + 11), (px + 9, ty + 11), 1)
+    pygame.draw.ellipse(surf, _shade(steel, -12), (px - 10, ty - 3, 21, 7))
+    broth = _retint((166, 142, 96), night)
+    pygame.draw.ellipse(surf, broth, (px - 8, ty - 2, 17, 5))
+    for k, ph in ((-4, 0.0), (2, 0.45), (6, 0.8)):
+        by = ty + int(math.sin(t * 3.2 + ph * 6) * 0.8)
+        pygame.draw.circle(surf, _cool((208, 190, 148), night), (px + k, by), 1)
+    # the gantry: two uprights, a rail, three baskets on long handles, each
+    # dipping on its own phase so one is always down in the water
+    post = _retint((104, 82, 58), night)
+    rail_y = cy - 32
+    for ox in (-15, 15):
+        pygame.draw.line(surf, post, (sx + ox, cy - 2), (sx + ox, rail_y), 1)
+    pygame.draw.line(surf, _shade(post, 14), (sx - 15, rail_y), (sx + 15, rail_y), 2)
+    wire = _cool((146, 150, 156), night)
+    wire_d = _shade(wire, -40)
+    for i, ox in enumerate((-9, 0, 9)):
+        dip = int((math.sin(t * 1.6 + i * 2.1) * 0.5 + 0.5) * 7)
+        hx = sx + ox
+        top = rail_y + 1
+        bot = rail_y + 12 + dip
+        pygame.draw.line(surf, wire_d, (hx, top), (hx, bot), 1)
+        pygame.draw.arc(surf, wire, (hx - 4, bot - 3, 9, 8), math.radians(190), math.radians(350), 2)
+        pygame.draw.line(surf, wire_d, (hx - 4, bot + 1), (hx + 4, bot + 1), 1)
+        if dip > 4:
+            pygame.draw.line(surf, _cool((208, 196, 158), night), (hx - 2, bot + 2), (hx + 2, bot + 2), 1)
+    # bowls + a chopstick jar at the right: this is a SERVING counter
+    bowl = _cool((206, 198, 180), night)
+    for k in range(3):
+        pygame.draw.ellipse(surf, bowl, (sx + 8, cy - 5 - k * 3, 9, 4))
+        pygame.draw.ellipse(surf, _shade(bowl, -36), (sx + 8, cy - 5 - k * 3, 9, 4), 1)
+    jar = _retint((118, 100, 78), night)
+    pygame.draw.rect(surf, jar, (sx + 17, cy - 8, 5, 8))
+    pygame.draw.rect(surf, _shade(jar, -26), (sx + 17, cy - 8, 5, 8), 1)
+    stick = _retint((176, 154, 112), night)
+    for k, dxs in enumerate((-1, 0, 2)):
+        pygame.draw.line(surf, stick, (sx + 19, cy - 8), (sx + 19 + dxs, cy - 14), 1)
+    _wisp(surf, px - 3, ty - 3, t, n=4, rise=27, spread=3.4, speed=0.5,
+          phase=0.0, peak_a=66, r0=2, sway=3.2, color=_steam_col(night))
+    _wisp(surf, px + 5, ty - 2, t, n=3, rise=21, spread=2.6, speed=0.6,
+          phase=0.45, peak_a=48, r0=2, sway=2.8, color=_steam_col(night))
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# THE SHIPPED FIVE — imported live from the game so the sheet compares the new
+# six against exactly what is on screen today, not against a stale copy.
+# ════════════════════════════════════════════════════════════════════════════
+
+from game import food_stalls as _fs  # noqa: E402
+
+
 STALLS = {
     "steamer":  (stall_steamer, 0),    # V1 calling
     "cauldron": (stall_cauldron, 3),   # V4 ladling
     "grill":    (stall_grill, 2),      # V3 fanning
     "wok":      (stall_wok, 2),        # V3 fanning
     "tea":      (stall_tea, 0),        # V1 calling
+    # Round-3 expansion. Each takes a vendor pose the original five never
+    # used, so a market row varies its WORKERS as well as its apparatus.
+    "duck":     (stall_duck, 6),       # V7 chopping
+    "griddle":  (stall_griddle, 7),    # V8 pouring
+    "claypot":  (stall_claypot, 1),    # V2 weighing
+    "roaster":  (stall_roaster, 4),    # V5 stacking
+    "ice":      (stall_ice, 5),        # V6 signing
+    "boiler":   (stall_boiler, 8),     # V9 wok-tossing
 }

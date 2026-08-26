@@ -54,9 +54,12 @@ _DAYPARTS = (
 _ROSTER_PREF = {
     STALL_ROW: ("_scene_stall_strip", "_scene_food_grill", "_scene_food_soup",
                 "_scene_food_steamer", "_scene_food_tea", "_scene_food_wok",
+                "_scene_food_duck", "_scene_food_griddle", "_scene_food_claypot",
+                "_scene_food_roaster", "_scene_food_ice", "_scene_food_boiler",
                 "_scene_market", "_scene_dawn_setup", "_scene_vendor"),
     CROSSING: ("_scene_stroll", "_scene_market", "_scene_food_tea",
-               "_scene_food_wok", "_scene_vendor"),
+               "_scene_food_wok", "_scene_food_ice", "_scene_food_griddle",
+               "_scene_vendor"),
     SQUARE: ("_scene_stroll", "_scene_bench", "_scene_campfire"),
     SHOPFRONT: ("_scene_vendor", "_scene_stroll", "_scene_market", "_scene_bench"),
     TEMPLE: ("_scene_quiet", "_scene_pastoral", "_scene_rest", "_scene_vendor"),

@@ -29,7 +29,7 @@ so the on-screen street never reads as a short loop. Counts and drawers:
 | --- | --- | --- | --- | --- |
 | **Pedestrians** | 57 adult walkers | `ped_cast._draw_one` | [pedestrians_designs](./showcase/pedestrians_designs.png) | [gameplay](./showcase/pedestrians_gameplay.png) |
 | **Day-cast** | 30 — kids ×10, temple elders ×10, market vendors ×10 | `day_cast.draw_kid/draw_elder/draw_vendor` | [day_cast_designs](./showcase/day_cast_designs.png) | [gameplay](./showcase/day_cast_gameplay.png) |
-| **Food stalls** | 5 — steamer / cauldron / grill / wok / tea | `food_stalls.STALLS` | [food_stalls_designs](./showcase/food_stalls_designs.png) | [gameplay](./showcase/food_stalls_gameplay.png) |
+| **Food stalls** | 11 — steamer / cauldron / grill / wok / tea + duck cabinet / griddle / clay-pot bank / drum roaster / shaved ice / noodle boiler | `food_stalls.STALLS` | [food_stalls_designs](./showcase/food_stalls_designs.png) | [gameplay](./showcase/food_stalls_gameplay.png) |
 | **Animals** | 16 — 9 dogs (strays + breeds) + 7 street critters | `animals_cast.draw_dog/draw_critter` | [animals_designs](./showcase/animals_designs.png) | [gameplay](./showcase/animals_gameplay.png) |
 | **Greenery** | 30 potted-plant designs | `greenery_cast.draw_greenery` | [greenery_designs](./showcase/greenery_designs.png) | [gameplay](./showcase/greenery_gameplay.png) |
 | **Props / fixtures** | 15 across 5 pools — lamp / banner / fire / bench / dress | `props_cast.*` | [props_designs](./showcase/props_designs.png) | [gameplay](./showcase/props_gameplay.png) |

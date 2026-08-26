@@ -1308,12 +1308,43 @@ def _scene_food_wok(emit, bx, pal, t, rng, pick=None):
     _scene_food(emit, bx, pal, t, 'wok', _food.STALLS['wok'][1], rng, pick=pick, cust_salt=65)
 
 
+def _scene_food_duck(emit, bx, pal, t, rng, pick=None):
+    """The roast-duck cabinet — birds on the hook rail, a cleaver at work."""
+    _scene_food(emit, bx, pal, t, 'duck', _food.STALLS['duck'][1], rng, pick=pick, cust_salt=66)
+
+
+def _scene_food_griddle(emit, bx, pal, t, rng, pick=None):
+    """The flat griddle — batter raked into a crepe, a low sheet of steam."""
+    _scene_food(emit, bx, pal, t, 'griddle', _food.STALLS['griddle'][1], rng, pick=pick, cust_salt=67)
+
+
+def _scene_food_claypot(emit, bx, pal, t, rng, pick=None):
+    """The clay-pot bank — five lids chattering over their own burners."""
+    _scene_food(emit, bx, pal, t, 'claypot', _food.STALLS['claypot'][1], rng, pick=pick, cust_salt=68)
+
+
+def _scene_food_roaster(emit, bx, pal, t, rng, pick=None):
+    """The chestnut drum — the only turning machine on the street."""
+    _scene_food(emit, bx, pal, t, 'roaster', _food.STALLS['roaster'][1], rng, pick=pick, cust_salt=69)
+
+
+def _scene_food_ice(emit, bx, pal, t, rng, pick=None):
+    """Shaved ice — no fire, no steam; the row's cold breath."""
+    _scene_food(emit, bx, pal, t, 'ice', _food.STALLS['ice'][1], rng, pick=pick, cust_salt=70)
+
+
+def _scene_food_boiler(emit, bx, pal, t, rng, pick=None):
+    """The noodle boiler — strainer baskets dipping on a gantry rail."""
+    _scene_food(emit, bx, pal, t, 'boiler', _food.STALLS['boiler'][1], rng, pick=pick, cust_salt=71)
+
+
 # FIRE-TREE NIGHT's market strip: the festival's signature block. One scene
 # slot becomes a ROW of stalls at market pitch — the thing a single-stall
 # scene on a wider-than-screen lattice could never produce (measured 0.23
 # stalls per frame at the old "peak"). Kinds are dealt with no repeat inside
 # a strip, kiosk included, so a night shows every structure the town owns.
-_STRIP_KINDS = ('steamer', 'cauldron', 'grill', 'wok', 'tea', 'kiosk')
+_STRIP_KINDS = ('steamer', 'cauldron', 'grill', 'wok', 'tea', 'kiosk',
+                'duck', 'griddle', 'claypot', 'roaster', 'ice', 'boiler')
 _STRIP_PITCH = 104
 # The two crest sub-windows get a second, mid-deck rank — the "spine" that
 # lifts the frame to the plan's 5+ structures.
@@ -2046,7 +2077,8 @@ def _roster_for(phase):
     p = phase % 1.0
     if p < 0.157:                      # MORNING MARKET (the run opener; day-hold)
         return (_scene_food_grill, _scene_food_soup, _scene_market, _scene_food_steamer,
-                _scene_food_tea, _scene_dawn_setup, _scene_vendor)
+                _scene_food_tea, _scene_food_griddle, _scene_food_claypot,
+                _scene_food_boiler, _scene_dawn_setup, _scene_vendor)
     if p < 0.309:                      # THE LONG MIDDLE — lazy, green, quiet
         return (_scene_pastoral, _scene_vendor, _scene_quiet, _scene_stroll)
     if p < 0.416:                      # GOLDEN STROLL — pairs, benches, warmth
@@ -2058,6 +2090,8 @@ def _roster_for(phase):
     if p < 0.820:                      # FIRE-TREE NIGHT — the festival window
         return (_scene_stall_strip, _scene_food_grill, _scene_food_soup,
                 _scene_food_steamer, _scene_food_tea, _scene_food_wok,
+                _scene_food_duck, _scene_food_griddle, _scene_food_claypot,
+                _scene_food_roaster, _scene_food_ice, _scene_food_boiler,
                 _scene_market, _scene_stroll, _scene_bench)
     if p < 0.924:                      # SMALL HOURS — near-empty, braziers warm
         return (_scene_quiet, _scene_rest, _scene_campfire)
