@@ -1503,13 +1503,23 @@ def _festival_bill(surf, pal, phase, t, density, scroll):
         h = _wk.happening('festival_dragon', _DRAGON_BEAT, phase, t, 10.5)
         if h:
             k, _a = h
-            sx = int((W + 130) - k * (W + 130 + 230))
-            _zbuf.enqueue(ny, TB_CAST,
-                          lambda s, sx=sx: _fest.draw_drum_cart(s, sx + 165, night, t))
-            _zbuf.enqueue(ny, TB_CAST,
-                          lambda s, sx=sx: _fest.draw_pearl_bearer(s, sx + 112, night, t))
-            _zbuf.enqueue(ny, TB_CAST,
-                          lambda s, sx=sx: perf_dragon_dance(s, sx, pal, t))
+            if _MARQUEE == 'dragon':
+                # 230 px of set: cart, pearl, then the long body.
+                sx = int((W + 130) - k * (W + 130 + 230))
+                _zbuf.enqueue(ny, TB_CAST,
+                              lambda s, sx=sx: _fest.draw_drum_cart(s, sx + 165, night, t))
+                _zbuf.enqueue(ny, TB_CAST,
+                              lambda s, sx=sx: _fest.draw_pearl_bearer(s, sx + 112, night, t))
+                _zbuf.enqueue(ny, TB_CAST,
+                              lambda s, sx=sx: perf_dragon_dance(s, sx, pal, t))
+            else:
+                # The lion is a shorter, self-contained troupe — it brings its
+                # own drummer and its own ring of watchers, so it parades
+                # without the cart and without the pearl (the pearl is the
+                # dragon's to chase).
+                sx = int((W + 90) - k * (W + 90 + 150))
+                _zbuf.enqueue(ny, TB_CAST,
+                              lambda s, sx=sx: perf_lion_dance(s, sx, pal, t))
 
 
 def _dragon_home_act(surf, sx, pal, t):
@@ -1532,9 +1542,23 @@ def _pf_stilt_act(surf, sx, pal, *, t=0.0):
         _pf.draw_act(surf, sx, NEAR_GROUND_Y, v, _nightf(pal), t)
 
 
+# Which beast leads the festival THIS RUN. The lion and the dragon are
+# siblings — same warm red/gold kit, same carried-costume idea — so the town
+# dances one or the other on any given night, never both. Dealt per run so a
+# player who liked one has a real reason to fly again.
+_MARQUEE = 'dragon'
+
+
+def marquee_is_dragon():
+    return _MARQUEE == 'dragon'
+
+
 def reset_run():
+    global _MARQUEE
     from game import festival as _fest
     _fest.reset_run()
+    _MARQUEE = 'dragon' if random.random() < 0.5 else 'lion'
+
 
 
 def _show_period(p):
@@ -1692,8 +1716,12 @@ def draw_near_lane(surf, scroll, pal, phase, t, crowd=None):
         _festival_bill(surf, pal, phase, t, density, scroll)
     # The wind-down's closing image, once per run: the carriers walking the
     # dragon home through the first of the small hours.
-    hd = _wk.happening('dragon_home', _DRAGON_HOME_BEAT, phase, t, 6.0,
-                       anchor=scroll + W * 0.72)
+    # Only the dragon gets carried home — on a lion night there is no long
+    # spine to sling over seven shoulders, and the small hours simply stay
+    # empty instead of contradicting the night the player actually saw.
+    hd = (_wk.happening('dragon_home', _DRAGON_HOME_BEAT, phase, t, 6.0,
+                        anchor=scroll + W * 0.72)
+          if _MARQUEE == 'dragon' else None)
     if hd and not pr.calm_now():
         kk, wx = hd
         sxx = int(wx - scroll) - int(kk * 70)
