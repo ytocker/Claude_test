@@ -1,3 +1,14 @@
+> **CORRECTION (orchestrator).** These briefs originally named
+> `harbour_post_holistic.py` as the base. That was wrong. That script carries a
+> timber value-ladder (plank exposures 122 / 100 / 84) that the user explicitly
+> rejected: *"I really like now as they do. Meaning, what we had before, not the
+> ones you suggested now."* The frozen planks are the ones in
+> **`launch_perch_start.py` VARIANT=B**, where all three boards share one flat
+> `T_LIT -> T_DARK` ramp. The two differ by ~7,200 px per plank at max delta 166.
+> Helpers (`_best_tag`, exposure support) may still be borrowed for a concept's
+> OWN new furniture — but the three hanging plank signs must match the approved
+> base, and plank-identity diffs must be taken against it.
+
 # START-as-one-object — FIVE LOCKED CONCEPT BRIEFS (Phase 3)
 
 Each of the five sections below is self-contained. Hand ONE section to ONE
@@ -7,7 +18,7 @@ render agent. No renders were produced in this phase.
 
 ## 0. SHARED FACTS (repeated inside each brief — do not require this section)
 
-**Base.** `tools/menu-design/harbour_post_holistic.py`, `VARIANT=B`
+**Base.** `tools/menu-design/launch_perch_start.py`, `VARIANT=B`
 ("harbour-post"), user-approved. 360x640 virtual canvas.
 
 **The three planks are frozen.** STORE (cx102, cy386, -3.0deg), TOP 10
@@ -98,7 +109,7 @@ is what they hang *toward*. It reuses the same `rope()` catenary and the same
 `_iron_ring` hardware the planks use, at the crown.
 
 ### Fixed base facts
-Base `tools/menu-design/harbour_post_holistic.py` `VARIANT=B`, 360x640.
+Base `tools/menu-design/launch_perch_start.py` `VARIANT=B`, 360x640.
 The three planks (STORE cx102/cy386/-3.0, TOP 10 cx108/cy446/+2.4, SETTINGS
 cx100/cy506/-1.6, all 172x44) are **frozen** — do not touch. SETTINGS' rotated
 bbox is x13.4-186.6, y481.6-530.4. The chain's right tail is at **(158.5,
@@ -222,7 +233,7 @@ chamfer + V-notch cut profile, in the same timber, folded into a pitched cap.
 The iron corner posts are the plank nails drawn out into iron.
 
 ### Fixed base facts
-Base `tools/menu-design/harbour_post_holistic.py` `VARIANT=B`, 360x640.
+Base `tools/menu-design/launch_perch_start.py` `VARIANT=B`, 360x640.
 The three planks (STORE cx102/cy386/-3.0, TOP 10 cx108/cy446/+2.4, SETTINGS
 cx100/cy506/-1.6, all 172x44) are **frozen**. SETTINGS' rotated bbox is
 x13.4-186.6, y481.6-530.4. The chain's right tail is at **(158.5, 526.1)**.
@@ -370,7 +381,7 @@ hang; START is rigged. **Keep this contrast verbatim — it is the best idea in
 the document.**
 
 ### Fixed base facts
-Base `tools/menu-design/harbour_post_holistic.py` `VARIANT=B`, 360x640.
+Base `tools/menu-design/launch_perch_start.py` `VARIANT=B`, 360x640.
 The three planks (STORE cx102/cy386/-3.0, TOP 10 cx108/cy446/+2.4, SETTINGS
 cx100/cy506/-1.6, all 172x44) are **frozen**. SETTINGS' rotated bbox is
 x13.4-186.6, y481.6-530.4. The chain's right tail is at **(158.5, 526.1)**.
@@ -523,7 +534,7 @@ the same bite out of the end face, softened by material. The iron grommets
 down the luff are the plank nails.
 
 ### Fixed base facts
-Base `tools/menu-design/harbour_post_holistic.py` `VARIANT=B`, 360x640.
+Base `tools/menu-design/launch_perch_start.py` `VARIANT=B`, 360x640.
 The three planks (STORE cx102/cy386/-3.0, TOP 10 cx108/cy446/+2.4, SETTINGS
 cx100/cy506/-1.6, all 172x44) are **frozen**. SETTINGS' rotated bbox is
 x13.4-186.6, y481.6-530.4. The chain's right tail is at **(158.5, 526.1)**.
@@ -658,7 +669,7 @@ one that has been *lifted out of the way*. The eight iron **dogs** round the
 rim are the plank nails scaled up and given a job.
 
 ### Fixed base facts
-Base `tools/menu-design/harbour_post_holistic.py` `VARIANT=B`, 360x640.
+Base `tools/menu-design/launch_perch_start.py` `VARIANT=B`, 360x640.
 The three planks (STORE cx102/cy386/-3.0, TOP 10 cx108/cy446/+2.4, SETTINGS
 cx100/cy506/-1.6, all 172x44) are **frozen**. SETTINGS' rotated bbox is
 x13.4-186.6, y481.6-530.4. The chain's right tail is at **(158.5, 526.1)**.
