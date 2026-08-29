@@ -535,7 +535,7 @@ def draw_start_A(surf, tails):
 
 def draw_start_B(surf, tails):
     """harbour-post — START leaves the chain entirely and is planted in the
-    dead bottom-right quadrant, with the chain's last rope mooring to it."""
+    dead bottom-right quadrant, standing on its own post."""
     rect = pygame.Rect(208, 494, 136, 100)
     post = timber_board(24, 120, seed=7, plain=True)
     surf.blit(post, (264, 494))
@@ -556,10 +556,6 @@ def draw_start_B(surf, tails):
                            (rect.width // 2 + 11, cy2 - 4)], 2)
     surf.blit(board, rect.topleft)
     under_shade(surf, rect, height=6, alpha=42)
-    # The chain's right tail runs down and ties off on the post head.
-    ring = (214, 500)
-    rope(surf, tails[1], ring, sag=7, width=3)
-    _iron_ring(surf, *ring, r=6)
     return rect
 
 
@@ -627,15 +623,6 @@ def draw_profile_frame(surf):
     # floating free below the frame, which is what the chain hangs from.
     fr.width = min(fr.width, 168 - fr.left)
     fr.height = (cloud.top - 2) - fr.top
-
-    pad = 14
-    glow = pygame.Surface((fr.width + pad * 2, fr.height + pad * 2), pygame.SRCALPHA)
-    for k in range(pad, 0, -1):
-        a = int(0.9 * 74 * k / pad / 3.6)
-        pygame.draw.rect(glow, (*GOLD_BRIGHT, a),
-                         (pad - k, pad - k, fr.width + k * 2, fr.height + k * 2),
-                         border_radius=15 + k)
-    surf.blit(glow, (fr.x - pad, fr.y - pad))
 
     pygame.draw.rect(surf, GOLD_MID, fr, width=1, border_radius=14)
     pygame.draw.rect(surf, GOLD_BRIGHT, fr.inflate(-12, -12), width=1, border_radius=9)
