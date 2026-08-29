@@ -38,7 +38,8 @@ CHECKPOINTS = [
     (247.0, "CH7  storm peak — tarps + suoyi", {}),
     (282.0, "CH8a FIRE-TREE NIGHT — crest + iron flower", {}),
     (296.0, "CH8b Monkey King troupe (second crest)", {}),
-    (316.0, "CH8c THE DRAGON — parade, first flakes", {}),
+    (303.0, "CH8c THE LION — self-contained troupe", {}),
+    (316.0, "CH8d THE DRAGON — parade, first flakes", {}),
     (342.0, "CH9  small hours — winter dress, snow", {}),
     (372.0, "CH10 first light — tea + the sweeper", {}),
 ]
@@ -129,7 +130,7 @@ def _build_background_pre(surf, scroll, phase, t, sig):
 def main():
     scale = 0.8
     fw, fh = int(W * scale), int(H * scale)
-    cols, rows = 3, 4
+    cols, rows = 3, 5
     gap, head, foot = 8, 46, 26
     sheet = pygame.Surface((cols * fw + (cols + 1) * gap,
                             head + rows * (fh + foot + gap) + gap))

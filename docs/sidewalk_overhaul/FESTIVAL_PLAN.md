@@ -158,11 +158,16 @@ The last festival-specific object the player sees is a **1-px scorch speckle fie
 | 0.727–0.743 | 286.1–292.4 | 6.3 | ★ Iron flower |
 | 0.743–0.756 | 292.4–297.5 | 5.1 | Strip B + crossing + stilts |
 | 0.756–0.771 | 297.5–303.4 | 5.9 | ★ Monkey King's troupe |
+| 0.762–0.774¹ | 299.8–305.8 | 6.0 | ★ The lion |
 | 0.771–0.784 | 303.4–308.5 | 5.1 | ★ Spine B — food theatre |
 | 0.784–0.789 | 308.5–310.5 | 2.0 | The breath |
 | 0.789–0.816 | 310.5–321.0 | 10.5 | ★★ The dragon |
 | 0.816–0.820 | 321.0–322.7 | 1.7 | Afterglow → hand-off |
 | | | **55.1** | |
+
+¹ The lion is layered inside this stretch, not an added block — it plays over
+the troupe's tail-end and Spine B's opening without changing either's own
+stall placement math; see §4a.
 
 ---
 
@@ -212,7 +217,7 @@ The day plan's signature is *"3 lit stalls, 4 steam plumes."* A strip meets it a
 
 ## 4. SHOWS — the bill
 
-Three squares and one travelling act, fixed, in fixed order. The random busker roll (`p_show`) is **suppressed inside the window** so the bill isn't diluted by a calligrapher landing between the fire and the dragon; the 40 s show cooldown is lifted here.
+Four squares and one travelling act, fixed, in fixed order. The random busker roll (`p_show`) is **suppressed inside the window** so the bill isn't diluted by a calligrapher landing between the fire and the dragon; the 40 s show cooldown is lifted here.
 
 ---
 
@@ -242,9 +247,25 @@ The existing `perf_dragon_dance` is intact and is the centrepiece. What's added 
 - **The glance:** at t ≈ 317 s the dragon's head turns up-left for 1.4 s. Once. Never repeated.
 - **Snow:** first flakes at 314.8 s fall through it, halos drawn over the flake layer.
 
-**Cadence:** exactly **one per cycle**, deterministic at φ 0.789. Outside the festival window the existing rare-roll (≤1 per run, ~2% per eligible block, phase ≥ 0.60) is unchanged. The lion dance stays available to that rare roll and **does not** appear tonight — two marquee acts in one night halves both.
+**Cadence:** exactly **one per cycle**, deterministic at φ 0.789. Outside the festival window the existing rare-roll (≤1 per run, ~2% per eligible block, phase ≥ 0.60) is unchanged and can still land a lion dance on an ordinary night.
+
+**Update — both acts now guaranteed, at different points (post-launch revision).** The original plan suppressed the lion tonight on the theory that two marquee acts in one night halves both. Player feedback overruled that: the dragon and the lion are the two things being asked for, so both are guaranteed every festival, staged as separate sightings rather than rivals for the same slot — the lion is not a second crown, it's an earlier, smaller sighting that makes the dragon's later arrival feel like an escalation rather than a repeat. See the new §4a below for its placement.
 
 **Gate change required:** the existing `storm_intensity == 0` condition must become `storm_intensity < 0.25`, or the first flakes cancel the crown.
+
+---
+
+### ★ THE LION — the earlier sighting · once, guaranteed, φ 0.762
+
+The existing `perf_lion_dance` is intact and unchanged: two dancers under one flowing costume (a carried bulbous head trailing a segmented cloth body), its own drummer beside it, its own flanking crowd — a shorter, self-contained troupe with no staged procession to build (no pearl, no cart; the pearl is the dragon's to chase).
+
+**Where it sits, and why there.** `foreground_weekend.happening()` latches a beat's start the first frame `phase` reaches `window[0]`, so every beat's start second is deterministic, not randomized inside its window — which makes the festival's real, un-narrated gaps computable exactly. The Monkey King's troupe (§4, ★ Show Square 2) ends at t = 299.7 s; the dragon's own held "breath" wants silence from ≈ 308.5 s. That leaves an ~8.8 s stretch that nothing else claims. The lion's 6 s act starts right after the troupe, at φ 0.762 (t ≈ 299.8 s), and finishes by t ≈ 305.8 s — a clean ≈2.7 s pause still lands before the breath, so nothing collides.
+
+**Cadence:** exactly one per cycle, deterministic at φ 0.762 — same guarantee as the dragon, same "once, not a roll" mechanism.
+
+**Staging:** simple screen-crossing, right to left, over its 6 s (`sx = (W+90) − k·(W+90+150)`) — the same interpolation the dragon uses for its own procession, just without the extra cart/pearl set pieces since the act carries none.
+
+**Why it doesn't pause the market.** The market-pause beat (`parade_active()`) stays keyed to the dragon alone. Pausing for the lion too would spend the plan's single "the market stops for this" gesture twice in one night and dilute the dragon's claim to being the crown — the lion parades past a market that's still working, which is exactly what keeps it reading as the smaller of the two sightings.
 
 ---
 
@@ -350,7 +371,7 @@ Tempting, thematically perfect, and **cut**. Sky lanterns would rise into the pi
 |---|---|
 | B1 | **Market strip mechanic** — 5–7 consecutive stall slots at 96–130 px pitch (replaces one-stall-at-a-time), with kind-deck no-repeat-within-3, independent awning/openness/pose dealing, and 200–400 px cross-alley gaps between strips |
 | B2 | **Mid-deck spine row** — a third z-band at `feet_y ≈ 616`, scale 1.2, offset half a pitch from the far row; peak blocks only. *(Stretch: if the z-band is too costly, fall back to a single row at 96 px pitch = 3.75 stalls/frame, which still beats the day plan's signature.)* |
-| B3 | **Guaranteed dragon scheduling** — deterministic single spawn at φ 0.789; the rare 2% roll persists unchanged for all other phases; lion suppressed inside the window |
+| B3 | **Guaranteed dragon + lion scheduling** — deterministic single spawn each: dragon at φ 0.789, lion at φ 0.762 (never overlapping); the rare 2% roll persists unchanged for all other phases |
 | B4 | **Parade drift** — set piece translates at +0.55 × scroll for its lifetime (relative 72 px/s, ~10.4 s traverse) |
 | B5 | **Market pause** — stalls within the dragon's 2 blocks go non-working (vendor steps out, steam 3→1 wisps, calls off) for traverse + 1.5 s, then restart staggered 0.4 s |
 | B6 | **Crowd modes ×7** — walk-and-eat, standing eaters, 4-deep queue (theatre stalls, 2/phrase), table sit, browse pause, spark-watch, parade-follow |
@@ -380,7 +401,6 @@ Tempting, thematically perfect, and **cut**. Sky lanterns would rise into the pi
 
 - No live-animal monkey act (§4).
 - No sky-lantern release (§4).
-- No lion dance tonight.
 - No text, no HUD marker, no cheer sting, no confetti — the day plan's prohibitions hold everywhere.
 
 ---
