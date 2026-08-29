@@ -605,49 +605,54 @@ def house_cottage_rect():
 def draw_profile_frame(surf):
     """The jewel-frame-on-Pip treatment, keyed to the cloud.
 
-    It bounds the cottage plus Pip's true sprite box and closes on the cloud's
-    measured base, so the frame reads as enclosing the whole floating island —
-    cottage, bird and cloud — which is also the object the sign chain hangs
-    from. The nameplate rides the cloud rather than a timber face."""
+    The frame now hugs the cottage plus Pip's true sprite box only — it no
+    longer has to reserve room for a nameplate straddling its own bottom
+    rule, so it can close right at the cottage's foundation. The PROFILE tag
+    is a separate element hanging clear below the cloud, where the sign
+    chain's ropes have already left the cloud's outer lobes and are running
+    down and inward to the first plank, so a centred tag between them never
+    crosses a line."""
     # Fit to the sprite's OPAQUE cottage, not its 160x120 canvas — the canvas
     # is mostly empty air above the roof, which used to leave the frame
     # floating 30 px clear of anything it was supposed to be framing.
     cot = house_cottage_rect()
     bird_r = pygame.Rect(PIP_CX - 31, int(PIP_CY) - 27, 64, 51)
-    fr = cot.union(bird_r).inflate(24, 24)
+    fr = cot.union(bird_r).inflate(18, 18)
     # The deck run must be free to continue past the frame into the START
     # slab; the frame stops short of it rather than boxing the join in.
-    cloud = cloud_rect()
-    # Close at the cottage's stone foundation, not the cloud's base. A 22px
-    # nameplate on a 26px cloud buries it; ending here leaves the cloud
-    # floating free below the frame, which is what the chain hangs from.
     fr.width = min(fr.width, 168 - fr.left)
-    fr.height = (cloud.top - 2) - fr.top
+    cloud = cloud_rect()
+    # Close at the cottage's stone foundation — the frame's own job stops
+    # there now that the tag has moved off it.
+    fr.height = min(fr.height, (cloud.top - 6) - fr.top)
 
-    pygame.draw.rect(surf, GOLD_MID, fr, width=1, border_radius=14)
-    pygame.draw.rect(surf, GOLD_BRIGHT, fr.inflate(-12, -12), width=1, border_radius=9)
-    pygame.draw.line(surf, (*GOLD_PALE, 200), (fr.left + 16, fr.top + 2),
-                     (fr.right - 16, fr.top + 2), 1)
+    pygame.draw.rect(surf, GOLD_MID, fr, width=1, border_radius=13)
+    pygame.draw.rect(surf, GOLD_BRIGHT, fr.inflate(-10, -10), width=1, border_radius=8)
+    pygame.draw.line(surf, (*GOLD_PALE, 200), (fr.left + 14, fr.top + 2),
+                     (fr.right - 14, fr.top + 2), 1)
 
-    plate = pygame.Rect(0, 0, 112, 22)
-    # Straddle the frame's lower rule, so it reads as bolted to the base of
-    # the house rather than laid across the cloud.
-    plate.center = (fr.centerx, fr.bottom)
-    pygame.draw.rect(surf, GOLD_DEEP, plate, border_radius=7)
-    pygame.draw.rect(surf, GOLD_MID, plate.inflate(-3, -3), border_radius=6)
+    # The tag: between the two rope columns that leave the cloud's outer
+    # lobes at CLOUD_HOOK_X and run down to the first plank. The right rope
+    # angles inward faster than the left one stays put, so centring on the
+    # cloud alone leaves under a pixel of clearance on that side — shifted
+    # 4px left for even clearance on both.
+    plate = pygame.Rect(0, 0, 112, 26)
+    plate.midtop = (cloud.centerx - 4, cloud.bottom + 8)
+    pygame.draw.rect(surf, GOLD_DEEP, plate, border_radius=8)
+    pygame.draw.rect(surf, GOLD_MID, plate.inflate(-3, -3), border_radius=7)
     pygame.draw.line(surf, GOLD_PALE, (plate.left + 8, plate.top + 3),
                      (plate.right - 8, plate.top + 3), 1)
     pygame.draw.line(surf, (86, 60, 16), (plate.left + 8, plate.bottom - 3),
                      (plate.right - 8, plate.bottom - 3), 1)
     inset = plate.inflate(-8, -8)
-    pygame.draw.rect(surf, (52, 34, 14), inset, border_radius=4)
+    pygame.draw.rect(surf, (52, 34, 14), inset, border_radius=5)
     lx = inset.centerx - 7
     _hud._tracked_label(surf, "PROFILE", (lx, inset.centery + 1), 13,
                         color=(34, 20, 8), track=2, alpha=150)
     _hud._tracked_label(surf, "PROFILE", (lx, inset.centery), 13,
                         color=GOLD_PALE, track=2, alpha=250)
     _hud._profile_tri(surf, inset.right - 9, inset.centery, 4, GOLD_PALE)
-    return fr
+    return fr.union(plate)
 
 
 def _verify_pip(before, after):
