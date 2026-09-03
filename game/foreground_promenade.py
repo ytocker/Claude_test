@@ -1020,24 +1020,6 @@ def _ground_furniture(surf, w, scroll, pal, fd=1.0):
             _enq_sunk((_mix32(k * 0x85EBCA77) >> 5) % 9, TB_FIXTURE,
                       lambda s, sx=sx: sp._draw_cairn(s, sx, pal, scale=1.2))
     sp._latch_prune(('furn', 12))
-    # THE TREE LINE — the town's planned street planting. Both lamp rows run
-    # the 251 lattice at even offsets (x0 18 and 143 → gaps of 125/126 px), and
-    # EVERY gap holds a tree slot (x0 80 and 206, ≥62 px from every lamp
-    # forever) — lamp–tree–lamp–tree with no treeless gap, the rhythm real
-    # streets plant. (The gold row's old 253 period drifted through every
-    # offset and eventually grew a tree out of a lamp post.) Per-run,
-    # per-block plan: one species + height per block (uniform rows), a cadence
-    # per block, and rare deliberately unplanted stretches. Pure in (k, run
-    # seed) and phase-free — trees don't move at dusk. The second offset's
-    # slot is the tighter one, so it plants the slim conifer form.
-    for x0, slim in ((80, False), (206, True)):
-        for sx, k in sp._world_xs(scroll, w, 251, x0=x0):
-            cad, salt, _gdn = _wk.plant_scheme(k * 251 + x0)
-            if not cad or (k % cad):
-                continue
-            _zbuf.enqueue(fy, TB_STRUCTURE,
-                          lambda s, sx=sx, salt=salt, slim=slim:
-                          _street_tree(s, sx, pal, salt, slim=slim))
     # PLANTING BEDS — only on the blocks the plan marks as garden stretches,
     # so a bed reads as a kept front-garden rather than a random pot drop. The
     # bed's soil rectangle + stone edging draw first (back line, structure
@@ -1540,41 +1522,6 @@ def _grn_pick(pool, k, salt):
     if n > 1 and (_mix32(((k - 1) * 0x9E3779B1) ^ (salt * 0x85EBCA77)) % n) == i:
         i = (i + 1 + (h >> 8) % (n - 1)) % n
     return pool[i]
-
-
-def _street_tree(surf, sx, pal, salt, slim=False):
-    """One planted street tree — the tree line's own silhouette. The greenery
-    pool's tallest pots top out ~52 px, which read as shrubs beside the ~90 px
-    lamp posts; a street tree needs a bare trunk and a canopy at lantern
-    height for lamp–tree–lamp to read as a rhythm. ONE form + height per
-    block (`salt`), because uniform rows are what says 'planted'. `slim`
-    forces the narrow conifer form for the tighter lamp gap."""
-    night = _nightf(pal)
-    h = _mix32(salt * 0x9E3779B1)
-    form = 1 if slim else h % 3
-    top = 506 + (h >> 4) % 13              # canopy top y ≈ 506..518 (±6 / block)
-    trunk = _retint_person((96, 68, 44), night)
-    fol_d = _retint_person((44, 92, 54), night)
-    fol_m = _retint_person((66, 122, 64), night)
-    fol_l = _retint_person((96, 150, 78), night)
-    by = GROUND_Y - 1
-    pygame.draw.line(surf, trunk, (sx, by), (sx, top + 24), 3)
-    pygame.draw.line(surf, _shade(trunk, -18), (sx + 1, by), (sx + 1, top + 28), 1)
-    if form == 0:            # round crown
-        pygame.draw.circle(surf, fol_d, (sx, top + 15), 15)
-        pygame.draw.circle(surf, fol_m, (sx - 2, top + 12), 12)
-        pygame.draw.circle(surf, fol_l, (sx - 5, top + 9), 7)
-    elif form == 1:          # tiered conifer
-        for i, (tw, yy) in enumerate(((28, 30), (21, 19), (14, 9))):
-            c = (fol_d, fol_m, fol_l)[i]
-            pygame.draw.polygon(surf, c, [(sx - tw // 2, top + yy),
-                                          (sx + tw // 2, top + yy),
-                                          (sx, top + yy - 13)])
-    else:                    # twin-lobe scholar tree
-        pygame.draw.ellipse(surf, fol_d, (sx - 16, top + 7, 20, 14))
-        pygame.draw.ellipse(surf, fol_m, (sx - 4, top + 1, 20, 15))
-        pygame.draw.ellipse(surf, fol_l, (sx - 8, top + 5, 12, 9))
-        pygame.draw.line(surf, trunk, (sx, top + 22), (sx + 6, top + 9), 2)
 
 
 def _grn_at(surf, x, idx, dy):
