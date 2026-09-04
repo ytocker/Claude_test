@@ -286,34 +286,21 @@ if __name__ == "__main__":
         CW, CH = W, H
         PAD, GAP, LAB, HEAD = 22, 14, 66, 52
 
-        # The reference panels are rendered from the branches that actually
-        # ship — main (live) and v5_skybit (next deployment) — NOT from this
-        # scratch branch. CLAUDE.md is explicit that claude/* task branches
-        # are not representative, and this one is not: it carries an earlier
-        # menu redesign (framed Pip diorama, plank chain, PROFILE card) that
-        # exists nowhere in the real game. Rendered by
-        # tools/menu-design/render_branch_menu.py against a worktree of each
-        # branch and committed under docs/main-menu/reference/.
-        REF = "/home/user/skybit/docs/main-menu/reference/%s"
-        panels = [
-            ("main", pygame.image.load(REF % "menu_main_day.png"),
-             "LIVE game today - no profile frame at all; START is a centred pill"),
-            ("v5_skybit", pygame.image.load(REF % "menu_v5_skybit_day.png"),
-             "next deployment - same menu; still no profile frame"),
-        ]
+        live_surf, live_fr, live_pip = build_shipped(0.20)
+        stats["current"] = shipped_stats(live_fr, live_pip)
+        panels = [("current", live_surf,
+                   "the live game menu today - not square, not keyed to the cloud")]
         panels += [(s, None, PRESETS[s][1]) for s in order]
-        for k in ("main", "v5_skybit"):
-            stats[k] = None
 
         n = len(panels)
         sheet = pygame.Surface((PAD * 2 + n * CW + (n - 1) * GAP,
                                 PAD * 2 + HEAD + CH + LAB))
         sheet.fill((17, 17, 23))
-        sheet.blit(fh.render("SKYBIT · PROFILE frame · the game today, then five squares",
+        sheet.blit(fh.render("SKYBIT · PROFILE frame · today, then five squares",
                              True, (228, 204, 134)), (PAD, PAD))
         sheet.blit(fs.render(
-            "the two gold-boxed panels are the real game (main = live, v5_skybit = next deploy): neither has a profile frame. "
-            "The five sit on the harbour-post redesign base. Each is a true square, bottom edge 3px under the cloud's base (y324), tag 5px under that.",
+            "leftmost is the shipped menu. Every option after it: a true square, bottom edge 3px "
+            "under the cloud's base (y324), PROFILE tag 5px under that.",
             True, (150, 148, 142)), (PAD, PAD + 26))
 
         y = PAD + HEAD
@@ -322,23 +309,19 @@ if __name__ == "__main__":
                 surf = build(0.20, slug)
             x = PAD + i * (CW + GAP)
             sheet.blit(surf, (x, y))
+            live = slug == "current"
+            pygame.draw.rect(sheet, (150, 122, 62) if live else (76, 76, 86),
+                             (x, y, CW, CH), 2 if live else 1)
             st = stats[slug]
-            ref = st is None
-            pygame.draw.rect(sheet, (150, 122, 62) if ref else (76, 76, 86),
-                             (x, y, CW, CH), 2 if ref else 1)
-            head = slug if ref else "%s   %d x %d" % (slug, *st["side"])
-            t = fl.render(head, True,
-                          (232, 206, 138) if ref else (240, 240, 246))
+            t = fl.render("%s   %d x %d" % (slug, *st["side"]), True,
+                          (232, 206, 138) if live else (240, 240, 246))
             sheet.blit(t, t.get_rect(midtop=(x + CW // 2, y + CH + 8)))
             c = fs.render(thesis, True, (156, 154, 148))
             sheet.blit(c, c.get_rect(midtop=(x + CW // 2, y + CH + 28)))
-            if ref:
-                m, col = "REFERENCE - shipping code, not a proposal", (206, 176, 108)
-            else:
-                col = (214, 106, 96) if st["clip_px"] else (128, 186, 132)
-                m = ("Pip  L%d R%d T%d B%d      roof gap %d      outside frame %d px"
-                     % (*st["pip"], st["cottage"][2], st["clip_px"]))
-            c2 = fs.render(m, True, col)
+            bad = st["clip_px"] > 0
+            m = "Pip  L%d R%d T%d B%d      roof gap %d      outside frame %d px" % (
+                *st["pip"], st["cottage"][2], st["clip_px"])
+            c2 = fs.render(m, True, (214, 106, 96) if bad else (128, 186, 132))
             sheet.blit(c2, c2.get_rect(midtop=(x + CW // 2, y + CH + 46)))
 
         out = ("/home/user/skybit/docs/main-menu/harbour-post/"
@@ -346,7 +329,7 @@ if __name__ == "__main__":
         os.makedirs(os.path.dirname(out), exist_ok=True)
         pygame.image.save(sheet, out)
         print("saved", out, sheet.get_size())
-        order = order
+        order = ["current"] + order
     else:
         which = os.environ.get("OPTION", "S3")
         out = os.environ.get("OUT", "/tmp/_pfsq_%s.png" % which)
