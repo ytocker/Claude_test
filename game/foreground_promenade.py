@@ -10,7 +10,7 @@ street in from empty as a run opens (the market "opening"). The arc:
          (crate stacks), a songbird-cage stand, kids, a dog, a wish-tree.
   GOLDEN Afternoon — lamp posts + lantern garland go up; the elder on a bench.
   DUSK   Lamps lighting — a LAMPLIGHTER kindling the lanterns, strollers.
-  NIGHT  Festival PEAK — garland + fairy lights + lamps glowing (capped), a
+  NIGHT  Festival PEAK — lantern garland + lamps glowing (capped), a
          campfire, a busy kiosk, full crowd. Then a near-empty PRE-DAWN teardown.
 
 Dressing primitives (lamp posts, lantern garland, fairy lights, planters) come from
@@ -300,14 +300,14 @@ sp._clamp_night = _capped_clamp_night
 sp._add_lamp_glow = _capped_add_glow
 
 
-# ── hung STRING lights stay lit all cycle (unlike the dusk-gated lamp posts) ───
+# ── the hung lantern garland reads "on" for its whole window ───────────────────
 #
-# The festival lantern garland + fairy lights are strung to read "on" day AND
-# night and to cast a gentle warm wash on the promenade. Their lit faces + halos
-# follow a daytime FLOOR under the normal dusk->night curve, so they never drop
-# dark the way the street lamps (which only kindle at dusk) correctly do. At full
-# night the floor is moot (intensity is already 1.0), so the night-cap behaviour
-# — capped faces + capped additive halos staying under the coin — is unchanged.
+# The garland is strung from market setup (0.416) through the small hours, so the
+# front of that window is still daylight. Its lit faces + halos follow a daytime
+# FLOOR under the normal dusk->night curve, so a lantern hung in the afternoon
+# still reads lit instead of as a dead grey shell. At full night the floor is moot
+# (intensity is already 1.0), so the night-cap behaviour — capped faces + capped
+# additive halos staying under the coin — is unchanged.
 _STRING_DAY_FLOOR = 0.40
 
 
@@ -329,11 +329,11 @@ def _string_glow(surf, cx, cy, pal, *, radius=8, alpha=66, color=(255, 196, 110)
 
 # ── lighten the festival WIRE so the eye reads "bulbs on a line" ──────────────
 #
-# The r15 garland rope / fairy wire were dark (≈62,52,44) so at night the strung
-# spans read as black scribble crisscrossing the upper band. The promenade draws
-# the wire as ONE thin catenary per span lifted toward the sky value (a faint
-# semi-transparent line), so only the bulbs carry weight. Both strand drawers are
-# re-bound to use this faint-wire variant; only the rope colour changes.
+# The r15 garland rope was dark (≈62,52,44) so at night the strung spans read as
+# black scribble crisscrossing the upper band. The promenade draws the wire as ONE
+# thin catenary per span lifted toward the sky value (a faint semi-transparent
+# line), so only the bulbs carry weight. The strand drawer is re-bound to use this
+# faint-wire variant; only the rope colour changes.
 
 def _faint_wire_color(pal):
     """A single hairline wire tinted toward the night sky so it nearly dissolves —
@@ -394,32 +394,7 @@ def _garland_faint(surf, w, scroll, pal, *, top_y, period=120, sag=24,
                 surf.blit(caps, (int(bx) - capw // 2 - 1, int(by) - 7))
 
 
-def _fairy_faint(surf, w, scroll, pal, *, top_y, period=200, sag=26, per_span=5,
-                 span_gate=None):
-    """r15 fairy lights with the faint single-catenary wire. The hung bulbs stay
-    LIT all cycle (a warm bulb + a capped halo via the string-light floor) instead
-    of dropping to dead grey beads by day, so the strand always reads 'on' and
-    lights the scene a little."""
-    dark = sp._is_dark_sky(pal)
-    warm = (250, 200, 120)
-    for xl, xr, k in sp._garland_spans(scroll, w, period, x0=8):
-        if span_gate is not None and not span_gate(k):
-            continue
-        _draw_faint_catenary(surf, xl, xr, top_y, sag, 20, pal)
-        for j in range(per_span):
-            tt = (j + 0.5) / per_span
-            bx, by = sp._span_point(xl, xr, top_y, sag, tt)
-            bx, by = int(bx), int(by) + 2
-            # night: the shipped capped+dusk-ramped warm bulb (night-cap safe);
-            # day: a full warm paper-bulb so the strand stays clearly lit.
-            face = sp._clamp_night(warm)[:3] if dark else warm
-            pygame.draw.circle(surf, _mix(face, (110, 78, 46), 0.4), (bx, by), 3)
-            pygame.draw.circle(surf, face, (bx, by), 2)
-            _string_glow(surf, bx, by, pal, radius=7, alpha=54, color=warm)
-
-
 sp._draw_lantern_garland = _garland_faint
-sp._draw_fairy_lights = _fairy_faint
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -2046,7 +2021,7 @@ def _roster_for(phase):
 
 def _overhead_busy(world_x, phase):
     """True unless the owning block's personality is one of the quiet/green/works
-    lows. The hanging decorations (bunting, garland, fairy lights) used to draw
+    lows. The hanging decorations (bunting, lantern garland) used to draw
     over every stretch of sidewalk unconditionally, with no per-block variation
     at all — this gives quiet blocks a real gap in the overhead ornament, the
     same way `foreground_weekend` already varies cast density block by block."""
@@ -2068,18 +2043,17 @@ def _dressing(surf, w, scroll, pal, phase):
             draw_prayer_flags(surf, int(xl), GROUND_Y - 118,
                               int(xr), GROUND_Y - 116, n=5)
     sp._latch_prune(('bunting',))
-    # The lantern garland and the fairy lights used to both hang over every
-    # single block, all cycle, on top of each other — the two systems now take
-    # turns by block parity (the same even/odd split `_HIGH_EVEN`/`_HIGH_ODD`
-    # already use for personalities), so a given stretch gets ONE hung string,
-    # never both, and only on blocks busy enough to earn one.
-    lantern_win = True                  # hung lantern garland stays strung + lit all cycle
+    # Exactly one hanging layer is possible at any hour: this window is the
+    # complement of the bunting's, so the street wears cloth flags by day and
+    # paper lanterns by night, never both. The lanterns go up as the market is
+    # set up (0.416) and come down at first light, the way the lamp posts do —
+    # a lit paper lantern at noon read as clutter, not atmosphere.
+    lantern_win = (0.416 <= p < 0.924)
     sp._draw_lantern_garland(surf, w, scroll, pal, top_y=GROUND_Y - 97,
                              period=127, sag=23, per_span=3,
                              span_gate=lambda k: sp._slot_latch(('lantgar',), k,
                                  lambda k=k: (lantern_win
-                                              and _overhead_busy(12 + k * 127, phase)
-                                              and _wk.block_at(12 + k * 127) % 2 == 0)))
+                                              and _overhead_busy(12 + k * 127, phase))))
     sp._latch_prune(('lantgar',))
     # A SECOND lantern row interleaves through the night market only, on the
     # same festival stall-row blocks the lantern arch itself gates to — the
@@ -2119,14 +2093,6 @@ def _dressing(surf, w, scroll, pal, phase):
             if lamps_lit:
                 add_light_spot(sx, (250, 210, 140))
     sp._latch_prune(('lampG',))
-    fairy_win = True                    # hung fairy lights stay strung + lit all cycle
-    sp._draw_fairy_lights(surf, w, scroll, pal, top_y=GROUND_Y - 84,
-                          period=199, sag=24, per_span=5,
-                          span_gate=lambda k: sp._slot_latch(('fairy',), k,
-                              lambda k=k: (fairy_win
-                                           and _overhead_busy(8 + k * 199, phase)
-                                           and _wk.block_at(8 + k * 199) % 2 == 1)))
-    sp._latch_prune(('fairy',))
     _festival_dressing(surf, w, scroll, pal, p)
 
 
