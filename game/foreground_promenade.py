@@ -2044,6 +2044,15 @@ def _roster_for(phase):
         return (_scene_quiet, _scene_rest, _scene_campfire)
     return (_scene_food_tea, _scene_sweeper, _scene_quiet, _scene_vendor)  # FIRST LIGHT — tea + brooms first
 
+def _overhead_busy(world_x, phase):
+    """True unless the owning block's personality is one of the quiet/green/works
+    lows. The hanging decorations (bunting, garland, fairy lights) used to draw
+    over every stretch of sidewalk unconditionally, with no per-block variation
+    at all — this gives quiet blocks a real gap in the overhead ornament, the
+    same way `foreground_weekend` already varies cast density block by block."""
+    return _wk.personality(_wk.block_at(world_x), phase) not in _wk._LOW
+
+
 def _dressing(surf, w, scroll, pal, phase):
     """Phase-gated street fixtures in one pass (glow follows the palette). Lamps +
     lanterns are installed for the evening and stay as fixtures; the prayer-flag
@@ -2054,24 +2063,33 @@ def _dressing(surf, w, scroll, pal, phase):
     # flashing at the phase-window edge.
     bunting_win = (p >= 0.924 or p < 0.416)                      # daytime bunting
     for xl, xr, k in sp._garland_spans(scroll, w, period=149, x0=20):
-        if sp._slot_latch(('bunting',), k, lambda: bunting_win):
+        if sp._slot_latch(('bunting',), k, lambda k=k: (
+                bunting_win and _overhead_busy(20 + k * 149, phase))):
             draw_prayer_flags(surf, int(xl), GROUND_Y - 118,
                               int(xr), GROUND_Y - 116, n=5)
     sp._latch_prune(('bunting',))
+    # The lantern garland and the fairy lights used to both hang over every
+    # single block, all cycle, on top of each other — the two systems now take
+    # turns by block parity (the same even/odd split `_HIGH_EVEN`/`_HIGH_ODD`
+    # already use for personalities), so a given stretch gets ONE hung string,
+    # never both, and only on blocks busy enough to earn one.
     lantern_win = True                  # hung lantern garland stays strung + lit all cycle
     sp._draw_lantern_garland(surf, w, scroll, pal, top_y=GROUND_Y - 97,
                              period=127, sag=23, per_span=3,
                              span_gate=lambda k: sp._slot_latch(('lantgar',), k,
-                                                                lambda: lantern_win))
+                                 lambda k=k: (lantern_win
+                                              and _overhead_busy(12 + k * 127, phase)
+                                              and _wk.block_at(12 + k * 127) % 2 == 0)))
     sp._latch_prune(('lantgar',))
-    # A SECOND lantern row interleaves through the night market only — the
-    # overhead ceiling visibly doubles for the evening (span-latched so it
-    # strings itself up ahead of Pip and comes down span by span after).
+    # A SECOND lantern row interleaves through the night market only, on the
+    # same festival stall-row blocks the lantern arch itself gates to — the
+    # overhead ceiling doubles where the market actually is, not everywhere.
     market_win = (0.680 <= p < 0.840)
     sp._draw_lantern_garland(surf, w, scroll, pal, top_y=GROUND_Y - 112,
                              period=127, sag=20, per_span=4, x0=63,
                              span_gate=lambda k: sp._slot_latch(('lantgar2',), k,
-                                                                lambda: market_win))
+                                 lambda k=k: (market_win and _wk.personality(
+                                     _wk.block_at(63 + k * 127), phase) == _wk.STALL_ROW)))
     sp._latch_prune(('lantgar2',))
     # Lamp posts: a discrete world-slot row. Latch each post's "is the evening
     # window open?" at entry so the row scrolls IN when dusk arrives and scrolls
@@ -2105,7 +2123,9 @@ def _dressing(surf, w, scroll, pal, phase):
     sp._draw_fairy_lights(surf, w, scroll, pal, top_y=GROUND_Y - 84,
                           period=199, sag=24, per_span=5,
                           span_gate=lambda k: sp._slot_latch(('fairy',), k,
-                                                             lambda: fairy_win))
+                              lambda k=k: (fairy_win
+                                           and _overhead_busy(8 + k * 199, phase)
+                                           and _wk.block_at(8 + k * 199) % 2 == 1)))
     sp._latch_prune(('fairy',))
     _festival_dressing(surf, w, scroll, pal, p)
 
