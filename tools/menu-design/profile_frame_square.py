@@ -94,6 +94,62 @@ def draw_frame(surf, fr, tag):
     return fr.union(tag)
 
 
+def build_shipped(phase):
+    """The live menu, exactly as scenes.py draws STATE_MENU — hud.draw_menu
+    owns the veil, the profile card, the START pill and the plank chain. This
+    is the thing the five squares are proposals against, so it is rendered
+    through the shipping code path rather than re-mocked."""
+    from game.scenes import App, STATE_MENU
+    from game.world import World
+    from game import biome as _biome
+    from game import foreground
+    from game.config import W as GW, H as GH
+
+    app = App()
+    app._cooldown_t = 0.0
+    app._fetch_pending = False
+    app.state = STATE_MENU
+    app.world = World()
+    for _ in range(40):
+        app.world.world_idle_tick(1 / 60)
+    app.world.biome_time = phase * _biome.CYCLE_SECONDS
+    app.world.weather.wetness = 0.0
+    app.world.bird.frame_t = 0.0
+
+    s = app.screen
+    app._draw_background(s)
+    foreground.draw_near_lane(s, app.world.bg_scroll, app.world.biome_palette,
+                              app.world.biome_phase, app.world.biome_time)
+    house = B._intro.get_sprite("skyhouse_post")
+    s.blit(house, (int(GW * 0.30) - house.get_width() // 2,
+                   int(GH * 0.42) - house.get_height() // 2))
+    app.world.bird.draw(s, 0, 0)
+    app.hud.draw_menu(s, 1 / 60, app.best)
+
+    # Same draw call on its own layer: the margin table has to be measured
+    # against the silhouette this panel actually shows.
+    pip = pygame.Surface((GW, GH), pygame.SRCALPHA)
+    app.world.bird.draw(pip, 0, 0)
+    m = pygame.mask.from_surface(pip, threshold=8)
+    px = [(x, y) for x in range(GW) for y in range(200, 340) if m.get_at((x, y))]
+    return s, app.hud.menu_profile_rect, px
+
+
+def shipped_stats(fr, px):
+    xs = [x for x, y in px]
+    ys = [y for x, y in px]
+    return dict(
+        side=(fr.width, fr.height),
+        square=fr.width == fr.height,
+        rect=(fr.left, fr.top, fr.right - 1, fr.bottom - 1),
+        clip_px=len([p for p in px if not fr.collidepoint(p)]),
+        pip=(min(xs) - fr.left, fr.right - 1 - max(xs),
+             min(ys) - fr.top, fr.bottom - 1 - max(ys)),
+        cottage=(0, 0, B.house_cottage_rect().top - fr.top),
+        below_cloud=fr.bottom - 1 - (B.cloud_rect().bottom - 1),
+    )
+
+
 def build(phase, slug):
     import random
     from game.scenes import App, STATE_MENU
@@ -229,37 +285,51 @@ if __name__ == "__main__":
         fs = pygame.font.Font(F, 12)
         CW, CH = W, H
         PAD, GAP, LAB, HEAD = 22, 14, 66, 52
-        n = len(order)
+
+        live_surf, live_fr, live_pip = build_shipped(0.20)
+        stats["current"] = shipped_stats(live_fr, live_pip)
+        panels = [("current", live_surf,
+                   "the live game menu today - not square, not keyed to the cloud")]
+        panels += [(s, None, PRESETS[s][1]) for s in order]
+
+        n = len(panels)
         sheet = pygame.Surface((PAD * 2 + n * CW + (n - 1) * GAP,
                                 PAD * 2 + HEAD + CH + LAB))
         sheet.fill((17, 17, 23))
-        sheet.blit(fh.render("SKYBIT · PROFILE frame · five squares",
+        sheet.blit(fh.render("SKYBIT · PROFILE frame · today, then five squares",
                              True, (228, 204, 134)), (PAD, PAD))
         sheet.blit(fs.render(
-            "every option: a true square, bottom edge 3px under the cloud's base (y324), "
-            "PROFILE tag 5px under that. Only side length and horizontal anchor vary.",
+            "leftmost is the shipped menu. Every option after it: a true square, bottom edge 3px "
+            "under the cloud's base (y324), PROFILE tag 5px under that.",
             True, (150, 148, 142)), (PAD, PAD + 26))
+
         y = PAD + HEAD
-        for i, slug in enumerate(order):
-            surf = build(0.20, slug)
+        for i, (slug, surf, thesis) in enumerate(panels):
+            if surf is None:
+                surf = build(0.20, slug)
             x = PAD + i * (CW + GAP)
             sheet.blit(surf, (x, y))
-            pygame.draw.rect(sheet, (76, 76, 86), (x, y, CW, CH), 1)
+            live = slug == "current"
+            pygame.draw.rect(sheet, (150, 122, 62) if live else (76, 76, 86),
+                             (x, y, CW, CH), 2 if live else 1)
             st = stats[slug]
-            t = fl.render("%s   %d x %d" % (slug, *st["side"]), True, (240, 240, 246))
+            t = fl.render("%s   %d x %d" % (slug, *st["side"]), True,
+                          (232, 206, 138) if live else (240, 240, 246))
             sheet.blit(t, t.get_rect(midtop=(x + CW // 2, y + CH + 8)))
-            c = fs.render(PRESETS[slug][1], True, (156, 154, 148))
+            c = fs.render(thesis, True, (156, 154, 148))
             sheet.blit(c, c.get_rect(midtop=(x + CW // 2, y + CH + 28)))
             bad = st["clip_px"] > 0
             m = "Pip  L%d R%d T%d B%d      roof gap %d      outside frame %d px" % (
                 *st["pip"], st["cottage"][2], st["clip_px"])
             c2 = fs.render(m, True, (214, 106, 96) if bad else (128, 186, 132))
             sheet.blit(c2, c2.get_rect(midtop=(x + CW // 2, y + CH + 46)))
+
         out = ("/home/user/skybit/docs/main-menu/harbour-post/"
                "profile-frame/square_showcase.png")
         os.makedirs(os.path.dirname(out), exist_ok=True)
         pygame.image.save(sheet, out)
         print("saved", out, sheet.get_size())
+        order = ["current"] + order
     else:
         which = os.environ.get("OPTION", "S3")
         out = os.environ.get("OUT", "/tmp/_pfsq_%s.png" % which)
@@ -268,4 +338,4 @@ if __name__ == "__main__":
 
     print("subtitle mass ends at y%d" % sub)
     for s in order:
-        print("%-4s %s" % (s, stats[s]))
+        print("%-8s %s" % (s, stats[s]))
