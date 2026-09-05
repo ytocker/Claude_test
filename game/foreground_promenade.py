@@ -1846,13 +1846,20 @@ _POP_KEYS = [
     (0.375, 0.44),  # the refill wave
     (0.396, 0.62),  # median run ends here — warm, full, golden
     (0.416, 0.66),  # sunset; night-market setup begins under it
-    (0.470, 0.62),
-    (0.483, 0.60),  # first drops — weather factor takes over from here
-    (0.538, 0.72),  # dusk; setup pushes on through the rain
-    (0.600, 0.80),
-    (0.629, 0.84),  # storm peak (weather crushes the actual to ~0.19)
-    (0.680, 0.90),  # rain ends — the festival floods back in
-    (0.694, 0.94),
+    # The rain is the day's LULL, not a busy street wearing umbrellas. This
+    # stretch used to climb (0.60 -> 0.90) straight through the storm, which
+    # cancelled the weather multiplier and left the deck as full as golden
+    # hour for all but ~16 s of the ~75 s of rain. It now falls with the
+    # weather and climbs back out, so the festival is arrived at rather than
+    # merely continued.
+    (0.470, 0.58),  # the sky goes heavy — shoppers start heading in
+    (0.483, 0.46),  # first drops — weather factor takes over from here
+    (0.510, 0.32),  # drizzle settles in; the browsing crowd gives up
+    (0.560, 0.24),  # only the setup crew and the tea stall hold out
+    (0.629, 0.22),  # storm peak — the open deck is down to the shelterers
+    (0.660, 0.32),  # the rain eases; the first few venture back
+    (0.680, 0.52),  # rain done — lanterns lit, the crowd starts returning
+    (0.700, 0.78),  # filling fast now
     (0.724, 1.00),  # FIRE-TREE NIGHT crest #1 (clear, dark, drying)
     (0.755, 0.95),
     (0.775, 0.98),  # crest #2 — the food-theatre spine
