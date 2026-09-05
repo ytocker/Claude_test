@@ -379,7 +379,11 @@ def _garland_faint(surf, w, scroll, pal, *, top_y, period=120, sag=24,
                                   color=color, scale=0.6,
                                   glow_radius=7, glow_alpha=0)
             glow_col = (255, 150, 110) if color == 'red' else (255, 205, 120)
-            _string_glow(surf, int(bx), int(by) + 5, pal, radius=7, alpha=52,
+            # The night market's signature light. The halo ran at alpha 52 —
+            # 43% of the available peak — which read as a dim bead rather than
+            # a lantern throwing light; it now carries a wider, stronger pool
+            # so the strung lanterns actually light the street under them.
+            _string_glow(surf, int(bx), int(by) + 5, pal, radius=12, alpha=86,
                          color=glow_col)
             if _nightf(pal) > 0.25:
                 add_light_spot(int(bx), glow_col)
@@ -414,7 +418,7 @@ def _retint_person(col, night):
         return col
     # A firm floor on the cool so even at dusk a bright skin/cloth face is pulled
     # well under the festival lights; ramps further toward full night.
-    return _mix(col, (54, 64, 96), min(0.55, 0.40 * night + 0.20))
+    return _mix(col, (78, 88, 118), min(0.38, 0.28 * night + 0.14))
 
 
 def _draw_bench_person(surf, x_base, body_y, shirt, shirt_dk, hair, *, night=0.0):

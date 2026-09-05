@@ -57,7 +57,7 @@ def _retint(col, night):
     so no busker pixel out-glows the coin at night."""
     if night <= 0.05:
         return col
-    out = _mix(col, (54, 64, 96), min(0.55, 0.40 * night + 0.20))
+    out = _mix(col, (78, 88, 118), min(0.38, 0.28 * night + 0.14))
     if _luma(out) > NIGHT_GLOW_CAP:
         over = (_luma(out) - NIGHT_GLOW_CAP) / max(1.0, 255 - NIGHT_GLOW_CAP)
         out = _mix(out, (66, 76, 104), min(0.78, 0.5 + over))

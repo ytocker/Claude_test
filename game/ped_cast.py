@@ -44,7 +44,7 @@ def _retint_person(col, night):
     """Cool clothing toward the night ground band (matches promenade._retint_person)."""
     if night <= 0.05:
         return col
-    return _mix(col, (54, 64, 96), min(0.55, 0.40 * night + 0.20))
+    return _mix(col, (78, 88, 118), min(0.38, 0.28 * night + 0.14))
 
 
 def _cap_night(col, night):
