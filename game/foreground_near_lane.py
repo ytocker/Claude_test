@@ -277,26 +277,29 @@ def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y,
             if lift > 0:
                 scratch.fill((lift, lift, lift + 3),
                              special_flags=pygame.BLEND_RGB_ADD)
-        # 1 px silhouette outline, baked with the figure: dark against day
-        # paving crossfading to pale after dusk (when the wet/dark ground
-        # swallows a dark edge) — the floor that keeps a figure findable at
-        # the low-contrast tiers regardless of its own fabric colours. The
-        # colour is pre-scaled against the aerial dim so the bake's dim
-        # multiply can't erode the one cue meant to be a contrast floor.
+        # 1 px silhouette outline, baked with the figure — a DAY cue only. It
+        # used to crossfade to pale after dusk on the theory that a dark edge
+        # is swallowed by dark paving, but a pale ring traced every figure at
+        # night and read as a grey perimeter rather than as separation. The
+        # night contrast floor is now carried by the materials themselves
+        # (the retint sits clear of the paving band), so the edge simply fades
+        # out as night comes in. Colour is pre-scaled against the aerial dim
+        # so the bake's dim multiply can't erode it while it is still visible.
         wl = min(1.0, max(0.0, (night - 0.40) / 0.20))
-        oc = tuple(int((a + (b - a) * wl) * 255 / dv)
-                   for a, b in ((26, 172), (30, 182), (42, 202)))
-        oc = (min(255, oc[0]), min(255, oc[1]), min(255, oc[2]), 130)
-        try:
-            m = pygame.mask.from_surface(scratch)
-            wmax, hmax = scratch.get_size()
-            for px, py in m.outline(2):
-                for nx, ny_ in ((px - 1, py), (px + 1, py), (px, py - 1), (px, py + 1)):
-                    if (0 <= nx < wmax and 0 <= ny_ < hmax
-                            and scratch.get_at((nx, ny_)).a == 0):
-                        scratch.set_at((nx, ny_), oc)
-        except (pygame.error, IndexError):
-            pass
+        oa = int(130 * (1.0 - wl))
+        if oa > 0:
+            oc = tuple(min(255, int(a * 255 / dv)) for a in (26, 30, 42))
+            oc = (oc[0], oc[1], oc[2], oa)
+            try:
+                m = pygame.mask.from_surface(scratch)
+                wmax, hmax = scratch.get_size()
+                for px, py in m.outline(2):
+                    for nx, ny_ in ((px - 1, py), (px + 1, py), (px, py - 1), (px, py + 1)):
+                        if (0 <= nx < wmax and 0 <= ny_ < hmax
+                                and scratch.get_at((nx, ny_)).a == 0):
+                            scratch.set_at((nx, ny_), oc)
+            except (pygame.error, IndexError):
+                pass
 
     # A LARGE near figure shouldn't pull focus from the parrot: knock its
     # brightest fabric down ~6% (applied pre-resample so a smoothscale averages
